@@ -46,6 +46,7 @@
 #include "clang/Basic/TemplateKinds.h"
 #include "clang/Basic/TypeTraits.h"
 #include "clang/Sema/AnalysisBasedWarnings.h"
+#include "clang/Sema/CIRBasedWarnings.h"
 #include "clang/Sema/CleanupInfo.h"
 #include "clang/Sema/DeclSpec.h"
 #include "clang/Sema/ExternalSemaSource.h"
