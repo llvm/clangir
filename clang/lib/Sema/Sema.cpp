@@ -217,8 +217,9 @@ Sema::Sema(Preprocessor &pp, ASTContext &ctxt, ASTConsumer &consumer,
       InNonInstantiationSFINAEContext(false), NonInstantiationEntries(0),
       ArgumentPackSubstitutionIndex(-1), CurrentInstantiationScope(nullptr),
       DisableTypoCorrection(false), TyposCorrected(0), AnalysisWarnings(*this),
-      ThreadSafetyDeclCache(nullptr), VarDataSharingAttributesStack(nullptr),
-      CurScope(nullptr), Ident_super(nullptr) {
+      ThreadSafetyDeclCache(nullptr), CIRWarnings(*this),
+      VarDataSharingAttributesStack(nullptr), CurScope(nullptr),
+      Ident_super(nullptr) {
   assert(pp.TUKind == TUKind);
   TUScope = nullptr;
   isConstantEvaluatedOverride = false;
@@ -566,7 +567,10 @@ void Sema::PrintStats() const {
   llvm::errs() << NumSFINAEErrors << " SFINAE diagnostics trapped.\n";
 
   BumpAlloc.PrintStats();
-  AnalysisWarnings.PrintStats();
+  if (LangOpts.CIRWarnings)
+    CIRWarnings.PrintStats();
+  else
+    AnalysisWarnings.PrintStats();
 }
 
 void Sema::diagnoseNullableToNonnullConversion(QualType DstType,
@@ -2256,7 +2260,9 @@ Sema::PopFunctionScopeInfo(const AnalysisBasedWarnings::Policy *WP,
     popOpenMPFunctionRegion(Scope.get());
 
   // Issue any analysis-based warnings.
-  if (WP && D)
+  if (WP && D && LangOpts.CIRWarnings) {
+    CIRWarnings.IssueWarnings(*WP, Scope.get(), D, BlockType);
+  } else if (WP && D)
     AnalysisWarnings.IssueWarnings(*WP, Scope.get(), D, BlockType);
   else
     for (const auto &PUD : Scope->PossiblyUnreachableDiags)
