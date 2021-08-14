@@ -464,6 +464,8 @@ LANGOPT(IncrementalExtensions, 1, 0, " True if we want to process statements"
         "avoid tearing the Lexer and etc. down). Controlled by "
         "-fincremental-extensions.")
 
+LANGOPT(CIRWarnings, 1, 0, "Use CIR for analysis based warnings")
+
 #undef LANGOPT
 #undef COMPATIBLE_LANGOPT
 #undef BENIGN_LANGOPT
