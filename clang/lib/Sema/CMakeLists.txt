@@ -118,6 +118,7 @@ add_clang_library(clangSema
   clangLex
   clangSupport
 
+  clangCIR
   ${dialect_libs}
   MLIRCIR
   MLIRAnalysis
