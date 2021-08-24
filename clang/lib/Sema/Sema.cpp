@@ -2285,10 +2285,14 @@ Sema::PopFunctionScopeInfo(const AnalysisBasedWarnings::Policy *WP,
   if (LangOpts.OpenMP)
     popOpenMPFunctionRegion(Scope.get());
 
-  // Issue any analysis-based warnings.
-  if (WP && D && LangOpts.CIRWarnings) {
+  // Current entry point into emitting CIR per-function. Conditions
+  // are the same as for analysis-based one, but this is not emitting
+  // anything just yet.
+  if (WP && D && LangOpts.CIRWarnings)
     CIRWarnings.IssueWarnings(*WP, Scope.get(), D, BlockType);
-  } else if (WP && D)
+
+  // Issue any analysis-based warnings.
+  if (WP && D)
     AnalysisWarnings.IssueWarnings(*WP, Scope.get(), D, BlockType);
   else
     for (const auto &PUD : Scope->PossiblyUnreachableDiags)
