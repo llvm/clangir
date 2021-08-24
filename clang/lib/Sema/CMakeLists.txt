@@ -80,6 +80,7 @@ add_clang_library(clangSema
   clangBasic
   clangEdit
   clangLex
+  clangCIR
   ${dialect_libs}
   MLIRCIR
   MLIRAnalysis
