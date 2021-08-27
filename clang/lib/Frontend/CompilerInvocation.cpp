@@ -4224,6 +4224,9 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
           << Opts.OMPHostIRFile;
   }
 
+  if (Arg *A = Args.getLastArg(options::OPT_fcir_output_EQ))
+    Opts.CIRFile = A->getValue();
+
   // Set CUDA mode for OpenMP target NVPTX/AMDGCN if specified in options
   Opts.OpenMPCUDAMode = Opts.OpenMPIsTargetDevice &&
                         (T.isNVPTX() || T.isAMDGCN()) &&
