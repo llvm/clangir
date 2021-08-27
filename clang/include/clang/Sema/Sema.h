@@ -9318,7 +9318,7 @@ public:
   threadSafety::BeforeSet *ThreadSafetyDeclCache;
 
   /// Worker object for performing CIR based warnings.
-  sema::CIRBasedWarnings CIRWarnings;
+  std::unique_ptr<sema::CIRBasedWarnings> CIRWarnings;
 
   /// An entity for which implicit template instantiation is required.
   ///
