@@ -218,9 +218,8 @@ Sema::Sema(Preprocessor &pp, ASTContext &ctxt, ASTConsumer &consumer,
       InNonInstantiationSFINAEContext(false), NonInstantiationEntries(0),
       ArgumentPackSubstitutionIndex(-1), CurrentInstantiationScope(nullptr),
       DisableTypoCorrection(false), TyposCorrected(0), AnalysisWarnings(*this),
-      ThreadSafetyDeclCache(nullptr), CIRWarnings(*this),
-      VarDataSharingAttributesStack(nullptr), CurScope(nullptr),
-      Ident_super(nullptr) {
+      ThreadSafetyDeclCache(nullptr), VarDataSharingAttributesStack(nullptr),
+      CurScope(nullptr), Ident_super(nullptr) {
   assert(pp.TUKind == TUKind);
   TUScope = nullptr;
 
@@ -249,6 +248,8 @@ Sema::Sema(Preprocessor &pp, ASTContext &ctxt, ASTConsumer &consumer,
 
   std::unique_ptr<sema::SemaPPCallbacks> Callbacks =
       std::make_unique<sema::SemaPPCallbacks>();
+  CIRWarnings = std::make_unique<sema::CIRBasedWarnings>(*this);
+
   SemaPPCallbackHandler = Callbacks.get();
   PP.addPPCallbacks(std::move(Callbacks));
   SemaPPCallbackHandler->set(*this);
@@ -569,7 +570,7 @@ void Sema::PrintStats() const {
 
   BumpAlloc.PrintStats();
   if (LangOpts.CIRWarnings)
-    CIRWarnings.PrintStats();
+    CIRWarnings->PrintStats();
   else
     AnalysisWarnings.PrintStats();
 }
@@ -1475,6 +1476,11 @@ void Sema::ActOnEndOfTranslationUnit() {
 
   if (!PP.isIncrementalProcessingEnabled())
     TUScope = nullptr;
+
+  // Clean up CIR based warnings and write out files to disk (if any).
+  // FIXME: this is where globals should be emitted prior to CIR output.
+  if (getLangOpts().CIRWarnings)
+    CIRWarnings.reset();
 }
 
 
@@ -2289,7 +2295,7 @@ Sema::PopFunctionScopeInfo(const AnalysisBasedWarnings::Policy *WP,
   // are the same as for analysis-based one, but this is not emitting
   // anything just yet.
   if (WP && D && LangOpts.CIRWarnings)
-    CIRWarnings.IssueWarnings(*WP, Scope.get(), D, BlockType);
+    CIRWarnings->IssueWarnings(*WP, Scope.get(), D, BlockType);
 
   // Issue any analysis-based warnings.
   if (WP && D)
