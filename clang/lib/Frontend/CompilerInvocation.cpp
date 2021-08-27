@@ -4351,6 +4351,17 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
     }
   }
 
+  // Get OpenMP host file path if any and report if a non existent file is
+  // found
+  if (Arg *A = Args.getLastArg(options::OPT_fopenmp_host_ir_file_path)) {
+    Opts.OMPHostIRFile = A->getValue();
+    if (!llvm::sys::fs::exists(Opts.OMPHostIRFile))
+      Diags.Report(diag::err_drv_omp_host_ir_file_not_found)
+          << Opts.OMPHostIRFile;
+  }
+
+  if (Arg *A = Args.getLastArg(options::OPT_fcir_output_EQ))
+    Opts.CIRFile = A->getValue();
   // Set CUDA mode for OpenMP target NVPTX/AMDGCN if specified in options
   Opts.OpenMPCUDAMode = Opts.OpenMPIsTargetDevice &&
                         (T.isNVPTX() || T.isAMDGCN()) &&
