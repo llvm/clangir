@@ -20,13 +20,13 @@
 namespace clang {
 
 class BlockExpr;
-class CIRBasedWarnings;
 class Decl;
 class FunctionDecl;
 class QualType;
 class Sema;
 
 namespace sema {
+class CIRBasedWarnings;
   class FunctionScopeInfo;
   class SemaPPCallbacks;
 }
