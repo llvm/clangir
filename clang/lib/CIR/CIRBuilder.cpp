@@ -190,7 +190,7 @@ public:
   mlir::ModuleOp getModule() { return theModule; }
 
   class ScalarExprEmitter : public StmtVisitor<ScalarExprEmitter, mlir::Value> {
-    CIRCodeGenFunction &CGF;
+    LLVM_ATTRIBUTE_UNUSED CIRCodeGenFunction &CGF;
     CIRBuildImpl &Builder;
 
   public:
@@ -486,7 +486,8 @@ public:
     if (!returnOp)
       builder.create<ReturnOp>(loc);
 
-    assert(function.verifyBody().succeeded());
+    if (mlir::failed(function.verifyBody()))
+      return nullptr;
     theModule.push_back(function);
     return function;
   }
@@ -507,7 +508,7 @@ public:
 } // namespace cir
 
 CIRContext::~CIRContext() {
-  // Run module verifier before shutdown
+  // Run module verifier before shutdown.
   builder->verifyModule();
 
   if (cirOut) {
