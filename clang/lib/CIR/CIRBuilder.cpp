@@ -189,7 +189,7 @@ public:
   mlir::ModuleOp getModule() { return theModule; }
 
   class ScalarExprEmitter : public StmtVisitor<ScalarExprEmitter, mlir::Value> {
-    CIRCodeGenFunction &CGF;
+    LLVM_ATTRIBUTE_UNUSED CIRCodeGenFunction &CGF;
     CIRBuildImpl &Builder;
 
   public:
@@ -271,7 +271,6 @@ public:
 
     LValue EmitDeclRefLValue(const DeclRefExpr *E) {
       const NamedDecl *ND = E->getDecl();
-      QualType T = E->getType();
 
       assert(E->isNonOdrUse() != NOUR_Unevaluated &&
              "should not emit an unevaluated operand");
@@ -484,7 +483,8 @@ public:
     if (!returnOp)
       builder.create<ReturnOp>(loc);
 
-    function.verifyBody();
+    if (mlir::failed(function.verifyBody()))
+      return nullptr;
     theModule.push_back(function);
     return function;
   }
@@ -505,7 +505,7 @@ public:
 } // namespace cir
 
 CIRContext::~CIRContext() {
-  // Run module verifier before shutdown
+  // Run module verifier before shutdown.
   builder->verifyModule();
 
   if (cirOut) {
