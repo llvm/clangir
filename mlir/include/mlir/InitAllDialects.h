@@ -21,6 +21,7 @@
 #include "mlir/Dialect/ArmSVE/ArmSVEDialect.h"
 #include "mlir/Dialect/Async/IR/Async.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
+#include "mlir/Dialect/CIR/IR/CIRDialect.h"
 #include "mlir/Dialect/Complex/IR/Complex.h"
 #include "mlir/Dialect/DLTI/DLTI.h"
 #include "mlir/Dialect/EmitC/IR/EmitC.h"
@@ -60,6 +61,7 @@ inline void registerAllDialects(DialectRegistry &registry) {
                   arm_neon::ArmNeonDialect,
                   async::AsyncDialect,
                   bufferization::BufferizationDialect,
+                  cir::CIRDialect,
                   complex::ComplexDialect,
                   DLTIDialect,
                   emitc::EmitCDialect,
