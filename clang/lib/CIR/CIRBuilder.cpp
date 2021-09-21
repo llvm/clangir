@@ -507,6 +507,9 @@ public:
 } // namespace cir
 
 CIRContext::~CIRContext() {
+  // Run module verifier before shutdown
+  builder->verifyModule();
+
   if (cirOut) {
     // FIXME: pick a more verbose level.
     builder->getModule()->print(cirOut->os());
@@ -535,9 +538,5 @@ bool CIRContext::EmitFunction(const FunctionDecl *FD) {
   CIRCodeGenFunction CCGF{};
   auto func = builder->buildCIR(&CCGF, FD);
   assert(func && "should emit function");
-
-  // FIXME: currently checked after emitting every function, should
-  // only run when the consumer of the context shutdowns.
-  builder->verifyModule();
   return true;
 }
