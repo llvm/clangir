@@ -57,9 +57,8 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
     case BuiltinType::ObjCId:
     case BuiltinType::ObjCClass:
     case BuiltinType::ObjCSel:
-      // LLVM void type can only be used as the result of a function call.  Just
-      // map to the same as char.
-      ResultType = Builder.getI8Type();
+      // FIXME: if we emit like LLVM we probably wanna use i8.
+      assert("not implemented");
       break;
 
     case BuiltinType::Bool:
@@ -127,7 +126,7 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
       ResultType = Builder.getF32Type();
       break;
     case BuiltinType::Double:
-      ResultType = Builder.getF32Type();
+      ResultType = Builder.getF64Type();
       break;
     case BuiltinType::LongDouble:
     case BuiltinType::Float128:
@@ -145,7 +144,8 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
 
     case BuiltinType::UInt128:
     case BuiltinType::Int128:
-      ResultType = Builder.getIntegerType(128);
+      assert("not implemented");
+      // FIXME: ResultType = Builder.getIntegerType(128);
       break;
 
 #define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix)                   \
