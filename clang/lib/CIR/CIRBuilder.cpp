@@ -17,7 +17,7 @@
 #include "clang/CIR/CIRCodeGenFunction.h"
 
 #include "mlir/Dialect/CIR/IR/CIRDialect.h"
-
+#include "mlir/Dialect/CIR/IR/CIRTypes.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/Builders.h"
