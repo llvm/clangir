@@ -20,6 +20,7 @@
 #include "mlir/Interfaces/SideEffectInterfaces.h"
 
 #include "mlir/Dialect/CIR/IR/CIROpsDialect.h.inc"
+#include "mlir/Dialect/CIR/IR/CIRTypes.h"
 
 #define GET_OP_CLASSES
 #include "mlir/Dialect/CIR/IR/CIROps.h.inc"
