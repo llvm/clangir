@@ -39,7 +39,7 @@ def CIR_PointerType :
   let parameters = (ins "mlir::Type":$pointee);
 
   let printer = [{
-    $_printer << getMnemonic() << "<";
+    $_printer << "<";
     $_printer.printType(getPointee());
     $_printer << '>';
   }];
