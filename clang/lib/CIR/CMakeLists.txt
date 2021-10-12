@@ -11,6 +11,7 @@ get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
 add_clang_library(clangCIR
   CIRBuilder.cpp
   CIRGenTypes.cpp
+  LowerToLLVM.cpp
 
   DEPENDS
   MLIRCIROpsIncGen
@@ -22,11 +23,20 @@ add_clang_library(clangCIR
   clangLex
   ${dialect_libs}
   MLIRCIR
+  MLIRAffineToStandard
   MLIRAnalysis
   MLIRIR
-  MLIRParser
-  MLIRSideEffectInterfaces
-  MLIRTransforms
-  MLIRSupport
+  MLIRLLVMCommonConversion
+  MLIRLLVMIR
+  MLIRLLVMToLLVMIRTranslation
   MLIRMemRef
+  MLIRMemRefToLLVM
+  MLIRParser
+  MLIRPass
+  MLIRSideEffectInterfaces
+  MLIRSCFToStandard
+  MLIRStandardToLLVM
+  MLIRSupport
+  MLIRTargetLLVMIRExport
+  MLIRTransforms
   )
