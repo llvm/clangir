@@ -13,8 +13,10 @@
 
 #include "CIRGenTypes.h"
 
+#include "clang/AST/ASTConsumer.h"
 #include "clang/CIR/CIRBuilder.h"
 #include "clang/CIR/CIRCodeGenFunction.h"
+#include "clang/CIR/LowerToLLVM.h"
 
 #include "mlir/Dialect/CIR/IR/CIRAttrs.h"
 #include "mlir/Dialect/CIR/IR/CIRDialect.h"
@@ -1357,15 +1359,8 @@ public:
 };
 } // namespace cir
 
-CIRContext::CIRContext() {}
-
-CIRContext::CIRContext(std::unique_ptr<raw_pwrite_stream> os)
-    : outStream(std::move(os)) {}
-
-CIRContext::~CIRContext() {
-  // Run module verifier before shutdown.
-  builder->verifyModule();
-}
+CIRContext::CIRContext() = default;
+CIRContext::~CIRContext() = default;
 
 void CIRContext::Initialize(clang::ASTContext &astCtx) {
   using namespace llvm;
@@ -1379,12 +1374,18 @@ void CIRContext::Initialize(clang::ASTContext &astCtx) {
   builder = std::make_unique<CIRBuildImpl>(*mlirCtx.get(), astCtx);
 }
 
+void CIRContext::verifyModule() {
+    builder->verifyModule();
+}
+
 bool CIRContext::EmitFunction(const FunctionDecl *FD) {
   CIRCodeGenFunction CCGF{};
   auto func = builder->buildCIR(&CCGF, FD);
   assert(func && "should emit function");
   return true;
 }
+
+mlir::ModuleOp CIRContext::getModule() { return builder->getModule(); }
 
 bool CIRContext::HandleTopLevelDecl(clang::DeclGroupRef D) {
   for (DeclGroupRef::iterator I = D.begin(), E = D.end(); I != E; ++I) {
@@ -1397,6 +1398,4 @@ bool CIRContext::HandleTopLevelDecl(clang::DeclGroupRef D) {
 }
 
 void CIRContext::HandleTranslationUnit(ASTContext &C) {
-  if (outStream)
-    builder->getModule()->print(*outStream);
 }
