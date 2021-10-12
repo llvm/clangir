@@ -46,10 +46,10 @@ CreateFrontendBaseAction(CompilerInstance &CI) {
 
   auto CIR = CI.getFrontendOpts().UseClangIRPipeline;
   auto Act = CI.getFrontendOpts().ProgramAction;
-  auto UsesCIR = Act == EmitCIR || Act == EmitCIROnly;
+  auto UsesCIR = Act == EmitCIR || Act == EmitCIROnly || Act == EmitLLVM;
   if ((CIR && !UsesCIR) || (!CIR && UsesCIR))
     llvm::report_fatal_error("-fenable-clangir currently only works with "
-                             "-emit-cir and -emit-cir-only");
+                             "-emit-cir, -emit-cir-only and -emit-llvm");
 
   switch (CI.getFrontendOpts().ProgramAction) {
   case ASTDeclList:            return std::make_unique<ASTDeclListAction>();
@@ -65,7 +65,11 @@ CreateFrontendBaseAction(CompilerInstance &CI) {
   case EmitCIR:                return std::make_unique<EmitCIRAction>();
   case EmitCIROnly:            return std::make_unique<EmitCIROnlyAction>();
   case EmitHTML:               return std::make_unique<HTMLPrintAction>();
-  case EmitLLVM:               return std::make_unique<EmitLLVMAction>();
+  case EmitLLVM: {
+    if (CIR)
+      return std::make_unique<cir::EmitLLVMAction>();
+    return std::make_unique<EmitLLVMAction>();
+  }
   case EmitLLVMOnly:           return std::make_unique<EmitLLVMOnlyAction>();
   case EmitCodeGenOnly:        return std::make_unique<EmitCodeGenOnlyAction>();
   case EmitObj:                return std::make_unique<EmitObjAction>();
