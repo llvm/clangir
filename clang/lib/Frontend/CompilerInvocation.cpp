@@ -2650,6 +2650,7 @@ static const auto &getFrontendActionTable() {
       {frontend::EmitAssembly, OPT_S},
       {frontend::EmitBC, OPT_emit_llvm_bc},
       {frontend::EmitCIR, OPT_emit_cir},
+      {frontend::EmitCIROnly, OPT_emit_cir_only},
       {frontend::EmitHTML, OPT_emit_html},
       {frontend::EmitLLVM, OPT_emit_llvm},
       {frontend::EmitLLVMOnly, OPT_emit_llvm_only},
@@ -4265,9 +4266,6 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
           << Opts.OMPHostIRFile;
   }
 
-  if (Arg *A = Args.getLastArg(options::OPT_fcir_output_EQ))
-    Opts.CIRFile = A->getValue();
-
   // Set CUDA mode for OpenMP target NVPTX/AMDGCN if specified in options
   Opts.OpenMPCUDAMode = Opts.OpenMPIsTargetDevice &&
                         (T.isNVPTX() || T.isAMDGCN()) &&
@@ -4555,6 +4553,7 @@ static bool isStrictlyPreprocessorAction(frontend::ActionKind Action) {
   case frontend::EmitAssembly:
   case frontend::EmitBC:
   case frontend::EmitCIR:
+  case frontend::EmitCIROnly:
   case frontend::EmitHTML:
   case frontend::EmitLLVM:
   case frontend::EmitLLVMOnly:
