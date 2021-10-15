@@ -63,6 +63,12 @@ enum ActionKind {
   /// Translate input source into HTML.
   EmitHTML,
 
+  /// Emit a .cir file
+  EmitCIR,
+
+  /// Generate CIR, bud don't emit anything.
+  EmitCIROnly,
+
   /// Emit a .ll file.
   EmitLLVM,
 
@@ -307,6 +313,8 @@ public:
   /// Output (and read) PCM files regardless of compiler errors.
   unsigned AllowPCMWithCompilerErrors : 1;
 
+  unsigned UseClangIRPipeline : 1;
+
   CodeCompleteOptions CodeCompleteOpts;
 
   /// Specifies the output format of the AST.
@@ -466,7 +474,8 @@ public:
         ASTDumpLookups(false), BuildingImplicitModule(false),
         BuildingImplicitModuleUsesLock(true), ModulesEmbedAllFiles(false),
         IncludeTimestamps(true), UseTemporary(true),
-        AllowPCMWithCompilerErrors(false), TimeTraceGranularity(500) {}
+        AllowPCMWithCompilerErrors(false), UseClangIRPipeline(false),
+        TimeTraceGranularity(500) {}
 
   /// getInputKindForExtension - Return the appropriate input kind for a file
   /// extension. For example, "c" would return Language::C.

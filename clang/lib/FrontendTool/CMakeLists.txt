@@ -8,6 +8,7 @@ set(link_libs
   clangCodeGen
   clangDriver
   clangFrontend
+  clangCIRFrontendAction
   clangRewriteFrontend
   )
 
