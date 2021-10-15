@@ -31,4 +31,5 @@ add_subdirectory(Support)
 
 #if(CLANG_ENABLE_CIR)
   add_subdirectory(CIR)
+  add_subdirectory(CIRFrontendAction)
 #endif()
