@@ -1927,18 +1927,6 @@ defm bounds_safety : BoolFOption<
   BothFlags<[], [CC1Option],
           " experimental bounds safety extension for C">>;
 
-defm cir_warnings : BoolFOption<"cir-warnings",
-  LangOpts<"CIRWarnings">, DefaultFalse,
-  PosFlag<SetTrue, [], [ClangOption, CC1Option], "Use">,
-  NegFlag<SetFalse, [], [], "Don't use">,
-  BothFlags<[], [CC1Option], " CIR to emit (analysis based) warnings">>;
-def fcir_output_EQ : Joined<["-"], "fcir-output=">,
-  Group<f_Group>, HelpText<"Write clang IR (cir) to output file">,
-  Visibility<[ClangOption, CC1Option]>, MarshallingInfoString<LangOpts<"CIRFile">>,
-  MetaVarName<"<file>">;
-def fcir_output : Flag<["-"], "fcir-output">,
-  Group<f_Group>, Visibility<[ClangOption, CC1Option]>;
-
 defm addrsig : BoolFOption<"addrsig",
   CodeGenOpts<"Addrsig">, DefaultFalse,
   PosFlag<SetTrue, [], [ClangOption, CC1Option], "Emit">,
@@ -2985,6 +2973,13 @@ defm clangir : BoolFOption<"clangir",
   BothFlags<[], [ClangOption, CC1Option], "">>;
 def emit_cir : Flag<["-"], "emit-cir">, Visibility<[CC1Option]>,
   Group<Action_Group>, HelpText<"Build ASTs and then lower to ClangIR">;
+def emit_cir_only : Flag<["-"], "emit-cir-only">,
+  HelpText<"Build ASTs and convert to CIR, discarding output">;
+defm cir_warnings : BoolFOption<"cir-warnings",
+  LangOpts<"CIRWarnings">, DefaultFalse,
+  PosFlag<SetTrue, [], [ClangOption, CC1Option], "Use">,
+  NegFlag<SetFalse, [], [], "Don't use">,
+  BothFlags<[], [CC1Option], " CIR to emit (analysis based) warnings">>;
 /// ClangIR-specific options - END
 
 def flto_EQ : Joined<["-"], "flto=">,
