@@ -64,6 +64,12 @@ enum ActionKind {
   /// Translate input source into HTML.
   EmitHTML,
 
+  /// Emit a .cir file
+  EmitCIR,
+
+  /// Generate CIR, bud don't emit anything.
+  EmitCIROnly,
+
   /// Emit a .ll file.
   EmitLLVM,
 
@@ -149,11 +155,7 @@ enum ActionKind {
 class InputKind {
 public:
   /// The input file format.
-  enum Format {
-    Source,
-    ModuleMap,
-    Precompiled
-  };
+  enum Format { Source, ModuleMap, Precompiled };
 
   // If we are building a header unit, what kind it is; this affects whether
   // we look for the file in the user or system include search paths before
@@ -383,6 +385,8 @@ public:
   LLVM_PREFERRED_TYPE(bool)
   unsigned ModulesShareFileManager : 1;
 
+  unsigned UseClangIRPipeline : 1;
+
   CodeCompleteOptions CodeCompleteOpts;
 
   /// Specifies the output format of the AST.
@@ -440,11 +444,11 @@ public:
     /// Enable converting setter/getter expressions to property-dot syntx.
     ObjCMT_PropertyDotSyntax = 0x1000,
 
-    ObjCMT_MigrateDecls = (ObjCMT_ReadonlyProperty | ObjCMT_ReadwriteProperty |
-                           ObjCMT_Annotation | ObjCMT_Instancetype |
-                           ObjCMT_NsMacros | ObjCMT_ProtocolConformance |
-                           ObjCMT_NsAtomicIOSOnlyProperty |
-                           ObjCMT_DesignatedInitializer),
+    ObjCMT_MigrateDecls =
+        (ObjCMT_ReadonlyProperty | ObjCMT_ReadwriteProperty |
+         ObjCMT_Annotation | ObjCMT_Instancetype | ObjCMT_NsMacros |
+         ObjCMT_ProtocolConformance | ObjCMT_NsAtomicIOSOnlyProperty |
+         ObjCMT_DesignatedInitializer),
     ObjCMT_MigrateAll = (ObjCMT_Literals | ObjCMT_Subscripting |
                          ObjCMT_MigrateDecls | ObjCMT_PropertyDotSyntax)
   };
@@ -561,7 +565,7 @@ public:
         BuildingImplicitModuleUsesLock(true), ModulesEmbedAllFiles(false),
         IncludeTimestamps(true), UseTemporary(true),
         AllowPCMWithCompilerErrors(false), ModulesShareFileManager(true),
-        TimeTraceGranularity(500) {}
+        UseClangIRPipeline(false), TimeTraceGranularity(500) {}
 
   /// getInputKindForExtension - Return the appropriate input kind for a file
   /// extension. For example, "c" would return Language::C.
