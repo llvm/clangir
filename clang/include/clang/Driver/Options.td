@@ -853,6 +853,9 @@ def O4 : Flag<["-"], "O4">, Group<O_Group>, Flags<[HelpHidden]>,
   Visibility<[ClangOption, CC1Option, FC1Option, FlangOption]>;
 def ObjCXX : Flag<["-"], "ObjC++">, Flags<[NoXarchOption]>,
   HelpText<"Treat source input files as Objective-C++ inputs">;
+def fenable_clangir : Flag<["-"], "fenable-clangir">, Flags<[CC1Option]>,
+  HelpText<"Use the new ClangIR pipeline to compile.">,
+  MarshallingInfoFlag<FrontendOpts<"UseClangIRPipeline">>;
 def ObjC : Flag<["-"], "ObjC">, Flags<[NoXarchOption]>,
   HelpText<"Treat source input files as Objective-C inputs">;
 def O : Joined<["-"], "O">, Group<O_Group>,
@@ -1364,7 +1367,8 @@ def emit_llvm : Flag<["-"], "emit-llvm">,
   HelpText<"Use the LLVM representation for assembler and object files">;
 def emit_interface_stubs : Flag<["-"], "emit-interface-stubs">,
   Visibility<[ClangOption, CC1Option]>, Group<Action_Group>,
-  HelpText<"Generate Interface Stub Files.">;
+def emit_cir : Flag<["-"], "emit-cir">, Flags<[CC1Option]>, Group<Action_Group>,
+  HelpText<"Build ASTs and then lower to ClangIR, emit the .cir file">;
 def emit_merged_ifs : Flag<["-"], "emit-merged-ifs">,
   Visibility<[ClangOption, CC1Option]>, Group<Action_Group>,
   HelpText<"Generate Interface Stub Files, emit merged text not binary.">;
@@ -1696,12 +1700,6 @@ defm cir_warnings : BoolFOption<"cir-warnings",
   LangOpts<"CIRWarnings">, DefaultFalse,
   PosFlag<SetTrue, [CC1Option], "Use">, NegFlag<SetFalse, [], "Don't use">,
   BothFlags<[CoreOption], " CIR to emit (analysis based) warnings">>;
-def fcir_output_EQ : Joined<["-"], "fcir-output=">,
-  Group<f_Group>, HelpText<"Write clang IR (cir) to output file">,
-  Flags<[CC1Option, CoreOption]>, MarshallingInfoString<LangOpts<"CIRFile">>,
-  MetaVarName<"<file>">;
-def fcir_output : Flag<["-"], "fcir-output">,
-  Group<f_Group>, Flags<[CC1Option, CoreOption]>;
 
 defm addrsig : BoolFOption<"addrsig",
   CodeGenOpts<"Addrsig">, DefaultFalse,
@@ -7144,6 +7142,8 @@ def ast_dump_lookups : Flag<["-"], "ast-dump-lookups">,
   MarshallingInfoFlag<FrontendOpts<"ASTDumpLookups">>;
 def ast_view : Flag<["-"], "ast-view">,
   HelpText<"Build ASTs and view them with GraphViz">;
+def emit_cir_only : Flag<["-"], "emit-cir-only">,
+  HelpText<"Build ASTs and convert to CIR, discarding output">;
 def emit_module : Flag<["-"], "emit-module">,
   HelpText<"Generate pre-compiled module file from a module map">;
 def emit_module_interface : Flag<["-"], "emit-module-interface">,
