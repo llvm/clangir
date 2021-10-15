@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fsyntax-only -fcir-warnings %s -fcir-output=%t.cir
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-cir %s -o %t.cir
 // RUN: FileCheck --input-file=%t.cir %s
 // XFAIL: *
 
@@ -13,3 +13,8 @@ int foo(int i) {
 // CHECK-NEXT:   %1 = cir.load %0 : cir.ptr <i32>, i32
 // CHECK-NEXT:   cir.return %1 : i32
 // CHECK-NEXT: }
+
+int f2() { return 3; }
+
+// CHECK: func @f2() -> i32 {
+// CHECK-NEXT: cir.return

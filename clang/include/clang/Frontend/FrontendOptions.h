@@ -65,6 +65,12 @@ enum ActionKind {
   /// Translate input source into HTML.
   EmitHTML,
 
+  /// Emit a .cir file
+  EmitCIR,
+
+  /// Generate CIR, bud don't emit anything.
+  EmitCIROnly,
+
   /// Emit a .ll file.
   EmitLLVM,
 
@@ -151,11 +157,7 @@ enum ActionKind {
 class InputKind {
 public:
   /// The input file format.
-  enum Format {
-    Source,
-    ModuleMap,
-    Precompiled
-  };
+  enum Format { Source, ModuleMap, Precompiled };
 
   // If we are building a header unit, what kind it is; this affects whether
   // we look for the file in the user or system include search paths before
@@ -404,6 +406,10 @@ public:
   /// Whether to generate reduced BMI for C++20 named modules.
   LLVM_PREFERRED_TYPE(bool)
   unsigned GenReducedBMI : 1;
+
+  /// Use Clang IR pipeline to emit code
+  LLVM_PREFERRED_TYPE(bool)
+  unsigned UseClangIRPipeline : 1;
 
   CodeCompleteOptions CodeCompleteOpts;
 
