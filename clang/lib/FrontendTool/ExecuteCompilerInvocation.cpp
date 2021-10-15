@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/ARCMigrate/ARCMTActions.h"
+#include "clang/CIRFrontendAction/CIRGenAction.h"
 #include "clang/CodeGen/CodeGenAction.h"
 #include "clang/Config/config.h"
 #include "clang/Driver/Options.h"
@@ -32,6 +33,7 @@
 #include "llvm/Support/DynamicLibrary.h"
 #include "llvm/Support/ErrorHandling.h"
 using namespace clang;
+using namespace cir;
 using namespace llvm::opt;
 
 namespace clang {
@@ -41,6 +43,13 @@ CreateFrontendBaseAction(CompilerInstance &CI) {
   using namespace clang::frontend;
   StringRef Action("unknown");
   (void)Action;
+
+  auto CIR = CI.getFrontendOpts().UseClangIRPipeline;
+  auto Act = CI.getFrontendOpts().ProgramAction;
+  auto UsesCIR = Act == EmitCIR || Act == EmitCIROnly;
+  if ((CIR && !UsesCIR) || (!CIR && UsesCIR))
+    llvm::report_fatal_error("-fenable-clangir currently only works with "
+                             "-emit-cir and -emit-cir-only");
 
   switch (CI.getFrontendOpts().ProgramAction) {
   case ASTDeclList:            return std::make_unique<ASTDeclListAction>();
@@ -53,6 +62,8 @@ CreateFrontendBaseAction(CompilerInstance &CI) {
   case DumpTokens:             return std::make_unique<DumpTokensAction>();
   case EmitAssembly:           return std::make_unique<EmitAssemblyAction>();
   case EmitBC:                 return std::make_unique<EmitBCAction>();
+  case EmitCIR:                return std::make_unique<EmitCIRAction>();
+  case EmitCIROnly:            return std::make_unique<EmitCIROnlyAction>();
   case EmitHTML:               return std::make_unique<HTMLPrintAction>();
   case EmitLLVM:               return std::make_unique<EmitLLVMAction>();
   case EmitLLVMOnly:           return std::make_unique<EmitLLVMOnlyAction>();
