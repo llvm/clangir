@@ -20,6 +20,8 @@
 using namespace mlir;
 using namespace mlir::cir;
 
+#include "mlir/Dialect/CIR/IR/CIROpsEnums.cpp.inc"
+
 #include "mlir/Dialect/CIR/IR/CIROpsDialect.cpp.inc"
 
 //===----------------------------------------------------------------------===//
@@ -93,54 +95,6 @@ static mlir::LogicalResult verify(ReturnOp op) {
   return op.emitError() << "type of return operand (" << inputType
                         << ") doesn't match function result type ("
                         << resultType << ")";
-}
-
-//===----------------------------------------------------------------------===//
-// AllocaOp
-//===----------------------------------------------------------------------===//
-
-static void printAllocaOpTypeAndInitialValue(OpAsmPrinter &p, AllocaOp op,
-                                             TypeAttr type,
-                                             Attribute initialValue) {
-  p << type;
-  p << " = ";
-  if (op.isUninitialized())
-    p << "uninitialized";
-  else
-    p.printAttributeWithoutType(initialValue);
-}
-
-static ParseResult parseAllocaOpTypeAndInitialValue(OpAsmParser &parser,
-                                                    TypeAttr &typeAttr,
-                                                    Attribute &initialValue) {
-  Type type;
-  if (parser.parseType(type))
-    return failure();
-  typeAttr = TypeAttr::get(type);
-
-  if (parser.parseEqual())
-    return success();
-
-  if (succeeded(parser.parseOptionalKeyword("uninitialized")))
-    initialValue = UnitAttr::get(parser.getBuilder().getContext());
-
-  if (!initialValue.isa<UnitAttr>())
-    return parser.emitError(parser.getNameLoc())
-           << "constant operation not implemented yet";
-
-  return success();
-}
-
-static LogicalResult verify(AllocaOp op) {
-  // Verify that the initial value, is either a unit attribute or
-  // an elements attribute.
-  Attribute initValue = op.initial_value();
-  if (!initValue.isa<UnitAttr>())
-    return op.emitOpError("initial value should be a unit "
-                          "attribute, but got ")
-           << initValue;
-
-  return success();
 }
 
 //===----------------------------------------------------------------------===//
