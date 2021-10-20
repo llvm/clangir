@@ -28,6 +28,37 @@ class CIR_Op<string mnemonic, list<OpTrait> traits = []> :
     Op<CIR_Dialect, mnemonic, traits>;
 
 //===----------------------------------------------------------------------===//
+// ConstantOp
+//===----------------------------------------------------------------------===//
+def ConstantOp : CIR_Op<"cst",
+    [ConstantLike, NoSideEffect]> {
+
+  let summary = "constant";
+  let description = [{
+    Constant operation turns a literal into an SSA value. The data is attached
+    to the operation as an attribute. For example:
+
+    ```mlir
+      %0 = cir.cst 42 : i32
+      %1 = cir.cst 4.2 : f32
+    ```
+  }];
+
+  // The constant operation takes an attribute as the only input.
+  let arguments = (ins AnyAttr:$value);
+
+  // The constant operation returns a single value of AnyType.
+  let results = (outs AnyType:$res);
+
+  let assemblyFormat = "`(` $value `)` attr-dict `:` type($res)";
+
+  // Invoke a static verify method to verify this constant operation.
+  let verifier = [{ return ::verify(*this); }];
+
+  // TODO: hasFolder, etc
+}
+
+//===----------------------------------------------------------------------===//
 // AllocaOp
 //===----------------------------------------------------------------------===//
 
