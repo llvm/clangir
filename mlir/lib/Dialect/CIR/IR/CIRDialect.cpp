@@ -51,10 +51,16 @@ LogicalResult ConstantOp::verify() {
   auto val = getValue();
   auto valueType = val.getType();
 
+  if (mlir::isa<NullAttr>(val)) {
+    if (mlir::isa<::mlir::cir::PointerType>(opType))
+      return success();
+    return emitOpError("nullptr expects pointer type");
+  }
+
   // ODS already generates checks to make sure the result type is valid. We just
   // need to additionally check that the value's attribute type is consistent
   // with the result type.
-  if (mlir::isa<IntegerAttr, FloatAttr>(val)) {
+  if (mlir::isa<IntegerType,FloatType>(opType)) {
     if (valueType != opType)
       return emitOpError("result type (")
              << opType << ") does not match value type (" << valueType << ")";
@@ -62,6 +68,20 @@ LogicalResult ConstantOp::verify() {
   }
 
   return emitOpError("cannot have value of type ") << valueType;
+}
+
+static ParseResult parseConstantValue(OpAsmParser &parser,
+                                      mlir::Attribute &valueAttr) {
+  NamedAttrList attr;
+  if (parser.parseAttribute(valueAttr, "value", attr))
+    return ::mlir::failure();
+
+  return success();
+}
+
+static void printConstantValue(OpAsmPrinter &p, cir::ConstantOp op,
+                               Attribute value) {
+  p.printAttribute(value);
 }
 
 //===----------------------------------------------------------------------===//
