@@ -462,6 +462,15 @@ public:
         assert(Builder.astCtx.hasSameUnqualifiedType(E->getType(), DestTy));
         assert(E->isGLValue() && "lvalue-to-rvalue applied to r-value!");
         return Visit(const_cast<Expr *>(E));
+      case CK_NullToPointer: {
+        // FIXME: use MustVisitNullValue(E) and evaluate expr.
+        // Note that DestTy is used as the MLIR type instead of a custom
+        // nullptr type.
+        mlir::Type Ty = Builder.getCIRType(DestTy);
+        return Builder.builder.create<mlir::cir::ConstantOp>(
+            Builder.getLoc(E->getExprLoc()), Ty,
+            mlir::UnitAttr::get(Builder.builder.getContext()));
+      }
       default:
         emitError(Builder.getLoc(CE->getExprLoc()),
                   "cast kind not implemented: '")
