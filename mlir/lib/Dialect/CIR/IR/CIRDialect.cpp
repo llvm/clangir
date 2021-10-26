@@ -57,7 +57,35 @@ static LogicalResult verify(cir::ConstantOp constOp) {
     return success();
   }
 
+  if (value.isa<UnitAttr>()) {
+    if (opType.isa<::mlir::cir::PointerType>())
+      return success();
+    return constOp.emitOpError("nullptr expects pointer type");
+  }
+
   return constOp.emitOpError("cannot have value of type ") << valueType;
+}
+
+static ParseResult parseConstantValue(OpAsmParser &parser,
+                                      mlir::Attribute &valueAttr) {
+  if (succeeded(parser.parseOptionalKeyword("nullptr"))) {
+    valueAttr = UnitAttr::get(parser.getContext());
+    return success();
+  }
+
+  NamedAttrList attr;
+  if (parser.parseAttribute(valueAttr, "value", attr))
+    return ::mlir::failure();
+
+  return success();
+}
+
+static void printConstantValue(OpAsmPrinter &p, cir::ConstantOp op,
+                               Attribute value) {
+  if (op.isNullPtr())
+    p << "nullptr";
+  else
+    p.printAttribute(value);
 }
 
 //===----------------------------------------------------------------------===//
