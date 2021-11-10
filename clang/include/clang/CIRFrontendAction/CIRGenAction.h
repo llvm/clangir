@@ -14,11 +14,13 @@
 
 namespace llvm {
 class LLVMIRContext;
+class Module;
 }
 
 namespace mlir {
 class MLIRContext;
 class ModuleOp;
+class OwningModuleRef;
 } // namespace mlir
 
 namespace cir {
@@ -32,12 +34,16 @@ public:
 private:
   friend class CIRGenConsumer;
 
-  std::unique_ptr<mlir::ModuleOp> TheModule;
+  // TODO: this is redundant but just using the OwningModuleRef requires more of
+  // clang against MLIR. Hide this somewhere else.
+  std::unique_ptr<mlir::OwningModuleRef> mlirModule;
+  std::unique_ptr<llvm::Module> llvmModule;
 
-  mlir::MLIRContext *MLIRContext;
+
+  mlir::MLIRContext *mlirContext;
   bool OwnsVMContext;
 
-  std::unique_ptr<mlir::ModuleOp> loadModule(llvm::MemoryBufferRef MBRef);
+  mlir::OwningModuleRef loadModule(llvm::MemoryBufferRef mbRef);
 
 protected:
   CIRGenAction(OutputType action, mlir::MLIRContext *_MLIRContext = nullptr);
@@ -52,6 +58,8 @@ protected:
 
 public:
   ~CIRGenAction() override;
+
+  virtual bool hasCIRSupport() const override { return true; }
 
   CIRGenConsumer *cgConsumer;
   OutputType action;
