@@ -1155,7 +1155,6 @@ public:
     case Stmt::OMPParallelMaskedDirectiveClass:
     case Stmt::OMPTargetTeamsGenericLoopDirectiveClass:
     case Stmt::OMPErrorDirectiveClass:
-    case Stmt::OMPGenericLoopDirectiveClass:
     case Stmt::OMPMaskedTaskLoopDirectiveClass:
     case Stmt::OMPMaskedTaskLoopSimdDirectiveClass:
     case Stmt::OMPParallelGenericLoopDirectiveClass:
@@ -1295,6 +1294,7 @@ public:
     case Stmt::OMPTargetTeamsDistributeSimdDirectiveClass:
     case Stmt::OMPInteropDirectiveClass:
     case Stmt::OMPDispatchDirectiveClass:
+    case Stmt::OMPGenericLoopDirectiveClass:
     case Stmt::OMPMaskedDirectiveClass: {
       llvm::errs() << "CIR codegen for '" << S->getStmtClassName()
                    << "' not implemented\n";
