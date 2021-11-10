@@ -36,8 +36,8 @@ using namespace cir;
 namespace cir {
 
 namespace {
-struct CIRToLLVMIRLoweringPass
-    : public mlir::PassWrapper<CIRToLLVMIRLoweringPass,
+struct CIRToLLVMLoweringPass
+    : public mlir::PassWrapper<CIRToLLVMLoweringPass,
                                mlir::OperationPass<mlir::ModuleOp>> {
   void getDependentDialects(mlir::DialectRegistry &registry) const override {
     registry.insert<mlir::LLVM::LLVMDialect, mlir::StandardOpsDialect,
@@ -104,7 +104,7 @@ void populateCIRToStdConversionPatterns(mlir::RewritePatternSet &patterns) {
                CIRStoreLowering>(patterns.getContext());
 }
 
-void CIRToLLVMIRLoweringPass::runOnOperation() {
+void CIRToLLVMLoweringPass::runOnOperation() {
   mlir::LLVMConversionTarget target(getContext());
   target.addLegalOp<mlir::ModuleOp>();
 
@@ -128,7 +128,7 @@ lowerFromCIRToLLVMIR(mlir::ModuleOp theModule,
                      llvm::LLVMContext &llvmCtx) {
   mlir::PassManager pm(mlirCtx.get());
 
-  pm.addPass(createLowerToLLVMIRPass());
+  pm.addPass(createLowerToLLVMPass());
 
   auto result = !mlir::failed(pm.run(theModule));
   if (!result)
@@ -146,8 +146,8 @@ lowerFromCIRToLLVMIR(mlir::ModuleOp theModule,
   return llvmModule;
 }
 
-std::unique_ptr<mlir::Pass> createLowerToLLVMIRPass() {
-  return std::make_unique<CIRToLLVMIRLoweringPass>();
+std::unique_ptr<mlir::Pass> createLowerToLLVMPass() {
+  return std::make_unique<CIRToLLVMLoweringPass>();
 }
 
 } // namespace cir
