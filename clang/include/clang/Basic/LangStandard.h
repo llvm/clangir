@@ -36,6 +36,7 @@ enum class Language : uint8_t {
   CUDA,
   RenderScript,
   HIP,
+  CIR,
   ///@}
 };
 
