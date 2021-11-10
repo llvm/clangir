@@ -185,6 +185,8 @@ serializeAvailability(const AvailabilitySet &Availabilities) {
 /// Get the language name string for interface language references.
 StringRef getLanguageName(Language Lang) {
   switch (Lang) {
+  case Language::CIR:
+    llvm_unreachable("NYI");
   case Language::C:
     return "c";
   case Language::ObjC:

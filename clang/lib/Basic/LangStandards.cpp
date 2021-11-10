@@ -47,6 +47,8 @@ const LangStandard *LangStandard::getLangStandardForName(StringRef Name) {
 LangStandard::Kind clang::getDefaultLanguageStandard(clang::Language Lang,
                                                      const llvm::Triple &T) {
   switch (Lang) {
+  case Language::CIR:
+    llvm_unreachable("NYI");
   case Language::Unknown:
   case Language::LLVM_IR:
     llvm_unreachable("Invalid input kind!");
