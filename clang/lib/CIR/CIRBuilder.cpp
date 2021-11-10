@@ -1273,6 +1273,7 @@ public:
     case Stmt::OMPTargetTeamsDistributeSimdDirectiveClass:
     case Stmt::OMPInteropDirectiveClass:
     case Stmt::OMPDispatchDirectiveClass:
+    case Stmt::OMPGenericLoopDirectiveClass:
     case Stmt::OMPMaskedDirectiveClass: {
       llvm::errs() << "CIR codegen for '" << S->getStmtClassName()
                    << "' not implemented\n";
