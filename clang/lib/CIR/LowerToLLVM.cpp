@@ -71,9 +71,8 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::ReturnOp op,
                   mlir::PatternRewriter &rewriter) const override {
-    assert(op.getNumOperands() == 0 &&
-           "we aren't handling non-zero operand count returns yet");
-    rewriter.replaceOpWithNewOp<mlir::ReturnOp>(op);
+    rewriter.replaceOpWithNewOp<mlir::ReturnOp>(op, op->getResultTypes(),
+                                                op->getOperands());
     return mlir::LogicalResult::success();
   }
 };
