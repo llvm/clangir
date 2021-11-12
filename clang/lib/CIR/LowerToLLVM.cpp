@@ -130,7 +130,7 @@ public:
 
 void populateCIRToMemRefConversionPatterns(mlir::RewritePatternSet &patterns) {
   patterns.add<CIRAllocaLowering, CIRLoadLowering, CIRStoreLowering,
-               CIRConstantLowering>(patterns.getContext());
+               CIRConstantLowering, CIRReturnLowering>(patterns.getContext());
 }
 
 void populateCIRToStdConversionPatterns(mlir::RewritePatternSet &patterns) {
@@ -168,7 +168,8 @@ void ConvertCIRToMemRefPass::runOnOperation() {
   target.addLegalDialect<mlir::AffineDialect, mlir::arith::ArithmeticDialect,
                          mlir::memref::MemRefDialect, mlir::StandardOpsDialect,
                          mlir::cir::CIRDialect>();
-  target.addIllegalOp<mlir::cir::AllocaOp, mlir::cir::ConstantOp>();
+  target.addIllegalOp<mlir::cir::AllocaOp, mlir::cir::ConstantOp,
+                      mlir::cir::ReturnOp>();
 
   mlir::RewritePatternSet patterns(&getContext());
   populateCIRToMemRefConversionPatterns(patterns);
