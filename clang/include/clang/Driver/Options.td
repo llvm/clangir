@@ -787,9 +787,6 @@ def O0 : Flag<["-"], "O0">, Group<O_Group>, Flags<[CC1Option, FC1Option, HelpHid
 def O4 : Flag<["-"], "O4">, Group<O_Group>, Flags<[CC1Option, FC1Option, HelpHidden]>;
 def ObjCXX : Flag<["-"], "ObjC++">, Flags<[NoXarchOption]>,
   HelpText<"Treat source input files as Objective-C++ inputs">;
-def fenable_clangir : Flag<["-"], "fenable-clangir">, Flags<[CC1Option]>,
-  HelpText<"Use the new ClangIR pipeline to compile.">,
-  MarshallingInfoFlag<FrontendOpts<"UseClangIRPipeline">>;
 def ObjC : Flag<["-"], "ObjC">, Flags<[NoXarchOption]>,
   HelpText<"Treat source input files as Objective-C inputs">;
 def O : Joined<["-"], "O">, Group<O_Group>, Flags<[CC1Option,FC1Option]>;
@@ -2352,6 +2349,9 @@ def flax_vector_conversions : Flag<["-"], "flax-vector-conversions">, Group<f_Gr
 def flimited_precision_EQ : Joined<["-"], "flimited-precision=">, Group<f_Group>;
 def fapple_link_rtlib : Flag<["-"], "fapple-link-rtlib">, Group<f_Group>,
   HelpText<"Force linking the clang builtins runtime library">;
+def fenable_clangir : Flag<["-"], "fenable-clangir">, Flags<[CoreOption, CC1Option]>, Group<f_Group>,
+  HelpText<"Use the new ClangIR pipeline to compile.">,
+  MarshallingInfoFlag<FrontendOpts<"UseClangIRPipeline">>;
 def flto_EQ : Joined<["-"], "flto=">, Flags<[CoreOption, CC1Option, FC1Option, FlangOption]>, Group<f_Group>,
   HelpText<"Set LTO mode">, Values<"thin,full">;
 def flto_EQ_jobserver : Flag<["-"], "flto=jobserver">, Group<f_Group>,
