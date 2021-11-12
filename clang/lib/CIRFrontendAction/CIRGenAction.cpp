@@ -7,6 +7,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/CIRFrontendAction/CIRGenAction.h"
+#include "mlir/Dialect/CIR/IR/CIRDialect.h"
+#include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/MLIRContext.h"
+#include "mlir/Parser.h"
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclCXX.h"
@@ -44,11 +49,6 @@
 #include "llvm/Support/ToolOutputFile.h"
 #include "llvm/Support/YAMLTraits.h"
 #include "llvm/Transforms/IPO/Internalize.h"
-#include "mlir/Dialect/CIR/IR/CIRDialect.h"
-#include "mlir/Dialect/MemRef/IR/MemRef.h"
-#include "mlir/IR/BuiltinOps.h"
-#include "mlir/IR/MLIRContext.h"
-#include "mlir/Parser.h"
 
 #include <memory>
 
@@ -60,19 +60,38 @@ class CIRGenConsumer : public clang::ASTConsumer {
 
   virtual void anchor();
 
-  std::unique_ptr<raw_pwrite_stream> outputStream;
-
-  std::unique_ptr<CIRContext> gen;
-
   CIRGenAction::OutputType action;
 
+  DiagnosticsEngine &diagnosticsEngine;
+  const HeaderSearchOptions &headerSearchOptions;
+  const CodeGenOptions &codeGenOptions;
+  const TargetOptions &targetOptions;
+  const LangOptions &langOptions;
+
+  std::unique_ptr<raw_pwrite_stream> outputStream;
+
   ASTContext *astContext{nullptr};
+  std::unique_ptr<CIRContext> gen;
 
 public:
-  CIRGenConsumer(std::unique_ptr<raw_pwrite_stream> os,
-                 CIRGenAction::OutputType action)
-      : outputStream(std::move(os)), gen(std::make_unique<CIRContext>()),
-        action(action) {}
+  CIRGenConsumer(CIRGenAction::OutputType action,
+                 DiagnosticsEngine &diagnosticsEngine,
+                 const HeaderSearchOptions &headerSearchOptions,
+                 const CodeGenOptions &codeGenOptions,
+                 const TargetOptions &targetOptions,
+                 const LangOptions &langOptions,
+                 std::unique_ptr<raw_pwrite_stream> os)
+      : action(action), diagnosticsEngine(diagnosticsEngine),
+        headerSearchOptions(headerSearchOptions),
+        codeGenOptions(codeGenOptions), targetOptions(targetOptions),
+        langOptions(langOptions), outputStream(std::move(os)),
+        gen(std::make_unique<CIRContext>()) {
+    // This is required to match the constructors used during
+    // CodeGenAction. Ultimately, this is required because we want to use
+    // the same utility functions in BackendUtil.h for handling llvm
+    // optimization and codegen
+    (void)this->codeGenOptions;
+  }
 
   void Initialize(ASTContext &ctx) override {
     assert(!astContext && "initialized multiple times");
@@ -115,8 +134,22 @@ public:
         llvmModule->print(*outputStream, nullptr);
       break;
     }
+    case CIRGenAction::OutputType::EmitObj: {
+      // TODO: Don't duplicate this from above
+      llvm::LLVMContext llvmCtx;
+      auto llvmModule =
+          lowerFromCIRToLLVMIR(mlirMod, std::move(mlirCtx), llvmCtx);
+
+      llvmModule->setTargetTriple(targetOptions.Triple);
+
+      EmitBackendOutput(diagnosticsEngine, headerSearchOptions, codeGenOptions,
+                        targetOptions, langOptions,
+                        C.getTargetInfo().getDataLayoutString(),
+                        llvmModule.get(), BackendAction::Backend_EmitObj,
+                        std::move(outputStream));
+      break;
+    }
     case CIRGenAction::OutputType::EmitAssembly:
-    case CIRGenAction::OutputType::EmitObject:
       assert(false && "Not yet implemented");
       break;
     case CIRGenAction::OutputType::None:
@@ -144,9 +177,7 @@ CIRGenAction::CIRGenAction(OutputType act, mlir::MLIRContext *_MLIRContext)
     : mlirContext(_MLIRContext ? _MLIRContext : new mlir::MLIRContext),
       OwnsVMContext(!_MLIRContext), action(act) {}
 
-CIRGenAction::~CIRGenAction() {
-  mlirModule.reset();
-}
+CIRGenAction::~CIRGenAction() { mlirModule.reset(); }
 
 void CIRGenAction::EndSourceFileAction() {}
 
@@ -160,7 +191,7 @@ getOutputStream(CompilerInstance &ci, StringRef inFile,
     return ci.createDefaultOutputFile(false, inFile, "cir");
   case CIRGenAction::OutputType::EmitLLVM:
     return ci.createDefaultOutputFile(false, inFile, "llvm");
-  case CIRGenAction::OutputType::EmitObject:
+  case CIRGenAction::OutputType::EmitObj:
     return ci.createDefaultOutputFile(true, inFile, "o");
   case CIRGenAction::OutputType::None:
     return nullptr;
@@ -170,11 +201,14 @@ getOutputStream(CompilerInstance &ci, StringRef inFile,
 }
 
 std::unique_ptr<ASTConsumer>
-CIRGenAction::CreateASTConsumer(CompilerInstance &CI, StringRef InFile) {
-  auto out = CI.takeOutputStream();
+CIRGenAction::CreateASTConsumer(CompilerInstance &ci, StringRef inputFile) {
+  auto out = ci.takeOutputStream();
   if (!out)
-    out = getOutputStream(CI, InFile, action);
-  return std::make_unique<cir::CIRGenConsumer>(std::move(out), action);
+    out = getOutputStream(ci, inputFile, action);
+  return std::make_unique<cir::CIRGenConsumer>(
+      action, ci.getDiagnostics(), ci.getHeaderSearchOpts(),
+      ci.getCodeGenOpts(), ci.getTargetOpts(), ci.getLangOpts(),
+      std::move(out));
 }
 
 mlir::OwningModuleRef CIRGenAction::loadModule(llvm::MemoryBufferRef mbRef) {
@@ -190,6 +224,8 @@ void CIRGenAction::ExecuteAction() {
   }
 
   // If this is a CIR file we have to treat it specially.
+  // TODO: This could be done more logically. This is just modeled at the moment
+  // mimicing CodeGenAction but this is clearly suboptimal.
   auto &ci = getCompilerInstance();
   std::unique_ptr<raw_pwrite_stream> outstream =
       getOutputStream(ci, getCurrentFile(), action);
@@ -236,3 +272,7 @@ EmitCIROnlyAction::EmitCIROnlyAction(mlir::MLIRContext *_MLIRContext)
 void EmitLLVMAction::anchor() {}
 EmitLLVMAction::EmitLLVMAction(mlir::MLIRContext *_MLIRContext)
     : CIRGenAction(OutputType::EmitLLVM, _MLIRContext) {}
+
+void EmitObjAction::anchor() {}
+EmitObjAction::EmitObjAction(mlir::MLIRContext *_MLIRContext)
+    : CIRGenAction(OutputType::EmitObj, _MLIRContext) {}

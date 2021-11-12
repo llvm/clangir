@@ -15,7 +15,7 @@
 namespace llvm {
 class LLVMIRContext;
 class Module;
-}
+} // namespace llvm
 
 namespace mlir {
 class MLIRContext;
@@ -29,7 +29,7 @@ class CIRGenerator;
 
 class CIRGenAction : public clang::ASTFrontendAction {
 public:
-  enum class OutputType { EmitAssembly, EmitCIR, EmitLLVM, EmitObject, None };
+  enum class OutputType { EmitAssembly, EmitCIR, EmitLLVM, EmitObj, None };
 
 private:
   friend class CIRGenConsumer;
@@ -38,7 +38,6 @@ private:
   // clang against MLIR. Hide this somewhere else.
   std::unique_ptr<mlir::OwningModuleRef> mlirModule;
   std::unique_ptr<llvm::Module> llvmModule;
-
 
   mlir::MLIRContext *mlirContext;
   bool OwnsVMContext;
@@ -91,6 +90,13 @@ class EmitAssemblyAction : public CIRGenAction {
 
 public:
   EmitAssemblyAction(mlir::MLIRContext *mlirCtx = nullptr);
+};
+
+class EmitObjAction : public CIRGenAction {
+  virtual void anchor();
+
+public:
+  EmitObjAction(mlir::MLIRContext *mlirCtx = nullptr);
 };
 
 } // namespace cir
