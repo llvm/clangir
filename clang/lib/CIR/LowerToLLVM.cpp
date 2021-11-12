@@ -18,6 +18,7 @@
 #include "mlir/Conversion/StandardToLLVM/ConvertStandardToLLVM.h"
 #include "mlir/Conversion/StandardToLLVM/ConvertStandardToLLVMPass.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
+#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
 #include "mlir/Dialect/CIR/IR/CIRDialect.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
@@ -47,6 +48,18 @@ struct ConvertCIRToLLVMPass
   void runOnOperation() final;
 
   virtual StringRef getArgument() const override { return "cir-to-llvm"; }
+};
+
+struct ConvertCIRToMemRefPass
+    : public mlir::PassWrapper<ConvertCIRToMemRefPass,
+                               mlir::OperationPass<mlir::ModuleOp>> {
+  void getDependentDialects(mlir::DialectRegistry &registry) const override {
+    registry.insert<mlir::memref::MemRefDialect, mlir::StandardOpsDialect,
+                    mlir::scf::SCFDialect>();
+  }
+  void runOnOperation() final;
+
+  virtual StringRef getArgument() const override { return "cir-to-memref"; }
 };
 } // end anonymous namespace
 
@@ -102,9 +115,13 @@ public:
   }
 };
 
+void populateCIRToMemRefConversionPatterns(mlir::RewritePatternSet &patterns) {
+  patterns.add<CIRAllocaLowering, CIRLoadLowering, CIRStoreLowering>(
+      patterns.getContext());
+}
+
 void populateCIRToStdConversionPatterns(mlir::RewritePatternSet &patterns) {
-  patterns.add<CIRAllocaLowering, CIRLoadLowering, CIRReturnLowering,
-               CIRStoreLowering>(patterns.getContext());
+  patterns.add<CIRReturnLowering>(patterns.getContext());
 }
 
 void ConvertCIRToLLVMPass::runOnOperation() {
@@ -115,6 +132,7 @@ void ConvertCIRToLLVMPass::runOnOperation() {
 
   mlir::RewritePatternSet patterns(&getContext());
   populateCIRToStdConversionPatterns(patterns);
+  populateCIRToMemRefConversionPatterns(patterns);
   populateAffineToStdConversionPatterns(patterns);
   populateLoopToStdConversionPatterns(patterns);
   populateMemRefToLLVMConversionPatterns(typeConverter, patterns);
@@ -122,6 +140,28 @@ void ConvertCIRToLLVMPass::runOnOperation() {
 
   auto module = getOperation();
   if (failed(applyFullConversion(module, target, std::move(patterns))))
+    signalPassFailure();
+}
+
+void ConvertCIRToMemRefPass::runOnOperation() {
+  mlir::ConversionTarget target(getContext());
+
+  // TODO: Should this be a wholesale conversion? It's a bit ambiguous on
+  // whether we should have micro-conversions that do the minimal amount of work
+  // or macro conversions that entiirely remove a dialect.
+  target.addLegalOp<mlir::ModuleOp, mlir::FuncOp>();
+  target.addLegalDialect<mlir::AffineDialect, mlir::arith::ArithmeticDialect,
+                         mlir::memref::MemRefDialect, mlir::StandardOpsDialect,
+                         mlir::cir::CIRDialect>();
+  target.addIllegalOp<mlir::cir::AllocaOp>();
+
+  mlir::RewritePatternSet patterns(&getContext());
+  populateCIRToMemRefConversionPatterns(patterns);
+  // populateAffineToStdConversionPatterns(patterns);
+  // populateLoopToStdConversionPatterns(patterns);
+
+  auto module = getOperation();
+  if (failed(applyPartialConversion(module, target, std::move(patterns))))
     signalPassFailure();
 }
 
@@ -150,6 +190,10 @@ lowerFromCIRToLLVMIR(mlir::ModuleOp theModule,
 
 std::unique_ptr<mlir::Pass> createConvertCIRToLLVMPass() {
   return std::make_unique<ConvertCIRToLLVMPass>();
+}
+
+std::unique_ptr<mlir::Pass> createConvertCIRToMemRefPass() {
+  return std::make_unique<ConvertCIRToMemRefPass>();
 }
 
 } // namespace cir
