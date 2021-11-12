@@ -89,11 +89,7 @@ static void printConstantValue(OpAsmPrinter &p, cir::ConstantOp op,
 }
 
 /// Trivial folding of constants from the tutorial.
-OpFoldResult ConstantOp::fold(ArrayRef<Attribute> operands) {
-  assert(operands.size() == 1 &&
-         "ConstantOp::fold is only trivially implemented for single operands");
-  return value();
-}
+OpFoldResult ConstantOp::fold(ArrayRef<Attribute> operands) { return value(); }
 
 //===----------------------------------------------------------------------===//
 // ReturnOp
