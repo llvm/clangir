@@ -12,7 +12,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
 #include "mlir/Dialect/CIR/IR/CIRDialect.h"
+#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Pass/PassRegistry.h"
 #include "mlir/Support/MlirOptMain.h"
@@ -21,7 +23,8 @@
 int main(int argc, char **argv) {
   // TODO: register needed MLIR passes for CIR?
   mlir::DialectRegistry registry;
-  registry.insert<mlir::cir::CIRDialect, mlir::memref::MemRefDialect>();
+  registry.insert<mlir::arith::ArithmeticDialect, mlir::cir::CIRDialect,
+                  mlir::memref::MemRefDialect, mlir::LLVM::LLVMDialect>();
 
   ::mlir::registerPass([]() -> std::unique_ptr<::mlir::Pass> {
     return cir::createConvertCIRToLLVMPass();
@@ -32,5 +35,5 @@ int main(int argc, char **argv) {
 
   return failed(MlirOptMain(argc, argv,
                             "Clang IR analysis and optimization tool\n",
-                            registry, /*preloadDialectsInContext=*/false));
+                            registry, /*preloadDialectsInContext=*/true));
 }
