@@ -40,7 +40,6 @@ private:
   std::unique_ptr<llvm::Module> llvmModule;
 
   mlir::MLIRContext *mlirContext;
-  bool OwnsVMContext;
 
   mlir::OwningModuleRef loadModule(llvm::MemoryBufferRef mbRef);
 
