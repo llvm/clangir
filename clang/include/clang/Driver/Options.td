@@ -864,9 +864,6 @@ def O4 : Flag<["-"], "O4">, Group<O_Group>, Flags<[HelpHidden]>,
   Visibility<[ClangOption, CC1Option, FC1Option, FlangOption]>;
 def ObjCXX : Flag<["-"], "ObjC++">, Flags<[NoXarchOption]>,
   HelpText<"Treat source input files as Objective-C++ inputs">;
-def fenable_clangir : Flag<["-"], "fenable-clangir">, Visibility<[CC1Option]>,
-  HelpText<"Use the new ClangIR pipeline to compile.">,
-  MarshallingInfoFlag<FrontendOpts<"UseClangIRPipeline">>;
 def ObjC : Flag<["-"], "ObjC">, Flags<[NoXarchOption]>,
   HelpText<"Treat source input files as Objective-C inputs">;
 def O : Joined<["-"], "O">, Group<O_Group>,
@@ -2835,6 +2832,9 @@ def flto_EQ : Joined<["-"], "flto=">,
   Visibility<[ClangOption, CLOption, CC1Option, FC1Option, FlangOption]>,
   Group<f_Group>,
   HelpText<"Set LTO mode">, Values<"thin,full">;
+def fenable_clangir : Flag<["-"], "fenable-clangir">, Visibility<[ClangOption, CC1Option]>,
+  Group<f_Group>, HelpText<"Use the new ClangIR pipeline to compile.">,
+  MarshallingInfoFlag<FrontendOpts<"UseClangIRPipeline">>;
 def flto_EQ_jobserver : Flag<["-"], "flto=jobserver">, Visibility<[ClangOption, FlangOption]>, Group<f_Group>,
   Alias<flto_EQ>, AliasArgs<["full"]>, HelpText<"Enable LTO in 'full' mode">;
 def flto_EQ_auto : Flag<["-"], "flto=auto">, Visibility<[ClangOption, FlangOption]>, Group<f_Group>,
