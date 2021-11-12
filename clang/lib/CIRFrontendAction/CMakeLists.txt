@@ -18,6 +18,7 @@ add_clang_library(clangCIRFrontendAction
   LINK_LIBS
   clangAST
   clangBasic
+  clangCodeGen
   clangLex
   clangFrontend
   clangCIR
