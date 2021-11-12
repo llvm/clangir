@@ -175,7 +175,7 @@ void CIRGenConsumer::anchor() {}
 
 CIRGenAction::CIRGenAction(OutputType act, mlir::MLIRContext *_MLIRContext)
     : mlirContext(_MLIRContext ? _MLIRContext : new mlir::MLIRContext),
-      OwnsVMContext(!_MLIRContext), action(act) {}
+      action(act) {}
 
 CIRGenAction::~CIRGenAction() { mlirModule.reset(); }
 
