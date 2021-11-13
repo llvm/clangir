@@ -134,10 +134,6 @@ void populateCIRToMemRefConversionPatterns(mlir::RewritePatternSet &patterns) {
                CIRConstantLowering, CIRReturnLowering>(patterns.getContext());
 }
 
-void populateCIRToStdConversionPatterns(mlir::RewritePatternSet &patterns) {
-  patterns.add<CIRReturnLowering>(patterns.getContext());
-}
-
 void ConvertCIRToLLVMPass::runOnOperation() {
   mlir::LLVMConversionTarget target(getContext());
   target.addLegalOp<mlir::ModuleOp>();
@@ -145,8 +141,6 @@ void ConvertCIRToLLVMPass::runOnOperation() {
   mlir::LLVMTypeConverter typeConverter(&getContext());
 
   mlir::RewritePatternSet patterns(&getContext());
-  populateCIRToStdConversionPatterns(patterns);
-  populateCIRToMemRefConversionPatterns(patterns);
   populateAffineToStdConversionPatterns(patterns);
   mlir::arith::populateArithToLLVMConversionPatterns(typeConverter, patterns);
   populateSCFToControlFlowConversionPatterns(patterns);
@@ -165,11 +159,9 @@ void ConvertCIRToMemRefPass::runOnOperation() {
   // whether we should have micro-conversions that do the minimal amount of work
   // or macro conversions that entiirely remove a dialect.
   target.addLegalOp<mlir::ModuleOp, mlir::FuncOp>();
-  target.addLegalDialect<mlir::affine::AffineDialect, mlir::arith::ArithDialect,
-                         mlir::memref::MemRefDialect, mlir::func::FuncDialect,
-                         mlir::cir::CIRDialect>();
-  target.addIllegalOp<mlir::cir::AllocaOp, mlir::cir::ConstantOp,
-                      mlir::cir::ReturnOp>();
+  target
+      .addLegalDialect<mlir::affine::AffineDialect, mlir::arith::ArithDialect,
+                       mlir::memref::MemRefDialect, mlir::func::FuncDialect>();
 
   mlir::RewritePatternSet patterns(&getContext());
   populateCIRToMemRefConversionPatterns(patterns);
@@ -187,6 +179,7 @@ lowerFromCIRToLLVMIR(mlir::ModuleOp theModule,
                      LLVMContext &llvmCtx) {
   mlir::PassManager pm(mlirCtx.get());
 
+  pm.addPass(createConvertCIRToMemRefPass());
   pm.addPass(createConvertCIRToLLVMPass());
 
   auto result = !mlir::failed(pm.run(theModule));
