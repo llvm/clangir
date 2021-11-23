@@ -136,28 +136,6 @@ void IfOp::build(OpBuilder &builder, OperationState &state, Value cond,
     builder.createBlock(elseRegion);
 }
 
-void IfOp::build(OpBuilder &builder, OperationState &state, Value cond,
-                 function_ref<void(OpBuilder &, Location)> thenBuilder,
-                 function_ref<void(OpBuilder &, Location)> elseBuilder) {
-  state.addOperands(cond);
-  Region *thenRegion = state.addRegion();
-  Region *elseRegion = state.addRegion();
-  
-  // Build then region
-  {
-    OpBuilder::InsertionGuard guard(builder);
-    builder.createBlock(thenRegion);
-    if (thenBuilder)
-      thenBuilder(builder, state.location);
-  }
-  
-  // Build else region
-  if (elseBuilder) {
-    OpBuilder::InsertionGuard guard(builder);
-    builder.createBlock(elseRegion);
-    elseBuilder(builder, state.location);
-  }
-}
 
 Block *IfOp::thenBlock() { return &getThenRegion().back(); }
 Block *IfOp::elseBlock() {
@@ -205,6 +183,26 @@ void IfOp::getSuccessorRegions(mlir::RegionBranchPoint point,
   if (elseRegion)
     regions.push_back(RegionSuccessor(elseRegion));
   return;
+}
+
+void IfOp::build(OpBuilder &builder, OperationState &result, Value cond,
+                 function_ref<void(OpBuilder &, Location)> thenBuilder,
+                 function_ref<void(OpBuilder &, Location)> elseBuilder) {
+  assert(thenBuilder && "the builder callback for 'then' must be present");
+
+  result.addOperands(cond);
+
+  OpBuilder::InsertionGuard guard(builder);
+  Region *thenRegion = result.addRegion();
+  builder.createBlock(thenRegion);
+  thenBuilder(builder, result.location);
+
+  Region *elseRegion = result.addRegion();
+  if (!elseBuilder)
+    return;
+
+  builder.createBlock(elseRegion);
+  elseBuilder(builder, result.location);
 }
 
 //===----------------------------------------------------------------------===//
