@@ -11,12 +11,15 @@ target_link_libraries(cir-tool PRIVATE
 
   clangCIR
   MLIRAnalysis
-  MLIRIR
-  MLIROptLib
   MLIRCIR
+  MLIRDialect
+  MLIRIR
+  MLIRLoopAnalysis
   MLIRMemRef
+  MLIROptLib
   MLIRParser
   MLIRPass
   MLIRSideEffectInterfaces
   MLIRTransforms
+  MLIRTransformUtils
 )
