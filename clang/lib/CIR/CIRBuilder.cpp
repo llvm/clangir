@@ -211,7 +211,8 @@ private:
   /// Declare a variable in the current scope, return success if the variable
   /// wasn't declared yet.
   mlir::LogicalResult declare(const Decl *var, QualType T, mlir::Location loc,
-                              mlir::Value &addr, bool IsParam = false) {
+                              CharUnits alignment, mlir::Value &addr,
+                              bool IsParam = false) {
     const auto *namedVar = dyn_cast_or_null<NamedDecl>(var);
     assert(namedVar && "Needs a named decl");
 
@@ -222,9 +223,14 @@ private:
     auto localVarPtrTy =
         mlir::cir::PointerType::get(builder.getContext(), localVarTy);
 
+    auto alignIntAttr =
+        mlir::IntegerAttr::get(mlir::IntegerType::get(builder.getContext(), 64),
+                               alignment.getQuantity());
+
     auto localVarAddr = builder.create<mlir::cir::AllocaOp>(
         loc, /*addr type*/ localVarPtrTy, /*var type*/ localVarTy,
-        IsParam ? InitStyle::paraminit : InitStyle::uninitialized);
+        IsParam ? InitStyle::paraminit : InitStyle::uninitialized,
+        alignIntAttr);
 
     auto *parentBlock = localVarAddr->getBlock();
     localVarAddr->moveBefore(&parentBlock->front());
@@ -602,7 +608,8 @@ public:
 
     // TODO: track source location range...
     mlir::Value addr;
-    if (failed(declare(&D, Ty, getLoc(D.getSourceRange().getBegin()), addr))) {
+    if (failed(declare(&D, Ty, getLoc(D.getSourceRange().getBegin()), alignment,
+                       addr))) {
       theModule.emitError("Cannot declare variable");
       return emission;
     }
@@ -1569,10 +1576,11 @@ public:
          llvm::zip(FD->parameters(), entryBlock.getArguments())) {
       auto *paramVar = std::get<0>(nameValue);
       auto paramVal = std::get<1>(nameValue);
+      auto alignment = astCtx.getDeclAlign(paramVar);
       mlir::Value addr;
       if (failed(declare(paramVar, paramVar->getType(),
-                         getLoc(paramVar->getSourceRange().getBegin()), addr,
-                         true /*param*/)))
+                         getLoc(paramVar->getSourceRange().getBegin()),
+                         alignment, addr, true /*param*/)))
         return nullptr;
       // Store params in local storage. FIXME: is this really needed
       // at this level of representation?
@@ -1626,9 +1634,7 @@ void CIRContext::Initialize(clang::ASTContext &astCtx) {
   builder = std::make_unique<CIRBuildImpl>(*mlirCtx.get(), astCtx);
 }
 
-void CIRContext::verifyModule() {
-    builder->verifyModule();
-}
+void CIRContext::verifyModule() { builder->verifyModule(); }
 
 bool CIRContext::EmitFunction(const FunctionDecl *FD) {
   CIRCodeGenFunction CCGF{};
@@ -1649,5 +1655,4 @@ bool CIRContext::HandleTopLevelDecl(clang::DeclGroupRef D) {
   return true;
 }
 
-void CIRContext::HandleTranslationUnit(ASTContext &C) {
-}
+void CIRContext::HandleTranslationUnit(ASTContext &C) {}
