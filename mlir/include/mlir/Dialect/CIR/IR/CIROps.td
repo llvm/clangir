@@ -122,11 +122,16 @@ def AllocaOp : CIR_Op<"alloca", [
   let arguments = (ins
     TypeAttr:$type,
     // FIXME: add "uninitialzed" as default mode
-    Arg<InitStyle, "initialization style">:$init
+    Arg<InitStyle, "initialization style">:$init,
+    Confined<OptionalAttr<I64Attr>, [IntMinValue<0>]>:$alignment
   );
 
   let results = (outs Res<CIR_PointerType, "",
                       [MemAlloc<AutomaticAllocationScopeResource>]>:$addr);
+
+  let extraClassDeclaration = [{
+    static StringRef getAlignmentAttrName() { return "alignment"; }
+  }];
 
   let assemblyFormat = [{
     $type `,` `cir.ptr` type($addr) `,` `[` $init `]`  attr-dict
