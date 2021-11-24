@@ -11,9 +11,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "mlir/Conversion/AffineToStandard/AffineToStandard.h"
+#include "mlir/Conversion/ArithmeticToLLVM/ArithmeticToLLVM.h"
 #include "mlir/Conversion/FuncToLLVM/ConvertFuncToLLVM.h"
 #include "mlir/Conversion/FuncToLLVM/ConvertFuncToLLVMPass.h"
-#include "mlir/Conversion/ArithmeticToLLVM/ArithmeticToLLVM.h"
 #include "mlir/Conversion/LLVMCommon/ConversionTarget.h"
 #include "mlir/Conversion/LLVMCommon/TypeConverter.h"
 #include "mlir/Conversion/MemRefToLLVM/MemRefToLLVM.h"
@@ -83,7 +83,7 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::AllocaOp op,
                   mlir::PatternRewriter &rewriter) const override {
-    auto ty = mlir::MemRefType::get({}, op.type());
+    auto ty = mlir::MemRefType::get({}, op.getAllocaType());
     rewriter.replaceOpWithNewOp<mlir::memref::AllocOp>(op, ty);
     return mlir::LogicalResult::success();
   }
