@@ -150,6 +150,8 @@ void mlir::cir::buildTerminatedBody(OpBuilder &builder, Location loc) {}
 void IfOp::getSuccessorRegions(Optional<unsigned> index,
                                ArrayRef<Attribute> operands,
                                SmallVectorImpl<RegionSuccessor> &regions) {
+  assert(0 && "not implemented");
+
   // The `then` and the `else` region branch back to the parent operation.
   if (index.hasValue()) {
     assert(0 && "not implemented");
