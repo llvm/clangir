@@ -32,7 +32,6 @@ class CIR_Op<string mnemonic, list<OpTrait> traits = []> :
 // ConstantOp
 //===----------------------------------------------------------------------===//
 
-
 def ConstantOp : CIR_Op<"cst",
     [ConstantLike, NoSideEffect]> {
 
@@ -98,7 +97,6 @@ class AllocaTypesMatchWith<string summary, string lhsArg, string rhsArg,
   string transformer = transform;
 }
 
-// FIXME: add alignment, bool attr on being param, automatic scope?.
 def AllocaOp : CIR_Op<"alloca", [
   AllocaTypesMatchWith<"'type' matches pointee type of 'addr'",
                  "addr", "type",
