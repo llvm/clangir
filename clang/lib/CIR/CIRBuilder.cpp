@@ -1575,7 +1575,7 @@ public:
         [&](mlir::OpBuilder &b, mlir::Location loc) { (void)buildStmt(thenS); },
         /*elseBuilder=*/
         [&](mlir::OpBuilder &b, mlir::Location loc) {
-          if (elseS)
+          if (!elseS)
             return;
           (void)buildStmt(elseS);
         });
