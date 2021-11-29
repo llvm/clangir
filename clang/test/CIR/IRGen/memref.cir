@@ -1,4 +1,5 @@
 // RUN: cir-tool %s -cir-to-memref -o - | FileCheck %s -check-prefix=MLIR
+// RUN: cir-tool %s -cir-to-memref -cir-to-llvm -o - | mlir-translate -mlir-to-llvmir | FileCheck %s -check-prefix=LLVM
 
 module {
   func @foo() -> i32 {
@@ -19,3 +20,14 @@ module {
 // MLIR-NEXT:     return %1 : i32
 // MLIR-NEXT:   }
 // MLIR-NEXT: }
+
+//      LLVM: define i32 @foo()
+// LLVM-NEXT:   %1 = alloca i32, i64
+// LLVM-NEXT:   %2 = insertvalue { i32*, i32*, i64 } undef, i32* %1, 0
+// LLVM-NEXT:   %3 = insertvalue { i32*, i32*, i64 } %2, i32* %1, 1
+// LLVM-NEXT:   %4 = insertvalue { i32*, i32*, i64 } %3, i64 0, 2
+// LLVM-NEXT:   %5 = extractvalue { i32*, i32*, i64 } %4, 1
+// LLVM-NEXT:   store i32 1, i32* %5, align 4
+// LLVM-NEXT:   %6 = extractvalue { i32*, i32*, i64 } %4, 1
+// LLVM-NEXT:   %7 = load i32, i32* %6, align 4
+// LLVM-NEXT:   ret i32 %7
