@@ -50,10 +50,18 @@ static LogicalResult verify(cir::ConstantOp constOp) {
   // ODS already generates checks to make sure the result type is valid. We just
   // need to additionally check that the value's attribute type is consistent
   // with the result type.
+  if (value.isa<BoolAttr>()) {
+    if (!opType.isa<mlir::cir::BoolType>())
+      return constOp.emitOpError("result type (")
+             << opType << ") must be '!cir.bool' for '" << value << "'";
+    return success();
+  }
+
   if (value.isa<IntegerAttr, FloatAttr>()) {
-    if (valueType != opType)
+    if (valueType != opType) {
       return constOp.emitOpError("result type (")
              << opType << ") does not match value type (" << valueType << ")";
+    }
     return success();
   }
 
