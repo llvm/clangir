@@ -57,9 +57,31 @@ def CIR_PointerType :
 }
 
 //===----------------------------------------------------------------------===//
+// BoolType
+//
+// An alternative here is to represent bool as mlir::i1, but let's be more
+// generic.
+//
+//===----------------------------------------------------------------------===//
+def CIR_BoolType :
+    CIR_Type<"Bool", "bool"> {
+
+  let summary = "CIR bool type";
+  let description = [{
+    `cir.bool` represent's C++ bool type.
+  }];
+
+  let printer = " ";
+
+  let parser = [{
+    return get($_ctxt);
+  }];
+}
+
+//===----------------------------------------------------------------------===//
 // One type to bind them all
 //===----------------------------------------------------------------------===//
 
-def CIR_AnyCIRType : AnyTypeOf<[CIR_PointerType]>;
+def CIR_AnyCIRType : AnyTypeOf<[CIR_PointerType, CIR_BoolType]>;
 
 #endif // MLIR_CIR_DIALECT_CIR_TYPES

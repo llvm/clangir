@@ -52,4 +52,4 @@ void CIRDialect::printType(Type type, DialectAsmPrinter &os) const {
 // CIR Dialect
 //===----------------------------------------------------------------------===//
 
-void CIRDialect::registerTypes() { addTypes<PointerType>(); }
+void CIRDialect::registerTypes() { addTypes<PointerType, BoolType>(); }
