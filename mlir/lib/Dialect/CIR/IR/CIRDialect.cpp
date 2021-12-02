@@ -208,12 +208,9 @@ void mlir::cir::buildTerminatedBody(OpBuilder &builder, Location loc) {}
 void IfOp::getSuccessorRegions(Optional<unsigned> index,
                                ArrayRef<Attribute> operands,
                                SmallVectorImpl<RegionSuccessor> &regions) {
-  assert(0 && "not implemented");
-
   // The `then` and the `else` region branch back to the parent operation.
   if (index.hasValue()) {
-    assert(0 && "not implemented");
-    // regions.push_back(RegionSuccessor(getResults()));
+    regions.push_back(RegionSuccessor());
     return;
   }
 
@@ -242,6 +239,7 @@ void IfOp::getSuccessorRegions(Optional<unsigned> index,
 }
 
 void IfOp::build(OpBuilder &builder, OperationState &result, Value cond,
+                 bool withElseRegion,
                  function_ref<void(OpBuilder &, Location)> thenBuilder,
                  function_ref<void(OpBuilder &, Location)> elseBuilder) {
   assert(thenBuilder && "the builder callback for 'then' must be present");
@@ -254,11 +252,15 @@ void IfOp::build(OpBuilder &builder, OperationState &result, Value cond,
   thenBuilder(builder, result.location);
 
   Region *elseRegion = result.addRegion();
-  if (!elseBuilder)
+  if (!withElseRegion)
     return;
 
   builder.createBlock(elseRegion);
   elseBuilder(builder, result.location);
+}
+
+static LogicalResult verify(IfOp op) {
+  return RegionBranchOpInterface::verifyTypes(op);
 }
 
 //===----------------------------------------------------------------------===//
@@ -268,9 +270,6 @@ void IfOp::build(OpBuilder &builder, OperationState &result, Value cond,
 static mlir::LogicalResult verify(YieldOp op) {
   if (!llvm::isa<IfOp>(op->getParentOp()))
     return op.emitOpError() << "expects 'if' as the parent operation'";
-
-  if (!op.results().empty())
-    return op.emitOpError() << "must not produce results in 'if' operation";
 
   return mlir::success();
 }
