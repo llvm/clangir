@@ -35,7 +35,7 @@ Type CIRDialect::parseType(DialectAsmParser &parser) const {
   Type genType;
   OptionalParseResult parseResult =
       generatedTypeParser(parser, &mnemonic, genType);
-  if (parseResult.hasValue())
+  if (parseResult.has_value())
     return genType;
   parser.emitError(typeLoc, "unknown type in CIR dialect");
   return Type();
@@ -67,8 +67,7 @@ Type BoolType::parse(mlir::AsmParser &parser) {
   return get(parser.getContext());
 }
 
-void BoolType::print(mlir::AsmPrinter &printer) const {
-}
+void BoolType::print(mlir::AsmPrinter &printer) const {}
 
 //===----------------------------------------------------------------------===//
 // CIR Dialect
