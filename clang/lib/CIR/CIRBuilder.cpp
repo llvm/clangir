@@ -1586,7 +1586,7 @@ public:
     cond = cond->IgnoreParens();
     mlir::Value condV = evaluateExprAsBool(cond);
     builder.create<mlir::cir::IfOp>(
-        loc, condV,
+        loc, condV, elseS,
         /*thenBuilder=*/
         [&](mlir::OpBuilder &b, mlir::Location loc) {
           (void)buildStmt(thenS);
@@ -1594,8 +1594,6 @@ public:
         },
         /*elseBuilder=*/
         [&](mlir::OpBuilder &b, mlir::Location loc) {
-          if (!elseS)
-            return;
           (void)buildStmt(elseS);
           builder.create<YieldOp>(getLoc(elseS->getSourceRange().getEnd()));
         });
