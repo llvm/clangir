@@ -354,7 +354,7 @@ def IfOp : CIR_Op<"if",
 //===----------------------------------------------------------------------===//
 
 def YieldOp : CIR_Op<"yield", [NoSideEffect, ReturnLike, Terminator,
-                               ParentOneOf<["IfOp"]>]> {
+                               ParentOneOf<["IfOp", "ScopeOp"]>]> {
   let summary = "termination operation for regions inside if, for, scope, etc";
   let description = [{
     "cir.yield" yields an SSA value from a CIR dialect op region and
@@ -378,6 +378,42 @@ def YieldOp : CIR_Op<"yield", [NoSideEffect, ReturnLike, Terminator,
       [{  attr-dict ($results^ `:` type($results))? }];
 
   let verifier = [{ return ::verify(*this); }];
+}
+
+//===----------------------------------------------------------------------===//
+// ScopeOp
+//===----------------------------------------------------------------------===//
+
+def ScopeOp : CIR_Op<"scope", [DeclareOpInterfaceMethods<RegionBranchOpInterface>,
+       SingleBlockImplicitTerminator<"cir::YieldOp">, RecursiveSideEffects,
+       AutomaticAllocationScope, NoRegionArguments]> {
+  let summary = "";
+  let description = [{
+    "cir.scope" contains one region and defines a strict "scope" for all new
+    values produced within its blocks.
+
+    "cir.yield" is required as a terminator and can have results, in which case
+    it can be omitted. Not used anywhere just yet but might be used to explicitly
+    model lifetime extension.
+  }];
+
+  let results = (outs Variadic<AnyType>:$results);
+  let regions = (region SizedRegion<1>:$scopeRegion);
+
+  // FIXME: unify these within CIR_Ops.
+  let printer = [{ return ::print(p, *this); }];
+  let parser = [{ return ::parseScopeOp(parser, result); }];
+  let verifier = [{ return ::verify(*this); }];
+
+  let skipDefaultBuilders = 1;
+  let builders = [
+    OpBuilder<(ins "TypeRange":$resultTypes, 
+               "function_ref<void(OpBuilder &, Location)>":$scopeBuilder)>
+  ];
+
+  let extraClassDeclaration = [{
+    Block* scopeBlock();
+  }];
 }
 
 #endif // MLIR_CIR_DIALECT_CIR_OPS
