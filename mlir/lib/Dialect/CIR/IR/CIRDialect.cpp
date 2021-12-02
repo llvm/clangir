@@ -278,6 +278,7 @@ ParseResult ScopeOp::parse(OpAsmParser &parser, OperationState &result) {
 }
 
 void ScopeOp::print(OpAsmPrinter &p) {
+  p << ' ';
   p.printRegion(getScopeRegion(),
                 /*printEntryBlockArgs=*/false,
                 /*printBlockTerminators=*/false);
@@ -324,8 +325,9 @@ LogicalResult ScopeOp::verify() { return success(); }
 //===----------------------------------------------------------------------===//
 
 mlir::LogicalResult YieldOp::verify() {
-  if (!llvm::isa<IfOp>(getOperation()->getParentOp()))
-    return emitOpError() << "expects 'if' as the parent operation'";
+  if (!llvm::isa<IfOp, ScopeOp>(getOperation()->getParentOp()))
+    return emitOpError()
+           << "expects 'cir.if' or 'cir.scope' as the parent operation'";
 
   return mlir::success();
 }
