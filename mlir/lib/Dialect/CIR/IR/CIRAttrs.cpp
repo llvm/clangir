@@ -38,7 +38,7 @@ Attribute CIRDialect::parseAttribute(DialectAsmParser &parser,
   Attribute genAttr;
   OptionalParseResult parseResult =
       generatedAttributeParser(parser, &mnemonic, type, genAttr);
-  if (parseResult.hasValue())
+  if (parseResult.has_value())
     return genAttr;
   parser.emitError(typeLoc, "unknown attribute in CIR dialect");
   return Attribute();
