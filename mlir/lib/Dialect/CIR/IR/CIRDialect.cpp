@@ -264,6 +264,70 @@ static LogicalResult verify(IfOp op) {
 }
 
 //===----------------------------------------------------------------------===//
+// ScopeOp
+//===----------------------------------------------------------------------===//
+
+static ParseResult parseScopeOp(OpAsmParser &parser, OperationState &result) {
+  // Create one region within 'scope'.
+  result.regions.reserve(1);
+  Region *scopeRegion = result.addRegion();
+
+  // Parse the scope region.
+  if (parser.parseRegion(*scopeRegion, /*arguments=*/{}, /*argTypes=*/{}))
+    return failure();
+  ScopeOp::ensureTerminator(*scopeRegion, parser.getBuilder(), result.location);
+
+  // Parse the optional attribute list.
+  if (parser.parseOptionalAttrDict(result.attributes))
+    return failure();
+  return success();
+}
+
+static void print(OpAsmPrinter &p, ScopeOp op) {
+  p.printRegion(op.scopeRegion(),
+                /*printEntryBlockArgs=*/false,
+                /*printBlockTerminators=*/false);
+
+  p.printOptionalAttrDict(op->getAttrs());
+}
+
+Block *ScopeOp::scopeBlock() { return &scopeRegion().back(); }
+
+/// Given the region at `index`, or the parent operation if `index` is None,
+/// return the successor regions. These are the regions that may be selected
+/// during the flow of control. `operands` is a set of optional attributes that
+/// correspond to a constant value for each operand, or null if that operand is
+/// not a constant.
+void ScopeOp::getSuccessorRegions(Optional<unsigned> index,
+                                  ArrayRef<Attribute> operands,
+                                  SmallVectorImpl<RegionSuccessor> &regions) {
+  // The only region always branch back to the parent operation.
+  if (index.hasValue()) {
+    regions.push_back(RegionSuccessor());
+    return;
+  }
+
+  // If the condition isn't constant, both regions may be executed.
+  regions.push_back(RegionSuccessor(&scopeRegion()));
+}
+
+void ScopeOp::build(OpBuilder &builder, OperationState &result,
+                    TypeRange resultTypes,
+                    function_ref<void(OpBuilder &, Location)> scopeBuilder) {
+  assert(scopeBuilder && "the builder callback for 'then' must be present");
+  result.addTypes(resultTypes);
+
+  OpBuilder::InsertionGuard guard(builder);
+  Region *scopeRegion = result.addRegion();
+  builder.createBlock(scopeRegion);
+  scopeBuilder(builder, result.location);
+}
+
+static LogicalResult verify(ScopeOp op) {
+  return RegionBranchOpInterface::verifyTypes(op);
+}
+
+//===----------------------------------------------------------------------===//
 // YieldOp
 //===----------------------------------------------------------------------===//
 
