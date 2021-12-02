@@ -322,11 +322,11 @@ def IfOp : CIR_Op<"if",
   // FIXME: unify these within CIR_Ops.
   let printer = [{ return ::print(p, *this); }];
   let parser = [{ return ::parseIfOp(parser, result); }];
+  let verifier = [{ return ::verify(*this); }];
 
   let skipDefaultBuilders = 1;
   let builders = [
-    OpBuilder<(ins "Value":$cond, "bool":$withElseRegion)>,
-    OpBuilder<(ins "Value":$cond,
+    OpBuilder<(ins "Value":$cond, "bool":$withElseRegion,
       CArg<"function_ref<void(OpBuilder &, Location)>",
            "buildTerminatedBody">:$thenBuilder,
       CArg<"function_ref<void(OpBuilder &, Location)>",
