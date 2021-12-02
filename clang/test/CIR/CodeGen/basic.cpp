@@ -49,3 +49,23 @@ void b1(int a) { bool b = a; }
 // CHECK: %2 = cir.load %1 lvalue_to_rvalue : cir.ptr <i32>, i32
 // CHECK: %3 = cir.cast(int_to_bool, %2 : i32), !cir.bool
 // CHECK: cir.store %3, %0 : !cir.bool, cir.ptr <!cir.bool>
+
+int if0(int a) {
+  int x = 0;
+  if (a) {
+    x = 3;
+  } else {
+    x = 4;
+  }
+  return x;
+}
+
+// CHECK: func @if0(%arg0: i32) -> i32 {
+// CHECK: %4 = cir.cast(int_to_bool, %3 : i32), !cir.bool
+// CHECK-NEXT: cir.if %4 {
+// CHECK-NEXT:   %6 = cir.cst(3 : i32) : i32
+// CHECK-NEXT:   cir.store %6, %0 : i32, cir.ptr <i32>
+// CHECK-NEXT: } else {
+// CHECK-NEXT:   %6 = cir.cst(4 : i32) : i32
+// CHECK-NEXT:   cir.store %6, %0 : i32, cir.ptr <i32>
+// CHECK-NEXT: }
