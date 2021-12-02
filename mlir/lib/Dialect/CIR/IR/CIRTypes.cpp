@@ -32,8 +32,6 @@ using namespace mlir::cir;
 Type CIRDialect::parseType(DialectAsmParser &parser) const {
   llvm::SMLoc typeLoc = parser.getCurrentLocation();
   StringRef mnemonic;
-  if (parser.parseKeyword(&mnemonic))
-    return Type();
   Type genType;
   OptionalParseResult parseResult =
       generatedTypeParser(parser, &mnemonic, genType);
