@@ -291,7 +291,7 @@ def IfOp : CIR_Op<"if",
        AutomaticAllocationScope, NoRegionArguments]> {
   let summary = "if-then-else operation";
   let description = [{
-    The `scf.if` operation represents an if-then-else construct for
+    The `cir.if` operation represents an if-then-else construct for
     conditionally executing two regions of code. The operand to an if operation
     is a boolean value. For example:
 
@@ -303,7 +303,8 @@ def IfOp : CIR_Op<"if",
     }
     ```
 
-    "cir.if" defines no values and the 'else' can be omitted.
+    `cir.if` defines no values and the 'else' can be omitted. Every region
+    must be terminated by `cir.yield`, which is implicit in the asm form.
 
     Example:
 
