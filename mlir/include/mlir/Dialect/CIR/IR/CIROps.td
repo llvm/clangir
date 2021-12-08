@@ -457,8 +457,8 @@ def BinOp : CIR_Op<"binop", [NoSideEffect,
 
      Example
      ```
-     %7 = binop(add, %1, %2)
-     %7 = binop(mul, %1, %2)
+     %7 = binop(add, %1, %2) : i32
+     %7 = binop(mul, %1, %2) : i8
      ```
   }];
 
@@ -469,6 +469,54 @@ def BinOp : CIR_Op<"binop", [NoSideEffect,
 
   let assemblyFormat = [{
     `(` custom<BinOpKind>($kind) `,` $lhs `,` $rhs  `)` `:` type($lhs) attr-dict
+  }];
+
+  // Already covered by the traits
+  let verifier = ?;
+}
+
+//===----------------------------------------------------------------------===//
+// CmpOp
+//===----------------------------------------------------------------------===//
+
+def CmpOpKind_LT : I32EnumAttrCase<"lt", 1>;
+def CmpOpKind_LE : I32EnumAttrCase<"le", 2>;
+def CmpOpKind_GT : I32EnumAttrCase<"gt", 3>;
+def CmpOpKind_GE : I32EnumAttrCase<"ge", 4>;
+def CmpOpKind_EQ : I32EnumAttrCase<"eq", 5>;
+def CmpOpKind_NE : I32EnumAttrCase<"ne", 6>;
+
+def CmpOpKind : I32EnumAttr<
+    "CmpOpKind",
+    "compare operation kind",
+    [CmpOpKind_LT, CmpOpKind_LE, CmpOpKind_GT,
+     CmpOpKind_GE, CmpOpKind_EQ, CmpOpKind_NE]> {
+  let cppNamespace = "::mlir::cir";
+}
+
+// FIXME: NoSideEffect might not work when we add overloading.
+def CmpOp : CIR_Op<"cmp", [NoSideEffect,
+  SameTypeOperands]> {
+
+  let summary = "comapre operation";
+  let description = [{
+    "cir.cmp compares two input operands and produces a bool result. The input
+     operands must have the same type. The kinds of comparison available are:
+     [lt,gt,ge,eq,ne]
+
+     Example
+     ```
+     %7 = cir.cmp(gt, %1, %2) : i32, !cir.bool
+     ```
+  }];
+
+  // TODO: get more accurate than AnyType
+  let results = (outs AnyType:$result);
+  let arguments = (ins Arg<CmpOpKind, "cmp kind">:$kind,
+                       AnyType:$lhs, AnyType:$rhs);
+
+  let assemblyFormat = [{
+    `(` $kind `,` $lhs `,` $rhs  `)` `:` type($lhs) `,` type($result) attr-dict
   }];
 
   // Already covered by the traits
