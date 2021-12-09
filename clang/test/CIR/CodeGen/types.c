@@ -21,23 +21,23 @@ void t8() {}
 bool t9(bool b) { return b; }
 #endif
 
-// CHECK: func @t0(%arg0: i32) -> i32 {
-// CHECK: func @t1(%arg0: i32) -> i32 {
-// CHECK: func @t2(%arg0: i8) -> i8 {
-// CHECK: func @t3(%arg0: i8) -> i8 {
-// CHECK: func @t4(%arg0: i16) -> i16 {
-// CHECK: func @t5(%arg0: i16) -> i16 {
-// CHECK: func @t6(%arg0: f32) -> f32 {
-// CHECK: func @t7(%arg0: f64) -> f64 {
+// CHECK: func @t0(%arg0: i32 loc({{.*}})) -> i32 {
+// CHECK: func @t1(%arg0: i32 loc({{.*}})) -> i32 {
+// CHECK: func @t2(%arg0: i8 loc({{.*}})) -> i8 {
+// CHECK: func @t3(%arg0: i8 loc({{.*}})) -> i8 {
+// CHECK: func @t4(%arg0: i16 loc({{.*}})) -> i16 {
+// CHECK: func @t5(%arg0: i16 loc({{.*}})) -> i16 {
+// CHECK: func @t6(%arg0: f32 loc({{.*}})) -> f32 {
+// CHECK: func @t7(%arg0: f64 loc({{.*}})) -> f64 {
 // CHECK: func @t8() {
 
-// CHECK-CPP: func @t0(%arg0: i32) -> i32 {
-// CHECK-CPP: func @t1(%arg0: i32) -> i32 {
-// CHECK-CPP: func @t2(%arg0: i8) -> i8 {
-// CHECK-CPP: func @t3(%arg0: i8) -> i8 {
-// CHECK-CPP: func @t4(%arg0: i16) -> i16 {
-// CHECK-CPP: func @t5(%arg0: i16) -> i16 {
-// CHECK-CPP: func @t6(%arg0: f32) -> f32 {
-// CHECK-CPP: func @t7(%arg0: f64) -> f64 {
+// CHECK-CPP: func @t0(%arg0: i32 loc({{.*}})) -> i32 {
+// CHECK-CPP: func @t1(%arg0: i32 loc({{.*}})) -> i32 {
+// CHECK-CPP: func @t2(%arg0: i8 loc({{.*}})) -> i8 {
+// CHECK-CPP: func @t3(%arg0: i8 loc({{.*}})) -> i8 {
+// CHECK-CPP: func @t4(%arg0: i16 loc({{.*}})) -> i16 {
+// CHECK-CPP: func @t5(%arg0: i16 loc({{.*}})) -> i16 {
+// CHECK-CPP: func @t6(%arg0: f32 loc({{.*}})) -> f32 {
+// CHECK-CPP: func @t7(%arg0: f64 loc({{.*}})) -> f64 {
 // CHECK-CPP: func @t8() {
-// CHECK-CPP: func @t9(%arg0: !cir.bool) -> !cir.bool {
+// CHECK-CPP: func @t9(%arg0: !cir.bool loc({{.*}})) -> !cir.bool {

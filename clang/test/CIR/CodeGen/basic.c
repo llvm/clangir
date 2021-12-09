@@ -6,7 +6,7 @@ int foo(int i) {
 }
 
 // CHECK: module  {
-// CHECK-NEXT: func @foo(%arg0: i32) -> i32 {
+// CHECK-NEXT: func @foo(%arg0: i32 loc({{.*}})) -> i32 {
 // CHECK-NEXT:   %0 = cir.alloca i32, cir.ptr <i32>, [paraminit] {alignment = 4 : i64}
 // CHECK-NEXT:   cir.store %arg0, %0 : i32, cir.ptr <i32>
 // CHECK-NEXT:   %1 = cir.load %0 lvalue_to_rvalue : cir.ptr <i32>, i32
