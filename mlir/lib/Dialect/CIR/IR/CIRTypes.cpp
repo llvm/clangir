@@ -69,11 +69,33 @@ Type BoolType::parse(mlir::AsmParser &parser) {
   return get(parser.getContext());
 }
 
-void BoolType::print(mlir::AsmPrinter &printer) const {
+void BoolType::print(mlir::AsmPrinter &printer) const {}
+
+Type StructType::parse(mlir::AsmParser &parser) {
+  if (parser.parseLess())
+    return Type();
+  std::string typeName;
+  if (parser.parseString(&typeName))
+    return Type();
+  llvm::SmallVector<Type> members;
+  Type nextMember;
+  while (mlir::succeeded(parser.parseType(nextMember)))
+    members.push_back(nextMember);
+  if (parser.parseGreater())
+    return Type();
+  return get(parser.getContext(), members, typeName);
+}
+
+void StructType::print(mlir::AsmPrinter &printer) const {
+  printer << '<' << getTypeName() << ", ";
+  llvm::interleaveComma(getMembers(), printer);
+  printer << '>';
 }
 
 //===----------------------------------------------------------------------===//
 // CIR Dialect
 //===----------------------------------------------------------------------===//
 
-void CIRDialect::registerTypes() { addTypes<PointerType, BoolType>(); }
+void CIRDialect::registerTypes() {
+  addTypes<BoolType, PointerType, StructType>();
+}
