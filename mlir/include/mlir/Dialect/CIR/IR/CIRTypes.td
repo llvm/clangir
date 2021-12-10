@@ -84,4 +84,57 @@ def CIR_BoolType :
 
 def CIR_AnyCIRType : AnyTypeOf<[CIR_PointerType, CIR_BoolType]>;
 
+
+//===----------------------------------------------------------------------===//
+// The base type for all RecordDecls.
+//===----------------------------------------------------------------------===//
+
+def CIR_StructType : CIR_Type<"Struct", "struct"> {
+
+  let summary = "CIR struct type";
+  let description = [{
+    Each unique clang::RecordDecl is mapped to a `cir.struct` and any object in
+    C/C++ that has a struct type will have a `cir.struct` in CIR.
+  }];
+
+  let parameters = (ins
+    ArrayRefParameter<"mlir::Type", "members">:$members,
+    "mlir::StringAttr":$typeName
+  );
+
+  let builders = [
+    TypeBuilder<(ins
+      "ArrayRef<mlir::Type>":$members, "StringRef":$typeName
+    ), [{
+      auto id = mlir::StringAttr::get(context, typeName);
+      return StructType::get(context, members, id);
+    }]>
+  ];
+
+  // TODO: this instruction is really ugly. We should define typealiases and
+  // just use those instead. That or figure out a prettier format.
+  let printer = [{
+    $_printer << '<' << getTypeName() << ", ";
+    llvm::interleaveComma(getMembers(), $_printer);
+    $_printer << '>';
+  }];
+
+  let parser = [{
+    if ($_parser.parseLess())
+      return Type();
+    std::string typeName;
+    if ($_parser.parseString(&typeName))
+      return Type();
+    llvm::SmallVector<Type> members; // TODO: fix this!
+    Type nextMember;
+    while (mlir::succeeded($_parser.parseType(nextMember))) {
+      members.push_back(nextMember);
+    }
+    if ($_parser.parseGreater())
+      return Type();
+    return get($_ctxt, members, typeName);
+  }];
+
+}
+
 #endif // MLIR_CIR_DIALECT_CIR_TYPES
