@@ -28,6 +28,21 @@ using namespace mlir::cir;
 // CIR Dialect
 //===----------------------------------------------------------------------===//
 
+namespace {
+struct CIROpAsmDialectInterface : public OpAsmDialectInterface {
+  using OpAsmDialectInterface::OpAsmDialectInterface;
+
+  AliasResult getAlias(Type type, raw_ostream &os) const final {
+    if (auto structType = type.dyn_cast<StructType>()) {
+      os << structType.getTypeName();
+      return AliasResult::OverridableAlias;
+    }
+
+    return AliasResult::NoAlias;
+  }
+};
+} // namespace
+
 /// Dialect initialization, the instance will be owned by the context. This is
 /// the point of registration of types and operations for the dialect.
 void cir::CIRDialect::initialize() {
@@ -36,6 +51,7 @@ void cir::CIRDialect::initialize() {
 #define GET_OP_LIST
 #include "mlir/Dialect/CIR/IR/CIROps.cpp.inc"
       >();
+  addInterfaces<CIROpAsmDialectInterface>();
 }
 
 //===----------------------------------------------------------------------===//

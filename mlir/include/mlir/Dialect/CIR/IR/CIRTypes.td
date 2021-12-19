@@ -111,8 +111,6 @@ def CIR_StructType : CIR_Type<"Struct", "struct"> {
     }]>
   ];
 
-  // TODO: this instruction is really ugly. We should define typealiases and
-  // just use those instead. That or figure out a prettier format.
   let printer = [{
     $_printer << '<' << getTypeName() << ", ";
     llvm::interleaveComma(getMembers(), $_printer);

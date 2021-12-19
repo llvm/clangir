@@ -17,9 +17,12 @@ void baz() {
   Foo f;
 }
 
-//      CHECK: module  {
+//      CHECK: !22struct2EBar22 = type !cir.struct<"struct.Bar", i32, i8>
+// CHECK-NEXT: !22struct2EFoo22 = type !cir.struct<"struct.Foo", i32, i8, !cir.struct<"struct.Bar", i32, i8>>
+// CHECK-NEXT: module  {
 // CHECK-NEXT:   func @baz() {
-// CHECK-NEXT:     %0 = cir.alloca !cir.struct<"struct.Foo", i32, i8, !cir.struct<"struct.Bar", i32, i8>>, cir.ptr <!cir.struct<"struct.Foo", i32, i8, !cir.struct<"struct.Bar", i32, i8>>>, [uninitialized] {alignment = 4 : i64}
-// CHECK-NEXT:     %1 = cir.alloca !cir.struct<"struct.Bar", i32, i8>, cir.ptr <!cir.struct<"struct.Bar", i32, i8>>, [uninitialized] {alignment = 4 : i64}
-// CHECK-NEXT:     cir.return
-// CHECK-NEXT: }
+// CHECK-NEXT:     %0 = cir.alloca !22struct2EFoo22, cir.ptr <!22struct2EFoo22>, [uninitialized] {alignment = 4 : i64} loc(#loc2)
+// CHECK-NEXT:     %1 = cir.alloca !22struct2EBar22, cir.ptr <!22struct2EBar22>, [uninitialized] {alignment = 4 : i64} loc(#loc3)
+// CHECK-NEXT:     cir.return loc(#loc4)
+// CHECK-NEXT:   } loc(#loc1)
+// CHECK-NEXT: } loc(#loc0)
