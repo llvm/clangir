@@ -11,50 +11,51 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_CIR_CIRGENERATOR_H
-#define LLVM_CLANG_CIR_CIRGENERATOR_H
+#ifndef CLANG_CIRGENERATOR_H_
+#define CLANG_CIRGENERATOR_H_
 
 #include "clang/AST/ASTConsumer.h"
-#include "clang/Basic/CodeGenOptions.h"
-
-#include "llvm/ADT/IntrusiveRefCntPtr.h"
-#include "llvm/Support/VirtualFileSystem.h"
-
+#include "llvm/Support/ToolOutputFile.h"
 #include <memory>
-
-namespace clang {
-class DeclGroupRef;
-class DiagnosticsEngine;
-namespace CIRGen {
-class CIRGenModule;
-} // namespace CIRGen
-} // namespace clang
 
 namespace mlir {
 class MLIRContext;
+class ModuleOp;
+class OwningModuleRef;
 } // namespace mlir
+
+namespace clang {
+class ASTContext;
+class DeclGroupRef;
+class FunctionDecl;
+} // namespace clang
+
 namespace cir {
+class CIRGenModule;
+class CIRGenTypes;
+
 class CIRGenerator : public clang::ASTConsumer {
-  virtual void anchor();
-  clang::DiagnosticsEngine &diags;
-  clang::ASTContext *astCtx;
-  // Only used for debug info.
-  llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> fs;
-
-  const clang::CodeGenOptions &codeGenOpts;
-
-protected:
-  std::unique_ptr<mlir::MLIRContext> mlirCtx;
-  std::unique_ptr<clang::CIRGen::CIRGenModule> cgm;
-
 public:
-  CIRGenerator(clang::DiagnosticsEngine &diags,
-               llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> fs,
-               const clang::CodeGenOptions &cgo);
-  ~CIRGenerator() override;
-  void Initialize(clang::ASTContext &astCtx) override;
-  bool HandleTopLevelDecl(clang::DeclGroupRef group) override;
-  mlir::ModuleOp getModule() const;
+  CIRGenerator();
+  ~CIRGenerator();
+  void Initialize(clang::ASTContext &Context) override;
+  bool EmitFunction(const clang::FunctionDecl *FD);
+
+  bool HandleTopLevelDecl(clang::DeclGroupRef D) override;
+  void HandleTranslationUnit(clang::ASTContext &Ctx) override;
+
+  mlir::ModuleOp getModule();
+  std::unique_ptr<mlir::MLIRContext> takeContext() {
+    return std::move(mlirCtx);
+  };
+
+  void verifyModule();
+
+private:
+  std::unique_ptr<mlir::MLIRContext> mlirCtx;
+  std::unique_ptr<CIRGenModule> CGM;
+
+  clang::ASTContext *astCtx;
 };
 
 } // namespace cir
