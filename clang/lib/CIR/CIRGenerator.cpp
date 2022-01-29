@@ -21,11 +21,12 @@
 #include "clang/CIR/CIRGenerator.h"
 
 using namespace cir;
+using namespace clang;
 
 CIRGenerator::CIRGenerator() = default;
 CIRGenerator::~CIRGenerator() = default;
 
-void CIRGenerator::Initialize(clang::ASTContext &astCtx) {
+void CIRGenerator::Initialize(ASTContext &astCtx) {
   using namespace llvm;
 
   this->astCtx = &astCtx;
@@ -46,7 +47,7 @@ bool CIRGenerator::EmitFunction(const FunctionDecl *FD) {
 
 mlir::ModuleOp CIRGenerator::getModule() { return CGM->getModule(); }
 
-bool CIRGenerator::HandleTopLevelDecl(clang::DeclGroupRef D) {
+bool CIRGenerator::HandleTopLevelDecl(DeclGroupRef D) {
   for (DeclGroupRef::iterator I = D.begin(), E = D.end(); I != E; ++I) {
     CGM->buildTopLevelDecl(*I);
   }
