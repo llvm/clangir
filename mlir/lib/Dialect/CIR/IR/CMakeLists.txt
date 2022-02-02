@@ -6,6 +6,7 @@ add_mlir_dialect_library(MLIRCIR
   ${MLIR_MAIN_INCLUDE_DIR}/mlir/Dialect/CIR
 
   DEPENDS
+  MLIRBuiltinLocationAttributesIncGen
   MLIRCIROpsIncGen
   MLIRCIREnumsGen
   MLIRSymbolInterfacesIncGen
