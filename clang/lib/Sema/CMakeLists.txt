@@ -77,7 +77,7 @@ add_clang_library(clangSema
   DEPENDS
   ClangOpenCLBuiltinsImpl
   omp_gen
-  MLIRCIROpsIncGen
+  MLIRCIR
 
   LINK_LIBS
   clangAST
