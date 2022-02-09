@@ -432,6 +432,19 @@ void printBinOpKind(OpAsmPrinter &p, BinOp binOp, BinOpKindAttr kindAttr) {
 }
 
 //===----------------------------------------------------------------------===//
+// BrOp
+//===----------------------------------------------------------------------===//
+
+Optional<MutableOperandRange>
+BrOp::getMutableSuccessorOperands(unsigned index) {
+  assert(index == 0 && "invalid successor index");
+  // Current block targets do not have operands.
+  return llvm::None;
+}
+
+Block *BrOp::getSuccessorForOperands(ArrayRef<Attribute>) { return dest(); }
+
+//===----------------------------------------------------------------------===//
 // TableGen'd op method definitions
 //===----------------------------------------------------------------------===//
 
