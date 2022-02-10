@@ -102,7 +102,9 @@ private:
   // scopes that require cleanups.
   struct LexicalScopeContext {
     unsigned Depth = 0;
-    LexicalScopeContext(mlir::OpBuilder &builder) {
+    LexicalScopeContext(mlir::OpBuilder &builder, mlir::Location b,
+                        mlir::Location e)
+        : BeginLoc(b), EndLoc(e) {
       {
         // Create the cleanup block but dont hook it up around just
         // yet.
@@ -123,6 +125,8 @@ private:
 
     // Labels solved inside this scope.
     llvm::SmallPtrSet<const clang::LabelDecl *, 4> SolvedLabels;
+
+    mlir::Location BeginLoc, EndLoc;
   };
 
   class LexicalScopeGuard {
@@ -131,8 +135,10 @@ private:
 
   public:
     LexicalScopeGuard(CIRGenModule &c, LexicalScopeContext *L) : CGM(c) {
-      if (CGM.currLexScope)
+      if (CGM.currLexScope) {
         OldVal = CGM.currLexScope;
+        L->Depth++;
+      }
       CGM.currLexScope = L;
     }
 
