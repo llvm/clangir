@@ -68,8 +68,9 @@ using llvm::SmallVector;
 using llvm::StringRef;
 
 CIRGenModule::CIRGenModule(mlir::MLIRContext &context,
-                           clang::ASTContext &astctx)
-    : builder(&context), astCtx(astctx) {
+                           clang::ASTContext &astctx,
+                           const clang::CodeGenOptions &CGO)
+    : builder(&context), astCtx(astctx), codeGenOpts(CGO) {
   theModule = mlir::ModuleOp::create(builder.getUnknownLoc());
   genTypes = std::make_unique<CIRGenTypes>(astCtx, this->getBuilder());
 }
@@ -1460,6 +1461,7 @@ void CIRGenModule::buildTopLevelDecl(Decl *decl) {
     assert(false && "Not yet implemented");
   case Decl::Function:
     buildFunction(cast<FunctionDecl>(decl));
+    assert(!codeGenOpts.CoverageMapping && "Coverage Mapping NYI");
     break;
   case Decl::CXXRecord: {
     CXXRecordDecl *crd = cast<CXXRecordDecl>(decl);
