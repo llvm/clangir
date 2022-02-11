@@ -72,6 +72,7 @@ private:
   /// for FunctionDecls's.
   CIRGenFunction *CurCGF = nullptr;
 
+  const clang::TargetInfo &target;
   const clang::CodeGenOptions &codeGenOpts;
 
   /// Per-module type mapping from clang AST to CIR.
@@ -198,6 +199,7 @@ public:
   mlir::ModuleOp getModule() { return theModule; }
   mlir::OpBuilder &getBuilder() { return builder; }
   clang::ASTContext &getASTContext() { return astCtx; }
+  const clang::TargetInfo &getTarget() const { return target; }
   const clang::LangOptions &getLangOpts() const { return langOpts; }
 
   /// Helpers to convert Clang's SourceLocation to a MLIR Location.
