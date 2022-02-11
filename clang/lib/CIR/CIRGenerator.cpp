@@ -23,7 +23,7 @@
 using namespace cir;
 using namespace clang;
 
-CIRGenerator::CIRGenerator() = default;
+CIRGenerator::CIRGenerator(const CodeGenOptions &CGO) : codeGenOpts{CGO} {}
 CIRGenerator::~CIRGenerator() = default;
 
 void CIRGenerator::Initialize(ASTContext &astCtx) {
@@ -34,7 +34,7 @@ void CIRGenerator::Initialize(ASTContext &astCtx) {
   mlirCtx = std::make_unique<mlir::MLIRContext>();
   mlirCtx->getOrLoadDialect<mlir::cir::CIRDialect>();
   mlirCtx->getOrLoadDialect<mlir::memref::MemRefDialect>();
-  CGM = std::make_unique<CIRGenModule>(*mlirCtx.get(), astCtx);
+  CGM = std::make_unique<CIRGenModule>(*mlirCtx.get(), astCtx, codeGenOpts);
 }
 
 void CIRGenerator::verifyModule() { CGM->verifyModule(); }
