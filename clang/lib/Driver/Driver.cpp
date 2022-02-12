@@ -4801,8 +4801,6 @@ Action *Driver::ConstructPhaseAction(
     if (Args.hasArg(options::OPT_emit_ast))
       return C.MakeAction<CompileJobAction>(Input, types::TY_AST);
     if (Args.hasArg(options::OPT_emit_cir)) {
-      assert(Args.hasArg(options::OPT_fenable_clangir) &&
-             "Clang only uses ClangIR with the -fenable-clangir flag");
       return C.MakeAction<CompileJobAction>(Input, types::TY_CIR);
     }
     if (Args.hasArg(options::OPT_module_file_info))
