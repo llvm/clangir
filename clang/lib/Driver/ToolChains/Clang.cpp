@@ -4818,7 +4818,8 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     }
   }
 
-  if (Args.hasArg(options::OPT_fenable_clangir))
+  if (Args.hasArg(options::OPT_fenable_clangir) ||
+      Args.hasArg(options::OPT_emit_cir))
     CmdArgs.push_back("-fenable-clangir");
 
   if (IsOpenMPDevice) {
