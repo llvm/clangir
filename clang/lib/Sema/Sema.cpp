@@ -248,7 +248,11 @@ Sema::Sema(Preprocessor &pp, ASTContext &ctxt, ASTConsumer &consumer,
 
   std::unique_ptr<sema::SemaPPCallbacks> Callbacks =
       std::make_unique<sema::SemaPPCallbacks>();
-  CIRWarnings = std::make_unique<sema::CIRBasedWarnings>(*this);
+
+  // TODO: The CIRGenerator is going to need CodeGenOptions in order to function
+  // properly. We'll have to figure out how to pass those in properly at some
+  // point.
+  // CIRWarnings = std::make_unique<sema::CIRBasedWarnings>(*this);
 
   SemaPPCallbackHandler = Callbacks.get();
   PP.addPPCallbacks(std::move(Callbacks));
