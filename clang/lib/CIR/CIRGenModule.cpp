@@ -73,9 +73,8 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &context,
                            clang::ASTContext &astctx,
                            const clang::CodeGenOptions &CGO)
     : builder(&context), astCtx(astctx), target(astCtx.getTargetInfo()),
-      codeGenOpts(CGO), langOpts(astctx.getLangOpts()) {
+      codeGenOpts(CGO), genTypes(*this), langOpts(astctx.getLangOpts()) {
   theModule = mlir::ModuleOp::create(builder.getUnknownLoc());
-  genTypes = std::make_unique<CIRGenTypes>(*this);
 }
 
 mlir::Location CIRGenModule::getLoc(SourceLocation SLoc) {
@@ -1600,7 +1599,7 @@ mlir::FuncOp CIRGenModule::buildFunction(const FunctionDecl *FD) {
 }
 
 mlir::Type CIRGenModule::getCIRType(const QualType &type) {
-  return genTypes->ConvertType(type);
+  return genTypes.ConvertType(type);
 }
 
 void CIRGenModule::verifyModule() {
