@@ -153,12 +153,14 @@ def AllocaOp : CIR_Op<"alloca", [
 
     ```mlir
     // Local variable with uninitialized value.
-    %0 = cir.alloca i32, !cir.ptr<i32>, [cinit]
+    // int count = ...
+    %0 = cir.alloca i32, !cir.ptr<i32>, ["count", cinit]
     ```
   }];
 
   let arguments = (ins
     TypeAttr:$type,
+    StrAttr:$name,
     // FIXME: add "uninitialzed" as default mode
     Arg<InitStyle, "initialization style">:$init,
     Confined<OptionalAttr<I64Attr>, [IntMinValue<0>]>:$alignment
@@ -169,10 +171,13 @@ def AllocaOp : CIR_Op<"alloca", [
 
   let extraClassDeclaration = [{
     static StringRef getAlignmentAttrName() { return "alignment"; }
+
+    // Whether the alloca input type is a pointer.
+    bool isPointerType() { return type().isa<::mlir::cir::PointerType>(); }
   }];
 
   let assemblyFormat = [{
-    $type `,` `cir.ptr` type($addr) `,` `[` $init `]`  attr-dict
+    $type `,` `cir.ptr` type($addr) `,` `[` $name `,` $init `]` attr-dict
   }];
 
   // AllocaTypesMatchWith and InitStyle already take care of verification.
