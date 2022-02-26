@@ -22,9 +22,9 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
   // Prints the resultant operation statistics post iterating over the module.
   void runOnOperation() override;
 
-  void handleOperation(Operation *op);
-  void handleBlock(Block &block);
-  void handleRegion(Region &region);
+  void checkOperation(Operation *op);
+  void checkBlock(Block &block);
+  void checkRegion(Region &region);
 
   struct State {
     using DataTy = enum { Invalid, NullPtr, LocalValue };
@@ -156,24 +156,24 @@ void LifetimeCheckPass::LexicalScopeGuard::cleanup() {
   }
 }
 
-void LifetimeCheckPass::handleBlock(Block &block) {
+void LifetimeCheckPass::checkBlock(Block &block) {
   // Block main role is to hold a list of Operations: let's recurse.
   for (Operation &op : block.getOperations())
-    handleOperation(&op);
+    checkOperation(&op);
 }
 
-void LifetimeCheckPass::handleRegion(Region &region) {
+void LifetimeCheckPass::checkRegion(Region &region) {
   // FIXME: if else-then blocks have their own scope too.
   for (Block &block : region.getBlocks())
-    handleBlock(block);
+    checkBlock(block);
 }
 
-void LifetimeCheckPass::handleOperation(Operation *op) {
+void LifetimeCheckPass::checkOperation(Operation *op) {
   // FIXME: allow "isScopeLike" queries so that we can unify this type
   // of handling in a generic way.
   if (isa<::mlir::ModuleOp>(op)) {
     for (Region &region : op->getRegions())
-      handleRegion(region);
+      checkRegion(region);
     return;
   }
 
@@ -185,7 +185,7 @@ void LifetimeCheckPass::handleOperation(Operation *op) {
       LexicalScopeContext lexScope{};
       LexicalScopeGuard scopeGuard{*this, &lexScope};
       for (Region &region : op->getRegions())
-        handleRegion(region);
+        checkRegion(region);
     }
     return;
   }
@@ -284,14 +284,14 @@ void LifetimeCheckPass::handleOperation(Operation *op) {
     LexicalScopeContext lexScope{};
     LexicalScopeGuard scopeGuard{*this, &lexScope};
     for (Region &region : op->getRegions())
-      handleRegion(region);
+      checkRegion(region);
     return;
   }
 }
 
 void LifetimeCheckPass::runOnOperation() {
   Operation *op = getOperation();
-  handleOperation(op);
+  checkOperation(op);
 }
 
 std::unique_ptr<Pass> mlir::createLifetimeCheckPass() {
