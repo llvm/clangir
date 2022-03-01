@@ -14,6 +14,7 @@
 #include "llvm/ADT/SmallSet.h"
 
 using namespace mlir;
+using namespace cir;
 
 namespace {
 struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
@@ -25,6 +26,8 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
   void checkOperation(Operation *op);
   void checkBlock(Block &block);
   void checkRegion(Region &region);
+
+  void checkAlloca(AllocaOp op);
 
   struct State {
     using DataTy = enum { Invalid, NullPtr, LocalValue };
@@ -168,6 +171,29 @@ void LifetimeCheckPass::checkRegion(Region &region) {
     checkBlock(block);
 }
 
+void LifetimeCheckPass::checkAlloca(AllocaOp allocaOp) {
+  auto addr = allocaOp.addr();
+  assert(!pmap.count(addr) && "only one alloca for any given address");
+
+  pmap[addr] = {};
+  if (!allocaOp.isPointerType()) {
+    // 2.4.2 - When a local Value x is declared, add (x, {x}) to pmap.
+    pmap[addr].insert(State::getLocalValue(addr));
+    currScope->localValues.push_back(addr);
+    return;
+  }
+
+  // 2.4.2 - When a non-parameter non-member Pointer p is declared, add
+  // (p, {invalid}) to pmap.
+  ptrs.insert(addr);
+  pmap[addr].insert(State::getInvalid());
+
+  // If other styles of initialization gets added, required to add support
+  // here.
+  assert(allocaOp.initAttr().getValue() == mlir::cir::InitStyle::cinit &&
+         "other init styles tbd");
+}
+
 void LifetimeCheckPass::checkOperation(Operation *op) {
   if (isa<::mlir::ModuleOp>(op)) {
     for (Region &region : op->getRegions())
@@ -188,29 +214,8 @@ void LifetimeCheckPass::checkOperation(Operation *op) {
     return;
   }
 
-  if (auto allocaOp = dyn_cast<::mlir::cir::AllocaOp>(op)) {
-    auto addr = allocaOp.addr();
-    assert(!pmap.count(addr) && "only one alloca for any given address");
-
-    pmap[addr] = {};
-    if (!allocaOp.isPointerType()) {
-      // 2.4.2 - When a local Value x is declared, add (x, {x}) to pmap.
-      pmap[addr].insert(State::getLocalValue(addr));
-      currScope->localValues.push_back(addr);
-      return;
-    }
-
-    // 2.4.2 - When a non-parameter non-member Pointer p is declared, add
-    // (p, {invalid}) to pmap.
-    ptrs.insert(addr);
-    pmap[addr].insert(State::getInvalid());
-
-    // If other styles of initialization gets added, required to add support
-    // here.
-    assert(allocaOp.initAttr().getValue() == mlir::cir::InitStyle::cinit &&
-           "other init styles tbd");
-    return;
-  }
+  if (auto allocaOp = dyn_cast<::mlir::cir::AllocaOp>(op))
+    return checkAlloca(allocaOp);
 
   if (auto storeOp = dyn_cast<::mlir::cir::StoreOp>(op)) {
     auto addr = storeOp.addr();
