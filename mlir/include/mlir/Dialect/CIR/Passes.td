@@ -21,6 +21,10 @@ def LifetimeCheck : Pass<"cir-lifetime-check"> {
   let dependentDialects = ["cir::CIRDialect"];
 
   let options = [
+    ListOption<"historyList", "history", "std::string",
+               "List of history styles to emit as part of diagnostics."
+               " Supported styles: {all|null|invalid}",
+               "llvm::cl::ZeroOrMore, llvm::cl::MiscFlags::CommaSeparated">,
     ListOption<"remarksList", "remarks", "std::string",
                "List of remark styles to enable as part of diagnostics."
                " Supported styles: {all|pset}",
