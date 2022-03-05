@@ -119,8 +119,8 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
   using PMapType = llvm::DenseMap<mlir::Value, PSetType>;
 
   using PMapInvalidHistType =
-      llvm::DenseMap<mlir::Value,
-                     std::pair<llvm::Optional<mlir::Location>, mlir::Value>>;
+      llvm::DenseMap<mlir::Value, std::pair<llvm::Optional<mlir::Location>,
+                                            llvm::Optional<mlir::Value>>>;
   PMapInvalidHistType pmapInvalidHist;
 
   using PMapNullHistType =
@@ -388,6 +388,7 @@ void LifetimeCheckPass::checkAlloca(AllocaOp allocaOp) {
   // (p, {invalid}) to pmap.
   ptrs.insert(addr);
   getPmap()[addr].insert(State::getInvalid());
+  pmapInvalidHist[addr] = std::make_pair(allocaOp.getLoc(), llvm::None);
 
   // If other styles of initialization gets added, required to add support
   // here.
@@ -464,9 +465,14 @@ void LifetimeCheckPass::checkLoad(LoadOp loadOp) {
     auto &info = pmapInvalidHist[addr];
     auto &note = info.first;
     auto &pointee = info.second;
-    StringRef pointeeName = getVarNameFromValue(pointee);
-    D.attachNote(note) << "pointee '" << pointeeName
-                       << "' invalidated at end of scope";
+
+    if (pointee.hasValue()) {
+      StringRef pointeeName = getVarNameFromValue(*pointee);
+      D.attachNote(note) << "pointee '" << pointeeName
+                         << "' invalidated at end of scope";
+    } else {
+      D.attachNote(note) << "uninitialized here";
+    }
   }
 
   if (hasNullptr && opts.emitHistoryNull()) {
