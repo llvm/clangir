@@ -17,6 +17,7 @@
 #include "CIRGenModule.h"
 #include "CIRGenValue.h"
 
+#include "mlir/IR/TypeRange.h"
 #include "mlir/IR/Value.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/ExprCXX.h"
@@ -51,15 +52,9 @@ public:
     ForceRightToLeft
   };
 
-  /// If a return statement is being visited, this holds the return statment's
-  /// result expression.
-  const clang::Expr *RetExpr = nullptr;
-
-  mlir::Value RetValue = nullptr;
-  llvm::Optional<mlir::Location> RetLoc;
-
-  mlir::Type FnRetTy;
   clang::QualType FnRetQualTy;
+  llvm::Optional<mlir::Type> FnRetTy;
+  llvm::Optional<mlir::Value> FnRetAlloca;
 
   CIRGenModule &CGM;
 
