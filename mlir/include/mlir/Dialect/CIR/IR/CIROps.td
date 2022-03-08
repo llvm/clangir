@@ -252,7 +252,7 @@ def StoreOp : CIR_Op<"store", [
 // ReturnOp
 //===----------------------------------------------------------------------===//
 
-def ReturnOp : CIR_Op<"return", [NoSideEffect, HasParent<"FuncOp">,
+def ReturnOp : CIR_Op<"return", [HasParent<"FuncOp, ScopeOp, IfOp">,
                                  Terminator]> {
   let summary = "return operation";
   let description = [{
@@ -344,20 +344,13 @@ def IfOp : CIR_Op<"if",
       CArg<"function_ref<void(OpBuilder &, Location)>",
            "nullptr">:$elseBuilder)>
   ];
-
-  let extraClassDeclaration = [{
-    Block* thenBlock();
-    Block* elseBlock();
-  }];
-
-  // TODO: let hasCanonicalizer = 1;
 }
 
 //===----------------------------------------------------------------------===//
 // YieldOp
 //===----------------------------------------------------------------------===//
 
-def YieldOp : CIR_Op<"yield", [NoSideEffect, ReturnLike, Terminator,
+def YieldOp : CIR_Op<"yield", [ReturnLike, Terminator,
                                ParentOneOf<["IfOp", "ScopeOp"]>]> {
   let summary = "termination operation for regions inside if, for, scope, etc";
   let description = [{
@@ -411,10 +404,6 @@ def ScopeOp : CIR_Op<"scope", [DeclareOpInterfaceMethods<RegionBranchOpInterface
     OpBuilder<(ins "TypeRange":$resultTypes, 
                "function_ref<void(OpBuilder &, Location)>":$scopeBuilder)>
   ];
-
-  let extraClassDeclaration = [{
-    Block* scopeBlock();
-  }];
 }
 
 //===----------------------------------------------------------------------===//
@@ -543,9 +532,18 @@ def BrOp : CIR_Op<"br",
     ```
   }];
 
+  let builders = [
+    OpBuilder<(ins "Block *":$dest,
+              CArg<"ValueRange", "{}">:$destOperands), [{
+      $_state.addSuccessors(dest);
+      $_state.addOperands(destOperands);
+    }]>
+  ];
+
+  let arguments = (ins Variadic<AnyType>:$destOperands);
   let successors = (successor AnySuccessor:$dest);
   let assemblyFormat = [{
-    $dest attr-dict
+    $dest (`(` $destOperands^ `:` type($destOperands) `)`)? attr-dict
   }];
 }
 
