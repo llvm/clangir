@@ -32,6 +32,8 @@
 
 namespace cir {
 
+class CIRGenCXXABI;
+
 /// Implementation of a CIR/MLIR emission from Clang AST.
 ///
 /// This will emit operations that are specific to C(++)/ObjC(++) language,
@@ -45,7 +47,7 @@ public:
   CIRGenModule(mlir::MLIRContext &context, clang::ASTContext &astctx,
                const clang::CodeGenOptions &CGO);
 
-  ~CIRGenModule() = default;
+  ~CIRGenModule();
 
   using SymTableTy = llvm::ScopedHashTable<const clang::Decl *, mlir::Value>;
   using SymTableScopeTy =
@@ -68,6 +70,8 @@ private:
   mlir::ModuleOp theModule;
 
   const clang::TargetInfo &target;
+
+  std::unique_ptr<CIRGenCXXABI> ABI;
   /// Per-module type mapping from clang AST to CIR.
   CIRGenTypes genTypes;
 
@@ -206,6 +210,8 @@ public:
   const clang::CodeGenOptions &getCodeGenOpts() const { return codeGenOpts; }
   CIRGenTypes &getTypes() { return genTypes; }
   const clang::LangOptions &getLangOpts() const { return langOpts; }
+
+  CIRGenCXXABI &getCXXABI() const { return *ABI; }
 
   /// Helpers to convert Clang's SourceLocation to a MLIR Location.
   mlir::Location getLoc(clang::SourceLocation SLoc);
