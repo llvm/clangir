@@ -466,6 +466,29 @@ const CIRGenFunctionInfo &CIRGenTypes::arrangeCIRFunctionInfo(
   return *FI;
 }
 
+/// Arrange the argument and result information for the declaration or
+/// definition of the given function.
+const CIRGenFunctionInfo &
+CIRGenTypes::arrangeFunctionDeclaration(const FunctionDecl *FD) {
+  assert(!dyn_cast<CXXMethodDecl>(FD) && "NYI");
+
+  auto FTy = FD->getType()->getCanonicalTypeUnqualified();
+
+  assert(isa<FunctionType>(FTy));
+  // TODO: setCUDAKernelCallingConvention
+
+  // When declaring a function without a prototype, always use a non-variadic
+  // type.
+  if (CanQual<FunctionNoProtoType> noProto = FTy.getAs<FunctionNoProtoType>()) {
+    return arrangeCIRFunctionInfo(noProto->getReturnType(),
+                                  /*instanceMethod=*/false,
+                                  /*chainCall=*/false, None,
+                                  noProto->getExtInfo(), {}, RequiredArgs::All);
+  }
+
+  return arrangeFreeFunctionType(FTy.castAs<FunctionProtoType>());
+}
+
 /// Adds the formal parameters in FPT to the given prefix. If any parameter in
 /// FPT has pass_object_size_attrs, then we'll add parameters for those, too.
 static void appendParameterTypes(
