@@ -592,3 +592,13 @@ CIRGenTypes::arrangeFreeFunctionType(CanQual<FunctionProtoType> FTP) {
   return ::arrangeCIRFunctionInfo(*this, /*instanceMethod=*/false, argTypes,
                                   FTP);
 }
+
+/// Figure out the rules for calling a function with the given formal type using
+/// the given arguments. The arguments are necessary because the function might
+/// be unprototyped, in which case it's target-dependent in crazy ways.
+const CIRGenFunctionInfo &CIRGenTypes::arrangeFreeFunctionCall(
+    const CallArgList &args, const FunctionType *fnType, bool ChainCall) {
+  assert(!ChainCall && "ChainCall NYI");
+  return arrangeFreeFunctionLikeCall(*this, CGM, args, fnType,
+                                     ChainCall ? 1 : 0, ChainCall);
+}
