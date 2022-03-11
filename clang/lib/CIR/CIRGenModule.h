@@ -454,6 +454,8 @@ public:
 
   void verifyModule();
 
+  llvm::StringRef getMangledName(clang::GlobalDecl GD);
+
   mlir::Value GetGlobalValue(const clang::Decl *D);
 
 private:
@@ -464,6 +466,10 @@ private:
                          clang::GlobalDecl D, bool ForVTable,
                          bool DontDefer = false, bool IsThunk = false,
                          ForDefinition_t IsForDefinition = NotForDefinition);
+
+  // An ordered map of canonical GlobalDecls to their mangled names.
+  llvm::MapVector<clang::GlobalDecl, llvm::StringRef> MangledDeclNames;
+  llvm::StringMap<clang::GlobalDecl, llvm::BumpPtrAllocator> Manglings;
 };
 } // namespace cir
 
