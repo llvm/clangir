@@ -21,6 +21,7 @@ add_clang_library(clangCIR
   CIRGenFunction.cpp
   CIRGenModule.cpp
   CIRGenTypes.cpp
+  CIRPasses.cpp
   CIRRecordLayoutBuilder.cpp
   ItaniumCXXABI.cpp
   LowerToLLVM.cpp
@@ -35,6 +36,7 @@ add_clang_library(clangCIR
   clangLex
   ${dialect_libs}
   MLIRCIR
+  MLIRCIRTransforms
   MLIRAffineToStandard
   MLIRAnalysis
   MLIRIR
