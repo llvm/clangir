@@ -86,10 +86,10 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &context,
                            clang::ASTContext &astctx,
                            const clang::CodeGenOptions &CGO)
     : builder(&context), astCtx(astctx), langOpts(astctx.getLangOpts()),
-      codeGenOpts(CGO), theModule{mlir::ModuleOp::create(
-                            builder.getUnknownLoc())},
-      target(astCtx.getTargetInfo()),
-      ABI(createCXXABI(*this)), genTypes{*this} {}
+      codeGenOpts(CGO),
+      theModule{mlir::ModuleOp::create(builder.getUnknownLoc())},
+      target(astCtx.getTargetInfo()), ABI(createCXXABI(*this)),
+      genTypes{*this} {}
 
 CIRGenModule::~CIRGenModule() {}
 
@@ -732,8 +732,7 @@ void CIRGenModule::LexicalScopeGuard::cleanup() {
     if (CGM.CurCGF->FnRetTy.has_value()) {
       auto val = builder.create<LoadOp>(
           *localScope->RetLoc, *CGM.CurCGF->FnRetTy, *CGM.CurCGF->FnRetAlloca);
-      builder.create<ReturnOp>(*localScope->RetLoc,
-                               makeArrayRef(val.getResult()));
+      builder.create<ReturnOp>(*localScope->RetLoc, ArrayRef(val.getResult()));
     } else {
       builder.create<ReturnOp>(*localScope->RetLoc);
     }
@@ -1705,7 +1704,7 @@ mlir::FuncOp CIRGenModule::buildFunction(const FunctionDecl *FD) {
 
     // When the current function is not void, create an address to store the
     // result value.
-    if (CurCGF->FnRetTy.hasValue())
+    if (CurCGF->FnRetTy.has_value())
       buildAndUpdateRetAlloca(CurCGF->FnRetQualTy, FnEndLoc,
                               getNaturalTypeAlignment(CurCGF->FnRetQualTy));
 
