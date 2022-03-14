@@ -79,14 +79,10 @@ def CIR_BoolType :
 }
 
 //===----------------------------------------------------------------------===//
-// One type to bind them all
-//===----------------------------------------------------------------------===//
-
-def CIR_AnyCIRType : AnyTypeOf<[CIR_PointerType, CIR_BoolType]>;
-
-
-//===----------------------------------------------------------------------===//
+// StructType
+//
 // The base type for all RecordDecls.
+//
 //===----------------------------------------------------------------------===//
 
 def CIR_StructType : CIR_Type<"Struct", "struct"> {
@@ -134,5 +130,11 @@ def CIR_StructType : CIR_Type<"Struct", "struct"> {
   }];
 
 }
+
+//===----------------------------------------------------------------------===//
+// One type to bind them all
+//===----------------------------------------------------------------------===//
+
+def CIR_AnyCIRType : AnyTypeOf<[CIR_PointerType, CIR_BoolType, CIR_StructType]>;
 
 #endif // MLIR_CIR_DIALECT_CIR_TYPES
