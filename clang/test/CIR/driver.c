@@ -5,6 +5,7 @@
 // RUN: %clang -target x86_64-unknown-linux-gnu -fenable-clangir -c %s -o %t.o
 // RUN: llvm-objdump -d %t.o | FileCheck %s -check-prefix=OBJ
 // RUN: %clang -target x86_64-unknown-linux-gnu -fenable-clangir -disable-cir-passes -S -emit-cir %s -o %t.cir
+// RUN: %clang -target arm64-apple-macosx12.0.0 -fenable-clangir -S -emit-cir %s -o %t.cir
 // RUN: FileCheck --input-file=%t.cir %s -check-prefix=CIR
 // XFAIL: *
 
