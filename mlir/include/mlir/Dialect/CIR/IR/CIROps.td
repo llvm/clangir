@@ -487,7 +487,7 @@ def CmpOpKind : I32EnumAttr<
 def CmpOp : CIR_Op<"cmp", [NoSideEffect,
   SameTypeOperands]> {
 
-  let summary = "comapre operation";
+  let summary = "compare operation";
   let description = [{
     "cir.cmp compares two input operands and produces a bool result. The input
      operands must have the same type. The kinds of comparison available are:
