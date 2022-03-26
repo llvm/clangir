@@ -177,7 +177,7 @@ static LogicalResult checkScopeTerminator(OpAsmParser &parser,
 
   // Empty regions don't need any handling.
   auto &blocks = r->getBlocks();
-  if (blocks.size() == 0)
+  if (blocks.empty())
     return success();
 
   // Test that at least one block has a yield/return terminator. We can
@@ -490,6 +490,96 @@ parseSwitchOp(OpAsmParser &parser,
               llvm::SmallVectorImpl<std::unique_ptr<::mlir::Region>> &regions,
               ::mlir::ArrayAttr &casesAttr) {
 
+  SmallVector<mlir::Attribute, 4> cases;
+  auto parseRegion = [&]() -> ParseResult {
+    // Parse region attached to case
+    regions.emplace_back(new Region);
+    Region &currRegion = *regions.back().get();
+    if (parser.parseRegion(currRegion, /*arguments=*/{}, /*argTypes=*/{})) {
+      regions.clear();
+      return failure();
+    }
+    return success();
+  };
+
+  auto parseCase = [&]() -> ParseResult {
+    auto loc = parser.getCurrentLocation();
+    if (parser.parseKeyword("case").failed())
+      return parser.emitError(loc, "expected 'case' keyword here");
+
+    if (parser.parseLParen().failed())
+      return parser.emitError(parser.getCurrentLocation(), "expected '('");
+
+    ::llvm::StringRef attrStr;
+    ::mlir::NamedAttrList attrStorage;
+
+    //   case (equal, 20) {
+    //   ...
+    // 1. Get the case kind
+    // 2. Get the value (next in list)
+
+    // FIXME: since a few names can't be used as enum (default) we declared
+    // them in CIROps.td capitalized, but we really wanna use lower case on
+    // clang IR asm form.
+    if (parser.parseOptionalKeyword(&attrStr, {"default", "equal"})) {
+      ::mlir::StringAttr attrVal;
+      ::mlir::OptionalParseResult parseResult = parser.parseOptionalAttribute(
+          attrVal, parser.getBuilder().getNoneType(), "kind", attrStorage);
+      if (parseResult.has_value()) {
+        if (failed(*parseResult))
+          return ::mlir::failure();
+        attrStr = attrVal.getValue();
+      }
+    }
+
+    if (attrStr.empty()) {
+      return parser.emitError(
+          loc, "expected string or keyword containing one of the following "
+               "enum values for attribute 'kind' [default, equal]");
+    }
+
+    std::string attrString = attrStr.str();
+    attrString[0] = attrString[0] + 'A' - 'a';
+    attrStr = attrString;
+    auto attrOptional = ::mlir::cir::symbolizeCaseOpKind(attrStr);
+    if (!attrOptional)
+      return parser.emitError(loc, "invalid ")
+             << "kind attribute specification: \"" << attrStr << '"';
+    ;
+
+    mlir::Type intType = mlir::IntegerType::get(parser.getContext(), 64,
+                                                mlir::IntegerType::Signed);
+    auto kindAttr = ::mlir::cir::CaseOpKindAttr::get(
+        parser.getBuilder().getContext(), attrOptional.value());
+
+    if (parser.parseOptionalComma().failed() &&
+        kindAttr.getValue() == cir::CaseOpKind::Default) {
+      if (parser.parseRParen().failed())
+        return parser.emitError(parser.getCurrentLocation(), "expected ')'");
+      cases.push_back(
+          cir::CaseAttr::get(mlir::IntegerAttr::get(intType, 0 /*placeholder*/),
+                             kindAttr, parser.getContext()));
+      return parseRegion();
+    }
+
+    // `,` value comes next (in the future perhaps a list?)
+    int64_t val = 0;
+    if (parser.parseInteger(val).failed())
+      return ::mlir::failure();
+    cases.push_back(cir::CaseAttr::get(mlir::IntegerAttr::get(intType, val),
+                                       kindAttr, parser.getContext()));
+    if (parser.parseRParen().failed())
+      return parser.emitError(parser.getCurrentLocation(), "expected ')'");
+    return parseRegion();
+  };
+
+  if (parser
+          .parseCommaSeparatedList(OpAsmParser::Delimiter::Square, parseCase,
+                                   " in cases list")
+          .failed())
+    return failure();
+
+  casesAttr = parser.getBuilder().getArrayAttr(cases);
   return ::mlir::success();
 }
 
@@ -499,9 +589,9 @@ void printSwitchOp(OpAsmPrinter &p, SwitchOp op,
 
 /// Given the region at `index`, or the parent operation if `index` is None,
 /// return the successor regions. These are the regions that may be selected
-/// during the flow of control. `operands` is a set of optional attributes that
-/// correspond to a constant value for each operand, or null if that operand is
-/// not a constant.
+/// during the flow of control. `operands` is a set of optional attributes
+/// that correspond to a constant value for each operand, or null if that
+/// operand is not a constant.
 void SwitchOp::getSuccessorRegions(Optional<unsigned> index,
                                    ArrayRef<Attribute> operands,
                                    SmallVectorImpl<RegionSuccessor> &regions) {
