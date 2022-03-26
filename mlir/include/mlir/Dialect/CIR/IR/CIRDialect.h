@@ -23,6 +23,7 @@
 
 #include "mlir/Dialect/CIR/IR/CIROpsDialect.h.inc"
 #include "mlir/Dialect/CIR/IR/CIROpsEnums.h.inc"
+#include "mlir/Dialect/CIR/IR/CIROpsStructs.h.inc"
 #include "mlir/Dialect/CIR/IR/CIRTypes.h"
 
 namespace mlir {
