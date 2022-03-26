@@ -253,7 +253,7 @@ def StoreOp : CIR_Op<"store", [
 // ReturnOp
 //===----------------------------------------------------------------------===//
 
-def ReturnOp : CIR_Op<"return", [HasParent<"FuncOp, ScopeOp, IfOp">,
+def ReturnOp : CIR_Op<"return", [HasParent<"FuncOp, ScopeOp, IfOp, SwitchOp">,
                                  Terminator]> {
   let summary = "return operation";
   let description = [{
@@ -555,7 +555,7 @@ def SwitchOp : CIR_Op<"switch",
     Examples:
 
     ```mlir
-    cir.switch %b {
+    cir.switch (%b : i32) [
       case (#equal, 20) {
         ...
         cir.yield #break
@@ -563,8 +563,8 @@ def SwitchOp : CIR_Op<"switch",
       case (#default) {
         ...
         cir.yield #fallthrough
-      },
-    }
+      }
+    ]
     ```
   }];
 
