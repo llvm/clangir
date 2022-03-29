@@ -408,9 +408,13 @@ LogicalResult ScopeOp::verify() { return success(); }
 //===----------------------------------------------------------------------===//
 
 mlir::LogicalResult YieldOp::verify() {
-  if (!llvm::isa<IfOp, ScopeOp, SwitchOp>(getOperation()->getParentOp()))
-    return emitOpError()
-           << "expects 'cir.if' or 'cir.scope' as the parent operation'";
+  if (llvm::isa<SwitchOp>(getOperation()->getParentOp()))
+    return mlir::success();
+
+  assert((llvm::isa<IfOp, ScopeOp>(getOperation()->getParentOp())) &&
+         "unknown parent op");
+  if (getFallthrough())
+    return emitOpError() << "fallthrough only expected within 'cir.switch'";
 
   return mlir::success();
 }
@@ -433,7 +437,7 @@ ParseResult parseBinOpKind(OpAsmParser &parser, BinOpKindAttr &kindAttr) {
     ::mlir::StringAttr attrVal;
     ::mlir::OptionalParseResult parseResult = parser.parseOptionalAttribute(
         attrVal, parser.getBuilder().getNoneType(), "kind", attrStorage);
-    if (parseResult.hasValue()) {
+    if (parseResult.has_value()) {
       if (failed(*parseResult))
         return ::mlir::failure();
       attrStr = attrVal.getValue();
@@ -455,7 +459,7 @@ ParseResult parseBinOpKind(OpAsmParser &parser, BinOpKindAttr &kindAttr) {
     ;
 
     kindAttr = ::mlir::cir::BinOpKindAttr::get(parser.getBuilder().getContext(),
-                                               attrOptional.getValue());
+                                               attrOptional.value());
   }
 
   return ::mlir::success();
@@ -527,7 +531,7 @@ parseSwitchOp(OpAsmParser &parser,
       ::mlir::StringAttr attrVal;
       ::mlir::OptionalParseResult parseResult = parser.parseOptionalAttribute(
           attrVal, parser.getBuilder().getNoneType(), "kind", attrStorage);
-      if (parseResult.hasValue()) {
+      if (parseResult.has_value()) {
         if (failed(*parseResult))
           return ::mlir::failure();
         attrStr = attrVal.getValue();
@@ -552,7 +556,7 @@ parseSwitchOp(OpAsmParser &parser,
     mlir::Type intType = mlir::IntegerType::get(parser.getContext(), 64,
                                                 mlir::IntegerType::Signed);
     auto kindAttr = ::mlir::cir::CaseOpKindAttr::get(
-        parser.getBuilder().getContext(), attrOptional.getValue());
+        parser.getBuilder().getContext(), attrOptional.value());
 
     if (parser.parseOptionalComma().failed() &&
         kindAttr.getValue() == cir::CaseOpKind::Default) {
@@ -599,7 +603,7 @@ void SwitchOp::getSuccessorRegions(Optional<unsigned> index,
                                    SmallVectorImpl<RegionSuccessor> &regions) {
   // If any index all the underlying regions branch back to the parent
   // operation.
-  if (index.hasValue()) {
+  if (index.has_value()) {
     regions.push_back(RegionSuccessor());
     return;
   }
