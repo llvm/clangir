@@ -556,7 +556,10 @@ def CaseOpKind : I32EnumAttr<
 }
 
 def CaseAttr : StructAttr<"CaseAttr", CIR_Dialect, [
-  StructFieldAttr<"value", AnyI64Attr>,
+  // Note that AnyAttr is used as placeholder since there's no generic
+  // (not sized) integral attribute. Ultimately this must match the
+  // operand type.
+  StructFieldAttr<"value", AnyAttr>,
   StructFieldAttr<"kind", CaseOpKind>
 ]> {}
 
@@ -597,14 +600,11 @@ def SwitchOp : CIR_Op<"switch",
   let arguments = (ins AnyInteger:$condition,
                        OptionalAttr<CaseArrayAttr>:$cases);
   let regions = (region VariadicRegion<SizedRegion<1>>:$regions);
-
-  let verifier = ?;
-  // let verifier = [{ return ::verify(*this); }];
+  let verifier = [{ return ::verify(*this); }];
 
   let assemblyFormat = [{
-    `(` $condition `:` type($condition) `)`
     custom<SwitchOp>(
-      $regions, $cases
+      $regions, $cases, $condition, type($condition)
     )
     attr-dict
   }];
