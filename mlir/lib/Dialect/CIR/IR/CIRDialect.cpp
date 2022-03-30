@@ -167,12 +167,11 @@ static mlir::LogicalResult verify(ReturnOp op) {
 // IfOp
 //===----------------------------------------------------------------------===//
 
-static LogicalResult checkScopeTerminator(OpAsmParser &parser,
-                                          OperationState &result, Region *r) {
+static LogicalResult checkBlockTerminator(mlir::Builder &builder, Location l,
+                                          Region *r) {
   if (r->hasOneBlock()) {
     ::mlir::impl::ensureRegionTerminator(
-        *r, parser.getBuilder(), result.location,
-        [](OpBuilder &builder, Location loc) {
+        *r, builder, l, [](OpBuilder &builder, Location loc) {
           OperationState state(loc, YieldOp::getOperationName());
           YieldOp::build(builder, state);
           return Operation::create(state);
@@ -219,7 +218,8 @@ static ParseResult parseIfOp(OpAsmParser &parser, OperationState &result) {
   if (parser.parseRegion(*thenRegion, /*arguments=*/{},
                          /*argTypes=*/{}))
     return failure();
-  if (checkScopeTerminator(parser, result, thenRegion).failed()) {
+  if (checkBlockTerminator(parser.getBuilder(), result.location, thenRegion)
+          .failed()) {
     parser.emitError(
         loc,
         "if.then expected at least one block with cir.yield or cir.return");
@@ -230,7 +230,8 @@ static ParseResult parseIfOp(OpAsmParser &parser, OperationState &result) {
   if (!parser.parseOptionalKeyword("else")) {
     if (parser.parseRegion(*elseRegion, /*arguments=*/{}, /*argTypes=*/{}))
       return failure();
-    if (checkScopeTerminator(parser, result, elseRegion).failed()) {
+    if (checkBlockTerminator(parser.getBuilder(), result.location, elseRegion)
+            .failed()) {
       parser.emitError(
           loc,
           "if.else expected at least one block with cir.yield or cir.return");
@@ -354,7 +355,8 @@ static ParseResult parseScopeOp(OpAsmParser &parser, OperationState &result) {
   if (parser.parseRegion(*scopeRegion, /*arguments=*/{}, /*argTypes=*/{}))
     return failure();
 
-  if (checkScopeTerminator(parser, result, scopeRegion).failed()) {
+  if (checkBlockTerminator(parser.getBuilder(), result.location, scopeRegion)
+          .failed()) {
     parser.emitError(
         loc, "expected at least one block with cir.yield or cir.return");
     return failure();
