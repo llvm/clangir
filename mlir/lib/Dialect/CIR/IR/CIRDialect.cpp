@@ -711,12 +711,13 @@ static LogicalResult verify(SwitchOp op) {
   return RegionBranchOpInterface::verifyTypes(op);
 }
 
-void SwitchOp::build(OpBuilder &builder, OperationState &result, Value cond,
-                     function_ref<void(OpBuilder &, Location)> switchBuilder) {
+void SwitchOp::build(
+    OpBuilder &builder, OperationState &result, Value cond,
+    function_ref<void(OpBuilder &, Location, OperationState &)> switchBuilder) {
   assert(switchBuilder && "the builder callback for regions must be present");
+  OpBuilder::InsertionGuard guardSwitch(builder);
   result.addOperands({cond});
-  OpBuilder::InsertionGuard guard(builder);
-  switchBuilder(builder, result.location);
+  switchBuilder(builder, result.location, result);
 }
 
 //===----------------------------------------------------------------------===//
