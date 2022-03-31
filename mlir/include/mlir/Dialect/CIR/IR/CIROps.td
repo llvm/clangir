@@ -602,6 +602,12 @@ def SwitchOp : CIR_Op<"switch",
   let regions = (region VariadicRegion<SizedRegion<1>>:$regions);
   let verifier = [{ return ::verify(*this); }];
 
+  let skipDefaultBuilders = 1;
+  let builders = [
+    OpBuilder<(ins "Value":$condition,
+               "function_ref<void(OpBuilder &, Location)>":$switchBuilder)>
+  ];
+
   let assemblyFormat = [{
     custom<SwitchOp>(
       $regions, $cases, $condition, type($condition)
