@@ -706,7 +706,17 @@ void SwitchOp::getSuccessorRegions(Optional<unsigned> index,
 }
 
 static LogicalResult verify(SwitchOp op) {
+  if (op.regions().empty())
+    return success();
   return RegionBranchOpInterface::verifyTypes(op);
+}
+
+void SwitchOp::build(OpBuilder &builder, OperationState &result, Value cond,
+                     function_ref<void(OpBuilder &, Location)> switchBuilder) {
+  assert(switchBuilder && "the builder callback for regions must be present");
+  result.addOperands({cond});
+  OpBuilder::InsertionGuard guard(builder);
+  switchBuilder(builder, result.location);
 }
 
 //===----------------------------------------------------------------------===//
