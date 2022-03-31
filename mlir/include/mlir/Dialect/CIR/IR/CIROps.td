@@ -539,7 +539,7 @@ def CmpOp : CIR_Op<"cmp", [NoSideEffect,
 //===----------------------------------------------------------------------===//
 
 // FIXME: even though printed/parsed names assume lowercase, we capitalize here
-// because "default" is a reserved keyword and can't show up in a enum.
+// because "default" is a C++ reserved keyword and can't show up in a enum.
 def CaseOpKind_DT : I32EnumAttrCase<"Default", 1>;
 def CaseOpKind_EQ : I32EnumAttrCase<"Equal", 2>;
 
@@ -601,7 +601,7 @@ def SwitchOp : CIR_Op<"switch",
   let skipDefaultBuilders = 1;
   let builders = [
     OpBuilder<(ins "Value":$condition,
-               "function_ref<void(OpBuilder &, Location)>":$switchBuilder)>
+               "function_ref<void(OpBuilder &, Location, OperationState &)>":$switchBuilder)>
   ];
 
   let assemblyFormat = [{
