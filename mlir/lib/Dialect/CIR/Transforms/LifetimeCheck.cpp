@@ -463,7 +463,7 @@ void LifetimeCheckPass::checkLoad(LoadOp loadOp) {
     auto &note = info.first;
     auto &pointee = info.second;
 
-    if (pointee.hasValue()) {
+    if (pointee.has_value()) {
       StringRef pointeeName = getVarNameFromValue(*pointee);
       D.attachNote(note) << "pointee '" << pointeeName
                          << "' invalidated at end of scope";
