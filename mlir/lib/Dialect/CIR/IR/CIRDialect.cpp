@@ -413,7 +413,7 @@ mlir::LogicalResult YieldOp::verify() {
 
   assert((llvm::isa<IfOp, ScopeOp>(getOperation()->getParentOp())) &&
          "unknown parent op");
-  if (getFallthrough())
+  if (isFallthrough())
     return emitOpError() << "fallthrough only expected within 'cir.switch'";
 
   return mlir::success();
