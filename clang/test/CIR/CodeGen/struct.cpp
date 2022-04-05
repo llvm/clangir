@@ -21,8 +21,6 @@ void baz() {
 // CHECK-NEXT: !22struct2EFoo22 = !cir.struct<"struct.Foo", i32, i8, !cir.struct<"struct.Bar", i32, i8>>
 // CHECK-NEXT: module  {
 // CHECK-NEXT:   func @baz() {
-// CHECK-NEXT:     %0 = cir.alloca !22struct2EFoo22, cir.ptr <!22struct2EFoo22>, ["f", uninitialized] {alignment = 4 : i64} loc(#loc2)
-// CHECK-NEXT:     %1 = cir.alloca !22struct2EBar22, cir.ptr <!22struct2EBar22>, ["b", uninitialized] {alignment = 4 : i64} loc(#loc3)
-// CHECK-NEXT:     cir.return loc(#loc4)
-// CHECK-NEXT:   } loc(#loc1)
-// CHECK-NEXT: } loc(#loc0)
+// CHECK-NEXT:     %0 = cir.alloca !22struct2EBar22, cir.ptr <!22struct2EBar22>, ["b", uninitialized] {alignment = 4 : i64}
+// CHECK-NEXT:     %1 = cir.alloca !22struct2EFoo22, cir.ptr <!22struct2EFoo22>, ["f", uninitialized] {alignment = 4 : i64}
+// CHECK-NEXT:     cir.return
