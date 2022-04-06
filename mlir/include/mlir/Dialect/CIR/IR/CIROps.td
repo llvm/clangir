@@ -407,13 +407,13 @@ def YieldOp : CIR_Op<"yield", [ReturnLike, Terminator,
   let extraClassDeclaration = [{
     // None of the below
     bool isPlain() {
-      return !kind();
+      return !getKind();
     }
     bool isFallthrough() {
-      return !isPlain() && *kind() == YieldOpKind::Fallthrough;
+      return !isPlain() && *getKind() == YieldOpKind::Fallthrough;
     }
     bool isBreak() {
-      return !isPlain() && *kind() == YieldOpKind::Break;
+      return !isPlain() && *getKind() == YieldOpKind::Break;
     }
   }];
 
@@ -577,6 +577,8 @@ def CaseAttr : StructAttr<"CaseAttr", CIR_Dialect, [
   // Note that AnyAttr is used as placeholder since there's no generic
   // (not sized) integral attribute. Ultimately this must match the
   // operand type.
+  // FIXME: value should probably be optioonal for more clear "default"
+  // representation.
   StructFieldAttr<"value", AnyAttr>,
   StructFieldAttr<"kind", CaseOpKind>
 ]> {}
