@@ -1412,6 +1412,8 @@ mlir::LogicalResult CIRGenModule::buildSwitchStmt(const SwitchStmt &S) {
               mlir::OpBuilder::InsertionGuard guardCase(builder);
               builder.setInsertionPointToEnd(lastCaseBlock);
               res = buildStmt(c, /*useCurrentScope=*/!isa<CompoundStmt>(c));
+              if (res.failed())
+                break;
               continue;
             }
             assert(newCase && "expected case stmt");
@@ -1434,12 +1436,15 @@ mlir::LogicalResult CIRGenModule::buildSwitchStmt(const SwitchStmt &S) {
           os.addAttribute("cases", builder.getArrayAttr(caseAttrs));
         });
 
+    if (res.failed())
+      return res;
+
     // Make sure all case regions are terminated by inserting
     // fallthroughs when necessary.
     // FIXME: find a better way to get accurante with location here.
     for (auto &r : swop.regions())
       terminateCaseRegion(r, swop.getLoc());
-    return res;
+    return mlir::success();
   };
 
   // The switch scope contains the full source range for SwitchStmt.
