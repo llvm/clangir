@@ -630,7 +630,7 @@ def SwitchOp : CIR_Op<"switch",
 
   let arguments = (ins AnyInteger:$condition,
                        OptionalAttr<CaseArrayAttr>:$cases);
-  let regions = (region VariadicRegion<SizedRegion<1>>:$regions);
+  let regions = (region VariadicRegion<AnyRegion>:$regions);
   let verifier = [{ return ::verify(*this); }];
 
   let skipDefaultBuilders = 1;
