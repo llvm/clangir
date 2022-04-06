@@ -575,6 +575,8 @@ def CaseAttr : StructAttr<"CaseAttr", CIR_Dialect, [
   // Note that AnyAttr is used as placeholder since there's no generic
   // (not sized) integral attribute. Ultimately this must match the
   // operand type.
+  // FIXME: value should probably be optioonal for more clear "default"
+  // representation.
   StructFieldAttr<"value", AnyAttr>,
   StructFieldAttr<"kind", CaseOpKind>
 ]> {}
