@@ -1283,7 +1283,8 @@ mlir::LogicalResult CIRGenModule::buildIfOnBoolExpr(const Expr *cond,
           locs.push_back(fusedLoc.getLocations()[0]);
           locs.push_back(fusedLoc.getLocations()[1]);
         }
-        LexicalScopeContext lexScope{locs[0], locs[1]};
+        LexicalScopeContext lexScope{locs[0], locs[1],
+                                     builder.getInsertionBlock()};
         LexicalScopeGuard lexThenGuard{*this, &lexScope};
         resThen = buildStmt(thenS, /*useCurrentScope=*/true);
       },
@@ -1292,7 +1293,8 @@ mlir::LogicalResult CIRGenModule::buildIfOnBoolExpr(const Expr *cond,
         auto fusedLoc = loc.cast<mlir::FusedLoc>();
         auto locBegin = fusedLoc.getLocations()[2];
         auto locEnd = fusedLoc.getLocations()[3];
-        LexicalScopeContext lexScope{locBegin, locEnd};
+        LexicalScopeContext lexScope{locBegin, locEnd,
+                                     builder.getInsertionBlock()};
         LexicalScopeGuard lexElseGuard{*this, &lexScope};
         resElse = buildStmt(elseS, /*useCurrentScope=*/true);
       });
@@ -1448,7 +1450,8 @@ mlir::LogicalResult CIRGenModule::buildSwitchStmt(const SwitchStmt &S) {
         auto fusedLoc = loc.cast<mlir::FusedLoc>();
         auto scopeLocBegin = fusedLoc.getLocations()[0];
         auto scopeLocEnd = fusedLoc.getLocations()[1];
-        LexicalScopeContext lexScope{scopeLocBegin, scopeLocEnd};
+        LexicalScopeContext lexScope{scopeLocBegin, scopeLocEnd,
+                                     builder.getInsertionBlock()};
         LexicalScopeGuard lexIfScopeGuard{*this, &lexScope};
         res = switchStmtBuilder();
       });
@@ -1496,7 +1499,8 @@ mlir::LogicalResult CIRGenModule::buildIfStmt(const IfStmt &S) {
         auto fusedLoc = loc.cast<mlir::FusedLoc>();
         auto scopeLocBegin = fusedLoc.getLocations()[0];
         auto scopeLocEnd = fusedLoc.getLocations()[1];
-        LexicalScopeContext lexScope{scopeLocBegin, scopeLocEnd};
+        LexicalScopeContext lexScope{scopeLocBegin, scopeLocEnd,
+                                     builder.getInsertionBlock()};
         LexicalScopeGuard lexIfScopeGuard{*this, &lexScope};
         res = ifStmtBuilder();
       });
@@ -1699,7 +1703,8 @@ mlir::LogicalResult CIRGenModule::buildCompoundStmt(const CompoundStmt &S) {
         auto fusedLoc = loc.cast<mlir::FusedLoc>();
         auto locBegin = fusedLoc.getLocations()[0];
         auto locEnd = fusedLoc.getLocations()[1];
-        LexicalScopeContext lexScope{locBegin, locEnd};
+        LexicalScopeContext lexScope{locBegin, locEnd,
+                                     builder.getInsertionBlock()};
         LexicalScopeGuard lexScopeGuard{*this, &lexScope};
         res = compoundStmtBuilder();
       });
@@ -1821,7 +1826,8 @@ mlir::FuncOp CIRGenModule::buildFunction(const FunctionDecl *FD) {
 
   // Initialize lexical scope information.
   {
-    LexicalScopeContext lexScope{FnBeginLoc, FnEndLoc};
+    LexicalScopeContext lexScope{FnBeginLoc, FnEndLoc,
+                                 builder.getInsertionBlock()};
     LexicalScopeGuard scopeGuard{*this, &lexScope};
 
     // Declare all the function arguments in the symbol table.
