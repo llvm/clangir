@@ -3149,6 +3149,8 @@ static bool ParseFrontendArgs(FrontendOptions &Opts, ArgList &Args,
   if (Opts.ProgramAction != frontend::GenerateModule && Opts.IsSystemModule)
     Diags.Report(diag::err_drv_argument_only_allowed_with) << "-fsystem-module"
                                                            << "-emit-module";
+  if (Args.hasArg(OPT_disable_cir_passes))
+    Opts.DisableCIRPasses = true;
   if (Args.hasArg(OPT_aux_target_cpu))
     Opts.AuxTargetCPU = std::string(Args.getLastArgValue(OPT_aux_target_cpu));
   if (Args.hasArg(OPT_aux_target_feature))
