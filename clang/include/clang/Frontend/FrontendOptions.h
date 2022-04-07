@@ -313,7 +313,11 @@ public:
   /// Output (and read) PCM files regardless of compiler errors.
   unsigned AllowPCMWithCompilerErrors : 1;
 
+  /// Use Clang IR pipeline to emit code
   unsigned UseClangIRPipeline : 1;
+
+  /// Disable Clang IR specific (CIR) passes
+  unsigned DisableCIRPasses : 1;
 
   CodeCompleteOptions CodeCompleteOpts;
 
@@ -475,7 +479,7 @@ public:
         BuildingImplicitModuleUsesLock(true), ModulesEmbedAllFiles(false),
         IncludeTimestamps(true), UseTemporary(true),
         AllowPCMWithCompilerErrors(false), UseClangIRPipeline(false),
-        TimeTraceGranularity(500) {}
+        DisableCIRPasses(false), TimeTraceGranularity(500) {}
 
   /// getInputKindForExtension - Return the appropriate input kind for a file
   /// extension. For example, "c" would return Language::C.
