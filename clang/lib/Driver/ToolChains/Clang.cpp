@@ -4822,6 +4822,9 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
       Args.hasArg(options::OPT_emit_cir))
     CmdArgs.push_back("-fenable-clangir");
 
+  if (Args.hasArg(options::OPT_disable_cir_passes))
+    CmdArgs.push_back("-disable-cir-passes");
+
   if (IsOpenMPDevice) {
     // We have to pass the triple of the host if compiling for an OpenMP device.
     std::string NormalizedTriple =
