@@ -51,7 +51,7 @@ struct SimplifyRetYieldBlocks : public mlir::OpRewritePattern<ScopeLikeOpTy> {
     // cir.if %2 {
     //    %3 = cir.cst(3 : i32) : i32
     //    cir.return %3 : i32
-    //  }
+    // }
     //
     SmallPtrSet<mlir::Block *, 4> candidateBlocks;
     for (Block &block : blocks) {
@@ -90,7 +90,7 @@ struct SimplifyRetYieldBlocks : public mlir::OpRewritePattern<ScopeLikeOpTy> {
 };
 
 // Specialize the template to account for the different build signatures for
-// IfOp, ScopeOp and FuncOp.
+// IfOp, ScopeOp, FuncOp and SwitchOp.
 template <>
 mlir::LogicalResult
 SimplifyRetYieldBlocks<IfOp>::replaceScopeLikeOp(PatternRewriter &rewriter,
@@ -122,10 +122,23 @@ mlir::LogicalResult SimplifyRetYieldBlocks<mlir::FuncOp>::replaceScopeLikeOp(
   return regionChanged ? success() : failure();
 }
 
+template <>
+mlir::LogicalResult SimplifyRetYieldBlocks<cir::SwitchOp>::replaceScopeLikeOp(
+    PatternRewriter &rewriter, cir::SwitchOp switchOp) const {
+  bool regionChanged = false;
+  for (auto &r : switchOp.regions()) {
+    if (checkAndRewriteRegion(r, rewriter).succeeded())
+      regionChanged = true;
+  }
+
+  return regionChanged ? success() : failure();
+}
+
 void getMergeCleanupsPatterns(RewritePatternSet &results,
                               MLIRContext *context) {
   results.add<SimplifyRetYieldBlocks<IfOp>, SimplifyRetYieldBlocks<ScopeOp>,
-              SimplifyRetYieldBlocks<mlir::FuncOp>>(context);
+              SimplifyRetYieldBlocks<mlir::FuncOp>,
+              SimplifyRetYieldBlocks<cir::SwitchOp>>(context);
 }
 
 struct MergeCleanupsPass : public MergeCleanupsBase<MergeCleanupsPass> {
@@ -149,7 +162,7 @@ void MergeCleanupsPass::runOnOperation() {
 
   SmallVector<Operation *> opsToSimplify;
   op->walk([&](Operation *op) {
-    if (isa<cir::IfOp, cir::ScopeOp, mlir::FuncOp>(op))
+    if (isa<cir::IfOp, cir::ScopeOp, mlir::FuncOp, cir::SwitchOp>(op))
       opsToSimplify.push_back(op);
   });
 
