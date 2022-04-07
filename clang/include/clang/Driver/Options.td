@@ -2352,6 +2352,10 @@ def fapple_link_rtlib : Flag<["-"], "fapple-link-rtlib">, Group<f_Group>,
 def fenable_clangir : Flag<["-"], "fenable-clangir">, Flags<[CoreOption, CC1Option]>, Group<f_Group>,
   HelpText<"Use the new ClangIR pipeline to compile.">,
   MarshallingInfoFlag<FrontendOpts<"UseClangIRPipeline">>;
+def disable_cir_passes : Flag<["-"], "disable-cir-passes">,
+  Flags<[CoreOption, CC1Option]>,
+  HelpText<"Disable CIR transformations pipeline">,
+  MarshallingInfoFlag<FrontendOpts<"DisableCIRPasses">>;
 def flto_EQ : Joined<["-"], "flto=">, Flags<[CoreOption, CC1Option, FC1Option, FlangOption]>, Group<f_Group>,
   HelpText<"Set LTO mode">, Values<"thin,full">;
 def flto_EQ_jobserver : Flag<["-"], "flto=jobserver">, Group<f_Group>,
