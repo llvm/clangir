@@ -2712,6 +2712,10 @@ def fenable_clangir : Flag<["-"], "fenable-clangir">, Flags<[CoreOption, CC1Opti
   MarshallingInfoFlag<FrontendOpts<"UseClangIRPipeline">>;
 def flto_EQ_jobserver : Flag<["-"], "flto=jobserver">, Visibility<[ClangOption, FlangOption]>, Group<f_Group>,
   Alias<flto_EQ>, AliasArgs<["full"]>, HelpText<"Enable LTO in 'full' mode">;
+def disable_cir_passes : Flag<["-"], "disable-cir-passes">,
+  Flags<[CoreOption, CC1Option]>,
+  HelpText<"Disable CIR transformations pipeline">,
+  MarshallingInfoFlag<FrontendOpts<"DisableCIRPasses">>;
 def flto_EQ_auto : Flag<["-"], "flto=auto">, Visibility<[ClangOption, FlangOption]>, Group<f_Group>,
   Alias<flto_EQ>, AliasArgs<["full"]>, HelpText<"Enable LTO in 'full' mode">;
 def flto : Flag<["-"], "flto">,
