@@ -532,15 +532,6 @@ parseSwitchOp(OpAsmParser &parser,
                              /*ensureTerm=*/false)
             .failed())
       return failure();
-
-    assert(currRegion.hasOneBlock() && "expected only one block");
-    Block &block = currRegion.back();
-    if (block.empty() || !block.back().hasTrait<OpTrait::IsTerminator>()) {
-      return parser.emitError(
-          parser.getCurrentLocation(),
-          "blocks are expected to be explicitly terminated");
-    }
-
     return success();
   };
 
@@ -729,6 +720,8 @@ void SwitchOp::getSuccessorRegions(Optional<unsigned> index,
 static LogicalResult verify(SwitchOp op) {
   if (op.regions().empty())
     return success();
+  // FIXME: add a verifier that ensures there's only one block per case
+  // region where "cir.yield fallthrough" is used.
   return RegionBranchOpInterface::verifyTypes(op);
 }
 

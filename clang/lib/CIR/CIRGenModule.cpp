@@ -721,19 +721,22 @@ void CIRGenModule::LexicalScopeGuard::cleanup() {
 
   // Cleanup are done right before codegen resume a scope. This is where
   // objects are destroyed.
-  if (localScope->RetBlock) {
+  unsigned curLoc = 0;
+  for (auto *retBlock : localScope->getRetBlocks()) {
     mlir::OpBuilder::InsertionGuard guard(builder);
-    builder.setInsertionPointToEnd(localScope->RetBlock);
+    builder.setInsertionPointToEnd(retBlock);
+    mlir::Location retLoc = *localScope->getRetLocs()[curLoc];
+    curLoc++;
 
     // TODO: insert actual scope cleanup HERE (dtors and etc)
 
     // If there's anything to return, load it first.
     if (CGM.CurCGF->FnRetTy.hasValue()) {
-      auto val = builder.create<LoadOp>(
-          *localScope->RetLoc, *CGM.CurCGF->FnRetTy, *CGM.CurCGF->FnRetAlloca);
-      builder.create<ReturnOp>(*localScope->RetLoc, makeArrayRef(val.result()));
+      auto val = builder.create<LoadOp>(retLoc, *CGM.CurCGF->FnRetTy,
+                                        *CGM.CurCGF->FnRetAlloca);
+      builder.create<ReturnOp>(retLoc, makeArrayRef(val.result()));
     } else {
-      builder.create<ReturnOp>(*localScope->RetLoc);
+      builder.create<ReturnOp>(retLoc);
     }
   }
 
@@ -1370,6 +1373,8 @@ mlir::LogicalResult CIRGenModule::buildSwitchStmt(const SwitchStmt &S) {
   // if (ConstantFoldsToSimpleInteger(S.getCond(), ConstantCondValue))...
 
   auto res = mlir::success();
+  SwitchOp swop;
+
   auto switchStmtBuilder = [&]() -> mlir::LogicalResult {
     if (S.getInit())
       if (buildStmt(S.getInit(), /*useCurrentScope=*/true).failed())
@@ -1383,27 +1388,8 @@ mlir::LogicalResult CIRGenModule::buildSwitchStmt(const SwitchStmt &S) {
     // TODO: PGO and likelihood (e.g. PGO.haveRegionCounts())
     // TODO: if the switch has a condition wrapped by __builtin_unpredictable?
 
-    auto terminateCaseRegion = [&](mlir::Region &r, mlir::Location loc) {
-      assert(r.getBlocks().size() <= 1 && "not implemented");
-      if (r.empty())
-        return;
-
-      auto &block = r.back();
-
-      if (block.empty() ||
-          !block.back().hasTrait<mlir::OpTrait::IsTerminator>()) {
-        mlir::OpBuilder::InsertionGuard guardCase(builder);
-        builder.setInsertionPointToEnd(&block);
-        builder.create<YieldOp>(
-            loc,
-            mlir::cir::YieldOpKindAttr::get(
-                builder.getContext(), mlir::cir::YieldOpKind::Fallthrough),
-            mlir::ValueRange({}));
-      }
-    };
-
     // FIXME: track switch to handle nested stmts.
-    auto swop = builder.create<SwitchOp>(
+    swop = builder.create<SwitchOp>(
         getLoc(S.getBeginLoc()), condV,
         /*switchBuilder=*/
         [&](mlir::OpBuilder &b, mlir::Location loc, mlir::OperationState &os) {
@@ -1411,6 +1397,7 @@ mlir::LogicalResult CIRGenModule::buildSwitchStmt(const SwitchStmt &S) {
           assert(cs && "expected compound stmt");
           SmallVector<mlir::Attribute, 4> caseAttrs;
 
+          currLexScope->setAsSwitch();
           mlir::Block *lastCaseBlock = nullptr;
           for (auto *c : cs->body()) {
             bool caseLike = isa<CaseStmt, DefaultStmt>(c);
@@ -1437,9 +1424,14 @@ mlir::LogicalResult CIRGenModule::buildSwitchStmt(const SwitchStmt &S) {
             CaseAttr caseAttr;
             {
               mlir::OpBuilder::InsertionGuard guardCase(builder);
-              mlir::Region *caseRegion = os.addRegion();
-              lastCaseBlock = builder.createBlock(caseRegion);
 
+              // Update scope information with the current region we are
+              // emitting code for. This is useful to allow return blocks to be
+              // automatically and properly placed during cleanup.
+              mlir::Region *caseRegion = os.addRegion();
+              currLexScope->updateCurrentSwitchCaseRegion();
+
+              lastCaseBlock = builder.createBlock(caseRegion);
               if (caseStmt)
                 res = buildCaseStmt(*caseStmt, condV.getType(), caseAttr);
               else {
@@ -1459,12 +1451,6 @@ mlir::LogicalResult CIRGenModule::buildSwitchStmt(const SwitchStmt &S) {
 
     if (res.failed())
       return res;
-
-    // Make sure all case regions are terminated by inserting
-    // fallthroughs when necessary.
-    // FIXME: find a better way to get accurante with location here.
-    for (auto &r : swop.regions())
-      terminateCaseRegion(r, swop.getLoc());
     return mlir::success();
   };
 
@@ -1482,7 +1468,46 @@ mlir::LogicalResult CIRGenModule::buildSwitchStmt(const SwitchStmt &S) {
         res = switchStmtBuilder();
       });
 
-  return res;
+  if (res.failed())
+    return res;
+
+  // Any block in a case region without a terminator is considered a
+  // fallthrough yield. In practice there shouldn't be more than one
+  // block without a terminator, we patch any block we see though and
+  // let mlir's SwitchOp verifier enforce rules.
+  auto terminateCaseRegion = [&](mlir::Region &r, mlir::Location loc) {
+    if (r.empty())
+      return;
+
+    SmallVector<mlir::Block *, 4> eraseBlocks;
+    for (auto &block : r.getBlocks()) {
+      // Already cleanup after return operations, which might create
+      // empty blocks if emitted as last stmt.
+      if (block.empty() && block.hasNoPredecessors() && block.hasNoSuccessors())
+        eraseBlocks.push_back(&block);
+
+      if (block.empty() ||
+          !block.back().hasTrait<mlir::OpTrait::IsTerminator>()) {
+        mlir::OpBuilder::InsertionGuard guardCase(builder);
+        builder.setInsertionPointToEnd(&block);
+        builder.create<YieldOp>(
+            loc,
+            mlir::cir::YieldOpKindAttr::get(
+                builder.getContext(), mlir::cir::YieldOpKind::Fallthrough),
+            mlir::ValueRange({}));
+      }
+    }
+
+    for (auto *b : eraseBlocks)
+      b->erase();
+  };
+
+  // Make sure all case regions are terminated by inserting fallthroughs
+  // when necessary.
+  // FIXME: find a better way to get accurante with location here.
+  for (auto &r : swop.regions())
+    terminateCaseRegion(r, swop.getLoc());
+  return mlir::success();
 }
 
 mlir::LogicalResult CIRGenModule::buildIfStmt(const IfStmt &S) {
