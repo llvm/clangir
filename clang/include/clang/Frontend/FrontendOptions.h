@@ -389,7 +389,11 @@ public:
   LLVM_PREFERRED_TYPE(bool)
   unsigned ModulesShareFileManager : 1;
 
+  /// Use Clang IR pipeline to emit code
   unsigned UseClangIRPipeline : 1;
+
+  /// Disable Clang IR specific (CIR) passes
+  unsigned DisableCIRPasses : 1;
 
   CodeCompleteOptions CodeCompleteOpts;
 
@@ -569,7 +573,8 @@ public:
         BuildingImplicitModuleUsesLock(true), ModulesEmbedAllFiles(false),
         IncludeTimestamps(true), UseTemporary(true),
         AllowPCMWithCompilerErrors(false), ModulesShareFileManager(true),
-        UseClangIRPipeline(false), TimeTraceGranularity(500) {}
+        UseClangIRPipeline(false), DisableCIRPasses(false),
+        TimeTraceGranularity(500) {}
 
   /// getInputKindForExtension - Return the appropriate input kind for a file
   /// extension. For example, "c" would return Language::C.
