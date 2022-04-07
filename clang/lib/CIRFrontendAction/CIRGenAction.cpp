@@ -69,6 +69,7 @@ class CIRGenConsumer : public clang::ASTConsumer {
   const CodeGenOptions &codeGenOptions;
   const TargetOptions &targetOptions;
   const LangOptions &langOptions;
+  const FrontendOptions &feOptions;
 
   std::unique_ptr<raw_pwrite_stream> outputStream;
 
@@ -82,11 +83,13 @@ public:
                  const CodeGenOptions &codeGenOptions,
                  const TargetOptions &targetOptions,
                  const LangOptions &langOptions,
+                 const FrontendOptions &feOptions,
                  std::unique_ptr<raw_pwrite_stream> os)
       : action(action), diagnosticsEngine(diagnosticsEngine),
         headerSearchOptions(headerSearchOptions),
         codeGenOptions(codeGenOptions), targetOptions(targetOptions),
-        langOptions(langOptions), outputStream(std::move(os)),
+        langOptions(langOptions), feOptions(feOptions),
+        outputStream(std::move(os)),
         gen(std::make_unique<CIRGenerator>(codeGenOptions)) {
     // This is required to match the constructors used during
     // CodeGenAction. Ultimately, this is required because we want to use
@@ -126,7 +129,8 @@ public:
     switch (action) {
     case CIRGenAction::OutputType::EmitCIR:
       if (outputStream && mlirMod) {
-        runCIRToCIRPasses(mlirMod, mlirCtx.get());
+        if (!feOptions.DisableCIRPasses)
+          runCIRToCIRPasses(mlirMod, mlirCtx.get());
         mlir::OpPrintingFlags flags;
         // FIXME: we cannot roundtrip prettyForm=true right now.
         flags.enableDebugInfo(/*prettyForm=*/false);
@@ -215,7 +219,7 @@ CIRGenAction::CreateASTConsumer(CompilerInstance &ci, StringRef inputFile) {
   return std::make_unique<cir::CIRGenConsumer>(
       action, ci.getDiagnostics(), ci.getHeaderSearchOpts(),
       ci.getCodeGenOpts(), ci.getTargetOpts(), ci.getLangOpts(),
-      std::move(out));
+      ci.getFrontendOpts(), std::move(out));
 }
 
 mlir::OwningModuleRef CIRGenAction::loadModule(llvm::MemoryBufferRef mbRef) {
