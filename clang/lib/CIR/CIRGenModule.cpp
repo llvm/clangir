@@ -1338,11 +1338,10 @@ mlir::LogicalResult CIRGenModule::buildDefaultStmt(const DefaultStmt &S,
                                                    mlir::Type condType,
                                                    CaseAttr &caseEntry) {
   auto res = mlir::success();
-  auto caseIntAttr = mlir::IntegerAttr::get(condType, /*dummy value*/ 0);
   auto *ctx = builder.getContext();
   caseEntry = mlir::cir::CaseAttr::get(
-      caseIntAttr, CaseOpKindAttr::get(ctx, mlir::cir::CaseOpKind::Default),
-      ctx);
+      builder.getArrayAttr({}),
+      CaseOpKindAttr::get(ctx, mlir::cir::CaseOpKind::Default), ctx);
   {
     mlir::OpBuilder::InsertionGuard guardCase(builder);
     res = buildStmt(S.getSubStmt(),
@@ -1360,11 +1359,15 @@ mlir::LogicalResult CIRGenModule::buildCaseStmt(const CaseStmt &S,
          "case ranges not implemented");
   auto res = mlir::success();
 
+  SmallVector<mlir::Attribute, 4> caseEltValueListAttr;
   auto intVal = S.getLHS()->EvaluateKnownConstInt(getASTContext());
-  auto caseIntAttr = mlir::IntegerAttr::get(condType, intVal);
+  caseEltValueListAttr.push_back(mlir::IntegerAttr::get(condType, intVal));
+  auto caseValueList = builder.getArrayAttr(caseEltValueListAttr);
+
   auto *ctx = builder.getContext();
   caseEntry = mlir::cir::CaseAttr::get(
-      caseIntAttr, CaseOpKindAttr::get(ctx, mlir::cir::CaseOpKind::Equal), ctx);
+      caseValueList, CaseOpKindAttr::get(ctx, mlir::cir::CaseOpKind::Equal),
+      ctx);
   {
     mlir::OpBuilder::InsertionGuard guardCase(builder);
     res = buildStmt(S.getSubStmt(),
