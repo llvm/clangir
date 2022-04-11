@@ -427,6 +427,10 @@ static mlir::LogicalResult verify(YieldOp op) {
   if (llvm::isa<SwitchOp>(op->getParentOp()))
     return mlir::success();
 
+  // FIXME: check for cir.yield continue
+  if (llvm::isa<LoopOp>(op->getParentOp()))
+    return mlir::success();
+
   assert((llvm::isa<IfOp, ScopeOp>(op->getParentOp())) && "unknown parent op");
   if (op.isFallthrough())
     return op.emitOpError() << "fallthrough only expected within 'cir.switch'";
@@ -774,6 +778,68 @@ void SwitchOp::build(
   OpBuilder::InsertionGuard guardSwitch(builder);
   result.addOperands({cond});
   switchBuilder(builder, result.location, result);
+}
+
+//===----------------------------------------------------------------------===//
+// LoopOp
+//===----------------------------------------------------------------------===//
+
+void LoopOp::build(OpBuilder &builder, OperationState &result,
+                   function_ref<void(OpBuilder &, Location)> condBuilder,
+                   function_ref<void(OpBuilder &, Location)> bodyBuilder,
+                   function_ref<void(OpBuilder &, Location)> stepBuilder) {
+  OpBuilder::InsertionGuard guard(builder);
+
+  Region *condRegion = result.addRegion();
+  builder.createBlock(condRegion);
+  condBuilder(builder, result.location);
+
+  Region *bodyRegion = result.addRegion();
+  builder.createBlock(bodyRegion);
+  bodyBuilder(builder, result.location);
+
+  Region *stepRegion = result.addRegion();
+  builder.createBlock(stepRegion);
+  stepBuilder(builder, result.location);
+}
+
+/// Given the region at `index`, or the parent operation if `index` is None,
+/// return the successor regions. These are the regions that may be selected
+/// during the flow of control. `operands` is a set of optional attributes
+/// that correspond to a constant value for each operand, or null if that
+/// operand is not a constant.
+void LoopOp::getSuccessorRegions(Optional<unsigned> index,
+                                 ArrayRef<Attribute> operands,
+                                 SmallVectorImpl<RegionSuccessor> &regions) {
+  // If any index all the underlying regions branch back to the parent
+  // operation.
+  if (index.hasValue()) {
+    regions.push_back(RegionSuccessor());
+    return;
+  }
+
+  // FIXME: we want to look at cond region for getting more accurate results
+  // if the other regions will get a chance to execute.
+  regions.push_back(RegionSuccessor(&this->cond()));
+  regions.push_back(RegionSuccessor(&this->body()));
+  regions.push_back(RegionSuccessor(&this->step()));
+}
+
+LogicalResult LoopOp::moveOutOfLoop(ArrayRef<Operation *> ops) {
+  assert(0 && "not implemented");
+  return success();
+}
+
+Region &LoopOp::getLoopBody() { return body(); }
+
+bool LoopOp::isDefinedOutsideOfLoop(Value value) {
+  // Loop variables are defined in the surrounding loop cir.scope
+  auto *valDefRegion = value.getParentRegion();
+  ScopeOp scopeOp =
+      dyn_cast_or_null<ScopeOp>(this->getOperation()->getParentOp());
+  assert(scopeOp && "expected cir.scope");
+
+  return !scopeOp.scopeRegion().isAncestor(valDefRegion);
 }
 
 //===----------------------------------------------------------------------===//

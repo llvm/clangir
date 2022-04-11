@@ -18,6 +18,7 @@ include "mlir/Dialect/CIR/IR/CIRDialect.td"
 include "mlir/Dialect/CIR/IR/CIRTypes.td"
 include "mlir/IR/SymbolInterfaces.td"
 include "mlir/Interfaces/ControlFlowInterfaces.td"
+include "mlir/Interfaces/LoopLikeInterface.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/SymbolInterfaces.td"
@@ -254,7 +255,7 @@ def StoreOp : CIR_Op<"store", [
 // ReturnOp
 //===----------------------------------------------------------------------===//
 
-def ReturnOp : CIR_Op<"return", [HasParent<"FuncOp, ScopeOp, IfOp, SwitchOp">,
+def ReturnOp : CIR_Op<"return", [HasParent<"FuncOp, ScopeOp, IfOp, SwitchOp, LoopOp">,
                                  Terminator]> {
   let summary = "return operation";
   let description = [{
@@ -365,7 +366,8 @@ def YieldOpKind : I32EnumAttr<
 }
 
 def YieldOp : CIR_Op<"yield", [ReturnLike, Terminator,
-                               ParentOneOf<["IfOp", "ScopeOp", "SwitchOp"]>]> {
+                               ParentOneOf<["IfOp", "ScopeOp", "SwitchOp",
+                                            "LoopOp"]>]> {
   let summary = "termination operation for regions inside if, for, scope, etc";
   let description = [{
     "cir.yield" yields an SSA value from a CIR dialect op region and
@@ -694,6 +696,43 @@ def BrOp : CIR_Op<"br",
   let assemblyFormat = [{
     $dest (`(` $destOperands^ `:` type($destOperands) `)`)? attr-dict
   }];
+}
+
+//===----------------------------------------------------------------------===//
+// LoopOp
+//===----------------------------------------------------------------------===//
+
+def LoopOp : CIR_Op<"loop",
+      [DeclareOpInterfaceMethods<LoopLikeOpInterface>,
+       DeclareOpInterfaceMethods<RegionBranchOpInterface>,
+       RecursiveSideEffects, NoRegionArguments]> {
+  let summary = "loop operation";
+  let description = [{
+  }];
+  let regions = (region SizedRegion<1>:$cond, AnyRegion:$body,
+                        SizedRegion<1>:$step);
+
+  let assemblyFormat = [{
+    `(`
+    `cond` `{` $cond `}` `,`
+    `step` `{` $step `}`
+    `)` `{`
+    $body
+    `}`
+    attr-dict
+  }];
+
+  let skipDefaultBuilders = 1;
+  let builders = [
+    OpBuilder<(ins
+      CArg<"function_ref<void(OpBuilder &, Location)>",
+           "nullptr">:$condBuilder,
+      CArg<"function_ref<void(OpBuilder &, Location)>",
+           "nullptr">:$bodyBuilder,
+      CArg<"function_ref<void(OpBuilder &, Location)>",
+           "nullptr">:$stepBuilder
+      )>
+  ];
 }
 
 
