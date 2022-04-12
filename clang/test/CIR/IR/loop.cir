@@ -1,5 +1,4 @@
 // RUN: cir-tool %s | FileCheck %s
-// XFAIL: *
 
 func @l0() {
   %0 = cir.alloca i32, cir.ptr <i32>, ["x", cinit] {alignment = 4 : i64}
