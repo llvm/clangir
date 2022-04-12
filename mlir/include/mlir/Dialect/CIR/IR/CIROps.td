@@ -732,11 +732,10 @@ def LoopOp : CIR_Op<"loop",
 
   let assemblyFormat = [{
     `(`
-    `cond` `{` $cond `}` `,`
-    `step` `{` $step `}`
-    `)` `{`
+    `cond` `:` $cond `,`
+    `step` `:` $step
+    `)`
     $body
-    `}`
     attr-dict
   }];
 
