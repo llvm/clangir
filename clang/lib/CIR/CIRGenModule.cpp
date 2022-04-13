@@ -1578,7 +1578,6 @@ mlir::LogicalResult CIRGenModule::buildWhileStmt(const WhileStmt &S) {
         [&](mlir::OpBuilder &b, mlir::Location loc) {
           if (buildStmt(S.getBody(), /*useCurrentScope=*/true).failed())
             forRes = mlir::failure();
-          builder.create<YieldOp>(loc);
         },
         /*stepBuilder=*/
         [&](mlir::OpBuilder &b, mlir::Location loc) {
@@ -1647,7 +1646,6 @@ mlir::LogicalResult CIRGenModule::buildForStmt(const ForStmt &S) {
           // for C++ in case it's a compound statement?
           if (buildStmt(S.getBody(), /*useCurrentScope=*/true).failed())
             forRes = mlir::failure();
-          builder.create<YieldOp>(loc);
         },
         /*stepBuilder=*/
         [&](mlir::OpBuilder &b, mlir::Location loc) {
