@@ -732,7 +732,7 @@ void CIRGenModule::LexicalScopeGuard::cleanup() {
     // TODO: insert actual scope cleanup HERE (dtors and etc)
 
     // If there's anything to return, load it first.
-    if (CGM.CurCGF->FnRetTy.hasValue()) {
+    if (CGM.CurCGF->FnRetTy.has_value()) {
       auto val = builder.create<LoadOp>(retLoc, *CGM.CurCGF->FnRetTy,
                                         *CGM.CurCGF->FnRetAlloca);
       builder.create<ReturnOp>(retLoc, makeArrayRef(val.getResult()));
@@ -2063,7 +2063,7 @@ mlir::FuncOp CIRGenModule::buildFunction(const FunctionDecl *FD) {
 
     // When the current function is not void, create an address to store the
     // result value.
-    if (CurCGF->FnRetTy.hasValue())
+    if (CurCGF->FnRetTy.has_value())
       buildAndUpdateRetAlloca(CurCGF->FnRetQualTy, FnEndLoc,
                               getNaturalTypeAlignment(CurCGF->FnRetQualTy));
 
