@@ -1561,7 +1561,7 @@ mlir::LogicalResult CIRGenModule::buildDoStmt(const DoStmt &S) {
     auto forRes = mlir::success();
 
     loopOp = builder.create<LoopOp>(
-        getLoc(S.getSourceRange()),
+        getLoc(S.getSourceRange()), mlir::cir::LoopOpKind::DoWhile,
         /*condBuilder=*/
         [&](mlir::OpBuilder &b, mlir::Location loc) {
           // TODO: branch weigths, likelyhood, profile counter, etc.
@@ -1612,7 +1612,7 @@ mlir::LogicalResult CIRGenModule::buildWhileStmt(const WhileStmt &S) {
     auto forRes = mlir::success();
 
     loopOp = builder.create<LoopOp>(
-        getLoc(S.getSourceRange()),
+        getLoc(S.getSourceRange()), mlir::cir::LoopOpKind::While,
         /*condBuilder=*/
         [&](mlir::OpBuilder &b, mlir::Location loc) {
           // TODO: branch weigths, likelyhood, profile counter, etc.
@@ -1672,7 +1672,7 @@ mlir::LogicalResult CIRGenModule::buildForStmt(const ForStmt &S) {
         return mlir::failure();
 
     loopOp = builder.create<LoopOp>(
-        getLoc(S.getSourceRange()),
+        getLoc(S.getSourceRange()), mlir::cir::LoopOpKind::For,
         /*condBuilder=*/
         [&](mlir::OpBuilder &b, mlir::Location loc) {
           // TODO: branch weigths, likelyhood, profile counter, etc.
