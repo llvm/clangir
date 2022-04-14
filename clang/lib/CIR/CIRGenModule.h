@@ -174,6 +174,9 @@ public:
   mlir::Value GetGlobalValue(const clang::Decl *D);
   std::nullptr_t getModuleDebugInfo() { return nullptr; }
 
+  // Finalize CIR code generation.
+  void Release();
+
 
   void emitError(const llvm::Twine &message) { theModule.emitError(message); }
 
