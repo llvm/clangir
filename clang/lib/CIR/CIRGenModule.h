@@ -48,7 +48,8 @@ class CIRGenModule {
 
 public:
   CIRGenModule(mlir::MLIRContext &context, clang::ASTContext &astctx,
-               const clang::CodeGenOptions &CGO);
+               const clang::CodeGenOptions &CGO,
+               clang::DiagnosticsEngine &Diags);
 
   ~CIRGenModule();
 
@@ -69,6 +70,8 @@ private:
 
   /// A "module" matches a c/cpp source file: containing a list of functions.
   mlir::ModuleOp theModule;
+
+  clang::DiagnosticsEngine &Diags;
 
   const clang::TargetInfo &target;
 
@@ -91,6 +94,7 @@ public:
   clang::ASTContext &getASTContext() { return astCtx; }
   const clang::TargetInfo &getTarget() const { return target; }
   const clang::CodeGenOptions &getCodeGenOpts() const { return codeGenOpts; }
+  clang::DiagnosticsEngine &getDiags() const { return Diags; }
   CIRGenTypes &getTypes() { return genTypes; }
   const clang::LangOptions &getLangOpts() const { return langOpts; }
 
