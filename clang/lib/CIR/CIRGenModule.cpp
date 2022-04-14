@@ -536,3 +536,8 @@ void CIRGenModule::AddDeferredUnusedCoverageMapping(Decl *D) {
   llvm_unreachable("NYI");
 }
 
+void CIRGenModule::UpdateCompletedType(const TagDecl *TD) {
+  // Make sure that this type is translated.
+  genTypes.UpdateCompletedType(TD);
+}
+
