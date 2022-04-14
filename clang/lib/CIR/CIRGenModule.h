@@ -190,6 +190,8 @@ public:
 
   mlir::Value GetGlobalValue(const clang::Decl *D);
 
+  mlir::Operation *GetGlobalValue(llvm::StringRef Ref);
+
   // Make sure that this type is translated.
   void UpdateCompletedType(const clang::TagDecl *TD);
 
@@ -204,7 +206,6 @@ public:
 
   // Finalize CIR code generation.
   void Release();
-
 
   void emitError(const llvm::Twine &message) { theModule.emitError(message); }
 
