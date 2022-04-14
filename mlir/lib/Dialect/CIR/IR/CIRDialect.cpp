@@ -424,16 +424,28 @@ static LogicalResult verify(ScopeOp op) {
 //===----------------------------------------------------------------------===//
 
 static mlir::LogicalResult verify(YieldOp op) {
-  if (llvm::isa<SwitchOp>(op->getParentOp()))
-    return mlir::success();
+  auto isDominatedByLoopOrSwitch = [](Operation *parentOp) {
+    while (!llvm::isa<FuncOp>(parentOp)) {
+      if (llvm::isa<cir::SwitchOp, cir::LoopOp>(parentOp))
+        return true;
+      parentOp = parentOp->getParentOp();
+    }
+    return false;
+  };
 
-  // FIXME: check for cir.yield continue
-  if (llvm::isa<LoopOp>(op->getParentOp()))
+  if (op.isBreak()) {
+    if (!isDominatedByLoopOrSwitch(op->getParentOp()))
+      return op.emitOpError()
+             << "shall be dominated by 'cir.loop' or 'cir.switch'";
     return mlir::success();
+  }
 
-  assert((llvm::isa<IfOp, ScopeOp>(op->getParentOp())) && "unknown parent op");
-  if (op.isFallthrough())
-    return op.emitOpError() << "fallthrough only expected within 'cir.switch'";
+  if (op.isFallthrough()) {
+    if (!llvm::isa<SwitchOp>(op->getParentOp()))
+      return op.emitOpError()
+             << "fallthrough only expected within 'cir.switch'";
+    return mlir::success();
+  }
 
   return mlir::success();
 }
