@@ -433,10 +433,25 @@ static mlir::LogicalResult verify(YieldOp op) {
     return false;
   };
 
+  auto isDominatedByLoop = [](Operation *parentOp) {
+    while (!llvm::isa<FuncOp>(parentOp)) {
+      if (llvm::isa<cir::LoopOp>(parentOp))
+        return true;
+      parentOp = parentOp->getParentOp();
+    }
+    return false;
+  };
+
   if (op.isBreak()) {
     if (!isDominatedByLoopOrSwitch(op->getParentOp()))
       return op.emitOpError()
              << "shall be dominated by 'cir.loop' or 'cir.switch'";
+    return mlir::success();
+  }
+
+  if (op.isContinue()) {
+    if (!isDominatedByLoop(op->getParentOp()))
+      return op.emitOpError() << "shall be dominated by 'cir.loop'";
     return mlir::success();
   }
 
