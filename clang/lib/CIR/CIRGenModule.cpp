@@ -495,6 +495,17 @@ void CIRGenModule::buildDeferred() {
   }
 }
 
+// TODO: this is gross, make a map
+mlir::Operation *CIRGenModule::GetGlobalValue(StringRef Name) {
+  for (auto const &op : theModule.body().front().getOps<mlir::FuncOp>())
+    if (auto Fn = llvm::cast<mlir::FuncOp>(op)) {
+      if (Name == Fn.getName())
+        return Fn;
+    }
+
+  return nullptr;
+}
+
 void CIRGenModule::Release() {
   buildDeferred();
   // TODO: buildVTablesOpportunistically();
