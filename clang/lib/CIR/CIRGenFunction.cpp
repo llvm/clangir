@@ -239,7 +239,8 @@ void CIRGenFunction::LexicalScopeGuard::cleanup() {
 
     // If there's anything to return, load it first.
     if (CGF.FnRetCIRTy.hasValue()) {
-      auto val = builder.create<LoadOp>(retLoc, *CGF.FnRetCIRTy, *CGF.FnRetAlloca);
+      auto val =
+          builder.create<LoadOp>(retLoc, *CGF.FnRetCIRTy, *CGF.FnRetAlloca);
       builder.create<ReturnOp>(retLoc, llvm::makeArrayRef(val.result()));
     } else {
       builder.create<ReturnOp>(retLoc);
