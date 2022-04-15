@@ -194,6 +194,9 @@ public:
   // Make sure that this type is translated.
   void UpdateCompletedType(const clang::TagDecl *TD);
 
+  void buildGlobalDefinition(clang::GlobalDecl D,
+                             mlir::Operation *Op = nullptr);
+
   /// Stored a deferred empty coverage mapping for an unused and thus
   /// uninstrumented top level declaration.
   void AddDeferredUnusedCoverageMapping(clang::Decl *D);
@@ -205,6 +208,8 @@ public:
 
   // Finalize CIR code generation.
   void Release();
+
+  bool shouldEmitFunction(clang::GlobalDecl GD);
 
   void emitError(const llvm::Twine &message) { theModule.emitError(message); }
 
