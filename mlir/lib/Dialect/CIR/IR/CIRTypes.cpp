@@ -53,5 +53,8 @@ void CIRDialect::printType(Type type, DialectAsmPrinter &os) const {
 //===----------------------------------------------------------------------===//
 
 void CIRDialect::registerTypes() {
-  addTypes<BoolType, PointerType, StructType>();
+  addTypes<
+    #define GET_TYPEDEF_LIST
+    #include "mlir/Dialect/CIR/IR/CIROpsTypes.cpp.inc"
+  >();
 }

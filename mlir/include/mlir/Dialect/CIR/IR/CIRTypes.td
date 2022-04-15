@@ -132,9 +132,50 @@ def CIR_StructType : CIR_Type<"Struct", "struct"> {
 }
 
 //===----------------------------------------------------------------------===//
+// ArrayType
+//===----------------------------------------------------------------------===//
+
+def CIR_ArrayType :
+    CIR_Type<"Array", "array"> {
+
+  let summary = "CIR array type";
+  let description = [{
+    `CIR.array` represents C/C++ constant arrays.
+  }];
+
+  let parameters = (ins "mlir::Type":$eltType, "uint64_t":$size);
+
+  let printer = [{
+    $_printer << "<";
+    $_printer.printType(getEltType());
+    $_printer << " x " << getSize();
+    $_printer << '>';
+  }];
+
+  let parser = [{
+    if ($_parser.parseLess())
+      return Type();
+    Type eltType;
+    if ($_parser.parseType(eltType))
+      return Type();
+    if ($_parser.parseKeyword("x"))
+      return Type();
+
+    uint64_t val = 0;
+    if ($_parser.parseInteger(val).failed())
+      return Type();
+
+    if ($_parser.parseGreater())
+      return Type();
+    return get($_ctxt, eltType, val);
+  }];
+}
+
+//===----------------------------------------------------------------------===//
 // One type to bind them all
 //===----------------------------------------------------------------------===//
 
-def CIR_AnyCIRType : AnyTypeOf<[CIR_PointerType, CIR_BoolType, CIR_StructType]>;
+def CIR_AnyCIRType : AnyTypeOf<[CIR_PointerType, CIR_BoolType, CIR_StructType,
+                                CIR_ArrayType]>;
 
 #endif // MLIR_CIR_DIALECT_CIR_TYPES
