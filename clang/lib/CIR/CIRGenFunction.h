@@ -596,6 +596,7 @@ public:
     /// address space for address space agnostic languages.
     Address getAllocatedAddress() const { return Addr; }
   };
+
   /// Emit the alloca and debug information for a
   /// local variable.  Does not emit initialization or destruction.
   AutoVarEmission buildAutoVarAlloca(const clang::VarDecl &D);
