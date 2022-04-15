@@ -237,8 +237,8 @@ void CIRGenFunction::LexicalScopeGuard::cleanup() {
     // TODO: insert actual scope cleanup HERE (dtors and etc)
 
     // If there's anything to return, load it first.
-    if (CGF.FnRetTy.hasValue()) {
-      auto val = builder.create<LoadOp>(retLoc, *CGF.FnRetTy, *CGF.FnRetAlloca);
+    if (CGF.FnRetCIRTy.hasValue()) {
+      auto val = builder.create<LoadOp>(retLoc, *CGF.FnRetCIRTy, *CGF.FnRetAlloca);
       builder.create<ReturnOp>(retLoc, llvm::makeArrayRef(val.result()));
     } else {
       builder.create<ReturnOp>(retLoc);
@@ -305,7 +305,7 @@ mlir::FuncOp CIRGenFunction::generateCode(clang::GlobalDecl GD,
   FnRetQualTy = FD->getReturnType();
   mlir::TypeRange FnTyRange = {};
   if (!FnRetQualTy->isVoidType()) {
-    FnRetTy = getCIRType(FnRetQualTy);
+    FnRetCIRTy = getCIRType(FnRetQualTy);
   }
   auto funcType = getTypes().GetFunctionType(GlobalDecl(FD));
 
@@ -352,7 +352,7 @@ mlir::FuncOp CIRGenFunction::generateCode(clang::GlobalDecl GD,
 
     // When the current function is not void, create an address to store the
     // result value.
-    if (FnRetTy.hasValue())
+    if (FnRetCIRTy.hasValue())
       buildAndUpdateRetAlloca(FnRetQualTy, FnEndLoc,
                               CGM.getNaturalTypeAlignment(FnRetQualTy));
 
