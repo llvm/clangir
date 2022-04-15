@@ -271,6 +271,30 @@ void CIRGenModule::buildGlobal(GlobalDecl GD) {
   }
 }
 
+void CIRGenModule::buildGlobalFunctionDefinition(GlobalDecl GD,
+                                                 mlir::Operation *Op) {
+  auto const *D = cast<FunctionDecl>(GD.getDecl());
+
+  // TODO: setFunctionLinkage
+  // TODO: setGVProperties
+  // TODO: MaubeHandleStaticInExternC
+  // TODO: maybeSetTrivialComdat
+  // TODO: setLLVMFunctionFEnvAttributes
+
+  CIRGenFunction CGF{*this, builder};
+  CurCGF = &CGF;
+  auto fn = CGF.buildFunction(cast<FunctionDecl>(GD.getDecl()));
+  theModule.push_back(fn);
+  CurCGF = nullptr;
+
+  // TODO: setNonAliasAttributes
+  // TODO: SetLLVMFunctionAttributesForDeclaration
+
+  assert(!D->getAttr<ConstructorAttr>() && "NYI");
+  assert(!D->getAttr<DestructorAttr>() && "NYI");
+  assert(!D->getAttr<AnnotateAttr>() && "NYI");
+}
+
 void CIRGenModule::buildGlobalDefinition(GlobalDecl GD, mlir::Operation *Op) {
   const auto *D = cast<ValueDecl>(GD.getDecl());
 
@@ -286,12 +310,7 @@ void CIRGenModule::buildGlobalDefinition(GlobalDecl GD, mlir::Operation *Op) {
 
     if (FD->isMultiVersion())
       llvm_unreachable("NYI");
-
-    CIRGenFunction CGF{*this, builder};
-    CurCGF = &CGF;
-    auto fn = CGF.buildFunction(cast<FunctionDecl>(GD.getDecl()));
-    theModule.push_back(fn);
-    CurCGF = nullptr;
+    buildGlobalFunctionDefinition(GD, Op);
     return;
   }
 
@@ -445,7 +464,6 @@ mlir::FuncOp CIRGenModule::GetOrCreateCIRFunction(
     if (FD->isMultiVersion())
       llvm_unreachable("NYI");
   }
-
 
   mlir::Value Entry = GetGlobalValue(GD.getDecl());
 
