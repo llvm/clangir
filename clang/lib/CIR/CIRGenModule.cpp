@@ -709,6 +709,24 @@ bool CIRGenModule::shouldEmitFunction(GlobalDecl GD) {
   return true;
 }
 
+bool CIRGenModule::isInNoSanitizeList(SanitizerMask Kind, mlir::FuncOp Fn,
+                                      SourceLocation Loc) const {
+  const auto &NoSanitizeL = getASTContext().getNoSanitizeList();
+  // NoSanitize by function name.
+  if (NoSanitizeL.containsFunction(Kind, Fn.getName()))
+    llvm_unreachable("NYI");
+  // NoSanitize by location.
+  if (Loc.isValid())
+    return NoSanitizeL.containsLocation(Kind, Loc);
+  // If location is unknown, this may be a compiler-generated function. Assume
+  // it's located in the main file.
+  auto &SM = getASTContext().getSourceManager();
+  if (const auto *MainFile = SM.getFileEntryForID(SM.getMainFileID())) {
+    return NoSanitizeL.containsFile(Kind, MainFile->getName());
+  }
+  return false;
+}
+
 void CIRGenModule::AddDeferredUnusedCoverageMapping(Decl *D) {
   // Do we need to generate coverage mapping?
   if (!codeGenOpts.CoverageMapping)
