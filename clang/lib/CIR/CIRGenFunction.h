@@ -495,7 +495,7 @@ public:
                                        mlir::Type condType,
                                        mlir::cir::CaseAttr &caseEntry);
 
-  mlir::FuncOp generateCode(clang::GlobalDecl GD,
+  mlir::FuncOp generateCode(clang::GlobalDecl GD, mlir::FuncOp Fn,
                             const CIRGenFunctionInfo &FnInfo);
 
   clang::QualType buildFunctionArgList(clang::GlobalDecl GD,
