@@ -116,6 +116,12 @@ static void printConstantValue(OpAsmPrinter &p, cir::ConstantOp op,
 OpFoldResult ConstantOp::fold(ArrayRef<Attribute> operands) { return value(); }
 
 //===----------------------------------------------------------------------===//
+// CastOp
+//===----------------------------------------------------------------------===//
+
+static LogicalResult verify(cir::CastOp castOp) { return success(); }
+
+//===----------------------------------------------------------------------===//
 // ReturnOp
 //===----------------------------------------------------------------------===//
 
