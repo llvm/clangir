@@ -122,6 +122,12 @@ OpFoldResult ConstantOp::fold(ArrayRef<Attribute> operands) { return value(); }
 static LogicalResult verify(cir::CastOp castOp) { return success(); }
 
 //===----------------------------------------------------------------------===//
+// PtrStrideOp
+//===----------------------------------------------------------------------===//
+
+static LogicalResult verify(cir::PtrStrideOp ptrStrideOp) { return success(); }
+
+//===----------------------------------------------------------------------===//
 // ReturnOp
 //===----------------------------------------------------------------------===//
 
