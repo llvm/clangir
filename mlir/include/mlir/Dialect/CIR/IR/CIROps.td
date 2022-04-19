@@ -79,7 +79,11 @@ def CastOp : CIR_Op<"cast",
 // PtrStrideOp
 //===----------------------------------------------------------------------===//
 
-def PtrStrideOp : CIR_Op<"ptr_stride", [NoSideEffect]> {
+def SameFirstOperandAndResultType :
+  NativeOpTrait<"SameFirstOperandAndResultType">;
+
+def PtrStrideOp : CIR_Op<"ptr_stride",
+                         [NoSideEffect, SameFirstOperandAndResultType]> {
   let summary = "pointer access with stride";
   let description = [{
     Given a base pointer as operand, provides a new pointer after applying
@@ -99,8 +103,8 @@ def PtrStrideOp : CIR_Op<"ptr_stride", [NoSideEffect]> {
     `,` type($result) attr-dict
   }];
 
-  // The input and output types should match the cast kind.
-  let hasVerifier = 1;
+  // SameFirstOperandAndResultType already checks all we need.
+  let hasVerifier = 0;
 }
 
 //===----------------------------------------------------------------------===//
