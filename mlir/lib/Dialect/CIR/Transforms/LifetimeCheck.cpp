@@ -39,7 +39,7 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
   struct Options {
     enum : unsigned {
       None = 0,
-      RemarkPset = 1,
+      RemarkPsetInvalid = 1,
       RemarkAll = 1 << 1,
       HistoryNull = 1 << 2,
       HistoryInvalid = 1 << 3,
@@ -50,7 +50,7 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
     void parseOptions(LifetimeCheckPass &pass) {
       for (auto &remark : pass.remarksList) {
         val |= StringSwitch<unsigned>(remark)
-                   .Case("pset", RemarkPset)
+                   .Case("pset-invalid", RemarkPsetInvalid)
                    .Case("all", RemarkAll)
                    .Default(None);
       }
@@ -64,7 +64,9 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
     }
 
     bool emitRemarkAll() { return val & RemarkAll; }
-    bool emitRemarkPset() { return emitRemarkAll() || val & RemarkPset; }
+    bool emitRemarkPsetInvalid() {
+      return emitRemarkAll() || val & RemarkPsetInvalid;
+    }
 
     bool emitHistoryAll() { return val & HistoryAll; }
     bool emitHistoryNull() { return emitHistoryAll() || val & HistoryNull; }
@@ -652,7 +654,7 @@ void LifetimeCheckPass::checkLoad(LoadOp loadOp) {
     D.attachNote(*note) << "invalidated here";
   }
 
-  if (opts.emitRemarkPset()) {
+  if (opts.emitRemarkPsetInvalid()) {
     llvm::SmallString<128> psetStr;
     llvm::raw_svector_ostream Out(psetStr);
     printPset(getPmap()[addr], Out);
