@@ -119,7 +119,38 @@ OpFoldResult ConstantOp::fold(ArrayRef<Attribute> operands) { return value(); }
 // CastOp
 //===----------------------------------------------------------------------===//
 
-static LogicalResult verify(cir::CastOp castOp) { return success(); }
+static LogicalResult verify(cir::CastOp castOp) {
+  auto resType = castOp.result().getType();
+  auto srcType = castOp.src().getType();
+
+  switch (castOp.kind()) {
+  case cir::CastKind::int_to_bool: {
+    if (!resType.isa<mlir::cir::BoolType>())
+      return castOp.emitOpError() << "requires !cir.bool type for result";
+    if (!(srcType.isInteger(32) || srcType.isInteger(64)))
+      return castOp.emitOpError() << "requires integral type for result";
+    return success();
+  }
+  case cir::CastKind::array_to_ptrdecay: {
+    auto arrayPtrTy = srcType.dyn_cast<mlir::cir::PointerType>();
+    auto flatPtrTy = resType.dyn_cast<mlir::cir::PointerType>();
+    if (!arrayPtrTy || !flatPtrTy)
+      return castOp.emitOpError()
+             << "requires !cir.ptr type for source and result";
+
+    auto arrayTy = arrayPtrTy.getPointee().dyn_cast<mlir::cir::ArrayType>();
+    if (!arrayTy)
+      return castOp.emitOpError() << "requires !cir.array pointee";
+
+    if (arrayTy.getEltType() != flatPtrTy.getPointee())
+      return castOp.emitOpError()
+             << "requires same type for array element and pointee result";
+    return success();
+  }
+  }
+
+  return success();
+}
 
 //===----------------------------------------------------------------------===//
 // ReturnOp
