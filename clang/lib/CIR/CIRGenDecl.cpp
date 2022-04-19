@@ -240,6 +240,8 @@ void CIRGenFunction::buildExprAsInit(const Expr *init, const ValueDecl *D,
 
 void CIRGenFunction::buildDecl(const Decl &D) {
   switch (D.getKind()) {
+  default:
+    llvm_unreachable("Unknown decl kind");
   case Decl::BuiltinTemplate:
   case Decl::TranslationUnit:
   case Decl::ExternCContext:
