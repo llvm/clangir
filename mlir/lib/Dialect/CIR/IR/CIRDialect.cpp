@@ -122,12 +122,6 @@ OpFoldResult ConstantOp::fold(ArrayRef<Attribute> operands) { return value(); }
 static LogicalResult verify(cir::CastOp castOp) { return success(); }
 
 //===----------------------------------------------------------------------===//
-// PtrStrideOp
-//===----------------------------------------------------------------------===//
-
-static LogicalResult verify(cir::PtrStrideOp ptrStrideOp) { return success(); }
-
-//===----------------------------------------------------------------------===//
 // ReturnOp
 //===----------------------------------------------------------------------===//
 
@@ -883,6 +877,25 @@ bool LoopOp::isDefinedOutsideOfLoop(Value value) {
   assert(scopeOp && "expected cir.scope");
 
   return !scopeOp.scopeRegion().isAncestor(valDefRegion);
+}
+
+//===----------------------------------------------------------------------===//
+// CIR defined traits
+//===----------------------------------------------------------------------===//
+
+LogicalResult
+mlir::OpTrait::impl::verifySameFirstOperandAndResultType(Operation *op) {
+  if (failed(verifyAtLeastNOperands(op, 1)) || failed(verifyOneResult(op)))
+    return failure();
+
+  auto type = op->getResult(0).getType();
+  auto opType = op->getOperand(0).getType();
+
+  if (type != opType)
+    return op->emitOpError()
+           << "requires the same type for first operand and result";
+
+  return success();
 }
 
 //===----------------------------------------------------------------------===//
