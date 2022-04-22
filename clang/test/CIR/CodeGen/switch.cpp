@@ -5,7 +5,7 @@ void sw0(int a) {
   switch (a) {}
 }
 
-// CHECK: func @sw0
+// CHECK: func @_Z3sw0i
 // CHECK-NEXT:   %0 = cir.alloca i32, cir.ptr <i32>
 // CHECK-NEXT:   cir.store %arg0, %0 : i32, cir.ptr <i32>
 // CHECK-NEXT:   cir.scope {
@@ -29,7 +29,7 @@ void sw1(int a) {
   }
 }
 
-// CHECK: func @sw1
+// CHECK: func @_Z3sw1i
 // CHECK: cir.switch (%3 : i32) [
 // CHECK-NEXT: case (equal, 0 : i32)  {
 // CHECK-NEXT:   %4 = cir.load %1 : cir.ptr <i32>, i32
@@ -65,7 +65,7 @@ void sw2(int a) {
   }
 }
 
-// CHECK: func @sw2
+// CHECK: func @_Z3sw2i
 // CHECK: cir.scope {
 // CHECK-NEXT:   %1 = cir.alloca i32, cir.ptr <i32>, ["yolo", cinit]
 // CHECK-NEXT:   %2 = cir.alloca i32, cir.ptr <i32>, ["fomo", cinit]
@@ -81,7 +81,7 @@ void sw3(int a) {
   }
 }
 
-// CHECK: func @sw3
+// CHECK: func @_Z3sw3i
 // CHECK: cir.scope {
 // CHECK-NEXT:   %1 = cir.load %0 : cir.ptr <i32>, i32
 // CHECK-NEXT:   cir.switch (%1 : i32) [
@@ -101,7 +101,7 @@ int sw4(int a) {
   return 0;
 }
 
-// CHECK: func @sw4
+// CHECK: func @_Z3sw4i
 // CHECK:       cir.switch (%4 : i32) [
 // CHECK-NEXT:       case (equal, 42 : i32)  {
 // CHECK-NEXT:         cir.scope {
@@ -126,7 +126,7 @@ void sw5(int a) {
   }
 }
 
-// CHECK: func @sw5
+// CHECK: func @_Z3sw5i
 // CHECK: cir.switch (%1 : i32) [
 // CHECK-NEXT:   case (equal, 1 : i32)  {
 // CHECK-NEXT:     cir.yield fallthrough
@@ -144,7 +144,7 @@ void sw6(int a) {
   }
 }
 
-// CHECK: func @sw6
+// CHECK: func @_Z3sw6i
 // CHECK: cir.switch (%1 : i32) [
 // CHECK-NEXT: case (anyof, [0, 1, 2] : i32)  {
 // CHECK-NEXT:   cir.yield break
@@ -166,7 +166,7 @@ void sw7(int a) {
   }
 }
 
-// CHECK: func @sw7
+// CHECK: func @_Z3sw7i
 // CHECK: case (anyof, [0, 1, 2] : i32)  {
 // CHECK-NEXT:   cir.yield fallthrough
 // CHECK-NEXT: },
