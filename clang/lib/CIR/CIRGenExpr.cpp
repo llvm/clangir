@@ -645,19 +645,6 @@ bool CIRGenFunction::LValueIsSuitableForInlineAtomic(LValue LV) {
   llvm_unreachable("NYI");
 }
 
-static bool hasBooleanRepresentation(QualType Ty) {
-  if (Ty->isBooleanType())
-    return true;
-
-  if (const auto *ET = Ty->getAs<EnumType>())
-    llvm_unreachable("NYI");
-
-  if (const auto *AT = Ty->getAs<AtomicType>())
-    llvm_unreachable("NYI");
-
-  return false;
-}
-
 /// Emit an if on a boolean condition to the specified blocks.
 /// FIXME: Based on the condition, this might try to simplify the codegen of
 /// the conditional based on the branch. TrueCount should be the number of
