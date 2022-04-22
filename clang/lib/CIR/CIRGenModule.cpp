@@ -434,6 +434,15 @@ mlir::FuncOp CIRGenModule::GetAddrOfFunction(clang::GlobalDecl GD,
   return F;
 }
 
+// Returns true if GD is a function decl with internal linkage and needs a
+// unique suffix after the mangled name.
+static bool isUniqueInternalLinkageDecl(GlobalDecl GD, CIRGenModule &CGM) {
+  assert(CGM.getModuleNameHash().empty() &&
+         "Unique internal linkage names NYI");
+
+  return false;
+}
+
 static std::string getMangledNameImpl(CIRGenModule &CGM, GlobalDecl GD,
                                       const NamedDecl *ND,
                                       bool OmitMultiVersionMangling = false) {
@@ -444,7 +453,7 @@ static std::string getMangledNameImpl(CIRGenModule &CGM, GlobalDecl GD,
   llvm::raw_svector_ostream Out(Buffer);
   MangleContext &MC = CGM.getCXXABI().getMangleContext();
 
-  // TODO: support the module name hash
+  assert(CGM.getModuleNameHash().empty() && "NYI");
   auto ShouldMangle = MC.shouldMangleDeclName(ND);
 
   // Explicit ignore mangling for now
@@ -471,7 +480,7 @@ static std::string getMangledNameImpl(CIRGenModule &CGM, GlobalDecl GD,
   // mangling is done to make sure that the final name can be properly
   // demangled. For example, for C functions without prototypes, name mangling
   // is not done and the unique suffix should not be appended then.
-  // TODO: assert(!isUniqueInternalLinkageDecl(GD, CGM) && "NYI");
+  assert(!isUniqueInternalLinkageDecl(GD, CGM) && "NYI");
 
   if (const auto *FD = dyn_cast<FunctionDecl>(ND)) {
     assert(!FD->isMultiVersion() && "NYI");
