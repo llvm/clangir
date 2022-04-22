@@ -901,6 +901,31 @@ void LoopOp::getSuccessorRegions(Optional<unsigned> index,
 
 Region &LoopOp::getLoopBody() { return body(); }
 
+LogicalResult LoopOp::verify() {
+  // Cond regions should only terminate with plain 'cir.yield' or
+  // 'cir.yield continue'.
+  auto terminateError = [&]() {
+    return emitOpError() << "cond region must be terminated with "
+                               "'cir.yield' or 'cir.yield continue'";
+  };
+
+  auto &blocks = cond().getBlocks();
+  for (Block &block : blocks) {
+    if (block.empty())
+      continue;
+    auto &op = block.back();
+    if (isa<BrCondOp>(op))
+      continue;
+    if (!isa<YieldOp>(op))
+      terminateError();
+    auto y = cast<YieldOp>(op);
+    if (!(y.isPlain() || y.isContinue()))
+      terminateError();
+  }
+
+  return success();
+}
+
 //===----------------------------------------------------------------------===//
 // CIR defined traits
 //===----------------------------------------------------------------------===//

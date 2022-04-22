@@ -850,6 +850,8 @@ def LoopOp : CIR_Op<"loop",
            "nullptr">:$stepBuilder
       )>
   ];
+
+  let hasVerifier = 1;
 }
 
 
