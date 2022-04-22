@@ -854,6 +854,8 @@ def LoopOp : CIR_Op<"loop",
            "nullptr">:$stepBuilder
       )>
   ];
+
+  let verifier = [{ return ::verify(*this); }];
 }
 
 
