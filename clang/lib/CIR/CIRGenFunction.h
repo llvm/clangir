@@ -397,6 +397,7 @@ public:
   mlir::LogicalResult buildSimpleStmt(const clang::Stmt *S,
                                       bool useCurrentScope);
 
+  mlir::LogicalResult buildForStmt(const clang::ForStmt &S);
   mlir::LogicalResult buildWhileStmt(const clang::WhileStmt &S);
   mlir::LogicalResult buildDoStmt(const clang::DoStmt &S);
   mlir::LogicalResult buildSwitchStmt(const clang::SwitchStmt &S);
@@ -589,8 +590,6 @@ public:
 
   // TODO: this can also be abstrated into common AST helpers
   bool hasBooleanRepresentation(clang::QualType Ty);
-
-  mlir::LogicalResult buildForStmt(const clang::ForStmt &S);
 };
 
 } // namespace cir
