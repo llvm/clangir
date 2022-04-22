@@ -926,6 +926,31 @@ bool LoopOp::isDefinedOutsideOfLoop(Value value) {
   return !scopeOp.scopeRegion().isAncestor(valDefRegion);
 }
 
+static LogicalResult verify(LoopOp op) {
+  // Cond regions should only terminate with plain 'cir.yield' or
+  // 'cir.yield continue'.
+  auto terminateError = [&]() {
+    return op.emitOpError() << "cond region must be terminated with "
+                               "'cir.yield' or 'cir.yield continue'";
+  };
+
+  auto &blocks = op.cond().getBlocks();
+  for (Block &block : blocks) {
+    if (block.empty())
+      continue;
+    auto &op = block.back();
+    if (isa<BrCondOp>(op))
+      continue;
+    if (!isa<YieldOp>(op))
+      terminateError();
+    auto y = cast<YieldOp>(op);
+    if (!(y.isPlain() || y.isContinue()))
+      terminateError();
+  }
+
+  return RegionBranchOpInterface::verifyTypes(op);
+}
+
 //===----------------------------------------------------------------------===//
 // CIR defined traits
 //===----------------------------------------------------------------------===//
