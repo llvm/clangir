@@ -224,7 +224,11 @@ public:
     }
   }
 
-  void finish() { buildAggregatedInits(); }
+  void finish() {
+    (void)ConstructorDecl;
+    (void)Args;
+    buildAggregatedInits();
+  }
 
 public:
 private:
