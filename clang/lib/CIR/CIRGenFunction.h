@@ -357,7 +357,8 @@ public:
     return getEvaluationKind(T) == TEK_Aggregate;
   }
 
-  CIRGenFunction(CIRGenModule &CGM, mlir::OpBuilder &builder);
+  CIRGenFunction(CIRGenModule &CGM, mlir::OpBuilder &builder,
+                 bool suppressNewContext = false);
 
   CIRGenTypes &getTypes() const { return CGM.getTypes(); }
 
@@ -771,6 +772,9 @@ public:
   }
 
   void initializeVTablePointers(const clang::CXXRecordDecl *RD);
+
+  void buildInitializerForField(clang::FieldDecl *Field, LValue LHS,
+                                clang::Expr *Init);
 
   /// Determine whether the given initializer is trivial in the sense
   /// that it requires no code to be generated.
