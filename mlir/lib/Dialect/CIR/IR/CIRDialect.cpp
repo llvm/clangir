@@ -895,18 +895,44 @@ void LoopOp::build(OpBuilder &builder, OperationState &result,
 void LoopOp::getSuccessorRegions(Optional<unsigned> index,
                                  ArrayRef<Attribute> operands,
                                  SmallVectorImpl<RegionSuccessor> &regions) {
-  // If any index all the underlying regions branch back to the parent
-  // operation.
+  // TODO: have a enum/getter for regions.
   if (index.hasValue()) {
+    switch (*index) {
+    case 0: // cond region
+      // In a cond region we could either continue the loop (back to the
+      // parent) or go to the body region.
+      regions.push_back(RegionSuccessor());
+      regions.push_back(RegionSuccessor(&this->body()));
+      break;
+    case 1: // body region
+      // Normal body regions could go to step or back to cond.
+      if (kind() == LoopOpKind::For)
+        regions.push_back(RegionSuccessor(&this->step()));
+      regions.push_back(RegionSuccessor(&this->cond()));
+      // FIXME: it's also possible to go back to the parent in case a
+      // 'cir.yield break' or 'cir.yield return' is used somewhere in
+      // the body, but we currently lack such analysis data.
+      break;
+    case 2: // step region
+      // Can only go back to the condition
+      regions.push_back(RegionSuccessor(&this->cond()));
+      break;
+    default:
+      assert(0 && "unknown");
+    }
+
     regions.push_back(RegionSuccessor());
     return;
   }
 
-  // FIXME: we want to look at cond region for getting more accurate results
-  // if the other regions will get a chance to execute.
-  regions.push_back(RegionSuccessor(&this->cond()));
-  regions.push_back(RegionSuccessor(&this->body()));
-  regions.push_back(RegionSuccessor(&this->step()));
+  // FIXME: use operands to shortcut some loops.
+
+  // Parent can transfer control flow to both body and cond, depending
+  // on the kind of loop used.
+  if (kind() == LoopOpKind::For || kind() == LoopOpKind::While)
+    regions.push_back(RegionSuccessor(&this->cond()));
+  else if (kind() == LoopOpKind::DoWhile)
+    regions.push_back(RegionSuccessor(&this->body()));
 }
 
 LogicalResult LoopOp::moveOutOfLoop(ArrayRef<Operation *> ops) {
