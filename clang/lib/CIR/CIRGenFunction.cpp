@@ -917,7 +917,7 @@ clang::QualType CIRGenFunction::buildFunctionArgList(clang::GlobalDecl GD,
   }
 
   if (MD && (isa<CXXConstructorDecl>(MD) || isa<CXXDestructorDecl>(MD)))
-    llvm_unreachable("NYI");
+    CGM.getCXXABI().addImplicitStructorParams(*this, ResTy, Args);
 
   return ResTy;
 }
