@@ -12,7 +12,11 @@ func @l0() {
       %4 = cir.load %2 : cir.ptr <i32>, i32
       %5 = cir.cst(10 : i32) : i32
       %6 = cir.cmp(lt, %4, %5) : i32, !cir.bool
-      cir.yield loopcondition %6 : !cir.bool
+      cir.brcond %6 ^bb1, ^bb2
+      ^bb1:
+        cir.yield continue
+      ^bb2:
+        cir.yield
     }, step :  {
       %4 = cir.load %2 : cir.ptr <i32>, i32
       %5 = cir.cst(1 : i32) : i32
@@ -39,7 +43,11 @@ func @l0() {
       %4 = cir.load %2 : cir.ptr <i32>, i32
       %5 = cir.cst(10 : i32) : i32
       %6 = cir.cmp(lt, %4, %5) : i32, !cir.bool
-      cir.yield loopcondition %6 : !cir.bool
+      cir.brcond %6 ^bb1, ^bb2
+      ^bb1:
+        cir.yield continue
+      ^bb2:
+        cir.yield
     }, step :  {
       cir.yield
     })  {
@@ -63,7 +71,11 @@ func @l0() {
       %4 = cir.load %2 : cir.ptr <i32>, i32
       %5 = cir.cst(10 : i32) : i32
       %6 = cir.cmp(lt, %4, %5) : i32, !cir.bool
-      cir.yield loopcondition %6 : !cir.bool
+      cir.brcond %6 ^bb1, ^bb2
+      ^bb1:
+        cir.yield continue
+      ^bb2:
+        cir.yield
     }, step :  {
       cir.yield
     })  {
@@ -82,7 +94,11 @@ func @l0() {
 // CHECK-NEXT:     %4 = cir.load %2 : cir.ptr <i32>, i32
 // CHECK-NEXT:     %5 = cir.cst(10 : i32) : i32
 // CHECK-NEXT:     %6 = cir.cmp(lt, %4, %5) : i32, !cir.bool
-// CHECK-NEXT:     cir.yield loopcondition %6 : !cir.bool
+// CHECK-NEXT:     cir.brcond %6 ^bb1, ^bb2
+// CHECK-NEXT:     ^bb1:
+// CHECK-NEXT:       cir.yield continue
+// CHECK-NEXT:     ^bb2:
+// CHECK-NEXT:       cir.yield
 // CHECK-NEXT:   }, step :  {
 // CHECK-NEXT:     %4 = cir.load %2 : cir.ptr <i32>, i32
 // CHECK-NEXT:     %5 = cir.cst(1 : i32) : i32
@@ -105,7 +121,11 @@ func @l0() {
 // CHECK-NEXT:     %4 = cir.load %2 : cir.ptr <i32>, i32
 // CHECK-NEXT:     %5 = cir.cst(10 : i32) : i32
 // CHECK-NEXT:     %6 = cir.cmp(lt, %4, %5) : i32, !cir.bool
-// CHECK-NEXT:     cir.yield loopcondition %6 : !cir.bool
+// CHECK-NEXT:     cir.brcond %6 ^bb1, ^bb2
+// CHECK-NEXT:     ^bb1:
+// CHECK-NEXT:       cir.yield continue
+// CHECK-NEXT:     ^bb2:
+// CHECK-NEXT:       cir.yield
 // CHECK-NEXT:   }, step :  {
 // CHECK-NEXT:     cir.yield
 // CHECK-NEXT:   })  {
@@ -124,7 +144,11 @@ func @l0() {
 // CHECK-NEXT:     %4 = cir.load %2 : cir.ptr <i32>, i32
 // CHECK-NEXT:     %5 = cir.cst(10 : i32) : i32
 // CHECK-NEXT:     %6 = cir.cmp(lt, %4, %5) : i32, !cir.bool
-// CHECK-NEXT:     cir.yield loopcondition %6 : !cir.bool
+// CHECK-NEXT:     cir.brcond %6 ^bb1, ^bb2
+// CHECK-NEXT:     ^bb1:
+// CHECK-NEXT:       cir.yield continue
+// CHECK-NEXT:     ^bb2:
+// CHECK-NEXT:       cir.yield
 // CHECK-NEXT:   }, step :  {
 // CHECK-NEXT:     cir.yield
 // CHECK-NEXT:   })  {
