@@ -570,6 +570,22 @@ BrOp::getMutableSuccessorOperands(unsigned index) {
 Block *BrOp::getSuccessorForOperands(ArrayRef<Attribute>) { return dest(); }
 
 //===----------------------------------------------------------------------===//
+// BrCondOp
+//===----------------------------------------------------------------------===//
+
+Optional<MutableOperandRange>
+BrCondOp::getMutableSuccessorOperands(unsigned index) {
+  assert(index < getNumSuccessors() && "invalid successor index");
+  return index == 0 ? destOperandsTrueMutable() : destOperandsFalseMutable();
+}
+
+Block *BrCondOp::getSuccessorForOperands(ArrayRef<Attribute> operands) {
+  if (IntegerAttr condAttr = operands.front().dyn_cast_or_null<IntegerAttr>())
+    return condAttr.getValue().isOneValue() ? destTrue() : destFalse();
+  return nullptr;
+}
+
+//===----------------------------------------------------------------------===//
 // SwitchOp
 //===----------------------------------------------------------------------===//
 
