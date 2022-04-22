@@ -137,8 +137,7 @@ LogicalResult CastOp::verify() {
     auto arrayPtrTy = srcType.dyn_cast<mlir::cir::PointerType>();
     auto flatPtrTy = resType.dyn_cast<mlir::cir::PointerType>();
     if (!arrayPtrTy || !flatPtrTy)
-      return emitOpError()
-             << "requires !cir.ptr type for source and result";
+      return emitOpError() << "requires !cir.ptr type for source and result";
 
     auto arrayTy = arrayPtrTy.getPointee().dyn_cast<mlir::cir::ArrayType>();
     if (!arrayTy)
@@ -492,8 +491,7 @@ mlir::LogicalResult YieldOp::verify() {
 
   if (isFallthrough()) {
     if (!llvm::isa<SwitchOp>(getOperation()->getParentOp()))
-      return emitOpError()
-             << "fallthrough only expected within 'cir.switch'";
+      return emitOpError() << "fallthrough only expected within 'cir.switch'";
     return mlir::success();
   }
 
@@ -561,12 +559,26 @@ void printBinOpKind(OpAsmPrinter &p, BinOp binOp, BinOpKindAttr kindAttr) {
 mlir::SuccessorOperands BrOp::getSuccessorOperands(unsigned index) {
   assert(index == 0 && "invalid successor index");
   // Current block targets do not have operands.
-  // TODO(CIR): This is a hacky avoidance of actually implementing this since
-  // MLIR moved it "because nobody used the llvm::Optional::None case.........."
   return mlir::SuccessorOperands(MutableOperandRange(getOperation(), 0, 0));
 }
 
 Block *BrOp::getSuccessorForOperands(ArrayRef<Attribute>) { return dest(); }
+
+//===----------------------------------------------------------------------===//
+// BrCondOp
+//===----------------------------------------------------------------------===//
+
+mlir::SuccessorOperands BrCondOp::getSuccessorOperands(unsigned index) {
+  assert(index < getNumSuccessors() && "invalid successor index");
+  return SuccessorOperands(index == 0 ? destOperandsTrueMutable()
+                                      : destOperandsFalseMutable());
+}
+
+Block *BrCondOp::getSuccessorForOperands(ArrayRef<Attribute> operands) {
+  if (IntegerAttr condAttr = operands.front().dyn_cast_or_null<IntegerAttr>())
+    return condAttr.getValue().isOneValue() ? destTrue() : destFalse();
+  return nullptr;
+}
 
 //===----------------------------------------------------------------------===//
 // SwitchOp
