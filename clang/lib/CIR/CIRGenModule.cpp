@@ -456,8 +456,7 @@ static std::string getMangledNameImpl(CIRGenModule &CGM, GlobalDecl GD,
   assert(CGM.getModuleNameHash().empty() && "NYI");
   auto ShouldMangle = MC.shouldMangleDeclName(ND);
 
-  // Explicit ignore mangling for now
-  if (ShouldMangle && false) {
+  if (ShouldMangle) {
     MC.mangleName(GD.getWithDecl(ND), Out);
   } else {
     auto *II = ND->getIdentifier();
