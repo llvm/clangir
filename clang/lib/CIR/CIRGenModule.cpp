@@ -374,6 +374,7 @@ void CIRGenModule::buildTopLevelDecl(Decl *decl) {
   switch (decl->getKind()) {
   default:
     assert(false && "Not yet implemented");
+  case Decl::CXXMethod:
   case Decl::Function:
     buildGlobal(cast<FunctionDecl>(decl));
     assert(!codeGenOpts.CoverageMapping && "Coverage Mapping NYI");
