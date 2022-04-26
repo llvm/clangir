@@ -105,14 +105,14 @@ struct SimplifyRetYieldBlocks : public mlir::OpRewritePattern<ScopeLikeOpTy> {
 
     // TODO: leverage SCCP to get improved results.
     auto cstOp = dyn_cast<cir::ConstantOp>(brCondOp.getCond().getDefiningOp());
-    if (!cstOp || !isa<BoolAttr>(cstOp.getValue()) ||
+    if (!cstOp || !llvm::isa<BoolAttr>(cstOp.getValue()) ||
         !trivialYield(brCondOp.getDestTrue()) ||
         !trivialYield(brCondOp.getDestFalse()))
       return failure();
 
     // If the condition is constant, no need to use brcond, just yield
     // properly, "yield" for false and "yield continue" for true.
-    auto boolAttr = cast<BoolAttr>(cstOp.getValue());
+    auto boolAttr = llvm::cast<BoolAttr>(cstOp.getValue());
     auto *falseBlock = brCondOp.getDestFalse();
     auto *trueBlock = brCondOp.getDestTrue();
     auto *currBlock = brCondOp.getOperation()->getBlock();
