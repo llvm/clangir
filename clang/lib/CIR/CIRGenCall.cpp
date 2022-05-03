@@ -260,7 +260,7 @@ RValue CIRGenFunction::buildCall(const CIRGenFunctionInfo &CallInfo,
                                  const CIRGenCallee &Callee,
                                  ReturnValueSlot ReturnValue,
                                  const CallArgList &CallArgs,
-                                 mlir::CallOp &callOrInvoke, bool IsMustTail,
+                                 mlir::CallOp *callOrInvoke, bool IsMustTail,
                                  SourceLocation Loc) {
   // FIXME: We no longer need the types from CallArgs; lift up and simplify
 
@@ -400,7 +400,7 @@ RValue CIRGenFunction::buildCall(const CIRGenFunctionInfo &CallInfo,
       CGM.getBuilder().create<mlir::CallOp>(callLoc, CalleePtr, CIRCallArgs);
 
   if (callOrInvoke)
-    callOrInvoke = theCall;
+    callOrInvoke = &theCall;
 
   if (const auto *FD = dyn_cast_or_null<FunctionDecl>(CurFuncDecl)) {
     assert(!FD->getAttr<CFGuardAttr>() && "NYI");
