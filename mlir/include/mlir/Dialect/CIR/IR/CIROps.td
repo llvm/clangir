@@ -112,16 +112,18 @@ def PtrStrideOp : CIR_Op<"ptr_stride",
 
 def ConstantOp : CIR_Op<"cst",
     [ConstantLike, NoSideEffect]> {
+  // FIXME: Use SameOperandsAndResultType or similar and prevent eye bleeding
+  // type repetition in the assembly form.
 
-  let summary = "constant";
+  let summary = "constant operation";
   let description = [{
     Constant operation turns a literal into an SSA value. The data is attached
     to the operation as an attribute. For example:
 
     ```mlir
-      %0 = cir.cst(42 : i32)
-      %1 = cir.cst(4.2 : f32)
-      %2 = cir.cst(nullptr : !cir.ptr<i32>)
+      %0 = cir.cst(42 : i32) : i32
+      %1 = cir.cst(4.2 : f32) : f32
+      %2 = cir.cst(nullptr : !cir.ptr<i32>) : !cir.ptr<i32>
     ```
   }];
 
@@ -131,7 +133,9 @@ def ConstantOp : CIR_Op<"cst",
   // The constant operation returns a single value of AnyType.
   let results = (outs AnyType:$res);
 
-  let assemblyFormat = "`(` custom<ConstantValue>($value) `)` attr-dict `:` type($res)";
+  let assemblyFormat = [{
+    `(` custom<ConstantValue>($value) `)` attr-dict `:` type($res)
+  }];
 
   // Invoke a static verify method to verify this constant operation.
   let verifier = [{ return ::verify(*this); }];
@@ -856,5 +860,64 @@ def LoopOp : CIR_Op<"loop",
   let verifier = [{ return ::verify(*this); }];
 }
 
+//===----------------------------------------------------------------------===//
+// GlobalOp
+//===----------------------------------------------------------------------===//
+
+def GlobalOp : CIR_Op<"global", [Symbol]> {
+  let summary = "declare or define a global variable";
+  let description = [{
+    The `cir.global` operation declares or defines a named global variable.
+
+    The backing memory for the variable is allocated statically and is
+    described by the type of the variable.
+
+    The operation is a declaration if no `inital_value` is
+    specified, else it is a definition.
+
+    The global variable can also be marked constant using the
+    `constant` unit attribute. Writing to such constant global variables is
+    undefined.
+
+    Example:
+
+    ```mlir
+    // Externally available and constant variable with initial value.
+    cir.global public constant @c : i32 = 4;
+    ```
+  }];
+
+  // Note that both sym_name and sym_visibility are tied to Symbol trait.
+  let arguments = (ins SymbolNameAttr:$sym_name,
+                       OptionalAttr<StrAttr>:$sym_visibility,
+                       TypeAttr:$sym_type,
+                       OptionalAttr<AnyAttr>:$initial_value,
+                       UnitAttr:$constant,
+                       OptionalAttr<I64Attr>:$alignment);
+
+  let assemblyFormat = [{
+       ($sym_visibility^)?
+       (`constant` $constant^)?
+       $sym_name `:`
+       custom<GlobalOpTypeAndInitialValue>($sym_type, $initial_value)
+       attr-dict
+  }];
+
+  let extraClassDeclaration = [{
+    bool isDeclaration() {
+      return !initial_value();
+    }
+  }];
+
+  let skipDefaultBuilders = 1;
+  let builders = [
+    OpBuilder<(ins
+      "StringRef":$sym_name,
+      "Type":$sym_type
+      )>
+  ];
+
+  let verifier = [{ return ::verify(*this); }];
+}
 
 #endif // MLIR_CIR_DIALECT_CIR_OPS
