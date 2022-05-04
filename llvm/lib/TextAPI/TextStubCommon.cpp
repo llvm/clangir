@@ -19,14 +19,32 @@ using namespace llvm::MachO;
 namespace llvm {
 namespace yaml {
 
+#if defined(__FACEBOOK__)
+// T118130272: Needed because libtapi includes different copies of these
+// methods and it needs to use theirs (specially
+// ScalarTraits<SwiftVersion>::input).
+__attribute__((weak))
+#endif
 void ScalarTraits<FlowStringRef>::output(const FlowStringRef &Value, void *Ctx,
                                          raw_ostream &OS) {
   ScalarTraits<StringRef>::output(Value, Ctx, OS);
 }
+#if defined(__FACEBOOK__)
+// T118130272: Needed because libtapi includes different copies of these
+// methods and it needs to use theirs (specially
+// ScalarTraits<SwiftVersion>::input).
+__attribute__((weak))
+#endif
 StringRef ScalarTraits<FlowStringRef>::input(StringRef Value, void *Ctx,
                                              FlowStringRef &Out) {
   return ScalarTraits<StringRef>::input(Value, Ctx, Out.value);
 }
+#if defined(__FACEBOOK__)
+// T118130272: Needed because libtapi includes different copies of these
+// methods and it needs to use theirs (specially
+// ScalarTraits<SwiftVersion>::input).
+__attribute__((weak))
+#endif
 QuotingType ScalarTraits<FlowStringRef>::mustQuote(StringRef Name) {
   return ScalarTraits<StringRef>::mustQuote(Name);
 }
@@ -165,6 +183,12 @@ QuotingType ScalarTraits<PackedVersion>::mustQuote(StringRef) {
   return QuotingType::None;
 }
 
+#if defined(__FACEBOOK__)
+// T118130272: Needed because libtapi includes different copies of these
+// methods and it needs to use theirs (specially
+// ScalarTraits<SwiftVersion>::input).
+__attribute__((weak))
+#endif
 void ScalarTraits<SwiftVersion>::output(const SwiftVersion &Value, void *,
                                         raw_ostream &OS) {
   switch (Value) {
@@ -185,6 +209,12 @@ void ScalarTraits<SwiftVersion>::output(const SwiftVersion &Value, void *,
     break;
   }
 }
+#if defined(__FACEBOOK__)
+// T118130272: Needed because libtapi includes different copies of these
+// methods and it needs to use theirs (specially
+// ScalarTraits<SwiftVersion>::input).
+__attribute__((weak))
+#endif
 StringRef ScalarTraits<SwiftVersion>::input(StringRef Scalar, void *IO,
                                             SwiftVersion &Value) {
   const auto *Ctx = reinterpret_cast<TextAPIContext *>(IO);
@@ -212,6 +242,12 @@ StringRef ScalarTraits<SwiftVersion>::input(StringRef Scalar, void *IO,
 
   return StringRef();
 }
+#if defined(__FACEBOOK__)
+// T118130272: Needed because libtapi includes different copies of these
+// methods and it needs to use theirs (specially
+// ScalarTraits<SwiftVersion>::input).
+__attribute__((weak))
+#endif
 QuotingType ScalarTraits<SwiftVersion>::mustQuote(StringRef) {
   return QuotingType::None;
 }
