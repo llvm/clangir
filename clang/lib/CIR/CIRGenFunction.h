@@ -332,6 +332,8 @@ public:
 
   mlir::OpBuilder &getBuilder() { return builder; }
 
+  CIRGenModule &getCIRGenModule() { return CGM; }
+
   /// Sanitizers enabled for this function.
   clang::SanitizerSet SanOpts;
 
