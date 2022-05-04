@@ -63,49 +63,74 @@ void cir::CIRDialect::initialize() {
 // ConstantOp
 //===----------------------------------------------------------------------===//
 
-LogicalResult ConstantOp::verify() {
-  auto opType = getType();
-  auto val = getValue();
-  auto valueType = val.getType();
-
-  if (mlir::isa<NullAttr>(val)) {
+static LogicalResult checkConstantTypes(mlir::Operation *op, mlir::Type opType,
+                                        mlir::Attribute attrType) {
+  if (mlir::isa<NullAttr>(attrType)) {
     if (mlir::isa<::mlir::cir::PointerType>(opType))
       return success();
-    return emitOpError("nullptr expects pointer type");
+    return op->emitOpError("nullptr expects pointer type");
   }
 
+  if (mlir::isa<BoolAttr>(attrType)) {
+    if (!mlir::isa<mlir::cir::BoolType>(opType))
+      return op->emitOpError("result type (")
+             << opType << ") must be '!cir.bool' for '" << attrType << "'";
+    return success();
+  }
+
+  if (mlir::isa<IntegerAttr, FloatAttr>(attrType)) {
+    auto at = mlir::cast<TypedAttr>(attrType);
+    if (at.getType() != opType) {
+      return op->emitOpError("result type (")
+             << opType << ") does not match value type (" << at.getType()
+             << ")";
+    }
+    return success();
+  }
+
+  assert(mlir::isa<TypedAttr>(attrType) && "What else could we be looking at here?");
+  return op->emitOpError("cannot have value of type ")
+         << mlir::cast<TypedAttr>(attrType).getType();
+}
+
+LogicalResult ConstantOp::verify() {
   // ODS already generates checks to make sure the result type is valid. We just
   // need to additionally check that the value's attribute type is consistent
   // with the result type.
-  if (mlir::isa<BoolAttr>(val)) {
-    if (!mlir::isa<mlir::cir::BoolType>(opType))
-      return emitOpError("result type (")
-             << opType << ") must be '!cir.bool' for '" << val << "'";
-    return success();
-  }
-
-  if (mlir::isa<IntegerType,FloatType>(opType)) {
-    if (valueType != opType)
-      return emitOpError("result type (")
-             << opType << ") does not match value type (" << valueType << ")";
-    return success();
-  }
-
-  return emitOpError("cannot have value of type ") << valueType;
+  return checkConstantTypes(getOperation(), getType(), getValue());
 }
 
 static ParseResult parseConstantValue(OpAsmParser &parser,
-                                      mlir::Attribute &valueAttr) {
+                                      mlir::Attribute &valueAttr,
+                                      mlir::Type ty = {}) {
+  if (succeeded(parser.parseOptionalKeyword("nullptr"))) {
+    valueAttr = UnitAttr::get(parser.getContext());
+    return success();
+  }
+
   NamedAttrList attr;
-  if (parser.parseAttribute(valueAttr, "value", attr))
-    return ::mlir::failure();
+
+  if (parser.parseAttribute(valueAttr, ty, "value", attr).failed()) {
+    return parser.emitError(parser.getCurrentLocation(),
+                            "expected constant attribute to match type");
+  }
 
   return success();
 }
 
+// FIXME: create a CIRCstAttr and hide this away for both global
+// initialization and cir.cst operation.
+static void printConstant(OpAsmPrinter &p, Attribute value,
+                          bool omitType = false) {
+  if (omitType)
+    p.printAttributeWithoutType(value);
+  else
+    p.printAttribute(value);
+}
+
 static void printConstantValue(OpAsmPrinter &p, cir::ConstantOp op,
                                Attribute value) {
-  p.printAttribute(value);
+  printConstant(p, value);
 }
 
 OpFoldResult ConstantOp::fold(FoldAdaptor /*adaptor*/) { return getValue(); }
@@ -834,7 +859,7 @@ LogicalResult LoopOp::verify() {
   // 'cir.yield continue'.
   auto terminateError = [&]() {
     return emitOpError() << "cond region must be terminated with "
-                               "'cir.yield' or 'cir.yield continue'";
+                            "'cir.yield' or 'cir.yield continue'";
   };
 
   auto &blocks = getCond().getBlocks();
@@ -852,6 +877,63 @@ LogicalResult LoopOp::verify() {
   }
 
   return success();
+}
+
+//===----------------------------------------------------------------------===//
+// GlobalOp
+//===----------------------------------------------------------------------===//
+
+static void printGlobalOpTypeAndInitialValue(OpAsmPrinter &p, GlobalOp op,
+                                             TypeAttr type,
+                                             Attribute initAttr) {
+  p << type;
+  if (!op.isDeclaration()) {
+    p << " = ";
+    printConstant(p, initAttr, /*omitType=*/true);
+  }
+}
+
+static ParseResult
+parseGlobalOpTypeAndInitialValue(OpAsmParser &parser, TypeAttr &typeAttr,
+                                 Attribute &initialValueAttr) {
+  Type type;
+  if (parser.parseType(type))
+    return failure();
+  typeAttr = TypeAttr::get(type);
+
+  if (parser.parseOptionalEqual().failed())
+    return success();
+
+  if (parseConstantValue(parser, initialValueAttr, type).failed())
+    return failure();
+
+  return success();
+}
+
+LogicalResult GlobalOp::verify() {
+  // Verify that the initial value, if present, is either a unit attribute or
+  // an attribute CIR supports.
+  if (getInitialValue().has_value())
+    return checkConstantTypes(getOperation(), getSymType(),
+                              getInitialValue().value());
+
+  if (std::optional<uint64_t> alignAttr = getAlignment()) {
+    uint64_t alignment = alignAttr.value();
+    if (!llvm::isPowerOf2_64(alignment))
+      return emitError() << "alignment attribute value " << alignment
+                         << " is not a power of 2";
+  }
+
+  // TODO: verify visibility for declarations?
+  return success();
+}
+
+void GlobalOp::build(OpBuilder &odsBuilder, OperationState &odsState,
+                     StringRef sym_name, Type sym_type) {
+  odsState.addAttribute(getSymNameAttrName(odsState.name),
+                        odsBuilder.getStringAttr(sym_name));
+  odsState.addAttribute(getSymTypeAttrName(odsState.name),
+                        ::mlir::TypeAttr::get(sym_type));
 }
 
 //===----------------------------------------------------------------------===//
