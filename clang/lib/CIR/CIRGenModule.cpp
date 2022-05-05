@@ -295,7 +295,8 @@ void CIRGenModule::buildGlobal(GlobalDecl GD) {
   // the order in which it appeared on the file.
   if (getLangOpts().CPlusPlus && isa<VarDecl>(Global) &&
       cast<VarDecl>(Global)->hasInit()) {
-    llvm_unreachable("NYI");
+    DelayedCXXInitPosition[Global] = CXXGlobalInits.size();
+    CXXGlobalInits.push_back(nullptr);
   }
 
   llvm::StringRef MangledName = getMangledName(GD);
@@ -1303,7 +1304,7 @@ void CIRGenModule::Release() {
   // TODO: applyReplacements();
   // TODO: checkAliases();
   // TODO: buildMultiVersionFunctions();
-  // TODO: buildCXXGlobalInitFunc();
+  buildCXXGlobalInitFunc();
   // TODO: buildCXXGlobalCleanUpFunc();
   // TODO: registerGlobalDtorsWithAtExit();
   // TODO: buildCXXThreadLocalInitFunc();
