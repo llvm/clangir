@@ -48,6 +48,7 @@ struct CIROpAsmDialectInterface : public OpAsmDialectInterface {
 /// the point of registration of types and operations for the dialect.
 void cir::CIRDialect::initialize() {
   registerTypes();
+  registerAttributes();
   addOperations<
 #define GET_OP_LIST
 #include "mlir/Dialect/CIR/IR/CIROps.cpp.inc"
