@@ -1,0 +1,38 @@
+//===- CIRAttrs.td - CIR dialect types ---------------------*- tablegen -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file declares the CIR dialect attributes.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef MLIR_CIR_DIALECT_CIR_ATTRS
+#define MLIR_CIR_DIALECT_CIR_ATTRS
+
+include "mlir/Dialect/CIR/IR/CIRDialect.td"
+include "mlir/Dialect/CIR/IR/CIRTypes.td"
+
+//===----------------------------------------------------------------------===//
+// CIR Attrs
+//===----------------------------------------------------------------------===//
+
+class CIR_Attr<string name, string attrMnemonic, list<Trait> traits = []>
+    : AttrDef<CIR_Dialect, name, traits> {
+  let mnemonic = attrMnemonic;
+}
+
+def CstArrayAttr : CIR_Attr<"CstArray", "cst_array"> {
+  let summary = "An Attribute containing a mlir::ArrayAttr";
+  let description = [{
+    An CIR array attribute is an array of literals of the specified attr types.
+  }];
+
+  let assemblyFormat = "`<` `>`";
+}
+
+#endif // MLIR_CIR_DIALECT_CIR_ATTRS
+
