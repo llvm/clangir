@@ -16,6 +16,7 @@
 
 include "mlir/Dialect/CIR/IR/CIRDialect.td"
 include "mlir/Dialect/CIR/IR/CIRTypes.td"
+include "mlir/Dialect/CIR/IR/CIRAttrs.td"
 include "mlir/IR/SymbolInterfaces.td"
 include "mlir/Interfaces/ControlFlowInterfaces.td"
 include "mlir/Interfaces/LoopLikeInterface.td"
