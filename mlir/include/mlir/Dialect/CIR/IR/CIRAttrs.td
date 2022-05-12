@@ -53,6 +53,9 @@ def CstArrayAttr : CIR_Attr<"CstArray", "cst_array"> {
   // #cir.cst_array<[0 : i8, -23 : i8, 33 : i8] : !cir.array<i8 x 3>>
   //
   let assemblyFormat = "`<` $value `:` $type `>`";
+
+  // Enable verifier.
+  let genVerifyDecl = 1;
 }
 
 #endif // MLIR_CIR_DIALECT_CIR_ATTRS
