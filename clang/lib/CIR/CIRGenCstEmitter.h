@@ -102,8 +102,8 @@ public:
   mlir::TypedAttr tryEmitPrivate(const Expr *E, QualType T);
   mlir::TypedAttr tryEmitPrivateForMemory(const Expr *E, QualType T);
 
-  mlir::TypedAttr tryEmitPrivate(const APValue &value, QualType T);
-  mlir::TypedAttr tryEmitPrivateForMemory(const APValue &value, QualType T);
+  mlir::Attribute tryEmitPrivate(const APValue &value, QualType T);
+  mlir::Attribute tryEmitPrivateForMemory(const APValue &value, QualType T);
 
 private:
   void initializeNonAbstract(clang::LangAS destAS) {
