@@ -889,14 +889,14 @@ def GlobalOp : CIR_Op<"global", [Symbol]> {
   let arguments = (ins SymbolNameAttr:$sym_name,
                        OptionalAttr<StrAttr>:$sym_visibility,
                        TypeAttr:$sym_type,
-                       OptionalAttr<AnyAttr>:$initial_value,
+                       OptionalAttr<TypedAttrInterface>:$initial_value,
                        UnitAttr:$constant,
                        OptionalAttr<I64Attr>:$alignment);
 
   let assemblyFormat = [{
        ($sym_visibility^)?
        (`constant` $constant^)?
-       $sym_name `:`
+       $sym_name
        custom<GlobalOpTypeAndInitialValue>($sym_type, $initial_value)
        attr-dict
   }];
