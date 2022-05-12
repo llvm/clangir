@@ -167,7 +167,7 @@ static LogicalResult verify(cir::CastOp castOp) {
   }
   }
 
-  return success();
+  llvm_unreachable("Unknown CastOp kind?");
 }
 
 //===----------------------------------------------------------------------===//
