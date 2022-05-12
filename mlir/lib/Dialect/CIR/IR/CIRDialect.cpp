@@ -151,6 +151,13 @@ LogicalResult CastOp::verify() {
       return emitOpError() << "requires integral type for result";
     return success();
   }
+  case cir::CastKind::integral: {
+    if (!llvm::isa<mlir::IntegerType>(resType))
+      return emitOpError() << "requires !IntegerType for result";
+    if (!llvm::isa<mlir::IntegerType>(srcType))
+      return emitOpError() << "requires !IntegerType for source";
+    return success();
+  }
   case cir::CastKind::array_to_ptrdecay: {
     auto arrayPtrTy = llvm::dyn_cast<mlir::cir::PointerType>(srcType);
     auto flatPtrTy = llvm::dyn_cast<mlir::cir::PointerType>(resType);
