@@ -365,6 +365,58 @@ mlir::Attribute ConstantEmitter::emitForMemory(CIRGenModule &CGM,
   return C;
 }
 
+static mlir::Attribute
+buildArrayConstant(CIRGenModule &CGM, mlir::Type DesiredType,
+                   mlir::Type CommonElementType, unsigned ArrayBound,
+                   SmallVectorImpl<mlir::Attribute> &Elements,
+                   mlir::Attribute Filler) {
+  auto isFillerNullVal = [&](mlir::Attribute f) {
+    // TODO(cir): introduce a CIR type for null and check for the
+    // attribute type here. For now assume the filler isn't null.
+    if (!f)
+      return true;
+    return false;
+  };
+
+  // Figure out how long the initial prefix of non-zero elements is.
+  unsigned NonzeroLength = ArrayBound;
+  if (Elements.size() < NonzeroLength && isFillerNullVal(Filler))
+    NonzeroLength = Elements.size();
+  if (NonzeroLength == Elements.size()) {
+    while (NonzeroLength > 0 && isFillerNullVal(Elements[NonzeroLength - 1]))
+      --NonzeroLength;
+  }
+
+  if (NonzeroLength == 0)
+    assert(0 && "NYE");
+
+  // Add a zeroinitializer array filler if we have lots of trailing zeroes.
+  unsigned TrailingZeroes = ArrayBound - NonzeroLength;
+  if (TrailingZeroes >= 8) {
+    assert(0 && "NYE");
+    assert(Elements.size() >= NonzeroLength &&
+           "missing initializer for non-zero element");
+
+    // TODO(cir): If all the elements had the same type up to the trailing
+    // zeroes, emit a struct of two arrays (the nonzero data and the
+    // zeroinitializer). Use DesiredType to get the element type.
+  } else if (Elements.size() != ArrayBound) {
+    // Otherwise pad to the right size with the filler if necessary.
+    assert(0 && "NYE");
+  }
+
+  // If all elements have the same type, just emit an array constant.
+  if (CommonElementType)
+    return mlir::cir::CstArrayAttr::get(
+        mlir::cir::ArrayType::get(CGM.getBuilder().getContext(),
+                                  CommonElementType, ArrayBound),
+        mlir::ArrayAttr::get(CGM.getBuilder().getContext(), Elements));
+
+  // We have mixed types. Use a packed struct.
+  assert(0 && "NYE");
+  return {};
+}
+
 mlir::Attribute ConstantEmitter::tryEmitPrivate(const APValue &Value,
                                                 QualType DestType) {
   switch (Value.getKind()) {
@@ -388,6 +440,48 @@ mlir::Attribute ConstantEmitter::tryEmitPrivate(const APValue &Value,
       return CGM.getBuilder().getFloatAttr(ty, Init);
     }
   }
+  case APValue::Array: {
+    const ArrayType *ArrayTy = CGM.getASTContext().getAsArrayType(DestType);
+    unsigned NumElements = Value.getArraySize();
+    unsigned NumInitElts = Value.getArrayInitializedElts();
+    auto isFillerNullVal = [&](mlir::Attribute f) {
+      // TODO(cir): introduce a CIR type for null and check for the
+      // attribute type here. For now assume that if there's a filler,
+      // it's a null one.
+      return true;
+    };
+
+    // Emit array filler, if there is one.
+    mlir::Attribute Filler;
+    if (Value.hasArrayFiller()) {
+      assert(0 && "NYI");
+    }
+
+    // Emit initializer elements.
+    SmallVector<mlir::Attribute, 16> Elts;
+    if (Filler && isFillerNullVal(Filler))
+      Elts.reserve(NumInitElts + 1);
+    else
+      Elts.reserve(NumElements);
+
+    mlir::Type CommonElementType;
+    for (unsigned I = 0; I < NumInitElts; ++I) {
+      auto C = tryEmitPrivateForMemory(Value.getArrayInitializedElt(I),
+                                       ArrayTy->getElementType());
+      if (!C)
+        return nullptr;
+
+      if (I == 0)
+        CommonElementType = C.getType();
+      else if (C.getType() != CommonElementType)
+        CommonElementType = {};
+      Elts.push_back(C);
+    }
+
+    auto Desired = CGM.getTypes().ConvertType(DestType);
+    return buildArrayConstant(CGM, Desired, CommonElementType, NumElements,
+                              Elts, Filler);
+  }
   case APValue::LValue:
   case APValue::FixedPoint:
   case APValue::ComplexInt:
@@ -396,7 +490,6 @@ mlir::Attribute ConstantEmitter::tryEmitPrivate(const APValue &Value,
   case APValue::AddrLabelDiff:
   case APValue::Struct:
   case APValue::Union:
-  case APValue::Array:
   case APValue::MemberPointer:
     assert(0 && "not implemented");
   }

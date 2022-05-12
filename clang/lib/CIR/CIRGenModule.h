@@ -23,6 +23,7 @@
 
 #include "llvm/ADT/ScopedHashTable.h"
 
+#include "mlir/Dialect/CIR/IR/CIRAttrs.h"
 #include "mlir/Dialect/CIR/IR/CIRDialect.h"
 #include "mlir/Dialect/CIR/IR/CIRTypes.h"
 #include "mlir/IR/Builders.h"
