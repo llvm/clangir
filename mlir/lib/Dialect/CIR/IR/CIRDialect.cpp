@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "mlir/Dialect/CIR/IR/CIRDialect.h"
+#include "mlir/Dialect/CIR/IR/CIRAttrs.h"
 #include "mlir/Dialect/CIR/IR/CIRTypes.h"
 #include "mlir/Dialect/LLVMIR/LLVMTypes.h"
 #include "mlir/IR/Builders.h"
@@ -78,6 +79,11 @@ static LogicalResult checkConstantTypes(mlir::Operation *op, mlir::Type opType,
     return success();
   }
 
+  if (attrType.isa<mlir::cir::CstArrayAttr>()) {
+    // CstArrayAttr is already verified to bing with cir.array type.
+    return success();
+  }
+
   if (attrType.isa<UnitAttr>()) {
     if (opType.isa<::mlir::cir::PointerType>())
       return success();
@@ -96,16 +102,14 @@ static LogicalResult verify(cir::ConstantOp constOp) {
 }
 
 static ParseResult parseConstantValue(OpAsmParser &parser,
-                                      mlir::Attribute &valueAttr,
-                                      mlir::Type ty = {}) {
+                                      mlir::Attribute &valueAttr) {
   if (succeeded(parser.parseOptionalKeyword("nullptr"))) {
     valueAttr = UnitAttr::get(parser.getContext());
     return success();
   }
 
   NamedAttrList attr;
-
-  if (parser.parseAttribute(valueAttr, ty, "value", attr).failed()) {
+  if (parser.parseAttribute(valueAttr, "value", attr).failed()) {
     return parser.emitError(parser.getCurrentLocation(),
                             "expected constant attribute to match type");
   }
@@ -115,15 +119,11 @@ static ParseResult parseConstantValue(OpAsmParser &parser,
 
 // FIXME: create a CIRCstAttr and hide this away for both global
 // initialization and cir.cst operation.
-static void printConstant(OpAsmPrinter &p, bool isNullPtr, Attribute value,
-                          bool omitType = false) {
+static void printConstant(OpAsmPrinter &p, bool isNullPtr, Attribute value) {
   if (isNullPtr)
     p << "nullptr";
   else {
-    if (omitType)
-      p.printAttributeWithoutType(value);
-    else
-      p.printAttribute(value);
+    p.printAttribute(value);
   }
 }
 
@@ -947,10 +947,12 @@ static LogicalResult verify(LoopOp op) {
 static void printGlobalOpTypeAndInitialValue(OpAsmPrinter &p, GlobalOp op,
                                              TypeAttr type,
                                              Attribute initAttr) {
-  p << type;
   if (!op.isDeclaration()) {
-    p << " = ";
-    printConstant(p, initAttr.isa<UnitAttr>(), initAttr, /*omitType=*/true);
+    p << "= ";
+    // This also prints the type...
+    printConstant(p, initAttr.isa<UnitAttr>(), initAttr);
+  } else {
+    p << type;
   }
 }
 
@@ -958,15 +960,21 @@ static ParseResult
 parseGlobalOpTypeAndInitialValue(OpAsmParser &parser, TypeAttr &typeAttr,
                                  Attribute &initialValueAttr) {
   Type type;
-  if (parser.parseType(type))
-    return failure();
-  typeAttr = TypeAttr::get(type);
-
-  if (parser.parseOptionalEqual().failed())
+  if (parser.parseOptionalEqual().failed()) {
+    // Absence of equal means a declaration, so we need to parse the type.
+    //  cir.global @a : i32
+    if (parser.parseColonType(type))
+      return failure();
+    typeAttr = TypeAttr::get(type);
     return success();
+  }
 
-  if (parseConstantValue(parser, initialValueAttr, type).failed())
+  // Parse constant with initializer, examples:
+  //  cir.global @y = 3.400000e+00 : f32
+  //  cir.global @rgb  = #cir.cst_array<[...] : !cir.array<i8 x 3>>
+  if (parseConstantValue(parser, initialValueAttr).failed())
     return failure();
+  typeAttr = TypeAttr::get(initialValueAttr.getType());
 
   return success();
 }
