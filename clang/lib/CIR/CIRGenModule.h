@@ -24,6 +24,7 @@
 #include "llvm/ADT/ScopedHashTable.h"
 #include "llvm/ADT/SmallPtrSet.h"
 
+#include "mlir/Dialect/CIR/IR/CIRAttrs.h"
 #include "mlir/Dialect/CIR/IR/CIRDialect.h"
 #include "mlir/Dialect/CIR/IR/CIRTypes.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"

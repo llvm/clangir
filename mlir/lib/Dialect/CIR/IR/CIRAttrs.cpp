@@ -12,7 +12,6 @@
 
 #include "mlir/Dialect/CIR/IR/CIRAttrs.h"
 #include "mlir/Dialect/CIR/IR/CIRDialect.h"
-#include "mlir/Dialect/CIR/IR/CIRTypes.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/DialectImplementation.h"
@@ -34,8 +33,6 @@ Attribute CIRDialect::parseAttribute(DialectAsmParser &parser,
                                      Type type) const {
   llvm::SMLoc typeLoc = parser.getCurrentLocation();
   StringRef mnemonic;
-  if (parser.parseKeyword(&mnemonic))
-    return Attribute();
   Attribute genAttr;
   OptionalParseResult parseResult =
       generatedAttributeParser(parser, &mnemonic, type, genAttr);
