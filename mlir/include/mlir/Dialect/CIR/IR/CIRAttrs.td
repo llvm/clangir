@@ -26,7 +26,7 @@ class CIR_Attr<string name, string attrMnemonic, list<Trait> traits = []>
 }
 
 def CstArrayAttr : CIR_Attr<"CstArray", "cst_array"> {
-  let summary = "An Attribute containing a mlir::ArrayAttr";
+  let summary = "A constant array from ArrayAttr or StringRefAttr";
   let description = [{
     An CIR array attribute is an array of literals of the specified attr types.
   }];
@@ -36,23 +36,22 @@ def CstArrayAttr : CIR_Attr<"CstArray", "cst_array"> {
   //
   // `arrayAttr` is the actual attribute array with elements for this constant
   // array, there's yet no need to own these elements.
+  //
+  // TODO: create a trait for ArrayAttrOrStringAttr value instead of relying
+  // on verifier.
   let parameters = (ins AttributeSelfTypeParameter<"">:$type,
-                        "ArrayAttr":$value);
+                        "Attribute":$value);
 
   // Define a custom builder for the type; that removes the need to pass
   // in an MLIRContext instance, as it can be infered from the `type`.
   let builders = [
     AttrBuilderWithInferredContext<(ins "mlir::cir::ArrayType":$type,
-                                        "ArrayAttr":$value), [{
+                                        "Attribute":$value), [{
       return $_get(type.getContext(), type, value);
     }]>
   ];
 
-  // Generate parser and printer logic, example:
-  //
-  // #cir.cst_array<[0 : i8, -23 : i8, 33 : i8] : !cir.array<i8 x 3>>
-  //
-  let assemblyFormat = "`<` $value `:` $type `>`";
+  // Printing and parsing available in CIRDialect.cpp
 
   // Enable verifier.
   let genVerifyDecl = 1;
