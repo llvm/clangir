@@ -903,7 +903,7 @@ static void printGlobalOpTypeAndInitialValue(OpAsmPrinter &p, GlobalOp op,
 
 static ParseResult
 parseGlobalOpTypeAndInitialValue(OpAsmParser &parser, TypeAttr &typeAttr,
-                                 TypedAttr &initialValueAttr) {
+                                 Attribute &initialValueAttr) {
   Type type;
   if (parser.parseOptionalEqual().failed()) {
     // Absence of equal means a declaration, so we need to parse the type.
@@ -917,14 +917,14 @@ parseGlobalOpTypeAndInitialValue(OpAsmParser &parser, TypeAttr &typeAttr,
   // Parse constant with initializer, examples:
   //  cir.global @y = 3.400000e+00 : f32
   //  cir.global @rgb  = #cir.cst_array<[...] : !cir.array<i8 x 3>>
-  Attribute attr;
-  if (parseConstantValue(parser, attr).failed())
+  if (parseConstantValue(parser, initialValueAttr).failed())
     return failure();
 
-  assert(attr.isa<mlir::TypedAttr>() &&
+  assert(initialValueAttr.isa<mlir::TypedAttr>() &&
          "Non-typed attrs shouldn't appear here.");
-  initialValueAttr = attr.cast<mlir::TypedAttr>();
-  typeAttr = TypeAttr::get(initialValueAttr.getType());
+  auto typedAttr = initialValueAttr.cast<mlir::TypedAttr>();
+
+  typeAttr = TypeAttr::get(typedAttr.getType());
 
   return success();
 }
