@@ -17,6 +17,7 @@
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMTypes.h"
 #include "mlir/IR/Builders.h"
+#include "mlir/IR/DialectImplementation.h"
 #include "mlir/IR/OpDefinition.h"
 #include "mlir/IR/OpImplementation.h"
 #include "mlir/IR/TypeUtilities.h"
@@ -951,6 +952,28 @@ void GlobalOp::build(OpBuilder &odsBuilder, OperationState &odsState,
 }
 
 //===----------------------------------------------------------------------===//
+// GetGlobalOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult
+GetGlobalOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
+  // Verify that the result type underlying pointer type matches the type of the
+  // referenced cir.global op.
+  auto global =
+      symbolTable.lookupNearestSymbolFrom<GlobalOp>(*this, getNameAttr());
+  if (!global)
+    return emitOpError("'")
+           << getName() << "' does not reference a valid cir.global";
+
+  auto resultType = mlir::dyn_cast<PointerType>(getAddr().getType());
+  if (!resultType || global.getSymType() != resultType.getPointee())
+    return emitOpError("result type pointee type '")
+           << resultType.getPointee() << "' does not match type "
+           << global.getSymType() << " of the global @" << getName();
+  return success();
+}
+
+//===----------------------------------------------------------------------===//
 // CIR defined traits
 //===----------------------------------------------------------------------===//
 
@@ -975,13 +998,31 @@ mlir::OpTrait::impl::verifySameFirstOperandAndResultType(Operation *op) {
 
 LogicalResult mlir::cir::CstArrayAttr::verify(
     ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
-    ::mlir::Type type, ArrayAttr value) {
-  // Make sure both number of elements and subelement types match type.
+    ::mlir::Type type, Attribute attr) {
+
   mlir::cir::ArrayType at = mlir::cast<mlir::cir::ArrayType>(type);
-  if (at.getSize() != value.size())
-    return emitError() << "cst array size should match type size";
+  if (!(mlir::isa<mlir::ArrayAttr>(attr) || mlir::isa<mlir::StringAttr>(attr)))
+    return emitError() << "constant array expects ArrayAttr or StringAttr";
+
+  if (auto strAttr = mlir::dyn_cast<mlir::StringAttr>(attr)) {
+    auto intTy = mlir::dyn_cast<mlir::IntegerType>(at.getEltType());
+    // TODO: add CIR type for char.
+    if (!intTy || intTy.getWidth() != 8) {
+      emitError() << "constant array element for string literals expects i8 "
+                     "array element type";
+      return failure();
+    }
+    return success();
+  }
+
+  assert(mlir::isa<mlir::ArrayAttr>(attr));
+  auto arrayAttr = mlir::cast<mlir::ArrayAttr>(attr);
+
+  // Make sure both number of elements and subelement types match type.
+  if (at.getSize() != arrayAttr.size())
+    return emitError() << "constant array size should match type size";
   LogicalResult eltTypeCheck = success();
-  value.walkImmediateSubElements(
+  arrayAttr.walkImmediateSubElements(
       [&](Attribute attr) {
         // Once we find a mismatch, stop there.
         if (eltTypeCheck.failed())
@@ -989,11 +1030,67 @@ LogicalResult mlir::cir::CstArrayAttr::verify(
         auto typedAttr = mlir::dyn_cast<TypedAttr>(attr);
         if (!typedAttr || typedAttr.getType() != at.getEltType()) {
           eltTypeCheck = failure();
-          emitError() << "cst array element should match array element type";
+          emitError()
+              << "constant array element should match array element type";
         }
       },
       [&](Type type) {});
   return eltTypeCheck;
+}
+
+::mlir::Attribute CstArrayAttr::parse(::mlir::AsmParser &parser,
+                                      ::mlir::Type type) {
+  ::mlir::FailureOr<::mlir::Type> resultTy;
+  ::mlir::FailureOr<Attribute> resultVal;
+  ::llvm::SMLoc loc = parser.getCurrentLocation();
+  (void)loc;
+  // Parse literal '<'
+  if (parser.parseLess())
+    return {};
+
+  // Parse variable 'value'
+  resultVal = ::mlir::FieldParser<Attribute>::parse(parser);
+  if (failed(resultVal)) {
+    parser.emitError(parser.getCurrentLocation(),
+                     "failed to parse CstArrayAttr parameter 'value' which is "
+                     "to be a `Attribute`");
+    return {};
+  }
+
+  // ArrayAttrs have per-element type, not the type of the array...
+  if (mlir::isa<mlir::ArrayAttr>(*resultVal)) {
+    // Parse literal ':'
+    if (parser.parseColon())
+      return {};
+
+    // Parse variable 'type'
+    resultTy = ::mlir::FieldParser<::mlir::Type>::parse(parser);
+    if (failed(resultTy)) {
+      parser.emitError(parser.getCurrentLocation(),
+                       "failed to parse CstArrayAttr parameter 'type' which is "
+                       "to be a `::mlir::Type`");
+      return {};
+    }
+  } else {
+    resultTy = mlir::cast<StringAttr>(*resultVal).getType();
+  }
+
+  // Parse literal '>'
+  if (parser.parseGreater())
+    return {};
+  return parser.getChecked<CstArrayAttr>(
+      loc, parser.getContext(), resultTy.value(), resultVal.value());
+}
+
+void CstArrayAttr::print(::mlir::AsmPrinter &printer) const {
+  printer << "<";
+  printer.printStrippedAttrOrType(getValue());
+  if (mlir::isa<mlir::ArrayAttr>(getValue())) {
+    printer << ' ' << ":";
+    printer << ' ';
+    printer.printStrippedAttrOrType(getType());
+  }
+  printer << ">";
 }
 
 //===----------------------------------------------------------------------===//
