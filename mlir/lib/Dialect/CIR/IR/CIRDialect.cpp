@@ -953,7 +953,7 @@ static void printGlobalOpTypeAndInitialValue(OpAsmPrinter &p, GlobalOp op,
     // This also prints the type...
     printConstant(p, initAttr.isa<UnitAttr>(), initAttr);
   } else {
-    p << type;
+    p << ": " << type;
   }
 }
 
@@ -999,11 +999,13 @@ static LogicalResult verify(GlobalOp op) {
 }
 
 void GlobalOp::build(OpBuilder &odsBuilder, OperationState &odsState,
-                     StringRef sym_name, Type sym_type) {
+                     StringRef sym_name, Type sym_type, bool isConstant) {
   odsState.addAttribute(sym_nameAttrName(odsState.name),
                         odsBuilder.getStringAttr(sym_name));
   odsState.addAttribute(sym_typeAttrName(odsState.name),
                         ::mlir::TypeAttr::get(sym_type));
+  if (isConstant)
+    odsState.addAttribute("constant", odsBuilder.getUnitAttr());
 }
 
 //===----------------------------------------------------------------------===//
