@@ -916,7 +916,8 @@ def GlobalOp : CIR_Op<"global", [Symbol]> {
   let builders = [
     OpBuilder<(ins
       "StringRef":$sym_name,
-      "Type":$sym_type
+      "Type":$sym_type,
+      CArg<"bool", "false">:$isConstant
       )>
   ];
 
