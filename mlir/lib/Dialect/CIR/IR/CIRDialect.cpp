@@ -912,7 +912,7 @@ parseGlobalOpTypeAndInitialValue(OpAsmParser &parser, TypeAttr &typeAttr,
 
   // Parse constant with initializer, examples:
   //  cir.global @y = 3.400000e+00 : f32
-  //  cir.global @rgb  = #cir.cst_array<[...] : !cir.array<i8 x 3>>
+  //  cir.global @rgb = #cir.cst_array<[...] : !cir.array<i8 x 3>>
   if (parseConstantValue(parser, initialValueAttr).failed())
     return failure();
 
@@ -1002,12 +1002,13 @@ LogicalResult mlir::cir::CstArrayAttr::verify(
     ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
     ::mlir::Type type, Attribute attr) {
 
-  mlir::cir::ArrayType at = mlir::cast<mlir::cir::ArrayType>(type);
   if (!(mlir::isa<mlir::ArrayAttr>(attr) || mlir::isa<mlir::StringAttr>(attr)))
     return emitError() << "constant array expects ArrayAttr or StringAttr";
 
   if (auto strAttr = mlir::dyn_cast<mlir::StringAttr>(attr)) {
+    mlir::cir::ArrayType at = mlir::cast<mlir::cir::ArrayType>(type);
     auto intTy = mlir::dyn_cast<mlir::IntegerType>(at.getEltType());
+
     // TODO: add CIR type for char.
     if (!intTy || intTy.getWidth() != 8) {
       emitError() << "constant array element for string literals expects i8 "
@@ -1019,6 +1020,7 @@ LogicalResult mlir::cir::CstArrayAttr::verify(
 
   assert(mlir::isa<mlir::ArrayAttr>(attr));
   auto arrayAttr = mlir::cast<mlir::ArrayAttr>(attr);
+  auto at = mlir::cast<ArrayType>(type);
 
   // Make sure both number of elements and subelement types match type.
   if (at.getSize() != arrayAttr.size())
@@ -1059,8 +1061,8 @@ LogicalResult mlir::cir::CstArrayAttr::verify(
     return {};
   }
 
-  // ArrayAttrs have per-element type, not the type of the array...
-  if (mlir::isa<mlir::ArrayAttr>(*resultVal)) {
+  // ArrayAttrrs have per-element type, not the type of the array...
+  if (mlir::dyn_cast<ArrayAttr>(*resultVal)) {
     // Parse literal ':'
     if (parser.parseColon())
       return {};
@@ -1074,7 +1076,14 @@ LogicalResult mlir::cir::CstArrayAttr::verify(
       return {};
     }
   } else {
-    resultTy = mlir::cast<StringAttr>(*resultVal).getType();
+    assert(mlir::isa<TypedAttr>(*resultVal) && "IDK");
+    auto ta = mlir::cast<TypedAttr>(*resultVal);
+    resultTy = ta.getType();
+    if (mlir::isa<mlir::NoneType>(resultTy.value())) {
+      parser.emitError(parser.getCurrentLocation(),
+                       "expected type declaration for string literal");
+      return {};
+    }
   }
 
   // Parse literal '>'
@@ -1087,7 +1096,7 @@ LogicalResult mlir::cir::CstArrayAttr::verify(
 void CstArrayAttr::print(::mlir::AsmPrinter &printer) const {
   printer << "<";
   printer.printStrippedAttrOrType(getValue());
-  if (mlir::isa<mlir::ArrayAttr>(getValue())) {
+  if (mlir::isa<ArrayAttr>(getValue())) {
     printer << ' ' << ":";
     printer << ' ';
     printer.printStrippedAttrOrType(getType());
