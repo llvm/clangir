@@ -94,6 +94,12 @@ static LogicalResult checkConstantTypes(mlir::Operation *op, mlir::Type opType,
     return success();
   }
 
+  if (mlir::isa<SymbolRefAttr>(attrType)) {
+    if (mlir::isa<::mlir::cir::PointerType>(opType))
+      return success();
+    return op->emitOpError("symbolref expects pointer type");
+  }
+
   assert(mlir::isa<TypedAttr>(attrType) && "What else could we be looking at here?");
   return op->emitOpError("cannot have value of type ")
          << mlir::cast<TypedAttr>(attrType).getType();
@@ -888,22 +894,25 @@ LogicalResult LoopOp::verify() {
 static void printGlobalOpTypeAndInitialValue(OpAsmPrinter &p, GlobalOp op,
                                              TypeAttr type,
                                              Attribute initAttr) {
+  auto printType = [&]() { p << ": " << type; };
   if (!op.isDeclaration()) {
     p << "= ";
     // This also prints the type...
     printConstant(p, initAttr);
+    if (mlir::isa<SymbolRefAttr>(initAttr))
+      printType();
   } else {
-    p << ": " << type;
+    printType();
   }
 }
 
 static ParseResult
 parseGlobalOpTypeAndInitialValue(OpAsmParser &parser, TypeAttr &typeAttr,
                                  Attribute &initialValueAttr) {
-  Type type;
   if (parser.parseOptionalEqual().failed()) {
     // Absence of equal means a declaration, so we need to parse the type.
     //  cir.global @a : i32
+    Type type;
     if (parser.parseColonType(type))
       return failure();
     typeAttr = TypeAttr::get(type);
@@ -916,12 +925,19 @@ parseGlobalOpTypeAndInitialValue(OpAsmParser &parser, TypeAttr &typeAttr,
   if (parseConstantValue(parser, initialValueAttr).failed())
     return failure();
 
-  assert(mlir::isa<mlir::TypedAttr>(initialValueAttr) &&
-         "Non-typed attrs shouldn't appear here.");
-  auto typedAttr = mlir::cast<mlir::TypedAttr>(initialValueAttr);
+  mlir::Type opTy;
+  if (auto sra = mlir::dyn_cast<SymbolRefAttr>(initialValueAttr)) {
+    if (parser.parseColonType(opTy))
+      return failure();
+  } else {
+    // Handle StringAttrs
+    assert(mlir::isa<mlir::TypedAttr>(initialValueAttr) &&
+           "Non-typed attrs shouldn't appear here.");
+    auto typedAttr = mlir::cast<mlir::TypedAttr>(initialValueAttr);
+    opTy = typedAttr.getType();
+  }
 
-  typeAttr = TypeAttr::get(typedAttr.getType());
-
+  typeAttr = TypeAttr::get(opTy);
   return success();
 }
 
