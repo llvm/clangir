@@ -285,14 +285,14 @@ namespace {
 /// A struct which can be used to peephole certain kinds of finalization
 /// that normally happen during l-value emission.
 struct ConstantLValue {
-  mlir::Value Value;
+  using SymbolTy = mlir::SymbolRefAttr;
+  llvm::PointerUnion<mlir::Value, SymbolTy> Value;
   bool HasOffsetApplied;
 
   /*implicit*/ ConstantLValue(mlir::Value value, bool hasOffsetApplied = false)
       : Value(value), HasOffsetApplied(hasOffsetApplied) {}
 
-  /*implicit*/ ConstantLValue(ConstantAddress address)
-      : ConstantLValue(address.getPointer()) {}
+  /*implicit*/ ConstantLValue(SymbolTy address) : Value(address) {}
 
   ConstantLValue(std::nullptr_t) : ConstantLValue({}, false) {}
 };
@@ -343,6 +343,7 @@ private:
   mlir::Attribute applyOffset(mlir::Attribute C) {
     if (!hasNonZeroOffset())
       return C;
+    // TODO(cir): use ptr_stride, or something...
     assert(0 && "NYI");
   }
 };
@@ -372,21 +373,22 @@ mlir::Attribute ConstantLValueEmitter::tryEmit() {
   ConstantLValue result = tryEmitBase(base);
 
   // If that failed, we're done.
-  auto value = result.Value;
+  auto &value = result.Value;
   if (!value)
     return {};
 
   // Apply the offset if necessary and not already done.
-  if (!result.HasOffsetApplied) {
-    // TODO(cir): use ptr_stride, or something...
-    // value = applyOffset(value);
+  if (!result.HasOffsetApplied && !value.is<ConstantLValue::SymbolTy>()) {
+    assert(0 && "NYI");
   }
 
   // Convert to the appropriate type; this could be an lvalue for
   // an integer. FIXME: performAddrSpaceCast
-  if (destTy.isa<mlir::cir::PointerType>())
-    assert(0 &&
-           "NYI"); // return llvm::ConstantExpr::getPointerCast(value, destTy);
+  if (destTy.isa<mlir::cir::PointerType>()) {
+    if (value.is<ConstantLValue::SymbolTy>())
+      return value.get<ConstantLValue::SymbolTy>();
+    assert(0 && "NYI");
+  }
 
   assert(0 && "NYI");
 }
@@ -532,7 +534,7 @@ static QualType getNonMemoryType(CIRGenModule &CGM, QualType type) {
   return type;
 }
 
-mlir::TypedAttr ConstantEmitter::tryEmitPrivateForVarInit(const VarDecl &D) {
+mlir::Attribute ConstantEmitter::tryEmitPrivateForVarInit(const VarDecl &D) {
   // Make a quick check if variable can be default NULL initialized
   // and avoid going through rest of code which may do, for c++11,
   // initialization of memory to all NULLs.
@@ -582,7 +584,7 @@ mlir::Attribute ConstantEmitter::tryEmitPrivateForMemory(const APValue &value,
 }
 
 mlir::Attribute ConstantEmitter::emitForMemory(CIRGenModule &CGM,
-                                               mlir::TypedAttr C,
+                                               mlir::Attribute C,
                                                QualType destType) {
   // For an _Atomic-qualified constant, we may need to add tail padding.
   if (auto AT = destType->getAs<AtomicType>()) {
@@ -590,7 +592,8 @@ mlir::Attribute ConstantEmitter::emitForMemory(CIRGenModule &CGM,
   }
 
   // Zero-extend bool.
-  if (C.getType().isa<mlir::cir::BoolType>()) {
+  auto typed = C.dyn_cast<mlir::TypedAttr>();
+  if (typed && typed.getType().isa<mlir::cir::BoolType>()) {
     assert(0 && "not implemented");
   }
 
