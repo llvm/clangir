@@ -65,7 +65,7 @@ void cir::CIRDialect::initialize() {
 //===----------------------------------------------------------------------===//
 
 static LogicalResult checkConstantTypes(mlir::Operation *op, mlir::Type opType,
-                                        mlir::TypedAttr attrType) {
+                                        mlir::Attribute attrType) {
   if (attrType.isa<NullAttr>()) {
     if (opType.isa<::mlir::cir::PointerType>())
       return success();
@@ -80,9 +80,10 @@ static LogicalResult checkConstantTypes(mlir::Operation *op, mlir::Type opType,
   }
 
   if (attrType.isa<IntegerAttr, FloatAttr>()) {
-    if (attrType.getType() != opType) {
+    auto at = attrType.cast<TypedAttr>();
+    if (at.getType() != opType) {
       return op->emitOpError("result type (")
-             << opType << ") does not match value type (" << attrType.getType()
+             << opType << ") does not match value type (" << at.getType()
              << ")";
     }
     return success();
@@ -93,7 +94,15 @@ static LogicalResult checkConstantTypes(mlir::Operation *op, mlir::Type opType,
     return success();
   }
 
-  return op->emitOpError("cannot have value of type ") << attrType.getType();
+  if (attrType.isa<SymbolRefAttr>()) {
+    if (opType.isa<::mlir::cir::PointerType>())
+      return success();
+    return op->emitOpError("symbolref expects pointer type");
+  }
+
+  assert(attrType.isa<TypedAttr>() && "What else could we be looking at here?");
+  return op->emitOpError("cannot have value of type ")
+         << attrType.cast<TypedAttr>().getType();
 }
 
 LogicalResult ConstantOp::verify() {
@@ -892,22 +901,25 @@ LogicalResult LoopOp::verify() {
 static void printGlobalOpTypeAndInitialValue(OpAsmPrinter &p, GlobalOp op,
                                              TypeAttr type,
                                              Attribute initAttr) {
+  auto printType = [&]() { p << ": " << type; };
   if (!op.isDeclaration()) {
     p << "= ";
     // This also prints the type...
     printConstant(p, initAttr);
+    if (initAttr.isa<SymbolRefAttr>())
+      printType();
   } else {
-    p << ": " << type;
+    printType();
   }
 }
 
 static ParseResult
 parseGlobalOpTypeAndInitialValue(OpAsmParser &parser, TypeAttr &typeAttr,
                                  Attribute &initialValueAttr) {
-  Type type;
   if (parser.parseOptionalEqual().failed()) {
     // Absence of equal means a declaration, so we need to parse the type.
     //  cir.global @a : i32
+    Type type;
     if (parser.parseColonType(type))
       return failure();
     typeAttr = TypeAttr::get(type);
@@ -920,12 +932,19 @@ parseGlobalOpTypeAndInitialValue(OpAsmParser &parser, TypeAttr &typeAttr,
   if (parseConstantValue(parser, initialValueAttr).failed())
     return failure();
 
-  assert(initialValueAttr.isa<mlir::TypedAttr>() &&
-         "Non-typed attrs shouldn't appear here.");
-  auto typedAttr = initialValueAttr.cast<mlir::TypedAttr>();
+  mlir::Type opTy;
+  if (auto sra = initialValueAttr.dyn_cast<SymbolRefAttr>()) {
+    if (parser.parseColonType(opTy))
+      return failure();
+  } else {
+    // Handle StringAttrs
+    assert(initialValueAttr.isa<mlir::TypedAttr>() &&
+           "Non-typed attrs shouldn't appear here.");
+    auto typedAttr = initialValueAttr.cast<mlir::TypedAttr>();
+    opTy = typedAttr.getType();
+  }
 
-  typeAttr = TypeAttr::get(typedAttr.getType());
-
+  typeAttr = TypeAttr::get(opTy);
   return success();
 }
 
