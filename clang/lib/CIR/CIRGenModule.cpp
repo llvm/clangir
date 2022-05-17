@@ -921,8 +921,14 @@ CIRGenModule::getAddrOfConstantStringFromLiteral(const StringLiteral *S,
   mlir::Attribute C = getConstantArrayFromStringLiteral(S);
   mlir::cir::GlobalOp Entry;
   if (!getLangOpts().WritableStrings) {
-    if (ConstantStringMap.count(C))
-      assert(0 && "not implemented");
+    if (ConstantStringMap.count(C)) {
+      auto g = ConstantStringMap[C];
+      // The bigger alignment always wins.
+      if (!g.alignment() || uint64_t(Alignment.getQuantity()) > *g.alignment())
+        g.alignmentAttr(getAlignment(Alignment));
+      return mlir::SymbolRefAttr::get(
+          castStringLiteralToDefaultAddressSpace(*this, g.sym_nameAttr()));
+    }
   }
 
   SmallString<256> StringNameBuffer = Name;
