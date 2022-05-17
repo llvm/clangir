@@ -91,6 +91,12 @@ static LogicalResult checkConstantTypes(mlir::Operation *op, mlir::Type opType,
     return op->emitOpError("nullptr expects pointer type");
   }
 
+  if (attrType.isa<SymbolRefAttr>()) {
+    if (opType.isa<::mlir::cir::PointerType>())
+      return success();
+    return op->emitOpError("symbolref expects pointer type");
+  }
+
   return op->emitOpError("cannot have value of type ") << attrType.getType();
 }
 
@@ -948,22 +954,25 @@ static LogicalResult verify(LoopOp op) {
 static void printGlobalOpTypeAndInitialValue(OpAsmPrinter &p, GlobalOp op,
                                              TypeAttr type,
                                              Attribute initAttr) {
+  auto printType = [&]() { p << ": " << type; };
   if (!op.isDeclaration()) {
     p << "= ";
     // This also prints the type...
     printConstant(p, initAttr.isa<UnitAttr>(), initAttr);
+    if (initAttr.isa<SymbolRefAttr>())
+      printType();
   } else {
-    p << ": " << type;
+    printType();
   }
 }
 
 static ParseResult
 parseGlobalOpTypeAndInitialValue(OpAsmParser &parser, TypeAttr &typeAttr,
                                  Attribute &initialValueAttr) {
-  Type type;
   if (parser.parseOptionalEqual().failed()) {
     // Absence of equal means a declaration, so we need to parse the type.
     //  cir.global @a : i32
+    Type type;
     if (parser.parseColonType(type))
       return failure();
     typeAttr = TypeAttr::get(type);
@@ -975,8 +984,14 @@ parseGlobalOpTypeAndInitialValue(OpAsmParser &parser, TypeAttr &typeAttr,
   //  cir.global @rgb = #cir.cst_array<[...] : !cir.array<i8 x 3>>
   if (parseConstantValue(parser, initialValueAttr).failed())
     return failure();
-  typeAttr = TypeAttr::get(initialValueAttr.getType());
 
+  mlir::Type opTy = initialValueAttr.getType();
+  if (initialValueAttr.isa<SymbolRefAttr>()) {
+    if (parser.parseColonType(opTy))
+      return failure();
+  }
+
+  typeAttr = TypeAttr::get(opTy);
   return success();
 }
 
