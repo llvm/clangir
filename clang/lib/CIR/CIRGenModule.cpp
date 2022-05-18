@@ -897,7 +897,7 @@ generateStringLiteral(mlir::Location loc, mlir::Attribute C,
                            !CGM.getLangOpts().WritableStrings);
 
   // Set up extra information and add to the module
-  GV.alignmentAttr(CGM.getAlignment(Alignment));
+  GV.alignmentAttr(CGM.getSize(Alignment));
   mlir::SymbolTable::setSymbolVisibility(GV, LT);
   GV.initial_valueAttr(C);
 
@@ -940,7 +940,7 @@ CIRGenModule::getAddrOfConstantStringFromLiteral(const StringLiteral *S,
       auto g = ConstantStringMap[C];
       // The bigger alignment always wins.
       if (!g.alignment() || uint64_t(Alignment.getQuantity()) > *g.alignment())
-        g.alignmentAttr(getAlignment(Alignment));
+        g.alignmentAttr(getSize(Alignment));
       return mlir::SymbolRefAttr::get(
           castStringLiteralToDefaultAddressSpace(*this, g.sym_nameAttr()));
     }
@@ -1435,10 +1435,9 @@ void CIRGenModule::buildDeferred() {
   }
 }
 
-mlir::IntegerAttr CIRGenModule::getAlignment(CharUnits &alignment) {
+mlir::IntegerAttr CIRGenModule::getSize(CharUnits size) {
   return mlir::IntegerAttr::get(
-      mlir::IntegerType::get(builder.getContext(), 64),
-      alignment.getQuantity());
+      mlir::IntegerType::get(builder.getContext(), 64), size.getQuantity());
 }
 
 // TODO: this is gross, make a map
