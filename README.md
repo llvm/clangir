@@ -104,3 +104,10 @@ Consult the
 page for detailed information on configuring and compiling LLVM. You can visit
 [Directory Layout](https://llvm.org/docs/GettingStarted.html#directory-layout)
 to learn about the layout of the source code tree.
+
+
+### License
+
+ClangIR is based off https://github.com/llvm/llvm-project and uses the same
+license. This ClangIR project is under the Apache License v2.0 with LLVM
+Exceptions. Please see the `LICENSE.TXT` for the full details.
