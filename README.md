@@ -1,3 +1,10 @@
+# ClangIR (CIR)
+
+For more information see https://clangir.org. The rest of this document
+fallbacks to llvm-project's default `README.td`.
+
+---
+
 # The LLVM Compiler Infrastructure
 
 Welcome to the LLVM project!
