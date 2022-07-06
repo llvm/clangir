@@ -1,1 +1,1 @@
-// RUN: cir-tidy
+// RUN: cir-tidy %s

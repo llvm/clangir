@@ -1,17 +1,55 @@
+set(LLVM_LINK_COMPONENTS
+  AllTargetsAsmParsers
+  AllTargetsDescs
+  AllTargetsInfos
+  FrontendOpenMP
+  support
+  )
+
 # Needed by LLVM's CMake checks because this file defines multiple targets.
 set(LLVM_OPTIONAL_SOURCES CIRTidyMain.cpp CIRTidyToolMain.cpp)
 
 add_clang_library(CIRTidyMain
   CIRTidyMain.cpp
+
+  LINK_LIBS
+  clangTidy
+  ${ALL_CLANG_TIDY_CHECKS}
+
+  DEPENDS
+  omp_gen
+  )
+
+clang_target_link_libraries(CIRTidyMain
+  PRIVATE
+  clangAST
+  clangASTMatchers
+  clangBasic
+  clangTooling
+  clangToolingCore
   )
 
 add_clang_executable(cir-tidy
   CIRTidyToolMain.cpp
   )
+add_dependencies(cir-tidy
+  clang-resource-headers
+  )
+
+clang_target_link_libraries(cir-tidy
+  PRIVATE
+  clangAST
+  clangASTMatchers
+  clangBasic
+  clangTooling
+  clangToolingCore
+  )
 
 target_link_libraries(cir-tidy
   PRIVATE
+  clangTidy
   CIRTidyMain
+  ${ALL_CLANG_TIDY_CHECKS}
   )
 
 install(TARGETS cir-tidy
