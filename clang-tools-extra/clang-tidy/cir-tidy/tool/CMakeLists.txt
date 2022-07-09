@@ -24,8 +24,6 @@ add_clang_library(CIRTidyMain
 
 clang_target_link_libraries(CIRTidyMain
   PRIVATE
-  clangAST
-  clangASTMatchers
   clangBasic
   clangTooling
   clangToolingCore
@@ -38,20 +36,10 @@ add_dependencies(cir-tidy
   clang-resource-headers
   )
 
-clang_target_link_libraries(cir-tidy
-  PRIVATE
-  clangAST
-  clangASTMatchers
-  clangBasic
-  clangTooling
-  clangToolingCore
-  )
-
 target_link_libraries(cir-tidy
   PRIVATE
-  clangTidy
   CIRTidyMain
-  ${ALL_CLANG_TIDY_CHECKS}
+  CIRTidy
   )
 
 install(TARGETS cir-tidy

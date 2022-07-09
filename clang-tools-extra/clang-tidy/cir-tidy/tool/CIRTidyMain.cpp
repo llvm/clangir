@@ -18,10 +18,10 @@
 #include "../ClangTidy.h"
 #include "../ClangTidyForceLinker.h"
 #include "../GlobList.h"
+#include "CIRTidy.h"
 #include "clang/Tooling/CommonOptionsParser.h"
 #include "llvm/Support/InitLLVM.h"
 #include "llvm/Support/Process.h"
-#include "llvm/Support/Signals.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/WithColor.h"
 
@@ -454,6 +454,16 @@ int CIRTidyMain(int argc, const char **argv) {
     llvm::cl::PrintHelpMessage(/*Hidden=*/false, /*Categorized=*/true);
     return 1;
   }
+
+  llvm::InitializeAllTargetInfos();
+  llvm::InitializeAllTargetMCs();
+  llvm::InitializeAllAsmParsers();
+
+  ClangTidyContext Context(std::move(OwningOptionsProvider),
+                           AllowEnablingAnalyzerAlphaCheckers);
+  std::vector<ClangTidyError> Errors =
+      runCIRTidy(Context, OptionsParser->getCompilations(), PathList, BaseFS,
+                 FixNotes, EnableCheckProfile, ProfilePrefix);
 
   return 0;
 }
