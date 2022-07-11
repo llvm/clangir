@@ -29,7 +29,7 @@ clang_target_link_libraries(CIRTidyMain
   clangToolingCore
   )
 
-add_clang_executable(cir-tidy
+add_clang_tool(cir-tidy
   CIRTidyToolMain.cpp
   )
 add_dependencies(cir-tidy
