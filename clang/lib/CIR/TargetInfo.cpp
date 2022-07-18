@@ -159,6 +159,8 @@ public:
 };
 } // namespace
 
+// TODO(cir): remove the attribute once this gets used.
+LLVM_ATTRIBUTE_UNUSED
 static bool classifyReturnType(const CIRGenCXXABI &CXXABI,
                                CIRGenFunctionInfo &FI, const ABIInfo &Info) {
   QualType Ty = FI.getReturnType();
