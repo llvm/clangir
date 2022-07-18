@@ -620,7 +620,7 @@ void CIRGenModule::buildGlobalVarDefinition(const clang::VarDecl *D,
   // TODO(cir): LLVM's codegen uses a llvm::TrackingVH here. Is that
   // necessary here for CIR gen?
   mlir::Attribute Init;
-  bool NeedsGlobalCtor = false;
+  // TODO(cir): bool NeedsGlobalCtor = false;
   bool NeedsGlobalDtor =
       D->needsDestruction(astCtx) == QualType::DK_cxx_destructor;
 
