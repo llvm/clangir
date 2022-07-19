@@ -951,8 +951,11 @@ parseGlobalOpTypeAndInitialValue(OpAsmParser &parser, TypeAttr &typeAttr,
 LogicalResult GlobalOp::verify() {
   // Verify that the initial value, if present, is either a unit attribute or
   // an attribute CIR supports.
-  if (getInitialValue().has_value())
-    return checkConstantTypes(getOperation(), getSymType(), *getInitialValue());
+  if (getInitialValue().has_value()) {
+    if (checkConstantTypes(getOperation(), getSymType(), *getInitialValue())
+            .failed())
+      return failure();
+  }
 
   if (Optional<uint64_t> alignAttr = getAlignment()) {
     uint64_t alignment = alignAttr.value();
@@ -961,18 +964,42 @@ LogicalResult GlobalOp::verify() {
                          << " is not a power of 2";
   }
 
+  switch (getLinkage()) {
+  case mlir::cir::GlobalLinkageKind::InternalLinkage:
+  case mlir::cir::GlobalLinkageKind::PrivateLinkage:
+    if (isPublic())
+      return emitError() << "public visibility not allowed with '"
+                         << stringifyGlobalLinkageKind(getLinkage())
+                         << "' linkage";
+    break;
+  case mlir::cir::GlobalLinkageKind::ExternalLinkage:
+  case mlir::cir::GlobalLinkageKind::ExternalWeakLinkage:
+    if (isPrivate())
+      return emitError() << "private visibility not allowed with '"
+                         << stringifyGlobalLinkageKind(getLinkage())
+                         << "' linkage";
+    break;
+  default:
+    assert(0 && "not implemented");
+  }
+
   // TODO: verify visibility for declarations?
   return success();
 }
 
 void GlobalOp::build(OpBuilder &odsBuilder, OperationState &odsState,
-                     StringRef sym_name, Type sym_type, bool isConstant) {
+                     StringRef sym_name, Type sym_type, bool isConstant,
+                     cir::GlobalLinkageKind linkage) {
   odsState.addAttribute(getSymNameAttrName(odsState.name),
                         odsBuilder.getStringAttr(sym_name));
   odsState.addAttribute(getSymTypeAttrName(odsState.name),
                         ::mlir::TypeAttr::get(sym_type));
   if (isConstant)
     odsState.addAttribute("constant", odsBuilder.getUnitAttr());
+
+  ::mlir::cir::GlobalLinkageKindAttr linkageAttr =
+      cir::GlobalLinkageKindAttr::get(odsBuilder.getContext(), linkage);
+  odsState.addAttribute("linkage", linkageAttr);
 }
 
 //===----------------------------------------------------------------------===//
@@ -1111,7 +1138,7 @@ LogicalResult mlir::cir::CstArrayAttr::verify(
   if (parser.parseGreater())
     return {};
   return parser.getChecked<CstArrayAttr>(
-      loc, parser.getContext(), resultTy.getValue(), resultVal.getValue());
+      loc, parser.getContext(), resultTy.value(), resultVal.value());
 }
 
 void CstArrayAttr::print(::mlir::AsmPrinter &printer) const {
