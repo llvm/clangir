@@ -946,8 +946,11 @@ parseGlobalOpTypeAndInitialValue(OpAsmParser &parser, TypeAttr &typeAttr,
 LogicalResult GlobalOp::verify() {
   // Verify that the initial value, if present, is either a unit attribute or
   // an attribute CIR supports.
-  if (initial_value().hasValue())
-    return checkConstantTypes(getOperation(), sym_type(), *initial_value());
+  if (initial_value().hasValue()) {
+    if (checkConstantTypes(getOperation(), sym_type(), *initial_value())
+            .failed())
+      return failure();
+  }
 
   if (Optional<uint64_t> alignAttr = alignment()) {
     uint64_t alignment = alignAttr.getValue();
@@ -956,18 +959,42 @@ LogicalResult GlobalOp::verify() {
                          << " is not a power of 2";
   }
 
+  switch (linkage()) {
+  case mlir::cir::GlobalLinkageKind::InternalLinkage:
+  case mlir::cir::GlobalLinkageKind::PrivateLinkage:
+    if (isPublic())
+      return emitError() << "public visibility not allowed with '"
+                         << stringifyGlobalLinkageKind(linkage())
+                         << "' linkage";
+    break;
+  case mlir::cir::GlobalLinkageKind::ExternalLinkage:
+  case mlir::cir::GlobalLinkageKind::ExternalWeakLinkage:
+    if (isPrivate())
+      return emitError() << "private visibility not allowed with '"
+                         << stringifyGlobalLinkageKind(linkage())
+                         << "' linkage";
+    break;
+  default:
+    assert(0 && "not implemented");
+  }
+
   // TODO: verify visibility for declarations?
   return success();
 }
 
 void GlobalOp::build(OpBuilder &odsBuilder, OperationState &odsState,
-                     StringRef sym_name, Type sym_type, bool isConstant) {
+                     StringRef sym_name, Type sym_type, bool isConstant,
+                     cir::GlobalLinkageKind linkage) {
   odsState.addAttribute(sym_nameAttrName(odsState.name),
                         odsBuilder.getStringAttr(sym_name));
   odsState.addAttribute(sym_typeAttrName(odsState.name),
                         ::mlir::TypeAttr::get(sym_type));
   if (isConstant)
     odsState.addAttribute("constant", odsBuilder.getUnitAttr());
+
+  ::mlir::cir::GlobalLinkageKindAttr linkageAttr =
+      cir::GlobalLinkageKindAttr::get(odsBuilder.getContext(), linkage);
+  odsState.addAttribute("linkage", linkageAttr);
 }
 
 //===----------------------------------------------------------------------===//
