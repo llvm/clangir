@@ -18,6 +18,7 @@ include "mlir/Dialect/CIR/IR/CIRDialect.td"
 include "mlir/Dialect/CIR/IR/CIRTypes.td"
 include "mlir/Dialect/CIR/IR/CIRAttrs.td"
 include "mlir/IR/SymbolInterfaces.td"
+include "mlir/Interfaces/CallInterfaces.td"
 include "mlir/Interfaces/ControlFlowInterfaces.td"
 include "mlir/Interfaces/LoopLikeInterface.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
@@ -327,7 +328,7 @@ def StoreOp : CIR_Op<"store", [
 // ReturnOp
 //===----------------------------------------------------------------------===//
 
-def ReturnOp : CIR_Op<"return", [HasParent<"FuncOp, ScopeOp, IfOp, SwitchOp, LoopOp">,
+def ReturnOp : CIR_Op<"return", [HasParent<"mlir::FuncOp, ScopeOp, IfOp, SwitchOp, LoopOp">,
                                  Terminator]> {
   let summary = "Return from function";
   let description = [{
@@ -1104,6 +1105,92 @@ def StructElementAddr : CIR_Op<"struct_element_addr"> {
   let results = (outs Res<CIR_PointerType, "">:$result);
 
   // FIXME: add verifier.
+}
+
+//===----------------------------------------------------------------------===//
+// FuncOp
+//===----------------------------------------------------------------------===//
+
+def FuncOp : CIR_Op<"func", [
+  AutomaticAllocationScope, CallableOpInterface, FunctionLike,
+  IsolatedFromAbove, Symbol
+]> {
+  let summary = "Declare or define a function";
+  let description = [{
+
+    Similar to `mlir::FuncOp` built-in:
+    > Operations within the function cannot implicitly capture values defined
+    > outside of the function, i.e. Functions are `IsolatedFromAbove`. All
+    > external references must use function arguments or attributes that establish
+    > a symbolic connection (e.g. symbols referenced by name via a string
+    > attribute like SymbolRefAttr). An external function declaration (used when
+    > referring to a function declared in some other module) has no body. While
+    > the MLIR textual form provides a nice inline syntax for function arguments,
+    > they are internally represented as “block arguments” to the first block in
+    > the region.
+    >
+    > Only dialect attribute names may be specified in the attribute dictionaries
+    > for function arguments, results, or the function itself.
+
+    The function linkage information is specified by `linkage`, as defined by
+    `GlobalLinkageKind` attribute.
+
+    Example:
+
+    ```mlir
+    // External function definitions.
+    func @abort()
+
+    // A function with internal linkage.
+    func internal @count(%x: i64) -> (i64)
+      return %x : i64
+    }
+    ```
+  }];
+
+  let arguments = (ins SymbolNameAttr:$sym_name,
+                       TypeAttr:$type,
+                       DefaultValuedAttr<GlobalLinkageKind,
+                                         "GlobalLinkageKind::ExternalLinkage">:$linkage,
+                       OptionalAttr<StrAttr>:$sym_visibility);
+  let regions = (region AnyRegion:$body);
+  let skipDefaultBuilders = 1;
+
+  let builders = [OpBuilder<(ins
+    "StringRef":$name, "FunctionType":$type,
+    CArg<"GlobalLinkageKind", "GlobalLinkageKind::ExternalLinkage">:$linkage,
+    CArg<"ArrayRef<NamedAttribute>", "{}">:$attrs,
+    CArg<"ArrayRef<DictionaryAttr>", "{}">:$argAttrs)
+  >];
+
+  let extraClassDeclaration = [{
+    /// Returns the region on the current operation that is callable. This may
+    /// return null in the case of an external callable object, e.g. an external
+    /// function.
+    ::mlir::Region *getCallableRegion() { return isExternal() ? nullptr : &getBody(); }
+
+    /// Returns the results types that the callable region produces when
+    /// executed.
+    ArrayRef<Type> getCallableResults() { return getType().getResults(); }
+
+    // This trait needs access to the hooks defined below.
+    friend class OpTrait::FunctionLike<mlir::FuncOp>;
+
+    /// Returns the number of arguments. Hook for OpTrait::FunctionLike.
+    unsigned getNumFuncArguments() { return getType().getNumInputs(); }
+
+    /// Returns the number of results. Hook for OpTrait::FunctionLike.
+    unsigned getNumFuncResults() { return getType().getNumResults(); }
+
+    /// Hook for OpTrait::FunctionLike, called after verifying that the 'type'
+    /// attribute is present and checks if it holds a function type. Ensures
+    /// getType, getNumFuncArguments, and getNumFuncResults can be called
+    /// safely.
+    LogicalResult verifyType();
+  }];
+  let parser = [{ return ::parseCIRFuncOp(parser, result); }];
+  let printer = [{ return ::print(*this, p); }];
+  let verifier = [{ return ::verify(*this); }];
 }
 
 #endif // MLIR_CIR_DIALECT_CIR_OPS
