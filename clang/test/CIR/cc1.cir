@@ -2,7 +2,7 @@
 // RUN: FileCheck --input-file=%t.cir %s -check-prefix=LLVM
 
 module {
-  func.func @foo() {
+  cir.func @foo() {
     cir.return
   }
 }
