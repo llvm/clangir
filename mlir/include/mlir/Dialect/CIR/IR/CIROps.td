@@ -329,7 +329,7 @@ def StoreOp : CIR_Op<"store", [
 // ReturnOp
 //===----------------------------------------------------------------------===//
 
-def ReturnOp : CIR_Op<"return", [HasParent<"mlir::FuncOp, ScopeOp, IfOp, SwitchOp, LoopOp">,
+def ReturnOp : CIR_Op<"return", [HasParent<"FuncOp, ScopeOp, IfOp, SwitchOp, LoopOp">,
                                  Terminator]> {
   let summary = "Return from function";
   let description = [{
@@ -1191,6 +1191,12 @@ def FuncOp : CIR_Op<"func", [
     /// Ensures getType, getNumFuncArguments, and getNumFuncResults can be
     /// called safely.
     LogicalResult verifyType();
+
+    //===------------------------------------------------------------------===//
+    // SymbolOpInterface Methods
+    //===------------------------------------------------------------------===//
+
+    bool isDeclaration() { return isExternal(); }
   }];
 
   let hasCustomAssemblyFormat = 1;
