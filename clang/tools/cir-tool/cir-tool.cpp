@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/IR/BuiltinDialect.h"
 #include "mlir/Dialect/CIR/IR/CIRDialect.h"
 #include "mlir/Dialect/CIR/Passes.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -26,10 +27,13 @@
 int main(int argc, char **argv) {
   // TODO: register needed MLIR passes for CIR?
   mlir::DialectRegistry registry;
-  registry.insert<mlir::arith::ArithDialect, mlir::cir::CIRDialect,
-                  mlir::func::FuncDialect, mlir::memref::MemRefDialect,
+  registry.insert<mlir::BuiltinDialect, mlir::arith::ArithDialect,
+                  mlir::cir::CIRDialect, mlir::memref::MemRefDialect,
                   mlir::LLVM::LLVMDialect>();
 
+  ::mlir::registerPass([]() -> std::unique_ptr<::mlir::Pass> {
+    return cir::createConvertCIRToFuncPass();
+  });
   ::mlir::registerPass([]() -> std::unique_ptr<::mlir::Pass> {
     return cir::createConvertCIRToLLVMPass();
   });
