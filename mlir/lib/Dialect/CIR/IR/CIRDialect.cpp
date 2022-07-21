@@ -16,6 +16,7 @@
 #include "mlir/Dialect/LLVMIR/LLVMTypes.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/DialectImplementation.h"
+#include "mlir/IR/FunctionImplementation.h"
 #include "mlir/IR/OpDefinition.h"
 #include "mlir/IR/OpImplementation.h"
 #include "mlir/IR/TypeUtilities.h"
@@ -56,6 +57,54 @@ void cir::CIRDialect::initialize() {
 #include "mlir/Dialect/CIR/IR/CIROps.cpp.inc"
       >();
   addInterfaces<CIROpAsmDialectInterface>();
+}
+
+//===----------------------------------------------------------------------===//
+// Helpers
+//===----------------------------------------------------------------------===//
+
+// Parses one of the keywords provided in the list `keywords` and returns the
+// position of the parsed keyword in the list. If none of the keywords from the
+// list is parsed, returns -1.
+static int parseOptionalKeywordAlternative(OpAsmParser &parser,
+                                           ArrayRef<StringRef> keywords) {
+  for (auto en : llvm::enumerate(keywords)) {
+    if (succeeded(parser.parseOptionalKeyword(en.value())))
+      return en.index();
+  }
+  return -1;
+}
+
+namespace {
+template <typename Ty>
+struct EnumTraits {};
+
+#define REGISTER_ENUM_TYPE(Ty)                                                 \
+  template <>                                                                  \
+  struct EnumTraits<Ty> {                                                      \
+    static StringRef stringify(Ty value) { return stringify##Ty(value); }      \
+    static unsigned getMaxEnumVal() { return getMaxEnumValFor##Ty(); }         \
+  }
+
+REGISTER_ENUM_TYPE(GlobalLinkageKind);
+} // namespace
+
+/// Parse an enum from the keyword, or default to the provided default value.
+/// The return type is the enum type by default, unless overriden with the
+/// second template argument.
+/// TODO: teach other places in this file to use this function.
+template <typename EnumTy, typename RetTy = EnumTy>
+static RetTy parseOptionalCIRKeyword(OpAsmParser &parser,
+                                     OperationState &result,
+                                     EnumTy defaultValue) {
+  SmallVector<StringRef, 10> names;
+  for (unsigned i = 0, e = EnumTraits<EnumTy>::getMaxEnumVal(); i <= e; ++i)
+    names.push_back(EnumTraits<EnumTy>::stringify(static_cast<EnumTy>(i)));
+
+  int index = parseOptionalKeywordAlternative(parser, names);
+  if (index == -1)
+    return static_cast<RetTy>(defaultValue);
+  return static_cast<RetTy>(index);
 }
 
 //===----------------------------------------------------------------------===//
@@ -190,7 +239,7 @@ static LogicalResult verify(cir::CastOp castOp) {
 //===----------------------------------------------------------------------===//
 
 static mlir::LogicalResult checkReturnAndFunction(ReturnOp op,
-                                                  FuncOp function) {
+                                                  mlir::FuncOp function) {
   // ReturnOps currently only have a single optional operand.
   if (op.getNumOperands() > 1)
     return op.emitOpError() << "expects at most 1 return operand";
@@ -223,11 +272,11 @@ static mlir::LogicalResult verify(ReturnOp op) {
   // Returns can be present in multiple different scopes, get the
   // wrapping function and start from there.
   auto *fnOp = op->getParentOp();
-  while (!isa<FuncOp>(fnOp))
+  while (!isa<mlir::FuncOp>(fnOp))
     fnOp = fnOp->getParentOp();
 
   // Make sure return types match function return type.
-  if (checkReturnAndFunction(op, cast<FuncOp>(fnOp)).failed())
+  if (checkReturnAndFunction(op, cast<mlir::FuncOp>(fnOp)).failed())
     return failure();
 
   return success();
@@ -495,7 +544,7 @@ static LogicalResult verify(ScopeOp op) {
 
 static mlir::LogicalResult verify(YieldOp op) {
   auto isDominatedByLoopOrSwitch = [](Operation *parentOp) {
-    while (!llvm::isa<FuncOp>(parentOp)) {
+    while (!llvm::isa<mlir::FuncOp>(parentOp)) {
       if (llvm::isa<cir::SwitchOp, cir::LoopOp>(parentOp))
         return true;
       parentOp = parentOp->getParentOp();
@@ -504,7 +553,7 @@ static mlir::LogicalResult verify(YieldOp op) {
   };
 
   auto isDominatedByLoop = [](Operation *parentOp) {
-    while (!llvm::isa<FuncOp>(parentOp)) {
+    while (!llvm::isa<mlir::FuncOp>(parentOp)) {
       if (llvm::isa<cir::LoopOp>(parentOp))
         return true;
       parentOp = parentOp->getParentOp();
@@ -1013,15 +1062,15 @@ static LogicalResult verify(GlobalOp op) {
   }
 
   switch (op.linkage()) {
-  case mlir::cir::GlobalLinkageKind::InternalLinkage:
-  case mlir::cir::GlobalLinkageKind::PrivateLinkage:
+  case GlobalLinkageKind::InternalLinkage:
+  case GlobalLinkageKind::PrivateLinkage:
     if (op.isPublic())
       return op->emitError()
              << "public visibility not allowed with '"
              << stringifyGlobalLinkageKind(op.linkage()) << "' linkage";
     break;
-  case mlir::cir::GlobalLinkageKind::ExternalLinkage:
-  case mlir::cir::GlobalLinkageKind::ExternalWeakLinkage:
+  case GlobalLinkageKind::ExternalLinkage:
+  case GlobalLinkageKind::ExternalWeakLinkage:
     if (op.isPrivate())
       return op->emitError()
              << "private visibility not allowed with '"
@@ -1069,6 +1118,144 @@ GetGlobalOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
     return emitOpError("result type pointee type '")
            << resultType.getPointee() << "' does not match type "
            << global.sym_type() << " of the global @" << name();
+  return success();
+}
+
+//===----------------------------------------------------------------------===//
+// FuncOp
+//===----------------------------------------------------------------------===//
+
+/// Returns the name used for the linkage attribute. This *must* correspond to
+/// the name of the attribute in ODS.
+static StringRef getLinkageAttrName() { return "linkage"; }
+
+void cir::FuncOp::build(OpBuilder &builder, OperationState &result,
+                        StringRef name, FunctionType type,
+                        GlobalLinkageKind linkage,
+                        ArrayRef<NamedAttribute> attrs,
+                        ArrayRef<DictionaryAttr> argAttrs) {
+  result.addRegion();
+  result.addAttribute(SymbolTable::getSymbolAttrName(),
+                      builder.getStringAttr(name));
+  result.addAttribute(getTypeAttrName(), TypeAttr::get(type));
+  result.addAttribute(getLinkageAttrName(), GlobalLinkageKindAttr::get(
+                                                builder.getContext(), linkage));
+  result.attributes.append(attrs.begin(), attrs.end());
+  if (argAttrs.empty())
+    return;
+
+  function_interface_impl::addArgAndResultAttrs(builder, result, argAttrs,
+                                                /*resultAttrs=*/llvm::None);
+}
+
+static ParseResult parseCIRFuncOp(OpAsmParser &parser, OperationState &state) {
+  // Default to external linkage if no keyword is provided.
+  state.addAttribute(
+      getLinkageAttrName(),
+      GlobalLinkageKindAttr::get(
+          parser.getContext(),
+          parseOptionalCIRKeyword<GlobalLinkageKind>(
+              parser, state, GlobalLinkageKind::ExternalLinkage)));
+
+  StringAttr nameAttr;
+  SmallVector<OpAsmParser::OperandType, 8> entryArgs;
+  SmallVector<NamedAttrList, 1> argAttrs;
+  SmallVector<Optional<Location>, 1> argLocations;
+  SmallVector<NamedAttrList, 1> resultAttrs;
+  SmallVector<Type, 8> argTypes;
+  SmallVector<Type, 4> resultTypes;
+  auto &builder = parser.getBuilder();
+
+  // Parse the name as a symbol.
+  if (parser.parseSymbolName(nameAttr, SymbolTable::getSymbolAttrName(),
+                             state.attributes))
+    return failure();
+
+  // Parse the function signature.
+  bool isVariadic = false;
+  if (function_interface_impl::parseFunctionSignature(
+          parser, /*allowVariadic=*/false, entryArgs, argTypes, argAttrs,
+          argLocations, isVariadic, resultTypes, resultAttrs))
+    return failure();
+
+  auto fnType = builder.getFunctionType(argTypes, resultTypes);
+  state.addAttribute(function_interface_impl::getTypeAttrName(),
+                     TypeAttr::get(fnType));
+
+  // If additional attributes are present, parse them.
+  if (parser.parseOptionalAttrDictWithKeyword(state.attributes))
+    return failure();
+
+  // Add the attributes to the function arguments.
+  assert(argAttrs.size() == argTypes.size());
+  assert(resultAttrs.size() == resultTypes.size());
+  function_interface_impl::addArgAndResultAttrs(builder, state, argAttrs,
+                                                resultAttrs);
+
+  // Parse the optional function body.
+  auto *body = state.addRegion();
+  OptionalParseResult result = parser.parseOptionalRegion(
+      *body, entryArgs, entryArgs.empty() ? ArrayRef<Type>() : argTypes);
+  return failure(result.hasValue() && failed(*result));
+}
+
+static void print(cir::FuncOp op, OpAsmPrinter &p) {
+  p << ' ';
+  if (op.linkage() != GlobalLinkageKind::ExternalLinkage)
+    p << stringifyGlobalLinkageKind(op.linkage()) << ' ';
+
+  // Print function name, signature, and control.
+  p.printSymbolName(op.sym_name());
+  auto fnType = op.getType();
+  function_interface_impl::printFunctionSignature(p, op, fnType.getInputs(),
+                                                  /*isVariadic=*/false,
+                                                  fnType.getResults());
+  function_interface_impl::printFunctionAttributes(p, op, fnType.getNumInputs(),
+                                                   fnType.getNumResults(), {});
+
+  // Print the body if this is not an external function.
+  Region &body = op.body();
+  if (!body.empty())
+    p.printRegion(body, /*printEntryBlockArgs=*/false,
+                  /*printBlockTerminators=*/true);
+}
+
+// Hook for OpTrait::FunctionLike, called after verifying that the 'type'
+// attribute is present.  This can check for preconditions of the
+// getNumArguments hook not failing.
+LogicalResult cir::FuncOp::verifyType() {
+  auto type = getTypeAttr().getValue();
+  if (!type.isa<FunctionType>())
+    return emitOpError("requires '" + getTypeAttrName() +
+                       "' attribute of function type");
+  if (getType().getNumResults() > 1)
+    return emitOpError("cannot have more than one result");
+  return success();
+}
+
+// Verifies linkage types, similar to LLVM:
+// - functions don't have 'common' linkage
+// - external functions have 'external' or 'extern_weak' linkage
+static LogicalResult verify(cir::FuncOp op) {
+  if (op.linkage() == cir::GlobalLinkageKind::CommonLinkage)
+    return op.emitOpError()
+           << "functions cannot have '"
+           << stringifyGlobalLinkageKind(cir::GlobalLinkageKind::CommonLinkage)
+           << "' linkage";
+
+  if (op.isExternal()) {
+    if (op.linkage() != cir::GlobalLinkageKind::ExternalLinkage &&
+        op.linkage() != cir::GlobalLinkageKind::ExternalWeakLinkage)
+      return op.emitOpError()
+             << "external functions must have '"
+             << stringifyGlobalLinkageKind(
+                    cir::GlobalLinkageKind::ExternalLinkage)
+             << "' or '"
+             << stringifyGlobalLinkageKind(
+                    cir::GlobalLinkageKind::ExternalWeakLinkage)
+             << "' linkage";
+    return success();
+  }
   return success();
 }
 
