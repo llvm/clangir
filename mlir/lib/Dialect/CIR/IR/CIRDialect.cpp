@@ -239,7 +239,7 @@ static LogicalResult verify(cir::CastOp castOp) {
 //===----------------------------------------------------------------------===//
 
 static mlir::LogicalResult checkReturnAndFunction(ReturnOp op,
-                                                  mlir::FuncOp function) {
+                                                  cir::FuncOp function) {
   // ReturnOps currently only have a single optional operand.
   if (op.getNumOperands() > 1)
     return op.emitOpError() << "expects at most 1 return operand";
@@ -272,11 +272,11 @@ static mlir::LogicalResult verify(ReturnOp op) {
   // Returns can be present in multiple different scopes, get the
   // wrapping function and start from there.
   auto *fnOp = op->getParentOp();
-  while (!isa<mlir::FuncOp>(fnOp))
+  while (!isa<cir::FuncOp>(fnOp))
     fnOp = fnOp->getParentOp();
 
   // Make sure return types match function return type.
-  if (checkReturnAndFunction(op, cast<mlir::FuncOp>(fnOp)).failed())
+  if (checkReturnAndFunction(op, cast<cir::FuncOp>(fnOp)).failed())
     return failure();
 
   return success();
@@ -540,7 +540,7 @@ static LogicalResult verify(ScopeOp op) { return success(); }
 
 static mlir::LogicalResult verify(YieldOp op) {
   auto isDominatedByLoopOrSwitch = [](Operation *parentOp) {
-    while (!llvm::isa<mlir::FuncOp>(parentOp)) {
+    while (!llvm::isa<cir::FuncOp>(parentOp)) {
       if (llvm::isa<cir::SwitchOp, cir::LoopOp>(parentOp))
         return true;
       parentOp = parentOp->getParentOp();
@@ -549,7 +549,7 @@ static mlir::LogicalResult verify(YieldOp op) {
   };
 
   auto isDominatedByLoop = [](Operation *parentOp) {
-    while (!llvm::isa<mlir::FuncOp>(parentOp)) {
+    while (!llvm::isa<cir::FuncOp>(parentOp)) {
       if (llvm::isa<cir::LoopOp>(parentOp))
         return true;
       parentOp = parentOp->getParentOp();
@@ -1158,9 +1158,19 @@ static ParseResult parseCIRFuncOp(OpAsmParser &parser, OperationState &state) {
 
   // Parse the optional function body.
   auto *body = state.addRegion();
-  OptionalParseResult result = parser.parseOptionalRegion(
-      *body, entryArgs, entryArgs.empty() ? ArrayRef<Type>() : argTypes);
-  return failure(result.hasValue() && failed(*result));
+  llvm::SMLoc loc = parser.getCurrentLocation();
+  OptionalParseResult parseResult = parser.parseOptionalRegion(
+      *body, entryArgs, entryArgs.empty() ? ArrayRef<Type>() : argTypes,
+      entryArgs.empty() ? ArrayRef<Location>() : argLocations,
+      /*enableNameShadowing=*/false);
+  if (parseResult.hasValue()) {
+    if (failed(*parseResult))
+      return failure();
+    // Function body was parsed, make sure its not empty.
+    if (body->empty())
+      return parser.emitError(loc, "expected non-empty function body");
+  }
+  return success();
 }
 
 static void print(cir::FuncOp op, OpAsmPrinter &p) {
@@ -1174,14 +1184,16 @@ static void print(cir::FuncOp op, OpAsmPrinter &p) {
   function_interface_impl::printFunctionSignature(p, op, fnType.getInputs(),
                                                   /*isVariadic=*/false,
                                                   fnType.getResults());
-  function_interface_impl::printFunctionAttributes(p, op, fnType.getNumInputs(),
-                                                   fnType.getNumResults(), {});
+  function_interface_impl::printFunctionAttributes(
+      p, op, fnType.getNumInputs(), fnType.getNumResults(), {"linkage"});
 
   // Print the body if this is not an external function.
-  Region &body = op.body();
-  if (!body.empty())
+  Region &body = op->getRegion(0);
+  if (!body.empty()) {
+    p << ' ';
     p.printRegion(body, /*printEntryBlockArgs=*/false,
                   /*printBlockTerminators=*/true);
+  }
 }
 
 // Hook for OpTrait::FunctionLike, called after verifying that the 'type'

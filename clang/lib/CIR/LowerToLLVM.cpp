@@ -25,6 +25,8 @@
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/SCF.h"
+#include "mlir/IR/BlockAndValueMapping.h"
+#include "mlir/IR/BuiltinDialect.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
@@ -62,6 +64,21 @@ struct ConvertCIRToMemRefPass
 
   virtual StringRef getArgument() const override { return "cir-to-memref"; }
 };
+
+struct ConvertCIRToFuncPass
+    : public mlir::PassWrapper<ConvertCIRToFuncPass,
+                               mlir::OperationPass<mlir::ModuleOp>> {
+  void getDependentDialects(mlir::DialectRegistry &registry) const override {
+    // FIXME: after we rebase to more recent changes, this should be
+    // mlir::FuncDialect instead.
+    registry.insert<mlir::BuiltinDialect, mlir::StandardOpsDialect,
+                    mlir::cir::CIRDialect>();
+  }
+  void runOnOperation() final;
+
+  virtual StringRef getArgument() const override { return "cir-to-func"; }
+};
+
 } // end anonymous namespace
 
 class CIRReturnLowering : public mlir::OpRewritePattern<mlir::cir::ReturnOp> {
@@ -73,6 +90,20 @@ public:
                   mlir::PatternRewriter &rewriter) const override {
     rewriter.replaceOpWithNewOp<mlir::func::ReturnOp>(op, op->getResultTypes(),
                                                       op->getOperands());
+    return mlir::LogicalResult::success();
+  }
+};
+
+class CIRCallLowering : public mlir::OpRewritePattern<mlir::cir::CallOp> {
+public:
+  using OpRewritePattern<mlir::cir::CallOp>::OpRewritePattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::CallOp op,
+                  mlir::PatternRewriter &rewriter) const override {
+    rewriter.replaceOpWithNewOp<mlir::CallOp>(op, mlir::SymbolRefAttr::get(op),
+                                              op.getResultTypes(),
+                                              op.getArgOperands());
     return mlir::LogicalResult::success();
   }
 };
@@ -134,9 +165,27 @@ public:
   }
 };
 
+class CIRFuncLowering : public mlir::OpRewritePattern<mlir::cir::FuncOp> {
+public:
+  using OpRewritePattern<mlir::cir::FuncOp>::OpRewritePattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::FuncOp op,
+                  mlir::PatternRewriter &rewriter) const override {
+    auto fn = rewriter.replaceOpWithNewOp<mlir::FuncOp>(op, op.getName(),
+                                                        op.getType());
+    auto &srcRegion = op.body();
+    auto &dstRegion = fn.body();
+
+    mlir::BlockAndValueMapping mapper;
+    srcRegion.cloneInto(&dstRegion, mapper);
+    return mlir::LogicalResult::success();
+  }
+};
+
 void populateCIRToMemRefConversionPatterns(mlir::RewritePatternSet &patterns) {
   patterns.add<CIRAllocaLowering, CIRLoadLowering, CIRStoreLowering,
-               CIRConstantLowering, CIRReturnLowering>(patterns.getContext());
+               CIRConstantLowering>(patterns.getContext());
 }
 
 void ConvertCIRToLLVMPass::runOnOperation() {
@@ -164,7 +213,7 @@ void ConvertCIRToMemRefPass::runOnOperation() {
   // TODO: Should this be a wholesale conversion? It's a bit ambiguous on
   // whether we should have micro-conversions that do the minimal amount of work
   // or macro conversions that entiirely remove a dialect.
-  target.addLegalOp<mlir::ModuleOp, mlir::FuncOp>();
+  target.addLegalOp<mlir::ModuleOp>();
   target
       .addLegalDialect<mlir::AffineDialect, mlir::arith::ArithmeticDialect,
                        mlir::memref::MemRefDialect, mlir::func::FuncDialect>();
@@ -179,18 +228,57 @@ void ConvertCIRToMemRefPass::runOnOperation() {
     signalPassFailure();
 }
 
+void ConvertCIRToFuncPass::runOnOperation() {
+  // End goal here is to legalize to mlir::FuncOp (builtin dialect) and
+  // mlir::ReturnOp (standard dialect). This is done in two steps, becase
+  // cir.return is a cir.func child it will be ignored in the first conversion.
+  //
+  // TODO: is there a better way to handle this? If such handling is decoupled
+  // from the same pass the verifier won't accept the mix between mlir::FuncOp
+  // and mlir::cir::ReturnOp.
+
+  // Convert cir.func to builtin.func
+  mlir::ConversionTarget fnTarget(getContext());
+  fnTarget.addLegalOp<mlir::ModuleOp, mlir::FuncOp>();
+  fnTarget.addIllegalOp<mlir::cir::FuncOp>();
+
+  mlir::RewritePatternSet fnPatterns(&getContext());
+  fnPatterns.add<CIRFuncLowering>(fnPatterns.getContext());
+
+  auto module = getOperation();
+  if (failed(applyPartialConversion(module, fnTarget, std::move(fnPatterns))))
+    signalPassFailure();
+
+  // Convert cir.return to std.return, cir.call to std.call
+  mlir::ConversionTarget retTarget(getContext());
+  retTarget.addLegalOp<mlir::ModuleOp, mlir::ReturnOp, mlir::CallOp>();
+  retTarget.addIllegalOp<mlir::cir::ReturnOp, mlir::cir::CallOp>();
+
+  mlir::RewritePatternSet retPatterns(&getContext());
+  retPatterns.add<CIRReturnLowering, CIRCallLowering>(retPatterns.getContext());
+
+  if (failed(applyPartialConversion(module, retTarget, std::move(retPatterns))))
+    signalPassFailure();
+}
+
 std::unique_ptr<llvm::Module>
 lowerFromCIRToLLVMIR(mlir::ModuleOp theModule,
                      std::unique_ptr<mlir::MLIRContext> mlirCtx,
                      LLVMContext &llvmCtx) {
   mlir::PassManager pm(mlirCtx.get());
 
+  pm.addPass(createConvertCIRToFuncPass());
   pm.addPass(createConvertCIRToMemRefPass());
   pm.addPass(createConvertCIRToLLVMPass());
 
   auto result = !mlir::failed(pm.run(theModule));
   if (!result)
-    report_fatal_error("The pass manager failed to lower CIR to llvm IR!");
+    report_fatal_error(
+        "The pass manager failed to lower CIR to LLVMIR dialect!");
+
+  // Now that we ran all the lowering passes, verify the final output.
+  if (theModule.verify().failed())
+    report_fatal_error("Verification of the final LLVMIR dialect failed!");
 
   mlir::registerLLVMDialectTranslation(*mlirCtx);
 
@@ -198,7 +286,7 @@ lowerFromCIRToLLVMIR(mlir::ModuleOp theModule,
   auto llvmModule = mlir::translateModuleToLLVMIR(theModule, llvmCtx);
 
   if (!llvmModule)
-    report_fatal_error("Lowering from llvm dialect to llvm IR failed!");
+    report_fatal_error("Lowering from LLVMIR dialect to llvm IR failed!");
 
   return llvmModule;
 }
@@ -209,6 +297,10 @@ std::unique_ptr<mlir::Pass> createConvertCIRToLLVMPass() {
 
 std::unique_ptr<mlir::Pass> createConvertCIRToMemRefPass() {
   return std::make_unique<ConvertCIRToMemRefPass>();
+}
+
+std::unique_ptr<mlir::Pass> createConvertCIRToFuncPass() {
+  return std::make_unique<ConvertCIRToFuncPass>();
 }
 
 } // namespace cir

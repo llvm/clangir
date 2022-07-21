@@ -21,6 +21,7 @@
 
 #include "llvm/ADT/SmallVector.h"
 
+#include "mlir/Dialect/CIR/IR/CIRDialect.h"
 #include "mlir/IR/BuiltinOps.h"
 
 namespace cir {
@@ -83,7 +84,8 @@ public:
 
   // Construct a callee. Call this constructor directly when this isn't a direct
   // call.
-  CIRGenCallee(const CIRGenCalleeInfo &abstractInfo, mlir::FuncOp functionPtr)
+  CIRGenCallee(const CIRGenCalleeInfo &abstractInfo,
+               mlir::cir::FuncOp functionPtr)
       : KindOrFunctionPointer(SpecialKind(
             reinterpret_cast<uintptr_t>(functionPtr.getAsOpaquePointer()))) {
     AbstractInfo = abstractInfo;
@@ -94,7 +96,7 @@ public:
   }
 
   static CIRGenCallee
-  forDirect(mlir::FuncOp functionPtr,
+  forDirect(mlir::cir::FuncOp functionPtr,
             const CIRGenCalleeInfo &abstractInfo = CIRGenCalleeInfo()) {
     return CIRGenCallee(abstractInfo, functionPtr);
   }
@@ -115,9 +117,9 @@ public:
   /// callee
   CIRGenCallee prepareConcreteCallee(CIRGenFunction &CGF) const;
 
-  mlir::FuncOp getFunctionPointer() const {
+  mlir::cir::FuncOp getFunctionPointer() const {
     assert(isOrdinary());
-    return mlir::FuncOp::getFromOpaquePointer(
+    return mlir::cir::FuncOp::getFromOpaquePointer(
         reinterpret_cast<void *>(KindOrFunctionPointer));
   }
 
