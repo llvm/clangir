@@ -1,3 +1,4 @@
+#include "../ClangTidyDiagnosticConsumer.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/CIR/CIRGenerator.h"
 #include "clang/Frontend/CompilerInstance.h"
@@ -5,7 +6,8 @@
 namespace clang {
 class CIRASTConsumer : public ASTConsumer {
 public:
-  CIRASTConsumer(CompilerInstance &CI, StringRef inputFile);
+  CIRASTConsumer(CompilerInstance &CI, StringRef inputFile,
+                 clang::tidy::ClangTidyContext &Context);
 
 private:
   void Initialize(ASTContext &Context) override;
@@ -13,5 +15,6 @@ private:
   bool HandleTopLevelDecl(DeclGroupRef D) override;
   std::unique_ptr<cir::CIRGenerator> Gen;
   ASTContext *AstContext{nullptr};
+  clang::tidy::ClangTidyContext &Context;
 };
 } // namespace clang

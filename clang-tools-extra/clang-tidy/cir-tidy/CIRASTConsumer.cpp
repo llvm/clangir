@@ -1,14 +1,22 @@
 #include "CIRASTConsumer.h"
+#include "../utils/OptionsUtils.h"
 #include "mlir/Dialect/CIR/Passes.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Pass/PassManager.h"
+#include <algorithm>
 
 using namespace cir;
 
+namespace {
+const std::string lifeTimeCheck = "cir-lifetime-check";
+} // namespace
+
 namespace clang {
 
-CIRASTConsumer::CIRASTConsumer(CompilerInstance &CI, StringRef inputFile) {
+CIRASTConsumer::CIRASTConsumer(CompilerInstance &CI, StringRef inputFile,
+                               clang::tidy::ClangTidyContext &Context)
+    : Context(Context) {
   Gen =
       std::make_unique<CIRGenerator>(CI.getDiagnostics(), CI.getCodeGenOpts());
 }
@@ -47,10 +55,35 @@ void CIRASTConsumer::HandleTranslationUnit(ASTContext &C) {
   sourceMgr.AddNewSourceBuffer(std::move(FileBuf), llvm::SMLoc());
 
   mlir::SourceMgrDiagnosticHandler sourceMgrHandler(sourceMgr, mlirCtx.get());
-
   mlir::PassManager pm(mlirCtx.get());
   pm.addPass(mlir::createMergeCleanupsPass());
-  pm.addPass(mlir::createLifetimeCheckPass());
+
+  clang::tidy::ClangTidyOptions Opts = Context.getOptions();
+
+  // Check if "cir-lifetime-check" is enabled. If yes, extract the argument.
+  std::vector<std::string> RemarksOpts = {};
+  std::vector<std::string> HistoryOpts = {};
+
+  for (const auto &Opt : Opts.CheckOptions) {
+    StringRef OptName(Opt.getKey());
+    if (!OptName.consume_front(lifeTimeCheck))
+      continue;
+    if (OptName == ".RemarksList") {
+      RemarksOpts = tidy::utils::options::parseStringList(Opt.getValue().Value);
+    } else if (OptName == ".HistoryList") {
+      HistoryOpts = tidy::utils::options::parseStringList(Opt.getValue().Value);
+    } else {
+      assert(0 && "unrecognized argument of lifetime check detected");
+    }
+  }
+
+  llvm::SmallVector<llvm::StringRef> Remarks = {};
+  llvm::SmallVector<llvm::StringRef> History = {};
+  Remarks.append(RemarksOpts.begin(), RemarksOpts.end());
+  History.append(HistoryOpts.begin(), HistoryOpts.end());
+
+  if (Context.isCheckEnabled(lifeTimeCheck))
+    pm.addPass(mlir::createLifetimeCheckPass(Remarks, History));
 
   bool Result = !mlir::failed(pm.run(mlirMod));
   if (!Result)

@@ -29,7 +29,7 @@ using namespace clang::tooling;
 using namespace clang::tidy;
 using namespace llvm;
 
-static cl::OptionCategory ClangTidyCategory("clang-tidy options");
+static cl::OptionCategory ClangTidyCategory("cir-tidy options");
 
 static cl::extrahelp CommonHelp(CommonOptionsParser::HelpMessage);
 static cl::extrahelp ClangTidyHelp(R"(
@@ -258,6 +258,14 @@ This option overrides the 'UseColor' option in
 namespace cir {
 namespace tidy {
 
+std::vector<std::string> getCIRCheckNames(const ClangTidyOptions &Options) {
+  clang::tidy::ClangTidyContext Context(
+      std::make_unique<DefaultOptionsProvider>(ClangTidyGlobalOptions(),
+                                               Options));
+  CIRTidyASTConsumerFactory Factory(Context);
+  return Factory.getCheckNames();
+}
+
 static std::unique_ptr<ClangTidyOptionsProvider>
 createOptionsProvider(llvm::IntrusiveRefCntPtr<vfs::FileSystem> FS) {
   ClangTidyGlobalOptions GlobalOptions;
@@ -403,8 +411,7 @@ int CIRTidyMain(int argc, const char **argv) {
   SmallString<256> FilePath = MakeAbsolute(std::string(FileName));
 
   ClangTidyOptions EffectiveOptions = OptionsProvider->getOptions(FilePath);
-  std::vector<std::string> EnabledChecks =
-      getCheckNames(EffectiveOptions, AllowEnablingAnalyzerAlphaCheckers);
+  std::vector<std::string> EnabledChecks = getCIRCheckNames(EffectiveOptions);
 
   if (ExplainConfig) {
     // FIXME: Show other ClangTidyOptions' fields, like ExtraArg.

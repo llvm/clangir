@@ -16,6 +16,7 @@
 
 #include "CIRTidy.h"
 #include "CIRASTConsumer.h"
+#include "ClangTidyModuleRegistry.h"
 #include "ClangTidyProfiling.h"
 #include "clang-tidy-config.h"
 #include "clang/Lex/PreprocessorOptions.h"
@@ -34,7 +35,18 @@ CIRTidyASTConsumerFactory::CIRTidyASTConsumerFactory(
 std::unique_ptr<clang::ASTConsumer>
 CIRTidyASTConsumerFactory::createASTConsumer(clang::CompilerInstance &Compiler,
                                              StringRef File) {
-  return std::make_unique<CIRASTConsumer>(Compiler, File);
+  return std::make_unique<CIRASTConsumer>(Compiler, File, Context);
+}
+
+std::vector<std::string> CIRTidyASTConsumerFactory::getCheckNames() {
+  std::vector<std::string> CheckNames;
+  for (const auto &CIRCheckName : this->CIRChecks) {
+    if (Context.isCheckEnabled(CIRCheckName))
+      CheckNames.emplace_back(CIRCheckName);
+  }
+
+  llvm::sort(CheckNames);
+  return CheckNames;
 }
 
 std::vector<ClangTidyError>

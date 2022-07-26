@@ -10,6 +10,7 @@
 #define LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_CIRTIDY_H
 
 #include "ClangTidyDiagnosticConsumer.h"
+#include "ClangTidyModule.h"
 #include "clang/AST/ASTConsumer.h"
 #include <vector>
 
@@ -25,9 +26,13 @@ public:
   std::unique_ptr<clang::ASTConsumer>
   createASTConsumer(clang::CompilerInstance &Compiler, StringRef File);
 
+  /// Get the list of enabled checks.
+  std::vector<std::string> getCheckNames();
+
 private:
   ClangTidyContext &Context;
   IntrusiveRefCntPtr<llvm::vfs::OverlayFileSystem> OverlayFS;
+  const std::vector<llvm::StringRef> CIRChecks = {"cir-lifetime-check"};
 };
 
 std::vector<ClangTidyError>
