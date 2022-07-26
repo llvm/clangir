@@ -18,6 +18,9 @@
 namespace mlir {
 
 std::unique_ptr<Pass> createLifetimeCheckPass();
+std::unique_ptr<Pass>
+createLifetimeCheckPass(llvm::SmallVector<llvm::StringRef> &Remarks,
+                        llvm::SmallVector<llvm::StringRef> &History);
 std::unique_ptr<Pass> createMergeCleanupsPass();
 
 //===----------------------------------------------------------------------===//

@@ -20,6 +20,10 @@ using namespace cir;
 namespace {
 struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
   LifetimeCheckPass() = default;
+  LifetimeCheckPass(llvm::SmallVector<llvm::StringRef> &Remarks,
+                    llvm::SmallVector<llvm::StringRef> &History) {
+    opts.parseOptions(Remarks, History);
+  }
   void runOnOperation() override;
 
   void checkOperation(Operation *op);
@@ -49,22 +53,29 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
       HistoryAll = 1 << 5,
     };
     unsigned val = None;
+    bool isOptionsParsed = false;
 
-    void parseOptions(LifetimeCheckPass &pass) {
-      for (auto &remark : pass.remarksList) {
+    template <typename T>
+    void parseOptions(T const &RemarksList, T const &HistoryList) {
+      if (isOptionsParsed)
+        return;
+
+      for (auto &remark : RemarksList) {
         val |= StringSwitch<unsigned>(remark)
                    .Case("pset-invalid", RemarkPsetInvalid)
                    .Case("pset-always", RemarkPsetAlways)
                    .Case("all", RemarkAll)
                    .Default(None);
       }
-      for (auto &h : pass.historyList) {
+      for (auto &h : HistoryList) {
         val |= StringSwitch<unsigned>(h)
                    .Case("invalid", HistoryInvalid)
                    .Case("null", HistoryNull)
                    .Case("all", HistoryAll)
                    .Default(None);
       }
+
+      isOptionsParsed = true;
     }
 
     bool emitRemarkAll() { return val & RemarkAll; }
@@ -720,13 +731,19 @@ void LifetimeCheckPass::checkOperation(Operation *op) {
 }
 
 void LifetimeCheckPass::runOnOperation() {
-  opts.parseOptions(*this);
+  opts.parseOptions(this->remarksList, this->historyList);
   Operation *op = getOperation();
   checkOperation(op);
 }
 
 std::unique_ptr<Pass> mlir::createLifetimeCheckPass() {
   return std::make_unique<LifetimeCheckPass>();
+}
+
+std::unique_ptr<Pass>
+mlir::createLifetimeCheckPass(llvm::SmallVector<llvm::StringRef> &Remarks,
+                              llvm::SmallVector<llvm::StringRef> &History) {
+  return std::make_unique<LifetimeCheckPass>(Remarks, History);
 }
 
 //===----------------------------------------------------------------------===//
