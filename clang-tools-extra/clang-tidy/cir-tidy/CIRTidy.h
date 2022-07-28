@@ -14,7 +14,10 @@
 #include "clang/AST/ASTConsumer.h"
 #include <vector>
 
-namespace clang {
+using namespace clang;
+using namespace clang::tidy;
+
+namespace cir {
 namespace tidy {
 
 class CIRTidyASTConsumerFactory {
@@ -44,6 +47,6 @@ runCIRTidy(clang::tidy::ClangTidyContext &Context,
            llvm::StringRef StoreCheckProfile = StringRef());
 
 } // end namespace tidy
-} // end namespace clang
+} // end namespace cir
 
 #endif // LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_CIRTIDY_H

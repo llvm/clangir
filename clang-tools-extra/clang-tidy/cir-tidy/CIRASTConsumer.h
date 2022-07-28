@@ -3,7 +3,10 @@
 #include "clang/CIR/CIRGenerator.h"
 #include "clang/Frontend/CompilerInstance.h"
 
-namespace clang {
+using namespace clang;
+
+namespace cir {
+namespace tidy {
 class CIRASTConsumer : public ASTConsumer {
 public:
   CIRASTConsumer(CompilerInstance &CI, StringRef inputFile,
@@ -13,8 +16,9 @@ private:
   void Initialize(ASTContext &Context) override;
   void HandleTranslationUnit(ASTContext &C) override;
   bool HandleTopLevelDecl(DeclGroupRef D) override;
-  std::unique_ptr<cir::CIRGenerator> Gen;
+  std::unique_ptr<CIRGenerator> Gen;
   ASTContext *AstContext{nullptr};
   clang::tidy::ClangTidyContext &Context;
 };
-} // namespace clang
+} // namespace tidy
+} // namespace cir

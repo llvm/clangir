@@ -29,12 +29,12 @@ using namespace clang::tooling;
 using namespace clang::tidy;
 using namespace llvm;
 
-static cl::OptionCategory ClangTidyCategory("cir-tidy options");
+static cl::OptionCategory CIRTidyCategory("cir-tidy options");
 
 static cl::extrahelp CommonHelp(CommonOptionsParser::HelpMessage);
-static cl::extrahelp ClangTidyHelp(R"(
+static cl::extrahelp CIRTidyHelp(R"(
 Configuration files:
-  clang-tidy attempts to read configuration for each source file from a
+  cir-tidy attempts to read configuration for each source file from a
   .clang-tidy file located in the closest parent directory of the source
   file. If InheritParentConfig is true in a config file, the configuration file
   in the parent directory (if any exists) will be taken and current config file
@@ -42,7 +42,7 @@ Configuration files:
   a corresponding command-line option, command-line option takes precedence.
   The effective configuration can be inspected using -dump-config:
 
-    $ clang-tidy -dump-config
+    $ cir-tidy -dump-config
     ---
     Checks:              '-*,some-check'
     WarningsAsErrors:    ''
@@ -72,7 +72,7 @@ checks. This option's value is appended to the
 value of the 'Checks' option in .clang-tidy
 file, if any.
 )"),
-                                   cl::init(""), cl::cat(ClangTidyCategory));
+                                   cl::init(""), cl::cat(CIRTidyCategory));
 
 static cl::opt<std::string> WarningsAsErrors("warnings-as-errors", cl::desc(R"(
 Upgrades warnings to errors. Same format as
@@ -82,7 +82,7 @@ the 'WarningsAsErrors' option in .clang-tidy
 file, if any.
 )"),
                                              cl::init(""),
-                                             cl::cat(ClangTidyCategory));
+                                             cl::cat(CIRTidyCategory));
 
 static cl::opt<std::string> HeaderFilter("header-filter", cl::desc(R"(
 Regular expression matching the names of the
@@ -94,12 +94,12 @@ This option overrides the 'HeaderFilterRegex'
 option in .clang-tidy file, if any.
 )"),
                                          cl::init(""),
-                                         cl::cat(ClangTidyCategory));
+                                         cl::cat(CIRTidyCategory));
 
 static cl::opt<bool>
     SystemHeaders("system-headers",
                   cl::desc("Display the errors from system headers."),
-                  cl::init(false), cl::cat(ClangTidyCategory));
+                  cl::init(false), cl::cat(CIRTidyCategory));
 static cl::opt<std::string> LineFilter("line-filter", cl::desc(R"(
 List of files with line ranges to filter the
 warnings. Can be used together with
@@ -110,23 +110,22 @@ JSON array of objects:
     {"name":"file2.h"}
   ]
 )"),
-                                       cl::init(""),
-                                       cl::cat(ClangTidyCategory));
+                                       cl::init(""), cl::cat(CIRTidyCategory));
 
 static cl::opt<bool> Fix("fix", cl::desc(R"(
 Apply suggested fixes. Without -fix-errors
-clang-tidy will bail out if any compilation
+cir-tidy will bail out if any compilation
 errors were found.
 )"),
-                         cl::init(false), cl::cat(ClangTidyCategory));
+                         cl::init(false), cl::cat(CIRTidyCategory));
 
 static cl::opt<bool> FixErrors("fix-errors", cl::desc(R"(
 Apply suggested fixes even if compilation
 errors were found. If compiler errors have
-attached fix-its, clang-tidy will apply them as
+attached fix-its, cir-tidy will apply them as
 well.
 )"),
-                               cl::init(false), cl::cat(ClangTidyCategory));
+                               cl::init(false), cl::cat(CIRTidyCategory));
 
 static cl::opt<bool> FixNotes("fix-notes", cl::desc(R"(
 If a warning has no fix, but a single fix can
@@ -135,7 +134,7 @@ apply the fix.
 Specifying this flag will implicitly enable the
 '--fix' flag.
 )"),
-                              cl::init(false), cl::cat(ClangTidyCategory));
+                              cl::init(false), cl::cat(CIRTidyCategory));
 
 static cl::opt<std::string> FormatStyle("format-style", cl::desc(R"(
 Style for formatting code around applied fixes:
@@ -152,31 +151,31 @@ This option overrides the 'FormatStyle` option in
 .clang-tidy file, if any.
 )"),
                                         cl::init("none"),
-                                        cl::cat(ClangTidyCategory));
+                                        cl::cat(CIRTidyCategory));
 
 static cl::opt<bool> ListChecks("list-checks", cl::desc(R"(
 List all enabled checks and exit. Use with
 -checks=* to list all available checks.
 )"),
-                                cl::init(false), cl::cat(ClangTidyCategory));
+                                cl::init(false), cl::cat(CIRTidyCategory));
 
 static cl::opt<bool> ExplainConfig("explain-config", cl::desc(R"(
 For each enabled check explains, where it is
-enabled, i.e. in clang-tidy binary, command
+enabled, i.e. in cir-tidy binary, command
 line or a specific configuration file.
 )"),
-                                   cl::init(false), cl::cat(ClangTidyCategory));
+                                   cl::init(false), cl::cat(CIRTidyCategory));
 
 static cl::opt<std::string> Config("config", cl::desc(R"(
 Specifies a configuration in YAML/JSON format:
   -config="{Checks: '*',
             CheckOptions: [{key: x,
                             value: y}]}"
-When the value is empty, clang-tidy will
+When the value is empty, cir-tidy will
 attempt to find a file named .clang-tidy for
 each source file in its parent directories.
 )"),
-                                   cl::init(""), cl::cat(ClangTidyCategory));
+                                   cl::init(""), cl::cat(CIRTidyCategory));
 
 static cl::opt<std::string> ConfigFile("config-file", cl::desc(R"(
 Specify the path of .clang-tidy or custom config file:
@@ -185,8 +184,7 @@ This option internally works exactly the same way as
  --config option after reading specified config file.
 Use either --config-file or --config, not both.
 )"),
-                                       cl::init(""),
-                                       cl::cat(ClangTidyCategory));
+                                       cl::init(""), cl::cat(CIRTidyCategory));
 
 static cl::opt<bool> DumpConfig("dump-config", cl::desc(R"(
 Dumps configuration in the YAML format to
@@ -198,14 +196,14 @@ printed.
 Use along with -checks=* to include
 configuration of all checks.
 )"),
-                                cl::init(false), cl::cat(ClangTidyCategory));
+                                cl::init(false), cl::cat(CIRTidyCategory));
 
 static cl::opt<bool> EnableCheckProfile("enable-check-profile", cl::desc(R"(
 Enable per-check timing profiles, and print a
 report to stderr.
 )"),
                                         cl::init(false),
-                                        cl::cat(ClangTidyCategory));
+                                        cl::cat(CIRTidyCategory));
 
 static cl::opt<std::string> StoreCheckProfile("store-check-profile",
                                               cl::desc(R"(
@@ -214,7 +212,7 @@ format to stderr. When this option is passed,
 these per-TU profiles are instead stored as JSON.
 )"),
                                               cl::value_desc("prefix"),
-                                              cl::cat(ClangTidyCategory));
+                                              cl::cat(CIRTidyCategory));
 
 /// This option allows enabling the experimental alpha checkers from the static
 /// analyzer. This option is set to false and not visible in help, because it is
@@ -222,30 +220,30 @@ these per-TU profiles are instead stored as JSON.
 static cl::opt<bool>
     AllowEnablingAnalyzerAlphaCheckers("allow-enabling-analyzer-alpha-checkers",
                                        cl::init(false), cl::Hidden,
-                                       cl::cat(ClangTidyCategory));
+                                       cl::cat(CIRTidyCategory));
 
 static cl::opt<std::string> ExportFixes("export-fixes", cl::desc(R"(
 YAML file to store suggested fixes in. The
 stored fixes can be applied to the input source
-code with clang-apply-replacements.
+code with cir-apply-replacements.
 )"),
                                         cl::value_desc("filename"),
-                                        cl::cat(ClangTidyCategory));
+                                        cl::cat(CIRTidyCategory));
 
 static cl::opt<bool> Quiet("quiet", cl::desc(R"(
-Run clang-tidy in quiet mode. This suppresses
+Run cir-tidy in quiet mode. This suppresses
 printing statistics about ignored warnings and
 warnings treated as errors if the respective
 options are specified.
 )"),
-                           cl::init(false), cl::cat(ClangTidyCategory));
+                           cl::init(false), cl::cat(CIRTidyCategory));
 
 static cl::opt<std::string> VfsOverlay("vfsoverlay", cl::desc(R"(
 Overlay the virtual filesystem described by file
 over the real file system.
 )"),
                                        cl::value_desc("filename"),
-                                       cl::cat(ClangTidyCategory));
+                                       cl::cat(CIRTidyCategory));
 
 static cl::opt<bool> UseColor("use-color", cl::desc(R"(
 Use colors in diagnostics. If not set, colors
@@ -254,7 +252,7 @@ standard output supports colors.
 This option overrides the 'UseColor' option in
 .clang-tidy file, if any.
 )"),
-                              cl::init(false), cl::cat(ClangTidyCategory));
+                              cl::init(false), cl::cat(CIRTidyCategory));
 namespace cir {
 namespace tidy {
 
@@ -366,8 +364,7 @@ getVfsFromFile(const std::string &OverlayFile,
 int CIRTidyMain(int argc, const char **argv) {
   llvm::InitLLVM X(argc, argv);
   llvm::Expected<CommonOptionsParser> OptionsParser =
-      CommonOptionsParser::create(argc, argv, ClangTidyCategory,
-                                  cl::ZeroOrMore);
+      CommonOptionsParser::create(argc, argv, CIRTidyCategory, cl::ZeroOrMore);
   if (!OptionsParser) {
     llvm::WithColor::error() << llvm::toString(OptionsParser.takeError());
     return 1;

@@ -24,7 +24,7 @@
 
 using namespace clang::tooling;
 
-namespace clang {
+namespace cir {
 namespace tidy {
 
 CIRTidyASTConsumerFactory::CIRTidyASTConsumerFactory(
@@ -50,8 +50,7 @@ std::vector<std::string> CIRTidyASTConsumerFactory::getCheckNames() {
 }
 
 std::vector<ClangTidyError>
-runCIRTidy(clang::tidy::ClangTidyContext &Context,
-           const CompilationDatabase &Compilations,
+runCIRTidy(ClangTidyContext &Context, const CompilationDatabase &Compilations,
            ArrayRef<std::string> InputFiles,
            llvm::IntrusiveRefCntPtr<llvm::vfs::OverlayFileSystem> BaseFS,
            bool ApplyAnyFix, bool EnableCheckProfile,
@@ -109,4 +108,4 @@ runCIRTidy(clang::tidy::ClangTidyContext &Context,
 }
 
 } // namespace tidy
-} // namespace clang
+} // namespace cir

@@ -6,13 +6,15 @@
 #include "mlir/Pass/PassManager.h"
 #include <algorithm>
 
-using namespace cir;
+using namespace clang;
+using namespace clang::tidy;
 
 namespace {
 const std::string lifeTimeCheck = "cir-lifetime-check";
 } // namespace
 
-namespace clang {
+namespace cir {
+namespace tidy {
 
 CIRASTConsumer::CIRASTConsumer(CompilerInstance &CI, StringRef inputFile,
                                clang::tidy::ClangTidyContext &Context)
@@ -69,9 +71,9 @@ void CIRASTConsumer::HandleTranslationUnit(ASTContext &C) {
     if (!OptName.consume_front(lifeTimeCheck))
       continue;
     if (OptName == ".RemarksList") {
-      RemarksOpts = tidy::utils::options::parseStringList(Opt.getValue().Value);
+      RemarksOpts = utils::options::parseStringList(Opt.getValue().Value);
     } else if (OptName == ".HistoryList") {
-      HistoryOpts = tidy::utils::options::parseStringList(Opt.getValue().Value);
+      HistoryOpts = utils::options::parseStringList(Opt.getValue().Value);
     } else {
       assert(0 && "unrecognized argument of lifetime check detected");
     }
@@ -90,4 +92,5 @@ void CIRASTConsumer::HandleTranslationUnit(ASTContext &C) {
     llvm::report_fatal_error(
         "The pass manager failed to run pass on the module!");
 }
-} // namespace clang
+} // namespace tidy
+} // namespace cir
