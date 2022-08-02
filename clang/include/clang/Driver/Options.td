@@ -2092,6 +2092,10 @@ def disable_cir_passes : Flag<["-"], "disable-cir-passes">,
   Flags<[CoreOption, CC1Option]>,
   HelpText<"Disable CIR transformations pipeline">,
   MarshallingInfoFlag<FrontendOpts<"DisableCIRPasses">>;
+def disable_cir_verifier : Flag<["-"], "disable-cir-verifier">,
+  Flags<[CoreOption, CC1Option]>,
+  HelpText<"Disable CIR module verifier">,
+  MarshallingInfoFlag<FrontendOpts<"DisableCIRVerifier">>;
 def flto_EQ : Joined<["-"], "flto=">, Flags<[CoreOption, CC1Option]>, Group<f_Group>,
   HelpText<"Set LTO mode to either 'full' or 'thin'">, Values<"thin,full">;
 def flto_EQ_jobserver : Flag<["-"], "flto=jobserver">, Group<f_Group>,
