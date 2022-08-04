@@ -330,7 +330,7 @@ static LogicalResult checkBlockTerminator(OpAsmParser &parser,
   return failure();
 }
 
-ParseResult IfOp::parse(OpAsmParser &parser, OperationState &result) {
+ParseResult cir::IfOp::parse(OpAsmParser &parser, OperationState &result) {
   // Create the regions for 'then'.
   result.regions.reserve(2);
   Region *thenRegion = result.addRegion();
@@ -383,7 +383,7 @@ bool shouldPrintTerm(mlir::Region &r) {
   return false;
 }
 
-void IfOp::print(OpAsmPrinter &p) {
+void cir::IfOp::print(OpAsmPrinter &p) {
   p << " " << getCondition() << " ";
   auto &thenRegion = this->getThenRegion();
   p.printRegion(thenRegion,
@@ -470,7 +470,7 @@ LogicalResult IfOp::verify() { return success(); }
 // ScopeOp
 //===----------------------------------------------------------------------===//
 
-ParseResult ScopeOp::parse(OpAsmParser &parser, OperationState &result) {
+ParseResult cir::ScopeOp::parse(OpAsmParser &parser, OperationState &result) {
   // Create one region within 'scope'.
   result.regions.reserve(1);
   Region *scopeRegion = result.addRegion();
@@ -489,7 +489,7 @@ ParseResult ScopeOp::parse(OpAsmParser &parser, OperationState &result) {
   return success();
 }
 
-void ScopeOp::print(OpAsmPrinter &p) {
+void cir::ScopeOp::print(OpAsmPrinter &p) {
   p << ' ';
   auto &scopeRegion = this->getScopeRegion();
   p.printRegion(scopeRegion,
