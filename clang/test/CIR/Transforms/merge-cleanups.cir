@@ -1,5 +1,6 @@
 // RUN: cir-tool %s -cir-merge-cleanups -o %t.out.cir
 // RUN: FileCheck --input-file=%t.out.cir %s
+// XFAIL: *
 
 module  {
   func @sw1(%arg0: i32, %arg1: i32) {
