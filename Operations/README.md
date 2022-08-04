@@ -2,6 +2,6 @@
 sort : 2
 ---
 
-# Operations
+# CIR Dialect
 
 {% include list.liquid %}
