@@ -406,9 +406,7 @@ def IfOp : CIR_Op<"if",
   let arguments = (ins CIR_BoolType:$condition);
   let regions = (region AnyRegion:$thenRegion, AnyRegion:$elseRegion);
 
-  // FIXME: unify these within CIR_Ops.
-  let printer = [{ return ::print(p, *this); }];
-  let parser = [{ return ::parseIfOp(parser, result); }];
+  let hasCustomAssemblyFormat = 1;
   let verifier = [{ return ::verify(*this); }];
 
   let skipDefaultBuilders = 1;
@@ -538,9 +536,7 @@ def ScopeOp : CIR_Op<"scope", [DeclareOpInterfaceMethods<RegionBranchOpInterface
   let results = (outs Variadic<AnyType>:$results);
   let regions = (region AnyRegion:$scopeRegion);
 
-  // FIXME: unify these within CIR_Ops.
-  let printer = [{ return ::print(p, *this); }];
-  let parser = [{ return ::parseScopeOp(parser, result); }];
+  let hasCustomAssemblyFormat = 1;
   let verifier = [{ return ::verify(*this); }];
 
   let skipDefaultBuilders = 1;
@@ -1202,8 +1198,8 @@ def FuncOp : CIR_Op<"func", [
 
     bool isDeclaration() { return isExternal(); }
   }];
-  let parser = [{ return ::parseCIRFuncOp(parser, result); }];
-  let printer = [{ return ::print(*this, p); }];
+  let hasCustomAssemblyFormat = 1;
+
   let verifier = [{ return ::verify(*this); }];
 }
 

@@ -333,7 +333,7 @@ static LogicalResult checkBlockTerminator(OpAsmParser &parser,
   return failure();
 }
 
-static ParseResult parseIfOp(OpAsmParser &parser, OperationState &result) {
+ParseResult cir::IfOp::parse(OpAsmParser &parser, OperationState &result) {
   // Create the regions for 'then'.
   result.regions.reserve(2);
   Region *thenRegion = result.addRegion();
@@ -386,15 +386,15 @@ bool shouldPrintTerm(mlir::Region &r) {
   return false;
 }
 
-static void print(OpAsmPrinter &p, IfOp op) {
-  p << " " << op.condition() << " ";
-  auto &thenRegion = op.thenRegion();
+void cir::IfOp::print(OpAsmPrinter &p) {
+  p << " " << condition() << " ";
+  auto &thenRegion = this->thenRegion();
   p.printRegion(thenRegion,
                 /*printEntryBlockArgs=*/false,
                 /*printBlockTerminators=*/shouldPrintTerm(thenRegion));
 
   // Print the 'else' regions if it exists and has a block.
-  auto &elseRegion = op.elseRegion();
+  auto &elseRegion = this->elseRegion();
   if (!elseRegion.empty()) {
     p << " else ";
     p.printRegion(elseRegion,
@@ -402,7 +402,7 @@ static void print(OpAsmPrinter &p, IfOp op) {
                   /*printBlockTerminators=*/shouldPrintTerm(elseRegion));
   }
 
-  p.printOptionalAttrDict(op->getAttrs());
+  p.printOptionalAttrDict((*this)->getAttrs());
 }
 
 /// Default callback for IfOp builders. Inserts nothing for now.
@@ -473,7 +473,7 @@ static LogicalResult verify(IfOp op) { return success(); }
 // ScopeOp
 //===----------------------------------------------------------------------===//
 
-static ParseResult parseScopeOp(OpAsmParser &parser, OperationState &result) {
+ParseResult cir::ScopeOp::parse(OpAsmParser &parser, OperationState &result) {
   // Create one region within 'scope'.
   result.regions.reserve(1);
   Region *scopeRegion = result.addRegion();
@@ -492,14 +492,14 @@ static ParseResult parseScopeOp(OpAsmParser &parser, OperationState &result) {
   return success();
 }
 
-static void print(OpAsmPrinter &p, ScopeOp op) {
+void cir::ScopeOp::print(OpAsmPrinter &p) {
   p << ' ';
-  auto &scopeRegion = op.scopeRegion();
+  auto &scopeRegion = this->scopeRegion();
   p.printRegion(scopeRegion,
                 /*printEntryBlockArgs=*/false,
                 /*printBlockTerminators=*/shouldPrintTerm(scopeRegion));
 
-  p.printOptionalAttrDict(op->getAttrs());
+  p.printOptionalAttrDict((*this)->getAttrs());
 }
 
 /// Given the region at `index`, or the parent operation if `index` is None,
@@ -1112,7 +1112,7 @@ void cir::FuncOp::build(OpBuilder &builder, OperationState &result,
                                                 /*resultAttrs=*/llvm::None);
 }
 
-static ParseResult parseCIRFuncOp(OpAsmParser &parser, OperationState &state) {
+ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
   // Default to external linkage if no keyword is provided.
   state.addAttribute(
       getLinkageAttrName(),
@@ -1173,22 +1173,23 @@ static ParseResult parseCIRFuncOp(OpAsmParser &parser, OperationState &state) {
   return success();
 }
 
-static void print(cir::FuncOp op, OpAsmPrinter &p) {
+void cir::FuncOp::print(OpAsmPrinter &p) {
   p << ' ';
-  if (op.linkage() != GlobalLinkageKind::ExternalLinkage)
-    p << stringifyGlobalLinkageKind(op.linkage()) << ' ';
+  if (linkage() != GlobalLinkageKind::ExternalLinkage)
+    p << stringifyGlobalLinkageKind(linkage()) << ' ';
 
   // Print function name, signature, and control.
-  p.printSymbolName(op.sym_name());
-  auto fnType = op.getType();
-  function_interface_impl::printFunctionSignature(p, op, fnType.getInputs(),
-                                                  /*isVariadic=*/false,
-                                                  fnType.getResults());
+  p.printSymbolName(sym_name());
+  auto fnType = getType();
+  function_interface_impl::printFunctionSignature(
+      p, this->getOperation(), fnType.getInputs(),
+      /*isVariadic=*/false, fnType.getResults());
   function_interface_impl::printFunctionAttributes(
-      p, op, fnType.getNumInputs(), fnType.getNumResults(), {"linkage"});
+      p, this->getOperation(), fnType.getNumInputs(), fnType.getNumResults(),
+      {"linkage"});
 
   // Print the body if this is not an external function.
-  Region &body = op->getRegion(0);
+  Region &body = getRegion();
   if (!body.empty()) {
     p << ' ';
     p.printRegion(body, /*printEntryBlockArgs=*/false,
