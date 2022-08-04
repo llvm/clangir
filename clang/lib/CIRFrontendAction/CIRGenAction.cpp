@@ -270,7 +270,8 @@ CIRGenAction::CreateASTConsumer(CompilerInstance &ci, StringRef inputFile) {
 
 mlir::OwningOpRef<mlir::ModuleOp>
 CIRGenAction::loadModule(llvm::MemoryBufferRef mbRef) {
-  auto module = mlir::parseSourceString(mbRef.getBuffer(), mlirContext);
+  auto module =
+      mlir::parseSourceString<mlir::ModuleOp>(mbRef.getBuffer(), mlirContext);
   assert(module && "Failed to parse ClangIR module");
   return module;
 }
