@@ -2,7 +2,7 @@
 sort : 1
 ---
 
-# CIR Operations
+# Operations
 
 * toc
 {:toc}
