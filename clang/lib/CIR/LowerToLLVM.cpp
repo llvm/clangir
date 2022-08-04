@@ -134,9 +134,102 @@ public:
   }
 };
 
+class CIRBinOpLowering : public mlir::OpRewritePattern<mlir::cir::BinOp> {
+public:
+  using OpRewritePattern<mlir::cir::BinOp>::OpRewritePattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::BinOp op,
+                  mlir::PatternRewriter &rewriter) const override {
+    assert((op.lhs().getType() == op.rhs().getType()) &&
+           "inconsistent operands' types not supported yet");
+    mlir::Type type = op.rhs().getType();
+    assert((type.isa<mlir::IntegerType>() || type.isa<mlir::FloatType>()) &&
+           "operand type not supported yet");
+
+    switch (op.kind()) {
+    case mlir::cir::BinOpKind::Add:
+      if (type.isa<mlir::IntegerType>())
+        rewriter.replaceOpWithNewOp<mlir::arith::AddIOp>(op, op.getType(),
+                                                         op.lhs(), op.rhs());
+      else
+        rewriter.replaceOpWithNewOp<mlir::arith::AddFOp>(op, op.getType(),
+                                                         op.lhs(), op.rhs());
+      break;
+    case mlir::cir::BinOpKind::Sub:
+      if (type.isa<mlir::IntegerType>())
+        rewriter.replaceOpWithNewOp<mlir::arith::SubIOp>(op, op.getType(),
+                                                         op.lhs(), op.rhs());
+      else
+        rewriter.replaceOpWithNewOp<mlir::arith::SubFOp>(op, op.getType(),
+                                                         op.lhs(), op.rhs());
+      break;
+    case mlir::cir::BinOpKind::Mul:
+      if (type.isa<mlir::IntegerType>())
+        rewriter.replaceOpWithNewOp<mlir::arith::MulIOp>(op, op.getType(),
+                                                         op.lhs(), op.rhs());
+      else
+        rewriter.replaceOpWithNewOp<mlir::arith::MulFOp>(op, op.getType(),
+                                                         op.lhs(), op.rhs());
+      break;
+    case mlir::cir::BinOpKind::Div:
+      if (type.isa<mlir::IntegerType>()) {
+        if (type.isSignedInteger())
+          rewriter.replaceOpWithNewOp<mlir::arith::DivSIOp>(op, op.getType(),
+                                                            op.lhs(), op.rhs());
+        else
+          rewriter.replaceOpWithNewOp<mlir::arith::DivUIOp>(op, op.getType(),
+                                                            op.lhs(), op.rhs());
+      } else
+        rewriter.replaceOpWithNewOp<mlir::arith::DivFOp>(op, op.getType(),
+                                                         op.lhs(), op.rhs());
+      break;
+    case mlir::cir::BinOpKind::Rem:
+      if (type.isa<mlir::IntegerType>()) {
+        if (type.isSignedInteger())
+          rewriter.replaceOpWithNewOp<mlir::arith::RemSIOp>(op, op.getType(),
+                                                            op.lhs(), op.rhs());
+        else
+          rewriter.replaceOpWithNewOp<mlir::arith::RemUIOp>(op, op.getType(),
+                                                            op.lhs(), op.rhs());
+      } else
+        rewriter.replaceOpWithNewOp<mlir::arith::RemFOp>(op, op.getType(),
+                                                         op.lhs(), op.rhs());
+      break;
+    case mlir::cir::BinOpKind::And:
+      rewriter.replaceOpWithNewOp<mlir::arith::AndIOp>(op, op.getType(),
+                                                       op.lhs(), op.rhs());
+      break;
+    case mlir::cir::BinOpKind::Or:
+      rewriter.replaceOpWithNewOp<mlir::arith::OrIOp>(op, op.getType(),
+                                                      op.lhs(), op.rhs());
+      break;
+    case mlir::cir::BinOpKind::Xor:
+      rewriter.replaceOpWithNewOp<mlir::arith::XOrIOp>(op, op.getType(),
+                                                       op.lhs(), op.rhs());
+      break;
+    case mlir::cir::BinOpKind::Shl:
+      rewriter.replaceOpWithNewOp<mlir::arith::ShLIOp>(op, op.getType(),
+                                                       op.lhs(), op.rhs());
+      break;
+    case mlir::cir::BinOpKind::Shr:
+      if (type.isSignedInteger())
+        rewriter.replaceOpWithNewOp<mlir::arith::ShRSIOp>(op, op.getType(),
+                                                          op.lhs(), op.rhs());
+      else
+        rewriter.replaceOpWithNewOp<mlir::arith::ShRUIOp>(op, op.getType(),
+                                                          op.lhs(), op.rhs());
+      break;
+    }
+
+    return mlir::LogicalResult::success();
+  }
+};
+
 void populateCIRToMemRefConversionPatterns(mlir::RewritePatternSet &patterns) {
   patterns.add<CIRAllocaLowering, CIRLoadLowering, CIRStoreLowering,
-               CIRConstantLowering, CIRReturnLowering>(patterns.getContext());
+               CIRConstantLowering, CIRReturnLowering, CIRBinOpLowering>(
+      patterns.getContext());
 }
 
 void ConvertCIRToLLVMPass::runOnOperation() {
@@ -168,6 +261,7 @@ void ConvertCIRToMemRefPass::runOnOperation() {
   target
       .addLegalDialect<mlir::AffineDialect, mlir::arith::ArithmeticDialect,
                        mlir::memref::MemRefDialect, mlir::StandardOpsDialect>();
+  target.addIllegalOp<mlir::cir::BinOp>();
 
   mlir::RewritePatternSet patterns(&getContext());
   populateCIRToMemRefConversionPatterns(patterns);
