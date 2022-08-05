@@ -1,5 +1,8 @@
 add_mlir_dialect(CIROps cir)
+add_mlir_doc(CIRDialect CIRDialect Dialects/ -gen-dialect-doc)
 add_mlir_doc(CIROps CIROps Dialects/ -gen-op-doc)
+add_mlir_doc(CIRAttrs CIRAttrs Dialects/ -gen-attrdef-doc)
+add_mlir_doc(CIRTypes CIRTypes Dialects/ -gen-typedef-doc)
 
 set(LLVM_TARGET_DEFINITIONS CIROps.td)
 mlir_tablegen(CIROpsEnums.h.inc -gen-enum-decls)
