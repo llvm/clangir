@@ -7,7 +7,7 @@
 # your needs if using this hacky script.
 BUILD="../clangir/Build+Release+Libcxx+Assert/tools/mlir/docs"
 
-TEMPLATE="\n---\nsort : POSITION\n---\n# TITLE\n* toc\n{:toc}\n"
+TEMPLATE="---\nsort : POSITION\n---\n\n# TITLE\n\n* toc\n{:toc}\n\n---\n"
 
 echo -e $TEMPLATE | sed -e "s@POSITION@1@g" -e "s@TITLE@Operations@g" > Dialect/ops.md && cat ${BUILD}/Dialects/CIROps.md >> Dialect/ops.md
 echo -e $TEMPLATE | sed -e "s@POSITION@2@g" -e "s@TITLE@Types@g" > Dialect/types.md && cat ${BUILD}/Dialects/CIRTypes.md >> Dialect/types.md
