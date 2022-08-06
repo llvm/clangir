@@ -4360,6 +4360,14 @@ gentbl_cc_library(
             "include/mlir/Dialect/LLVMIR/NVVMOpsEnums.cpp.inc",
         ),
         (
+            ["-gen-struct-attr-decls"],
+            "include/mlir/Dialect/LLVMIR/NVVMOpsStructs.h.inc",
+        ),
+        (
+            ["-gen-struct-attr-defs"],
+            "include/mlir/Dialect/LLVMIR/NVVMOpsStructs.cpp.inc",
+        ),
+        (
             [
                 "-gen-attrdef-decls",
                 "-attrdefs-dialect=nvvm",
@@ -8216,6 +8224,14 @@ gentbl_cc_library(
         (
             ["-gen-op-defs"],
             "include/mlir/Dialect/Tosa/IR/TosaOps.cpp.inc",
+        ),
+        (
+            ["-gen-struct-attr-decls"],
+            "include/mlir/Dialect/Tosa/IR/TosaStructs.h.inc",
+        ),
+        (
+            ["-gen-struct-attr-defs"],
+            "include/mlir/Dialect/Tosa/IR/TosaStructs.cpp.inc",
         ),
         (
             ["-gen-dialect-decls"],
