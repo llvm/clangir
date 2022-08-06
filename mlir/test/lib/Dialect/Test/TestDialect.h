@@ -52,6 +52,7 @@ class RewritePatternSet;
 //===----------------------------------------------------------------------===//
 
 #include "TestOpInterfaces.h.inc"
+#include "TestOpStructs.h.inc"
 #include "TestOpsDialect.h.inc"
 
 #define GET_OP_CLASSES
