@@ -696,4 +696,3 @@ func.func @wrong_shape_fail() {
 
 // expected-error @+1 {{invalid dialect namespace '"string with space"'}}
 #invalid_dialect = opaque<"string with space", "0xDEADBEEF"> : tensor<100xi32>
-
