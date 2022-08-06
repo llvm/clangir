@@ -35,7 +35,7 @@ using namespace mlir::tosa;
 #include "mlir/Dialect/Tosa/IR/TosaOpsDialect.cpp.inc"
 
 //===----------------------------------------------------------------------===//
-// Tosa dialect interface includes.
+// Tosa dialect structs and interface includes.
 //===----------------------------------------------------------------------===//
 
 #include "mlir/Dialect/Tosa/IR/TosaInterfaces.cpp.inc"
