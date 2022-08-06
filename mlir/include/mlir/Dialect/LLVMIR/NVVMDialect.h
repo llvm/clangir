@@ -22,6 +22,7 @@
 #include "llvm/IR/IntrinsicsNVPTX.h"
 
 #include "mlir/Dialect/LLVMIR/NVVMOpsEnums.h.inc"
+#include "mlir/Dialect/LLVMIR/NVVMOpsStructs.h.inc"
 
 namespace mlir {
 namespace NVVM {
