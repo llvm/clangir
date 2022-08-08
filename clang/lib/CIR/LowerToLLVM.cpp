@@ -84,7 +84,14 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::AllocaOp op,
                   mlir::PatternRewriter &rewriter) const override {
-    auto ty = mlir::MemRefType::get({}, op.type());
+    mlir::MemRefType ty;
+    if (op.type().isa<mlir::cir::BoolType>()) {
+      mlir::Type integerType =
+          mlir::IntegerType::get(getContext(), 8, mlir::IntegerType::Signless);
+      ty = mlir::MemRefType::get({}, integerType);
+    } else {
+      ty = mlir::MemRefType::get({}, op.type());
+    }
     rewriter.replaceOpWithNewOp<mlir::memref::AllocaOp>(op, ty,
                                                         op.alignmentAttr());
     return mlir::LogicalResult::success();
@@ -128,8 +135,19 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::ConstantOp op,
                   mlir::PatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<mlir::arith::ConstantOp>(op, op.getType(),
-                                                         op.value());
+    if (op.getType().isa<mlir::cir::BoolType>()) {
+      mlir::Type type =
+          mlir::IntegerType::get(getContext(), 8, mlir::IntegerType::Signless);
+      mlir::Attribute IntegerAttr;
+      if (op.value() == mlir::BoolAttr::get(getContext(), true))
+        IntegerAttr = mlir::IntegerAttr::get(type, 1);
+      else
+        IntegerAttr = mlir::IntegerAttr::get(type, 0);
+      rewriter.replaceOpWithNewOp<mlir::arith::ConstantOp>(op, type,
+                                                           IntegerAttr);
+    } else
+      rewriter.replaceOpWithNewOp<mlir::arith::ConstantOp>(op, op.getType(),
+                                                           op.value());
     return mlir::LogicalResult::success();
   }
 };
