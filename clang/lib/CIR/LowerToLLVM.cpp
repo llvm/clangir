@@ -244,10 +244,148 @@ public:
   }
 };
 
+class CIRCmpOpLowering : public mlir::OpRewritePattern<mlir::cir::CmpOp> {
+public:
+  using OpRewritePattern<mlir::cir::CmpOp>::OpRewritePattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::CmpOp op,
+                  mlir::PatternRewriter &rewriter) const override {
+    auto type = op.lhs().getType();
+    auto integerType =
+        mlir::IntegerType::get(getContext(), 1, mlir::IntegerType::Signless);
+
+    switch (op.kind()) {
+    case mlir::cir::CmpOpKind::gt: {
+      if (type.isa<mlir::IntegerType>()) {
+        mlir::arith::CmpIPredicate cmpIType;
+        if (!type.isSignlessInteger())
+          llvm_unreachable("integer type not supported in CIR yet");
+        cmpIType = mlir::arith::CmpIPredicate::ugt;
+        rewriter.replaceOpWithNewOp<mlir::arith::CmpIOp>(
+            op, integerType,
+            mlir::arith::CmpIPredicateAttr::get(getContext(), cmpIType),
+            op.lhs(), op.rhs());
+      } else if (type.isa<mlir::FloatType>()) {
+        rewriter.replaceOpWithNewOp<mlir::arith::CmpFOp>(
+            op, integerType,
+            mlir::arith::CmpFPredicateAttr::get(
+                getContext(), mlir::arith::CmpFPredicate::UGT),
+            op.lhs(), op.rhs());
+      } else {
+        llvm_unreachable("Unknown Operand Type");
+      }
+      break;
+    }
+    case mlir::cir::CmpOpKind::ge: {
+      if (type.isa<mlir::IntegerType>()) {
+        mlir::arith::CmpIPredicate cmpIType;
+        if (type.isSignlessInteger())
+          llvm_unreachable("integer type not supported in CIR yet");
+        cmpIType = mlir::arith::CmpIPredicate::uge;
+        rewriter.replaceOpWithNewOp<mlir::arith::CmpIOp>(
+            op, integerType,
+            mlir::arith::CmpIPredicateAttr::get(getContext(), cmpIType),
+            op.lhs(), op.rhs());
+      } else if (type.isa<mlir::FloatType>()) {
+        rewriter.replaceOpWithNewOp<mlir::arith::CmpFOp>(
+            op, integerType,
+            mlir::arith::CmpFPredicateAttr::get(
+                getContext(), mlir::arith::CmpFPredicate::UGE),
+            op.lhs(), op.rhs());
+      } else {
+        llvm_unreachable("Unknown Operand Type");
+      }
+      break;
+    }
+    case mlir::cir::CmpOpKind::lt: {
+      if (type.isa<mlir::IntegerType>()) {
+        mlir::arith::CmpIPredicate cmpIType;
+        if (type.isSignlessInteger())
+          llvm_unreachable("integer type not supported in CIR yet");
+        cmpIType = mlir::arith::CmpIPredicate::ult;
+        rewriter.replaceOpWithNewOp<mlir::arith::CmpIOp>(
+            op, integerType,
+            mlir::arith::CmpIPredicateAttr::get(getContext(), cmpIType),
+            op.lhs(), op.rhs());
+      } else if (type.isa<mlir::FloatType>()) {
+        rewriter.replaceOpWithNewOp<mlir::arith::CmpFOp>(
+            op, integerType,
+            mlir::arith::CmpFPredicateAttr::get(
+                getContext(), mlir::arith::CmpFPredicate::ULT),
+            op.lhs(), op.rhs());
+      } else {
+        llvm_unreachable("Unknown Operand Type");
+      }
+      break;
+    }
+    case mlir::cir::CmpOpKind::le: {
+      if (type.isa<mlir::IntegerType>()) {
+        mlir::arith::CmpIPredicate cmpIType;
+        if (type.isSignlessInteger())
+          llvm_unreachable("integer type not supported in CIR yet");
+        cmpIType = mlir::arith::CmpIPredicate::ule;
+        rewriter.replaceOpWithNewOp<mlir::arith::CmpIOp>(
+            op, integerType,
+            mlir::arith::CmpIPredicateAttr::get(getContext(), cmpIType),
+            op.lhs(), op.rhs());
+      } else if (type.isa<mlir::FloatType>()) {
+        rewriter.replaceOpWithNewOp<mlir::arith::CmpFOp>(
+            op, integerType,
+            mlir::arith::CmpFPredicateAttr::get(
+                getContext(), mlir::arith::CmpFPredicate::ULE),
+            op.lhs(), op.rhs());
+      } else {
+        llvm_unreachable("Unknown Operand Type");
+      }
+      break;
+    }
+    case mlir::cir::CmpOpKind::eq: {
+      if (type.isa<mlir::IntegerType>()) {
+        rewriter.replaceOpWithNewOp<mlir::arith::CmpIOp>(
+            op, integerType,
+            mlir::arith::CmpIPredicateAttr::get(getContext(),
+                                                mlir::arith::CmpIPredicate::eq),
+            op.lhs(), op.rhs());
+      } else if (type.isa<mlir::FloatType>()) {
+        rewriter.replaceOpWithNewOp<mlir::arith::CmpFOp>(
+            op, integerType,
+            mlir::arith::CmpFPredicateAttr::get(
+                getContext(), mlir::arith::CmpFPredicate::UEQ),
+            op.lhs(), op.rhs());
+      } else {
+        llvm_unreachable("Unknown Operand Type");
+      }
+      break;
+    }
+    case mlir::cir::CmpOpKind::ne: {
+      if (type.isa<mlir::IntegerType>()) {
+        rewriter.replaceOpWithNewOp<mlir::arith::CmpIOp>(
+            op, integerType,
+            mlir::arith::CmpIPredicateAttr::get(getContext(),
+                                                mlir::arith::CmpIPredicate::ne),
+            op.lhs(), op.rhs());
+      } else if (type.isa<mlir::FloatType>()) {
+        rewriter.replaceOpWithNewOp<mlir::arith::CmpFOp>(
+            op, integerType,
+            mlir::arith::CmpFPredicateAttr::get(
+                getContext(), mlir::arith::CmpFPredicate::UNE),
+            op.lhs(), op.rhs());
+      } else {
+        llvm_unreachable("Unknown Operand Type");
+      }
+      break;
+    }
+    }
+
+    return mlir::LogicalResult::success();
+  }
+};
+
 void populateCIRToMemRefConversionPatterns(mlir::RewritePatternSet &patterns) {
   patterns.add<CIRAllocaLowering, CIRLoadLowering, CIRStoreLowering,
-               CIRConstantLowering, CIRReturnLowering, CIRBinOpLowering>(
-      patterns.getContext());
+               CIRConstantLowering, CIRReturnLowering, CIRBinOpLowering,
+               CIRCmpOpLowering>(patterns.getContext());
 }
 
 void ConvertCIRToLLVMPass::runOnOperation() {
@@ -279,7 +417,10 @@ void ConvertCIRToMemRefPass::runOnOperation() {
   target
       .addLegalDialect<mlir::AffineDialect, mlir::arith::ArithmeticDialect,
                        mlir::memref::MemRefDialect, mlir::StandardOpsDialect>();
-  target.addIllegalOp<mlir::cir::BinOp>();
+  target
+      .addIllegalOp<mlir::cir::BinOp, mlir::cir::ReturnOp, mlir::cir::AllocaOp,
+                    mlir::cir::LoadOp, mlir::cir::StoreOp,
+                    mlir::cir::ConstantOp, mlir::cir::CmpOp>();
 
   mlir::RewritePatternSet patterns(&getContext());
   populateCIRToMemRefConversionPatterns(patterns);
