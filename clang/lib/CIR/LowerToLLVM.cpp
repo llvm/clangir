@@ -307,9 +307,161 @@ public:
   }
 };
 
+class CIRCmpOpLowering : public mlir::OpRewritePattern<mlir::cir::CmpOp> {
+public:
+  using OpRewritePattern<mlir::cir::CmpOp>::OpRewritePattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::CmpOp op,
+                  mlir::PatternRewriter &rewriter) const override {
+    auto type = op.getLhs().getType();
+    auto integerType =
+        mlir::IntegerType::get(getContext(), 1, mlir::IntegerType::Signless);
+
+    switch (op.getKind()) {
+    case mlir::cir::CmpOpKind::gt: {
+      if (mlir::isa<mlir::IntegerType>(type)) {
+        mlir::arith::CmpIPredicate cmpIType;
+        if (!type.isSignlessInteger())
+          llvm_unreachable("integer type not supported in CIR yet");
+        cmpIType = mlir::arith::CmpIPredicate::ugt;
+        rewriter.replaceOpWithNewOp<mlir::arith::CmpIOp>(
+            op, integerType,
+            mlir::arith::CmpIPredicateAttr::get(getContext(), cmpIType),
+            op.getLhs(), op.getRhs());
+      } else if (mlir::isa<mlir::FloatType>(type)) {
+        rewriter.replaceOpWithNewOp<mlir::arith::CmpFOp>(
+            op, integerType,
+            mlir::arith::CmpFPredicateAttr::get(
+                getContext(), mlir::arith::CmpFPredicate::UGT),
+            op.getLhs(), op.getRhs(),
+            mlir::arith::FastMathFlagsAttr::get(
+                getContext(), mlir::arith::FastMathFlags::none));
+      } else {
+        llvm_unreachable("Unknown Operand Type");
+      }
+      break;
+    }
+    case mlir::cir::CmpOpKind::ge: {
+      if (mlir::isa<mlir::IntegerType>(type)) {
+        mlir::arith::CmpIPredicate cmpIType;
+        if (type.isSignlessInteger())
+          llvm_unreachable("integer type not supported in CIR yet");
+        cmpIType = mlir::arith::CmpIPredicate::uge;
+        rewriter.replaceOpWithNewOp<mlir::arith::CmpIOp>(
+            op, integerType,
+            mlir::arith::CmpIPredicateAttr::get(getContext(), cmpIType),
+            op.getLhs(), op.getRhs());
+      } else if (mlir::isa<mlir::FloatType>(type)) {
+        rewriter.replaceOpWithNewOp<mlir::arith::CmpFOp>(
+            op, integerType,
+            mlir::arith::CmpFPredicateAttr::get(
+                getContext(), mlir::arith::CmpFPredicate::UGE),
+            op.getLhs(), op.getRhs(),
+            mlir::arith::FastMathFlagsAttr::get(
+                getContext(), mlir::arith::FastMathFlags::none));
+      } else {
+        llvm_unreachable("Unknown Operand Type");
+      }
+      break;
+    }
+    case mlir::cir::CmpOpKind::lt: {
+      if (mlir::isa<mlir::IntegerType>(type)) {
+        mlir::arith::CmpIPredicate cmpIType;
+        if (type.isSignlessInteger())
+          llvm_unreachable("integer type not supported in CIR yet");
+        cmpIType = mlir::arith::CmpIPredicate::ult;
+        rewriter.replaceOpWithNewOp<mlir::arith::CmpIOp>(
+            op, integerType,
+            mlir::arith::CmpIPredicateAttr::get(getContext(), cmpIType),
+            op.getLhs(), op.getRhs());
+      } else if (mlir::isa<mlir::FloatType>(type)) {
+        rewriter.replaceOpWithNewOp<mlir::arith::CmpFOp>(
+            op, integerType,
+            mlir::arith::CmpFPredicateAttr::get(
+                getContext(), mlir::arith::CmpFPredicate::ULT),
+            op.getLhs(), op.getRhs(),
+            mlir::arith::FastMathFlagsAttr::get(
+                getContext(), mlir::arith::FastMathFlags::none));
+
+      } else {
+        llvm_unreachable("Unknown Operand Type");
+      }
+      break;
+    }
+    case mlir::cir::CmpOpKind::le: {
+      if (mlir::isa<mlir::IntegerType>(type)) {
+        mlir::arith::CmpIPredicate cmpIType;
+        if (type.isSignlessInteger())
+          llvm_unreachable("integer type not supported in CIR yet");
+        cmpIType = mlir::arith::CmpIPredicate::ule;
+        rewriter.replaceOpWithNewOp<mlir::arith::CmpIOp>(
+            op, integerType,
+            mlir::arith::CmpIPredicateAttr::get(getContext(), cmpIType),
+            op.getLhs(), op.getRhs());
+      } else if (mlir::isa<mlir::FloatType>(type)) {
+        rewriter.replaceOpWithNewOp<mlir::arith::CmpFOp>(
+            op, integerType,
+            mlir::arith::CmpFPredicateAttr::get(
+                getContext(), mlir::arith::CmpFPredicate::ULE),
+            op.getLhs(), op.getRhs(),
+            mlir::arith::FastMathFlagsAttr::get(
+                getContext(), mlir::arith::FastMathFlags::none));
+      } else {
+        llvm_unreachable("Unknown Operand Type");
+      }
+      break;
+    }
+    case mlir::cir::CmpOpKind::eq: {
+      if (mlir::isa<mlir::IntegerType>(type)) {
+        rewriter.replaceOpWithNewOp<mlir::arith::CmpIOp>(
+            op, integerType,
+            mlir::arith::CmpIPredicateAttr::get(getContext(),
+                                                mlir::arith::CmpIPredicate::eq),
+            op.getLhs(), op.getRhs());
+      } else if (mlir::isa<mlir::FloatType>(type)) {
+        rewriter.replaceOpWithNewOp<mlir::arith::CmpFOp>(
+            op, integerType,
+            mlir::arith::CmpFPredicateAttr::get(
+                getContext(), mlir::arith::CmpFPredicate::UEQ),
+            op.getLhs(), op.getRhs(),
+            mlir::arith::FastMathFlagsAttr::get(
+                getContext(), mlir::arith::FastMathFlags::none));
+      } else {
+        llvm_unreachable("Unknown Operand Type");
+      }
+      break;
+    }
+    case mlir::cir::CmpOpKind::ne: {
+      if (mlir::isa<mlir::IntegerType>(type)) {
+        rewriter.replaceOpWithNewOp<mlir::arith::CmpIOp>(
+            op, integerType,
+            mlir::arith::CmpIPredicateAttr::get(getContext(),
+                                                mlir::arith::CmpIPredicate::ne),
+            op.getLhs(), op.getRhs());
+      } else if (mlir::isa<mlir::FloatType>(type)) {
+        rewriter.replaceOpWithNewOp<mlir::arith::CmpFOp>(
+            op, integerType,
+            mlir::arith::CmpFPredicateAttr::get(
+                getContext(), mlir::arith::CmpFPredicate::UNE),
+            op.getLhs(), op.getRhs(),
+            mlir::arith::FastMathFlagsAttr::get(
+                getContext(), mlir::arith::FastMathFlags::none));
+      } else {
+        llvm_unreachable("Unknown Operand Type");
+      }
+      break;
+    }
+    }
+
+    return mlir::LogicalResult::success();
+  }
+};
+
 void populateCIRToMemRefConversionPatterns(mlir::RewritePatternSet &patterns) {
   patterns.add<CIRAllocaLowering, CIRLoadLowering, CIRStoreLowering,
-               CIRConstantLowering, CIRBinOpLowering>(patterns.getContext());
+               CIRConstantLowering, CIRBinOpLowering, CIRCmpOpLowering>(
+      patterns.getContext());
 }
 
 void ConvertCIRToLLVMPass::runOnOperation() {
@@ -340,7 +492,10 @@ void ConvertCIRToMemRefPass::runOnOperation() {
   target
       .addLegalDialect<mlir::affine::AffineDialect, mlir::arith::ArithDialect,
                        mlir::memref::MemRefDialect, mlir::func::FuncDialect>();
-  target.addIllegalOp<mlir::cir::BinOp>();
+  target
+      .addIllegalOp<mlir::cir::BinOp, mlir::cir::ReturnOp, mlir::cir::AllocaOp,
+                    mlir::cir::LoadOp, mlir::cir::StoreOp,
+                    mlir::cir::ConstantOp, mlir::cir::CmpOp>();
 
   mlir::RewritePatternSet patterns(&getContext());
   populateCIRToMemRefConversionPatterns(patterns);
