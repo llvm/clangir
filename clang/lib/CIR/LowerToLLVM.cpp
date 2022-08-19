@@ -110,15 +110,23 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::AllocaOp op,
                   mlir::PatternRewriter &rewriter) const override {
-    mlir::MemRefType ty;
-    if (mlir::isa<mlir::cir::BoolType>(op.getAllocaType())) {
-      mlir::Type integerType =
+    auto type = op.getAllocaType();
+    mlir::MemRefType memreftype;
+
+    if (mlir::isa<mlir::cir::BoolType>(type)) {
+      auto integerType =
           mlir::IntegerType::get(getContext(), 8, mlir::IntegerType::Signless);
-      ty = mlir::MemRefType::get({}, integerType);
+      memreftype = mlir::MemRefType::get({}, integerType);
+    } else if (mlir::isa<mlir::cir::ArrayType>(type)) {
+      mlir::cir::ArrayType arraytype = mlir::dyn_cast<mlir::cir::ArrayType>(type);
+      memreftype =
+          mlir::MemRefType::get(arraytype.getSize(), arraytype.getEltType());
+    } else if (mlir::isa<mlir::IntegerType>(type) || mlir::isa<mlir::FloatType>(type)) {
+      memreftype = mlir::MemRefType::get({}, op.getAllocaType());
     } else {
-      ty = mlir::MemRefType::get({}, op.getAllocaType());
+      llvm_unreachable("type to be allocated not supported yet");
     }
-    rewriter.replaceOpWithNewOp<mlir::memref::AllocaOp>(op, ty,
+    rewriter.replaceOpWithNewOp<mlir::memref::AllocaOp>(op, memreftype,
                                                         op.getAlignmentAttr());
     return mlir::LogicalResult::success();
   }
