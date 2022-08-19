@@ -1,0 +1,24 @@
+// RUN: cir-tool %s -cir-to-memref -o - | FileCheck %s -check-prefix=MLIR
+// RUN: cir-tool %s -cir-to-memref -cir-to-llvm -o - | mlir-translate -mlir-to-llvmir | FileCheck %s -check-prefix=LLVM
+
+module {
+  func @foo() {
+    %0 = cir.alloca !cir.array<i32 x 10>, cir.ptr <!cir.array<i32 x 10>>, ["a", uninitialized] {alignment = 16 : i64}
+    cir.return
+  }
+}
+
+//      MLIR: module {
+// MLIR-NEXT: func @foo() {
+// MLIR-NEXT:    = memref.alloca() {alignment = 16 : i64} : memref<10xi32>
+// MLIR-NEXT:    return
+// MLIR-NEXT:  }
+// MLIR-NEXT: }
+
+//      LLVM: = alloca i32, i64 ptrtoint (i32* getelementptr (i32, i32* null, i64 10) to i64)
+// LLVM-NEXT: = insertvalue { i32*, i32*, i64, [1 x i64], [1 x i64] } undef, i32*
+// LLVM-NEXT: = insertvalue { i32*, i32*, i64, [1 x i64], [1 x i64] } {{.*}}, i32*
+// LLVM-NEXT: = insertvalue { i32*, i32*, i64, [1 x i64], [1 x i64] } {{.*}}, i64
+// LLVM-NEXT: = insertvalue { i32*, i32*, i64, [1 x i64], [1 x i64] } {{.*}}, i64
+// LLVM-NEXT: = insertvalue { i32*, i32*, i64, [1 x i64], [1 x i64] } {{.*}}, i64
+// LLVM-NEXT: ret void
