@@ -390,10 +390,22 @@ public:
   }
 };
 
+class CIRBrOpLowering : public mlir::OpRewritePattern<mlir::cir::BrOp> {
+public:
+  using OpRewritePattern<mlir::cir::BrOp>::OpRewritePattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::BrOp op,
+                  mlir::PatternRewriter &rewriter) const override {
+    rewriter.replaceOpWithNewOp<mlir::BranchOp>(op, op.dest());
+    return mlir::LogicalResult::success();
+  }
+};
+
 void populateCIRToMemRefConversionPatterns(mlir::RewritePatternSet &patterns) {
   patterns.add<CIRAllocaLowering, CIRLoadLowering, CIRStoreLowering,
                CIRConstantLowering, CIRReturnLowering, CIRBinOpLowering,
-               CIRCmpOpLowering>(patterns.getContext());
+               CIRCmpOpLowering, CIRBrOpLowering>(patterns.getContext());
 }
 
 void ConvertCIRToLLVMPass::runOnOperation() {
@@ -428,7 +440,7 @@ void ConvertCIRToMemRefPass::runOnOperation() {
   target
       .addIllegalOp<mlir::cir::BinOp, mlir::cir::ReturnOp, mlir::cir::AllocaOp,
                     mlir::cir::LoadOp, mlir::cir::StoreOp,
-                    mlir::cir::ConstantOp, mlir::cir::CmpOp>();
+                    mlir::cir::ConstantOp, mlir::cir::CmpOp, mlir::cir::BrOp>();
 
   mlir::RewritePatternSet patterns(&getContext());
   populateCIRToMemRefConversionPatterns(patterns);
