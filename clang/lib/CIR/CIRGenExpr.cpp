@@ -1099,7 +1099,7 @@ mlir::LogicalResult CIRGenFunction::buildIfOnBoolExpr(const Expr *cond,
 }
 
 mlir::Value CIRGenFunction::buildAlloca(StringRef name, InitStyle initStyle,
-                                        QualType ty, mlir::Location loc,
+                                        mlir::Type ty, mlir::Location loc,
                                         CharUnits alignment) {
   auto getAllocaInsertPositionOp =
       [&](mlir::Block **insertBlock) -> mlir::Operation * {
@@ -1115,9 +1115,7 @@ mlir::Value CIRGenFunction::buildAlloca(StringRef name, InitStyle initStyle,
     return &*lastAlloca;
   };
 
-  auto localVarTy = getCIRType(ty);
-  auto localVarPtrTy =
-      mlir::cir::PointerType::get(builder.getContext(), localVarTy);
+  auto localVarPtrTy = mlir::cir::PointerType::get(builder.getContext(), ty);
   auto alignIntAttr = CGM.getSize(alignment);
 
   mlir::Value addr;
@@ -1136,10 +1134,16 @@ mlir::Value CIRGenFunction::buildAlloca(StringRef name, InitStyle initStyle,
     }
 
     addr = builder.create<mlir::cir::AllocaOp>(loc, /*addr type*/ localVarPtrTy,
-                                               /*var type*/ localVarTy, name,
-                                               initStyle, alignIntAttr);
+                                               /*var type*/ ty, name, initStyle,
+                                               alignIntAttr);
   }
   return addr;
+}
+
+mlir::Value CIRGenFunction::buildAlloca(StringRef name, InitStyle initStyle,
+                                        QualType ty, mlir::Location loc,
+                                        CharUnits alignment) {
+  return buildAlloca(name, initStyle, getCIRType(ty), loc, alignment);
 }
 
 mlir::Value CIRGenFunction::buildLoadOfScalar(LValue lvalue,
