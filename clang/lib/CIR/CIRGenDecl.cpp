@@ -336,6 +336,7 @@ void CIRGenFunction::buildDecl(const Decl &D) {
   case Decl::Concept:
   case Decl::LifetimeExtendedTemporary:
   case Decl::RequiresExprBody:
+  case Decl::UnnamedGlobalConstant:
     // None of these decls require codegen support.
     return;
 
