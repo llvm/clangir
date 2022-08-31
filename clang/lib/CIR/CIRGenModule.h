@@ -359,6 +359,13 @@ public:
   mlir::cir::GlobalLinkageKind
   getCIRLinkageForDeclarator(const DeclaratorDecl *D, GVALinkage Linkage,
                              bool IsConstantVariable);
+  void setFunctionLinkage(GlobalDecl GD, mlir::cir::FuncOp f) {
+    auto L = getFunctionLinkage(GD);
+    f.linkageAttr(
+        mlir::cir::GlobalLinkageKindAttr::get(builder.getContext(), L));
+    mlir::SymbolTable::setSymbolVisibility(f,
+                                           getMLIRVisibilityFromCIRLinkage(L));
+  }
 
   void addReplacement(StringRef Name, mlir::Operation *Op);
 
