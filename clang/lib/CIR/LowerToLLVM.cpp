@@ -246,24 +246,22 @@ public:
       break;
     case mlir::cir::BinOpKind::Div:
       if (type.isa<mlir::IntegerType>()) {
-        if (type.isSignedInteger())
+        if (type.isSignlessInteger())
           rewriter.replaceOpWithNewOp<mlir::arith::DivSIOp>(
               op, op.getType(), op.getLhs(), op.getRhs());
         else
-          rewriter.replaceOpWithNewOp<mlir::arith::DivUIOp>(
-              op, op.getType(), op.getLhs(), op.getRhs());
+          llvm_unreachable("integer type not supported in CIR yet");
       } else
         rewriter.replaceOpWithNewOp<mlir::arith::DivFOp>(
             op, op.getType(), op.getLhs(), op.getRhs());
       break;
     case mlir::cir::BinOpKind::Rem:
       if (type.isa<mlir::IntegerType>()) {
-        if (type.isSignedInteger())
+        if (type.isSignlessInteger())
           rewriter.replaceOpWithNewOp<mlir::arith::RemSIOp>(
               op, op.getType(), op.getLhs(), op.getRhs());
         else
-          rewriter.replaceOpWithNewOp<mlir::arith::RemUIOp>(
-              op, op.getType(), op.getLhs(), op.getRhs());
+          llvm_unreachable("integer type not supported in CIR yet");
       } else
         rewriter.replaceOpWithNewOp<mlir::arith::RemFOp>(
             op, op.getType(), op.getLhs(), op.getRhs());
@@ -285,12 +283,11 @@ public:
           op, op.getType(), op.getLhs(), op.getRhs());
       break;
     case mlir::cir::BinOpKind::Shr:
-      if (type.isSignedInteger())
+      if (type.isSignlessInteger())
         rewriter.replaceOpWithNewOp<mlir::arith::ShRSIOp>(
             op, op.getType(), op.getLhs(), op.getRhs());
       else
-        rewriter.replaceOpWithNewOp<mlir::arith::ShRUIOp>(
-            op, op.getType(), op.getLhs(), op.getRhs());
+        llvm_unreachable("integer type not supported in CIR yet");
       break;
     }
 
@@ -334,7 +331,7 @@ public:
     case mlir::cir::CmpOpKind::ge: {
       if (type.isa<mlir::IntegerType>()) {
         mlir::arith::CmpIPredicate cmpIType;
-        if (type.isSignlessInteger())
+        if (!type.isSignlessInteger())
           llvm_unreachable("integer type not supported in CIR yet");
         cmpIType = mlir::arith::CmpIPredicate::uge;
         rewriter.replaceOpWithNewOp<mlir::arith::CmpIOp>(
@@ -355,7 +352,7 @@ public:
     case mlir::cir::CmpOpKind::lt: {
       if (type.isa<mlir::IntegerType>()) {
         mlir::arith::CmpIPredicate cmpIType;
-        if (type.isSignlessInteger())
+        if (!type.isSignlessInteger())
           llvm_unreachable("integer type not supported in CIR yet");
         cmpIType = mlir::arith::CmpIPredicate::ult;
         rewriter.replaceOpWithNewOp<mlir::arith::CmpIOp>(
@@ -376,7 +373,7 @@ public:
     case mlir::cir::CmpOpKind::le: {
       if (type.isa<mlir::IntegerType>()) {
         mlir::arith::CmpIPredicate cmpIType;
-        if (type.isSignlessInteger())
+        if (!type.isSignlessInteger())
           llvm_unreachable("integer type not supported in CIR yet");
         cmpIType = mlir::arith::CmpIPredicate::ule;
         rewriter.replaceOpWithNewOp<mlir::arith::CmpIOp>(
@@ -450,8 +447,8 @@ public:
 
 void populateCIRToMemRefConversionPatterns(mlir::RewritePatternSet &patterns) {
   patterns.add<CIRAllocaLowering, CIRLoadLowering, CIRStoreLowering,
-               CIRConstantLowering, CIRBinOpLowering,
-               CIRCmpOpLowering, CIRBrOpLowering>(patterns.getContext());
+               CIRConstantLowering, CIRBinOpLowering, CIRCmpOpLowering,
+               CIRBrOpLowering>(patterns.getContext());
 }
 
 void ConvertCIRToLLVMPass::runOnOperation() {
@@ -480,10 +477,9 @@ void ConvertCIRToMemRefPass::runOnOperation() {
   // whether we should have micro-conversions that do the minimal amount of work
   // or macro conversions that entiirely remove a dialect.
   target.addLegalOp<mlir::ModuleOp>();
-  target
-      .addLegalDialect<mlir::AffineDialect, mlir::arith::ArithmeticDialect,
-                       mlir::memref::MemRefDialect, mlir::func::FuncDialect,
-                       mlir::scf::SCFDialect, mlir::cf::ControlFlowDialect>();
+  target.addLegalDialect<mlir::AffineDialect, mlir::arith::ArithmeticDialect,
+                         mlir::memref::MemRefDialect, mlir::func::FuncDialect,
+                         mlir::scf::SCFDialect, mlir::cf::ControlFlowDialect>();
   target
       .addIllegalOp<mlir::cir::BinOp, mlir::cir::ReturnOp, mlir::cir::AllocaOp,
                     mlir::cir::LoadOp, mlir::cir::StoreOp,
