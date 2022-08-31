@@ -1125,6 +1125,9 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
           resultAttrs))
     return failure();
 
+  for (auto &arg : arguments)
+    argTypes.push_back(arg.type);
+
   auto fnType = builder.getFunctionType(argTypes, resultTypes);
   state.addAttribute(function_interface_impl::getTypeAttrName(),
                      TypeAttr::get(fnType));
@@ -1134,9 +1137,8 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
     return failure();
 
   // Add the attributes to the function arguments.
-  assert(argAttrs.size() == argTypes.size());
   assert(resultAttrs.size() == resultTypes.size());
-  function_interface_impl::addArgAndResultAttrs(builder, state, argAttrs,
+  function_interface_impl::addArgAndResultAttrs(builder, state, arguments,
                                                 resultAttrs);
 
   // Parse the optional function body.
