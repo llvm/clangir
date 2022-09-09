@@ -23,7 +23,7 @@
 
 #include "llvm/ADT/SmallPtrSet.h"
 
-#include "mlir/Dialect/CIR/IR/CIRTypes.h"
+#include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "mlir/IR/MLIRContext.h"
 
 #include <utility>

@@ -36,7 +36,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Casting.h"
 
-#include "mlir/Dialect/CIR/IR/CIRDialect.h"
+#include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/CIRGenerator.h"
 
 #include <algorithm>

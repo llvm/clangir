@@ -38,6 +38,7 @@ add_clang_library(clangCIR
   MLIRCIR
   MLIRCIROpsIncGen
   MLIRSubElementInterfacesIncGen
+  ${dialect_libs}
 
   LINK_LIBS
   clangAST

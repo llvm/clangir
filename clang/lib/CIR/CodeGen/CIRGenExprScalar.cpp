@@ -16,8 +16,8 @@
 
 #include "clang/AST/StmtVisitor.h"
 
-#include "mlir/Dialect/CIR/IR/CIRDialect.h"
-#include "mlir/Dialect/CIR/IR/CIRTypes.h"
+#include "clang/CIR/Dialect/IR/CIRDialect.h"
+#include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "mlir/IR/Value.h"
 
 using namespace cir;

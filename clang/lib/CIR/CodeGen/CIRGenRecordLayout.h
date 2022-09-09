@@ -13,7 +13,7 @@
 
 #include "clang/AST/Decl.h"
 
-#include "mlir/Dialect/CIR/IR/CIRTypes.h"
+#include "clang/CIR/Dialect/IR/CIRTypes.h"
 
 namespace cir {
 

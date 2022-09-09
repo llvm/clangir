@@ -5,7 +5,7 @@
 #include "CallingConv.h"
 #include "TargetInfo.h"
 
-#include "mlir/Dialect/CIR/IR/CIRTypes.h"
+#include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinTypes.h"
 

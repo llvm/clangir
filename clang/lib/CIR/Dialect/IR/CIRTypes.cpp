@@ -10,8 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "mlir/Dialect/CIR/IR/CIRTypes.h"
-#include "mlir/Dialect/CIR/IR/CIRDialect.h"
+#include "clang/CIR/Dialect/IR/CIRTypes.h"
+#include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/DialectImplementation.h"
@@ -20,7 +20,7 @@
 #include "llvm/ADT/TypeSwitch.h"
 
 #define GET_TYPEDEF_CLASSES
-#include "mlir/Dialect/CIR/IR/CIROpsTypes.cpp.inc"
+#include "clang/CIR/Dialect/IR/CIROpsTypes.cpp.inc"
 
 using namespace mlir;
 using namespace mlir::cir;
@@ -122,6 +122,6 @@ void ArrayType::print(mlir::AsmPrinter &printer) const {
 void CIRDialect::registerTypes() {
   addTypes<
 #define GET_TYPEDEF_LIST
-#include "mlir/Dialect/CIR/IR/CIROpsTypes.cpp.inc"
+#include "clang/CIR/Dialect/IR/CIROpsTypes.cpp.inc"
       >();
 }
