@@ -20,6 +20,7 @@
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Decl.h"
 #include "clang/CIR/CIRGenerator.h"
+#include "mlir/Dialect/CIR/IR/CIRDialect.h"
 
 using namespace cir;
 using namespace clang;
