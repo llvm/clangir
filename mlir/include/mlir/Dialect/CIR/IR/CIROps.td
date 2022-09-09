@@ -100,7 +100,7 @@ def ConstantOp : CIR_Op<"cst",
 
   let extraClassDeclaration = [{
      bool isNullPtr() {
-       return mlir::isa<UnitAttr>(getValue());
+       return mlir::isa<mlir::cir::NullAttr>(getValue());
      }
   }];
 
