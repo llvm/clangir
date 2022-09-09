@@ -21,6 +21,6 @@
 //===----------------------------------------------------------------------===//
 
 #define GET_TYPEDEF_CLASSES
-#include "mlir/Dialect/CIR/IR/CIROpsTypes.h.inc"
+#include "clang/CIR/Dialect/IR/CIROpsTypes.h.inc"
 
 #endif // MLIR_DIALECT_CIR_IR_CIRTYPES_H_

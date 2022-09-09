@@ -10,8 +10,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "mlir/Dialect/CIR/IR/CIRAttrs.h"
-#include "mlir/Dialect/CIR/IR/CIRDialect.h"
+#include "clang/CIR/Dialect/IR/CIRAttrs.h"
+#include "clang/CIR/Dialect/IR/CIRDialect.h"
+
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributeInterfaces.h"
@@ -22,7 +23,7 @@
 #include "llvm/ADT/TypeSwitch.h"
 
 #define GET_ATTRDEF_CLASSES
-#include "mlir/Dialect/CIR/IR/CIROpsAttributes.cpp.inc"
+#include "clang/CIR/Dialect/IR/CIROpsAttributes.cpp.inc"
 
 using namespace mlir;
 using namespace mlir::cir;
@@ -56,6 +57,6 @@ void CIRDialect::printAttribute(Attribute attr, DialectAsmPrinter &os) const {
 void CIRDialect::registerAttributes() {
   addAttributes<
 #define GET_ATTRDEF_LIST
-#include "mlir/Dialect/CIR/IR/CIROpsAttributes.cpp.inc"
+#include "clang/CIR/Dialect/IR/CIROpsAttributes.cpp.inc"
       >();
 }
