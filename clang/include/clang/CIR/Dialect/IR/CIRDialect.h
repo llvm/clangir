@@ -25,11 +25,11 @@
 #include "mlir/Interfaces/LoopLikeInterface.h"
 #include "mlir/Interfaces/SideEffectInterfaces.h"
 
-#include "mlir/Dialect/CIR/IR/CIRAttrs.h"
-#include "mlir/Dialect/CIR/IR/CIROpsDialect.h.inc"
-#include "mlir/Dialect/CIR/IR/CIROpsEnums.h"
-#include "mlir/Dialect/CIR/IR/CIROpsStructs.h.inc"
-#include "mlir/Dialect/CIR/IR/CIRTypes.h"
+#include "clang/CIR/Dialect/IR/CIRAttrs.h"
+#include "clang/CIR/Dialect/IR/CIROpsDialect.h.inc"
+#include "clang/CIR/Dialect/IR/CIROpsEnums.h"
+#include "clang/CIR/Dialect/IR/CIROpsStructs.h.inc"
+#include "clang/CIR/Dialect/IR/CIRTypes.h"
 
 namespace mlir {
 namespace OpTrait {
@@ -62,6 +62,6 @@ void buildTerminatedBody(OpBuilder &builder, Location loc);
 } // namespace mlir
 
 #define GET_OP_CLASSES
-#include "mlir/Dialect/CIR/IR/CIROps.h.inc"
+#include "clang/CIR/Dialect/IR/CIROps.h.inc"
 
 #endif // MLIR_DIALECT_CIR_CIRDIALECT_H_
