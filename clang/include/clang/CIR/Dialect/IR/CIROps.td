@@ -14,9 +14,9 @@
 #ifndef MLIR_CIR_DIALECT_CIR_OPS
 #define MLIR_CIR_DIALECT_CIR_OPS
 
-include "mlir/Dialect/CIR/IR/CIRDialect.td"
-include "mlir/Dialect/CIR/IR/CIRTypes.td"
-include "mlir/Dialect/CIR/IR/CIRAttrs.td"
+include "clang/CIR/Dialect/IR/CIRDialect.td"
+include "clang/CIR/Dialect/IR/CIRTypes.td"
+include "clang/CIR/Dialect/IR/CIRAttrs.td"
 
 include "mlir/Interfaces/CallInterfaces.td"
 include "mlir/Interfaces/ControlFlowInterfaces.td"
@@ -541,7 +541,7 @@ def ScopeOp : CIR_Op<"scope", [DeclareOpInterfaceMethods<RegionBranchOpInterface
 
   let skipDefaultBuilders = 1;
   let builders = [
-    OpBuilder<(ins "TypeRange":$resultTypes, 
+    OpBuilder<(ins "TypeRange":$resultTypes,
                "function_ref<void(OpBuilder &, Location)>":$scopeBuilder)>
   ];
 }
