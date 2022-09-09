@@ -18,20 +18,51 @@
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Dialect.h"
 #include "mlir/IR/OpDefinition.h"
+#include "mlir/Interfaces/FunctionInterfaces.h"
 #include "mlir/Interfaces/CallInterfaces.h"
 #include "mlir/Interfaces/ControlFlowInterfaces.h"
-#include "mlir/Interfaces/FunctionInterfaces.h"
 #include "mlir/Interfaces/InferTypeOpInterface.h"
 #include "mlir/Interfaces/LoopLikeInterface.h"
-#include "mlir/Interfaces/MemorySlotInterfaces.h"
 #include "mlir/Interfaces/SideEffectInterfaces.h"
 
+#include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "clang/CIR/Dialect/IR/CIROpsDialect.h.inc"
+#include "clang/CIR/Dialect/IR/CIROpsEnums.h"
+#include "clang/CIR/Dialect/IR/CIROpsStructs.h.inc"
+#include "clang/CIR/Dialect/IR/CIRTypes.h"
 
-// TableGen'erated files for MLIR dialects require that a macro be defined when
-// they are included.  GET_OP_CLASSES tells the file to define the classes for
-// the operations of that dialect.
+namespace mlir {
+namespace OpTrait {
+
+namespace impl {
+// These functions are out-of-line implementations of the methods in the
+// corresponding trait classes.  This avoids them being template
+// instantiated/duplicated.
+LogicalResult verifySameFirstOperandAndResultType(Operation *op);
+} // namespace impl
+
+/// This class provides verification for ops that are known to have the same
+/// first operand and result type.
+///
+template <typename ConcreteType>
+class SameFirstOperandAndResultType
+    : public TraitBase<ConcreteType, SameFirstOperandAndResultType> {
+public:
+  static LogicalResult verifyTrait(Operation *op) {
+    return impl::verifySameFirstOperandAndResultType(op);
+  }
+};
+
+} // namespace OpTrait
+
+namespace cir {
+void buildTerminatedBody(OpBuilder &builder, Location loc);
+} // namespace cir
+
+} // namespace mlir
+
 #define GET_OP_CLASSES
 #include "clang/CIR/Dialect/IR/CIROps.h.inc"
 
 #endif // LLVM_CLANG_CIR_DIALECT_IR_CIRDIALECT_H
+

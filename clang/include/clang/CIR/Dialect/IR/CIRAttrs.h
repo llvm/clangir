@@ -13,8 +13,9 @@
 #ifndef MLIR_DIALECT_CIR_IR_CIRATTRS_H_
 #define MLIR_DIALECT_CIR_IR_CIRATTRS_H_
 
-#include "mlir/Dialect/CIR/IR/CIROpsEnums.h"
-#include "mlir/Dialect/CIR/IR/CIRTypes.h"
+#include "clang/CIR/Dialect/IR/CIROpsEnums.h"
+#include "clang/CIR/Dialect/IR/CIRTypes.h"
+
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/BuiltinAttributeInterfaces.h"
 
@@ -23,6 +24,6 @@
 //===----------------------------------------------------------------------===//
 
 #define GET_ATTRDEF_CLASSES
-#include "mlir/Dialect/CIR/IR/CIROpsAttributes.h.inc"
+#include "clang/CIR/Dialect/IR/CIROpsAttributes.h.inc"
 
 #endif // MLIR_DIALECT_CIR_IR_CIRATTRS_H_

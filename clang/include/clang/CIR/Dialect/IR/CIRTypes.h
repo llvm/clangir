@@ -1,4 +1,4 @@
-//===----------------------------------------------------------------------===//
+//===- CIRTypes.h - MLIR CIR Types ------------------------------*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -15,10 +15,9 @@
 
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/Types.h"
-#include "mlir/Interfaces/DataLayoutInterfaces.h"
 
 //===----------------------------------------------------------------------===//
-// CIR Dialect Tablegen'd Types
+// CIR Dialect Types
 //===----------------------------------------------------------------------===//
 
 #define GET_TYPEDEF_CLASSES

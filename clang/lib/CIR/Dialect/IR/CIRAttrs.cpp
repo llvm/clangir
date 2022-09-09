@@ -6,14 +6,28 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file defines the attributes in the CIR dialect.
+// This file defines the types in the CIR dialect.
 //
 //===----------------------------------------------------------------------===//
 
+#include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
+#include "clang/CIR/Dialect/IR/CIROpsEnums.h"
+
+#include "mlir/IR/Attributes.h"
+#include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinAttributeInterfaces.h"
+#include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/DialectImplementation.h"
+
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/TypeSwitch.h"
+
+#define GET_ATTRDEF_CLASSES
+#include "clang/CIR/Dialect/IR/CIROpsAttributes.cpp.inc"
 
 using namespace mlir;
-using namespace cir;
+using namespace mlir::cir;
 
 //===----------------------------------------------------------------------===//
 // General CIR parsing / printing
@@ -21,12 +35,20 @@ using namespace cir;
 
 Attribute CIRDialect::parseAttribute(DialectAsmParser &parser,
                                      Type type) const {
-  // No attributes yet to parse
-  return Attribute{};
+  llvm::SMLoc typeLoc = parser.getCurrentLocation();
+  StringRef mnemonic;
+  Attribute genAttr;
+  OptionalParseResult parseResult =
+      generatedAttributeParser(parser, &mnemonic, type, genAttr);
+  if (parseResult.has_value())
+    return genAttr;
+  parser.emitError(typeLoc, "unknown attribute in CIR dialect");
+  return Attribute();
 }
 
 void CIRDialect::printAttribute(Attribute attr, DialectAsmPrinter &os) const {
-  // No attributes yet to print
+  if (failed(generatedAttributePrinter(attr, os)))
+    llvm_unreachable("unexpected CIR type kind");
 }
 
 //===----------------------------------------------------------------------===//
@@ -34,5 +56,8 @@ void CIRDialect::printAttribute(Attribute attr, DialectAsmPrinter &os) const {
 //===----------------------------------------------------------------------===//
 
 void CIRDialect::registerAttributes() {
-  // No attributes yet to register
+  addAttributes<
+#define GET_ATTRDEF_LIST
+#include "clang/CIR/Dialect/IR/CIROpsAttributes.cpp.inc"
+      >();
 }
