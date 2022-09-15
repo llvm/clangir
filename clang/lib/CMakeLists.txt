@@ -30,4 +30,7 @@ if(CLANG_INCLUDE_TESTS)
 endif()
 add_subdirectory(Interpreter)
 add_subdirectory(Support)
-add_subdirectory(CIR)
+
+if(CLANG_ENABLE_CIR)
+  add_subdirectory(CIR)
+endif()
