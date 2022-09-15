@@ -29,6 +29,7 @@ config.clang_default_std_cxx = "@CLANG_DEFAULT_STD_CXX@"
 config.clang_default_cxx_stdlib = "@CLANG_DEFAULT_CXX_STDLIB@"
 config.clang_staticanalyzer = @CLANG_ENABLE_STATIC_ANALYZER@
 config.clang_staticanalyzer_z3 = @LLVM_WITH_Z3@
+config.clang_enable_cir = @CLANG_ENABLE_CIR@
 config.clang_examples = @CLANG_BUILD_EXAMPLES@
 config.enable_shared = @ENABLE_SHARED@
 config.enable_backtrace = @ENABLE_BACKTRACES@
