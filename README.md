@@ -9,10 +9,10 @@ This project is part of the LLVM incubator, the source of truth for CIR is found
 The [main](https://github.com/facebookincubator/clangir/tree/main) branch
 contains a stack of commits, occasionally rebased on top of LLVM upstream,
 tracked in
-[latest-upstream-llvm](https://github.com/llvm/clangir/tree/latest-upstream-llvm)
+[base](https://github.com/llvm/clangir/tree/base)
 branch.
 
 <!---
 On vim use ":r!date"
 -->
-*Last updated: Thu Aug 4 17:07:34 PDT 2022*
+*Last updated: Tue Sep 20 11:45:54 PDT 2022*

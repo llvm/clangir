@@ -5,7 +5,7 @@
 
 # Note that this build path is outside this repo checkout, update to
 # your needs if using this hacky script.
-BUILD="../clangir/Build+Release+Libcxx+Assert/tools/mlir/docs"
+BUILD="../clangir/Build+Release+Libcxx+Assert/tools/clang/docs"
 
 TEMPLATE="---\nsort : POSITION\n---\n\n# TITLE\n\n* toc\n{:toc}\n\n---\n"
 

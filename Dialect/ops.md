@@ -83,7 +83,7 @@ should be the same.
 
 Traits: SameOperandsAndResultType, SameTypeOperands
 
-Interfaces: NoSideEffect (MemoryEffectOpInterface)
+Interfaces: InferTypeOpInterface, NoSideEffect (MemoryEffectOpInterface)
 
 Effects: MemoryEffects::Effect{}
 
@@ -419,7 +419,7 @@ Interfaces: CallableOpInterface, FunctionOpInterface, Symbol
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 | `sym_name` | ::mlir::StringAttr | string attribute
-| `type` | ::mlir::TypeAttr | any type attribute
+| `function_type` | ::mlir::TypeAttr | type attribute of function type
 | `linkage` | ::mlir::cir::GlobalLinkageKindAttr | Linkage type/kind
 | `sym_visibility` | ::mlir::StringAttr | string attribute
 
