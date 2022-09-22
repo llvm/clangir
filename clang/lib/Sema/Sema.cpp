@@ -249,11 +249,6 @@ Sema::Sema(Preprocessor &pp, ASTContext &ctxt, ASTConsumer &consumer,
   std::unique_ptr<sema::SemaPPCallbacks> Callbacks =
       std::make_unique<sema::SemaPPCallbacks>();
 
-  // TODO: The CIRGenerator is going to need CodeGenOptions in order to function
-  // properly. We'll have to figure out how to pass those in properly at some
-  // point.
-  // CIRWarnings = std::make_unique<sema::CIRBasedWarnings>(*this);
-
   SemaPPCallbackHandler = Callbacks.get();
   PP.addPPCallbacks(std::move(Callbacks));
   SemaPPCallbackHandler->set(*this);
@@ -572,10 +567,7 @@ void Sema::PrintStats() const {
   llvm::errs() << NumSFINAEErrors << " SFINAE diagnostics trapped.\n";
 
   BumpAlloc.PrintStats();
-  if (LangOpts.CIRWarnings)
-    CIRWarnings->PrintStats();
-  else
-    AnalysisWarnings.PrintStats();
+  AnalysisWarnings.PrintStats();
 }
 
 void Sema::diagnoseNullableToNonnullConversion(QualType DstType,
@@ -1454,11 +1446,6 @@ void Sema::ActOnEndOfTranslationUnit() {
 
   if (!PP.isIncrementalProcessingEnabled())
     TUScope = nullptr;
-
-  // Clean up CIR based warnings and write out files to disk (if any).
-  // FIXME: this is where globals should be emitted prior to CIR output.
-  if (getLangOpts().CIRWarnings)
-    CIRWarnings.reset();
 }
 
 
@@ -2268,12 +2255,6 @@ Sema::PopFunctionScopeInfo(const AnalysisBasedWarnings::Policy *WP,
 
   if (LangOpts.OpenMP)
     popOpenMPFunctionRegion(Scope.get());
-
-  // Current entry point into emitting CIR per-function. Conditions
-  // are the same as for analysis-based one, but this is not emitting
-  // anything just yet.
-  if (WP && D && LangOpts.CIRWarnings)
-    CIRWarnings->IssueWarnings(*WP, Scope.get(), D, BlockType);
 
   // Issue any analysis-based warnings.
   if (WP && D)
