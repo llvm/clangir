@@ -47,7 +47,6 @@
 #include "clang/Basic/TemplateKinds.h"
 #include "clang/Basic/TypeTraits.h"
 #include "clang/Sema/AnalysisBasedWarnings.h"
-#include "clang/Sema/CIRBasedWarnings.h"
 #include "clang/Sema/CleanupInfo.h"
 #include "clang/Sema/DeclSpec.h"
 #include "clang/Sema/ExternalSemaSource.h"
@@ -9642,9 +9641,6 @@ public:
   /// Worker object for performing CFG-based warnings.
   sema::AnalysisBasedWarnings AnalysisWarnings;
   threadSafety::BeforeSet *ThreadSafetyDeclCache;
-
-  /// Worker object for performing CIR based warnings.
-  std::unique_ptr<sema::CIRBasedWarnings> CIRWarnings;
 
   /// An entity for which implicit template instantiation is required.
   ///

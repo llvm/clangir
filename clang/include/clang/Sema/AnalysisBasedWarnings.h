@@ -25,7 +25,6 @@ class QualType;
 class Sema;
 
 namespace sema {
-class CIRBasedWarnings;
 class FunctionScopeInfo;
 }
 
@@ -35,7 +34,6 @@ class AnalysisBasedWarnings {
 public:
   class Policy {
     friend class AnalysisBasedWarnings;
-    friend class CIRBasedWarnings;
     // The warnings to run.
     unsigned enableCheckFallThrough : 1;
     unsigned enableCheckUnreachable : 1;
