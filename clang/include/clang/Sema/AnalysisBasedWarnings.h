@@ -19,14 +19,12 @@
 
 namespace clang {
 
-class BlockExpr;
 class Decl;
 class FunctionDecl;
 class QualType;
 class Sema;
 
 namespace sema {
-class CIRBasedWarnings;
   class FunctionScopeInfo;
   class SemaPPCallbacks;
 }
@@ -38,7 +36,6 @@ public:
   class Policy {
     friend class AnalysisBasedWarnings;
     friend class SemaPPCallbacks;
-    friend class CIRBasedWarnings;
     // The warnings to run.
     LLVM_PREFERRED_TYPE(bool)
     unsigned enableCheckFallThrough : 1;

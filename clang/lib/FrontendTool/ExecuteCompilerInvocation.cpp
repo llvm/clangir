@@ -11,7 +11,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/CIRFrontendAction/CIRGenAction.h"
 #include "clang/CodeGen/CodeGenAction.h"
 #include "clang/Config/config.h"
 #include "clang/Driver/Options.h"
@@ -31,8 +30,11 @@
 #include "llvm/Support/DynamicLibrary.h"
 #include "llvm/Support/ErrorHandling.h"
 
+#if CLANG_ENABLE_CIR
+#include "clang/CIRFrontendAction/CIRGenAction.h"
+#endif
+
 using namespace clang;
-using namespace cir;
 using namespace llvm::opt;
 
 namespace clang {
@@ -65,23 +67,31 @@ CreateFrontendBaseAction(CompilerInstance &CI) {
     return std::make_unique<DumpCompilerOptionsAction>();
   case DumpRawTokens:          return std::make_unique<DumpRawTokensAction>();
   case DumpTokens:             return std::make_unique<DumpTokensAction>();
-  case EmitAssembly:
-    return std::make_unique<EmitAssemblyAction>();
-  case EmitBC:
-    return std::make_unique<EmitBCAction>();
-  case EmitCIR:                return std::make_unique<EmitCIRAction>();
-  case EmitCIROnly:            return std::make_unique<EmitCIROnlyAction>();
+  case EmitAssembly:           return std::make_unique<EmitAssemblyAction>();
+  case EmitBC:                 return std::make_unique<EmitBCAction>();
+#if CLANG_ENABLE_CIR
+  case EmitCIR:                return std::make_unique<::cir::EmitCIRAction>();
+  case EmitCIROnly:            return std::make_unique<::cir::EmitCIROnlyAction>();
+#else
+  case EmitCIR:
+  case EmitCIROnly:
+    llvm_unreachable("CIR suppport not built into clang");
+#endif
   case EmitHTML:               return std::make_unique<HTMLPrintAction>();
   case EmitLLVM: {
+#if CLANG_ENABLE_CIR
     if (UseCIR)
-      return std::make_unique<cir::EmitLLVMAction>();
+      return std::make_unique<::cir::EmitLLVMAction>();
+#endif
     return std::make_unique<EmitLLVMAction>();
   }
   case EmitLLVMOnly:           return std::make_unique<EmitLLVMOnlyAction>();
   case EmitCodeGenOnly:        return std::make_unique<EmitCodeGenOnlyAction>();
   case EmitObj: {
+#if CLANG_ENABLE_CIR
     if (UseCIR)
-      return std::make_unique<cir::EmitObjAction>();
+      return std::make_unique<::cir::EmitObjAction>();
+#endif
     return std::make_unique<EmitObjAction>();
   }
   case ExtractAPI:
