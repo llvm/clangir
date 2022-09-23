@@ -1151,7 +1151,8 @@ def FuncOp : CIR_Op<"func", [
                        TypeAttrOf<FunctionType>:$function_type,
                        DefaultValuedAttr<GlobalLinkageKind,
                                          "GlobalLinkageKind::ExternalLinkage">:$linkage,
-                       OptionalAttr<StrAttr>:$sym_visibility);
+                       OptionalAttr<StrAttr>:$sym_visibility,
+                       OptionalAttr<ASTFunctionDeclAttr>:$ast);
   let regions = (region AnyRegion:$body);
   let skipDefaultBuilders = 1;
 
