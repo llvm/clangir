@@ -21,6 +21,10 @@
 // CIR Dialect Attrs
 //===----------------------------------------------------------------------===//
 
+namespace clang {
+class FunctionDecl;
+}
+
 #define GET_ATTRDEF_CLASSES
 #include "clang/CIR/Dialect/IR/CIROpsAttributes.h.inc"
 
