@@ -12,6 +12,7 @@
 
 #include "mlir/Conversion/AffineToStandard/AffineToStandard.h"
 #include "mlir/Conversion/ArithmeticToLLVM/ArithmeticToLLVM.h"
+#include "mlir/Conversion/ControlFlowToLLVM/ControlFlowToLLVM.h"
 #include "mlir/Conversion/FuncToLLVM/ConvertFuncToLLVM.h"
 #include "mlir/Conversion/FuncToLLVM/ConvertFuncToLLVMPass.h"
 #include "mlir/Conversion/LLVMCommon/ConversionTarget.h"
@@ -462,6 +463,8 @@ void ConvertCIRToLLVMPass::runOnOperation() {
   mlir::arith::populateArithmeticToLLVMConversionPatterns(typeConverter,
                                                           patterns);
   populateSCFToControlFlowConversionPatterns(patterns);
+  mlir::cf::populateControlFlowToLLVMConversionPatterns(typeConverter,
+                                                        patterns);
   populateMemRefToLLVMConversionPatterns(typeConverter, patterns);
   populateFuncToLLVMConversionPatterns(typeConverter, patterns);
 
