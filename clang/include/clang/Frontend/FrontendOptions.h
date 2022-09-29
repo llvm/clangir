@@ -417,10 +417,18 @@ public:
   /// Disable Clang IR (CIR) verifier
   unsigned ClangIRDisableCIRVerifier : 1;
 
+  /// Enable diagnostic verification for CIR
+  unsigned ClangIRVerifyDiags : 1;
+
+  // Enable Clang IR based lifetime check
+  unsigned ClangIRLifetimeCheck : 1;
+
   CodeCompleteOptions CodeCompleteOpts;
 
   /// Specifies the output format of the AST.
   ASTDumpOutputFormat ASTDumpFormat = ADOF_Default;
+
+  std::string ClangIRLifetimeCheckOpts;
 
   /// The input kind, either specified via -x argument or deduced from the input
   /// file name.
@@ -547,8 +555,8 @@ public:
         EmitSymbolGraphSymbolLabelsForTesting(false),
         EmitPrettySymbolGraphs(false), GenReducedBMI(false),
         UseClangIRPipeline(false), ClangIRDisablePasses(false),
-        ClangIRDisableCIRVerifier(false), TimeTraceGranularity(500),
-        TimeTraceVerbose(false) {}
+        ClangIRDisableCIRVerifier(false), ClangIRLifetimeCheck(false),
+        TimeTraceGranularity(500), TimeTraceVerbose(false) {}
 
   /// getInputKindForExtension - Return the appropriate input kind for a file
   /// extension. For example, "c" would return Language::C.
