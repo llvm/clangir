@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -std=c++17 -triple x86_64-unknown-linux-gnu -mconstructor-aliases -fenable-clangir -emit-cir %s -o - | FileCheck %s
+// RUN: %clang_cc1 -std=c++17 -triple x86_64-unknown-linux-gnu -mconstructor-aliases -fclangir-enable -emit-cir %s -o - | FileCheck %s
 
 struct DummyString {
   DummyString(const char *s) {}
