@@ -2864,19 +2864,19 @@ def flto_EQ : Joined<["-"], "flto=">,
   Visibility<[ClangOption, CLOption, CC1Option, FC1Option, FlangOption]>,
   Group<f_Group>,
   HelpText<"Set LTO mode">, Values<"thin,full">;
-def fenable_clangir : Flag<["-"], "fenable-clangir">, Visibility<[ClangOption, CC1Option]>,
-  Group<f_Group>, HelpText<"Use the new ClangIR pipeline to compile.">,
+def fclangir_enable : Flag<["-"], "fclangir-enable">, Visibility<[ClangOption, CC1Option]>, Group<f_Group>,
+  HelpText<"Use ClangIR pipeline to compile">,
   MarshallingInfoFlag<FrontendOpts<"UseClangIRPipeline">>;
 def flto_EQ_jobserver : Flag<["-"], "flto=jobserver">, Visibility<[ClangOption, FlangOption]>, Group<f_Group>,
   Alias<flto_EQ>, AliasArgs<["full"]>, HelpText<"Enable LTO in 'full' mode">;
-def disable_cir_passes : Flag<["-"], "disable-cir-passes">,
+def clangir_disable_passes : Flag<["-"], "clangir-disable-passes">,
   Visibility<[ClangOption, CC1Option]>,
   HelpText<"Disable CIR transformations pipeline">,
-  MarshallingInfoFlag<FrontendOpts<"DisableCIRPasses">>;
-def disable_cir_verifier : Flag<["-"], "disable-cir-verifier">,
+  MarshallingInfoFlag<FrontendOpts<"ClangIRDisablePasses">>;
+def clangir_disable_verifier : Flag<["-"], "clangir-disable-verifier">,
   Visibility<[ClangOption, CC1Option]>,
-  HelpText<"Disable CIR module verifier">,
-  MarshallingInfoFlag<FrontendOpts<"DisableCIRVerifier">>;
+  HelpText<"ClangIR: Disable MLIR module verifier">,
+  MarshallingInfoFlag<FrontendOpts<"ClangIRDisableCIRVerifier">>;
 def flto_EQ_auto : Flag<["-"], "flto=auto">, Visibility<[ClangOption, FlangOption]>, Group<f_Group>,
   Alias<flto_EQ>, AliasArgs<["full"]>, HelpText<"Enable LTO in 'full' mode">;
 def flto : Flag<["-"], "flto">,
