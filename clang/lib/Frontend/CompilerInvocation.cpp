@@ -2676,6 +2676,7 @@ static void GenerateFrontendArgs(const FrontendOptions &Opts,
       break;
     case Language::HLSL:
       Lang = "hlsl";
+      break;
     case Language::CIR:
       Lang = "cir";
       break;
