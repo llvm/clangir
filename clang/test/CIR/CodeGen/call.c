@@ -1,5 +1,5 @@
-// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fenable-clangir -emit-cir %s -o - | FileCheck %s
-// RUN: %clang_cc1 -x c++ -triple x86_64-unknown-linux-gnu -fenable-clangir -emit-cir %s -o - | FileCheck %s --check-prefix=CXX
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir-enable -emit-cir %s -o - | FileCheck %s
+// RUN: %clang_cc1 -x c++ -triple x86_64-unknown-linux-gnu -fclangir-enable -emit-cir %s -o - | FileCheck %s --check-prefix=CXX
 
 void a(void) {}
 int b(int a, int b) {
