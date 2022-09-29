@@ -4760,12 +4760,12 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     }
   }
 
-  if (Args.hasArg(options::OPT_fenable_clangir) ||
+  if (Args.hasArg(options::OPT_fclangir_enable) ||
       Args.hasArg(options::OPT_emit_cir))
-    CmdArgs.push_back("-fenable-clangir");
+    CmdArgs.push_back("-fclangir-enable");
 
-  if (Args.hasArg(options::OPT_disable_cir_passes))
-    CmdArgs.push_back("-disable-cir-passes");
+  if (Args.hasArg(options::OPT_clangir_disable_passes))
+    CmdArgs.push_back("-clangir-disable-passes");
 
   if (IsOpenMPDevice) {
     // We have to pass the triple of the host if compiling for an OpenMP device.
