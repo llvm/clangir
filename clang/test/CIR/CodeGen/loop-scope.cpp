@@ -1,6 +1,6 @@
-// RUN: %clang_cc1 -std=c++17 -triple x86_64-unknown-linux-gnu -fenable-clangir -emit-cir %s -o %t.cpp.cir
+// RUN: %clang_cc1 -std=c++17 -triple x86_64-unknown-linux-gnu -fclangir-enable -emit-cir %s -o %t.cpp.cir
 // RUN: FileCheck --input-file=%t.cpp.cir %s --check-prefix=CPPSCOPE
-// RUN: %clang_cc1 -x c -std=c11 -triple x86_64-unknown-linux-gnu -fenable-clangir -emit-cir %s -o %t.c.cir
+// RUN: %clang_cc1 -x c -std=c11 -triple x86_64-unknown-linux-gnu -fclangir-enable -emit-cir %s -o %t.c.cir
 // RUN: FileCheck --input-file=%t.c.cir %s --check-prefix=CSCOPE
 
 void l0() {

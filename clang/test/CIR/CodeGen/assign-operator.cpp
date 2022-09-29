@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -std=c++17 -mconstructor-aliases -triple x86_64-unknown-linux-gnu -fenable-clangir -emit-cir %s -o - | FileCheck %s
+// RUN: %clang_cc1 -std=c++17 -mconstructor-aliases -triple x86_64-unknown-linux-gnu -fclangir-enable -emit-cir %s -o - | FileCheck %s
 
 int strlen(char const *);
 
