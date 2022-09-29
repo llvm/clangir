@@ -54,11 +54,11 @@ CreateFrontendBaseAction(CompilerInstance &CI) {
   auto IsImplementedCIROutput = EmitsCIR || Act == EmitLLVM || Act == EmitObj;
 
   if (UseCIR && !IsImplementedCIROutput)
-    llvm::report_fatal_error("-fenable-clangir currently only works with "
+    llvm::report_fatal_error("-fclangir-enable currently only works with "
                              "-emit-cir, -emit-cir-only and -emit-llvm");
   if (!UseCIR && EmitsCIR)
     llvm::report_fatal_error(
-        "-emit-cir and -emit-cir-only only valid when using -fenable-clangir");
+        "-emit-cir and -emit-cir-only only valid when using -fclangir-enable");
 
   switch (CI.getFrontendOpts().ProgramAction) {
   case ASTDeclList:            return std::make_unique<ASTDeclListAction>();
