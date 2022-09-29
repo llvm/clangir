@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -Wno-unused-value -fenable-clangir -emit-cir %s -o %t.cir
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -Wno-unused-value -fclangir-enable -emit-cir %s -o %t.cir
 // RUN: FileCheck --input-file=%t.cir %s
 // XFAIL: *
 
