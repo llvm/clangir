@@ -358,6 +358,12 @@ public:
   /// Disable Clang IR (CIR) verifier
   unsigned ClangIRDisableCIRVerifier : 1;
 
+  /// Enable diagnostic verification for CIR
+  unsigned ClangIRVerifyDiags : 1;
+
+  // Enable Clang IR based lifetime check
+  unsigned ClangIRLifetimeCheck : 1;
+
   CodeCompleteOptions CodeCompleteOpts;
 
   /// Specifies the output format of the AST.
@@ -428,6 +434,8 @@ public:
 
   std::string MTMigrateDir;
   std::string ARCMTMigrateReportOut;
+
+  std::string ClangIRLifetimeCheckOpts;
 
   /// The input kind, either specified via -x argument or deduced from the input
   /// file name.
@@ -537,7 +545,8 @@ public:
         IncludeTimestamps(true), UseTemporary(true),
         AllowPCMWithCompilerErrors(false), ModulesShareFileManager(true),
         UseClangIRPipeline(false), ClangIRDisablePasses(false),
-        ClangIRDisableCIRVerifier(false), TimeTraceGranularity(500) {}
+        ClangIRDisableCIRVerifier(false), ClangIRLifetimeCheck(false),
+        TimeTraceGranularity(500) {}
 
   /// getInputKindForExtension - Return the appropriate input kind for a file
   /// extension. For example, "c" would return Language::C.
