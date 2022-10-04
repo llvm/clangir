@@ -10,6 +10,7 @@
 
 #include "PassDetail.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "clang/AST/ASTContext.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 
 #include "llvm/ADT/SetOperations.h"
@@ -205,6 +206,9 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
   LexicalScopeContext *currScope = nullptr;
   PMapType *currPmap = nullptr;
   PMapType &getPmap() { return *currPmap; }
+
+  llvm::Optional<clang::ASTContext *> astCtx;
+  void setASTContext(clang::ASTContext *c) { astCtx = c; }
 
   void joinPmaps(SmallVectorImpl<PMapType> &pmaps);
   void printPset(PSetType &pset, llvm::raw_ostream &OS = llvm::errs());
@@ -728,6 +732,12 @@ void LifetimeCheckPass::runOnOperation() {
 
 std::unique_ptr<Pass> mlir::createLifetimeCheckPass() {
   return std::make_unique<LifetimeCheckPass>();
+}
+
+std::unique_ptr<Pass> mlir::createLifetimeCheckPass(clang::ASTContext *astCtx) {
+  auto lifetime = std::make_unique<LifetimeCheckPass>();
+  lifetime->setASTContext(astCtx);
+  return std::move(lifetime);
 }
 
 //===----------------------------------------------------------------------===//
