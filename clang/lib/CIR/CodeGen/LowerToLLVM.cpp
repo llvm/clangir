@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "mlir/Conversion/AffineToStandard/AffineToStandard.h"
-#include "mlir/Conversion/ArithmeticToLLVM/ArithmeticToLLVM.h"
+#include "mlir/Conversion/ArithToLLVM/ArithToLLVM.h"
 #include "mlir/Conversion/ControlFlowToLLVM/ControlFlowToLLVM.h"
 #include "mlir/Conversion/FuncToLLVM/ConvertFuncToLLVM.h"
 #include "mlir/Conversion/FuncToLLVM/ConvertFuncToLLVMPass.h"
@@ -20,8 +20,7 @@
 #include "mlir/Conversion/MemRefToLLVM/MemRefToLLVM.h"
 #include "mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
-#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
-#include "clang/CIR/Dialect/IR/CIRDialect.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
@@ -35,6 +34,7 @@
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Export.h"
 #include "mlir/Transforms/DialectConversion.h"
+#include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Passes.h"
 #include "llvm/ADT/Sequence.h"
 
@@ -491,8 +491,7 @@ void ConvertCIRToLLVMPass::runOnOperation() {
 
   mlir::RewritePatternSet patterns(&getContext());
   populateAffineToStdConversionPatterns(patterns);
-  mlir::arith::populateArithmeticToLLVMConversionPatterns(typeConverter,
-                                                          patterns);
+  mlir::arith::populateArithToLLVMConversionPatterns(typeConverter, patterns);
   populateSCFToControlFlowConversionPatterns(patterns);
   mlir::cf::populateControlFlowToLLVMConversionPatterns(typeConverter,
                                                         patterns);
@@ -511,7 +510,7 @@ void ConvertCIRToMemRefPass::runOnOperation() {
   // whether we should have micro-conversions that do the minimal amount of work
   // or macro conversions that entiirely remove a dialect.
   target.addLegalOp<mlir::ModuleOp>();
-  target.addLegalDialect<mlir::AffineDialect, mlir::arith::ArithmeticDialect,
+  target.addLegalDialect<mlir::AffineDialect, mlir::arith::ArithDialect,
                          mlir::memref::MemRefDialect, mlir::func::FuncDialect,
                          mlir::scf::SCFDialect, mlir::cf::ControlFlowDialect>();
   target
