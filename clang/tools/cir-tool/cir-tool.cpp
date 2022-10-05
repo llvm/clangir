@@ -41,9 +41,6 @@ int main(int argc, char **argv) {
     return cir::createConvertCIRToMemRefPass();
   });
   ::mlir::registerPass([]() -> std::unique_ptr<::mlir::Pass> {
-    return mlir::createLifetimeCheckPass();
-  });
-  ::mlir::registerPass([]() -> std::unique_ptr<::mlir::Pass> {
     return mlir::createMergeCleanupsPass();
   });
 
