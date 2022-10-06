@@ -2356,6 +2356,10 @@ def clangir_disable_verifier : Flag<["-"], "clangir-disable-verifier">,
   Flags<[CoreOption, CC1Option]>,
   HelpText<"ClangIR: Disable MLIR module verifier">,
   MarshallingInfoFlag<FrontendOpts<"ClangIRDisableCIRVerifier">>;
+def clangir_disable_emit_cxx_default : Flag<["-"], "clangir-disable-emit-cxx-default">,
+  Flags<[CoreOption, CC1Option]>,
+  HelpText<"ClangIR: Disable emission of c++ default (compiler implemented) methods.">,
+  MarshallingInfoFlag<FrontendOpts<"ClangIRDisableEmitCXXDefault">>;
 def clangir_verify_diagnostics : Flag<["-"], "clangir-verify-diagnostics">,
   Flags<[CoreOption, CC1Option]>,
   HelpText<"ClangIR: Enable diagnostic verification in MLIR, similar to clang's -verify">,
