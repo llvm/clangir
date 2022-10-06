@@ -23,6 +23,7 @@
 
 namespace clang {
 class FunctionDecl;
+class VarDecl;
 }
 
 #define GET_ATTRDEF_CLASSES
