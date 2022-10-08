@@ -512,4 +512,4 @@ def StructAttrOp : NS_Op<"struct_attr_op", []> {
   );
 }
 
-// DECL: dialect_2::MyStruct potatoes();
+// DECL: dialect_2::MyStruct getPotatoes();
