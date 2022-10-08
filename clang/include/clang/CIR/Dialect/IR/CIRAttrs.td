@@ -106,5 +106,6 @@ class ASTDecl<string name, list<Trait> traits = []>
 
 def ASTFunctionDeclAttr : ASTDecl<"FunctionDecl">;
 def ASTVarDeclAttr : ASTDecl<"VarDecl">;
+def ASTRecordDeclAttr : ASTDecl<"RecordDecl">;
 
 #endif // MLIR_CIR_DIALECT_CIR_ATTRS

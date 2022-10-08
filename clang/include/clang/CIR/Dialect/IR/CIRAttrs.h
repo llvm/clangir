@@ -24,6 +24,7 @@
 namespace clang {
 class FunctionDecl;
 class VarDecl;
+class RecordDecl;
 }
 
 #define GET_ATTRDEF_CLASSES
