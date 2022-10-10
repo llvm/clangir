@@ -55,7 +55,7 @@ public:
   mlir::Attribute VisitStmt(Stmt *S, QualType T) { return nullptr; }
 
   mlir::Attribute VisitConstantExpr(ConstantExpr *CE, QualType T) {
-    assert(0 && "unimplemented");
+    llvm_unreachable("unimplemented");
     return {};
   }
 
@@ -84,16 +84,16 @@ public:
 
   mlir::Attribute VisitCastExpr(CastExpr *E, QualType destType) {
     if (const auto *ECE = dyn_cast<ExplicitCastExpr>(E))
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
     Expr *subExpr = E->getSubExpr();
 
     switch (E->getCastKind()) {
     case CK_ToUnion: {
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
     }
 
     case CK_AddressSpaceConversion: {
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
     }
 
     case CK_LValueToRValue:
@@ -115,7 +115,7 @@ public:
     case CK_ReinterpretMemberPointer:
     case CK_DerivedToBaseMemberPointer:
     case CK_BaseToDerivedMemberPointer: {
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
     }
 
     // These will never be supported.
@@ -197,18 +197,18 @@ public:
   }
 
   mlir::Attribute EmitArrayInitialization(InitListExpr *ILE, QualType T) {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
     return {};
   }
 
   mlir::Attribute EmitRecordInitialization(InitListExpr *ILE, QualType T) {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
     return {};
   }
 
   mlir::Attribute VisitImplicitValueInitExpr(ImplicitValueInitExpr *E,
                                              QualType T) {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
     return {};
   }
 
@@ -231,7 +231,7 @@ public:
     if (!C)
       return nullptr;
 
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
     return {};
   }
 
@@ -252,18 +252,18 @@ public:
       return Visit(Arg, Ty);
     }
 
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
     return {};
   }
 
   mlir::Attribute VisitStringLiteral(StringLiteral *E, QualType T) {
     // This is a string literal initializing an array in an initializer.
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
     return {};
   }
 
   mlir::Attribute VisitObjCEncodeExpr(ObjCEncodeExpr *E, QualType T) {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
     return {};
   }
 
@@ -337,14 +337,14 @@ private:
   bool hasNonZeroOffset() const { return !Value.getLValueOffset().isZero(); }
 
   /// Return the value offset.
-  mlir::Attribute getOffset() { assert(0 && "NYI"); }
+  mlir::Attribute getOffset() { llvm_unreachable("NYI"); }
 
   /// Apply the value offset to the given constant.
   mlir::Attribute applyOffset(mlir::Attribute C) {
     if (!hasNonZeroOffset())
       return C;
     // TODO(cir): use ptr_stride, or something...
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
   }
 };
 
@@ -366,7 +366,7 @@ mlir::Attribute ConstantLValueEmitter::tryEmit() {
   // If there's no base at all, this is a null or absolute pointer,
   // possibly cast back to an integer type.
   if (!base) {
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
   }
 
   // Otherwise, try to emit the base.
@@ -379,7 +379,7 @@ mlir::Attribute ConstantLValueEmitter::tryEmit() {
 
   // Apply the offset if necessary and not already done.
   if (!result.HasOffsetApplied && !value.is<ConstantLValue::SymbolTy>()) {
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
   }
 
   // Convert to the appropriate type; this could be an lvalue for
@@ -387,16 +387,16 @@ mlir::Attribute ConstantLValueEmitter::tryEmit() {
   if (destTy.isa<mlir::cir::PointerType>()) {
     if (value.is<ConstantLValue::SymbolTy>())
       return value.get<ConstantLValue::SymbolTy>();
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
   }
 
-  assert(0 && "NYI");
+  llvm_unreachable("NYI");
 }
 
 /// Try to emit an absolute l-value, such as a null pointer or an integer
 /// bitcast to pointer type.
 mlir::Attribute ConstantLValueEmitter::tryEmitAbsolute(mlir::Type destTy) {
-  assert(0 && "NYI");
+  llvm_unreachable("NYI");
   return {};
 }
 
@@ -404,12 +404,12 @@ ConstantLValue
 ConstantLValueEmitter::tryEmitBase(const APValue::LValueBase &base) {
   // Handle values.
   if (const ValueDecl *D = base.dyn_cast<const ValueDecl *>()) {
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
   }
 
   // Handle typeid(T).
   if (TypeInfoLValue TI = base.dyn_cast<TypeInfoLValue>()) {
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
   }
 
   // Otherwise, it must be an expression.
@@ -417,13 +417,13 @@ ConstantLValueEmitter::tryEmitBase(const APValue::LValueBase &base) {
 }
 
 ConstantLValue ConstantLValueEmitter::VisitConstantExpr(const ConstantExpr *E) {
-  assert(0 && "NYI");
+  llvm_unreachable("NYI");
   return Visit(E->getSubExpr());
 }
 
 ConstantLValue
 ConstantLValueEmitter::VisitCompoundLiteralExpr(const CompoundLiteralExpr *E) {
-  assert(0 && "NYI");
+  llvm_unreachable("NYI");
   return nullptr;
 }
 
@@ -434,53 +434,53 @@ ConstantLValueEmitter::VisitStringLiteral(const StringLiteral *E) {
 
 ConstantLValue
 ConstantLValueEmitter::VisitObjCEncodeExpr(const ObjCEncodeExpr *E) {
-  assert(0 && "NYI");
+  llvm_unreachable("NYI");
   return nullptr;
 }
 
 ConstantLValue
 ConstantLValueEmitter::VisitObjCStringLiteral(const ObjCStringLiteral *E) {
-  assert(0 && "NYI");
+  llvm_unreachable("NYI");
   return nullptr;
 }
 
 ConstantLValue
 ConstantLValueEmitter::VisitObjCBoxedExpr(const ObjCBoxedExpr *E) {
-  assert(0 && "NYI");
+  llvm_unreachable("NYI");
   return nullptr;
 }
 
 ConstantLValue
 ConstantLValueEmitter::VisitPredefinedExpr(const PredefinedExpr *E) {
-  assert(0 && "NYI");
+  llvm_unreachable("NYI");
   return nullptr;
 }
 
 ConstantLValue
 ConstantLValueEmitter::VisitAddrLabelExpr(const AddrLabelExpr *E) {
-  assert(0 && "NYI");
+  llvm_unreachable("NYI");
   return nullptr;
 }
 
 ConstantLValue ConstantLValueEmitter::VisitCallExpr(const CallExpr *E) {
-  assert(0 && "NYI");
+  llvm_unreachable("NYI");
   return nullptr;
 }
 
 ConstantLValue ConstantLValueEmitter::VisitBlockExpr(const BlockExpr *E) {
-  assert(0 && "NYI");
+  llvm_unreachable("NYI");
   return nullptr;
 }
 
 ConstantLValue
 ConstantLValueEmitter::VisitCXXTypeidExpr(const CXXTypeidExpr *E) {
-  assert(0 && "NYI");
+  llvm_unreachable("NYI");
   return nullptr;
 }
 
 ConstantLValue ConstantLValueEmitter::VisitMaterializeTemporaryExpr(
     const MaterializeTemporaryExpr *E) {
-  assert(0 && "NYI");
+  llvm_unreachable("NYI");
   return nullptr;
 }
 
@@ -515,7 +515,7 @@ void ConstantEmitter::finalize(mlir::cir::GlobalOp global) {
   Finalized = true;
 
   if (!PlaceholderAddresses.empty()) {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
   }
 }
 
@@ -545,7 +545,7 @@ mlir::Attribute ConstantEmitter::tryEmitPrivateForVarInit(const VarDecl &D) {
               dyn_cast_or_null<CXXConstructExpr>(D.getInit())) {
         const CXXConstructorDecl *CD = E->getConstructor();
         if (CD->isTrivial() && CD->isDefaultConstructor())
-          assert(0 && "not implemented");
+          llvm_unreachable("not implemented");
       }
   }
   InConstantContext = D.hasConstantInitialization();
@@ -558,7 +558,7 @@ mlir::Attribute ConstantEmitter::tryEmitPrivateForVarInit(const VarDecl &D) {
     return tryEmitPrivateForMemory(*value, destType);
   }
 
-  assert(0 && "not implemented");
+  llvm_unreachable("not implemented");
   return {};
 }
 
@@ -588,13 +588,13 @@ mlir::Attribute ConstantEmitter::emitForMemory(CIRGenModule &CGM,
                                                QualType destType) {
   // For an _Atomic-qualified constant, we may need to add tail padding.
   if (auto AT = destType->getAs<AtomicType>()) {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
   }
 
   // Zero-extend bool.
   auto typed = C.dyn_cast<mlir::TypedAttr>();
   if (typed && typed.getType().isa<mlir::cir::BoolType>()) {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
   }
 
   return C;
@@ -624,12 +624,12 @@ buildArrayConstant(CIRGenModule &CGM, mlir::Type DesiredType,
   }
 
   if (NonzeroLength == 0)
-    assert(0 && "NYE");
+    llvm_unreachable("NYE");
 
   // Add a zeroinitializer array filler if we have lots of trailing zeroes.
   unsigned TrailingZeroes = ArrayBound - NonzeroLength;
   if (TrailingZeroes >= 8) {
-    assert(0 && "NYE");
+    llvm_unreachable("NYE");
     assert(Elements.size() >= NonzeroLength &&
            "missing initializer for non-zero element");
 
@@ -657,7 +657,7 @@ buildArrayConstant(CIRGenModule &CGM, mlir::Type DesiredType,
   }
 
   // We have mixed types. Use a packed struct.
-  assert(0 && "NYE");
+  llvm_unreachable("NYE");
   return {};
 }
 
@@ -668,7 +668,7 @@ mlir::Attribute ConstantEmitter::tryEmitPrivate(const APValue &Value,
   case APValue::Indeterminate:
     // TODO(cir): LLVM models out-of-lifetime and indeterminate values as
     // 'undef'. Find out what's better for CIR.
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
   case APValue::Int: {
     mlir::Type ty = CGM.getCIRType(DestType);
     return CGM.getBuilder().getIntegerAttr(ty, Value.getInt());
@@ -678,7 +678,7 @@ mlir::Attribute ConstantEmitter::tryEmitPrivate(const APValue &Value,
     if (&Init.getSemantics() == &llvm::APFloat::IEEEhalf() &&
         !CGM.getASTContext().getLangOpts().NativeHalfType &&
         CGM.getASTContext().getTargetInfo().useFP16ConversionIntrinsics())
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
     else {
       mlir::Type ty = CGM.getCIRType(DestType);
       return CGM.getBuilder().getFloatAttr(ty, Init);
@@ -744,7 +744,7 @@ mlir::Attribute ConstantEmitter::tryEmitPrivate(const APValue &Value,
   case APValue::Struct:
   case APValue::Union:
   case APValue::MemberPointer:
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
   }
   llvm_unreachable("Unknown APValue kind");
 }

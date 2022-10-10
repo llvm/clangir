@@ -27,5 +27,5 @@ void CIRGenModule::buildCXXGlobalInitFunc() {
                               // PrioritizedCXXGlobalInits.empty())
     return;
 
-  assert(0 && "NYE");
+  llvm_unreachable("NYE");
 }

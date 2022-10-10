@@ -434,7 +434,7 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef MangledName, mlir::Type Ty,
       assert(!UnimplementedFeature::setDLLStorageClass() && "NYI");
 
     if (getLangOpts().OpenMP && !getLangOpts().OpenMPSimd && D)
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
 
     // TODO(cir): check TargetAS matches Entry address space
     if (Entry.getSymType() == Ty &&
@@ -472,7 +472,7 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef MangledName, mlir::Type Ty,
     // (In LLVM codgen, if global is requested for a definition, we always need
     // to create a new global, otherwise return a bitcast.)
     if (!IsForDefinition)
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
   }
 
   // TODO(cir): auto DAddrSpace = GetGlobalVarAddressSpace(D);
@@ -504,7 +504,7 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef MangledName, mlir::Type Ty,
   auto &LangOpts = getLangOpts();
   if (D) {
     if (LangOpts.OpenMP && !LangOpts.OpenMPSimd)
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
 
     // FIXME: This code is overly simple and should be merged with other global
     // handling.
@@ -515,7 +515,7 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef MangledName, mlir::Type Ty,
     //   setLinkageForGV(GV, D);
 
     if (D->getTLSKind()) {
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
     }
 
     // TODO(cir):
@@ -524,16 +524,16 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef MangledName, mlir::Type Ty,
     // If required by the ABI, treat declarations of static data members with
     // inline initializers as definitions.
     if (astCtx.isMSStaticDataMemberInlineDefinition(D)) {
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
     }
 
     // Emit section information for extern variables.
     if (D->hasExternalStorage())
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
 
     // Handle XCore specific ABI requirements.
     if (getTriple().getArch() == llvm::Triple::xcore)
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
 
     // Check if we a have a const declaration with an initializer, we maybe
     // able to emit it as available_externally to expose it's value to the
@@ -541,7 +541,7 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef MangledName, mlir::Type Ty,
     if (getLangOpts().CPlusPlus && GV.isPublic() &&
         D->getType().isConstQualified() && GV.isDeclaration() &&
         !D->hasDefinition() && D->hasInit() && !D->hasAttr<DLLImportAttr>()) {
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
     }
   }
 
@@ -554,7 +554,7 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef MangledName, mlir::Type Ty,
     // External HIP managed variables needed to be recorded for transformation
     // in both device and host compilations.
     if (getLangOpts().CUDA)
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
   }
 
   // TODO(cir): address space cast when needed for DAddrSpace.
@@ -620,7 +620,7 @@ void CIRGenModule::maybeHandleStaticInExternC(const SomeDecl *D,
   //
   // If we have multiple internal linkage entities with the same name
   // in extern "C" regions, none of them gets that name.
-  assert(0 && "not implemented");
+  llvm_unreachable("not implemented");
 }
 
 void CIRGenModule::buildGlobalVarDefinition(const clang::VarDecl *D,
@@ -664,9 +664,9 @@ void CIRGenModule::buildGlobalVarDefinition(const clang::VarDecl *D,
        D->getType()->isCUDADeviceBuiltinTextureType());
   if (getLangOpts().CUDA &&
       (IsCUDASharedVar || IsCUDAShadowVar || IsCUDADeviceShadowVar))
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
   else if (D->hasAttr<LoaderUninitializedAttr>())
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
   else if (!InitExpr) {
     // This is a tentative definition; tentative definitions are
     // implicitly initialized with { 0 }.
@@ -678,13 +678,13 @@ void CIRGenModule::buildGlobalVarDefinition(const clang::VarDecl *D,
     // exists. A use may still exists, however, so we still may need
     // to do a RAUW.
     assert(!ASTTy->isIncompleteType() && "Unexpected incomplete type");
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
   } else {
     initializedGlobalDecl = GlobalDecl(D);
     emitter.emplace(*this);
     auto Initializer = emitter->tryEmitForInitializer(*InitDecl);
     if (!Initializer) {
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
     } else {
       Init = Initializer;
       // We don't need an initializer, so remove the entry for the delayed
@@ -739,13 +739,13 @@ void CIRGenModule::buildGlobalVarDefinition(const clang::VarDecl *D,
   // from the type of the global (this happens with unions).
   if (!GV || GV.getSymType() != InitType) {
     // TODO(cir): this should include an address space check as well.
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
   }
 
   maybeHandleStaticInExternC(D, GV);
 
   if (D->hasAttr<AnnotateAttr>())
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
 
   // TODO(cir):
   // Set the llvm linkage type as appropriate.
@@ -758,7 +758,7 @@ void CIRGenModule::buildGlobalVarDefinition(const clang::VarDecl *D,
   // CUDA B.2.2 "The __constant__ qualifier, optionally used together with
   // __device__, declares a variable that: [...]
   if (GV && getLangOpts().CUDA) {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
   }
 
   // Set initializer and finalize emission
@@ -772,7 +772,7 @@ void CIRGenModule::buildGlobalVarDefinition(const clang::VarDecl *D,
 
   // If it is in a read-only section, mark it 'constant'.
   if (const SectionAttr *SA = D->getAttr<SectionAttr>()) {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
   }
 
   // TODO(cir):
@@ -797,7 +797,7 @@ void CIRGenModule::buildGlobalVarDefinition(const clang::VarDecl *D,
       !D->hasAttr<ConstInitAttr>()) {
     // TODO(cir): set to mlir::SymbolTable::Visibility::Private once we have
     // testcases.
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
   }
 
   // TODO(cir): set linkage, dll stuff and common linkage
@@ -824,7 +824,7 @@ void CIRGenModule::buildGlobalVarDefinition(const clang::VarDecl *D,
 
   // TODO(cir): handle TLSKind if GV is not thread local
   if (D->getTLSKind()) { // && !GV->isThreadLocal())
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
   }
 
   // TODO(cir): maybeSetTrivialComdat(*D, *GV);
@@ -897,7 +897,7 @@ CIRGenModule::getConstantArrayFromStringLiteral(const StringLiteral *E) {
     return cstArray;
   }
 
-  assert(0 && "not implemented");
+  llvm_unreachable("not implemented");
   return {};
 }
 
@@ -957,7 +957,7 @@ castStringLiteralToDefaultAddressSpace(CIRGenModule &CGM, mlir::StringAttr GV) {
   if (!CGM.getLangOpts().OpenCL) {
     auto AS = CGM.getGlobalConstantAddressSpace();
     if (AS != LangAS::Default)
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
   }
   return GV;
 }
@@ -998,7 +998,7 @@ CIRGenModule::getAddrOfConstantStringFromLiteral(const StringLiteral *S,
   // affect strings in another.
   if (getCXXABI().getMangleContext().shouldMangleStringLiteral(S) &&
       !getLangOpts().WritableStrings) {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
   } else {
     LT = mlir::cir::GlobalLinkageKind::InternalLinkage;
     GlobalVariableName = Name;
@@ -1029,7 +1029,7 @@ void CIRGenModule::buildTopLevelDecl(Decl *decl) {
   default:
     llvm::errs() << "buildTopLevelDecl codegen for decl kind '"
                  << decl->getDeclKindName() << "' not implemented\n";
-    assert(false && "Not yet implemented");
+    llvm_unreachable("Not yet implemented");
 
   case Decl::Var:
   case Decl::Decomposition:
@@ -1183,7 +1183,7 @@ mlir::SymbolTable::Visibility CIRGenModule::getMLIRVisibilityFromCIRLinkage(
   default: {
     llvm::errs() << "visibility not implemented for '"
                  << stringifyGlobalLinkageKind(GLK) << "'\n";
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
   }
   }
   llvm_unreachable("linkage should be handled above!");
@@ -1272,7 +1272,7 @@ mlir::cir::GlobalLinkageKind CIRGenModule::getFunctionLinkage(GlobalDecl GD) {
   GVALinkage Linkage = astCtx.GetGVALinkageForFunction(D);
 
   if (const auto *Dtor = dyn_cast<CXXDestructorDecl>(D))
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
 
   if (isa<CXXConstructorDecl>(D) &&
       cast<CXXConstructorDecl>(D)->isInheritingConstructor() &&
@@ -1378,10 +1378,10 @@ static std::string getMangledNameImpl(CIRGenModule &CGM, GlobalDecl GD,
 
     if (FD &&
         FD->getType()->castAs<FunctionType>()->getCallConv() == CC_X86RegCall) {
-      assert(0 && "NYI");
+      llvm_unreachable("NYI");
     } else if (FD && FD->hasAttr<CUDAGlobalAttr>() &&
                GD.getKernelReferenceKind() == KernelReferenceKind::Stub) {
-      assert(0 && "NYI");
+      llvm_unreachable("NYI");
     } else {
       Out << II->getName();
     }
@@ -1411,7 +1411,7 @@ StringRef CIRGenModule::getMangledName(GlobalDecl GD) {
   // constructors get mangled the same.
   if (const auto *CD = dyn_cast<CXXConstructorDecl>(CanonicalGD.getDecl())) {
     if (!getTarget().getCXXABI().hasConstructorVariants()) {
-      assert(false && "NYI");
+      llvm_unreachable("NYI");
     }
   }
 
@@ -1554,7 +1554,7 @@ mlir::cir::FuncOp CIRGenModule::GetOrCreateCIRFunction(
   if (Ty.isa<mlir::FunctionType>()) {
     FTy = Ty.cast<mlir::FunctionType>();
   } else {
-    assert(false && "NYI");
+    llvm_unreachable("NYI");
     // FTy = mlir::FunctionType::get(VoidTy, false);
     IsIncompleteFunction = true;
   }
@@ -1632,7 +1632,7 @@ mlir::cir::FuncOp CIRGenModule::GetOrCreateCIRFunction(
     return F;
   }
 
-  assert(false && "Incompmlete functions NYI");
+  llvm_unreachable("Incompmlete functions NYI");
 }
 
 mlir::Location CIRGenModule::getLoc(SourceLocation SLoc) {

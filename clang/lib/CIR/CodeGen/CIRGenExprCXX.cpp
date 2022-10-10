@@ -120,7 +120,7 @@ RValue CIRGenFunction::buildCXXMemberOrOperatorMemberCallExpr(
       if (TrivialAssignment) {
         TrivialAssignmentRHS = buildLValue(CE->getArg(1));
       } else {
-        assert(0 && "remove me once there's a testcase to cover this");
+        llvm_unreachable("remove me once there's a testcase to cover this");
         RtlArgs = &RtlArgStorage;
         buildCallArgs(*RtlArgs, MD->getType()->castAs<FunctionProtoType>(),
                       drop_begin(CE->arguments(), 1), CE->getDirectCallee(),
@@ -290,12 +290,12 @@ void CIRGenFunction::buildCXXConstructExpr(const CXXConstructExpr *E,
   case CXXConstructExpr::CK_Delegating:
   case CXXConstructExpr::CK_VirtualBase:
   case CXXConstructExpr::CK_NonVirtualBase:
-    assert(false && "Delegating, Virtualbae and NonVirtualBase ctorkind NYI");
+    llvm_unreachable("Delegating, Virtualbae and NonVirtualBase ctorkind NYI");
   }
 
   buildCXXConstructorCall(CD, Type, ForVirtualBase, Delegating, Dest, E);
 }
 
 mlir::Value CIRGenFunction::buildCXXNewExpr(const CXXNewExpr *E) {
-  assert(0 && "not implemented");
+  llvm_unreachable("not implemented");
 }

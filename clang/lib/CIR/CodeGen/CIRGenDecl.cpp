@@ -66,7 +66,7 @@ CIRGenFunction::buildAutoVarAlloca(const VarDecl &D) {
     if ((!getContext().getLangOpts().OpenCL ||
          Ty.getAddressSpace() == LangAS::opencl_constant) &&
         (!NRVO && !D.isEscapingByref() && CGM.isTypeConstant(Ty, true)))
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
 
     // Otherwise, tell the initialization code that we're in this case.
     emission.IsConstantAggregate = true;
@@ -119,7 +119,7 @@ void CIRGenFunction::buildAutoVarInit(const AutoVarEmission &emission) {
   // struct.
   if (!Init && type.isNonTrivialToPrimitiveDefaultInitialize() ==
                    QualType::PDIK_Struct) {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
     return;
   }
 
@@ -138,7 +138,7 @@ void CIRGenFunction::buildAutoVarInit(const AutoVarEmission &emission) {
         LangOptions::TrivialAutoVarInitKind::Uninitialized)
       return;
 
-    assert(0 && "unimplemented");
+    llvm_unreachable("unimplemented");
   };
 
   if (isTrivialInitializer(Init))
@@ -146,7 +146,7 @@ void CIRGenFunction::buildAutoVarInit(const AutoVarEmission &emission) {
 
   if (emission.IsConstantAggregate ||
       D.mightBeUsableInConstantExpressions(getContext())) {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
   }
 
   initializeWhatIsTechnicallyUninitialized(Loc);
@@ -165,16 +165,16 @@ void CIRGenFunction::buildAutoVarCleanups(const AutoVarEmission &emission) {
   // Check the type for a cleanup.
   // TODO: something like emitAutoVarTypeCleanup
   if (QualType::DestructionKind dtorKind = D.needsDestruction(getContext()))
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
 
   // In GC mode, honor objc_precise_lifetime.
   if (getContext().getLangOpts().getGC() != LangOptions::NonGC &&
       D.hasAttr<ObjCPreciseLifetimeAttr>())
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
 
   // Handle the cleanup attribute.
   if (const CleanupAttr *CA = D.getAttr<CleanupAttr>())
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
 
   // TODO: handle block variable
 }
@@ -190,7 +190,7 @@ void CIRGenFunction::buildAutoVarDecl(const VarDecl &D) {
 
 void CIRGenFunction::buildVarDecl(const VarDecl &D) {
   if (D.hasExternalStorage()) {
-    assert(0 && "should we just returns is there something to track?");
+    llvm_unreachable("should we just returns is there something to track?");
     // Don't emit it now, allow it to be emitted lazily on its first use.
     return;
   }
@@ -199,10 +199,10 @@ void CIRGenFunction::buildVarDecl(const VarDecl &D) {
   // needs to be emitted like a static variable, e.g. a function-scope
   // variable in constant address space in OpenCL.
   if (D.getStorageDuration() != SD_Automatic)
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
 
   if (D.getType().getAddressSpace() == LangAS::opencl_local)
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
 
   assert(D.hasLocalStorage());
 
@@ -227,7 +227,7 @@ void CIRGenFunction::buildExprAsInit(const Expr *init, const ValueDecl *D,
   QualType type = D->getType();
 
   if (type->isReferenceType()) {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
     return;
   }
   switch (CIRGenFunction::getEvaluationKind(type)) {
@@ -235,7 +235,7 @@ void CIRGenFunction::buildExprAsInit(const Expr *init, const ValueDecl *D,
     buildScalarInit(init, D, lvalue);
     return;
   case TEK_Complex: {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
     return;
   }
   case TEK_Aggregate:
@@ -244,9 +244,9 @@ void CIRGenFunction::buildExprAsInit(const Expr *init, const ValueDecl *D,
     if (isa<VarDecl>(D))
       Overlap = AggValueSlot::DoesNotOverlap;
     else if (auto *FD = dyn_cast<FieldDecl>(D))
-      assert(false && "Field decl NYI");
+      llvm_unreachable("Field decl NYI");
     else
-      assert(false && "Only VarDecl implemented so far");
+      llvm_unreachable("Only VarDecl implemented so far");
     // TODO: how can we delay here if D is captured by its initializer?
     buildAggExpr(init,
                  AggValueSlot::forLValue(lvalue, AggValueSlot::IsDestructed,
@@ -318,10 +318,10 @@ void CIRGenFunction::buildDecl(const Decl &D) {
     llvm_unreachable("Declaration should not be in declstmts!");
   case Decl::Record:    // struct/union/class X;
   case Decl::CXXRecord: // struct/union/class X; [C++]
-    assert(0 && "Not implemented");
+    llvm_unreachable("Not implemented");
     return;
   case Decl::Enum: // enum X;
-    assert(0 && "Not implemented");
+    llvm_unreachable("Not implemented");
     return;
   case Decl::Function:     // void X();
   case Decl::EnumConstant: // enum ? { X = ? }
@@ -343,19 +343,19 @@ void CIRGenFunction::buildDecl(const Decl &D) {
     return;
 
   case Decl::NamespaceAlias:
-    assert(0 && "Not implemented");
+    llvm_unreachable("Not implemented");
     return;
   case Decl::Using: // using X; [C++]
-    assert(0 && "Not implemented");
+    llvm_unreachable("Not implemented");
     return;
   case Decl::UsingEnum: // using enum X; [C++]
-    assert(0 && "Not implemented");
+    llvm_unreachable("Not implemented");
     return;
   case Decl::UsingPack:
-    assert(0 && "Not implemented");
+    llvm_unreachable("Not implemented");
     return;
   case Decl::UsingDirective: // using namespace X; [C++]
-    assert(0 && "Not implemented");
+    llvm_unreachable("Not implemented");
     return;
   case Decl::Var:
   case Decl::Decomposition: {
@@ -364,7 +364,7 @@ void CIRGenFunction::buildDecl(const Decl &D) {
            "Should not see file-scope variables inside a function!");
     buildVarDecl(VD);
     if (auto *DD = dyn_cast<DecompositionDecl>(&VD))
-      assert(0 && "Not implemented");
+      llvm_unreachable("Not implemented");
 
     // FIXME: add this
     // if (auto *DD = dyn_cast<DecompositionDecl>(&VD))
@@ -376,11 +376,11 @@ void CIRGenFunction::buildDecl(const Decl &D) {
 
   case Decl::OMPDeclareReduction:
   case Decl::OMPDeclareMapper:
-    assert(0 && "Not implemented");
+    llvm_unreachable("Not implemented");
 
   case Decl::Typedef:     // typedef int X;
   case Decl::TypeAlias: { // using X = int; [C++0x]
-    assert(0 && "Not implemented");
+    llvm_unreachable("Not implemented");
   }
   }
 }

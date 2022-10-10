@@ -247,7 +247,7 @@ public:
       break;
     }
     case CIRGenAction::OutputType::EmitAssembly:
-      assert(false && "Not yet implemented");
+      llvm_unreachable("Not yet implemented");
       break;
     case CIRGenAction::OutputType::None:
       break;
