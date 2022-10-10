@@ -13,7 +13,6 @@
 #ifndef MLIR_DIALECT_CIR_IR_CIRATTRS_H_
 #define MLIR_DIALECT_CIR_IR_CIRATTRS_H_
 
-#include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/BuiltinAttributeInterfaces.h"
 
@@ -26,6 +25,12 @@ class FunctionDecl;
 class VarDecl;
 class RecordDecl;
 }
+
+namespace mlir {
+namespace cir {
+class ArrayType;
+} // namespace cir
+} // namespace mlir
 
 #define GET_ATTRDEF_CLASSES
 #include "clang/CIR/Dialect/IR/CIROpsAttributes.h.inc"
