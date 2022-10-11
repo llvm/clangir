@@ -31,14 +31,17 @@ void DropASTPass::runOnOperation() {
   // This needs to be updated with operations that start
   // carrying AST around.
   op->walk([&](Operation *op) {
-    if (isa<cir::AllocaOp>(op)) {
-      auto alloca = cast<AllocaOp>(op);
+    if (auto alloca = dyn_cast<AllocaOp>(op)) {
       alloca.removeAstAttr();
       auto ty = mlir::dyn_cast<mlir::cir::StructType>(alloca.getAllocaType());
       if (!ty)
         return;
       ty.dropAst();
+      return;
     }
+
+    if (auto funcOp = dyn_cast<FuncOp>(op))
+      funcOp.removeAstAttr();
   });
 }
 
