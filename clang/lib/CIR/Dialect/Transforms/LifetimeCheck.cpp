@@ -219,7 +219,7 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
 static StringRef getVarNameFromValue(mlir::Value v) {
   if (auto allocaOp = dyn_cast<AllocaOp>(v.getDefiningOp()))
     return allocaOp.getName();
-  assert(0 && "how did it get here?");
+  llvm_unreachable("how did it get here?");
   return "";
 }
 

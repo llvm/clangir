@@ -147,7 +147,7 @@ void ClangToCIRArgMapping::construct(const ASTContext &Context,
 
     switch (AI.getKind()) {
     default:
-      assert(false && "NYI");
+      llvm_unreachable("NYI");
     case ABIArgInfo::Extend:
     case ABIArgInfo::Direct: {
       assert(!AI.getCoerceToType().dyn_cast<mlir::cir::StructType>() && "NYI");
@@ -207,7 +207,7 @@ mlir::FunctionType CIRGenTypes::GetFunctionType(const CIRGenFunctionInfo &FI) {
     break;
 
   default:
-    assert(false && "NYI");
+    llvm_unreachable("NYI");
   }
 
   ClangToCIRArgMapping CIRFunctionArgs(getContext(), FI, true);
@@ -231,7 +231,7 @@ mlir::FunctionType CIRGenTypes::GetFunctionType(const CIRGenFunctionInfo &FI) {
 
     switch (ArgInfo.getKind()) {
     default:
-      assert(false && "NYI");
+      llvm_unreachable("NYI");
     case ABIArgInfo::Extend:
     case ABIArgInfo::Direct: {
       mlir::Type argType = ArgInfo.getCoerceToType();
@@ -349,15 +349,15 @@ RValue CIRGenFunction::buildCall(const CIRGenFunctionInfo &CallInfo,
         // can happen due to trivial type mismatches.
         if (FirstCIRArg < CIRFuncTy.getNumInputs() &&
             V.getType() != CIRFuncTy.getInput(FirstCIRArg))
-          assert(false && "Shouldn't have to bitcast anything yet");
+          llvm_unreachable("Shouldn't have to bitcast anything yet");
 
         CIRCallArgs[FirstCIRArg] = V;
         break;
       }
-      assert(false && "this code path shouldn't be hit yet");
+      llvm_unreachable("this code path shouldn't be hit yet");
     }
     default:
-      assert(false && "Only Direct support so far");
+      llvm_unreachable("Only Direct support so far");
     }
   }
 
@@ -505,7 +505,7 @@ void CIRGenFunction::buildCallArg(CallArgList &args, const Expr *E,
 
   if (HasAggregateEvalKind && isa<ImplicitCastExpr>(E) &&
       cast<CastExpr>(E)->getCastKind() == CK_LValueToRValue) {
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
   }
 
   args.add(buildAnyExprToTemp(E), type);
@@ -617,7 +617,7 @@ static void appendParameterTypes(
     return;
   }
 
-  assert(false && "params NYI");
+  llvm_unreachable("params NYI");
 }
 
 const CIRGenFunctionInfo &
@@ -669,7 +669,7 @@ CanQualType CIRGenTypes::DeriveThisType(const CXXRecordDecl *RD,
   if (RD)
     RecTy = getContext().getTagDeclType(RD)->getCanonicalTypeInternal();
   else
-    assert(false && "CXXMethodDecl NYI");
+    llvm_unreachable("CXXMethodDecl NYI");
 
   if (MD)
     RecTy = getContext().getAddrSpaceQualType(

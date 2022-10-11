@@ -63,7 +63,7 @@ public:
     // VisitScalarExprClassName(...) to get this working.
     emitError(CGF.getLoc(E->getExprLoc()), "scalar exp no implemented: '")
         << E->getStmtClassName() << "'";
-    assert(0 && "shouldn't be here!");
+    llvm_unreachable("shouldn't be here!");
     return {};
   }
 
@@ -235,7 +235,7 @@ public:
     mlir::Value Input;
 
     if (const AtomicType *atomicTy = type->getAs<AtomicType>()) {
-      assert(0 && "no atomics inc/dec yet");
+      llvm_unreachable("no atomics inc/dec yet");
     } else {
       Value = buildLoadOfLValue(LV, E->getExprLoc());
       Input = Value;
@@ -251,7 +251,7 @@ public:
     // An interesting aspect of this is that increment is always true.
     // Decrement does not have this property.
     if (E->isIncrementOp() && type->isBooleanType()) {
-      assert(0 && "inc simplification for booleans not implemented yet");
+      llvm_unreachable("inc simplification for booleans not implemented yet");
 
       // NOTE: We likely want the code below, but loading/store booleans need to
       // work first. See CIRGenFunction::buildFromMemory().
@@ -262,7 +262,7 @@ public:
       bool canPerformLossyDemotionCheck = false;
       if (type->isPromotableIntegerType()) {
         canPerformLossyDemotionCheck = true;
-        assert(0 && "no promotable integer inc/dec yet");
+        llvm_unreachable("no promotable integer inc/dec yet");
       }
 
       if (CGF.SanOpts.hasOneOf(
@@ -282,23 +282,23 @@ public:
         Value = buildUnaryOp(E, Kind, Input);
       }
     } else if (const PointerType *ptr = type->getAs<PointerType>()) {
-      assert(0 && "no pointer inc/dec yet");
+      llvm_unreachable("no pointer inc/dec yet");
     } else if (type->isVectorType()) {
-      assert(0 && "no vector inc/dec yet");
+      llvm_unreachable("no vector inc/dec yet");
     } else if (type->isRealFloatingType()) {
-      assert(0 && "no float inc/dec yet");
+      llvm_unreachable("no float inc/dec yet");
     } else if (type->isFixedPointType()) {
-      assert(0 && "no fixed point inc/dec yet");
+      llvm_unreachable("no fixed point inc/dec yet");
     } else {
       assert(type->castAs<ObjCObjectPointerType>());
-      assert(0 && "no objc pointer type inc/dec yet");
+      llvm_unreachable("no objc pointer type inc/dec yet");
     }
 
     CIRGenFunction::SourceLocRAIIObject sourceloc{
         CGF, CGF.getLoc(E->getSourceRange())};
 
     if (LV.isBitField())
-      assert(0 && "no bitfield inc/dec yet");
+      llvm_unreachable("no bitfield inc/dec yet");
     else
       CGF.buildStoreThroughLValue(RValue::get(Value), LV);
 
@@ -319,7 +319,7 @@ public:
              "inc/dec overflow behavior SOB_Undefined not implemented yet");
       break;
     case LangOptions::SOB_Trapping:
-      assert(0 && "inc/dec overflow behavior SOB_Trapping not implemented yet");
+      llvm_unreachable("inc/dec overflow behavior SOB_Trapping not implemented yet");
       break;
     }
     llvm_unreachable("Unknown SignedOverflowBehaviorTy");
@@ -618,7 +618,7 @@ public:
     QualType RHSTy = E->getRHS()->getType();
 
     if (const MemberPointerType *MPT = LHSTy->getAs<MemberPointerType>()) {
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
     } else if (!LHSTy->isAnyComplexType() && !RHSTy->isAnyComplexType()) {
       BinOpInfo BOInfo = buildBinOps(E);
       mlir::Value LHS = BOInfo.LHS;
@@ -626,14 +626,14 @@ public:
 
       if (LHSTy->isVectorType()) {
         // Cannot handle any vector just yet.
-        assert(0 && "not implemented");
+        llvm_unreachable("not implemented");
         // If AltiVec, the comparison results in a numeric type, so we use
         // intrinsics comparing vectors and giving 0 or 1 as a result
         if (!E->getType()->isVectorType())
-          assert(0 && "not implemented");
+          llvm_unreachable("not implemented");
       }
       if (BOInfo.isFixedPointOp()) {
-        assert(0 && "not implemented");
+        llvm_unreachable("not implemented");
       } else {
         // TODO: when we add proper basic types to CIR we
         // probably won't need to handle
@@ -644,7 +644,7 @@ public:
             RHS.getType().isa<mlir::cir::PointerType>()) {
           // TODO: Handle StrictVTablePointers and
           // mayBeDynamicClass/invariant group.
-          assert(0 && "not implemented");
+          llvm_unreachable("not implemented");
         }
 
         mlir::cir::CmpOpKind Kind;
@@ -680,9 +680,9 @@ public:
       // appropriate vector integer type and return it (don't convert to
       // bool).
       if (LHSTy->isVectorType())
-        assert(0 && "not implemented");
+        llvm_unreachable("not implemented");
     } else { // Complex Comparison: can only be an equality comparison.
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
     }
 
     return buildScalarConversion(Result, CGF.getContext().BoolTy, E->getType(),
@@ -707,10 +707,10 @@ public:
     assert(SrcType.isCanonical() && "EmitScalarConversion strips typedefs");
 
     if (SrcType->isRealFloatingType())
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
 
     if (auto *MPT = llvm::dyn_cast<MemberPointerType>(SrcType))
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
 
     assert((SrcType->isIntegerType() ||
             Src.getType().isa<::mlir::cir::PointerType>()) &&
@@ -730,9 +730,9 @@ public:
                         SourceLocation Loc,
                         ScalarConversionOpts Opts = ScalarConversionOpts()) {
     if (SrcType->isFixedPointType()) {
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
     } else if (DstType->isFixedPointType()) {
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
     }
 
     SrcType = CGF.getContext().getCanonicalType(SrcType);
@@ -754,27 +754,27 @@ public:
     // Cast from half through float if half isn't a native type.
     if (SrcType->isHalfType() &&
         !CGF.getContext().getLangOpts().NativeHalfType) {
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
     }
 
     // TODO(cir): LLVM codegen ignore conversions like int -> uint,
     // is there anything to be done for CIR here?
     if (SrcTy == DstTy) {
       if (Opts.EmitImplicitIntegerSignChangeChecks)
-        assert(0 && "not implemented");
+        llvm_unreachable("not implemented");
       return Src;
     }
 
     // Handle pointer conversions next: pointers can only be converted to/from
     // other pointers and integers.
     if (DstTy.isa<::mlir::cir::PointerType>()) {
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
     }
 
     if (SrcTy.isa<::mlir::cir::PointerType>()) {
       // Must be a ptr to int cast.
       assert(DstTy.isa<mlir::IntegerType>() && "not ptr->int?");
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
     }
 
     // A scalar can be splatted to an extended vector of the same element type
@@ -785,11 +785,11 @@ public:
                  SrcType.getTypePtr() &&
              "Splatted expr doesn't match with vector element type?");
 
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
     }
 
     if (SrcType->isMatrixType() && DstType->isMatrixType())
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
 
     // Finally, we have the arithmetic types: real int/float.
     mlir::Value Res = nullptr;
@@ -889,7 +889,7 @@ mlir::Value ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
       // FIXME: Once pointee types are removed from IR, remove this.
       auto T = CGF.convertType(DestTy);
       if (T != V.getType())
-        assert(0 && "NYI");
+        llvm_unreachable("NYI");
     }
     return V;
   }
@@ -1040,7 +1040,7 @@ mlir::Value ScalarExprEmitter::VisitMemberExpr(MemberExpr *E) {
   assert(!UnimplementedFeature::tryEmitAsConstant());
   Expr::EvalResult Result;
   if (E->EvaluateAsInt(Result, CGF.getContext(), Expr::SE_AllowSideEffects))
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
   return buildLoadOfLValue(E);
 }
 
@@ -1192,7 +1192,7 @@ LValue ScalarExprEmitter::buildCompoundAssignLValue(
   BinOpInfo OpInfo;
 
   if (E->getComputationResultType()->isAnyComplexType())
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
 
   // Emit the RHS first.  __block variables need to have the rhs evaluated
   // first, plus this should improve codegen a little.
@@ -1207,7 +1207,7 @@ LValue ScalarExprEmitter::buildCompoundAssignLValue(
   LValue LHSLV = CGF.buildLValue(E->getLHS());
 
   if (const AtomicType *atomicTy = LHSTy->getAs<AtomicType>()) {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
   }
 
   OpInfo.LHS = buildLoadOfLValue(LHSLV, E->getExprLoc());
@@ -1231,7 +1231,7 @@ LValue ScalarExprEmitter::buildCompoundAssignLValue(
   // 'An assignment expression has the value of the left operand after the
   // assignment...'.
   if (LHSLV.isBitField())
-    assert(0 && "not yet implemented");
+    llvm_unreachable("not yet implemented");
   else
     CGF.buildStoreThroughLValue(RValue::get(Result), LHSLV);
 

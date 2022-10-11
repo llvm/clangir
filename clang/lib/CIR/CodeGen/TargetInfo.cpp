@@ -174,7 +174,7 @@ CIRGenCXXABI &ABIInfo::getCXXABI() const { return CGT.getCXXABI(); }
 
 ABIArgInfo X86_64ABIInfo::getIndirectResult(QualType Ty,
                                             unsigned freeIntRegs) const {
-  assert(false && "NYI");
+  llvm_unreachable("NYI");
 }
 
 void X86_64ABIInfo::computeInfo(CIRGenFunctionInfo &FI) const {
@@ -246,7 +246,7 @@ ABIArgInfo X86_64ABIInfo::classifyArgumentType(QualType Ty,
   mlir::Type ResType = nullptr;
   switch (Lo) {
   default:
-    assert(false && "NYI");
+    llvm_unreachable("NYI");
 
   // AMD64-ABI 3.2.3p3: Rule 2. If the class is INTEGER, the next available
   // register of the sequence %rdi, %rsi, %rdx, %rcx, %r8 and %r9 is used.
@@ -281,7 +281,7 @@ ABIArgInfo X86_64ABIInfo::classifyArgumentType(QualType Ty,
   mlir::Type HighPart = nullptr;
   switch (Hi) {
   default:
-    assert(false && "NYI");
+    llvm_unreachable("NYI");
   case NoClass:
     break;
   }
@@ -321,7 +321,7 @@ void X86_64ABIInfo::classify(QualType Ty, uint64_t OffsetBase, Class &Lo,
     if (k == BuiltinType::Void) {
       Current = NoClass;
     } else if (k == BuiltinType::Int128 || k == BuiltinType::UInt128) {
-      assert(false && "NYI");
+      llvm_unreachable("NYI");
       Lo = Integer;
       Hi = Integer;
     } else if (k >= BuiltinType::Bool && k <= BuiltinType::LongLong) {
@@ -330,7 +330,7 @@ void X86_64ABIInfo::classify(QualType Ty, uint64_t OffsetBase, Class &Lo,
                k == BuiltinType::Float16) {
       Current = SSE;
     } else if (k == BuiltinType::LongDouble) {
-      assert(false && "NYI");
+      llvm_unreachable("NYI");
     } else
       assert(false &&
              "Only void and Integer supported so far for builtin types");
@@ -345,7 +345,7 @@ void X86_64ABIInfo::classify(QualType Ty, uint64_t OffsetBase, Class &Lo,
     return;
   }
 
-  assert(false && "Nothing else implemented yet");
+  llvm_unreachable("Nothing else implemented yet");
 }
 
 /// GetSSETypeAtOffset - Return a type that will be passed by the backend in the
@@ -412,7 +412,7 @@ ABIArgInfo X86_64ABIInfo::classifyReturnType(QualType RetTy) const {
   mlir::Type HighPart = nullptr;
 
   if (HighPart)
-    assert(false && "NYI");
+    llvm_unreachable("NYI");
 
   return ABIArgInfo::getDirect(ResType);
 }
@@ -431,7 +431,7 @@ const TargetCIRGenInfo &CIRGenModule::getTargetCIRGenInfo() {
 
   switch (Triple.getArch()) {
   default:
-    assert(false && "Target not yet supported!");
+    llvm_unreachable("Target not yet supported!");
   case llvm::Triple::aarch64: {
     AArch64ABIInfo::ABIKind Kind = AArch64ABIInfo::AAPCS;
     assert(getTarget().getABI() == "aapcs" ||
@@ -449,7 +449,7 @@ const TargetCIRGenInfo &CIRGenModule::getTargetCIRGenInfo() {
 
     switch (Triple.getOS()) {
     default:
-      assert(false && "OSType NYI");
+      llvm_unreachable("OSType NYI");
     case llvm::Triple::Linux:
       return SetCIRGenInfo(new X86_64TargetCIRGenInfo(genTypes, AVXLevel));
     }

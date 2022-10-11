@@ -196,7 +196,7 @@ CIRGenCallee CIRGenFunction::buildCallee(const clang::Expr *E) {
   assert(!dyn_cast<SubstNonTypeTemplateParmExpr>(E) && "NYI");
   assert(!dyn_cast<CXXPseudoDestructorExpr>(E) && "NYI");
 
-  assert(false && "Nothing else supported yet!");
+  llvm_unreachable("Nothing else supported yet!");
 }
 
 mlir::Value CIRGenFunction::buildToMemory(mlir::Value Value, QualType Ty) {
@@ -274,12 +274,12 @@ static LValue buildGlobalVarDeclLValue(CIRGenFunction &CGF, const Expr *E,
   // If it's thread_local, emit a call to its wrapper function instead.
   if (VD->getTLSKind() == VarDecl::TLS_Dynamic &&
       CGF.CGM.getCXXABI().usesThreadWrapperFunction(VD))
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
 
   // Check if the variable is marked as declare target with link clause in
   // device codegen.
   if (CGF.getLangOpts().OpenMPIsDevice) {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
   }
 
   auto V = CGF.CGM.getAddrOfGlobalVar(VD);
@@ -292,11 +292,11 @@ static LValue buildGlobalVarDeclLValue(CIRGenFunction &CGF, const Expr *E,
   // threadprivate variable.
   if (CGF.getLangOpts().OpenMP && !CGF.getLangOpts().OpenMPSimd &&
       VD->hasAttr<clang::OMPThreadPrivateDeclAttr>()) {
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
   }
   LValue LV;
   if (VD->getType()->isReferenceType())
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
   else
     LV = CGF.makeAddrLValue(Addr, T, AlignmentSource::Decl);
   assert(!UnimplementedFeature::setObjCGCLValueClass() && "NYI");
@@ -396,11 +396,11 @@ LValue CIRGenFunction::buildDeclRefLValue(const DeclRefExpr *E) {
 LValue CIRGenFunction::buildBinaryOperatorLValue(const BinaryOperator *E) {
   // Comma expressions just emit their LHS then their RHS as an l-value.
   if (E->getOpcode() == BO_Comma) {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
   }
 
   if (E->getOpcode() == BO_PtrMemD || E->getOpcode() == BO_PtrMemI)
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
 
   assert(E->getOpcode() == BO_Assign && "unexpected binary l-value");
 
@@ -424,9 +424,9 @@ LValue CIRGenFunction::buildBinaryOperatorLValue(const BinaryOperator *E) {
   }
 
   case TEK_Complex:
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
   case TEK_Aggregate:
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
   }
   llvm_unreachable("bad evaluation kind");
 }
@@ -443,11 +443,11 @@ Address CIRGenFunction::buildPointerWithAlignment(const Expr *E,
   // Casts:
   if (const CastExpr *CE = dyn_cast<CastExpr>(E)) {
     if (const auto *ECE = dyn_cast<ExplicitCastExpr>(CE))
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
 
     switch (CE->getCastKind()) {
     default:
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
     // Nothing to do here...
     case CK_LValueToRValue:
       break;
@@ -456,7 +456,7 @@ Address CIRGenFunction::buildPointerWithAlignment(const Expr *E,
 
   // Unary &.
   if (const UnaryOperator *UO = dyn_cast<UnaryOperator>(E)) {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
     // if (UO->getOpcode() == UO_AddrOf) {
     //   LValue LV = buildLValue(UO->getSubExpr());
     //   if (BaseInfo)
@@ -477,7 +477,7 @@ Address CIRGenFunction::buildPointerWithAlignment(const Expr *E,
 mlir::Value CIRGenFunction::evaluateExprAsBool(const Expr *E) {
   // TODO: PGO
   if (const MemberPointerType *MPT = E->getType()->getAs<MemberPointerType>()) {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
   }
 
   QualType BoolTy = getContext().BoolTy;
@@ -516,11 +516,11 @@ LValue CIRGenFunction::buildUnaryOpLValue(const UnaryOperator *E) {
   }
   case UO_Real:
   case UO_Imag: {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
   }
   case UO_PreInc:
   case UO_PreDec: {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
   }
   }
 }
@@ -533,9 +533,9 @@ RValue CIRGenFunction::buildAnyExpr(const Expr *E, AggValueSlot aggSlot,
   case TEK_Scalar:
     return RValue::get(buildScalarExpr(E));
   case TEK_Complex:
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
   case TEK_Aggregate:
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
   }
   llvm_unreachable("bad evaluation kind");
 }
@@ -831,7 +831,7 @@ static Address buildArraySubscriptPtr(
   // Determine the element size of the statically-sized base.  This is
   // the thing that the indices are expressed in terms of.
   if (auto vla = CGF.getContext().getAsVariableArrayType(eltType)) {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
   }
 
   // We can use that to compute the best alignment of the element.
@@ -854,7 +854,7 @@ static Address buildArraySubscriptPtr(
     // eltPtr = buildArrayAccessOp(CGM.getBuilder(), beginLoc, endLoc,
     //                             addr.getPointer(), addr.getElementType(),
     //                             idx);
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
   }
 
   return Address(eltPtr, CGF.getTypes().convertTypeForMem(eltType), eltAlign);
@@ -893,14 +893,14 @@ LValue CIRGenFunction::buildArraySubscriptExpr(const ArraySubscriptExpr *E,
   // with this subscript.
   if (E->getBase()->getType()->isVectorType() &&
       !isa<ExtVectorElementExpr>(E->getBase())) {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
   }
 
   // All the other cases basically behave like simple offsetting.
 
   // Handle the extvector case we ignored above.
   if (isa<ExtVectorElementExpr>(E->getBase())) {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
   }
 
   // TODO: TBAAAccessInfo
@@ -908,10 +908,10 @@ LValue CIRGenFunction::buildArraySubscriptExpr(const ArraySubscriptExpr *E,
   Address Addr = Address::invalid();
   if (const VariableArrayType *vla =
           getContext().getAsVariableArrayType(E->getType())) {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
   } else if (const ObjCObjectType *OIT =
                  E->getType()->getAs<ObjCObjectType>()) {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
   } else if (const Expr *Array = isSimpleArrayDecayOperand(E->getBase())) {
     // If this is A[i] where A is an array, the frontend will have decayed
     // the base to be a ArrayToPointerDecay implicit cast.  While correct, it is
@@ -953,7 +953,7 @@ LValue CIRGenFunction::buildArraySubscriptExpr(const ArraySubscriptExpr *E,
 
   LValue LV = LValue::makeAddr(Addr, E->getType(), EltBaseInfo);
   if (getLangOpts().ObjC && getLangOpts().getGC() != LangOptions::NonGC) {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
   }
   return LV;
 }
@@ -1032,7 +1032,7 @@ LValue CIRGenFunction::buildCastLValue(const CastExpr *E) {
   case CK_FixedPointToIntegral:
   case CK_IntegralToFixedPoint:
   case CK_MatrixCast:
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
 
   case CK_Dependent:
     llvm_unreachable("dependent cast kind in IR gen!");
@@ -1043,10 +1043,10 @@ LValue CIRGenFunction::buildCastLValue(const CastExpr *E) {
   // These are never l-values; just use the aggregate emission code.
   case CK_NonAtomicToAtomic:
   case CK_AtomicToNonAtomic:
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
 
   case CK_Dynamic: {
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
   }
 
   case CK_ConstructorConversion:
@@ -1054,7 +1054,7 @@ LValue CIRGenFunction::buildCastLValue(const CastExpr *E) {
   case CK_CPointerToObjCPointerCast:
   case CK_BlockPointerToObjCPointerCast:
   case CK_LValueToRValue:
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
 
   case CK_NoOp: {
     // CK_NoOp can model a qualification conversion, which can remove an array
@@ -1065,7 +1065,7 @@ LValue CIRGenFunction::buildCastLValue(const CastExpr *E) {
       if (V.isValid()) {
         auto T = getTypes().convertTypeForMem(E->getType());
         if (V.getElementType() != T)
-          assert(0 && "NYI");
+          llvm_unreachable("NYI");
       }
     }
     return LV;
@@ -1073,21 +1073,21 @@ LValue CIRGenFunction::buildCastLValue(const CastExpr *E) {
 
   case CK_UncheckedDerivedToBase:
   case CK_DerivedToBase: {
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
   }
   case CK_ToUnion:
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
   case CK_BaseToDerived: {
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
   }
   case CK_LValueBitCast: {
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
   }
   case CK_AddressSpaceConversion: {
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
   }
   case CK_ObjCObjectLValueCast: {
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
   }
   case CK_ZeroToOCLOpaqueType:
     llvm_unreachable("NULL to OpenCL opaque type lvalue cast is not valid");
@@ -1112,7 +1112,7 @@ static DeclRefExpr *tryToConvertMemberExprToDeclRefExpr(CIRGenFunction &CGF,
 LValue CIRGenFunction::buildCheckedLValue(const Expr *E, TypeCheckKind TCK) {
   LValue LV;
   if (SanOpts.has(SanitizerKind::ArrayBounds) && isa<ArraySubscriptExpr>(E))
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
   else
     LV = buildLValue(E);
   if (!isa<DeclRefExpr>(E) && !LV.isBitField() && LV.isSimple()) {
@@ -1156,7 +1156,7 @@ bool CIRGenFunction::IsWrappedCXXThis(const Expr *Obj) {
 
 LValue CIRGenFunction::buildMemberExpr(const MemberExpr *E) {
   if (DeclRefExpr *DRE = tryToConvertMemberExprToDeclRefExpr(*this, E)) {
-    assert(0 && "enable upon testcase that validates this path");
+    llvm_unreachable("enable upon testcase that validates this path");
     // buildIgnoredExpr(E->getBase());
     // return buildDeclRefLValue(DRE);
   }
@@ -1188,13 +1188,13 @@ LValue CIRGenFunction::buildMemberExpr(const MemberExpr *E) {
       // If the member was explicitly marked as nontemporal, mark it as
       // nontemporal. If the base lvalue is marked as nontemporal, mark access
       // to children as nontemporal too.
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
     }
     return LV;
   }
 
   if (const auto *FD = dyn_cast<FunctionDecl>(ND))
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
 
   llvm_unreachable("Unhandled member declaration!");
 }
@@ -1220,7 +1220,7 @@ void CIRGenFunction::buildAnyExprToMem(const Expr *E, Address Location,
   // FIXME: This function should take an LValue as an argument.
   switch (getEvaluationKind(E->getType())) {
   case TEK_Complex:
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
     return;
 
   case TEK_Aggregate: {
@@ -1233,7 +1233,7 @@ void CIRGenFunction::buildAnyExprToMem(const Expr *E, Address Location,
   }
 
   case TEK_Scalar: {
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
     return;
   }
   }
@@ -1257,13 +1257,13 @@ static Address createReferenceTemporary(CIRGenFunction &CGF,
     if (CGF.CGM.getCodeGenOpts().MergeAllConstants &&
         (Ty->isArrayType() || Ty->isRecordType()) &&
         CGF.CGM.isTypeConstant(Ty, true))
-      assert(0 && "NYI");
+      llvm_unreachable("NYI");
     return CGF.CreateMemTemp(Ty, CGF.getLoc(M->getSourceRange()), "ref.tmp",
                              Alloca);
   }
   case SD_Thread:
   case SD_Static:
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
 
   case SD_Dynamic:
     llvm_unreachable("temporary can't have dynamic storage duration");
@@ -1280,7 +1280,7 @@ static void pushTemporaryCleanup(CIRGenFunction &CGF,
   //
   // FIXME: This should be looking at E, not M.
   if (auto Lifetime = M->getType().getObjCLifetime()) {
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
   }
 
   CXXDestructorDecl *ReferenceTemporaryDtor = nullptr;
@@ -1296,7 +1296,7 @@ static void pushTemporaryCleanup(CIRGenFunction &CGF,
     return;
 
   // TODO(cir): Call the destructor for the temporary.
-  assert(0 && "NYI");
+  llvm_unreachable("NYI");
 }
 
 LValue CIRGenFunction::buildMaterializeTemporaryExpr(
@@ -1312,7 +1312,7 @@ LValue CIRGenFunction::buildMaterializeTemporaryExpr(
   auto ownership = M->getType().getObjCLifetime();
   if (ownership != Qualifiers::OCL_None &&
       ownership != Qualifiers::OCL_ExplicitNone) {
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
   }
 
   SmallVector<const Expr *, 2> CommaLHSs;
@@ -1323,7 +1323,7 @@ LValue CIRGenFunction::buildMaterializeTemporaryExpr(
     buildIgnoredExpr(Ignored);
 
   if (const auto *opaque = dyn_cast<OpaqueValueExpr>(E))
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
 
   // Create and initialize the reference temporary.
   Address Alloca = Address::invalid();
@@ -1332,17 +1332,17 @@ LValue CIRGenFunction::buildMaterializeTemporaryExpr(
   if (auto Var =
           dyn_cast<mlir::cir::GlobalOp>(Object.getPointer().getDefiningOp())) {
     // TODO(cir): add something akin to stripPointerCasts() to ptr above
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
   } else {
     switch (M->getStorageDuration()) {
     case SD_Automatic:
-      assert(0 && "NYI");
+      llvm_unreachable("NYI");
       break;
 
     case SD_FullExpression: {
       if (!ShouldEmitLifetimeMarkers)
         break;
-      assert(0 && "NYI");
+      llvm_unreachable("NYI");
       break;
     }
 
@@ -1359,7 +1359,7 @@ LValue CIRGenFunction::buildMaterializeTemporaryExpr(
   // the lifetime) to the subobject we're binding the reference to.
   for (SubobjectAdjustment &Adjustment : llvm::reverse(Adjustments)) {
     (void)Adjustment;
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
   }
 
   return makeAddrLValue(Object, M->getType(), AlignmentSource::Decl);
@@ -1374,7 +1374,7 @@ LValue CIRGenFunction::buildLValue(const Expr *E) {
   default: {
     emitError(getLoc(E->getExprLoc()), "l-value not implemented for '")
         << E->getStmtClassName() << "'";
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
   }
   case Expr::ArraySubscriptExprClass:
     return buildArraySubscriptExpr(cast<ArraySubscriptExpr>(E));
@@ -1383,12 +1383,12 @@ LValue CIRGenFunction::buildLValue(const Expr *E) {
   case Expr::CompoundAssignOperatorClass: {
     QualType Ty = E->getType();
     if (const AtomicType *AT = Ty->getAs<AtomicType>())
-      assert(0 && "not yet implemented");
+      llvm_unreachable("not yet implemented");
     assert(!Ty->isAnyComplexType() && "complex types not implemented");
     return buildCompoundAssignmentLValue(cast<CompoundAssignOperator>(E));
   }
   case Expr::UserDefinedLiteralClass:
-    assert(0 && "should fallback below, remove assert when testcase available");
+    llvm_unreachable("should fallback below, remove assert when testcase available");
   case Expr::CXXOperatorCallExprClass:
     return buildCallExprLValue(cast<CallExpr>(E));
   case Expr::ExprWithCleanupsClass: {
@@ -1426,7 +1426,7 @@ LValue CIRGenFunction::buildLValue(const Expr *E) {
   case Expr::ObjCBridgedCastExprClass:
     emitError(getLoc(E->getExprLoc()), "l-value not implemented for '")
         << E->getStmtClassName() << "'";
-    assert(0 && "Use buildCastLValue below, remove me when adding testcase");
+    llvm_unreachable("Use buildCastLValue below, remove me when adding testcase");
   case Expr::CXXStaticCastExprClass:
   case Expr::ImplicitCastExprClass:
     return buildCastLValue(cast<CastExpr>(E));
@@ -1669,7 +1669,7 @@ RValue CIRGenFunction::buildReferenceBindingToExpr(const Expr *E) {
   auto Value = LV.getPointer();
 
   if (sanitizePerformTypeCheck() && !E->getType()->isFunctionType()) {
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
   }
 
   return RValue::get(Value);
@@ -1717,7 +1717,7 @@ Address CIRGenFunction::CreateMemTemp(QualType Ty, CharUnits Align,
       CreateTempAlloca(getTypes().convertTypeForMem(Ty), Align, Loc, Name,
                        /*ArraySize=*/nullptr, Alloca);
   if (Ty->isConstantMatrixType()) {
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
   }
   return Result;
 }
@@ -1759,7 +1759,7 @@ mlir::cir::AllocaOp CIRGenFunction::CreateTempAlloca(mlir::Type Ty,
                                                      const Twine &Name,
                                                      mlir::Value ArraySize) {
   if (ArraySize)
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
   return cast<mlir::cir::AllocaOp>(
       buildAlloca(Name.str(), Ty, Loc, CharUnits()).getDefiningOp());
 }

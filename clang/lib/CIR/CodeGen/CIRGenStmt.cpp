@@ -62,7 +62,7 @@ mlir::LogicalResult CIRGenFunction::buildStmt(const Stmt *S,
 
   if (getContext().getLangOpts().OpenMP &&
       getContext().getLangOpts().OpenMPSimd)
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
 
   switch (S->getStmtClass()) {
   default:
@@ -114,7 +114,7 @@ mlir::LogicalResult CIRGenFunction::buildStmt(const Stmt *S,
       // the function.  This occurs with, e.g., labels that are not
       // reachable by fallthrough.
       if (incoming != outgoing && outgoing->use_empty())
-        assert(0 && "not implemented");
+        llvm_unreachable("not implemented");
       break;
     }
 
@@ -228,7 +228,7 @@ mlir::LogicalResult CIRGenFunction::buildStmt(const Stmt *S,
   case Stmt::OMPMaskedDirectiveClass: {
     llvm::errs() << "CIR codegen for '" << S->getStmtClassName()
                  << "' not implemented\n";
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
     break;
   }
   case Stmt::ObjCAtCatchStmtClass:
@@ -279,7 +279,7 @@ mlir::LogicalResult CIRGenFunction::buildSimpleStmt(const Stmt *S,
   case Stmt::SEHLeaveStmtClass:
     llvm::errs() << "CIR codegen for '" << S->getStmtClassName()
                  << "' not implemented\n";
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
   }
 
   return mlir::success();
@@ -366,7 +366,7 @@ mlir::LogicalResult CIRGenFunction::buildIfStmt(const IfStmt &S) {
     bool CondConstant;
     if (ConstantFoldsToSimpleInteger(S.getCond(), CondConstant,
                                      S.isConstexpr())) {
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
     }
 
     // TODO: PGO and likelihood.
@@ -417,16 +417,16 @@ mlir::LogicalResult CIRGenFunction::buildReturnStmt(const ReturnStmt &S) {
   // should model this in face of dtors.
 
   if (const auto *EWC = dyn_cast_or_null<ExprWithCleanups>(RV))
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
 
   if (getContext().getLangOpts().ElideConstructors && S.getNRVOCandidate() &&
       S.getNRVOCandidate()->isNRVOVariable()) {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
   } else if (!ReturnValue.isValid() || (RV && RV->getType()->isVoidType())) {
     // Make sure not to return anything, but evaluate the expression
     // for side effects.
     if (RV) {
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
     }
   } else if (!RV) {
     // Do nothing (return value is left uninitialized)
@@ -510,7 +510,7 @@ mlir::LogicalResult CIRGenFunction::buildLabel(const LabelDecl *D) {
     currLexScope->SolvedLabels.insert(D);
     // FIXME: add a label attribute to block...
   } else {
-    assert(0 && "unimplemented");
+    llvm_unreachable("unimplemented");
   }
 
   //  FIXME: emit debug info for labels, incrementProfileCounter

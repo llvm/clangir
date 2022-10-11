@@ -59,14 +59,14 @@ public:
   /// getComplexVal - Return the real/imag components of this complex value.
   ///
   std::pair<mlir::Value, mlir::Value> getComplexVal() const {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
     return {};
   }
 
   /// getAggregateAddr() - Return the Value* of the address of the
   /// aggregate.
   Address getAggregateAddress() const {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
     return Address::invalid();
   }
 
@@ -83,18 +83,18 @@ public:
     return ER;
   }
   static RValue getComplex(mlir::Value V1, mlir::Value V2) {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
     return RValue{};
   }
   static RValue getComplex(const std::pair<mlir::Value, mlir::Value> &C) {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
     return RValue{};
   }
   // FIXME: Aggregate rvalues need to retain information about whether they
   // are volatile or not.  Remove default to find all places that probably
   // get this wrong.
   static RValue getAggregate(Address addr, bool isVolatile = false) {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
     return RValue{};
   }
 };

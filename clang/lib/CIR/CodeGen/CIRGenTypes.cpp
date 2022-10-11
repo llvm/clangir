@@ -265,7 +265,7 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
     case BuiltinType::ObjCClass:
     case BuiltinType::ObjCSel:
       // FIXME: if we emit like LLVM we probably wanna use i8.
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
       break;
 
     case BuiltinType::Bool:
@@ -323,7 +323,7 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
       break;
     case BuiltinType::Half:
       // Should be the same as above?
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
       break;
     case BuiltinType::BFloat16:
       ResultType = Builder.getBF16Type();
@@ -339,18 +339,18 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
     case BuiltinType::Ibm128:
       // FIXME: look at Context.getFloatTypeSemantics(T) and getTypeForFormat
       // on LLVM codegen.
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
       break;
 
     case BuiltinType::NullPtr:
       // Model std::nullptr_t as i8*
       // ResultType = llvm::Type::getInt8PtrTy(getLLVMContext());
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
       break;
 
     case BuiltinType::UInt128:
     case BuiltinType::Int128:
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
       // FIXME: ResultType = Builder.getIntegerType(128);
       break;
 
@@ -364,7 +364,7 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
     case BuiltinType::OCLClkEvent:
     case BuiltinType::OCLQueue:
     case BuiltinType::OCLReserveID:
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
       break;
     case BuiltinType::SveInt8:
     case BuiltinType::SveUint8:
@@ -415,18 +415,18 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
     case BuiltinType::SveBFloat16x2:
     case BuiltinType::SveBFloat16x3:
     case BuiltinType::SveBFloat16x4: {
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
       break;
     }
 #define PPC_VECTOR_TYPE(Name, Id, Size)                                        \
   case BuiltinType::Id:                                                        \
-    assert(0 && "not implemented");                                            \
+    llvm_unreachable("not implemented");                                            \
     break;
 #include "clang/Basic/PPCTypes.def"
 #define RVV_TYPE(Name, Id, SingletonId) case BuiltinType::Id:
 #include "clang/Basic/RISCVVTypes.def"
       {
-        assert(0 && "not implemented");
+        llvm_unreachable("not implemented");
         break;
       }
     case BuiltinType::Dependent:
@@ -441,7 +441,7 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
   case Type::DeducedTemplateSpecialization:
     llvm_unreachable("Unexpected undeduced type!");
   case Type::Complex: {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
     break;
   }
   case Type::LValueReference:
@@ -474,11 +474,11 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
   }
 
   case Type::VariableArray: {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
     break;
   }
   case Type::IncompleteArray: {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
     break;
   }
   case Type::ConstantArray: {
@@ -490,7 +490,7 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
           ty.isa<mlir::cir::PointerType, mlir::cir::StructType,
                  mlir::cir::ArrayType>())
         return true;
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
       return false;
     };
 
@@ -503,11 +503,11 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
   }
   case Type::ExtVector:
   case Type::Vector: {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
     break;
   }
   case Type::ConstantMatrix: {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
     break;
   }
   case Type::FunctionNoProto:
@@ -515,44 +515,44 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
     ResultType = ConvertFunctionTypeInternal(T);
     break;
   case Type::ObjCObject:
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
     break;
 
   case Type::ObjCInterface: {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
     break;
   }
 
   case Type::ObjCObjectPointer: {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
     break;
   }
 
   case Type::Enum: {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
     break;
   }
 
   case Type::BlockPointer: {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
     break;
   }
 
   case Type::MemberPointer: {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
     break;
   }
 
   case Type::Atomic: {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
     break;
   }
   case Type::Pipe: {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
     break;
   }
   case Type::BitInt: {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
     break;
   }
   }

@@ -172,7 +172,7 @@ void CIRGenFunction::buildTypeCheck(TypeCheckKind TCK,
   if (!sanitizePerformTypeCheck())
     return;
 
-  assert(false && "type check NYI");
+  llvm_unreachable("type check NYI");
 }
 
 /// If the specified expression does not fold

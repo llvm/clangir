@@ -199,7 +199,7 @@ void AggExprEmitter::VisitLambdaExpr(LambdaExpr *E) {
 
 void AggExprEmitter::VisitCastExpr(CastExpr *E) {
   if (const auto *ECE = dyn_cast<ExplicitCastExpr>(E))
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
   switch (E->getCastKind()) {
 
   case CK_NoOp:
@@ -270,7 +270,7 @@ void AggExprEmitter::VisitCastExpr(CastExpr *E) {
   default: {
     llvm::errs() << "cast kind not implemented: '" << E->getCastKindName()
                  << "'\n";
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
     break;
   }
   }
@@ -341,7 +341,7 @@ void CIRGenFunction::buildAggregateCopy(LValue Dest, LValue Src, QualType Ty,
   }
 
   if (getLangOpts().CUDAIsDevice) {
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
   }
 
   // Aggregate assignment turns into llvm.memcpy.  This is almost valid per
@@ -366,10 +366,10 @@ void CIRGenFunction::buildAggregateCopy(LValue Dest, LValue Src, QualType Ty,
 
   llvm::Value *SizeVal = nullptr;
   if (TypeInfo.Width.isZero()) {
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
   }
   if (!SizeVal) {
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
     // SizeVal = llvm::ConstantInt::get(SizeTy, TypeInfo.Width.getQuantity());
   }
 
@@ -386,7 +386,7 @@ void CIRGenFunction::buildAggregateCopy(LValue Dest, LValue Src, QualType Ty,
   // we need to use a different call here.  We use isVolatile to indicate when
   // either the source or the destination is volatile.
 
-  assert(0 && "NYI");
+  llvm_unreachable("NYI");
   // DestPtr = Builder.CreateElementBitCast(DestPtr, Int8Ty);
   // SrcPtr = Builder.CreateElementBitCast(SrcPtr, Int8Ty);
 
@@ -394,12 +394,12 @@ void CIRGenFunction::buildAggregateCopy(LValue Dest, LValue Src, QualType Ty,
   if (CGM.getLangOpts().getGC() == LangOptions::NonGC) {
     // fall through
   } else if (const RecordType *RecordTy = Ty->getAs<RecordType>()) {
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
   } else if (Ty->isArrayType()) {
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
   }
 
-  assert(0 && "NYI");
+  llvm_unreachable("NYI");
   // auto Inst = Builder.CreateMemCpy(DestPtr, SrcPtr, SizeVal, isVolatile);
 
   // Determine the metadata to describe the position of any padding in this
@@ -407,6 +407,6 @@ void CIRGenFunction::buildAggregateCopy(LValue Dest, LValue Src, QualType Ty,
   // the optimizer wishes to expand it in to scalar memory operations.
   assert(!UnimplementedFeature::tbaa());
   if (CGM.getCodeGenOpts().NewStructPathTBAA) {
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
   }
 }

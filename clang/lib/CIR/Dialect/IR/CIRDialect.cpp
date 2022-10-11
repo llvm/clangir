@@ -451,7 +451,7 @@ void IfOp::getSuccessorRegions(Optional<unsigned> index,
   // Otherwise, the successor is dependent on the condition.
   // bool condition;
   if (auto condAttr = operands.front().dyn_cast_or_null<IntegerAttr>()) {
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
     // condition = condAttr.getValue().isOneValue();
     // Add the successor regions using the condition.
     // regions.push_back(RegionSuccessor(condition ? &thenRegion() :
@@ -865,7 +865,7 @@ void SwitchOp::getSuccessorRegions(Optional<unsigned> index,
     // overly simplified.
     // bool condition;
     if (auto condAttr = operands.front().dyn_cast_or_null<IntegerAttr>()) {
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
       (void)r;
       // condition = condAttr.getValue().isOneValue();
       // Add the successor regions using the condition.
@@ -1054,7 +1054,7 @@ LogicalResult GlobalOp::verify() {
                          << "' linkage";
     break;
   default:
-    assert(0 && "not implemented");
+    llvm_unreachable("not implemented");
   }
 
   // TODO: verify visibility for declarations?
