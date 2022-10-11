@@ -90,7 +90,7 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &context,
                            clang::ASTContext &astctx,
                            const clang::CodeGenOptions &CGO,
                            DiagnosticsEngine &Diags)
-    : builder(&context), astCtx(astctx), langOpts(astctx.getLangOpts()),
+    : builder(context), astCtx(astctx), langOpts(astctx.getLangOpts()),
       codeGenOpts(CGO), theModule{mlir::ModuleOp::create(
                             builder.getUnknownLoc())},
       Diags(Diags), target(astCtx.getTargetInfo()),
