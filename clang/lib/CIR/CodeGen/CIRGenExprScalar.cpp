@@ -16,9 +16,9 @@
 
 #include "clang/AST/StmtVisitor.h"
 
+#include "mlir/IR/Value.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
-#include "mlir/IR/Value.h"
 
 using namespace cir;
 using namespace clang;
@@ -253,8 +253,8 @@ public:
     if (E->isIncrementOp() && type->isBooleanType()) {
       assert(0 && "inc simplification for booleans not implemented yet");
 
-      // NOTE: We likely want the code below, but loading/store booleans need to work first.
-      // See CIRGenFunction::buildFromMemory().      
+      // NOTE: We likely want the code below, but loading/store booleans need to
+      // work first. See CIRGenFunction::buildFromMemory().
       Value = Builder.create<mlir::cir::ConstantOp>(CGF.getLoc(E->getExprLoc()),
                                                     CGF.getCIRType(type),
                                                     Builder.getBoolAttr(true));
