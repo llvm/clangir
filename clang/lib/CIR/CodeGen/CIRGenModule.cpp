@@ -1440,9 +1440,10 @@ bool CIRGenModule::lookupRepresentativeDecl(StringRef MangledName,
   return true;
 }
 
-mlir::cir::FuncOp CIRGenModule::createCIRFunction(mlir::Location loc,
-                                                  StringRef name,
-                                                  mlir::FunctionType Ty) {
+mlir::cir::FuncOp
+CIRGenModule::createCIRFunction(mlir::Location loc, StringRef name,
+                                mlir::FunctionType Ty,
+                                const clang::FunctionDecl *FD) {
   // At the point we need to create the function, the insertion point
   // could be anywhere (e.g. callsite). Do not rely on whatever it might
   // be, properly save, find the appropriate place and restore.
@@ -1459,6 +1460,8 @@ mlir::cir::FuncOp CIRGenModule::createCIRFunction(mlir::Location loc,
       builder.setInsertionPoint(curCGF->CurFn.getOperation());
 
     f = builder.create<mlir::cir::FuncOp>(loc, name, Ty);
+    f.setAstAttr(mlir::cir::ASTFunctionDeclAttr::get(builder.getContext(), FD));
+
     assert(f.isDeclaration() && "expected empty body");
 
     // A declaration gets private visibility by default, but external linkage
@@ -1566,7 +1569,7 @@ mlir::cir::FuncOp CIRGenModule::GetOrCreateCIRFunction(
   auto fnLoc = getLoc(FD->getSourceRange());
   // TODO: CodeGen includeds the linkage (ExternalLinkage) and only passes the
   // mangledname if Entry is nullptr
-  auto F = createCIRFunction(fnLoc, MangledName, FTy);
+  auto F = createCIRFunction(fnLoc, MangledName, FTy, FD);
 
   if (Entry) {
     llvm_unreachable("NYI");
