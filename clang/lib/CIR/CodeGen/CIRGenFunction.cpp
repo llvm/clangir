@@ -18,8 +18,8 @@
 #include "clang/AST/ExprObjC.h"
 #include "clang/Basic/TargetInfo.h"
 
-#include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "clang/CIR/Dialect/IR/CIRDialect.h"
 
 using namespace cir;
 using namespace clang;
