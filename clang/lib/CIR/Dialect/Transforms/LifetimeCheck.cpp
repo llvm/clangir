@@ -42,6 +42,8 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
   void checkLoad(LoadOp op);
   void checkCall(CallOp callOp);
 
+  void checkCtor(CallOp callOp, const clang::CXXConstructorDecl *ctor);
+
   struct Options {
     enum : unsigned {
       None = 0,
@@ -815,19 +817,8 @@ const clang::CXXMethodDecl *getMethod(ModuleOp mod, StringRef name) {
   return dyn_cast<clang::CXXMethodDecl>(method.getAstAttr().getAstDecl());
 }
 
-void LifetimeCheckPass::checkCall(CallOp callOp) {
-  if (callOp.getNumOperands() == 0)
-    return;
-
-  auto methodDecl = getMethod(theModule, callOp.getCallee());
-  if (!methodDecl)
-    return;
-
-  // TODO: only ctor init implemented, assign ops and others needed.
-  auto ctor = dyn_cast<clang::CXXConstructorDecl>(methodDecl);
-  if (!ctor)
-    return;
-
+void LifetimeCheckPass::checkCtor(CallOp callOp,
+                                  const clang::CXXConstructorDecl *ctor) {
   // First argument passed is always the alloca for the 'this' ptr.
   auto addr = callOp.getOperand(0);
   auto allocaOp = dyn_cast_or_null<AllocaOp>(addr.getDefiningOp());
@@ -850,6 +841,19 @@ void LifetimeCheckPass::checkCall(CallOp callOp) {
   // relevant testcase. Explode here since this a pretty vital one.
   if (ctor->isDefaultConstructor())
     llvm_unreachable("NYI");
+}
+
+void LifetimeCheckPass::checkCall(CallOp callOp) {
+  if (callOp.getNumOperands() == 0)
+    return;
+
+  auto methodDecl = getMethod(theModule, callOp.getCallee());
+  if (!methodDecl)
+    return;
+
+  // TODO: only ctor init implemented, assign ops and others needed.
+  if (auto ctor = dyn_cast<clang::CXXConstructorDecl>(methodDecl))
+    return checkCtor(callOp, ctor);
 }
 
 void LifetimeCheckPass::checkOperation(Operation *op) {
