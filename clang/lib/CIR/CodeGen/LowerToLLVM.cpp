@@ -232,6 +232,17 @@ public:
                                                        op.getInput(), One);
       break;
     }
+    case mlir::cir::UnaryOpKind::Plus: {
+      rewriter.replaceOp(op, op.getInput());
+      break;
+    }
+    case mlir::cir::UnaryOpKind::Minus: {
+      auto Zero = rewriter.create<mlir::arith::ConstantOp>(
+          op.getLoc(), type, mlir::IntegerAttr::get(type, 0));
+      rewriter.replaceOpWithNewOp<mlir::arith::SubIOp>(op, op.getType(), Zero,
+                                                       op.getInput());
+      break;
+    }
     }
 
     return mlir::LogicalResult::success();
