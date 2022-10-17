@@ -55,7 +55,7 @@ def CastKind : I32EnumAttr<
 }
 
 def CastOp : CIR_Op<"cast",
-    [NoSideEffect]> {
+    [Pure]> {
   // FIXME: not all conversions are free of side effects.
   let summary = "Conversion between values of different types";
   let description = [{
@@ -97,7 +97,7 @@ def SameFirstOperandAndResultType :
   NativeOpTrait<"SameFirstOperandAndResultType">;
 
 def PtrStrideOp : CIR_Op<"ptr_stride",
-                         [NoSideEffect, SameFirstOperandAndResultType]> {
+                         [Pure, SameFirstOperandAndResultType]> {
   let summary = "Pointer access with stride";
   let description = [{
     Given a base pointer as operand, provides a new pointer after applying
@@ -126,7 +126,7 @@ def PtrStrideOp : CIR_Op<"ptr_stride",
 //===----------------------------------------------------------------------===//
 
 def ConstantOp : CIR_Op<"cst",
-    [ConstantLike, NoSideEffect]> {
+    [ConstantLike, Pure]> {
   // FIXME: Use SameOperandsAndResultType or similar and prevent eye bleeding
   // type repetition in the assembly form.
 
@@ -554,9 +554,9 @@ def UnaryOpKind : I32EnumAttr<
   let cppNamespace = "::mlir::cir";
 }
 
-// FIXME: NoSideEffect won't work when we add overloading.
+// FIXME: Pure won't work when we add overloading.
 def UnaryOp : CIR_Op<"unary",
-                     [NoSideEffect,
+                     [Pure,
                       SameOperandsAndResultType]> {
   let summary = "Unary operations";
   let description = [{
@@ -612,8 +612,8 @@ def BinOpKind : I32EnumAttr<
   let cppNamespace = "::mlir::cir";
 }
 
-// FIXME: NoSideEffect won't work when we add overloading.
-def BinOp : CIR_Op<"binop", [NoSideEffect,
+// FIXME: Pure won't work when we add overloading.
+def BinOp : CIR_Op<"binop", [Pure,
   SameTypeOperands, SameOperandsAndResultType]> {
 
   let summary = "Binary operations (arith and logic)";
@@ -663,8 +663,8 @@ def CmpOpKind : I32EnumAttr<
   let cppNamespace = "::mlir::cir";
 }
 
-// FIXME: NoSideEffect might not work when we add overloading.
-def CmpOp : CIR_Op<"cmp", [NoSideEffect,
+// FIXME: Pure might not work when we add overloading.
+def CmpOp : CIR_Op<"cmp", [Pure,
   SameTypeOperands]> {
 
   let summary = "Compare values two values and produce a boolean result";
@@ -793,7 +793,7 @@ def SwitchOp : CIR_Op<"switch",
 
 def BrOp : CIR_Op<"br",
       [DeclareOpInterfaceMethods<BranchOpInterface, ["getSuccessorForOperands"]>,
-     NoSideEffect, Terminator]> {
+     Pure, Terminator]> {
   let summary = "Unconditional branch";
   let description = [{
     The `cir.br` branches unconditionally to a block. Used to represent C/C++
@@ -830,7 +830,7 @@ def BrOp : CIR_Op<"br",
 
 def BrCondOp : CIR_Op<"brcond",
       [DeclareOpInterfaceMethods<BranchOpInterface, ["getSuccessorForOperands"]>,
-       NoSideEffect, Terminator, SameVariadicOperandSize]> {
+       Pure, Terminator, SameVariadicOperandSize]> {
   let summary = "Conditional branch";
   let description = [{
     The `cir.brcond %cond, ^bb0, ^bb1` branches to 'bb0' block in case
@@ -1087,7 +1087,7 @@ def GlobalOp : CIR_Op<"global", [Symbol]> {
 //===----------------------------------------------------------------------===//
 
 def GetGlobalOp : CIR_Op<"get_global",
-    [NoSideEffect, DeclareOpInterfaceMethods<SymbolUserOpInterface>]> {
+    [Pure, DeclareOpInterfaceMethods<SymbolUserOpInterface>]> {
   let summary = "Get the address of a global variable";
   let description = [{
      The `cir.get_global` operation retrieves the address pointing to a
