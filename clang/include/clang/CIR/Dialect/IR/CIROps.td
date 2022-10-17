@@ -365,7 +365,7 @@ def ReturnOp : CIR_Op<"return", [HasParent<"FuncOp, ScopeOp, IfOp, SwitchOp, Loo
 
 def IfOp : CIR_Op<"if",
       [DeclareOpInterfaceMethods<RegionBranchOpInterface>,
-       RecursiveSideEffects, AutomaticAllocationScope, NoRegionArguments]> {
+       RecursivelySpeculatable, AutomaticAllocationScope, NoRegionArguments]> {
   let summary = "The if-then-else operation";
   let description = [{
     The `cir.if` operation represents an if-then-else construct for
@@ -512,7 +512,7 @@ def YieldOp : CIR_Op<"yield", [ReturnLike, Terminator,
 //===----------------------------------------------------------------------===//
 
 def ScopeOp : CIR_Op<"scope", [DeclareOpInterfaceMethods<RegionBranchOpInterface>,
-       RecursiveSideEffects, AutomaticAllocationScope, NoRegionArguments]> {
+       RecursivelySpeculatable, AutomaticAllocationScope, NoRegionArguments]> {
   let summary = "Represents a C/C++ scope";
   let description = [{
     `cir.scope` contains one region and defines a strict "scope" for all new
@@ -729,7 +729,7 @@ def CaseArrayAttr :
 def SwitchOp : CIR_Op<"switch",
       [SameVariadicOperandSize,
        DeclareOpInterfaceMethods<RegionBranchOpInterface>,
-       RecursiveSideEffects, AutomaticAllocationScope, NoRegionArguments]> {
+       RecursivelySpeculatable, AutomaticAllocationScope, NoRegionArguments]> {
   let summary = "Switch operation";
   let description = [{
     The `cir.switch` operation represents C/C++ switch functionality for
@@ -892,7 +892,7 @@ def LoopOpKind : I32EnumAttr<
 def LoopOp : CIR_Op<"loop",
       [DeclareOpInterfaceMethods<LoopLikeOpInterface>,
        DeclareOpInterfaceMethods<RegionBranchOpInterface>,
-       RecursiveSideEffects, NoRegionArguments]> {
+       RecursivelySpeculatable, NoRegionArguments]> {
   let summary = "Loop";
   let description = [{
     `cir.loop` represents C/C++ loop forms. It defines 3 blocks:
