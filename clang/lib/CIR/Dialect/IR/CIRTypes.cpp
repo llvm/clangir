@@ -76,9 +76,12 @@ Type StructType::parse(mlir::AsmParser &parser) {
   if (parser.parseString(&typeName))
     return Type();
   llvm::SmallVector<Type> members;
-  Type nextMember;
-  while (mlir::succeeded(parser.parseType(nextMember)))
+  while (mlir::succeeded(parser.parseOptionalComma())) {
+    Type nextMember;
+    if (parser.parseType(nextMember))
+      return Type();
     members.push_back(nextMember);
+  }
   if (parser.parseGreater())
     return Type();
   return get(parser.getContext(), members, typeName);
