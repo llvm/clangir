@@ -48,10 +48,17 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
   void checkMoveAssignment(CallOp callOp, const clang::CXXMethodDecl *m);
   void checkOperatorStar(CallOp callOp);
 
-  // Helpers
+  // Tracks current module.
+  ModuleOp theModule;
+
+  // Helpers.
   bool isCtorInitPointerFromOwner(CallOp callOp,
                                   const clang::CXXConstructorDecl *ctor);
   bool isNonConstUseOfOwner(CallOp callOp, const clang::CXXMethodDecl *m);
+
+  ///
+  /// Pass options handling
+  /// ---------------------
 
   struct Options {
     enum : unsigned {
@@ -99,6 +106,11 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
     }
   } opts;
 
+  ///
+  /// State
+  /// -----
+
+  // Represents the state of an element in a pointer set (pset)
   struct State {
     using DataTy = enum {
       Invalid,
@@ -149,15 +161,15 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
 
     void dump(llvm::raw_ostream &OS = llvm::errs());
 
-    static State getInvalid() { return {}; }
+    static State getInvalid() { return {Invalid}; }
     static State getNullPtr() { return {NullPtr}; }
-    static State getLocalValue(mlir::Value v) { return {v}; }
+    static State getLocalValue(mlir::Value v) { return {v, LocalValue}; }
     static State getOwnedBy(mlir::Value v) { return {v, State::OwnedBy}; }
   };
 
-  using PSetType = llvm::SmallSet<State, 4>;
-  // FIXME: this should be a ScopedHashTable for consistency.
-  using PMapType = llvm::DenseMap<mlir::Value, PSetType>;
+  ///
+  /// Invalid and null history tracking
+  /// ---------------------------------
 
   using PMapInvalidHistType =
       llvm::DenseMap<mlir::Value, std::pair<llvm::Optional<mlir::Location>,
@@ -167,6 +179,26 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
   using PMapNullHistType =
       llvm::DenseMap<mlir::Value, llvm::Optional<mlir::Location>>;
   PMapNullHistType pmapNullHist;
+
+  enum HistInvalidStyle {
+    EndOfScope,
+    NotInitialized,
+    MovedFrom,
+    NonConstUseOfOwner,
+  };
+
+  ///
+  /// Pointer Map and Pointer Set
+  /// ---------------------------
+
+  using PSetType = llvm::SmallSet<State, 4>;
+  // FIXME: this should be a ScopedHashTable for consistency.
+  using PMapType = llvm::DenseMap<mlir::Value, PSetType>;
+
+  PMapType *currPmap = nullptr;
+  PMapType &getPmap() { return *currPmap; }
+
+  void joinPmaps(SmallVectorImpl<PMapType> &pmaps);
 
   // Provides p1179's 'KILL' functionality. See implementation for more
   // information.
@@ -178,6 +210,15 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
 
   // Local owners
   SmallPtrSet<mlir::Value, 8> owners;
+
+  // Useful helpers for debugging
+  void printPset(PSetType &pset, llvm::raw_ostream &OS = llvm::errs());
+  LLVM_DUMP_METHOD void dumpPmap(PMapType &pmap);
+  LLVM_DUMP_METHOD void dumpCurrentPmap();
+
+  ///
+  /// Scope, context and guards
+  /// -------------------------
 
   // Represents the scope context for IR operations (cir.scope, cir.if,
   // then/else regions, etc). Tracks the declaration of variables in the current
@@ -243,18 +284,13 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
   };
 
   LexicalScopeContext *currScope = nullptr;
-  PMapType *currPmap = nullptr;
-  PMapType &getPmap() { return *currPmap; }
 
-  ModuleOp theModule;
+  ///
+  /// AST related
+  /// -----------
 
   llvm::Optional<clang::ASTContext *> astCtx;
   void setASTContext(clang::ASTContext *c) { astCtx = c; }
-
-  void joinPmaps(SmallVectorImpl<PMapType> &pmaps);
-  void printPset(PSetType &pset, llvm::raw_ostream &OS = llvm::errs());
-  LLVM_DUMP_METHOD void dumpPmap(PMapType &pmap);
-  LLVM_DUMP_METHOD void dumpCurrentPmap();
 };
 } // namespace
 
