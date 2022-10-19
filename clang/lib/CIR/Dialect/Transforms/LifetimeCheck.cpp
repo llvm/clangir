@@ -170,22 +170,36 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
   ///
   /// Invalid and null history tracking
   /// ---------------------------------
-
-  using PMapInvalidHistType =
-      llvm::DenseMap<mlir::Value, std::pair<llvm::Optional<mlir::Location>,
-                                            llvm::Optional<mlir::Value>>>;
-  PMapInvalidHistType pmapInvalidHist;
-
-  using PMapNullHistType =
-      llvm::DenseMap<mlir::Value, llvm::Optional<mlir::Location>>;
-  PMapNullHistType pmapNullHist;
-
-  enum HistInvalidStyle {
+  enum InvalidStyle {
+    Unknown,
     EndOfScope,
     NotInitialized,
     MovedFrom,
     NonConstUseOfOwner,
   };
+
+  struct InvalidHistEntry {
+    InvalidStyle style = Unknown;
+    llvm::Optional<mlir::Location> loc;
+    llvm::Optional<mlir::Value> val;
+    InvalidHistEntry() = default;
+    InvalidHistEntry(InvalidStyle s, llvm::Optional<mlir::Location> l,
+                     llvm::Optional<mlir::Value> v)
+        : style(s), loc(l), val(v) {}
+  };
+
+  using PMapInvalidHistType = llvm::DenseMap<mlir::Value, InvalidHistEntry>;
+  PMapInvalidHistType pmapInvalidHist;
+
+  void addInvalidHist(mlir::Value ptr, InvalidStyle histStyle,
+                      mlir::Location loc,
+                      llvm::Optional<mlir::Value> val = {}) {
+    pmapInvalidHist[ptr] = InvalidHistEntry(histStyle, loc, val);
+  }
+
+  using PMapNullHistType =
+      llvm::DenseMap<mlir::Value, llvm::Optional<mlir::Location>>;
+  PMapNullHistType pmapNullHist;
 
   ///
   /// Pointer Map and Pointer Set
@@ -197,13 +211,27 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
 
   PMapType *currPmap = nullptr;
   PMapType &getPmap() { return *currPmap; }
+  void markPsetInvalid(mlir::Value ptr, InvalidStyle histStyle,
+                       mlir::Location loc,
+                       mlir::Optional<mlir::Value> extraVal = {}) {
+    auto &pset = getPmap()[ptr];
+
+    // If pset is already invalid, don't bother.
+    if (pset.count(State::getInvalid()))
+      return;
+
+    // 2.3 - putting invalid into pset(x) is said to invalidate it
+    pset.insert(State::getInvalid());
+    addInvalidHist(ptr, histStyle, loc, extraVal);
+  }
 
   void joinPmaps(SmallVectorImpl<PMapType> &pmaps);
 
   // Provides p1179's 'KILL' functionality. See implementation for more
   // information.
-  void kill(const State &s, llvm::Optional<mlir::Location> killLoc = {});
-  void killInPset(PSetType &pset, const State &s);
+  void kill(const State &s, InvalidStyle histStyle, mlir::Location loc);
+  void killInPset(mlir::Value ptrKey, const State &s, InvalidStyle histStyle,
+                  mlir::Location loc, mlir::Optional<mlir::Value> extraVal);
 
   // Local pointers
   SmallPtrSet<mlir::Value, 8> ptrs;
@@ -329,13 +357,13 @@ static Location getEndLocForHist(LifetimeCheckPass::LexicalScopeContext &lsc) {
   return getEndLocForHist(lsc.parent.get<Operation *>());
 }
 
-void LifetimeCheckPass::killInPset(PSetType &pset, const State &s) {
+void LifetimeCheckPass::killInPset(mlir::Value ptrKey, const State &s,
+                                   InvalidStyle histStyle, mlir::Location loc,
+                                   mlir::Optional<mlir::Value> extraVal) {
+  auto &pset = getPmap()[ptrKey];
   if (pset.contains(s)) {
-    // Erase the reference and mark this invalid.
-    // FIXME: add a way to just mutate the state.
     pset.erase(s);
-    pset.insert(State::getInvalid());
-    return;
+    markPsetInvalid(ptrKey, histStyle, loc, extraVal);
   }
 }
 
@@ -343,10 +371,14 @@ void LifetimeCheckPass::killInPset(PSetType &pset, const State &s) {
 // in the pmap with invalid. For example, if pmap is {(p1,{a}), (p2,{a'})},
 // KILL(a') would invalidate only p2, and KILL(a) would invalidate both p1 and
 // p2.
-void LifetimeCheckPass::kill(const State &s,
-                             llvm::Optional<mlir::Location> killLoc) {
+void LifetimeCheckPass::kill(const State &s, InvalidStyle histStyle,
+                             mlir::Location loc) {
   assert(s.hasValue() && "does not know how to kill other data types");
   mlir::Value v = s.getData();
+  mlir::Optional<mlir::Value> extraVal;
+  if (histStyle == InvalidStyle::EndOfScope)
+    extraVal = v;
+
   for (auto &mapEntry : getPmap()) {
     auto ptr = mapEntry.first;
 
@@ -357,29 +389,15 @@ void LifetimeCheckPass::kill(const State &s,
     // ... replace all occurrences of x and x' and x''. Start with the primes
     // so we first remove uses and then users.
     //
-    auto &pset = mapEntry.second;
-
-    // Record if pmap(ptr) is invalid already.
-    bool wasInvalid = pset.count(State::getInvalid());
-
     // FIXME: add x'', x''', etc...
     if (s.isLocalValue() && owners.count(v))
-      killInPset(pset, State::getOwnedBy(v));
-
-    killInPset(pset, s);
-
-    // If pset(ptr) was already invalid, do not polute the history.
-    if (!wasInvalid) {
-      // FIXME: support invalidation history and types.
-      if (!killLoc)
-        pmapInvalidHist[ptr] = std::make_pair(getEndLocForHist(*currScope), v);
-      else
-        pmapInvalidHist[ptr] = std::make_pair(killLoc, std::nullopt);
-    }
+      killInPset(ptr, State::getOwnedBy(v), histStyle, loc, extraVal);
+    killInPset(ptr, s, histStyle, loc, extraVal);
   }
 
-  // Delete the local value from pmap, since its now gone.
-  getPmap().erase(v);
+  // Delete the local value from pmap, since its scope has ended.
+  if (histStyle == InvalidStyle::EndOfScope)
+    getPmap().erase(v);
 }
 
 void LifetimeCheckPass::LexicalScopeGuard::cleanup() {
@@ -390,7 +408,8 @@ void LifetimeCheckPass::LexicalScopeGuard::cleanup() {
     return;
 
   for (auto pointee : localScope->localValues)
-    Pass.kill(State::getLocalValue(pointee));
+    Pass.kill(State::getLocalValue(pointee), InvalidStyle::EndOfScope,
+              getEndLocForHist(*localScope));
 }
 
 void LifetimeCheckPass::checkBlock(Block &block) {
@@ -743,8 +762,7 @@ void LifetimeCheckPass::checkAlloca(AllocaOp allocaOp) {
     // 2.4.2 - When a non-parameter non-member Pointer p is declared, add
     // (p, {invalid}) to pmap.
     ptrs.insert(addr);
-    getPmap()[addr].insert(State::getInvalid());
-    pmapInvalidHist[addr] = std::make_pair(allocaOp.getLoc(), std::nullopt);
+    markPsetInvalid(addr, InvalidStyle::NotInitialized, allocaOp.getLoc());
     break;
   case TypeCategory::Owner:
     // 2.4.2 - When a local Owner x is declared, add (x, {x__1'}) to pmap.
@@ -876,15 +894,24 @@ void LifetimeCheckPass::checkPointerDeref(mlir::Value addr,
   if (hasInvalid && opts.emitHistoryInvalid()) {
     assert(pmapInvalidHist.count(addr) && "expected invalid hist");
     auto &info = pmapInvalidHist[addr];
-    auto &note = info.first;
-    auto &pointee = info.second;
 
-    if (pointee.has_value()) {
-      StringRef pointeeName = getVarNameFromValue(*pointee);
-      D.attachNote(note) << "pointee '" << pointeeName
-                         << "' invalidated at end of scope";
-    } else {
-      D.attachNote(note) << "uninitialized here";
+    switch (info.style) {
+    case InvalidStyle::NotInitialized: {
+      D.attachNote(info.loc) << "uninitialized here";
+      break;
+    }
+    case InvalidStyle::EndOfScope: {
+      StringRef outOfScopeVarName = getVarNameFromValue(*info.val);
+      D.attachNote(info.loc) << "pointee '" << outOfScopeVarName
+                             << "' invalidated at end of scope";
+      break;
+    }
+    case InvalidStyle::NonConstUseOfOwner: {
+      D.attachNote(info.loc) << "invalidated by non-const use of owner type";
+      break;
+    }
+    default:
+      llvm_unreachable("unknown history style");
     }
   }
 
@@ -1057,17 +1084,16 @@ void LifetimeCheckPass::checkCall(CallOp callOp) {
     //
     // - For each entry e in pset(s): Remove e from pset(s), and if no other
     // Owner’s pset contains only e, then KILL(e).
-    kill(State::getOwnedBy(addr), callOp.getLoc());
+    kill(State::getOwnedBy(addr), InvalidStyle::NonConstUseOfOwner,
+         callOp.getLoc());
 
     // - Set pset(o) = {o__N'}, where N is one higher than the highest
     // previously used suffix. For example, initially pset(o) is {o__1'}, on
     // o’s first non-const use pset(o) becomes {o__2'}, on o’s second non-const
     // use pset(o) becomes {o__3'}, and so on.
     // FIXME: for now we set pset(o) = { invalid }
-    auto &pset = getPmap()[addr];
-    pset.clear();
-    pset.insert(State::getInvalid());
-    pmapInvalidHist[addr] = std::make_pair(callOp.getLoc(), std::nullopt);
+    // markPsetInvalid(addr, InvalidStyle::NonConstUseOfOwner,
+    //                 callOp.getLoc());
     return;
   }
 
