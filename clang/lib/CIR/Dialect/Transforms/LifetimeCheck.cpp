@@ -45,6 +45,8 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
 
   void checkCtor(CallOp callOp, const clang::CXXConstructorDecl *ctor);
   void checkMoveAssignment(CallOp callOp, const clang::CXXMethodDecl *m);
+  void checkCopyAssignment(CallOp callOp, const clang::CXXMethodDecl *m);
+  void checkNonConstUseOfOwner(CallOp callOp);
   void checkOperatorStar(CallOp callOp);
 
   // Tracks current module.
@@ -141,14 +143,14 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
     bool operator<(const State &RHS) const {
       // FIXME: note that this makes the ordering non-deterministic, do
       // we really care?
-      if (val.getInt() == LocalValue && RHS.val.getInt() == LocalValue)
+      if (hasValue() && RHS.hasValue())
         return val.getPointer().getAsOpaquePointer() <
                RHS.val.getPointer().getAsOpaquePointer();
       else
         return val.getInt() < RHS.val.getInt();
     }
     bool operator==(const State &RHS) const {
-      if (val.getInt() == LocalValue && RHS.val.getInt() == LocalValue)
+      if (hasValue() && RHS.hasValue())
         return val.getPointer() == RHS.val.getPointer();
       else
         return val.getInt() == RHS.val.getInt();
@@ -970,6 +972,7 @@ void LifetimeCheckPass::checkMoveAssignment(CallOp callOp,
   auto src = callOp.getOperand(1);
 
   // Currently only handle move assignments between pointer categories.
+  // TODO: add Owner category
   if (!(ptrs.count(dst) && ptrs.count(src)))
     return;
 
@@ -982,6 +985,20 @@ void LifetimeCheckPass::checkMoveAssignment(CallOp callOp,
   // For now just consider moved-from state as invalid.
   getPmap()[src].clear();
   getPmap()[src].insert(State::getInvalid());
+}
+
+void LifetimeCheckPass::checkCopyAssignment(CallOp callOp,
+                                            const clang::CXXMethodDecl *m) {
+  // MyIntOwner::operator=(MyIntOwner&)(%dst, %src)
+  auto dst = callOp.getOperand(0);
+  auto src = callOp.getOperand(1);
+
+  // Currently only handle copy assignments between owner categories.
+  // TODO: add Ptr category
+  if (!(owners.count(dst) && owners.count(src)))
+    return;
+
+  checkNonConstUseOfOwner(callOp);
 }
 
 // User defined ctors that initialize from owner types is one
@@ -1085,6 +1102,23 @@ bool LifetimeCheckPass::isNonConstUseOfOwner(CallOp callOp,
   return false;
 }
 
+void LifetimeCheckPass::checkNonConstUseOfOwner(CallOp callOp) {
+  auto ownerAddr = callOp.getOperand(0);
+  // 2.4.2 - On every non-const use of a local Owner o:
+  //
+  // - For each entry e in pset(s): Remove e from pset(s), and if no other
+  // Owner’s pset contains only e, then KILL(e).
+  kill(State::getOwnedBy(ownerAddr), InvalidStyle::NonConstUseOfOwner,
+       callOp.getLoc());
+
+  // - Set pset(o) = {o__N'}, where N is one higher than the highest
+  // previously used suffix. For example, initially pset(o) is {o__1'}, on
+  // o’s first non-const use pset(o) becomes {o__2'}, on o’s second non-const
+  // use pset(o) becomes {o__3'}, and so on.
+  incOwner(ownerAddr);
+  return;
+}
+
 void LifetimeCheckPass::checkCall(CallOp callOp) {
   if (callOp.getNumOperands() == 0)
     return;
@@ -1098,7 +1132,7 @@ void LifetimeCheckPass::checkCall(CallOp callOp) {
   if (methodDecl->isMoveAssignmentOperator())
     return checkMoveAssignment(callOp, methodDecl);
   if (methodDecl->isCopyAssignmentOperator())
-    llvm_unreachable("NYI");
+    return checkCopyAssignment(callOp, methodDecl);
   if (isOperatorStar(methodDecl))
     return checkOperatorStar(callOp);
   if (sinkUnsupportedOperator(methodDecl))
@@ -1107,22 +1141,8 @@ void LifetimeCheckPass::checkCall(CallOp callOp) {
   // For any other methods...
 
   // Non-const member call to a Owner invalidates any of its users.
-  if (isNonConstUseOfOwner(callOp, methodDecl)) {
-    auto ownerAddr = callOp.getOperand(0);
-    // 2.4.2 - On every non-const use of a local Owner o:
-    //
-    // - For each entry e in pset(s): Remove e from pset(s), and if no other
-    // Owner’s pset contains only e, then KILL(e).
-    kill(State::getOwnedBy(ownerAddr), InvalidStyle::NonConstUseOfOwner,
-         callOp.getLoc());
-
-    // - Set pset(o) = {o__N'}, where N is one higher than the highest
-    // previously used suffix. For example, initially pset(o) is {o__1'}, on
-    // o’s first non-const use pset(o) becomes {o__2'}, on o’s second non-const
-    // use pset(o) becomes {o__3'}, and so on.
-    incOwner(ownerAddr);
-    return;
-  }
+  if (isNonConstUseOfOwner(callOp, methodDecl))
+    return checkNonConstUseOfOwner(callOp);
 
   // Take a pset(Ptr) = { Ownr' } where Own got invalidated, this will become
   // invalid access to Ptr if any of its methods are used.
