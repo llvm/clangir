@@ -94,7 +94,10 @@ struct co_invoke_fn {
   }
 };
 
+co_invoke_fn co_invoke;
+
 }} // namespace folly::coro
 
 // CHECK: module {
+// CHECK-NEXT: cir.global external @_ZN5folly4coro9co_invokeE = #cir.zero : !cir.struct<"struct.folly::coro::co_invoke_fn", i8
 // CHECK-NEXT: }
