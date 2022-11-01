@@ -29,7 +29,6 @@
 #include "mlir/Dialect/Async/IR/Async.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/Bufferization/Transforms/FuncBufferizableOpInterfaceImpl.h"
-#include "mlir/Dialect/CIR/IR/CIRDialect.h"
 #include "mlir/Dialect/Complex/IR/Complex.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlow.h"
 #include "mlir/Dialect/ControlFlow/Transforms/BufferDeallocationOpInterfaceImpl.h"
@@ -107,6 +106,7 @@
 #include "mlir/Target/SPIRV/Target.h"
 
 /// Add all the MLIR dialects to the provided registry.
+// Using the .cpp implementation instead of header inline to avoid linking issues
 void mlir::registerAllDialects(DialectRegistry &registry) {
   // clang-format off
   registry.insert<acc::OpenACCDialect,
@@ -120,7 +120,6 @@ void mlir::registerAllDialects(DialectRegistry &registry) {
                   async::AsyncDialect,
                   bufferization::BufferizationDialect,
                   cf::ControlFlowDialect,
-                  cir::CIRDialect,
                   complex::ComplexDialect,
                   DLTIDialect,
                   emitc::EmitCDialect,
@@ -132,7 +131,6 @@ void mlir::registerAllDialects(DialectRegistry &registry) {
                   LLVM::LLVMDialect,
                   math::MathDialect,
                   memref::MemRefDialect,
-                  shard::ShardDialect,
                   ml_program::MLProgramDialect,
                   mpi::MPIDialect,
                   nvgpu::NVGPUDialect,
@@ -153,7 +151,6 @@ void mlir::registerAllDialects(DialectRegistry &registry) {
                   transform::TransformDialect,
                   ub::UBDialect,
                   vector::VectorDialect,
-                  wasmssa::WasmSSADialect,
                   x86vector::X86VectorDialect,
                   xegpu::XeGPUDialect,
                   xevm::XeVMDialect>();
