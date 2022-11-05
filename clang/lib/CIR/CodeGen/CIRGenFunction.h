@@ -395,7 +395,6 @@ public:
     clang::FPOptions OldFPFeatures;
     fp::ExceptionBehavior OldExcept;
     llvm::RoundingMode OldRounding;
-    std::nullptr_t FMFGuard;
   };
   clang::FPOptions CurFPFeatures;
 
