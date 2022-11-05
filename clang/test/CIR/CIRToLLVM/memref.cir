@@ -1,6 +1,5 @@
 // RUN: cir-tool %s -cir-to-func -cir-to-memref -o - | FileCheck %s -check-prefix=MLIR
 // RUN: cir-tool %s -cir-to-func -cir-to-memref -cir-to-llvm -o - | mlir-translate -mlir-to-llvmir | FileCheck %s -check-prefix=LLVM
-// XFAIL: *
 
 module {
   cir.func @foo() -> i32 {
@@ -24,7 +23,7 @@ module {
 
 //      LLVM: define i32 @foo()
 // LLVM-NEXT:   %1 = alloca i32, i64
-// LLVM-NEXT:   %2 = insertvalue { ptr, ptr, i64 } undef, ptr %1, 0
+// LLVM-NEXT:   %2 = insertvalue { ptr, ptr, i64 } poison, ptr %1, 0
 // LLVM-NEXT:   %3 = insertvalue { ptr, ptr, i64 } %2, ptr %1, 1
 // LLVM-NEXT:   %4 = insertvalue { ptr, ptr, i64 } %3, i64 0, 2
 // LLVM-NEXT:   %5 = extractvalue { ptr, ptr, i64 } %4, 1
