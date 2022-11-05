@@ -65,8 +65,8 @@ mlir::LogicalResult CIRGenFunction::buildStmt(const Stmt *S,
     assert(0 && "not implemented");
 
   switch (S->getStmtClass()) {
-  default:
-    llvm_unreachable("unknown statement class");
+  case Stmt::OMPScopeDirectiveClass:
+  case Stmt::OMPErrorDirectiveClass:
   case Stmt::NoStmtClass:
   case Stmt::CXXCatchStmtClass:
   case Stmt::SEHExceptStmtClass:
