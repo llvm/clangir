@@ -189,20 +189,26 @@ public:
   }
 };
 
-class CIRFuncLowering : public mlir::OpRewritePattern<mlir::cir::FuncOp> {
+class CIRFuncLowering : public mlir::OpConversionPattern<mlir::cir::FuncOp> {
 public:
-  using OpRewritePattern<mlir::cir::FuncOp>::OpRewritePattern;
+  using OpConversionPattern<mlir::cir::FuncOp>::OpConversionPattern;
 
   mlir::LogicalResult
-  matchAndRewrite(mlir::cir::FuncOp op,
-                  mlir::PatternRewriter &rewriter) const override {
+  matchAndRewrite(mlir::cir::FuncOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
     auto fn = rewriter.replaceOpWithNewOp<mlir::func::FuncOp>(
         op, op.getName(), op.getFunctionType());
     auto &srcRegion = op.getBody();
     auto &dstRegion = fn.getBody();
 
-    mlir::BlockAndValueMapping mapper;
-    srcRegion.cloneInto(&dstRegion, mapper);
+    mlir::TypeConverter::SignatureConversion signatureConversion(
+        op.front().getNumArguments());
+
+    rewriter.inlineRegionBefore(srcRegion, dstRegion, fn.end());
+    if (failed(rewriter.convertRegionTypes(&fn.getBody(), *typeConverter,
+                                           &signatureConversion)))
+      return mlir::failure();
+
     return mlir::LogicalResult::success();
   }
 };
@@ -545,27 +551,19 @@ void ConvertCIRToFuncPass::runOnOperation() {
   // a subsequent conversion.
 
   // Convert cir.func to builtin.func
-  mlir::ConversionTarget fnTarget(getContext());
-  fnTarget.addLegalOp<mlir::ModuleOp, mlir::func::FuncOp>();
-  fnTarget.addIllegalOp<mlir::cir::FuncOp>();
+  mlir::ConversionTarget target(getContext());
+  target.addLegalOp<mlir::ModuleOp>();
+  target.addLegalDialect<mlir::func::FuncDialect>();
+  target.addIllegalOp<mlir::cir::FuncOp, mlir::cir::ReturnOp,
+                      mlir::cir::CallOp>();
 
-  mlir::RewritePatternSet fnPatterns(&getContext());
-  fnPatterns.add<CIRFuncLowering>(fnPatterns.getContext());
+  mlir::RewritePatternSet patterns(&getContext());
+  mlir::TypeConverter converter;
+  patterns.add<CIRFuncLowering>(converter, patterns.getContext());
+  patterns.add<CIRReturnLowering, CIRCallLowering>(patterns.getContext());
 
   auto module = getOperation();
-  if (failed(applyPartialConversion(module, fnTarget, std::move(fnPatterns))))
-    signalPassFailure();
-
-  // Convert cir.return -> func.return, cir.call -> func.call
-  mlir::ConversionTarget retTarget(getContext());
-  retTarget
-      .addLegalOp<mlir::ModuleOp, mlir::func::ReturnOp, mlir::func::CallOp>();
-  retTarget.addIllegalOp<mlir::cir::ReturnOp, mlir::cir::CallOp>();
-
-  mlir::RewritePatternSet retPatterns(&getContext());
-  retPatterns.add<CIRReturnLowering, CIRCallLowering>(retPatterns.getContext());
-
-  if (failed(applyPartialConversion(module, retTarget, std::move(retPatterns))))
+  if (failed(applyPartialConversion(module, target, std::move(patterns))))
     signalPassFailure();
 }
 
