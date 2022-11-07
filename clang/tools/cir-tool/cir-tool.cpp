@@ -44,6 +44,10 @@ int main(int argc, char **argv) {
     return mlir::createMergeCleanupsPass();
   });
 
+  ::mlir::registerPass([]() -> std::unique_ptr<::mlir::Pass> {
+    return cir::createConvertCIRToMLIRPass();
+  });
+
   mlir::registerAllPasses();
 
   return failed(MlirOptMain(
