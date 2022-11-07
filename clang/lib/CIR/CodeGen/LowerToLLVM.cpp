@@ -46,8 +46,7 @@ struct ConvertCIRToLLVMPass
     : public mlir::PassWrapper<ConvertCIRToLLVMPass,
                                mlir::OperationPass<mlir::ModuleOp>> {
   void getDependentDialects(mlir::DialectRegistry &registry) const override {
-    registry.insert<mlir::LLVM::LLVMDialect, mlir::func::FuncDialect,
-                    mlir::scf::SCFDialect>();
+    registry.insert<mlir::LLVM::LLVMDialect>();
   }
   void runOnOperation() final;
 
@@ -650,8 +649,7 @@ lowerFromCIRToLLVMIR(mlir::ModuleOp theModule,
                      LLVMContext &llvmCtx) {
   mlir::PassManager pm(mlirCtx.get());
 
-  pm.addPass(createConvertCIRToFuncPass());
-  pm.addPass(createConvertCIRToMemRefPass());
+  pm.addPass(createConvertCIRToMLIRPass());
   pm.addPass(createConvertCIRToLLVMPass());
 
   auto result = !mlir::failed(pm.run(theModule));
