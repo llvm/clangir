@@ -1187,6 +1187,8 @@ def emit_llvm : Flag<["-"], "emit-llvm">, Flags<[CC1Option, FC1Option, FlangOpti
   HelpText<"Use the LLVM representation for assembler and object files">;
 def emit_cir : Flag<["-"], "emit-cir">, Flags<[CC1Option]>, Group<Action_Group>,
   HelpText<"Build ASTs and then lower to ClangIR, emit the .cir file">;
+def emit_mlir : Flag<["-"], "emit-mlir">, Flags<[CC1Option]>, Group<Action_Group>,
+  HelpText<"Build ASTs and then lower through ClangIR to MLIR, emit the .milr file">;
 def emit_interface_stubs : Flag<["-"], "emit-interface-stubs">, Flags<[CC1Option]>, Group<Action_Group>,
   HelpText<"Generate Interface Stub Files.">;
 def emit_merged_ifs : Flag<["-"], "emit-merged-ifs">,
@@ -5506,7 +5508,7 @@ defm analyzed_objects_for_unparse : OptOutFC1FFlag<"analyzed-objects-for-unparse
 
 def emit_fir : Flag<["-"], "emit-fir">, Group<Action_Group>,
   HelpText<"Build the parse tree, then lower it to FIR">;
-def emit_mlir : Flag<["-"], "emit-mlir">, Alias<emit_fir>;
+// def emit_mlir : Flag<["-"], "emit-mlir">, Alias<emit_fir>;
 
 def emit_hlfir : Flag<["-"], "emit-hlfir">, Group<Action_Group>,
   HelpText<"Build the parse tree, then lower it to HLFIR">;
