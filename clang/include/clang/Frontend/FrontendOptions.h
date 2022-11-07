@@ -70,6 +70,9 @@ enum ActionKind {
   /// Generate CIR, bud don't emit anything.
   EmitCIROnly,
 
+  /// Emit a .mlir file
+  EmitMLIR,
+
   /// Emit a .ll file.
   EmitLLVM,
 
