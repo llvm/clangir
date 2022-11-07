@@ -51,12 +51,14 @@ CreateFrontendBaseAction(CompilerInstance &CI) {
   auto Act = CI.getFrontendOpts().ProgramAction;
 
   auto EmitsCIR = Act == EmitCIR || Act == EmitCIROnly;
-  auto IsImplementedCIROutput =
-      EmitsCIR || Act == EmitLLVM || Act == EmitObj || Act == EmitAssembly;
+  auto IsImplementedCIROutput = EmitsCIR || Act == EmitLLVM ||
+                                Act == EmitMLIR || Act == EmitAssembly ||
+                                Act == EmitObj;
 
   if (UseCIR && !IsImplementedCIROutput)
     llvm::report_fatal_error("-fclangir-enable currently only works with "
-                             "-emit-cir, -emit-cir-only and -emit-llvm");
+                             "-emit-cir, -emit-cir-only, -emit-mlir, "
+                             "-emit-llvm and -S");
   if (!UseCIR && EmitsCIR)
     llvm::report_fatal_error(
         "-emit-cir and -emit-cir-only only valid when using -fclangir-enable");
@@ -80,6 +82,7 @@ CreateFrontendBaseAction(CompilerInstance &CI) {
 #if CLANG_ENABLE_CIR
   case EmitCIR:                return std::make_unique<::cir::EmitCIRAction>();
   case EmitCIROnly:            return std::make_unique<::cir::EmitCIROnlyAction>();
+  case EmitMLIR:               return std::make_unique<::cir::EmitMLIRAction>();
 #else
   case EmitCIR:
   case EmitCIROnly:
