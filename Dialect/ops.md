@@ -18,7 +18,7 @@ Defines a scope-local variable
 Syntax:
 
 ```
-operation ::= `cir.alloca` $type `,` `cir.ptr` type($addr) `,` `[` $name `,` $init `]` attr-dict
+operation ::= `cir.alloca` $allocaType `,` `cir.ptr` type($addr) `,` `[` $name `,` $init `]` attr-dict
 ```
 
 The `cir.alloca` operation defines a scope-local variable.
@@ -47,7 +47,7 @@ Example:
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-| `type` | ::mlir::TypeAttr | any type attribute
+| `allocaType` | ::mlir::TypeAttr | any type attribute
 | `name` | ::mlir::StringAttr | string attribute
 | `init` | ::mlir::cir::InitStyleAttr | initialization style
 | `alignment` | ::mlir::IntegerAttr | 64-bit signless integer attribute whose minimum value is 0
@@ -369,7 +369,7 @@ Effects: MemoryEffects::Effect{}
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-| `value` | ::mlir::Attribute | any attribute
+| `value` | ::mlir::TypedAttr | TypedAttr instance
 
 #### Results:
 
@@ -422,6 +422,7 @@ Interfaces: CallableOpInterface, FunctionOpInterface, Symbol
 | `function_type` | ::mlir::TypeAttr | type attribute of function type
 | `linkage` | ::mlir::cir::GlobalLinkageKindAttr | Linkage type/kind
 | `sym_visibility` | ::mlir::StringAttr | string attribute
+| `ast` | ::mlir::cir::ASTFunctionDeclAttr | Wraps a clang::FunctionDecl AST node
 
 ### `cir.get_global` (::mlir::cir::GetGlobalOp)
 
