@@ -1278,8 +1278,8 @@ CallInterfaceCallable cir::CallOp::getCallableForCallee() {
 void cir::CallOp::setCalleeFromCallable(::mlir::CallInterfaceCallable callee) {
   if (auto calling =
           (*this)->getAttrOfType<mlir::SymbolRefAttr>(getCalleeAttrName()))
-    (*this)->setAttr(getCalleeAttrName(), callee.get<mlir::SymbolRefAttr>());
-  setOperand(0, callee.get<mlir::Value>());
+    (*this)->setAttr(getCalleeAttrName(), cast<mlir::SymbolRefAttr>(callee));
+  setOperand(0, cast<mlir::Value>(callee));
 }
 
 LogicalResult
@@ -1355,6 +1355,53 @@ LogicalResult UnaryOp::verify() {
 
   llvm_unreachable("Unknown UnaryOp kind?");
 }
+
+//===----------------------------------------------------------------------===//
+// AwaitOp
+//===----------------------------------------------------------------------===//
+
+void AwaitOp::build(OpBuilder &builder, OperationState &result,
+                    function_ref<void(OpBuilder &, Location)> readyBuilder,
+                    function_ref<void(OpBuilder &, Location)> suspendBuilder,
+                    function_ref<void(OpBuilder &, Location)> resumeBuilder) {
+  OpBuilder::InsertionGuard guard(builder);
+
+  Region *readyRegion = result.addRegion();
+  builder.createBlock(readyRegion);
+  readyBuilder(builder, result.location);
+
+  Region *suspendRegion = result.addRegion();
+  builder.createBlock(suspendRegion);
+  suspendBuilder(builder, result.location);
+
+  Region *resumeRegion = result.addRegion();
+  builder.createBlock(resumeRegion);
+  resumeBuilder(builder, result.location);
+}
+
+/// Given the region at `index`, or the parent operation if `index` is None,
+/// return the successor regions. These are the regions that may be selected
+/// during the flow of control. `operands` is a set of optional attributes
+/// that correspond to a constant value for each operand, or null if that
+/// operand is not a constant.
+void AwaitOp::getSuccessorRegions(mlir::RegionBranchPoint point,
+                                  SmallVectorImpl<RegionSuccessor> &regions) {
+  // If any index all the underlying regions branch back to the parent
+  // operation.
+  if (!point.isParent()) {
+    regions.push_back(
+        RegionSuccessor(getOperation(), getOperation()->getResults()));
+    return;
+  }
+
+  // FIXME: we want to look at cond region for getting more accurate results
+  // if the other regions will get a chance to execute.
+  regions.push_back(RegionSuccessor(&this->getReady()));
+  regions.push_back(RegionSuccessor(&this->getSuspend()));
+  regions.push_back(RegionSuccessor(&this->getResume()));
+}
+
+LogicalResult AwaitOp::verify() { return success(); }
 
 //===----------------------------------------------------------------------===//
 // CIR defined traits
