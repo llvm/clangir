@@ -22,6 +22,7 @@ add_clang_library(clangCIRFrontendAction
   clangLex
   clangFrontend
   clangCIR
+  clangCIRLoweringDirectToLLVM
   clangCIRLoweringThroughMLIR
   ${dialect_libs}
   MLIRCIR
