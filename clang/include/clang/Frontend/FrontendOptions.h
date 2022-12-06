@@ -358,6 +358,9 @@ public:
   /// Use Clang IR pipeline to emit code
   unsigned UseClangIRPipeline : 1;
 
+  /// Lower directly from ClangIR to LLVM
+  unsigned ClangIRDirectLowering : 1;
+
   /// Disable Clang IR specific (CIR) passes
   unsigned ClangIRDisablePasses : 1;
 
@@ -548,9 +551,9 @@ public:
         ModulesEmbedAllFiles(false), IncludeTimestamps(true),
         UseTemporary(true), AllowPCMWithCompilerErrors(false),
         ModulesShareFileManager(true), UseClangIRPipeline(false),
-        ClangIRDisablePasses(false), ClangIRDisableCIRVerifier(false),
-        ClangIRDisableEmitCXXDefault(false), ClangIRLifetimeCheck(false),
-        TimeTraceGranularity(500) {}
+        ClangIRDirectLowering(false), ClangIRDisablePasses(false),
+        ClangIRDisableCIRVerifier(false), ClangIRDisableEmitCXXDefault(false),
+        ClangIRLifetimeCheck(false), TimeTraceGranularity(500) {}
 
   /// getInputKindForExtension - Return the appropriate input kind for a file
   /// extension. For example, "c" would return Language::C.
