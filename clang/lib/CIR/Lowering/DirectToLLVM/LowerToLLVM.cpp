@@ -104,17 +104,17 @@ public:
   }
 };
 
-// class CIRLoadLowering : public mlir::OpConversionPattern<mlir::cir::LoadOp> {
-// public:
-//   using OpConversionPattern<mlir::cir::LoadOp>::OpConversionPattern;
+class CIRLoadLowering : public mlir::OpConversionPattern<mlir::cir::LoadOp> {
+public:
+  using OpConversionPattern<mlir::cir::LoadOp>::OpConversionPattern;
 
-//   mlir::LogicalResult
-//   matchAndRewrite(mlir::cir::LoadOp op, OpAdaptor adaptor,
-//                   mlir::ConversionPatternRewriter &rewriter) const override {
-//     rewriter.replaceOpWithNewOp<mlir::memref::LoadOp>(op, adaptor.getAddr());
-//     return mlir::LogicalResult::success();
-//   }
-// };
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::LoadOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOpWithNewOp<mlir::LLVM::LoadOp>(op, adaptor.getAddr());
+    return mlir::LogicalResult::success();
+  }
+};
 
 class CIRStoreLowering : public mlir::OpConversionPattern<mlir::cir::StoreOp> {
 public:
@@ -472,13 +472,14 @@ public:
 
 void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
                                          mlir::TypeConverter &converter) {
-  patterns.add</*CIRLoadLowering,
+  patterns.add</*
                CIRUnaryOpLowering, CIRBinOpLowering,
                CIRCmpOpLowering, CIRBrOpLowering,
                CIRCallLowering, */
                CIRReturnLowering>(patterns.getContext());
-  patterns.add<CIRConstantLowering, CIRStoreLowering, CIRAllocaLowering,
-               CIRFuncLowering>(converter, patterns.getContext());
+  patterns.add<CIRLoadLowering, CIRConstantLowering, CIRStoreLowering,
+               CIRAllocaLowering, CIRFuncLowering>(converter,
+                                                   patterns.getContext());
 }
 
 static mlir::LLVMTypeConverter prepareTypeConverter(mlir::MLIRContext *ctx) {
