@@ -22,6 +22,7 @@ set(LIBS
   MLIRTransformUtils
   MLIRSupport
   MLIRIR
+  MLIRRegisterAllDialects
   )
 
 add_mlir_tool(cir-lsp-server
