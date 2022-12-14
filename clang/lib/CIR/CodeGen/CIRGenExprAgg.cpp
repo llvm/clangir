@@ -353,7 +353,8 @@ void AggExprEmitter::VisitInitListExpr(InitListExpr *E) {
 
   AggValueSlot Dest = EnsureSlot(E->getType());
 
-  LValue DestLV = CGF.makeAddrLValue(Dest.getAddress(), E->getType());
+  [[maybe_unused]] LValue DestLV =
+      CGF.makeAddrLValue(Dest.getAddress(), E->getType());
 
   // Handle initialization of an array.
   if (E->getType()->isArrayType()) {
