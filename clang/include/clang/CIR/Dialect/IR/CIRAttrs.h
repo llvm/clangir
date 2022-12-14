@@ -17,6 +17,8 @@
 #include "mlir/IR/BuiltinAttributeInterfaces.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 
+#include "clang/CIR/Dialect/IR/CIROpsEnums.h"
+
 //===----------------------------------------------------------------------===//
 // CIR Dialect Attrs
 //===----------------------------------------------------------------------===//
