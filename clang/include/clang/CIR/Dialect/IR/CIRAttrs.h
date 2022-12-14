@@ -25,7 +25,7 @@ namespace clang {
 class FunctionDecl;
 class VarDecl;
 class RecordDecl;
-}
+} // namespace clang
 
 namespace mlir {
 namespace cir {
