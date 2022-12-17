@@ -933,7 +933,7 @@ mlir::LogicalResult CIRGenFunction::buildSwitchStmt(const SwitchStmt &S) {
   // Make sure all case regions are terminated by inserting fallthroughs
   // when necessary.
   // FIXME: find a better way to get accurante with location here.
-  for (auto &r : swop.regions())
+  for (auto &r : swop.getRegions())
     terminateCaseRegion(r, swop.getLoc());
   return mlir::success();
 }
