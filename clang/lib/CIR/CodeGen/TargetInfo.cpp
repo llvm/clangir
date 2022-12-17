@@ -296,7 +296,7 @@ ABIArgInfo X86_64ABIInfo::classifyArgumentType(QualType Ty,
 ABIInfo::~ABIInfo() {}
 
 bool ABIInfo::isPromotableIntegerTypeForABI(QualType Ty) const {
-  if (Ty->isPromotableIntegerType())
+  if (getContext().isPromotableIntegerType(Ty))
     return true;
 
   assert(!Ty->getAs<BitIntType>() && "NYI");
