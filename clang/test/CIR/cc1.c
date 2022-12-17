@@ -14,7 +14,7 @@ void foo() {}
 // MLIR-NEXT: }
 
 //      LLVM: define void @foo()
-// LLVM-NEXT:   ret void,
+// LLVM-NEXT:   ret void
 // LLVM-NEXT: }
 
 //      ASM: .globl  foo
