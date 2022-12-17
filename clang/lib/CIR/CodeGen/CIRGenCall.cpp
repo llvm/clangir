@@ -1073,7 +1073,7 @@ CIRGenTypes::arrangeFunctionDeclaration(const FunctionDecl *FD) {
   if (CanQual<FunctionNoProtoType> noProto = FTy.getAs<FunctionNoProtoType>()) {
     return arrangeCIRFunctionInfo(noProto->getReturnType(),
                                   /*instanceMethod=*/false,
-                                  /*chainCall=*/false, None,
+                                  /*chainCall=*/false, std::nullopt,
                                   noProto->getExtInfo(), {}, RequiredArgs::All);
   }
 
