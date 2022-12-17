@@ -689,7 +689,7 @@ parseSwitchOp(OpAsmParser &parser,
                               "case region shall not be empty");
     }
 
-    if (checkBlockTerminator(parser, parserLoc, llvm::None, &currRegion,
+    if (checkBlockTerminator(parser, parserLoc, std::nullopt, &currRegion,
                              /*ensureTerm=*/false)
             .failed())
       return failure();
@@ -1147,7 +1147,8 @@ void cir::FuncOp::build(OpBuilder &builder, OperationState &result,
   result.addRegion();
   result.addAttribute(SymbolTable::getSymbolAttrName(),
                       builder.getStringAttr(name));
-  result.addAttribute(getTypeAttrName(), TypeAttr::get(type));
+  result.addAttribute(getFunctionTypeAttrName(result.name),
+                      TypeAttr::get(type));
   result.addAttribute(
       getLinkageAttrNameString(),
       GlobalLinkageKindAttr::get(builder.getContext(), linkage));
@@ -1155,8 +1156,10 @@ void cir::FuncOp::build(OpBuilder &builder, OperationState &result,
   if (argAttrs.empty())
     return;
 
-  function_interface_impl::addArgAndResultAttrs(builder, result, argAttrs,
-                                                /*resultAttrs=*/llvm::None);
+  function_interface_impl::addArgAndResultAttrs(
+      builder, result, argAttrs,
+      /*resultAttrs=*/std::nullopt, getArgAttrsAttrName(result.name),
+      getResAttrsAttrName(result.name));
 }
 
 ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
@@ -1194,7 +1197,7 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
     argTypes.push_back(arg.type);
 
   auto fnType = builder.getFunctionType(argTypes, resultTypes);
-  state.addAttribute(function_interface_impl::getTypeAttrName(),
+  state.addAttribute(getFunctionTypeAttrName(state.name),
                      TypeAttr::get(fnType));
 
   // If additional attributes are present, parse them.
@@ -1203,8 +1206,9 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
 
   // Add the attributes to the function arguments.
   assert(resultAttrs.size() == resultTypes.size());
-  function_interface_impl::addArgAndResultAttrs(builder, state, arguments,
-                                                resultAttrs);
+  function_interface_impl::addArgAndResultAttrs(
+      builder, state, arguments, resultAttrs, getArgAttrsAttrName(state.name),
+      getResAttrsAttrName(state.name));
 
   // Parse the optional function body.
   auto *body = state.addRegion();
@@ -1236,7 +1240,7 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
                                                   /*isVariadic=*/false,
                                                   fnType.getResults());
   function_interface_impl::printFunctionAttributes(
-      p, *this, fnType.getNumInputs(), fnType.getNumResults(), {"linkage"});
+      p, *this, {getFunctionTypeAttrName(), getLinkageAttrName()});
 
   // Print the body if this is not an external function.
   Region &body = getOperation()->getRegion(0);
@@ -1253,8 +1257,9 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
 LogicalResult cir::FuncOp::verifyType() {
   auto type = getFunctionType();
   if (!type.isa<FunctionType>())
-    return emitOpError("requires '" + getTypeAttrName() +
-                       "' attribute of function type");
+    return emitOpError("requires '" + getFunctionTypeAttrName().str() +
+                       "' attribute of function "
+                       "type");
   if (getFunctionType().getNumResults() > 1)
     return emitOpError("cannot have more than one result");
   return success();
