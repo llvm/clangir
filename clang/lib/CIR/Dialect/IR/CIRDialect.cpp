@@ -324,7 +324,7 @@ mlir::LogicalResult ReturnOp::verify() {
 
 static LogicalResult checkBlockTerminator(OpAsmParser &parser,
                                           llvm::SMLoc parserLoc,
-                                          llvm::Optional<Location> l, Region *r,
+                                          std::optional<Location> l, Region *r,
                                           bool ensureTerm = true) {
   mlir::Builder &builder = parser.getBuilder();
   if (r->hasOneBlock()) {
@@ -449,7 +449,7 @@ void mlir::cir::buildTerminatedBody(OpBuilder &builder, Location loc) {}
 /// during the flow of control. `operands` is a set of optional attributes that
 /// correspond to a constant value for each operand, or null if that operand is
 /// not a constant.
-void IfOp::getSuccessorRegions(Optional<unsigned> index,
+void IfOp::getSuccessorRegions(std::optional<unsigned> index,
                                ArrayRef<Attribute> operands,
                                SmallVectorImpl<RegionSuccessor> &regions) {
   // The `then` and the `else` region branch back to the parent operation.
@@ -543,7 +543,7 @@ void cir::ScopeOp::print(OpAsmPrinter &p) {
 /// during the flow of control. `operands` is a set of optional attributes that
 /// correspond to a constant value for each operand, or null if that operand is
 /// not a constant.
-void ScopeOp::getSuccessorRegions(Optional<unsigned> index,
+void ScopeOp::getSuccessorRegions(std::optional<unsigned> index,
                                   ArrayRef<Attribute> operands,
                                   SmallVectorImpl<RegionSuccessor> &regions) {
   // The only region always branch back to the parent operation.
@@ -881,7 +881,7 @@ void printSwitchOp(OpAsmPrinter &p, SwitchOp op,
 /// during the flow of control. `operands` is a set of optional attributes
 /// that correspond to a constant value for each operand, or null if that
 /// operand is not a constant.
-void SwitchOp::getSuccessorRegions(Optional<unsigned> index,
+void SwitchOp::getSuccessorRegions(std::optional<unsigned> index,
                                    ArrayRef<Attribute> operands,
                                    SmallVectorImpl<RegionSuccessor> &regions) {
   // If any index all the underlying regions branch back to the parent
@@ -954,7 +954,7 @@ void LoopOp::build(OpBuilder &builder, OperationState &result,
 /// during the flow of control. `operands` is a set of optional attributes
 /// that correspond to a constant value for each operand, or null if that
 /// operand is not a constant.
-void LoopOp::getSuccessorRegions(Optional<unsigned> index,
+void LoopOp::getSuccessorRegions(std::optional<unsigned> index,
                                  ArrayRef<Attribute> operands,
                                  SmallVectorImpl<RegionSuccessor> &regions) {
   // If any index all the underlying regions branch back to the parent
@@ -1061,7 +1061,7 @@ LogicalResult GlobalOp::verify() {
       return failure();
   }
 
-  if (Optional<uint64_t> alignAttr = getAlignment()) {
+  if (std::optional<uint64_t> alignAttr = getAlignment()) {
     uint64_t alignment = alignAttr.value();
     if (!llvm::isPowerOf2_64(alignment))
       return emitError() << "alignment attribute value " << alignment
@@ -1399,7 +1399,7 @@ void AwaitOp::build(OpBuilder &builder, OperationState &result,
 /// during the flow of control. `operands` is a set of optional attributes
 /// that correspond to a constant value for each operand, or null if that
 /// operand is not a constant.
-void AwaitOp::getSuccessorRegions(Optional<unsigned> index,
+void AwaitOp::getSuccessorRegions(std::optional<unsigned> index,
                                   ArrayRef<Attribute> operands,
                                   SmallVectorImpl<RegionSuccessor> &regions) {
   // If any index all the underlying regions branch back to the parent
