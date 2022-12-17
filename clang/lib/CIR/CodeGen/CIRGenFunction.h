@@ -618,7 +618,7 @@ public:
                       mlir::Value V, clang::QualType Type,
                       clang::CharUnits Alignment = clang::CharUnits::Zero(),
                       clang::SanitizerSet SkippedChecks = clang::SanitizerSet(),
-                      llvm::Optional<mlir::Value> ArraySize = llvm::None);
+                      llvm::Optional<mlir::Value> ArraySize = std::nullopt);
 
   void buildAggExpr(const clang::Expr *E, AggValueSlot Slot);
 
