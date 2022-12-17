@@ -1,5 +1,6 @@
 // RUN: cir-tool %s -cir-to-mlir -o %t.mlir
 // RUN: FileCheck --input-file=%t.mlir %s
+// XFAIL: *
 
 module {
   cir.func @dot(%arg0: !cir.ptr<f64>) -> i32 {
