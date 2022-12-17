@@ -274,7 +274,7 @@ public:
     } else if (type->isIntegerType()) {
       // QualType promotedType;
       bool canPerformLossyDemotionCheck = false;
-      if (type->isPromotableIntegerType()) {
+      if (CGF.getContext().isPromotableIntegerType(type)) {
         canPerformLossyDemotionCheck = true;
         llvm_unreachable("no promotable integer inc/dec yet");
       }
