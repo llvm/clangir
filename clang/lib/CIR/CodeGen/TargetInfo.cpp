@@ -172,6 +172,8 @@ static bool classifyReturnType(const CIRGenCXXABI &CXXABI,
 
 CIRGenCXXABI &ABIInfo::getCXXABI() const { return CGT.getCXXABI(); }
 
+clang::ASTContext &ABIInfo::getContext() const { return CGT.getContext(); }
+
 ABIArgInfo X86_64ABIInfo::getIndirectResult(QualType Ty,
                                             unsigned freeIntRegs) const {
   assert(false && "NYI");
