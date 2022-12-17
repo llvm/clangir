@@ -893,7 +893,7 @@ void SwitchOp::getSuccessorRegions(Optional<unsigned> index,
     return;
   }
 
-  for (auto &r : this->regions()) {
+  for (auto &r : this->getRegions()) {
     // If we can figure out the case stmt we are landing, this can be
     // overly simplified.
     // bool condition;
@@ -909,7 +909,7 @@ void SwitchOp::getSuccessorRegions(Optional<unsigned> index,
   }
 
   // If the condition isn't constant, all regions may be executed.
-  for (auto &r : this->regions())
+  for (auto &r : this->getRegions())
     regions.push_back(RegionSuccessor(&r));
   return;
 }

@@ -611,7 +611,7 @@ void LifetimeCheckPass::checkSwitch(SwitchOp switchOp) {
   SmallVector<PMapType, 2> pmapOps;
 
   // If there are no regions, pmap is the same.
-  if (switchOp.regions().empty())
+  if (switchOp.getRegions().empty())
     return;
 
   auto isCaseFallthroughTerminated = [&](Region &r) {
@@ -628,7 +628,7 @@ void LifetimeCheckPass::checkSwitch(SwitchOp switchOp) {
     return false;
   };
 
-  auto regions = switchOp.regions();
+  auto regions = switchOp.getRegions();
   for (unsigned regionCurrent = 0, regionPastEnd = regions.size();
        regionCurrent != regionPastEnd; ++regionCurrent) {
     // Intentional pmap copy, basis to start new path.

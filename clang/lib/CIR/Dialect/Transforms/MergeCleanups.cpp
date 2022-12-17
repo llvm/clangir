@@ -174,7 +174,7 @@ template <>
 mlir::LogicalResult SimplifyRetYieldBlocks<cir::SwitchOp>::replaceScopeLikeOp(
     PatternRewriter &rewriter, cir::SwitchOp switchOp) const {
   auto regionChanged = mlir::failure();
-  for (auto &r : switchOp.regions()) {
+  for (auto &r : switchOp.getRegions()) {
     if (checkAndRewriteRegion(r, rewriter).succeeded())
       regionChanged = mlir::success();
   }
