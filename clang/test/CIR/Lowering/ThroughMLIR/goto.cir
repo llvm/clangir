@@ -28,7 +28,7 @@ module {
 //      MLIR: ^bb1:
 //      MLIR: return
 
-//      LLVM: br label %[[Value:[0-9]+]],
+//      LLVM: br label %[[Value:[0-9]+]]
 // LLVM-EMPTY:
 // LLVM-NEXT: [[Value]]:              ; preds =
 //      LLVM: ret void
