@@ -18,8 +18,8 @@
 
 #include "llvm/IR/Constants.h"
 
-#include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "mlir/IR/Value.h"
+#include "clang/CIR/Dialect/IR/CIRTypes.h"
 
 namespace cir {
 

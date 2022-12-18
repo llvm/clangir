@@ -12,10 +12,10 @@
 
 #include "CIRGenModule.h"
 
-#include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/IR/MLIRContext.h"
+#include "clang/CIR/Dialect/IR/CIRDialect.h"
 
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Decl.h"
