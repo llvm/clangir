@@ -11,10 +11,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
-#include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/DialectImplementation.h"
+#include "clang/CIR/Dialect/IR/CIRDialect.h"
 
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/TypeSwitch.h"

@@ -19,12 +19,12 @@
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/GlobalDecl.h"
 
-#include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Types.h"
+#include "clang/CIR/Dialect/IR/CIRTypes.h"
 
 using namespace cir;
 using namespace clang;

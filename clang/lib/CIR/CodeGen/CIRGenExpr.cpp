@@ -19,9 +19,9 @@
 #include "clang/AST/GlobalDecl.h"
 #include "clang/Basic/Builtins.h"
 
-#include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/Value.h"
+#include "clang/CIR/Dialect/IR/CIRDialect.h"
 
 using namespace cir;
 using namespace clang;
