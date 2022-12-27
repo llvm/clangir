@@ -65,6 +65,8 @@ def CastOp : CIR_Op<"cast",
     - `int_to_bool`
     - `array_to_ptrdecay`
     - `integral`
+    - `bitcast`
+    - `floating`
 
     This is effectively a subset of the rules from
     `llvm-project/clang/include/clang/AST/OperationKinds.def`; but note that some
