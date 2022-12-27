@@ -274,6 +274,11 @@ void CIRGenFunction::LexicalScopeGuard::cleanup() {
   auto *localScope = CGF.currLexScope;
 
   auto buildReturn = [&](mlir::Location loc) {
+    // If we are on a coroutine, add the coro_end builtin call.
+    if (CGF.CurFn.getCoroutine())
+      CGF.buildCoroEndBuiltinCall(
+          loc, builder.getNullPtr(builder.getInt8PtrTy(), loc));
+
     if (CGF.FnRetCIRTy.has_value()) {
       // If there's anything to return, load it first.
       auto val = builder.create<LoadOp>(loc, *CGF.FnRetCIRTy, *CGF.FnRetAlloca);
