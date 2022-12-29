@@ -49,6 +49,7 @@ LangStandard::Kind clang::getDefaultLanguageStandard(clang::Language Lang,
   switch (Lang) {
   case Language::Unknown:
   case Language::LLVM_IR:
+  case Language::CIR:
     llvm_unreachable("Invalid input kind!");
   case Language::OpenCL:
     return LangStandard::lang_opencl12;
