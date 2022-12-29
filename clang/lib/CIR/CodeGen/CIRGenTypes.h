@@ -137,6 +137,12 @@ public:
   clang::ASTContext &getContext() const { return Context; }
   mlir::MLIRContext &getMLIRContext() const;
 
+  bool isRecordLayoutComplete(const clang::Type *Ty) const;
+  bool noRecordsBeingLaidOut() const { return RecordsBeingLaidOut.empty(); }
+  bool isRecordBeingLaidOut(const clang::Type *Ty) const {
+    return RecordsBeingLaidOut.count(Ty);
+  }
+
   const ABIInfo &getABIInfo() const { return TheABIInfo; }
   CIRGenCXXABI &getCXXABI() const { return TheCXXABI; }
 
@@ -239,8 +245,6 @@ public:
       clang::FunctionType::ExtInfo info,
       llvm::ArrayRef<clang::FunctionProtoType::ExtParameterInfo> paramInfos,
       RequiredArgs args);
-
-  bool noRecordsBeingLaidOut() const { return RecordsBeingLaidOut.empty(); }
 };
 } // namespace cir
 
