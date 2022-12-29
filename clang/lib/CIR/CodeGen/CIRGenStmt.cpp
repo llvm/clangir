@@ -65,8 +65,6 @@ mlir::LogicalResult CIRGenFunction::buildStmt(const Stmt *S,
     assert(0 && "not implemented");
 
   switch (S->getStmtClass()) {
-  case Stmt::OMPScopeDirectiveClass:
-  case Stmt::OMPErrorDirectiveClass:
   case Stmt::NoStmtClass:
   case Stmt::CXXCatchStmtClass:
   case Stmt::SEHExceptStmtClass:
@@ -160,8 +158,10 @@ mlir::LogicalResult CIRGenFunction::buildStmt(const Stmt *S,
   case Stmt::SEHTryStmtClass:
   case Stmt::OMPMetaDirectiveClass:
   case Stmt::OMPCanonicalLoopClass:
+  case Stmt::OMPErrorDirectiveClass:
   case Stmt::OMPParallelDirectiveClass:
   case Stmt::OMPSimdDirectiveClass:
+  case Stmt::OMPScopeDirectiveClass:
   case Stmt::OMPTileDirectiveClass:
   case Stmt::OMPUnrollDirectiveClass:
   case Stmt::OMPForDirectiveClass:
