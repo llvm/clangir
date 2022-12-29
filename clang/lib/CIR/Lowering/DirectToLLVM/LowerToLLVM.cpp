@@ -686,7 +686,8 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
                CIRIfLowering>(converter, patterns.getContext());
 }
 
-static mlir::LLVMTypeConverter prepareTypeConverter(mlir::MLIRContext *ctx) {
+namespace {
+mlir::LLVMTypeConverter prepareTypeConverter(mlir::MLIRContext *ctx) {
   mlir::LLVMTypeConverter converter(ctx);
   converter.addConversion([&](mlir::cir::PointerType type) -> mlir::Type {
     auto ty = converter.convertType(type.getPointee());
@@ -703,6 +704,7 @@ static mlir::LLVMTypeConverter prepareTypeConverter(mlir::MLIRContext *ctx) {
 
   return converter;
 }
+} // namespace
 
 void ConvertCIRToLLVMPass::runOnOperation() {
   auto module = getOperation();
