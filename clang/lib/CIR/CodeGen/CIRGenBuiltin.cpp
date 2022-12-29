@@ -401,7 +401,8 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     llvm_unreachable("NYI");
 
   // See if we have a target specific intrinsic.
-  const char *Name = getContext().BuiltinInfo.getName(BuiltinID);
+  auto NameStr = getContext().BuiltinInfo.getName(BuiltinID).str();
+  const char *Name = NameStr.c_str();
   Intrinsic::ID IntrinsicID = Intrinsic::not_intrinsic;
   StringRef Prefix =
       llvm::Triple::getArchTypePrefix(getTarget().getTriple().getArch());
