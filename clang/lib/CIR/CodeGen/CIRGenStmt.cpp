@@ -39,7 +39,7 @@ mlir::LogicalResult CIRGenFunction::buildCompoundStmt(const CompoundStmt &S) {
   SymTableScopeTy varScope(symbolTable);
   auto scopeLoc = getLoc(S.getSourceRange());
   builder.create<mlir::cir::ScopeOp>(
-      scopeLoc, mlir::TypeRange(), /*scopeBuilder=*/
+      scopeLoc, /*scopeBuilder=*/
       [&](mlir::OpBuilder &b, mlir::Location loc) {
         auto fusedLoc = loc.cast<mlir::FusedLoc>();
         auto locBegin = fusedLoc.getLocations()[0];
@@ -383,7 +383,7 @@ mlir::LogicalResult CIRGenFunction::buildIfStmt(const IfStmt &S) {
   // The if scope contains the full source range for IfStmt.
   auto scopeLoc = getLoc(S.getSourceRange());
   builder.create<mlir::cir::ScopeOp>(
-      scopeLoc, mlir::TypeRange(), /*scopeBuilder=*/
+      scopeLoc, /*scopeBuilder=*/
       [&](mlir::OpBuilder &b, mlir::Location loc) {
         auto fusedLoc = loc.cast<mlir::FusedLoc>();
         auto scopeLocBegin = fusedLoc.getLocations()[0];
@@ -675,7 +675,7 @@ mlir::LogicalResult CIRGenFunction::buildForStmt(const ForStmt &S) {
   auto res = mlir::success();
   auto scopeLoc = getLoc(S.getSourceRange());
   builder.create<mlir::cir::ScopeOp>(
-      scopeLoc, mlir::TypeRange(), /*scopeBuilder=*/
+      scopeLoc, /*scopeBuilder=*/
       [&](mlir::OpBuilder &b, mlir::Location loc) {
         auto fusedLoc = loc.cast<mlir::FusedLoc>();
         auto scopeLocBegin = fusedLoc.getLocations()[0];
@@ -727,7 +727,7 @@ mlir::LogicalResult CIRGenFunction::buildDoStmt(const DoStmt &S) {
   auto res = mlir::success();
   auto scopeLoc = getLoc(S.getSourceRange());
   builder.create<mlir::cir::ScopeOp>(
-      scopeLoc, mlir::TypeRange(), /*scopeBuilder=*/
+      scopeLoc, /*scopeBuilder=*/
       [&](mlir::OpBuilder &b, mlir::Location loc) {
         auto fusedLoc = loc.cast<mlir::FusedLoc>();
         auto scopeLocBegin = fusedLoc.getLocations()[0];
@@ -784,7 +784,7 @@ mlir::LogicalResult CIRGenFunction::buildWhileStmt(const WhileStmt &S) {
   auto res = mlir::success();
   auto scopeLoc = getLoc(S.getSourceRange());
   builder.create<mlir::cir::ScopeOp>(
-      scopeLoc, mlir::TypeRange(), /*scopeBuilder=*/
+      scopeLoc, /*scopeBuilder=*/
       [&](mlir::OpBuilder &b, mlir::Location loc) {
         auto fusedLoc = loc.cast<mlir::FusedLoc>();
         auto scopeLocBegin = fusedLoc.getLocations()[0];
@@ -886,7 +886,7 @@ mlir::LogicalResult CIRGenFunction::buildSwitchStmt(const SwitchStmt &S) {
   // The switch scope contains the full source range for SwitchStmt.
   auto scopeLoc = getLoc(S.getSourceRange());
   builder.create<mlir::cir::ScopeOp>(
-      scopeLoc, mlir::TypeRange(), /*scopeBuilder=*/
+      scopeLoc, /*scopeBuilder=*/
       [&](mlir::OpBuilder &b, mlir::Location loc) {
         auto fusedLoc = loc.cast<mlir::FusedLoc>();
         auto scopeLocBegin = fusedLoc.getLocations()[0];
