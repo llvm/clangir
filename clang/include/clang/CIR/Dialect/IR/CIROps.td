@@ -119,6 +119,13 @@ def PtrStrideOp : CIR_Op<"ptr_stride",
     `,` type($result) attr-dict
   }];
 
+  let extraClassDeclaration = [{
+    // Get type pointed by the base pointer.
+    mlir::Type getElementTy() {
+      return mlir::cast<mlir::cir::PointerType>(getBase().getType()).getPointee();
+    }
+  }];
+
   // SameFirstOperandAndResultType already checks all we need.
   let hasVerifier = 0;
 }
