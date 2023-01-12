@@ -76,7 +76,8 @@ public:
           src.getLoc(), src.getType(),
           mlir::IntegerAttr::get(src.getType(), 0));
       rewriter.replaceOpWithNewOp<mlir::cir::CmpOp>(
-          castOp, src.getType(), mlir::cir::CmpOpKind::ne, src, zero);
+          castOp, mlir::cir::BoolType::get(getContext()),
+          mlir::cir::CmpOpKind::ne, src, zero);
       break;
     }
     default:
@@ -505,8 +506,7 @@ public:
     auto type = adaptor.getLhs().getType();
     auto i1Type =
         mlir::IntegerType::get(getContext(), 1, mlir::IntegerType::Signless);
-    auto i8Type =
-        mlir::IntegerType::get(getContext(), 8, mlir::IntegerType::Signless);
+    auto destType = getTypeConverter()->convertType(cmpOp.getType());
 
     switch (adaptor.getKind()) {
     case mlir::cir::CmpOpKind::gt: {
@@ -519,7 +519,7 @@ public:
             cmpOp.getLoc(), i1Type,
             mlir::LLVM::ICmpPredicateAttr::get(getContext(), cmpIType),
             adaptor.getLhs(), adaptor.getRhs());
-        rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(cmpOp, i8Type,
+        rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(cmpOp, destType,
                                                         cmp.getRes());
       } else if (mlir::isa<mlir::FloatType>(type)) {
         auto cmp = rewriter.create<mlir::LLVM::FCmpOp>(
@@ -529,7 +529,7 @@ public:
             adaptor.getLhs(), adaptor.getRhs(),
             // TODO(CIR): These fastmath flags need to not be defaulted.
             mlir::LLVM::FastmathFlagsAttr::get(cmpOp.getContext(), {}));
-        rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(cmpOp, i8Type,
+        rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(cmpOp, destType,
                                                         cmp.getRes());
       } else {
         llvm_unreachable("Unknown Operand Type");
@@ -546,7 +546,7 @@ public:
             cmpOp.getLoc(), i1Type,
             mlir::LLVM::ICmpPredicateAttr::get(getContext(), cmpIType),
             adaptor.getLhs(), adaptor.getRhs());
-        rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(cmpOp, i8Type,
+        rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(cmpOp, destType,
                                                         cmp.getRes());
       } else if (mlir::isa<mlir::FloatType>(type)) {
         auto cmp = rewriter.create<mlir::LLVM::FCmpOp>(
@@ -555,7 +555,7 @@ public:
                                                mlir::LLVM::FCmpPredicate::uge),
             adaptor.getLhs(), adaptor.getRhs(),
             mlir::LLVM::FastmathFlagsAttr::get(cmpOp.getContext(), {}));
-        rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(cmpOp, i8Type,
+        rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(cmpOp, destType,
                                                         cmp.getRes());
       } else {
         llvm_unreachable("Unknown Operand Type");
@@ -572,7 +572,7 @@ public:
             cmpOp.getLoc(), i1Type,
             mlir::LLVM::ICmpPredicateAttr::get(getContext(), cmpIType),
             adaptor.getLhs(), adaptor.getRhs());
-        rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(cmpOp, i8Type,
+        rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(cmpOp, destType,
                                                         cmp.getRes());
       } else if (mlir::isa<mlir::FloatType>(type)) {
         auto cmp = rewriter.create<mlir::LLVM::FCmpOp>(
@@ -581,7 +581,7 @@ public:
                                                mlir::LLVM::FCmpPredicate::ult),
             adaptor.getLhs(), adaptor.getRhs(),
             mlir::LLVM::FastmathFlagsAttr::get(cmpOp.getContext(), {}));
-        rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(cmpOp, i8Type,
+        rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(cmpOp, destType,
                                                         cmp.getRes());
       } else {
         llvm_unreachable("Unknown Operand Type");
@@ -598,7 +598,7 @@ public:
             cmpOp.getLoc(), i1Type,
             mlir::LLVM::ICmpPredicateAttr::get(getContext(), cmpIType),
             adaptor.getLhs(), adaptor.getRhs());
-        rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(cmpOp, i8Type,
+        rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(cmpOp, destType,
                                                         cmp.getRes());
       } else if (mlir::isa<mlir::FloatType>(type)) {
         auto cmp = rewriter.create<mlir::LLVM::FCmpOp>(
@@ -607,7 +607,7 @@ public:
                                                mlir::LLVM::FCmpPredicate::ule),
             adaptor.getLhs(), adaptor.getRhs(),
             mlir::LLVM::FastmathFlagsAttr::get(cmpOp.getContext(), {}));
-        rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(cmpOp, i8Type,
+        rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(cmpOp, destType,
                                                         cmp.getRes());
       } else {
         llvm_unreachable("Unknown Operand Type");
@@ -621,7 +621,7 @@ public:
             mlir::LLVM::ICmpPredicateAttr::get(getContext(),
                                                mlir::LLVM::ICmpPredicate::eq),
             adaptor.getLhs(), adaptor.getRhs());
-        rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(cmpOp, i8Type,
+        rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(cmpOp, destType,
                                                         cmp.getRes());
       } else if (mlir::isa<mlir::FloatType>(type)) {
         auto cmp = rewriter.create<mlir::LLVM::FCmpOp>(
@@ -630,7 +630,7 @@ public:
                                                mlir::LLVM::FCmpPredicate::ueq),
             adaptor.getLhs(), adaptor.getRhs(),
             mlir::LLVM::FastmathFlagsAttr::get(cmpOp.getContext(), {}));
-        rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(cmpOp, i8Type,
+        rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(cmpOp, destType,
                                                         cmp.getRes());
       } else {
         llvm_unreachable("Unknown Operand Type");
@@ -645,7 +645,7 @@ public:
                                                mlir::LLVM::ICmpPredicate::ne),
             adaptor.getLhs(), adaptor.getRhs());
 
-        rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(cmpOp, i8Type,
+        rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(cmpOp, destType,
                                                         cmp.getRes());
       } else if (mlir::isa<mlir::FloatType>(type)) {
         auto cmp = rewriter.create<mlir::LLVM::FCmpOp>(
@@ -654,7 +654,7 @@ public:
                                                mlir::LLVM::FCmpPredicate::une),
             adaptor.getLhs(), adaptor.getRhs(),
             mlir::LLVM::FastmathFlagsAttr::get(cmpOp.getContext(), {}));
-        rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(cmpOp, i8Type,
+        rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(cmpOp, destType,
                                                         cmp.getRes());
       } else {
         llvm_unreachable("Unknown Operand Type");
