@@ -798,6 +798,7 @@ void ConvertCIRToLLVMPass::runOnOperation() {
 
   mlir::ConversionTarget target(getContext());
   using namespace mlir::cir;
+  // clang-format off
   target.addLegalOp<mlir::ModuleOp
                     // ,AllocaOp
                     // ,BrCondOp
@@ -813,6 +814,7 @@ void ConvertCIRToLLVMPass::runOnOperation() {
                     // ,StoreOp
                     // ,YieldOp
                     >();
+  // clang-format on
   target.addLegalDialect<mlir::LLVM::LLVMDialect>();
   target.addIllegalDialect<mlir::cir::CIRDialect, mlir::func::FuncDialect>();
 
