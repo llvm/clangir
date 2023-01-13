@@ -662,17 +662,11 @@ public:
   // TODO(cir): Candidate to be in a common AST helper between CIR and LLVM
   // codegen.
   QualType getPromotionType(QualType Ty) {
-    if (CGF.getContext()
-            .getTargetInfo()
-            .shouldEmitFloat16WithExcessPrecision()) {
-      if (Ty->isAnyComplexType()) {
-        QualType ElementType = Ty->castAs<ComplexType>()->getElementType();
-        if (ElementType->isFloat16Type())
-          return CGF.getContext().getComplexType(CGF.getContext().FloatTy);
-      }
-      if (Ty->isFloat16Type())
-        return CGF.getContext().FloatTy;
+    if (auto *CT = Ty->getAs<ComplexType>()) {
+      llvm_unreachable("NYI");
     }
+    if (Ty.UseExcessPrecision(CGF.getContext()))
+      llvm_unreachable("NYI");
     return QualType();
   }
 
