@@ -18,17 +18,19 @@ Defines a scope-local variable
 Syntax:
 
 ```
-operation ::= `cir.alloca` $allocaType `,` `cir.ptr` type($addr) `,` `[` $name `,` $init `]` attr-dict
+operation ::= `cir.alloca` $allocaType `,` `cir.ptr` type($addr) `,`
+              `[` $name
+              (`,` `init` $init^)?
+              `]`
+              (`ast` $ast^)? attr-dict
 ```
 
 The `cir.alloca` operation defines a scope-local variable.
 
-Initialization style must be one of:
-- uninitialized
-- paraminit: alloca to hold a function argument
-- callinit: Call-style initialization (C++98)
-- cinit: C-style initialization with assignment
-- listinit: Direct list-initialization (C++11)
+The presence `init` attribute indicates that the local variable represented
+by this alloca was originally initialized in C/C++ source code. In such
+cases, the first use contains the initialization (a cir.store, a cir.call
+to a ctor, etc).
 
 The result type is a pointer to the input's type.
 
@@ -36,10 +38,10 @@ Example:
 
 ```mlir
 // int count = 3;
-%0 = cir.alloca i32, !cir.ptr<i32>, ["count", cinit] {alignment = 4 : i64}
+%0 = cir.alloca i32, !cir.ptr<i32>, ["count", init] {alignment = 4 : i64}
 
 // int *ptr;
-%1 = cir.alloca !cir.ptr<i32>, cir.ptr <!cir.ptr<i32>>, ["ptr", uninitialized] {alignment = 8 : i64}
+%1 = cir.alloca !cir.ptr<i32>, cir.ptr <!cir.ptr<i32>>, ["ptr"] {alignment = 8 : i64}
 ...
 ```
 
@@ -49,14 +51,89 @@ Example:
 | :-------: | :-------: | ----------- |
 | `allocaType` | ::mlir::TypeAttr | any type attribute
 | `name` | ::mlir::StringAttr | string attribute
-| `init` | ::mlir::cir::InitStyleAttr | initialization style
+| `init` | ::mlir::UnitAttr | unit attribute
 | `alignment` | ::mlir::IntegerAttr | 64-bit signless integer attribute whose minimum value is 0
+| `ast` | ::mlir::cir::ASTVarDeclAttr | Wraps a 'const clang::VarDecl *' AST node.
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
 | `addr` | CIR pointer type
+
+### `cir.await` (::mlir::cir::AwaitOp)
+
+Wraps C++ co_await implicit logic
+
+
+Syntax:
+
+```
+operation ::= `cir.await` `(` $kind `,`
+              `ready` `:` $ready `,`
+              `suspend` `:` $suspend `,`
+              `resume` `:` $resume `,`
+              `)`
+              attr-dict
+```
+
+The under the hood effect of using C++ `co_await expr` roughly
+translates to:
+
+```c++
+// co_await expr;
+
+auto &&x = CommonExpr();
+if (!x.await_ready()) {
+   ...
+   x.await_suspend(...);
+   ...
+}
+x.await_resume();
+```
+
+`cir.await` represents this logic by using 3 regions:
+  - ready: covers veto power from x.await_ready()
+  - suspend: wraps actual x.await_suspend() logic
+  - resume: handles x.await_resume()
+
+Breaking this up in regions allow individual scrutiny of conditions
+which might lead to folding some of them out. Lowerings coming out
+of CIR, e.g. LLVM, should use the `suspend` region to track more
+lower level codegen (e.g. intrinsic emission for coro.save/coro.suspend).
+
+There are also 3 flavors of `cir.await` available:
+- `init`: compiler generated initial suspend via implicit `co_await`.
+- `user`: also known as normal, representing user written co_await's.
+- `final`: compiler generated final suspend via implicit `co_await`.
+
+From the C++ snippet we get:
+
+```mlir
+  cir.scope {
+    ... // auto &&x = CommonExpr();
+    cir.await(user, ready : {
+      ... // x.await_ready()
+    }, suspend : {
+      ... // x.await_suspend()
+    }, resume : {
+      ... // x.await_resume()
+    })
+  }
+```
+
+Note that resulution of the common expression is assumed to happen
+as part of the enclosing await scope.
+
+Traits: NoRegionArguments, RecursivelySpeculatableImplTrait
+
+Interfaces: ConditionallySpeculatable, RegionBranchOpInterface
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `kind` | ::mlir::cir::AwaitKindAttr | await kind
 
 ### `cir.binop` (::mlir::cir::BinOp)
 
@@ -81,9 +158,9 @@ should be the same.
 %7 = binop(mul, %1, %2) : i8
 ```
 
-Traits: SameOperandsAndResultType, SameTypeOperands
+Traits: AlwaysSpeculatableImplTrait, SameOperandsAndResultType, SameTypeOperands
 
-Interfaces: InferTypeOpInterface, NoSideEffect (MemoryEffectOpInterface)
+Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)
 
 Effects: MemoryEffects::Effect{}
 
@@ -136,9 +213,9 @@ Example:
     cir.yield
 ```
 
-Traits: SameVariadicOperandSize, Terminator
+Traits: AlwaysSpeculatableImplTrait, SameVariadicOperandSize, Terminator
 
-Interfaces: BranchOpInterface, NoSideEffect (MemoryEffectOpInterface)
+Interfaces: BranchOpInterface, ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)
 
 Effects: MemoryEffects::Effect{}
 
@@ -180,9 +257,9 @@ Example:
     cir.return
 ```
 
-Traits: Terminator
+Traits: AlwaysSpeculatableImplTrait, Terminator
 
-Interfaces: BranchOpInterface, NoSideEffect (MemoryEffectOpInterface)
+Interfaces: BranchOpInterface, ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)
 
 Effects: MemoryEffects::Effect{}
 
@@ -261,6 +338,8 @@ Apply C/C++ usual conversions rules between values. Currently supported kinds:
 - `int_to_bool`
 - `array_to_ptrdecay`
 - `integral`
+- `bitcast`
+- `floating`
 
 This is effectively a subset of the rules from
 `llvm-project/clang/include/clang/AST/OperationKinds.def`; but note that some
@@ -273,7 +352,9 @@ for instance is modeled as a regular `cir.load`.
 %x = cir.cast(array_to_ptrdecay, %0 : !cir.ptr<!cir.array<i32 x 10>>), !cir.ptr<i32>
 ```
 
-Interfaces: NoSideEffect (MemoryEffectOpInterface)
+Traits: AlwaysSpeculatableImplTrait
+
+Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)
 
 Effects: MemoryEffects::Effect{}
 
@@ -314,9 +395,9 @@ operation ::= `cir.cmp` `(` $kind `,` $lhs `,` $rhs  `)` `:` type($lhs) `,` type
 %7 = cir.cmp(gt, %1, %2) : i32, !cir.bool
 ```
 
-Traits: SameTypeOperands
+Traits: AlwaysSpeculatableImplTrait, SameTypeOperands
 
-Interfaces: NoSideEffect (MemoryEffectOpInterface)
+Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)
 
 Effects: MemoryEffects::Effect{}
 
@@ -359,9 +440,9 @@ attached to the operation as an attribute.
   %2 = cir.cst(nullptr : !cir.ptr<i32>) : !cir.ptr<i32>
 ```
 
-Traits: ConstantLike
+Traits: AlwaysSpeculatableImplTrait, ConstantLike
 
-Interfaces: NoSideEffect (MemoryEffectOpInterface)
+Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)
 
 Effects: MemoryEffects::Effect{}
 
@@ -398,15 +479,34 @@ Similar to `mlir::FuncOp` built-in:
 The function linkage information is specified by `linkage`, as defined by
 `GlobalLinkageKind` attribute.
 
+A compiler builtin function must be marked as `builtin` for further
+processing when lowering from CIR.
+
+The `coroutine` keyword is used to mark coroutine function, which requires
+at least one `cir.await` instruction to be used in its body.
+
 Example:
 
 ```mlir
 // External function definitions.
-func @abort()
+cir.func @abort()
 
 // A function with internal linkage.
-func internal @count(%x: i64) -> (i64)
+cir.func internal @count(%x: i64) -> (i64)
   return %x : i64
+}
+
+// Linkage information
+cir.func linkonce_odr @some_method(...)
+
+// Builtin function
+cir.func builtin @__builtin_coro_end(!cir.ptr<i8>, !cir.bool) -> !cir.bool
+
+// Coroutine
+cir.func coroutine @_Z10silly_taskv() -> !CoroTask {
+  ...
+  cir.await(...)
+  ...
 }
 ```
 
@@ -420,9 +520,13 @@ Interfaces: CallableOpInterface, FunctionOpInterface, Symbol
 | :-------: | :-------: | ----------- |
 | `sym_name` | ::mlir::StringAttr | string attribute
 | `function_type` | ::mlir::TypeAttr | type attribute of function type
+| `builtin` | ::mlir::UnitAttr | unit attribute
+| `coroutine` | ::mlir::UnitAttr | unit attribute
 | `linkage` | ::mlir::cir::GlobalLinkageKindAttr | Linkage type/kind
 | `sym_visibility` | ::mlir::StringAttr | string attribute
-| `ast` | ::mlir::cir::ASTFunctionDeclAttr | Wraps a clang::FunctionDecl AST node
+| `arg_attrs` | ::mlir::ArrayAttr | Array of dictionary attributes
+| `res_attrs` | ::mlir::ArrayAttr | Array of dictionary attributes
+| `ast` | ::mlir::cir::ASTFunctionDeclAttr | Wraps a 'const clang::FunctionDecl *' AST node.
 
 ### `cir.get_global` (::mlir::cir::GetGlobalOp)
 
@@ -446,7 +550,9 @@ Example:
 %x = cir.get_global @foo : !cir.ptr<i32>
 ```
 
-Interfaces: NoSideEffect (MemoryEffectOpInterface), SymbolUserOpInterface
+Traits: AlwaysSpeculatableImplTrait
+
+Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface), SymbolUserOpInterface
 
 Effects: MemoryEffects::Effect{}
 
@@ -547,9 +653,9 @@ cir.if %c  {
 `cir.if` defines no values and the 'else' can be omitted. `cir.yield` must
 explicitly terminate the region if it has more than one block.
 
-Traits: AutomaticAllocationScope, NoRegionArguments, RecursiveSideEffects
+Traits: AutomaticAllocationScope, NoRegionArguments, RecursivelySpeculatableImplTrait
 
-Interfaces: RegionBranchOpInterface
+Interfaces: ConditionallySpeculatable, RegionBranchOpInterface
 
 #### Operands:
 
@@ -585,6 +691,8 @@ Example:
 // operation that dereferences a pointer.
 %3 = cir.load deref %0 : cir.ptr <!cir.ptr<i32>>
 ```
+
+Interfaces: InferTypeOpInterface
 
 #### Attributes:
 
@@ -651,9 +759,9 @@ each implies the loop regions execution order.
   }
 ```
 
-Traits: NoRegionArguments, RecursiveSideEffects
+Traits: NoRegionArguments, RecursivelySpeculatableImplTrait
 
-Interfaces: LoopLikeOpInterface, RegionBranchOpInterface
+Interfaces: ConditionallySpeculatable, LoopLikeOpInterface, RegionBranchOpInterface
 
 #### Attributes:
 
@@ -681,9 +789,9 @@ a stride. Currently only used for array subscripts.
 %4 = cir.ptr_stride(%2 : !cir.ptr<i32>, %3 : i32), !cir.ptr<i32>
 ```
 
-Traits: SameFirstOperandAndResultType
+Traits: AlwaysSpeculatableImplTrait, SameFirstOperandAndResultType
 
-Interfaces: NoSideEffect (MemoryEffectOpInterface)
+Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)
 
 Effects: MemoryEffects::Effect{}
 
@@ -738,16 +846,24 @@ Represents a C/C++ scope
 `cir.scope` contains one region and defines a strict "scope" for all new
 values produced within its blocks.
 
-Its region can contain an arbitrary number of blocks but usually defaults
-to one. The `cir.yield` is a required terminator and can be optionally omitted.
+The region can contain an arbitrary number of blocks but usually defaults
+to one and can optionally return a value (useful for representing values
+coming out of C++ full-expressions) via `cir.yield`:
 
-A resulting value can also be specificed, though not currently used - together
-with `cir.yield` should be helpful to represent lifetime extension out of short
-lived scopes in the future.
 
-Traits: AutomaticAllocationScope, NoRegionArguments, RecursiveSideEffects
+```mlir
+%rvalue = cir.scope {
+  ...
+  cir.yield %value
+}
+```
 
-Interfaces: RegionBranchOpInterface
+If `cir.scope` yields no value, the `cir.yield` can be left out, and
+will be inserted implicitly.
+
+Traits: AutomaticAllocationScope, NoRegionArguments, RecursivelySpeculatableImplTrait
+
+Interfaces: ConditionallySpeculatable, RegionBranchOpInterface
 
 #### Results:
 
@@ -792,9 +908,9 @@ named member from the input struct.
 
 Example:
 ```mlir
-!22struct2EBar22 = type !cir.struct<"struct.Bar", i32, i8>
+!ty_22struct2EBar22 = type !cir.struct<"struct.Bar", i32, i8>
 ...
-%0 = cir.alloca !22struct2EBar22, cir.ptr <!22struct2EBar22>
+%0 = cir.alloca !ty_22struct2EBar22, cir.ptr <!ty_22struct2EBar22>
 ...
 %1 = cir.struct_element_addr %0, "Bar.a"
 %2 = cir.load %1 : cir.ptr <int>, int
@@ -866,9 +982,9 @@ cir.switch (%b : i32) [
 ]
 ```
 
-Traits: AutomaticAllocationScope, NoRegionArguments, RecursiveSideEffects, SameVariadicOperandSize
+Traits: AutomaticAllocationScope, NoRegionArguments, RecursivelySpeculatableImplTrait, SameVariadicOperandSize
 
-Interfaces: RegionBranchOpInterface
+Interfaces: ConditionallySpeculatable, RegionBranchOpInterface
 
 #### Attributes:
 
@@ -882,6 +998,56 @@ Interfaces: RegionBranchOpInterface
 | :-----: | ----------- |
 | `condition` | integer
 
+### `cir.unary` (::mlir::cir::UnaryOp)
+
+Unary operations
+
+
+Syntax:
+
+```
+operation ::= `cir.unary` `(` $kind `,` $input `)` `:` type($input) `,` type($result) attr-dict
+```
+
+`cir.unary` performs the unary operation according to
+the specified opcode kind: [inc, dec, plus, minus].
+
+Note for inc and dec: the operation corresponds only to the
+addition/subtraction, its input is expect to come from a load
+and the result to be used by a corresponding store.
+
+It requires one input operand and has one result, both types
+should be the same.
+
+```mlir
+%7 = cir.unary(inc, %1) : i32 -> i32
+%8 = cir.unary(dec, %2) : i32 -> i32
+```
+
+Traits: AlwaysSpeculatableImplTrait, SameOperandsAndResultType
+
+Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)
+
+Effects: MemoryEffects::Effect{}
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `kind` | ::mlir::cir::UnaryOpKindAttr | unary operation kind
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `input` | any type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | any type
+
 ### `cir.yield` (::mlir::cir::YieldOp)
 
 Terminate CIR regions
@@ -894,7 +1060,7 @@ operation ::= `cir.yield` ($kind^)? ($args^ `:` type($args))? attr-dict
 ```
 
 The `cir.yield` operation terminates regions on different CIR operations:
-`cir.if`, `cir.scope`, `cir.switch` and `cir.loop`.
+`cir.if`, `cir.scope`, `cir.switch`, `cir.loop` and `cir.await`.
 
 Might yield an SSA value and the semantics of how the values are yielded is
 defined by the parent operation. Note: there are currently no uses of
@@ -908,12 +1074,14 @@ cannot be used if not dominated by these parent operations.
 Only available inside `cir.switch` regions.
 - `continue`: only allowed under `cir.loop`, continue execution to the next
 loop step.
+- `nosuspend`: specific to the `ready` region inside `cir.await` op, it makes
+control-flow to be transfered back to the parent, preventing suspension.
 
 As a general rule, `cir.yield` must be explicitly used whenever a region has
 more than one block and no terminator, or within `cir.switch` regions not
 `cir.return` terminated.
 
-Example:
+Examples:
 ```mlir
 cir.if %4 {
   ...
@@ -931,9 +1099,19 @@ cir.loop (cond : {...}, step : {...}) {
   ...
   cir.yield continue
 }
+
+cir.await(init, ready : {
+  // Call std::suspend_always::await_ready
+  %18 = cir.call @_ZNSt14suspend_always11await_readyEv(...)
+  cir.if %18 {
+    // yields back to the parent.
+    cir.yield nosuspend
+  }
+  cir.yield // control-flow to the next region for suspension.
+}, ...)
 ```
 
-Traits: HasParent<IfOp, ScopeOp, SwitchOp, LoopOp>, ReturnLike, Terminator
+Traits: HasParent<IfOp, ScopeOp, SwitchOp, LoopOp, AwaitOp>, ReturnLike, Terminator
 
 #### Attributes:
 
