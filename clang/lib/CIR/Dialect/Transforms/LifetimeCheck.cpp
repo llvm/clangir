@@ -42,6 +42,7 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
   void checkStore(StoreOp op);
   void checkLoad(LoadOp op);
   void checkCall(CallOp callOp);
+  void checkAwait(AwaitOp awaitOp);
 
   void checkPointerDeref(mlir::Value addr, mlir::Location loc);
 
@@ -605,6 +606,24 @@ void LifetimeCheckPass::checkLoop(LoopOp loopOp) {
     for (auto *r : regionsToCheck)
       checkRegion(*r);
     pmapOps.push_back(otherTakenPmap);
+  }
+
+  joinPmaps(pmapOps);
+}
+
+void LifetimeCheckPass::checkAwait(AwaitOp awaitOp) {
+  // Pretty conservative: assume all regions execute
+  // sequencially.
+  //
+  // FIXME: use branch interface here and only tackle
+  // the necessary regions.
+  SmallVector<PMapType, 4> pmapOps;
+
+  for (auto r : awaitOp.getRegions()) {
+    PMapType regionPmap = getPmap();
+    PmapGuard pmapGuard{*this, &regionPmap};
+    checkRegion(*r);
+    pmapOps.push_back(regionPmap);
   }
 
   joinPmaps(pmapOps);
@@ -1337,6 +1356,7 @@ void LifetimeCheckPass::checkOperation(Operation *op) {
     return;
   }
 
+  // FIXME: we can do better than sequence of dyn_casts.
   if (isa<cir::FuncOp>(op))
     return checkFunc(op);
   if (auto ifOp = dyn_cast<IfOp>(op))
@@ -1353,6 +1373,8 @@ void LifetimeCheckPass::checkOperation(Operation *op) {
     return checkLoad(loadOp);
   if (auto callOp = dyn_cast<CallOp>(op))
     return checkCall(callOp);
+  if (auto awaitOp = dyn_cast<AwaitOp>(op))
+    return checkAwait(awaitOp);
 }
 
 void LifetimeCheckPass::runOnOperation() {
