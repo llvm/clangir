@@ -1403,9 +1403,8 @@ LogicalResult UnaryOp::verify() {
                             "to the same address as the input memory load";
   }
   case cir::UnaryOpKind::Plus:
-    // Nothing to verify.
-    return success();
   case cir::UnaryOpKind::Minus:
+  case cir::UnaryOpKind::Not:
     // Nothing to verify.
     return success();
   }
