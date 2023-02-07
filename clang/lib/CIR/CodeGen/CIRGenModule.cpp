@@ -71,7 +71,6 @@ using llvm::ArrayRef;
 using llvm::cast;
 using llvm::dyn_cast;
 using llvm::isa;
-using llvm::makeArrayRef;
 using llvm::SmallVector;
 using llvm::StringRef;
 

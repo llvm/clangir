@@ -431,7 +431,7 @@ public:
   llvm::ArrayRef<ExtParameterInfo> getExtParameterInfos() const {
     if (!HasExtParameterInfos)
       return {};
-    return llvm::makeArrayRef(getExtParameterInfosBuffer(), NumArgs);
+    return llvm::ArrayRef(getExtParameterInfosBuffer(), NumArgs);
   }
   ExtParameterInfo getExtParameterInfo(unsigned argIndex) const {
     assert(argIndex <= NumArgs);
