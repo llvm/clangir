@@ -179,7 +179,7 @@ void AggExprEmitter::VisitExprWithCleanups(ExprWithCleanups *E) {
 
   auto &builder = CGF.getBuilder();
   auto scopeLoc = CGF.getLoc(E->getSourceRange());
-  auto scope = builder.create<mlir::cir::ScopeOp>(
+  [[maybe_unused]] auto scope = builder.create<mlir::cir::ScopeOp>(
       scopeLoc, /*scopeBuilder=*/
       [&](mlir::OpBuilder &b, mlir::Location loc) {
         SmallVector<mlir::Location, 2> locs;
