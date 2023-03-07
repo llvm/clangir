@@ -20,7 +20,7 @@ add_clang_library(clangCIR
   CIRGenDecl.cpp
   CIRGenDeclCXX.cpp
   CIRGenExpr.cpp
-  CIRGenExprCst.cpp
+  CIRGenExprConst.cpp
   CIRGenExprAgg.cpp
   CIRGenExprCXX.cpp
   CIRGenExprScalar.cpp
@@ -49,6 +49,8 @@ add_clang_library(clangCIR
   MLIRCIRTransforms
   MLIRAffineToStandard
   MLIRAnalysis
+  MLIRDLTIDialect
+  MLIRFuncToLLVM
   MLIRIR
   MLIRLLVMCommonConversion
   MLIRLLVMDialect
@@ -57,11 +59,10 @@ add_clang_library(clangCIR
   MLIRMemRefToLLVM
   MLIRParser
   MLIRPass
-  MLIRSideEffectInterfaces
   MLIRSCFToControlFlow
-  MLIRFuncToLLVM
+  MLIRSideEffectInterfaces
   MLIRSupport
-  MLIRMemRefDialect
+  MLIRTargetLLVMIRImport
   MLIRTargetLLVMIRExport
   MLIRTransforms
 )
