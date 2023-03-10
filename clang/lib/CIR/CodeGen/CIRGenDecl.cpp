@@ -149,7 +149,7 @@ void CIRGenFunction::buildAutoVarInit(const AutoVarEmission &emission) {
   if (isTrivialInitializer(Init))
     return initializeWhatIsTechnicallyUninitialized(Loc);
 
-  mlir::Attribute constant;
+  mlir::TypedAttr constant;
   if (emission.IsConstantAggregate ||
       D.mightBeUsableInConstantExpressions(getContext())) {
     // FIXME: Differently from LLVM we try not to emit / lower too much

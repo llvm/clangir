@@ -1043,7 +1043,7 @@ ConstantLValue ConstantLValueEmitter::VisitMaterializeTemporaryExpr(
 //                             ConstantEmitter
 //===----------------------------------------------------------------------===//
 
-mlir::Attribute ConstantEmitter::validateAndPopAbstract(mlir::Attribute C,
+mlir::TypedAttr ConstantEmitter::validateAndPopAbstract(mlir::Attribute C,
                                                         AbstractState saved) {
   Abstract = saved.OldValue;
 
@@ -1089,7 +1089,7 @@ static QualType getNonMemoryType(CIRGenModule &CGM, QualType type) {
   return type;
 }
 
-mlir::Attribute
+mlir::TypedAttr
 ConstantEmitter::tryEmitAbstractForInitializer(const VarDecl &D) {
   auto state = pushAbstract();
   auto C = tryEmitPrivateForVarInit(D);

@@ -96,7 +96,7 @@ public:
 
   /// Try to emit the initializer of the given declaration as an abstract
   /// constant.
-  mlir::Attribute tryEmitAbstractForInitializer(const VarDecl &D);
+  mlir::TypedAttr tryEmitAbstractForInitializer(const VarDecl &D);
 
   // These are private helper routines of the constant emitter that
   // can't actually be private because things are split out into helper
@@ -134,7 +134,7 @@ private:
     Abstract = true;
     return saved;
   }
-  mlir::Attribute validateAndPopAbstract(mlir::Attribute C, AbstractState save);
+  mlir::TypedAttr validateAndPopAbstract(mlir::Attribute C, AbstractState save);
 };
 
 } // namespace cir
