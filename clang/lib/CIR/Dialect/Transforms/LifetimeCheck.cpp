@@ -1484,7 +1484,12 @@ void LifetimeCheckPass::checkCall(CallOp callOp) {
   //
   // Note that we can't reliably know if a function is a coroutine only as
   // part of declaration
-  auto calleeFuncOp = getCalleeFromSymbol(theModule, callOp.getCallee());
+
+  // Indirect calls are not yet supported.
+  assert(callOp.getCallee() && "NYI");
+
+  auto fnName = *callOp.getCallee();
+  auto calleeFuncOp = getCalleeFromSymbol(theModule, fnName);
   if (calleeFuncOp &&
       (calleeFuncOp.getCoroutine() ||
        (calleeFuncOp.isDeclaration() && callOp->getNumResults() > 0 &&
@@ -1492,7 +1497,7 @@ void LifetimeCheckPass::checkCall(CallOp callOp) {
     currScope->localTempTasks.insert(callOp->getResult(0));
   }
 
-  auto methodDecl = getMethod(theModule, callOp.getCallee());
+  auto methodDecl = getMethod(theModule, fnName);
   if (!isOwnerOrPointerClassMethod(callOp.getOperand(0), methodDecl))
     return checkOtherMethodsAndFunctions(callOp, methodDecl);
 
