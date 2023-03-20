@@ -1353,7 +1353,7 @@ def CallOp : CIR_Op<"call",
     ```
   }];
 
-  let arguments = (ins FlatSymbolRefAttr:$callee, Variadic<AnyType>:$operands);
+  let arguments = (ins OptionalAttr<FlatSymbolRefAttr>:$callee, Variadic<AnyType>:$operands);
   let results = (outs Variadic<AnyType>);
 
   let builders = [
