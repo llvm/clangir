@@ -1421,9 +1421,14 @@ FunctionType CallOp::getCalleeType() {
   llvm::ArrayRef<::mlir::Type> operandsTypes;
   llvm::ArrayRef<::mlir::Type> allResultTypes;
 
+  // If we cannot parse a string callee, it means this is an indirect call.
   if (!parser.parseOptionalAttribute(calleeAttr, "callee", result.attributes)
            .has_value()) {
-    return ::mlir::failure();
+    OpAsmParser::UnresolvedOperand indirectVal;
+    mlir::Type indirectValTy;
+    if (parser.parseOperand(indirectVal) ||
+        parser.resolveOperand(indirectVal, indirectValTy, result.operands))
+      return failure();
   }
 
   if (parser.parseLParen())
@@ -1456,8 +1461,9 @@ void CallOp::print(::mlir::OpAsmPrinter &state) {
 
   if (getCallee()) { // Direct calls
     state.printAttributeWithoutType(getCalleeAttr());
-  } else {
-    llvm_unreachable("NYI");
+  } else { // Indirect calls
+    state << ops.front();
+    ops.drop_front();
   }
   state << "(";
   state << ops;
