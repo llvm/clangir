@@ -1375,7 +1375,15 @@ def CallOp : CIR_Op<"call",
 
     /// Get the argument operands to the called function.
     operand_range getArgOperands() {
-      return {arg_operand_begin(), arg_operand_end()};
+      auto arg_begin = arg_operand_begin();
+      if (!getCallee())
+       arg_begin++;
+      return {arg_begin, arg_operand_end()};
+    }
+
+    mlir::Value getIndirectCallee() {
+      assert(!getCallee() && "only works for indirect call");
+      return *arg_operand_begin();
     }
 
     operand_iterator arg_operand_begin() { return operand_begin(); }
