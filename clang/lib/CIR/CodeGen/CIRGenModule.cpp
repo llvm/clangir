@@ -1042,6 +1042,15 @@ void CIRGenModule::buildDeclContext(const DeclContext *DC) {
   }
 }
 
+void CIRGenModule::buildLinkageSpec(const LinkageSpecDecl *LSD) {
+  if (LSD->getLanguage() != LinkageSpecDecl::lang_c &&
+      LSD->getLanguage() != LinkageSpecDecl::lang_cxx) {
+    llvm_unreachable("unsupported linkage spec");
+    return;
+  }
+  buildDeclContext(LSD);
+}
+
 // Emit code for a single top level declaration.
 void CIRGenModule::buildTopLevelDecl(Decl *decl) {
   // Ignore dependent declarations
@@ -1116,6 +1125,10 @@ void CIRGenModule::buildTopLevelDecl(Decl *decl) {
 
   case Decl::StaticAssert:
     // Nothing to do.
+    break;
+
+  case Decl::LinkageSpec:
+    buildLinkageSpec(cast<LinkageSpecDecl>(decl));
     break;
 
   case Decl::Typedef:
