@@ -267,7 +267,8 @@ void CIRGenFunction::buildCXXConstructExpr(const CXXConstructExpr *E,
     switch (E->getConstructionKind()) {
     case CXXConstructExpr::CK_Delegating:
     case CXXConstructExpr::CK_Complete:
-      buildNullInitialization(Dest.getAddress(), E->getType());
+      buildNullInitialization(getLoc(E->getSourceRange()), Dest.getAddress(),
+                              E->getType());
       break;
     case CXXConstructExpr::CK_VirtualBase:
     case CXXConstructExpr::CK_NonVirtualBase:
