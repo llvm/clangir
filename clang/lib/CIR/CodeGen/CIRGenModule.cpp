@@ -1126,6 +1126,9 @@ void CIRGenModule::buildTopLevelDecl(Decl *decl) {
   case Decl::CXXConstructor:
     getCXXABI().buildCXXConstructors(cast<CXXConstructorDecl>(decl));
     break;
+  case Decl::CXXDestructor:
+    getCXXABI().buildCXXDestructors(cast<CXXDestructorDecl>(decl));
+    break;
 
   case Decl::StaticAssert:
     // Nothing to do.
