@@ -82,6 +82,21 @@ public:
   }
 
   //
+  // Attribute helpers
+  // -----------------
+  //
+
+  mlir::TypedAttr getZeroAttr(mlir::Type t) {
+    return mlir::cir::ZeroAttr::get(getContext(), t);
+  }
+
+  mlir::cir::ConstantOp getZero(mlir::Location loc, mlir::Type ty) {
+    // TODO: dispatch creation for primitive types.
+    assert(mlir::isa<mlir::cir::StructType>(ty) && "NYI for other types");
+    return create<mlir::cir::ConstantOp>(loc, ty, getZeroAttr(ty));
+  }
+
+  //
   // Type helpers
   // ------------
   //
