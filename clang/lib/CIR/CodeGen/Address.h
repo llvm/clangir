@@ -36,13 +36,11 @@ public:
   Address(mlir::Value pointer, mlir::Type elementType,
           clang::CharUnits alignment)
       : Pointer(pointer), ElementType(elementType), Alignment(alignment) {
-    auto ptrTy = llvm::dyn_cast<mlir::cir::PointerType>(pointer.getType());
-    assert(ptrTy && "Expected cir.ptr type");
+    assert(llvm::isa<mlir::cir::PointerType>(pointer.getType()) &&
+           "Expected cir.ptr type");
 
-    assert(pointer != nullptr && "Pointer cannot be null");
-    assert(elementType != nullptr && "Pointer cannot be null");
-    assert(ptrTy.getPointee() == ElementType &&
-           "Incorrect pointer element type");
+    assert(pointer && "Pointer cannot be null");
+    assert(elementType && "Element type cannot be null");
     assert(!alignment.isZero() && "Alignment cannot be zero");
   }
   Address(mlir::Value pointer, clang::CharUnits alignment)
