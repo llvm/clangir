@@ -311,9 +311,14 @@ void CIRGenFunction::buildCXXConstructExpr(const CXXConstructExpr *E,
     Type = Ctor_Complete;
     break;
   case CXXConstructExpr::CK_Delegating:
+    llvm_unreachable("NYI");
+    break;
   case CXXConstructExpr::CK_VirtualBase:
+    llvm_unreachable("NYI");
+    break;
   case CXXConstructExpr::CK_NonVirtualBase:
-    assert(false && "Delegating, Virtualbae and NonVirtualBase ctorkind NYI");
+    Type = Ctor_Base;
+    break;
   }
 
   buildCXXConstructorCall(CD, Type, ForVirtualBase, Delegating, Dest, E);
