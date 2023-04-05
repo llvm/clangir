@@ -1818,7 +1818,12 @@ void CIRGenModule::buildDeferred() {
   // static function, iterate until no changes are made.
 
   if (!DeferredVTables.empty()) {
-    llvm_unreachable("NYI");
+    buildDeferredVTables();
+
+    // Emitting a vtable doesn't directly cause more vtables to
+    // become deferred, although it can cause functions to be
+    // emitted that then need those vtables.
+    assert(DeferredVTables.empty());
   }
 
   // Emit CUDA/HIP static device variables referenced by host code only. Note we
@@ -2079,4 +2084,9 @@ mlir::cir::GlobalOp CIRGenModule::createOrReplaceCXXRuntimeVariable(
 
   GV.setAlignmentAttr(getSize(Alignment));
   return GV;
+}
+
+bool CIRGenModule::shouldOpportunisticallyEmitVTables() {
+  assert(codeGenOpts.OptimizationLevel == 0 && "NYI");
+  return codeGenOpts.OptimizationLevel > 0;
 }
