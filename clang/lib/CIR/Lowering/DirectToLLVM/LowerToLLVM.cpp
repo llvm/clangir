@@ -183,6 +183,15 @@ public:
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto src = adaptor.getSrc();
     switch (castOp.getKind()) {
+    case mlir::cir::CastKind::array_to_ptrdecay: {
+      auto sourceValue = adaptor.getOperands().front();
+      auto targetType =
+          getTypeConverter()->convertType(castOp->getResult(0).getType());
+      auto offset = llvm::SmallVector<mlir::LLVM::GEPArg>{0};
+      rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(castOp, targetType,
+                                                     sourceValue, offset);
+      break;
+    }
     case mlir::cir::CastKind::int_to_bool: {
       auto zero = rewriter.create<mlir::cir::ConstantOp>(
           src.getLoc(), src.getType(),
