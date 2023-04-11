@@ -193,15 +193,28 @@ mlir::Type CIRGenTypes::convertRecordDeclType(const clang::RecordDecl *RD) {
   return entry;
 }
 
+/// ConvertTypeForMem - Convert type T into an mlir::Type. This differs from
+/// ConvertType in that it is used to convert to the memory representation for a
+/// type. For example, the scalar representation for _Bool is i1, but the memory
+/// representation is usually i8 or i32, depending on the target.
 mlir::Type CIRGenTypes::convertTypeForMem(clang::QualType qualType,
                                           bool forBitField) {
   assert(!qualType->isConstantMatrixType() && "Matrix types NYI");
 
   mlir::Type convertedType = ConvertType(qualType);
 
-  assert(!forBitField && "Bit fields NYI");
-  assert(!qualType->isBitIntType() && "BitIntType NYI");
+  // If this is a bool type, or a bit-precise integer type in a bitfield
+  // representation, map this integer to the target-specified size.
+  if ((forBitField && qualType->isBitIntType()) ||
+      (!qualType->isBitIntType() && convertedType.isInteger(1))) {
+    assert(!forBitField && "Bit fields NYI");
+    assert(!qualType->isBitIntType() && "BitIntType NYI");
 
+    return mlir::IntegerType::get(&getMLIRContext(),
+                                  (unsigned)Context.getTypeSize(qualType));
+  }
+
+  // Else, don't map it.
   return convertedType;
 }
 
