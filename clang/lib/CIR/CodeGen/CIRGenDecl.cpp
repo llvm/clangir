@@ -146,6 +146,23 @@ bool CIRGenFunction::isTrivialInitializer(const Expr *Init) {
 
   return false;
 }
+
+static void buildStoresForConstant(CIRGenModule &CGM, const VarDecl &D,
+                                   Address Loc, bool isVolatile,
+                                   CIRGenBuilderTy &Builder,
+                                   mlir::TypedAttr constant, bool IsAutoInit) {
+  if (IsAutoInit)
+    llvm_unreachable("NYI");
+
+  auto Ty = constant.getType();
+  auto m = CGM.getModule().getDataLayoutSpec();
+  auto spec = m.getSpecForType(Ty.getTypeID());
+  // spec;
+  // uint64_t ConstantSize = CGM.getDataLayout().getTypeAllocSize(Ty);
+  // if (!ConstantSize)
+  //   return;
+}
+
 void CIRGenFunction::buildAutoVarInit(const AutoVarEmission &emission) {
   assert(emission.Variable && "emission was not valid!");
 
@@ -229,7 +246,13 @@ void CIRGenFunction::buildAutoVarInit(const AutoVarEmission &emission) {
     llvm_unreachable("NYI");
   }
 
-  llvm_unreachable("NYI");
+  auto i8ty = mlir::IntegerType::get(builder.getContext(), 8);
+  buildStoresForConstant(
+      CGM, D,
+      builder.createElementBitCast(CGM.getLoc(emission.Variable->getLocation()),
+                                   Address::invalid(), i8ty),
+      type.isVolatileQualified(), builder, constant,
+      /*IsAutoInit=*/false);
 }
 
 void CIRGenFunction::buildAutoVarCleanups(const AutoVarEmission &emission) {
