@@ -39,6 +39,17 @@ def CIR_PointerType :
 
   let parameters = (ins "mlir::Type":$pointee);
 
+  // let extraClassDeclaration = [{
+  //   bool isOpaque() const { return !pointee; }
+
+  //   /// Return true if either this is an opaque pointer type or if this pointee
+  //   /// type matches ty. Primarily used for checking if an instruction's pointer
+  //   /// operands are valid types.
+  //   bool isOpaqueOrPointeeTypeMatches(mlir::Type ty) {
+  //     return isOpaque() || pointee == ty;
+  //   }
+  // }];
+
   let hasCustomAssemblyFormat = 1;
 }
 

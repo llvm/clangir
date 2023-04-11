@@ -14,6 +14,8 @@
 #include "CIRGenFunction.h"
 #include "EHScopeStack.h"
 
+#include "mlir/Dialect/DLTI/DLTI.h"
+#include "mlir/Interfaces/DataLayoutInterfaces.h"
 #include "clang/AST/Decl.h"
 
 using namespace cir;
@@ -155,12 +157,19 @@ static void buildStoresForConstant(CIRGenModule &CGM, const VarDecl &D,
     llvm_unreachable("NYI");
 
   auto Ty = constant.getType();
-  auto m = CGM.getModule().getDataLayoutSpec();
-  auto spec = m.getSpecForType(Ty.getTypeID());
-  // spec;
-  // uint64_t ConstantSize = CGM.getDataLayout().getTypeAllocSize(Ty);
-  // if (!ConstantSize)
-  //   return;
+  auto m = CGM.getModule();
+  auto layout = mlir::DataLayout(m);
+  uint64_t ConstantSize = layout.getTypeSizeInBits(Ty);
+  if (!ConstantSize)
+    return;
+
+  // TODO(CIR): This also needs to consider vectors
+  bool canDoSingleStore = Ty.isa<mlir::cir::PointerType>() || Ty.isIntOrFloat();
+  if (canDoSingleStore) {
+    llvm_unreachable("single store NYI");
+  }
+
+  llvm_unreachable("NYI");
 }
 
 void CIRGenFunction::buildAutoVarInit(const AutoVarEmission &emission) {
@@ -246,11 +255,18 @@ void CIRGenFunction::buildAutoVarInit(const AutoVarEmission &emission) {
     llvm_unreachable("NYI");
   }
 
-  auto i8ty = mlir::IntegerType::get(builder.getContext(), 8);
+  mlir::Type bitCastDestTy = mlir::IntegerType::get(builder.getContext(), 8);
+  auto constArray = dyn_cast<mlir::cir::ConstArrayAttr>(constant);
+  if (constArray) {
+    auto elementArray = cast<mlir::ArrayAttr>(constArray.getValue());
+    bitCastDestTy =
+        cast<mlir::TypedAttr>(elementArray.getValue().front()).getType();
+  }
+
   buildStoresForConstant(
       CGM, D,
       builder.createElementBitCast(CGM.getLoc(emission.Variable->getLocation()),
-                                   Address::invalid(), i8ty),
+                                   Loc, bitCastDestTy),
       type.isVolatileQualified(), builder, constant,
       /*IsAutoInit=*/false);
 }

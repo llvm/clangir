@@ -193,8 +193,8 @@ public:
       return addr;
 
     auto newPtrType = mlir::cir::PointerType::get(getContext(), destType);
-    auto cast = getBitcast(loc, addr.getPointer(), newPtrType);
-    return Address(cast, addr.getElementType(), addr.getAlignment());
+    auto castValue = getBitcast(loc, addr.getPointer(), newPtrType);
+    return Address(castValue, destType, addr.getAlignment());
   }
 
   mlir::Value createLoad(mlir::Location loc, Address addr) {
