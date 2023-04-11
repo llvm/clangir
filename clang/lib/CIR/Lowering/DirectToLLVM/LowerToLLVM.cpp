@@ -1056,7 +1056,8 @@ void ConvertCIRToLLVMPass::runOnOperation() {
                     >();
   // clang-format on
   target.addLegalDialect<mlir::LLVM::LLVMDialect>();
-  target.addIllegalDialect<mlir::cir::CIRDialect, mlir::func::FuncDialect>();
+  target.addIllegalDialect<mlir::BuiltinDialect, mlir::cir::CIRDialect,
+                           mlir::func::FuncDialect>();
 
   getOperation()->removeAttr("cir.sob");
 
