@@ -4767,6 +4767,9 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
       Args.hasArg(options::OPT_emit_cir))
     CmdArgs.push_back("-fclangir-enable");
 
+  if (Args.hasArg(options::OPT_fclangir_direct_lowering))
+    CmdArgs.push_back("-fclangir-direct-lowering");
+
   if (Args.hasArg(options::OPT_clangir_disable_passes))
     CmdArgs.push_back("-clangir-disable-passes");
 
