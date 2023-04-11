@@ -63,6 +63,45 @@ void PointerType::print(mlir::AsmPrinter &printer) const {
   printer << '>';
 }
 
+unsigned
+PointerType::getTypeSizeInBits(const ::mlir::DataLayout &dataLayout,
+                               ::mlir::DataLayoutEntryListRef params) const {
+  for (DataLayoutEntryInterface entry : params) {
+    entry.dump();
+  }
+  llvm_unreachable("NYI");
+}
+
+unsigned
+PointerType::getABIAlignment(const ::mlir::DataLayout &dataLayout,
+                             ::mlir::DataLayoutEntryListRef params) const {
+  for (DataLayoutEntryInterface entry : params) {
+    entry.dump();
+  }
+  llvm_unreachable("NYI");
+}
+
+unsigned PointerType::getPreferredAlignment(
+    const ::mlir::DataLayout &dataLayout,
+    ::mlir::DataLayoutEntryListRef params) const {
+  for (DataLayoutEntryInterface entry : params) {
+    entry.dump();
+  }
+  llvm_unreachable("NYI");
+}
+
+// bool PointerType::areCompatible(
+//     ::mlir::DataLayoutEntryListRef oldLayout,
+//     ::mlir::DataLayoutEntryListRef newLayout) const {
+//   for (DataLayoutEntryInterface entry : oldLayout) {
+//     entry.dump();
+//   }
+//   for (DataLayoutEntryInterface entry : newLayout) {
+//     entry.dump();
+//   }
+//   llvm_unreachable("NYI");
+// }
+
 Type BoolType::parse(mlir::AsmParser &parser) {
   return get(parser.getContext());
 }
@@ -137,6 +176,33 @@ void ArrayType::print(mlir::AsmPrinter &printer) const {
   printer.printType(getEltType());
   printer << " x " << getSize();
   printer << '>';
+}
+
+unsigned
+ArrayType::getTypeSizeInBits(const ::mlir::DataLayout &dataLayout,
+                               ::mlir::DataLayoutEntryListRef params) const {
+  for (DataLayoutEntryInterface entry : params) {
+    entry.dump();
+  }
+  llvm_unreachable("NYI");
+}
+
+unsigned
+ArrayType::getABIAlignment(const ::mlir::DataLayout &dataLayout,
+                             ::mlir::DataLayoutEntryListRef params) const {
+  for (DataLayoutEntryInterface entry : params) {
+    entry.dump();
+  }
+  llvm_unreachable("NYI");
+}
+
+unsigned ArrayType::getPreferredAlignment(
+    const ::mlir::DataLayout &dataLayout,
+    ::mlir::DataLayoutEntryListRef params) const {
+  for (DataLayoutEntryInterface entry : params) {
+    entry.dump();
+  }
+  llvm_unreachable("NYI");
 }
 
 //===----------------------------------------------------------------------===//
