@@ -383,7 +383,7 @@ public:
   matchAndRewrite(mlir::cir::CallOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(
-        op, op.getResultTypes(), op.getCalleeAttr(), op.getArgOperands());
+        op, op.getResultTypes(), op.getCalleeAttr(), adaptor.getOperands());
     return mlir::LogicalResult::success();
   }
 };
