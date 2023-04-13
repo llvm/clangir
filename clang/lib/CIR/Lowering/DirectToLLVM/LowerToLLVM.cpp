@@ -493,6 +493,148 @@ public:
   }
 };
 
+template <typename T>
+mlir::DenseElementsAttr convertToDenseElements(mlir::cir::ConstArrayAttr attr) {
+  auto type = attr.getType().cast<mlir::cir::ArrayType>().getEltType();
+  auto values = llvm::SmallVector<T, 8>{};
+  for (auto element : attr.getValue().cast<mlir::ArrayAttr>())
+    values.push_back(element.cast<mlir::IntegerAttr>().getInt());
+  return mlir::DenseElementsAttr::get(
+      mlir::RankedTensorType::get({(int64_t)values.size()}, type),
+      llvm::ArrayRef(values));
+}
+
+mlir::LLVM::Linkage convertLinkage(mlir::cir::GlobalLinkageKind linkage) {
+  using CIR = mlir::cir::GlobalLinkageKind;
+  using LLVM = mlir::LLVM::Linkage;
+
+  switch (linkage) {
+  case CIR::AvailableExternallyLinkage:
+    return LLVM::AvailableExternally;
+  case CIR::CommonLinkage:
+    return LLVM::Common;
+  case CIR::ExternalLinkage:
+    return LLVM::External;
+  case CIR::ExternalWeakLinkage:
+    return LLVM::ExternWeak;
+  case CIR::InternalLinkage:
+    return LLVM::Internal;
+  case CIR::LinkOnceAnyLinkage:
+    return LLVM::Linkonce;
+  case CIR::LinkOnceODRLinkage:
+    return LLVM::LinkonceODR;
+  case CIR::PrivateLinkage:
+    return LLVM::Private;
+  case CIR::WeakAnyLinkage:
+    return LLVM::Weak;
+  case CIR::WeakODRLinkage:
+    return LLVM::WeakODR;
+  };
+}
+
+class CIRGetGlobalOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::GetGlobalOp> {
+public:
+  using OpConversionPattern<mlir::cir::GetGlobalOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::GetGlobalOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto type = getTypeConverter()->convertType(op.getType());
+    auto symbol = op.getName();
+    rewriter.replaceOpWithNewOp<mlir::LLVM::AddressOfOp>(op, type, symbol);
+    return mlir::success();
+  }
+};
+
+class CIRGlobalOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::GlobalOp> {
+public:
+  using OpConversionPattern<mlir::cir::GlobalOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::GlobalOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+
+    // fetch required values to create LLVM op
+    auto type = getTypeConverter()->convertType(op.getSymType());
+    auto isConst = op.getConstant();
+    auto linkage = convertLinkage(op.getLinkage());
+    auto symbol = op.getSymName();
+    auto init = op.getInitialValue();
+
+    // check for missing funcionalities
+    if (!init.has_value()) {
+      op.emitError() << "uninitialized globals are not yet supported.";
+      return mlir::failure();
+    }
+
+    // initializer is a constant array: convert it to a compatible llvm init
+    if (auto constArr = dyn_cast<mlir::cir::ConstArrayAttr>(init.value())) {
+      if (auto attr = dyn_cast<mlir::StringAttr>(constArr.getValue())) {
+        init = rewriter.getStringAttr(attr.getValue());
+      } else if (auto attr = dyn_cast<mlir::ArrayAttr>(constArr.getValue())) {
+        auto type =
+            constArr.getType().cast<mlir::cir::ArrayType>().getEltType();
+        if (type.isInteger(8)) {
+          init = convertToDenseElements<int8_t>(constArr);
+        } else if (type.isInteger(16)) {
+          init = convertToDenseElements<int16_t>(constArr);
+        } else if (type.isInteger(32)) {
+          init = convertToDenseElements<int32_t>(constArr);
+        } else if (type.isInteger(64)) {
+          init = convertToDenseElements<int64_t>(constArr);
+        } else {
+          op.emitError() << "unsupported const_array " << type;
+          return mlir::failure();
+        }
+      } else {
+        op.emitError() << "unsupported const_array " << constArr.getValue();
+        return mlir::failure();
+      }
+    } else if (llvm::isa<mlir::IntegerAttr, mlir::FloatAttr>(init.value())) {
+      // nothing to do since LLVM already supports these types as initializers
+    }
+    // initializer is a global: load global value in initializer block
+    else if (auto attr =
+                 llvm::dyn_cast<mlir::FlatSymbolRefAttr>(init.value())) {
+      auto newGlobalOp = rewriter.replaceOpWithNewOp<mlir::LLVM::GlobalOp>(
+          op, type, isConst, linkage, symbol, mlir::Attribute());
+      mlir::OpBuilder::InsertionGuard guard(rewriter);
+
+      // Create initializer block.
+      auto *newBlock = new mlir::Block();
+      newGlobalOp.getRegion().push_back(newBlock);
+
+      // Fetch global used as initializer.
+      auto sourceSymbol =
+          dyn_cast<mlir::LLVM::GlobalOp>(mlir::SymbolTable::lookupSymbolIn(
+              op->getParentOfType<mlir::ModuleOp>(), attr.getValue()));
+
+      // Load and return the initializer value.
+      rewriter.setInsertionPointToEnd(newBlock);
+      auto addressOfOp = rewriter.create<mlir::LLVM::AddressOfOp>(
+          op->getLoc(),
+          mlir::LLVM::LLVMPointerType::get(sourceSymbol.getType()),
+          sourceSymbol.getSymName());
+      llvm::SmallVector<mlir::LLVM::GEPArg> offset{0};
+      auto gepOp = rewriter.create<mlir::LLVM::GEPOp>(
+          op->getLoc(), type, addressOfOp.getResult(), offset);
+      rewriter.create<mlir::LLVM::ReturnOp>(op->getLoc(), gepOp.getResult());
+
+      return mlir::success();
+    } else {
+      op.emitError() << "usupported initializer '" << init.value() << "'";
+      return mlir::failure();
+    }
+
+    // rewrite op
+    rewriter.replaceOpWithNewOp<mlir::LLVM::GlobalOp>(
+        op, type, isConst, linkage, symbol, init.value());
+    return mlir::success();
+  }
+};
+
 class CIRUnaryOpLowering
     : public mlir::OpConversionPattern<mlir::cir::UnaryOp> {
 public:
@@ -823,7 +965,8 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
                CIRPtrStrideOpLowering, CIRCallLowering, CIRUnaryOpLowering,
                CIRBinOpLowering, CIRLoadLowering, CIRConstantLowering,
                CIRStoreLowering, CIRAllocaLowering, CIRFuncLowering,
-               CIRScopeOpLowering, CIRCastOpLowering, CIRIfLowering>(
+               CIRScopeOpLowering, CIRCastOpLowering, CIRIfLowering,
+               CIRGlobalOpLowering, CIRGetGlobalOpLowering>(
       converter, patterns.getContext());
 }
 
