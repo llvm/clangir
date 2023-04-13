@@ -9,7 +9,6 @@ module {
     cir.call @a() : () -> ()
     cir.return
   }
-}
 
 //      MLIR: llvm.func @a() {
 // MLIR-NEXT:   llvm.return
@@ -26,3 +25,12 @@ module {
 // LLVM-NEXT:   call void @a()
 // LLVM-NEXT:   ret void
 // LLVM-NEXT: }
+
+  cir.func @callee(!cir.ptr<i32>) -> () attributes {sym_visibility = "private"}
+  cir.func @caller(%arg0: !cir.ptr<i32>) -> () {
+    cir.call @callee(%arg0) : (!cir.ptr<i32>) -> ()
+    // MLIR: llvm.call @callee(%arg0) : (!llvm.ptr<i32>) -> ()
+    cir.return
+  }
+
+} // end module
