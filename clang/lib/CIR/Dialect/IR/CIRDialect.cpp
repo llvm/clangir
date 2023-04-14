@@ -183,6 +183,8 @@ static LogicalResult checkConstantTypes(mlir::Operation *op, mlir::Type opType,
     return success();
   if (mlir::isa<mlir::cir::TypeInfoAttr>(attrType))
     return success();
+  if (mlir::isa<mlir::cir::ConstStructAttr>(attrType))
+    return success();
 
   assert(mlir::isa<TypedAttr>(attrType) && "What else could we be looking at here?");
   return op->emitOpError("global with type ")
@@ -1626,6 +1628,7 @@ mlir::OpTrait::impl::verifySameFirstOperandAndResultType(Operation *op) {
 
 //===----------------------------------------------------------------------===//
 // CIR attributes
+// FIXME: move all of these to CIRAttrs.cpp
 //===----------------------------------------------------------------------===//
 
 LogicalResult mlir::cir::ConstArrayAttr::verify(
