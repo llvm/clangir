@@ -31,6 +31,7 @@ class RecordDecl;
 namespace mlir {
 namespace cir {
 class ArrayType;
+class StructType;
 } // namespace cir
 } // namespace mlir
 

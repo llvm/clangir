@@ -16,6 +16,7 @@
 #include "mlir/IR/BuiltinAttributeInterfaces.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/DialectImplementation.h"
+#include "mlir/IR/OpImplementation.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 
 #include "llvm/ADT/STLExtras.h"
@@ -23,6 +24,13 @@
 
 // ClangIR holds back AST references when available.
 #include "clang/AST/Decl.h"
+
+static void printConstStructMembers(mlir::AsmPrinter &p, mlir::Type type,
+                                    mlir::ArrayAttr members);
+static mlir::ParseResult
+parseConstStructMembers(::mlir::AsmParser &parser,
+                        mlir::FailureOr<mlir::Type> &type,
+                        mlir::FailureOr<mlir::ArrayAttr> &members);
 
 #define GET_ATTRDEF_CLASSES
 #include "clang/CIR/Dialect/IR/CIROpsAttributes.cpp.inc"
@@ -50,6 +58,42 @@ Attribute CIRDialect::parseAttribute(DialectAsmParser &parser,
 void CIRDialect::printAttribute(Attribute attr, DialectAsmPrinter &os) const {
   if (failed(generatedAttributePrinter(attr, os)))
     llvm_unreachable("unexpected CIR type kind");
+}
+
+static void printConstStructMembers(mlir::AsmPrinter &p, mlir::Type type,
+                                    mlir::ArrayAttr members) {
+  p << members;
+}
+
+static ParseResult
+parseConstStructMembers(::mlir::AsmParser &parser,
+                        mlir::FailureOr<mlir::Type> &type,
+                        mlir::FailureOr<mlir::ArrayAttr> &members) {
+  SmallVector<mlir::Attribute, 4> elts;
+  SmallVector<mlir::Type, 4> tys;
+  if (parser
+          .parseCommaSeparatedList(
+              AsmParser::Delimiter::Braces,
+              [&]() {
+                Attribute attr;
+                if (parser.parseAttribute(attr).succeeded()) {
+                  elts.push_back(attr);
+                  if (auto tyAttr = attr.dyn_cast<mlir::TypedAttr>()) {
+                    tys.push_back(tyAttr.getType());
+                    return success();
+                  }
+                  parser.emitError(parser.getCurrentLocation(),
+                                   "expected a typed attribute");
+                }
+                return failure();
+              })
+          .failed())
+    return failure();
+
+  auto *ctx = parser.getContext();
+  members = mlir::ArrayAttr::get(ctx, elts);
+  type = mlir::cir::StructType::get(ctx, tys, "", /*body=*/true);
+  return success();
 }
 
 //===----------------------------------------------------------------------===//
