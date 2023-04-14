@@ -87,11 +87,10 @@ mlir::cir::GlobalOp ConstantInitBuilderBase::createGlobal(
 
 void ConstantInitBuilderBase::setGlobalInitializer(
     mlir::cir::GlobalOp GV, mlir::Attribute initializer) {
-  // GV->setInitializer(initializer);
+  GV.setInitialValueAttr(initializer);
 
-  // if (!SelfReferences.empty())
-  //   resolveSelfReferences(GV);
-  llvm_unreachable("NYI");
+  if (!SelfReferences.empty())
+    resolveSelfReferences(GV);
 }
 
 void ConstantInitBuilderBase::resolveSelfReferences(mlir::cir::GlobalOp GV) {
@@ -278,8 +277,8 @@ static mlir::cir::ConstArrayAttr getConstArray(mlir::Attribute attrs,
                                                mlir::cir::ArrayType arrayTy) {
   return mlir::cir::ConstArrayAttr::get(arrayTy, attrs);
 }
-static mlir::cir::StructType getAnonStruct(mlir::ArrayAttr arrayAttr,
-                                           bool packed = false) {
+static mlir::Attribute getAnonConstStruct(mlir::ArrayAttr arrayAttr,
+                                          bool packed = false) {
   assert(!packed && "NYI");
   llvm::SmallVector<mlir::Type, 4> members;
   for (auto &f : arrayAttr) {
@@ -287,8 +286,9 @@ static mlir::cir::StructType getAnonStruct(mlir::ArrayAttr arrayAttr,
     assert(ta && "expected typed attribute member");
     members.push_back(ta.getType());
   }
-  return mlir::cir::StructType::get(arrayAttr.getContext(), members, "",
-                                    /*body=*/true);
+  auto sTy = mlir::cir::StructType::get(arrayAttr.getContext(), members, "",
+                                        /*body=*/true);
+  return mlir::cir::ConstStructAttr::get(sTy, arrayAttr);
 }
 
 mlir::Attribute ConstantAggregateBuilderBase::finishArray(mlir::Type eltTy) {
@@ -314,7 +314,8 @@ mlir::Attribute ConstantAggregateBuilderBase::finishArray(mlir::Type eltTy) {
 }
 
 mlir::Attribute
-ConstantAggregateBuilderBase::finishStruct(mlir::cir::StructType ty) {
+ConstantAggregateBuilderBase::finishStruct(mlir::MLIRContext *ctx,
+                                           mlir::cir::StructType ty) {
   markFinished();
 
   auto &buffer = getBuffer();
@@ -333,12 +334,9 @@ ConstantAggregateBuilderBase::finishStruct(mlir::cir::StructType ty) {
     // constant = llvm::ConstantStruct::get(ty, elts);
   } else {
     assert(!Packed && "NYI");
-    // constant = llvm::ConstantStruct::getAnon(elts, Packed);
-    // getAnonStruct(mlir::ArrayAttr::get(ty.getContext(), elts))
-    llvm_unreachable("NYI");
+    constant = getAnonConstStruct(mlir::ArrayAttr::get(ctx, elts), Packed);
   }
 
-  llvm_unreachable("NYI");
   buffer.erase(buffer.begin() + Begin, buffer.end());
   return constant;
 }
