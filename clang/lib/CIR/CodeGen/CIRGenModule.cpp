@@ -1345,7 +1345,7 @@ mlir::cir::GlobalLinkageKind CIRGenModule::getFunctionLinkage(GlobalDecl GD) {
   GVALinkage Linkage = astCtx.GetGVALinkageForFunction(D);
 
   if (const auto *Dtor = dyn_cast<CXXDestructorDecl>(D))
-    assert(0 && "NYI");
+    return getCXXABI().getCXXDestructorLinkage(Linkage, Dtor, GD.getDtorType());
 
   if (isa<CXXConstructorDecl>(D) &&
       cast<CXXConstructorDecl>(D)->isInheritingConstructor() &&
@@ -1379,7 +1379,14 @@ CIRGenModule::getAddrAndTypeOfCXXStructor(GlobalDecl GD,
                                           ForDefinition_t IsForDefinition) {
   auto *MD = cast<CXXMethodDecl>(GD.getDecl());
 
-  assert(!isa<CXXDestructorDecl>(MD) && "Destructors NYI");
+  if (isa<CXXDestructorDecl>(MD)) {
+    // Always alias equivalent complete destructors to base destructors in the
+    // MS ABI.
+    if (getTarget().getCXXABI().isMicrosoft() &&
+        GD.getDtorType() == Dtor_Complete &&
+        MD->getParent()->getNumVBases() == 0)
+      llvm_unreachable("NYI");
+  }
 
   if (!FnType) {
     if (!FnInfo)
