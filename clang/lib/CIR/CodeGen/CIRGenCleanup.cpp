@@ -78,6 +78,26 @@ static void destroyOptimisticNormalEntry(CIRGenFunction &CGF,
   llvm_unreachable("NYI");
 }
 
+static void buildCleanup(CIRGenFunction &CGF, EHScopeStack::Cleanup *Fn,
+                         EHScopeStack::Cleanup::Flags flags,
+                         Address ActiveFlag) {
+  // If there's an active flag, load it and skip the cleanup if it's
+  // false.
+  mlir::Block *ContBB = nullptr;
+  if (ActiveFlag.isValid()) {
+    llvm_unreachable("NYI");
+  }
+
+  // Ask the cleanup to emit itself.
+  Fn->Emit(CGF, flags);
+  assert(CGF.HaveInsertPoint() && "cleanup ended with no insertion point?");
+
+  // Emit the continuation block if there was an active flag.
+  if (ActiveFlag.isValid()) {
+    llvm_unreachable("NYI");
+  }
+}
+
 /// Pops a cleanup block. If the block includes a normal cleanup, the
 /// current insertion point is threaded through the cleanup, as are
 /// any branch fixups on the cleanup.
@@ -197,8 +217,7 @@ void CIRGenFunction::PopCleanupBlock(bool FallthroughIsBranchThrough) {
 
       destroyOptimisticNormalEntry(*this, Scope);
       EHStack.popCleanup();
-      // CONTINUE HERE...
-      // EmitCleanup(*this, Fn, cleanupFlags, NormalActiveFlag);
+      buildCleanup(*this, Fn, cleanupFlags, NormalActiveFlag);
 
       // Otherwise, the best approach is to thread everything through
       // the cleanup block and then try to clean up after ourselves.
@@ -207,7 +226,12 @@ void CIRGenFunction::PopCleanupBlock(bool FallthroughIsBranchThrough) {
     }
   }
 
-  llvm_unreachable("NYI");
+  assert(EHStack.hasNormalCleanups() || EHStack.getNumBranchFixups() == 0);
+
+  // Emit the EH cleanup if required.
+  if (RequiresEHCleanup) {
+    llvm_unreachable("NYI");
+  }
 }
 
 /// Pops cleanup blocks until the given savepoint is reached.
