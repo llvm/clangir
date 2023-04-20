@@ -83,7 +83,6 @@ static void buildCleanup(CIRGenFunction &CGF, EHScopeStack::Cleanup *Fn,
                          Address ActiveFlag) {
   // If there's an active flag, load it and skip the cleanup if it's
   // false.
-  mlir::Block *ContBB = nullptr;
   if (ActiveFlag.isValid()) {
     llvm_unreachable("NYI");
   }
@@ -122,7 +121,6 @@ void CIRGenFunction::PopCleanupBlock(bool FallthroughIsBranchThrough) {
   auto *EHEntry = Scope.getCachedEHDispatchBlock();
   assert(Scope.hasEHBranches() == (EHEntry != nullptr));
   bool RequiresEHCleanup = (EHEntry != nullptr);
-  EHScopeStack::stable_iterator EHParent = Scope.getEnclosingEHScope();
 
   // Check the three conditions which might require a normal cleanup:
 
