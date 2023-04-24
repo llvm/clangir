@@ -24,6 +24,7 @@
 #include "clang/Basic/Builtins.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Sequence.h"
+#include <algorithm>
 
 using namespace clang;
 using namespace cir;
@@ -760,8 +761,33 @@ public:
   }
 
   mlir::Attribute EmitArrayInitialization(InitListExpr *ILE, QualType T) {
-    assert(0 && "not implemented");
-    return {};
+    auto *CAT = CGM.getASTContext().getAsConstantArrayType(ILE->getType());
+    assert(CAT && "can't emit array init for non-constant-bound array");
+    unsigned NumInitElements = ILE->getNumInits();        // init list size
+    unsigned NumElements = CAT->getSize().getZExtValue(); // array size
+    unsigned NumInitableElts = std::min(NumInitElements, NumElements);
+
+    QualType EltTy = CAT->getElementType();
+    SmallVector<mlir::TypedAttr, 16> Elts;
+    Elts.reserve(NumElements);
+
+    // Emit initializer elements as MLIR attributes and check for common type.
+    mlir::Type CommonElementType;
+    for (unsigned i = 0; i != NumInitableElts; ++i) {
+      Expr *Init = ILE->getInit(i);
+      auto C = Emitter.tryEmitPrivateForMemory(Init, EltTy);
+      if (!C)
+        return {};
+      if (i == 0)
+        CommonElementType = C.getType();
+      else if (C.getType() != CommonElementType)
+        CommonElementType = nullptr;
+      Elts.push_back(std::move(C));
+    }
+
+    auto desiredType = CGM.getTypes().ConvertType(T);
+    return buildArrayConstant(CGM, desiredType, CommonElementType, NumElements,
+                              Elts, mlir::Attribute());
   }
 
   mlir::Attribute EmitRecordInitialization(InitListExpr *ILE, QualType T) {
@@ -1233,8 +1259,9 @@ mlir::Attribute ConstantEmitter::tryEmitAbstractForMemory(const APValue &value,
 
 mlir::TypedAttr ConstantEmitter::tryEmitPrivateForMemory(const Expr *E,
                                                          QualType destType) {
-  assert(0 && "not implemented");
-  return nullptr;
+  auto nonMemoryDestType = getNonMemoryType(CGM, destType);
+  auto C = tryEmitPrivate(E, nonMemoryDestType);
+  return (C ? emitForMemory(C, destType) : nullptr);
 }
 
 mlir::Attribute ConstantEmitter::tryEmitPrivateForMemory(const APValue &value,
@@ -1262,8 +1289,26 @@ mlir::Attribute ConstantEmitter::emitForMemory(CIRGenModule &CGM,
 }
 
 mlir::TypedAttr ConstantEmitter::tryEmitPrivate(const Expr *E, QualType T) {
-  assert(0 && "not implemented");
-  return nullptr;
+  assert(!T->isVoidType() && "can't emit a void constant");
+  Expr::EvalResult Result;
+  bool Success;
+
+  // TODO: Implement the missing functionalities below.
+  assert(!T->isReferenceType() && "can't emit a reference type constant");
+
+  // NOTE: Not all constant expressions can be emited by the ConstExprEmitter.
+  //       So we have to fold/evaluate the expression in some cases.
+  //
+  // Try folding constant expression into an RValue.
+  Success = E->EvaluateAsRValue(Result, CGM.getASTContext(), InConstantContext);
+
+  mlir::Attribute C;
+  if (Success && !Result.HasSideEffects)
+    C = tryEmitPrivate(Result.Val, T);
+  else
+    C = ConstExprEmitter(*this).Visit(const_cast<Expr *>(E), T);
+
+  return C;
 }
 
 mlir::Attribute ConstantEmitter::tryEmitPrivate(const APValue &Value,
