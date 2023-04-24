@@ -771,6 +771,15 @@ public:
     SmallVector<mlir::TypedAttr, 16> Elts;
     Elts.reserve(NumElements);
 
+    // Emit array filler, if there is one.
+    mlir::Attribute Filler;
+    if (ILE->hasArrayFiller()) {
+      auto *aux = ILE->getArrayFiller();
+      Filler = Emitter.tryEmitAbstractForMemory(aux, CAT->getElementType());
+      if (!Filler)
+        return {};
+    }
+
     // Emit initializer elements as MLIR attributes and check for common type.
     mlir::Type CommonElementType;
     for (unsigned i = 0; i != NumInitableElts; ++i) {
@@ -787,7 +796,7 @@ public:
 
     auto desiredType = CGM.getTypes().ConvertType(T);
     return buildArrayConstant(CGM, desiredType, CommonElementType, NumElements,
-                              Elts, mlir::Attribute());
+                              Elts, Filler);
   }
 
   mlir::Attribute EmitRecordInitialization(InitListExpr *ILE, QualType T) {
@@ -1243,11 +1252,25 @@ mlir::Attribute ConstantEmitter::tryEmitPrivateForVarInit(const VarDecl &D) {
   return (C ? emitForMemory(C, destType) : nullptr);
 }
 
+mlir::Attribute ConstantEmitter::tryEmitAbstract(const Expr *E,
+                                                 QualType destType) {
+  auto state = pushAbstract();
+  auto C = tryEmitPrivate(E, destType);
+  return validateAndPopAbstract(C, state);
+}
+
 mlir::Attribute ConstantEmitter::tryEmitAbstract(const APValue &value,
                                                  QualType destType) {
   auto state = pushAbstract();
   auto C = tryEmitPrivate(value, destType);
   return validateAndPopAbstract(C, state);
+}
+
+mlir::Attribute ConstantEmitter::tryEmitAbstractForMemory(const Expr *E,
+                                                          QualType destType) {
+  auto nonMemoryDestType = getNonMemoryType(CGM, destType);
+  auto C = tryEmitAbstract(E, nonMemoryDestType);
+  return (C ? emitForMemory(C, destType) : nullptr);
 }
 
 mlir::Attribute ConstantEmitter::tryEmitAbstractForMemory(const APValue &value,
