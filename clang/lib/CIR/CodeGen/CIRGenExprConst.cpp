@@ -24,6 +24,7 @@
 #include "clang/Basic/Builtins.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Sequence.h"
+#include "llvm/Support/ErrorHandling.h"
 #include <algorithm>
 
 using namespace clang;
@@ -771,6 +772,11 @@ public:
     SmallVector<mlir::TypedAttr, 16> Elts;
     Elts.reserve(NumElements);
 
+    // Emit array filler, if there is one.
+    if (Expr *filler = ILE->getArrayFiller()) {
+      llvm_unreachable("NYI");
+    }
+
     // Emit initializer elements as MLIR attributes and check for common type.
     mlir::Type CommonElementType;
     for (unsigned i = 0; i != NumInitableElts; ++i) {
@@ -1294,7 +1300,7 @@ mlir::TypedAttr ConstantEmitter::tryEmitPrivate(const Expr *E, QualType T) {
   bool Success;
 
   // TODO: Implement the missing functionalities below.
-  assert(!T->isReferenceType() && "can't emit a reference type constant");
+  assert(!T->isReferenceType() && "NYI");
 
   // NOTE: Not all constant expressions can be emited by the ConstExprEmitter.
   //       So we have to fold/evaluate the expression in some cases.
