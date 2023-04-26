@@ -1114,6 +1114,8 @@ LogicalResult GlobalOp::verify() {
     break;
   case GlobalLinkageKind::ExternalLinkage:
   case GlobalLinkageKind::ExternalWeakLinkage:
+  case GlobalLinkageKind::LinkOnceODRLinkage:
+  case GlobalLinkageKind::LinkOnceAnyLinkage:
     // FIXME: mlir's concept of visibility gets tricky with LLVM ones,
     // for instance, symbol declarations cannot be "public", so we
     // have to mark them "private" to workaround the symbol verifier.
@@ -1123,7 +1125,9 @@ LogicalResult GlobalOp::verify() {
                          << "' linkage";
     break;
   default:
-    assert(0 && "not implemented");
+    emitError() << stringifyGlobalLinkageKind(getLinkage())
+                << ": verifier not implemented\n";
+    return failure();
   }
 
   // TODO: verify visibility for declarations?
@@ -1749,7 +1753,7 @@ void SignedOverflowBehaviorAttr::print(::mlir::AsmPrinter &printer) const {
                                              ::mlir::Type type) {
   // We cannot really parse anything AST related at this point
   // since we have no serialization/JSON story.
-  return mlir::Attribute();
+  return ASTFunctionDeclAttr::get(parser.getContext(), nullptr);
 }
 
 void ASTFunctionDeclAttr::print(::mlir::AsmPrinter &printer) const {
@@ -1759,10 +1763,6 @@ void ASTFunctionDeclAttr::print(::mlir::AsmPrinter &printer) const {
 LogicalResult ASTFunctionDeclAttr::verify(
     ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
     const ::clang::FunctionDecl *decl) {
-  if (!decl) {
-    emitError() << "expected non-null AST declaration";
-    return failure();
-  }
   return success();
 }
 
@@ -1770,7 +1770,7 @@ LogicalResult ASTFunctionDeclAttr::verify(
                                         ::mlir::Type type) {
   // We cannot really parse anything AST related at this point
   // since we have no serialization/JSON story.
-  return mlir::Attribute();
+  return ASTVarDeclAttr::get(parser.getContext(), nullptr);
 }
 
 void ASTVarDeclAttr::print(::mlir::AsmPrinter &printer) const {
@@ -1780,10 +1780,6 @@ void ASTVarDeclAttr::print(::mlir::AsmPrinter &printer) const {
 LogicalResult ASTVarDeclAttr::verify(
     ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
     const ::clang::VarDecl *decl) {
-  if (!decl) {
-    emitError() << "expected non-null AST declaration";
-    return failure();
-  }
   return success();
 }
 
@@ -1791,7 +1787,7 @@ LogicalResult ASTVarDeclAttr::verify(
                                            ::mlir::Type type) {
   // We cannot really parse anything AST related at this point
   // since we have no serialization/JSON story.
-  return mlir::Attribute();
+  return ASTRecordDeclAttr::get(parser.getContext(), nullptr);
 }
 
 void ASTRecordDeclAttr::print(::mlir::AsmPrinter &printer) const {
@@ -1801,10 +1797,6 @@ void ASTRecordDeclAttr::print(::mlir::AsmPrinter &printer) const {
 LogicalResult ASTRecordDeclAttr::verify(
     ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
     const ::clang::RecordDecl *decl) {
-  if (!decl) {
-    emitError() << "expected non-null AST declaration";
-    return failure();
-  }
   return success();
 }
 
