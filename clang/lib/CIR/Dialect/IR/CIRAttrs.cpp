@@ -96,6 +96,37 @@ static ParseResult parseConstStructMembers(::mlir::AsmParser &parser,
   return success();
 }
 
+LogicalResult ConstStructAttr::verify(
+    ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
+    mlir::Type type, ArrayAttr members) {
+  auto sTy = mlir::dyn_cast_or_null<mlir::cir::StructType>(type);
+  if (!sTy) {
+    emitError() << "expected !cir.struct type";
+    return failure();
+  }
+
+  if (sTy.getMembers().size() != members.size()) {
+    emitError() << "number of elements must match";
+    return failure();
+  }
+
+  unsigned attrIdx = 0;
+  for (auto &member : sTy.getMembers()) {
+    auto m = mlir::dyn_cast_or_null<mlir::TypedAttr>(members[attrIdx]);
+    if (!m) {
+      emitError() << "expected mlir::TypedAttr attribute";
+      return failure();
+    }
+    if (member != m.getType()) {
+      emitError() << "input element type must match result element type";
+      return failure();
+    }
+    attrIdx++;
+  }
+
+  return success();
+}
+
 //===----------------------------------------------------------------------===//
 // CIR Dialect
 //===----------------------------------------------------------------------===//
