@@ -179,11 +179,10 @@ static LogicalResult checkConstantTypes(mlir::Operation *op, mlir::Type opType,
     return op->emitOpError("symbolref expects pointer type");
   }
 
-  if (mlir::isa<mlir::cir::GlobalViewAttr>(attrType))
-    return success();
-  if (mlir::isa<mlir::cir::TypeInfoAttr>(attrType))
-    return success();
-  if (mlir::isa<mlir::cir::ConstStructAttr>(attrType))
+  if (mlir::isa<mlir::cir::GlobalViewAttr>(attrType) ||
+      mlir::isa<mlir::cir::TypeInfoAttr>(attrType) ||
+      mlir::isa<mlir::cir::ConstStructAttr>(attrType) ||
+      mlir::isa<mlir::cir::VTableAttr>(attrType))
     return success();
 
   assert(mlir::isa<TypedAttr>(attrType) && "What else could we be looking at here?");
@@ -1183,9 +1182,15 @@ VTableAddrPointOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
   // referenced cir.global or cir.func op.
   auto op = dyn_cast_or_null<GlobalOp>(
       symbolTable.lookupNearestSymbolFrom(*this, getNameAttr()));
-  if (!isa<GlobalOp>(op))
+  if (!op)
     return emitOpError("'")
            << getName() << "' does not reference a valid cir.global";
+  auto init = op.getInitialValue();
+  if (!init)
+    return success();
+  if (!isa<mlir::cir::VTableAttr>(*init))
+    return emitOpError("Expected #cir.vtable in initializer for global '")
+           << getName() << "'";
   return success();
 }
 
