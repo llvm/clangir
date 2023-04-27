@@ -517,7 +517,9 @@ mlir::DenseElementsAttr
 convertToDenseElementsAttr(mlir::cir::ConstArrayAttr attr) {
   auto type = mlir::cast<mlir::cir::ArrayType>(attr.getType()).getEltType();
   auto values = llvm::SmallVector<T, 8>{};
-  for (auto element : mlir::cast<mlir::ArrayAttr>(attr.getValue()))
+  auto arrayAttr = mlir::dyn_cast<mlir::ArrayAttr>(attr.getElts());
+  assert(arrayAttr && "expected array here");
+  for (auto element : arrayAttr)
     values.push_back(mlir::cast<mlir::IntegerAttr>(element).getInt());
   return mlir::DenseElementsAttr::get(
       mlir::RankedTensorType::get({(int64_t)values.size()}, type),
@@ -617,9 +619,9 @@ public:
 
     // Initializer is a constant array: convert it to a compatible llvm init.
     if (auto constArr = mlir::dyn_cast<mlir::cir::ConstArrayAttr>(init.value())) {
-      if (auto attr = mlir::dyn_cast<mlir::StringAttr>(constArr.getValue())) {
+      if (auto attr = mlir::dyn_cast<mlir::StringAttr>(constArr.getElts())) {
         init = rewriter.getStringAttr(attr.getValue());
-      } else if (auto attr = mlir::dyn_cast<mlir::ArrayAttr>(constArr.getValue())) {
+      } else if (auto attr = mlir::dyn_cast<mlir::ArrayAttr>(constArr.getElts())) {
         if (!(init = lowerConstArrayAttr(constArr))) {
           op.emitError()
               << "unsupported lowering for #cir.const_array with element type "
@@ -629,7 +631,7 @@ public:
       } else {
         op.emitError()
             << "unsupported lowering for #cir.const_array with value "
-            << constArr.getValue();
+            << constArr.getElts();
         return mlir::failure();
       }
     } else if (llvm::isa<mlir::IntegerAttr, mlir::FloatAttr>(init.value())) {

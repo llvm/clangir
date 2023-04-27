@@ -72,14 +72,14 @@ void CIRASTConsumer::HandleTranslationUnit(ASTContext &C) {
       clang::SourceLocation clangLoc;
       FileManager &fileMgr = clangSrcMgr.getFileManager();
 
-      auto fileLoc = loc.dyn_cast<mlir::FileLineColLoc>();
+      auto fileLoc = mlir::dyn_cast<mlir::FileLineColLoc>(loc);
       if (!fileLoc)
         return clangLoc;
       // The column and line may be zero to represent unknown column and/or
       // unknown line/column information.
       if (fileLoc.getLine() == 0 || fileLoc.getColumn() == 0)
         return clangLoc;
-      if (auto FE = fileMgr.getFile(fileLoc.getFilename())) {
+      if (auto FE = fileMgr.getOptionalFileRef(fileLoc.getFilename())) {
         return clangSrcMgr.translateFileLineCol(*FE, fileLoc.getLine(),
                                                 fileLoc.getColumn());
       }

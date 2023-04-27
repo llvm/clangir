@@ -1745,7 +1745,7 @@ LogicalResult mlir::cir::ConstArrayAttr::verify(
 
 void ConstArrayAttr::print(::mlir::AsmPrinter &printer) const {
   printer << "<";
-  printer.printStrippedAttrOrType(getValue());
+  printer.printStrippedAttrOrType(getElts());
   printer << ">";
 }
 
@@ -1830,14 +1830,62 @@ LogicalResult ASTRecordDeclAttr::verify(
 
 LogicalResult TypeInfoAttr::verify(
     ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
-    ::mlir::Type type, ConstStructAttr info) {
-  for (auto &member : info.getMembers()) {
+    ::mlir::Type type, ConstStructAttr typeinfoData) {
+
+  if (mlir::cir::ConstStructAttr::verify(emitError, type,
+                                         typeinfoData.getMembers())
+          .failed())
+    return failure();
+
+  for (auto &member : typeinfoData.getMembers()) {
     auto gview = mlir::dyn_cast_or_null<GlobalViewAttr>(member);
     if (gview)
       continue;
     emitError() << "expected GlobalViewAttr attribute";
     return failure();
   }
+  return success();
+}
+
+LogicalResult
+VTableAttr::verify(::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
+                   ::mlir::Type type, ConstStructAttr vtableData) {
+  auto sTy = mlir::dyn_cast_or_null<mlir::cir::StructType>(type);
+  if (!sTy) {
+    emitError() << "expected !cir.struct type result";
+    return failure();
+  }
+  if (sTy.getMembers().size() != 1 || vtableData.getMembers().size() != 1) {
+    emitError() << "expected struct type with only one subtype";
+    return failure();
+  }
+
+  auto arrayTy = mlir::dyn_cast<mlir::cir::ArrayType>(sTy.getMembers()[0]);
+  auto constArrayAttr =
+      mlir::dyn_cast<mlir::cir::ConstArrayAttr>(vtableData.getMembers()[0]);
+  if (!arrayTy || !constArrayAttr) {
+    emitError() << "expected struct type with one array element";
+    return failure();
+  }
+
+  if (mlir::cir::ConstStructAttr::verify(emitError, type,
+                                         vtableData.getMembers())
+          .failed())
+    return failure();
+
+  LogicalResult eltTypeCheck = success();
+  if (auto arrayElts = mlir::dyn_cast<ArrayAttr>(constArrayAttr.getElts())) {
+    arrayElts.walkImmediateSubElements(
+        [&](Attribute attr) {
+          if (mlir::isa<GlobalViewAttr>(attr) || mlir::isa<NullAttr>(attr))
+            return;
+          emitError() << "expected GlobalViewAttr attribute";
+          eltTypeCheck = failure();
+        },
+        [&](Type type) {});
+    return eltTypeCheck;
+  }
+
   return success();
 }
 
