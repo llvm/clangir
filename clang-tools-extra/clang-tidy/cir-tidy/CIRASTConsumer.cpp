@@ -27,8 +27,9 @@ namespace tidy {
 CIRASTConsumer::CIRASTConsumer(CompilerInstance &CI, StringRef inputFile,
                                clang::tidy::ClangTidyContext &Context)
     : Context(Context) {
-  Gen =
-      std::make_unique<CIRGenerator>(CI.getDiagnostics(), CI.getCodeGenOpts());
+  Gen = std::make_unique<CIRGenerator>(CI.getDiagnostics(),
+                                       &CI.getVirtualFileSystem(),
+                                       CI.getCodeGenOpts());
 }
 
 bool CIRASTConsumer::HandleTopLevelDecl(DeclGroupRef D) {
