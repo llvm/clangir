@@ -8,7 +8,6 @@
 // RUN: %clang -target x86_64-unknown-linux-gnu -fclangir-enable -clangir-disable-verifier -S -emit-cir %s -o %t.cir
 // RUN: %clang -target arm64-apple-macosx12.0.0 -fclangir-enable -S -emit-cir %s -o %t.cir
 // RUN: FileCheck --input-file=%t.cir %s -check-prefix=CIR
-// XFAIL: *
 
 void foo() {}
 
