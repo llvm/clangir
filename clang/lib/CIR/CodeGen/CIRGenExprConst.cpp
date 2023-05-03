@@ -653,11 +653,11 @@ public:
 
     switch (E->getCastKind()) {
     case CK_ToUnion: {
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
     }
 
     case CK_AddressSpaceConversion: {
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
     }
 
     case CK_LValueToRValue:
@@ -679,7 +679,7 @@ public:
     case CK_ReinterpretMemberPointer:
     case CK_DerivedToBaseMemberPointer:
     case CK_BaseToDerivedMemberPointer: {
-      assert(0 && "not implemented");
+      llvm_unreachable("not implemented");
     }
 
     // These will never be supported.
@@ -1007,14 +1007,14 @@ private:
   bool hasNonZeroOffset() const { return !Value.getLValueOffset().isZero(); }
 
   /// Return the value offset.
-  mlir::Attribute getOffset() { assert(0 && "NYI"); }
+  mlir::Attribute getOffset() { llvm_unreachable("NYI"); }
 
   /// Apply the value offset to the given constant.
   mlir::Attribute applyOffset(mlir::Attribute C) {
     if (!hasNonZeroOffset())
       return C;
     // TODO(cir): use ptr_stride, or something...
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
   }
 };
 
@@ -1057,10 +1057,10 @@ mlir::Attribute ConstantLValueEmitter::tryEmit() {
   if (destTy.isa<mlir::cir::PointerType>()) {
     if (value.is<ConstantLValue::SymbolTy>())
       return value.get<ConstantLValue::SymbolTy>();
-    assert(0 && "NYI");
+    llvm_unreachable("NYI");
   }
 
-  assert(0 && "NYI");
+  llvm_unreachable("NYI");
 }
 
 /// Try to emit an absolute l-value, such as a null pointer or an integer
@@ -1295,7 +1295,15 @@ mlir::Attribute ConstantEmitter::tryEmitPrivateForMemory(const Expr *E,
                                                          QualType destType) {
   auto nonMemoryDestType = getNonMemoryType(CGM, destType);
   auto C = tryEmitPrivate(E, nonMemoryDestType);
-  return (C ? emitForMemory(C, destType) : nullptr);
+  if (C) {
+    auto attr = emitForMemory(C, destType);
+    auto typedAttr = llvm::dyn_cast<mlir::TypedAttr>(attr);
+    if (!typedAttr)
+      llvm_unreachable("this should always be typed");
+    return typedAttr;
+  } else {
+    return nullptr;
+  }
 }
 
 mlir::Attribute ConstantEmitter::tryEmitPrivateForMemory(const APValue &value,
@@ -1350,7 +1358,10 @@ mlir::Attribute ConstantEmitter::tryEmitPrivate(const Expr *E, QualType T) {
   else
     C = ConstExprEmitter(*this).Visit(const_cast<Expr *>(E), T);
 
-  return C;
+  auto typedC = llvm::dyn_cast<mlir::TypedAttr>(C);
+  if (!typedC)
+    llvm_unreachable("this should always be typed");
+  return typedC;
 }
 
 mlir::Attribute ConstantEmitter::tryEmitPrivate(const APValue &Value,
