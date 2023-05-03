@@ -82,7 +82,7 @@ def CIR_StructType : CIR_Type<"Struct", "struct",
     "mlir::StringAttr":$typeName,
     "bool":$body,
     "bool":$packed,
-    "Optional<::mlir::cir::ASTRecordDeclAttr>":$ast
+    "std::optional<::mlir::cir::ASTRecordDeclAttr>":$ast
   );
 
   let builders = [
@@ -103,8 +103,8 @@ def CIR_StructType : CIR_Type<"Struct", "struct",
   private:
     // All these support lazily computation and storage
     // for the struct size and alignment.
-    mutable llvm::Optional<unsigned> size{}, align{};
-    mutable llvm::Optional<bool> padded{};
+    mutable std::optional<unsigned> size{}, align{};
+    mutable std::optional<bool> padded{};
     void computeSizeAndAlignment(const ::mlir::DataLayout &dataLayout) const;
   public:
     void dropAst();
