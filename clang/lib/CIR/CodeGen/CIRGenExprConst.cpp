@@ -788,18 +788,11 @@ public:
       auto C = Emitter.tryEmitPrivateForMemory(Init, EltTy);
       if (!C)
         return {};
-
-      assert(C.isa<mlir::TypedAttr>() && "This should always be a TypedAttr.");
-      auto CTyped = C.cast<mlir::TypedAttr>();
-
       if (i == 0)
-        CommonElementType = CTyped.getType();
-      else if (CTyped.getType() != CommonElementType)
+        CommonElementType = C.getType();
+      else if (C.getType() != CommonElementType)
         CommonElementType = nullptr;
-      auto typedC = llvm::dyn_cast<mlir::TypedAttr>(C);
-      if (!typedC)
-        llvm_unreachable("this should always be typed");
-      Elts.push_back(typedC);
+      Elts.push_back(std::move(C));
     }
 
     auto desiredType = CGM.getTypes().ConvertType(T);
@@ -1291,7 +1284,7 @@ mlir::Attribute ConstantEmitter::tryEmitAbstractForMemory(const APValue &value,
   return (C ? emitForMemory(C, destType) : nullptr);
 }
 
-mlir::Attribute ConstantEmitter::tryEmitPrivateForMemory(const Expr *E,
+mlir::TypedAttr ConstantEmitter::tryEmitPrivateForMemory(const Expr *E,
                                                          QualType destType) {
   auto nonMemoryDestType = getNonMemoryType(CGM, destType);
   auto C = tryEmitPrivate(E, nonMemoryDestType);
@@ -1310,15 +1303,7 @@ mlir::Attribute ConstantEmitter::tryEmitPrivateForMemory(const APValue &value,
                                                          QualType destType) {
   auto nonMemoryDestType = getNonMemoryType(CGM, destType);
   auto C = tryEmitPrivate(value, nonMemoryDestType);
-  if (C) {
-    auto attr = emitForMemory(C, destType);
-    auto typedAttr = llvm::dyn_cast<mlir::TypedAttr>(attr);
-    if (!typedAttr)
-      llvm_unreachable("this should always be typed");
-    return typedAttr;
-  }
-
-  return nullptr;
+  return (C ? emitForMemory(C, destType) : nullptr);
 }
 
 mlir::Attribute ConstantEmitter::emitForMemory(CIRGenModule &CGM,
@@ -1338,7 +1323,7 @@ mlir::Attribute ConstantEmitter::emitForMemory(CIRGenModule &CGM,
   return C;
 }
 
-mlir::Attribute ConstantEmitter::tryEmitPrivate(const Expr *E, QualType T) {
+mlir::TypedAttr ConstantEmitter::tryEmitPrivate(const Expr *E, QualType T) {
   assert(!T->isVoidType() && "can't emit a void constant");
   Expr::EvalResult Result;
   bool Success;
