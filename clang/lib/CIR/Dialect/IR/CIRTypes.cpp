@@ -171,19 +171,22 @@ void ArrayType::print(mlir::AsmPrinter &printer) const {
 unsigned
 PointerType::getTypeSizeInBits(const ::mlir::DataLayout &dataLayout,
                                ::mlir::DataLayoutEntryListRef params) const {
-  llvm_unreachable("NYI");
+  // FIXME: improve this in face of address spaces
+  return 64;
 }
 
 unsigned
 PointerType::getABIAlignment(const ::mlir::DataLayout &dataLayout,
                              ::mlir::DataLayoutEntryListRef params) const {
-  llvm_unreachable("NYI");
+  // FIXME: improve this in face of address spaces
+  return 8;
 }
 
 unsigned PointerType::getPreferredAlignment(
     const ::mlir::DataLayout &dataLayout,
     ::mlir::DataLayoutEntryListRef params) const {
-  llvm_unreachable("NYI");
+  // FIXME: improve this in face of address spaces
+  return 8;
 }
 
 unsigned
