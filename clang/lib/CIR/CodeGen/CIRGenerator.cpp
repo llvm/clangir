@@ -18,7 +18,6 @@
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/Target/LLVMIR/Import.h"
-#include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "llvm/IR/DataLayout.h"
 
 #include "clang/AST/ASTContext.h"

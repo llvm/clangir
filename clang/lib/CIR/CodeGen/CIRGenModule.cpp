@@ -30,7 +30,6 @@
 #include "mlir/Support/LLVM.h"
 
 #include "clang/AST/ASTConsumer.h"
-#include "clang/AST/Decl.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclGroup.h"
 #include "clang/AST/DeclObjC.h"
@@ -63,6 +62,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/raw_ostream.h"
+
 #include <iterator>
 #include <numeric>
 
