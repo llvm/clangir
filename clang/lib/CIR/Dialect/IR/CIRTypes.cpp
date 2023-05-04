@@ -171,13 +171,15 @@ void ArrayType::print(mlir::AsmPrinter &printer) const {
 llvm::TypeSize
 PointerType::getTypeSizeInBits(const ::mlir::DataLayout &dataLayout,
                                ::mlir::DataLayoutEntryListRef params) const {
-  llvm_unreachable("NYI");
+  // FIXME: improve this in face of address spaces
+  return llvm::TypeSize::getFixed(64);
 }
 
 uint64_t
 PointerType::getABIAlignment(const ::mlir::DataLayout &dataLayout,
                              ::mlir::DataLayoutEntryListRef params) const {
-  llvm_unreachable("NYI");
+  // FIXME: improve this in face of address spaces
+  return 8;
 }
 
 llvm::TypeSize
