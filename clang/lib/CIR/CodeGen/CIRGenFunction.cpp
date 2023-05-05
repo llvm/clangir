@@ -1222,3 +1222,8 @@ bool CIRGenFunction::shouldNullCheckClassCastValue(const CastExpr *CE) {
 
   return true;
 }
+
+void CIRGenFunction::buildDeclRefExprDbgValue(const DeclRefExpr *E,
+                                              const APValue &Init) {
+  assert(!UnimplementedFeature::generateDebugInfo());
+}
