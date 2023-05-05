@@ -1451,8 +1451,9 @@ mlir::Attribute ConstantEmitter::tryEmitPrivate(const APValue &Value,
 }
 
 mlir::Value CIRGenModule::buildNullConstant(QualType T, mlir::Location loc) {
-  if (T->getAs<PointerType>())
-    llvm_unreachable("NYI");
+  if (T->getAs<PointerType>()) {
+    return builder.getNullPtr(getTypes().convertTypeForMem(T), loc);
+  }
 
   if (getTypes().isZeroInitializable(T))
     return builder.getNullValue(getTypes().convertTypeForMem(T), loc);
@@ -1470,4 +1471,29 @@ mlir::Value CIRGenModule::buildNullConstant(QualType T, mlir::Location loc) {
 
   llvm_unreachable("NYI");
   return {};
+}
+
+mlir::Attribute ConstantEmitter::emitAbstract(const Expr *E,
+                                              QualType destType) {
+  auto state = pushAbstract();
+  auto C = mlir::cast<mlir::Attribute>(tryEmitPrivate(E, destType));
+  C = validateAndPopAbstract(C, state);
+  if (!C) {
+    llvm_unreachable("NYI");
+  }
+  return C;
+}
+
+mlir::Attribute ConstantEmitter::emitAbstract(SourceLocation loc,
+                                              const APValue &value,
+                                              QualType destType) {
+  auto state = pushAbstract();
+  auto C = tryEmitPrivate(value, destType);
+  C = validateAndPopAbstract(C, state);
+  if (!C) {
+    CGM.Error(loc,
+              "internal error: could not emit constant value \"abstractly\"");
+    llvm_unreachable("NYI");
+  }
+  return C;
 }
