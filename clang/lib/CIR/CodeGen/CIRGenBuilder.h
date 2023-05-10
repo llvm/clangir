@@ -182,6 +182,8 @@ public:
 
   // Creates constant null value for integral type ty.
   mlir::cir::ConstantOp getNullValue(mlir::Type ty, mlir::Location loc) {
+    if (mlir::isa<mlir::cir::PointerType>(ty))
+      return getNullPtr(ty, loc);
     assert(mlir::isa<mlir::IntegerType>(ty) && "NYI");
     return create<mlir::cir::ConstantOp>(loc, ty,
                                          mlir::IntegerAttr::get(ty, 0));
