@@ -143,6 +143,32 @@ def ConstStructAttr : CIR_Attr<"ConstStruct", "const_struct",
 }
 
 //===----------------------------------------------------------------------===//
+// IntegerAttr
+//===----------------------------------------------------------------------===//
+
+def IntAttr : CIR_Attr<"Int", "int", [TypedAttrInterface]> {
+  let summary = "An Attribute containing a integer value";
+  let description = [{
+    An integer attribute is a literal attribute that represents an integral
+    value of the specified integer type.
+  }];
+  let parameters = (ins AttributeSelfTypeParameter<"">:$type, APIntParameter<"">:$value);
+  let builders = [
+    AttrBuilderWithInferredContext<(ins "Type":$type, "int64_t":$value), [{
+      IntType intType = mlir::cast<IntType>(type);
+      llvm::APInt apValue(intType.getWidth(), value, intType.isSigned());
+      return $_get(intType.getContext(), intType, apValue);
+    }]>,
+  ];
+  let extraClassDeclaration = [{
+    int64_t getSInt() const { return getValue().getSExtValue(); }
+    uint64_t getUInt() const { return getValue().getZExtValue(); }
+  }];
+  let genVerifyDecl = 1;
+  let hasCustomAssemblyFormat = 1;
+}
+
+//===----------------------------------------------------------------------===//
 // SignedOverflowBehaviorAttr
 //===----------------------------------------------------------------------===//
 
