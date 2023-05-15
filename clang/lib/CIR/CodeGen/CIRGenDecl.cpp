@@ -640,5 +640,4 @@ void CIRGenFunction::buildAutoVarTypeCleanup(
   bool useEHCleanup = (cleanupKind & EHCleanup);
   EHStack.pushCleanup<DestroyObject>(cleanupKind, addr, type, destroyer,
                                      useEHCleanup);
-  llvm_unreachable("NYI");
 }
