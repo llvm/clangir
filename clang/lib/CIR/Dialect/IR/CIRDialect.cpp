@@ -181,6 +181,7 @@ static LogicalResult checkConstantTypes(mlir::Operation *op, mlir::Type opType,
 
   if (mlir::isa<mlir::cir::GlobalViewAttr>(attrType) ||
       mlir::isa<mlir::cir::TypeInfoAttr>(attrType) ||
+      mlir::isa<mlir::cir::ConstArrayAttr>(attrType) ||
       mlir::isa<mlir::cir::ConstStructAttr>(attrType) ||
       mlir::isa<mlir::cir::VTableAttr>(attrType))
     return success();
