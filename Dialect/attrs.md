@@ -58,7 +58,7 @@ This always implies a non-null AST reference (verified).
 | :-------: | :-------: | ----------- |
 | astDecl | `const clang::VarDecl *` |  |
 
-### CstArrayAttr
+### ConstArrayAttr
 
 A constant array from ArrayAttr or StringRefAttr
 
@@ -69,7 +69,85 @@ An CIR array attribute is an array of literals of the specified attr types.
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
 | type | `::mlir::Type` |  |
-| value | `Attribute` |  |
+| elts | `Attribute` |  |
+
+### ConstStructAttr
+
+Represents a constant struct
+
+Syntax:
+
+```
+#cir.const_struct<
+  ::mlir::Type,   # type
+  ArrayAttr   # members
+>
+```
+
+Effectively supports "struct-like" constants. It's must be built from
+an `mlir::ArrayAttr `instance where each elements is a typed attribute
+(`mlir::TypedAttribute`).
+
+Example:
+```
+cir.global external @rgb2 = #cir.const_struct<{0 : i8,
+                                               5 : i64, #cir.null : !cir.ptr<i8>
+                                              }> : !cir.struct<"", i8, i64, !cir.ptr<i8>>
+```
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| type | `::mlir::Type` |  |
+| members | `ArrayAttr` |  |
+
+### GlobalViewAttr
+
+Provides constant access to a global address
+
+Syntax:
+
+```
+#cir.global_view<
+  ::mlir::Type,   # type
+  FlatSymbolRefAttr,   # symbol
+  ArrayAttr   # indices
+>
+```
+
+Get constant address of global `symbol` and optionally apply offsets to
+access existing subelements. It provides a way to access globals from other
+global and always produces a pointer.
+
+The type of the input symbol can be different from `#cir.global_view`
+output type, since a given view of the global might require a static
+cast for initializing other globals.
+
+A list of indices can be optionally passed and each element subsequently
+indexes underlying types. For `symbol` types like `!cir.array`
+and `!cir.struct`, it leads to the constant address of sub-elements, while
+for `!cir.ptr`, an offset is applied. The first index is relative to the
+original symbol type, not the produced one.
+
+Example:
+
+```
+  cir.global external @s = @".str2": !cir.ptr<i8>
+  cir.global external @x = #cir.global_view<@s> : !cir.ptr<i8>
+
+  cir.global external @rgb = #cir.const_array<[0 : i8, -23 : i8, 33 : i8] : !cir.array<i8 x 3>>
+  cir.global external @elt_ptr = #cir.global_view<@rgb, [1]> : !cir.ptr<i8>
+  cir.global external @table_of_ptrs = #cir.const_array<[#cir.global_view<@rgb, [1]> : !cir.ptr<i8>] : !cir.array<!cir.ptr<i8> x 1>>
+```
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| type | `::mlir::Type` |  |
+| symbol | `FlatSymbolRefAttr` |  |
+| indices | `ArrayAttr` |  |
 
 ### NullAttr
 
@@ -101,6 +179,78 @@ The NullAttr represents the value of nullptr within cir.
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
 | behavior | `sob::SignedOverflowBehavior` |  |
+
+### TypeInfoAttr
+
+Represents a typeinfo used for RTTI
+
+Syntax:
+
+```
+#cir.typeinfo<
+  ::mlir::Type,   # type
+  ConstStructAttr   # typeinfo_data
+>
+```
+
+The typeinfo data for a given class is stored into an ArrayAttr. The
+layout is determined by the C++ ABI used (clang only implements
+itanium on CIRGen).
+
+The verifier enforces that the output type is always a `!cir.struct`,
+and that the ArrayAttr element types match the equivalent member type
+for the resulting struct.
+
+Example:
+
+```
+cir.global "private" external @_ZTVN10__cxxabiv120__si_class_type_infoE : !cir.ptr<i32>
+
+cir.global external @type_info_B = #cir.typeinfo<<
+  {#cir.global_view<@_ZTVN10__cxxabiv120__si_class_type_infoE, [2]> : !cir.ptr<i8>}
+>> : !cir.struct<"", !cir.ptr<i8>>
+```
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| type | `::mlir::Type` |  |
+| typeinfo_data | `ConstStructAttr` |  |
+
+### VTableAttr
+
+Represents a C++ vtable
+
+Syntax:
+
+```
+#cir.vtable<
+  ::mlir::Type,   # type
+  ConstStructAttr   # vtable_data
+>
+```
+
+Wraps a #cir.const_struct containing vtable data.
+
+Example:
+```
+cir.global linkonce_odr @_ZTV1B = #cir.vtable<<
+    {#cir.const_array<[#cir.null : !cir.ptr<i8>,
+     #cir.global_view<@_ZTI1B> : !cir.ptr<i8>,
+     #cir.global_view<@_ZN1BD1Ev> : !cir.ptr<i8>,
+     #cir.global_view<@_ZN1BD0Ev> : !cir.ptr<i8>,
+     #cir.global_view<@_ZNK1A5quackEv> : !cir.ptr<i8>]>
+     : !cir.array<!cir.ptr<i8> x 5>}>>
+  : !cir.struct<"", !cir.array<!cir.ptr<i8> x 5>>
+```
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| type | `::mlir::Type` |  |
+| vtable_data | `ConstStructAttr` |  |
 
 ### ZeroAttr
 

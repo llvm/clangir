@@ -135,6 +135,39 @@ Interfaces: ConditionallySpeculatable, RegionBranchOpInterface
 | :-------: | :-------: | ----------- |
 | `kind` | ::mlir::cir::AwaitKindAttr | await kind
 
+### `cir.base_class_addr` (::mlir::cir::BaseClassAddrOp)
+
+Get the base class address for a class/struct
+
+
+Syntax:
+
+```
+operation ::= `cir.base_class_addr` `(`
+              $derived_addr `:` `cir.ptr` type($derived_addr)
+              `)` `->` `cir.ptr` type($base_addr) attr-dict
+```
+
+The `cir.base_class_addr` operaration gets the address of a particular
+base class given a derived class pointer.
+
+Example:
+```mlir
+TBD
+```
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `derived_addr` | CIR pointer type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `base_addr` | CIR pointer type
+
 ### `cir.binop` (::mlir::cir::BinOp)
 
 Binary operations (arith and logic)
@@ -279,13 +312,6 @@ Effects: MemoryEffects::Effect{}
 
 call operation
 
-
-Syntax:
-
-```
-operation ::= `cir.call` $callee `(` $operands `)` attr-dict `:` functional-type($operands, results)
-```
-
 The `call` operation represents a direct call to a function that is within
 the same symbol scope as the call. The operands and result types of the
 call must match the specified function type. The callee is encoded as a
@@ -420,7 +446,7 @@ Effects: MemoryEffects::Effect{}
 | :----: | ----------- |
 | `result` | any type
 
-### `cir.cst` (::mlir::cir::ConstantOp)
+### `cir.const` (::mlir::cir::ConstantOp)
 
 Defines a CIR constant
 
@@ -428,16 +454,16 @@ Defines a CIR constant
 Syntax:
 
 ```
-operation ::= `cir.cst` `(` custom<ConstantValue>($value) `)` attr-dict `:` type($res)
+operation ::= `cir.const` `(` custom<ConstantValue>($value) `)` attr-dict `:` type($res)
 ```
 
-The `cir.cst` operation turns a literal into an SSA value. The data is
+The `cir.const` operation turns a literal into an SSA value. The data is
 attached to the operation as an attribute.
 
 ```mlir
-  %0 = cir.cst(42 : i32) : i32
-  %1 = cir.cst(4.2 : f32) : f32
-  %2 = cir.cst(nullptr : !cir.ptr<i32>) : !cir.ptr<i32>
+  %0 = cir.const(42 : i32) : i32
+  %1 = cir.const(4.2 : f32) : f32
+  %2 = cir.const(nullptr : !cir.ptr<i32>) : !cir.ptr<i32>
 ```
 
 Traits: AlwaysSpeculatableImplTrait, ConstantLike
@@ -485,6 +511,10 @@ processing when lowering from CIR.
 The `coroutine` keyword is used to mark coroutine function, which requires
 at least one `cir.await` instruction to be used in its body.
 
+The `lambda` translates to a C++ `operator()` that implements a lambda, this
+allow callsites to make certain assumptions about the real function nature
+when writing analysis. The verifier should, but do act on this keyword yet.
+
 Example:
 
 ```mlir
@@ -522,10 +552,12 @@ Interfaces: CallableOpInterface, FunctionOpInterface, Symbol
 | `function_type` | ::mlir::TypeAttr | type attribute of function type
 | `builtin` | ::mlir::UnitAttr | unit attribute
 | `coroutine` | ::mlir::UnitAttr | unit attribute
+| `lambda` | ::mlir::UnitAttr | unit attribute
 | `linkage` | ::mlir::cir::GlobalLinkageKindAttr | Linkage type/kind
 | `sym_visibility` | ::mlir::StringAttr | string attribute
 | `arg_attrs` | ::mlir::ArrayAttr | Array of dictionary attributes
 | `res_attrs` | ::mlir::ArrayAttr | Array of dictionary attributes
+| `aliasee` | ::mlir::FlatSymbolRefAttr | flat symbol reference attribute
 | `ast` | ::mlir::cir::ASTFunctionDeclAttr | Wraps a 'const clang::FunctionDecl *' AST node.
 
 ### `cir.get_global` (::mlir::cir::GetGlobalOp)
@@ -752,7 +784,7 @@ each implies the loop regions execution order.
     cir.yield
   })  {
     %3 = cir.load %1 : cir.ptr <i32>, i32
-    %4 = cir.cst(1 : i32) : i32
+    %4 = cir.const(1 : i32) : i32
     %5 = cir.binop(add, %3, %4) : i32
     cir.store %5, %1 : i32, cir.ptr <i32>
     cir.yield
@@ -785,7 +817,7 @@ Given a base pointer as operand, provides a new pointer after applying
 a stride. Currently only used for array subscripts.
 
 ```mlir
-%3 = cir.cst(0 : i32) : i32
+%3 = cir.const(0 : i32) : i32
 %4 = cir.ptr_stride(%2 : !cir.ptr<i32>, %3 : i32), !cir.ptr<i32>
 ```
 
@@ -998,6 +1030,56 @@ Interfaces: ConditionallySpeculatable, RegionBranchOpInterface
 | :-----: | ----------- |
 | `condition` | integer
 
+### `cir.ternary` (::mlir::cir::TernaryOp)
+
+The `cond ? a : b` C/C++ ternary operation
+
+
+Syntax:
+
+```
+operation ::= `cir.ternary` `(` $cond `,`
+              `true` $trueRegion `,`
+              `false` $falseRegion
+              `)` `:` type($result) attr-dict
+```
+
+The `cir.ternary` operation represents C/C++ ternary, much like a `select`
+operation. First argument is a `cir.bool` condition to evaluate, followed
+by two regions to execute (true or false). This is different from `cir.if`
+since each region is one block sized and the `cir.yield` closing the block
+scope should have one argument.
+
+Example:
+
+```mlir
+// x = cond ? a : b;
+
+%x = cir.ternary (%cond, true_region {
+  ...
+  cir.yield %a : i32
+}, false_region {
+  ...
+  cir.yield %b : i32
+}) -> i32
+```
+
+Traits: AutomaticAllocationScope, NoRegionArguments, RecursivelySpeculatableImplTrait
+
+Interfaces: ConditionallySpeculatable, RegionBranchOpInterface
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `cond` | CIR bool type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | any type
+
 ### `cir.unary` (::mlir::cir::UnaryOp)
 
 Unary operations
@@ -1010,7 +1092,7 @@ operation ::= `cir.unary` `(` $kind `,` $input `)` `:` type($input) `,` type($re
 ```
 
 `cir.unary` performs the unary operation according to
-the specified opcode kind: [inc, dec, plus, minus].
+the specified opcode kind: [inc, dec, plus, minus, not].
 
 Note for inc and dec: the operation corresponds only to the
 addition/subtraction, its input is expect to come from a load
@@ -1048,6 +1130,58 @@ Effects: MemoryEffects::Effect{}
 | :----: | ----------- |
 | `result` | any type
 
+### `cir.vtable.address_point` (::mlir::cir::VTableAddrPointOp)
+
+Get the vtable (global variable) address point
+
+
+Syntax:
+
+```
+operation ::= `cir.vtable.address_point` `(` $name `,`
+              `vtable_index` `=` $vtable_index `,`
+              `address_point_index` `=` $address_point_index
+              `)`
+              `:` `cir.ptr` type($addr) attr-dict
+```
+
+The `vtable.address_point` operation retrieves the "effective" address
+(address point) of a C++ virtual table. An object internal `__vptr`
+gets initializated on top of the value returned by this operation.
+
+`vtable_index` provides the appropriate vtable within the vtable group
+(as specified by Itanium ABI), and `addr_point_index` the actual address
+point within that vtable.
+
+The return type is always a `!cir.ptr<!cir.ptr<() -> i32>>`.
+
+Example:
+```mlir
+cir.global linkonce_odr @_ZTV1B = ...
+...
+%3 = cir.vtable.address_point(@_ZTV1B, vtable_index = 0, address_point_index = 2) : cir.ptr <!cir.ptr<() -> i32>>
+```
+
+Traits: AlwaysSpeculatableImplTrait
+
+Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface), SymbolUserOpInterface
+
+Effects: MemoryEffects::Effect{}
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `name` | ::mlir::FlatSymbolRefAttr | flat symbol reference attribute
+| `vtable_index` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+| `address_point_index` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `addr` | CIR pointer type
+
 ### `cir.yield` (::mlir::cir::YieldOp)
 
 Terminate CIR regions
@@ -1060,12 +1194,10 @@ operation ::= `cir.yield` ($kind^)? ($args^ `:` type($args))? attr-dict
 ```
 
 The `cir.yield` operation terminates regions on different CIR operations:
-`cir.if`, `cir.scope`, `cir.switch`, `cir.loop` and `cir.await`.
+`cir.if`, `cir.scope`, `cir.switch`, `cir.loop`, `cir.await` and `cir.ternary`.
 
 Might yield an SSA value and the semantics of how the values are yielded is
-defined by the parent operation. Note: there are currently no uses of
-`cir.yield` with operands - should be helpful to represent lifetime
-extension out of short lived scopes in the future.
+defined by the parent operation.
 
 Optionally, `cir.yield` can be annotated with extra kind specifiers:
 - `break`: breaking out of the innermost `cir.switch` / `cir.loop` semantics,
@@ -1109,9 +1241,24 @@ cir.await(init, ready : {
   }
   cir.yield // control-flow to the next region for suspension.
 }, ...)
+
+cir.scope {
+  ...
+  cir.yield
+}
+
+%x = cir.scope {
+  ...
+  cir.yield %val
+}
+
+%y = cir.ternary {
+  ...
+  cir.yield %val : i32
+} : i32
 ```
 
-Traits: HasParent<IfOp, ScopeOp, SwitchOp, LoopOp, AwaitOp>, ReturnLike, Terminator
+Traits: HasParent<IfOp, ScopeOp, SwitchOp, LoopOp, AwaitOp, TernaryOp>, ReturnLike, Terminator
 
 #### Attributes:
 

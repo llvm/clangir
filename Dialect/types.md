@@ -55,5 +55,6 @@ C/C++ that has a struct type will have a `cir.struct` in CIR.
 | members | `::llvm::ArrayRef<mlir::Type>` | members |
 | typeName | `mlir::StringAttr` |  |
 | body | `bool` |  |
-| ast | `Optional<::mlir::cir::ASTRecordDeclAttr>` |  |
+| packed | `bool` |  |
+| ast | `std::optional<::mlir::cir::ASTRecordDeclAttr>` |  |
 
