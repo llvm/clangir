@@ -1123,7 +1123,7 @@ LValue CIRGenFunction::buildArraySubscriptExpr(const ArraySubscriptExpr *E,
     assert(!SanOpts.has(SanitizerKind::ArrayBounds) && "not implemented");
 
     // TODO: Extend or truncate the index type to 32 or 64-bits.
-    // if (Promote && !Idx.getType().isa<::mlir::cir::PointerType>()) {
+    // if (Promote && !mlir::isa<::mlir::cir::PointerType>(Idx.getType())) {
     //   Idx = Builder.CreateIntCast(Idx, IntPtrTy, IdxSigned, "idxprom");
     // }
 
