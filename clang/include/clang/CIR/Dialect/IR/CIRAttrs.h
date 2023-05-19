@@ -32,6 +32,7 @@ namespace mlir {
 namespace cir {
 class ArrayType;
 class StructType;
+class BoolType;
 } // namespace cir
 } // namespace mlir
 
