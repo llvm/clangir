@@ -456,8 +456,6 @@ public:
                   mlir::ConversionPatternRewriter &rewriter) const override {
     mlir::Attribute attr = op.getValue();
     if (op.getType().isa<mlir::cir::BoolType>()) {
-      mlir::Type type =
-          mlir::IntegerType::get(getContext(), 8, mlir::IntegerType::Signless);
       if (op.getValue() ==
           mlir::cir::BoolAttr::get(
               getContext(), ::mlir::cir::BoolType::get(getContext()), true))
