@@ -454,8 +454,19 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::ConstantOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
+    mlir::Attribute attr = op.getValue();
+    if (op.getType().isa<mlir::cir::BoolType>()) {
+      mlir::Type type =
+          mlir::IntegerType::get(getContext(), 8, mlir::IntegerType::Signless);
+      if (op.getValue() ==
+          mlir::cir::BoolAttr::get(
+              getContext(), ::mlir::cir::BoolType::get(getContext()), true))
+        attr = mlir::BoolAttr::get(getContext(), true);
+      else
+        attr = mlir::BoolAttr::get(getContext(), false);
+    }
     rewriter.replaceOpWithNewOp<mlir::LLVM::ConstantOp>(
-        op, getTypeConverter()->convertType(op.getType()), op.getValue());
+        op, getTypeConverter()->convertType(op.getType()), attr);
     return mlir::LogicalResult::success();
   }
 };
