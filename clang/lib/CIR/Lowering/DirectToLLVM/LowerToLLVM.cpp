@@ -107,7 +107,7 @@ public:
       if (rewroteContinue && rewroteBreak)
         break;
 
-      if (auto yieldOp = dyn_cast<mlir::cir::YieldOp>(bb.getTerminator())) {
+      if (auto yieldOp = mlir::dyn_cast<mlir::cir::YieldOp>(bb.getTerminator())) {
         rewriter.setInsertionPointToEnd(yieldOp->getBlock());
         if (yieldOp.getKind().has_value()) {
           switch (yieldOp.getKind().value()) {
@@ -133,7 +133,7 @@ public:
     rewriter.inlineRegionBefore(stepRegion, continueBlock);
 
     if (auto stepYieldOp =
-            dyn_cast<mlir::cir::YieldOp>(stepBackBlock.getTerminator())) {
+            mlir::dyn_cast<mlir::cir::YieldOp>(stepBackBlock.getTerminator())) {
       rewriter.setInsertionPointToEnd(stepYieldOp->getBlock());
       rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(
           stepYieldOp, stepYieldOp.getArgs(), &bodyFrontBlock);
@@ -144,7 +144,7 @@ public:
     rewriter.inlineRegionBefore(bodyRegion, continueBlock);
 
     if (auto bodyYieldOp =
-            dyn_cast<mlir::cir::YieldOp>(bodyBackBlock.getTerminator())) {
+            mlir::dyn_cast<mlir::cir::YieldOp>(bodyBackBlock.getTerminator())) {
       rewriter.setInsertionPointToEnd(bodyYieldOp->getBlock());
       rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(
           bodyYieldOp, bodyYieldOp.getArgs(), &condFrontBlock);
@@ -272,10 +272,10 @@ public:
 
     rewriter.setInsertionPointToEnd(thenAfterBody);
     if (auto thenYieldOp =
-            dyn_cast<mlir::cir::YieldOp>(thenAfterBody->getTerminator())) {
+            mlir::dyn_cast<mlir::cir::YieldOp>(thenAfterBody->getTerminator())) {
       rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(
           thenYieldOp, thenYieldOp.getArgs(), continueBlock);
-    } else if (!dyn_cast<mlir::cir::ReturnOp>(thenAfterBody->getTerminator())) {
+    } else if (!mlir::dyn_cast<mlir::cir::ReturnOp>(thenAfterBody->getTerminator())) {
       llvm_unreachable("what are we terminating with?");
     }
 
@@ -294,10 +294,10 @@ public:
 
     rewriter.setInsertionPointToEnd(elseAfterBody);
     if (auto elseYieldOp =
-            dyn_cast<mlir::cir::YieldOp>(elseAfterBody->getTerminator())) {
+            mlir::dyn_cast<mlir::cir::YieldOp>(elseAfterBody->getTerminator())) {
       rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(
           elseYieldOp, elseYieldOp.getArgs(), continueBlock);
-    } else if (!dyn_cast<mlir::cir::ReturnOp>(elseAfterBody->getTerminator())) {
+    } else if (!mlir::dyn_cast<mlir::cir::ReturnOp>(elseAfterBody->getTerminator())) {
       llvm_unreachable("what are we terminating with?");
     }
 
@@ -344,7 +344,7 @@ public:
     // Replace the scopeop return with a branch that jumps out of the body.
     // Stack restore before leaving the body region.
     rewriter.setInsertionPointToEnd(afterBody);
-    auto yieldOp = cast<mlir::cir::YieldOp>(afterBody->getTerminator());
+    auto yieldOp = mlir::cast<mlir::cir::YieldOp>(afterBody->getTerminator());
     auto branchOp = rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(
         yieldOp, yieldOp.getArgs(), continueBlock);
 
@@ -463,8 +463,17 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::ConstantOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
+    mlir::Attribute attr = op.getValue();
+    if (mlir::isa<mlir::cir::BoolType>(op.getType())) {
+      if (op.getValue() ==
+          mlir::cir::BoolAttr::get(
+              getContext(), ::mlir::cir::BoolType::get(getContext()), true))
+        attr = mlir::BoolAttr::get(getContext(), true);
+      else
+        attr = mlir::BoolAttr::get(getContext(), false);
+    }
     rewriter.replaceOpWithNewOp<mlir::LLVM::ConstantOp>(
-        op, getTypeConverter()->convertType(op.getType()), op.getValue());
+        op, getTypeConverter()->convertType(op.getType()), attr);
     return mlir::LogicalResult::success();
   }
 };
@@ -634,7 +643,7 @@ public:
             << constArr.getElts();
         return mlir::failure();
       }
-    } else if (llvm::isa<mlir::IntegerAttr, mlir::FloatAttr>(init.value())) {
+    } else if (mlir::isa<mlir::IntegerAttr, mlir::FloatAttr>(init.value())) {
       // Nothing to do since LLVM already supports these types as initializers.
     }
     // Initializer is a global: load global value in initializer block.
@@ -649,7 +658,7 @@ public:
 
       // Fetch global used as initializer.
       auto sourceSymbol =
-          dyn_cast<mlir::LLVM::GlobalOp>(mlir::SymbolTable::lookupSymbolIn(
+          mlir::dyn_cast<mlir::LLVM::GlobalOp>(mlir::SymbolTable::lookupSymbolIn(
               op->getParentOfType<mlir::ModuleOp>(), attr.getValue()));
 
       // Load and return the initializer value.

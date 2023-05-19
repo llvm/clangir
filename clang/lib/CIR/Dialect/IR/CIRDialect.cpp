@@ -47,6 +47,15 @@ struct CIROpAsmDialectInterface : public OpAsmDialectInterface {
 
     return AliasResult::NoAlias;
   }
+
+  AliasResult getAlias(Attribute attr, raw_ostream &os) const final {
+    if (auto boolAttr = mlir::dyn_cast<mlir::cir::BoolAttr>(attr)) {
+      os << (boolAttr.getValue() ? "true" : "false");
+      return AliasResult::FinalAlias;
+    }
+
+    return AliasResult::NoAlias;
+  }
 };
 } // namespace
 
@@ -151,7 +160,7 @@ static LogicalResult checkConstantTypes(mlir::Operation *op, mlir::Type opType,
     return op->emitOpError("zero expects struct type");
   }
 
-  if (mlir::isa<BoolAttr>(attrType)) {
+  if (mlir::isa<mlir::cir::BoolAttr>(attrType)) {
     if (!mlir::isa<mlir::cir::BoolType>(opType))
       return op->emitOpError("result type (")
              << opType << ") must be '!cir.bool' for '" << attrType << "'";
