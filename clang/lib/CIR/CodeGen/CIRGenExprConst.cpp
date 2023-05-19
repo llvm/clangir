@@ -1380,7 +1380,8 @@ mlir::Attribute ConstantEmitter::emitForMemory(CIRGenModule &CGM,
   // Zero-extend bool.
   auto typed = mlir::dyn_cast<mlir::TypedAttr>(C);
   if (typed && mlir::isa<mlir::cir::BoolType>(typed.getType())) {
-    assert(0 && "not implemented");
+    // Already taken care given that bool values coming from
+    // integers only carry true/false.
   }
 
   return C;
@@ -1406,7 +1407,7 @@ mlir::TypedAttr ConstantEmitter::tryEmitPrivate(const Expr *E, QualType T) {
   else
     C = ConstExprEmitter(*this).Visit(const_cast<Expr *>(E), T);
 
-  auto typedC = llvm::dyn_cast<mlir::TypedAttr>(C);
+  auto typedC = mlir::dyn_cast<mlir::TypedAttr>(C);
   if (!typedC)
     llvm_unreachable("this should always be typed");
   return typedC;
@@ -1414,6 +1415,7 @@ mlir::TypedAttr ConstantEmitter::tryEmitPrivate(const Expr *E, QualType T) {
 
 mlir::Attribute ConstantEmitter::tryEmitPrivate(const APValue &Value,
                                                 QualType DestType) {
+  auto &builder = CGM.getBuilder();
   switch (Value.getKind()) {
   case APValue::None:
   case APValue::Indeterminate:
@@ -1422,7 +1424,10 @@ mlir::Attribute ConstantEmitter::tryEmitPrivate(const APValue &Value,
     assert(0 && "not implemented");
   case APValue::Int: {
     mlir::Type ty = CGM.getCIRType(DestType);
-    return CGM.getBuilder().getIntegerAttr(ty, Value.getInt());
+    if (mlir::isa<mlir::cir::BoolType>(ty))
+      return builder.getCIRBoolAttr(Value.getInt().getZExtValue());
+    assert(mlir::isa<mlir::IntegerType>(ty) && "expected integral type");
+    return builder.getIntegerAttr(ty, Value.getInt());
   }
   case APValue::Float: {
     const llvm::APFloat &Init = Value.getFloat();
@@ -1432,7 +1437,7 @@ mlir::Attribute ConstantEmitter::tryEmitPrivate(const APValue &Value,
       assert(0 && "not implemented");
     else {
       mlir::Type ty = CGM.getCIRType(DestType);
-      return CGM.getBuilder().getFloatAttr(ty, Init);
+      return builder.getFloatAttr(ty, Init);
     }
   }
   case APValue::Array: {
