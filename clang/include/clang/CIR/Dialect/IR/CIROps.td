@@ -1417,7 +1417,7 @@ def FuncOp : CIR_Op<"func", [
   }];
 
   let arguments = (ins SymbolNameAttr:$sym_name,
-                       TypeAttrOf<FunctionType>:$function_type,
+                       TypeAttrOf<CIR_FuncType>:$function_type,
                        UnitAttr:$builtin,
                        UnitAttr:$coroutine,
                        UnitAttr:$lambda,
@@ -1432,7 +1432,7 @@ def FuncOp : CIR_Op<"func", [
   let skipDefaultBuilders = 1;
 
   let builders = [OpBuilder<(ins
-    "StringRef":$name, "FunctionType":$type,
+    "StringRef":$name, "FuncType":$type,
     CArg<"GlobalLinkageKind", "GlobalLinkageKind::ExternalLinkage">:$linkage,
     CArg<"ArrayRef<NamedAttribute>", "{}">:$attrs,
     CArg<"ArrayRef<DictionaryAttr>", "{}">:$argAttrs)
@@ -1519,7 +1519,7 @@ def CallOp : CIR_Op<"call",
       $_state.addTypes(callee.getFunctionType().getResults());
     }]>,
     OpBuilder<(ins "Value":$ind_target,
-               "FunctionType":$fn_type,
+               "FuncType":$fn_type,
                CArg<"ValueRange", "{}">:$operands), [{
       $_state.addOperands(ValueRange{ind_target});
       $_state.addOperands(operands);
@@ -1527,8 +1527,6 @@ def CallOp : CIR_Op<"call",
     }]>];
 
   let extraClassDeclaration = [{
-    FunctionType getCalleeType();
-
     /// Get the argument operands to the called function.
     operand_range getArgOperands() {
       auto arg_begin = arg_operand_begin();
