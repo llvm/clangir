@@ -253,6 +253,13 @@ LogicalResult CastOp::verify() {
       return emitOpError() << "requires integral type for result";
     return success();
   }
+  case cir::CastKind::ptr_to_bool: {
+    if (!mlir::isa<mlir::cir::BoolType>(resType))
+      return emitOpError() << "requires !cir.bool type for result";
+    if (!mlir::isa<mlir::cir::PointerType>(srcType))
+      return emitOpError() << "requires pointer type for result";
+    return success();
+  }
   case cir::CastKind::integral: {
     if (!mlir::isa<mlir::cir::IntType>(resType))
       return emitOpError() << "requires !IntegerType for result";
