@@ -615,11 +615,10 @@ mlir::LogicalResult CIRGenFunction::buildCaseStmt(const CaseStmt &S,
 
   auto *ctx = builder.getContext();
   caseEntry = mlir::cir::CaseAttr::get(
-      caseValueList,
+      ctx, caseValueList,
       CaseOpKindAttr::get(ctx, caseEltValueListAttr.size() > 1
                                    ? mlir::cir::CaseOpKind::Anyof
-                                   : mlir::cir::CaseOpKind::Equal),
-      ctx);
+                                   : mlir::cir::CaseOpKind::Equal));
   {
     mlir::OpBuilder::InsertionGuard guardCase(builder);
     res = buildStmt(
@@ -637,8 +636,8 @@ mlir::LogicalResult CIRGenFunction::buildDefaultStmt(const DefaultStmt &S,
   auto res = mlir::success();
   auto *ctx = builder.getContext();
   caseEntry = mlir::cir::CaseAttr::get(
-      builder.getArrayAttr({}),
-      CaseOpKindAttr::get(ctx, mlir::cir::CaseOpKind::Default), ctx);
+      ctx, builder.getArrayAttr({}),
+      CaseOpKindAttr::get(ctx, mlir::cir::CaseOpKind::Default));
   {
     mlir::OpBuilder::InsertionGuard guardCase(builder);
     res = buildStmt(S.getSubStmt(),
