@@ -817,15 +817,14 @@ def CaseEltValueListAttr :
   let constBuilderCall = ?;
 }
 
-def CaseAttr : StructAttr<"CaseAttr", CIR_Dialect, [
-  // Note that AnyAttr is used as placeholder since there's no generic
-  // (non-sized) integral attribute. Ultimately this must match the
-  // operand type.
-  // FIXME: value should probably be optioonal for more clear "default"
+def CaseAttr : AttrDef<CIR_Dialect, "Case"> {
+  // FIXME: value should probably be optional for more clear "default"
   // representation.
-  StructFieldAttr<"value", CaseEltValueListAttr>,
-  StructFieldAttr<"kind", CaseOpKind>
-]> {}
+  let parameters = (ins "ArrayAttr":$value, "CaseOpKindAttr":$kind);
+  let mnemonic = "case";
+  let assemblyFormat = "`<` struct(params) `>`";
+}
+
 
 def CaseArrayAttr :
   TypedArrayAttrBase<CaseAttr, "cir.switch case array attribute"> {
