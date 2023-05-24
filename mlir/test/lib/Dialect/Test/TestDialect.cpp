@@ -1884,7 +1884,6 @@ static ParseResult customParseProperties(OpAsmParser &parser,
 
 #include "TestOpEnums.cpp.inc"
 #include "TestOpInterfaces.cpp.inc"
-#include "TestOpStructs.cpp.inc"
 #include "TestTypeInterfaces.cpp.inc"
 
 #define GET_OP_CLASSES
