@@ -77,16 +77,16 @@ def AlternativesOp : TransformDialectOp<"alternatives",
 
     ```mlir
     %result = transform.alternatives %scope {
-    ^bb0(%arg0: !pdl.operation):
+    ^bb0(%arg0: !transform.any_op):
       // Try a fallible transformation.
       %0 = transform.fallible %arg0 // ...
       // If succeeded, yield the the result of the transformation.
-      transform.yield %0 : !pdl.operation
+      transform.yield %0 : !transform.any_op
     }, {
-    ^bb0(%arg0: !pdl.operation):
+    ^bb0(%arg0: !transform.any_op):
       // Otherwise, the second alternative is tried and it always succeeds by
       // returning the original handle.
-      transform.yield %arg0 : !pdl.operation
+      transform.yield %arg0 : !transform.any_op
     }
     ```
   }];
@@ -372,6 +372,10 @@ def IncludeOp : TransformDialectOp<"include",
       return getTarget();
     }
 
+    void setCalleeFromCallable(::mlir::CallInterfaceCallable callee) {
+      setTargetAttr(callee.get<SymbolRefAttr>());
+    }
+
     ::mlir::Operation::operand_range getArgOperands() {
       return getOperands();
     }
@@ -509,35 +513,47 @@ def NamedSequenceOp : TransformDialectOp<"named_sequence",
   }];
 }
 
-def SplitHandlesOp : TransformDialectOp<"split_handles",
+def SplitHandleOp : TransformDialectOp<"split_handle",
     [FunctionalStyleTransformOpTrait,
      DeclareOpInterfaceMethods<TransformOpInterface>,
      DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]> {
-  let summary = "Splits handles from a union of payload ops to a list";
+  let summary = "Splits a handle of payload ops into handles with a single op";
   let description = [{
-    Creates `num_result_handles` transform IR handles extracted from the
-    `handle` operand. The resulting Payload IR operation handles are listed
-    in the same order as the operations appear in the source `handle`.
-    This is useful for ensuring a statically known number of operations are
-    tracked by the source `handle` and to extract them into individual handles
-    that can be further manipulated in isolation.
+    Splits `handle` into one or multiple handles, as specified by the number
+    of results of this operation. `handle` should be mapped to as many payload
+    ops as there are results. Otherwise, this transform will fail silently by
+    default. Each result handle is mapped to exactly one payload op. The order
+    of the payload ops is preserved, i.e., the i-th payload op is mapped to the
+    i-th result handle.
 
-    This operation succeeds and returns `num_result_handles` if the statically
-    specified `num_result_handles` corresponds to the dynamic number of
-    operations contained in the source `handle`. Otherwise it silently fails.
+    This operation is useful for ensuring a statically known number of
+    operations are tracked by the source `handle` and to extract them into
+    individual handles that can be further manipulated in isolation.
+
+    If there are more payload ops than results, the remaining ops are mapped to
+    the result with index `overflow_result`. If no `overflow_result` is
+    specified, the transform fails silently.
+
+    If there are fewer payload ops than results, the transform fails silently
+    if `fail_on_payload_too_small` is set to "true". Otherwise, it succeeds and
+    the remaining result handles are not mapped to any op. It also succeeds if
+    `handle` is empty and `pass_through_empty_handle` is set to "true",
+    regardless of `fail_on_payload_too_small`.
   }];
 
   let arguments = (ins TransformHandleTypeInterface:$handle,
-                       I64Attr:$num_result_handles);
+                       DefaultValuedAttr<BoolAttr, "true">:$pass_through_empty_handle,
+                       DefaultValuedAttr<BoolAttr, "true">:$fail_on_payload_too_small,
+                       OptionalAttr<I64Attr>:$overflow_result);
   let results = (outs Variadic<TransformHandleTypeInterface>:$results);
+  let hasVerifier = 1;
 
   let builders = [
     OpBuilder<(ins "Value":$handle, "int64_t":$numResultHandles)>
   ];
 
   let assemblyFormat = [{
-    $handle `in` `[` $num_result_handles `]`
-    attr-dict `:` functional-type(operands, results)
+    $handle attr-dict `:` functional-type(operands, results)
   }];
 }
 
@@ -751,7 +767,7 @@ def WithPDLPatternsOp : TransformDialectOp<"with_pdl_patterns",
 
     ```mlir
     transform.with_pdl_patterns {
-    ^bb0(%arg0: !pdl.operation):
+    ^bb0(%arg0: !transform.any_op):
       pdl.pattern @my_pattern : benefit(1) {
         %0 = pdl.operation //...
         // Regular PDL goes here.
@@ -759,7 +775,7 @@ def WithPDLPatternsOp : TransformDialectOp<"with_pdl_patterns",
       }
 
       sequence %arg0 failures(propagate) {
-      ^bb0(%arg1: !pdl.operation):
+      ^bb0(%arg1: !transform.any_op):
         %1 = pdl_match @my_pattern in %arg1
         // Use %1 as handle
       }

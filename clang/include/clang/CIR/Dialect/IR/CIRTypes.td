@@ -184,8 +184,8 @@ def CIR_FuncType : CIR_Type<"Func", "func"> {
     ```
   }];
 
-  let parameters = (ins ArrayRefParameter<"Type">:$inputs, ArrayRefParameter<"Type">:$results,
-                        "bool":$varArg);
+  let parameters = (ins ArrayRefParameter<"Type">:$inputs,
+                        ArrayRefParameter<"Type">:$results, "bool":$varArg);
   let assemblyFormat = [{
     `<` $results ` ` `(` custom<FuncTypeArgs>($inputs, $varArg) `>`
   }];
