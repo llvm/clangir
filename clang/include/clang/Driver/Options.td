@@ -1436,6 +1436,12 @@ defm cir_warnings : BoolFOption<"cir-warnings",
   LangOpts<"CIRWarnings">, DefaultFalse,
   PosFlag<SetTrue, [CC1Option], "Use">, NegFlag<SetFalse, [], "Don't use">,
   BothFlags<[CoreOption], " CIR to emit (analysis based) warnings">>;
+def fcir_output_EQ : Joined<["-"], "fcir-output=">,
+  Group<f_Group>, HelpText<"Write clang IR (cir) to output file">,
+  Flags<[CC1Option, CoreOption]>, MarshallingInfoString<LangOpts<"CIRFile">>,
+  MetaVarName<"<file>">;
+def fcir_output : Flag<["-"], "fcir-output">,
+  Group<f_Group>, Flags<[CC1Option, CoreOption]>;
 
 defm addrsig : BoolFOption<"addrsig",
   CodeGenOpts<"Addrsig">, DefaultFalse,
