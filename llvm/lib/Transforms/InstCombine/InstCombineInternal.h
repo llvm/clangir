@@ -636,6 +636,8 @@ public:
                             SelectPatternFlavor SPF2, Value *C);
   Instruction *foldSelectInstWithICmp(SelectInst &SI, ICmpInst *ICI);
   Instruction *foldSelectValueEquivalence(SelectInst &SI, ICmpInst &ICI);
+  bool replaceInInstruction(Value *V, Value *Old, Value *New,
+                            unsigned Depth = 0);
 
   Value *insertRangeTest(Value *V, const APInt &Lo, const APInt &Hi,
                          bool isSigned, bool Inside);
@@ -652,10 +654,7 @@ public:
 
   Value *EvaluateInDifferentType(Value *V, Type *Ty, bool isSigned);
 
-  /// Returns a value X such that Val = X * Scale, or null if none.
-  ///
-  /// If the multiplication is known not to overflow then NoSignedWrap is set.
-  Value *Descale(Value *Val, APInt Scale, bool &NoSignedWrap);
+  bool tryToSinkInstruction(Instruction *I, BasicBlock *DestBlock);
 };
 
 class Negator final {

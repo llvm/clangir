@@ -630,7 +630,15 @@ public:
           // report the error elsewhere
           return *symbol;
         }
-        SayAlreadyDeclared(name, *symbol);
+        Symbol &errSym{*symbol};
+        if (auto *d{symbol->detailsIf<GenericDetails>()}) {
+          if (d->specific()) {
+            errSym = *d->specific();
+          } else if (d->derivedType()) {
+            errSym = *d->derivedType();
+          }
+        }
+        SayAlreadyDeclared(name, errSym);
       }
       // replace the old symbol with a new one with correct details
       EraseSymbol(*symbol);
@@ -749,8 +757,6 @@ public:
   }
 
 private:
-  // The default access spec for this module.
-  Attr defaultAccess_{Attr::PUBLIC};
   // The location of the last AccessStmt without access-ids, if any.
   std::optional<SourceName> prevAccessStmt_;
   // The scope of the module during a UseStmt
@@ -2331,6 +2337,10 @@ Symbol &ScopeHandler::MakeHostAssocSymbol(
                       .first->second};
   name.symbol = &symbol;
   symbol.attrs() = hostSymbol.attrs(); // TODO: except PRIVATE, PUBLIC?
+  // These attributes can be redundantly reapplied without error
+  // on the host-associated name, at most once (C815).
+  symbol.implicitAttrs() =
+      symbol.attrs() & Attrs{Attr::ASYNCHRONOUS, Attr::VOLATILE};
   symbol.flags() = hostSymbol.flags();
   return symbol;
 }
@@ -2426,6 +2436,13 @@ void ScopeHandler::ApplyImplicitRules(
   if (allowForwardReference && ImplicitlyTypeForwardRef(symbol)) {
     return;
   }
+  if (const auto *entity{symbol.detailsIf<EntityDetails>()};
+      entity && entity->isDummy()) {
+    // Dummy argument, no declaration or reference; if it turns
+    // out to be a subroutine, it's fine, and if it is a function
+    // or object, it'll be caught later.
+    return;
+  }
   if (!context().HasError(symbol)) {
     Say(symbol.name(), "No explicit type declared for '%s'"_err_en_US);
     context().SetError(symbol);
@@ -2457,8 +2474,7 @@ bool ScopeHandler::ImplicitlyTypeForwardRef(Symbol &symbol) {
     return false;
   }
   // TODO: check no INTENT(OUT) if dummy?
-  if (context().languageFeatures().ShouldWarn(
-          common::LanguageFeature::ForwardRefImplicitNone)) {
+  if (context().ShouldWarn(common::LanguageFeature::ForwardRefImplicitNone)) {
     Say(symbol.name(),
         "'%s' was used without (or before) being explicitly typed"_warn_en_US,
         symbol.name());
@@ -2891,9 +2907,7 @@ void ModuleVisitor::DoAddUse(SourceName location, SourceName localName,
 
   auto checkAmbiguousDerivedType{[this, location, localName](
                                      const Symbol *t1, const Symbol *t2) {
-    if (!t1 || !t2) {
-      return true;
-    } else {
+    if (t1 && t2) {
       t1 = &t1->GetUltimate();
       t2 = &t2->GetUltimate();
       if (&t1 != &t2) {
@@ -2904,6 +2918,7 @@ void ModuleVisitor::DoAddUse(SourceName location, SourceName localName,
         return false;
       }
     }
+    return true;
   }};
 
   auto *localGeneric{localUltimate.detailsIf<GenericDetails>()};
@@ -2911,29 +2926,18 @@ void ModuleVisitor::DoAddUse(SourceName location, SourceName localName,
   auto combine{false};
   if (localGeneric) {
     if (useGeneric) {
-      if (!checkAmbiguousDerivedType(
-              localGeneric->derivedType(), useGeneric->derivedType())) {
-        return;
-      }
-      combine = true;
+      combine = checkAmbiguousDerivedType(
+          localGeneric->derivedType(), useGeneric->derivedType());
     } else if (useUltimate.has<DerivedTypeDetails>()) {
-      if (checkAmbiguousDerivedType(
-              &useUltimate, localGeneric->derivedType())) {
-        combine = true;
-      } else {
-        return;
-      }
+      combine =
+          checkAmbiguousDerivedType(&useUltimate, localGeneric->derivedType());
     } else if (&useUltimate == &BypassGeneric(localUltimate).GetUltimate()) {
       return; // nothing to do; used subprogram is local's specific
     }
   } else if (useGeneric) {
     if (localUltimate.has<DerivedTypeDetails>()) {
-      if (checkAmbiguousDerivedType(
-              &localUltimate, useGeneric->derivedType())) {
-        combine = true;
-      } else {
-        return;
-      }
+      combine =
+          checkAmbiguousDerivedType(&localUltimate, useGeneric->derivedType());
     } else if (&localUltimate == &BypassGeneric(useUltimate).GetUltimate()) {
       // Local is the specific of the used generic; replace it.
       EraseSymbol(localSymbol);
@@ -2981,14 +2985,19 @@ void ModuleVisitor::DoAddUse(SourceName location, SourceName localName,
   // cases are handled above without needing to make a local copy of the
   // generic.)
 
+  std::optional<parser::MessageFixedText> msg;
   if (localGeneric) {
     if (localSymbol.has<UseDetails>()) {
       // Create a local copy of a previously use-associated generic so that
       // it can be locally extended without corrupting the original.
       GenericDetails generic;
       generic.CopyFrom(*localGeneric);
-      if (localGeneric->specific()) {
-        generic.set_specific(*localGeneric->specific());
+      if (Symbol * spec{localGeneric->specific()};
+          spec && !spec->attrs().test(Attr::PRIVATE)) {
+        generic.set_specific(*spec);
+      } else if (Symbol * dt{generic.derivedType()};
+                 dt && dt->attrs().test(Attr::PRIVATE)) {
+        generic.clear_derivedType();
       }
       EraseSymbol(localSymbol);
       Symbol &newSymbol{MakeSymbol(
@@ -3004,43 +3013,67 @@ void ModuleVisitor::DoAddUse(SourceName location, SourceName localName,
       localSymbol.flags() = useSymbol.flags();
       AddGenericUse(*localGeneric, localName, useUltimate);
       localGeneric->CopyFrom(*useGeneric);
-      if (useGeneric->specific()) {
-        if (!localGeneric->specific()) {
-          localGeneric->set_specific(
-              *const_cast<Symbol *>(useGeneric->specific()));
+      if (const Symbol * useSpec{useGeneric->specific()};
+          useSpec && !useSpec->attrs().test(Attr::PRIVATE)) {
+        if (localGeneric->derivedType()) {
+          msg =
+              "Cannot use-associate generic interface '%s' with specific procedure of the same name when another such interface and derived type are in scope"_err_en_US;
+        } else if (!localGeneric->specific()) {
+          localGeneric->set_specific(*const_cast<Symbol *>(useSpec));
         } else if (&localGeneric->specific()->GetUltimate() !=
-            &useGeneric->specific()->GetUltimate()) {
-          Say(location,
-              "Cannot use-associate generic interface '%s' with specific procedure of the same name when another such generic is in scope"_err_en_US,
-              localName)
-              .Attach(
-                  localSymbol.name(), "Previous USE of '%s'"_en_US, localName);
+            &useSpec->GetUltimate()) {
+          msg =
+              "Cannot use-associate generic interface '%s' with specific procedure of the same name when another such interface and procedure are in scope"_err_en_US;
+        }
+      } else if (const Symbol * useDT{useGeneric->derivedType()};
+                 useDT && !useDT->attrs().test(Attr::PRIVATE)) {
+        if (localGeneric->specific()) {
+          msg =
+              "Cannot use-associate generic interface '%s' with derived type of the same name when another such interface and procedure are in scope"_err_en_US;
+        } else if (!localGeneric->derivedType()) {
+          localGeneric->set_derivedType(*const_cast<Symbol *>(useDT));
+        } else if (&localGeneric->derivedType()->GetUltimate() !=
+            &useDT->GetUltimate()) {
+          msg =
+              "Cannot use-associate generic interface '%s' with derived type of the same name when another such interface and derived type are in scope"_err_en_US;
         }
       }
     } else {
       CHECK(useUltimate.has<DerivedTypeDetails>());
-      localGeneric->set_derivedType(
-          AddGenericUse(*localGeneric, localName, useUltimate));
+      if (!localGeneric->derivedType()) {
+        localGeneric->set_derivedType(
+            AddGenericUse(*localGeneric, localName, useUltimate));
+      } else if (&localGeneric->derivedType()->GetUltimate() != &useUltimate) {
+        msg =
+            "Cannot use-associate derived type '%s' when a generic interface and derived type of the same name are in scope"_err_en_US;
+      }
     }
   } else {
     CHECK(useGeneric && localUltimate.has<DerivedTypeDetails>());
     CHECK(localSymbol.has<UseDetails>());
     // Create a local copy of the use-associated generic, then extend it
     // with the local derived type.
-    GenericDetails generic;
-    generic.CopyFrom(*useGeneric);
-    if (useGeneric->specific()) {
-      generic.set_specific(*const_cast<Symbol *>(useGeneric->specific()));
+    if (!useGeneric->derivedType() ||
+        &useGeneric->derivedType()->GetUltimate() == &localUltimate) {
+      GenericDetails generic;
+      generic.CopyFrom(*useGeneric);
+      EraseSymbol(localSymbol);
+      Symbol &newSymbol{MakeSymbol(localName,
+          useUltimate.attrs() & ~Attrs{Attr::PUBLIC, Attr::PRIVATE},
+          std::move(generic))};
+      newSymbol.flags() = useUltimate.flags();
+      auto &newUseGeneric{newSymbol.get<GenericDetails>()};
+      AddGenericUse(newUseGeneric, localName, useUltimate);
+      newUseGeneric.AddUse(localSymbol);
+      newUseGeneric.set_derivedType(localSymbol);
+    } else if (useGeneric->derivedType()) {
+      msg =
+          "Cannot use-associate generic interface '%s' with derived type of the same name when another such derived type is in scope"_err_en_US;
     }
-    EraseSymbol(localSymbol);
-    Symbol &newSymbol{MakeSymbol(localName,
-        useUltimate.attrs() & ~Attrs{Attr::PUBLIC, Attr::PRIVATE},
-        std::move(generic))};
-    newSymbol.flags() = useUltimate.flags();
-    auto &newUseGeneric{newSymbol.get<GenericDetails>()};
-    AddGenericUse(newUseGeneric, localName, useUltimate);
-    newUseGeneric.AddUse(localSymbol);
-    newUseGeneric.set_derivedType(localSymbol);
+  }
+  if (msg) {
+    Say(location, std::move(*msg), localName)
+        .Attach(localSymbol.name(), "Previous USE of '%s'"_en_US, localName);
   }
 }
 
@@ -3119,7 +3152,6 @@ void ModuleVisitor::BeginModule(const parser::Name &name, bool isSubmodule) {
   auto &details{symbol.get<ModuleDetails>()};
   PushScope(Scope::Kind::Module, &symbol);
   details.set_scope(&currScope());
-  defaultAccess_ = Attr::PUBLIC;
   prevAccessStmt_ = std::nullopt;
 }
 
@@ -3142,10 +3174,15 @@ Scope *ModuleVisitor::FindModule(const parser::Name &name,
 }
 
 void ModuleVisitor::ApplyDefaultAccess() {
+  const auto *moduleDetails{
+      DEREF(currScope().symbol()).detailsIf<ModuleDetails>()};
+  CHECK(moduleDetails);
   for (auto &pair : currScope()) {
-    Symbol &symbol = *pair.second;
+    Symbol &symbol{*pair.second};
     if (!symbol.attrs().HasAny({Attr::PUBLIC, Attr::PRIVATE})) {
-      SetImplicitAttr(symbol, defaultAccess_);
+      SetImplicitAttr(symbol,
+          DEREF(moduleDetails).isDefaultPrivate() ? Attr::PRIVATE
+                                                  : Attr::PUBLIC);
     }
   }
 }
@@ -3533,7 +3570,7 @@ void SubprogramVisitor::Post(const parser::FunctionStmt &stmt) {
   // C1560.
   if (info.resultName && !distinctResultName) {
     Say(info.resultName->source,
-        "The function name should not appear in RESULT, references to '%s' "
+        "The function name should not appear in RESULT; references to '%s' "
         "inside the function will be considered as references to the "
         "result only"_warn_en_US,
         name.source);
@@ -4913,16 +4950,14 @@ bool DeclarationVisitor::Pre(const parser::PrivateStmt &) {
     derivedTypeInfo_.privateBindings = true;
   } else if (!derivedTypeInfo_.privateComps) {
     derivedTypeInfo_.privateComps = true;
-  } else {
-    Say("PRIVATE may not appear more than once in"
-        " derived type components"_warn_en_US); // C738
+  } else { // C738
+    Say("PRIVATE should not appear more than once in derived type components"_warn_en_US);
   }
   return false;
 }
 bool DeclarationVisitor::Pre(const parser::SequenceStmt &) {
-  if (derivedTypeInfo_.sequence) {
-    Say("SEQUENCE may not appear more than once in"
-        " derived type components"_warn_en_US); // C738
+  if (derivedTypeInfo_.sequence) { // C738
+    Say("SEQUENCE should not appear more than once in derived type components"_warn_en_US);
   }
   derivedTypeInfo_.sequence = true;
   return false;
@@ -7165,13 +7200,13 @@ void ResolveNamesVisitor::HandleProcedureName(
       symbol = &MakeSymbol(context().globalScope(), name.source, Attrs{});
     }
     Resolve(name, *symbol);
+    ConvertToProcEntity(*symbol);
     if (!symbol->attrs().test(Attr::INTRINSIC)) {
       if (CheckImplicitNoneExternal(name.source, *symbol)) {
         MakeExternal(*symbol);
       }
     }
     CheckEntryDummyUse(name.source, symbol);
-    ConvertToProcEntity(*symbol);
     SetProcFlag(name, *symbol, flag);
   } else if (CheckUseError(name)) {
     // error was reported
@@ -7187,9 +7222,7 @@ void ResolveNamesVisitor::HandleProcedureName(
     if (!SetProcFlag(name, *symbol, flag)) {
       return; // reported error
     }
-    if (!symbol->has<GenericDetails>()) {
-      CheckImplicitNoneExternal(name.source, *symbol);
-    }
+    CheckImplicitNoneExternal(name.source, *symbol);
     if (IsProcedure(*symbol) || symbol->has<DerivedTypeDetails>() ||
         symbol->has<AssocEntityDetails>()) {
       // Symbols with DerivedTypeDetails and AssocEntityDetails are accepted
@@ -7198,7 +7231,7 @@ void ResolveNamesVisitor::HandleProcedureName(
       // references that will be fixed later when analyzing expressions.
     } else if (symbol->has<ObjectEntityDetails>()) {
       // Symbols with ObjectEntityDetails are also accepted because this can be
-      // a mis-parsed array references that will be fixed later. Ensure that if
+      // a mis-parsed array reference that will be fixed later. Ensure that if
       // this is a symbol from a host procedure, a symbol with HostAssocDetails
       // is created for the current scope.
       // Operate on non ultimate symbol so that HostAssocDetails are also
@@ -7218,11 +7251,11 @@ void ResolveNamesVisitor::HandleProcedureName(
 
 bool ResolveNamesVisitor::CheckImplicitNoneExternal(
     const SourceName &name, const Symbol &symbol) {
-  if (isImplicitNoneExternal() && !symbol.attrs().test(Attr::EXTERNAL) &&
+  if (symbol.has<ProcEntityDetails>() && isImplicitNoneExternal() &&
+      !symbol.attrs().test(Attr::EXTERNAL) &&
       !symbol.attrs().test(Attr::INTRINSIC) && !symbol.HasExplicitInterface()) {
     Say(name,
-        "'%s' is an external procedure without the EXTERNAL"
-        " attribute in a scope with IMPLICIT NONE(EXTERNAL)"_err_en_US);
+        "'%s' is an external procedure without the EXTERNAL attribute in a scope with IMPLICIT NONE(EXTERNAL)"_err_en_US);
     return false;
   }
   return true;
@@ -7319,7 +7352,8 @@ bool ModuleVisitor::Pre(const parser::AccessStmt &x) {
           .Attach(*prevAccessStmt_, "Previous declaration"_en_US);
     }
     prevAccessStmt_ = currStmtSource();
-    defaultAccess_ = accessAttr;
+    auto *moduleDetails{DEREF(currScope().symbol()).detailsIf<ModuleDetails>()};
+    DEREF(moduleDetails).set_isDefaultPrivate(accessAttr == Attr::PRIVATE);
   } else {
     for (const auto &accessId : accessIds) {
       GenericSpecInfo info{accessId.v.value()};
@@ -8232,6 +8266,12 @@ void ResolveNamesVisitor::ResolveExecutionParts(const ProgramTree &node) {
     Walk(*exec);
   }
   FinishNamelists();
+  if (node.IsModule()) {
+    // A second final pass to catch new symbols added from implicitly
+    // typed names in NAMELIST groups or the specification parts of
+    // module subprograms.
+    ApplyDefaultAccess();
+  }
   PopScope(); // converts unclassified entities into objects
   for (const auto &child : node.children()) {
     ResolveExecutionParts(child);

@@ -247,11 +247,19 @@ void VPTransformState::addNewMetadata(Instruction *To,
 }
 
 void VPTransformState::addMetadata(Instruction *To, Instruction *From) {
+  // No source instruction to transfer metadata from?
+  if (!From)
+    return;
+
   propagateMetadata(To, From);
   addNewMetadata(To, From);
 }
 
 void VPTransformState::addMetadata(ArrayRef<Value *> To, Instruction *From) {
+  // No source instruction to transfer metadata from?
+  if (!From)
+    return;
+
   for (Value *V : To) {
     if (Instruction *I = dyn_cast<Instruction>(V))
       addMetadata(I, From);
@@ -269,7 +277,7 @@ void VPTransformState::setDebugLocFromInst(const Value *V) {
   // When a FSDiscriminator is enabled, we don't need to add the multiply
   // factors to the discriminators.
   if (DIL && Inst->getFunction()->shouldEmitDebugInfoForProfiling() &&
-      !isa<DbgInfoIntrinsic>(Inst) && !EnableFSDiscriminator) {
+      !Inst->isDebugOrPseudoInst() && !EnableFSDiscriminator) {
     // FIXME: For scalable vectors, assume vscale=1.
     auto NewDIL =
         DIL->cloneByMultiplyingDuplicationFactor(UF * VF.getKnownMinValue());
@@ -783,11 +791,7 @@ void VPlan::print(raw_ostream &O) const {
   if (!LiveOuts.empty())
     O << "\n";
   for (const auto &KV : LiveOuts) {
-    O << "Live-out ";
-    KV.second->getPhi()->printAsOperand(O);
-    O << " = ";
-    KV.second->getOperand(0)->printAsOperand(O, SlotTracker);
-    O << "\n";
+    KV.second->print(O, SlotTracker);
   }
 
   O << "}\n";

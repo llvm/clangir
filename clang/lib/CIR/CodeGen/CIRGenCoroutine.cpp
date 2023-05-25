@@ -197,7 +197,7 @@ CIRGenFunction::buildCoroAllocBuiltinCall(mlir::Location loc) {
     fnOp = CGM.createCIRFunction(
         loc, CGM.builtinCoroAlloc,
         builder.getType<mlir::cir::FuncType>(mlir::TypeRange{int32Ty},
-                                             mlir::TypeRange{boolTy}, false),
+                                             mlir::TypeRange{boolTy}),
         /*FD=*/nullptr);
     assert(fnOp && "should always succeed");
     fnOp.setBuiltinAttr(mlir::UnitAttr::get(builder.getContext()));
@@ -217,11 +217,11 @@ CIRGenFunction::buildCoroBeginBuiltinCall(mlir::Location loc,
 
   mlir::cir::FuncOp fnOp;
   if (!builtin) {
-    fnOp = CGM.createCIRFunction(loc, CGM.builtinCoroBegin,
-                                 builder.getType<mlir::cir::FuncType>(
-                                     mlir::TypeRange{int32Ty, int8PtrTy},
-                                     mlir::TypeRange{int8PtrTy}, false),
-                                 /*FD=*/nullptr);
+    fnOp = CGM.createCIRFunction(
+        loc, CGM.builtinCoroBegin,
+        builder.getType<mlir::cir::FuncType>(
+            mlir::TypeRange{int32Ty, int8PtrTy}, mlir::TypeRange{int8PtrTy}),
+        /*FD=*/nullptr);
     assert(fnOp && "should always succeed");
     fnOp.setBuiltinAttr(mlir::UnitAttr::get(builder.getContext()));
   } else
@@ -243,7 +243,7 @@ mlir::cir::CallOp CIRGenFunction::buildCoroEndBuiltinCall(mlir::Location loc,
     fnOp = CGM.createCIRFunction(
         loc, CGM.builtinCoroEnd,
         builder.getType<mlir::cir::FuncType>(mlir::TypeRange{int8PtrTy, boolTy},
-                                             mlir::TypeRange{boolTy}, false),
+                                             mlir::TypeRange{boolTy}),
         /*FD=*/nullptr);
     assert(fnOp && "should always succeed");
     fnOp.setBuiltinAttr(mlir::UnitAttr::get(builder.getContext()));
