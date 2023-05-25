@@ -17,7 +17,7 @@ unsigned char cxxstaticcast_0(unsigned int x) {
 // CHECK:  }
 
 
-int cStyleCasts_0(unsigned x1, int x2) {
+int cStyleCasts_0(unsigned x1, int x2, float x3) {
 // CHECK: cir.func @_{{.*}}cStyleCasts_0{{.*}}
 
   char a = (char)x1; // truncate
@@ -36,6 +36,10 @@ int cStyleCasts_0(unsigned x1, int x2) {
   int* e = (int*)arr; // explicit pointer decay
   // CHECK: %{{[0-9]+}} = cir.cast(array_to_ptrdecay, %{{[0-9]+}} : !cir.ptr<!cir.array<!s32i x 3>>), !cir.ptr<!s32i>
 
+  int f = (int)x3;
+  // CHECK: %{{[0-9]+}} = cir.cast(float_to_int, %{{[0-9]+}} : f32), !s32i
+
+
   return 0;
 }
 
@@ -49,3 +53,17 @@ bool cptr(void *d) {
 
 // CHECK:   %3 = cir.load %0 : cir.ptr <!cir.ptr<i8>>, !cir.ptr<i8>
 // CHECK:   %4 = cir.cast(ptr_to_bool, %3 : !cir.ptr<i8>), !cir.bool
+
+void call_cptr(void *d) {
+  if (!cptr(d)) {
+  }
+}
+
+// CHECK: cir.func @_Z9call_cptrPv(%arg0: !cir.ptr<i8>
+// CHECK:   %0 = cir.alloca !cir.ptr<i8>, cir.ptr <!cir.ptr<i8>>, ["d", init] {alignment = 8 : i64}
+
+// CHECK:   cir.scope {
+// CHECK:     %1 = cir.load %0 : cir.ptr <!cir.ptr<i8>>, !cir.ptr<i8>
+// CHECK:     %2 = cir.call @_Z4cptrPv(%1) : (!cir.ptr<i8>) -> !cir.bool
+// CHECK:     %3 = cir.unary(not, %2) : !cir.bool, !cir.bool
+// CHECK:     cir.if %3 {

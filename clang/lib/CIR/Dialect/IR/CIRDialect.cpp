@@ -289,6 +289,13 @@ LogicalResult CastOp::verify() {
       return emitOpError() << "requries floating for source and result";
     return success();
   }
+  case cir::CastKind::float_to_int: {
+    if (!srcType.dyn_cast<mlir::FloatType>())
+      return emitOpError() << "requires floating for source";
+    if (!resType.dyn_cast<mlir::cir::IntType>())
+      return emitOpError() << "requires !IntegerType for result";
+    return success();
+  }
   }
 
   llvm_unreachable("Unknown CastOp kind?");
@@ -868,15 +875,15 @@ parseSwitchOp(OpAsmParser &parser,
     case cir::CaseOpKind::Default: {
       if (parser.parseRParen().failed())
         return parser.emitError(parser.getCurrentLocation(), "expected ')'");
-      cases.push_back(cir::CaseAttr::get(parser.getBuilder().getArrayAttr({}),
-                                         kindAttr, parser.getContext()));
+      cases.push_back(cir::CaseAttr::get(
+          parser.getContext(), parser.getBuilder().getArrayAttr({}), kindAttr));
       return parseAndCheckRegion();
     }
     }
 
     caseValueList = parser.getBuilder().getArrayAttr(caseEltValueListAttr);
     cases.push_back(
-        cir::CaseAttr::get(caseValueList, kindAttr, parser.getContext()));
+        cir::CaseAttr::get(parser.getContext(), caseValueList, kindAttr));
     if (succeeded(parser.parseOptionalColon())) {
       Type caseIntTy;
       if (parser.parseType(caseIntTy).failed())
@@ -932,7 +939,7 @@ void printSwitchOp(OpAsmPrinter &p, SwitchOp op,
     p << "case (";
 
     auto attr = casesAttr[idx].cast<CaseAttr>();
-    auto kind = attr.kind().getValue();
+    auto kind = attr.getKind().getValue();
     assert((kind == CaseOpKind::Default || kind == CaseOpKind::Equal ||
             kind == CaseOpKind::Anyof) &&
            "unknown case");
@@ -944,16 +951,16 @@ void printSwitchOp(OpAsmPrinter &p, SwitchOp op,
     switch (kind) {
     case cir::CaseOpKind::Equal: {
       p << ", ";
-      p.printStrippedAttrOrType(attr.value()[0]);
+      p.printStrippedAttrOrType(attr.getValue()[0]);
       break;
     }
     case cir::CaseOpKind::Anyof: {
       p << ", [";
-      llvm::interleaveComma(attr.value(), p, [&](const Attribute &a) {
+      llvm::interleaveComma(attr.getValue(), p, [&](const Attribute &a) {
         p.printAttributeWithoutType(a);
       });
       p << "] : ";
-      auto typedAttr = attr.value()[0].dyn_cast<TypedAttr>();
+      auto typedAttr = attr.getValue()[0].dyn_cast<TypedAttr>();
       assert(typedAttr && "this should never not have a type!");
       p.printType(typedAttr.getType());
       break;

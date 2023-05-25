@@ -100,6 +100,7 @@ libc_support_library(
     name = "__support_macros_optimization",
     hdrs = ["src/__support/macros/optimization.h"],
     deps = [
+        ":__support_macros_attributes",
         ":__support_macros_config",
         ":__support_macros_properties_compiler",
         ":libc_root",
@@ -197,7 +198,10 @@ libc_support_library(
 libc_support_library(
     name = "__support_cpp_optional",
     hdrs = ["src/__support/CPP/optional.h"],
-    deps = [":libc_root"],
+    deps = [
+        ":__support_cpp_utility",
+        ":libc_root",
+    ],
 )
 
 libc_support_library(
@@ -533,9 +537,11 @@ libc_support_library(
         ":__support_builtin_wrappers",
         ":__support_common",
         ":__support_cpp_bit",
+        ":__support_cpp_string",
         ":__support_cpp_type_traits",
         ":__support_fputil_float_properties",
         ":__support_fputil_platform_defs",
+        ":__support_integer_to_string",
         ":__support_uint128",
         ":libc_root",
     ],
@@ -949,6 +955,7 @@ libc_support_library(
     srcs = ["src/math/generic/common_constants.cpp"],
     hdrs = ["src/math/generic/common_constants.h"],
     deps = [
+        ":__support_number_pair",
         ":libc_root",
     ],
 )
@@ -2274,6 +2281,7 @@ libc_support_library(
         ":__support_cpp_string_view",
         ":__support_float_to_string",
         ":__support_fputil_fenv_impl",
+        ":__support_fputil_float_properties",
         ":__support_fputil_fp_bits",
         ":__support_integer_to_string",
         ":__support_libc_assert",
