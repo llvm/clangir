@@ -17,12 +17,17 @@
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMTypes.h"
 #include "mlir/IR/Builders.h"
+#include "mlir/IR/Diagnostics.h"
 #include "mlir/IR/DialectImplementation.h"
 #include "mlir/IR/FunctionImplementation.h"
+#include "mlir/IR/Location.h"
 #include "mlir/IR/OpDefinition.h"
 #include "mlir/IR/OpImplementation.h"
+#include "mlir/IR/StorageUniquerSupport.h"
 #include "mlir/IR/TypeUtilities.h"
 #include "mlir/Interfaces/InferTypeOpInterface.h"
+#include "mlir/Support/LLVM.h"
+#include "mlir/Support/LogicalResult.h"
 
 using namespace mlir;
 using namespace mlir::cir;
@@ -1272,7 +1277,7 @@ VTableAddrPointOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
 
 LogicalResult cir::VTableAddrPointOp::verify() {
   auto resultType = getAddr().getType();
-  auto fnTy = mlir::FunctionType::get(
+  auto fnTy = mlir::cir::FuncType::get(
       getContext(), {}, {mlir::IntegerType::get(getContext(), 32)});
   auto resTy = mlir::cir::PointerType::get(
       getContext(), mlir::cir::PointerType::get(getContext(), fnTy));
@@ -1292,7 +1297,7 @@ LogicalResult cir::VTableAddrPointOp::verify() {
 static StringRef getLinkageAttrNameString() { return "linkage"; }
 
 void cir::FuncOp::build(OpBuilder &builder, OperationState &result,
-                        StringRef name, FunctionType type,
+                        StringRef name, cir::FuncType type,
                         GlobalLinkageKind linkage,
                         ArrayRef<NamedAttribute> attrs,
                         ArrayRef<DictionaryAttr> argAttrs) {
@@ -1315,6 +1320,8 @@ void cir::FuncOp::build(OpBuilder &builder, OperationState &result,
 }
 
 ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
+  llvm::SMLoc loc = parser.getCurrentLocation();
+
   auto builtinNameAttr = getBuiltinAttrName(state.name);
   auto coroutineNameAttr = getCoroutineAttrName(state.name);
   auto lambdaNameAttr = getLambdaAttrName(state.name);
@@ -1357,14 +1364,19 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
   // Parse the function signature.
   bool isVariadic = false;
   if (function_interface_impl::parseFunctionSignature(
-          parser, /*allowVariadic=*/false, arguments, isVariadic, resultTypes,
+          parser, /*allowVariadic=*/true, arguments, isVariadic, resultTypes,
           resultAttrs))
     return failure();
 
   for (auto &arg : arguments)
     argTypes.push_back(arg.type);
 
-  auto fnType = builder.getFunctionType(argTypes, resultTypes);
+  // Build the function type.
+  auto fnType = mlir::cir::FuncType::getChecked(
+      parser.getEncodedSourceLoc(loc), parser.getContext(),
+      mlir::TypeRange(argTypes), mlir::TypeRange(resultTypes), isVariadic);
+  if (!fnType)
+    return failure();
   state.addAttribute(getFunctionTypeAttrName(state.name),
                      TypeAttr::get(fnType));
 
@@ -1394,7 +1406,6 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
 
   // Parse the optional function body.
   auto *body = state.addRegion();
-  llvm::SMLoc loc = parser.getCurrentLocation();
   OptionalParseResult parseResult = parser.parseOptionalRegion(
       *body, arguments, /*enableNameShadowing=*/false);
   if (parseResult.has_value()) {
@@ -1457,9 +1468,8 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
   // Print function name, signature, and control.
   p.printSymbolName(getSymName());
   auto fnType = getFunctionType();
-  function_interface_impl::printFunctionSignature(p, *this, fnType.getInputs(),
-                                                  /*isVariadic=*/false,
-                                                  fnType.getResults());
+  function_interface_impl::printFunctionSignature(
+      p, *this, fnType.getInputs(), fnType.isVarArg(), fnType.getResults());
   function_interface_impl::printFunctionAttributes(
       p, *this,
       {getSymVisibilityAttrName(), getAliaseeAttrName(),
@@ -1485,7 +1495,7 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
 // getNumArguments hook not failing.
 LogicalResult cir::FuncOp::verifyType() {
   auto type = getFunctionType();
-  if (!type.isa<FunctionType>())
+  if (!type.isa<cir::FuncType>())
     return emitOpError("requires '" + getFunctionTypeAttrName().str() +
                        "' attribute of function type");
   if (getFunctionType().getNumResults() > 1)
@@ -1558,8 +1568,10 @@ cir::CallOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
 
   // Verify that the operand and result types match the callee.
   auto fnType = fn.getFunctionType();
-  if (fnType.getNumInputs() != getNumOperands())
+  if (!fnType.isVarArg() && getNumOperands() != fnType.getNumInputs())
     return emitOpError("incorrect number of operands for callee");
+  if (fnType.isVarArg() && getNumOperands() < fnType.getNumInputs())
+    return emitOpError("too few operands for callee");
 
   for (unsigned i = 0, e = fnType.getNumInputs(); i != e; ++i)
     if (getOperand(i).getType() != fnType.getInput(i))
@@ -1579,10 +1591,6 @@ cir::CallOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
     }
 
   return success();
-}
-
-FunctionType CallOp::getCalleeType() {
-  return FunctionType::get(getContext(), getOperandTypes(), getResultTypes());
 }
 
 ::mlir::ParseResult CallOp::parse(::mlir::OpAsmParser &parser,
