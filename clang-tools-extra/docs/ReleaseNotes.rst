@@ -103,6 +103,9 @@ Improvements to clang-tidy
 
 - Fix a potential crash when using the `--dump-config` option.
 
+- Support specifying `SystemHeaders` in the `.clang-tidy` configuration file,
+  with the same functionality as the command-line option `--system-headers`.
+
 New checks
 ^^^^^^^^^^
 
@@ -137,6 +140,12 @@ New checks
   <clang-tidy/checks/cppcoreguidelines/misleading-capture-default-by-value>` check.
 
   Warns when lambda specify a by-value capture default and capture ``this``.
+
+- New :doc:`cppcoreguidelines-missing-std-forward
+  <clang-tidy/checks/cppcoreguidelines/missing-std-forward>` check.
+
+  Warns when a forwarding reference parameter is not forwarded within the
+  function body.
 
 - New :doc:`cppcoreguidelines-rvalue-reference-param-not-moved
   <clang-tidy/checks/cppcoreguidelines/rvalue-reference-param-not-moved>` check.
@@ -192,6 +201,12 @@ New check aliases
 
 Changes in existing checks
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+- Fixed false-positives in :doc:`bugprone-branch-clone
+  <clang-tidy/checks/bugprone/branch-clone>` check by ignoring auto-generated
+  code, template instances, implicit code patterns and duplicated switch cases
+  marked with the ``[[fallthrough]]`` attribute.
+
 - Improved :doc:`readability-redundant-string-cstr
   <clang-tidy/checks/readability/redundant-string-cstr>` check to recognise
   unnecessary ``std::string::c_str()`` and ``std::string::data()`` calls in

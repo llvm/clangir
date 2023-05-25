@@ -19,7 +19,7 @@ header_restrictions = {
 
     "filesystem": "!defined(_LIBCPP_HAS_NO_FILESYSTEM_LIBRARY)",
 
-    # TODO LLVM17: simplify this to __cplusplus >= 202002L
+    # TODO(LLVM-17): simplify this to __cplusplus >= 202002L
     "coroutine": "(defined(__cpp_impl_coroutine) && __cpp_impl_coroutine >= 201902L) || (defined(__cpp_coroutines) && __cpp_coroutines >= 201703L)",
 
     "clocale": "!defined(_LIBCPP_HAS_NO_LOCALIZATION)",
@@ -126,13 +126,11 @@ def main():
 
     toplevel_headers     = sorted(str(p.relative_to(include)) for p in include.glob('[a-z]*') if is_header(p))
     experimental_headers = sorted(str(p.relative_to(include)) for p in include.glob('experimental/[a-z]*') if is_header(p))
-    extended_headers     = sorted(str(p.relative_to(include)) for p in include.glob('ext/[a-z]*') if is_header(p))
-    public_headers       = toplevel_headers + experimental_headers + extended_headers
+    public_headers       = toplevel_headers + experimental_headers
     private_headers      = sorted(str(p.relative_to(include)) for p in include.rglob('*') if is_header(p) and str(p.relative_to(include)).startswith('__') and not p.name.startswith('pstl'))
     variables = {
         'toplevel_headers': toplevel_headers,
         'experimental_headers': experimental_headers,
-        'extended_headers': extended_headers,
         'public_headers': public_headers,
         'private_headers': private_headers,
         'header_restrictions': header_restrictions,

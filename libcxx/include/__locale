@@ -12,6 +12,7 @@
 
 #include <__availability>
 #include <__config>
+#include <__type_traits/make_unsigned.h>
 #include <cctype>
 #include <clocale>
 #include <cstdint>
@@ -35,9 +36,6 @@
 # include <__support/ibm/xlocale.h>
 #elif defined(__ANDROID__)
 # include <__support/android/locale_bionic.h>
-#elif defined(__sun__)
-# include <__support/solaris/xlocale.h>
-# include <xlocale.h>
 #elif defined(_NEWLIB_VERSION)
 # include <__support/newlib/xlocale.h>
 #elif defined(__OpenBSD__)
@@ -214,11 +212,11 @@ public:
     typedef _CharT char_type;
     typedef basic_string<char_type> string_type;
 
-    _LIBCPP_INLINE_VISIBILITY
+    _LIBCPP_HIDE_FROM_ABI _LIBCPP_EXCLUDE_FROM_EXPLICIT_INSTANTIATION
     explicit collate(size_t __refs = 0)
         : locale::facet(__refs) {}
 
-    _LIBCPP_INLINE_VISIBILITY
+    _LIBCPP_HIDE_FROM_ABI _LIBCPP_EXCLUDE_FROM_EXPLICIT_INSTANTIATION
     int compare(const char_type* __lo1, const char_type* __hi1,
                 const char_type* __lo2, const char_type* __hi2) const
     {
@@ -227,14 +225,14 @@ public:
 
     // FIXME(EricWF): The _LIBCPP_ALWAYS_INLINE is needed on Windows to work
     // around a dllimport bug that expects an external instantiation.
-    _LIBCPP_INLINE_VISIBILITY
+    _LIBCPP_HIDE_FROM_ABI _LIBCPP_EXCLUDE_FROM_EXPLICIT_INSTANTIATION
     _LIBCPP_ALWAYS_INLINE
     string_type transform(const char_type* __lo, const char_type* __hi) const
     {
         return do_transform(__lo, __hi);
     }
 
-    _LIBCPP_INLINE_VISIBILITY
+    _LIBCPP_HIDE_FROM_ABI _LIBCPP_EXCLUDE_FROM_EXPLICIT_INSTANTIATION
     long hash(const char_type* __lo, const char_type* __hi) const
     {
         return do_hash(__lo, __hi);
@@ -432,7 +430,7 @@ public:
     static const mask blank  = _CTYPE_B;
     static const mask __regex_word = 0x80;
 # endif
-#elif defined(__sun__) || defined(_AIX)
+#elif defined(_AIX)
     typedef unsigned int mask;
     static const mask space  = _ISSPACE;
     static const mask print  = _ISPRINT;
@@ -444,11 +442,7 @@ public:
     static const mask punct  = _ISPUNCT;
     static const mask xdigit = _ISXDIGIT;
     static const mask blank  = _ISBLANK;
-# if defined(_AIX)
     static const mask __regex_word = 0x8000;
-# else
-    static const mask __regex_word = 0x80;
-# endif
 #elif defined(_NEWLIB_VERSION)
     // Same type as Newlib's _ctype_ array in newlib/libc/include/ctype.h.
     typedef char mask;
@@ -1440,10 +1434,10 @@ class _LIBCPP_TEMPLATE_VIS codecvt_byname
     : public codecvt<_InternT, _ExternT, _StateT>
 {
 public:
-    _LIBCPP_INLINE_VISIBILITY
+    _LIBCPP_HIDE_FROM_ABI _LIBCPP_EXCLUDE_FROM_EXPLICIT_INSTANTIATION
     explicit codecvt_byname(const char* __nm, size_t __refs = 0)
         : codecvt<_InternT, _ExternT, _StateT>(__nm, __refs) {}
-    _LIBCPP_INLINE_VISIBILITY
+    _LIBCPP_HIDE_FROM_ABI _LIBCPP_EXCLUDE_FROM_EXPLICIT_INSTANTIATION
     explicit codecvt_byname(const string& __nm, size_t __refs = 0)
         : codecvt<_InternT, _ExternT, _StateT>(__nm.c_str(), __refs) {}
 protected:

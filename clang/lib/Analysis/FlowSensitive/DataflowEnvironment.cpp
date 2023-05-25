@@ -245,7 +245,7 @@ void Environment::initFieldsGlobalsAndFuncs(const FunctionDecl *FuncDecl) {
   DACtx->addModeledFields(Fields);
 
   for (const VarDecl *D : Vars) {
-    if (getStorageLocation(*D, SkipPast::None) != nullptr)
+    if (getStorageLocation(*D) != nullptr)
       continue;
     auto &Loc = createStorageLocation(D->getType().getNonReferenceType());
     setStorageLocation(*D, Loc);
@@ -254,7 +254,7 @@ void Environment::initFieldsGlobalsAndFuncs(const FunctionDecl *FuncDecl) {
   }
 
   for (const FunctionDecl *FD : Funcs) {
-    if (getStorageLocation(*FD, SkipPast::None) != nullptr)
+    if (getStorageLocation(*FD) != nullptr)
       continue;
     auto &Loc = createStorageLocation(FD->getType());
     setStorageLocation(*FD, Loc);
@@ -605,10 +605,7 @@ void Environment::setStorageLocation(const ValueDecl &D, StorageLocation &Loc) {
   DeclToLoc[&D] = &Loc;
 }
 
-StorageLocation *Environment::getStorageLocation(const ValueDecl &D,
-                                                 SkipPast SP) const {
-  assert(SP != SkipPast::ReferenceThenPointer);
-
+StorageLocation *Environment::getStorageLocation(const ValueDecl &D) const {
   auto It = DeclToLoc.find(&D);
   if (It == DeclToLoc.end())
     return nullptr;
@@ -626,11 +623,36 @@ void Environment::setStorageLocation(const Expr &E, StorageLocation &Loc) {
   ExprToLoc[&CanonE] = &Loc;
 }
 
+void Environment::setStorageLocationStrict(const Expr &E,
+                                           StorageLocation &Loc) {
+  // `DeclRefExpr`s to builtin function types aren't glvalues, for some reason,
+  // but we still want to be able to associate a `StorageLocation` with them,
+  // so allow these as an exception.
+  assert(E.isGLValue() ||
+         E.getType()->isSpecificBuiltinType(BuiltinType::BuiltinFn));
+  setStorageLocation(E, Loc);
+}
+
 StorageLocation *Environment::getStorageLocation(const Expr &E,
                                                  SkipPast SP) const {
   // FIXME: Add a test with parens.
   auto It = ExprToLoc.find(&ignoreCFGOmittedNodes(E));
   return It == ExprToLoc.end() ? nullptr : &skip(*It->second, SP);
+}
+
+StorageLocation *Environment::getStorageLocationStrict(const Expr &E) const {
+  // See comment in `setStorageLocationStrict()`.
+  assert(E.isGLValue() ||
+         E.getType()->isSpecificBuiltinType(BuiltinType::BuiltinFn));
+  StorageLocation *Loc = getStorageLocation(E, SkipPast::None);
+
+  if (Loc == nullptr)
+    return nullptr;
+
+  if (auto *RefVal = dyn_cast_or_null<ReferenceValue>(getValue(*Loc)))
+    return &RefVal->getReferentLoc();
+
+  return Loc;
 }
 
 StorageLocation *Environment::getThisPointeeStorageLocation() const {
@@ -678,15 +700,25 @@ void Environment::setValue(const StorageLocation &Loc, Value &Val) {
   }
 }
 
+void Environment::setValueStrict(const Expr &E, Value &Val) {
+  assert(E.isPRValue());
+  assert(!isa<ReferenceValue>(Val));
+
+  StorageLocation *Loc = getStorageLocation(E, SkipPast::None);
+  if (Loc == nullptr) {
+    Loc = &createStorageLocation(E);
+    setStorageLocation(E, *Loc);
+  }
+  setValue(*Loc, Val);
+}
+
 Value *Environment::getValue(const StorageLocation &Loc) const {
   auto It = LocToVal.find(&Loc);
   return It == LocToVal.end() ? nullptr : It->second;
 }
 
-Value *Environment::getValue(const ValueDecl &D, SkipPast SP) const {
-  assert(SP != SkipPast::ReferenceThenPointer);
-
-  auto *Loc = getStorageLocation(D, SP);
+Value *Environment::getValue(const ValueDecl &D) const {
+  auto *Loc = getStorageLocation(D);
   if (Loc == nullptr)
     return nullptr;
   return getValue(*Loc);
@@ -697,6 +729,15 @@ Value *Environment::getValue(const Expr &E, SkipPast SP) const {
   if (Loc == nullptr)
     return nullptr;
   return getValue(*Loc);
+}
+
+Value *Environment::getValueStrict(const Expr &E) const {
+  assert(E.isPRValue());
+  Value *Val = getValue(E, SkipPast::None);
+
+  assert(Val == nullptr || !isa<ReferenceValue>(Val));
+
+  return Val;
 }
 
 Value *Environment::createValue(QualType Type) {
@@ -787,11 +828,6 @@ StorageLocation &Environment::skip(StorageLocation &Loc, SkipPast SP) const {
     if (auto *Val = dyn_cast_or_null<ReferenceValue>(getValue(Loc)))
       return Val->getReferentLoc();
     return Loc;
-  case SkipPast::ReferenceThenPointer:
-    StorageLocation &LocPastRef = skip(Loc, SkipPast::Reference);
-    if (auto *Val = dyn_cast_or_null<PointerValue>(getValue(LocPastRef)))
-      return Val->getPointeeLoc();
-    return LocPastRef;
   }
   llvm_unreachable("bad SkipPast kind");
 }
@@ -831,6 +867,40 @@ void Environment::dump(raw_ostream &OS) const {
 
 void Environment::dump() const {
   dump(llvm::dbgs());
+}
+
+AggregateStorageLocation *
+getImplicitObjectLocation(const CXXMemberCallExpr &MCE,
+                          const Environment &Env) {
+  Expr *ImplicitObject = MCE.getImplicitObjectArgument();
+  if (ImplicitObject == nullptr)
+    return nullptr;
+  StorageLocation *Loc =
+      Env.getStorageLocation(*ImplicitObject, SkipPast::Reference);
+  if (Loc == nullptr)
+    return nullptr;
+  if (ImplicitObject->getType()->isPointerType()) {
+    if (auto *Val = cast_or_null<PointerValue>(Env.getValue(*Loc)))
+      return &cast<AggregateStorageLocation>(Val->getPointeeLoc());
+    return nullptr;
+  }
+  return cast<AggregateStorageLocation>(Loc);
+}
+
+AggregateStorageLocation *getBaseObjectLocation(const MemberExpr &ME,
+                                                const Environment &Env) {
+  Expr *Base = ME.getBase();
+  if (Base == nullptr)
+    return nullptr;
+  StorageLocation *Loc = Env.getStorageLocation(*Base, SkipPast::Reference);
+  if (Loc == nullptr)
+    return nullptr;
+  if (ME.isArrow()) {
+    if (auto *Val = cast_or_null<PointerValue>(Env.getValue(*Loc)))
+      return &cast<AggregateStorageLocation>(Val->getPointeeLoc());
+    return nullptr;
+  }
+  return cast<AggregateStorageLocation>(Loc);
 }
 
 } // namespace dataflow
