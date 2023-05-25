@@ -1203,8 +1203,8 @@ void CIRGenItaniumRTTIBuilder::BuildVTablePointer(mlir::Location loc,
   if (CGM.getItaniumVTableContext().isRelativeLayout())
     llvm_unreachable("NYI");
   if (!VTable) {
-    VTable =
-        CGM.getOrInsertGlobal(loc, VTableName, CGM.getBuilder().getInt8PtrTy());
+    VTable = CGM.getOrInsertGlobal(loc, VTableName,
+                                   CGM.getBuilder().getUInt8PtrTy());
   }
 
   assert(!UnimplementedFeature::setDSOLocal());
@@ -1219,7 +1219,7 @@ void CIRGenItaniumRTTIBuilder::BuildVTablePointer(mlir::Location loc,
     SmallVector<mlir::Attribute, 4> offsets{
         mlir::cir::IntAttr::get(PtrDiffTy, 2)};
     field = mlir::cir::GlobalViewAttr::get(
-        builder.getInt8PtrTy(),
+        builder.getUInt8PtrTy(),
         mlir::FlatSymbolRefAttr::get(VTable.getSymNameAttr()),
         mlir::ArrayAttr::get(builder.getContext(), offsets));
   }
@@ -1279,7 +1279,7 @@ CIRGenItaniumRTTIBuilder::GetAddrOfExternalRTTIDescriptor(mlir::Location loc,
     // From LLVM codegen => Note for the future: If we would ever like to do
     // deferred emission of RTTI, check if emitting vtables opportunistically
     // need any adjustment.
-    GV = CIRGenModule::createGlobalOp(CGM, loc, Name, builder.getInt8PtrTy(),
+    GV = CIRGenModule::createGlobalOp(CGM, loc, Name, builder.getUInt8PtrTy(),
                                       /*isConstant=*/true);
     const CXXRecordDecl *RD = Ty->getAsCXXRecordDecl();
     CGM.setGVProperties(GV, RD);
@@ -1291,7 +1291,7 @@ CIRGenItaniumRTTIBuilder::GetAddrOfExternalRTTIDescriptor(mlir::Location loc,
   }
 
   return mlir::cir::GlobalViewAttr::get(
-      builder.getInt8PtrTy(),
+      builder.getUInt8PtrTy(),
       mlir::FlatSymbolRefAttr::get(GV.getSymNameAttr()));
 }
 
@@ -1318,7 +1318,7 @@ mlir::Attribute CIRGenItaniumRTTIBuilder::BuildTypeInfo(
     llvm_unreachable("NYI");
   } else {
     TypeNameField = mlir::cir::GlobalViewAttr::get(
-        builder.getInt8PtrTy(),
+        builder.getUInt8PtrTy(),
         mlir::FlatSymbolRefAttr::get(TypeName.getSymNameAttr()));
   }
   Fields.push_back(TypeNameField);
@@ -1483,7 +1483,7 @@ mlir::Attribute CIRGenItaniumRTTIBuilder::BuildTypeInfo(
   CIRGenModule::setInitializer(GV, init);
 
   return mlir::cir::GlobalViewAttr::get(
-      builder.getInt8PtrTy(),
+      builder.getUInt8PtrTy(),
       mlir::FlatSymbolRefAttr::get(GV.getSymNameAttr()));
 }
 
