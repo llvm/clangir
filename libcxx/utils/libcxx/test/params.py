@@ -40,9 +40,10 @@ _warningFlags = [
   # TODO(mordante) investigate a solution for this issue.
   '-Wno-tautological-compare',
 
-  # -Wstringop-overread and -Wstringop-overflow seem to be a bit buggy currently
+  # -Wmismatched-new-delete, -Wstringop-overread and -Wstringop-overflow seem to be a bit buggy currently
   '-Wno-stringop-overread',
   '-Wno-stringop-overflow',
+  '-Wno-mismatched-new-delete',
 
   # These warnings should be enabled in order to support the MSVC
   # team using the test suite; They enable the warnings below and
@@ -54,14 +55,18 @@ _warningFlags = [
   '-Wno-unused-local-typedef',
 ]
 
-_allStandards = ['c++03', 'c++11', 'c++14', 'c++17', 'c++20', 'c++2b']
+_allStandards = ['c++03', 'c++11', 'c++14', 'c++17', 'c++20', 'c++23']
 def getStdFlag(cfg, std):
   fallbacks = {
     'c++11': 'c++0x',
     'c++14': 'c++1y',
     'c++17': 'c++1z',
     'c++20': 'c++2a',
+    'c++23': 'c++2b',
   }
+  # TODO LLVM 17 Remove this clang-tidy-16 work-around
+  if std == 'c++23':
+    std = 'c++2b'
   if hasCompileFlag(cfg, '-std='+std):
     return '-std='+std
   if std in fallbacks and hasCompileFlag(cfg, '-std='+fallbacks[std]):
@@ -184,6 +189,7 @@ DEFAULT_PARAMETERS = [
               AddCompileFlag('-D_LIBCPP_ENABLE_EXPERIMENTAL'),
             ] if experimental else [
               AddFeature('libcpp-has-no-incomplete-format'),
+              AddFeature('libcpp-has-no-incomplete-pstl'),
             ]),
 
   Parameter(name='long_tests', choices=[True, False], type=bool, default=True,

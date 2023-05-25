@@ -164,7 +164,7 @@ public:
   mlir::cir::BoolType getBoolTy() {
     return ::mlir::cir::BoolType::get(getContext());
   }
-  mlir::Type getVirtualFnPtrType([[maybe_unused]] bool isVarArg = false) {
+  mlir::Type getVirtualFnPtrType(bool isVarArg = false) {
     // FIXME: replay LLVM codegen for now, perhaps add a vtable ptr special
     // type so it's a bit more clear and C++ idiomatic.
     auto fnTy =
@@ -326,6 +326,11 @@ public:
                                      mlir::Value dst) {
     auto flag = getBool(val, loc);
     return create<mlir::cir::StoreOp>(loc, flag, dst);
+  }
+
+  mlir::Value createNot(mlir::Value value) {
+    return create<mlir::cir::UnaryOp>(value.getLoc(), value.getType(),
+                                      mlir::cir::UnaryOpKind::Not, value);
   }
 
   mlir::Value createZExtOrBitCast(mlir::Location loc, mlir::Value src,
