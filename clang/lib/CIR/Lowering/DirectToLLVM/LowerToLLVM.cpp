@@ -56,6 +56,7 @@
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <optional>
+#include <algorithm>
 
 using namespace cir;
 using namespace llvm;
@@ -89,6 +90,37 @@ mlir::LLVM::Linkage convertLinkage(mlir::cir::GlobalLinkageKind linkage) {
   case CIR::WeakODRLinkage:
     return LLVM::WeakODR;
   };
+}
+
+static mlir::FailureOr<mlir::Block *>
+convertSuccessorBlock(mlir::ConversionPatternRewriter &rewriter,
+                      const mlir::TypeConverter *converter,
+                      mlir::Operation *branchOp, mlir::Block *block,
+                      mlir::TypeRange expectedTypes) {
+  assert(converter && "expected non-null type converter");
+  if (!block || block->isEntryBlock())
+    return block;
+
+  if (block->getArgumentTypes() == expectedTypes)
+    return block;
+
+  auto conversion = converter->convertBlockSignature(block);
+  if (!conversion) {
+    (void)rewriter.notifyMatchFailure(branchOp,
+                                      "could not convert block signature");
+    return mlir::failure();
+  }
+
+  auto convertedTypes = conversion->getConvertedTypes();
+  if (convertedTypes.size() != expectedTypes.size() ||
+      !std::equal(convertedTypes.begin(), convertedTypes.end(),
+                  expectedTypes.begin())) {
+    (void)rewriter.notifyMatchFailure(
+        branchOp, "branch operands do not match converted block signature");
+    return mlir::failure();
+  }
+
+  return rewriter.applySignatureConversion(block, *conversion, converter);
 }
 
 class CIRPtrStrideOpLowering
@@ -214,9 +246,20 @@ public:
     auto condition = adaptor.getCond();
     auto i1Condition = rewriter.create<mlir::LLVM::TruncOp>(
         brOp.getLoc(), rewriter.getI1Type(), condition);
+    auto *converter = getTypeConverter();
+    auto trueBlock = convertSuccessorBlock(
+        rewriter, converter, brOp, brOp.getDestTrue(),
+        adaptor.getDestOperandsTrue().getTypes());
+    if (mlir::failed(trueBlock))
+      return mlir::failure();
+    auto falseBlock = convertSuccessorBlock(
+        rewriter, converter, brOp, brOp.getDestFalse(),
+        adaptor.getDestOperandsFalse().getTypes());
+    if (mlir::failed(falseBlock))
+      return mlir::failure();
     rewriter.replaceOpWithNewOp<mlir::LLVM::CondBrOp>(
-        brOp, i1Condition.getResult(), brOp.getDestTrue(),
-        adaptor.getDestOperandsTrue(), brOp.getDestFalse(),
+        brOp, i1Condition.getResult(), *trueBlock,
+        adaptor.getDestOperandsTrue(), *falseBlock,
         adaptor.getDestOperandsFalse());
 
     return mlir::success();
@@ -1073,6 +1116,58 @@ public:
   }
 };
 
+class CIRTernaryOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::TernaryOp> {
+public:
+  using OpConversionPattern<mlir::cir::TernaryOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::TernaryOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto loc = op->getLoc();
+    auto *condBlock = rewriter.getInsertionBlock();
+    auto opPosition = rewriter.getInsertionPoint();
+    auto *remainingOpsBlock = rewriter.splitBlock(condBlock, opPosition);
+    auto *continueBlock = rewriter.createBlock(
+        remainingOpsBlock, op->getResultTypes(),
+        SmallVector<mlir::Location>(/* result number always 1 */ 1, loc));
+    rewriter.create<mlir::cir::BrOp>(loc, remainingOpsBlock);
+
+    auto &trueRegion = op.getTrueRegion();
+    auto *trueBlock = &trueRegion.front();
+    mlir::Operation *trueTerminator = trueRegion.back().getTerminator();
+    rewriter.setInsertionPointToEnd(&trueRegion.back());
+    auto trueYieldOp = dyn_cast<mlir::cir::YieldOp>(trueTerminator);
+
+    rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(
+        trueYieldOp, trueYieldOp.getArgs(), continueBlock);
+    rewriter.inlineRegionBefore(trueRegion, continueBlock);
+
+    auto *falseBlock = continueBlock;
+    auto &falseRegion = op.getFalseRegion();
+
+    falseBlock = &falseRegion.front();
+    mlir::Operation *falseTerminator = falseRegion.back().getTerminator();
+    rewriter.setInsertionPointToEnd(&falseRegion.back());
+    auto falseYieldOp = dyn_cast<mlir::cir::YieldOp>(falseTerminator);
+    rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(
+        falseYieldOp, falseYieldOp.getArgs(), continueBlock);
+    rewriter.inlineRegionBefore(falseRegion, continueBlock);
+
+    rewriter.setInsertionPointToEnd(condBlock);
+    auto condition = adaptor.getCond();
+    auto i1Condition = rewriter.create<mlir::LLVM::TruncOp>(
+        op.getLoc(), rewriter.getI1Type(), condition);
+    rewriter.create<mlir::LLVM::CondBrOp>(loc, i1Condition.getResult(),
+                                          trueBlock, falseBlock);
+
+    rewriter.replaceOp(op, continueBlock->getArguments());
+
+    // Ok, we're done!
+    return mlir::success();
+  }
+};
+
 class CIRCmpOpLowering : public mlir::OpConversionPattern<mlir::cir::CmpOp> {
 public:
   using OpConversionPattern<mlir::cir::CmpOp>::OpConversionPattern;
@@ -1153,30 +1248,36 @@ public:
   }
 };
 
-class CIRBrOpLowering : public mlir::OpRewritePattern<mlir::cir::BrOp> {
+class CIRBrOpLowering : public mlir::OpConversionPattern<mlir::cir::BrOp> {
 public:
-  using OpRewritePattern<mlir::cir::BrOp>::OpRewritePattern;
+  using OpConversionPattern<mlir::cir::BrOp>::OpConversionPattern;
 
   mlir::LogicalResult
-  matchAndRewrite(mlir::cir::BrOp op,
-                  mlir::PatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<mlir::LLVM::BrOp>(op, op.getDestOperands(),
-                                                  op.getDest());
+  matchAndRewrite(mlir::cir::BrOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto convertedDest = convertSuccessorBlock(
+        rewriter, getTypeConverter(), op, op.getDest(),
+        adaptor.getOperands().getTypes());
+    if (mlir::failed(convertedDest))
+      return mlir::failure();
+    rewriter.replaceOpWithNewOp<mlir::LLVM::BrOp>(
+        op, adaptor.getOperands(), *convertedDest);
     return mlir::LogicalResult::success();
   }
 };
 
 void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
                                          mlir::TypeConverter &converter) {
-  patterns.add<CIRBrOpLowering, CIRReturnLowering>(patterns.getContext());
+  patterns.add<CIRReturnLowering>(patterns.getContext());
   patterns.add<CIRCmpOpLowering, CIRLoopOpLowering, CIRBrCondOpLowering,
                CIRPtrStrideOpLowering, CIRCallLowering, CIRUnaryOpLowering,
                CIRBinOpLowering, CIRLoadLowering, CIRConstantLowering,
                CIRStoreLowering, CIRAllocaLowering, CIRFuncLowering,
                CIRScopeOpLowering, CIRCastOpLowering, CIRIfLowering,
                CIRGlobalOpLowering, CIRGetGlobalOpLowering, CIRVAStartLowering,
-               CIRVAEndLowering, CIRVACopyLowering, CIRVAArgLowering>(
-      converter, patterns.getContext());
+               CIRVAEndLowering, CIRVACopyLowering, CIRVAArgLowering,
+               CIRBrOpLowering, CIRTernaryOpLowering>(converter,
+                                                      patterns.getContext());
 }
 
 namespace {
