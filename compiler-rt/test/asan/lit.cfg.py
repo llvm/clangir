@@ -3,17 +3,9 @@
 import os
 import platform
 import re
+import shlex
 
 import lit.formats
-
-# Get shlex.quote if available (added in 3.3), and fall back to pipes.quote if
-# it's not available.
-try:
-  import shlex
-  sh_quote = shlex.quote
-except:
-  import pipes
-  sh_quote = pipes.quote
 
 def get_required_attr(config, attr_name):
   attr_value = getattr(config, attr_name, None)
@@ -164,8 +156,13 @@ if platform.system() == 'Windows':
     clang_cl_asan_invocation = build_invocation(clang_cl_asan_cxxflags)
     clang_cl_asan_invocation = clang_cl_asan_invocation.replace("clang.exe","clang-cl.exe")
     config.substitutions.append( ("%clang_cl_asan ", clang_cl_asan_invocation) )
+    config.substitutions.append( ("%clang_cl_nocxx_asan ", clang_cl_asan_invocation) )
     config.substitutions.append( ("%Od", "-Od") )
     config.substitutions.append( ("%Fe", "-Fe") )
+    config.substitutions.append( ("%LD", "-LD") )
+    config.substitutions.append( ("%MD", "-MD") )
+    config.substitutions.append( ("%MT", "-MT") )
+    config.substitutions.append( ("%Gw", "-Gw") )
 
     base_lib = os.path.join(config.compiler_rt_libdir, "clang_rt.asan%%s%s.lib" % config.target_suffix)
     config.substitutions.append( ("%asan_lib", base_lib % "") )
@@ -176,13 +173,18 @@ if platform.system() == 'Windows':
     # behaviour for MSVC target, substitute clang-cl flags with gcc-like ones.
     config.substitutions.append( ("%clang_cl ", build_invocation(target_cxxflags)) )
     config.substitutions.append( ("%clang_cl_asan ", build_invocation(clang_asan_cxxflags)) )
+    config.substitutions.append( ("%clang_cl_nocxx_asan ", build_invocation(clang_asan_cflags)) )
     config.substitutions.append( ("%Od", "-O0") )
     config.substitutions.append( ("%Fe", "-o") )
+    config.substitutions.append( ("%LD", "-shared") )
+    config.substitutions.append( ("%MD", "") )
+    config.substitutions.append( ("%MT", "") )
+    config.substitutions.append( ("%Gw", "-fdata-sections") )
 
 # FIXME: De-hardcode this path.
 asan_source_dir = os.path.join(
   get_required_attr(config, "compiler_rt_src_root"), "lib", "asan")
-python_exec = sh_quote(get_required_attr(config, "python_executable"))
+python_exec = shlex.quote(get_required_attr(config, "python_executable"))
 # Setup path to asan_symbolize.py script.
 asan_symbolize = os.path.join(asan_source_dir, "scripts", "asan_symbolize.py")
 if not os.path.exists(asan_symbolize):
