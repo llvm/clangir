@@ -2273,10 +2273,10 @@ def fclangir_lifetime_check : Flag<["-"], "fclangir-lifetime-check">,
   Flags<[CoreOption, CC1Option]>, Group<f_Group>,
   Alias<fclangir_lifetime_check_EQ>, AliasArgs<["history=invalid,null"]>,
   HelpText<"Run lifetime checker">;
-def fclangir_direct_lowering : Flag<["-"], "fclangir-direct-lowering">,
-  Flags<[CoreOption, CC1Option]>, Group<f_Group>,
-  HelpText<"Lower directly from ClangIR to LLVM">,
-  MarshallingInfoFlag<FrontendOpts<"ClangIRDirectLowering">>;
+defm clangir_direct_lowering : BoolFOption<"clangir-direct-lowering",
+  FrontendOpts<"ClangIRDirectLowering">, DefaultTrue,
+  PosFlag<SetTrue, [CoreOption, CC1Option], "Lower directly from ClangIR to LLVM">,
+  NegFlag<SetFalse, [CoreOption, CC1Option],  "Lower through MLIR to LLVM">>;
 
 def flto_EQ : Joined<["-"], "flto=">, Flags<[CoreOption, CC1Option, FC1Option, FlangOption]>, Group<f_Group>,
   HelpText<"Set LTO mode">, Values<"thin,full">;
@@ -3556,7 +3556,7 @@ def mthreads : Joined<["-"], "mthreads">, Group<m_Group>, Flags<[NoXarchOption]>
 def mguard_EQ : Joined<["-"], "mguard=">, Group<m_Group>, Flags<[NoXarchOption]>,
   HelpText<"Enable or disable Control Flow Guard checks and guard tables emission">,
   Values<"none,cf,cf-nochecks">;
-def mcpu_EQ : Joined<["-"], "mcpu=">, Group<m_Group>, 
+def mcpu_EQ : Joined<["-"], "mcpu=">, Group<m_Group>,
   HelpText<"For a list of available CPUs for the target use '-mcpu=help'">;
 def mmcu_EQ : Joined<["-"], "mmcu=">, Group<m_Group>;
 def msim : Flag<["-"], "msim">, Group<m_Group>;

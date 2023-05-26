@@ -32,6 +32,7 @@
 #include "mlir/IR/IRMapping.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Pass/PassManager.h"
+#include "mlir/Target/LLVMIR/Dialect/Builtin/BuiltinToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Export.h"
 #include "mlir/Transforms/DialectConversion.h"
@@ -1096,9 +1097,9 @@ lowerDirectlyFromCIRToLLVMIR(mlir::ModuleOp theModule,
   if (theModule.verify().failed())
     report_fatal_error("Verification of the final LLVMIR dialect failed!");
 
+  mlir::registerBuiltinDialectTranslation(*mlirCtx);
   mlir::registerLLVMDialectTranslation(*mlirCtx);
 
-  LLVMContext llvmContext;
   auto llvmModule = mlir::translateModuleToLLVMIR(theModule, llvmCtx);
 
   if (!llvmModule)
