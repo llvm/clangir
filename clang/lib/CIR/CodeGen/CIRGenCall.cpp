@@ -1131,3 +1131,15 @@ RValue CallArg::getRValue(CIRGenFunction &CGF, mlir::Location loc) const {
   IsUsed = true;
   return RValue::getAggregate(Copy.getAddress());
 }
+
+/* VarArg handling */
+
+// FIXME: This completely abstracts away the ABI with a generic CIR Op. We need
+//        to decide how to handle va_arg target-specific codegen.
+mlir::Value CIRGenFunction::buildVAArg(VAArgExpr *VE, Address &VAListAddr) {
+  assert(!VE->isMicrosoftABI() && "NYI");
+  auto loc = CGM.getLoc(VE->getExprLoc());
+  auto type = ConvertType(VE->getType());
+  auto vaList = buildVAListRef(VE->getSubExpr()).getPointer();
+  return builder.create<mlir::cir::VAArgOp>(loc, type, vaList);
+}
