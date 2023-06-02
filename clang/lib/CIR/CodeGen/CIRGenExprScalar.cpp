@@ -1949,9 +1949,8 @@ mlir::Value ScalarExprEmitter::VisitBinLOr(const clang::BinaryOperator *E) {
 mlir::Value ScalarExprEmitter::VisitVAArgExpr(VAArgExpr *VE) {
   QualType Ty = VE->getType();
 
-  // TODO(cir): Handle variably modified types.
-  // TODO(cir): Handle var_arg type promotions.
-  assert(!Ty->isVariablyModifiedType() && "type mismatch in va_arg expression");
+  if (Ty->isVariablyModifiedType())
+    assert(!UnimplementedFeature::variablyModifiedTypeEmission() && "NYI");
 
   Address ArgValue = Address::invalid();
   mlir::Value Val = CGF.buildVAArg(VE, ArgValue);
