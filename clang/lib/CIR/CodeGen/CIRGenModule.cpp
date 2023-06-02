@@ -20,6 +20,7 @@
 #include "TargetInfo.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/LLVMIR/LLVMAttrs.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/Builders.h"
@@ -41,8 +42,10 @@
 #include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/AST/StmtCXX.h"
 #include "clang/AST/StmtObjC.h"
+#include "clang/Basic/DebugInfo.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/SourceLocation.h"
+#include "clang/Basic/Version.h"
 #include "clang/CIR/CIRGenerator.h"
 #include "clang/CIR/LowerToLLVM.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
@@ -56,9 +59,11 @@
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/BinaryFormat/Dwarf.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
 
 #include <iterator>
@@ -164,9 +169,20 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &context,
   auto Path = MainFile.tryGetRealPathName();
   if (!Path.empty()) {
     theModule.setSymName(Path);
-    theModule->setLoc(mlir::FileLineColLoc::get(&context, Path,
-                                                /*line=*/0,
-                                                /*col=*/0));
+    mlir::FileLineColLoc fileLoc = mlir::FileLineColLoc::get(&context, Path,
+                                                             /*line=*/0,
+                                                             /*col=*/0);
+    // Attaching a DICompileUnitAttr attribute that holds various debug
+    // information to the module.
+    DebugCUInfo CUInfo = getDebugCUInfoBundle(CGO, astctx.getLangOpts());
+    auto prodAttr = mlir::StringAttr::get(&context, CUInfo.Producer);
+    auto fileAttr =
+        mlir::LLVM::DIFileAttr::get(&context, llvm::sys::path::filename(Path),
+                                    llvm::sys::path::parent_path(Path));
+    auto cuAttr = mlir::LLVM::DICompileUnitAttr::get(
+        &context, CUInfo.LangTag, fileAttr, prodAttr, CUInfo.IsOptimized,
+        static_cast<mlir::LLVM::DIEmissionKind>(CUInfo.EmissionKind));
+    theModule->setLoc(mlir::FusedLoc::get({fileLoc}, cuAttr, &context));
   }
 }
 

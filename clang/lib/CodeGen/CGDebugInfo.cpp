@@ -29,6 +29,7 @@
 #include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/AST/VTableBuilder.h"
 #include "clang/Basic/CodeGenOptions.h"
+#include "clang/Basic/DebugInfo.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Basic/Version.h"
@@ -524,6 +525,8 @@ void CGDebugInfo::CreateCompileUnit() {
   SourceManager &SM = CGM.getContext().getSourceManager();
   auto &CGO = CGM.getCodeGenOpts();
   const LangOptions &LO = CGM.getLangOpts();
+  DebugCUInfo CUInfo = getDebugCUInfoBundle(CGO, LO);
+
   std::string MainFileName = CGO.MainFileName;
   if (MainFileName.empty())
     MainFileName = "<stdin>";
@@ -561,62 +564,7 @@ void CGDebugInfo::CreateCompileUnit() {
     CSKind = computeChecksum(SM.getMainFileID(), Checksum);
   }
 
-  llvm::dwarf::SourceLanguage LangTag;
-  if (LO.CPlusPlus) {
-    if (LO.ObjC)
-      LangTag = llvm::dwarf::DW_LANG_ObjC_plus_plus;
-    else if (CGO.DebugStrictDwarf && CGO.DwarfVersion < 5)
-      LangTag = llvm::dwarf::DW_LANG_C_plus_plus;
-    else if (LO.CPlusPlus14)
-      LangTag = llvm::dwarf::DW_LANG_C_plus_plus_14;
-    else if (LO.CPlusPlus11)
-      LangTag = llvm::dwarf::DW_LANG_C_plus_plus_11;
-    else
-      LangTag = llvm::dwarf::DW_LANG_C_plus_plus;
-  } else if (LO.ObjC) {
-    LangTag = llvm::dwarf::DW_LANG_ObjC;
-  } else if (LO.OpenCL && (!CGM.getCodeGenOpts().DebugStrictDwarf ||
-                           CGM.getCodeGenOpts().DwarfVersion >= 5)) {
-    LangTag = llvm::dwarf::DW_LANG_OpenCL;
-  } else if (LO.RenderScript) {
-    LangTag = llvm::dwarf::DW_LANG_GOOGLE_RenderScript;
-  } else if (LO.C11 && !(CGO.DebugStrictDwarf && CGO.DwarfVersion < 5)) {
-      LangTag = llvm::dwarf::DW_LANG_C11;
-  } else if (LO.C99) {
-    LangTag = llvm::dwarf::DW_LANG_C99;
-  } else {
-    LangTag = llvm::dwarf::DW_LANG_C89;
-  }
-
-  std::string Producer = getClangFullVersion();
-
-  // Figure out which version of the ObjC runtime we have.
-  unsigned RuntimeVers = 0;
-  if (LO.ObjC)
-    RuntimeVers = LO.ObjCRuntime.isNonFragile() ? 2 : 1;
-
-  llvm::DICompileUnit::DebugEmissionKind EmissionKind;
-  switch (DebugKind) {
-  case llvm::codegenoptions::NoDebugInfo:
-  case llvm::codegenoptions::LocTrackingOnly:
-    EmissionKind = llvm::DICompileUnit::NoDebug;
-    break;
-  case llvm::codegenoptions::DebugLineTablesOnly:
-    EmissionKind = llvm::DICompileUnit::LineTablesOnly;
-    break;
-  case llvm::codegenoptions::DebugDirectivesOnly:
-    EmissionKind = llvm::DICompileUnit::DebugDirectivesOnly;
-    break;
-  case llvm::codegenoptions::DebugInfoConstructor:
-  case llvm::codegenoptions::LimitedDebugInfo:
-  case llvm::codegenoptions::FullDebugInfo:
-  case llvm::codegenoptions::UnusedTypeInfo:
-    EmissionKind = llvm::DICompileUnit::FullDebug;
-    break;
-  }
-
   uint64_t DwoId = 0;
-  auto &CGOpts = CGM.getCodeGenOpts();
   // The DIFile used by the CU is distinct from the main source
   // file. Its directory part specifies what becomes the
   // DW_AT_comp_dir (the compilation directory), even if the source
@@ -639,15 +587,14 @@ void CGDebugInfo::CreateCompileUnit() {
 
   // Create new compile unit.
   TheCU = DBuilder.createCompileUnit(
-      LangTag, CUFile, CGOpts.EmitVersionIdentMetadata ? Producer : "",
-      LO.Optimize || CGOpts.PrepareForLTO || CGOpts.PrepareForThinLTO,
-      CGOpts.DwarfDebugFlags, RuntimeVers, CGOpts.SplitDwarfFile, EmissionKind,
-      DwoId, CGOpts.SplitDwarfInlining, CGOpts.DebugInfoForProfiling,
+      CUInfo.LangTag, CUFile, CUInfo.Producer, CUInfo.IsOptimized,
+      CUInfo.DwarfDebugFlags, CUInfo.RuntimeVers, CUInfo.SplitDwarfFileName,
+      CUInfo.EmissionKind, DwoId, CUInfo.SplitDwarfInlining,
+      CUInfo.DebugInfoForProfiling,
       CGM.getTarget().getTriple().isNVPTX()
           ? llvm::DICompileUnit::DebugNameTableKind::None
-          : static_cast<llvm::DICompileUnit::DebugNameTableKind>(
-                CGOpts.DebugNameTable),
-      CGOpts.DebugRangesBaseAddress, remapDIPath(Sysroot), SDK);
+          : CUInfo.NameTableKind,
+      CUInfo.DebugRangesBaseAddress, remapDIPath(Sysroot), SDK);
 }
 
 llvm::DIType *CGDebugInfo::CreateType(const BuiltinType *BT) {
