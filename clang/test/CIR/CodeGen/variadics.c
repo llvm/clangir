@@ -1,6 +1,6 @@
-// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -emit-cir %s -o %t.cir
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir-enable -emit-cir %s -o %t.cir
 // RUN: FileCheck --input-file=%t.cir %s
-// RUN: %clang_cc1 -x c++ -std=c++20 -triple x86_64-unknown-linux-gnu -emit-cir %s -o %t.cir
+// RUN: %clang_cc1 -x c++ -std=c++20 -triple x86_64-unknown-linux-gnu -fclangir-enable -emit-cir %s -o %t.cir
 // RUN: FileCheck --input-file=%t.cir %s
 
 #include <stdarg.h>
