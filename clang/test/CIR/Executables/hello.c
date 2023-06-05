@@ -2,7 +2,7 @@
 // RUN: %t | FileCheck %s
 // REQUIRES: system-linux
 // REQUIRES: target-linux
-int printf(const char *format);
+#include <stdio.h>
 
 int main (void) {
     printf ("Hello, world!\n");
