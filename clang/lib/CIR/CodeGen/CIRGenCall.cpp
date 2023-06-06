@@ -510,8 +510,8 @@ RValue CIRGenFunction::buildCall(const CIRGenFunctionInfo &CallInfo,
     // FIXME(cir): This peephole optimization to avoids indirect calls for
     // builtins. This should be fixed in the builting declaration instead by not
     // emitting an unecessary get_global in the first place.
-    auto *globalOp = mlir::SymbolTable::lookupSymbolIn(
-        getGlobalOp->getParentOfType<mlir::ModuleOp>(), getGlobalOp.getName());
+    auto *globalOp = mlir::SymbolTable::lookupSymbolIn(CGM.getModule(),
+                                                       getGlobalOp.getName());
     assert(getGlobalOp && "undefined global function");
     auto callee = llvm::dyn_cast<mlir::cir::FuncOp>(globalOp);
     assert(callee && "operation is not a function");
