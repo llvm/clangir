@@ -1111,14 +1111,14 @@ mlir::Value ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
     auto MiddleVal = Builder.createIntCast(Src, MiddleTy);
 
     if (CGF.CGM.getCodeGenOpts().StrictVTablePointers)
-      assert(UnimplementedFeature::strictVTablePointers());
+      llvm_unreachable("NYI");
 
     return Builder.createIntToPtr(MiddleVal, DestCIRTy);
   }
   case CK_PointerToIntegral: {
     assert(!DestTy->isBooleanType() && "bool should use PointerToBool");
     if (CGF.CGM.getCodeGenOpts().StrictVTablePointers)
-      assert(UnimplementedFeature::strictVTablePointers());
+      llvm_unreachable("NYI");
     return Builder.createPtrToInt(Visit(E), ConvertType(DestTy));
   }
   case CK_ToVoid: {
