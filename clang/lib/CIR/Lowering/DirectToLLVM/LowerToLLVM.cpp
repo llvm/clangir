@@ -22,6 +22,7 @@
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/DLTI/DLTI.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/LLVMIR/LLVMAttrs.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/LLVMIR/LLVMTypes.h"
 #include "mlir/Dialect/LLVMIR/Transforms/Passes.h"
@@ -34,6 +35,7 @@
 #include "mlir/IR/IRMapping.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Pass/PassManager.h"
+#include "mlir/Support/LogicalResult.h"
 #include "mlir/Target/LLVMIR/Dialect/Builtin/BuiltinToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Export.h"
@@ -896,12 +898,56 @@ class CIRCmpOpLowering : public mlir::OpConversionPattern<mlir::cir::CmpOp> {
 public:
   using OpConversionPattern<mlir::cir::CmpOp>::OpConversionPattern;
 
+  mlir::LLVM::ICmpPredicate
+  convertToICmpPredicate(mlir::cir::CmpOpKind kind) const {
+    using CIR = mlir::cir::CmpOpKind;
+    using LLVMICmp = mlir::LLVM::ICmpPredicate;
+
+    switch (kind) {
+    case CIR::eq:
+      return LLVMICmp::eq;
+    case CIR::ne:
+      return LLVMICmp::ne;
+    case CIR::lt:
+      return LLVMICmp::ult;
+    case CIR::le:
+      return LLVMICmp::ule;
+    case CIR::gt:
+      return LLVMICmp::ugt;
+    case CIR::ge:
+      return LLVMICmp::uge;
+    }
+    llvm_unreachable("Unknown CmpOpKind");
+  }
+
+  mlir::LLVM::FCmpPredicate
+  convertToFCmpPredicate(mlir::cir::CmpOpKind kind) const {
+    using CIR = mlir::cir::CmpOpKind;
+    using LLVMFCmp = mlir::LLVM::FCmpPredicate;
+
+    switch (kind) {
+    case CIR::eq:
+      return LLVMFCmp::ueq;
+    case CIR::ne:
+      return LLVMFCmp::une;
+    case CIR::lt:
+      return LLVMFCmp::ult;
+    case CIR::le:
+      return LLVMFCmp::ule;
+    case CIR::gt:
+      return LLVMFCmp::ugt;
+    case CIR::ge:
+      return LLVMFCmp::uge;
+    }
+    llvm_unreachable("Unknown CmpOpKind");
+  }
+
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::CmpOp cmpOp, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto type = adaptor.getLhs().getType();
-    auto i1Type =
-        mlir::IntegerType::get(getContext(), 1, mlir::IntegerType::Signless);
+    mlir::Value llResult;
+    auto i1Type = rewriter.getI1Type();
     auto destType = getTypeConverter()->convertType(cmpOp.getType());
 
     switch (adaptor.getKind()) {
@@ -1059,7 +1105,7 @@ public:
     }
     }
 
-    return mlir::LogicalResult::success();
+    return mlir::success();
   }
 };
 
