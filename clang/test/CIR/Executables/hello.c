@@ -2,7 +2,7 @@
 // RUN: %t | FileCheck %s
 // REQUIRES: system-linux
 // REQUIRES: target-linux
-#include <stdio.h>
+int printf(const char *restrict, ...);
 
 int main (void) {
     printf ("Hello, world!\n");
