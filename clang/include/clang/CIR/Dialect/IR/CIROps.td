@@ -48,12 +48,15 @@ def CK_BitCast : I32EnumAttrCase<"bitcast", 4>;
 def CK_FloatingCast : I32EnumAttrCase<"floating", 5>;
 def CK_PtrToBoolean : I32EnumAttrCase<"ptr_to_bool", 6>;
 def CK_FloatToIntegral : I32EnumAttrCase<"float_to_int", 7>;
+def CK_IntegralToPointer : I32EnumAttrCase<"int_to_ptr", 8>;
+def CK_PointerToIntegral : I32EnumAttrCase<"ptr_to_int", 9>;
 
 def CastKind : I32EnumAttr<
     "CastKind",
     "cast kind",
     [CK_IntegralToBoolean, CK_ArrayToPointerDecay, CK_IntegralCast,
-     CK_BitCast, CK_FloatingCast, CK_PtrToBoolean, CK_FloatToIntegral]> {
+     CK_BitCast, CK_FloatingCast, CK_PtrToBoolean, CK_FloatToIntegral,
+     CK_IntegralToPointer, CK_PointerToIntegral]> {
   let cppNamespace = "::mlir::cir";
 }
 
@@ -1665,19 +1668,19 @@ def AwaitOp : CIR_Op<"await",
 // Variadic Operations
 //===----------------------------------------------------------------------===//
 
-def VAStartOp : CIR_Op<"vastart">, Arguments<(ins CIR_PointerType:$arg_list)> {
+def VAStartOp : CIR_Op<"va.start">, Arguments<(ins CIR_PointerType:$arg_list)> {
   let summary = "Starts a variable argument list";
   let assemblyFormat = "$arg_list attr-dict `:` type(operands)";
   let hasVerifier = 0;
 }
 
-def VAEndOp : CIR_Op<"vaend">, Arguments<(ins CIR_PointerType:$arg_list)> {
+def VAEndOp : CIR_Op<"va.end">, Arguments<(ins CIR_PointerType:$arg_list)> {
   let summary = "Ends a variable argument list";
   let assemblyFormat = "$arg_list attr-dict `:` type(operands)";
   let hasVerifier = 0;
 }
 
-def VACopyOp : CIR_Op<"vacopy">,
+def VACopyOp : CIR_Op<"va.copy">,
                Arguments<(ins CIR_PointerType:$dst_list,
                               CIR_PointerType:$src_list)> {
   let summary = "Copies a variable argument list";
@@ -1685,7 +1688,7 @@ def VACopyOp : CIR_Op<"vacopy">,
   let hasVerifier = 0;
 }
 
-def VAArgOp : CIR_Op<"vaarg">,
+def VAArgOp : CIR_Op<"va.arg">,
               Results<(outs AnyType:$result)>,
               Arguments<(ins CIR_PointerType:$arg_list)> {
   let summary = "Fetches next variadic element as a given type";
