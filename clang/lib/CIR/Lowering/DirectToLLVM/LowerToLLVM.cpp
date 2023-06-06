@@ -22,6 +22,7 @@
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/DLTI/DLTI.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/LLVMIR/LLVMAttrs.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/LLVMIR/LLVMTypes.h"
 #include "mlir/Dialect/LLVMIR/Transforms/Passes.h"
@@ -34,6 +35,7 @@
 #include "mlir/IR/IRMapping.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Pass/PassManager.h"
+#include "mlir/Support/LogicalResult.h"
 #include "mlir/Target/LLVMIR/Dialect/Builtin/BuiltinToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Export.h"
@@ -209,7 +211,7 @@ public:
           mlir::cir::IntAttr::get(castOp.getSrc().getType(), 0));
       rewriter.replaceOpWithNewOp<mlir::cir::CmpOp>(
           castOp, mlir::cir::BoolType::get(getContext()),
-          mlir::cir::CmpOpKind::ne, src, zero);
+          mlir::cir::CmpOpKind::ne, castOp.getSrc(), zero);
       break;
     }
     case mlir::cir::CastKind::integral: {
@@ -233,6 +235,39 @@ public:
       }
       break;
     }
+    case mlir::cir::CastKind::floating: {
+      auto dstTy = castOp.getResult().getType().cast<mlir::FloatType>();
+      auto srcTy = castOp.getSrc().getType();
+      auto llvmSrcVal = adaptor.getOperands().front();
+
+      if (auto fpSrcTy = srcTy.dyn_cast<mlir::FloatType>()) {
+        if (fpSrcTy.getWidth() > dstTy.getWidth())
+          rewriter.replaceOpWithNewOp<mlir::LLVM::FPTruncOp>(castOp, dstTy,
+                                                             llvmSrcVal);
+        else
+          rewriter.replaceOpWithNewOp<mlir::LLVM::FPExtOp>(castOp, dstTy,
+                                                           llvmSrcVal);
+        return mlir::success();
+      }
+
+      return castOp.emitError() << "NYI cast from " << srcTy << " to " << dstTy;
+    }
+    case mlir::cir::CastKind::int_to_ptr: {
+      auto dstTy = castOp.getType().cast<mlir::cir::PointerType>();
+      auto llvmSrcVal = adaptor.getOperands().front();
+      auto llvmDstTy = getTypeConverter()->convertType(dstTy);
+      rewriter.replaceOpWithNewOp<mlir::LLVM::IntToPtrOp>(castOp, llvmDstTy,
+                                                          llvmSrcVal);
+      return mlir::success();
+    }
+    case mlir::cir::CastKind::ptr_to_int: {
+      auto dstTy = castOp.getType().cast<mlir::cir::IntType>();
+      auto llvmSrcVal = adaptor.getOperands().front();
+      auto llvmDstTy = getTypeConverter()->convertType(dstTy);
+      rewriter.replaceOpWithNewOp<mlir::LLVM::PtrToIntOp>(castOp, llvmDstTy,
+                                                          llvmSrcVal);
+      return mlir::success();
+    }
     default:
       llvm_unreachable("NYI");
     }
@@ -249,8 +284,8 @@ public:
   matchAndRewrite(mlir::cir::IfOp ifOp, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     mlir::OpBuilder::InsertionGuard guard(rewriter);
-
     auto loc = ifOp.getLoc();
+    auto emptyElse = ifOp.getElseRegion().empty();
 
     auto *currentBlock = rewriter.getInsertionBlock();
     auto *remainingOpsBlock =
@@ -277,10 +312,16 @@ public:
 
     rewriter.setInsertionPointToEnd(continueBlock);
 
-    // Inline then region
-    auto *elseBeforeBody = &ifOp.getElseRegion().front();
-    auto *elseAfterBody = &ifOp.getElseRegion().back();
-    rewriter.inlineRegionBefore(ifOp.getElseRegion(), thenAfterBody);
+    // Has else region: inline it.
+    mlir::Block *elseBeforeBody = nullptr;
+    mlir::Block *elseAfterBody = nullptr;
+    if (!emptyElse) {
+      elseBeforeBody = &ifOp.getElseRegion().front();
+      elseAfterBody = &ifOp.getElseRegion().back();
+      rewriter.inlineRegionBefore(ifOp.getElseRegion(), thenAfterBody);
+    } else {
+      elseBeforeBody = elseAfterBody = continueBlock;
+    }
 
     rewriter.setInsertionPointToEnd(currentBlock);
     auto trunc = rewriter.create<mlir::LLVM::TruncOp>(loc, rewriter.getI1Type(),
@@ -288,13 +329,16 @@ public:
     rewriter.create<mlir::LLVM::CondBrOp>(loc, trunc.getRes(), thenBeforeBody,
                                           elseBeforeBody);
 
-    rewriter.setInsertionPointToEnd(elseAfterBody);
-    if (auto elseYieldOp =
-            dyn_cast<mlir::cir::YieldOp>(elseAfterBody->getTerminator())) {
-      rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(
-          elseYieldOp, elseYieldOp.getArgs(), continueBlock);
-    } else if (!dyn_cast<mlir::cir::ReturnOp>(elseAfterBody->getTerminator())) {
-      llvm_unreachable("what are we terminating with?");
+    if (!emptyElse) {
+      rewriter.setInsertionPointToEnd(elseAfterBody);
+      if (auto elseYieldOp =
+              dyn_cast<mlir::cir::YieldOp>(elseAfterBody->getTerminator())) {
+        rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(
+            elseYieldOp, elseYieldOp.getArgs(), continueBlock);
+      } else if (!dyn_cast<mlir::cir::ReturnOp>(
+                     elseAfterBody->getTerminator())) {
+        llvm_unreachable("what are we terminating with?");
+      }
     }
 
     rewriter.replaceOp(ifOp, continueBlock->getArguments());
@@ -472,6 +516,14 @@ public:
           op.getValue().cast<mlir::cir::IntAttr>().getValue());
     } else if (op.getType().isa<mlir::FloatType>()) {
       attr = op.getValue();
+    } else if (op.getType().isa<mlir::cir::PointerType>()) {
+      // Optimize with dedicated LLVM op for null pointers.
+      if (op.getValue().isa<mlir::cir::NullAttr>()) {
+        rewriter.replaceOpWithNewOp<mlir::LLVM::NullOp>(
+            op, typeConverter->convertType(op.getType()));
+        return mlir::success();
+      }
+      attr = op.getValue();
     } else
       return op.emitError("unsupported constant type");
 
@@ -604,6 +656,13 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::GetGlobalOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
+    // FIXME(cir): Premature DCE to avoid lowering stuff we're not using. CIRGen
+    // should mitigate this and not emit the get_global.
+    if (op->getUses().empty()) {
+      rewriter.eraseOp(op);
+      return mlir::success();
+    }
+
     auto type = getTypeConverter()->convertType(op.getType());
     auto symbol = op.getName();
     rewriter.replaceOpWithNewOp<mlir::LLVM::AddressOfOp>(op, type, symbol);
@@ -833,170 +892,77 @@ class CIRCmpOpLowering : public mlir::OpConversionPattern<mlir::cir::CmpOp> {
 public:
   using OpConversionPattern<mlir::cir::CmpOp>::OpConversionPattern;
 
+  mlir::LLVM::ICmpPredicate convertToICmpPredicate(mlir::cir::CmpOpKind kind,
+                                                   bool isSigned) const {
+    using CIR = mlir::cir::CmpOpKind;
+    using LLVMICmp = mlir::LLVM::ICmpPredicate;
+
+    switch (kind) {
+    case CIR::eq:
+      return LLVMICmp::eq;
+    case CIR::ne:
+      return LLVMICmp::ne;
+    case CIR::lt:
+      return (isSigned ? LLVMICmp::slt : LLVMICmp::ult);
+    case CIR::le:
+      return (isSigned ? LLVMICmp::sle : LLVMICmp::ule);
+    case CIR::gt:
+      return (isSigned ? LLVMICmp::sgt : LLVMICmp::ugt);
+    case CIR::ge:
+      return (isSigned ? LLVMICmp::sge : LLVMICmp::uge);
+    }
+    llvm_unreachable("Unknown CmpOpKind");
+  }
+
+  mlir::LLVM::FCmpPredicate
+  convertToFCmpPredicate(mlir::cir::CmpOpKind kind) const {
+    using CIR = mlir::cir::CmpOpKind;
+    using LLVMFCmp = mlir::LLVM::FCmpPredicate;
+
+    switch (kind) {
+    case CIR::eq:
+      return LLVMFCmp::ueq;
+    case CIR::ne:
+      return LLVMFCmp::une;
+    case CIR::lt:
+      return LLVMFCmp::ult;
+    case CIR::le:
+      return LLVMFCmp::ule;
+    case CIR::gt:
+      return LLVMFCmp::ugt;
+    case CIR::ge:
+      return LLVMFCmp::uge;
+    }
+    llvm_unreachable("Unknown CmpOpKind");
+  }
+
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::CmpOp cmpOp, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    auto type = adaptor.getLhs().getType();
-    auto i1Type =
-        mlir::IntegerType::get(getContext(), 1, mlir::IntegerType::Signless);
-    auto destType = getTypeConverter()->convertType(cmpOp.getType());
+    auto type = cmpOp.getLhs().getType();
+    mlir::Value llResult;
 
-    switch (adaptor.getKind()) {
-    case mlir::cir::CmpOpKind::gt: {
-      if (type.isa<mlir::IntegerType>()) {
-        mlir::LLVM::ICmpPredicate cmpIType;
-        if (!type.isSignlessInteger())
-          llvm_unreachable("integer type not supported in CIR yet");
-        cmpIType = mlir::LLVM::ICmpPredicate::ugt;
-        auto cmp = rewriter.create<mlir::LLVM::ICmpOp>(
-            cmpOp.getLoc(), i1Type,
-            mlir::LLVM::ICmpPredicateAttr::get(getContext(), cmpIType),
-            adaptor.getLhs(), adaptor.getRhs());
-        rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(cmpOp, destType,
-                                                        cmp.getRes());
-      } else if (type.isa<mlir::FloatType>()) {
-        auto cmp = rewriter.create<mlir::LLVM::FCmpOp>(
-            cmpOp.getLoc(), i1Type,
-            mlir::LLVM::FCmpPredicateAttr::get(getContext(),
-                                               mlir::LLVM::FCmpPredicate::ugt),
-            adaptor.getLhs(), adaptor.getRhs(),
-            // TODO(CIR): These fastmath flags need to not be defaulted.
-            mlir::LLVM::FastmathFlagsAttr::get(cmpOp.getContext(), {}));
-        rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(cmpOp, destType,
-                                                        cmp.getRes());
-      } else {
-        llvm_unreachable("Unknown Operand Type");
-      }
-      break;
-    }
-    case mlir::cir::CmpOpKind::ge: {
-      if (type.isa<mlir::IntegerType>()) {
-        mlir::LLVM::ICmpPredicate cmpIType;
-        if (!type.isSignlessInteger())
-          llvm_unreachable("integer type not supported in CIR yet");
-        cmpIType = mlir::LLVM::ICmpPredicate::uge;
-        auto cmp = rewriter.create<mlir::LLVM::ICmpOp>(
-            cmpOp.getLoc(), i1Type,
-            mlir::LLVM::ICmpPredicateAttr::get(getContext(), cmpIType),
-            adaptor.getLhs(), adaptor.getRhs());
-        rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(cmpOp, destType,
-                                                        cmp.getRes());
-      } else if (type.isa<mlir::FloatType>()) {
-        auto cmp = rewriter.create<mlir::LLVM::FCmpOp>(
-            cmpOp.getLoc(), i1Type,
-            mlir::LLVM::FCmpPredicateAttr::get(getContext(),
-                                               mlir::LLVM::FCmpPredicate::uge),
-            adaptor.getLhs(), adaptor.getRhs(),
-            mlir::LLVM::FastmathFlagsAttr::get(cmpOp.getContext(), {}));
-        rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(cmpOp, destType,
-                                                        cmp.getRes());
-      } else {
-        llvm_unreachable("Unknown Operand Type");
-      }
-      break;
-    }
-    case mlir::cir::CmpOpKind::lt: {
-      if (type.isa<mlir::IntegerType>()) {
-        mlir::LLVM::ICmpPredicate cmpIType;
-        if (!type.isSignlessInteger())
-          llvm_unreachable("integer type not supported in CIR yet");
-        cmpIType = mlir::LLVM::ICmpPredicate::ult;
-        auto cmp = rewriter.create<mlir::LLVM::ICmpOp>(
-            cmpOp.getLoc(), i1Type,
-            mlir::LLVM::ICmpPredicateAttr::get(getContext(), cmpIType),
-            adaptor.getLhs(), adaptor.getRhs());
-        rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(cmpOp, destType,
-                                                        cmp.getRes());
-      } else if (type.isa<mlir::FloatType>()) {
-        auto cmp = rewriter.create<mlir::LLVM::FCmpOp>(
-            cmpOp.getLoc(), i1Type,
-            mlir::LLVM::FCmpPredicateAttr::get(getContext(),
-                                               mlir::LLVM::FCmpPredicate::ult),
-            adaptor.getLhs(), adaptor.getRhs(),
-            mlir::LLVM::FastmathFlagsAttr::get(cmpOp.getContext(), {}));
-        rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(cmpOp, destType,
-                                                        cmp.getRes());
-      } else {
-        llvm_unreachable("Unknown Operand Type");
-      }
-      break;
-    }
-    case mlir::cir::CmpOpKind::le: {
-      if (type.isa<mlir::IntegerType>()) {
-        mlir::LLVM::ICmpPredicate cmpIType;
-        if (!type.isSignlessInteger())
-          llvm_unreachable("integer type not supported in CIR yet");
-        cmpIType = mlir::LLVM::ICmpPredicate::ule;
-        auto cmp = rewriter.create<mlir::LLVM::ICmpOp>(
-            cmpOp.getLoc(), i1Type,
-            mlir::LLVM::ICmpPredicateAttr::get(getContext(), cmpIType),
-            adaptor.getLhs(), adaptor.getRhs());
-        rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(cmpOp, destType,
-                                                        cmp.getRes());
-      } else if (type.isa<mlir::FloatType>()) {
-        auto cmp = rewriter.create<mlir::LLVM::FCmpOp>(
-            cmpOp.getLoc(), i1Type,
-            mlir::LLVM::FCmpPredicateAttr::get(getContext(),
-                                               mlir::LLVM::FCmpPredicate::ule),
-            adaptor.getLhs(), adaptor.getRhs(),
-            mlir::LLVM::FastmathFlagsAttr::get(cmpOp.getContext(), {}));
-        rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(cmpOp, destType,
-                                                        cmp.getRes());
-      } else {
-        llvm_unreachable("Unknown Operand Type");
-      }
-      break;
-    }
-    case mlir::cir::CmpOpKind::eq: {
-      if (type.isa<mlir::IntegerType>()) {
-        auto cmp = rewriter.create<mlir::LLVM::ICmpOp>(
-            cmpOp.getLoc(), i1Type,
-            mlir::LLVM::ICmpPredicateAttr::get(getContext(),
-                                               mlir::LLVM::ICmpPredicate::eq),
-            adaptor.getLhs(), adaptor.getRhs());
-        rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(cmpOp, destType,
-                                                        cmp.getRes());
-      } else if (type.isa<mlir::FloatType>()) {
-        auto cmp = rewriter.create<mlir::LLVM::FCmpOp>(
-            cmpOp.getLoc(), i1Type,
-            mlir::LLVM::FCmpPredicateAttr::get(getContext(),
-                                               mlir::LLVM::FCmpPredicate::ueq),
-            adaptor.getLhs(), adaptor.getRhs(),
-            mlir::LLVM::FastmathFlagsAttr::get(cmpOp.getContext(), {}));
-        rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(cmpOp, destType,
-                                                        cmp.getRes());
-      } else {
-        llvm_unreachable("Unknown Operand Type");
-      }
-      break;
-    }
-    case mlir::cir::CmpOpKind::ne: {
-      if (type.isa<mlir::IntegerType>()) {
-        auto cmp = rewriter.create<mlir::LLVM::ICmpOp>(
-            cmpOp.getLoc(), i1Type,
-            mlir::LLVM::ICmpPredicateAttr::get(getContext(),
-                                               mlir::LLVM::ICmpPredicate::ne),
-            adaptor.getLhs(), adaptor.getRhs());
-
-        rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(cmpOp, destType,
-                                                        cmp.getRes());
-      } else if (type.isa<mlir::FloatType>()) {
-        auto cmp = rewriter.create<mlir::LLVM::FCmpOp>(
-            cmpOp.getLoc(), i1Type,
-            mlir::LLVM::FCmpPredicateAttr::get(getContext(),
-                                               mlir::LLVM::FCmpPredicate::une),
-            adaptor.getLhs(), adaptor.getRhs(),
-            mlir::LLVM::FastmathFlagsAttr::get(cmpOp.getContext(), {}));
-        rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(cmpOp, destType,
-                                                        cmp.getRes());
-      } else {
-        llvm_unreachable("Unknown Operand Type");
-      }
-      break;
-    }
+    // Lower to LLVM comparison op.
+    if (auto intTy = type.dyn_cast<mlir::cir::IntType>()) {
+      auto kind = convertToICmpPredicate(cmpOp.getKind(), intTy.isSigned());
+      llResult = rewriter.create<mlir::LLVM::ICmpOp>(
+          cmpOp.getLoc(), kind, adaptor.getLhs(), adaptor.getRhs());
+    } else if (type.isa<mlir::FloatType>()) {
+      auto kind = convertToFCmpPredicate(cmpOp.getKind());
+      llResult = rewriter.create<mlir::LLVM::FCmpOp>(
+          cmpOp.getLoc(), kind, adaptor.getLhs(), adaptor.getRhs());
+    } else {
+      return cmpOp.emitError() << "unsupported type for CmpOp: " << type;
     }
 
-    return mlir::LogicalResult::success();
+    // LLVM comparison ops return i1, but cir::CmpOp returns the same type as
+    // the LHS value. Since this return value can be used later, we need to
+    // restore the type with the extension below.
+    auto llResultTy = getTypeConverter()->convertType(cmpOp.getType());
+    rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(cmpOp, llResultTy,
+                                                    llResult);
+
+    return mlir::success();
   }
 };
 
