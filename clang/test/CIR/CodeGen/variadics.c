@@ -3,26 +3,32 @@
 // RUN: %clang_cc1 -x c++ -std=c++20 -triple x86_64-unknown-linux-gnu -fclangir-enable -emit-cir %s -o %t.cir
 // RUN: FileCheck --input-file=%t.cir %s
 
-#include <stdarg.h>
+typedef __builtin_va_list va_list;
+
+#define va_start(ap, param) __builtin_va_start(ap, param)
+#define va_end(ap)          __builtin_va_end(ap)
+#define va_arg(ap, type)    __builtin_va_arg(ap, type)
+#define va_copy(dst, src)   __builtin_va_copy(dst, src)
+
 // CHECK: [[VALISTTYPE:!.+va_list_.+]] = !cir.struct<"struct.__va_list_tag"
 
 int average(int count, ...) {
 // CHECK: cir.func @{{.*}}average{{.*}}(%arg0: !s32i loc({{.+}}), ...) -> !s32i
     va_list args, args_copy;
     va_start(args, count);
-    // CHECK: cir.vastart %{{[0-9]+}} : !cir.ptr<[[VALISTTYPE]]>
+    // CHECK: cir.va.start %{{[0-9]+}} : !cir.ptr<[[VALISTTYPE]]>
 
     va_copy(args_copy, args);
-    // CHECK: cir.vacopy %{{[0-9]+}} to %{{[0-9]+}} : !cir.ptr<[[VALISTTYPE]]>, !cir.ptr<[[VALISTTYPE]]>
+    // CHECK: cir.va.copy %{{[0-9]+}} to %{{[0-9]+}} : !cir.ptr<[[VALISTTYPE]]>, !cir.ptr<[[VALISTTYPE]]>
 
     int sum = 0;
     for(int i = 0; i < count; i++) {
         sum += va_arg(args, int);
-        // CHECK: %{{[0-9]+}} = cir.vaarg %{{[0-9]+}} : (!cir.ptr<[[VALISTTYPE]]>) -> !s32i
+        // CHECK: %{{[0-9]+}} = cir.va.arg %{{[0-9]+}} : (!cir.ptr<[[VALISTTYPE]]>) -> !s32i
     }
 
     va_end(args);
-    // CHECK: cir.vaend %{{[0-9]+}} : !cir.ptr<[[VALISTTYPE]]>
+    // CHECK: cir.va.end %{{[0-9]+}} : !cir.ptr<[[VALISTTYPE]]>
 
     return count > 0 ? sum / count : 0;
 }
