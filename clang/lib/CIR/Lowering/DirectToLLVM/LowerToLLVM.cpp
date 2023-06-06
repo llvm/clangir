@@ -290,8 +290,8 @@ public:
   matchAndRewrite(mlir::cir::IfOp ifOp, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     mlir::OpBuilder::InsertionGuard guard(rewriter);
-
     auto loc = ifOp.getLoc();
+    auto emptyElse = ifOp.getElseRegion().empty();
 
     auto *currentBlock = rewriter.getInsertionBlock();
     auto *remainingOpsBlock =
@@ -318,10 +318,16 @@ public:
 
     rewriter.setInsertionPointToEnd(continueBlock);
 
-    // Inline then region
-    auto *elseBeforeBody = &ifOp.getElseRegion().front();
-    auto *elseAfterBody = &ifOp.getElseRegion().back();
-    rewriter.inlineRegionBefore(ifOp.getElseRegion(), thenAfterBody);
+    // Has else region: inline it.
+    mlir::Block *elseBeforeBody = nullptr;
+    mlir::Block *elseAfterBody = nullptr;
+    if (!emptyElse) {
+      elseBeforeBody = &ifOp.getElseRegion().front();
+      elseAfterBody = &ifOp.getElseRegion().back();
+      rewriter.inlineRegionBefore(ifOp.getElseRegion(), thenAfterBody);
+    } else {
+      elseBeforeBody = elseAfterBody = continueBlock;
+    }
 
     rewriter.setInsertionPointToEnd(currentBlock);
     auto trunc = rewriter.create<mlir::LLVM::TruncOp>(loc, rewriter.getI1Type(),
