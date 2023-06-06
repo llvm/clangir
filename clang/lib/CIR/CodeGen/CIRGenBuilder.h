@@ -347,15 +347,8 @@ public:
                                       mlir::cir::UnaryOpKind::Not, value);
   }
 
-  mlir::Value createZExtOrBitCast(mlir::Location loc, mlir::Value src,
-                                  mlir::Type newTy) {
-    if (src.getType() == newTy)
-      return src;
-    llvm_unreachable("NYI");
-  }
-
   //===--------------------------------------------------------------------===//
-  // Instruction creation methods: Cast/Conversion Operators
+  // Cast/Conversion Operators
   //===--------------------------------------------------------------------===//
 
   mlir::Value createCast(mlir::cir::CastKind kind, mlir::Value src,
@@ -378,6 +371,13 @@ public:
   mlir::Value createPtrToInt(mlir::Value src, mlir::Type newTy) {
     return create<mlir::cir::CastOp>(src.getLoc(), newTy,
                                      mlir::cir::CastKind::ptr_to_int, src);
+  }
+
+  mlir::Value createZExtOrBitCast(mlir::Location loc, mlir::Value src,
+                                  mlir::Type newTy) {
+    if (src.getType() == newTy)
+      return src;
+    llvm_unreachable("NYI");
   }
 };
 
