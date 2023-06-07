@@ -3590,8 +3590,9 @@ def mllvm : Separate<["-"], "mllvm">,Flags<[CC1Option,CC1AsOption,CoreOption,FC1
   MarshallingInfoStringVector<FrontendOpts<"LLVMArgs">>;
 def : Joined<["-"], "mllvm=">, Flags<[CoreOption,FlangOption]>, Alias<mllvm>,
   HelpText<"Alias for -mllvm">, MetaVarName<"<arg>">;
-def mmlir : Separate<["-"], "mmlir">, Flags<[CoreOption,FC1Option,FlangOption]>,
-  HelpText<"Additional arguments to forward to MLIR's option processing">;
+def mmlir : Separate<["-"], "mmlir">, Flags<[CC1Option,CoreOption,FC1Option,FlangOption]>,
+  HelpText<"Additional arguments to forward to MLIR's option processing">,
+  MarshallingInfoStringVector<FrontendOpts<"MLIRArgs">>;
 def ffuchsia_api_level_EQ : Joined<["-"], "ffuchsia-api-level=">,
   Group<m_Group>, Flags<[CC1Option]>, HelpText<"Set Fuchsia API level">,
   MarshallingInfoInt<LangOpts<"FuchsiaAPILevel">>;
