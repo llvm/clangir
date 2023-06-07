@@ -7687,6 +7687,11 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     }
   }
 
+  for (const Arg *A : Args.filtered(options::OPT_mmlir)) {
+    A->claim();
+    A->render(Args, CmdArgs);
+  }
+
   // With -save-temps, we want to save the unoptimized bitcode output from the
   // CompileJobAction, use -disable-llvm-passes to get pristine IR generated
   // by the frontend.
