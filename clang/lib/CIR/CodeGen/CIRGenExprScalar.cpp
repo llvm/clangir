@@ -343,7 +343,7 @@ public:
     } else if (type->isRealFloatingType()) {
       auto isFloatOrDouble = type->isSpecificBuiltinType(BuiltinType::Float) ||
                              type->isSpecificBuiltinType(BuiltinType::Double);
-      assert(isFloatOrDouble && "NYI");
+      assert(isFloatOrDouble && "Non-float/double NYI");
 
       // Create the inc/dec operation.
       auto kind =
