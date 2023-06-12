@@ -1293,8 +1293,12 @@ mlir::Value ScalarExprEmitter::VisitUnaryLNot(const UnaryOperator *E) {
 
   // ZExt result to the expr type.
   auto dstTy = ConvertType(E->getType());
-  assert(boolVal.getType() == dstTy && "NYI");
-  return boolVal;
+  if (mlir::isa<mlir::cir::IntType>(dstTy))
+    return Builder.createBoolToInt(boolVal, dstTy);
+  if (mlir::isa<mlir::cir::BoolType>(dstTy))
+    return boolVal;
+
+  llvm_unreachable("destination type for negation unary operator is NYI");
 }
 
 mlir::Value ScalarExprEmitter::buildScalarCast(
