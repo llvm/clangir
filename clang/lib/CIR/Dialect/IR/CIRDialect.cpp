@@ -320,6 +320,13 @@ LogicalResult CastOp::verify() {
       return emitOpError() << "requires integer for result";
     return success();
   }
+  case cir::CastKind::float_to_bool: {
+    if (!mlir::isa<mlir::FloatType>(srcType))
+      return emitOpError() << "requires float for source";
+    if (!mlir::isa<mlir::cir::BoolType>(resType))
+      return emitOpError() << "requires !cir.bool for result";
+    return success();
+  }
   }
 
   llvm_unreachable("Unknown CastOp kind?");
