@@ -1216,6 +1216,8 @@ std::unique_ptr<mlir::Pass> createConvertCIRToLLVMPass() {
   return std::make_unique<ConvertCIRToLLVMPass>();
 }
 
+extern void registerCIRDialectTranslation(mlir::MLIRContext &context);
+
 std::unique_ptr<llvm::Module>
 lowerDirectlyFromCIRToLLVMIR(mlir::ModuleOp theModule,
                              std::unique_ptr<mlir::MLIRContext> mlirCtx,
@@ -1240,6 +1242,7 @@ lowerDirectlyFromCIRToLLVMIR(mlir::ModuleOp theModule,
 
   mlir::registerBuiltinDialectTranslation(*mlirCtx);
   mlir::registerLLVMDialectTranslation(*mlirCtx);
+  registerCIRDialectTranslation(*mlirCtx);
 
   auto ModuleName = theModule.getName();
   auto llvmModule = mlir::translateModuleToLLVMIR(
