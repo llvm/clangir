@@ -224,10 +224,21 @@ def CIR_FuncType : CIR_Type<"Func", "func"> {
 }
 
 //===----------------------------------------------------------------------===//
+// Void type
+//===----------------------------------------------------------------------===//
+
+def CIR_VoidType : CIR_Type<"Void", "void"> {
+  let summary = "CIR void type";
+  let description = [{
+    The `!cir.void` type represents the C/C++ `void` type.
+  }];
+}
+
+//===----------------------------------------------------------------------===//
 // One type to bind them all
 //===----------------------------------------------------------------------===//
 
 def CIR_AnyCIRType : AnyTypeOf<[CIR_PointerType, CIR_BoolType, CIR_StructType,
-                                CIR_ArrayType, CIR_FuncType]>;
+                                CIR_ArrayType, CIR_FuncType, CIR_VoidType]>;
 
 #endif // MLIR_CIR_DIALECT_CIR_TYPES

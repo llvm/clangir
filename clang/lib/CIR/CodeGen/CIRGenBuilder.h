@@ -148,6 +148,8 @@ public:
   // Type helpers
   // ------------
   //
+  mlir::Type getVoidTy() { return typeCache.VoidTy; }
+
   mlir::Type getSInt8Ty() { return typeCache.SInt8Ty; }
   mlir::Type getSInt16Ty() { return typeCache.SInt16Ty; }
   mlir::Type getSInt32Ty() { return typeCache.SInt32Ty; }
@@ -195,6 +197,10 @@ public:
                                       unsigned addressSpace = 0) {
     assert(!UnimplementedFeature::addressSpace() && "NYI");
     return mlir::cir::PointerType::get(getContext(), ty);
+  }
+
+  mlir::cir::PointerType getVoidPtrTy(unsigned AddrSpace = 0) {
+    return typeCache.VoidPtrTy;
   }
 
   //
@@ -402,6 +408,10 @@ public:
 
   mlir::Value createBoolToInt(mlir::Value src, mlir::Type newTy) {
     return createCast(mlir::cir::CastKind::bool_to_int, src, newTy);
+  }
+
+  mlir::Value createBitcast(mlir::Value src, mlir::Type newTy) {
+    return createCast(mlir::cir::CastKind::bitcast, src, newTy);
   }
 };
 

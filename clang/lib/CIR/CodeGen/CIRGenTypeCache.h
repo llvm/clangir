@@ -50,10 +50,8 @@ struct CIRGenTypeCache {
   };
 
   /// void* in address space 0
-  union {
-    mlir::cir::PointerType VoidPtrTy;
-    mlir::cir::PointerType UInt8PtrTy;
-  };
+  mlir::cir::PointerType VoidPtrTy;
+  mlir::cir::PointerType UInt8PtrTy;
 
   /// void** in address space 0
   union {
