@@ -1539,11 +1539,25 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
 // getNumArguments hook not failing.
 LogicalResult cir::FuncOp::verifyType() {
   auto type = getFunctionType();
+  auto module = getOperation()->getParentOfType<ModuleOp>();
+
+  // FIXME(cir): We should have a custom module with mandatory flags. In the
+  // meantime, if the cir.lang attribute is missing, we assume C++17.
+  auto lang =
+      module->hasAttr("cir.lang")
+          ? module->getAttrOfType<cir::SourceLangAttr>("cir.lang")
+          : cir::SourceLangAttr::get(getContext(), cir::SourceLang::CXX17);
+
   if (!type.isa<cir::FuncType>())
     return emitOpError("requires '" + getFunctionTypeAttrName().str() +
                        "' attribute of function type");
+
   if (getFunctionType().getNumResults() > 1)
     return emitOpError("cannot have more than one result");
+
+  if (lang.isCXX() && type.isVarArg() && type.getNumInputs() == 0)
+    return emitOpError("functions must have at least one non-variadic input");
+
   return success();
 }
 

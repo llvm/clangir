@@ -413,8 +413,6 @@ FuncType::verify(llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
                  llvm::ArrayRef<mlir::Type> results, bool varArg) {
   if (results.size() > 1)
     return emitError() << "functions only supports 0 or 1 results";
-  if (varArg && inputs.empty())
-    return emitError() << "functions must have at least one non-variadic input";
   return mlir::success();
 }
 
