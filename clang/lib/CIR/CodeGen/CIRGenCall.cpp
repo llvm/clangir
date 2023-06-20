@@ -520,6 +520,9 @@ RValue CIRGenFunction::buildCall(const CIRGenFunctionInfo &CallInfo,
     auto callee = llvm::dyn_cast<mlir::cir::FuncOp>(globalOp);
     assert(callee && "operation is not a function");
     theCall = builder.create<mlir::cir::CallOp>(callLoc, callee, CIRCallArgs);
+  } else if (auto castOp = dyn_cast<mlir::cir::CastOp>(CalleePtr)) {
+    theCall = builder.create<mlir::cir::CallOp>(callLoc, castOp.getResult(),
+                                                CIRFuncTy, CIRCallArgs);
   } else {
     llvm_unreachable("expected call variant to be handled");
   }
@@ -865,6 +868,18 @@ CIRGenTypes::arrangeFreeFunctionType(CanQual<FunctionProtoType> FTP) {
                                   FTP);
 }
 
+/// Arrange the argument and result information for a value of the given
+/// unprototyped freestanding function type.
+const CIRGenFunctionInfo &
+CIRGenTypes::arrangeFreeFunctionType(CanQual<FunctionNoProtoType> FTNP) {
+  // When translating an unprototyped function type, always use a
+  // variadic type.
+  return arrangeCIRFunctionInfo(FTNP->getReturnType().getUnqualifiedType(),
+                                /*instanceMethod=*/false,
+                                /*chainCall=*/false, std::nullopt,
+                                FTNP->getExtInfo(), {}, RequiredArgs(0));
+}
+
 /// Arrange a call to a C++ method, passing the given arguments.
 ///
 /// ExtraPrefixArgs is the number of ABI-specific args passed after the `this`
@@ -1000,10 +1015,9 @@ arrangeFreeFunctionLikeCall(CIRGenTypes &CGT, CIRGenModule &CGM,
       required = RequiredArgs::forPrototypePlus(proto, numExtraRequiredArgs);
 
     assert(!proto->hasExtParameterInfos() && "extparameterinfos NYI");
-  } else {
-    assert(!llvm::isa<FunctionNoProtoType>(fnType) &&
-           "FunctionNoProtoType NYI");
-    llvm_unreachable("Unknown function prototype");
+  } else if (llvm::isa<FunctionNoProtoType>(fnType)) {
+    // FIXME(cir): This clause ignores target specific checks.
+    required = RequiredArgs(args.size());
   }
 
   // FIXME: Kill copy.

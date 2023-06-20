@@ -10,6 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "CIRGenBuilder.h"
 #include "CIRGenCXXABI.h"
 #include "CIRGenCall.h"
 #include "CIRGenCstEmitter.h"
@@ -20,6 +21,8 @@
 #include "clang/AST/GlobalDecl.h"
 #include "clang/Basic/Builtins.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
+#include "clang/CIR/Dialect/IR/CIRTypes.h"
+#include "llvm/Support/Casting.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/Value.h"
@@ -34,8 +37,6 @@ static mlir::cir::FuncOp buildFunctionDeclPointer(CIRGenModule &CGM,
   assert(!FD->hasAttr<WeakRefAttr>() && "NYI");
 
   auto V = CGM.GetAddrOfFunction(GD);
-  assert(FD->hasPrototype() &&
-         "Only prototyped functions are currently callable");
 
   return V;
 }
@@ -888,16 +889,28 @@ RValue CIRGenFunction::buildCall(clang::QualType CalleeType,
   //
   // Chain calls use the same code path to add the inviisble chain parameter to
   // the function type.
-  assert(!isa<FunctionNoProtoType>(FnType) && "NYI");
-  // if (isa<FunctionNoProtoType>(FnType) || Chain) {
-  //   mlir::FunctionType CalleeTy = getTypes().GetFunctionType(FnInfo);
-  // int AS = Callee.getFunctionPointer()->getType()->getPointerAddressSpace();
-  // CalleeTy = CalleeTy->getPointerTo(AS);
+  if (isa<FunctionNoProtoType>(FnType) || Chain) {
+    assert(!Chain && "Chain calls NYI");
 
-  // llvm::Value *CalleePtr = Callee.getFunctionPointer();
-  // CalleePtr = Builder.CreateBitCast(CalleePtr, CalleeTy, "callee.knr.cast");
-  // Callee.setFunctionPointer(CalleePtr);
-  // }
+    // Fetch expected call type then recreate it as a non-variadic type.
+    auto Aux = getTypes().GetFunctionType(FnInfo);
+    auto CallTy = builder.getFuncType(Aux.getInputs(), Aux.getResult(0));
+
+    // TODO(cir): Handle address spaces.
+
+    // Fetch function pointer for casting.
+    auto Loc = getLoc(E->getExprLoc());
+    auto Fn = llvm::dyn_cast<mlir::cir::FuncOp>(Callee.getFunctionPointer());
+    auto FnPtr = builder.create<mlir::cir::GetGlobalOp>(
+        Loc, builder.getPointerTo(Fn.getFunctionType()), Fn.getName());
+
+    // Cast the function pointer to the expected call type.
+    auto CastedPtr =
+        builder.createBitcast(Loc, FnPtr, builder.getPointerTo(CallTy));
+
+    // Update the call to use the casted function pointer.
+    Callee.setFunctionPointer(CastedPtr.getDefiningOp());
+  }
 
   assert(!CGM.getLangOpts().HIP && "HIP NYI");
 
