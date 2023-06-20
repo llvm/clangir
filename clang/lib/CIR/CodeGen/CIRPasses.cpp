@@ -42,7 +42,7 @@ mlir::LogicalResult runCIRToCIRPasses(mlir::ModuleOp theModule,
   // need to run this right before dialect emission.
   pm.addPass(mlir::createDropASTPass());
   pm.enableVerifier(enableVerifier);
-
+  (void)mlir::applyPassManagerCLOptions(pm);
   return pm.run(theModule);
 }
 } // namespace cir
