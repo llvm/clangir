@@ -19,6 +19,7 @@
 #include "mlir/IR/BuiltinAttributeInterfaces.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/DialectImplementation.h"
+#include "mlir/IR/Location.h"
 #include "mlir/IR/OpImplementation.h"
 
 #include "llvm/ADT/STLExtras.h"
@@ -135,6 +136,52 @@ LogicalResult ConstStructAttr::verify(
   }
 
   return success();
+}
+
+//===----------------------------------------------------------------------===//
+// SourceLangAttr definitions
+//===----------------------------------------------------------------------===//
+
+Attribute SourceLangAttr::parse(AsmParser &parser, Type odsType) {
+  auto loc = parser.getCurrentLocation();
+  if (parser.parseLess())
+    return {};
+
+  // Parse variable 'lang'.
+  llvm::StringRef lang;
+  if (parser.parseKeyword(&lang))
+    return {};
+
+  // Check if parsed value is a valid language.
+  auto maybeEnum = symbolizeSourceLang(lang);
+  if (!maybeEnum.has_value()) {
+    parser.emitError(loc) << "invalid language keyword '" << lang << "'";
+    return {};
+  }
+
+  if (parser.parseGreater())
+    return {};
+
+  // Return the attribute.
+  return SourceLangAttr::get(parser.getContext(), maybeEnum.value());
+}
+
+void SourceLangAttr::print(AsmPrinter &printer) const {
+  printer << "<" << getLang() << '>';
+}
+
+bool SourceLangAttr::isC() const {
+  auto lang = getLang();
+  return lang == SourceLang::C99 || lang == SourceLang::C11 ||
+         lang == SourceLang::C17 || lang == SourceLang::C2x;
+}
+
+bool SourceLangAttr::isCXX() const {
+  auto lang = getLang();
+  return lang == SourceLang::CXX || lang == SourceLang::CXX11 ||
+         lang == SourceLang::CXX14 || lang == SourceLang::CXX17 ||
+         lang == SourceLang::CXX20 || lang == SourceLang::CXX23 ||
+         lang == SourceLang::CXX26;
 }
 
 //===----------------------------------------------------------------------===//

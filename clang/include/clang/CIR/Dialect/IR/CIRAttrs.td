@@ -27,6 +27,44 @@ class CIR_Attr<string name, string attrMnemonic, list<Trait> traits = []>
 }
 
 //===----------------------------------------------------------------------===//
+// SourceLangAttr
+//===----------------------------------------------------------------------===//
+
+def C99: I32EnumAttrCase<"C99", 1, "c99">;
+def C11: I32EnumAttrCase<"C11", 2, "c11">;
+def C17: I32EnumAttrCase<"C17", 3, "c17">;
+def C2x: I32EnumAttrCase<"C2x", 4, "c2x">;
+
+def CXX : I32EnumAttrCase<"CXX", 5, "cxx">;
+def CXX11 : I32EnumAttrCase<"CXX11", 6, "cxx11">;
+def CXX14 : I32EnumAttrCase<"CXX14", 7, "cxx14">;
+def CXX17 : I32EnumAttrCase<"CXX17", 8, "cxx17">;
+def CXX20 : I32EnumAttrCase<"CXX20", 9, "cxx20">;
+def CXX23 : I32EnumAttrCase<"CXX23", 10, "cxx23">;
+def CXX26 : I32EnumAttrCase<"CXX26", 11, "cxx26">;
+
+def SourceLang : I32EnumAttr<"SourceLang", "Source language", [
+  C99, C11, C17, C2x,
+  CXX, CXX11, CXX14, CXX17, CXX20, CXX23, CXX26
+]> {
+  let cppNamespace = "::mlir::cir";
+  let genSpecializedAttr = 0;
+}
+
+def SourceLangAttr : CIR_Attr<"SourceLang", "lang"> {
+  let summary = "Module source language";
+  let parameters = (ins SourceLang:$lang);
+  let description = [{
+    Represents the source language of the module ().
+  }];
+  let hasCustomAssemblyFormat = 1;
+  let extraClassDeclaration = [{
+    bool isC() const;
+    bool isCXX() const;
+  }];
+}
+
+//===----------------------------------------------------------------------===//
 // NullAttr
 //===----------------------------------------------------------------------===//
 

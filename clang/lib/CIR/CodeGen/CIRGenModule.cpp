@@ -44,6 +44,7 @@
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/SourceLocation.h"
 #include "clang/CIR/CIRGenerator.h"
+#include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 #include "clang/CIR/LowerToLLVM.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Lex/Preprocessor.h"
@@ -159,6 +160,8 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &context,
   }
   theModule->setAttr("cir.sob",
                      mlir::cir::SignedOverflowBehaviorAttr::get(&context, sob));
+  theModule->setAttr("cir.lang", mlir::cir::SourceLangAttr::get(
+                                     &context, getCIRSourceLanguage()));
   // Set the module name to be the name of the main file. TranslationUnitDecl
   // often contains invalid source locations and isn't a reliable source for the
   // module location.
@@ -2310,4 +2313,37 @@ void CIRGenModule::ErrorUnsupported(const Decl *D, const char *Type) {
                                                "cannot compile this %0 yet");
   std::string Msg = Type;
   getDiags().Report(astCtx.getFullLoc(D->getLocation()), DiagID) << Msg;
+}
+
+mlir::cir::SourceLang CIRGenModule::getCIRSourceLanguage() {
+  using CIR = mlir::cir::SourceLang;
+  auto opts = getLangOpts();
+
+  // FIXME(cir): These must be sorted from newest to older. In reality, we
+  // should track every flag set, not just the newest one, since not all C/C++
+  // standards are fully backwards compatible.
+  if (opts.CPlusPlus26)
+    return CIR::CXX26;
+  if (opts.CPlusPlus23)
+    return CIR::CXX23;
+  if (opts.CPlusPlus20)
+    return CIR::CXX20;
+  if (opts.CPlusPlus17)
+    return CIR::CXX17;
+  if (opts.CPlusPlus14)
+    return CIR::CXX14;
+  if (opts.CPlusPlus11)
+    return CIR::CXX11;
+  if (opts.CPlusPlus)
+    return CIR::CXX;
+  if (opts.C2x)
+    return CIR::C2x;
+  if (opts.C17)
+    return CIR::C17;
+  if (opts.C11)
+    return CIR::C11;
+  if (opts.C99)
+    return CIR::C99;
+
+  llvm_unreachable("ObjC and other extensions are NYI");
 }
