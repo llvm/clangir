@@ -362,7 +362,7 @@ module {
 
 // -----
 
-module attributes {cir.lang = #cir.lang<cxx>} {
+module attributes {cir.std = #cir.std<cxx17>} {
   // expected-error@+1 {{functions must have at least one non-variadic input}}
   cir.func private @variadic(...) -> !cir.int<s, 32>
 }
@@ -395,4 +395,4 @@ module {
 // -----
 
 // expected-error@+1 {{invalid language keyword 'dummy'}}
-module attributes {cir.lang = #cir.lang<dummy>} { }
+module attributes {cir.std = #cir.std<dummy>} { }

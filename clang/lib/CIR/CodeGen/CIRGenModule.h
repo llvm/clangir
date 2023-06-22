@@ -565,7 +565,7 @@ private:
   void applyReplacements();
 
   /// Map source language used to a CIR attribute.
-  mlir::cir::SourceLang getCIRSourceLanguage();
+  mlir::cir::LangStandard getCIRSourceLanguage();
 };
 } // namespace cir
 
