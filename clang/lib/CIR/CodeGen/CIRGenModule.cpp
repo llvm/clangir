@@ -42,8 +42,10 @@
 #include "clang/AST/StmtCXX.h"
 #include "clang/AST/StmtObjC.h"
 #include "clang/Basic/Diagnostic.h"
+#include "clang/Basic/LangStandard.h"
 #include "clang/Basic/SourceLocation.h"
 #include "clang/CIR/CIRGenerator.h"
+#include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 #include "clang/CIR/LowerToLLVM.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
@@ -160,8 +162,8 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &context,
   }
   theModule->setAttr("cir.sob",
                      mlir::cir::SignedOverflowBehaviorAttr::get(&context, sob));
-  theModule->setAttr("cir.lang", mlir::cir::SourceLangAttr::get(
-                                     &context, getCIRSourceLanguage()));
+  theModule->setAttr("cir.std", mlir::cir::LangStandardAttr::get(
+                                    &context, getCIRSourceLanguage()));
   // Set the module name to be the name of the main file. TranslationUnitDecl
   // often contains invalid source locations and isn't a reliable source for the
   // module location.
@@ -2315,35 +2317,69 @@ void CIRGenModule::ErrorUnsupported(const Decl *D, const char *Type) {
   getDiags().Report(astCtx.getFullLoc(D->getLocation()), DiagID) << Msg;
 }
 
-mlir::cir::SourceLang CIRGenModule::getCIRSourceLanguage() {
-  using CIR = mlir::cir::SourceLang;
-  auto opts = getLangOpts();
+mlir::cir::LangStandard CIRGenModule::getCIRSourceLanguage() {
+  using CIR = mlir::cir::LangStandard;
+  using Clang = clang::LangStandard;
 
-  // FIXME(cir): These must be sorted from newest to older. In reality, we
-  // should track every flag set, not just the newest one, since not all C/C++
-  // standards are fully backwards compatible.
-  if (opts.CPlusPlus26)
-    return CIR::CXX26;
-  if (opts.CPlusPlus23)
-    return CIR::CXX23;
-  if (opts.CPlusPlus20)
-    return CIR::CXX20;
-  if (opts.CPlusPlus17)
-    return CIR::CXX17;
-  if (opts.CPlusPlus14)
-    return CIR::CXX14;
-  if (opts.CPlusPlus11)
-    return CIR::CXX11;
-  if (opts.CPlusPlus)
-    return CIR::CXX;
-  if (opts.C2x)
-    return CIR::C2x;
-  if (opts.C17)
-    return CIR::C17;
-  if (opts.C11)
-    return CIR::C11;
-  if (opts.C99)
+  switch (getLangOpts().LangStd) {
+
+  // ISO standards.
+  case Clang::lang_c89:
+    return CIR::C89;
+  case Clang::lang_c94:
+    return CIR::C94;
+  case Clang::lang_c99:
     return CIR::C99;
+  case Clang::lang_c11:
+    return CIR::C11;
+  case Clang::lang_c17:
+    return CIR::C17;
+  case Clang::lang_c2x:
+    return CIR::C2X;
+  case Clang::lang_cxx98:
+    return CIR::CXX98;
+  case Clang::lang_cxx11:
+    return CIR::CXX11;
+  case Clang::lang_cxx14:
+    return CIR::CXX14;
+  case Clang::lang_cxx17:
+    return CIR::CXX17;
+  case Clang::lang_cxx20:
+    return CIR::CXX20;
+  case Clang::lang_cxx23:
+    return CIR::CXX23;
+  case Clang::lang_cxx26:
+    return CIR::CXX26;
 
-  llvm_unreachable("ObjC and other extensions are NYI");
+  // TODO(cir): Should we distinguish between GNU and ISO standards in CIR?
+  // GNU standards.
+  case Clang::lang_gnu89:
+    return CIR::C89;
+  case Clang::lang_gnu99:
+    return CIR::C99;
+  case Clang::lang_gnu11:
+    return CIR::C11;
+  case Clang::lang_gnu17:
+    return CIR::C17;
+  case Clang::lang_gnu2x:
+    return CIR::C2X;
+  case Clang::lang_gnucxx98:
+    return CIR::CXX98;
+  case Clang::lang_gnucxx11:
+    return CIR::CXX11;
+  case Clang::lang_gnucxx14:
+    return CIR::CXX14;
+  case Clang::lang_gnucxx17:
+    return CIR::CXX17;
+  case Clang::lang_gnucxx20:
+    return CIR::CXX20;
+  case Clang::lang_gnucxx23:
+    return CIR::CXX23;
+  case Clang::lang_gnucxx26:
+    return CIR::CXX26;
+
+  // TODO(cir): support remaining language standards.
+  default:
+    llvm_unreachable("CIR does not yet support the given language standard");
+  }
 }
