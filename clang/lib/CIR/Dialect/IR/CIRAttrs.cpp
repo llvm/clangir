@@ -139,10 +139,10 @@ LogicalResult ConstStructAttr::verify(
 }
 
 //===----------------------------------------------------------------------===//
-// SourceLangAttr definitions
+// LangStandardAttr definitions
 //===----------------------------------------------------------------------===//
 
-Attribute SourceLangAttr::parse(AsmParser &parser, Type odsType) {
+Attribute LangStandardAttr::parse(AsmParser &parser, Type odsType) {
   auto loc = parser.getCurrentLocation();
   if (parser.parseLess())
     return {};
@@ -153,7 +153,7 @@ Attribute SourceLangAttr::parse(AsmParser &parser, Type odsType) {
     return {};
 
   // Check if parsed value is a valid language.
-  auto maybeEnum = symbolizeSourceLang(lang);
+  auto maybeEnum = symbolizeLangStandard(lang);
   if (!maybeEnum.has_value()) {
     parser.emitError(loc) << "invalid language keyword '" << lang << "'";
     return {};
@@ -163,25 +163,26 @@ Attribute SourceLangAttr::parse(AsmParser &parser, Type odsType) {
     return {};
 
   // Return the attribute.
-  return SourceLangAttr::get(parser.getContext(), maybeEnum.value());
+  return LangStandardAttr::get(parser.getContext(), maybeEnum.value());
 }
 
-void SourceLangAttr::print(AsmPrinter &printer) const {
+void LangStandardAttr::print(AsmPrinter &printer) const {
   printer << "<" << getLang() << '>';
 }
 
-bool SourceLangAttr::isC() const {
+bool LangStandardAttr::isC() const {
   auto lang = getLang();
-  return lang == SourceLang::C99 || lang == SourceLang::C11 ||
-         lang == SourceLang::C17 || lang == SourceLang::C2x;
+  return lang == LangStandard::C89 || lang == LangStandard::C94 ||
+         lang == LangStandard::C99 || lang == LangStandard::C11 ||
+         lang == LangStandard::C17 || lang == LangStandard::C2X;
 }
 
-bool SourceLangAttr::isCXX() const {
+bool LangStandardAttr::isCXX() const {
   auto lang = getLang();
-  return lang == SourceLang::CXX || lang == SourceLang::CXX11 ||
-         lang == SourceLang::CXX14 || lang == SourceLang::CXX17 ||
-         lang == SourceLang::CXX20 || lang == SourceLang::CXX23 ||
-         lang == SourceLang::CXX26;
+  return lang == LangStandard::CXX98 || lang == LangStandard::CXX11 ||
+         lang == LangStandard::CXX14 || lang == LangStandard::CXX17 ||
+         lang == LangStandard::CXX20 || lang == LangStandard::CXX23 ||
+         lang == LangStandard::CXX26;
 }
 
 //===----------------------------------------------------------------------===//
