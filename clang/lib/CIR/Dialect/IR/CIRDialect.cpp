@@ -54,6 +54,10 @@ struct CIROpAsmDialectInterface : public OpAsmDialectInterface {
       os << intType.getAlias();
       return AliasResult::OverridableAlias;
     }
+    if (auto voidType = type.dyn_cast<VoidType>()) {
+      os << voidType.getAlias();
+      return AliasResult::OverridableAlias;
+    }
 
     return AliasResult::NoAlias;
   }
