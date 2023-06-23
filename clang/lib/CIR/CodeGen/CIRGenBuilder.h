@@ -199,6 +199,8 @@ public:
   }
 
   mlir::cir::PointerType getVoidPtrTy(unsigned AddrSpace = 0) {
+    if (AddrSpace)
+      llvm_unreachable("address space is NYI");
     return typeCache.VoidPtrTy;
   }
 
