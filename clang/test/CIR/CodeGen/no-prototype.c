@@ -14,10 +14,11 @@ int test0(int x) {
 // Call to no-proto is made after definition, so a direct call can be used.
 int noProto1();
 int noProto1(int x) { return x; }
+// CHECK: cir.func @noProto1(%arg0: !s32i {{.+}}) -> !s32i {
 int test1(int x) {
   // CHECK: cir.func @test1
   return noProto1(x);
-  // CHECK: %{{.+}} = cir.call @noProto1(%{{[0-9]+}})
+  // CHECK: %{{.+}} = cir.call @noProto1(%{{[0-9]+}}) : (!s32i) -> !s32i
 }
 
 // Declaration without prototype followed by a correct call, then its definition.
@@ -27,11 +28,10 @@ int test1(int x) {
 int noProto2();
 int test2(int x) {
   return noProto2(x);
-  // CHECK: %[[#PTR:]] = cir.get_global @noProto2 : cir.ptr <!cir.func<!s32i (!s32i)>>
-  // CHECK: %[[#C_PTR:]] = cir.cast(bitcast, %[[#PTR]] : !cir.ptr<!cir.func<!s32i (!s32i)>>), !cir.ptr<!cir.func<!s32i (!s32i)>>
-  // CHECK: %{{.+}} = cir.call %[[#C_PTR]](%{{.+}}) : (!cir.ptr<!cir.func<!s32i (!s32i)>>, !s32i) -> !s32i
+  // CHECK: %{{.+}} = cir.call @noProto2(%{{[0-9]+}}) : (!s32i) -> !s32i
 }
 int noProto2(int x) { return x; }
+// CHECK: cir.func @noProto2(%arg0: !s32i {{.+}}) -> !s32i {
 
 // No-proto declaration without definition (any call here is "correct").
 //
@@ -42,9 +42,7 @@ int noProto3();
 int test3(int x) {
 // CHECK: cir.func @test3
   return noProto3(x);
-  // %[[#PTR:]] = cir.get_global @noProto3 : cir.ptr <!cir.func<!s32i (...)>>
-  // %[[#C_PTR:]] = cir.cast(bitcast, %[[#PTR]] : !cir.ptr<!cir.func<!s32i (...)>>), !cir.ptr<!cir.func<!s32i (!s32i)>>
-  // %{{.+}} = cir.call %[[#C_PTR]](%%{{.+}}) : (!cir.ptr<!cir.func<!s32i (!s32i)>>, !s32i) -> !s32i
+  // CHECK: %{{.+}} = cir.call @noProto3(%{{[0-9]+}}) : (!s32i) -> !s32i
 }
 
 // TODO(cir): Handle incorrect calls to no-proto functions. It's mostly undefined
