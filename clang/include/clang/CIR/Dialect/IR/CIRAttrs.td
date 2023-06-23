@@ -27,42 +27,66 @@ class CIR_Attr<string name, string attrMnemonic, list<Trait> traits = []>
 }
 
 //===----------------------------------------------------------------------===//
-// SourceLangAttr
+// LangInfoAttr
 //===----------------------------------------------------------------------===//
 
-def C89 : I32EnumAttrCase<"C89", 1, "c89">;
-def C94 : I32EnumAttrCase<"C94", 2, "c94">;
-def C99 : I32EnumAttrCase<"C99", 3, "c99">;
-def C11 : I32EnumAttrCase<"C11", 4, "c11">;
-def C17 : I32EnumAttrCase<"C17", 5, "c17">;
-def C2X : I32EnumAttrCase<"C2X", 6, "c2x">;
+def LS_C89 : I32EnumAttrCase<"C89", 1, "c89">;
+def LS_C94 : I32EnumAttrCase<"C94", 2, "c94">;
+def LS_C99 : I32EnumAttrCase<"C99", 3, "c99">;
+def LS_C11 : I32EnumAttrCase<"C11", 4, "c11">;
+def LS_C17 : I32EnumAttrCase<"C17", 5, "c17">;
+def LS_C2X : I32EnumAttrCase<"C2X", 6, "c2x">;
 
-def CXX98 : I32EnumAttrCase<"CXX98", 7, "cxx98">;
-def CXX11 : I32EnumAttrCase<"CXX11", 8, "cxx11">;
-def CXX14 : I32EnumAttrCase<"CXX14", 9, "cxx14">;
-def CXX17 : I32EnumAttrCase<"CXX17", 10, "cxx17">;
-def CXX20 : I32EnumAttrCase<"CXX20", 11, "cxx20">;
-def CXX23 : I32EnumAttrCase<"CXX23", 12, "cxx23">;
-def CXX26 : I32EnumAttrCase<"CXX26", 13, "cxx26">;
+def LS_CXX98 : I32EnumAttrCase<"CXX98", 7, "cxx98">;
+def LS_CXX11 : I32EnumAttrCase<"CXX11", 8, "cxx11">;
+def LS_CXX14 : I32EnumAttrCase<"CXX14", 9, "cxx14">;
+def LS_CXX17 : I32EnumAttrCase<"CXX17", 10, "cxx17">;
+def LS_CXX20 : I32EnumAttrCase<"CXX20", 11, "cxx20">;
+def LS_CXX23 : I32EnumAttrCase<"CXX23", 12, "cxx23">;
+def LS_CXX26 : I32EnumAttrCase<"CXX26", 13, "cxx26">;
 
 def LangStandard : I32EnumAttr<"LangStandard", "Source language standard", [
-  C89, C94, C99, C11, C17, C2X,
-  CXX98, CXX11, CXX14, CXX17, CXX20, CXX23, CXX26
+  LS_C89, LS_C94, LS_C99, LS_C11, LS_C17, LS_C2X,
+  LS_CXX98, LS_CXX11, LS_CXX14, LS_CXX17, LS_CXX20, LS_CXX23, LS_CXX26
 ]> {
   let cppNamespace = "::mlir::cir";
   let genSpecializedAttr = 0;
 }
 
-def LangStandardAttr : CIR_Attr<"LangStandard", "std"> {
+def C : I32EnumAttrCase<"C", 1, "c">;
+def CXX : I32EnumAttrCase<"CXX", 2, "cxx">;
+
+def SourceLanguage : I32EnumAttr<"SourceLanguage", "Source language", [
+  C, CXX
+]> {
+  let cppNamespace = "::mlir::cir";
+  let genSpecializedAttr = 0;
+}
+
+def LangInfo : CIR_Attr<"LangInfo", "lang"> {
   let summary = "Module source language";
-  let parameters = (ins LangStandard:$lang);
+  let parameters = (ins SourceLanguage:$lang, LangStandard:$std);
   let description = [{
-    Represents the source language of the module ().
+    Represents information about the source language of the module.
+
+    Example:
+    ```
+    // C module that abides to the C89 standard.
+    module attributes {cir.lang<c, c89>} {}
+    // C++ module that abides to the C++20 standard.
+    module attributes {cir.lang<cxx, cxx20>} {}
+    ```
   }];
   let hasCustomAssemblyFormat = 1;
   let extraClassDeclaration = [{
-    bool isC() const;
-    bool isCXX() const;
+    bool isC() const { return getLang() == SourceLanguage::C; };
+    bool isCXX() const { return getLang() == SourceLanguage::CXX; };
+    bool isCStd() const;
+    bool isCXXStd() const;
+
+    bool hasNoProtoDecls() const {
+      return !isCXX() && getStd() != LangStandard::C2X;
+    };
   }];
 }
 
@@ -390,5 +414,18 @@ class ASTDecl<string name, string prefix, list<Trait> traits = []>
 def ASTFunctionDeclAttr : ASTDecl<"FunctionDecl", "fndecl">;
 def ASTVarDeclAttr : ASTDecl<"VarDecl", "vardecl">;
 def ASTRecordDeclAttr : ASTDecl<"RecordDecl", "recdecl">;
+
+//===----------------------------------------------------------------------===//
+// NoProtoFuncDeclAttr
+//===----------------------------------------------------------------------===//
+
+def NoProtoFuncDeclAttr : CIR_Attr<"NoProtoFuncDecl", "no_proto"> {
+  let summary = "Marks when a function was declared without a prototype.";
+  let description = [{
+    This attribute is used to represent a function that is declared with no
+    prototype (e.g. `int foo();`). It's used in the CIR dialect to ignore type,
+    mantaining compatilibility with C standards older than C2X.
+  }];
+}
 
 #endif // MLIR_CIR_DIALECT_CIR_ATTRS

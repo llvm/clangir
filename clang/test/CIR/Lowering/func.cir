@@ -2,7 +2,7 @@
 // RUN: FileCheck %s -check-prefix=MLIR --input-file=%t.mlir
 
 !s32i = !cir.int<s, 32>
-module attributes {cir.std = #cir.std<c17>} {
+module attributes {cir.lang = #cir.lang<c, c17>} {
   cir.func private @noProto3(...) -> !s32i
   // MLIR: llvm.func @noProto3(...) -> i32
   cir.func @test3(%arg0: !s32i) {

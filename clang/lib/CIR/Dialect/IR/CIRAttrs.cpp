@@ -12,6 +12,7 @@
 
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
+#include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 
 #include "mlir/IR/Attributes.h"
@@ -21,6 +22,7 @@
 #include "mlir/IR/DialectImplementation.h"
 #include "mlir/IR/Location.h"
 #include "mlir/IR/OpImplementation.h"
+#include "mlir/Support/LLVM.h"
 
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/TypeSwitch.h"
@@ -139,10 +141,10 @@ LogicalResult ConstStructAttr::verify(
 }
 
 //===----------------------------------------------------------------------===//
-// LangStandardAttr definitions
+// LangInfoAttr definitions
 //===----------------------------------------------------------------------===//
 
-Attribute LangStandardAttr::parse(AsmParser &parser, Type odsType) {
+Attribute LangInfoAttr::parse(AsmParser &parser, Type odsType) {
   auto loc = parser.getCurrentLocation();
   if (parser.parseLess())
     return {};
@@ -153,36 +155,57 @@ Attribute LangStandardAttr::parse(AsmParser &parser, Type odsType) {
     return {};
 
   // Check if parsed value is a valid language.
-  auto maybeEnum = symbolizeLangStandard(lang);
-  if (!maybeEnum.has_value()) {
+  auto langEnum = symbolizeSourceLanguage(lang);
+  if (!langEnum.has_value()) {
     parser.emitError(loc) << "invalid language keyword '" << lang << "'";
+    return {};
+  }
+
+  if (parser.parseComma())
+    return {};
+
+  // Parse variable 'std'.
+  llvm::StringRef std;
+  if (parser.parseKeyword(&std))
+    return {};
+
+  // Check if parsed value is a valid standard.
+  auto stdEnum = symbolizeLangStandard(std);
+  if (!stdEnum.has_value()) {
+    parser.emitError(loc) << "invalid language standard '" << std << "'";
     return {};
   }
 
   if (parser.parseGreater())
     return {};
 
-  // Return the attribute.
-  return LangStandardAttr::get(parser.getContext(), maybeEnum.value());
+  // Create and validate lang info attribute.
+  auto attr = get(parser.getContext(), langEnum.value(), stdEnum.value());
+  if ((attr.isC() && !attr.isCStd()) || (attr.isCXX() && !attr.isCXXStd())) {
+    parser.emitError(loc) << "invalid " << lang << " standard '" << std << "'";
+    return {};
+  }
+
+  return attr;
 }
 
-void LangStandardAttr::print(AsmPrinter &printer) const {
-  printer << "<" << getLang() << '>';
+void LangInfoAttr::print(AsmPrinter &printer) const {
+  printer << "<" << getLang() << ", " << getStd() << '>';
 }
 
-bool LangStandardAttr::isC() const {
-  auto lang = getLang();
-  return lang == LangStandard::C89 || lang == LangStandard::C94 ||
-         lang == LangStandard::C99 || lang == LangStandard::C11 ||
-         lang == LangStandard::C17 || lang == LangStandard::C2X;
+bool LangInfoAttr::isCStd() const {
+  auto std = getStd();
+  using LS = LangStandard;
+  return std == LS::C89 || std == LS::C94 || std == LS::C99 || std == LS::C11 ||
+         std == LS::C17 || std == LS::C2X;
 }
 
-bool LangStandardAttr::isCXX() const {
-  auto lang = getLang();
-  return lang == LangStandard::CXX98 || lang == LangStandard::CXX11 ||
-         lang == LangStandard::CXX14 || lang == LangStandard::CXX17 ||
-         lang == LangStandard::CXX20 || lang == LangStandard::CXX23 ||
-         lang == LangStandard::CXX26;
+bool LangInfoAttr::isCXXStd() const {
+  auto std = getStd();
+  using LS = LangStandard;
+  return std == LS::CXX98 || std == LS::CXX11 || std == LS::CXX14 ||
+         std == LS::CXX17 || std == LS::CXX20 || std == LS::CXX23 ||
+         std == LS::CXX26;
 }
 
 //===----------------------------------------------------------------------===//

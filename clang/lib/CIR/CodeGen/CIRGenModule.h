@@ -27,6 +27,7 @@
 #include "clang/Basic/TargetInfo.h"
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
+#include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 
 #include "llvm/ADT/ScopedHashTable.h"
@@ -565,7 +566,10 @@ private:
   void applyReplacements();
 
   /// Map source language used to a CIR attribute.
-  mlir::cir::LangStandard getCIRSourceLanguage();
+  mlir::cir::SourceLanguage getCIRSourceLanguage();
+
+  /// Map language standard used to a CIR attribute.
+  mlir::cir::LangStandard getCIRLangStandard();
 };
 } // namespace cir
 

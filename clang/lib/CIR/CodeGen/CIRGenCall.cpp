@@ -23,6 +23,7 @@
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include <cassert>
 
+#include "UnimplementedFeatureGuarding.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -1016,7 +1017,7 @@ arrangeFreeFunctionLikeCall(CIRGenTypes &CGT, CIRGenModule &CGM,
 
     assert(!proto->hasExtParameterInfos() && "extparameterinfos NYI");
   } else if (llvm::isa<FunctionNoProtoType>(fnType)) {
-    // FIXME(cir): This clause ignores target specific checks.
+    assert(!UnimplementedFeature::targetCodeGenInfoIsProtoCallVariadic());
     required = RequiredArgs(args.size());
   }
 
