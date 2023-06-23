@@ -162,8 +162,9 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &context,
   }
   theModule->setAttr("cir.sob",
                      mlir::cir::SignedOverflowBehaviorAttr::get(&context, sob));
-  theModule->setAttr("cir.std", mlir::cir::LangStandardAttr::get(
-                                    &context, getCIRSourceLanguage()));
+  theModule->setAttr(
+      "cir.lang", mlir::cir::LangInfoAttr::get(&context, getCIRSourceLanguage(),
+                                               getCIRLangStandard()));
   // Set the module name to be the name of the main file. TranslationUnitDecl
   // often contains invalid source locations and isn't a reliable source for the
   // module location.
@@ -2317,66 +2318,83 @@ void CIRGenModule::ErrorUnsupported(const Decl *D, const char *Type) {
   getDiags().Report(astCtx.getFullLoc(D->getLocation()), DiagID) << Msg;
 }
 
-mlir::cir::LangStandard CIRGenModule::getCIRSourceLanguage() {
-  using CIR = mlir::cir::LangStandard;
+mlir::cir::SourceLanguage CIRGenModule::getCIRSourceLanguage() {
+  auto opts = getLangOpts();
+  using ClangStd = clang::LangStandard;
+  using CIRLang = mlir::cir::SourceLanguage;
+
+  if (opts.CPlusPlus || opts.CPlusPlus11 || opts.CPlusPlus14 ||
+      opts.CPlusPlus17 || opts.CPlusPlus20 || opts.CPlusPlus23 ||
+      opts.CPlusPlus26)
+    return CIRLang::CXX;
+  if (opts.C99 || opts.C11 || opts.C17 || opts.C2x ||
+      opts.LangStd == ClangStd::lang_c89)
+    return CIRLang::C;
+
+  // TODO(cir): support remaining source languages.
+  llvm_unreachable("CIR does not yet support the given source language");
+}
+
+mlir::cir::LangStandard CIRGenModule::getCIRLangStandard() {
+  using CIRStd = mlir::cir::LangStandard;
   using Clang = clang::LangStandard;
 
   switch (getLangOpts().LangStd) {
 
   // ISO standards.
   case Clang::lang_c89:
-    return CIR::C89;
+    return CIRStd::C89;
   case Clang::lang_c94:
-    return CIR::C94;
+    return CIRStd::C94;
   case Clang::lang_c99:
-    return CIR::C99;
+    return CIRStd::C99;
   case Clang::lang_c11:
-    return CIR::C11;
+    return CIRStd::C11;
   case Clang::lang_c17:
-    return CIR::C17;
+    return CIRStd::C17;
   case Clang::lang_c2x:
-    return CIR::C2X;
+    return CIRStd::C2X;
   case Clang::lang_cxx98:
-    return CIR::CXX98;
+    return CIRStd::CXX98;
   case Clang::lang_cxx11:
-    return CIR::CXX11;
+    return CIRStd::CXX11;
   case Clang::lang_cxx14:
-    return CIR::CXX14;
+    return CIRStd::CXX14;
   case Clang::lang_cxx17:
-    return CIR::CXX17;
+    return CIRStd::CXX17;
   case Clang::lang_cxx20:
-    return CIR::CXX20;
+    return CIRStd::CXX20;
   case Clang::lang_cxx23:
-    return CIR::CXX23;
+    return CIRStd::CXX23;
   case Clang::lang_cxx26:
-    return CIR::CXX26;
+    return CIRStd::CXX26;
 
   // TODO(cir): Should we distinguish between GNU and ISO standards in CIR?
   // GNU standards.
   case Clang::lang_gnu89:
-    return CIR::C89;
+    return CIRStd::C89;
   case Clang::lang_gnu99:
-    return CIR::C99;
+    return CIRStd::C99;
   case Clang::lang_gnu11:
-    return CIR::C11;
+    return CIRStd::C11;
   case Clang::lang_gnu17:
-    return CIR::C17;
+    return CIRStd::C17;
   case Clang::lang_gnu2x:
-    return CIR::C2X;
+    return CIRStd::C2X;
   case Clang::lang_gnucxx98:
-    return CIR::CXX98;
+    return CIRStd::CXX98;
   case Clang::lang_gnucxx11:
-    return CIR::CXX11;
+    return CIRStd::CXX11;
   case Clang::lang_gnucxx14:
-    return CIR::CXX14;
+    return CIRStd::CXX14;
   case Clang::lang_gnucxx17:
-    return CIR::CXX17;
+    return CIRStd::CXX17;
   case Clang::lang_gnucxx20:
-    return CIR::CXX20;
+    return CIRStd::CXX20;
   case Clang::lang_gnucxx23:
-    return CIR::CXX23;
+    return CIRStd::CXX23;
   case Clang::lang_gnucxx26:
-    return CIR::CXX26;
+    return CIRStd::CXX26;
 
   // TODO(cir): support remaining language standards.
   default:
