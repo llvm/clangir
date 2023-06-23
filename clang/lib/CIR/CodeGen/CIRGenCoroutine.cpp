@@ -271,9 +271,7 @@ CIRGenFunction::buildCoroutineBody(const CoroutineBodyStmt &S) {
                        /*ArraySize=*/nullptr);
 
   auto storeAddr = coroFrame.getPointer();
-  auto coroPtrTy = storeAddr.getType().dyn_cast<mlir::cir::PointerType>();
-  auto temp = builder.createBitcast(nullPtrCst, coroPtrTy.getPointee());
-  builder.create<mlir::cir::StoreOp>(openCurlyLoc, temp, storeAddr);
+  builder.create<mlir::cir::StoreOp>(openCurlyLoc, nullPtrCst, storeAddr);
   builder.create<mlir::cir::IfOp>(openCurlyLoc, coroAlloc.getResult(0),
                                   /*withElseRegion=*/false,
                                   /*thenBuilder=*/
