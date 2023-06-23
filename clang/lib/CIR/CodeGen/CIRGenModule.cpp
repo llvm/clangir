@@ -44,6 +44,7 @@
 #include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/AST/StmtCXX.h"
 #include "clang/AST/StmtObjC.h"
+#include "clang/AST/Type.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/LangStandard.h"
 #include "clang/Basic/SourceLocation.h"
@@ -165,8 +166,9 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &context,
   }
   theModule->setAttr("cir.sob",
                      mlir::cir::SignedOverflowBehaviorAttr::get(&context, sob));
-  theModule->setAttr("cir.std", mlir::cir::LangStandardAttr::get(
-                                    &context, getCIRSourceLanguage()));
+  theModule->setAttr(
+      "cir.lang", mlir::cir::LangInfoAttr::get(&context, getCIRSourceLanguage(),
+                                               getCIRLangStandard()));
   // Set the module name to be the name of the main file. TranslationUnitDecl
   // often contains invalid source locations and isn't a reliable source for the
   // module location.
@@ -1437,47 +1439,42 @@ mlir::cir::GlobalLinkageKind CIRGenModule::getCIRLinkageForDeclarator(
   return mlir::cir::GlobalLinkageKind::ExternalLinkage;
 }
 
-/// ReplaceUsesOfNonProtoTypeWithRealFunction - This function is called when we
-/// implement a function with no prototype, e.g. "int foo() {}".  If there are
-/// existing call uses of the old function in the module, this adjusts them to
-/// call the new function directly.
+/// This function is called when we implement a function with no prototype, e.g.
+/// "int foo() {}". If there are existing call uses of the old function in the
+/// module, this adjusts them to call the new function directly.
 ///
 /// This is not just a cleanup: the always_inline pass requires direct calls to
 /// functions to be able to inline them.  If there is a bitcast in the way, it
-/// won't inline them.  Instcombine normally deletes these calls, but it isn't
+/// won't inline them. Instcombine normally deletes these calls, but it isn't
 /// run at -O0.
 void CIRGenModule::ReplaceUsesOfNonProtoTypeWithRealFunction(
     mlir::Operation *Old, mlir::cir::FuncOp NewFn) {
+
   // If we're redefining a global as a function, don't transform it.
   auto OldFn = dyn_cast<mlir::cir::FuncOp>(Old);
   if (!OldFn)
     return;
 
-  // Ensure new type is not variadic.
-  auto NewTy = builder.getFuncType(NewFn.getFunctionType().getInputs(),
-                                   NewFn.getFunctionType().getResult(0));
+  // Mark new function as originated from a no-proto declaration.
+  NewFn.setNoProtoAttr(OldFn.getNoProtoAttr());
 
-  // Iterate through all uses of the no-proto function.
+  // Iterate through all calls of the no-proto function.
   auto Calls = OldFn.getSymbolUses(OldFn->getParentOp());
   for (auto Call : Calls.value()) {
     mlir::OpBuilder::InsertionGuard guard(builder);
 
-    // Fetch GetGlobal op used for indirect call.
-    auto getGlobal = dyn_cast<mlir::cir::GetGlobalOp>(Call.getUser());
-    assert(getGlobal && "unexpected use of no-proto function");
-    builder.setInsertionPoint(getGlobal);
+    // Fetch no-proto call to be replaced.
+    auto noProtoCallOp = dyn_cast<mlir::cir::CallOp>(Call.getUser());
+    assert(noProtoCallOp && "unexpected use of no-proto function");
+    builder.setInsertionPoint(noProtoCallOp);
 
-    // Patch indirect call ptr with the now known function type info.
-    mlir::Value typeFixed = builder.create<mlir::cir::GetGlobalOp>(
-        getGlobal->getLoc(), builder.getPointerTo(NewTy), NewFn.getSymName());
+    // Patch call type with the real function type.
+    auto realCallOp = builder.create<mlir::cir::CallOp>(
+        noProtoCallOp.getLoc(), NewFn, noProtoCallOp.getOperands());
 
-    // Replace the old function pointer with the new one.
-    getGlobal.replaceAllUsesWith(typeFixed);
-    Call.getUser()->erase();
-
-    // TODO(cir): Handle incorrect uses with undefined behaviour.
-    // TODO(cir): Remove redundant casts and replace by direct calls too here?
-    //            Or defer it to some CIR optmization pass?
+    // Replace old no proto call with fixed call.
+    noProtoCallOp.replaceAllUsesWith(realCallOp);
+    noProtoCallOp.erase();
   }
 }
 
@@ -1704,9 +1701,12 @@ CIRGenModule::createCIRFunction(mlir::Location loc, StringRef name,
       builder.setInsertionPoint(curCGF->CurFn.getOperation());
 
     f = builder.create<mlir::cir::FuncOp>(loc, name, Ty);
+
     if (FD)
-      f.setAstAttr(
-          mlir::cir::ASTFunctionDeclAttr::get(builder.getContext(), FD));
+      f.setAstAttr(builder.getAttr<mlir::cir::ASTFunctionDeclAttr>(FD));
+
+    if (FD && !FD->hasPrototype())
+      f.setNoProtoAttr(builder.getAttr<mlir::cir::NoProtoFuncDeclAttr>());
 
     assert(f.isDeclaration() && "expected empty body");
 
@@ -1847,7 +1847,7 @@ mlir::cir::FuncOp CIRGenModule::GetOrCreateCIRFunction(
 
     // This might be an implementation of a function without a prototype, in
     // which case, try to do special replacement of calls which match the new
-    // prototype.  The really key thing here is that we also potentially drop
+    // prototype. The really key thing here is that we also potentially drop
     // arguments from the call site so as to make a direct call, which makes the
     // inliner happier and suppresses a number of optimizer warnings (!) about
     // dropping arguments.
@@ -2394,66 +2394,83 @@ void CIRGenModule::ErrorUnsupported(const Decl *D, const char *Type) {
   getDiags().Report(astCtx.getFullLoc(D->getLocation()), DiagID) << Msg;
 }
 
-mlir::cir::LangStandard CIRGenModule::getCIRSourceLanguage() {
-  using CIR = mlir::cir::LangStandard;
+mlir::cir::SourceLanguage CIRGenModule::getCIRSourceLanguage() {
+  auto opts = getLangOpts();
+  using ClangStd = clang::LangStandard;
+  using CIRLang = mlir::cir::SourceLanguage;
+
+  if (opts.CPlusPlus || opts.CPlusPlus11 || opts.CPlusPlus14 ||
+      opts.CPlusPlus17 || opts.CPlusPlus20 || opts.CPlusPlus23 ||
+      opts.CPlusPlus26)
+    return CIRLang::CXX;
+  if (opts.C99 || opts.C11 || opts.C17 || opts.C2x ||
+      opts.LangStd == ClangStd::lang_c89)
+    return CIRLang::C;
+
+  // TODO(cir): support remaining source languages.
+  llvm_unreachable("CIR does not yet support the given source language");
+}
+
+mlir::cir::LangStandard CIRGenModule::getCIRLangStandard() {
+  using CIRStd = mlir::cir::LangStandard;
   using Clang = clang::LangStandard;
 
   switch (getLangOpts().LangStd) {
 
   // ISO standards.
   case Clang::lang_c89:
-    return CIR::C89;
+    return CIRStd::C89;
   case Clang::lang_c94:
-    return CIR::C94;
+    return CIRStd::C94;
   case Clang::lang_c99:
-    return CIR::C99;
+    return CIRStd::C99;
   case Clang::lang_c11:
-    return CIR::C11;
+    return CIRStd::C11;
   case Clang::lang_c17:
-    return CIR::C17;
+    return CIRStd::C17;
   case Clang::lang_c2x:
-    return CIR::C2X;
+    return CIRStd::C2X;
   case Clang::lang_cxx98:
-    return CIR::CXX98;
+    return CIRStd::CXX98;
   case Clang::lang_cxx11:
-    return CIR::CXX11;
+    return CIRStd::CXX11;
   case Clang::lang_cxx14:
-    return CIR::CXX14;
+    return CIRStd::CXX14;
   case Clang::lang_cxx17:
-    return CIR::CXX17;
+    return CIRStd::CXX17;
   case Clang::lang_cxx20:
-    return CIR::CXX20;
+    return CIRStd::CXX20;
   case Clang::lang_cxx23:
-    return CIR::CXX23;
+    return CIRStd::CXX23;
   case Clang::lang_cxx26:
-    return CIR::CXX26;
+    return CIRStd::CXX26;
 
   // TODO(cir): Should we distinguish between GNU and ISO standards in CIR?
   // GNU standards.
   case Clang::lang_gnu89:
-    return CIR::C89;
+    return CIRStd::C89;
   case Clang::lang_gnu99:
-    return CIR::C99;
+    return CIRStd::C99;
   case Clang::lang_gnu11:
-    return CIR::C11;
+    return CIRStd::C11;
   case Clang::lang_gnu17:
-    return CIR::C17;
+    return CIRStd::C17;
   case Clang::lang_gnu2x:
-    return CIR::C2X;
+    return CIRStd::C2X;
   case Clang::lang_gnucxx98:
-    return CIR::CXX98;
+    return CIRStd::CXX98;
   case Clang::lang_gnucxx11:
-    return CIR::CXX11;
+    return CIRStd::CXX11;
   case Clang::lang_gnucxx14:
-    return CIR::CXX14;
+    return CIRStd::CXX14;
   case Clang::lang_gnucxx17:
-    return CIR::CXX17;
+    return CIRStd::CXX17;
   case Clang::lang_gnucxx20:
-    return CIR::CXX20;
+    return CIRStd::CXX20;
   case Clang::lang_gnucxx23:
-    return CIR::CXX23;
+    return CIRStd::CXX23;
   case Clang::lang_gnucxx26:
-    return CIR::CXX26;
+    return CIRStd::CXX26;
 
   // TODO(cir): support remaining language standards.
   default:

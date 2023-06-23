@@ -892,24 +892,11 @@ RValue CIRGenFunction::buildCall(clang::QualType CalleeType,
   if (isa<FunctionNoProtoType>(FnType) || Chain) {
     assert(!Chain && "Chain calls NYI");
 
-    // Fetch expected call type then recreate it as a non-variadic type.
-    auto Aux = getTypes().GetFunctionType(FnInfo);
-    auto CallTy = builder.getFuncType(Aux.getInputs(), Aux.getResult(0));
+    assert(!UnimplementedFeature::addressSpace());
 
-    // TODO(cir): Handle address spaces.
-
-    // Fetch function pointer for casting.
-    auto Loc = getLoc(E->getExprLoc());
+    // Set no-proto function as callee.
     auto Fn = llvm::dyn_cast<mlir::cir::FuncOp>(Callee.getFunctionPointer());
-    auto FnPtr = builder.create<mlir::cir::GetGlobalOp>(
-        Loc, builder.getPointerTo(Fn.getFunctionType()), Fn.getName());
-
-    // Cast the function pointer to the expected call type.
-    auto CastedPtr =
-        builder.createBitcast(Loc, FnPtr, builder.getPointerTo(CallTy));
-
-    // Update the call to use the casted function pointer.
-    Callee.setFunctionPointer(CastedPtr.getDefiningOp());
+    Callee.setFunctionPointer(Fn);
   }
 
   assert(!CGM.getLangOpts().HIP && "HIP NYI");
