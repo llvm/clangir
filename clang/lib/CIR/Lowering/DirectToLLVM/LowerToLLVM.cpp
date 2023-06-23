@@ -1235,6 +1235,8 @@ lowerDirectlyFromCIRToLLVMIR(mlir::ModuleOp theModule,
   pm.addNestedPass<mlir::LLVM::LLVMFuncOp>(
       mlir::LLVM::createDIScopeForLLVMFuncOpPass());
 
+  (void)mlir::applyPassManagerCLOptions(pm);
+
   auto result = !mlir::failed(pm.run(theModule));
   if (!result)
     report_fatal_error(
