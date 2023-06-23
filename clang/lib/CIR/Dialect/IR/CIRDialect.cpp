@@ -1542,11 +1542,12 @@ LogicalResult cir::FuncOp::verifyType() {
   auto module = getOperation()->getParentOfType<ModuleOp>();
 
   // FIXME(cir): We should have a custom module with mandatory flags. In the
-  // meantime, if the cir.lang attribute is missing, we assume C++17.
+  // meantime, if the cir.lang attribute is missing, we assume C17/C++17.
   auto lang =
-      module->hasAttr("cir.std")
-          ? module->getAttrOfType<cir::LangStandardAttr>("cir.std")
-          : cir::LangStandardAttr::get(getContext(), cir::LangStandard::CXX17);
+      module->hasAttr("cir.lang")
+          ? module->getAttrOfType<cir::LangInfoAttr>("cir.lang")
+          : cir::LangInfoAttr::get(getContext(), cir::SourceLanguage::CXX,
+                                   cir::LangStandard::CXX17);
 
   if (!type.isa<cir::FuncType>())
     return emitOpError("requires '" + getFunctionTypeAttrName().str() +
@@ -1555,7 +1556,7 @@ LogicalResult cir::FuncOp::verifyType() {
   if (getFunctionType().getNumResults() > 1)
     return emitOpError("cannot have more than one result");
 
-  if (lang.isCXX() && type.isVarArg() && type.getNumInputs() == 0)
+  if (!lang.hasNoProtoDecls() && type.isVarArg() && type.getNumInputs() == 0)
     return emitOpError("functions must have at least one non-variadic input");
 
   return success();
