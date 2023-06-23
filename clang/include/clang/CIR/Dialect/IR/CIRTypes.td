@@ -232,6 +232,10 @@ def CIR_VoidType : CIR_Type<"Void", "void"> {
   let description = [{
     The `!cir.void` type represents the C/C++ `void` type.
   }];
+  let extraClassDeclaration = [{
+    /// Returns a clone of this type with the given context.
+    std::string getAlias() const { return "void"; };
+  }];
 }
 
 //===----------------------------------------------------------------------===//
