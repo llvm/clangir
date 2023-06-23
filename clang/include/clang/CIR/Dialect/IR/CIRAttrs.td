@@ -415,4 +415,17 @@ def ASTFunctionDeclAttr : ASTDecl<"FunctionDecl", "fndecl">;
 def ASTVarDeclAttr : ASTDecl<"VarDecl", "vardecl">;
 def ASTRecordDeclAttr : ASTDecl<"RecordDecl", "recdecl">;
 
+//===----------------------------------------------------------------------===//
+// NoProtoFuncDeclAttr
+//===----------------------------------------------------------------------===//
+
+def NoProtoFuncDeclAttr : CIR_Attr<"NoProtoFuncDecl", "no_proto"> {
+  let summary = "Marks when a function was declared without a prototype.";
+  let description = [{
+    This attribute is used to represent a function that is declared with no
+    prototype (e.g. `int foo();`). It's used in the CIR dialect to ignore type,
+    mantaining compatilibility with C standards older than C2X.
+  }];
+}
+
 #endif // MLIR_CIR_DIALECT_CIR_ATTRS

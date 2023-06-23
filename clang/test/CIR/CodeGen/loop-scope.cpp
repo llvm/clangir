@@ -17,7 +17,7 @@ void l0() {
 // CPPSCOPE-NEXT:     cir.store %2, %0 : !s32i, cir.ptr <!s32i>
 // CPPSCOPE-NEXT:     cir.loop for(cond :  {
 
-// CSCOPE: cir.func @l0() {
+// CSCOPE: cir.func @l0() attributes {no_proto = #cir.no_proto} {
 // CSCOPE-NEXT: cir.scope {
 // CSCOPE-NEXT:   %0 = cir.alloca !s32i, cir.ptr <!s32i>, ["i", init] {alignment = 4 : i64}
 // CSCOPE-NEXT:   %1 = cir.const(#cir.int<0> : !s32i) : !s32i

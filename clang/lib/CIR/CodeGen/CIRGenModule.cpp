@@ -1455,6 +1455,9 @@ void CIRGenModule::ReplaceUsesOfNonProtoTypeWithRealFunction(
   if (!OldFn)
     return;
 
+  // Mark new function as originated from a no-proto declaration.
+  NewFn.setNoProtoAttr(OldFn.getNoProtoAttr());
+
   // Iterate through all calls of the no-proto function.
   auto Calls = OldFn.getSymbolUses(OldFn->getParentOp());
   for (auto Call : Calls.value()) {
@@ -1698,9 +1701,12 @@ CIRGenModule::createCIRFunction(mlir::Location loc, StringRef name,
       builder.setInsertionPoint(curCGF->CurFn.getOperation());
 
     f = builder.create<mlir::cir::FuncOp>(loc, name, Ty);
+
     if (FD)
-      f.setAstAttr(
-          mlir::cir::ASTFunctionDeclAttr::get(builder.getContext(), FD));
+      f.setAstAttr(builder.getAttr<mlir::cir::ASTFunctionDeclAttr>(FD));
+
+    if (FD && !FD->hasPrototype())
+      f.setNoProtoAttr(builder.getAttr<mlir::cir::NoProtoFuncDeclAttr>());
 
     assert(f.isDeclaration() && "expected empty body");
 

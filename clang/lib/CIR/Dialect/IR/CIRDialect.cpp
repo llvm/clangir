@@ -1625,19 +1625,24 @@ cir::CallOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
     return emitOpError() << "'" << fnAttr.getValue()
                          << "' does not reference a valid function";
 
-  // Verify that the operand and result types match the callee.
+  // Verify that the operand and result types match the callee. Note that
+  // argument-checking is disabled for functions without a prototype.
   auto fnType = fn.getFunctionType();
-  if (!fnType.isVarArg() && getNumOperands() != fnType.getNumInputs())
-    return emitOpError("incorrect number of operands for callee");
-  if (fnType.isVarArg() && getNumOperands() < fnType.getNumInputs())
-    return emitOpError("too few operands for callee");
+  if (!fn.hasPrototype()) {
+    if (!fnType.isVarArg() && getNumOperands() != fnType.getNumInputs())
+      return emitOpError("incorrect number of operands for callee");
 
-  for (unsigned i = 0, e = fnType.getNumInputs(); i != e; ++i)
-    if (getOperand(i).getType() != fnType.getInput(i))
-      return emitOpError("operand type mismatch: expected operand type ")
-             << fnType.getInput(i) << ", but provided "
-             << getOperand(i).getType() << " for operand number " << i;
+    if (fnType.isVarArg() && getNumOperands() < fnType.getNumInputs())
+      return emitOpError("too few operands for callee");
 
+    for (unsigned i = 0, e = fnType.getNumInputs(); i != e; ++i)
+      if (getOperand(i).getType() != fnType.getInput(i))
+        return emitOpError("operand type mismatch: expected operand type ")
+               << fnType.getInput(i) << ", but provided "
+               << getOperand(i).getType() << " for operand number " << i;
+  }
+
+  // Verify that the result types match the callee.
   if (fnType.getNumResults() != getNumResults())
     return emitOpError("incorrect number of results for callee");
 
