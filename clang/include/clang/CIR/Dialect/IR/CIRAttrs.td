@@ -27,31 +27,8 @@ class CIR_Attr<string name, string attrMnemonic, list<Trait> traits = []>
 }
 
 //===----------------------------------------------------------------------===//
-// LangInfoAttr
+// LangAttr
 //===----------------------------------------------------------------------===//
-
-def LS_C89 : I32EnumAttrCase<"C89", 1, "c89">;
-def LS_C94 : I32EnumAttrCase<"C94", 2, "c94">;
-def LS_C99 : I32EnumAttrCase<"C99", 3, "c99">;
-def LS_C11 : I32EnumAttrCase<"C11", 4, "c11">;
-def LS_C17 : I32EnumAttrCase<"C17", 5, "c17">;
-def LS_C2X : I32EnumAttrCase<"C2X", 6, "c2x">;
-
-def LS_CXX98 : I32EnumAttrCase<"CXX98", 7, "cxx98">;
-def LS_CXX11 : I32EnumAttrCase<"CXX11", 8, "cxx11">;
-def LS_CXX14 : I32EnumAttrCase<"CXX14", 9, "cxx14">;
-def LS_CXX17 : I32EnumAttrCase<"CXX17", 10, "cxx17">;
-def LS_CXX20 : I32EnumAttrCase<"CXX20", 11, "cxx20">;
-def LS_CXX23 : I32EnumAttrCase<"CXX23", 12, "cxx23">;
-def LS_CXX26 : I32EnumAttrCase<"CXX26", 13, "cxx26">;
-
-def LangStandard : I32EnumAttr<"LangStandard", "Source language standard", [
-  LS_C89, LS_C94, LS_C99, LS_C11, LS_C17, LS_C2X,
-  LS_CXX98, LS_CXX11, LS_CXX14, LS_CXX17, LS_CXX20, LS_CXX23, LS_CXX26
-]> {
-  let cppNamespace = "::mlir::cir";
-  let genSpecializedAttr = 0;
-}
 
 def C : I32EnumAttrCase<"C", 1, "c">;
 def CXX : I32EnumAttrCase<"CXX", 2, "cxx">;
@@ -63,30 +40,24 @@ def SourceLanguage : I32EnumAttr<"SourceLanguage", "Source language", [
   let genSpecializedAttr = 0;
 }
 
-def LangInfo : CIR_Attr<"LangInfo", "lang"> {
+def LangAttr : CIR_Attr<"Lang", "lang"> {
   let summary = "Module source language";
-  let parameters = (ins SourceLanguage:$lang, LangStandard:$std);
+  let parameters = (ins SourceLanguage:$lang);
   let description = [{
-    Represents information about the source language of the module.
+    Represents the source language used to generate the module.
 
     Example:
     ```
-    // C module that abides to the C89 standard.
-    module attributes {cir.lang<c, c89>} {}
-    // C++ module that abides to the C++20 standard.
-    module attributes {cir.lang<cxx, cxx20>} {}
+    // Module compiled from C.
+    module attributes {cir.lang = cir.lang<c>} {}
+    // Module compiled from C++.
+    module attributes {cir.lang = cir.lang<cxx>} {}
     ```
   }];
   let hasCustomAssemblyFormat = 1;
   let extraClassDeclaration = [{
     bool isC() const { return getLang() == SourceLanguage::C; };
     bool isCXX() const { return getLang() == SourceLanguage::CXX; };
-    bool isCStd() const;
-    bool isCXXStd() const;
-
-    bool hasNoProtoDecls() const {
-      return !isCXX() && getStd() != LangStandard::C2X;
-    };
   }];
 }
 
