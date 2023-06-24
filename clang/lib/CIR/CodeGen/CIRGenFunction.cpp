@@ -1128,7 +1128,11 @@ clang::QualType CIRGenFunction::buildFunctionArgList(clang::GlobalDecl GD,
       if (!Param->hasAttr<PassObjectSizeAttr>())
         continue;
 
-      llvm_unreachable("PassObjectSizeAttr NYI");
+      auto *Implicit = ImplicitParamDecl::Create(
+          getContext(), Param->getDeclContext(), Param->getLocation(),
+          /*Id=*/nullptr, getContext().getSizeType(), ImplicitParamKind::Other);
+      SizeArguments[Param] = Implicit;
+      Args.push_back(Implicit);
     }
   }
 
