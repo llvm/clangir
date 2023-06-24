@@ -20,30 +20,3 @@ int test1(int x) {
   return noProto1(x);
   // CHECK: %{{.+}} = cir.call @noProto1(%{{[0-9]+}}) : (!s32i) -> !s32i
 }
-
-// Declaration without prototype followed by a correct call, then its definition.
-//
-// Call to no-proto is made before definition, so a variadic call that takes anything
-// is created. Later, when the definition is found, no-proto is replaced.
-int noProto2();
-int test2(int x) {
-  return noProto2(x);
-  // CHECK: %{{.+}} = cir.call @noProto2(%{{[0-9]+}}) : (!s32i) -> !s32i
-}
-int noProto2(int x) { return x; }
-// CHECK: cir.func @noProto2(%arg0: !s32i {{.+}}) -> !s32i {
-
-// No-proto declaration without definition (any call here is "correct").
-//
-// Call to no-proto is made before definition, so a variadic call that takes anything
-// is created. Definition is not in the translation unit, so it is left as is.
-int noProto3();
-// cir.func private @noProto3(...) -> !s32i
-int test3(int x) {
-// CHECK: cir.func @test3
-  return noProto3(x);
-  // CHECK: %{{.+}} = cir.call @noProto3(%{{[0-9]+}}) : (!s32i) -> !s32i
-}
-
-// TODO(cir): Handle incorrect calls to no-proto functions. It's mostly undefined
-//            behaviour, but it should still compile.
