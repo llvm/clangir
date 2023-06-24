@@ -1370,6 +1370,7 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
   auto coroutineNameAttr = getCoroutineAttrName(state.name);
   auto lambdaNameAttr = getLambdaAttrName(state.name);
   auto visNameAttr = getSymVisibilityAttrName(state.name);
+  auto noProtoNameAttr = getNoProtoAttrName(state.name);
   if (::mlir::succeeded(parser.parseOptionalKeyword(builtinNameAttr.strref())))
     state.addAttribute(builtinNameAttr, parser.getBuilder().getUnitAttr());
   if (::mlir::succeeded(
@@ -1377,6 +1378,8 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
     state.addAttribute(coroutineNameAttr, parser.getBuilder().getUnitAttr());
   if (::mlir::succeeded(parser.parseOptionalKeyword(lambdaNameAttr.strref())))
     state.addAttribute(lambdaNameAttr, parser.getBuilder().getUnitAttr());
+  if (parser.parseOptionalKeyword(noProtoNameAttr).succeeded())
+    state.addAttribute(noProtoNameAttr, parser.getBuilder().getUnitAttr());
 
   // Default to external linkage if no keyword is provided.
   state.addAttribute(getLinkageAttrNameString(),
@@ -1502,6 +1505,9 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
   if (getLambda())
     p << "lambda ";
 
+  if (getNoProto())
+    p << "no_proto ";
+
   if (getLinkage() != GlobalLinkageKind::ExternalLinkage)
     p << stringifyGlobalLinkageKind(getLinkage()) << ' ';
 
@@ -1517,7 +1523,8 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
   function_interface_impl::printFunctionAttributes(
       p, *this,
       {getSymVisibilityAttrName(), getAliaseeAttrName(),
-       getFunctionTypeAttrName(), getLinkageAttrName(), getBuiltinAttrName()});
+       getFunctionTypeAttrName(), getLinkageAttrName(), getBuiltinAttrName(),
+       getNoProtoAttrName()});
 
   if (auto aliaseeName = getAliasee()) {
     p << " alias(";
@@ -1539,26 +1546,14 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
 // getNumArguments hook not failing.
 LogicalResult cir::FuncOp::verifyType() {
   auto type = getFunctionType();
-  auto module = getOperation()->getParentOfType<ModuleOp>();
-
-  // FIXME(cir): We should have a custom module with mandatory flags. In the
-  // meantime, if the cir.lang attribute is missing, we assume C17/C++17.
-  auto lang =
-      module->hasAttr("cir.lang")
-          ? module->getAttrOfType<cir::LangInfoAttr>("cir.lang")
-          : cir::LangInfoAttr::get(getContext(), cir::SourceLanguage::CXX,
-                                   cir::LangStandard::CXX17);
-
   if (!type.isa<cir::FuncType>())
     return emitOpError("requires '" + getFunctionTypeAttrName().str() +
                        "' attribute of function type");
-
   if (getFunctionType().getNumResults() > 1)
     return emitOpError("cannot have more than one result");
-
-  if (!lang.hasNoProtoDecls() && type.isVarArg() && type.getNumInputs() == 0)
-    return emitOpError("functions must have at least one non-variadic input");
-
+  if (!getNoProto() && type.isVarArg() && type.getNumInputs() == 0)
+    return emitError()
+           << "prototyped function must have at least one non-variadic input";
   return success();
 }
 
@@ -1628,7 +1623,7 @@ cir::CallOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
   // Verify that the operand and result types match the callee. Note that
   // argument-checking is disabled for functions without a prototype.
   auto fnType = fn.getFunctionType();
-  if (!fn.hasPrototype()) {
+  if (!fn.getNoProto()) {
     if (!fnType.isVarArg() && getNumOperands() != fnType.getNumInputs())
       return emitOpError("incorrect number of operands for callee");
 

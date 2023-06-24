@@ -27,6 +27,9 @@ module {
     %1 = cir.alloca !cir.ptr<!cir.func<!s32i (!s32i, ...)>>, cir.ptr <!cir.ptr<!cir.func<!s32i (!s32i, ...)>>>, ["fn", init] {alignment = 8 : i64}
     cir.return
   }
+
+  // Should parse variadic no-proto functions.
+  cir.func no_proto private @no_proto(...) -> !s32i
 }
 
 // CHECK: cir.func @l0()
