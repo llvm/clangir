@@ -27,11 +27,11 @@ struct CIRGenTypeCache {
   CIRGenTypeCache() {}
 
   /// void
-  mlir::Type VoidTy;
+  mlir::cir::VoidType VoidTy;
   // char, int, short, long
-  mlir::Type SInt8Ty, SInt16Ty, SInt32Ty, SInt64Ty;
+  mlir::cir::IntType SInt8Ty, SInt16Ty, SInt32Ty, SInt64Ty;
   // usigned char, unsigned, unsigned short, unsigned long
-  mlir::Type UInt8Ty, UInt16Ty, UInt32Ty, UInt64Ty;
+  mlir::cir::IntType UInt8Ty, UInt16Ty, UInt32Ty, UInt64Ty;
   /// half, bfloat, float, double
   // mlir::Type HalfTy, BFloatTy;
   mlir::Type FloatTy, DoubleTy;
