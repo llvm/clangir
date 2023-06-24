@@ -1432,14 +1432,14 @@ def FuncOp : CIR_Op<"func", [
                        UnitAttr:$builtin,
                        UnitAttr:$coroutine,
                        UnitAttr:$lambda,
+                       UnitAttr:$no_proto,
                        DefaultValuedAttr<GlobalLinkageKind,
                                          "GlobalLinkageKind::ExternalLinkage">:$linkage,
                        OptionalAttr<StrAttr>:$sym_visibility,
                        OptionalAttr<DictArrayAttr>:$arg_attrs,
                        OptionalAttr<DictArrayAttr>:$res_attrs,
                        OptionalAttr<FlatSymbolRefAttr>:$aliasee,
-                       OptionalAttr<ASTFunctionDeclAttr>:$ast,
-                       OptionalAttr<NoProtoFuncDeclAttr>:$no_proto);
+                       OptionalAttr<ASTFunctionDeclAttr>:$ast);
   let regions = (region AnyRegion:$body);
   let skipDefaultBuilders = 1;
 
@@ -1451,9 +1451,6 @@ def FuncOp : CIR_Op<"func", [
   >];
 
   let extraClassDeclaration = [{
-    /// Returns whether this function was declared with a prototype.
-    bool hasPrototype() { return getNoProtoAttr() != nullptr; }
-
     /// Returns the region on the current operation that is callable. This may
     /// return null in the case of an external callable object, e.g. an external
     /// function.

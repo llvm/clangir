@@ -890,8 +890,7 @@ RValue CIRGenFunction::buildCall(clang::QualType CalleeType,
   // Chain calls use the same code path to add the inviisble chain parameter to
   // the function type.
   if (isa<FunctionNoProtoType>(FnType) || Chain) {
-    assert(!Chain && "Chain calls NYI");
-
+    assert(!UnimplementedFeature::chainCalls());
     assert(!UnimplementedFeature::addressSpace());
 
     // Set no-proto function as callee.

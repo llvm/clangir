@@ -3,7 +3,7 @@
 // RUN: %clang_cc1 -x c -std=c11 -triple x86_64-unknown-linux-gnu -fclangir-enable -emit-cir %s -o %t.c.cir
 // RUN: FileCheck --input-file=%t.c.cir %s --check-prefix=CSCOPE
 
-void l0() {
+void l0(void) {
   for (int i = 0;;) {
     int j = 0;
   }
@@ -17,7 +17,7 @@ void l0() {
 // CPPSCOPE-NEXT:     cir.store %2, %0 : !s32i, cir.ptr <!s32i>
 // CPPSCOPE-NEXT:     cir.loop for(cond :  {
 
-// CSCOPE: cir.func @l0() attributes {no_proto = #cir.no_proto} {
+// CSCOPE: cir.func @l0() {
 // CSCOPE-NEXT: cir.scope {
 // CSCOPE-NEXT:   %0 = cir.alloca !s32i, cir.ptr <!s32i>, ["i", init] {alignment = 4 : i64}
 // CSCOPE-NEXT:   %1 = cir.const(#cir.int<0> : !s32i) : !s32i
