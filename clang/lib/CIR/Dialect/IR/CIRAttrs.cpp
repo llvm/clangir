@@ -141,10 +141,10 @@ LogicalResult ConstStructAttr::verify(
 }
 
 //===----------------------------------------------------------------------===//
-// LangInfoAttr definitions
+// LangAttr definitions
 //===----------------------------------------------------------------------===//
 
-Attribute LangInfoAttr::parse(AsmParser &parser, Type odsType) {
+Attribute LangAttr::parse(AsmParser &parser, Type odsType) {
   auto loc = parser.getCurrentLocation();
   if (parser.parseLess())
     return {};
@@ -161,51 +161,14 @@ Attribute LangInfoAttr::parse(AsmParser &parser, Type odsType) {
     return {};
   }
 
-  if (parser.parseComma())
-    return {};
-
-  // Parse variable 'std'.
-  llvm::StringRef std;
-  if (parser.parseKeyword(&std))
-    return {};
-
-  // Check if parsed value is a valid standard.
-  auto stdEnum = symbolizeLangStandard(std);
-  if (!stdEnum.has_value()) {
-    parser.emitError(loc) << "invalid language standard '" << std << "'";
-    return {};
-  }
-
   if (parser.parseGreater())
     return {};
 
-  // Create and validate lang info attribute.
-  auto attr = get(parser.getContext(), langEnum.value(), stdEnum.value());
-  if ((attr.isC() && !attr.isCStd()) || (attr.isCXX() && !attr.isCXXStd())) {
-    parser.emitError(loc) << "invalid " << lang << " standard '" << std << "'";
-    return {};
-  }
-
-  return attr;
+  return get(parser.getContext(), langEnum.value());
 }
 
-void LangInfoAttr::print(AsmPrinter &printer) const {
-  printer << "<" << getLang() << ", " << getStd() << '>';
-}
-
-bool LangInfoAttr::isCStd() const {
-  auto std = getStd();
-  using LS = LangStandard;
-  return std == LS::C89 || std == LS::C94 || std == LS::C99 || std == LS::C11 ||
-         std == LS::C17 || std == LS::C2X;
-}
-
-bool LangInfoAttr::isCXXStd() const {
-  auto std = getStd();
-  using LS = LangStandard;
-  return std == LS::CXX98 || std == LS::CXX11 || std == LS::CXX14 ||
-         std == LS::CXX17 || std == LS::CXX20 || std == LS::CXX23 ||
-         std == LS::CXX26;
+void LangAttr::print(AsmPrinter &printer) const {
+  printer << "<" << getLang() << '>';
 }
 
 //===----------------------------------------------------------------------===//
