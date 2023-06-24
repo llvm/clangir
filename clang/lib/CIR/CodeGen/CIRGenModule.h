@@ -27,7 +27,6 @@
 #include "clang/Basic/TargetInfo.h"
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
-#include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 
 #include "llvm/ADT/ScopedHashTable.h"
@@ -542,6 +541,11 @@ public:
   static constexpr const char *builtinCoroBegin = "__builtin_coro_begin";
   static constexpr const char *builtinCoroEnd = "__builtin_coro_end";
 
+  /// Given a builtin id for a function like "__builtin_fabsf", return a
+  /// Function* for "fabsf".
+  mlir::cir::FuncOp getBuiltinLibFunction(const FunctionDecl *FD,
+                                          unsigned BuiltinID);
+
   /// Emit a general error that something can't be done.
   void Error(SourceLocation loc, StringRef error);
 
@@ -564,9 +568,6 @@ private:
 
   /// Map source language used to a CIR attribute.
   mlir::cir::SourceLanguage getCIRSourceLanguage();
-
-  /// Map language standard used to a CIR attribute.
-  mlir::cir::LangStandard getCIRLangStandard();
 };
 } // namespace cir
 
