@@ -30,6 +30,7 @@
 #include "mlir/Dialect/SCF/Transforms/Passes.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/BuiltinAttributeInterfaces.h"
+#include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/IRMapping.h"
@@ -731,13 +732,14 @@ public:
   }
 };
 
+template <typename AttrTy, typename StorageTy>
 mlir::DenseElementsAttr
 convertToDenseElementsAttr(mlir::cir::ConstArrayAttr attr, mlir::Type type) {
-  auto values = llvm::SmallVector<mlir::APInt, 8>{};
+  auto values = llvm::SmallVector<StorageTy, 8>{};
   auto arrayAttr = mlir::dyn_cast<mlir::ArrayAttr>(attr.getElts());
   assert(arrayAttr && "expected array here");
   for (auto element : arrayAttr)
-    values.push_back(mlir::cast<mlir::cir::IntAttr>(element).getValue());
+    values.push_back(mlir::cast<AttrTy>(element).getValue());
   return mlir::DenseElementsAttr::get(
       mlir::RankedTensorType::get({(int64_t)values.size()}, type),
       llvm::ArrayRef(values));
@@ -759,7 +761,11 @@ lowerConstArrayAttr(mlir::cir::ConstArrayAttr constArr,
   auto type = cirArrayType.getEltType();
 
   if (mlir::isa<mlir::cir::IntType>(type))
-    return convertToDenseElementsAttr(constArr, converter->convertType(type));
+    return convertToDenseElementsAttr<mlir::cir::IntAttr, mlir::APInt>(
+        constArr, converter->convertType(type));
+  if (mlir::isa<mlir::FloatType>(type))
+    return convertToDenseElementsAttr<mlir::FloatAttr, mlir::APFloat>(
+        constArr, converter->convertType(type));
 
   return std::nullopt;
 }
