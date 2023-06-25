@@ -182,3 +182,10 @@ void CIRGenerator::HandleCXXStaticMemberVarInstantiation(VarDecl *D) {
 
   CGM->HandleCXXStaticMemberVarInstantiation(D);
 }
+
+void CIRGenerator::CompleteTentativeDefinition(VarDecl *D) {
+  if (Diags.hasErrorOccurred())
+    return;
+
+  CGM->buildTentativeDefinition(D);
+}
