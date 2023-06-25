@@ -41,6 +41,7 @@
 #include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/AST/StmtCXX.h"
 #include "clang/AST/StmtObjC.h"
+#include "clang/AST/Type.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/SourceLocation.h"
 #include "clang/CIR/CIRGenerator.h"
@@ -115,7 +116,10 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &context,
   UInt64Ty =
       ::mlir::cir::IntType::get(builder.getContext(), 64, /*isSigned=*/false);
 
-  VoidTy = UInt8Ty;
+  VoidTy = ::mlir::cir::VoidType::get(builder.getContext());
+
+  // Initialize CIR pointer types cache.
+  VoidPtrTy = ::mlir::cir::PointerType::get(builder.getContext(), VoidTy);
 
   // TODO: HalfTy
   // TODO: BFloatTy
@@ -669,6 +673,11 @@ mlir::cir::GlobalOp CIRGenModule::buildGlobal(const VarDecl *D,
 mlir::Value CIRGenModule::getAddrOfGlobalVar(const VarDecl *D,
                                              llvm::Optional<mlir::Type> Ty,
                                              ForDefinition_t IsForDefinition) {
+  assert(D->hasGlobalStorage() && "Not a global variable");
+  QualType ASTTy = D->getType();
+  if (!Ty)
+    Ty = getTypes().convertTypeForMem(ASTTy);
+
   auto g = buildGlobal(D, Ty, IsForDefinition);
   auto ptrTy =
       mlir::cir::PointerType::get(builder.getContext(), g.getSymType());
@@ -1607,7 +1616,10 @@ void CIRGenModule::buildTentativeDefinition(const VarDecl *D) {
   StringRef MangledName = getMangledName(D);
   auto *GV = getGlobalValue(MangledName);
 
-  // TODO(cir): either remove or embelish this assert.
+  // TODO(cir): can a tentative definition come from something other than a
+  // global op? If not, the assertion below is wrong and should be removed. If
+  // so, getGlobalValue might be better of returining a global value interface
+  // that alows use to manage different globals value types transparently.
   if (GV)
     assert(isa<mlir::cir::GlobalOp>(GV) &&
            "tentative definition can only be built from a cir.global_op");
@@ -2022,7 +2034,8 @@ CIRGenModule::GetAddrOfGlobal(GlobalDecl GD, ForDefinition_t IsForDefinition) {
                              IsForDefinition);
   }
 
-  llvm_unreachable("NYI");
+  return getAddrOfGlobalVar(cast<VarDecl>(D), /*Ty=*/nullptr, IsForDefinition)
+      .getDefiningOp();
 }
 
 void CIRGenModule::Release() {
