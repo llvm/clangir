@@ -148,15 +148,32 @@ public:
   // Type helpers
   // ------------
   //
-  mlir::Type getSInt8Ty() { return typeCache.SInt8Ty; }
-  mlir::Type getSInt16Ty() { return typeCache.SInt16Ty; }
-  mlir::Type getSInt32Ty() { return typeCache.SInt32Ty; }
-  mlir::Type getSInt64Ty() { return typeCache.SInt64Ty; }
+  mlir::cir::IntType getUIntNTy(int N) {
+    switch (N) {
+    case 8:
+      return getUInt8Ty();
+    case 16:
+      return getUInt16Ty();
+    case 32:
+      return getUInt32Ty();
+    case 64:
+      return getUInt64Ty();
+    default:
+      llvm_unreachable("Unknown bit-width");
+    }
+  }
 
-  mlir::Type getUInt8Ty() { return typeCache.UInt8Ty; }
-  mlir::Type getUInt16Ty() { return typeCache.UInt16Ty; }
-  mlir::Type getUInt32Ty() { return typeCache.UInt32Ty; }
-  mlir::Type getUInt64Ty() { return typeCache.UInt64Ty; }
+  mlir::cir::VoidType getVoidTy() { return typeCache.VoidTy; }
+
+  mlir::cir::IntType getSInt8Ty() { return typeCache.SInt8Ty; }
+  mlir::cir::IntType getSInt16Ty() { return typeCache.SInt16Ty; }
+  mlir::cir::IntType getSInt32Ty() { return typeCache.SInt32Ty; }
+  mlir::cir::IntType getSInt64Ty() { return typeCache.SInt64Ty; }
+
+  mlir::cir::IntType getUInt8Ty() { return typeCache.UInt8Ty; }
+  mlir::cir::IntType getUInt16Ty() { return typeCache.UInt16Ty; }
+  mlir::cir::IntType getUInt32Ty() { return typeCache.UInt32Ty; }
+  mlir::cir::IntType getUInt64Ty() { return typeCache.UInt64Ty; }
 
   bool isInt8Ty(mlir::Type i) {
     return i == typeCache.UInt8Ty || i == typeCache.SInt8Ty;
@@ -178,8 +195,7 @@ public:
   mlir::Type getVirtualFnPtrType(bool isVarArg = false) {
     // FIXME: replay LLVM codegen for now, perhaps add a vtable ptr special
     // type so it's a bit more clear and C++ idiomatic.
-    auto fnTy =
-        mlir::cir::FuncType::get(getContext(), {}, {getUInt32Ty()}, isVarArg);
+    auto fnTy = mlir::cir::FuncType::get({}, getUInt32Ty(), isVarArg);
     assert(!UnimplementedFeature::isVarArg());
     return getPointerTo(getPointerTo(fnTy));
   }
@@ -197,6 +213,12 @@ public:
     return mlir::cir::PointerType::get(getContext(), ty);
   }
 
+  mlir::cir::PointerType getVoidPtrTy(unsigned AddrSpace = 0) {
+    if (AddrSpace)
+      llvm_unreachable("address space is NYI");
+    return typeCache.VoidPtrTy;
+  }
+
   //
   // Constant creation helpers
   // -------------------------
@@ -211,15 +233,19 @@ public:
     return create<mlir::cir::ConstantOp>(loc, uInt32Ty,
                                          mlir::cir::IntAttr::get(uInt32Ty, C));
   }
-  mlir::cir::ConstantOp getSInt64(uint32_t C, mlir::Location loc) {
+  mlir::cir::ConstantOp getSInt64(uint64_t C, mlir::Location loc) {
     auto sInt64Ty = getSInt64Ty();
     return create<mlir::cir::ConstantOp>(loc, sInt64Ty,
                                          mlir::cir::IntAttr::get(sInt64Ty, C));
   }
-  mlir::cir::ConstantOp getUInt64(uint32_t C, mlir::Location loc) {
+  mlir::cir::ConstantOp getUInt64(uint64_t C, mlir::Location loc) {
     auto uInt64Ty = getUInt64Ty();
     return create<mlir::cir::ConstantOp>(loc, uInt64Ty,
                                          mlir::cir::IntAttr::get(uInt64Ty, C));
+  }
+  mlir::cir::ConstantOp getConstInt(mlir::Location loc, mlir::cir::IntType t,
+                                    uint64_t C) {
+    return create<mlir::cir::ConstantOp>(loc, t, mlir::cir::IntAttr::get(t, C));
   }
   mlir::cir::ConstantOp getBool(bool state, mlir::Location loc) {
     return create<mlir::cir::ConstantOp>(loc, getBoolTy(),
@@ -402,6 +428,10 @@ public:
 
   mlir::Value createBoolToInt(mlir::Value src, mlir::Type newTy) {
     return createCast(mlir::cir::CastKind::bool_to_int, src, newTy);
+  }
+
+  mlir::Value createBitcast(mlir::Value src, mlir::Type newTy) {
+    return createCast(mlir::cir::CastKind::bitcast, src, newTy);
   }
 };
 
