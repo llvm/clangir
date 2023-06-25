@@ -184,18 +184,19 @@ def CIR_FuncType : CIR_Type<"Func", "func"> {
     ```
   }];
 
-  let parameters = (ins ArrayRefParameter<"Type">:$inputs,
-                        ArrayRefParameter<"Type">:$results, "bool":$varArg);
+  let parameters = (ins ArrayRefParameter<"Type">:$inputs, "Type":$returnType,
+                        "bool":$varArg);
   let assemblyFormat = [{
-    `<` $results ` ` `(` custom<FuncTypeArgs>($inputs, $varArg) `>`
+    `<` $returnType ` ` `(` custom<FuncTypeArgs>($inputs, $varArg) `>`
   }];
 
   let skipDefaultBuilders = 1;
 
   let builders = [
-    TypeBuilder<(ins CArg<"TypeRange">:$inputs, CArg<"TypeRange">:$results,
-                 CArg<"bool", "false">:$isVarArg), [{
-      return $_get($_ctxt, llvm::to_vector(inputs), llvm::to_vector(results), isVarArg);
+    TypeBuilderWithInferredContext<(ins
+      "ArrayRef<Type>":$inputs, "Type":$returnType,
+      CArg<"bool", "false">:$isVarArg), [{
+      return $_get(returnType.getContext(), inputs, returnType, isVarArg);
     }]>
   ];
 
@@ -211,11 +212,12 @@ def CIR_FuncType : CIR_Type<"Func", "func"> {
     /// Returns the number of arguments to the function.
     unsigned getNumInputs() const { return getInputs().size(); }
 
-    /// Returns the `i`th result operand type. Asserts if out of bounds.
-    Type getResult(unsigned i) const { return getResults()[i]; }
+    /// Returns the result type of the function as an ArrayRef, enabling better
+    /// integration with generic MLIR utilities.
+    ArrayRef<Type> getReturnTypes() const;
 
-    /// Returns the number of results to the function.
-    unsigned getNumResults() const { return getResults().size(); }
+    /// Returns whether the function is returns void.
+    bool isVoid() const;
 
     /// Returns a clone of this function type with the given argument
     /// and result types.
@@ -224,10 +226,25 @@ def CIR_FuncType : CIR_Type<"Func", "func"> {
 }
 
 //===----------------------------------------------------------------------===//
+// Void type
+//===----------------------------------------------------------------------===//
+
+def CIR_VoidType : CIR_Type<"Void", "void"> {
+  let summary = "CIR void type";
+  let description = [{
+    The `!cir.void` type represents the C/C++ `void` type.
+  }];
+  let extraClassDeclaration = [{
+    /// Returns a clone of this type with the given context.
+    std::string getAlias() const { return "void"; };
+  }];
+}
+
+//===----------------------------------------------------------------------===//
 // One type to bind them all
 //===----------------------------------------------------------------------===//
 
 def CIR_AnyCIRType : AnyTypeOf<[CIR_PointerType, CIR_BoolType, CIR_StructType,
-                                CIR_ArrayType, CIR_FuncType]>;
+                                CIR_ArrayType, CIR_FuncType, CIR_VoidType]>;
 
 #endif // MLIR_CIR_DIALECT_CIR_TYPES

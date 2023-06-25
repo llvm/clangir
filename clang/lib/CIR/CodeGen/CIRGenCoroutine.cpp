@@ -13,6 +13,7 @@
 #include "CIRGenFunction.h"
 #include "clang/AST/StmtCXX.h"
 #include "clang/AST/StmtVisitor.h"
+#include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "llvm/ADT/ScopeExit.h"
 
 using namespace clang;
@@ -158,7 +159,6 @@ static mlir::LogicalResult buildBodyAndFallthrough(
 
 mlir::cir::CallOp CIRGenFunction::buildCoroIDBuiltinCall(mlir::Location loc,
                                                          mlir::Value nullPtr) {
-  auto int8PtrTy = builder.getUInt8PtrTy();
   auto int32Ty = builder.getUInt32Ty();
 
   auto &TI = CGM.getASTContext().getTargetInfo();
@@ -170,9 +170,8 @@ mlir::cir::CallOp CIRGenFunction::buildCoroIDBuiltinCall(mlir::Location loc,
   if (!builtin) {
     fnOp = CGM.createCIRFunction(
         loc, CGM.builtinCoroId,
-        builder.getType<mlir::cir::FuncType>(
-            mlir::TypeRange{int32Ty, int8PtrTy, int8PtrTy, int8PtrTy},
-            mlir::TypeRange{int32Ty}),
+        mlir::cir::FuncType::get({int32Ty, VoidPtrTy, VoidPtrTy, VoidPtrTy},
+                                 int32Ty),
         /*FD=*/nullptr);
     assert(fnOp && "should always succeed");
     fnOp.setBuiltinAttr(mlir::UnitAttr::get(builder.getContext()));
@@ -196,8 +195,7 @@ CIRGenFunction::buildCoroAllocBuiltinCall(mlir::Location loc) {
   if (!builtin) {
     fnOp = CGM.createCIRFunction(
         loc, CGM.builtinCoroAlloc,
-        builder.getType<mlir::cir::FuncType>(mlir::TypeRange{int32Ty},
-                                             mlir::TypeRange{boolTy}),
+        mlir::cir::FuncType::get({int32Ty}, boolTy),
         /*FD=*/nullptr);
     assert(fnOp && "should always succeed");
     fnOp.setBuiltinAttr(mlir::UnitAttr::get(builder.getContext()));
@@ -211,7 +209,6 @@ CIRGenFunction::buildCoroAllocBuiltinCall(mlir::Location loc) {
 mlir::cir::CallOp
 CIRGenFunction::buildCoroBeginBuiltinCall(mlir::Location loc,
                                           mlir::Value coroframeAddr) {
-  auto int8PtrTy = builder.getUInt8PtrTy();
   auto int32Ty = builder.getUInt32Ty();
   mlir::Operation *builtin = CGM.getGlobalValue(CGM.builtinCoroBegin);
 
@@ -219,8 +216,8 @@ CIRGenFunction::buildCoroBeginBuiltinCall(mlir::Location loc,
   if (!builtin) {
     fnOp = CGM.createCIRFunction(
         loc, CGM.builtinCoroBegin,
-        builder.getType<mlir::cir::FuncType>(
-            mlir::TypeRange{int32Ty, int8PtrTy}, mlir::TypeRange{int8PtrTy}),
+        mlir::cir::FuncType::get({int32Ty, VoidPtrTy},
+                                 VoidPtrTy),
         /*FD=*/nullptr);
     assert(fnOp && "should always succeed");
     fnOp.setBuiltinAttr(mlir::UnitAttr::get(builder.getContext()));
@@ -234,7 +231,6 @@ CIRGenFunction::buildCoroBeginBuiltinCall(mlir::Location loc,
 
 mlir::cir::CallOp CIRGenFunction::buildCoroEndBuiltinCall(mlir::Location loc,
                                                           mlir::Value nullPtr) {
-  auto int8PtrTy = builder.getUInt8PtrTy();
   auto boolTy = builder.getBoolTy();
   mlir::Operation *builtin = CGM.getGlobalValue(CGM.builtinCoroEnd);
 
@@ -242,8 +238,7 @@ mlir::cir::CallOp CIRGenFunction::buildCoroEndBuiltinCall(mlir::Location loc,
   if (!builtin) {
     fnOp = CGM.createCIRFunction(
         loc, CGM.builtinCoroEnd,
-        builder.getType<mlir::cir::FuncType>(mlir::TypeRange{int8PtrTy, boolTy},
-                                             mlir::TypeRange{boolTy}),
+        mlir::cir::FuncType::get({VoidPtrTy, boolTy}, boolTy),
         /*FD=*/nullptr);
     assert(fnOp && "should always succeed");
     fnOp.setBuiltinAttr(mlir::UnitAttr::get(builder.getContext()));
@@ -257,7 +252,7 @@ mlir::cir::CallOp CIRGenFunction::buildCoroEndBuiltinCall(mlir::Location loc,
 mlir::LogicalResult
 CIRGenFunction::buildCoroutineBody(const CoroutineBodyStmt &S) {
   auto openCurlyLoc = getLoc(S.getBeginLoc());
-  auto nullPtrCst = builder.getNullPtr(builder.getUInt8PtrTy(), openCurlyLoc);
+  auto nullPtrCst = builder.getNullPtr(VoidPtrTy, openCurlyLoc);
 
   CurFn.setCoroutineAttr(mlir::UnitAttr::get(builder.getContext()));
   auto coroId = buildCoroIDBuiltinCall(openCurlyLoc, nullPtrCst);
