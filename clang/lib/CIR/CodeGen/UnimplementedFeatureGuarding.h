@@ -105,6 +105,8 @@ struct UnimplementedFeature {
   static bool requiresCleanups() { return false; }
   static bool constantFoldsToSimpleInteger() { return false; }
   static bool alignedLoad() { return false; }
+  static bool checkFunctionCallABI() { return false; }
+  static bool zeroInitializer() { return false; }
 };
 } // namespace cir
 
