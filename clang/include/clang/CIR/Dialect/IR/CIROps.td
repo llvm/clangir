@@ -456,7 +456,7 @@ def TernaryOp : CIR_Op<"ternary",
   let arguments = (ins CIR_BoolType:$cond);
   let regions = (region SizedRegion<1>:$trueRegion,
                         SizedRegion<1>:$falseRegion);
-  let results = (outs AnyType:$result);
+  let results = (outs Optional<AnyType>:$result);
 
   let skipDefaultBuilders = 1;
   let builders = [
@@ -473,7 +473,7 @@ def TernaryOp : CIR_Op<"ternary",
     `(` $cond `,`
       `true` $trueRegion `,`
       `false` $falseRegion
-    `)` `:` type($result) attr-dict
+    `)` `:` functional-type(operands, results) attr-dict
   }];
 }
 
@@ -1401,6 +1401,10 @@ def FuncOp : CIR_Op<"func", [
     allow callsites to make certain assumptions about the real function nature
     when writing analysis. The verifier should, but do act on this keyword yet.
 
+    The `no_proto` keyword is used to identify functions that were declared
+    without a prototype and, consequently, may contain calls with invalid
+    arguments and undefined behavior.
+
     Example:
 
     ```mlir
@@ -1459,7 +1463,9 @@ def FuncOp : CIR_Op<"func", [
     /// Returns the results types that the callable region produces when
     /// executed.
     ArrayRef<Type> getCallableResults() {
-      return getFunctionType().getResults();
+      if (::llvm::isa<cir::VoidType>(getFunctionType().getReturnType()))
+        return {};
+      return getFunctionType().getReturnTypes();
     }
 
     /// Returns the argument attributes for all callable region arguments or
@@ -1478,7 +1484,7 @@ def FuncOp : CIR_Op<"func", [
     ArrayRef<Type> getArgumentTypes() { return getFunctionType().getInputs(); }
 
     /// Returns the result types of this function.
-    ArrayRef<Type> getResultTypes() { return getFunctionType().getResults(); }
+    ArrayRef<Type> getResultTypes() { return getFunctionType().getReturnTypes(); }
 
     /// Hook for OpTrait::FunctionOpInterfaceTrait, called after verifying that
     /// the 'type' attribute is present and checks if it holds a function type.
@@ -1528,14 +1534,16 @@ def CallOp : CIR_Op<"call",
     OpBuilder<(ins "FuncOp":$callee, CArg<"ValueRange", "{}">:$operands), [{
       $_state.addOperands(operands);
       $_state.addAttribute("callee", SymbolRefAttr::get(callee));
-      $_state.addTypes(callee.getFunctionType().getResults());
+      if (!callee.getFunctionType().isVoid())
+        $_state.addTypes(callee.getFunctionType().getReturnType());
     }]>,
     OpBuilder<(ins "Value":$ind_target,
                "FuncType":$fn_type,
                CArg<"ValueRange", "{}">:$operands), [{
       $_state.addOperands(ValueRange{ind_target});
       $_state.addOperands(operands);
-      $_state.addTypes(fn_type.getResults());
+      if (!fn_type.isVoid())
+        $_state.addTypes(fn_type.getReturnType());
     }]>];
 
   let extraClassDeclaration = [{

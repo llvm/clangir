@@ -19,6 +19,7 @@
 #include "mlir/Support/LogicalResult.h"
 
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/TypeSwitch.h"
 #include "llvm/Support/ErrorHandling.h"
 
@@ -407,17 +408,9 @@ IntType::verify(llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
 // FuncType Definitions
 //===----------------------------------------------------------------------===//
 
-mlir::LogicalResult
-FuncType::verify(llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
-                 llvm::ArrayRef<mlir::Type> inputs,
-                 llvm::ArrayRef<mlir::Type> results, bool varArg) {
-  if (results.size() > 1)
-    return emitError() << "functions only supports 0 or 1 results";
-  return mlir::success();
-}
-
 FuncType FuncType::clone(TypeRange inputs, TypeRange results) const {
-  return get(getContext(), results, inputs, isVarArg());
+  assert(results.size() == 1 && "expected exactly one result type");
+  return get(llvm::to_vector(inputs), results[0], isVarArg());
 }
 
 static mlir::ParseResult
@@ -464,6 +457,12 @@ static void printFuncTypeArgs(mlir::AsmPrinter &p,
   }
   p << ')';
 }
+
+llvm::ArrayRef<mlir::Type> FuncType::getReturnTypes() const {
+  return static_cast<detail::FuncTypeStorage *>(getImpl())->returnType;
+}
+
+bool FuncType::isVoid() const { return getReturnType().isa<VoidType>(); }
 
 //===----------------------------------------------------------------------===//
 // CIR Dialect

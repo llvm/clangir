@@ -1,0 +1,9 @@
+// RUN: cir-tool %s -verify-diagnostics -split-input-file
+
+// Should parse C source language attribute.
+module attributes {cir.lang = #cir.lang<c>} { }
+
+// -----
+
+// Should parse C++ source language attribute.
+module attributes {cir.lang = #cir.lang<cxx>} { }
