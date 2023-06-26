@@ -122,7 +122,10 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &context,
   UInt64Ty =
       ::mlir::cir::IntType::get(builder.getContext(), 64, /*isSigned=*/false);
 
-  VoidTy = UInt8Ty;
+  VoidTy = ::mlir::cir::VoidType::get(builder.getContext());
+
+  // Initialize CIR pointer types cache.
+  VoidPtrTy = ::mlir::cir::PointerType::get(builder.getContext(), VoidTy);
 
   // TODO: HalfTy
   // TODO: BFloatTy
@@ -678,6 +681,11 @@ mlir::cir::GlobalOp CIRGenModule::buildGlobal(const VarDecl *D,
 mlir::Value CIRGenModule::getAddrOfGlobalVar(const VarDecl *D,
                                              llvm::Optional<mlir::Type> Ty,
                                              ForDefinition_t IsForDefinition) {
+  assert(D->hasGlobalStorage() && "Not a global variable");
+  QualType ASTTy = D->getType();
+  if (!Ty)
+    Ty = getTypes().convertTypeForMem(ASTTy);
+
   auto g = buildGlobal(D, Ty, IsForDefinition);
   auto ptrTy =
       mlir::cir::PointerType::get(builder.getContext(), g.getSymType());
@@ -2075,7 +2083,8 @@ CIRGenModule::GetAddrOfGlobal(GlobalDecl GD, ForDefinition_t IsForDefinition) {
                              IsForDefinition);
   }
 
-  llvm_unreachable("NYI");
+  return getAddrOfGlobalVar(cast<VarDecl>(D), /*Ty=*/nullptr, IsForDefinition)
+      .getDefiningOp();
 }
 
 void CIRGenModule::Release() {
