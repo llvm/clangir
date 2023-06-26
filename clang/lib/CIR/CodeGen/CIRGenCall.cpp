@@ -23,6 +23,7 @@
 #include "clang/AST/GlobalDecl.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
+#include "llvm/Support/ErrorHandling.h"
 #include <cassert>
 
 #include "UnimplementedFeatureGuarding.h"
@@ -258,9 +259,9 @@ mlir::cir::FuncType CIRGenTypes::GetFunctionType(const CIRGenFunctionInfo &FI) {
   (void)Erased;
   assert(Erased && "Not in set?");
 
-  return mlir::cir::FuncType::get(&getMLIRContext(), ArgTypes,
-                                  (resultType ? resultType : mlir::TypeRange{}),
-                                  FI.isVariadic());
+  return mlir::cir::FuncType::get(
+      ArgTypes, (resultType ? resultType : Builder.getVoidTy()),
+      FI.isVariadic());
 }
 
 mlir::cir::FuncType CIRGenTypes::GetFunctionTypeForVTable(GlobalDecl GD) {
@@ -400,13 +401,15 @@ RValue CIRGenFunction::buildCall(const CIRGenFunctionInfo &CallInfo,
                "swift NYI");
 
         // We might have to widen integers, but we should never truncate.
-        assert(ArgInfo.getCoerceToType() == V.getType() && "widening NYI");
+        if (ArgInfo.getCoerceToType() != V.getType() &&
+            V.getType().isa<mlir::cir::IntType>())
+          llvm_unreachable("NYI");
 
         // If the argument doesn't match, perform a bitcast to coerce it. This
         // can happen due to trivial type mismatches.
         if (FirstCIRArg < CIRFuncTy.getNumInputs() &&
             V.getType() != CIRFuncTy.getInput(FirstCIRArg))
-          assert(false && "Shouldn't have to bitcast anything yet");
+          V = builder.createBitcast(V, CIRFuncTy.getInput(FirstCIRArg));
 
         CIRCallArgs[FirstCIRArg] = V;
         break;
