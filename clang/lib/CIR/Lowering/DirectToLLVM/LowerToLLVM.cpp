@@ -678,12 +678,8 @@ public:
       signatureConversion.addInputs(argType.index(), convertedType);
     }
 
-    mlir::Type resultType;
-    if (fnType.getNumResults() == 1) {
-      resultType = getTypeConverter()->convertType(fnType.getResult(0));
-      if (!resultType)
-        return mlir::failure();
-    }
+    mlir::Type resultType =
+        getTypeConverter()->convertType(fnType.getReturnType());
 
     // Create the LLVM function operation.
     auto llvmFnTy = mlir::LLVM::LLVMFunctionType::get(
@@ -1163,7 +1159,7 @@ mlir::LLVMTypeConverter prepareTypeConverter(mlir::MLIRContext *ctx) {
     return mlir::IntegerType::get(type.getContext(), type.getWidth());
   });
   converter.addConversion([&](mlir::cir::FuncType type) -> mlir::Type {
-    auto result = converter.convertType(type.getResult(0));
+    auto result = converter.convertType(type.getReturnType());
     llvm::SmallVector<mlir::Type> arguments;
     if (converter.convertTypes(type.getInputs(), arguments).failed())
       llvm_unreachable("Failed to convert function type parameters");
@@ -1179,6 +1175,9 @@ mlir::LLVMTypeConverter prepareTypeConverter(mlir::MLIRContext *ctx) {
     if (llvmStruct.setBody(llvmMembers, /*isPacked=*/type.getPacked()).failed())
       llvm_unreachable("Failed to set body of struct");
     return llvmStruct;
+  });
+  converter.addConversion([&](mlir::cir::VoidType type) -> mlir::Type {
+    return mlir::LLVM::LLVMVoidType::get(type.getContext());
   });
 
   return converter;

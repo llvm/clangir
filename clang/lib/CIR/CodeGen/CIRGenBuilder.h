@@ -163,6 +163,8 @@ public:
     }
   }
 
+  mlir::cir::VoidType getVoidTy() { return typeCache.VoidTy; }
+
   mlir::cir::IntType getSInt8Ty() { return typeCache.SInt8Ty; }
   mlir::cir::IntType getSInt16Ty() { return typeCache.SInt16Ty; }
   mlir::cir::IntType getSInt32Ty() { return typeCache.SInt32Ty; }
@@ -193,15 +195,14 @@ public:
   mlir::Type getVirtualFnPtrType(bool isVarArg = false) {
     // FIXME: replay LLVM codegen for now, perhaps add a vtable ptr special
     // type so it's a bit more clear and C++ idiomatic.
-    auto fnTy =
-        mlir::cir::FuncType::get(getContext(), {}, {getUInt32Ty()}, isVarArg);
+    auto fnTy = mlir::cir::FuncType::get({}, getUInt32Ty(), isVarArg);
     assert(!UnimplementedFeature::isVarArg());
     return getPointerTo(getPointerTo(fnTy));
   }
 
-  mlir::cir::FuncType getFuncType(mlir::TypeRange params, mlir::Type retTy,
-                                  bool isVarArg = false) {
-    return mlir::cir::FuncType::get(getContext(), params, {retTy}, isVarArg);
+  mlir::cir::FuncType getFuncType(llvm::ArrayRef<mlir::Type> params,
+                                  mlir::Type retTy, bool isVarArg = false) {
+    return mlir::cir::FuncType::get(params, retTy, isVarArg);
   }
 
   // Fetch the type representing a pointer to unsigned int values.
@@ -215,6 +216,12 @@ public:
                                       unsigned addressSpace = 0) {
     assert(!UnimplementedFeature::addressSpace() && "NYI");
     return mlir::cir::PointerType::get(getContext(), ty);
+  }
+
+  mlir::cir::PointerType getVoidPtrTy(unsigned AddrSpace = 0) {
+    if (AddrSpace)
+      llvm_unreachable("address space is NYI");
+    return typeCache.VoidPtrTy;
   }
 
   //
@@ -426,6 +433,10 @@ public:
 
   mlir::Value createBoolToInt(mlir::Value src, mlir::Type newTy) {
     return createCast(mlir::cir::CastKind::bool_to_int, src, newTy);
+  }
+
+  mlir::Value createBitcast(mlir::Value src, mlir::Type newTy) {
+    return createCast(mlir::cir::CastKind::bitcast, src, newTy);
   }
 };
 

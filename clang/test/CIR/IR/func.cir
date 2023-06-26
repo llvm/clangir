@@ -28,6 +28,16 @@ module {
     cir.return
   }
 
+  // Should parse void return types.
+  cir.func @parse_explicit_void_func() -> !cir.void {
+    cir.return
+  }
+
+  // Should parse omitted void return type.
+  cir.func @parse_func_type_with_omitted_void() {
+    cir.return
+  }
+
   // Should parse variadic no-proto functions.
   cir.func no_proto private @no_proto(...) -> !s32i
 }
