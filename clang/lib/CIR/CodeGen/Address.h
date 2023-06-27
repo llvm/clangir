@@ -23,19 +23,24 @@
 
 namespace cir {
 
+// Indicates whether a pointer is known not to be null.
+enum KnownNonNull_t { NotKnownNonNull, KnownNonNull };
+
 class Address {
-  mlir::Value Pointer;
+  llvm::PointerIntPair<mlir::Value, 1, bool> PointerAndKnownNonNull;
   mlir::Type ElementType;
   clang::CharUnits Alignment;
 
 protected:
-  Address(std::nullptr_t) : Pointer(nullptr), ElementType(nullptr) {}
+  Address(std::nullptr_t) : ElementType(nullptr) {}
 
 public:
   Address(mlir::Value pointer, mlir::Type elementType,
-          clang::CharUnits alignment)
-      : Pointer(pointer), ElementType(elementType), Alignment(alignment) {
-    assert(llvm::isa<mlir::cir::PointerType>(pointer.getType()) &&
+          clang::CharUnits alignment,
+          KnownNonNull_t IsKnownNonNull = NotKnownNonNull)
+      : PointerAndKnownNonNull(pointer, IsKnownNonNull),
+        ElementType(elementType), Alignment(alignment) {
+    assert(mlir::isa<mlir::cir::PointerType>(pointer.getType()) &&
            "Expected cir.ptr type");
 
     assert(pointer && "Pointer cannot be null");
@@ -44,7 +49,7 @@ public:
   }
   Address(mlir::Value pointer, clang::CharUnits alignment)
       : Address(pointer,
-                llvm::cast<mlir::cir::PointerType>(pointer.getType()).getPointee(),
+                mlir::cast<mlir::cir::PointerType>(pointer.getType()).getPointee(),
                 alignment) {
 
     assert((!alignment.isZero() || pointer == nullptr) &&
@@ -52,17 +57,21 @@ public:
   }
 
   static Address invalid() { return Address(nullptr); }
-  bool isValid() const { return Pointer != nullptr; }
+  bool isValid() const {
+    return PointerAndKnownNonNull.getPointer() != nullptr;
+  }
 
   /// Return address with different pointer, but same element type and
   /// alignment.
-  Address withPointer(mlir::Value NewPointer) const {
-    return Address(NewPointer, getElementType(), getAlignment());
+  Address withPointer(mlir::Value NewPointer,
+                      KnownNonNull_t IsKnownNonNull) const {
+    return Address(NewPointer, getElementType(), getAlignment(),
+                   IsKnownNonNull);
   }
 
   mlir::Value getPointer() const {
-    // assert(isValid());
-    return Pointer;
+    assert(isValid());
+    return PointerAndKnownNonNull.getPointer();
   }
 
   /// Return the alignment of this pointer.
@@ -74,6 +83,19 @@ public:
   mlir::Type getElementType() const {
     assert(isValid());
     return ElementType;
+  }
+
+  /// Whether the pointer is known not to be null.
+  KnownNonNull_t isKnownNonNull() const {
+    assert(isValid());
+    return (KnownNonNull_t)PointerAndKnownNonNull.getInt();
+  }
+
+  /// Set the non-null bit.
+  Address setKnownNonNull() {
+    assert(isValid());
+    PointerAndKnownNonNull.setInt(true);
+    return *this;
   }
 };
 
