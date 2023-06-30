@@ -21,6 +21,6 @@ $ ninja check-clang-cir-codegen
 Using `lit` from build directory:
 
 ```
-$ cd build
-$ ./bin/llvm-lit -a ../clang/test/CIR
+$ cd build-release
+$ ./bin/llvm-lit -a ../../clang/test/CIR
 ```
