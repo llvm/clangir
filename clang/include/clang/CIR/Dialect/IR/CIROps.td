@@ -36,6 +36,11 @@ include "mlir/IR/SymbolInterfaces.td"
 class CIR_Op<string mnemonic, list<Trait> traits = []> :
     Op<CIR_Dialect, mnemonic, traits>;
 
+def CIRReturnLike : TraitList<[
+    DeclareOpInterfaceMethods<RegionBranchTerminatorOpInterface>,
+    NativeOpTrait<"ReturnLike">
+]>;
+
 //===----------------------------------------------------------------------===//
 // CastOp
 //===----------------------------------------------------------------------===//
@@ -569,9 +574,10 @@ def YieldOpKind : I32EnumAttr<
   let cppNamespace = "::mlir::cir";
 }
 
-def YieldOp : CIR_Op<"yield", [ReturnLike, Terminator,
-    ParentOneOf<["IfOp", "ScopeOp", "SwitchOp", "LoopOp", "AwaitOp",
-                 "TernaryOp"]>]> {
+def YieldOp : CIR_Op<"yield",
+    [CIRReturnLike, Terminator,
+     ParentOneOf<["IfOp", "ScopeOp", "SwitchOp", "LoopOp", "AwaitOp",
+                  "TernaryOp"]>]> {
   let summary = "Terminate CIR regions";
   let description = [{
     The `cir.yield` operation terminates regions on different CIR operations:
@@ -1114,8 +1120,7 @@ def LoopOp : CIR_Op<"loop",
   let description = [{
     `cir.loop` represents C/C++ loop forms. It defines 3 blocks:
     - `cond`: region can contain multiple blocks, terminated by regular
-    `cir.yield` when control should yield back to the parent, and
-    `cir.yield continue` when execution continues to another region.
+    `cir.yield %x` where `%x` is the boolean value to be evaluated.
     The region destination depends on the loop form specified.
     - `step`: region with one block, containing code to compute the
     loop step, must be terminated with `cir.yield`.
@@ -1130,7 +1135,8 @@ def LoopOp : CIR_Op<"loop",
       //  i = i + 1;
       // }
       cir.loop while(cond :  {
-        cir.yield continue
+        %2 = cir.const(#cir.bool<true>) : !cir.bool
+        cir.yield %2 : !cir.bool
       }, step :  {
         cir.yield
       })  {
