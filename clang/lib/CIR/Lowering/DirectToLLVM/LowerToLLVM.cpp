@@ -1208,18 +1208,37 @@ public:
   }
 };
 
+class CIRStructElementAddrOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::StructElementAddr> {
+public:
+  using mlir::OpConversionPattern<
+      mlir::cir::StructElementAddr>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::StructElementAddr op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto llResTy = getTypeConverter()->convertType(op.getType());
+    // Since the base address is a pointer to structs, the first offset is
+    // always zero. The second offset tell us which member it will access.
+    llvm::SmallVector<mlir::LLVM::GEPArg> offset{0, op.getIndex()};
+    rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(
+        op, llResTy, adaptor.getStructAddr(), offset);
+    return mlir::success();
+  }
+};
+
 void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
                                          mlir::TypeConverter &converter) {
   patterns.add<CIRReturnLowering>(patterns.getContext());
-  patterns.add<CIRCmpOpLowering, CIRLoopOpLowering, CIRBrCondOpLowering,
-               CIRPtrStrideOpLowering, CIRCallLowering, CIRUnaryOpLowering,
-               CIRBinOpLowering, CIRLoadLowering, CIRConstantLowering,
-               CIRStoreLowering, CIRAllocaLowering, CIRFuncLowering,
-               CIRScopeOpLowering, CIRCastOpLowering, CIRIfLowering,
-               CIRGlobalOpLowering, CIRGetGlobalOpLowering, CIRVAStartLowering,
-               CIRVAEndLowering, CIRVACopyLowering, CIRVAArgLowering,
-               CIRBrOpLowering, CIRTernaryOpLowering>(converter,
-                                                      patterns.getContext());
+  patterns.add<
+      CIRCmpOpLowering, CIRLoopOpLowering, CIRBrCondOpLowering,
+      CIRPtrStrideOpLowering, CIRCallLowering, CIRUnaryOpLowering,
+      CIRBinOpLowering, CIRLoadLowering, CIRConstantLowering, CIRStoreLowering,
+      CIRAllocaLowering, CIRFuncLowering, CIRScopeOpLowering, CIRCastOpLowering,
+      CIRIfLowering, CIRGlobalOpLowering, CIRGetGlobalOpLowering,
+      CIRVAStartLowering, CIRVAEndLowering, CIRVACopyLowering, CIRVAArgLowering,
+      CIRBrOpLowering, CIRTernaryOpLowering, CIRStructElementAddrOpLowering>(
+      converter, patterns.getContext());
 }
 
 namespace {
