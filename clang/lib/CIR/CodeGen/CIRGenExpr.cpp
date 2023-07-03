@@ -50,7 +50,8 @@ static Address buildPreserveStructAccess(CIRGenFunction &CGF, LValue base,
 /// doesn't necessarily have the right type.
 static Address buildAddrOfFieldStorage(CIRGenFunction &CGF, Address Base,
                                        const FieldDecl *field,
-                                       llvm::StringRef fieldName) {
+                                       llvm::StringRef fieldName,
+                                       unsigned fieldIndex) {
   if (field->isZeroSize(CGF.getContext()))
     llvm_unreachable("NYI");
 
@@ -63,7 +64,7 @@ static Address buildAddrOfFieldStorage(CIRGenFunction &CGF, Address Base,
   // which do not currently carry the name, so it can be passed down from the
   // CaptureStmt.
   auto sea = CGF.getBuilder().create<mlir::cir::StructElementAddr>(
-      loc, fieldPtr, Base.getPointer(), fieldName);
+      loc, fieldPtr, Base.getPointer(), fieldName, fieldIndex);
 
   // TODO: We could get the alignment from the CIRGenRecordLayout, but given the
   // member name based lookup of the member here we probably shouldn't be. We'll
@@ -235,9 +236,10 @@ LValue CIRGenFunction::buildLValueForField(LValue base,
     if (!IsInPreservedAIRegion &&
         (!getDebugInfo() || !rec->hasAttr<BPFPreserveAccessIndexAttr>())) {
       llvm::StringRef fieldName = field->getName();
+      unsigned fieldIndex = field->getFieldIndex();
       if (CGM.LambdaFieldToName.count(field))
         fieldName = CGM.LambdaFieldToName[field];
-      addr = buildAddrOfFieldStorage(*this, addr, field, fieldName);
+      addr = buildAddrOfFieldStorage(*this, addr, field, fieldName, fieldIndex);
     } else
       // Remember the original struct field index
       addr = buildPreserveStructAccess(*this, base, addr, field);
@@ -281,14 +283,15 @@ LValue CIRGenFunction::buildLValueForField(LValue base,
 }
 
 LValue CIRGenFunction::buildLValueForFieldInitialization(
-    LValue Base, const clang::FieldDecl *Field, llvm::StringRef FieldName) {
+    LValue Base, const clang::FieldDecl *Field, llvm::StringRef FieldName,
+    unsigned FieldIndex) {
   QualType FieldType = Field->getType();
 
   if (!FieldType->isReferenceType())
     return buildLValueForField(Base, Field);
 
-  Address V =
-      buildAddrOfFieldStorage(*this, Base.getAddress(), Field, FieldName);
+  Address V = buildAddrOfFieldStorage(*this, Base.getAddress(), Field,
+                                      FieldName, FieldIndex);
 
   // Make sure that the address is pointing to the right type.
   auto memTy = getTypes().convertTypeForMem(FieldType);
