@@ -447,8 +447,8 @@ void AggExprEmitter::VisitLambdaExpr(LambdaExpr *E) {
     }
 
     // Emit initialization
-    LValue LV =
-        CGF.buildLValueForFieldInitialization(SlotLV, *CurField, fieldName);
+    LValue LV = CGF.buildLValueForFieldInitialization(
+        SlotLV, *CurField, fieldName, CurField->getFieldIndex());
     if (CurField->hasCapturedVLAType()) {
       llvm_unreachable("NYI");
     }
@@ -703,8 +703,8 @@ void AggExprEmitter::VisitCXXParenListOrInitListExpr(
         CGF.getTypes().isZeroInitializable(ExprToVisit->getType()))
       break;
 
-    LValue LV =
-        CGF.buildLValueForFieldInitialization(DestLV, field, field->getName());
+    LValue LV = CGF.buildLValueForFieldInitialization(
+        DestLV, field, field->getName(), field->getFieldIndex());
     // We never generate write-barries for initialized fields.
     assert(!UnimplementedFeature::setNonGC());
 
