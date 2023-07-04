@@ -126,6 +126,10 @@ public:
           return mlir::failure();
       }
     }
+
+    // Succeed only if both yields are found.
+    if (!yieldToBody || !yieldToCont)
+      return mlir::failure();
     return mlir::success();
   }
 
@@ -141,7 +145,7 @@ public:
     auto &condFrontBlock = condRegion.front();
     mlir::cir::YieldOp yieldToBody, yieldToCont;
     if (fetchCondRegionYields(condRegion, yieldToBody, yieldToCont).failed())
-      loopOp.emitError("invalid yield op kind in cond region");
+      return loopOp.emitError("failed to fetch yields in cond region");
 
     // Fetch required info from the condition region.
     auto &bodyRegion = loopOp.getBody();
