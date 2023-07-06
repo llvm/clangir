@@ -513,6 +513,11 @@ ENUM_CODEGENOPT(ZeroCallUsedRegs, llvm::ZeroCallUsedRegs::ZeroCallUsedRegsKind,
 /// non-deleting destructors. (No effect on Microsoft ABI.)
 CODEGENOPT(CtorDtorReturnThis, 1, 0)
 
+/// ClangIR specific (internal): limits recursion depth for buildDeferred()
+/// calls. This helps incremental progress while building large C++ TUs, once
+/// CIRGen is mature we should probably remove it.
+VALUE_CODEGENOPT(ClangIRBuildDeferredThreshold, 32, 500)
+
 #undef CODEGENOPT
 #undef ENUM_CODEGENOPT
 #undef VALUE_CODEGENOPT
