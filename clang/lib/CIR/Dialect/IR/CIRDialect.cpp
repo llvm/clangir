@@ -1338,6 +1338,22 @@ LogicalResult cir::VTableAddrPointOp::verify() {
 /// the name of the attribute in ODS.
 static StringRef getLinkageAttrNameString() { return "linkage"; }
 
+static void printExtraFunctionAttr(mlir::cir::ExtraFuncAttributesAttr attr,
+                                   OpAsmPrinter &os) {
+  if (attr.getElements().empty())
+    return;
+  os << " extra_attributes {";
+  auto I = attr.getElements().begin();
+  os << I->getValue();
+  I++;
+  while (I != attr.getElements().end()) {
+    os << ", ";
+    os << I->getValue();
+    I++;
+  }
+  os << '}';
+}
+
 void cir::FuncOp::build(OpBuilder &builder, OperationState &result,
                         StringRef name, cir::FuncType type,
                         GlobalLinkageKind linkage,
@@ -1534,7 +1550,9 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
       p, *this,
       {getSymVisibilityAttrName(), getAliaseeAttrName(),
        getFunctionTypeAttrName(), getLinkageAttrName(), getBuiltinAttrName(),
-       getNoProtoAttrName()});
+       getNoProtoAttrName(), getExtraAttrsAttrName()});
+
+  printExtraFunctionAttr(getExtraAttrs(), p);
 
   if (auto aliaseeName = getAliasee()) {
     p << " alias(";

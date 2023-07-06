@@ -1492,11 +1492,15 @@ def FuncOp : CIR_Op<"func", [
     without a prototype and, consequently, may contain calls with invalid
     arguments and undefined behavior.
 
+    The `extra_attrs`, which is an aggregate of function-specific attributes is
+    required and mandatory to describle additional attrbiutes that are not listed
+    above.
+
     Example:
 
     ```mlir
     // External function definitions.
-    cir.func @abort()
+    cir.func @abort() extra_attributes {}
 
     // A function with internal linkage.
     cir.func internal @count(%x: i64) -> (i64)
@@ -1526,6 +1530,7 @@ def FuncOp : CIR_Op<"func", [
                        UnitAttr:$no_proto,
                        DefaultValuedAttr<GlobalLinkageKind,
                                          "GlobalLinkageKind::ExternalLinkage">:$linkage,
+                       ExtraFuncAttr:$extra_attrs,
                        OptionalAttr<StrAttr>:$sym_visibility,
                        OptionalAttr<DictArrayAttr>:$arg_attrs,
                        OptionalAttr<DictArrayAttr>:$res_attrs,
