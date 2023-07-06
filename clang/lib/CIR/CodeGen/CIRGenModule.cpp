@@ -2050,7 +2050,7 @@ void CIRGenModule::buildGlobalDecl(clang::GlobalDecl &D) {
   buildGlobalDefinition(D, Op);
 }
 
-void CIRGenModule::buildDeferred() {
+void CIRGenModule::buildDeferred(unsigned recursionLimit) {
   // Emit deferred declare target declarations
   if (getLangOpts().OpenMP && !getLangOpts().OpenMPSimd)
     llvm_unreachable("NYI");
@@ -2083,6 +2083,8 @@ void CIRGenModule::buildDeferred() {
   // work, it will not interfere with this.
   std::vector<GlobalDecl> CurDeclsToEmit;
   CurDeclsToEmit.swap(DeferredDeclsToEmit);
+  if (recursionLimit == 0)
+    return;
 
   for (auto &D : CurDeclsToEmit) {
     buildGlobalDecl(D);
@@ -2091,7 +2093,8 @@ void CIRGenModule::buildDeferred() {
     // This has the advantage that the decls are emitted in a DFS and related
     // ones are close together, which is convenient for testing.
     if (!DeferredVTables.empty() || !DeferredDeclsToEmit.empty()) {
-      buildDeferred();
+      recursionLimit--;
+      buildDeferred(recursionLimit);
       assert(DeferredVTables.empty() && DeferredDeclsToEmit.empty());
     }
   }
@@ -2140,7 +2143,7 @@ CIRGenModule::GetAddrOfGlobal(GlobalDecl GD, ForDefinition_t IsForDefinition) {
 }
 
 void CIRGenModule::Release() {
-  buildDeferred();
+  buildDeferred(getCodeGenOpts().ClangIRBuildDeferredThreshold);
   // TODO: buildVTablesOpportunistically();
   // TODO: applyGlobalValReplacements();
   applyReplacements();
