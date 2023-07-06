@@ -192,7 +192,7 @@ void CIRGenFunction::buildTypeCheck(TypeCheckKind TCK,
                                     clang::QualType Type,
                                     clang::CharUnits Alignment,
                                     clang::SanitizerSet SkippedChecks,
-                                    llvm::Optional<mlir::Value> ArraySize) {
+                                    std::optional<mlir::Value> ArraySize) {
   if (!sanitizePerformTypeCheck())
     return;
 
@@ -1265,7 +1265,7 @@ void CIRGenFunction::buildDeclRefExprDbgValue(const DeclRefExpr *E,
   assert(!UnimplementedFeature::generateDebugInfo());
 }
 
-Address CIRGenFunction::buildVAListRef(const Expr* E) {
+Address CIRGenFunction::buildVAListRef(const Expr *E) {
   if (getContext().getBuiltinVaListType()->isArrayType())
     return buildPointerWithAlignment(E);
   return buildLValue(E).getAddress();

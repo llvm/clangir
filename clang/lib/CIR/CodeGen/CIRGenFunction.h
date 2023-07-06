@@ -181,7 +181,7 @@ public:
     // On switches we need one return block per region, since cases don't
     // have their own scopes but are distinct regions nonetheless.
     llvm::SmallVector<mlir::Block *> RetBlocks;
-    llvm::SmallVector<llvm::Optional<mlir::Location>> RetLocs;
+    llvm::SmallVector<std::optional<mlir::Location>> RetLocs;
     unsigned int CurrentSwitchRegionIdx = -1;
 
     // There's usually only one ret block per scope, but this needs to be
@@ -202,7 +202,7 @@ public:
   public:
     void updateCurrentSwitchCaseRegion() { CurrentSwitchRegionIdx++; }
     llvm::ArrayRef<mlir::Block *> getRetBlocks() { return RetBlocks; }
-    llvm::ArrayRef<llvm::Optional<mlir::Location>> getRetLocs() {
+    llvm::ArrayRef<std::optional<mlir::Location>> getRetLocs() {
       return RetLocs;
     }
 
@@ -441,10 +441,10 @@ private:
 public:
   /// Use to track source locations across nested visitor traversals.
   /// Always use a `SourceLocRAIIObject` to change currSrcLoc.
-  llvm::Optional<mlir::Location> currSrcLoc;
+  std::optional<mlir::Location> currSrcLoc;
   class SourceLocRAIIObject {
     CIRGenFunction &P;
-    llvm::Optional<mlir::Location> OldVal;
+    std::optional<mlir::Location> OldVal;
 
   public:
     SourceLocRAIIObject(CIRGenFunction &p, mlir::Location Value) : P(p) {
@@ -704,7 +704,7 @@ public:
                       mlir::Value V, clang::QualType Type,
                       clang::CharUnits Alignment = clang::CharUnits::Zero(),
                       clang::SanitizerSet SkippedChecks = clang::SanitizerSet(),
-                      llvm::Optional<mlir::Value> ArraySize = std::nullopt);
+                      std::optional<mlir::Value> ArraySize = std::nullopt);
 
   void buildAggExpr(const clang::Expr *E, AggValueSlot Slot);
 
