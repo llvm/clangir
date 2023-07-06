@@ -164,12 +164,12 @@ bool ConstantAggregateBuilder::add(mlir::Attribute A, CharUnits Offset,
   }
 
   // Uncommon case: constant overlaps what we've already created.
-  llvm::Optional<size_t> FirstElemToReplace = splitAt(Offset);
+  std::optional<size_t> FirstElemToReplace = splitAt(Offset);
   if (!FirstElemToReplace)
     return false;
 
   CharUnits CSize = getSize(C);
-  llvm::Optional<size_t> LastElemToReplace = splitAt(Offset + CSize);
+  std::optional<size_t> LastElemToReplace = splitAt(Offset + CSize);
   if (!LastElemToReplace)
     return false;
 
@@ -289,12 +289,12 @@ void ConstantAggregateBuilder::condense(CharUnits Offset,
                                         mlir::Type DesiredTy) {
   CharUnits Size = getSize(DesiredTy);
 
-  llvm::Optional<size_t> FirstElemToReplace = splitAt(Offset);
+  std::optional<size_t> FirstElemToReplace = splitAt(Offset);
   if (!FirstElemToReplace)
     return;
   size_t First = *FirstElemToReplace;
 
-  llvm::Optional<size_t> LastElemToReplace = splitAt(Offset + Size);
+  std::optional<size_t> LastElemToReplace = splitAt(Offset + Size);
   if (!LastElemToReplace)
     return;
   size_t Last = *LastElemToReplace;

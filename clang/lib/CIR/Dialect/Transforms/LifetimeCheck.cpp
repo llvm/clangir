@@ -75,7 +75,7 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
   // Tracks current module.
   ModuleOp theModule;
   // Track current function under analysis
-  llvm::Optional<FuncOp> currFunc;
+  std::optional<FuncOp> currFunc;
 
   // Common helpers.
   bool isCtorInitPointerFromOwner(CallOp callOp,
@@ -233,18 +233,18 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
 
   struct InvalidHistEntry {
     InvalidStyle style = Unknown;
-    llvm::Optional<mlir::Location> loc;
-    llvm::Optional<mlir::Value> val;
+    std::optional<mlir::Location> loc;
+    std::optional<mlir::Value> val;
     InvalidHistEntry() = default;
-    InvalidHistEntry(InvalidStyle s, llvm::Optional<mlir::Location> l,
-                     llvm::Optional<mlir::Value> v)
+    InvalidHistEntry(InvalidStyle s, std::optional<mlir::Location> l,
+                     std::optional<mlir::Value> v)
         : style(s), loc(l), val(v) {}
   };
 
   struct InvalidHist {
     llvm::SmallVector<InvalidHistEntry, 8> entries;
     void add(mlir::Value ptr, InvalidStyle invalidStyle, mlir::Location loc,
-             llvm::Optional<mlir::Value> val = {}) {
+             std::optional<mlir::Value> val = {}) {
       entries.emplace_back(InvalidHistEntry(invalidStyle, loc, val));
     }
   };
@@ -252,7 +252,7 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
   llvm::DenseMap<mlir::Value, InvalidHist> invalidHist;
 
   using PMapNullHistType =
-      llvm::DenseMap<mlir::Value, llvm::Optional<mlir::Location>>;
+      llvm::DenseMap<mlir::Value, std::optional<mlir::Location>>;
   PMapNullHistType pmapNullHist;
 
   ///
@@ -269,7 +269,7 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
   PMapType &getPmap() { return *currPmap; }
   void markPsetInvalid(mlir::Value ptr, InvalidStyle invalidStyle,
                        mlir::Location loc,
-                       mlir::Optional<mlir::Value> extraVal = {}) {
+                       std::optional<mlir::Value> extraVal = {}) {
     auto &pset = getPmap()[ptr];
 
     // If pset is already invalid, don't bother.
@@ -287,7 +287,7 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
   // information.
   void kill(const State &s, InvalidStyle invalidStyle, mlir::Location loc);
   void killInPset(mlir::Value ptrKey, const State &s, InvalidStyle invalidStyle,
-                  mlir::Location loc, mlir::Optional<mlir::Value> extraVal);
+                  mlir::Location loc, std::optional<mlir::Value> extraVal);
 
   // Local pointers
   SmallPtrSet<mlir::Value, 8> ptrs;
@@ -420,7 +420,7 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
   /// AST related
   /// -----------
 
-  llvm::Optional<clang::ASTContext *> astCtx;
+  std::optional<clang::ASTContext *> astCtx;
   void setASTContext(clang::ASTContext *c) { astCtx = c; }
 };
 } // namespace
@@ -471,7 +471,7 @@ static Location getEndLocForHist(LifetimeCheckPass::LexicalScopeContext &lsc) {
 void LifetimeCheckPass::killInPset(mlir::Value ptrKey, const State &s,
                                    InvalidStyle invalidStyle,
                                    mlir::Location loc,
-                                   mlir::Optional<mlir::Value> extraVal) {
+                                   std::optional<mlir::Value> extraVal) {
   auto &pset = getPmap()[ptrKey];
   if (pset.contains(s)) {
     pset.erase(s);
@@ -487,7 +487,7 @@ void LifetimeCheckPass::kill(const State &s, InvalidStyle invalidStyle,
                              mlir::Location loc) {
   assert(s.hasValue() && "does not know how to kill other data types");
   mlir::Value v = s.getData();
-  mlir::Optional<mlir::Value> extraVal;
+  std::optional<mlir::Value> extraVal;
   if (invalidStyle == InvalidStyle::EndOfScope)
     extraVal = v;
 
