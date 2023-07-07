@@ -1095,16 +1095,50 @@ mlir::Value ScalarExprEmitter::buildSub(const BinOpInfo &Ops) {
   return Builder.create<mlir::cir::PtrDiffOp>(CGF.getLoc(Ops.Loc),
                                               CGF.PtrDiffTy, Ops.LHS, Ops.RHS);
 }
+
 mlir::Value ScalarExprEmitter::buildShl(const BinOpInfo &Ops) {
+  // TODO: This misses out on the sanitizer check below.
+  if (Ops.isFixedPointOp())
+    llvm_unreachable("Fixed point SHR is NYI");
+
+  // CIR requires LHS and RHS to be the same type: cast RHS type to LHS type.
+  auto RHS = Ops.RHS;
+  if (Ops.LHS.getType() != RHS.getType())
+    RHS = Builder.createIntCast(RHS, Ops.LHS.getType());
+
+  // OpenCL 6.3j: shift values are effectively % word size of LHS.
+  if (CGF.getLangOpts().OpenCL)
+    llvm_unreachable("OpenCL NYI");
+  else if (UnimplementedFeature::shiftExponentSanitizer())
+    llvm_unreachable("Shift expoent sanitizer is NYI");
+
   return Builder.create<mlir::cir::BinOp>(
       CGF.getLoc(Ops.Loc), CGF.getCIRType(Ops.Ty), mlir::cir::BinOpKind::Shl,
-      Ops.LHS, Ops.RHS);
+      Ops.LHS, RHS);
 }
+
 mlir::Value ScalarExprEmitter::buildShr(const BinOpInfo &Ops) {
+  // TODO: This misses out on the sanitizer check below.
+  if (Ops.isFixedPointOp())
+    llvm_unreachable("Fixed point SHR is NYI");
+
+  // CIR requires LHS and RHS to be the same type: cast RHS type to LHS type.
+  auto RHS = Ops.RHS;
+  if (Ops.LHS.getType() != RHS.getType())
+    RHS = Builder.createIntCast(RHS, Ops.LHS.getType());
+
+  // OpenCL 6.3j: shift values are effectively % word size of LHS.
+  if (CGF.getLangOpts().OpenCL || UnimplementedFeature::openCL())
+    llvm_unreachable("OpenCL NYI");
+  else if (CGF.SanOpts.has(SanitizerKind::ShiftExponent) &&
+           Ops.LHS.getType().isa<mlir::cir::IntType>())
+    llvm_unreachable("Shift expoent sanitizer is NYI");
+
   return Builder.create<mlir::cir::BinOp>(
       CGF.getLoc(Ops.Loc), CGF.getCIRType(Ops.Ty), mlir::cir::BinOpKind::Shr,
-      Ops.LHS, Ops.RHS);
+      Ops.LHS, RHS);
 }
+
 mlir::Value ScalarExprEmitter::buildAnd(const BinOpInfo &Ops) {
   return Builder.create<mlir::cir::BinOp>(
       CGF.getLoc(Ops.Loc), CGF.getCIRType(Ops.Ty), mlir::cir::BinOpKind::And,

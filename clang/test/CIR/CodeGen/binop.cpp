@@ -100,3 +100,12 @@ void b3(int a, int b, int c, int d) {
 // CHECK-NEXT:      %14 = cir.load %3
 // CHECK-NEXT:      %15 = cir.cmp(eq, %13, %14)
 // CHECK-NEXT:      %16 = cir.ternary(%15, true
+
+void implicitCasts(unsigned ui, int si) {
+  ui >> si; // Must cast RHS type to LHS type.
+  // CHECK: %[[#SHR_CAST:]] = cir.cast(integral, %{{.+}} : !s32i), !u32i
+  // CHECK: %{{.+}} = cir.binop(shr, %{{.+}}, %[[#SHR_CAST]]) : !u32i
+  ui << si;  // Must cast RHS type to LHS type.
+  // CHECK: %[[#SHL_CAST:]] = cir.cast(integral, %{{.+}} : !s32i), !u32i
+  // CHECK: %{{.+}} = cir.binop(shl, %6, %[[#SHL_CAST]]) : !u32i
+}
