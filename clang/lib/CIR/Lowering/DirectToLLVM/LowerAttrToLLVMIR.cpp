@@ -41,12 +41,6 @@ public:
     if (!func)
       return mlir::success();
     llvm::Function *llvmFunc = moduleTranslation.lookupFunction(func.getName());
-
-    // Rename func_attr in order to have it processed by
-    // `CIRDialectLLVMIRTranslationInterface`
-    // if (attr.getName() == func.getExtraAttrsAttrName())
-    //   attr.setName(mlir::StringAttr::get(getContext(), "cir.extraFuncAttr"));
-    // result.push_back(attr);
     if (auto extraAttr = attribute.getValue()
                              .dyn_cast<mlir::cir::ExtraFuncAttributesAttr>()) {
       for (auto attr : extraAttr.getElements()) {
@@ -57,6 +51,8 @@ public:
             llvmFunc->addFnAttr(llvm::Attribute::AlwaysInline);
           else if (inlineAttr.isInlineHint())
             llvmFunc->addFnAttr(llvm::Attribute::InlineHint);
+          else
+            llvm_unreachable("Unknown inline kind");
         }
       }
     }

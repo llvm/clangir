@@ -1493,14 +1493,15 @@ def FuncOp : CIR_Op<"func", [
     arguments and undefined behavior.
 
     The `extra_attrs`, which is an aggregate of function-specific attributes is
-    required and mandatory to describle additional attrbiutes that are not listed
-    above.
+    required and mandatory to describle additional attributes that are not listed
+    above. Though mandatory, the prining of the attribute can be omitted if it is
+    empty.
 
     Example:
 
     ```mlir
     // External function definitions.
-    cir.func @abort() extra_attributes {}
+    cir.func @abort()
 
     // A function with internal linkage.
     cir.func internal @count(%x: i64) -> (i64)

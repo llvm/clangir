@@ -715,8 +715,8 @@ public:
             attr.getName() == func.getResAttrsAttrName())))
         continue;
 
-      // Rename func_attr in order to have it processed by
-      // `CIRDialectLLVMIRTranslationInterface`
+      // `CIRDialectLLVMIRTranslationInterface` requires "cir." prefix for
+      // dialect specific attributes, rename them.
       if (attr.getName() == func.getExtraAttrsAttrName()) {
         std::string cirName = "cir." + func.getExtraAttrsAttrName().str();
         attr.setName(mlir::StringAttr::get(getContext(), cirName));
@@ -763,7 +763,7 @@ public:
 
     auto fn = rewriter.create<mlir::LLVM::LLVMFuncOp>(
         Loc, op.getName(), llvmFnTy, linkage, false, mlir::LLVM::CConv::C,
-        attributes);
+        mlir::SymbolRefAttr(), attributes);
 
     rewriter.inlineRegionBefore(op.getBody(), fn.getBody(), fn.end());
     if (failed(rewriter.convertRegionTypes(&fn.getBody(), *typeConverter,

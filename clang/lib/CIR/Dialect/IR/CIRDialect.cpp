@@ -1338,22 +1338,6 @@ LogicalResult cir::VTableAddrPointOp::verify() {
 /// the name of the attribute in ODS.
 static StringRef getLinkageAttrNameString() { return "linkage"; }
 
-static void printExtraFunctionAttr(mlir::cir::ExtraFuncAttributesAttr attr,
-                                   OpAsmPrinter &os) {
-  if (attr.getElements().empty())
-    return;
-  os << " extra_attributes {";
-  auto I = attr.getElements().begin();
-  os << I->getValue();
-  I++;
-  while (I != attr.getElements().end()) {
-    os << ", ";
-    os << I->getValue();
-    I++;
-  }
-  os << '}';
-}
-
 void cir::FuncOp::build(OpBuilder &builder, OperationState &result,
                         StringRef name, cir::FuncType type,
                         GlobalLinkageKind linkage,
@@ -1471,6 +1455,21 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
     hasAlias = true;
   }
 
+  // If extra func attributes are present, parse them.
+  NamedAttrList extraAttrs;
+  if (::mlir::succeeded(parser.parseOptionalKeyword("extra"))) {
+    if (parser.parseLParen().failed())
+      return failure();
+    if (parser.parseOptionalAttrDict(extraAttrs).failed())
+      return failure();
+    if (parser.parseRParen().failed())
+      return failure();
+  }
+  state.addAttribute(getExtraAttrsAttrName(state.name),
+                     mlir::cir::ExtraFuncAttributesAttr::get(
+                         builder.getContext(),
+                         extraAttrs.getDictionary(builder.getContext())));
+
   // Parse the optional function body.
   auto *body = state.addRegion();
   OptionalParseResult parseResult = parser.parseOptionalRegion(
@@ -1552,12 +1551,17 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
        getFunctionTypeAttrName(), getLinkageAttrName(), getBuiltinAttrName(),
        getNoProtoAttrName(), getExtraAttrsAttrName()});
 
-  printExtraFunctionAttr(getExtraAttrs(), p);
 
   if (auto aliaseeName = getAliasee()) {
     p << " alias(";
     p.printSymbolName(*aliaseeName);
     p << ")";
+  }
+
+  if (!getExtraAttrs().getElements().empty()) {
+    p << " extra(";
+    p.printOptionalAttrDict(getExtraAttrs().getElements().getValue());
+    p << " )";
   }
 
   // Print the body if this is not an external function.
