@@ -1511,6 +1511,10 @@ void CompilerInvocationBase::GenerateCodeGenArgs(const CodeGenOptions &Opts,
   if (Opts.NewStructPathTBAA)
     GenerateArg(Consumer, OPT_new_struct_path_tbaa);
 
+  if (Opts.ClangIRBuildDeferredThreshold)
+    GenerateArg(Args, OPT_fclangir_disable_deferred_EQ,
+                Twine(Opts.ClangIRBuildDeferredThreshold), SA);
+
   if (Opts.OptimizeSize == 1)
     GenerateArg(Consumer, OPT_O, "s");
   else if (Opts.OptimizeSize == 2)
