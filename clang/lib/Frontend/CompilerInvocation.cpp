@@ -1427,6 +1427,10 @@ void CompilerInvocation::GenerateCodeGenArgs(
   if (Opts.NewStructPathTBAA)
     GenerateArg(Args, OPT_new_struct_path_tbaa, SA);
 
+  if (Opts.ClangIRBuildDeferredThreshold)
+    GenerateArg(Args, OPT_fclangir_disable_deferred_EQ,
+                Twine(Opts.ClangIRBuildDeferredThreshold), SA);
+
   if (Opts.OptimizeSize == 1)
     GenerateArg(Args, OPT_O, "s", SA);
   else if (Opts.OptimizeSize == 2)
