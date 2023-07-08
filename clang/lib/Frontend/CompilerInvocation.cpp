@@ -1440,6 +1440,9 @@ void CompilerInvocation::GenerateCodeGenArgs(
     GenerateArg(Args, OPT_fclangir_disable_deferred_EQ,
                 Twine(Opts.ClangIRBuildDeferredThreshold), SA);
 
+  if (Opts.ClangIRSkipFunctionsFromSystemHeaders)
+    GenerateArg(Args, OPT_fclangir_skip_system_headers, SA);
+
   if (Opts.OptimizeSize == 1)
     GenerateArg(Args, OPT_O, "s", SA);
   else if (Opts.OptimizeSize == 2)
