@@ -2729,6 +2729,10 @@ def fclangir_disable_deferred_EQ : Joined<["-"], "fclangir-build-deferred-thresh
   Flags<[CoreOption, CC1Option]>, Group<f_Group>,
   HelpText<"ClangIR (internal): Control the recursion level for calls to buildDeferred (defaults to 500)">,
   MarshallingInfoInt<CodeGenOpts<"ClangIRBuildDeferredThreshold">, "500u">;
+def fclangir_skip_system_headers : Joined<["-"], "fclangir-skip-system-headers">,
+  Flags<[CoreOption, CC1Option]>, Group<f_Group>,
+  HelpText<"ClangIR (internal): buildDeferred skip functions defined in system headers">,
+  MarshallingInfoFlag<CodeGenOpts<"ClangIRSkipFunctionsFromSystemHeaders">>;
 def clangir_verify_diagnostics : Flag<["-"], "clangir-verify-diagnostics">,
   Flags<[CoreOption, CC1Option]>,
   HelpText<"ClangIR: Enable diagnostic verification in MLIR, similar to clang's -verify">,
