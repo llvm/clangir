@@ -10,10 +10,15 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/IR/DialectRegistry.h"
 #include "mlir/Target/LLVMIR/LLVMTranslationInterface.h"
+#include "mlir/Target/LLVMIR/ModuleTranslation.h"
+#include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Passes.h"
+#include "llvm/IR/Constant.h"
+#include "llvm/IR/GlobalVariable.h"
 
 using namespace cir;
 using namespace llvm;
@@ -33,16 +38,28 @@ public:
   mlir::LogicalResult
   amendOperation(mlir::Operation *op, mlir::NamedAttribute attribute,
                  mlir::LLVM::ModuleTranslation &moduleTranslation) const final {
-    // TODO: Implement this
+
+    // Translate CIR's zero attribute to LLVM's zero initializer.
+    if (attribute.getName() == mlir::cir::ZeroAttr::getName()) {
+      if (llvm::isa<mlir::LLVM::GlobalOp>(op)) {
+        auto *globalVal = llvm::cast<llvm::GlobalVariable>(
+            moduleTranslation.lookupGlobal(op));
+        globalVal->setInitializer(
+            llvm::Constant::getNullValue(globalVal->getValueType()));
+      } else
+        return op->emitError("#cir.zero not supported");
+    }
+
     return mlir::success();
   }
 };
 
 void registerCIRDialectTranslation(mlir::DialectRegistry &registry) {
   registry.insert<mlir::cir::CIRDialect>();
-  registry.addExtension(+[](mlir::MLIRContext *ctx, mlir::cir::CIRDialect *dialect) {
-    dialect->addInterfaces<CIRDialectLLVMIRTranslationInterface>();
-  });
+  registry.addExtension(
+      +[](mlir::MLIRContext *ctx, mlir::cir::CIRDialect *dialect) {
+        dialect->addInterfaces<CIRDialectLLVMIRTranslationInterface>();
+      });
 }
 
 void registerCIRDialectTranslation(mlir::MLIRContext &context) {

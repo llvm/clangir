@@ -107,6 +107,9 @@ def ZeroAttr : CIR_Attr<"Zero", "zero", [TypedAttrInterface]> {
 
   let parameters = (ins AttributeSelfTypeParameter<"">:$type);
   let assemblyFormat = [{}];
+  let extraClassDeclaration = [{
+    static llvm::StringRef getName() { return "cir.zero"; };
+  }];
 }
 
 //===----------------------------------------------------------------------===//
