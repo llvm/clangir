@@ -71,6 +71,9 @@ struct UnimplementedFeature {
   static bool buildLValueAlignmentAssumption() { return false; }
   static bool buildDerivedToBaseCastForDevirt() { return false; }
 
+  // Data layout
+  static bool dataLayoutGetIndexTypeSizeInBits() { return false; }
+
   // Clang early optimizations or things defered to LLVM lowering.
   static bool shouldUseBZeroPlusStoresToInitialize() { return false; }
   static bool shouldUseMemSetToInitialize() { return false; }

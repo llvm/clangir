@@ -354,6 +354,11 @@ public:
   // Operation creation helpers
   // --------------------------
   //
+  mlir::Value createNeg(mlir::Value value) {
+    return create<mlir::cir::UnaryOp>(value.getLoc(), value.getType(),
+                                      mlir::cir::UnaryOpKind::Minus, value);
+  }
+
   mlir::Value createFPExt(mlir::Value v, mlir::Type destType) {
     if (getIsFPConstrained())
       llvm_unreachable("constrainedfp NYI");
