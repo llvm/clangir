@@ -1156,7 +1156,8 @@ mlir::Value ScalarExprEmitter::buildSub(const BinOpInfo &Ops) {
 
     assert(!UnimplementedFeature::cirVectorType());
     if (mlir::isa<mlir::FloatType>(Ops.LHS.getType())) {
-      llvm_unreachable("NYI");
+      CIRGenFunction::CIRGenFPOptionsRAII FPOptsRAII(CGF, Ops.FPFeatures);
+      return Builder.createFSub(Ops.LHS, Ops.RHS);
     }
 
     if (Ops.isFixedPointOp())
