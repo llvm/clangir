@@ -36,6 +36,7 @@
 #include "mlir/IR/IRMapping.h"
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/Value.h"
+#include "mlir/IR/ValueRange.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Support/LLVM.h"
@@ -802,6 +803,75 @@ public:
   }
 };
 
+class CIRSwitchOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::SwitchOp> {
+public:
+  using OpConversionPattern<mlir::cir::SwitchOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::SwitchOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    // Empty switch statement: just erase it.
+    if (!op.getCases().has_value() || op.getCases()->empty()) {
+      rewriter.eraseOp(op);
+      return mlir::success();
+    }
+
+    // Create exit block.
+    rewriter.setInsertionPointAfter(op);
+    auto *exitBlock =
+        rewriter.splitBlock(rewriter.getBlock(), rewriter.getInsertionPoint());
+
+    // Allocate required data structures (disconsider default case in vectors).
+    llvm::SmallVector<mlir::APInt, 8> caseValues;
+    llvm::SmallVector<mlir::Block *, 8> caseDestinations;
+    llvm::SmallVector<mlir::ValueRange, 8> caseOperands;
+
+    // Initialize default case as optional.
+    mlir::Block *defaultDestination = exitBlock;
+    mlir::ValueRange defaultOperands = exitBlock->getArguments();
+
+    // Digest the case statements values and bodies.
+    for (size_t i = 0; i < op.getCases()->size(); ++i) {
+      auto &region = op.getRegion(i);
+      auto caseAttr = op.getCases()->getValue()[i].cast<mlir::cir::CaseAttr>();
+
+      // Found default case: override destination and operands.
+      if (caseAttr.getKind().getValue() == mlir::cir::CaseOpKind::Default) {
+        defaultDestination = &region.front();
+        defaultOperands = region.getArguments();
+      } else {
+        // AnyOf cases kind can have multiple values, hence the loop below.
+        for (auto &value : caseAttr.getValue()) {
+          caseValues.push_back(value.cast<mlir::cir::IntAttr>().getValue());
+          caseOperands.push_back(region.getArguments());
+          caseDestinations.push_back(&region.front());
+        }
+      }
+
+      // Ensure break statement leads to the exit block.
+      if (region.getBlocks().size() != 1)
+        return op->emitError("multi-block case statement is NYI");
+      auto *terminator = region.front().getTerminator();
+      if (isa<mlir::cir::YieldOp>(terminator)) {
+        rewriter.setInsertionPoint(terminator);
+        rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(
+            terminator, terminator->getOperands(), exitBlock);
+      }
+
+      // Extract region contents before erasing the switch op.
+      rewriter.inlineRegionBefore(region, exitBlock);
+    }
+
+    // Set switch op to branch to the newly created blocks.
+    rewriter.setInsertionPoint(op);
+    rewriter.replaceOpWithNewOp<mlir::LLVM::SwitchOp>(
+        op, adaptor.getCondition(), defaultDestination, defaultOperands,
+        caseValues, caseDestinations, caseOperands);
+    return mlir::success();
+  }
+};
+
 class CIRGlobalOpLowering
     : public mlir::OpConversionPattern<mlir::cir::GlobalOp> {
 public:
@@ -1238,14 +1308,15 @@ public:
 void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
                                          mlir::TypeConverter &converter) {
   patterns.add<CIRReturnLowering>(patterns.getContext());
-  patterns.add<
-      CIRCmpOpLowering, CIRLoopOpLowering, CIRBrCondOpLowering,
-      CIRPtrStrideOpLowering, CIRCallLowering, CIRUnaryOpLowering,
-      CIRBinOpLowering, CIRLoadLowering, CIRConstantLowering, CIRStoreLowering,
-      CIRAllocaLowering, CIRFuncLowering, CIRScopeOpLowering, CIRCastOpLowering,
-      CIRIfLowering, CIRGlobalOpLowering, CIRGetGlobalOpLowering,
-      CIRVAStartLowering, CIRVAEndLowering, CIRVACopyLowering, CIRVAArgLowering,
-      CIRBrOpLowering, CIRTernaryOpLowering, CIRStructElementAddrOpLowering>(
+  patterns.add<CIRCmpOpLowering, CIRLoopOpLowering, CIRBrCondOpLowering,
+               CIRPtrStrideOpLowering, CIRCallLowering, CIRUnaryOpLowering,
+               CIRBinOpLowering, CIRLoadLowering, CIRConstantLowering,
+               CIRStoreLowering, CIRAllocaLowering, CIRFuncLowering,
+               CIRScopeOpLowering, CIRCastOpLowering, CIRIfLowering,
+               CIRGlobalOpLowering, CIRGetGlobalOpLowering, CIRVAStartLowering,
+               CIRVAEndLowering, CIRVACopyLowering, CIRVAArgLowering,
+               CIRBrOpLowering, CIRTernaryOpLowering,
+               CIRStructElementAddrOpLowering, CIRSwitchOpLowering>(
       converter, patterns.getContext());
 }
 
