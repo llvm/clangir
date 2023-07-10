@@ -130,7 +130,7 @@ public:
     auto &condRegion = loopOp.getCond();
     auto &condFrontBlock = condRegion.front();
     auto condYield =
-        cast<mlir::cir::YieldOp>(condRegion.back().getTerminator());
+        mlir::cast<mlir::cir::YieldOp>(condRegion.back().getTerminator());
 
     // Fetch required info from the body region.
     auto &bodyRegion = loopOp.getBody();
