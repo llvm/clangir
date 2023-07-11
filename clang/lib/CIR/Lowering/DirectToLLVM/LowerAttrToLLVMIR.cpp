@@ -40,7 +40,7 @@ public:
                  mlir::LLVM::ModuleTranslation &moduleTranslation) const final {
 
     // Translate CIR's zero attribute to LLVM's zero initializer.
-    if (attribute.getName() == mlir::cir::ZeroAttr::getName()) {
+    if (isa<mlir::cir::ZeroAttr>(attribute.getValue())) {
       if (llvm::isa<mlir::LLVM::GlobalOp>(op)) {
         auto *globalVal = llvm::cast<llvm::GlobalVariable>(
             moduleTranslation.lookupGlobal(op));
@@ -50,16 +50,38 @@ public:
         return op->emitError("#cir.zero not supported");
     }
 
+    // Translate CIR's extra function attributes to LLVM's function attributes.
+    auto func = dyn_cast<mlir::LLVM::LLVMFuncOp>(op);
+    if (!func)
+      return mlir::success();
+    llvm::Function *llvmFunc = moduleTranslation.lookupFunction(func.getName());
+    if (auto extraAttr = attribute.getValue()
+                             .dyn_cast<mlir::cir::ExtraFuncAttributesAttr>()) {
+      for (auto attr : extraAttr.getElements()) {
+        if (auto inlineAttr = attr.getValue().dyn_cast<mlir::cir::InlineAttr>()) {
+          if (inlineAttr.isNoInline())
+            llvmFunc->addFnAttr(llvm::Attribute::NoInline);
+          else if (inlineAttr.isAlwaysInline())
+            llvmFunc->addFnAttr(llvm::Attribute::AlwaysInline);
+          else if (inlineAttr.isInlineHint())
+            llvmFunc->addFnAttr(llvm::Attribute::InlineHint);
+          else
+            llvm_unreachable("Unknown inline kind");
+        }
+      }
+    }
+
+    // Drop ammended CIR attribute from LLVM op.
+    op->removeAttr(attribute.getName());
     return mlir::success();
   }
 };
 
 void registerCIRDialectTranslation(mlir::DialectRegistry &registry) {
   registry.insert<mlir::cir::CIRDialect>();
-  registry.addExtension(
-      +[](mlir::MLIRContext *ctx, mlir::cir::CIRDialect *dialect) {
-        dialect->addInterfaces<CIRDialectLLVMIRTranslationInterface>();
-      });
+  registry.addExtension(+[](mlir::MLIRContext *ctx, mlir::cir::CIRDialect *dialect) {
+    dialect->addInterfaces<CIRDialectLLVMIRTranslationInterface>();
+  });
 }
 
 void registerCIRDialectTranslation(mlir::MLIRContext &context) {
