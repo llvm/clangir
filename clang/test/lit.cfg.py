@@ -86,7 +86,7 @@ tools = [
     "apinotes-test",
     "c-index-test",
     "cir-opt",
-    "cir-tool",
+    "cir-translate",
     "clang-diff",
     "clang-format",
     "clang-repl",
