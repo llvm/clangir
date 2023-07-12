@@ -82,7 +82,7 @@ list(APPEND CLANG_TEST_DEPS
 
 if(CLANG_ENABLE_CIR)
   list(APPEND CLANG_TEST_DEPS
-    cir-tool
+    cir-opt
     )
 endif()
 
