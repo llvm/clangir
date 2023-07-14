@@ -1018,6 +1018,17 @@ public:
       rewriter.create<mlir::LLVM::ReturnOp>(op->getLoc(), gepOp.getResult());
 
       return mlir::success();
+    } else if (isa<mlir::cir::ZeroAttr, mlir::cir::NullAttr>(init.value())) {
+      // TODO(cir): once LLVM's dialect has a proper zeroinitializer attribute
+      // this should be updated. For now, we tag the LLVM global with a cir.zero
+      // attribute that is later replaced with a zeroinitializer. Null pointers
+      // also use this path for simplicity, as we would otherwise require a
+      // region-based initialization for the global op.
+      auto llvmGlobalOp = rewriter.replaceOpWithNewOp<mlir::LLVM::GlobalOp>(
+          op, llvmType, isConst, linkage, symbol, nullptr);
+      auto cirZeroAttr = mlir::cir::ZeroAttr::get(getContext(), llvmType);
+      llvmGlobalOp->setAttr("cir.initial_value", cirZeroAttr);
+      return mlir::success();
     } else {
       op.emitError() << "usupported initializer '" << init.value() << "'";
       return mlir::failure();
@@ -1505,9 +1516,9 @@ extern void registerCIRDialectTranslation(mlir::MLIRContext &context);
 
 std::unique_ptr<llvm::Module>
 lowerDirectlyFromCIRToLLVMIR(mlir::ModuleOp theModule,
-                             std::unique_ptr<mlir::MLIRContext> mlirCtx,
                              LLVMContext &llvmCtx) {
-  mlir::PassManager pm(mlirCtx.get());
+  mlir::MLIRContext *mlirCtx = theModule.getContext();
+  mlir::PassManager pm(mlirCtx);
 
   pm.addPass(createConvertCIRToLLVMPass());
 
