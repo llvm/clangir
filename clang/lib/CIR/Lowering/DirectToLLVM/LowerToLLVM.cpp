@@ -1407,9 +1407,9 @@ extern void registerCIRDialectTranslation(mlir::MLIRContext &context);
 
 std::unique_ptr<llvm::Module>
 lowerDirectlyFromCIRToLLVMIR(mlir::ModuleOp theModule,
-                             std::unique_ptr<mlir::MLIRContext> mlirCtx,
                              LLVMContext &llvmCtx) {
-  mlir::PassManager pm(mlirCtx.get());
+  mlir::MLIRContext *mlirCtx = theModule.getContext();
+  mlir::PassManager pm(mlirCtx);
 
   pm.addPass(createConvertCIRToLLVMPass());
 
