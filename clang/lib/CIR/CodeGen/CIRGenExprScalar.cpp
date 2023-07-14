@@ -1170,7 +1170,7 @@ mlir::Value ScalarExprEmitter::buildSub(const BinOpInfo &Ops) {
   // If the RHS is not a pointer, then we have normal pointer
   // arithmetic.
   if (!Ops.RHS.getType().isa<mlir::cir::PointerType>())
-    llvm_unreachable("NYI");
+    return buildPointerArithmetic(CGF, Ops, /*isSubtraction=*/true);
 
   // Otherwise, this is a pointer subtraction
 
@@ -2318,5 +2318,8 @@ mlir::Value CIRGenFunction::buildCheckedInBoundsGEP(
   if (!SanOpts.has(SanitizerKind::PointerOverflow))
     return GEPVal;
 
+  // TODO(cir): the unreachable code below hides a substantial amount of code
+  // from the original codegen related with pointer overflow sanitizer.
+  assert(UnimplementedFeature::pointerOverflowSanitizer());
   llvm_unreachable("pointer overflow sanitizer NYI");
 }

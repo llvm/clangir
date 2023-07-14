@@ -984,13 +984,18 @@ void printSwitchOp(OpAsmPrinter &p, SwitchOp op,
     switch (kind) {
     case cir::CaseOpKind::Equal: {
       p << ", ";
-      p.printStrippedAttrOrType(attr.getValue()[0]);
+      auto intAttr = attr.getValue()[0].cast<cir::IntAttr>();
+      auto intAttrTy = intAttr.getType().cast<cir::IntType>();
+      (intAttrTy.isSigned() ? p << intAttr.getSInt() : p << intAttr.getUInt());
       break;
     }
     case cir::CaseOpKind::Anyof: {
       p << ", [";
       llvm::interleaveComma(attr.getValue(), p, [&](const Attribute &a) {
-        p.printAttributeWithoutType(a);
+        auto intAttr = a.cast<cir::IntAttr>();
+        auto intAttrTy = intAttr.getType().cast<cir::IntType>();
+        (intAttrTy.isSigned() ? p << intAttr.getSInt()
+                              : p << intAttr.getUInt());
       });
       p << "] : ";
       auto typedAttr = attr.getValue()[0].dyn_cast<TypedAttr>();
@@ -1048,7 +1053,11 @@ void SwitchOp::getSuccessorRegions(std::optional<unsigned> index,
     regions.push_back(RegionSuccessor(&r));
 }
 
-LogicalResult SwitchOp::verify() { return success(); }
+LogicalResult SwitchOp::verify() {
+  if (getCases().has_value() && getCases()->size() != getNumRegions())
+    return emitOpError("number of cases attributes and regions must match");
+  return success();
+}
 
 void SwitchOp::build(
     OpBuilder &builder, OperationState &result, Value cond,
