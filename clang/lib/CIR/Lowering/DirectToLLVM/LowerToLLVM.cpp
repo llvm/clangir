@@ -370,8 +370,15 @@ public:
                                                          llvmSrcVal);
       return mlir::success();
     }
-    default:
-      llvm_unreachable("NYI");
+    case mlir::cir::CastKind::ptr_to_bool: {
+      auto null = rewriter.create<mlir::cir::ConstantOp>(
+          src.getLoc(), castOp.getSrc().getType(),
+          mlir::cir::NullAttr::get(castOp.getSrc().getType()));
+      rewriter.replaceOpWithNewOp<mlir::cir::CmpOp>(
+          castOp, mlir::cir::BoolType::get(getContext()),
+          mlir::cir::CmpOpKind::ne, castOp.getSrc(), null);
+      break;
+    }
     }
 
     return mlir::success();
@@ -463,7 +470,8 @@ public:
       return mlir::success();
     }
 
-    // Split the current block before the ScopeOp to create the inlining point.
+    // Split the current block before the ScopeOp to create the inlining
+    // point.
     auto *currentBlock = rewriter.getInsertionBlock();
     auto *remainingOpsBlock =
         rewriter.splitBlock(currentBlock, rewriter.getInsertionPoint());
@@ -704,13 +712,13 @@ class CIRFuncLowering : public mlir::OpConversionPattern<mlir::cir::FuncOp> {
 public:
   using OpConversionPattern<mlir::cir::FuncOp>::OpConversionPattern;
 
-  /// Returns the name used for the linkage attribute. This *must* correspond to
-  /// the name of the attribute in ODS.
+  /// Returns the name used for the linkage attribute. This *must* correspond
+  /// to the name of the attribute in ODS.
   static StringRef getLinkageAttrNameString() { return "linkage"; }
 
   /// Only retain those attributes that are not constructed by
-  /// `LLVMFuncOp::build`. If `filterArgAttrs` is set, also filter out argument
-  /// attributes.
+  /// `LLVMFuncOp::build`. If `filterArgAttrs` is set, also filter out
+  /// argument attributes.
   void
   filterFuncAttributes(mlir::cir::FuncOp func, bool filterArgAndResAttrs,
                        SmallVectorImpl<mlir::NamedAttribute> &result) const {
@@ -829,8 +837,8 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::GetGlobalOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    // FIXME(cir): Premature DCE to avoid lowering stuff we're not using. CIRGen
-    // should mitigate this and not emit the get_global.
+    // FIXME(cir): Premature DCE to avoid lowering stuff we're not using.
+    // CIRGen should mitigate this and not emit the get_global.
     if (op->getUses().empty()) {
       rewriter.eraseOp(op);
       return mlir::success();
@@ -870,7 +878,8 @@ public:
     auto *exitBlock =
         rewriter.splitBlock(rewriter.getBlock(), rewriter.getInsertionPoint());
 
-    // Allocate required data structures (disconsider default case in vectors).
+    // Allocate required data structures (disconsider default case in
+    // vectors).
     llvm::SmallVector<mlir::APInt, 8> caseValues;
     llvm::SmallVector<mlir::Block *, 8> caseDestinations;
     llvm::SmallVector<mlir::ValueRange, 8> caseOperands;
@@ -978,9 +987,9 @@ public:
         init = rewriter.getStringAttr(attr.getValue());
       } else if (auto attr = mlir::dyn_cast<mlir::ArrayAttr>(constArr.getElts())) {
         if (!(init = lowerConstArrayAttr(constArr, getTypeConverter()))) {
-          op.emitError()
-              << "unsupported lowering for #cir.const_array with element type "
-              << op.getSymType();
+          op.emitError() << "unsupported lowering for #cir.const_array with "
+                            "element type "
+                         << op.getSymType();
           return mlir::failure();
         }
       } else {
@@ -990,7 +999,8 @@ public:
         return mlir::failure();
       }
     } else if (mlir::isa<mlir::FloatAttr>(init.value())) {
-      // Nothing to do since LLVM already supports these types as initializers.
+      // Nothing to do since LLVM already supports these types as
+      // initializers.
     }
     // Initializer is a constant integer: convert to MLIR builtin constant.
     else if (auto intAttr = mlir::dyn_cast<mlir::cir::IntAttr>(init.value())) {
@@ -1025,10 +1035,10 @@ public:
       return mlir::success();
     } else if (isa<mlir::cir::ZeroAttr, mlir::cir::NullAttr>(init.value())) {
       // TODO(cir): once LLVM's dialect has a proper zeroinitializer attribute
-      // this should be updated. For now, we tag the LLVM global with a cir.zero
-      // attribute that is later replaced with a zeroinitializer. Null pointers
-      // also use this path for simplicity, as we would otherwise require a
-      // region-based initialization for the global op.
+      // this should be updated. For now, we tag the LLVM global with a
+      // cir.zero attribute that is later replaced with a zeroinitializer.
+      // Null pointers also use this path for simplicity, as we would
+      // otherwise require a region-based initialization for the global op.
       auto llvmGlobalOp = rewriter.replaceOpWithNewOp<mlir::LLVM::GlobalOp>(
           op, llvmType, isConst, linkage, symbol, nullptr);
       auto cirZeroAttr = mlir::cir::ZeroAttr::get(getContext(), llvmType);
@@ -1525,8 +1535,7 @@ std::unique_ptr<mlir::Pass> createConvertCIRToLLVMPass() {
 extern void registerCIRDialectTranslation(mlir::MLIRContext &context);
 
 std::unique_ptr<llvm::Module>
-lowerDirectlyFromCIRToLLVMIR(mlir::ModuleOp theModule,
-                             LLVMContext &llvmCtx) {
+lowerDirectlyFromCIRToLLVMIR(mlir::ModuleOp theModule, LLVMContext &llvmCtx) {
   mlir::MLIRContext *mlirCtx = theModule.getContext();
   mlir::PassManager pm(mlirCtx);
 
