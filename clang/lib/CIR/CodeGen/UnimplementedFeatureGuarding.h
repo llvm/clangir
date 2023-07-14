@@ -51,6 +51,7 @@ struct UnimplementedFeature {
   static bool reportGlobalToASan() { return false; }
   static bool emitAsanPrologueOrEpilogue() { return false; }
   static bool emitCheckedInBoundsGEP() { return false; }
+  static bool pointerOverflowSanitizer() { return false; }
 
   // ObjC
   static bool setObjCGCLValueClass() { return false; }
