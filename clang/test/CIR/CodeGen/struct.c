@@ -1,10 +1,13 @@
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir-enable -emit-cir %s -o %t.cir
 // RUN: FileCheck --input-file=%t.cir %s
+// FIXME(cir): Move the test below to lowering and us a separate tool to lower from CIR to LLVM IR.
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir-enable -emit-llvm %s -o %t.ll
+// RUN: FileCheck --input-file=%t.ll --check-prefix=LLVM %s
 
 struct Bar {
   int a;
   char b;
-};
+} bar;
 
 struct Foo {
   int a;
@@ -25,4 +28,7 @@ void baz(void) {
 // CHECK-NEXT:     %1 = cir.alloca !ty_22struct2EFoo22, cir.ptr <!ty_22struct2EFoo22>, ["f"] {alignment = 4 : i64}
 // CHECK-NEXT:     cir.return
 // CHECK-NEXT:   }
-// CHECK-NEXT: }
+
+// Check if global structs are zero-initialized.
+//      CHECK: cir.global external @bar = #cir.zero : !ty_22struct2EBar22
+//      LLVM: @bar = global %struct.Bar zeroinitializer
