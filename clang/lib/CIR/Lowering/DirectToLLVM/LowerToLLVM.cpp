@@ -362,6 +362,15 @@ public:
                                                          llvmSrcVal);
       return mlir::success();
     }
+    case mlir::cir::CastKind::ptr_to_bool: {
+      auto null = rewriter.create<mlir::cir::ConstantOp>(
+          src.getLoc(), castOp.getSrc().getType(),
+          mlir::cir::NullAttr::get(castOp.getSrc().getType()));
+      rewriter.replaceOpWithNewOp<mlir::cir::CmpOp>(
+          castOp, mlir::cir::BoolType::get(getContext()),
+          mlir::cir::CmpOpKind::ne, castOp.getSrc(), null);
+      break;
+    }
     default:
       llvm_unreachable("NYI");
     }
