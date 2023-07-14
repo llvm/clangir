@@ -1432,6 +1432,9 @@ mlir::LLVMTypeConverter prepareTypeConverter(mlir::MLIRContext *ctx) {
   mlir::LLVMTypeConverter converter(ctx);
   converter.addConversion([&](mlir::cir::PointerType type) -> mlir::Type {
     auto ty = converter.convertType(type.getPointee());
+    // Lower void pointers as opaque pointers.
+    if (ty.isa<mlir::LLVM::LLVMVoidType>())
+      return mlir::LLVM::LLVMPointerType::get(ty.getContext());
     return mlir::LLVM::LLVMPointerType::get(ty);
   });
   converter.addConversion([&](mlir::cir::ArrayType type) -> mlir::Type {
