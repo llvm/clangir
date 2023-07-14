@@ -34,10 +34,10 @@ int foo(int a, int b) {
 // CHECK: = cir.binop(sub,
 // CHECK: cir.store {{.*}}[[Value]]
 // CHECK: = cir.load {{.*}}[[Value]]
-// CHECK: = cir.binop(shr,
+// CHECK: = cir.shift( right
 // CHECK: cir.store {{.*}}[[Value]]
 // CHECK: = cir.load {{.*}}[[Value]]
-// CHECK: = cir.binop(shl,
+// CHECK: = cir.shift(left
 // CHECK: cir.store {{.*}}[[Value]]
 // CHECK: = cir.load {{.*}}[[Value]]
 // CHECK: = cir.binop(and,
@@ -60,7 +60,7 @@ void exec() {
   if ((r = getty()) < 0) {}
 }
 
-// CHECK: cir.func @_Z4execv() {
+// CHECK: cir.func @_Z4execv()
 // CHECK:   %0 = cir.alloca !u32i, cir.ptr <!u32i>, ["r"] {alignment = 4 : i64}
 // CHECK:   cir.scope {
 // CHECK:     %1 = cir.call @_Z5gettyv() : () -> !u32i

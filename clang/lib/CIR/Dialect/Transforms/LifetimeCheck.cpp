@@ -55,6 +55,9 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
   void checkAwait(AwaitOp awaitOp);
   void checkReturn(ReturnOp retOp);
 
+  void classifyTypeCategories(mlir::Value addr, mlir::Type t,
+                              mlir::Location loc);
+
   // FIXME: classify tasks and lambdas prior to check ptr deref
   // and pass down an enum.
   void checkPointerDeref(mlir::Value addr, mlir::Location loc,
@@ -303,6 +306,14 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
   void incOwner(mlir::Value o) {
     assert(owners.count(o) && "entry expected");
     owners[o]++;
+  }
+
+  // Aggregates and exploded fields.
+  using ExplodedFieldsTy = llvm::SmallSet<unsigned, 4>;
+  DenseMap<mlir::Value, ExplodedFieldsTy> aggregates;
+  void addAggregate(mlir::Value a, SmallVectorImpl<unsigned> &fields) {
+    assert(!aggregates.count(a) && "already tracked");
+    aggregates[a].insert(fields.begin(), fields.end());
   }
 
   // Useful helpers for debugging
@@ -856,7 +867,29 @@ static bool isOwnerType(mlir::Type ty) {
   return isStructAndHasAttr<clang::OwnerAttr>(ty);
 }
 
-static bool isPointerType(AllocaOp allocaOp) {
+static bool containsPointerElts(mlir::cir::StructType s) {
+  auto members = s.getMembers();
+  return std::any_of(members.begin(), members.end(), [](mlir::Type t) {
+    return t.isa<mlir::cir::PointerType>();
+  });
+}
+
+static bool isAggregateType(mlir::Type agg) {
+  auto t = agg.dyn_cast<mlir::cir::StructType>();
+  if (!t)
+    return false;
+  // FIXME: For now we handle this in a more naive way: any pointer
+  // element we find is enough to consider this an aggregate. But in
+  // reality it should be as defined in 2.1:
+  //
+  // An Aggregate is a type that is not an Indirection and is a class type with
+  // public data members none of which are references (& or &&) and no
+  // user-provided copy or move operations, and no base class that is not also
+  // an Aggregate. The elements of an Aggregate are its public data members.
+  return containsPointerElts(t);
+}
+
+static bool isPointerType(mlir::Type t) {
   // From 2.1:
   //
   // A Pointer is not an Owner and provides indirect access to an object it does
@@ -888,14 +921,14 @@ static bool isPointerType(AllocaOp allocaOp) {
   // library headers, the following well- known standard types are treated as-if
   // annotated as Pointers, in addition to raw pointers and references: ref-
   // erence_wrapper, and vector<bool>::reference.
-  if (allocaOp.isPointerType())
+  if (t.isa<mlir::cir::PointerType>())
     return true;
-  return isStructAndHasAttr<clang::PointerAttr>(allocaOp.getAllocaType());
+  return isStructAndHasAttr<clang::PointerAttr>(t);
 }
 
-void LifetimeCheckPass::checkAlloca(AllocaOp allocaOp) {
-  auto addr = allocaOp.getAddr();
-  assert(!getPmap().count(addr) && "only one alloca for any given address");
+void LifetimeCheckPass::classifyTypeCategories(mlir::Value addr, mlir::Type t,
+                                               mlir::Location loc) {
+  assert(!getPmap().count(addr) && "only one map entry for a given address");
   getPmap()[addr] = {};
 
   enum TypeCategory {
@@ -909,10 +942,12 @@ void LifetimeCheckPass::checkAlloca(AllocaOp allocaOp) {
   };
 
   auto localStyle = [&]() {
-    if (isPointerType(allocaOp))
+    if (isPointerType(t))
       return TypeCategory::Pointer;
-    if (isOwnerType(allocaOp.getAllocaType()))
+    if (isOwnerType(t))
       return TypeCategory::Owner;
+    if (isAggregateType(t))
+      return TypeCategory::Aggregate;
     return TypeCategory::Value;
   }();
 
@@ -921,7 +956,7 @@ void LifetimeCheckPass::checkAlloca(AllocaOp allocaOp) {
     // 2.4.2 - When a non-parameter non-member Pointer p is declared, add
     // (p, {invalid}) to pmap.
     ptrs.insert(addr);
-    markPsetInvalid(addr, InvalidStyle::NotInitialized, allocaOp.getLoc());
+    markPsetInvalid(addr, InvalidStyle::NotInitialized, loc);
     break;
   case TypeCategory::Owner:
     // 2.4.2 - When a local Owner x is declared, add (x, {x__1'}) to pmap.
@@ -929,15 +964,43 @@ void LifetimeCheckPass::checkAlloca(AllocaOp allocaOp) {
     getPmap()[addr].insert(State::getOwnedBy(addr));
     currScope->localValues.insert(addr);
     break;
+  case TypeCategory::Aggregate: {
+    // 2.1 - Aggregates are types we will “explode” (consider memberwise) at
+    // local scopes, because the function can operate on the members directly.
+
+    // Explode all pointer members.
+    SmallVector<unsigned, 4> fields;
+    auto members = t.cast<mlir::cir::StructType>().getMembers();
+
+    unsigned fieldIdx = 0;
+    std::for_each(members.begin(), members.end(), [&](mlir::Type t) {
+      auto ptrType = t.dyn_cast<mlir::cir::PointerType>();
+      if (ptrType)
+        fields.push_back(fieldIdx);
+      fieldIdx++;
+    });
+    addAggregate(addr, fields);
+
+    // Differently from `TypeCategory::Pointer`, initialization for exploded
+    // pointer is done lazily, triggered whenever the relevant
+    // `cir.struct_element_addr` are seen. This also serves optimization
+    // purposes: only track fields that are actually seen.
+    break;
+  }
   case TypeCategory::Value: {
     // 2.4.2 - When a local Value x is declared, add (x, {x}) to pmap.
     getPmap()[addr].insert(State::getLocalValue(addr));
     currScope->localValues.insert(addr);
-    return;
+    break;
   }
   default:
     llvm_unreachable("NYI");
   }
+}
+
+void LifetimeCheckPass::checkAlloca(AllocaOp allocaOp) {
+  classifyTypeCategories(allocaOp.getAddr(), allocaOp.getAllocaType(),
+                         allocaOp.getLoc());
 }
 
 void LifetimeCheckPass::checkCoroTaskStore(StoreOp storeOp) {
