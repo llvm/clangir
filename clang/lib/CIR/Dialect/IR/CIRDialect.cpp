@@ -1053,7 +1053,11 @@ void SwitchOp::getSuccessorRegions(std::optional<unsigned> index,
     regions.push_back(RegionSuccessor(&r));
 }
 
-LogicalResult SwitchOp::verify() { return success(); }
+LogicalResult SwitchOp::verify() {
+  if (getCases().has_value() && getCases()->size() != getNumRegions())
+    return emitOpError("number of cases attributes and regions must match");
+  return success();
+}
 
 void SwitchOp::build(
     OpBuilder &builder, OperationState &result, Value cond,
