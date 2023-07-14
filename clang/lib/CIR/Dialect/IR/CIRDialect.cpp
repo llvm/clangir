@@ -986,13 +986,18 @@ void printSwitchOp(OpAsmPrinter &p, SwitchOp op,
     switch (kind) {
     case cir::CaseOpKind::Equal: {
       p << ", ";
-      p.printStrippedAttrOrType(attr.getValue()[0]);
+      auto intAttr = mlir::cast<cir::IntAttr>(attr.getValue()[0]);
+      auto intAttrTy = mlir::cast<cir::IntType>(intAttr.getType());
+      (intAttrTy.isSigned() ? p << intAttr.getSInt() : p << intAttr.getUInt());
       break;
     }
     case cir::CaseOpKind::Anyof: {
       p << ", [";
       llvm::interleaveComma(attr.getValue(), p, [&](const Attribute &a) {
-        p.printAttributeWithoutType(a);
+        auto intAttr = mlir::cast<cir::IntAttr>(a);
+        auto intAttrTy = mlir::cast<cir::IntType>(intAttr.getType());
+        (intAttrTy.isSigned() ? p << intAttr.getSInt()
+                              : p << intAttr.getUInt());
       });
       p << "] : ";
       auto typedAttr = llvm::dyn_cast<TypedAttr>(attr.getValue()[0]);
