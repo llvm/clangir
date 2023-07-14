@@ -1364,6 +1364,10 @@ public:
       auto kind = convertToICmpPredicate(cmpOp.getKind(), intTy.isSigned());
       llResult = rewriter.create<mlir::LLVM::ICmpOp>(
           cmpOp.getLoc(), kind, adaptor.getLhs(), adaptor.getRhs());
+    } else if (auto ptrTy = mlir::dyn_cast<mlir::cir::PointerType>(type)) {
+      auto kind = convertToICmpPredicate(cmpOp.getKind(), /* isSigned=*/false);
+      llResult = rewriter.create<mlir::LLVM::ICmpOp>(
+          cmpOp.getLoc(), kind, adaptor.getLhs(), adaptor.getRhs());
     } else if (mlir::isa<mlir::FloatType>(type)) {
       auto kind = convertToFCmpPredicate(cmpOp.getKind());
       llResult = rewriter.create<mlir::LLVM::FCmpOp>(
