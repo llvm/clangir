@@ -29,6 +29,7 @@
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/SCF/Transforms/Passes.h"
 #include "mlir/IR/Attributes.h"
+#include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributeInterfaces.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinDialect.h"
@@ -36,6 +37,7 @@
 #include "mlir/IR/IRMapping.h"
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/Value.h"
+#include "mlir/IR/ValueRange.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Support/LLVM.h"
@@ -359,6 +361,15 @@ public:
       rewriter.replaceOpWithNewOp<mlir::LLVM::BitcastOp>(castOp, llvmDstTy,
                                                          llvmSrcVal);
       return mlir::success();
+    }
+    case mlir::cir::CastKind::ptr_to_bool: {
+      auto null = rewriter.create<mlir::cir::ConstantOp>(
+          src.getLoc(), castOp.getSrc().getType(),
+          mlir::cir::NullAttr::get(castOp.getSrc().getType()));
+      rewriter.replaceOpWithNewOp<mlir::cir::CmpOp>(
+          castOp, mlir::cir::BoolType::get(getContext()),
+          mlir::cir::CmpOpKind::ne, castOp.getSrc(), null);
+      break;
     }
     default:
       llvm_unreachable("NYI");
@@ -696,6 +707,35 @@ class CIRFuncLowering : public mlir::OpConversionPattern<mlir::cir::FuncOp> {
 public:
   using OpConversionPattern<mlir::cir::FuncOp>::OpConversionPattern;
 
+  /// Returns the name used for the linkage attribute. This *must* correspond to
+  /// the name of the attribute in ODS.
+  static StringRef getLinkageAttrNameString() { return "linkage"; }
+
+  /// Only retain those attributes that are not constructed by
+  /// `LLVMFuncOp::build`. If `filterArgAttrs` is set, also filter out argument
+  /// attributes.
+  void
+  filterFuncAttributes(mlir::cir::FuncOp func, bool filterArgAndResAttrs,
+                       SmallVectorImpl<mlir::NamedAttribute> &result) const {
+    for (auto attr : func->getAttrs()) {
+      if (attr.getName() == mlir::SymbolTable::getSymbolAttrName() ||
+          attr.getName() == func.getFunctionTypeAttrName() ||
+          attr.getName() == getLinkageAttrNameString() ||
+          (filterArgAndResAttrs &&
+           (attr.getName() == func.getArgAttrsAttrName() ||
+            attr.getName() == func.getResAttrsAttrName())))
+        continue;
+
+      // `CIRDialectLLVMIRTranslationInterface` requires "cir." prefix for
+      // dialect specific attributes, rename them.
+      if (attr.getName() == func.getExtraAttrsAttrName()) {
+        std::string cirName = "cir." + func.getExtraAttrsAttrName().str();
+        attr.setName(mlir::StringAttr::get(getContext(), cirName));
+      }
+      result.push_back(attr);
+    }
+  }
+
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::FuncOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
@@ -727,9 +767,14 @@ public:
       Loc = FusedLoc.getLocations()[0];
     }
     assert(Loc.isa<mlir::FileLineColLoc>() && "expected single location here");
+
     auto linkage = convertLinkage(op.getLinkage());
-    auto fn = rewriter.create<mlir::LLVM::LLVMFuncOp>(Loc, op.getName(),
-                                                      llvmFnTy, linkage);
+    SmallVector<mlir::NamedAttribute, 4> attributes;
+    filterFuncAttributes(op, /*filterArgAndResAttrs=*/false, attributes);
+
+    auto fn = rewriter.create<mlir::LLVM::LLVMFuncOp>(
+        Loc, op.getName(), llvmFnTy, linkage, false, mlir::LLVM::CConv::C,
+        mlir::SymbolRefAttr(), attributes);
 
     rewriter.inlineRegionBefore(op.getBody(), fn.getBody(), fn.end());
     if (failed(rewriter.convertRegionTypes(&fn.getBody(), *typeConverter,
@@ -798,6 +843,113 @@ public:
     auto type = getTypeConverter()->convertType(op.getType());
     auto symbol = op.getName();
     rewriter.replaceOpWithNewOp<mlir::LLVM::AddressOfOp>(op, type, symbol);
+    return mlir::success();
+  }
+};
+
+class CIRSwitchOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::SwitchOp> {
+public:
+  using OpConversionPattern<mlir::cir::SwitchOp>::OpConversionPattern;
+
+  inline void rewriteYieldOp(mlir::ConversionPatternRewriter &rewriter,
+                             mlir::cir::YieldOp yieldOp,
+                             mlir::Block *destination) const {
+    rewriter.setInsertionPoint(yieldOp);
+    rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(yieldOp, yieldOp.getOperands(),
+                                                 destination);
+  }
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::SwitchOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    // Empty switch statement: just erase it.
+    if (!op.getCases().has_value() || op.getCases()->empty()) {
+      rewriter.eraseOp(op);
+      return mlir::success();
+    }
+
+    // Create exit block.
+    rewriter.setInsertionPointAfter(op);
+    auto *exitBlock =
+        rewriter.splitBlock(rewriter.getBlock(), rewriter.getInsertionPoint());
+
+    // Allocate required data structures (disconsider default case in vectors).
+    llvm::SmallVector<mlir::APInt, 8> caseValues;
+    llvm::SmallVector<mlir::Block *, 8> caseDestinations;
+    llvm::SmallVector<mlir::ValueRange, 8> caseOperands;
+
+    // Initialize default case as optional.
+    mlir::Block *defaultDestination = exitBlock;
+    mlir::ValueRange defaultOperands = exitBlock->getArguments();
+
+    // Track fallthrough between cases.
+    mlir::cir::YieldOp fallthroughYieldOp = nullptr;
+
+    // Digest the case statements values and bodies.
+    for (size_t i = 0; i < op.getCases()->size(); ++i) {
+      auto &region = op.getRegion(i);
+      auto caseAttr = op.getCases()->getValue()[i].cast<mlir::cir::CaseAttr>();
+
+      // Found default case: save destination and operands.
+      if (caseAttr.getKind().getValue() == mlir::cir::CaseOpKind::Default) {
+        defaultDestination = &region.front();
+        defaultOperands = region.getArguments();
+      } else {
+        // AnyOf cases kind can have multiple values, hence the loop below.
+        for (auto &value : caseAttr.getValue()) {
+          caseValues.push_back(value.cast<mlir::cir::IntAttr>().getValue());
+          caseOperands.push_back(region.getArguments());
+          caseDestinations.push_back(&region.front());
+        }
+      }
+
+      // Previous case is a fallthrough: branch it to this case.
+      if (fallthroughYieldOp) {
+        rewriteYieldOp(rewriter, fallthroughYieldOp, &region.front());
+        fallthroughYieldOp = nullptr;
+      }
+
+      // TODO(cir): Handle multi-block case statements.
+      if (region.getBlocks().size() != 1)
+        return op->emitError("multi-block case statement is NYI");
+
+      // Handle switch-case yields.
+      auto *terminator = region.front().getTerminator();
+      if (auto yieldOp = dyn_cast<mlir::cir::YieldOp>(terminator)) {
+        // TODO(cir): Ensure every yield instead of dealing with optional
+        // values.
+        assert(yieldOp.getKind().has_value() && "switch yield has no kind");
+
+        switch (yieldOp.getKind().value()) {
+        // Fallthrough to next case: track it for the next case to handle.
+        case mlir::cir::YieldOpKind::Fallthrough:
+          fallthroughYieldOp = yieldOp;
+          break;
+        // Break out of switch: branch to exit block.
+        case mlir::cir::YieldOpKind::Break:
+          rewriteYieldOp(rewriter, yieldOp, exitBlock);
+          break;
+        default:
+          return op->emitError("invalid yield kind in case statement");
+        }
+      }
+
+      // Extract region contents before erasing the switch op.
+      rewriter.inlineRegionBefore(region, exitBlock);
+    }
+
+    // Last case is a fallthrough: branch it to exit.
+    if (fallthroughYieldOp) {
+      rewriteYieldOp(rewriter, fallthroughYieldOp, exitBlock);
+      fallthroughYieldOp = nullptr;
+    }
+
+    // Set switch op to branch to the newly created blocks.
+    rewriter.setInsertionPoint(op);
+    rewriter.replaceOpWithNewOp<mlir::LLVM::SwitchOp>(
+        op, adaptor.getCondition(), defaultDestination, defaultOperands,
+        caseValues, caseDestinations, caseOperands);
     return mlir::success();
   }
 };
@@ -874,6 +1026,17 @@ public:
           op->getLoc(), llvmType, addressOfOp.getResult(), offset);
       rewriter.create<mlir::LLVM::ReturnOp>(op->getLoc(), gepOp.getResult());
 
+      return mlir::success();
+    } else if (isa<mlir::cir::ZeroAttr, mlir::cir::NullAttr>(init.value())) {
+      // TODO(cir): once LLVM's dialect has a proper zeroinitializer attribute
+      // this should be updated. For now, we tag the LLVM global with a cir.zero
+      // attribute that is later replaced with a zeroinitializer. Null pointers
+      // also use this path for simplicity, as we would otherwise require a
+      // region-based initialization for the global op.
+      auto llvmGlobalOp = rewriter.replaceOpWithNewOp<mlir::LLVM::GlobalOp>(
+          op, llvmType, isConst, linkage, symbol, nullptr);
+      auto cirZeroAttr = mlir::cir::ZeroAttr::get(getContext(), llvmType);
+      llvmGlobalOp->setAttr("cir.initial_value", cirZeroAttr);
       return mlir::success();
     } else {
       op.emitError() << "usupported initializer '" << init.value() << "'";
@@ -1056,17 +1219,36 @@ public:
     case mlir::cir::BinOpKind::Xor:
       rewriter.replaceOpWithNewOp<mlir::LLVM::XOrOp>(op, llvmTy, lhs, rhs);
       break;
-    case mlir::cir::BinOpKind::Shl:
-      rewriter.replaceOpWithNewOp<mlir::LLVM::ShlOp>(op, llvmTy, lhs, rhs);
-      break;
-    case mlir::cir::BinOpKind::Shr:
-      if (auto ty = type.dyn_cast<mlir::cir::IntType>()) {
-        if (ty.isUnsigned())
-          rewriter.replaceOpWithNewOp<mlir::LLVM::LShrOp>(op, llvmTy, lhs, rhs);
-        else
-          rewriter.replaceOpWithNewOp<mlir::LLVM::AShrOp>(op, llvmTy, lhs, rhs);
-        break;
-      }
+    }
+
+    return mlir::LogicalResult::success();
+  }
+};
+
+class CIRShiftOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::ShiftOp> {
+public:
+  using OpConversionPattern<mlir::cir::ShiftOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::ShiftOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    assert((op.getValue().getType() == op.getResult().getType()) &&
+           "inconsistent operands' types not supported yet");
+    auto ty = op.getValue().getType().dyn_cast<mlir::cir::IntType>();
+    assert(ty && "NYI for other than mlir::cir::IntType");
+
+    auto llvmTy = getTypeConverter()->convertType(op.getType());
+    auto val = adaptor.getValue();
+    auto amt = adaptor.getAmount();
+
+    if (op.getIsShiftleft())
+      rewriter.replaceOpWithNewOp<mlir::LLVM::ShlOp>(op, llvmTy, val, amt);
+    else {
+      if (ty.isUnsigned())
+        rewriter.replaceOpWithNewOp<mlir::LLVM::LShrOp>(op, llvmTy, val, amt);
+      else
+        rewriter.replaceOpWithNewOp<mlir::LLVM::AShrOp>(op, llvmTy, val, amt);
     }
 
     return mlir::LogicalResult::success();
@@ -1184,6 +1366,10 @@ public:
       auto kind = convertToICmpPredicate(cmpOp.getKind(), intTy.isSigned());
       llResult = rewriter.create<mlir::LLVM::ICmpOp>(
           cmpOp.getLoc(), kind, adaptor.getLhs(), adaptor.getRhs());
+    } else if (auto ptrTy = type.dyn_cast<mlir::cir::PointerType>()) {
+      auto kind = convertToICmpPredicate(cmpOp.getKind(), /* isSigned=*/false);
+      llResult = rewriter.create<mlir::LLVM::ICmpOp>(
+          cmpOp.getLoc(), kind, adaptor.getLhs(), adaptor.getRhs());
     } else if (type.isa<mlir::FloatType>()) {
       auto kind = convertToFCmpPredicate(cmpOp.getKind());
       llResult = rewriter.create<mlir::LLVM::FCmpOp>(
@@ -1238,14 +1424,15 @@ public:
 void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
                                          mlir::TypeConverter &converter) {
   patterns.add<CIRReturnLowering>(patterns.getContext());
-  patterns.add<
-      CIRCmpOpLowering, CIRLoopOpLowering, CIRBrCondOpLowering,
-      CIRPtrStrideOpLowering, CIRCallLowering, CIRUnaryOpLowering,
-      CIRBinOpLowering, CIRLoadLowering, CIRConstantLowering, CIRStoreLowering,
-      CIRAllocaLowering, CIRFuncLowering, CIRScopeOpLowering, CIRCastOpLowering,
-      CIRIfLowering, CIRGlobalOpLowering, CIRGetGlobalOpLowering,
-      CIRVAStartLowering, CIRVAEndLowering, CIRVACopyLowering, CIRVAArgLowering,
-      CIRBrOpLowering, CIRTernaryOpLowering, CIRStructElementAddrOpLowering>(
+  patterns.add<CIRCmpOpLowering, CIRLoopOpLowering, CIRBrCondOpLowering,
+               CIRPtrStrideOpLowering, CIRCallLowering, CIRUnaryOpLowering,
+               CIRBinOpLowering, CIRShiftOpLowering, CIRLoadLowering,
+               CIRConstantLowering, CIRStoreLowering, CIRAllocaLowering,
+               CIRFuncLowering, CIRScopeOpLowering, CIRCastOpLowering,
+               CIRIfLowering, CIRGlobalOpLowering, CIRGetGlobalOpLowering,
+               CIRVAStartLowering, CIRVAEndLowering, CIRVACopyLowering,
+               CIRVAArgLowering, CIRBrOpLowering, CIRTernaryOpLowering,
+               CIRStructElementAddrOpLowering, CIRSwitchOpLowering>(
       converter, patterns.getContext());
 }
 
@@ -1254,6 +1441,9 @@ mlir::LLVMTypeConverter prepareTypeConverter(mlir::MLIRContext *ctx) {
   mlir::LLVMTypeConverter converter(ctx);
   converter.addConversion([&](mlir::cir::PointerType type) -> mlir::Type {
     auto ty = converter.convertType(type.getPointee());
+    // Lower void pointers as opaque pointers.
+    if (ty.isa<mlir::LLVM::LLVMVoidType>())
+      return mlir::LLVM::LLVMPointerType::get(ty.getContext());
     return mlir::LLVM::LLVMPointerType::get(ty);
   });
   converter.addConversion([&](mlir::cir::ArrayType type) -> mlir::Type {
@@ -1342,9 +1532,9 @@ extern void registerCIRDialectTranslation(mlir::MLIRContext &context);
 
 std::unique_ptr<llvm::Module>
 lowerDirectlyFromCIRToLLVMIR(mlir::ModuleOp theModule,
-                             std::unique_ptr<mlir::MLIRContext> mlirCtx,
                              LLVMContext &llvmCtx) {
-  mlir::PassManager pm(mlirCtx.get());
+  mlir::MLIRContext *mlirCtx = theModule.getContext();
+  mlir::PassManager pm(mlirCtx);
 
   pm.addPass(createConvertCIRToLLVMPass());
 
@@ -1355,8 +1545,8 @@ lowerDirectlyFromCIRToLLVMIR(mlir::ModuleOp theModule,
       mlir::LLVM::createDIScopeForLLVMFuncOpPass());
 
   // FIXME(cir): this shouldn't be necessary. It's meant to be a temporary
-  // workaround until we understand why some unrealized casts are being emmited
-  // and how to properly avoid them.
+  // workaround until we understand why some unrealized casts are being
+  // emmited and how to properly avoid them.
   pm.addPass(mlir::createReconcileUnrealizedCastsPass());
 
   (void)mlir::applyPassManagerCLOptions(pm);
