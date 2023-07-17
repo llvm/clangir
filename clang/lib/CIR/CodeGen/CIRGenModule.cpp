@@ -51,6 +51,7 @@
 #include "clang/Basic/SourceLocation.h"
 #include "clang/CIR/CIRGenerator.h"
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
+#include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 #include "clang/CIR/LowerToLLVM.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
@@ -333,8 +334,6 @@ bool CIRGenModule::MayBeEmittedEagerly(const ValueDecl *Global) {
 void CIRGenModule::buildGlobal(GlobalDecl GD) {
   const auto *Global = cast<ValueDecl>(GD.getDecl());
 
-  assert(!Global->hasAttr<WeakRefAttr>() && "NYI");
-  assert(!Global->hasAttr<AliasAttr>() && "NYI");
   assert(!Global->hasAttr<IFuncAttr>() && "NYI");
   assert(!Global->hasAttr<CPUDispatchAttr>() && "NYI");
   assert(!langOpts.CUDA && "NYI");
@@ -690,6 +689,31 @@ mlir::Value CIRGenModule::getAddrOfGlobalVar(const VarDecl *D, mlir::Type Ty,
       mlir::cir::PointerType::get(builder.getContext(), g.getSymType());
   return builder.create<mlir::cir::GetGlobalOp>(getLoc(D->getSourceRange()),
                                                 ptrTy, g.getSymName());
+}
+
+mlir::Operation* CIRGenModule::getWeakRefReference(const ValueDecl *VD) {
+  const AliasAttr *AA = VD->getAttr<AliasAttr>();
+  assert(AA && "No alias?");
+
+  // See if there is already something with the target's name in the module.
+  mlir::Operation *Entry = getGlobalValue(AA->getAliasee());
+  if (Entry) {
+    assert((isa<mlir::cir::GlobalOp>(Entry) || isa<mlir::cir::FuncOp>(Entry)) &&
+           "weak ref should be against a global variable or function");
+    return Entry;
+  }
+
+  mlir::Type DeclTy = getTypes().convertTypeForMem(VD->getType());
+  if (DeclTy.isa<mlir::cir::FuncType>()) {
+    auto F = GetOrCreateCIRFunction(AA->getAliasee(), DeclTy,
+                                          GlobalDecl(cast<FunctionDecl>(VD)),
+                                          /*ForVtable=*/false);
+    F.setLinkage(mlir::cir::GlobalLinkageKind::ExternalWeakLinkage);
+    WeakRefReferences.insert(F);
+    return F;
+  }
+
+  llvm_unreachable("GlobalOp NYI");
 }
 
 /// TODO(cir): looks like part of this code can be part of a common AST
@@ -1761,6 +1785,9 @@ CIRGenModule::createCIRFunction(mlir::Location loc, StringRef name,
         builder.getContext(), mlir::cir::GlobalLinkageKind::ExternalLinkage));
     mlir::SymbolTable::setSymbolVisibility(
         f, mlir::SymbolTable::Visibility::Private);
+
+    setExtraAttributesForFunc(f, FD);
+
     if (!curCGF)
       theModule.push_back(f);
   }
@@ -1784,6 +1811,67 @@ mlir::Location CIRGenModule::getLocForFunction(const clang::FunctionDecl *FD) {
 
   // Use the module location
   return theModule->getLoc();
+}
+
+void CIRGenModule::setExtraAttributesForFunc(FuncOp f,
+                                         const clang::FunctionDecl *FD) {
+  mlir::NamedAttrList attrs;
+
+  if (!FD) {
+    // If we don't have a declaration to control inlining, the function isn't
+    // explicitly marked as alwaysinline for semantic reasons, and inlining is
+    // disabled, mark the function as noinline.
+    if (codeGenOpts.getInlining() == CodeGenOptions::OnlyAlwaysInlining) {
+      auto attr = mlir::cir::InlineAttr::get(
+          builder.getContext(), mlir::cir::InlineKind::AlwaysInline);
+      attrs.set(attr.getMnemonic(), attr);
+    }
+  } else if (FD->hasAttr<NoInlineAttr>()) {
+    // Add noinline if the function isn't always_inline.
+    auto attr = mlir::cir::InlineAttr::get(builder.getContext(),
+                                           mlir::cir::InlineKind::NoInline);
+    attrs.set(attr.getMnemonic(), attr);
+  } else if (FD->hasAttr<AlwaysInlineAttr>()) {
+    // (noinline wins over always_inline, and we can't specify both in IR)
+    auto attr = mlir::cir::InlineAttr::get(builder.getContext(),
+                                           mlir::cir::InlineKind::AlwaysInline);
+    attrs.set(attr.getMnemonic(), attr);
+  } else if (codeGenOpts.getInlining() == CodeGenOptions::OnlyAlwaysInlining) {
+    // If we're not inlining, then force everything that isn't always_inline
+    // to carry an explicit noinline attribute.
+    auto attr = mlir::cir::InlineAttr::get(builder.getContext(),
+                                           mlir::cir::InlineKind::NoInline);
+    attrs.set(attr.getMnemonic(), attr);
+  } else {
+    // Otherwise, propagate the inline hint attribute and potentially use its
+    // absence to mark things as noinline.
+    // Search function and template pattern redeclarations for inline.
+    auto CheckForInline = [](const FunctionDecl *FD) {
+      auto CheckRedeclForInline = [](const FunctionDecl *Redecl) {
+        return Redecl->isInlineSpecified();
+      };
+      if (any_of(FD->redecls(), CheckRedeclForInline))
+        return true;
+      const FunctionDecl *Pattern = FD->getTemplateInstantiationPattern();
+      if (!Pattern)
+        return false;
+      return any_of(Pattern->redecls(), CheckRedeclForInline);
+    };
+    if (CheckForInline(FD)) {
+      auto attr = mlir::cir::InlineAttr::get(builder.getContext(),
+                                             mlir::cir::InlineKind::InlineHint);
+      attrs.set(attr.getMnemonic(), attr);
+    } else if (codeGenOpts.getInlining() == CodeGenOptions::OnlyHintInlining) {
+      auto attr = mlir::cir::InlineAttr::get(builder.getContext(),
+                                             mlir::cir::InlineKind::NoInline);
+      attrs.set(attr.getMnemonic(), attr);
+    }
+
+  }
+
+  f.setExtraAttrsAttr(mlir::cir::ExtraFuncAttributesAttr::get(
+      builder.getContext(),
+      attrs.getDictionary(builder.getContext())));
 }
 
 /// If the specified mangled name is not in the module,
