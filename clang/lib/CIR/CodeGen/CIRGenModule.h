@@ -217,6 +217,9 @@ public:
   getAddrOfGlobalVar(const VarDecl *D, mlir::Type Ty = {},
                      ForDefinition_t IsForDefinition = NotForDefinition);
 
+  /// Get a reference to the target of VD.
+  mlir::Operation* getWeakRefReference(const ValueDecl *VD);
+
   CharUnits
   computeNonVirtualBaseClassOffset(const CXXRecordDecl *DerivedClass,
                                    CastExpr::path_const_iterator Start,
@@ -524,6 +527,9 @@ public:
 
   void ReplaceUsesOfNonProtoTypeWithRealFunction(mlir::Operation *Old,
                                                  mlir::cir::FuncOp NewFn);
+
+  void setExtraAttributesForFunc(mlir::cir::FuncOp f,
+                             const clang::FunctionDecl *FD);
 
   // TODO: CodeGen also passes an AttributeList here. We'll have to match that
   // in CIR

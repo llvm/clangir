@@ -984,13 +984,18 @@ void printSwitchOp(OpAsmPrinter &p, SwitchOp op,
     switch (kind) {
     case cir::CaseOpKind::Equal: {
       p << ", ";
-      p.printStrippedAttrOrType(attr.getValue()[0]);
+      auto intAttr = attr.getValue()[0].cast<cir::IntAttr>();
+      auto intAttrTy = intAttr.getType().cast<cir::IntType>();
+      (intAttrTy.isSigned() ? p << intAttr.getSInt() : p << intAttr.getUInt());
       break;
     }
     case cir::CaseOpKind::Anyof: {
       p << ", [";
       llvm::interleaveComma(attr.getValue(), p, [&](const Attribute &a) {
-        p.printAttributeWithoutType(a);
+        auto intAttr = a.cast<cir::IntAttr>();
+        auto intAttrTy = intAttr.getType().cast<cir::IntType>();
+        (intAttrTy.isSigned() ? p << intAttr.getSInt()
+                              : p << intAttr.getUInt());
       });
       p << "] : ";
       auto typedAttr = attr.getValue()[0].dyn_cast<TypedAttr>();
@@ -1048,7 +1053,11 @@ void SwitchOp::getSuccessorRegions(std::optional<unsigned> index,
     regions.push_back(RegionSuccessor(&r));
 }
 
-LogicalResult SwitchOp::verify() { return success(); }
+LogicalResult SwitchOp::verify() {
+  if (getCases().has_value() && getCases()->size() != getNumRegions())
+    return emitOpError("number of cases attributes and regions must match");
+  return success();
+}
 
 void SwitchOp::build(
     OpBuilder &builder, OperationState &result, Value cond,
@@ -1455,6 +1464,21 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
     hasAlias = true;
   }
 
+  // If extra func attributes are present, parse them.
+  NamedAttrList extraAttrs;
+  if (::mlir::succeeded(parser.parseOptionalKeyword("extra"))) {
+    if (parser.parseLParen().failed())
+      return failure();
+    if (parser.parseOptionalAttrDict(extraAttrs).failed())
+      return failure();
+    if (parser.parseRParen().failed())
+      return failure();
+  }
+  state.addAttribute(getExtraAttrsAttrName(state.name),
+                     mlir::cir::ExtraFuncAttributesAttr::get(
+                         builder.getContext(),
+                         extraAttrs.getDictionary(builder.getContext())));
+
   // Parse the optional function body.
   auto *body = state.addRegion();
   OptionalParseResult parseResult = parser.parseOptionalRegion(
@@ -1534,12 +1558,19 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
       p, *this,
       {getSymVisibilityAttrName(), getAliaseeAttrName(),
        getFunctionTypeAttrName(), getLinkageAttrName(), getBuiltinAttrName(),
-       getNoProtoAttrName()});
+       getNoProtoAttrName(), getExtraAttrsAttrName()});
+
 
   if (auto aliaseeName = getAliasee()) {
     p << " alias(";
     p.printSymbolName(*aliaseeName);
     p << ")";
+  }
+
+  if (!getExtraAttrs().getElements().empty()) {
+    p << " extra(";
+    p.printOptionalAttrDict(getExtraAttrs().getElements().getValue());
+    p << " )";
   }
 
   // Print the body if this is not an external function.
