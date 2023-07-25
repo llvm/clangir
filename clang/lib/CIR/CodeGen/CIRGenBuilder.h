@@ -169,6 +169,24 @@ public:
     llvm_unreachable("Zero initializer for given type is NYI");
   }
 
+  // TODO(cir): i think this could be a method in each constant attribute, since
+  // default/null initialization is a property covered by the C/C++ language.
+  bool isNullValue(mlir::Attribute attr) const {
+    // TODO(cir): introduce char type in CIR and check for that instead.
+    if (const auto intVal = attr.dyn_cast<mlir::cir::IntAttr>())
+      return intVal.getValue() == 0;
+
+    if (const auto fpVal = attr.dyn_cast<mlir::FloatAttr>()) {
+      bool ignored;
+      llvm::APFloat FV(+0.0);
+      FV.convert(fpVal.getValue().getSemantics(),
+                 llvm::APFloat::rmNearestTiesToEven, &ignored);
+      return FV.bitwiseIsEqual(fpVal.getValue());
+    }
+
+    llvm_unreachable("NYI");
+  }
+
   //
   // Type helpers
   // ------------
