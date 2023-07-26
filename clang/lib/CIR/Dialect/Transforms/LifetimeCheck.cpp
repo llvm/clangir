@@ -57,6 +57,7 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
 
   void classifyAndInitTypeCategories(mlir::Value addr, mlir::Type t,
                                      mlir::Location loc, unsigned nestLevel);
+  void updatePointsTo(mlir::Value addr, mlir::Value data, mlir::Location loc);
 
   // FIXME: classify tasks and lambdas prior to check ptr deref
   // and pass down an enum.
@@ -1101,23 +1102,8 @@ void LifetimeCheckPass::checkLambdaCaptureStore(StoreOp storeOp) {
     getPmap()[lambdaAddr].insert(State::getLocalValue(localByRefAddr));
 }
 
-void LifetimeCheckPass::checkStore(StoreOp storeOp) {
-  auto addr = storeOp.getAddr();
-
-  // The bulk of the check is done on top of store to pointer categories,
-  // which usually represent the most common case.
-  //
-  // We handle some special local values, like coroutine tasks and lambdas,
-  // which could be holding references to things with dangling lifetime.
-  if (!ptrs.count(addr)) {
-    if (currScope->localTempTasks.count(storeOp.getValue()))
-      checkCoroTaskStore(storeOp);
-    else
-      checkLambdaCaptureStore(storeOp);
-    return;
-  }
-
-  // Only handle ptrs from here on.
+void LifetimeCheckPass::updatePointsTo(mlir::Value addr, mlir::Value data,
+                                       mlir::Location loc) {
 
   auto getArrayFromSubscript = [&](PtrStrideOp strideOp) -> mlir::Value {
     auto castOp = dyn_cast<CastOp>(strideOp.getBase().getDefiningOp());
@@ -1128,7 +1114,6 @@ void LifetimeCheckPass::checkStore(StoreOp storeOp) {
     return castOp.getSrc();
   };
 
-  auto data = storeOp.getValue();
   auto defOp = data.getDefiningOp();
 
   // Do not handle block arguments just yet.
@@ -1148,7 +1133,7 @@ void LifetimeCheckPass::checkStore(StoreOp storeOp) {
     //  int *p = nullptr; => pset(p) == {nullptr} => pset(p) == {null}
     getPmap()[addr].clear();
     getPmap()[addr].insert(State::getNullPtr());
-    pmapNullHist[addr] = storeOp.getValue().getLoc();
+    pmapNullHist[addr] = loc;
     return;
   }
 
@@ -1170,6 +1155,26 @@ void LifetimeCheckPass::checkStore(StoreOp storeOp) {
   }
 
   // From here on, some uninterestring store (for now?)
+}
+
+void LifetimeCheckPass::checkStore(StoreOp storeOp) {
+  auto addr = storeOp.getAddr();
+
+  // The bulk of the check is done on top of store to pointer categories,
+  // which usually represent the most common case.
+  //
+  // We handle some special local values, like coroutine tasks and lambdas,
+  // which could be holding references to things with dangling lifetime.
+  if (!ptrs.count(addr)) {
+    if (currScope->localTempTasks.count(storeOp.getValue()))
+      checkCoroTaskStore(storeOp);
+    else
+      checkLambdaCaptureStore(storeOp);
+    return;
+  }
+
+  // Only handle ptrs from here on.
+  updatePointsTo(addr, storeOp.getValue(), storeOp.getValue().getLoc());
 }
 
 void LifetimeCheckPass::checkLoad(LoadOp loadOp) {
