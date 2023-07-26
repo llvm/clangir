@@ -22,12 +22,18 @@ static const FlagsPriv PrivBit = 0x00000001;
 void escape_info(InfoRaw *info);
 void exploded_fields(bool cond) {
   {
-    InfoRaw info = {INFO_ENUM_0};
+    InfoRaw info = {INFO_ENUM_0}; // expected-note {{invalidated here}}
     if (cond) {
       InfoPriv privTmp = {INFO_ENUM_1};
       privTmp.flags = PrivBit;
       info.next = &privTmp;
-    }
-    escape_info(&info);
+    } // expected-note {{pointee 'privTmp' invalidated at end of scope}}
+
+    // If the 'if' above is taken, info.next is invalidated at the end of the scope, otherwise
+    // it's also invalid because it was initialized with 'nullptr'. This could be a noisy
+    // check if calls like `escape_info` are used to further initialize `info`.
+
+    escape_info(&info); // expected-remark {{pset => { invalid, nullptr }}}
+                        // expected-warning@-1 {{use of invalid pointer 'info.next'}}
   }
 }
