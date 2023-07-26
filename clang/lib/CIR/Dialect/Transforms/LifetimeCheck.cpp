@@ -62,10 +62,10 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
                                     mlir::cir::ConstStructAttr value,
                                     mlir::Location loc);
 
-  // FIXME: classify tasks and lambdas prior to check ptr deref
+  // FIXME: classify tasks, lambdas and call args prior to check ptr deref
   // and pass down an enum.
   void checkPointerDeref(mlir::Value addr, mlir::Location loc,
-                         bool forRetLambda = false);
+                         bool forRetLambda = false, bool inCallArg = false);
   void checkCoroTaskStore(StoreOp storeOp);
   void checkLambdaCaptureStore(StoreOp storeOp);
   void trackCallToCoroutine(CallOp callOp);
@@ -1301,7 +1301,7 @@ void LifetimeCheckPass::emitInvalidHistory(mlir::InFlightDiagnostic &D,
 }
 
 void LifetimeCheckPass::checkPointerDeref(mlir::Value addr, mlir::Location loc,
-                                          bool forRetLambda) {
+                                          bool forRetLambda, bool inCallArg) {
   bool hasInvalid = getPmap()[addr].count(State::getInvalid());
   bool hasNullptr = getPmap()[addr].count(State::getNullPtr());
 
@@ -1337,7 +1337,15 @@ void LifetimeCheckPass::checkPointerDeref(mlir::Value addr, mlir::Location loc,
     D << "use of coroutine '" << varName << "' with dangling reference";
   else if (forRetLambda)
     D << "returned lambda captures local variable";
-  else
+  else if (inCallArg) {
+    bool isAgg = isa_and_nonnull<StructElementAddr>(addr.getDefiningOp());
+    D << "passing ";
+    if (!isAgg)
+      D << "invalid pointer";
+    else
+      D << "aggregate containing invalid pointer member";
+    D << " '" << varName << "'";
+  } else
     D << "use of invalid pointer '" << varName << "'";
 
   // TODO: add accuracy levels, different combinations of invalid and null
@@ -1580,7 +1588,8 @@ void LifetimeCheckPass::checkForOwnerAndPointerArguments(CallOp callOp,
   for (auto o : ownersToInvalidate)
     checkNonConstUseOfOwner(o, callOp.getLoc());
   for (auto p : ptrsToDeref)
-    checkPointerDeref(p, callOp.getLoc());
+    checkPointerDeref(p, callOp.getLoc(), /*forRetLambda=*/false,
+                      /*inCallArg=*/true);
 }
 
 void LifetimeCheckPass::checkOtherMethodsAndFunctions(
