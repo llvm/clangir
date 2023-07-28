@@ -1393,7 +1393,10 @@ static FuncOp getCalleeFromSymbol(ModuleOp mod, StringRef name) {
   return dyn_cast<FuncOp>(global);
 }
 
-static const clang::CXXMethodDecl *getMethod(ModuleOp mod, StringRef name) {
+static const clang::CXXMethodDecl *getMethod(ModuleOp mod, CallOp callOp) {
+  if (!callOp.getCallee())
+    return nullptr;
+  StringRef name = *callOp.getCallee();
   auto method = getCalleeFromSymbol(mod, name);
   if (!method || method.getBuiltin())
     return nullptr;
@@ -1405,8 +1408,8 @@ void LifetimeCheckPass::checkMoveAssignment(CallOp callOp,
   // MyPointer::operator=(MyPointer&&)(%dst, %src)
   // or
   // MyOwner::operator=(MyOwner&&)(%dst, %src)
-  auto dst = callOp.getOperand(0);
-  auto src = callOp.getOperand(1);
+  auto dst = callOp.getArgOperand(0);
+  auto src = callOp.getArgOperand(1);
 
   // Move assignments between pointer categories.
   if (ptrs.count(dst) && ptrs.count(src)) {
@@ -1435,8 +1438,8 @@ void LifetimeCheckPass::checkMoveAssignment(CallOp callOp,
 void LifetimeCheckPass::checkCopyAssignment(CallOp callOp,
                                             const clang::CXXMethodDecl *m) {
   // MyIntOwner::operator=(MyIntOwner&)(%dst, %src)
-  auto dst = callOp.getOperand(0);
-  auto src = callOp.getOperand(1);
+  auto dst = callOp.getArgOperand(0);
+  auto src = callOp.getArgOperand(1);
 
   // Copy assignment between owner categories.
   if (owners.count(dst) && owners.count(src))
@@ -1457,12 +1460,12 @@ void LifetimeCheckPass::checkCopyAssignment(CallOp callOp,
 //
 bool LifetimeCheckPass::isCtorInitPointerFromOwner(
     CallOp callOp, const clang::CXXConstructorDecl *ctor) {
-  if (callOp.getNumOperands() < 2)
+  if (callOp.getNumArgOperands() < 2)
     return false;
 
   // FIXME: should we scan all arguments past first to look for an owner?
-  auto addr = callOp.getOperand(0);
-  auto owner = callOp.getOperand(1);
+  auto addr = callOp.getArgOperand(0);
+  auto owner = callOp.getArgOperand(1);
 
   if (ptrs.count(addr) && owners.count(owner))
     return true;
@@ -1482,7 +1485,7 @@ void LifetimeCheckPass::checkCtor(CallOp callOp,
   // both results in pset(p) == {null}
   if (ctor->isDefaultConstructor()) {
     // First argument passed is always the alloca for the 'this' ptr.
-    auto addr = callOp.getOperand(0);
+    auto addr = callOp.getArgOperand(0);
 
     // Currently two possible actions:
     // 1. Skip Owner category initialization.
@@ -1508,8 +1511,8 @@ void LifetimeCheckPass::checkCtor(CallOp callOp,
   }
 
   if (isCtorInitPointerFromOwner(callOp, ctor)) {
-    auto addr = callOp.getOperand(0);
-    auto owner = callOp.getOperand(1);
+    auto addr = callOp.getArgOperand(0);
+    auto owner = callOp.getArgOperand(1);
     getPmap()[addr].clear();
     getPmap()[addr].insert(State::getOwnedBy(owner));
     return;
@@ -1518,7 +1521,7 @@ void LifetimeCheckPass::checkCtor(CallOp callOp,
 
 void LifetimeCheckPass::checkOperators(CallOp callOp,
                                        const clang::CXXMethodDecl *m) {
-  auto addr = callOp.getOperand(0);
+  auto addr = callOp.getArgOperand(0);
   if (owners.count(addr)) {
     // const access to the owner is fine.
     if (m->isConst())
@@ -1546,7 +1549,7 @@ bool LifetimeCheckPass::isNonConstUseOfOwner(CallOp callOp,
                                              const clang::CXXMethodDecl *m) {
   if (m->isConst())
     return false;
-  auto addr = callOp.getOperand(0);
+  auto addr = callOp.getArgOperand(0);
   if (owners.count(addr))
     return true;
   return false;
@@ -1570,13 +1573,13 @@ void LifetimeCheckPass::checkNonConstUseOfOwner(mlir::Value ownerAddr,
 
 void LifetimeCheckPass::checkForOwnerAndPointerArguments(CallOp callOp,
                                                          unsigned firstArgIdx) {
-  auto numOperands = callOp.getNumOperands();
+  auto numOperands = callOp.getNumArgOperands();
   if (firstArgIdx >= numOperands)
     return;
 
   llvm::SmallSetVector<mlir::Value, 8> ownersToInvalidate, ptrsToDeref;
   for (unsigned i = firstArgIdx, e = numOperands; i != e; ++i) {
-    auto arg = callOp.getOperand(i);
+    auto arg = callOp.getArgOperand(i);
     // FIXME: apply p1179 rules as described in 2.5. Very conservative for now:
     //
     // - Owners: always invalidate.
@@ -1624,7 +1627,7 @@ void LifetimeCheckPass::checkOtherMethodsAndFunctions(
   // - If a method call to a class we consider interesting, like a method
   //   call on a coroutine task (promise_type).
   // - Skip the 'this' for any other method.
-  if (m && !tasks.count(callOp.getOperand(firstArgIdx)))
+  if (m && !tasks.count(callOp.getArgOperand(firstArgIdx)))
     firstArgIdx++;
   checkForOwnerAndPointerArguments(callOp, firstArgIdx);
 }
@@ -1702,7 +1705,7 @@ void LifetimeCheckPass::trackCallToCoroutine(CallOp callOp) {
 }
 
 void LifetimeCheckPass::checkCall(CallOp callOp) {
-  if (callOp.getNumOperands() == 0)
+  if (callOp.getNumArgOperands() == 0)
     return;
 
   // Identify calls to coroutines and track returning temporary task types.
@@ -1711,13 +1714,8 @@ void LifetimeCheckPass::checkCall(CallOp callOp) {
   // part of declaration
   trackCallToCoroutine(callOp);
 
-  // FIXME: General indirect calls not yet supported.
-  if (!callOp.getCallee())
-    return;
-
-  auto fnName = *callOp.getCallee();
-  auto methodDecl = getMethod(theModule, fnName);
-  if (!isOwnerOrPointerClassMethod(callOp.getOperand(0), methodDecl))
+  auto methodDecl = getMethod(theModule, callOp);
+  if (!isOwnerOrPointerClassMethod(callOp.getArgOperand(0), methodDecl))
     return checkOtherMethodsAndFunctions(callOp, methodDecl);
 
   // From this point on only owner and pointer class methods handling,
@@ -1735,11 +1733,11 @@ void LifetimeCheckPass::checkCall(CallOp callOp) {
 
   // Non-const member call to a Owner invalidates any of its users.
   if (isNonConstUseOfOwner(callOp, methodDecl))
-    return checkNonConstUseOfOwner(callOp.getOperand(0), callOp.getLoc());
+    return checkNonConstUseOfOwner(callOp.getArgOperand(0), callOp.getLoc());
 
   // Take a pset(Ptr) = { Ownr' } where Own got invalidated, this will become
   // invalid access to Ptr if any of its methods are used.
-  auto addr = callOp.getOperand(0);
+  auto addr = callOp.getArgOperand(0);
   if (ptrs.count(addr))
     return checkPointerDeref(addr, callOp.getLoc());
 }
