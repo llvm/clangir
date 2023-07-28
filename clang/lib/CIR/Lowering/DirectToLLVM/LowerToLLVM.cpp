@@ -674,13 +674,14 @@ public:
   matchAndRewrite(mlir::cir::ConstantOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     mlir::Attribute attr = op.getValue();
+
     if (mlir::isa<mlir::cir::BoolType>(op.getType())) {
-      if (op.getValue() ==
-          mlir::cir::BoolAttr::get(
-              getContext(), ::mlir::cir::BoolType::get(getContext()), true))
-        attr = mlir::BoolAttr::get(getContext(), true);
-      else
-        attr = mlir::BoolAttr::get(getContext(), false);
+      int value =
+          (op.getValue() ==
+           mlir::cir::BoolAttr::get(
+               getContext(), ::mlir::cir::BoolType::get(getContext()), true));
+      attr = rewriter.getIntegerAttr(typeConverter->convertType(op.getType()),
+                                     value);
     } else if (mlir::isa<mlir::cir::IntType>(op.getType())) {
       attr = rewriter.getIntegerAttr(
           typeConverter->convertType(op.getType()),
