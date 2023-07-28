@@ -19,8 +19,12 @@ add_clang_library(CIRTidy
   omp_gen
 
   LINK_LIBS
+  clangASTMatchers
   clangCIR
+  clangFrontend
+  clangSerialization
   clangTidy
+  clangTidyUtils
   ${dialect_libs}
   MLIRCIR
   MLIRCIRTransforms
