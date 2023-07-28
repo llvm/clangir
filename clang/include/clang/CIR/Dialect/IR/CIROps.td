@@ -1651,6 +1651,12 @@ def CallOp : CIR_Op<"call",
     call must match the specified function type. The callee is encoded as a
     symbol reference attribute named "callee".
 
+    To walk the operands for this operation, use `getArgOperands()` or a combo
+    of `arg_operand_begin()` and `arg_operand_begin()`. Using `operand_begin()`
+    and friends direclty might be misleading given that the indirect call
+    version encodes the target in the first operation operand.
+    ``
+
     Example:
 
     ```mlir
@@ -1687,7 +1693,12 @@ def CallOp : CIR_Op<"call",
       return *arg_operand_begin();
     }
 
-    operand_iterator arg_operand_begin() { return operand_begin(); }
+    operand_iterator arg_operand_begin() {
+      auto arg_begin = operand_begin();
+      if (!getCallee())
+        arg_begin++;
+      return arg_begin;
+    }
     operand_iterator arg_operand_end() { return operand_end(); }
   }];
 
