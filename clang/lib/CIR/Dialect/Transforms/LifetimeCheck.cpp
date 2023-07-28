@@ -460,6 +460,14 @@ static std::string getVarNameFromValue(mlir::Value v) {
       return Out.str().str();
     }
   }
+  if (auto callOp = dyn_cast<CallOp>(v.getDefiningOp())) {
+    if (callOp.getCallee()) {
+      llvm::SmallString<128> finalName;
+      llvm::raw_svector_ostream Out(finalName);
+      Out << "call:" << callOp.getCallee()->str();
+      return Out.str().str();
+    }
+  }
   assert(0 && "how did it get here?");
   return "";
 }
@@ -955,7 +963,13 @@ void LifetimeCheckPass::classifyAndInitTypeCategories(mlir::Value addr,
                                                       mlir::Type t,
                                                       mlir::Location loc,
                                                       unsigned nestLevel) {
-  assert(!getPmap().count(addr) && "only one map entry for a given address");
+  // The same alloca can be hit more than once when checking for dangling
+  // pointers out of subsequent loop iterations (e.g. second iteraton using
+  // pointer invalidated in the first run). Since we copy the pmap out to
+  // start those subsequent checks, make sure sure we skip existing alloca
+  // tracking.
+  if (getPmap().count(addr))
+    return;
   getPmap()[addr] = {};
 
   enum TypeCategory {
@@ -1188,17 +1202,20 @@ void LifetimeCheckPass::updatePointsTo(mlir::Value addr, mlir::Value data,
   if (auto cstOp = dyn_cast<ConstantOp>(dataSrcOp)) {
     // Aggregates can be bulk materialized in CIR, handle proper update of
     // individual exploded fields.
-    if (auto constStruct =
-            cstOp.getValue().dyn_cast<mlir::cir::ConstStructAttr>()) {
-      updatePointsToForConstStruct(addr, constStruct, loc);
-      return;
-    }
-
-    if (auto zero = cstOp.getValue().dyn_cast<mlir::cir::ZeroAttr>()) {
-      if (auto zeroStructTy = zero.getType().dyn_cast<StructType>()) {
-        updatePointsToForZeroStruct(addr, zeroStructTy, loc);
+    if (aggregates.count(addr)) {
+      if (auto constStruct =
+              cstOp.getValue().dyn_cast<mlir::cir::ConstStructAttr>()) {
+        updatePointsToForConstStruct(addr, constStruct, loc);
         return;
       }
+
+      if (auto zero = cstOp.getValue().dyn_cast<mlir::cir::ZeroAttr>()) {
+        if (auto zeroStructTy = zero.getType().dyn_cast<StructType>()) {
+          updatePointsToForZeroStruct(addr, zeroStructTy, loc);
+          return;
+        }
+      }
+      return;
     }
 
     assert(cstOp.isNullPtr() && "other than null not implemented");
@@ -1230,6 +1247,14 @@ void LifetimeCheckPass::updatePointsTo(mlir::Value addr, mlir::Value data,
     return;
   }
 
+  // Initializes ptr types out of known lib calls marked with pointer
+  // attributes. TODO: find a better way to tag this.
+  if (auto callOp = dyn_cast<CallOp>(dataSrcOp)) {
+    // iter = vector<T>::begin()
+    getPmap()[addr].clear();
+    getPmap()[addr].insert(State::getLocalValue(callOp.getResult(0)));
+  }
+
   // What should we add next?
 }
 
@@ -1238,7 +1263,12 @@ void LifetimeCheckPass::checkStore(StoreOp storeOp) {
 
   // Decompose store's to aggregates into multiple updates to individual fields.
   if (aggregates.count(addr)) {
-    updatePointsTo(addr, storeOp.getValue(), storeOp.getValue().getLoc());
+    auto data = storeOp.getValue();
+    auto dataSrcOp = data.getDefiningOp();
+    // Only interested in updating and tracking fields, anything besides
+    // constants isn't really relevant.
+    if (dataSrcOp && isa<ConstantOp>(dataSrcOp))
+      updatePointsTo(addr, data, data.getLoc());
     return;
   }
 
