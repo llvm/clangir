@@ -14,7 +14,6 @@
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
-#include "llvm/ADT/SmallVector.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMTypes.h"
@@ -1104,9 +1103,12 @@ void LoopOp::build(OpBuilder &builder, OperationState &result,
 void LoopOp::getSuccessorRegions(std::optional<unsigned> index,
                                  ArrayRef<Attribute> operands,
                                  SmallVectorImpl<RegionSuccessor> &regions) {
-  // If any index, do nothing.
-  if (index.has_value())
+  // If any index all the underlying regions branch back to the parent
+  // operation.
+  if (index.has_value()) {
+    regions.push_back(RegionSuccessor());
     return;
+  }
 
   // FIXME: we want to look at cond region for getting more accurate results
   // if the other regions will get a chance to execute.
@@ -1118,29 +1120,26 @@ void LoopOp::getSuccessorRegions(std::optional<unsigned> index,
 Region &LoopOp::getLoopBody() { return getBody(); }
 
 LogicalResult LoopOp::verify() {
+  // Cond regions should only terminate with plain 'cir.yield' or
+  // 'cir.yield continue'.
+  auto terminateError = [&]() {
+    return emitOpError() << "cond region must be terminated with "
+                            "'cir.yield' or 'cir.yield continue'";
+  };
 
-  if (getCond().empty() || getStep().empty() || getBody().empty())
-    return emitOpError("regions must not be empty");
-
-  auto condYield = dyn_cast<YieldOp>(getCond().back().getTerminator());
-  auto stepYield = dyn_cast<YieldOp>(getStep().back().getTerminator());
-
-  if (!condYield || !stepYield)
-    return emitOpError(
-        "cond and step regions must be terminated with 'cir.yield'");
-
-  if (condYield.getNumOperands() != 1 ||
-      !condYield.getOperand(0).getType().isa<cir::BoolType>())
-    return emitOpError("cond region must yield a single boolean value");
-
-  if (stepYield.getNumOperands() != 0)
-    return emitOpError("step region should not yield values");
-
-  // Body may yield or return.
-  auto *bodyTerminator = getBody().back().getTerminator();
-
-  if (isa<YieldOp>(bodyTerminator) && bodyTerminator->getNumOperands() != 0)
-    return emitOpError("body region must not yield values");
+  auto &blocks = getCond().getBlocks();
+  for (Block &block : blocks) {
+    if (block.empty())
+      continue;
+    auto &op = block.back();
+    if (isa<BrCondOp>(op))
+      continue;
+    if (!isa<YieldOp>(op))
+      terminateError();
+    auto y = cast<YieldOp>(op);
+    if (!(y.isPlain() || y.isContinue()))
+      terminateError();
+  }
 
   return success();
 }
