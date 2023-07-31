@@ -117,27 +117,6 @@ public:
   using LoopKind = mlir::cir::LoopOpKind;
 
   mlir::LogicalResult
-  fetchCondRegionYields(mlir::Region &condRegion,
-                        mlir::cir::YieldOp &yieldToBody,
-                        mlir::cir::YieldOp &yieldToCont) const {
-    for (auto &bb : condRegion) {
-      if (auto yieldOp = dyn_cast<mlir::cir::YieldOp>(bb.getTerminator())) {
-        if (!yieldOp.getKind().has_value())
-          yieldToCont = yieldOp;
-        else if (yieldOp.getKind() == mlir::cir::YieldOpKind::Continue)
-          yieldToBody = yieldOp;
-        else
-          return mlir::failure();
-      }
-    }
-
-    // Succeed only if both yields are found.
-    if (!yieldToBody || !yieldToCont)
-      return mlir::failure();
-    return mlir::success();
-  }
-
-  mlir::LogicalResult
   matchAndRewrite(mlir::cir::LoopOp loopOp, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto kind = loopOp.getKind();
@@ -148,9 +127,8 @@ public:
     // Fetch required info from the condition region.
     auto &condRegion = loopOp.getCond();
     auto &condFrontBlock = condRegion.front();
-    mlir::cir::YieldOp yieldToBody, yieldToCont;
-    if (fetchCondRegionYields(condRegion, yieldToBody, yieldToCont).failed())
-      return loopOp.emitError("failed to fetch yields in cond region");
+    auto condYield =
+        cast<mlir::cir::YieldOp>(condRegion.back().getTerminator());
 
     // Fetch required info from the body region.
     auto &bodyRegion = loopOp.getBody();
@@ -163,7 +141,7 @@ public:
     auto &stepRegion = loopOp.getStep();
     auto &stepFrontBlock = stepRegion.front();
     auto stepYield =
-        dyn_cast<mlir::cir::YieldOp>(stepRegion.back().getTerminator());
+        cast<mlir::cir::YieldOp>(stepRegion.back().getTerminator());
 
     // Move loop op region contents to current CFG.
     rewriter.inlineRegionBefore(condRegion, continueBlock);
@@ -176,13 +154,10 @@ public:
     auto &entry = (kind != LoopKind::DoWhile ? condFrontBlock : bodyFrontBlock);
     rewriter.create<mlir::cir::BrOp>(loopOp.getLoc(), &entry);
 
-    // Set loop exit point to continue block.
-    rewriter.setInsertionPoint(yieldToCont);
-    rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(yieldToCont, continueBlock);
-
-    // Branch from condition to body.
-    rewriter.setInsertionPoint(yieldToBody);
-    rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(yieldToBody, &bodyFrontBlock);
+    // Branch to body when true and to exit when false.
+    rewriter.setInsertionPoint(condYield);
+    rewriter.replaceOpWithNewOp<mlir::cir::BrCondOp>(
+        condYield, condYield.getOperand(0), &bodyFrontBlock, continueBlock);
 
     // Branch from body to condition or to step on for-loop cases.
     rewriter.setInsertionPoint(bodyYield);
@@ -1271,25 +1246,38 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::ShiftOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    assert((op.getValue().getType() == op.getResult().getType()) &&
-           "inconsistent operands' types not supported yet");
-    auto ty = op.getValue().getType().dyn_cast<mlir::cir::IntType>();
-    assert(ty && "NYI for other than mlir::cir::IntType");
-
+    auto cirAmtTy = op.getAmount().getType().dyn_cast<mlir::cir::IntType>();
+    auto cirValTy = op.getValue().getType().dyn_cast<mlir::cir::IntType>();
     auto llvmTy = getTypeConverter()->convertType(op.getType());
-    auto val = adaptor.getValue();
-    auto amt = adaptor.getAmount();
+    auto loc = op.getLoc();
+    mlir::Value amt = adaptor.getAmount();
+    mlir::Value val = adaptor.getValue();
 
+    assert(cirValTy && cirAmtTy && "non-integer shift is NYI");
+    assert(cirValTy == op.getType() && "inconsistent operands' types NYI");
+
+    // Ensure shift amount is the same type as the value. Some undefined
+    // behavior might occur in the casts below as per [C99 6.5.7.3].
+    if (cirAmtTy.getWidth() > cirValTy.getWidth()) {
+      amt = rewriter.create<mlir::LLVM::TruncOp>(loc, llvmTy, amt);
+    } else if (cirAmtTy.getWidth() < cirValTy.getWidth()) {
+      if (cirAmtTy.isSigned())
+        amt = rewriter.create<mlir::LLVM::SExtOp>(loc, llvmTy, amt);
+      else
+        amt = rewriter.create<mlir::LLVM::ZExtOp>(loc, llvmTy, amt);
+    }
+
+    // Lower to the proper LLVM shift operation.
     if (op.getIsShiftleft())
       rewriter.replaceOpWithNewOp<mlir::LLVM::ShlOp>(op, llvmTy, val, amt);
     else {
-      if (ty.isUnsigned())
+      if (cirValTy.isUnsigned())
         rewriter.replaceOpWithNewOp<mlir::LLVM::LShrOp>(op, llvmTy, val, amt);
       else
         rewriter.replaceOpWithNewOp<mlir::LLVM::AShrOp>(op, llvmTy, val, amt);
     }
 
-    return mlir::LogicalResult::success();
+    return mlir::success();
   }
 };
 
