@@ -41,11 +41,7 @@ mlir::LogicalResult CIRGenFunction::buildCompoundStmt(const CompoundStmt &S) {
   builder.create<mlir::cir::ScopeOp>(
       scopeLoc, /*scopeBuilder=*/
       [&](mlir::OpBuilder &b, mlir::Location loc) {
-        auto fusedLoc = loc.cast<mlir::FusedLoc>();
-        auto locBegin = fusedLoc.getLocations()[0];
-        auto locEnd = fusedLoc.getLocations()[1];
-        LexicalScopeContext lexScope{locBegin, locEnd,
-                                     builder.getInsertionBlock()};
+        LexicalScopeContext lexScope{loc, builder.getInsertionBlock()};
         LexicalScopeGuard lexScopeGuard{*this, &lexScope};
         res = compoundStmtBuilder();
       });
@@ -394,11 +390,7 @@ mlir::LogicalResult CIRGenFunction::buildIfStmt(const IfStmt &S) {
   builder.create<mlir::cir::ScopeOp>(
       scopeLoc, /*scopeBuilder=*/
       [&](mlir::OpBuilder &b, mlir::Location loc) {
-        auto fusedLoc = loc.cast<mlir::FusedLoc>();
-        auto scopeLocBegin = fusedLoc.getLocations()[0];
-        auto scopeLocEnd = fusedLoc.getLocations()[1];
-        LexicalScopeContext lexScope{scopeLocBegin, scopeLocEnd,
-                                     builder.getInsertionBlock()};
+        LexicalScopeContext lexScope{scopeLoc, builder.getInsertionBlock()};
         LexicalScopeGuard lexIfScopeGuard{*this, &lexScope};
         res = ifStmtBuilder();
       });
@@ -490,17 +482,8 @@ mlir::LogicalResult CIRGenFunction::buildReturnStmt(const ReturnStmt &S) {
     builder.create<mlir::cir::ScopeOp>(
         scopeLoc, /*scopeBuilder=*/
         [&](mlir::OpBuilder &b, mlir::Location loc) {
-          SmallVector<mlir::Location, 2> locs;
-          if (loc.isa<mlir::FileLineColLoc>()) {
-            locs.push_back(loc);
-            locs.push_back(loc);
-          } else if (loc.isa<mlir::FusedLoc>()) {
-            auto fusedLoc = loc.cast<mlir::FusedLoc>();
-            locs.push_back(fusedLoc.getLocations()[0]);
-            locs.push_back(fusedLoc.getLocations()[1]);
-          }
           CIRGenFunction::LexicalScopeContext lexScope{
-              locs[0], locs[1], builder.getInsertionBlock()};
+              loc, builder.getInsertionBlock()};
           CIRGenFunction::LexicalScopeGuard lexScopeGuard{*this, &lexScope};
           handleReturnVal();
         });
@@ -648,26 +631,6 @@ mlir::LogicalResult CIRGenFunction::buildDefaultStmt(const DefaultStmt &S,
   return res;
 }
 
-static mlir::LogicalResult buildLoopCondYield(mlir::OpBuilder &builder,
-                                              mlir::Location loc,
-                                              mlir::Value cond) {
-  mlir::Block *trueBB = nullptr, *falseBB = nullptr;
-  {
-    mlir::OpBuilder::InsertionGuard guard(builder);
-    trueBB = builder.createBlock(builder.getBlock()->getParent());
-    builder.create<mlir::cir::YieldOp>(loc, YieldOpKind::Continue);
-  }
-  {
-    mlir::OpBuilder::InsertionGuard guard(builder);
-    falseBB = builder.createBlock(builder.getBlock()->getParent());
-    builder.create<mlir::cir::YieldOp>(loc);
-  }
-
-  assert((trueBB && falseBB) && "expected both blocks to exist");
-  builder.create<mlir::cir::BrCondOp>(loc, cond, trueBB, falseBB);
-  return mlir::success();
-}
-
 mlir::LogicalResult
 CIRGenFunction::buildCXXForRangeStmt(const CXXForRangeStmt &S,
                                      ArrayRef<const Attr *> ForAttrs) {
@@ -701,8 +664,7 @@ CIRGenFunction::buildCXXForRangeStmt(const CXXForRangeStmt &S,
           assert(!UnimplementedFeature::createProfileWeightsForLoop());
           assert(!UnimplementedFeature::emitCondLikelihoodViaExpectIntrinsic());
           mlir::Value condVal = evaluateExprAsBool(S.getCond());
-          if (buildLoopCondYield(b, loc, condVal).failed())
-            loopRes = mlir::failure();
+          builder.create<mlir::cir::YieldOp>(loc, condVal);
         },
         /*bodyBuilder=*/
         [&](mlir::OpBuilder &b, mlir::Location loc) {
@@ -731,14 +693,10 @@ CIRGenFunction::buildCXXForRangeStmt(const CXXForRangeStmt &S,
   builder.create<mlir::cir::ScopeOp>(
       scopeLoc, /*scopeBuilder=*/
       [&](mlir::OpBuilder &b, mlir::Location loc) {
-        auto fusedLoc = loc.cast<mlir::FusedLoc>();
-        auto scopeLocBegin = fusedLoc.getLocations()[0];
-        auto scopeLocEnd = fusedLoc.getLocations()[1];
         // Create a cleanup scope for the condition variable cleanups.
         // Logical equivalent from LLVM codegn for
         // LexicalScope ConditionScope(*this, S.getSourceRange())...
-        LexicalScopeContext lexScope{scopeLocBegin, scopeLocEnd,
-                                     builder.getInsertionBlock()};
+        LexicalScopeContext lexScope{loc, builder.getInsertionBlock()};
         LexicalScopeGuard lexForScopeGuard{*this, &lexScope};
         res = forStmtBuilder();
       });
@@ -789,8 +747,7 @@ mlir::LogicalResult CIRGenFunction::buildForStmt(const ForStmt &S) {
                 loc, boolTy,
                 mlir::cir::BoolAttr::get(b.getContext(), boolTy, true));
           }
-          if (buildLoopCondYield(b, loc, condVal).failed())
-            loopRes = mlir::failure();
+          builder.create<mlir::cir::YieldOp>(loc, condVal);
         },
         /*bodyBuilder=*/
         [&](mlir::OpBuilder &b, mlir::Location loc) {
@@ -819,11 +776,7 @@ mlir::LogicalResult CIRGenFunction::buildForStmt(const ForStmt &S) {
   builder.create<mlir::cir::ScopeOp>(
       scopeLoc, /*scopeBuilder=*/
       [&](mlir::OpBuilder &b, mlir::Location loc) {
-        auto fusedLoc = loc.cast<mlir::FusedLoc>();
-        auto scopeLocBegin = fusedLoc.getLocations()[0];
-        auto scopeLocEnd = fusedLoc.getLocations()[1];
-        LexicalScopeContext lexScope{scopeLocBegin, scopeLocEnd,
-                                     builder.getInsertionBlock()};
+        LexicalScopeContext lexScope{loc, builder.getInsertionBlock()};
         LexicalScopeGuard lexForScopeGuard{*this, &lexScope};
         res = forStmtBuilder();
       });
@@ -858,8 +811,7 @@ mlir::LogicalResult CIRGenFunction::buildDoStmt(const DoStmt &S) {
           // expression compares unequal to 0. The condition must be a
           // scalar type.
           mlir::Value condVal = evaluateExprAsBool(S.getCond());
-          if (buildLoopCondYield(b, loc, condVal).failed())
-            loopRes = mlir::failure();
+          builder.create<mlir::cir::YieldOp>(loc, condVal);
         },
         /*bodyBuilder=*/
         [&](mlir::OpBuilder &b, mlir::Location loc) {
@@ -879,11 +831,7 @@ mlir::LogicalResult CIRGenFunction::buildDoStmt(const DoStmt &S) {
   builder.create<mlir::cir::ScopeOp>(
       scopeLoc, /*scopeBuilder=*/
       [&](mlir::OpBuilder &b, mlir::Location loc) {
-        auto fusedLoc = loc.cast<mlir::FusedLoc>();
-        auto scopeLocBegin = fusedLoc.getLocations()[0];
-        auto scopeLocEnd = fusedLoc.getLocations()[1];
-        LexicalScopeContext lexScope{scopeLocBegin, scopeLocEnd,
-                                     builder.getInsertionBlock()};
+        LexicalScopeContext lexScope{loc, builder.getInsertionBlock()};
         LexicalScopeGuard lexForScopeGuard{*this, &lexScope};
         res = doStmtBuilder();
       });
@@ -923,8 +871,7 @@ mlir::LogicalResult CIRGenFunction::buildWhileStmt(const WhileStmt &S) {
           // expression compares unequal to 0. The condition must be a
           // scalar type.
           condVal = evaluateExprAsBool(S.getCond());
-          if (buildLoopCondYield(b, loc, condVal).failed())
-            loopRes = mlir::failure();
+          builder.create<mlir::cir::YieldOp>(loc, condVal);
         },
         /*bodyBuilder=*/
         [&](mlir::OpBuilder &b, mlir::Location loc) {
@@ -944,11 +891,7 @@ mlir::LogicalResult CIRGenFunction::buildWhileStmt(const WhileStmt &S) {
   builder.create<mlir::cir::ScopeOp>(
       scopeLoc, /*scopeBuilder=*/
       [&](mlir::OpBuilder &b, mlir::Location loc) {
-        auto fusedLoc = loc.cast<mlir::FusedLoc>();
-        auto scopeLocBegin = fusedLoc.getLocations()[0];
-        auto scopeLocEnd = fusedLoc.getLocations()[1];
-        LexicalScopeContext lexScope{scopeLocBegin, scopeLocEnd,
-                                     builder.getInsertionBlock()};
+        LexicalScopeContext lexScope{loc, builder.getInsertionBlock()};
         LexicalScopeGuard lexForScopeGuard{*this, &lexScope};
         res = whileStmtBuilder();
       });
@@ -1046,11 +989,7 @@ mlir::LogicalResult CIRGenFunction::buildSwitchStmt(const SwitchStmt &S) {
   builder.create<mlir::cir::ScopeOp>(
       scopeLoc, /*scopeBuilder=*/
       [&](mlir::OpBuilder &b, mlir::Location loc) {
-        auto fusedLoc = loc.cast<mlir::FusedLoc>();
-        auto scopeLocBegin = fusedLoc.getLocations()[0];
-        auto scopeLocEnd = fusedLoc.getLocations()[1];
-        LexicalScopeContext lexScope{scopeLocBegin, scopeLocEnd,
-                                     builder.getInsertionBlock()};
+        LexicalScopeContext lexScope{loc, builder.getInsertionBlock()};
         LexicalScopeGuard lexIfScopeGuard{*this, &lexScope};
         res = switchStmtBuilder();
       });

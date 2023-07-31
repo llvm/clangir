@@ -37,6 +37,7 @@ struct UnimplementedFeature {
   // Unhandled global/linkage information.
   static bool unnamedAddr() { return false; }
   static bool setComdat() { return false; }
+  static bool setGlobalVarSection() { return false; }
   static bool setDSOLocal() { return false; }
   static bool threadLocal() { return false; }
   static bool setDLLStorageClass() { return false; }
@@ -88,6 +89,14 @@ struct UnimplementedFeature {
   static bool mayHaveIntegerOverflow() { return false; }
   static bool llvmLoweringPtrDiffConsidersPointee() { return false; }
 
+  // Folding methods.
+  static bool foldBinOpFMF() { return false; }
+
+  // Fast math.
+  static bool fastMathGuard() { return false; }
+  static bool fastMathFlags() { return false; }
+  static bool fastMathFuncAttributes() { return false; }
+
   static bool capturedByInit() { return false; }
   static bool tryEmitAsConstant() { return false; }
   static bool incrementProfileCounter() { return false; }
@@ -120,6 +129,7 @@ struct UnimplementedFeature {
   static bool chainCalls() { return false; }
   static bool operandBundles() { return false; }
   static bool exceptions() { return false; }
+  static bool metaDataNode() { return false; }
 };
 } // namespace cir
 
