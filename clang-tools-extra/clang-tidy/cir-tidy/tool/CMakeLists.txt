@@ -15,8 +15,10 @@ add_clang_library(CIRTidyMain
   CIRTidyMain.cpp
 
   LINK_LIBS
+  CIRTidy
   clangTidy
   ${ALL_CLANG_TIDY_CHECKS}
+  MLIRIR
 
   DEPENDS
   omp_gen

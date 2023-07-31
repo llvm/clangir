@@ -1108,8 +1108,7 @@ def LoopOp : CIR_Op<"loop",
   let description = [{
     `cir.loop` represents C/C++ loop forms. It defines 3 blocks:
     - `cond`: region can contain multiple blocks, terminated by regular
-    `cir.yield` when control should yield back to the parent, and
-    `cir.yield continue` when execution continues to another region.
+    `cir.yield %x` where `%x` is the boolean value to be evaluated.
     The region destination depends on the loop form specified.
     - `step`: region with one block, containing code to compute the
     loop step, must be terminated with `cir.yield`.
@@ -1124,7 +1123,8 @@ def LoopOp : CIR_Op<"loop",
       //  i = i + 1;
       // }
       cir.loop while(cond :  {
-        cir.yield continue
+        %2 = cir.const(#cir.bool<true>) : !cir.bool
+        cir.yield %2 : !cir.bool
       }, step :  {
         cir.yield
       })  {
@@ -1638,6 +1638,13 @@ def CallOp : CIR_Op<"call",
     call must match the specified function type. The callee is encoded as a
     symbol reference attribute named "callee".
 
+    To walk the operands for this operation, use `getNumArgOperands()`,
+    `getArgOperand()`, `getArgOperands()`, `arg_operand_begin()` and
+    `arg_operand_begin()`. Avoid using `getNumOperands()`, `getOperand()`,
+    `operand_begin()`, etc, direclty - might be misleading given on indirect
+    calls the callee is encoded in the first operation operand.
+    ``
+
     Example:
 
     ```mlir
@@ -1669,21 +1676,37 @@ def CallOp : CIR_Op<"call",
     }]>];
 
   let extraClassDeclaration = [{
-    /// Get the argument operands to the called function.
-    operand_range getArgOperands() {
-      auto arg_begin = arg_operand_begin();
-      if (!getCallee())
-       arg_begin++;
-      return {arg_begin, arg_operand_end()};
-    }
-
     mlir::Value getIndirectCallee() {
       assert(!getCallee() && "only works for indirect call");
       return *arg_operand_begin();
     }
 
-    operand_iterator arg_operand_begin() { return operand_begin(); }
+    operand_iterator arg_operand_begin() {
+      auto arg_begin = operand_begin();
+      if (!getCallee())
+        arg_begin++;
+      return arg_begin;
+    }
     operand_iterator arg_operand_end() { return operand_end(); }
+
+    /// Get the argument operands to the called function.
+    operand_range getArgOperands() {
+      return {arg_operand_begin(), arg_operand_end()};
+    }
+
+    /// Return the operand at index 'i', accounts for indirect call.
+    Value getArgOperand(unsigned i) {
+      if (!getCallee())
+        i++;
+      return getOperand(i);
+    }
+
+    /// Return the number of operands, , accounts for indirect call.
+    unsigned getNumArgOperands() {
+      if (!getCallee())
+        return this->getOperation()->getNumOperands()-1;
+      return this->getOperation()->getNumOperands();
+    }
 
     /// Return the callee of this operation.
     CallInterfaceCallable getCallableForCallee() {

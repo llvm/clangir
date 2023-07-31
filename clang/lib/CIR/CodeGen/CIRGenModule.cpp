@@ -133,6 +133,10 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &context,
   // TODO: BFloatTy
   FloatTy = builder.getF32Type();
   DoubleTy = builder.getF64Type();
+  // TODO(cir): perhaps we should abstract long double variations into a custom
+  // cir.long_double type. Said type would also hold the semantics for lowering.
+  LongDouble80BitsTy = builder.getF80Type();
+
   // TODO: PointerWidthInBits
   PointerAlignInBytes =
       astctx
@@ -626,8 +630,12 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef MangledName, mlir::Type Ty,
     }
 
     // Emit section information for extern variables.
-    if (D->hasExternalStorage())
-      assert(0 && "not implemented");
+    if (D->hasExternalStorage()) {
+      if (const SectionAttr *SA = D->getAttr<SectionAttr>()) {
+        assert(!UnimplementedFeature::setGlobalVarSection());
+        llvm_unreachable("section info for extern vars is NYI");
+      }
+    }
 
     // Handle XCore specific ABI requirements.
     if (getTriple().getArch() == llvm::Triple::xcore)
@@ -1377,6 +1385,7 @@ mlir::SymbolTable::Visibility CIRGenModule::getMLIRVisibilityFromCIRLinkage(
   case mlir::cir::GlobalLinkageKind::ExternalLinkage:
   case mlir::cir::GlobalLinkageKind::ExternalWeakLinkage:
   case mlir::cir::GlobalLinkageKind::LinkOnceODRLinkage:
+  case mlir::cir::GlobalLinkageKind::AvailableExternallyLinkage:
     return mlir::SymbolTable::Visibility::Public;
   default: {
     llvm::errs() << "visibility not implemented for '"

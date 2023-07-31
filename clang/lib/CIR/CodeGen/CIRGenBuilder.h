@@ -169,12 +169,12 @@ public:
     llvm_unreachable("Zero initializer for given type is NYI");
   }
 
-  // TODO(cir): i think this could be a method in each constant attribute, since
-  // default/null initialization is a property covered by the C/C++ language.
+  // TODO(cir): Once we have CIR float types, replace this by something like a
+  // NullableValueInterface to allow for type-independent queries.
   bool isNullValue(mlir::Attribute attr) const {
     // TODO(cir): introduce char type in CIR and check for that instead.
     if (const auto intVal = attr.dyn_cast<mlir::cir::IntAttr>())
-      return intVal.getValue() == 0;
+      return intVal.isNullValue();
 
     if (const auto fpVal = attr.dyn_cast<mlir::FloatAttr>()) {
       bool ignored;
@@ -246,6 +246,33 @@ public:
     return i == typeCache.UInt64Ty || i == typeCache.SInt64Ty;
   }
   bool isInt(mlir::Type i) { return i.isa<mlir::cir::IntType>(); }
+
+  mlir::FloatType getLongDouble80BitsTy() const {
+    return typeCache.LongDouble80BitsTy;
+  }
+
+  /// Get the proper floating point type for the given semantics.
+  mlir::FloatType getFloatTyForFormat(const llvm::fltSemantics &format,
+                                      bool useNativeHalf) const {
+    if (&format == &llvm::APFloat::IEEEhalf()) {
+      llvm_unreachable("IEEEhalf float format is NYI");
+    }
+
+    if (&format == &llvm::APFloat::BFloat())
+      llvm_unreachable("BFloat float format is NYI");
+    if (&format == &llvm::APFloat::IEEEsingle())
+      llvm_unreachable("IEEEsingle float format is NYI");
+    if (&format == &llvm::APFloat::IEEEdouble())
+      llvm_unreachable("IEEEdouble float format is NYI");
+    if (&format == &llvm::APFloat::IEEEquad())
+      llvm_unreachable("IEEEquad float format is NYI");
+    if (&format == &llvm::APFloat::PPCDoubleDouble())
+      llvm_unreachable("PPCDoubleDouble float format is NYI");
+    if (&format == &llvm::APFloat::x87DoubleExtended())
+      return getLongDouble80BitsTy();
+
+    llvm_unreachable("Unknown float format!");
+  }
 
   mlir::cir::BoolType getBoolTy() {
     return ::mlir::cir::BoolType::get(getContext());
@@ -396,6 +423,16 @@ public:
 
     return create<mlir::cir::CastOp>(v.getLoc(), destType,
                                      mlir::cir::CastKind::floating, v);
+  }
+
+  mlir::Value createFSub(mlir::Value lhs, mlir::Value rhs) {
+    assert(!UnimplementedFeature::metaDataNode());
+    if (IsFPConstrained)
+      llvm_unreachable("Constrained FP NYI");
+
+    assert(!UnimplementedFeature::foldBinOpFMF());
+    return create<mlir::cir::BinOp>(lhs.getLoc(), mlir::cir::BinOpKind::Sub,
+                                    lhs, rhs);
   }
 
   mlir::Value createPtrToBoolCast(mlir::Value v) {
