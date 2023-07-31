@@ -348,8 +348,6 @@ public:
           mlir::cir::CmpOpKind::ne, castOp.getSrc(), null);
       break;
     }
-    default:
-      llvm_unreachable("NYI");
     }
 
     return mlir::success();
