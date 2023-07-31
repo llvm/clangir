@@ -55,13 +55,19 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
   void checkAwait(AwaitOp awaitOp);
   void checkReturn(ReturnOp retOp);
 
-  void classifyTypeCategories(mlir::Value addr, mlir::Type t,
-                              mlir::Location loc);
+  void classifyAndInitTypeCategories(mlir::Value addr, mlir::Type t,
+                                     mlir::Location loc, unsigned nestLevel);
+  void updatePointsTo(mlir::Value addr, mlir::Value data, mlir::Location loc);
+  void updatePointsToForConstStruct(mlir::Value addr,
+                                    mlir::cir::ConstStructAttr value,
+                                    mlir::Location loc);
+  void updatePointsToForZeroStruct(mlir::Value addr, StructType sTy,
+                                   mlir::Location loc);
 
-  // FIXME: classify tasks and lambdas prior to check ptr deref
+  // FIXME: classify tasks, lambdas and call args prior to check ptr deref
   // and pass down an enum.
   void checkPointerDeref(mlir::Value addr, mlir::Location loc,
-                         bool forRetLambda = false);
+                         bool forRetLambda = false, bool inCallArg = false);
   void checkCoroTaskStore(StoreOp storeOp);
   void checkLambdaCaptureStore(StoreOp storeOp);
   void trackCallToCoroutine(CallOp callOp);
@@ -284,6 +290,12 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
     invalidHist[ptr].add(ptr, invalidStyle, loc, extraVal);
   }
 
+  void markPsetNull(mlir::Value addr, mlir::Location loc) {
+    getPmap()[addr].clear();
+    getPmap()[addr].insert(State::getNullPtr());
+    pmapNullHist[addr] = loc;
+  }
+
   void joinPmaps(SmallVectorImpl<PMapType> &pmaps);
 
   // Provides p1179's 'KILL' functionality. See implementation for more
@@ -309,11 +321,11 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
   }
 
   // Aggregates and exploded fields.
-  using ExplodedFieldsTy = llvm::SmallSet<unsigned, 4>;
+  using ExplodedFieldsTy = llvm::SmallVector<mlir::Value, 4>;
   DenseMap<mlir::Value, ExplodedFieldsTy> aggregates;
-  void addAggregate(mlir::Value a, SmallVectorImpl<unsigned> &fields) {
+  void addAggregate(mlir::Value a, SmallVectorImpl<mlir::Value> &fields) {
     assert(!aggregates.count(a) && "already tracked");
-    aggregates[a].insert(fields.begin(), fields.end());
+    aggregates[a].swap(fields);
   }
 
   // Useful helpers for debugging
@@ -436,9 +448,18 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
 };
 } // namespace
 
-static StringRef getVarNameFromValue(mlir::Value v) {
+static std::string getVarNameFromValue(mlir::Value v) {
   if (auto allocaOp = dyn_cast<AllocaOp>(v.getDefiningOp()))
-    return allocaOp.getName();
+    return allocaOp.getName().str();
+  if (auto getElemOp = dyn_cast<StructElementAddr>(v.getDefiningOp())) {
+    auto parent = dyn_cast<AllocaOp>(getElemOp.getStructAddr().getDefiningOp());
+    if (parent) {
+      llvm::SmallString<128> finalName;
+      llvm::raw_svector_ostream Out(finalName);
+      Out << parent.getName() << "." << getElemOp.getMemberName();
+      return Out.str().str();
+    }
+  }
   assert(0 && "how did it get here?");
   return "";
 }
@@ -874,9 +895,13 @@ static bool containsPointerElts(mlir::cir::StructType s) {
   });
 }
 
-static bool isAggregateType(mlir::Type agg) {
+static bool isAggregateType(LifetimeCheckPass *pass, mlir::Type agg) {
   auto t = agg.dyn_cast<mlir::cir::StructType>();
   if (!t)
+    return false;
+  // Lambdas have their special handling, and shall not be considered as
+  // aggregate types.
+  if (pass->isLambdaType(agg))
     return false;
   // FIXME: For now we handle this in a more naive way: any pointer
   // element we find is enough to consider this an aggregate. But in
@@ -926,8 +951,10 @@ static bool isPointerType(mlir::Type t) {
   return isStructAndHasAttr<clang::PointerAttr>(t);
 }
 
-void LifetimeCheckPass::classifyTypeCategories(mlir::Value addr, mlir::Type t,
-                                               mlir::Location loc) {
+void LifetimeCheckPass::classifyAndInitTypeCategories(mlir::Value addr,
+                                                      mlir::Type t,
+                                                      mlir::Location loc,
+                                                      unsigned nestLevel) {
   assert(!getPmap().count(addr) && "only one map entry for a given address");
   getPmap()[addr] = {};
 
@@ -946,7 +973,7 @@ void LifetimeCheckPass::classifyTypeCategories(mlir::Value addr, mlir::Type t,
       return TypeCategory::Pointer;
     if (isOwnerType(t))
       return TypeCategory::Owner;
-    if (isAggregateType(t))
+    if (isAggregateType(this, t))
       return TypeCategory::Aggregate;
     return TypeCategory::Value;
   }();
@@ -968,24 +995,39 @@ void LifetimeCheckPass::classifyTypeCategories(mlir::Value addr, mlir::Type t,
     // 2.1 - Aggregates are types we will “explode” (consider memberwise) at
     // local scopes, because the function can operate on the members directly.
 
-    // Explode all pointer members.
-    SmallVector<unsigned, 4> fields;
+    // TODO: only track first level of aggregates subobjects for now, get some
+    // data before we increase this.
+    if (nestLevel > 1)
+      break;
+
+    // Map values for members to it's index in the aggregate.
     auto members = t.cast<mlir::cir::StructType>().getMembers();
+    SmallVector<mlir::Value, 4> fieldVals;
+    fieldVals.assign(members.size(), {});
 
-    unsigned fieldIdx = 0;
-    std::for_each(members.begin(), members.end(), [&](mlir::Type t) {
-      auto ptrType = t.dyn_cast<mlir::cir::PointerType>();
-      if (ptrType)
-        fields.push_back(fieldIdx);
-      fieldIdx++;
+    // Go through uses of the alloca via `cir.struct_element_addr`, and
+    // track only the fields that are actually used.
+    std::for_each(addr.use_begin(), addr.use_end(), [&](mlir::OpOperand &use) {
+      auto op = dyn_cast<mlir::cir::StructElementAddr>(use.getOwner());
+      if (!op)
+        return;
+
+      auto eltAddr = op.getResult();
+      auto eltTy =
+          eltAddr.getType().cast<mlir::cir::PointerType>().getPointee();
+
+      // Classify exploded types. Keep alloca original location.
+      classifyAndInitTypeCategories(eltAddr, eltTy, loc, ++nestLevel);
+      fieldVals[op.getMemberIndex().getZExtValue()] = eltAddr;
     });
-    addAggregate(addr, fields);
 
-    // Differently from `TypeCategory::Pointer`, initialization for exploded
-    // pointer is done lazily, triggered whenever the relevant
-    // `cir.struct_element_addr` are seen. This also serves optimization
-    // purposes: only track fields that are actually seen.
-    break;
+    // In case this aggregate gets initialized at once, the fields need
+    // to be mapped to the elements values.
+    addAggregate(addr, fieldVals);
+
+    // There might be pointers to this aggregate, so also make a value
+    // for it.
+    LLVM_FALLTHROUGH;
   }
   case TypeCategory::Value: {
     // 2.4.2 - When a local Value x is declared, add (x, {x}) to pmap.
@@ -999,8 +1041,8 @@ void LifetimeCheckPass::classifyTypeCategories(mlir::Value addr, mlir::Type t,
 }
 
 void LifetimeCheckPass::checkAlloca(AllocaOp allocaOp) {
-  classifyTypeCategories(allocaOp.getAddr(), allocaOp.getAllocaType(),
-                         allocaOp.getLoc());
+  classifyAndInitTypeCategories(allocaOp.getAddr(), allocaOp.getAllocaType(),
+                                allocaOp.getLoc(), /*nestLevel=*/0);
 }
 
 void LifetimeCheckPass::checkCoroTaskStore(StoreOp storeOp) {
@@ -1071,8 +1113,134 @@ void LifetimeCheckPass::checkLambdaCaptureStore(StoreOp storeOp) {
     getPmap()[lambdaAddr].insert(State::getLocalValue(localByRefAddr));
 }
 
+void LifetimeCheckPass::updatePointsToForConstStruct(
+    mlir::Value addr, mlir::cir::ConstStructAttr value, mlir::Location loc) {
+  assert(aggregates.count(addr) && "expected association with aggregate");
+  int memberIdx = 0;
+  for (auto &attr : value.getMembers()) {
+    auto ta = attr.dyn_cast<mlir::TypedAttr>();
+    assert(ta && "expected typed attribute");
+    auto fieldAddr = aggregates[addr][memberIdx];
+    // Unseen fields are not tracked.
+    if (fieldAddr && ta.getType().isa<mlir::cir::PointerType>()) {
+      assert(ta.isa<mlir::cir::NullAttr>() &&
+             "other than null not implemented");
+      markPsetNull(fieldAddr, loc);
+    }
+    memberIdx++;
+  }
+}
+
+void LifetimeCheckPass::updatePointsToForZeroStruct(mlir::Value addr,
+                                                    StructType sTy,
+                                                    mlir::Location loc) {
+  assert(aggregates.count(addr) && "expected association with aggregate");
+  int memberIdx = 0;
+  for (auto &t : sTy.getMembers()) {
+    auto fieldAddr = aggregates[addr][memberIdx];
+    // Unseen fields are not tracked.
+    if (fieldAddr && t.isa<mlir::cir::PointerType>()) {
+      markPsetNull(fieldAddr, loc);
+    }
+    memberIdx++;
+  }
+}
+
+static mlir::Operation *ignoreBitcasts(mlir::Operation *op) {
+  while (auto bitcast = dyn_cast<CastOp>(op)) {
+    if (bitcast.getKind() != CastKind::bitcast)
+      return op;
+    auto b = bitcast.getSrc().getDefiningOp();
+    // Do not handle block arguments just yet.
+    if (!b)
+      return op;
+    op = b;
+  }
+  return op;
+}
+
+void LifetimeCheckPass::updatePointsTo(mlir::Value addr, mlir::Value data,
+                                       mlir::Location loc) {
+
+  auto getArrayFromSubscript = [&](PtrStrideOp strideOp) -> mlir::Value {
+    auto castOp = dyn_cast<CastOp>(strideOp.getBase().getDefiningOp());
+    if (!castOp)
+      return {};
+    if (castOp.getKind() != cir::CastKind::array_to_ptrdecay)
+      return {};
+    return castOp.getSrc();
+  };
+
+  auto dataSrcOp = data.getDefiningOp();
+
+  // Do not handle block arguments just yet.
+  if (!dataSrcOp)
+    return;
+
+  // Ignore chains of bitcasts and update data source. Note that when
+  // dataSrcOp gets updated, `data` might not be the most updated resource
+  // to use, so avoid using it directly, and instead get things from newer
+  // dataSrcOp.
+  dataSrcOp = ignoreBitcasts(dataSrcOp);
+
+  // 2.4.2 - If the declaration includes an initialization, the
+  // initialization is treated as a separate operation
+  if (auto cstOp = dyn_cast<ConstantOp>(dataSrcOp)) {
+    // Aggregates can be bulk materialized in CIR, handle proper update of
+    // individual exploded fields.
+    if (auto constStruct =
+            cstOp.getValue().dyn_cast<mlir::cir::ConstStructAttr>()) {
+      updatePointsToForConstStruct(addr, constStruct, loc);
+      return;
+    }
+
+    if (auto zero = cstOp.getValue().dyn_cast<mlir::cir::ZeroAttr>()) {
+      if (auto zeroStructTy = zero.getType().dyn_cast<StructType>()) {
+        updatePointsToForZeroStruct(addr, zeroStructTy, loc);
+        return;
+      }
+    }
+
+    assert(cstOp.isNullPtr() && "other than null not implemented");
+    assert(getPmap().count(addr) && "address should always be valid");
+    // 2.4.2 - If the initialization is default initialization or zero
+    // initialization, set pset(p) = {null}; for example:
+    //
+    //  int* p; => pset(p) == {invalid}
+    //  int* p{}; or string_view p; => pset(p) == {null}.
+    //  int *p = nullptr; => pset(p) == {nullptr} => pset(p) == {null}
+    markPsetNull(addr, loc);
+    return;
+  }
+
+  if (auto allocaOp = dyn_cast<AllocaOp>(dataSrcOp)) {
+    // p = &x;
+    getPmap()[addr].clear();
+    getPmap()[addr].insert(State::getLocalValue(allocaOp.getAddr()));
+    return;
+  }
+
+  if (auto ptrStrideOp = dyn_cast<PtrStrideOp>(dataSrcOp)) {
+    // p = &a[0];
+    auto array = getArrayFromSubscript(ptrStrideOp);
+    if (array) {
+      getPmap()[addr].clear();
+      getPmap()[addr].insert(State::getLocalValue(array));
+    }
+    return;
+  }
+
+  // What should we add next?
+}
+
 void LifetimeCheckPass::checkStore(StoreOp storeOp) {
   auto addr = storeOp.getAddr();
+
+  // Decompose store's to aggregates into multiple updates to individual fields.
+  if (aggregates.count(addr)) {
+    updatePointsTo(addr, storeOp.getValue(), storeOp.getValue().getLoc());
+    return;
+  }
 
   // The bulk of the check is done on top of store to pointer categories,
   // which usually represent the most common case.
@@ -1088,58 +1256,7 @@ void LifetimeCheckPass::checkStore(StoreOp storeOp) {
   }
 
   // Only handle ptrs from here on.
-
-  auto getArrayFromSubscript = [&](PtrStrideOp strideOp) -> mlir::Value {
-    auto castOp = dyn_cast<CastOp>(strideOp.getBase().getDefiningOp());
-    if (!castOp)
-      return {};
-    if (castOp.getKind() != cir::CastKind::array_to_ptrdecay)
-      return {};
-    return castOp.getSrc();
-  };
-
-  auto data = storeOp.getValue();
-  auto defOp = data.getDefiningOp();
-
-  // Do not handle block arguments just yet.
-  if (!defOp)
-    return;
-
-  // 2.4.2 - If the declaration includes an initialization, the
-  // initialization is treated as a separate operation
-  if (auto cstOp = dyn_cast<ConstantOp>(defOp)) {
-    assert(cstOp.isNullPtr() && "not implemented");
-    assert(getPmap().count(addr) && "address should always be valid");
-    // 2.4.2 - If the initialization is default initialization or zero
-    // initialization, set pset(p) = {null}; for example:
-    //
-    //  int* p; => pset(p) == {invalid}
-    //  int* p{}; or string_view p; => pset(p) == {null}.
-    //  int *p = nullptr; => pset(p) == {nullptr} => pset(p) == {null}
-    getPmap()[addr].clear();
-    getPmap()[addr].insert(State::getNullPtr());
-    pmapNullHist[addr] = storeOp.getValue().getLoc();
-    return;
-  }
-
-  if (auto allocaOp = dyn_cast<AllocaOp>(defOp)) {
-    // p = &x;
-    getPmap()[addr].clear();
-    getPmap()[addr].insert(State::getLocalValue(data));
-    return;
-  }
-
-  if (auto ptrStrideOp = dyn_cast<PtrStrideOp>(defOp)) {
-    // p = &a[0];
-    auto array = getArrayFromSubscript(ptrStrideOp);
-    if (array) {
-      getPmap()[addr].clear();
-      getPmap()[addr].insert(State::getLocalValue(array));
-    }
-    return;
-  }
-
-  // From here on, some uninterestring store (for now?)
+  updatePointsTo(addr, storeOp.getValue(), storeOp.getValue().getLoc());
 }
 
 void LifetimeCheckPass::checkLoad(LoadOp loadOp) {
@@ -1191,7 +1308,7 @@ void LifetimeCheckPass::emitInvalidHistory(mlir::InFlightDiagnostic &D,
             << "declared here but invalid after enclosing " << parent
             << " ends";
       } else {
-        StringRef outOfScopeVarName = getVarNameFromValue(*info.val);
+        auto outOfScopeVarName = getVarNameFromValue(*info.val);
         D.attachNote(info.loc) << "pointee '" << outOfScopeVarName
                                << "' invalidated at end of scope";
       }
@@ -1208,7 +1325,7 @@ void LifetimeCheckPass::emitInvalidHistory(mlir::InFlightDiagnostic &D,
 }
 
 void LifetimeCheckPass::checkPointerDeref(mlir::Value addr, mlir::Location loc,
-                                          bool forRetLambda) {
+                                          bool forRetLambda, bool inCallArg) {
   bool hasInvalid = getPmap()[addr].count(State::getInvalid());
   bool hasNullptr = getPmap()[addr].count(State::getNullPtr());
 
@@ -1237,23 +1354,33 @@ void LifetimeCheckPass::checkPointerDeref(mlir::Value addr, mlir::Location loc,
 
   // Looks like we found a bad path leading to this deference point,
   // diagnose it.
-  StringRef varName = getVarNameFromValue(addr);
+  auto varName = getVarNameFromValue(addr);
   auto D = emitWarning(loc);
 
   if (tasks.count(addr))
     D << "use of coroutine '" << varName << "' with dangling reference";
   else if (forRetLambda)
     D << "returned lambda captures local variable";
-  else
+  else if (inCallArg) {
+    bool isAgg = isa_and_nonnull<StructElementAddr>(addr.getDefiningOp());
+    D << "passing ";
+    if (!isAgg)
+      D << "invalid pointer";
+    else
+      D << "aggregate containing invalid pointer member";
+    D << " '" << varName << "'";
+  } else
     D << "use of invalid pointer '" << varName << "'";
 
+  // TODO: add accuracy levels, different combinations of invalid and null
+  // could have different ratios of false positives.
   if (hasInvalid && opts.emitHistoryInvalid())
     emitInvalidHistory(D, addr, loc, forRetLambda);
 
   if (hasNullptr && opts.emitHistoryNull()) {
     assert(pmapNullHist.count(addr) && "expected nullptr hist");
     auto &note = pmapNullHist[addr];
-    D.attachNote(*note) << "invalidated here";
+    D.attachNote(*note) << "'nullptr' invalidated here";
   }
 
   if (!psetRemarkEmitted && opts.emitRemarkPsetInvalid())
@@ -1266,7 +1393,10 @@ static FuncOp getCalleeFromSymbol(ModuleOp mod, StringRef name) {
   return dyn_cast<FuncOp>(global);
 }
 
-static const clang::CXXMethodDecl *getMethod(ModuleOp mod, StringRef name) {
+static const clang::CXXMethodDecl *getMethod(ModuleOp mod, CallOp callOp) {
+  if (!callOp.getCallee())
+    return nullptr;
+  StringRef name = *callOp.getCallee();
   auto method = getCalleeFromSymbol(mod, name);
   if (!method || method.getBuiltin())
     return nullptr;
@@ -1278,8 +1408,8 @@ void LifetimeCheckPass::checkMoveAssignment(CallOp callOp,
   // MyPointer::operator=(MyPointer&&)(%dst, %src)
   // or
   // MyOwner::operator=(MyOwner&&)(%dst, %src)
-  auto dst = callOp.getOperand(0);
-  auto src = callOp.getOperand(1);
+  auto dst = callOp.getArgOperand(0);
+  auto src = callOp.getArgOperand(1);
 
   // Move assignments between pointer categories.
   if (ptrs.count(dst) && ptrs.count(src)) {
@@ -1308,8 +1438,8 @@ void LifetimeCheckPass::checkMoveAssignment(CallOp callOp,
 void LifetimeCheckPass::checkCopyAssignment(CallOp callOp,
                                             const clang::CXXMethodDecl *m) {
   // MyIntOwner::operator=(MyIntOwner&)(%dst, %src)
-  auto dst = callOp.getOperand(0);
-  auto src = callOp.getOperand(1);
+  auto dst = callOp.getArgOperand(0);
+  auto src = callOp.getArgOperand(1);
 
   // Copy assignment between owner categories.
   if (owners.count(dst) && owners.count(src))
@@ -1330,12 +1460,12 @@ void LifetimeCheckPass::checkCopyAssignment(CallOp callOp,
 //
 bool LifetimeCheckPass::isCtorInitPointerFromOwner(
     CallOp callOp, const clang::CXXConstructorDecl *ctor) {
-  if (callOp.getNumOperands() < 2)
+  if (callOp.getNumArgOperands() < 2)
     return false;
 
   // FIXME: should we scan all arguments past first to look for an owner?
-  auto addr = callOp.getOperand(0);
-  auto owner = callOp.getOperand(1);
+  auto addr = callOp.getArgOperand(0);
+  auto owner = callOp.getArgOperand(1);
 
   if (ptrs.count(addr) && owners.count(owner))
     return true;
@@ -1355,7 +1485,7 @@ void LifetimeCheckPass::checkCtor(CallOp callOp,
   // both results in pset(p) == {null}
   if (ctor->isDefaultConstructor()) {
     // First argument passed is always the alloca for the 'this' ptr.
-    auto addr = callOp.getOperand(0);
+    auto addr = callOp.getArgOperand(0);
 
     // Currently two possible actions:
     // 1. Skip Owner category initialization.
@@ -1371,9 +1501,7 @@ void LifetimeCheckPass::checkCtor(CallOp callOp,
     if (!dyn_cast_or_null<AllocaOp>(addr.getDefiningOp()))
       return;
 
-    getPmap()[addr].clear();
-    getPmap()[addr].insert(State::getNullPtr());
-    pmapNullHist[addr] = callOp.getLoc();
+    markPsetNull(addr, callOp.getLoc());
     return;
   }
 
@@ -1383,8 +1511,8 @@ void LifetimeCheckPass::checkCtor(CallOp callOp,
   }
 
   if (isCtorInitPointerFromOwner(callOp, ctor)) {
-    auto addr = callOp.getOperand(0);
-    auto owner = callOp.getOperand(1);
+    auto addr = callOp.getArgOperand(0);
+    auto owner = callOp.getArgOperand(1);
     getPmap()[addr].clear();
     getPmap()[addr].insert(State::getOwnedBy(owner));
     return;
@@ -1393,7 +1521,7 @@ void LifetimeCheckPass::checkCtor(CallOp callOp,
 
 void LifetimeCheckPass::checkOperators(CallOp callOp,
                                        const clang::CXXMethodDecl *m) {
-  auto addr = callOp.getOperand(0);
+  auto addr = callOp.getArgOperand(0);
   if (owners.count(addr)) {
     // const access to the owner is fine.
     if (m->isConst())
@@ -1421,7 +1549,7 @@ bool LifetimeCheckPass::isNonConstUseOfOwner(CallOp callOp,
                                              const clang::CXXMethodDecl *m) {
   if (m->isConst())
     return false;
-  auto addr = callOp.getOperand(0);
+  auto addr = callOp.getArgOperand(0);
   if (owners.count(addr))
     return true;
   return false;
@@ -1445,19 +1573,20 @@ void LifetimeCheckPass::checkNonConstUseOfOwner(mlir::Value ownerAddr,
 
 void LifetimeCheckPass::checkForOwnerAndPointerArguments(CallOp callOp,
                                                          unsigned firstArgIdx) {
-  auto numOperands = callOp.getNumOperands();
+  auto numOperands = callOp.getNumArgOperands();
   if (firstArgIdx >= numOperands)
     return;
 
   llvm::SmallSetVector<mlir::Value, 8> ownersToInvalidate, ptrsToDeref;
   for (unsigned i = firstArgIdx, e = numOperands; i != e; ++i) {
-    auto arg = callOp.getOperand(i);
+    auto arg = callOp.getArgOperand(i);
     // FIXME: apply p1179 rules as described in 2.5. Very conservative for now:
     //
     // - Owners: always invalidate.
     // - Pointers: always check for deref.
     // - Coroutine tasks: check the task for deref when calling methods of
     //   the task, but also when the passing the task around to other functions.
+    // - Aggregates: check ptr subelements for deref.
     //
     // FIXME: even before 2.5 we should only invalidate non-const param types.
     if (owners.count(arg))
@@ -1466,6 +1595,19 @@ void LifetimeCheckPass::checkForOwnerAndPointerArguments(CallOp callOp,
       ptrsToDeref.insert(arg);
     if (tasks.count(arg))
       ptrsToDeref.insert(arg);
+    if (aggregates.count(arg)) {
+      int memberIdx = 0;
+      auto sTy =
+          arg.getType().cast<PointerType>().getPointee().dyn_cast<StructType>();
+      assert(sTy && "expected struct type");
+      for (auto m : sTy.getMembers()) {
+        auto ptrMemberAddr = aggregates[arg][memberIdx];
+        if (m.isa<PointerType>() && ptrMemberAddr) {
+          ptrsToDeref.insert(ptrMemberAddr);
+        }
+        memberIdx++;
+      }
+    }
   }
 
   // FIXME: CIR should track source info on the passed args, so we can get
@@ -1473,7 +1615,8 @@ void LifetimeCheckPass::checkForOwnerAndPointerArguments(CallOp callOp,
   for (auto o : ownersToInvalidate)
     checkNonConstUseOfOwner(o, callOp.getLoc());
   for (auto p : ptrsToDeref)
-    checkPointerDeref(p, callOp.getLoc());
+    checkPointerDeref(p, callOp.getLoc(), /*forRetLambda=*/false,
+                      /*inCallArg=*/true);
 }
 
 void LifetimeCheckPass::checkOtherMethodsAndFunctions(
@@ -1484,7 +1627,7 @@ void LifetimeCheckPass::checkOtherMethodsAndFunctions(
   // - If a method call to a class we consider interesting, like a method
   //   call on a coroutine task (promise_type).
   // - Skip the 'this' for any other method.
-  if (m && !tasks.count(callOp.getOperand(firstArgIdx)))
+  if (m && !tasks.count(callOp.getArgOperand(firstArgIdx)))
     firstArgIdx++;
   checkForOwnerAndPointerArguments(callOp, firstArgIdx);
 }
@@ -1562,7 +1705,7 @@ void LifetimeCheckPass::trackCallToCoroutine(CallOp callOp) {
 }
 
 void LifetimeCheckPass::checkCall(CallOp callOp) {
-  if (callOp.getNumOperands() == 0)
+  if (callOp.getNumArgOperands() == 0)
     return;
 
   // Identify calls to coroutines and track returning temporary task types.
@@ -1571,13 +1714,8 @@ void LifetimeCheckPass::checkCall(CallOp callOp) {
   // part of declaration
   trackCallToCoroutine(callOp);
 
-  // FIXME: General indirect calls not yet supported.
-  if (!callOp.getCallee())
-    return;
-
-  auto fnName = *callOp.getCallee();
-  auto methodDecl = getMethod(theModule, fnName);
-  if (!isOwnerOrPointerClassMethod(callOp.getOperand(0), methodDecl))
+  auto methodDecl = getMethod(theModule, callOp);
+  if (!isOwnerOrPointerClassMethod(callOp.getArgOperand(0), methodDecl))
     return checkOtherMethodsAndFunctions(callOp, methodDecl);
 
   // From this point on only owner and pointer class methods handling,
@@ -1595,11 +1733,11 @@ void LifetimeCheckPass::checkCall(CallOp callOp) {
 
   // Non-const member call to a Owner invalidates any of its users.
   if (isNonConstUseOfOwner(callOp, methodDecl))
-    return checkNonConstUseOfOwner(callOp.getOperand(0), callOp.getLoc());
+    return checkNonConstUseOfOwner(callOp.getArgOperand(0), callOp.getLoc());
 
   // Take a pset(Ptr) = { Ownr' } where Own got invalidated, this will become
   // invalid access to Ptr if any of its methods are used.
-  auto addr = callOp.getOperand(0);
+  auto addr = callOp.getArgOperand(0);
   if (ptrs.count(addr))
     return checkPointerDeref(addr, callOp.getLoc());
 }
