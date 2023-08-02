@@ -56,6 +56,7 @@ struct S2 {
 } s2 = {{1}};
 // CHECK-DAG: cir.global external @s2 = #cir.const_struct<{#cir.const_struct<{#cir.int<1> : !s32i}> : !ty_22struct2ES2A22}> : !ty_22struct2ES222
 
+// Should initialize global arrays of structs.
 struct S3 {
   int a;
 } s3[3] = {{1}, {2}, {3}};
