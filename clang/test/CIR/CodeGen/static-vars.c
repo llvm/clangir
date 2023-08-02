@@ -35,3 +35,9 @@ void func2(void) {
   static float j;
   // CHECK-DAG: cir.global "private" internal @func2.j = 0.000000e+00 : f32
 }
+
+// Should match type size in bytes between var and initializer.
+void func4(void) {
+  static char string[] = "Hello";
+  // CHECK-DAG: cir.global "private" internal @func4.string = #cir.const_array<"Hello\00" : !cir.array<!s8i x 6>> : !cir.array<!s8i x 6>
+}
