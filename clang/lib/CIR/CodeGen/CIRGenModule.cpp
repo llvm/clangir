@@ -699,6 +699,19 @@ mlir::Value CIRGenModule::getAddrOfGlobalVar(const VarDecl *D, mlir::Type Ty,
                                                 ptrTy, g.getSymName());
 }
 
+mlir::cir::GlobalViewAttr
+CIRGenModule::getAddrOfGlobalVarAttr(const VarDecl *D, mlir::Type Ty,
+                                     ForDefinition_t IsForDefinition) {
+  assert(D->hasGlobalStorage() && "Not a global variable");
+  QualType ASTTy = D->getType();
+  if (!Ty)
+    Ty = getTypes().convertTypeForMem(ASTTy);
+
+  auto globalOp = buildGlobal(D, Ty, IsForDefinition);
+  auto symRef = mlir::FlatSymbolRefAttr::get(globalOp.getSymNameAttr());
+  return mlir::cir::GlobalViewAttr::get(builder.getPointerTo(Ty), symRef);
+}
+
 mlir::Operation* CIRGenModule::getWeakRefReference(const ValueDecl *VD) {
   const AliasAttr *AA = VD->getAttr<AliasAttr>();
   assert(AA && "No alias?");
