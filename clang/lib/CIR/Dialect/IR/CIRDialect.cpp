@@ -18,6 +18,7 @@
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMTypes.h"
 #include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Diagnostics.h"
 #include "mlir/IR/DialectImplementation.h"
@@ -1560,7 +1561,6 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
        getFunctionTypeAttrName(), getLinkageAttrName(), getBuiltinAttrName(),
        getNoProtoAttrName(), getExtraAttrsAttrName()});
 
-
   if (auto aliaseeName = getAliasee()) {
     p << " alias(";
     p.printSymbolName(*aliaseeName);
@@ -2056,14 +2056,13 @@ LogicalResult ASTRecordDeclAttr::verify(
 
 LogicalResult TypeInfoAttr::verify(
     ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
-    ::mlir::Type type, ConstStructAttr typeinfoData) {
+    ::mlir::Type type, ::mlir::ArrayAttr typeinfoData) {
 
-  if (mlir::cir::ConstStructAttr::verify(emitError, type,
-                                         typeinfoData.getMembers())
+  if (mlir::cir::ConstStructAttr::verify(emitError, type, typeinfoData)
           .failed())
     return failure();
 
-  for (auto &member : typeinfoData.getMembers()) {
+  for (auto &member : typeinfoData) {
     auto gview = member.dyn_cast_or_null<GlobalViewAttr>();
     if (gview)
       continue;
