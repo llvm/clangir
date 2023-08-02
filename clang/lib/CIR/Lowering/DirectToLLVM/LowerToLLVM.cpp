@@ -124,6 +124,27 @@ mlir::Value lowerCirAttrAsValue(mlir::cir::ConstStructAttr constStruct,
   return result;
 }
 
+// ArrayAttr visitor.
+mlir::Value lowerCirAttrAsValue(mlir::cir::ConstArrayAttr constArr,
+                                mlir::Location loc,
+                                mlir::ConversionPatternRewriter &rewriter,
+                                const mlir::TypeConverter *converter) {
+  auto llvmTy = converter->convertType(constArr.getType());
+  mlir::Value result = rewriter.create<mlir::LLVM::UndefOp>(loc, llvmTy);
+  auto arrayAttr = mlir::cast<mlir::ArrayAttr>(constArr.getElts());
+  auto cirArrayType = mlir::cast<mlir::cir::ArrayType>(constArr.getType());
+  assert(mlir::isa<mlir::cir::StructType>(cirArrayType.getEltType()) &&
+         "Types other than ConstArrayAttr are NYI");
+
+  // Iteratively lower each constant element of the array.
+  for (auto [idx, elt] : llvm::enumerate(arrayAttr)) {
+    mlir::Value init = lowerCirAttrAsValue(elt, loc, rewriter, converter);
+    result = rewriter.create<mlir::LLVM::InsertValueOp>(loc, result, init, idx);
+  }
+
+  return result;
+}
+
 /// Switches on the type of attribute and calls the appropriate conversion.
 inline mlir::Value
 lowerCirAttrAsValue(mlir::Attribute attr, mlir::Location loc,
@@ -138,7 +159,7 @@ lowerCirAttrAsValue(mlir::Attribute attr, mlir::Location loc,
   if (const auto constStruct = mlir::dyn_cast<mlir::cir::ConstStructAttr>(attr))
     return lowerCirAttrAsValue(constStruct, loc, rewriter, converter);
   if (const auto constArr = mlir::dyn_cast<mlir::cir::ConstArrayAttr>(attr))
-    llvm_unreachable("const array attribute is NYI");
+    return lowerCirAttrAsValue(constArr, loc, rewriter, converter);
   if (const auto zeroAttr = mlir::dyn_cast<mlir::cir::BoolAttr>(attr))
     llvm_unreachable("bool attribute is NYI");
   if (const auto zeroAttr = mlir::dyn_cast<mlir::cir::ZeroAttr>(attr))
@@ -1121,6 +1142,15 @@ public:
       if (auto attr = mlir::dyn_cast<mlir::StringAttr>(constArr.getElts())) {
         init = rewriter.getStringAttr(attr.getValue());
       } else if (auto attr = mlir::dyn_cast<mlir::ArrayAttr>(constArr.getElts())) {
+        auto eltTy =
+            mlir::cast<mlir::cir::ArrayType>(constArr.getType()).getEltType();
+        if (mlir::isa<mlir::cir::StructType>(eltTy)) {
+          setupRegionInitializedLLVMGlobalOp(op, rewriter);
+          rewriter.create<mlir::LLVM::ReturnOp>(
+              op->getLoc(), lowerCirAttrAsValue(constArr, op->getLoc(),
+                                                rewriter, typeConverter));
+          return mlir::success();
+        }
         if (!(init = lowerConstArrayAttr(constArr, getTypeConverter()))) {
           op.emitError() << "unsupported lowering for #cir.const_array with "
                             "element type "
