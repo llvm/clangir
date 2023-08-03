@@ -10,7 +10,6 @@
 #include "CIRChecks.h"
 
 #include "../utils/OptionsUtils.h"
-#include "ClangTidyCheck.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/Pass/Pass.h"
@@ -26,9 +25,26 @@ namespace tidy {
 
 CIRASTConsumer::CIRASTConsumer(CompilerInstance &CI, StringRef inputFile,
                                clang::tidy::ClangTidyContext &Context)
+<<<<<<< HEAD
     : Context(Context) {
   Gen = std::make_unique<CIRGenerator>(CI.getDiagnostics(),
                                        &CI.getVirtualFileSystem(),
+||||||| parent of 9c3873960523 ([CIR][CIRTidy] Add config options for codegen manipulation)
+    : Context(Context) {
+  Gen = std::make_unique<CIRGenerator>(CI.getDiagnostics(), nullptr,
+=======
+    : Context(Context),
+      OptsView(ClangTidyCheck::OptionsView(cir::checks::LifetimeCheckName,
+                                           Context.getOptions().CheckOptions,
+                                           &Context)) {
+  // Setup CIR codegen options via config specified information.
+  CI.getCodeGenOpts().ClangIRBuildDeferredThreshold =
+      OptsView.get("CodeGenBuildDeferredThreshold", 500U);
+  CI.getCodeGenOpts().ClangIRSkipFunctionsFromSystemHeaders =
+      OptsView.get("CodeGenSkipFunctionsFromSystemHeaders", false);
+
+  Gen = std::make_unique<CIRGenerator>(CI.getDiagnostics(), nullptr,
+>>>>>>> 9c3873960523 ([CIR][CIRTidy] Add config options for codegen manipulation)
                                        CI.getCodeGenOpts());
 }
 
@@ -138,10 +154,6 @@ void CIRASTConsumer::HandleTranslationUnit(ASTContext &C) {
 
   mlir::PassManager pm(mlirCtx.get());
   pm.addPass(mlir::createMergeCleanupsPass());
-
-  clang::tidy::ClangTidyOptions Opts = Context.getOptions();
-  ClangTidyCheck::OptionsView OptsView(cir::checks::LifetimeCheckName,
-                                       Opts.CheckOptions, &Context);
 
   auto remarks =
       utils::options::parseStringList(OptsView.get("RemarksList", ""));
