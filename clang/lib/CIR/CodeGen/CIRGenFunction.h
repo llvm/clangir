@@ -576,7 +576,9 @@ public:
   const clang::Decl *CurCodeDecl;
   const CIRGenFunctionInfo *CurFnInfo;
   clang::QualType FnRetTy;
-  mlir::cir::FuncOp CurFn = nullptr;
+
+  /// This is the current function or global initializer that is generated code for.
+  mlir::Operation *CurFn = nullptr;
 
   /// Save Parameter Decl for coroutine.
   llvm::SmallVector<const ParmVarDecl *, 4> FnArgs;
