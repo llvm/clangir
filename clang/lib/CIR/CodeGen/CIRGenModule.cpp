@@ -846,6 +846,9 @@ void CIRGenModule::buildGlobalVarDefinition(const clang::VarDecl *D,
     if (arrayTy)
       InitType = mlir::cir::PointerType::get(builder.getContext(),
                                              arrayTy.getEltType());
+    else
+      InitType = mlir::cir::PointerType::get(builder.getContext(),
+                                             g.getSymType());
   } else {
     assert(Init.isa<mlir::TypedAttr>() && "This should have a type");
     auto TypedInitAttr = Init.cast<mlir::TypedAttr>();

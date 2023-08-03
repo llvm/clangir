@@ -1121,7 +1121,16 @@ ConstantLValue
 ConstantLValueEmitter::tryEmitBase(const APValue::LValueBase &base) {
   // Handle values.
   if (const ValueDecl *D = base.dyn_cast<const ValueDecl *>()) {
-    assert(0 && "NYI");
+    StringRef MangledName = CGM.getMangledName(D);
+    // Global var may not be present yet if it's a tentative definition
+    // so force it
+    CGM.getOrCreateCIRGlobal(MangledName,
+                             CGM.getTypes().ConvertType(D->getType()),
+                             D->getType().getAddressSpace(),
+                             D->getPotentiallyDecomposedVarDecl());
+    auto MangledNameAttr = mlir::StringAttr::get(CGM.getBuilder().getContext(),
+                                                 MangledName);
+    return ConstantLValue(mlir::SymbolRefAttr::get(MangledNameAttr));
   }
 
   // Handle typeid(T).
