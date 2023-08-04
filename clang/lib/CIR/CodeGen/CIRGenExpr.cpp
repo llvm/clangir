@@ -2133,7 +2133,7 @@ mlir::Value CIRGenFunction::buildAlloca(StringRef name, mlir::Type ty,
                                         mlir::Location loc, CharUnits alignment,
                                         bool insertIntoFnEntryBlock) {
   mlir::Block *entryBlock = insertIntoFnEntryBlock
-                                ? &CurFn->getRegion(0).front()
+                                ? getCurFunctionEntryBlock()
                                 : currLexScope->getEntryBlock();
   return buildAlloca(name, ty, loc, alignment,
                      builder.getBestAllocaInsertPoint(entryBlock));

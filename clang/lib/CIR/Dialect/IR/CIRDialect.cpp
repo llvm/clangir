@@ -1150,8 +1150,7 @@ LogicalResult LoopOp::verify() {
 
 static void printGlobalOpTypeAndInitialValue(OpAsmPrinter &p, GlobalOp op,
                                              TypeAttr type, Attribute initAttr,
-                                             mlir::Region& ctorRegion,
-                                             mlir::Region& dtorRegion) {
+                                             mlir::Region& ctorRegion) {
   auto printType = [&]() { p << ": " << type; };
   if (!op.isDeclaration()) {
     p << "= ";
@@ -1178,8 +1177,7 @@ static void printGlobalOpTypeAndInitialValue(OpAsmPrinter &p, GlobalOp op,
 static ParseResult parseGlobalOpTypeAndInitialValue(OpAsmParser &parser,
                                                     TypeAttr &typeAttr,
                                                     Attribute &initialValueAttr,
-                                                    mlir::Region& ctorRegion,
-                                                    mlir::Region& dtorRegion) {
+                                                    mlir::Region& ctorRegion) {
   mlir::Type opTy;
   if (parser.parseOptionalEqual().failed()) {
     // Absence of equal means a declaration, so we need to parse the type.
@@ -1279,8 +1277,7 @@ LogicalResult GlobalOp::verify() {
 void GlobalOp::build(
     OpBuilder &odsBuilder, OperationState &odsState, StringRef sym_name,
     Type sym_type, bool isConstant, cir::GlobalLinkageKind linkage,
-    function_ref<void(OpBuilder &, Location)> ctorBuilder,
-    function_ref<void(OpBuilder &, Location)> dtorBuilder) {
+    function_ref<void(OpBuilder &, Location)> ctorBuilder) {
   odsState.addAttribute(getSymNameAttrName(odsState.name),
                         odsBuilder.getStringAttr(sym_name));
   odsState.addAttribute(getSymTypeAttrName(odsState.name),
@@ -1294,14 +1291,9 @@ void GlobalOp::build(
   odsState.addAttribute(getLinkageAttrName(odsState.name), linkageAttr);
 
   Region *ctorRegion = odsState.addRegion();
-  Region *dtorRegion = odsState.addRegion();
   if (ctorBuilder) {
     odsBuilder.createBlock(ctorRegion);
     ctorBuilder(odsBuilder, odsState.location);
-  }
-  if (dtorBuilder) {
-    odsBuilder.createBlock(dtorRegion);
-    dtorBuilder(odsBuilder, odsState.location);
   }
 }
 
@@ -1313,7 +1305,7 @@ void GlobalOp::build(
 void GlobalOp::getSuccessorRegions(std::optional<unsigned> index,
                                    ArrayRef<Attribute> operands,
                                    SmallVectorImpl<RegionSuccessor> &regions) {
-  // The `then` and the `else` region branch back to the parent operation.
+  // The only region always branch back to the parent operation.
   if (index.has_value()) {
     regions.push_back(RegionSuccessor());
     return;
@@ -1324,16 +1316,9 @@ void GlobalOp::getSuccessorRegions(std::optional<unsigned> index,
   if (ctorRegion->empty())
     ctorRegion = nullptr;
 
-  // Don't consider the dtor region if it is empty.
-  Region *dtorRegion = &this->getCtorRegion();
-  if (dtorRegion->empty())
-    dtorRegion = nullptr;
-
   // If the condition isn't constant, both regions may be executed.
   if (ctorRegion)
     regions.push_back(RegionSuccessor(ctorRegion));
-  if (dtorRegion)
-    regions.push_back(RegionSuccessor(dtorRegion));
 }
 
 //===----------------------------------------------------------------------===//

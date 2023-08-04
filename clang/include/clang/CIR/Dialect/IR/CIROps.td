@@ -1275,19 +1275,19 @@ def GlobalOp : CIR_Op<"global", [Symbol, DeclareOpInterfaceMethods<RegionBranchO
                        OptionalAttr<AnyAttr>:$initial_value,
                        UnitAttr:$constant,
                        OptionalAttr<I64Attr>:$alignment);
-  let regions = (region AnyRegion:$ctorRegion, AnyRegion:$dtorRegion);
+  let regions = (region AnyRegion:$ctorRegion);
   let assemblyFormat = [{
        ($sym_visibility^)?
        (`constant` $constant^)?
        $linkage
        $sym_name
-       custom<GlobalOpTypeAndInitialValue>($sym_type, $initial_value, $ctorRegion, $dtorRegion)
+       custom<GlobalOpTypeAndInitialValue>($sym_type, $initial_value, $ctorRegion)
        attr-dict
   }];
 
   let extraClassDeclaration = [{
     bool isDeclaration() {
-      return !getInitialValue() && getCtorRegion().empty() && getDtorRegion().empty();
+      return !getInitialValue() && getCtorRegion().empty();
     }
     bool hasInitializer() { return !isDeclaration(); }
     bool hasAvailableExternallyLinkage() {
@@ -1315,9 +1315,7 @@ def GlobalOp : CIR_Op<"global", [Symbol, DeclareOpInterfaceMethods<RegionBranchO
       CArg<"cir::GlobalLinkageKind",
             "cir::GlobalLinkageKind::ExternalLinkage">:$linkage,
       CArg<"function_ref<void(OpBuilder &, Location)>",
-           "nullptr">:$ctorBuilder,
-      CArg<"function_ref<void(OpBuilder &, Location)>",
-           "nullptr">:$dtorBuilder)>
+           "nullptr">:$ctorBuilder)>
   ];
 
   let hasVerifier = 1;

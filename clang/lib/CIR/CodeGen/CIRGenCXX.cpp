@@ -41,6 +41,10 @@ static void buildDeclInit(CIRGenFunction &CGF, const VarDecl *D,
                                       AggValueSlot::IsNotAliased,
                                       AggValueSlot::DoesNotOverlap));
     return;
+  case TEK_Scalar:
+    llvm_unreachable("scalar evaluation NYI");
+  case TEK_Complex:
+    llvm_unreachable("complext evaluation NYI");
   default:
     llvm_unreachable("bad evaluation kind");
   }
