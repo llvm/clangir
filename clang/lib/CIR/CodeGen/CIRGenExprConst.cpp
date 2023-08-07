@@ -997,15 +997,13 @@ namespace {
 /// A struct which can be used to peephole certain kinds of finalization
 /// that normally happen during l-value emission.
 struct ConstantLValue {
-  // FIXME(cir): does it make sense to have both parent and child type here?
-  using SymbolTy = mlir::SymbolRefAttr;
-  llvm::PointerUnion<mlir::Value, SymbolTy, mlir::Attribute> Value;
+  llvm::PointerUnion<mlir::Value, mlir::Attribute> Value;
   bool HasOffsetApplied;
 
   /*implicit*/ ConstantLValue(mlir::Value value, bool hasOffsetApplied = false)
       : Value(value), HasOffsetApplied(hasOffsetApplied) {}
 
-  /*implicit*/ ConstantLValue(SymbolTy address) : Value(address) {}
+  /*implicit*/ ConstantLValue(mlir::SymbolRefAttr address) : Value(address) {}
 
   ConstantLValue(std::nullptr_t) : ConstantLValue({}, false) {}
   ConstantLValue(mlir::Attribute value) : Value(value) {}
@@ -1095,15 +1093,13 @@ mlir::Attribute ConstantLValueEmitter::tryEmit() {
     return {};
 
   // Apply the offset if necessary and not already done.
-  if (!result.HasOffsetApplied && !value.is<mlir::SymbolRefAttr>()) {
+  if (!result.HasOffsetApplied && !value.is<mlir::Attribute>()) {
     value = applyOffset(result).Value;
   }
 
   // Convert to the appropriate type; this could be an lvalue for
   // an integer. FIXME: performAddrSpaceCast
   if (destTy.isa<mlir::cir::PointerType>()) {
-    if (value.is<mlir::SymbolRefAttr>())
-      return value.get<mlir::SymbolRefAttr>();
     if (value.is<mlir::Attribute>())
       return value.get<mlir::Attribute>();
     llvm_unreachable("NYI");
