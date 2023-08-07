@@ -725,16 +725,30 @@ convertStringAttrToDenseElementsAttr(mlir::cir::ConstArrayAttr attr,
 }
 
 template <typename AttrTy, typename StorageTy>
+void convertToDenseElementsAttrImpl(mlir::cir::ConstArrayAttr attr,
+                                    llvm::SmallVectorImpl<StorageTy> &values) {
+  auto arrayAttr = mlir::cast<mlir::ArrayAttr>(attr.getElts());
+  for (auto eltAttr : arrayAttr) {
+    if (auto valueAttr = mlir::dyn_cast<AttrTy>(eltAttr)) {
+      values.push_back(valueAttr.getValue());
+    } else if (auto subArrayAttr =
+                   mlir::dyn_cast<mlir::cir::ConstArrayAttr>(eltAttr)) {
+      convertToDenseElementsAttrImpl<AttrTy>(subArrayAttr, values);
+    } else {
+      llvm_unreachable("unknown element in ConstArrayAttr");
+    }
+  }
+}
+
+template <typename AttrTy, typename StorageTy>
 mlir::DenseElementsAttr
-convertToDenseElementsAttr(mlir::cir::ConstArrayAttr attr, mlir::Type type) {
+convertToDenseElementsAttr(mlir::cir::ConstArrayAttr attr,
+                           const llvm::SmallVectorImpl<int64_t> &dims,
+                           mlir::Type type) {
   auto values = llvm::SmallVector<StorageTy, 8>{};
-  auto arrayAttr = mlir::dyn_cast<mlir::ArrayAttr>(attr.getElts());
-  assert(arrayAttr && "expected array here");
-  for (auto element : arrayAttr)
-    values.push_back(mlir::cast<AttrTy>(element).getValue());
-  return mlir::DenseElementsAttr::get(
-      mlir::RankedTensorType::get({(int64_t)values.size()}, type),
-      llvm::ArrayRef(values));
+  convertToDenseElementsAttrImpl<AttrTy>(attr, values);
+  return mlir::DenseElementsAttr::get(mlir::RankedTensorType::get(dims, type),
+                                      llvm::ArrayRef(values));
 }
 
 std::optional<mlir::Attribute>
@@ -750,7 +764,12 @@ lowerConstArrayAttr(mlir::cir::ConstArrayAttr constArr,
   assert(cirArrayType && "cir::ConstArrayAttr is not a cir::ArrayType");
 
   // Is a ConstArrayAttr with an cir::ArrayType: fetch element type.
-  auto type = cirArrayType.getEltType();
+  mlir::Type type = cirArrayType;
+  auto dims = llvm::SmallVector<int64_t, 2>{};
+  while (auto arrayType = mlir::dyn_cast<mlir::cir::ArrayType>(type)) {
+    dims.push_back(arrayType.getSize());
+    type = arrayType.getEltType();
+  }
 
   // Convert array attr to LLVM compatible dense elements attr.
   if (mlir::isa<mlir::StringAttr>(constArr.getElts()))
@@ -758,10 +777,10 @@ lowerConstArrayAttr(mlir::cir::ConstArrayAttr constArr,
                                                 converter->convertType(type));
   if (mlir::isa<mlir::cir::IntType>(type))
     return convertToDenseElementsAttr<mlir::cir::IntAttr, mlir::APInt>(
-        constArr, converter->convertType(type));
+        constArr, dims, converter->convertType(type));
   if (mlir::isa<mlir::FloatType>(type))
     return convertToDenseElementsAttr<mlir::FloatAttr, mlir::APFloat>(
-        constArr, converter->convertType(type));
+        constArr, dims, converter->convertType(type));
 
   return std::nullopt;
 }
