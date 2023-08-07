@@ -25,14 +25,6 @@ namespace tidy {
 
 CIRASTConsumer::CIRASTConsumer(CompilerInstance &CI, StringRef inputFile,
                                clang::tidy::ClangTidyContext &Context)
-<<<<<<< HEAD
-    : Context(Context) {
-  Gen = std::make_unique<CIRGenerator>(CI.getDiagnostics(),
-                                       &CI.getVirtualFileSystem(),
-||||||| parent of 9c3873960523 ([CIR][CIRTidy] Add config options for codegen manipulation)
-    : Context(Context) {
-  Gen = std::make_unique<CIRGenerator>(CI.getDiagnostics(), nullptr,
-=======
     : Context(Context),
       OptsView(ClangTidyCheck::OptionsView(cir::checks::LifetimeCheckName,
                                            Context.getOptions().CheckOptions,
@@ -44,7 +36,6 @@ CIRASTConsumer::CIRASTConsumer(CompilerInstance &CI, StringRef inputFile,
       OptsView.get("CodeGenSkipFunctionsFromSystemHeaders", false);
 
   Gen = std::make_unique<CIRGenerator>(CI.getDiagnostics(), nullptr,
->>>>>>> 9c3873960523 ([CIR][CIRTidy] Add config options for codegen manipulation)
                                        CI.getCodeGenOpts());
 }
 
