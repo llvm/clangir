@@ -1217,8 +1217,9 @@ public:
       // this should be updated. For now, we use a custom op to initialize
       // globals to zero.
       setupRegionInitializedLLVMGlobalOp(op, rewriter);
-      auto init = lowerCirAttrAsValue(attr, loc, rewriter, typeConverter);
-      rewriter.create<mlir::LLVM::ReturnOp>(loc, init);
+      auto value =
+          lowerCirAttrAsValue(init.value(), loc, rewriter, typeConverter);
+      rewriter.create<mlir::LLVM::ReturnOp>(loc, value);
       return mlir::success();
     } else if (const auto structAttr =
                    init.value().dyn_cast<mlir::cir::ConstStructAttr>()) {
