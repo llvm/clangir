@@ -42,3 +42,9 @@ void func3(void) {
   static int *constAddr = &var;
   // CHECK-DAG: cir.global "private" internal @func3.constAddr = #cir.global_view<@func3.var> : !cir.ptr<!s32i>
 }
+
+// Should match type size in bytes between var and initializer.
+void func4(void) {
+  static char string[] = "Hello";
+  // CHECK-DAG: cir.global "private" internal @func4.string = #cir.const_array<"Hello\00" : !cir.array<!s8i x 6>> : !cir.array<!s8i x 6>
+}
