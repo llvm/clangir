@@ -174,16 +174,8 @@ public:
       return mlir::cir::IntAttr::get(ty, 0);
     if (mlir::isa<mlir::FloatType>(ty))
       return mlir::FloatAttr::get(ty, 0.0);
-    if (auto arrTy = mlir::dyn_cast<mlir::cir::ArrayType>(ty)) {
-      // FIXME(cir): We should have a proper zero initializer CIR instead of
-      // manually pumping zeros into the array.
-      assert(!UnimplementedFeature::zeroInitializer());
-      auto values = llvm::SmallVector<mlir::Attribute, 4>();
-      auto zero = getZeroInitAttr(arrTy.getEltType());
-      for (unsigned i = 0, e = arrTy.getSize(); i < e; ++i)
-        values.push_back(zero);
-      return getConstArray(mlir::ArrayAttr::get(getContext(), values), arrTy);
-    }
+    if (auto arrTy = mlir::dyn_cast<mlir::cir::ArrayType>(ty))
+      return getZeroAttr(arrTy);
     if (auto ptrTy = mlir::dyn_cast<mlir::cir::PointerType>(ty))
       return getNullPtrAttr(ptrTy);
     if (auto structTy = mlir::dyn_cast<mlir::cir::StructType>(ty))
