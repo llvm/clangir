@@ -170,10 +170,9 @@ static LogicalResult checkConstantTypes(mlir::Operation *op, mlir::Type opType,
   }
 
   if (mlir::isa<ZeroAttr>(attrType)) {
-    // FIXME: should also support arrays / const_arrays.
-    if (mlir::isa<::mlir::cir::StructType>(opType))
+    if (mlir::isa<::mlir::cir::StructType, ::mlir::cir::ArrayType>(opType))
       return success();
-    return op->emitOpError("zero expects struct type");
+    return op->emitOpError("zero expects struct or array type");
   }
 
   if (mlir::isa<mlir::cir::BoolAttr>(attrType)) {
