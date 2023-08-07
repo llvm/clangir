@@ -241,7 +241,8 @@ public:
     return mlir::success();
   }
 
-  void makeYieldIf(mlir::cir::YieldOpKind kind, mlir::cir::YieldOp &op, mlir::Block *to,
+  void makeYieldIf(mlir::cir::YieldOpKind kind, mlir::cir::YieldOp &op,
+                   mlir::Block *to,
                    mlir::ConversionPatternRewriter &rewriter) const {
     if (op.getKind() == kind) {
       rewriter.setInsertionPoint(op);
@@ -249,26 +250,30 @@ public:
     }
   }
 
-  void lowerNestedBreakContinue(mlir::Region &loopBody, mlir::Block *exitBlock,
-                                mlir::Block *continueBlock,
-                                mlir::ConversionPatternRewriter &rewriter) const {
+  void
+  lowerNestedBreakContinue(mlir::Region &loopBody, mlir::Block *exitBlock,
+                           mlir::Block *continueBlock,
+                           mlir::ConversionPatternRewriter &rewriter) const {
 
     auto processBreak = [&](mlir::Operation *op) {
-      if (isa<mlir::cir::LoopOp, mlir::cir::SwitchOp>(*op)) // don't process breaks in nested loops and switches
+      if (isa<mlir::cir::LoopOp, mlir::cir::SwitchOp>(
+              *op)) // don't process breaks in nested loops and switches
         return mlir::WalkResult::skip();
 
       if (auto yield = dyn_cast<mlir::cir::YieldOp>(*op))
-          makeYieldIf(mlir::cir::YieldOpKind::Break, yield, exitBlock, rewriter);
+        makeYieldIf(mlir::cir::YieldOpKind::Break, yield, exitBlock, rewriter);
 
       return mlir::WalkResult::advance();
     };
 
     auto processContinue = [&](mlir::Operation *op) {
-      if (isa<mlir::cir::LoopOp>(*op)) // don't process continues in nested loops
+      if (isa<mlir::cir::LoopOp>(
+              *op)) // don't process continues in nested loops
         return mlir::WalkResult::skip();
 
       if (auto yield = dyn_cast<mlir::cir::YieldOp>(*op))
-        makeYieldIf(mlir::cir::YieldOpKind::Continue, yield, continueBlock, rewriter);
+        makeYieldIf(mlir::cir::YieldOpKind::Continue, yield, continueBlock,
+                    rewriter);
 
       return mlir::WalkResult::advance();
     };
@@ -276,7 +281,7 @@ public:
     loopBody.walk<mlir::WalkOrder::PreOrder>(processBreak);
     loopBody.walk<mlir::WalkOrder::PreOrder>(processContinue);
   }
-  
+
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::LoopOp loopOp, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
@@ -554,9 +559,10 @@ public:
     rewriter.setInsertionPointToEnd(thenAfterBody);
     if (auto thenYieldOp =
             dyn_cast<mlir::cir::YieldOp>(thenAfterBody->getTerminator())) {
-      if (!isLoopYield(thenYieldOp)) // lowering of parent loop yields is deferred to loop lowering
-	rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(
-          thenYieldOp, thenYieldOp.getArgs(), continueBlock);
+      if (!isLoopYield(thenYieldOp)) // lowering of parent loop yields is
+                                     // deferred to loop lowering
+        rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(
+            thenYieldOp, thenYieldOp.getArgs(), continueBlock);
     } else if (!dyn_cast<mlir::cir::ReturnOp>(thenAfterBody->getTerminator())) {
       llvm_unreachable("what are we terminating with?");
     }
@@ -584,9 +590,10 @@ public:
       rewriter.setInsertionPointToEnd(elseAfterBody);
       if (auto elseYieldOp =
               dyn_cast<mlir::cir::YieldOp>(elseAfterBody->getTerminator())) {
-	if (!isLoopYield(elseYieldOp)) // lowering of parent loop yields is deferred to loop lowering
-	  rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(
-            elseYieldOp, elseYieldOp.getArgs(), continueBlock);
+        if (!isLoopYield(elseYieldOp)) // lowering of parent loop yields is
+                                       // deferred to loop lowering
+          rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(
+              elseYieldOp, elseYieldOp.getArgs(), continueBlock);
       } else if (!dyn_cast<mlir::cir::ReturnOp>(
                      elseAfterBody->getTerminator())) {
         llvm_unreachable("what are we terminating with?");
@@ -1126,7 +1133,8 @@ public:
         case mlir::cir::YieldOpKind::Break:
           rewriteYieldOp(rewriter, yieldOp, exitBlock);
           break;
-	case mlir::cir::YieldOpKind::Continue: // Contniue is handled only in loop lowering
+        case mlir::cir::YieldOpKind::Continue: // Contniue is handled only in
+                                               // loop lowering
           break;
         default:
           return op->emitError("invalid yield kind in case statement");
@@ -1704,8 +1712,7 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
                CIRVAStartLowering, CIRVAEndLowering, CIRVACopyLowering,
                CIRVAArgLowering, CIRBrOpLowering, CIRTernaryOpLowering,
                CIRStructElementAddrOpLowering, CIRSwitchOpLowering,
-               CIRPtrDiffOpLowering>(
-      converter, patterns.getContext());
+               CIRPtrDiffOpLowering>(converter, patterns.getContext());
 }
 
 namespace {
