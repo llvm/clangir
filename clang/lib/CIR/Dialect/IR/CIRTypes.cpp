@@ -202,7 +202,7 @@ unsigned PointerType::getPreferredAlignment(
 unsigned
 ArrayType::getTypeSizeInBits(const ::mlir::DataLayout &dataLayout,
                              ::mlir::DataLayoutEntryListRef params) const {
-  return dataLayout.getTypeSizeInBits(getEltType());
+  return getSize() * dataLayout.getTypeSizeInBits(getEltType());
 }
 
 unsigned
