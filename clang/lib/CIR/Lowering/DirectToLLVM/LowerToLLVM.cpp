@@ -1687,8 +1687,7 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
                CIRVAStartLowering, CIRVAEndLowering, CIRVACopyLowering,
                CIRVAArgLowering, CIRBrOpLowering, CIRTernaryOpLowering,
                CIRStructElementAddrOpLowering, CIRSwitchOpLowering,
-               CIRPtrDiffOpLowering>(
-      converter, patterns.getContext());
+               CIRPtrDiffOpLowering>(converter, patterns.getContext());
 }
 
 namespace {
