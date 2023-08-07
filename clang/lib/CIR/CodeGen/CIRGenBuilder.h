@@ -437,6 +437,10 @@ public:
   // Operation creation helpers
   // --------------------------
   //
+  mlir::cir::CopyOp createCopy(mlir::Value dst, mlir::Value src) {
+    return create<mlir::cir::CopyOp>(dst.getLoc(), dst, src);
+  }
+
   mlir::Value createNeg(mlir::Value value) {
 
     if (auto intTy = value.getType().dyn_cast<mlir::cir::IntType>()) {

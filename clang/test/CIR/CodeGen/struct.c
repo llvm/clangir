@@ -61,3 +61,13 @@ struct S3 {
   int a;
 } s3[3] = {{1}, {2}, {3}};
 // CHECK-DAG: cir.global external @s3 = #cir.const_array<[#cir.const_struct<{#cir.int<1> : !s32i}> : !ty_22struct2ES322, #cir.const_struct<{#cir.int<2> : !s32i}> : !ty_22struct2ES322, #cir.const_struct<{#cir.int<3> : !s32i}> : !ty_22struct2ES322]> : !cir.array<!ty_22struct2ES322 x 3>
+
+struct Bar shouldGenerateAndAccessStructArrays(void) {
+  struct Bar s[1] = {{3, 4}};
+  return s[0];
+}
+// CHECK-DAG: cir.func @shouldGenerateAndAccessStructArrays
+// CHECK-DAG: %[[#STRIDE:]] = cir.const(#cir.int<0> : !s32i) : !s32i
+// CHECK-DAG: %[[#DARR:]] = cir.cast(array_to_ptrdecay, %{{.+}} : !cir.ptr<!cir.array<!ty_22struct2EBar22 x 1>>), !cir.ptr<!ty_22struct2EBar22>
+// CHECK-DAG: %[[#ELT:]] = cir.ptr_stride(%[[#DARR]] : !cir.ptr<!ty_22struct2EBar22>, %[[#STRIDE]] : !s32i), !cir.ptr<!ty_22struct2EBar22>
+// CHECK-DAG: cir.copy %[[#ELT]] to %{{.+}} : !cir.ptr<!ty_22struct2EBar22>
