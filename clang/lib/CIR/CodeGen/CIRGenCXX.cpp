@@ -45,8 +45,6 @@ static void buildDeclInit(CIRGenFunction &CGF, const VarDecl *D,
     llvm_unreachable("scalar evaluation NYI");
   case TEK_Complex:
     llvm_unreachable("complext evaluation NYI");
-  default:
-    llvm_unreachable("bad evaluation kind");
   }
 }
 
