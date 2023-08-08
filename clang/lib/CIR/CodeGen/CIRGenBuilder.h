@@ -102,6 +102,23 @@ public:
   // Attribute helpers
   // -----------------
   //
+
+  /// Get constant address of a global variable as an MLIR attribute.
+  /// This wrapper infers the attribute type through the global op.
+  mlir::cir::GlobalViewAttr getGlobalViewAttr(mlir::cir::GlobalOp globalOp,
+                                              mlir::ArrayAttr indices = {}) {
+    auto type = getPointerTo(globalOp.getSymType());
+    return getGlobalViewAttr(type, globalOp, indices);
+  }
+
+  /// Get constant address of a global variable as an MLIR attribute.
+  mlir::cir::GlobalViewAttr getGlobalViewAttr(mlir::cir::PointerType type,
+                                              mlir::cir::GlobalOp globalOp,
+                                              mlir::ArrayAttr indices = {}) {
+    auto symbol = mlir::FlatSymbolRefAttr::get(globalOp.getSymNameAttr());
+    return mlir::cir::GlobalViewAttr::get(type, symbol, indices);
+  }
+
   mlir::TypedAttr getZeroAttr(mlir::Type t) {
     return mlir::cir::ZeroAttr::get(getContext(), t);
   }
@@ -157,16 +174,8 @@ public:
       return mlir::cir::IntAttr::get(ty, 0);
     if (ty.isa<mlir::FloatType>())
       return mlir::FloatAttr::get(ty, 0.0);
-    if (auto arrTy = ty.dyn_cast<mlir::cir::ArrayType>()) {
-      // FIXME(cir): We should have a proper zero initializer CIR instead of
-      // manually pumping zeros into the array.
-      assert(!UnimplementedFeature::zeroInitializer());
-      auto values = llvm::SmallVector<mlir::Attribute, 4>();
-      auto zero = getZeroInitAttr(arrTy.getEltType());
-      for (unsigned i = 0, e = arrTy.getSize(); i < e; ++i)
-        values.push_back(zero);
-      return getConstArray(mlir::ArrayAttr::get(getContext(), values), arrTy);
-    }
+    if (auto arrTy = ty.dyn_cast<mlir::cir::ArrayType>())
+      return getZeroAttr(arrTy);
     if (auto ptrTy = ty.dyn_cast<mlir::cir::PointerType>())
       return getNullPtrAttr(ptrTy);
     if (auto structTy = ty.dyn_cast<mlir::cir::StructType>())
@@ -194,6 +203,14 @@ public:
         // FIXME(cir): the struct's ID should not be considered a member.
         if (elt.isa<mlir::StringAttr>())
           continue;
+        if (!isNullValue(elt))
+          return false;
+      }
+      return true;
+    }
+
+    if (const auto arrayVal = attr.dyn_cast<mlir::cir::ConstArrayAttr>()) {
+      for (const auto elt : arrayVal.getElts().cast<mlir::ArrayAttr>()) {
         if (!isNullValue(elt))
           return false;
       }

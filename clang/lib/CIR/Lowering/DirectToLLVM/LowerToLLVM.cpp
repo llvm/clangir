@@ -132,9 +132,6 @@ mlir::Value lowerCirAttrAsValue(mlir::cir::ConstArrayAttr constArr,
   auto llvmTy = converter->convertType(constArr.getType());
   mlir::Value result = rewriter.create<mlir::LLVM::UndefOp>(loc, llvmTy);
   auto arrayAttr = constArr.getElts().cast<mlir::ArrayAttr>();
-  auto cirArrayType = constArr.getType().cast<mlir::cir::ArrayType>();
-  assert(cirArrayType.getEltType().isa<mlir::cir::StructType>() &&
-         "Types other than ConstArrayAttr are NYI");
 
   // Iteratively lower each constant element of the array.
   for (auto [idx, elt] : llvm::enumerate(arrayAttr)) {
@@ -772,16 +769,30 @@ convertStringAttrToDenseElementsAttr(mlir::cir::ConstArrayAttr attr,
 }
 
 template <typename AttrTy, typename StorageTy>
+void convertToDenseElementsAttrImpl(mlir::cir::ConstArrayAttr attr,
+                                    llvm::SmallVectorImpl<StorageTy> &values) {
+  auto arrayAttr = attr.getElts().cast<mlir::ArrayAttr>();
+  for (auto eltAttr : arrayAttr) {
+    if (auto valueAttr = eltAttr.dyn_cast<AttrTy>()) {
+      values.push_back(valueAttr.getValue());
+    } else if (auto subArrayAttr =
+                   eltAttr.dyn_cast<mlir::cir::ConstArrayAttr>()) {
+      convertToDenseElementsAttrImpl<AttrTy>(subArrayAttr, values);
+    } else {
+      llvm_unreachable("unknown element in ConstArrayAttr");
+    }
+  }
+}
+
+template <typename AttrTy, typename StorageTy>
 mlir::DenseElementsAttr
-convertToDenseElementsAttr(mlir::cir::ConstArrayAttr attr, mlir::Type type) {
+convertToDenseElementsAttr(mlir::cir::ConstArrayAttr attr,
+                           const llvm::SmallVectorImpl<int64_t> &dims,
+                           mlir::Type type) {
   auto values = llvm::SmallVector<StorageTy, 8>{};
-  auto arrayAttr = attr.getElts().dyn_cast<mlir::ArrayAttr>();
-  assert(arrayAttr && "expected array here");
-  for (auto element : arrayAttr)
-    values.push_back(element.cast<AttrTy>().getValue());
-  return mlir::DenseElementsAttr::get(
-      mlir::RankedTensorType::get({(int64_t)values.size()}, type),
-      llvm::ArrayRef(values));
+  convertToDenseElementsAttrImpl<AttrTy>(attr, values);
+  return mlir::DenseElementsAttr::get(mlir::RankedTensorType::get(dims, type),
+                                      llvm::ArrayRef(values));
 }
 
 std::optional<mlir::Attribute>
@@ -797,7 +808,12 @@ lowerConstArrayAttr(mlir::cir::ConstArrayAttr constArr,
   assert(cirArrayType && "cir::ConstArrayAttr is not a cir::ArrayType");
 
   // Is a ConstArrayAttr with an cir::ArrayType: fetch element type.
-  auto type = cirArrayType.getEltType();
+  mlir::Type type = cirArrayType;
+  auto dims = llvm::SmallVector<int64_t, 2>{};
+  while (auto arrayType = type.dyn_cast<mlir::cir::ArrayType>()) {
+    dims.push_back(arrayType.getSize());
+    type = arrayType.getEltType();
+  }
 
   // Convert array attr to LLVM compatible dense elements attr.
   if (constArr.getElts().isa<mlir::StringAttr>())
@@ -805,10 +821,10 @@ lowerConstArrayAttr(mlir::cir::ConstArrayAttr constArr,
                                                 converter->convertType(type));
   if (type.isa<mlir::cir::IntType>())
     return convertToDenseElementsAttr<mlir::cir::IntAttr, mlir::APInt>(
-        constArr, converter->convertType(type));
+        constArr, dims, converter->convertType(type));
   if (type.isa<mlir::FloatType>())
     return convertToDenseElementsAttr<mlir::FloatAttr, mlir::APFloat>(
-        constArr, converter->convertType(type));
+        constArr, dims, converter->convertType(type));
 
   return std::nullopt;
 }
@@ -1200,20 +1216,16 @@ public:
       if (auto attr = constArr.getElts().dyn_cast<mlir::StringAttr>()) {
         init = rewriter.getStringAttr(attr.getValue());
       } else if (auto attr = constArr.getElts().dyn_cast<mlir::ArrayAttr>()) {
-        auto eltTy =
-            constArr.getType().cast<mlir::cir::ArrayType>().getEltType();
-        if (eltTy.isa<mlir::cir::StructType>()) {
+        // Failed to use a compact attribute as an initializer:
+        // initialize elements individually.
+        if (!(init = lowerConstArrayAttr(constArr, getTypeConverter()))) {
+          auto eltTy =
+              constArr.getType().cast<mlir::cir::ArrayType>().getEltType();
           setupRegionInitializedLLVMGlobalOp(op, rewriter);
           rewriter.create<mlir::LLVM::ReturnOp>(
               op->getLoc(), lowerCirAttrAsValue(constArr, op->getLoc(),
                                                 rewriter, typeConverter));
           return mlir::success();
-        }
-        if (!(init = lowerConstArrayAttr(constArr, getTypeConverter()))) {
-          op.emitError()
-              << "unsupported lowering for #cir.const_array with element type "
-              << op.getSymType();
-          return mlir::failure();
         }
       } else {
         op.emitError()
@@ -1263,6 +1275,15 @@ public:
       rewriter.create<mlir::LLVM::ReturnOp>(
           op->getLoc(), lowerCirAttrAsValue(structAttr, op->getLoc(), rewriter,
                                             typeConverter));
+      return mlir::success();
+    } else if (auto attr = init.value().dyn_cast<mlir::cir::GlobalViewAttr>()) {
+      setupRegionInitializedLLVMGlobalOp(op, rewriter);
+
+      // Return the address of the global symbol.
+      auto elementType = typeConverter->convertType(attr.getType());
+      auto addrOfOp = rewriter.create<mlir::LLVM::AddressOfOp>(
+          op->getLoc(), elementType, attr.getSymbol());
+      rewriter.create<mlir::LLVM::ReturnOp>(op->getLoc(), addrOfOp.getResult());
       return mlir::success();
     } else {
       op.emitError() << "usupported initializer '" << init.value() << "'";
