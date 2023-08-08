@@ -1164,8 +1164,6 @@ public:
         // Failed to use a compact attribute as an initializer:
         // initialize elements individually.
         if (!(init = lowerConstArrayAttr(constArr, getTypeConverter()))) {
-          auto eltTy =
-              constArr.getType().cast<mlir::cir::ArrayType>().getEltType();
           setupRegionInitializedLLVMGlobalOp(op, rewriter);
           rewriter.create<mlir::LLVM::ReturnOp>(
               op->getLoc(), lowerCirAttrAsValue(constArr, op->getLoc(),
