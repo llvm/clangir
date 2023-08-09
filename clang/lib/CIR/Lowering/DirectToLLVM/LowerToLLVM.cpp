@@ -1149,7 +1149,7 @@ public:
         case mlir::cir::YieldOpKind::Break:
           rewriteYieldOp(rewriter, yieldOp, exitBlock);
           break;
-        case mlir::cir::YieldOpKind::Continue: // Contniue is handled only in
+        case mlir::cir::YieldOpKind::Continue: // Continue is handled only in
                                                // loop lowering
           break;
         default:
