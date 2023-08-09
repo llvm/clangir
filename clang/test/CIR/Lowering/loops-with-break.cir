@@ -44,29 +44,29 @@ module {
   // CHECK:  llvm.func @testFor()
   //           [...]
   // CHECK:    llvm.br ^bb[[#COND:]]
-  // CHECK:  ^bb[[#COlf ND]]:
+  // CHECK:  ^bb[[#COND]]:
   //           [...]
   // CHECK:    llvm.cond_br %{{.+}}, ^bb[[#preBREAK0:]], ^bb[[#preEXIT0:]]
-  // CHECK:  ^bb[[#preBREAK0]]: 
+  // CHECK:  ^bb[[#preBREAK0]]:
   // CHECK:    llvm.br ^bb[[#preBREAK1:]]
-  // CHECK:  ^bb[[#preEXIT0]]: 
+  // CHECK:  ^bb[[#preEXIT0]]:
   // CHECK:    llvm.br ^bb[[#EXIT:]]
-  // CHECK:  ^bb[[#preBREAK1]]: 
+  // CHECK:  ^bb[[#preBREAK1]]:
   // CHECK:    llvm.br ^bb[[#preBREAK2:]]
-  // CHECK:  ^bb[[#preBREAK2]]: 
+  // CHECK:  ^bb[[#preBREAK2]]:
   // CHECK:    llvm.br ^bb[[#BREAK:]]
-  // CHECK:  ^bb[[#BREAK]]: 
+  // CHECK:  ^bb[[#BREAK]]:
   //           [...]
   // CHECK:    llvm.cond_br %{{.+}}, ^bb[[#preEXIT1:]], ^bb[[#preBODY0:]]
-  // CHECK:  ^bb[[#preEXIT1]]: 
+  // CHECK:  ^bb[[#preEXIT1]]:
   // CHECK:    llvm.br ^bb[[#EXIT:]]
-  // CHECK:  ^bb[[#preBODY0]]: 
+  // CHECK:  ^bb[[#preBODY0]]:
   // CHECK:    llvm.br ^bb[[#preBODY1:]]
-  // CHECK:  ^bb[[#preBODY1]]: 
+  // CHECK:  ^bb[[#preBODY1]]:
   // CHECK:    llvm.br ^bb[[#BODY:]]
-  // CHECK:  ^bb[[#BODY]]:   
+  // CHECK:  ^bb[[#BODY]]:
   // CHECK:    llvm.br ^bb[[#STEP:]]
-  // CHECK:  ^bb[[#STEP]]: 
+  // CHECK:  ^bb[[#STEP]]:
   //           [...]
   // CHECK:    llvm.br ^bb[[#COND:]]
   // CHECK:  ^bb[[#EXIT]]: 
