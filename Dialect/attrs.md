@@ -58,6 +58,28 @@ This always implies a non-null AST reference (verified).
 | :-------: | :-------: | ----------- |
 | astDecl | `const clang::VarDecl *` |  |
 
+### BoolAttr
+
+Represent true/false for !cir.bool types
+
+Syntax:
+
+```
+#cir.bool<
+  mlir::cir::BoolType,   # type
+  bool   # value
+>
+```
+
+The BoolAttr represents a 'true' or 'false' value.
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| type | `mlir::cir::BoolType` |  |
+| value | `bool` |  |
+
 ### ConstArrayAttr
 
 A constant array from ArrayAttr or StringRefAttr
@@ -101,6 +123,27 @@ cir.global external @rgb2 = #cir.const_struct<{0 : i8,
 | :-------: | :-------: | ----------- |
 | type | `::mlir::Type` |  |
 | members | `ArrayAttr` |  |
+
+### ExtraFuncAttributesAttr
+
+Represents aggregated attributes for a function
+
+Syntax:
+
+```
+#cir.extra<
+  DictionaryAttr   # elements
+>
+```
+
+This is a wrapper of dictionary attrbiute that contains extra attributes of
+a function.
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| elements | `DictionaryAttr` |  |
 
 ### GlobalViewAttr
 
@@ -149,6 +192,60 @@ Example:
 | symbol | `FlatSymbolRefAttr` |  |
 | indices | `ArrayAttr` |  |
 
+### InlineAttr
+
+Inline attribute
+
+Syntax:
+
+```
+#cir.inline<
+  InlineKind   # value
+>
+```
+
+Inline attributes represents user directives.
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| value | `InlineKind` |  |
+
+### IntAttr
+
+An Attribute containing a integer value
+
+An integer attribute is a literal attribute that represents an integral
+value of the specified integer type.
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| type | `::mlir::Type` |  |
+| value | `APInt` |  |
+
+### LangAttr
+
+Module source language
+
+Represents the source language used to generate the module.
+
+Example:
+```
+// Module compiled from C.
+module attributes {cir.lang = cir.lang<c>} {}
+// Module compiled from C++.
+module attributes {cir.lang = cir.lang<cxx>} {}
+```
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| lang | `::mlir::cir::SourceLanguage` | Source language |
+
 ### NullAttr
 
 A simple attr to represent nullptr
@@ -189,7 +286,7 @@ Syntax:
 ```
 #cir.typeinfo<
   ::mlir::Type,   # type
-  ConstStructAttr   # typeinfo_data
+  mlir::ArrayAttr   # data
 >
 ```
 
@@ -216,7 +313,7 @@ cir.global external @type_info_B = #cir.typeinfo<<
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
 | type | `::mlir::Type` |  |
-| typeinfo_data | `ConstStructAttr` |  |
+| data | `mlir::ArrayAttr` |  |
 
 ### VTableAttr
 
@@ -227,7 +324,7 @@ Syntax:
 ```
 #cir.vtable<
   ::mlir::Type,   # type
-  ConstStructAttr   # vtable_data
+  ArrayAttr   # vtable_data
 >
 ```
 
@@ -250,7 +347,7 @@ cir.global linkonce_odr @_ZTV1B = #cir.vtable<<
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
 | type | `::mlir::Type` |  |
-| vtable_data | `ConstStructAttr` |  |
+| vtable_data | `ArrayAttr` |  |
 
 ### ZeroAttr
 

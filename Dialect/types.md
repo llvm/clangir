@@ -14,6 +14,15 @@ sort : 2
 
 CIR array type
 
+Syntax:
+
+```
+!cir.array<
+  mlir::Type,   # eltType
+  uint64_t   # size
+>
+```
+
 `CIR.array` represents C/C++ constant arrays.
 
 #### Parameters:
@@ -28,6 +37,54 @@ CIR array type
 CIR bool type
 
 `cir.bool` represent's C++ bool type.
+
+### FuncType
+
+CIR function type
+
+Syntax:
+
+```
+!cir.func<
+  ::llvm::ArrayRef<Type>,   # inputs
+  Type,   # returnType
+  bool   # varArg
+>
+```
+
+The `!cir.func` is a function type. It consists of a single return type, a
+list of parameter types and can optionally be variadic.
+
+Example:
+
+```mlir
+!cir.func<!bool ()>
+!cir.func<!s32i (!s8i, !s8i)>
+!cir.func<!s32i (!s32i, ...)>
+```
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| inputs | `::llvm::ArrayRef<Type>` |  |
+| returnType | `Type` |  |
+| varArg | `bool` |  |
+
+### IntType
+
+Integer type with arbitrary precision up to a fixed limit
+
+CIR type that represents C/C++ primitive integer types.
+Said types are: `char`, `short`, `int`, `long`, `long long`, and their \
+unsigned variations.
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| width | `unsigned` |  |
+| isSigned | `bool` |  |
 
 ### PointerType
 
@@ -57,4 +114,12 @@ C/C++ that has a struct type will have a `cir.struct` in CIR.
 | body | `bool` |  |
 | packed | `bool` |  |
 | ast | `std::optional<::mlir::cir::ASTRecordDeclAttr>` |  |
+
+### VoidType
+
+CIR void type
+
+Syntax: `!cir.void`
+
+The `!cir.void` type represents the C/C++ `void` type.
 
