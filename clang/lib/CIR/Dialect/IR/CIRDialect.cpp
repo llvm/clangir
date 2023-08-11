@@ -2176,6 +2176,28 @@ VTableAttr::verify(::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
 }
 
 //===----------------------------------------------------------------------===//
+// GetMemberOp Definitions
+//===----------------------------------------------------------------------===//
+
+LogicalResult GetMemberOp::verify() {
+
+  const auto recordTy = getAddrTy().getPointee().dyn_cast<StructType>();
+  if (!recordTy)
+    return emitError() << "expected pointer to a record type";
+
+  if (recordTy.getMembers().size() <= getIndex())
+    return emitError() << "member index out of bounds";
+
+  // FIXME(cir): Member type check is disabled for classes since there is a bug
+  // in codegen index for classes.
+  if (!recordTy.isClass() &&
+      recordTy.getMembers()[getIndex()] != getResultTy().getPointee())
+    return emitError() << "member type mismatch";
+
+  return mlir::success();
+}
+
+//===----------------------------------------------------------------------===//
 // TableGen'd op method definitions
 //===----------------------------------------------------------------------===//
 

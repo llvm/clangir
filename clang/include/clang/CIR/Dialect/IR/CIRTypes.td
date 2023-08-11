@@ -137,6 +137,9 @@ def CIR_StructType : CIR_Type<"Struct", "struct",
     size_t getNumElements() const { return getMembers().size(); }
     bool isOpaque() const { return !getBody(); }
     bool isPadded(const ::mlir::DataLayout &dataLayout) const;
+
+    /// Return whether this is a class declaration.
+    bool isClass() const { return getKind() == RecordKind::CLASS; }
   }];
 
   let extraClassDefinition = [{
