@@ -138,8 +138,14 @@ def CIR_StructType : CIR_Type<"Struct", "struct",
     bool isOpaque() const { return !getBody(); }
     bool isPadded(const ::mlir::DataLayout &dataLayout) const;
 
+    /// Return the member with the largest bit-length.
+    mlir::Type getLargestMember(const ::mlir::DataLayout &dataLayout) const;
+
     /// Return whether this is a class declaration.
     bool isClass() const { return getKind() == RecordKind::CLASS; }
+
+    /// Return whether this is a union declaration.
+    bool isUnion() const { return getKind() == RecordKind::UNION; }
   }];
 
   let extraClassDefinition = [{

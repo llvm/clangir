@@ -18,6 +18,7 @@
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/DialectImplementation.h"
+#include "mlir/Interfaces/DataLayoutInterfaces.h"
 #include "mlir/Support/LogicalResult.h"
 
 #include "llvm/ADT/STLExtras.h"
@@ -93,6 +94,29 @@ void BoolType::print(mlir::AsmPrinter &printer) const {}
 //===----------------------------------------------------------------------===//
 // StructType Definitions
 //===----------------------------------------------------------------------===//
+
+/// Return the largest member of in the type.
+///
+/// Recurses into union members never returning a union as the largest member.
+Type StructType::getLargestMember(const ::mlir::DataLayout &dataLayout) const {
+  unsigned largestTySize = 0;
+  mlir::Type largestTy = nullptr;
+
+  for (auto type : getMembers()) {
+    // Found a nested union: fetch its largest member.
+    if (auto structMember = type.dyn_cast<StructType>())
+      if (structMember.isUnion())
+        type = structMember.getLargestMember(dataLayout);
+
+    // Update largest member.
+    if (dataLayout.getTypeSize(type) > largestTySize) {
+      largestTy = type;
+      largestTySize = dataLayout.getTypeSize(largestTy);
+    }
+  }
+
+  return largestTy;
+}
 
 Type StructType::parse(mlir::AsmParser &parser) {
   const auto loc = parser.getCurrentLocation();
@@ -288,6 +312,18 @@ void StructType::computeSizeAndAlignment(
   [[maybe_unused]] bool isPadded = false;
   unsigned numElements = getNumElements();
   auto members = getMembers();
+
+  // For unions, the size and aligment is that of the largest element.
+  if (isUnion()) {
+    for (auto ty : members) {
+      if (dataLayout.getTypeSize(ty) > structSize) {
+        size = dataLayout.getTypeSize(ty);
+        align = structAlignment.value();
+        padded = false;
+      }
+    }
+    return;
+  }
 
   // Loop over each of the elements, placing them in memory.
   for (unsigned i = 0, e = numElements; i != e; ++i) {
