@@ -14,6 +14,7 @@
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
+#include <optional>
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMTypes.h"
@@ -1150,7 +1151,7 @@ LogicalResult LoopOp::verify() {
 
 static void printGlobalOpTypeAndInitialValue(OpAsmPrinter &p, GlobalOp op,
                                              TypeAttr type, Attribute initAttr,
-                                             mlir::Region& ctorRegion) {
+                                             mlir::Region &ctorRegion) {
   auto printType = [&]() { p << ": " << type; };
   if (!op.isDeclaration()) {
     p << "= ";
@@ -1177,15 +1178,14 @@ static void printGlobalOpTypeAndInitialValue(OpAsmPrinter &p, GlobalOp op,
 static ParseResult parseGlobalOpTypeAndInitialValue(OpAsmParser &parser,
                                                     TypeAttr &typeAttr,
                                                     Attribute &initialValueAttr,
-                                                    mlir::Region& ctorRegion) {
+                                                    mlir::Region &ctorRegion) {
   mlir::Type opTy;
   if (parser.parseOptionalEqual().failed()) {
     // Absence of equal means a declaration, so we need to parse the type.
     //  cir.global @a : i32
     if (parser.parseColonType(opTy))
       return failure();
-  }
-  else {
+  } else {
     // Parse contructor, example:
     //  cir.global @rgb = ctor : type { ... }
     if (!parser.parseOptionalKeyword("ctor")) {
@@ -1274,10 +1274,10 @@ LogicalResult GlobalOp::verify() {
   return success();
 }
 
-void GlobalOp::build(
-    OpBuilder &odsBuilder, OperationState &odsState, StringRef sym_name,
-    Type sym_type, bool isConstant, cir::GlobalLinkageKind linkage,
-    function_ref<void(OpBuilder &, Location)> ctorBuilder) {
+void GlobalOp::build(OpBuilder &odsBuilder, OperationState &odsState,
+                     StringRef sym_name, Type sym_type, bool isConstant,
+                     cir::GlobalLinkageKind linkage,
+                     function_ref<void(OpBuilder &, Location)> ctorBuilder) {
   odsState.addAttribute(getSymNameAttrName(odsState.name),
                         odsBuilder.getStringAttr(sym_name));
   odsState.addAttribute(getSymTypeAttrName(odsState.name),
@@ -2065,9 +2065,10 @@ void SignedOverflowBehaviorAttr::print(::mlir::AsmPrinter &printer) const {
 
 ::mlir::Attribute ASTFunctionDeclAttr::parse(::mlir::AsmParser &parser,
                                              ::mlir::Type type) {
-  // We cannot really parse anything AST related at this point
-  // since we have no serialization/JSON story.
-  return ASTFunctionDeclAttr::get(parser.getContext(), nullptr);
+  // We cannot really parse anything AST related at this point since we have no
+  // serialization/JSON story. Even if the attr is parsed, it just holds nullptr
+  // instead of the AST node.
+  return get(parser.getContext(), nullptr);
 }
 
 void ASTFunctionDeclAttr::print(::mlir::AsmPrinter &printer) const {
@@ -2082,9 +2083,10 @@ LogicalResult ASTFunctionDeclAttr::verify(
 
 ::mlir::Attribute ASTVarDeclAttr::parse(::mlir::AsmParser &parser,
                                         ::mlir::Type type) {
-  // We cannot really parse anything AST related at this point
-  // since we have no serialization/JSON story.
-  return ASTVarDeclAttr::get(parser.getContext(), nullptr);
+  // We cannot really parse anything AST related at this point since we have no
+  // serialization/JSON story. Even if the attr is parsed, it just holds nullptr
+  // instead of the AST node.
+  return get(parser.getContext(), nullptr);
 }
 
 void ASTVarDeclAttr::print(::mlir::AsmPrinter &printer) const {
@@ -2099,9 +2101,10 @@ LogicalResult ASTVarDeclAttr::verify(
 
 ::mlir::Attribute ASTRecordDeclAttr::parse(::mlir::AsmParser &parser,
                                            ::mlir::Type type) {
-  // We cannot really parse anything AST related at this point
-  // since we have no serialization/JSON story.
-  return ASTRecordDeclAttr::get(parser.getContext(), nullptr);
+  // We cannot really parse anything AST related at this point since we have no
+  // serialization/JSON story. Even if the attr is parsed, it just holds nullptr
+  // instead of the AST node.
+  return get(parser.getContext(), nullptr);
 }
 
 void ASTRecordDeclAttr::print(::mlir::AsmPrinter &printer) const {
