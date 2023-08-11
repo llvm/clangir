@@ -95,14 +95,27 @@ void BoolType::print(mlir::AsmPrinter &printer) const {}
 //===----------------------------------------------------------------------===//
 
 Type StructType::parse(mlir::AsmParser &parser) {
+  const auto loc = parser.getCurrentLocation();
   llvm::SmallVector<mlir::Type> members;
   mlir::StringAttr id;
   bool body = false;
   bool packed = false;
   mlir::cir::ASTRecordDeclAttr ast = nullptr;
+  RecordKind kind;
 
   if (parser.parseLess())
     return {};
+
+  // FIXME(cir): break struct kinds into different types.
+  if (parser.parseOptionalKeyword("struct").succeeded())
+    kind = RecordKind::STRUCT;
+  else if (parser.parseOptionalKeyword("union").succeeded())
+    kind = RecordKind::UNION;
+  else if (parser.parseOptionalKeyword("class").succeeded())
+    kind = RecordKind::CLASS;
+  else {
+    kind = RecordKind::NONE;
+  }
 
   if (parser.parseAttribute(id))
     return {};
@@ -131,11 +144,28 @@ Type StructType::parse(mlir::AsmParser &parser) {
     return {};
 
   return StructType::get(parser.getContext(), members, id, body, packed,
-                         std::nullopt);
+                         std::nullopt, kind);
 }
 
 void StructType::print(mlir::AsmPrinter &printer) const {
-  printer << '<' << getTypeName() << " ";
+  printer << '<';
+
+  switch (getKind()) {
+  case RecordKind::STRUCT:
+    printer << "struct ";
+    break;
+  case RecordKind::UNION:
+    printer << "union ";
+    break;
+  case RecordKind::CLASS:
+    printer << "class ";
+    break;
+  case RecordKind::NONE:
+    // Do nothing.
+    break;
+  }
+
+  printer << getTypeName() << " ";
 
   if (getPacked())
     printer << "packed ";

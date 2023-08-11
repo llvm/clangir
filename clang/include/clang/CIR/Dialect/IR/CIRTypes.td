@@ -110,12 +110,22 @@ def CIR_StructType : CIR_Type<"Struct", "struct",
     "mlir::StringAttr":$typeName,
     "bool":$body,
     "bool":$packed,
-    "std::optional<::mlir::cir::ASTRecordDeclAttr>":$ast
+    "std::optional<::mlir::cir::ASTRecordDeclAttr>":$ast,
+    "mlir::cir::StructType::RecordKind":$kind
   );
 
   let hasCustomAssemblyFormat = 1;
 
   let extraClassDeclaration = [{
+    enum RecordKind : uint32_t {
+      CLASS,
+      UNION,
+      STRUCT,
+      // FIXME(cir): remove the kind below once we have the proper types for
+      // stuff like TypeInfo and VTableAttr.
+      NONE,
+    };
+
   private:
     // All these support lazily computation and storage
     // for the struct size and alignment.

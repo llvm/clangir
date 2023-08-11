@@ -13,6 +13,7 @@
 #include "CIRGenTypeCache.h"
 #include "UnimplementedFeatureGuarding.h"
 
+#include "clang/AST/Type.h"
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
@@ -158,7 +159,8 @@ public:
     }
 
     if (!ty)
-      ty = getAnonStructTy(members, /*body=*/true, packed);
+      ty = getAnonStructTy(mlir::cir::StructType::NONE, members, /*body=*/true,
+                           packed);
 
     auto sTy = ty.dyn_cast<mlir::cir::StructType>();
     assert(sTy && "expected struct type");
@@ -345,13 +347,32 @@ public:
 
   /// Get a CIR anonymous struct type.
   mlir::cir::StructType
-  getAnonStructTy(llvm::ArrayRef<mlir::Type> members, bool body,
+  getAnonStructTy(mlir::cir::StructType::RecordKind kind,
+                  llvm::ArrayRef<mlir::Type> members, bool body,
                   bool packed = false, const clang::RecordDecl *ast = nullptr) {
-    return getStructTy(members, "", body, packed, ast);
+    return getStructTy(kind, members, "", body, packed, ast);
+  }
+
+  /// Get a CIR record kind from a AST declaration tag.
+  mlir::cir::StructType::RecordKind
+  getRecordKind(const clang::TagTypeKind kind) {
+    switch (kind) {
+    case clang::TTK_Struct:
+      return mlir::cir::StructType::STRUCT;
+    case clang::TTK_Union:
+      return mlir::cir::StructType::UNION;
+    case clang::TTK_Class:
+      return mlir::cir::StructType::CLASS;
+    case clang::TTK_Interface:
+      llvm_unreachable("interface records are NYI");
+    case clang::TTK_Enum:
+      llvm_unreachable("enum records are NYI");
+    }
   }
 
   /// Get a CIR named struct type.
-  mlir::cir::StructType getStructTy(llvm::ArrayRef<mlir::Type> members,
+  mlir::cir::StructType getStructTy(mlir::cir::StructType::RecordKind kind,
+                                    llvm::ArrayRef<mlir::Type> members,
                                     llvm::StringRef name, bool body,
                                     bool packed, const clang::RecordDecl *ast) {
     const auto nameAttr = getStringAttr(name);
@@ -359,7 +380,7 @@ public:
     if (ast)
       astAttr = getAttr<mlir::cir::ASTRecordDeclAttr>(ast);
     return mlir::cir::StructType::get(getContext(), members, nameAttr, body,
-                                      packed, astAttr);
+                                      packed, astAttr, kind);
   }
 
   //
