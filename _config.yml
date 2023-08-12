@@ -4,3 +4,6 @@ description: A new high-level IR for clang.
 
 readme_index:
   with_frontmatter: true
+
+# Google Analytics
+google_analytics: G-LH3JT95Q16
