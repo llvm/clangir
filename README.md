@@ -63,7 +63,7 @@ test directory is a good proxy of the current supported features.
 `llvm-testsuite/SingleSource` pass correctness checks.
 
 - MLIR in-tree dialect lowering: basically CIR -> MLIR dialects, initial
-support to memref and some other dialects but currently as active as LLVM
+support to memref and some other dialects but currently not as active as LLVM
 lowering.
 
 - Lifetime checker: implementation of a C++ lifetime checker (for catching C++
