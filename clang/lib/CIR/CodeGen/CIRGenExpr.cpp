@@ -22,6 +22,7 @@
 #include "clang/AST/GlobalDecl.h"
 #include "clang/Basic/Builtins.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
+#include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -134,7 +135,19 @@ static Address buildPointerWithAlignment(const Expr *E,
           *BaseInfo = InnerBaseInfo;
 
         if (isa<ExplicitCastExpr>(CE)) {
-          llvm_unreachable("NYI");
+          LValueBaseInfo TargetTypeBaseInfo;
+
+          CharUnits Align = CGF.CGM.getNaturalPointeeTypeAlignment(
+              E->getType(), &TargetTypeBaseInfo);
+
+          // If the source l-value is opaque, honor the alignment of the
+          // casted-to type.
+          if (InnerBaseInfo.getAlignmentSource() != AlignmentSource::Decl) {
+            if (BaseInfo)
+              BaseInfo->mergeForCast(TargetTypeBaseInfo);
+            Addr = Address(Addr.getPointer(), Addr.getElementType(), Align,
+                           IsKnownNonNull);
+          }
         }
 
         if (CGF.SanOpts.has(SanitizerKind::CFIUnrelatedCast) &&
@@ -197,12 +210,64 @@ static Address buildPointerWithAlignment(const Expr *E,
   return Address(CGF.buildScalarExpr(E), Align);
 }
 
+/// Helper method to check if the underlying ABI is AAPCS
+static bool isAAPCS(const TargetInfo &TargetInfo) {
+  return TargetInfo.getABI().startswith("aapcs");
+}
+
 LValue CIRGenFunction::buildLValueForField(LValue base,
                                            const FieldDecl *field) {
   LValueBaseInfo BaseInfo = base.getBaseInfo();
 
   if (field->isBitField()) {
-    llvm_unreachable("NYI");
+    const CIRGenRecordLayout &RL =
+        CGM.getTypes().getCIRGenRecordLayout(field->getParent());
+    const CIRGenBitFieldInfo &Info = RL.getBitFieldInfo(field);
+    const bool UseVolatile = isAAPCS(CGM.getTarget()) &&
+                             CGM.getCodeGenOpts().AAPCSBitfieldWidth &&
+                             Info.VolatileStorageSize != 0 &&
+                             field->getType()
+                                 .withCVRQualifiers(base.getVRQualifiers())
+                                 .isVolatileQualified();
+    Address Addr = base.getAddress();
+    unsigned Idx = RL.getCIRFieldNo(field);
+    const RecordDecl *rec = field->getParent();
+    if (!UseVolatile) {
+      if (!IsInPreservedAIRegion &&
+          (!getDebugInfo() || !rec->hasAttr<BPFPreserveAccessIndexAttr>())) {
+        if (Idx != 0) {
+          auto loc = getLoc(field->getLocation());
+          auto fieldType = convertType(field->getType());
+          auto fieldPtr =
+              mlir::cir::PointerType::get(getBuilder().getContext(), fieldType);
+          auto sea = getBuilder().create<mlir::cir::StructElementAddr>(
+              loc, fieldPtr, base.getPointer(), field->getName(), Idx);
+
+          Addr = Address(sea->getResult(0), CharUnits::One());
+        }
+      } else {
+        llvm_unreachable("NYI");
+      }
+    }
+    const unsigned SS =
+        UseVolatile ? Info.VolatileStorageSize : Info.StorageSize;
+
+    // Get the access type.
+    mlir::Type FieldIntTy =
+        mlir::cir::IntType::get(builder.getContext(), SS, false);
+
+    auto loc = getLoc(field->getLocation());
+    if (Addr.getElementType() != FieldIntTy)
+      Addr = builder.createElementBitCast(loc, Addr, FieldIntTy);
+    if (UseVolatile) {
+      llvm_unreachable("NYI");
+    }
+
+    QualType fieldType =
+        field->getType().withCVRQualifiers(base.getVRQualifiers());
+    // TODO: Support TBAA for bit fields.
+    LValueBaseInfo FieldBaseInfo(BaseInfo.getAlignmentSource());
+    return LValue::MakeBitfield(Addr, Info, fieldType, FieldBaseInfo);
   }
 
   // Fields of may-alias structures are may-alais themselves.
@@ -354,8 +419,7 @@ static CIRGenCallee buildDirectCallee(CIRGenModule &CGM, GlobalDecl GD) {
     // When directing calling an inline builtin, call it through it's mangled
     // name to make it clear it's not the actual builtin.
     auto Fn = cast<mlir::cir::FuncOp>(CGF.CurFn);
-    if (Fn.getName() != FDInlineName &&
-        onlyHasInlineBuiltinDeclaration(FD)) {
+    if (Fn.getName() != FDInlineName && onlyHasInlineBuiltinDeclaration(FD)) {
       assert(0 && "NYI");
     }
 
@@ -500,12 +564,58 @@ void CIRGenFunction::buildStoreOfScalar(mlir::Value value, LValue lvalue,
 /// method emits the address of the lvalue, then loads the result as an rvalue,
 /// returning the rvalue.
 RValue CIRGenFunction::buildLoadOfLValue(LValue LV, SourceLocation Loc) {
-  assert(LV.isSimple() && "not implemented");
   assert(!LV.getType()->isFunctionType());
   assert(!(LV.getType()->isConstantMatrixType()) && "not implemented");
 
-  // Everything needs a load.
-  return RValue::get(buildLoadOfScalar(LV, Loc));
+  if (LV.isBitField())
+    return buildLoadOfBitfieldLValue(LV, Loc);
+
+  if (LV.isSimple())
+    return RValue::get(buildLoadOfScalar(LV, Loc));
+  llvm_unreachable("NYI");
+}
+
+RValue CIRGenFunction::buildLoadOfBitfieldLValue(LValue LV,
+                                                 SourceLocation Loc) {
+  const CIRGenBitFieldInfo &Info = LV.getBitFieldInfo();
+
+  // Get the output type.
+  mlir::Type ResLTy = convertType(LV.getType());
+  Address Ptr = LV.getBitFieldAddress();
+  mlir::Value Val = builder.createLoad(getLoc(Loc), Ptr);
+  auto ValWidth = Val.getType().cast<IntType>().getWidth();
+
+  bool UseVolatile = LV.isVolatileQualified() &&
+                     Info.VolatileStorageSize != 0 && isAAPCS(CGM.getTarget());
+  const unsigned Offset = UseVolatile ? Info.VolatileOffset : Info.Offset;
+  const unsigned StorageSize =
+      UseVolatile ? Info.VolatileStorageSize : Info.StorageSize;
+
+  if (Info.IsSigned) {
+    assert(static_cast<unsigned>(Offset + Info.Size) <= StorageSize);
+
+    mlir::Type typ =
+        mlir::cir::IntType::get(builder.getContext(), ValWidth, true);
+    Val = builder.createIntCast(Val, typ);
+
+    unsigned HighBits = StorageSize - Offset - Info.Size;
+    if (HighBits)
+      Val = builder.createShift(Val, llvm::APInt(ValWidth, HighBits), true);
+    if (Offset + HighBits)
+      Val = builder.createShift(Val, llvm::APInt(ValWidth, Offset + HighBits),
+                                false);
+  } else {
+    if (Offset)
+      Val = builder.createShift(Val, llvm::APInt(ValWidth, Offset), false);
+
+    if (static_cast<unsigned>(Offset) + Info.Size < StorageSize)
+      Val =
+          builder.createBinop(Val, mlir::cir::BinOpKind::And,
+                              llvm::APInt::getLowBitsSet(ValWidth, Info.Size));
+  }
+  Val = builder.createIntCast(Val, ResLTy);
+  // EmitScalarRangeCheck(Val, LV.getType(), Loc); //FIXME: TODO
+  return RValue::get(Val);
 }
 
 void CIRGenFunction::buildStoreThroughLValue(RValue Src, LValue Dst) {
@@ -526,6 +636,94 @@ void CIRGenFunction::buildStoreThroughLValue(RValue Src, LValue Dst) {
 
   assert(Src.isScalar() && "Can't emit an agg store with this method");
   buildStoreOfScalar(Src.getScalarVal(), Dst);
+}
+
+void CIRGenFunction::buildStoreThroughBitfieldLValue(RValue Src, LValue Dst,
+                                                     mlir::Value *Result) {
+  const CIRGenBitFieldInfo &Info = Dst.getBitFieldInfo();
+  mlir::Type ResLTy = getTypes().convertTypeForMem(Dst.getType());
+  Address Ptr = Dst.getBitFieldAddress();
+
+  // Get the source value, truncated to the width of the bit-field.
+  mlir::Value SrcVal = Src.getScalarVal();
+
+  // Cast the source to the storage type and shift it into place.
+  SrcVal = builder.createIntCast(SrcVal, Ptr.getElementType());
+  auto SrcWidth = SrcVal.getType().cast<IntType>().getWidth();
+  mlir::Value MaskedVal = SrcVal;
+
+  const bool UseVolatile =
+      CGM.getCodeGenOpts().AAPCSBitfieldWidth && Dst.isVolatileQualified() &&
+      Info.VolatileStorageSize != 0 && isAAPCS(CGM.getTarget());
+  const unsigned StorageSize =
+      UseVolatile ? Info.VolatileStorageSize : Info.StorageSize;
+  const unsigned Offset = UseVolatile ? Info.VolatileOffset : Info.Offset;
+  // See if there are other bits in the bitfield's storage we'll need to load
+  // and mask together with source before storing.
+  if (StorageSize != Info.Size) {
+    assert(StorageSize > Info.Size && "Invalid bitfield size.");
+
+    mlir::Value Val = buildLoadOfScalar(Dst, Dst.getPointer().getLoc());
+
+    mlir::Type Ty = SrcVal.getType();
+    // Mask the source value as needed.
+    if (!hasBooleanRepresentation(Dst.getType()))
+      SrcVal =
+          builder.createBinop(SrcVal, mlir::cir::BinOpKind::And,
+                              llvm::APInt::getLowBitsSet(SrcWidth, Info.Size));
+
+    MaskedVal = SrcVal;
+    if (Offset)
+      SrcVal = builder.createShift(SrcVal, llvm::APInt(SrcWidth, Offset), true);
+
+    // Mask out the original value.
+    Val = builder.createBinop(
+        Val, mlir::cir::BinOpKind::And,
+        ~llvm::APInt::getBitsSet(SrcWidth, Offset, Offset + Info.Size));
+
+    // Or together the unchanged values and the source value.
+    SrcVal = builder.create<mlir::cir::BinOp>(
+        Val.getLoc(), Ty, mlir::cir::BinOpKind::Or, Val, SrcVal);
+  } else {
+    assert(Offset == 0);
+
+    // According to the AACPS:
+    // When a volatile bit-field is written, and its container does not overlap
+    // with any non-bit-field member, its container must be read exactly once
+    // and written exactly once using the access width appropriate to the type
+    // of the container. The two accesses are not atomic.
+    if (Dst.isVolatileQualified() && isAAPCS(CGM.getTarget()) &&
+        CGM.getCodeGenOpts().ForceAAPCSBitfieldLoad)
+      builder.createLoad(Dst.getPointer().getLoc(), Ptr);
+  }
+
+  // Write the new value back out.
+  // TODO: constant matrix type, volatile, no init, non temporal, TBAA
+  buildStoreOfScalar(SrcVal, Ptr, Dst.isVolatileQualified(), Dst.getType(),
+                     Dst.getBaseInfo(), false, false);
+
+  // Return the new value of the bit-field, if requested.
+  if (Result) {
+    mlir::Value ResultVal = MaskedVal;
+    ResultVal = builder.createIntCast(ResultVal, ResLTy);
+    auto bitwidth = ResultVal.getType().cast<IntType>().getWidth();
+
+    // Sign extend the value if needed.
+    if (Info.IsSigned) {
+      assert(Info.Size <= StorageSize);
+      unsigned HighBits = StorageSize - Info.Size;
+
+      if (HighBits) {
+        ResultVal = builder.createShift(ResultVal,
+                                        llvm::APInt(bitwidth, HighBits), true);
+
+        ResultVal = builder.createShift(ResultVal,
+                                        llvm::APInt(bitwidth, HighBits), false);
+      }
+    }
+
+    *Result = buildFromMemory(ResultVal, Dst.getType());
+  }
 }
 
 static LValue buildGlobalVarDeclLValue(CIRGenFunction &CGF, const Expr *E,
@@ -2181,6 +2379,13 @@ mlir::Value CIRGenFunction::buildAlloca(StringRef name, QualType ty,
 mlir::Value CIRGenFunction::buildLoadOfScalar(LValue lvalue,
                                               SourceLocation Loc) {
   return buildLoadOfScalar(lvalue.getAddress(), lvalue.isVolatile(),
+                           lvalue.getType(), getLoc(Loc), lvalue.getBaseInfo(),
+                           lvalue.isNontemporal());
+}
+
+mlir::Value CIRGenFunction::buildLoadOfScalar(LValue lvalue,
+                                              mlir::Location Loc) {
+  return buildLoadOfScalar(lvalue.getAddress(), lvalue.isVolatile(),
                            lvalue.getType(), Loc, lvalue.getBaseInfo(),
                            lvalue.isNontemporal());
 }
@@ -2198,6 +2403,14 @@ mlir::Value CIRGenFunction::buildLoadOfScalar(Address Addr, bool Volatile,
                                               QualType Ty, SourceLocation Loc,
                                               LValueBaseInfo BaseInfo,
                                               bool isNontemporal) {
+  return buildLoadOfScalar(Addr, Volatile, Ty, getLoc(Loc), BaseInfo,
+                           isNontemporal);
+}
+
+mlir::Value CIRGenFunction::buildLoadOfScalar(Address Addr, bool Volatile,
+                                              QualType Ty, mlir::Location Loc,
+                                              LValueBaseInfo BaseInfo,
+                                              bool isNontemporal) {
   if (!CGM.getCodeGenOpts().PreserveVec3Type) {
     if (Ty->isVectorType()) {
       llvm_unreachable("NYI");
@@ -2211,7 +2424,7 @@ mlir::Value CIRGenFunction::buildLoadOfScalar(Address Addr, bool Volatile,
   }
 
   mlir::cir::LoadOp Load = builder.create<mlir::cir::LoadOp>(
-      getLoc(Loc), Addr.getElementType(), Addr.getPointer());
+      Loc, Addr.getElementType(), Addr.getPointer());
 
   if (isNontemporal) {
     llvm_unreachable("NYI");

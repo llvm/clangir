@@ -214,8 +214,8 @@ CIRRecordLowering::CIRRecordLowering(CIRGenTypes &cirGenTypes,
       cxxRecordDecl{llvm::dyn_cast<CXXRecordDecl>(recordDecl)},
       astRecordLayout{cirGenTypes.getContext().getASTRecordLayout(recordDecl)},
       dataLayout{cirGenTypes.getModule().getModule()},
-      IsZeroInitializable(true), IsZeroInitializableAsBase(true),
-      isPacked{isPacked} {}
+      IsZeroInitializable(true),
+      IsZeroInitializableAsBase(true), isPacked{isPacked} {}
 
 void CIRRecordLowering::setBitFieldInfo(const FieldDecl *FD,
                                         CharUnits StartOffset,
@@ -474,6 +474,8 @@ void CIRRecordLowering::accumulateBitFields(
   // with lower cost.
   auto IsBetterAsSingleFieldRun = [&](uint64_t OffsetInRecord,
                                       uint64_t StartBitOffset) {
+    if (OffsetInRecord >= 64) // See IntType::verify
+      return true;
     if (!cirGenTypes.getModule().getCodeGenOpts().FineGrainedBitfieldAccesses)
       return false;
     llvm_unreachable("NYI");

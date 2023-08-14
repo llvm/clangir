@@ -377,6 +377,11 @@ public:
     return getConstInt(
         loc, t, isSigned ? intVal.getSExtValue() : intVal.getZExtValue());
   }
+  mlir::Value getConstAPInt(mlir::Location loc, mlir::Type typ,
+                            const llvm::APInt &val) {
+    return create<mlir::cir::ConstantOp>(loc, typ,
+                                         getAttr<mlir::cir::IntAttr>(typ, val));
+  }
   mlir::cir::ConstantOp getBool(bool state, mlir::Location loc) {
     return create<mlir::cir::ConstantOp>(loc, getBoolTy(),
                                          getCIRBoolAttr(state));
@@ -624,6 +629,24 @@ public:
 
   mlir::Value createBitcast(mlir::Value src, mlir::Type newTy) {
     return createCast(mlir::cir::CastKind::bitcast, src, newTy);
+  }
+
+  //===--------------------------------------------------------------------===//
+  // Misc
+  //===--------------------------------------------------------------------===//
+
+  mlir::Value createBinop(mlir::Value lhs, mlir::cir::BinOpKind kind,
+                          const llvm::APInt &rhs) {
+    return create<mlir::cir::BinOp>(
+        lhs.getLoc(), lhs.getType(), kind, lhs,
+        getConstAPInt(lhs.getLoc(), lhs.getType(), rhs));
+  }
+
+  mlir::Value createShift(mlir::Value lhs, const llvm::APInt &rhs,
+                          bool isShiftLeft) {
+    return create<mlir::cir::ShiftOp>(
+        lhs.getLoc(), lhs.getType(), lhs,
+        getConstAPInt(lhs.getLoc(), lhs.getType(), rhs), isShiftLeft);
   }
 };
 

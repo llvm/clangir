@@ -577,7 +577,8 @@ public:
   const CIRGenFunctionInfo *CurFnInfo;
   clang::QualType FnRetTy;
 
-  /// This is the current function or global initializer that is generated code for.
+  /// This is the current function or global initializer that is generated code
+  /// for.
   mlir::Operation *CurFn = nullptr;
 
   /// Save Parameter Decl for coroutine.
@@ -593,7 +594,7 @@ public:
 
   CIRGenModule &getCIRGenModule() { return CGM; }
 
-  mlir::Block* getCurFunctionEntryBlock() {
+  mlir::Block *getCurFunctionEntryBlock() {
     auto Fn = dyn_cast<mlir::cir::FuncOp>(CurFn);
     assert(Fn && "other callables NYI");
     return &Fn.getRegion().front();
@@ -868,6 +869,12 @@ public:
                                 clang::SourceLocation Loc,
                                 LValueBaseInfo BaseInfo,
                                 bool isNontemporal = false);
+  mlir::Value buildLoadOfScalar(Address Addr, bool Volatile, clang::QualType Ty,
+                                mlir::Location Loc, LValueBaseInfo BaseInfo,
+                                bool isNontemporal = false);
+
+  RValue buildLoadOfBitfieldLValue(LValue LV, SourceLocation Loc);
+
   /// Load a scalar value from an address, taking care to appropriately convert
   /// from the memory representation to CIR value representation.
   mlir::Value buildLoadOfScalar(Address Addr, bool Volatile, clang::QualType Ty,
@@ -882,6 +889,7 @@ public:
   /// form the memory representation to the CIR value representation. The
   /// l-value must be a simple l-value.
   mlir::Value buildLoadOfScalar(LValue lvalue, clang::SourceLocation Loc);
+  mlir::Value buildLoadOfScalar(LValue lvalue, mlir::Location Loc);
 
   Address buildLoadOfReference(LValue RefLVal, mlir::Location Loc,
                                LValueBaseInfo *PointeeBaseInfo = nullptr);
@@ -1198,6 +1206,9 @@ public:
   /// lvalue, where both are guaranteed to the have the same type, and that type
   /// is 'Ty'.
   void buildStoreThroughLValue(RValue Src, LValue Dst);
+
+  void buildStoreThroughBitfieldLValue(RValue Src, LValue Dst,
+                                       mlir::Value *Result);
 
   mlir::cir::BrOp buildBranchThroughCleanup(mlir::Location Loc, JumpDest Dest);
 
