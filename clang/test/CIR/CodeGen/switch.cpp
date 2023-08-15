@@ -15,7 +15,6 @@ void sw1(int a) {
   }
   }
 }
-
 // CHECK: cir.func @_Z3sw1i
 // CHECK: cir.switch (%3 : !s32i) [
 // CHECK-NEXT: case (equal, 0)  {
@@ -160,3 +159,62 @@ void sw7(int a) {
 // CHECK-NEXT: case (anyof, [3, 4, 5] : !s32i)  {
 // CHECK-NEXT:   cir.yield break
 // CHECK-NEXT: }
+
+void sw8(int a) {
+  switch (a)
+  {
+  case 3:
+    break;
+  case 4:
+  default:
+    break;
+  }
+}
+
+//CHECK:    cir.func @_Z3sw8i
+//CHECK:      case (equal, 3)
+//CHECK-NEXT:   cir.yield break
+//CHECK-NEXT:   },
+//CHECK-NEXT: case (default) {
+//CHECK-NEXT:   cir.yield break
+//CHECK-NEXT: }  
+
+void sw9(int a) {
+  switch (a)
+  {
+  case 3:
+    break;  
+  default:
+  case 4:
+    break;
+  }
+}
+
+//CHECK:    cir.func @_Z3sw9i
+//CHECK:      case (equal, 3)
+//CHECK-NEXT:   cir.yield break
+//CHECK-NEXT:   },
+//CHECK-NEXT: case (default) {
+//CHECK-NEXT:   cir.yield break
+//CHECK-NEXT: }
+
+void sw10(int a) {
+  switch (a)
+  {
+  case 3:
+    break;  
+  case 5:  
+  default:
+  case 4:
+    break;
+  }
+}
+
+//CHECK:    cir.func @_Z4sw10i
+//CHECK:      case (equal, 3)
+//CHECK-NEXT:   cir.yield break
+//CHECK-NEXT:   },
+//CHECK-NEXT: case (default) {
+//CHECK-NEXT:   cir.yield break
+//CHECK-NEXT: }
+

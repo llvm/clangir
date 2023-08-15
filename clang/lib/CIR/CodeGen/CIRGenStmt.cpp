@@ -583,7 +583,8 @@ mlir::LogicalResult CIRGenFunction::buildCaseStmt(const CaseStmt &S,
                                    : mlir::cir::CaseOpKind::Equal));
 
   if (auto *def = dyn_cast<DefaultStmt>(caseStmt->getSubStmt())) {
-    res = buildDefaultStmt(*def, condType, caseEntry); // Note, override caseEntry here
+    res = buildDefaultStmt(*def, condType,
+                           caseEntry); // Note, override caseEntry here
   } else {
     mlir::OpBuilder::InsertionGuard guardCase(builder);
     res = buildStmt(
@@ -603,13 +604,15 @@ mlir::LogicalResult CIRGenFunction::buildDefaultStmt(const DefaultStmt &S,
   caseEntry = mlir::cir::CaseAttr::get(
       ctx, builder.getArrayAttr({}),
       CaseOpKindAttr::get(ctx, mlir::cir::CaseOpKind::Default));
-  if (auto *cas = dyn_cast<CaseStmt>(S.getSubStmt())) {
-    res = buildCaseStmt(*cas, condType, caseEntry); // Note, override caseEntry here
-  } else {
-    mlir::OpBuilder::InsertionGuard guardCase(builder);
-    res = buildStmt(S.getSubStmt(),
-                    /*useCurrentScope=*/!isa<CompoundStmt>(S.getSubStmt()));
+
+  auto *sub = S.getSubStmt();
+  while (auto *cas = dyn_cast<CaseStmt>(sub)) {
+    sub = cas->getSubStmt();
   }
+
+  mlir::OpBuilder::InsertionGuard guardCase(builder);
+  res = buildStmt(sub,
+                  /*useCurrentScope=*/!isa<CompoundStmt>(S.getSubStmt()));
 
   // TODO: likelihood
   return res;
