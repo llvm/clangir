@@ -29,6 +29,7 @@
 #include "llvm/ADT/FloatingPointMode.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/Support/ErrorHandling.h"
+#include <cassert>
 #include <string>
 
 namespace cir {
@@ -437,8 +438,16 @@ public:
   // Operation creation helpers
   // --------------------------
   //
+
+  /// Create a copy with inferred length.
   mlir::cir::CopyOp createCopy(mlir::Value dst, mlir::Value src) {
-    return create<mlir::cir::CopyOp>(dst.getLoc(), dst, src);
+    auto dataLayout = mlir::DataLayout::closest(src.getDefiningOp());
+    auto srcPtr = src.getType().dyn_cast<mlir::cir::PointerType>();
+    assert(dst.getType() == src.getType() && "types must match");
+    assert(srcPtr && "source must be a pointer type");
+    const mlir::Value length =
+        getUInt32(dataLayout.getTypeSize(srcPtr.getPointee()), dst.getLoc());
+    return create<mlir::cir::CopyOp>(dst.getLoc(), dst, src, length);
   }
 
   mlir::Value createNeg(mlir::Value value) {
