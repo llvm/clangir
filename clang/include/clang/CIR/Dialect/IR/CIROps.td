@@ -564,11 +564,12 @@ def YieldOpKind : I32EnumAttr<
 
 def YieldOp : CIR_Op<"yield", [ReturnLike, Terminator,
     ParentOneOf<["IfOp", "ScopeOp", "SwitchOp", "LoopOp", "AwaitOp",
-                 "TernaryOp"]>]> {
+                 "TernaryOp", "GlobalOp"]>]> {
   let summary = "Terminate CIR regions";
   let description = [{
     The `cir.yield` operation terminates regions on different CIR operations:
-    `cir.if`, `cir.scope`, `cir.switch`, `cir.loop`, `cir.await` and `cir.ternary`.
+    `cir.if`, `cir.scope`, `cir.switch`, `cir.loop`, `cir.await`, `cir.ternary`
+    and `cir.global`.
 
     Might yield an SSA value and the semantics of how the values are yielded is
     defined by the parent operation.
@@ -1236,7 +1237,7 @@ def SignedOverflowBehaviorEnum : I32EnumAttr<
 }
 
 
-def GlobalOp : CIR_Op<"global", [Symbol]> {
+def GlobalOp : CIR_Op<"global", [Symbol, DeclareOpInterfaceMethods<RegionBranchOpInterface>, NoRegionArguments]> {
   let summary = "Declares or defines a global variable";
   let description = [{
     The `cir.global` operation declares or defines a named global variable.
@@ -1274,19 +1275,19 @@ def GlobalOp : CIR_Op<"global", [Symbol]> {
                        OptionalAttr<AnyAttr>:$initial_value,
                        UnitAttr:$constant,
                        OptionalAttr<I64Attr>:$alignment);
-
+  let regions = (region AnyRegion:$ctorRegion);
   let assemblyFormat = [{
        ($sym_visibility^)?
        (`constant` $constant^)?
        $linkage
        $sym_name
-       custom<GlobalOpTypeAndInitialValue>($sym_type, $initial_value)
+       custom<GlobalOpTypeAndInitialValue>($sym_type, $initial_value, $ctorRegion)
        attr-dict
   }];
 
   let extraClassDeclaration = [{
     bool isDeclaration() {
-      return !getInitialValue();
+      return !getInitialValue() && getCtorRegion().empty();
     }
     bool hasInitializer() { return !isDeclaration(); }
     bool hasAvailableExternallyLinkage() {
@@ -1312,8 +1313,9 @@ def GlobalOp : CIR_Op<"global", [Symbol]> {
       CArg<"bool", "false">:$isConstant,
       // CIR defaults to external linkage.
       CArg<"cir::GlobalLinkageKind",
-            "cir::GlobalLinkageKind::ExternalLinkage">:$linkage
-      )>
+            "cir::GlobalLinkageKind::ExternalLinkage">:$linkage,
+      CArg<"function_ref<void(OpBuilder &, Location)>",
+           "nullptr">:$ctorBuilder)>
   ];
 
   let hasVerifier = 1;
@@ -1832,37 +1834,39 @@ def AwaitOp : CIR_Op<"await",
 // CopyOp
 //===----------------------------------------------------------------------===//
 
-def CopyOp : CIR_Op<"copy", [SameTypeOperands]> {
+def CopyOp : CIR_Op<"copy"> {
   let arguments = (ins Arg<CIR_PointerType, "", [MemWrite]>:$dst,
-                       Arg<CIR_PointerType, "", [MemRead]>:$src);
+                       Arg<CIR_PointerType, "", [MemRead]>:$src,
+                       CIR_IntType:$len);
   let summary = "Copies contents from a CIR pointer to another";
   let description = [{
-    Given two CIR pointers, `src` and `dst`, `cir.copy` will copy the memory
-    pointed by `src` to the memory pointed by `dst`.
-
-    The amount of bytes copied is inferred from the pointee type. Naturally,
-    the pointee type of both `src` and `dst` must match and must implement
-    the `DataLayoutTypeInterface`.
+    Given two CIR pointers, `src` and `dst`, `cir.copy` will copy `len` bytes
+    from the memory pointed by `src` to the memory pointed by `dst`.
 
     Examples:
 
     ```mlir
-      // Copying contents from one struct to another:
-      cir.copy %0 to %1 : !cir.ptr<!struct_ty>
+      // Copying 2 bytes from one array to a struct:
+      %2 = cir.const(#cir.int<2> : !u32i) : !u32i
+      cir.copy %2 bytes from %arr to %struct : !cir.ptr<!arr> -> !cir.ptr<!struct>
     ```
   }];
 
-  let assemblyFormat = "$src `to` $dst attr-dict `:` qualified(type($dst))";
+  let assemblyFormat = [{
+    $len `bytes` `from` $src `to` $dst attr-dict
+    `:` type($len) `` `,` qualified(type($src)) `->` qualified(type($dst))
+  }];
   let hasVerifier = 1;
 
   let extraClassDeclaration = [{
-    /// Returns the pointer type being copied.
-    mlir::cir::PointerType getType() { return getSrc().getType(); }
+    /// Returns the data source pointer type.
+    mlir::cir::PointerType getSrcTy() { return getSrc().getType(); }
 
-    /// Returns the number of bytes to be copied.
-    unsigned getLength() {
-      return DataLayout::closest(*this).getTypeSize(getType().getPointee());
-    }
+    /// Returns the data destination pointer type.
+    mlir::cir::PointerType getDstTy() { return getDst().getType(); }
+
+    /// Returns the byte lenght type.
+    mlir::cir::IntType getLenTy() { return getLen().getType(); }
   }];
 }
 
