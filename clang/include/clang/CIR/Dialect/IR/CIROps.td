@@ -1286,7 +1286,9 @@ def GlobalOp : CIR_Op<"global", [Symbol, DeclareOpInterfaceMethods<RegionBranchO
                        // Note this can also be a FlatSymbolRefAttr
                        OptionalAttr<AnyAttr>:$initial_value,
                        UnitAttr:$constant,
-                       OptionalAttr<I64Attr>:$alignment);
+                       OptionalAttr<I64Attr>:$alignment,
+                       OptionalAttr<ASTVarDeclAttr>:$ast
+                       );
   let regions = (region AnyRegion:$ctorRegion);
   let assemblyFormat = [{
        ($sym_visibility^)?
