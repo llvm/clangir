@@ -441,13 +441,7 @@ public:
 
   /// Create a copy with inferred length.
   mlir::cir::CopyOp createCopy(mlir::Value dst, mlir::Value src) {
-    auto dataLayout = mlir::DataLayout::closest(src.getDefiningOp());
-    auto srcPtr = src.getType().dyn_cast<mlir::cir::PointerType>();
-    assert(dst.getType() == src.getType() && "types must match");
-    assert(srcPtr && "source must be a pointer type");
-    const mlir::Value length =
-        getUInt32(dataLayout.getTypeSize(srcPtr.getPointee()), dst.getLoc());
-    return create<mlir::cir::CopyOp>(dst.getLoc(), dst, src, length);
+    return create<mlir::cir::CopyOp>(dst.getLoc(), dst, src);
   }
 
   mlir::Value createNeg(mlir::Value value) {

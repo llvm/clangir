@@ -202,9 +202,10 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::CopyOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
+    const mlir::Value length = rewriter.create<mlir::LLVM::ConstantOp>(
+        op.getLoc(), rewriter.getI32Type(), op.getLength());
     rewriter.replaceOpWithNewOp<mlir::LLVM::MemcpyOp>(
-        op, adaptor.getDst(), adaptor.getSrc(), adaptor.getLen(),
-        /*isVolatile=*/false);
+        op, adaptor.getDst(), adaptor.getSrc(), length, /*isVolatile=*/false);
     return mlir::success();
   }
 };
