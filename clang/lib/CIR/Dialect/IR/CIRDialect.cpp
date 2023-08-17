@@ -1239,6 +1239,20 @@ LogicalResult GlobalOp::verify() {
       return failure();
   }
 
+  // Verify that the constructor region, if present, has only one block which is
+  // not empty.
+  auto &ctorRegion = getCtorRegion();
+  if (!ctorRegion.empty()) {
+    if (!ctorRegion.hasOneBlock()) {
+      return emitError() << "ctor region must have exactly one block.";
+    }
+
+    auto &block = ctorRegion.front();
+    if (block.empty()) {
+      return emitError() << "ctor region shall not be empty.";
+    }
+  }
+
   if (std::optional<uint64_t> alignAttr = getAlignment()) {
     uint64_t alignment = alignAttr.value();
     if (!llvm::isPowerOf2_64(alignment))
@@ -2180,8 +2194,12 @@ VTableAttr::verify(::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
 
 LogicalResult CopyOp::verify() {
 
-  if (!getLenTy().isUnsigned())
-    return emitError() << "copy lenght must be an unsigned integer";
+  // A data layout is required for us to know the number of bytes to be copied.
+  if (!getType().getPointee().hasTrait<DataLayoutTypeInterface::Trait>())
+    return emitError() << "missing data layout for pointee type";
+
+  if (getSrc() == getDst())
+    return emitError() << "source and destination are the same";
 
   return mlir::success();
 }

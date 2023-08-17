@@ -1,12 +1,9 @@
 // RUN: cir-opt %s
 
-!s64i = !cir.int<s, 64>
 !s32i = !cir.int<s, 32>
-!u32i = !cir.int<u, 32>
 module {
-  cir.func @shouldParseCopyOp(%arg0 : !cir.ptr<!s32i>, %arg1 : !cir.ptr<!s64i>) {
-    %0 = cir.const(#cir.int<4> : !u32i) : !u32i
-    cir.copy %0 bytes from %arg0 to %arg1 : !u32i, !cir.ptr<!s32i> -> !cir.ptr<!s64i>
+  cir.func @shouldParseCopyOp(%arg0 : !cir.ptr<!s32i>, %arg1 : !cir.ptr<!s32i>) {
+    cir.copy %arg0 to %arg1 : !cir.ptr<!s32i>
     cir.return
   }
 }
