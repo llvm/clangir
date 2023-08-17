@@ -45,14 +45,14 @@ static Init __ioinit2(false);
 // AFTER-NEXT:     %1 = cir.const(#false) : !cir.bool
 // AFTER-NEXT:     cir.call @_ZN4InitC1Eb(%0, %1) : (!cir.ptr<!ty_22class2EInit22>, !cir.bool) -> ()
 // AFTER-NEXT:     cir.return
-// AFTER:        cir.func private @_GLOBAL__sub_I_static.cpp()
+// AFTER:        cir.func private @_GLOBAL__sub_I_static.cpp() extra( {globalCtor = #cir.globalCtor<65535>} )
 // AFTER-NEXT:     cir.call @__cxx_global_var_init() : () -> ()
 // AFTER-NEXT:     cir.call @__cxx_global_var_init.1() : () -> ()
 // AFTER-NEXT:     cir.return
 
-
 // LLVM:      @_ZL8__ioinit = internal global %class.Init zeroinitializer
 // LLVM:      @_ZL9__ioinit2 = internal global %class.Init zeroinitializer
+// LLVM:      @llvm.global_ctors = appending constant [1 x { i32, ptr, ptr }] [{ i32, ptr, ptr } { i32 65535, ptr @_GLOBAL__sub_I_static.cpp, ptr null }]
 // LLVM:      define internal void @__cxx_global_var_init()
 // LLVM-NEXT:   call void @_ZN4InitC1Eb(ptr @_ZL8__ioinit, i8 1)
 // LLVM-NEXT:   ret void

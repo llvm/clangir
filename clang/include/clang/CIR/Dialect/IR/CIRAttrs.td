@@ -452,4 +452,18 @@ def OptNoneAttr : CIRUnitAttr<"OptNone", "optnone"> {
   let storageType = [{ OptNoneAttr }];
 }
 
+def GlobalCtorAttr : CIR_Attr<"GlobalCtor", "globalCtor"> {
+  let summary = "Indicates a function is a global constructor.";
+  let description = [{
+    Describing a global constructor with a priority.
+  }];
+  let parameters = (ins "int":$value);
+  let assemblyFormat = [{
+    `<` $value `>`
+  }];
+
+  let extraClassDeclaration = [{
+    int getPriority() const { return getValue(); }
+  }];
+}
 #endif // MLIR_CIR_DIALECT_CIR_ATTRS

@@ -1830,6 +1830,78 @@ mlir::LLVMTypeConverter prepareTypeConverter(mlir::MLIRContext *ctx) {
 }
 } // namespace
 
+static void buildCtorList(mlir::ModuleOp module) {
+  llvm::SmallVector<std::pair<mlir::LLVM::LLVMFuncOp, int>, 2> globalCtors;
+  for (auto fn : module.getBodyRegion().getOps<mlir::LLVM::LLVMFuncOp>()) {
+    for (auto fnAttr : fn->getAttrs()) {
+      if (auto extraAttr =
+              fnAttr.getValue()
+                  .dyn_cast<mlir::cir::ExtraFuncAttributesAttr>()) {
+        for (auto attr : extraAttr.getElements()) {
+          if (auto ctorAttr = attr.getValue().dyn_cast<mlir::cir::GlobalCtorAttr>()) {
+            globalCtors.emplace_back(fn, ctorAttr.getPriority());
+            break;
+          }
+        }
+        break;
+      }
+    }
+  }
+
+  if (globalCtors.empty())
+    return;
+
+  mlir::OpBuilder builder(module.getContext());
+  builder.setInsertionPointToEnd(&module.getBodyRegion().back());
+
+  // Create a global array llvm.global_ctors with element type of
+  // struct { i32, ptr, ptr }
+  auto CtorPFTy = mlir::LLVM::LLVMPointerType::get(builder.getContext());
+  llvm::SmallVector<mlir::Type> CtorStructFields;
+  CtorStructFields.push_back(builder.getI32Type());
+  CtorStructFields.push_back(CtorPFTy);
+  CtorStructFields.push_back(CtorPFTy);
+
+  auto CtorStructTy = mlir::LLVM::LLVMStructType::getLiteral(
+      builder.getContext(), CtorStructFields);
+  auto CtorStructArrayTy =
+      mlir::LLVM::LLVMArrayType::get(CtorStructTy, globalCtors.size());
+
+  auto loc = module.getLoc();
+  auto newGlobalOp = builder.create<mlir::LLVM::GlobalOp>(
+      loc, CtorStructArrayTy, true, mlir::LLVM::Linkage::Appending,
+      "llvm.global_ctors", mlir::Attribute());
+
+  newGlobalOp.getRegion().push_back(new mlir::Block());
+  builder.setInsertionPointToEnd(newGlobalOp.getInitializerBlock());
+
+  mlir::Value result = builder.create<mlir::LLVM::UndefOp>(
+      loc, CtorStructArrayTy);
+
+  for (uint64_t I = 0; I < globalCtors.size(); I++) {
+    auto fn = globalCtors[I];
+    mlir::Value structInit =
+        builder.create<mlir::LLVM::UndefOp>(loc, CtorStructTy);
+    mlir::Value initPriority =
+        builder.create<mlir::LLVM::ConstantOp>(loc, CtorStructFields[0], fn.second);
+    mlir::Value initFuncAddr = builder.create<mlir::LLVM::AddressOfOp>(
+        loc, CtorStructFields[1], fn.first.getName());
+    mlir::Value initAssociate =
+        builder.create<mlir::LLVM::NullOp>(loc, CtorStructFields[2]);
+    structInit = builder.create<mlir::LLVM::InsertValueOp>(loc, structInit,
+                                                           initPriority, 0);
+    structInit = builder.create<mlir::LLVM::InsertValueOp>(loc, structInit,
+                                                           initFuncAddr, 1);
+    // TODO: hanlde associated data for initializers.
+    structInit = builder.create<mlir::LLVM::InsertValueOp>(loc, structInit,
+                                                           initAssociate, 2);
+    result =
+        builder.create<mlir::LLVM::InsertValueOp>(loc, result, structInit, I);
+  }
+
+  builder.create<mlir::LLVM::ReturnOp>(loc, result);
+}
+
 void ConvertCIRToLLVMPass::runOnOperation() {
   auto module = getOperation();
 
@@ -1871,6 +1943,9 @@ void ConvertCIRToLLVMPass::runOnOperation() {
 
   if (failed(applyPartialConversion(module, target, std::move(patterns))))
     signalPassFailure();
+
+  // Emit the llvm.global_ctors array.
+  buildCtorList(module);
 }
 
 std::unique_ptr<mlir::Pass> createConvertCIRToLLVMPass() {

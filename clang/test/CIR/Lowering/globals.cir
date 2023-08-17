@@ -3,6 +3,7 @@
 // RUN: cir-translate %s -cir-to-llvmir -o %t.ll
 // RUN: FileCheck --input-file=%t.ll %s -check-prefix=LLVM
 
+#false = #cir.bool<false> : !cir.bool
 !s16i = !cir.int<s, 16>
 !s32i = !cir.int<s, 32>
 !s64i = !cir.int<s, 64>
@@ -12,6 +13,8 @@
 !u8i = !cir.int<u, 8>
 !ty_22struct2EA22 = !cir.struct<"struct.A", !s32i, !cir.array<!cir.array<!s32i x 2> x 2>, #cir.recdecl.ast>
 !ty_22struct2EBar22 = !cir.struct<"struct.Bar", !s32i, !s8i, #cir.recdecl.ast>
+!ty_22class2EInit22 = !cir.struct<"class.Init", !u8i>
+
 
 module {
   cir.global external @a = #cir.int<3> : !s32i
@@ -145,4 +148,27 @@ module {
   // MLIR:   %0 = cir.llvmir.zeroinit : !llvm.struct<"struct.Bar", (i32, i8)>
   // MLIR:   llvm.return %0 : !llvm.struct<"struct.Bar", (i32, i8)>
   // MLIR: }
+  cir.func private @_ZN4InitC1Eb(!cir.ptr<!ty_22class2EInit22>, !cir.bool) extra( {inline = #cir.inline<no>} )
+  cir.global "private" internal @_ZL9__ioinit2 = #cir.zero : !ty_22class2EInit22
+  cir.func internal private @__cxx_global_var_init() {
+    %0 = cir.get_global @_ZL9__ioinit2 : cir.ptr <!ty_22class2EInit22>
+    %1 = cir.const(#false) : !cir.bool
+    cir.call @_ZN4InitC1Eb(%0, %1) : (!cir.ptr<!ty_22class2EInit22>, !cir.bool) -> ()
+    cir.return
+  }
+  cir.func private @_GLOBAL__sub_I_static.cpp() extra( {globalCtor = #cir.globalCtor<65535>} ){
+    cir.call @__cxx_global_var_init() : () -> ()
+    cir.return
+  }
+  // MLIR:       llvm.mlir.global appending constant @llvm.global_ctors() {addr_space = 0 : i32} : !llvm.array<1 x struct<(i32, ptr, ptr)>>
+  // MLIR-NEXT:    %0 = llvm.mlir.undef : !llvm.array<1 x struct<(i32, ptr, ptr)>>
+  // MLIR-NEXT:    %1 = llvm.mlir.undef : !llvm.struct<(i32, ptr, ptr)>
+  // MLIR-NEXT:    %2 = llvm.mlir.constant(65535 : i32) : i32
+  // MLIR-NEXT:    %3 = llvm.mlir.addressof @_GLOBAL__sub_I_static.cpp : !llvm.ptr
+  // MLIR-NEXT:    %4 = llvm.mlir.null : !llvm.ptr
+  // MLIR-NEXT:    %5 = llvm.insertvalue %2, %1[0] : !llvm.struct<(i32, ptr, ptr)>
+  // MLIR-NEXT:    %6 = llvm.insertvalue %3, %5[1] : !llvm.struct<(i32, ptr, ptr)>
+  // MLIR-NEXT:    %7 = llvm.insertvalue %4, %6[2] : !llvm.struct<(i32, ptr, ptr)>
+  // MLIR-NEXT:    %8 = llvm.insertvalue %7, %0[0] : !llvm.array<1 x struct<(i32, ptr, ptr)>>
+  // MLIR-NEXT:    llvm.return %8 : !llvm.array<1 x struct<(i32, ptr, ptr)>>
 }

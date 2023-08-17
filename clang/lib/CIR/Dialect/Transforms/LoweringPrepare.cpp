@@ -162,6 +162,10 @@ void LoweringPreparePass::buildCXXGlobalInitFunc() {
   mlir::SymbolTable::setSymbolVisibility(
       f, mlir::SymbolTable::Visibility::Private);
   mlir::NamedAttrList attrs;
+  // 65535 is the default priority, i.e, the lowest priority.
+  // TODO: handle globals with a user-specified initialzation priority.
+  auto ctorAttr = mlir::cir::GlobalCtorAttr::get(builder.getContext(), 65535);
+  attrs.set(ctorAttr.getMnemonic(), ctorAttr);
   f.setExtraAttrsAttr(mlir::cir::ExtraFuncAttributesAttr::get(
       builder.getContext(), attrs.getDictionary(builder.getContext())));
 
