@@ -1274,7 +1274,9 @@ def GlobalOp : CIR_Op<"global", [Symbol, DeclareOpInterfaceMethods<RegionBranchO
                        // Note this can also be a FlatSymbolRefAttr
                        OptionalAttr<AnyAttr>:$initial_value,
                        UnitAttr:$constant,
-                       OptionalAttr<I64Attr>:$alignment);
+                       OptionalAttr<I64Attr>:$alignment,
+                       OptionalAttr<ASTVarDeclAttr>:$ast
+                       );
   let regions = (region AnyRegion:$ctorRegion);
   let assemblyFormat = [{
        ($sym_visibility^)?
@@ -1834,39 +1836,37 @@ def AwaitOp : CIR_Op<"await",
 // CopyOp
 //===----------------------------------------------------------------------===//
 
-def CopyOp : CIR_Op<"copy"> {
+def CopyOp : CIR_Op<"copy", [SameTypeOperands]> {
   let arguments = (ins Arg<CIR_PointerType, "", [MemWrite]>:$dst,
-                       Arg<CIR_PointerType, "", [MemRead]>:$src,
-                       CIR_IntType:$len);
+                       Arg<CIR_PointerType, "", [MemRead]>:$src);
   let summary = "Copies contents from a CIR pointer to another";
   let description = [{
-    Given two CIR pointers, `src` and `dst`, `cir.copy` will copy `len` bytes
-    from the memory pointed by `src` to the memory pointed by `dst`.
+    Given two CIR pointers, `src` and `dst`, `cir.copy` will copy the memory
+    pointed by `src` to the memory pointed by `dst`.
+
+    The amount of bytes copied is inferred from the pointee type. Naturally,
+    the pointee type of both `src` and `dst` must match and must implement
+    the `DataLayoutTypeInterface`.
 
     Examples:
 
     ```mlir
-      // Copying 2 bytes from one array to a struct:
-      %2 = cir.const(#cir.int<2> : !u32i) : !u32i
-      cir.copy %2 bytes from %arr to %struct : !cir.ptr<!arr> -> !cir.ptr<!struct>
+      // Copying contents from one struct to another:
+      cir.copy %0 to %1 : !cir.ptr<!struct_ty>
     ```
   }];
 
-  let assemblyFormat = [{
-    $len `bytes` `from` $src `to` $dst attr-dict
-    `:` type($len) `` `,` qualified(type($src)) `->` qualified(type($dst))
-  }];
+  let assemblyFormat = "$src `to` $dst attr-dict `:` qualified(type($dst))";
   let hasVerifier = 1;
 
   let extraClassDeclaration = [{
-    /// Returns the data source pointer type.
-    mlir::cir::PointerType getSrcTy() { return getSrc().getType(); }
+    /// Returns the pointer type being copied.
+    mlir::cir::PointerType getType() { return getSrc().getType(); }
 
-    /// Returns the data destination pointer type.
-    mlir::cir::PointerType getDstTy() { return getDst().getType(); }
-
-    /// Returns the byte lenght type.
-    mlir::cir::IntType getLenTy() { return getLen().getType(); }
+    /// Returns the number of bytes to be copied.
+    unsigned getLength() {
+      return DataLayout::closest(*this).getTypeSize(getType().getPointee());
+    }
   }];
 }
 
