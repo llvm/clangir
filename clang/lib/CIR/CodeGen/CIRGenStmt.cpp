@@ -554,11 +554,16 @@ mlir::LogicalResult CIRGenFunction::buildBreakStmt(const clang::BreakStmt &S) {
   return mlir::success();
 }
 
-mlir::cir::CaseAttr CIRGenFunction::getAttr(const clang::CaseStmt& S, mlir::Type condType) {
+const CaseStmt* CIRGenFunction::foldCaseStmt(const clang::CaseStmt& S, 
+                                             mlir::Type condType,
+                                             SmallVector<mlir::Attribute, 4> &caseAttrs) {
   const CaseStmt *caseStmt = &S;
+  const CaseStmt *lastCase = &S;
   SmallVector<mlir::Attribute, 4> caseEltValueListAttr;
+
   // Fold cascading cases whenever possible to simplify codegen a bit.
   while (caseStmt) {
+    lastCase = caseStmt;
     auto intVal = caseStmt->getLHS()->EvaluateKnownConstInt(getContext());
     caseEltValueListAttr.push_back(mlir::cir::IntAttr::get(condType, intVal));
     caseStmt = dyn_cast_or_null<CaseStmt>(caseStmt->getSubStmt());
@@ -566,19 +571,16 @@ mlir::cir::CaseAttr CIRGenFunction::getAttr(const clang::CaseStmt& S, mlir::Type
   
   auto *ctxt = builder.getContext();
 
-  return mlir::cir::CaseAttr::get(
+  auto caseAttr = mlir::cir::CaseAttr::get(
       ctxt,
       builder.getArrayAttr(caseEltValueListAttr),
       CaseOpKindAttr::get(ctxt, caseEltValueListAttr.size() > 1
                                 ? mlir::cir::CaseOpKind::Anyof
                                 : mlir::cir::CaseOpKind::Equal));
-}
 
-mlir::cir::CaseAttr CIRGenFunction::getAttr(const clang::DefaultStmt& S) {
-  auto *ctxt = builder.getContext();
-  return mlir::cir::CaseAttr::get(
-      ctxt, builder.getArrayAttr({}),
-      CaseOpKindAttr::get(ctxt, mlir::cir::CaseOpKind::Default));
+  caseAttrs.push_back(caseAttr);
+  
+  return lastCase;
 }
 
 void CIRGenFunction::insertFallthrough(const clang::Stmt &S) {
@@ -588,65 +590,64 @@ void CIRGenFunction::insertFallthrough(const clang::Stmt &S) {
                           mlir::ValueRange({}));
 }
 
-mlir::LogicalResult CIRGenFunction::buildCaseStmt(const CaseStmt &S,
+template <typename T> 
+mlir::LogicalResult CIRGenFunction::buildCaseDefaultCascade(const T *stmt,
                                                   mlir::Type condType,
                                                   SmallVector<mlir::Attribute, 4> &caseAttrs,
-                                                  mlir::OperationState &os) {                                                  
-  assert((!S.getRHS() || !S.caseStmtIsGNURange()) &&
-         "case ranges not implemented");
-  auto res = mlir::success();
-  caseAttrs.push_back(getAttr(S, condType));
+                                                  mlir::OperationState &os) {
 
-  const CaseStmt *nextCase = &S;
-  const CaseStmt *lastCase = &S;
-  while (nextCase) {
-    lastCase = nextCase;
-    nextCase = dyn_cast_or_null <CaseStmt>(nextCase->getSubStmt());
-  }
-   
-  mlir::OpBuilder::InsertionGuard guardCase(builder);
+  assert((isa<CaseStmt, DefaultStmt>(stmt)) && "only case or default stmt go here");
+
+  auto res = mlir::success();
+
+  // Update scope information with the current region we are
+  // emitting code for. This is useful to allow return blocks to be
+  // automatically and properly placed during cleanup.
   auto *region = os.addRegion();
   auto *block = builder.createBlock(region);
   builder.setInsertionPointToEnd(block);
   currLexScope->updateCurrentSwitchCaseRegion();
-  
-  if (auto *def = dyn_cast<DefaultStmt>(lastCase->getSubStmt())) {
-    insertFallthrough(*lastCase);
-    res = buildDefaultStmt(*def, condType, caseAttrs, os);
-  } else {
-    mlir::OpBuilder::InsertionGuard guardCase(builder);
-    res = buildStmt(
-        lastCase->getSubStmt(),
-        /*useCurrentScope=*/!isa<CompoundStmt>(lastCase->getSubStmt()));
-  }
 
-  // TODO: likelihood
+  auto *sub = stmt->getSubStmt();
+
+  if (isa<DefaultStmt>(sub) && isa<CaseStmt>(stmt)) {
+    insertFallthrough(*stmt);
+    res = buildDefaultStmt(*dyn_cast<DefaultStmt>(sub), condType, caseAttrs, os);
+  } else if (isa<CaseStmt>(sub) && isa<DefaultStmt>(stmt)) {
+    insertFallthrough(*stmt);
+    res = buildCaseStmt(*dyn_cast<CaseStmt>(sub), condType, caseAttrs, os);
+  } else {
+    mlir::OpBuilder::InsertionGuard guardCase(builder);  
+    res = buildStmt(sub, /*useCurrentScope=*/!isa<CompoundStmt>(sub));  
+  }
+  
   return res;
+}
+
+mlir::LogicalResult CIRGenFunction::buildCaseStmt(const CaseStmt &S,
+                                                  mlir::Type condType,
+                                                  SmallVector<mlir::Attribute, 4> &caseAttrs,
+                                                  mlir::OperationState &os) {
+  assert((!S.getRHS() || !S.caseStmtIsGNURange()) &&
+         "case ranges not implemented");
+
+  auto *caseStmt = foldCaseStmt(S, condType, caseAttrs);
+
+  return buildCaseDefaultCascade(caseStmt, condType, caseAttrs, os);
 }
 
 mlir::LogicalResult CIRGenFunction::buildDefaultStmt(const DefaultStmt &S,
                                                      mlir::Type condType,
                                                      SmallVector<mlir::Attribute, 4> &caseAttrs,
-                                                     mlir::OperationState& os) {
-  mlir::OpBuilder::InsertionGuard guardCase(builder);
-  auto *region = os.addRegion();
-  auto *block = builder.createBlock(region);
-  builder.setInsertionPointToEnd(block);
-  currLexScope->updateCurrentSwitchCaseRegion();
-  
-  auto res = mlir::success();
-  caseAttrs.push_back(getAttr(S));
+                                                     mlir::OperationState& os) { 
+  auto ctxt = builder.getContext();
 
-  if (auto *cas = dyn_cast<CaseStmt>(S.getSubStmt())) {
-    insertFallthrough(*cas);
-    res = buildCaseStmt(*cas, condType, caseAttrs, os);
-  } else {                           
-    res = buildStmt(S.getSubStmt(),
-                  /*useCurrentScope=*/!isa<CompoundStmt>(S.getSubStmt()));    
-  }
+  auto defAttr = mlir::cir::CaseAttr::get(
+      ctxt, builder.getArrayAttr({}),
+      CaseOpKindAttr::get(ctxt, mlir::cir::CaseOpKind::Default));
 
-  // TODO: likelihood
-  return res;
+  caseAttrs.push_back(defAttr);
+  return buildCaseDefaultCascade(&S, condType, caseAttrs, os);
 }
 
 static mlir::LogicalResult buildLoopCondYield(mlir::OpBuilder &builder,
@@ -971,7 +972,7 @@ mlir::LogicalResult CIRGenFunction::buildSwitchStmt(const SwitchStmt &S) {
     swop = builder.create<SwitchOp>(
         getLoc(S.getBeginLoc()), condV,
         /*switchBuilder=*/
-        [&](mlir::OpBuilder &b, mlir::Location loc, mlir::OperationState &os) {
+        [&](mlir::OpBuilder &b, mlir::Location loc, mlir::OperationState &os) {          
           auto *cs = dyn_cast<CompoundStmt>(S.getBody());
           assert(cs && "expected compound stmt");
           SmallVector<mlir::Attribute, 4> caseAttrs;
@@ -994,13 +995,6 @@ mlir::LogicalResult CIRGenFunction::buildSwitchStmt(const SwitchStmt &S) {
 
             auto *caseStmt = dyn_cast<CaseStmt>(c);
             
-            // Update scope information with the current region we are
-            // emitting code for. This is useful to allow return blocks to be
-            // automatically and properly placed during cleanup.
-            // mlir::Region *caseRegion = os.addRegion();
-            // currLexScope->updateCurrentSwitchCaseRegion();
-
-            //lastCaseBlock = builder.createBlock(caseRegion);
             if (caseStmt)
               res = buildCaseStmt(*caseStmt, condV.getType(), caseAttrs, os);
             else {
@@ -1008,10 +1002,11 @@ mlir::LogicalResult CIRGenFunction::buildSwitchStmt(const SwitchStmt &S) {
               assert(defaultStmt && "expected default stmt");
               res = buildDefaultStmt(*defaultStmt, condV.getType(), caseAttrs, os);
             }
+            
+            lastCaseBlock = builder.getBlock();
 
             if (res.failed())
               break;
-                        
           }
 
           os.addAttribute("cases", builder.getArrayAttr(caseAttrs));

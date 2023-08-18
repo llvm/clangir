@@ -1119,10 +1119,18 @@ public:
   mlir::Value buildScalarConstant(const ConstantEmission &Constant, Expr *E);
 
   mlir::Type getCIRType(const clang::QualType &type);
+  
+  const CaseStmt* foldCaseStmt(const clang::CaseStmt& S, 
+                               mlir::Type condType,
+                               SmallVector<mlir::Attribute, 4> &caseAttrs);
 
-  mlir::cir::CaseAttr getAttr(const clang::CaseStmt &S, mlir::Type condType);
-  mlir::cir::CaseAttr getAttr(const clang::DefaultStmt &S);
   void insertFallthrough(const clang::Stmt &S);
+
+  template <typename T>
+  mlir::LogicalResult buildCaseDefaultCascade(const T *stmt,
+                                              mlir::Type condType,
+                                              SmallVector<mlir::Attribute, 4> &caseAttrs,
+                                              mlir::OperationState &os);
 
   mlir::LogicalResult buildCaseStmt(const clang::CaseStmt &S,
                                     mlir::Type condType,
