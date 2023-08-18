@@ -577,7 +577,8 @@ public:
   const CIRGenFunctionInfo *CurFnInfo;
   clang::QualType FnRetTy;
 
-  /// This is the current function or global initializer that is generated code for.
+  /// This is the current function or global initializer that is generated code
+  /// for.
   mlir::Operation *CurFn = nullptr;
 
   /// Save Parameter Decl for coroutine.
@@ -593,7 +594,7 @@ public:
 
   CIRGenModule &getCIRGenModule() { return CGM; }
 
-  mlir::Block* getCurFunctionEntryBlock() {
+  mlir::Block *getCurFunctionEntryBlock() {
     auto Fn = dyn_cast<mlir::cir::FuncOp>(CurFn);
     assert(Fn && "other callables NYI");
     return &Fn.getRegion().front();
@@ -1119,28 +1120,27 @@ public:
   mlir::Value buildScalarConstant(const ConstantEmission &Constant, Expr *E);
 
   mlir::Type getCIRType(const clang::QualType &type);
-  
-  const CaseStmt* foldCaseStmt(const clang::CaseStmt& S, 
-                               mlir::Type condType,
+
+  const CaseStmt *foldCaseStmt(const clang::CaseStmt &S, mlir::Type condType,
                                SmallVector<mlir::Attribute, 4> &caseAttrs);
 
   void insertFallthrough(const clang::Stmt &S);
 
   template <typename T>
-  mlir::LogicalResult buildCaseDefaultCascade(const T *stmt,
-                                              mlir::Type condType,
-                                              SmallVector<mlir::Attribute, 4> &caseAttrs,
-                                              mlir::OperationState &os);
+  mlir::LogicalResult
+  buildCaseDefaultCascade(const T *stmt, mlir::Type condType,
+                          SmallVector<mlir::Attribute, 4> &caseAttrs,
+                          mlir::OperationState &os);
 
   mlir::LogicalResult buildCaseStmt(const clang::CaseStmt &S,
                                     mlir::Type condType,
                                     SmallVector<mlir::Attribute, 4> &caseAttrs,
                                     mlir::OperationState &op);
 
-  mlir::LogicalResult buildDefaultStmt(const clang::DefaultStmt &S,
-                                       mlir::Type condType,
-                                       SmallVector<mlir::Attribute, 4> &caseAttrs,
-                                       mlir::OperationState &op);
+  mlir::LogicalResult
+  buildDefaultStmt(const clang::DefaultStmt &S, mlir::Type condType,
+                   SmallVector<mlir::Attribute, 4> &caseAttrs,
+                   mlir::OperationState &op);
 
   mlir::cir::FuncOp generateCode(clang::GlobalDecl GD, mlir::cir::FuncOp Fn,
                                  const CIRGenFunctionInfo &FnInfo);
