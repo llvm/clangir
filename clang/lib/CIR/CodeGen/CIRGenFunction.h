@@ -1120,13 +1120,19 @@ public:
 
   mlir::Type getCIRType(const clang::QualType &type);
 
+  mlir::cir::CaseAttr getAttr(const clang::CaseStmt &S, mlir::Type condType);
+  mlir::cir::CaseAttr getAttr(const clang::DefaultStmt &S);
+  void insertFallthrough(const clang::Stmt &S);
+
   mlir::LogicalResult buildCaseStmt(const clang::CaseStmt &S,
                                     mlir::Type condType,
-                                    mlir::cir::CaseAttr &caseEntry);
+                                    SmallVector<mlir::Attribute, 4> &caseAttrs,
+                                    mlir::OperationState &op);
 
   mlir::LogicalResult buildDefaultStmt(const clang::DefaultStmt &S,
                                        mlir::Type condType,
-                                       mlir::cir::CaseAttr &caseEntry);
+                                       SmallVector<mlir::Attribute, 4> &caseAttrs,
+                                       mlir::OperationState &op);
 
   mlir::cir::FuncOp generateCode(clang::GlobalDecl GD, mlir::cir::FuncOp Fn,
                                  const CIRGenFunctionInfo &FnInfo);
