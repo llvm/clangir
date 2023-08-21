@@ -11,15 +11,7 @@ get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
 
 add_clang_library(clangTidyCIRModule
   Lifetime.cpp
-  CIRASTConsumer.cpp
   CIRTidyModule.cpp
-
-  LINK_LIBS
-  clangTidy
-  clangTidyUtils
-
-  DEPENDS
-  omp_gen
 
   LINK_LIBS
   clangASTMatchers
@@ -27,7 +19,6 @@ add_clang_library(clangTidyCIRModule
   clangFrontend
   clangSerialization
   clangTidy
-  clangTidyUtils
   ${dialect_libs}
   MLIRCIR
   MLIRCIRTransforms
@@ -48,6 +39,9 @@ add_clang_library(clangTidyCIRModule
   MLIRMemRefDialect
   MLIRTargetLLVMIRExport
   MLIRTransforms
+
+  DEPENDS
+  omp_gen
   )
 
 clang_target_link_libraries(clangTidyCIRModule
