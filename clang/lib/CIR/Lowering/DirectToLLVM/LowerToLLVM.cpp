@@ -1825,6 +1825,9 @@ void ConvertCIRToLLVMPass::runOnOperation() {
   target.addIllegalDialect<mlir::BuiltinDialect, mlir::cir::CIRDialect,
                            mlir::func::FuncDialect>();
 
+  // Allow operations that will be lowered directly to LLVM IR.
+  target.addLegalOp<mlir::cir::ZeroInitConstOp>();
+
   getOperation()->removeAttr("cir.sob");
   getOperation()->removeAttr("cir.lang");
 
