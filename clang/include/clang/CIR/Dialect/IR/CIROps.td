@@ -1883,6 +1883,10 @@ def MemCpyOp : CIR_Op<"libc.memcpy"> {
     Given two CIR pointers, `src` and `dst`, `cir.libc.memcpy` will copy `len`
     bytes from the memory pointed by `src` to the memory pointed by `dst`.
 
+    While `cir.copy` is meant to be used for implicit copies in the code where
+    the length of the copy is known, `cir.memcpy` copies only from and to void
+    pointers, requiring the copy length to be passed as an argument.
+
     Examples:
 
     ```mlir
@@ -1939,6 +1943,24 @@ def VAArgOp : CIR_Op<"va.arg">,
               Arguments<(ins CIR_PointerType:$arg_list)> {
   let summary = "Fetches next variadic element as a given type";
   let assemblyFormat = "$arg_list attr-dict `:` functional-type(operands, $result)";
+  let hasVerifier = 0;
+}
+
+//===----------------------------------------------------------------------===//
+// Operations Lowered Directly to LLVM IR
+//
+// These operations are hacks to get around missing features in LLVM's dialect.
+// Use it sparingly and remove it once the features are added.
+//===----------------------------------------------------------------------===//
+
+def ZeroInitConstOp : CIR_Op<"llvmir.zeroinit", [Pure]>,
+                      Results<(outs AnyType:$result)> {
+  let summary = "Zero initializes a constant value of a given type";
+  let description = [{
+    This operation circumvents the lack of a zeroinitializer operation in LLVM
+    Dialect. It can zeroinitialize any LLVM type.
+  }];
+  let assemblyFormat = "attr-dict `:` type($result)";
   let hasVerifier = 0;
 }
 
