@@ -3,26 +3,81 @@ set(LLVM_LINK_COMPONENTS
   Support
   )
 
+if(CLANG_ENABLE_CIR)
+  include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/.. )
+  include_directories( ${LLVM_MAIN_SRC_DIR}/../mlir/include )
+  include_directories( ${CMAKE_BINARY_DIR}/tools/mlir/include )
+
+  get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
+endif()
+
 configure_file(
   ${CMAKE_CURRENT_SOURCE_DIR}/clang-tidy-config.h.cmake
   ${CMAKE_CURRENT_BINARY_DIR}/clang-tidy-config.h)
 include_directories(BEFORE ${CMAKE_CURRENT_BINARY_DIR})
 
-add_clang_library(clangTidy
-  ClangTidy.cpp
-  ClangTidyCheck.cpp
-  ClangTidyModule.cpp
-  ClangTidyDiagnosticConsumer.cpp
-  ClangTidyOptions.cpp
-  ClangTidyProfiling.cpp
-  ExpandModularHeadersPPCallbacks.cpp
-  GlobList.cpp
-  NoLintDirectiveHandler.cpp
+if(CLANG_ENABLE_CIR)
+  add_clang_library(clangTidy
+    ClangTidy.cpp
+    ClangTidyCheck.cpp
+    ClangTidyModule.cpp
+    ClangTidyDiagnosticConsumer.cpp
+    ClangTidyOptions.cpp
+    ClangTidyProfiling.cpp
+    ExpandModularHeadersPPCallbacks.cpp
+    GlobList.cpp
+    NoLintDirectiveHandler.cpp
 
-  DEPENDS
-  ClangSACheckers
-  omp_gen
+    DEPENDS
+    MLIRBuiltinLocationAttributesIncGen
+    MLIRCIROpsIncGen
+    MLIRCIREnumsGen
+    MLIRSymbolInterfacesIncGen
+
+    LINK_LIBS
+    clangCIR
+    ${dialect_libs}
+    MLIRCIR
+    MLIRCIRTransforms
+    MLIRAffineToStandard
+    MLIRAnalysis
+    MLIRIR
+    MLIRLLVMCommonConversion
+    MLIRLLVMDialect
+    MLIRLLVMToLLVMIRTranslation
+    MLIRMemRefDialect
+    MLIRMemRefToLLVM
+    MLIRParser
+    MLIRPass
+    MLIRSideEffectInterfaces
+    MLIRSCFToControlFlow
+    MLIRFuncToLLVM
+    MLIRSupport
+    MLIRMemRefDialect
+    MLIRTargetLLVMIRExport
+    MLIRTransforms
+
+    DEPENDS
+    ClangSACheckers
+    omp_gen
+    )
+else()
+  add_clang_library(clangTidy
+    ClangTidy.cpp
+    ClangTidyCheck.cpp
+    ClangTidyModule.cpp
+    ClangTidyDiagnosticConsumer.cpp
+    ClangTidyOptions.cpp
+    ClangTidyProfiling.cpp
+    ExpandModularHeadersPPCallbacks.cpp
+    GlobList.cpp
+    NoLintDirectiveHandler.cpp
+
+    DEPENDS
+    ClangSACheckers
+    omp_gen
   )
+endif()
 
 clang_target_link_libraries(clangTidy
   PRIVATE
