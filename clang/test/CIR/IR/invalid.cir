@@ -467,7 +467,7 @@ module {
 module {
   // Should not memcpy with invalid length type.
   cir.func @invalid_memcpy_len(%arg0 : !cir.ptr<!cir.void>, %arg1 : !s8i) {
-    // expected-error@+1 {{memcpy lenght must be an unsigned integer}}
+    // expected-error@+1 {{memcpy length must be an unsigned integer}}
     cir.libc.memcpy %arg1 bytes from %arg0 to %arg0 : !s8i, !cir.ptr<!cir.void> -> !cir.ptr<!cir.void>
     cir.return
   }
