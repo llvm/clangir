@@ -208,11 +208,18 @@ class CIRCopyOpLowering : public mlir::OpConversionPattern<mlir::cir::CopyOp> {
 public:
   using mlir::OpConversionPattern<mlir::cir::CopyOp>::OpConversionPattern;
 
+  uint64_t getTypeSize(mlir::Type type, mlir::Operation &op) const {
+    mlir::DataLayout layout(op.getParentOfType<mlir::ModuleOp>());
+    return llvm::divideCeil(layout.getTypeSizeInBits(type), 8);
+  }
+
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::CopyOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
+    auto srcPtrTy = mlir::cast<mlir::cir::PointerType>(op.getSrc().getType());
+    auto typeSize = getTypeSize(srcPtrTy.getPointee(), *op);
     const mlir::Value length = rewriter.create<mlir::LLVM::ConstantOp>(
-        op.getLoc(), rewriter.getI32Type(), op.getLength());
+        op.getLoc(), rewriter.getI32Type(), mlir::IntegerAttr::get(rewriter.getI32Type(), typeSize));
     rewriter.replaceOpWithNewOp<mlir::LLVM::MemcpyOp>(
         op, adaptor.getDst(), adaptor.getSrc(), length, /*isVolatile=*/false);
     return mlir::success();
