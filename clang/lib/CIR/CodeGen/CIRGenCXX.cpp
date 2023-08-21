@@ -45,8 +45,6 @@ static void buildDeclInit(CIRGenFunction &CGF, const VarDecl *D,
     llvm_unreachable("scalar evaluation NYI");
   case TEK_Complex:
     llvm_unreachable("complext evaluation NYI");
-  default:
-    llvm_unreachable("bad evaluation kind");
   }
 }
 
@@ -82,6 +80,7 @@ void CIRGenModule::codegenGlobalInitCxxStructor(const VarDecl *D,
     buildDeclInit(CGF, D, DeclAddr);
     builder.setInsertionPointToEnd(block);
     builder.create<mlir::cir::YieldOp>(Addr->getLoc());
+    Addr.setAstAttr(mlir::cir::ASTVarDeclAttr::get(builder.getContext(), D));
   }
   CurCGF = nullptr;
 }
