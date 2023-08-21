@@ -1,4 +1,4 @@
-//====- LowerAttrToLLVMIR.cpp - Lowering CIR attributes to LLVMIR ---------===//
+//====- LoweToLLVMIR.cpp - Lowering CIR attributes to LLVMIR ---------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,7 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file implements lowering of CIR attributes to LLVMIR.
+// This file implements lowering of CIR attributes and operations directly to
+// LLVMIR.
 //
 //===----------------------------------------------------------------------===//
 
@@ -58,7 +59,8 @@ public:
     if (auto extraAttr = attribute.getValue()
                              .dyn_cast<mlir::cir::ExtraFuncAttributesAttr>()) {
       for (auto attr : extraAttr.getElements()) {
-        if (auto inlineAttr = attr.getValue().dyn_cast<mlir::cir::InlineAttr>()) {
+        if (auto inlineAttr =
+                attr.getValue().dyn_cast<mlir::cir::InlineAttr>()) {
           if (inlineAttr.isNoInline())
             llvmFunc->addFnAttr(llvm::Attribute::NoInline);
           else if (inlineAttr.isAlwaysInline())
@@ -95,9 +97,10 @@ public:
 
 void registerCIRDialectTranslation(mlir::DialectRegistry &registry) {
   registry.insert<mlir::cir::CIRDialect>();
-  registry.addExtension(+[](mlir::MLIRContext *ctx, mlir::cir::CIRDialect *dialect) {
-    dialect->addInterfaces<CIRDialectLLVMIRTranslationInterface>();
-  });
+  registry.addExtension(
+      +[](mlir::MLIRContext *ctx, mlir::cir::CIRDialect *dialect) {
+        dialect->addInterfaces<CIRDialectLLVMIRTranslationInterface>();
+      });
 }
 
 void registerCIRDialectTranslation(mlir::MLIRContext &context) {
