@@ -23,12 +23,14 @@
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Diagnostics.h"
 #include "mlir/IR/DialectImplementation.h"
+#include "mlir/IR/DialectInterface.h"
 #include "mlir/IR/FunctionImplementation.h"
 #include "mlir/IR/Location.h"
 #include "mlir/IR/OpDefinition.h"
 #include "mlir/IR/OpImplementation.h"
 #include "mlir/IR/StorageUniquerSupport.h"
 #include "mlir/IR/TypeUtilities.h"
+#include "mlir/Interfaces/DataLayoutInterfaces.h"
 #include "mlir/Interfaces/InferTypeOpInterface.h"
 #include "mlir/Support/LLVM.h"
 #include "mlir/Support/LogicalResult.h"
@@ -1237,6 +1239,20 @@ LogicalResult GlobalOp::verify() {
       return failure();
   }
 
+  // Verify that the constructor region, if present, has only one block which is
+  // not empty.
+  auto &ctorRegion = getCtorRegion();
+  if (!ctorRegion.empty()) {
+    if (!ctorRegion.hasOneBlock()) {
+      return emitError() << "ctor region must have exactly one block.";
+    }
+
+    auto &block = ctorRegion.front();
+    if (block.empty()) {
+      return emitError() << "ctor region shall not be empty.";
+    }
+  }
+
   if (std::optional<uint64_t> alignAttr = getAlignment()) {
     uint64_t alignment = alignAttr.value();
     if (!llvm::isPowerOf2_64(alignment))
@@ -2173,6 +2189,39 @@ VTableAttr::verify(::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
   }
 
   return success();
+}
+
+//===----------------------------------------------------------------------===//
+// CopyOp Definitions
+//===----------------------------------------------------------------------===//
+
+LogicalResult CopyOp::verify() {
+
+  // A data layout is required for us to know the number of bytes to be copied.
+  if (!getType().getPointee().hasTrait<DataLayoutTypeInterface::Trait>())
+    return emitError() << "missing data layout for pointee type";
+
+  if (getSrc() == getDst())
+    return emitError() << "source and destination are the same";
+
+  return mlir::success();
+}
+
+//===----------------------------------------------------------------------===//
+// MemCpyOp Definitions
+//===----------------------------------------------------------------------===//
+
+LogicalResult MemCpyOp::verify() {
+  auto voidPtr =
+      cir::PointerType::get(getContext(), cir::VoidType::get(getContext()));
+
+  if (!getLenTy().isUnsigned())
+    return emitError() << "memcpy length must be an unsigned integer";
+
+  if (getSrcTy() != voidPtr || getDstTy() != voidPtr)
+    return emitError() << "memcpy src and dst must be void pointers";
+
+  return mlir::success();
 }
 
 //===----------------------------------------------------------------------===//
