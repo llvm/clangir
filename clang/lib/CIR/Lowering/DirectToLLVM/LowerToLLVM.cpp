@@ -107,6 +107,15 @@ lowerCirAttrAsValue(mlir::FloatAttr fltAttr, mlir::Location loc,
       loc, converter->convertType(fltAttr.getType()), fltAttr.getValue());
 }
 
+/// ZeroAttr visitor.
+inline mlir::Value
+lowerCirAttrAsValue(mlir::cir::ZeroAttr zeroAttr, mlir::Location loc,
+                    mlir::ConversionPatternRewriter &rewriter,
+                    mlir::TypeConverter *converter) {
+  return rewriter.create<mlir::cir::ZeroInitConstOp>(
+      loc, converter->convertType(zeroAttr.getType()));
+}
+
 /// ConstStruct visitor.
 mlir::Value lowerCirAttrAsValue(mlir::cir::ConstStructAttr constStruct,
                                 mlir::Location loc,
@@ -157,10 +166,10 @@ lowerCirAttrAsValue(mlir::Attribute attr, mlir::Location loc,
     return lowerCirAttrAsValue(constStruct, loc, rewriter, converter);
   if (const auto constArr = attr.dyn_cast<mlir::cir::ConstArrayAttr>())
     return lowerCirAttrAsValue(constArr, loc, rewriter, converter);
-  if (const auto zeroAttr = attr.dyn_cast<mlir::cir::BoolAttr>())
+  if (const auto boolAttr = attr.dyn_cast<mlir::cir::BoolAttr>())
     llvm_unreachable("bool attribute is NYI");
   if (const auto zeroAttr = attr.dyn_cast<mlir::cir::ZeroAttr>())
-    llvm_unreachable("zero attribute is NYI");
+    return lowerCirAttrAsValue(zeroAttr, loc, rewriter, converter);
 
   llvm_unreachable("unhandled attribute type");
 }
@@ -194,6 +203,36 @@ mlir::LLVM::Linkage convertLinkage(mlir::cir::GlobalLinkageKind linkage) {
     return LLVM::WeakODR;
   };
 }
+
+class CIRCopyOpLowering : public mlir::OpConversionPattern<mlir::cir::CopyOp> {
+public:
+  using mlir::OpConversionPattern<mlir::cir::CopyOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::CopyOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    const mlir::Value length = rewriter.create<mlir::LLVM::ConstantOp>(
+        op.getLoc(), rewriter.getI32Type(), op.getLength());
+    rewriter.replaceOpWithNewOp<mlir::LLVM::MemcpyOp>(
+        op, adaptor.getDst(), adaptor.getSrc(), length, /*isVolatile=*/false);
+    return mlir::success();
+  }
+};
+
+class CIRMemCpyOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::MemCpyOp> {
+public:
+  using mlir::OpConversionPattern<mlir::cir::MemCpyOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::MemCpyOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOpWithNewOp<mlir::LLVM::MemcpyOp>(
+        op, adaptor.getDst(), adaptor.getSrc(), adaptor.getLen(),
+        /*isVolatile=*/false);
+    return mlir::success();
+  }
+};
 
 class CIRPtrStrideOpLowering
     : public mlir::OpConversionPattern<mlir::cir::PtrStrideOp> {
@@ -1258,14 +1297,12 @@ public:
       return mlir::success();
     } else if (isa<mlir::cir::ZeroAttr, mlir::cir::NullAttr>(init.value())) {
       // TODO(cir): once LLVM's dialect has a proper zeroinitializer attribute
-      // this should be updated. For now, we tag the LLVM global with a cir.zero
-      // attribute that is later replaced with a zeroinitializer. Null pointers
-      // also use this path for simplicity, as we would otherwise require a
-      // region-based initialization for the global op.
-      auto llvmGlobalOp = rewriter.replaceOpWithNewOp<mlir::LLVM::GlobalOp>(
-          op, llvmType, isConst, linkage, symbol, nullptr);
-      auto cirZeroAttr = mlir::cir::ZeroAttr::get(getContext(), llvmType);
-      llvmGlobalOp->setAttr("cir.initial_value", cirZeroAttr);
+      // this should be updated. For now, we use a custom op to initialize
+      // globals to zero.
+      setupRegionInitializedLLVMGlobalOp(op, rewriter);
+      auto value =
+          lowerCirAttrAsValue(init.value(), loc, rewriter, typeConverter);
+      rewriter.create<mlir::LLVM::ReturnOp>(loc, value);
       return mlir::success();
     } else if (const auto structAttr =
                    init.value().dyn_cast<mlir::cir::ConstStructAttr>()) {
@@ -1730,7 +1767,8 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
                CIRVAStartLowering, CIRVAEndLowering, CIRVACopyLowering,
                CIRVAArgLowering, CIRBrOpLowering, CIRTernaryOpLowering,
                CIRGetMemberOpLowering, CIRSwitchOpLowering,
-               CIRPtrDiffOpLowering>(converter, patterns.getContext());
+               CIRPtrDiffOpLowering, CIRCopyOpLowering, CIRMemCpyOpLowering>(
+      converter, patterns.getContext());
 }
 
 namespace {
@@ -1772,7 +1810,7 @@ mlir::LLVMTypeConverter prepareTypeConverter(mlir::MLIRContext *ctx) {
     mlir::LLVM::LLVMStructType llvmStruct;
     if (type.getTypeName().size() != 0) {
       llvmStruct = mlir::LLVM::LLVMStructType::getIdentified(
-          type.getContext(), type.getTypeName());
+          type.getContext(), type.getPrefixedName());
       if (llvmStruct.setBody(llvmMembers, /*isPacked=*/type.getPacked())
               .failed())
         llvm_unreachable("Failed to set body of struct");
@@ -1823,6 +1861,9 @@ void ConvertCIRToLLVMPass::runOnOperation() {
   target.addLegalDialect<mlir::LLVM::LLVMDialect>();
   target.addIllegalDialect<mlir::BuiltinDialect, mlir::cir::CIRDialect,
                            mlir::func::FuncDialect>();
+
+  // Allow operations that will be lowered directly to LLVM IR.
+  target.addLegalOp<mlir::cir::ZeroInitConstOp>();
 
   getOperation()->removeAttr("cir.sob");
   getOperation()->removeAttr("cir.lang");

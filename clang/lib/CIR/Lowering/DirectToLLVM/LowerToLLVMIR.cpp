@@ -1,4 +1,4 @@
-//====- LowerAttrToLLVMIR.cpp - Lowering CIR attributes to LLVMIR ---------===//
+//====- LoweToLLVMIR.cpp - Lowering CIR attributes to LLVMIR ---------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,7 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file implements lowering of CIR attributes to LLVMIR.
+// This file implements lowering of CIR attributes and operations directly to
+// LLVMIR.
 //
 //===----------------------------------------------------------------------===//
 
@@ -39,17 +40,6 @@ public:
   amendOperation(mlir::Operation *op, mlir::NamedAttribute attribute,
                  mlir::LLVM::ModuleTranslation &moduleTranslation) const final {
 
-    // Translate CIR's zero attribute to LLVM's zero initializer.
-    if (isa<mlir::cir::ZeroAttr>(attribute.getValue())) {
-      if (llvm::isa<mlir::LLVM::GlobalOp>(op)) {
-        auto *globalVal = llvm::cast<llvm::GlobalVariable>(
-            moduleTranslation.lookupGlobal(op));
-        globalVal->setInitializer(
-            llvm::Constant::getNullValue(globalVal->getValueType()));
-      } else
-        return op->emitError("#cir.zero not supported");
-    }
-
     // Translate CIR's extra function attributes to LLVM's function attributes.
     auto func = dyn_cast<mlir::LLVM::LLVMFuncOp>(op);
     if (!func)
@@ -58,7 +48,8 @@ public:
     if (auto extraAttr = attribute.getValue()
                              .dyn_cast<mlir::cir::ExtraFuncAttributesAttr>()) {
       for (auto attr : extraAttr.getElements()) {
-        if (auto inlineAttr = attr.getValue().dyn_cast<mlir::cir::InlineAttr>()) {
+        if (auto inlineAttr =
+                attr.getValue().dyn_cast<mlir::cir::InlineAttr>()) {
           if (inlineAttr.isNoInline())
             llvmFunc->addFnAttr(llvm::Attribute::NoInline);
           else if (inlineAttr.isAlwaysInline())
@@ -67,6 +58,8 @@ public:
             llvmFunc->addFnAttr(llvm::Attribute::InlineHint);
           else
             llvm_unreachable("Unknown inline kind");
+        } else if (attr.getValue().dyn_cast<mlir::cir::OptNoneAttr>()) {
+          llvmFunc->addFnAttr(llvm::Attribute::OptimizeNone);
         }
       }
     }
@@ -75,13 +68,28 @@ public:
     op->removeAttr(attribute.getName());
     return mlir::success();
   }
+
+  /// Translates the given operation to LLVM IR using the provided IR builder
+  /// and saving the state in `moduleTranslation`.
+  mlir::LogicalResult convertOperation(
+      mlir::Operation *op, llvm::IRBuilderBase &builder,
+      mlir::LLVM::ModuleTranslation &moduleTranslation) const final {
+
+    if (auto cirOp = llvm::dyn_cast<mlir::cir::ZeroInitConstOp>(op))
+      moduleTranslation.mapValue(cirOp.getResult()) =
+          llvm::Constant::getNullValue(
+              moduleTranslation.convertType(cirOp.getType()));
+
+    return mlir::success();
+  }
 };
 
 void registerCIRDialectTranslation(mlir::DialectRegistry &registry) {
   registry.insert<mlir::cir::CIRDialect>();
-  registry.addExtension(+[](mlir::MLIRContext *ctx, mlir::cir::CIRDialect *dialect) {
-    dialect->addInterfaces<CIRDialectLLVMIRTranslationInterface>();
-  });
+  registry.addExtension(
+      +[](mlir::MLIRContext *ctx, mlir::cir::CIRDialect *dialect) {
+        dialect->addInterfaces<CIRDialectLLVMIRTranslationInterface>();
+      });
 }
 
 void registerCIRDialectTranslation(mlir::MLIRContext &context) {
