@@ -24,11 +24,13 @@
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/Location.h"
 #include "mlir/IR/Types.h"
 #include "llvm/ADT/APSInt.h"
 #include "llvm/ADT/FloatingPointMode.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/Support/ErrorHandling.h"
+#include <cassert>
 #include <string>
 
 namespace cir {
@@ -144,6 +146,35 @@ public:
     return mlir::cir::ConstArrayAttr::get(arrayTy, attrs);
   }
 
+  mlir::Attribute getConstStructOrZeroAttr(mlir::ArrayAttr arrayAttr,
+                                           bool packed = false,
+                                           mlir::Type type = {}) {
+    llvm::SmallVector<mlir::Type, 8> members;
+    auto structTy = type.dyn_cast<mlir::cir::StructType>();
+    assert(structTy && "expected cir.struct");
+    assert(!packed && "unpacked struct is NYI");
+
+    // Collect members and check if they are all zero.
+    bool isZero = true;
+    for (auto &attr : arrayAttr) {
+      const auto typedAttr = attr.dyn_cast<mlir::TypedAttr>();
+      members.push_back(typedAttr.getType());
+      isZero &= isNullValue(typedAttr);
+    }
+
+    // Struct type not specified: create type from members.
+    if (!structTy)
+      structTy = getType<mlir::cir::StructType>(
+          members, mlir::StringAttr::get(getContext()),
+          /*body=*/true, packed,
+          /*ast=*/std::nullopt);
+
+    // Return zero or anonymous constant struct.
+    if (isZero)
+      return mlir::cir::ZeroAttr::get(getContext(), structTy);
+    return mlir::cir::ConstStructAttr::get(structTy, arrayAttr);
+  }
+
   mlir::cir::ConstStructAttr getAnonConstStruct(mlir::ArrayAttr arrayAttr,
                                                 bool packed = false,
                                                 mlir::Type ty = {}) {
@@ -186,6 +217,9 @@ public:
   // TODO(cir): Once we have CIR float types, replace this by something like a
   // NullableValueInterface to allow for type-independent queries.
   bool isNullValue(mlir::Attribute attr) const {
+    if (attr.isa<mlir::cir::ZeroAttr, mlir::cir::NullAttr>())
+      return true;
+
     // TODO(cir): introduce char type in CIR and check for that instead.
     if (const auto intVal = attr.dyn_cast<mlir::cir::IntAttr>())
       return intVal.isNullValue();
@@ -437,6 +471,17 @@ public:
   // Operation creation helpers
   // --------------------------
   //
+
+  /// Create a copy with inferred length.
+  mlir::cir::CopyOp createCopy(mlir::Value dst, mlir::Value src) {
+    return create<mlir::cir::CopyOp>(dst.getLoc(), dst, src);
+  }
+
+  mlir::cir::MemCpyOp createMemCpy(mlir::Location loc, mlir::Value dst,
+                                   mlir::Value src, mlir::Value len) {
+    return create<mlir::cir::MemCpyOp>(loc, dst, src, len);
+  }
+
   mlir::Value createNeg(mlir::Value value) {
 
     if (auto intTy = value.getType().dyn_cast<mlir::cir::IntType>()) {

@@ -22,12 +22,14 @@
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Diagnostics.h"
 #include "mlir/IR/DialectImplementation.h"
+#include "mlir/IR/DialectInterface.h"
 #include "mlir/IR/FunctionImplementation.h"
 #include "mlir/IR/Location.h"
 #include "mlir/IR/OpDefinition.h"
 #include "mlir/IR/OpImplementation.h"
 #include "mlir/IR/StorageUniquerSupport.h"
 #include "mlir/IR/TypeUtilities.h"
+#include "mlir/Interfaces/DataLayoutInterfaces.h"
 #include "mlir/Interfaces/InferTypeOpInterface.h"
 #include "mlir/Support/LLVM.h"
 #include "mlir/Support/LogicalResult.h"
@@ -1150,7 +1152,7 @@ LogicalResult LoopOp::verify() {
 
 static void printGlobalOpTypeAndInitialValue(OpAsmPrinter &p, GlobalOp op,
                                              TypeAttr type, Attribute initAttr,
-                                             mlir::Region& ctorRegion) {
+                                             mlir::Region &ctorRegion) {
   auto printType = [&]() { p << ": " << type; };
   if (!op.isDeclaration()) {
     p << "= ";
@@ -1177,15 +1179,14 @@ static void printGlobalOpTypeAndInitialValue(OpAsmPrinter &p, GlobalOp op,
 static ParseResult parseGlobalOpTypeAndInitialValue(OpAsmParser &parser,
                                                     TypeAttr &typeAttr,
                                                     Attribute &initialValueAttr,
-                                                    mlir::Region& ctorRegion) {
+                                                    mlir::Region &ctorRegion) {
   mlir::Type opTy;
   if (parser.parseOptionalEqual().failed()) {
     // Absence of equal means a declaration, so we need to parse the type.
     //  cir.global @a : i32
     if (parser.parseColonType(opTy))
       return failure();
-  }
-  else {
+  } else {
     // Parse contructor, example:
     //  cir.global @rgb = ctor : type { ... }
     if (!parser.parseOptionalKeyword("ctor")) {
@@ -1237,6 +1238,20 @@ LogicalResult GlobalOp::verify() {
       return failure();
   }
 
+  // Verify that the constructor region, if present, has only one block which is
+  // not empty.
+  auto &ctorRegion = getCtorRegion();
+  if (!ctorRegion.empty()) {
+    if (!ctorRegion.hasOneBlock()) {
+      return emitError() << "ctor region must have exactly one block.";
+    }
+
+    auto &block = ctorRegion.front();
+    if (block.empty()) {
+      return emitError() << "ctor region shall not be empty.";
+    }
+  }
+
   if (std::optional<uint64_t> alignAttr = getAlignment()) {
     uint64_t alignment = alignAttr.value();
     if (!llvm::isPowerOf2_64(alignment))
@@ -1274,10 +1289,10 @@ LogicalResult GlobalOp::verify() {
   return success();
 }
 
-void GlobalOp::build(
-    OpBuilder &odsBuilder, OperationState &odsState, StringRef sym_name,
-    Type sym_type, bool isConstant, cir::GlobalLinkageKind linkage,
-    function_ref<void(OpBuilder &, Location)> ctorBuilder) {
+void GlobalOp::build(OpBuilder &odsBuilder, OperationState &odsState,
+                     StringRef sym_name, Type sym_type, bool isConstant,
+                     cir::GlobalLinkageKind linkage,
+                     function_ref<void(OpBuilder &, Location)> ctorBuilder) {
   odsState.addAttribute(getSymNameAttrName(odsState.name),
                         odsBuilder.getStringAttr(sym_name));
   odsState.addAttribute(getSymTypeAttrName(odsState.name),
@@ -2170,6 +2185,39 @@ VTableAttr::verify(::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
   }
 
   return success();
+}
+
+//===----------------------------------------------------------------------===//
+// CopyOp Definitions
+//===----------------------------------------------------------------------===//
+
+LogicalResult CopyOp::verify() {
+
+  // A data layout is required for us to know the number of bytes to be copied.
+  if (!getType().getPointee().hasTrait<DataLayoutTypeInterface::Trait>())
+    return emitError() << "missing data layout for pointee type";
+
+  if (getSrc() == getDst())
+    return emitError() << "source and destination are the same";
+
+  return mlir::success();
+}
+
+//===----------------------------------------------------------------------===//
+// MemCpyOp Definitions
+//===----------------------------------------------------------------------===//
+
+LogicalResult MemCpyOp::verify() {
+  auto voidPtr =
+      cir::PointerType::get(getContext(), cir::VoidType::get(getContext()));
+
+  if (!getLenTy().isUnsigned())
+    return emitError() << "memcpy length must be an unsigned integer";
+
+  if (getSrcTy() != voidPtr || getDstTy() != voidPtr)
+    return emitError() << "memcpy src and dst must be void pointers";
+
+  return mlir::success();
 }
 
 //===----------------------------------------------------------------------===//
