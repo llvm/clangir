@@ -46,8 +46,6 @@ std::string CIRGenTypes::getRecordTypeName(const clang::RecordDecl *recordDecl,
   llvm::SmallString<256> typeName;
   llvm::raw_svector_ostream outStream(typeName);
 
-  outStream << recordDecl->getKindName() << '.';
-
   PrintingPolicy policy = recordDecl->getASTContext().getPrintingPolicy();
   policy.SuppressInlineNamespace = false;
 
@@ -169,7 +167,8 @@ mlir::Type CIRGenTypes::convertRecordDeclType(const clang::RecordDecl *RD) {
   // Handle forward decl / incomplete types.
   if (!entry) {
     auto recordKind = Builder.getRecordKind(RD->getTagKind());
-    entry = Builder.getStructTy(recordKind, {}, RD->getName(), /*body=*/false,
+    auto name = getRecordTypeName(RD, "");
+    entry = Builder.getStructTy(recordKind, {}, name, /*body=*/false,
                                 /*packed=*/false, RD);
     recordDeclTypes[key] = entry;
   }
