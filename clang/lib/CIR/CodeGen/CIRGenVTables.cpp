@@ -59,9 +59,7 @@ mlir::Type CIRGenVTables::getVTableType(const VTableLayout &layout) {
 
   // FIXME(cir): should VTableLayout be encoded like we do for some
   // AST nodes?
-  // FIXME(cir): we should have a proper type for vtables, something that does
-  // not carry record-like declaration info.
-  return CGM.getBuilder().getAnonStructTy(mlir::cir::StructType::NONE, tys,
+  return CGM.getBuilder().getAnonStructTy(mlir::cir::StructType::Struct, tys,
                                           /*body=*/true);
 }
 
