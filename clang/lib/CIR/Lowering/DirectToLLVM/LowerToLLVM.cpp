@@ -57,6 +57,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Sequence.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/Support/Casting.h"
@@ -1831,20 +1832,16 @@ mlir::LLVMTypeConverter prepareTypeConverter(mlir::MLIRContext *ctx) {
 } // namespace
 
 static void buildCtorList(mlir::ModuleOp module) {
-  llvm::SmallVector<std::pair<mlir::LLVM::LLVMFuncOp, int>, 2> globalCtors;
-  for (auto fn : module.getBodyRegion().getOps<mlir::LLVM::LLVMFuncOp>()) {
-    for (auto fnAttr : fn->getAttrs()) {
-      if (auto extraAttr =
-              fnAttr.getValue()
-                  .dyn_cast<mlir::cir::ExtraFuncAttributesAttr>()) {
-        for (auto attr : extraAttr.getElements()) {
-          if (auto ctorAttr = attr.getValue().dyn_cast<mlir::cir::GlobalCtorAttr>()) {
-            globalCtors.emplace_back(fn, ctorAttr.getPriority());
-            break;
-          }
-        }
-        break;
+  llvm::SmallVector<std::pair<StringRef, int>, 2> globalCtors;
+  for (auto namedAttr : module->getAttrs()) {
+    if (namedAttr.getName() == "cir.globalCtors") {
+      for (auto attr : namedAttr.getValue().cast<mlir::ArrayAttr>()) {
+        assert(attr.isa<mlir::cir::GlobalCtorAttr>() &&
+               "must be a GlobalCtorAttr");
+        if (auto ctorAttr = attr.cast<mlir::cir::GlobalCtorAttr>())
+          globalCtors.emplace_back(ctorAttr.getName(), ctorAttr.getPriority());
       }
+      break;
     }
   }
 
@@ -1885,14 +1882,14 @@ static void buildCtorList(mlir::ModuleOp module) {
     mlir::Value initPriority =
         builder.create<mlir::LLVM::ConstantOp>(loc, CtorStructFields[0], fn.second);
     mlir::Value initFuncAddr = builder.create<mlir::LLVM::AddressOfOp>(
-        loc, CtorStructFields[1], fn.first.getName());
+        loc, CtorStructFields[1], fn.first);
     mlir::Value initAssociate =
         builder.create<mlir::LLVM::NullOp>(loc, CtorStructFields[2]);
     structInit = builder.create<mlir::LLVM::InsertValueOp>(loc, structInit,
                                                            initPriority, 0);
     structInit = builder.create<mlir::LLVM::InsertValueOp>(loc, structInit,
                                                            initFuncAddr, 1);
-    // TODO: hanlde associated data for initializers.
+    // TODO: handle associated data for initializers.
     structInit = builder.create<mlir::LLVM::InsertValueOp>(loc, structInit,
                                                            initAssociate, 2);
     result =

@@ -455,15 +455,17 @@ def OptNoneAttr : CIRUnitAttr<"OptNone", "optnone"> {
 def GlobalCtorAttr : CIR_Attr<"GlobalCtor", "globalCtor"> {
   let summary = "Indicates a function is a global constructor.";
   let description = [{
-    Describing a global constructor with a priority.
+    Describing a global constructor with a priority (default 65536).
   }];
-  let parameters = (ins "int":$value);
+  let parameters = (ins "StringAttr":$name, "int":$priority);
   let assemblyFormat = [{
-    `<` $value `>`
+    `<` $name  `,` $priority `>`
   }];
-
-  let extraClassDeclaration = [{
-    int getPriority() const { return getValue(); }
-  }];
+  let builders = [
+    AttrBuilder<(ins "StringRef":$name, CArg<"int", "65536">:$priority), [{
+      return $_get($_ctxt, StringAttr::get($_ctxt, name), priority);
+    }]>
+  ];
+  let skipDefaultBuilders = 1;
 }
 #endif // MLIR_CIR_DIALECT_CIR_ATTRS
