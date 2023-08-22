@@ -130,15 +130,17 @@ Type StructType::parse(mlir::AsmParser &parser) {
   if (parser.parseLess())
     return {};
 
-  // FIXME(cir): break struct kinds into different types.
+  // TODO(cir): in the future we should probably separate types for different
+  // source language declarations such as cir.class, cir.union, and cir.struct
   if (parser.parseOptionalKeyword("struct").succeeded())
-    kind = RecordKind::STRUCT;
+    kind = RecordKind::Struct;
   else if (parser.parseOptionalKeyword("union").succeeded())
-    kind = RecordKind::UNION;
+    kind = RecordKind::Union;
   else if (parser.parseOptionalKeyword("class").succeeded())
-    kind = RecordKind::CLASS;
+    kind = RecordKind::Class;
   else {
-    kind = RecordKind::NONE;
+    parser.emitError(loc, "unknown struct type");
+    return {};
   }
 
   if (parser.parseAttribute(id))
@@ -167,25 +169,22 @@ Type StructType::parse(mlir::AsmParser &parser) {
   if (parser.parseGreater())
     return {};
 
-  return StructType::get(parser.getContext(), members, id, body, packed,
-                         std::nullopt, kind);
+  return StructType::get(parser.getContext(), members, id, body, packed, kind,
+                         std::nullopt);
 }
 
 void StructType::print(mlir::AsmPrinter &printer) const {
   printer << '<';
 
   switch (getKind()) {
-  case RecordKind::STRUCT:
+  case RecordKind::Struct:
     printer << "struct ";
     break;
-  case RecordKind::UNION:
+  case RecordKind::Union:
     printer << "union ";
     break;
-  case RecordKind::CLASS:
+  case RecordKind::Class:
     printer << "class ";
-    break;
-  case RecordKind::NONE:
-    // Do nothing.
     break;
   }
 
