@@ -128,6 +128,7 @@ def CIR_StructType : CIR_Type<"Struct", "struct",
     // for the struct size and alignment.
     mutable std::optional<unsigned> size{}, align{};
     mutable std::optional<bool> padded{};
+    mutable mlir::Type largestMember{};
     void computeSizeAndAlignment(const ::mlir::DataLayout &dataLayout) const;
   public:
     void dropAst();

@@ -2237,9 +2237,9 @@ LogicalResult GetMemberOp::verify() {
   if (recordTy.getMembers().size() <= getIndex())
     return emitError() << "member index out of bounds";
 
-  // FIXME(cir): Member type check is disabled for classes since there is a bug
-  // in codegen index for classes.
-  if (!recordTy.isClass() &&
+  // FIXME(cir): Member type check is disabled for classes and incomplete types
+  // as the codegen for these still need to be patched.
+  if (!recordTy.isClass() && !recordTy.getBody() &&
       recordTy.getMembers()[getIndex()] != getResultTy().getPointee())
     return emitError() << "member type mismatch";
 
