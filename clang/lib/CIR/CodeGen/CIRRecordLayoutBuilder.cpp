@@ -584,9 +584,7 @@ CIRGenTypes::computeRecordLayout(const RecordDecl *D,
         builder.astRecordLayout.getSize()) {
       CIRRecordLowering baseBuilder(*this, D, /*Packed=*/builder.isPacked);
       auto baseIdentifier = getRecordTypeName(D, ".base");
-      auto recordKind = Builder.getRecordKind(D->getTagKind());
-      *BaseTy = Builder.getStructTy(recordKind, baseBuilder.fieldTypes,
-                                    baseIdentifier,
+      *BaseTy = Builder.getStructTy(baseBuilder.fieldTypes, baseIdentifier,
                                     /*body=*/true, /*packed=*/false, D);
       // TODO(cir): add something like addRecordTypeName
 
@@ -600,8 +598,7 @@ CIRGenTypes::computeRecordLayout(const RecordDecl *D,
   // Fill in the struct *after* computing the base type.  Filling in the body
   // signifies that the type is no longer opaque and record layout is complete,
   // but we may need to recursively layout D while laying D out as a base type.
-  *Ty = Builder.getStructTy(Builder.getRecordKind(D->getTagKind()),
-                            builder.fieldTypes, getRecordTypeName(D, ""),
+  *Ty = Builder.getStructTy(builder.fieldTypes, getRecordTypeName(D, ""),
                             /*body=*/true, /*packed=*/false, D);
 
   auto RL = std::make_unique<CIRGenRecordLayout>(
