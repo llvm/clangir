@@ -59,8 +59,7 @@ mlir::Type CIRGenVTables::getVTableType(const VTableLayout &layout) {
 
   // FIXME(cir): should VTableLayout be encoded like we do for some
   // AST nodes?
-  return CGM.getBuilder().getAnonStructTy(mlir::cir::StructType::Struct, tys,
-                                          /*body=*/true);
+  return CGM.getBuilder().getAnonStructTy(tys, /*body=*/true);
 }
 
 /// At this point in the translation unit, does it appear that can we
