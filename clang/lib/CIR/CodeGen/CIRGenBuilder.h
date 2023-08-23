@@ -13,6 +13,7 @@
 #include "CIRGenTypeCache.h"
 #include "UnimplementedFeatureGuarding.h"
 
+#include "clang/AST/Decl.h"
 #include "clang/AST/Type.h"
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
@@ -190,8 +191,7 @@ public:
     }
 
     if (!ty)
-      ty = getAnonStructTy(mlir::cir::StructType::Struct, members,
-                           /*body=*/true, packed);
+      ty = getAnonStructTy(members, /*body=*/true, packed);
 
     auto sTy = ty.dyn_cast<mlir::cir::StructType>();
     assert(sTy && "expected struct type");
@@ -381,10 +381,9 @@ public:
 
   /// Get a CIR anonymous struct type.
   mlir::cir::StructType
-  getAnonStructTy(mlir::cir::StructType::RecordKind kind,
-                  llvm::ArrayRef<mlir::Type> members, bool body,
+  getAnonStructTy(llvm::ArrayRef<mlir::Type> members, bool body,
                   bool packed = false, const clang::RecordDecl *ast = nullptr) {
-    return getStructTy(kind, members, "", body, packed, ast);
+    return getStructTy(members, "", body, packed, ast);
   }
 
   /// Get a CIR record kind from a AST declaration tag.
@@ -405,14 +404,16 @@ public:
   }
 
   /// Get a CIR named struct type.
-  mlir::cir::StructType getStructTy(mlir::cir::StructType::RecordKind kind,
-                                    llvm::ArrayRef<mlir::Type> members,
+  mlir::cir::StructType getStructTy(llvm::ArrayRef<mlir::Type> members,
                                     llvm::StringRef name, bool body,
                                     bool packed, const clang::RecordDecl *ast) {
     const auto nameAttr = getStringAttr(name);
     std::optional<mlir::cir::ASTRecordDeclAttr> astAttr = std::nullopt;
-    if (ast)
+    auto kind = mlir::cir::StructType::RecordKind::Struct;
+    if (ast) {
       astAttr = getAttr<mlir::cir::ASTRecordDeclAttr>(ast);
+      kind = getRecordKind(ast->getTagKind());
+    }
     return mlir::cir::StructType::get(getContext(), members, nameAttr, body,
                                       packed, kind, astAttr);
   }
