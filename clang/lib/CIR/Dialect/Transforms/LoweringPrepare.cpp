@@ -126,6 +126,8 @@ void LoweringPreparePass::lowerGlobalOp(GlobalOp op) {
     ctorRegion.getBlocks().clear();
 
     // Add a function call to the variable initialization function.
+    assert(!op.getAst()->getAstDecl()->getAttr<clang::InitPriorityAttr>() &&
+           "custom initialization priority NYI");
     dynamicInitializers.push_back(f);
   }
 }

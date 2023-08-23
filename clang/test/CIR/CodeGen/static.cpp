@@ -31,7 +31,7 @@ static Init __ioinit2(false);
 // BEFORE-NEXT: }
 
 
-// AFTER:      module {{.*}} attributes {{.*}}cir.globalCtors = [#cir.globalCtor<"__cxx_global_var_init", 65536>, #cir.globalCtor<"__cxx_global_var_init.1", 65536>]
+// AFTER:      module {{.*}} attributes {{.*}}cir.globalCtors = [#cir.globalCtor<"__cxx_global_var_init">, #cir.globalCtor<"__cxx_global_var_init.1">]
 // AFTER-NEXT:   cir.func private @_ZN4InitC1Eb(!cir.ptr<!ty_22class2EInit22>, !cir.bool)
 // AFTER-NEXT:   cir.global "private" internal @_ZL8__ioinit =  #cir.zero : !ty_22class2EInit22 {ast = #cir.vardecl.ast}
 // AFTER-NEXT:   cir.func internal private @__cxx_global_var_init()

@@ -1838,8 +1838,13 @@ static void buildCtorList(mlir::ModuleOp module) {
       for (auto attr : namedAttr.getValue().cast<mlir::ArrayAttr>()) {
         assert(attr.isa<mlir::cir::GlobalCtorAttr>() &&
                "must be a GlobalCtorAttr");
-        if (auto ctorAttr = attr.cast<mlir::cir::GlobalCtorAttr>())
-          globalCtors.emplace_back(ctorAttr.getName(), ctorAttr.getPriority());
+        if (auto ctorAttr = attr.cast<mlir::cir::GlobalCtorAttr>()) {
+           // default priority is 65536
+          int priority = 65536;
+          if (ctorAttr.getPriority())
+            priority = *ctorAttr.getPriority();
+          globalCtors.emplace_back(ctorAttr.getName(), priority);
+        }
       }
       break;
     }
