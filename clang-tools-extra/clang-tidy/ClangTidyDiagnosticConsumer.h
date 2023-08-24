@@ -21,6 +21,18 @@
 #include <optional>
 #include <utility>
 
+// Workaround unitests not needing to change unittests to require
+// "clang-tidy-config.h" being generated.
+#if __has_include("clang-tidy-config.h")
+#ifndef CLANG_TIDY_CONFIG_H
+#include "clang-tidy-config.h"
+#endif
+#endif
+
+#if CLANG_ENABLE_CIR
+#include "clang/Basic/CodeGenOptions.h"
+#endif
+
 namespace clang {
 
 class ASTContext;
@@ -146,6 +158,12 @@ public:
   /// Gets the language options from the AST context.
   const LangOptions &getLangOpts() const { return LangOpts; }
 
+#if CLANG_ENABLE_CIR
+  /// Get and set CodeGenOpts
+  CodeGenOptions &getCodeGenOpts() { return CodeGenOpts; };
+  void setCodeGenOpts(CodeGenOptions &CGO) { CodeGenOpts = CGO; }
+#endif
+
   /// Returns the name of the clang-tidy check which produced this
   /// diagnostic ID.
   std::string getCheckName(unsigned DiagnosticID) const;
@@ -254,6 +272,10 @@ private:
   FileExtensionsSet ImplementationFileExtensions;
 
   LangOptions LangOpts;
+
+#if CLANG_ENABLE_CIR
+  CodeGenOptions CodeGenOpts;
+#endif
 
   ClangTidyStats Stats;
 
