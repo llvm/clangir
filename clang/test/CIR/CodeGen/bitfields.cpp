@@ -43,10 +43,14 @@ void store_field() {
 // CHECK: %9 = cir.binop(or, %8, %6) : !u32i 
 // CHECK: cir.store %9, %2 : !u32i, cir.ptr <!u32i> 
 
-void store_neg_field() {  
+void store_neg_field() {
   S s;
   s.d = -1;
-} 
+}
+
+void copy_s(S& s1, S& s2) {
+  s1.d = s2.d;
+}
 
 // CHECK: cir.func @_Z15store_neg_field
 // CHECK: %1 = cir.const(#cir.int<1> : !s32i) : !s32i 

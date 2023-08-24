@@ -9,6 +9,7 @@
 // This contains code to emit Expr nodes as CIR code.
 //
 //===----------------------------------------------------------------------===//
+#include <iostream>
 
 #include "CIRGenBuilder.h"
 #include "CIRGenCXXABI.h"
@@ -128,6 +129,7 @@ static Address buildPointerWithAlignment(const Expr *E,
         if (PtrTy->getPointeeType()->isVoidType())
           break;
         assert(!UnimplementedFeature::tbaa());
+
         LValueBaseInfo InnerBaseInfo;
         Address Addr = CGF.buildPointerWithAlignment(
             CE->getSubExpr(), &InnerBaseInfo, IsKnownNonNull);
@@ -135,19 +137,24 @@ static Address buildPointerWithAlignment(const Expr *E,
           *BaseInfo = InnerBaseInfo;
 
         if (isa<ExplicitCastExpr>(CE)) {
-          LValueBaseInfo TargetTypeBaseInfo;
+          assert(0 && "not implemented");
 
-          CharUnits Align = CGF.CGM.getNaturalPointeeTypeAlignment(
-              E->getType(), &TargetTypeBaseInfo);
 
-          // If the source l-value is opaque, honor the alignment of the
-          // casted-to type.
-          if (InnerBaseInfo.getAlignmentSource() != AlignmentSource::Decl) {
-            if (BaseInfo)
-              BaseInfo->mergeForCast(TargetTypeBaseInfo);
-            Addr = Address(Addr.getPointer(), Addr.getElementType(), Align,
-                           IsKnownNonNull);
-          }
+          //TODO: remove it later
+          // LValueBaseInfo TargetTypeBaseInfo;
+
+          // CharUnits Align = CGF.CGM.getNaturalPointeeTypeAlignment(
+          //     E->getType(), &TargetTypeBaseInfo);          
+          // assert(!UnimplementedFeature::tbaa());
+
+          // // If the source l-value is opaque, honor the alignment of the
+          // // casted-to type.
+          // if (InnerBaseInfo.getAlignmentSource() != AlignmentSource::Decl) {
+          //   if (BaseInfo)
+          //     BaseInfo->mergeForCast(TargetTypeBaseInfo);
+          //   Addr = Address(Addr.getPointer(), Addr.getElementType(), Align,
+          //                  IsKnownNonNull);
+          // }
         }
 
         if (CGF.SanOpts.has(SanitizerKind::CFIUnrelatedCast) &&
@@ -215,10 +222,24 @@ static bool isAAPCS(const TargetInfo &TargetInfo) {
   return TargetInfo.getABI().startswith("aapcs");
 }
 
+Address CIRGenFunction::getAddrOfField(LValue base, const FieldDecl *field, unsigned index) {
+  if (index == 0)
+    return base.getAddress();
+
+  auto loc = getLoc(field->getLocation());
+  auto fieldType = convertType(field->getType());
+  auto fieldPtr =
+    mlir::cir::PointerType::get(getBuilder().getContext(), fieldType);
+  auto sea = getBuilder().create<mlir::cir::StructElementAddr>(
+              loc, fieldPtr, base.getPointer(), field->getName(), index);
+
+  return Address(sea->getResult(0), CharUnits::One());
+}
+
 LValue CIRGenFunction::buildLValueForField(LValue base,
                                            const FieldDecl *field) {
   LValueBaseInfo BaseInfo = base.getBaseInfo();
-
+  
   if (field->isBitField()) {
     const CIRGenRecordLayout &RL =
         CGM.getTypes().getCIRGenRecordLayout(field->getParent());
@@ -234,17 +255,9 @@ LValue CIRGenFunction::buildLValueForField(LValue base,
     const RecordDecl *rec = field->getParent();
     if (!UseVolatile) {
       if (!IsInPreservedAIRegion &&
-          (!getDebugInfo() || !rec->hasAttr<BPFPreserveAccessIndexAttr>())) {
-        if (Idx != 0) {
-          auto loc = getLoc(field->getLocation());
-          auto fieldType = convertType(field->getType());
-          auto fieldPtr =
-              mlir::cir::PointerType::get(getBuilder().getContext(), fieldType);
-          auto sea = getBuilder().create<mlir::cir::StructElementAddr>(
-              loc, fieldPtr, base.getPointer(), field->getName(), Idx);
-
-          Addr = Address(sea->getResult(0), CharUnits::One());
-        }
+          (!getDebugInfo() || !rec->hasAttr<BPFPreserveAccessIndexAttr>())) {        
+        if (Idx != 0) 
+          Addr = getAddrOfField(base, field, Idx);          
       } else {
         llvm_unreachable("NYI");
       }
@@ -253,12 +266,12 @@ LValue CIRGenFunction::buildLValueForField(LValue base,
         UseVolatile ? Info.VolatileStorageSize : Info.StorageSize;
 
     // Get the access type.
-    mlir::Type FieldIntTy =
-        mlir::cir::IntType::get(builder.getContext(), SS, false);
-
+    mlir::Type FieldIntTy = builder.getCustomIntTy(SS, false);
+    
     auto loc = getLoc(field->getLocation());
-    if (Addr.getElementType() != FieldIntTy)
+    if (Addr.getElementType() != FieldIntTy) {                  
       Addr = builder.createElementBitCast(loc, Addr, FieldIntTy);
+    }
     if (UseVolatile) {
       llvm_unreachable("NYI");
     }
@@ -594,8 +607,7 @@ RValue CIRGenFunction::buildLoadOfBitfieldLValue(LValue LV,
   if (Info.IsSigned) {
     assert(static_cast<unsigned>(Offset + Info.Size) <= StorageSize);
 
-    mlir::Type typ =
-        mlir::cir::IntType::get(builder.getContext(), ValWidth, true);
+    mlir::Type typ = builder.getCustomIntTy(ValWidth, true);
     Val = builder.createIntCast(Val, typ);
 
     unsigned HighBits = StorageSize - Offset - Info.Size;
@@ -665,36 +677,34 @@ void CIRGenFunction::buildStoreThroughBitfieldLValue(RValue Src, LValue Dst,
 
     mlir::Value Val = buildLoadOfScalar(Dst, Dst.getPointer().getLoc());
 
-    mlir::Type Ty = SrcVal.getType();
     // Mask the source value as needed.
     if (!hasBooleanRepresentation(Dst.getType()))
-      SrcVal =
-          builder.createBinop(SrcVal, mlir::cir::BinOpKind::And,
-                              llvm::APInt::getLowBitsSet(SrcWidth, Info.Size));
-
+      SrcVal = builder.createAnd(SrcVal, llvm::APInt::getLowBitsSet(SrcWidth, Info.Size));
+      
     MaskedVal = SrcVal;
     if (Offset)
-      SrcVal = builder.createShift(SrcVal, llvm::APInt(SrcWidth, Offset), true);
+      SrcVal = builder.createShiftLeft(SrcVal, Offset);
 
     // Mask out the original value.
-    Val = builder.createBinop(
-        Val, mlir::cir::BinOpKind::And,
+    Val = builder.createAnd(Val,        
         ~llvm::APInt::getBitsSet(SrcWidth, Offset, Offset + Info.Size));
 
     // Or together the unchanged values and the source value.
-    SrcVal = builder.create<mlir::cir::BinOp>(
-        Val.getLoc(), Ty, mlir::cir::BinOpKind::Or, Val, SrcVal);
-  } else {
-    assert(Offset == 0);
+    SrcVal = builder.createOr(Val, SrcVal);
 
-    // According to the AACPS:
-    // When a volatile bit-field is written, and its container does not overlap
-    // with any non-bit-field member, its container must be read exactly once
-    // and written exactly once using the access width appropriate to the type
-    // of the container. The two accesses are not atomic.
-    if (Dst.isVolatileQualified() && isAAPCS(CGM.getTarget()) &&
-        CGM.getCodeGenOpts().ForceAAPCSBitfieldLoad)
-      builder.createLoad(Dst.getPointer().getLoc(), Ptr);
+  } else {
+    assert(0 && "not implemented");
+    // assert(Offset == 0);
+
+    //TODO: remove it later
+    // // According to the AACPS:
+    // // When a volatile bit-field is written, and its container does not overlap
+    // // with any non-bit-field member, its container must be read exactly once
+    // // and written exactly once using the access width appropriate to the type
+    // // of the container. The two accesses are not atomic.
+    // if (Dst.isVolatileQualified() && isAAPCS(CGM.getTarget()) &&
+    //     CGM.getCodeGenOpts().ForceAAPCSBitfieldLoad)
+    //   builder.createLoad(Dst.getPointer().getLoc(), Ptr);
   }
 
   // Write the new value back out.
@@ -705,8 +715,7 @@ void CIRGenFunction::buildStoreThroughBitfieldLValue(RValue Src, LValue Dst,
   // Return the new value of the bit-field, if requested.
   if (Result) {
     mlir::Value ResultVal = MaskedVal;
-    ResultVal = builder.createIntCast(ResultVal, ResLTy);
-    auto bitwidth = ResultVal.getType().cast<IntType>().getWidth();
+    ResultVal = builder.createIntCast(ResultVal, ResLTy);    
 
     // Sign extend the value if needed.
     if (Info.IsSigned) {
@@ -714,11 +723,8 @@ void CIRGenFunction::buildStoreThroughBitfieldLValue(RValue Src, LValue Dst,
       unsigned HighBits = StorageSize - Info.Size;
 
       if (HighBits) {
-        ResultVal = builder.createShift(ResultVal,
-                                        llvm::APInt(bitwidth, HighBits), true);
-
-        ResultVal = builder.createShift(ResultVal,
-                                        llvm::APInt(bitwidth, HighBits), false);
+        ResultVal = builder.createShiftLeft(ResultVal,  HighBits);
+        ResultVal = builder.createShiftRight(ResultVal, HighBits);
       }
     }
 
@@ -949,7 +955,13 @@ LValue CIRGenFunction::buildBinaryOperatorLValue(const BinaryOperator *E) {
     LValue LV = buildLValue(E->getLHS());
 
     SourceLocRAIIObject Loc{*this, getLoc(E->getSourceRange())};
-    buildStoreThroughLValue(RV, LV);
+    if (LV.isBitField()) {
+      mlir::Value *val{0};
+      buildStoreThroughBitfieldLValue(RV, LV, val);
+    } else {
+      buildStoreThroughLValue(RV, LV);
+    }
+    
     assert(!getContext().getLangOpts().OpenMP &&
            "last priv cond not implemented");
     return LV;
@@ -2392,9 +2404,9 @@ mlir::Value CIRGenFunction::buildLoadOfScalar(LValue lvalue,
 
 mlir::Value CIRGenFunction::buildFromMemory(mlir::Value Value, QualType Ty) {
   // Bool has a different representation in memory than in registers.
-  if (hasBooleanRepresentation(Ty)) {
-    llvm_unreachable("NYI");
-  }
+  // if (hasBooleanRepresentation(Ty)) {
+  //   llvm_unreachable("NYI");
+  // }
 
   return Value;
 }

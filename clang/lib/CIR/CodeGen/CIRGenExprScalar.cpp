@@ -1057,9 +1057,7 @@ static mlir::Value buildPointerArithmetic(CIRGenFunction &CGF,
     std::swap(pointerOperand, indexOperand);
   }
 
-  bool isSigned = indexOperand->getType()->isSignedIntegerOrEnumerationType();
-
-  auto &DL = CGF.CGM.getDataLayout();
+  bool isSigned = indexOperand->getType()->isSignedIntegerOrEnumerationType();  
 
   // Some versions of glibc and gcc use idioms (particularly in their malloc
   // routines) that add a pointer-sized integer (known to be a pointer value)
