@@ -79,57 +79,62 @@ namespace direct {
 
 /// Switches on the type of attribute and calls the appropriate conversion.
 inline mlir::Value
-lowerCirAttrAsValue(mlir::Attribute attr, mlir::Location loc,
+lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::Attribute attr,
                     mlir::ConversionPatternRewriter &rewriter,
                     const mlir::TypeConverter *converter);
 
 /// IntAttr visitor.
 inline mlir::Value
-lowerCirAttrAsValue(mlir::cir::IntAttr intAttr, mlir::Location loc,
+lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::cir::IntAttr intAttr,
                     mlir::ConversionPatternRewriter &rewriter,
                     const mlir::TypeConverter *converter) {
+  auto loc = parentOp->getLoc();
   return rewriter.create<mlir::LLVM::ConstantOp>(
       loc, converter->convertType(intAttr.getType()), intAttr.getValue());
 }
 
 /// NullAttr visitor.
 inline mlir::Value
-lowerCirAttrAsValue(mlir::cir::NullAttr nullAttr, mlir::Location loc,
+lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::cir::NullAttr nullAttr,
                     mlir::ConversionPatternRewriter &rewriter,
                     const mlir::TypeConverter *converter) {
+  auto loc = parentOp->getLoc();
   return rewriter.create<mlir::LLVM::ZeroOp>(
       loc, converter->convertType(nullAttr.getType()));
 }
 
 /// FloatAttr visitor.
 inline mlir::Value
-lowerCirAttrAsValue(mlir::FloatAttr fltAttr, mlir::Location loc,
+lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::FloatAttr fltAttr,
                     mlir::ConversionPatternRewriter &rewriter,
                     const mlir::TypeConverter *converter) {
+  auto loc = parentOp->getLoc();
   return rewriter.create<mlir::LLVM::ConstantOp>(
       loc, converter->convertType(fltAttr.getType()), fltAttr.getValue());
 }
 
 /// ZeroAttr visitor.
 inline mlir::Value
-lowerCirAttrAsValue(mlir::cir::ZeroAttr zeroAttr, mlir::Location loc,
+lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::cir::ZeroAttr zeroAttr,
                     mlir::ConversionPatternRewriter &rewriter,
                     const mlir::TypeConverter *converter) {
+  auto loc = parentOp->getLoc();
   return rewriter.create<mlir::cir::ZeroInitConstOp>(
       loc, converter->convertType(zeroAttr.getType()));
 }
 
 /// ConstStruct visitor.
-mlir::Value lowerCirAttrAsValue(mlir::cir::ConstStructAttr constStruct,
-                                mlir::Location loc,
+mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
+                                mlir::cir::ConstStructAttr constStruct,
                                 mlir::ConversionPatternRewriter &rewriter,
                                 const mlir::TypeConverter *converter) {
   auto llvmTy = converter->convertType(constStruct.getType());
+  auto loc = parentOp->getLoc();
   mlir::Value result = rewriter.create<mlir::LLVM::UndefOp>(loc, llvmTy);
 
   // Iteratively lower each constant element of the struct.
   for (auto [idx, elt] : llvm::enumerate(constStruct.getMembers())) {
-    mlir::Value init = lowerCirAttrAsValue(elt, loc, rewriter, converter);
+    mlir::Value init = lowerCirAttrAsValue(parentOp, elt, rewriter, converter);
     result = rewriter.create<mlir::LLVM::InsertValueOp>(loc, result, init, idx);
   }
 
@@ -137,16 +142,18 @@ mlir::Value lowerCirAttrAsValue(mlir::cir::ConstStructAttr constStruct,
 }
 
 // ArrayAttr visitor.
-mlir::Value lowerCirAttrAsValue(mlir::cir::ConstArrayAttr constArr,
-                                mlir::Location loc,
+mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
+                                mlir::cir::ConstArrayAttr constArr,
                                 mlir::ConversionPatternRewriter &rewriter,
                                 const mlir::TypeConverter *converter) {
   auto llvmTy = converter->convertType(constArr.getType());
+  auto loc = parentOp->getLoc();
   mlir::Value result = rewriter.create<mlir::LLVM::UndefOp>(loc, llvmTy);
   // Iteratively lower each constant element of the array.
   if (auto arrayAttr = mlir::dyn_cast<mlir::ArrayAttr>(constArr.getElts())) {
     for (auto [idx, elt] : llvm::enumerate(arrayAttr)) {
-      mlir::Value init = lowerCirAttrAsValue(elt, loc, rewriter, converter);
+      mlir::Value init =
+          lowerCirAttrAsValue(parentOp, elt, rewriter, converter);
       result =
           rewriter.create<mlir::LLVM::InsertValueOp>(loc, result, init, idx);
     }
@@ -170,25 +177,56 @@ mlir::Value lowerCirAttrAsValue(mlir::cir::ConstArrayAttr constArr,
   return result;
 }
 
+// GlobalViewAttr visitor.
+mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
+                                mlir::cir::GlobalViewAttr globalAttr,
+                                mlir::ConversionPatternRewriter &rewriter,
+                                const mlir::TypeConverter *converter) {
+  auto module = parentOp->getParentOfType<mlir::ModuleOp>();
+  auto sourceSymbol = dyn_cast<mlir::LLVM::GlobalOp>(
+      mlir::SymbolTable::lookupSymbolIn(module, globalAttr.getSymbol()));
+  assert(sourceSymbol && "Unlowered GlobalOp");
+  auto loc = parentOp->getLoc();
+
+  auto addressOfOp = rewriter.create<mlir::LLVM::AddressOfOp>(
+      loc, mlir::LLVM::LLVMPointerType::get(sourceSymbol.getContext()),
+      sourceSymbol.getSymName());
+
+  assert(!globalAttr.getIndices() && "TODO");
+
+  auto ptrTy = mlir::dyn_cast<mlir::cir::PointerType>(globalAttr.getType());
+  assert(ptrTy && "Expecting pointer type in GlobalViewAttr");
+  auto llvmEltTy = converter->convertType(ptrTy.getPointee());
+
+  if (llvmEltTy == sourceSymbol.getType())
+    return addressOfOp;
+
+  auto llvmDstTy = converter->convertType(globalAttr.getType());
+  return rewriter.create<mlir::LLVM::BitcastOp>(parentOp->getLoc(), llvmDstTy,
+                                                addressOfOp.getResult());
+}
+
 /// Switches on the type of attribute and calls the appropriate conversion.
 inline mlir::Value
-lowerCirAttrAsValue(mlir::Attribute attr, mlir::Location loc,
+lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::Attribute attr,
                     mlir::ConversionPatternRewriter &rewriter,
                     const mlir::TypeConverter *converter) {
   if (const auto intAttr = mlir::dyn_cast<mlir::cir::IntAttr>(attr))
-    return lowerCirAttrAsValue(intAttr, loc, rewriter, converter);
+    return lowerCirAttrAsValue(parentOp, intAttr, rewriter, converter);
   if (const auto fltAttr = mlir::dyn_cast<mlir::FloatAttr>(attr))
-    return lowerCirAttrAsValue(fltAttr, loc, rewriter, converter);
+    return lowerCirAttrAsValue(parentOp, fltAttr, rewriter, converter);
   if (const auto nullAttr = mlir::dyn_cast<mlir::cir::NullAttr>(attr))
-    return lowerCirAttrAsValue(nullAttr, loc, rewriter, converter);
+    return lowerCirAttrAsValue(parentOp, nullAttr, rewriter, converter);
   if (const auto constStruct = mlir::dyn_cast<mlir::cir::ConstStructAttr>(attr))
-    return lowerCirAttrAsValue(constStruct, loc, rewriter, converter);
+    return lowerCirAttrAsValue(parentOp, constStruct, rewriter, converter);
   if (const auto constArr = mlir::dyn_cast<mlir::cir::ConstArrayAttr>(attr))
-    return lowerCirAttrAsValue(constArr, loc, rewriter, converter);
+    return lowerCirAttrAsValue(parentOp, constArr, rewriter, converter);
   if (const auto boolAttr = mlir::dyn_cast<mlir::cir::BoolAttr>(attr))
     llvm_unreachable("bool attribute is NYI");
   if (const auto zeroAttr = mlir::dyn_cast<mlir::cir::ZeroAttr>(attr))
-    return lowerCirAttrAsValue(zeroAttr, loc, rewriter, converter);
+    return lowerCirAttrAsValue(parentOp, zeroAttr, rewriter, converter);
+  if (const auto globalAttr = mlir::dyn_cast<mlir::cir::GlobalViewAttr>(attr))
+    return lowerCirAttrAsValue(parentOp, globalAttr, rewriter, converter);
 
   llvm_unreachable("unhandled attribute type");
 }
@@ -961,7 +999,7 @@ public:
       // define a local constant with llvm.undef that will be stored into the
       // stack.
       auto initVal =
-          lowerCirAttrAsValue(structAttr, op.getLoc(), rewriter, typeConverter);
+          lowerCirAttrAsValue(op, structAttr, rewriter, typeConverter);
       rewriter.replaceAllUsesWith(op, initVal);
       rewriter.eraseOp(op);
       return mlir::success();
@@ -1297,8 +1335,8 @@ public:
         if (!(init = lowerConstArrayAttr(constArr, getTypeConverter()))) {
           setupRegionInitializedLLVMGlobalOp(op, rewriter);
           rewriter.create<mlir::LLVM::ReturnOp>(
-              op->getLoc(), lowerCirAttrAsValue(constArr, op->getLoc(),
-                                                rewriter, typeConverter));
+              op->getLoc(),
+              lowerCirAttrAsValue(op, constArr, rewriter, typeConverter));
           return mlir::success();
         }
       } else {
@@ -1314,50 +1352,26 @@ public:
     // Initializer is a constant integer: convert to MLIR builtin constant.
     else if (auto intAttr = mlir::dyn_cast<mlir::cir::IntAttr>(init.value())) {
       init = rewriter.getIntegerAttr(llvmType, intAttr.getValue());
-    }
-    // Initializer is a global: load global value in initializer block.
-    else if (auto attr = mlir::dyn_cast<mlir::FlatSymbolRefAttr>(init.value())) {
-      setupRegionInitializedLLVMGlobalOp(op, rewriter);
-
-      // Fetch global used as initializer.
-      auto sourceSymbol =
-          mlir::dyn_cast<mlir::LLVM::GlobalOp>(mlir::SymbolTable::lookupSymbolIn(
-              op->getParentOfType<mlir::ModuleOp>(), attr.getValue()));
-
-      // Load and return the initializer value.
-      auto addressOfOp = rewriter.create<mlir::LLVM::AddressOfOp>(
-          loc, mlir::LLVM::LLVMPointerType::get(getContext()),
-          sourceSymbol.getSymName());
-      llvm::SmallVector<mlir::LLVM::GEPArg> offset{0};
-      auto gepOp = rewriter.create<mlir::LLVM::GEPOp>(
-          loc, llvmType, sourceSymbol.getType(), addressOfOp.getResult(),
-          offset);
-      rewriter.create<mlir::LLVM::ReturnOp>(loc, gepOp.getResult());
-      return mlir::success();
-    } else if (isa<mlir::cir::ZeroAttr, mlir::cir::NullAttr>(init.value())) {
+    } else if (mlir::isa<mlir::cir::ZeroAttr, mlir::cir::NullAttr>(init.value())) {
       // TODO(cir): once LLVM's dialect has a proper zeroinitializer attribute
       // this should be updated. For now, we use a custom op to initialize
       // globals to zero.
       setupRegionInitializedLLVMGlobalOp(op, rewriter);
       auto value =
-          lowerCirAttrAsValue(init.value(), loc, rewriter, typeConverter);
+          lowerCirAttrAsValue(op, init.value(), rewriter, typeConverter);
       rewriter.create<mlir::LLVM::ReturnOp>(loc, value);
       return mlir::success();
     } else if (const auto structAttr =
                    mlir::dyn_cast<mlir::cir::ConstStructAttr>(init.value())) {
       setupRegionInitializedLLVMGlobalOp(op, rewriter);
       rewriter.create<mlir::LLVM::ReturnOp>(
-          op->getLoc(), lowerCirAttrAsValue(structAttr, op->getLoc(), rewriter,
-                                            typeConverter));
+          op->getLoc(),
+          lowerCirAttrAsValue(op, structAttr, rewriter, typeConverter));
       return mlir::success();
     } else if (auto attr = mlir::dyn_cast<mlir::cir::GlobalViewAttr>(init.value())) {
       setupRegionInitializedLLVMGlobalOp(op, rewriter);
-
-      // Return the address of the global symbol.
-      auto elementType = typeConverter->convertType(attr.getType());
-      auto addrOfOp = rewriter.create<mlir::LLVM::AddressOfOp>(
-          op->getLoc(), elementType, attr.getSymbol());
-      rewriter.create<mlir::LLVM::ReturnOp>(op->getLoc(), addrOfOp.getResult());
+      rewriter.create<mlir::LLVM::ReturnOp>(
+          loc, lowerCirAttrAsValue(op, attr, rewriter, typeConverter));
       return mlir::success();
     } else {
       op.emitError() << "usupported initializer '" << init.value() << "'";
