@@ -1116,58 +1116,60 @@ castStringLiteralToDefaultAddressSpace(CIRGenModule &CGM, mlir::StringAttr GV) {
 }
 
 /// Return a pointer to a constant array for the given string literal.
-mlir::SymbolRefAttr
+mlir::cir::GlobalViewAttr
 CIRGenModule::getAddrOfConstantStringFromLiteral(const StringLiteral *S,
                                                  StringRef Name) {
   CharUnits Alignment = astCtx.getAlignOfGlobalVarInChars(S->getType());
 
   mlir::Attribute C = getConstantArrayFromStringLiteral(S);
-  mlir::cir::GlobalOp Entry;
-  if (!getLangOpts().WritableStrings) {
-    if (ConstantStringMap.count(C)) {
-      auto g = ConstantStringMap[C];
-      // The bigger alignment always wins.
-      if (!g.getAlignment() ||
-          uint64_t(Alignment.getQuantity()) > *g.getAlignment())
-        g.setAlignmentAttr(getSize(Alignment));
-      return mlir::SymbolRefAttr::get(
-          castStringLiteralToDefaultAddressSpace(*this, g.getSymNameAttr()));
-    }
-  }
 
-  SmallString<256> StringNameBuffer = Name;
-  llvm::raw_svector_ostream Out(StringNameBuffer);
-  if (StringLiteralCnt)
-    Out << StringLiteralCnt;
-  Name = Out.str();
-  StringLiteralCnt++;
-
-  SmallString<256> MangledNameBuffer;
-  StringRef GlobalVariableName;
-  auto LT = mlir::cir::GlobalLinkageKind::ExternalLinkage;
-
-  // Mangle the string literal if that's how the ABI merges duplicate strings.
-  // Don't do it if they are writable, since we don't want writes in one TU to
-  // affect strings in another.
-  if (getCXXABI().getMangleContext().shouldMangleStringLiteral(S) &&
-      !getLangOpts().WritableStrings) {
-    assert(0 && "not implemented");
+  mlir::cir::GlobalOp GV;
+  if (!getLangOpts().WritableStrings && ConstantStringMap.count(C)) {
+    GV = ConstantStringMap[C];
+    // The bigger alignment always wins.
+    if (!GV.getAlignment() ||
+        uint64_t(Alignment.getQuantity()) > *GV.getAlignment())
+      GV.setAlignmentAttr(getSize(Alignment));
   } else {
-    LT = mlir::cir::GlobalLinkageKind::InternalLinkage;
-    GlobalVariableName = Name;
+    SmallString<256> StringNameBuffer = Name;
+    llvm::raw_svector_ostream Out(StringNameBuffer);
+    if (StringLiteralCnt)
+      Out << StringLiteralCnt;
+    Name = Out.str();
+    StringLiteralCnt++;
+
+    SmallString<256> MangledNameBuffer;
+    StringRef GlobalVariableName;
+    auto LT = mlir::cir::GlobalLinkageKind::ExternalLinkage;
+
+    // Mangle the string literal if that's how the ABI merges duplicate strings.
+    // Don't do it if they are writable, since we don't want writes in one TU to
+    // affect strings in another.
+    if (getCXXABI().getMangleContext().shouldMangleStringLiteral(S) &&
+        !getLangOpts().WritableStrings) {
+      assert(0 && "not implemented");
+    } else {
+      LT = mlir::cir::GlobalLinkageKind::InternalLinkage;
+      GlobalVariableName = Name;
+    }
+
+    auto loc = getLoc(S->getSourceRange());
+    auto typedC = llvm::dyn_cast<mlir::TypedAttr>(C);
+    if (!typedC)
+      llvm_unreachable("this should never be untyped at this point");
+    GV = generateStringLiteral(loc, typedC, LT, *this, GlobalVariableName,
+                               Alignment);
+    ConstantStringMap[C] = GV;
+
+    assert(!cir::UnimplementedFeature::reportGlobalToASan() && "NYI");
   }
 
-  auto loc = getLoc(S->getSourceRange());
-  auto typedC = llvm::dyn_cast<mlir::TypedAttr>(C);
-  if (!typedC)
-    llvm_unreachable("this should never be untyped at this point");
-  auto GV = generateStringLiteral(loc, typedC, LT, *this, GlobalVariableName,
-                                  Alignment);
-  ConstantStringMap[C] = GV;
+  auto ArrayTy = GV.getSymType().dyn_cast<mlir::cir::ArrayType>();
+  assert(ArrayTy && "String literal must be array");
+  auto PtrTy =
+      mlir::cir::PointerType::get(builder.getContext(), ArrayTy.getEltType());
 
-  assert(!cir::UnimplementedFeature::reportGlobalToASan() && "NYI");
-  return mlir::SymbolRefAttr::get(
-      castStringLiteralToDefaultAddressSpace(*this, GV.getSymNameAttr()));
+  return builder.getGlobalViewAttr(PtrTy, GV);
 }
 
 void CIRGenModule::buildDeclContext(const DeclContext *DC) {
