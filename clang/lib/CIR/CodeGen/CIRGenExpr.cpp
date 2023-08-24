@@ -138,23 +138,6 @@ static Address buildPointerWithAlignment(const Expr *E,
 
         if (isa<ExplicitCastExpr>(CE)) {
           assert(0 && "not implemented");
-
-
-          //TODO: remove it later
-          // LValueBaseInfo TargetTypeBaseInfo;
-
-          // CharUnits Align = CGF.CGM.getNaturalPointeeTypeAlignment(
-          //     E->getType(), &TargetTypeBaseInfo);          
-          // assert(!UnimplementedFeature::tbaa());
-
-          // // If the source l-value is opaque, honor the alignment of the
-          // // casted-to type.
-          // if (InnerBaseInfo.getAlignmentSource() != AlignmentSource::Decl) {
-          //   if (BaseInfo)
-          //     BaseInfo->mergeForCast(TargetTypeBaseInfo);
-          //   Addr = Address(Addr.getPointer(), Addr.getElementType(), Align,
-          //                  IsKnownNonNull);
-          // }
         }
 
         if (CGF.SanOpts.has(SanitizerKind::CFIUnrelatedCast) &&
@@ -694,17 +677,6 @@ void CIRGenFunction::buildStoreThroughBitfieldLValue(RValue Src, LValue Dst,
 
   } else {
     assert(0 && "not implemented");
-    // assert(Offset == 0);
-
-    //TODO: remove it later
-    // // According to the AACPS:
-    // // When a volatile bit-field is written, and its container does not overlap
-    // // with any non-bit-field member, its container must be read exactly once
-    // // and written exactly once using the access width appropriate to the type
-    // // of the container. The two accesses are not atomic.
-    // if (Dst.isVolatileQualified() && isAAPCS(CGM.getTarget()) &&
-    //     CGM.getCodeGenOpts().ForceAAPCSBitfieldLoad)
-    //   builder.createLoad(Dst.getPointer().getLoc(), Ptr);
   }
 
   // Write the new value back out.
