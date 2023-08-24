@@ -9,8 +9,6 @@
 // This contains code to emit Expr nodes as CIR code.
 //
 //===----------------------------------------------------------------------===//
-#include <iostream>
-
 #include "CIRGenBuilder.h"
 #include "CIRGenCXXABI.h"
 #include "CIRGenCall.h"
@@ -137,7 +135,7 @@ static Address buildPointerWithAlignment(const Expr *E,
           *BaseInfo = InnerBaseInfo;
 
         if (isa<ExplicitCastExpr>(CE)) {
-          assert(0 && "not implemented");
+          llvm_unreachable("NYI");
         }
 
         if (CGF.SanOpts.has(SanitizerKind::CFIUnrelatedCast) &&
@@ -220,52 +218,57 @@ Address CIRGenFunction::getAddrOfField(LValue base, const FieldDecl *field,
   return Address(sea->getResult(0), CharUnits::One());
 }
 
+static bool useVolatileForBitField(const CIRGenModule &cgm, LValue base,
+                                   const CIRGenBitFieldInfo &info,
+                                   const FieldDecl *field) {
+  return isAAPCS(cgm.getTarget()) && cgm.getCodeGenOpts().AAPCSBitfieldWidth &&
+         info.VolatileStorageSize != 0 &&
+         field->getType()
+             .withCVRQualifiers(base.getVRQualifiers())
+             .isVolatileQualified();
+}
+
+LValue CIRGenFunction::buildLValueForBitField(LValue base,
+                                              const FieldDecl *field) {
+
+  LValueBaseInfo BaseInfo = base.getBaseInfo();
+  const RecordDecl *rec = field->getParent();
+  auto &layout = CGM.getTypes().getCIRGenRecordLayout(field->getParent());
+  auto &info = layout.getBitFieldInfo(field);
+  auto useVolatile = useVolatileForBitField(CGM, base, info, field);
+  unsigned Idx = layout.getCIRFieldNo(field);
+
+  if (useVolatile ||
+      (IsInPreservedAIRegion ||
+       (getDebugInfo() && rec->hasAttr<BPFPreserveAccessIndexAttr>()))) {
+    llvm_unreachable("NYI");
+  }
+
+  Address Addr = getAddrOfField(base, field, Idx);
+
+  const unsigned SS = useVolatile ? info.VolatileStorageSize : info.StorageSize;
+
+  // Get the access type.
+  mlir::Type FieldIntTy = builder.getCustomIntTy(SS, false);
+
+  auto loc = getLoc(field->getLocation());
+  if (Addr.getElementType() != FieldIntTy)
+    Addr = builder.createElementBitCast(loc, Addr, FieldIntTy);
+
+  QualType fieldType =
+      field->getType().withCVRQualifiers(base.getVRQualifiers());
+  // TODO: Support TBAA for bit fields.
+  LValueBaseInfo FieldBaseInfo(BaseInfo.getAlignmentSource());
+  return LValue::MakeBitfield(Addr, info, fieldType, FieldBaseInfo);
+}
+
 LValue CIRGenFunction::buildLValueForField(LValue base,
                                            const FieldDecl *field) {
+
   LValueBaseInfo BaseInfo = base.getBaseInfo();
 
-  if (field->isBitField()) {
-    const CIRGenRecordLayout &RL =
-        CGM.getTypes().getCIRGenRecordLayout(field->getParent());
-    const CIRGenBitFieldInfo &Info = RL.getBitFieldInfo(field);
-    const bool UseVolatile = isAAPCS(CGM.getTarget()) &&
-                             CGM.getCodeGenOpts().AAPCSBitfieldWidth &&
-                             Info.VolatileStorageSize != 0 &&
-                             field->getType()
-                                 .withCVRQualifiers(base.getVRQualifiers())
-                                 .isVolatileQualified();
-    Address Addr = base.getAddress();
-    unsigned Idx = RL.getCIRFieldNo(field);
-    const RecordDecl *rec = field->getParent();
-    if (!UseVolatile) {
-      if (!IsInPreservedAIRegion &&
-          (!getDebugInfo() || !rec->hasAttr<BPFPreserveAccessIndexAttr>())) {
-        if (Idx != 0)
-          Addr = getAddrOfField(base, field, Idx);
-      } else {
-        llvm_unreachable("NYI");
-      }
-    }
-    const unsigned SS =
-        UseVolatile ? Info.VolatileStorageSize : Info.StorageSize;
-
-    // Get the access type.
-    mlir::Type FieldIntTy = builder.getCustomIntTy(SS, false);
-
-    auto loc = getLoc(field->getLocation());
-    if (Addr.getElementType() != FieldIntTy) {
-      Addr = builder.createElementBitCast(loc, Addr, FieldIntTy);
-    }
-    if (UseVolatile) {
-      llvm_unreachable("NYI");
-    }
-
-    QualType fieldType =
-        field->getType().withCVRQualifiers(base.getVRQualifiers());
-    // TODO: Support TBAA for bit fields.
-    LValueBaseInfo FieldBaseInfo(BaseInfo.getAlignmentSource());
-    return LValue::MakeBitfield(Addr, Info, fieldType, FieldBaseInfo);
-  }
+  if (field->isBitField())
+    return buildLValueForBitField(base, field);
 
   // Fields of may-alias structures are may-alais themselves.
   // FIXME: this hould get propagated down through anonymous structs and unions.
@@ -596,17 +599,15 @@ RValue CIRGenFunction::buildLoadOfBitfieldLValue(LValue LV,
 
     unsigned HighBits = StorageSize - Offset - Info.Size;
     if (HighBits)
-      Val = builder.createShift(Val, llvm::APInt(ValWidth, HighBits), true);
+      Val = builder.createShiftLeft(Val, HighBits);
     if (Offset + HighBits)
-      Val = builder.createShift(Val, llvm::APInt(ValWidth, Offset + HighBits),
-                                false);
+      Val = builder.createShiftRight(Val, Offset + HighBits);
   } else {
     if (Offset)
-      Val = builder.createShift(Val, llvm::APInt(ValWidth, Offset), false);
+      Val = builder.createShiftRight(Val, Offset);
 
     if (static_cast<unsigned>(Offset) + Info.Size < StorageSize)
-      Val =
-          builder.createBinop(Val, mlir::cir::BinOpKind::And,
+      Val = builder.createAnd(Val,
                               llvm::APInt::getLowBitsSet(ValWidth, Info.Size));
   }
   Val = builder.createIntCast(Val, ResLTy);

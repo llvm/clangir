@@ -1487,7 +1487,8 @@ public:
 
   AggValueSlot::Overlap_t getOverlapForFieldInit(const FieldDecl *FD);
   LValue buildLValueForField(LValue Base, const clang::FieldDecl *Field);
-
+  LValue buildLValueForBitField(LValue base, const FieldDecl *field);
+  
   /// Like buildLValueForField, excpet that if the Field is a reference, this
   /// will return the address of the reference and not the address of the value
   /// stored in the reference.

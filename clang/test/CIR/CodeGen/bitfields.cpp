@@ -17,7 +17,6 @@ void m() {
 // CHECK: !ty_22struct2Eanon22 = !cir.struct<"struct.anon", !u32i, #cir.recdecl.ast>
 // CHECK: !ty_22struct2E__long22 = !cir.struct<"struct.__long", !ty_22struct2Eanon22, !u32i, !cir.ptr<!u32i>>
 
-
 struct S {
   int a : 4;
   int b : 27;
@@ -62,3 +61,23 @@ void store_neg_field() {
 // CHECK: %12 = cir.binop(and, %6, %11) : !u24i 
 // CHECK: %13 = cir.binop(or, %12, %10) : !u24i 
 // CHECK: cir.store %13, %4 : !u24i, cir.ptr <!u24i> 
+
+
+int load_field(S& s) {
+  return s.d;
+}
+
+// CHECK: cir.func @_Z10load_fieldR1S
+// CHECK: %2 = cir.load %0 : cir.ptr <!cir.ptr<!ty_22struct2ES22>>, !cir.ptr<!ty_22struct2ES22> 
+// CHECK: %3 = "cir.struct_element_addr"(%2) {member_index = 1 : index, member_name = "d"} : (!cir.ptr<!ty_22struct2ES22>) -> !cir.ptr<!s32i> 
+// CHECK: %4 = cir.cast(bitcast, %3 : !cir.ptr<!s32i>), !cir.ptr<!u24i> 
+// CHECK: %5 = cir.load %4 : cir.ptr <!u24i>, !u24i 
+// CHECK: %6 = cir.cast(integral, %5 : !u24i), !s24i 
+// CHECK: %7 = cir.const(#cir.int<5> : !s24i) : !s24i
+// CHECK: %8 = cir.shift(left, %6 : !s24i, %7 : !s24i) -> !s24i 
+// CHECK: %9 = cir.const(#cir.int<22> : !s24i) : !s24i 
+// CHECK: %10 = cir.shift( right, %8 : !s24i, %9 : !s24i) -> !s24i 
+// CHECK: %11 = cir.cast(integral, %10 : !s24i), !s32i 
+// CHECK: cir.store %11, %1 : !s32i, cir.ptr <!s32i> 
+// CHECK: %12 = cir.load %1 : cir.ptr <!s32i>, !s32i 
+// CHECK: cir.return %12 : !s32i 

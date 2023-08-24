@@ -694,7 +694,6 @@ public:
     return createCast(mlir::cir::CastKind::bitcast, src, newTy);
   }
 };
-
 } // namespace cir
 
 #endif
