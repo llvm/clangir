@@ -205,16 +205,17 @@ static bool isAAPCS(const TargetInfo &TargetInfo) {
   return TargetInfo.getABI().startswith("aapcs");
 }
 
-Address CIRGenFunction::getAddrOfField(LValue base, const FieldDecl *field, unsigned index) {
+Address CIRGenFunction::getAddrOfField(LValue base, const FieldDecl *field,
+                                       unsigned index) {
   if (index == 0)
     return base.getAddress();
 
   auto loc = getLoc(field->getLocation());
   auto fieldType = convertType(field->getType());
   auto fieldPtr =
-    mlir::cir::PointerType::get(getBuilder().getContext(), fieldType);
+      mlir::cir::PointerType::get(getBuilder().getContext(), fieldType);
   auto sea = getBuilder().create<mlir::cir::StructElementAddr>(
-              loc, fieldPtr, base.getPointer(), field->getName(), index);
+      loc, fieldPtr, base.getPointer(), field->getName(), index);
 
   return Address(sea->getResult(0), CharUnits::One());
 }
@@ -222,7 +223,7 @@ Address CIRGenFunction::getAddrOfField(LValue base, const FieldDecl *field, unsi
 LValue CIRGenFunction::buildLValueForField(LValue base,
                                            const FieldDecl *field) {
   LValueBaseInfo BaseInfo = base.getBaseInfo();
-  
+
   if (field->isBitField()) {
     const CIRGenRecordLayout &RL =
         CGM.getTypes().getCIRGenRecordLayout(field->getParent());
@@ -238,9 +239,9 @@ LValue CIRGenFunction::buildLValueForField(LValue base,
     const RecordDecl *rec = field->getParent();
     if (!UseVolatile) {
       if (!IsInPreservedAIRegion &&
-          (!getDebugInfo() || !rec->hasAttr<BPFPreserveAccessIndexAttr>())) {        
-        if (Idx != 0) 
-          Addr = getAddrOfField(base, field, Idx);          
+          (!getDebugInfo() || !rec->hasAttr<BPFPreserveAccessIndexAttr>())) {
+        if (Idx != 0)
+          Addr = getAddrOfField(base, field, Idx);
       } else {
         llvm_unreachable("NYI");
       }
@@ -250,9 +251,9 @@ LValue CIRGenFunction::buildLValueForField(LValue base,
 
     // Get the access type.
     mlir::Type FieldIntTy = builder.getCustomIntTy(SS, false);
-    
+
     auto loc = getLoc(field->getLocation());
-    if (Addr.getElementType() != FieldIntTy) {                  
+    if (Addr.getElementType() != FieldIntTy) {
       Addr = builder.createElementBitCast(loc, Addr, FieldIntTy);
     }
     if (UseVolatile) {
@@ -662,15 +663,16 @@ void CIRGenFunction::buildStoreThroughBitfieldLValue(RValue Src, LValue Dst,
 
     // Mask the source value as needed.
     if (!hasBooleanRepresentation(Dst.getType()))
-      SrcVal = builder.createAnd(SrcVal, llvm::APInt::getLowBitsSet(SrcWidth, Info.Size));
-      
+      SrcVal = builder.createAnd(
+          SrcVal, llvm::APInt::getLowBitsSet(SrcWidth, Info.Size));
+
     MaskedVal = SrcVal;
     if (Offset)
       SrcVal = builder.createShiftLeft(SrcVal, Offset);
 
     // Mask out the original value.
-    Val = builder.createAnd(Val,        
-        ~llvm::APInt::getBitsSet(SrcWidth, Offset, Offset + Info.Size));
+    Val = builder.createAnd(
+        Val, ~llvm::APInt::getBitsSet(SrcWidth, Offset, Offset + Info.Size));
 
     // Or together the unchanged values and the source value.
     SrcVal = builder.createOr(Val, SrcVal);
@@ -687,7 +689,7 @@ void CIRGenFunction::buildStoreThroughBitfieldLValue(RValue Src, LValue Dst,
   // Return the new value of the bit-field, if requested.
   if (Result) {
     mlir::Value ResultVal = MaskedVal;
-    ResultVal = builder.createIntCast(ResultVal, ResLTy);    
+    ResultVal = builder.createIntCast(ResultVal, ResLTy);
 
     // Sign extend the value if needed.
     if (Info.IsSigned) {
@@ -695,7 +697,7 @@ void CIRGenFunction::buildStoreThroughBitfieldLValue(RValue Src, LValue Dst,
       unsigned HighBits = StorageSize - Info.Size;
 
       if (HighBits) {
-        ResultVal = builder.createShiftLeft(ResultVal,  HighBits);
+        ResultVal = builder.createShiftLeft(ResultVal, HighBits);
         ResultVal = builder.createShiftRight(ResultVal, HighBits);
       }
     }
@@ -933,7 +935,7 @@ LValue CIRGenFunction::buildBinaryOperatorLValue(const BinaryOperator *E) {
     } else {
       buildStoreThroughLValue(RV, LV);
     }
-    
+
     assert(!getContext().getLangOpts().OpenMP &&
            "last priv cond not implemented");
     return LV;

@@ -266,7 +266,6 @@ public:
   mlir::cir::IntType getUInt32Ty() { return typeCache.UInt32Ty; }
   mlir::cir::IntType getUInt64Ty() { return typeCache.UInt64Ty; }
 
-
   mlir::cir::IntType getCustomIntTy(unsigned size, bool isSigned) {
     return mlir::cir::IntType::get(getContext(), size, isSigned);
   }
@@ -593,11 +592,10 @@ public:
         getConstAPInt(lhs.getLoc(), lhs.getType(), rhs));
   }
 
-  mlir::Value createBinop(mlir::Value lhs, 
-                          mlir::cir::BinOpKind kind,
+  mlir::Value createBinop(mlir::Value lhs, mlir::cir::BinOpKind kind,
                           mlir::Value rhs) {
-    return create<mlir::cir::BinOp>(
-        lhs.getLoc(), lhs.getType(), kind, lhs, rhs);      
+    return create<mlir::cir::BinOp>(lhs.getLoc(), lhs.getType(), kind, lhs,
+                                    rhs);
   }
 
   mlir::Value createShift(mlir::Value lhs, const llvm::APInt &rhs,
@@ -618,21 +616,22 @@ public:
   }
 
   mlir::Value createShiftRight(mlir::Value lhs, unsigned bits) {
-      return createShift(lhs, bits, false);
+    return createShift(lhs, bits, false);
   }
 
-  mlir::Value createLowBitsSet(mlir::Location loc, unsigned size, unsigned bits) {
+  mlir::Value createLowBitsSet(mlir::Location loc, unsigned size,
+                               unsigned bits) {
     auto val = llvm::APInt::getLowBitsSet(size, bits);
     auto typ = mlir::cir::IntType::get(getContext(), size, false);
     return getConstAPInt(loc, typ, val);
   }
-  
+
   mlir::Value createAnd(mlir::Value lhs, llvm::APInt rhs) {
     auto val = getConstAPInt(lhs.getLoc(), lhs.getType(), rhs);
     return createBinop(lhs, mlir::cir::BinOpKind::And, val);
   }
 
-  mlir::Value createAnd(mlir::Value lhs, mlir::Value rhs) {    
+  mlir::Value createAnd(mlir::Value lhs, mlir::Value rhs) {
     return createBinop(lhs, mlir::cir::BinOpKind::And, rhs);
   }
 
@@ -641,7 +640,7 @@ public:
     return createBinop(lhs, mlir::cir::BinOpKind::Or, val);
   }
 
-  mlir::Value createOr(mlir::Value lhs, mlir::Value rhs) {    
+  mlir::Value createOr(mlir::Value lhs, mlir::Value rhs) {
     return createBinop(lhs, mlir::cir::BinOpKind::Or, rhs);
   }
 
@@ -694,7 +693,6 @@ public:
   mlir::Value createBitcast(mlir::Value src, mlir::Type newTy) {
     return createCast(mlir::cir::CastKind::bitcast, src, newTy);
   }
-
 };
 
 } // namespace cir
