@@ -47,11 +47,6 @@ void store_neg_field() {
   S s;
   s.d = -1;
 }
-
-void copy_s(S& s1, S& s2) {
-  s1.d = s2.d;
-}
-
 // CHECK: cir.func @_Z15store_neg_field
 // CHECK: %1 = cir.const(#cir.int<1> : !s32i) : !s32i 
 // CHECK: %2 = cir.unary(minus, %1) : !s32i, !s32i 
@@ -67,5 +62,3 @@ void copy_s(S& s1, S& s2) {
 // CHECK: %12 = cir.binop(and, %6, %11) : !u24i 
 // CHECK: %13 = cir.binop(or, %12, %10) : !u24i 
 // CHECK: cir.store %13, %4 : !u24i, cir.ptr <!u24i> 
-
-// 16383999 decimal = 1111 1001 1111 1111 1111 1111 binary
