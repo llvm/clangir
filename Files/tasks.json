@@ -1,0 +1,355 @@
+{
+    "version": "2.0.0",
+    "inputs": [
+        {
+            "id": "selectSourceFile",
+            "type": "pickString",
+            "description": "Select the source file to compile and run:",
+            "options": [
+                "/tmp/test.cpp",
+                "/tmp/test.c",
+            ],
+            "default": "/tmp/test.c",
+        }
+    ],
+    "tasks": [
+        ///////////////////////////////////////////
+        //// STEP-BY-STEP LOWERING TASKS //////////
+        ///////////////////////////////////////////
+        {
+            "label": "C Preprocessing",
+            "type": "shell",
+            "command": "${workspaceFolder}/build/Debug/bin/clang",
+            "args": [
+                "-E",
+                "/tmp/test.c",
+                "-o",
+                "/tmp/test.raw"
+            ],
+            "problemMatcher": "$gcc",
+        },
+        {
+            "label": "C++ Preprocessing",
+            "type": "shell",
+            "command": "${workspaceFolder}/build/Debug/bin/clang",
+            "args": [
+                "-E",
+                "/tmp/test.cpp",
+                "-o",
+                "/tmp/test.raw"
+            ],
+            "problemMatcher": "$gcc",
+        },
+        {
+            "label": "C to CIR (cc1)",
+            "type": "shell",
+            "command": "${workspaceFolder}/build/Debug/bin/clang",
+            "dependsOn": "C Preprocessing",
+            "args": [
+                "-cc1",
+                "-internal-isystem",
+                "${workspaceFolder}/build/Debug/lib/clang/17/include",
+                "-nostdsysteminc",
+                "-triple",
+                "x86_64-unknown-linux-gnu",
+                "-fclangir-enable",
+                "-Wno-unused-value",
+                "-emit-cir",
+                // "-std=c89",
+                "/tmp/test.raw",
+                "-o",
+                "/tmp/test.cir"
+            ],
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "C++ to CIR (cc1)",
+            "type": "shell",
+            "command": "${workspaceFolder}/build/Debug/bin/clang",
+            "dependsOn": "C++ Preprocessing",
+            "args": [
+                "-cc1",
+                "-internal-isystem",
+                "${workspaceFolder}/build/Debug/lib/clang/17/include",
+                "-nostdsysteminc",
+                "-triple",
+                "x86_64-unknown-linux-gnu",
+                "-fclangir-enable",
+                "-Wno-unused-value",
+                "-emit-cir",
+                "-x",
+                "c++",
+                "-mconstructor-aliases",
+                "-clangir-disable-emit-cxx-default",
+                "-std=c++20",
+                "/tmp/test.raw",
+                "-o",
+                "/tmp/test.cir"
+            ],
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "CIR to MLIR (cir-opt)",
+            "type": "shell",
+            "command": "${workspaceFolder}/build/Debug/bin/cir-opt",
+            "args": [
+                "--mlir-print-ir-after-failure",
+                "--cir-to-llvm",
+                "--reconcile-unrealized-casts",
+                "/tmp/test.cir",
+                "-o",
+                "/tmp/test.mlir"
+            ],
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "MLIR to LLVM (cir-translate)",
+            "type": "shell",
+            "command": "${workspaceFolder}/build/Debug/bin/cir-translate",
+            "args": [
+                "--cir-to-llvmir",
+                "--allow-unregistered-dialect",
+                "/tmp/test.mlir",
+                "-o",
+                "/tmp/test.ll"
+            ],
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "LLVM to Obj (llc)",
+            "type": "shell",
+            "command": "${workspaceFolder}/build/Debug/bin/llc",
+            "args": [
+                "--filetype=obj",
+                "-relocation-model=pic",
+                "/tmp/test.ll",
+                "-o",
+                "/tmp/test.o"
+            ],
+            "problemMatcher": "$gcc",
+        },
+        {
+            "label": "Obj to Exe (clang)",
+            "type": "shell",
+            "command": "clang",
+            "args": [
+                "/tmp/test.o",
+                "-o",
+                "/tmp/test"
+            ],
+            "problemMatcher": "$gcc",
+        },
+        {
+            "label": "Run",
+            "type": "shell",
+            "command": [
+                "echo \"=======================================\";",
+                "/tmp/test;",
+                "echo \"---------------------------------------\n",
+                "Exit value: $?\";",
+                "echo \"=======================================\";"
+            ],
+            "presentation": {
+                "echo": false,
+            },
+            "problemMatcher": "$gcc",
+        },
+
+
+        ///////////////////////////////////////////
+        //// MULTI-STEP TASKS /////////////////////
+        ///////////////////////////////////////////
+        {
+            "label": "Run C",
+            "dependsOn": [
+                "Preprocessing",
+                "C to CIR (cc1)",
+                "CIR to MLIR (cir-opt)",
+                "MLIR to LLVM (cir-translate)",
+                "LLVM to Obj (llc)",
+                "Obj to Exe (clang)",
+                "Run",
+            ],
+            "dependsOrder": "sequence",
+            "type": "shell",
+            "problemMatcher": "$gcc",
+        },
+        {
+            "label": "Run C++",
+            "dependsOn": [
+                "Preprocessing",
+                "C++ to CIR (cc1)",
+                "CIR to MLIR (cir-opt)",
+                "MLIR to LLVM (mlir-translate)",
+                "LLVM to Obj (llc)",
+                "Obj to Exe (clang)",
+                "Run",
+            ],
+            "dependsOrder": "sequence",
+            "type": "shell",
+            "problemMatcher": "$gcc",
+        },
+        {
+            "label": "Run LLVM Dialect",
+            "dependsOn": [
+                "MLIR to LLVM (mlir-translate)",
+                "LLVM to Obj (llc)",
+                "Obj to Exe (clang)",
+                "Run",
+            ],
+            "dependsOrder": "sequence",
+            "type": "shell",
+            "problemMatcher": "$gcc",
+        },
+        {
+            "label": "Run LLVM IR",
+            "dependsOn": [
+                "LLVM to Obj (llc)",
+                "Obj to Exe (clang)",
+                "Run",
+            ],
+            "dependsOrder": "sequence",
+            "type": "shell",
+            "problemMatcher": "$gcc",
+        },
+
+
+        ///////////////////////////////////////////
+        //// DIRECT LOWERING TASKS ////////////////
+        ///////////////////////////////////////////
+        {
+            "label": "Run Directly",
+            "type": "shell",
+            "command": [
+                "rm -f /tmp/test;",
+                "${workspaceFolder}/build/Debug/bin/clang -fclangir-enable ${input:selectSourceFile} --output=/tmp/test;",
+                "echo \"=======================================\";",
+                "/tmp/test;",
+                "echo \"---------------------------------------\n",
+                "Exit value: $?\";",
+                "echo \"=======================================\";"
+            ],
+            "presentation": {
+                "echo": false,
+            },
+            "problemMatcher": "$gcc",
+        },
+
+        {
+            "label": "Emit CIR Directly",
+            "type": "shell",
+            "command": [
+                "${workspaceFolder}/build/Debug/bin/clang",
+                "-fclangir-enable ${input:selectSourceFile}",
+                "-emit-cir",
+                "-o /tmp/test.cir",
+            ],
+            "presentation": {
+                "echo": false,
+            },
+            "problemMatcher": "$gcc",
+        },
+
+
+        ///////////////////////////////////////////
+        //// REFERENCE CODE TASKS /////////////////
+        ///////////////////////////////////////////
+        {
+            "label": "Clang AST",
+            "type": "shell",
+            "command": "${workspaceFolder}/build/Debug/bin/clang",
+            "args": [
+                "-Xclang",
+                "-ast-dump",
+                "-fsyntax-only",
+                "${input:selectSourceFile}"
+            ],
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "Raw LLVM IR",
+            "type": "shell",
+            "command": "${workspaceFolder}/build/Debug/bin/clang",
+            "args": [
+                "${input:selectSourceFile}",
+                "-O0",
+                "-mllvm",
+                "-disable-llvm-optzns",
+                "-S",
+                "-emit-llvm",
+                // "-std=c89",
+                "-o",
+                "/tmp/original.ll"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+                {
+            "label": "Run Reference Exe",
+            "type": "shell",
+            "command": [
+                "clang -O0 -mllvm -disable-llvm-optzns ${input:selectSourceFile} -o /tmp/original;",
+                "echo \"=======================================\";",
+                "/tmp/original;",
+                "echo \"---------------------------------------\n",
+                "Exit value: $?\";",
+                "echo \"=======================================\";"
+            ],
+            "presentation": {
+                "echo": false,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+
+
+        ///////////////////////////////////////////
+        //// TESTING TASKS ////////////////////////
+        ///////////////////////////////////////////        
+        {
+            "label": "LIT Tests",
+            "type": "shell",
+            "command": "python",
+            "args": [
+                "${workspaceFolder}/build/Debug/./bin/llvm-lit",
+                "-sv",
+                "--param",
+                "USE_Z3_SOLVER=0",
+                "${workspaceFolder}/clang/test/CIR"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+
+
+        ///////////////////////////////////////////
+        //// BUILD TASKS //////////////////////////
+        ///////////////////////////////////////////        
+        {
+            "label": "Debug Build",
+            "type": "shell",
+            "group": "build",
+            "command": [
+                "cmake ",
+                "--build ${workspaceFolder}/build/Debug ",
+                "--config Debug ",
+                "--target clang ",
+                "--target cir-opt ",
+                "--target cir-translate ",
+                "-j 8 --"
+            ],
+            "problemMatcher": "$gcc"
+        },
+    ],
+}
