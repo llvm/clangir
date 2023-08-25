@@ -1,0 +1,96 @@
+diff --git a/utils/compare.py b/utils/compare.py
+index 252562a0..89a74cfb 100755
+--- a/utils/compare.py
++++ b/utils/compare.py
+@@ -15,6 +15,9 @@ import argparse
+ 
+ GEOMEAN_ROW = "Geomean difference"
+ 
++# Used to backup status of each test.
++statuses: dict[str, str] = dict()
++
+ 
+ def read_lit_json(filename):
+     import json
+@@ -30,6 +33,7 @@ def read_lit_json(filename):
+         sys.exit(1)
+     for test in jsondata["tests"]:
+         name = test.get("name")
++        statuses[name] = test.get("code")  # Backup test status for later.
+         if name is None:
+             sys.stderr.write("Error: Found unnamed test\n" % name)
+             sys.exit(1)
+@@ -133,8 +137,11 @@ def get_values(values):
+ 
+ def add_diff_column(metric, values, absolute_diff=False):
+     values0, values1 = get_values(values[metric])
+-    values0.fillna(0.0, inplace=True)
+-    values1.fillna(0.0, inplace=True)
++
++    # Ensure NOEXE and FAIL status entries leaves diff as blank.
++    values0.dropna(inplace=True)
++    values1.dropna(inplace=True)
++
+     # Quotient or absolute difference?
+     if absolute_diff:
+         values[(metric, "diff")] = values1 - values0
+@@ -242,6 +249,7 @@ def print_result(
+     sortkey="diff",
+     sort_by_abs=True,
+     absolute_diff=False,
++    csv_output=None
+ ):
+     metrics = d.columns.levels[0]
+     if sort_by_abs:
+@@ -302,6 +310,9 @@ def print_result(
+             return ""
+         return "%6.2f" % (x,)
+ 
++    # Inject RHS statuses into dataframe.
++    dataout.insert(1, 'status', dataout.index.map(statuses))
++
+     pd.set_option("display.max_colwidth", 0)
+     pd.set_option("display.width", 0)
+     # Print an empty value instead of NaN (for the geomean row).
+@@ -312,6 +323,14 @@ def print_result(
+         float_format=float_format,
+         formatters=formatters,
+     )
++
++    # Output file specified: write to file as a CSV.
++    if csv_output is not None:
++        with open(csv_output, 'w') as f:
++            f.write(dataout.to_csv(index=False))
++            f.writelines(['\n', '\n'])
++            f.write(d.describe().to_csv())
++
+     print(out)
+     print(d.describe())
+ 
+@@ -321,6 +340,7 @@ def main():
+     parser.add_argument("-a", "--all", action="store_true")
+     parser.add_argument("-f", "--full", action="store_true")
+     parser.add_argument("-m", "--metric", action="append", dest="metrics", default=[])
++    parser.add_argument('--csv-output', type=str, help='Dump results to CSV file')
+     parser.add_argument(
+         "--nodiff", action="store_false", dest="show_diff", default=None
+     )
+@@ -419,8 +439,10 @@ def main():
+ 
+         # Filter minimum of lhs and rhs
+         lhs_d = readmulti(lhs)
++        lhs_d = lhs_d.drop(columns=['hash'])  # Prevent error when using merge-average
+         lhs_merged = lhs_d.groupby(level=1).apply(config.merge_function)
+         rhs_d = readmulti(rhs)
++        rhs_d = rhs_d.drop(columns=['hash'])  # Prevent error when using merge-average
+         rhs_merged = rhs_d.groupby(level=1).apply(config.merge_function)
+ 
+         # Combine to new dataframe
+@@ -513,6 +535,7 @@ def main():
+         sortkey,
+         config.no_abs_sort,
+         config.absolute_diff,
++        config.csv_output
+     )
+ 
+ 
