@@ -1,0 +1,38 @@
+{
+    "buildType": {
+        "default": "Debug",
+        "choices": {
+            "Debug": {
+                "short": "Debug",
+                "long": "Raw binaries with debug information",
+                "buildType": "Debug",
+                "settings": {
+                    "CMAKE_CXX_COMPILER": "clang++",
+                    "CMAKE_CXX_COMPILER_LAUNCHER": "ccache",
+                    "CMAKE_C_COMPILER": "clang",
+                    "CMAKE_C_COMPILER_LAUNCHER": "ccache",
+                    "LLVM_BUILD_SHARED_LIBS": "ON",
+                    "LLVM_ENABLE_ASSERTIONS": "ON",
+                    "LLVM_ENABLE_LLD": "ON",
+                    "LLVM_OPTIMIZED_TABLEGEN": "ON",
+                    "LLVM_ENABLE_PROJECTS": ["clang", "mlir", "cir"],
+                    "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+                }
+            },
+            "Release": {
+                "short": "Release",
+                "long": "Fully optimized binaries",
+                "buildType": "Release",
+                "settings": {
+                    "CMAKE_CXX_COMPILER": "clang++",
+                    "CMAKE_CXX_COMPILER_LAUNCHER": "ccache",
+                    "CMAKE_C_COMPILER": "clang",
+                    "CMAKE_C_COMPILER_LAUNCHER": "ccache",
+                    "LLVM_ENABLE_LLD": "ON",                   
+                    "LLVM_ENABLE_PROJECTS": ["clang", "mlir", "cir", "flang"],
+                    "LLVM_ENABLE_ASSERTIONS": "ON"
+                }
+            }
+        }
+    }
+}

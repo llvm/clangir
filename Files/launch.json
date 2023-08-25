@@ -1,0 +1,125 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "C to CIR (cc1)",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Debug/bin/clang",
+            "preLaunchTask": "C Preprocessing",
+            "args": [
+                "-cc1",
+                "-internal-isystem",
+                "${workspaceFolder}/build/Debug/lib/clang/17/include",
+                "-nostdsysteminc",
+                "-triple",
+                "x86_64-unknown-linux-gnu",
+                "-fclangir-enable",
+                "-clangir-disable-emit-cxx-default",
+                "-Wno-unused-value",
+                "-emit-cir",
+                "/tmp/test.raw",
+                "-std=c89",
+                "-o",
+                "/tmp/test.cir",
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "C++ to CIR (cc1)",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Debug/bin/clang",
+            "preLaunchTask": "C++ Preprocessing",
+            "args": [
+                "-cc1",
+                "-internal-isystem",
+                "${workspaceFolder}/build/Debug/lib/clang/17/include",
+                "-nostdsysteminc",
+                "-std=c++20",
+                "-x",
+                "c++",
+                "-triple",
+                "x86_64-unknown-linux-gnu",
+                "-fclangir-enable",
+                "-mconstructor-aliases",
+                "-clangir-disable-emit-cxx-default",
+                "-Wno-unused-value",
+                "-emit-cir",
+                "/tmp/test.raw",
+                "-o",
+                "/tmp/test.cir",
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "CIR to MLIR (cir-opt)",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Debug/bin/cir-opt",
+            "args": [
+                "--mlir-print-ir-after-failure",
+                "--cir-to-llvm",
+                "/tmp/test.cir",
+                "-o",
+                "/tmp/test.mlir"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "MLIR to LLVM IR (cir-translate)",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Debug/bin/cir-translate",
+            "args": [
+                "--cir-to-llvmir",
+                "/tmp/test.mlir",
+                "-o",
+                "/tmp/test.ll"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Raw C",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Debug/bin/clang",
+            "preLaunchTask": "Preprocessing",
+            "args": [
+                "-cc1",
+                "-internal-isystem",
+                "/home/sitio/Documents/gsoc/cir/build/Debug/lib/clang/17/include",
+                "-nostdsysteminc",
+                "-triple",
+                "x86_64-unknown-linux-gnu",
+                "-Wno-unused-value",
+                "-std=c89",
+                "-emit-llvm",
+                "/tmp/test.raw"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Raw C++",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Debug/bin/clang++",
+            "preLaunchTask": "Preprocessing",
+            "args": [
+                "-cc1",
+                "-internal-isystem",
+                "/home/sitio/Documents/gsoc/cir/build/Debug/lib/clang/17/include",
+                "-nostdsysteminc",
+                "-triple",
+                "x86_64-unknown-linux-gnu",
+                "-Wno-unused-value",
+                "-x",
+                "c++",
+                "-stdlib=libc++",
+                "-emit-llvm",
+                "/tmp/test.raw"
+            ],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}
