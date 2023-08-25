@@ -1210,6 +1210,16 @@ void CIRGenModule::buildTopLevelDecl(Decl *decl) {
                  << decl->getDeclKindName() << "' not implemented\n";
     assert(false && "Not yet implemented");
 
+  case Decl::TranslationUnit: {
+    // This path is CIR only - CIRGen handles TUDecls because
+    // of clang-tidy checks, that operate on TU granularity.
+    TranslationUnitDecl *TU = cast<TranslationUnitDecl>(decl);
+    for (DeclContext::decl_iterator D = TU->decls_begin(),
+                                    DEnd = TU->decls_end();
+         D != DEnd; ++D)
+      buildTopLevelDecl(*D);
+    return;
+  }
   case Decl::Var:
   case Decl::Decomposition:
   case Decl::VarTemplateSpecialization:
@@ -1905,7 +1915,26 @@ void CIRGenModule::setExtraAttributesForFunc(FuncOp f,
                                              mlir::cir::InlineKind::NoInline);
       attrs.set(attr.getMnemonic(), attr);
     }
+  }
 
+  // Track whether we need to add the optnone attribute,
+  // starting with the default for this optimization level.
+  bool ShouldAddOptNone =
+      !codeGenOpts.DisableO0ImplyOptNone && codeGenOpts.OptimizationLevel == 0;
+  if (FD) {
+    ShouldAddOptNone &= !FD->hasAttr<MinSizeAttr>();
+    ShouldAddOptNone &= !FD->hasAttr<AlwaysInlineAttr>();
+    ShouldAddOptNone |= FD->hasAttr<OptimizeNoneAttr>();
+  }
+
+  if (ShouldAddOptNone) {
+    auto optNoneAttr = mlir::cir::OptNoneAttr::get(builder.getContext());
+    attrs.set(optNoneAttr.getMnemonic(), optNoneAttr);
+
+    // OptimizeNone implies noinline; we should not be inlining such functions.
+    auto noInlineAttr = mlir::cir::InlineAttr::get(
+        builder.getContext(), mlir::cir::InlineKind::NoInline);
+    attrs.set(noInlineAttr.getMnemonic(), noInlineAttr);
   }
 
   f.setExtraAttrsAttr(mlir::cir::ExtraFuncAttributesAttr::get(

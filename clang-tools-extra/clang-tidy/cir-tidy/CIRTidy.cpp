@@ -18,7 +18,9 @@
 #include "CIRASTConsumer.h"
 #include "ClangTidyModuleRegistry.h"
 #include "ClangTidyProfiling.h"
+#ifndef CLANG_TIDY_CONFIG_H
 #include "clang-tidy-config.h"
+#endif
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Lex/PreprocessorOptions.h"
 #include "clang/Tooling/DiagnosticsYaml.h"
@@ -141,3 +143,15 @@ runCIRTidy(ClangTidyContext &Context, const CompilationDatabase &Compilations,
 
 } // namespace tidy
 } // namespace cir
+
+// Now that clang-tidy is integrated with the lifetime checker, CIR changes to
+// ClangTidyForceLinker.h are forcing CIRModuleAnchorSource to also be available
+// as part of cir-tidy. Since cir-tidy is going to be removed soon, add this so
+// that it can still builds in the meantime.
+namespace clang::tidy {
+
+// This anchor is used to force the linker to link in the generated object file
+// and thus register the CIRModule.
+volatile int CIRModuleAnchorSource = 0;
+
+} // namespace clang::tidy

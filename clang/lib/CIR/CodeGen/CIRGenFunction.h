@@ -937,6 +937,11 @@ public:
   RValue buildCallExpr(const clang::CallExpr *E,
                        ReturnValueSlot ReturnValue = ReturnValueSlot());
 
+  /// Create a check for a function parameter that may potentially be
+  /// declared as non-null.
+  void buildNonNullArgCheck(RValue RV, QualType ArgType, SourceLocation ArgLoc,
+                           AbstractCallee AC, unsigned ParmNum);
+
   void buildCallArg(CallArgList &args, const clang::Expr *E,
                     clang::QualType ArgType);
 
@@ -1128,13 +1133,26 @@ public:
 
   mlir::Type getCIRType(const clang::QualType &type);
 
+  const CaseStmt *foldCaseStmt(const clang::CaseStmt &S, mlir::Type condType,
+                               SmallVector<mlir::Attribute, 4> &caseAttrs);
+
+  void insertFallthrough(const clang::Stmt &S);
+
+  template <typename T>
+  mlir::LogicalResult
+  buildCaseDefaultCascade(const T *stmt, mlir::Type condType,
+                          SmallVector<mlir::Attribute, 4> &caseAttrs,
+                          mlir::OperationState &os);
+
   mlir::LogicalResult buildCaseStmt(const clang::CaseStmt &S,
                                     mlir::Type condType,
-                                    mlir::cir::CaseAttr &caseEntry);
+                                    SmallVector<mlir::Attribute, 4> &caseAttrs,
+                                    mlir::OperationState &op);
 
-  mlir::LogicalResult buildDefaultStmt(const clang::DefaultStmt &S,
-                                       mlir::Type condType,
-                                       mlir::cir::CaseAttr &caseEntry);
+  mlir::LogicalResult
+  buildDefaultStmt(const clang::DefaultStmt &S, mlir::Type condType,
+                   SmallVector<mlir::Attribute, 4> &caseAttrs,
+                   mlir::OperationState &op);
 
   mlir::cir::FuncOp generateCode(clang::GlobalDecl GD, mlir::cir::FuncOp Fn,
                                  const CIRGenFunctionInfo &FnInfo);
