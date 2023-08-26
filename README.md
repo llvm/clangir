@@ -59,7 +59,7 @@ set of functionality from C/C++, but there are many missing. The
 [CIR/CodeGen](https://github.com/llvm/clangir/tree/main/clang/test/CIR/CodeGen)
 test directory is a good proxy of the current supported features.
 
-- LLVM lowering: generating LLVM IR out of CIR. 70% of all programs in
+- LLVM lowering: generating LLVM IR out of CIR. About 50% of all programs in
 `llvm-testsuite/SingleSource` pass correctness checks.
 
 - MLIR in-tree dialect lowering: basically CIR -> MLIR dialects, initial
