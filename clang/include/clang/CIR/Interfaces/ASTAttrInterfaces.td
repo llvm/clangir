@@ -13,52 +13,42 @@ include "mlir/IR/OpBase.td"
 
 let cppNamespace = "::mlir::cir" in {
 
-    def ASTDeclInterface : AttrInterface< "ASTDeclInterface" > {
-        let methods = [
-            // hasAttr, cannot be templated :(
-            InterfaceMethod< "", "bool", "hasOwnerAttr", (ins),
-                /* methodBody = */ [{}],
-                /* defaultImplementation= */[{
-                    return $_attr.getDecl()->template hasAttr< clang::OwnerAttr >();
-                }]
-            >,
-            InterfaceMethod< "", "bool", "hasPointerAttr", (ins),
-                /* methodBody = */ [{}],
-                /* defaultImplementation= */[{
-                    return $_attr.getDecl()->template hasAttr< clang::PointerAttr >();
-                }]
-            >
-        ];
-    }
+    def ASTDeclInterface : AttrInterface< "ASTDeclInterface" > {}
 
-    // def ASTNamedDeclInterface : AttrInterface< "ASTNamedDeclInterface", [ASTDeclInterface] > {}
+    def ASTDeclContextInterface : AttrInterface< "ASTDeclContextInterface" > {}
 
-    // def ASTTypeDeclInterface : AttrInterface< "ASTTypeDeclInterface", [ASTNamedDeclInterface] > {}
+    def ASTNamedDeclInterface : AttrInterface< "ASTNamedDeclInterface",
+        [ASTDeclInterface]
+    > {}
 
-    // def ASTTagDeclInterface : AttrInterface< "ASTTagDeclInterface", [ASTTypeDeclInterface] > {}
+    def ASTValueDeclInterface : AttrInterface< "ASTValueDeclInterface",
+        [ASTNamedDeclInterface]
+    > {}
 
-    // def ASTRecordDeclInterface : AttrInterface< "ASTRecordDeclInterface", [ASTTagDeclInterface] > {}
+    def ASTDeclaratorDeclInterface : AttrInterface< "ASTDeclaratorDeclInterface",
+        [ASTValueDeclInterface]
+    > {}
 
-    def ASTCXXRecorDeclInterface : AttrInterface< "ASTCXXRecorDeclInterface", [ASTDeclInterface] > {
-        let methods = [
-            InterfaceMethod< "", "bool", "isLambda", (ins), [{}],
-                /*defaultImplementation=*/ [{
-                    return $_attr.getDecl()->isLambda();
-                }]
-            >
-        ];
-    }
+    def ASTVarDeclInterface : AttrInterface< "ASTVarDeclInterface",
+        [ASTDeclaratorDeclInterface]
+    > {}
 
-    def ASTVarDeclInterface : AttrInterface< "ASTVarDeclInterface", [ASTDeclInterface] > {}
-
-    def ASTFunctionDeclInterface : AttrInterface< "ASTFunctionDeclInterface", [ASTDeclInterface] > {
+    def ASTFunctionDeclInterface : AttrInterface< "ASTFunctionDeclInterface",
+        [ASTDeclaratorDeclInterface, ASTDeclContextInterface]
+    > {
         let methods = [
             InterfaceMethod< "", "bool", "isOverloadedOperator", (ins), [{}],
                 /*defaultImplementation=*/ [{
                     return $_attr.getDecl()->isOverloadedOperator();
                 }]
-            >,
-            // TODO move to ASTMethodDeclInterface
+            >
+        ];
+    }
+
+    def ASTCXXMethodDeclInterface : AttrInterface< "ASTCXXMethodDeclInterface",
+        [ASTFunctionDeclInterface]
+    > {
+        let methods = [
             InterfaceMethod< "", "bool", "isCopyAssignmentOperator", (ins), [{}],
                 /*defaultImplementation=*/ [{
                     if (auto decl = dyn_cast< clang::CXXMethodDecl >($_attr.getDecl()))
@@ -66,7 +56,6 @@ let cppNamespace = "::mlir::cir" in {
                     return false;
                 }]
             >,
-            // TODO move to ASTMethodDeclInterface
             InterfaceMethod< "", "bool", "isMoveAssignmentOperator", (ins), [{}],
                 /*defaultImplementation=*/ [{
                     if (auto decl = dyn_cast< clang::CXXMethodDecl >($_attr.getDecl()))
@@ -77,7 +66,57 @@ let cppNamespace = "::mlir::cir" in {
         ];
     }
 
-    def ASTCXXMethodDeclInterface : AttrInterface< "ASTCXXMethodDeclInterface", [ASTDeclInterface] > {}
+    def ASTCXXConstructDeclInterface : AttrInterface< "ASTCXXConstructDeclInterface",
+        [ASTCXXMethodDeclInterface]
+    > {}
+
+    def ASTCXXConversionDeclInterface : AttrInterface< "ASTCXXConversionDeclInterface",
+        [ASTCXXMethodDeclInterface]
+    > {}
+
+    def ASTCXXDestructDeclInterface : AttrInterface< "ASTCXXDestructDeclInterface",
+        [ASTCXXMethodDeclInterface]
+    > {}
+
+    def ASTTypeDeclInterface : AttrInterface< "ASTTypeDeclInterface",
+        [ASTNamedDeclInterface]
+    > {}
+
+    def ASTTagDeclInterface : AttrInterface< "ASTTagDeclInterface",
+        [ASTTypeDeclInterface, ASTDeclContextInterface]
+    > {}
+
+    def ASTEnumDeclInterface : AttrInterface< "ASTEnumDeclInterface",
+        [ASTTagDeclInterface]
+    > {}
+
+    def ASTRecordDeclInterface : AttrInterface< "ASTRecordDeclInterface",
+        [ASTTagDeclInterface]
+    > {}
+
+    def ASTCXXRecorDeclInterface : AttrInterface< "ASTCXXRecorDeclInterface",
+        [ASTDeclInterface]
+    > {
+        let methods = [
+            InterfaceMethod< "", "bool", "isLambda", (ins), [{}],
+                /*defaultImplementation=*/ [{
+                    return $_attr.getDecl()->isLambda();
+                }]
+            >
+        ];
+    }
+
+    def ASTClassTemplateSpecializationDeclInterface
+        : AttrInterface< "ASTClassTemplateSpecializationDeclInterface",
+            [ASTCXXRecorDeclInterface]
+        >
+    {}
+
+    def ASTClassTemplatePartialSpecializationDeclInterface
+        : AttrInterface< "ASTClassTemplatePartialSpecializationDeclInterface",
+            [ASTClassTemplateSpecializationDeclInterface]
+        >
+    {}
 }
 
 #endif // MLIR_CIR_INTERFACES_AST_ATTR_INTERFACES
