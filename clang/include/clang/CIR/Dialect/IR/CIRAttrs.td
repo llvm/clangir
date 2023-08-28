@@ -399,10 +399,40 @@ class ASTDecl<string name, string prefix, list<Trait> traits = []>
   let genVerifyDecl = 1;
 }
 
-def ASTFunctionDeclAttr : ASTDecl<"FunctionDecl", "fndecl">;
+def ASTFunctionDeclAttr : ASTDecl<"FunctionDecl", "fn.decl">;
 def ASTVarDeclAttr : ASTDecl<"VarDecl", "vardecl">;
-def ASTRecordDeclAttr : ASTDecl<"RecordDecl", "recdecl">;
 
+def ASTTypeDeclAttr: ASTDecl<"TypeDecl", "type.decl",
+  [ASTTypeDeclInterface]
+>;
+
+def ASTTagDeclAttr : ASTDecl<"TagDecl", "tag.decl",
+  [ASTTagDeclInterface]
+>;
+
+def ASTenumDeclAttr : ASTDecl<"EnumDecl", "enum.decl",
+  [ASTEnumDeclInterface]
+>;
+
+def ASTRecordDeclAttr : ASTDecl<"RecordDecl", "rec.decl",
+  [ASTRecordDeclInterface]
+>;
+
+def ASTCXXRecordDeclAttr : ASTDecl<"CXXRecordDecl", "cxxrec.decl",
+  [ASTCXXRecorDeclInterface]
+>;
+
+def ASTClassTemplateSpecializationDeclAttr
+  : ASTDecl<"ClassTemplateSpecializationDecl"
+  , "cls.template.spec.decl"
+  , [ASTClassTemplateSpecializationDeclInterface]
+>;
+
+def ASTClassTemplatePartialSpecializationDeclAttr
+  : ASTDecl<"ClassTemplatePartialSpecializationDecl"
+  , "cls.template.partial.spec.decl"
+  , [ASTClassTemplatePartialSpecializationDeclInterface]
+>;
 
 //===----------------------------------------------------------------------===//
 // ExtraFuncAttr
