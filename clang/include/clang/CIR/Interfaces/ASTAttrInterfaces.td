@@ -39,7 +39,7 @@ let cppNamespace = "::mlir::cir" in {
         let methods = [
             InterfaceMethod< "", "bool", "isOverloadedOperator", (ins), [{}],
                 /*defaultImplementation=*/ [{
-                    return $_attr.getDecl()->isOverloadedOperator();
+                    return $_attr.getAstDecl()->isOverloadedOperator();
                 }]
             >
         ];
@@ -51,14 +51,14 @@ let cppNamespace = "::mlir::cir" in {
         let methods = [
             InterfaceMethod< "", "bool", "isCopyAssignmentOperator", (ins), [{}],
                 /*defaultImplementation=*/ [{
-                    if (auto decl = dyn_cast< clang::CXXMethodDecl >($_attr.getDecl()))
+                    if (auto decl = dyn_cast< clang::CXXMethodDecl >($_attr.getAstDecl()))
                         return decl->isCopyAssignmentOperator();
                     return false;
                 }]
             >,
             InterfaceMethod< "", "bool", "isMoveAssignmentOperator", (ins), [{}],
                 /*defaultImplementation=*/ [{
-                    if (auto decl = dyn_cast< clang::CXXMethodDecl >($_attr.getDecl()))
+                    if (auto decl = dyn_cast< clang::CXXMethodDecl >($_attr.getAstDecl()))
                         return decl->isMoveAssignmentOperator();
                     return false;
                 }]
@@ -100,7 +100,7 @@ let cppNamespace = "::mlir::cir" in {
         let methods = [
             InterfaceMethod< "", "bool", "isLambda", (ins), [{}],
                 /*defaultImplementation=*/ [{
-                    return $_attr.getDecl()->isLambda();
+                    return $_attr.getAstDecl()->isLambda();
                 }]
             >
         ];
