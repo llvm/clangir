@@ -31,12 +31,11 @@ Currently we do not evaluate ClangIR against external test suites automatically,
 
 ### [LLVM Test Suite](https://github.com/llvm/llvm-test-suite)
 
-So far, we have tested ClangIR **only against the SingleSource** tests from this suite. The table below presents the Compile Time (CT) and Execution Time (ET) of each test, along side the relative difference between ClangIR and the baseline for each metric. These metrics, however, are not a realiable performance comparison as many of these tests are too small, but rather a mean to identify possible issues in ClangIR.
+So far, we have tested ClangIR **only against the SingleSource** tests from this suite.
 
-| Program | status | Base CT | ClangIR CT | Diff CT (%)  | Base ET | ClangIR ET | Diff ET (%) |
-|---------|--------|--------------|--------------|--------------|-----------|-----------|-----------|
-{% for row in site.data.clangir-singlesource-test-suite %}| {{ row.Program }} | {{ row.status }} | {{ row.compile_time_base | round: 3 }} | {{ row.compile_time_clangir | round: 3 }} | {{ row.compile_time_diff | times: 100 | round: 1 }} | {{ row.exec_time_base | round: 3 }} | {{ row.exec_time_clangir | round: 3 }} | {{row.exec_time_diff | times: 100 | round: 1 }} |
-{% endfor %}
+A table detailing ClangIR's status for each tests can be found [here](../Standalone/single-source-tests-table.md).
+
+Currently, 51% (935/1824) of the SingleSource tests are passing. A good way to start contributing to ClangIR is to pick one of the `NOEXE` of `FAIL` tests and try to patch it!
 
 #### How to Run
 
@@ -59,7 +58,7 @@ So far, we have tested ClangIR **only against the SingleSource** tests from this
 
 * Build tests (`-k` ensures it won't stop if a test fails to compile):
   ```bash
-  make -j`0` -k
+  make -j -k
   ```
 
 * In the build directory, run the tests with:
