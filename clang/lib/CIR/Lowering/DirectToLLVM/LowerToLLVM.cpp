@@ -1812,7 +1812,7 @@ mlir::LLVMTypeConverter prepareTypeConverter(mlir::MLIRContext *ctx) {
     mlir::LLVM::LLVMStructType llvmStruct;
     if (type.getTypeName().size() != 0) {
       llvmStruct = mlir::LLVM::LLVMStructType::getIdentified(
-          type.getContext(), type.getTypeName());
+          type.getContext(), type.getPrefixedName());
       if (llvmStruct.setBody(llvmMembers, /*isPacked=*/type.getPacked())
               .failed())
         llvm_unreachable("Failed to set body of struct");
