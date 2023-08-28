@@ -1719,23 +1719,22 @@ public:
   }
 };
 
-class CIRStructElementAddrOpLowering
-    : public mlir::OpConversionPattern<mlir::cir::StructElementAddr> {
+class CIRGetMemberOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::GetMemberOp> {
 public:
-  using mlir::OpConversionPattern<
-      mlir::cir::StructElementAddr>::OpConversionPattern;
+  using mlir::OpConversionPattern<mlir::cir::GetMemberOp>::OpConversionPattern;
 
   mlir::LogicalResult
-  matchAndRewrite(mlir::cir::StructElementAddr op, OpAdaptor adaptor,
+  matchAndRewrite(mlir::cir::GetMemberOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto llResTy = getTypeConverter()->convertType(op.getType());
     // Since the base address is a pointer to structs, the first offset is
     // always zero. The second offset tell us which member it will access.
     llvm::SmallVector<mlir::LLVM::GEPArg> offset{0, op.getIndex()};
     const auto elementTy = getTypeConverter()->convertType(
-        op.getStructAddr().getType().getPointee());
+        op.getAddr().getType().getPointee());
     rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(
-        op, llResTy, elementTy, adaptor.getStructAddr(), offset);
+        op, llResTy, elementTy, adaptor.getAddr(), offset);
     return mlir::success();
   }
 };
@@ -1791,7 +1790,7 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
                CIRIfLowering, CIRGlobalOpLowering, CIRGetGlobalOpLowering,
                CIRVAStartLowering, CIRVAEndLowering, CIRVACopyLowering,
                CIRVAArgLowering, CIRBrOpLowering, CIRTernaryOpLowering,
-               CIRStructElementAddrOpLowering, CIRSwitchOpLowering,
+               CIRGetMemberOpLowering, CIRSwitchOpLowering,
                CIRPtrDiffOpLowering, CIRCopyOpLowering, CIRMemCpyOpLowering>(
       converter, patterns.getContext());
 }
