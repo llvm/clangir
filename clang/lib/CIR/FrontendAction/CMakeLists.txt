@@ -10,6 +10,7 @@ add_clang_library(clangCIRFrontendAction
 
   DEPENDS
   MLIRCIROpsIncGen
+  MLIRCIRASTAttrInterfacesIncGen
 
   LINK_LIBS
   clangAST
