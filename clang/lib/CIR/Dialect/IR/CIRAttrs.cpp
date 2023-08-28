@@ -30,6 +30,7 @@
 
 // ClangIR holds back AST references when available.
 #include "clang/AST/Decl.h"
+#include "clang/AST/DeclCXX.h"
 
 static void printStructMembers(mlir::AsmPrinter &p,
                                     mlir::ArrayAttr members);
