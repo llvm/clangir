@@ -54,10 +54,12 @@
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/Passes.h"
 #include "llvm/ADT/APInt.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Sequence.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/Support/Casting.h"
@@ -1707,12 +1709,29 @@ public:
   matchAndRewrite(mlir::cir::GetMemberOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto llResTy = getTypeConverter()->convertType(op.getType());
-    // Since the base address is a pointer to structs, the first offset is
-    // always zero. The second offset tell us which member it will access.
-    llvm::SmallVector<mlir::LLVM::GEPArg> offset{0, op.getIndex()};
-    rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(op, llResTy,
-                                                   adaptor.getAddr(), offset);
-    return mlir::success();
+    const auto structTy =
+        op.getAddrTy().getPointee().cast<mlir::cir::StructType>();
+    assert(structTy && "expected struct type");
+
+    switch (structTy.getKind()) {
+    case mlir::cir::StructType::Struct: {
+      // Since the base address is a pointer to an aggregate, the first offset
+      // is always zero. The second offset tell us which member it will access.
+      llvm::SmallVector<mlir::LLVM::GEPArg, 2> offset{0, op.getIndex()};
+      rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(op, llResTy,
+                                                     adaptor.getAddr(), offset);
+      return mlir::success();
+    }
+    case mlir::cir::StructType::Union:
+      // Union members share the address space, so we just need a bitcast to
+      // conform to type-checking.
+      rewriter.replaceOpWithNewOp<mlir::LLVM::BitcastOp>(op, llResTy,
+                                                         adaptor.getAddr());
+      return mlir::success();
+    default:
+      return op.emitError()
+             << "struct kind '" << structTy.getKind() << "' is NYI";
+    }
   }
 };
 
@@ -1773,7 +1792,8 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
 }
 
 namespace {
-mlir::LLVMTypeConverter prepareTypeConverter(mlir::MLIRContext *ctx) {
+mlir::LLVMTypeConverter prepareTypeConverter(mlir::MLIRContext *ctx,
+                                             mlir::DataLayout &dataLayout) {
   mlir::LLVMTypeConverter converter(ctx);
   converter.addConversion([&](mlir::cir::PointerType type) -> mlir::Type {
     auto ty = converter.convertType(type.getPointee());
@@ -1803,9 +1823,24 @@ mlir::LLVMTypeConverter prepareTypeConverter(mlir::MLIRContext *ctx) {
     return mlir::LLVM::LLVMFunctionType::get(result, arguments, varArg);
   });
   converter.addConversion([&](mlir::cir::StructType type) -> mlir::Type {
+    // FIXME(cir): create separate unions, struct, and classes types.
+    // Convert struct members.
     llvm::SmallVector<mlir::Type> llvmMembers;
-    for (auto ty : type.getMembers())
-      llvmMembers.push_back(converter.convertType(ty));
+    switch (type.getKind()) {
+    case mlir::cir::StructType::Class:
+      // TODO(cir): This should be properly validated.
+    case mlir::cir::StructType::Struct:
+      for (auto ty : type.getMembers())
+        llvmMembers.push_back(converter.convertType(ty));
+      break;
+    // Unions are lowered as only the largest member.
+    case mlir::cir::StructType::Union: {
+      auto largestMember = type.getLargestMember(dataLayout);
+      if (largestMember)
+        llvmMembers.push_back(converter.convertType(largestMember));
+      break;
+    }
+    }
 
     // Struct has a name: lower as an identified struct.
     mlir::LLVM::LLVMStructType llvmStruct;
@@ -1905,8 +1940,8 @@ static void buildCtorList(mlir::ModuleOp module) {
 
 void ConvertCIRToLLVMPass::runOnOperation() {
   auto module = getOperation();
-
-  auto converter = prepareTypeConverter(&getContext());
+  mlir::DataLayout dataLayout(module);
+  auto converter = prepareTypeConverter(&getContext(), dataLayout);
 
   mlir::RewritePatternSet patterns(&getContext());
 
