@@ -1153,7 +1153,8 @@ LogicalResult LoopOp::verify() {
 
 static void printGlobalOpTypeAndInitialValue(OpAsmPrinter &p, GlobalOp op,
                                              TypeAttr type, Attribute initAttr,
-                                             mlir::Region &ctorRegion) {
+                                             mlir::Region &ctorRegion,
+                                             mlir::Region &dtorRegion) {
   auto printType = [&]() { p << ": " << type; };
   if (!op.isDeclaration()) {
     p << "= ";
@@ -1172,6 +1173,12 @@ static void printGlobalOpTypeAndInitialValue(OpAsmPrinter &p, GlobalOp op,
         printType();
     }
 
+    if (!dtorRegion.empty()) {
+      p << " dtor ";
+      p.printRegion(dtorRegion,
+                    /*printEntryBlockArgs=*/false,
+                    /*printBlockTerminators=*/false);
+    }
   } else {
     printType();
   }
@@ -1180,7 +1187,8 @@ static void printGlobalOpTypeAndInitialValue(OpAsmPrinter &p, GlobalOp op,
 static ParseResult parseGlobalOpTypeAndInitialValue(OpAsmParser &parser,
                                                     TypeAttr &typeAttr,
                                                     Attribute &initialValueAttr,
-                                                    mlir::Region &ctorRegion) {
+                                                    mlir::Region &ctorRegion,
+                                                    mlir::Region &dtorRegion) {
   mlir::Type opTy;
   if (parser.parseOptionalEqual().failed()) {
     // Absence of equal means a declaration, so we need to parse the type.
@@ -1224,6 +1232,24 @@ static ParseResult parseGlobalOpTypeAndInitialValue(OpAsmParser &parser,
         opTy = typedAttr.getType();
       }
     }
+
+    // Parse destructor, example:
+    //   dtor { ... }
+    if (!parser.parseOptionalKeyword("dtor")) {
+      auto parseLoc = parser.getCurrentLocation();
+      if (parser.parseRegion(dtorRegion, /*arguments=*/{}, /*argTypes=*/{}))
+        return failure();
+      if (!dtorRegion.hasOneBlock())
+        return parser.emitError(parser.getCurrentLocation(),
+                                "dtor region must have exactly one block");
+      if (dtorRegion.back().empty())
+        return parser.emitError(parser.getCurrentLocation(),
+                                "dtor region shall not be empty");
+      if (checkBlockTerminator(parser, parseLoc,
+                               dtorRegion.back().back().getLoc(), &dtorRegion)
+              .failed())
+        return failure();
+    }
   }
 
   typeAttr = TypeAttr::get(opTy);
@@ -1250,6 +1276,20 @@ LogicalResult GlobalOp::verify() {
     auto &block = ctorRegion.front();
     if (block.empty()) {
       return emitError() << "ctor region shall not be empty.";
+    }
+  }
+
+  // Verify that the destructor region, if present, has only one block which is
+  // not empty.
+  auto &dtorRegion = getDtorRegion();
+  if (!dtorRegion.empty()) {
+    if (!dtorRegion.hasOneBlock()) {
+      return emitError() << "dtor region must have exactly one block.";
+    }
+
+    auto &block = dtorRegion.front();
+    if (block.empty()) {
+      return emitError() << "dtor region shall not be empty.";
     }
   }
 
@@ -1293,7 +1333,8 @@ LogicalResult GlobalOp::verify() {
 void GlobalOp::build(OpBuilder &odsBuilder, OperationState &odsState,
                      StringRef sym_name, Type sym_type, bool isConstant,
                      cir::GlobalLinkageKind linkage,
-                     function_ref<void(OpBuilder &, Location)> ctorBuilder) {
+                     function_ref<void(OpBuilder &, Location)> ctorBuilder,
+                     function_ref<void(OpBuilder &, Location)> dtorBuilder) {
   odsState.addAttribute(getSymNameAttrName(odsState.name),
                         odsBuilder.getStringAttr(sym_name));
   odsState.addAttribute(getSymTypeAttrName(odsState.name),
@@ -1311,6 +1352,12 @@ void GlobalOp::build(OpBuilder &odsBuilder, OperationState &odsState,
     odsBuilder.createBlock(ctorRegion);
     ctorBuilder(odsBuilder, odsState.location);
   }
+
+  Region *dtorRegion = odsState.addRegion();
+  if (dtorBuilder) {
+    odsBuilder.createBlock(dtorRegion);
+    dtorBuilder(odsBuilder, odsState.location);
+  }
 }
 
 /// Given the region at `index`, or the parent operation if `index` is None,
@@ -1321,7 +1368,7 @@ void GlobalOp::build(OpBuilder &odsBuilder, OperationState &odsState,
 void GlobalOp::getSuccessorRegions(std::optional<unsigned> index,
                                    ArrayRef<Attribute> operands,
                                    SmallVectorImpl<RegionSuccessor> &regions) {
-  // The only region always branch back to the parent operation.
+  // The `ctor` and `dtor` regions always branch back to the parent operation.
   if (index.has_value()) {
     regions.push_back(RegionSuccessor());
     return;
@@ -1332,9 +1379,16 @@ void GlobalOp::getSuccessorRegions(std::optional<unsigned> index,
   if (ctorRegion->empty())
     ctorRegion = nullptr;
 
+  // Don't consider the dtor region if it is empty.
+  Region *dtorRegion = &this->getCtorRegion();
+  if (dtorRegion->empty())
+    dtorRegion = nullptr;
+
   // If the condition isn't constant, both regions may be executed.
   if (ctorRegion)
     regions.push_back(RegionSuccessor(ctorRegion));
+  if (dtorRegion)
+    regions.push_back(RegionSuccessor(dtorRegion));
 }
 
 //===----------------------------------------------------------------------===//
