@@ -1277,19 +1277,19 @@ def GlobalOp : CIR_Op<"global", [Symbol, DeclareOpInterfaceMethods<RegionBranchO
                        OptionalAttr<I64Attr>:$alignment,
                        OptionalAttr<ASTVarDeclAttr>:$ast
                        );
-  let regions = (region AnyRegion:$ctorRegion);
+  let regions = (region AnyRegion:$ctorRegion, AnyRegion:$dtorRegion);
   let assemblyFormat = [{
        ($sym_visibility^)?
        (`constant` $constant^)?
        $linkage
        $sym_name
-       custom<GlobalOpTypeAndInitialValue>($sym_type, $initial_value, $ctorRegion)
+       custom<GlobalOpTypeAndInitialValue>($sym_type, $initial_value, $ctorRegion, $dtorRegion)
        attr-dict
   }];
 
   let extraClassDeclaration = [{
     bool isDeclaration() {
-      return !getInitialValue() && getCtorRegion().empty();
+      return !getInitialValue() && getCtorRegion().empty() && getDtorRegion().empty();
     }
     bool hasInitializer() { return !isDeclaration(); }
     bool hasAvailableExternallyLinkage() {
@@ -1317,7 +1317,9 @@ def GlobalOp : CIR_Op<"global", [Symbol, DeclareOpInterfaceMethods<RegionBranchO
       CArg<"cir::GlobalLinkageKind",
             "cir::GlobalLinkageKind::ExternalLinkage">:$linkage,
       CArg<"function_ref<void(OpBuilder &, Location)>",
-           "nullptr">:$ctorBuilder)>
+           "nullptr">:$ctorBuilder,
+      CArg<"function_ref<void(OpBuilder &, Location)>",
+           "nullptr">:$dtorBuilder)>
   ];
 
   let hasVerifier = 1;
@@ -1403,41 +1405,47 @@ def VTableAddrPointOp : CIR_Op<"vtable.address_point",
 }
 
 //===----------------------------------------------------------------------===//
-// StructElementAddr
+// GetMemberOp
 //===----------------------------------------------------------------------===//
 
-// FIXME: rename this among the lines of GetGlobalOp.
-def StructElementAddr : CIR_Op<"struct_element_addr"> {
+def GetMemberOp : CIR_Op<"get_member"> {
   let summary = "Get the address of a member of a struct";
   let description = [{
-    The `cir.struct_element_addr` operaration gets the address of a particular
-    named member from the input struct.
+    The `cir.get_member` operation gets the address of a particular named
+    member from the input record.
 
-    It expects a pointer to the base struct as well as the name of the member
+    It expects a pointer to the base record as well as the name of the member
     and its field index.
 
     Example:
     ```mlir
-    !ty_22struct2EBar22 = type !cir.struct<"struct.Bar", i32, i8>
-    ...
-    %0 = cir.alloca !ty_22struct2EBar22, cir.ptr <!ty_22struct2EBar22>
-    ...
-    %1 = cir.struct_element_addr %0, "Bar.a"
-    %2 = cir.load %1 : cir.ptr <int>, int
-    ...
+    // Suppose we have a struct with multiple members.
+    !s32i = !cir.int<s, 32>
+    !s8i = !cir.int<s, 32>
+    !struct_ty = !cir.struct<"struct.Bar" {!s32i, !s8i}>
+
+    // Get the address of the member at index 1.
+    %1 = cir.get_member %0[1] {name = "i"} : (!cir.ptr<!struct_ty>) -> !cir.ptr<!s8i>
     ```
   }];
 
   let arguments = (ins
-    Arg<CIR_PointerType, "the address to load from", [MemRead]>:$struct_addr,
-    StrAttr:$member_name,
-    IndexAttr:$member_index);
+    Arg<CIR_PointerType, "the address to load from", [MemRead]>:$addr,
+    StrAttr:$name,
+    IndexAttr:$index_attr);
 
   let results = (outs Res<CIR_PointerType, "">:$result);
 
+  let assemblyFormat = [{
+    $addr `[` $index_attr `]` attr-dict
+    `:` qualified(type($addr)) `->` qualified(type($result))
+  }];
+
   let builders = [
-    OpBuilder<(ins "Type":$type, "Value":$value, "llvm::StringRef":$name,
-              "unsigned":$index),
+    OpBuilder<(ins "Type":$type,
+                   "Value":$value,
+                   "llvm::StringRef":$name,
+                   "unsigned":$index),
     [{
       mlir::APInt fieldIdx(64, index);
       build($_builder, $_state, type, value, name, fieldIdx);
@@ -1446,10 +1454,18 @@ def StructElementAddr : CIR_Op<"struct_element_addr"> {
 
   let extraClassDeclaration = [{
     /// Return the index of the struct member being accessed.
-    uint64_t getIndex() { return getMemberIndex().getZExtValue(); }
+    uint64_t getIndex() { return getIndexAttr().getZExtValue(); }
+
+    /// Return the record type pointed by the base pointer.
+    mlir::cir::PointerType getAddrTy() { return getAddr().getType(); }
+
+    /// Return the result type.
+    mlir::cir::PointerType getResultTy() {
+      return getResult().getType().cast<mlir::cir::PointerType>();
+    }
   }];
 
-  // FIXME: add verifier.
+  let hasVerifier = 1;
 }
 
 //===----------------------------------------------------------------------===//

@@ -17,6 +17,7 @@
 #include "clang/AST/CXXInheritance.h"
 #include "clang/AST/RecordLayout.h"
 #include "clang/Basic/CodeGenOptions.h"
+#include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CodeGen/CGFunctionInfo.h"
 #include "clang/CodeGen/ConstantInitBuilder.h"
 #include "llvm/Support/Format.h"
@@ -58,7 +59,7 @@ mlir::Type CIRGenVTables::getVTableType(const VTableLayout &layout) {
 
   // FIXME(cir): should VTableLayout be encoded like we do for some
   // AST nodes?
-  return mlir::cir::StructType::get(ctx, tys, "", /*body=*/true);
+  return CGM.getBuilder().getAnonStructTy(tys, /*body=*/true);
 }
 
 /// At this point in the translation unit, does it appear that can we

@@ -309,7 +309,7 @@ module {
 
   cir.global external @type_info_B = #cir.typeinfo<{ // expected-error {{element at index 0 has type '!cir.ptr<!cir.int<u, 8>>' but return type for this element is '!cir.ptr<!cir.int<u, 32>>'}}
     #cir.global_view<@_ZTVN10__cxxabiv120__si_class_type_infoE, [2]> : !cir.ptr<!u8i>}>
-    : !cir.struct<"", !cir.ptr<!u32i>>
+    : !cir.struct<struct "" {!cir.ptr<!u32i>}>
 } // expected-error {{'cir.global' expected constant attribute to match type}}
 
 // -----
@@ -484,4 +484,26 @@ module {
     cir.libc.memcpy %arg1 bytes from %arg0 to %arg0 : !u32i, !cir.ptr<!s8i> -> !cir.ptr<!s8i>
     cir.return
   }
+}
+
+// -----
+!s8i = !cir.int<s, 8>
+!ty_22Init22 = !cir.struct<class "Init" {!s8i} #cir.recdecl.ast>
+module {
+  cir.global "private" internal @_ZL8__ioinit = ctor : !ty_22Init22 {
+  }
+  // expected-error@+1 {{custom op 'cir.global' ctor region must have exactly one block}}
+}
+
+// -----
+!s8i = !cir.int<s, 8>
+#true = #cir.bool<true> : !cir.bool
+!ty_22Init22 = !cir.struct<class "Init" {!s8i} #cir.recdecl.ast>
+module {
+  cir.func private @_ZN4InitC1Eb(!cir.ptr<!ty_22Init22>)
+  cir.global "private" internal @_ZL8__ioinit = ctor : !ty_22Init22 {
+    %0 = cir.get_global @_ZL8__ioinit : cir.ptr <!ty_22Init22>
+    cir.call @_ZN4InitC1Eb(%0) : (!cir.ptr<!ty_22Init22>) -> ()
+  } dtor {}
+  // expected-error@+1 {{custom op 'cir.global' dtor region must have exactly one block}}
 }

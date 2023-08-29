@@ -70,13 +70,13 @@ static Address buildAddrOfFieldStorage(CIRGenFunction &CGF, Address Base,
   // For most cases fieldName is the same as field->getName() but for lambdas,
   // which do not currently carry the name, so it can be passed down from the
   // CaptureStmt.
-  auto sea = CGF.getBuilder().create<mlir::cir::StructElementAddr>(
+  auto memberAddr = CGF.getBuilder().createGetMember(
       loc, fieldPtr, Base.getPointer(), fieldName, fieldIndex);
 
   // TODO: We could get the alignment from the CIRGenRecordLayout, but given the
   // member name based lookup of the member here we probably shouldn't be. We'll
   // have to consider this later.
-  auto addr = Address(sea->getResult(0), CharUnits::One());
+  auto addr = Address(memberAddr, CharUnits::One());
   return addr;
 }
 
@@ -297,7 +297,14 @@ LValue CIRGenFunction::buildLValueForField(LValue base,
 
   unsigned RecordCVR = base.getVRQualifiers();
   if (rec->isUnion()) {
-    // For unions, there is no pointer adjustment.
+    // NOTE(cir): the element to be loaded/stored need to type-match the
+    // source/destination, so we emit a GetMemberOp here.
+    llvm::StringRef fieldName = field->getName();
+    unsigned fieldIndex = field->getFieldIndex();
+    if (CGM.LambdaFieldToName.count(field))
+      fieldName = CGM.LambdaFieldToName[field];
+    addr = buildAddrOfFieldStorage(*this, addr, field, fieldName, fieldIndex);
+
     if (CGM.getCodeGenOpts().StrictVTablePointers &&
         hasAnyVptr(FieldType, getContext()))
       // Because unions can easily skip invariant.barriers, we need to add

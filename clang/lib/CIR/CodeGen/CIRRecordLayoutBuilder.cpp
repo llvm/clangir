@@ -324,16 +324,20 @@ void CIRRecordLowering::lowerUnion() {
         (getAlignment(FieldType) == getAlignment(StorageType) &&
          getSize(FieldType) > getSize(StorageType)))
       StorageType = FieldType;
+
+    // NOTE(cir): Track all union member's types, not just the largest one. It
+    // allows for proper type-checking and retain more info for analisys.
+    fieldTypes.push_back(FieldType);
   }
   // If we have no storage type just pad to the appropriate size and return.
   if (!StorageType)
-    return appendPaddingBytes(LayoutSize);
+    llvm_unreachable("no-storage union NYI");
   // If our storage size was bigger than our required size (can happen in the
   // case of packed bitfields on Itanium) then just use an I8 array.
   if (LayoutSize < getSize(StorageType))
     StorageType = getByteArrayType(LayoutSize);
-  fieldTypes.push_back(StorageType);
-  appendPaddingBytes(LayoutSize - getSize(StorageType));
+  // NOTE(cir): Defer padding calculations to the lowering process.
+  // appendPaddingBytes(LayoutSize - getSize(StorageType));
   // Set packed if we need it.
   if (LayoutSize % getAlignment(StorageType))
     isPacked = true;
@@ -573,9 +577,6 @@ CIRGenTypes::computeRecordLayout(const RecordDecl *D,
 
   builder.lower(/*nonVirtualBaseType=*/false);
 
-  auto name = getRecordTypeName(D, "");
-  auto identifier = mlir::StringAttr::get(&getMLIRContext(), name);
-
   // If we're in C++, compute the base subobject type.
   mlir::cir::StructType *BaseTy = nullptr;
   if (llvm::isa<CXXRecordDecl>(D) && !D->isUnion() &&
@@ -584,12 +585,9 @@ CIRGenTypes::computeRecordLayout(const RecordDecl *D,
     if (builder.astRecordLayout.getNonVirtualSize() !=
         builder.astRecordLayout.getSize()) {
       CIRRecordLowering baseBuilder(*this, D, /*Packed=*/builder.isPacked);
-      auto baseIdentifier =
-          mlir::StringAttr::get(&getMLIRContext(), name + ".base");
-      *BaseTy = mlir::cir::StructType::get(
-          &getMLIRContext(), baseBuilder.fieldTypes, baseIdentifier,
-          /*body=*/true, /**packed=*/false,
-          mlir::cir::ASTRecordDeclAttr::get(&getMLIRContext(), D));
+      auto baseIdentifier = getRecordTypeName(D, ".base");
+      *BaseTy = Builder.getStructTy(baseBuilder.fieldTypes, baseIdentifier,
+                                    /*body=*/true, /*packed=*/false, D);
       // TODO(cir): add something like addRecordTypeName
 
       // BaseTy and Ty must agree on their packedness for getCIRFieldNo to work
@@ -602,10 +600,8 @@ CIRGenTypes::computeRecordLayout(const RecordDecl *D,
   // Fill in the struct *after* computing the base type.  Filling in the body
   // signifies that the type is no longer opaque and record layout is complete,
   // but we may need to recursively layout D while laying D out as a base type.
-  *Ty = mlir::cir::StructType::get(
-      &getMLIRContext(), builder.fieldTypes, identifier,
-      /*body=*/true, /**packed=*/false,
-      mlir::cir::ASTRecordDeclAttr::get(&getMLIRContext(), D));
+  *Ty = Builder.getStructTy(builder.fieldTypes, getRecordTypeName(D, ""),
+                            /*body=*/true, /*packed=*/false, D);
 
   auto RL = std::make_unique<CIRGenRecordLayout>(
       Ty ? *Ty : mlir::cir::StructType{},

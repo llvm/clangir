@@ -11,17 +11,21 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
+#include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 
 #include "mlir/IR/Attributes.h"
+#include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/DialectImplementation.h"
+#include "mlir/Interfaces/DataLayoutInterfaces.h"
 #include "mlir/Support/LogicalResult.h"
 
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/TypeSwitch.h"
 #include "llvm/Support/ErrorHandling.h"
+#include <optional>
 
 //===----------------------------------------------------------------------===//
 // CIR Custom Parser/Printer Signatures
@@ -87,72 +91,107 @@ Type BoolType::parse(mlir::AsmParser &parser) {
 
 void BoolType::print(mlir::AsmPrinter &printer) const {}
 
+//===----------------------------------------------------------------------===//
+// StructType Definitions
+//===----------------------------------------------------------------------===//
+
+/// Return the largest member of in the type.
+///
+/// Recurses into union members never returning a union as the largest member.
+Type StructType::getLargestMember(const ::mlir::DataLayout &dataLayout) const {
+  if (!largestMember)
+    computeSizeAndAlignment(dataLayout);
+  return largestMember;
+}
+
 Type StructType::parse(mlir::AsmParser &parser) {
+  const auto loc = parser.getCurrentLocation();
+  llvm::SmallVector<mlir::Type> members;
+  mlir::StringAttr id;
+  bool body = false;
+  bool packed = false;
+  mlir::cir::ASTRecordDeclAttr ast = nullptr;
+  RecordKind kind;
+
   if (parser.parseLess())
-    return Type();
-  std::string typeName;
-  if (parser.parseString(&typeName))
-    return Type();
+    return {};
 
-  llvm::SmallVector<Type> members;
-  bool parsedBody = false;
-
-  auto parseASTAttribute = [&](Attribute &attr) {
-    auto optAttr = parser.parseOptionalAttribute(attr);
-    if (optAttr.has_value()) {
-      if (failed(*optAttr))
-        return false;
-      if (attr.isa<ASTFunctionDeclAttr>() || attr.isa<ASTRecordDeclAttr>() ||
-          attr.isa<ASTVarDeclAttr>())
-        return true;
-      parser.emitError(parser.getCurrentLocation(),
-                       "Unknown cir.struct attribute");
-      return false;
-    }
-    return false;
-  };
-
-  while (mlir::succeeded(parser.parseOptionalComma())) {
-    if (mlir::succeeded(parser.parseOptionalKeyword("incomplete")))
-      continue;
-
-    parsedBody = true;
-    Type nextMember;
-    auto optTy = parser.parseOptionalType(nextMember);
-    if (optTy.has_value()) {
-      if (failed(*optTy))
-        return Type();
-      members.push_back(nextMember);
-      continue;
-    }
-
-    // Maybe it's an AST attribute: always last member, break.
-    Attribute astAttr;
-    if (parseASTAttribute(astAttr))
-      break;
+  // TODO(cir): in the future we should probably separate types for different
+  // source language declarations such as cir.class, cir.union, and cir.struct
+  if (parser.parseOptionalKeyword("struct").succeeded())
+    kind = RecordKind::Struct;
+  else if (parser.parseOptionalKeyword("union").succeeded())
+    kind = RecordKind::Union;
+  else if (parser.parseOptionalKeyword("class").succeeded())
+    kind = RecordKind::Class;
+  else {
+    parser.emitError(loc, "unknown struct type");
+    return {};
   }
 
+  if (parser.parseAttribute(id))
+    return {};
+
+  if (parser.parseOptionalKeyword("packed").succeeded())
+    packed = true;
+
+  if (parser.parseOptionalKeyword("incomplete").failed()) {
+    body = true;
+    const auto delim = AsmParser::Delimiter::Braces;
+    auto result = parser.parseCommaSeparatedList(delim, [&]() -> ParseResult {
+      mlir::Type ty;
+      if (parser.parseType(ty))
+        return mlir::failure();
+      members.push_back(ty);
+      return mlir::success();
+    });
+
+    if (result.failed())
+      return {};
+  }
+
+  parser.parseOptionalAttribute(ast);
+
   if (parser.parseGreater())
-    return Type();
-  auto sTy = get(parser.getContext(), members, typeName, parsedBody);
-  return sTy;
+    return {};
+
+  return StructType::get(parser.getContext(), members, id, body, packed, kind,
+                         std::nullopt);
 }
 
 void StructType::print(mlir::AsmPrinter &printer) const {
-  printer << '<' << getTypeName();
+  printer << '<';
+
+  switch (getKind()) {
+  case RecordKind::Struct:
+    printer << "struct ";
+    break;
+  case RecordKind::Union:
+    printer << "union ";
+    break;
+  case RecordKind::Class:
+    printer << "class ";
+    break;
+  }
+
+  printer << getTypeName() << " ";
+
+  if (getPacked())
+    printer << "packed ";
+
   if (!getBody()) {
-    printer << ", incomplete";
+    printer << "incomplete";
   } else {
-    auto members = getMembers();
-    if (!members.empty()) {
-      printer << ", ";
-      llvm::interleaveComma(getMembers(), printer);
-    }
+    printer << "{";
+    llvm::interleaveComma(getMembers(), printer);
+    printer << "}";
   }
-  if (getAst()) {
-    printer << ", ";
-    printer.printAttributeWithoutType(*getAst());
+
+  if (getAst().has_value()) {
+    printer << " ";
+    printer.printAttribute(getAst().value());
   }
+
   printer << '>';
 }
 
@@ -249,7 +288,7 @@ void StructType::computeSizeAndAlignment(
     const ::mlir::DataLayout &dataLayout) const {
   assert(!isOpaque() && "Cannot get layout of opaque structs");
   // Do not recompute.
-  if (size || align || padded)
+  if (size || align || padded || largestMember)
     return;
 
   // This is a similar algorithm to LLVM's StructLayout.
@@ -258,10 +297,24 @@ void StructType::computeSizeAndAlignment(
   [[maybe_unused]] bool isPadded = false;
   unsigned numElements = getNumElements();
   auto members = getMembers();
+  unsigned largestMemberSize = 0;
 
   // Loop over each of the elements, placing them in memory.
   for (unsigned i = 0, e = numElements; i != e; ++i) {
     auto ty = members[i];
+
+    // Found a nested union: recurse into it to fetch its largest member.
+    auto structMember = ty.dyn_cast<StructType>();
+    if (structMember && structMember.isUnion()) {
+      auto candidate = structMember.getLargestMember(dataLayout);
+      if (dataLayout.getTypeSize(candidate) > largestMemberSize) {
+        largestMember = candidate;
+        largestMemberSize = dataLayout.getTypeSize(largestMember);
+      }
+    } else if (dataLayout.getTypeSize(ty) > largestMemberSize) {
+      largestMember = ty;
+      largestMemberSize = dataLayout.getTypeSize(largestMember);
+    }
 
     // This matches LLVM since it uses the ABI instead of preferred alignment.
     const llvm::Align tyAlign =
@@ -281,6 +334,14 @@ void StructType::computeSizeAndAlignment(
 
     // Consume space for this data item
     structSize += dataLayout.getTypeSize(ty);
+  }
+
+  // For unions, the size and aligment is that of the largest element.
+  if (isUnion()) {
+    size = largestMemberSize;
+    align = structAlignment.value();
+    padded = false;
+    return;
   }
 
   // Add padding to the end of the struct so that it could be put in an array

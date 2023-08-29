@@ -13,6 +13,8 @@
 #include "CIRGenTypeCache.h"
 #include "UnimplementedFeatureGuarding.h"
 
+#include "clang/AST/Decl.h"
+#include "clang/AST/Type.h"
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
@@ -27,10 +29,12 @@
 #include "mlir/IR/Location.h"
 #include "mlir/IR/Types.h"
 #include "llvm/ADT/APSInt.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/FloatingPointMode.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <cassert>
+#include <optional>
 #include <string>
 
 namespace cir {
@@ -166,7 +170,7 @@ public:
     if (!structTy)
       structTy = getType<mlir::cir::StructType>(
           members, mlir::StringAttr::get(getContext()),
-          /*body=*/true, packed,
+          /*body=*/true, packed, mlir::cir::StructType::Struct,
           /*ast=*/std::nullopt);
 
     // Return zero or anonymous constant struct.
@@ -185,11 +189,10 @@ public:
       assert(ta && "expected typed attribute member");
       members.push_back(ta.getType());
     }
-    auto *ctx = arrayAttr.getContext();
+
     if (!ty)
-      ty = mlir::cir::StructType::get(ctx, members, mlir::StringAttr::get(ctx),
-                                      /*body=*/true, packed,
-                                      /*ast=*/std::nullopt);
+      ty = getAnonStructTy(members, /*body=*/true, packed);
+
     auto sTy = ty.dyn_cast<mlir::cir::StructType>();
     assert(sTy && "expected struct type");
     return mlir::cir::ConstStructAttr::get(sTy, arrayAttr);
@@ -380,6 +383,45 @@ public:
     return typeCache.VoidPtrTy;
   }
 
+  /// Get a CIR anonymous struct type.
+  mlir::cir::StructType
+  getAnonStructTy(llvm::ArrayRef<mlir::Type> members, bool body,
+                  bool packed = false, const clang::RecordDecl *ast = nullptr) {
+    return getStructTy(members, "", body, packed, ast);
+  }
+
+  /// Get a CIR record kind from a AST declaration tag.
+  mlir::cir::StructType::RecordKind
+  getRecordKind(const clang::TagTypeKind kind) {
+    switch (kind) {
+    case clang::TTK_Struct:
+      return mlir::cir::StructType::Struct;
+    case clang::TTK_Union:
+      return mlir::cir::StructType::Union;
+    case clang::TTK_Class:
+      return mlir::cir::StructType::Class;
+    case clang::TTK_Interface:
+      llvm_unreachable("interface records are NYI");
+    case clang::TTK_Enum:
+      llvm_unreachable("enum records are NYI");
+    }
+  }
+
+  /// Get a CIR named struct type.
+  mlir::cir::StructType getStructTy(llvm::ArrayRef<mlir::Type> members,
+                                    llvm::StringRef name, bool body,
+                                    bool packed, const clang::RecordDecl *ast) {
+    const auto nameAttr = getStringAttr(name);
+    std::optional<mlir::cir::ASTRecordDeclAttr> astAttr = std::nullopt;
+    auto kind = mlir::cir::StructType::RecordKind::Struct;
+    if (ast) {
+      astAttr = getAttr<mlir::cir::ASTRecordDeclAttr>(ast);
+      kind = getRecordKind(ast->getTagKind());
+    }
+    return mlir::cir::StructType::get(getContext(), members, nameAttr, body,
+                                      packed, kind, astAttr);
+  }
+
   //
   // Constant creation helpers
   // -------------------------
@@ -567,6 +609,13 @@ public:
   mlir::Value createGetGlobal(mlir::cir::GlobalOp global) {
     return create<mlir::cir::GetGlobalOp>(
         global.getLoc(), getPointerTo(global.getSymType()), global.getName());
+  }
+
+  /// Create a pointer to a record member.
+  mlir::Value createGetMember(mlir::Location loc, mlir::Type result,
+                              mlir::Value base, llvm::StringRef name,
+                              unsigned index) {
+    return create<mlir::cir::GetMemberOp>(loc, result, base, name, index);
   }
 
   /// Cast the element type of the given address to a different type,
