@@ -212,10 +212,10 @@ Address CIRGenFunction::getAddrOfField(LValue base, const FieldDecl *field,
   auto fieldType = convertType(field->getType());
   auto fieldPtr =
       mlir::cir::PointerType::get(getBuilder().getContext(), fieldType);
-  auto sea = getBuilder().create<mlir::cir::StructElementAddr>(
-      loc, fieldPtr, base.getPointer(), field->getName(), index);
+  auto sea = getBuilder().createGetMember(
+    loc, fieldPtr, base.getPointer(), field->getName(), index);
 
-  return Address(sea->getResult(0), CharUnits::One());
+  return Address(sea, CharUnits::One());
 }
 
 static bool useVolatileForBitField(const CIRGenModule &cgm, LValue base,
