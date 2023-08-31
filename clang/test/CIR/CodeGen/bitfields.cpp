@@ -23,7 +23,7 @@ struct S {
   int c : 17;
   int d : 2;
   int e : 15;
-}; // 65 bits in total, i.e. mote than 64
+}; // 65 bits in total, i.e. more than 64
 
 // CHECK: cir.func @_Z11store_field
 // CHECK:   [[TMP0:%.*]] = cir.alloca !ty_22S22, cir.ptr <!ty_22S22>

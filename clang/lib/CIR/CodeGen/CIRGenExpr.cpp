@@ -257,7 +257,8 @@ LValue CIRGenFunction::buildLValueForBitField(LValue base,
 
   QualType fieldType =
       field->getType().withCVRQualifiers(base.getVRQualifiers());
-  // TODO: Support TBAA for bit fields.
+  
+  assert(!UnimplementedFeature::tbaa() && "NYI TBAA for bit fields");
   LValueBaseInfo FieldBaseInfo(BaseInfo.getAlignmentSource());
   return LValue::MakeBitfield(Addr, info, fieldType, FieldBaseInfo);
 }
@@ -686,7 +687,12 @@ void CIRGenFunction::buildStoreThroughBitfieldLValue(RValue Src, LValue Dst,
     SrcVal = builder.createOr(Val, SrcVal);
 
   } else {
-    assert(0 && "not implemented");
+    // According to the AACPS:
+    // When a volatile bit-field is written, and its container does not overlap
+    // with any non-bit-field member, its container must be read exactly once
+    // and written exactly once using the access width appropriate to the type
+    // of the container. The two accesses are not atomic.
+    llvm_unreachable("volatile bit-field is not implemented for the AACPS");
   }
 
   // Write the new value back out.
