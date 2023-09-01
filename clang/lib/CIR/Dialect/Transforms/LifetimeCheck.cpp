@@ -895,9 +895,10 @@ template <class T> bool isStructAndHasAttr(mlir::Type ty) {
   if (!ty.isa<mlir::cir::StructType>())
     return false;
   auto sTy = ty.cast<mlir::cir::StructType>();
-  auto recordDecl = sTy.getAst()->getAstDecl();
-  if (recordDecl->hasAttr<T>())
-    return true;
+  auto recordDecl = sTy.getAst();
+  if (auto interface = dyn_cast< ASTDeclInterface >(recordDecl))
+    if (hasAttr<T>(interface))
+      return true;
   return false;
 }
 
@@ -1765,9 +1766,9 @@ bool LifetimeCheckPass::isLambdaType(mlir::Type ty) {
   auto taskTy = ty.dyn_cast<mlir::cir::StructType>();
   if (!taskTy)
     return false;
-  auto recordDecl = taskTy.getAst()->getAstDecl();
-  if (recordDecl->isLambda())
-    IsLambdaTyCache[ty] = true;
+  if (auto recordDecl = dyn_cast< ASTCXXRecordDeclInterface >(taskTy.getAst()))
+    if (recordDecl.isLambda())
+      IsLambdaTyCache[ty] = true;
 
   return IsLambdaTyCache[ty];
 }
@@ -1781,15 +1782,14 @@ bool LifetimeCheckPass::isTaskType(mlir::Value taskVal) {
   auto taskTy = taskVal.getType().dyn_cast<mlir::cir::StructType>();
   if (!taskTy)
     return false;
-  auto recordDecl = taskTy.getAst()->getAstDecl();
-  auto *spec = dyn_cast<clang::ClassTemplateSpecializationDecl>(recordDecl);
+  auto recordDecl = taskTy.getAst();
+  // FIXME we are not emmiting ASTClassTemplateSpecializationDeclInterface anywhere
+  auto spec = dyn_cast< ASTClassTemplateSpecializationDeclInterface >(recordDecl);
   if (!spec)
     return false;
 
-  for (auto *sub : spec->decls()) {
-    auto *subRec = dyn_cast<clang::CXXRecordDecl>(sub);
-    if (subRec && subRec->getDeclName().isIdentifier() &&
-        subRec->getName() == "promise_type") {
+  for (auto subRec : spec.CXXRecordDecls()) {
+    if (subRec.getDeclName().isIdentifier() && subRec.getName() == "promise_type") {
       IsTaskTyCache[ty] = true;
       break;
     }
