@@ -2306,60 +2306,6 @@ void SignedOverflowBehaviorAttr::print(::mlir::AsmPrinter &printer) const {
   printer << ">";
 }
 
-::mlir::Attribute ASTFunctionDeclAttr::parse(::mlir::AsmParser &parser,
-                                             ::mlir::Type type) {
-  // We cannot really parse anything AST related at this point since we have no
-  // serialization/JSON story. Even if the attr is parsed, it just holds nullptr
-  // instead of the AST node.
-  return get(parser.getContext(), nullptr);
-}
-
-void ASTFunctionDeclAttr::print(::mlir::AsmPrinter &printer) const {
-  // Nothing to print besides the mnemonics.
-}
-
-LogicalResult ASTFunctionDeclAttr::verify(
-    ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
-    const ::clang::FunctionDecl *decl) {
-  return success();
-}
-
-::mlir::Attribute ASTVarDeclAttr::parse(::mlir::AsmParser &parser,
-                                        ::mlir::Type type) {
-  // We cannot really parse anything AST related at this point since we have no
-  // serialization/JSON story. Even if the attr is parsed, it just holds nullptr
-  // instead of the AST node.
-  return get(parser.getContext(), nullptr);
-}
-
-void ASTVarDeclAttr::print(::mlir::AsmPrinter &printer) const {
-  // Nothing to print besides the mnemonics.
-}
-
-LogicalResult ASTVarDeclAttr::verify(
-    ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
-    const ::clang::VarDecl *decl) {
-  return success();
-}
-
-::mlir::Attribute ASTRecordDeclAttr::parse(::mlir::AsmParser &parser,
-                                           ::mlir::Type type) {
-  // We cannot really parse anything AST related at this point since we have no
-  // serialization/JSON story. Even if the attr is parsed, it just holds nullptr
-  // instead of the AST node.
-  return get(parser.getContext(), nullptr);
-}
-
-void ASTRecordDeclAttr::print(::mlir::AsmPrinter &printer) const {
-  // Nothing to print besides the mnemonics.
-}
-
-LogicalResult ASTRecordDeclAttr::verify(
-    ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
-    const ::clang::RecordDecl *decl) {
-  return success();
-}
-
 LogicalResult TypeInfoAttr::verify(
     ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
     ::mlir::Type type, ::mlir::ArrayAttr typeinfoData) {
