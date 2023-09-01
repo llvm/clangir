@@ -606,7 +606,9 @@ CIRGenTypes::computeRecordLayout(const RecordDecl *D,
       CIRRecordLowering baseBuilder(*this, D, /*Packed=*/builder.isPacked);
       auto baseIdentifier = getRecordTypeName(D, ".base");
       *BaseTy = Builder.getStructTy(baseBuilder.fieldTypes, baseIdentifier,
-                                    /*body=*/true, /*packed=*/false, D);
+                                    /*body=*/true, /*packed=*/false,
+                                    mlir::cir::ASTCXXRecordDeclAttr::get(&getMLIRContext(),
+                                      llvm::dyn_cast<CXXRecordDecl>(D)));
       // TODO(cir): add something like addRecordTypeName
 
       // BaseTy and Ty must agree on their packedness for getCIRFieldNo to work
