@@ -13,7 +13,6 @@ set(LIBS
   MLIRAnalysis
   MLIRCIR
   MLIRCIRTransforms
-  MLIRCIRASTAttrInterfaces
   MLIRDialect
   MLIRIR
   MLIRMemRefDialect

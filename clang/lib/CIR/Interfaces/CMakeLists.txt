@@ -8,10 +8,7 @@ add_clang_library(MLIRCIRASTAttrInterfaces
   MLIRCIRASTAttrInterfacesIncGen
 
   LINK_LIBS
-  clangCIR
   ${dialect_libs}
-  MLIRCIR
-  MLIRAnalysis
   MLIRIR
   MLIRSupport
  )

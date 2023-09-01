@@ -38,7 +38,6 @@ add_clang_library(clangCIR
   DEPENDS
   MLIRCIR
   MLIRCIROpsIncGen
-  MLIRCIRASTAttrInterfacesIncGen
   ${dialect_libs}
 
   LINK_LIBS
