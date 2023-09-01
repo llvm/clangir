@@ -431,7 +431,25 @@ def ASTDeclAttr : ASTDecl<"Decl", "decl",
   [ASTDeclInterface]
 >;
 
-def ASTFunctionDeclAttr : ASTDecl<"FunctionDecl", "function.decl">;
+def ASTFunctionDeclAttr : ASTDecl<"FunctionDecl", "function.decl",
+  [ASTFunctionDeclInterface]
+>;
+
+def ASTCXXMethodDeclAttr : ASTDecl<"CXXMethodDecl", "cxxmethod.decl",
+  [ASTCXXMethodDeclInterface]
+>;
+
+def ASTCXXConstructorDeclAttr : ASTDecl<"CXXConstructorDecl", "cxxconstructor.decl",
+  [ASTCXXConstructorDeclInterface]
+>;
+
+def ASTCXXConversionDeclAttr : ASTDecl<"CXXConversionDecl", "cxxconversion.decl",
+  [ASTCXXConversionDeclInterface]
+>;
+
+def ASTCXXDestructorDeclAttr : ASTDecl<"CXXDestructorDecl", "cxxdestructor.decl",
+  [ASTCXXDestructorDeclInterface]
+>;
 
 def ASTVarDeclAttr : ASTDecl<"VarDecl", "var.decl",
   [ASTVarDeclInterface]

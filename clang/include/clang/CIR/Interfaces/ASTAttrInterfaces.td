@@ -82,6 +82,11 @@ let cppNamespace = "::mlir::cir" in {
                 /*defaultImplementation=*/ [{
                     return $_attr.getAstDecl()->isOverloadedOperator();
                 }]
+            >,
+            InterfaceMethod< "", "bool", "isStatic", (ins), [{}],
+                /*defaultImplementation=*/ [{
+                    return $_attr.getAstDecl()->isStatic();
+                }]
             >
         ];
     }
@@ -103,19 +108,37 @@ let cppNamespace = "::mlir::cir" in {
                         return decl->isMoveAssignmentOperator();
                     return false;
                 }]
+            >,
+            InterfaceMethod< "", "bool", "isConst", (ins), [{}],
+                /*defaultImplementation=*/ [{
+                    return $_attr.getAstDecl()->isConst();
+                }]
             >
         ];
     }
 
-    def ASTCXXConstructDeclInterface : AttrInterface< "ASTCXXConstructDeclInterface",
+    def ASTCXXConstructorDeclInterface : AttrInterface< "ASTCXXConstructorDeclInterface",
         [ASTCXXMethodDeclInterface]
-    > {}
+    > {
+        let methods = [
+            InterfaceMethod< "", "bool", "isDefaultConstructor", (ins), [{}],
+                /*defaultImplementation=*/ [{
+                    return $_attr.getAstDecl()->isDefaultConstructor();
+                }]
+            >,
+            InterfaceMethod< "", "bool", "isCopyConstructor", (ins), [{}],
+                /*defaultImplementation=*/ [{
+                    return $_attr.getAstDecl()->isCopyConstructor();
+                }]
+            >
+        ];
+    }
 
     def ASTCXXConversionDeclInterface : AttrInterface< "ASTCXXConversionDeclInterface",
         [ASTCXXMethodDeclInterface]
     > {}
 
-    def ASTCXXDestructDeclInterface : AttrInterface< "ASTCXXDestructDeclInterface",
+    def ASTCXXDestructorDeclInterface : AttrInterface< "ASTCXXDestructorDeclInterface",
         [ASTCXXMethodDeclInterface]
     > {}
 
