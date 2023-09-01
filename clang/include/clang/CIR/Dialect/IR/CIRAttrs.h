@@ -16,6 +16,8 @@
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/BuiltinAttributeInterfaces.h"
 
+#include "llvm/ADT/SmallVector.h"
+
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 
 #include "clang/CIR/Interfaces/ASTAttrInterfaces.h"

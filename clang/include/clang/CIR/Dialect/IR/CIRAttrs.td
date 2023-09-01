@@ -397,10 +397,42 @@ class ASTDecl<string name, string prefix, list<Trait> traits = []>
 
   // Enable verifier.
   let genVerifyDecl = 1;
+
+  let extraClassDeclaration = [{
+    llvm::SmallVector< ASTCXXRecordDeclInterface, 4 > CXXRecordDecls() const;
+  }];
+
+  let extraClassDefinition = [{
+    llvm::SmallVector< ASTCXXRecordDeclInterface, 4 >
+    $cppClass::CXXRecordDecls() const {
+      return getCXXRecordDecls(getAstDecl(), getContext());
+    }
+
+    ::mlir::Attribute $cppClass::parse(::mlir::AsmParser &parser,
+                                        ::mlir::Type type) {
+      // We cannot really parse anything AST related at this point
+      // since we have no serialization/JSON story.
+      return $cppClass::get(parser.getContext(), nullptr);
+    }
+
+    void $cppClass::print(::mlir::AsmPrinter &printer) const {
+      // Nothing to print besides the mnemonics.
+    }
+
+    LogicalResult $cppClass::verify(
+        ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
+        }] # clang_name # [{ decl) {
+      return success();
+    }
+  }];
 }
 
-def ASTFunctionDeclAttr : ASTDecl<"FunctionDecl", "fn.decl">;
-def ASTVarDeclAttr : ASTDecl<"VarDecl", "vardecl">;
+def ASTDeclAttr : ASTDecl<"Decl", "decl",
+  [ASTDeclInterface]
+>;
+
+def ASTFunctionDeclAttr : ASTDecl<"FunctionDecl", "function.decl">;
+def ASTVarDeclAttr : ASTDecl<"VarDecl", "var.decl">;
 
 def ASTTypeDeclAttr: ASTDecl<"TypeDecl", "type.decl",
   [ASTTypeDeclInterface]
@@ -414,23 +446,23 @@ def ASTenumDeclAttr : ASTDecl<"EnumDecl", "enum.decl",
   [ASTEnumDeclInterface]
 >;
 
-def ASTRecordDeclAttr : ASTDecl<"RecordDecl", "rec.decl",
+def ASTRecordDeclAttr : ASTDecl<"RecordDecl", "record.decl",
   [ASTRecordDeclInterface]
 >;
 
-def ASTCXXRecordDeclAttr : ASTDecl<"CXXRecordDecl", "cxxrec.decl",
-  [ASTCXXRecorDeclInterface]
+def ASTCXXRecordDeclAttr : ASTDecl<"CXXRecordDecl", "cxxrecord.decl",
+  [ASTCXXRecordDeclInterface]
 >;
 
 def ASTClassTemplateSpecializationDeclAttr
   : ASTDecl<"ClassTemplateSpecializationDecl"
-  , "cls.template.spec.decl"
+  , "class.template.spec.decl"
   , [ASTClassTemplateSpecializationDeclInterface]
 >;
 
 def ASTClassTemplatePartialSpecializationDeclAttr
   : ASTDecl<"ClassTemplatePartialSpecializationDecl"
-  , "cls.template.partial.spec.decl"
+  , "class.template.partial.spec.decl"
   , [ASTClassTemplatePartialSpecializationDeclInterface]
 >;
 

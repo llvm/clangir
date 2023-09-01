@@ -37,11 +37,45 @@ static void printStructMembers(mlir::AsmPrinter &p,
 static mlir::ParseResult parseStructMembers(::mlir::AsmParser &parser,
                                                  mlir::ArrayAttr &members);
 
+llvm::SmallVector< mlir::cir::ASTCXXRecordDeclInterface, 4 >
+getCXXRecordDecls(const clang::DeclContext *ast, mlir::MLIRContext *ctx);
+
+template< typename DeclType >
+llvm::SmallVector< mlir::cir::ASTCXXRecordDeclInterface, 4 >
+getCXXRecordDecls(const DeclType *ast, mlir::MLIRContext *ctx);
+
 #define GET_ATTRDEF_CLASSES
 #include "clang/CIR/Dialect/IR/CIROpsAttributes.cpp.inc"
 
 using namespace mlir;
 using namespace mlir::cir;
+
+//===----------------------------------------------------------------------===//
+// CIR AST Attr helpers
+//===----------------------------------------------------------------------===//
+
+llvm::SmallVector< ASTCXXRecordDeclInterface, 4 >
+getCXXRecordDecls(const clang::DeclContext *ast, MLIRContext *ctx) {
+  llvm::SmallVector< ASTCXXRecordDeclInterface, 4 > records;
+
+  for (auto sub : ast->decls()) {
+      if (auto rec = clang::dyn_cast< clang::CXXRecordDecl >(sub)) {
+          records.emplace_back(
+            ASTCXXRecordDeclAttr::get(ctx, rec)
+          );
+      }
+  }
+
+  return records;
+}
+
+template< typename DeclType >
+llvm::SmallVector< ASTCXXRecordDeclInterface, 4 >
+getCXXRecordDecls(const DeclType *ast, MLIRContext *ctx) {
+  if (auto decl = llvm::dyn_cast< clang::DeclContext >(ast))
+    return getCXXRecordDecls(decl, ctx);
+  return {};
+}
 
 //===----------------------------------------------------------------------===//
 // General CIR parsing / printing
