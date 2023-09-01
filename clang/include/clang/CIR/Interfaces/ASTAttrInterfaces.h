@@ -12,8 +12,24 @@
 #include "mlir/IR/Attributes.h"
 
 #include "clang/AST/Attr.h"
+#include "clang/AST/DeclTemplate.h"
 
 /// Include the generated interface declarations.
 #include "clang/CIR/Interfaces/ASTAttrInterfaces.h.inc"
+
+namespace mlir::cir {
+
+    template< typename T >
+    bool hasAttr(ASTDeclInterface decl) {
+        if constexpr (std::is_same_v< T, clang::OwnerAttr > ) {
+            return decl.hasOwnerAttr();
+        }
+
+        if constexpr (std::is_same_v< T, clang::PointerAttr > ) {
+            return decl.hasPointerAttr();
+        }
+    }
+
+} // namespace mlir::cir
 
 #endif // MLIR_INTERFACES_CIR_AST_ATR_INTERFACES_H_

@@ -7,5 +7,9 @@
 //===----------------------------------------------------------------------===//
 #include "clang/CIR/Interfaces/ASTAttrInterfaces.h"
 
+#include "llvm/ADT/SmallVector.h"
+
+using namespace mlir::cir;
+
 /// Include the generated type qualifiers interfaces.
 #include "clang/CIR/Interfaces/ASTAttrInterfaces.cpp.inc"
