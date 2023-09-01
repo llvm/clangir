@@ -170,8 +170,8 @@ public:
     if (!structTy)
       structTy = getType<mlir::cir::StructType>(
           members, mlir::StringAttr::get(getContext()),
-          /*body=*/true, packed, mlir::cir::StructType::Struct,
-          /*ast=*/std::nullopt);
+          /*body=*/true, packed, mlir::cir::StructType::Struct
+          /*ast=*/mlir::Attribute());
 
     // Return zero or anonymous constant struct.
     if (isZero)
