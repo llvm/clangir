@@ -432,7 +432,10 @@ def ASTDeclAttr : ASTDecl<"Decl", "decl",
 >;
 
 def ASTFunctionDeclAttr : ASTDecl<"FunctionDecl", "function.decl">;
-def ASTVarDeclAttr : ASTDecl<"VarDecl", "var.decl">;
+
+def ASTVarDeclAttr : ASTDecl<"VarDecl", "var.decl",
+  [ASTVarDeclInterface]
+>;
 
 def ASTTypeDeclAttr: ASTDecl<"TypeDecl", "type.decl",
   [ASTTypeDeclInterface]

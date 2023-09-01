@@ -62,7 +62,17 @@ let cppNamespace = "::mlir::cir" in {
 
     def ASTVarDeclInterface : AttrInterface< "ASTVarDeclInterface",
         [ASTDeclaratorDeclInterface]
-    > {}
+    > {
+        let methods = [
+            InterfaceMethod< "", "void", "mangleDynamicInitializer", (ins "llvm::raw_ostream&":$Out), [{}],
+                /*defaultImplementation=*/ [{
+                    std::unique_ptr<clang::MangleContext> MangleCtx(
+                        $_attr.getAstDecl()->getASTContext().createMangleContext());
+                    MangleCtx->mangleDynamicInitializer($_attr.getAstDecl(), Out);
+                }]
+            >
+        ];
+    }
 
     def ASTFunctionDeclInterface : AttrInterface< "ASTFunctionDeclInterface",
         [ASTDeclaratorDeclInterface, ASTDeclContextInterface]

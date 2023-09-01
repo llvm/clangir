@@ -133,13 +133,10 @@ cir::FuncOp LoweringPreparePass::buildRuntimeFunction(
 }
 
 cir::FuncOp LoweringPreparePass::buildCXXGlobalVarDeclInitFunc(GlobalOp op) {
-  auto varDecl = op.getAst()->getAstDecl();
   SmallString<256> fnName;
   {
-    std::unique_ptr<clang::MangleContext> MangleCtx(
-        astCtx->createMangleContext());
     llvm::raw_svector_ostream Out(fnName);
-    MangleCtx->mangleDynamicInitializer(varDecl, Out);
+    op.getAst()->mangleDynamicInitializer(Out);
     // Name numbering
     uint32_t cnt = dynamicInitializerNames[fnName]++;
     if (cnt)
@@ -164,7 +161,7 @@ cir::FuncOp LoweringPreparePass::buildCXXGlobalVarDeclInitFunc(GlobalOp op) {
 
   // Register the destructor call with __cxa_atexit
 
-  assert(varDecl->getTLSKind() == clang::VarDecl::TLS_None && " TLS NYI");
+  assert(io.getAst()->getTLSKind() == clang::VarDecl::TLS_None && " TLS NYI");
   // Create a variable that binds the atexit to this shared object.
   builder.setInsertionPointToStart(&theModule.getBodyRegion().front());
   auto Handle = buildRuntimeVariable(builder, "__dso_handle", op.getLoc(),
