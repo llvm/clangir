@@ -111,7 +111,7 @@ void CIRGenModule::codegenGlobalInitCxxStructor(const VarDecl *D,
   CIRGenFunction CGF{*this, builder, true};
   CurCGF = &CGF;
   CurCGF->CurFn = Addr;
-  Addr.setAstAttr(mlir::cir::ASTVarDeclAttr::get(builder.getContext(), D));
+  Addr.setAstAttr(mlir::cir::makeAstDeclAttr(D, builder.getContext()));
 
   if (NeedsCtor) {
     mlir::OpBuilder::InsertionGuard guard(builder);
@@ -121,7 +121,6 @@ void CIRGenModule::codegenGlobalInitCxxStructor(const VarDecl *D,
     buildDeclInit(CGF, D, DeclAddr);
     builder.setInsertionPointToEnd(block);
     builder.create<mlir::cir::YieldOp>(Addr->getLoc());
-    Addr.setAstAttr(mlir::cir::makeAstDeclAttr(D, builder.getContext()));
   }
 
   if (NeedsDtor) {

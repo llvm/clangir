@@ -162,7 +162,9 @@ cir::FuncOp LoweringPreparePass::buildCXXGlobalVarDeclInitFunc(GlobalOp op) {
 
   // Register the destructor call with __cxa_atexit
 
-  assert(io.getAst()->getTLSKind() == clang::VarDecl::TLS_None && " TLS NYI");
+  assert(mlir::isa< ASTVarDeclInterface >(*op.getAst()) &&
+         mlir::dyn_cast< ASTVarDeclInterface >(*op.getAst()).getTLSKind() ==
+         clang::VarDecl::TLS_None && " TLS NYI");
   // Create a variable that binds the atexit to this shared object.
   builder.setInsertionPointToStart(&theModule.getBodyRegion().front());
   auto Handle = buildRuntimeVariable(builder, "__dso_handle", op.getLoc(),
@@ -178,7 +180,7 @@ cir::FuncOp LoweringPreparePass::buildCXXGlobalVarDeclInitFunc(GlobalOp op) {
   assert(dtorCall && "Expected a dtor call");
   cir::FuncOp dtorFunc = getCalledFunction(dtorCall);
   assert(dtorFunc &&
-         isa<clang::CXXDestructorDecl>(dtorFunc.getAst()->getAstDecl()) &&
+         mlir::isa< ASTCXXDestructorDeclInterface >(*dtorFunc.getAst()) &&
          "Expected a dtor call");
 
   // Create a runtime helper function:

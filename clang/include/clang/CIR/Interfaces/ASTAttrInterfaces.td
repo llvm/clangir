@@ -84,6 +84,11 @@ let cppNamespace = "::mlir::cir" in {
                         $_attr.getAstDecl()->getASTContext().createMangleContext());
                     MangleCtx->mangleDynamicInitializer($_attr.getAstDecl(), Out);
                 }]
+            >,
+            InterfaceMethod< "", "clang::VarDecl::TLSKind", "getTLSKind", (ins), [{}],
+                /*defaultImplementation=*/ [{
+                    return $_attr.getAstDecl()->getTLSKind();
+                }]
             >
         ];
     }
@@ -162,7 +167,15 @@ let cppNamespace = "::mlir::cir" in {
 
     def ASTTagDeclInterface : AttrInterface< "ASTTagDeclInterface",
         [ASTTypeDeclInterface, ASTDeclContextInterface]
-    > {}
+    > {
+        let methods = [
+            InterfaceMethod< "", "clang::TagTypeKind", "getTagKind", (ins), [{}],
+                /*defaultImplementation=*/ [{
+                    return $_attr.getAstDecl()->getTagKind();
+                }]
+            >
+        ];
+    }
 
     def ASTEnumDeclInterface : AttrInterface< "ASTEnumDeclInterface",
         [ASTTagDeclInterface]
