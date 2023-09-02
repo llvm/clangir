@@ -2188,7 +2188,7 @@ mlir::Value CIRGenFunction::buildAlloca(StringRef name, mlir::Type ty,
                                                alignIntAttr);
     if (currVarDecl) {
       auto alloca = cast<mlir::cir::AllocaOp>(addr.getDefiningOp());
-      alloca.setAstAttr(ASTVarDeclAttr::get(builder.getContext(), currVarDecl));
+      alloca.setAstAttr(mlir::cir::makeAstDeclAttr(currVarDecl, builder.getContext()));
     }
   }
   return addr;

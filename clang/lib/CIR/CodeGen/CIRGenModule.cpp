@@ -1805,18 +1805,7 @@ CIRGenModule::createCIRFunction(mlir::Location loc, StringRef name,
     f = builder.create<mlir::cir::FuncOp>(loc, name, Ty);
 
     if (FD) {
-      auto makeAstAttr = [&] (auto decl) -> mlir::Attribute {
-        if (auto ast = clang::dyn_cast<clang::CXXConstructorDecl>(decl))
-          return builder.getAttr<mlir::cir::ASTCXXConstructorDeclAttr>(ast);
-        if (auto ast = clang::dyn_cast<clang::CXXConversionDecl>(decl))
-          return builder.getAttr<mlir::cir::ASTCXXConversionDeclAttr>(ast);
-        if (auto ast = clang::dyn_cast<clang::CXXDestructorDecl>(decl))
-          return builder.getAttr<mlir::cir::ASTCXXDestructorDeclAttr>(ast);
-        if (auto ast = clang::dyn_cast<clang::CXXMethodDecl>(decl))
-          return builder.getAttr<mlir::cir::ASTCXXMethodDeclAttr>(ast);
-        return builder.getAttr<mlir::cir::ASTFunctionDeclAttr>(decl);
-      };
-      f.setAstAttr(makeAstAttr(FD));
+      f.setAstAttr(makeAstDeclAttr(FD, builder.getContext()));
     }
 
     if (FD && !FD->hasPrototype())

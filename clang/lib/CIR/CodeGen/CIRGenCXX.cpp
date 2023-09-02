@@ -121,6 +121,7 @@ void CIRGenModule::codegenGlobalInitCxxStructor(const VarDecl *D,
     buildDeclInit(CGF, D, DeclAddr);
     builder.setInsertionPointToEnd(block);
     builder.create<mlir::cir::YieldOp>(Addr->getLoc());
+    Addr.setAstAttr(mlir::cir::makeAstDeclAttr(D, builder.getContext()));
   }
 
   if (NeedsDtor) {

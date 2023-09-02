@@ -607,8 +607,7 @@ CIRGenTypes::computeRecordLayout(const RecordDecl *D,
       auto baseIdentifier = getRecordTypeName(D, ".base");
       *BaseTy = Builder.getStructTy(baseBuilder.fieldTypes, baseIdentifier,
                                     /*body=*/true, /*packed=*/false,
-                                    mlir::cir::ASTCXXRecordDeclAttr::get(&getMLIRContext(),
-                                      llvm::dyn_cast<CXXRecordDecl>(D)));
+                                    mlir::cir::makeAstDeclAttr(D, &getMLIRContext()));
       // TODO(cir): add something like addRecordTypeName
 
       // BaseTy and Ty must agree on their packedness for getCIRFieldNo to work
@@ -622,7 +621,8 @@ CIRGenTypes::computeRecordLayout(const RecordDecl *D,
   // signifies that the type is no longer opaque and record layout is complete,
   // but we may need to recursively layout D while laying D out as a base type.
   *Ty = Builder.getStructTy(builder.fieldTypes, getRecordTypeName(D, ""),
-                            /*body=*/true, /*packed=*/false, D);
+                            /*body=*/true, /*packed=*/false,
+                            mlir::cir::makeAstDeclAttr(D, &getMLIRContext()));
 
   auto RL = std::make_unique<CIRGenRecordLayout>(
       Ty ? *Ty : mlir::cir::StructType{},

@@ -54,28 +54,35 @@ using namespace mlir::cir;
 // CIR AST Attr helpers
 //===----------------------------------------------------------------------===//
 
-llvm::SmallVector< ASTCXXRecordDeclInterface, 4 >
-getCXXRecordDecls(const clang::DeclContext *ast, MLIRContext *ctx) {
-  llvm::SmallVector< ASTCXXRecordDeclInterface, 4 > records;
-
-  for (auto sub : ast->decls()) {
-      if (auto rec = clang::dyn_cast< clang::CXXRecordDecl >(sub)) {
-          records.emplace_back(
-            ASTCXXRecordDeclAttr::get(ctx, rec)
-          );
-      }
-  }
-
-  return records;
-}
-
-template< typename DeclType >
-llvm::SmallVector< ASTCXXRecordDeclInterface, 4 >
-getCXXRecordDecls(const DeclType *ast, MLIRContext *ctx) {
-  if (auto decl = llvm::dyn_cast< clang::DeclContext >(ast))
-    return getCXXRecordDecls(decl, ctx);
-  return {};
-}
+mlir::Attribute mlir::cir::makeAstDeclAttr(const clang::Decl *decl, mlir::MLIRContext *ctx) {
+    if (auto ast = clang::dyn_cast<clang::CXXConstructorDecl>(decl))
+      return ASTCXXConstructorDeclAttr::get(ctx, ast);
+    if (auto ast = clang::dyn_cast<clang::CXXConversionDecl>(decl))
+      return ASTCXXConversionDeclAttr::get(ctx, ast);
+    if (auto ast = clang::dyn_cast<clang::CXXDestructorDecl>(decl))
+      return ASTCXXDestructorDeclAttr::get(ctx, ast);
+    if (auto ast = clang::dyn_cast<clang::CXXMethodDecl>(decl))
+      return ASTCXXMethodDeclAttr::get(ctx, ast);
+    if (auto ast = clang::dyn_cast<clang::FunctionDecl>(decl))
+      return ASTFunctionDeclAttr::get(ctx, ast);
+    if (auto ast = clang::dyn_cast<clang::ClassTemplatePartialSpecializationDecl>(decl))
+        return ASTClassTemplatePartialSpecializationDeclAttr::get(ctx, ast);
+    if (auto ast = clang::dyn_cast<clang::ClassTemplateSpecializationDecl>(decl))
+        return ASTClassTemplateSpecializationDeclAttr::get(ctx, ast);
+    if (auto ast = clang::dyn_cast<clang::CXXRecordDecl>(decl))
+        return ASTCXXRecordDeclAttr::get(ctx, ast);
+    if (auto ast = clang::dyn_cast<clang::RecordDecl>(decl))
+        return ASTRecordDeclAttr::get(ctx, ast);
+    if (auto ast = clang::dyn_cast<clang::EnumDecl>(decl))
+      return ASTEnumDeclAttr::get(ctx, ast);
+    if (auto ast = clang::dyn_cast<clang::TagDecl>(decl))
+      return ASTTagDeclAttr::get(ctx, ast);
+    if (auto ast = clang::dyn_cast<clang::TypeDecl>(decl))
+      return ASTTypeDeclAttr::get(ctx, ast);
+    if (auto ast = clang::dyn_cast<clang::VarDecl>(decl))
+      return ASTVarDeclAttr::get(ctx, ast);
+    return ASTDeclAttr::get(ctx, decl);
+};
 
 //===----------------------------------------------------------------------===//
 // General CIR parsing / printing
