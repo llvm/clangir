@@ -15,10 +15,19 @@
 #include "clang/AST/Mangle.h"
 #include "clang/AST/DeclTemplate.h"
 
+namespace mlir {
+namespace cir {
+
+mlir::Attribute makeAstDeclAttr(const clang::Decl *decl, mlir::MLIRContext *ctx);
+
+} // namespace cir
+} // namespace mlir
+
 /// Include the generated interface declarations.
 #include "clang/CIR/Interfaces/ASTAttrInterfaces.h.inc"
 
-namespace mlir::cir {
+namespace mlir {
+namespace cir {
 
     template< typename T >
     bool hasAttr(ASTDeclInterface decl) {
@@ -29,8 +38,13 @@ namespace mlir::cir {
         if constexpr (std::is_same_v< T, clang::PointerAttr > ) {
             return decl.hasPointerAttr();
         }
+
+        if constexpr (std::is_same_v< T, clang::InitPriorityAttr > ) {
+            return decl.hasInitPriorityAttr();
+        }
     }
 
-} // namespace mlir::cir
+} // namespace cir
+} // namespace mlir
 
 #endif // MLIR_INTERFACES_CIR_AST_ATR_INTERFACES_H_

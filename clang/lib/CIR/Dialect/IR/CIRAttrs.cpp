@@ -38,11 +38,11 @@ static mlir::ParseResult parseStructMembers(::mlir::AsmParser &parser,
                                                  mlir::ArrayAttr &members);
 
 llvm::SmallVector< mlir::cir::ASTCXXRecordDeclInterface, 4 >
-getCXXRecordDecls(const clang::DeclContext *ast, mlir::MLIRContext *ctx);
+decls(const clang::DeclContext *ast, mlir::MLIRContext *ctx);
 
 template< typename DeclType >
 llvm::SmallVector< mlir::cir::ASTCXXRecordDeclInterface, 4 >
-getCXXRecordDecls(const DeclType *ast, mlir::MLIRContext *ctx);
+decls(const DeclType *ast, mlir::MLIRContext *ctx);
 
 #define GET_ATTRDEF_CLASSES
 #include "clang/CIR/Dialect/IR/CIROpsAttributes.cpp.inc"

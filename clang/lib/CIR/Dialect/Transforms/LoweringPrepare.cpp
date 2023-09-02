@@ -14,6 +14,7 @@
 #include "clang/AST/Mangle.h"
 #include "clang/Basic/Module.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
+#include "clang/CIR/Interfaces/ASTAttrInterfaces.h"
 #include "clang/CIR/Dialect/Passes.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
@@ -136,7 +137,7 @@ cir::FuncOp LoweringPreparePass::buildCXXGlobalVarDeclInitFunc(GlobalOp op) {
   SmallString<256> fnName;
   {
     llvm::raw_svector_ostream Out(fnName);
-    op.getAst()->mangleDynamicInitializer(Out);
+    mlir::cast< ASTVarDeclInterface >(*op.getAst()).mangleDynamicInitializer(Out);
     // Name numbering
     uint32_t cnt = dynamicInitializerNames[fnName]++;
     if (cnt)
@@ -238,7 +239,8 @@ void LoweringPreparePass::lowerGlobalOp(GlobalOp op) {
     dtorRegion.getBlocks().clear();
 
     // Add a function call to the variable initialization function.
-    assert(!op.getAst()->getAstDecl()->getAttr<clang::InitPriorityAttr>() &&
+    assert(!hasAttr<clang::InitPriorityAttr>(
+      mlir::cast<ASTDeclInterface>(*op.getAst())) &&
            "custom initialization priority NYI");
     dynamicInitializers.push_back(f);
   }

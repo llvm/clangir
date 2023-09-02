@@ -25,15 +25,29 @@ let cppNamespace = "::mlir::cir" in {
                     return $_attr.getAstDecl()->template hasAttr< clang::PointerAttr >();
                 }]
             >,
-            InterfaceMethod< "", "ASTDeclInterface", "getNextDeclInContext", (ins), [{}],
+            InterfaceMethod< "", "bool", "hasInitPriorityAttr", (ins), [{}],
                 /*defaultImplementation=*/ [{
-                    return $_attr.getNextDeclInContext();
+                    return $_attr.getAstDecl()->template hasAttr< clang::InitPriorityAttr >();
                 }]
             >
         ];
     }
 
-    def ASTDeclContextInterface : AttrInterface< "ASTDeclContextInterface" > {}
+    def ASTDeclContextInterface : AttrInterface< "ASTDeclContextInterface" > {
+        let methods = [
+            InterfaceMethod< "",
+                "llvm::SmallVector< ::mlir::Attribute, 4 >", "decls",
+                (ins "::mlir::MLIRContext *":$ctx), [{}],
+                /*defaultImplementation=*/ [{
+                    llvm::SmallVector< mlir::Attribute, 4 > decls;
+                    for (const auto *sub : $_attr.getAstDecl()->decls()) {
+                        decls.push_back(makeAstDeclAttr(sub, ctx));
+                    }
+                    return decls;
+                }]
+            >
+        ];
+    }
 
     def ASTNamedDeclInterface : AttrInterface< "ASTNamedDeclInterface",
         [ASTDeclInterface]
@@ -166,9 +180,6 @@ let cppNamespace = "::mlir::cir" in {
                 /*defaultImplementation=*/ [{
                     return $_attr.getAstDecl()->isLambda();
                 }]
-            >,
-            InterfaceMethod< "",
-                "llvm::SmallVector< ASTCXXRecordDeclInterface, 4 >", "CXXRecordDecls"
             >
         ];
     }

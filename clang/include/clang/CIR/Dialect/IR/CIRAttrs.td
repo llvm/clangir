@@ -398,16 +398,7 @@ class ASTDecl<string name, string prefix, list<Trait> traits = []>
   // Enable verifier.
   let genVerifyDecl = 1;
 
-  let extraClassDeclaration = [{
-    llvm::SmallVector< ASTCXXRecordDeclInterface, 4 > CXXRecordDecls() const;
-  }];
-
   let extraClassDefinition = [{
-    llvm::SmallVector< ASTCXXRecordDeclInterface, 4 >
-    $cppClass::CXXRecordDecls() const {
-      return getCXXRecordDecls(getAstDecl(), getContext());
-    }
-
     ::mlir::Attribute $cppClass::parse(::mlir::AsmParser &parser,
                                         ::mlir::Type type) {
       // We cannot really parse anything AST related at this point
@@ -463,7 +454,7 @@ def ASTTagDeclAttr : ASTDecl<"TagDecl", "tag.decl",
   [ASTTagDeclInterface]
 >;
 
-def ASTenumDeclAttr : ASTDecl<"EnumDecl", "enum.decl",
+def ASTEnumDeclAttr : ASTDecl<"EnumDecl", "enum.decl",
   [ASTEnumDeclInterface]
 >;
 

@@ -1781,15 +1781,17 @@ bool LifetimeCheckPass::isTaskType(mlir::Value taskVal) {
   if (!taskTy)
     return false;
   auto recordDecl = taskTy.getAst();
-  // FIXME we are not emmiting ASTClassTemplateSpecializationDeclInterface anywhere
   auto spec = dyn_cast< ASTClassTemplateSpecializationDeclInterface >(recordDecl);
   if (!spec)
     return false;
 
-  for (auto subRec : spec.CXXRecordDecls()) {
-    if (subRec.getDeclName().isIdentifier() && subRec.getName() == "promise_type") {
-      IsTaskTyCache[ty] = true;
-      break;
+  for (auto sub : spec.decls(taskVal.getContext())) {
+    if (auto subRec = dyn_cast< ASTCXXRecordDeclInterface >(sub)) {
+      if (subRec.getDeclName().isIdentifier() &&
+          subRec.getName() == "promise_type") {
+        IsTaskTyCache[ty] = true;
+        break;
+      }
     }
   }
 

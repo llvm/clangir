@@ -295,7 +295,7 @@ def AllocaOp : CIR_Op<"alloca", [
     StrAttr:$name,
     UnitAttr:$init,
     ConfinedAttr<OptionalAttr<I64Attr>, [IntMinValue<0>]>:$alignment,
-    OptionalAttr<ASTVarDeclInterface>:$ast
+    OptionalAttr<AnyAttr>:$ast
   );
 
   let results = (outs Res<CIR_PointerType, "",
@@ -1279,7 +1279,7 @@ def GlobalOp : CIR_Op<"global", [Symbol, DeclareOpInterfaceMethods<RegionBranchO
                        OptionalAttr<AnyAttr>:$initial_value,
                        UnitAttr:$constant,
                        OptionalAttr<I64Attr>:$alignment,
-                       OptionalAttr<ASTVarDeclInterface>:$ast
+                       OptionalAttr<AnyAttr>:$ast
                        );
   let regions = (region AnyRegion:$ctorRegion, AnyRegion:$dtorRegion);
   let assemblyFormat = [{
