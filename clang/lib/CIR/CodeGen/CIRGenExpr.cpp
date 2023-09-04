@@ -9,7 +9,6 @@
 // This contains code to emit Expr nodes as CIR code.
 //
 //===----------------------------------------------------------------------===//
-#include <iostream>
 #include "CIRGenBuilder.h"
 #include "CIRGenCXXABI.h"
 #include "CIRGenCall.h"
@@ -2209,8 +2208,7 @@ mlir::Value CIRGenFunction::buildLoadOfScalar(LValue lvalue,
                            lvalue.isNontemporal());
 }
 
-mlir::Value CIRGenFunction::buildFromMemory(mlir::Value Value, QualType Ty) {
-  std::cout << "buildFromMemory" << std::endl;
+mlir::Value CIRGenFunction::buildFromMemory(mlir::Value Value, QualType Ty) {  
   return Value;
 }
 

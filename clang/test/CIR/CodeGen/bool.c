@@ -3,8 +3,7 @@
 
 #include <stdbool.h>
 
-typedef struct {
-    int a;
+typedef struct {    
     bool x;
 } S;
 
