@@ -249,7 +249,7 @@ LValue CIRGenFunction::buildLValueForBitField(LValue base,
   const unsigned SS = useVolatile ? info.VolatileStorageSize : info.StorageSize;
 
   // Get the access type.
-  mlir::Type FieldIntTy = builder.getCustomIntTy(SS, false);
+  mlir::Type FieldIntTy = builder.getUIntNTy(SS);
 
   auto loc = getLoc(field->getLocation());
   if (Addr.getElementType() != FieldIntTy)
@@ -602,7 +602,7 @@ RValue CIRGenFunction::buildLoadOfBitfieldLValue(LValue LV,
   if (Info.IsSigned) {
     assert(static_cast<unsigned>(Offset + Info.Size) <= StorageSize);
 
-    mlir::Type typ = builder.getCustomIntTy(ValWidth, true);
+    mlir::Type typ = builder.getSIntNTy(ValWidth);
     Val = builder.createIntCast(Val, typ);
 
     unsigned HighBits = StorageSize - Offset - Info.Size;

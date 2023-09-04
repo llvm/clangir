@@ -303,10 +303,6 @@ public:
   mlir::cir::IntType getUInt32Ty() { return typeCache.UInt32Ty; }
   mlir::cir::IntType getUInt64Ty() { return typeCache.UInt64Ty; }
 
-  mlir::cir::IntType getCustomIntTy(unsigned size, bool isSigned) {
-    return mlir::cir::IntType::get(getContext(), size, isSigned);
-  }
-
   bool isInt8Ty(mlir::Type i) {
     return i == typeCache.UInt8Ty || i == typeCache.SInt8Ty;
   }

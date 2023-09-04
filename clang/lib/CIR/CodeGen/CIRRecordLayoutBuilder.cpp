@@ -136,7 +136,7 @@ struct CIRRecordLowering final {
 
   /// Wraps mlir::cir::IntType with some implicit arguments.
   mlir::Type getUIntNType(uint64_t NumBits) {
-    unsigned AlignedBits = llvm::alignTo(NumBits, astContext.getCharWidth());
+    unsigned AlignedBits = llvm::PowerOf2Ceil(NumBits);
     return mlir::cir::IntType::get(&cirGenTypes.getMLIRContext(), AlignedBits,
                                    /*isSigned=*/false);
   }
