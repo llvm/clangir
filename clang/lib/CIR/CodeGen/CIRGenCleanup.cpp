@@ -447,3 +447,25 @@ void EHScopeStack::popNullFixups() {
   // normal cleanup;  otherwise there really shouldn't be any fixups.
   llvm_unreachable("NYI");
 }
+
+bool EHScopeStack::requiresLandingPad() const {
+  for (stable_iterator si = getInnermostEHScope(); si != stable_end();) {
+    // Skip lifetime markers.
+    if (auto *cleanup = dyn_cast<EHCleanupScope>(&*find(si)))
+      if (cleanup->isLifetimeMarker()) {
+        si = cleanup->getEnclosingEHScope();
+        continue;
+      }
+    return true;
+  }
+
+  return false;
+}
+
+EHCatchScope *EHScopeStack::pushCatch(unsigned numHandlers) {
+  char *buffer = allocate(EHCatchScope::getSizeForNumHandlers(numHandlers));
+  EHCatchScope *scope =
+      new (buffer) EHCatchScope(numHandlers, InnermostEHScope);
+  InnermostEHScope = stable_begin();
+  return scope;
+}

@@ -107,7 +107,6 @@ bool CIRGenVTables::isVTableExternal(const CXXRecordDecl *RD) {
 
 static bool shouldEmitAvailableExternallyVTable(const CIRGenModule &CGM,
                                                 const CXXRecordDecl *RD) {
-  assert(CGM.getCodeGenOpts().OptimizationLevel == 0 && "NYI");
   return CGM.getCodeGenOpts().OptimizationLevel > 0 &&
          CGM.getCXXABI().canSpeculativelyEmitVTable(RD);
 }
@@ -395,14 +394,18 @@ CIRGenModule::getVTableLinkage(const CXXRecordDecl *RD) {
   case TSK_ImplicitInstantiation:
     return DiscardableODRLinkage;
 
-  case TSK_ExplicitInstantiationDeclaration:
+  case TSK_ExplicitInstantiationDeclaration: {
     // Explicit instantiations in MSVC do not provide vtables, so we must emit
     // our own.
     if (getTarget().getCXXABI().isMicrosoft())
       return DiscardableODRLinkage;
-    return shouldEmitAvailableExternallyVTable(*this, RD)
-               ? mlir::cir::GlobalLinkageKind::AvailableExternallyLinkage
-               : mlir::cir::GlobalLinkageKind::ExternalLinkage;
+    auto r = shouldEmitAvailableExternallyVTable(*this, RD)
+                 ? mlir::cir::GlobalLinkageKind::AvailableExternallyLinkage
+                 : mlir::cir::GlobalLinkageKind::ExternalLinkage;
+    assert(r == mlir::cir::GlobalLinkageKind::ExternalLinkage &&
+           "available external NYI");
+    return r;
+  }
 
   case TSK_ExplicitInstantiationDefinition:
     return NonDiscardableODRLinkage;

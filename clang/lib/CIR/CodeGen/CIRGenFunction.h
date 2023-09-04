@@ -998,10 +998,28 @@ public:
                        ArrayRef<const Attr *> Attrs = std::nullopt);
   mlir::LogicalResult buildSwitchStmt(const clang::SwitchStmt &S);
 
+  mlir::LogicalResult buildCXXTryStmt(const clang::CXXTryStmt &S);
+  void enterCXXTryStmt(const CXXTryStmt &S, bool IsFnTryBlock = false);
+  void exitCXXTryStmt(const CXXTryStmt &S, bool IsFnTryBlock = false);
+
   mlir::LogicalResult buildCompoundStmt(const clang::CompoundStmt &S);
 
   mlir::LogicalResult
   buildCompoundStmtWithoutScope(const clang::CompoundStmt &S);
+
+  GlobalDecl CurSEHParent;
+  bool currentFunctionUsesSEHTry() const { return !!CurSEHParent; }
+
+  /// Returns true inside SEH __try blocks.
+  bool isSEHTryScope() const { return UnimplementedFeature::isSEHTryScope(); }
+
+  mlir::Operation *CurrentFuncletPad = nullptr;
+
+  /// Returns true while emitting a cleanuppad.
+  bool isCleanupPadScope() const {
+    assert(!CurrentFuncletPad && "NYI");
+    return false;
+  }
 
   /// Emit code to compute the specified expression,
   /// ignoring the result.
@@ -1525,6 +1543,8 @@ public:
   // TODO: this can also be abstrated into common AST helpers
   bool hasBooleanRepresentation(clang::QualType Ty);
 
+  void buildCXXThrowExpr(const CXXThrowExpr *E);
+
   /// Return the address of a local variable.
   Address GetAddrOfLocalVar(const clang::VarDecl *VD) {
     auto it = LocalDeclMap.find(VD);
@@ -1569,6 +1589,7 @@ public:
   /// given memory location.
   void buildAnyExprToMem(const Expr *E, Address Location, Qualifiers Quals,
                          bool IsInitializer);
+  void buildAnyExprToExn(const Expr *E, Address Addr);
 
   LValue buildCheckedLValue(const Expr *E, TypeCheckKind TCK);
   LValue buildMemberExpr(const MemberExpr *E);
@@ -1617,6 +1638,18 @@ public:
     CleanupKind getKind() const { return (CleanupKind)Kind; }
     bool isConditional() const { return IsConditional; }
   };
+
+  /// Emits landing pad information for the current EH stack.
+  mlir::Block *buildLandingPad();
+
+  // TODO(cir): perhaps return a mlir::Block* here, for now
+  // only check if a landing pad is required.
+  mlir::Block *getInvokeDestImpl();
+  bool getInvokeDest() {
+    if (!EHStack.requiresLandingPad())
+      return false;
+    return (bool)getInvokeDestImpl();
+  }
 
   /// Takes the old cleanup stack size and emits the cleanup blocks
   /// that have been added.

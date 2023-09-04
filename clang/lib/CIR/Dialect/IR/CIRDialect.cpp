@@ -386,6 +386,24 @@ mlir::LogicalResult ReturnOp::verify() {
 }
 
 //===----------------------------------------------------------------------===//
+// ThrowOp
+//===----------------------------------------------------------------------===//
+
+mlir::LogicalResult ThrowOp::verify() {
+  // For the no-rethrow version, it must have at least the exception pointer.
+  if (rethrows())
+    return success();
+
+  if (getNumOperands() == 1) {
+    if (!getTypeInfo())
+      return emitOpError() << "'type_info' symbol attribute missing";
+    return success();
+  }
+
+  return failure();
+}
+
+//===----------------------------------------------------------------------===//
 // IfOp
 //===----------------------------------------------------------------------===//
 
@@ -419,14 +437,14 @@ static LogicalResult checkBlockTerminator(OpAsmParser &parser,
   if (blocks.empty())
     return success();
 
-  // Test that at least one block has a yield/return terminator. We can
+  // Test that at least one block has a yield/return/throw terminator. We can
   // probably make this a bit more strict.
   for (Block &block : blocks) {
     if (block.empty())
       continue;
     auto &op = block.back();
     if (op.hasTrait<mlir::OpTrait::IsTerminator>() &&
-        isa<YieldOp, ReturnOp>(op)) {
+        isa<YieldOp, ReturnOp, ThrowOp>(op)) {
       return success();
     }
   }
@@ -482,6 +500,8 @@ bool shouldPrintTerm(mlir::Region &r) {
   if (entryBlock->empty())
     return false;
   if (isa<ReturnOp>(entryBlock->back()))
+    return true;
+  if (isa<ThrowOp>(entryBlock->back()))
     return true;
   YieldOp y = dyn_cast<YieldOp>(entryBlock->back());
   if (y && (!y.isPlain() || !y.getArgs().empty()))

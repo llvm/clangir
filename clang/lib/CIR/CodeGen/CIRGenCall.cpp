@@ -308,6 +308,56 @@ static Address emitAddressAtOffset(CIRGenFunction &CGF, Address addr,
   return addr;
 }
 
+static void AddAttributesFromFunctionProtoType(ASTContext &Ctx,
+                                               const FunctionProtoType *FPT) {
+  if (!FPT)
+    return;
+
+  if (!isUnresolvedExceptionSpec(FPT->getExceptionSpecType()) &&
+      FPT->isNothrow())
+    llvm_unreachable("NoUnwind NYI");
+}
+
+/// Construct the CIR attribute list of a function or call.
+///
+/// When adding an attribute, please consider where it should be handled:
+///
+///   - getDefaultFunctionAttributes is for attributes that are essentially
+///     part of the global target configuration (but perhaps can be
+///     overridden on a per-function basis).  Adding attributes there
+///     will cause them to also be set in frontends that build on Clang's
+///     target-configuration logic, as well as for code defined in library
+///     modules such as CUDA's libdevice.
+///
+///   - ConstructAttributeList builds on top of getDefaultFunctionAttributes
+///     and adds declaration-specific, convention-specific, and
+///     frontend-specific logic.  The last is of particular importance:
+///     attributes that restrict how the frontend generates code must be
+///     added here rather than getDefaultFunctionAttributes.
+///
+void CIRGenModule::ConstructAttributeList(
+    StringRef Name, const CIRGenFunctionInfo &FI, CIRGenCalleeInfo CalleeInfo,
+    llvm::SmallSet<mlir::Attribute, 8> &Attrs, bool AttrOnCallSite,
+    bool IsThunk) {
+  // Implementation Disclaimer
+  //
+  // UnimplementedFeature and asserts are used throughout the code to track
+  // unsupported and things not yet implemented. However, most of the content of
+  // this function is on detecting attributes, which doesn't not cope with
+  // existing approaches to track work because its too big.
+  //
+  // That said, for the most part, the approach here is very specific compared
+  // to the rest of CIRGen and attributes and other handling should be done upon
+  // demand.
+
+  // Collect function CIR attributes from the CC lowering.
+  // TODO: NoReturn, cmse_nonsecure_call
+
+  // Collect function CIR attributes from the callee prototype if we have one.
+  AddAttributesFromFunctionProtoType(astCtx,
+                                     CalleeInfo.getCalleeFunctionProtoType());
+}
+
 RValue CIRGenFunction::buildCall(const CIRGenFunctionInfo &CallInfo,
                                  const CIRGenCallee &Callee,
                                  ReturnValueSlot ReturnValue,
@@ -480,32 +530,66 @@ RValue CIRGenFunction::buildCall(const CIRGenFunctionInfo &CallInfo,
   // If we're using inalloca, set up that argument.
   assert(!ArgMemory.isValid() && "inalloca NYI");
 
+  // 2. Prepare the function pointer.
+
   // TODO: simplifyVariadicCallee
 
   // 3. Perform the actual call.
 
-  // Deactivate any cleanups that we're supposed to do immediately before the
-  // call.
-  // TODO: do this
-
+  // TODO: Deactivate any cleanups that we're supposed to do immediately before
+  // the call.
+  // if (!CallArgs.getCleanupsToDeactivate().empty())
+  //   deactivateArgCleanupsBeforeCall(*this, CallArgs);
   // TODO: Update the largest vector width if any arguments have vector types.
-  // TODO: Compute the calling convention and attributes.
-  if (const FunctionDecl *FD = dyn_cast_or_null<FunctionDecl>(CurFuncDecl)) {
-    assert(!FD->hasAttr<StrictFPAttr>() && "NYI");
 
-    // TODO: InNoMergeAttributedStmt
-    // assert(!CurCodeDecl->hasAttr<FlattenAttr>() &&
-    //        !TargetDecl->hasAttr<NoInlineAttr>() && "NYI");
+  // Compute the calling convention and attributes.
+  llvm::SmallSet<mlir::Attribute, 8> Attrs;
+  StringRef FnName;
+  if (auto calleeFnOp = dyn_cast<mlir::cir::FuncOp>(CalleePtr))
+    FnName = calleeFnOp.getName();
+  CGM.ConstructAttributeList(FnName, CallInfo, Callee.getAbstractInfo(), Attrs,
+                             /*AttrOnCallSite=*/true,
+                             /*IsThunk=*/false);
 
-    // TODO: isSEHTryScope
+  // TODO: strictfp
+  // TODO: Add call-site nomerge, noinline, always_inline attribute if exists.
 
-    // TODO: currentFunctionUsesSEHTry
-    // TODO: isCleanupPadScope
+  // Apply some call-site-specific attributes.
+  // TODO: work this into building the attribute set.
 
-    // TODO: UnusedReturnSizePtr
+  // Apply always_inline to all calls within flatten functions.
+  // FIXME: should this really take priority over __try, below?
+  // assert(!CurCodeDecl->hasAttr<FlattenAttr>() &&
+  //        !TargetDecl->hasAttr<NoInlineAttr>() && "NYI");
 
-    assert(!FD->hasAttr<StrictFPAttr>() && "NYI");
+  // Disable inlining inside SEH __try blocks.
+  if (isSEHTryScope())
+    llvm_unreachable("NYI");
+
+  // Decide whether to use a call or an invoke.
+  bool CannotThrow;
+  if (currentFunctionUsesSEHTry()) {
+    // SEH cares about asynchronous exceptions, so everything can "throw."
+    CannotThrow = false;
+  } else if (isCleanupPadScope() &&
+             EHPersonality::get(*this).isMSVCXXPersonality()) {
+    // The MSVC++ personality will implicitly terminate the program if an
+    // exception is thrown during a cleanup outside of a try/catch.
+    // We don't need to model anything in IR to get this behavior.
+    CannotThrow = true;
+  } else {
+    // FIXME(cir): pass down nounwind attribute
+    CannotThrow = false;
   }
+  (void)CannotThrow;
+
+  // In LLVM this contains the basic block, in CIR we solely track for now.
+  bool InvokeDest = getInvokeDest();
+  (void)InvokeDest;
+
+  // TODO: UnusedReturnSizePtr
+  if (const FunctionDecl *FD = dyn_cast_or_null<FunctionDecl>(CurFuncDecl))
+    assert(!FD->hasAttr<StrictFPAttr>() && "NYI");
 
   // TODO: alignment attributes
 
@@ -537,23 +621,16 @@ RValue CIRGenFunction::buildCall(const CIRGenFunctionInfo &CallInfo,
   if (callOrInvoke)
     callOrInvoke = &theCall;
 
-  if (const auto *FD = dyn_cast_or_null<FunctionDecl>(CurFuncDecl)) {
+  if (const auto *FD = dyn_cast_or_null<FunctionDecl>(CurFuncDecl))
     assert(!FD->getAttr<CFGuardAttr>() && "NYI");
-  }
 
   // TODO: set attributes on callop
-
   // assert(!theCall.getResults().getType().front().isSignlessInteger() &&
   //        "Vector NYI");
-
   // TODO: LLVM models indirect calls via a null callee, how should we do this?
-
   assert(!CGM.getLangOpts().ObjCAutoRefCount && "Not supported");
-
   assert((!TargetDecl || !TargetDecl->hasAttr<NotTailCalledAttr>()) && "NYI");
-
   assert(!getDebugInfo() && "No debug info yet");
-
   assert((!TargetDecl || !TargetDecl->hasAttr<ErrorAttr>()) && "NYI");
 
   // 4. Finish the call.

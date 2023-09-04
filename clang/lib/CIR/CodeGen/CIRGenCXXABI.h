@@ -15,6 +15,7 @@
 #define LLVM_CLANG_LIB_CIR_CIRGENCXXABI_H
 
 #include "CIRGenCall.h"
+#include "CIRGenCleanup.h"
 #include "CIRGenFunction.h"
 #include "CIRGenModule.h"
 
@@ -189,6 +190,9 @@ public:
                                      const CXXRecordDecl *RD) = 0;
   virtual mlir::Attribute getAddrOfRTTIDescriptor(mlir::Location loc,
                                                   QualType Ty) = 0;
+  virtual CatchTypeInfo
+  getAddrOfCXXCatchHandlerType(mlir::Location loc, QualType Ty,
+                               QualType CatchHandlerType) = 0;
 
   /// Returns true if the given destructor type should be emitted as a linkonce
   /// delegating thunk, regardless of whether the dtor is defined in this TU or
@@ -279,6 +283,9 @@ public:
   /// Emit a single constructor/destructor with the gien type from a C++
   /// constructor Decl.
   virtual void buildCXXStructor(clang::GlobalDecl GD) = 0;
+
+  virtual void buildRethrow(CIRGenFunction &CGF, bool isNoReturn) = 0;
+  virtual void buildThrow(CIRGenFunction &CGF, const CXXThrowExpr *E) = 0;
 };
 
 /// Creates and Itanium-family ABI

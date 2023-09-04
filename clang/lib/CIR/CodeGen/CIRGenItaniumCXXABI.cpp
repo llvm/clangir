@@ -18,6 +18,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "CIRGenCXXABI.h"
+#include "CIRGenCleanup.h"
 #include "CIRGenFunctionInfo.h"
 #include "ConstantInitBuilder.h"
 
@@ -42,6 +43,56 @@ protected:
 
   ItaniumMangleContext &getMangleContext() {
     return cast<ItaniumMangleContext>(cir::CIRGenCXXABI::getMangleContext());
+  }
+
+  bool isVTableHidden(const CXXRecordDecl *RD) const {
+    const auto &VtableLayout =
+        CGM.getItaniumVTableContext().getVTableLayout(RD);
+
+    for (const auto &VtableComponent : VtableLayout.vtable_components()) {
+      if (VtableComponent.isRTTIKind()) {
+        const CXXRecordDecl *RTTIDecl = VtableComponent.getRTTIDecl();
+        if (RTTIDecl->getVisibility() == Visibility::HiddenVisibility)
+          return true;
+      } else if (VtableComponent.isUsedFunctionPointerKind()) {
+        const CXXMethodDecl *Method = VtableComponent.getFunctionDecl();
+        if (Method->getVisibility() == Visibility::HiddenVisibility &&
+            !Method->isDefined())
+          return true;
+      }
+    }
+    return false;
+  }
+
+  bool hasAnyUnusedVirtualInlineFunction(const CXXRecordDecl *RD) const {
+    const auto &VtableLayout =
+        CGM.getItaniumVTableContext().getVTableLayout(RD);
+
+    for (const auto &VtableComponent : VtableLayout.vtable_components()) {
+      // Skip empty slot.
+      if (!VtableComponent.isUsedFunctionPointerKind())
+        continue;
+
+      const CXXMethodDecl *Method = VtableComponent.getFunctionDecl();
+      if (!Method->getCanonicalDecl()->isInlined())
+        continue;
+
+      StringRef Name = CGM.getMangledName(VtableComponent.getGlobalDecl());
+      auto *op = CGM.getGlobalValue(Name);
+      if (auto globalOp = dyn_cast_or_null<mlir::cir::GlobalOp>(op))
+        llvm_unreachable("NYI");
+
+      if (auto funcOp = dyn_cast_or_null<mlir::cir::FuncOp>(op)) {
+        // This checks if virtual inline function has already been emitted.
+        // Note that it is possible that this inline function would be emitted
+        // after trying to emit vtable speculatively. Because of this we do
+        // an extra pass after emitting all deferred vtables to find and emit
+        // these vtables opportunistically.
+        if (!funcOp || funcOp.isDeclaration())
+          return true;
+      }
+    }
+    return false;
   }
 
 public:
@@ -119,6 +170,16 @@ public:
                            CXXDtorType Type, bool ForVirtualBase,
                            bool Delegating, Address This,
                            QualType ThisTy) override;
+  virtual void buildRethrow(CIRGenFunction &CGF, bool isNoReturn) override;
+  virtual void buildThrow(CIRGenFunction &CGF, const CXXThrowExpr *E) override;
+  CatchTypeInfo
+  getAddrOfCXXCatchHandlerType(mlir::Location loc, QualType Ty,
+                               QualType CatchHandlerType) override {
+    auto rtti =
+        dyn_cast<mlir::cir::GlobalViewAttr>(getAddrOfRTTIDescriptor(loc, Ty));
+    assert(rtti && "expected GlobalViewAttr");
+    return CatchTypeInfo{rtti, 0};
+  }
 
   bool canSpeculativelyEmitVTable(const CXXRecordDecl *RD) const override;
   mlir::cir::GlobalOp getAddrOfVTable(const CXXRecordDecl *RD,
@@ -130,6 +191,7 @@ public:
                                     const CXXRecordDecl *VTableClass) override;
   bool isVirtualOffsetNeededForVTableField(CIRGenFunction &CGF,
                                            CIRGenFunction::VPtr Vptr) override;
+  bool canSpeculativelyEmitVTableAsBaseClass(const CXXRecordDecl *RD) const;
   mlir::Value getVTableAddressPointInStructor(
       CIRGenFunction &CGF, const CXXRecordDecl *VTableClass, BaseSubobject Base,
       const CXXRecordDecl *NearestVBase) override;
@@ -676,9 +738,63 @@ bool CIRGenItaniumCXXABI::isVirtualOffsetNeededForVTableField(
   return NeedsVTTParameter(CGF.CurGD);
 }
 
+bool CIRGenItaniumCXXABI::canSpeculativelyEmitVTableAsBaseClass(
+    const CXXRecordDecl *RD) const {
+  // We don't emit available_externally vtables if we are in -fapple-kext mode
+  // because kext mode does not permit devirtualization.
+  if (CGM.getLangOpts().AppleKext)
+    return false;
+
+  // If the vtable is hidden then it is not safe to emit an available_externally
+  // copy of vtable.
+  if (isVTableHidden(RD))
+    return false;
+
+  if (CGM.getCodeGenOpts().ForceEmitVTables)
+    return true;
+
+  // If we don't have any not emitted inline virtual function then we are safe
+  // to emit an available_externally copy of vtable.
+  // FIXME we can still emit a copy of the vtable if we
+  // can emit definition of the inline functions.
+  if (hasAnyUnusedVirtualInlineFunction(RD))
+    return false;
+
+  // For a class with virtual bases, we must also be able to speculatively
+  // emit the VTT, because CodeGen doesn't have separate notions of "can emit
+  // the vtable" and "can emit the VTT". For a base subobject, this means we
+  // need to be able to emit non-virtual base vtables.
+  if (RD->getNumVBases()) {
+    for (const auto &B : RD->bases()) {
+      auto *BRD = B.getType()->getAsCXXRecordDecl();
+      assert(BRD && "no class for base specifier");
+      if (B.isVirtual() || !BRD->isDynamicClass())
+        continue;
+      if (!canSpeculativelyEmitVTableAsBaseClass(BRD))
+        return false;
+    }
+  }
+
+  return true;
+}
+
 bool CIRGenItaniumCXXABI::canSpeculativelyEmitVTable(
-    [[maybe_unused]] const CXXRecordDecl *RD) const {
-  llvm_unreachable("NYI");
+    const CXXRecordDecl *RD) const {
+  if (!canSpeculativelyEmitVTableAsBaseClass(RD))
+    return false;
+
+  // For a complete-object vtable (or more specifically, for the VTT), we need
+  // to be able to speculatively emit the vtables of all dynamic virtual bases.
+  for (const auto &B : RD->vbases()) {
+    auto *BRD = B.getType()->getAsCXXRecordDecl();
+    assert(BRD && "no class for base specifier");
+    if (!BRD->isDynamicClass())
+      continue;
+    if (!canSpeculativelyEmitVTableAsBaseClass(BRD))
+      return false;
+  }
+
+  return true;
 }
 
 namespace {
@@ -1659,4 +1775,65 @@ mlir::Value CIRGenItaniumCXXABI::getCXXDestructorImplicitParam(
     bool ForVirtualBase, bool Delegating) {
   GlobalDecl GD(DD, Type);
   return CGF.GetVTTParameter(GD, ForVirtualBase, Delegating);
+}
+
+void CIRGenItaniumCXXABI::buildRethrow(CIRGenFunction &CGF, bool isNoReturn) {
+  // void __cxa_rethrow();
+  llvm_unreachable("NYI");
+}
+
+void CIRGenItaniumCXXABI::buildThrow(CIRGenFunction &CGF,
+                                     const CXXThrowExpr *E) {
+  // This differs a bit from LLVM codegen, CIR has native operations for some
+  // cxa functions, and defers allocation size computation, always pass the dtor
+  // symbol, etc. CIRGen also does not use getAllocateExceptionFn / getThrowFn.
+
+  // Now allocate the exception object.
+  auto &builder = CGF.getBuilder();
+  QualType clangThrowType = E->getSubExpr()->getType();
+  auto throwTy = CGF.ConvertType(clangThrowType);
+  auto subExprLoc = CGF.getLoc(E->getSubExpr()->getSourceRange());
+  // Defer computing allocation size to some later lowering pass.
+  auto exceptionPtr =
+      builder
+          .create<mlir::cir::AllocException>(
+              subExprLoc, builder.getPointerTo(throwTy), throwTy)
+          .getAddr();
+
+  // Build expression and store its result into exceptionPtr.
+  CharUnits exnAlign = CGF.getContext().getExnObjectAlignment();
+  CGF.buildAnyExprToExn(E->getSubExpr(), Address(exceptionPtr, exnAlign));
+
+  // Get the RTTI symbol address.
+  auto typeInfo = CGM.getAddrOfRTTIDescriptor(subExprLoc, clangThrowType,
+                                              /*ForEH=*/true)
+                      .dyn_cast_or_null<mlir::cir::GlobalViewAttr>();
+  assert(typeInfo && "expected GlobalViewAttr typeinfo");
+  assert(!typeInfo.getIndices() && "expected no indirection");
+
+  // The address of the destructor.
+  //
+  // Note: LLVM codegen already optimizes out the dtor if the
+  // type is a record with trivial dtor (by passing down a
+  // null dtor). In CIR, we forward this info and allow for
+  // LoweringPrepare or some other pass to skip passing the
+  // trivial function.
+  //
+  // TODO(cir): alternatively, dtor could be ignored here and
+  // the type used to gather the relevant dtor during
+  // LoweringPrepare.
+  mlir::FlatSymbolRefAttr dtor{};
+  if (const RecordType *recordTy = clangThrowType->getAs<RecordType>()) {
+    CXXRecordDecl *rec = cast<CXXRecordDecl>(recordTy->getDecl());
+    CXXDestructorDecl *dtorD = rec->getDestructor();
+    dtor = mlir::FlatSymbolRefAttr::get(
+        CGM.getAddrOfCXXStructor(GlobalDecl(dtorD, Dtor_Complete))
+            .getSymNameAttr());
+  }
+
+  assert(!CGF.getInvokeDest() && "landing pad like logic NYI");
+
+  // Now throw the exception.
+  builder.create<mlir::cir::ThrowOp>(CGF.getLoc(E->getSourceRange()),
+                                     exceptionPtr, typeInfo.getSymbol(), dtor);
 }
