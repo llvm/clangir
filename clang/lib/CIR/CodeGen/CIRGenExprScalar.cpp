@@ -215,8 +215,9 @@ public:
     auto load = Builder.create<mlir::cir::LoadOp>(CGF.getLoc(E->getExprLoc()),
                                                   CGF.getCIRType(E->getType()),
                                                   LV.getPointer());
+    return CGF.buildLoadOfLValue(LV, E->getExprLoc()).getScalarVal();
     // FIXME: add some akin to EmitLValueAlignmentAssumption(E, V);
-    return load;
+    //return load;
   }
 
   mlir::Value buildLoadOfLValue(LValue LV, SourceLocation Loc) {
