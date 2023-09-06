@@ -2208,7 +2208,11 @@ mlir::Value CIRGenFunction::buildLoadOfScalar(LValue lvalue,
                            lvalue.isNontemporal());
 }
 
-mlir::Value CIRGenFunction::buildFromMemory(mlir::Value Value, QualType Ty) {  
+mlir::Value CIRGenFunction::buildFromMemory(mlir::Value Value, QualType Ty) {
+  if (!Ty->isBooleanType() && hasBooleanRepresentation(Ty)) {
+    llvm_unreachable("NIY");
+  }
+
   return Value;
 }
 

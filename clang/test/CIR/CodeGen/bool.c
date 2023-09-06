@@ -4,7 +4,7 @@
 #include <stdbool.h>
 
 typedef struct {    
-    bool x;
+  bool x;
 } S;
 
 // CHECK:  cir.func @store_bool
@@ -16,7 +16,7 @@ typedef struct {
 // CHECK:    [[TMP4:%.*]] = cir.get_member [[TMP3]][0] {name = "x"} : !cir.ptr<!ty_22S22> -> !cir.ptr<!cir.bool> 
 // CHECK:    cir.store [[TMP2]], [[TMP4]] : !cir.bool, cir.ptr <!cir.bool> 
 void store_bool(S *s) {
-    s->x = false;
+  s->x = false;
 }
 
 // CHECK:  cir.func @load_bool
@@ -27,5 +27,5 @@ void store_bool(S *s) {
 // CHECK:    [[TMP3:%.*]] = cir.get_member [[TMP2]][0] {name = "x"} : !cir.ptr<!ty_22S22> -> !cir.ptr<!cir.bool> 
 // CHECK:    [[TMP4:%.*]] = cir.load [[TMP3]] : cir.ptr <!cir.bool>, !cir.bool 
 void load_bool(S *s) {
-    bool x = s->x;
+  bool x = s->x;
 }
