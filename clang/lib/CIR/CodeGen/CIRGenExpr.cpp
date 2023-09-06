@@ -631,8 +631,8 @@ RValue CIRGenFunction::buildLoadOfBitfieldLValue(LValue LV,
       Val = builder.createAnd(Val,
                               llvm::APInt::getLowBitsSet(ValWidth, Info.Size));
   }
-  Val = builder.createIntCast(Val, ResLTy);
-  // EmitScalarRangeCheck(Val, LV.getType(), Loc); //FIXME: TODO
+  Val = builder.createIntCast(Val, ResLTy);  
+  assert(!UnimplementedFeature::emitScalarRangeCheck() && "NYI");  
   return RValue::get(Val);
 }
 
@@ -2410,9 +2410,9 @@ mlir::Value CIRGenFunction::buildLoadOfScalar(LValue lvalue,
 
 mlir::Value CIRGenFunction::buildFromMemory(mlir::Value Value, QualType Ty) {
   // Bool has a different representation in memory than in registers.
-  // if (hasBooleanRepresentation(Ty)) {
-  //   llvm_unreachable("NYI");
-  // }
+  if (!Ty->isBooleanType() && hasBooleanRepresentation(Ty)) {
+    llvm_unreachable("NYI");
+  }
 
   return Value;
 }
@@ -2447,10 +2447,9 @@ mlir::Value CIRGenFunction::buildLoadOfScalar(Address Addr, bool Volatile,
   if (isNontemporal) {
     llvm_unreachable("NYI");
   }
-
-  // TODO: TBAA
-
-  // TODO: buildScalarRangeCheck
+  
+  assert(!UnimplementedFeature::tbaa() && "NYI");  
+  assert(!UnimplementedFeature::emitScalarRangeCheck() && "NYI");  
 
   return buildFromMemory(Load, Ty);
 }
