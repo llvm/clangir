@@ -400,7 +400,7 @@ class ASTDecl<string name, string prefix, list<Trait> traits = []>
 
   let extraClassDefinition = [{
     ::mlir::Attribute $cppClass::parse(::mlir::AsmParser &parser,
-                                        ::mlir::Type type) {
+                                       ::mlir::Type type) {
       // We cannot really parse anything AST related at this point
       // since we have no serialization/JSON story.
       return $cppClass::get(parser.getContext(), nullptr);
@@ -418,65 +418,49 @@ class ASTDecl<string name, string prefix, list<Trait> traits = []>
   }];
 }
 
-def ASTDeclAttr : ASTDecl<"Decl", "decl",
-  [ASTDeclInterface]
->;
+def ASTDeclAttr : ASTDecl<"Decl", "decl", [ASTDeclInterface]>;
 
 def ASTFunctionDeclAttr : ASTDecl<"FunctionDecl", "function.decl",
-  [ASTFunctionDeclInterface]
->;
+  [ASTFunctionDeclInterface]>;
 
 def ASTCXXMethodDeclAttr : ASTDecl<"CXXMethodDecl", "cxxmethod.decl",
-  [ASTCXXMethodDeclInterface]
->;
+  [ASTCXXMethodDeclInterface]>;
 
-def ASTCXXConstructorDeclAttr : ASTDecl<"CXXConstructorDecl", "cxxconstructor.decl",
-  [ASTCXXConstructorDeclInterface]
->;
+def ASTCXXConstructorDeclAttr : ASTDecl<"CXXConstructorDecl",
+  "cxxconstructor.decl", [ASTCXXConstructorDeclInterface]>;
 
-def ASTCXXConversionDeclAttr : ASTDecl<"CXXConversionDecl", "cxxconversion.decl",
-  [ASTCXXConversionDeclInterface]
->;
+def ASTCXXConversionDeclAttr : ASTDecl<"CXXConversionDecl",
+  "cxxconversion.decl", [ASTCXXConversionDeclInterface]>;
 
-def ASTCXXDestructorDeclAttr : ASTDecl<"CXXDestructorDecl", "cxxdestructor.decl",
-  [ASTCXXDestructorDeclInterface]
->;
+def ASTCXXDestructorDeclAttr : ASTDecl<"CXXDestructorDecl",
+  "cxxdestructor.decl", [ASTCXXDestructorDeclInterface]>;
 
 def ASTVarDeclAttr : ASTDecl<"VarDecl", "var.decl",
-  [ASTVarDeclInterface]
->;
+  [ASTVarDeclInterface]>;
 
 def ASTTypeDeclAttr: ASTDecl<"TypeDecl", "type.decl",
-  [ASTTypeDeclInterface]
->;
+  [ASTTypeDeclInterface]>;
 
 def ASTTagDeclAttr : ASTDecl<"TagDecl", "tag.decl",
-  [ASTTagDeclInterface]
->;
+  [ASTTagDeclInterface]>;
 
 def ASTEnumDeclAttr : ASTDecl<"EnumDecl", "enum.decl",
-  [ASTEnumDeclInterface]
->;
+  [ASTEnumDeclInterface]>;
 
 def ASTRecordDeclAttr : ASTDecl<"RecordDecl", "record.decl",
-  [ASTRecordDeclInterface]
->;
+  [ASTRecordDeclInterface]>;
 
 def ASTCXXRecordDeclAttr : ASTDecl<"CXXRecordDecl", "cxxrecord.decl",
-  [ASTCXXRecordDeclInterface]
->;
+  [ASTCXXRecordDeclInterface]>;
 
-def ASTClassTemplateSpecializationDeclAttr
-  : ASTDecl<"ClassTemplateSpecializationDecl"
-  , "class.template.spec.decl"
-  , [ASTClassTemplateSpecializationDeclInterface]
->;
+def ASTClassTemplateSpecializationDeclAttr :
+  ASTDecl<"ClassTemplateSpecializationDecl", "class.template.spec.decl",
+    [ASTClassTemplateSpecializationDeclInterface]>;
 
-def ASTClassTemplatePartialSpecializationDeclAttr
-  : ASTDecl<"ClassTemplatePartialSpecializationDecl"
-  , "class.template.partial.spec.decl"
-  , [ASTClassTemplatePartialSpecializationDeclInterface]
->;
+def ASTClassTemplatePartialSpecializationDeclAttr :
+  ASTDecl<"ClassTemplatePartialSpecializationDecl",
+    "class.template.partial.spec.decl",
+    [ASTClassTemplatePartialSpecializationDeclInterface]>;
 
 //===----------------------------------------------------------------------===//
 // ExtraFuncAttr

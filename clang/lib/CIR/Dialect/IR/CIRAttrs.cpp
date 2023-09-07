@@ -32,16 +32,15 @@
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclCXX.h"
 
-static void printStructMembers(mlir::AsmPrinter &p,
-                                    mlir::ArrayAttr members);
+static void printStructMembers(mlir::AsmPrinter &p, mlir::ArrayAttr members);
 static mlir::ParseResult parseStructMembers(::mlir::AsmParser &parser,
-                                                 mlir::ArrayAttr &members);
+                                            mlir::ArrayAttr &members);
 
-llvm::SmallVector< mlir::cir::ASTCXXRecordDeclInterface, 4 >
+llvm::SmallVector<mlir::cir::ASTCXXRecordDeclInterface, 4>
 decls(const clang::DeclContext *ast, mlir::MLIRContext *ctx);
 
-template< typename DeclType >
-llvm::SmallVector< mlir::cir::ASTCXXRecordDeclInterface, 4 >
+template <typename DeclType>
+llvm::SmallVector<mlir::cir::ASTCXXRecordDeclInterface, 4>
 decls(const DeclType *ast, mlir::MLIRContext *ctx);
 
 #define GET_ATTRDEF_CLASSES
@@ -54,34 +53,36 @@ using namespace mlir::cir;
 // CIR AST Attr helpers
 //===----------------------------------------------------------------------===//
 
-mlir::Attribute mlir::cir::makeAstDeclAttr(const clang::Decl *decl, mlir::MLIRContext *ctx) {
-    if (auto ast = clang::dyn_cast<clang::CXXConstructorDecl>(decl))
-      return ASTCXXConstructorDeclAttr::get(ctx, ast);
-    if (auto ast = clang::dyn_cast<clang::CXXConversionDecl>(decl))
-      return ASTCXXConversionDeclAttr::get(ctx, ast);
-    if (auto ast = clang::dyn_cast<clang::CXXDestructorDecl>(decl))
-      return ASTCXXDestructorDeclAttr::get(ctx, ast);
-    if (auto ast = clang::dyn_cast<clang::CXXMethodDecl>(decl))
-      return ASTCXXMethodDeclAttr::get(ctx, ast);
-    if (auto ast = clang::dyn_cast<clang::FunctionDecl>(decl))
-      return ASTFunctionDeclAttr::get(ctx, ast);
-    if (auto ast = clang::dyn_cast<clang::ClassTemplatePartialSpecializationDecl>(decl))
-        return ASTClassTemplatePartialSpecializationDeclAttr::get(ctx, ast);
-    if (auto ast = clang::dyn_cast<clang::ClassTemplateSpecializationDecl>(decl))
-        return ASTClassTemplateSpecializationDeclAttr::get(ctx, ast);
-    if (auto ast = clang::dyn_cast<clang::CXXRecordDecl>(decl))
-        return ASTCXXRecordDeclAttr::get(ctx, ast);
-    if (auto ast = clang::dyn_cast<clang::RecordDecl>(decl))
-        return ASTRecordDeclAttr::get(ctx, ast);
-    if (auto ast = clang::dyn_cast<clang::EnumDecl>(decl))
-      return ASTEnumDeclAttr::get(ctx, ast);
-    if (auto ast = clang::dyn_cast<clang::TagDecl>(decl))
-      return ASTTagDeclAttr::get(ctx, ast);
-    if (auto ast = clang::dyn_cast<clang::TypeDecl>(decl))
-      return ASTTypeDeclAttr::get(ctx, ast);
-    if (auto ast = clang::dyn_cast<clang::VarDecl>(decl))
-      return ASTVarDeclAttr::get(ctx, ast);
-    return ASTDeclAttr::get(ctx, decl);
+mlir::Attribute mlir::cir::makeAstDeclAttr(const clang::Decl *decl,
+                                           mlir::MLIRContext *ctx) {
+  if (auto ast = clang::dyn_cast<clang::CXXConstructorDecl>(decl))
+    return ASTCXXConstructorDeclAttr::get(ctx, ast);
+  if (auto ast = clang::dyn_cast<clang::CXXConversionDecl>(decl))
+    return ASTCXXConversionDeclAttr::get(ctx, ast);
+  if (auto ast = clang::dyn_cast<clang::CXXDestructorDecl>(decl))
+    return ASTCXXDestructorDeclAttr::get(ctx, ast);
+  if (auto ast = clang::dyn_cast<clang::CXXMethodDecl>(decl))
+    return ASTCXXMethodDeclAttr::get(ctx, ast);
+  if (auto ast = clang::dyn_cast<clang::FunctionDecl>(decl))
+    return ASTFunctionDeclAttr::get(ctx, ast);
+  if (auto ast =
+          clang::dyn_cast<clang::ClassTemplatePartialSpecializationDecl>(decl))
+    return ASTClassTemplatePartialSpecializationDeclAttr::get(ctx, ast);
+  if (auto ast = clang::dyn_cast<clang::ClassTemplateSpecializationDecl>(decl))
+    return ASTClassTemplateSpecializationDeclAttr::get(ctx, ast);
+  if (auto ast = clang::dyn_cast<clang::CXXRecordDecl>(decl))
+    return ASTCXXRecordDeclAttr::get(ctx, ast);
+  if (auto ast = clang::dyn_cast<clang::RecordDecl>(decl))
+    return ASTRecordDeclAttr::get(ctx, ast);
+  if (auto ast = clang::dyn_cast<clang::EnumDecl>(decl))
+    return ASTEnumDeclAttr::get(ctx, ast);
+  if (auto ast = clang::dyn_cast<clang::TagDecl>(decl))
+    return ASTTagDeclAttr::get(ctx, ast);
+  if (auto ast = clang::dyn_cast<clang::TypeDecl>(decl))
+    return ASTTypeDeclAttr::get(ctx, ast);
+  if (auto ast = clang::dyn_cast<clang::VarDecl>(decl))
+    return ASTVarDeclAttr::get(ctx, ast);
+  return ASTDeclAttr::get(ctx, decl);
 };
 
 //===----------------------------------------------------------------------===//
@@ -107,14 +108,14 @@ void CIRDialect::printAttribute(Attribute attr, DialectAsmPrinter &os) const {
 }
 
 static void printStructMembers(mlir::AsmPrinter &printer,
-                                    mlir::ArrayAttr members) {
+                               mlir::ArrayAttr members) {
   printer << '{';
   llvm::interleaveComma(members, printer);
   printer << '}';
 }
 
 static ParseResult parseStructMembers(mlir::AsmParser &parser,
-                                           mlir::ArrayAttr &members) {
+                                      mlir::ArrayAttr &members) {
   SmallVector<mlir::Attribute, 4> elts;
 
   auto delimiter = AsmParser::Delimiter::Braces;

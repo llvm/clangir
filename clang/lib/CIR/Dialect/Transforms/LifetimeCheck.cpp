@@ -106,10 +106,8 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
 
   // Common helpers.
   bool isCtorInitPointerFromOwner(CallOp callOp);
-  mlir::Value getNonConstUseOfOwner(CallOp callOp,
-                                    ASTCXXMethodDeclInterface m);
-  bool isOwnerOrPointerClassMethod(CallOp callOp,
-                                   ASTCXXMethodDeclInterface m);
+  mlir::Value getNonConstUseOfOwner(CallOp callOp, ASTCXXMethodDeclInterface m);
+  bool isOwnerOrPointerClassMethod(CallOp callOp, ASTCXXMethodDeclInterface m);
 
   // Diagnostic helpers.
   void emitInvalidHistory(mlir::InFlightDiagnostic &D, mlir::Value histKey,
@@ -895,7 +893,7 @@ template <class T> bool isStructAndHasAttr(mlir::Type ty) {
     return false;
   auto sTy = ty.cast<mlir::cir::StructType>();
   auto recordDecl = sTy.getAst();
-  if (auto interface = dyn_cast< ASTDeclInterface >(recordDecl))
+  if (auto interface = dyn_cast<ASTDeclInterface>(recordDecl))
     if (hasAttr<T>(interface))
       return true;
   return false;
@@ -1486,7 +1484,7 @@ static const ASTCXXMethodDeclInterface getMethod(ModuleOp mod, CallOp callOp) {
   auto method = getCalleeFromSymbol(mod, name);
   if (!method || method.getBuiltin())
     return nullptr;
-  return dyn_cast< ASTCXXMethodDeclInterface >(method.getAstAttr());
+  return dyn_cast<ASTCXXMethodDeclInterface>(method.getAstAttr());
 }
 
 mlir::Value LifetimeCheckPass::getThisParamPointerCategory(CallOp callOp) {
@@ -1764,7 +1762,7 @@ bool LifetimeCheckPass::isLambdaType(mlir::Type ty) {
   auto taskTy = ty.dyn_cast<mlir::cir::StructType>();
   if (!taskTy)
     return false;
-  if (auto recordDecl = dyn_cast< ASTCXXRecordDeclInterface >(taskTy.getAst()))
+  if (auto recordDecl = dyn_cast<ASTCXXRecordDeclInterface>(taskTy.getAst()))
     if (recordDecl.isLambda())
       IsLambdaTyCache[ty] = true;
 
@@ -1781,12 +1779,12 @@ bool LifetimeCheckPass::isTaskType(mlir::Value taskVal) {
   if (!taskTy)
     return false;
   auto recordDecl = taskTy.getAst();
-  auto spec = dyn_cast< ASTClassTemplateSpecializationDeclInterface >(recordDecl);
+  auto spec = dyn_cast<ASTClassTemplateSpecializationDeclInterface>(recordDecl);
   if (!spec)
     return false;
 
   for (auto sub : spec.decls(taskVal.getContext())) {
-    if (auto subRec = dyn_cast< ASTCXXRecordDeclInterface >(sub)) {
+    if (auto subRec = dyn_cast<ASTCXXRecordDeclInterface>(sub)) {
       if (subRec.getDeclName().isIdentifier() &&
           subRec.getName() == "promise_type") {
         IsTaskTyCache[ty] = true;
@@ -1835,7 +1833,7 @@ void LifetimeCheckPass::checkCall(CallOp callOp) {
 
   // From this point on only owner and pointer class methods handling,
   // starting from special methods.
-  if (auto ctor = dyn_cast< ASTCXXConstructorDeclInterface >(methodDecl))
+  if (auto ctor = dyn_cast<ASTCXXConstructorDeclInterface>(methodDecl))
     return checkCtor(callOp, ctor);
   if (methodDecl.isMoveAssignmentOperator())
     return checkMoveAssignment(callOp, methodDecl);

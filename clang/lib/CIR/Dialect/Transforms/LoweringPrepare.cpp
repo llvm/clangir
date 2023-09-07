@@ -14,8 +14,8 @@
 #include "clang/AST/Mangle.h"
 #include "clang/Basic/Module.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
-#include "clang/CIR/Interfaces/ASTAttrInterfaces.h"
 #include "clang/CIR/Dialect/Passes.h"
+#include "clang/CIR/Interfaces/ASTAttrInterfaces.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
@@ -137,7 +137,7 @@ cir::FuncOp LoweringPreparePass::buildCXXGlobalVarDeclInitFunc(GlobalOp op) {
   SmallString<256> fnName;
   {
     llvm::raw_svector_ostream Out(fnName);
-    mlir::cast< ASTVarDeclInterface >(*op.getAst()).mangleDynamicInitializer(Out);
+    mlir::cast<ASTVarDeclInterface>(*op.getAst()).mangleDynamicInitializer(Out);
     // Name numbering
     uint32_t cnt = dynamicInitializerNames[fnName]++;
     if (cnt)
@@ -151,7 +151,7 @@ cir::FuncOp LoweringPreparePass::buildCXXGlobalVarDeclInitFunc(GlobalOp op) {
   auto fnType = mlir::cir::FuncType::get({}, voidTy);
   FuncOp f =
       buildRuntimeFunction(builder, fnName, op.getLoc(), fnType,
-                             mlir::cir::GlobalLinkageKind::InternalLinkage);
+                           mlir::cir::GlobalLinkageKind::InternalLinkage);
 
   // Move over the initialzation code of the ctor region.
   auto &block = op.getCtorRegion().front();
@@ -159,12 +159,12 @@ cir::FuncOp LoweringPreparePass::buildCXXGlobalVarDeclInitFunc(GlobalOp op) {
   entryBB->getOperations().splice(entryBB->begin(), block.getOperations(),
                                   block.begin(), std::prev(block.end()));
 
-
   // Register the destructor call with __cxa_atexit
 
-  assert(mlir::isa< ASTVarDeclInterface >(*op.getAst()) &&
-         mlir::dyn_cast< ASTVarDeclInterface >(*op.getAst()).getTLSKind() ==
-         clang::VarDecl::TLS_None && " TLS NYI");
+  assert(mlir::isa<ASTVarDeclInterface>(*op.getAst()) &&
+         mlir::dyn_cast<ASTVarDeclInterface>(*op.getAst()).getTLSKind() ==
+             clang::VarDecl::TLS_None &&
+         " TLS NYI");
   // Create a variable that binds the atexit to this shared object.
   builder.setInsertionPointToStart(&theModule.getBodyRegion().front());
   auto Handle = buildRuntimeVariable(builder, "__dso_handle", op.getLoc(),
@@ -180,7 +180,7 @@ cir::FuncOp LoweringPreparePass::buildCXXGlobalVarDeclInitFunc(GlobalOp op) {
   assert(dtorCall && "Expected a dtor call");
   cir::FuncOp dtorFunc = getCalledFunction(dtorCall);
   assert(dtorFunc &&
-         mlir::isa< ASTCXXDestructorDeclInterface >(*dtorFunc.getAst()) &&
+         mlir::isa<ASTCXXDestructorDeclInterface>(*dtorFunc.getAst()) &&
          "Expected a dtor call");
 
   // Create a runtime helper function:
@@ -198,7 +198,8 @@ cir::FuncOp LoweringPreparePass::buildCXXGlobalVarDeclInitFunc(GlobalOp op) {
   FuncOp fnAtExit =
       buildRuntimeFunction(builder, nameAtExit, op.getLoc(), fnAtExitType);
 
-  // Replace the dtor call with a call to __cxa_atexit(&dtor, &var, &__dso_handle)
+  // Replace the dtor call with a call to __cxa_atexit(&dtor, &var,
+  // &__dso_handle)
   builder.setInsertionPointAfter(dtorCall);
   mlir::Value args[3];
   auto dtorPtrTy = mlir::cir::PointerType::get(builder.getContext(),
@@ -242,7 +243,7 @@ void LoweringPreparePass::lowerGlobalOp(GlobalOp op) {
 
     // Add a function call to the variable initialization function.
     assert(!hasAttr<clang::InitPriorityAttr>(
-      mlir::cast<ASTDeclInterface>(*op.getAst())) &&
+               mlir::cast<ASTDeclInterface>(*op.getAst())) &&
            "custom initialization priority NYI");
     dynamicInitializers.push_back(f);
   }
@@ -255,8 +256,7 @@ void LoweringPreparePass::buildCXXGlobalInitFunc() {
   SmallVector<mlir::Attribute, 4> attrs;
   for (auto &f : dynamicInitializers) {
     // TODO: handle globals with a user-specified initialzation priority.
-    auto ctorAttr =
-        mlir::cir::GlobalCtorAttr::get(&getContext(), f.getName());
+    auto ctorAttr = mlir::cir::GlobalCtorAttr::get(&getContext(), f.getName());
     attrs.push_back(ctorAttr);
   }
 
@@ -287,7 +287,7 @@ void LoweringPreparePass::buildCXXGlobalInitFunc() {
       {}, mlir::cir::VoidType::get(builder.getContext()));
   FuncOp f =
       buildRuntimeFunction(builder, fnName, theModule.getLoc(), fnType,
-                             mlir::cir::GlobalLinkageKind::ExternalLinkage);
+                           mlir::cir::GlobalLinkageKind::ExternalLinkage);
   builder.setInsertionPointToStart(f.addEntryBlock());
   for (auto &f : dynamicInitializers) {
     builder.create<mlir::cir::CallOp>(f.getLoc(), f);
@@ -305,7 +305,7 @@ void LoweringPreparePass::runOnOp(Operation *op) {
 
 void LoweringPreparePass::runOnOperation() {
   assert(astCtx && "Missing ASTContext, please construct with the right ctor");
-  auto* op = getOperation();
+  auto *op = getOperation();
   if (isa<::mlir::ModuleOp>(op)) {
     theModule = cast<::mlir::ModuleOp>(op);
   }
@@ -327,7 +327,8 @@ std::unique_ptr<Pass> mlir::createLoweringPreparePass() {
   return std::make_unique<LoweringPreparePass>();
 }
 
-std::unique_ptr<Pass> mlir::createLoweringPreparePass(clang::ASTContext *astCtx) {
+std::unique_ptr<Pass>
+mlir::createLoweringPreparePass(clang::ASTContext *astCtx) {
   auto pass = std::make_unique<LoweringPreparePass>();
   pass->setASTContext(astCtx);
   return std::move(pass);

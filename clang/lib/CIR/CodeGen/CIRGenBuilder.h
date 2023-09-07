@@ -413,25 +413,22 @@ public:
   /// Get a CIR named struct type.
   mlir::cir::StructType getStructTy(llvm::ArrayRef<mlir::Type> members,
                                     llvm::StringRef name, bool body,
-                                    bool packed, mlir::Attribute astAttr) {
+                                    bool packed, mlir::Attribute ast) {
     const auto nameAttr = getStringAttr(name);
     auto kind = mlir::cir::StructType::RecordKind::Struct;
-    if (astAttr) {
-      if (auto tagDecl = mlir::dyn_cast< mlir::cir::ASTTagDeclInterface >(astAttr)) {
+    if (ast)
+      if (auto tagDecl = mlir::dyn_cast<mlir::cir::ASTTagDeclInterface>(ast))
         kind = getRecordKind(tagDecl.getTagKind());
-      }
-    }
     return mlir::cir::StructType::get(getContext(), members, nameAttr, body,
-                                      packed, kind, astAttr);
+                                      packed, kind, ast);
   }
 
   mlir::cir::StructType getStructTy(llvm::ArrayRef<mlir::Type> members,
                                     llvm::StringRef name, bool body,
                                     bool packed, const clang::RecordDecl *ast) {
     mlir::Attribute astAttr;
-    if (ast) {
+    if (ast)
       astAttr = mlir::cir::makeAstDeclAttr(ast, getContext());
-    }
     return getStructTy(members, name, body, packed, astAttr);
   }
 

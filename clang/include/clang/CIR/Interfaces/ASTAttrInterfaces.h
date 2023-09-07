@@ -6,19 +6,20 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MLIR_INTERFACES_CIR_AST_ATR_INTERFACES_H_
-#define MLIR_INTERFACES_CIR_AST_ATR_INTERFACES_H_
+#ifndef MLIR_INTERFACES_CIR_AST_ATTR_INTERFACES_H_
+#define MLIR_INTERFACES_CIR_AST_ATTR_INTERFACES_H_
 
 #include "mlir/IR/Attributes.h"
 
 #include "clang/AST/Attr.h"
-#include "clang/AST/Mangle.h"
 #include "clang/AST/DeclTemplate.h"
+#include "clang/AST/Mangle.h"
 
 namespace mlir {
 namespace cir {
 
-mlir::Attribute makeAstDeclAttr(const clang::Decl *decl, mlir::MLIRContext *ctx);
+mlir::Attribute makeAstDeclAttr(const clang::Decl *decl,
+                                mlir::MLIRContext *ctx);
 
 } // namespace cir
 } // namespace mlir
@@ -29,22 +30,16 @@ mlir::Attribute makeAstDeclAttr(const clang::Decl *decl, mlir::MLIRContext *ctx)
 namespace mlir {
 namespace cir {
 
-    template< typename T >
-    bool hasAttr(ASTDeclInterface decl) {
-        if constexpr (std::is_same_v< T, clang::OwnerAttr > ) {
-            return decl.hasOwnerAttr();
-        }
-
-        if constexpr (std::is_same_v< T, clang::PointerAttr > ) {
-            return decl.hasPointerAttr();
-        }
-
-        if constexpr (std::is_same_v< T, clang::InitPriorityAttr > ) {
-            return decl.hasInitPriorityAttr();
-        }
-    }
+template <typename T> bool hasAttr(ASTDeclInterface decl) {
+  if constexpr (std::is_same_v<T, clang::OwnerAttr>)
+    return decl.hasOwnerAttr();
+  if constexpr (std::is_same_v<T, clang::PointerAttr>)
+    return decl.hasPointerAttr();
+  if constexpr (std::is_same_v<T, clang::InitPriorityAttr>)
+    return decl.hasInitPriorityAttr();
+}
 
 } // namespace cir
 } // namespace mlir
 
-#endif // MLIR_INTERFACES_CIR_AST_ATR_INTERFACES_H_
+#endif // MLIR_INTERFACES_CIR_AST_ATAR_INTERFACES_H_
