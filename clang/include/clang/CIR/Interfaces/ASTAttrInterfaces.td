@@ -32,21 +32,6 @@ let cppNamespace = "::mlir::cir" in {
     ];
   }
 
-  def ASTDeclContextInterface : AttrInterface<"ASTDeclContextInterface"> {
-    let methods = [
-      InterfaceMethod<"", "llvm::SmallVector< ::mlir::Attribute, 4 >", "decls",
-        (ins "::mlir::MLIRContext *":$ctx), [{}],
-        /*defaultImplementation=*/ [{
-          llvm::SmallVector< mlir::Attribute, 4 > decls;
-          for (const auto *sub : $_attr.getAstDecl()->decls()) {
-            decls.push_back(makeAstDeclAttr(sub, ctx));
-          }
-          return decls;
-        }]
-      >
-    ];
-  }
-
   def ASTNamedDeclInterface : AttrInterface<"ASTNamedDeclInterface",
       [ASTDeclInterface]> {
     let methods = [
@@ -88,7 +73,7 @@ let cppNamespace = "::mlir::cir" in {
   }
 
   def ASTFunctionDeclInterface : AttrInterface<"ASTFunctionDeclInterface",
-      [ASTDeclaratorDeclInterface, ASTDeclContextInterface]> {
+      [ASTDeclaratorDeclInterface]> {
     let methods = [
       InterfaceMethod<"", "bool", "isOverloadedOperator", (ins), [{}],
         /*defaultImplementation=*/ [{
@@ -154,7 +139,7 @@ let cppNamespace = "::mlir::cir" in {
       [ASTNamedDeclInterface]>;
 
   def ASTTagDeclInterface : AttrInterface<"ASTTagDeclInterface",
-      [ASTTypeDeclInterface, ASTDeclContextInterface]> {
+      [ASTTypeDeclInterface]> {
     let methods = [
       InterfaceMethod<"", "clang::TagTypeKind", "getTagKind", (ins), [{}],
         /*defaultImplementation=*/ [{
@@ -183,7 +168,23 @@ let cppNamespace = "::mlir::cir" in {
 
   def ASTClassTemplateSpecializationDeclInterface :
       AttrInterface<"ASTClassTemplateSpecializationDeclInterface",
-                    [ASTCXXRecordDeclInterface]>;
+                    [ASTCXXRecordDeclInterface]> {
+    let methods = [
+    InterfaceMethod<"", "bool", "hasPromiseType", (ins), [{}],
+        /*defaultImplementation=*/ [{
+          for (const auto *sub : $_attr.getAstDecl()->decls()) {
+            if (auto subRec = clang::dyn_cast<clang::CXXRecordDecl>(sub)) {
+              if (subRec->getDeclName().isIdentifier() &&
+                  subRec->getName() == "promise_type") {
+                return true;
+              }
+            }
+          }
+          return false;
+        }]
+      >
+    ];
+  }
 
   def ASTClassTemplatePartialSpecializationDeclInterface :
       AttrInterface<"ASTClassTemplatePartialSpecializationDeclInterface",

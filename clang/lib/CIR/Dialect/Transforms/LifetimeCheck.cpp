@@ -1774,26 +1774,19 @@ bool LifetimeCheckPass::isTaskType(mlir::Value taskVal) {
   if (IsTaskTyCache.count(ty))
     return IsTaskTyCache[ty];
 
-  IsTaskTyCache[ty] = false;
-  auto taskTy = taskVal.getType().dyn_cast<mlir::cir::StructType>();
-  if (!taskTy)
-    return false;
-  auto recordDecl = taskTy.getAst();
-  auto spec = dyn_cast<ASTClassTemplateSpecializationDeclInterface>(recordDecl);
-  if (!spec)
-    return false;
+  bool result = [&] {
+    auto taskTy = taskVal.getType().dyn_cast<mlir::cir::StructType>();
+    if (!taskTy)
+      return false;
+    auto recordDecl = taskTy.getAst();
+    auto spec = dyn_cast<ASTClassTemplateSpecializationDeclInterface>(recordDecl);
+    if (!spec)
+      return false;
+    return spec.hasPromiseType();
+  } ();
 
-  for (auto sub : spec.decls(taskVal.getContext())) {
-    if (auto subRec = dyn_cast<ASTCXXRecordDeclInterface>(sub)) {
-      if (subRec.getDeclName().isIdentifier() &&
-          subRec.getName() == "promise_type") {
-        IsTaskTyCache[ty] = true;
-        break;
-      }
-    }
-  }
-
-  return IsTaskTyCache[ty];
+  IsTaskTyCache[ty] = result;
+  return result;
 }
 
 void LifetimeCheckPass::trackCallToCoroutine(CallOp callOp) {
