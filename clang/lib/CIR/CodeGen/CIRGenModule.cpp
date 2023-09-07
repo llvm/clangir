@@ -1097,24 +1097,6 @@ generateStringLiteral(mlir::Location loc, mlir::TypedAttr C,
   return GV;
 }
 
-// In address space agnostic languages, string literals are in default address
-// space in AST. However, certain targets (e.g. amdgcn) request them to be
-// emitted in constant address space in LLVM IR. To be consistent with other
-// parts of AST, string literal global variables in constant address space
-// need to be casted to default address space before being put into address
-// map and referenced by other part of CodeGen.
-// In OpenCL, string literals are in constant address space in AST, therefore
-// they should not be casted to default address space.
-static mlir::StringAttr
-castStringLiteralToDefaultAddressSpace(CIRGenModule &CGM, mlir::StringAttr GV) {
-  if (!CGM.getLangOpts().OpenCL) {
-    auto AS = CGM.getGlobalConstantAddressSpace();
-    if (AS != LangAS::Default)
-      assert(0 && "not implemented");
-  }
-  return GV;
-}
-
 /// Return a pointer to a constant array for the given string literal.
 mlir::cir::GlobalViewAttr
 CIRGenModule::getAddrOfConstantStringFromLiteral(const StringLiteral *S,
