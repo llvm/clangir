@@ -137,7 +137,7 @@ cir::FuncOp LoweringPreparePass::buildCXXGlobalVarDeclInitFunc(GlobalOp op) {
   SmallString<256> fnName;
   {
     llvm::raw_svector_ostream Out(fnName);
-    mlir::cast<ASTVarDeclInterface>(*op.getAst()).mangleDynamicInitializer(Out);
+    op.getAst()->mangleDynamicInitializer(Out);
     // Name numbering
     uint32_t cnt = dynamicInitializerNames[fnName]++;
     if (cnt)
@@ -161,9 +161,7 @@ cir::FuncOp LoweringPreparePass::buildCXXGlobalVarDeclInitFunc(GlobalOp op) {
 
   // Register the destructor call with __cxa_atexit
 
-  assert(mlir::isa<ASTVarDeclInterface>(*op.getAst()) &&
-         mlir::dyn_cast<ASTVarDeclInterface>(*op.getAst()).getTLSKind() ==
-             clang::VarDecl::TLS_None &&
+  assert(op.getAst() && op.getAst()->getTLSKind() == clang::VarDecl::TLS_None &&
          " TLS NYI");
   // Create a variable that binds the atexit to this shared object.
   builder.setInsertionPointToStart(&theModule.getBodyRegion().front());
