@@ -221,6 +221,25 @@ def IntAttr : CIR_Attr<"Int", "int", [TypedAttrInterface]> {
 }
 
 //===----------------------------------------------------------------------===//
+// ConstPointerAttr
+//===----------------------------------------------------------------------===//
+
+def ConstPtrAttr : CIR_Attr<"ConstPtr", "ptr", [TypedAttrInterface]> {
+  let summary = "An Attribute containing a pointer value";
+  let parameters = (ins AttributeSelfTypeParameter<"">:$type, "uint64_t":$value);
+  let description = [{
+    A pointer attribute is a literal attribute that represents an integral
+    value of a pointer type.
+  }];
+  let assemblyFormat = [{
+    `<` $value `>`
+  }];
+  let extraClassDeclaration = [{
+    bool isNullValue() const { return getValue() == 0; }
+  }];
+}
+
+//===----------------------------------------------------------------------===//
 // SignedOverflowBehaviorAttr
 //===----------------------------------------------------------------------===//
 

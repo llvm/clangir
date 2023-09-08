@@ -138,6 +138,11 @@ public:
     return mlir::cir::NullAttr::get(getContext(), t);
   }
 
+  mlir::TypedAttr getConstPtrAttr(mlir::Type t, uint64_t v) {
+    assert(t.isa<mlir::cir::PointerType>() && "expected cir.ptr");
+    return mlir::cir::ConstPtrAttr::get(getContext(), t, v);
+  }
+
   mlir::cir::ConstArrayAttr getString(llvm::StringRef str, mlir::Type eltTy,
                                       unsigned size = 0) {
     unsigned finalSize = size ? size : str.size();

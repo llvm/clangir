@@ -166,7 +166,7 @@ void AllocaOp::build(::mlir::OpBuilder &odsBuilder,
 
 static LogicalResult checkConstantTypes(mlir::Operation *op, mlir::Type opType,
                                         mlir::Attribute attrType) {
-  if (attrType.isa<NullAttr>()) {
+  if (attrType.isa<NullAttr>() || attrType.isa<ConstPtrAttr>()) {
     if (opType.isa<::mlir::cir::PointerType>())
       return success();
     return op->emitOpError("nullptr expects pointer type");
