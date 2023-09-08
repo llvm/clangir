@@ -70,27 +70,6 @@ def LangAttr : CIR_Attr<"Lang", "lang"> {
 }
 
 //===----------------------------------------------------------------------===//
-// NullAttr
-//===----------------------------------------------------------------------===//
-
-def NullAttr : CIR_Attr<"Null", "null", [TypedAttrInterface]> {
-  let summary = "A simple attr to represent nullptr";
-  let description = [{
-    The NullAttr represents the value of nullptr within cir.
-  }];
-
-  let parameters = (ins AttributeSelfTypeParameter<"">:$type);
-
-  let builders = [
-    AttrBuilderWithInferredContext<(ins "Type":$type), [{
-      return $_get(type.getContext(), type);
-    }]>
-  ];
-
-  let assemblyFormat = [{}];
-}
-
-//===----------------------------------------------------------------------===//
 // BoolAttr
 //===----------------------------------------------------------------------===//
 
@@ -225,18 +204,21 @@ def IntAttr : CIR_Attr<"Int", "int", [TypedAttrInterface]> {
 //===----------------------------------------------------------------------===//
 
 def ConstPtrAttr : CIR_Attr<"ConstPtr", "ptr", [TypedAttrInterface]> {
-  let summary = "An Attribute containing a pointer value";
+  let summary = "Holds a constant pointer value";
   let parameters = (ins AttributeSelfTypeParameter<"">:$type, "uint64_t":$value);
   let description = [{
     A pointer attribute is a literal attribute that represents an integral
     value of a pointer type.
   }];
-  let assemblyFormat = [{
-    `<` $value `>`
-  }];
+  let builders = [
+    AttrBuilderWithInferredContext<(ins "Type":$type, "uint64_t":$value), [{
+      return $_get(type.getContext(), type, value);
+    }]>,
+  ];
   let extraClassDeclaration = [{
     bool isNullValue() const { return getValue() == 0; }
   }];
+  let hasCustomAssemblyFormat = 1;
 }
 
 //===----------------------------------------------------------------------===//
