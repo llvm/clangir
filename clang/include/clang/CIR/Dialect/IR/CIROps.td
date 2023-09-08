@@ -1592,7 +1592,7 @@ def FuncOp : CIR_Op<"func", [
                        OptionalAttr<DictArrayAttr>:$arg_attrs,
                        OptionalAttr<DictArrayAttr>:$res_attrs,
                        OptionalAttr<FlatSymbolRefAttr>:$aliasee,
-                       OptionalAttr<AnyAttr>:$ast);
+                       OptionalAttr<AnyASTFunctionDeclAttr>:$ast);
   let regions = (region AnyRegion:$body);
   let skipDefaultBuilders = 1;
 

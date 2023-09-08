@@ -42,6 +42,7 @@ using namespace mlir::cir;
 #include "clang/CIR/Dialect/IR/CIROpsStructs.cpp.inc"
 
 #include "clang/CIR/Dialect/IR/CIROpsDialect.cpp.inc"
+#include "clang/CIR/Interfaces/ASTAttrInterfaces.h"
 
 //===----------------------------------------------------------------------===//
 // CIR Dialect

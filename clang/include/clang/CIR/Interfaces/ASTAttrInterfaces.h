@@ -21,6 +21,9 @@ namespace cir {
 mlir::Attribute makeAstDeclAttr(const clang::Decl *decl,
                                 mlir::MLIRContext *ctx);
 
+mlir::Attribute makeFuncDeclAttr(const clang::Decl *decl,
+                                 mlir::MLIRContext *ctx);
+
 } // namespace cir
 } // namespace mlir
 

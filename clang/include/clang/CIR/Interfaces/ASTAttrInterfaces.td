@@ -190,6 +190,16 @@ let cppNamespace = "::mlir::cir" in {
       AttrInterface<"ASTClassTemplatePartialSpecializationDeclInterface",
                     [ASTClassTemplateSpecializationDeclInterface]>;
 
+
+  def AnyASTFunctionDeclAttr : Attr<
+      CPred<"::mlir::isa<::mlir::cir::ASTFunctionDeclInterface>($_self)">,
+            "AST Function attribute"> {
+    let storageType = "::mlir::Attribute";
+    let returnType = "::mlir::Attribute";
+    let convertFromStorage = "$_self";
+    let constBuilderCall = "$0";
+  }
+
 } // namespace mlir::cir
 
 #endif // MLIR_CIR_INTERFACES_AST_ATTR_INTERFACES

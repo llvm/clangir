@@ -46,8 +46,11 @@ using namespace mlir::cir;
 // CIR AST Attr helpers
 //===----------------------------------------------------------------------===//
 
-mlir::Attribute mlir::cir::makeAstDeclAttr(const clang::Decl *decl,
-                                           mlir::MLIRContext *ctx) {
+namespace mlir {
+namespace cir {
+
+mlir::Attribute makeAstDeclAttr(const clang::Decl *decl,
+                                mlir::MLIRContext *ctx) {
   if (auto ast = clang::dyn_cast<clang::CXXConstructorDecl>(decl))
     return ASTCXXConstructorDeclAttr::get(ctx, ast);
   if (auto ast = clang::dyn_cast<clang::CXXConversionDecl>(decl))
@@ -77,6 +80,33 @@ mlir::Attribute mlir::cir::makeAstDeclAttr(const clang::Decl *decl,
     return ASTVarDeclAttr::get(ctx, ast);
   return ASTDeclAttr::get(ctx, decl);
 };
+
+mlir::Attribute makeFuncDeclAttr(const clang::Decl *decl,
+                                 mlir::MLIRContext *ctx) {
+  return llvm::TypeSwitch<const clang::Decl *, mlir::Attribute>(decl)
+      .Case([ctx](const clang::CXXConstructorDecl *ast) {
+        return ASTCXXConstructorDeclAttr::get(ctx, ast);
+      })
+      .Case([ctx](const clang::CXXConversionDecl *ast) {
+        return ASTCXXConversionDeclAttr::get(ctx, ast);
+      })
+      .Case([ctx](const clang::CXXDestructorDecl *ast) {
+        return ASTCXXDestructorDeclAttr::get(ctx, ast);
+      })
+      .Case([ctx](const clang::CXXMethodDecl *ast) {
+        return ASTCXXMethodDeclAttr::get(ctx, ast);
+      })
+      .Case([ctx](const clang::FunctionDecl *ast) {
+        return ASTFunctionDeclAttr::get(ctx, ast);
+      })
+      .Default([](auto) {
+        llvm_unreachable("unexpected Decl kind");
+        return mlir::Attribute();
+      });
+}
+
+} // namespace cir
+} // namespace mlir
 
 //===----------------------------------------------------------------------===//
 // General CIR parsing / printing

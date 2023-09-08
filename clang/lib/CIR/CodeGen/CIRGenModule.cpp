@@ -1806,7 +1806,7 @@ CIRGenModule::createCIRFunction(mlir::Location loc, StringRef name,
     f = builder.create<mlir::cir::FuncOp>(loc, name, Ty);
 
     if (FD)
-      f.setAstAttr(makeAstDeclAttr(FD, builder.getContext()));
+      f.setAstAttr(makeFuncDeclAttr(FD, builder.getContext()));
 
     if (FD && !FD->hasPrototype())
       f.setNoProtoAttr(builder.getUnitAttr());
