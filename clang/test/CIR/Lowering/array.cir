@@ -2,7 +2,7 @@
 // RUN: cir-translate %s -cir-to-llvmir -o -  | FileCheck %s -check-prefix=LLVM
 
 !s32i = !cir.int<s, 32>
-!ty_22S22 = !cir.struct<struct "S" {!s32i} #cir.cxxrecord.decl.ast>
+!ty_22S22 = !cir.struct<struct "S" {!s32i} #cir.record.decl.ast>
 
 module {
   cir.func @foo() {

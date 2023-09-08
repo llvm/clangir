@@ -891,12 +891,7 @@ void LifetimeCheckPass::checkIf(IfOp ifOp) {
 template <class T> bool isStructAndHasAttr(mlir::Type ty) {
   if (!ty.isa<mlir::cir::StructType>())
     return false;
-  auto sTy = ty.cast<mlir::cir::StructType>();
-  auto recordDecl = sTy.getAst();
-  if (auto interface = dyn_cast<ASTDeclInterface>(recordDecl))
-    if (hasAttr<T>(interface))
-      return true;
-  return false;
+  return hasAttr<T>(*mlir::cast<mlir::cir::StructType>(ty).getAst());
 }
 
 static bool isOwnerType(mlir::Type ty) {
@@ -1762,8 +1757,7 @@ bool LifetimeCheckPass::isLambdaType(mlir::Type ty) {
   auto taskTy = ty.dyn_cast<mlir::cir::StructType>();
   if (!taskTy)
     return false;
-  if (auto recordDecl = dyn_cast<ASTCXXRecordDeclInterface>(taskTy.getAst()))
-    if (recordDecl.isLambda())
+    if (taskTy.getAst()->isLambda())
       IsLambdaTyCache[ty] = true;
 
   return IsLambdaTyCache[ty];
@@ -1778,12 +1772,8 @@ bool LifetimeCheckPass::isTaskType(mlir::Value taskVal) {
     auto taskTy = taskVal.getType().dyn_cast<mlir::cir::StructType>();
     if (!taskTy)
       return false;
-    auto recordDecl = taskTy.getAst();
-    auto spec = dyn_cast<ASTClassTemplateSpecializationDeclInterface>(recordDecl);
-    if (!spec)
-      return false;
-    return spec.hasPromiseType();
-  } ();
+    return taskTy.getAst()->hasPromiseType();
+  }();
 
   IsTaskTyCache[ty] = result;
   return result;

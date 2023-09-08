@@ -16,17 +16,17 @@ let cppNamespace = "::mlir::cir" in {
     let methods = [
       InterfaceMethod<"", "bool", "hasOwnerAttr", (ins), [{}],
         /*defaultImplementation=*/ [{
-          return $_attr.getAstDecl()->template hasAttr< clang::OwnerAttr >();
+          return $_attr.getAstDecl()->template hasAttr<clang::OwnerAttr>();
         }]
       >,
       InterfaceMethod<"", "bool", "hasPointerAttr", (ins), [{}],
         /*defaultImplementation=*/ [{
-          return $_attr.getAstDecl()->template hasAttr< clang::PointerAttr >();
+          return $_attr.getAstDecl()->template hasAttr<clang::PointerAttr>();
         }]
       >,
       InterfaceMethod<"", "bool", "hasInitPriorityAttr", (ins), [{}],
         /*defaultImplementation=*/ [{
-          return $_attr.getAstDecl()->template hasAttr< clang::InitPriorityAttr >();
+          return $_attr.getAstDecl()->template hasAttr<clang::InitPriorityAttr>();
         }]
       >
     ];
@@ -93,14 +93,14 @@ let cppNamespace = "::mlir::cir" in {
     let methods = [
       InterfaceMethod<"", "bool", "isCopyAssignmentOperator", (ins), [{}],
         /*defaultImplementation=*/ [{
-          if (auto decl = dyn_cast< clang::CXXMethodDecl >($_attr.getAstDecl()))
+          if (auto decl = dyn_cast<clang::CXXMethodDecl>($_attr.getAstDecl()))
             return decl->isCopyAssignmentOperator();
           return false;
         }]
       >,
       InterfaceMethod<"", "bool", "isMoveAssignmentOperator", (ins), [{}],
         /*defaultImplementation=*/ [{
-          if (auto decl = dyn_cast< clang::CXXMethodDecl >($_attr.getAstDecl()))
+          if (auto decl = dyn_cast<clang::CXXMethodDecl>($_attr.getAstDecl()))
             return decl->isMoveAssignmentOperator();
           return false;
         }]
@@ -149,29 +149,20 @@ let cppNamespace = "::mlir::cir" in {
     ];
   }
 
-  def ASTEnumDeclInterface : AttrInterface<"ASTEnumDeclInterface",
-      [ASTTagDeclInterface]>;
-
   def ASTRecordDeclInterface : AttrInterface<"ASTRecordDeclInterface",
-      [ASTTagDeclInterface]>;
-
-  def ASTCXXRecordDeclInterface : AttrInterface<"ASTCXXRecordDeclInterface",
-      [ASTRecordDeclInterface]> {
+      [ASTTagDeclInterface]> {
     let methods = [
       InterfaceMethod<"", "bool", "isLambda", (ins), [{}],
         /*defaultImplementation=*/ [{
-          return $_attr.getAstDecl()->isLambda();
+          if (auto ast = clang::dyn_cast<clang::CXXRecordDecl>($_attr.getAstDecl()))
+            return ast->isLambda();
+          return false;
         }]
-      >
-    ];
-  }
-
-  def ASTClassTemplateSpecializationDeclInterface :
-      AttrInterface<"ASTClassTemplateSpecializationDeclInterface",
-                    [ASTCXXRecordDeclInterface]> {
-    let methods = [
-    InterfaceMethod<"", "bool", "hasPromiseType", (ins), [{}],
+      >,
+      InterfaceMethod<"", "bool", "hasPromiseType", (ins), [{}],
         /*defaultImplementation=*/ [{
+          if (!clang::isa<clang::ClassTemplateSpecializationDecl>($_attr.getAstDecl()))
+            return false;
           for (const auto *sub : $_attr.getAstDecl()->decls()) {
             if (auto subRec = clang::dyn_cast<clang::CXXRecordDecl>(sub)) {
               if (subRec->getDeclName().isIdentifier() &&
@@ -185,11 +176,6 @@ let cppNamespace = "::mlir::cir" in {
       >
     ];
   }
-
-  def ASTClassTemplatePartialSpecializationDeclInterface :
-      AttrInterface<"ASTClassTemplatePartialSpecializationDeclInterface",
-                    [ASTClassTemplateSpecializationDeclInterface]>;
-
 
   def AnyASTFunctionDeclAttr : Attr<
       CPred<"::mlir::isa<::mlir::cir::ASTFunctionDeclInterface>($_self)">,

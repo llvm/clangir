@@ -167,9 +167,7 @@ mlir::Type CIRGenTypes::convertRecordDeclType(const clang::RecordDecl *RD) {
   // Handle forward decl / incomplete types.
   if (!entry) {
     auto name = getRecordTypeName(RD, "");
-    entry =
-        Builder.getStructTy({}, name, /*body=*/false, /*packed=*/false,
-                            mlir::cir::makeAstDeclAttr(RD, &getMLIRContext()));
+    entry = Builder.getStructTy({}, name, /*body=*/false, /*packed=*/false, RD);
     recordDeclTypes[key] = entry;
   }
 

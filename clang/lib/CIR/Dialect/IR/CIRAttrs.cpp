@@ -49,38 +49,6 @@ using namespace mlir::cir;
 namespace mlir {
 namespace cir {
 
-mlir::Attribute makeAstDeclAttr(const clang::Decl *decl,
-                                mlir::MLIRContext *ctx) {
-  if (auto ast = clang::dyn_cast<clang::CXXConstructorDecl>(decl))
-    return ASTCXXConstructorDeclAttr::get(ctx, ast);
-  if (auto ast = clang::dyn_cast<clang::CXXConversionDecl>(decl))
-    return ASTCXXConversionDeclAttr::get(ctx, ast);
-  if (auto ast = clang::dyn_cast<clang::CXXDestructorDecl>(decl))
-    return ASTCXXDestructorDeclAttr::get(ctx, ast);
-  if (auto ast = clang::dyn_cast<clang::CXXMethodDecl>(decl))
-    return ASTCXXMethodDeclAttr::get(ctx, ast);
-  if (auto ast = clang::dyn_cast<clang::FunctionDecl>(decl))
-    return ASTFunctionDeclAttr::get(ctx, ast);
-  if (auto ast =
-          clang::dyn_cast<clang::ClassTemplatePartialSpecializationDecl>(decl))
-    return ASTClassTemplatePartialSpecializationDeclAttr::get(ctx, ast);
-  if (auto ast = clang::dyn_cast<clang::ClassTemplateSpecializationDecl>(decl))
-    return ASTClassTemplateSpecializationDeclAttr::get(ctx, ast);
-  if (auto ast = clang::dyn_cast<clang::CXXRecordDecl>(decl))
-    return ASTCXXRecordDeclAttr::get(ctx, ast);
-  if (auto ast = clang::dyn_cast<clang::RecordDecl>(decl))
-    return ASTRecordDeclAttr::get(ctx, ast);
-  if (auto ast = clang::dyn_cast<clang::EnumDecl>(decl))
-    return ASTEnumDeclAttr::get(ctx, ast);
-  if (auto ast = clang::dyn_cast<clang::TagDecl>(decl))
-    return ASTTagDeclAttr::get(ctx, ast);
-  if (auto ast = clang::dyn_cast<clang::TypeDecl>(decl))
-    return ASTTypeDeclAttr::get(ctx, ast);
-  if (auto ast = clang::dyn_cast<clang::VarDecl>(decl))
-    return ASTVarDeclAttr::get(ctx, ast);
-  return ASTDeclAttr::get(ctx, decl);
-};
-
 mlir::Attribute makeFuncDeclAttr(const clang::Decl *decl,
                                  mlir::MLIRContext *ctx) {
   return llvm::TypeSwitch<const clang::Decl *, mlir::Attribute>(decl)

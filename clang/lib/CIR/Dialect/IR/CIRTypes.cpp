@@ -156,7 +156,7 @@ Type StructType::parse(mlir::AsmParser &parser) {
     return {};
 
   return StructType::get(parser.getContext(), members, id, body, packed, kind,
-                         mlir::Attribute());
+                         std::nullopt);
 }
 
 void StructType::print(mlir::AsmPrinter &printer) const {
@@ -187,9 +187,9 @@ void StructType::print(mlir::AsmPrinter &printer) const {
     printer << "}";
   }
 
-  if (getAst()) {
+  if (getAst().has_value()) {
     printer << " ";
-    printer.printAttribute(getAst());
+    printer.printAttribute(getAst().value());
   }
 
   printer << '>';

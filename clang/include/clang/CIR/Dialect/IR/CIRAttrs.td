@@ -444,23 +444,8 @@ def ASTTypeDeclAttr: ASTDecl<"TypeDecl", "type.decl",
 def ASTTagDeclAttr : ASTDecl<"TagDecl", "tag.decl",
   [ASTTagDeclInterface]>;
 
-def ASTEnumDeclAttr : ASTDecl<"EnumDecl", "enum.decl",
-  [ASTEnumDeclInterface]>;
-
 def ASTRecordDeclAttr : ASTDecl<"RecordDecl", "record.decl",
   [ASTRecordDeclInterface]>;
-
-def ASTCXXRecordDeclAttr : ASTDecl<"CXXRecordDecl", "cxxrecord.decl",
-  [ASTCXXRecordDeclInterface]>;
-
-def ASTClassTemplateSpecializationDeclAttr :
-  ASTDecl<"ClassTemplateSpecializationDecl", "class.template.spec.decl",
-    [ASTClassTemplateSpecializationDeclInterface]>;
-
-def ASTClassTemplatePartialSpecializationDeclAttr :
-  ASTDecl<"ClassTemplatePartialSpecializationDecl",
-    "class.template.partial.spec.decl",
-    [ASTClassTemplatePartialSpecializationDeclInterface]>;
 
 //===----------------------------------------------------------------------===//
 // ExtraFuncAttr

@@ -112,7 +112,7 @@ def CIR_StructType : CIR_Type<"Struct", "struct",
     "bool":$body,
     "bool":$packed,
     "mlir::cir::StructType::RecordKind":$kind,
-    OptionalParameter<"Attribute">:$ast
+    OptionalParameter<"std::optional<ASTRecordDeclInterface>">:$ast
   );
 
   let hasCustomAssemblyFormat = 1;
@@ -164,7 +164,7 @@ def CIR_StructType : CIR_Type<"Struct", "struct",
 
   let extraClassDefinition = [{
     void $cppClass::dropAst() {
-      getImpl()->ast = Attribute();
+      getImpl()->ast = std::nullopt;
     }
   }];
 }

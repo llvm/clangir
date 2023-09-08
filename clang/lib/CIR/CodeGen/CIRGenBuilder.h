@@ -171,7 +171,7 @@ public:
       structTy = getType<mlir::cir::StructType>(
           members, mlir::StringAttr::get(getContext()),
           /*body=*/true, packed, mlir::cir::StructType::Struct,
-          /*ast=*/mlir::Attribute());
+          /*ast=*/std::nullopt);
 
     // Return zero or anonymous constant struct.
     if (isZero)
@@ -413,23 +413,16 @@ public:
   /// Get a CIR named struct type.
   mlir::cir::StructType getStructTy(llvm::ArrayRef<mlir::Type> members,
                                     llvm::StringRef name, bool body,
-                                    bool packed, mlir::Attribute ast) {
-    const auto nameAttr = getStringAttr(name);
-    auto kind = mlir::cir::StructType::RecordKind::Struct;
-    if (ast)
-      if (auto tagDecl = mlir::dyn_cast<mlir::cir::ASTTagDeclInterface>(ast))
-        kind = getRecordKind(tagDecl.getTagKind());
-    return mlir::cir::StructType::get(getContext(), members, nameAttr, body,
-                                      packed, kind, ast);
-  }
-
-  mlir::cir::StructType getStructTy(llvm::ArrayRef<mlir::Type> members,
-                                    llvm::StringRef name, bool body,
                                     bool packed, const clang::RecordDecl *ast) {
-    mlir::Attribute astAttr;
-    if (ast)
-      astAttr = mlir::cir::makeAstDeclAttr(ast, getContext());
-    return getStructTy(members, name, body, packed, astAttr);
+    const auto nameAttr = getStringAttr(name);
+    std::optional<mlir::cir::ASTRecordDeclAttr> astAttr = std::nullopt;
+    auto kind = mlir::cir::StructType::RecordKind::Struct;
+    if (ast) {
+      astAttr = getAttr<mlir::cir::ASTRecordDeclAttr>(ast);
+      kind = getRecordKind(ast->getTagKind());
+    }
+    return mlir::cir::StructType::get(getContext(), members, nameAttr, body,
+                                      packed, kind, astAttr);
   }
 
   //
