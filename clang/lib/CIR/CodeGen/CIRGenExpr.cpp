@@ -1516,7 +1516,7 @@ LValue CIRGenFunction::buildArraySubscriptExpr(const ArraySubscriptExpr *E,
 }
 
 LValue CIRGenFunction::buildStringLiteralLValue(const StringLiteral *E) {
-  auto sym = CGM.getAddrOfConstantStringFromLiteral(E);
+  auto sym = CGM.getAddrOfConstantStringFromLiteral(E).getSymbol();
 
   auto cstGlobal = mlir::SymbolTable::lookupSymbolIn(CGM.getModule(), sym);
   assert(cstGlobal && "Expected global");
@@ -2409,9 +2409,8 @@ mlir::Value CIRGenFunction::buildLoadOfScalar(LValue lvalue,
 }
 
 mlir::Value CIRGenFunction::buildFromMemory(mlir::Value Value, QualType Ty) {
-  // Bool has a different representation in memory than in registers.
   if (!Ty->isBooleanType() && hasBooleanRepresentation(Ty)) {
-    llvm_unreachable("NYI");
+    llvm_unreachable("NIY");
   }
 
   return Value;

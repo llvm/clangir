@@ -1849,6 +1849,109 @@ def AwaitOp : CIR_Op<"await",
 }
 
 //===----------------------------------------------------------------------===//
+// TryOp
+//===----------------------------------------------------------------------===//
+
+def TryOp : CIR_Op<"try",
+       [DeclareOpInterfaceMethods<RegionBranchOpInterface>,
+        RecursivelySpeculatable, NoRegionArguments]> {
+  let summary = "";
+  let description = [{
+    ```mlir
+    cir.scope  {
+      // Selector and exception control related allocas
+      // C++ `try {}` local variable declarations
+      %except_info = cir.try {
+        %res0, %exh = cir.call @return_something()
+        %if %exh
+          cir.yield %exh
+
+        %exh2 = cir.call @return_void()
+        %if %exh2
+          cir.yield %exh
+        cir.yield #zero : !except_type
+      }
+      ...
+      cir.br ^cleanup
+      ^cleanup:
+        // Run dtors
+        ...
+        // Catch based %except_info
+        cir.catch(%except_info, [
+          /*catch A*/ {},
+          /*catch B*/ {},
+          ...
+          all {}
+        ])
+      cir.yield
+    }
+    ```
+
+    Note that variables declared inside a `try {}` in C++ will
+    have their allocas places in the surrounding scope.
+  }];
+
+  let regions = (region SizedRegion<1>:$body);
+  // FIXME: should be exception type.
+  let results = (outs AnyType:$result);
+
+  let assemblyFormat = [{
+    `{`
+      $body
+    `}` `:` functional-type(operands, results) attr-dict
+  }];
+
+  // Everything already covered elswhere.
+  let hasVerifier = 0;
+}
+
+//===----------------------------------------------------------------------===//
+// CatchOp
+//===----------------------------------------------------------------------===//
+
+def CatchEntryAttr : AttrDef<CIR_Dialect, "CatchEntry"> {
+  let parameters = (ins "mlir::Type":$exception_type,
+                        "Attribute":$exception_type_info);
+  let mnemonic = "type";
+  let assemblyFormat = "`<` struct(params) `>`";
+}
+
+def CatchArrayAttr :
+  TypedArrayAttrBase<CatchEntryAttr, "cir.catch entry array attribute"> {
+  let constBuilderCall = ?;
+}
+
+def CatchOp : CIR_Op<"catch",
+      [SameVariadicOperandSize,
+       DeclareOpInterfaceMethods<RegionBranchOpInterface>,
+       RecursivelySpeculatable, NoRegionArguments]> {
+  let summary = "Catch operation";
+  let description = [{
+  }];
+
+  let arguments = (ins AnyType:$exception_info,
+                       OptionalAttr<CatchArrayAttr>:$catchers);
+  let regions = (region VariadicRegion<AnyRegion>:$regions);
+
+  // Already verified elsewhere
+  let hasVerifier = 0;
+
+  let skipDefaultBuilders = 1;
+  let builders = [
+    OpBuilder<(ins
+      "function_ref<void(OpBuilder &, Location, OperationState &)>"
+      :$catchBuilder)>
+  ];
+
+  let assemblyFormat = [{
+    `(`
+      $exception_info `:` type($exception_info) `,`
+      custom<CatchOp>($regions, $catchers)
+    `)` attr-dict
+  }];
+}
+
+//===----------------------------------------------------------------------===//
 // CopyOp
 //===----------------------------------------------------------------------===//
 

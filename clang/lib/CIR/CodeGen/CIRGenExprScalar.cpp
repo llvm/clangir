@@ -213,7 +213,7 @@ public:
   mlir::Value buildLoadOfLValue(const Expr *E) {
     LValue LV = CGF.buildLValue(E);
     // FIXME: add some akin to EmitLValueAlignmentAssumption(E, V);
-    return CGF.buildLoadOfLValue(LV, E->getExprLoc()).getScalarVal();
+    return CGF.buildLoadOfLValue(LV, E->getExprLoc()).getScalarVal();    
   }
 
   mlir::Value buildLoadOfLValue(LValue LV, SourceLocation Loc) {
