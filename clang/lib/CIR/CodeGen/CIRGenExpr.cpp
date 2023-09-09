@@ -657,7 +657,7 @@ void CIRGenFunction::buildStoreThroughLValue(RValue Src, LValue Dst) {
 }
 
 void CIRGenFunction::buildStoreThroughBitfieldLValue(RValue Src, LValue Dst,
-                                                     mlir::Value *Result) {
+                                                     mlir::Value &Result) {
   const CIRGenBitFieldInfo &Info = Dst.getBitFieldInfo();
   mlir::Type ResLTy = getTypes().convertTypeForMem(Dst.getType());
   Address Ptr = Dst.getBitFieldAddress();
@@ -713,24 +713,22 @@ void CIRGenFunction::buildStoreThroughBitfieldLValue(RValue Src, LValue Dst,
   buildStoreOfScalar(SrcVal, Ptr, Dst.isVolatileQualified(), Dst.getType(),
                      Dst.getBaseInfo(), false, false);
 
-  // Return the new value of the bit-field, if requested.
-  if (Result) {
-    mlir::Value ResultVal = MaskedVal;
-    ResultVal = builder.createIntCast(ResultVal, ResLTy);
+  // Return the new value of the bit-field.
+  mlir::Value ResultVal = MaskedVal;
+  ResultVal = builder.createIntCast(ResultVal, ResLTy);
 
-    // Sign extend the value if needed.
-    if (Info.IsSigned) {
-      assert(Info.Size <= StorageSize);
-      unsigned HighBits = StorageSize - Info.Size;
+  // Sign extend the value if needed.
+  if (Info.IsSigned) {
+    assert(Info.Size <= StorageSize);
+    unsigned HighBits = StorageSize - Info.Size;
 
-      if (HighBits) {
-        ResultVal = builder.createShiftLeft(ResultVal, HighBits);
-        ResultVal = builder.createShiftRight(ResultVal, HighBits);
-      }
+    if (HighBits) {
+      ResultVal = builder.createShiftLeft(ResultVal, HighBits);
+      ResultVal = builder.createShiftRight(ResultVal, HighBits);
     }
-
-    *Result = buildFromMemory(ResultVal, Dst.getType());
   }
+
+  Result = buildFromMemory(ResultVal, Dst.getType());  
 }
 
 static LValue buildGlobalVarDeclLValue(CIRGenFunction &CGF, const Expr *E,
@@ -957,8 +955,8 @@ LValue CIRGenFunction::buildBinaryOperatorLValue(const BinaryOperator *E) {
 
     SourceLocRAIIObject Loc{*this, getLoc(E->getSourceRange())};
     if (LV.isBitField()) {
-      mlir::Value *val{0};
-      buildStoreThroughBitfieldLValue(RV, LV, val);
+      mlir::Value result;
+      buildStoreThroughBitfieldLValue(RV, LV, result);
     } else {
       buildStoreThroughLValue(RV, LV);
     }

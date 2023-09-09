@@ -1245,7 +1245,7 @@ public:
   void buildStoreThroughLValue(RValue Src, LValue Dst);
 
   void buildStoreThroughBitfieldLValue(RValue Src, LValue Dst,
-                                       mlir::Value *Result);
+                                       mlir::Value &Result);
 
   mlir::cir::BrOp buildBranchThroughCleanup(mlir::Location Loc, JumpDest Dest);
 

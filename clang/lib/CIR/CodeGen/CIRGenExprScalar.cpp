@@ -1861,7 +1861,7 @@ mlir::Value ScalarExprEmitter::VisitBinAssign(const BinaryOperator *E) {
     // 'An assignment expression has the value of the left operand after the
     // assignment...'.
     if (LHS.isBitField()) {
-      CGF.buildStoreThroughBitfieldLValue(RValue::get(RHS), LHS, &RHS);
+      CGF.buildStoreThroughBitfieldLValue(RValue::get(RHS), LHS, RHS);
     } else {
       CGF.buildNullabilityCheck(LHS, RHS, E->getExprLoc());
       CIRGenFunction::SourceLocRAIIObject loc{CGF,
