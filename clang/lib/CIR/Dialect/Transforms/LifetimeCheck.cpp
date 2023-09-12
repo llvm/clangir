@@ -12,6 +12,7 @@
 #include "clang/AST/Attr.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclTemplate.h"
+#include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/Passes.h"
 
@@ -1172,7 +1173,7 @@ void LifetimeCheckPass::updatePointsToForConstStruct(
     auto fieldAddr = aggregates[addr][memberIdx];
     // Unseen fields are not tracked.
     if (fieldAddr && ta.getType().isa<mlir::cir::PointerType>()) {
-      assert(ta.isa<mlir::cir::NullAttr>() &&
+      assert(ta.isa<mlir::cir::ConstPtrAttr>() &&
              "other than null not implemented");
       markPsetNull(fieldAddr, loc);
     }
