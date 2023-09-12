@@ -133,9 +133,9 @@ public:
     return mlir::cir::BoolAttr::get(getContext(), getBoolTy(), state);
   }
 
-  mlir::TypedAttr getNullPtrAttr(mlir::Type t) {
+  mlir::TypedAttr getConstPtrAttr(mlir::Type t, uint64_t v) {
     assert(mlir::isa<mlir::cir::PointerType>(t) && "expected cir.ptr");
-    return mlir::cir::NullAttr::get(getContext(), t);
+    return mlir::cir::ConstPtrAttr::get(getContext(), t, v);
   }
 
   mlir::cir::ConstArrayAttr getString(llvm::StringRef str, mlir::Type eltTy,
@@ -211,7 +211,7 @@ public:
     if (auto arrTy = mlir::dyn_cast<mlir::cir::ArrayType>(ty))
       return getZeroAttr(arrTy);
     if (auto ptrTy = mlir::dyn_cast<mlir::cir::PointerType>(ty))
-      return getNullPtrAttr(ptrTy);
+      return getConstPtrAttr(ptrTy, 0);
     if (auto structTy = mlir::dyn_cast<mlir::cir::StructType>(ty))
       return getZeroAttr(structTy);
     llvm_unreachable("Zero initializer for given type is NYI");
@@ -220,8 +220,10 @@ public:
   // TODO(cir): Once we have CIR float types, replace this by something like a
   // NullableValueInterface to allow for type-independent queries.
   bool isNullValue(mlir::Attribute attr) const {
-    if (mlir::isa<mlir::cir::ZeroAttr, mlir::cir::NullAttr>(attr))
+    if (mlir::isa<mlir::cir::ZeroAttr>(attr))
       return true;
+    if (const auto ptrVal = mlir::dyn_cast<mlir::cir::ConstPtrAttr>(attr))
+      return ptrVal.isNullValue();
 
     if (mlir::isa<mlir::cir::GlobalViewAttr>(attr))
       return false;
@@ -471,7 +473,7 @@ public:
 
   // Creates constant nullptr for pointer type ty.
   mlir::cir::ConstantOp getNullPtr(mlir::Type ty, mlir::Location loc) {
-    return create<mlir::cir::ConstantOp>(loc, ty, getNullPtrAttr(ty));
+    return create<mlir::cir::ConstantOp>(loc, ty, getConstPtrAttr(ty, 0));
   }
 
   // Creates constant null value for integral type ty.
@@ -728,5 +730,4 @@ public:
 };
 
 } // namespace cir
-
 #endif

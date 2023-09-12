@@ -93,14 +93,21 @@ lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::cir::IntAttr intAttr,
       loc, converter->convertType(intAttr.getType()), intAttr.getValue());
 }
 
-/// NullAttr visitor.
+/// ConstPtrAttr visitor.
 inline mlir::Value
-lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::cir::NullAttr nullAttr,
+lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::cir::ConstPtrAttr ptrAttr,
                     mlir::ConversionPatternRewriter &rewriter,
                     const mlir::TypeConverter *converter) {
   auto loc = parentOp->getLoc();
-  return rewriter.create<mlir::LLVM::ZeroOp>(
-      loc, converter->convertType(nullAttr.getType()));
+  if (ptrAttr.isNullValue()) {
+    return rewriter.create<mlir::LLVM::ZeroOp>(
+        loc, converter->convertType(ptrAttr.getType()));
+  } else {
+    mlir::Value ptrVal = rewriter.create<mlir::LLVM::ConstantOp>(
+        loc, rewriter.getI64Type(), ptrAttr.getValue());
+    return rewriter.create<mlir::LLVM::IntToPtrOp>(
+        loc, converter->convertType(ptrAttr.getType()), ptrVal);
+  }
 }
 
 /// FloatAttr visitor.
@@ -215,8 +222,8 @@ lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::Attribute attr,
     return lowerCirAttrAsValue(parentOp, intAttr, rewriter, converter);
   if (const auto fltAttr = mlir::dyn_cast<mlir::FloatAttr>(attr))
     return lowerCirAttrAsValue(parentOp, fltAttr, rewriter, converter);
-  if (const auto nullAttr = mlir::dyn_cast<mlir::cir::NullAttr>(attr))
-    return lowerCirAttrAsValue(parentOp, nullAttr, rewriter, converter);
+  if (const auto ptrAttr = mlir::dyn_cast<mlir::cir::ConstPtrAttr>(attr))
+    return lowerCirAttrAsValue(parentOp, ptrAttr, rewriter, converter);
   if (const auto constStruct = mlir::dyn_cast<mlir::cir::ConstStructAttr>(attr))
     return lowerCirAttrAsValue(parentOp, constStruct, rewriter, converter);
   if (const auto constArr = mlir::dyn_cast<mlir::cir::ConstArrayAttr>(attr))
@@ -622,7 +629,8 @@ public:
     case mlir::cir::CastKind::ptr_to_bool: {
       auto null = rewriter.create<mlir::cir::ConstantOp>(
           src.getLoc(), castOp.getSrc().getType(),
-          mlir::cir::NullAttr::get(castOp.getSrc().getType()));
+          mlir::cir::ConstPtrAttr::get(getContext(), castOp.getSrc().getType(),
+                                       0));
       rewriter.replaceOpWithNewOp<mlir::cir::CmpOp>(
           castOp, mlir::cir::BoolType::get(getContext()),
           mlir::cir::CmpOpKind::ne, castOp.getSrc(), null);
@@ -967,10 +975,12 @@ public:
       attr = op.getValue();
     } else if (mlir::isa<mlir::cir::PointerType>(op.getType())) {
       // Optimize with dedicated LLVM op for null pointers.
-      if (mlir::isa<mlir::cir::NullAttr>(op.getValue())) {
-        rewriter.replaceOpWithNewOp<mlir::LLVM::ZeroOp>(
-            op, typeConverter->convertType(op.getType()));
-        return mlir::success();
+      if (mlir::isa<mlir::cir::ConstPtrAttr>(op.getValue())) {
+        if (mlir::cast<mlir::cir::ConstPtrAttr>(op.getValue()).isNullValue()) {
+          rewriter.replaceOpWithNewOp<mlir::LLVM::ZeroOp>(
+              op, typeConverter->convertType(op.getType()));
+          return mlir::success();
+        }
       }
       attr = op.getValue();
     }
@@ -1352,7 +1362,8 @@ public:
     // Initializer is a constant integer: convert to MLIR builtin constant.
     else if (auto intAttr = mlir::dyn_cast<mlir::cir::IntAttr>(init.value())) {
       init = rewriter.getIntegerAttr(llvmType, intAttr.getValue());
-    } else if (mlir::isa<mlir::cir::ZeroAttr, mlir::cir::NullAttr>(init.value())) {
+    } else if (mlir::isa<mlir::cir::ZeroAttr, mlir::cir::ConstPtrAttr>(
+                   init.value())) {
       // TODO(cir): once LLVM's dialect has a proper zeroinitializer attribute
       // this should be updated. For now, we use a custom op to initialize
       // globals to zero.

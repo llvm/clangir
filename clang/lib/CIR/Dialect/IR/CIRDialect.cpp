@@ -166,7 +166,7 @@ void AllocaOp::build(::mlir::OpBuilder &odsBuilder,
 
 static LogicalResult checkConstantTypes(mlir::Operation *op, mlir::Type opType,
                                         mlir::Attribute attrType) {
-  if (mlir::isa<NullAttr>(attrType)) {
+  if (mlir::isa<ConstPtrAttr>(attrType)) {
     if (mlir::isa<::mlir::cir::PointerType>(opType))
       return success();
     return op->emitOpError("nullptr expects pointer type");
@@ -2432,7 +2432,7 @@ VTableAttr::verify(::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
   if (auto arrayElts = mlir::dyn_cast<ArrayAttr>(constArrayAttr.getElts())) {
     arrayElts.walkImmediateSubElements(
         [&](Attribute attr) {
-          if (mlir::isa<GlobalViewAttr>(attr) || mlir::isa<NullAttr>(attr))
+          if (mlir::isa<GlobalViewAttr>(attr) || mlir::isa<ConstPtrAttr>(attr))
             return;
           emitError() << "expected GlobalViewAttr attribute";
           eltTypeCheck = failure();
