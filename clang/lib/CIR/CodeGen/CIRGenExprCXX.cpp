@@ -358,8 +358,8 @@ void CIRGenFunction::buildCXXConstructExpr(const CXXConstructExpr *E,
     llvm_unreachable("NYI");
     break;
   case CXXConstructExpr::CK_VirtualBase:
-    llvm_unreachable("NYI");
-    break;
+    ForVirtualBase = true;
+    [[fallthrough]];
   case CXXConstructExpr::CK_NonVirtualBase:
     Type = Ctor_Base;
     break;
