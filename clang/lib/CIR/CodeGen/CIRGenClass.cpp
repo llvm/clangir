@@ -39,9 +39,8 @@ bool CIRGenFunction::IsConstructorDelegationValid(
   //   };
   // ...although even this example could in principle be emitted as a delegation
   // since the address of the parameter doesn't escape.
-  if (Ctor->getParent()->getNumVBases()) {
-    llvm_unreachable("NYI");
-  }
+  if (Ctor->getParent()->getNumVBases())
+    return false;
 
   // We also disable the optimization for variadic functions because it's
   // impossible to "re-pass" varargs.
@@ -235,7 +234,7 @@ static void buildMemberInitializer(CIRGenFunction &CGF,
   if (CGF.CurGD.getCtorType() == Ctor_Base)
     LHS = CGF.MakeNaturalAlignPointeeAddrLValue(ThisPtr, RecordTy);
   else
-    llvm_unreachable("NYI");
+    LHS = CGF.MakeNaturalAlignAddrLValue(ThisPtr, RecordTy);
 
   buildLValueForAnyFieldInitialization(CGF, MemberInit, LHS);
 
@@ -523,9 +522,10 @@ Address CIRGenFunction::getAddressOfDirectBaseInCompleteClass(
   // TODO: for complete types, this should be possible with a GEP.
   Address V = This;
   if (!Offset.isZero()) {
-    // TODO(cir): probably create a new operation to account for
-    // down casting when the offset isn't zero.
-    llvm_unreachable("NYI");
+    mlir::Value OffsetVal = builder.getSInt32(Offset.getQuantity(), loc);
+    mlir::Value VBaseThisPtr = builder.create<mlir::cir::PtrStrideOp>(
+        loc, This.getPointer().getType(), This.getPointer(), OffsetVal);
+    V = Address(VBaseThisPtr, CXXABIThisAlignment);
   }
   V = builder.createElementBitCast(loc, V, ConvertType(Base));
   return V;
@@ -604,7 +604,11 @@ void CIRGenFunction::buildCtorPrologue(const CXXConstructorDecl *CD,
   for (; B != E && (*B)->isBaseInitializer() && (*B)->isBaseVirtual(); B++) {
     if (!ConstructVBases)
       continue;
-    llvm_unreachable("NYI");
+    if (CGM.getCodeGenOpts().StrictVTablePointers &&
+        CGM.getCodeGenOpts().OptimizationLevel > 0 &&
+        isInitializerOfDynamicClass(*B))
+      llvm_unreachable("NYI");
+    buildBaseInitializer(getLoc(CD->getBeginLoc()), *this, ClassDecl, *B);
   }
 
   if (BaseCtorContinueBB) {
@@ -698,7 +702,7 @@ void CIRGenFunction::initializeVTablePointers(mlir::Location loc,
       initializeVTablePointer(loc, Vptr);
 
   if (RD->getNumVBases())
-    llvm_unreachable("NYI");
+    CGM.getCXXABI().initializeHiddenVirtualInheritanceMembers(*this, RD);
 }
 
 CIRGenFunction::VPtrsVector
