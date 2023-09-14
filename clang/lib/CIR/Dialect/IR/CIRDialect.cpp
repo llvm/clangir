@@ -166,7 +166,7 @@ void AllocaOp::build(::mlir::OpBuilder &odsBuilder,
 
 static LogicalResult checkConstantTypes(mlir::Operation *op, mlir::Type opType,
                                         mlir::Attribute attrType) {
-  if (attrType.isa<NullAttr>()) {
+  if (attrType.isa<ConstPtrAttr>()) {
     if (opType.isa<::mlir::cir::PointerType>())
       return success();
     return op->emitOpError("nullptr expects pointer type");
@@ -2406,7 +2406,7 @@ VTableAttr::verify(::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
   if (auto arrayElts = constArrayAttr.getElts().dyn_cast<ArrayAttr>()) {
     arrayElts.walkImmediateSubElements(
         [&](Attribute attr) {
-          if (attr.isa<GlobalViewAttr>() || attr.isa<NullAttr>())
+          if (attr.isa<GlobalViewAttr>() || attr.isa<ConstPtrAttr>())
             return;
           emitError() << "expected GlobalViewAttr attribute";
           eltTypeCheck = failure();
@@ -2461,12 +2461,17 @@ LogicalResult GetMemberOp::verify() {
   if (!recordTy)
     return emitError() << "expected pointer to a record type";
 
+  // FIXME: currently we bypass typechecking of incomplete types due to errors
+  // in the codegen process. This should be removed once the codegen is fixed.
+  if (!recordTy.getBody())
+    return mlir::success();
+
   if (recordTy.getMembers().size() <= getIndex())
     return emitError() << "member index out of bounds";
 
-  // FIXME(cir): Member type check is disabled for classes and incomplete types
-  // as the codegen for these still need to be patched.
-  if (!recordTy.isClass() && !recordTy.getBody() &&
+  // FIXME(cir): member type check is disabled for classes as the codegen for
+  // these still need to be patched.
+  if (!recordTy.isClass() &&
       recordTy.getMembers()[getIndex()] != getResultTy().getPointee())
     return emitError() << "member type mismatch";
 

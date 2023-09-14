@@ -5,7 +5,7 @@
 
 // expected-error@+2 {{'cir.const' op nullptr expects pointer type}}
 cir.func @p0() {
-  %1 = cir.const(#cir.null : !cir.ptr<!u32i>) : !u32i
+  %1 = cir.const(#cir.ptr<null> : !cir.ptr<!u32i>) : !u32i
   cir.return
 }
 
@@ -520,5 +520,31 @@ module {
     %13 = cir.cast(array_to_ptrdecay, %12 : !cir.ptr<!cir.array<!u8i x 28>>), !cir.ptr<!u8i>
     cir.store %13, %11 : !cir.ptr<!u8i>, cir.ptr <!cir.ptr<!u8i>>
     cir.throw(%11 : !cir.ptr<!cir.ptr<!u8i>>) // expected-error {{'type_info' symbol attribute missing}}
+  }
+}
+
+// -----
+
+!u16i = !cir.int<u, 16>
+!u32i = !cir.int<u, 32>
+!struct = !cir.struct<struct "Struct" {!u16i, !u32i}>
+module {
+  cir.func @memeber_index_out_of_bounds(%arg0 : !cir.ptr<!struct>) {
+    // expected-error@+1 {{member index out of bounds}}
+    %0 = cir.get_member %arg0[2] {name = "test"} : !cir.ptr<!struct> -> !cir.ptr<!u32i>
+    cir.return
+  }
+}
+
+// -----
+
+!u16i = !cir.int<u, 16>
+!u32i = !cir.int<u, 32>
+!struct = !cir.struct<struct "Struct" {!u16i, !u32i}>
+module {
+  cir.func @memeber_type_mismatch(%arg0 : !cir.ptr<!struct>) {
+    // expected-error@+1 {{member type mismatch}}
+    %0 = cir.get_member %arg0[0] {name = "test"} : !cir.ptr<!struct> -> !cir.ptr<!u32i>
+    cir.return
   }
 }
