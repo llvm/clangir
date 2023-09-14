@@ -15,6 +15,7 @@
 #define LLVM_CLANG_LIB_CIR_CIRGENVALUE_H
 
 #include "Address.h"
+#include "CIRGenRecordLayout.h"
 
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/CharUnits.h"
@@ -211,6 +212,7 @@ private:
   mlir::Value V;
   mlir::Type ElementType;
   LValueBaseInfo BaseInfo;
+  const CIRGenBitFieldInfo *BitFieldInfo{0};
 
 public:
   bool isSimple() const { return LVType == Simple; }
@@ -302,6 +304,38 @@ public:
 
   const clang::Qualifiers &getQuals() const { return Quals; }
   clang::Qualifiers &getQuals() { return Quals; }
+
+  // bitfield lvalue
+  Address getBitFieldAddress() const {
+    return Address(getBitFieldPointer(), ElementType, getAlignment());
+  }
+
+  mlir::Value getBitFieldPointer() const {
+    assert(isBitField());
+    return V;
+  }
+
+  const CIRGenBitFieldInfo &getBitFieldInfo() const {
+    assert(isBitField());
+    return *BitFieldInfo;
+  }
+
+  /// Create a new object to represent a bit-field access.
+  ///
+  /// \param Addr - The base address of the bit-field sequence this
+  /// bit-field refers to.
+  /// \param Info - The information describing how to perform the bit-field
+  /// access.
+  static LValue MakeBitfield(Address Addr, const CIRGenBitFieldInfo &Info,
+                             clang::QualType type, LValueBaseInfo BaseInfo) {
+    LValue R;
+    R.LVType = BitField;
+    R.V = Addr.getPointer();
+    R.ElementType = Addr.getElementType();
+    R.BitFieldInfo = &Info;
+    R.Initialize(type, type.getQualifiers(), Addr.getAlignment(), BaseInfo);
+    return R;
+  }
 };
 
 /// An aggregate value slot.
