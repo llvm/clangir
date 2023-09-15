@@ -1553,8 +1553,9 @@ public:
            "Invalid argument to GetAddrOfLocalVar(), no decl!");
     return it->second;
   }
-
-  Address getAddrOfField(LValue base, const clang::FieldDecl *field, unsigned index);
+  
+  Address getAddrOfBitFieldStorage(LValue base, const clang::FieldDecl *field,
+                                   unsigned index, unsigned size);
 
   /// Given an opaque value expression, return its LValue mapping if it exists,
   /// otherwise create one.

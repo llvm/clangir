@@ -46,18 +46,17 @@ void store_field() {
 // CHECK:  [[TMP0:%.*]] = cir.alloca !ty_22S22, cir.ptr <!ty_22S22>
 // CHECK:  [[TMP1:%.*]]  = cir.const(#cir.int<1> : !s32i) : !s32i 
 // CHECK:  [[TMP2:%.*]]  = cir.unary(minus, [[TMP1]]) : !s32i, !s32i 
-// CHECK:  [[TMP3:%.*]]  = cir.get_member [[TMP0]][1] {name = "d"} : !cir.ptr<!ty_22S22> -> !cir.ptr<!s32i> 
-// CHECK:  [[TMP4:%.*]]  = cir.cast(bitcast, [[TMP3]] : !cir.ptr<!s32i>), !cir.ptr<!u32i> 
-// CHECK:  [[TMP5:%.*]]  = cir.cast(integral, [[TMP2]] : !s32i), !u32i
-// CHECK:  [[TMP6:%.*]]  = cir.load [[TMP4]] : cir.ptr <!u32i>, !u32i 
-// CHECK:  [[TMP7:%.*]]  = cir.const(#cir.int<3> : !u32i) : !u32i
-// CHECK:  [[TMP8:%.*]]  = cir.binop(and, [[TMP5]], [[TMP7]]) : !u32i 
-// CHECK:  [[TMP9:%.*]]  = cir.const(#cir.int<17> : !u32i) : !u32i 
-// CHECK:  [[TMP10:%.*]] = cir.shift(left, [[TMP8]] : !u32i, [[TMP9]] : !u32i) -> !u32i 
-// CHECK:  [[TMP11:%.*]] = cir.const(#cir.int<4294574079> : !u32i) : !u32i 
-// CHECK:  [[TMP12:%.*]] = cir.binop(and, [[TMP6]], [[TMP11]]) : !u32i 
-// CHECK:  [[TMP13:%.*]] = cir.binop(or, [[TMP12]], [[TMP10]]) : !u32i 
-// CHECK:  cir.store [[TMP13]], [[TMP4]] : !u32i, cir.ptr <!u32i> 
+// CHECK:  [[TMP3:%.*]]  = cir.get_member [[TMP0]][1] {name = "d"} : !cir.ptr<!ty_22S22> -> !cir.ptr<!u32i> 
+// CHECK:  [[TMP4:%.*]]  = cir.cast(integral, [[TMP2]] : !s32i), !u32i
+// CHECK:  [[TMP5:%.*]]  = cir.load [[TMP3]] : cir.ptr <!u32i>, !u32i 
+// CHECK:  [[TMP6:%.*]]  = cir.const(#cir.int<3> : !u32i) : !u32i
+// CHECK:  [[TMP7:%.*]]  = cir.binop(and, [[TMP4]], [[TMP6]]) : !u32i 
+// CHECK:  [[TMP8:%.*]]  = cir.const(#cir.int<17> : !u32i) : !u32i 
+// CHECK:  [[TMP9:%.*]] = cir.shift(left, [[TMP7]] : !u32i, [[TMP8]] : !u32i) -> !u32i 
+// CHECK:  [[TMP10:%.*]] = cir.const(#cir.int<4294574079> : !u32i) : !u32i 
+// CHECK:  [[TMP11:%.*]] = cir.binop(and, [[TMP5]], [[TMP10]]) : !u32i 
+// CHECK:  [[TMP12:%.*]] = cir.binop(or, [[TMP11]], [[TMP9]]) : !u32i 
+// CHECK:  cir.store [[TMP12]], [[TMP3]] : !u32i, cir.ptr <!u32i> 
 void store_neg_field() {
   S s;
   s.d = -1;
@@ -65,18 +64,18 @@ void store_neg_field() {
 
 // CHECK: cir.func @_Z10load_field
 // CHECK:   [[TMP0:%.*]] = cir.alloca !cir.ptr<!ty_22S22>, cir.ptr <!cir.ptr<!ty_22S22>>
+// CHECK:   [[TMP1:%.*]] = cir.alloca !s32i, cir.ptr <!s32i>, ["__retval"] 
 // CHECK:   [[TMP2:%.*]] = cir.load [[TMP0]] : cir.ptr <!cir.ptr<!ty_22S22>>, !cir.ptr<!ty_22S22>
-// CHECK:   [[TMP3:%.*]] = cir.get_member [[TMP2]][1] {name = "d"} : !cir.ptr<!ty_22S22> -> !cir.ptr<!s32i> 
-// CHECK:   [[TMP4:%.*]] = cir.cast(bitcast, [[TMP3]] : !cir.ptr<!s32i>), !cir.ptr<!u32i> 
-// CHECK:   [[TMP5:%.*]] = cir.load [[TMP4]] : cir.ptr <!u32i>, !u32i 
-// CHECK:   [[TMP6:%.*]] = cir.cast(integral, [[TMP5]] : !u32i), !s32i 
-// CHECK:   [[TMP7:%.*]] = cir.const(#cir.int<13> : !s32i) : !s32i 
-// CHECK:   [[TMP8:%.*]] = cir.shift(left, [[TMP6]] : !s32i, [[TMP7]] : !s32i) -> !s32i 
-// CHECK:   [[TMP9:%.*]] = cir.const(#cir.int<30> : !s32i) : !s32i 
-// CHECK:   [[TMP10:%.*]] = cir.shift( right, [[TMP8]] : !s32i, [[TMP9]] : !s32i) -> !s32i 
-// CHECK:   [[TMP11:%.*]] = cir.cast(integral, [[TMP10]] : !s32i), !s32i 
-// CHECK:   cir.store [[TMP11]], [[TMP1]] : !s32i, cir.ptr <!s32i> 
-// CHECK:   [[TMP12:%.*]] = cir.load [[TMP1]] : cir.ptr <!s32i>, !s32i 
+// CHECK:   [[TMP3:%.*]] = cir.get_member [[TMP2]][1] {name = "d"} : !cir.ptr<!ty_22S22> -> !cir.ptr<!u32i> 
+// CHECK:   [[TMP4:%.*]] = cir.load [[TMP3]] : cir.ptr <!u32i>, !u32i 
+// CHECK:   [[TMP5:%.*]] = cir.cast(integral, [[TMP4]] : !u32i), !s32i 
+// CHECK:   [[TMP6:%.*]] = cir.const(#cir.int<13> : !s32i) : !s32i 
+// CHECK:   [[TMP7:%.*]] = cir.shift(left, [[TMP5]] : !s32i, [[TMP6]] : !s32i) -> !s32i 
+// CHECK:   [[TMP8:%.*]] = cir.const(#cir.int<30> : !s32i) : !s32i 
+// CHECK:   [[TMP9:%.*]] = cir.shift( right, [[TMP7]] : !s32i, [[TMP8]] : !s32i) -> !s32i 
+// CHECK:   [[TMP10:%.*]] = cir.cast(integral, [[TMP9]] : !s32i), !s32i 
+// CHECK:   cir.store [[TMP10]], [[TMP1]] : !s32i, cir.ptr <!s32i> 
+// CHECK:   [[TMP11:%.*]] = cir.load [[TMP1]] : cir.ptr <!s32i>, !s32i 
 int load_field(S& s) {
   return s.d;
 }

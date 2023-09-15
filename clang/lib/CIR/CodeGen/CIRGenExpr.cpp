@@ -216,13 +216,16 @@ static bool isAAPCS(const TargetInfo &TargetInfo) {
   return TargetInfo.getABI().startswith("aapcs");
 }
 
-Address CIRGenFunction::getAddrOfField(LValue base, const FieldDecl *field,
-                                       unsigned index) {
+Address CIRGenFunction::getAddrOfBitFieldStorage(LValue base, 
+                                                 const FieldDecl *field,
+                                                 unsigned index, 
+                                                 unsigned size) { 
   if (index == 0)
     return base.getAddress();
 
   auto loc = getLoc(field->getLocation());
-  auto fieldType = convertType(field->getType());
+  auto fieldType = builder.getUIntNTy(size);
+
   auto fieldPtr =
       mlir::cir::PointerType::get(getBuilder().getContext(), fieldType);
   auto sea = getBuilder().createGetMember(
@@ -257,9 +260,8 @@ LValue CIRGenFunction::buildLValueForBitField(LValue base,
     llvm_unreachable("NYI");
   }
 
-  Address Addr = getAddrOfField(base, field, Idx);
-
   const unsigned SS = useVolatile ? info.VolatileStorageSize : info.StorageSize;
+  Address Addr = getAddrOfBitFieldStorage(base, field, Idx, SS);
 
   // Get the access type.
   mlir::Type FieldIntTy = builder.getUIntNTy(SS);
