@@ -112,7 +112,7 @@ def CIR_StructType : CIR_Type<"Struct", "struct",
     "bool":$body,
     "bool":$packed,
     "mlir::cir::StructType::RecordKind":$kind,
-    OptionalParameter<"std::optional<ASTRecordDeclInterface>">:$ast
+    "std::optional<ASTRecordDeclInterface>":$ast
   );
 
   let hasCustomAssemblyFormat = 1;
