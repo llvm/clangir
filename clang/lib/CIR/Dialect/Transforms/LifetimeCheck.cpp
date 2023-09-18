@@ -75,13 +75,13 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
   void checkLambdaCaptureStore(StoreOp storeOp);
   void trackCallToCoroutine(CallOp callOp);
 
-  void checkCtor(CallOp callOp, const clang::CXXConstructorDecl *ctor);
-  void checkMoveAssignment(CallOp callOp, const clang::CXXMethodDecl *m);
-  void checkCopyAssignment(CallOp callOp, const clang::CXXMethodDecl *m);
+  void checkCtor(CallOp callOp, ASTCXXConstructorDeclInterface ctor);
+  void checkMoveAssignment(CallOp callOp, ASTCXXMethodDeclInterface m);
+  void checkCopyAssignment(CallOp callOp, ASTCXXMethodDeclInterface m);
   void checkNonConstUseOfOwner(mlir::Value ownerAddr, mlir::Location loc);
-  void checkOperators(CallOp callOp, const clang::CXXMethodDecl *m);
+  void checkOperators(CallOp callOp, ASTCXXMethodDeclInterface m);
   void checkOtherMethodsAndFunctions(CallOp callOp,
-                                     const clang::CXXMethodDecl *m);
+                                     ASTCXXMethodDeclInterface m);
   void checkForOwnerAndPointerArguments(CallOp callOp, unsigned firstArgIdx);
 
   // TODO: merge both methods below and pass down an enum.
@@ -103,12 +103,9 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
   std::optional<FuncOp> currFunc;
 
   // Common helpers.
-  bool isCtorInitPointerFromOwner(CallOp callOp,
-                                  const clang::CXXConstructorDecl *ctor);
-  mlir::Value getNonConstUseOfOwner(CallOp callOp,
-                                    const clang::CXXMethodDecl *m);
-  bool isOwnerOrPointerClassMethod(CallOp callOp,
-                                   const clang::CXXMethodDecl *m);
+  bool isCtorInitPointerFromOwner(CallOp callOp);
+  mlir::Value getNonConstUseOfOwner(CallOp callOp, ASTCXXMethodDeclInterface m);
+  bool isOwnerOrPointerClassMethod(CallOp callOp, ASTCXXMethodDeclInterface m);
 
   // Diagnostic helpers.
   void emitInvalidHistory(mlir::InFlightDiagnostic &D, mlir::Value histKey,
@@ -889,11 +886,7 @@ void LifetimeCheckPass::checkIf(IfOp ifOp) {
 template <class T> bool isStructAndHasAttr(mlir::Type ty) {
   if (!mlir::isa<mlir::cir::StructType>(ty))
     return false;
-  auto sTy = mlir::cast<mlir::cir::StructType>(ty);
-  const auto *recordDecl = sTy.getAst()->getAstDecl();
-  if (recordDecl->hasAttr<T>())
-    return true;
-  return false;
+  return hasAttr<T>(*mlir::cast<mlir::cir::StructType>(ty).getAst());
 }
 
 static bool isOwnerType(mlir::Type ty) {
@@ -1474,14 +1467,14 @@ static FuncOp getCalleeFromSymbol(ModuleOp mod, StringRef name) {
   return dyn_cast<FuncOp>(global);
 }
 
-static const clang::CXXMethodDecl *getMethod(ModuleOp mod, CallOp callOp) {
+static const ASTCXXMethodDeclInterface getMethod(ModuleOp mod, CallOp callOp) {
   if (!callOp.getCallee())
     return nullptr;
   StringRef name = *callOp.getCallee();
   auto method = getCalleeFromSymbol(mod, name);
   if (!method || method.getBuiltin())
     return nullptr;
-  return dyn_cast<clang::CXXMethodDecl>(method.getAstAttr().getAstDecl());
+  return dyn_cast<ASTCXXMethodDeclInterface>(method.getAstAttr());
 }
 
 mlir::Value LifetimeCheckPass::getThisParamPointerCategory(CallOp callOp) {
@@ -1509,7 +1502,7 @@ mlir::Value LifetimeCheckPass::getThisParamOwnerCategory(CallOp callOp) {
 }
 
 void LifetimeCheckPass::checkMoveAssignment(CallOp callOp,
-                                            const clang::CXXMethodDecl *m) {
+                                            ASTCXXMethodDeclInterface m) {
   // MyPointer::operator=(MyPointer&&)(%dst, %src)
   // or
   // MyOwner::operator=(MyOwner&&)(%dst, %src)
@@ -1542,7 +1535,7 @@ void LifetimeCheckPass::checkMoveAssignment(CallOp callOp,
 }
 
 void LifetimeCheckPass::checkCopyAssignment(CallOp callOp,
-                                            const clang::CXXMethodDecl *m) {
+                                            ASTCXXMethodDeclInterface m) {
   // MyIntOwner::operator=(MyIntOwner&)(%dst, %src)
   auto dst = getThisParamOwnerCategory(callOp);
   auto src = callOp.getArgOperand(1);
@@ -1565,8 +1558,7 @@ void LifetimeCheckPass::checkCopyAssignment(CallOp callOp,
 // Example:
 //  MyIntPointer::MyIntPointer(MyIntOwner const&)(%5, %4)
 //
-bool LifetimeCheckPass::isCtorInitPointerFromOwner(
-    CallOp callOp, const clang::CXXConstructorDecl *ctor) {
+bool LifetimeCheckPass::isCtorInitPointerFromOwner(CallOp callOp) {
   if (callOp.getNumArgOperands() < 2)
     return false;
 
@@ -1581,7 +1573,7 @@ bool LifetimeCheckPass::isCtorInitPointerFromOwner(
 }
 
 void LifetimeCheckPass::checkCtor(CallOp callOp,
-                                  const clang::CXXConstructorDecl *ctor) {
+                                  ASTCXXConstructorDeclInterface ctor) {
   // TODO: zero init
   // 2.4.2 if the initialization is default initialization or zero
   // initialization, example:
@@ -1590,7 +1582,7 @@ void LifetimeCheckPass::checkCtor(CallOp callOp,
   //    string_view p;
   //
   // both results in pset(p) == {null}
-  if (ctor->isDefaultConstructor()) {
+  if (ctor.isDefaultConstructor()) {
     // First argument passed is always the alloca for the 'this' ptr.
 
     // Currently two possible actions:
@@ -1614,11 +1606,11 @@ void LifetimeCheckPass::checkCtor(CallOp callOp,
   }
 
   // User defined copy ctor calls ...
-  if (ctor->isCopyConstructor()) {
+  if (ctor.isCopyConstructor()) {
     llvm_unreachable("NYI");
   }
 
-  if (isCtorInitPointerFromOwner(callOp, ctor)) {
+  if (isCtorInitPointerFromOwner(callOp)) {
     auto addr = getThisParamPointerCategory(callOp);
     assert(addr && "expected pointer category");
     auto owner = callOp.getArgOperand(1);
@@ -1629,11 +1621,11 @@ void LifetimeCheckPass::checkCtor(CallOp callOp,
 }
 
 void LifetimeCheckPass::checkOperators(CallOp callOp,
-                                       const clang::CXXMethodDecl *m) {
+                                       ASTCXXMethodDeclInterface m) {
   auto addr = getThisParamOwnerCategory(callOp);
   if (addr) {
     // const access to the owner is fine.
-    if (m->isConst())
+    if (m.isConst())
       return;
     // TODO: this is a place where we can hook in some idiom recocgnition
     // so we don't need to use actual source code annotation to make assumptions
@@ -1658,8 +1650,8 @@ void LifetimeCheckPass::checkOperators(CallOp callOp,
 
 mlir::Value
 LifetimeCheckPass::getNonConstUseOfOwner(CallOp callOp,
-                                         const clang::CXXMethodDecl *m) {
-  if (m->isConst())
+                                         ASTCXXMethodDeclInterface m) {
+  if (m.isConst())
     return {};
   return getThisParamOwnerCategory(callOp);
 }
@@ -1730,7 +1722,7 @@ void LifetimeCheckPass::checkForOwnerAndPointerArguments(CallOp callOp,
 }
 
 void LifetimeCheckPass::checkOtherMethodsAndFunctions(
-    CallOp callOp, const clang::CXXMethodDecl *m) {
+    CallOp callOp, ASTCXXMethodDeclInterface m) {
   unsigned firstArgIdx = 0;
 
   // Looks at a method 'this' pointer:
@@ -1743,9 +1735,9 @@ void LifetimeCheckPass::checkOtherMethodsAndFunctions(
 }
 
 bool LifetimeCheckPass::isOwnerOrPointerClassMethod(
-    CallOp callOp, const clang::CXXMethodDecl *m) {
+    CallOp callOp, ASTCXXMethodDeclInterface m) {
   // For the sake of analysis, these behave like regular functions
-  if (!m || m->isStatic())
+  if (!m || m.isStatic())
     return false;
   // Check the object for owner/pointer by looking at the 'this' pointer.
   return getThisParamPointerCategory(callOp) ||
@@ -1760,8 +1752,7 @@ bool LifetimeCheckPass::isLambdaType(mlir::Type ty) {
   auto taskTy = mlir::dyn_cast<mlir::cir::StructType>(ty);
   if (!taskTy)
     return false;
-  auto recordDecl = taskTy.getAst()->getAstDecl();
-  if (recordDecl->isLambda())
+  if (taskTy.getAst()->isLambda())
     IsLambdaTyCache[ty] = true;
 
   return IsLambdaTyCache[ty];
@@ -1772,25 +1763,15 @@ bool LifetimeCheckPass::isTaskType(mlir::Value taskVal) {
   if (IsTaskTyCache.count(ty))
     return IsTaskTyCache[ty];
 
-  IsTaskTyCache[ty] = false;
-  auto taskTy = mlir::dyn_cast<mlir::cir::StructType>(taskVal.getType());
-  if (!taskTy)
-    return false;
-  auto recordDecl = taskTy.getAst()->getAstDecl();
-  auto *spec = dyn_cast<clang::ClassTemplateSpecializationDecl>(recordDecl);
-  if (!spec)
-    return false;
+  bool result = [&] {
+    auto taskTy = mlir::dyn_cast<mlir::cir::StructType>(taskVal.getType());
+    if (!taskTy)
+      return false;
+    return taskTy.getAst()->hasPromiseType();
+  }();
 
-  for (auto *sub : spec->decls()) {
-    auto *subRec = dyn_cast<clang::CXXRecordDecl>(sub);
-    if (subRec && subRec->getDeclName().isIdentifier() &&
-        subRec->getName() == "promise_type") {
-      IsTaskTyCache[ty] = true;
-      break;
-    }
-  }
-
-  return IsTaskTyCache[ty];
+  IsTaskTyCache[ty] = result;
+  return result;
 }
 
 void LifetimeCheckPass::trackCallToCoroutine(CallOp callOp) {
@@ -1830,13 +1811,13 @@ void LifetimeCheckPass::checkCall(CallOp callOp) {
 
   // From this point on only owner and pointer class methods handling,
   // starting from special methods.
-  if (const auto *ctor = dyn_cast<clang::CXXConstructorDecl>(methodDecl))
+  if (auto ctor = dyn_cast<ASTCXXConstructorDeclInterface>(methodDecl))
     return checkCtor(callOp, ctor);
-  if (methodDecl->isMoveAssignmentOperator())
+  if (methodDecl.isMoveAssignmentOperator())
     return checkMoveAssignment(callOp, methodDecl);
-  if (methodDecl->isCopyAssignmentOperator())
+  if (methodDecl.isCopyAssignmentOperator())
     return checkCopyAssignment(callOp, methodDecl);
-  if (methodDecl->isOverloadedOperator())
+  if (methodDecl.isOverloadedOperator())
     return checkOperators(callOp, methodDecl);
 
   // For any other methods...
