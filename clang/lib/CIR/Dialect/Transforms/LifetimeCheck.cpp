@@ -1757,8 +1757,8 @@ bool LifetimeCheckPass::isLambdaType(mlir::Type ty) {
   auto taskTy = ty.dyn_cast<mlir::cir::StructType>();
   if (!taskTy)
     return false;
-    if (taskTy.getAst()->isLambda())
-      IsLambdaTyCache[ty] = true;
+  if (taskTy.getAst()->isLambda())
+    IsLambdaTyCache[ty] = true;
 
   return IsLambdaTyCache[ty];
 }
