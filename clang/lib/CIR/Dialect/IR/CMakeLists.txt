@@ -16,4 +16,5 @@ add_clang_library(MLIRCIR
   MLIRFuncDialect
   MLIRDataLayoutInterfaces
   MLIRSideEffectInterfaces
+  clangAST
   )
