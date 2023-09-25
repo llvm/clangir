@@ -13,7 +13,7 @@ module {
 //      MLIR: module {
 // MLIR-NEXT: func @foo()
 // MLIR-NEXT:  %0 = llvm.mlir.constant(1 : index) : i64
-// MLIR-NEXT:  %1 = llvm.alloca %0 x !llvm.array<10 x i32> {alignment = 16 : i64} : (i64) -> !llvm.ptr<array<10 x i32>>
+// MLIR-NEXT:  %1 = llvm.alloca %0 x !llvm.array<10 x i32> {alignment = 16 : i64} : (i64) -> !llvm.ptr
 // MLIR-NEXT:    llvm.return
 // MLIR-NEXT:  }
 // MLIR-NEXT: }
