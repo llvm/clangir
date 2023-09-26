@@ -102,10 +102,16 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::AllocaOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    auto type = adaptor.getAllocaType();
-    auto mlirType = getTypeConverter()->convertType(type);
-
+    // Get the type being allocated (the pointee type)
+    auto allocaType = op.getAllocaType();
+    auto mlirType = getTypeConverter()->convertType(allocaType);
+    if (!mlirType) {
+      return mlir::LogicalResult::failure();
+    }
+    
+    // Create a 0-D memref (scalar) for the allocated type
     auto memreftype = mlir::MemRefType::get({}, mlirType);
+    
     rewriter.replaceOpWithNewOp<mlir::memref::AllocaOp>(op, memreftype,
                                                         op.getAlignmentAttr());
     return mlir::LogicalResult::success();
@@ -147,15 +153,19 @@ public:
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto ty = getTypeConverter()->convertType(op.getType());
     mlir::TypedAttr value;
+    
     if (mlir::isa<mlir::cir::BoolType>(op.getType())) {
       auto boolValue = mlir::cast<mlir::cir::BoolAttr>(op.getValue());
       value = rewriter.getIntegerAttr(ty, boolValue.getValue());
+    } else if (auto cirIntAttr = mlir::dyn_cast<mlir::cir::IntAttr>(op.getValue())) {
+      value = rewriter.getIntegerAttr(ty, cirIntAttr.getValue());
+    } else if (auto floatAttr = mlir::dyn_cast<mlir::FloatAttr>(op.getValue())) {
+      // Handle floating-point constants
+      value = rewriter.getFloatAttr(ty, floatAttr.getValueAsDouble());
     } else {
-      auto cirIntAttr = mlir::dyn_cast<mlir::cir::IntAttr>(op.getValue());
-      assert(cirIntAttr && "NYI non cir.int attr");
-      value = rewriter.getIntegerAttr(
-          ty, cast<mlir::cir::IntAttr>(op.getValue()).getValue());
+      return mlir::LogicalResult::failure();
     }
+    
     rewriter.replaceOpWithNewOp<mlir::arith::ConstantOp>(op, ty, value);
     return mlir::LogicalResult::success();
   }
@@ -181,10 +191,9 @@ public:
     }
 
     SmallVector<mlir::Type> resultTypes;
-    auto cirReturnType = fnType.getReturnType();
-    // CIR always has a return type - check if it's void
-    if (!isa<mlir::cir::VoidType>(cirReturnType)) {
-      auto resultType = getTypeConverter()->convertType(cirReturnType);
+    // Only convert return type if the function is not void
+    if (!fnType.isVoid()) {
+      auto resultType = getTypeConverter()->convertType(fnType.getReturnType());
       if (!resultType)
         return failure();
       resultTypes.push_back(resultType);
@@ -759,24 +768,27 @@ public:
       return mlir::IntegerType::get(type.getContext(), 8,
                                     mlir::IntegerType::Signless);
     });
-    addConversion(
-        [&](mlir::cir::PointerType type) -> std::optional<mlir::Type> {
-          // Convert pointer to memref for now
-          auto pointee = convertType(type.getPointee());
-          if (!pointee)
-            return std::nullopt;
-          // For pointers to scalars, create a scalar memref
-          // For pointers to arrays, create a dynamic memref
-          if (isa<mlir::cir::ArrayType>(type.getPointee()))
-            return mlir::MemRefType::get({mlir::ShapedType::kDynamic}, pointee);
-          else
-            return mlir::MemRefType::get({}, pointee);
-        });
+    addConversion([&](mlir::cir::PointerType type) -> std::optional<mlir::Type> {
+      // For pointers, create a memref with the pointee type
+      auto pointeeType = convertType(type.getPointee());
+      if (!pointeeType)
+        return std::nullopt;
+      // For pointers to scalars, create a scalar memref
+      // For pointers to arrays, create a dynamic memref
+      if (isa<mlir::cir::ArrayType>(type.getPointee()))
+        return mlir::MemRefType::get({mlir::ShapedType::kDynamic}, pointeeType);
+      else
+        return mlir::MemRefType::get({}, pointeeType);
+    });
     addConversion([&](mlir::cir::ArrayType type) -> std::optional<mlir::Type> {
       auto elementType = convertType(type.getEltType());
       if (!elementType)
         return std::nullopt;
-      return mlir::MemRefType::get(type.getSize(), elementType);
+      return mlir::MemRefType::get({static_cast<int64_t>(type.getSize())}, elementType);
+    });
+    // Add float type conversions
+    addConversion([](mlir::FloatType type) -> std::optional<mlir::Type> {
+      return type; // Float types are already MLIR native
     });
   }
 };
