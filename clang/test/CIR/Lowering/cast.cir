@@ -71,11 +71,11 @@ module {
     cir.store %16, %6 : !s64i, cir.ptr <!s64i>
     %17 = cir.cast(array_to_ptrdecay, %7 : !cir.ptr<!cir.array<!s32i x 3>>), !cir.ptr<!s32i>
     cir.store %17, %8 : !cir.ptr<!s32i>, cir.ptr <!cir.ptr<!s32i>>
-    // MLIR: %{{[0-9]+}} = llvm.getelementptr %{{[0-9]+}}[0] : (!llvm.ptr<array<3 x i32>>) -> !llvm.ptr<i32>
+    // MLIR: %{{[0-9]+}} = llvm.getelementptr %{{[0-9]+}}[0] : (!llvm.ptr) -> !llvm.ptr
     %23 = cir.cast(int_to_ptr, %22 : !u64i), !cir.ptr<!u8i>
-    // MLIR: %[[TMP2:[0-9]+]] = llvm.inttoptr %[[TMP]] : i64 to !llvm.ptr<i8>
+    // MLIR: %[[TMP2:[0-9]+]] = llvm.inttoptr %[[TMP]] : i64 to !llvm.ptr
     %24 = cir.cast(ptr_to_int, %23 : !cir.ptr<!u8i>), !s32i
-    // MLIR: %{{[0-9]+}} = llvm.ptrtoint %[[TMP2]] : !llvm.ptr<i8> to i32
+    // MLIR: %{{[0-9]+}} = llvm.ptrtoint %[[TMP2]] : !llvm.ptr to i32
     %29 = cir.cast(ptr_to_bool, %23 : !cir.ptr<!u8i>), !cir.bool
 
     // Floating point casts.
