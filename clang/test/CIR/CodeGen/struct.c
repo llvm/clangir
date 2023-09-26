@@ -12,11 +12,18 @@ struct Foo {
   struct Bar z;
 };
 
+// Recursive type
+typedef struct Node {    
+     struct Node* next;
+} NodeStru;
+
 void baz(void) {
   struct Bar b;
-  struct Foo f;
+  struct Foo f;   
 }
 
+// CHECK-DAG: !ty_22Node22 = !cir.struct<struct "Node" incomplete #cir.record.decl.ast>
+// CHECK-DAG: !ty_22Node221 = !cir.struct<struct "Node" {!cir.ptr<!ty_22Node22>} #cir.record.decl.ast>
 // CHECK-DAG: !ty_22Bar22 = !cir.struct<struct "Bar" {!s32i, !s8i}>
 // CHECK-DAG: !ty_22Foo22 = !cir.struct<struct "Foo" {!s32i, !s8i, !ty_22Bar22}>
 //  CHECK-DAG: module {{.*}} {
@@ -78,3 +85,8 @@ struct Bar shouldGenerateAndAccessStructArrays(void) {
 // CHECK-DAG: %[[#DARR:]] = cir.cast(array_to_ptrdecay, %{{.+}} : !cir.ptr<!cir.array<!ty_22Bar22 x 1>>), !cir.ptr<!ty_22Bar22>
 // CHECK-DAG: %[[#ELT:]] = cir.ptr_stride(%[[#DARR]] : !cir.ptr<!ty_22Bar22>, %[[#STRIDE]] : !s32i), !cir.ptr<!ty_22Bar22>
 // CHECK-DAG: cir.copy %[[#ELT]] to %{{.+}} : !cir.ptr<!ty_22Bar22>
+
+// CHECK-DAG: cir.func @useRecuriveType
+void useRecuriveType(NodeStru* a) {        
+    a->next = 0;
+}
