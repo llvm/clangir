@@ -14,14 +14,14 @@ module {
 }
 
 //      MLIR: module {
-// MLIR-NEXT:   llvm.func @f(%arg0: !llvm.ptr<i32>)
+// MLIR-NEXT:   llvm.func @f(%arg0: !llvm.ptr)
 // MLIR-NEXT:     %0 = llvm.mlir.constant(1 : index) : i64
-// MLIR-NEXT:     %1 = llvm.alloca %0 x !llvm.ptr<i32> {alignment = 8 : i64} : (i64) -> !llvm.ptr<ptr<i32>>
-// MLIR-NEXT:     llvm.store %arg0, %1 : !llvm.ptr<ptr<i32>>
-// MLIR-NEXT:     %2 = llvm.load %1 : !llvm.ptr<ptr<i32>>
+// MLIR-NEXT:     %1 = llvm.alloca %0 x !llvm.ptr {alignment = 8 : i64} : (i64) -> !llvm.ptr
+// MLIR-NEXT:     llvm.store %arg0, %1 : !llvm.ptr
+// MLIR-NEXT:     %2 = llvm.load %1 : !llvm.ptr
 // MLIR-NEXT:     %3 = llvm.mlir.constant(1 : i32) : i32
-// MLIR-NEXT:     %4 = llvm.getelementptr %2[%3] : (!llvm.ptr<i32>, i32) -> !llvm.ptr<i32>
-// MLIR-NEXT:     %5 = llvm.load %4 : !llvm.ptr<i32>
+// MLIR-NEXT:     %4 = llvm.getelementptr %2[%3] : (!llvm.ptr, i32) -> !llvm.ptr
+// MLIR-NEXT:     %5 = llvm.load %4 : !llvm.ptr
 // MLIR-NEXT:     llvm.return
 // MLIR-NEXT:   }
 // MLIR-NEXT: }

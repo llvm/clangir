@@ -57,7 +57,7 @@ module {
         %6 = cir.cast(int_to_bool, %5 : !s32i), !cir.bool
         %7 = cir.unary(not, %6) : !cir.bool, !cir.bool
         %8 = cir.cast(bool_to_int, %7 : !cir.bool), !s32i
-        // MLIR: %[[#INT:]] = llvm.load %{{.+}} : !llvm.ptr<i32>
+        // MLIR: %[[#INT:]] = llvm.load %{{.+}} : !llvm.ptr
         // MLIR: %[[#IZERO:]] = llvm.mlir.constant(0 : i32) : i32
         // MLIR: %[[#ICMP:]] = llvm.icmp "ne" %[[#INT]], %[[#IZERO]] : i32
         // MLIR: %[[#IEXT:]] = llvm.zext %[[#ICMP]] : i1 to i8
@@ -69,7 +69,7 @@ module {
         %18 = cir.cast(float_to_bool, %17 : f32), !cir.bool
         %19 = cir.unary(not, %18) : !cir.bool, !cir.bool
         %20 = cir.cast(bool_to_int, %19 : !cir.bool), !s32i
-        // MLIR: %[[#FLOAT:]] = llvm.load %{{.+}} : !llvm.ptr<f32>
+        // MLIR: %[[#FLOAT:]] = llvm.load %{{.+}} : !llvm.ptr
         // MLIR: %[[#FZERO:]] = llvm.mlir.constant(0.000000e+00 : f32) : f32
         // MLIR: %[[#FCMP:]] = llvm.fcmp "une" %[[#FLOAT]], %[[#FZERO]] : f32
         // MLIR: %[[#FEXT:]] = llvm.zext %[[#FCMP]] : i1 to i8
