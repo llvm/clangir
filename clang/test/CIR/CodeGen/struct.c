@@ -13,13 +13,13 @@ struct Foo {
 };
 
 // Recursive type
-typedef struct Node {    
+typedef struct Node {
      struct Node* next;
 } NodeStru;
 
 void baz(void) {
   struct Bar b;
-  struct Foo f;   
+  struct Foo f;
 }
 
 // CHECK-DAG: !ty_22Node22 = !cir.struct<struct "Node" incomplete #cir.record.decl.ast>
@@ -87,6 +87,6 @@ struct Bar shouldGenerateAndAccessStructArrays(void) {
 // CHECK-DAG: cir.copy %[[#ELT]] to %{{.+}} : !cir.ptr<!ty_22Bar22>
 
 // CHECK-DAG: cir.func @useRecuriveType
-void useRecuriveType(NodeStru* a) {        
+void useRecuriveType(NodeStru* a) {
     a->next = 0;
 }
