@@ -196,7 +196,7 @@ mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
   auto loc = parentOp->getLoc();
 
   auto addressOfOp = rewriter.create<mlir::LLVM::AddressOfOp>(
-      loc, mlir::LLVM::LLVMPointerType::get(sourceSymbol.getContext()),
+      loc, mlir::LLVM::LLVMPointerType::get(parentOp->getContext()),
       sourceSymbol.getSymName());
 
   assert(!globalAttr.getIndices() && "TODO");
@@ -319,7 +319,6 @@ public:
     rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(ptrStrideOp, resultTy,
                                                    elementTy, adaptor.getBase(),
                                                    adaptor.getStride());
-
     return mlir::success();
   }
 };
@@ -491,12 +490,12 @@ public:
   matchAndRewrite(mlir::cir::CastOp castOp, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto src = adaptor.getSrc();
+
     switch (castOp.getKind()) {
     case mlir::cir::CastKind::array_to_ptrdecay: {
       const auto ptrTy = mlir::cast<mlir::cir::PointerType>(castOp.getType());
       auto sourceValue = adaptor.getOperands().front();
-      auto targetType =
-          getTypeConverter()->convertType(castOp->getResult(0).getType());
+      auto targetType = convertTy(ptrTy);
       auto elementTy = convertTy(ptrTy.getPointee());
       auto offset = llvm::SmallVector<mlir::LLVM::GEPArg>{0};
       rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(
@@ -836,17 +835,14 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::AllocaOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    auto elementTy = getTypeConverter()->convertType(op.getAllocaType());
-
     mlir::Value one = rewriter.create<mlir::LLVM::ConstantOp>(
         op.getLoc(), typeConverter->convertType(rewriter.getIndexType()),
         rewriter.getIntegerAttr(rewriter.getIndexType(), 1));
-
+    auto elementTy = getTypeConverter()->convertType(op.getAllocaType());
     auto resultTy = mlir::LLVM::LLVMPointerType::get(getContext());
-
     rewriter.replaceOpWithNewOp<mlir::LLVM::AllocaOp>(
         op, resultTy, elementTy, one, op.getAlignmentAttr().getInt());
-    return mlir::LogicalResult::success();
+    return mlir::success();
   }
 };
 
@@ -1033,9 +1029,9 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::VAStartOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    auto i8PtrTy = mlir::LLVM::LLVMPointerType::get(getContext());
+    auto opaquePtr = mlir::LLVM::LLVMPointerType::get(getContext());
     auto vaList = rewriter.create<mlir::LLVM::BitcastOp>(
-        op.getLoc(), i8PtrTy, adaptor.getOperands().front());
+        op.getLoc(), opaquePtr, adaptor.getOperands().front());
     rewriter.replaceOpWithNewOp<mlir::LLVM::VaStartOp>(op, vaList);
     return mlir::success();
   }
@@ -1048,9 +1044,9 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::VAEndOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    auto i8PtrTy = mlir::LLVM::LLVMPointerType::get(getContext());
+    auto opaquePtr = mlir::LLVM::LLVMPointerType::get(getContext());
     auto vaList = rewriter.create<mlir::LLVM::BitcastOp>(
-        op.getLoc(), i8PtrTy, adaptor.getOperands().front());
+        op.getLoc(), opaquePtr, adaptor.getOperands().front());
     rewriter.replaceOpWithNewOp<mlir::LLVM::VaEndOp>(op, vaList);
     return mlir::success();
   }
@@ -1064,11 +1060,11 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::VACopyOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    auto i8PtrTy = mlir::LLVM::LLVMPointerType::get(getContext());
+    auto opaquePtr = mlir::LLVM::LLVMPointerType::get(getContext());
     auto dstList = rewriter.create<mlir::LLVM::BitcastOp>(
-        op.getLoc(), i8PtrTy, adaptor.getOperands().front());
+        op.getLoc(), opaquePtr, adaptor.getOperands().front());
     auto srcList = rewriter.create<mlir::LLVM::BitcastOp>(
-        op.getLoc(), i8PtrTy, adaptor.getOperands().back());
+        op.getLoc(), opaquePtr, adaptor.getOperands().back());
     rewriter.replaceOpWithNewOp<mlir::LLVM::VaCopyOp>(op, dstList, srcList);
     return mlir::success();
   }
@@ -1783,7 +1779,8 @@ public:
       // Since the base address is a pointer to an aggregate, the first offset
       // is always zero. The second offset tell us which member it will access.
       llvm::SmallVector<mlir::LLVM::GEPArg, 2> offset{0, op.getIndex()};
-      const auto elementTy = getTypeConverter()->convertType(structTy);
+      const auto elementTy =
+          getTypeConverter()->convertType(structTy.getMembers()[op.getIndex()]);
       rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(op, llResTy, elementTy,
                                                      adaptor.getAddr(), offset);
       return mlir::success();
@@ -1875,7 +1872,8 @@ namespace {
 void prepareTypeConverter(mlir::LLVMTypeConverter &converter,
                           mlir::DataLayout &dataLayout) {
   converter.addConversion([&](mlir::cir::PointerType type) -> mlir::Type {
-    return mlir::LLVM::LLVMPointerType::get(&converter.getContext());
+    // Drop pointee type since LLVM dialect only allows opaque pointers.
+    return mlir::LLVM::LLVMPointerType::get(type.getContext());
   });
   converter.addConversion([&](mlir::cir::ArrayType type) -> mlir::Type {
     auto ty = converter.convertType(type.getEltType());
