@@ -2403,7 +2403,6 @@ static bool isIncompleteType(mlir::Type typ) {
     return isIncompleteType(ptr.getPointee());
   else if (auto rec = typ.dyn_cast<StructType>())
     return !rec.getBody();
-  
   return false;
 }
 
@@ -2427,9 +2426,12 @@ LogicalResult GetMemberOp::verify() {
 
   // FIXME(cir): member type check is disabled for classes as the codegen for
   // these still need to be patched.
-  if (!recordTy.isClass() 
-      && !isIncompleteType(recordTy.getMembers()[getIndex()])
-      && recordTy.getMembers()[getIndex()] != getResultTy().getPointee())        
+  // Also we bypass the typechecking for the fields of incomplete types.
+  bool haveToSkipMemberTypeMismatch =
+    recordTy.isClass() || isIncompleteType(recordTy.getMembers()[getIndex()]);
+
+  if (!haveToSkipMemberTypeMismatch
+      && recordTy.getMembers()[getIndex()] != getResultTy().getPointee())
     return emitError() << "member type mismatch";
 
   return mlir::success();
