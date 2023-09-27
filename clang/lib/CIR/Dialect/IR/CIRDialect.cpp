@@ -2427,10 +2427,10 @@ LogicalResult GetMemberOp::verify() {
   // FIXME(cir): member type check is disabled for classes as the codegen for
   // these still need to be patched.
   // Also we bypass the typechecking for the fields of incomplete types.
-  bool haveToSkipMemberTypeMismatch =
+  bool shouldSkipMemberTypeMismatch =
     recordTy.isClass() || isIncompleteType(recordTy.getMembers()[getIndex()]);
 
-  if (!haveToSkipMemberTypeMismatch
+  if (!shouldSkipMemberTypeMismatch
       && recordTy.getMembers()[getIndex()] != getResultTy().getPointee())
     return emitError() << "member type mismatch";
 

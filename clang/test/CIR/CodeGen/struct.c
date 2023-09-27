@@ -14,7 +14,7 @@ struct Foo {
 
 // Recursive type
 typedef struct Node {
-     struct Node* next;
+  struct Node* next;
 } NodeStru;
 
 void baz(void) {
