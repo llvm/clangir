@@ -89,5 +89,5 @@ struct Bar shouldGenerateAndAccessStructArrays(void) {
 // CHECK-DAG: cir.func @useRecuriveType
 // CHECK-DAG: cir.get_member {{%.}}[0] {name = "next"} : !cir.ptr<!ty_22Node221> -> !cir.ptr<!cir.ptr<!ty_22Node221>>
 void useRecuriveType(NodeStru* a) {
-    a->next = 0;
+  a->next = 0;
 }
