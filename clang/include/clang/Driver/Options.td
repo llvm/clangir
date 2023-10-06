@@ -1365,8 +1365,8 @@ def emit_llvm : Flag<["-"], "emit-llvm">,
 def emit_interface_stubs : Flag<["-"], "emit-interface-stubs">,
   Visibility<[ClangOption, CC1Option]>, Group<Action_Group>,
   HelpText<"Generate Interface Stub Files.">;
-def emit_cir : Flag<["-"], "emit-cir">, Visibility<[CC1Option]>, Group<Action_Group>,
-  HelpText<"Build ASTs and then lower to ClangIR, emit the .cir file">;
+def emit_cir : Flag<["-"], "emit-cir">, Visibility<[ClangOption, CC1Option]>,
+  Group<Action_Group>, HelpText<"Build ASTs and then lower to ClangIR, emit the .cir file">;
 def emit_mlir : Flag<["-"], "emit-mlir">, Visibility<[CC1Option]>, Group<Action_Group>,
   HelpText<"Build ASTs and then lower through ClangIR to MLIR, emit the .milr file">;
 def emit_merged_ifs : Flag<["-"], "emit-merged-ifs">,
