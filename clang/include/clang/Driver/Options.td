@@ -1364,12 +1364,11 @@ def emit_llvm : Flag<["-"], "emit-llvm">,
   HelpText<"Use the LLVM representation for assembler and object files">;
 def emit_interface_stubs : Flag<["-"], "emit-interface-stubs">,
   Visibility<[ClangOption, CC1Option]>, Group<Action_Group>,
-def emit_cir : Flag<["-"], "emit-cir">, Flags<[CC1Option]>, Group<Action_Group>,
-  HelpText<"Build ASTs and then lower to ClangIR, emit the .cir file">;
-def emit_mlir : Flag<["-"], "emit-mlir">, Flags<[CC1Option]>, Group<Action_Group>,
-  HelpText<"Build ASTs and then lower through ClangIR to MLIR, emit the .milr file">;
-def emit_interface_stubs : Flag<["-"], "emit-interface-stubs">, Flags<[CC1Option]>, Group<Action_Group>,
   HelpText<"Generate Interface Stub Files.">;
+def emit_cir : Flag<["-"], "emit-cir">, Visibility<[CC1Option]>, Group<Action_Group>,
+  HelpText<"Build ASTs and then lower to ClangIR, emit the .cir file">;
+def emit_mlir : Flag<["-"], "emit-mlir">, Visibility<[CC1Option]>, Group<Action_Group>,
+  HelpText<"Build ASTs and then lower through ClangIR to MLIR, emit the .milr file">;
 def emit_merged_ifs : Flag<["-"], "emit-merged-ifs">,
   Visibility<[ClangOption, CC1Option]>, Group<Action_Group>,
   HelpText<"Generate Interface Stub Files, emit merged text not binary.">;
@@ -2706,49 +2705,49 @@ def flto_EQ : Joined<["-"], "flto=">,
   Visibility<[ClangOption, CLOption, CC1Option, FC1Option, FlangOption]>,
   Group<f_Group>,
   HelpText<"Set LTO mode">, Values<"thin,full">;
-def fclangir_enable : Flag<["-"], "fclangir-enable">, Flags<[CoreOption, CC1Option]>, Group<f_Group>,
-  HelpText<"Use ClangIR pipeline to compile">,
+def fclangir_enable : Flag<["-"], "fclangir-enable">, Visibility<[ClangOption, CC1Option]>,
+  Group<f_Group>, HelpText<"Use ClangIR pipeline to compile">,
   MarshallingInfoFlag<FrontendOpts<"UseClangIRPipeline">>;
 def flto_EQ_jobserver : Flag<["-"], "flto=jobserver">, Visibility<[ClangOption, FlangOption]>, Group<f_Group>,
   Alias<flto_EQ>, AliasArgs<["full"]>, HelpText<"Enable LTO in 'full' mode">;
 def clangir_disable_passes : Flag<["-"], "clangir-disable-passes">,
-  Flags<[CoreOption, CC1Option]>,
+  Visibility<[ClangOption, CC1Option]>,
   HelpText<"Disable CIR transformations pipeline">,
-  MarshallingInfoFlag<FrontendOpts<"DisableCIRPasses">>;
+  MarshallingInfoFlag<FrontendOpts<"ClangIRDisablePasses">>;
 def clangir_disable_verifier : Flag<["-"], "clangir-disable-verifier">,
-  Flags<[CoreOption, CC1Option]>,
+  Visibility<[ClangOption, CC1Option]>,
   HelpText<"ClangIR: Disable MLIR module verifier">,
   MarshallingInfoFlag<FrontendOpts<"ClangIRDisableCIRVerifier">>;
 def flto_EQ_auto : Flag<["-"], "flto=auto">, Visibility<[ClangOption, FlangOption]>, Group<f_Group>,
   Alias<flto_EQ>, AliasArgs<["full"]>, HelpText<"Enable LTO in 'full' mode">;
 def clangir_disable_emit_cxx_default : Flag<["-"], "clangir-disable-emit-cxx-default">,
-  Flags<[CoreOption, CC1Option]>,
+  Visibility<[ClangOption, CC1Option]>,
   HelpText<"ClangIR: Disable emission of c++ default (compiler implemented) methods.">,
   MarshallingInfoFlag<FrontendOpts<"ClangIRDisableEmitCXXDefault">>;
 def fclangir_disable_deferred_EQ : Joined<["-"], "fclangir-build-deferred-threshold=">,
-  Flags<[CoreOption, CC1Option]>, Group<f_Group>,
+  Visibility<[ClangOption, CC1Option]>, Group<f_Group>,
   HelpText<"ClangIR (internal): Control the recursion level for calls to buildDeferred (defaults to 500)">,
   MarshallingInfoInt<CodeGenOpts<"ClangIRBuildDeferredThreshold">, "500u">;
 def fclangir_skip_system_headers : Joined<["-"], "fclangir-skip-system-headers">,
-  Flags<[CoreOption, CC1Option]>, Group<f_Group>,
+  Visibility<[ClangOption, CC1Option]>, Group<f_Group>,
   HelpText<"ClangIR (internal): buildDeferred skip functions defined in system headers">,
   MarshallingInfoFlag<CodeGenOpts<"ClangIRSkipFunctionsFromSystemHeaders">>;
 def clangir_verify_diagnostics : Flag<["-"], "clangir-verify-diagnostics">,
-  Flags<[CoreOption, CC1Option]>,
+  Visibility<[ClangOption, CC1Option]>,
   HelpText<"ClangIR: Enable diagnostic verification in MLIR, similar to clang's -verify">,
   MarshallingInfoFlag<FrontendOpts<"ClangIRVerifyDiags">>;
 def fclangir_lifetime_check_EQ : Joined<["-"], "fclangir-lifetime-check=">,
-  Flags<[CoreOption, CC1Option]>, Group<f_Group>,
+  Visibility<[ClangOption, CC1Option]>, Group<f_Group>,
   HelpText<"Run lifetime checker">,
   MarshallingInfoString<FrontendOpts<"ClangIRLifetimeCheckOpts">>;
 def fclangir_lifetime_check : Flag<["-"], "fclangir-lifetime-check">,
-  Flags<[CoreOption, CC1Option]>, Group<f_Group>,
+  Visibility<[ClangOption, CC1Option]>, Group<f_Group>,
   Alias<fclangir_lifetime_check_EQ>, AliasArgs<["history=invalid,null"]>,
   HelpText<"Run lifetime checker">;
 defm clangir_direct_lowering : BoolFOption<"clangir-direct-lowering",
   FrontendOpts<"ClangIRDirectLowering">, DefaultTrue,
-  PosFlag<SetTrue, [CoreOption, CC1Option], "Lower directly from ClangIR to LLVM">,
-  NegFlag<SetFalse, [CoreOption, CC1Option],  "Lower through MLIR to LLVM">>;
+  PosFlag<SetTrue, [], [ClangOption, CC1Option], "Lower directly from ClangIR to LLVM">,
+  NegFlag<SetFalse, [], [ClangOption, CC1Option],  "Lower through MLIR to LLVM">>;
 
 def flto : Flag<["-"], "flto">,
   Visibility<[ClangOption, CLOption, CC1Option, FC1Option, FlangOption]>,
@@ -4351,7 +4350,7 @@ def mllvm : Separate<["-"], "mllvm">,
 def : Joined<["-"], "mllvm=">,
   Visibility<[ClangOption, CLOption, DXCOption, FlangOption]>, Alias<mllvm>,
   HelpText<"Alias for -mllvm">, MetaVarName<"<arg>">;
-def mmlir : Separate<["-"], "mmlir">, Flags<[CC1Option,CoreOption,FC1Option,FlangOption]>,
+def mmlir : Separate<["-"], "mmlir">, Visibility<[CC1Option,ClangOption,FC1Option,FlangOption]>,
   HelpText<"Additional arguments to forward to MLIR's option processing">,
   MarshallingInfoStringVector<FrontendOpts<"MLIRArgs">>;
 def ffuchsia_api_level_EQ : Joined<["-"], "ffuchsia-api-level=">,
@@ -6177,7 +6176,7 @@ def flang_experimental_polymorphism : Flag<["-"], "flang-experimental-polymorphi
 
 
 //===----------------------------------------------------------------------===//
-// FLangOption + CoreOption + NoXarchOption
+// FLangOption + ClangOption + NoXarchOption
 //===----------------------------------------------------------------------===//
 
 def Xflang : Separate<["-"], "Xflang">,
