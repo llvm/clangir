@@ -2614,7 +2614,7 @@ mlir::cir::SourceLanguage CIRGenModule::getCIRSourceLanguage() {
       opts.CPlusPlus17 || opts.CPlusPlus20 || opts.CPlusPlus23 ||
       opts.CPlusPlus26)
     return CIRLang::CXX;
-  if (opts.C99 || opts.C11 || opts.C17 || opts.C2x ||
+  if (opts.C99 || opts.C11 || opts.C17 || opts.C23 ||
       opts.LangStd == ClangStd::lang_c89)
     return CIRLang::C;
 
