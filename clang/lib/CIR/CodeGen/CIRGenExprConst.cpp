@@ -704,7 +704,7 @@ public:
 
   mlir::Attribute VisitCastExpr(CastExpr *E, QualType destType) {
     if (const auto *ECE = dyn_cast<ExplicitCastExpr>(E))
-      assert(0 && "not implemented");
+      llvm_unreachable("NYI");
     Expr *subExpr = E->getSubExpr();
 
     switch (E->getCastKind()) {
