@@ -1512,11 +1512,11 @@ void CompilerInvocationBase::GenerateCodeGenArgs(const CodeGenOptions &Opts,
     GenerateArg(Consumer, OPT_new_struct_path_tbaa);
 
   if (Opts.ClangIRBuildDeferredThreshold)
-    GenerateArg(Args, OPT_fclangir_disable_deferred_EQ,
-                Twine(Opts.ClangIRBuildDeferredThreshold), SA);
+    GenerateArg(Consumer, OPT_fclangir_disable_deferred_EQ,
+                Twine(Opts.ClangIRBuildDeferredThreshold));
 
   if (Opts.ClangIRSkipFunctionsFromSystemHeaders)
-    GenerateArg(Args, OPT_fclangir_skip_system_headers, SA);
+    GenerateArg(Consumer, OPT_fclangir_skip_system_headers);
 
   if (Opts.OptimizeSize == 1)
     GenerateArg(Consumer, OPT_O, "s");
