@@ -195,7 +195,7 @@ static KeywordStatus getKeywordStatusHelper(const LangOptions &LangOpts,
   case KEYMSCOMPAT:
     return LangOpts.MSVCCompat ? KS_Enabled : KS_Unknown;
   case KEYSYCL:
-    return LangOpts.isSYCL() ? KS_Enabled : KS_Unknown;
+    return LangOpts.isSYCL() || LangOpts.SYCLIsDevice ? KS_Enabled : KS_Unknown;
   case KEYCUDA:
     return LangOpts.CUDA ? KS_Enabled : KS_Unknown;
   case KEYHLSL:

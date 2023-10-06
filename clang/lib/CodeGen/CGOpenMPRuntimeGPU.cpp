@@ -2388,8 +2388,8 @@ static llvm::Value *emitListToGlobalReduceFunction(
     LValue GlobLVal = CGF.EmitLValueForField(
         CGF.MakeNaturalAlignAddrLValue(BufferArrPtr, StaticTy), FD);
     Address GlobAddr = GlobLVal.getAddress(CGF);
-    llvm::Value *BufferPtr = Bld.CreateInBoundsGEP(
-        GlobAddr.getElementType(), GlobAddr.getPointer(), Idxs);
+    llvm::Value *BufferPtr = Bld.CreateInBoundsGEP(GlobAddr.getElementType(),
+                                                   GlobAddr.getPointer(), Idxs);
     CGF.EmitStoreOfScalar(BufferPtr, Elem, /*Volatile=*/false, C.VoidPtrTy);
     if ((*IPriv)->getType()->isVariablyModifiedType()) {
       // Store array size.
@@ -2596,8 +2596,8 @@ static llvm::Value *emitGlobalToListReduceFunction(
     LValue GlobLVal = CGF.EmitLValueForField(
         CGF.MakeNaturalAlignAddrLValue(BufferArrPtr, StaticTy), FD);
     Address GlobAddr = GlobLVal.getAddress(CGF);
-    llvm::Value *BufferPtr = Bld.CreateInBoundsGEP(
-        GlobAddr.getElementType(), GlobAddr.getPointer(), Idxs);
+    llvm::Value *BufferPtr = Bld.CreateInBoundsGEP(GlobAddr.getElementType(),
+                                                   GlobAddr.getPointer(), Idxs);
     CGF.EmitStoreOfScalar(BufferPtr, Elem, /*Volatile=*/false, C.VoidPtrTy);
     if ((*IPriv)->getType()->isVariablyModifiedType()) {
       // Store array size.
@@ -3098,8 +3098,8 @@ CGOpenMPRuntimeGPU::getParameterAddress(CodeGenFunction &CGF,
   unsigned NativePointeeAddrSpace =
       CGF.getTypes().getTargetAddressSpace(NativePointeeTy);
   QualType TargetTy = TargetParam->getType();
-  llvm::Value *TargetAddr = CGF.EmitLoadOfScalar(LocalAddr, /*Volatile=*/false,
-                                                 TargetTy, SourceLocation());
+  llvm::Value *TargetAddr = CGF.EmitLoadOfScalar(
+      LocalAddr, /*Volatile=*/false, TargetTy, SourceLocation());
   // First cast to generic.
   TargetAddr = CGF.Builder.CreatePointerBitCastOrAddrSpaceCast(
       TargetAddr,

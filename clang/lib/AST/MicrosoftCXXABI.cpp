@@ -125,6 +125,9 @@ public:
              "Unexpected combination of C++ ABIs.");
       DeviceMangler.reset(
           Context.createMangleContext(Context.getAuxTargetInfo()));
+    } else if (Context.getLangOpts().isSYCL()) {
+      DeviceMangler.reset(
+          ItaniumMangleContext::create(Context, Context.getDiagnostics()));
     }
     else if (Context.getLangOpts().isSYCL()) {
       DeviceMangler.reset(

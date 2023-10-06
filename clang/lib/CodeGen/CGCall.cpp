@@ -18,6 +18,7 @@
 #include "CGCXXABI.h"
 #include "CGCleanup.h"
 #include "CGRecordLayout.h"
+#include "CGSYCLRuntime.h"
 #include "CodeGenFunction.h"
 #include "CodeGenModule.h"
 #include "TargetInfo.h"
@@ -36,6 +37,7 @@
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/CallingConv.h"
 #include "llvm/IR/DataLayout.h"
+#include "llvm/IR/FPAccuracy.h"
 #include "llvm/IR/InlineAsm.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Intrinsics.h"
@@ -774,6 +776,13 @@ const CGFunctionInfo &CodeGenTypes::arrangeLLVMFunctionInfo(
     return *FI;
 
   unsigned CC = ClangCallConvToLLVMCallConv(info.getCC());
+  // This is required so SYCL kernels are successfully processed by tools from CUDA. Kernels
+  // with a `spir_kernel` calling convention are ignored otherwise.
+  if (CC == llvm::CallingConv::SPIR_KERNEL &&
+      (CGM.getTriple().isNVPTX() || CGM.getTriple().isAMDGCN()) &&
+      getContext().getLangOpts().SYCLIsDevice) {
+    CC = llvm::CallingConv::C;
+  }
 
   // Construct the function info.  We co-allocate the ArgInfos.
   FI = CGFunctionInfo::create(CC, isInstanceMethod, isChainCall, isDelegateCall,
@@ -1830,6 +1839,60 @@ static bool HasStrictReturn(const CodeGenModule &Module, QualType RetTy,
   return Module.getCodeGenOpts().StrictReturn ||
          !Module.MayDropFunctionReturn(Module.getContext(), RetTy) ||
          Module.getLangOpts().Sanitize.has(SanitizerKind::Return);
+}
+
+static llvm::fp::FPAccuracy convertFPAccuracy(StringRef FPAccuracyStr) {
+  return llvm::StringSwitch<llvm::fp::FPAccuracy>(FPAccuracyStr)
+      .Case("high", llvm::fp::FPAccuracy::High)
+      .Case("medium", llvm::fp::FPAccuracy::Medium)
+      .Case("low", llvm::fp::FPAccuracy::Low)
+      .Case("sycl", llvm::fp::FPAccuracy::SYCL)
+      .Case("cuda", llvm::fp::FPAccuracy::CUDA);
+}
+
+static int32_t convertFPAccuracyToAspect(StringRef FPAccuracyStr) {
+  assert(FPAccuracyStr.equals("high") || FPAccuracyStr.equals("medium") ||
+         FPAccuracyStr.equals("low") || FPAccuracyStr.equals("sycl") ||
+         FPAccuracyStr.equals("cuda"));
+  return llvm::StringSwitch<int32_t>(FPAccuracyStr)
+      .Case("high", SYCLInternalAspect::fp_intrinsic_accuracy_high)
+      .Case("medium", SYCLInternalAspect::fp_intrinsic_accuracy_medium)
+      .Case("low", SYCLInternalAspect::fp_intrinsic_accuracy_low)
+      .Case("sycl", SYCLInternalAspect::fp_intrinsic_accuracy_sycl)
+      .Case("cuda", SYCLInternalAspect::fp_intrinsic_accuracy_cuda);
+}
+
+void CodeGenModule::getDefaultFunctionFPAccuracyAttributes(
+    StringRef Name, llvm::AttrBuilder &FuncAttrs, llvm::Metadata *&MD,
+    unsigned ID, const llvm::Type *FuncType) {
+  // Priority is given to to the accuracy specific to the function.
+  // So, if the command line is something like this:
+  // 'clang -fp-accuracy = high -fp-accuracy = low:[sin]'.
+  // This means, all library functions will have the accuracy 'high'
+  // except 'sin', which should have an accuracy value of 'low'.
+  // To ensure that, first check if Name has a required accuracy by visiting
+  // the 'FPAccuracyFuncMap'; if no accuracy is mapped to Name (FuncAttrs
+  // is empty), then set its accuracy from the TU's accuracy value.
+  if (!getLangOpts().FPAccuracyFuncMap.empty()) {
+    auto FuncMapIt = getLangOpts().FPAccuracyFuncMap.find(Name.str());
+    if (FuncMapIt != getLangOpts().FPAccuracyFuncMap.end()) {
+      StringRef FPAccuracyVal = llvm::fp::getAccuracyForFPBuiltin(
+          ID, FuncType, convertFPAccuracy(FuncMapIt->second));
+      assert(!FPAccuracyVal.empty() && "A valid accuracy value is expected");
+      FuncAttrs.addAttribute("fpbuiltin-max-error", FPAccuracyVal);
+      MD = llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(
+          Int32Ty, convertFPAccuracyToAspect(FuncMapIt->second)));
+    }
+  }
+  if (FuncAttrs.attrs().size() == 0)
+    if (!getLangOpts().FPAccuracyVal.empty()) {
+      StringRef FPAccuracyVal = llvm::fp::getAccuracyForFPBuiltin(
+          ID, FuncType, convertFPAccuracy(getLangOpts().FPAccuracyVal));
+      assert(!FPAccuracyVal.empty() && "A valid accuracy value is expected");
+      FuncAttrs.addAttribute("fpbuiltin-max-error", FPAccuracyVal);
+      MD = llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(
+          Int32Ty, convertFPAccuracyToAspect(getLangOpts().FPAccuracyVal)));
+    }
 }
 
 /// Add denormal-fp-math and denormal-fp-math-f32 as appropriate for the
@@ -2979,6 +3042,21 @@ void CodeGenFunction::EmitFunctionProlog(const CGFunctionInfo &FI,
     unsigned FirstIRArg, NumIRArgs;
     std::tie(FirstIRArg, NumIRArgs) = IRFunctionArgs.getIRArgs(ArgNo);
 
+    if (Arg->hasAttr<SYCLAccessorReadonlyAttr>())
+      Fn->getArg(FirstIRArg)->addAttr(llvm::Attribute::ReadOnly);
+
+    if (const auto *AddIRAttr =
+            Arg->getAttr<SYCLAddIRAttributesKernelParameterAttr>()) {
+      SmallVector<std::pair<std::string, std::string>, 4> NameValuePairs =
+          AddIRAttr->getFilteredAttributeNameValuePairs(CGM.getContext());
+
+      llvm::AttrBuilder KernelParamAttrBuilder(Fn->getContext());
+      for (const auto &NameValuePair : NameValuePairs)
+        KernelParamAttrBuilder.addAttribute(NameValuePair.first,
+                                            NameValuePair.second);
+      Fn->addParamAttrs(ArgNo, KernelParamAttrBuilder);
+    }
+
     switch (ArgI.getKind()) {
     case ABIArgInfo::InAlloca: {
       assert(NumIRArgs == 0);
@@ -3115,7 +3193,11 @@ void CodeGenFunction::EmitFunctionProlog(const CGFunctionInfo &FI,
         }
 
         // Set 'noalias' if an argument type has the `restrict` qualifier.
-        if (Arg->getType().isRestrictQualified())
+        if (Arg->getType().isRestrictQualified() ||
+            (CurCodeDecl &&
+             CurCodeDecl->hasAttr<SYCLIntelKernelArgsRestrictAttr>() &&
+             Arg->getType()->isPointerType()) ||
+            (Arg->hasAttr<RestrictAttr>() && Arg->getType()->isPointerType()))
           AI->addAttr(llvm::Attribute::NoAlias);
       }
 
@@ -3279,7 +3361,6 @@ void CodeGenFunction::EmitFunctionProlog(const CGFunctionInfo &FI,
 
       auto coercionType = ArgI.getCoerceAndExpandType();
       alloca = alloca.withElementType(coercionType);
-
       unsigned argIndex = FirstIRArg;
       for (unsigned i = 0, e = coercionType->getNumElements(); i != e; ++i) {
         llvm::Type *eltType = coercionType->getElementType(i);
@@ -3879,7 +3960,7 @@ void CodeGenFunction::EmitFunctionEpilog(const CGFunctionInfo &FI,
     auto coercionType = RetAI.getCoerceAndExpandType();
 
     // Load all of the coerced elements out into results.
-    llvm::SmallVector<llvm::Value*, 4> results;
+    llvm::SmallVector<llvm::Value *, 4> results;
     Address addr = ReturnValue.withElementType(coercionType);
     for (unsigned i = 0, e = coercionType->getNumElements(); i != e; ++i) {
       auto coercedEltType = coercionType->getElementType(i);
@@ -5198,7 +5279,6 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
           // Skip the extra memcpy call.
           auto *T = llvm::PointerType::get(
               CGM.getLLVMContext(), CGM.getDataLayout().getAllocaAddrSpace());
-
           llvm::Value *Val = getTargetHooks().performAddrSpaceCast(
               *this, V, LangAS::Default, CGM.getASTAllocaAddressSpace(), T,
               true);
@@ -5255,8 +5335,14 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
         // If the argument doesn't match, perform a bitcast to coerce it.  This
         // can happen due to trivial type mismatches.
         if (FirstIRArg < IRFuncTy->getNumParams() &&
-            V->getType() != IRFuncTy->getParamType(FirstIRArg))
-          V = Builder.CreateBitCast(V, IRFuncTy->getParamType(FirstIRArg));
+            V->getType() != IRFuncTy->getParamType(FirstIRArg)) {
+          if (V->getType()->getPointerAddressSpace() !=
+              IRFuncTy->getParamType(FirstIRArg)->getPointerAddressSpace())
+            V = Builder.CreateAddrSpaceCast(V,
+                                            IRFuncTy->getParamType(FirstIRArg));
+          else
+            V = Builder.CreateBitCast(V, IRFuncTy->getParamType(FirstIRArg));
+        }
 
         if (ArgHasMaybeUndefAttr)
           V = Builder.CreateFreeze(V);
@@ -5303,6 +5389,7 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
             IRCallArgs[FirstIRArg + i] = Extract;
           }
         } else {
+          Src = Src.withElementType(STy);
           uint64_t SrcSize = SrcTypeSize.getFixedValue();
           uint64_t DstSize = DstTypeSize.getFixedValue();
 
@@ -5594,6 +5681,14 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
   // Emit the actual call/invoke instruction.
   llvm::CallBase *CI;
   if (!InvokeDest) {
+    if (!getLangOpts().FPAccuracyFuncMap.empty() ||
+        !getLangOpts().FPAccuracyVal.empty()) {
+      const auto *FD = dyn_cast_if_present<FunctionDecl>(TargetDecl);
+      assert(FD && "expecting a function");
+      CI = EmitFPBuiltinIndirectCall(IRFuncTy, IRCallArgs, CalleePtr, FD);
+      if (CI)
+        return RValue::get(CI);
+    }
     CI = Builder.CreateCall(IRFuncTy, CalleePtr, IRCallArgs, BundleList);
   } else {
     llvm::BasicBlock *Cont = createBasicBlock("invoke.cont");
@@ -5663,10 +5758,20 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
 
   // 4. Finish the call.
 
-  // If the call doesn't return, finish the basic block and clear the
-  // insertion point; this allows the rest of IRGen to discard
+  // SYCL does not support C++ exceptions or termination in device code, so all
+  // functions have to return.
+  bool SyclSkipNoReturn = false;
+  if (getLangOpts().SYCLIsDevice && CI->doesNotReturn()) {
+    if (auto *F = CI->getCalledFunction())
+      F->removeFnAttr(llvm::Attribute::NoReturn);
+    CI->removeFnAttr(llvm::Attribute::NoReturn);
+    SyclSkipNoReturn = true;
+  }
+
+  // If the call doesn't return for non-sycl devices, finish the basic block and
+  // clear the insertion point; this allows the rest of IRGen to discard
   // unreachable code.
-  if (CI->doesNotReturn()) {
+  if (!SyclSkipNoReturn && CI->doesNotReturn()) {
     if (UnusedReturnSizePtr)
       PopCleanupBlock();
 

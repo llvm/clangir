@@ -449,7 +449,6 @@ void InferAddressSpacesImpl::appendsFlatAddressExpressionToPostorderStack(
     Value *V, PostorderStackTy &PostorderStack,
     DenseSet<Value *> &Visited) const {
   assert(V->getType()->isPtrOrPtrVectorTy());
-
   // Generic addressing expressions may be hidden in nested constant
   // expressions.
   if (ConstantExpr *CE = dyn_cast<ConstantExpr>(V)) {
@@ -602,7 +601,6 @@ Value *InferAddressSpacesImpl::cloneInstructionWithNewAddressSpace(
     const PredicatedAddrSpaceMapTy &PredicatedAS,
     SmallVectorImpl<const Use *> *PoisonUsesToFix) const {
   Type *NewPtrType = getPtrOrVecOfPtrsWithNewAS(I->getType(), NewAddrSpace);
-
   if (I->getOpcode() == Instruction::AddrSpaceCast) {
     Value *Src = I->getOperand(0);
     // Because `I` is flat, the source address space must be specific.

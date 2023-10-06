@@ -1412,6 +1412,10 @@ CanThrowResult Sema::canThrow(const Stmt *S) {
   case Expr::SourceLocExprClass:
   case Expr::ConceptSpecializationExprClass:
   case Expr::RequiresExprClass:
+  case Expr::SYCLBuiltinNumFieldsExprClass:
+  case Expr::SYCLBuiltinFieldTypeExprClass:
+  case Expr::SYCLBuiltinNumBasesExprClass:
+  case Expr::SYCLBuiltinBaseTypeExprClass:
     // These expressions can never throw.
     return CT_Cannot;
 
@@ -1603,6 +1607,7 @@ CanThrowResult Sema::canThrow(const Stmt *S) {
   }
 
   case Stmt::SYCLUniqueStableNameExprClass:
+  case Stmt::SYCLUniqueStableIdExprClass:
     return CT_Cannot;
   case Stmt::NoStmtClass:
     llvm_unreachable("Invalid class for statement");

@@ -2029,10 +2029,11 @@ Constant *llvm::ConstantFoldGetElementPtr(Type *PointeeTy, Constant *C,
     }
   }
 
-  if (ConstantExpr *CE = dyn_cast<ConstantExpr>(C))
+  if (ConstantExpr *CE = dyn_cast<ConstantExpr>(C)) {
     if (auto *GEP = dyn_cast<GEPOperator>(CE))
       if (Constant *C = foldGEPOfGEP(GEP, PointeeTy, InBounds, Idxs))
         return C;
+  }
 
   // Check to see if any array indices are not within the corresponding
   // notional array or vector bounds. If so, try to determine if they can be

@@ -114,9 +114,11 @@ def ImplicitIntFloatConversion : DiagGroup<"implicit-int-float-conversion",
  [ImplicitConstIntFloatConversion]>;
 def ObjCSignedCharBoolImplicitFloatConversion :
   DiagGroup<"objc-signed-char-bool-implicit-float-conversion">;
+def ImplicitFloatSizeConversion :
+  DiagGroup<"implicit-float-size-conversion">;
 def ImplicitFloatConversion : DiagGroup<"implicit-float-conversion",
   [ImplicitIntFloatConversion,
-   ObjCSignedCharBoolImplicitFloatConversion]>;
+   ObjCSignedCharBoolImplicitFloatConversion, ImplicitFloatSizeConversion]>;
 def ImplicitFixedPointConversion : DiagGroup<"implicit-fixed-point-conversion">;
 
 def FloatOverflowConversion : DiagGroup<"float-overflow-conversion">;
@@ -294,6 +296,9 @@ def CPre23CompatPedantic : DiagGroup<"pre-c23-compat-pedantic",
                                      [CPre23Compat]>;
 def : DiagGroup<"pre-c2x-compat", [CPre23Compat]>;
 def : DiagGroup<"pre-c2x-compat-pedantic", [CPre23CompatPedantic]>;
+
+// Warning for treating C input as C++ input.
+def ExpectedFileType : DiagGroup<"expected-file-type">;
 
 // Warnings for C++ code which is not compatible with previous C++ standards.
 def CXXPre14Compat : DiagGroup<"pre-c++14-compat">;
@@ -765,11 +770,14 @@ def NSobjectAttribute : DiagGroup<"NSObject-attribute">;
 def NSConsumedMismatch : DiagGroup<"nsconsumed-mismatch">;
 def NSReturnsMismatch : DiagGroup<"nsreturns-mismatch">;
 
+def SyclIvdepAttribute : DiagGroup<"ivdep-compat">;
 def IndependentClassAttribute : DiagGroup<"IndependentClass-attribute">;
 def UnknownAttributes : DiagGroup<"unknown-attributes">;
-def IgnoredAttributes : DiagGroup<"ignored-attributes">;
+def IgnoredAttributes : DiagGroup<"ignored-attributes", [SyclIvdepAttribute]>;
+def AcceptedAttributes : DiagGroup<"accepted-attributes">;
 def Attributes : DiagGroup<"attributes", [UnknownAttributes,
-                                          IgnoredAttributes]>;
+                                          IgnoredAttributes,
+                                          AcceptedAttributes]>;
 def UnknownSanitizers : DiagGroup<"unknown-sanitizers">;
 def UnnamedTypeTemplateArgs : DiagGroup<"unnamed-type-template-args",
                                         [CXX98CompatUnnamedTypeTemplateArgs]>;
@@ -1298,6 +1306,15 @@ def OpenMP : DiagGroup<"openmp", [
     OpenMPMapping, OpenMP51Ext, OpenMPExtensions, OpenMPTargetException
   ]>;
 
+// SYCL warnings
+def Sycl2017Compat : DiagGroup<"sycl-2017-compat">;
+def Sycl2020Compat : DiagGroup<"sycl-2020-compat">;
+def SyclStrict : DiagGroup<"sycl-strict", [ Sycl2017Compat, Sycl2020Compat]>;
+def SyclTarget : DiagGroup<"sycl-target">;
+def SyclFPGAMismatch : DiagGroup<"sycl-fpga-mismatch">;
+def SyclAspectMismatch : DiagGroup<"sycl-aspect-mismatch">;
+def SyclNativeCPUTargets: DiagGroup<"sycl-native-cpu-targets">;
+
 // Backend warnings.
 def BackendInlineAsm : DiagGroup<"inline-asm">;
 def BackendSourceMgr : DiagGroup<"source-mgr">;
@@ -1355,6 +1372,10 @@ def CudaUnknownVersion: DiagGroup<"unknown-cuda-version">;
 // ignored by CUDA.
 def HIPOnly : DiagGroup<"hip-only">;
 
+// A warning generated when compiling SYCL applications for HIP or CUDA backends
+// without linking LIBSPIRV.
+def NoLibspirvHipCuda : DiagGroup<"no-libspirv-hip-cuda">;
+
 // Warning about mixed HIP and OpenMP compilation / target offloading.
 def HIPOpenMPOffloading: DiagGroup<"hip-omp-target-directives">;
 
@@ -1399,6 +1420,8 @@ def NoDeref : DiagGroup<"noderef">;
 def CrossTU : DiagGroup<"ctu">;
 
 def CTADMaybeUnsupported : DiagGroup<"ctad-maybe-unsupported">;
+
+def IntelFPGA : DiagGroup<"intel-fpga">;
 
 def FortifySource : DiagGroup<"fortify-source">;
 

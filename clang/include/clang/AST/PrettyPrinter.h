@@ -64,6 +64,7 @@ struct PrintingPolicy {
         SuppressInitializers(false), ConstantArraySizeAsWritten(false),
         AnonymousTagLocations(true), SuppressStrongLifetime(false),
         SuppressLifetimeQualifiers(false),
+        SuppressTypedefs(false), SuppressFinalSpecifier(false),
         SuppressTemplateArgsInCXXConstructors(false),
         SuppressDefaultTemplateArgs(true), Bool(LO.Bool),
         Nullptr(LO.CPlusPlus11 || LO.C23), NullptrTypeInNamespace(LO.CPlusPlus),
@@ -74,8 +75,11 @@ struct PrintingPolicy {
         MSWChar(LO.MicrosoftExt && !LO.WChar), IncludeNewlines(true),
         MSVCFormatting(false), ConstantsAsWritten(false),
         SuppressImplicitBase(false), FullyQualifiedName(false),
-        PrintCanonicalTypes(false), PrintInjectedClassNameWithArguments(true),
-        UsePreferredNames(true), AlwaysIncludeTypeForTemplateArgument(false),
+        SuppressDefinition(false), SuppressDefaultTemplateArguments(false),
+        PrintCanonicalTypes(false),
+        SkipCanonicalizationOfTemplateTypeParms(false),
+        PrintInjectedClassNameWithArguments(true), UsePreferredNames(true),
+        AlwaysIncludeTypeForTemplateArgument(false),
         CleanUglifiedParameters(false), EntireContentsOfLargeArray(true),
         UseEnumerators(true) {}
 
@@ -87,6 +91,14 @@ struct PrintingPolicy {
     SuppressTagKeyword = true;
     Bool = true;
     UseVoidForZeroParams = false;
+  }
+
+  /// Adjust this printing policy to print C++ forward declaration for a given
+  /// Decl.
+  void adjustForCPlusPlusFwdDecl() {
+    PolishForDeclaration = true;
+    SuppressDefinition = true;
+    SuppressDefaultTemplateArguments = true;
   }
 
   /// The number of spaces to use to indent each line.
@@ -186,6 +198,23 @@ struct PrintingPolicy {
   /// When true, suppress printing of lifetime qualifier in ARC.
   unsigned SuppressLifetimeQualifiers : 1;
 
+  /// When true prints a canonical type instead of an alias.
+  /// Also removes preceeding keywords if there is one. E.g.
+  ///   \code
+  ///   namespace NS {
+  ///      using SizeT = int;
+  ///   }
+  ///   template<typename NS::SizeT N> class C;
+  ///   \endcode
+  /// will be printed as
+  ///   \code
+  ///   template<int N> class C;
+  ///   \endcode
+  unsigned SuppressTypedefs : 1;
+
+  /// When true, suppress printing final specifier.
+  unsigned SuppressFinalSpecifier : 1;
+
   /// When true, suppresses printing template arguments in names of C++
   /// constructors.
   unsigned SuppressTemplateArgsInCXXConstructors : 1;
@@ -275,8 +304,42 @@ struct PrintingPolicy {
   /// This is the opposite of SuppressScope and thus overrules it.
   unsigned FullyQualifiedName : 1;
 
+  /// When true does not print definition of a type. E.g.
+  ///   \code
+  ///   template<typename T> class C0 : public C1 {...}
+  ///   \endcode
+  /// will be printed as
+  ///   \code
+  ///   template<typename T> class C0
+  ///   \endcode
+  unsigned SuppressDefinition : 1;
+
+  /// When true, suppresses printing default template arguments of a type. E.g.
+  ///   \code
+  ///   template<typename T = void> class A
+  ///   \endcode
+  /// will be printed as
+  ///   \code
+  ///   template<typename T> class A
+  ///   \endcode
+  unsigned SuppressDefaultTemplateArguments : 1;
+
   /// Whether to print types as written or canonically.
   unsigned PrintCanonicalTypes : 1;
+
+  /// Whether to skip the canonicalization (when PrintCanonicalTypes is set) for
+  /// TemplateTypeParmTypes. This has no effect if PrintCanonicalTypes isn't
+  /// set. This is useful for non-type-template-parameters, since the canonical
+  /// version of:
+  ///   \code
+  ///   TemplateTypeParmType '_Tp'
+  ///     TemplateTypeParm '_Tp'
+  ///   \endcode
+  /// is:
+  ///   \code
+  ///   TemplateTypeParmType 'type-parameter-0-0'
+  ///   \endcode
+  unsigned SkipCanonicalizationOfTemplateTypeParms : 1;
 
   /// Whether to print an InjectedClassNameType with template arguments or as
   /// written. When a template argument is unnamed, printing it results in

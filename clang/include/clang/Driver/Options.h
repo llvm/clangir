@@ -26,6 +26,7 @@ enum ClangFlags {
   LinkOption = (1 << 8),
   Ignored = (1 << 9),
   TargetSpecific = (1 << 10),
+  Deprecated = (1 << 11),
 };
 
 // Flags specifically for clang option visibility. We alias DefaultVis to

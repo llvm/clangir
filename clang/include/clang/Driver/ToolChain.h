@@ -157,8 +157,18 @@ private:
   mutable std::unique_ptr<Tool> StaticLibTool;
   mutable std::unique_ptr<Tool> IfsMerge;
   mutable std::unique_ptr<Tool> OffloadBundler;
+  mutable std::unique_ptr<Tool> OffloadWrapper;
   mutable std::unique_ptr<Tool> OffloadPackager;
+  mutable std::unique_ptr<Tool> OffloadDeps;
+  mutable std::unique_ptr<Tool> SPIRVTranslator;
+  mutable std::unique_ptr<Tool> SYCLPostLink;
+  mutable std::unique_ptr<Tool> BackendCompiler;
+  mutable std::unique_ptr<Tool> AppendFooter;
+  mutable std::unique_ptr<Tool> FileTableTform;
+  mutable std::unique_ptr<Tool> SpirvToIrWrapper;
   mutable std::unique_ptr<Tool> LinkerWrapper;
+  mutable std::unique_ptr<Tool> Cgeist;
+  mutable std::unique_ptr<Tool> MLIRTranslate;
 
   Tool *getClang() const;
   Tool *getFlang() const;
@@ -168,8 +178,18 @@ private:
   Tool *getIfsMerge() const;
   Tool *getClangAs() const;
   Tool *getOffloadBundler() const;
+  Tool *getOffloadWrapper() const;
   Tool *getOffloadPackager() const;
+  Tool *getOffloadDeps() const;
+  Tool *getSPIRVTranslator() const;
+  Tool *getSYCLPostLink() const;
+  Tool *getBackendCompiler() const;
+  Tool *getAppendFooter() const;
+  Tool *getTableTform() const;
+  Tool *getSpirvToIrWrapper() const;
   Tool *getLinkerWrapper() const;
+  Tool *getCgeist() const;
+  Tool *getMLIRTranslate() const;
 
   mutable bool SanitizerArgsChecked = false;
   mutable std::unique_ptr<XRayArgs> XRayArguments;
@@ -204,6 +224,7 @@ protected:
 
   virtual Tool *buildAssembler() const;
   virtual Tool *buildLinker() const;
+  virtual Tool *buildBackendCompiler() const;
   virtual Tool *buildStaticLibTool() const;
   virtual Tool *getTool(Action::ActionClass AC) const;
 
@@ -350,12 +371,14 @@ public:
     return nullptr;
   }
 
-  /// TranslateOpenMPTargetArgs - Create a new derived argument list for
-  /// that contains the OpenMP target specific flags passed via
+  /// TranslateOffloadTargetArgs - Create a new derived argument list for
+  /// that contains the Offload target specific flags passed via
   /// -Xopenmp-target -opt=val OR -Xopenmp-target=<triple> -opt=val
-  virtual llvm::opt::DerivedArgList *TranslateOpenMPTargetArgs(
+  /// Also handles -Xsycl-target OR -Xsycl-target=<triple>
+  virtual llvm::opt::DerivedArgList *TranslateOffloadTargetArgs(
       const llvm::opt::DerivedArgList &Args, bool SameTripleAsHost,
-      SmallVectorImpl<llvm::opt::Arg *> &AllocatedArgs) const;
+      SmallVectorImpl<llvm::opt::Arg *> &AllocatedArgs,
+      Action::OffloadKind DeviceOffloadKind) const;
 
   /// Append the argument following \p A to \p DAL assuming \p A is an Xarch
   /// argument. If \p AllocatedArgs is null pointer, synthesized arguments are
@@ -759,7 +782,8 @@ public:
 
   /// Get paths for device libraries.
   virtual llvm::SmallVector<BitCodeLibraryInfo, 12>
-  getDeviceLibs(const llvm::opt::ArgList &Args) const;
+  getDeviceLibs(const llvm::opt::ArgList &Args,
+                const Action::OffloadKind DeviceOffloadingKind) const;
 
   /// Add the system specific linker arguments to use
   /// for the given HIP runtime library type.

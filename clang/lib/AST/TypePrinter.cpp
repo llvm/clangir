@@ -178,7 +178,9 @@ void TypePrinter::spaceBeforePlaceHolder(raw_ostream &OS) {
 
 static SplitQualType splitAccordingToPolicy(QualType QT,
                                             const PrintingPolicy &Policy) {
-  if (Policy.PrintCanonicalTypes)
+  if ((!Policy.SkipCanonicalizationOfTemplateTypeParms ||
+       !QT->isTemplateTypeParmType()) &&
+      Policy.PrintCanonicalTypes)
     QT = QT.getCanonicalType();
   return QT.split();
 }
@@ -318,6 +320,14 @@ void TypePrinter::printBefore(QualType T, raw_ostream &OS) {
 void TypePrinter::printBefore(const Type *T,Qualifiers Quals, raw_ostream &OS) {
   if (Policy.SuppressSpecifiers && T->isSpecifierType())
     return;
+
+  if (Policy.SuppressTypedefs && (T->getTypeClass() == Type::Typedef)) {
+    QualType UnderlyingType = T->getCanonicalTypeInternal();
+    SplitQualType Split = splitAccordingToPolicy(UnderlyingType, Policy);
+    Qualifiers FullQuals = Quals + Split.Quals;
+    printBefore(Split.Ty, FullQuals, OS);
+    return;
+  }
 
   SaveAndRestore PrevPHIsEmpty(HasEmptyPlaceHolder);
 
@@ -1084,7 +1094,6 @@ void TypePrinter::printFunctionNoProtoAfter(const FunctionNoProtoType *T,
 }
 
 void TypePrinter::printTypeSpec(NamedDecl *D, raw_ostream &OS) {
-
   // Compute the full nested-name-specifier for this type.
   // In C, this will always be empty except when the type
   // being printed is anonymous within other Record.
@@ -1593,11 +1602,17 @@ void TypePrinter::printElaboratedBefore(const ElaboratedType *T,
   // The tag definition will take care of these.
   if (!Policy.IncludeTagDefinition)
   {
-    OS << TypeWithKeyword::getKeywordName(T->getKeyword());
-    if (T->getKeyword() != ETK_None)
-      OS << " ";
+    // When removing aliases don't print keywords to avoid having things
+    // like 'typename int'
+    if (!Policy.SuppressTypedefs)
+    {
+       OS << TypeWithKeyword::getKeywordName(T->getKeyword());
+       if (T->getKeyword() != ETK_None)
+         OS << " ";
+    }
     NestedNameSpecifier *Qualifier = T->getQualifier();
-    if (Qualifier)
+    if (Qualifier && !(Policy.SuppressTypedefs &&
+                       T->getNamedType()->getTypeClass() == Type::Typedef))
       Qualifier->print(OS, Policy);
   }
 
@@ -1815,6 +1830,10 @@ void TypePrinter::printAttributedAfter(const AttributedType *T,
   case attr::HLSLGroupSharedAddressSpace:
     // FIXME: Update printAttributedBefore to print these once we generate
     // AttributedType nodes for them.
+    break;
+
+  case attr::SYCLIntelPipe:
+    OS << "pipe";
     break;
 
   case attr::LifetimeBound:

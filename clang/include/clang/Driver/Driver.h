@@ -575,6 +575,10 @@ public:
   /// @name Helper Methods
   /// @{
 
+  /// MakeSYCLDeviceTriple - Returns the SYCL device triple for the
+  /// specified subarch
+  llvm::Triple MakeSYCLDeviceTriple(StringRef TargetArch = "spir64") const;
+
   /// PrintActions - Print the list of actions.
   void PrintActions(const Compilation &C) const;
 
@@ -582,6 +586,9 @@ public:
   ///
   /// \param ShowHidden - Show hidden options.
   void PrintHelp(bool ShowHidden) const;
+
+  /// PrintSYCLToolHelp - Print help text from offline compiler tools.
+  void PrintSYCLToolHelp(const Compilation &C) const;
 
   /// PrintVersion - Print the driver version.
   void PrintVersion(const Compilation &C, raw_ostream &OS) const;
@@ -646,6 +653,7 @@ public:
   const char *CreateTempFile(Compilation &C, StringRef Prefix, StringRef Suffix,
                              bool MultipleArchs = false,
                              StringRef BoundArch = {},
+                             types::ID Type = types::TY_Nothing,
                              bool NeedUniqueDirectory = false) const;
 
   /// GetNamedOutputPath - Return the name to use for the output of
@@ -670,6 +678,11 @@ public:
   ///
   /// GCC goes to extra lengths here to be a bit more robust.
   std::string GetTemporaryPath(StringRef Prefix, StringRef Suffix) const;
+
+  /// GetUniquePath = Return the pathname of a unique file to use
+  /// as part of compilation. The file will have the given base name (BaseName)
+  /// and extension (Ext).
+  std::string GetUniquePath(StringRef BaseName, StringRef Ext) const;
 
   /// GetTemporaryDirectory - Return the pathname of a temporary directory to
   /// use as part of compilation; the directory will have the given prefix.
@@ -704,6 +717,25 @@ public:
   LTOKind getLTOMode(bool IsOffload = false) const {
     return IsOffload ? OffloadLTOMode : LTOMode;
   }
+
+  // FPGA Offload Modes.
+  enum DeviceMode {
+    UnsetDeviceMode,
+    FPGAHWMode,
+    FPGAEmulationMode
+  } OffloadCompileMode = UnsetDeviceMode;
+
+  bool IsFPGAHWMode() const { return OffloadCompileMode == FPGAHWMode; }
+
+  bool IsFPGAEmulationMode() const {
+    return OffloadCompileMode == FPGAEmulationMode;
+  }
+
+  void setOffloadCompileMode(DeviceMode ModeValue) {
+    OffloadCompileMode = ModeValue;
+  }
+
+  DeviceMode getOffloadCompileMode() { return OffloadCompileMode; }
 
 private:
 
@@ -772,6 +804,62 @@ private:
           &CachedResults,
       Action::OffloadKind TargetDeviceOffloadKind) const;
 
+  /// Static offload library seen.
+  bool OffloadStaticLibSeen = false;
+
+  void setOffloadStaticLibSeen() { OffloadStaticLibSeen = true; }
+
+  /// Use the new offload driver for OpenMP
+  bool UseNewOffloadingDriver = false;
+  void setUseNewOffloadingDriver() { UseNewOffloadingDriver = true; }
+
+  /// The inclusion of the default SYCL device triple is dependent on either
+  /// the discovery of an existing object/archive that contains the device code
+  /// or if a user explicitly turns this on with -fsycl-add-spirv.
+  /// We need to keep track of this so any use of any generic target option
+  /// setting is only applied to the user specified triples.
+  bool SYCLDefaultTripleImplied = false;
+  void setSYCLDefaultTriple(bool IsDefaultImplied) {
+    SYCLDefaultTripleImplied = IsDefaultImplied;
+  }
+
+  /// Returns true if an offload binary is found that contains the default
+  /// triple for SYCL (spir64)
+  bool checkForSYCLDefaultDevice(Compilation &C,
+                                 llvm::opt::DerivedArgList &Args) const;
+
+  /// Returns true if an offload static library is found.
+  bool checkForOffloadStaticLib(Compilation &C,
+                                llvm::opt::DerivedArgList &Args) const;
+
+  /// Checks for any mismatch of targets and provided input binaries.
+  void checkForOffloadMismatch(Compilation &C,
+                               llvm::opt::DerivedArgList &Args) const;
+
+  /// Track filename used for the FPGA dependency info.
+  mutable llvm::StringMap<const std::string> FPGATempDepFiles;
+
+  /// A list of inputs and their corresponding integration headers. These
+  /// files are generated during the device compilation and are consumed
+  /// by the host compilation.
+  mutable llvm::StringMap<const std::pair<StringRef, StringRef>>
+      IntegrationFileList;
+
+  /// Unique ID used for SYCL compilations.  Each file will use a different
+  /// unique ID, but the same ID will be used for different compilation
+  /// targets.
+  mutable llvm::StringMap<StringRef> SYCLUniqueIDList;
+
+  /// Vector of Macros that need to be added to the Host compilation in a
+  /// SYCL based offloading scenario.  These macros are gathered during
+  /// construction of the device compilations.
+  mutable std::vector<std::string> SYCLTargetMacroArgs;
+
+  /// Vector of Macros related to Device Traits that need to be added to the
+  /// device compilation in a SYCL based offloading scenario.  These macros are
+  /// gathered during creation of offloading device toolchains.
+  mutable llvm::opt::ArgStringList SYCLDeviceTraitsMacrosArgs;
+
   /// Return the typical executable name for the specified driver \p Mode.
   static const char *getExecutableForDriverMode(DriverMode Mode);
 
@@ -797,11 +885,88 @@ public:
   /// Compute the default -fmodule-cache-path.
   /// \return True if the system provides a default cache directory.
   static bool getDefaultModuleCachePath(SmallVectorImpl<char> &Result);
+
+  bool getOffloadStaticLibSeen() const { return OffloadStaticLibSeen; };
+
+  /// getUseNewOffloadingDriver - use the new offload driver for OpenMP.
+  bool getUseNewOffloadingDriver() const { return UseNewOffloadingDriver; };
+
+  /// addFPGATempDepFile - Add a file to be added to the bundling step of
+  /// an FPGA object.
+  void addFPGATempDepFile(const std::string &DepName,
+                          const std::string &FileName) const {
+    FPGATempDepFiles.insert({FileName, DepName});
+  }
+  /// getFPGATempDepFile - Get a file to be added to the bundling step of
+  /// an FPGA object.
+  const std::string getFPGATempDepFile(const std::string &FileName) const {
+    return FPGATempDepFiles[FileName];
+  }
+
+  /// isSYCLDefaultTripleImplied - The default SYCL triple (spir64) has been
+  /// added or should be added given proper criteria.
+  bool isSYCLDefaultTripleImplied() const { return SYCLDefaultTripleImplied; };
+
+  /// addIntegrationFiles - Add the integration files that will be populated
+  /// by the device compilation and used by the host compile.
+  void addIntegrationFiles(StringRef IntHeaderName, StringRef IntFooterName,
+                           StringRef FileName) const {
+    IntegrationFileList.insert(
+        {FileName, std::make_pair(IntHeaderName, IntFooterName)});
+  }
+  /// getIntegrationHeader - Get the integration header file
+  StringRef getIntegrationHeader(StringRef FileName) const {
+    return IntegrationFileList[FileName].first;
+  }
+  /// getIntegrationFooter - Get the integration footer file
+  StringRef getIntegrationFooter(StringRef FileName) const {
+    return IntegrationFileList[FileName].second;
+  }
+  /// createAppendedFooterInput - Create new source file.
+  void createAppendedFooterInput(Action *&Input, Compilation &C,
+                                 const llvm::opt::ArgList &Args) const;
+
+  /// addSYCLTargetMacroArg - Add the given macro to the vector of args to be
+  /// added to the host compilation step.
+  void addSYCLTargetMacroArg(const llvm::opt::ArgList &Args,
+                             StringRef Macro) const {
+    SYCLTargetMacroArgs.push_back(Args.MakeArgString(Macro));
+  }
+  /// getSYCLTargetMacroArgs - return the previously gathered macro target args.
+  llvm::ArrayRef<std::string> getSYCLTargetMacroArgs() const {
+    return SYCLTargetMacroArgs;
+  }
+
+  /// setSYCLUniqueID - set the Unique ID that is used for all FE invocations
+  /// when performing compilations for SYCL.
+  void addSYCLUniqueID(StringRef UniqueID, StringRef FileName) const {
+    SYCLUniqueIDList.insert({FileName, UniqueID});
+  }
+  /// getSYCLUniqueID - Get the Unique ID associated with the file.
+  StringRef getSYCLUniqueID(StringRef FileName) const {
+    return SYCLUniqueIDList[FileName];
+  }
+
+  /// Reads device config file to find information about the SYCL targets in
+  /// UniqueSYCLTriplesVec, and defines device traits macros accordingly.
+  void populateSYCLDeviceTraitsMacrosArgs(
+      const llvm::opt::ArgList &Args,
+      const llvm::SmallVector<llvm::Triple, 4> &UniqueSYCLTriplesVec);
+
+  llvm::opt::ArgStringList getDeviceTraitsMacrosArgs() const {
+    return SYCLDeviceTraitsMacrosArgs;
+  }
 };
 
 /// \return True if the last defined optimization level is -Ofast.
 /// And False otherwise.
 bool isOptimizationLevelFast(const llvm::opt::ArgList &Args);
+
+/// \return True if the filename has a valid object file extension.
+bool isObjectFile(std::string FileName);
+
+/// \return True if the filename has a static archive/lib extension.
+bool isStaticArchiveFile(const StringRef &FileName);
 
 /// \return True if the argument combination will end up generating remarks.
 bool willEmitRemarks(const llvm::opt::ArgList &Args);

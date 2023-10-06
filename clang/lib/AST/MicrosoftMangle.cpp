@@ -2290,6 +2290,21 @@ void MicrosoftCXXNameMangler::mangleAddressSpaceType(QualType T,
     case LangAS::cuda_device:
       Extra.mangleSourceName("_ASCUdevice");
       break;
+    case LangAS::sycl_global:
+      Extra.mangleSourceName("_ASSYglobal");
+      break;
+    case LangAS::sycl_global_device:
+      Extra.mangleSourceName("_ASSYdevice");
+      break;
+    case LangAS::sycl_global_host:
+      Extra.mangleSourceName("_ASSYhost");
+      break;
+    case LangAS::sycl_local:
+      Extra.mangleSourceName("_ASSYlocal");
+      break;
+    case LangAS::sycl_private:
+      Extra.mangleSourceName("_ASSYprivate");
+      break;
     case LangAS::cuda_constant:
       Extra.mangleSourceName("_ASCUconstant");
       break;
@@ -2500,6 +2515,13 @@ void MicrosoftCXXNameMangler::mangleType(const BuiltinType *T, Qualifiers,
   case BuiltinType::Id: \
     Out << "PAUocl_" #ImgType "_" #Suffix "@@"; \
     break;
+#include "clang/Basic/OpenCLImageTypes.def"
+#define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix)                   \
+  case BuiltinType::Sampled##Id:                                               \
+    Out << "PAU__spirv_SampledImage__" #ImgType "_" #Suffix "@@";              \
+    break;
+#define IMAGE_WRITE_TYPE(Type, Id, Ext)
+#define IMAGE_READ_WRITE_TYPE(Type, Id, Ext)
 #include "clang/Basic/OpenCLImageTypes.def"
   case BuiltinType::OCLSampler:
     Out << "PA";

@@ -122,6 +122,7 @@ define void @calls_intrinsic(ptr %dest, ptr %src, i64 %size) convergent {
 ; CGSCC-NEXT:    call void @llvm.memcpy.p0.p0.i64(ptr nocapture nofree writeonly [[DEST]], ptr nocapture nofree readonly [[SRC]], i64 [[SIZE]], i1 noundef false) #[[ATTR7]]
 ; CGSCC-NEXT:    ret void
 ;
+; Use opaque pointer version of memcpy
   call void @llvm.memcpy.p0i8.p0i8.i64(ptr %dest, ptr %src, i64 %size, i1 false)
   ret void
 }

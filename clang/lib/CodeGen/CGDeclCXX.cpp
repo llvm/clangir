@@ -28,10 +28,12 @@ using namespace CodeGen;
 
 static void EmitDeclInit(CodeGenFunction &CGF, const VarDecl &D,
                          ConstantAddress DeclPtr) {
-  assert(
-      (D.hasGlobalStorage() ||
-       (D.hasLocalStorage() && CGF.getContext().getLangOpts().OpenCLCPlusPlus)) &&
-      "VarDecl must have global or local (in the case of OpenCL) storage!");
+  assert((D.hasGlobalStorage() ||
+          (D.hasLocalStorage() &&
+           (CGF.getContext().getLangOpts().OpenCLCPlusPlus ||
+            CGF.getContext().getLangOpts().SYCLIsDevice))) &&
+         "VarDecl must have global or local (in the case of OpenCL and SYCL) "
+         "storage!");
   assert(!D.getType()->isReferenceType() &&
          "Should not call EmitDeclInit on a reference!");
 
@@ -162,13 +164,15 @@ void CodeGenFunction::EmitInvariantStart(llvm::Constant *Addr, CharUnits Size) {
   // Grab the llvm.invariant.start intrinsic.
   llvm::Intrinsic::ID InvStartID = llvm::Intrinsic::invariant_start;
   // Overloaded address space type.
-  llvm::Type *ObjectPtr[1] = {Int8PtrTy};
+  llvm::Type *ResTy = llvm::PointerType::getInt8PtrTy(
+      CGM.getLLVMContext(), Addr->getType()->getPointerAddressSpace());
+  llvm::Type *ObjectPtr[1] = {ResTy};
   llvm::Function *InvariantStart = CGM.getIntrinsic(InvStartID, ObjectPtr);
 
   // Emit a call with the size in bytes of the object.
   uint64_t Width = Size.getQuantity();
-  llvm::Value *Args[2] = { llvm::ConstantInt::getSigned(Int64Ty, Width),
-                           llvm::ConstantExpr::getBitCast(Addr, Int8PtrTy)};
+  llvm::Value *Args[2] = {llvm::ConstantInt::getSigned(Int64Ty, Width),
+                          llvm::ConstantExpr::getBitCast(Addr, ResTy)};
   Builder.CreateCall(InvariantStart, Args);
 }
 

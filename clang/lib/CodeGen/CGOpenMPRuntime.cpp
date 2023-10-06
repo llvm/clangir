@@ -5601,6 +5601,7 @@ llvm::Value *CGOpenMPRuntime::emitTaskReductionInit(
     LValue OrigLVal = CGF.EmitLValueForField(ElemLVal, OrigFD);
     llvm::Value *Orig = RCG.getOrigLValue(Cnt).getPointer(CGF);
     CGF.EmitStoreOfScalar(Orig, OrigLVal);
+
     RCG.emitAggregateType(CGF, Cnt);
     llvm::Value *SizeValInChars;
     llvm::Value *SizeVal;
@@ -5630,6 +5631,7 @@ llvm::Value *CGOpenMPRuntime::emitTaskReductionInit(
     llvm::Value *CombAddr = emitReduceCombFunction(
         CGM, Loc, RCG, Cnt, Data.ReductionOps[Cnt], LHSExprs[Cnt],
         RHSExprs[Cnt], Data.ReductionCopies[Cnt]);
+
     CGF.EmitStoreOfScalar(CombAddr, CombLVal);
     // ElemLVal.flags = 0;
     LValue FlagsLVal = CGF.EmitLValueForField(ElemLVal, FlagsFD);

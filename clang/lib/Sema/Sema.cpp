@@ -218,7 +218,8 @@ Sema::Sema(Preprocessor &pp, ASTContext &ctxt, ASTConsumer &consumer,
       ArgumentPackSubstitutionIndex(-1), CurrentInstantiationScope(nullptr),
       DisableTypoCorrection(false), TyposCorrected(0), AnalysisWarnings(*this),
       ThreadSafetyDeclCache(nullptr), VarDataSharingAttributesStack(nullptr),
-      CurScope(nullptr), Ident_super(nullptr) {
+      CurScope(nullptr), Ident_super(nullptr),
+      SyclIntHeader(nullptr), SyclIntFooter(nullptr) {
   assert(pp.TUKind == TUKind);
   TUScope = nullptr;
   isConstantEvaluatedOverride = false;
@@ -335,6 +336,33 @@ void Sema::Initialize() {
                         TUScope);
 
     addImplicitTypedef("size_t", Context.getSizeType());
+  }
+  if (getLangOpts().SYCLIsDevice) {
+    addImplicitTypedef("__ocl_event_t", Context.OCLEventTy);
+    addImplicitTypedef("__ocl_sampler_t", Context.OCLSamplerTy);
+#ifdef SEMA_STRINGIZE
+#error "Undefine SEMA_STRINGIZE macro."
+#endif
+#define SEMA_STRINGIZE(s) #s
+#define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix)                   \
+  addImplicitTypedef(SEMA_STRINGIZE(__ocl_##ImgType##_##Suffix##_t),           \
+                     Context.SingletonId);
+#include "clang/Basic/OpenCLImageTypes.def"
+#undef SEMA_STRINGIZE
+  }
+
+  if (getLangOpts().SYCLIsDevice || getLangOpts().OpenCL) {
+#ifdef SEMA_STRINGIZE
+#error "Undefine SEMA_STRINGIZE macro."
+#endif
+#define SEMA_STRINGIZE(s) #s
+#define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix)                   \
+  addImplicitTypedef(SEMA_STRINGIZE(__ocl_sampled_##ImgType##_##Suffix##_t),   \
+                     Context.Sampled##SingletonId);
+#define IMAGE_WRITE_TYPE(Type, Id, Ext)
+#define IMAGE_READ_WRITE_TYPE(Type, Id, Ext)
+#include "clang/Basic/OpenCLImageTypes.def"
+#undef SEMA_STRINGIZE
   }
 
   // Initialize predefined OpenCL types and supported extensions and (optional)
@@ -1083,6 +1111,21 @@ void Sema::ActOnEndOfTranslationUnitFragment(TUFragmentKind Kind) {
     PerformPendingInstantiations();
   }
 
+  if (getLangOpts().SYCLIsDevice) {
+    // Set the names of the kernels, now that the names have settled down. This
+    // needs to happen before we generate the integration headers.
+    SetSYCLKernelNames();
+    // Make sure that the footer is emitted before header, since only after the
+    // footer is emitted is it known that translation unit contains device
+    // global variables.
+    if (SyclIntFooter != nullptr)
+      SyclIntFooter->emit(getLangOpts().SYCLIntFooter);
+    // Emit SYCL integration header for current translation unit if needed
+    if (SyclIntHeader != nullptr)
+      SyclIntHeader->emit(getLangOpts().SYCLIntHeader);
+    MarkDevices();
+  }
+
   emitDeferredDiags();
 
   assert(LateParsedInstantiations.empty() &&
@@ -1611,7 +1654,8 @@ bool Sema::hasUncompilableErrorOccurred() const {
   if (Loc == DeviceDeferredDiags.end())
     return false;
   for (auto PDAt : Loc->second) {
-    if (DiagnosticIDs::isDefaultMappingAsError(PDAt.second.getDiagID()))
+    if (DiagnosticIDs::isDefaultMappingAsError(
+            PDAt.getDiag().second.getDiagID()))
       return true;
   }
   return false;
@@ -1681,6 +1725,8 @@ public:
   // Emission state of the root node of the current use graph.
   bool ShouldEmitRootNode;
 
+  Sema::DeviceDiagnosticReason RootReason = Sema::DeviceDiagnosticReason::All;
+
   // Current OpenMP device context level. It is initialized to 0 and each
   // entering of device context increases it by 1 and each exit decreases
   // it by 1. Non-zero value indicates it is currently in device context.
@@ -1698,12 +1744,38 @@ public:
   }
 
   void visitUsedDecl(SourceLocation Loc, Decl *D) {
+    if (S.LangOpts.SYCLIsDevice && ShouldEmitRootNode) {
+      if (auto *VD = dyn_cast<VarDecl>(D)) {
+        if (!S.checkAllowedSYCLInitializer(VD) &&
+            !S.isTypeDecoratedWithDeclAttribute<SYCLGlobalVariableAllowedAttr>(
+                VD->getType())) {
+          S.Diag(Loc, diag::err_sycl_restrict)
+              << Sema::KernelConstStaticVariable;
+          return;
+        }
+        if (!VD->hasInit() &&
+            S.isTypeDecoratedWithDeclAttribute<SYCLDeviceGlobalAttr>(
+                VD->getType()) &&
+            !VD->hasAttr<SYCLDeviceAttr>())
+          S.Diag(Loc, diag::err_sycl_external_global);
+      }
+    }
     if (isa<VarDecl>(D))
       return;
-    if (auto *FD = dyn_cast<FunctionDecl>(D))
+    if (auto *FD = dyn_cast<FunctionDecl>(D)) {
+      Sema::DeviceDiagnosticReason SaveReason = RootReason;
+      // Allow switching context from SYCL to ESIMD. Switching back is not
+      // allowed. I.e., once we entered ESIMD code we stay there until we exit
+      // the subgraph.
+      if ((RootReason == Sema::DeviceDiagnosticReason::Sycl) &&
+          (S.getEmissionReason(FD) == Sema::DeviceDiagnosticReason::Esimd))
+        RootReason = Sema::DeviceDiagnosticReason::Esimd;
       checkFunc(Loc, FD);
-    else
+      // Restore the context
+      RootReason = SaveReason;
+    } else {
       Inherited::visitUsedDecl(Loc, D);
+    }
   }
 
   void checkVar(VarDecl *VD) {
@@ -1731,6 +1803,9 @@ public:
     if (Caller && S.LangOpts.OpenMP && UsePath.size() == 1 &&
         (ShouldEmitRootNode || InOMPDeviceContext))
       S.finalizeOpenMPDelayedAnalysis(Caller, FD, Loc);
+    // Finalize analysis of SYCL-specific constructs.
+    if (Caller && S.LangOpts.SYCLIsDevice)
+      S.finalizeSYCLDelayedAnalysis(Caller, FD, Loc, RootReason);
     if (Caller)
       S.DeviceKnownEmittedFns[FD] = {Caller, Loc};
     // Always emit deferred diagnostics for the direct users. This does not
@@ -1755,27 +1830,45 @@ public:
     if (auto *FD = dyn_cast<FunctionDecl>(D)) {
       ShouldEmitRootNode = S.getEmissionStatus(FD, /*Final=*/true) ==
                            Sema::FunctionEmissionStatus::Emitted;
+      RootReason = S.getEmissionReason(FD);
       checkFunc(SourceLocation(), FD);
-    } else
+    } else {
+      // Global VarDecls don't really have a reason, so set this to 'ALL'.
+      RootReason = Sema::DeviceDiagnosticReason::All;
       checkVar(cast<VarDecl>(D));
+    }
   }
 
   // Emit any deferred diagnostics for FD
   void emitDeferredDiags(FunctionDecl *FD, bool ShowCallStack) {
     auto It = S.DeviceDeferredDiags.find(FD);
-    if (It == S.DeviceDeferredDiags.end())
+    if (It == S.DeviceDeferredDiags.end()) {
+      // If this is a template instantiation, check if its declaration
+      // is on the deferred diagnostics stack.
+      if (FD->isTemplateInstantiation()) {
+        FD = FD->getTemplateInstantiationPattern();
+        emitDeferredDiags(FD, ShowCallStack);
+      }
       return;
+    }
     bool HasWarningOrError = false;
     bool FirstDiag = true;
-    for (PartialDiagnosticAt &PDAt : It->second) {
+    for (Sema::DeviceDeferredDiagnostic &D : It->second) {
       // Respect error limit.
       if (S.Diags.hasFatalErrorOccurred())
         return;
-      const SourceLocation &Loc = PDAt.first;
-      const PartialDiagnostic &PD = PDAt.second;
+      const SourceLocation &Loc = D.getDiag().first;
+      const PartialDiagnostic &PD = D.getDiag().second;
+      Sema::DeviceDiagnosticReason Reason = D.getReason();
       HasWarningOrError |=
           S.getDiagnostics().getDiagnosticLevel(PD.getDiagID(), Loc) >=
           DiagnosticsEngine::Warning;
+
+      // If the diagnostic doesn't apply to this call graph, skip this
+      // diagnostic.
+      if ((RootReason & Reason) == Sema::DeviceDiagnosticReason::None)
+        continue;
+
       {
         DiagnosticBuilder Builder(S.Diags.Report(Loc, PD.getDiagID()));
         PD.Emit(Builder);
@@ -1796,7 +1889,8 @@ void Sema::emitDeferredDiags() {
     ExternalSource->ReadDeclsToCheckForDeferredDiags(
         DeclsToCheckForDeferredDiags);
 
-  if ((DeviceDeferredDiags.empty() && !LangOpts.OpenMP) ||
+  if ((DeviceDeferredDiags.empty() && !LangOpts.OpenMP &&
+       !LangOpts.SYCLIsDevice) ||
       DeclsToCheckForDeferredDiags.empty())
     return;
 
@@ -1831,8 +1925,8 @@ void Sema::emitDeferredDiags() {
 
 Sema::SemaDiagnosticBuilder::SemaDiagnosticBuilder(Kind K, SourceLocation Loc,
                                                    unsigned DiagID,
-                                                   const FunctionDecl *Fn,
-                                                   Sema &S)
+                                                   const FunctionDecl *Fn, Sema &S,
+                                                   DeviceDiagnosticReason R)
     : S(S), Loc(Loc), DiagID(DiagID), Fn(Fn),
       ShowCallStack(K == K_ImmediateWithCallStack || K == K_Deferred) {
   switch (K) {
@@ -1847,7 +1941,7 @@ Sema::SemaDiagnosticBuilder::SemaDiagnosticBuilder(Kind K, SourceLocation Loc,
     assert(Fn && "Must have a function to attach the deferred diag to.");
     auto &Diags = S.DeviceDeferredDiags[Fn];
     PartialDiagId.emplace(Diags.size());
-    Diags.emplace_back(Loc, S.PDiag(DiagID));
+    Diags.emplace_back(Loc, S.PDiag(DiagID), R);
     break;
   }
 }
@@ -1884,15 +1978,16 @@ Sema::targetDiag(SourceLocation Loc, unsigned DiagID, const FunctionDecl *FD) {
     return LangOpts.OpenMPIsTargetDevice
                ? diagIfOpenMPDeviceCode(Loc, DiagID, FD)
                : diagIfOpenMPHostCode(Loc, DiagID, FD);
-  if (getLangOpts().CUDA)
-    return getLangOpts().CUDAIsDevice ? CUDADiagIfDeviceCode(Loc, DiagID)
-                                      : CUDADiagIfHostCode(Loc, DiagID);
 
   if (getLangOpts().SYCLIsDevice)
     return SYCLDiagIfDeviceCode(Loc, DiagID);
 
+  if (getLangOpts().CUDA)
+    return getLangOpts().CUDAIsDevice ? CUDADiagIfDeviceCode(Loc, DiagID)
+                                      : CUDADiagIfHostCode(Loc, DiagID);
+
   return SemaDiagnosticBuilder(SemaDiagnosticBuilder::K_Immediate, Loc, DiagID,
-                               FD, *this);
+                               FD, *this, DeviceDiagnosticReason::All);
 }
 
 Sema::SemaDiagnosticBuilder Sema::Diag(SourceLocation Loc, unsigned DiagID,
@@ -1908,7 +2003,8 @@ Sema::SemaDiagnosticBuilder Sema::Diag(SourceLocation Loc, unsigned DiagID,
   if (!ShouldDefer) {
     SetIsLastErrorImmediate(true);
     return SemaDiagnosticBuilder(SemaDiagnosticBuilder::K_Immediate, Loc,
-                                 DiagID, getCurFunctionDecl(), *this);
+                                 DiagID, getCurFunctionDecl(), *this,
+                                 DeviceDiagnosticReason::All);
   }
 
   SemaDiagnosticBuilder DB = getLangOpts().CUDAIsDevice
@@ -1982,7 +2078,9 @@ void Sema::checkTypeSupport(QualType Ty, SourceLocation Loc, ValueDecl *D) {
     }
 
     if ((Ty->isFloat16Type() && !Context.getTargetInfo().hasFloat16Type()) ||
-        (Ty->isFloat128Type() && !Context.getTargetInfo().hasFloat128Type()) ||
+        ((Ty->isFloat128Type() ||
+          (Ty->isRealFloatingType() && Context.getTypeSize(Ty) == 128)) &&
+         !Context.getTargetInfo().hasFloat128Type()) ||
         (Ty->isIbm128Type() && !Context.getTargetInfo().hasIbm128Type()) ||
         (Ty->isIntegerType() && Context.getTypeSize(Ty) == 128 &&
          !Context.getTargetInfo().hasInt128Type()) ||

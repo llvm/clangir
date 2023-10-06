@@ -63,6 +63,10 @@ def err_drv_no_cuda_libdevice : Error<
   "via '--cuda-path', or pass '-nocudalib' to build without linking with "
   "libdevice">;
 
+def warn_function_fp_accuracy_already_set : Warning <
+  "floating point accuracy value of '%0' has already been assigned to "
+  "function '%1'">,
+  InGroup<DiagGroup<"fp-accuracy-already-set">>;
 def err_drv_no_rocm_device_lib : Error<
   "cannot find ROCm device library%select{| for %1|for ABI version %1}0; provide its path via "
   "'--rocm-path' or '--rocm-device-lib-path', or pass '-nogpulib' to build "
@@ -98,6 +102,13 @@ def warn_drv_partially_supported_cuda_version: Warning<
   InGroup<CudaUnknownVersion>;
 def err_drv_cuda_host_arch : Error<
   "unsupported architecture '%0' for host compilation">;
+def err_drv_no_sycl_libspirv : Error<
+  "cannot find '%0'; provide path to libspirv library via '-fsycl-libspirv-path', or "
+  "pass '-fno-sycl-libspirv' to build without linking with libspirv">;
+def warn_flag_no_sycl_libspirv
+    : Warning<"'-fno-sycl-libspirv' should not be used with target '%0'; "
+              "libspirv is required for correct behavior">,
+      InGroup<NoLibspirvHipCuda>;
 def err_drv_mix_cuda_hip : Error<
   "mixed CUDA and HIP compilation is not supported">;
 def err_drv_bad_target_id : Error<
@@ -137,8 +148,9 @@ def err_drv_invalid_unwindlib_name : Error<
   "invalid unwind library name in argument '%0'">;
 def err_drv_incompatible_unwindlib : Error<
   "--rtlib=libgcc requires --unwindlib=libgcc">;
-def err_drv_incompatible_options : Error<
-  "the combination of '%0' and '%1' is incompatible">;
+def err_drv_incompatible_fp_accuracy_options : Error<
+  "floating point accuracy requirements cannot be guaranteed when '-fmath-errno' "
+  "is enabled; use '-fno-math-errno' to enable floating point accuracy control">;
 def err_drv_invalid_stdlib_name : Error<
   "invalid library name in argument '%0'">;
 def err_drv_invalid_output_with_multiple_archs : Error<
@@ -146,6 +158,8 @@ def err_drv_invalid_output_with_multiple_archs : Error<
 def err_drv_no_input_files : Error<"no input files">;
 def err_drv_output_argument_with_multiple_files : Error<
   "cannot specify -o when generating multiple output files">;
+def err_drv_output_type_with_host_compiler : Error<
+  "unsupported output type when using external host compiler">;
 def err_drv_out_file_argument_with_multiple_sources : Error<
   "cannot specify '%0%1' when compiling multiple source files">;
 def err_no_external_assembler : Error<
@@ -170,6 +184,19 @@ def err_drv_Xopenmp_target_missing_triple : Error<
   "cannot deduce implicit triple value for -Xopenmp-target, specify triple using -Xopenmp-target=<triple>">;
 def err_drv_invalid_Xopenmp_target_with_args : Error<
   "invalid -Xopenmp-target argument: '%0', options requiring arguments are unsupported">;
+def err_drv_Xsycl_target_missing_triple : Error<
+  "cannot deduce implicit triple value for '%0', specify triple using '%0=<triple>'">;
+def err_drv_invalid_Xsycl_frontend_with_args : Error<
+  "invalid -Xsycl-target-frontend argument: '%0', options requiring arguments are unsupported">;
+def err_drv_bad_fpga_device_count : Error<
+  "More than one FPGA specific device binary found in input objects">;
+def warn_drv_mismatch_fpga_archive : Warning<
+  "FPGA archive '%0' does not contain matching emulation/hardware expectancy">,
+  InGroup<SyclFPGAMismatch>;
+def warn_drv_sycl_native_cpu_and_targets: Warning<
+  "-fsycl-targets=native_cpu overrides SYCL targets option">,
+  InGroup<SyclNativeCPUTargets>;
+def err_drv_unsupported_opt_dpcpp : Error<"option '%0' unsupported with DPC++">;
 def err_drv_argument_only_allowed_with : Error<
   "invalid argument '%0' only allowed with '%1'">;
 def err_drv_minws_unsupported_input_type : Error<
@@ -324,7 +351,9 @@ def err_drv_optimization_remark_format : Error<
   "unknown remark serializer format: '%0'">;
 def err_drv_no_neon_modifier : Error<"[no]neon is not accepted as modifier, please use [no]simd instead">;
 def err_drv_invalid_omp_target : Error<"OpenMP target is invalid: '%0'">;
+def err_drv_invalid_sycl_target : Error<"SYCL target is invalid: '%0'">;
 def err_drv_incompatible_omp_arch : Error<"OpenMP target architecture '%0' pointer size is incompatible with host '%1'">;
+def err_drv_option_conflict : Error<"The option %0 conflicts with %1">;
 def err_drv_omp_host_ir_file_not_found : Error<
   "provided host compiler IR file '%0' is required to generate code for OpenMP "
   "target regions but cannot be found">;
@@ -335,6 +364,30 @@ def err_drv_omp_host_target_not_supported : Error<
 def err_drv_expecting_fopenmp_with_fopenmp_targets : Error<
   "'-fopenmp-targets' must be used in conjunction with a '-fopenmp' option "
   "compatible with offloading; e.g., '-fopenmp=libomp' or '-fopenmp=libiomp5'">;
+def err_drv_expecting_fsycl_with_sycl_opt : Error<
+  "'%0' must be used in conjunction with '-fsycl' to enable offloading">;
+def err_drv_fsycl_with_c_type : Error<
+  "'%0' must not be used in conjunction with '-fsycl', which expects C++ source">;
+def err_drv_fsycl_with_pch : Error<
+  "Precompiled header generation is not supported with '-fsycl'">;
+def err_drv_fsycl_unsupported_with_opt
+  : Error<"'%0' is not supported with '-fsycl'">;
+def warn_drv_opt_requires_opt
+  : Warning<"'%0' should be used only in conjunction with '%1'">, InGroup<UnusedCommandLineArgument>;
+def err_drv_sycl_missing_amdgpu_arch : Error<
+  "missing AMDGPU architecture for SYCL offloading; specify it with '-Xsycl-target-backend --offload-arch'">;
+def warn_drv_sycl_offload_target_duplicate : Warning<
+  "SYCL offloading target '%0' is similar to target '%1' already specified; "
+  "will be ignored">, InGroup<SyclTarget>;
+def warn_drv_sycl_target_missing : Warning<
+  "linked binaries do not contain expected '%0' target; found targets: '%1'">,
+  InGroup<SyclTarget>;
+def err_drv_no_rdc_sycl_target_missing : Error<
+  "linked binaries do not contain expected '%0' target; found targets: '%1', this is not supported with '-fno-sycl-rdc'">;
+def err_drv_fsycl_wrong_optimization_options : Error<
+  "-fsycl-optimize-non-user-code option can be used only in conjunction with %0">;
+def err_drv_multiple_target_with_forced_target : Error<
+  "multiple target usage with '%0' is not supported with '%1'">;
 def err_drv_failed_to_deduce_target_from_arch : Error<
   "failed to deduce triple for target architecture '%0'; specify the triple "
   "using '-fopenmp-targets' and '-Xopenmp-target' instead.">;
@@ -435,6 +488,8 @@ def warn_drv_treating_input_as_cxx : Warning<
   InGroup<Deprecated>;
 def warn_drv_pch_not_first_include : Warning<
   "precompiled header '%0' was ignored because '%1' is not first '-include'">;
+def warn_drv_existing_archive_append: Warning<
+  "appending to an existing archive '%0'">, InGroup<DiagGroup<"archive-append">>;
 def warn_missing_sysroot : Warning<"no such sysroot directory: '%0'">,
   InGroup<DiagGroup<"missing-sysroot">>;
 def warn_incompatible_sysroot : Warning<"using sysroot for '%0' but targeting '%1'">,
@@ -447,6 +502,14 @@ def warn_drv_disabling_vptr_no_rtti_default : Warning<
 def warn_drv_object_size_disabled_O0 : Warning<
   "the object size sanitizer has no effect at -O0, but is explicitly enabled: %0">,
   InGroup<InvalidCommandLineArgument>, DefaultWarnNoWerror;
+def warn_drv_deprecated_option : Warning<
+  "option '%0' is deprecated, use '%1' directly instead">, InGroup<Deprecated>;
+def warn_drv_deprecated_option_release : Warning<
+  "option '%0' is deprecated and will be removed in a future release">,
+  InGroup<Deprecated>;
+def warn_drv_deprecated_argument_option_release : Warning<
+  "argument '%0' for option '%1' is deprecated and will be removed in a "
+  "future release">, InGroup<Deprecated>;
 def warn_ignoring_verify_debuginfo_preserve_export : Warning<
   "ignoring -fverify-debuginfo-preserve-export=%0 because "
   "-fverify-debuginfo-preserve wasn't enabled">,
@@ -704,6 +767,8 @@ def warn_target_override_arm64ec : Warning<
 
 def err_drv_target_variant_invalid : Error<
   "unsupported '%0' value '%1'; use 'ios-macabi' instead">;
+def warn_drv_fsycl_with_c_type : Warning<
+  "treating '%0' input as '%1' when -fsycl is used">, InGroup<ExpectedFileType>;
 
 def err_drv_invalid_directx_shader_module : Error<
   "invalid profile : %0">;

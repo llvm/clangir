@@ -1,5 +1,7 @@
 // RUN: %clang_cc1 -std=c++11 -fsyntax-only -fsycl-is-device -verify %s
+// RUN: %clang_cc1 -fsycl-is-host -DHOST -fsyntax-only -verify %s
 
+#ifndef HOST
 // Only function templates
 [[clang::sycl_kernel]] int gv2 = 0; // expected-warning {{'sycl_kernel' attribute only applies to function templates}}
 __attribute__((sycl_kernel)) int gv3 = 0; // expected-warning {{'sycl_kernel' attribute only applies to function templates}}
@@ -33,12 +35,19 @@ template <typename T, typename A>
 
 // Must take at least one argument
 template <typename T, typename A>
-__attribute__((sycl_kernel)) void foo(); // expected-warning {{function template with 'sycl_kernel' attribute must have a single parameter}}
+__attribute__((sycl_kernel)) void foo(); // expected-warning {{function template with 'sycl_kernel' attribute must have at least one parameter}}
 template <typename T, typename A>
-[[clang::sycl_kernel]] void foo1(T t, A a); // expected-warning {{function template with 'sycl_kernel' attribute must have a single parameter}}
+[[clang::sycl_kernel]] void foo1(T t, A a); // no diagnostics
 
 // No diagnostics
 template <typename T, typename A>
 __attribute__((sycl_kernel)) void foo(T P);
 template <typename T, typename A, int I>
 [[clang::sycl_kernel]] void foo1(T P);
+
+#else
+
+// expected-no-diagnostics
+template <typename T, typename A>
+__attribute__((sycl_kernel)) void foo(T P);
+#endif

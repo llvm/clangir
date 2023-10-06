@@ -54,6 +54,9 @@ struct ParsedAttrInfo {
   unsigned IsKnownToGCC : 1;
   /// True if this attribute is supported by #pragma clang attribute.
   unsigned IsSupportedByPragmaAttribute : 1;
+  /// True if this attribute supports a nonconforming behavior when applied to
+  /// a lambda in the type position.
+  unsigned SupportsNonconformingLambdaSyntax : 1;
   /// The syntaxes supported by this attribute and how they're spelled.
   struct Spelling {
     AttributeCommonInfo::Syntax Syntax;
@@ -68,7 +71,8 @@ protected:
                                AttributeCommonInfo::NoSemaHandlerAttribute)
       : AttrKind(AttrKind), NumArgs(0), OptArgs(0), NumArgMembers(0),
         HasCustomParsing(0), AcceptsExprPack(0), IsTargetSpecific(0), IsType(0),
-        IsStmt(0), IsKnownToGCC(0), IsSupportedByPragmaAttribute(0) {}
+        IsStmt(0), IsKnownToGCC(0), IsSupportedByPragmaAttribute(0),
+        SupportsNonconformingLambdaSyntax(0) {}
 
   constexpr ParsedAttrInfo(AttributeCommonInfo::Kind AttrKind, unsigned NumArgs,
                            unsigned OptArgs, unsigned NumArgMembers,
@@ -76,6 +80,7 @@ protected:
                            unsigned IsTargetSpecific, unsigned IsType,
                            unsigned IsStmt, unsigned IsKnownToGCC,
                            unsigned IsSupportedByPragmaAttribute,
+                           unsigned SupportsNonconformingLambdaSyntax,
                            ArrayRef<Spelling> Spellings,
                            ArrayRef<const char *> ArgNames)
       : AttrKind(AttrKind), NumArgs(NumArgs), OptArgs(OptArgs),
@@ -83,6 +88,7 @@ protected:
         AcceptsExprPack(AcceptsExprPack), IsTargetSpecific(IsTargetSpecific),
         IsType(IsType), IsStmt(IsStmt), IsKnownToGCC(IsKnownToGCC),
         IsSupportedByPragmaAttribute(IsSupportedByPragmaAttribute),
+        SupportsNonconformingLambdaSyntax(SupportsNonconformingLambdaSyntax),
         Spellings(Spellings), ArgNames(ArgNames) {}
 
 public:

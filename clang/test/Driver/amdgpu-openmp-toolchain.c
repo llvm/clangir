@@ -1,3 +1,5 @@
+// The test marked as XFAIL as a specific one to the old OpenMP offloading model, which was removed.
+// XFAIL: *
 // REQUIRES: x86-registered-target
 // REQUIRES: amdgpu-registered-target
 // RUN:   %clang -### --target=x86_64-unknown-linux-gnu -fopenmp -fopenmp-targets=amdgcn-amd-amdhsa \
@@ -8,6 +10,7 @@
 // RUN:   | FileCheck %s
 
 // verify the tools invocations
+// FIXME: Need to resolve the conflict if the test is turned on
 // CHECK: "-cc1" "-triple" "x86_64-unknown-linux-gnu"{{.*}}"-emit-llvm-bc"{{.*}}"-x" "c"
 // CHECK: "-cc1" "-triple" "amdgcn-amd-amdhsa" "-aux-triple" "x86_64-unknown-linux-gnu"{{.*}}"-target-cpu" "gfx906"{{.*}}"-fcuda-is-device"{{.*}}
 // CHECK: "-cc1" "-triple" "x86_64-unknown-linux-gnu"{{.*}}"-emit-obj"
@@ -15,7 +18,8 @@
 
 // RUN:   %clang -ccc-print-phases --target=x86_64-unknown-linux-gnu -fopenmp -fopenmp-targets=amdgcn-amd-amdhsa -Xopenmp-target=amdgcn-amd-amdhsa -march=gfx906 %s 2>&1 \
 // RUN:   | FileCheck --check-prefix=CHECK-PHASES %s
-// CHECK-PHASES: 0: input, "[[INPUT:.+]]", c, (host-openmp)
+// phases
+// CHECK-PHASES: 0: input, "{{.*}}amdgpu-openmp-toolchain.c", c, (host-openmp)
 // CHECK-PHASES: 1: preprocessor, {0}, cpp-output, (host-openmp)
 // CHECK-PHASES: 2: compiler, {1}, ir, (host-openmp)
 // CHECK-PHASES: 3: input, "[[INPUT]]", c, (device-openmp)

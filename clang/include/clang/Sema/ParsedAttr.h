@@ -530,6 +530,7 @@ public:
   bool existsInTarget(const TargetInfo &Target) const;
   bool isKnownToGCC() const;
   bool isSupportedByPragmaAttribute() const;
+  bool supportsNonconformingLambdaSyntax() const;
 
   /// Returns whether a [[]] attribute, if specified ahead of a declaration,
   /// should be applied to the decl-specifier-seq instead (i.e. whether it
@@ -577,6 +578,10 @@ public:
   /// representation in LangAS, otherwise returns default address space.
   LangAS asSYCLLangAS() const {
     switch (getKind()) {
+    // FIXME: there are uses of `opencl_constant` attribute in SYCL mode.
+    // See https://github.com/intel/llvm/issues/3062 for more details.
+    case ParsedAttr::AT_OpenCLConstantAddressSpace:
+      return LangAS::opencl_constant;
     case ParsedAttr::AT_OpenCLGlobalAddressSpace:
       return LangAS::sycl_global;
     case ParsedAttr::AT_OpenCLGlobalDeviceAddressSpace:

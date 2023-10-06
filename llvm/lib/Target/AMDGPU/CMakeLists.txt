@@ -186,6 +186,7 @@ add_llvm_target(AMDGPUCodeGen
   TargetParser
   TransformUtils
   Vectorize
+  SYCLLowerIR
 
   ADD_TO_COMPONENT
   AMDGPU

@@ -587,6 +587,10 @@ ExprDependence clang::computeDependence(SYCLUniqueStableNameExpr *E) {
       E->getTypeSourceInfo()->getType()->getDependence());
 }
 
+ExprDependence clang::computeDependence(SYCLUniqueStableIdExpr *E) {
+  return E->getExpr()->getDependence();
+}
+
 ExprDependence clang::computeDependence(PredefinedExpr *E) {
   return toExprDependenceForImpliedType(E->getType()->getDependence());
 }
@@ -906,5 +910,29 @@ ExprDependence clang::computeDependence(ObjCMessageExpr *E) {
     D |= toExprDependenceForImpliedType(E->getType()->getDependence());
   for (auto *A : E->arguments())
     D |= A->getDependence();
+  return D;
+}
+
+ExprDependence clang::computeDependence(SYCLBuiltinNumFieldsExpr *E) {
+  return toExprDependenceAsWritten(E->getSourceType()->getDependence()) &
+         ~ExprDependence::Type;
+}
+
+ExprDependence clang::computeDependence(SYCLBuiltinNumBasesExpr *E) {
+  return toExprDependenceAsWritten(E->getSourceType()->getDependence()) &
+         ~ExprDependence::Type;
+}
+
+ExprDependence clang::computeDependence(SYCLBuiltinFieldTypeExpr *E) {
+  auto D = toExprDependenceAsWritten(E->getSourceType()->getDependence()) &
+           ~ExprDependence::Type;
+  D |= E->getIndex()->getDependence();
+  return D;
+}
+
+ExprDependence clang::computeDependence(SYCLBuiltinBaseTypeExpr *E) {
+  auto D = toExprDependenceAsWritten(E->getSourceType()->getDependence()) &
+           ~ExprDependence::Type;
+  D |= E->getIndex()->getDependence();
   return D;
 }

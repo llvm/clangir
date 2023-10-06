@@ -28,6 +28,7 @@
 
 # Nested build directory
 /build*
+!buildbot
 
 #==============================================================================#
 # Explicit files to ignore (only matches one).

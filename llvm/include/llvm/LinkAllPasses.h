@@ -34,6 +34,9 @@
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IRPrintingPasses.h"
+#include "llvm/SYCLLowerIR/ESIMD/ESIMDVerifier.h"
+#include "llvm/SYCLLowerIR/LowerInvokeSimd.h"
+#include "llvm/SYCLLowerIR/MutatePrintfAddrspace.h"
 #include "llvm/Support/Valgrind.h"
 #include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/IPO/AlwaysInliner.h"
@@ -73,6 +76,7 @@ namespace {
       (void) llvm::createStructurizeCFGPass();
       (void) llvm::createCostModelAnalysisPass();
       (void) llvm::createDeadArgEliminationPass();
+      (void) llvm::createDeadArgEliminationSYCLPass();
       (void) llvm::createDeadCodeEliminationPass();
       (void) llvm::createDependenceAnalysisWrapperPass();
       (void) llvm::createDomOnlyPrinterWrapperPassPass();
@@ -135,6 +139,8 @@ namespace {
       (void) llvm::createExpandLargeDivRemPass();
       (void) llvm::createExpandMemCmpPass();
       (void) llvm::createExpandVectorPredicationPass();
+      (void)llvm::createESIMDVerifierPass();
+      (void)llvm::createSYCLLowerInvokeSimdPass();
       std::string buf;
       llvm::raw_string_ostream os(buf);
       (void) llvm::createPrintModulePass(os);

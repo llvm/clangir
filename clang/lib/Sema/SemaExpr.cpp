@@ -226,6 +226,54 @@ bool Sema::DiagnoseUseOfDecl(NamedDecl *D, ArrayRef<SourceLocation> Locs,
                              bool AvoidPartialAvailabilityChecks,
                              ObjCInterfaceDecl *ClassReceiver,
                              bool SkipTrailingRequiresClause) {
+  if (getLangOpts().SYCLIsDevice) {
+    if (auto VD = dyn_cast<VarDecl>(D)) {
+      bool IsConst = VD->getType().isConstant(Context);
+      bool IsRuntimeEvaluated =
+          ExprEvalContexts.empty() ||
+          (!isUnevaluatedContext() && !isConstantEvaluated());
+      bool IsEsimdPrivateGlobal = isSYCLEsimdPrivateGlobal(VD);
+      // Non-const statics are not allowed in SYCL except for ESIMD or with the
+      // SYCLGlobalVar or SYCLGlobalVariableAllowed attribute.
+      if (IsRuntimeEvaluated && !IsEsimdPrivateGlobal && !IsConst &&
+          VD->getStorageClass() == SC_Static &&
+          !VD->hasAttr<SYCLGlobalVarAttr>() &&
+          !isTypeDecoratedWithDeclAttribute<SYCLGlobalVariableAllowedAttr>(
+              VD->getType()))
+        SYCLDiagIfDeviceCode(*Locs.begin(), diag::err_sycl_restrict)
+            << Sema::KernelNonConstStaticDataVariable;
+      // Non-const globals are not allowed in SYCL except for ESIMD or with the
+      // SYCLGlobalVar or SYCLGlobalVariableAllowed attribute.
+      else if (IsRuntimeEvaluated && !IsEsimdPrivateGlobal && !IsConst &&
+               VD->hasGlobalStorage() && !VD->hasAttr<SYCLGlobalVarAttr>() &&
+               !isTypeDecoratedWithDeclAttribute<SYCLGlobalVariableAllowedAttr>(
+                   VD->getType()))
+        SYCLDiagIfDeviceCode(*Locs.begin(), diag::err_sycl_restrict)
+            << Sema::KernelGlobalVariable;
+      // ESIMD globals cannot be used in a SYCL context.
+      else if (IsRuntimeEvaluated && IsEsimdPrivateGlobal &&
+               VD->hasGlobalStorage())
+        SYCLDiagIfDeviceCode(*Locs.begin(),
+                             diag::err_esimd_global_in_sycl_context,
+                             Sema::DeviceDiagnosticReason::Sycl);
+    } else if (auto *FDecl = dyn_cast<FunctionDecl>(D)) {
+      // SYCL device function cannot be called from ESIMD context. However,
+      // there are some exceptions from this rule - functions that start
+      // with '__spirv_', '__sycl_', '__assert_fail', etc.
+      const IdentifierInfo *Id = FDecl->getIdentifier();
+      if ((getEmissionReason(FDecl) == Sema::DeviceDiagnosticReason::Sycl) &&
+          Id && !Id->getName().startswith("__spirv_") &&
+          !Id->getName().startswith("__sycl_") &&
+          !Id->getName().startswith("__devicelib_ConvertBF16ToFINTEL") &&
+          !Id->getName().startswith("__devicelib_ConvertFToBF16INTEL") &&
+          !Id->getName().startswith("__assert_fail")) {
+        SYCLDiagIfDeviceCode(
+            *Locs.begin(), diag::err_sycl_device_function_is_called_from_esimd,
+            Sema::DeviceDiagnosticReason::Esimd);
+      }
+    }
+  }
+
   SourceLocation Loc = Locs.front();
   if (getLangOpts().CPlusPlus && isa<FunctionDecl>(D)) {
     // If there were any diagnostics suppressed by template argument deduction,
@@ -3778,6 +3826,43 @@ ExprResult Sema::ActOnSYCLUniqueStableNameExpr(SourceLocation OpLoc,
   return BuildSYCLUniqueStableNameExpr(OpLoc, LParen, RParen, TSI);
 }
 
+ExprResult Sema::BuildSYCLUniqueStableIdExpr(SourceLocation OpLoc,
+                                             SourceLocation LParen,
+                                             SourceLocation RParen, Expr *E) {
+  if (!E->isInstantiationDependent()) {
+    // Special handling to get us better error messages for a member variable.
+    if (auto *ME = dyn_cast<MemberExpr>(E->IgnoreUnlessSpelledInSource())) {
+      if (isa<FieldDecl>(ME->getMemberDecl()))
+        Diag(E->getExprLoc(), diag::err_unique_stable_id_global_storage);
+      else
+        Diag(E->getExprLoc(), diag::err_unique_stable_id_expected_var);
+      return ExprError();
+    }
+
+    auto *DRE = dyn_cast<DeclRefExpr>(E->IgnoreUnlessSpelledInSource());
+
+    if (!DRE || !isa_and_nonnull<VarDecl>(DRE->getDecl())) {
+      Diag(E->getExprLoc(), diag::err_unique_stable_id_expected_var);
+      return ExprError();
+    }
+
+    auto *Var = cast<VarDecl>(DRE->getDecl());
+
+    if (!Var->hasGlobalStorage()) {
+      Diag(E->getExprLoc(), diag::err_unique_stable_id_global_storage);
+      return ExprError();
+    }
+  }
+
+  return SYCLUniqueStableIdExpr::Create(Context, OpLoc, LParen, RParen, E);
+}
+
+ExprResult Sema::ActOnSYCLUniqueStableIdExpr(SourceLocation OpLoc,
+                                             SourceLocation LParen,
+                                             SourceLocation RParen, Expr *E) {
+  return BuildSYCLUniqueStableIdExpr(OpLoc, LParen, RParen, E);
+}
+
 ExprResult Sema::ActOnPredefinedExpr(SourceLocation Loc, tok::TokenKind Kind) {
   return BuildPredefinedExpr(Loc, getPredefinedExprKind(Kind));
 }
@@ -6798,6 +6883,11 @@ static bool isPlaceholderToRemoveAsArg(QualType type) {
   // Ignore all the non-placeholder types.
 #define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix) \
   case BuiltinType::Id:
+#include "clang/Basic/OpenCLImageTypes.def"
+#define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix)                   \
+  case BuiltinType::Sampled##Id:
+#define IMAGE_WRITE_TYPE(Type, Id, Ext)
+#define IMAGE_READ_WRITE_TYPE(Type, Id, Ext)
 #include "clang/Basic/OpenCLImageTypes.def"
 #define EXT_OPAQUE_TYPE(ExtType, Id, Ext) \
   case BuiltinType::Id:
@@ -16252,7 +16342,7 @@ ExprResult Sema::CreateBuiltinUnaryOp(SourceLocation OpLoc,
   bool CanOverflow = false;
 
   bool ConvertHalfVec = false;
-  if (getLangOpts().OpenCL) {
+  if (getLangOpts().OpenCL || getLangOpts().SYCLIsDevice) {
     QualType Ty = InputExpr->getType();
     // The only legal unary operation for atomics is '&'.
     if ((Opc != UO_AddrOf && Ty->isAtomicType()) ||
@@ -21766,6 +21856,11 @@ ExprResult Sema::CheckPlaceholderExpr(Expr *E) {
   // Everything else should be impossible.
 #define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix) \
   case BuiltinType::Id:
+#include "clang/Basic/OpenCLImageTypes.def"
+#define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix)                   \
+  case BuiltinType::Sampled##Id:
+#define IMAGE_WRITE_TYPE(Type, Id, Ext)
+#define IMAGE_READ_WRITE_TYPE(Type, Id, Ext)
 #include "clang/Basic/OpenCLImageTypes.def"
 #define EXT_OPAQUE_TYPE(ExtType, Id, Ext) \
   case BuiltinType::Id:

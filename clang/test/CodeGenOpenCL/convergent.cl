@@ -117,7 +117,7 @@ void test_unroll() {
 // CHECK: [[for_body]]:
 // CHECK:  tail call spir_func void @nodupfun() #[[attr5:[0-9]+]]
 // CHECK-NOT: call spir_func void @nodupfun()
-// CHECK:  br i1 %{{.+}}, label %[[for_body]], label %[[for_cond_cleanup]]
+// CHECK:  br i1 %{{.+}}, label %[[for_cond_cleanup]], label %[[for_body]]
 
 void test_not_unroll() {
   for (int i = 0; i < 10; i++)

@@ -1488,7 +1488,7 @@ CodeGenFunction::generateObjCSetterBody(const ObjCImplementationDecl *classImpl,
     llvm::Type *castType = llvm::Type::getIntNTy(
         getLLVMContext(), getContext().toBits(strategy.getIvarSize()));
 
-    // Cast both arguments to the chosen operation type.
+     // Cast both arguments to the chosen operation type.
     argAddr = argAddr.withElementType(castType);
     ivarAddr = ivarAddr.withElementType(castType);
 

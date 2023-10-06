@@ -66,6 +66,12 @@ public:
     ArmPL               // Arm Performance Libraries.
   };
 
+  enum AltMathLibrary {
+    NoAltMathLibrary,   // Don't use any alternate math library
+    SVMLAltMathLibrary, // Intel SVML Library
+    TestAltMathLibrary  // Use a fake alternate math library for testing
+  };
+
   enum ObjCDispatchMethodKind {
     Legacy = 0,
     NonLegacy = 1,
@@ -250,6 +256,9 @@ public:
   /// in situations where the input file name does not match the original input
   /// file, for example with -save-temps.
   std::string MainFileName;
+
+  /// The user provided name for the "main file", with its full path.
+  std::string FullMainFileName;
 
   /// The name for the split debug info file used for the DW_AT_[GNU_]dwo_name
   /// attribute in the skeleton CU.

@@ -174,7 +174,7 @@ Instruction *InstCombinerImpl::SimplifyAnyMemTransfer(AnyMemTransferInst *MI) {
       return nullptr;
 
   // Use an integer load+store unless we can find something better.
-  IntegerType* IntType = IntegerType::get(MI->getContext(), Size<<3);
+  IntegerType *IntType = IntegerType::get(MI->getContext(), Size << 3);
 
   // If the memcpy has metadata describing the members, see if we can get the
   // TBAA tag describing our copy.

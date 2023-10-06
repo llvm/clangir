@@ -108,7 +108,6 @@ public:
             SpecialKind(reinterpret_cast<uintptr_t>(functionPtr))) {
     AbstractInfo = abstractInfo;
     assert(functionPtr && "configuring callee without function pointer");
-    assert(functionPtr->getType()->isPointerTy());
   }
 
   static CGCallee forBuiltin(unsigned builtinID,

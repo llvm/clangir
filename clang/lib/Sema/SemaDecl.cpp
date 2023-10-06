@@ -2971,12 +2971,64 @@ static bool mergeDeclAttribute(Sema &S, NamedDecl *D,
     NewAttr = S.mergeImportModuleAttr(D, *IMA);
   else if (const auto *INA = dyn_cast<WebAssemblyImportNameAttr>(Attr))
     NewAttr = S.mergeImportNameAttr(D, *INA);
+  else if (const auto *A = dyn_cast<SYCLIntelLoopFuseAttr>(Attr))
+    NewAttr = S.MergeSYCLIntelLoopFuseAttr(D, *A);
   else if (const auto *TCBA = dyn_cast<EnforceTCBAttr>(Attr))
     NewAttr = S.mergeEnforceTCBAttr(D, *TCBA);
   else if (const auto *TCBLA = dyn_cast<EnforceTCBLeafAttr>(Attr))
     NewAttr = S.mergeEnforceTCBLeafAttr(D, *TCBLA);
+  else if (const auto *A = dyn_cast<IntelReqdSubGroupSizeAttr>(Attr))
+    NewAttr = S.MergeIntelReqdSubGroupSizeAttr(D, *A);
+  else if (const auto *A = dyn_cast<IntelNamedSubGroupSizeAttr>(Attr))
+    NewAttr = S.MergeIntelNamedSubGroupSizeAttr(D, *A);
+  else if (const auto *A = dyn_cast<SYCLIntelNumSimdWorkItemsAttr>(Attr))
+    NewAttr = S.MergeSYCLIntelNumSimdWorkItemsAttr(D, *A);
+  else if (const auto *A = dyn_cast<SYCLIntelESimdVectorizeAttr>(Attr))
+    NewAttr = S.MergeSYCLIntelESimdVectorizeAttr(D, *A);
+  else if (const auto *A = dyn_cast<SYCLIntelSchedulerTargetFmaxMhzAttr>(Attr))
+    NewAttr = S.MergeSYCLIntelSchedulerTargetFmaxMhzAttr(D, *A);
+  else if (const auto *A = dyn_cast<SYCLIntelNoGlobalWorkOffsetAttr>(Attr))
+    NewAttr = S.MergeSYCLIntelNoGlobalWorkOffsetAttr(D, *A);
+  else if (const auto *A = dyn_cast<SYCLIntelMaxReplicatesAttr>(Attr))
+    NewAttr = S.MergeSYCLIntelMaxReplicatesAttr(D, *A);
+  else if (const auto *A = dyn_cast<SYCLIntelMaxConcurrencyAttr>(Attr))
+    NewAttr = S.MergeSYCLIntelMaxConcurrencyAttr(D, *A);
+  else if (const auto *A = dyn_cast<SYCLIntelForcePow2DepthAttr>(Attr))
+    NewAttr = S.MergeSYCLIntelForcePow2DepthAttr(D, *A);
+  else if (const auto *A = dyn_cast<SYCLIntelInitiationIntervalAttr>(Attr))
+    NewAttr = S.MergeSYCLIntelInitiationIntervalAttr(D, *A);
+  else if (const auto *A = dyn_cast<SYCLWorkGroupSizeHintAttr>(Attr))
+    NewAttr = S.MergeSYCLWorkGroupSizeHintAttr(D, *A);
+  else if (const auto *A = dyn_cast<SYCLIntelMaxGlobalWorkDimAttr>(Attr))
+    NewAttr = S.MergeSYCLIntelMaxGlobalWorkDimAttr(D, *A);
   else if (const auto *BTFA = dyn_cast<BTFDeclTagAttr>(Attr))
     NewAttr = S.mergeBTFDeclTagAttr(D, *BTFA);
+  else if (const auto *A = dyn_cast<SYCLIntelBankWidthAttr>(Attr))
+    NewAttr = S.MergeSYCLIntelBankWidthAttr(D, *A);
+  else if (const auto *A = dyn_cast<SYCLIntelNumBanksAttr>(Attr))
+    NewAttr = S.MergeSYCLIntelNumBanksAttr(D, *A);
+  else if (const auto *A = dyn_cast<SYCLDeviceHasAttr>(Attr))
+    NewAttr = S.MergeSYCLDeviceHasAttr(D, *A);
+  else if (const auto *A = dyn_cast<SYCLUsesAspectsAttr>(Attr))
+    NewAttr = S.MergeSYCLUsesAspectsAttr(D, *A);
+  else if (const auto *A = dyn_cast<SYCLTypeAttr>(Attr))
+    NewAttr = S.MergeSYCLTypeAttr(D, *A, A->getType());
+  else if (const auto *A = dyn_cast<SYCLIntelPipeIOAttr>(Attr))
+    NewAttr = S.MergeSYCLIntelPipeIOAttr(D, *A);
+  else if (const auto *A = dyn_cast<SYCLIntelMaxWorkGroupSizeAttr>(Attr))
+    NewAttr = S.MergeSYCLIntelMaxWorkGroupSizeAttr(D, *A);
+  else if (const auto *A = dyn_cast<SYCLAddIRAttributesFunctionAttr>(Attr))
+    NewAttr = S.MergeSYCLAddIRAttributesFunctionAttr(D, *A);
+  else if (const auto *A =
+               dyn_cast<SYCLAddIRAttributesKernelParameterAttr>(Attr))
+    NewAttr = S.MergeSYCLAddIRAttributesKernelParameterAttr(D, *A);
+  else if (const auto *A =
+               dyn_cast<SYCLAddIRAttributesGlobalVariableAttr>(Attr))
+    NewAttr = S.MergeSYCLAddIRAttributesGlobalVariableAttr(D, *A);
+  else if (const auto *A = dyn_cast<SYCLAddIRAnnotationsMemberAttr>(Attr))
+    NewAttr = S.MergeSYCLAddIRAnnotationsMemberAttr(D, *A);
+  else if (const auto *A = dyn_cast<SYCLReqdWorkGroupSizeAttr>(Attr))
+    NewAttr = S.MergeSYCLReqdWorkGroupSizeAttr(D, *A);
   else if (const auto *NT = dyn_cast<HLSLNumThreadsAttr>(Attr))
     NewAttr =
         S.mergeHLSLNumThreadsAttr(D, *NT, NT->getX(), NT->getY(), NT->getZ());
@@ -7376,7 +7428,7 @@ static bool diagnoseOpenCLTypes(Sema &Se, VarDecl *NewVD) {
   // OpenCL v2.0 s6.9.b - Image type can only be used as a function argument.
   // OpenCL v2.0 s6.13.16.1 - Pipe type can only be used as a function
   // argument.
-  if (R->isImageType() || R->isPipeType()) {
+  if (!R->isSampledImageType() && (R->isImageType() || R->isPipeType())) {
     Se.Diag(NewVD->getLocation(),
             diag::err_opencl_type_can_only_be_used_as_function_parameter)
         << R;
@@ -7857,6 +7909,43 @@ NamedDecl *Sema::ActOnVariableDeclarator(
       NewVD->setTSCSpec(TSCS);
   }
 
+  if (getLangOpts().SYCLIsDevice) {
+    // device_global array is not allowed.
+    if (const ArrayType *AT = getASTContext().getAsArrayType(NewVD->getType()))
+      if (isTypeDecoratedWithDeclAttribute<SYCLDeviceGlobalAttr>(
+              AT->getElementType()))
+        Diag(NewVD->getLocation(), diag::err_sycl_device_global_array);
+
+    // Global variables with types decorated with device_global attribute must
+    // be static if they are declared in SYCL device code.
+    if (isTypeDecoratedWithDeclAttribute<SYCLDeviceGlobalAttr>(
+            NewVD->getType())) {
+      if (SCSpec == DeclSpec::SCS_static) {
+        const DeclContext *DC = NewVD->getDeclContext();
+        while (!DC->isTranslationUnit()) {
+          if (isa<FunctionDecl>(DC)) {
+            Diag(D.getIdentifierLoc(),
+                 diag::err_sycl_device_global_incorrect_scope);
+            break;
+          }
+          DC = DC->getParent();
+        }
+      } else if (!NewVD->hasGlobalStorage()) {
+        Diag(D.getIdentifierLoc(),
+             diag::err_sycl_device_global_incorrect_scope);
+      }
+    }
+
+    // Static variables declared inside SYCL device code must be const or
+    // constexpr unless their types are decorated with global_variable_allowed
+    // attribute.
+    if (SCSpec == DeclSpec::SCS_static && !R.isConstant(Context) &&
+        !isTypeDecoratedWithDeclAttribute<SYCLGlobalVariableAllowedAttr>(
+            NewVD->getType()))
+      SYCLDiagIfDeviceCode(D.getIdentifierLoc(), diag::err_sycl_restrict)
+          << Sema::KernelNonConstStaticDataVariable;
+  }
+
   switch (D.getDeclSpec().getConstexprSpecifier()) {
   case ConstexprSpecKind::Unspecified:
     break;
@@ -8017,8 +8106,14 @@ NamedDecl *Sema::ActOnVariableDeclarator(
       case SC_Register:
         // Local Named register
         if (!Context.getTargetInfo().isValidGCCRegisterName(Label) &&
-            DeclAttrsMatchCUDAMode(getLangOpts(), getCurFunctionDecl()))
-          Diag(E->getExprLoc(), diag::err_asm_unknown_register_name) << Label;
+            DeclAttrsMatchCUDAMode(getLangOpts(), getCurFunctionDecl())) {
+          if (getLangOpts().SYCLIsDevice)
+            SYCLDiagIfDeviceCode(E->getExprLoc(),
+                                 diag::err_asm_unknown_register_name)
+                << Label;
+          else
+            Diag(E->getExprLoc(), diag::err_asm_unknown_register_name) << Label;
+        }
         break;
       case SC_Static:
       case SC_Extern:
@@ -8206,6 +8301,7 @@ NamedDecl *Sema::ActOnVariableDeclarator(
   if (IsMemberSpecialization && !NewVD->isInvalidDecl())
     CompleteMemberSpecialization(NewVD, Previous);
 
+  addSyclVarDecl(NewVD);
   emitReadOnlyPlacementAttrWarning(*this, NewVD);
 
   return NewVD;
@@ -10795,15 +10891,11 @@ Sema::ActOnFunctionDeclarator(Scope *S, Declarator &D, DeclContext *DC,
   for (const ParmVarDecl *Param : NewFD->parameters()) {
     QualType PT = Param->getType();
 
-    // OpenCL 2.0 pipe restrictions forbids pipe packet types to be non-value
-    // types.
-    if (getLangOpts().getOpenCLCompatibleVersion() >= 200) {
-      if(const PipeType *PipeTy = PT->getAs<PipeType>()) {
-        QualType ElemTy = PipeTy->getElementType();
-          if (ElemTy->isReferenceType() || ElemTy->isPointerType()) {
-            Diag(Param->getTypeSpecStartLoc(), diag::err_reference_pipe_type );
-            D.setInvalidType();
-          }
+    if (const PipeType *PipeTy = PT->getAs<PipeType>()) {
+      QualType ElemTy = PipeTy->getElementType();
+      if (ElemTy->isReferenceType() || ElemTy->isPointerType()) {
+        Diag(Param->getTypeSpecStartLoc(), diag::err_reference_pipe_type );
+        D.setInvalidType();
       }
     }
     // WebAssembly tables can't be used as function parameters.
@@ -13448,6 +13540,13 @@ void Sema::AddInitializerToDecl(Decl *RealDecl, Expr *Init, bool DirectInit) {
     VDecl->setInvalidDecl();
     return;
   }
+  // In the SYCL explicit SIMD extension non constant "private globals" can't
+  // be explicitly initialized in the declaration.
+  if (isSYCLEsimdPrivateGlobal(VDecl)) {
+    Diag(VDecl->getLocation(), diag::err_esimd_glob_cant_init);
+    VDecl->setInvalidDecl();
+    return;
+  }
 
   // The LoaderUninitialized attribute acts as a definition (of undef).
   if (VDecl->hasAttr<LoaderUninitializedAttr>()) {
@@ -14087,6 +14186,11 @@ void Sema::ActOnUninitializedDecl(Decl *RealDecl) {
     if (getLangOpts().OpenCL &&
         Var->getType().getAddressSpace() == LangAS::opencl_local)
       return;
+    // In SYCL explicit SIMD extension "private global" variables can't be
+    // initialized even implicitly, so don't synthesize an implicit initializer.
+    if (isSYCLEsimdPrivateGlobal(Var))
+      return;
+
     // C++03 [dcl.init]p9:
     //   If no initializer is specified for an object, and the
     //   object is of (possibly cv-qualified) non-POD class type (or
@@ -14224,6 +14328,9 @@ void Sema::CheckCompleteVariableDeclaration(VarDecl *var) {
       return;
     }
   }
+
+  if (getLangOpts().SYCLIsDevice)
+    checkSYCLDeviceVarDecl(var);
 
   // In Objective-C, don't allow jumps past the implicit initialization of a
   // local retaining variable.
@@ -16506,7 +16613,9 @@ void Sema::AddKnownFunctionAttributes(FunctionDecl *FD) {
       // Add the appropriate attribute, depending on the CUDA compilation mode
       // and which target the builtin belongs to. For example, during host
       // compilation, aux builtins are __device__, while the rest are __host__.
-      if (getLangOpts().CUDAIsDevice !=
+      if (((getLangOpts().SYCLIsDevice && getLangOpts().CUDA &&
+            !getLangOpts().CUDAIsDevice) ||
+           getLangOpts().CUDAIsDevice) !=
           Context.BuiltinInfo.isAuxBuiltinID(BuiltinID))
         FD->addAttr(CUDADeviceAttr::CreateImplicit(Context, FD->getLocation()));
       else
@@ -18006,7 +18115,7 @@ void Sema::ActOnTagFinishDefinition(Scope *S, Decl *TagD,
 
   if (auto *RD = dyn_cast<CXXRecordDecl>(Tag)) {
     FieldCollector->FinishClass();
-    if (RD->hasAttr<SYCLSpecialClassAttr>()) {
+    if (RD->hasAttr<SYCLSpecialClassAttr>() && getLangOpts().SYCLIsDevice) {
       auto *Def = RD->getDefinition();
       assert(Def && "The record is expected to have a completed definition");
       unsigned NumInitMethods = 0;
@@ -20218,18 +20327,34 @@ ObjCContainerDecl *Sema::getObjCDeclContext() const {
   return (dyn_cast_or_null<ObjCContainerDecl>(CurContext));
 }
 
+Sema::DeviceDiagnosticReason Sema::getEmissionReason(const FunctionDecl *FD) {
+  // FIXME: This should really be a bitwise-or of the language modes.
+  if (FD->hasAttr<SYCLSimdAttr>())
+    return Sema::DeviceDiagnosticReason::Esimd;
+  if (FD->hasAttr<SYCLDeviceAttr>() || FD->hasAttr<SYCLKernelAttr>())
+    return Sema::DeviceDiagnosticReason::Sycl;
+  // FIXME: Refine the logic for CUDA and OpenMP.
+  if (getLangOpts().CUDA)
+    return getLangOpts().CUDAIsDevice ? Sema::DeviceDiagnosticReason::CudaDevice
+                                      : Sema::DeviceDiagnosticReason::CudaHost;
+  if (getLangOpts().OpenMP)
+    return getLangOpts().OpenMPIsTargetDevice
+               ? Sema::DeviceDiagnosticReason::OmpDevice
+               : Sema::DeviceDiagnosticReason::OmpHost;
+  return Sema::DeviceDiagnosticReason::All;
+}
+
 Sema::FunctionEmissionStatus Sema::getEmissionStatus(const FunctionDecl *FD,
                                                      bool Final) {
   assert(FD && "Expected non-null FunctionDecl");
 
-  // SYCL functions can be template, so we check if they have appropriate
-  // attribute prior to checking if it is a template.
-  if (LangOpts.SYCLIsDevice && FD->hasAttr<SYCLKernelAttr>())
-    return FunctionEmissionStatus::Emitted;
-
   // Templates are emitted when they're instantiated.
   if (FD->isDependentContext())
     return FunctionEmissionStatus::TemplateDiscarded;
+
+  if (LangOpts.SYCLIsDevice &&
+      (FD->hasAttr<SYCLDeviceAttr>() || FD->hasAttr<SYCLKernelAttr>()))
+    return FunctionEmissionStatus::Emitted;
 
   // Check whether this function is an externally visible definition.
   auto IsEmittedForExternalSymbol = [this, FD]() {
@@ -20290,6 +20415,23 @@ Sema::FunctionEmissionStatus Sema::getEmissionStatus(const FunctionDecl *FD,
       return FunctionEmissionStatus::CUDADiscarded;
 
     if (IsEmittedForExternalSymbol())
+      return FunctionEmissionStatus::Emitted;
+  }
+
+  if (getLangOpts().SYCLIsDevice) {
+    if (!FD->hasAttr<SYCLDeviceAttr>() && !FD->hasAttr<SYCLKernelAttr>())
+      return FunctionEmissionStatus::Unknown;
+
+    // Check whether this function is externally visible -- if so, it's
+    // known-emitted.
+    //
+    // We have to check the GVA linkage of the function's *definition* -- if we
+    // only have a declaration, we don't know whether or not the function will
+    // be emitted, because (say) the definition could include "inline".
+    const FunctionDecl *Def = FD->getDefinition();
+
+    if (Def &&
+        !isDiscardableGVALinkage(getASTContext().GetGVALinkageForFunction(Def)))
       return FunctionEmissionStatus::Emitted;
   }
 

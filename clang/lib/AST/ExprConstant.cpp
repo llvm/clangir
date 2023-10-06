@@ -8924,6 +8924,24 @@ public:
     return true;
   }
 
+  bool VisitSYCLUniqueStableIdExpr(const SYCLUniqueStableIdExpr *E) {
+    std::string ResultStr = E->ComputeName(Info.Ctx);
+
+    QualType CharTy = Info.Ctx.CharTy.withConst();
+    APInt Size(Info.Ctx.getTypeSize(Info.Ctx.getSizeType()),
+               ResultStr.size() + 1);
+    QualType ArrayTy = Info.Ctx.getConstantArrayType(CharTy, Size, nullptr,
+                                                     ArrayType::Normal, 0);
+
+    StringLiteral *SL =
+        StringLiteral::Create(Info.Ctx, ResultStr, StringLiteral::Ordinary,
+                              /*Pascal*/ false, ArrayTy, E->getLocation());
+
+    evaluateLValue(SL, Result);
+    Result.addArray(Info, E, cast<ConstantArrayType>(ArrayTy));
+    return true;
+  }
+
   // FIXME: Missing: @protocol, @selector
 };
 } // end anonymous namespace
@@ -11220,6 +11238,13 @@ public:
   bool VisitConceptSpecializationExpr(const ConceptSpecializationExpr *E);
   bool VisitRequiresExpr(const RequiresExpr *E);
   // FIXME: Missing: array subscript of vector, member of vector
+
+  bool VisitSYCLBuiltinNumFieldsExpr(const SYCLBuiltinNumFieldsExpr *E) {
+    return Success(E->getNumFields(), E);
+  }
+  bool VisitSYCLBuiltinNumBasesExpr(const SYCLBuiltinNumBasesExpr *E) {
+    return Success(E->getNumBases(), E);
+  }
 };
 
 class FixedPointExprEvaluator
@@ -11459,6 +11484,11 @@ EvaluateBuiltinClassifyType(QualType T, const LangOptions &LangOpts) {
     case BuiltinType::ObjCSel:
 #define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix) \
     case BuiltinType::Id:
+#include "clang/Basic/OpenCLImageTypes.def"
+#define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix)                   \
+  case BuiltinType::Sampled##Id:
+#define IMAGE_WRITE_TYPE(Type, Id, Ext)
+#define IMAGE_READ_WRITE_TYPE(Type, Id, Ext)
 #include "clang/Basic/OpenCLImageTypes.def"
 #define EXT_OPAQUE_TYPE(ExtType, Id, Ext) \
     case BuiltinType::Id:
@@ -15828,7 +15858,10 @@ static ICEDiag CheckICE(const Expr* E, const ASTContext &Ctx) {
   case Expr::CoawaitExprClass:
   case Expr::DependentCoawaitExprClass:
   case Expr::CoyieldExprClass:
+  case Expr::SYCLBuiltinFieldTypeExprClass:
+  case Expr::SYCLBuiltinBaseTypeExprClass:
   case Expr::SYCLUniqueStableNameExprClass:
+  case Expr::SYCLUniqueStableIdExprClass:
   case Expr::CXXParenListInitExprClass:
     return ICEDiag(IK_NotICE, E->getBeginLoc());
 
@@ -15871,6 +15904,8 @@ static ICEDiag CheckICE(const Expr* E, const ASTContext &Ctx) {
   case Expr::ArrayTypeTraitExprClass:
   case Expr::ExpressionTraitExprClass:
   case Expr::CXXNoexceptExprClass:
+  case Expr::SYCLBuiltinNumFieldsExprClass:
+  case Expr::SYCLBuiltinNumBasesExprClass:
     return NoDiag();
   case Expr::CallExprClass:
   case Expr::CXXOperatorCallExprClass: {

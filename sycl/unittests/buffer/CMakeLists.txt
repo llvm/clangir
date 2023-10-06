@@ -1,0 +1,8 @@
+add_sycl_unittest(BufferTests OBJECT
+  BufferLocation.cpp
+  Image.cpp
+  BufferDestructionCheck.cpp
+  MemChannel.cpp
+  KernelArgMemObj.cpp
+  SubbufferLargeSize.cpp
+)

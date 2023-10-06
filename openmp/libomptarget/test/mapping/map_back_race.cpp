@@ -2,6 +2,13 @@
 
 // Taken from https://github.com/llvm/llvm-project/issues/54216
 
+// UNSUPPORTED: aarch64-unknown-linux-gnu-oldDriver
+// UNSUPPORTED: amdgcn-amd-amdhsa-oldDriver
+// UNSUPPORTED: powerpc64le-ibm-linux-gnu-oldDriver
+// UNSUPPORTED: powerpc64-ibm-linux-gnu-oldDriver
+// UNSUPPORTED: x86_64-pc-linux-gnu-oldDriver
+// UNSUPPORTED: nvptx64-nvidia-cuda-oldDriver
+
 #include <algorithm>
 #include <cstdlib>
 #include <iostream>

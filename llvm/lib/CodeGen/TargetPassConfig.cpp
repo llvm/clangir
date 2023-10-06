@@ -1094,6 +1094,7 @@ bool TargetPassConfig::addISelPasses() {
   addPass(createExpandLargeDivRemPass());
   addPass(createExpandLargeFpConvertPass());
   addIRPasses();
+  addPass(createFPBuiltinFnSelectionPass());
   addCodeGenPrepare();
   addPassesToHandleExceptions();
   addISelPrepare();

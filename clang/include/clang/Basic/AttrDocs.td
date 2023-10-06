@@ -382,7 +382,7 @@ outlining job:
 
   int foo(int x) { return ++x; }
 
-  using namespace cl::sycl;
+  using namespace sycl;
   queue Q;
   buffer<int, 1> a(range<1>{1024});
   Q.submit([&](handler& cgh) {
@@ -508,6 +508,59 @@ This would trigger the following kernel entry point in the AST:
     ...
     T.__finalize()
   }
+  }];
+}
+
+def SYCLDeviceHasDocs : Documentation {
+  let Category = DocCatStmt;
+  let Content = [{
+The ``[[sycl::device_has(aspect, ...)]]`` attribute is used to decorate either
+the declaration of a kernel function that is defined in the current translation
+unit or to decorate the declaration of a non-kernel device function. The
+parameter list to the sycl::device_has() attribute consists of zero or more
+constexpr integral expressions, where each integer is interpreted as one of the
+enumerated values in the sycl::aspect enumeration type.
+
+Specifying this attribute on a kernel has two effects. First, it causes the kernel
+invocation command to throw a synchronous exception with the errc::kernel_not_supported
+error code if the kernel is submitted to a device that does not have one of the
+listed aspects. Second, it causes the compiler to issue a diagnostic if the kernel
+(or any of the functions it calls) uses an optional feature that is associated with
+an aspect that is not listed in the attribute.
+
+.. code-block:: c++
+
+  [[sycl::device_has()]] int func1() {}
+  [[sycl::device_has(sycl::aspect1, sycl::aspect2)]] int func2() {}
+
+  }];
+}
+
+def SYCLSimdDocs : Documentation {
+  let Category = DocCatFunction;
+  let Content = [{
+    The ``__attribute__((sycl_explicit_simd))`` attribute is used by the device
+    compiler front end to mark ESIMD kernels and functions. In this mode,
+    subgroup size is always equal to 1 and explicit SIMD extensions, such as
+    manual vectorization using wide vector data types and operations can be used.
+    The compiler may decide to compile such functions using different optimization
+    and code generation pipeline. Also, this attribute is used to distinguish
+    ESIMD private globals from regular SYCL global variables.
+
+    In SYCL 1.2.1 mode, the ``intel::sycl_explicit_simd`` attribute is propagated
+    from the function it is applied to onto the kernel which calls the function.
+    In SYCL 2020 mode, the attribute is not propagated to the kernel.
+  }];
+}
+
+def SYCLRegisterNumDocs : Documentation {
+  let Category = DocCatVariable;
+  let Content = [{
+    The ``__attribute__((register_num(n)))`` attribute can be used to bind
+    "private globals" (SYCL private address space variables declared in the file
+    scope) to a particular register with number 'n'. Actual mapping of registers
+    to numbers is target-specific. For Intel GPUs 'n' is a byte offset in the
+    GRF.
   }];
 }
 
@@ -2321,6 +2374,1503 @@ as ``-mlong-calls`` and ``-mno-long-calls``.
   }];
 }
 
+def SYCLIntelDoublePumpAttrDocs : Documentation {
+let Category = DocCatVariable;
+  let Heading = "intel::doublepump";
+  let Content = [{
+This attribute may be attached to a variable or struct member declaration and
+instructs the backend to implement the variable or struct member in a memory
+that is clocked at twice the rate of its accessors.
+
+.. code-block:: c++
+
+  void bar() {
+    [[intel::doublepump]] int var_doublepump;
+  }
+
+  struct foo {
+    [[intel::doublepump]] unsigned int doublepump[64];
+  };
+
+  }];
+}
+
+def SYCLIntelSinglePumpAttrDocs : Documentation {
+let Category = DocCatVariable;
+  let Heading = "intel::singlepump";
+  let Content = [{
+This attribute may be attached to a variable or struct member declaration and
+instructs the backend to implement the variable or struct member in a memory
+that is clocked at the same rate as its accessors.
+
+.. code-block:: c++
+
+  void bar() {
+    [[intel::singlepump]] int var_singlepump;
+  }
+
+  struct foo {
+    [[intel::singlepump]] unsigned int singlepump[64];
+  };
+
+  }];
+}
+
+def SYCLIntelMemoryAttrDocs : Documentation {
+  let Category = DocCatVariable;
+  let Heading = "intel::fpga_memory";
+  let Content = [{
+This attribute may be attached to a variable or struct member declaration and
+instructs the backend to implement the variable or struct member in memory
+rather than promoting to register(s).  If the optional parameter is specified
+it indicates what type of memory to use.
+
+.. code-block:: c++
+
+  void bar() {
+    [[intel::fpga_memory]] int memory;
+  }
+
+  struct foo {
+    [[intel::fpga_memory]] unsigned int memory[64];
+    [[intel::fpga_memory("MLAB")]] unsigned int memory_mlab[64];
+    [[intel::fpga_memory("BLOCK_RAM")]] unsigned int mem_blockram[32];
+  };
+
+  }];
+}
+
+def SYCLIntelRegisterAttrDocs : Documentation {
+  let Category = DocCatVariable;
+  let Heading = "intel::fpga_register";
+  let Content = [{
+This attribute may be attached to a variable or struct member declaration and
+instructs the backend to promote the variable or struct member to register(s)
+if possible.
+
+.. code-block:: c++
+
+  void bar() {
+    [[intel::fpga_register]] int var_reg;
+  }
+
+  struct foo {
+    [[intel::fpga_register]] unsigned int reg[64];
+  };
+
+  }];
+}
+
+def SYCLIntelBankWidthAttrDocs : Documentation {
+  let Category = DocCatVariable;
+  let Heading = "intel::bankwidth";
+  let Content = [{
+This attribute may be attached to a variable or struct member declaration and
+instructs the backend to implement the variable or struct member in a memory
+with banks that are N bytes wide.
+
+.. code-block:: c++
+
+  struct foo {
+    [[intel::bankwidth(4)]] unsigned int bankwidth[32];
+  };
+
+  template <int N>
+  void bar() {
+    [[intel::bankwidth(N)]] unsigned int bank_bits_width;
+  }
+
+  }];
+}
+
+def SYCLIntelNumBanksAttrDocs : Documentation {
+  let Category = DocCatVariable;
+  let Heading = "intel::numbanks";
+  let Content = [{
+This attribute may be attached to a variable or struct member declaration and
+instructs the backend to implement the variable or struct member in a memory
+with N banks.
+
+.. code-block:: c++
+
+  struct foo {
+    [[intel::numbanks(8)]] unsigned int numbanks[64];
+  };
+
+  template <int N>
+  void bar() {
+    [[intel::numbanks(N)]] unsigned int numbanks;
+  }
+
+  }];
+}
+
+def SYCLIntelPrivateCopiesAttrDocs : Documentation {
+  let Category = DocCatVariable;
+  let Heading = "intel::private_copies";
+  let Content = [{
+This attribute may be attached to a variable or struct member declaration and
+instructs the backend to replicate the memory generated for the variable or
+struct member sufficiently to enable the specified number of simultaneous
+threads or loop iterations.
+
+.. code-block:: c++
+
+  struct foo {
+    [[intel::private_copies(4)]] unsigned int private_copies[64];
+  };
+
+  template <int N>
+  void bar() {
+    [[intel::private_copies(N)]] unsigned int private_copies;
+  }
+
+  }];
+}
+
+def SYCLIntelMergeAttrDocs : Documentation {
+  let Category = DocCatVariable;
+  let Heading = "intel::merge";
+  let Content = [{
+This attribute may be attached to a variable or struct member declaration and
+instructs the backend to merge the memories used to implement any variable or
+struct members that are annotated with this attribute and the same first
+argument. The second argument indicates if the memories should be merged in a
+depth-wise or width-wise manner.
+
+.. code-block:: c++
+
+  void bar() {
+    [[intel::merge("mrg1", "depth")]] int merge_depth;
+    [[intel::merge("mrg2", "width")]] int merge_width;
+  }
+
+  struct foo {
+    [[intel::merge("mrg1", "depth")]] unsigned int merge_depth[64];
+    [[intel::merge("mrg2", "width")]] unsigned int merge_width[64];
+  };
+
+  }];
+}
+
+def SYCLIntelMaxReplicatesAttrDocs : Documentation {
+  let Category = DocCatVariable;
+  let Heading = "intel::max_replicates";
+  let Content = [{
+This attribute may be attached to a variable or struct member declaration and
+instructs the backend to replicate the memory generated for the variable or
+struct member no more than the specified maximum number of times to enable
+simultaneous accesses from different load/store sites in the program.
+
+.. code-block:: c++
+
+  struct foo {
+    [[intel::max_replicates(2)]] unsigned int max_replicates[64];
+  };
+
+  template <int N>
+  void bar() {
+    [[intel::max_replicates(N)]] unsigned int max_replicates;
+  }
+
+  }];
+}
+
+def SYCLIntelSimpleDualPortAttrDocs : Documentation {
+  let Category = DocCatVariable;
+  let Heading = "intel::simple_dual_port";
+  let Content = [{
+This attribute may be attached to a variable or struct member declaration and
+instructs the backend to implement the variable or struct member in a memory
+with simple dual port configuration (no memory port services both stores and
+loads).
+
+.. code-block:: c++
+
+  void bar() {
+    [[intel::simple_dual_port]] int var_dual_port;
+  }
+
+  struct foo {
+    [[intel::simple_dual_port]] unsigned int dual_port[64];
+  };
+
+  }];
+}
+
+def SYCLIntelBankBitsDocs : Documentation {
+  let Category = DocCatVariable;
+  let Heading = "intel::bank_bits";
+  let Content = [{
+This attribute may be attached to a variable or struct member declaration and
+instructs the backend to implement the variable or struct member in a banked
+memory with 2^(N+1) banks, where the (b0, ..., bn) bits specified determine the
+pointer address bits to bank on.
+
+.. code-block:: c++
+
+  void bar() {
+    [[intel::bank_bits(2, 3)]] int var_bank_bits;
+  }
+
+  struct foo {
+    [[intel::bank_bits(1, 2)]] unsigned int bb_bb[4]
+    [[intel::bank_bits(2, 3, 4, 5)]] unsigned int bankbits[64];
+  };
+
+  template <int N>
+  void bar() {
+    [[intel::bank_bits(N, 3)]] unsigned int bank_bits;
+  }
+
+  }];
+}
+
+def SYCLIntelForcePow2DepthAttrDocs : Documentation {
+  let Category = DocCatVariable;
+  let Heading = "intel::force_pow2_depth";
+  let Content = [{
+This attribute may be attached to a variable or struct member declaration and
+provides explicit control over the geometry of memory blocks used in a given
+memory system.
+
+.. code-block:: c++
+
+  struct foo {
+    [[intel::force_pow2_depth(1)]] int var_force_p2d;
+    [[intel::force_pow2_depth(1)]] const int const_force_p2d[64] = {0, 1};
+  };
+
+  template <int N>
+  void bar() {
+    [[intel::force_pow2_depth(N)]] unsigned int reg_force_p2d[64];
+  }
+
+In the presence of this attribute, the compiler:
+
+1. Will automatically size the memory depth to the next largest power of 2 if
+force_pow2_depth is set to 1, and will prefer width-stitching of RAM blocks
+over depth-stitching.
+
+.. code-block:: c++
+
+  void func() {
+    [[intel::force_pow2_depth(1)]] unsigned int arr_force_p2d_1[64];
+  }
+
+2. Will not size the memory to the next largest power of 2 if force_pow2_depth
+is set to 0, and will prefer depth-stitching over width-stitching if RAM usage
+can be lowered.
+
+.. code-block:: c++
+
+  void func() {
+    [[intel::force_pow2_depth(0)]] unsigned int arr_force_p2d_0[64];
+  }
+
+  }];
+}
+
+def SYCLIntelKernelArgsRestrictDocs : Documentation {
+  let Category = DocCatVariable;
+  let Heading = "kernel_args_restrict";
+  let Content = [{
+The attribute ``intel::kernel_args_restrict`` is legal on device functions, and
+can be ignored on non-device functions. When applied to a function, lambda, or
+function call operator (of a function object), the attribute is a hint to the
+compiler equivalent to specifying the C99 restrict attribute on all pointer
+arguments or the pointer member of any accessors, which are a function argument,
+lambda capture, or function object member, of the callable to which the
+attribute was applied. This effect is equivalent to annotating restrict on
+**all** kernel pointer arguments in an OpenCL or SPIR-V kernel.
+
+In SYCL 1.2.1 mode, the ``intel::kernel_args_restrict`` attribute is propagated
+from the function it is applied to onto the kernel which calls the function.
+In SYCL 2020 mode, the attribute is not propagated to the kernel.
+
+The attribute forms an unchecked assertion, in that implementations
+do not need to check/confirm the pre-condition in any way. If a user applies
+``intel::_kernel_args_restrict`` to a kernel, but there is in fact aliasing
+between kernel pointer arguments at runtime, the behavior is undefined.
+
+The attribute-token ``intel::kernel_args_restrict`` shall appear at most once in
+each attribute-list and no attribute-argument-clause shall be present. The
+attribute may be applied to the function-type in a function declaration. The
+first declaration of a function shall specify the
+``intel::kernel_args_restrict`` attribute if any declaration of that function
+specifies the ``intel::kernel_args_restrict`` attribute. If a function is
+declared with the ``intel::kernel_args_restrict`` attribute in one translation
+unit and the same function is declared without the
+``intel::kernel_args_restrict`` attribute in another translation unit, the
+program is ill-formed and no diagnostic is required.
+
+The ``intel::kernel_args_restrict`` attribute has an effect when applied to a
+function, and no effect otherwise.
+
+.. code-block:: c++
+
+  [[intel::kernel_args_restrict]] void func() {}
+
+  struct bar {
+    [[intel::kernel_args_restrict]] void operator()() const {}
+  };
+
+  }];
+}
+
+def SYCLIntelNumSimdWorkItemsAttrDocs : Documentation {
+  let Category = DocCatFunction;
+  let Heading = "intel::num_simd_work_items";
+  let Content = [{
+Applies to a device function/lambda function. Indicates the number of work
+items that should be processed in parallel. Valid values are positive integers.
+
+In SYCL 1.2.1 mode, the ``intel::num_simd_work_items`` attribute is propagated
+from the function it is applied to onto the kernel which calls the function.
+In SYCL 2020 mode, the attribute is not propagated to the kernel.
+
+.. code-block:: c++
+
+  [[intel::num_simd_work_items(4)]] void foo() {}
+
+  template<int N>
+  [[intel::num_simd_work_items(N)]] void bar() {}
+
+  class Foo {
+  public:
+    [[intel::num_simd_work_items(6)]] void operator()() const {}
+  };
+
+  template <int N>
+  class Functor {
+  public:
+    [[intel::num_simd_work_items(N)]] void operator()() const {}
+  };
+
+If the ``reqd_work_group_size`` attribute is specified on a declaration along
+with ``num_simd_work_items``, the required work group size specified
+by ``num_simd_work_items`` attribute must evenly divide the index that
+increments fastest in the ``reqd_work_group_size`` attribute.
+
+The arguments to ``reqd_work_group_size`` are ordered based on which index
+increments the fastest. In OpenCL, the first argument is the index that
+increments the fastest, and in SYCL, the last argument is the index that
+increments the fastest.
+
+In OpenCL, all three arguments are required.
+
+In SYCL, the attribute accepts either one, two, or three arguments; in each
+form, the last (or only) argument is the index that increments fastest.
+The number of arguments passed to the attribute must match the dimensionality
+of the kernel the attribute is applied to.
+
+.. code-block:: c++
+
+  // Note, '64' is evenly divisible by '4'; in SYCL, the last
+  // argument to the attribute is the one which increments fastest.
+  struct func {
+    [[intel::num_simd_work_items(4)]]
+    [[sycl::reqd_work_group_size(7, 4, 64)]]
+    void operator()() const {}
+  };
+
+  // Note, '8' is evenly divisible by '8'; in SYCL, the last
+  // argument to the attribute is the one which increments fastest.
+  struct bar {
+    [[sycl::reqd_work_group_size(1, 1, 8)]]
+    [[intel::num_simd_work_items(8)]]
+    void operator()() const {}
+  };
+
+  // Note, '10' is evenly divisible by '5'; in SYCL, the last
+  // argument to the attribute is the one which increments fastest.
+  [[cl::reqd_work_group_size(7, 5, 10)]]
+  [[intel::num_simd_work_items(5)]] void fun2() {}
+
+  // Note, '8' is evenly divisible by '4'; in SYCL, the last
+  // argument to the attribute is the one which increments fastest.
+  [[intel::num_simd_work_items(4)]]
+  [[cl::reqd_work_group_size(5, 4, 8)]] void fun3() {}
+
+  // Note, '8' is evenly divisible by '8'; in SYCL, the last
+  // argument to the attribute is the one which increments fastest.
+  struct func1 {
+    [[intel::num_simd_work_items(8)]]
+    [[cl::reqd_work_group_size(1, 1, 8)]]
+    void operator()() const {}
+  };
+
+  // Note, '8' is evenly divisible by '4'; in SYCL, the last
+  // argument to the attribute is the one which increments fastest.
+  struct bar1 {
+    [[cl::reqd_work_group_size(7, 4, 8)]]
+    [[intel::num_simd_work_items(4)]]
+    void operator()() const {}
+  };
+
+  // Note, '4' is evenly divisible by '2'; in SYCL, the last
+  // argument to the attribute is the one which increments fastest.
+  [[intel::num_simd_work_items(2)]]
+  __attribute__((reqd_work_group_size(3, 2, 4))) void test();
+
+  // Note, '8' is evenly divisible by '2'; in SYCL, the last
+  // argument to the attribute is the one which increments fastest.
+  __attribute__((reqd_work_group_size(3, 2, 8)))
+  [intel::num_simd_work_items(2)]] void test();
+
+  }];
+}
+
+def SYCLIntelUseStallEnableClustersAttrDocs : Documentation {
+  let Category = DocCatFunction;
+  let Heading = "intel::use_stall_enable_clusters";
+  let Content = [{
+The ``intel::use_stall_enable_clusters`` attribute requires SYCL.
+When applied to a lambda function, function definition, or function call
+operator (of a function object) on device, this requests, to the
+extent possible, that statically-scheduled clusters handle stalls using a
+stall-enable signal to freeze computation within the cluster. This attribute
+is ignored on the host.
+
+The ``intel::use_stall_enable_clusters`` attribute takes no argument and has an
+effect when applied to a function, and no effect otherwise.
+
+If ``intel::use_stall_enable_clusters`` is applied to a function called from a device
+kernel, the attribute is ignored and it is not propagated to the kernel.
+
+.. code-block:: c++
+
+  class Foo {
+  public:
+    [[intel::use_stall_enable_clusters]] void operator()() const {}
+  };
+
+  [[intel::use_stall_enable_clusters]] void test() {}
+
+  struct FuncObj {
+    [[intel::use_stall_enable_clusters]] void operator()() const {}
+  };
+
+  class Functor
+  {
+      [[intel::use_stall_enable_clusters]] void operator()(item<1> item)
+      {
+          /* kernel code */
+      }
+  }
+
+The ``intel::use_stall_enable_clusters`` attribute supports a nonconforming
+behavior when applied to a lambda in the type position.
+
+.. code-block:: c++
+
+  void test1() {
+    auto lambda = []() [[intel::use_stall_enable_clusters]]{};
+    lambda();
+  }
+
+  kernel<class kernel_name>(
+  []() [[intel::use_stall_enable_clusters]] {
+       /* kernel code */
+  });
+
+  }];
+}
+
+def ReqdWorkGroupSizeAttrDocs : Documentation {
+  let Category = DocCatFunction;
+  let Heading = "reqd_work_group_size";
+  let Content = [{
+This attribute is documented by both OpenCL and SYCL standards
+and allows to specify exact *local_work_size* which must be used as
+argument to **clEnqueueNDRangeKernel** (in OpenCL) or to
+**parallel_for** in SYCL. This allows the compiler to optimize the
+generated code appropriately for the kernel to which attribute is applied.
+
+While semantic of this attribute is the same between OpenCL and SYCL,
+spelling is a bit different: 
+
+SYCL 2020 describes the ``[[sycl::reqd_work_group_size(X, Y, Z)]]`` spelling
+in detail. This attribute indicates that the kernel must be launched with the
+specified work-group size. The order of the arguments matches the constructor
+of the group class. Each argument to the attribute must be an integral constant
+expression. The dimensionality of the attribute variant used must match the
+dimensionality of the work-group used to invoke the kernel. This spelling
+allows the Y and Z arguments to be optional. If not provided by the user, the
+value of Y and Z defaults to 1. See section 5.8.1 Kernel Attributes for more
+details.
+
+In SYCL 1.2.1 mode, the ``cl::reqd_work_group_size`` and
+``sycl::reqd_work_group_size`` attributes are propagated from the function they
+are applied to onto the kernel which calls the function. In SYCL 2020 mode, the
+attributes are not propagated to the kernel.
+
+.. code-block:: c++
+
+  [[sycl::reqd_work_group_size(4, 4, 4)]] void foo() {}
+
+  class Foo {
+  public:
+    [[sycl::reqd_work_group_size(2)]] void operator()() const {} // optional arguments default to 1
+  };
+
+  template <int N, int N1, int N2>
+  class Functor {
+  public:
+    [[sycl::reqd_work_group_size(N, N1, N2)]] void operator()() const {}
+  };
+
+  template <int N, int N1, int N2>
+  [[sycl::reqd_work_group_size(N, N1, N2)]] void func() {}
+
+The ``[[cl::reqd_work_group_size(X, Y, Z)]]`` and
+``__attribute__((reqd_work_group_size(X, Y, Z)))`` spellings are both
+deprecated in SYCL 2020.
+
+In OpenCL C, this attribute is available with the GNU spelling
+(``__attribute__((reqd_work_group_size(X, Y, Z)))``), see section
+6.7.2 Optional Attribute Qualifiers of OpenCL 1.2 specification for details.
+
+.. code-block:: c++
+
+  __kernel __attribute__((reqd_work_group_size(8, 16, 32))) void test() {}
+
+  }];
+}
+
+def WorkGroupSizeHintAttrDocs : Documentation {
+  let Category = DocCatFunction;
+  let Content = [{
+Applies to a device function/lambda function. Hint to the compiler on the work-
+group size most likely to be used when launching the kernel at runtime. Each
+argument must be a nonzero integral constant expression whose value is
+unsigned. The number of dimensional values defined provide additional
+information to the compiler on the dimensionality most likely to be used when
+launching the kernel at runtime.
+
+The GNU spelling is deprecated in SYCL mode.
+
+.. code-block:: c++
+
+  [[sycl::work_group_size_hint(4, 4, 4)]] void foo() {}
+
+  class Foo {
+  public:
+    [[sycl::work_group_size_hint(2, 2, 2)]] void operator()() const {}
+  };
+
+The arguments to ``work_group_size_hint`` are ordered based on which index
+increments the fastest. In OpenCL, the first argument is the index that
+increments the fastest, and in SYCL, the last argument is the index that
+increments the fastest.
+
+In OpenCL C, this attribute is available with the GNU spelling
+(``__attribute__((work_group_size_hint(X, Y, Z)))``) and all 
+three arguments are required.
+
+In SYCL, the attribute accepts either one, two, or three arguments; in each
+form, the last (or only) argument is the index that increments fastest. The
+number of arguments passed to the attribute must match the dimensionality of
+the kernel the attribute is applied to.
+
+In SYCL 1.2.1 mode, the ``sycl::work_group_size_hint`` attribute is propagated 
+from the function it is applied to onto the kernel which calls the function. 
+In SYCL 2020 mode, the attribute is not propagated to the kernel.
+  }];
+}
+
+def SYCLIntelMaxWorkGroupSizeAttrDocs : Documentation {
+  let Category = DocCatFunction;
+  let Heading = "intel::max_work_group_size";
+  let Content = [{
+Applies to a device function/lambda function. Indicates the maximum dimensions
+of a work group. Values must be positive integers. This is similar to
+reqd_work_group_size, but allows work groups that are smaller or equal to the
+specified sizes.
+
+In SYCL 1.2.1 mode, the ``intel::max_work_group_size`` attribute is propagated
+from the function it is applied to onto the kernel which calls the function.
+In SYCL 2020 mode, the attribute is not propagated to the kernel.
+
+.. code-block:: c++
+
+  [[intel::max_work_group_size(4, 4, 4)]] void foo() {}
+
+  class Foo {
+  public:
+    [[intel::max_work_group_size(2, 2, 2)]] void operator()() const {}
+  };
+
+  template <int N, int N1, int N2>
+  class Functor {
+  public:
+    [[intel::max_work_group_size(N, N1, N2)]] void operator()() const {}
+  };
+
+  template <int N, int N1, int N2>
+  [[intel::max_work_group_size(N, N1, N2)]] void func() {}
+
+  }];
+}
+
+def SYCLIntelMaxGlobalWorkDimAttrDocs : Documentation {
+  let Category = DocCatFunction;
+  let Heading = "intel::max_global_work_dim";
+  let Content = [{
+Applies to a device function/lambda function or function call operator (of a
+function object). Indicates the largest valid global work dimension that will be
+accepted when running the kernel on a device. Valid values are integers in a
+range of [0, 3].
+
+In SYCL 1.2.1 mode, the ``intel::max_global_work_dim`` attribute is propagated
+from the function it is applied to onto the kernel which calls the function.
+In SYCL 2020 mode, the attribute is not propagated to the kernel.
+
+.. code-block:: c++
+
+  [[intel::max_global_work_dim(1)]] void foo() {}
+
+  template<int N>
+  [[intel::max_global_work_dim(N)]] void bar() {}
+
+  class Foo {
+  public:
+    [[intel::max_global_work_dim(1)]] void operator()() const {}
+  };
+
+  template <int N>
+  class Functor {
+  public:
+    [[intel::max_global_work_dim(N)]] void operator()() const {}
+  };
+
+A kernel with ``intel::max_global_work_dim(0)`` must be invoked with a
+'single_task' and if ``intel::max_work_group_size`` or
+``cl::reqd_work_group_size`` are applied to the kernel as well - they shall
+have arguments of (1, 1, 1).
+
+.. code-block:: c++
+
+  struct TRIFuncObjGood {
+    [[intel::max_global_work_dim(0)]]
+    [[intel::max_work_group_size(1, 1, 1)]]
+    [[cl::reqd_work_group_size(1, 1, 1)]]
+    void operator()() const {}
+  };
+
+  }];
+}
+
+def SYCLIntelSchedulerTargetFmaxMhzAttrDocs : Documentation {
+  let Category = DocCatFunction;
+  let Heading = "intel::scheduler_target_fmax_mhz";
+  let Content = [{
+Applies to a device function/lambda function. Indicates that the kernel should
+be pipelined so as to achieve the specified target clock frequency (Fmax) of N
+MHz. The argument N may be a template parameter. This attribute should be
+ignored for the FPGA emulator device.
+
+``[[intel::scheduler_target_fmax_mhz(N)]]``
+Valid values of N are integers in the range [0, 1048576]. The upper limit,
+although too high to be a realistic value for frequency, is chosen to be future
+proof. The FPGA backend emits a diagnostic message if the passed value is
+unachievable by the device.
+
+This attribute enables communication of the desired maximum frequency of the
+device operation, guiding the FPGA backend to insert the appropriate number of
+registers to break-up the combinational logic circuit, and thereby controlling
+the length of the longest combinational path.
+
+In SYCL 1.2.1 mode, the ``intel::scheduler_target_fmax_mhz`` attribute is
+propagated from the function it is applied to onto the kernel which calls the
+function. In SYCL 2020 mode, the attribute is not propagated to the kernel.
+
+.. code-block:: c++
+
+  [[intel::scheduler_target_fmax_mhz(4)]] void foo() {}
+
+  template<int N>
+  [[intel::scheduler_target_fmax_mhz(N)]] void bar() {}
+
+  class Foo {
+  public:
+    [[intel::scheduler_target_fmax_mhz(6)]] void operator()() const {}
+  };
+
+  template <int N>
+  class Functor {
+  public:
+    [[intel::scheduler_target_fmax_mhz(N)]] void operator()() const {}
+  };
+
+  }];
+}
+
+def SYCLIntelNoGlobalWorkOffsetAttrDocs : Documentation {
+  let Category = DocCatFunction;
+  let Heading = "intel::no_global_work_offset";
+  let Content = [{
+Applies to a device function/lambda function or function call operator (of a
+function object). If 1, compiler doesn't use the global work offset values for
+the device function. Valid values are 0 and 1. If used without argument, value
+of 1 is set implicitly.
+
+In SYCL 1.2.1 mode, the ``intel::no_global_work_offset`` attribute is
+propagated from the function it is applied to onto the kernel which calls the
+function. In SYCL 2020 mode, the attribute is not propagated to the kernel.
+
+.. code-block:: c++
+
+  [[intel::no_global_work_offset]]
+  // identical to [[intel::no_global_work_offset(1)]]
+  void quux() {}
+
+  [[intel::no_global_work_offset(0)]] void foo() {}
+
+  class Foo {
+  public:
+    [[intel::no_global_work_offset(1)]] void operator()() const {}
+  };
+
+  template <int N>
+  class Functor {
+  public:
+    [[intel::no_global_work_offset(N)]] void operator()() const {}
+  };
+
+  template <int N>
+  [[intel::no_global_work_offset(N)]] void func() {}
+
+  }];
+}
+
+def SYCLDeviceGlobalAttrDocs : Documentation {
+  let Category = DocCatType;
+  let Heading = "__sycl_detail__::device_global";
+  let Content = [{
+This attribute is part of support for SYCL device_global feature.
+[[__sycl_detail__::device_global]] attribute is used for checking restrictions
+on variable declarations using the device_global type instead of the class name.
+Global or static variables of type decorated with this attribute have
+`sycl-unique-id`, an LLVM IR attribute, added to the definition of each such
+variable, which provides a unique string identifier using
+__builtin_sycl_unique_stable_id.
+We do not intend to support this as a general attribute that user code can use,
+so we have this attribute in sycl_detail namespace.
+
+.. code-block:: c++
+
+  template<typename T>
+  struct [[__sycl_detail__::device_global]] device_global {}
+
+  device_global<int> Foo;
+  }];
+}
+
+def SYCLGlobalVariableAllowedAttrDocs : Documentation {
+  let Category = DocCatType;
+  let Heading = "__sycl_detail__::global_variable_allowed";
+  let Content = [{
+This attribute is part of support for SYCL device_global feature.
+[[__sycl_detail__::global_variable_allowed]] attribute is used to avoid
+diagnosing an error when global or static variables of type decorated with this
+attribute are referenced in device code. We do not intend to support this as a
+general attribute that user code can use, therefore it is wrapped in
+sycl_detail namespace.
+
+.. code-block:: c++
+  
+  template<typename T>
+  struct [[__sycl_detail__::global_variable_allowed]] device_global {}
+  
+  device_global<int> Foo;
+  }];
+}
+
+def SYCLIntelPipeDocs : Documentation {
+  let Category = DocCatStmt;
+  let Heading = "pipe (read_only, write_only)";
+  let Content = [{
+This attribute applies to a type to indicate that it is a pipe type.
+It requires a string argument that specifies if the pipe is read only or
+write only. Expected to be used only in SYCL headers.
+  }];
+}
+
+def SYCLIntelPipeIOAttrDocs : Documentation {
+  let Category = DocCatVariable;
+  let Heading = "IO pipe ID";
+  let Content = [{
+Add I/O attribute to SYCL pipe declaration to declare a special I/O pipe to
+interface with input or output features of an FPGA. These features might include
+network interfaces, PCIe, cameras, or other data capture or processing devices
+or protocols.
+
+The io_pipe_id(id) attribute specifies the I/O feature of an accelerator board
+with which a pipe interfaces. The id argument is the name of the I/O interface.
+  }];
+}
+
+def SYCLIntelIVDepAttrDocs : Documentation {
+  let Category = DocCatVariable;
+  let Heading = "intel::ivdep";
+  let Content = [{
+This attribute applies to a loop. If no additional arguments are provided, it
+indicates that the backend may assume that the loop carries no dependences.
+If a safelen is provided then the backend may assume that all loop-carried
+dependences have a dependence distance of at least that length.
+If an array variable is provided then the backend may assume that there are
+no loop-carried dependences for this particular array within this loop.
+If both an array variable and a safelen are specified, the backend may assume
+that all loop-carried dependences for this particular array have a dependence
+distance of at least that length.
+Multiple ivdep attributes can be applied to the same loop, but only the greatest
+possible safelen will be chosen for each array, including the case where safelen
+is unspecified and is therefore considered infinite.
+In case of ivdep being applied both w/o an array variable and for a particular
+array, the array variables that were not designated a separate ivdep will receive
+the no-array ivdep's safelen, with the correspondent treatment by the backend.
+The ``[[intel::ivdep]]`` attribute applies a safelen value of 0 or 1 that has
+no effect on the loop and emits a suppressible warning when safelen value of 0
+or 1 is used.
+
+.. code-block:: c++
+
+  void foo() {
+    int a[10];
+    [[intel::ivdep]] for (int i = 0; i != 10; ++i) { }
+    [[intel::ivdep(2)]] for (int i = 0; i != 10; ++i) { }
+    [[intel::ivdep(a)]] for (int i = 0; i != 10; ++i) { }
+    [[intel::ivdep(a, 2)]] for (int i = 0; i != 10; ++i) { }
+  }
+
+  template<int N>
+  void bar() {
+    [[intel::ivdep(N)]] for(;;) { }
+  }
+
+  }];
+}
+
+def SYCLIntelInitiationIntervalAttrDocs : Documentation {
+  let Category = DocCatVariable;
+  let Heading = "intel::initiation_interval";
+  let Content = [{
+This attribute applies to a loop or a function. Indicates that the loop or
+function should be pipelined with an initiation interval of N. N must be a
+positive integer. Cannot be applied multiple times to the same loop or function.
+Cannot be used on the same loop or function in conjunction with
+disable_loop_pipelining.
+
+The ``[[intel::ii]]`` attribute spelling is a deprecated synonym for
+``[[intel::initiation_interval]]`` and will be removed in the future.
+
+.. code-block:: c++
+
+  void foo() {
+    int var = 0;
+    [[intel::initiation_interval(4)]] for (int i = 0; i < 10; ++i) var++;
+  }
+
+  [[intel::initiation_interval(4)]] void foo1 { }
+
+  template<int N>
+  void bar() {
+    [[intel::initiation_interval(N)]] for(;;) { }
+  }
+
+  template<int N>
+  [[intel::initiation_interval(N)]] void bar1 { }
+
+  }];
+}
+
+def SYCLIntelMaxConcurrencyAttrDocs : Documentation {
+  let Category = DocCatVariable;
+  let Heading = "intel::max_concurrency";
+  let Content = [{
+This attribute applies to a loop or a function. It indicates that the
+loop/function should allow no more than N threads or iterations to execute it
+simultaneously. N must be a non negative integer. '0' indicates the
+max_concurrency case to be unbounded. Cannot be applied multiple times to the
+same loop or function, or in conjunction with ``disable_loop_pipelining``.
+
+.. code-block:: c++
+
+  void foo() {
+    int a[10];
+    [[intel::max_concurrency(2)]] for (int i = 0; i != 10; ++i) a[i] = 0;
+  }
+
+  [[intel::max_concurrency(2)]] void foo1 { }
+  template<int N>
+  void bar() {
+    [[intel::max_concurrency(N)]] for(;;) { }
+  }
+  template<int N>
+  [[intel::max_concurrency(N)]] void bar1() { }
+
+  }];
+}
+
+def SYCLIntelLoopCoalesceAttrDocs : Documentation {
+  let Category = DocCatVariable;
+  let Heading = "intel::loop_coalesce";
+  let Content = [{
+This attribute applies to a loop. Indicates that the loop nest should be
+coalesced into a single loop without affecting functionality. Parameter N is
+optional. If specified, it shall be a positive integer, and indicates how many
+of the nested loop levels should be coalesced.
+
+.. code-block:: c++
+
+  void foo() {
+    int a[10];
+    [[intel::loop_coalesce]] for (int i = 0; i != 10; ++i) a[i] = 0;
+  }
+
+  template<int N>
+  void loop_coalesce() {
+    int j = 0, n = 48;
+    [[intel::loop_coalesce(N)]]
+    while (j < n) {
+      if (j % 4) {
+        ++j;
+        continue;
+      }
+    }
+    j = 0;
+    [[intel::loop_coalesce]]
+    while (j < n) {
+      if (j % 6) {
+        ++j;
+        continue;
+      }
+    }
+  }
+
+  }];
+}
+
+def SYCLIntelDisableLoopPipeliningAttrDocs : Documentation {
+  let Category = DocCatVariable;
+  let Heading = "intel::disable_loop_pipelining";
+  let Content = [{
+This attribute applies to a loop or a function. Takes no arguments and
+disables pipelining of the loop or function data path, causing the loop
+or function to be executed serially. Cannot be used on the same loop or
+function, or in conjunction with ``speculated_iterations``, ``max_concurrency``,
+``initiation_interval``, ``ivdep``, ``max_reinvocation_delay`` or
+``enable_loop_pipelining`` attribute.
+
+.. code-block:: c++
+
+  void foo() {
+    int var = 0;
+    [[intel::disable_loop_pipelining]] for (int i = 0; i < 10; ++i) var++;
+  }
+
+  [[intel::disable_loop_pipelining]] void foo1() { }
+
+  }];
+}
+
+def SYCLIntelLoopCountAttrDocs : Documentation {
+  let Category = DocCatVariable;
+  let Heading = "intel::loop_count_min, intel::loop_count_max, intel::loop_count_avg, intel::loop_count";
+  let Content = [{
+The loop count attributes specify the minimum, maximum, or average number of
+iterations for a ``for`` loop. These are hints that the user specify that can be
+used by some of the loop optimization to make decisions such as if the loop
+should be unrolled. It is a way for the user to provide some information without
+using PGO.
+
+.. code-block:: c++
+
+  void foo(int *array, size_t n) {
+    [[intel::loop_count_min(4)]] for (int i = 0; i < n; ++i) array[i] = 0;
+  }
+
+  void zoo(int *array, size_t n) {
+    [[intel::loop_count_max(10)]] for (int i = 0; i < n; ++i) array[i] = 0;
+  }
+
+  void count(int *array, size_t n) {
+    [[intel::loop_count(20)]] for (int i = 0; i < n; ++i) array[i] = 0;
+  }
+
+  void goo(int *array, size_t n) {
+    [[intel::loop_count_min(3)]]
+    [[intel::loop_count_max(10)]]
+    [[intel::loop_count_avg(5)]]
+    [[intel::loop_count(20)]]
+    for (int i = 0; i < n; ++i) array[i] = 0;
+  }
+
+  template<int N>
+  void bar() {
+    [[intel::loop_count_avg(N)]] for(;;) { }
+  }
+
+  template<int A>
+  void func() {
+    [[intel::loop_count(A)]] for(;;) { }
+  }
+  }];
+}
+
+def SYCLIntelMaxInterleavingAttrDocs : Documentation {
+  let Category = DocCatVariable;
+  let Heading = "intel::max_interleaving";
+  let Content = [{
+This attribute applies to a loop. Places a maximum limit N on the number of
+interleaved invocations of an inner loop by an outer loop (note, this does not
+mean that this attribute can only be applied to inner loops in user code - outer
+loops in user code may still be contained in an implicit loop due to NDRange).
+Parameter N is mandatory, and may either be 0, or 1.
+
+.. code-block:: c++
+
+  void foo() {
+    int a[10];
+    [[intel::max_interleaving(1)]] for (int i = 0; i != 10; ++i) a[i] = 0;
+  }
+
+  template<int N>
+  void bar() {
+    [[intel::max_interleaving(N)]] for(;;) { }
+  }
+
+  }];
+}
+
+def SYCLIntelSpeculatedIterationsAttrDocs : Documentation {
+  let Category = DocCatVariable;
+  let Heading = "intel::speculated_iterations";
+  let Content = [{
+This attribute applies to a loop. Specifies the number of concurrent speculated
+iterations that will be in flight for a loop invocation (i.e. the exit
+condition for these iterations will not have been evaluated yet).
+Parameter N is mandatory, and may either be 0, or a positive integer. Cannot be
+used on the same loop in conjunction with disable_loop_pipelining.
+
+.. code-block:: c++
+
+  void foo() {
+    int var = 0;
+    [[intel::speculated_iterations(4)]] for (int i = 0; i < 10; ++i) var++;
+  }
+
+  template<int N>
+  void bar() {
+    [[intel::speculated_iterations(N)]] for(;;) { }
+  }
+
+  }];
+}
+
+def SYCLIntelNofusionAttrDocs : Documentation {
+  let Category = DocCatVariable;
+  let Heading = "intel::nofusion";
+  let Content = [{
+This attribute applies to a loop. Indicates that the annotated
+loop should not be fused with any adjacent loop.
+
+.. code-block:: c++
+
+  void foo() {
+    [[intel::nofusion]] for (int i=0; i<10;++i) { }
+  }
+
+  void nofusion() {
+    int a1[10];
+    for (int i = 0; i < 10; ++i) {
+    [[intel::nofusion]] for (int j = 0; j < 10; ++j) {
+      a1[i] += a1[j];
+    }
+  }
+
+  }];
+}
+
+def SYCLIntelMaxReinvocationDelayAttrDocs : Documentation {
+  let Category = DocCatVariable;
+  let Heading = "intel::max_reinvocation_delay";
+  let Content = [{
+This attribute applies to a loop. Specifies the maximum number of cycles allowed
+on the delay between the launch of the last iteration of a loop invocation and
+the launch of the first iteration of a new loop invocation. Parameter N is
+mandatory, and is a positive integer. Cannot be used on the same loop in
+conjunction with disable_loop_pipelining.
+
+.. code-block:: c++
+
+  void foo() {
+    int var = 0;
+    [[intel::max_reinvocation_delay(1)]]
+    for (int i = 0; sycl::log10((float)(x)) < 10; i++) var++;
+  }
+
+  template<int N>
+  void bar() {
+    [[intel::max_reinvocation_delay(N)]] for(;;) { }
+  }
+  }];
+}
+
+def SYCLIntelEnableLoopPipeliningAttrDocs : Documentation {
+  let Category = DocCatVariable;
+  let Heading = "intel::enable_loop_pipelining";
+  let Content = [{
+The ``enable_loop_pipelining`` attribute applies to a loop in SYCL device code.
+Takes no arguments and enables pipelining of the loop. This attribute is useful
+in the low-area flow, in which all loops are unpipelined by default. Cannot be
+used on the same loop in conjunction with ``disable_loop_pipelining`` attribute.
+
+.. code-block:: c++
+
+  void bar() {
+    int a[10];
+    [[[intel::enable_loop_pipelining]] for (int i = 0; i != 10; ++i) a[i] = 0;
+  }
+
+  void Array(int *array, size_t n) {
+    [[intel::enable_loop_pipelining]] for (int i = 0; i < n; ++i) array[i] = 0;
+  }
+
+  void count () {
+    int a1[10], i = 0;
+    [[intel::enable_loop_pipelining]] while (i < 10) {
+      a1[i++] = 3;
+    }
+  }
+
+  void check() {
+    int a = 10;
+    [[intel::enable_loop_pipelining]] do {
+      a = a + 1;
+    } while (a < 20);
+  }
+
+  }];
+}
+
+def SYCLIntelLoopFuseDocs : Documentation {
+  let Category = DocCatFunction;
+  let Heading = "loop_fuse, loop_fuse_independent";
+  let Content = [{
+``[[intel::loop_fuse(N)]]`` and ``[[intel::loop_fuse_independent(N)]]`` attributes apply
+to a function/lambda function. It is a strong request, to the extent possible, to fuse
+the loops within the function, that are contained in at most N-1 other loops within the
+function. If the optional parameter N is omitted, it is a strong request, to the extent
+possible, to fuse loops within the function that are not contained in any other loop
+within the function. ``[[intel::loop_fuse_independent(N)]]`` also guarantees that fusion
+safety analysis can ignore negative-distance dependences between these loops.
+
+.. code-block:: c++
+
+  [[intel::loop_fuse(N)]]
+  int foo() {}
+
+  [[intel::loop_fuse_independent(N)]]
+  int foo() {}
+
+
+``[[intel::loop_fuse(N)]]`` and ``[[intel::loop_fuse_independent(N)]]`` takes one optional
+parameter that is a constant unsigned integer expression. The parameter N may be a template
+parameter.
+
+  }];
+}
+
+def SYCLAddIRAttributesFunctionDocs : Documentation {
+  let Category = DocCatFunction;
+  let Heading = "add_ir_attributes_function";
+  let Content = [{
+This attribute can be applied to a function declaration or a function definition
+to add LLVM IR attributes to the resulting LLVM IR function.
+The attribute must contain N*2 arguments where N is the number of IR attributes
+to add to the resulting LLVM IR function declaration. Each of the first N of
+these arguments must be either string literals or ``constexpr const char *``.
+These will be the names of the added LLVM IR attributes. The following N
+arguments are the values of the LLVM IR attributes and must be integer, floating
+point, character, boolean, ``const char *``, or an enumeration as either a
+literal or ``constexpr`` value.
+No LLVM IR attribute is generated if the attribute name is an empty string.
+
+.. code-block:: c++
+
+  [[__sycl_detail__::add_ir_attributes_function("Attr1", "Attr2", true, 1)]]
+  void foo() {}
+  // Resulting LLVM IR function definition of foo will have the attributes
+  // "Attr1"="true" and "Attr2"="1".
+
+Optionally, the first argument of the attribute can be an initializer list
+containing only string literals. This initializer list acts as a filter,
+allowing only attributes with names in the initializer list to be generated.
+If this intializer list is present, the attribute must have N*2+1 arguments,
+where the last N*2 are as described above.
+
+.. code-block:: c++
+
+  [[__sycl_detail__::add_ir_attributes_function(
+      {"Attr2"}, "Attr1", "Attr2", true, 1)]]
+  void foo() {}
+  // Resulting LLVM IR function definition of foo will only have the
+  // "Attr2"="1" attribute.
+
+.. Note:: This attribute will only generate LLVM IR attributes in SYCL device
+  code.
+
+.. Note:: This attribute is not currently allowed on defaulted and deleted
+  functions.
+
+.. Note:: This attribute is intended as an internal implementation detail and is
+  not intended to be used by external users.
+  }];
+}
+
+def SYCLAddIRAttributesKernelParameterDocs : Documentation {
+  let Category = DocCatFunction;
+  let Heading = "add_ir_attributes_kernel_parameter";
+  let Content = [{
+This attribute can be applied to parameters of the ``__init`` member function
+associated with a class with the ``__attribute__((sycl_special_class))``. If a
+parameter of a kernel function was adopted from an ``__init`` member function,
+the attribute will cause the corresponding parameter in the generated LLVM IR to
+have the LLVM IR attributes specified by the arguments of the attribute.
+The attribute must contain N*2 arguments where N is the number of IR attributes
+to add to the resulting LLVM IR function parameter declaration. Each of the
+first N of these arguments must be either string literals or
+``constexpr const char *``. These will be the names of the added LLVM IR
+attributes. The following N arguments are the values of the LLVM IR attributes
+and must be integer, floating point, character, boolean, ``const char *``, or
+an enumeration as either a literal or ``constexpr`` value.
+No LLVM IR attribute is generated if the attribute name is an empty string.
+
+.. code-block:: c++
+
+  class __attribute__((sycl_special_class)) Foo {
+  public:
+    ...
+
+  #ifdef __SYCL_DEVICE_ONLY__
+    void __init(
+        [[__sycl_detail__::add_ir_attributes_kernel_parameter(
+            "Attr1", "Attr2", "Attribute value", 3.14)]]
+        int x) {
+      ...
+    }
+  #endif
+  };
+  // Resulting LLVM IR kernel function using Foo will have a parameter for x
+  // with attributes "Attr1"="Attribute value" and "Attr2"="3.14".
+
+Optionally, the first argument of the attribute can be an initializer list
+containing only string literals. This initializer list acts as a filter,
+allowing only attributes with names in the initializer list to be generated.
+If this intializer list is present, the attribute must have N*2+1 arguments,
+where the last N*2 are as described above.
+
+.. code-block:: c++
+
+  class __attribute__((sycl_special_class)) Foo {
+  public:
+    ...
+
+  #ifdef __SYCL_DEVICE_ONLY__
+    void __init(
+        [[__sycl_detail__::add_ir_attributes_kernel_parameter(
+            {"Attr1"}, "Attr1", "Attr2", "Attribute value", 3.14)]]
+        int x) {
+      ...
+    }
+  #endif
+  };
+  // Resulting LLVM IR kernel function using Foo will have a parameter for x
+  // with only the "Attr1"="Attribute value" attribute.
+
+.. Note:: This attribute will only generate LLVM IR attributes in SYCL device
+  code.
+
+.. Note:: This attribute is intended as an internal implementation detail and is
+  not intended to be used by external users.
+  }];
+}
+
+def SYCLAddIRAttributesGlobalVariableDocs : Documentation {
+  let Category = DocCatDecl;
+  let Heading = "add_ir_attributes_global_variable";
+  let Content = [{
+This attribute can be applied to a class definition. Global variables of a class
+with this attribute will have the LLVM IR attributes specified by the arguments
+of the attribute.
+The attribute must contain N*2 arguments where N is the number of IR attributes
+to add to the resulting LLVM IR global variable declaration. Each of the first N
+of these arguments must be either string literals or ``constexpr const char *``.
+These will be the names of the added LLVM IR attributes. The following N
+arguments are the values of the LLVM IR attributes and must be integer, floating
+point, character, boolean, ``const char *``, or an enumeration as either a
+literal or ``constexpr`` value.
+No LLVM IR attribute is generated if the attribute name is an empty string.
+
+.. code-block:: c++
+
+  template <typename... NameValues> struct
+  #ifdef __SYCL_DEVICE_ONLY__
+      [[__sycl_detail__::add_ir_attributes_global_variable(
+          "Attr1", "Attr2", "Attr3", false, 1.234, true)]]
+  #endif
+      Foo {...};
+  Foo a;
+  // Resulting LLVM IR global variable for a will have the attributes
+  // "Attr1"="false", "Attr2"="1.234", and "Attr3"="true".
+
+Optionally, the first argument of the attribute can be an initializer list
+containing only string literals. This initializer list acts as a filter,
+allowing only attributes with names in the initializer list to be generated.
+If this intializer list is present, the attribute must have N*2+1 arguments,
+where the last N*2 are as described above.
+
+.. code-block:: c++
+
+  template <typename... NameValues> struct
+  #ifdef __SYCL_DEVICE_ONLY__
+      [[__sycl_detail__::add_ir_attributes_global_variable(
+          {"Attr1", "Attr3"}, "Attr1", "Attr2", "Attr3", false, 1.234, true)]]
+  #endif
+      Foo {...};
+  Foo a;
+  // Resulting LLVM IR global variable for a will have the attributes
+  // "Attr1"="false" and "Attr3"="true".
+
+.. Note:: This attribute will only generate LLVM IR attributes in SYCL device
+  code.
+
+.. Note:: This attribute is intended as an internal implementation detail and is
+  not intended to be used by external users.
+  }];
+}
+
+def SYCLAddIRAnnotationsMemberDocs : Documentation {
+  let Category = DocCatVariable;
+  let Heading = "add_ir_annotations_member";
+  let Content = [{
+This attribute can be applied to a non-static field. Access to a field with this
+attribute will generate a call to ``llvm.ptr.annotation`` with the arguments
+paired.
+The attribute must contain N*2 arguments. Each of the first N of these arguments
+must be either string literals or ``constexpr const char *``. The following N
+must be integer, floating point, character, boolean, ``const char *``, or an
+enumeration as either a literal or ``constexpr`` value. The first N arguments
+and the second N arguments are zipped into pairs when creating the call to
+``llvm.ptr.annotation``, i.e. in the constant global variable pointed to by the
+generated annotation intrinsic call, the N+1'th argument of the attribute will
+occur after the first argument of the attribute, the N+2'th argument of the
+attribute will occur after the second argument of the attribute, etc.
+The generated call to ``llvm.ptr.annotation`` will have the following arguments
+in this order:
+
+  * First argument is a pointer to the field.
+  * A pointer to a string literal in a constant global variable. This will
+    always be "sycl-properties".
+  * A pointer to a string literal in a constant global variable with the name of
+    the source file.
+  * The line number of the field declaration in the source file.
+  * A pointer to a constant global variable containing pointers to string
+    literals in constant global variables. These pointers to string literals
+    occur in pairs. If the second value of a pair was a ``nullptr`` or an empty
+    string then the pointer will be a null-pointer.
+
+A pair will not be in the call to ``llvm.ptr.annotation`` if the first value of
+the pair is an empty string.
+
+.. code-block:: c++
+
+  struct Foo {
+    int *ptr
+  #ifdef __SYCL_DEVICE_ONLY__
+        [[__sycl_detail__::add_ir_annotations_member(
+            "Attr1", "Attr2", "Attribute value", 3.14)]]
+  #endif
+        ;
+  };
+  // Accessing the 'ptr' field of 'Foo' will result in a call to
+  // 'llvm.ptr.annotation' with the second argument pointing to a constant
+  // global variable containing "sycl-properties" and the fifth argument
+  // pointing to a constant global variable with pointers to string literals
+  // "Attr1", "Attribute value", "Attr2", "3.14" in that order.
+
+Optionally, the first argument of the attribute can be an initializer list
+containing only string literals. This initializer list acts as a filter,
+allowing only pairs with the first value in the initializer list to be
+generated. If this intializer list is present, the attribute must have N*2+1
+arguments, where the last N*2 are as described above.
+
+.. code-block:: c++
+
+  struct Foo {
+    int *ptr
+  #ifdef __SYCL_DEVICE_ONLY__
+        [[__sycl_detail__::add_ir_annotations_member(
+            {"Attr2"}, "Attr1", "Attr2", "Attribute value", 3.14)]]
+  #endif
+        ;
+  };
+  // Accessing the 'ptr' field of 'Foo' will result in a call to
+  // 'llvm.ptr.annotation' with the second argument pointing to a constant
+  // global variable containing "sycl-properties" and the fifth argument
+  // pointing to a constant global variable with pointers to string literals
+  // "Attr2", "3.14" in that order.
+
+.. Note:: This attribute will only generate a call to ``llvm.ptr.annotation`` in
+  SYCL device code.
+
+.. Note:: This attribute is intended as an internal implementation detail and is
+  not intended to be used by external users.
+  }];
+}
+
+def SYCLDeviceIndirectlyCallableDocs : Documentation {
+  let Category = DocCatFunction;
+  let Heading = "intel::device_indirectly_callable";
+  let Content = [{
+This attribute can only be applied to functions and indicates that the
+function must be treated as a device function and must be emitted even if it has
+no direct uses from other SYCL device functions. However, it cannot be applied
+to functions marked as 'static' and functions declared within an anonymous
+namespace.
+
+It also means that function should be available externally and
+cannot be optimized out due to reachability analysis or by any other
+optimization.
+
+This attribute allows to pass name and address of the function to a special
+``sycl::intel::get_device_func_ptr`` API call which extracts the device
+function pointer for the specified function.
+
+.. code-block:: c++
+
+  [[intel::device_indirectly_callable]] int func3() {}
+
+  class A {
+    [[intel::device_indirectly_callable]] A() {}
+  };
+
+  }];
+}
+
+def SYCLDeviceDocs : Documentation {
+  let Category = DocCatFunction;
+  let Heading = "sycl_device";
+  let Content = [{
+This attribute can only be applied to functions and indicates that the
+function must be treated as a device function and must be emitted even if it has
+no direct uses from other device functions. All ``sycl_device`` function callees
+implicitly inherit this attribute.
+  }];
+}
+
 def RISCVInterruptDocs : Documentation {
   let Category = DocCatFunction;
   let Heading = "interrupt (RISC-V)";
@@ -2490,6 +4040,10 @@ For every multiversioned function a ``default`` (fallback) implementation
 always generated if not specified directly.
 
 For x86/x86-64 targets:
+All multiversioned functions must contain a ``default`` (fallback)
+implementation, otherwise usages of the function are considered invalid.
+Additionally, a function may not become multiversioned after its first use.
+
 All multiversioned functions must contain a ``default`` (fallback)
 implementation, otherwise usages of the function are considered invalid.
 Additionally, a function may not become multiversioned after its first use.
@@ -3753,18 +5307,110 @@ s6.11.5 for details.
   }];
 }
 
-def OpenCLIntelReqdSubGroupSizeDocs : Documentation {
+def LoopUnrollHintDocs : Documentation {
   let Category = DocCatStmt;
   let Content = [{
+Loop unrolling optimization hint can be specified with CXX11 attribute
+``[[clang::loop_unroll]]``. The attribute is placed immediately before a for,
+while, do-while, or c++11 range-based for loop. This attribute can be
+used to specify full unrolling or partial unrolling by a specified amount.
+  }];
+}
+
+def IntelReqdSubGroupSizeDocs : Documentation {
+  let Category = DocCatStmt;
+  let Heading = "intel_reqd_sub_group_size";
+  let Content = [{
+This attribute can be used in both OpenCL and SYCL.
+
+OpenCL documentation:
 The optional attribute intel_reqd_sub_group_size can be used to indicate that
-the kernel must be compiled and executed with the specified subgroup size. When
+the kernel must be compiled and executed with the specified sub group size. When
 this attribute is present, get_max_sub_group_size() is guaranteed to return the
-specified integer value. This is important for the correctness of many subgroup
+specified integer value. This is important for the correctness of many sub group
 algorithms, and in some cases may be used by the compiler to generate more optimal
 code. See `cl_intel_required_subgroup_size
 <https://www.khronos.org/registry/OpenCL/extensions/intel/cl_intel_required_subgroup_size.txt>`
 for details.
+
+SYCL documentation:
+The [[intel::reqd_sub_group_size(n)]] attribute indicates that the kernel must
+be compiled and executed with a sub-group of size n. The value of n must be set
+to a sub-group size supported by the device, or device compilation will fail.
+
+The ``[[intel::sub_group_size(n)]]`` attribute has the same effect as the other
+attribute spellings, except that it follows the SYCL 2020 Attribute Rules. See
+the ``[[intel::named_sub_group_size(NAME)]]`` documentation for clarification.
+
+This attribute is mutually exclusive with ``[[intel::named_sub_group_size(NAME)]]``
+and ``[[intel::sycl_explicit_simd]]``.
+
+In SYCL 1.2.1 mode, the ``intel::reqd_sub_group_size`` attribute is propagated
+from the function it is applied to onto the kernel which calls the function.
+In SYCL 2020 mode, the attribute is not propagated to the kernel.
+
+In addition to device functions, the required sub-group size attribute may also
+be specified in the definition of a named functor object and lambda functions,
+as in the examples below:
+
+.. code-block:: c++
+
+  class Functor
+  {
+      [[intel::reqd_sub_group_size(16)]] void operator()(item<1> item)
+      {
+          /* kernel code */
+      }
+  }
+
+  kernel<class kernel_name>(
+  []() [[intel::reqd_sub_group_size(n)]] {
+       /* kernel code */
+  });
+
+See Sub-groups for NDRange Parallelism proposal in sycl/doc/extensions/sub_group_ndrange/sub_group_ndrange.md
   }];
+}
+
+def IntelNamedSubGroupSizeDocs : Documentation {
+  let Category = DocCatFunction;
+  let Content = [{
+The ``[[intel::named_sub_group_size(NAME)]]`` attribute works similar to
+``[[intel::sub_group_size(N)]]`` attribute in that it defines the specific
+sub group size for the kernel. The ``[[intel::named_sub_group_size(NAME)]]``
+form accepts a required parameter of either ``automatic`` or ``primary``.
+
+``automatic`` specifies that the implementation is free to select any of the
+valid sub-group sizes associated with the device to which the kernel is
+submitted.  ``primary`` specifies that the implementation should select the
+device's primary sub-group size as reported by
+``info::device::primary_sub_group_size``.
+
+This attribute may not be combined with ``[[intel::sub_group_size(N)]]``, as
+the two attributes have different meanings. It is also mutually exclusive with
+``[[intel::sycl_explicit_simd]]``.
+
+In addition to the attributes, a default sub-group size strategy may be
+specified by the ``-fsycl-default-sub-group-size`` command line option, which
+accepts either ``automatic``, ``primary``, or a default size as an integer.
+These values match and have the same behavior as the ``automatic``, ``primary``,
+and ``[[intel::sub_group_size(N)]]`` values respectively.
+
+SYCL 2020 Attribute Rules:
+SYCL 2020 specifies that kernel-type attributes should only be specified on the
+kernel or a ``SYCL_EXTERNAL`` function. This implementation permits these
+attributes to appear on all function declarations for the purposes of
+self-documenting declarations. However, these attributes must match the kernel's
+sub-group size as configured by the command line, or via an attribute
+specifically.
+
+In addition to the SYCL 2020 Attribute Rules, this attribute and the
+``[[intel::sub_group_size(N)]]`` attribute also require that any
+``SYCL_EXTERNAL`` functions defined in a different translation unit must have a
+matching sub-group size specification, so ``SYCL_EXTERNAL`` functions not
+defined in this translation unit must also have a matching sub-group
+specification to the kernel function that calls it.
+}];
 }
 
 def OpenCLAccessDocs : Documentation {

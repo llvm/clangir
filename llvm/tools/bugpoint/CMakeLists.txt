@@ -17,6 +17,7 @@ set(LLVM_LINK_COMPONENTS
   ObjCARCOpts
   ScalarOpts
   Support
+  SYCLLowerIR
   Target
   TargetParser
   TransformUtils

@@ -66,12 +66,14 @@ add_llvm_unittest(SupportTests
   PerThreadBumpPtrAllocatorTest.cpp
   ProcessTest.cpp
   ProgramTest.cpp
+  PropertySetIOTest.cpp
   RegexTest.cpp
   ReverseIterationTest.cpp
   ReplaceFileTest.cpp
   RISCVAttributeParserTest.cpp
   RISCVISAInfoTest.cpp
   ScaledNumberTest.cpp
+  SimpleTableTest.cpp
   ScopedPrinterTest.cpp
   SHA256.cpp
   SignalsTest.cpp

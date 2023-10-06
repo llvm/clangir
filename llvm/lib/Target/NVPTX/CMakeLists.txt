@@ -61,6 +61,8 @@ add_llvm_target(NVPTXCodeGen
   TargetParser
   TransformUtils
   Vectorize
+  Passes
+  SYCLLowerIR
 
   ADD_TO_COMPONENT
   NVPTX

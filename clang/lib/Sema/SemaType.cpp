@@ -220,6 +220,11 @@ namespace {
       return chunkIndex == declarator.getNumTypeObjects();
     }
 
+    bool isProcessingLambdaExpr() const {
+      return declarator.isFunctionDeclarator() &&
+             declarator.getContext() == DeclaratorContext::LambdaExpr;
+    }
+
     unsigned getCurrentChunkIndex() const {
       return chunkIndex;
     }
@@ -1380,7 +1385,8 @@ static QualType ConvertDeclSpecToType(TypeProcessingState &state) {
         // being declared, poison it as invalid so we don't get chains of
         // errors.
         declarator.setInvalidType(true);
-      } else if (S.getLangOpts().getOpenCLCompatibleVersion() >= 200 &&
+      } else if ((S.getLangOpts().getOpenCLCompatibleVersion() >= 200 ||
+                  S.getLangOpts().SYCLIsDevice) &&
                  DS.isTypeSpecPipe()) {
         S.Diag(DeclLoc, diag::err_missing_actual_pipe_type)
             << DS.getSourceRange();
@@ -1519,13 +1525,16 @@ static QualType ConvertDeclSpecToType(TypeProcessingState &state) {
       Result = Context.Int128Ty;
     break;
   case DeclSpec::TST_float16:
-    // CUDA host and device may have different _Float16 support, therefore
-    // do not diagnose _Float16 usage to avoid false alarm.
-    // ToDo: more precise diagnostics for CUDA.
-    if (!S.Context.getTargetInfo().hasFloat16Type() && !S.getLangOpts().CUDA &&
-        !(S.getLangOpts().OpenMP && S.getLangOpts().OpenMPIsTargetDevice))
-      S.Diag(DS.getTypeSpecTypeLoc(), diag::err_type_unsupported)
-        << "_Float16";
+    {
+      // CUDA host and device may have different _Float16 support, therefore
+      // do not diagnose _Float16 usage to avoid false alarm.
+      // ToDo: more precise diagnostics for CUDA.
+      if (!S.Context.getTargetInfo().hasFloat16Type() &&
+          !S.getLangOpts().CUDA &&
+          !(S.getLangOpts().OpenMP && S.getLangOpts().OpenMPIsTargetDevice))
+        S.Diag(DS.getTypeSpecTypeLoc(), diag::err_type_unsupported)
+            << "_Float16";
+    }
     Result = Context.Float16Ty;
     break;
   case DeclSpec::TST_half:    Result = Context.HalfTy; break;
@@ -2372,10 +2381,15 @@ QualType Sema::BuildBitIntType(bool IsUnsigned, Expr *BitWidth,
     return QualType();
   }
 
-  const TargetInfo &TI = getASTContext().getTargetInfo();
-  if (NumBits > TI.getMaxBitIntWidth()) {
+  // If the number of bits exceed the maximum bit width supported on
+  // both host and device, issue an error diagnostic.
+  const TargetInfo *AuxTargetInfo = getASTContext().getAuxTargetInfo();
+  size_t MaxBitIntWidth = std::max(
+      (AuxTargetInfo == nullptr) ? 0 : AuxTargetInfo->getMaxBitIntWidth(),
+      getASTContext().getTargetInfo().getMaxBitIntWidth());
+  if (NumBits > MaxBitIntWidth) {
     Diag(Loc, diag::err_bit_int_max_size)
-        << IsUnsigned << static_cast<uint64_t>(TI.getMaxBitIntWidth());
+        << IsUnsigned << static_cast<uint64_t>(MaxBitIntWidth);
     return QualType();
   }
 
@@ -2673,7 +2687,9 @@ QualType Sema::BuildArrayType(QualType T, ArrayType::ArraySizeModifier ASM,
     }
   }
 
-  if (T->isVariableArrayType() && !Context.getTargetInfo().isVLASupported()) {
+  // Delay diagnostic to SemaSYCL so only Kernel functions are diagnosed.
+  if (T->isVariableArrayType() && !Context.getTargetInfo().isVLASupported() &&
+      !getLangOpts().SYCLIsDevice) {
     // CUDA device code and some other targets don't support VLAs.
     bool IsCUDADevice = (getLangOpts().CUDA && getLangOpts().CUDAIsDevice);
     targetDiag(Loc,
@@ -2760,8 +2776,8 @@ QualType Sema::BuildVectorType(QualType CurType, Expr *SizeExpr,
   }
 
   if (!TypeSize || VectorSizeBits % TypeSize) {
-    Diag(AttrLoc, diag::err_attribute_invalid_size)
-        << SizeExpr->getSourceRange();
+      Diag(AttrLoc, diag::err_attribute_invalid_size)
+          << SizeExpr->getSourceRange();
     return QualType();
   }
 
@@ -5081,7 +5097,7 @@ static TypeSourceInfo *GetFullTypeForDeclarator(TypeProcessingState &state,
       // OpenCL v2.0 s6.9b - Pointer to image/sampler cannot be used.
       // OpenCL v2.0 s6.13.16.1 - Pointer to pipe cannot be used.
       // OpenCL v2.0 s6.12.5 - Pointers to Blocks are not allowed.
-      if (LangOpts.OpenCL) {
+      if (LangOpts.OpenCL || LangOpts.SYCLIsDevice) {
         if (T->isImageType() || T->isSamplerT() || T->isPipeType() ||
             T->isBlockPointerType()) {
           S.Diag(D.getIdentifierLoc(), diag::err_opencl_pointer_to_type) << T;
@@ -5305,10 +5321,20 @@ static TypeSourceInfo *GetFullTypeForDeclarator(TypeProcessingState &state,
       }
 
       if (LangOpts.OpenCL) {
+        // OpenCL v2.0 s6.12.5 - A pipe cannot be the return value of a
+        // function. Disrespect this for SYCL.
+        if (T->isPipeType()) {
+          S.Diag(D.getIdentifierLoc(), diag::err_opencl_invalid_return)
+              << T << 1 /*hint off*/;
+          D.setInvalidType(true);
+        }
+      }
+
+      if (LangOpts.OpenCL || LangOpts.SYCLIsDevice) {
         // OpenCL v2.0 s6.12.5 - A block cannot be the return value of a
         // function.
-        if (T->isBlockPointerType() || T->isImageType() || T->isSamplerT() ||
-            T->isPipeType()) {
+        if (!T->isSampledImageType() &&
+            (T->isBlockPointerType() || T->isImageType() || T->isSamplerT())) {
           S.Diag(D.getIdentifierLoc(), diag::err_opencl_invalid_return)
               << T << 1 /*hint off*/;
           D.setInvalidType(true);
@@ -5317,6 +5343,7 @@ static TypeSourceInfo *GetFullTypeForDeclarator(TypeProcessingState &state,
         // (s6.9.e and s6.12.5 OpenCL v2.0) except for printf.
         // We also allow here any toolchain reserved identifiers.
         if (FTI.isVariadic &&
+            !LangOpts.SYCLIsDevice &&
             !S.getOpenCLOptions().isAvailableOption(
                 "__cl_clang_variadic_functions", S.getLangOpts()) &&
             !(D.getIdentifier() &&
@@ -5441,7 +5468,7 @@ static TypeSourceInfo *GetFullTypeForDeclarator(TypeProcessingState &state,
       // OpenCL disallows functions without a prototype, but it doesn't enforce
       // strict prototypes as in C23 because it allows a function definition to
       // have an identifier list. See OpenCL 3.0 6.11/g for more details.
-      if (!FTI.NumParams && !FTI.isVariadic &&
+      if (!FTI.NumParams && !FTI.isVariadic && !LangOpts.SYCLIsDevice &&
           !LangOpts.requiresStrictPrototypes() && !LangOpts.OpenCL) {
         // Simple void foo(), where the incoming T is the result type.
         T = Context.getFunctionNoProtoType(T, EI);
@@ -6909,6 +6936,66 @@ static void HandleAddressSpaceTypeAttribute(QualType &Type,
   }
 }
 
+static void HandleSYCLPipeAttribute(QualType &Type, const ParsedAttr &Attr,
+                                    TypeProcessingState &State) {
+  Sema &S = State.getSema();
+  ASTContext &Ctx = S.Context;
+
+  // Check the attribute arguments.
+  if (Attr.getNumArgs() != 1) {
+    S.Diag(Attr.getLoc(), diag::err_attribute_wrong_number_arguments)
+        << Attr << 1;
+    Attr.setInvalid();
+    return;
+  }
+
+  if (!Attr.isArgExpr(0)) {
+    S.Diag(Attr.getLoc(), diag::err_attribute_argument_type)
+        << Attr << AANT_ArgumentString;
+    Attr.setInvalid();
+    return;
+  }
+
+  StringRef Str;
+  if (auto *SL = dyn_cast<StringLiteral>(Attr.getArgAsExpr(0))) {
+    Str = SL->getString();
+  } else {
+    S.Diag(Attr.getLoc(), diag::err_attribute_argument_type)
+        << Attr << AANT_ArgumentString;
+    Attr.setInvalid();
+    return;
+  }
+
+  bool isReadOnlyPipe;
+  if (Str == "write_only")
+    isReadOnlyPipe = false;
+  else if (Str == "read_only")
+    isReadOnlyPipe = true;
+  else {
+    S.Diag(Attr.getLoc(), diag::err_pipe_attribute_arg_not_allowed) << Str;
+    Attr.setInvalid();
+    return;
+  }
+
+  auto *PipeAttr = ::new (Ctx) SYCLIntelPipeAttr(Ctx, Attr, Str);
+
+  // Apply pipe qualifiers just to the equivalent type, as the expression is not
+  // value dependent (not templated).
+  QualType EquivType = isReadOnlyPipe
+                           ? S.BuildReadPipeType(Type, Attr.getLoc())
+                           : S.BuildWritePipeType(Type, Attr.getLoc());
+  if (EquivType.isNull()) {
+    Attr.setInvalid();
+    return;
+  }
+
+  QualType T = State.getAttributedType(PipeAttr, Type, EquivType);
+  if (!T.isNull())
+    Type = T;
+  else
+    Attr.setInvalid();
+}
+
 /// handleObjCOwnershipTypeAttr - Process an objc_ownership
 /// attribute on the specified type.
 ///
@@ -8071,7 +8158,8 @@ static bool handleFunctionTypeAttr(TypeProcessingState &state, ParsedAttr &attr,
   // much ability to diagnose it later.
   if (!supportsVariadicCall(CC)) {
     const FunctionProtoType *FnP = dyn_cast<FunctionProtoType>(fn);
-    if (FnP && FnP->isVariadic()) {
+    // Disable these diagnostics for SYCL
+    if (FnP && FnP->isVariadic() && !S.getLangOpts().SYCLIsDevice) {
       // stdcall and fastcall are ignored with a warning for GCC and MS
       // compatibility.
       if (CC == CC_X86StdCall || CC == CC_X86FastCall)
@@ -8651,8 +8739,9 @@ static void processTypeAttrs(TypeProcessingState &state, QualType &type,
     default:
       // A [[]] attribute on a declarator chunk must appertain to a type.
       if ((attr.isStandardAttributeSyntax() ||
-           attr.isRegularKeywordAttribute()) &&
-          TAL == TAL_DeclChunk) {
+           attr.isRegularKeywordAttribute()) && TAL == TAL_DeclChunk &&
+          (!state.isProcessingLambdaExpr() ||
+           !attr.supportsNonconformingLambdaSyntax())) {
         state.getSema().Diag(attr.getLoc(), diag::err_attribute_not_type_attr)
             << attr << attr.isRegularKeywordAttribute();
         attr.setUsedAsTypeAttr();
@@ -8733,6 +8822,10 @@ static void processTypeAttrs(TypeProcessingState &state, QualType &type,
       break;
     case ParsedAttr::AT_OpenCLAccess:
       HandleOpenCLAccessAttr(type, attr, state.getSema());
+      attr.setUsedAsTypeAttr();
+      break;
+    case ParsedAttr::AT_SYCLIntelPipe:
+      HandleSYCLPipeAttribute(type, attr, state);
       attr.setUsedAsTypeAttr();
       break;
     case ParsedAttr::AT_LifetimeBound:

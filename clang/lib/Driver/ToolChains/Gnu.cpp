@@ -323,6 +323,42 @@ static bool getStatic(const ArgList &Args) {
       !Args.hasArg(options::OPT_static_pie);
 }
 
+// Create an archive with llvm-ar.  This is used to create an archive that
+// contains host objects and the wrapped FPGA device binary
+void tools::gnutools::Linker::constructLLVMARCommand(
+    Compilation &C, const JobAction &JA, const InputInfo &Output,
+    const InputInfoList &Input, const ArgList &Args) const {
+  ArgStringList CmdArgs;
+  // Use 'cqL' to create the archive.  This allows for any fat archives that
+  // are passed on the command line to be added via contents instead of the
+  // full archive.  Any usage of the generated archive will then have full
+  // access to resolve any dependencies.
+  CmdArgs.push_back("cqL");
+  const char *OutputFilename = Output.getFilename();
+  if (llvm::sys::fs::exists(OutputFilename)) {
+    C.getDriver().Diag(clang::diag::warn_drv_existing_archive_append)
+        << OutputFilename;
+  }
+  CmdArgs.push_back(OutputFilename);
+  for (const auto &II : Input) {
+    if (II.getType() == types::TY_Tempfilelist) {
+      // Take the list file and pass it in with '@'.
+      std::string FileName(II.getFilename());
+      const char *ArgFile = Args.MakeArgString("@" + FileName);
+      CmdArgs.push_back(ArgFile);
+      continue;
+    }
+    if (II.isFilename())
+      CmdArgs.push_back(II.getFilename());
+  }
+
+  SmallString<128> LLVMARPath(C.getDriver().Dir);
+  llvm::sys::path::append(LLVMARPath, "llvm-ar");
+  const char *Exec = C.getArgs().MakeArgString(LLVMARPath);
+  C.addCommand(std::make_unique<Command>(
+      JA, *this, ResponseFileSupport::None(), Exec, CmdArgs, std::nullopt));
+}
+
 void tools::gnutools::StaticLibTool::ConstructJob(
     Compilation &C, const JobAction &JA, const InputInfo &Output,
     const InputInfoList &Inputs, const ArgList &Args,
@@ -394,6 +430,12 @@ void tools::gnutools::Linker::ConstructJob(Compilation &C, const JobAction &JA,
       ToolChain.getTriple().hasEnvironment() ||
       (ToolChain.getTriple().getVendor() != llvm::Triple::MipsTechnologies);
 
+  // Use of -fsycl-link creates an archive.
+  if (Args.hasArg(options::OPT_fsycl_link_EQ) &&
+      JA.getType() == types::TY_Archive) {
+    constructLLVMARCommand(C, JA, Output, Inputs, Args);
+    return;
+  }
   ArgStringList CmdArgs;
 
   // Silence warning for "clang -g foo.o -o foo"
@@ -530,6 +572,11 @@ void tools::gnutools::Linker::ConstructJob(Compilation &C, const JobAction &JA,
     ToolChain.addFastMathRuntimeIfAvailable(Args, CmdArgs);
   }
 
+  // Performing link for dependency file information, undefined symbols are OK.
+  // True link time errors for symbols will be captured at host link.
+  if (JA.getType() == types::TY_Host_Dependencies_Image)
+    CmdArgs.push_back("--unresolved-symbols=ignore-all");
+
   Args.AddAllArgs(CmdArgs, options::OPT_L);
   Args.AddAllArgs(CmdArgs, options::OPT_u);
 
@@ -547,7 +594,27 @@ void tools::gnutools::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   bool NeedsSanitizerDeps = addSanitizerRuntimes(ToolChain, Args, CmdArgs);
   bool NeedsXRayDeps = addXRayRuntime(ToolChain, Args, CmdArgs);
   addLinkerCompressDebugSectionsOption(ToolChain, Args, CmdArgs);
-  AddLinkerInputs(ToolChain, Inputs, Args, CmdArgs, JA);
+  // When offloading, the input file(s) could be from unbundled partially
+  // linked archives.  The unbundled information is a list of files and not
+  // an actual object/archive.  Take that list and pass those to the linker
+  // instead of the original object.
+  if (JA.isDeviceOffloading(Action::OFK_OpenMP)) {
+    InputInfoList UpdatedInputs;
+    // Go through the Inputs to the link.  When a listfile is encountered, we
+    // know it is an unbundled generated list.
+    for (const auto &II : Inputs) {
+      if (II.getType() == types::TY_Tempfilelist) {
+        // Take the unbundled list file and pass it in with '@'.
+        std::string FileName(II.getFilename());
+        const char * ArgFile = C.getArgs().MakeArgString("@" + FileName);
+        auto CurInput = InputInfo(types::TY_Object, ArgFile, ArgFile);
+        UpdatedInputs.push_back(CurInput);
+      } else
+        UpdatedInputs.push_back(II);
+    }
+    AddLinkerInputs(ToolChain, UpdatedInputs, Args, CmdArgs, JA);
+  } else
+    AddLinkerInputs(ToolChain, Inputs, Args, CmdArgs, JA);
 
   addHIPRuntimeLibArgs(ToolChain, C, Args, CmdArgs);
 
@@ -582,6 +649,56 @@ void tools::gnutools::Linker::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back("-lm");
   }
 
+  // If requested, use a custom linker script to handle very large device code
+  // sections.
+  if (Args.hasArg(options::OPT_fsycl, options::OPT_fopenmp_targets_EQ) &&
+      Args.hasFlag(options::OPT_flink_huge_device_code,
+                   options::OPT_fno_link_huge_device_code, false)) {
+    // Create temporary linker script. Keep it if save-temps is enabled.
+    const char *LKS;
+    SmallString<256> Name = llvm::sys::path::filename(Output.getFilename());
+    if (C.getDriver().isSaveTempsEnabled()) {
+      llvm::sys::path::replace_extension(Name, "ld");
+      LKS = C.getArgs().MakeArgString(Name.c_str());
+    } else {
+      llvm::sys::path::replace_extension(Name, "");
+      Name = C.getDriver().GetTemporaryPath(Name, "ld");
+      LKS = C.addTempFile(C.getArgs().MakeArgString(Name.c_str()));
+    }
+
+    // Add linker script option to the command.
+    CmdArgs.push_back("-T");
+    CmdArgs.push_back(LKS);
+
+    // If this is not a dry run, create the linker script file.
+    if (!C.getArgs().hasArg(options::OPT__HASH_HASH_HASH)) {
+      std::error_code EC;
+      llvm::raw_fd_ostream ScriptOS(LKS, EC, llvm::sys::fs::OF_None);
+
+      if (EC) {
+        C.getDriver().Diag(clang::diag::err_unable_to_make_temp)
+            << EC.message();
+      } else {
+        ScriptOS
+            << "/*\n"
+               " * This linker script allows huge (>3GB) device code\n"
+               " * sections. It has been auto-generated by the driver.\n"
+               " */\n"
+               "SECTIONS\n"
+               "{\n"
+               "  . = SEGMENT_START(\"offload-device-code\", .);\n"
+               "  OFFLOAD_DEVICE_CODE ALIGN(CONSTANT (MAXPAGESIZE)) + (. & "
+               "(CONSTANT (MAXPAGESIZE) - 1)) :\n"
+               "  {\n"
+               "    *(__CLANG_OFFLOAD_BUNDLE__*)\n"
+               "  }\n"
+               "}\n"
+               "INSERT AFTER .bss\n";
+        ScriptOS.close();
+      }
+    }
+  }
+
   if (!Args.hasArg(options::OPT_nostdlib, options::OPT_r)) {
     if (!Args.hasArg(options::OPT_nodefaultlibs)) {
       if (IsStatic || IsStaticPIE)
@@ -610,6 +727,16 @@ void tools::gnutools::Linker::ConstructJob(Compilation &C, const JobAction &JA,
         WantPthread = true;
 
       AddRunTimeLibs(ToolChain, D, CmdArgs, Args);
+
+      if (Args.hasArg(options::OPT_fsycl) &&
+          !Args.hasArg(options::OPT_nolibsycl)) {
+        CmdArgs.push_back("-lsycl");
+        CmdArgs.push_back("-lsycl-devicelib-host");
+        // Use of -fintelfpga implies -lOpenCL.
+        // FIXME: Adjust to use plugin interface when available.
+        if (Args.hasArg(options::OPT_fintelfpga))
+          CmdArgs.push_back("-lOpenCL");
+      }
 
       // LLVM support for atomics on 32-bit SPARC V8+ is incomplete, so
       // forcibly link with libatomic as a workaround.

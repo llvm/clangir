@@ -273,6 +273,10 @@ class DefaultIntArgument<string name, int default> : IntArgument<name, 1> {
   int Default = default;
 }
 
+class DefaultUnsignedArgument<string name, int default> : UnsignedArgument<name, 1> {
+  int Default = default;
+}
+
 // This argument is more complex, it includes the enumerator type name,
 // a list of strings to accept, and a list of enumerators to map them to.
 class EnumArgument<string name, string type, list<string> values,
@@ -368,9 +372,13 @@ class SubjectList<list<AttrSubject> subjects, SubjectDiag diag = WarnDiag,
   string CustomDiag = customDiag;
 }
 
-class LangOpt<string name, code customCode = [{}]> {
+class LangOpt<string name, code customCode = [{}], bit silentlyIgnore = 0> {
   // The language option to test; ignored when custom code is supplied.
   string Name = name;
+
+  // If set to 1, the attribute is accepted but is silently ignored. This is
+  // useful in multi-compilation situations like SYCL.
+  bit SilentlyIgnore = silentlyIgnore;
 
   // A custom predicate, written as an expression evaluated in a context with
   // "LangOpts" bound.
@@ -380,7 +388,11 @@ def MicrosoftExt : LangOpt<"MicrosoftExt">;
 def Borland : LangOpt<"Borland">;
 def CUDA : LangOpt<"CUDA">;
 def HIP : LangOpt<"HIP">;
-def SYCL : LangOpt<"SYCLIsDevice">;
+def SYCL : LangOpt<"SYCL">;
+def SYCLIsDevice : LangOpt<"SYCLIsDevice">;
+def SYCLIsHost : LangOpt<"SYCLIsHost">;
+def SilentlyIgnoreSYCLIsHost : LangOpt<"SYCLIsHost", "", 1>;
+def NotSYCL : LangOpt<"", "!LangOpts.SYCLIsDevice && !LangOpts.SYCLIsHost">;
 def COnly : LangOpt<"", "!LangOpts.CPlusPlus">;
 def CPlusPlus : LangOpt<"CPlusPlus">;
 def OpenCL : LangOpt<"OpenCL">;
@@ -621,6 +633,14 @@ class Attr {
   // attribute may be documented under multiple categories, more than one
   // Documentation entry may be listed.
   list<Documentation> Documentation;
+  // The SYCL specification allows attributes on lambdas as a nonconforming
+  // extension to C++. The attributes are written in the type position but will
+  // be applied to the generated function declaration rather than type. Setting
+  // this bit to 1 opts an attribute into this nonconforming extension. New
+  // attributes should not set this bit unless the attribute is required by the
+  // SYCL specification. This bit only applies to the [[]] spelling of an
+  // attribute and has no effect on any other spellings.
+  bit SupportsNonconformingLambdaSyntax = 0;
 }
 
 /// Used to define a set of mutually exclusive attributes.
@@ -669,6 +689,27 @@ class TargetSpecificAttr<TargetSpec target> {
   // spellings match exactly between the attributes, and if the arguments or
   // subjects differ, should specify HasCustomParsing = 1 and implement their
   // own parsing and semantic handling requirements as-needed.
+  string ParseKind;
+}
+
+/// A language-option-specific attribute.  This class is meant to be used as a
+/// mixin with InheritableAttr or Attr depending on the attribute's needs.
+class LanguageOptionsSpecificAttr {
+  // Attributes are generally required to have unique spellings for their names
+  // so that the parser can determine what kind of attribute it has parsed.
+  // However, language-option-specific attributes are special as they have
+  // different semantics based on the language options specified.  To support
+  // this, a Kind can be explicitly specified for a language-option-specific
+  // attribute. This corresponds to the ParsedAttr::AT_* enum that is generated
+  // and it should contain a shared value between the attributes.
+  // The language options these attributes are unique for are specified in the
+  // LangOpts member of Attr.
+  //
+  // Language-option-specific attributes which use this feature should ensure
+  // that the spellings match exactly between the attributes, and if the
+  // arguments or subjects differ, should specify HasCustomParsing = 1 and
+  // implement their own parsing and semantic handling requirements as-needed.
+  // Additionally, they should ensure that the language options do not overlap.
   string ParseKind;
 }
 
@@ -1284,18 +1325,559 @@ def CUDAShared : InheritableAttr {
 }
 def : MutualExclusions<[CUDAConstant, CUDAShared, HIPManaged]>;
 
+def GlobalStorageNonLocalVar : SubsetSubject<Var,
+                                             [{S->hasGlobalStorage() &&
+                                               !S->isLocalVarDeclOrParm()}],
+                                             "global variables">;
+
+def SYCLDevice : InheritableAttr {
+  let Spellings = [GNU<"sycl_device">];
+  let Subjects = SubjectList<[Function, GlobalStorageNonLocalVar]>;
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let Documentation = [SYCLDeviceDocs];
+}
+
+def SYCLGlobalVar : InheritableAttr {
+  let Spellings = [GNU<"sycl_global_var">];
+  let Subjects = SubjectList<[GlobalStorageNonLocalVar], ErrorDiag>;
+  let LangOpts = [SYCLIsDevice];
+  // Only used internally by the SYCL implementation
+  let Documentation = [Undocumented];
+}
+
 def SYCLKernel : InheritableAttr {
   let Spellings = [Clang<"sycl_kernel">];
   let Subjects = SubjectList<[FunctionTmpl]>;
-  let LangOpts = [SYCL];
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
   let Documentation = [SYCLKernelDocs];
 }
 
 def SYCLSpecialClass: InheritableAttr {
   let Spellings = [Clang<"sycl_special_class">];
   let Subjects = SubjectList<[CXXRecord]>;
-  let LangOpts = [SYCL];
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
   let Documentation = [SYCLSpecialClassDocs];
+}
+
+def SYCLType: InheritableAttr {
+  let Spellings = [CXX11<"__sycl_detail__", "sycl_type">];
+  let Subjects = SubjectList<[CXXRecord, Enum], ErrorDiag>;
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let Args = [EnumArgument<"Type", "SYCLType",
+                           ["accessor", "local_accessor",
+                            "specialization_id", "kernel_handler", "buffer_location",
+                            "no_alias", "accessor_property_list", "group",
+                            "private_memory", "aspect", "annotated_ptr", "annotated_arg",
+                            "stream", "sampler", "host_pipe"],
+                           ["accessor", "local_accessor",
+                            "specialization_id", "kernel_handler", "buffer_location",
+                            "no_alias", "accessor_property_list", "group",
+                            "private_memory", "aspect", "annotated_ptr", "annotated_arg",
+                            "stream", "sampler", "host_pipe"]>];
+  // Only used internally by SYCL implementation
+  let Documentation = [InternalOnly];
+}
+
+def SYCLDeviceHas : InheritableAttr {
+  let Spellings = [CXX11<"sycl", "device_has">];
+  let Subjects = SubjectList<[Function], ErrorDiag>;
+  let Args = [VariadicExprArgument<"Aspects">];
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let Documentation = [SYCLDeviceHasDocs];
+  let SupportsNonconformingLambdaSyntax = 1;
+  let AcceptsExprPack = 1;
+}
+
+def SYCLUsesAspects : InheritableAttr {
+  let Spellings = [CXX11<"__sycl_detail__", "__uses_aspects__">];
+  let Subjects = SubjectList<[CXXRecord, Function], ErrorDiag>;
+  let Args = [VariadicExprArgument<"Aspects">];
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  // Only used internally by SYCL implementation
+  let Documentation = [Undocumented];
+}
+
+// Marks functions which must not be vectorized via horizontal SIMT widening,
+// e.g. because the function is already vectorized. Used to mark SYCL
+// explicit SIMD kernels and functions.
+def SYCLSimd : InheritableAttr {
+  let Spellings = [GNU<"sycl_explicit_simd">,
+                   CXX11<"intel", "sycl_explicit_simd">];
+  let Subjects = SubjectList<[Function, GlobalVar]>;
+  let Documentation = [SYCLSimdDocs];
+  let SupportsNonconformingLambdaSyntax = 1;
+  let SimpleHandler = 1;
+}
+
+// Available in SYCL explicit SIMD extension. Binds a file scope private
+// variable to a specific register.
+def SYCLRegisterNum : InheritableAttr {
+  let Spellings = [GNU<"register_num">, Declspec<"register_num">];
+  let Args = [UnsignedArgument<"Number">];
+  let Subjects = SubjectList<[GlobalVar]>;
+  // This attribute is applied to file-scope variables and must be compilable
+  // for the host device as well
+  let Documentation = [SYCLRegisterNumDocs];
+}
+
+// Used by FE to mark SYCL kernel pointer parameters which correspond to the
+// original lambda's captured accessors. FE turns the attribute to some metadata
+// required by the device back-end.
+// This attribute does not require custom semantic handling 
+// hence we set the SemaHandler field to 0.
+// The attribute is not for public consumption, and is an implicitly-created attribute
+// that has no visible spelling, hence undocumented.
+def SYCLAccessorPtr : Attr {
+  // This attribute has no spellings as it is only ever created implicitly.
+  let Spellings = [];
+  let SemaHandler = 0;
+  let Documentation = [InternalOnly];
+}
+
+// Used to mark readonly accessors. It is not to be used directly in the source.
+def SYCLAccessorReadonly : Attr {
+  // This attribute has no spellings as it is only ever created implicitly.
+  let Spellings = [];
+  let SemaHandler = 0;
+  let Documentation = [InternalOnly];
+}
+
+// The attribute denotes that it is a function written in a scalar fashion, which
+// is used in ESIMD context and needs to be vectorized by a vector backend compiler.
+// For now, this attribute will be used only in internal implementation of
+// specific public ESIMD APIs. It is not supposed to be used directly in the
+// user code, hence it is undocumented.
+// The argument of the attribute specifies the number of SIMD lanes, for which
+// the function should be vectorized.
+def SYCLIntelESimdVectorize : InheritableAttr {
+  let Spellings = [CXX11<"intel", "sycl_esimd_vectorize">];
+  let Args = [ExprArgument<"Value">];
+  let Subjects = SubjectList<[Function], ErrorDiag>;
+  let LangOpts = [SYCLIsDevice];
+  let Documentation = [Undocumented];
+  let SupportsNonconformingLambdaSyntax = 1;
+  let PragmaAttributeSupport = 0;
+}
+
+def SYCLScope : Attr {
+  // No spelling, as this attribute can't be created in the source code.
+  let Spellings = [];
+  let Args = [EnumArgument<"level", "Level", ["work_group", "work_item"],
+                                             ["WorkGroup", "WorkItem"]>];
+  let Subjects = SubjectList<[Function, Var]>;
+  let LangOpts = [SYCLIsDevice];
+
+  let AdditionalMembers = [{
+    bool isWorkGroup() const {
+      return getLevel() == SYCLScopeAttr::WorkGroup;
+    }
+
+    bool isWorkItem() const {
+      return getLevel() == SYCLScopeAttr::WorkItem;
+    }
+  }];
+
+  let Documentation = [InternalOnly];
+}
+
+def SYCLDeviceIndirectlyCallable : InheritableAttr {
+  let Spellings = [ CXX11<"intel", "device_indirectly_callable"> ];
+  let Subjects = SubjectList<[Function]>;
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let Documentation = [SYCLDeviceIndirectlyCallableDocs];
+}
+
+def SYCLIntelBufferLocation : InheritableAttr {
+  // No spelling, as this attribute can't be created in the source code.
+  let Spellings = [];
+  let Args = [UnsignedArgument<"LocationID">];
+  let LangOpts = [SYCLIsDevice, SYCLIsHost];
+  let Documentation = [InternalOnly];
+}
+
+def SYCLRequiresDecomposition : InheritableAttr {
+  // No spellings, as this is for internal use.
+  let Spellings = [];
+  let Subjects = SubjectList<[Named]>;
+  let LangOpts = [SYCLIsDevice, SYCLIsHost];
+  let Documentation = [InternalOnly];
+}
+
+def SYCLGenerateNewType : InheritableAttr {
+  // No spellings, as this is for internal use.
+  let Spellings = [];
+  let Subjects = SubjectList<[Named]>;
+  let LangOpts = [SYCLIsDevice, SYCLIsHost];
+  let Documentation = [InternalOnly];
+}
+
+def SYCLIntelKernelArgsRestrict : InheritableAttr {
+  let Spellings = [CXX11<"intel", "kernel_args_restrict">];
+  let Subjects = SubjectList<[Function], ErrorDiag>;
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let Documentation = [SYCLIntelKernelArgsRestrictDocs];
+  let SimpleHandler = 1;
+  let SupportsNonconformingLambdaSyntax = 1;
+}
+
+def SYCLIntelNumSimdWorkItems : InheritableAttr {
+  let Spellings = [CXX11<"intel", "num_simd_work_items">];
+  let Args = [ExprArgument<"Value">];
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let Subjects = SubjectList<[Function], ErrorDiag>;
+  let Documentation = [SYCLIntelNumSimdWorkItemsAttrDocs];
+  let SupportsNonconformingLambdaSyntax = 1;
+}
+
+def SYCLIntelUseStallEnableClusters : InheritableAttr {
+  let Spellings = [CXX11<"intel","use_stall_enable_clusters">];
+  let LangOpts = [SilentlyIgnoreSYCLIsHost, SYCLIsDevice];
+  let Subjects = SubjectList<[Function], ErrorDiag>;
+  let Documentation = [SYCLIntelUseStallEnableClustersAttrDocs];
+  let SupportsNonconformingLambdaSyntax = 1;
+}
+
+def SYCLIntelSchedulerTargetFmaxMhz : InheritableAttr {
+  let Spellings = [CXX11<"intel", "scheduler_target_fmax_mhz">];
+  let Args = [ExprArgument<"Value">];
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let Subjects = SubjectList<[Function], ErrorDiag>;
+  let Documentation = [SYCLIntelSchedulerTargetFmaxMhzAttrDocs];
+  let SupportsNonconformingLambdaSyntax = 1;
+}
+
+def SYCLIntelMaxWorkGroupSize : InheritableAttr {
+  let Spellings = [CXX11<"intel", "max_work_group_size">];
+  let Args = [ExprArgument<"XDim">,
+              ExprArgument<"YDim">,
+              ExprArgument<"ZDim">];
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let Subjects = SubjectList<[Function], ErrorDiag>;
+  let AdditionalMembers = [{
+    std::optional<llvm::APSInt> getXDimVal() const {
+      if (const auto *CE = dyn_cast<ConstantExpr>(getXDim()))
+        return CE->getResultAsAPSInt();
+      return std::nullopt;
+    }
+    std::optional<llvm::APSInt> getYDimVal() const {
+      if (const auto *CE = dyn_cast<ConstantExpr>(getYDim()))
+        return CE->getResultAsAPSInt();
+      return std::nullopt;
+    }
+    std::optional<llvm::APSInt> getZDimVal() const {
+      if (const auto *CE = dyn_cast<ConstantExpr>(getZDim()))
+        return CE->getResultAsAPSInt();
+      return std::nullopt;
+    }
+  }];
+  let Documentation = [SYCLIntelMaxWorkGroupSizeAttrDocs];
+  let SupportsNonconformingLambdaSyntax = 1;
+}
+
+def SYCLIntelMaxGlobalWorkDim : InheritableAttr {
+  let Spellings = [CXX11<"intel", "max_global_work_dim">];
+  let Args = [ExprArgument<"Value">];
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let Subjects = SubjectList<[Function], ErrorDiag>;
+  let Documentation = [SYCLIntelMaxGlobalWorkDimAttrDocs];
+  let SupportsNonconformingLambdaSyntax = 1;
+}
+
+def SYCLDeviceGlobal: InheritableAttr {
+  let Spellings = [CXX11<"__sycl_detail__", "device_global">];
+  let Subjects = SubjectList<[CXXRecord], ErrorDiag>;
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  // Only used internally by SYCL implementation
+  let Documentation = [SYCLDeviceGlobalAttrDocs];
+  let SimpleHandler = 1;
+}
+
+def SYCLGlobalVariableAllowed : InheritableAttr {
+  let Spellings = [CXX11<"__sycl_detail__", "global_variable_allowed">];
+  let Subjects = SubjectList<[CXXRecord], ErrorDiag>;
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  // Only used internally by SYCL implementation
+  let Documentation = [SYCLGlobalVariableAllowedAttrDocs];
+  let SimpleHandler = 1;
+}
+
+def SYCLIntelNoGlobalWorkOffset : InheritableAttr {
+  let Spellings = [CXX11<"intel", "no_global_work_offset">];
+  let Args = [ExprArgument<"Value", /*optional*/1>];
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let Subjects = SubjectList<[Function], ErrorDiag>;
+  let Documentation = [SYCLIntelNoGlobalWorkOffsetAttrDocs];
+  let SupportsNonconformingLambdaSyntax = 1;
+}
+
+def SYCLIntelLoopFuse : InheritableAttr {
+  let Spellings = [CXX11<"intel", "loop_fuse">,
+                   CXX11<"intel", "loop_fuse_independent">];
+  let Args = [ExprArgument<"Value", /*optional=*/ 1>];
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let Subjects = SubjectList<[Function], ErrorDiag>;
+  let Accessors = [Accessor<"isIndependent",
+                  [CXX11<"intel", "loop_fuse_independent">]>];
+  let Documentation = [SYCLIntelLoopFuseDocs];
+  let SupportsNonconformingLambdaSyntax = 1;
+}
+
+class SYCLAddIRAttrMemberCodeHolder<code Code> {
+  code MemberCode = Code;
+}
+
+// Common class for SYCL add_ir_attributes_* attributes.
+def SYCLAddIRAttrCommonMembers : SYCLAddIRAttrMemberCodeHolder<[{
+  static std::optional<std::string>
+  getValidAttributeNameAsString(const Expr *NameE, const ASTContext &Context) {
+    if (const auto *NameLiteral = dyn_cast<StringLiteral>(NameE))
+      return NameLiteral->getString().str();
+
+    const auto *NameCE = dyn_cast<ConstantExpr>(NameE);
+    if (!NameCE)
+      return std::nullopt;
+
+    APValue NameLValue;
+    if (!NameCE->isCXX11ConstantExpr(Context, &NameLValue))
+      NameLValue = NameCE->getAPValueResult();
+
+    if (!NameLValue.isLValue())
+      return std::nullopt;
+
+    if (const auto *NameValExpr =
+            NameLValue.getLValueBase().dyn_cast<const Expr *>())
+      return getValidAttributeNameAsString(NameValExpr, Context);
+
+    if (const auto *NameValDecl =
+            NameLValue.getLValueBase().dyn_cast<const ValueDecl *>()) {
+      if (const auto *NameVarDecl = dyn_cast<const VarDecl>(NameValDecl)) {
+        return getValidAttributeNameAsString(NameVarDecl->getInit(), Context);
+      }
+    }
+    return std::nullopt;
+  }
+
+  static std::optional<std::string>
+  getValidAttributeValueAsString(const APValue &Value,
+                                 const ASTContext &Context,
+                                 QualType ValueQType) {
+    assert(!Value.isLValue());
+    if (ValueQType->isCharType()) {
+      char C = static_cast<char>(Value.getInt().getExtValue());
+      return std::string(&C, 1);
+    }
+    if (ValueQType->isBooleanType())
+      return std::string(Value.getInt().getExtValue() ? "true" : "false");
+    if (ValueQType->isIntegralOrEnumerationType() ||
+        ValueQType->isFloatingType())
+      return Value.getAsString(Context, ValueQType);
+    if (ValueQType->isArrayType() &&
+        (ValueQType->getArrayElementTypeNoTypeQual()->isCharType() ||
+         ValueQType->getArrayElementTypeNoTypeQual()
+                   ->isIntegralOrEnumerationType())) {
+      SmallString<10> StrBuffer;
+      for (unsigned I = 0; I < Value.getArraySize(); ++I) {
+        const APValue &ArrayElem = Value.getArrayInitializedElt(I);
+        char C = static_cast<char>(ArrayElem.getInt().getExtValue());
+        if (C == 0)
+          break;
+        StrBuffer += C;
+      }
+      return std::string(StrBuffer);
+    }
+    return std::nullopt;
+  }
+
+  static std::optional<std::string>
+  getValidAttributeValueAsString(const Expr *ValueE,
+                                 const ASTContext &Context) {
+    if (ValueE->getType()->isNullPtrType())
+      return std::string("");
+    if (const auto *StringVal = dyn_cast<StringLiteral>(ValueE))
+      return StringVal->getString().str();
+    if (const auto *BoolVal = dyn_cast<CXXBoolLiteralExpr>(ValueE))
+      return std::string(BoolVal->getValue() ? "true" : "false");
+    if (const auto *FloatingVal = dyn_cast<FloatingLiteral>(ValueE))
+      return APValue(FloatingVal->getValue())
+          .getAsString(Context, ValueE->getType());
+    if (const auto *CharacterVal = dyn_cast<CharacterLiteral>(ValueE)) {
+      char C = static_cast<char>(CharacterVal->getValue());
+      return std::string(&C, 1);
+    }
+    if (const auto *IntegerVal = dyn_cast<IntegerLiteral>(ValueE)) {
+      SmallString<10> IntegerStrBuffer;
+      IntegerVal->getValue().toString(IntegerStrBuffer, 10,
+                                      ValueE->getType()->isSignedIntegerType());
+      return std::string(IntegerStrBuffer);
+    }
+    if (const auto *InitListE = dyn_cast<InitListExpr>(ValueE)) {
+      if (InitListE->isStringLiteralInit()) {
+        const Expr *StringInitE = InitListE->getInit(0)->IgnoreParenImpCasts();
+        return getValidAttributeValueAsString(StringInitE, Context);
+      }
+
+      SmallString<10> StrBuffer;
+      for (const auto *InitE : InitListE->inits()) {
+        const Expr *InitNoImpCastE = InitE->IgnoreParenImpCasts();
+        char C = 0;
+        if (const auto *CharacterVal =
+              dyn_cast<CharacterLiteral>(InitNoImpCastE))
+          C = static_cast<char>(CharacterVal->getValue());
+        else if (const auto *IntegerVal =
+              dyn_cast<IntegerLiteral>(InitNoImpCastE))
+          C = static_cast<char>(IntegerVal->getValue().getSExtValue());
+        else
+          return std::nullopt;
+
+        // Null terminator will end the string reading.
+        if (C == 0)
+          break;
+
+        StrBuffer += C;
+      }
+      return std::string(StrBuffer);
+    }
+
+    const auto *ValueCE = dyn_cast<ConstantExpr>(ValueE);
+    if (!ValueCE)
+      return std::nullopt;
+
+    APValue ValueAPV;
+    if (!ValueCE->isCXX11ConstantExpr(Context, &ValueAPV))
+      ValueAPV = ValueCE->getAPValueResult();
+
+    if (!ValueAPV.isLValue())
+      return getValidAttributeValueAsString(ValueAPV, Context,
+                                            ValueCE->getType());
+
+    if (ValueAPV.getLValueBase().isNull())
+      return std::string("");
+
+    if (const auto *ValueValExpr =
+            ValueAPV.getLValueBase().dyn_cast<const Expr *>())
+      return getValidAttributeValueAsString(ValueValExpr, Context);
+
+    if (const auto *ValueValDecl =
+            ValueAPV.getLValueBase().dyn_cast<const ValueDecl *>()) {
+      if (const auto *ValueVarDecl = dyn_cast<const VarDecl>(ValueValDecl)) {
+        return getValidAttributeValueAsString(ValueVarDecl->getInit(), Context);
+      }
+    }
+    return std::nullopt;
+  }
+
+  static std::optional<llvm::SmallSet<StringRef, 4>> getAttributeFilterFromExprs(
+      Expr **AttributeExprs, size_t AttributeExprsSize) {
+    if (!AttributeExprsSize)
+      return std::nullopt;
+
+    const auto *FilterListE = dyn_cast<InitListExpr>(AttributeExprs[0]);
+    if (!FilterListE)
+      return std::nullopt;
+
+    llvm::SmallSet<StringRef, 4> Filter;
+    for (const Expr *FilterE : FilterListE->inits()) {
+      const auto *FilterStrLit = dyn_cast<StringLiteral>(FilterE);
+      assert(FilterStrLit && "Element in filter list is not a string literal.");
+      Filter.insert(FilterStrLit->getString());
+    }
+    return Filter;
+  }
+
+  std::optional<llvm::SmallSet<StringRef, 4>> getAttributeFilter() const {
+    return getAttributeFilterFromExprs(args_begin(), args_size());
+  }
+
+  bool hasFilterList() const {
+    return args_size() && isa<InitListExpr>(*args_begin());
+  }
+
+  SmallVector<std::pair<std::string, std::string>, 4>
+  getFilteredAttributeNameValuePairs(
+      const std::optional<llvm::SmallSet<StringRef, 4>> &AttributeNameFilter,
+      const ASTContext &Context) const {
+    Expr **AttributeExprs = args_begin() + hasFilterList();
+    size_t AttributeExprsSize = args_size() - hasFilterList();
+
+    assert((AttributeExprsSize & 1) == 0 && "Too few remaining expressions.");
+
+    SmallVector<std::pair<std::string, std::string>, 4> Attrs;
+    for (size_t I = 0; I < AttributeExprsSize / 2; ++I) {
+      std::optional<std::string> NameStr =
+          getValidAttributeNameAsString(AttributeExprs[I], Context);
+      assert(NameStr && "Attribute name is not a valid string.");
+
+      // If attribute name is empty, then skip attribute.
+      if (NameStr->empty())
+        continue;
+
+      // If attribute name is not in the filter, we skip it.
+      if (AttributeNameFilter && !AttributeNameFilter->contains(*NameStr))
+        continue;
+
+      std::optional<std::string> ValueStr = getValidAttributeValueAsString(
+          AttributeExprs[I + AttributeExprsSize / 2], Context);
+      assert(ValueStr && "Attribute value is not a valid type.");
+
+      Attrs.push_back(std::make_pair(*NameStr, *ValueStr));
+    }
+
+    return Attrs;
+  }
+
+  SmallVector<std::pair<std::string, std::string>, 4>
+  getFilteredAttributeNameValuePairs(const ASTContext &Context) const {
+    std::optional<llvm::SmallSet<StringRef, 4>> AttributeNameFilter =
+        getAttributeFilter();
+    return getFilteredAttributeNameValuePairs(AttributeNameFilter, Context);
+  }
+
+  SmallVector<std::pair<std::string, std::string>, 4>
+  getAttributeNameValuePairs(const ASTContext &Context) const {
+    return getFilteredAttributeNameValuePairs(std::nullopt, Context);
+  }
+}]>;
+
+def SYCLAddIRAttributesFunction : InheritableAttr {
+  let Spellings = [CXX11<"__sycl_detail__", "add_ir_attributes_function">];
+  let Args = [VariadicExprArgument<"Args">];
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let Subjects = SubjectList<[Function], ErrorDiag>;
+  let AcceptsExprPack = 1;
+  let AdditionalMembers = SYCLAddIRAttrCommonMembers.MemberCode;
+  let Documentation = [SYCLAddIRAttributesFunctionDocs];
+}
+
+def SYCLAddIRAttributesKernelParameter : InheritableAttr {
+  let Spellings = [CXX11<"__sycl_detail__",
+                         "add_ir_attributes_kernel_parameter">];
+  let Args = [VariadicExprArgument<"Args">];
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let Subjects = SubjectList<[ParmVar], ErrorDiag>;
+  let AcceptsExprPack = 1;
+  let AdditionalMembers = SYCLAddIRAttrCommonMembers.MemberCode;
+  let Documentation = [SYCLAddIRAttributesKernelParameterDocs];
+}
+
+def SYCLAddIRAttributesGlobalVariable : InheritableAttr {
+  let Spellings = [CXX11<"__sycl_detail__",
+                         "add_ir_attributes_global_variable">];
+  let Args = [VariadicExprArgument<"Args">];
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let Subjects = SubjectList<[Record], ErrorDiag>;
+  let AcceptsExprPack = 1;
+  let AdditionalMembers = SYCLAddIRAttrCommonMembers.MemberCode;
+  let Documentation = [SYCLAddIRAttributesGlobalVariableDocs];
+}
+
+def SYCLAddIRAnnotationsMember : InheritableAttr {
+  let Spellings = [CXX11<"__sycl_detail__", "add_ir_annotations_member">];
+  let Args = [VariadicExprArgument<"Args">];
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let Subjects = SubjectList<[Field], ErrorDiag>;
+  let AcceptsExprPack = 1;
+  let AdditionalMembers = SYCLAddIRAttrCommonMembers.MemberCode;
+  let Documentation = [SYCLAddIRAnnotationsMemberDocs];
 }
 
 def C11NoReturn : InheritableAttr {
@@ -1329,12 +1911,53 @@ def OpenCLUnrollHint : StmtAttr {
   let Documentation = [OpenCLUnrollHintDocs];
 }
 
-def OpenCLIntelReqdSubGroupSize: InheritableAttr {
-  let Spellings = [GNU<"intel_reqd_sub_group_size">];
-  let Args = [UnsignedArgument<"SubGroupSize">];
-  let Subjects = SubjectList<[Function], ErrorDiag>;
-  let Documentation = [OpenCLIntelReqdSubGroupSizeDocs];
+def LoopUnrollHint : StmtAttr {
+  let Spellings = [CXX11<"clang","loop_unroll">];
+  let Subjects = SubjectList<[ForStmt, CXXForRangeStmt, WhileStmt, DoStmt],
+                             ErrorDiag, "'for', 'while', and 'do' statements">;
+  let Args = [ExprArgument<"UnrollHintExpr", /*opt*/1>];
+  let LangOpts = [SYCLIsDevice, SYCLIsHost];
+  let AdditionalMembers = [{
+    std::string getDiagnosticName(const PrintingPolicy &Policy) const {
+      std::string ValueName;
+      llvm::raw_string_ostream OS(ValueName);
+      if (auto *E = getUnrollHintExpr()) {
+        OS << "(";
+        E->printPretty(OS, nullptr, Policy);
+        OS << ")";
+      }
+      return "[[clang::loop_unroll" + OS.str() + "]]";
+    }
+  }];
+  let Documentation = [LoopUnrollHintDocs];
 }
+
+def IntelReqdSubGroupSize: InheritableAttr {
+  let Spellings = [
+    GNU<"intel_reqd_sub_group_size">, CXX11<"intel", "reqd_sub_group_size">,
+    CXX11<"intel", "sub_group_size">, CXX11<"sycl", "reqd_sub_group_size">
+  ];
+  let Args = [ExprArgument<"Value">];
+  let Subjects = SubjectList<[Function], ErrorDiag>;
+  let Documentation = [IntelReqdSubGroupSizeDocs];
+  let LangOpts = [OpenCL, SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let SupportsNonconformingLambdaSyntax = 1;
+  let Accessors =
+    [Accessor<"isSYCL2020Spelling", [CXX11<"intel", "sub_group_size">]>];
+}
+
+def IntelNamedSubGroupSize : InheritableAttr {
+  let Spellings = [CXX11<"intel", "named_sub_group_size">];
+  let Args = [EnumArgument<"Type", "SubGroupSizeType", ["automatic", "primary"],
+                           ["Automatic", "Primary"]>];
+  let Subjects = SubjectList<[Function], ErrorDiag>;
+  let Documentation = [IntelNamedSubGroupSizeDocs];
+  let LangOpts = [OpenCL, SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let SupportsNonconformingLambdaSyntax = 1;
+}
+
+def :
+  MutualExclusions<[IntelReqdSubGroupSize, IntelNamedSubGroupSize, SYCLSimd]>;
 
 // This attribute is both a type attribute, and a declaration attribute (for
 // parameter variables).
@@ -1760,6 +2383,349 @@ def Mode : Attr {
   // generally does not support.
   let PragmaAttributeSupport = 0;
 }
+
+def SYCLIntelIVDep : StmtAttr {
+  let Spellings = [CXX11<"intel", "ivdep">];
+  let Subjects = SubjectList<[ForStmt, CXXForRangeStmt, WhileStmt, DoStmt],
+                             ErrorDiag, "'for', 'while', and 'do' statements">;
+  let Args = [
+    ExprArgument<"SafelenExpr", /*opt*/1>, ExprArgument<"ArrayExpr", /*opt*/1>,
+    UnsignedArgument<"SafelenValue", /*opt*/1>
+  ];
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let AdditionalMembers = [{
+    bool isDependent() const {
+      return (getSafelenExpr() &&
+              getSafelenExpr()->isInstantiationDependent()) ||
+             (getArrayExpr() && getArrayExpr()->isInstantiationDependent());
+    }
+
+    const ValueDecl *getArrayDecl() const {
+      const Expr* E = getArrayExpr();
+      if (!E) return nullptr;
+
+      if (const auto *DRE = dyn_cast<DeclRefExpr>(E))
+        return cast<ValueDecl>(DRE->getDecl()->getCanonicalDecl());
+
+      return cast<ValueDecl>(
+          cast<MemberExpr>(E)->getMemberDecl()->getCanonicalDecl());
+    }
+
+    bool isInf() const {
+      return !getSafelenExpr();
+    }
+
+    static bool SafelenCompare(const SYCLIntelIVDepAttr *LHS,
+                               const SYCLIntelIVDepAttr *RHS) {
+      // INF < INF is false, !INF < INF is true.
+      if (!RHS->getSafelenExpr())
+        return false;
+      if (!LHS->getSafelenExpr())
+        return true;
+      return LHS->getSafelenValue() > RHS->getSafelenValue();
+    }
+  }];
+  let Documentation = [SYCLIntelIVDepAttrDocs];
+}
+
+def SYCLIntelInitiationInterval : DeclOrStmtAttr {
+  let Spellings = [CXX11<"intel", "ii">,
+                   CXX11<"intel", "initiation_interval">];
+  let Subjects = SubjectList<[ForStmt, CXXForRangeStmt, WhileStmt, DoStmt, Function],
+                              ErrorDiag,
+                              "'for', 'while', 'do' statements, and functions">;
+  let Args = [ExprArgument<"IntervalExpr">];
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let Documentation = [SYCLIntelInitiationIntervalAttrDocs];
+  let SupportsNonconformingLambdaSyntax = 1;
+}
+
+def SYCLIntelMaxConcurrency : DeclOrStmtAttr {
+  let Spellings = [CXX11<"intel", "max_concurrency">];
+  let Subjects = SubjectList<[ForStmt, CXXForRangeStmt, WhileStmt, DoStmt, Function],
+                             ErrorDiag,
+                             "'for', 'while', 'do' statements, and functions">;
+  let Args = [ExprArgument<"NThreadsExpr">];
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let Documentation = [SYCLIntelMaxConcurrencyAttrDocs];
+  let SupportsNonconformingLambdaSyntax = 1;
+}
+
+def SYCLIntelLoopCoalesce : StmtAttr {
+  let Spellings = [CXX11<"intel", "loop_coalesce">];
+  let Subjects = SubjectList<[ForStmt, CXXForRangeStmt, WhileStmt, DoStmt],
+                             ErrorDiag, "'for', 'while', and 'do' statements">;
+  let Args = [ExprArgument<"NExpr", /*opt*/1>];
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let Documentation = [SYCLIntelLoopCoalesceAttrDocs];
+}
+
+def SYCLIntelDisableLoopPipelining : DeclOrStmtAttr {
+  let Spellings = [CXX11<"intel", "disable_loop_pipelining">];
+  let Subjects = SubjectList<[ForStmt, CXXForRangeStmt, WhileStmt, DoStmt, Function],
+                              ErrorDiag,
+                              "'for', 'while', 'do' statements, and functions">;
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let Documentation = [SYCLIntelDisableLoopPipeliningAttrDocs];
+  let SupportsNonconformingLambdaSyntax = 1;
+  let SimpleHandler = 1;
+}
+def : MutualExclusions<[SYCLIntelInitiationInterval,
+                        SYCLIntelDisableLoopPipelining]>;
+def : MutualExclusions<[SYCLIntelIVDep,
+                        SYCLIntelDisableLoopPipelining]>;
+def : MutualExclusions<[SYCLIntelMaxConcurrency,
+                        SYCLIntelDisableLoopPipelining]>;
+
+def SYCLIntelLoopCount : StmtAttr {
+  let Spellings = [CXX11<"intel", "loop_count_min">,
+                   CXX11<"intel", "loop_count_max">,
+                   CXX11<"intel", "loop_count_avg">,
+                   CXX11<"intel", "loop_count">];
+  let Subjects = SubjectList<[ForStmt, CXXForRangeStmt, WhileStmt, DoStmt],
+                             ErrorDiag, "'for', 'while', and 'do' statements">;
+  let Accessors = [Accessor<"isMin", [CXX11<"intel", "loop_count_min">]>,
+                   Accessor<"isMax", [CXX11<"intel", "loop_count_max">]>,
+                   Accessor<"isAvg", [CXX11<"intel", "loop_count_avg">]>,
+                   Accessor<"isCount", [CXX11<"intel", "loop_count">]>];
+  let Args = [ExprArgument<"NTripCount">];
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let Documentation = [SYCLIntelLoopCountAttrDocs];
+}
+
+def : MutualExclusions<[SYCLIntelMaxConcurrency,
+                        SYCLIntelDisableLoopPipelining]>;
+
+def SYCLIntelMaxInterleaving : StmtAttr {
+  let Spellings = [CXX11<"intel", "max_interleaving">];
+  let Subjects = SubjectList<[ForStmt, CXXForRangeStmt, WhileStmt, DoStmt],
+                             ErrorDiag, "'for', 'while', and 'do' statements">;
+  let Args = [ExprArgument<"NExpr">];
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let Documentation = [SYCLIntelMaxInterleavingAttrDocs];
+}
+
+def SYCLIntelSpeculatedIterations : StmtAttr {
+  let Spellings = [CXX11<"intel", "speculated_iterations">];
+  let Subjects = SubjectList<[ForStmt, CXXForRangeStmt, WhileStmt, DoStmt],
+                             ErrorDiag, "'for', 'while', and 'do' statements">;
+  let Args = [ExprArgument<"NExpr">];
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let Documentation = [SYCLIntelSpeculatedIterationsAttrDocs];
+}
+def : MutualExclusions<[SYCLIntelDisableLoopPipelining,
+                        SYCLIntelSpeculatedIterations]>;
+
+def SYCLIntelNofusion : StmtAttr {
+  let Spellings = [CXX11<"intel","nofusion">];
+  let Subjects = SubjectList<[ForStmt, CXXForRangeStmt, WhileStmt, DoStmt],
+                             ErrorDiag, "'for', 'while', and 'do' statements">;
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let Documentation = [SYCLIntelNofusionAttrDocs];
+}
+
+def SYCLIntelMaxReinvocationDelay : StmtAttr {
+  let Spellings = [CXX11<"intel", "max_reinvocation_delay">];
+  let Subjects = SubjectList<[ForStmt, CXXForRangeStmt, WhileStmt, DoStmt],
+                             ErrorDiag, "'for', 'while', and 'do' statements">;
+  let Args = [ExprArgument<"NExpr">];
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let Documentation = [SYCLIntelMaxReinvocationDelayAttrDocs];
+}
+def : MutualExclusions<[SYCLIntelDisableLoopPipelining,
+                        SYCLIntelMaxReinvocationDelay]>;
+
+def SYCLIntelEnableLoopPipelining : StmtAttr {
+  let Spellings = [CXX11<"intel", "enable_loop_pipelining">];
+  let Subjects = SubjectList<[ForStmt, CXXForRangeStmt, WhileStmt, DoStmt],
+                              ErrorDiag, "'for', 'while', and 'do' statements">;
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let Documentation = [SYCLIntelEnableLoopPipeliningAttrDocs];
+}
+
+def : MutualExclusions<[SYCLIntelDisableLoopPipelining,
+                        SYCLIntelEnableLoopPipelining]>;
+
+def SYCLIntelLocalNonConstVar : SubsetSubject<Var,
+                              [{S->hasLocalStorage() &&
+                                S->getKind() != Decl::ImplicitParam &&
+                                S->getKind() != Decl::ParmVar &&
+                                S->getKind() != Decl::NonTypeTemplateParm &&
+                                !S->getType().isConstQualified()}],
+                              "local non-const variables">;
+
+def SYCLIntelConstVar : SubsetSubject<Var,
+                      [{S->getKind() != Decl::ImplicitParam &&
+                        S->getKind() != Decl::ParmVar &&
+                        S->getKind() != Decl::NonTypeTemplateParm &&
+                        (S->getType().isConstQualified() ||
+                         S->getType().getAddressSpace() ==
+                            LangAS::opencl_constant)}],
+                      "constant variables">;
+
+def SYCLIntelLocalStaticAgentMemVar : SubsetSubject<Var,
+      [{S->getKind() != Decl::ImplicitParam &&
+        S->getKind() != Decl::NonTypeTemplateParm &&
+       (S->getStorageClass() == SC_Static ||
+        S->hasLocalStorage())}],
+        "local variables, static variables, agent memory arguments">;
+
+def SYCLIntelLocalOrStaticVar : SubsetSubject<Var,
+                              [{S->getKind() != Decl::ImplicitParam &&
+                                S->getKind() != Decl::ParmVar &&
+                                S->getKind() != Decl::NonTypeTemplateParm &&
+                                (S->getStorageClass() == SC_Static ||
+                                 S->hasLocalStorage())}],
+                              "local variables, static variables">;
+
+def SYCLIntelDoublePump : Attr {
+  let Spellings = [CXX11<"intel", "doublepump">];
+  let Subjects = SubjectList<[SYCLIntelConstVar, SYCLIntelLocalOrStaticVar,
+                              Field], ErrorDiag>;
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let Documentation = [SYCLIntelDoublePumpAttrDocs];
+}
+
+def SYCLIntelSinglePump : Attr {
+  let Spellings = [CXX11<"intel", "singlepump">];
+  let Subjects = SubjectList<[SYCLIntelConstVar, SYCLIntelLocalOrStaticVar,
+                              Field], ErrorDiag>;
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let Documentation = [SYCLIntelSinglePumpAttrDocs];
+}
+
+def SYCLIntelMemory : Attr {
+  let Spellings = [CXX11<"intel", "fpga_memory">];
+  let Args = [EnumArgument<"Kind", "MemoryKind",
+                           ["MLAB", "BLOCK_RAM", ""],
+                           ["MLAB", "BlockRAM", "Default"], 1>];
+  let AdditionalMembers = [{
+    static void generateValidStrings(SmallString<256> &Str) {
+      auto Last = BlockRAM;
+      for (int I = 0; I <= Last; ++I) {
+        Str += ConvertMemoryKindToStr(static_cast<MemoryKind>(I));
+        if (I != Last) Str += " ";
+      }
+    }
+  }];
+  let Subjects = SubjectList<[SYCLIntelConstVar,
+                              SYCLIntelLocalStaticAgentMemVar,
+                              Field], ErrorDiag>;
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let Documentation = [SYCLIntelMemoryAttrDocs];
+}
+
+def SYCLIntelRegister : Attr {
+  let Spellings = [CXX11<"intel", "fpga_register">];
+  let Subjects = SubjectList<[SYCLIntelConstVar, SYCLIntelLocalOrStaticVar,
+                              Field], ErrorDiag>;
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let Documentation = [SYCLIntelRegisterAttrDocs];
+}
+def : MutualExclusions<[SYCLIntelDoublePump, SYCLIntelSinglePump,
+                        SYCLIntelRegister]>;
+
+// One integral argument.
+def SYCLIntelBankWidth : InheritableAttr {
+  let Spellings = [CXX11<"intel", "bankwidth">];
+  let Args = [ExprArgument<"Value">];
+  let Subjects = SubjectList<[SYCLIntelConstVar,
+                              SYCLIntelLocalStaticAgentMemVar,
+                              Field], ErrorDiag>;
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let Documentation = [SYCLIntelBankWidthAttrDocs];
+}
+def : MutualExclusions<[SYCLIntelRegister, SYCLIntelBankWidth]>;
+
+def SYCLIntelNumBanks : InheritableAttr {
+  let Spellings = [CXX11<"intel", "numbanks">];
+  let Args = [ExprArgument<"Value">];
+  let Subjects = SubjectList<[SYCLIntelConstVar,
+                              SYCLIntelLocalStaticAgentMemVar,
+                              Field], ErrorDiag>;
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let Documentation = [SYCLIntelNumBanksAttrDocs];
+}
+
+def SYCLIntelPrivateCopies : InheritableAttr {
+  let Spellings = [CXX11<"intel", "private_copies">];
+  let Args = [ExprArgument<"Value">];
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let Subjects = SubjectList<[SYCLIntelLocalNonConstVar, Field], ErrorDiag>;
+  let Documentation = [SYCLIntelPrivateCopiesAttrDocs];
+}
+def : MutualExclusions<[SYCLIntelRegister, SYCLIntelPrivateCopies]>;
+
+// Two string arguments.
+def SYCLIntelMerge : Attr {
+  let Spellings = [CXX11<"intel", "merge">];
+  let Args = [StringArgument<"Name">, StringArgument<"Direction">];
+  let Subjects = SubjectList<[SYCLIntelConstVar, SYCLIntelLocalOrStaticVar,
+                              Field], ErrorDiag>;
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let Documentation = [SYCLIntelMergeAttrDocs];
+}
+def : MutualExclusions<[SYCLIntelRegister, SYCLIntelMerge]>;
+
+def SYCLIntelMaxReplicates : InheritableAttr {
+  let Spellings = [CXX11<"intel", "max_replicates">];
+  let Args = [ExprArgument<"Value">];
+  let Subjects = SubjectList<[SYCLIntelConstVar,
+                              SYCLIntelLocalStaticAgentMemVar,
+                              Field], ErrorDiag>;
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let Documentation = [SYCLIntelMaxReplicatesAttrDocs];
+}
+def : MutualExclusions<[SYCLIntelRegister, SYCLIntelMaxReplicates]>;
+
+def SYCLIntelSimpleDualPort : Attr {
+  let Spellings = [CXX11<"intel", "simple_dual_port">];
+  let Subjects = SubjectList<[SYCLIntelConstVar,
+                              SYCLIntelLocalStaticAgentMemVar,
+                              Field], ErrorDiag>;
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let Documentation = [SYCLIntelSimpleDualPortAttrDocs];
+}
+def : MutualExclusions<[SYCLIntelRegister, SYCLIntelSimpleDualPort]>;
+
+def SYCLIntelPipe : TypeAttr {
+  let Spellings = [GNU<"pipe">];
+  let Args = [StringArgument<"Mode">];
+  let LangOpts = [SYCLIsDevice];
+  let Documentation = [SYCLIntelPipeDocs];
+}
+
+def SYCLIntelPipeIO : InheritableAttr {
+  let Spellings = [GNU<"io_pipe_id">];
+  let Args = [ExprArgument<"ID">];
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let Subjects = SubjectList<[Var]>;
+  let Documentation = [SYCLIntelPipeIOAttrDocs];
+}
+
+// Variadic integral arguments.
+def SYCLIntelBankBits : Attr {
+  let Spellings = [CXX11<"intel", "bank_bits">];
+  let Args = [VariadicExprArgument<"Args">];
+  let Subjects = SubjectList<[SYCLIntelConstVar,
+                              SYCLIntelLocalStaticAgentMemVar,
+                              Field], ErrorDiag>;
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let Documentation = [SYCLIntelBankBitsDocs];
+}
+def : MutualExclusions<[SYCLIntelRegister, SYCLIntelBankBits]>;
+def : MutualExclusions<[SYCLIntelRegister, SYCLIntelNumBanks]>;
+
+def SYCLIntelForcePow2Depth : InheritableAttr {
+  let Spellings = [CXX11<"intel", "force_pow2_depth">];
+  let Args = [ExprArgument<"Value">];
+  let Subjects = SubjectList<[SYCLIntelConstVar,
+                              SYCLIntelLocalStaticAgentMemVar,
+                              Field], ErrorDiag>;
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let Documentation = [SYCLIntelForcePow2DepthAttrDocs];
+}
+def : MutualExclusions<[SYCLIntelRegister, SYCLIntelForcePow2Depth]>;
 
 def Naked : InheritableAttr {
   let Spellings = [GCC<"naked">, Declspec<"naked">];
@@ -2570,23 +3536,106 @@ def NoDeref : TypeAttr {
   let Documentation = [NoDerefDocs];
 }
 
-def ReqdWorkGroupSize : InheritableAttr {
-  // Does not have a [[]] spelling because it is an OpenCL-related attribute.
-  let Spellings = [GNU<"reqd_work_group_size">];
+// Default arguments can only be used with the sycl::reqd_work_group_size
+// spelling.
+def ReqdWorkGroupSize : InheritableAttr, LanguageOptionsSpecificAttr {
+  let Spellings = [GNU<"reqd_work_group_size">,
+                   CXX11<"cl", "reqd_work_group_size">,
+                   CXX11<"sycl", "reqd_work_group_size">];
   let Args = [UnsignedArgument<"XDim">, UnsignedArgument<"YDim">,
               UnsignedArgument<"ZDim">];
   let Subjects = SubjectList<[Function], ErrorDiag>;
-  let Documentation = [Undocumented];
+  let LangOpts = [NotSYCL];
+  let Documentation = [ReqdWorkGroupSizeAttrDocs];
+  let SupportsNonconformingLambdaSyntax = 1;
+  let ParseKind = "ReqdWorkGroupSize";
+  let HasCustomParsing = 1;
 }
 
-def WorkGroupSizeHint :  InheritableAttr {
-  // Does not have a [[]] spelling because it is an OpenCL-related attribute.
-  let Spellings = [GNU<"work_group_size_hint">];
+def SYCLReqdWorkGroupSize : InheritableAttr, LanguageOptionsSpecificAttr {
+  let Spellings = [GNU<"reqd_work_group_size">,
+                   CXX11<"cl", "reqd_work_group_size">,
+                   CXX11<"sycl", "reqd_work_group_size">];
+  let Args = [ExprArgument<"XDim">,
+              ExprArgument<"YDim", /*optional*/1>,
+              ExprArgument<"ZDim", /*optional*/1>];
+  let Subjects = SubjectList<[Function], ErrorDiag>;
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let AdditionalMembers = [{
+    std::optional<llvm::APSInt> getXDimVal() const {
+      // X-dimension is not optional.
+      if (const auto *CE = dyn_cast<ConstantExpr>(getXDim()))
+        return CE->getResultAsAPSInt();
+      return std::nullopt;
+    }
+    std::optional<llvm::APSInt> getYDimVal() const {
+      // Y-dimension is optional so a nullptr value is allowed.
+      if (const auto *CE = dyn_cast_or_null<ConstantExpr>(getYDim()))
+        return CE->getResultAsAPSInt();
+      return std::nullopt;
+    }
+    std::optional<llvm::APSInt> getZDimVal() const {
+      // Z-dimension is optional so a nullptr value is allowed.
+      if (const auto *CE = dyn_cast_or_null<ConstantExpr>(getZDim()))
+        return CE->getResultAsAPSInt();
+      return std::nullopt;
+    }
+  }];
+  let Documentation = [ReqdWorkGroupSizeAttrDocs];
+  let SupportsNonconformingLambdaSyntax = 1;
+  let ParseKind = "ReqdWorkGroupSize";
+  let HasCustomParsing = 1;
+}
+
+def WorkGroupSizeHint :  InheritableAttr, LanguageOptionsSpecificAttr {
+  let Spellings = [GNU<"work_group_size_hint">,
+                   CXX11<"sycl", "work_group_size_hint">];
   let Args = [UnsignedArgument<"XDim">,
               UnsignedArgument<"YDim">,
               UnsignedArgument<"ZDim">];
   let Subjects = SubjectList<[Function], ErrorDiag>;
-  let Documentation = [Undocumented];
+  let Documentation = [WorkGroupSizeHintAttrDocs];
+  let LangOpts = [NotSYCL];
+  let SupportsNonconformingLambdaSyntax = 1;
+  let ParseKind = "WorkGroupSizeHint";
+  let HasCustomParsing = 1;
+}
+
+def SYCLWorkGroupSizeHint :  InheritableAttr, LanguageOptionsSpecificAttr {
+  let Spellings = [GNU<"work_group_size_hint">,
+                   CXX11<"sycl", "work_group_size_hint">];
+  let Args = [ExprArgument<"XDim">,
+              ExprArgument<"YDim", /*optional*/1>,
+              ExprArgument<"ZDim", /*optional*/1>];
+  let Subjects = SubjectList<[Function], ErrorDiag>;
+  // In OpenCL C this attribute takes no default values whereas in SYCL it does. 
+  // To avoid confusing diagnostics, the checks are deferred to
+  // "handleWorkGroupSizeHint". 
+  let HasCustomParsing = 1;
+  let AdditionalMembers = [{
+    std::optional<llvm::APSInt> getXDimVal() const {
+      // X-dimension is not optional.
+      if (const auto *CE = dyn_cast<ConstantExpr>(getXDim()))
+        return CE->getResultAsAPSInt();
+      return std::nullopt;
+    }
+    std::optional<llvm::APSInt> getYDimVal() const {
+      // Y-dimension is optional so a nullptr value is allowed.
+      if (const auto *CE = dyn_cast_or_null<ConstantExpr>(getYDim()))
+        return CE->getResultAsAPSInt();
+      return std::nullopt;
+    }
+    std::optional<llvm::APSInt> getZDimVal() const {
+      // Z-dimension is optional so a nullptr value is allowed.
+      if (const auto *CE = dyn_cast_or_null<ConstantExpr>(getZDim()))
+        return CE->getResultAsAPSInt();
+      return std::nullopt;
+    }
+  }];
+  let Documentation = [WorkGroupSizeHintAttrDocs];
+  let LangOpts = [SYCLIsDevice, SilentlyIgnoreSYCLIsHost];
+  let SupportsNonconformingLambdaSyntax = 1;
+  let ParseKind = "WorkGroupSizeHint";
 }
 
 def InitPriority : InheritableAttr, TargetSpecificAttr<TargetSupportsInitPriority> {
@@ -3022,10 +4071,10 @@ def VectorSize : TypeAttr {
 }
 
 def VecTypeHint : InheritableAttr {
-  // Does not have a [[]] spelling because it is an OpenCL-related attribute.
-  let Spellings = [GNU<"vec_type_hint">];
+  let Spellings = [GNU<"vec_type_hint">, CXX11<"sycl", "vec_type_hint">];
   let Args = [TypeArgument<"TypeHint">];
   let Subjects = SubjectList<[Function], ErrorDiag>;
+  let SupportsNonconformingLambdaSyntax = 1;
   let Documentation = [Undocumented];
 }
 

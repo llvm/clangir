@@ -22,6 +22,7 @@ include "mlir/Dialect/GPU/TransformOps/GPUDeviceMappingAttr.td"
 include "mlir/IR/EnumAttr.td"
 include "mlir/Interfaces/FunctionInterfaces.td"
 include "mlir/IR/SymbolInterfaces.td"
+include "mlir/Interfaces/CallInterfaces.td"
 include "mlir/Interfaces/DataLayoutInterfaces.td"
 include "mlir/Interfaces/InferIntRangeInterface.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
@@ -181,8 +182,8 @@ def GPU_SubgroupSizeOp : GPU_Op<"subgroup_size", [
 }
 
 def GPU_GPUFuncOp : GPU_Op<"func", [
-    HasParent<"GPUModuleOp">, AutomaticAllocationScope, FunctionOpInterface,
-    IsolatedFromAbove
+    HasParent<"GPUModuleOp">, AffineScope, AutomaticAllocationScope, 
+    CallableOpInterface, FunctionOpInterface,  IsolatedFromAbove
   ]> {
   let summary = "Function executable on a GPU";
 
@@ -427,6 +428,28 @@ def GPU_GPUFuncOp : GPU_Op<"func", [
 
     /// Verifies the body of the function.
     LogicalResult verifyBody();
+
+    //===------------------------------------------------------------------===//
+    // CallableOpInterface
+    //===------------------------------------------------------------------===//
+
+    /// Returns the results types that the callable region produces when
+    /// executed.
+    ArrayRef<Type> getCallableResults() { return getFunctionType()
+                                                    .getResults(); }
+
+    /// Returns the argument attributes for all callable region arguments or
+    /// null if there are none.
+    ::mlir::ArrayAttr getCallableArgAttrs() {
+      return getArgAttrs().value_or(nullptr);
+    }
+
+    /// Returns the result attributes for all callable region results or
+    /// null if there are none.
+    ::mlir::ArrayAttr getCallableResAttrs() {
+      return getResAttrs().value_or(nullptr);
+    }
+
   }];
   let hasCustomAssemblyFormat = 1;
 

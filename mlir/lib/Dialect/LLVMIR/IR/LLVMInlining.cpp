@@ -684,39 +684,9 @@ struct LLVMInlinerInterface : public DialectInlinerInterface {
     return true;
   }
 
-  /// Conservative allowlist of operations supported so far.
+  /// All operations in the LLVM dialect are legal to inline.
   bool isLegalToInline(Operation *op, Region *, bool, IRMapping &) const final {
-    if (isPure(op))
-      return true;
-    // clang-format off
-    if (isa<LLVM::AllocaOp,
-            LLVM::AssumeOp,
-            LLVM::AtomicRMWOp,
-            LLVM::AtomicCmpXchgOp,
-            LLVM::CallOp,
-            LLVM::DbgDeclareOp,
-            LLVM::DbgLabelOp,
-            LLVM::DbgValueOp,
-            LLVM::FenceOp,
-            LLVM::InlineAsmOp,
-            LLVM::LifetimeEndOp,
-            LLVM::LifetimeStartOp,
-            LLVM::LoadOp,
-            LLVM::MemcpyOp,
-            LLVM::MemcpyInlineOp,
-            LLVM::MemmoveOp,
-            LLVM::MemsetOp,
-            LLVM::NoAliasScopeDeclOp,
-            LLVM::StackRestoreOp,
-            LLVM::StackSaveOp,
-            LLVM::StoreOp,
-            LLVM::UnreachableOp>(op))
-      return true;
-    // clang-format on
-    LLVM_DEBUG(llvm::dbgs()
-               << "Cannot inline: unhandled side effecting operation \""
-               << op->getName() << "\"\n");
-    return false;
+    return true;
   }
 
   /// Handle the given inlined return by replacing it with a branch. This

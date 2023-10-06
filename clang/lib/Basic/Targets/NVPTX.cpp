@@ -52,6 +52,8 @@ NVPTXTargetInfo::NVPTXTargetInfo(const llvm::Triple &Triple,
   VLASupported = false;
   AddrSpaceMap = &NVPTXAddrSpaceMap;
   UseAddrSpaceMapMangling = true;
+  HasLegalHalfType = true;
+  HasFloat16 = true;
   // __bf16 is always available as a load/store only type.
   BFloat16Width = BFloat16Align = 16;
   BFloat16Format = &llvm::APFloat::BFloat();
@@ -168,8 +170,10 @@ void NVPTXTargetInfo::getTargetDefines(const LangOptions &Opts,
                                        MacroBuilder &Builder) const {
   Builder.defineMacro("__PTX__");
   Builder.defineMacro("__NVPTX__");
-  if (Opts.CUDAIsDevice || Opts.OpenMPIsTargetDevice || !HostTarget) {
-    // Set __CUDA_ARCH__ for the GPU specified.
+  if (Opts.CUDAIsDevice || Opts.OpenMPIsTargetDevice || Opts.SYCLIsDevice ||
+      !HostTarget) {
+    // Set __CUDA_ARCH__ or __SYCL_CUDA_ARCH__ for the GPU specified.
+    // The SYCL-specific macro is used to distinguish the SYCL and CUDA APIs.
     std::string CUDAArchCode = [this] {
       switch (GPU) {
       case CudaArch::GFX600:
@@ -264,7 +268,12 @@ void NVPTXTargetInfo::getTargetDefines(const LangOptions &Opts,
       }
       llvm_unreachable("unhandled CudaArch");
     }();
-    Builder.defineMacro("__CUDA_ARCH__", CUDAArchCode);
+
+    if (Opts.SYCLIsDevice) {
+      Builder.defineMacro("__SYCL_CUDA_ARCH__", CUDAArchCode);
+    } else {
+      Builder.defineMacro("__CUDA_ARCH__", CUDAArchCode);
+    }
   }
 }
 

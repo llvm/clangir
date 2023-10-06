@@ -135,7 +135,6 @@ public:
       // case to avoid incorrect GEPs.
       if (Result->getType() != StoreDest.getType())
         StoreDest = StoreDest.withElementType(Result->getType());
-
       CGF.EmitAggregateStore(Result, StoreDest,
                              E->getType().isVolatileQualified());
       return;
@@ -525,7 +524,7 @@ void AggExprEmitter::EmitArrayInit(Address DestPtr, llvm::ArrayType *AType,
       elementType.isTriviallyCopyableType(CGF.getContext())) {
     CodeGen::CodeGenModule &CGM = CGF.CGM;
     ConstantEmitter Emitter(CGF);
-    LangAS AS = ArrayQTy.getAddressSpace();
+    LangAS AS = CGM.GetGlobalVarAddressSpace(/*VarDecl= */ nullptr);
     if (llvm::Constant *C =
             Emitter.tryEmitForInitializer(ExprToVisit, AS, ArrayQTy)) {
       auto GV = new llvm::GlobalVariable(

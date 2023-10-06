@@ -5172,7 +5172,8 @@ static void TryReferenceInitializationCore(Sema &S,
     // Add addr space conversion if required.
     if (T1Quals.getAddressSpace() != T2Quals.getAddressSpace()) {
       auto T4Quals = cv1T4.getQualifiers();
-      T4Quals.addAddressSpace(T1Quals.getAddressSpace());
+      T4Quals.addAddressSpace(T1Quals.getAddressSpace(),
+                              S.getLangOpts().SYCLIsDevice);
       QualType cv1T4WithAS = S.Context.getQualifiedType(T2, T4Quals);
       Sequence.AddQualificationConversionStep(cv1T4WithAS, ValueKind);
       cv1T4 = cv1T4WithAS;
@@ -6032,9 +6033,9 @@ static bool TryOCLSamplerInitialization(Sema &S,
                                         InitializationSequence &Sequence,
                                         QualType DestType,
                                         Expr *Initializer) {
-  if (!S.getLangOpts().OpenCL || !DestType->isSamplerT() ||
+  if (!DestType->isSamplerT() ||
       (!Initializer->isIntegerConstantExpr(S.Context) &&
-      !Initializer->getType()->isSamplerT()))
+       !Initializer->getType()->isSamplerT()))
     return false;
 
   Sequence.AddOCLSamplerInitStep(DestType);
@@ -9303,9 +9304,10 @@ ExprResult InitializationSequence::Perform(Sema &S,
       //      1a. argument is a file-scope variable
       //      1b. argument is a function-scope variable
       //      1c. argument is one of caller function's parameters
-      //   2. variable initialization
-      //      2a. initializing a file-scope variable
-      //      2b. initializing a function-scope variable
+      //   2. member initialization from a variable
+      //   3. variable initialization
+      //      3a. initializing a file-scope variable
+      //      3b. initializing a function-scope variable
       //
       // For file-scope variables, since they cannot be initialized by function
       // call of __translate_sampler_initializer in LLVM IR, their references
@@ -9345,8 +9347,17 @@ ExprResult InitializationSequence::Perform(Sema &S,
             Var->getInit()))->getSubExpr();
           SourceType = Init->getType();
         }
+      } else if (Entity.getKind() == InitializedEntity::EK_Member &&
+                 !Entity.isImplicitMemberInitializer() &&
+                 !Entity.isDefaultMemberInitializer() &&
+                 isa<DeclRefExpr>(Init)) {
+        // Case 2: Member initialization from a variable.
+        CurInit = ImplicitCastExpr::Create(
+            S.Context, Step->Type, CK_LValueToRValue, Init,
+            /*BasePath=*/nullptr, VK_PRValue, FPOptionsOverride());
+        break;
       } else {
-        // Case 2
+        // Case 3
         // Check initializer is 32 bit integer constant.
         // If the initializer is taken from global variable, do not diagnose since
         // this has already been done when parsing the variable declaration.
@@ -9384,7 +9395,7 @@ ExprResult InitializationSequence::Perform(Sema &S,
                  << "Addressing Mode";
       }
 
-      // Cases 1a, 2a and 2b
+      // Cases 1a, 3a and 3b
       // Insert cast from integer to sampler.
       CurInit = S.ImpCastExprToType(Init, S.Context.OCLSamplerTy,
                                       CK_IntToOCLSampler);

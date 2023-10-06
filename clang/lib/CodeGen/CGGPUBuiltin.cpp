@@ -157,6 +157,14 @@ RValue EmitDevicePrintfCallExpr(const CallExpr *E, CodeGenFunction *CGF,
 
   llvm::SmallVector<llvm::Value *, 3> Vec = {
       Args[0].getRValue(*CGF).getScalarVal(), BufferPtr};
+
+  // Check if the format specifier is in the constant address space, vprintf is
+  // oblivious to address spaces, so it would have to be casted away.
+  if (Decl == GetVprintfDeclaration(CGM.getModule()))
+    if (Vec[0]->getType()->getPointerAddressSpace() == 4)
+      Vec[0] = Builder.CreateAddrSpaceCast(
+          Vec[0], llvm::Type::getInt8PtrTy(CGM.getLLVMContext()));
+
   if (WithSizeArg) {
     // Passing > 32bit of data as a local alloca doesn't work for nvptx or
     // amdgpu

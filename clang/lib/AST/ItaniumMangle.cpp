@@ -2750,10 +2750,10 @@ void CXXNameMangler::mangleQualifiers(Qualifiers Quals, const DependentAddressSp
         ASString = "SYglobal";
         break;
       case LangAS::sycl_global_device:
-        ASString = "SYdevice";
+        ASString = "SYglobaldevice";
         break;
       case LangAS::sycl_global_host:
-        ASString = "SYhost";
+        ASString = "SYglobalhost";
         break;
       case LangAS::sycl_local:
         ASString = "SYlocal";
@@ -3271,6 +3271,14 @@ void CXXNameMangler::mangleType(const BuiltinType *T) {
     type_name = "ocl_" #ImgType "_" #Suffix; \
     Out << type_name.size() << type_name; \
     break;
+#include "clang/Basic/OpenCLImageTypes.def"
+#define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix)                   \
+  case BuiltinType::Sampled##Id:                                               \
+    type_name = "__spirv_SampledImage__" #ImgType "_" #Suffix;                 \
+    Out << type_name.size() << type_name;                                      \
+    break;
+#define IMAGE_WRITE_TYPE(Type, Id, Ext)
+#define IMAGE_READ_WRITE_TYPE(Type, Id, Ext)
 #include "clang/Basic/OpenCLImageTypes.def"
   case BuiltinType::OCLSampler:
     Out << "11ocl_sampler";
@@ -4640,7 +4648,6 @@ recurse:
   case Expr::ShuffleVectorExprClass:
   case Expr::ConvertVectorExprClass:
   case Expr::StmtExprClass:
-  case Expr::TypeTraitExprClass:
   case Expr::ArrayTypeTraitExprClass:
   case Expr::ExpressionTraitExprClass:
   case Expr::VAArgExprClass:
@@ -4650,6 +4657,10 @@ recurse:
   case Expr::AtomicExprClass:
   case Expr::SourceLocExprClass:
   case Expr::BuiltinBitCastExprClass:
+  case Expr::SYCLBuiltinNumFieldsExprClass:
+  case Expr::SYCLBuiltinFieldTypeExprClass:
+  case Expr::SYCLBuiltinNumBasesExprClass:
+  case Expr::SYCLBuiltinBaseTypeExprClass:
   {
     NotPrimaryExpr();
     if (!NullOut) {
@@ -4992,6 +5003,10 @@ recurse:
       //   If the result of the operator is implicitly converted to a known
       //   integer type, that type is used for the literal; otherwise, the type
       //   of std::size_t or std::ptrdiff_t is used.
+      //
+      // FIXME: We still include the operand in the profile in this case. This
+      // can lead to mangling collisions between function templates that we
+      // consider to be different.
       QualType T = (ImplicitlyConvertedToType.isNull() ||
                     !ImplicitlyConvertedToType->isIntegerType())? SAE->getType()
                                                     : ImplicitlyConvertedToType;
@@ -5051,6 +5066,20 @@ recurse:
       return;
     }
     }
+    break;
+  }
+
+  case Expr::TypeTraitExprClass: {
+    //  <expression> ::= u <source-name> <template-arg>* E # vendor extension
+    const TypeTraitExpr *TTE = cast<TypeTraitExpr>(E);
+    NotPrimaryExpr();
+    Out << 'u';
+    llvm::StringRef Spelling = getTraitSpelling(TTE->getTrait());
+    Out << Spelling.size() << Spelling;
+    for (TypeSourceInfo *TSI : TTE->getArgs()) {
+      mangleType(TSI->getType());
+    }
+    Out << 'E';
     break;
   }
 
@@ -5526,6 +5555,15 @@ recurse:
     Out << "u33__builtin_sycl_unique_stable_name";
     mangleType(USN->getTypeSourceInfo()->getType());
 
+    Out << "E";
+    break;
+  }
+  case Expr::SYCLUniqueStableIdExprClass: {
+    const auto *USID = cast<SYCLUniqueStableIdExpr>(E);
+    NotPrimaryExpr();
+
+    Out << "cl31__builtin_sycl_unique_stable_id";
+    mangleExpression(USID->getExpr());
     Out << "E";
     break;
   }

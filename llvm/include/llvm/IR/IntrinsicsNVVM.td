@@ -31,8 +31,11 @@
 //   * llvm.nvvm.max.ull --> ibid.
 //   * llvm.nvvm.h2f     --> llvm.convert.to.fp16.f32
 
-def llvm_global_ptr_ty  : LLVMQualPointerType<1>;  // (global)ptr
-def llvm_shared_ptr_ty  : LLVMQualPointerType<3>;  // (shared)ptr
+def llvm_global_i8ptr_ty  : LLVMQualPointerType<llvm_i8_ty, 1>;  // (global)i8*
+def llvm_shared_i8ptr_ty  : LLVMQualPointerType<llvm_i8_ty, 3>;  // (shared)i8*
+def llvm_i64ptr_ty        : LLVMPointerType<llvm_i64_ty>;        // i64*
+def llvm_any_i64ptr_ty    : LLVMAnyPointerType<llvm_i64_ty>;     // (space)i64*
+def llvm_shared_i64ptr_ty : LLVMQualPointerType<llvm_i64_ty, 3>; // (shared)i64*
 
 //
 // MISC
@@ -852,6 +855,17 @@ let TargetPrefix = "nvvm" in {
       DefaultAttrsIntrinsic<[llvm_float_ty], [llvm_float_ty], [IntrNoMem]>;
 
 //
+// Tanh
+//
+
+   def int_nvvm_tanh_approx_f : ClangBuiltin<"__nvvm_tanh_approx_f">,
+        DefaultAttrsIntrinsic<[llvm_float_ty], [llvm_float_ty], [IntrNoMem]>;
+   def int_nvvm_tanh_approx_f16 : ClangBuiltin<"__nvvm_tanh_approx_f16">,
+       DefaultAttrsIntrinsic<[llvm_half_ty], [llvm_half_ty], [IntrNoMem]>;
+   def int_nvvm_tanh_approx_f16x2 : ClangBuiltin<"__nvvm_tanh_approx_f16x2">,
+       DefaultAttrsIntrinsic<[llvm_v2f16_ty], [llvm_v2f16_ty], [IntrNoMem]>;
+
+//
 // Fma
 //
 
@@ -919,6 +933,9 @@ let TargetPrefix = "nvvm" in {
   def int_nvvm_rcp_rp_ftz_f : ClangBuiltin<"__nvvm_rcp_rp_ftz_f">,
       DefaultAttrsIntrinsic<[llvm_float_ty], [llvm_float_ty], [IntrNoMem]>;
   def int_nvvm_rcp_rp_f : ClangBuiltin<"__nvvm_rcp_rp_f">,
+      DefaultAttrsIntrinsic<[llvm_float_ty], [llvm_float_ty], [IntrNoMem]>;
+
+  def int_nvvm_rcp_approx_f : ClangBuiltin<"__nvvm_rcp_approx_f">,
       DefaultAttrsIntrinsic<[llvm_float_ty], [llvm_float_ty], [IntrNoMem]>;
 
   def int_nvvm_rcp_rn_d : ClangBuiltin<"__nvvm_rcp_rn_d">,
@@ -1290,44 +1307,132 @@ let TargetPrefix = "nvvm" in {
 
 // Atomics not available as llvm intrinsics.
   def int_nvvm_atomic_load_inc_32 : Intrinsic<[llvm_i32_ty],
-          [llvm_anyptr_ty, llvm_i32_ty],
+          [LLVMAnyPointerType<llvm_i32_ty>, llvm_i32_ty],
                                       [IntrArgMemOnly, IntrNoCallback, NoCapture<ArgIndex<0>>]>;
   def int_nvvm_atomic_load_dec_32 : Intrinsic<[llvm_i32_ty],
-          [llvm_anyptr_ty, llvm_i32_ty],
+          [LLVMAnyPointerType<llvm_i32_ty>, llvm_i32_ty],
                                       [IntrArgMemOnly, IntrNoCallback, NoCapture<ArgIndex<0>>]>;
 
+  class SCOPED_ATOMIC_ld_impl<LLVMType elty>
+        : Intrinsic<[elty],
+          [llvm_anyptr_ty],
+          [IntrArgMemOnly, NoCapture<ArgIndex<0>>]>;
+  class SCOPED_ATOMIC_st_impl<LLVMType elty>
+        : Intrinsic<[],
+          [llvm_anyptr_ty, elty],
+          [IntrArgMemOnly, NoCapture<ArgIndex<0>>]>;
   class SCOPED_ATOMIC2_impl<LLVMType elty>
         : Intrinsic<[elty],
-          [llvm_anyptr_ty, LLVMMatchType<0>],
+          [LLVMAnyPointerType<LLVMMatchType<0>>, LLVMMatchType<0>],
           [IntrArgMemOnly, IntrNoCallback, NoCapture<ArgIndex<0>>]>;
   class SCOPED_ATOMIC3_impl<LLVMType elty>
         : Intrinsic<[elty],
-          [llvm_anyptr_ty, LLVMMatchType<0>,
+          [LLVMAnyPointerType<LLVMMatchType<0>>, LLVMMatchType<0>,
            LLVMMatchType<0>],
           [IntrArgMemOnly, IntrNoCallback, NoCapture<ArgIndex<0>>]>;
 
+  multiclass PTXAtomicWithScope_ld<LLVMType elty> {
+    def "" : SCOPED_ATOMIC_ld_impl<elty>;
+    def _cta : SCOPED_ATOMIC_ld_impl<elty>;
+    def _sys : SCOPED_ATOMIC_ld_impl<elty>;
+  }
+  multiclass PTXAtomicWithScope_st<LLVMType elty> {
+    def "" : SCOPED_ATOMIC_st_impl<elty>;
+    def _cta : SCOPED_ATOMIC_st_impl<elty>;
+    def _sys : SCOPED_ATOMIC_st_impl<elty>;
+  }
   multiclass PTXAtomicWithScope2<LLVMType elty> {
+    def "" : SCOPED_ATOMIC2_impl<elty>;
     def _cta : SCOPED_ATOMIC2_impl<elty>;
     def _sys : SCOPED_ATOMIC2_impl<elty>;
   }
   multiclass PTXAtomicWithScope3<LLVMType elty> {
+    def "" : SCOPED_ATOMIC3_impl<elty>;
     def _cta : SCOPED_ATOMIC3_impl<elty>;
     def _sys : SCOPED_ATOMIC3_impl<elty>;
   }
-  multiclass PTXAtomicWithScope2_fi {
-    defm _f: PTXAtomicWithScope2<llvm_anyfloat_ty>;
-    defm _i: PTXAtomicWithScope2<llvm_anyint_ty>;
+  multiclass PTXLdWithScope_sem<LLVMType elty> {
+    defm "": PTXAtomicWithScope_ld<elty>;
+    defm _acquire: PTXAtomicWithScope_ld<elty>;
+    def _volatile: SCOPED_ATOMIC_ld_impl<elty>;
   }
+  multiclass PTXStWithScope_sem<LLVMType elty> {
+    defm "": PTXAtomicWithScope_st<elty>;
+    defm _release: PTXAtomicWithScope_st<elty>;
+    def _volatile: SCOPED_ATOMIC_st_impl<elty>;
+  }
+  multiclass PTXAtomicWithScope2_sem<LLVMType elty> {
+    defm "": PTXAtomicWithScope2<elty>;
+    defm _acquire: PTXAtomicWithScope2<elty>;
+    defm _release: PTXAtomicWithScope2<elty>;
+    defm _acq_rel: PTXAtomicWithScope2<elty>;
+  }
+  multiclass PTXAtomicWithScope3_sem<LLVMType elty> {
+    defm "": PTXAtomicWithScope3<elty>;
+    defm _acquire: PTXAtomicWithScope3<elty>;
+    defm _release: PTXAtomicWithScope3<elty>;
+    defm _acq_rel: PTXAtomicWithScope3<elty>;
+  }
+  multiclass PTXLdWithScope_fi {
+    defm _f: PTXLdWithScope_sem<llvm_anyfloat_ty>;
+    defm _i: PTXLdWithScope_sem<llvm_anyint_ty>;
+  }
+  multiclass PTXStWithScope_fi {
+    defm _f: PTXStWithScope_sem<llvm_anyfloat_ty>;
+    defm _i: PTXStWithScope_sem<llvm_anyint_ty>;
+  }
+  multiclass PTXAtomicWithScope2_fi {
+    defm _f: PTXAtomicWithScope2_sem<llvm_anyfloat_ty>;
+    defm _i: PTXAtomicWithScope2_sem<llvm_anyint_ty>;
+  }
+  multiclass PTXAtomicWithScope3_fi {
+    defm _f: PTXAtomicWithScope3_sem<llvm_anyfloat_ty>;
+    defm _i: PTXAtomicWithScope3_sem<llvm_anyint_ty>;
+  }
+  defm int_nvvm_ld_gen   : PTXLdWithScope_fi;
+  defm int_nvvm_st_gen   : PTXStWithScope_fi;
   defm int_nvvm_atomic_add_gen   : PTXAtomicWithScope2_fi;
-  defm int_nvvm_atomic_inc_gen_i : PTXAtomicWithScope2<llvm_anyint_ty>;
-  defm int_nvvm_atomic_dec_gen_i : PTXAtomicWithScope2<llvm_anyint_ty>;
-  defm int_nvvm_atomic_exch_gen_i: PTXAtomicWithScope2<llvm_anyint_ty>;
-  defm int_nvvm_atomic_xor_gen_i : PTXAtomicWithScope2<llvm_anyint_ty>;
-  defm int_nvvm_atomic_max_gen_i : PTXAtomicWithScope2<llvm_anyint_ty>;
-  defm int_nvvm_atomic_min_gen_i : PTXAtomicWithScope2<llvm_anyint_ty>;
-  defm int_nvvm_atomic_or_gen_i  : PTXAtomicWithScope2<llvm_anyint_ty>;
-  defm int_nvvm_atomic_and_gen_i : PTXAtomicWithScope2<llvm_anyint_ty>;
-  defm int_nvvm_atomic_cas_gen_i : PTXAtomicWithScope3<llvm_anyint_ty>;
+  defm int_nvvm_atomic_inc_gen_i : PTXAtomicWithScope2_sem<llvm_anyint_ty>;
+  defm int_nvvm_atomic_dec_gen_i : PTXAtomicWithScope2_sem<llvm_anyint_ty>;
+  defm int_nvvm_atomic_exch_gen: PTXAtomicWithScope2_fi;
+  defm int_nvvm_atomic_xor_gen_i : PTXAtomicWithScope2_sem<llvm_anyint_ty>;
+  defm int_nvvm_atomic_max_gen_i : PTXAtomicWithScope2_sem<llvm_anyint_ty>;
+  defm int_nvvm_atomic_max_gen_ui: PTXAtomicWithScope2_sem<llvm_anyint_ty>;
+  defm int_nvvm_atomic_min_gen_i : PTXAtomicWithScope2_sem<llvm_anyint_ty>;
+  defm int_nvvm_atomic_min_gen_ui: PTXAtomicWithScope2_sem<llvm_anyint_ty>;
+  defm int_nvvm_atomic_or_gen_i  : PTXAtomicWithScope2_sem<llvm_anyint_ty>;
+  defm int_nvvm_atomic_and_gen_i : PTXAtomicWithScope2_sem<llvm_anyint_ty>;
+  defm int_nvvm_atomic_cas_gen : PTXAtomicWithScope3_fi;
+
+  defm int_nvvm_ld_shared   : PTXLdWithScope_fi;
+  defm int_nvvm_st_shared   : PTXStWithScope_fi;
+  defm int_nvvm_atomic_add_shared   : PTXAtomicWithScope2_fi;
+  defm int_nvvm_atomic_inc_shared_i : PTXAtomicWithScope2_sem<llvm_anyint_ty>;
+  defm int_nvvm_atomic_dec_shared_i : PTXAtomicWithScope2_sem<llvm_anyint_ty>;
+  defm int_nvvm_atomic_exch_shared: PTXAtomicWithScope2_fi;
+  defm int_nvvm_atomic_xor_shared_i : PTXAtomicWithScope2_sem<llvm_anyint_ty>;
+  defm int_nvvm_atomic_max_shared_i : PTXAtomicWithScope2_sem<llvm_anyint_ty>;
+  defm int_nvvm_atomic_max_shared_ui: PTXAtomicWithScope2_sem<llvm_anyint_ty>;
+  defm int_nvvm_atomic_min_shared_i : PTXAtomicWithScope2_sem<llvm_anyint_ty>;
+  defm int_nvvm_atomic_min_shared_ui: PTXAtomicWithScope2_sem<llvm_anyint_ty>;
+  defm int_nvvm_atomic_or_shared_i  : PTXAtomicWithScope2_sem<llvm_anyint_ty>;
+  defm int_nvvm_atomic_and_shared_i : PTXAtomicWithScope2_sem<llvm_anyint_ty>;
+  defm int_nvvm_atomic_cas_shared : PTXAtomicWithScope3_fi;
+  
+  defm int_nvvm_ld_global   : PTXLdWithScope_fi;
+  defm int_nvvm_st_global   : PTXStWithScope_fi;
+  defm int_nvvm_atomic_add_global   : PTXAtomicWithScope2_fi;
+  defm int_nvvm_atomic_inc_global_i : PTXAtomicWithScope2_sem<llvm_anyint_ty>;
+  defm int_nvvm_atomic_dec_global_i : PTXAtomicWithScope2_sem<llvm_anyint_ty>;
+  defm int_nvvm_atomic_exch_global: PTXAtomicWithScope2_fi;
+  defm int_nvvm_atomic_xor_global_i : PTXAtomicWithScope2_sem<llvm_anyint_ty>;
+  defm int_nvvm_atomic_max_global_i : PTXAtomicWithScope2_sem<llvm_anyint_ty>;
+  defm int_nvvm_atomic_max_global_ui: PTXAtomicWithScope2_sem<llvm_anyint_ty>;
+  defm int_nvvm_atomic_min_global_i : PTXAtomicWithScope2_sem<llvm_anyint_ty>;
+  defm int_nvvm_atomic_min_global_ui: PTXAtomicWithScope2_sem<llvm_anyint_ty>;
+  defm int_nvvm_atomic_or_global_i  : PTXAtomicWithScope2_sem<llvm_anyint_ty>;
+  defm int_nvvm_atomic_and_global_i : PTXAtomicWithScope2_sem<llvm_anyint_ty>;
+  defm int_nvvm_atomic_cas_global : PTXAtomicWithScope3_fi;
 
 // Bar.Sync
 
@@ -1385,23 +1490,23 @@ let TargetPrefix = "nvvm" in {
 // Async Copy
 def int_nvvm_cp_async_mbarrier_arrive :
     ClangBuiltin<"__nvvm_cp_async_mbarrier_arrive">,
-    Intrinsic<[],[llvm_ptr_ty],[IntrConvergent, IntrNoCallback]>;
+    Intrinsic<[],[llvm_i64ptr_ty],[IntrConvergent, IntrNoCallback]>;
 def int_nvvm_cp_async_mbarrier_arrive_shared :
     ClangBuiltin<"__nvvm_cp_async_mbarrier_arrive_shared">,
-    Intrinsic<[],[llvm_shared_ptr_ty],[IntrConvergent, IntrNoCallback]>;
+    Intrinsic<[],[llvm_shared_i64ptr_ty],[IntrConvergent, IntrNoCallback]>;
 def int_nvvm_cp_async_mbarrier_arrive_noinc :
     ClangBuiltin<"__nvvm_cp_async_mbarrier_arrive_noinc">,
-    Intrinsic<[],[llvm_ptr_ty],[IntrConvergent, IntrNoCallback]>;
+    Intrinsic<[],[llvm_i64ptr_ty],[IntrConvergent, IntrNoCallback]>;
 def int_nvvm_cp_async_mbarrier_arrive_noinc_shared :
     ClangBuiltin<"__nvvm_cp_async_mbarrier_arrive_noinc_shared">,
-    Intrinsic<[],[llvm_shared_ptr_ty],[IntrConvergent, IntrNoCallback]>;
+    Intrinsic<[],[llvm_shared_i64ptr_ty],[IntrConvergent, IntrNoCallback]>;
 
 multiclass CP_ASYNC_SHARED_GLOBAL<string n, string cc> {
-  def NAME: Intrinsic<[],[llvm_shared_ptr_ty, llvm_global_ptr_ty],
+  def NAME: Intrinsic<[],[llvm_shared_i8ptr_ty, llvm_global_i8ptr_ty],
         [IntrArgMemOnly, IntrNoCallback, NoAlias<ArgIndex<0>>, NoAlias<ArgIndex<1>>,
         WriteOnly<ArgIndex<0>>, ReadOnly<ArgIndex<1>>],
         "llvm.nvvm.cp.async." # cc # ".shared.global." # n>;
-  def _s: Intrinsic<[],[llvm_shared_ptr_ty, llvm_global_ptr_ty, llvm_i32_ty],
+  def _s: Intrinsic<[],[llvm_shared_i8ptr_ty, llvm_global_i8ptr_ty, llvm_i32_ty],
         [IntrArgMemOnly, IntrNoCallback, NoAlias<ArgIndex<0>>, NoAlias<ArgIndex<1>>,
         WriteOnly<ArgIndex<0>>, ReadOnly<ArgIndex<1>>],
         "llvm.nvvm.cp.async." # cc # ".shared.global." # n # ".s">;
@@ -1426,54 +1531,54 @@ def int_nvvm_cp_async_wait_all :
 
 // mbarrier
 def int_nvvm_mbarrier_init : ClangBuiltin<"__nvvm_mbarrier_init">,
-    Intrinsic<[],[llvm_ptr_ty, llvm_i32_ty],[IntrConvergent, IntrNoCallback]>;
+    Intrinsic<[],[llvm_i64ptr_ty, llvm_i32_ty],[IntrConvergent, IntrNoCallback]>;
 def int_nvvm_mbarrier_init_shared :
     ClangBuiltin<"__nvvm_mbarrier_init_shared">,
-    Intrinsic<[],[llvm_shared_ptr_ty, llvm_i32_ty],[IntrConvergent, IntrNoCallback]>;
+    Intrinsic<[],[llvm_shared_i64ptr_ty, llvm_i32_ty],[IntrConvergent, IntrNoCallback]>;
 
 def int_nvvm_mbarrier_inval : ClangBuiltin<"__nvvm_mbarrier_inval">,
-    Intrinsic<[],[llvm_ptr_ty],
+    Intrinsic<[],[llvm_i64ptr_ty],
     [IntrConvergent, IntrWriteMem, IntrArgMemOnly, IntrNoCallback,
     WriteOnly<ArgIndex<0>>, NoCapture<ArgIndex<0>>]>;
 def int_nvvm_mbarrier_inval_shared :
     ClangBuiltin<"__nvvm_mbarrier_inval_shared">,
-    Intrinsic<[],[llvm_shared_ptr_ty],
+    Intrinsic<[],[llvm_shared_i64ptr_ty],
     [IntrConvergent, IntrWriteMem, IntrArgMemOnly, IntrNoCallback,
     WriteOnly<ArgIndex<0>>, NoCapture<ArgIndex<0>>]>;
 
 def int_nvvm_mbarrier_arrive : ClangBuiltin<"__nvvm_mbarrier_arrive">,
-    Intrinsic<[llvm_i64_ty],[llvm_ptr_ty],[IntrConvergent, IntrNoCallback]>;
+    Intrinsic<[llvm_i64_ty],[llvm_i64ptr_ty],[IntrConvergent, IntrNoCallback]>;
 def int_nvvm_mbarrier_arrive_shared :
     ClangBuiltin<"__nvvm_mbarrier_arrive_shared">,
-    Intrinsic<[llvm_i64_ty],[llvm_shared_ptr_ty],[IntrConvergent, IntrNoCallback]>;
+    Intrinsic<[llvm_i64_ty],[llvm_shared_i64ptr_ty],[IntrConvergent, IntrNoCallback]>;
 def int_nvvm_mbarrier_arrive_noComplete :
     ClangBuiltin<"__nvvm_mbarrier_arrive_noComplete">,
-    Intrinsic<[llvm_i64_ty],[llvm_ptr_ty, llvm_i32_ty],[IntrConvergent, IntrNoCallback]>;
+    Intrinsic<[llvm_i64_ty],[llvm_i64ptr_ty, llvm_i32_ty],[IntrConvergent, IntrNoCallback]>;
 def int_nvvm_mbarrier_arrive_noComplete_shared :
     ClangBuiltin<"__nvvm_mbarrier_arrive_noComplete_shared">,
-    Intrinsic<[llvm_i64_ty],[llvm_shared_ptr_ty,
+    Intrinsic<[llvm_i64_ty],[llvm_shared_i64ptr_ty,
     llvm_i32_ty],[IntrConvergent, IntrNoCallback]>;
 
 def int_nvvm_mbarrier_arrive_drop :
     ClangBuiltin<"__nvvm_mbarrier_arrive_drop">,
-    Intrinsic<[llvm_i64_ty],[llvm_ptr_ty],[IntrConvergent, IntrNoCallback]>;
+    Intrinsic<[llvm_i64_ty],[llvm_i64ptr_ty],[IntrConvergent, IntrNoCallback]>;
 def int_nvvm_mbarrier_arrive_drop_shared :
     ClangBuiltin<"__nvvm_mbarrier_arrive_drop_shared">,
-    Intrinsic<[llvm_i64_ty],[llvm_shared_ptr_ty],[IntrConvergent, IntrNoCallback]>;
+    Intrinsic<[llvm_i64_ty],[llvm_shared_i64ptr_ty],[IntrConvergent, IntrNoCallback]>;
 def int_nvvm_mbarrier_arrive_drop_noComplete :
     ClangBuiltin<"__nvvm_mbarrier_arrive_drop_noComplete">,
-    Intrinsic<[llvm_i64_ty],[llvm_ptr_ty, llvm_i32_ty],[IntrConvergent, IntrNoCallback]>;
+    Intrinsic<[llvm_i64_ty],[llvm_i64ptr_ty, llvm_i32_ty],[IntrConvergent, IntrNoCallback]>;
 def int_nvvm_mbarrier_arrive_drop_noComplete_shared :
     ClangBuiltin<"__nvvm_mbarrier_arrive_drop_noComplete_shared">,
-    Intrinsic<[llvm_i64_ty],[llvm_shared_ptr_ty,
+    Intrinsic<[llvm_i64_ty],[llvm_shared_i64ptr_ty,
     llvm_i32_ty],[IntrConvergent, IntrNoCallback]>;
 
 def int_nvvm_mbarrier_test_wait :
     ClangBuiltin<"__nvvm_mbarrier_test_wait">,
-    Intrinsic<[llvm_i1_ty],[llvm_ptr_ty, llvm_i64_ty],[IntrConvergent, IntrNoCallback]>;
+    Intrinsic<[llvm_i1_ty],[llvm_i64ptr_ty, llvm_i64_ty],[IntrConvergent, IntrNoCallback]>;
 def int_nvvm_mbarrier_test_wait_shared :
     ClangBuiltin<"__nvvm_mbarrier_test_wait_shared">,
-    Intrinsic<[llvm_i1_ty],[llvm_shared_ptr_ty, llvm_i64_ty],[IntrConvergent, IntrNoCallback]>;
+    Intrinsic<[llvm_i1_ty],[llvm_shared_i64ptr_ty, llvm_i64_ty],[IntrConvergent, IntrNoCallback]>;
 
 def int_nvvm_mbarrier_pending_count :
     ClangBuiltin<"__nvvm_mbarrier_pending_count">,
@@ -1482,30 +1587,30 @@ def int_nvvm_mbarrier_pending_count :
 // Generated within nvvm. Use for ldu on sm_20 or later.  Second arg is the
 // pointer's alignment.
 def int_nvvm_ldu_global_i : Intrinsic<[llvm_anyint_ty],
-  [llvm_anyptr_ty, llvm_i32_ty],
+  [LLVMAnyPointerType<LLVMMatchType<0>>, llvm_i32_ty],
   [IntrReadMem, IntrArgMemOnly, IntrNoCallback, NoCapture<ArgIndex<0>>],
   "llvm.nvvm.ldu.global.i">;
 def int_nvvm_ldu_global_f : Intrinsic<[llvm_anyfloat_ty],
-  [llvm_anyptr_ty, llvm_i32_ty],
+  [LLVMAnyPointerType<LLVMMatchType<0>>, llvm_i32_ty],
   [IntrReadMem, IntrArgMemOnly, IntrNoCallback, NoCapture<ArgIndex<0>>],
   "llvm.nvvm.ldu.global.f">;
 def int_nvvm_ldu_global_p : Intrinsic<[llvm_anyptr_ty],
-  [llvm_anyptr_ty, llvm_i32_ty],
+  [LLVMAnyPointerType<LLVMMatchType<0>>, llvm_i32_ty],
   [IntrReadMem, IntrArgMemOnly, IntrNoCallback, NoCapture<ArgIndex<0>>],
   "llvm.nvvm.ldu.global.p">;
 
 // Generated within nvvm. Use for ldg on sm_35 or later.  Second arg is the
 // pointer's alignment.
 def int_nvvm_ldg_global_i : Intrinsic<[llvm_anyint_ty],
-  [llvm_anyptr_ty, llvm_i32_ty],
+  [LLVMAnyPointerType<LLVMMatchType<0>>, llvm_i32_ty],
   [IntrReadMem, IntrArgMemOnly, IntrNoCallback, NoCapture<ArgIndex<0>>],
   "llvm.nvvm.ldg.global.i">;
 def int_nvvm_ldg_global_f : Intrinsic<[llvm_anyfloat_ty],
-  [llvm_anyptr_ty, llvm_i32_ty],
+  [LLVMAnyPointerType<LLVMMatchType<0>>, llvm_i32_ty],
   [IntrReadMem, IntrArgMemOnly, IntrNoCallback, NoCapture<ArgIndex<0>>],
   "llvm.nvvm.ldg.global.f">;
 def int_nvvm_ldg_global_p : Intrinsic<[llvm_anyptr_ty],
-  [llvm_anyptr_ty, llvm_i32_ty],
+  [LLVMAnyPointerType<LLVMMatchType<0>>, llvm_i32_ty],
   [IntrReadMem, IntrArgMemOnly, IntrNoCallback, NoCapture<ArgIndex<0>>],
   "llvm.nvvm.ldg.global.p">;
 
@@ -1568,7 +1673,7 @@ def int_nvvm_move_ptr : Intrinsic<[llvm_anyptr_ty], [llvm_anyptr_ty],
 
 // For getting the handle from a texture or surface variable
 def int_nvvm_texsurf_handle
-  : Intrinsic<[llvm_i64_ty], [llvm_metadata_ty, llvm_anyptr_ty],
+  : Intrinsic<[llvm_i64_ty], [llvm_metadata_ty, llvm_any_i64ptr_ty],
               [IntrNoMem], "llvm.nvvm.texsurf.handle">;
 def int_nvvm_texsurf_handle_internal
   : Intrinsic<[llvm_i64_ty], [llvm_anyptr_ty],
@@ -4673,6 +4778,12 @@ foreach layout_a = ["row", "col"] in {
   } // layout_b
 } // layout_a
 
+// SYCL
+def int_nvvm_implicit_offset :
+  ClangBuiltin<"__builtin_ptx_implicit_offset">,
+  Intrinsic<[llvm_ptr_ty], [],
+  [IntrNoMem, IntrSpeculatable]>;
+
 // LDMATRIX
 class NVVM_LDMATRIX<WMMA_REGS Frag, int Transposed>
   : Intrinsic<Frag.regs, [llvm_anyptr_ty],
@@ -4694,7 +4805,7 @@ def int_nvvm_mapa
               [IntrNoMem, IntrSpeculatable, NoCapture<ArgIndex<0>>],
               "llvm.nvvm.mapa">;
 def int_nvvm_mapa_shared_cluster
-  : DefaultAttrsIntrinsic<[llvm_shared_ptr_ty], [llvm_shared_ptr_ty, llvm_i32_ty],
+  : DefaultAttrsIntrinsic<[llvm_shared_i8ptr_ty], [llvm_shared_i8ptr_ty, llvm_i32_ty],
               [IntrNoMem, IntrSpeculatable, NoCapture<ArgIndex<0>>],
               "llvm.nvvm.mapa.shared.cluster">;
 def int_nvvm_getctarank
@@ -4702,7 +4813,7 @@ def int_nvvm_getctarank
               [IntrNoMem, IntrSpeculatable, NoCapture<ArgIndex<0>>],
               "llvm.nvvm.getctarank">;
 def int_nvvm_getctarank_shared_cluster
-  : DefaultAttrsIntrinsic<[llvm_i32_ty], [llvm_shared_ptr_ty],
+  : DefaultAttrsIntrinsic<[llvm_i32_ty], [llvm_shared_i8ptr_ty],
               [IntrNoMem, IntrSpeculatable, NoCapture<ArgIndex<0>>],
               "llvm.nvvm.getctarank.shared.cluster">;
 def int_nvvm_is_explicit_cluster

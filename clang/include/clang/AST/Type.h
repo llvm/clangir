@@ -400,8 +400,8 @@ public:
          | (((uint32_t) space) << AddressSpaceShift);
   }
   void removeAddressSpace() { setAddressSpace(LangAS::Default); }
-  void addAddressSpace(LangAS space) {
-    assert(space != LangAS::Default);
+  void addAddressSpace(LangAS space, bool AllowDefaultAddrSpace = false) {
+    assert(space != LangAS::Default || AllowDefaultAddrSpace);
     setAddressSpace(space);
   }
 
@@ -2296,8 +2296,14 @@ public:
 #define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix) \
   bool is##Id##Type() const;
 #include "clang/Basic/OpenCLImageTypes.def"
+#define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix)                   \
+  bool isSampled##Id##Type() const;
+#define IMAGE_WRITE_TYPE(Type, Id, Ext)
+#define IMAGE_READ_WRITE_TYPE(Type, Id, Ext)
+#include "clang/Basic/OpenCLImageTypes.def"
 
   bool isImageType() const;                     // Any OpenCL image type
+  bool isSampledImageType() const;              // Any SPIR-V Sampled image type
 
   bool isSamplerT() const;                      // OpenCL sampler_t
   bool isEventT() const;                        // OpenCL event_t
@@ -2684,6 +2690,10 @@ public:
   enum Kind {
 // OpenCL image types
 #define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix) Id,
+#include "clang/Basic/OpenCLImageTypes.def"
+#define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix) Sampled##Id,
+#define IMAGE_WRITE_TYPE(Type, Id, Ext)
+#define IMAGE_READ_WRITE_TYPE(Type, Id, Ext)
 #include "clang/Basic/OpenCLImageTypes.def"
 // OpenCL extension types
 #define EXT_OPAQUE_TYPE(ExtType, Id, Ext) Id,
@@ -7189,6 +7199,14 @@ inline bool Type::isDecltypeType() const {
   }
 #include "clang/Basic/OpenCLImageTypes.def"
 
+#define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix)                   \
+  inline bool Type::isSampled##Id##Type() const {                              \
+    return isSpecificBuiltinType(BuiltinType::Sampled##Id);                    \
+  }
+#define IMAGE_WRITE_TYPE(Type, Id, Ext)
+#define IMAGE_READ_WRITE_TYPE(Type, Id, Ext)
+#include "clang/Basic/OpenCLImageTypes.def"
+
 inline bool Type::isSamplerT() const {
   return isSpecificBuiltinType(BuiltinType::OCLSampler);
 }
@@ -7211,7 +7229,17 @@ inline bool Type::isReserveIDT() const {
 
 inline bool Type::isImageType() const {
 #define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix) is##Id##Type() ||
+  return isSampledImageType() ||
+#include "clang/Basic/OpenCLImageTypes.def"
+         false; // end boolean or operation
+}
+
+inline bool Type::isSampledImageType() const {
+#define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix)                   \
+  isSampled##Id##Type() ||
   return
+#define IMAGE_WRITE_TYPE(Type, Id, Ext)
+#define IMAGE_READ_WRITE_TYPE(Type, Id, Ext)
 #include "clang/Basic/OpenCLImageTypes.def"
       false; // end boolean or operation
 }

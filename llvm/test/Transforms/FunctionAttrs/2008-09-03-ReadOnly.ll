@@ -14,3 +14,4 @@ entry:
 }
 
 declare i32 @e() readonly
+

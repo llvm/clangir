@@ -1,5 +1,3 @@
-// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir-enable -fno-clangir-direct-lowering -emit-mlir %s -o %t.mlir
-// RUN: FileCheck --input-file=%t.mlir %s -check-prefix=MLIR
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir-enable -emit-llvm %s -o %t.ll
 // RUN: FileCheck --input-file=%t.ll %s -check-prefix=LLVM
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir-enable -S %s -o %t.s
@@ -8,10 +6,6 @@
 // RUN: llvm-objdump -d %t.o | FileCheck %s -check-prefix=OBJ
 
 void foo() {}
-
-//      MLIR: func.func @foo() {
-// MLIR-NEXT:   return
-// MLIR-NEXT: }
 
 //      LLVM: define void @foo()
 // LLVM-NEXT:   ret void

@@ -154,6 +154,8 @@ bool types::isAcceptedByClang(ID Id) {
   case TY_CXXModule: case TY_PP_CXXModule:
   case TY_AST: case TY_ModuleFile: case TY_PCH:
   case TY_LLVM_IR: case TY_LLVM_BC:
+  case TY_SPIRV:
+  case TY_MLIR_IR:
   case TY_API_INFO:
     return true;
   }
@@ -286,6 +288,29 @@ bool types::isHIP(ID Id) {
   }
 }
 
+bool types::isFPGA(ID Id) {
+  switch (Id) {
+  default:
+    return false;
+
+  case TY_FPGA_AOCR:
+  case TY_FPGA_AOCX:
+  case TY_FPGA_AOCO:
+  case TY_FPGA_AOCR_EMU:
+    return true;
+  }
+}
+
+bool types::isArchive(ID Id) {
+  switch (Id) {
+  default:
+    return false;
+  case TY_Archive:
+  case TY_WholeArchive:
+    return true;
+  }
+}
+
 bool types::isHLSL(ID Id) { return Id == TY_HLSL; }
 
 bool types::isSrcFile(ID Id) {
@@ -360,6 +385,8 @@ types::ID types::lookupTypeForExtension(llvm::StringRef Ext) {
       .Case("cppm", TY_CXXModule)
       .Case("cxxm", TY_CXXModule)
       .Case("hlsl", TY_HLSL)
+      .Case("aocr", TY_FPGA_AOCR)
+      .Case("aocx", TY_FPGA_AOCX)
       .Default(TY_INVALID);
 }
 

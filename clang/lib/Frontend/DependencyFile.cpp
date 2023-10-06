@@ -209,7 +209,8 @@ void DependencyCollector::attachToASTReader(ASTReader &R) {
 
 DependencyFileGenerator::DependencyFileGenerator(
     const DependencyOutputOptions &Opts)
-    : OutputFile(Opts.OutputFile), Targets(Opts.Targets),
+    : OutputFile(Opts.OutputFile),
+      DependencyFilter(Opts.DependencyFilter), Targets(Opts.Targets),
       IncludeSystemHeaders(Opts.IncludeSystemHeaders),
       CanonicalSystemHeaders(Opts.CanonicalSystemHeaders),
       PhonyTarget(Opts.UsePhonyTargets),
@@ -244,6 +245,12 @@ bool DependencyFileGenerator::sawDependency(StringRef Filename, bool FromModule,
     return false;
 
   if (isSpecialFilename(Filename))
+    return false;
+
+  if (DependencyFilter.size() &&
+      DependencyFilter.compare(0, DependencyFilter.size(), Filename.data(),
+                               DependencyFilter.size()) == 0)
+    // Remove dependencies that are prefixed by the Filter string.
     return false;
 
   if (IncludeSystemHeaders)

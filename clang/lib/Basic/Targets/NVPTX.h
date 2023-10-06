@@ -149,6 +149,14 @@ public:
     Opts["cl_khr_global_int32_extended_atomics"] = true;
     Opts["cl_khr_local_int32_base_atomics"] = true;
     Opts["cl_khr_local_int32_extended_atomics"] = true;
+    // PTX actually supports 64 bits operations even if the Nvidia OpenCL
+    // runtime does not report support for it.
+    // This is required for libclc to compile 64 bits atomic functions.
+    // FIXME: maybe we should have a way to control this ?
+    Opts["cl_khr_int64_base_atomics"] = true;
+    Opts["cl_khr_int64_extended_atomics"] = true;
+    Opts["cl_khr_fp16"] = true;
+    Opts["cl_khr_3d_image_writes"] = true;
   }
 
   const llvm::omp::GV &getGridValue() const override {
@@ -177,6 +185,12 @@ public:
     if (HostTarget)
       return HostTarget->checkCallingConvention(CC);
     return CCCR_Warning;
+  }
+
+  void adjust(DiagnosticsEngine &Diags, LangOptions &Opts) override {
+    TargetInfo::adjust(Diags, Opts);
+    // FIXME: Needed for compiling SYCL to PTX.
+    TLSSupported = TLSSupported || Opts.SYCLIsDevice;
   }
 
   bool hasBitIntType() const override { return true; }

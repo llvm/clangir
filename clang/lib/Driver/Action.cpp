@@ -42,12 +42,30 @@ const char *Action::getClassName(ActionClass AC) {
     return "clang-offload-bundler";
   case OffloadUnbundlingJobClass:
     return "clang-offload-unbundler";
+  case OffloadWrapperJobClass:
+    return "clang-offload-wrapper";
   case OffloadPackagerJobClass:
     return "clang-offload-packager";
+  case OffloadDepsJobClass:
+    return "clang-offload-deps";
+  case SPIRVTranslatorJobClass:
+    return "llvm-spirv";
+  case SYCLPostLinkJobClass:
+    return "sycl-post-link";
+  case BackendCompileJobClass:
+    return "backend-compiler";
+  case FileTableTformJobClass:
+    return "file-table-tform";
+  case AppendFooterJobClass:
+    return "append-footer";
   case LinkerWrapperJobClass:
     return "clang-linker-wrapper";
   case StaticLibJobClass:
     return "static-lib-linker";
+  case ForEachWrappingClass:
+    return "foreach";
+  case SpirvToIrWrapperJobClass:
+    return "spirv-to-ir-wrapper";
   case BinaryAnalyzeJobClass:
     return "binary-analyzer";
   }
@@ -62,6 +80,9 @@ void Action::propagateDeviceOffloadInfo(OffloadKind OKind, const char *OArch,
     return;
   // Unbundling actions use the host kinds.
   if (Kind == OffloadUnbundlingJobClass)
+    return;
+  // Deps job uses the host kinds.
+  if (Kind == OffloadDepsJobClass)
     return;
 
   assert((OffloadingDeviceKind == OKind || OffloadingDeviceKind == OFK_None) &&
@@ -111,6 +132,8 @@ std::string Action::getOffloadingKindPrefix() const {
     return "device-openmp";
   case OFK_HIP:
     return "device-hip";
+  case OFK_SYCL:
+    return "device-sycl";
 
     // TODO: Add other programming models here.
   }
@@ -128,6 +151,8 @@ std::string Action::getOffloadingKindPrefix() const {
     Res += "-hip";
   if (ActiveOffloadKindMask & OFK_OpenMP)
     Res += "-openmp";
+  if (ActiveOffloadKindMask & OFK_SYCL)
+    Res += "-sycl";
 
   // TODO: Add other programming models here.
 
@@ -164,6 +189,8 @@ StringRef Action::GetOffloadKindName(OffloadKind Kind) {
     return "openmp";
   case OFK_HIP:
     return "hip";
+  case OFK_SYCL:
+    return "sycl";
 
     // TODO: Add other programming models here.
   }
@@ -320,7 +347,7 @@ void OffloadAction::DeviceDependences::add(Action &A, const ToolChain &TC,
   DeviceBoundArchs.push_back(BoundArch);
 
   // Add each active offloading kind from a mask.
-  for (OffloadKind OKind : {OFK_OpenMP, OFK_Cuda, OFK_HIP})
+  for (OffloadKind OKind : {OFK_OpenMP, OFK_Cuda, OFK_HIP, OFK_SYCL})
     if (OKind & OffloadKindMask)
       DeviceOffloadKinds.push_back(OKind);
 }
@@ -437,11 +464,116 @@ void OffloadUnbundlingJobAction::anchor() {}
 OffloadUnbundlingJobAction::OffloadUnbundlingJobAction(Action *Input)
     : JobAction(OffloadUnbundlingJobClass, Input, Input->getType()) {}
 
+OffloadUnbundlingJobAction::OffloadUnbundlingJobAction(Action *Input,
+                                                       types::ID Type)
+    : JobAction(OffloadUnbundlingJobClass, Input, Type) {}
+
+OffloadUnbundlingJobAction::OffloadUnbundlingJobAction(ActionList &Inputs,
+                                                       types::ID Type)
+    : JobAction(OffloadUnbundlingJobClass, Inputs, Type) {}
+
+void OffloadWrapperJobAction::anchor() {}
+
+OffloadWrapperJobAction::OffloadWrapperJobAction(ActionList &Inputs,
+                                                 types::ID Type)
+    : JobAction(OffloadWrapperJobClass, Inputs, Type), EmbedIR(false) {}
+
+OffloadWrapperJobAction::OffloadWrapperJobAction(Action *Input, types::ID Type,
+                                                 bool IsEmbeddedIR)
+    : JobAction(OffloadWrapperJobClass, Input, Type), EmbedIR(IsEmbeddedIR) {}
+
 void OffloadPackagerJobAction::anchor() {}
 
 OffloadPackagerJobAction::OffloadPackagerJobAction(ActionList &Inputs,
                                                    types::ID Type)
     : JobAction(OffloadPackagerJobClass, Inputs, Type) {}
+
+void OffloadDepsJobAction::anchor() {}
+
+OffloadDepsJobAction::OffloadDepsJobAction(
+    const OffloadAction::HostDependence &HDep, types::ID Type)
+    : JobAction(OffloadDepsJobClass, HDep.getAction(), Type),
+      HostTC(HDep.getToolChain()) {
+  OffloadingArch = HDep.getBoundArch();
+  ActiveOffloadKindMask = HDep.getOffloadKinds();
+  HDep.getAction()->propagateHostOffloadInfo(HDep.getOffloadKinds(),
+                                             HDep.getBoundArch());
+}
+
+void SPIRVTranslatorJobAction::anchor() {}
+
+SPIRVTranslatorJobAction::SPIRVTranslatorJobAction(Action *Input,
+                                                   types::ID Type)
+    : JobAction(SPIRVTranslatorJobClass, Input, Type) {}
+
+void SYCLPostLinkJobAction::anchor() {}
+
+SYCLPostLinkJobAction::SYCLPostLinkJobAction(Action *Input,
+                                             types::ID ShadowOutputType,
+                                             types::ID TrueOutputType)
+    : JobAction(SYCLPostLinkJobClass, Input, ShadowOutputType),
+      TrueOutputType(TrueOutputType) {}
+
+void BackendCompileJobAction::anchor() {}
+
+BackendCompileJobAction::BackendCompileJobAction(ActionList &Inputs,
+                                                 types::ID Type)
+    : JobAction(BackendCompileJobClass, Inputs, Type) {}
+
+BackendCompileJobAction::BackendCompileJobAction(Action *Input,
+                                                 types::ID Type)
+    : JobAction(BackendCompileJobClass, Input, Type) {}
+
+void FileTableTformJobAction::anchor() {}
+
+FileTableTformJobAction::FileTableTformJobAction(Action *Input,
+                                                 types::ID ShadowOutputType,
+                                                 types::ID TrueOutputType)
+    : JobAction(FileTableTformJobClass, Input, ShadowOutputType),
+      TrueOutputType(TrueOutputType) {}
+
+FileTableTformJobAction::FileTableTformJobAction(ActionList &Inputs,
+                                                 types::ID ShadowOutputType,
+                                                 types::ID TrueOutputType)
+    : JobAction(FileTableTformJobClass, Inputs, ShadowOutputType),
+      TrueOutputType(TrueOutputType) {}
+
+void FileTableTformJobAction::addExtractColumnTform(StringRef ColumnName,
+                                                    bool WithColTitle) {
+  auto K = WithColTitle ? Tform::EXTRACT : Tform::EXTRACT_DROP_TITLE;
+  Tforms.emplace_back(Tform(K, {ColumnName}));
+}
+
+void FileTableTformJobAction::addReplaceColumnTform(StringRef From,
+                                                    StringRef To) {
+  Tforms.emplace_back(Tform(Tform::REPLACE, {From, To}));
+}
+
+void FileTableTformJobAction::addReplaceCellTform(StringRef ColumnName,
+                                                  int Row) {
+  Tforms.emplace_back(
+      Tform(Tform::REPLACE_CELL, {ColumnName, std::to_string(Row)}));
+}
+
+void FileTableTformJobAction::addRenameColumnTform(StringRef From,
+                                                   StringRef To) {
+  Tforms.emplace_back(Tform(Tform::RENAME, {From, To}));
+}
+
+void FileTableTformJobAction::addCopySingleFileTform(StringRef ColumnName,
+                                                     int Row) {
+  Tforms.emplace_back(
+      Tform(Tform::COPY_SINGLE_FILE, {ColumnName, std::to_string(Row)}));
+}
+
+void FileTableTformJobAction::addMergeTform(StringRef ColumnName) {
+  Tforms.emplace_back(Tform(Tform::MERGE, {ColumnName}));
+}
+
+void AppendFooterJobAction::anchor() {}
+
+AppendFooterJobAction::AppendFooterJobAction(Action *Input, types::ID Type)
+    : JobAction(AppendFooterJobClass, Input, Type) {}
 
 void LinkerWrapperJobAction::anchor() {}
 
@@ -454,6 +586,23 @@ void StaticLibJobAction::anchor() {}
 StaticLibJobAction::StaticLibJobAction(ActionList &Inputs, types::ID Type)
     : JobAction(StaticLibJobClass, Inputs, Type) {}
 
+void SpirvToIrWrapperJobAction::anchor() {}
+
+SpirvToIrWrapperJobAction::SpirvToIrWrapperJobAction(Action *Input,
+                                                     types::ID Type)
+    : JobAction(SpirvToIrWrapperJobClass, Input, Type) {}
+
+ForEachWrappingAction::ForEachWrappingAction(JobAction *TFormInput,
+                                             JobAction *Job)
+    : Action(ForEachWrappingClass, {TFormInput, Job}, Job->getType()) {}
+
+JobAction *ForEachWrappingAction::getTFormInput() const {
+  return llvm::cast<JobAction>(getInputs()[0]);
+}
+
+JobAction *ForEachWrappingAction::getJobAction() const {
+  return llvm::cast<JobAction>(getInputs()[1]);
+}
 void BinaryAnalyzeJobAction::anchor() {}
 
 BinaryAnalyzeJobAction::BinaryAnalyzeJobAction(Action *Input, types::ID Type)

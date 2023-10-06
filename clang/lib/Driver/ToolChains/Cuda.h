@@ -9,6 +9,7 @@
 #ifndef LLVM_CLANG_LIB_DRIVER_TOOLCHAINS_CUDA_H
 #define LLVM_CLANG_LIB_DRIVER_TOOLCHAINS_CUDA_H
 
+#include "SYCL.h"
 #include "clang/Basic/Cuda.h"
 #include "clang/Driver/Action.h"
 #include "clang/Driver/Multilib.h"
@@ -120,6 +121,32 @@ public:
                     const char *LinkingOutput) const override;
 };
 
+class LLVM_LIBRARY_VISIBILITY OpenMPLinker : public Tool {
+ public:
+   OpenMPLinker(const ToolChain &TC)
+       : Tool("NVPTX::OpenMPLinker", "nvlink", TC) {}
+
+   bool hasIntegratedCPP() const override { return false; }
+
+   void ConstructJob(Compilation &C, const JobAction &JA,
+                     const InputInfo &Output, const InputInfoList &Inputs,
+                     const llvm::opt::ArgList &TCArgs,
+                     const char *LinkingOutput) const override;
+};
+
+class LLVM_LIBRARY_VISIBILITY SYCLLinker : public FatBinary {
+public:
+  SYCLLinker(const ToolChain &TC) : FatBinary(TC) {}
+
+  Tool* GetSYCLToolChainLinker() const {
+    if (!SYCLToolChainLinker)
+      SYCLToolChainLinker.reset(new SYCL::Linker(getToolChain()));
+    return SYCLToolChainLinker.get();
+  }
+private:
+  mutable std::unique_ptr<Tool> SYCLToolChainLinker;
+};
+
 void getNVPTXTargetFeatures(const Driver &D, const llvm::Triple &Triple,
                             const llvm::opt::ArgList &Args,
                             std::vector<StringRef> &Features);
@@ -181,7 +208,8 @@ private:
 class LLVM_LIBRARY_VISIBILITY CudaToolChain : public NVPTXToolChain {
 public:
   CudaToolChain(const Driver &D, const llvm::Triple &Triple,
-                const ToolChain &HostTC, const llvm::opt::ArgList &Args);
+                const ToolChain &HostTC, const llvm::opt::ArgList &Args,
+                const Action::OffloadKind OK);
 
   const llvm::Triple *getAuxTriple() const override {
     return &HostTC.getTriple();
@@ -221,6 +249,7 @@ public:
   computeMSVCVersion(const Driver *D,
                      const llvm::opt::ArgList &Args) const override;
 
+  Tool *SelectTool(const JobAction &JA) const override;
   const ToolChain &HostTC;
 
   /// Uses nvptx-arch tool to get arch of the system GPU. Will return error
@@ -231,6 +260,9 @@ public:
 protected:
   Tool *buildAssembler() const override; // ptxas
   Tool *buildLinker() const override;    // fatbinary (ok, not really a linker)
+
+private:
+  const Action::OffloadKind OK;
 };
 
 } // end namespace toolchains

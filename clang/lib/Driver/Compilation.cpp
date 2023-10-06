@@ -21,9 +21,11 @@
 #include "llvm/Option/OptSpecifier.h"
 #include "llvm/Option/Option.h"
 #include "llvm/Support/FileSystem.h"
+#include "llvm/Support/SimpleTable.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/TargetParser/Triple.h"
 #include <cassert>
+#include <fstream>
 #include <string>
 #include <system_error>
 #include <utility>
@@ -66,26 +68,28 @@ Compilation::getArgsForToolChain(const ToolChain *TC, StringRef BoundArch,
   DerivedArgList *&Entry = TCArgs[{TC, BoundArch, DeviceOffloadKind}];
   if (!Entry) {
     SmallVector<Arg *, 4> AllocatedArgs;
-    DerivedArgList *OpenMPArgs = nullptr;
-    // Translate OpenMP toolchain arguments provided via the -Xopenmp-target flags.
-    if (DeviceOffloadKind == Action::OFK_OpenMP) {
+    DerivedArgList *OffloadArgs = nullptr;
+    // Translate offload toolchain arguments provided via the -Xopenmp-target
+    // or -Xsycl-target-frontend flags.
+    if (DeviceOffloadKind == Action::OFK_OpenMP ||
+        DeviceOffloadKind == Action::OFK_SYCL) {
       const ToolChain *HostTC = getSingleOffloadToolChain<Action::OFK_Host>();
       bool SameTripleAsHost = (TC->getTriple() == HostTC->getTriple());
-      OpenMPArgs = TC->TranslateOpenMPTargetArgs(
-          *TranslatedArgs, SameTripleAsHost, AllocatedArgs);
+      OffloadArgs = TC->TranslateOffloadTargetArgs(
+          *TranslatedArgs, SameTripleAsHost, AllocatedArgs, DeviceOffloadKind);
     }
 
     DerivedArgList *NewDAL = nullptr;
-    if (!OpenMPArgs) {
+    if (!OffloadArgs) {
       NewDAL = TC->TranslateXarchArgs(*TranslatedArgs, BoundArch,
                                       DeviceOffloadKind, &AllocatedArgs);
     } else {
-      NewDAL = TC->TranslateXarchArgs(*OpenMPArgs, BoundArch, DeviceOffloadKind,
+      NewDAL = TC->TranslateXarchArgs(*OffloadArgs, BoundArch, DeviceOffloadKind,
                                       &AllocatedArgs);
       if (!NewDAL)
-        NewDAL = OpenMPArgs;
+        NewDAL = OffloadArgs;
       else
-        delete OpenMPArgs;
+        delete OffloadArgs;
     }
 
     if (!NewDAL) {
@@ -138,11 +142,42 @@ bool Compilation::CleanupFile(const char *File, bool IssueErrors) const {
   return true;
 }
 
-bool Compilation::CleanupFileList(const llvm::opt::ArgStringList &Files,
+bool Compilation::CleanupFileList(const TempFileList &Files,
                                   bool IssueErrors) const {
   bool Success = true;
-  for (const auto &File: Files)
-    Success &= CleanupFile(File, IssueErrors);
+  for (const auto &File: Files) {
+    // Temporary file lists contain files that need to be cleaned. The
+    // file containing the information is also removed
+    if (File.second == types::TY_Tempfilelist ||
+        File.second == types::TY_Tempfiletable ||
+        File.second == types::TY_FPGA_Dependencies_List) {
+      // These are temporary files and need to be removed.
+      bool IsTable = File.second == types::TY_Tempfiletable;
+
+      if (IsTable) {
+        if (llvm::sys::fs::exists(File.first)) {
+          auto T = llvm::util::SimpleTable::read(File.first);
+          if (!T) {
+            Success = false;
+            continue;
+          }
+          std::vector<std::string> TmpFileNames;
+          T->get()->linearize(TmpFileNames);
+
+          for (const auto &TmpFileName : TmpFileNames) {
+            if (!TmpFileName.empty())
+              Success &= CleanupFile(TmpFileName.c_str(), IssueErrors);
+          }
+        }
+      } else {
+        std::ifstream ListFile(File.first);
+        std::string TmpFileName;
+        while (std::getline(ListFile, TmpFileName) && !TmpFileName.empty())
+          Success &= CleanupFile(TmpFileName.c_str(), IssueErrors);
+      }
+    }
+    Success &= CleanupFile(File.first, IssueErrors);
+  }
   return Success;
 }
 
@@ -204,6 +239,14 @@ int Compilation::ExecuteCommand(const Command &C,
     getDriver().Diag(diag::err_drv_command_failure) << Error;
   }
 
+  // When performing preprocessing, we need to be able to produce the
+  // preprocessed output even if the compilation is not valid.  If
+  // the device compilation fails for SYCL allow the failure to pass
+  // through so we can still generate the expected preprocessed files.
+  if (Res && C.getSource().isDeviceOffloading(Action::OFK_SYCL) &&
+      getArgs().hasArg(options::OPT_E))
+    return 0;
+
   if (Res)
     FailingCommand = &C;
 
@@ -217,10 +260,15 @@ static bool ActionFailed(const Action *A,
   if (FailingCommands.empty())
     return false;
 
-  // CUDA/HIP can have the same input source code compiled multiple times so do
-  // not compiled again if there are already failures. It is OK to abort the
-  // CUDA pipeline on errors.
-  if (A->isOffloading(Action::OFK_Cuda) || A->isOffloading(Action::OFK_HIP))
+  for (const auto &CI : FailingCommands)
+    if (!CI.second->getWillExitForErrorCode(CI.first))
+      return false;
+
+  // CUDA/HIP/SYCL can have the same input source code compiled multiple times
+  // so do not compile again if there are already failures. It is OK to abort
+  // the CUDA pipeline on errors.
+  if (A->isOffloading(Action::OFK_Cuda) || A->isOffloading(Action::OFK_HIP) ||
+      A->isOffloading(Action::OFK_SYCL))
     return true;
 
   for (const auto &CI : FailingCommands)
@@ -253,7 +301,9 @@ void Compilation::ExecuteJobs(const JobList &Jobs,
     if (int Res = ExecuteCommand(Job, FailingCommand, LogOnly)) {
       FailingCommands.push_back(std::make_pair(Res, FailingCommand));
       // Bail as soon as one command fails in cl driver mode.
-      if (TheDriver.IsCLMode())
+      // Do not bail when the tool is setup to allow for continuation upon
+      // failure.
+      if (TheDriver.IsCLMode() && FailingCommand->getWillExitForErrorCode(Res))
         return;
     }
   }

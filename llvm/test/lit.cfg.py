@@ -219,6 +219,7 @@ tools.extend(
         "llvm-rtdyld",
         "llvm-sim",
         "llvm-size",
+        "llvm-spirv",
         "llvm-split",
         "llvm-stress",
         "llvm-strings",
@@ -241,6 +242,7 @@ tools.extend(
         "sancov",
         "sanstats",
         "llvm-remarkutil",
+        "spirv-to-ir-wrapper",
     ]
 )
 

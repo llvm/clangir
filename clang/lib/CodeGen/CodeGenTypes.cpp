@@ -128,6 +128,7 @@ bool CodeGenTypes::isRecordLayoutComplete(const Type *Ty) const {
 /// isFuncParamTypeConvertible - Return true if the specified type in a
 /// function parameter or result position can be converted to an IR type at this
 /// point. This boils down to being whether it is complete.
+
 bool CodeGenTypes::isFuncParamTypeConvertible(QualType Ty) {
   // Some ABIs cannot have their member pointers represented in IR unless
   // certain circumstances have been reached.
@@ -138,6 +139,7 @@ bool CodeGenTypes::isFuncParamTypeConvertible(QualType Ty) {
   const TagType *TT = Ty->getAs<TagType>();
   if (!TT) return true;
 
+  // Incomplete types cannot be converted.
   // Incomplete types cannot be converted.
   return !TT->isIncompleteType();
 }
@@ -175,6 +177,10 @@ void CodeGenTypes::UpdateCompletedType(const TagDecl *TD) {
       if (!ConvertType(ED->getIntegerType())->isIntegerTy(32))
         TypeCache.clear();
     }
+    // If this is the SYCL aspect enum it is saved for later processing.
+    if (const auto *Attr = ED->getAttr<SYCLTypeAttr>())
+      if (Attr->getType() == SYCLTypeAttr::SYCLType::aspect)
+        CGM.setAspectsEnumDecl(ED);
     // If necessary, provide the full definition of a type only used with a
     // declaration so far.
     if (CGDebugInfo *DI = CGM.getModuleDebugInfo())
@@ -283,6 +289,77 @@ llvm::Type *CodeGenTypes::ConvertFunctionTypeInternal(QualType QFT) {
   }
 
   return ResultType;
+}
+
+template <bool NeedTypeInterpret = false>
+llvm::Type *getJointMatrixINTELExtType(llvm::Type *CompTy,
+                                       ArrayRef<TemplateArgument> TemplateArgs,
+                                       const unsigned Val = 0) {
+  // TODO: we should actually have exactly 5 template parameters: 1 for
+  // type and 4 for type parameters. But in previous version of the SPIR-V
+  // spec we have Layout matrix type parameter, that was later removed.
+  // Once we update to the newest version of the spec - this should be updated.
+  assert((TemplateArgs.size() == 5 || TemplateArgs.size() == 6) &&
+         "Wrong JointMatrixINTEL template parameters number");
+  // This is required to represent optional 'Component Type Interpretation'
+  // parameter
+  std::vector<unsigned> Params;
+  for (size_t I = 1; I != TemplateArgs.size(); ++I) {
+    assert(TemplateArgs[I].getKind() == TemplateArgument::Integral &&
+           "Wrong JointMatrixINTEL template parameter");
+    Params.push_back(TemplateArgs[I].getAsIntegral().getExtValue());
+  }
+  // Don't add type interpretation for legacy matrices.
+  // Legacy matrices has 5 template parameters, while new representation
+  // has 6.
+  if (NeedTypeInterpret && TemplateArgs.size() != 5)
+    Params.push_back(Val);
+
+  return llvm::TargetExtType::get(CompTy->getContext(),
+                                  "spirv.JointMatrixINTEL", {CompTy}, Params);
+}
+
+/// ConvertSYCLJointMatrixINTELType - Convert SYCL joint_matrix type
+/// which is represented as a pointer to a structure to LLVM extension type
+/// with the parameters that follow SPIR-V JointMatrixINTEL type.
+/// The expected representation is:
+/// target("spirv.JointMatrixINTEL", %element_type, %rows%, %cols%, %scope%,
+///        %use%, (optional) %element_type_interpretation%)
+llvm::Type *CodeGenTypes::ConvertSYCLJointMatrixINTELType(RecordDecl *RD) {
+  auto *TemplateDecl = cast<ClassTemplateSpecializationDecl>(RD);
+  ArrayRef<TemplateArgument> TemplateArgs =
+      TemplateDecl->getTemplateArgs().asArray();
+  assert(TemplateArgs[0].getKind() == TemplateArgument::Type &&
+         "1st JointMatrixINTEL template parameter must be type");
+  llvm::Type *CompTy = ConvertType(TemplateArgs[0].getAsType());
+
+  // Per JointMatrixINTEL spec the type can have an optional
+  // 'Component Type Interpretation' parameter. We should emit it in case
+  // if on SYCL level joint matrix accepts 'bfloat16' or 'tf32' objects as
+  // matrix's components. Yet 'bfloat16' should be represented as 'int16' and
+  // 'tf32' as 'float' types.
+  if (CompTy->isStructTy()) {
+    StringRef LlvmTyName = CompTy->getStructName();
+    // Emit half/int16/float for sycl[::*]::{half,bfloat16,tf32}
+    if (LlvmTyName.startswith("class.sycl::") ||
+        LlvmTyName.startswith("class.__sycl_internal::"))
+      LlvmTyName = LlvmTyName.rsplit("::").second;
+    if (LlvmTyName == "half") {
+      CompTy = llvm::Type::getHalfTy(getLLVMContext());
+      return getJointMatrixINTELExtType(CompTy, TemplateArgs);
+    } else if (LlvmTyName == "tf32") {
+      CompTy = llvm::Type::getFloatTy(getLLVMContext());
+      // 'tf32' interpretation is mapped to '0'
+      return getJointMatrixINTELExtType<true>(CompTy, TemplateArgs, 0);
+    } else if (LlvmTyName == "bfloat16") {
+      CompTy = llvm::Type::getInt16Ty(getLLVMContext());
+      // 'bfloat16' interpretation is mapped to '1'
+      return getJointMatrixINTELExtType<true>(CompTy, TemplateArgs, 1);
+    } else {
+      llvm_unreachable("Wrong matrix base type!");
+    }
+  }
+  return getJointMatrixINTELExtType(CompTy, TemplateArgs);
 }
 
 /// ConvertType - Convert the specified type to its LLVM form.
@@ -430,6 +507,11 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
 #define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix) \
     case BuiltinType::Id:
 #include "clang/Basic/OpenCLImageTypes.def"
+#define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix)                   \
+  case BuiltinType::Sampled##Id:
+#define IMAGE_WRITE_TYPE(Type, Id, Ext)
+#define IMAGE_READ_WRITE_TYPE(Type, Id, Ext)
+#include "clang/Basic/OpenCLImageTypes.def"
 #define EXT_OPAQUE_TYPE(ExtType, Id, Ext) \
     case BuiltinType::Id:
 #include "clang/Basic/OpenCLExtensionTypes.def"
@@ -554,13 +636,28 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
     QualType ETy = RTy->getPointeeType();
     unsigned AS = getTargetAddressSpace(ETy);
     ResultType = llvm::PointerType::get(getLLVMContext(), AS);
+
     break;
   }
   case Type::Pointer: {
     const PointerType *PTy = cast<PointerType>(Ty);
     QualType ETy = PTy->getPointeeType();
+
+    if (CGM.getTriple().isSPIRV() || CGM.getTriple().isSPIR()) {
+      const Type *ClangETy = ETy.getTypePtrOrNull();
+      if (ClangETy && ClangETy->isStructureOrClassType()) {
+        RecordDecl *RD = ClangETy->getAsCXXRecordDecl();
+        if (RD && RD->getQualifiedNameAsString() ==
+                      "__spv::__spirv_JointMatrixINTEL") {
+          ResultType = ConvertSYCLJointMatrixINTELType(RD);
+          break;
+        }
+      }
+    }
+
     unsigned AS = getTargetAddressSpace(ETy);
     ResultType = llvm::PointerType::get(getLLVMContext(), AS);
+
     break;
   }
 
@@ -637,9 +734,10 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
     break;
   }
 
-  case Type::ObjCObjectPointer:
+  case Type::ObjCObjectPointer: {
     ResultType = llvm::PointerType::getUnqual(getLLVMContext());
     break;
+  }
 
   case Type::Enum: {
     const EnumDecl *ED = cast<EnumType>(Ty)->getDecl();
@@ -653,13 +751,13 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
   }
 
   case Type::BlockPointer: {
+    const QualType FTy = cast<BlockPointerType>(Ty)->getPointeeType();
     // Block pointers lower to function type. For function type,
     // getTargetAddressSpace() returns default address space for
     // function pointer i.e. program address space. Therefore, for block
     // pointers, it is important to pass the pointee AST address space when
     // calling getTargetAddressSpace(), to ensure that we get the LLVM IR
     // address space for data pointers and not function pointers.
-    const QualType FTy = cast<BlockPointerType>(Ty)->getPointeeType();
     unsigned AS = Context.getTargetAddressSpace(FTy.getAddressSpace());
     ResultType = llvm::PointerType::get(getLLVMContext(), AS);
     break;
@@ -711,7 +809,6 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
   assert(ResultType && "Didn't convert a type?");
   assert((!CachedType || CachedType == ResultType) &&
          "Cached type doesn't match computed type");
-
   TypeCache[Ty] = ResultType;
   return ResultType;
 }
@@ -736,6 +833,8 @@ llvm::StructType *CodeGenTypes::ConvertRecordDeclType(const RecordDecl *RD) {
   if (!Entry) {
     Entry = llvm::StructType::create(getLLVMContext());
     addRecordTypeName(RD, Entry, "");
+    if (RD->hasAttr<SYCLUsesAspectsAttr>())
+      CGM.addTypeWithAspects(Entry->getName(), RD);
   }
   llvm::StructType *Ty = Entry;
 

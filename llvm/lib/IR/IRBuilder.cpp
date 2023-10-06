@@ -192,7 +192,6 @@ CallInst *IRBuilderBase::CreateMemSetInline(Value *Dst, MaybeAlign DstAlign,
 CallInst *IRBuilderBase::CreateElementUnorderedAtomicMemSet(
     Value *Ptr, Value *Val, Value *Size, Align Alignment, uint32_t ElementSize,
     MDNode *TBAATag, MDNode *ScopeTag, MDNode *NoAliasTag) {
-
   Value *Ops[] = {Ptr, Val, Size, getInt32(ElementSize)};
   Type *Tys[] = {Ptr->getType(), Size->getType()};
   Module *M = BB->getParent()->getParent();
@@ -223,6 +222,7 @@ CallInst *IRBuilderBase::CreateMemTransferInst(
   assert((IntrID == Intrinsic::memcpy || IntrID == Intrinsic::memcpy_inline ||
           IntrID == Intrinsic::memmove) &&
          "Unexpected intrinsic ID");
+
   Value *Ops[] = {Dst, Src, Size, getInt1(isVolatile)};
   Type *Tys[] = { Dst->getType(), Src->getType(), Size->getType() };
   Module *M = BB->getParent()->getParent();
@@ -261,6 +261,7 @@ CallInst *IRBuilderBase::CreateElementUnorderedAtomicMemCpy(
          "Pointer alignment must be at least element size");
   assert(SrcAlign >= ElementSize &&
          "Pointer alignment must be at least element size");
+
   Value *Ops[] = {Dst, Src, Size, getInt32(ElementSize)};
   Type *Tys[] = {Dst->getType(), Src->getType(), Size->getType()};
   Module *M = BB->getParent()->getParent();
@@ -377,6 +378,7 @@ CallInst *IRBuilderBase::CreateElementUnorderedAtomicMemMove(
          "Pointer alignment must be at least element size");
   assert(SrcAlign >= ElementSize &&
          "Pointer alignment must be at least element size");
+
   Value *Ops[] = {Dst, Src, Size, getInt32(ElementSize)};
   Type *Tys[] = {Dst->getType(), Src->getType(), Size->getType()};
   Module *M = BB->getParent()->getParent();
@@ -1146,6 +1148,7 @@ Value *IRBuilderBase::CreatePtrDiff(Type *ElemTy, Value *LHS, Value *RHS,
 Value *IRBuilderBase::CreateLaunderInvariantGroup(Value *Ptr) {
   assert(isa<PointerType>(Ptr->getType()) &&
          "launder.invariant.group only applies to pointers.");
+  // FIXME: we could potentially avoid casts to/from i8*.
   auto *PtrType = Ptr->getType();
   Module *M = BB->getParent()->getParent();
   Function *FnLaunderInvariantGroup = Intrinsic::getDeclaration(
@@ -1163,6 +1166,7 @@ Value *IRBuilderBase::CreateStripInvariantGroup(Value *Ptr) {
   assert(isa<PointerType>(Ptr->getType()) &&
          "strip.invariant.group only applies to pointers.");
 
+  // FIXME: we could potentially avoid casts to/from i8*.
   auto *PtrType = Ptr->getType();
   Module *M = BB->getParent()->getParent();
   Function *FnStripInvariantGroup = Intrinsic::getDeclaration(

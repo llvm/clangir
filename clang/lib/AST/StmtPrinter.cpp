@@ -1254,6 +1254,12 @@ void StmtPrinter::VisitSYCLUniqueStableNameExpr(
   OS << ")";
 }
 
+void StmtPrinter::VisitSYCLUniqueStableIdExpr(SYCLUniqueStableIdExpr *Node) {
+  OS << "__builtin_sycl_unique_stable_id(";
+  PrintExpr(Node->getExpr());
+  OS << ")";
+}
+
 void StmtPrinter::VisitPredefinedExpr(PredefinedExpr *Node) {
   OS << PredefinedExpr::getIdentKindName(Node->getIdentKind());
 }
@@ -1960,6 +1966,34 @@ void StmtPrinter::VisitBuiltinBitCastExpr(BuiltinBitCastExpr *Node) {
   Node->getTypeInfoAsWritten()->getType().print(OS, Policy);
   OS << ", ";
   PrintExpr(Node->getSubExpr());
+  OS << ")";
+}
+
+void StmtPrinter::VisitSYCLBuiltinNumFieldsExpr(SYCLBuiltinNumFieldsExpr *E) {
+  OS << "__builtin_num_fields(";
+  E->getSourceType().print(OS, Policy);
+  OS << ")";
+}
+
+void StmtPrinter::VisitSYCLBuiltinFieldTypeExpr(SYCLBuiltinFieldTypeExpr *E) {
+  OS << "__builtin_field_type(";
+  E->getSourceType().print(OS, Policy);
+  OS << ", ";
+  PrintExpr(E->getIndex());
+  OS << ")";
+}
+
+void StmtPrinter::VisitSYCLBuiltinNumBasesExpr(SYCLBuiltinNumBasesExpr *E) {
+  OS << "__builtin_num_bases(";
+  E->getSourceType().print(OS, Policy);
+  OS << ")";
+}
+
+void StmtPrinter::VisitSYCLBuiltinBaseTypeExpr(SYCLBuiltinBaseTypeExpr *E) {
+  OS << "__builtin_base_type(";
+  E->getSourceType().print(OS, Policy);
+  OS << ", ";
+  PrintExpr(E->getIndex());
   OS << ")";
 }
 

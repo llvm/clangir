@@ -1,5 +1,5 @@
-// RUN: %clang_cc1 %s -std=c++17 -triple x86_64-pc-windows-msvc -fsycl-is-device -verify -fsyntax-only -Wno-unused
-// RUN: %clang_cc1 %s -std=c++17 -triple x86_64-linux-gnu -fsycl-is-device -verify -fsyntax-only -Wno-unused
+// RUN: %clang_cc1 %s -std=c++17 -triple x86_64-pc-windows-msvc -Wno-sycl-2020-compat -fsycl-is-device -verify -fsyntax-only -Wno-unused
+// RUN: %clang_cc1 %s -std=c++17 -triple x86_64-linux-gnu -Wno-sycl-2020-compat -fsycl-is-device -verify -fsyntax-only -Wno-unused
 
 template <typename KernelName, typename KernelType>
 [[clang::sycl_kernel]] void kernel_single_task(KernelType kernelFunc) { // #kernelSingleTask
@@ -43,7 +43,7 @@ void callkernel2() {
 
 template <template <typename> typename Outer, typename Inner>
 struct S {
-  void operator()() const;
+  void operator()() const {}
 };
 
 template <typename Ty>
@@ -54,8 +54,8 @@ void kernel3_4func(const Func &F) {
   // Test that passing the same lambda to two kernels does not cause an error
   // because the kernel uses do not interfere with each other or invalidate
   // the stable name in any way.
-  kernel_single_task<class kernel3>(F);
-  kernel_single_task<class kernel4>(F);
+  kernel_single_task<Func>(F);
+  kernel_single_task<Func>(F);
   // Using the same functor twice should be fine
 }
 
@@ -82,8 +82,9 @@ int main() {
   auto l5 = []() {};
   constexpr const char *l5_output =
       __builtin_sycl_unique_stable_name(decltype(l5));
-  kernel_single_task<class kernel5>(
-      [=]() { l5(); }); // Used in the kernel, but not the kernel name itself
+  auto l5_wrapper = [=]() { l5(); };
+  // Used in the kernel, but not the kernel name itself
+  kernel_single_task<decltype(l5_wrapper)>(l5_wrapper);
 
   // kernel6 - expect no error
   // Test that passing the lambda to the unique stable name builtin and then
@@ -118,7 +119,7 @@ int main() {
   constexpr const char *l10_output =
       __builtin_sycl_unique_stable_name(decltype(l10)); // #USN_l10
   if constexpr (1) {
-    kernel_single_task<class kernel8>(l9);
+    kernel_single_task<decltype(l9)>(l9);
   } else {
     kernel_single_task<class kernel9>(l10);
   }
@@ -132,7 +133,7 @@ int main() {
   auto l12 = [l11]() { return 2; };
   constexpr const char *l11_output =
       __builtin_sycl_unique_stable_name(decltype(l11));
-  kernel_single_task<class kernel11>(l12);
+  kernel_single_task<decltype(l12)>(l12);
 
   // kernel12 - expect no error
   // Test that passing a lambda to the unique stable name builtin and then

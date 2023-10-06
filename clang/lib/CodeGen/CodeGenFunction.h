@@ -1597,6 +1597,28 @@ private:
   SourceLocation LastStopPoint;
 
 public:
+  /// Class to manage the BuiltinID for the current builtin expression during
+  /// processing in EmitBuiltinExpr.
+  class CurrentBuiltinIDRAII {
+    CodeGenFunction &CGF;
+    unsigned SavedBuiltinID;
+
+  public:
+    CurrentBuiltinIDRAII(CodeGenFunction &CGF, unsigned BuiltinID)
+        : CGF(CGF), SavedBuiltinID(CGF.CurrentBuiltinID) {
+      CGF.CurrentBuiltinID = BuiltinID;
+    }
+    ~CurrentBuiltinIDRAII() { CGF.CurrentBuiltinID = SavedBuiltinID; }
+  };
+
+private:
+  unsigned CurrentBuiltinID = /*NotBuiltin*/ 0;
+
+public:
+  unsigned getCurrentBuiltinID() const {
+    assert(CurrentBuiltinID != /*NotBuiltin*/ 0);
+    return CurrentBuiltinID;
+  }
   /// Source location information about the default argument or member
   /// initializer expression we're evaluating, if any.
   CurrentSourceLocExprScope CurSourceLocExprScope;
@@ -4320,6 +4342,17 @@ public:
                                llvm::AtomicOrdering &AO,
                                llvm::SyncScope::ID &SSID);
 
+  RValue EmitIntelFPGARegBuiltin(const CallExpr *E,
+                                 ReturnValueSlot ReturnValue);
+  RValue EmitIntelFPGAMemBuiltin(const CallExpr *E);
+
+  RValue EmitIntelSYCLPtrAnnotationBuiltin(const CallExpr *E);
+
+  llvm::CallInst *
+  EmitFPBuiltinIndirectCall(llvm::FunctionType *IRFuncTy,
+                            const SmallVectorImpl<llvm::Value *> &IRArgs,
+                            llvm::Value *FnPtr, const FunctionDecl *FD);
+
   enum class MSVCIntrin;
   llvm::Value *EmitMSVCBuiltinExpr(MSVCIntrin BuiltinID, const CallExpr *E);
 
@@ -4568,7 +4601,7 @@ public:
                                   llvm::Value *AnnotatedVal,
                                   StringRef AnnotationStr,
                                   SourceLocation Location,
-                                  const AnnotateAttr *Attr);
+                                  const AnnotateAttr *Attr = nullptr);
 
   /// Emit local annotations for the local variable V, declared by D.
   void EmitVarAnnotations(const VarDecl *D, llvm::Value *V);
@@ -4577,6 +4610,28 @@ public:
   /// annotation result.
   Address EmitFieldAnnotations(const FieldDecl *D, Address V);
 
+  /// Emit a "sycl-properties" annotation call (intrinsic).
+  llvm::Value *
+  EmitSYCLAnnotationCall(llvm::Function *AnnotationFn,
+                         llvm::Value *AnnotatedVal, SourceLocation Location,
+                         const SYCLAddIRAnnotationsMemberAttr *Attr);
+
+  llvm::Value *EmitSYCLAnnotationCall(
+      llvm::Function *AnnotationFn, llvm::Value *AnnotatedVal,
+      SourceLocation Location,
+      llvm::SmallVectorImpl<std::pair<std::string, std::string>> &Pair);
+
+  /// Emit sycl field annotations for given field & value. Returns the
+  /// annotation result.
+  Address EmitFieldSYCLAnnotations(const FieldDecl *D, Address V);
+
+  /// Emit Intel FPGA field annotations for the given field and value. Returns
+  /// the annotation result.
+  Address EmitIntelFPGAFieldAnnotations(const FieldDecl *D, Address V,
+                                        StringRef AnnotStr);
+
+  Address EmitIntelFPGAFieldAnnotations(SourceLocation Location, Address V,
+                                        StringRef AnnotStr);
   //===--------------------------------------------------------------------===//
   //                             Internal Helpers
   //===--------------------------------------------------------------------===//

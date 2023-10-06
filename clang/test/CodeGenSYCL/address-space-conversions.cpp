@@ -16,7 +16,7 @@ template <typename T>
 void tmpl(T t) {}
 // See Check Lines below.
 
-void usages() {
+__attribute__((sycl_device)) void usages() {
   // CHECK-DAG: [[GLOB:%[a-zA-Z0-9]+]] = alloca ptr addrspace(1)
   // CHECK-DAG: [[GLOB]].ascast = addrspacecast ptr [[GLOB]] to ptr addrspace(4)
   __attribute__((opencl_global)) int *GLOB;

@@ -1236,6 +1236,7 @@ Address CodeGenFunction::GetAddrOfBlockDecl(const VarDecl *variable) {
     // to byref*.
 
     auto &byrefInfo = getBlockByrefInfo(variable);
+
     addr = Address(Builder.CreateLoad(addr), byrefInfo.Type,
                    byrefInfo.ByrefAlignment);
 
@@ -2134,8 +2135,8 @@ public:
 
   void emitCopy(CodeGenFunction &CGF, Address destField,
                 Address srcField) override {
-    destField = destField.withElementType(CGF.Int8Ty);
 
+    destField = destField.withElementType(CGF.Int8Ty);
     srcField = srcField.withElementType(CGF.Int8PtrTy);
     llvm::Value *srcValue = CGF.Builder.CreateLoad(srcField);
 

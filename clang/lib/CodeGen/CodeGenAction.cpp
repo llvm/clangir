@@ -36,11 +36,13 @@
 #include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/LLVMRemarkStreamer.h"
+#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IRReader/IRReader.h"
 #include "llvm/LTO/LTOBackend.h"
 #include "llvm/Linker/Linker.h"
 #include "llvm/Pass.h"
+#include "llvm/SYCLLowerIR/LowerWGScope.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/TimeProfiler.h"
@@ -324,28 +326,33 @@ namespace clang {
         return;
 
       LLVMContext &Ctx = getModule()->getContext();
+
       std::unique_ptr<DiagnosticHandler> OldDiagnosticHandler =
           Ctx.getDiagnosticHandler();
       Ctx.setDiagnosticHandler(std::make_unique<ClangDiagnosticHandler>(
         CodeGenOpts, this));
+      // The diagnostic handler is now processed in OptRecordFileRAII.
 
-      Expected<std::unique_ptr<llvm::ToolOutputFile>> OptRecordFileOrErr =
-          setupLLVMOptimizationRemarks(
-              Ctx, CodeGenOpts.OptRecordFile, CodeGenOpts.OptRecordPasses,
-              CodeGenOpts.OptRecordFormat, CodeGenOpts.DiagnosticsWithHotness,
-              CodeGenOpts.DiagnosticsHotnessThreshold);
+      // The parallel_for_work_group legalization pass can emit calls to
+      // builtins function. Definitions of those builtins can be provided in
+      // LinkModule. We force the pass to legalize the code before the link
+      // happens.
+      if (LangOpts.SYCLIsDevice) {
+        PrettyStackTraceString CrashInfo("Pre-linking SYCL passes");
 
-      if (Error E = OptRecordFileOrErr.takeError()) {
-        reportOptRecordError(std::move(E), Diags, CodeGenOpts);
-        return;
+        FunctionAnalysisManager FAM;
+        ModuleAnalysisManager MAM;
+        MAM.registerPass([&] { return PassInstrumentationAnalysis(); });
+        MAM.registerPass(
+            [&] { return FunctionAnalysisManagerModuleProxy(FAM); });
+        FAM.registerPass(
+            [&] { return ModuleAnalysisManagerFunctionProxy(MAM); });
+
+        ModulePassManager PreLinkingSyclPasses;
+        PreLinkingSyclPasses.addPass(
+            createModuleToFunctionPassAdaptor(SYCLLowerWGScopePass()));
+        PreLinkingSyclPasses.run(*getModule(), MAM);
       }
-
-      std::unique_ptr<llvm::ToolOutputFile> OptRecordFile =
-          std::move(*OptRecordFileOrErr);
-
-      if (OptRecordFile &&
-          CodeGenOpts.getProfileUse() != CodeGenOptions::ProfileNone)
-        Ctx.setDiagnosticsHotnessRequested(true);
 
       if (CodeGenOpts.MisExpect) {
         Ctx.setMisExpectWarningRequested(true);
@@ -388,9 +395,6 @@ namespace clang {
                         getModule(), Action, FS, std::move(AsmOutStream));
 
       Ctx.setDiagnosticHandler(std::move(OldDiagnosticHandler));
-
-      if (OptRecordFile)
-        OptRecordFile->keep();
     }
 
     void HandleTagDeclDefinition(TagDecl *D) override {
@@ -465,6 +469,8 @@ namespace clang {
     /// Specialized handler for misexpect warnings.
     /// Note that misexpect remarks are emitted through ORE
     void MisExpectDiagHandler(const llvm::DiagnosticInfoMisExpect &D);
+    void
+    AspectMismatchDiagHandler(const llvm::DiagnosticInfoAspectsMismatch &D);
   };
 
   void BackendConsumer::anchor() {}
@@ -858,6 +864,24 @@ void BackendConsumer::DontCallDiagHandler(const DiagnosticInfoDontCall &D) {
       << llvm::demangle(D.getFunctionName()) << D.getNote();
 }
 
+void BackendConsumer::AspectMismatchDiagHandler(
+    const DiagnosticInfoAspectsMismatch &D) {
+  SourceLocation LocCookie =
+      SourceLocation::getFromRawEncoding(D.getLocCookie());
+  assert(LocCookie.isValid() &&
+         "Invalid location for caller in aspect mismatch diagnostic");
+  Diags.Report(LocCookie, diag::warn_sycl_device_has_aspect_mismatch)
+      << llvm::demangle(D.getFunctionName().str()) << D.getAspect()
+      << D.isFromDeviceHasAttribute();
+  for (const std::pair<StringRef, unsigned> &CalleeInfo : D.getCallChain()) {
+    LocCookie = SourceLocation::getFromRawEncoding(CalleeInfo.second);
+    assert(LocCookie.isValid() &&
+           "Invalid location for callee in aspect mismatch diagnostic");
+    Diags.Report(LocCookie, diag::note_sycl_aspect_propagated_from_call)
+        << llvm::demangle(CalleeInfo.first.str());
+  }
+}
+
 void BackendConsumer::MisExpectDiagHandler(
     const llvm::DiagnosticInfoMisExpect &D) {
   StringRef Filename;
@@ -958,6 +982,9 @@ void BackendConsumer::DiagnosticHandlerImpl(const DiagnosticInfo &DI) {
     return;
   case llvm::DK_MisExpect:
     MisExpectDiagHandler(cast<DiagnosticInfoMisExpect>(DI));
+    return;
+  case llvm::DK_AspectMismatch:
+    AspectMismatchDiagHandler(cast<DiagnosticInfoAspectsMismatch>(DI));
     return;
   default:
     // Plugin IDs are not bound to any value as they are set dynamically.
@@ -1202,8 +1229,50 @@ CodeGenAction::loadModule(MemoryBufferRef MBRef) {
   return {};
 }
 
+namespace {
+// Handles the initialization and cleanup of the OptRecordFile before the clang
+// codegen runs so it can also emit to the opt report.
+struct OptRecordFileRAII {
+  std::unique_ptr<llvm::ToolOutputFile> OptRecordFile;
+  std::unique_ptr<DiagnosticHandler> OldDiagnosticHandler;
+  llvm::LLVMContext &Ctx;
+
+  OptRecordFileRAII(CodeGenAction &CGA, llvm::LLVMContext &Ctx,
+                    BackendConsumer &BC)
+      : OldDiagnosticHandler(Ctx.getDiagnosticHandler()), Ctx(Ctx) {
+
+    CompilerInstance &CI = CGA.getCompilerInstance();
+    CodeGenOptions &CodeGenOpts = CI.getCodeGenOpts();
+
+    Ctx.setDiagnosticHandler(
+        std::make_unique<ClangDiagnosticHandler>(CodeGenOpts, &BC));
+
+    Expected<std::unique_ptr<llvm::ToolOutputFile>> OptRecordFileOrErr =
+        setupLLVMOptimizationRemarks(
+            Ctx, CodeGenOpts.OptRecordFile, CodeGenOpts.OptRecordPasses,
+            CodeGenOpts.OptRecordFormat, CodeGenOpts.DiagnosticsWithHotness,
+            CodeGenOpts.DiagnosticsHotnessThreshold);
+
+    if (Error E = OptRecordFileOrErr.takeError())
+      reportOptRecordError(std::move(E), CI.getDiagnostics(), CodeGenOpts);
+    else
+      OptRecordFile = std::move(*OptRecordFileOrErr);
+
+    if (OptRecordFile &&
+        CodeGenOpts.getProfileUse() != CodeGenOptions::ProfileNone)
+      Ctx.setDiagnosticsHotnessRequested(true);
+  }
+  ~OptRecordFileRAII() {
+    Ctx.setDiagnosticHandler(std::move(OldDiagnosticHandler));
+    if (OptRecordFile)
+      OptRecordFile->keep();
+  }
+};
+} // namespace
+
 void CodeGenAction::ExecuteAction() {
   if (getCurrentFileKind().getLanguage() != Language::LLVM_IR) {
+    OptRecordFileRAII ORF(*this, *VMContext, *BEConsumer);
     this->ASTFrontendAction::ExecuteAction();
     return;
   }

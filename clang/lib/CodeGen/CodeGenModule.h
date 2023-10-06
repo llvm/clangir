@@ -92,6 +92,7 @@ class CGObjCRuntime;
 class CGOpenCLRuntime;
 class CGOpenMPRuntime;
 class CGCUDARuntime;
+class CGSYCLRuntime;
 class CGHLSLRuntime;
 class CoverageMappingModuleGen;
 class TargetCodeGenInfo;
@@ -329,6 +330,7 @@ private:
   std::unique_ptr<CGOpenCLRuntime> OpenCLRuntime;
   std::unique_ptr<CGOpenMPRuntime> OpenMPRuntime;
   std::unique_ptr<CGCUDARuntime> CUDARuntime;
+  std::unique_ptr<CGSYCLRuntime> SYCLRuntime;
   std::unique_ptr<CGHLSLRuntime> HLSLRuntime;
   std::unique_ptr<CGDebugInfo> DebugInfo;
   std::unique_ptr<ObjCEntrypoints> ObjCData;
@@ -347,6 +349,11 @@ private:
   /// used. If a decl is in this, then it is known to have not been referenced
   /// yet.
   llvm::DenseMap<StringRef, GlobalDecl> DeferredDecls;
+
+  /// This contains all the aliases that are deferred for emission until
+  /// they or what they alias are actually used.  Note that the StringRef
+  /// associated in this map is that of the aliasee.
+  std::map<StringRef, GlobalDecl> DeferredAliases;
 
   /// This is a list of deferred decls which we have seen that *are* actually
   /// referenced. These get code generated when the module is done.
@@ -436,6 +443,10 @@ private:
 
   /// Used for uniquing of annotation arguments.
   llvm::DenseMap<unsigned, llvm::Constant *> AnnotationArgs;
+
+  /// Used for uniquing of SYCL annotation arguments. SYCL annotations are
+  /// handled differently than regular annotations so they cannot share map.
+  llvm::DenseMap<unsigned, llvm::Constant *> SYCLAnnotationArgs;
 
   llvm::StringMap<llvm::GlobalVariable *> CFConstantStringMap;
 
@@ -545,6 +556,7 @@ private:
   void createOpenCLRuntime();
   void createOpenMPRuntime();
   void createCUDARuntime();
+  void createSYCLRuntime();
   void createHLSLRuntime();
 
   bool isTriviallyRecursive(const FunctionDecl *F);
@@ -598,6 +610,8 @@ private:
   MetadataTypeMap VirtualMetadataIdMap;
   MetadataTypeMap GeneralizedMetadataIdMap;
 
+  llvm::DenseMap<StringRef, const RecordDecl *> TypesWithAspects;
+  const EnumDecl *AspectsEnumDecl = nullptr;
   // Helps squashing blocks of TopLevelStmtDecl into a single llvm::Function
   // when used with -fincremental-extensions.
   std::pair<std::unique_ptr<CodeGenFunction>, const TopLevelStmtDecl *>
@@ -648,6 +662,12 @@ public:
   CGCUDARuntime &getCUDARuntime() {
     assert(CUDARuntime != nullptr);
     return *CUDARuntime;
+  }
+
+  /// Return a reference to the configured SYCL runtime.
+  CGSYCLRuntime &getSYCLRuntime() {
+    assert(SYCLRuntime != nullptr);
+    return *SYCLRuntime;
   }
 
   /// Return a reference to the configured HLSL runtime.
@@ -1091,6 +1111,16 @@ public:
       llvm::FunctionType *FnType = nullptr, bool DontDefer = false,
       ForDefinition_t IsForDefinition = NotForDefinition);
 
+  void addTypeWithAspects(StringRef TypeName, const RecordDecl *RD) {
+    TypesWithAspects[TypeName] = RD;
+  }
+
+  void setAspectsEnumDecl(const EnumDecl *ED);
+
+  void generateIntelFPGAAnnotation(const Decl *D,
+                                     llvm::SmallString<256> &AnnotStr);
+  void addGlobalIntelFPGAAnnotation(const VarDecl *VD, llvm::GlobalValue *GV);
+
   /// Given a builtin id for a function like "__builtin_fabsf", return a
   /// Function* for "fabsf".
   llvm::Constant *getBuiltinLibFunction(const FunctionDecl *FD,
@@ -1343,6 +1373,14 @@ public:
   /// annotations are emitted during finalization of the LLVM code.
   void AddGlobalAnnotations(const ValueDecl *D, llvm::GlobalValue *GV);
 
+  /// Emit additional args of the annotation.
+  llvm::Constant *EmitSYCLAnnotationArgs(
+      SmallVectorImpl<std::pair<std::string, std::string>> &Pairs);
+
+  /// Add attributes from add_ir_attributes_global_variable on TND to GV.
+  void AddGlobalSYCLIRAttributes(llvm::GlobalVariable *GV,
+                                 const RecordDecl *RD);
+
   bool isInNoSanitizeList(SanitizerMask Kind, llvm::Function *Fn,
                           SourceLocation Loc) const;
 
@@ -1542,6 +1580,10 @@ public:
   /// because we'll lose all important information after each repl.
   void moveLazyEmissionStates(CodeGenModule *NewBuilder);
 
+  void getFPAccuracyFuncAttributes(StringRef Name,
+                                   llvm::AttributeList &AttrList,
+                                   llvm::Metadata *&MDs, unsigned ID,
+                                   const llvm::Type *FuncType);
   /// Emit the IR encoding to attach the CUDA launch bounds attribute to \p F.
   void handleCUDALaunchBoundsAttr(llvm::Function *F,
                                   const CUDALaunchBoundsAttr *A);
@@ -1751,6 +1793,11 @@ private:
   void getDefaultFunctionAttributes(StringRef Name, bool HasOptnone,
                                     bool AttrOnCallSite,
                                     llvm::AttrBuilder &FuncAttrs);
+
+  void getDefaultFunctionFPAccuracyAttributes(StringRef Name,
+                                              llvm::AttrBuilder &FuncAttrs,
+                                              llvm::Metadata *&MD, unsigned ID,
+                                              const llvm::Type *FuncType);
 
   llvm::Metadata *CreateMetadataIdentifierImpl(QualType T, MetadataTypeMap &Map,
                                                StringRef Suffix);

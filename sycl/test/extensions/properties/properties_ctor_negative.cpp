@@ -1,0 +1,34 @@
+// RUN: %clangxx -fsycl -fsycl-targets=%sycl_triple -fsyntax-only -Xclang -verify -Xclang -verify-ignore-unexpected=note,warning %s
+
+#include <sycl/sycl.hpp>
+
+#include "mock_compile_time_properties.hpp"
+
+int main() {
+  // expected-error-re@sycl/ext/oneapi/properties/property_utils.hpp:* {{static assertion failed due to requirement {{.+}}: Unrecognized property in property list.}}
+  // expected-error@+1 {{no viable constructor or deduction guide for deduction of template arguments of 'properties'}}
+  auto InvalidPropertyList1 = sycl::ext::oneapi::experimental::properties(1);
+  // expected-error-re@sycl/ext/oneapi/properties/property_utils.hpp:* {{static assertion failed due to requirement {{.+}}: Unrecognized property in property list.}}
+  // expected-error@+1 {{no viable constructor or deduction guide for deduction of template arguments of 'properties'}}
+  auto InvalidPropertyList2 = sycl::ext::oneapi::experimental::properties(
+      sycl::ext::oneapi::experimental::foo{1}, true);
+  // expected-error-re@sycl/ext/oneapi/properties/properties.hpp:* {{static assertion failed due to requirement {{.+}}: Duplicate properties in property list.}}
+  auto InvalidPropertyList3 = sycl::ext::oneapi::experimental::properties(
+      sycl::ext::oneapi::experimental::foo{0},
+      sycl::ext::oneapi::experimental::foo{1});
+  // expected-error-re@sycl/ext/oneapi/properties/properties.hpp:* {{static assertion failed due to requirement {{.+}}: Duplicate properties in property list.}}
+  auto InvalidPropertyList4 = sycl::ext::oneapi::experimental::properties(
+      sycl::ext::oneapi::experimental::bar,
+      sycl::ext::oneapi::experimental::bar);
+  // expected-error-re@sycl/ext/oneapi/properties/properties.hpp:* {{static assertion failed due to requirement {{.+}}: Conflicting properties in property list.}}
+  auto InvalidPropertyList5 = sycl::ext::oneapi::experimental::properties(
+      sycl::ext::oneapi::experimental::boo<int>,
+      sycl::ext::oneapi::experimental::fir(3.14, false));
+  // expected-error-re@sycl/ext/oneapi/properties/properties.hpp:* {{static assertion failed due to requirement {{.+}}: Conflicting properties in property list.}}
+  auto InvalidPropertyList6 = sycl::ext::oneapi::experimental::properties(
+      sycl::ext::oneapi::experimental::foo{0},
+      sycl::ext::oneapi::experimental::boo<int>,
+      sycl::ext::oneapi::experimental::bar,
+      sycl::ext::oneapi::experimental::fir(3.14, false));
+  return 0;
+}

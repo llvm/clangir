@@ -42,6 +42,20 @@ private:
                                 const llvm::opt::ArgList &Args) const;
 };
 
+class LLVM_LIBRARY_VISIBILITY SYCLLinker : public Linker {
+public:
+  SYCLLinker(const ToolChain &TC) : Linker(TC) {}
+
+  Tool *GetSYCLToolChainLinker() const {
+    if (!SYCLToolChainLinker)
+      SYCLToolChainLinker.reset(new SYCL::Linker(getToolChain()));
+    return SYCLToolChainLinker.get();
+  }
+
+private:
+  mutable std::unique_ptr<Tool> SYCLToolChainLinker;
+};
+
 } // end namespace AMDGCN
 } // end namespace tools
 
@@ -50,7 +64,8 @@ namespace toolchains {
 class LLVM_LIBRARY_VISIBILITY HIPAMDToolChain final : public ROCMToolChain {
 public:
   HIPAMDToolChain(const Driver &D, const llvm::Triple &Triple,
-                  const ToolChain &HostTC, const llvm::opt::ArgList &Args);
+                  const ToolChain &HostTC, const llvm::opt::ArgList &Args,
+                  const Action::OffloadKind OK);
 
   const llvm::Triple *getAuxTriple() const override {
     return &HostTC.getTriple();
@@ -75,8 +90,9 @@ public:
                            llvm::opt::ArgStringList &CC1Args) const override;
   void AddHIPIncludeArgs(const llvm::opt::ArgList &DriverArgs,
                          llvm::opt::ArgStringList &CC1Args) const override;
-  llvm::SmallVector<BitCodeLibraryInfo, 12>
-  getDeviceLibs(const llvm::opt::ArgList &Args) const override;
+  llvm::SmallVector<BitCodeLibraryInfo, 12> getDeviceLibs(
+      const llvm::opt::ArgList &Args,
+      const Action::OffloadKind DeviceOffloadingKind) const override;
 
   SanitizerMask getSupportedSanitizers() const override;
 
@@ -88,9 +104,13 @@ public:
 
   const ToolChain &HostTC;
   void checkTargetID(const llvm::opt::ArgList &DriverArgs) const override;
+  Tool *SelectTool(const JobAction &JA) const override;
 
 protected:
   Tool *buildLinker() const override;
+
+private:
+  const Action::OffloadKind OK;
 };
 
 } // end namespace toolchains

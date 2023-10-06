@@ -115,7 +115,7 @@ bool CompilerInstance::createTarget() {
   // other side of CUDA/OpenMP/SYCL compilation.
   if (!getAuxTarget() &&
       (getLangOpts().CUDA || getLangOpts().OpenMPIsTargetDevice ||
-       getLangOpts().SYCLIsDevice) &&
+       getLangOpts().isSYCL()) &&
       !getFrontendOpts().AuxTriple.empty()) {
     auto TO = std::make_shared<TargetOptions>();
     TO->Triple = llvm::Triple::normalize(getFrontendOpts().AuxTriple);
@@ -154,8 +154,10 @@ bool CompilerInstance::createTarget() {
   // Adjust target options based on codegen options.
   getTarget().adjustTargetOptions(getCodeGenOpts(), getTargetOpts());
 
-  if (auto *Aux = getAuxTarget())
+  if (auto *Aux = getAuxTarget()) {
+    Aux->adjust(getDiagnostics(), getLangOpts());
     getTarget().setAuxTarget(Aux);
+  }
 
   return true;
 }

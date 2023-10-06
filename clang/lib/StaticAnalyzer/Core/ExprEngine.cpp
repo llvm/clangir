@@ -1915,6 +1915,10 @@ void ExprEngine::Visit(const Stmt *S, ExplodedNode *Pred,
     case Stmt::CXXRewrittenBinaryOperatorClass:
     case Stmt::RequiresExprClass:
     case Expr::CXXParenListInitExprClass:
+    case Stmt::SYCLBuiltinNumFieldsExprClass:
+    case Stmt::SYCLBuiltinFieldTypeExprClass:
+    case Stmt::SYCLBuiltinNumBasesExprClass:
+    case Stmt::SYCLBuiltinBaseTypeExprClass:
       // Fall through.
 
     // Cases we intentionally don't evaluate, since they don't need
@@ -1942,6 +1946,7 @@ void ExprEngine::Visit(const Stmt *S, ExplodedNode *Pred,
     case Stmt::OMPArrayShapingExprClass:
     case Stmt::OMPIteratorExprClass:
     case Stmt::SYCLUniqueStableNameExprClass:
+    case Stmt::SYCLUniqueStableIdExprClass:
     case Stmt::TypeTraitExprClass: {
       Bldr.takeNodes(Pred);
       ExplodedNodeSet preVisit;

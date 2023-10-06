@@ -12,6 +12,7 @@
 #include "clang/Basic/LLVM.h"
 #include "clang/Driver/InputInfo.h"
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/iterator.h"
@@ -104,6 +105,11 @@ struct ResponseFileSupport {
 /// Command - An executable path/name and argument vector to
 /// execute.
 class Command {
+public:
+  using ErrorCodeDiagMapTy = llvm::DenseMap<int, std::string>;
+  using ErrorCodeExitMapTy = llvm::DenseMap<int, bool>;
+
+private:
   /// Source - The action which caused the creation of this job.
   const Action &Source;
 
@@ -115,6 +121,23 @@ class Command {
 
   /// The executable to run.
   const char *Executable;
+
+  /// The container for custom driver-set diagnostic messages that are
+  /// produced upon particular error codes returned by the command.
+  /// In order to add such a diagnostic for an external tool, consider the
+  /// following criteria:
+  /// 1) Does the command's executable return different codes upon different
+  ///    types of errors?
+  /// 2) If the executable provides a single error code for various error types,
+  ///    is only a certain type of failure expected to occur within the driver
+  ///    flow? E.g. the driver guarantees a valid input to the tool, so any
+  ///    "invalid input" error can be ruled out
+  ErrorCodeDiagMapTy ErrorCodeDiagMap;
+
+  /// Similar to the container for the diagnostic messages, this container
+  /// is used to signify if the toolchain should error and exit right away
+  /// or if we should continue compilation.
+  ErrorCodeExitMapTy ErrorCodeExitMap;
 
   /// Optional argument to prepend.
   const char *PrependArg;
@@ -184,6 +207,23 @@ public:
 
   virtual int Execute(ArrayRef<std::optional<StringRef>> Redirects,
                       std::string *ErrMsg, bool *ExecutionFailed) const;
+
+  /// Store a custom driver diagnostic message upon a particular error code
+  /// returned by the command
+  void addDiagForErrorCode(int ErrorCode, StringRef CustomDiag);
+
+  /// Store if the compilation should exit upon a particular error code
+  /// returned by the command
+  void addExitForErrorCode(int ErrorCode, bool Exit);
+
+  /// Get the custom driver diagnostic message for a particular error code
+  /// if such was stored. Returns an empty string if no diagnostic message
+  /// was found for the given error code.
+  StringRef getDiagForErrorCode(int ErrorCode) const;
+
+  /// Will the tool exit when a particular error code is encountered. Returns
+  /// true if not set (always exit)
+  bool getWillExitForErrorCode(int ErrorCode) const;
 
   /// getSource - Return the Action which caused the creation of this job.
   const Action &getSource() const { return Source; }
@@ -279,6 +319,8 @@ public:
   /// Clear the job list.
   void clear();
 
+  /// Return a mutable list of Jobs for llvm-foreach wrapping.
+  list_type &getJobsForOverride() { return Jobs; }
   const list_type &getJobs() const { return Jobs; }
 
   bool empty() const { return Jobs.empty(); }

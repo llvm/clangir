@@ -4,6 +4,7 @@ set(LLVM_LINK_COMPONENTS
   Core
   Support
   Passes
+  SYCLLowerIR
   TransformUtils
   ScalarOpts
   )
@@ -22,6 +23,7 @@ add_llvm_unittest(IRTests
   DemandedBitsTest.cpp
   DominatorTreeTest.cpp
   DominatorTreeBatchUpdatesTest.cpp
+  FPAccuracyTest.cpp
   FunctionTest.cpp
   PassBuilderCallbacksTest.cpp
   IRBuilderTest.cpp

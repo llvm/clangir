@@ -936,7 +936,6 @@ IRLinker::linkAppendingVarProto(GlobalVariable *DstGV,
     else
       IsOldStructor = true;
   }
-
   PointerType *VoidPtrTy = PointerType::get(SrcGV->getContext(), 0);
   if (IsOldStructor) {
     auto &ST = *cast<StructType>(EltTy);

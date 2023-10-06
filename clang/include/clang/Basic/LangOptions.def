@@ -275,7 +275,28 @@ LANGOPT(OffloadingNewDriver, 1, 0, "use the new driver for generating offloading
 
 LANGOPT(SYCLIsDevice      , 1, 0, "Generate code for SYCL device")
 LANGOPT(SYCLIsHost        , 1, 0, "SYCL host compilation")
+LANGOPT(IntelFPGA         , 1, 0, "Perform ahead-of-time compilation for FPGA")
+LANGOPT(SYCLAllowFuncPtr  , 1, 0, "Allow function pointers in SYCL device code")
+LANGOPT(SYCLStdLayoutKernelParams, 1, 0, "Enable standard layout requirement for SYCL kernel parameters")
+LANGOPT(SYCLUnnamedLambda , 1, 0, "Allow unnamed lambda SYCL kernels")
+LANGOPT(SYCLForceInlineKernelLambda , 1, 0, "Force inline SYCL kernel lambdas in entry point")
+LANGOPT(SYCLESIMDForceStatelessMem, 1, 0, "Make accessors use USM memory in ESIMD kernels")
+LANGOPT(SYCLESIMDBuildHostCode, 1, 1, "Build the host implementation of ESIMD functions")
 ENUM_LANGOPT(SYCLVersion  , SYCLMajorVersion, 2, SYCL_None, "Version of the SYCL standard used")
+LANGOPT(DeclareSPIRVBuiltins, 1, 0, "Declare SPIR-V builtin functions")
+LANGOPT(SYCLExplicitSIMD  , 1, 0, "SYCL compilation with explicit SIMD extension")
+LANGOPT(EnableDAEInSpirKernels , 1, 0, "Enable Dead Argument Elimination in SPIR kernels")
+LANGOPT(
+    SYCLValueFitInMaxInt, 1, 1,
+    "SYCL compiler assumes value fits within MAX_INT for member function of "
+    "get/operator[], get_id/operator[] and get_global_id/get_global_linear_id "
+    "in SYCL class id, iterm and nd_iterm")
+LANGOPT(SYCLDisableRangeRounding, 1, 0, "Disable parallel for range rounding")
+LANGOPT(SYCLEnableIntHeaderDiags, 1, 0, "Enable diagnostics that require the "
+        "SYCL integration header")
+LANGOPT(SYCLAllowVirtualFunctions, 1, 0,
+        "Allow virtual functions calls in code for SYCL device")
+LANGOPT(SYCLIsNativeCPU      , 1, 0, "Generate code for SYCL NativeCPU")
 
 LANGOPT(HIPUseNewLaunchAPI, 1, 0, "Use new kernel launching API for HIP")
 LANGOPT(OffloadUniformBlock, 1, 0, "Assume that kernels are launched with uniform block sizes (default true for CUDA/HIP and false otherwise)")
@@ -320,6 +341,7 @@ BENIGN_ENUM_LANGOPT(FPExceptionMode, FPExceptionModeKind, 2, FPE_Default, "FP Ex
 BENIGN_ENUM_LANGOPT(FPEvalMethod, FPEvalMethodKind, 2, FEM_UnsetOnCommandLine, "FP type used for floating point arithmetic")
 ENUM_LANGOPT(Float16ExcessPrecision, ExcessPrecisionKind, 2, FPP_Standard, "Intermediate truncation behavior for Float16 arithmetic")
 ENUM_LANGOPT(BFloat16ExcessPrecision, ExcessPrecisionKind, 2, FPP_Standard, "Intermediate truncation behavior for BFloat16 arithmetic")
+BENIGN_ENUM_LANGOPT(FPAccuracy, FPAccuracyKind, 3, FPA_Default, "Accuracy for floating point operations and library functions")
 LANGOPT(NoBitFieldTypeAlign , 1, 0, "bit-field type alignment")
 LANGOPT(HexagonQdsp6Compat , 1, 0, "hexagon-qdsp6 backward compatibility")
 LANGOPT(ObjCAutoRefCount , 1, 0, "Objective-C automated reference counting")
@@ -333,6 +355,7 @@ LANGOPT(ObjCDisableDirectMethodsForTesting, 1, 0,
         "Disable recognition of objc_direct methods")
 LANGOPT(CFProtectionBranch , 1, 0, "Control-Flow Branch Protection enabled")
 LANGOPT(FakeAddressSpaceMap , 1, 0, "OpenCL fake address space map")
+LANGOPT(OpenCLForceVectorABI, 1, 0, "OpenCL vector to scalar coercion disabling")
 ENUM_LANGOPT(AddressSpaceMapMangling , AddrSpaceMapMangling, 2, ASMM_Target, "OpenCL address space map mangling mode")
 LANGOPT(IncludeDefaultHeader, 1, 0, "Include default header file for OpenCL")
 LANGOPT(DeclareOpenCLBuiltins, 1, 0, "Declare OpenCL builtin functions")
@@ -455,6 +478,14 @@ LANGOPT(OmitVTableRTTI, 1, 0,
 
 LANGOPT(VScaleMin, 32, 0, "Minimum vscale value")
 LANGOPT(VScaleMax, 32, 0, "Maximum vscale value")
+
+ENUM_LANGOPT(DefaultSubGroupSizeType, SubGroupSizeType, 2,
+             SubGroupSizeType::None,
+             "Strategy via which sub group is assigned for SYCL kernel "
+             "types if not overridden via attributes")
+
+VALUE_LANGOPT(DefaultSubGroupSize, 32, 0,
+              "If DefaultSubGroupSizeType is Integer contains the value")
 
 ENUM_LANGOPT(ExtendIntArgs, ExtendArgsKind, 1, ExtendArgsKind::ExtendTo32,
              "Controls how scalar integer arguments are extended in calls "

@@ -188,8 +188,14 @@ struct GPUInlinerInterface : public DialectInlinerInterface {
   using DialectInlinerInterface::DialectInlinerInterface;
 
   /// All gpu dialect ops can be inlined.
-  bool isLegalToInline(Operation *, Region *, bool, IRMapping &) const final {
-    return true;
+  bool isLegalToInline(Operation *op, Region *, bool, IRMapping &) const final {
+    return !isa<gpu::ReturnOp>(op);
+  }
+
+  /// Allows inlining any region (other than a gpu.func) in a gpu.func region.
+  bool isLegalToInline(Region *dest, Region *src, bool wouldBeCloned,
+                       IRMapping &valueMapping) const final {
+    return !isa<gpu::GPUFuncOp>(src->getParentOp());
   }
 };
 } // namespace

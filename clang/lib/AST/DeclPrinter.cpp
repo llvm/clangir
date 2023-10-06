@@ -627,6 +627,9 @@ void DeclPrinter::VisitEnumDecl(EnumDecl *D) {
   if (D->getDeclName())
     Out << ' ' << D->getDeclName();
 
+  if (Policy.SuppressDefinition)
+    return;
+
   if (D->isFixed())
     Out << " : " << D->getIntegerType().stream(Policy);
 
@@ -646,6 +649,9 @@ void DeclPrinter::VisitRecordDecl(RecordDecl *D) {
 
   if (D->getIdentifier())
     Out << ' ' << *D;
+
+  if (Policy.SuppressDefinition)
+    return;
 
   if (D->isCompleteDefinition()) {
     Out << " {\n";
@@ -877,7 +883,7 @@ void DeclPrinter::VisitFunctionDecl(FunctionDecl *D) {
     Out << " = delete";
   else if (D->isExplicitlyDefaulted())
     Out << " = default";
-  else if (D->doesThisDeclarationHaveABody()) {
+  else if (D->doesThisDeclarationHaveABody() && !Policy.SuppressDefinition) {
     if (!Policy.TerseOutput) {
       if (!D->hasPrototype() && D->getNumParams()) {
         // This is a K&R function definition, so we need to print the
@@ -1146,13 +1152,13 @@ void DeclPrinter::VisitCXXRecordDecl(CXXRecordDecl *D) {
     }
   }
 
-  if (D->hasDefinition()) {
+  if (D->hasDefinition() && !Policy.SuppressFinalSpecifier) {
     if (D->hasAttr<FinalAttr>()) {
       Out << " final";
     }
   }
 
-  if (D->isCompleteDefinition()) {
+  if (D->isCompleteDefinition() && !Policy.SuppressDefinition) {
     // Print the base classes
     if (D->getNumBases()) {
       Out << " : ";
@@ -1922,7 +1928,7 @@ void DeclPrinter::VisitTemplateTypeParmDecl(const TemplateTypeParmDecl *TTP) {
       Out << TTP->getDeclName();
   }
 
-  if (TTP->hasDefaultArgument()) {
+  if (TTP->hasDefaultArgument() && !Policy.SuppressDefaultTemplateArguments) {
     Out << " = ";
     Out << TTP->getDefaultArgument().getAsString(Policy);
   }
@@ -1936,7 +1942,7 @@ void DeclPrinter::VisitNonTypeTemplateParmDecl(
         Policy.CleanUglifiedParameters ? II->deuglifiedName() : II->getName();
   printDeclType(NTTP->getType(), Name, NTTP->isParameterPack());
 
-  if (NTTP->hasDefaultArgument()) {
+  if (NTTP->hasDefaultArgument() && !Policy.SuppressDefaultTemplateArguments) {
     Out << " = ";
     NTTP->getDefaultArgument()->printPretty(Out, nullptr, Policy, Indentation,
                                             "\n", &Context);

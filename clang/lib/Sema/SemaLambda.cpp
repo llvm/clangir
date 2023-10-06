@@ -1924,12 +1924,25 @@ FieldDecl *Sema::BuildCaptureField(RecordDecl *RD,
                                    const sema::Capture &Capture) {
   SourceLocation Loc = Capture.getLocation();
   QualType FieldType = Capture.getCaptureType();
+  IdentifierInfo *Id = nullptr;
 
   TypeSourceInfo *TSI = nullptr;
   if (Capture.isVariableCapture()) {
-    const auto *Var = dyn_cast_or_null<VarDecl>(Capture.getVariable());
+    ValueDecl *Val = Capture.getVariable();
+    const auto *Var = dyn_cast_or_null<VarDecl>(Val);
+
     if (Var && Var->isInitCapture())
       TSI = Var->getTypeSourceInfo();
+
+    // TODO: Upstream this behavior to LLVM project to save
+    // user speciifed names for all lambdas.
+    // For SYCL compilations, save user specified names for
+    // lambda capture.
+    if (getLangOpts().SYCLIsDevice || getLangOpts().SYCLIsHost) {
+      StringRef CaptureName = Val ? Val->getName() : "";
+      if (!CaptureName.empty())
+        Id = &Context.Idents.get(CaptureName.str());
+    }
   }
 
   // FIXME: Should we really be doing this? A null TypeSourceInfo seems more
@@ -1939,8 +1952,8 @@ FieldDecl *Sema::BuildCaptureField(RecordDecl *RD,
 
   // Build the non-static data member.
   FieldDecl *Field =
-      FieldDecl::Create(Context, RD, /*StartLoc=*/Loc, /*IdLoc=*/Loc,
-                        /*Id=*/nullptr, FieldType, TSI, /*BW=*/nullptr,
+      FieldDecl::Create(Context, RD, /*StartLoc=*/Loc, /*IdLoc=*/Loc, Id,
+                        FieldType, TSI, /*BW=*/nullptr,
                         /*Mutable=*/false, ICIS_NoInit);
   // If the variable being captured has an invalid type, mark the class as
   // invalid as well.

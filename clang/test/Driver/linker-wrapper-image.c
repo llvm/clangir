@@ -3,7 +3,6 @@
 // REQUIRES: amdgpu-registered-target
 
 // RUN: %clang -cc1 %s -triple x86_64-unknown-linux-gnu -emit-obj -o %t.elf.o
-
 // RUN: clang-offload-packager -o %t.out --image=file=%t.elf.o,kind=openmp,triple=nvptx64-nvidia-cuda,arch=sm_70
 // RUN: %clang -cc1 %s -triple x86_64-unknown-linux-gnu -emit-obj -o %t.o \
 // RUN:   -fembed-offload-object=%t.out

@@ -559,10 +559,22 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
 
   if (LangOpts.SYCLIsDevice || LangOpts.SYCLIsHost) {
     // SYCL Version is set to a value when building SYCL applications
-    if (LangOpts.getSYCLVersion() == LangOptions::SYCL_2017)
-      Builder.defineMacro("CL_SYCL_LANGUAGE_VERSION", "121");
-    else if (LangOpts.getSYCLVersion() == LangOptions::SYCL_2020)
-      Builder.defineMacro("SYCL_LANGUAGE_VERSION", "202001");
+    for (const std::pair<StringRef, StringRef> &Macro :
+         getSYCLVersionMacros(LangOpts))
+      Builder.defineMacro(Macro.first, Macro.second);
+
+    if (LangOpts.SYCLValueFitInMaxInt)
+      Builder.defineMacro("__SYCL_ID_QUERIES_FIT_IN_INT__");
+
+    // Set __SYCL_DISABLE_PARALLEL_FOR_RANGE_ROUNDING__ macro for
+    // both host and device compilations if -fsycl-disable-range-rounding
+    // flag is used.
+    if (LangOpts.SYCLDisableRangeRounding)
+      Builder.defineMacro("__SYCL_DISABLE_PARALLEL_FOR_RANGE_ROUNDING__");
+  }
+
+  if (LangOpts.DeclareSPIRVBuiltins) {
+    Builder.defineMacro("__SPIRV_BUILTIN_DECLARATIONS__");
   }
 
   // Not "standard" per se, but available even with the -undef flag.
@@ -599,6 +611,13 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
       // Deprecated.
       Builder.defineMacro("HIP_API_PER_THREAD_DEFAULT_STREAM");
     }
+  }
+  if (LangOpts.HIP || (LangOpts.OpenCL && TI.getTriple().isAMDGPU())) {
+    Builder.defineMacro("__HIP_MEMORY_SCOPE_SINGLETHREAD", "1");
+    Builder.defineMacro("__HIP_MEMORY_SCOPE_WAVEFRONT", "2");
+    Builder.defineMacro("__HIP_MEMORY_SCOPE_WORKGROUP", "3");
+    Builder.defineMacro("__HIP_MEMORY_SCOPE_AGENT", "4");
+    Builder.defineMacro("__HIP_MEMORY_SCOPE_SYSTEM", "5");
   }
 }
 
@@ -1305,8 +1324,31 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   // Define a macro indicating that the source file is being compiled with a
   // SYCL device compiler which doesn't produce host binary.
   if (LangOpts.SYCLIsDevice) {
-    Builder.defineMacro("__SYCL_DEVICE_ONLY__", "1");
+    Builder.defineMacro("__SYCL_DEVICE_ONLY__");
+    if (LangOpts.GPURelocatableDeviceCode)
+      Builder.defineMacro("SYCL_EXTERNAL", "__attribute__((sycl_device))");
+
+    const llvm::Triple &DeviceTriple = TI.getTriple();
+    const llvm::Triple::SubArchType DeviceSubArch = DeviceTriple.getSubArch();
+    if (DeviceTriple.isNVPTX() || DeviceTriple.isAMDGPU() ||
+        (DeviceTriple.isSPIR() &&
+         DeviceSubArch != llvm::Triple::SPIRSubArch_fpga))
+      Builder.defineMacro("SYCL_USE_NATIVE_FP_ATOMICS");
+    // Enable generation of USM address spaces for FPGA.
+    if (DeviceSubArch == llvm::Triple::SPIRSubArch_fpga) {
+      Builder.defineMacro("__ENABLE_USM_ADDR_SPACE__");
+      Builder.defineMacro("SYCL_DISABLE_FALLBACK_ASSERT");
+    }
+  } else if (LangOpts.SYCLIsHost && LangOpts.SYCLESIMDBuildHostCode) {
+    Builder.defineMacro("__ESIMD_BUILD_HOST_CODE");
   }
+  if (LangOpts.SYCLUnnamedLambda)
+    Builder.defineMacro("__SYCL_UNNAMED_LAMBDA__");
+
+  // Stateless memory may be enforced only for SYCL device or host.
+  if ((LangOpts.SYCLIsDevice || LangOpts.SYCLIsHost) &&
+      LangOpts.SYCLESIMDForceStatelessMem)
+    Builder.defineMacro("__ESIMD_FORCE_STATELESS_MEM");
 
   // OpenCL definitions.
   if (LangOpts.OpenCL) {

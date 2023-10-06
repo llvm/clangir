@@ -416,9 +416,28 @@ protected:
       attributes.push_back(rewriter.getNamedAttr(
           funcOp.getArgAttrsAttrName(), rewriter.getArrayAttr(newArgAttrs)));
     }
+    for (auto it = attributes.begin(); it != attributes.end();) {
+      StringAttr attrName = (*it).getName();
+      if (attrName == "llvm.cconv" || attrName == "llvm.linkage")
+        it = attributes.erase(it);
+      else
+        ++it;
+    }
 
-    // Create an LLVM function, use external linkage by default until MLIR
-    // functions have linkage.
+    LLVM::CConv callingConvention = LLVM::CConv::C;
+    if (funcOp->hasAttr("llvm.cconv")) {
+      auto attr =
+          funcOp->getAttr("llvm.cconv").dyn_cast<mlir::LLVM::CConvAttr>();
+      if (!attr) {
+        funcOp->emitError()
+            << "Contains llvm.cconv attribute not of type LLVM::CConvAttr";
+        return rewriter.notifyMatchFailure(
+            funcOp,
+            "Contains llvm.cconv attribute not of type LLVM::CConvAttr");
+      }
+      callingConvention = attr.getCallingConv();
+    }
+
     LLVM::Linkage linkage = LLVM::Linkage::External;
     if (funcOp->hasAttr(linkageAttrName)) {
       auto attr =
@@ -450,8 +469,7 @@ protected:
     }
     auto newFuncOp = rewriter.create<LLVM::LLVMFuncOp>(
         funcOp.getLoc(), funcOp.getName(), llvmType, linkage,
-        /*dsoLocal=*/false, /*cconv=*/LLVM::CConv::C, /*comdat=*/nullptr,
-        attributes);
+        /*dsoLocal=*/false, callingConvention, /*comdat=*/nullptr, attributes);
     // If the memory attribute was created, add it to the function.
     if (memoryAttr)
       newFuncOp.setMemoryAttr(memoryAttr);

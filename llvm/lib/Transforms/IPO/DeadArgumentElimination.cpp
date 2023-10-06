@@ -77,13 +77,15 @@ public:
   bool runOnModule(Module &M) override {
     if (skipModule(M))
       return false;
-    DeadArgumentEliminationPass DAEP(shouldHackArguments());
+    DeadArgumentEliminationPass DAEP(shouldHackArguments(),
+                                     CheckSYCLKernels());
     ModuleAnalysisManager DummyMAM;
     PreservedAnalyses PA = DAEP.run(M, DummyMAM);
     return !PA.areAllPreserved();
   }
 
   virtual bool shouldHackArguments() const { return false; }
+  virtual bool CheckSYCLKernels() const { return false; }
 };
 
 bool isMustTailCalleeAnalyzable(const CallBase &CB) {
@@ -107,6 +109,7 @@ struct DAH : public DAE {
   DAH() : DAE(ID) {}
 
   bool shouldHackArguments() const override { return true; }
+  bool CheckSYCLKernels() const override { return false; }
 };
 
 } // end anonymous namespace
@@ -117,11 +120,39 @@ INITIALIZE_PASS(DAH, "deadarghaX0r",
                 "Dead Argument Hacking (BUGPOINT USE ONLY; DO NOT USE)", false,
                 false)
 
+namespace {
+
+/// DAESYCL - DeadArgumentElimination pass for SYCL kernel functions even
+///           if they are external.
+struct DAESYCL : public DAE {
+  static char ID;
+
+  DAESYCL() : DAE(ID) {
+    initializeDAESYCLPass(*PassRegistry::getPassRegistry());
+  }
+
+  StringRef getPassName() const override {
+    return "Dead Argument Elimination for SYCL kernels";
+  }
+
+  bool shouldHackArguments() const override { return false; }
+  bool CheckSYCLKernels() const override { return true; }
+};
+
+} // end anonymous namespace
+
+char DAESYCL::ID = 0;
+
+INITIALIZE_PASS(DAESYCL, "deadargelim-sycl",
+                "Dead Argument Elimination for SYCL kernels", false, false)
+
 /// This pass removes arguments from functions which are not used by the body of
 /// the function.
 ModulePass *llvm::createDeadArgEliminationPass() { return new DAE(); }
 
 ModulePass *llvm::createDeadArgHackingPass() { return new DAH(); }
+
+ModulePass *llvm::createDeadArgEliminationSYCLPass() { return new DAESYCL(); }
 
 /// If this is an function that takes a ... list, and if llvm.vastart is never
 /// called, the varargs list is dead for the function.
@@ -543,7 +574,13 @@ void DeadArgumentEliminationPass::surveyFunction(const Function &F) {
                       << " has musttail calls\n");
   }
 
-  if (!F.hasLocalLinkage() && (!ShouldHackArguments || F.isIntrinsic())) {
+  // We can't modify arguments if the function is not local
+  // but we can do so for SYCL kernel functions.
+  bool FuncIsSyclKernel =
+      CheckSYCLKernels &&
+      (F.getCallingConv() == CallingConv::SPIR_KERNEL || IsNVPTXKernel(&F));
+  bool FuncIsLive = !F.hasLocalLinkage() && !FuncIsSyclKernel;
+  if (FuncIsLive && (!ShouldHackArguments || F.isIntrinsic())) {
     markLive(F);
     return;
   }
@@ -770,6 +807,49 @@ bool DeadArgumentEliminationPass::removeDeadStuffFromFunction(Function *F) {
                         << ArgI << " (" << I->getName() << ") from "
                         << F->getName() << "\n");
     }
+  }
+
+  if (CheckSYCLKernels) {
+    SmallVector<Metadata *, 10> MDOmitArgs;
+    auto MDOmitArgTrue = llvm::ConstantAsMetadata::get(
+        ConstantInt::get(Type::getInt1Ty(F->getContext()), 1));
+    auto MDOmitArgFalse = llvm::ConstantAsMetadata::get(
+        ConstantInt::get(Type::getInt1Ty(F->getContext()), 0));
+    for (auto &AliveArg : ArgAlive)
+      MDOmitArgs.push_back(AliveArg ? MDOmitArgFalse : MDOmitArgTrue);
+    F->setMetadata("sycl_kernel_omit_args",
+                   llvm::MDNode::get(F->getContext(), MDOmitArgs));
+
+    // Update metadata inserted by the SYCL FE to match the new kernel
+    // signature.
+    auto FixupMetadata = [&](StringRef MDName) {
+      auto MDToFixup = F->getMetadata(MDName);
+      if (MDToFixup) {
+        assert(MDToFixup->getNumOperands() == MDOmitArgs.size() &&
+               "Unexpected metadata operands");
+        SmallVector<Metadata *, 10> NewMDOps;
+        for (unsigned int i = 0; i < MDToFixup->getNumOperands(); i++) {
+          const auto *MDConst = cast<ConstantAsMetadata>(MDOmitArgs[i]);
+          bool ArgWasRemoved =
+              static_cast<bool>(cast<ConstantInt>(MDConst->getValue())
+                                    ->getValue()
+                                    .getZExtValue());
+          if (!ArgWasRemoved)
+            NewMDOps.push_back(MDToFixup->getOperand(i));
+        }
+        F->setMetadata(MDName, llvm::MDNode::get(F->getContext(), NewMDOps));
+      }
+    };
+    FixupMetadata("kernel_arg_buffer_location");
+    FixupMetadata("kernel_arg_runtime_aligned");
+    FixupMetadata("kernel_arg_exclusive_ptr");
+    FixupMetadata("kernel_arg_addr_space");
+    FixupMetadata("kernel_arg_access_qual");
+    FixupMetadata("kernel_arg_type");
+    FixupMetadata("kernel_arg_base_type");
+    FixupMetadata("kernel_arg_type_qual");
+    FixupMetadata("kernel_arg_accessor_ptr");
+    FixupMetadata("kernel_arg_name");
   }
 
   // Find out the new return value.
@@ -1079,6 +1159,9 @@ bool DeadArgumentEliminationPass::removeDeadStuffFromFunction(Function *F) {
   for (auto [KindID, Node] : MDs)
     NF->addMetadata(KindID, *Node);
 
+  if (IsNVPTXKernel(F))
+    UpdateNVPTXMetadata(*(F->getParent()), F, NF);
+
   // If either the return value(s) or argument(s) are removed, then probably the
   // function does not follow standard calling conventions anymore. Hence, add
   // DW_CC_nocall to DISubroutineType to inform debugger that it may not be safe
@@ -1119,6 +1202,8 @@ PreservedAnalyses DeadArgumentEliminationPass::run(Module &M,
                                                    ModuleAnalysisManager &) {
   bool Changed = false;
 
+  BuildNVPTXKernelSet(M);
+
   // First pass: Do a simple check to see if any functions can have their "..."
   // removed.  We can do this if they never call va_start.  This loop cannot be
   // fused with the next loop, because deleting a function invalidates
@@ -1151,4 +1236,26 @@ PreservedAnalyses DeadArgumentEliminationPass::run(Module &M,
   if (!Changed)
     return PreservedAnalyses::all();
   return PreservedAnalyses::none();
+}
+
+void DeadArgumentEliminationPass::UpdateNVPTXMetadata(Module &M, Function *F,
+                                                      Function *NF) {
+
+  auto *NvvmMetadata = M.getNamedMetadata("nvvm.annotations");
+  if (!NvvmMetadata)
+    return;
+
+  for (auto *MetadataNode : NvvmMetadata->operands()) {
+    const auto &FuncOperand = MetadataNode->getOperand(0);
+    if (!FuncOperand)
+      continue;
+    auto FuncConstant = dyn_cast<ConstantAsMetadata>(FuncOperand);
+    if (!FuncConstant)
+      continue;
+    auto *Func = dyn_cast<Function>(FuncConstant->getValue());
+    if (Func != F)
+      continue;
+    // Update the metadata with the new function
+    MetadataNode->replaceOperandWith(0, llvm::ConstantAsMetadata::get(NF));
+  }
 }

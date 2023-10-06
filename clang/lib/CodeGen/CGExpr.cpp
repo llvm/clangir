@@ -18,6 +18,7 @@
 #include "CGObjCRuntime.h"
 #include "CGOpenMPRuntime.h"
 #include "CGRecordLayout.h"
+#include "CGSYCLRuntime.h"
 #include "CodeGenFunction.h"
 #include "CodeGenModule.h"
 #include "ConstantEmitter.h"
@@ -2846,6 +2847,14 @@ LValue CodeGenFunction::EmitDeclRefLValue(const DeclRefExpr *E) {
     } else if (VD->isStaticLocal()) {
       llvm::Constant *var = CGM.getOrCreateStaticVarDecl(
           *VD, CGM.getLLVMLinkageVarDefinition(VD));
+
+      // Force completion of static variable for SYCL since if it wasn't emitted
+      // already that means it is defined in host code and its parent function
+      // won't be emitted.
+      if (getLangOpts().SYCLIsDevice)
+        EmitStaticVarDecl(
+            *VD, CGM.getLLVMLinkageVarDefinition(VD));
+
       addr = Address(
           var, ConvertTypeForMem(VD->getType()), getContext().getDeclAlign(VD));
 
@@ -3690,6 +3699,16 @@ static QualType getFixedSizeElementType(const ASTContext &ctx,
   return eltType;
 }
 
+static void AddIVDepMetadata(CodeGenFunction &CGF, const ValueDecl *ArrayDecl,
+                             llvm::Value *EltPtr) {
+  if (!ArrayDecl)
+    return;
+
+  // Only handle actual GEPs, ConstantExpr GEPs don't have metadata.
+  if (auto *GEP = dyn_cast<llvm::GetElementPtrInst>(EltPtr))
+    CGF.LoopStack.addIVDepMetadata(ArrayDecl, GEP);
+}
+
 /// Given an array base, check whether its member access belongs to a record
 /// with preserve_access_index attribute or not.
 static bool IsPreserveAIArrayBase(CodeGenFunction &CGF, const Expr *ArrayBase) {
@@ -3732,7 +3751,8 @@ static Address emitArraySubscriptGEP(CodeGenFunction &CGF, Address addr,
                                      bool signedIndices, SourceLocation loc,
                                      QualType *arrayType = nullptr,
                                      const Expr *Base = nullptr,
-                                     const llvm::Twine &name = "arrayidx") {
+                                     const llvm::Twine &name = "arrayidx",
+                                     const ValueDecl *arrayDecl = nullptr) {
   // All the indices except that last must be zero.
 #ifndef NDEBUG
   for (auto *idx : indices.drop_back())
@@ -3758,6 +3778,7 @@ static Address emitArraySubscriptGEP(CodeGenFunction &CGF, Address addr,
     eltPtr = emitArraySubscriptGEP(
         CGF, addr.getElementType(), addr.getPointer(), indices, inbounds,
         signedIndices, loc, name);
+    AddIVDepMetadata(CGF, arrayDecl, eltPtr);
   } else {
     // Remember the original array subscript for bpf target
     unsigned idx = LastIndex->getZExtValue();
@@ -3900,12 +3921,18 @@ LValue CodeGenFunction::EmitArraySubscriptExpr(const ArraySubscriptExpr *E,
       ArrayLV = EmitLValue(Array);
     auto *Idx = EmitIdxAfterBase(/*Promote*/true);
 
+    const ValueDecl *ArrayDecl = nullptr;
+    if (const auto *DRE = dyn_cast<DeclRefExpr>(Array->IgnoreParenCasts()))
+      ArrayDecl = DRE->getDecl();
+    else if (const auto *ME = dyn_cast<MemberExpr>(Array->IgnoreParenCasts()))
+      ArrayDecl = ME->getMemberDecl();
+
     // Propagate the alignment from the array itself to the result.
     QualType arrayType = Array->getType();
     Addr = emitArraySubscriptGEP(
         *this, ArrayLV.getAddress(*this), {CGM.getSize(CharUnits::Zero()), Idx},
         E->getType(), !getLangOpts().isSignedOverflowDefined(), SignedIndices,
-        E->getExprLoc(), &arrayType, E->getBase());
+        E->getExprLoc(), &arrayType, E->getBase(), "arrayidx", ArrayDecl);
     EltBaseInfo = ArrayLV.getBaseInfo();
     EltTBAAInfo = CGM.getTBAAInfoForSubobject(ArrayLV, E->getType());
   } else {
@@ -3913,10 +3940,19 @@ LValue CodeGenFunction::EmitArraySubscriptExpr(const ArraySubscriptExpr *E,
     Addr = EmitPointerWithAlignment(E->getBase(), &EltBaseInfo, &EltTBAAInfo);
     auto *Idx = EmitIdxAfterBase(/*Promote*/true);
     QualType ptrType = E->getBase()->getType();
+
+    const ValueDecl *PtrDecl = nullptr;
+    if (const auto *DRE =
+            dyn_cast<DeclRefExpr>(E->getBase()->IgnoreParenCasts()))
+      PtrDecl = DRE->getDecl();
+    else if (const auto *ME =
+                 dyn_cast<MemberExpr>(E->getBase()->IgnoreParenCasts()))
+      PtrDecl = ME->getMemberDecl();
+
     Addr = emitArraySubscriptGEP(*this, Addr, Idx, E->getType(),
                                  !getLangOpts().isSignedOverflowDefined(),
                                  SignedIndices, E->getExprLoc(), &ptrType,
-                                 E->getBase());
+                                 E->getBase(), "arrayidx", PtrDecl);
   }
 
   LValue LV = MakeAddrLValue(Addr, E->getType(), EltBaseInfo, EltTBAAInfo);
@@ -4493,6 +4529,17 @@ LValue CodeGenFunction::EmitLValueForField(LValue base,
 
   if (field->hasAttr<AnnotateAttr>())
     addr = EmitFieldAnnotations(field, addr);
+
+  // Emit attribute annotation for a field.
+  if (getLangOpts().SYCLIsDevice) {
+    if (field->hasAttr<SYCLAddIRAnnotationsMemberAttr>())
+      addr = EmitFieldSYCLAnnotations(field, addr);
+
+    SmallString<256> AnnotStr;
+    CGM.generateIntelFPGAAnnotation(field, AnnotStr);
+    if (!AnnotStr.empty())
+      addr = EmitIntelFPGAFieldAnnotations(field, addr, AnnotStr);
+  }
 
   LValue LV = MakeAddrLValue(addr, FieldType, FieldBaseInfo, FieldTBAAInfo);
   LV.getQuals().addCVRQualifiers(RecordCVR);

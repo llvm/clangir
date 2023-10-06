@@ -644,17 +644,18 @@ std::string SYCLUniqueStableNameExpr::ComputeName(ASTContext &Context) const {
                                                getTypeSourceInfo()->getType());
 }
 
+static std::optional<unsigned>
+UniqueStableNameDiscriminator(ASTContext &, const NamedDecl *ND) {
+  if (const auto *RD = dyn_cast<CXXRecordDecl>(ND))
+    if (RD->isLambda())
+      return RD->getDeviceLambdaManglingNumber();
+  return std::nullopt;
+}
+
 std::string SYCLUniqueStableNameExpr::ComputeName(ASTContext &Context,
                                                   QualType Ty) {
-  auto MangleCallback = [](ASTContext &Ctx,
-                           const NamedDecl *ND) -> std::optional<unsigned> {
-    if (const auto *RD = dyn_cast<CXXRecordDecl>(ND))
-      return RD->getDeviceLambdaManglingNumber();
-    return std::nullopt;
-  };
-
   std::unique_ptr<MangleContext> Ctx{ItaniumMangleContext::create(
-      Context, Context.getDiagnostics(), MangleCallback)};
+      Context, Context.getDiagnostics(), UniqueStableNameDiscriminator)};
 
   std::string Buffer;
   Buffer.reserve(128);
@@ -662,6 +663,60 @@ std::string SYCLUniqueStableNameExpr::ComputeName(ASTContext &Context,
   Ctx->mangleTypeName(Ty, Out);
 
   return Out.str();
+}
+
+SYCLUniqueStableIdExpr::SYCLUniqueStableIdExpr(EmptyShell Empty,
+                                               QualType ResultTy)
+    : Expr(SYCLUniqueStableIdExprClass, ResultTy, VK_PRValue, OK_Ordinary) {}
+
+SYCLUniqueStableIdExpr::SYCLUniqueStableIdExpr(SourceLocation OpLoc,
+                                               SourceLocation LParen,
+                                               SourceLocation RParen,
+                                               QualType ResultTy, Expr *E)
+    : Expr(SYCLUniqueStableIdExprClass, ResultTy, VK_PRValue, OK_Ordinary),
+      OpLoc(OpLoc), LParen(LParen), RParen(RParen), DRE(E) {
+  setDependence(computeDependence(this));
+}
+
+SYCLUniqueStableIdExpr *SYCLUniqueStableIdExpr::Create(const ASTContext &Ctx,
+                                                       SourceLocation OpLoc,
+                                                       SourceLocation LParen,
+                                                       SourceLocation RParen,
+                                                       Expr *E) {
+  QualType ResultTy = Ctx.getPointerType(Ctx.CharTy.withConst());
+  return new (Ctx) SYCLUniqueStableIdExpr(OpLoc, LParen, RParen, ResultTy, E);
+}
+
+SYCLUniqueStableIdExpr *
+SYCLUniqueStableIdExpr::CreateEmpty(const ASTContext &Ctx) {
+  QualType ResultTy = Ctx.getPointerType(Ctx.CharTy.withConst());
+  return new (Ctx) SYCLUniqueStableIdExpr(EmptyShell(), ResultTy);
+}
+
+std::string SYCLUniqueStableIdExpr::ComputeName(ASTContext &Context) const {
+  assert(!isInstantiationDependent() &&
+         "Can't compute name of uninstantiated value");
+
+  auto *DR = cast<DeclRefExpr>(getExpr()->IgnoreUnlessSpelledInSource());
+  auto *VD = cast<VarDecl>(DR->getDecl());
+
+  return ComputeName(Context, VD);
+}
+
+std::string SYCLUniqueStableIdExpr::ComputeName(ASTContext &Context,
+                                                const VarDecl *VD) {
+  std::unique_ptr<MangleContext> Ctx{ItaniumMangleContext::create(
+      Context, Context.getDiagnostics(), UniqueStableNameDiscriminator)};
+
+  std::string Buffer;
+  Buffer.reserve(128);
+  llvm::raw_string_ostream Out(Buffer);
+  Ctx->mangleName(GlobalDecl{VD}, Out);
+
+  if (VD->isExternallyVisible())
+    return Out.str();
+
+  return Context.getLangOpts().SYCLUniquePrefix + "___" + Out.str();
 }
 
 PredefinedExpr::PredefinedExpr(SourceLocation L, QualType FNTy, IdentKind IK,
@@ -3606,7 +3661,12 @@ bool Expr::HasSideEffects(const ASTContext &Ctx,
   case SourceLocExprClass:
   case ConceptSpecializationExprClass:
   case RequiresExprClass:
+  case SYCLBuiltinNumFieldsExprClass:
+  case SYCLBuiltinFieldTypeExprClass:
+  case SYCLBuiltinNumBasesExprClass:
+  case SYCLBuiltinBaseTypeExprClass:
   case SYCLUniqueStableNameExprClass:
+  case SYCLUniqueStableIdExprClass:
     // These never have a side-effect.
     return false;
 

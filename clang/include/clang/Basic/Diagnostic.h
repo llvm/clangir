@@ -16,6 +16,7 @@
 
 #include "clang/Basic/DiagnosticIDs.h"
 #include "clang/Basic/DiagnosticOptions.h"
+#include "clang/Basic/OptReportHandler.h"
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/Specifiers.h"
 #include "llvm/ADT/ArrayRef.h"
@@ -295,6 +296,7 @@ private:
   DiagnosticConsumer *Client = nullptr;
   std::unique_ptr<DiagnosticConsumer> Owner;
   SourceManager *SourceMgr = nullptr;
+  SyclOptReportHandler SyclOptReport;
 
   /// Mapping information for diagnostics.
   ///
@@ -548,6 +550,10 @@ public:
   friend void DiagnosticsTestHelper(DiagnosticsEngine &);
   LLVM_DUMP_METHOD void dump() const;
   LLVM_DUMP_METHOD void dump(StringRef DiagName) const;
+
+  /// Retrieve the SyclOptReport info.
+  SyclOptReportHandler &getSYCLOptReport() { return SyclOptReport; }
+  const SyclOptReportHandler &getSYCLOptReport() const { return SyclOptReport; }
 
   const IntrusiveRefCntPtr<DiagnosticIDs> &getDiagnosticIDs() const {
     return Diags;

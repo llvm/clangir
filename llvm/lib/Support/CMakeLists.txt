@@ -203,6 +203,7 @@ add_llvm_component_library(LLVMSupport
   Parallel.cpp
   PluginLoader.cpp
   PrettyStackTrace.cpp
+  PropertySetIO.cpp
   RandomNumberGenerator.cpp
   Regex.cpp
   RISCVAttributes.cpp
@@ -213,6 +214,7 @@ add_llvm_component_library(LLVMSupport
   SHA1.cpp
   SHA256.cpp
   Signposts.cpp
+  SimpleTable.cpp
   SmallPtrSet.cpp
   SmallVector.cpp
   SourceMgr.cpp

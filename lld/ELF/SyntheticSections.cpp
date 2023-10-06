@@ -3844,7 +3844,6 @@ void InStruct::reset() {
   gotPlt.reset();
   igotPlt.reset();
   relroPadding.reset();
-  armCmseSGSection.reset();
   ppc64LongBranchTarget.reset();
   mipsAbiFlags.reset();
   mipsGot.reset();

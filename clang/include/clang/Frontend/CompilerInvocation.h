@@ -326,6 +326,9 @@ private:
                             std::vector<std::string> &Includes,
                             DiagnosticsEngine &Diags);
 
+  static void ParseFpAccuracyArgs(LangOptions &Opts, llvm::opt::ArgList &Args,
+                                  DiagnosticsEngine &Diags);
+
   /// Parse command line options that map to CodeGenOptions.
   static bool ParseCodeGenArgs(CodeGenOptions &Opts, llvm::opt::ArgList &Args,
                                InputKind IK, DiagnosticsEngine &Diags,

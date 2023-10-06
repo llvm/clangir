@@ -103,7 +103,7 @@ class Compilation {
   std::map<TCArgsKey, llvm::opt::DerivedArgList *> TCArgs;
 
   /// Temporary files which should be removed on exit.
-  llvm::opt::ArgStringList TempFiles;
+  TempFileList TempFiles;
 
   /// Result files which should be removed on failure.
   ArgStringMap ResultFiles;
@@ -219,8 +219,8 @@ public:
 
   void addCommand(std::unique_ptr<Command> C) { Jobs.addJob(std::move(C)); }
 
-  llvm::opt::ArgStringList &getTempFiles() { return TempFiles; }
-  const llvm::opt::ArgStringList &getTempFiles() const { return TempFiles; }
+  TempFileList &getTempFiles() { return TempFiles; }
+  const TempFileList &getTempFiles() const { return TempFiles; }
 
   const ArgStringMap &getResultFiles() const { return ResultFiles; }
 
@@ -251,10 +251,13 @@ public:
   getArgsForToolChain(const ToolChain *TC, StringRef BoundArch,
                       Action::OffloadKind DeviceOffloadKind);
 
-  /// addTempFile - Add a file to remove on exit, and returns its
-  /// argument.
-  const char *addTempFile(const char *Name) {
-    TempFiles.push_back(Name);
+  /// addTempFile - Add a file to remove on exit, and returns its argument.
+  /// \param Name - Name of file to be added as a temporary file
+  /// \param Type - If specified, the type of file.  Currently the only
+  /// different type of file is of type TY_Tempfilelist
+  const char *addTempFile(const char *Name,
+                          types::ID Type = types::TY_Nothing) {
+    TempFiles.push_back(std::make_pair(Name, Type));
     return Name;
   }
 
@@ -290,7 +293,7 @@ public:
   ///
   /// \param IssueErrors - Report failures as errors.
   /// \return Whether all files were removed successfully.
-  bool CleanupFileList(const llvm::opt::ArgStringList &Files,
+  bool CleanupFileList(const TempFileList &Files,
                        bool IssueErrors = false) const;
 
   /// CleanupFileMap - Remove the files in the given map.

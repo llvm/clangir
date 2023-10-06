@@ -208,8 +208,10 @@ convertOperationImpl(Operation &opInst, llvm::IRBuilderBase &builder,
     ArrayRef<llvm::Value *> operandsRef(operands);
     llvm::CallInst *call;
     if (auto attr = callOp.getCalleeAttr()) {
-      call = builder.CreateCall(
-          moduleTranslation.lookupFunction(attr.getValue()), operandsRef);
+      llvm::Function *callee =
+          moduleTranslation.lookupFunction(attr.getValue());
+      call = builder.CreateCall(callee, operandsRef);
+      call->setCallingConv(callee->getCallingConv());
     } else {
       call = builder.CreateCall(getCalleeFunctionType(callOp.getResultTypes(),
                                                       callOp.getArgOperands()),

@@ -104,6 +104,9 @@
 using namespace clang;
 using namespace sema;
 
+static const Expr *maybeConstEvalStringLiteral(ASTContext &Context,
+                                               const Expr *E);
+
 SourceLocation Sema::getLocationOfStringLiteralByte(const StringLiteral *SL,
                                                     unsigned ByteNo) const {
   return SL->getLocationOfByte(ByteNo, getSourceManager(), LangOpts,
@@ -2612,6 +2615,36 @@ Sema::CheckBuiltinFunctionCall(FunctionDecl *FDecl, unsigned BuiltinID,
     if (SemaBuiltinOSLogFormat(TheCall))
       return ExprError();
     break;
+  case Builtin::BI__builtin_intel_fpga_reg:
+    if (!Context.getLangOpts().SYCLIsDevice) {
+      Diag(TheCall->getBeginLoc(), diag::err_builtin_requires_language)
+          << "__builtin_intel_fpga_reg"
+          << "SYCL device";
+      return ExprError();
+    }
+    if (CheckIntelFPGARegBuiltinFunctionCall(BuiltinID, TheCall))
+      return ExprError();
+    break;
+  case Builtin::BI__builtin_intel_sycl_ptr_annotation:
+    if (!Context.getLangOpts().SYCLIsDevice) {
+      Diag(TheCall->getBeginLoc(), diag::err_builtin_requires_language)
+          << "__builtin_intel_sycl_ptr_annotation"
+          << "SYCL device";
+      return ExprError();
+    }
+    if (CheckIntelSYCLPtrAnnotationBuiltinFunctionCall(BuiltinID, TheCall))
+      return ExprError();
+    break;
+  case Builtin::BI__builtin_intel_fpga_mem:
+    if (!Context.getLangOpts().SYCLIsDevice) {
+      Diag(TheCall->getBeginLoc(), diag::err_builtin_requires_language)
+          << "__builtin_intel_fpga_mem"
+          << "SYCL device";
+      return ExprError();
+    }
+    if (CheckIntelFPGAMemBuiltinFunctionCall(TheCall))
+      return ExprError();
+    break;
   case Builtin::BI__builtin_frame_address:
   case Builtin::BI__builtin_return_address: {
     if (SemaBuiltinConstantArgRange(TheCall, 0, 0, 0xFFFF))
@@ -2860,6 +2893,11 @@ Sema::CheckBuiltinFunctionCall(FunctionDecl *FDecl, unsigned BuiltinID,
               *Context.getAuxTargetInfo(),
               Context.BuiltinInfo.getAuxBuiltinID(BuiltinID), TheCall))
         return ExprError();
+
+      // Detect when host builtins are used in device code only
+      if (getLangOpts().SYCLIsDevice)
+        SYCLDiagIfDeviceCode(TheCall->getBeginLoc(),
+                             diag::err_builtin_target_unsupported);
     } else {
       if (CheckTSBuiltinFunctionCall(Context.getTargetInfo(), BuiltinID,
                                      TheCall))
@@ -6462,6 +6500,175 @@ bool Sema::CheckX86BuiltinFunctionCall(const TargetInfo &TI, unsigned BuiltinID,
   return SemaBuiltinConstantArgRange(TheCall, i, l, u, /*RangeIsError*/ false);
 }
 
+static bool checkIntelFPGARegArgument(Sema &S, QualType ArgType,
+                                      SourceLocation &Loc) {
+  if (ArgType.getTypePtr()->isArrayType())
+    return true;
+
+  // Non-POD classes are allowed. Each field is checked for illegal type.
+  if (CXXRecordDecl *Record = ArgType->getAsCXXRecordDecl()) {
+    for (auto *FD : Record->fields()) {
+      QualType T = FD->getType();
+      Loc = FD->getLocation();
+      if (const ArrayType *AT = T->getAsArrayTypeUnsafe())
+        T = AT->getElementType();
+      if (checkIntelFPGARegArgument(S, T, Loc))
+        return true;
+    }
+    return false;
+  }
+
+  QualType CTy = ArgType.getCanonicalType();
+
+  if (CTy->isFunctionPointerType() || CTy->isImageType() ||
+      CTy->isEventT() || CTy->isSamplerT() || CTy->isPipeType())
+    return true;
+
+  // Check to filter out unintended types. Records are handled above.
+  if (!CTy.isCXX98PODType(S.Context))
+    return true;
+
+  return false;
+}
+
+bool Sema::CheckIntelFPGARegBuiltinFunctionCall(unsigned BuiltinID,
+                                                CallExpr *TheCall) {
+  switch (BuiltinID) {
+  case Builtin::BI__builtin_intel_fpga_reg: {
+    if (checkArgCount(*this, TheCall, 1))
+      return true;
+
+    Expr *Arg = TheCall->getArg(0);
+    QualType ArgType = Arg->getType();
+    SourceLocation Loc;
+
+    if (checkIntelFPGARegArgument(*this, ArgType, Loc)) {
+      Diag(TheCall->getBeginLoc(), diag::err_intel_fpga_reg_limitations)
+          << (ArgType.getTypePtr()->isRecordType() ? 1 : 0) << ArgType
+          << TheCall->getSourceRange();
+      if (ArgType.getTypePtr()->isRecordType())
+        Diag(Loc, diag::illegal_type_declared_here);
+      return true;
+    }
+
+    TheCall->setType(ArgType);
+
+    return false;
+  }
+  default:
+    return true;
+  }
+}
+
+bool Sema::CheckIntelFPGAMemBuiltinFunctionCall(CallExpr *TheCall) {
+  const unsigned MinNumArgs = 3;
+  const unsigned MaxNumArgs = 7;
+  unsigned NumArgs = TheCall->getNumArgs();
+
+  // Make sure we have the minimum number of provided arguments.
+  if (checkArgCountAtLeast(*this, TheCall, MinNumArgs))
+    return true;
+
+  // Make sure we don't have too many arguments.
+  if (checkArgCountAtMost(*this, TheCall, MaxNumArgs))
+    return true;
+
+  Expr *PointerArg = TheCall->getArg(0);
+  QualType PointerArgType = PointerArg->getType();
+
+  // Make sure that the first argument is a pointer
+  if (!isa<PointerType>(PointerArgType))
+    return Diag(PointerArg->getBeginLoc(),
+                diag::err_intel_fpga_mem_arg_mismatch)
+           << 0;
+
+  // Make sure that the pointer points to a legal type
+  // We use the same argument checks used for __builtin_intel_fpga_reg
+  QualType PointeeType = PointerArgType->getPointeeType();
+  SourceLocation Loc;
+  if (checkIntelFPGARegArgument(*this, PointeeType, Loc)) {
+    Diag(TheCall->getBeginLoc(), diag::err_intel_fpga_mem_limitations)
+        << (PointeeType->isRecordType() ? 1 : 0) << PointerArgType
+        << TheCall->getSourceRange();
+    if (PointeeType->isRecordType())
+      Diag(Loc, diag::illegal_type_declared_here);
+    return true;
+  }
+
+  // Second argument must be a constant integer
+  llvm::APSInt Result;
+  if (SemaBuiltinConstantArg(TheCall, 1, Result))
+    return true;
+
+  // Third argument (CacheSize) must be a non-negative constant integer
+  if (SemaBuiltinConstantArg(TheCall, 2, Result))
+    return true;
+  if (Result < 0)
+    return Diag(TheCall->getArg(2)->getBeginLoc(),
+        diag::err_intel_fpga_mem_arg_mismatch) << 1;
+
+  // The last four optional arguments must be signed constant integers.
+  for (unsigned I = MinNumArgs; I != NumArgs; ++I) {
+    if (SemaBuiltinConstantArg(TheCall, I, Result))
+      return true;
+  }
+
+  // Set the return type to be the same as the type of the first argument
+  // (pointer argument)
+  TheCall->setType(PointerArgType);
+  return false;
+}
+
+bool Sema::CheckIntelSYCLPtrAnnotationBuiltinFunctionCall(unsigned BuiltinID,
+                                                          CallExpr *TheCall) {
+  unsigned NumArgs = TheCall->getNumArgs();
+  // Make sure we have the minimum number of provided arguments.
+  if (checkArgCountAtLeast(*this, TheCall, 1)) {
+    return true;
+  }
+
+  // Make sure we have odd number of arguments.
+  if (!(NumArgs & 0x1)) {
+    return Diag(TheCall->getEndLoc(),
+                diag::err_intel_sycl_ptr_annotation_arg_number_mismatch);
+  }
+
+  // First argument should be a pointer.
+  Expr *PointerArg = TheCall->getArg(0);
+  QualType PointerArgType = PointerArg->getType();
+
+  if (!isa<PointerType>(PointerArgType))
+    return Diag(PointerArg->getBeginLoc(),
+                diag::err_intel_sycl_ptr_annotation_mismatch)
+           << 0;
+
+  // Following arguments are paired in format ("String", integer).
+  unsigned I = 1;
+  for (; I <= NumArgs / 2; ++I) {
+    // must be string Literal/const char*
+    auto Arg = TheCall->getArg(I)->IgnoreParenImpCasts();
+    Expr::EvalResult Result;
+    if (!isa<StringLiteral>(Arg) &&
+        !maybeConstEvalStringLiteral(this->Context, Arg)) {
+      Diag(TheCall->getArg(I)->getBeginLoc(),
+           diag::err_intel_sycl_ptr_annotation_mismatch)
+          << 1;
+      return true;
+    }
+  }
+
+  llvm::APSInt Result;
+  for (; I != NumArgs; ++I) {
+    // must be integer
+    if (SemaBuiltinConstantArg(TheCall, I, Result))
+      return true;
+  }
+
+  // Set the return type to be the same as the type of the first argument
+  TheCall->setType(PointerArgType);
+  return false;
+}
+
 /// Given a FunctionDecl's FormatAttr, attempts to populate the FomatStringInfo
 /// parameter with the FormatAttr's correct format_idx and firstDataArg.
 /// Returns true when the format fits the function and the FormatStringInfo has
@@ -6891,6 +7098,15 @@ void Sema::checkCall(NamedDecl *FDecl, const FunctionProtoType *Proto,
 
   if (FD)
     diagnoseArgDependentDiagnoseIfAttrs(FD, ThisArg, Args, Loc);
+
+  if (FD && FD->hasAttr<SYCLKernelAttr>())
+    CheckSYCLKernelCall(FD, Args);
+
+  // Diagnose variadic calls in SYCL.
+  if (FD && FD->isVariadic() && getLangOpts().SYCLIsDevice &&
+      !isUnevaluatedContext() && !isDeclAllowedInSYCLDeviceCode(FD))
+    SYCLDiagIfDeviceCode(Loc, diag::err_sycl_restrict)
+        << Sema::KernelCallVariadicFunction;
 }
 
 /// CheckConstructorCall - Check a constructor call for correctness and safety
@@ -8718,10 +8934,8 @@ ExprResult Sema::SemaConvertVectorExpr(Expr *E, TypeSourceInfo *TInfo,
 bool Sema::SemaBuiltinPrefetch(CallExpr *TheCall) {
   unsigned NumArgs = TheCall->getNumArgs();
 
-  if (NumArgs > 3)
-    return Diag(TheCall->getEndLoc(),
-                diag::err_typecheck_call_too_many_args_at_most)
-           << 0 /*function call*/ << 3 << NumArgs << TheCall->getSourceRange();
+  if (checkArgCountAtMost(*this, TheCall, 3))
+    return true;
 
   // Argument 0 is checked for us and the remaining arguments must be
   // constant integers.
@@ -8862,12 +9076,8 @@ bool Sema::SemaBuiltinOSLogFormat(CallExpr *TheCall) {
            << 0 /* function call */ << NumRequiredArgs << NumArgs
            << TheCall->getSourceRange();
   }
-  if (NumArgs >= NumRequiredArgs + 0x100) {
-    return Diag(TheCall->getEndLoc(),
-                diag::err_typecheck_call_too_many_args_at_most)
-           << 0 /* function call */ << (NumRequiredArgs + 0xff) << NumArgs
-           << TheCall->getSourceRange();
-  }
+  if (checkArgCountAtMost(*this, TheCall, NumRequiredArgs + 0xff))
+    return true;
   unsigned i = 0;
 
   // For formatting call, check buffer arg.
@@ -9650,9 +9860,6 @@ static void CheckFormatString(
     bool inFunctionCall, Sema::VariadicCallType CallType,
     llvm::SmallBitVector &CheckedVarArgs, UncoveredArgHandler &UncoveredArg,
     bool IgnoreStringsWithoutSpecifiers);
-
-static const Expr *maybeConstEvalStringLiteral(ASTContext &Context,
-                                               const Expr *E);
 
 // Determine if an expression is a string literal or constant string.
 // If this function returns false on the arguments to a function expecting a
@@ -14969,15 +15176,31 @@ static void CheckImplicitConversion(Sema &S, Expr *E, QualType T,
         Expr::EvalResult result;
         if (E->EvaluateAsRValue(result, S.Context)) {
           // Value might be a float, a float vector, or a float complex.
-          if (IsSameFloatAfterCast(result.Val,
-                   S.Context.getFloatTypeSemantics(QualType(TargetBT, 0)),
-                   S.Context.getFloatTypeSemantics(QualType(SourceBT, 0))))
+          if (IsSameFloatAfterCast(
+                  result.Val,
+                  S.Context.getFloatTypeSemantics(QualType(TargetBT, 0)),
+                  S.Context.getFloatTypeSemantics(QualType(SourceBT, 0)))) {
+            if (S.getLangOpts().SYCLIsDevice)
+              S.SYCLDiagIfDeviceCode(CC, diag::warn_imp_float_size_conversion);
+            else
+              DiagnoseImpCast(S, E, T, CC,
+                              diag::warn_imp_float_size_conversion);
             return;
+          }
         }
 
         if (S.SourceMgr.isInSystemMacro(CC))
           return;
-
+        // If there is a precision conversion between floating point types when
+        // -Wimplicit-float-size-conversion is passed but
+        // -Wimplicit-float-conversion is not, make sure we emit at least a size
+        // warning.
+        if (S.Diags.isIgnored(diag::warn_impcast_float_precision, CC)) {
+          if (S.getLangOpts().SYCLIsDevice)
+            S.SYCLDiagIfDeviceCode(CC, diag::warn_imp_float_size_conversion);
+          else
+            DiagnoseImpCast(S, E, T, CC, diag::warn_imp_float_size_conversion);
+        }
         DiagnoseImpCast(S, E, T, CC, diag::warn_impcast_float_precision);
       }
       // ... or possibly if we're increasing rank, too

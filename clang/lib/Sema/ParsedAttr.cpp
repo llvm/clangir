@@ -202,6 +202,10 @@ bool ParsedAttr::isSupportedByPragmaAttribute() const {
   return getInfo().IsSupportedByPragmaAttribute;
 }
 
+bool ParsedAttr::supportsNonconformingLambdaSyntax() const {
+  return getInfo().SupportsNonconformingLambdaSyntax && isCXX11Attribute();
+}
+
 bool ParsedAttr::slidesFromDeclToDeclSpecLegacyBehavior() const {
   if (isRegularKeywordAttribute())
     // The appurtenance rules are applied strictly for all regular keyword

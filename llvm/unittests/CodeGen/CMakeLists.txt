@@ -12,6 +12,7 @@ set(LLVM_LINK_COMPONENTS
   Passes
   SelectionDAG
   Support
+  SYCLLowerIR
   Target
   TargetParser
   )

@@ -106,6 +106,7 @@ public:
     wasm64,         // WebAssembly with 64-bit pointers
     renderscript32, // 32-bit RenderScript
     renderscript64, // 64-bit RenderScript
+    fpga,           // Intel FPGA
     ve,             // NEC SX-Aurora Vector Engine
     LastArchType = ve
   };
@@ -154,6 +155,10 @@ public:
 
     MipsSubArch_r6,
 
+    SPIRSubArch_fpga,
+    SPIRSubArch_gen,
+    SPIRSubArch_x86_64,
+
     PPCSubArch_spe,
 
     // SPIR-V sub-arch corresponds to its version.
@@ -173,6 +178,7 @@ public:
     Freescale,
     IBM,
     ImaginationTechnologies,
+    Intel,
     MipsTechnologies,
     NVIDIA,
     CSR,
@@ -244,6 +250,7 @@ public:
     MuslEABI,
     MuslEABIHF,
     MuslX32,
+    SYCLMLIR,
 
     MSVC,
     Itanium,

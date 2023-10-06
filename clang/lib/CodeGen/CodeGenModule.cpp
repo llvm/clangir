@@ -22,6 +22,7 @@
 #include "CGOpenCLRuntime.h"
 #include "CGOpenMPRuntime.h"
 #include "CGOpenMPRuntimeGPU.h"
+#include "CGSYCLRuntime.h"
 #include "CodeGenFunction.h"
 #include "CodeGenPGO.h"
 #include "ConstantEmitter.h"
@@ -47,6 +48,7 @@
 #include "clang/CodeGen/BackendUtil.h"
 #include "clang/CodeGen/ConstantInitBuilder.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
+#include "clang/Sema/Sema.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringSwitch.h"
@@ -99,6 +101,15 @@ static CGCXXABI *createCXXABI(CodeGenModule &CGM) {
   }
 
   llvm_unreachable("invalid C++ ABI kind");
+}
+
+static bool SYCLCUDAIsHost(const clang::LangOptions &LangOpts) {
+  // Return true for the host compilation of SYCL CUDA sources.
+  return LangOpts.SYCLIsHost && LangOpts.CUDA && !LangOpts.CUDAIsDevice;
+}
+static bool SYCLCUDAIsSYCLDevice(const clang::LangOptions &LangOpts) {
+  // Return true for the SYCL device compilation of SYCL CUDA sources.
+  return LangOpts.SYCLIsDevice && LangOpts.CUDA && !LangOpts.CUDAIsDevice;
 }
 
 static std::unique_ptr<TargetCodeGenInfo>
@@ -365,6 +376,8 @@ CodeGenModule::CodeGenModule(ASTContext &C,
   const llvm::DataLayout &DL = M.getDataLayout();
   AllocaInt8PtrTy = Int8Ty->getPointerTo(DL.getAllocaAddrSpace());
   GlobalsInt8PtrTy = Int8Ty->getPointerTo(DL.getDefaultGlobalsAddressSpace());
+  DefaultInt8PtrTy =
+      Int8Ty->getPointerTo(getContext().getTargetAddressSpace(LangAS::Default));
   ConstGlobalsPtrTy = Int8Ty->getPointerTo(
       C.getTargetAddressSpace(GetGlobalConstantAddressSpace()));
   ASTAllocaAddressSpace = getTargetCodeGenInfo().getASTAllocaAddressSpace();
@@ -380,12 +393,14 @@ CodeGenModule::CodeGenModule(ASTContext &C,
 
   if (LangOpts.ObjC)
     createObjCRuntime();
-  if (LangOpts.OpenCL)
+  if (LangOpts.OpenCL || LangOpts.SYCLIsDevice)
     createOpenCLRuntime();
   if (LangOpts.OpenMP)
     createOpenMPRuntime();
   if (LangOpts.CUDA)
     createCUDARuntime();
+  if (LangOpts.SYCLIsDevice)
+    createSYCLRuntime();
   if (LangOpts.HLSL)
     createHLSLRuntime();
 
@@ -485,6 +500,10 @@ void CodeGenModule::createOpenMPRuntime() {
 
 void CodeGenModule::createCUDARuntime() {
   CUDARuntime.reset(CreateNVCUDARuntime(*this));
+}
+
+void CodeGenModule::createSYCLRuntime() {
+  SYCLRuntime.reset(new CGSYCLRuntime(*this));
 }
 
 void CodeGenModule::createHLSLRuntime() {
@@ -758,6 +777,30 @@ static void setVisibilityFromDLLStorageClass(const clang::LangOptions &LO,
 
     GV.setDLLStorageClass(llvm::GlobalValue::DefaultStorageClass);
   }
+}
+
+static llvm::MDNode *getAspectsMD(ASTContext &ASTContext,
+                                  llvm::LLVMContext &Ctx, StringRef Name,
+                                  const SYCLUsesAspectsAttr *A) {
+  SmallVector<llvm::Metadata *, 4> AspectsMD;
+  AspectsMD.push_back(llvm::MDString::get(Ctx, Name));
+  for (auto *Aspect : A->aspects()) {
+    llvm::APSInt AspectInt = Aspect->EvaluateKnownConstInt(ASTContext);
+    AspectsMD.push_back(llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(
+        llvm::Type::getInt32Ty(Ctx), AspectInt.getZExtValue())));
+  }
+  return llvm::MDNode::get(Ctx, AspectsMD);
+}
+
+static llvm::MDNode *getAspectEnumValueMD(ASTContext &ASTContext,
+                                          llvm::LLVMContext &Ctx,
+                                          const EnumConstantDecl *ECD) {
+  SmallVector<llvm::Metadata *, 2> AspectEnumValMD;
+  AspectEnumValMD.push_back(llvm::MDString::get(Ctx, ECD->getName()));
+  AspectEnumValMD.push_back(
+      llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(
+          llvm::Type::getInt32Ty(Ctx), ECD->getInitVal().getSExtValue())));
+  return llvm::MDNode::get(Ctx, AspectEnumValMD);
 }
 
 void CodeGenModule::Release() {
@@ -1082,13 +1125,20 @@ void CodeGenModule::Release() {
         llvm::MDString::get(Ctx, CodeGenOpts.MemoryProfileOutput));
   }
 
-  if (LangOpts.CUDAIsDevice && getTriple().isNVPTX()) {
+  if ((LangOpts.CUDAIsDevice || LangOpts.SYCLIsDevice) && getTriple().isNVPTX()) {
     // Indicate whether __nvvm_reflect should be configured to flush denormal
     // floating point values to 0.  (This corresponds to its "__CUDA_FTZ"
     // property.)
-    getModule().addModuleFlag(llvm::Module::Override, "nvvm-reflect-ftz",
-                              CodeGenOpts.FP32DenormalMode.Output !=
-                                  llvm::DenormalMode::IEEE);
+    getModule().addModuleFlag(
+        llvm::Module::Max, "nvvm-reflect-ftz",
+        (CodeGenOpts.FP32DenormalMode.Output != llvm::DenormalMode::IEEE) ||
+            (CodeGenOpts.FPDenormalMode.Output != llvm::DenormalMode::IEEE));
+    getModule().addModuleFlag(llvm::Module::Max, "nvvm-reflect-prec-sqrt",
+                              getTarget().getTargetOpts().NVVMCudaPrecSqrt);
+  }
+
+  if (LangOpts.SYCLIsDevice && LangOpts.SYCLIsNativeCPU) {
+    getModule().addModuleFlag(llvm::Module::Error, "is-native-cpu", 1);
   }
 
   if (LangOpts.EHAsynch)
@@ -1120,6 +1170,56 @@ void CodeGenModule::Release() {
           TheModule.getOrInsertNamedMetadata("opencl.spir.version");
       llvm::LLVMContext &Ctx = TheModule.getContext();
       SPIRVerMD->addOperand(llvm::MDNode::get(Ctx, SPIRVerElts));
+    }
+  }
+
+  // Emit SYCL specific module metadata: OpenCL/SPIR version, OpenCL language,
+  // metadata for optional features (device aspects).
+  if (LangOpts.SYCLIsDevice) {
+    llvm::LLVMContext &Ctx = TheModule.getContext();
+    llvm::Metadata *SPIRVerElts[] = {
+        llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(Int32Ty, 1)),
+        llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(Int32Ty, 2))};
+    llvm::NamedMDNode *SPIRVerMD =
+        TheModule.getOrInsertNamedMetadata("opencl.spir.version");
+    SPIRVerMD->addOperand(llvm::MDNode::get(Ctx, SPIRVerElts));
+    // We are trying to look like OpenCL C++ for SPIR-V translator.
+    // 4 - OpenCL_CPP, 100000 - OpenCL C++ version 1.0
+    // 0 - ESIMD, if any kernel or function is an explicit SIMD one
+    int Lang = llvm::any_of(TheModule,
+                            [](const auto &F) {
+                              return F.getMetadata("sycl_explicit_simd");
+                            })
+                   ? 0
+                   : 4;
+
+    llvm::Metadata *SPIRVSourceElts[] = {
+        llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(Int32Ty, Lang)),
+        llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(Int32Ty, 100000))};
+    llvm::NamedMDNode *SPIRVSourceMD =
+        TheModule.getOrInsertNamedMetadata("spirv.Source");
+    SPIRVSourceMD->addOperand(llvm::MDNode::get(Ctx, SPIRVSourceElts));
+
+    // Emit type name with list of associated device aspects.
+    if (TypesWithAspects.size() > 0) {
+      llvm::NamedMDNode *AspectsMD =
+          TheModule.getOrInsertNamedMetadata("sycl_types_that_use_aspects");
+      for (const auto &Type : TypesWithAspects) {
+        StringRef Name = Type.first;
+        const RecordDecl *RD = Type.second;
+        AspectsMD->addOperand(getAspectsMD(Context, TheModule.getContext(),
+                                           Name,
+                                           RD->getAttr<SYCLUsesAspectsAttr>()));
+      }
+    }
+
+    // Emit metadata for all aspects defined in the aspects enum.
+    if (AspectsEnumDecl) {
+      llvm::NamedMDNode *AspectEnumValsMD =
+          TheModule.getOrInsertNamedMetadata("sycl_aspects");
+      for (const EnumConstantDecl *ECD : AspectsEnumDecl->enumerators())
+        AspectEnumValsMD->addOperand(
+            getAspectEnumValueMD(Context, TheModule.getContext(), ECD));
     }
   }
 
@@ -1941,10 +2041,17 @@ void CodeGenModule::EmitCtorList(CtorList &Fns, const char *GlobalName) {
   llvm::FunctionType* CtorFTy = llvm::FunctionType::get(VoidTy, false);
   llvm::Type *CtorPFTy = llvm::PointerType::get(CtorFTy,
       TheModule.getDataLayout().getProgramAddressSpace());
+  llvm::PointerType *TargetType = VoidPtrTy;
+  // Get target type when templated global variables are used,
+  // to emit them correctly in the target (default) address space and avoid
+  // emitting them in a private address space.
+  if (getLangOpts().SYCLIsDevice)
+    TargetType = llvm::IntegerType::getInt8PtrTy(
+        getLLVMContext(), getContext().getTargetAddressSpace(LangAS::Default));
 
   // Get the type of a ctor entry, { i32, void ()*, i8* }.
-  llvm::StructType *CtorStructTy = llvm::StructType::get(
-      Int32Ty, CtorPFTy, VoidPtrTy);
+  llvm::StructType *CtorStructTy =
+      llvm::StructType::get(Int32Ty, CtorPFTy, TargetType);
 
   // Construct the constructor and destructor arrays.
   ConstantInitBuilder builder(*this);
@@ -1953,10 +2060,12 @@ void CodeGenModule::EmitCtorList(CtorList &Fns, const char *GlobalName) {
     auto ctor = ctors.beginStruct(CtorStructTy);
     ctor.addInt(Int32Ty, I.Priority);
     ctor.add(llvm::ConstantExpr::getBitCast(I.Initializer, CtorPFTy));
+    // Emit appropriate bitcasts for pointers of different address spaces.
     if (I.AssociatedData)
-      ctor.add(llvm::ConstantExpr::getBitCast(I.AssociatedData, VoidPtrTy));
+      ctor.add(llvm::ConstantExpr::getPointerBitCastOrAddrSpaceCast(
+          I.AssociatedData, TargetType));
     else
-      ctor.addNullPointer(VoidPtrTy);
+      ctor.addNullPointer(TargetType);
     ctor.finishAndAddTo(ctors);
   }
 
@@ -2049,16 +2158,20 @@ static void removeImageAccessQualifier(std::string& TyName) {
 static unsigned ArgInfoAddressSpace(LangAS AS) {
   switch (AS) {
   case LangAS::opencl_global:
+  case LangAS::sycl_global:
     return 1;
   case LangAS::opencl_constant:
     return 2;
   case LangAS::opencl_local:
+  case LangAS::sycl_local:
     return 3;
   case LangAS::opencl_generic:
     return 4; // Not in SPIR 2.0 specs.
   case LangAS::opencl_global_device:
+  case LangAS::sycl_global_device:
     return 5;
   case LangAS::opencl_global_host:
+  case LangAS::sycl_global_host:
     return 6;
   default:
     return 0; // Assume private.
@@ -2094,13 +2207,22 @@ void CodeGenModule::GenKernelArgMetadata(llvm::Function *Fn,
   // MDNode for the kernel argument names.
   SmallVector<llvm::Metadata *, 8> argNames;
 
+  // MDNode for the intel_buffer_location attribute.
+  SmallVector<llvm::Metadata *, 8> argSYCLBufferLocationAttr;
+
+  // MDNode for listing SYCL kernel pointer arguments originating from
+  // accessors.
+  SmallVector<llvm::Metadata *, 8> argSYCLAccessorPtrs;
+
+  bool isKernelArgAnAccessor = false;
+
   if (FD && CGF)
     for (unsigned i = 0, e = FD->getNumParams(); i != e; ++i) {
       const ParmVarDecl *parm = FD->getParamDecl(i);
       // Get argument name.
       argNames.push_back(llvm::MDString::get(VMContext, parm->getName()));
 
-      if (!getLangOpts().OpenCL)
+      if (!getLangOpts().OpenCL && !getLangOpts().SYCLIsDevice)
         continue;
       QualType ty = parm->getType();
       std::string typeQuals;
@@ -2190,24 +2312,72 @@ void CodeGenModule::GenKernelArgMetadata(llvm::Function *Fn,
           typeQuals = "pipe";
       }
       argTypeQuals.push_back(llvm::MDString::get(VMContext, typeQuals));
+
+      auto *SYCLBufferLocationAttr =
+          parm->getAttr<SYCLIntelBufferLocationAttr>();
+      argSYCLBufferLocationAttr.push_back(
+          (SYCLBufferLocationAttr)
+              ? llvm::ConstantAsMetadata::get(CGF->Builder.getInt32(
+                    SYCLBufferLocationAttr->getLocationID()))
+              : llvm::ConstantAsMetadata::get(CGF->Builder.getInt32(-1)));
+
+      // If a kernel pointer argument comes from an accessor, we generate
+      // the following metadata :
+      // 1. kernel_arg_runtime_aligned - To indicate that this pointer has
+      // runtime allocated alignment.
+      // 2. kernel_arg_exclusive_ptr - To indicate that it is illegal to
+      // dereference the pointer from outside current invocation of the
+      // kernel.
+      // In both cases, the value of metadata element is 'true' for any
+      // kernel arguments that corresponds to the base pointer of an accessor
+      // and 'false' otherwise.
+      // Note: Although both metadata apply only to the base pointer of an
+      // accessor currently, it is possible that one or both may be extended
+      // to include other pointers. Therefore, both metadata are required.
+      if (parm->hasAttr<SYCLAccessorPtrAttr>()) {
+        isKernelArgAnAccessor = true;
+        argSYCLAccessorPtrs.push_back(
+            llvm::ConstantAsMetadata::get(CGF->Builder.getTrue()));
+      } else {
+        argSYCLAccessorPtrs.push_back(
+            llvm::ConstantAsMetadata::get(CGF->Builder.getFalse()));
+      }
     }
 
-  if (getLangOpts().OpenCL) {
-    Fn->setMetadata("kernel_arg_addr_space",
-                    llvm::MDNode::get(VMContext, addressQuals));
-    Fn->setMetadata("kernel_arg_access_qual",
-                    llvm::MDNode::get(VMContext, accessQuals));
-    Fn->setMetadata("kernel_arg_type",
-                    llvm::MDNode::get(VMContext, argTypeNames));
-    Fn->setMetadata("kernel_arg_base_type",
-                    llvm::MDNode::get(VMContext, argBaseTypeNames));
-    Fn->setMetadata("kernel_arg_type_qual",
-                    llvm::MDNode::get(VMContext, argTypeQuals));
+  bool IsEsimdFunction = FD && FD->hasAttr<SYCLSimdAttr>();
+
+  if (LangOpts.SYCLIsDevice && !IsEsimdFunction) {
+    Fn->setMetadata("kernel_arg_buffer_location",
+                    llvm::MDNode::get(VMContext, argSYCLBufferLocationAttr));
+    // Generate this metadata only if atleast one kernel argument is an
+    // accessor.
+    if (isKernelArgAnAccessor) {
+      Fn->setMetadata("kernel_arg_runtime_aligned",
+                      llvm::MDNode::get(VMContext, argSYCLAccessorPtrs));
+      Fn->setMetadata("kernel_arg_exclusive_ptr",
+                      llvm::MDNode::get(VMContext, argSYCLAccessorPtrs));
+    }
+  } else {
+    if (getLangOpts().OpenCL || getLangOpts().SYCLIsDevice) {
+      Fn->setMetadata("kernel_arg_addr_space",
+                      llvm::MDNode::get(VMContext, addressQuals));
+      Fn->setMetadata("kernel_arg_access_qual",
+                      llvm::MDNode::get(VMContext, accessQuals));
+      Fn->setMetadata("kernel_arg_type",
+                      llvm::MDNode::get(VMContext, argTypeNames));
+      Fn->setMetadata("kernel_arg_base_type",
+                      llvm::MDNode::get(VMContext, argBaseTypeNames));
+      Fn->setMetadata("kernel_arg_type_qual",
+                      llvm::MDNode::get(VMContext, argTypeQuals));
+      if (IsEsimdFunction)
+        Fn->setMetadata("kernel_arg_accessor_ptr",
+                        llvm::MDNode::get(VMContext, argSYCLAccessorPtrs));
+    }
+    if (getCodeGenOpts().EmitOpenCLArgMetadata ||
+        getCodeGenOpts().HIPSaveKernelArgName)
+      Fn->setMetadata("kernel_arg_name",
+                      llvm::MDNode::get(VMContext, argNames));
   }
-  if (getCodeGenOpts().EmitOpenCLArgMetadata ||
-      getCodeGenOpts().HIPSaveKernelArgName)
-    Fn->setMetadata("kernel_arg_name",
-                    llvm::MDNode::get(VMContext, argNames));
 }
 
 /// Determines whether the language options require us to model
@@ -2256,6 +2426,23 @@ CodeGenModule::getMostBaseClasses(const CXXRecordDecl *RD) {
   };
   CollectMostBases(RD);
   return MostBases.takeVector();
+}
+
+/// Function checks whether given DeclContext contains a topmost
+/// namespace with name "sycl"
+static bool checkIfDeclaredInSYCLNamespace(const Decl *D) {
+  const DeclContext *DC = D->getDeclContext()->getEnclosingNamespaceContext();
+  const auto *ND = dyn_cast<NamespaceDecl>(DC);
+  if (!ND)
+    return false;
+
+  while (const DeclContext *Parent = ND->getParent()) {
+    if (!isa<NamespaceDecl>(Parent))
+      break;
+    ND = cast<NamespaceDecl>(Parent);
+  }
+
+  return ND && ND->getName() == "sycl";
 }
 
 void CodeGenModule::SetLLVMFunctionAttributesForDefinition(const Decl *D,
@@ -2388,6 +2575,12 @@ void CodeGenModule::SetLLVMFunctionAttributesForDefinition(const Decl *D,
 
   F->addFnAttrs(B);
 
+  if (getLangOpts().SYCLIsDevice && getCodeGenOpts().OptimizeSYCLFramework &&
+      checkIfDeclaredInSYCLNamespace(D)) {
+    F->removeFnAttr(llvm::Attribute::OptimizeNone);
+    F->removeFnAttr(llvm::Attribute::NoInline);
+  }
+
   unsigned alignment = D->getMaxAlignment() / Context.getCharWidth();
   if (alignment)
     F->setAlignment(llvm::Align(alignment));
@@ -2449,6 +2642,19 @@ void CodeGenModule::SetCommonAttributes(GlobalDecl GD, llvm::GlobalValue *GV) {
        (CodeGenOpts.KeepStaticConsts && VD->getStorageDuration() == SD_Static &&
         VD->getType().isConstQualified())))
     addUsedOrCompilerUsedGlobal(GV);
+
+  if (getLangOpts().SYCLIsDevice) {
+    // Add internal device_global variables to llvm.compiler.used array to
+    // prevent early optimizations from removing these variables from the
+    // module.
+    if (D && isa<VarDecl>(D)) {
+      const auto *VD = cast<VarDecl>(D);
+      const RecordDecl *RD = VD->getType()->getAsRecordDecl();
+      if (RD && RD->hasAttr<SYCLDeviceGlobalAttr>() &&
+          VD->getFormalLinkage() == InternalLinkage)
+        addUsedOrCompilerUsedGlobal(GV);
+    }
+  }
 }
 
 bool CodeGenModule::GetCPUAndFeaturesAttributes(GlobalDecl GD,
@@ -2665,6 +2871,19 @@ void CodeGenModule::finalizeKCFITypes() {
   }
 }
 
+template <typename AttrT>
+void applySYCLAspectsMD(AttrT *A, ASTContext &ACtx, llvm::LLVMContext &LLVMCtx,
+                        llvm::Function *F, StringRef MDName) {
+  SmallVector<llvm::Metadata *, 4> AspectsMD;
+  for (auto *Aspect : A->aspects()) {
+    llvm::APSInt AspectInt = Aspect->EvaluateKnownConstInt(ACtx);
+    auto *T = llvm::Type::getInt32Ty(LLVMCtx);
+    auto *C = llvm::Constant::getIntegerValue(T, AspectInt);
+    AspectsMD.push_back(llvm::ConstantAsMetadata::get(C));
+  }
+  F->setMetadata(MDName, llvm::MDNode::get(LLVMCtx, AspectsMD));
+}
+
 void CodeGenModule::SetFunctionAttributes(GlobalDecl GD, llvm::Function *F,
                                           bool IsIncompleteFunction,
                                           bool IsThunk) {
@@ -2772,6 +2991,15 @@ void CodeGenModule::SetFunctionAttributes(GlobalDecl GD, llvm::Function *F,
                                                CalleeIdx, PayloadIndices,
                                                /* VarArgsArePassed */ false)}));
   }
+
+  // Apply SYCL specific attributes/metadata.
+  if (const auto *A = FD->getAttr<SYCLDeviceHasAttr>())
+    applySYCLAspectsMD(A, getContext(), getLLVMContext(), F,
+                       "sycl_declared_aspects");
+
+  if (const auto *A = FD->getAttr<SYCLUsesAspectsAttr>())
+    applySYCLAspectsMD(A, getContext(), getLLVMContext(), F,
+                       "sycl_used_aspects");
 }
 
 void CodeGenModule::addUsedGlobal(llvm::GlobalValue *GV) {
@@ -2800,19 +3028,26 @@ static void emitUsed(CodeGenModule &CGM, StringRef Name,
   // Don't create llvm.used if there is no need.
   if (List.empty())
     return;
+  // For SYCL emit pointers in the default address space which is a superset of
+  // other address spaces, so that casts from any other address spaces will be
+  // valid.
+  llvm::PointerType *TargetType = CGM.Int8PtrTy;
+  if (CGM.getLangOpts().SYCLIsDevice)
+    TargetType = llvm::IntegerType::getInt8PtrTy(
+        CGM.getLLVMContext(),
+        CGM.getContext().getTargetAddressSpace(LangAS::Default));
 
   // Convert List to what ConstantArray needs.
   SmallVector<llvm::Constant*, 8> UsedArray;
   UsedArray.resize(List.size());
   for (unsigned i = 0, e = List.size(); i != e; ++i) {
-    UsedArray[i] =
-        llvm::ConstantExpr::getPointerBitCastOrAddrSpaceCast(
-            cast<llvm::Constant>(&*List[i]), CGM.Int8PtrTy);
+    UsedArray[i] = llvm::ConstantExpr::getPointerBitCastOrAddrSpaceCast(
+        cast<llvm::Constant>(&*List[i]), TargetType);
   }
 
   if (UsedArray.empty())
     return;
-  llvm::ArrayType *ATy = llvm::ArrayType::get(CGM.Int8PtrTy, UsedArray.size());
+  llvm::ArrayType *ATy = llvm::ArrayType::get(TargetType, UsedArray.size());
 
   auto *GV = new llvm::GlobalVariable(
       CGM.getModule(), ATy, false, llvm::GlobalValue::AppendingLinkage,
@@ -3032,6 +3267,51 @@ void CodeGenModule::EmitDeferred() {
   CurDeclsToEmit.swap(DeferredDeclsToEmit);
 
   for (GlobalDecl &D : CurDeclsToEmit) {
+    // Emit a dummy __host__ function if a legit one is not already present in
+    // case of SYCL compilation of CUDA sources.
+    if (SYCLCUDAIsHost(LangOpts)) {
+      GlobalDecl OtherD;
+      if (lookupRepresentativeDecl(getMangledName(D), OtherD) &&
+          (D.getCanonicalDecl().getDecl() !=
+           OtherD.getCanonicalDecl().getDecl()) &&
+          D.getCanonicalDecl().getDecl()->hasAttr<CUDADeviceAttr>())
+        continue;
+    }
+    // Emit a dummy __host__ function if a legit one is not already present in
+    // case of SYCL compilation of CUDA sources.
+    if (SYCLCUDAIsSYCLDevice(LangOpts)) {
+      GlobalDecl OtherD;
+      if (lookupRepresentativeDecl(getMangledName(D), OtherD) &&
+          (D.getCanonicalDecl().getDecl() !=
+           OtherD.getCanonicalDecl().getDecl()) &&
+          D.getCanonicalDecl().getDecl()->hasAttr<CUDAHostAttr>())
+        continue;
+    }
+    const ValueDecl *VD = cast<ValueDecl>(D.getDecl());
+    // If emitting for SYCL device, emit the deferred alias
+    // as well as what it aliases.
+    if (LangOpts.SYCLIsDevice) {
+      if (AliasAttr *Attr = VD->getAttr<AliasAttr>()) {
+        StringRef AliaseeName = Attr->getAliasee();
+        auto DDI = DeferredDecls.find(AliaseeName);
+        // Emit what is aliased first.
+        if (DDI != DeferredDecls.end()) {
+          GlobalDecl GD = DDI->second;
+          llvm::GlobalValue *AliaseeGV =
+              dyn_cast<llvm::GlobalValue>(GetAddrOfGlobal(GD, ForDefinition));
+          if (!AliaseeGV)
+            AliaseeGV = GetGlobalValue(getMangledName(GD));
+          assert(AliaseeGV);
+          EmitGlobalDefinition(GD, AliaseeGV);
+          // Remove the entry just added to the DeferredDeclsToEmit
+          // since we have emitted it.
+          DeferredDeclsToEmit.pop_back();
+        }
+        // Now emit the alias itself.
+        EmitAliasDefinition(D);
+        continue;
+      }
+    }
     // We should call GetAddrOfGlobal with IsForDefinition set to true in order
     // to get GlobalValue with exactly the type we need, not something that
     // might had been created for another decl with the same mangled name but
@@ -3063,6 +3343,20 @@ void CodeGenModule::EmitDeferred() {
 
     // Otherwise, emit the definition and move on to the next one.
     EmitGlobalDefinition(D, GV);
+
+    if (LangOpts.SYCLIsDevice) {
+      // If there are any aliases deferred for this, emit those now.
+      for (auto It = DeferredAliases.begin(); It != DeferredAliases.end();
+           /*no increment*/) {
+        const ValueDecl *Global = cast<ValueDecl>(It->second.getDecl());
+        if (It->first == getMangledName(D)) {
+          EmitAliasDefinition(Global);
+          It = DeferredAliases.erase(It);
+        } else {
+          ++It;
+        }
+      }
+    }
 
     // If we found out that we need to emit more decls, do that recursively.
     // This has the advantage that the decls are emitted in a DFS and related
@@ -3205,6 +3499,75 @@ void CodeGenModule::AddGlobalAnnotations(const ValueDecl *D,
   // Get the struct elements for these annotations.
   for (const auto *I : D->specific_attrs<AnnotateAttr>())
     Annotations.push_back(EmitAnnotateAttr(GV, I, D->getLocation()));
+}
+
+llvm::Constant *CodeGenModule::EmitSYCLAnnotationArgs(
+    llvm::SmallVectorImpl<std::pair<std::string, std::string>>
+        &AnnotationNameValPairs) {
+
+  if (AnnotationNameValPairs.empty())
+    return llvm::ConstantPointerNull::get(ConstGlobalsPtrTy);
+
+  // For each name-value pair of the SYCL annotation attribute, create an
+  // annotation string for it. This will be the annotation arguments. If the
+  // value is the empty string, use a null-pointer instead.
+  llvm::SmallVector<llvm::Constant *, 4> LLVMArgs;
+  llvm::FoldingSetNodeID ID;
+  LLVMArgs.reserve(AnnotationNameValPairs.size() * 2);
+  for (const std::pair<std::string, std::string> &NVP :
+       AnnotationNameValPairs) {
+    llvm::Constant *NameStrC = EmitAnnotationString(NVP.first);
+    llvm::Constant *ValueStrC =
+        NVP.second == "" ? llvm::ConstantPointerNull::get(ConstGlobalsPtrTy)
+                         : EmitAnnotationString(NVP.second);
+    LLVMArgs.push_back(NameStrC);
+    LLVMArgs.push_back(ValueStrC);
+    ID.Add(NameStrC);
+    ID.Add(ValueStrC);
+  }
+
+  // If another SYCL annotation had the same arguments we can reuse the
+  // annotation value it created.
+  llvm::Constant *&LookupRef = SYCLAnnotationArgs[ID.ComputeHash()];
+  if (LookupRef)
+    return LookupRef;
+
+  // Create an anonymous struct global variable pointing to the annotation
+  // arguments in the order they were added above. This is the final constant
+  // used as the annotation value.
+  auto *Struct = llvm::ConstantStruct::getAnon(LLVMArgs);
+  auto *GV = new llvm::GlobalVariable(
+      getModule(), Struct->getType(), true, llvm::GlobalValue::PrivateLinkage,
+      Struct, ".args", nullptr, llvm::GlobalValue::NotThreadLocal,
+      ConstGlobalsPtrTy->getAddressSpace());
+  GV->setSection(AnnotationSection);
+  GV->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
+  auto *Bitcasted = llvm::ConstantExpr::getBitCast(GV, ConstGlobalsPtrTy);
+
+  // Set the look-up reference to the final annotation value for future
+  // annotations to reuse.
+  LookupRef = Bitcasted;
+  return Bitcasted;
+}
+
+void CodeGenModule::AddGlobalSYCLIRAttributes(llvm::GlobalVariable *GV,
+                                              const RecordDecl *RD) {
+  const auto *A = RD->getAttr<SYCLAddIRAttributesGlobalVariableAttr>();
+  assert(A && "no add_ir_attributes_global_variable attribute");
+  SmallVector<std::pair<std::string, std::string>, 4> NameValuePairs =
+      A->getFilteredAttributeNameValuePairs(Context);
+  for (const std::pair<std::string, std::string> &NameValuePair :
+       NameValuePairs)
+    GV->addAttribute(NameValuePair.first, NameValuePair.second);
+}
+
+// Add "sycl-unique-id" llvm IR attribute that has a unique string generated
+// by __builtin_sycl_unique_stable_id for global variables marked with
+// SYCL device_global attribute.
+static void addSYCLUniqueID(llvm::GlobalVariable *GV, const VarDecl *VD,
+                            ASTContext &Context) {
+  auto builtinString = SYCLUniqueStableIdExpr::ComputeName(Context, VD);
+  GV->addAttribute("sycl-unique-id", builtinString);
 }
 
 bool CodeGenModule::isInNoSanitizeList(SanitizerMask Kind, llvm::Function *Fn,
@@ -3541,9 +3904,19 @@ void CodeGenModule::EmitGlobal(GlobalDecl GD) {
     return;
 
   // If this is an alias definition (which otherwise looks like a declaration)
-  // emit it now.
-  if (Global->hasAttr<AliasAttr>())
-    return EmitAliasDefinition(GD);
+  // handle it now.
+  if (AliasAttr *Attr = Global->getAttr<AliasAttr>()) {
+    // Emit the alias here if it is not SYCL device compilation.
+    if (!LangOpts.SYCLIsDevice)
+      return EmitAliasDefinition(GD);
+    // Defer for SYCL devices, until either the alias or what it aliases
+    // is used.
+    StringRef MangledName = getMangledName(GD);
+    DeferredDecls[MangledName] = GD;
+    StringRef AliaseeName = Attr->getAliasee();
+    DeferredAliases[AliaseeName] = GD;
+    return;
+  }
 
   // IFunc like an alias whose value is resolved at runtime by calling resolver.
   if (Global->hasAttr<IFuncAttr>())
@@ -3569,9 +3942,9 @@ void CodeGenModule::EmitGlobal(GlobalDecl GD) {
       // size and host-side address in order to provide access to
       // their device-side incarnations.
 
-      // So device-only functions are the only things we skip.
-      if (isa<FunctionDecl>(Global) && !Global->hasAttr<CUDAHostAttr>() &&
-          Global->hasAttr<CUDADeviceAttr>())
+      // So device-only functions are the only things we skip, except for SYCL.
+      if (!LangOpts.isSYCL() && isa<FunctionDecl>(Global) &&
+          !Global->hasAttr<CUDAHostAttr>() && Global->hasAttr<CUDADeviceAttr>())
         return;
 
       assert((isa<FunctionDecl>(Global) || isa<VarDecl>(Global)) &&
@@ -3599,8 +3972,13 @@ void CodeGenModule::EmitGlobal(GlobalDecl GD) {
   if (const auto *FD = dyn_cast<FunctionDecl>(Global)) {
     // Forward declarations are emitted lazily on first use.
     if (!FD->doesThisDeclarationHaveABody()) {
-      if (!FD->doesDeclarationForceExternallyVisibleDefinition())
-        return;
+      if (!FD->doesDeclarationForceExternallyVisibleDefinition()) {
+        // Force the declaration in SYCL compilation of CUDA sources.
+        if (!((SYCLCUDAIsHost(LangOpts) && Global->hasAttr<CUDAHostAttr>()) ||
+              (SYCLCUDAIsSYCLDevice(LangOpts) &&
+               Global->hasAttr<CUDADeviceAttr>())))
+          return;
+      }
 
       StringRef MangledName = getMangledName(GD);
 
@@ -3655,10 +4033,31 @@ void CodeGenModule::EmitGlobal(GlobalDecl GD) {
     }
   }
 
+  // clang::ParseAST ensures that we emit the SYCL devices at the end, so
+  // anything that is a device (or indirectly called) will be handled later.
+  if (LangOpts.SYCLIsDevice && MustBeEmitted(Global)) {
+    addDeferredDeclToEmit(GD);
+    return;
+  }
+
   // Defer code generation to first use when possible, e.g. if this is an inline
   // function. If the global must always be emitted, do it eagerly if possible
   // to benefit from cache locality.
   if (MustBeEmitted(Global) && MayBeEmittedEagerly(Global)) {
+    // Avoid emitting the same __host__ __device__ functions,
+    // in SYCL-CUDA-host compilation, and
+    if (SYCLCUDAIsHost(LangOpts) && isa<FunctionDecl>(Global) &&
+        !Global->hasAttr<CUDAHostAttr>() && Global->hasAttr<CUDADeviceAttr>()) {
+      addDeferredDeclToEmit(GD);
+      return;
+    }
+    // in SYCL-CUDA-device compilation.
+    if (SYCLCUDAIsSYCLDevice(LangOpts) && isa<FunctionDecl>(Global) &&
+        Global->hasAttr<CUDAHostAttr>() && !Global->hasAttr<CUDADeviceAttr>()) {
+      addDeferredDeclToEmit(GD);
+      return;
+    }
+
     // Emit the definition if it can't be deferred.
     EmitGlobalDefinition(GD);
     addEmittedDeferredDecl(GD);
@@ -3682,6 +4081,39 @@ void CodeGenModule::EmitGlobal(GlobalDecl GD) {
     assert(!MayBeEmittedEagerly(Global));
     addDeferredDeclToEmit(GD);
   } else {
+
+    // For SYCL compilation of CUDA sources,
+    if (LangOpts.isSYCL() && LangOpts.CUDA && !LangOpts.CUDAIsDevice) {
+      // in case of SYCL-CUDA-host,
+      if (LangOpts.SYCLIsHost) {
+        if (Global->hasAttr<CUDAHostAttr>()) {
+          // remove already present __device__ function.
+          auto DDI = DeferredDecls.find(MangledName);
+          if (DDI != DeferredDecls.end())
+            DeferredDecls.erase(DDI);
+        } else if (Global->hasAttr<CUDADeviceAttr>()) {
+          // do not insert a __device__ function if a __host__ one is present.
+          auto DDI = DeferredDecls.find(MangledName);
+          if (DDI != DeferredDecls.end())
+            return;
+        }
+      }
+      // in case of SYCL-CUDA-device,
+      if (LangOpts.SYCLIsDevice) {
+        if (Global->hasAttr<CUDADeviceAttr>()) {
+          // remove already present __host__ function.
+          auto DDI = DeferredDecls.find(MangledName);
+          if (DDI != DeferredDecls.end())
+            DeferredDecls.erase(DDI);
+        } else if (Global->hasAttr<CUDAHostAttr>()) {
+          // do not insert a __host__ function if a __device__ one is present.
+          auto DDI = DeferredDecls.find(MangledName);
+          if (DDI != DeferredDecls.end())
+            return;
+        }
+      }
+    }
+
     // Otherwise, remember that we saw a deferred decl with this name.  The
     // first use of the mangled name will cause it to move into
     // DeferredDeclsToEmit.
@@ -4415,8 +4847,16 @@ llvm::Constant *CodeGenModule::GetOrCreateLLVMFunction(
     // This is the first use or definition of a mangled name.  If there is a
     // deferred decl with this name, remember that we need to emit it at the end
     // of the file.
+    // In SYCL compilation of CUDA sources, avoid the emission if the
+    // __device__/__host__ attributes do not match.
     auto DDI = DeferredDecls.find(MangledName);
-    if (DDI != DeferredDecls.end()) {
+    if (DDI != DeferredDecls.end() &&
+        (!(getLangOpts().isSYCL() && getLangOpts().CUDA &&
+           !getLangOpts().CUDAIsDevice) ||
+         ((DDI->second).getDecl()->hasAttr<CUDAHostAttr>() ==
+              D->hasAttr<CUDAHostAttr>() &&
+          (DDI->second).getDecl()->hasAttr<CUDADeviceAttr>() ==
+              D->hasAttr<CUDADeviceAttr>()))) {
       // Move the potentially referenced deferred decl to the
       // DeferredDeclsToEmit list, and remove it from DeferredDecls (since we
       // don't need it anymore).
@@ -4582,6 +5022,29 @@ CodeGenModule::CreateRuntimeFunction(llvm::FunctionType *FTy, StringRef Name,
   }
 
   return {FTy, C};
+}
+
+static void maybeEmitPipeStorageMetadata(const VarDecl *D,
+                                         llvm::GlobalVariable *GV,
+                                         CodeGenModule &CGM) {
+  // TODO: Applicable only on pipe storages. Currently they are defined
+  // as structures inside of SYCL headers. Add a check for pipe_storage_t
+  // when it ready.
+  QualType PipeTy = D->getType();
+  if (!PipeTy->isStructureType())
+    return;
+
+  if (const auto *IOAttr = D->getAttr<SYCLIntelPipeIOAttr>()) {
+    const auto *CE = cast<ConstantExpr>(IOAttr->getID());
+    std::optional<llvm::APSInt> ID = CE->getResultAsAPSInt();
+    llvm::LLVMContext &Context = CGM.getLLVMContext();
+
+    llvm::Metadata *AttrMDArgs[] = {
+        llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(
+            llvm::Type::getInt32Ty(Context), ID->getSExtValue()))};
+    GV->setMetadata(IOAttr->getSpelling(),
+                    llvm::MDNode::get(Context, AttrMDArgs));
+  }
 }
 
 /// GetOrCreateLLVMGlobal - If the specified mangled name is not in the module,
@@ -4765,6 +5228,9 @@ CodeGenModule::GetOrCreateLLVMGlobal(StringRef MangledName, llvm::Type *Ty,
         }
       }
     }
+
+    if (LangOpts.SYCLIsDevice)
+      maybeEmitPipeStorageMetadata(D, GV, *this);
   }
 
   if (D &&
@@ -4936,6 +5402,12 @@ LangAS CodeGenModule::GetGlobalVarAddressSpace(const VarDecl *D) {
     return AS;
   }
 
+  if (LangOpts.SYCLIsDevice && D) {
+    auto *Scope = D->getAttr<SYCLScopeAttr>();
+    if (Scope && Scope->isWorkGroup())
+      return LangAS::sycl_local;
+  }
+
   if (LangOpts.SYCLIsDevice &&
       (!D || D->getType().getAddressSpace() == LangAS::Default))
     return LangAS::sycl_global;
@@ -5071,6 +5543,123 @@ void CodeGenModule::maybeSetTrivialComdat(const Decl &D,
   if (!shouldBeInCOMDAT(*this, D))
     return;
   GO.setComdat(TheModule.getOrInsertComdat(GO.getName()));
+}
+
+void CodeGenModule::setAspectsEnumDecl(const EnumDecl *ED) {
+  if (AspectsEnumDecl && AspectsEnumDecl != ED) {
+    // Conflicting definitions of the aspect enum are not allowed.
+    Error(ED->getLocation(), "redefinition of aspect enum");
+    getDiags().Report(AspectsEnumDecl->getLocation(),
+                      diag::note_previous_definition);
+  }
+  AspectsEnumDecl = ED;
+}
+
+void CodeGenModule::generateIntelFPGAAnnotation(
+    const Decl *D, llvm::SmallString<256> &AnnotStr) {
+  llvm::raw_svector_ostream Out(AnnotStr);
+  if (D->hasAttr<SYCLIntelRegisterAttr>())
+    Out << "{register:1}";
+  if (auto const *MA = D->getAttr<SYCLIntelMemoryAttr>()) {
+    SYCLIntelMemoryAttr::MemoryKind Kind = MA->getKind();
+    Out << "{memory:";
+    switch (Kind) {
+    case SYCLIntelMemoryAttr::MLAB:
+    case SYCLIntelMemoryAttr::BlockRAM:
+      Out << SYCLIntelMemoryAttr::ConvertMemoryKindToStr(Kind);
+      break;
+    case SYCLIntelMemoryAttr::Default:
+      Out << "DEFAULT";
+      break;
+    }
+    Out << '}';
+    if (const auto *DD = dyn_cast<DeclaratorDecl>(D)) {
+      Out << "{sizeinfo:";
+      // D can't be of type FunctionDecl (as no memory attribute can be applied
+      // to a function)
+      QualType ElementTy = DD->getType();
+      QualType TmpTy = ElementTy->isArrayType()
+                           ? getContext().getBaseElementType(ElementTy)
+                           : ElementTy;
+      Out << getContext().getTypeSizeInChars(TmpTy).getQuantity();
+      // Add the dimension of the array to Out.
+      while (const auto *AT = getContext().getAsArrayType(ElementTy)) {
+        // Expecting only constant array types, assert otherwise.
+        const auto *CAT = cast<ConstantArrayType>(AT);
+        Out << "," << CAT->getSize();
+        ElementTy = CAT->getElementType();
+      }
+      Out << '}';
+    }
+  }
+  if (D->hasAttr<SYCLIntelSinglePumpAttr>())
+    Out << "{pump:1}";
+  if (D->hasAttr<SYCLIntelDoublePumpAttr>())
+    Out << "{pump:2}";
+  if (const auto *BWA = D->getAttr<SYCLIntelBankWidthAttr>()) {
+    llvm::APSInt BWAInt = BWA->getValue()->EvaluateKnownConstInt(getContext());
+    Out << '{' << BWA->getSpelling() << ':' << BWAInt << '}';
+  }
+  if (const auto *PCA = D->getAttr<SYCLIntelPrivateCopiesAttr>()) {
+    llvm::APSInt PCAInt = PCA->getValue()->EvaluateKnownConstInt(getContext());
+    Out << '{' << PCA->getSpelling() << ':' << PCAInt << '}';
+  }
+  if (const auto *NBA = D->getAttr<SYCLIntelNumBanksAttr>()) {
+    llvm::APSInt NBAInt = NBA->getValue()->EvaluateKnownConstInt(getContext());
+    Out << '{' << NBA->getSpelling() << ':' << NBAInt << '}';
+  }
+  if (const auto *BBA = D->getAttr<SYCLIntelBankBitsAttr>()) {
+    Out << '{' << BBA->getSpelling() << ':';
+    for (SYCLIntelBankBitsAttr::args_iterator I = BBA->args_begin(),
+                                              E = BBA->args_end();
+         I != E; ++I) {
+      if (I != BBA->args_begin())
+        Out << ',';
+      llvm::APSInt BBAInt = (*I)->EvaluateKnownConstInt(getContext());
+      Out << BBAInt;
+    }
+    Out << '}';
+  }
+  if (const auto *MRA = D->getAttr<SYCLIntelMaxReplicatesAttr>()) {
+    llvm::APSInt MRAInt = MRA->getValue()->EvaluateKnownConstInt(getContext());
+    Out << '{' << MRA->getSpelling() << ':' << MRAInt << '}';
+  }
+  if (const auto *MA = D->getAttr<SYCLIntelMergeAttr>()) {
+    Out << '{' << MA->getSpelling() << ':' << MA->getName() << ':'
+        << MA->getDirection() << '}';
+  }
+  if (D->hasAttr<SYCLIntelSimpleDualPortAttr>())
+    Out << "{simple_dual_port:1}";
+  if (const auto *FP2D = D->getAttr<SYCLIntelForcePow2DepthAttr>()) {
+    llvm::APSInt FP2DInt =
+        FP2D->getValue()->EvaluateKnownConstInt(getContext());
+    Out << '{' << FP2D->getSpelling() << ':' << FP2DInt << '}';
+  }
+}
+
+void CodeGenModule::addGlobalIntelFPGAAnnotation(const VarDecl *VD,
+                                                 llvm::GlobalValue *GV) {
+  SmallString<256> AnnotStr;
+  generateIntelFPGAAnnotation(VD, AnnotStr);
+  if (!AnnotStr.empty()) {
+    // Get the globals for file name, annotation, and the line number.
+    llvm::Constant *AnnoGV = EmitAnnotationString(AnnotStr),
+                   *UnitGV = EmitAnnotationUnit(VD->getLocation()),
+                   *LineNoCst = EmitAnnotationLineNo(VD->getLocation());
+
+    llvm::Constant *ASZeroGV = GV;
+    if (GV->getAddressSpace() != 0)
+      ASZeroGV = llvm::ConstantExpr::getAddrSpaceCast(
+          GV, GV->getValueType()->getPointerTo(0));
+
+    // Create the ConstantStruct for the global annotation.
+    llvm::Constant *Fields[5] = {
+        llvm::ConstantExpr::getBitCast(ASZeroGV, Int8PtrTy),
+        llvm::ConstantExpr::getBitCast(AnnoGV, ConstGlobalsPtrTy),
+        llvm::ConstantExpr::getBitCast(UnitGV, ConstGlobalsPtrTy), LineNoCst,
+        llvm::ConstantPointerNull::get(ConstGlobalsPtrTy)};
+    Annotations.push_back(llvm::ConstantStruct::getAnon(Fields));
+  }
 }
 
 /// Pass IsTentative as true if you want to create a tentative definition.
@@ -5221,6 +5810,41 @@ void CodeGenModule::EmitGlobalVarDefinition(const VarDecl *D,
   if (D->hasAttr<AnnotateAttr>())
     AddGlobalAnnotations(D, GV);
 
+  // Emit Intel FPGA attribute annotation for a file-scope static variable.
+  if (getLangOpts().SYCLIsDevice)
+    addGlobalIntelFPGAAnnotation(D, GV);
+
+  if (getLangOpts().SYCLIsDevice) {
+    const RecordDecl *RD = D->getType()->getAsRecordDecl();
+
+    if (RD) {
+      // Add IR attributes if add_ir_attribute_global_variable is attached to
+      // type.
+      if (RD->hasAttr<SYCLAddIRAttributesGlobalVariableAttr>())
+        AddGlobalSYCLIRAttributes(GV, RD);
+      // If VarDecl has a type decorated with SYCL device_global attribute 
+      // emit IR attribute 'sycl-unique-id'.
+      if (RD->hasAttr<SYCLDeviceGlobalAttr>())
+        addSYCLUniqueID(GV, D, Context);
+      // If VarDecl type is SYCLTypeAttr::host_pipe, emit the IR attribute 
+      // 'sycl-unique-id'.
+      if (const auto *Attr = RD->getAttr<SYCLTypeAttr>())
+        if (Attr->getType() == SYCLTypeAttr::SYCLType::host_pipe)
+          addSYCLUniqueID(GV, D, Context);
+    }
+  }
+
+  if (D->getType().isRestrictQualified()) {
+    llvm::LLVMContext &Context = getLLVMContext();
+
+    // Common metadata nodes.
+    llvm::NamedMDNode *GlobalsRestrict =
+        getModule().getOrInsertNamedMetadata("globals.restrict");
+    llvm::Metadata *Args[] = {llvm::ValueAsMetadata::get(GV)};
+    llvm::MDNode *Node = llvm::MDNode::get(Context, Args);
+    GlobalsRestrict->addOperand(Node);
+  }
+
   // Set the llvm linkage type as appropriate.
   llvm::GlobalValue::LinkageTypes Linkage = getLLVMLinkageVarDefinition(D);
 
@@ -5325,6 +5949,13 @@ void CodeGenModule::EmitGlobalVarDefinition(const VarDecl *D,
   if (CGDebugInfo *DI = getModuleDebugInfo())
     if (getCodeGenOpts().hasReducedDebugInfo())
       DI->EmitGlobalVariable(GV, D);
+
+  if (LangOpts.SYCLIsDevice) {
+    maybeEmitPipeStorageMetadata(D, GV, *this);
+    // Notify SYCL code generation infrastructure that a global variable is
+    // being generated.
+    getSYCLRuntime().actOnGlobalVarEmit(*this, *D, GV);
+  }
 }
 
 void CodeGenModule::EmitExternalVarDeclaration(const VarDecl *D) {
@@ -5432,6 +6063,19 @@ CodeGenModule::getLLVMLinkageForDeclarator(const DeclaratorDecl *D,
   // so we can use available_externally linkage.
   if (Linkage == GVA_AvailableExternally)
     return llvm::GlobalValue::AvailableExternallyLinkage;
+
+  // SYCL: Device code is not generally limited to one translation unit, but
+  // anything accessed from another translation unit is required to be annotated
+  // with the SYCL_EXTERNAL macro. For any function or variable that does not
+  // have this, linkonce_odr suffices. If -fno-sycl-rdc is passed, we know there
+  // is only one translation unit and can so mark them internal.
+  if (getLangOpts().SYCLIsDevice && !D->hasAttr<SYCLKernelAttr>() &&
+      !D->hasAttr<SYCLDeviceAttr>() &&
+      !Sema::isTypeDecoratedWithDeclAttribute<SYCLDeviceGlobalAttr>(
+          D->getType()))
+    return getLangOpts().GPURelocatableDeviceCode
+               ? llvm::Function::LinkOnceODRLinkage
+               : llvm::Function::InternalLinkage;
 
   // Note that Apple's kernel linker doesn't support symbol
   // coalescing, so we need to avoid linkonce and weak linkages there.
@@ -5696,12 +6340,16 @@ void CodeGenModule::EmitAliasDefinition(GlobalDecl GD) {
   // if a deferred decl.
   llvm::Constant *Aliasee;
   llvm::GlobalValue::LinkageTypes LT;
+  unsigned AS;
   if (isa<llvm::FunctionType>(DeclTy)) {
     Aliasee = GetOrCreateLLVMFunction(AA->getAliasee(), DeclTy, GD,
                                       /*ForVTable=*/false);
     LT = getFunctionLinkage(GD);
+    AS = Aliasee->getType()->getPointerAddressSpace();
   } else {
-    Aliasee = GetOrCreateLLVMGlobal(AA->getAliasee(), DeclTy, LangAS::Default,
+    LangAS LAS = GetGlobalVarAddressSpace(dyn_cast<VarDecl>(GD.getDecl()));
+    AS = ArgInfoAddressSpace(LAS);
+    Aliasee = GetOrCreateLLVMGlobal(AA->getAliasee(), DeclTy, LAS,
                                     /*D=*/nullptr);
     if (const auto *VD = dyn_cast<VarDecl>(GD.getDecl()))
       LT = getLLVMLinkageVarDefinition(VD);
@@ -5710,7 +6358,6 @@ void CodeGenModule::EmitAliasDefinition(GlobalDecl GD) {
   }
 
   // Create the new alias itself, but don't set a name yet.
-  unsigned AS = Aliasee->getType()->getPointerAddressSpace();
   auto *GA =
       llvm::GlobalAlias::create(DeclTy, AS, LT, "", Aliasee, &getModule());
 
@@ -5731,8 +6378,8 @@ void CodeGenModule::EmitAliasDefinition(GlobalDecl GD) {
     // Remove it and replace uses of it with the alias.
     GA->takeName(Entry);
 
-    Entry->replaceAllUsesWith(llvm::ConstantExpr::getBitCast(GA,
-                                                          Entry->getType()));
+    Entry->replaceAllUsesWith(
+        llvm::ConstantExpr::getBitCast(GA, Entry->getType()));
     Entry->eraseFromParent();
   } else {
     GA->setName(MangledName);
@@ -7155,7 +7802,7 @@ llvm::Constant *CodeGenModule::GetAddrOfRTTIDescriptor(QualType Ty,
   // FIXME: should we even be calling this method if RTTI is disabled
   // and it's not for EH?
   if (!shouldEmitRTTI(ForEH))
-    return llvm::Constant::getNullValue(GlobalsInt8PtrTy);
+    return llvm::Constant::getNullValue(Int8PtrTy);
 
   if (ForEH && Ty->isObjCObjectPointerType() &&
       LangOpts.ObjCRuntime.isGNUFamily())
@@ -7471,4 +8118,15 @@ void CodeGenModule::moveLazyEmissionStates(CodeGenModule *NewBuilder) {
   NewBuilder->TBAA = std::move(TBAA);
 
   NewBuilder->ABI->MangleCtx = std::move(ABI->MangleCtx);
+}
+
+void CodeGenModule::getFPAccuracyFuncAttributes(StringRef Name,
+                                                llvm::AttributeList &AttrList,
+                                                llvm::Metadata *&MD,
+                                                unsigned ID,
+                                                const llvm::Type *FuncType) {
+  llvm::AttrBuilder FuncAttrs(getLLVMContext());
+  getDefaultFunctionFPAccuracyAttributes(Name, FuncAttrs, MD, ID, FuncType);
+  AttrList = llvm::AttributeList::get(
+      getLLVMContext(), llvm::AttributeList::FunctionIndex, FuncAttrs);
 }

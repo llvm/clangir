@@ -85,7 +85,6 @@ static bool lowerLoadRelative(Function &F) {
     Value *OffsetI32 = B.CreateAlignedLoad(Int32Ty, OffsetPtr, Align(4));
 
     Value *ResultPtr = B.CreateGEP(Int8Ty, CI->getArgOperand(0), OffsetI32);
-
     CI->replaceAllUsesWith(ResultPtr);
     CI->eraseFromParent();
     Changed = true;

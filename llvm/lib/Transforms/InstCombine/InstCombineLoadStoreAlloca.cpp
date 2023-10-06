@@ -585,6 +585,7 @@ LoadInst *InstCombinerImpl::combineLoadToNewType(LoadInst &LI, Type *NewTy,
   LoadInst *NewLoad =
       Builder.CreateAlignedLoad(NewTy, LI.getPointerOperand(), LI.getAlign(),
                                 LI.isVolatile(), LI.getName() + Suffix);
+
   NewLoad->setAtomic(LI.getOrdering(), LI.getSyncScopeID());
   copyMetadataForLoad(*NewLoad, LI);
   return NewLoad;

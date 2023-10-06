@@ -2082,7 +2082,8 @@ Sema::diagIfOpenMPDeviceCode(SourceLocation Loc, unsigned DiagID,
     }
   }
 
-  return SemaDiagnosticBuilder(Kind, Loc, DiagID, FD, *this);
+  return SemaDiagnosticBuilder(Kind, Loc, DiagID, FD, *this,
+                               DeviceDiagnosticReason::OmpDevice);
 }
 
 Sema::SemaDiagnosticBuilder Sema::diagIfOpenMPHostCode(SourceLocation Loc,
@@ -2109,7 +2110,8 @@ Sema::SemaDiagnosticBuilder Sema::diagIfOpenMPHostCode(SourceLocation Loc,
     }
   }
 
-  return SemaDiagnosticBuilder(Kind, Loc, DiagID, FD, *this);
+  return SemaDiagnosticBuilder(Kind, Loc, DiagID, FD, *this,
+                               DeviceDiagnosticReason::OmpHost);
 }
 
 static OpenMPDefaultmapClauseKind

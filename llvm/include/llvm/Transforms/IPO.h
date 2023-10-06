@@ -35,6 +35,9 @@ ModulePass *createDeadArgEliminationPass();
 /// bugpoint.
 ModulePass *createDeadArgHackingPass();
 
+/// DeadArgumentElimination pass for SYCL kernel functions
+ModulePass *createDeadArgEliminationSYCLPass();
+
 //===----------------------------------------------------------------------===//
 //
 /// createLoopExtractorPass - This pass extracts all natural loops from the

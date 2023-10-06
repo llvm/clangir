@@ -274,6 +274,7 @@ PUNCTUATOR(caretcaret,            "^^")
 //               MSVC <= v18.
 //   KEYOPENCLC   - This is a keyword in OpenCL C
 //   KEYOPENCLCXX - This is a keyword in C++ for OpenCL
+//   KEYSYCL      - This is a keyword in SYCL C++
 //   KEYNOOPENCL  - This is a keyword that is not supported in OpenCL
 //   KEYALTIVEC - This is a keyword in AltiVec
 //   KEYZVECTOR - This is a keyword for the System z vector extensions,
@@ -521,6 +522,12 @@ TYPE_TRAIT_1(__has_unique_object_representations,
 #define TRANSFORM_TYPE_TRAIT_DEF(_, Trait) KEYWORD(__##Trait, KEYCXX)
 #include "clang/Basic/TransformTypeTraits.def"
 
+// SYCL Type Traits
+KEYWORD(__builtin_num_fields, KEYSYCL)
+KEYWORD(__builtin_field_type, KEYSYCL)
+KEYWORD(__builtin_num_bases, KEYSYCL)
+KEYWORD(__builtin_base_type, KEYSYCL)
+
 // Clang-only C++ Type Traits
 TYPE_TRAIT_1(__is_trivially_relocatable, IsTriviallyRelocatable, KEYCXX)
 TYPE_TRAIT_1(__is_trivially_equality_comparable, IsTriviallyEqualityComparable, KEYCXX)
@@ -603,8 +610,8 @@ ALIAS("generic", __generic          , KEYOPENCLC | KEYOPENCLCXX)
 KEYWORD(__kernel                    , KEYOPENCLC | KEYOPENCLCXX)
 ALIAS("kernel", __kernel            , KEYOPENCLC | KEYOPENCLCXX)
 // OpenCL access qualifiers
-KEYWORD(__read_only                 , KEYOPENCLC | KEYOPENCLCXX)
-KEYWORD(__write_only                , KEYOPENCLC | KEYOPENCLCXX)
+KEYWORD(__read_only                 , KEYOPENCLC | KEYOPENCLCXX | KEYSYCL)
+KEYWORD(__write_only                , KEYOPENCLC | KEYOPENCLCXX | KEYSYCL)
 KEYWORD(__read_write                , KEYOPENCLC | KEYOPENCLCXX)
 ALIAS("read_only", __read_only      , KEYOPENCLC | KEYOPENCLCXX)
 ALIAS("write_only", __write_only    , KEYOPENCLC | KEYOPENCLCXX)
@@ -751,6 +758,7 @@ ALIAS("__char32_t"   , char32_t          , KEYCXX)
 KEYWORD(__builtin_bit_cast               , KEYALL)
 KEYWORD(__builtin_available              , KEYALL)
 KEYWORD(__builtin_sycl_unique_stable_name, KEYSYCL)
+KEYWORD(__builtin_sycl_unique_stable_id  , KEYSYCL)
 
 // Keywords defined by Attr.td.
 #ifndef KEYWORD_ATTRIBUTE

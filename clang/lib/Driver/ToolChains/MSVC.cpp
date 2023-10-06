@@ -65,12 +65,54 @@ static std::string FindVisualStudioExecutable(const ToolChain &TC,
   return std::string(canExecute(TC.getVFS(), FilePath) ? FilePath.str() : Exe);
 }
 
+// Add a call to lib.exe to create an archive.  This is used to embed host
+// objects into the bundled fat FPGA device binary.
+void visualstudio::Linker::constructMSVCLibCommand(Compilation &C,
+                                                   const JobAction &JA,
+                                                   const InputInfo &Output,
+                                                   const InputInfoList &Input,
+                                                   const ArgList &Args) const {
+  ArgStringList CmdArgs;
+  for (const auto &II : Input) {
+    if (II.getType() == types::TY_Tempfilelist) {
+      // Take the list file and pass it in with '@'.
+      std::string FileName(II.getFilename());
+      const char *ArgFile = Args.MakeArgString("@" + FileName);
+      CmdArgs.push_back(ArgFile);
+      continue;
+    }
+    CmdArgs.push_back(II.getFilename());
+  }
+  if (Args.hasArg(options::OPT_fsycl_link_EQ) &&
+      Args.hasArg(options::OPT_fintelfpga))
+    CmdArgs.push_back("/IGNORE:4221");
+
+  // Suppress multiple section warning LNK4078
+  if (Args.hasFlag(options::OPT_fsycl, options::OPT_fno_sycl, false))
+    CmdArgs.push_back("/IGNORE:4078");
+
+  CmdArgs.push_back(
+      C.getArgs().MakeArgString(Twine("-OUT:") + Output.getFilename()));
+
+  SmallString<128> ExecPath(getToolChain().GetProgramPath("lib.exe"));
+  const char *Exec = C.getArgs().MakeArgString(ExecPath);
+  C.addCommand(std::make_unique<Command>(
+      JA, *this, ResponseFileSupport::AtFileUTF16(), Exec, CmdArgs, std::nullopt));
+}
+
 void visualstudio::Linker::ConstructJob(Compilation &C, const JobAction &JA,
                                         const InputInfo &Output,
                                         const InputInfoList &Inputs,
                                         const ArgList &Args,
                                         const char *LinkingOutput) const {
   ArgStringList CmdArgs;
+
+  // Create a library with -fsycl-link
+  if (Args.hasArg(options::OPT_fsycl_link_EQ) &&
+      JA.getType() == types::TY_Archive) {
+    constructMSVCLibCommand(C, JA, Output, Inputs, Args);
+    return;
+  }
 
   auto &TC = static_cast<const toolchains::MSVCToolChain &>(getToolChain());
 
@@ -81,9 +123,35 @@ void visualstudio::Linker::ConstructJob(Compilation &C, const JobAction &JA,
 
   if (!Args.hasArg(options::OPT_nostdlib, options::OPT_nostartfiles) &&
       !C.getDriver().IsCLMode() && !C.getDriver().IsFlangMode()) {
-    CmdArgs.push_back("-defaultlib:libcmt");
+    if (Args.hasArg(options::OPT_fsycl) && !Args.hasArg(options::OPT_nolibsycl))
+      CmdArgs.push_back("-defaultlib:msvcrt");
+    else
+      CmdArgs.push_back("-defaultlib:libcmt");
     CmdArgs.push_back("-defaultlib:oldnames");
   }
+
+  if ((!C.getDriver().IsCLMode() && Args.hasArg(options::OPT_fsycl) &&
+       !Args.hasArg(options::OPT_nolibsycl)) ||
+      Args.hasArg(options::OPT_fsycl_host_compiler_EQ)) {
+    CmdArgs.push_back(Args.MakeArgString(std::string("-libpath:") +
+                                         TC.getDriver().Dir + "/../lib"));
+    // When msvcrtd is added via --dependent-lib, we add the sycld
+    // equivalent.  Do not add the -defaultlib as it conflicts.
+    if (!isDependentLibAdded(Args, "msvcrtd"))
+      CmdArgs.push_back("-defaultlib:sycl" SYCL_MAJOR_VERSION ".lib");
+    CmdArgs.push_back("-defaultlib:sycl-devicelib-host.lib");
+  }
+
+  for (const auto *A : Args.filtered(options::OPT_foffload_static_lib_EQ))
+    CmdArgs.push_back(
+        Args.MakeArgString(Twine("-defaultlib:") + A->getValue()));
+  for (const auto *A : Args.filtered(options::OPT_foffload_whole_static_lib_EQ))
+    CmdArgs.push_back(
+        Args.MakeArgString(Twine("-wholearchive:") + A->getValue()));
+
+  // Suppress multiple section warning LNK4078
+  if (Args.hasFlag(options::OPT_fsycl, options::OPT_fno_sycl, false))
+    CmdArgs.push_back("/IGNORE:4078");
 
   // If the VC environment hasn't been configured (perhaps because the user
   // did not run vcvarsall), try to build a consistent link environment.  If
@@ -226,6 +294,14 @@ void visualstudio::Linker::ConstructJob(Compilation &C, const JobAction &JA,
 
   Args.AddAllArgValues(CmdArgs, options::OPT__SLASH_link);
 
+  // A user can add the -out: option to the /link sequence on the command line
+  // which we do not want to use when we are performing the host link when
+  // gathering dependencies used for device compilation.  Add an additional
+  // -out: to override in case it was seen.
+  if (JA.getType() == types::TY_Host_Dependencies_Image && Output.isFilename())
+    CmdArgs.push_back(
+        Args.MakeArgString(std::string("-out:") + Output.getFilename()));
+
   // Control Flow Guard checks
   for (const Arg *A : Args.filtered(options::OPT__SLASH_guard)) {
     StringRef GuardArgs = A->getValue();
@@ -292,6 +368,13 @@ void visualstudio::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   // Add filenames, libraries, and other linker inputs.
   for (const auto &Input : Inputs) {
     if (Input.isFilename()) {
+      if (Input.getType() == types::TY_Tempfilelist) {
+        // Take the list file and pass it in with '@'.
+        std::string FileName(Input.getFilename());
+        const char *ArgFile = Args.MakeArgString("@" + FileName);
+        CmdArgs.push_back(ArgFile);
+        continue;
+      }
       CmdArgs.push_back(Input.getFilename());
       continue;
     }

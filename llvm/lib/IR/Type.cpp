@@ -736,7 +736,6 @@ ScalableVectorType *ScalableVectorType::get(Type *ElementType,
 PointerType *PointerType::get(Type *EltTy, unsigned AddressSpace) {
   assert(EltTy && "Can't get a pointer to <null> type!");
   assert(isValidElementType(EltTy) && "Invalid type for pointer element!");
-
   // Automatically convert typed pointers to opaque pointers.
   return get(EltTy->getContext(), AddressSpace);
 }

@@ -586,6 +586,14 @@ public:
   }
 };
 
+#ifdef _MSC_VER
+// Workaround for MSVC++ bug (Version 2017, 15.8.9) - w/o this forward
+// declaration, the friend declaration in ObjCProtoName below has no effect
+// and leads to compilation error when ObjCProtoName::Protocol private field
+// is accessed in PointerType::printLeft.
+class PointerType;
+#endif // _MSC_VER
+
 class ObjCProtoName : public Node {
   const Node *Ty;
   std::string_view Protocol;
@@ -1170,6 +1178,8 @@ public:
 
   template<typename Fn> void match(Fn F) const { F(Dimension); }
 
+  const Node *getDimension() const { return Dimension; } // INTEL
+
   void printLeft(OutputBuffer &OB) const override {
     OB += "_Float";
     Dimension->print(OB);
@@ -1485,7 +1495,7 @@ public:
 
   template<typename Fn> void match(Fn F) const { F(Params, Requires); }
 
-  NodeArray getParams() { return Params; }
+  const NodeArray &getParams() const { return Params; }
 
   void printLeft(OutputBuffer &OB) const override {
     ScopedOverride<unsigned> LT(OB.GtIsGt, 0);
@@ -2382,6 +2392,9 @@ public:
     else
       OB << Integer;
   }
+
+  // Retrieves the string view of the integer value this node represents.
+  const std::string_view &getIntegerValue() const { return Integer; }
 };
 
 class IntegerLiteral : public Node {
@@ -2409,6 +2422,13 @@ public:
     if (Type.size() <= 3)
       OB += Type;
   }
+
+  // Retrieves the string view of the integer value represented by this node.
+  const std::string_view &getValue() const { return Value; }
+
+  // Retrieves the string view of the type string of the integer value this node
+  // represents.
+  const std::string_view &getType() const { return Type; }
 };
 
 class RequiresExpr : public Node {

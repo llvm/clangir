@@ -13,7 +13,7 @@ add_tablegen(clang-tblgen CLANG
   ClangDataCollectorsEmitter.cpp
   ClangDiagnosticsEmitter.cpp
   ClangOpcodesEmitter.cpp
-  ClangOpenCLBuiltinEmitter.cpp
+  ClangProgModelBuiltinEmitter.cpp
   ClangOptionDocEmitter.cpp
   ClangSACheckersEmitter.cpp
   ClangSyntaxEmitter.cpp

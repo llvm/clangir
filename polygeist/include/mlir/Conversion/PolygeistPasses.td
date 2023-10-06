@@ -1,0 +1,47 @@
+//=== PolygeistPasses.td - Polygeist dialect passes definitions -*- tablegen =//
+//
+// This file is licensed under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef MLIR_CONVERSION_POLYGEISTPASSES
+#define MLIR_CONVERSION_POLYGEISTPASSES
+
+include "mlir/Pass/PassBase.td"
+
+def ConvertPolygeistToLLVM : Pass<"convert-polygeist-to-llvm", "mlir::ModuleOp"> {
+  let summary = "Convert Polygeist dialect to LLVM dialect";
+  let dependentDialects = ["cf::ControlFlowDialect", "func::FuncDialect", "LLVM::LLVMDialect"];
+  let options = [
+    Option<"emitCWrappers", "emit-c-wrappers", "bool", /*default=*/"false",
+           "Emit wrappers for C-compatible pointer-to-struct memref "
+           "descriptors">,
+    Option<"indexBitwidth", "index-bitwidth", "unsigned",
+           /*default=kDeriveIndexBitwidthFromDataLayout*/"0",
+           "Bitwidth of the index type, 0 to use size of machine word">,
+    Option<"dataLayout", "data-layout", "std::string",
+           /*default=*/"\"\"",
+           "String description (LLVM format) of the data layout that is "
+           "expected on the produced module">,
+    // TODO: These two options should be dropped once this pass is made a proper
+    // partial conversion pass and -convert-sycl-to-llvm is not launched from it.
+    Option<"syclImplementation", "sycl-implementation",
+           "::mlir::sycl::Implementation",
+           /*default=*/"::mlir::sycl::Implementation::DPCPP",
+           "SYCL target implementation for lowering",
+           [{::llvm::cl::values(
+             clEnumValN(::mlir::sycl::Implementation::DPCPP, "dpcpp", "DPC++")
+           )}]>,
+    Option<"syclTarget", "sycl-target",
+           "::mlir::sycl::LoweringTarget",
+	   /*default=*/"::mlir::sycl::LoweringTarget::SPIR",
+           "SYCL target for lowering",
+           [{::llvm::cl::values(
+             clEnumValN(::mlir::sycl::LoweringTarget::SPIR, "spir", "SPIR")
+           )}]>,
+  ];
+}
+
+#endif // MLIR_CONVERSION_POLYGEISTPASSES

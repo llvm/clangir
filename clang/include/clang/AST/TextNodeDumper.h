@@ -261,6 +261,7 @@ public:
   void VisitDeclRefExpr(const DeclRefExpr *Node);
   void VisitDependentScopeDeclRefExpr(const DependentScopeDeclRefExpr *Node);
   void VisitSYCLUniqueStableNameExpr(const SYCLUniqueStableNameExpr *Node);
+  void VisitSYCLUniqueStableIdExpr(const SYCLUniqueStableIdExpr *Node);
   void VisitPredefinedExpr(const PredefinedExpr *Node);
   void VisitCharacterLiteral(const CharacterLiteral *Node);
   void VisitIntegerLiteral(const IntegerLiteral *Node);

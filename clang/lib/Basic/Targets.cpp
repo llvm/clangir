@@ -654,16 +654,45 @@ std::unique_ptr<TargetInfo> AllocateTarget(const llvm::Triple &Triple,
     }
 
   case llvm::Triple::spir: {
-    if (os != llvm::Triple::UnknownOS ||
-        Triple.getEnvironment() != llvm::Triple::UnknownEnvironment)
-      return nullptr;
-    return std::make_unique<SPIR32TargetInfo>(Triple, Opts);
+    llvm::Triple HT(Opts.HostTriple);
+    switch (HT.getOS()) {
+    case llvm::Triple::Win32:
+      switch (HT.getEnvironment()) {
+      default: // Assume MSVC for unknown environments
+      case llvm::Triple::MSVC:
+        assert(HT.getArch() == llvm::Triple::x86 &&
+               "Unsupported host architecture");
+        return std::make_unique<MicrosoftX86_32SPIRTargetInfo>(Triple, Opts);
+      }
+    case llvm::Triple::Linux:
+      return std::make_unique<LinuxTargetInfo<SPIR32TargetInfo>>(Triple, Opts);
+    default:
+      return std::make_unique<SPIR32TargetInfo>(Triple, Opts);
+    }
   }
+
   case llvm::Triple::spir64: {
-    if (os != llvm::Triple::UnknownOS ||
-        Triple.getEnvironment() != llvm::Triple::UnknownEnvironment)
-      return nullptr;
-    return std::make_unique<SPIR64TargetInfo>(Triple, Opts);
+    llvm::Triple HT(Opts.HostTriple);
+    bool IsFPGASubArch = Triple.getSubArch() == llvm::Triple::SPIRSubArch_fpga;
+
+    switch (HT.getOS()) {
+    case llvm::Triple::Win32:
+      switch (HT.getEnvironment()) {
+      default: // Assume MSVC for unknown environments
+      case llvm::Triple::MSVC:
+        assert(HT.getArch() == llvm::Triple::x86_64 &&
+               "Unsupported host architecture");
+        return std::make_unique<MicrosoftX86_64_SPIR64TargetInfo>(Triple, Opts);
+      }
+    case llvm::Triple::Linux:
+      if (IsFPGASubArch)
+        return std::make_unique<LinuxTargetInfo<SPIR64FPGATargetInfo>>(Triple, Opts);
+      return std::make_unique<LinuxTargetInfo<SPIR64TargetInfo>>(Triple, Opts);
+    default:
+      if (IsFPGASubArch)
+        return std::make_unique<SPIR64FPGATargetInfo>(Triple, Opts);
+      return std::make_unique<SPIR64TargetInfo>(Triple, Opts);
+    }
   }
   case llvm::Triple::spirv: {
     return std::make_unique<SPIRVTargetInfo>(Triple, Opts);
@@ -680,6 +709,7 @@ std::unique_ptr<TargetInfo> AllocateTarget(const llvm::Triple &Triple,
       return nullptr;
     return std::make_unique<SPIRV64TargetInfo>(Triple, Opts);
   }
+
   case llvm::Triple::wasm32:
     if (Triple.getSubArch() != llvm::Triple::NoSubArch ||
         Triple.getVendor() != llvm::Triple::UnknownVendor ||

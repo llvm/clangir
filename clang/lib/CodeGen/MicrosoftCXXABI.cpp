@@ -1025,6 +1025,7 @@ bool MicrosoftCXXABI::shouldDynamicCastCallBeNullChecked(bool SrcIsPtr,
 llvm::Value *MicrosoftCXXABI::emitDynamicCastCall(
     CodeGenFunction &CGF, Address This, QualType SrcRecordTy, QualType DestTy,
     QualType DestRecordTy, llvm::BasicBlock *CastEnd) {
+
   llvm::Value *SrcRTTI =
       CGF.CGM.GetAddrOfRTTIDescriptor(SrcRecordTy.getUnqualifiedType());
   llvm::Value *DestRTTI =

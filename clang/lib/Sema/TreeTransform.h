@@ -1382,6 +1382,8 @@ public:
   StmtResult RebuildAttributedStmt(SourceLocation AttrLoc,
                                    ArrayRef<const Attr *> Attrs,
                                    Stmt *SubStmt) {
+    if (SemaRef.CheckRebuiltAttributedStmtAttributes(Attrs))
+      return StmtError();
     return SemaRef.BuildAttributedStmt(AttrLoc, Attrs, SubStmt);
   }
 
@@ -2613,6 +2615,12 @@ public:
     return getSema().BuildSYCLUniqueStableNameExpr(OpLoc, LParen, RParen, TSI);
   }
 
+  ExprResult RebuildSYCLUniqueStableIdExpr(SourceLocation OpLoc,
+                                           SourceLocation LParen,
+                                           SourceLocation RParen, Expr *E) {
+    return getSema().BuildSYCLUniqueStableIdExpr(OpLoc, LParen, RParen, E);
+  }
+
   /// Build a new predefined expression.
   ///
   /// By default, performs semantic analysis to build the new expression.
@@ -3238,6 +3246,26 @@ public:
                                        TypeSourceInfo *TSI, Expr *Sub,
                                        SourceLocation RParenLoc) {
     return getSema().BuildBuiltinBitCastExpr(KWLoc, TSI, Sub, RParenLoc);
+  }
+
+  ExprResult RebuildSYCLBuiltinNumFieldsExpr(SourceLocation Loc,
+                                             QualType SourceTy) {
+    return getSema().BuildSYCLBuiltinNumFieldsExpr(Loc, SourceTy);
+  }
+
+  ExprResult RebuildSYCLBuiltinFieldTypeExpr(SourceLocation Loc,
+                                             QualType SourceTy, Expr *Idx) {
+    return getSema().BuildSYCLBuiltinFieldTypeExpr(Loc, SourceTy, Idx);
+  }
+
+  ExprResult RebuildSYCLBuiltinNumBasesExpr(SourceLocation Loc,
+                                            QualType SourceTy) {
+    return getSema().BuildSYCLBuiltinNumBasesExpr(Loc, SourceTy);
+  }
+
+  ExprResult RebuildSYCLBuiltinBaseTypeExpr(SourceLocation Loc,
+                                            QualType SourceTy, Expr *Idx) {
+    return getSema().BuildSYCLBuiltinBaseTypeExpr(Loc, SourceTy, Idx);
   }
 
   /// Build a new C++ typeid(type) expression.
@@ -10831,6 +10859,30 @@ ExprResult TreeTransform<Derived>::TransformSYCLUniqueStableNameExpr(
       E->getLocation(), E->getLParenLocation(), E->getRParenLocation(), NewT);
 }
 
+template <typename Derived>
+ExprResult TreeTransform<Derived>::TransformSYCLUniqueStableIdExpr(
+    SYCLUniqueStableIdExpr *E) {
+  if (!E->isTypeDependent())
+    return E;
+
+  ExprResult NewExpr = getDerived().TransformExpr(E->getExpr());
+
+  if (NewExpr.isInvalid())
+    return ExprError();
+
+  NewExpr = getSema().CheckPlaceholderExpr(NewExpr.get());
+
+  if (NewExpr.isInvalid())
+    return ExprError();
+
+  if (!getDerived().AlwaysRebuild() && E->getExpr() == NewExpr.get())
+    return E;
+
+  return getDerived().RebuildSYCLUniqueStableIdExpr(
+      E->getLocation(), E->getLParenLocation(), E->getRParenLocation(),
+      NewExpr.get());
+}
+
 template<typename Derived>
 ExprResult
 TreeTransform<Derived>::TransformPredefinedExpr(PredefinedExpr *E) {
@@ -12180,6 +12232,64 @@ TreeTransform<Derived>::TransformBuiltinBitCastExpr(BuiltinBitCastExpr *BCE) {
 
   return getDerived().RebuildBuiltinBitCastExpr(BCE->getBeginLoc(), TSI,
                                                 Sub.get(), BCE->getEndLoc());
+}
+
+template <typename Derived>
+ExprResult TreeTransform<Derived>::TransformSYCLBuiltinNumFieldsExpr(
+    SYCLBuiltinNumFieldsExpr *SBNFE) {
+  QualType QT = getDerived().TransformType(SBNFE->getSourceType());
+  if (QT.isNull())
+    return ExprError();
+
+  if (!getDerived().AlwaysRebuild() && QT == SBNFE->getSourceType())
+    return SBNFE;
+  return getDerived().RebuildSYCLBuiltinNumFieldsExpr(SBNFE->getLocation(), QT);
+}
+
+template <typename Derived>
+ExprResult TreeTransform<Derived>::TransformSYCLBuiltinFieldTypeExpr(
+    SYCLBuiltinFieldTypeExpr *SBFTE) {
+  QualType QT = getDerived().TransformType(SBFTE->getSourceType());
+  if (QT.isNull())
+    return ExprError();
+  ExprResult Idx = getDerived().TransformExpr(SBFTE->getIndex());
+  if (Idx.isInvalid())
+    return ExprError();
+
+  if (!getDerived().AlwaysRebuild() && QT == SBFTE->getSourceType() &&
+      Idx.get() == SBFTE->getIndex())
+    return SBFTE;
+  return getDerived().RebuildSYCLBuiltinFieldTypeExpr(SBFTE->getLocation(), QT,
+                                                      Idx.get());
+}
+
+template <typename Derived>
+ExprResult TreeTransform<Derived>::TransformSYCLBuiltinNumBasesExpr(
+    SYCLBuiltinNumBasesExpr *SBNBE) {
+  QualType QT = getDerived().TransformType(SBNBE->getSourceType());
+  if (QT.isNull())
+    return ExprError();
+
+  if (!getDerived().AlwaysRebuild() && QT == SBNBE->getSourceType())
+    return SBNBE;
+  return getDerived().RebuildSYCLBuiltinNumBasesExpr(SBNBE->getLocation(), QT);
+}
+
+template <typename Derived>
+ExprResult TreeTransform<Derived>::TransformSYCLBuiltinBaseTypeExpr(
+    SYCLBuiltinBaseTypeExpr *SBBTE) {
+  QualType QT = getDerived().TransformType(SBBTE->getSourceType());
+  if (QT.isNull())
+    return ExprError();
+  ExprResult Idx = getDerived().TransformExpr(SBBTE->getIndex());
+  if (Idx.isInvalid())
+    return ExprError();
+
+  if (!getDerived().AlwaysRebuild() && QT == SBBTE->getSourceType() &&
+      Idx.get() == SBBTE->getIndex())
+    return SBBTE;
+  return getDerived().RebuildSYCLBuiltinBaseTypeExpr(SBBTE->getLocation(), QT,
+                                                     Idx.get());
 }
 
 template<typename Derived>

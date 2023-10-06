@@ -131,8 +131,51 @@ def warn_float_compare_literal : Warning<
 def warn_double_const_requires_fp64 : Warning<
   "double precision constant requires %select{cl_khr_fp64|cl_khr_fp64 and __opencl_c_fp64}0, "
   "casting to single precision">;
+def warn_imp_float_size_conversion : Warning<
+  "implicit conversion between floating point types of different sizes">,
+  InGroup<ImplicitFloatSizeConversion>, DefaultIgnore;
 def err_half_const_requires_fp16 : Error<
   "half precision constant requires cl_khr_fp16">;
+
+// Intel FPGA extensions
+def err_attribute_argument_not_power_of_two : Error<
+  "%0 attribute argument must be a constant power of two greater than zero">;
+def err_intel_fpga_memory_arg_invalid : Error<
+  "%0 attribute requires either no argument or one of: %1">;
+def err_intel_fpga_merge_dir_invalid : Error<
+  "merge direction must be 'depth' or 'width'">;
+def err_intel_fpga_reg_limitations : Error <
+  "illegal %select{argument of type %1 |field in argument}0 to "
+  "__builtin_intel_fpga_reg">;
+def illegal_type_declared_here : Note<
+  "field with illegal type declared here">;
+def err_sycl_loop_attr_duplication : Error<
+  "duplicate %select{unroll|Intel FPGA}0 loop attribute %1">;
+def err_loop_unroll_compatibility : Error<
+  "incompatible loop unroll instructions: '%0' and '%1'">;
+def err_pipe_attribute_arg_not_allowed : Error<
+  "'%0' mode for pipe attribute is not supported; allowed modes are "
+  "'read_only' and 'write_only'">;
+def err_bankbits_numbanks_conflicting : Error<
+  "the number of bank_bits must be equal to ceil(log2(numbanks))">;
+def err_bankbits_non_consecutive : Error<
+  "bank_bits must be consecutive">;
+def err_intel_fpga_mem_limitations
+    : Error<
+          "illegal %select{pointer argument of type %1 |field in type pointed "
+          "to by pointer argument}0 to __builtin_intel_fpga_mem; only pointers "
+          "to a first class lvalue or to an rvalue are allowed">;
+def err_intel_fpga_mem_arg_mismatch
+    : Error<"builtin parameter must be %select{"
+            "a pointer"
+            "|a non-negative integer constant}0">;
+
+def err_intel_sycl_ptr_annotation_arg_number_mismatch
+    :Error<"number of parameters must be odd number">;
+def err_intel_sycl_ptr_annotation_mismatch
+    : Error<"builtin parameter must be %select{"
+            "a pointer"
+            "|a string literal or constexpr const char*}0">;
 
 // C99 variable-length arrays
 def ext_vla : Extension<"variable length arrays are a C99 feature">,
@@ -3097,8 +3140,14 @@ def err_attribute_parameter_types : Error<
 
 def err_attribute_too_many_arguments : Error<
   "%0 attribute takes no more than %1 argument%s1">;
+def warn_attribute_too_many_arguments : Warning<
+  "%0 attribute takes no more than %1 argument%s1; attribute ignored">,
+ InGroup<IgnoredAttributes>;
 def err_attribute_too_few_arguments : Error<
   "%0 attribute takes at least %1 argument%s1">;
+def warn_attribute_too_few_arguments : Warning<
+  "%0 attribute takes at least %1 argument%s1; attribute ignored">,
+ InGroup<IgnoredAttributes>;
 def err_attribute_invalid_vector_type : Error<"invalid vector element type %0">;
 def err_attribute_invalid_bitint_vector_type : Error<
   "'_BitInt' vector element width must be %select{a power of 2|"
@@ -3355,6 +3404,10 @@ def err_attribute_argument_is_zero : Error<
 def warn_attribute_argument_n_negative : Warning<
   "%0 attribute parameter %1 is negative and will be ignored">,
   InGroup<CudaCompat>;
+def warn_reqd_sub_group_attribute_cuda_n_32
+    : Warning<"attribute argument %0 is invalid and will be ignored; CUDA "
+              "requires sub_group size 32">,
+      InGroup<CudaCompat>;
 def err_property_function_in_objc_container : Error<
   "use of Objective-C property in function nested in Objective-C "
   "container not supported, move function outside its container">;
@@ -3449,6 +3502,9 @@ def warn_redeclaration_without_import_attribute : Warning<
   InGroup<MicrosoftInconsistentDllImport>;
 def warn_dllimport_dropped_from_inline_function : Warning<
   "%q0 redeclared inline; %1 attribute ignored">,
+  InGroup<IgnoredAttributes>;
+def warn_attribute_on_direct_kernel_callee_only : Warning<"%0 attribute allowed"
+  " only on a function directly called from a SYCL kernel function; attribute ignored">,
   InGroup<IgnoredAttributes>;
 def warn_nothrow_attribute_ignored : Warning<"'nothrow' attribute conflicts with"
   " exception specification; attribute ignored">,
@@ -3600,6 +3656,8 @@ def warn_attribute_wrong_decl_type_str : Warning<
   "%0%select{ attribute|}1 only applies to %2">, InGroup<IgnoredAttributes>;
 def err_attribute_wrong_decl_type_str : Error<
   warn_attribute_wrong_decl_type_str.Summary>;
+def err_attribute_only_system_header : Error<
+  "%0 attribute only supported within a system header">;
 def warn_attribute_wrong_decl_type : Warning<
   "%0%select{ attribute|}1 only applies to %select{"
   "functions"
@@ -4166,6 +4224,8 @@ def warn_attribute_type_not_supported : Warning<
 def warn_attribute_type_not_supported_global : Warning<
   "%0 attribute argument '%1' not supported on a global variable">,
   InGroup<IgnoredAttributes>;
+def err_attribute_argument_not_supported : Error<
+  "%0 attribute argument %1 is not supported">;
 def warn_attribute_unknown_visibility : Warning<"unknown visibility %0">,
   InGroup<IgnoredAttributes>;
 def warn_attribute_protected_visibility :
@@ -6691,6 +6751,10 @@ def warn_gnu_null_ptr_arith : Extension<
 def warn_pointer_sub_null_ptr : Warning<
   "performing pointer subtraction with a null pointer %select{has|may have}0 undefined behavior">,
   InGroup<NullPointerSubtraction>, DefaultIgnore;
+def err_unique_stable_id_expected_var : Error<"expected variable name">;
+def err_unique_stable_id_global_storage
+    : Error<"argument passed to '__builtin_sycl_unique_stable_id' must have "
+            "global storage">;
 
 def warn_floatingpoint_eq : Warning<
   "comparing floating point with == or != is unsafe">,
@@ -7317,6 +7381,13 @@ def warn_format_nonliteral_noargs : Warning<
 def warn_format_nonliteral : Warning<
   "format string is not a string literal">,
   InGroup<FormatNonLiteral>, DefaultIgnore;
+
+def err_sycl_device_global_incorrect_scope : Error<
+  "'device_global' variable must be a static data member or declared in global or namespace scope">;
+def err_sycl_device_global_not_publicly_accessible: Error<
+  "'device_global' member variable %0 should be publicly accessible from namespace scope">;
+def err_sycl_device_global_array : Error<
+  "'device_global' array is not allowed">;
 
 def err_unexpected_interface : Error<
   "unexpected interface name %0: expected expression">;
@@ -7959,6 +8030,10 @@ let CategoryName = "Lambda Issue" in {
     "here">;
   def note_var_explicitly_captured_here : Note<"variable %0 is"
     "%select{| explicitly}1 captured here">;
+  def err_implicit_this_capture : Error<
+    "implicit capture of 'this' is not allowed for kernel functions">;
+  def err_lambda_member_access : Error<
+    "invalid attempt to access member of lambda">;
 
   // C++14 lambda init-captures.
   def warn_cxx11_compat_init_capture : Warning<
@@ -10212,8 +10287,13 @@ def warn_duplicate_attribute_exact : Warning<
 def warn_duplicate_attribute : Warning<
   "attribute %0 is already applied with different arguments">,
   InGroup<IgnoredAttributes>;
+def err_duplicate_attribute : Error<warn_duplicate_attribute.Summary>;
 def err_disallowed_duplicate_attribute : Error<
   "attribute %0 cannot appear more than once on a declaration">;
+
+def err_disallow_attribute_on_func : Error<
+  "attribute %0 cannot be applied to a "
+  "%select{defaulted|deleted}1 function">;
 
 def warn_sync_fetch_and_nand_semantics_change : Warning<
   "the semantics of this intrinsic changed with GCC "
@@ -10491,6 +10571,8 @@ def warn_opencl_generic_address_space_arg : Warning<
   "passing non-generic address space pointer to %0"
   " may cause dynamic conversion affecting performance">,
   InGroup<Conversion>, DefaultIgnore;
+def err_bad_kernel_param_data_members : Error<
+  "%0 cannot be a data member of a %select{union|struct}1 kernel parameter">;
 
 // OpenCL v2.0 s6.13.6 -- Builtin Pipe Functions
 def err_opencl_builtin_pipe_first_arg : Error<
@@ -11827,8 +11909,8 @@ def warn_sycl_kernel_invalid_template_param_type : Warning<
   "template parameter of a function template with the 'sycl_kernel' attribute"
   " cannot be a non-type template parameter">, InGroup<IgnoredAttributes>;
 def warn_sycl_kernel_num_of_function_params : Warning<
-  "function template with 'sycl_kernel' attribute must have a single parameter">,
-  InGroup<IgnoredAttributes>;
+  "function template with 'sycl_kernel' attribute must have at least one"
+  " parameter">, InGroup<IgnoredAttributes>;
 def warn_sycl_kernel_return_type : Warning<
   "function template with 'sycl_kernel' attribute must have a 'void' return type">,
   InGroup<IgnoredAttributes>;
@@ -11840,6 +11922,178 @@ def err_bit_int_bad_size : Error<"%select{signed|unsigned}0 _BitInt must "
                                  "have a bit size of at least %select{2|1}0">;
 def err_bit_int_max_size : Error<"%select{signed|unsigned}0 _BitInt of bit "
                                  "sizes greater than %1 not supported">;
+def err_esimd_glob_cant_init : Error<
+  "SYCL explicit SIMD does not permit private global variable to have an initializer">;
+def err_esimd_global_in_sycl_context : Error<
+  "ESIMD globals cannot be used in a SYCL context">;
+def err_sycl_device_function_is_called_from_esimd : Error<
+  "SYCL device function cannot be called from an ESIMD context">;
+def err_sycl_esimd_vectorize_unsupported_value : Error<
+  "%0 attribute argument must be 8, 16, or 32">;
+
+def err_nullptr_t_type_in_sycl_kernel : Error<"%0 is an invalid kernel name, "
+                                        "'std::nullptr_t' is declared in the 'std' namespace ">;
+def err_invalid_std_type_in_sycl_kernel : Error<"%0 is an invalid kernel name, " 
+                                          "%q1 is declared in the 'std' namespace ">;
+
+def err_sycl_kernel_incorrectly_named : Error<
+  "%select{%1 is invalid; kernel name should be forward declarable "
+  "at namespace scope"
+  "|unscoped enum %1 requires fixed underlying type"
+  "|unnamed type %1 is invalid; provide a kernel name, or use "
+  "'-fsycl-unnamed-lambda' to enable unnamed kernel lambdas"
+  "}0">;
+
+def err_sycl_kernel_not_function_object
+    : Error<"kernel parameter must be a lambda or function object">;
+def err_sycl_restrict : Error<
+  "SYCL kernel cannot "
+"%select{use a non-const global variable"
+  "|use rtti"
+  "|use a non-const static data variable"
+  "|call a virtual function"
+  "|use exceptions"
+  "|call a recursive function"
+  "|call through a function pointer"
+  "|allocate storage"
+  "|use inline assembly"
+  "|call a dllimport function"
+  "|call a variadic function"
+  "|call an undefined function without SYCL_EXTERNAL attribute"
+  "|use a const static or global variable that is neither zero-initialized "
+  "nor constant-initialized"
+  "}0">;
+def err_sycl_external_global : Error<
+  "invalid reference to 'device_global' variable; external 'device_global'"
+  " variable must be marked with SYCL_EXTERNAL macro">;
+def warn_sycl_kernel_too_big_args : Warning<
+  "size of kernel arguments (%0 bytes) may exceed the supported maximum "
+  "of %1 bytes on some devices">, InGroup<SyclStrict>, ShowInSystemHeader;
+def err_sycl_virtual_types : Error<
+  "no class with a vtable can be used in a SYCL kernel or any code included in the kernel">;
+def note_sycl_recursive_function_declared_here: Note<"function implemented using recursion declared here">;
+def err_sycl_type_trait_requires_complete_type : Error<
+  "'%select{__builtin_num_fields|__builtin_field_type|__builtin_num_bases|"
+  "__builtin_base_type}0' requires a complete type">;
+def err_sycl_type_trait_requires_record_type : Error<
+  "'%select{__builtin_num_fields|__builtin_field_type|__builtin_num_bases|"
+  "__builtin_base_type}0' requires a structure "
+  "or lambda type">;
+def err_sycl_builtin_type_trait_index_out_of_range : Error<
+  "index %0 is greater than the number of %select{fields|bases}2 in type %1">;
+def err_sycl_type_trait_requires_nonnegative_index : Error<
+  "'%select{__builtin_field_type|__builtin_base_type}0' requires a "
+  "non-negative index">;
+def err_sycl_builtin_type_trait_evaluated : Error<
+  "'%select{__builtin_field_type|__builtin_base_type}0' cannot be used in an "
+  "evaluated context">;
+def err_sycl_non_constant_array_type : Error<
+  "kernel parameter is not a constant size array %0">;
+def err_conflicting_sycl_kernel_attributes : Error<
+  "conflicting attributes applied to a SYCL kernel or SYCL_EXTERNAL function">;
+def err_conflicting_sycl_function_attributes : Error<
+   "%0 attribute conflicts with %1 attribute">;
+def err_sycl_function_attribute_mismatch : Error<
+  "SYCL kernel without %0 attribute can't call a function with this attribute">;
+def err_sycl_x_y_z_arguments_must_be_one : Error<
+  "all %0 attribute arguments must be '1' when the %1 attribute argument is '0'">;
+def err_sycl_attribute_internal_decl
+    : Error<"%0 attribute cannot be applied to a "
+            "static %select{function|variable}1 or %select{function|variable}1 "
+            "in an anonymous namespace">;
+def err_sycl_attribute_not_device_global
+    : Error<"%0 attribute can only be applied to 'device_global' variables">;
+def err_sycl_compiletime_property_duplication : Error<
+  "can't apply %0 property twice to the same accessor">;
+def err_sycl_invalid_property_list_param_number : Error<
+  "%0 must have exactly one template parameter">;
+def err_sycl_invalid_accessor_property_template_param : Error<
+  "sixth template parameter of the accessor must be of accessor_property_list "
+  "type">;
+def err_sycl_invalid_accessor_property_list_template_param : Error<
+  "%select{accessor_property_list|accessor_property_list pack argument|buffer_location}0 "
+  "template parameter must be a "
+  "%select{parameter pack|type|non-negative integer}1">;
+def err_sycl_num_kernel_wrong_reqd_wg_size : Error<
+  "%0 attribute must evenly divide the work-group size for the %1 attribute">;
+def err_sycl_invalid_aspect_argument : Error<
+  "%0 attribute argument is invalid; argument must be device aspect of type sycl::aspect">;
+
+def warn_sycl_pass_by_value_deprecated 
+    : Warning<"passing kernel functions by value is deprecated in SYCL 2020">,
+      InGroup<Sycl2020Compat>, ShowInSystemHeader;
+def warn_sycl_pass_by_reference_future 
+    : Warning<"passing of kernel functions by reference is a SYCL 2020 extension">,
+      InGroup<Sycl2017Compat>, ShowInSystemHeader;
+def warn_sycl_implicit_decl
+    : Warning<"SYCL 1.2.1 specification requires an explicit forward "
+              "declaration for a kernel type name; your program may not "
+              "be portable">,
+      InGroup<SyclStrict>, ShowInSystemHeader, DefaultIgnore;
+def warn_sycl_potentially_invalid_as_cast : Warning<
+  "explicit cast from %0 to %1 potentially leads to an invalid address space"
+  " cast in the resulting code">, InGroup<SyclStrict>,
+  ShowInSystemHeader;
+def err_ivdep_duplicate_arg : Error<
+  "duplicate argument to 'ivdep'; attribute requires one or both of a safelen "
+  "and array">;
+def err_ivdep_unknown_arg : Error<
+  "unknown argument to 'ivdep'; expected integer or array variable">;
+def err_ivdep_declrefexpr_arg : Error<
+  "invalid declaration reference argument to 'ivdep'; expected integer or array"
+  " variable">;
+def warn_ivdep_redundant : Warning <"ignoring redundant Intel FPGA loop "
+  "attribute 'ivdep': safelen %select{INF|%1}0 >= safelen %select{INF|%3}2">,
+  InGroup<IgnoredAttributes>;
+def warn_ivdep_attribute_argument : Warning<
+  "'ivdep' attribute with value %0 has no effect; attribute ignored">,
+  InGroup<SyclIvdepAttribute>;
+def warn_attribute_spelling_deprecated : Warning<
+  "attribute %0 is deprecated">,
+  InGroup<DeprecatedAttributes>;
+def warn_attribute_deprecated_ignored : Warning<
+  "attribute %0 is deprecated; attribute ignored">,
+  InGroup<DeprecatedAttributes>;
+def note_spelling_suggestion : Note<
+  "did you mean to use %0 instead?">;
+def warn_attribute_requires_non_negative_integer_argument :
+  Warning<warn_impcast_integer_sign.Summary>, InGroup<AcceptedAttributes>;
+def err_sycl_mismatch_group_size
+    : Error<"%select{kernel-called|undefined 'SYCL_EXTERNAL'}0 function must "
+            "have a sub group size that matches the size specified for the "
+            "kernel">;
+def note_sycl_kernel_declared_here : Note<"kernel declared here">;
+def err_sycl_expected_finalize_method : Error<
+  "expected a 'finalize' method for the 'stream' class">;
+def ext_sycl_2020_attr_spelling : ExtWarn<
+  "use of attribute %0 is a SYCL 2020 extension">,
+  InGroup<Sycl2017Compat>;
+def err_sycl_esimd_not_supported_for_type : Error<
+  "type %0 is not supported in ESIMD context">;
+def err_sycl_taking_address_of_wrong_function : Error<
+  "taking address of a function not marked with "
+  "'intel::device_indirectly_callable' attribute is not allowed in SYCL device "
+  "code">;
+def err_sycl_add_ir_attr_filter_list_invalid_arg : Error<
+  "only the first argument of attribute %0 can be an initializer list">;
+def err_sycl_add_ir_attribute_must_have_pairs : Error<
+  "attribute %0 must specify a value for each specified name in the argument "
+  "list">;
+def err_sycl_add_ir_attribute_invalid_name : Error<
+  "each name argument in %0 must be a 'const char *' usable in a constant "
+  "expression">;
+def err_sycl_add_ir_attribute_invalid_value : Error<
+  "each value argument in %0 must be an integer, a floating point, a "
+  "character, a boolean, 'const char *', or an enumerator usable as a constant "
+  "expression">;
+def err_sycl_add_ir_attribute_invalid_filter : Error<
+  "initializer list in the first argument of %0 must contain only string "
+  "literals">;
+def warn_sycl_old_and_new_kernel_attributes : Warning<
+  "kernel has both attribute %0 and kernel properties; conflicting properties "
+  "are ignored">, InGroup<IgnoredAttributes>;
+def err_attribute_argument_is_not_valid : Error<
+  "%0 attribute requires integer constant value 0 or 1">;
 
 // errors of expect.with.probability
 def err_probability_not_constant_float : Error<

@@ -30,6 +30,7 @@ public:
   bool AllowMissingBundles = false;
   bool CheckInputArchive = false;
   bool PrintExternalCommands = false;
+  bool AddTargetSymbols = true;
   bool HipOpenmpCompatible = false;
 
   unsigned BundleAlignment = 1;
@@ -42,6 +43,9 @@ public:
   std::vector<std::string> TargetNames;
   std::vector<std::string> InputFileNames;
   std::vector<std::string> OutputFileNames;
+
+  // List of excluded target names from unbundling.
+  std::vector<std::string> ExcludedTargetNames;
 };
 
 class OffloadBundler {
@@ -82,7 +86,10 @@ struct OffloadTargetInfo {
   bool isTripleValid() const;
   bool operator==(const OffloadTargetInfo &Target) const;
   std::string str() const;
+  llvm::Triple getTriple() const { return Triple; }
 };
+
+llvm::Expected<bool> CheckBundledSection(const OffloadBundlerConfig&);
 
 } // namespace clang
 

@@ -38,6 +38,7 @@
 #include "clang/Basic/BitmaskEnum.h"
 #include "clang/Basic/Builtins.h"
 #include "clang/Basic/DarwinSDKInfo.h"
+#include "clang/Basic/DiagnosticSema.h"
 #include "clang/Basic/ExpressionTraits.h"
 #include "clang/Basic/Module.h"
 #include "clang/Basic/OpenCLOptions.h"
@@ -288,6 +289,193 @@ public:
     Cache.Nullability = Map[file];
     return Cache.Nullability;
   }
+};
+
+// TODO SYCL Integration header approach relies on an assumption that kernel
+// lambda objects created by the host compiler and any of the device compilers
+// will be identical wrt to field types, order and offsets. Some verification
+// mechanism should be developed to enforce that.
+
+// TODO FIXME SYCL Support for SYCL in FE should be refactored:
+// - kernel identification and generation should be made a separate pass over
+// AST. RecursiveASTVisitor + VisitFunctionTemplateDecl +
+// FunctionTemplateDecl::getSpecializations() mechanism could be used for that.
+// - All SYCL stuff on Sema level should be encapsulated into a single Sema
+// field
+// - Move SYCL stuff into a separate header
+
+// Represents contents of a SYCL integration header file produced by a SYCL
+// device compiler and used by SYCL host compiler (via forced inclusion into
+// compiled SYCL source):
+// - SYCL kernel names
+// - SYCL kernel parameters and offsets of corresponding actual arguments
+class SYCLIntegrationHeader {
+public:
+  // Kind of kernel's parameters as captured by the compiler in the
+  // kernel lambda or function object
+  enum kernel_param_kind_t {
+    kind_first,
+    kind_accessor = kind_first,
+    kind_std_layout,
+    kind_sampler,
+    kind_pointer,
+    kind_specialization_constants_buffer,
+    kind_stream,
+    kind_last = kind_stream
+  };
+
+public:
+  SYCLIntegrationHeader(Sema &S);
+
+  /// Emits contents of the header into given stream.
+  void emit(raw_ostream &Out);
+
+  /// Emits contents of the header into a file with given name.
+  /// Returns true/false on success/failure.
+  bool emit(StringRef MainSrc);
+
+  ///  Signals that subsequent parameter descriptor additions will go to
+  ///  the kernel with given name. Starts new kernel invocation descriptor.
+  void startKernel(const FunctionDecl *SyclKernel, QualType KernelNameType,
+                   SourceLocation Loc, bool IsESIMD, bool IsUnnamedKernel,
+                   int64_t ObjSize);
+
+  /// Adds a kernel parameter descriptor to current kernel invocation
+  /// descriptor.
+  void addParamDesc(kernel_param_kind_t Kind, int Info, unsigned Offset);
+
+  /// Signals that addition of parameter descriptors to current kernel
+  /// invocation descriptor has finished.
+  void endKernel();
+
+  /// Registers a specialization constant to emit info for it into the header.
+  void addSpecConstant(StringRef IDName, QualType IDType);
+
+  /// Update the names of a kernel description based on its SyclKernel.
+  void updateKernelNames(const FunctionDecl *SyclKernel, StringRef Name,
+                         StringRef StableName) {
+    auto Itr = llvm::find_if(KernelDescs, [SyclKernel](const KernelDesc &KD) {
+      return KD.SyclKernel == SyclKernel;
+    });
+
+    assert(Itr != KernelDescs.end() && "Unknown kernel description");
+    Itr->updateKernelNames(Name, StableName);
+  }
+
+  /// Signals that emission of __sycl_device_global_registration type and
+  /// declaration of variable __sycl_device_global_registrar of this type in
+  /// integration header is required.
+  void addDeviceGlobalRegistration() {
+    NeedToEmitDeviceGlobalRegistration = true;
+  }
+
+  /// Signals that emission of __sycl_host_pipe_registration type and
+  /// declaration of variable __sycl_host_pipe_registrar of this type in
+  /// integration header is required.
+  void addHostPipeRegistration() {
+    NeedToEmitHostPipeRegistration = true;
+  }
+
+private:
+  // Kernel actual parameter descriptor.
+  struct KernelParamDesc {
+    // Represents a parameter kind.
+    kernel_param_kind_t Kind = kind_last;
+    // If Kind is kind_scalar or kind_struct, then
+    //   denotes parameter size in bytes (includes padding for structs)
+    // If Kind is kind_accessor
+    //   denotes access target; possible access targets are defined in
+    //   access/access.hpp
+    int Info = 0;
+    // Offset of the captured parameter value in the lambda or function object.
+    unsigned Offset = 0;
+
+    KernelParamDesc() = default;
+  };
+
+  // Kernel invocation descriptor
+  struct KernelDesc {
+    /// sycl_kernel function associated with this kernel.
+    const FunctionDecl *SyclKernel;
+
+    /// Kernel name.
+    std::string Name;
+
+    /// Kernel name type.
+    QualType NameType;
+
+    /// Kernel name with stable lambda name mangling
+    std::string StableName;
+
+    SourceLocation KernelLocation;
+
+    /// Whether this kernel is an ESIMD one.
+    bool IsESIMDKernel;
+
+    /// Descriptor of kernel actual parameters.
+    SmallVector<KernelParamDesc, 8> Params;
+
+    // If we are in unnamed kernel/lambda mode AND this is one that the user
+    // hasn't provided an explicit name for.
+    bool IsUnnamedKernel;
+
+    /// Size of the kernel object.
+    int64_t ObjSize = 0;
+
+    KernelDesc(const FunctionDecl *SyclKernel, QualType NameType,
+               SourceLocation KernelLoc, bool IsESIMD, bool IsUnnamedKernel,
+               int64_t ObjSize)
+        : SyclKernel(SyclKernel), NameType(NameType), KernelLocation(KernelLoc),
+          IsESIMDKernel(IsESIMD), IsUnnamedKernel(IsUnnamedKernel),
+          ObjSize(ObjSize) {}
+
+    void updateKernelNames(StringRef Name, StringRef StableName) {
+      this->Name = Name.str();
+      this->StableName = StableName.str();
+    }
+  };
+
+  /// Returns the latest invocation descriptor started by
+  /// SYCLIntegrationHeader::startKernel
+  KernelDesc *getCurKernelDesc() {
+    return KernelDescs.size() > 0 ? &KernelDescs[KernelDescs.size() - 1]
+                                  : nullptr;
+  }
+
+private:
+  /// Keeps invocation descriptors for each kernel invocation started by
+  /// SYCLIntegrationHeader::startKernel
+  SmallVector<KernelDesc, 4> KernelDescs;
+
+  using SpecConstID = std::pair<QualType, std::string>;
+
+  /// Keeps specialization constants met in the translation unit. Maps spec
+  /// constant's ID type to generated unique name. Duplicates are removed at
+  /// integration header emission time.
+  llvm::SmallVector<SpecConstID, 4> SpecConsts;
+
+  Sema &S;
+
+  /// Keeps track of whether declaration of __sycl_device_global_registration
+  /// type and __sycl_device_global_registrar variable are required to emit.
+  bool NeedToEmitDeviceGlobalRegistration = false;
+
+  /// Keeps track of whether declaration of __sycl_host_pipe_registration
+  /// type and __sycl_host_pipe_registrar variable are required to emit.
+  bool NeedToEmitHostPipeRegistration = false;
+};
+
+class SYCLIntegrationFooter {
+public:
+  SYCLIntegrationFooter(Sema &S) : S(S) {}
+  bool emit(StringRef MainSrc);
+  void addVarDecl(const VarDecl *VD);
+
+private:
+  bool emit(raw_ostream &O);
+  Sema &S;
+  llvm::SmallVector<const VarDecl *> GlobalVars;
+  void emitSpecIDName(raw_ostream &O, const VarDecl *VD);
 };
 
 /// Tracks expected type during expression parsing, for use in code completion.
@@ -1783,6 +1971,57 @@ public:
     }
   };
 
+  /// Bitmask to contain the list of reasons a single diagnostic should be
+  /// emitted, based on its language.  This permits multiple offload systems
+  /// to coexist in the same translation unit.
+  enum class DeviceDiagnosticReason {
+    /// Diagnostic doesn't apply to anything. Included for completeness, but
+    /// should make this a no-op.
+    None = 0,
+    /// OpenMP specific diagnostic.
+    OmpDevice = 1 << 0,
+    OmpHost = 1 << 1,
+    OmpAll = OmpDevice | OmpHost,
+    /// CUDA specific diagnostics.
+    CudaDevice = 1 << 2,
+    CudaHost = 1 << 3,
+    CudaAll = CudaDevice | CudaHost,
+    /// SYCL specific diagnostic.
+    Sycl = 1 << 4,
+    /// ESIMD specific diagnostic.
+    Esimd = 1 << 5,
+    /// A flag representing 'all'.  This can be used to avoid the check
+    /// all-together and make this behave as it did before the
+    /// DiagnosticReason was added (that is, unconditionally emit).
+    /// Note: This needs to be updated if any flags above are added.
+    All = OmpAll | CudaAll | Sycl | Esimd,
+
+    LLVM_MARK_AS_BITMASK_ENUM(/*LargestValue=*/All)
+  };
+
+private:
+  // A collection of a pair of undefined functions and their callers known
+  // to be reachable from a routine on the device (kernel or device function).
+  typedef std::pair<const FunctionDecl *, const FunctionDecl *> CallPair;
+  llvm::SmallVector<CallPair> UndefinedReachableFromSyclDevice;
+
+public:
+  // Helper routine to add a pair of Callee-Caller pair of FunctionDecl *
+  // to UndefinedReachableFromSyclDevice.
+  void addFDToReachableFromSyclDevice(const FunctionDecl *Callee,
+                                      const FunctionDecl *Caller) {
+    UndefinedReachableFromSyclDevice.push_back(std::make_pair(Callee, Caller));
+  }
+  // Helper routine to check if a pair of Callee-Caller FunctionDecl *
+  // is in UndefinedReachableFromSyclDevice.
+  bool isFDReachableFromSyclDevice(const FunctionDecl *Callee,
+                                   const FunctionDecl *Caller) {
+    return llvm::any_of(UndefinedReachableFromSyclDevice,
+                        [Callee, Caller](const CallPair &P) {
+                          return P.first == Callee && P.second == Caller;
+                        });
+  }
+
   /// A generic diagnostic builder for errors which may or may not be deferred.
   ///
   /// In CUDA, there exist constructs (e.g. variable-length arrays, try/catch)
@@ -1815,7 +2054,7 @@ public:
     };
 
     SemaDiagnosticBuilder(Kind K, SourceLocation Loc, unsigned DiagID,
-                          const FunctionDecl *Fn, Sema &S);
+                          const FunctionDecl *Fn, Sema &S, DeviceDiagnosticReason R);
     SemaDiagnosticBuilder(SemaDiagnosticBuilder &&D);
     SemaDiagnosticBuilder(const SemaDiagnosticBuilder &) = default;
 
@@ -1846,7 +2085,9 @@ public:
       if (Diag.ImmediateDiag)
         *Diag.ImmediateDiag << Value;
       else if (Diag.PartialDiagId)
-        Diag.S.DeviceDeferredDiags[Diag.Fn][*Diag.PartialDiagId].second
+        Diag.S.DeviceDeferredDiags[Diag.Fn][*Diag.PartialDiagId]
+                .getDiag()
+                .second
             << Value;
       return Diag;
     }
@@ -1860,7 +2101,8 @@ public:
       if (ImmediateDiag)
         *ImmediateDiag << std::move(V);
       else if (PartialDiagId)
-        S.DeviceDeferredDiags[Fn][*PartialDiagId].second << std::move(V);
+        S.DeviceDeferredDiags[Fn][*PartialDiagId].getDiag().second
+            << std::move(V);
       return *this;
     }
 
@@ -1869,7 +2111,9 @@ public:
       if (Diag.ImmediateDiag)
         PD.Emit(*Diag.ImmediateDiag);
       else if (Diag.PartialDiagId)
-        Diag.S.DeviceDeferredDiags[Diag.Fn][*Diag.PartialDiagId].second = PD;
+        Diag.S.DeviceDeferredDiags[Diag.Fn][*Diag.PartialDiagId]
+            .getDiag()
+            .second = PD;
       return Diag;
     }
 
@@ -1877,7 +2121,8 @@ public:
       if (ImmediateDiag)
         ImmediateDiag->AddFixItHint(Hint);
       else if (PartialDiagId)
-        S.DeviceDeferredDiags[Fn][*PartialDiagId].second.AddFixItHint(Hint);
+        S.DeviceDeferredDiags[Fn][*PartialDiagId].getDiag().second.AddFixItHint(
+            Hint);
     }
 
     friend ExprResult ExprError(const SemaDiagnosticBuilder &) {
@@ -2104,6 +2349,31 @@ public:
   /// Same as above, but constructs the AddressSpace index if not provided.
   QualType BuildAddressSpaceAttr(QualType &T, Expr *AddrSpace,
                                  SourceLocation AttrLoc);
+  SYCLIntelIVDepAttr *
+  BuildSYCLIntelIVDepAttr(const AttributeCommonInfo &CI, Expr *Expr1,
+                          Expr *Expr2);
+  LoopUnrollHintAttr *BuildLoopUnrollHintAttr(const AttributeCommonInfo &A,
+                                              Expr *E);
+  OpenCLUnrollHintAttr *
+  BuildOpenCLLoopUnrollHintAttr(const AttributeCommonInfo &A, Expr *E);
+
+  SYCLIntelLoopCountAttr *
+  BuildSYCLIntelLoopCountAttr(const AttributeCommonInfo &CI, Expr *E);
+  SYCLIntelInitiationIntervalAttr *
+  BuildSYCLIntelInitiationIntervalAttr(const AttributeCommonInfo &CI,
+                                       Expr *E);
+  SYCLIntelMaxConcurrencyAttr *
+  BuildSYCLIntelMaxConcurrencyAttr(const AttributeCommonInfo &CI, Expr *E);
+  SYCLIntelMaxInterleavingAttr *
+  BuildSYCLIntelMaxInterleavingAttr(const AttributeCommonInfo &CI, Expr *E);
+  SYCLIntelSpeculatedIterationsAttr *
+  BuildSYCLIntelSpeculatedIterationsAttr(const AttributeCommonInfo &CI,
+                                         Expr *E);
+  SYCLIntelLoopCoalesceAttr *
+  BuildSYCLIntelLoopCoalesceAttr(const AttributeCommonInfo &CI, Expr *E);
+  SYCLIntelMaxReinvocationDelayAttr *
+  BuildSYCLIntelMaxReinvocationDelayAttr(const AttributeCommonInfo &CI,
+                                         Expr *E);
 
   bool CheckQualifiedFunctionForTypeId(QualType T, SourceLocation Loc);
 
@@ -4576,6 +4846,7 @@ public:
   };
   FunctionEmissionStatus getEmissionStatus(const FunctionDecl *Decl,
                                            bool Final = false);
+  DeviceDiagnosticReason getEmissionReason(const FunctionDecl *Decl);
 
   // Whether the callee should be ignored in CUDA/HIP/OpenMP host/device check.
   bool shouldIgnoreInHostDeviceCheck(FunctionDecl *Callee);
@@ -5157,6 +5428,7 @@ public:
                                  ArrayRef<const Attr *> Attrs, Stmt *SubStmt);
   StmtResult ActOnAttributedStmt(const ParsedAttributes &AttrList,
                                  Stmt *SubStmt);
+  bool CheckRebuiltAttributedStmtAttributes(ArrayRef<const Attr *> Attrs);
 
   class ConditionResult;
 
@@ -5745,6 +6017,13 @@ public:
                                            SourceLocation LParen,
                                            SourceLocation RParen,
                                            ParsedType ParsedTy);
+
+  ExprResult BuildSYCLUniqueStableIdExpr(SourceLocation OpLoc,
+                                         SourceLocation LParen,
+                                         SourceLocation RParen, Expr *E);
+  ExprResult ActOnSYCLUniqueStableIdExpr(SourceLocation OpLoc,
+                                         SourceLocation LParen,
+                                         SourceLocation RParen, Expr *E);
 
   bool CheckLoopHintExpr(Expr *E, SourceLocation Loc);
 
@@ -11009,6 +11288,127 @@ public:
   /// attribute to be added (usually because of a pragma).
   void AddOptnoneAttributeIfNoConflicts(FunctionDecl *FD, SourceLocation Loc);
 
+  void AddSYCLIntelBankBitsAttr(Decl *D, const AttributeCommonInfo &CI,
+                                Expr **Exprs, unsigned Size);
+  bool AnyWorkGroupSizesDiffer(const Expr *LHSXDim, const Expr *LHSYDim,
+                               const Expr *LHSZDim, const Expr *RHSXDim,
+                               const Expr *RHSYDim, const Expr *RHSZDim);
+  bool AllWorkGroupSizesSame(const Expr *LHSXDim, const Expr *LHSYDim,
+                             const Expr *LHSZDim, const Expr *RHSXDim,
+                             const Expr *RHSYDim, const Expr *RHSZDim);
+  void AddSYCLWorkGroupSizeHintAttr(Decl *D, const AttributeCommonInfo &CI,
+                                    Expr *XDim, Expr *YDim, Expr *ZDim);
+  SYCLWorkGroupSizeHintAttr *
+  MergeSYCLWorkGroupSizeHintAttr(Decl *D, const SYCLWorkGroupSizeHintAttr &A);
+  void AddIntelReqdSubGroupSize(Decl *D, const AttributeCommonInfo &CI,
+                                Expr *E);
+  IntelReqdSubGroupSizeAttr *
+  MergeIntelReqdSubGroupSizeAttr(Decl *D, const IntelReqdSubGroupSizeAttr &A);
+  IntelNamedSubGroupSizeAttr *
+  MergeIntelNamedSubGroupSizeAttr(Decl *D, const IntelNamedSubGroupSizeAttr &A);
+  void AddSYCLIntelNumSimdWorkItemsAttr(Decl *D, const AttributeCommonInfo &CI,
+                                        Expr *E);
+  SYCLIntelNumSimdWorkItemsAttr *
+  MergeSYCLIntelNumSimdWorkItemsAttr(Decl *D,
+                                     const SYCLIntelNumSimdWorkItemsAttr &A);
+  void AddSYCLIntelESimdVectorizeAttr(Decl *D, const AttributeCommonInfo &CI,
+                                      Expr *E);
+  SYCLIntelESimdVectorizeAttr *
+  MergeSYCLIntelESimdVectorizeAttr(Decl *D,
+                                   const SYCLIntelESimdVectorizeAttr &A);
+  void AddSYCLIntelSchedulerTargetFmaxMhzAttr(Decl *D,
+                                              const AttributeCommonInfo &CI,
+                                              Expr *E);
+  SYCLIntelSchedulerTargetFmaxMhzAttr *MergeSYCLIntelSchedulerTargetFmaxMhzAttr(
+      Decl *D, const SYCLIntelSchedulerTargetFmaxMhzAttr &A);
+  void AddSYCLIntelNoGlobalWorkOffsetAttr(Decl *D,
+                                          const AttributeCommonInfo &CI,
+                                          Expr *E);
+  SYCLIntelNoGlobalWorkOffsetAttr *MergeSYCLIntelNoGlobalWorkOffsetAttr(
+      Decl *D, const SYCLIntelNoGlobalWorkOffsetAttr &A);
+  void AddSYCLIntelLoopFuseAttr(Decl *D, const AttributeCommonInfo &CI,
+                                Expr *E);
+  SYCLIntelLoopFuseAttr *
+  MergeSYCLIntelLoopFuseAttr(Decl *D, const SYCLIntelLoopFuseAttr &A);
+  void AddSYCLIntelPrivateCopiesAttr(Decl *D, const AttributeCommonInfo &CI,
+                                     Expr *E);
+  void AddSYCLIntelMaxReplicatesAttr(Decl *D, const AttributeCommonInfo &CI,
+                                     Expr *E);
+  SYCLIntelMaxReplicatesAttr *
+  MergeSYCLIntelMaxReplicatesAttr(Decl *D, const SYCLIntelMaxReplicatesAttr &A);
+  void AddSYCLIntelForcePow2DepthAttr(Decl *D, const AttributeCommonInfo &CI,
+                                      Expr *E);
+  SYCLIntelForcePow2DepthAttr *
+  MergeSYCLIntelForcePow2DepthAttr(Decl *D,
+                                   const SYCLIntelForcePow2DepthAttr &A);
+  void AddSYCLIntelInitiationIntervalAttr(Decl *D,
+                                          const AttributeCommonInfo &CI,
+                                          Expr *E);
+  SYCLIntelInitiationIntervalAttr *MergeSYCLIntelInitiationIntervalAttr(
+      Decl *D, const SYCLIntelInitiationIntervalAttr &A);
+
+  SYCLIntelMaxConcurrencyAttr *MergeSYCLIntelMaxConcurrencyAttr(
+      Decl *D, const SYCLIntelMaxConcurrencyAttr &A);
+  void AddSYCLIntelMaxGlobalWorkDimAttr(Decl *D, const AttributeCommonInfo &CI,
+                                        Expr *E);
+  SYCLIntelMaxGlobalWorkDimAttr *
+  MergeSYCLIntelMaxGlobalWorkDimAttr(Decl *D,
+                                     const SYCLIntelMaxGlobalWorkDimAttr &A);
+  void AddSYCLIntelBankWidthAttr(Decl *D, const AttributeCommonInfo &CI,
+                                 Expr *E);
+  SYCLIntelBankWidthAttr *
+  MergeSYCLIntelBankWidthAttr(Decl *D, const SYCLIntelBankWidthAttr &A);
+  void AddSYCLIntelNumBanksAttr(Decl *D, const AttributeCommonInfo &CI,
+                                Expr *E);
+  SYCLIntelNumBanksAttr *
+  MergeSYCLIntelNumBanksAttr(Decl *D, const SYCLIntelNumBanksAttr &A);
+  SYCLDeviceHasAttr *MergeSYCLDeviceHasAttr(Decl *D,
+                                            const SYCLDeviceHasAttr &A);
+  void AddSYCLDeviceHasAttr(Decl *D, const AttributeCommonInfo &CI,
+                            Expr **Exprs, unsigned Size);
+  SYCLUsesAspectsAttr *MergeSYCLUsesAspectsAttr(Decl *D,
+                                                const SYCLUsesAspectsAttr &A);
+  void AddSYCLUsesAspectsAttr(Decl *D, const AttributeCommonInfo &CI,
+                              Expr **Exprs, unsigned Size);
+  bool CheckMaxAllowedWorkGroupSize(const Expr *RWGSXDim, const Expr *RWGSYDim,
+                                    const Expr *RWGSZDim, const Expr *MWGSXDim,
+                                    const Expr *MWGSYDim, const Expr *MWGSZDim);
+  void AddSYCLIntelMaxWorkGroupSizeAttr(Decl *D, const AttributeCommonInfo &CI,
+                                        Expr *XDim, Expr *YDim, Expr *ZDim);
+  SYCLIntelMaxWorkGroupSizeAttr *
+  MergeSYCLIntelMaxWorkGroupSizeAttr(Decl *D,
+                                     const SYCLIntelMaxWorkGroupSizeAttr &A);
+  void CheckSYCLAddIRAttributesFunctionAttrConflicts(Decl *D);
+  SYCLAddIRAttributesFunctionAttr *MergeSYCLAddIRAttributesFunctionAttr(
+      Decl *D, const SYCLAddIRAttributesFunctionAttr &A);
+  void AddSYCLAddIRAttributesFunctionAttr(Decl *D,
+                                          const AttributeCommonInfo &CI,
+                                          MutableArrayRef<Expr *> Args);
+  SYCLAddIRAttributesKernelParameterAttr *
+  MergeSYCLAddIRAttributesKernelParameterAttr(
+      Decl *D, const SYCLAddIRAttributesKernelParameterAttr &A);
+  void AddSYCLAddIRAttributesKernelParameterAttr(Decl *D,
+                                                 const AttributeCommonInfo &CI,
+                                                 MutableArrayRef<Expr *> Args);
+  SYCLAddIRAttributesGlobalVariableAttr *
+  MergeSYCLAddIRAttributesGlobalVariableAttr(
+      Decl *D, const SYCLAddIRAttributesGlobalVariableAttr &A);
+  void AddSYCLAddIRAttributesGlobalVariableAttr(Decl *D,
+                                                const AttributeCommonInfo &CI,
+                                                MutableArrayRef<Expr *> Args);
+  SYCLAddIRAnnotationsMemberAttr *
+  MergeSYCLAddIRAnnotationsMemberAttr(Decl *D,
+                                      const SYCLAddIRAnnotationsMemberAttr &A);
+  void AddSYCLAddIRAnnotationsMemberAttr(Decl *D, const AttributeCommonInfo &CI,
+                                         MutableArrayRef<Expr *> Args);
+  void AddSYCLReqdWorkGroupSizeAttr(Decl *D, const AttributeCommonInfo &CI,
+                                    Expr *XDim, Expr *YDim, Expr *ZDim);
+  SYCLReqdWorkGroupSizeAttr *
+  MergeSYCLReqdWorkGroupSizeAttr(Decl *D, const SYCLReqdWorkGroupSizeAttr &A);
+
+  SYCLTypeAttr *MergeSYCLTypeAttr(Decl *D, const AttributeCommonInfo &CI,
+                                  SYCLTypeAttr::SYCLType TypeName);
+
   /// Only called on function definitions; if there is a MSVC #pragma optimize
   /// in scope, consider changing the function's attributes based on the
   /// optimization list passed to the pragma.
@@ -11091,8 +11491,20 @@ public:
   void addAMDGPUWavesPerEUAttr(Decl *D, const AttributeCommonInfo &CI,
                                Expr *Min, Expr *Max);
 
-  bool checkNSReturnsRetainedReturnType(SourceLocation loc, QualType type);
+  /// addSYCLIntelPipeIOAttr - Adds a pipe I/O attribute to a particular
+  /// declaration.
+  void addSYCLIntelPipeIOAttr(Decl *D, const AttributeCommonInfo &CI, Expr *ID);
+  SYCLIntelPipeIOAttr *MergeSYCLIntelPipeIOAttr(Decl *D,
+                                                const SYCLIntelPipeIOAttr &A);
 
+  /// AddSYCLIntelMaxConcurrencyAttr - Adds a max_concurrency attribute to a
+  /// particular declaration.
+  void AddSYCLIntelMaxConcurrencyAttr(Decl *D,
+                                      const AttributeCommonInfo &CI,
+                                      Expr *E);
+
+  bool checkNSReturnsRetainedReturnType(SourceLocation loc, QualType type);
+  bool checkAllowedSYCLInitializer(VarDecl *VD);
   //===--------------------------------------------------------------------===//
   // C++ Coroutines
   //
@@ -13186,11 +13598,25 @@ public:
   /// before incrementing, so you can emit an error.
   bool PopForceCUDAHostDevice();
 
+  class DeviceDeferredDiagnostic {
+  public:
+    DeviceDeferredDiagnostic(SourceLocation SL, const PartialDiagnostic &PD,
+                             DeviceDiagnosticReason R)
+        : Diagnostic(SL, PD), Reason(R) {}
+
+    PartialDiagnosticAt &getDiag() { return Diagnostic; }
+    DeviceDiagnosticReason getReason() const { return Reason; }
+
+  private:
+    PartialDiagnosticAt Diagnostic;
+    DeviceDiagnosticReason Reason;
+  };
+
   /// Diagnostics that are emitted only if we discover that the given function
   /// must be codegen'ed.  Because handling these correctly adds overhead to
   /// compilation, this is currently only enabled for CUDA compilations.
   llvm::DenseMap<CanonicalDeclPtr<const FunctionDecl>,
-                 std::vector<PartialDiagnosticAt>>
+                 std::vector<DeviceDeferredDiagnostic>>
       DeviceDeferredDiags;
 
   /// A pair of a canonical FunctionDecl and a SourceLocation.  When used as the
@@ -13704,6 +14130,9 @@ private:
                  bool IsMemberFunction, SourceLocation Loc, SourceRange Range,
                  VariadicCallType CallType);
 
+  void CheckSYCLKernelCall(FunctionDecl *CallerFunc,
+                           ArrayRef<const Expr *> Args);
+
   bool CheckObjCString(Expr *Arg);
   ExprResult CheckOSLogFormatStringArg(Expr *Arg);
 
@@ -13764,6 +14193,12 @@ private:
   bool CheckNVPTXBuiltinFunctionCall(const TargetInfo &TI, unsigned BuiltinID,
                                      CallExpr *TheCall);
 
+  bool CheckIntelFPGARegBuiltinFunctionCall(unsigned BuiltinID, CallExpr *Call);
+  bool CheckIntelFPGAMemBuiltinFunctionCall(CallExpr *Call);
+
+  bool CheckIntelSYCLPtrAnnotationBuiltinFunctionCall(unsigned BuiltinID,
+                                                      CallExpr *Call);
+
   bool SemaBuiltinVAStart(unsigned BuiltinID, CallExpr *TheCall);
   bool SemaBuiltinVAStartARMMicrosoft(CallExpr *Call);
   bool SemaBuiltinUnorderedCompare(CallExpr *TheCall);
@@ -13779,6 +14214,23 @@ public:
   ExprResult SemaConvertVectorExpr(Expr *E, TypeSourceInfo *TInfo,
                                    SourceLocation BuiltinLoc,
                                    SourceLocation RParenLoc);
+
+  template <typename AttrTy>
+  static bool isTypeDecoratedWithDeclAttribute(QualType Ty) {
+    const CXXRecordDecl *RecTy = Ty->getAsCXXRecordDecl();
+    if (!RecTy)
+      return false;
+
+    if (RecTy->hasAttr<AttrTy>())
+      return true;
+
+    if (auto *CTSD = dyn_cast<ClassTemplateSpecializationDecl>(RecTy)) {
+      ClassTemplateDecl *Template = CTSD->getSpecializedTemplate();
+      if (CXXRecordDecl *RD = Template->getTemplatedDecl())
+        return RD->hasAttr<AttrTy>();
+    }
+    return false;
+  }
 
 private:
   bool SemaBuiltinPrefetch(CallExpr *TheCall);
@@ -14148,6 +14600,109 @@ public:
     ConstructorDestructor,
     BuiltinFunction
   };
+
+private:
+  // We store SYCL Kernels here and handle separately -- which is a hack.
+  // FIXME: It would be best to refactor this.
+  llvm::SetVector<Decl *> SyclDeviceDecls;
+  // SYCL integration header instance for current compilation unit this Sema
+  // is associated with.
+  std::unique_ptr<SYCLIntegrationHeader> SyclIntHeader;
+  std::unique_ptr<SYCLIntegrationFooter> SyclIntFooter;
+
+  // We need to store the list of the sycl_kernel functions and their associated
+  // generated OpenCL Kernels so we can go back and re-name these after the
+  // fact.
+  llvm::SmallVector<std::pair<const FunctionDecl *, FunctionDecl *>>
+      SyclKernelsToOpenCLKernels;
+
+  // Used to suppress diagnostics during kernel construction, since these were
+  // already emitted earlier. Diagnosing during Kernel emissions also skips the
+  // useful notes that shows where the kernel was called.
+  bool DiagnosingSYCLKernel = false;
+
+public:
+  void addSyclOpenCLKernel(const FunctionDecl *SyclKernel,
+                           FunctionDecl *OpenCLKernel) {
+    SyclKernelsToOpenCLKernels.emplace_back(SyclKernel, OpenCLKernel);
+  }
+
+  void addSyclDeviceDecl(Decl *d) { SyclDeviceDecls.insert(d); }
+  llvm::SetVector<Decl *> &syclDeviceDecls() { return SyclDeviceDecls; }
+
+  /// Lazily creates and returns SYCL integration header instance.
+  SYCLIntegrationHeader &getSyclIntegrationHeader() {
+    if (SyclIntHeader == nullptr)
+      SyclIntHeader = std::make_unique<SYCLIntegrationHeader>(*this);
+    return *SyclIntHeader.get();
+  }
+
+  SYCLIntegrationFooter &getSyclIntegrationFooter() {
+    if (SyclIntFooter == nullptr)
+      SyclIntFooter = std::make_unique<SYCLIntegrationFooter>(*this);
+    return *SyclIntFooter.get();
+  }
+
+  void addSyclVarDecl(VarDecl *VD) {
+    if (LangOpts.SYCLIsDevice && !LangOpts.SYCLIntFooter.empty())
+      getSyclIntegrationFooter().addVarDecl(VD);
+  }
+
+  enum SYCLRestrictKind {
+    KernelGlobalVariable,
+    KernelRTTI,
+    KernelNonConstStaticDataVariable,
+    KernelCallVirtualFunction,
+    KernelUseExceptions,
+    KernelCallRecursiveFunction,
+    KernelCallFunctionPointer,
+    KernelAllocateStorage,
+    KernelUseAssembly,
+    KernelCallDllimportFunction,
+    KernelCallVariadicFunction,
+    KernelCallUndefinedFunction,
+    KernelConstStaticVariable
+  };
+
+  bool isDeclAllowedInSYCLDeviceCode(const Decl *D);
+  void checkSYCLDeviceVarDecl(VarDecl *Var);
+  void copySYCLKernelAttrs(CXXMethodDecl *CallOperator);
+  void ConstructOpenCLKernel(FunctionDecl *KernelCallerFunc, MangleContext &MC);
+  void SetSYCLKernelNames();
+  void MarkDevices();
+
+  /// Get the number of fields or captures within the parsed type.
+  ExprResult ActOnSYCLBuiltinNumFieldsExpr(ParsedType PT);
+  ExprResult BuildSYCLBuiltinNumFieldsExpr(SourceLocation Loc,
+                                           QualType SourceTy);
+
+  /// Get a value based on the type of the given field number so that callers
+  /// can wrap it in a decltype() to get the actual type of the field.
+  ExprResult ActOnSYCLBuiltinFieldTypeExpr(ParsedType PT, Expr *Idx);
+  ExprResult BuildSYCLBuiltinFieldTypeExpr(SourceLocation Loc,
+                                           QualType SourceTy, Expr *Idx);
+
+  /// Get the number of base classes within the parsed type.
+  ExprResult ActOnSYCLBuiltinNumBasesExpr(ParsedType PT);
+  ExprResult BuildSYCLBuiltinNumBasesExpr(SourceLocation Loc,
+                                          QualType SourceTy);
+
+  /// Get a value based on the type of the given base number so that callers
+  /// can wrap it in a decltype() to get the actual type of the base class.
+  ExprResult ActOnSYCLBuiltinBaseTypeExpr(ParsedType PT, Expr *Idx);
+  ExprResult BuildSYCLBuiltinBaseTypeExpr(SourceLocation Loc, QualType SourceTy,
+                                          Expr *Idx);
+
+  /// Emit a diagnostic about the given attribute having a deprecated name, and
+  /// also emit a fixit hint to generate the new attribute name.
+  void DiagnoseDeprecatedAttribute(const ParsedAttr &A, StringRef NewScope,
+                                   StringRef NewName);
+
+  /// Diagnoses an attribute in the 'intelfpga' namespace and suggests using
+  /// the attribute in the 'intel' namespace instead.
+  void CheckDeprecatedSYCLAttributeSpelling(const ParsedAttr &A,
+                                            StringRef NewName = "");
+
   /// Creates a SemaDiagnosticBuilder that emits the diagnostic if the current
   /// context is "used as device code".
   ///
@@ -14156,7 +14711,7 @@ public:
   ///   immediately.
   /// - If CurLexicalContext is a function and we are compiling
   ///   for the device, but we don't know that this function will be codegen'ed
-  ///   for devive yet, creates a diagnostic which is emitted if and when we
+  ///   for device yet, creates a diagnostic which is emitted if and when we
   ///   realize that the function will be codegen'ed.
   ///
   /// Example usage:
@@ -14166,12 +14721,29 @@ public:
   /// if (!S.Context.getTargetInfo().hasFloat128Type() &&
   ///     S.getLangOpts().SYCLIsDevice)
   ///   SYCLDiagIfDeviceCode(Loc, diag::err_type_unsupported) << "__float128";
-  SemaDiagnosticBuilder SYCLDiagIfDeviceCode(SourceLocation Loc,
-                                             unsigned DiagID);
+  SemaDiagnosticBuilder SYCLDiagIfDeviceCode(
+      SourceLocation Loc, unsigned DiagID,
+      DeviceDiagnosticReason Reason = DeviceDiagnosticReason::Sycl |
+                                      DeviceDiagnosticReason::Esimd);
 
   void deepTypeCheckForSYCLDevice(SourceLocation UsedAt,
                                   llvm::DenseSet<QualType> Visited,
                                   ValueDecl *DeclToCheck);
+
+  /// Finishes analysis of the deferred functions calls that may be not
+  /// properly declared for device compilation.
+  void finalizeSYCLDelayedAnalysis(const FunctionDecl *Caller,
+                                   const FunctionDecl *Callee,
+                                   SourceLocation Loc,
+                                   DeviceDiagnosticReason Reason);
+
+  /// Tells whether given variable is a SYCL explicit SIMD extension's "private
+  /// global" variable - global variable in the private address space.
+  bool isSYCLEsimdPrivateGlobal(VarDecl *VDecl) {
+    return getLangOpts().SYCLIsDevice && VDecl->hasAttr<SYCLSimdAttr>() &&
+           VDecl->hasGlobalStorage() &&
+           (VDecl->getType().getAddressSpace() == LangAS::sycl_private);
+  }
 };
 
 DeductionFailureInfo

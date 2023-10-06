@@ -24,6 +24,7 @@ set(LLVM_LINK_COMPONENTS
   TargetParser
   TransformUtils
   Vectorize
+  SYCLLowerIR
   )
 
 add_llvm_fuzzer(llvm-opt-fuzzer

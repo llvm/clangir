@@ -11,6 +11,7 @@
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Basic/TargetOptions.h"
+#include "clang/Basic/Targets/SPIR.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Frontend/Utils.h"
 #include "clang/Lex/HeaderSearchOptions.h"
@@ -42,6 +43,15 @@
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
 #include "llvm/Passes/StandardInstrumentations.h"
+#include "llvm/SYCLLowerIR/CompileTimePropertiesPass.h"
+#include "llvm/SYCLLowerIR/ESIMD/ESIMDVerifier.h"
+#include "llvm/SYCLLowerIR/ESIMD/LowerESIMD.h"
+#include "llvm/SYCLLowerIR/LowerWGLocalMemory.h"
+#include "llvm/SYCLLowerIR/MutatePrintfAddrspace.h"
+#include "llvm/SYCLLowerIR/PrepareSYCLNativeCPU.h"
+#include "llvm/SYCLLowerIR/RenameKernelSYCLNativeCPU.h"
+#include "llvm/SYCLLowerIR/SYCLAddOptLevelAttribute.h"
+#include "llvm/SYCLLowerIR/SYCLPropagateAspectsUsage.h"
 #include "llvm/Support/BuryPointer.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/MemoryBuffer.h"
@@ -55,6 +65,7 @@
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/TargetParser/SubtargetFeature.h"
 #include "llvm/TargetParser/Triple.h"
+#include "llvm/Transforms/IPO/DeadArgumentElimination.h"
 #include "llvm/Transforms/IPO/EmbedBitcodePass.h"
 #include "llvm/Transforms/IPO/LowerTypeTests.h"
 #include "llvm/Transforms/IPO/ThinLTOBitcodeWriter.h"
@@ -70,12 +81,14 @@
 #include "llvm/Transforms/Instrumentation/KCFI.h"
 #include "llvm/Transforms/Instrumentation/MemProfiler.h"
 #include "llvm/Transforms/Instrumentation/MemorySanitizer.h"
+#include "llvm/Transforms/Instrumentation/SPIRITTAnnotations.h"
 #include "llvm/Transforms/Instrumentation/SanitizerBinaryMetadata.h"
 #include "llvm/Transforms/Instrumentation/SanitizerCoverage.h"
 #include "llvm/Transforms/Instrumentation/ThreadSanitizer.h"
 #include "llvm/Transforms/ObjCARC.h"
 #include "llvm/Transforms/Scalar/EarlyCSE.h"
 #include "llvm/Transforms/Scalar/GVN.h"
+#include "llvm/Transforms/Scalar/InferAddressSpaces.h"
 #include "llvm/Transforms/Scalar/JumpThreading.h"
 #include "llvm/Transforms/Utils/Debugify.h"
 #include "llvm/Transforms/Utils/EntryExitInstrumenter.h"
@@ -97,6 +110,10 @@ extern cl::opt<bool> PrintPipelinePasses;
 static cl::opt<bool> ClSanitizeOnOptimizerEarlyEP(
     "sanitizer-early-opt-ep", cl::Optional,
     cl::desc("Insert sanitizers on OptimizerEarlyEP."), cl::init(false));
+
+static cl::opt<bool> SYCLNativeCPURename(
+    "sycl-native-cpu-rename", cl::init(false),
+    cl::desc("Rename kernel functions for SYCL Native CPU"));
 }
 
 namespace {
@@ -289,6 +306,18 @@ static TargetLibraryInfoImpl *createTLII(llvm::Triple &TargetTriple,
   case CodeGenOptions::ArmPL:
     TLII->addVectorizableFunctionsFromVecLib(TargetLibraryInfoImpl::ArmPL,
                                              TargetTriple);
+    break;
+  default:
+    break;
+  }
+  switch (CodeGenOpts.getAltMathLib()) {
+  case CodeGenOptions::TestAltMathLibrary:
+    TLII->addAltMathFunctionsFromLib(
+        TargetLibraryInfoImpl::AltMathLibrary::TestAltMathLibrary);
+    break;
+  case CodeGenOptions::SVMLAltMathLibrary:
+    TLII->addAltMathFunctionsFromLib(
+        TargetLibraryInfoImpl::AltMathLibrary::SVMLAltMathLibrary);
     break;
   default:
     break;
@@ -838,6 +867,9 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
   // Only enable CGProfilePass when using integrated assembler, since
   // non-integrated assemblers don't recognize .cgprofile section.
   PTO.CallGraphProfile = !CodeGenOpts.DisableIntegratedAS;
+  // Enable a custom optimization pipeline for non-user SYCL code.
+  PTO.OptimizeSYCLFramework =
+      CodeGenOpts.OptimizeSYCLFramework && !CodeGenOpts.DisableLLVMPasses;
   PTO.UnifiedLTO = CodeGenOpts.UnifiedLTO;
 
   LoopAnalysisManager LAM;
@@ -927,6 +959,28 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
     // Map our optimization levels into one of the distinct levels used to
     // configure the pipeline.
     OptimizationLevel Level = mapToLevel(CodeGenOpts);
+
+    if (LangOpts.SYCLIsDevice)
+      PB.registerPipelineStartEPCallback(
+          [&](ModulePassManager &MPM, OptimizationLevel Level) {
+            MPM.addPass(ESIMDVerifierPass(LangOpts.SYCLESIMDForceStatelessMem));
+            MPM.addPass(
+                SYCLPropagateAspectsUsagePass(/*ExcludeAspects=*/{"fp64"}));
+          });
+    else if (LangOpts.SYCLIsHost && !LangOpts.SYCLESIMDBuildHostCode)
+      PB.registerPipelineStartEPCallback(
+          [&](ModulePassManager &MPM, OptimizationLevel Level) {
+            MPM.addPass(ESIMDRemoveHostCodePass());
+          });
+
+    // Add the InferAddressSpaces pass for all the SPIR[V] targets
+    if (TargetTriple.isSPIR() || TargetTriple.isSPIRV()) {
+      PB.registerOptimizerLastEPCallback(
+          [](ModulePassManager &MPM, OptimizationLevel Level) {
+            MPM.addPass(createModuleToFunctionPassAdaptor(
+                InferAddressSpacesPass(clang::targets::SPIR_GENERIC_AS)));
+          });
+    }
 
     const bool PrepareForThinLTO = CodeGenOpts.PrepareForThinLTO;
     const bool PrepareForLTO = CodeGenOpts.PrepareForLTO;
@@ -1018,9 +1072,14 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
           });
     }
 
-    if (CodeGenOpts.FatLTO) {
-      MPM = PB.buildFatLTODefaultPipeline(Level, PrepareForThinLTO,
-                                          PrepareForThinLTO ||
+    const bool PrepareForThinOrUnifiedLTO =
+        PrepareForThinLTO || (PrepareForLTO && CodeGenOpts.UnifiedLTO);
+    if (CodeGenOpts.DisableSYCLEarlyOpts) {
+      MPM = PB.buildO0DefaultPipeline(OptimizationLevel::O0,
+                                      PrepareForLTO || PrepareForThinLTO);
+    } else if (CodeGenOpts.FatLTO) {
+      MPM = PB.buildFatLTODefaultPipeline(Level, PrepareForThinOrUnifiedLTO,
+                                          PrepareForThinOrUnifiedLTO ||
                                               shouldEmitRegularLTOSummary());
     } else if (PrepareForThinLTO) {
       MPM = PB.buildThinLTOPreLinkDefaultPipeline(Level);
@@ -1028,6 +1087,42 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
       MPM = PB.buildLTOPreLinkDefaultPipeline(Level);
     } else {
       MPM = PB.buildPerModuleDefaultPipeline(Level);
+    }
+
+    if (SYCLNativeCPURename)
+      MPM.addPass(RenameKernelSYCLNativeCPUPass());
+    if (LangOpts.SYCLIsDevice) {
+      MPM.addPass(SYCLMutatePrintfAddrspacePass());
+      if (LangOpts.EnableDAEInSpirKernels)
+        MPM.addPass(DeadArgumentEliminationSYCLPass());
+
+      // Rerun aspect propagation without warning diagnostics.
+      MPM.addPass(SYCLPropagateAspectsUsagePass(/*ExcludeAspects=*/{},
+                                                /*ValidateAspects=*/false));
+
+      // Add attribute corresponding to optimization level.
+      MPM.addPass(SYCLAddOptLevelAttributePass(CodeGenOpts.OptimizationLevel));
+
+      // Add SPIRITTAnnotations pass to the pass manager if
+      // -fsycl-instrument-device-code option was passed. This option can be
+      // used only with spir triple.
+      if (CodeGenOpts.SPIRITTAnnotations) {
+        assert(
+            TargetTriple.isSPIR() &&
+            "ITT annotations can only be added to a module with spir target");
+        MPM.addPass(SPIRITTAnnotationsPass());
+      }
+
+      // Allocate static local memory in SYCL kernel scope for each allocation
+      // call.
+      MPM.addPass(SYCLLowerWGLocalMemoryPass());
+
+      // Process properties and annotations
+      MPM.addPass(CompileTimePropertiesPass());
+
+      if (LangOpts.SYCLIsNativeCPU) {
+        MPM.addPass(PrepareSYCLNativeCPUPass());
+      }
     }
   }
 

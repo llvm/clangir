@@ -29,9 +29,12 @@
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Pass.h"
 #include "llvm/Passes/PassBuilder.h"
+#include "llvm/SYCLLowerIR/GlobalOffset.h"
+#include "llvm/SYCLLowerIR/LocalAccessorToSharedMemory.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
+#include "llvm/Transforms/IPO.h"
 #include "llvm/TargetParser/Triple.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Scalar/GVN.h"
@@ -63,6 +66,12 @@ static cl::opt<bool> UseShortPointersOpt(
         "Use 32-bit pointers for accessing const/local/shared address spaces."),
     cl::init(false), cl::Hidden);
 
+static cl::opt<bool>
+    UseIPSCCPO0("use-ipsccp-nvptx-O0",
+                cl::desc("Use IPSCCP pass at O0 as a temp solution for "
+                         "nvvm-reflect dead-code errors."),
+                cl::init(true), cl::Hidden);
+
 // FIXME: intended as a temporary debugging aid. Should be removed before it
 // makes it into the LLVM-17 release.
 static cl::opt<bool>
@@ -88,6 +97,9 @@ void initializeNVVMReflectPass(PassRegistry &);
 void initializeNVPTXAAWrapperPassPass(PassRegistry &);
 void initializeNVPTXExternalAAWrapperPass(PassRegistry &);
 
+void initializeGlobalOffsetLegacyPass(PassRegistry &);
+void initializeLocalAccessorToSharedMemoryLegacyPass(PassRegistry &);
+
 } // end namespace llvm
 
 extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeNVPTXTarget() {
@@ -111,6 +123,10 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeNVPTXTarget() {
   initializeNVPTXLowerAggrCopiesPass(PR);
   initializeNVPTXProxyRegErasurePass(PR);
   initializeNVPTXDAGToDAGISelPass(PR);
+
+  // SYCL-specific passes, needed here to be available to `opt`.
+  initializeGlobalOffsetLegacyPass(PR);
+  initializeLocalAccessorToSharedMemoryLegacyPass(PR);
   initializeNVPTXAAWrapperPassPass(PR);
   initializeNVPTXExternalAAWrapperPass(PR);
 }
@@ -372,6 +388,13 @@ void NVPTXPassConfig::addIRPasses() {
   // call addEarlyAsPossiblePasses.
   const NVPTXSubtarget &ST = *getTM<NVPTXTargetMachine>().getSubtargetImpl();
   addPass(createNVVMReflectPass(ST.getSmVersion()));
+
+  // FIXME: should the target triple check be done by the pass itself?
+  // See createNVPTXLowerArgsPass as an example
+  if (getTM<NVPTXTargetMachine>().getTargetTriple().getOS() == Triple::CUDA) {
+    addPass(createGlobalOffsetPassLegacy());
+    addPass(createLocalAccessorToSharedMemoryPassLegacy());
+  }
 
   if (getOptLevel() != CodeGenOptLevel::None)
     addPass(createNVPTXImageOptimizerPass());

@@ -178,10 +178,12 @@ void AMDGCN::Linker::constructLldCommand(Compilation &C, const JobAction &JA,
   // Look for archive of bundled bitcode in arguments, and add temporary files
   // for the extracted archive of bitcode to inputs.
   auto TargetID = Args.getLastArgValue(options::OPT_mcpu_EQ);
-  AddStaticDeviceLibsLinking(C, *this, JA, Inputs, Args, LldArgs, "amdgcn",
-                             TargetID,
-                             /*IsBitCodeSDL=*/true,
-                             /*PostClangLink=*/false);
+  if (C.getDriver().getUseNewOffloadingDriver() ||
+      JA.getOffloadingDeviceKind() != Action::OFK_SYCL)
+    AddStaticDeviceLibsLinking(C, *this, JA, Inputs, Args, LldArgs, "amdgcn",
+                               TargetID,
+                               /*IsBitCodeSDL=*/true,
+                               /*PostClangLink=*/false);
 
   LldArgs.push_back("--no-whole-archive");
 
@@ -215,8 +217,9 @@ void AMDGCN::Linker::ConstructJob(Compilation &C, const JobAction &JA,
 }
 
 HIPAMDToolChain::HIPAMDToolChain(const Driver &D, const llvm::Triple &Triple,
-                                 const ToolChain &HostTC, const ArgList &Args)
-    : ROCMToolChain(D, Triple, Args), HostTC(HostTC) {
+                                 const ToolChain &HostTC, const ArgList &Args,
+                                 const Action::OffloadKind OK)
+    : ROCMToolChain(D, Triple, Args), HostTC(HostTC), OK(OK) {
   // Lookup binaries into the driver directory, this is used to
   // discover the clang-offload-bundler executable.
   getProgramPaths().push_back(getDriver().Dir);
@@ -233,13 +236,18 @@ HIPAMDToolChain::HIPAMDToolChain(const Driver &D, const llvm::Triple &Triple,
   }
 }
 
+static const char *getLibSpirvTargetName(const ToolChain &HostTC) {
+  return "remangled-l64-signed_char.libspirv-amdgcn-amd-amdhsa.bc";
+}
+
 void HIPAMDToolChain::addClangTargetOptions(
     const llvm::opt::ArgList &DriverArgs, llvm::opt::ArgStringList &CC1Args,
     Action::OffloadKind DeviceOffloadingKind) const {
   HostTC.addClangTargetOptions(DriverArgs, CC1Args, DeviceOffloadingKind);
 
-  assert(DeviceOffloadingKind == Action::OFK_HIP &&
-         "Only HIP offloading kinds are supported for GPUs.");
+  assert((DeviceOffloadingKind == Action::OFK_HIP ||
+          DeviceOffloadingKind == Action::OFK_SYCL) &&
+         "Only HIP and SYCL offloading kinds are supported for GPUs.");
 
   CC1Args.push_back("-fcuda-is-device");
 
@@ -265,11 +273,64 @@ void HIPAMDToolChain::addClangTargetOptions(
     CC1Args.push_back("-fapply-global-visibility-to-externs");
   }
 
-  for (auto BCFile : getDeviceLibs(DriverArgs)) {
+  if (DeviceOffloadingKind == Action::OFK_SYCL) {
+    toolchains::SYCLToolChain::AddSYCLIncludeArgs(getDriver(), DriverArgs,
+                                                  CC1Args);
+  }
+
+  auto NoLibSpirv = DriverArgs.hasArg(options::OPT_fno_sycl_libspirv,
+                                      options::OPT_fsycl_device_only);
+  if (DeviceOffloadingKind == Action::OFK_SYCL && !NoLibSpirv) {
+    std::string LibSpirvFile;
+
+    if (DriverArgs.hasArg(clang::driver::options::OPT_fsycl_libspirv_path_EQ)) {
+      auto ProvidedPath =
+          DriverArgs
+              .getLastArgValue(
+                  clang::driver::options::OPT_fsycl_libspirv_path_EQ)
+              .str();
+      if (llvm::sys::fs::exists(ProvidedPath))
+        LibSpirvFile = ProvidedPath;
+    } else {
+      SmallVector<StringRef, 8> LibraryPaths;
+
+      // Expected path w/out install.
+      SmallString<256> WithoutInstallPath(getDriver().ResourceDir);
+      llvm::sys::path::append(WithoutInstallPath, Twine("../../clc"));
+      LibraryPaths.emplace_back(WithoutInstallPath.c_str());
+
+      // Expected path w/ install.
+      SmallString<256> WithInstallPath(getDriver().ResourceDir);
+      llvm::sys::path::append(WithInstallPath, Twine("../../../share/clc"));
+      LibraryPaths.emplace_back(WithInstallPath.c_str());
+
+      std::string LibSpirvTargetName = getLibSpirvTargetName(HostTC);
+      for (StringRef LibraryPath : LibraryPaths) {
+        SmallString<128> LibSpirvTargetFile(LibraryPath);
+        llvm::sys::path::append(LibSpirvTargetFile, LibSpirvTargetName);
+        if (llvm::sys::fs::exists(LibSpirvTargetFile)) {
+          LibSpirvFile = std::string(LibSpirvTargetFile.str());
+          break;
+        }
+      }
+    }
+
+    if (LibSpirvFile.empty()) {
+      getDriver().Diag(diag::err_drv_no_sycl_libspirv)
+          << getLibSpirvTargetName(HostTC);
+      return;
+    }
+
+    CC1Args.push_back("-mlink-builtin-bitcode");
+    CC1Args.push_back(DriverArgs.MakeArgString(LibSpirvFile));
+  }
+
+  for (auto BCFile : getDeviceLibs(DriverArgs, DeviceOffloadingKind)) {
     CC1Args.push_back(BCFile.ShouldInternalize ? "-mlink-builtin-bitcode"
                                                : "-mlink-bitcode-file");
     CC1Args.push_back(DriverArgs.MakeArgString(BCFile.Path));
   }
+
 }
 
 llvm::opt::DerivedArgList *
@@ -299,7 +360,20 @@ HIPAMDToolChain::TranslateArgs(const llvm::opt::DerivedArgList &Args,
 
 Tool *HIPAMDToolChain::buildLinker() const {
   assert(getTriple().getArch() == llvm::Triple::amdgcn);
+  if (OK == Action::OFK_SYCL)
+    return new tools::AMDGCN::SYCLLinker(*this);
   return new tools::AMDGCN::Linker(*this);
+}
+
+Tool *HIPAMDToolChain::SelectTool(const JobAction &JA) const {
+  if (OK == Action::OFK_SYCL) {
+    if (JA.getKind() == Action::LinkJobClass &&
+        JA.getType() == types::TY_LLVM_BC) {
+      return static_cast<tools::AMDGCN::SYCLLinker *>(ToolChain::SelectTool(JA))
+          ->GetSYCLToolChainLinker();
+    }
+  }
+  return ToolChain::SelectTool(JA);
 }
 
 void HIPAMDToolChain::addClangWarningOptions(ArgStringList &CC1Args) const {
@@ -350,7 +424,9 @@ VersionTuple HIPAMDToolChain::computeMSVCVersion(const Driver *D,
 }
 
 llvm::SmallVector<ToolChain::BitCodeLibraryInfo, 12>
-HIPAMDToolChain::getDeviceLibs(const llvm::opt::ArgList &DriverArgs) const {
+HIPAMDToolChain::getDeviceLibs(
+    const llvm::opt::ArgList &DriverArgs,
+    const Action::OffloadKind DeviceOffloadingKind) const {
   llvm::SmallVector<BitCodeLibraryInfo, 12> BCLibs;
   if (DriverArgs.hasArg(options::OPT_nogpulib))
     return {};
@@ -407,7 +483,8 @@ HIPAMDToolChain::getDeviceLibs(const llvm::opt::ArgList &DriverArgs) const {
     BCLibs.push_back(RocmInstallation->getHIPPath());
 
     // Add common device libraries like ocml etc.
-    for (StringRef N : getCommonDeviceLibNames(DriverArgs, GpuArch.str()))
+    for (StringRef N : getCommonDeviceLibNames(DriverArgs, GpuArch.str(),
+                                               DeviceOffloadingKind))
       BCLibs.emplace_back(N);
 
     // Add instrument lib.

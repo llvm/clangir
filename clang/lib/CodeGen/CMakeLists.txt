@@ -25,6 +25,7 @@ set(LLVM_LINK_COMPONENTS
   ProfileData
   ScalarOpts
   Support
+  SYCLLowerIR
   Target
   TargetParser
   TransformUtils
@@ -69,6 +70,7 @@ add_clang_library(clangCodeGen
   CGRecordLayoutBuilder.cpp
   CGStmt.cpp
   CGStmtOpenMP.cpp
+  CGSYCLRuntime.cpp
   CGVTT.cpp
   CGVTables.cpp
   CodeGenABITypes.cpp
@@ -117,6 +119,7 @@ add_clang_library(clangCodeGen
   VarBypassDetector.cpp
 
   DEPENDS
+  ${codegen_deps}
   intrinsics_gen
   ClangDriverOptions
 
@@ -126,5 +129,6 @@ add_clang_library(clangCodeGen
   clangBasic
   clangFrontend
   clangLex
+  clangSema
   clangSerialization
   )

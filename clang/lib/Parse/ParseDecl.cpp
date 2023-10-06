@@ -2837,7 +2837,8 @@ bool Parser::ParseImplicitInt(DeclSpec &DS, CXXScopeSpec *SS,
 
   // Early exit as Sema has a dedicated missing_actual_pipe_type diagnostic
   // for incomplete declarations such as `pipe p`.
-  if (getLangOpts().OpenCLCPlusPlus && DS.isTypeSpecPipe())
+  if ((getLangOpts().OpenCLCPlusPlus || getLangOpts().SYCLIsDevice) &&
+      DS.isTypeSpecPipe())
     return false;
 
   if (getLangOpts().CPlusPlus &&
@@ -7096,7 +7097,7 @@ void Parser::ParseFunctionDeclarator(Declarator &D,
     // strict prototypes as in C23 because it allows a function definition to
     // have an identifier list. See OpenCL 3.0 6.11/g for more details.
     HasProto = ParamInfo.size() || getLangOpts().requiresStrictPrototypes() ||
-               getLangOpts().OpenCL;
+               getLangOpts().OpenCL || getLangOpts().SYCLIsDevice;
 
     // If we have the closing ')', eat it.
     Tracker.consumeClose();

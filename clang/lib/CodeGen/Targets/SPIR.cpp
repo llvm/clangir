@@ -22,9 +22,142 @@ class CommonSPIRABIInfo : public DefaultABIInfo {
 public:
   CommonSPIRABIInfo(CodeGenTypes &CGT) : DefaultABIInfo(CGT) { setCCs(); }
 
+  ABIArgInfo classifyKernelArgumentType(QualType Ty) const;
+
+  // Add new functions rather than overload existing so that these public APIs
+  // can't be blindly misused with wrong calling convention.
+  ABIArgInfo classifyRegcallReturnType(QualType RetTy) const;
+  ABIArgInfo classifyRegcallArgumentType(QualType RetTy) const;
+
+  void computeInfo(CGFunctionInfo &FI) const override;
+
 private:
   void setCCs();
 };
+
+ABIArgInfo CommonSPIRABIInfo::classifyKernelArgumentType(QualType Ty) const {
+  Ty = useFirstFieldIfTransparentUnion(Ty);
+
+  if (getContext().getLangOpts().SYCLIsDevice && isAggregateTypeForABI(Ty)) {
+    // Pass all aggregate types allowed by Sema by value.
+    return getNaturalAlignIndirect(Ty);
+  }
+
+  return DefaultABIInfo::classifyArgumentType(Ty);
+}
+
+void CommonSPIRABIInfo::computeInfo(CGFunctionInfo &FI) const {
+  llvm::CallingConv::ID CC = FI.getCallingConvention();
+  bool IsRegCall = CC == llvm::CallingConv::X86_RegCall;
+
+  if (!getCXXABI().classifyReturnType(FI)) {
+    CanQualType RetT = FI.getReturnType();
+    FI.getReturnInfo() =
+        IsRegCall ? classifyRegcallReturnType(RetT) : classifyReturnType(RetT);
+  }
+
+  for (auto &Arg : FI.arguments()) {
+    if (CC == llvm::CallingConv::SPIR_KERNEL) {
+      Arg.info = classifyKernelArgumentType(Arg.type);
+    } else {
+      Arg.info = IsRegCall ? classifyRegcallArgumentType(Arg.type)
+                           : classifyArgumentType(Arg.type);
+    }
+  }
+}
+
+// The two functions below are based on AMDGPUABIInfo, but without any
+// restriction on the maximum number of arguments passed via registers.
+// SPIRV BEs are expected to further adjust the calling convention as
+// needed (use stack or byval-like passing) for some of the arguments.
+
+ABIArgInfo CommonSPIRABIInfo::classifyRegcallReturnType(QualType RetTy) const {
+  if (isAggregateTypeForABI(RetTy)) {
+    // Records with non-trivial destructors/copy-constructors should not be
+    // returned by value.
+    if (!getRecordArgABI(RetTy, getCXXABI())) {
+      // Ignore empty structs/unions.
+      if (isEmptyRecord(getContext(), RetTy, true))
+        return ABIArgInfo::getIgnore();
+
+      // Lower single-element structs to just return a regular value.
+      if (const Type *SeltTy = isSingleElementStruct(RetTy, getContext()))
+        return ABIArgInfo::getDirect(CGT.ConvertType(QualType(SeltTy, 0)));
+
+      if (const RecordType *RT = RetTy->getAs<RecordType>()) {
+        const RecordDecl *RD = RT->getDecl();
+        if (RD->hasFlexibleArrayMember())
+          return classifyReturnType(RetTy);
+      }
+
+      // Pack aggregates <= 8 bytes into a single vector register or pair.
+      // TODO make this parameterizeable/adjustable depending on spir target
+      // triple abi component.
+      uint64_t Size = getContext().getTypeSize(RetTy);
+      if (Size <= 16)
+        return ABIArgInfo::getDirect(llvm::Type::getInt16Ty(getVMContext()));
+
+      if (Size <= 32)
+        return ABIArgInfo::getDirect(llvm::Type::getInt32Ty(getVMContext()));
+
+      if (Size <= 64) {
+        llvm::Type *I32Ty = llvm::Type::getInt32Ty(getVMContext());
+        return ABIArgInfo::getDirect(llvm::ArrayType::get(I32Ty, 2));
+      }
+      return ABIArgInfo::getDirect();
+    }
+  }
+  // Otherwise just do the default thing.
+  return classifyReturnType(RetTy);
+}
+
+ABIArgInfo CommonSPIRABIInfo::classifyRegcallArgumentType(QualType Ty) const {
+  Ty = useFirstFieldIfTransparentUnion(Ty);
+
+  if (isAggregateTypeForABI(Ty)) {
+    // Records with non-trivial destructors/copy-constructors should not be
+    // passed by value.
+    if (auto RAA = getRecordArgABI(Ty, getCXXABI()))
+      return getNaturalAlignIndirect(Ty, RAA == CGCXXABI::RAA_DirectInMemory);
+
+    // Ignore empty structs/unions.
+    if (isEmptyRecord(getContext(), Ty, true))
+      return ABIArgInfo::getIgnore();
+
+    // Lower single-element structs to just pass a regular value. TODO: We
+    // could do reasonable-size multiple-element structs too, using getExpand(),
+    // though watch out for things like bitfields.
+    if (const Type *SeltTy = isSingleElementStruct(Ty, getContext()))
+      return ABIArgInfo::getDirect(CGT.ConvertType(QualType(SeltTy, 0)));
+
+    if (const RecordType *RT = Ty->getAs<RecordType>()) {
+      const RecordDecl *RD = RT->getDecl();
+      if (RD->hasFlexibleArrayMember())
+        return classifyArgumentType(Ty);
+    }
+
+    // Pack aggregates <= 8 bytes into single vector register or pair.
+    // TODO make this parameterizeable/adjustable depending on spir target
+    // triple abi component.
+    uint64_t Size = getContext().getTypeSize(Ty);
+    if (Size <= 64) {
+      if (Size <= 16)
+        return ABIArgInfo::getDirect(llvm::Type::getInt16Ty(getVMContext()));
+
+      if (Size <= 32)
+        return ABIArgInfo::getDirect(llvm::Type::getInt32Ty(getVMContext()));
+
+      // XXX: Should this be i64 instead, and should the limit increase?
+      llvm::Type *I32Ty = llvm::Type::getInt32Ty(getVMContext());
+      return ABIArgInfo::getDirect(llvm::ArrayType::get(I32Ty, 2));
+    }
+    return ABIArgInfo::getDirect();
+  }
+
+  // Otherwise just do the default thing.
+  return classifyArgumentType(Ty);
+}
+
 
 class SPIRVABIInfo : public CommonSPIRABIInfo {
 public:
@@ -50,6 +183,8 @@ public:
 
   unsigned getOpenCLKernelCallingConv() const override;
   llvm::Type *getOpenCLType(CodeGenModule &CGM, const Type *T) const override;
+
+  bool shouldEmitStaticExternCAliases() const override;
 };
 class SPIRVTargetCodeGenInfo : public CommonSPIRTargetCodeGenInfo {
 public:
@@ -122,6 +257,10 @@ unsigned CommonSPIRTargetCodeGenInfo::getOpenCLKernelCallingConv() const {
   return llvm::CallingConv::SPIR_KERNEL;
 }
 
+bool CommonSPIRTargetCodeGenInfo::shouldEmitStaticExternCAliases() const {
+  return false;
+}
+
 void SPIRVTargetCodeGenInfo::setCUDAKernelCallingConvention(
     const FunctionType *&FT) const {
   // Convert HIP kernels to SPIR-V kernels.
@@ -175,15 +314,25 @@ static llvm::Type *getSPIRVImageType(llvm::LLVMContext &Ctx, StringRef BaseType,
 llvm::Type *CommonSPIRTargetCodeGenInfo::getOpenCLType(CodeGenModule &CGM,
                                                        const Type *Ty) const {
   llvm::LLVMContext &Ctx = CGM.getLLVMContext();
+  if (Ctx.supportsTypedPointers())
+    return nullptr;
   if (auto *PipeTy = dyn_cast<PipeType>(Ty))
     return llvm::TargetExtType::get(Ctx, "spirv.Pipe", {},
                                     {!PipeTy->isReadOnly()});
   if (auto *BuiltinTy = dyn_cast<BuiltinType>(Ty)) {
     enum AccessQualifier : unsigned { AQ_ro = 0, AQ_wo = 1, AQ_rw = 2 };
     switch (BuiltinTy->getKind()) {
+// clang-format off
 #define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix)                   \
     case BuiltinType::Id:                                                      \
       return getSPIRVImageType(Ctx, "spirv.Image", #ImgType, AQ_##Suffix);
+#include "clang/Basic/OpenCLImageTypes.def"
+#define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix)                   \
+    case BuiltinType::Sampled##Id:                                             \
+      return getSPIRVImageType(Ctx, "spirv.SampledImage", #ImgType, AQ_##Suffix);
+// clang-format on
+#define IMAGE_WRITE_TYPE(Type, Id, Ext)
+#define IMAGE_READ_WRITE_TYPE(Type, Id, Ext)
 #include "clang/Basic/OpenCLImageTypes.def"
     case BuiltinType::OCLSampler:
       return llvm::TargetExtType::get(Ctx, "spirv.Sampler");

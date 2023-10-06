@@ -1677,10 +1677,11 @@ void NamedDecl::printName(raw_ostream &OS) const {
   printName(OS, getASTContext().getPrintingPolicy());
 }
 
-std::string NamedDecl::getQualifiedNameAsString() const {
+std::string NamedDecl::getQualifiedNameAsString(bool WithGlobalNsPrefix) const {
   std::string QualName;
   llvm::raw_string_ostream OS(QualName);
-  printQualifiedName(OS, getASTContext().getPrintingPolicy());
+  printQualifiedName(OS, getASTContext().getPrintingPolicy(),
+                     WithGlobalNsPrefix);
   return QualName;
 }
 
@@ -1688,14 +1689,14 @@ void NamedDecl::printQualifiedName(raw_ostream &OS) const {
   printQualifiedName(OS, getASTContext().getPrintingPolicy());
 }
 
-void NamedDecl::printQualifiedName(raw_ostream &OS,
-                                   const PrintingPolicy &P) const {
+void NamedDecl::printQualifiedName(raw_ostream &OS, const PrintingPolicy &P,
+                                   bool WithGlobalNsPrefix) const {
   if (getDeclContext()->isFunctionOrMethod()) {
     // We do not print '(anonymous)' for function parameters without name.
     printName(OS, P);
     return;
   }
-  printNestedNameSpecifier(OS, P);
+  printNestedNameSpecifier(OS, P, WithGlobalNsPrefix);
   if (getDeclName())
     OS << *this;
   else {
@@ -1716,7 +1717,8 @@ void NamedDecl::printNestedNameSpecifier(raw_ostream &OS) const {
 }
 
 void NamedDecl::printNestedNameSpecifier(raw_ostream &OS,
-                                         const PrintingPolicy &P) const {
+                                         const PrintingPolicy &P,
+                                         bool WithGlobalNsPrefix) const {
   const DeclContext *Ctx = getDeclContext();
 
   // For ObjC methods and properties, look through categories and use the
@@ -1761,6 +1763,9 @@ void NamedDecl::printNestedNameSpecifier(raw_ostream &OS,
     NameInScope = ND->getDeclName();
   }
 
+  if (WithGlobalNsPrefix)
+    OS << "::";
+
   for (const DeclContext *DC : llvm::reverse(Contexts)) {
     if (const auto *Spec = dyn_cast<ClassTemplateSpecializationDecl>(DC)) {
       OS << Spec->getName();
@@ -1772,8 +1777,7 @@ void NamedDecl::printNestedNameSpecifier(raw_ostream &OS,
       if (ND->isAnonymousNamespace()) {
         OS << (P.MSVCFormatting ? "`anonymous namespace\'"
                                 : "(anonymous namespace)");
-      }
-      else
+      } else
         OS << *ND;
     } else if (const auto *RD = dyn_cast<RecordDecl>(DC)) {
       if (!RD->getIdentifier())

@@ -31,6 +31,7 @@
 ; CHECK-NEXT:       Scalarize Masked Memory Intrinsics
 ; CHECK-NEXT:       Expand reduction intrinsics
 ; CHECK-NEXT:       Expand indirectbr instructions
+; CHECK-NEXT:       FPBuiltin Function Selection
 ; CHECK-NEXT:       Exception handling preparation
 ; CHECK-NEXT:       Prepare callbr
 ; CHECK-NEXT:       Safe Stack instrumentation pass

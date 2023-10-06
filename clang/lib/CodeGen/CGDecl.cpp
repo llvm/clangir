@@ -16,6 +16,7 @@
 #include "CGDebugInfo.h"
 #include "CGOpenCLRuntime.h"
 #include "CGOpenMPRuntime.h"
+#include "CGSYCLRuntime.h"
 #include "CodeGenFunction.h"
 #include "CodeGenModule.h"
 #include "ConstantEmitter.h"
@@ -214,6 +215,9 @@ void CodeGenFunction::EmitVarDecl(const VarDecl &D) {
   if (D.getType().getAddressSpace() == LangAS::opencl_local)
     return CGM.getOpenCLRuntime().EmitWorkGroupLocalVarDecl(*this, D);
 
+  if (D.getAttr<SYCLScopeAttr>() && D.getAttr<SYCLScopeAttr>()->isWorkGroup())
+    return CGM.getSYCLRuntime().emitWorkGroupLocalVarDecl(*this, D);
+
   assert(D.hasLocalStorage());
   return EmitAutoVarDecl(D);
 }
@@ -264,10 +268,10 @@ llvm::Constant *CodeGenModule::getOrCreateStaticVarDecl(
   LangAS AS = GetGlobalVarAddressSpace(&D);
   unsigned TargetAS = getContext().getTargetAddressSpace(AS);
 
-  // OpenCL variables in local address space and CUDA shared
+  // OpenCL/SYCL variables in local address space and CUDA shared
   // variables cannot have an initializer.
   llvm::Constant *Init = nullptr;
-  if (Ty.getAddressSpace() == LangAS::opencl_local ||
+  if (AS == LangAS::opencl_local || AS == LangAS::sycl_local ||
       D.hasAttr<CUDASharedAttr>() || D.hasAttr<LoaderUninitializedAttr>())
     Init = llvm::UndefValue::get(LTy);
   else
@@ -297,6 +301,11 @@ llvm::Constant *CodeGenModule::getOrCreateStaticVarDecl(
   }
 
   setStaticLocalDeclAddress(&D, Addr);
+
+  // Do not force emission of the parent funtion since it can be a host function
+  // that contains illegal code for SYCL device.
+  if (getLangOpts().SYCLIsDevice)
+    return Addr;
 
   // Ensure that the static local gets initialized by making sure the parent
   // function gets emitted eventually.
@@ -339,6 +348,25 @@ llvm::Constant *CodeGenModule::getOrCreateStaticVarDecl(
 llvm::GlobalVariable *
 CodeGenFunction::AddInitializerToStaticVarDecl(const VarDecl &D,
                                                llvm::GlobalVariable *GV) {
+  if (getLangOpts().SYCLIsDevice) {
+    auto *Scope = D.getAttr<SYCLScopeAttr>();
+    if (Scope && Scope->isWorkGroup()) {
+      // In SYCL device code globals which represent WG shared local variables
+      // 1) (TODO) must have initializer emitted even if it is constant, because
+      //    LLVM->SPIRV translation does not generate optional initializer for
+      //    WG shared local variables.
+      // 2) must not use guarded init because
+      //   a) guarded init uses exceptions not supported in SYCL device code
+      //   b) initialization is already safe because it happens in WG scope -
+      //      once per WG - by specification, and this will be/ enforced in
+      //       SYCL-specific Clang lowering (LowerWGScope.cpp) after CG.
+      EmitCXXGlobalVarDeclInit(D, GV, /*PerformInit*/ true);
+      // Remove const-ness, otherwise the initializer (a store into the
+      // variable) won't have effect in SPIRV due to "Constant" decoration.
+      GV->setConstant(false);
+      return GV;
+    }
+  }
   ConstantEmitter emitter(*this);
   llvm::Constant *Init = emitter.tryEmitForInitializer(D);
 
@@ -453,6 +481,10 @@ void CodeGenFunction::EmitStaticVarDecl(const VarDecl &D,
 
   if (D.hasAttr<AnnotateAttr>())
     CGM.AddGlobalAnnotations(&D, var);
+
+  // Emit Intel FPGA attribute annotation for a local static variable.
+  if (getLangOpts().SYCLIsDevice)
+    CGM.addGlobalIntelFPGAAnnotation(&D, var);
 
   if (auto *SA = D.getAttr<PragmaClangBSSSectionAttr>())
     var->addAttribute("bss-section", SA->getName());
@@ -1344,6 +1376,10 @@ void CodeGenFunction::EmitAutoVarDecl(const VarDecl &D) {
   AutoVarEmission emission = EmitAutoVarAlloca(D);
   EmitAutoVarInit(emission);
   EmitAutoVarCleanups(emission);
+  // No alloca in case of NRVO (named return value optimization) variable.
+  if (CGM.getLangOpts().SYCLIsDevice && !D.isNRVOVariable())
+    CGM.getSYCLRuntime().actOnAutoVarEmit(
+        *this, D, emission.getOriginalAllocatedAddress().getPointer());
 }
 
 /// Emit a lifetime.begin marker if some criteria are satisfied.
@@ -1673,6 +1709,24 @@ CodeGenFunction::EmitAutoVarAlloca(const VarDecl &D) {
     }
     (void)DI->EmitDeclareOfAutoVariable(&D, AllocaAddr.getPointer(), Builder,
                                         UsePointerValue);
+  }
+
+  // Emit Intel FPGA attribute annotation for a local variable.
+  if (getLangOpts().SYCLIsDevice) {
+    SmallString<256> AnnotStr;
+    CGM.generateIntelFPGAAnnotation(&D, AnnotStr);
+    if (!AnnotStr.empty()) {
+      llvm::Value *V = address.getPointer();
+      llvm::Type *DestPtrTy = llvm::PointerType::getInt8PtrTy(
+          CGM.getLLVMContext(), address.getAddressSpace());
+      llvm::Value *Arg = Builder.CreateBitCast(V, DestPtrTy, V->getName());
+      if (address.getAddressSpace() != 0)
+        Arg = Builder.CreateAddrSpaceCast(Arg, CGM.Int8PtrTy, V->getName());
+      EmitAnnotationCall(
+          CGM.getIntrinsic(llvm::Intrinsic::var_annotation,
+                           {CGM.Int8PtrTy, CGM.ConstGlobalsPtrTy}),
+          Arg, AnnotStr, D.getLocation());
+    }
   }
 
   if (D.hasAttr<AnnotateAttr>() && HaveInsertPoint())
@@ -2542,18 +2596,6 @@ void CodeGenFunction::EmitParmDecl(const VarDecl &D, ParamValue Arg,
     auto *V = DeclPtr.getPointer();
     AllocaPtr = DeclPtr;
 
-    // For truly ABI indirect arguments -- those that are not `byval` -- store
-    // the address of the argument on the stack to preserve debug information.
-    ABIArgInfo ArgInfo = CurFnInfo->arguments()[ArgNo - 1].info;
-    if (ArgInfo.isIndirect())
-      UseIndirectDebugAddress = !ArgInfo.getIndirectByVal();
-    if (UseIndirectDebugAddress) {
-      auto PtrTy = getContext().getPointerType(Ty);
-      AllocaPtr = CreateMemTemp(PtrTy, getContext().getTypeAlignInChars(PtrTy),
-                                D.getName() + ".indirect_addr");
-      EmitStoreOfScalar(V, AllocaPtr, /* Volatile */ false, PtrTy);
-    }
-
     auto SrcLangAS = getLangOpts().OpenCL ? LangAS::opencl_private : AllocaAS;
     auto DestLangAS =
         getLangOpts().OpenCL ? LangAS::opencl_private : LangAS::Default;
@@ -2566,6 +2608,19 @@ void CodeGenFunction::EmitParmDecl(const VarDecl &D, ParamValue Arg,
           DeclPtr.withPointer(getTargetHooks().performAddrSpaceCast(
                                   *this, V, SrcLangAS, DestLangAS, T, true),
                               DeclPtr.isKnownNonNull());
+    }
+
+    // For truly ABI indirect arguments -- those that are not `byval` -- store
+    // the address of the argument on the stack to preserve debug information.
+    ABIArgInfo ArgInfo = CurFnInfo->arguments()[ArgNo - 1].info;
+    if (ArgInfo.isIndirect())
+      UseIndirectDebugAddress = !ArgInfo.getIndirectByVal();
+    if (UseIndirectDebugAddress) {
+      auto PtrTy = getContext().getPointerType(Ty);
+      AllocaPtr = CreateMemTemp(PtrTy, getContext().getTypeAlignInChars(PtrTy),
+                                D.getName() + ".indirect_addr");
+      EmitStoreOfScalar(DeclPtr.getPointer(), AllocaPtr, /* Volatile */ false,
+                        PtrTy);
     }
 
     // Push a destructor cleanup for this parameter if the ABI requires it.

@@ -1965,7 +1965,6 @@ void Verifier::verifyParameterAttrs(AttributeSet Attrs, Type *Ty,
             "Attribute 'preallocated' does not support unsized types!", V);
     }
   }
-
   if (Attrs.hasAttribute(Attribute::NoFPClass)) {
     uint64_t Val = Attrs.getAttribute(Attribute::NoFPClass).getValueAsInt();
     Check(Val != 0, "Attribute 'nofpclass' must have at least one test bit set",

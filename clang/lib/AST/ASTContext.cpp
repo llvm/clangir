@@ -1381,9 +1381,14 @@ void ASTContext::InitBuiltinTypes(const TargetInfo &Target,
   InitBuiltinType(ObjCBuiltinClassTy, BuiltinType::ObjCClass);
   InitBuiltinType(ObjCBuiltinSelTy, BuiltinType::ObjCSel);
 
-  if (LangOpts.OpenCL) {
+  if (LangOpts.OpenCL || LangOpts.SYCLIsDevice) {
 #define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix) \
     InitBuiltinType(SingletonId, BuiltinType::Id);
+#include "clang/Basic/OpenCLImageTypes.def"
+#define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix)                   \
+  InitBuiltinType(Sampled##SingletonId, BuiltinType::Sampled##Id);
+#define IMAGE_WRITE_TYPE(Type, Id, Ext)
+#define IMAGE_READ_WRITE_TYPE(Type, Id, Ext)
 #include "clang/Basic/OpenCLImageTypes.def"
 
     InitBuiltinType(OCLSamplerTy, BuiltinType::OCLSampler);
@@ -2152,7 +2157,9 @@ TypeInfo ASTContext::getTypeInfoImpl(const Type *T) const {
       Align = Target->getIbm128Align();
       break;
     case BuiltinType::LongDouble:
-      if (getLangOpts().OpenMP && getLangOpts().OpenMPIsTargetDevice &&
+      if ((getLangOpts().SYCLIsDevice ||
+           (getLangOpts().OpenMP && getLangOpts().OpenMPIsTargetDevice)) &&
+          AuxTarget != nullptr &&
           (Target->getLongDoubleWidth() != AuxTarget->getLongDoubleWidth() ||
            Target->getLongDoubleAlign() != AuxTarget->getLongDoubleAlign())) {
         Width = AuxTarget->getLongDoubleWidth();
@@ -2192,6 +2199,11 @@ TypeInfo ASTContext::getTypeInfoImpl(const Type *T) const {
     case BuiltinType::OCLReserveID:
 #define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix) \
     case BuiltinType::Id:
+#include "clang/Basic/OpenCLImageTypes.def"
+#define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix)                   \
+  case BuiltinType::Sampled##Id:
+#define IMAGE_WRITE_TYPE(Type, Id, Ext)
+#define IMAGE_READ_WRITE_TYPE(Type, Id, Ext)
 #include "clang/Basic/OpenCLImageTypes.def"
 #define EXT_OPAQUE_TYPE(ExtType, Id, Ext) \
   case BuiltinType::Id:
@@ -7506,6 +7518,12 @@ OpenCLTypeKind ASTContext::getOpenCLTypeKind(const Type *T) const {
   case BuiltinType::Id:                                                        \
     return OCLTK_Image;
 #include "clang/Basic/OpenCLImageTypes.def"
+#define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix)                   \
+  case BuiltinType::Sampled##Id:                                               \
+    return OCLTK_Image;
+#define IMAGE_WRITE_TYPE(Type, Id, Ext)
+#define IMAGE_READ_WRITE_TYPE(Type, Id, Ext)
+#include "clang/Basic/OpenCLImageTypes.def"
 
   case BuiltinType::OCLClkEvent:
     return OCLTK_ClkEvent;
@@ -8092,6 +8110,11 @@ static char getObjCEncodingForPrimitiveType(const ASTContext *C,
     // OpenCL and placeholder types don't need @encodings.
 #define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix) \
     case BuiltinType::Id:
+#include "clang/Basic/OpenCLImageTypes.def"
+#define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix)                   \
+  case BuiltinType::Sampled##Id:
+#define IMAGE_WRITE_TYPE(Type, Id, Ext)
+#define IMAGE_READ_WRITE_TYPE(Type, Id, Ext)
 #include "clang/Basic/OpenCLImageTypes.def"
 #define EXT_OPAQUE_TYPE(ExtType, Id, Ext) \
     case BuiltinType::Id:
@@ -11727,8 +11750,12 @@ static GVALinkage adjustGVALinkageForAttributes(const ASTContext &Context,
     // units.
     if (Context.shouldExternalize(D))
       return GVA_StrongExternal;
+  } else if (Context.getLangOpts().SYCLIsDevice &&
+             D->hasAttr<OpenCLKernelAttr>()) {
+    if (L == GVA_DiscardableODR)
+      return GVA_StrongODR;
   }
-  return L;
+    return L;
 }
 
 /// Adjust the GVALinkage for a declaration based on what an external AST source
@@ -11884,6 +11911,10 @@ bool ASTContext::DeclMustBeEmitted(const Decl *D) {
   if (D->hasAttr<WeakRefAttr>())
     return false;
 
+  if (LangOpts.SYCLIsDevice && !D->hasAttr<OpenCLKernelAttr>() &&
+      !D->hasAttr<SYCLDeviceAttr>())
+    return false;
+
   // Aliases and used decls are required.
   if (D->hasAttr<AliasAttr>() || D->hasAttr<UsedAttr>())
     return true;
@@ -11908,6 +11939,16 @@ bool ASTContext::DeclMustBeEmitted(const Decl *D) {
             return true;
         }
       }
+    }
+
+    // Methods explcitly marked with 'sycl_device' attribute (via SYCL_EXTERNAL)
+    // or `indirectly_callable' attribute must be emitted regardless of number
+    // of actual uses
+    if (LangOpts.SYCLIsDevice && isa<CXXMethodDecl>(D)) {
+      if (auto *A = D->getAttr<SYCLDeviceIndirectlyCallableAttr>())
+        return !A->isImplicit();
+      if (auto *A = D->getAttr<SYCLDeviceAttr>())
+        return !A->isImplicit();
     }
 
     GVALinkage Linkage = GetGVALinkageForFunction(FD);
@@ -11989,7 +12030,7 @@ CallingConv ASTContext::getDefaultCallingConvention(bool IsVariadic,
                                                     bool IsCXXMethod,
                                                     bool IsBuiltin) const {
   // Pass through to the C++ ABI object
-  if (IsCXXMethod)
+  if (IsCXXMethod && !LangOpts.SYCLIsDevice)
     return ABI->getDefaultMethodCallConv(IsVariadic);
 
   // Builtins ignore user-specified default calling convention and remain the

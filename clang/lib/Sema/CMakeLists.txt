@@ -7,10 +7,19 @@ set(LLVM_LINK_COMPONENTS
   TargetParser
   )
 
+if (MSVC)
+  set_source_files_properties(SemaSYCL.cpp PROPERTIES COMPILE_FLAGS /bigobj)
+endif()
+
 clang_tablegen(OpenCLBuiltins.inc -gen-clang-opencl-builtins
   SOURCE OpenCLBuiltins.td
   TARGET ClangOpenCLBuiltinsImpl
   )
+
+clang_tablegen(SPIRVBuiltins.inc -gen-clang-spirv-builtins
+ SOURCE SPIRVBuiltins.td
+ TARGET ClangSPIRVBuiltinsImpl
+ )
 
 add_clang_library(clangSema
   AnalysisBasedWarnings.cpp
@@ -70,6 +79,7 @@ add_clang_library(clangSema
 
   DEPENDS
   ClangOpenCLBuiltinsImpl
+  ClangSPIRVBuiltinsImpl
   omp_gen
   ClangDriverOptions
   MLIRCIROpsIncGen

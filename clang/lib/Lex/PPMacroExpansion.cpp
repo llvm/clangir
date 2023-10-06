@@ -1672,6 +1672,8 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
             // denotes date of behavior change to support calling arbitrary
             // usual allocation and deallocation functions. Required by libc++
             return 201802;
+          case Builtin::BI__builtin_intel_fpga_reg:
+            return LangOpts.SYCLIsDevice;
           default:
             return Builtin::evaluateRequiredTargetFeatures(
                 getBuiltinInfo().getRequiredFeatures(II->getBuiltinID()),

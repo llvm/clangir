@@ -36,6 +36,7 @@
 #include "llvm/Option/ArgList.h"
 #include "llvm/Option/OptTable.h"
 #include "llvm/Option/Option.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/FileUtilities.h"
@@ -439,6 +440,18 @@ Tool *ToolChain::getClang() const {
   return Clang.get();
 }
 
+Tool *ToolChain::getCgeist() const {
+  if (!Cgeist)
+    Cgeist.reset(new tools::Cgeist(*this, getClang()));
+  return Cgeist.get();
+}
+
+Tool *ToolChain::getMLIRTranslate() const {
+  if (!MLIRTranslate)
+    MLIRTranslate.reset(new tools::MLIRTranslate(*this));
+  return MLIRTranslate.get();
+}
+
 Tool *ToolChain::getFlang() const {
   if (!Flang)
     Flang.reset(new tools::Flang(*this));
@@ -451,6 +464,10 @@ Tool *ToolChain::buildAssembler() const {
 
 Tool *ToolChain::buildLinker() const {
   llvm_unreachable("Linking is not supported by this toolchain");
+}
+
+Tool *ToolChain::buildBackendCompiler() const {
+  llvm_unreachable("Backend Compilation is not supported by this toolchain");
 }
 
 Tool *ToolChain::buildStaticLibTool() const {
@@ -493,10 +510,58 @@ Tool *ToolChain::getOffloadBundler() const {
   return OffloadBundler.get();
 }
 
+Tool *ToolChain::getOffloadWrapper() const {
+  if (!OffloadWrapper)
+    OffloadWrapper.reset(new tools::OffloadWrapper(*this));
+  return OffloadWrapper.get();
+}
+
 Tool *ToolChain::getOffloadPackager() const {
   if (!OffloadPackager)
     OffloadPackager.reset(new tools::OffloadPackager(*this));
   return OffloadPackager.get();
+}
+
+Tool *ToolChain::getOffloadDeps() const {
+  if (!OffloadDeps)
+    OffloadDeps.reset(new tools::OffloadDeps(*this));
+  return OffloadDeps.get();
+}
+
+Tool *ToolChain::getSPIRVTranslator() const {
+  if (!SPIRVTranslator)
+    SPIRVTranslator.reset(new tools::SPIRVTranslator(*this));
+  return SPIRVTranslator.get();
+}
+
+Tool *ToolChain::getSYCLPostLink() const {
+  if (!SYCLPostLink)
+    SYCLPostLink.reset(new tools::SYCLPostLink(*this));
+  return SYCLPostLink.get();
+}
+
+Tool *ToolChain::getBackendCompiler() const {
+  if (!BackendCompiler)
+    BackendCompiler.reset(buildBackendCompiler());
+  return BackendCompiler.get();
+}
+
+Tool *ToolChain::getAppendFooter() const {
+  if (!AppendFooter)
+    AppendFooter.reset(new tools::AppendFooter(*this));
+  return AppendFooter.get();
+}
+
+Tool *ToolChain::getTableTform() const {
+  if (!FileTableTform)
+    FileTableTform.reset(new tools::FileTableTform(*this));
+  return FileTableTform.get();
+}
+
+Tool *ToolChain::getSpirvToIrWrapper() const {
+  if (!SpirvToIrWrapper)
+    SpirvToIrWrapper.reset(new tools::SpirvToIrWrapper(*this));
+  return SpirvToIrWrapper.get();
 }
 
 Tool *ToolChain::getLinkerWrapper() const {
@@ -522,6 +587,7 @@ Tool *ToolChain::getTool(Action::ActionClass AC) const {
   case Action::InputClass:
   case Action::BindArchClass:
   case Action::OffloadClass:
+  case Action::ForEachWrappingClass:
   case Action::LipoJobClass:
   case Action::DsymutilJobClass:
   case Action::VerifyDebugInfoJobClass:
@@ -542,8 +608,32 @@ Tool *ToolChain::getTool(Action::ActionClass AC) const {
   case Action::OffloadUnbundlingJobClass:
     return getOffloadBundler();
 
+  case Action::OffloadWrapperJobClass:
+    return getOffloadWrapper();
   case Action::OffloadPackagerJobClass:
     return getOffloadPackager();
+
+  case Action::OffloadDepsJobClass:
+    return getOffloadDeps();
+
+  case Action::SPIRVTranslatorJobClass:
+    return getSPIRVTranslator();
+
+  case Action::SYCLPostLinkJobClass:
+    return getSYCLPostLink();
+
+  case Action::BackendCompileJobClass:
+    return getBackendCompiler();
+
+  case Action::AppendFooterJobClass:
+    return getAppendFooter();
+
+  case Action::FileTableTformJobClass:
+    return getTableTform();
+
+  case Action::SpirvToIrWrapperJobClass:
+    return getSpirvToIrWrapper();
+
   case Action::LinkerWrapperJobClass:
     return getLinkerWrapper();
   }
@@ -813,7 +903,27 @@ bool ToolChain::needsGCovInstrumentation(const llvm::opt::ArgList &Args) {
 
 Tool *ToolChain::SelectTool(const JobAction &JA) const {
   if (D.IsFlangMode() && getDriver().ShouldUseFlangCompiler(JA)) return getFlang();
-  if (getDriver().ShouldUseClangCompiler(JA)) return getClang();
+  if (getDriver().ShouldUseClangCompiler(JA)) {
+    if (JA.getType() == types::TY_MLIR_IR ||
+        (JA.getOffloadingToolChain() &&
+         JA.getOffloadingToolChain()->getTriple().getEnvironment() ==
+             llvm::Triple::SYCLMLIR)) {
+      // Compile jobs with a single LLVM input and MLIR output are handled by
+      // mlir-translate.
+      const ActionList &Inputs = JA.getInputs();
+      if (Inputs.size() == 1) {
+        switch (Inputs.front()->getType()) {
+        case types::TY_LLVM_IR:
+        case types::TY_LLVM_BC:
+          return getMLIRTranslate();
+        default:
+          break;
+        }
+      }
+      return getCgeist();
+    }
+    return getClang();
+  }
   Action::ActionClass AC = JA.getKind();
   if (AC == Action::AssembleJobClass && useIntegratedAs() &&
       !getTriple().isOSAIX())
@@ -1336,7 +1446,9 @@ void ToolChain::AddHIPIncludeArgs(const ArgList &DriverArgs,
                                   ArgStringList &CC1Args) const {}
 
 llvm::SmallVector<ToolChain::BitCodeLibraryInfo, 12>
-ToolChain::getDeviceLibs(const ArgList &DriverArgs) const {
+ToolChain::getDeviceLibs(
+    const ArgList &DriverArgs,
+    const Action::OffloadKind DeviceOffloadingKind) const {
   return {};
 }
 
@@ -1397,66 +1509,130 @@ ToolChain::computeMSVCVersion(const Driver *D,
   return VersionTuple();
 }
 
-llvm::opt::DerivedArgList *ToolChain::TranslateOpenMPTargetArgs(
+llvm::opt::DerivedArgList *ToolChain::TranslateOffloadTargetArgs(
     const llvm::opt::DerivedArgList &Args, bool SameTripleAsHost,
-    SmallVectorImpl<llvm::opt::Arg *> &AllocatedArgs) const {
+    SmallVectorImpl<llvm::opt::Arg *> &AllocatedArgs,
+    Action::OffloadKind DeviceOffloadKind) const {
+  assert((DeviceOffloadKind == Action::OFK_OpenMP ||
+          DeviceOffloadKind == Action::OFK_SYCL) &&
+         "requires OpenMP or SYCL offload kind");
   DerivedArgList *DAL = new DerivedArgList(Args.getBaseArgs());
   const OptTable &Opts = getDriver().getOpts();
   bool Modified = false;
 
-  // Handle -Xopenmp-target flags
+  // Handle -Xopenmp-target and -Xsycl-target-frontend flags
   for (auto *A : Args) {
     // Exclude flags which may only apply to the host toolchain.
     // Do not exclude flags when the host triple (AuxTriple)
     // matches the current toolchain triple. If it is not present
     // at all, target and host share a toolchain.
     if (A->getOption().matches(options::OPT_m_Group)) {
+      // AMD GPU is a special case, as -mcpu is required for the device
+      // compilation, except for SYCL which uses --offload-arch.
       // Pass code object version to device toolchain
       // to correctly set metadata in intermediate files.
       if (SameTripleAsHost ||
-          A->getOption().matches(options::OPT_mcode_object_version_EQ))
+          A->getOption().matches(options::OPT_mcode_object_version_EQ) ||
+          (getTriple().getArch() == llvm::Triple::amdgcn &&
+           DeviceOffloadKind != Action::OFK_SYCL)) {
         DAL->append(A);
-      else
-        Modified = true;
+        continue;
+      }
+      // SPIR-V special case for -mlong-double
+      if (getTriple().isSPIR() &&
+          A->getOption().matches(options::OPT_LongDouble_Group)) {
+        DAL->append(A);
+        continue;
+      }
+      Modified = true;
       continue;
     }
 
-    unsigned Index;
-    unsigned Prev;
-    bool XOpenMPTargetNoTriple =
-        A->getOption().matches(options::OPT_Xopenmp_target);
-
-    if (A->getOption().matches(options::OPT_Xopenmp_target_EQ)) {
-      llvm::Triple TT(getOpenMPTriple(A->getValue(0)));
-
-      // Passing device args: -Xopenmp-target=<triple> -opt=val.
-      if (TT.getTriple() == getTripleString())
-        Index = Args.getBaseArgs().MakeIndex(A->getValue(1));
-      else
-        continue;
-    } else if (XOpenMPTargetNoTriple) {
-      // Passing device args: -Xopenmp-target -opt=val.
-      Index = Args.getBaseArgs().MakeIndex(A->getValue(0));
-    } else {
-      DAL->append(A);
+    // Exclude -fsycl
+    if (A->getOption().matches(options::OPT_fsycl)) {
+      Modified = true;
       continue;
+    }
+
+    unsigned Index = 0;
+    unsigned Prev;
+    bool XOffloadTargetNoTriple;
+
+    // TODO: functionality between OpenMP offloading and SYCL offloading
+    // is similar, can be improved
+    if (DeviceOffloadKind == Action::OFK_OpenMP) {
+      XOffloadTargetNoTriple =
+        A->getOption().matches(options::OPT_Xopenmp_target);
+      if (A->getOption().matches(options::OPT_Xopenmp_target_EQ)) {
+        llvm::Triple TT(getOpenMPTriple(A->getValue(0)));
+
+        // Passing device args: -Xopenmp-target=<triple> -opt=val.
+        if (TT.getTriple() == getTripleString())
+          Index = Args.getBaseArgs().MakeIndex(A->getValue(1));
+        else
+          continue;
+      } else if (XOffloadTargetNoTriple) {
+        // Passing device args: -Xopenmp-target -opt=val.
+        Index = Args.getBaseArgs().MakeIndex(A->getValue(0));
+      } else {
+        DAL->append(A);
+        continue;
+      }
+    } else if (DeviceOffloadKind == Action::OFK_SYCL) {
+      XOffloadTargetNoTriple =
+        A->getOption().matches(options::OPT_Xsycl_frontend);
+      if (A->getOption().matches(options::OPT_Xsycl_frontend_EQ)) {
+        // Passing device args: -Xsycl-target-frontend=<triple> -opt=val.
+        if (getDriver().MakeSYCLDeviceTriple(A->getValue(0)) == getTriple())
+          Index = Args.getBaseArgs().MakeIndex(A->getValue(1));
+        else
+          continue;
+      } else if (XOffloadTargetNoTriple) {
+        // Passing device args: -Xsycl-target-frontend -opt=val.
+        Index = Args.getBaseArgs().MakeIndex(A->getValue(0));
+      } else {
+        DAL->append(A);
+        continue;
+      }
     }
 
     // Parse the argument to -Xopenmp-target.
     Prev = Index;
-    std::unique_ptr<Arg> XOpenMPTargetArg(Opts.ParseOneArg(Args, Index));
-    if (!XOpenMPTargetArg || Index > Prev + 1) {
-      getDriver().Diag(diag::err_drv_invalid_Xopenmp_target_with_args)
-          << A->getAsString(Args);
+    std::unique_ptr<Arg> XOffloadTargetArg(Opts.ParseOneArg(Args, Index));
+    if (!XOffloadTargetArg || Index > Prev + 1) {
+      if (DeviceOffloadKind == Action::OFK_OpenMP) {
+        getDriver().Diag(diag::err_drv_invalid_Xopenmp_target_with_args)
+            << A->getAsString(Args);
+      } else {
+        getDriver().Diag(diag::err_drv_invalid_Xsycl_frontend_with_args)
+            << A->getAsString(Args);
+      }
       continue;
     }
-    if (XOpenMPTargetNoTriple && XOpenMPTargetArg &&
-        Args.getAllArgValues(options::OPT_fopenmp_targets_EQ).size() != 1) {
-      getDriver().Diag(diag::err_drv_Xopenmp_target_missing_triple);
-      continue;
+    if (XOffloadTargetNoTriple && XOffloadTargetArg) {
+      // TODO: similar behaviors with OpenMP and SYCL offloading, can be
+      // improved upon
+      auto SingleTargetTripleCount = [&Args](OptSpecifier Opt) {
+        const Arg *TargetArg = Args.getLastArg(Opt);
+        if (!TargetArg || TargetArg->getValues().size() == 1)
+          return true;
+        return false;
+      };
+      if (DeviceOffloadKind == Action::OFK_OpenMP &&
+          !SingleTargetTripleCount(options::OPT_fopenmp_targets_EQ)) {
+        getDriver().Diag(diag::err_drv_Xopenmp_target_missing_triple);
+        continue;
+      }
+      if (DeviceOffloadKind == Action::OFK_SYCL &&
+          !SingleTargetTripleCount(options::OPT_fsycl_targets_EQ)) {
+        getDriver().Diag(diag::err_drv_Xsycl_target_missing_triple)
+            << A->getSpelling();
+        continue;
+      }
     }
-    XOpenMPTargetArg->setBaseArg(A);
-    A = XOpenMPTargetArg.release();
+
+    XOffloadTargetArg->setBaseArg(A);
+    A = XOffloadTargetArg.release();
     AllocatedArgs.push_back(A);
     DAL->append(A);
     Modified = true;

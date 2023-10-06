@@ -37,7 +37,6 @@ TEST(PhiValuesTest, SimplePhi) {
   BranchInst::Create(If, Else, UndefValue::get(I1Ty), Entry);
   BranchInst::Create(Then, If);
   BranchInst::Create(Then, Else);
-
   Value *Val1 = new LoadInst(I32Ty, UndefValue::get(PtrTy), "val1", Entry);
   Value *Val2 = new LoadInst(I32Ty, UndefValue::get(PtrTy), "val2", Entry);
   Value *Val3 = new LoadInst(I32Ty, UndefValue::get(PtrTy), "val3", Entry);

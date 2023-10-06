@@ -135,7 +135,6 @@ private:
 
   std::unique_ptr<BitcodeCompiler> lto;
   std::vector<InputFile *> files;
-  std::optional<InputFile *> armCmseImpLib;
 
 public:
   SmallVector<std::pair<StringRef, unsigned>, 0> archiveFiles;
@@ -180,8 +179,6 @@ struct Config {
   llvm::StringRef thinLTOCacheDir;
   llvm::StringRef thinLTOIndexOnlyArg;
   llvm::StringRef whyExtract;
-  llvm::StringRef cmseInputLib;
-  llvm::StringRef cmseOutputLib;
   StringRef zBtiReport = "none";
   StringRef zCetReport = "none";
   llvm::StringRef ltoBasicBlockSections;
@@ -204,14 +201,12 @@ struct Config {
   llvm::MapVector<std::pair<const InputSectionBase *, const InputSectionBase *>,
                   uint64_t>
       callGraphProfile;
-  bool cmseImplib = false;
   bool allowMultipleDefinition;
   bool fatLTOObjects;
   bool androidPackDynRelocs = false;
   bool armHasBlx = false;
   bool armHasMovtMovw = false;
   bool armJ1J2BranchEncoding = false;
-  bool armCMSESupport = false;
   bool asNeeded = false;
   bool armBe8 = false;
   BsymbolicKind bsymbolic = BsymbolicKind::None;

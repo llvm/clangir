@@ -60,8 +60,10 @@ set(LLVM_TEST_DEPENDS
           LLVMHello
           LLVMWindowsDriver
           UnitTests
+          append-file
           bugpoint
           count
+          file-table-tform
           llc
           lli
           lli-child-target
@@ -90,6 +92,7 @@ set(LLVM_TEST_DEPENDS
           llvm-dwp
           llvm-exegesis
           llvm-extract
+          llvm-foreach
           llvm-gsymutil
           llvm-isel-fuzzer
           llvm-ifs
@@ -140,6 +143,8 @@ set(LLVM_TEST_DEPENDS
           opt
           sancov
           sanstats
+          spirv-to-ir-wrapper
+          sycl-post-link
           split-file
           verify-uselistorder
           yaml-bench
@@ -165,6 +170,10 @@ endif()
 
 if(TARGET LTO)
   set(LLVM_TEST_DEPENDS ${LLVM_TEST_DEPENDS} LTO)
+endif()
+
+if(TARGET llvm-spirv)
+  set(LLVM_TEST_DEPENDS ${LLVM_TEST_DEPENDS} llvm-spirv)
 endif()
 
 if(LLVM_BUILD_EXAMPLES)

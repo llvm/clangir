@@ -1984,6 +1984,7 @@ Instruction *InstCombinerImpl::visitGEPOfGEP(GetElementPtrInst &GEP,
     return nullptr;
 
   // For constant GEPs, use a more general offset-based folding approach.
+  // Only do this for opaque pointers, as the result element type may change.
   Type *PtrTy = Src->getType()->getScalarType();
   if (GEP.hasAllConstantIndices() &&
       (Src->hasOneUse() || Src->hasAllConstantIndices())) {

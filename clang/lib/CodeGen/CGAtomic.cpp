@@ -97,6 +97,7 @@ namespace {
         LVal = LValue::MakeBitfield(
             Address(StoragePtr, StorageTy, lvalue.getAlignment()), BFI,
             lvalue.getType(), lvalue.getBaseInfo(), lvalue.getTBAAInfo());
+
         AtomicTy = C.getIntTypeForBitwidth(AtomicSizeInBits, OrigBFI.IsSigned);
         if (AtomicTy.isNull()) {
           llvm::APInt Size(
@@ -1139,6 +1140,7 @@ RValue CodeGenFunction::EmitAtomicExpr(AtomicExpr *E) {
       Args.add(RValue::get(CastToGenericAddrSpace(Val1.getPointer(),
                                                   E->getVal1()->getType())),
                getContext().VoidPtrTy);
+
       AddDirectArgument(*this, Args, UseOptimizedLibcall, Val2.getPointer(),
                         MemTy, E->getExprLoc(), TInfo.Width);
       Args.add(RValue::get(Order), getContext().IntTy);

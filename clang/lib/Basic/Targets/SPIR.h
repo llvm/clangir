@@ -16,6 +16,9 @@
 #include "Targets.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Basic/TargetOptions.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/Support/Compiler.h"
+#include "OSTargets.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/TargetParser/Triple.h"
 #include <optional>
@@ -55,9 +58,12 @@ static const unsigned SPIRDefIsPrivMap[] = {
 static const unsigned SPIRDefIsGenMap[] = {
     4, // Default
     // OpenCL address space values for this map are dummy and they can't be used
-    0, // opencl_global
+    // FIXME: reset opencl_global entry to 0. Currently CodeGen libary uses
+    // opencl_global in SYCL language mode, but we should switch to using
+    // sycl_global instead.
+    1, // opencl_global
     0, // opencl_local
-    0, // opencl_constant
+    2, // opencl_constant
     0, // opencl_private
     0, // opencl_generic
     0, // opencl_global_device
@@ -185,8 +191,13 @@ public:
   }
 
   CallingConvCheckResult checkCallingConvention(CallingConv CC) const override {
-    return (CC == CC_SpirFunction || CC == CC_OpenCLKernel) ? CCCR_OK
-                                                            : CCCR_Warning;
+    return (CC == CC_SpirFunction || CC == CC_OpenCLKernel ||
+            // Permit CC_X86RegCall which is used to mark external functions
+            // with explicit simd or structure type arguments to pass them via
+            // registers.
+            CC == CC_X86RegCall)
+               ? CCCR_OK
+               : CCCR_Warning;
   }
 
   CallingConv getDefaultCallingConv() const override {
@@ -199,7 +210,7 @@ public:
 
   void adjust(DiagnosticsEngine &Diags, LangOptions &Opts) override {
     TargetInfo::adjust(Diags, Opts);
-    // FIXME: SYCL specification considers unannotated pointers and references
+    // NOTE: SYCL specification considers unannotated pointers and references
     // to be pointing to the generic address space. See section 5.9.3 of
     // SYCL 2020 specification.
     // Currently, there is no way of representing SYCL's and HIP/CUDA's default
@@ -230,10 +241,6 @@ public:
   SPIRTargetInfo(const llvm::Triple &Triple, const TargetOptions &Opts)
       : BaseSPIRTargetInfo(Triple, Opts) {
     assert(Triple.isSPIR() && "Invalid architecture for SPIR.");
-    assert(getTriple().getOS() == llvm::Triple::UnknownOS &&
-           "SPIR target must use unknown OS");
-    assert(getTriple().getEnvironment() == llvm::Triple::UnknownEnvironment &&
-           "SPIR target must use unknown environment type");
   }
 
   void getTargetDefines(const LangOptions &Opts,
@@ -255,8 +262,9 @@ public:
     PointerWidth = PointerAlign = 32;
     SizeType = TargetInfo::UnsignedInt;
     PtrDiffType = IntPtrType = TargetInfo::SignedInt;
-    resetDataLayout("e-p:32:32-i64:64-v16:16-v24:32-v32:32-v48:64-"
-                    "v96:128-v192:256-v256:256-v512:512-v1024:1024");
+    resetDataLayout(
+        "e-p:32:32-i64:64-v16:16-v24:32-v32:32-v48:64-"
+        "v96:128-v192:256-v256:256-v512:512-v1024:1024-n8:16:32:64");
   }
 
   void getTargetDefines(const LangOptions &Opts,
@@ -272,12 +280,115 @@ public:
     PointerWidth = PointerAlign = 64;
     SizeType = TargetInfo::UnsignedLong;
     PtrDiffType = IntPtrType = TargetInfo::SignedLong;
-    resetDataLayout("e-i64:64-v16:16-v24:32-v32:32-v48:64-"
-                    "v96:128-v192:256-v256:256-v512:512-v1024:1024");
+
+    resetDataLayout(
+        "e-i64:64-v16:16-v24:32-v32:32-v48:64-"
+        "v96:128-v192:256-v256:256-v512:512-v1024:1024-n8:16:32:64");
   }
 
   void getTargetDefines(const LangOptions &Opts,
                         MacroBuilder &Builder) const override;
+};
+
+// spir64_fpga target
+class LLVM_LIBRARY_VISIBILITY SPIR64FPGATargetInfo : public SPIR64TargetInfo {
+public:
+  SPIR64FPGATargetInfo(const llvm::Triple &Triple, const TargetOptions &Opts)
+      : SPIR64TargetInfo(Triple, Opts) {}
+  virtual size_t getMaxBitIntWidth() const override { return 4096; }
+};
+
+// x86-32 SPIR Windows target
+class LLVM_LIBRARY_VISIBILITY WindowsX86_32SPIRTargetInfo
+    : public WindowsTargetInfo<SPIR32TargetInfo> {
+public:
+  WindowsX86_32SPIRTargetInfo(const llvm::Triple &Triple,
+                              const TargetOptions &Opts)
+      : WindowsTargetInfo<SPIR32TargetInfo>(Triple, Opts) {
+    DoubleAlign = LongLongAlign = 64;
+    WCharType = UnsignedShort;
+  }
+
+  BuiltinVaListKind getBuiltinVaListKind() const override {
+    return TargetInfo::CharPtrBuiltinVaList;
+  }
+
+  CallingConvCheckResult checkCallingConvention(CallingConv CC) const override {
+    if (CC == CC_X86VectorCall)
+      // Permit CC_X86VectorCall which is used in Microsoft headers
+      return CCCR_OK;
+    return (CC == CC_SpirFunction || CC == CC_OpenCLKernel) ? CCCR_OK
+                                    : CCCR_Warning;
+  }
+};
+
+// x86-32 SPIR Windows Visual Studio target
+class LLVM_LIBRARY_VISIBILITY MicrosoftX86_32SPIRTargetInfo
+    : public WindowsX86_32SPIRTargetInfo {
+public:
+  MicrosoftX86_32SPIRTargetInfo(const llvm::Triple &Triple,
+                            const TargetOptions &Opts)
+      : WindowsX86_32SPIRTargetInfo(Triple, Opts) {
+  }
+
+  void getTargetDefines(const LangOptions &Opts,
+                        MacroBuilder &Builder) const override {
+    WindowsX86_32SPIRTargetInfo::getTargetDefines(Opts, Builder);
+    // The value of the following reflects processor type.
+    // 300=386, 400=486, 500=Pentium, 600=Blend (default)
+    // We lost the original triple, so we use the default.
+    // TBD should we keep these lines?  Copied from X86.h.
+    Builder.defineMacro("_M_IX86", "600");
+  }
+};
+
+// x86-64 SPIR64 Windows target
+class LLVM_LIBRARY_VISIBILITY WindowsX86_64_SPIR64TargetInfo
+    : public WindowsTargetInfo<SPIR64TargetInfo> {
+public:
+  WindowsX86_64_SPIR64TargetInfo(const llvm::Triple &Triple,
+                                 const TargetOptions &Opts)
+      : WindowsTargetInfo<SPIR64TargetInfo>(Triple, Opts) {
+    LongWidth = LongAlign = 32;
+    DoubleAlign = LongLongAlign = 64;
+    IntMaxType = SignedLongLong;
+    Int64Type = SignedLongLong;
+    SizeType = UnsignedLongLong;
+    PtrDiffType = SignedLongLong;
+    IntPtrType = SignedLongLong;
+    WCharType = UnsignedShort;
+  }
+
+  BuiltinVaListKind getBuiltinVaListKind() const override {
+    return TargetInfo::CharPtrBuiltinVaList;
+  }
+
+  CallingConvCheckResult checkCallingConvention(CallingConv CC) const override {
+    if (CC == CC_X86VectorCall || CC == CC_X86RegCall)
+      // Permit CC_X86VectorCall which is used in Microsoft headers
+      // Permit CC_X86RegCall which is used to mark external functions with
+      // explicit simd or structure type arguments to pass them via registers.
+      return CCCR_OK;
+    return (CC == CC_SpirFunction || CC == CC_OpenCLKernel) ? CCCR_OK
+                                    : CCCR_Warning;
+  }
+};
+
+// x86-64 SPIR64 Windows Visual Studio target
+class LLVM_LIBRARY_VISIBILITY MicrosoftX86_64_SPIR64TargetInfo
+    : public WindowsX86_64_SPIR64TargetInfo {
+public:
+  MicrosoftX86_64_SPIR64TargetInfo(const llvm::Triple &Triple,
+                            const TargetOptions &Opts)
+      : WindowsX86_64_SPIR64TargetInfo(Triple, Opts) {
+  }
+
+  void getTargetDefines(const LangOptions &Opts,
+                        MacroBuilder &Builder) const override {
+    WindowsX86_64_SPIR64TargetInfo::getTargetDefines(Opts, Builder);
+    Builder.defineMacro("_M_X64", "100");
+    Builder.defineMacro("_M_AMD64", "100");
+  }
 };
 
 class LLVM_LIBRARY_VISIBILITY BaseSPIRVTargetInfo : public BaseSPIRTargetInfo {

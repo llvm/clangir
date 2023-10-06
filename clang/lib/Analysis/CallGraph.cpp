@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Analysis/CallGraph.h"
+#include "clang/AST/ASTContext.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclBase.h"
 #include "clang/AST/DeclObjC.h"
@@ -97,6 +98,14 @@ public:
     CXXConstructorDecl *Ctor = E->getConstructor();
     if (FunctionDecl *Def = Ctor->getDefinition())
       addCalledDecl(Def, E);
+    // TODO: resolve issues raised in review with llorg. See
+    // https://reviews.llvm.org/D65453?vs=on&id=212351&whitespace=ignore-most#1632207
+    const auto *ConstructedType = Ctor->getParent();
+    if (ConstructedType->hasUserDeclaredDestructor()) {
+      CXXDestructorDecl *Dtor = ConstructedType->getDestructor();
+      if (FunctionDecl *Def = Dtor->getDefinition())
+        addCalledDecl(Def, E);
+    }
     VisitChildren(E);
   }
 
@@ -126,6 +135,19 @@ public:
         NumObjCCallEdges++;
       }
     }
+  }
+
+  void VisitIfStmt(IfStmt *If) {
+    if (G->shouldSkipConstantExpressions()) {
+      if (std::optional<Stmt *> ActiveStmt =
+              If->getNondiscardedCase(G->getASTContext())) {
+        if (*ActiveStmt)
+          this->Visit(*ActiveStmt);
+        return;
+      }
+    }
+
+    StmtVisitor::VisitIfStmt(If);
   }
 
   void VisitChildren(Stmt *S) {

@@ -34,6 +34,7 @@ add_llvm_component_library(LLVMLTO
   Remarks
   Scalar
   Support
+  SYCLLowerIR
   Target
   TargetParser
   TransformUtils

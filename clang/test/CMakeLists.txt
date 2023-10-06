@@ -68,6 +68,8 @@ list(APPEND CLANG_TEST_DEPS
   clang-format
   clang-tblgen
   clang-offload-bundler
+  clang-offload-deps
+  clang-offload-extract
   clang-import-test
   clang-rename
   clang-refactor
@@ -120,9 +122,11 @@ if( NOT CLANG_BUILT_STANDALONE )
   list(APPEND CLANG_TEST_DEPS
     llvm-config
     FileCheck count not
+    append-file
     llc
     llvm-ar
     llvm-as
+    llvm-ar
     llvm-bcanalyzer
     llvm-cat
     llvm-cxxfilt

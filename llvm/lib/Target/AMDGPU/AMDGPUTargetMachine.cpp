@@ -50,6 +50,8 @@
 #include "llvm/InitializePasses.h"
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Passes/PassBuilder.h"
+#include "llvm/SYCLLowerIR/GlobalOffset.h"
+#include "llvm/SYCLLowerIR/LocalAccessorToSharedMemory.h"
 #include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/IPO/AlwaysInliner.h"
 #include "llvm/Transforms/IPO/GlobalDCE.h"
@@ -416,6 +418,10 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeAMDGPUTarget() {
   initializeGCNPreRAOptimizationsPass(*PR);
   initializeGCNPreRALongBranchRegPass(*PR);
   initializeGCNRewritePartialRegUsesPass(*PR);
+
+  // SYCL-specific passes, needed here to be available to `opt`.
+  initializeGlobalOffsetLegacyPass(*PR);
+  initializeLocalAccessorToSharedMemoryLegacyPass(*PR);
 }
 
 static std::unique_ptr<TargetLoweringObjectFile> createTLOF(const Triple &TT) {
@@ -579,11 +585,14 @@ StringRef AMDGPUTargetMachine::getFeatureString(const Function &F) const {
 }
 
 /// Predicate for Internalize pass.
+/// Functions with the 'sycl-module-id' attribute are SYCL_EXTERNAL functions
+/// and must be preserved.
 static bool mustPreserveGV(const GlobalValue &GV) {
   if (const Function *F = dyn_cast<Function>(&GV))
     return F->isDeclaration() || F->getName().startswith("__asan_") ||
            F->getName().startswith("__sanitizer_") ||
-           AMDGPU::isEntryFunctionCC(F->getCallingConv());
+           AMDGPU::isEntryFunctionCC(F->getCallingConv()) ||
+           F->hasFnAttribute("sycl-module-id");
 
   GV.removeDeadConstantUsers();
   return !GV.use_empty();
@@ -615,6 +624,14 @@ void AMDGPUTargetMachine::registerPassBuilderCallbacks(PassBuilder &PB) {
         }
         if (PassName == "amdgpu-lower-ctor-dtor") {
           PM.addPass(AMDGPUCtorDtorLoweringPass());
+          return true;
+        }
+        if (PassName == "localaccessortosharedmemory") {
+          PM.addPass(LocalAccessorToSharedMemoryPass());
+          return true;
+        }
+        if (PassName == "globaloffset") {
+          PM.addPass(LocalAccessorToSharedMemoryPass());
           return true;
         }
         return false;
@@ -967,10 +984,6 @@ void AMDGPUPassConfig::addStraightLineScalarOptimizationPasses() {
 void AMDGPUPassConfig::addIRPasses() {
   const AMDGPUTargetMachine &TM = getAMDGPUTargetMachine();
 
-  Triple::ArchType Arch = TM.getTargetTriple().getArch();
-  if (RemoveIncompatibleFunctions && Arch == Triple::amdgcn)
-    addPass(createAMDGPURemoveIncompatibleFunctionsPass(&TM));
-
   // There is no reason to run these.
   disablePass(&StackMapLivenessID);
   disablePass(&FuncletLayoutID);
@@ -985,7 +998,7 @@ void AMDGPUPassConfig::addIRPasses() {
   addPass(createAlwaysInlinerLegacyPass());
 
   // Handle uses of OpenCL image2d_t, image3d_t and sampler_t arguments.
-  if (Arch == Triple::r600)
+  if (TM.getTargetTriple().getArch() == Triple::r600)
     addPass(createR600OpenCLImageTypeLoweringPass());
 
   // Replace OpenCL enqueued block function pointers with global variables.
@@ -1055,10 +1068,19 @@ void AMDGPUPassConfig::addIRPasses() {
   // but EarlyCSE can do neither of them.
   if (isPassEnabled(EnableScalarIRPasses))
     addEarlyCSEOrGVNPass();
+
+  if (TM.getTargetTriple().getArch() == Triple::amdgcn &&
+      TM.getTargetTriple().getOS() == Triple::OSType::AMDHSA) {
+    addPass(createLocalAccessorToSharedMemoryPassLegacy());
+    addPass(createGlobalOffsetPassLegacy());
+  }
 }
 
 void AMDGPUPassConfig::addCodeGenPrepare() {
   if (TM->getTargetTriple().getArch() == Triple::amdgcn) {
+    if (RemoveIncompatibleFunctions)
+      addPass(createAMDGPURemoveIncompatibleFunctionsPass(TM));
+
     // FIXME: This pass adds 2 hacky attributes that can be replaced with an
     // analysis, and should be removed.
     addPass(createAMDGPUAnnotateKernelFeaturesPass());

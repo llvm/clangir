@@ -29,6 +29,7 @@
 
 namespace clang {
 
+class ASTContext;
 class CallGraphNode;
 class Decl;
 class DeclContext;
@@ -50,6 +51,12 @@ class CallGraph : public RecursiveASTVisitor<CallGraph> {
 
   /// This is a virtual root node that has edges to all the functions.
   CallGraphNode *Root;
+
+  /// A setting to determine whether this should include calls that are done in
+  /// a constant expression's context. This DOES require the ASTContext object
+  /// for constexpr-if, so setting it requires a valid ASTContext.
+  bool ShouldSkipConstexpr = false;
+  ASTContext *Ctx = nullptr;
 
 public:
   CallGraph();
@@ -138,6 +145,15 @@ public:
   bool shouldWalkTypesOfTypeLocs() const { return false; }
   bool shouldVisitTemplateInstantiations() const { return true; }
   bool shouldVisitImplicitCode() const { return true; }
+  bool shouldSkipConstantExpressions() const { return ShouldSkipConstexpr; }
+  void setSkipConstantExpressions(ASTContext &Context) {
+    Ctx = &Context;
+    ShouldSkipConstexpr = true;
+  }
+  ASTContext &getASTContext() {
+    assert(Ctx);
+    return *Ctx;
+  }
 
 private:
   /// Add the given declaration to the call graph.

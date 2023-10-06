@@ -195,6 +195,7 @@ CODEGENOPT(NullPointerIsValid , 1, 0) ///< Assume Null pointer deference is defi
 CODEGENOPT(OpenCLCorrectlyRoundedDivSqrt, 1, 0) ///< -cl-fp32-correctly-rounded-divide-sqrt
 CODEGENOPT(HIPCorrectlyRoundedDivSqrt, 1, 1) ///< -fno-hip-fp32-correctly-rounded-divide-sqrt
 CODEGENOPT(HIPSaveKernelArgName, 1, 0) ///< Set when -fhip-kernel-arg-name is enabled.
+CODEGENOPT(SYCLFp32PrecSqrt, 1, 0) ///< -fsycl-fp32-prec-sqrt
 CODEGENOPT(UniqueInternalLinkageNames, 1, 0) ///< Internal Linkage symbols get unique names.
 CODEGENOPT(SplitMachineFunctions, 1, 0) ///< Split machine functions using profile information.
 
@@ -427,6 +428,8 @@ VALUE_CODEGENOPT(InlineMaxStackSize, 32, UINT_MAX)
 // Vector functions library to use.
 ENUM_CODEGENOPT(VecLib, VectorLibrary, 3, NoLibrary)
 
+ENUM_CODEGENOPT(AltMathLib, AltMathLibrary, 3, NoAltMathLibrary)
+
 /// The default TLS model to use.
 ENUM_CODEGENOPT(DefaultTLSModel, TLSModel, 2, GeneralDynamicTLSModel)
 
@@ -493,6 +496,9 @@ CODEGENOPT(PassByValueIsNoAlias, 1, 0)
 /// according to the field declaring type width.
 CODEGENOPT(AAPCSBitfieldWidth, 1, 1)
 
+// Whether to instrument SPIR device code with ITT annotations
+CODEGENOPT(SPIRITTAnnotations, 1, 0)
+
 /// Sets the IEEE bit in the expected default floating point mode register.
 /// Floating point opcodes that support exception flag gathering quiet and
 /// propagate signaling NaN inputs per IEEE 754-2008 (AMDGPU Only)
@@ -510,6 +516,11 @@ CODEGENOPT(SkipRaxSetup, 1, 0)
 ENUM_CODEGENOPT(ZeroCallUsedRegs, llvm::ZeroCallUsedRegs::ZeroCallUsedRegsKind,
                 5, llvm::ZeroCallUsedRegs::ZeroCallUsedRegsKind::Skip)
 
+/// Whether to expect -main-file-name to be an absolute path to use it for
+/// checksum calculations or not.
+CODEGENOPT(SYCLUseMainFileName, 1, 0)
+
+
 /// Modify C++ ABI to returning `this` pointer from constructors and
 /// non-deleting destructors. (No effect on Microsoft ABI.)
 CODEGENOPT(CtorDtorReturnThis, 1, 0)
@@ -523,6 +534,13 @@ VALUE_CODEGENOPT(ClangIRBuildDeferredThreshold, 32, 500)
 /// system headers. This helps incremental progress while building large C++
 /// TUs, once CIRGen is mature we should probably remove it.
 CODEGENOPT(ClangIRSkipFunctionsFromSystemHeaders, 1, 0)
+
+/// Whether to disable the standard optimization pipeline for the SYCL device compiler.
+CODEGENOPT(DisableSYCLEarlyOpts, 1, 0)
+
+/// Optimize SYCL Framework functions. These are functions
+/// which do not contain "user" code.
+CODEGENOPT(OptimizeSYCLFramework, 1, 0)
 
 #undef CODEGENOPT
 #undef ENUM_CODEGENOPT

@@ -18,6 +18,7 @@
 #include "CGDebugInfo.h"
 #include "CGHLSLRuntime.h"
 #include "CGOpenMPRuntime.h"
+#include "CGSYCLRuntime.h"
 #include "CodeGenModule.h"
 #include "CodeGenPGO.h"
 #include "TargetInfo.h"
@@ -35,6 +36,7 @@
 #include "clang/CodeGen/CGFunctionInfo.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/Analysis/OptimizationRemarkEmitter.h"
 #include "llvm/Frontend/OpenMP/OMPIRBuilder.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Dominators.h"
@@ -583,14 +585,21 @@ CodeGenFunction::getUBSanFunctionTypeHash(QualType Ty) const {
 
 void CodeGenFunction::EmitKernelMetadata(const FunctionDecl *FD,
                                          llvm::Function *Fn) {
-  if (!FD->hasAttr<OpenCLKernelAttr>() && !FD->hasAttr<CUDAGlobalAttr>())
+  if (!FD->hasAttr<OpenCLKernelAttr>() && !FD->hasAttr<CUDAGlobalAttr>()
+    && !FD->hasAttr<SYCLDeviceAttr>())
     return;
+
+  // TODO Module identifier is not reliable for this purpose since two modules
+  // can have the same ID, needs improvement
+  if (getLangOpts().SYCLIsDevice)
+    Fn->addFnAttr("sycl-module-id", Fn->getParent()->getModuleIdentifier());
 
   llvm::LLVMContext &Context = getLLVMContext();
 
-  CGM.GenKernelArgMetadata(Fn, FD, this);
+  if (FD->hasAttr<OpenCLKernelAttr>() || FD->hasAttr<CUDAGlobalAttr>())
+    CGM.GenKernelArgMetadata(Fn, FD, this);
 
-  if (!getLangOpts().OpenCL)
+  if (!getLangOpts().OpenCL && !getLangOpts().SYCLIsDevice)
     return;
 
   if (const VecTypeHintAttr *A = FD->getAttr<VecTypeHintAttr>()) {
@@ -616,19 +625,181 @@ void CodeGenFunction::EmitKernelMetadata(const FunctionDecl *FD,
     Fn->setMetadata("work_group_size_hint", llvm::MDNode::get(Context, AttrMDArgs));
   }
 
+  if (const SYCLWorkGroupSizeHintAttr *A =
+          FD->getAttr<SYCLWorkGroupSizeHintAttr>()) {
+    std::optional<llvm::APSInt> XDimVal = A->getXDimVal();
+    std::optional<llvm::APSInt> YDimVal = A->getYDimVal();
+    std::optional<llvm::APSInt> ZDimVal = A->getZDimVal();
+    llvm::SmallVector<llvm::Metadata *, 3> AttrMDArgs;
+
+    // On SYCL target the dimensions are reversed if present.
+    if (ZDimVal)
+      AttrMDArgs.push_back(
+          llvm::ConstantAsMetadata::get(Builder.getInt(*ZDimVal)));
+    if (YDimVal)
+      AttrMDArgs.push_back(
+          llvm::ConstantAsMetadata::get(Builder.getInt(*YDimVal)));
+    AttrMDArgs.push_back(
+        llvm::ConstantAsMetadata::get(Builder.getInt(*XDimVal)));
+
+    Fn->setMetadata("work_group_size_hint",
+                    llvm::MDNode::get(Context, AttrMDArgs));
+  }
+
   if (const ReqdWorkGroupSizeAttr *A = FD->getAttr<ReqdWorkGroupSizeAttr>()) {
     llvm::Metadata *AttrMDArgs[] = {
         llvm::ConstantAsMetadata::get(Builder.getInt32(A->getXDim())),
         llvm::ConstantAsMetadata::get(Builder.getInt32(A->getYDim())),
         llvm::ConstantAsMetadata::get(Builder.getInt32(A->getZDim()))};
-    Fn->setMetadata("reqd_work_group_size", llvm::MDNode::get(Context, AttrMDArgs));
+    Fn->setMetadata("reqd_work_group_size",
+                    llvm::MDNode::get(Context, AttrMDArgs));
   }
 
-  if (const OpenCLIntelReqdSubGroupSizeAttr *A =
-          FD->getAttr<OpenCLIntelReqdSubGroupSizeAttr>()) {
-    llvm::Metadata *AttrMDArgs[] = {
-        llvm::ConstantAsMetadata::get(Builder.getInt32(A->getSubGroupSize()))};
+  if (const SYCLReqdWorkGroupSizeAttr *A =
+          FD->getAttr<SYCLReqdWorkGroupSizeAttr>()) {
+    std::optional<llvm::APSInt> XDimVal = A->getXDimVal();
+    std::optional<llvm::APSInt> YDimVal = A->getYDimVal();
+    std::optional<llvm::APSInt> ZDimVal = A->getZDimVal();
+    llvm::SmallVector<llvm::Metadata *, 3> AttrMDArgs;
+
+    // On SYCL target the dimensions are reversed if present.
+    if (ZDimVal)
+      AttrMDArgs.push_back(
+          llvm::ConstantAsMetadata::get(Builder.getInt(*ZDimVal)));
+    if (YDimVal)
+      AttrMDArgs.push_back(
+          llvm::ConstantAsMetadata::get(Builder.getInt(*YDimVal)));
+    AttrMDArgs.push_back(
+        llvm::ConstantAsMetadata::get(Builder.getInt(*XDimVal)));
+
+    Fn->setMetadata("reqd_work_group_size",
+                    llvm::MDNode::get(Context, AttrMDArgs));
+  }
+
+  bool IsKernelOrDevice =
+      FD->hasAttr<SYCLKernelAttr>() || FD->hasAttr<SYCLDeviceAttr>();
+  const IntelReqdSubGroupSizeAttr *ReqSubGroup =
+      FD->getAttr<IntelReqdSubGroupSizeAttr>();
+
+  // To support the SYCL 2020 spelling with no propagation, only emit for
+  // kernel-or-device when that spelling, fall-back to old behavior.
+  if (ReqSubGroup && (IsKernelOrDevice || !ReqSubGroup->isSYCL2020Spelling())) {
+    const auto *CE = cast<ConstantExpr>(ReqSubGroup->getValue());
+    std::optional<llvm::APSInt> ArgVal = CE->getResultAsAPSInt();
+    llvm::Metadata *AttrMDArgs[] = {llvm::ConstantAsMetadata::get(
+        Builder.getInt32(ArgVal->getSExtValue()))};
     Fn->setMetadata("intel_reqd_sub_group_size",
+                    llvm::MDNode::get(Context, AttrMDArgs));
+  } else if (IsKernelOrDevice &&
+             CGM.getLangOpts().getDefaultSubGroupSizeType() ==
+                 LangOptions::SubGroupSizeType::Integer) {
+    llvm::Metadata *AttrMDArgs[] = {llvm::ConstantAsMetadata::get(
+        Builder.getInt32(CGM.getLangOpts().DefaultSubGroupSize))};
+    Fn->setMetadata("intel_reqd_sub_group_size",
+                    llvm::MDNode::get(Context, AttrMDArgs));
+  }
+
+  // SCYL2020 doesn't propagate attributes, so don't put it in an intermediate
+  // location.
+  if (IsKernelOrDevice) {
+    if (const auto *A = FD->getAttr<IntelNamedSubGroupSizeAttr>()) {
+      llvm::Metadata *AttrMDArgs[] = {llvm::MDString::get(
+          Context, A->getType() == IntelNamedSubGroupSizeAttr::Primary
+                       ? "primary"
+                       : "automatic")};
+      Fn->setMetadata("intel_reqd_sub_group_size",
+                      llvm::MDNode::get(Context, AttrMDArgs));
+    } else if (CGM.getLangOpts().getDefaultSubGroupSizeType() ==
+               LangOptions::SubGroupSizeType::Auto) {
+      llvm::Metadata *AttrMDArgs[] = {
+          llvm::MDString::get(Context, "automatic")};
+      Fn->setMetadata("intel_reqd_sub_group_size",
+                      llvm::MDNode::get(Context, AttrMDArgs));
+    } else if (CGM.getLangOpts().getDefaultSubGroupSizeType() ==
+               LangOptions::SubGroupSizeType::Primary) {
+      llvm::Metadata *AttrMDArgs[] = {llvm::MDString::get(Context, "primary")};
+      Fn->setMetadata("intel_reqd_sub_group_size",
+                      llvm::MDNode::get(Context, AttrMDArgs));
+    }
+  }
+
+  if (FD->hasAttr<SYCLSimdAttr>()) {
+    Fn->setMetadata("sycl_explicit_simd", llvm::MDNode::get(Context, {}));
+    llvm::Metadata *AttrMDArgs[] = {
+        llvm::ConstantAsMetadata::get(Builder.getInt32(1))};
+    Fn->setMetadata("intel_reqd_sub_group_size",
+                    llvm::MDNode::get(Context, AttrMDArgs));
+  }
+
+  if (const auto *A = FD->getAttr<SYCLIntelNumSimdWorkItemsAttr>()) {
+    const auto *CE = cast<ConstantExpr>(A->getValue());
+    std::optional<llvm::APSInt> ArgVal = CE->getResultAsAPSInt();
+    llvm::Metadata *AttrMDArgs[] = {llvm::ConstantAsMetadata::get(
+        Builder.getInt32(ArgVal->getZExtValue()))};
+    Fn->setMetadata("num_simd_work_items",
+                    llvm::MDNode::get(Context, AttrMDArgs));
+  }
+
+  if (const auto *A = FD->getAttr<SYCLIntelSchedulerTargetFmaxMhzAttr>()) {
+    const auto *CE = cast<ConstantExpr>(A->getValue());
+    std::optional<llvm::APSInt> ArgVal = CE->getResultAsAPSInt();
+    llvm::Metadata *AttrMDArgs[] = {llvm::ConstantAsMetadata::get(
+        Builder.getInt32(ArgVal->getSExtValue()))};
+    Fn->setMetadata("scheduler_target_fmax_mhz",
+                    llvm::MDNode::get(Context, AttrMDArgs));
+  }
+
+  if (const auto *A = FD->getAttr<SYCLIntelMaxGlobalWorkDimAttr>()) {
+    const auto *CE = cast<ConstantExpr>(A->getValue());
+    std::optional<llvm::APSInt> ArgVal = CE->getResultAsAPSInt();
+    llvm::Metadata *AttrMDArgs[] = {llvm::ConstantAsMetadata::get(
+        Builder.getInt32(ArgVal->getSExtValue()))};
+    Fn->setMetadata("max_global_work_dim",
+                    llvm::MDNode::get(Context, AttrMDArgs));
+  }
+
+  if (const SYCLIntelMaxWorkGroupSizeAttr *A =
+          FD->getAttr<SYCLIntelMaxWorkGroupSizeAttr>()) {
+
+    // Attributes arguments (first and third) are reversed on SYCLDevice.
+    if (getLangOpts().SYCLIsDevice) {
+      llvm::Metadata *AttrMDArgs[] = {
+          llvm::ConstantAsMetadata::get(Builder.getInt(*A->getZDimVal())),
+          llvm::ConstantAsMetadata::get(Builder.getInt(*A->getYDimVal())),
+          llvm::ConstantAsMetadata::get(Builder.getInt(*A->getXDimVal()))};
+      Fn->setMetadata("max_work_group_size",
+                      llvm::MDNode::get(Context, AttrMDArgs));
+    }
+  }
+
+  if (const auto *A = FD->getAttr<SYCLIntelNoGlobalWorkOffsetAttr>()) {
+    const auto *CE = cast<ConstantExpr>(A->getValue());
+    std::optional<llvm::APSInt> ArgVal = CE->getResultAsAPSInt();
+    if (ArgVal->getBoolValue())
+      Fn->setMetadata("no_global_work_offset", llvm::MDNode::get(Context, {}));
+  }
+
+  if (const auto *A = FD->getAttr<SYCLIntelMaxConcurrencyAttr>()) {
+    const auto *CE = cast<ConstantExpr>(A->getNThreadsExpr());
+    llvm::APSInt ArgVal = CE->getResultAsAPSInt();
+    llvm::Metadata *AttrMDArgs[] = {
+        llvm::ConstantAsMetadata::get(Builder.getInt32(ArgVal.getSExtValue()))};
+    Fn->setMetadata("max_concurrency", llvm::MDNode::get(Context, AttrMDArgs));
+  }
+
+  if (FD->hasAttr<SYCLIntelDisableLoopPipeliningAttr>()) {
+    llvm::Metadata *AttrMDArgs[] = {
+        llvm::ConstantAsMetadata::get(Builder.getInt32(1))};
+    Fn->setMetadata("disable_loop_pipelining",
+                    llvm::MDNode::get(Context, AttrMDArgs));
+  }
+
+  if (const auto *A = FD->getAttr<SYCLIntelInitiationIntervalAttr>()) {
+    const auto *CE = cast<ConstantExpr>(A->getIntervalExpr());
+    llvm::APSInt ArgVal = CE->getResultAsAPSInt();
+    llvm::Metadata *AttrMDArgs[] = {
+        llvm::ConstantAsMetadata::get(Builder.getInt32(ArgVal.getSExtValue()))};
+    Fn->setMetadata("initiation_interval",
                     llvm::MDNode::get(Context, AttrMDArgs));
   }
 }
@@ -951,10 +1122,56 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
       Fn->addFnAttr(llvm::Attribute::FnRetThunkExtern);
   }
 
+  if (getLangOpts().SYCLIsDevice && D) {
+    if (const auto *A = D->getAttr<SYCLIntelLoopFuseAttr>()) {
+      const auto *CE = cast<ConstantExpr>(A->getValue());
+      std::optional<llvm::APSInt> ArgVal = CE->getResultAsAPSInt();
+      llvm::Metadata *AttrMDArgs[] = {
+          llvm::ConstantAsMetadata::get(
+              Builder.getInt32(ArgVal->getZExtValue())),
+          llvm::ConstantAsMetadata::get(
+              A->isIndependent() ? Builder.getInt32(1) : Builder.getInt32(0))};
+      Fn->setMetadata("loop_fuse",
+                      llvm::MDNode::get(getLLVMContext(), AttrMDArgs));
+    }
+
+    // Source location of functions is required to emit required diagnostics in
+    // SYCLPropagateAspectsUsagePass. Save the token in a srcloc metadata node.
+    llvm::ConstantInt *Line =
+        llvm::ConstantInt::get(Int32Ty, D->getLocation().getRawEncoding());
+    llvm::ConstantAsMetadata *SrcLocMD = llvm::ConstantAsMetadata::get(Line);
+    llvm::MDTuple *SrcLocMDT = llvm::MDNode::get(getLLVMContext(), {SrcLocMD});
+    Fn->setMetadata("srcloc", SrcLocMDT);
+  }
+
+  if (getLangOpts().SYCLIsDevice && D &&
+      D->hasAttr<SYCLIntelUseStallEnableClustersAttr>()) {
+    llvm::Metadata *AttrMDArgs[] = {
+        llvm::ConstantAsMetadata::get(Builder.getInt32(1))};
+    Fn->setMetadata("stall_enable",
+                    llvm::MDNode::get(getLLVMContext(), AttrMDArgs));
+  }
+
+  if (getLangOpts().SYCLIsDevice && D &&
+      D->hasAttr<SYCLAddIRAttributesFunctionAttr>()) {
+    const auto *A = D->getAttr<SYCLAddIRAttributesFunctionAttr>();
+    SmallVector<std::pair<std::string, std::string>, 4> NameValuePairs =
+        A->getFilteredAttributeNameValuePairs(CGM.getContext());
+
+    llvm::AttrBuilder FnAttrBuilder(Fn->getContext());
+    for (const auto &NameValuePair : NameValuePairs)
+      FnAttrBuilder.addAttribute(NameValuePair.first, NameValuePair.second);
+    Fn->addFnAttrs(FnAttrBuilder);
+  }
+
   if (FD && (getLangOpts().OpenCL ||
-             (getLangOpts().HIP && getLangOpts().CUDAIsDevice))) {
+             (getLangOpts().HIP && getLangOpts().CUDAIsDevice) ||
+             getLangOpts().SYCLIsDevice)) {
     // Add metadata for a kernel function.
     EmitKernelMetadata(FD, Fn);
+
+    if (getLangOpts().SYCLIsDevice)
+      CGM.getSYCLRuntime().actOnFunctionStart(*FD, *Fn);
   }
 
   // If we are checking function types, emit a function type signature as
@@ -1019,6 +1236,11 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
   // "main" doesn't need to zero out call-used registers.
   if (FD && FD->isMain())
     Fn->removeFnAttr("zero-call-used-regs");
+
+  if (getLangOpts().SYCLIsDevice)
+    if (const FunctionDecl *FD = dyn_cast_or_null<FunctionDecl>(D))
+      if (FD->hasAttr<SYCLDeviceIndirectlyCallableAttr>())
+        Fn->addFnAttr("referenced-indirectly");
 
   llvm::BasicBlock *EntryBB = createBasicBlock("entry", CurFn);
 
@@ -1440,10 +1662,50 @@ void CodeGenFunction::GenerateCode(GlobalDecl GD, llvm::Function *Fn,
 
   // Emit the standard function prologue.
   StartFunction(GD, ResTy, Fn, FnInfo, Args, Loc, BodyRange.getBegin());
+  if (!getLangOpts().OptRecordFile.empty()) {
+    SyclOptReportHandler &SyclOptReport = CGM.getDiags().getSYCLOptReport();
+    if (SyclOptReport.HasOptReportInfo(FD)) {
+      llvm::OptimizationRemarkEmitter ORE(Fn);
+      for (auto ORI : llvm::enumerate(SyclOptReport.GetInfo(FD))) {
+        llvm::DiagnosticLocation DL =
+            SourceLocToDebugLoc(ORI.value().KernelArgLoc);
+        StringRef NameInDesc = ORI.value().KernelArgDescName;
+        StringRef ArgType = ORI.value().KernelArgType;
+        StringRef ArgDesc = ORI.value().KernelArgDesc;
+        unsigned ArgSize = ORI.value().KernelArgSize;
+        StringRef ArgDecomposedField = ORI.value().KernelArgDecomposedField;
+
+        llvm::OptimizationRemark Remark("sycl", "Region", DL,
+                                        &Fn->getEntryBlock());
+        Remark << "Arg " << llvm::ore::NV("Argument", ORI.index()) << ":"
+               << ArgDesc << NameInDesc << "  (" << ArgDecomposedField
+               << "Type:" << ArgType << ", "
+               << "Size: " << llvm::ore::NV("Argument", ArgSize) << ")";
+        ORE.emit(Remark);
+      }
+    }
+  }
 
   // Save parameters for coroutine function.
   if (Body && isa_and_nonnull<CoroutineBodyStmt>(Body))
     llvm::append_range(FnArgs, FD->parameters());
+
+  // Generate a dummy __host__ function for compiling CUDA sources in SYCL.
+  if (getLangOpts().CUDA && !getLangOpts().CUDAIsDevice &&
+      getLangOpts().SYCLIsHost && !FD->hasAttr<CUDAHostAttr>() &&
+      FD->hasAttr<CUDADeviceAttr>()) {
+    if (FD->getReturnType()->isVoidType())
+      Builder.CreateRetVoid();
+    else
+      Builder.CreateRet(llvm::UndefValue::get(Fn->getReturnType()));
+    return;
+  }
+  // When compiling a CUDA file in SYCL device mode,
+  // set weak ODR linkage for possibly duplicated functions.
+  if (getLangOpts().CUDA && !getLangOpts().CUDAIsDevice &&
+      getLangOpts().SYCLIsDevice &&
+      (FD->hasAttr<CUDADeviceAttr>() || FD->hasAttr<CUDAHostAttr>()))
+    Fn->setLinkage(llvm::Function::WeakODRLinkage);
 
   // Generate the body of the function.
   PGO.assignRegionCounters(GD, CurFn);
@@ -2496,6 +2758,14 @@ llvm::Value *CodeGenFunction::EmitAnnotationCall(llvm::Function *AnnotationFn,
   };
   if (Attr)
     Args.push_back(CGM.EmitAnnotationArgs(Attr));
+  else {
+    assert(AnnotationFn->isIntrinsic() &&
+           "Annotation call must be an intrinsic");
+    const llvm::Intrinsic::ID ID = AnnotationFn->getIntrinsicID();
+    if (ID == llvm::Intrinsic::ptr_annotation ||
+        ID == llvm::Intrinsic::var_annotation)
+      Args.push_back(llvm::ConstantPointerNull::get(ConstGlobalsPtrTy));
+  }
   return Builder.CreateCall(AnnotationFn, Args);
 }
 
@@ -2511,7 +2781,6 @@ void CodeGenFunction::EmitVarAnnotations(const VarDecl *D, llvm::Value *V) {
                        Builder.CreateBitCast(V, I8PtrTy, V->getName()),
                        I->getAnnotation(), D->getLocation(), I);
 }
-
 Address CodeGenFunction::EmitFieldAnnotations(const FieldDecl *D,
                                               Address Addr) {
   assert(D->hasAttr<AnnotateAttr>() && "no annotate attribute");
@@ -2521,18 +2790,105 @@ Address CodeGenFunction::EmitFieldAnnotations(const FieldDecl *D,
   unsigned AS = PTy ? PTy->getAddressSpace() : 0;
   llvm::PointerType *IntrinTy =
       llvm::PointerType::get(CGM.getLLVMContext(), AS);
+  // llvm.ptr.annotation intrinsic accepts a pointer to integer of any width -
+  // don't perform bitcasts if value is integer
+  if (Addr.getElementType()->isIntegerTy()) {
+    llvm::Function *F = CGM.getIntrinsic(llvm::Intrinsic::ptr_annotation,
+                                         {VTy, CGM.ConstGlobalsPtrTy});
+
+    for (const auto *I : D->specific_attrs<AnnotateAttr>())
+      V = EmitAnnotationCall(F, V, I->getAnnotation(), D->getLocation(), I);
+
+    return Address(V, Addr.getElementType(), Addr.getAlignment());
+  }
+
   llvm::Function *F = CGM.getIntrinsic(llvm::Intrinsic::ptr_annotation,
                                        {IntrinTy, CGM.ConstGlobalsPtrTy});
 
   for (const auto *I : D->specific_attrs<AnnotateAttr>()) {
-    // FIXME Always emit the cast inst so we can differentiate between
-    // annotation on the first field of a struct and annotation on the struct
-    // itself.
-    if (VTy != IntrinTy)
-      V = Builder.CreateBitCast(V, IntrinTy);
+    V = Builder.CreateBitCast(V, IntrinTy);
     V = EmitAnnotationCall(F, V, I->getAnnotation(), D->getLocation(), I);
     V = Builder.CreateBitCast(V, VTy);
   }
+
+  return Address(V, Addr.getElementType(), Addr.getAlignment());
+}
+
+llvm::Value *CodeGenFunction::EmitSYCLAnnotationCall(
+    llvm::Function *AnnotationFn, llvm::Value *AnnotatedVal,
+    SourceLocation Location, const SYCLAddIRAnnotationsMemberAttr *Attr) {
+
+  llvm::SmallVector<std::pair<std::string, std::string>, 4>
+      AnnotationNameValPairs =
+          Attr->getFilteredAttributeNameValuePairs(getContext());
+  return EmitSYCLAnnotationCall(AnnotationFn, AnnotatedVal, Location,
+                                AnnotationNameValPairs);
+}
+
+llvm::Value *CodeGenFunction::EmitSYCLAnnotationCall(
+    llvm::Function *AnnotationFn, llvm::Value *AnnotatedVal,
+    SourceLocation Location,
+    SmallVectorImpl<std::pair<std::string, std::string>> &Pair) {
+  SmallVector<llvm::Value *, 5> Args = {
+      AnnotatedVal,
+      Builder.CreateBitCast(CGM.EmitAnnotationString("sycl-properties"),
+                            ConstGlobalsPtrTy),
+      Builder.CreateBitCast(CGM.EmitAnnotationUnit(Location),
+                            ConstGlobalsPtrTy),
+      CGM.EmitAnnotationLineNo(Location), CGM.EmitSYCLAnnotationArgs(Pair)};
+  return Builder.CreateCall(AnnotationFn, Args);
+}
+
+Address CodeGenFunction::EmitFieldSYCLAnnotations(const FieldDecl *D,
+                                                  Address Addr) {
+  const auto *SYCLAnnotAttr = D->getAttr<SYCLAddIRAnnotationsMemberAttr>();
+  assert(SYCLAnnotAttr && "no add_ir_annotations_member attribute");
+  llvm::Value *V = Addr.getPointer();
+  llvm::Type *VTy = V->getType();
+  auto *PTy = dyn_cast<llvm::PointerType>(VTy);
+  unsigned AS = PTy ? PTy->getAddressSpace() : 0;
+  llvm::Type *IntrType = VTy;
+  if (!Addr.getElementType()->isIntegerTy())
+    IntrType = llvm::PointerType::get(CGM.getLLVMContext(), AS);
+  llvm::Function *F = CGM.getIntrinsic(llvm::Intrinsic::ptr_annotation,
+                                       {IntrType, CGM.ConstGlobalsPtrTy});
+
+  if (VTy != IntrType)
+    V = Builder.CreateBitCast(V, IntrType);
+  V = EmitSYCLAnnotationCall(F, V, D->getLocation(), SYCLAnnotAttr);
+  if (VTy != IntrType)
+    V = Builder.CreateBitCast(V, VTy);
+  return Address(V, Addr.getElementType(), Addr.getAlignment());
+}
+
+Address CodeGenFunction::EmitIntelFPGAFieldAnnotations(const FieldDecl *D,
+                                                       Address Addr,
+                                                       StringRef AnnotStr) {
+  return EmitIntelFPGAFieldAnnotations(D->getLocation(), Addr, AnnotStr);
+}
+
+Address CodeGenFunction::EmitIntelFPGAFieldAnnotations(SourceLocation Location,
+                                                       Address Addr,
+                                                       StringRef AnnotStr) {
+  llvm::Value *V = Addr.getPointer();
+  llvm::Type *VTy = V->getType();
+  // llvm.ptr.annotation intrinsic accepts a pointer to integer of any width -
+  // don't perform bitcasts if value is integer
+  if (Addr.getElementType()->isIntegerTy()) {
+    llvm::Function *F = CGM.getIntrinsic(llvm::Intrinsic::ptr_annotation,
+                                         {VTy, CGM.ConstGlobalsPtrTy});
+    V = EmitAnnotationCall(F, V, AnnotStr, Location);
+
+    return Address(V, Addr.getElementType(), Addr.getAlignment());
+  }
+
+  unsigned AS = VTy->getPointerAddressSpace();
+  llvm::Type *Int8VPtrTy = llvm::Type::getInt8PtrTy(CGM.getLLVMContext(), AS);
+  llvm::Function *F = CGM.getIntrinsic(llvm::Intrinsic::ptr_annotation,
+                                       {Int8VPtrTy, CGM.ConstGlobalsPtrTy});
+  V = Builder.CreateBitCast(V, Int8VPtrTy);
+  V = EmitAnnotationCall(F, V, AnnotStr, Location);
+  V = Builder.CreateBitCast(V, VTy);
 
   return Address(V, Addr.getElementType(), Addr.getAlignment());
 }

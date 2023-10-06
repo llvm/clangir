@@ -36,6 +36,7 @@ StringRef Triple::getArchTypeName(ArchType Kind) {
   case avr:            return "avr";
   case bpfeb:          return "bpfeb";
   case bpfel:          return "bpfel";
+  case fpga:           return "fpga";
   case csky:           return "csky";
   case dxil:           return "dxil";
   case hexagon:        return "hexagon";
@@ -168,6 +169,8 @@ StringRef Triple::getArchTypePrefix(ArchType Kind) {
   case riscv32:
   case riscv64:     return "riscv";
 
+  case fpga:        return "fpga";
+
   case ve:          return "ve";
   case csky:        return "csky";
 
@@ -190,6 +193,7 @@ StringRef Triple::getVendorTypeName(VendorType Kind) {
   case Freescale: return "fsl";
   case IBM: return "ibm";
   case ImaginationTechnologies: return "img";
+  case Intel: return "intel";
   case Mesa: return "mesa";
   case MipsTechnologies: return "mti";
   case NVIDIA: return "nvidia";
@@ -289,6 +293,8 @@ StringRef Triple::getEnvironmentTypeName(EnvironmentType Kind) {
   case Callable: return "callable";
   case Mesh: return "mesh";
   case Amplification: return "amplification";
+  case SYCLMLIR:
+    return "syclmlir";
   case OpenHOS: return "ohos";
   }
 
@@ -376,11 +382,11 @@ Triple::ArchType Triple::getArchTypeForLLVMName(StringRef Name) {
     .Case("amdil64", amdil64)
     .Case("hsail", hsail)
     .Case("hsail64", hsail64)
-    .Case("spir", spir)
-    .Case("spir64", spir64)
-    .Case("spirv", spirv)
-    .Case("spirv32", spirv32)
-    .Case("spirv64", spirv64)
+    .StartsWith("spirv64", spirv64)
+    .StartsWith("spirv32", spirv32)
+    .StartsWith("spirv", spirv)
+    .StartsWith("spir64", spir64)
+    .StartsWith("spir", spir)
     .Case("kalimba", kalimba)
     .Case("lanai", lanai)
     .Case("shave", shave)
@@ -388,6 +394,7 @@ Triple::ArchType Triple::getArchTypeForLLVMName(StringRef Name) {
     .Case("wasm64", wasm64)
     .Case("renderscript32", renderscript32)
     .Case("renderscript64", renderscript64)
+    .Case("fpga", fpga)
     .Case("ve", ve)
     .Case("csky", csky)
     .Case("loongarch32", loongarch32)
@@ -525,10 +532,15 @@ static Triple::ArchType parseArch(StringRef ArchName) {
            "spirv32v1.3", "spirv32v1.4", "spirv32v1.5", Triple::spirv32)
     .Cases("spirv64", "spirv64v1.0", "spirv64v1.1", "spirv64v1.2",
            "spirv64v1.3", "spirv64v1.4", "spirv64v1.5", Triple::spirv64)
+    .Cases("spirv32", "spirv32v1.0", "spirv32v1.1", "spirv32v1.2",
+           "spirv32v1.3", "spirv32v1.4", "spirv32v1.5", Triple::spirv32)
+    .StartsWith("spir64", Triple::spir64)
+    .StartsWith("spir", Triple::spir)
     .StartsWith("kalimba", Triple::kalimba)
     .Case("lanai", Triple::lanai)
     .Case("renderscript32", Triple::renderscript32)
     .Case("renderscript64", Triple::renderscript64)
+    .StartsWith("fpga", Triple::fpga)
     .Case("shave", Triple::shave)
     .Case("ve", Triple::ve)
     .Case("wasm32", Triple::wasm32)
@@ -569,6 +581,7 @@ static Triple::VendorType parseVendor(StringRef VendorName) {
     .Case("mesa", Triple::Mesa)
     .Case("suse", Triple::SUSE)
     .Case("oe", Triple::OpenEmbedded)
+    .Case("intel", Triple::Intel)
     .Default(Triple::UnknownVendor);
 }
 
@@ -655,6 +668,7 @@ static Triple::EnvironmentType parseEnvironment(StringRef EnvironmentName) {
       .StartsWith("callable", Triple::Callable)
       .StartsWith("mesh", Triple::Mesh)
       .StartsWith("amplification", Triple::Amplification)
+      .StartsWith("syclmlir", Triple::SYCLMLIR)
       .StartsWith("ohos", Triple::OpenHOS)
       .Default(Triple::UnknownEnvironment);
 }
@@ -677,6 +691,18 @@ static Triple::SubArchType parseSubArch(StringRef SubArchName) {
   if (SubArchName.startswith("mips") &&
       (SubArchName.endswith("r6el") || SubArchName.endswith("r6")))
     return Triple::MipsSubArch_r6;
+
+  if (SubArchName.startswith("spir")) {
+    StringRef SA(SubArchName);
+    if (SA.consume_front("spir64_") || SA.consume_front("spir_")) {
+      if (SA == "fpga")
+        return Triple::SPIRSubArch_fpga;
+      else if (SA == "gen")
+        return Triple::SPIRSubArch_gen;
+      else if (SA == "x86_64")
+        return Triple::SPIRSubArch_x86_64;
+    }
+  }
 
   if (SubArchName == "powerpcspe")
     return Triple::PPCSubArch_spe;
@@ -810,6 +836,7 @@ static Triple::ObjectFormatType getDefaultFormat(const Triple &T) {
   case Triple::avr:
   case Triple::bpfeb:
   case Triple::bpfel:
+  case Triple::fpga:
   case Triple::csky:
   case Triple::hexagon:
   case Triple::hsail64:
@@ -1399,6 +1426,7 @@ static unsigned getArchPointerBitWidth(llvm::Triple::ArchType Arch) {
   case llvm::Triple::arc:
   case llvm::Triple::arm:
   case llvm::Triple::armeb:
+  case llvm::Triple::fpga:
   case llvm::Triple::csky:
   case llvm::Triple::dxil:
   case llvm::Triple::hexagon:
@@ -1491,6 +1519,7 @@ Triple Triple::get32BitArchVariant() const {
   case Triple::arc:
   case Triple::arm:
   case Triple::armeb:
+  case Triple::fpga:
   case Triple::csky:
   case Triple::dxil:
   case Triple::hexagon:
@@ -1559,6 +1588,7 @@ Triple Triple::get64BitArchVariant() const {
   case Triple::UnknownArch:
   case Triple::arc:
   case Triple::avr:
+  case Triple::fpga:
   case Triple::csky:
   case Triple::dxil:
   case Triple::hexagon:

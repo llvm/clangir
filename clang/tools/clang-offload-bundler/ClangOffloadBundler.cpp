@@ -21,6 +21,11 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Bitcode/BitcodeReader.h"
+#include "llvm/Bitcode/BitcodeWriter.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IRReader/IRReader.h"
 #include "llvm/Object/Archive.h"
 #include "llvm/Object/ArchiveWriter.h"
 #include "llvm/Object/Binary.h"
@@ -37,8 +42,10 @@
 #include "llvm/Support/Program.h"
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/StringSaver.h"
+#include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/WithColor.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/SourceMgr.h"
 #include "llvm/TargetParser/Host.h"
 #include "llvm/TargetParser/Triple.h"
 #include <algorithm>
@@ -93,44 +100,74 @@ int main(int argc, const char **argv) {
     TargetNames("targets", cl::CommaSeparated,
                 cl::desc("[<offload kind>-<target triple>,...]"),
                 cl::cat(ClangOffloadBundlerCategory));
+
+  cl::list<std::string> ExcludedTargetNames(
+      "excluded-targets", cl::CommaSeparated,
+      cl::desc("[<target name>,...]. List of targets that are excluded from "
+               "unbundling."),
+      cl::cat(ClangOffloadBundlerCategory));
+
   cl::opt<std::string> FilesType(
       "type", cl::Required,
-      cl::desc("Type of the files to be bundled/unbundled.\n"
-               "Current supported types are:\n"
-               "  i    - cpp-output\n"
-               "  ii   - c++-cpp-output\n"
-               "  cui  - cuda-cpp-output\n"
-               "  hipi - hip-cpp-output\n"
-               "  d    - dependency\n"
-               "  ll   - llvm\n"
-               "  bc   - llvm-bc\n"
-               "  s    - assembler\n"
-               "  o    - object\n"
-               "  a    - archive of objects\n"
-               "  gch  - precompiled-header\n"
-               "  ast  - clang AST file"),
-      cl::cat(ClangOffloadBundlerCategory));
+      cl::desc("Type of the files to be bundled/unbundled/checked.\n"
+             "Current supported types are:\n"
+             "  i   - cpp-output\n"
+             "  ii  - c++-cpp-output\n"
+             "  cui - cuda/hip-output\n"
+             "  hipi - hip-cpp-output\n"
+             "  d   - dependency\n"
+             "  ll  - llvm\n"
+             "  bc  - llvm-bc\n"
+             "  s   - assembler\n"
+             "  o   - object\n"
+             "  gch - precompiled-header\n"
+             "  ast - clang AST file\n"
+             "  a   - archive of objects\n"
+             "  ao  - archive with one object; output is an unbundled object\n"
+             "  aocr - AOCR archive; output file is a list of unbundled\n"
+             "         .aocr files\n"
+             "  aocx - AOCX archive; output file is a list of unbundled\n"
+             "         .aocx files\n"
+             "  aoo - archive; output file is a list of unbundled objects\n"),
+    cl::cat(ClangOffloadBundlerCategory));
+
   cl::opt<bool>
     Unbundle("unbundle",
              cl::desc("Unbundle bundled file into several output files.\n"),
              cl::init(false), cl::cat(ClangOffloadBundlerCategory));
+
+  cl::opt<bool> CheckSection("check-section",
+                                  cl::desc("Check if the section exists.\n"),
+                                  cl::init(false),
+                                  cl::cat(ClangOffloadBundlerCategory));
+
   cl::opt<bool>
     ListBundleIDs("list", cl::desc("List bundle IDs in the bundled file.\n"),
                   cl::init(false), cl::cat(ClangOffloadBundlerCategory));
+
   cl::opt<bool> PrintExternalCommands(
     "###",
     cl::desc("Print any external commands that are to be executed "
              "instead of actually executing them - for testing purposes.\n"),
     cl::init(false), cl::cat(ClangOffloadBundlerCategory));
+
   cl::opt<bool>
     AllowMissingBundles("allow-missing-bundles",
                         cl::desc("Create empty files if bundles are missing "
                                  "when unbundling.\n"),
                         cl::init(false), cl::cat(ClangOffloadBundlerCategory));
+
   cl::opt<unsigned>
     BundleAlignment("bundle-align",
                     cl::desc("Alignment of bundle for binary files"),
                     cl::init(1), cl::cat(ClangOffloadBundlerCategory));
+
+  cl::opt<bool>
+    AddTargetSymbols("add-target-symbols-to-bundled-object",
+                     cl::desc("Add .tgtsym section with target symbol names to "
+                              "the output file when bundling object files.\n"),
+                     cl::init(true), cl::cat(ClangOffloadBundlerCategory));
+
   cl::opt<bool> HipOpenmpCompatible(
     "hip-openmp-compatible",
     cl::desc("Treat hip and hipv4 offload kinds as "
@@ -154,17 +191,24 @@ int main(int argc, const char **argv) {
     return 0;
   }
 
+  // These calls are needed so that we can read bitcode correctly.
+  InitializeAllTargetInfos();
+  InitializeAllTargetMCs();
+  InitializeAllAsmParsers();
+
   /// Class to store bundler options in standard (non-cl::opt) data structures
   // Avoid using cl::opt variables after these assignments when possible
   OffloadBundlerConfig BundlerConfig;
   BundlerConfig.AllowMissingBundles = AllowMissingBundles;
   BundlerConfig.PrintExternalCommands = PrintExternalCommands;
+  BundlerConfig.AddTargetSymbols = AddTargetSymbols;
   BundlerConfig.HipOpenmpCompatible = HipOpenmpCompatible;
   BundlerConfig.BundleAlignment = BundleAlignment;
   BundlerConfig.FilesType = FilesType;
   BundlerConfig.ObjcopyPath = "";
 
   BundlerConfig.TargetNames = TargetNames;
+  BundlerConfig.ExcludedTargetNames = ExcludedTargetNames;
   BundlerConfig.InputFileNames = InputFileNames;
   BundlerConfig.OutputFileNames = OutputFileNames;
 
@@ -265,7 +309,7 @@ int main(int argc, const char **argv) {
     return 0;
   }
 
-  if (OutputFileNames.size() == 0) {
+  if (OutputFileNames.size() == 0 && !CheckSection) {
     reportError(
         createStringError(errc::invalid_argument, "no output file specified!"));
   }
@@ -276,7 +320,32 @@ int main(int argc, const char **argv) {
         "for the --targets option: must be specified at least once!"));
   }
 
-  if (Unbundle) {
+  if (Unbundle && CheckSection) {
+    reportError(createStringError(
+        errc::invalid_argument,
+        "-unbundle and -check-section are not compatible options"));
+    return 1;
+  }
+
+  // -check-section
+  if (CheckSection) {
+    if (InputFileNames.size() != 1) {
+      reportError(
+          createStringError(errc::invalid_argument,
+                            "only one input file supported in checking mode"));
+    }
+    if (TargetNames.size() != 1) {
+      reportError(
+          createStringError(errc::invalid_argument,
+                            "only one target supported in checking mode"));
+    }
+    if (OutputFileNames.size() != 0) {
+      reportError(createStringError(
+          errc::invalid_argument, "no output file supported in checking mode"));
+    }
+  }
+  // -unbundle
+  else if (Unbundle) {
     if (InputFileNames.size() != 1) {
       reportError(createStringError(
           errc::invalid_argument,
@@ -287,7 +356,9 @@ int main(int argc, const char **argv) {
                                     "number of output files and targets should "
                                     "match in unbundling mode"));
     }
-  } else {
+  }
+  // no explicit option: bundle
+  else {
     if (BundlerConfig.FilesType == "a") {
       reportError(createStringError(errc::invalid_argument,
                                     "Archive files are only supported "
@@ -305,6 +376,12 @@ int main(int argc, const char **argv) {
     }
   }
 
+  // check -excluded-targets without unbundle
+  if (!ExcludedTargetNames.empty() && !Unbundle)
+    reportError(createStringError(errc::invalid_argument,
+                                  "-excluded-targets option should be used "
+                                  "only in conjunction with -unbundle"));
+
   // Verify that the offload kinds and triples are known. We also check that we
   // have exactly one host target.
   unsigned Index = 0u;
@@ -313,8 +390,6 @@ int main(int argc, const char **argv) {
   llvm::DenseSet<StringRef> ParsedTargets;
   // Map {offload-kind}-{triple} to target IDs.
   std::map<std::string, std::set<StringRef>> TargetIDs;
-  // Standardize target names to include env field
-  std::vector<std::string> StandardizedTargetNames;
   for (StringRef Target : TargetNames) {
     if (ParsedTargets.contains(Target)) {
       reportError(createStringError(errc::invalid_argument,
@@ -325,8 +400,6 @@ int main(int argc, const char **argv) {
     auto OffloadInfo = OffloadTargetInfo(Target, BundlerConfig);
     bool KindIsValid = OffloadInfo.isOffloadKindValid();
     bool TripleIsValid = OffloadInfo.isTripleValid();
-
-    StandardizedTargetNames.push_back(OffloadInfo.str());
 
     if (!KindIsValid || !TripleIsValid) {
       SmallVector<char, 128u> Buf;
@@ -352,9 +425,6 @@ int main(int argc, const char **argv) {
 
     ++Index;
   }
-
-  BundlerConfig.TargetNames = StandardizedTargetNames;
-
   for (const auto &TargetID : TargetIDs) {
     if (auto ConflictingTID =
             clang::getConflictTargetIDCombination(TargetID.second)) {
@@ -365,6 +435,15 @@ int main(int argc, const char **argv) {
           << TargetID.first + "-" + ConflictingTID->second << "'";
       reportError(createStringError(errc::invalid_argument, Msg.str()));
     }
+  }
+
+  if (CheckSection) {
+    Expected<bool> Res = CheckBundledSection(BundlerConfig);
+    if (!Res) {
+      reportError(Res.takeError());
+      return 1;
+    }
+    return !*Res;
   }
 
   // HIP uses clang-offload-bundler to bundle device-only compilation results

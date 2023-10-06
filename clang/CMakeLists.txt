@@ -188,7 +188,9 @@ set(PPC_LINUX_DEFAULT_IEEELONGDOUBLE OFF CACHE BOOL
 set(CLANG_SPAWN_CC1 OFF CACHE BOOL
     "Whether clang should use a new process for the CC1 invocation")
 
-option(CLANG_DEFAULT_PIE_ON_LINUX "Default to -fPIE and -pie on linux-gnu" ON)
+# Turn this OFF downstream for compatibility reasons. GCC default is no-pie
+# and many distros, e.g. RedHat has no-pie by default for GCC.
+option(CLANG_DEFAULT_PIE_ON_LINUX "Default to -fPIE and -pie on linux-gnu" OFF)
 
 set(CLANG_DEFAULT_LINKER "" CACHE STRING
   "Default linker to use (linker name or absolute path, empty for platform default)")
@@ -342,9 +344,12 @@ include(AddClang)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
+set(LLVM_SPIRV_INCLUDE_DIRS "${LLVM_MAIN_SRC_DIR}/../llvm-spirv/include")
+
 include_directories(BEFORE
   ${CMAKE_CURRENT_BINARY_DIR}/include
   ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${LLVM_SPIRV_INCLUDE_DIRS}
   )
 
 if (NOT LLVM_INSTALL_TOOLCHAIN_ONLY)

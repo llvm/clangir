@@ -202,6 +202,10 @@ static Cl::Kinds ClassifyInternal(ASTContext &Ctx, const Expr *E) {
   case Expr::SourceLocExprClass:
   case Expr::ConceptSpecializationExprClass:
   case Expr::RequiresExprClass:
+  case Expr::SYCLBuiltinNumFieldsExprClass:
+  case Expr::SYCLBuiltinFieldTypeExprClass:
+  case Expr::SYCLBuiltinNumBasesExprClass:
+  case Expr::SYCLBuiltinBaseTypeExprClass:
     return Cl::CL_PRValue;
 
   // Make HLSL this reference-like
@@ -443,6 +447,7 @@ static Cl::Kinds ClassifyInternal(ASTContext &Ctx, const Expr *E) {
   case Expr::CoyieldExprClass:
     return ClassifyInternal(Ctx, cast<CoroutineSuspendExpr>(E)->getResumeExpr());
   case Expr::SYCLUniqueStableNameExprClass:
+  case Expr::SYCLUniqueStableIdExprClass:
     return Cl::CL_PRValue;
     break;
 

@@ -82,6 +82,10 @@ public:
   /// The directory to copy module dependencies to when collecting them.
   std::string ModuleDependencyOutputDir;
 
+  /// Dependency output which is prefixed with this string is filtered from
+  /// the dependency output. 
+  std::string DependencyFilter;
+
 public:
   DependencyOutputOptions()
       : IncludeSystemHeaders(0), CanonicalSystemHeaders(0),
