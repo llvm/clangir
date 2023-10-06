@@ -751,7 +751,7 @@ static LValue buildGlobalVarDeclLValue(CIRGenFunction &CGF, const Expr *E,
 
   // Check if the variable is marked as declare target with link clause in
   // device codegen.
-  if (CGF.getLangOpts().OpenMPIsDevice) {
+  if (CGF.getLangOpts().OpenMPIsTargetDevice) {
     assert(0 && "not implemented");
   }
 

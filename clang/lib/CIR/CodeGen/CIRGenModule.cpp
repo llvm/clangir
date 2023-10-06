@@ -779,7 +779,7 @@ void CIRGenModule::buildGlobalVarDefinition(const clang::VarDecl *D,
   // If this is OpenMP device, check if it is legal to emit this global
   // normally.
   QualType ASTTy = D->getType();
-  assert(!(getLangOpts().OpenCL || getLangOpts().OpenMPIsDevice) &&
+  assert(!(getLangOpts().OpenCL || getLangOpts().OpenMPIsTargetDevice) &&
          "not implemented");
 
   // TODO(cir): LLVM's codegen uses a llvm::TrackingVH here. Is that
@@ -1944,7 +1944,7 @@ mlir::cir::FuncOp CIRGenModule::GetOrCreateCIRFunction(
   // Any attempts to use a MultiVersion function should result in retrieving the
   // iFunc instead. Name mangling will handle the rest of the changes.
   if (const auto *FD = cast_or_null<FunctionDecl>(D)) {
-    if (getLangOpts().OpenMPIsDevice)
+    if (getLangOpts().OpenMPIsTargetDevice)
       llvm_unreachable("open MP NYI");
     if (FD->isMultiVersion())
       llvm_unreachable("NYI");
@@ -2501,7 +2501,7 @@ mlir::Attribute CIRGenModule::getAddrOfRTTIDescriptor(mlir::Location loc,
   // FIXME: should we even be calling this method if RTTI is disabled
   // and it's not for EH?
   if ((!ForEH && !getLangOpts().RTTI) || getLangOpts().CUDAIsDevice ||
-      (getLangOpts().OpenMP && getLangOpts().OpenMPIsDevice &&
+      (getLangOpts().OpenMP && getLangOpts().OpenMPIsTargetDevice &&
        getTriple().isNVPTX())) {
     llvm_unreachable("NYI");
   }
