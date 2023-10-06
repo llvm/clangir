@@ -1949,7 +1949,7 @@ mlir::Value ScalarExprEmitter::VisitAbstractConditionalOperator(
   }
 
   if (condExpr->getType()->isVectorType() ||
-      condExpr->getType()->isVLSTBuiltinType()) {
+      condExpr->getType()->isSveVLSBuiltinType()) {
     llvm_unreachable("NYI");
   }
 
