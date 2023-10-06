@@ -48,6 +48,7 @@
 #include "clang/AST/Type.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/LangStandard.h"
+#include "clang/Basic/NoSanitizeList.h"
 #include "clang/Basic/SourceLocation.h"
 #include "clang/CIR/CIRGenerator.h"
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"

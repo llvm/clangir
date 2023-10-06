@@ -16,6 +16,7 @@
 
 #include "clang/AST/EvaluatedExprVisitor.h"
 #include "clang/AST/RecordLayout.h"
+#include "clang/Basic/NoSanitizeList.h"
 #include "clang/Basic/TargetBuiltins.h"
 
 using namespace clang;
