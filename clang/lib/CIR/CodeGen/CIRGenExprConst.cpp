@@ -1394,30 +1394,34 @@ mlir::Attribute ConstantEmitter::emitForMemory(CIRGenModule &CGM,
   return C;
 }
 
-mlir::TypedAttr ConstantEmitter::tryEmitPrivate(const Expr *E, QualType T) {
-  assert(!T->isVoidType() && "can't emit a void constant");
+mlir::TypedAttr ConstantEmitter::tryEmitPrivate(const Expr *E,
+                                                QualType destType) {
+  assert(!destType->isVoidType() && "can't emit a void constant");
+
+  if (auto C = ConstExprEmitter(*this).Visit(const_cast<Expr *>(E), destType)) {
+    if (auto TypedC = C.dyn_cast_or_null<mlir::TypedAttr>())
+      return TypedC;
+    llvm_unreachable("this should always be typed");
+  }
+
   Expr::EvalResult Result;
+
   bool Success;
 
-  // TODO: Implement the missing functionalities below.
-  assert(!T->isReferenceType() && "NYI");
-
-  // NOTE: Not all constant expressions can be emited by the ConstExprEmitter.
-  //       So we have to fold/evaluate the expression in some cases.
-  //
-  // Try folding constant expression into an RValue.
-  Success = E->EvaluateAsRValue(Result, CGM.getASTContext(), InConstantContext);
-
-  mlir::Attribute C;
-  if (Success && !Result.HasSideEffects)
-    C = tryEmitPrivate(Result.Val, T);
+  if (destType->isReferenceType())
+    Success = E->EvaluateAsLValue(Result, CGM.getASTContext());
   else
-    C = ConstExprEmitter(*this).Visit(const_cast<Expr *>(E), T);
+    Success =
+        E->EvaluateAsRValue(Result, CGM.getASTContext(), InConstantContext);
 
-  auto typedC = llvm::dyn_cast<mlir::TypedAttr>(C);
-  if (!typedC)
+  if (Success && !Result.hasSideEffects()) {
+    auto C = tryEmitPrivate(Result.Val, destType);
+    if (auto TypedC = C.dyn_cast_or_null<mlir::TypedAttr>())
+      return TypedC;
     llvm_unreachable("this should always be typed");
-  return typedC;
+  }
+
+  return nullptr;
 }
 
 mlir::Attribute ConstantEmitter::tryEmitPrivate(const APValue &Value,
