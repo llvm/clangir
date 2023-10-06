@@ -1664,7 +1664,7 @@ def FuncOp : CIR_Op<"func", [
 //===----------------------------------------------------------------------===//
 
 def CallOp : CIR_Op<"call",
-    [CallOpInterface, DeclareOpInterfaceMethods<SymbolUserOpInterface>]> {
+    [DeclareOpInterfaceMethods<CallOpInterface>, DeclareOpInterfaceMethods<SymbolUserOpInterface>]> {
   let summary = "call operation";
   let description = [{
     The `call` operation represents a direct call to a function that is within
@@ -1723,11 +1723,6 @@ def CallOp : CIR_Op<"call",
     }
     operand_iterator arg_operand_end() { return operand_end(); }
 
-    /// Get the argument operands to the called function.
-    operand_range getArgOperands() {
-      return {arg_operand_begin(), arg_operand_end()};
-    }
-
     /// Return the operand at index 'i', accounts for indirect call.
     Value getArgOperand(unsigned i) {
       if (!getCallee())
@@ -1740,19 +1735,6 @@ def CallOp : CIR_Op<"call",
       if (!getCallee())
         return this->getOperation()->getNumOperands()-1;
       return this->getOperation()->getNumOperands();
-    }
-
-    /// Return the callee of this operation.
-    CallInterfaceCallable getCallableForCallee() {
-      return (*this)->getAttrOfType<SymbolRefAttr>("callee");
-    }
-
-    /// Set the callee for this operation.
-    void setCalleeFromCallable(mlir::CallInterfaceCallable callee) {
-      if (auto calling =
-          (*this)->getAttrOfType<mlir::SymbolRefAttr>(getCalleeAttrName()))
-        (*this)->setAttr(getCalleeAttrName(), callee.get<mlir::SymbolRefAttr>());
-      setOperand(0, callee.get<mlir::Value>());
     }
   }];
 

@@ -29,6 +29,7 @@
 #include "mlir/IR/OpImplementation.h"
 #include "mlir/IR/StorageUniquerSupport.h"
 #include "mlir/IR/TypeUtilities.h"
+#include "mlir/Interfaces/ControlFlowInterfaces.h"
 #include "mlir/Interfaces/DataLayoutInterfaces.h"
 #include "mlir/Interfaces/FunctionImplementation.h"
 #include "mlir/Interfaces/InferTypeOpInterface.h"
@@ -537,11 +538,10 @@ void mlir::cir::buildTerminatedBody(OpBuilder &builder, Location loc) {}
 /// during the flow of control. `operands` is a set of optional attributes that
 /// correspond to a constant value for each operand, or null if that operand is
 /// not a constant.
-void IfOp::getSuccessorRegions(std::optional<unsigned> index,
-                               ArrayRef<Attribute> operands,
+void IfOp::getSuccessorRegions(mlir::RegionBranchPoint point,
                                SmallVectorImpl<RegionSuccessor> &regions) {
   // The `then` and the `else` region branch back to the parent operation.
-  if (index.has_value()) {
+  if (!point.isParent()) {
     regions.push_back(RegionSuccessor());
     return;
   }
@@ -553,14 +553,14 @@ void IfOp::getSuccessorRegions(std::optional<unsigned> index,
 
   // Otherwise, the successor is dependent on the condition.
   // bool condition;
-  if (auto condAttr = operands.front().dyn_cast_or_null<IntegerAttr>()) {
-    assert(0 && "not implemented");
-    // condition = condAttr.getValue().isOneValue();
-    // Add the successor regions using the condition.
-    // regions.push_back(RegionSuccessor(condition ? &thenRegion() :
-    // elseRegion));
-    // return;
-  }
+  // if (auto condAttr= operands.front().dyn_cast_or_null<IntegerAttr>()) {
+  //   assert(0 && "not implemented");
+  //   // condition = condAttr.getValue().isOneValue();
+  //   // Add the successor regions using the condition.
+  //   // regions.push_back(RegionSuccessor(condition ? &thenRegion() :
+  //   // elseRegion));
+  //   // return;
+  // }
 
   // If the condition isn't constant, both regions may be executed.
   regions.push_back(RegionSuccessor(&getThenRegion()));
@@ -631,11 +631,10 @@ void cir::ScopeOp::print(OpAsmPrinter &p) {
 /// during the flow of control. `operands` is a set of optional attributes that
 /// correspond to a constant value for each operand, or null if that operand is
 /// not a constant.
-void ScopeOp::getSuccessorRegions(std::optional<unsigned> index,
-                                  ArrayRef<Attribute> operands,
+void ScopeOp::getSuccessorRegions(mlir::RegionBranchPoint point,
                                   SmallVectorImpl<RegionSuccessor> &regions) {
   // The only region always branch back to the parent operation.
-  if (index.has_value()) {
+  if (!point.isParent()) {
     regions.push_back(RegionSuccessor(getResults()));
     return;
   }
@@ -675,11 +674,10 @@ LogicalResult ScopeOp::verify() { return success(); }
 // TryOp
 //===----------------------------------------------------------------------===//
 
-void TryOp::getSuccessorRegions(std::optional<unsigned> index,
-                                ArrayRef<Attribute> operands,
+void TryOp::getSuccessorRegions(mlir::RegionBranchPoint point,
                                 SmallVectorImpl<RegionSuccessor> &regions) {
   // The only region always branch back to the parent operation.
-  if (index.has_value()) {
+  if (!point.isParent()) {
     regions.push_back(RegionSuccessor(this->getODSResults(0)));
     return;
   }
@@ -697,19 +695,18 @@ void TryOp::getSuccessorRegions(std::optional<unsigned> index,
 /// during the flow of control. `operands` is a set of optional attributes that
 /// correspond to a constant value for each operand, or null if that operand is
 /// not a constant.
-void TernaryOp::getSuccessorRegions(std::optional<unsigned> index,
-                                    ArrayRef<Attribute> operands,
+void TernaryOp::getSuccessorRegions(mlir::RegionBranchPoint point,
                                     SmallVectorImpl<RegionSuccessor> &regions) {
   // The `true` and the `false` region branch back to the parent operation.
-  if (index.has_value()) {
+  if (!point.isParent()) {
     regions.push_back(RegionSuccessor(this->getODSResults(0)));
     return;
   }
 
   // Try optimize if we have more information
-  if (auto condAttr = operands.front().dyn_cast_or_null<IntegerAttr>()) {
-    assert(0 && "not implemented");
-  }
+  // if (auto condAttr = operands.front().dyn_cast_or_null<IntegerAttr>()) {
+  //   assert(0 && "not implemented");
+  // }
 
   // If the condition isn't constant, both regions may be executed.
   regions.push_back(RegionSuccessor(&getTrueRegion()));
@@ -1064,30 +1061,29 @@ void printSwitchOp(OpAsmPrinter &p, SwitchOp op,
 /// during the flow of control. `operands` is a set of optional attributes
 /// that correspond to a constant value for each operand, or null if that
 /// operand is not a constant.
-void SwitchOp::getSuccessorRegions(std::optional<unsigned> index,
-                                   ArrayRef<Attribute> operands,
+void SwitchOp::getSuccessorRegions(mlir::RegionBranchPoint point,
                                    SmallVectorImpl<RegionSuccessor> &regions) {
   // If any index all the underlying regions branch back to the parent
   // operation.
-  if (index.has_value()) {
+  if (!point.isParent()) {
     regions.push_back(RegionSuccessor());
     return;
   }
 
-  for (auto &r : this->getRegions()) {
-    // If we can figure out the case stmt we are landing, this can be
-    // overly simplified.
-    // bool condition;
-    if (auto condAttr = operands.front().dyn_cast_or_null<IntegerAttr>()) {
-      assert(0 && "not implemented");
-      (void)r;
-      // condition = condAttr.getValue().isOneValue();
-      // Add the successor regions using the condition.
-      // regions.push_back(RegionSuccessor(condition ? &thenRegion() :
-      // elseRegion));
-      // return;
-    }
-  }
+  // for (auto &r : this->getRegions()) {
+  //   // If we can figure out the case stmt we are landing, this can be
+  //   // overly simplified.
+  //   // bool condition;
+  //   if (auto condAttr = operands.front().dyn_cast_or_null<IntegerAttr>()) {
+  //     assert(0 && "not implemented");
+  //     (void)r;
+  //     // condition = condAttr.getValue().isOneValue();
+  //     // Add the successor regions using the condition.
+  //     // regions.push_back(RegionSuccessor(condition ? &thenRegion() :
+  //     // elseRegion));
+  //     // return;
+  //   }
+  // }
 
   // If the condition isn't constant, all regions may be executed.
   for (auto &r : this->getRegions())
@@ -1225,12 +1221,11 @@ void printCatchOp(OpAsmPrinter &p, CatchOp op,
 /// during the flow of control. `operands` is a set of optional attributes
 /// that correspond to a constant value for each operand, or null if that
 /// operand is not a constant.
-void CatchOp::getSuccessorRegions(std::optional<unsigned> index,
-                                  ArrayRef<Attribute> operands,
+void CatchOp::getSuccessorRegions(mlir::RegionBranchPoint point,
                                   SmallVectorImpl<RegionSuccessor> &regions) {
   // If any index all the underlying regions branch back to the parent
   // operation.
-  if (index.has_value()) {
+  if (!point.isParent()) {
     regions.push_back(RegionSuccessor());
     return;
   }
@@ -1285,12 +1280,11 @@ void LoopOp::build(OpBuilder &builder, OperationState &result,
 /// during the flow of control. `operands` is a set of optional attributes
 /// that correspond to a constant value for each operand, or null if that
 /// operand is not a constant.
-void LoopOp::getSuccessorRegions(std::optional<unsigned> index,
-                                 ArrayRef<Attribute> operands,
+void LoopOp::getSuccessorRegions(mlir::RegionBranchPoint point,
                                  SmallVectorImpl<RegionSuccessor> &regions) {
   // If any index all the underlying regions branch back to the parent
   // operation.
-  if (index.has_value()) {
+  if (!point.isParent()) {
     regions.push_back(RegionSuccessor());
     return;
   }
@@ -1302,7 +1296,7 @@ void LoopOp::getSuccessorRegions(std::optional<unsigned> index,
   regions.push_back(RegionSuccessor(&this->getStep()));
 }
 
-Region &LoopOp::getLoopBody() { return getBody(); }
+llvm::SmallVector<Region *> LoopOp::getLoopRegions() { return {&getBody()}; }
 
 LogicalResult LoopOp::verify() {
   // Cond regions should only terminate with plain 'cir.yield' or
@@ -1539,11 +1533,10 @@ void GlobalOp::build(OpBuilder &odsBuilder, OperationState &odsState,
 /// during the flow of control. `operands` is a set of optional attributes that
 /// correspond to a constant value for each operand, or null if that operand is
 /// not a constant.
-void GlobalOp::getSuccessorRegions(std::optional<unsigned> index,
-                                   ArrayRef<Attribute> operands,
+void GlobalOp::getSuccessorRegions(mlir::RegionBranchPoint point,
                                    SmallVectorImpl<RegionSuccessor> &regions) {
   // The `ctor` and `dtor` regions always branch back to the parent operation.
-  if (index.has_value()) {
+  if (!point.isParent()) {
     regions.push_back(RegionSuccessor());
     return;
   }
@@ -1950,6 +1943,28 @@ LogicalResult cir::FuncOp::verify() {
 // CallOp
 //===----------------------------------------------------------------------===//
 
+/// Get the argument operands to the called function.
+OperandRange cir::CallOp::getArgOperands() {
+  return {arg_operand_begin(), arg_operand_end()};
+}
+
+MutableOperandRange cir::CallOp::getArgOperandsMutable() {
+  return getOperandsMutable();
+}
+
+/// Return the callee of this operation.
+CallInterfaceCallable cir::CallOp::getCallableForCallee() {
+  return (*this)->getAttrOfType<SymbolRefAttr>("callee");
+}
+
+/// Set the callee for this operation.
+void cir::CallOp::setCalleeFromCallable(mlir::CallInterfaceCallable callee) {
+  if (auto calling =
+          (*this)->getAttrOfType<mlir::SymbolRefAttr>(getCalleeAttrName()))
+    (*this)->setAttr(getCalleeAttrName(), callee.get<mlir::SymbolRefAttr>());
+  setOperand(0, callee.get<mlir::Value>());
+}
+
 LogicalResult
 cir::CallOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
   // Callee attribute only need on indirect calls.
@@ -2133,12 +2148,11 @@ void AwaitOp::build(OpBuilder &builder, OperationState &result,
 /// during the flow of control. `operands` is a set of optional attributes
 /// that correspond to a constant value for each operand, or null if that
 /// operand is not a constant.
-void AwaitOp::getSuccessorRegions(std::optional<unsigned> index,
-                                  ArrayRef<Attribute> operands,
+void AwaitOp::getSuccessorRegions(mlir::RegionBranchPoint point,
                                   SmallVectorImpl<RegionSuccessor> &regions) {
   // If any index all the underlying regions branch back to the parent
   // operation.
-  if (index.has_value()) {
+  if (!point.isParent()) {
     regions.push_back(RegionSuccessor());
     return;
   }
