@@ -81,13 +81,13 @@ namespace direct {
 inline mlir::Value
 lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::Attribute attr,
                     mlir::ConversionPatternRewriter &rewriter,
-                    mlir::TypeConverter *converter);
+                    mlir::TypeConverter const *converter);
 
 /// IntAttr visitor.
 inline mlir::Value
 lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::cir::IntAttr intAttr,
                     mlir::ConversionPatternRewriter &rewriter,
-                    mlir::TypeConverter *converter) {
+                    mlir::TypeConverter const *converter) {
   auto loc = parentOp->getLoc();
   return rewriter.create<mlir::LLVM::ConstantOp>(
       loc, converter->convertType(intAttr.getType()), intAttr.getValue());
@@ -97,7 +97,7 @@ lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::cir::IntAttr intAttr,
 inline mlir::Value
 lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::cir::ConstPtrAttr ptrAttr,
                     mlir::ConversionPatternRewriter &rewriter,
-                    mlir::TypeConverter *converter) {
+                    mlir::TypeConverter const *converter) {
   auto loc = parentOp->getLoc();
   if (ptrAttr.isNullValue()) {
     return rewriter.create<mlir::LLVM::NullOp>(
@@ -114,7 +114,7 @@ lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::cir::ConstPtrAttr ptrAttr,
 inline mlir::Value
 lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::FloatAttr fltAttr,
                     mlir::ConversionPatternRewriter &rewriter,
-                    mlir::TypeConverter *converter) {
+                    mlir::TypeConverter const *converter) {
   auto loc = parentOp->getLoc();
   return rewriter.create<mlir::LLVM::ConstantOp>(
       loc, converter->convertType(fltAttr.getType()), fltAttr.getValue());
@@ -124,7 +124,7 @@ lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::FloatAttr fltAttr,
 inline mlir::Value
 lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::cir::ZeroAttr zeroAttr,
                     mlir::ConversionPatternRewriter &rewriter,
-                    mlir::TypeConverter *converter) {
+                    mlir::TypeConverter const *converter) {
   auto loc = parentOp->getLoc();
   return rewriter.create<mlir::cir::ZeroInitConstOp>(
       loc, converter->convertType(zeroAttr.getType()));
@@ -134,7 +134,7 @@ lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::cir::ZeroAttr zeroAttr,
 mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
                                 mlir::cir::ConstStructAttr constStruct,
                                 mlir::ConversionPatternRewriter &rewriter,
-                                mlir::TypeConverter *converter) {
+                                mlir::TypeConverter const *converter) {
   auto llvmTy = converter->convertType(constStruct.getType());
   auto loc = parentOp->getLoc();
   mlir::Value result = rewriter.create<mlir::LLVM::UndefOp>(loc, llvmTy);
@@ -152,7 +152,7 @@ mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
 mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
                                 mlir::cir::ConstArrayAttr constArr,
                                 mlir::ConversionPatternRewriter &rewriter,
-                                mlir::TypeConverter *converter) {
+                                mlir::TypeConverter const *converter) {
   auto llvmTy = converter->convertType(constArr.getType());
   auto loc = parentOp->getLoc();
   mlir::Value result = rewriter.create<mlir::LLVM::UndefOp>(loc, llvmTy);
@@ -189,7 +189,7 @@ mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
 mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
                                 mlir::cir::GlobalViewAttr globalAttr,
                                 mlir::ConversionPatternRewriter &rewriter,
-                                mlir::TypeConverter *converter) {
+                                mlir::TypeConverter const *converter) {
   auto module = parentOp->getParentOfType<mlir::ModuleOp>();
   auto sourceSymbol = dyn_cast<mlir::LLVM::GlobalOp>(
       mlir::SymbolTable::lookupSymbolIn(module, globalAttr.getSymbol()));
@@ -218,7 +218,7 @@ mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
 inline mlir::Value
 lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::Attribute attr,
                     mlir::ConversionPatternRewriter &rewriter,
-                    mlir::TypeConverter *converter) {
+                    mlir::TypeConverter const *converter) {
   if (const auto intAttr = attr.dyn_cast<mlir::cir::IntAttr>())
     return lowerCirAttrAsValue(parentOp, intAttr, rewriter, converter);
   if (const auto fltAttr = attr.dyn_cast<mlir::FloatAttr>())
@@ -910,7 +910,7 @@ convertToDenseElementsAttr(mlir::cir::ConstArrayAttr attr,
 
 std::optional<mlir::Attribute>
 lowerConstArrayAttr(mlir::cir::ConstArrayAttr constArr,
-                    mlir::TypeConverter *converter) {
+                    mlir::TypeConverter const *converter) {
 
   // Ensure ConstArrayAttr has a type.
   auto typedConstArr = constArr.dyn_cast<mlir::TypedAttr>();
@@ -1859,9 +1859,8 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
 }
 
 namespace {
-mlir::LLVMTypeConverter prepareTypeConverter(mlir::MLIRContext *ctx,
+void prepareTypeConverter(mlir::LLVMTypeConverter& converter,
                                              mlir::DataLayout &dataLayout) {
-  mlir::LLVMTypeConverter converter(ctx);
   converter.addConversion([&](mlir::cir::PointerType type) -> mlir::Type {
     // Drop pointee type since LLVM dialect only allows opaque pointers.
     return mlir::LLVM::LLVMPointerType::get(type.getContext());
@@ -1924,8 +1923,6 @@ mlir::LLVMTypeConverter prepareTypeConverter(mlir::MLIRContext *ctx,
   converter.addConversion([&](mlir::cir::VoidType type) -> mlir::Type {
     return mlir::LLVM::LLVMVoidType::get(type.getContext());
   });
-
-  return converter;
 }
 } // namespace
 
@@ -2005,7 +2002,8 @@ static void buildCtorList(mlir::ModuleOp module) {
 void ConvertCIRToLLVMPass::runOnOperation() {
   auto module = getOperation();
   mlir::DataLayout dataLayout(module);
-  auto converter = prepareTypeConverter(&getContext(), dataLayout);
+  mlir::LLVMTypeConverter converter(&getContext());
+  prepareTypeConverter(converter, dataLayout);
 
   mlir::RewritePatternSet patterns(&getContext());
 
