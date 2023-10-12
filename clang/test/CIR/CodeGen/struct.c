@@ -78,3 +78,12 @@ struct Bar shouldGenerateAndAccessStructArrays(void) {
 // CHECK-DAG: %[[#DARR:]] = cir.cast(array_to_ptrdecay, %{{.+}} : !cir.ptr<!cir.array<!ty_22Bar22 x 1>>), !cir.ptr<!ty_22Bar22>
 // CHECK-DAG: %[[#ELT:]] = cir.ptr_stride(%[[#DARR]] : !cir.ptr<!ty_22Bar22>, %[[#STRIDE]] : !s32i), !cir.ptr<!ty_22Bar22>
 // CHECK-DAG: cir.copy %[[#ELT]] to %{{.+}} : !cir.ptr<!ty_22Bar22>
+
+// CHECK-DAG: cir.func @local_decl
+// CHECK-DAG: {{%.}} = cir.alloca !ty_22Local22, cir.ptr <!ty_22Local22>, ["a"] 
+void local_decl(void) {
+  struct Local {
+    int i;
+  };
+  struct Local a;
+}
