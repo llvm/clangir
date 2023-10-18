@@ -110,10 +110,11 @@ C/C++ that has a struct type will have a `cir.struct` in CIR.
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
 | members | `::llvm::ArrayRef<mlir::Type>` | members |
-| typeName | `mlir::StringAttr` |  |
+| name | `mlir::StringAttr` |  |
 | body | `bool` |  |
 | packed | `bool` |  |
-| ast | `std::optional<::mlir::cir::ASTRecordDeclAttr>` |  |
+| kind | `mlir::cir::StructType::RecordKind` |  |
+| ast | `std::optional<ASTRecordDeclInterface>` |  |
 
 ### VoidType
 

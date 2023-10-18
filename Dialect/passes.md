@@ -41,6 +41,12 @@ instead.
 -remarks       : List of remark styles to enable as part of diagnostics. Supported styles: {all|pset}
 -history_limit : Max amount of diagnostics to emit on pointer history
 ```
+### `-cir-lowering-prepare`
+
+_Preparation work before lowering to LLVM dialect_
+
+This pass does preparation work for LLVM lowering. For example, it may
+expand the global variable initialziation in a more ABI-friendly form.
 ### `-cir-merge-cleanups`
 
 _Remove unnecessary branches to cleanup blocks_

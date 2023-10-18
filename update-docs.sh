@@ -5,6 +5,7 @@
 
 # Note that this build path is outside this repo checkout, update to
 # your needs if using this hacky script.
+# This should be up-to-date, use `ninja clang-cir-doc`
 BUILD="../clangir/Build+Release+Libcxx+Assert/tools/clang/docs"
 
 TEMPLATE="---\nsort : POSITION\n---\n\n# TITLE\n\n* toc\n{:toc}\n\n---\n"
