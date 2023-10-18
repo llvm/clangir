@@ -1908,7 +1908,7 @@ mlir::LLVMTypeConverter prepareTypeConverter(mlir::MLIRContext *ctx,
 
     // Struct has a name: lower as an identified struct.
     mlir::LLVM::LLVMStructType llvmStruct;
-    if (type.getTypeName().size() != 0) {
+    if (type.getName().size() != 0) {
       llvmStruct = mlir::LLVM::LLVMStructType::getIdentified(
           type.getContext(), type.getPrefixedName());
       if (llvmStruct.setBody(llvmMembers, /*isPacked=*/type.getPacked())
