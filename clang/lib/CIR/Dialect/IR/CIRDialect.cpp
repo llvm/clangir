@@ -2346,10 +2346,9 @@ LogicalResult TypeInfoAttr::verify(
     return failure();
 
   for (auto &member : typeinfoData) {
-    auto gview = mlir::dyn_cast_or_null<GlobalViewAttr>(member);
-    if (gview)
+    if (llvm::isa<GlobalViewAttr, IntAttr>(member))
       continue;
-    emitError() << "expected GlobalViewAttr attribute";
+    emitError() << "expected GlobalViewAttr or IntAttr attribute";
     return failure();
   }
   return success();
