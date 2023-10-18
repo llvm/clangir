@@ -506,17 +506,23 @@ public:
   }
 };
 
-class CIRBrCondOpLowering
+struct CIRBrCondOpLowering
     : public mlir::OpConversionPattern<mlir::cir::BrCondOp> {
-public:
-  using OpConversionPattern<mlir::cir::BrCondOp>::OpConversionPattern;
+  using mlir::OpConversionPattern<mlir::cir::BrCondOp>::OpConversionPattern;
 
   mlir::LogicalResult
-  matchAndRewrite(mlir::cir::BrCondOp op, OpAdaptor adaptor,
+  matchAndRewrite(mlir::cir::BrCondOp brOp, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
+
+    auto condition = adaptor.getCond();
+    auto i1Condition = rewriter.create<mlir::arith::TruncIOp>(
+        brOp.getLoc(), rewriter.getI1Type(), condition);
     rewriter.replaceOpWithNewOp<mlir::cf::CondBranchOp>(
-        op, adaptor.getCond(), op.getDestTrue(), op.getDestFalse());
-    return mlir::LogicalResult::success();
+        brOp, i1Condition.getResult(), brOp.getDestTrue(),
+        adaptor.getDestOperandsTrue(), brOp.getDestFalse(),
+        adaptor.getDestOperandsFalse());
+
+    return mlir::success();
   }
 };
 
