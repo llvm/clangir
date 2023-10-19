@@ -240,19 +240,20 @@ mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
   }
 
   auto loc = parentOp->getLoc();
-  auto srcPtrType = mlir::LLVM::LLVMPointerType::get(sourceType);
-  mlir::Value addrOp =
-      rewriter.create<mlir::LLVM::AddressOfOp>(loc, srcPtrType, symName);
+  mlir::Value addrOp = rewriter.create<mlir::LLVM::AddressOfOp>(
+      loc, mlir::LLVM::LLVMPointerType::get(rewriter.getContext()), symName);
 
   if (globalAttr.getIndices()) {
-    llvm::SmallVector<mlir::LLVM::GEPArg> Indices;
+    llvm::SmallVector<mlir::LLVM::GEPArg> indices;
     for (auto idx: globalAttr.getIndices()) {
       auto intAttr = dyn_cast<mlir::cir::IntAttr>(idx);
       assert(intAttr && "index must be integers");
-      Indices.push_back(intAttr.getSInt());
+      indices.push_back(intAttr.getSInt());
     }
-    addrOp = rewriter.create<mlir::LLVM::GEPOp>(loc, srcPtrType, addrOp,
-                                                Indices, true);
+    auto resTy = addrOp.getType();
+    auto eltTy = converter->convertType(sourceType);
+    addrOp = rewriter.create<mlir::LLVM::GEPOp>(loc, resTy, eltTy, addrOp,
+                                                indices, true);
   }
 
   auto ptrTy = globalAttr.getType().dyn_cast<mlir::cir::PointerType>();
@@ -1920,22 +1921,29 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::VTableAddrPointOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    auto targetType =
-        getTypeConverter()->convertType(op.getType());
+    auto converter = getTypeConverter();
+    auto targetType = converter->convertType(op.getType());
     mlir::Value symAddr = op.getSymAddr();
+
+    mlir::Type eltType;
     if (!symAddr) {
       auto module = op->getParentOfType<mlir::ModuleOp>();
       auto symbol = dyn_cast<mlir::LLVM::GlobalOp>(
           mlir::SymbolTable::lookupSymbolIn(module, op.getNameAttr()));
       symAddr = rewriter.create<mlir::LLVM::AddressOfOp>(
-          op.getLoc(), mlir::LLVM::LLVMPointerType::get(symbol.getType()),
+          op.getLoc(), mlir::LLVM::LLVMPointerType::get(getContext()),
           *op.getName());
+      eltType = converter->convertType(symbol.getType());
     }
 
     auto offsets = llvm::SmallVector<mlir::LLVM::GEPArg>{
         0, op.getVtableIndex(), op.getAddressPointIndex()};
-    rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(op, targetType, symAddr,
-                                                   offsets, true);
+    if (eltType)
+      rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(op, targetType, eltType,
+                                                     symAddr, offsets, true);
+    else
+      rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(op, targetType, symAddr,
+                                                     offsets, true);
     return mlir::success();
   }
 };
