@@ -39,22 +39,10 @@ after CIR is produced. The picture below depicts how the compiler pipeline works
 
 ![](/Images/Pipeline.png)
 
-Instructions on how to build clang with ClangIR support can be found
-[here](https://llvm.github.io/clangir/GettingStarted/build-install.html).
-
-# Examples
-
-## Emitting CIR
-TBD
-
-## Generating LLVM IR
-TBD
-
-## Using the C++ lifetime-checker via clang driver
-TBD
-
-## Using the C++ lifetime-checker via clang-tidy
-TBD
+See
+[instructions](https://llvm.github.io/clangir/GettingStarted/build-install.html)
+on how to build clang with ClangIR support and checkout [some
+examples](https://llvm.github.io/clangir/GettingStarted/examples.html). 
 
 # Current status
 
