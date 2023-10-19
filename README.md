@@ -6,7 +6,7 @@ representation level sits somewhere between Clang AST and LLVM IR.
 
 Slides for the Oct 2023 LLVM Developers Meeting talk *Evolution of ClangIR: A
 Year of Progress, Challenges, and Future Plans* available here:
-[2023-devmtg-slides.pdf](/Files/2023-LLVMDevMtgClangIR.pdf).
+[clangir-2023-devmtg-slides.pdf](/Files/2023-LLVMDevMtgClangIR.pdf).
 
 # Motivation
 
