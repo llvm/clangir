@@ -4,6 +4,11 @@ Clang IR (CIR) is a new IR for Clang. ClangIR (CIR) is built on top of MLIR and
 it's basically a mlir dialect for C/C++ based languages in Clang.  It's
 representation level sits somewhere between Clang AST and LLVM IR.
 
+Slides for the Oct 2023 LLVM Developers Meeting talk *Evolution of ClangIR: A
+Year of Progress, Challenges, and Future Plans* available here:
+[2023-devmtg-slides.pdf](/Files/2023-LLVMDevMtgClangIR.pdf). Video soon
+available.
+
 # Motivation
 
 In a gist, an IR that can cover C/C++ higher level semantics enables a class of
