@@ -31,7 +31,9 @@ pipeline is modified and CIR gets emitted from ClangAST and then lowered to
 LLVM IR, backend, etc. Since our LLVM emission support is WIP, functionality is
 currently limited. To get CIR printed out of a compiler invocation, the flag
 `-Xclang -emit-cir` can be used, which will force the compiler to stop right
-after CIR is produced.
+after CIR is produced. The picture below depicts how the compiler pipeline works:
+
+![](../Images/Pipeline.png)
 
 Instructions on how to build clang with ClangIR support can be found
 [here](https://llvm.github.io/clangir/GettingStarted/build-install.html).
