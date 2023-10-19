@@ -240,20 +240,20 @@ mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
   }
 
   auto loc = parentOp->getLoc();
-  auto srcPtrType = mlir::LLVM::LLVMPointerType::get(parentOp->getContext());
-  mlir::Value addrOp =
-      rewriter.create<mlir::LLVM::AddressOfOp>(loc, srcPtrType, symName);
+  mlir::Value addrOp = rewriter.create<mlir::LLVM::AddressOfOp>(
+      loc, mlir::LLVM::LLVMPointerType::get(rewriter.getContext()), symName);
 
   if (globalAttr.getIndices()) {
-    llvm::SmallVector<mlir::LLVM::GEPArg> Indices;
+    llvm::SmallVector<mlir::LLVM::GEPArg> indices;
     for (auto idx : globalAttr.getIndices()) {
       auto intAttr = dyn_cast<mlir::cir::IntAttr>(idx);
       assert(intAttr && "index must be integers");
-      Indices.push_back(intAttr.getSInt());
+      indices.push_back(intAttr.getSInt());
     }
+    auto resTy = addrOp.getType();
     auto eltTy = converter->convertType(sourceType);
-    addrOp = rewriter.create<mlir::LLVM::GEPOp>(loc, srcPtrType, eltTy, addrOp,
-                                                Indices, mlir::LLVM::GEPNoWrapFlags::inbounds);
+    addrOp = rewriter.create<mlir::LLVM::GEPOp>(loc, resTy, eltTy, addrOp,
+                                                indices, mlir::LLVM::GEPNoWrapFlags::inbounds);
   }
 
   auto ptrTy = mlir::dyn_cast<mlir::cir::PointerType>(globalAttr.getType());
@@ -1931,7 +1931,7 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::VTableAddrPointOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    const auto *converter = getTypeConverter();
+    auto converter = getTypeConverter();
     auto targetType = converter->convertType(op.getType());
     mlir::Value symAddr = op.getSymAddr();
 
@@ -1948,8 +1948,11 @@ public:
 
     auto offsets = llvm::SmallVector<mlir::LLVM::GEPArg>{
         0, op.getVtableIndex(), op.getAddressPointIndex()};
-    rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(op, targetType, eltType,
-                                                   symAddr, offsets, mlir::LLVM::GEPNoWrapFlags::inbounds);
+    if (eltType)
+      rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(op, targetType, eltType,
+                                                     symAddr, offsets, mlir::LLVM::GEPNoWrapFlags::inbounds);
+    else
+      llvm_unreachable("Shouldn't ever be missing an eltType here");
     return mlir::success();
   }
 };
