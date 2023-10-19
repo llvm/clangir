@@ -37,6 +37,7 @@
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/IRMapping.h"
 #include "mlir/IR/Operation.h"
+#include "mlir/IR/Types.h"
 #include "mlir/IR/Value.h"
 #include "mlir/IR/ValueRange.h"
 #include "mlir/Interfaces/DataLayoutInterfaces.h"
@@ -148,7 +149,41 @@ mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
   return result;
 }
 
-// ArrayAttr visitor.
+// VTableAttr visitor.
+mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
+                                mlir::cir::VTableAttr vtableArr,
+                                mlir::ConversionPatternRewriter &rewriter,
+                                mlir::TypeConverter *converter) {
+  auto llvmTy = converter->convertType(vtableArr.getType());
+  auto loc = parentOp->getLoc();
+  mlir::Value result = rewriter.create<mlir::LLVM::UndefOp>(loc, llvmTy);
+
+  for (auto [idx, elt] : llvm::enumerate(vtableArr.getVtableData())) {
+    mlir::Value init = lowerCirAttrAsValue(parentOp, elt, rewriter, converter);
+    result = rewriter.create<mlir::LLVM::InsertValueOp>(loc, result, init, idx);
+  }
+
+  return result;
+}
+
+// TypeInfoAttr visitor.
+mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
+                                mlir::cir::TypeInfoAttr typeinfoArr,
+                                mlir::ConversionPatternRewriter &rewriter,
+                                mlir::TypeConverter *converter) {
+  auto llvmTy = converter->convertType(typeinfoArr.getType());
+  auto loc = parentOp->getLoc();
+  mlir::Value result = rewriter.create<mlir::LLVM::UndefOp>(loc, llvmTy);
+
+  for (auto [idx, elt] : llvm::enumerate(typeinfoArr.getData())) {
+    mlir::Value init = lowerCirAttrAsValue(parentOp, elt, rewriter, converter);
+    result = rewriter.create<mlir::LLVM::InsertValueOp>(loc, result, init, idx);
+  }
+
+  return result;
+}
+
+// ConstArrayAttr visitor
 mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
                                 mlir::cir::ConstArrayAttr constArr,
                                 mlir::ConversionPatternRewriter &rewriter,
@@ -191,27 +226,45 @@ mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
                                 mlir::ConversionPatternRewriter &rewriter,
                                 mlir::TypeConverter *converter) {
   auto module = parentOp->getParentOfType<mlir::ModuleOp>();
-  auto sourceSymbol = dyn_cast<mlir::LLVM::GlobalOp>(
-      mlir::SymbolTable::lookupSymbolIn(module, globalAttr.getSymbol()));
-  assert(sourceSymbol && "Unlowered GlobalOp");
+  mlir::Type sourceType;
+  llvm::StringRef symName;
+  auto sourceSymbol = mlir::SymbolTable::lookupSymbolIn(module, globalAttr.getSymbol());
+  if (auto llvmSymbol = dyn_cast<mlir::LLVM::GlobalOp>(sourceSymbol)) {
+    sourceType = llvmSymbol.getType();
+    symName = llvmSymbol.getSymName();
+  } else if (auto cirSymbol = dyn_cast<mlir::cir::GlobalOp>(sourceSymbol)) {
+    sourceType = converter->convertType(cirSymbol.getSymType());
+    symName = cirSymbol.getSymName();
+  } else {
+    llvm_unreachable("Unexpected GlobalOp type");
+  }
+
   auto loc = parentOp->getLoc();
+  auto srcPtrType = mlir::LLVM::LLVMPointerType::get(sourceType);
+  mlir::Value addrOp =
+      rewriter.create<mlir::LLVM::AddressOfOp>(loc, srcPtrType, symName);
 
-  auto addressOfOp = rewriter.create<mlir::LLVM::AddressOfOp>(
-      loc, mlir::LLVM::LLVMPointerType::get(parentOp->getContext()),
-      sourceSymbol.getSymName());
-
-  assert(!globalAttr.getIndices() && "TODO");
+  if (globalAttr.getIndices()) {
+    llvm::SmallVector<mlir::LLVM::GEPArg> Indices;
+    for (auto idx: globalAttr.getIndices()) {
+      auto intAttr = dyn_cast<mlir::cir::IntAttr>(idx);
+      assert(intAttr && "index must be integers");
+      Indices.push_back(intAttr.getSInt());
+    }
+    addrOp = rewriter.create<mlir::LLVM::GEPOp>(loc, srcPtrType, addrOp,
+                                                Indices, true);
+  }
 
   auto ptrTy = globalAttr.getType().dyn_cast<mlir::cir::PointerType>();
   assert(ptrTy && "Expecting pointer type in GlobalViewAttr");
   auto llvmEltTy = converter->convertType(ptrTy.getPointee());
 
-  if (llvmEltTy == sourceSymbol.getType())
-    return addressOfOp;
+  if (llvmEltTy == sourceType)
+    return addrOp;
 
   auto llvmDstTy = converter->convertType(globalAttr.getType());
   return rewriter.create<mlir::LLVM::BitcastOp>(parentOp->getLoc(), llvmDstTy,
-                                                addressOfOp.getResult());
+                                                addrOp);
 }
 
 /// Switches on the type of attribute and calls the appropriate conversion.
@@ -235,6 +288,10 @@ lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::Attribute attr,
     return lowerCirAttrAsValue(parentOp, zeroAttr, rewriter, converter);
   if (const auto globalAttr = attr.dyn_cast<mlir::cir::GlobalViewAttr>())
     return lowerCirAttrAsValue(parentOp, globalAttr, rewriter, converter);
+  if (const auto vtableAttr = attr.dyn_cast<mlir::cir::VTableAttr>())
+    return lowerCirAttrAsValue(parentOp, vtableAttr, rewriter, converter);
+  if (const auto typeinfoAttr = attr.dyn_cast<mlir::cir::TypeInfoAttr>())
+    return lowerCirAttrAsValue(parentOp, typeinfoAttr, rewriter, converter);
 
   llvm_unreachable("unhandled attribute type");
 }
@@ -1375,6 +1432,20 @@ public:
       rewriter.create<mlir::LLVM::ReturnOp>(
           loc, lowerCirAttrAsValue(op, attr, rewriter, typeConverter));
       return mlir::success();
+    } else if (const auto vtableAttr =
+                   init.value().dyn_cast<mlir::cir::VTableAttr>()) {
+      setupRegionInitializedLLVMGlobalOp(op, rewriter);
+      rewriter.create<mlir::LLVM::ReturnOp>(
+          op->getLoc(),
+          lowerCirAttrAsValue(op, vtableAttr, rewriter, typeConverter));
+      return mlir::success();
+    } else if (const auto typeinfoAttr =
+                   init.value().dyn_cast<mlir::cir::TypeInfoAttr>()) {
+      setupRegionInitializedLLVMGlobalOp(op, rewriter);
+      rewriter.create<mlir::LLVM::ReturnOp>(
+          op->getLoc(),
+          lowerCirAttrAsValue(op, typeinfoAttr, rewriter, typeConverter));
+      return mlir::success();
     } else {
       op.emitError() << "usupported initializer '" << init.value() << "'";
       return mlir::failure();
@@ -1841,6 +1912,34 @@ public:
   }
 };
 
+class CIRVTableAddrPointOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::VTableAddrPointOp> {
+public:
+  using OpConversionPattern<mlir::cir::VTableAddrPointOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::VTableAddrPointOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto targetType =
+        getTypeConverter()->convertType(op.getType());
+    mlir::Value symAddr = op.getSymAddr();
+    if (!symAddr) {
+      auto module = op->getParentOfType<mlir::ModuleOp>();
+      auto symbol = dyn_cast<mlir::LLVM::GlobalOp>(
+          mlir::SymbolTable::lookupSymbolIn(module, op.getNameAttr()));
+      symAddr = rewriter.create<mlir::LLVM::AddressOfOp>(
+          op.getLoc(), mlir::LLVM::LLVMPointerType::get(symbol.getType()),
+          *op.getName());
+    }
+
+    auto offsets = llvm::SmallVector<mlir::LLVM::GEPArg>{
+        0, op.getVtableIndex(), op.getAddressPointIndex()};
+    rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(op, targetType, symAddr,
+                                                   offsets, true);
+    return mlir::success();
+  }
+};
+
 void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
                                          mlir::TypeConverter &converter) {
   patterns.add<CIRReturnLowering>(patterns.getContext());
@@ -1854,7 +1953,7 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
                CIRVAArgLowering, CIRBrOpLowering, CIRTernaryOpLowering,
                CIRGetMemberOpLowering, CIRSwitchOpLowering,
                CIRPtrDiffOpLowering, CIRCopyOpLowering, CIRMemCpyOpLowering,
-               CIRFAbsOpLowering>(
+               CIRFAbsOpLowering, CIRVTableAddrPointOpLowering>(
       converter, patterns.getContext());
 }
 
