@@ -1641,8 +1641,10 @@ mlir::Value ScalarExprEmitter::buildScalarCast(
     if (mlir::isa<mlir::IntegerType>(DstElementTy))
       return Builder.create<mlir::cir::CastOp>(
           Src.getLoc(), DstTy, mlir::cir::CastKind::integral, Src);
-    return Builder.create<mlir::cir::CastOp>(
-        Src.getLoc(), DstTy, mlir::cir::CastKind::int_to_float, Src);
+    if (mlir::isa<mlir::FloatType>(DstElementTy))
+      return Builder.create<mlir::cir::CastOp>(
+          Src.getLoc(), DstTy, mlir::cir::CastKind::int_to_float, Src);
+    llvm_unreachable("Unknown type cast");
   }
 
   if (mlir::isa<mlir::cir::IntType>(SrcElementTy)) {
@@ -1652,8 +1654,7 @@ mlir::Value ScalarExprEmitter::buildScalarCast(
     if (mlir::isa<mlir::FloatType>(DstElementTy))
       return Builder.create<mlir::cir::CastOp>(
           Src.getLoc(), DstTy, mlir::cir::CastKind::int_to_float, Src);
-    return Builder.create<mlir::cir::CastOp>(
-        Src.getLoc(), DstTy, mlir::cir::CastKind::floating, Src);
+    llvm_unreachable("Unknown type cast");
   }
 
   // Leaving mlir::IntegerType around incase any old user lingers
