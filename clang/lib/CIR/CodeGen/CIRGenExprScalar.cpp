@@ -1633,55 +1633,54 @@ mlir::Value ScalarExprEmitter::buildScalarCast(
     DstElementType = DstType;
   }
 
-  if (mlir::isa<mlir::IntegerType>(SrcElementTy)) {
-    if (SrcElementType->isBooleanType() && Opts.TreatBooleanAsSigned) {
-      llvm_unreachable("NYI");
+  if (mlir::isa<mlir::IntegerType>(SrcElementTy) ||
+      mlir::isa<mlir::IntegerType>(DstElementTy))
+    llvm_unreachable("Obsolete code. Don't use mlir::IntegerType with CIR.");
+
+  if (SrcElementType->isBooleanType()) {
+    if (Opts.TreatBooleanAsSigned)
+      llvm_unreachable("NYI: signed bool");
+    if (CGF.getBuilder().isInt(DstElementTy)) {
+      return Builder.create<mlir::cir::CastOp>(
+          Src.getLoc(), DstTy, mlir::cir::CastKind::bool_to_int, Src);
+    } else if (mlir::isa<mlir::FloatType>(DstTy)) {
+      llvm_unreachable("NYI: bool->float cast");
+    } else {
+      llvm_unreachable("Unexpected destination type for scalar cast");
     }
-
-    if (mlir::isa<mlir::IntegerType>(DstElementTy))
+  } else if (CGF.getBuilder().isInt(SrcElementTy)) {
+    if (CGF.getBuilder().isInt(DstElementTy)) {
       return Builder.create<mlir::cir::CastOp>(
           Src.getLoc(), DstTy, mlir::cir::CastKind::integral, Src);
-    if (mlir::isa<mlir::FloatType>(DstElementTy))
+    } else if (mlir::isa<mlir::FloatType>(DstElementTy)) {
       return Builder.create<mlir::cir::CastOp>(
           Src.getLoc(), DstTy, mlir::cir::CastKind::int_to_float, Src);
-    llvm_unreachable("Unknown type cast");
-  }
-
-  if (mlir::isa<mlir::cir::IntType>(SrcElementTy)) {
-    if (mlir::isa<mlir::cir::IntType>(DstElementTy))
+    } else {
+      llvm_unreachable("Unexpected destination type for scalar cast");
+    }
+  } else if (mlir::isa<mlir::FloatType>(SrcElementTy)) {
+    if (CGF.getBuilder().isInt(DstElementTy)) {
+      // If we can't recognize overflow as undefined behavior, assume that
+      // overflow saturates. This protects against normal optimizations if we
+      // are compiling with non-standard FP semantics.
+      if (!CGF.CGM.getCodeGenOpts().StrictFloatCastOverflow)
+        llvm_unreachable("NYI");
+      if (Builder.getIsFPConstrained())
+        llvm_unreachable("NYI");
       return Builder.create<mlir::cir::CastOp>(
-          Src.getLoc(), DstTy, mlir::cir::CastKind::integral, Src);
-    if (mlir::isa<mlir::FloatType>(DstElementTy))
-      return Builder.create<mlir::cir::CastOp>(
-          Src.getLoc(), DstTy, mlir::cir::CastKind::int_to_float, Src);
-    llvm_unreachable("Unknown type cast");
+          Src.getLoc(), DstTy, mlir::cir::CastKind::float_to_int, Src);
+    } else if (mlir::isa<mlir::FloatType>(DstElementTy)) {
+      auto FloatDstTy = mlir::cast<mlir::FloatType>(DstTy);
+      auto FloatSrcTy = mlir::cast<mlir::FloatType>(SrcTy);
+      if (FloatDstTy.getWidth() < FloatSrcTy.getWidth())
+        llvm_unreachable("NYI: narrowing floating-point cast");
+      return Builder.createFPExt(Src, DstTy);
+    } else {
+      llvm_unreachable("Unexpected destination type for scalar cast");
+    }
+  } else {
+    llvm_unreachable("Unexpected source type for scalar cast");
   }
-
-  // Leaving mlir::IntegerType around incase any old user lingers
-  if (mlir::isa<mlir::IntegerType>(DstElementTy)) {
-    llvm_unreachable("NYI");
-  }
-
-  if (mlir::isa<mlir::cir::IntType>(DstElementTy)) {
-    assert(mlir::isa<mlir::FloatType>(SrcElementTy) && "Unknown real conversion");
-
-    // If we can't recognize overflow as undefined behavior, assume that
-    // overflow saturates. This protects against normal optimizations if we are
-    // compiling with non-standard FP semantics.
-    if (!CGF.CGM.getCodeGenOpts().StrictFloatCastOverflow)
-      llvm_unreachable("NYI");
-
-    if (Builder.getIsFPConstrained())
-      llvm_unreachable("NYI");
-    return Builder.create<mlir::cir::CastOp>(
-        Src.getLoc(), DstTy, mlir::cir::CastKind::float_to_int, Src);
-  }
-
-  auto FloatDstTy = mlir::cast<mlir::FloatType>(DstElementTy);
-  auto FloatSrcTy = mlir::cast<mlir::FloatType>(SrcElementTy);
-  if (FloatDstTy.getWidth() < FloatSrcTy.getWidth())
-    llvm_unreachable("truncation NYI");
-  return Builder.createFPExt(Src, DstTy);
 }
 
 LValue
