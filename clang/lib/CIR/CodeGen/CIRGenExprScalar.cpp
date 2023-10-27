@@ -1660,8 +1660,8 @@ mlir::Value ScalarExprEmitter::buildScalarCast(
     }
   } else if (SrcElementTy.isa<mlir::FloatType>()) {
     if (CGF.getBuilder().isInt(DstElementTy)) {
-      // If wwe can't recognize overflow as undefined behavior, assume that
-      // overflow saturates.  This protects against normal optimizations if we
+      // If we can't recognize overflow as undefined behavior, assume that
+      // overflow saturates. This protects against normal optimizations if we
       // are compiling with non-standard FP semantics.
       if (!CGF.CGM.getCodeGenOpts().StrictFloatCastOverflow)
         llvm_unreachable("NYI");
