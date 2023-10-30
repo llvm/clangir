@@ -411,9 +411,9 @@ void LoweringPreparePass::runOnOp(Operation *op) {
   if (auto getGlobal = dyn_cast<GlobalOp>(op)) {
     lowerGlobalOp(getGlobal);
   } else if (auto getBitfield = dyn_cast<GetBitfieldOp>(op)) {
-    //lowerGetBitfieldOp(getBitfield);
+    lowerGetBitfieldOp(getBitfield);
   } else if (auto setBitfield = dyn_cast<SetBitfieldOp>(op)) {
-    //lowerSetBitfieldOp(setBitfield);
+    lowerSetBitfieldOp(setBitfield);
   }
 }
 
