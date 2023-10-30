@@ -521,4 +521,33 @@ def GlobalCtorAttr : CIR_Attr<"GlobalCtor", "globalCtor"> {
   ];
   let skipDefaultBuilders = 1;
 }
+
+def BitfieldInfoAttr : CIR_Attr<"BitfieldInfo", "bitfieldInfo"> {
+  let parameters = (ins "StringAttr":$name,
+                        "Type":$eltType,
+                        "uint64_t":$storageSize,
+                        "uint64_t":$size,
+                        "uint64_t":$offset,
+                        "bool":$isSigned);
+
+  let assemblyFormat = [{ `<`
+  `(` `name` `=` $name `)`
+  `(` `size` $size `)`
+  `(` `storage` $eltType $storageSize `)`
+  `(` `offset` $offset  `)`
+  `(` `signed` `=` $isSigned `)` `>` }];
+
+  let builders = [
+    AttrBuilder<(ins "StringRef":$name,
+                     "Type":$eltType,
+                     "uint64_t":$storageSize,
+                     "uint64_t":$size,
+                     "uint64_t":$offset,
+                     "bool":$isSigned
+                     ), [{
+      return $_get($_ctxt, StringAttr::get($_ctxt, name), eltType, storageSize, size, offset, isSigned);
+    }]>
+  ];
+}
+
 #endif // MLIR_CIR_DIALECT_CIR_ATTRS

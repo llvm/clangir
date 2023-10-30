@@ -1416,6 +1416,107 @@ def VTableAddrPointOp : CIR_Op<"vtable.address_point",
 }
 
 //===----------------------------------------------------------------------===//
+// SetBitfieldOp
+//===----------------------------------------------------------------------===//
+
+def SetBitfieldOp : CIR_Op<"set_bitfield"> {
+  let summary = "Set a bitfield";
+  let description = [{ 
+    The `cir.set_bitfield` operation provides a store-like access to 
+    a bit field of a record.
+
+    It expects an address of a storage where to store, a value being stored,
+    a type of a bitfield, a name of a bit field, a pointer to a storage in the
+    base record, a size of the storage, a size the bit field, an offset 
+    of the bit field and a sign. Returns a value being stored.
+
+    Example:
+    ```mlir
+    // Suppose we have a struct with multiple bitfields stored in
+    // different storages. The `cir.get_bitfield` operation gets the value
+    // of the bitfield
+
+    // Sets the bitfield with name a1.
+    %6 = "cir.set_bitfield"(%5, %3) <{BitfieldInfo = #cir.bitfieldInfo<(name = "a1") (size 4) (storage !u64i 64) (offset 0) (signed = true)>}> : (!cir.ptr<!u64i>, !s32i) -> !s32i
+    ```
+   }];
+
+  let arguments = (ins
+    AnyType:$dst,
+    AnyType:$src,
+    BitfieldInfoAttr:$BitfieldInfo
+  );
+
+  let results = (outs CIR_IntType:$result);
+
+  let builders = [
+    OpBuilder<(ins "Type":$type,
+                   "Value":$dst,
+                   "Type":$eltType,
+                   "Value":$src,
+                   "StringRef":$name,
+                   "unsigned":$storageSize,
+                   "unsigned":$size, 
+                   "unsigned":$offset,
+                   "bool":$isSigned
+                   ),
+   [{      
+      BitfieldInfoAttr info = BitfieldInfoAttr::get($_builder.getContext(), name, eltType, storageSize, size, offset, isSigned);
+      build($_builder, $_state, type, dst, src, info);
+    }]>
+  ];
+}
+
+//===----------------------------------------------------------------------===//
+// GetBitfieldOp
+//===----------------------------------------------------------------------===//
+
+def GetBitfieldOp : CIR_Op<"get_bitfield"> {
+  let summary = "Get a bitfield";
+  let description = [{ 
+    The `cir.get_bitfield` operation provides a load-like access to
+    a bit field of a record.
+
+    It expects a name if a bit field, a pointer to a storage in the
+    base record, a size of the storage, a size the bit field, an offset
+    of the bit field and a sign.
+
+    Example:
+    ```mlir
+    // Suppose we have a struct with multiple bitfields stored in
+    // different storages. The `cir.get_bitfield` operation gets the value
+    // of the bitfield
+
+    // Get the address of the bitfield with name a1.
+    %6 = "cir.get_bitfield"(%5) <{BitfieldInfo = #cir.bitfieldInfo<(name = "a1") (size 4) (storage !u64i 64) (offset 0) (signed = true)>}> : (!cir.ptr<!u64i>) -> !s32i
+    ```
+    }];
+
+  let arguments = (ins
+    AnyType:$addr,    
+    BitfieldInfoAttr:$BitfieldInfo
+    );
+
+  let results = (outs CIR_IntType:$result);
+
+  let builders = [
+    OpBuilder<(ins "Type":$type,
+                   "Value":$addr,
+                   "Type":$eltType,
+                   "StringRef":$name,
+                   "unsigned":$storageSize,
+                   "unsigned":$size,
+                   "unsigned":$offset,
+                   "bool":$isSigned
+                   ),
+   [{
+      BitfieldInfoAttr info = BitfieldInfoAttr::get($_builder.getContext(), name, eltType, storageSize, size, offset, isSigned);
+      build($_builder, $_state, type, addr, info);
+    }]>
+  ];
+}
+
+//===----------------------------------------------------------------------===//
 // GetMemberOp
 //===----------------------------------------------------------------------===//
 
