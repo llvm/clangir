@@ -1433,7 +1433,7 @@ def SetBitfieldOp : CIR_Op<"set_bitfield"> {
     Example:
     ```mlir
     // Suppose we have a struct with multiple bitfields stored in
-    // different storages. The `cir.get_bitfield` operation gets the value
+    // different storages. The `cir.set_bitfield` operation sets the value
     // of the bitfield
 
     // Sets the bitfield with name a1.
