@@ -1670,11 +1670,8 @@ mlir::Value ScalarExprEmitter::buildScalarCast(
       return Builder.create<mlir::cir::CastOp>(
           Src.getLoc(), DstTy, mlir::cir::CastKind::float_to_int, Src);
     } else if (mlir::isa<mlir::FloatType>(DstElementTy)) {
-      auto FloatDstTy = mlir::cast<mlir::FloatType>(DstTy);
-      auto FloatSrcTy = mlir::cast<mlir::FloatType>(SrcTy);
-      if (FloatDstTy.getWidth() < FloatSrcTy.getWidth())
-        llvm_unreachable("NYI: narrowing floating-point cast");
-      return Builder.createFPExt(Src, DstTy);
+      // TODO: split this to createFPExt/createFPTrunc
+      return Builder.createFloatingCast(Src, DstTy);
     } else {
       llvm_unreachable("Unexpected destination type for scalar cast");
     }
