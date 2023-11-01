@@ -169,16 +169,19 @@ def CIR_StructType : CIR_Type<"Struct", "struct",
     bool isComplete() const { return !getIncomplete(); }
     bool isPadded(const ::mlir::DataLayout &dataLayout) const;
 
-    std::string getPrefixedName() {
-      const auto name = getName().getValue().str();
+    std::string getKindAsStr() {
       switch (getKind()) {
       case RecordKind::Class:
-        return "class." + name;
+        return "class";
       case RecordKind::Union:
-        return "union." + name;
+        return "union";
       case RecordKind::Struct:
-        return "struct." + name;
+        return "struct";
       }
+    }
+
+    std::string getPrefixedName() {
+      return getKindAsStr() + "." + getName().getValue().str();
     }
 
     /// Return the member with the largest bit-length.
