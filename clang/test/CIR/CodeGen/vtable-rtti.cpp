@@ -57,7 +57,7 @@ public:
 // CHECK:   }
 
 // Vtable definition for A
-// cir.global "private" external @_ZTV1A : ![[VTableTypeA]] {alignment = 8 : i64}
+// CHECK: cir.global "private" external @_ZTV1A : ![[VTableTypeA]] {alignment = 8 : i64}
 
 // A ctor => @A::A()
 // Calls @A::A() and initialize __vptr with address of A's vtable
