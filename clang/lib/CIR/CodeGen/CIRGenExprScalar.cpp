@@ -1624,10 +1624,12 @@ mlir::Value ScalarExprEmitter::buildScalarCast(
     mlir::Value Src, QualType SrcType, QualType DstType, mlir::Type SrcTy,
     mlir::Type DstTy, ScalarConversionOpts Opts) {
 
+  assert(!SrcType->isMatrixType() && !DstType->isMatrixType() &&
+         "Internal error: matrix types not handled by this function.");
   if (SrcTy.isa<mlir::IntegerType>() || DstTy.isa<mlir::IntegerType>())
     llvm_unreachable("Obsolete code. Don't use mlir::IntegerType with CIR.");
 
-  mlir::cir::CastKind CastKind = mlir::cir::CastKind(0);
+  std::optional<mlir::cir::CastKind> CastKind;
 
   if (SrcType->isBooleanType()) {
     if (Opts.TreatBooleanAsSigned)
@@ -1670,9 +1672,8 @@ mlir::Value ScalarExprEmitter::buildScalarCast(
     llvm_unreachable("Internal error: Cast from unexpected type");
   }
 
-  assert(CastKind != mlir::cir::CastKind(0) &&
-         "Internal error: CastKind not set.");
-  return Builder.create<mlir::cir::CastOp>(Src.getLoc(), DstTy, CastKind, Src);
+  assert(CastKind.has_value() && "Internal error: CastKind not set.");
+  return Builder.create<mlir::cir::CastOp>(Src.getLoc(), DstTy, *CastKind, Src);
 }
 
 LValue
