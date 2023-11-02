@@ -17,7 +17,7 @@ unsigned char cxxstaticcast_0(unsigned int x) {
 // CHECK:  }
 
 
-int cStyleCasts_0(unsigned x1, int x2, float x3, short x4) {
+int cStyleCasts_0(unsigned x1, int x2, float x3, short x4, double x5) {
 // CHECK: cir.func @_{{.*}}cStyleCasts_0{{.*}}
 
   char a = (char)x1; // truncate
@@ -68,10 +68,13 @@ int cStyleCasts_0(unsigned x1, int x2, float x3, short x4) {
   unsigned fptoui = (unsigned)x3; // Floating point to unsigned integer
   // CHECK: %{{.+}} = cir.cast(float_to_int, %{{[0-9]+}} : f32), !u32i
 
-  bool x5 = (bool)x1; // No checking, because this isn't a cast.
+  bool ib = (bool)x1; // No checking, because this isn't a cast.
 
-  int bi = (int)x5; // bool to int
+  int bi = (int)ib; // bool to int
   // CHECK: %{{[0-9]+}} = cir.cast(bool_to_int, %{{[0-9]+}} : !cir.bool), !s32i
+
+  float dptofp = (float)x5;
+  // CHECK: %{{.+}} = cir.cast(floating, %{{[0-9]+}} : f64), f32
 
   return 0;
 }
@@ -108,4 +111,27 @@ void lvalue_cast(int x) {
 // CHECK: cir.func @_Z11lvalue_cast
 // CHECK:   %1 = cir.const(#cir.int<42> : !s32i) : !s32i 
 // CHECK:   cir.store %1, %0 : !s32i, cir.ptr <!s32i> 
+
+struct A { int x; };
+
+void null_cast(long ptr) {
+  *(int *)0 = 0;
+  ((A *)0)->x = 0;
+}
+
+// CHECK: cir.func @_Z9null_castl
+// CHECK:   %[[ADDR:[0-9]+]] = cir.const(#cir.ptr<null> : !cir.ptr<!s32i>) : !cir.ptr<!s32i>
+// CHECK:   cir.store %{{[0-9]+}}, %[[ADDR]] : !s32i, cir.ptr <!s32i>
+// CHECK:   %[[BASE:[0-9]+]] = cir.const(#cir.ptr<null> : !cir.ptr<!ty_22A22>) : !cir.ptr<!ty_22A22>
+// CHECK:   %[[FIELD:[0-9]+]] = cir.get_member %[[BASE]][0] {name = "x"} : !cir.ptr<!ty_22A22> -> !cir.ptr<!s32i>
+// CHECK:   cir.store %{{[0-9]+}}, %[[FIELD]] : !s32i, cir.ptr <!s32i>
+
+void int_cast(long ptr) {
+  ((A *)ptr)->x = 0;
+}
+
+// CHECK: cir.func @_Z8int_castl
+// CHECK:   %[[BASE:[0-9]+]] = cir.cast(int_to_ptr, %{{[0-9]+}} : !u64i), !cir.ptr<!ty_22A22>
+// CHECK:   %[[FIELD:[0-9]+]] = cir.get_member %[[BASE]][0] {name = "x"} : !cir.ptr<!ty_22A22> -> !cir.ptr<!s32i>
+// CHECK:   cir.store %{{[0-9]+}}, %[[FIELD]] : !s32i, cir.ptr <!s32i>
 

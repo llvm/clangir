@@ -41,13 +41,11 @@ class CIRBaseBuilderTy : public mlir::OpBuilder {
 public:
   CIRBaseBuilderTy(mlir::MLIRContext &C) : mlir::OpBuilder(&C) {}
 
-
   mlir::Value getConstAPInt(mlir::Location loc, mlir::Type typ,
                             const llvm::APInt &val) {
     return create<mlir::cir::ConstantOp>(loc, typ,
                                          getAttr<mlir::cir::IntAttr>(typ, val));
   }
-
 
   mlir::Value createNot(mlir::Value value) {
     return create<mlir::cir::UnaryOp>(value.getLoc(), value.getType(),

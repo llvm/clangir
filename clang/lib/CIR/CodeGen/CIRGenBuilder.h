@@ -176,12 +176,11 @@ public:
       isZero &= isNullValue(typedAttr);
     }
 
-    // Struct type not specified: create type from members.
+    // Struct type not specified: create anon struct type from members.
     if (!structTy)
-      structTy = getType<mlir::cir::StructType>(
-          members, mlir::StringAttr::get(getContext()),
-          /*incomplete=*/false, packed, mlir::cir::StructType::Struct,
-          /*ast=*/nullptr);
+      structTy = getType<mlir::cir::StructType>(members, packed,
+                                                mlir::cir::StructType::Struct,
+                                                /*ast=*/nullptr);
 
     // Return zero or anonymous constant struct.
     if (isZero)
@@ -201,7 +200,7 @@ public:
     }
 
     if (!ty)
-      ty = getAnonStructTy(members, /*incomplete=*/false, packed);
+      ty = getAnonStructTy(members, packed);
 
     auto sTy = ty.dyn_cast<mlir::cir::StructType>();
     assert(sTy && "expected struct type");
@@ -398,9 +397,15 @@ public:
 
   /// Get a CIR anonymous struct type.
   mlir::cir::StructType
-  getAnonStructTy(llvm::ArrayRef<mlir::Type> members, bool incomplete,
-                  bool packed = false, const clang::RecordDecl *ast = nullptr) {
-    return getStructTy(members, "", incomplete, packed, ast);
+  getAnonStructTy(llvm::ArrayRef<mlir::Type> members, bool packed = false,
+                  const clang::RecordDecl *ast = nullptr) {
+    mlir::cir::ASTRecordDeclAttr astAttr = nullptr;
+    auto kind = mlir::cir::StructType::RecordKind::Struct;
+    if (ast) {
+      astAttr = getAttr<mlir::cir::ASTRecordDeclAttr>(ast);
+      kind = getRecordKind(ast->getTagKind());
+    }
+    return getType<mlir::cir::StructType>(members, packed, kind, astAttr);
   }
 
   /// Get a CIR record kind from a AST declaration tag.
@@ -420,10 +425,20 @@ public:
     }
   }
 
+  /// Get a incomplete CIR struct type.
+  mlir::cir::StructType getIncompleteStructTy(llvm::StringRef name,
+                                              const clang::RecordDecl *ast) {
+    const auto nameAttr = getStringAttr(name);
+    auto kind = mlir::cir::StructType::RecordKind::Struct;
+    if (ast)
+      kind = getRecordKind(ast->getTagKind());
+    return getType<mlir::cir::StructType>(nameAttr, kind);
+  }
+
   /// Get a CIR named struct type.
-  mlir::cir::StructType getStructTy(llvm::ArrayRef<mlir::Type> members,
-                                    llvm::StringRef name, bool incomplete,
-                                    bool packed, const clang::RecordDecl *ast) {
+  mlir::cir::StructType getCompleteStructTy(llvm::ArrayRef<mlir::Type> members,
+                                            llvm::StringRef name, bool packed,
+                                            const clang::RecordDecl *ast) {
     const auto nameAttr = getStringAttr(name);
     mlir::cir::ASTRecordDeclAttr astAttr = nullptr;
     auto kind = mlir::cir::StructType::RecordKind::Struct;
@@ -431,8 +446,8 @@ public:
       astAttr = getAttr<mlir::cir::ASTRecordDeclAttr>(ast);
       kind = getRecordKind(ast->getTagKind());
     }
-    return mlir::cir::StructType::get(getContext(), members, nameAttr,
-                                      incomplete, packed, kind, astAttr);
+    return getType<mlir::cir::StructType>(members, nameAttr, packed, kind,
+                                          astAttr);
   }
 
   //
@@ -554,7 +569,9 @@ public:
     llvm_unreachable("negation for the given type is NYI");
   }
 
-  mlir::Value createFPExt(mlir::Value v, mlir::Type destType) {
+  // TODO: split this to createFPExt/createFPTrunc when we have dedicated cast
+  // operations.
+  mlir::Value createFloatingCast(mlir::Value v, mlir::Type destType) {
     if (getIsFPConstrained())
       llvm_unreachable("constrainedfp NYI");
 

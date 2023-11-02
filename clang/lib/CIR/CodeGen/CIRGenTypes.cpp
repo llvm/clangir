@@ -16,6 +16,8 @@
 #include "clang/AST/GlobalDecl.h"
 #include "clang/AST/RecordLayout.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/Support/Casting.h"
 #include "llvm/Support/ErrorHandling.h"
 
 using namespace clang;
@@ -54,6 +56,19 @@ std::string CIRGenTypes::getRecordTypeName(const clang::RecordDecl *recordDecl,
       recordDecl->printQualifiedName(outStream, policy);
     else
       recordDecl->printName(outStream, policy);
+
+    // Ensure each template specialization has a unique name.
+    if (auto *templateSpecialization =
+            llvm::dyn_cast<ClassTemplateSpecializationDecl>(recordDecl)) {
+      outStream << '<';
+      const auto args = templateSpecialization->getTemplateArgs().asArray();
+      const auto printer = [&policy, &outStream](const TemplateArgument &arg) {
+        arg.getAsType().print(outStream, policy);
+      };
+      llvm::interleaveComma(args, outStream, printer);
+      outStream << '>';
+    }
+
   } else if (auto *typedefNameDecl = recordDecl->getTypedefNameForAnonDecl()) {
     if (typedefNameDecl->getDeclContext())
       typedefNameDecl->printQualifiedName(outStream, policy);
@@ -167,8 +182,7 @@ mlir::Type CIRGenTypes::convertRecordDeclType(const clang::RecordDecl *RD) {
   // Handle forward decl / incomplete types.
   if (!entry) {
     auto name = getRecordTypeName(RD, "");
-    entry = Builder.getStructTy({}, name, /*incomplete=*/true, /*packed=*/false,
-                                RD);
+    entry = Builder.getIncompleteStructTy(name, RD);
     recordDeclTypes[key] = entry;
   }
 
