@@ -41,7 +41,8 @@ struct StructTypeStorage;
 
 class StructType
     : public Type::TypeBase<StructType, Type, detail::StructTypeStorage,
-                            DataLayoutTypeInterface::Trait> {
+                            DataLayoutTypeInterface::Trait,
+                            TypeTrait::IsMutable> {
 public:
   using Base::Base;
   using Base::getChecked;
@@ -117,6 +118,10 @@ public:
   std::string getPrefixedName() {
     return getKindAsStr() + "." + getName().getValue().str();
   }
+
+  /// Complete the struct type by mutating its members and attributes.
+  void complete(ArrayRef<Type> members, bool packed,
+                ASTRecordDeclInterface ast = {});
 
   /// DataLayoutTypeInterface methods.
   unsigned getTypeSizeInBits(const DataLayout &dataLayout,
