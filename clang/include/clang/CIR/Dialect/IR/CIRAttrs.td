@@ -522,30 +522,25 @@ def GlobalCtorAttr : CIR_Attr<"GlobalCtor", "globalCtor"> {
   let skipDefaultBuilders = 1;
 }
 
-def BitfieldInfoAttr : CIR_Attr<"BitfieldInfo", "bitfieldInfo"> {
+def BitfieldInfoAttr : CIR_Attr<"BitfieldInfo", "bitfield_info"> {
   let parameters = (ins "StringAttr":$name,
-                        "Type":$eltType,
-                        "uint64_t":$storageSize,
+                        "Type":$elt_type,
+                        "uint64_t":$storage_size,
                         "uint64_t":$size,
                         "uint64_t":$offset,
-                        "bool":$isSigned);
+                        "bool":$is_signed);
 
-  let assemblyFormat = [{ `<`
-  `(` `name` `=` $name `)`
-  `(` `size` $size `)`
-  `(` `storage` $eltType $storageSize `)`
-  `(` `offset` $offset  `)`
-  `(` `signed` `=` $isSigned `)` `>` }];
+  let assemblyFormat = "`<` struct($name, $elt_type, $storage_size, $size, $offset, $is_signed) `>`";
 
   let builders = [
     AttrBuilder<(ins "StringRef":$name,
-                     "Type":$eltType,
-                     "uint64_t":$storageSize,
+                     "Type":$elt_type,
+                     "uint64_t":$storage_size,
                      "uint64_t":$size,
                      "uint64_t":$offset,
-                     "bool":$isSigned
+                     "bool":$is_signed
                      ), [{
-      return $_get($_ctxt, StringAttr::get($_ctxt, name), eltType, storageSize, size, offset, isSigned);
+      return $_get($_ctxt, StringAttr::get($_ctxt, name), elt_type, storage_size, size, offset, is_signed);
     }]>
   ];
 }

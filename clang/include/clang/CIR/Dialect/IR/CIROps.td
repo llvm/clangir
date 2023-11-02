@@ -1436,8 +1436,8 @@ def SetBitfieldOp : CIR_Op<"set_bitfield"> {
     // different storages. The `cir.set_bitfield` operation sets the value
     // of the bitfield
 
-    // Sets the bitfield with name a1.
-    %6 = "cir.set_bitfield"(%5, %3) <{BitfieldInfo = #cir.bitfieldInfo<(name = "a1") (size 4) (storage !u64i 64) (offset 0) (signed = true)>}> : (!cir.ptr<!u64i>, !s32i) -> !s32i
+    // Sets the bitfield with name a1
+    %3 = cir.set_bitfield %1, %2(<name = "a1", elt_type = !u16i, storage_size = 16, size = 15, offset = 0, is_signed = true>) : (!s32i, !cir.ptr<!u16i>) -> !s32i
     ```
    }];
 
@@ -1449,6 +1449,9 @@ def SetBitfieldOp : CIR_Op<"set_bitfield"> {
 
   let results = (outs CIR_IntType:$result);
 
+  let assemblyFormat = [{ $src `,` $dst`(`$BitfieldInfo`)` attr-dict `:` 
+   `(` type($src) `,` type($dst) `)`  `->` type($result) }];
+  
   let builders = [
     OpBuilder<(ins "Type":$type,
                    "Value":$dst,
@@ -1498,6 +1501,9 @@ def GetBitfieldOp : CIR_Op<"get_bitfield"> {
     );
 
   let results = (outs CIR_IntType:$result);
+
+  let assemblyFormat = [{ $addr`(`$BitfieldInfo`)` attr-dict `:` 
+   type($addr) `->` type($result) }];
 
   let builders = [
     OpBuilder<(ins "Type":$type,
