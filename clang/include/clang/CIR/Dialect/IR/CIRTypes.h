@@ -42,7 +42,7 @@ struct StructTypeStorage;
 /// Each unique clang::RecordDecl is mapped to a `cir.struct` and any object in
 /// C/C++ that has a struct type will have a `cir.struct` in CIR.
 ///
-/// There are three possivle formats for this type:
+/// There are three possible formats for this type:
 ///
 ///  - Identified and complete structs: unique name and a known body.
 ///  - Identified and incomplete structs: unique name and unkonwn body.
