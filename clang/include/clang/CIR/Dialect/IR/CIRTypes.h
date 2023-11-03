@@ -39,9 +39,12 @@ namespace detail {
 struct StructTypeStorage;
 } // namespace detail
 
+/// Each unique clang::RecordDecl is mapped to a `cir.struct` and any object in
+/// C/C++ that has a struct type will have a `cir.struct` in CIR.
 class StructType
     : public Type::TypeBase<StructType, Type, detail::StructTypeStorage,
                             DataLayoutTypeInterface::Trait> {
+  // FIXME(cir): migrate this type to Tablegen once mutable types are supported.
 public:
   using Base::Base;
   using Base::getChecked;
