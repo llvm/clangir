@@ -274,6 +274,8 @@ mlir::LogicalResult CIRGenFunction::buildCXXTryStmt(const CXXTryStmt &S) {
       });
 
   enterCXXTryStmt(S, catchOp);
+  llvm_unreachable("NYI");
+
   if (buildStmt(S.getTryBlock(), /*useCurrentScope=*/true).failed())
     return mlir::failure();
   exitCXXTryStmt(S);
@@ -386,6 +388,7 @@ mlir::Block *CIRGenFunction::buildLandingPad() {
   case EHScope::Catch:
   case EHScope::Cleanup:
   case EHScope::Filter:
+    llvm_unreachable("NYI");
     if (auto *lpad = innermostEHScope.getCachedLandingPad())
       return lpad;
   }
@@ -400,6 +403,7 @@ mlir::Block *CIRGenFunction::buildLandingPad() {
     // testcases. Work to fill this in is coming soon.
   }
 
+  llvm_unreachable("NYI");
   return nullptr;
 }
 
@@ -443,8 +447,7 @@ mlir::Block *CIRGenFunction::getInvokeDestImpl() {
     LP = buildLandingPad();
   }
 
-  // FIXME(cir): this breaks important testcases, fix is coming soon.
-  // assert(LP);
+  assert(LP);
 
   // Cache the landing pad on the innermost scope.  If this is a
   // non-EH scope, cache the landing pad on the enclosing scope, too.
