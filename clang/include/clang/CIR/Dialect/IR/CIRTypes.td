@@ -55,6 +55,24 @@ def CIR_IntType : CIR_Type<"Int", "int",
 }
 
 //===----------------------------------------------------------------------===//
+// FloatType 
+//===----------------------------------------------------------------------===//
+
+// Base Class for float types
+
+class CIR_FloatType<string name, string typeMnemonic> : CIR_Type<name, typeMnemonic, 
+      [DeclareTypeInterfaceMethods<DataLayoutTypeInterface>]> {
+
+      }
+
+//===----------------------------------------------------------------------===//
+// Float32Type 
+
+def CIR_Float32 : CIR_FloatType<"Float32", "f32"> {
+  let summary = "32-bit floating-point type".
+}
+
+//===----------------------------------------------------------------------===//
 // PointerType
 //===----------------------------------------------------------------------===//
 
