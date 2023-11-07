@@ -10,7 +10,6 @@
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/Region.h"
-#include "mlir/Transforms/DialectConversion.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Mangle.h"
 #include "clang/Basic/Module.h"
@@ -340,8 +339,7 @@ void LoweringPreparePass::lowerGetBitfieldOp(GetBitfieldOp op) {
   }
   val = builder.createIntCast(val, resultTy);
 
-  ConversionPatternRewriter rewriter(&getContext());
-  rewriter.replaceAllUsesWith(op, val);
+  op.replaceAllUsesWith(val);  
   op.erase();  
 }
 
@@ -402,8 +400,7 @@ void LoweringPreparePass::lowerSetBitfieldOp(SetBitfieldOp op) {
       }
     }
 
-    ConversionPatternRewriter rewriter(&getContext());
-    rewriter.replaceAllUsesWith(op, resultVal);
+    op.replaceAllUsesWith(resultVal);
   }
 
   op.erase();
