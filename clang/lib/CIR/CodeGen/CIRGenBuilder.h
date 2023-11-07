@@ -637,22 +637,22 @@ public:
   }
 
   mlir::Value createGetBitfield(mlir::Location loc, mlir::Type resultType,
-                                mlir::Value addr, mlir::Type eltType,
+                                mlir::Value addr, mlir::Type storageType,
                                 const CIRGenBitFieldInfo &info,
                                 bool useVolatile) {
     auto offset = useVolatile ? info.VolatileOffset : info.Offset;
-    return create<mlir::cir::GetBitfieldOp>(loc, resultType, addr, eltType,
+    return create<mlir::cir::GetBitfieldOp>(loc, resultType, addr, storageType,
                                             info.Name, info.Size,
                                             offset, info.IsSigned);
   }
 
   mlir::Value createSetBitfield(mlir::Location loc, mlir::Type resultType,
-                                mlir::Value dstAddr, mlir::Type eltType,
+                                mlir::Value dstAddr, mlir::Type storageType,
                                 mlir::Value src, const CIRGenBitFieldInfo &info,
                                 bool useVolatile) {
     auto offset = useVolatile ? info.VolatileOffset : info.Offset;
     return create<mlir::cir::SetBitfieldOp>(
-        loc, resultType, dstAddr, eltType, src, info.Name,
+        loc, resultType, dstAddr, storageType, src, info.Name,
         info.Size, offset, info.IsSigned);
   }
 
