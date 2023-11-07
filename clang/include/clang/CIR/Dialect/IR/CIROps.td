@@ -1430,41 +1430,51 @@ def SetBitfieldOp : CIR_Op<"set_bitfield"> {
     base record, a size of the storage, a size the bit field, an offset 
     of the bit field and a sign. Returns a value being stored.
 
-    Example:
-    ```mlir
-    // Suppose we have a struct with multiple bitfields stored in
-    // different storages. The `cir.set_bitfield` operation sets the value
-    // of the bitfield
+    Example.
+    Suppose we have a struct with multiple bitfields stored in
+    different storages. The `cir.set_bitfield` operation sets the value
+    of the bitfield.
+    ```C++
+    void store_bitfield(S& s) {
+      s.d = 3;
+    }
+    ```
 
-    // Sets the bitfield with name a1
-    %3 = cir.set_bitfield %1, %2(<name = "a1", elt_type = !u16i, storage_size = 16, size = 15, offset = 0, is_signed = true>) : (!s32i, !cir.ptr<!u16i>) -> !s32i
+    ```mlir
+    %1 = cir.const(#cir.int<3> : !s32i) : !s32i
+    %2 = cir.load %0 : cir.ptr <!cir.ptr<!ty_22S22>>, !cir.ptr<!ty_22S22>
+    %3 = cir.get_member %2[1] {name = "d"} : !cir.ptr<!ty_22S22> -> !cir.ptr<!u32i>
+    %4 = cir.set_bitfield %1, %3(#d) : (!s32i, !cir.ptr<!u32i>) -> !s32i
     ```
    }];
 
   let arguments = (ins
     AnyType:$dst,
     AnyType:$src,
-    BitfieldInfoAttr:$BitfieldInfo
+    BitfieldInfoAttr:$bitfield_info
   );
 
   let results = (outs CIR_IntType:$result);
 
-  let assemblyFormat = [{ $src `,` $dst`(`$BitfieldInfo`)` attr-dict `:` 
+  let assemblyFormat = [{ $src `,` $dst`(`$bitfield_info`)` attr-dict `:` 
    `(` type($src) `,` type($dst) `)`  `->` type($result) }];
   
   let builders = [
     OpBuilder<(ins "Type":$type,
                    "Value":$dst,
-                   "Type":$eltType,
+                   "Type":$elt_type,
                    "Value":$src,
                    "StringRef":$name,
-                   "unsigned":$storageSize,
+                   "unsigned":$storage_size,
                    "unsigned":$size, 
                    "unsigned":$offset,
-                   "bool":$isSigned
+                   "bool":$is_signed
                    ),
    [{      
-      BitfieldInfoAttr info = BitfieldInfoAttr::get($_builder.getContext(), name, eltType, storageSize, size, offset, isSigned);
+      BitfieldInfoAttr info = 
+        BitfieldInfoAttr::get($_builder.getContext(), 
+                              name, elt_type, storage_size, 
+                              size, offset, is_signed);
       build($_builder, $_state, type, dst, src, info);
     }]>
   ];
@@ -1485,38 +1495,47 @@ def GetBitfieldOp : CIR_Op<"get_bitfield"> {
     of the bit field and a sign.
 
     Example:
-    ```mlir
-    // Suppose we have a struct with multiple bitfields stored in
-    // different storages. The `cir.get_bitfield` operation gets the value
-    // of the bitfield
+    Suppose we have a struct with multiple bitfields stored in
+    different storages. The `cir.get_bitfield` operation gets the value
+    of the bitfield
+    ```C++
+    int load_bitfield(S& s) {
+      return s.d;
+    }
+    ```
 
-    // Get the address of the bitfield with name a1.
-    %6 = "cir.get_bitfield"(%5) <{BitfieldInfo = #cir.bitfieldInfo<(name = "a1") (size 4) (storage !u64i 64) (offset 0) (signed = true)>}> : (!cir.ptr<!u64i>) -> !s32i
+    ```mlir
+    %2 = cir.load %0 : cir.ptr <!cir.ptr<!ty_22S22>>, !cir.ptr<!ty_22S22>
+    %3 = cir.get_member %2[1] {name = "d"} : !cir.ptr<!ty_22S22> -> !cir.ptr<!u32i>
+    %4 = cir.get_bitfield %3(#d) : !cir.ptr<!u32i> -> !s32i
     ```
     }];
 
   let arguments = (ins
     AnyType:$addr,    
-    BitfieldInfoAttr:$BitfieldInfo
+    BitfieldInfoAttr:$bitfield_info
     );
 
   let results = (outs CIR_IntType:$result);
 
-  let assemblyFormat = [{ $addr`(`$BitfieldInfo`)` attr-dict `:` 
+  let assemblyFormat = [{ $addr`(`$bitfield_info`)` attr-dict `:` 
    type($addr) `->` type($result) }];
 
   let builders = [
     OpBuilder<(ins "Type":$type,
                    "Value":$addr,
-                   "Type":$eltType,
+                   "Type":$elt_type,
                    "StringRef":$name,
-                   "unsigned":$storageSize,
+                   "unsigned":$storage_size,
                    "unsigned":$size,
                    "unsigned":$offset,
-                   "bool":$isSigned
+                   "bool":$is_signed
                    ),
    [{
-      BitfieldInfoAttr info = BitfieldInfoAttr::get($_builder.getContext(), name, eltType, storageSize, size, offset, isSigned);
+      BitfieldInfoAttr info = 
+        BitfieldInfoAttr::get($_builder.getContext(), 
+                              name, elt_type, storage_size, 
+                              size, offset, is_signed);
       build($_builder, $_state, type, addr, info);
     }]>
   ];
