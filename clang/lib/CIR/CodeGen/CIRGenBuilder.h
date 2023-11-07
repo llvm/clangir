@@ -641,10 +641,8 @@ public:
                                 const CIRGenBitFieldInfo &info,
                                 bool useVolatile) {
     auto offset = useVolatile ? info.VolatileOffset : info.Offset;
-    auto storageSize =
-        useVolatile ? info.VolatileStorageSize : info.StorageSize;
     return create<mlir::cir::GetBitfieldOp>(loc, resultType, addr, eltType,
-                                            info.Name, storageSize, info.Size,
+                                            info.Name, info.Size,
                                             offset, info.IsSigned);
   }
 
@@ -652,11 +650,9 @@ public:
                                 mlir::Value dstAddr, mlir::Type eltType,
                                 mlir::Value src, const CIRGenBitFieldInfo &info,
                                 bool useVolatile) {
-    auto storageSize =
-        useVolatile ? info.VolatileStorageSize : info.StorageSize;
     auto offset = useVolatile ? info.VolatileOffset : info.Offset;
     return create<mlir::cir::SetBitfieldOp>(
-        loc, resultType, dstAddr, eltType, src, info.Name, storageSize,
+        loc, resultType, dstAddr, eltType, src, info.Name,
         info.Size, offset, info.IsSigned);
   }
 

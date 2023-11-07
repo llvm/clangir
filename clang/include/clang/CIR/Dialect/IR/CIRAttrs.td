@@ -524,23 +524,21 @@ def GlobalCtorAttr : CIR_Attr<"GlobalCtor", "globalCtor"> {
 
 def BitfieldInfoAttr : CIR_Attr<"BitfieldInfo", "bitfield_info"> {
   let parameters = (ins "StringAttr":$name,
-                        "Type":$elt_type,
-                        "uint64_t":$storage_size,
+                        "Type":$storage_type,
                         "uint64_t":$size,
                         "uint64_t":$offset,
                         "bool":$is_signed);
 
-  let assemblyFormat = "`<` struct($name, $elt_type, $storage_size, $size, $offset, $is_signed) `>`";
+  let assemblyFormat = "`<` struct($name, $storage_type, $size, $offset, $is_signed) `>`";
 
   let builders = [
     AttrBuilder<(ins "StringRef":$name,
-                     "Type":$elt_type,
-                     "uint64_t":$storage_size,
+                     "Type":$storage_type,
                      "uint64_t":$size,
                      "uint64_t":$offset,
                      "bool":$is_signed
                      ), [{
-      return $_get($_ctxt, StringAttr::get($_ctxt, name), elt_type, storage_size, size, offset, is_signed);
+      return $_get($_ctxt, StringAttr::get($_ctxt, name), storage_type, size, offset, is_signed);
     }]>
   ];
 }

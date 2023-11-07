@@ -309,13 +309,14 @@ void LoweringPreparePass::lowerGetBitfieldOp(GetBitfieldOp op) {
 
   auto info = op.getBitfieldInfo();
   auto size = info.getSize();
-  auto storageSize = info.getStorageSize();
+  auto storageType = info.getStorageType();
+  auto storageSize = storageType.cast<IntType>().getWidth();
   auto offset = info.getOffset();
   auto resultTy = op.getType();
   auto addr = op.getAddr();
   auto loc = addr.getLoc();
   mlir::Value val =
-      builder.create<mlir::cir::LoadOp>(loc, info.getEltType(), op.getAddr());
+      builder.create<mlir::cir::LoadOp>(loc, storageType, op.getAddr());
   auto valWidth = val.getType().cast<IntType>().getWidth();
 
   if (info.getIsSigned()) {
@@ -352,13 +353,14 @@ void LoweringPreparePass::lowerSetBitfieldOp(SetBitfieldOp op) {
   auto addr = op.getDst();
   auto info = op.getBitfieldInfo();
   auto size = info.getSize();
-  auto storageSize = info.getStorageSize();
+  auto storageType = info.getStorageType();
+  auto storageSize = storageType.cast<IntType>().getWidth();
   auto offset = info.getOffset();
   auto resultTy = op.getType();
   auto loc = addr.getLoc();
 
   // Get the source value, truncated to the width of the bit-field.
-  srcVal = builder.createIntCast(op.getSrc(), info.getEltType());
+  srcVal = builder.createIntCast(op.getSrc(), storageType);
   auto srcWidth = srcVal.getType().cast<IntType>().getWidth();
 
   mlir::Value maskedVal = srcVal;
@@ -367,7 +369,7 @@ void LoweringPreparePass::lowerSetBitfieldOp(SetBitfieldOp op) {
     assert(storageSize > size && "Invalid bitfield size.");
 
     mlir::Value val =
-        builder.create<mlir::cir::LoadOp>(loc, info.getEltType(), addr);
+        builder.create<mlir::cir::LoadOp>(loc, storageType, addr);
 
     srcVal =
         builder.createAnd(srcVal, llvm::APInt::getLowBitsSet(srcWidth, size));

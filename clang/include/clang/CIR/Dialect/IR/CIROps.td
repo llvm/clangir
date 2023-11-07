@@ -1462,10 +1462,9 @@ def SetBitfieldOp : CIR_Op<"set_bitfield"> {
   let builders = [
     OpBuilder<(ins "Type":$type,
                    "Value":$dst,
-                   "Type":$elt_type,
+                   "Type":$storage_type,
                    "Value":$src,
                    "StringRef":$name,
-                   "unsigned":$storage_size,
                    "unsigned":$size, 
                    "unsigned":$offset,
                    "bool":$is_signed
@@ -1473,7 +1472,7 @@ def SetBitfieldOp : CIR_Op<"set_bitfield"> {
    [{      
       BitfieldInfoAttr info = 
         BitfieldInfoAttr::get($_builder.getContext(), 
-                              name, elt_type, storage_size, 
+                              name, storage_type,
                               size, offset, is_signed);
       build($_builder, $_state, type, dst, src, info);
     }]>
@@ -1524,9 +1523,8 @@ def GetBitfieldOp : CIR_Op<"get_bitfield"> {
   let builders = [
     OpBuilder<(ins "Type":$type,
                    "Value":$addr,
-                   "Type":$elt_type,
+                   "Type":$storage_type,
                    "StringRef":$name,
-                   "unsigned":$storage_size,
                    "unsigned":$size,
                    "unsigned":$offset,
                    "bool":$is_signed
@@ -1534,7 +1532,7 @@ def GetBitfieldOp : CIR_Op<"get_bitfield"> {
    [{
       BitfieldInfoAttr info = 
         BitfieldInfoAttr::get($_builder.getContext(), 
-                              name, elt_type, storage_size, 
+                              name, storage_type,
                               size, offset, is_signed);
       build($_builder, $_state, type, addr, info);
     }]>
