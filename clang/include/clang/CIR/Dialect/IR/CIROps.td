@@ -1425,8 +1425,8 @@ def SetBitfieldOp : CIR_Op<"set_bitfield"> {
     The `cir.set_bitfield` operation provides a store-like access to 
     a bit field of a record.
 
-    It expects an address of a storage where to store, a value being stored,
-    a type of a bitfield, a name of a bit field, a pointer to a storage in the
+    It expects an address of a storage where to store, a type of the storage,
+    a value being stored, a name of a bit field, a pointer to the storage in the
     base record, a size of the storage, a size the bit field, an offset 
     of the bit field and a sign. Returns a value being stored.
 
@@ -1490,8 +1490,8 @@ def GetBitfieldOp : CIR_Op<"get_bitfield"> {
     a bit field of a record.
 
     It expects a name if a bit field, a pointer to a storage in the
-    base record, a size of the storage, a size the bit field, an offset
-    of the bit field and a sign.
+    base record, a type of the storage, a name of the bitfield,
+    a size the bit field, an offset of the bit field and a sign.
 
     Example:
     Suppose we have a struct with multiple bitfields stored in
