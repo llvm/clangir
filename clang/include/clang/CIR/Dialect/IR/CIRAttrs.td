@@ -217,8 +217,16 @@ def FloatAttr : CIR_Attr<"Float", "float", [TypedAttrInterface]> {
                                              "const APFloat&":$value), [{
           return $_get(type.getContext(), type, value);
          }]>,
+         AttrBuilderWithInfeeredContext<(ins "Type":$type, "double":$value), [{
+            bool unused;
+            mlir::APFloat val(value);
+            val.convert(type.cast<FloatType>().getFloatSemantics(), mlir::APFloat::rmNearestTiesToEven, &unused);
+            return $_get(type.getContext(), type, val);
+         }]>,
   ];
-  let extraClassDeclaration = [{}];
+  let extraClassDeclaration = [{
+    double getValueAsDouble() const {return getValue().getDoubleValue(); }
+  }];
   let hasCustomAssemblyFormat = 1;
   let genVerifyDecl = 1;
 }
