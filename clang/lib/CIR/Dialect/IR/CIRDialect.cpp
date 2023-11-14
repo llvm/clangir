@@ -355,7 +355,7 @@ LogicalResult CastOp::verify() {
     if (!srcType.isa<mlir::cir::BoolType>())
       return emitOpError() << "requires !cir.bool for source";
     if (!resType.isa<mlir::FloatType>())
-      return emitOpError() << " requires !cir.float for result";
+      return emitOpError() << "requires !cir.float for result";
     return success();
   }
   }
