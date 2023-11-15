@@ -348,12 +348,20 @@ LogicalResult CastOp::verify() {
       return emitOpError() << "requires !cir.int for result";
     return success();
   }
-  case cir::CastKind::int_to_float:
+  case cir::CastKind::int_to_float: {
     if (!mlir::isa<mlir::cir::IntType>(srcType))
       return emitOpError() << "requires !cir.int for source";
     if (!mlir::isa<mlir::FloatType>(resType))
       return emitOpError() << "requires !cir.float for result";
     return success();
+  }
+  case cir::CastKind::bool_to_float: {
+    if (!mlir::isa<mlir::cir::BoolType>(srcType))
+      return emitOpError() << "requires !cir.bool for source";
+    if (!mlir::isa<mlir::FloatType>(resType))
+      return emitOpError() << "requires !cir.float for result";
+    return success();
+  }
   }
 
   llvm_unreachable("Unknown CastOp kind?");
