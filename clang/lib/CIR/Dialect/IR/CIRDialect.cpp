@@ -269,14 +269,14 @@ LogicalResult CastOp::verify() {
     if (!llvm::isa<mlir::cir::BoolType>(resType))
       return emitOpError() << "requires !cir.bool type for result";
     if (!mlir::isa<mlir::cir::IntType>(srcType))
-      return emitOpError() << "requires integral type for result";
+      return emitOpError() << "requires integral type for source";
     return success();
   }
   case cir::CastKind::ptr_to_bool: {
     if (!mlir::isa<mlir::cir::BoolType>(resType))
       return emitOpError() << "requires !cir.bool type for result";
     if (!mlir::isa<mlir::cir::PointerType>(srcType))
-      return emitOpError() << "requires pointer type for result";
+      return emitOpError() << "requires pointer type for source";
     return success();
   }
   case cir::CastKind::integral: {
