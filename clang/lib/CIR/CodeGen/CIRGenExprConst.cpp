@@ -1130,8 +1130,14 @@ ConstantLValueEmitter::tryEmitBase(const APValue::LValueBase &base) {
     if (D->hasAttr<WeakRefAttr>())
       llvm_unreachable("emit pointer base for weakref is NYI");
 
-    if (auto *FD = dyn_cast<FunctionDecl>(D))
-      llvm_unreachable("emit pointer base for fun decl is NYI");
+    if (auto *FD = dyn_cast<FunctionDecl>(D)) {
+      auto fop = CGM.GetAddrOfFunction(FD);
+      auto builder = CGM.getBuilder();
+      auto ctxt = builder.getContext();
+      auto symb = mlir::FlatSymbolRefAttr::get(ctxt, fop.getSymNameAttr());
+      auto type = builder.getPointerTo(fop.getFunctionType());
+      return mlir::cir::GlobalViewAttr::get(type, symb);
+    }
 
     if (auto *VD = dyn_cast<VarDecl>(D)) {
       // We can never refer to a variable with local storage.
