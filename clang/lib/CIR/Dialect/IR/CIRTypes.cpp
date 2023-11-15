@@ -13,6 +13,7 @@
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
+#include "clang/CIR/Dialect/IR/CIRTypesDetails.h"
 
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/BuiltinAttributes.h"
@@ -58,17 +59,36 @@ Type CIRDialect::parseType(DialectAsmParser &parser) const {
   llvm::SMLoc typeLoc = parser.getCurrentLocation();
   StringRef mnemonic;
   Type genType;
+
+  // Try to parse as a tablegen'd type.
   OptionalParseResult parseResult =
       generatedTypeParser(parser, &mnemonic, genType);
   if (parseResult.has_value())
     return genType;
-  parser.emitError(typeLoc, "unknown type in CIR dialect");
-  return Type();
+
+  // Type is not tablegen'd: try to parse as a raw C++ type.
+  return StringSwitch<function_ref<Type()>>(mnemonic)
+      .Case("struct", [&] { return StructType::parse(parser); })
+      .Default([&] {
+        parser.emitError(typeLoc) << "unknown CIR type: " << mnemonic;
+        return Type();
+      })();
 }
 
 void CIRDialect::printType(Type type, DialectAsmPrinter &os) const {
-  if (failed(generatedTypePrinter(type, os)))
-    llvm_unreachable("unexpected CIR type kind");
+  // Try to print as a tablegen'd type.
+  if (generatedTypePrinter(type, os).succeeded())
+    return;
+
+  // Type is not tablegen'd: try printing as a raw C++ type.
+  TypeSwitch<Type>(type)
+      .Case<StructType>([&](StructType type) {
+        os << type.getMnemonic();
+        type.print(os);
+      })
+      .Default([](Type) {
+        llvm::report_fatal_error("printer is missing a handler for this type");
+      });
 }
 
 Type PointerType::parse(mlir::AsmParser &parser) {
@@ -108,7 +128,9 @@ Type StructType::getLargestMember(const ::mlir::DataLayout &dataLayout) const {
 }
 
 Type StructType::parse(mlir::AsmParser &parser) {
+  FailureOr<AsmParser::CyclicParseReset> cyclicParseGuard;
   const auto loc = parser.getCurrentLocation();
+  const auto eLoc = parser.getEncodedSourceLoc(loc);
   bool packed = false;
   RecordKind kind;
   auto *context = parser.getContext();
@@ -131,6 +153,26 @@ Type StructType::parse(mlir::AsmParser &parser) {
 
   mlir::StringAttr name;
   parser.parseOptionalAttribute(name);
+
+  // Is a self reference: ensure referenced type was parsed.
+  if (name && parser.parseOptionalGreater().succeeded()) {
+    auto type = getChecked(eLoc, context, name, kind);
+    if (succeeded(parser.tryStartCyclicParse(type))) {
+      parser.emitError(loc, "invalid self-reference within record");
+      return {};
+    }
+    return type;
+  }
+
+  // Is a named record definition: ensure name has not been parsed yet.
+  if (name) {
+    auto type = getChecked(eLoc, context, name, kind);
+    cyclicParseGuard = parser.tryStartCyclicParse(type);
+    if (failed(cyclicParseGuard)) {
+      parser.emitError(loc, "record already defined");
+      return {};
+    }
+  }
 
   if (parser.parseOptionalKeyword("packed").succeeded())
     packed = true;
@@ -156,14 +198,17 @@ Type StructType::parse(mlir::AsmParser &parser) {
   if (parser.parseGreater())
     return {};
 
-  // Try to create the proper type.
-  mlir::Type type = {};
+  // Try to create the proper record type.
   ArrayRef<mlir::Type> membersRef(members); // Needed for template deduction.
-  const auto eLoc = parser.getEncodedSourceLoc(loc);
+  mlir::Type type = {};
   if (name && incomplete) { // Identified & incomplete
     type = getChecked(eLoc, context, name, kind);
   } else if (name && !incomplete) { // Identified & complete
     type = getChecked(eLoc, context, membersRef, name, packed, kind);
+    // If the record has a self-reference, its type already exists in a
+    // incomplete state. In this case, we must complete it.
+    if (type.cast<StructType>().isIncomplete())
+      type.cast<StructType>().complete(membersRef, packed, ast);
   } else if (!name && !incomplete) { // anonymous & complete
     type = getChecked(eLoc, context, membersRef, packed, kind);
   } else { // anonymous & incomplete
@@ -175,6 +220,7 @@ Type StructType::parse(mlir::AsmParser &parser) {
 }
 
 void StructType::print(mlir::AsmPrinter &printer) const {
+  FailureOr<AsmPrinter::CyclicPrintReset> cyclicPrintGuard;
   printer << '<';
 
   switch (getKind()) {
@@ -190,7 +236,17 @@ void StructType::print(mlir::AsmPrinter &printer) const {
   }
 
   if (getName())
-    printer << getName() << " ";
+    printer << getName();
+
+  // Current type has already been printed: print as self reference.
+  cyclicPrintGuard = printer.tryStartCyclicPrint(*this);
+  if (failed(cyclicPrintGuard)) {
+    printer << '>';
+    return;
+  }
+
+  // Type not yet printed: continue printing the entire record.
+  printer << ' ';
 
   if (getPacked())
     printer << "packed ";
@@ -222,6 +278,76 @@ StructType::verify(llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
     return mlir::failure();
   }
   return mlir::success();
+}
+
+void StructType::dropAst() { getImpl()->ast = nullptr; }
+StructType StructType::get(::mlir::MLIRContext *context, ArrayRef<Type> members,
+                           StringAttr name, bool packed, RecordKind kind,
+                           ASTRecordDeclInterface ast) {
+  return Base::get(context, members, name, /*incomplete=*/false, packed, kind,
+                   ast);
+}
+
+StructType StructType::getChecked(
+    ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
+    ::mlir::MLIRContext *context, ArrayRef<Type> members, StringAttr name,
+    bool packed, RecordKind kind, ASTRecordDeclInterface ast) {
+  return Base::getChecked(emitError, context, members, name,
+                          /*incomplete=*/false, packed, kind, ast);
+}
+
+StructType StructType::get(::mlir::MLIRContext *context, StringAttr name,
+                           RecordKind kind) {
+  return Base::get(context, /*members=*/ArrayRef<Type>{}, name,
+                   /*incomplete=*/true, /*packed=*/false, kind,
+                   /*ast=*/ASTRecordDeclInterface{});
+}
+
+StructType StructType::getChecked(
+    ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
+    ::mlir::MLIRContext *context, StringAttr name, RecordKind kind) {
+  return Base::getChecked(emitError, context, ArrayRef<Type>{}, name,
+                          /*incomplete=*/true, /*packed=*/false, kind,
+                          ASTRecordDeclInterface{});
+}
+
+StructType StructType::get(::mlir::MLIRContext *context, ArrayRef<Type> members,
+                           bool packed, RecordKind kind,
+                           ASTRecordDeclInterface ast) {
+  return Base::get(context, members, StringAttr{}, /*incomplete=*/false, packed,
+                   kind, ast);
+}
+
+StructType StructType::getChecked(
+    ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
+    ::mlir::MLIRContext *context, ArrayRef<Type> members, bool packed,
+    RecordKind kind, ASTRecordDeclInterface ast) {
+  return Base::getChecked(emitError, context, members, StringAttr{},
+                          /*incomplete=*/false, packed, kind, ast);
+}
+
+::llvm::ArrayRef<mlir::Type> StructType::getMembers() const {
+  return getImpl()->members;
+}
+
+bool StructType::isIncomplete() const { return getImpl()->incomplete; }
+
+mlir::StringAttr StructType::getName() const { return getImpl()->name; }
+
+bool StructType::getIncomplete() const { return getImpl()->incomplete; }
+
+bool StructType::getPacked() const { return getImpl()->packed; }
+
+mlir::cir::StructType::RecordKind StructType::getKind() const {
+  return getImpl()->kind;
+}
+
+ASTRecordDeclInterface StructType::getAst() const { return getImpl()->ast; }
+
+void StructType::complete(ArrayRef<Type> members, bool packed,
+                          ASTRecordDeclInterface ast) {
+  if (mutate(members, packed, ast).failed())
+    llvm_unreachable("failed to complete struct");
 }
 
 //===----------------------------------------------------------------------===//
@@ -534,8 +660,12 @@ bool FuncType::isVoid() const { return getReturnType().isa<VoidType>(); }
 //===----------------------------------------------------------------------===//
 
 void CIRDialect::registerTypes() {
+  // Register tablegen'd types.
   addTypes<
 #define GET_TYPEDEF_LIST
 #include "clang/CIR/Dialect/IR/CIROpsTypes.cpp.inc"
       >();
+
+  // Register raw C++ types.
+  addTypes<StructType>();
 }

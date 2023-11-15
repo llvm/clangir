@@ -2160,7 +2160,8 @@ std::unique_ptr<mlir::Pass> createConvertCIRToLLVMPass() {
 extern void registerCIRDialectTranslation(mlir::MLIRContext &context);
 
 std::unique_ptr<llvm::Module>
-lowerDirectlyFromCIRToLLVMIR(mlir::ModuleOp theModule, LLVMContext &llvmCtx) {
+lowerDirectlyFromCIRToLLVMIR(mlir::ModuleOp theModule, LLVMContext &llvmCtx,
+                             bool disableVerifier) {
   mlir::MLIRContext *mlirCtx = theModule.getContext();
   mlir::PassManager pm(mlirCtx);
 
@@ -2177,6 +2178,7 @@ lowerDirectlyFromCIRToLLVMIR(mlir::ModuleOp theModule, LLVMContext &llvmCtx) {
   // emmited and how to properly avoid them.
   pm.addPass(mlir::createReconcileUnrealizedCastsPass());
 
+  pm.enableVerifier(!disableVerifier);
   (void)mlir::applyPassManagerCLOptions(pm);
 
   auto result = !mlir::failed(pm.run(theModule));
