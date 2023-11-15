@@ -10,6 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "Address.h"
 #include "CIRDataLayout.h"
 #include "CIRGenFunction.h"
 #include "CIRGenModule.h"
@@ -285,7 +286,16 @@ public:
   }
   mlir::Value VisitCastExpr(CastExpr *E);
   mlir::Value VisitCallExpr(const CallExpr *E);
-  mlir::Value VisitStmtExpr(StmtExpr *E) { llvm_unreachable("NYI"); }
+
+  mlir::Value VisitStmtExpr(StmtExpr *E) {
+    assert(!UnimplementedFeature::stmtExprEvaluation() && "NYI");
+    Address retAlloca =
+        CGF.buildCompoundStmt(*E->getSubStmt(), !E->getType()->isVoidType());
+    if (!retAlloca.isValid())
+      return {};
+    return CGF.buildLoadOfScalar(CGF.makeAddrLValue(retAlloca, E->getType()),
+                                 E->getExprLoc());
+  }
 
   // Unary Operators.
   mlir::Value VisitUnaryPostDec(const UnaryOperator *E) {
