@@ -523,6 +523,11 @@ def GlobalCtorAttr : CIR_Attr<"GlobalCtor", "globalCtor"> {
 }
 
 def BitfieldInfoAttr : CIR_Attr<"BitfieldInfo", "bitfield_info"> {
+  let summary = "Represents a bit field info";
+  let description = [{
+    Holds the next information about bitfields: name, storage type, a bitfield size
+    and position in the storage, if the bitfield is signed or not.
+  }];
   let parameters = (ins "StringAttr":$name,
                         "Type":$storage_type,
                         "uint64_t":$size,

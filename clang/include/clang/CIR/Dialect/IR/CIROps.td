@@ -1435,12 +1435,23 @@ def SetBitfieldOp : CIR_Op<"set_bitfield"> {
     different storages. The `cir.set_bitfield` operation sets the value
     of the bitfield.
     ```C++
+    typedef struct {
+      int a : 4;
+      int b : 27;
+      int c : 17;
+      int d : 2;
+      int e : 15;
+    } S;
+
     void store_bitfield(S& s) {
       s.d = 3;
     }
     ```
 
     ```mlir
+    // 'd' is in the storage with the index 1
+    !ty_22S22 = !cir.struct<struct "S" {!cir.int<u, 32>, !cir.int<u, 32>, !cir.int<u, 16>, !cir.int<u, 32>} #cir.record.decl.ast>
+
     %1 = cir.const(#cir.int<3> : !s32i) : !s32i
     %2 = cir.load %0 : cir.ptr <!cir.ptr<!ty_22S22>>, !cir.ptr<!ty_22S22>
     %3 = cir.get_member %2[1] {name = "d"} : !cir.ptr<!ty_22S22> -> !cir.ptr<!u32i>
@@ -1498,12 +1509,23 @@ def GetBitfieldOp : CIR_Op<"get_bitfield"> {
     different storages. The `cir.get_bitfield` operation gets the value
     of the bitfield
     ```C++
+    typedef struct {
+      int a : 4;
+      int b : 27;
+      int c : 17;
+      int d : 2;
+      int e : 15;
+    } S;
+
     int load_bitfield(S& s) {
       return s.d;
     }
     ```
 
     ```mlir
+    // 'd' is in the storage with the index 1
+    !ty_22S22 = !cir.struct<struct "S" {!cir.int<u, 32>, !cir.int<u, 32>, !cir.int<u, 16>, !cir.int<u, 32>} #cir.record.decl.ast>
+
     %2 = cir.load %0 : cir.ptr <!cir.ptr<!ty_22S22>>, !cir.ptr<!ty_22S22>
     %3 = cir.get_member %2[1] {name = "d"} : !cir.ptr<!ty_22S22> -> !cir.ptr<!u32i>
     %4 = cir.get_bitfield %3(#d) : !cir.ptr<!u32i> -> !s32i
