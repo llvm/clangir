@@ -24,6 +24,7 @@
 #include "clang/Frontend/FrontendDiagnostic.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Support/LogicalResult.h"
 
 using namespace cir;
 using namespace clang;
@@ -1102,7 +1103,7 @@ mlir::LogicalResult CIRGenFunction::buildFunctionBody(const clang::Stmt *Body) {
 
   auto result = mlir::LogicalResult::success();
   if (const CompoundStmt *S = dyn_cast<CompoundStmt>(Body))
-    result = buildCompoundStmtWithoutScope(*S);
+    buildCompoundStmtWithoutScope(*S);
   else
     result = buildStmt(Body, /*useCurrentScope*/ true);
 

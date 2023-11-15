@@ -10,30 +10,27 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "Address.h"
 #include "CIRGenFunction.h"
+#include "mlir/IR/Value.h"
 
 using namespace cir;
 using namespace clang;
 using namespace mlir::cir;
 
-mlir::LogicalResult
-CIRGenFunction::buildCompoundStmtWithoutScope(const CompoundStmt &S) {
+Address CIRGenFunction::buildCompoundStmtWithoutScope(const CompoundStmt &S,
+                                                      bool getLast,
+                                                      AggValueSlot slot) {
   for (auto *CurStmt : S.body())
     if (buildStmt(CurStmt, /*useCurrentScope=*/false).failed())
-      return mlir::failure();
+      return Address::invalid();
 
-  return mlir::success();
+  return Address::invalid();
 }
 
-mlir::LogicalResult CIRGenFunction::buildCompoundStmt(const CompoundStmt &S) {
-  mlir::LogicalResult res = mlir::success();
-
-  auto compoundStmtBuilder = [&]() -> mlir::LogicalResult {
-    if (buildCompoundStmtWithoutScope(S).failed())
-      return mlir::failure();
-
-    return mlir::success();
-  };
+Address CIRGenFunction::buildCompoundStmt(const CompoundStmt &S, bool getLast,
+                                          AggValueSlot slot) {
+  Address retAlloca = Address::invalid();
 
   // Add local scope to track new declared variables.
   SymTableScopeTy varScope(symbolTable);
@@ -43,10 +40,10 @@ mlir::LogicalResult CIRGenFunction::buildCompoundStmt(const CompoundStmt &S) {
       [&](mlir::OpBuilder &b, mlir::Location loc) {
         LexicalScopeContext lexScope{loc, builder.getInsertionBlock()};
         LexicalScopeGuard lexScopeGuard{*this, &lexScope};
-        res = compoundStmtBuilder();
+        retAlloca = buildCompoundStmtWithoutScope(S);
       });
 
-  return res;
+  return retAlloca;
 }
 
 void CIRGenFunction::buildStopPoint(const Stmt *S) {
@@ -258,9 +255,12 @@ mlir::LogicalResult CIRGenFunction::buildSimpleStmt(const Stmt *S,
   case Stmt::DeclStmtClass:
     return buildDeclStmt(cast<DeclStmt>(*S));
   case Stmt::CompoundStmtClass:
-    return useCurrentScope
-               ? buildCompoundStmtWithoutScope(cast<CompoundStmt>(*S))
-               : buildCompoundStmt(cast<CompoundStmt>(*S));
+    // FIXME(cir): This is a form of early optimization. Perhaps we should
+    // always emit a `cir.scope` if one exists in the source code, then
+    // canonicalize it away with the merge-cleanup pass.
+    useCurrentScope ? buildCompoundStmtWithoutScope(cast<CompoundStmt>(*S))
+                    : buildCompoundStmt(cast<CompoundStmt>(*S));
+    break;
   case Stmt::ReturnStmtClass:
     return buildReturnStmt(cast<ReturnStmt>(*S));
   case Stmt::GotoStmtClass:
