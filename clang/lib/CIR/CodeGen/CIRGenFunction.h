@@ -234,6 +234,7 @@ private:
   class LexicalScopeGuard {
     CIRGenFunction &CGF;
     LexicalScopeContext *OldVal = nullptr;
+    mlir::Value retVal = nullptr; // Scopes might return a value.
 
   public:
     LexicalScopeGuard(CIRGenFunction &c, LexicalScopeContext *L) : CGF(c) {
@@ -247,6 +248,8 @@ private:
     LexicalScopeGuard(const LexicalScopeGuard &) = delete;
     LexicalScopeGuard &operator=(const LexicalScopeGuard &) = delete;
     LexicalScopeGuard &operator=(LexicalScopeGuard &&other) = delete;
+
+    void setRetVal(mlir::Value v) { retVal = v; }
 
     void cleanup();
     void restore() { CGF.currLexScope = OldVal; }
