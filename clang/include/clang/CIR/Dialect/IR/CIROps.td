@@ -1450,12 +1450,13 @@ def SetBitfieldOp : CIR_Op<"set_bitfield"> {
 
     ```mlir
     // 'd' is in the storage with the index 1
-    !ty_22S22 = !cir.struct<struct "S" {!cir.int<u, 32>, !cir.int<u, 32>, !cir.int<u, 16>, !cir.int<u, 32>} #cir.record.decl.ast>
+    !struct_type = !cir.struct<struct "S" {!cir.int<u, 32>, !cir.int<u, 32>, !cir.int<u, 16>} #cir.record.decl.ast>
+    #bfi_d = #cir.bitfield_info<name = "d", storage_type = !u32i, size = 2, offset = 17, is_signed = true>
 
     %1 = cir.const(#cir.int<3> : !s32i) : !s32i
-    %2 = cir.load %0 : cir.ptr <!cir.ptr<!ty_22S22>>, !cir.ptr<!ty_22S22>
-    %3 = cir.get_member %2[1] {name = "d"} : !cir.ptr<!ty_22S22> -> !cir.ptr<!u32i>
-    %4 = cir.set_bitfield %1, %3(#d) : (!s32i, !cir.ptr<!u32i>) -> !s32i
+    %2 = cir.load %0 : cir.ptr <!cir.ptr<!struct_type>>, !cir.ptr<!struct_type>
+    %3 = cir.get_member %2[1] {name = "d"} : !cir.ptr<!struct_type> -> !cir.ptr<!u32i>
+    %4 = cir.set_bitfield %1, %3(#bfi_d) : (!s32i, !cir.ptr<!u32i>) -> !s32i
     ```
    }];
 
@@ -1524,11 +1525,12 @@ def GetBitfieldOp : CIR_Op<"get_bitfield"> {
 
     ```mlir
     // 'd' is in the storage with the index 1
-    !ty_22S22 = !cir.struct<struct "S" {!cir.int<u, 32>, !cir.int<u, 32>, !cir.int<u, 16>, !cir.int<u, 32>} #cir.record.decl.ast>
+    !struct_type = !cir.struct<struct "S" {!cir.int<u, 32>, !cir.int<u, 32>, !cir.int<u, 16>} #cir.record.decl.ast>
+    #bfi_d = #cir.bitfield_info<name = "d", storage_type = !u32i, size = 2, offset = 17, is_signed = true>
 
-    %2 = cir.load %0 : cir.ptr <!cir.ptr<!ty_22S22>>, !cir.ptr<!ty_22S22>
-    %3 = cir.get_member %2[1] {name = "d"} : !cir.ptr<!ty_22S22> -> !cir.ptr<!u32i>
-    %4 = cir.get_bitfield %3(#d) : !cir.ptr<!u32i> -> !s32i
+    %2 = cir.load %0 : cir.ptr <!cir.ptr<!struct_type>>, !cir.ptr<!struct_type>
+    %3 = cir.get_member %2[1] {name = "d"} : !cir.ptr<!struct_type> -> !cir.ptr<!u32i>
+    %4 = cir.get_bitfield %3(#bfi_d) : !cir.ptr<!u32i> -> !s32i
     ```
     }];
 

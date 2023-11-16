@@ -10,6 +10,9 @@ typedef struct {
   unsigned f;
 } S;
 
+// CHECK: #bfi_d = #cir.bitfield_info<name = "d", storage_type = !u32i, size = 2, offset = 17, is_signed = true>
+// CHECK: #bfi_e = #cir.bitfield_info<name = "e", storage_type = !u16i, size = 15, offset = 0, is_signed = true>
+
 // CHECK: cir.func {{.*@store_field}}
 // CHECK:   [[TMP0:%.*]] = cir.alloca !ty_22S22, cir.ptr <!ty_22S22>, ["s"]
 // CHECK:   [[TMP1:%.*]] = cir.const(#cir.int<3> : !s32i) : !s32i
