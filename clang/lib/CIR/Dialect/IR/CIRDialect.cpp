@@ -320,14 +320,14 @@ LogicalResult CastOp::verify() {
     if (!resType.isa<mlir::cir::BoolType>())
       return emitOpError() << "requires !cir.bool type for result";
     if (!srcType.isa<mlir::cir::IntType>())
-      return emitOpError() << "requires integral type for result";
+      return emitOpError() << "requires integral type for source";
     return success();
   }
   case cir::CastKind::ptr_to_bool: {
     if (!resType.isa<mlir::cir::BoolType>())
       return emitOpError() << "requires !cir.bool type for result";
     if (!srcType.isa<mlir::cir::PointerType>())
-      return emitOpError() << "requires pointer type for result";
+      return emitOpError() << "requires pointer type for source";
     return success();
   }
   case cir::CastKind::integral: {
@@ -399,12 +399,20 @@ LogicalResult CastOp::verify() {
       return emitOpError() << "requires !cir.int for result";
     return success();
   }
-  case cir::CastKind::int_to_float:
+  case cir::CastKind::int_to_float: {
     if (!srcType.isa<mlir::cir::IntType>())
       return emitOpError() << "requires !cir.int for source";
     if (!resType.isa<mlir::FloatType>())
       return emitOpError() << "requires !cir.float for result";
     return success();
+  }
+  case cir::CastKind::bool_to_float: {
+    if (!srcType.isa<mlir::cir::BoolType>())
+      return emitOpError() << "requires !cir.bool for source";
+    if (!resType.isa<mlir::FloatType>())
+      return emitOpError() << "requires !cir.float for result";
+    return success();
+  }
   }
 
   llvm_unreachable("Unknown CastOp kind?");
