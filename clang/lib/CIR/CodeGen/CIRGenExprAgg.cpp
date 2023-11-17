@@ -44,10 +44,8 @@ class AggExprEmitter : public StmtVisitor<AggExprEmitter> {
                            llvm::function_ref<RValue(ReturnValueSlot)> Fn);
 
   AggValueSlot EnsureSlot(mlir::Location loc, QualType T) {
-    // assert(!Dest.isIgnored() && "ignored slots NYI");
-    // return Dest;
     if (!Dest.isIgnored()) return Dest;
-    return CGF.CreateAggTemp(T, loc, "agg.tmp.ensured");    
+    return CGF.CreateAggTemp(T, loc, "agg.tmp.ensured");
   }
 
   void EnsureDest(mlir::Location loc, QualType T) {
