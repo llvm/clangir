@@ -148,39 +148,6 @@ static RetTy parseOptionalCIRKeyword(AsmParser &parser, EnumTy defaultValue) {
   return static_cast<RetTy>(index);
 }
 
-// Check if a region's termination omission is valid and, if so, creates and
-// inserts the omitted terminator into the region.
-LogicalResult ensureRegionTerm(OpAsmParser &parser, Region &region,
-                               SMLoc errLoc) {
-  Location eLoc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
-  OpBuilder builder(parser.getBuilder().getContext());
-
-  // Region is empty or properly terminated: nothing to do.
-  if (region.empty() || region.back().hasTerminator())
-    return success();
-
-  // Check for invalid terminator omissions.
-  if (!region.hasOneBlock())
-    return parser.emitError(errLoc,
-                            "multi-block region must not omit terminator");
-  if (region.back().empty())
-    return parser.emitError(errLoc, "empty region must not omit terminator");
-
-  // Terminator was omited correctly: recreate it.
-  region.back().push_back(builder.create<cir::YieldOp>(eLoc));
-  return success();
-}
-
-// True if the region's terminator should be omitted.
-bool omitRegionTerm(mlir::Region &r) {
-  const auto singleNonEmptyBlock = r.hasOneBlock() && !r.front().empty();
-  const auto yieldsNothing = [&r]() {
-    YieldOp y = dyn_cast<YieldOp>(r.back().back());
-    return y && y.isPlain() && y.getArgs().empty();
-  };
-  return singleNonEmptyBlock && yieldsNothing();
-}
-
 //===----------------------------------------------------------------------===//
 // AllocaOp
 //===----------------------------------------------------------------------===//
@@ -298,14 +265,14 @@ LogicalResult CastOp::verify() {
     if (!resType.isa<mlir::cir::BoolType>())
       return emitOpError() << "requires !cir.bool type for result";
     if (!srcType.isa<mlir::cir::IntType>())
-      return emitOpError() << "requires integral type for result";
+      return emitOpError() << "requires integral type for source";
     return success();
   }
   case cir::CastKind::ptr_to_bool: {
     if (!resType.isa<mlir::cir::BoolType>())
       return emitOpError() << "requires !cir.bool type for result";
     if (!srcType.isa<mlir::cir::PointerType>())
-      return emitOpError() << "requires pointer type for result";
+      return emitOpError() << "requires pointer type for source";
     return success();
   }
   case cir::CastKind::integral: {
@@ -377,12 +344,20 @@ LogicalResult CastOp::verify() {
       return emitOpError() << "requires !cir.int for result";
     return success();
   }
-  case cir::CastKind::int_to_float:
+  case cir::CastKind::int_to_float: {
     if (!srcType.isa<mlir::cir::IntType>())
       return emitOpError() << "requires !cir.int for source";
     if (!resType.isa<mlir::FloatType>())
       return emitOpError() << "requires !cir.float for result";
     return success();
+  }
+  case cir::CastKind::bool_to_float: {
+    if (!srcType.isa<mlir::cir::BoolType>())
+      return emitOpError() << "requires !cir.bool for source";
+    if (!resType.isa<mlir::FloatType>())
+      return emitOpError() << "requires !cir.float for result";
+    return success();
+  }
   }
 
   llvm_unreachable("Unknown CastOp kind?");
@@ -446,6 +421,53 @@ mlir::LogicalResult ThrowOp::verify() {
 // IfOp
 //===----------------------------------------------------------------------===//
 
+static LogicalResult checkBlockTerminator(OpAsmParser &parser,
+                                          llvm::SMLoc parserLoc,
+                                          std::optional<Location> l, Region *r,
+                                          bool ensureTerm = true) {
+  mlir::Builder &builder = parser.getBuilder();
+  if (r->hasOneBlock()) {
+    if (ensureTerm) {
+      ::mlir::impl::ensureRegionTerminator(
+          *r, builder, *l, [](OpBuilder &builder, Location loc) {
+            OperationState state(loc, YieldOp::getOperationName());
+            YieldOp::build(builder, state);
+            return Operation::create(state);
+          });
+    } else {
+      assert(r && "region must not be empty");
+      Block &block = r->back();
+      if (block.empty() || !block.back().hasTrait<OpTrait::IsTerminator>()) {
+        return parser.emitError(
+            parser.getCurrentLocation(),
+            "blocks are expected to be explicitly terminated");
+      }
+    }
+    return success();
+  }
+
+  // Empty regions don't need any handling.
+  auto &blocks = r->getBlocks();
+  if (blocks.empty())
+    return success();
+
+  // Test that at least one block has a yield/return/throw terminator. We can
+  // probably make this a bit more strict.
+  for (Block &block : blocks) {
+    if (block.empty())
+      continue;
+    auto &op = block.back();
+    if (op.hasTrait<mlir::OpTrait::IsTerminator>() &&
+        isa<YieldOp, ReturnOp, ThrowOp>(op)) {
+      return success();
+    }
+  }
+
+  parser.emitError(parserLoc,
+                   "expected at least one block with cir.yield or cir.return");
+  return failure();
+}
+
 ParseResult cir::IfOp::parse(OpAsmParser &parser, OperationState &result) {
   // Create the regions for 'then'.
   result.regions.reserve(2);
@@ -465,7 +487,8 @@ ParseResult cir::IfOp::parse(OpAsmParser &parser, OperationState &result) {
   if (parser.parseRegion(*thenRegion, /*arguments=*/{},
                          /*argTypes=*/{}))
     return failure();
-  if (ensureRegionTerm(parser, *thenRegion, parseThenLoc).failed())
+  if (checkBlockTerminator(parser, parseThenLoc, result.location, thenRegion)
+          .failed())
     return failure();
 
   // If we find an 'else' keyword, parse the 'else' region.
@@ -473,7 +496,8 @@ ParseResult cir::IfOp::parse(OpAsmParser &parser, OperationState &result) {
     auto parseElseLoc = parser.getCurrentLocation();
     if (parser.parseRegion(*elseRegion, /*arguments=*/{}, /*argTypes=*/{}))
       return failure();
-    if (ensureRegionTerm(parser, *elseRegion, parseElseLoc).failed())
+    if (checkBlockTerminator(parser, parseElseLoc, result.location, elseRegion)
+            .failed())
       return failure();
   }
 
@@ -483,12 +507,28 @@ ParseResult cir::IfOp::parse(OpAsmParser &parser, OperationState &result) {
   return success();
 }
 
+bool shouldPrintTerm(mlir::Region &r) {
+  if (!r.hasOneBlock())
+    return true;
+  auto *entryBlock = &r.front();
+  if (entryBlock->empty())
+    return false;
+  if (isa<ReturnOp>(entryBlock->back()))
+    return true;
+  if (isa<ThrowOp>(entryBlock->back()))
+    return true;
+  YieldOp y = dyn_cast<YieldOp>(entryBlock->back());
+  if (y && (!y.isPlain() || !y.getArgs().empty()))
+    return true;
+  return false;
+}
+
 void cir::IfOp::print(OpAsmPrinter &p) {
   p << " " << getCondition() << " ";
   auto &thenRegion = this->getThenRegion();
   p.printRegion(thenRegion,
                 /*printEntryBlockArgs=*/false,
-                /*printBlockTerminators=*/!omitRegionTerm(thenRegion));
+                /*printBlockTerminators=*/shouldPrintTerm(thenRegion));
 
   // Print the 'else' regions if it exists and has a block.
   auto &elseRegion = this->getElseRegion();
@@ -496,7 +536,7 @@ void cir::IfOp::print(OpAsmPrinter &p) {
     p << " else ";
     p.printRegion(elseRegion,
                   /*printEntryBlockArgs=*/false,
-                  /*printBlockTerminators=*/!omitRegionTerm(elseRegion));
+                  /*printBlockTerminators=*/shouldPrintTerm(elseRegion));
   }
 
   p.printOptionalAttrDict(getOperation()->getAttrs());
@@ -579,7 +619,7 @@ ParseResult cir::ScopeOp::parse(OpAsmParser &parser, OperationState &result) {
   if (parser.parseRegion(*scopeRegion, /*arguments=*/{}, /*argTypes=*/{}))
     return failure();
 
-  if (ensureRegionTerm(parser, *scopeRegion, loc).failed())
+  if (checkBlockTerminator(parser, loc, result.location, scopeRegion).failed())
     return failure();
 
   // Parse the optional attribute list.
@@ -593,7 +633,7 @@ void cir::ScopeOp::print(OpAsmPrinter &p) {
   auto &scopeRegion = this->getScopeRegion();
   p.printRegion(scopeRegion,
                 /*printEntryBlockArgs=*/false,
-                /*printBlockTerminators=*/!omitRegionTerm(scopeRegion));
+                /*printBlockTerminators=*/shouldPrintTerm(scopeRegion));
 
   p.printOptionalAttrDict(getOperation()->getAttrs());
 }
@@ -834,10 +874,10 @@ parseSwitchOp(OpAsmParser &parser,
                               "case region shall not be empty");
     }
 
-    if (!currRegion.back().hasTerminator())
-      return parser.emitError(parserLoc,
-                              "case regions must be explicitly terminated");
-
+    if (checkBlockTerminator(parser, parserLoc, std::nullopt, &currRegion,
+                             /*ensureTerm=*/false)
+            .failed())
+      return failure();
     return success();
   };
 
@@ -1102,10 +1142,10 @@ parseCatchOp(OpAsmParser &parser,
                               "catch region shall not be empty");
     }
 
-    if (!currRegion.back().hasTerminator())
-      return parser.emitError(
-          parserLoc, "blocks are expected to be explicitly terminated");
-
+    if (checkBlockTerminator(parser, parserLoc, std::nullopt, &currRegion,
+                             /*ensureTerm=*/false)
+            .failed())
+      return failure();
     return success();
   };
 
@@ -1356,7 +1396,9 @@ static ParseResult parseGlobalOpTypeAndInitialValue(OpAsmParser &parser,
       if (ctorRegion.back().empty())
         return parser.emitError(parser.getCurrentLocation(),
                                 "ctor region shall not be empty");
-      if (ensureRegionTerm(parser, ctorRegion, parseLoc).failed())
+      if (checkBlockTerminator(parser, parseLoc,
+                               ctorRegion.back().back().getLoc(), &ctorRegion)
+              .failed())
         return failure();
     } else {
       // Parse constant with initializer, examples:
@@ -1383,7 +1425,9 @@ static ParseResult parseGlobalOpTypeAndInitialValue(OpAsmParser &parser,
       if (dtorRegion.back().empty())
         return parser.emitError(parser.getCurrentLocation(),
                                 "dtor region shall not be empty");
-      if (ensureRegionTerm(parser, dtorRegion, parseLoc).failed())
+      if (checkBlockTerminator(parser, parseLoc,
+                               dtorRegion.back().back().getLoc(), &dtorRegion)
+              .failed())
         return failure();
     }
   }
@@ -2409,10 +2453,10 @@ LogicalResult GetMemberOp::verify() {
   // these still need to be patched.
   // Also we bypass the typechecking for the fields of incomplete types.
   bool shouldSkipMemberTypeMismatch =
-      recordTy.isClass() || isIncompleteType(recordTy.getMembers()[getIndex()]);
+    recordTy.isClass() || isIncompleteType(recordTy.getMembers()[getIndex()]);
 
-  if (!shouldSkipMemberTypeMismatch &&
-      recordTy.getMembers()[getIndex()] != getResultTy().getPointee())
+  if (!shouldSkipMemberTypeMismatch
+      && recordTy.getMembers()[getIndex()] != getResultTy().getPointee())
     return emitError() << "member type mismatch";
 
   return mlir::success();
