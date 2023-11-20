@@ -117,16 +117,16 @@ public:
 
   // l-values
   void VisitDeclRefExpr(DeclRefExpr *E) { buildAggLoadOfLValue(E); }
-  void VisitMemberExpr(MemberExpr *E) { llvm_unreachable("NYI"); }
-  void VisitUnaryDeref(UnaryOperator *E) { llvm_unreachable("NYI"); }
-  void VisitStringLiteral(StringLiteral *E) { llvm_unreachable("NYI"); }
+  void VisitMemberExpr(MemberExpr *E) { buildAggLoadOfLValue(E); }
+  void VisitUnaryDeref(UnaryOperator *E) { buildAggLoadOfLValue(E); }
+  void VisitStringLiteral(StringLiteral *E) { buildAggLoadOfLValue(E); }
   void VisitCompoundLIteralExpr(CompoundLiteralExpr *E) {
     llvm_unreachable("NYI");
   }
   void VisitArraySubscriptExpr(ArraySubscriptExpr *E) {
     buildAggLoadOfLValue(E);
   }
-  void VisitPredefinedExpr(const PredefinedExpr *E) { llvm_unreachable("NYI"); }
+  void VisitPredefinedExpr(const PredefinedExpr *E) { buildAggLoadOfLValue(E); }
 
   // Operators.
   void VisitCastExpr(CastExpr *E);
@@ -136,7 +136,39 @@ public:
   void VisitPointerToDataMemberBinaryOperator(const BinaryOperator *E) {
     llvm_unreachable("NYI");
   }
-  void VisitBinAssign(const BinaryOperator *E) { llvm_unreachable("NYI"); }
+  void VisitBinAssign(const BinaryOperator *E) {
+    LValue lhs = CGF.buildLValue(E->getLHS());
+
+    // If we have an atomic type, evaluate into the destination and then
+    // do an atomic copy.
+    if (lhs.getType()->isAtomicType() ||
+        CGF.LValueIsSuitableForInlineAtomic(lhs)) {
+      assert(!UnimplementedFeature::atomicTypes());
+      return;
+    }
+
+    // Codegen the RHS so that it stores directly into the LHS.
+    AggValueSlot lhsSlot = AggValueSlot::forLValue(
+      lhs, AggValueSlot::IsDestructed, AggValueSlot::DoesNotNeedGCBarriers,
+      AggValueSlot::IsAliased, AggValueSlot::MayOverlap);
+
+    // A non-volatile aggregate destination might have volatile member.
+    if (!lhsSlot.isVolatile() &&
+        CGF.hasVolatileMember(E->getLHS()->getType()))
+      assert(!UnimplementedFeature::atomicTypes());
+
+    CGF.buildAggExpr(E->getRHS(), lhsSlot);
+
+    // Copy into the destination if the assignment isn't ignored.
+    buildFinalDestCopy(E->getType(), lhs);
+
+    if (!Dest.isIgnored() && !Dest.isExternallyDestructed() &&
+      E->getType().isDestructedType() == QualType::DK_nontrivial_c_struct)
+      CGF.pushDestroy(QualType::DK_nontrivial_c_struct, Dest.getAddress(),
+                     E->getType());
+   }
+
+
   void VisitBinComma(const BinaryOperator *E) { llvm_unreachable("NYI"); }
   void VisitBinCmp(const BinaryOperator *E) { llvm_unreachable("NYI"); }
   void VisitCXXRewrittenBinaryOperator(CXXRewrittenBinaryOperator *E) {
