@@ -10,6 +10,17 @@ typedef struct {
 
 typedef int (*fun_t)(Data* d);
 
+struct A;
+typedef int (*fun_typ)(struct A*);
+
+typedef struct A {
+  fun_typ fun;  
+} A;
+
+// CIR: !ty_22A22 = !cir.struct<struct "A" {!cir.ptr<!cir.func<!cir.int<s, 32> (!cir.ptr<!cir.struct<struct "A">>)>>} #cir.record.decl.ast>
+A a = {(fun_typ)0};
+
+
 int extract_a(Data* d) {
     return d->a;
 }
@@ -44,3 +55,5 @@ int foo(Data* d) {
     f = extract_a;
     return f(d);
 }
+
+
