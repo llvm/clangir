@@ -1134,9 +1134,9 @@ ConstantLValueEmitter::tryEmitBase(const APValue::LValueBase &base) {
       auto fop = CGM.GetAddrOfFunction(FD);
       auto builder = CGM.getBuilder();
       auto ctxt = builder.getContext();
-      auto symb = mlir::FlatSymbolRefAttr::get(ctxt, fop.getSymNameAttr());
-      auto type = builder.getPointerTo(fop.getFunctionType());
-      return mlir::cir::GlobalViewAttr::get(type, symb);
+      return mlir::cir::GlobalViewAttr::get(
+          builder.getPointerTo(fop.getFunctionType()),
+          mlir::FlatSymbolRefAttr::get(ctxt, fop.getSymNameAttr()));
     }
 
     if (auto *VD = dyn_cast<VarDecl>(D)) {
