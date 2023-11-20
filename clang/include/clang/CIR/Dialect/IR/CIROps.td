@@ -1457,7 +1457,7 @@ def SetBitfieldOp : CIR_Op<"set_bitfield"> {
     %1 = cir.const(#cir.int<3> : !s32i) : !s32i
     %2 = cir.load %0 : cir.ptr <!cir.ptr<!struct_type>>, !cir.ptr<!struct_type>
     %3 = cir.get_member %2[1] {name = "d"} : !cir.ptr<!struct_type> -> !cir.ptr<!u32i>
-    %4 = cir.set_bitfield %1, %3(#bfi_d) : (!s32i, !cir.ptr<!u32i>) -> !s32i
+    %4 = cir.set_bitfield #bfi_d, %3, %1 : (!s32i, !cir.ptr<!u32i>) -> !s32i
     ```
    }];
 
@@ -1469,7 +1469,7 @@ def SetBitfieldOp : CIR_Op<"set_bitfield"> {
 
   let results = (outs CIR_IntType:$result);
 
-  let assemblyFormat = [{ $src `,` $dst`(`$bitfield_info`)` attr-dict `:` 
+  let assemblyFormat = [{ $bitfield_info`,` $dst`,` $src attr-dict `:` 
    `(` type($src) `,` type($dst) `)`  `->` type($result) }];
   
   let builders = [
@@ -1531,7 +1531,7 @@ def GetBitfieldOp : CIR_Op<"get_bitfield"> {
 
     %2 = cir.load %0 : cir.ptr <!cir.ptr<!struct_type>>, !cir.ptr<!struct_type>
     %3 = cir.get_member %2[1] {name = "d"} : !cir.ptr<!struct_type> -> !cir.ptr<!u32i>
-    %4 = cir.get_bitfield %3(#bfi_d) : !cir.ptr<!u32i> -> !s32i
+    %4 = cir.get_bitfield #bfi_d, %3 : !cir.ptr<!u32i> -> !s32i
     ```
     }];
 
@@ -1542,7 +1542,7 @@ def GetBitfieldOp : CIR_Op<"get_bitfield"> {
 
   let results = (outs CIR_IntType:$result);
 
-  let assemblyFormat = [{ $addr`(`$bitfield_info`)` attr-dict `:` 
+  let assemblyFormat = [{ $bitfield_info `,` $addr attr-dict `:` 
    type($addr) `->` type($result) }];
 
   let builders = [
