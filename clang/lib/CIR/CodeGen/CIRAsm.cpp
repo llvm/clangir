@@ -25,9 +25,9 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
   std::vector<mlir::Type> ResultRegTypes;
   std::vector<mlir::Value> Args;
 
-  assert(!S.getNumOutputs() && "NYI");
-  assert(!S.getNumInputs() && "NYI");
-  assert(!S.getNumClobbers() && "NYI");
+  assert(!S.getNumOutputs() && "asm output operands are NYI");
+  assert(!S.getNumInputs() && "asm intput operands are NYI");
+  assert(!S.getNumClobbers() && "asm clobbers are NYI");
 
   mlir::Type ResultType;
 
