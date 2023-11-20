@@ -1492,6 +1492,7 @@ LogicalResult GlobalOp::verify() {
   case GlobalLinkageKind::ExternalWeakLinkage:
   case GlobalLinkageKind::LinkOnceODRLinkage:
   case GlobalLinkageKind::LinkOnceAnyLinkage:
+  case GlobalLinkageKind::CommonLinkage:
     // FIXME: mlir's concept of visibility gets tricky with LLVM ones,
     // for instance, symbol declarations cannot be "public", so we
     // have to mark them "private" to workaround the symbol verifier.
