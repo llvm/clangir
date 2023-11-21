@@ -55,5 +55,3 @@ int foo(Data* d) {
     f = extract_a;
     return f(d);
 }
-
-
