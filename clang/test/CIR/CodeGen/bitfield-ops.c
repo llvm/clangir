@@ -17,7 +17,7 @@ typedef struct {
 // CHECK:   [[TMP0:%.*]] = cir.alloca !ty_22S22, cir.ptr <!ty_22S22>, ["s"]
 // CHECK:   [[TMP1:%.*]] = cir.const(#cir.int<3> : !s32i) : !s32i
 // CHECK:   [[TMP2:%.*]] = cir.get_member [[TMP0]][2] {name = "e"} : !cir.ptr<!ty_22S22> -> !cir.ptr<!u16i>
-// CHECK:   [[TMP3:%.*]] = cir.set_bitfield #bfi_e, [[TMP2]], [[TMP1]] : (!s32i, !cir.ptr<!u16i>) -> !s32i
+// CHECK:   [[TMP3:%.*]] = cir.set_bitfield(#bfi_e, [[TMP2]] : !cir.ptr<!u16i>, [[TMP1]] : !s32i) -> !s32i
 void store_field() {
   S s;
   s.e = 3;

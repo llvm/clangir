@@ -1457,7 +1457,7 @@ def SetBitfieldOp : CIR_Op<"set_bitfield"> {
     %1 = cir.const(#cir.int<3> : !s32i) : !s32i
     %2 = cir.load %0 : cir.ptr <!cir.ptr<!struct_type>>, !cir.ptr<!struct_type>
     %3 = cir.get_member %2[1] {name = "d"} : !cir.ptr<!struct_type> -> !cir.ptr<!u32i>
-    %4 = cir.set_bitfield #bfi_d, %3, %1 : (!s32i, !cir.ptr<!u32i>) -> !s32i
+    %4 = cir.set_bitfield(#bfi_d, %3 : !cir.ptr<!u32i>, %1 : !s32i) -> !s32i
     ```
    }];
 
@@ -1469,8 +1469,8 @@ def SetBitfieldOp : CIR_Op<"set_bitfield"> {
 
   let results = (outs CIR_IntType:$result);
 
-  let assemblyFormat = [{ $bitfield_info`,` $dst`,` $src attr-dict `:` 
-   `(` type($src) `,` type($dst) `)`  `->` type($result) }];
+  let assemblyFormat = [{ `(`$bitfield_info`,` $dst`:`type($dst)`,`
+    $src`:`type($src) `)`  attr-dict `->` type($result) }];
   
   let builders = [
     OpBuilder<(ins "Type":$type,
