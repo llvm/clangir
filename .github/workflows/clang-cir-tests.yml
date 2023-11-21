@@ -12,7 +12,6 @@ on:
       - 'clang/**'
       - '.github/workflows/clang-cir-tests.yml'
       - '.github/workflows/llvm-project-tests.yml'
-      - '!llvm/**'
   pull_request:
     branches:
       - 'main'
@@ -20,7 +19,6 @@ on:
       - 'clang/**'
       - '.github/workflows/clang-cir-tests.yml'
       - '.github/workflows/llvm-project-tests.yml'
-      - '!llvm/**'
 
 concurrency:
   # Skip intermediate builds: always.
