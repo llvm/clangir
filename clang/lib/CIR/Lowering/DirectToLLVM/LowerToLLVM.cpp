@@ -1124,8 +1124,8 @@ public:
           lowerCirAttrAsValue(op, structAttr, rewriter, typeConverter);
       rewriter.replaceOp(op, initVal);
       return mlir::success();
-    } else if (auto strTy = dyn_cast<mlir::cir::StructType>(op.getType())) {
-      if (auto zero = dyn_cast<mlir::cir::ZeroAttr>(op.getValue())) {
+    } else if (auto strTy = mlir::dyn_cast<mlir::cir::StructType>(op.getType())) {
+      if (auto zero = mlir::dyn_cast<mlir::cir::ZeroAttr>(op.getValue())) {
         auto initVal =
           lowerCirAttrAsValue(op, zero, rewriter, typeConverter);
         rewriter.replaceOp(op, initVal);
