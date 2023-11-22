@@ -460,6 +460,10 @@ public:
 
     return type;
   }
+
+  mlir::cir::ArrayType getArrayType(mlir::Type eltType, unsigned size) {
+    return mlir::cir::ArrayType::get(getContext(), eltType, size);
+  }
   
   bool isSized(mlir::Type ty) {
     if (ty.isIntOrFloat() ||
