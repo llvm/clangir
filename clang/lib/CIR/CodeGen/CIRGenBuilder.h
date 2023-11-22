@@ -460,6 +460,16 @@ public:
 
     return type;
   }
+  
+  bool isSized(mlir::Type ty) {
+    if (ty.isIntOrFloat() ||
+        ty.isa<mlir::cir::PointerType, mlir::cir::StructType,
+                mlir::cir::ArrayType, mlir::cir::BoolType,
+                mlir::cir::IntType>())
+      return true;
+    assert(0 && "Unimplemented size for type");
+    return false;
+  }
 
   //
   // Constant creation helpers
