@@ -299,9 +299,6 @@ mlir::LogicalResult CIRGenFunction::buildSimpleStmt(const Stmt *S,
   case Stmt::DeclStmtClass:
     return buildDeclStmt(cast<DeclStmt>(*S));
   case Stmt::CompoundStmtClass:
-    // FIXME(cir): This is a form of early optimization. Perhaps we should
-    // always emit a `cir.scope` if one exists in the source code, then
-    // canonicalize it away with the merge-cleanup pass.
     useCurrentScope ? buildCompoundStmtWithoutScope(cast<CompoundStmt>(*S))
                     : buildCompoundStmt(cast<CompoundStmt>(*S));
     break;
