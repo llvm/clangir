@@ -173,9 +173,9 @@ LogicalResult ensureRegionTerm(OpAsmParser &parser, Region &region,
 
 // True if the region's terminator should be omitted.
 bool omitRegionTerm(mlir::Region &r) {
-  const auto singleNonEmptyBlock = r.hasOneBlock() && !r.front().empty();
+  const auto singleNonEmptyBlock = r.hasOneBlock() && !r.back().empty();
   const auto yieldsNothing = [&r]() {
-    YieldOp y = dyn_cast<YieldOp>(r.back().back());
+    YieldOp y = dyn_cast<YieldOp>(r.back().getTerminator());
     return y && y.isPlain() && y.getArgs().empty();
   };
   return singleNonEmptyBlock && yieldsNothing();
