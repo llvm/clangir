@@ -201,7 +201,23 @@ public:
   void VisitCastExpr(CastExpr *E);
   void VisitCallExpr(const CallExpr *E);
   void VisitStmtExpr(const StmtExpr *E) { llvm_unreachable("NYI"); }
-  void VisitBinaryOperator(const BinaryOperator *E) { llvm_unreachable("NYI"); }
+  void VisitBinaryOperator(const BinaryOperator *E) {
+    switch (E->getOpcode()) {
+    case BO_Assign:
+      return VisitBinAssign(E);
+    case BO_Comma:
+      return VisitBinComma(E);
+    case BO_LT:
+    case BO_GT:
+    case BO_LE:
+    case BO_GE:
+    case BO_EQ:
+    case BO_NE:
+      return VisitBinCmp(E);
+    default:
+      llvm_unreachable("NYI");
+    }
+  }
   void VisitPointerToDataMemberBinaryOperator(const BinaryOperator *E) {
     llvm_unreachable("NYI");
   }
