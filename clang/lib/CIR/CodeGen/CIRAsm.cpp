@@ -11,10 +11,10 @@ using namespace mlir::cir;
 static AsmDialect inferDialect(const CIRGenModule &cgm, const AsmStmt &S) {
   AsmDialect GnuAsmDialect =
       cgm.getCodeGenOpts().getInlineAsmDialect() == CodeGenOptions::IAD_ATT
-          ? AsmDialect::AD_ATT
-          : AsmDialect::AD_Intel;
+          ? AsmDialect::x86_att
+          : AsmDialect::x86_intel;
 
-  return isa<MSAsmStmt>(&S) ? AsmDialect::AD_Intel : GnuAsmDialect;
+  return isa<MSAsmStmt>(&S) ? AsmDialect::x86_intel : GnuAsmDialect;
 }
 
 mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
@@ -27,7 +27,7 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
 
   assert(!S.getNumOutputs() && "asm output operands are NYI");
   assert(!S.getNumInputs() && "asm intput operands are NYI");
-  assert(!S.getNumClobbers() && "asm clobbers are NYI");
+  assert(!S.getNumClobbers() && "asm clobbers operands are NYI");
 
   mlir::Type ResultType;
 
@@ -41,14 +41,10 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
         builder.getCompleteStructTy(ResultRegTypes, sname, false, nullptr);
   }
 
-  bool HasSideEffect = S.isVolatile() || S.getNumOutputs() == 0;
   AsmDialect AsmDialect = inferDialect(CGM, S);
 
   builder.create<mlir::cir::InlineAsmOp>(
-      getLoc(S.getAsmLoc()), ResultType, Args, AsmString, Constraints,
-      HasSideEffect,
-      /* IsAlignStack */ false,
-      AsmDialectAttr::get(builder.getContext(), AsmDialect), mlir::ArrayAttr());
+      getLoc(S.getAsmLoc()), AsmString, AsmDialect);
 
   return mlir::success();
 }
