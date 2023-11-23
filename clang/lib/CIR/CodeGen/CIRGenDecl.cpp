@@ -887,7 +887,7 @@ struct CallCleanupFunction final : EHScopeStack::Cleanup {
 };
 } // end anonymous namespace
 
-/// pushDestroy - Push the standard destructor for the given type as
+/// Push the standard destructor for the given type as
 /// at least a normal cleanup.
 void CIRGenFunction::pushDestroy(QualType::DestructionKind dtorKind,
                                   Address addr, QualType type) {
