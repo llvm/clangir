@@ -1531,7 +1531,7 @@ def GetBitfieldOp : CIR_Op<"get_bitfield"> {
 
     %2 = cir.load %0 : cir.ptr <!cir.ptr<!struct_type>>, !cir.ptr<!struct_type>
     %3 = cir.get_member %2[1] {name = "d"} : !cir.ptr<!struct_type> -> !cir.ptr<!u32i>
-    %4 = cir.get_bitfield #bfi_d, %3 : !cir.ptr<!u32i> -> !s32i
+    %4 = cir.get_bitfield(#bfi_d, %3 : !cir.ptr<!u32i>) -> !s32i
     ```
     }];
 
@@ -1542,8 +1542,8 @@ def GetBitfieldOp : CIR_Op<"get_bitfield"> {
 
   let results = (outs CIR_IntType:$result);
 
-  let assemblyFormat = [{ $bitfield_info `,` $addr attr-dict `:` 
-   type($addr) `->` type($result) }];
+  let assemblyFormat = [{ `(`$bitfield_info `,` $addr attr-dict `:` 
+   type($addr) `)` `->` type($result) }];
 
   let builders = [
     OpBuilder<(ins "Type":$type,

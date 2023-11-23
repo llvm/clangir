@@ -27,7 +27,7 @@ void store_field() {
 // CHECK:   [[TMP0:%.*]] = cir.alloca !cir.ptr<!ty_22S22>, cir.ptr <!cir.ptr<!ty_22S22>>, ["s", init]
 // CHECK:   [[TMP1:%.*]] = cir.load [[TMP0]] : cir.ptr <!cir.ptr<!ty_22S22>>, !cir.ptr<!ty_22S22>
 // CHECK:   [[TMP2:%.*]] = cir.get_member [[TMP1]][1] {name = "d"} : !cir.ptr<!ty_22S22> -> !cir.ptr<!u32i>
-// CHECK:   [[TMP3:%.*]] = cir.get_bitfield #bfi_d, [[TMP2]] : !cir.ptr<!u32i> -> !s32i
+// CHECK:   [[TMP3:%.*]] = cir.get_bitfield(#bfi_d, [[TMP2]] : !cir.ptr<!u32i>) -> !s32i
 int load_field(S* s) {
   return s->d;
 }
