@@ -247,7 +247,6 @@ public:
                      E->getType());
    }
 
-
   void VisitBinComma(const BinaryOperator *E) { llvm_unreachable("NYI"); }
   void VisitBinCmp(const BinaryOperator *E) { llvm_unreachable("NYI"); }
   void VisitCXXRewrittenBinaryOperator(CXXRewrittenBinaryOperator *E) {
