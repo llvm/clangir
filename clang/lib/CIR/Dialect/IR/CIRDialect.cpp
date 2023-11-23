@@ -1492,6 +1492,7 @@ LogicalResult GlobalOp::verify() {
   case GlobalLinkageKind::ExternalWeakLinkage:
   case GlobalLinkageKind::LinkOnceODRLinkage:
   case GlobalLinkageKind::LinkOnceAnyLinkage:
+  case GlobalLinkageKind::CommonLinkage:
     // FIXME: mlir's concept of visibility gets tricky with LLVM ones,
     // for instance, symbol declarations cannot be "public", so we
     // have to mark them "private" to workaround the symbol verifier.
@@ -2423,14 +2424,6 @@ LogicalResult MemCpyOp::verify() {
   return mlir::success();
 }
 
-static bool isIncompleteType(mlir::Type typ) {
-  if (auto ptr = typ.dyn_cast<PointerType>())
-    return isIncompleteType(ptr.getPointee());
-  else if (auto rec = typ.dyn_cast<StructType>())
-    return rec.isIncomplete();
-  return false;
-}
-
 //===----------------------------------------------------------------------===//
 // GetMemberOp Definitions
 //===----------------------------------------------------------------------===//
@@ -2441,21 +2434,12 @@ LogicalResult GetMemberOp::verify() {
   if (!recordTy)
     return emitError() << "expected pointer to a record type";
 
-  // FIXME: currently we bypass typechecking of incomplete types due to errors
-  // in the codegen process. This should be removed once the codegen is fixed.
-  if (isIncompleteType(recordTy))
-    return mlir::success();
-
   if (recordTy.getMembers().size() <= getIndex())
     return emitError() << "member index out of bounds";
 
   // FIXME(cir): member type check is disabled for classes as the codegen for
   // these still need to be patched.
-  // Also we bypass the typechecking for the fields of incomplete types.
-  bool shouldSkipMemberTypeMismatch =
-    recordTy.isClass() || isIncompleteType(recordTy.getMembers()[getIndex()]);
-
-  if (!shouldSkipMemberTypeMismatch
+  if (!recordTy.isClass()
       && recordTy.getMembers()[getIndex()] != getResultTy().getPointee())
     return emitError() << "member type mismatch";
 
