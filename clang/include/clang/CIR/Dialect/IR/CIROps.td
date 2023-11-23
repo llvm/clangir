@@ -2217,15 +2217,18 @@ def CIR_InlineAsmOp : CIR_Op<"asm"> {
 
     ```
     ```mlir
-    cir.asm(x86_att, "xyz")
+    cir.asm(x86_att, {"xyz"}) -> !void 
     ```
   }];
+
+  let results = (outs Optional<AnyType>:$res);
+
   let arguments = (
     ins StrAttr:$asm_string,
         AsmFlavor:$asm_flavor);  
 
   let assemblyFormat = [{
-    `(`$asm_flavor`,` $asm_string `)` attr-dict
+    `(`$asm_flavor`,` `{` $asm_string `}` `)` attr-dict `->` type(results)
    }];  
 }
 
