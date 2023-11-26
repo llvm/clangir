@@ -13,20 +13,15 @@
 #include "mlir/Conversion/ControlFlowToLLVM/ControlFlowToLLVM.h"
 #include "mlir/Conversion/FuncToLLVM/ConvertFuncToLLVM.h"
 #include "mlir/Conversion/FuncToLLVM/ConvertFuncToLLVMPass.h"
-#include "mlir/Conversion/LLVMCommon/ConversionTarget.h"
 #include "mlir/Conversion/LLVMCommon/TypeConverter.h"
 #include "mlir/Conversion/ReconcileUnrealizedCasts/ReconcileUnrealizedCasts.h"
 #include "mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"
-#include "mlir/Dialect/Affine/IR/AffineOps.h"
-#include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/DLTI/DLTI.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMAttrs.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/LLVMIR/LLVMTypes.h"
 #include "mlir/Dialect/LLVMIR/Transforms/Passes.h"
-#include "mlir/Dialect/SCF/IR/SCF.h"
-#include "mlir/Dialect/SCF/Transforms/Passes.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributeInterfaces.h"
@@ -34,7 +29,6 @@
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
-#include "mlir/IR/IRMapping.h"
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/Types.h"
 #include "mlir/IR/Value.h"
@@ -56,11 +50,9 @@
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/Sequence.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/IR/DataLayout.h"
-#include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -102,12 +94,11 @@ lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::cir::ConstPtrAttr ptrAttr,
   if (ptrAttr.isNullValue()) {
     return rewriter.create<mlir::LLVM::NullOp>(
         loc, converter->convertType(ptrAttr.getType()));
-  } else {
-    mlir::Value ptrVal = rewriter.create<mlir::LLVM::ConstantOp>(
-        loc, rewriter.getI64Type(), ptrAttr.getValue());
-    return rewriter.create<mlir::LLVM::IntToPtrOp>(
-        loc, converter->convertType(ptrAttr.getType()), ptrVal);
   }
+  mlir::Value ptrVal = rewriter.create<mlir::LLVM::ConstantOp>(
+      loc, rewriter.getI64Type(), ptrAttr.getValue());
+  return rewriter.create<mlir::LLVM::IntToPtrOp>(
+      loc, converter->convertType(ptrAttr.getType()), ptrVal);
 }
 
 /// FloatAttr visitor.
@@ -227,7 +218,8 @@ mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
   auto module = parentOp->getParentOfType<mlir::ModuleOp>();
   mlir::Type sourceType;
   llvm::StringRef symName;
-  auto sourceSymbol = mlir::SymbolTable::lookupSymbolIn(module, globalAttr.getSymbol());
+  auto *sourceSymbol =
+      mlir::SymbolTable::lookupSymbolIn(module, globalAttr.getSymbol());
   if (auto llvmSymbol = dyn_cast<mlir::LLVM::GlobalOp>(sourceSymbol)) {
     sourceType = llvmSymbol.getType();
     symName = llvmSymbol.getSymName();
@@ -247,7 +239,7 @@ mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
 
   if (globalAttr.getIndices()) {
     llvm::SmallVector<mlir::LLVM::GEPArg> indices;
-    for (auto idx: globalAttr.getIndices()) {
+    for (auto idx : globalAttr.getIndices()) {
       auto intAttr = dyn_cast<mlir::cir::IntAttr>(idx);
       assert(intAttr && "index must be integers");
       indices.push_back(intAttr.getSInt());
@@ -1075,15 +1067,14 @@ public:
       return mlir::success();
     } else if (auto strTy = op.getType().dyn_cast<mlir::cir::StructType>()) {
       if (auto zero = op.getValue().dyn_cast<mlir::cir::ZeroAttr>()) {
-        auto initVal =
-          lowerCirAttrAsValue(op, zero, rewriter, typeConverter);
+        auto initVal = lowerCirAttrAsValue(op, zero, rewriter, typeConverter);
         rewriter.replaceAllUsesWith(op, initVal);
         rewriter.eraseOp(op);
         return mlir::success();
       }
 
-      return op.emitError()
-        << "unsupported lowering for struct constant type " << op.getType();
+      return op.emitError() << "unsupported lowering for struct constant type "
+                            << op.getType();
     } else
       return op.emitError() << "unsupported constant type " << op.getType();
 
@@ -1401,8 +1392,8 @@ public:
 
     // Check for missing funcionalities.
     if (!init.has_value()) {
-      rewriter.replaceOpWithNewOp<mlir::LLVM::GlobalOp>(op, llvmType, isConst,
-                                                        linkage, symbol, mlir::Attribute());
+      rewriter.replaceOpWithNewOp<mlir::LLVM::GlobalOp>(
+          op, llvmType, isConst, linkage, symbol, mlir::Attribute());
       return mlir::success();
     }
 
@@ -1942,7 +1933,7 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::VTableAddrPointOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    auto converter = getTypeConverter();
+    const auto *converter = getTypeConverter();
     auto targetType = converter->convertType(op.getType());
     mlir::Value symAddr = op.getSymAddr();
 
@@ -1987,8 +1978,8 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
 }
 
 namespace {
-void prepareTypeConverter(mlir::LLVMTypeConverter& converter,
-                                             mlir::DataLayout &dataLayout) {
+void prepareTypeConverter(mlir::LLVMTypeConverter &converter,
+                          mlir::DataLayout &dataLayout) {
   converter.addConversion([&](mlir::cir::PointerType type) -> mlir::Type {
     // Drop pointee type since LLVM dialect only allows opaque pointers.
     return mlir::LLVM::LLVMPointerType::get(type.getContext());
@@ -2100,15 +2091,15 @@ static void buildCtorList(mlir::ModuleOp module) {
   newGlobalOp.getRegion().push_back(new mlir::Block());
   builder.setInsertionPointToEnd(newGlobalOp.getInitializerBlock());
 
-  mlir::Value result = builder.create<mlir::LLVM::UndefOp>(
-      loc, CtorStructArrayTy);
+  mlir::Value result =
+      builder.create<mlir::LLVM::UndefOp>(loc, CtorStructArrayTy);
 
   for (uint64_t I = 0; I < globalCtors.size(); I++) {
     auto fn = globalCtors[I];
     mlir::Value structInit =
         builder.create<mlir::LLVM::UndefOp>(loc, CtorStructTy);
-    mlir::Value initPriority =
-        builder.create<mlir::LLVM::ConstantOp>(loc, CtorStructFields[0], fn.second);
+    mlir::Value initPriority = builder.create<mlir::LLVM::ConstantOp>(
+        loc, CtorStructFields[0], fn.second);
     mlir::Value initFuncAddr = builder.create<mlir::LLVM::AddressOfOp>(
         loc, CtorStructFields[1], fn.first);
     mlir::Value initAssociate =
