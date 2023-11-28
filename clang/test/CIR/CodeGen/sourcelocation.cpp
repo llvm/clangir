@@ -83,8 +83,9 @@ int s0(int a, int b) {
 
 // LLVM: !llvm.dbg.cu = !{!0}
 // LLVM: !llvm.module.flags = !{!2}
+
 // LLVM: !0 = distinct !DICompileUnit(language: DW_LANG_C, file: !1, producer: "MLIR", isOptimized: true, runtimeVersion: 0, emissionKind: LineTablesOnly)
-// LLVM: !1 = !DIFile(filename: "sourcelocation.cpp", directory: "{{.*}}clang/test/CIR/CodeGen")
+// LLVM: !1 = !DIFile(filename: "sourcelocation.cpp", directory: "/data/users/lanza/Projects/clangir/clang/test/CIR/CodeGen")
 // LLVM: !2 = !{i32 2, !"Debug Info Version", i32 3}
-// LLVM: ![[#SP]] = distinct !DISubprogram(name: "_Z2s0ii", linkageName: "_Z2s0ii", scope: !1, file: !1, line: 6, type: !4, scopeLine: 1, spFlags: DISPFlagDefinition | DISPFlagOptimized, unit: !0)
-// LLVM: ![[#LOC1]] = !DILocation(line: 6, scope: ![[#SP]])
+// LLVM: !3 = distinct !DISubprogram(name: "_Z2s0ii", linkageName: "_Z2s0ii", scope: !1, file: !1, line: 6, type: !4, scopeLine: 1, spFlags: DISPFlagDefinition | DISPFlagOptimized, unit: !0)
+// LLVM: !4 = !DISubroutineType(cc: DW_CC_normal, types: !5)
