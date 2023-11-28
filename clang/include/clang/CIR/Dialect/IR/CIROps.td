@@ -299,6 +299,7 @@ def AllocaOp : CIR_Op<"alloca", [
   }];
 
   let arguments = (ins
+    Optional<CIR_IntType>:$arraySize,
     TypeAttr:$allocaType,
     StrAttr:$name,
     UnitAttr:$init,
@@ -313,7 +314,17 @@ def AllocaOp : CIR_Op<"alloca", [
   let builders = [
     OpBuilder<(ins "Type":$addr, "Type":$allocaType,
                    "StringRef":$name,
-                   "IntegerAttr":$alignment)>
+                   "IntegerAttr":$alignment)>,
+    OpBuilder<(ins "Type":$addr,
+                   "Type":$allocaType,
+                   "StringRef":$name,
+                   "IntegerAttr":$alignment,
+                   "Value":$arraySize),
+    [{
+      if (arraySize)
+        $_state.addOperands(arraySize);
+      build($_builder, $_state, addr, allocaType, name, alignment);
+    }]>
   ];
 
   let extraClassDeclaration = [{
@@ -325,6 +336,7 @@ def AllocaOp : CIR_Op<"alloca", [
   // from the pointer type directly.
   let assemblyFormat = [{
     $allocaType `,` `cir.ptr` type($addr) `,`
+    ($arraySize^ `:` type($arraySize) `,`)?
     `[` $name
        (`,` `init` $init^)?
     `]`
