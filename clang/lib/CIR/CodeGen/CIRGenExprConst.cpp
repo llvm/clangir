@@ -913,7 +913,7 @@ public:
       return nullptr;
     }
 
-    llvm_unreachable("NYI");
+    return CGM.getBuilder().getZeroInitAttr(CGM.getCIRType(Ty));
   }
 
   mlir::Attribute VisitStringLiteral(StringLiteral *E, QualType T) {
