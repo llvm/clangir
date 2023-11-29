@@ -315,6 +315,7 @@ def AllocaOp : CIR_Op<"alloca", [
     OpBuilder<(ins "Type":$addr, "Type":$allocaType,
                    "StringRef":$name,
                    "IntegerAttr":$alignment)>,
+
     OpBuilder<(ins "Type":$addr,
                    "Type":$allocaType,
                    "StringRef":$name,
