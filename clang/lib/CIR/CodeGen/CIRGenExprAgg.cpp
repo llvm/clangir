@@ -30,6 +30,8 @@ using namespace clang;
 
 namespace {
 
+// FIXME(cir): This should be a common helper between CIRGen
+// and traditional CodeGen
 /// Is the value of the given expression possibly a reference to or
 /// into a __block variable?
 static bool isBlockVarRef(const Expr *E) {
