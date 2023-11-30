@@ -2206,7 +2206,7 @@ def AsmFlavor : I32EnumAttr<
   let cppNamespace = "::mlir::cir";
 }
 
-def CIR_InlineAsmOp : CIR_Op<"asm"> {
+def CIR_InlineAsmOp : CIR_Op<"asm", [RecursiveMemoryEffects]> {
   let description = [{
     The `cir.asm` operation represents C/C++ asm inline.
 
