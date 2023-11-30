@@ -22,6 +22,7 @@
 #include "mlir/IR/SymbolTable.h"
 
 #include "clang/AST/Decl.h"
+#include "clang/AST/ExprCXX.h"
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -257,7 +258,11 @@ void CIRGenFunction::buildAutoVarInit(const AutoVarEmission &emission) {
     }
   }
 
-  if (!constant) {
+  // NOTE(cir): In case we have a constant initializer, we can just emit a
+  // store. But, in CIR, we wish to retain any ctor calls, so if it is a
+  // CXX temporary object creation, we ensure the ctor call is used deferring
+  // its removal/optimization to the CIR lowering.
+  if (!constant || isa<CXXTemporaryObjectExpr>(Init)) {
     initializeWhatIsTechnicallyUninitialized(Loc);
     LValue lv = LValue::makeAddr(Loc, type, AlignmentSource::Decl);
     buildExprAsInit(Init, &D, lv);
@@ -813,8 +818,7 @@ struct DestroyObject final : EHScopeStack::Cleanup {
     [[maybe_unused]] bool useEHCleanupForArray =
         flags.isForNormalCleanup() && this->useEHCleanupForArray;
 
-    llvm_unreachable("NYI");
-    // CGF.emitDestroy(addr, type, destroyer, useEHCleanupForArray);
+    CGF.emitDestroy(addr, type, destroyer, useEHCleanupForArray);
   }
 };
 
@@ -892,6 +896,26 @@ void CIRGenFunction::pushDestroy(CleanupKind cleanupKind, Address addr,
                                  bool useEHCleanupForArray) {
   pushFullExprCleanup<DestroyObject>(cleanupKind, addr, type, destroyer,
                                      useEHCleanupForArray);
+}
+
+/// Immediately perform the destruction of the given object.
+///
+/// \param addr - the address of the object; a type*
+/// \param type - the type of the object; if an array type, all
+///   objects are destroyed in reverse order
+/// \param destroyer - the function to call to destroy individual
+///   elements
+/// \param useEHCleanupForArray - whether an EH cleanup should be
+///   used when destroying array elements, in case one of the
+///   destructions throws an exception
+void CIRGenFunction::emitDestroy(Address addr, QualType type,
+                                 Destroyer *destroyer,
+                                 bool useEHCleanupForArray) {
+  const ArrayType *arrayType = getContext().getAsArrayType(type);
+  if (!arrayType)
+    return destroyer(*this, addr, type);
+
+  llvm_unreachable("Array destroy NYI");
 }
 
 CIRGenFunction::Destroyer *
