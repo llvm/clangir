@@ -299,7 +299,7 @@ def AllocaOp : CIR_Op<"alloca", [
   }];
 
   let arguments = (ins
-    Optional<CIR_IntType>:$arraySize,
+    Optional<CIR_IntType>:$dynAllocSize,
     TypeAttr:$allocaType,
     StrAttr:$name,
     UnitAttr:$init,
@@ -331,13 +331,15 @@ def AllocaOp : CIR_Op<"alloca", [
   let extraClassDeclaration = [{
     // Whether the alloca input type is a pointer.
     bool isPointerType() { return getAllocaType().isa<::mlir::cir::PointerType>(); }
+
+    bool isDynamic() { return (bool)getDynAllocSize(); }
   }];
 
   // FIXME: we should not be printing `cir.ptr` below, that should come
   // from the pointer type directly.
   let assemblyFormat = [{
     $allocaType `,` `cir.ptr` type($addr) `,`
-    ($arraySize^ `:` type($arraySize) `,`)?
+    ($dynAllocSize^ `:` type($dynAllocSize) `,`)?
     `[` $name
        (`,` `init` $init^)?
     `]`

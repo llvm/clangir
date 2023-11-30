@@ -730,11 +730,8 @@ module {
 !s32i = !cir.int<s, 32>
 module {
   cir.func @tmp(%arg0: f32) {
-    %0 = cir.alloca f32, cir.ptr <f32>, ["a", init] {alignment = 4 : i64} 
-    cir.store %arg0, %0 : f32, cir.ptr <f32>
-    %1 = cir.load %0 : cir.ptr <f32>, f32
     // expected-error@+1 {{operand #0 must be Integer type}}
-    %2 = cir.alloca !s32i, cir.ptr <!s32i>, %1 : f32, ["tmp"] 
+    %0 = cir.alloca !s32i, cir.ptr <!s32i>, %arg0 : f32, ["tmp"]
     cir.return
   }
 }
