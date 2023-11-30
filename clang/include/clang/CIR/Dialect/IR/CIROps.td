@@ -284,6 +284,9 @@ def AllocaOp : CIR_Op<"alloca", [
     cases, the first use contains the initialization (a cir.store, a cir.call
     to a ctor, etc).
 
+    The `dynAllocSize` is a number of elements to be allocated on the stack.
+    Once not specified, the number of elements allocated is one.
+
     The result type is a pointer to the input's type.
 
     Example:
