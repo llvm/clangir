@@ -31,11 +31,9 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
 
   mlir::Type ResultType;
 
-  if (ResultRegTypes.empty())
-    ResultType = builder.getVoidTy();
-  else if (ResultRegTypes.size() == 1)
+  if (ResultRegTypes.size() == 1)
     ResultType = ResultRegTypes[0];
-  else {
+  else if (ResultRegTypes.size() > 1) {
     auto sname = builder.getUniqueAnonRecordName();
     ResultType =
         builder.getCompleteStructTy(ResultRegTypes, sname, false, nullptr);

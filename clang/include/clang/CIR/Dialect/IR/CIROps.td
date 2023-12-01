@@ -2376,7 +2376,7 @@ def CIR_InlineAsmOp : CIR_Op<"asm", [RecursiveMemoryEffects]> {
         AsmFlavor:$asm_flavor);  
 
   let assemblyFormat = [{
-    `(`$asm_flavor`,` `{` $asm_string `}` `)` attr-dict `->` type(results)
+    `(`$asm_flavor`,` `{` $asm_string `}` `)` attr-dict `:` type($res)
    }];  
 }
 
