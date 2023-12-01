@@ -1391,7 +1391,7 @@ void CIRGenItaniumRTTIBuilder::BuildVTablePointer(mlir::Location loc,
     llvm_unreachable("NYI");
   } else {
     SmallVector<mlir::Attribute, 4> offsets{
-        mlir::cir::IntAttr::get(PtrDiffTy, 2)};
+        CGM.getBuilder().getI32IntegerAttr(2)};
     auto indices = mlir::ArrayAttr::get(builder.getContext(), offsets);
     field = CGM.getBuilder().getGlobalViewAttr(CGM.getBuilder().getUInt8PtrTy(),
                                                VTable, indices);
