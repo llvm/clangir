@@ -2488,6 +2488,22 @@ def ThrowOp : CIR_Op<"throw",
   let hasVerifier = 1;
 }
 
+def StackSaveOp : CIR_Op<"stack_save"> {
+  let summary = "remember the current state of the function stack";
+  let description = [{ remember the current state of the function stack }];
+
+  let results = (outs AnyType:$result);
+  let assemblyFormat = "attr-dict `:` type($result)";
+}
+
+def StackRestoreOp : CIR_Op<"stack_restore"> {
+  let summary = "restore the state of the function stack";
+  let description = [{ restore the state of the function stack }];
+
+  let arguments = (ins CIR_PointerType:$ptr);
+  let assemblyFormat = "$ptr attr-dict `:` qualified(type($ptr))";
+}
+
 //===----------------------------------------------------------------------===//
 // Operations Lowered Directly to LLVM IR
 //
