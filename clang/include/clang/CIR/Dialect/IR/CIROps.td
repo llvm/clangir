@@ -2492,7 +2492,7 @@ def StackSaveOp : CIR_Op<"stack_save"> {
   let summary = "remember the current state of the function stack";
   let description = [{ remember the current state of the function stack }];
 
-  let results = (outs AnyType:$result);
+  let results = (outs CIR_PointerType:$result);
   let assemblyFormat = "attr-dict `:` type($result)";
 }
 

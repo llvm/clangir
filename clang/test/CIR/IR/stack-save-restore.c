@@ -5,25 +5,27 @@
 !u8i = !cir.int<u, 8>
 
 module  {
-  cir.func @foo() {
-    %0 = cir.alloca !cir.ptr<!u8i>, cir.ptr <!cir.ptr<!u8i>>, ["saved_stack"] {alignment = 8 : i64}
-    %1 = cir.stack_save : !cir.ptr<!u8i>
-    cir.store %1, %0 : !cir.ptr<!u8i>, cir.ptr <!cir.ptr<!u8i>>
-    %2 = cir.load %0 : cir.ptr <!cir.ptr<!u8i>>, !cir.ptr<!u8i>
-    cir.stack_restore %2 : !cir.ptr<!u8i>
+  cir.func @stack_save() {
+    %0 = cir.stack_save : <!u8i>
+    cir.return
+  }
+
+  cir.func @stack_restore(%arg0: !cir.ptr<!u8i>) {    
+    cir.stack_restore %arg0 : !cir.ptr<!u8i>
     cir.return
   }
 }
 
 //CHECK: module  {
 
-//CHECK-NEXT:  cir.func @foo() {
-//CHECK-NEXT:    %0 = cir.alloca !cir.ptr<!u8i>, cir.ptr <!cir.ptr<!u8i>>, ["saved_stack"] {alignment = 8 : i64}
-//CHECK-NEXT:    %1 = cir.stack_save : !cir.ptr<!u8i>
-//CHECK-NEXT:    cir.store %1, %0 : !cir.ptr<!u8i>, cir.ptr <!cir.ptr<!u8i>>
-//CHECK-NEXT:    %2 = cir.load %0 : cir.ptr <!cir.ptr<!u8i>>, !cir.ptr<!u8i>
-//CHECK-NEXT:    cir.stack_restore %2 : !cir.ptr<!u8i>
-//CHECK-NEXT:    cir.return
-//CHECK-NEXT:  }
+//CHECK-NEXT: cir.func @stack_save() {    
+//CHECK-NEXT:   %0 = cir.stack_save : <!u8i>
+//CHECK-NEXT:   cir.return
+//CHECK-NEXT: }
 
-//CHECK: }
+//CHECK-NEXT: cir.func @stack_restore(%arg0: !cir.ptr<!u8i>) {    
+//CHECK-NEXT:   cir.stack_restore %arg0 : !cir.ptr<!u8i>
+//CHECK-NEXT:   cir.return
+//CHECK-NEXT: }
+
+//CHECK-NEXT: }
