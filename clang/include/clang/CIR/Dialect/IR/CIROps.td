@@ -324,10 +324,10 @@ def AllocaOp : CIR_Op<"alloca", [
                    "Type":$allocaType,
                    "StringRef":$name,
                    "IntegerAttr":$alignment,
-                   "Value":$arraySize),
+                   "Value":$dynAllocSize),
     [{
-      if (arraySize)
-        $_state.addOperands(arraySize);
+      if (dynAllocSize)
+        $_state.addOperands(dynAllocSize);
       build($_builder, $_state, addr, allocaType, name, alignment);
     }]>
   ];
