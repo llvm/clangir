@@ -10,6 +10,7 @@
 #define LLVM_CLANG_LIB_CIR_CIRGENBUILDER_H
 
 #include "Address.h"
+#include "CIRGenRecordLayout.h"
 #include "CIRDataLayout.h"
 #include "CIRGenTypeCache.h"
 #include "UnimplementedFeatureGuarding.h"
@@ -461,6 +462,20 @@ public:
     return type;
   }
 
+  mlir::cir::ArrayType getArrayType(mlir::Type eltType, unsigned size) {
+    return mlir::cir::ArrayType::get(getContext(), eltType, size);
+  }
+  
+  bool isSized(mlir::Type ty) {
+    if (ty.isIntOrFloat() ||
+        ty.isa<mlir::cir::PointerType, mlir::cir::StructType,
+                mlir::cir::ArrayType, mlir::cir::BoolType,
+                mlir::cir::IntType>())
+      return true;
+    assert(0 && "Unimplemented size for type");
+    return false;
+  }
+
   //
   // Constant creation helpers
   // -------------------------
@@ -645,6 +660,26 @@ public:
   mlir::Value createGetGlobal(mlir::cir::GlobalOp global) {
     return create<mlir::cir::GetGlobalOp>(
         global.getLoc(), getPointerTo(global.getSymType()), global.getName());
+  }
+
+  mlir::Value createGetBitfield(mlir::Location loc, mlir::Type resultType,
+                                mlir::Value addr, mlir::Type storageType,
+                                const CIRGenBitFieldInfo &info,
+                                bool useVolatile) {
+    auto offset = useVolatile ? info.VolatileOffset : info.Offset;
+    return create<mlir::cir::GetBitfieldOp>(loc, resultType, addr, storageType,
+                                            info.Name, info.Size,
+                                            offset, info.IsSigned);
+  }
+
+  mlir::Value createSetBitfield(mlir::Location loc, mlir::Type resultType,
+                                mlir::Value dstAddr, mlir::Type storageType,
+                                mlir::Value src, const CIRGenBitFieldInfo &info,
+                                bool useVolatile) {
+    auto offset = useVolatile ? info.VolatileOffset : info.Offset;
+    return create<mlir::cir::SetBitfieldOp>(
+        loc, resultType, dstAddr, storageType, src, info.Name,
+        info.Size, offset, info.IsSigned);
   }
 
   /// Create a pointer to a record member.
