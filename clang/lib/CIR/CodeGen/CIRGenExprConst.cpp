@@ -912,7 +912,7 @@ public:
       return nullptr;
     }
 
-    llvm_unreachable("NYI");
+    return CGM.getBuilder().getZeroInitAttr(CGM.getCIRType(Ty));
   }
 
   mlir::Attribute VisitStringLiteral(StringLiteral *E, QualType T) {
@@ -1059,10 +1059,12 @@ private:
 
     llvm::SmallVector<mlir::Attribute, 3> Indices;
     for (auto I : Idx) {
-      auto Attr = mlir::cir::IntAttr::get(CGM.getBuilder().getSInt64Ty(), I);
+      auto Attr = CGM.getBuilder().getI32IntegerAttr(I);
       Indices.push_back(Attr);
     }
 
+    if (Indices.empty())
+      return {};
     return CGM.getBuilder().getArrayAttr(Indices);
   }
 
@@ -1070,15 +1072,18 @@ private:
 
   /// Apply the value offset to the given constant.
   ConstantLValue applyOffset(ConstantLValue &C) {
-    if (!hasNonZeroOffset())
-      return C;
 
-    if (auto Attr = C.Value.dyn_cast<mlir::Attribute>()) {
-      auto GV = cast<mlir::cir::GlobalViewAttr>(Attr);
-      assert(!GV.getIndices());
-
-      return mlir::cir::GlobalViewAttr::get(
-          GV.getType(), GV.getSymbol(), getOffset(GV.getType()));
+    // Handle attribute constant LValues.
+    if (auto Attr = 
+    C.Value.dyn_cast<mlir::Attribute>()) {
+      if (auto GV = Attr.dyn_cast<mlir::cir::GlobalViewAttr>()) {
+        auto baseTy = GV.getType().cast<mlir::cir::PointerType>().getPointee();
+        auto destTy = CGM.getTypes().convertTypeForMem(DestType);
+        assert(!GV.getIndices() && "Global view is already indexed");
+        return mlir::cir::GlobalViewAttr::get(destTy, GV.getSymbol(),
+                                              getOffset(baseTy));
+      }
+      llvm_unreachable("Unsupported attribute type to offset");
     }
 
     // TODO(cir): use ptr_stride, or something...

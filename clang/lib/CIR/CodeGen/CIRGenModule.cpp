@@ -978,7 +978,15 @@ void CIRGenModule::buildGlobalVarDefinition(const clang::VarDecl *D,
     assert(!UnimplementedFeature::setDLLStorageClass());
 
   if (Linkage == mlir::cir::GlobalLinkageKind::CommonLinkage) {
-    llvm_unreachable("common linkage is NYI");
+    // common vars aren't constant even if declared const.
+    GV.setConstant(false);
+    // Tentative definition of global variables may be initialized with
+    // non-zero null pointers. In this case they should have weak linkage
+    // since common linkage must have zero initializer and must not have
+    // explicit section therefore cannot have non-zero initial value.
+    auto Initializer = GV.getInitialValue();
+    if (Initializer && !getBuilder().isNullValue(*Initializer))
+      GV.setLinkage(mlir::cir::GlobalLinkageKind::WeakAnyLinkage);
   }
 
   // TODO(cir): setNonAliasAttributes(D, GV);
@@ -1412,6 +1420,7 @@ mlir::SymbolTable::Visibility CIRGenModule::getMLIRVisibilityFromCIRLinkage(
   case mlir::cir::GlobalLinkageKind::ExternalWeakLinkage:
   case mlir::cir::GlobalLinkageKind::LinkOnceODRLinkage:
   case mlir::cir::GlobalLinkageKind::AvailableExternallyLinkage:
+  case mlir::cir::GlobalLinkageKind::CommonLinkage:
     return mlir::SymbolTable::Visibility::Public;
   default: {
     llvm::errs() << "visibility not implemented for '"
@@ -1570,6 +1579,36 @@ mlir::cir::GlobalLinkageKind CIRGenModule::getFunctionLinkage(GlobalDecl GD) {
   }
 
   return getCIRLinkageForDeclarator(D, Linkage, /*IsConstantVariable=*/false);
+}
+
+void CIRGenModule::buildAliasForGlobal(StringRef mangledName,
+                                       mlir::Operation *op, GlobalDecl aliasGD,
+                                       mlir::cir::FuncOp aliasee,
+                                       mlir::cir::GlobalLinkageKind linkage) {
+
+  // Create the alias with no name.
+  auto *aliasFD = dyn_cast<FunctionDecl>(aliasGD.getDecl());
+  assert(aliasFD && "expected FunctionDecl");
+  auto alias =
+      createCIRFunction(getLoc(aliasGD.getDecl()->getSourceRange()),
+                        mangledName, aliasee.getFunctionType(), aliasFD);
+  alias.setAliasee(aliasee.getName());
+  alias.setLinkage(linkage);
+  mlir::SymbolTable::setSymbolVisibility(
+      alias, getMLIRVisibilityFromCIRLinkage(linkage));
+
+  // Alias constructors and destructors are always unnamed_addr.
+  assert(!UnimplementedFeature::unnamedAddr());
+
+  // Switch any previous uses to the alias.
+  if (op) {
+    llvm_unreachable("NYI");
+  } else {
+    // Name already set by createCIRFunction
+  }
+
+  // Finally, set up the alias with its proper name and attributes.
+  setCommonAttributes(aliasGD, alias);
 }
 
 mlir::Type CIRGenModule::getCIRType(const QualType &type) {
