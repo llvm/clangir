@@ -643,7 +643,7 @@ public:
     }
 
     // For scopes without results, use memref.alloca_scope
-    if (op.getResults().empty()) {
+    if (op.getNumResults() == 0) {
       auto allocaScope = rewriter.create<mlir::memref::AllocaScopeOp>(
           op.getLoc(), mlir::TypeRange{});
       rewriter.inlineRegionBefore(op.getScopeRegion(),
