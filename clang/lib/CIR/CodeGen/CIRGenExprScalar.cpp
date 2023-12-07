@@ -246,8 +246,14 @@ public:
   }
   mlir::Value VisitArraySubscriptExpr(ArraySubscriptExpr *E) {
     // Do we need anything like TestAndClearIgnoreResultAssign()?
-    assert(!E->getBase()->getType()->isVectorType() &&
-           "vector types not implemented");
+
+    if (E->getBase()->getType()->isVectorType()) {
+      // Subscript of vector type.  This is handled differently, with a custom
+      // operation.
+      return CGF.builder.create<mlir::cir::VecElemOp>(
+          CGF.getLoc(E->getSourceRange()), Visit(E->getBase()),
+          Visit(E->getIdx()));
+    }
 
     // Emit subscript expressions in rvalue context's.  For most cases, this
     // just loads the lvalue formed by the subscript expr.  However, we have to
@@ -1579,8 +1585,15 @@ mlir::Value ScalarExprEmitter::VisitInitListExpr(InitListExpr *E) {
   if (E->hadArrayRangeDesignator())
     llvm_unreachable("NYI");
 
-  if (UnimplementedFeature::cirVectorType())
-    llvm_unreachable("NYI");
+  if (E->getType()->isVectorType()) {
+    SmallVector<mlir::Value, 16> Elements;
+    for (Expr *init : E->inits()) {
+      Elements.push_back(Visit(init));
+    }
+    return CGF.getBuilder().create<mlir::cir::VecValueOp>(
+        CGF.getLoc(E->getSourceRange()), CGF.getCIRType(E->getType()),
+        Elements);
+  }
 
   if (NumInitElements == 0) {
     // C++11 value-initialization for the scalar.

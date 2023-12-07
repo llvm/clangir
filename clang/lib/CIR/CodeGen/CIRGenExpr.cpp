@@ -543,12 +543,6 @@ void CIRGenFunction::buildStoreOfScalar(mlir::Value Value, Address Addr,
                                         bool Volatile, QualType Ty,
                                         LValueBaseInfo BaseInfo, bool isInit,
                                         bool isNontemporal) {
-  if (!CGM.getCodeGenOpts().PreserveVec3Type) {
-    if (Ty->isVectorType()) {
-      llvm_unreachable("NYI");
-    }
-  }
-
   Value = buildToMemory(Value, Ty);
 
   if (Ty->isAtomicType()) {
@@ -2357,12 +2351,6 @@ mlir::Value CIRGenFunction::buildLoadOfScalar(Address Addr, bool Volatile,
                                               QualType Ty, mlir::Location Loc,
                                               LValueBaseInfo BaseInfo,
                                               bool isNontemporal) {
-  if (!CGM.getCodeGenOpts().PreserveVec3Type) {
-    if (Ty->isVectorType()) {
-      llvm_unreachable("NYI");
-    }
-  }
-
   // Atomic operations have to be done on integral types
   LValue AtomicLValue = LValue::makeAddr(Addr, Ty, getContext(), BaseInfo);
   if (Ty->isAtomicType() || LValueIsSuitableForInlineAtomic(AtomicLValue)) {
