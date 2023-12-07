@@ -441,30 +441,9 @@ static void emitConstructorDestructorAlias(CIRGenModule &CGM,
   auto Aliasee =
       dyn_cast_or_null<mlir::cir::FuncOp>(CGM.GetAddrOfGlobal(TargetDecl));
   assert(Aliasee && "expected cir.func");
-  auto *AliasFD = dyn_cast<FunctionDecl>(AliasDecl.getDecl());
-  assert(AliasFD && "expected FunctionDecl");
 
   // Populate actual alias.
-  auto Alias =
-      CGM.createCIRFunction(CGM.getLoc(AliasDecl.getDecl()->getSourceRange()),
-                            MangledName, Aliasee.getFunctionType(), AliasFD);
-  Alias.setAliasee(Aliasee.getName());
-  Alias.setLinkage(Linkage);
-  mlir::SymbolTable::setSymbolVisibility(
-      Alias, CGM.getMLIRVisibilityFromCIRLinkage(Linkage));
-
-  // Alias constructors and destructors are always unnamed_addr.
-  assert(!UnimplementedFeature::unnamedAddr());
-
-  // Switch any previous uses to the alias.
-  if (Entry) {
-    llvm_unreachable("NYI");
-  } else {
-    // Name already set by createCIRFunction
-  }
-
-  // Finally, set up the alias with its proper name and attributes.
-  CGM.setCommonAttributes(AliasDecl, Alias);
+  CGM.buildAliasForGlobal(MangledName, Entry, AliasDecl, Aliasee, Linkage);
 }
 
 void CIRGenItaniumCXXABI::buildCXXStructor(GlobalDecl GD) {
@@ -501,7 +480,8 @@ void CIRGenItaniumCXXABI::buildCXXStructor(GlobalDecl GD) {
   // destructor, there are no fields with a non-trivial destructor, and the body
   // of the destructor is trivial.
   if (DD && GD.getDtorType() == Dtor_Base &&
-      CIRGenType != StructorCIRGen::COMDAT)
+      CIRGenType != StructorCIRGen::COMDAT &&
+      !CGM.tryEmitBaseDestructorAsAlias(DD))
     return;
 
   // FIXME: The deleting destructor is equivalent to the selected operator
@@ -1382,8 +1362,6 @@ void CIRGenItaniumRTTIBuilder::BuildVTablePointer(mlir::Location loc,
   }
 
   assert(!UnimplementedFeature::setDSOLocal());
-  auto PtrDiffTy =
-      CGM.getTypes().ConvertType(CGM.getASTContext().getPointerDiffType());
 
   // The vtable address point is 2.
   mlir::Attribute field{};
