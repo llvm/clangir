@@ -408,8 +408,14 @@ public:
   lowerNestedBreakContinue(mlir::Region &loopBody, mlir::Block *exitBlock,
                            mlir::Block *continueBlock,
                            mlir::ConversionPatternRewriter &rewriter) const {
+    auto isNested = [&](mlir::Operation* op) {
+      return op->getParentRegion() != &loopBody;
+    };
 
     auto processBreak = [&](mlir::Operation *op) {
+      if (!isNested(op))
+        return mlir::WalkResult::advance();
+
       if (isa<mlir::cir::LoopOp, mlir::cir::SwitchOp>(
               *op)) // don't process breaks in nested loops and switches
         return mlir::WalkResult::skip();
@@ -421,6 +427,9 @@ public:
     };
 
     auto processContinue = [&](mlir::Operation *op) {
+      if (!isNested(op))
+        return mlir::WalkResult::advance();
+
       if (isa<mlir::cir::LoopOp>(
               *op)) // don't process continues in nested loops
         return mlir::WalkResult::skip();
@@ -821,11 +830,15 @@ public:
     // Stack restore before leaving the body region.
     rewriter.setInsertionPointToEnd(afterBody);
     auto yieldOp = cast<mlir::cir::YieldOp>(afterBody->getTerminator());
-    auto branchOp = rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(
-        yieldOp, yieldOp.getArgs(), continueBlock);
 
-    // // Insert stack restore before jumping out of the body of the region.
-    rewriter.setInsertionPoint(branchOp);
+    if (!isLoopYield(yieldOp)) {
+      auto branchOp = rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(
+          yieldOp, yieldOp.getArgs(), continueBlock);
+
+      // // Insert stack restore before jumping out of the body of the region.
+      rewriter.setInsertionPoint(branchOp);
+    }
+
     // TODO(CIR): stackrestore?
     // rewriter.create<mlir::LLVM::StackRestoreOp>(loc, stackSaveOp);
 
