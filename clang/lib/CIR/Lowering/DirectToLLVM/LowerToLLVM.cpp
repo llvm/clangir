@@ -408,6 +408,7 @@ public:
   lowerNestedBreakContinue(mlir::Region &loopBody, mlir::Block *exitBlock,
                            mlir::Block *continueBlock,
                            mlir::ConversionPatternRewriter &rewriter) const {
+    // top-level yields are lowered in matchAndRewrite
     auto isNested = [&](mlir::Operation* op) {
       return op->getParentRegion() != &loopBody;
     };

@@ -220,8 +220,8 @@ module {
 
   // test corner case - no fails during the lowering
   // while (1) {
-  //      break;
-  //  }
+  //     break;
+  // }
   cir.func @whileCorner(%arg0: !s32i) {
     %0 = cir.alloca !s32i, cir.ptr <!s32i>, ["n", init] {alignment = 4 : i64}
     cir.store %arg0, %0 : !s32i, cir.ptr <!s32i>
@@ -245,8 +245,8 @@ module {
 
   // test corner case - no fails during the lowering
   // for (int i = 0 ; i < n; ++i) {
-  //      break;
-  //   }
+  //     break;
+  // }
   cir.func @forCorner(%arg0: !s32i) {
     %0 = cir.alloca !s32i, cir.ptr <!s32i>, ["n", init] {alignment = 4 : i64}
     cir.store %arg0, %0 : !s32i, cir.ptr <!s32i>
