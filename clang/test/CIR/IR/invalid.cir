@@ -770,7 +770,7 @@ module {
 !u8i = !cir.int<u, 8>
 module {
   cir.func @stack_save_type_mismatch() {
-    // expected-error@+1 {{invalid kind of Type specified}}
+    // expected-error@+1 {{must be CIR pointer type}}
     %1 = cir.stack_save : !u8i
     cir.return
   }

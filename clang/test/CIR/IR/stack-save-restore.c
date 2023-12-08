@@ -6,7 +6,7 @@
 
 module  {
   cir.func @stack_save() {
-    %0 = cir.stack_save : <!u8i>
+    %0 = cir.stack_save : !cir.ptr<!u8i>
     cir.return
   }
 
@@ -19,7 +19,7 @@ module  {
 //CHECK: module  {
 
 //CHECK-NEXT: cir.func @stack_save() {    
-//CHECK-NEXT:   %0 = cir.stack_save : <!u8i>
+//CHECK-NEXT:   %0 = cir.stack_save : !cir.ptr<!u8i>
 //CHECK-NEXT:   cir.return
 //CHECK-NEXT: }
 

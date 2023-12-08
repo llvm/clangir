@@ -2450,6 +2450,10 @@ LogicalResult GetMemberOp::verify() {
   return mlir::success();
 }
 
+// LogicalResult StackRestoreOp::verify() {
+//    return mlir::success();
+// }
+
 //===----------------------------------------------------------------------===//
 // TableGen'd op method definitions
 //===----------------------------------------------------------------------===//

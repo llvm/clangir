@@ -1198,7 +1198,7 @@ def LoopOp : CIR_Op<"loop",
       CArg<"function_ref<void(OpBuilder &, Location)>",
            "nullptr">:$bodyBuilder,
       CArg<"function_ref<void(OpBuilder &, Location)>",
-           "nullptr">:$stepBuilder
+           "nullptr">:$ste7pBuilder
       )>
   ];
 
@@ -2502,7 +2502,7 @@ def StackSaveOp : CIR_Op<"stack_save"> {
   }];
 
   let results = (outs CIR_PointerType:$result);
-  let assemblyFormat = "attr-dict `:` type($result)";
+  let assemblyFormat = "attr-dict `:` qualified(type($result))";
 }
 
 def StackRestoreOp : CIR_Op<"stack_restore"> {
@@ -2524,6 +2524,7 @@ def StackRestoreOp : CIR_Op<"stack_restore"> {
 
   let arguments = (ins CIR_PointerType:$ptr);
   let assemblyFormat = "$ptr attr-dict `:` qualified(type($ptr))";
+  //let hasVerifier = 1;
 }
 
 //===----------------------------------------------------------------------===//
