@@ -289,6 +289,10 @@ def AllocaOp : CIR_Op<"alloca", [
     cases, the first use contains the initialization (a cir.store, a cir.call
     to a ctor, etc).
 
+    The `dynAllocSize` specifies the size to dynamically allocate on the stack
+    and ignores the allocation size based on the original type. This is useful
+    when handling VLAs and is omitted when declaring regular local variables.
+
     The result type is a pointer to the input's type.
 
     Example:
@@ -304,6 +308,7 @@ def AllocaOp : CIR_Op<"alloca", [
   }];
 
   let arguments = (ins
+    Optional<CIR_IntType>:$dynAllocSize,
     TypeAttr:$allocaType,
     StrAttr:$name,
     UnitAttr:$init,
@@ -318,18 +323,32 @@ def AllocaOp : CIR_Op<"alloca", [
   let builders = [
     OpBuilder<(ins "Type":$addr, "Type":$allocaType,
                    "StringRef":$name,
-                   "IntegerAttr":$alignment)>
+                   "IntegerAttr":$alignment)>,
+
+    OpBuilder<(ins "Type":$addr,
+                   "Type":$allocaType,
+                   "StringRef":$name,
+                   "IntegerAttr":$alignment,
+                   "Value":$dynAllocSize),
+    [{
+      if (dynAllocSize)
+        $_state.addOperands(dynAllocSize);
+      build($_builder, $_state, addr, allocaType, name, alignment);
+    }]>
   ];
 
   let extraClassDeclaration = [{
     // Whether the alloca input type is a pointer.
     bool isPointerType() { return mlir::isa<::mlir::cir::PointerType>(getAllocaType()); }
+
+    bool isDynamic() { return (bool)getDynAllocSize(); }
   }];
 
   // FIXME: we should not be printing `cir.ptr` below, that should come
   // from the pointer type directly.
   let assemblyFormat = [{
     $allocaType `,` `cir.ptr` type($addr) `,`
+    ($dynAllocSize^ `:` type($dynAllocSize) `,`)?
     `[` $name
        (`,` `init` $init^)?
     `]`
