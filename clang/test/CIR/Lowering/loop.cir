@@ -295,5 +295,4 @@ module {
 // MLIR-NEXT:     llvm.br ^bb8
 // MLIR-NEXT:   ^bb8:  // pred: ^bb7
 // MLIR-NEXT:     llvm.return
-
 }

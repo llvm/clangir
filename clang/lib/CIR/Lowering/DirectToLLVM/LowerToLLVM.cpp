@@ -409,7 +409,7 @@ public:
                            mlir::Block *continueBlock,
                            mlir::ConversionPatternRewriter &rewriter) const {
     // top-level yields are lowered in matchAndRewrite
-    auto isNested = [&](mlir::Operation* op) {
+    auto isNested = [&](mlir::Operation *op) {
       return op->getParentRegion() != &loopBody;
     };
 
@@ -500,8 +500,9 @@ public:
 
     // Branch from body to condition or to step on for-loop cases.
     rewriter.setInsertionPoint(bodyYield);
-    auto bodyYieldDest =
-      bodyYield.getKind() == mlir::cir::YieldOpKind::Break ? continueBlock : &stepBlock;
+    auto bodyYieldDest = bodyYield.getKind() == mlir::cir::YieldOpKind::Break
+                             ? continueBlock
+                             : &stepBlock;
     rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(bodyYield, bodyYieldDest);
 
     // Is a for loop: branch from step to condition.
