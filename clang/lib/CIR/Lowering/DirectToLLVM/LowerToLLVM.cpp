@@ -500,7 +500,9 @@ public:
 
     // Branch from body to condition or to step on for-loop cases.
     rewriter.setInsertionPoint(bodyYield);
-    rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(bodyYield, &stepBlock);
+    auto bodyYieldDest =
+      bodyYield.getKind() == mlir::cir::YieldOpKind::Break ? continueBlock : &stepBlock;
+    rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(bodyYield, bodyYieldDest);
 
     // Is a for loop: branch from step to condition.
     if (kind == LoopKind::For) {
