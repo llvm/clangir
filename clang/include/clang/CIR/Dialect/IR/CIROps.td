@@ -2197,7 +2197,7 @@ def MemCpyOp : CIR_Op<"libc.memcpy"> {
 
 def MemChrOp : CIR_Op<"libc.memchr"> {
   let arguments = (ins Arg<CIR_PointerType, "", [MemRead]>:$src,
-                       CIR_IntType:$pattern,
+                       UInt32:$pattern,
                        CIR_IntType:$len);
   let summary = "libc's `memchr`";
   let results = (outs Res<CIR_PointerType, "">:$result);
@@ -2217,7 +2217,7 @@ def MemChrOp : CIR_Op<"libc.memchr"> {
   let assemblyFormat = [{
     `(`
       $src `:` qualified(type($src))
-      `,` $pattern `:` type($pattern)
+      `,` $pattern
       `,` $len `:` type($len)
     `)` `->` qualified(type($result)) attr-dict
   }];
