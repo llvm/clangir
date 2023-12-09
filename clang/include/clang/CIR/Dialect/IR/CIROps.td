@@ -1847,7 +1847,8 @@ def FuncOp : CIR_Op<"func", [
 //===----------------------------------------------------------------------===//
 
 def CallOp : CIR_Op<"call",
-    [DeclareOpInterfaceMethods<CallOpInterface>, DeclareOpInterfaceMethods<SymbolUserOpInterface>,
+    [DeclareOpInterfaceMethods<CallOpInterface>,
+     DeclareOpInterfaceMethods<SymbolUserOpInterface>,
      DeclareOpInterfaceMethods<ArgAndResultAttrsOpInterface>]> {
   let summary = "call operation";
   let description = [{
@@ -1874,7 +1875,9 @@ def CallOp : CIR_Op<"call",
     ```
   }];
 
-  let arguments = (ins OptionalAttr<FlatSymbolRefAttr>:$callee, Variadic<AnyType>:$operands);
+  let arguments = (ins OptionalAttr<FlatSymbolRefAttr>:$callee,
+                       Variadic<AnyType>:$operands,
+                       OptionalAttr<ASTCallExprInterface>:$ast);
   let results = (outs Variadic<AnyType>);
 
   let builders = [
