@@ -3167,6 +3167,9 @@ static bool ParseFrontendArgs(FrontendOptions &Opts, ArgList &Args,
     Opts.ClangIRLifetimeCheck = true;
     Opts.ClangIRLifetimeCheckOpts = A->getValue();
   }
+  if (Args.hasArg(OPT_fclangir_idiom_recognizer_EQ))
+    Opts.ClangIRIdiomRecognizerOpts =
+        std::string(Args.getLastArgValue(OPT_fclangir_idiom_recognizer_EQ));
   if (Args.hasArg(OPT_aux_target_cpu))
     Opts.AuxTargetCPU = std::string(Args.getLastArgValue(OPT_aux_target_cpu));
   if (Args.hasArg(OPT_aux_target_feature))

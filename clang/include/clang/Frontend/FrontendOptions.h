@@ -438,6 +438,7 @@ public:
   ASTDumpOutputFormat ASTDumpFormat = ADOF_Default;
 
   std::string ClangIRLifetimeCheckOpts;
+  std::string ClangIRIdiomRecognizerOpts;
 
   /// The input kind, either specified via -x argument or deduced from the input
   /// file name.
