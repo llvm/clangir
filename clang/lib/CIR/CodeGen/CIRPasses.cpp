@@ -38,6 +38,7 @@ mlir::LogicalResult runCIRToCIRPasses(mlir::ModuleOp theModule,
     pm.addPass(std::move(lifetimePass));
   }
 
+  pm.addPass(mlir::createIdiomRecognizerPass(&astCtx));
   pm.addPass(mlir::createLoweringPreparePass(&astCtx));
 
   // FIXME: once CIRCodenAction fixes emission other than CIR we
