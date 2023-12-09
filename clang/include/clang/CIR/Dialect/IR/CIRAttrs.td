@@ -444,6 +444,12 @@ def ASTTagDeclAttr : AST<"TagDecl", "tag.decl",
 def ASTRecordDeclAttr : AST<"RecordDecl", "record.decl",
   [ASTRecordDeclInterface]>;
 
+def ASTExprAttr : AST<"Expr", "expr",
+  [ASTExprInterface]>;
+
+def ASTCallExprAttr : AST<"CallExpr", "call.expr",
+  [ASTCallExprInterface]>;
+
 //===----------------------------------------------------------------------===//
 // ExtraFuncAttr
 //===----------------------------------------------------------------------===//
