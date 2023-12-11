@@ -2450,9 +2450,13 @@ LogicalResult GetMemberOp::verify() {
   return mlir::success();
 }
 
-// LogicalResult StackRestoreOp::verify() {
-//    return mlir::success();
-// }
+LogicalResult StackRestoreOp::verify() {
+    auto ptr = getPtr();
+    auto op = ptr.getDefiningOp();
+    if (!op || !isa<mlir::cir::StackSaveOp>(op))
+      return emitError() << "expected 'cir.stack_save' result as an operand";
+   return mlir::success();
+}
 
 //===----------------------------------------------------------------------===//
 // TableGen'd op method definitions
