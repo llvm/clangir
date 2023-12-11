@@ -1198,7 +1198,7 @@ def LoopOp : CIR_Op<"loop",
       CArg<"function_ref<void(OpBuilder &, Location)>",
            "nullptr">:$bodyBuilder,
       CArg<"function_ref<void(OpBuilder &, Location)>",
-           "nullptr">:$ste7pBuilder
+           "nullptr">:$stepBuilder
       )>
   ];
 
