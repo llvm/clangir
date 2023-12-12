@@ -1453,11 +1453,6 @@ def emit_llvm : Flag<["-"], "emit-llvm">,
 def emit_interface_stubs : Flag<["-"], "emit-interface-stubs">,
   Visibility<[ClangOption, CC1Option]>, Group<Action_Group>,
   HelpText<"Generate Interface Stub Files.">;
-def emit_cir : Flag<["-"], "emit-cir">, Visibility<[ClangOption, CC1Option]>,
-  Group<Action_Group>,
-  HelpText<"Build ASTs and then lower to ClangIR, emit the .cir file">;
-def emit_mlir : Flag<["-"], "emit-mlir">, Visibility<[CC1Option]>, Group<Action_Group>,
-  HelpText<"Build ASTs and then lower through ClangIR to MLIR, emit the .milr file">;
 def emit_merged_ifs : Flag<["-"], "emit-merged-ifs">,
   Visibility<[ClangOption, CC1Option]>, Group<Action_Group>,
   HelpText<"Generate Interface Stub Files, emit merged text not binary.">;
@@ -2821,25 +2816,15 @@ def flto_EQ : Joined<["-"], "flto=">,
   Visibility<[ClangOption, CLOption, CC1Option, FC1Option, FlangOption]>,
   Group<f_Group>,
   HelpText<"Set LTO mode">, Values<"thin,full">;
-def fclangir_enable : Flag<["-"], "fclangir-enable">, Visibility<[ClangOption, CC1Option]>, Group<f_Group>,
-  HelpText<"Use ClangIR pipeline to compile">,
-  MarshallingInfoFlag<FrontendOpts<"UseClangIRPipeline">>;
-def flto_EQ_jobserver : Flag<["-"], "flto=jobserver">, Visibility<[ClangOption, FlangOption]>, Group<f_Group>,
-  Alias<flto_EQ>, AliasArgs<["full"]>, HelpText<"Enable LTO in 'full' mode">;
-def clangir_disable_passes : Flag<["-"], "clangir-disable-passes">,
-  Visibility<[ClangOption, CC1Option]>,
-  HelpText<"Disable CIR transformations pipeline">,
-  MarshallingInfoFlag<FrontendOpts<"ClangIRDisablePasses">>;
-def clangir_disable_verifier : Flag<["-"], "clangir-disable-verifier">,
-  Visibility<[ClangOption, CC1Option]>,
-  HelpText<"ClangIR: Disable MLIR module verifier">,
-  MarshallingInfoFlag<FrontendOpts<"ClangIRDisableCIRVerifier">>;
 def flto_EQ_auto : Flag<["-"], "flto=auto">, Visibility<[ClangOption, FlangOption]>, Group<f_Group>,
   Alias<flto_EQ>, AliasArgs<["full"]>, HelpText<"Enable LTO in 'full' mode">;
-def clangir_disable_emit_cxx_default : Flag<["-"], "clangir-disable-emit-cxx-default">,
-  Visibility<[ClangOption, CC1Option]>,
-  HelpText<"ClangIR: Disable emission of c++ default (compiler implemented) methods.">,
-  MarshallingInfoFlag<FrontendOpts<"ClangIRDisableEmitCXXDefault">>;
+def flto_EQ_jobserver : Flag<["-"], "flto=jobserver">, Visibility<[ClangOption, FlangOption]>, Group<f_Group>,
+  Alias<flto_EQ>, AliasArgs<["full"]>, HelpText<"Enable LTO in 'full' mode">;
+
+/// ClangIR-specific options - BEGIN
+def fclangir_enable : Flag<["-"], "fclangir-enable">, Visibility<[ClangOption, CC1Option]>,
+  Group<f_Group>, HelpText<"Use ClangIR pipeline to compile">,
+  MarshallingInfoFlag<FrontendOpts<"UseClangIRPipeline">>;
 def fclangir_disable_deferred_EQ : Joined<["-"], "fclangir-build-deferred-threshold=">,
   Visibility<[ClangOption, CC1Option]>, Group<f_Group>,
   HelpText<"ClangIR (internal): Control the recursion level for calls to buildDeferred (defaults to 500)">,
@@ -2848,10 +2833,6 @@ def fclangir_skip_system_headers : Joined<["-"], "fclangir-skip-system-headers">
   Visibility<[ClangOption, CC1Option]>, Group<f_Group>,
   HelpText<"ClangIR (internal): buildDeferred skip functions defined in system headers">,
   MarshallingInfoFlag<CodeGenOpts<"ClangIRSkipFunctionsFromSystemHeaders">>;
-def clangir_verify_diagnostics : Flag<["-"], "clangir-verify-diagnostics">,
-  Visibility<[ClangOption, CC1Option]>,
-  HelpText<"ClangIR: Enable diagnostic verification in MLIR, similar to clang's -verify">,
-  MarshallingInfoFlag<FrontendOpts<"ClangIRVerifyDiags">>;
 def fclangir_lifetime_check_EQ : Joined<["-"], "fclangir-lifetime-check=">,
   Visibility<[ClangOption, CC1Option]>, Group<f_Group>,
   HelpText<"Run lifetime checker">,
@@ -2860,10 +2841,33 @@ def fclangir_lifetime_check : Flag<["-"], "fclangir-lifetime-check">,
   Visibility<[ClangOption, CC1Option]>, Group<f_Group>,
   Alias<fclangir_lifetime_check_EQ>, AliasArgs<["history=invalid,null"]>,
   HelpText<"Run lifetime checker">;
+
+def clangir_disable_passes : Flag<["-"], "clangir-disable-passes">,
+  Visibility<[ClangOption, CC1Option]>,
+  HelpText<"Disable CIR transformations pipeline">,
+  MarshallingInfoFlag<FrontendOpts<"ClangIRDisablePasses">>;
+def clangir_disable_verifier : Flag<["-"], "clangir-disable-verifier">,
+  Visibility<[ClangOption, CC1Option]>,
+  HelpText<"ClangIR: Disable MLIR module verifier">,
+  MarshallingInfoFlag<FrontendOpts<"ClangIRDisableCIRVerifier">>;
+def clangir_disable_emit_cxx_default : Flag<["-"], "clangir-disable-emit-cxx-default">,
+  Visibility<[ClangOption, CC1Option]>,
+  HelpText<"ClangIR: Disable emission of c++ default (compiler implemented) methods.">,
+  MarshallingInfoFlag<FrontendOpts<"ClangIRDisableEmitCXXDefault">>;
+def clangir_verify_diagnostics : Flag<["-"], "clangir-verify-diagnostics">,
+  Visibility<[ClangOption, CC1Option]>,
+  HelpText<"ClangIR: Enable diagnostic verification in MLIR, similar to clang's -verify">,
+  MarshallingInfoFlag<FrontendOpts<"ClangIRVerifyDiags">>;
 defm clangir_direct_lowering : BoolFOption<"clangir-direct-lowering",
   FrontendOpts<"ClangIRDirectLowering">, DefaultTrue,
   PosFlag<SetTrue, [], [ClangOption, CC1Option], "Lower directly from ClangIR to LLVM">,
   NegFlag<SetFalse, [], [ClangOption, CC1Option],  "Lower through MLIR to LLVM">>;
+
+def emit_cir : Flag<["-"], "emit-cir">, Visibility<[ClangOption, CC1Option]>,
+  Group<Action_Group>, HelpText<"Build ASTs and then lower to ClangIR, emit the .cir file">;
+def emit_mlir : Flag<["-"], "emit-mlir">, Visibility<[CC1Option]>, Group<Action_Group>,
+  HelpText<"Build ASTs and then lower through ClangIR to MLIR, emit the .milr file">;
+/// ClangIR-specific options - END
 
 def flto : Flag<["-"], "flto">,
   Visibility<[ClangOption, CLOption, CC1Option, FC1Option, FlangOption]>,
