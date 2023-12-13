@@ -1085,13 +1085,13 @@ public:
   }
 };
 
-class CIRVectorValueLowering
-    : public mlir::OpConversionPattern<mlir::cir::VecValueOp> {
+class CIRVectorCreateLowering
+    : public mlir::OpConversionPattern<mlir::cir::VecCreateOp> {
 public:
-  using OpConversionPattern<mlir::cir::VecValueOp>::OpConversionPattern;
+  using OpConversionPattern<mlir::cir::VecCreateOp>::OpConversionPattern;
 
   mlir::LogicalResult
-  matchAndRewrite(mlir::cir::VecValueOp op, OpAdaptor adaptor,
+  matchAndRewrite(mlir::cir::VecCreateOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     // Start with an 'undef' value for the vector.  Then 'insertelement' for
     // each of the vector elements.
@@ -1113,13 +1113,13 @@ public:
   }
 };
 
-class CIRVectorElementLowering
-    : public mlir::OpConversionPattern<mlir::cir::VecElemOp> {
+class CIRVectorExtractLowering
+    : public mlir::OpConversionPattern<mlir::cir::VecExtractOp> {
 public:
-  using OpConversionPattern<mlir::cir::VecElemOp>::OpConversionPattern;
+  using OpConversionPattern<mlir::cir::VecExtractOp>::OpConversionPattern;
 
   mlir::LogicalResult
-  matchAndRewrite(mlir::cir::VecElemOp op, OpAdaptor adaptor,
+  matchAndRewrite(mlir::cir::VecExtractOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     rewriter.replaceOpWithNewOp<mlir::LLVM::ExtractElementOp>(
         op, adaptor.getVec(), adaptor.getIndex());
@@ -2020,7 +2020,7 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
                CIRGetMemberOpLowering, CIRSwitchOpLowering,
                CIRPtrDiffOpLowering, CIRCopyOpLowering, CIRMemCpyOpLowering,
                CIRFAbsOpLowering, CIRVTableAddrPointOpLowering,
-               CIRVectorValueLowering, CIRVectorElementLowering>(
+               CIRVectorCreateLowering, CIRVectorExtractLowering>(
       converter, patterns.getContext());
 }
 

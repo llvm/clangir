@@ -423,10 +423,10 @@ LogicalResult CastOp::verify() {
 }
 
 //===----------------------------------------------------------------------===//
-// VecValueOp
+// VecCreateOp
 //===----------------------------------------------------------------------===//
 
-LogicalResult VecValueOp::verify() {
+LogicalResult VecCreateOp::verify() {
   // Verify that the number of arguments matches the number of elements in the
   // vector, and that the type of all the arguments matches the type of the
   // elements in the vector.

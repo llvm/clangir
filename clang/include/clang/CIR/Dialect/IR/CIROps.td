@@ -1636,17 +1636,18 @@ def GetMemberOp : CIR_Op<"get_member"> {
 }
 
 //===----------------------------------------------------------------------===//
-// VecElemOp
+// VecExtractOp
 //===----------------------------------------------------------------------===//
 
-def VecElemOp : CIR_Op<"vec_elem", [Pure,
+def VecExtractOp : CIR_Op<"vec.extract", [Pure,
   TypesMatchWith<"type of 'result' matches element type of 'vec'",
                  "vec", "result",
                  "$_self.cast<VectorType>().getEltType()">]> {
 
   let summary = "Extract one element from a vector object";
   let description = [{
-    The `cir.vec_elem` operation extracts one element from a vector object.
+    The `cir.vec.extract` operation extracts the element at the given index
+    from a vector object.
   }];
 
   let arguments = (ins CIR_VectorType:$vec, CIR_IntType:$index);
@@ -1660,15 +1661,16 @@ def VecElemOp : CIR_Op<"vec_elem", [Pure,
 }
 
 //===----------------------------------------------------------------------===//
-// VecValue
+// VecCreate
 //===----------------------------------------------------------------------===//
 
-def VecValueOp : CIR_Op<"vec", [Pure]> {
+def VecCreateOp : CIR_Op<"vec.create", [Pure]> {
 
-  let summary = "Create non-const vector value";
+  let summary = "Create a vector value";
   let description = [{
-    The `cir.vec` operation creates a vector value with the given element
-    values.
+    The `cir.vec.create` operation creates a vector value with the given element
+    values. The number of element arguments must match the number of elements
+    in the vector type.
   }];
 
   let arguments = (ins Variadic<AnyType>:$elements);
