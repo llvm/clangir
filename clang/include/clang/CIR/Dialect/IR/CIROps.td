@@ -289,6 +289,10 @@ def AllocaOp : CIR_Op<"alloca", [
     cases, the first use contains the initialization (a cir.store, a cir.call
     to a ctor, etc).
 
+    The `dynAllocSize` specifies the size to dynamically allocate on the stack
+    and ignores the allocation size based on the original type. This is useful
+    when handling VLAs and is omitted when declaring regular local variables.
+
     The result type is a pointer to the input's type.
 
     Example:
@@ -304,6 +308,7 @@ def AllocaOp : CIR_Op<"alloca", [
   }];
 
   let arguments = (ins
+    Optional<CIR_IntType>:$dynAllocSize,
     TypeAttr:$allocaType,
     StrAttr:$name,
     UnitAttr:$init,
@@ -318,18 +323,32 @@ def AllocaOp : CIR_Op<"alloca", [
   let builders = [
     OpBuilder<(ins "Type":$addr, "Type":$allocaType,
                    "StringRef":$name,
-                   "IntegerAttr":$alignment)>
+                   "IntegerAttr":$alignment)>,
+
+    OpBuilder<(ins "Type":$addr,
+                   "Type":$allocaType,
+                   "StringRef":$name,
+                   "IntegerAttr":$alignment,
+                   "Value":$dynAllocSize),
+    [{
+      if (dynAllocSize)
+        $_state.addOperands(dynAllocSize);
+      build($_builder, $_state, addr, allocaType, name, alignment);
+    }]>
   ];
 
   let extraClassDeclaration = [{
     // Whether the alloca input type is a pointer.
     bool isPointerType() { return getAllocaType().isa<::mlir::cir::PointerType>(); }
+
+    bool isDynamic() { return (bool)getDynAllocSize(); }
   }];
 
   // FIXME: we should not be printing `cir.ptr` below, that should come
   // from the pointer type directly.
   let assemblyFormat = [{
     $allocaType `,` `cir.ptr` type($addr) `,`
+    ($dynAllocSize^ `:` type($dynAllocSize) `,`)?
     `[` $name
        (`,` `init` $init^)?
     `]`
@@ -1876,7 +1895,8 @@ def FuncOp : CIR_Op<"func", [
 //===----------------------------------------------------------------------===//
 
 def CallOp : CIR_Op<"call",
-    [DeclareOpInterfaceMethods<CallOpInterface>, DeclareOpInterfaceMethods<SymbolUserOpInterface>]> {
+    [DeclareOpInterfaceMethods<CallOpInterface>,
+     DeclareOpInterfaceMethods<SymbolUserOpInterface>]> {
   let summary = "call operation";
   let description = [{
     The `call` operation represents a direct call to a function that is within
@@ -1902,7 +1922,9 @@ def CallOp : CIR_Op<"call",
     ```
   }];
 
-  let arguments = (ins OptionalAttr<FlatSymbolRefAttr>:$callee, Variadic<AnyType>:$operands);
+  let arguments = (ins OptionalAttr<FlatSymbolRefAttr>:$callee,
+                       Variadic<AnyType>:$operands,
+                       OptionalAttr<ASTCallExprInterface>:$ast);
   let results = (outs Variadic<AnyType>);
 
   let builders = [
@@ -1919,6 +1941,12 @@ def CallOp : CIR_Op<"call",
       $_state.addOperands(operands);
       if (!fn_type.isVoid())
         $_state.addTypes(fn_type.getReturnType());
+    }]>,
+    OpBuilder<(ins "SymbolRefAttr":$callee, "mlir::Type":$resType,
+              CArg<"ValueRange", "{}">:$operands), [{
+      $_state.addOperands(operands);
+      $_state.addAttribute("callee", callee);
+      $_state.addTypes(resType);
     }]>];
 
   let extraClassDeclaration = [{
@@ -2239,6 +2267,78 @@ def MemCpyOp : CIR_Op<"libc.memcpy"> {
 }
 
 //===----------------------------------------------------------------------===//
+// MemChrOp
+//===----------------------------------------------------------------------===//
+
+def MemChrOp : CIR_Op<"libc.memchr"> {
+  // TODO: instead of using UInt64 for len, we could make it constrained on
+  // size_t (64 or 32) and have a builder that does the right job.
+  let arguments = (ins Arg<VoidPtr, "", [MemRead]>:$src,
+                       SInt32:$pattern,
+                       UInt64:$len);
+  let summary = "libc's `memchr`";
+  let results = (outs Res<VoidPtr, "">:$result);
+
+  let description = [{
+    Search for `pattern` in data range from `src` to `src` + `len`.
+    provides a bound to the search in `src`. `result` is a pointer to found
+    `pattern` or a null pointer.
+
+    Examples:
+
+    ```mlir
+    %p = cir.libc.memchr(%src, %pattern, %len) -> !cir.ptr<!void>
+    ```
+  }];
+
+  let assemblyFormat = [{
+    `(`
+      $src `,` $pattern `,` $len `)` attr-dict
+  }];
+  let hasVerifier = 0;
+}
+
+//===----------------------------------------------------------------------===//
+// StdFindOp
+//===----------------------------------------------------------------------===//
+
+def SameFirstSecondOperandAndResultType :
+  NativeOpTrait<"SameFirstSecondOperandAndResultType">;
+
+def StdFindOp : CIR_Op<"std.find", [SameFirstSecondOperandAndResultType]> {
+  let arguments = (ins FlatSymbolRefAttr:$original_fn,
+                       AnyType:$first,
+                       AnyType:$last,
+                       AnyType:$pattern);
+  let summary = "std:find()";
+  let results = (outs AnyType:$result);
+
+  let description = [{
+    Search for `pattern` in data range from `first` to `last`. This currently
+    maps to only one form of `std::find`. The `original_fn` operand tracks the
+    mangled named that can be used when lowering to a `cir.call`.
+
+    Example:
+
+    ```mlir
+    ...
+    %result = cir.std.find(@original_fn,
+                           %first : !T, %last : !T, %pattern : !P) -> !T
+    ```
+  }];
+
+  let assemblyFormat = [{
+    `(`
+      $original_fn
+      `,` $first `:` type($first)
+      `,` $last `:` type($last)
+      `,` $pattern `:` type($pattern)
+    `)` `->` type($result) attr-dict
+  }];
+  let hasVerifier = 0;
+}
+
+//===----------------------------------------------------------------------===//
 // FAbsOp
 //===----------------------------------------------------------------------===//
 
@@ -2405,6 +2505,42 @@ def ZeroInitConstOp : CIR_Op<"llvmir.zeroinit", [Pure]>,
   }];
   let assemblyFormat = "attr-dict `:` type($result)";
   let hasVerifier = 0;
+}
+
+def AsmATT : I32EnumAttrCase<"x86_att", 0>;
+def AsmIntel : I32EnumAttrCase<"x86_intel", 1>;
+
+def AsmFlavor : I32EnumAttr<
+  "AsmDialect",
+  "ATT or Intel",
+  [AsmATT, AsmIntel]> {
+  let cppNamespace = "::mlir::cir";
+}
+
+def CIR_InlineAsmOp : CIR_Op<"asm", [RecursiveMemoryEffects]> {
+  let description = [{
+    The `cir.asm` operation represents C/C++ asm inline.
+
+    Example:
+    ```C++
+    __asm__ volatile("xyz" : : : );
+    ```
+
+    ```
+    ```mlir
+    cir.asm(x86_att, {"xyz"}) -> !void 
+    ```
+  }];
+
+  let results = (outs Optional<AnyType>:$res);
+
+  let arguments = (
+    ins StrAttr:$asm_string,
+        AsmFlavor:$asm_flavor);  
+
+  let assemblyFormat = [{
+    `(`$asm_flavor`,` `{` $asm_string `}` `)` attr-dict `:` type($res)
+   }];  
 }
 
 #endif // MLIR_CIR_DIALECT_CIR_OPS
