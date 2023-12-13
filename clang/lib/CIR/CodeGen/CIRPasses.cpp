@@ -23,6 +23,7 @@ mlir::LogicalResult runCIRToCIRPasses(mlir::ModuleOp theModule,
                                       clang::ASTContext &astCtx,
                                       bool enableVerifier, bool enableLifetime,
                                       llvm::StringRef lifetimeOpts,
+                                      llvm::StringRef idiomRecognizerOpts,
                                       bool &passOptParsingFailure) {
   mlir::PassManager pm(mlirCtx);
   passOptParsingFailure = false;
@@ -37,6 +38,13 @@ mlir::LogicalResult runCIRToCIRPasses(mlir::ModuleOp theModule,
     }
     pm.addPass(std::move(lifetimePass));
   }
+
+  auto idiomPass = mlir::createIdiomRecognizerPass(&astCtx);
+  if (idiomPass->initializeOptions(idiomRecognizerOpts).failed()) {
+    passOptParsingFailure = true;
+    return mlir::failure();
+  }
+  pm.addPass(std::move(idiomPass));
 
   pm.addPass(mlir::createLoweringPreparePass(&astCtx));
 

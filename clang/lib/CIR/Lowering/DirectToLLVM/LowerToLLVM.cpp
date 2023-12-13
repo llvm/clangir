@@ -229,7 +229,11 @@ mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
   } else if (auto llvmFun = dyn_cast<mlir::LLVM::LLVMFuncOp>(sourceSymbol)) {
     sourceType = llvmFun.getFunctionType();
     symName = llvmFun.getSymName();
-  } else {
+  } else if (auto fun = dyn_cast<mlir::cir::FuncOp>(sourceSymbol)) {
+    sourceType = converter->convertType(fun.getFunctionType());
+    symName = fun.getSymName();
+  }
+  else {
     llvm_unreachable("Unexpected GlobalOp type");
   }
 
@@ -408,8 +412,15 @@ public:
   lowerNestedBreakContinue(mlir::Region &loopBody, mlir::Block *exitBlock,
                            mlir::Block *continueBlock,
                            mlir::ConversionPatternRewriter &rewriter) const {
+    // top-level yields are lowered in matchAndRewrite
+    auto isNested = [&](mlir::Operation *op) {
+      return op->getParentRegion() != &loopBody;
+    };
 
     auto processBreak = [&](mlir::Operation *op) {
+      if (!isNested(op))
+        return mlir::WalkResult::advance();
+
       if (isa<mlir::cir::LoopOp, mlir::cir::SwitchOp>(
               *op)) // don't process breaks in nested loops and switches
         return mlir::WalkResult::skip();
@@ -421,6 +432,9 @@ public:
     };
 
     auto processContinue = [&](mlir::Operation *op) {
+      if (!isNested(op))
+        return mlir::WalkResult::advance();
+
       if (isa<mlir::cir::LoopOp>(
               *op)) // don't process continues in nested loops
         return mlir::WalkResult::skip();
@@ -490,7 +504,10 @@ public:
 
     // Branch from body to condition or to step on for-loop cases.
     rewriter.setInsertionPoint(bodyYield);
-    rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(bodyYield, &stepBlock);
+    auto bodyYieldDest = bodyYield.getKind() == mlir::cir::YieldOpKind::Break
+                             ? continueBlock
+                             : &stepBlock;
+    rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(bodyYield, bodyYieldDest);
 
     // Is a for loop: branch from step to condition.
     if (kind == LoopKind::For) {
@@ -821,11 +838,15 @@ public:
     // Stack restore before leaving the body region.
     rewriter.setInsertionPointToEnd(afterBody);
     auto yieldOp = cast<mlir::cir::YieldOp>(afterBody->getTerminator());
-    auto branchOp = rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(
-        yieldOp, yieldOp.getArgs(), continueBlock);
 
-    // // Insert stack restore before jumping out of the body of the region.
-    rewriter.setInsertionPoint(branchOp);
+    if (!isLoopYield(yieldOp)) {
+      auto branchOp = rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(
+          yieldOp, yieldOp.getArgs(), continueBlock);
+
+      // // Insert stack restore before jumping out of the body of the region.
+      rewriter.setInsertionPoint(branchOp);
+    }
+
     // TODO(CIR): stackrestore?
     // rewriter.create<mlir::LLVM::StackRestoreOp>(loc, stackSaveOp);
 
@@ -889,13 +910,17 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::AllocaOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    mlir::Value one = rewriter.create<mlir::LLVM::ConstantOp>(
-        op.getLoc(), typeConverter->convertType(rewriter.getIndexType()),
-        rewriter.getIntegerAttr(rewriter.getIndexType(), 1));
+    mlir::Value size =
+        op.isDynamic()
+            ? adaptor.getDynAllocSize()
+            : rewriter.create<mlir::LLVM::ConstantOp>(
+                  op.getLoc(),
+                  typeConverter->convertType(rewriter.getIndexType()),
+                  rewriter.getIntegerAttr(rewriter.getIndexType(), 1));
     auto elementTy = getTypeConverter()->convertType(op.getAllocaType());
     auto resultTy = mlir::LLVM::LLVMPointerType::get(getContext());
     rewriter.replaceOpWithNewOp<mlir::LLVM::AllocaOp>(
-        op, resultTy, elementTy, one, op.getAlignmentAttr().getInt());
+        op, resultTy, elementTy, size, op.getAlignmentAttr().getInt());
     return mlir::success();
   }
 };

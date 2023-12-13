@@ -2070,6 +2070,7 @@ void CallOp::print(::mlir::OpAsmPrinter &state) {
   state << ")";
   llvm::SmallVector<::llvm::StringRef, 2> elidedAttrs;
   elidedAttrs.push_back("callee");
+  elidedAttrs.push_back("ast");
   state.printOptionalAttrDict((*this)->getAttrs(), elidedAttrs);
   state << ' ' << ":";
   state << ' ';
@@ -2178,6 +2179,20 @@ mlir::OpTrait::impl::verifySameFirstOperandAndResultType(Operation *op) {
   auto opType = op->getOperand(0).getType();
 
   if (type != opType)
+    return op->emitOpError()
+           << "requires the same type for first operand and result";
+
+  return success();
+}
+
+LogicalResult
+mlir::OpTrait::impl::verifySameFirstSecondOperandAndResultType(Operation *op) {
+  if (failed(verifyAtLeastNOperands(op, 3)) || failed(verifyOneResult(op)))
+    return failure();
+
+  auto checkType = op->getResult(0).getType();
+  if (checkType != op->getOperand(0).getType() &&
+      checkType != op->getOperand(1).getType())
     return op->emitOpError()
            << "requires the same type for first operand and result";
 
