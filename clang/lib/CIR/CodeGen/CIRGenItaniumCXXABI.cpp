@@ -1526,8 +1526,8 @@ void CIRGenItaniumRTTIBuilder::BuildVMIClassTypeInfo(mlir::Location loc,
 
   for (const auto &Base : RD->bases()) {
     // The __base_type member points to the RTTI for the base type.
-    Fields.push_back(
-        CIRGenItaniumRTTIBuilder(CXXABI, CGM).BuildTypeInfo(loc, Base.getType()));
+    Fields.push_back(CIRGenItaniumRTTIBuilder(CXXABI, CGM)
+                         .BuildTypeInfo(loc, Base.getType()));
 
     auto *BaseDecl = Base.getType()->castAs<RecordType>()->getAsCXXRecordDecl();
 
@@ -1776,7 +1776,8 @@ mlir::Attribute CIRGenItaniumRTTIBuilder::BuildTypeInfo(
   assert(!UnimplementedFeature::setDSOLocal());
   CIRGenModule::setInitializer(GV, init);
 
-  return builder.getGlobalViewAttr(builder.getUInt8PtrTy(), GV);;
+  return builder.getGlobalViewAttr(builder.getUInt8PtrTy(), GV);
+  ;
 }
 
 mlir::Attribute CIRGenItaniumCXXABI::getAddrOfRTTIDescriptor(mlir::Location loc,
