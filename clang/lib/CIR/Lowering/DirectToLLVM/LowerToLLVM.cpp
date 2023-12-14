@@ -234,8 +234,7 @@ mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
   } else if (auto fun = dyn_cast<mlir::cir::FuncOp>(sourceSymbol)) {
     sourceType = converter->convertType(fun.getFunctionType());
     symName = fun.getSymName();
-  }
-  else {
+  } else {
     llvm_unreachable("Unexpected GlobalOp type");
   }
 
@@ -1160,6 +1159,48 @@ public:
   }
 };
 
+class CIRVectorCreateLowering
+    : public mlir::OpConversionPattern<mlir::cir::VecCreateOp> {
+public:
+  using OpConversionPattern<mlir::cir::VecCreateOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::VecCreateOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    // Start with an 'undef' value for the vector.  Then 'insertelement' for
+    // each of the vector elements.
+    auto vecTy = mlir::dyn_cast<mlir::cir::VectorType>(op.getType());
+    assert(vecTy && "result type of cir.vec op is not VectorType");
+    auto llvmTy = typeConverter->convertType(vecTy);
+    auto loc = op.getLoc();
+    mlir::Value result = rewriter.create<mlir::LLVM::UndefOp>(loc, llvmTy);
+    assert(vecTy.getSize() == op.getElements().size() &&
+           "cir.vec operands count doesn't match vector type elements count");
+    for (uint64_t i = 0; i < vecTy.getSize(); ++i) {
+      mlir::Value indexValue = rewriter.create<mlir::LLVM::ConstantOp>(
+          loc, rewriter.getI64Type(), i);
+      result = rewriter.create<mlir::LLVM::InsertElementOp>(
+          loc, result, adaptor.getElements()[i], indexValue);
+    }
+    rewriter.replaceOp(op, result);
+    return mlir::success();
+  }
+};
+
+class CIRVectorExtractLowering
+    : public mlir::OpConversionPattern<mlir::cir::VecExtractOp> {
+public:
+  using OpConversionPattern<mlir::cir::VecExtractOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::VecExtractOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOpWithNewOp<mlir::LLVM::ExtractElementOp>(
+        op, adaptor.getVec(), adaptor.getIndex());
+    return mlir::success();
+  }
+};
+
 class CIRVAStartLowering
     : public mlir::OpConversionPattern<mlir::cir::VAStartOp> {
 public:
@@ -1663,12 +1704,16 @@ public:
     assert((op.getLhs().getType() == op.getRhs().getType()) &&
            "inconsistent operands' types not supported yet");
     mlir::Type type = op.getRhs().getType();
-    assert((mlir::isa<mlir::cir::IntType, mlir::FloatType>(type)) &&
+    assert((mlir::isa<mlir::cir::IntType, mlir::FloatType,
+                      mlir::cir::VectorType>(type)) &&
            "operand type not supported yet");
 
     auto llvmTy = getTypeConverter()->convertType(op.getType());
     auto rhs = adaptor.getRhs();
     auto lhs = adaptor.getLhs();
+
+    if (mlir::isa<mlir::cir::VectorType>(type))
+      type = mlir::dyn_cast<mlir::cir::VectorType>(type).getEltType();
 
     switch (op.getKind()) {
     case mlir::cir::BinOpKind::Add:
@@ -2055,7 +2100,8 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
                CIRVAArgLowering, CIRBrOpLowering, CIRTernaryOpLowering,
                CIRGetMemberOpLowering, CIRSwitchOpLowering,
                CIRPtrDiffOpLowering, CIRCopyOpLowering, CIRMemCpyOpLowering,
-               CIRFAbsOpLowering, CIRVTableAddrPointOpLowering>(
+               CIRFAbsOpLowering, CIRVTableAddrPointOpLowering,
+               CIRVectorCreateLowering, CIRVectorExtractLowering>(
       converter, patterns.getContext());
 }
 
@@ -2069,6 +2115,10 @@ void prepareTypeConverter(mlir::LLVMTypeConverter &converter,
   converter.addConversion([&](mlir::cir::ArrayType type) -> mlir::Type {
     auto ty = converter.convertType(type.getEltType());
     return mlir::LLVM::LLVMArrayType::get(ty, type.getSize());
+  });
+  converter.addConversion([&](mlir::cir::VectorType type) -> mlir::Type {
+    auto ty = converter.convertType(type.getEltType());
+    return mlir::LLVM::getVectorType(ty, type.getSize(), /*isScalable=*/false);
   });
   converter.addConversion([&](mlir::cir::BoolType type) -> mlir::Type {
     return mlir::IntegerType::get(type.getContext(), 8,
