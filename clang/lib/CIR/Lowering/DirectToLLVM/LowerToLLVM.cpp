@@ -2034,6 +2034,11 @@ public:
   }
 };
 
+// For the stack save/restore operations in CIR the next invariant must be hold:
+// the only possible argument to the 'cir.stack_restore' is the result of 'cir.stack_save'.
+// The lowering of 'cir.stack_save' into LLVM IR dialiect includes the following:
+// 1) allocate a memory location for the stack pointer: emit 'llvm.allocaOp'
+// 2) save stack pointer in this locaton: emit 'llvm.storeOp'
 class CIRStackSaveLowering : public mlir::OpConversionPattern<mlir::cir::StackSaveOp> {
 public:
   using OpConversionPattern<mlir::cir::StackSaveOp>::OpConversionPattern;
@@ -2041,22 +2046,77 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::StackSaveOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
+    mlir::OpBuilder::InsertionGuard guard(rewriter);
+
     auto converter = getTypeConverter();
-    auto typ = converter->convertType(op.getType());
-    rewriter.replaceOpWithNewOp<mlir::LLVM::StackSaveOp>(op, typ);
+    auto block = op->getBlock();
+    rewriter.setInsertionPoint(block, block->begin());
+
+    auto size = rewriter.create<mlir::LLVM::ConstantOp>(
+                  op.getLoc(),
+                  converter->convertType(rewriter.getIndexType()),
+                  rewriter.getIntegerAttr(rewriter.getIndexType(), 1));
+    auto ptrTy = op.getType();
+    auto eltTy = converter->convertType(ptrTy);
+    auto modOp = op->getParentOfType<mlir::ModuleOp>();
+    auto align = mlir::DataLayout(modOp).getTypePreferredAlignment(ptrTy);
+    auto resTy = mlir::LLVM::LLVMPointerType::get(getContext());
+    auto alloca = rewriter.create<mlir::LLVM::AllocaOp>(op.getLoc(), resTy,
+                                                        eltTy, size, align);
+
+    rewriter.setInsertionPoint(op);
+    auto stack = rewriter.replaceOpWithNewOp<mlir::LLVM::StackSaveOp>(op, eltTy);
+    rewriter.create<mlir::LLVM::StoreOp>(op.getLoc(), stack, alloca);
     return mlir::success();
   }
 };
 
+// The lowering of 'cir.stack_restore' into LLVM IR dialiect includes the following:
+// 1) find a block with the corresponded 'cir.stack_save' operation
+// 2) find 'llvm.alloca' used for a stack pointer storing 
+// 3) emit 'llvm.load' from the found location
+// 4) use the 'llvm.load' result in 'llvm.stack_restore'
 class CIRStackRestoreLowering : public mlir::OpConversionPattern<mlir::cir::StackRestoreOp> {
+
+  mlir::Operation* findAlloca(mlir::Block& blk) const {
+    mlir::Operation* stackSave;
+
+    for (auto& op : blk.getOperations()) {
+      if (isa<mlir::LLVM::StackSaveOp>(op))
+        stackSave = &op;
+
+      if (auto s = dyn_cast<mlir::LLVM::StoreOp>(op)) {
+        auto val = s.getValue().getDefiningOp();
+        auto dst = s.getAddr().getDefiningOp();
+        if (stackSave && val == stackSave && isa<mlir::LLVM::AllocaOp>(dst))
+          return dst;
+      }
+    }
+    return nullptr;
+  }
+
 public:
   using OpConversionPattern<mlir::cir::StackRestoreOp>::OpConversionPattern;
 
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::StackRestoreOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
+    auto block = op.getPtr().getDefiningOp()->getBlock();
+    auto alloca = dyn_cast_or_null<mlir::LLVM::AllocaOp>(findAlloca(*block));
+    if (!alloca) {    
+      assert(0 && "Can't find memory location to restore stack from");
+      return mlir::failure();
+    }
 
-    rewriter.replaceOpWithNewOp<mlir::LLVM::StackRestoreOp>(op, adaptor.getPtr());
+    auto type = alloca.getElemType();
+    if (!type) {
+      assert(0 && "Unknown alloca elt type");
+      return mlir::failure();
+    }
+
+    rewriter.setInsertionPoint(op);
+    auto val = rewriter.create<mlir::LLVM::LoadOp>(op.getLoc(), *type, alloca);
+    rewriter.replaceOpWithNewOp<mlir::LLVM::StackRestoreOp>(op, val);
     return mlir::success();
   }
 };
