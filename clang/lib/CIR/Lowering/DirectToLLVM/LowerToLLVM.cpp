@@ -2037,8 +2037,8 @@ public:
 // For the stack save/restore operations in CIR the next invariant must hold:
 // the only possible argument to the 'cir.stack_restore' is the result of 'cir.stack_save'.
 // The lowering of 'cir.stack_save' into LLVM IR dialect includes the following:
-// 1) allocate memory location for the stack pointer: emit 'llvm.allocaOp'
-// 2) save stack pointer in this location: emit 'llvm.storeOp'
+// 1) allocate memory location for the stack pointer: emit 'llvm.alloca'
+// 2) save stack pointer in this location: emit 'llvm.store'
 class CIRStackSaveLowering : public mlir::OpConversionPattern<mlir::cir::StackSaveOp> {
 public:
   using OpConversionPattern<mlir::cir::StackSaveOp>::OpConversionPattern;
@@ -2075,7 +2075,7 @@ public:
 // 1) find a block with the corresponding 'cir.stack_save' operation
 // 2) find 'llvm.alloca' used for a stack pointer storing 
 // 3) emit 'llvm.load' from the found location
-// 4) use the 'llvm.load' result in 'llvm.stack_restore'
+// 4) use the 'llvm.load' result in 'llvm.intr.stack_restore'
 class CIRStackRestoreLowering : public mlir::OpConversionPattern<mlir::cir::StackRestoreOp> {
 
   mlir::Operation* findAlloca(mlir::Block& blk) const {
