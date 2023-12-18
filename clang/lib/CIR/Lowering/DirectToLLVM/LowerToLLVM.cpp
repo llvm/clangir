@@ -837,9 +837,9 @@ public:
     // Replace the scopeop return with a branch that jumps out of the body.
     // Stack restore before leaving the body region.
     rewriter.setInsertionPointToEnd(afterBody);
-    auto yieldOp = cast<mlir::cir::YieldOp>(afterBody->getTerminator());
 
-    if (!isLoopYield(yieldOp)) {
+    auto yieldOp = dyn_cast<mlir::cir::YieldOp>(afterBody->getTerminator());
+    if (yieldOp && !isLoopYield(yieldOp)) {
       auto branchOp = rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(
           yieldOp, yieldOp.getArgs(), continueBlock);
 
@@ -1331,6 +1331,31 @@ public:
                                                  destination);
   }
 
+  void lowerNestedBreak(mlir::Region &body, mlir::Block *exitBlock,                           
+                        mlir::ConversionPatternRewriter &rewriter) const {
+    // top-level yields are lowered in matchAndRewrite
+    auto isNested = [&](mlir::Operation *op) {
+      return op->getParentRegion() != &body;
+    };
+
+    auto processBreak = [&](mlir::Operation *op) {
+      if (!isNested(op))
+        return mlir::WalkResult::advance();
+
+      // don't process breaks in nested loops and switches
+      if (isa<mlir::cir::LoopOp, mlir::cir::SwitchOp>(*op)) 
+        return mlir::WalkResult::skip();
+      
+      auto yield = dyn_cast<mlir::cir::YieldOp>(*op);
+      if (yield && yield.getKind() == mlir::cir::YieldOpKind::Break)
+        rewriteYieldOp(rewriter, yield, exitBlock);
+
+      return mlir::WalkResult::advance();
+    };
+
+    body.walk<mlir::WalkOrder::PreOrder>(processBreak);
+  }
+
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::SwitchOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
@@ -1410,6 +1435,8 @@ public:
           }
         }
       }
+
+      lowerNestedBreak(region, exitBlock, rewriter);
 
       // Extract region contents before erasing the switch op.
       rewriter.inlineRegionBefore(region, exitBlock);
