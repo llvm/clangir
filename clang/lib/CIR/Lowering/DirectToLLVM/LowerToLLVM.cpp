@@ -1274,7 +1274,6 @@ public:
 
 class CIRSwitchOpLowering
     : public mlir::OpConversionPattern<mlir::cir::SwitchOp> {
-
 public:
   using OpConversionPattern<mlir::cir::SwitchOp>::OpConversionPattern;
 
@@ -1363,7 +1362,7 @@ public:
             return op->emitError("invalid yield kind in case statement");
           }
         }
-      }  
+      }
 
       // Extract region contents before erasing the switch op.
       rewriter.inlineRegionBefore(region, exitBlock);
