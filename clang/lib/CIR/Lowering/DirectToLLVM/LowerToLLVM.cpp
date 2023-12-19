@@ -1274,6 +1274,39 @@ public:
 
 class CIRSwitchOpLowering
     : public mlir::OpConversionPattern<mlir::cir::SwitchOp> {
+
+  void lowerRegion(mlir::Region& region, mlir::Block* exitBlock, 
+                   mlir::cir::YieldOp* fallthroughYieldOp,
+                   mlir::ConversionPatternRewriter &rewriter) const {
+    for (auto& blk : region.getBlocks()) {
+      if (blk.hasNoSuccessors()) {
+        auto *terminator = blk.getTerminator();
+        if (auto yieldOp = dyn_cast<mlir::cir::YieldOp>(terminator)) {
+        // TODO(cir): Ensure every yield instead of dealing with optional
+        // values.
+        assert(yieldOp.getKind().has_value() && "switch yield has no kind");
+
+        switch (yieldOp.getKind().value()) {
+        // Fallthrough to next case: track it for the next case to handle.
+        case mlir::cir::YieldOpKind::Fallthrough:
+          *fallthroughYieldOp = yieldOp;
+          break;
+        // Break out of switch: branch to exit block.
+        case mlir::cir::YieldOpKind::Break:
+          rewriteYieldOp(rewriter, yieldOp, exitBlock);
+          break;
+        case mlir::cir::YieldOpKind::Continue: // Continue is handled only in
+                                               // loop lowering
+          break;
+        default:
+          //return op->emitError("invalid yield kind in case statement");
+          break;
+        }
+      }
+      }
+    }
+  }
+
 public:
   using OpConversionPattern<mlir::cir::SwitchOp>::OpConversionPattern;
 
@@ -1335,6 +1368,8 @@ public:
         fallthroughYieldOp = nullptr;
       }
 
+      lowerRegion(region, exitBlock, &fallthroughYieldOp, rewriter);
+/*
       // TODO(cir): Handle multi-block case statements.
       if (region.getBlocks().size() != 1)
         return op->emitError("multi-block case statement is NYI");
@@ -1362,6 +1397,7 @@ public:
           return op->emitError("invalid yield kind in case statement");
         }
       }
+      */
 
       // Extract region contents before erasing the switch op.
       rewriter.inlineRegionBefore(region, exitBlock);
