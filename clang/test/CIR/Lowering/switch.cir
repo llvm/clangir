@@ -106,6 +106,7 @@ module {
     cir.return
   }
 
+<<<<<<< HEAD
   cir.func @shouldLowerMultiBlockCase(%arg0: !s32i) {
     %0 = cir.alloca !s32i, cir.ptr <!s32i>, ["a", init] {alignment = 4 : i64}
     cir.store %arg0, %0 : !s32i, cir.ptr <!s32i>
@@ -137,6 +138,9 @@ module {
   // CHECK: }
 
   cir.func @bar(%arg0: !s32i, %arg1: !s32i) -> !s32i {
+=======
+  cir.func @shouldLowerNestedBreak(%arg0: !s32i, %arg1: !s32i) -> !s32i {
+>>>>>>> e94ae0c18fb3 (minor stylish changes)
     %0 = cir.alloca !s32i, cir.ptr <!s32i>, ["x", init] {alignment = 4 : i64}
     %1 = cir.alloca !s32i, cir.ptr <!s32i>, ["y", init] {alignment = 4 : i64}
     %2 = cir.alloca !s32i, cir.ptr <!s32i>, ["__retval"] {alignment = 4 : i64}
@@ -164,7 +168,7 @@ module {
     %4 = cir.load %2 : cir.ptr <!s32i>, !s32i
     cir.return %4 : !s32i 
   }
-  // CHECK:  llvm.func @bar
+  // CHECK:  llvm.func @shouldLowerNestedBreak
   // CHECK:    llvm.switch %6 : i32, ^bb7 [
   // CHECK:      0: ^bb2
   // CHECK:    ]

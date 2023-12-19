@@ -325,9 +325,9 @@ mlir::LLVM::Linkage convertLinkage(mlir::cir::GlobalLinkageKind linkage) {
 }
 
 static void lowerNestedYield(mlir::cir::YieldOpKind targetKind,
-                            mlir::ConversionPatternRewriter &rewriter,
-                            mlir::Region &body,
-                            mlir::Block *dst) {
+                             mlir::ConversionPatternRewriter &rewriter,
+                             mlir::Region &body,
+                             mlir::Block *dst) {
   // top-level yields are lowered in matchAndRewrite of the parent operations
   auto isNested = [&](mlir::Operation *op) {
     return op->getParentRegion() != &body;
