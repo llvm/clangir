@@ -620,7 +620,6 @@ mlir::LogicalResult CIRGenFunction::buildCaseDefaultCascade(
     insertFallthrough(*stmt);
     res = buildCaseStmt(*dyn_cast<CaseStmt>(sub), condType, caseAttrs, os);
   } else {
-    mlir::OpBuilder::InsertionGuard guardCase(builder);
     res = buildStmt(sub, /*useCurrentScope=*/!isa<CompoundStmt>(sub));
   }
 
@@ -986,6 +985,7 @@ mlir::LogicalResult CIRGenFunction::buildSwitchStmt(const SwitchStmt &S) {
               mlir::OpBuilder::InsertionGuard guardCase(builder);
               builder.setInsertionPointToEnd(lastCaseBlock);
               res = buildStmt(c, /*useCurrentScope=*/!isa<CompoundStmt>(c));
+              lastCaseBlock = builder.getBlock();
               if (res.failed())
                 break;
               continue;
