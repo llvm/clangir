@@ -411,6 +411,24 @@ ArrayType::getPreferredAlignment(const ::mlir::DataLayout &dataLayout,
   return dataLayout.getTypePreferredAlignment(getEltType());
 }
 
+unsigned cir::VectorType::getTypeSizeInBits(
+    const ::mlir::DataLayout &dataLayout,
+    ::mlir::DataLayoutEntryListRef params) const {
+  return getSize() * dataLayout.getTypeSizeInBits(getEltType());
+}
+
+unsigned
+cir::VectorType::getABIAlignment(const ::mlir::DataLayout &dataLayout,
+                                 ::mlir::DataLayoutEntryListRef params) const {
+  return getSize() * dataLayout.getTypeABIAlignment(getEltType());
+}
+
+unsigned cir::VectorType::getPreferredAlignment(
+    const ::mlir::DataLayout &dataLayout,
+    ::mlir::DataLayoutEntryListRef params) const {
+  return getSize() * dataLayout.getTypePreferredAlignment(getEltType());
+}
+
 unsigned
 StructType::getTypeSizeInBits(const ::mlir::DataLayout &dataLayout,
                               ::mlir::DataLayoutEntryListRef params) const {
