@@ -18,13 +18,12 @@
 #include "mlir/Pass/PassManager.h"
 
 namespace cir {
-mlir::LogicalResult runCIRToCIRPasses(mlir::ModuleOp theModule,
-                                      mlir::MLIRContext *mlirCtx,
-                                      clang::ASTContext &astCtx,
-                                      bool enableVerifier, bool enableLifetime,
-                                      llvm::StringRef lifetimeOpts,
-                                      llvm::StringRef idiomRecognizerOpts,
-                                      bool &passOptParsingFailure) {
+mlir::LogicalResult
+runCIRToCIRPasses(mlir::ModuleOp theModule, mlir::MLIRContext *mlirCtx,
+                  clang::ASTContext &astCtx, bool enableVerifier,
+                  bool enableLifetime, llvm::StringRef lifetimeOpts,
+                  llvm::StringRef idiomRecognizerOpts,
+                  llvm::StringRef libOptOpts, bool &passOptParsingFailure) {
   mlir::PassManager pm(mlirCtx);
   passOptParsingFailure = false;
 
@@ -45,6 +44,13 @@ mlir::LogicalResult runCIRToCIRPasses(mlir::ModuleOp theModule,
     return mlir::failure();
   }
   pm.addPass(std::move(idiomPass));
+
+  auto libOpPass = mlir::createLibOptPass(&astCtx);
+  if (libOpPass->initializeOptions(libOptOpts).failed()) {
+    passOptParsingFailure = true;
+    return mlir::failure();
+  }
+  pm.addPass(std::move(libOpPass));
 
   pm.addPass(mlir::createLoweringPreparePass(&astCtx));
 
