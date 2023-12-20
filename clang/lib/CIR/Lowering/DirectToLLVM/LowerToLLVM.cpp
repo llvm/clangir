@@ -2115,7 +2115,7 @@ public:
     }
 
     rewriter.setInsertionPoint(op);
-    auto val = rewriter.create<mlir::LLVM::LoadOp>(op.getLoc(), *type, alloca);
+    auto val = rewriter.create<mlir::LLVM::LoadOp>(op.getLoc(), type, alloca);
     rewriter.replaceOpWithNewOp<mlir::LLVM::StackRestoreOp>(op, val);
     return mlir::success();
   }
