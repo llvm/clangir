@@ -775,14 +775,13 @@ module {
     cir.return
   }
 }
-
 // -----
 
 !u8i = !cir.int<u, 8>
 module {
-  cir.func @stack_restore_type_mismatch(%arg0 : !cir.ptr<!u8i>) {
-    // expected-error@+1 {{expected 'cir.stack_save' result as an operand}}
-    cir.stack_restore %arg0 : !cir.ptr<!u8i>
+  cir.func @stack_restore_type_mismatch(%arg0 : !u8i) {
+    // expected-error@+1 {{must be CIR pointer type}}
+    cir.stack_restore %arg0 : !u8i
     cir.return
   }
 }

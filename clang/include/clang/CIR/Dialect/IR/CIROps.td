@@ -2491,9 +2491,9 @@ def ThrowOp : CIR_Op<"throw",
 def StackSaveOp : CIR_Op<"stack_save"> {
   let summary = "remembers the current state of the function stack";
   let description = [{
-    Remembers the current state of the function stack. Returns a pointer 
-    that later can be passed into cir.stack_restore. 
-    Useful for implementing language features like variable length arrays. 
+    Remembers the current state of the function stack. Returns a pointer
+    that later can be passed into cir.stack_restore.
+    Useful for implementing language features like variable length arrays.
 
     ```mlir
     %0 = cir.stack_save : <!u8i>
@@ -2508,7 +2508,7 @@ def StackSaveOp : CIR_Op<"stack_save"> {
 def StackRestoreOp : CIR_Op<"stack_restore"> {
   let summary = "restores the state of the function stack";
   let description = [{
-    Restore the state of the function stack to the state it was 
+    Restore the state of the function stack to the state it was
     in when the corresponding cir.stack_save executed.
     Useful for implementing language features like variable length arrays.
 
@@ -2519,12 +2519,10 @@ def StackRestoreOp : CIR_Op<"stack_restore"> {
     %2 = cir.load %0 : cir.ptr <!cir.ptr<!u8i>>, !cir.ptr<!u8i>
     cir.stack_restore %2 : !cir.ptr<!u8i>
     ```
-
     }];
 
   let arguments = (ins CIR_PointerType:$ptr);
   let assemblyFormat = "$ptr attr-dict `:` qualified(type($ptr))";
-  let hasVerifier = 1;
 }
 
 //===----------------------------------------------------------------------===//

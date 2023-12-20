@@ -12,12 +12,8 @@ module  {
 
 //      MLIR: module {
 // MLIR-NEXT:  llvm.func @stack_save
-// MLIR-NEXT:    %0 = llvm.mlir.constant(1 : index) : i64
-// MLIR-NEXT:    %1 = llvm.alloca %0 x !llvm.ptr {alignment = 8 : i64} : (i64) -> !llvm.ptr
-// MLIR-NEXT:    %2 = llvm.intr.stacksave : !llvm.ptr
-// MLIR-NEXT:    llvm.store %2, %1 : !llvm.ptr, !llvm.ptr
-// MLIR-NEXT:    %3 = llvm.load %1 : !llvm.ptr -> !llvm.ptr
-// MLIR-NEXT:    llvm.intr.stackrestore %3 : !llvm.ptr
+// MLIR-NEXT:    %0 = llvm.intr.stacksave : !llvm.ptr
+// MLIR-NEXT:    llvm.intr.stackrestore %0 : !llvm.ptr
 // MLIR-NEXT:    llvm.return
 // MLIR-NEXT:  }
 // MLIR-NEXT: }
