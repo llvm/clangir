@@ -219,7 +219,7 @@ static Address buildPointerWithAlignment(const Expr *E,
 
 /// Helper method to check if the underlying ABI is AAPCS
 static bool isAAPCS(const TargetInfo &TargetInfo) {
-  return TargetInfo.getABI().startswith("aapcs");
+  return TargetInfo.getABI().starts_with("aapcs");
 }
 
 Address CIRGenFunction::getAddrOfBitFieldStorage(LValue base,
@@ -2682,7 +2682,7 @@ LValue CIRGenFunction::buildPredefinedLValue(const PredefinedExpr *E) {
   auto Fn = dyn_cast<mlir::cir::FuncOp>(CurFn);
   assert(Fn && "other callables NYI");
   StringRef FnName = Fn.getName();
-  if (FnName.startswith("\01"))
+  if (FnName.starts_with("\01"))
     FnName = FnName.substr(1);
   StringRef NameItems[] = {PredefinedExpr::getIdentKindName(E->getIdentKind()),
                            FnName};

@@ -79,7 +79,7 @@ struct CIRRecordLowering final {
 
   // Helper function to check if we are targeting AAPCS.
   bool isAAPCS() const {
-    return astContext.getTargetInfo().getABI().startswith("aapcs");
+    return astContext.getTargetInfo().getABI().starts_with("aapcs");
   }
 
   /// Helper function to check if the target machine is BigEndian.
