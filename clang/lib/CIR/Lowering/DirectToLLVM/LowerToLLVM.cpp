@@ -2055,7 +2055,7 @@ public:
   matchAndRewrite(mlir::cir::StackRestoreOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     rewriter.replaceOpWithNewOp<mlir::LLVM::StackRestoreOp>(
-        op, 
+        op,
         adaptor.getPtr());
     return mlir::success();
   }
