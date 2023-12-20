@@ -2510,7 +2510,7 @@ def AsmATT : I32EnumAttrCase<"x86_att", 0>;
 def AsmIntel : I32EnumAttrCase<"x86_intel", 1>;
 
 def AsmFlavor : I32EnumAttr<
-  "AsmDialect",
+  "AsmFlavor",
   "ATT or Intel",
   [AsmATT, AsmIntel]> {
   let cppNamespace = "::mlir::cir";
@@ -2535,10 +2535,12 @@ def CIR_InlineAsmOp : CIR_Op<"asm", [RecursiveMemoryEffects]> {
 
   let arguments = (
     ins StrAttr:$asm_string,
+        StrAttr:$constraints,
         AsmFlavor:$asm_flavor);  
 
   let assemblyFormat = [{
-    `(`$asm_flavor`,` `{` $asm_string `}` `)` attr-dict `:` type($res)
+    `(`$asm_flavor`,` `{` $asm_string $constraints `}` `)` attr-dict 
+    `:` type($res)
    }];  
 }
 
