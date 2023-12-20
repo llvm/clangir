@@ -98,23 +98,28 @@ CIR pointer type
 | :-------: | :-------: | ----------- |
 | pointee | `mlir::Type` |  |
 
-### StructType
+### VectorType
 
-CIR struct type
+CIR vector type
 
-Each unique clang::RecordDecl is mapped to a `cir.struct` and any object in
-C/C++ that has a struct type will have a `cir.struct` in CIR.
+Syntax:
+
+```
+!cir.vector<
+  mlir::Type,   # eltType
+  uint64_t   # size
+>
+```
+
+`cir.vector' represents fixed-size vector types.  The parameters are the
+element type and the number of elements.
 
 #### Parameters:
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
-| members | `::llvm::ArrayRef<mlir::Type>` | members |
-| name | `mlir::StringAttr` |  |
-| body | `bool` |  |
-| packed | `bool` |  |
-| kind | `mlir::cir::StructType::RecordKind` |  |
-| ast | `std::optional<ASTRecordDeclInterface>` |  |
+| eltType | `mlir::Type` |  |
+| size | `uint64_t` |  |
 
 ### VoidType
 

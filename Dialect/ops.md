@@ -41,9 +41,10 @@ cir.if %10 {
 
 #### Attributes:
 
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-| `allocType` | ::mlir::TypeAttr | any type attribute
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>allocType</code></td><td>::mlir::TypeAttr</td><td>any type attribute</td></tr>
+</table>
 
 #### Results:
 
@@ -60,6 +61,7 @@ Syntax:
 
 ```
 operation ::= `cir.alloca` $allocaType `,` `cir.ptr` type($addr) `,`
+              ($dynAllocSize^ `:` type($dynAllocSize) `,`)?
               `[` $name
               (`,` `init` $init^)?
               `]`
@@ -72,6 +74,10 @@ The presence `init` attribute indicates that the local variable represented
 by this alloca was originally initialized in C/C++ source code. In such
 cases, the first use contains the initialization (a cir.store, a cir.call
 to a ctor, etc).
+
+The `dynAllocSize` specifies the size to dynamically allocate on the stack
+and ignores the allocation size based on the original type. This is useful
+when handling VLAs and is omitted when declaring regular local variables.
 
 The result type is a pointer to the input's type.
 
@@ -88,13 +94,20 @@ Example:
 
 #### Attributes:
 
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-| `allocaType` | ::mlir::TypeAttr | any type attribute
-| `name` | ::mlir::StringAttr | string attribute
-| `init` | ::mlir::UnitAttr | unit attribute
-| `alignment` | ::mlir::IntegerAttr | 64-bit signless integer attribute whose minimum value is 0
-| `ast` | ::mlir::cir::ASTVarDeclInterface | ASTVarDeclInterface instance
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>allocaType</code></td><td>::mlir::TypeAttr</td><td>any type attribute</td></tr>
+<tr><td><code>name</code></td><td>::mlir::StringAttr</td><td>string attribute</td></tr>
+<tr><td><code>init</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
+<tr><td><code>alignment</code></td><td>::mlir::IntegerAttr</td><td>64-bit signless integer attribute whose minimum value is 0</td></tr>
+<tr><td><code>ast</code></td><td>::mlir::cir::ASTVarDeclInterface</td><td>ASTVarDeclInterface instance</td></tr>
+</table>
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `dynAllocSize` | Integer type with arbitrary precision up to a fixed limit
 
 #### Results:
 
@@ -172,9 +185,10 @@ Interfaces: ConditionallySpeculatable, RegionBranchOpInterface
 
 #### Attributes:
 
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-| `kind` | ::mlir::cir::AwaitKindAttr | await kind
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>kind</code></td><td>::mlir::cir::AwaitKindAttr</td><td>await kind</td></tr>
+</table>
 
 ### `cir.base_class_addr` (cir::BaseClassAddrOp)
 
@@ -240,9 +254,10 @@ Effects: MemoryEffects::Effect{}
 
 #### Attributes:
 
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-| `kind` | ::mlir::cir::BinOpKindAttr | binary operation (arith and logic) kind
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>kind</code></td><td>::mlir::cir::BinOpKindAttr</td><td>binary operation (arith and logic) kind</td></tr>
+</table>
 
 #### Operands:
 
@@ -298,8 +313,8 @@ Effects: MemoryEffects::Effect{}
 | Operand | Description |
 | :-----: | ----------- |
 | `cond` | CIR bool type
-| `destOperandsTrue` | any type
-| `destOperandsFalse` | any type
+| `destOperandsTrue` | variadic of any type
+| `destOperandsFalse` | variadic of any type
 
 #### Successors:
 
@@ -341,13 +356,49 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `destOperands` | any type
+| `destOperands` | variadic of any type
 
 #### Successors:
 
 | Successor | Description |
 | :-------: | ----------- |
 | `dest` | any successor
+
+### `cir.asm` (cir::InlineAsmOp)
+
+Syntax:
+
+```
+operation ::= `cir.asm` `(`$asm_flavor`,` `{` $asm_string `}` `)` attr-dict `:` type($res)
+```
+
+The `cir.asm` operation represents C/C++ asm inline.
+
+Example:
+```C++
+__asm__ volatile("xyz" : : : );
+```
+
+```
+```mlir
+cir.asm(x86_att, {"xyz"}) -> !void 
+```
+
+Traits: RecursiveMemoryEffects
+
+#### Attributes:
+
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>asm_string</code></td><td>::mlir::StringAttr</td><td>string attribute</td></tr>
+<tr><td><code>asm_flavor</code></td><td>::mlir::cir::AsmDialectAttr</td><td>ATT or Intel</td></tr>
+</table>
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `res` | any type
 
 ### `cir.call` (cir::CallOp)
 
@@ -379,21 +430,23 @@ Interfaces: CallOpInterface, SymbolUserOpInterface
 
 #### Attributes:
 
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-| `callee` | ::mlir::FlatSymbolRefAttr | flat symbol reference attribute
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>callee</code></td><td>::mlir::FlatSymbolRefAttr</td><td>flat symbol reference attribute</td></tr>
+<tr><td><code>ast</code></td><td>::mlir::cir::ASTCallExprInterface</td><td>ASTCallExprInterface instance</td></tr>
+</table>
 
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
-| `operands` | any type
+| `operands` | variadic of any type
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-&laquo;unnamed&raquo; | any type
+&laquo;unnamed&raquo; | variadic of any type
 
 ### `cir.cast` (cir::CastOp)
 
@@ -409,13 +462,18 @@ operation ::= `cir.cast` `(` $kind `,` $src `:` type($src) `)`
 
 Apply C/C++ usual conversions rules between values. Currently supported kinds:
 
-- `int_to_bool`
-- `ptr_to_bool`
 - `array_to_ptrdecay`
-- `integral`
 - `bitcast`
+- `integral`
+- `int_to_bool`
+- `int_to_float`
 - `floating`
 - `float_to_int`
+- `float_to_bool`
+- `ptr_to_int`
+- `ptr_to_bool`
+- `bool_to_int`
+- `bool_to_float`
 
 This is effectively a subset of the rules from
 `llvm-project/clang/include/clang/AST/OperationKinds.def`; but note that some
@@ -436,9 +494,10 @@ Effects: MemoryEffects::Effect{}
 
 #### Attributes:
 
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-| `kind` | ::mlir::cir::CastKindAttr | cast kind
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>kind</code></td><td>::mlir::cir::CastKindAttr</td><td>cast kind</td></tr>
+</table>
 
 #### Operands:
 
@@ -473,9 +532,10 @@ Interfaces: ConditionallySpeculatable, RegionBranchOpInterface
 
 #### Attributes:
 
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-| `catchers` | ::mlir::ArrayAttr | cir.catch entry array attribute
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>catchers</code></td><td>::mlir::ArrayAttr</td><td>cir.catch entry array attribute</td></tr>
+</table>
 
 #### Operands:
 
@@ -510,9 +570,10 @@ Effects: MemoryEffects::Effect{}
 
 #### Attributes:
 
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-| `kind` | ::mlir::cir::CmpOpKindAttr | compare operation kind
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>kind</code></td><td>::mlir::cir::CmpOpKindAttr</td><td>compare operation kind</td></tr>
+</table>
 
 #### Operands:
 
@@ -555,9 +616,10 @@ Effects: MemoryEffects::Effect{}
 
 #### Attributes:
 
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-| `value` | ::mlir::TypedAttr | TypedAttr instance
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>value</code></td><td>::mlir::TypedAttr</td><td>TypedAttr instance</td></tr>
+</table>
 
 #### Results:
 
@@ -708,21 +770,88 @@ Interfaces: CallableOpInterface, FunctionOpInterface, Symbol
 
 #### Attributes:
 
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-| `sym_name` | ::mlir::StringAttr | string attribute
-| `function_type` | ::mlir::TypeAttr | type attribute of CIR function type
-| `builtin` | ::mlir::UnitAttr | unit attribute
-| `coroutine` | ::mlir::UnitAttr | unit attribute
-| `lambda` | ::mlir::UnitAttr | unit attribute
-| `no_proto` | ::mlir::UnitAttr | unit attribute
-| `linkage` | ::mlir::cir::GlobalLinkageKindAttr | Linkage type/kind
-| `extra_attrs` | ::mlir::cir::ExtraFuncAttributesAttr | Represents aggregated attributes for a function
-| `sym_visibility` | ::mlir::StringAttr | string attribute
-| `arg_attrs` | ::mlir::ArrayAttr | Array of dictionary attributes
-| `res_attrs` | ::mlir::ArrayAttr | Array of dictionary attributes
-| `aliasee` | ::mlir::FlatSymbolRefAttr | flat symbol reference attribute
-| `ast` | ::mlir::Attribute | AST Function attribute
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>sym_name</code></td><td>::mlir::StringAttr</td><td>string attribute</td></tr>
+<tr><td><code>function_type</code></td><td>::mlir::TypeAttr</td><td>type attribute of CIR function type</td></tr>
+<tr><td><code>builtin</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
+<tr><td><code>coroutine</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
+<tr><td><code>lambda</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
+<tr><td><code>no_proto</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
+<tr><td><code>linkage</code></td><td>::mlir::cir::GlobalLinkageKindAttr</td><td>Linkage type/kind</td></tr>
+<tr><td><code>extra_attrs</code></td><td>::mlir::cir::ExtraFuncAttributesAttr</td><td>Represents aggregated attributes for a function</td></tr>
+<tr><td><code>sym_visibility</code></td><td>::mlir::StringAttr</td><td>string attribute</td></tr>
+<tr><td><code>arg_attrs</code></td><td>::mlir::ArrayAttr</td><td>Array of dictionary attributes</td></tr>
+<tr><td><code>res_attrs</code></td><td>::mlir::ArrayAttr</td><td>Array of dictionary attributes</td></tr>
+<tr><td><code>aliasee</code></td><td>::mlir::FlatSymbolRefAttr</td><td>flat symbol reference attribute</td></tr>
+<tr><td><code>ast</code></td><td>::mlir::Attribute</td><td>AST Function attribute</td></tr>
+</table>
+
+### `cir.get_bitfield` (cir::GetBitfieldOp)
+
+_Get a bitfield_
+
+
+Syntax:
+
+```
+operation ::= `cir.get_bitfield` `(`$bitfield_info `,` $addr attr-dict `:`
+              type($addr) `)` `->` type($result)
+```
+
+The `cir.get_bitfield` operation provides a load-like access to
+a bit field of a record.
+
+It expects a name if a bit field, a pointer to a storage in the
+base record, a type of the storage, a name of the bitfield,
+a size the bit field, an offset of the bit field and a sign.
+
+Example:
+Suppose we have a struct with multiple bitfields stored in
+different storages. The `cir.get_bitfield` operation gets the value
+of the bitfield
+```C++
+typedef struct {
+  int a : 4;
+  int b : 27;
+  int c : 17;
+  int d : 2;
+  int e : 15;
+} S;
+
+int load_bitfield(S& s) {
+  return s.d;
+}
+```
+
+```mlir
+// 'd' is in the storage with the index 1
+!struct_type = !cir.struct<struct "S" {!cir.int<u, 32>, !cir.int<u, 32>, !cir.int<u, 16>} #cir.record.decl.ast>
+#bfi_d = #cir.bitfield_info<name = "d", storage_type = !u32i, size = 2, offset = 17, is_signed = true>
+
+%2 = cir.load %0 : cir.ptr <!cir.ptr<!struct_type>>, !cir.ptr<!struct_type>
+%3 = cir.get_member %2[1] {name = "d"} : !cir.ptr<!struct_type> -> !cir.ptr<!u32i>
+%4 = cir.get_bitfield(#bfi_d, %3 : !cir.ptr<!u32i>) -> !s32i
+```
+
+#### Attributes:
+
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>bitfield_info</code></td><td>::mlir::cir::BitfieldInfoAttr</td><td>Represents a bit field info</td></tr>
+</table>
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `addr` | any type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | Integer type with arbitrary precision up to a fixed limit
 
 ### `cir.get_global` (cir::GetGlobalOp)
 
@@ -754,9 +883,10 @@ Effects: MemoryEffects::Effect{}
 
 #### Attributes:
 
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-| `name` | ::mlir::FlatSymbolRefAttr | flat symbol reference attribute
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>name</code></td><td>::mlir::FlatSymbolRefAttr</td><td>flat symbol reference attribute</td></tr>
+</table>
 
 #### Results:
 
@@ -795,10 +925,11 @@ Example:
 
 #### Attributes:
 
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-| `name` | ::mlir::StringAttr | string attribute
-| `index_attr` | ::mlir::IntegerAttr | index attribute
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>name</code></td><td>::mlir::StringAttr</td><td>string attribute</td></tr>
+<tr><td><code>index_attr</code></td><td>::mlir::IntegerAttr</td><td>index attribute</td></tr>
+</table>
 
 #### Operands:
 
@@ -857,16 +988,17 @@ Interfaces: RegionBranchOpInterface, Symbol
 
 #### Attributes:
 
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-| `sym_name` | ::mlir::StringAttr | string attribute
-| `sym_visibility` | ::mlir::StringAttr | string attribute
-| `sym_type` | ::mlir::TypeAttr | any type attribute
-| `linkage` | ::mlir::cir::GlobalLinkageKindAttr | Linkage type/kind
-| `initial_value` | ::mlir::Attribute | any attribute
-| `constant` | ::mlir::UnitAttr | unit attribute
-| `alignment` | ::mlir::IntegerAttr | 64-bit signless integer attribute
-| `ast` | ::mlir::cir::ASTVarDeclInterface | ASTVarDeclInterface instance
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>sym_name</code></td><td>::mlir::StringAttr</td><td>string attribute</td></tr>
+<tr><td><code>sym_visibility</code></td><td>::mlir::StringAttr</td><td>string attribute</td></tr>
+<tr><td><code>sym_type</code></td><td>::mlir::TypeAttr</td><td>any type attribute</td></tr>
+<tr><td><code>linkage</code></td><td>::mlir::cir::GlobalLinkageKindAttr</td><td>Linkage type/kind</td></tr>
+<tr><td><code>initial_value</code></td><td>::mlir::Attribute</td><td>any attribute</td></tr>
+<tr><td><code>constant</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
+<tr><td><code>alignment</code></td><td>::mlir::IntegerAttr</td><td>64-bit signless integer attribute</td></tr>
+<tr><td><code>ast</code></td><td>::mlir::cir::ASTVarDeclInterface</td><td>ASTVarDeclInterface instance</td></tr>
+</table>
 
 ### `cir.if` (cir::IfOp)
 
@@ -943,9 +1075,10 @@ Interfaces: InferTypeOpInterface
 
 #### Attributes:
 
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-| `isDeref` | ::mlir::UnitAttr | unit attribute
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>isDeref</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
+</table>
 
 #### Operands:
 
@@ -1012,9 +1145,48 @@ Interfaces: ConditionallySpeculatable, LoopLikeOpInterface, RegionBranchOpInterf
 
 #### Attributes:
 
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-| `kind` | ::mlir::cir::LoopOpKindAttr | Loop kind
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>kind</code></td><td>::mlir::cir::LoopOpKindAttr</td><td>Loop kind</td></tr>
+</table>
+
+### `cir.libc.memchr` (cir::MemChrOp)
+
+_Libc's `memchr`_
+
+
+Syntax:
+
+```
+operation ::= `cir.libc.memchr` `(`
+              $src `,` $pattern `,` $len `)` attr-dict
+```
+
+Search for `pattern` in data range from `src` to `src` + `len`.
+provides a bound to the search in `src`. `result` is a pointer to found
+`pattern` or a null pointer.
+
+Examples:
+
+```mlir
+%p = cir.libc.memchr(%src, %pattern, %len) -> !cir.ptr<!void>
+```
+
+Interfaces: InferTypeOpInterface
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `src` | void*
+| `pattern` | 32-bit signed integer
+| `len` | 64-bit unsigned integer
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | void*
 
 ### `cir.libc.memcpy` (cir::MemCpyOp)
 
@@ -1076,10 +1248,11 @@ Effects: MemoryEffects::Effect{}
 
 #### Attributes:
 
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-| `kind` | ::mlir::cir::SizeInfoTypeAttr | size info type
-| `dynamic` | ::mlir::UnitAttr | unit attribute
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>kind</code></td><td>::mlir::cir::SizeInfoTypeAttr</td><td>size info type</td></tr>
+<tr><td><code>dynamic</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
+</table>
 
 #### Operands:
 
@@ -1203,11 +1376,18 @@ Traits: HasParent<FuncOp, ScopeOp, IfOp, SwitchOp, LoopOp>, Terminator
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input` | any type
+| `input` | variadic of any type
 
 ### `cir.scope` (cir::ScopeOp)
 
 _Represents a C/C++ scope_
+
+
+Syntax:
+
+```
+operation ::= `cir.scope` custom<OmittedTerminatorRegion>($scopeRegion) (`:` type($results)^)? attr-dict
+```
 
 `cir.scope` contains one region and defines a strict "scope" for all new
 values produced within its blocks.
@@ -1236,6 +1416,75 @@ Interfaces: ConditionallySpeculatable, RegionBranchOpInterface
 | Result | Description |
 | :----: | ----------- |
 | `results` | any type
+
+### `cir.set_bitfield` (cir::SetBitfieldOp)
+
+_Set a bitfield_
+
+
+Syntax:
+
+```
+operation ::= `cir.set_bitfield` `(`$bitfield_info`,` $dst`:`type($dst)`,`
+              $src`:`type($src) `)`  attr-dict `->` type($result)
+```
+
+The `cir.set_bitfield` operation provides a store-like access to 
+a bit field of a record.
+
+It expects an address of a storage where to store, a type of the storage,
+a value being stored, a name of a bit field, a pointer to the storage in the
+base record, a size of the storage, a size the bit field, an offset 
+of the bit field and a sign. Returns a value being stored.
+
+Example.
+Suppose we have a struct with multiple bitfields stored in
+different storages. The `cir.set_bitfield` operation sets the value
+of the bitfield.
+```C++
+typedef struct {
+  int a : 4;
+  int b : 27;
+  int c : 17;
+  int d : 2;
+  int e : 15;
+} S;
+
+void store_bitfield(S& s) {
+  s.d = 3;
+}
+```
+
+```mlir
+// 'd' is in the storage with the index 1
+!struct_type = !cir.struct<struct "S" {!cir.int<u, 32>, !cir.int<u, 32>, !cir.int<u, 16>} #cir.record.decl.ast>
+#bfi_d = #cir.bitfield_info<name = "d", storage_type = !u32i, size = 2, offset = 17, is_signed = true>
+
+%1 = cir.const(#cir.int<3> : !s32i) : !s32i
+%2 = cir.load %0 : cir.ptr <!cir.ptr<!struct_type>>, !cir.ptr<!struct_type>
+%3 = cir.get_member %2[1] {name = "d"} : !cir.ptr<!struct_type> -> !cir.ptr<!u32i>
+%4 = cir.set_bitfield(#bfi_d, %3 : !cir.ptr<!u32i>, %1 : !s32i) -> !s32i
+```
+
+#### Attributes:
+
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>bitfield_info</code></td><td>::mlir::cir::BitfieldInfoAttr</td><td>Represents a bit field info</td></tr>
+</table>
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `dst` | any type
+| `src` | any type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | Integer type with arbitrary precision up to a fixed limit
 
 ### `cir.shift` (cir::ShiftOp)
 
@@ -1267,9 +1516,10 @@ Effects: MemoryEffects::Effect{}
 
 #### Attributes:
 
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-| `isShiftleft` | ::mlir::UnitAttr | unit attribute
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>isShiftleft</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
+</table>
 
 #### Operands:
 
@@ -1283,6 +1533,57 @@ Effects: MemoryEffects::Effect{}
 | Result | Description |
 | :----: | ----------- |
 | `result` | Integer type with arbitrary precision up to a fixed limit
+
+### `cir.std.find` (cir::StdFindOp)
+
+_Std:find()_
+
+
+Syntax:
+
+```
+operation ::= `cir.std.find` `(`
+              $original_fn
+              `,` $first `:` type($first)
+              `,` $last `:` type($last)
+              `,` $pattern `:` type($pattern)
+              `)` `->` type($result) attr-dict
+```
+
+Search for `pattern` in data range from `first` to `last`. This currently
+maps to only one form of `std::find`. The `original_fn` operand tracks the
+mangled named that can be used when lowering to a `cir.call`.
+
+Example:
+
+```mlir
+...
+%result = cir.std.find(@original_fn,
+                       %first : !T, %last : !T, %pattern : !P) -> !T
+```
+
+Traits: SameFirstSecondOperandAndResultType
+
+#### Attributes:
+
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>original_fn</code></td><td>::mlir::FlatSymbolRefAttr</td><td>flat symbol reference attribute</td></tr>
+</table>
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `first` | any type
+| `last` | any type
+| `pattern` | any type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | any type
 
 ### `cir.store` (cir::StoreOp)
 
@@ -1365,9 +1666,10 @@ Interfaces: ConditionallySpeculatable, RegionBranchOpInterface
 
 #### Attributes:
 
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-| `cases` | ::mlir::ArrayAttr | cir.switch case array attribute
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>cases</code></td><td>::mlir::ArrayAttr</td><td>cir.switch case array attribute</td></tr>
+</table>
 
 #### Operands:
 
@@ -1468,10 +1770,11 @@ Traits: HasParent<FuncOp, ScopeOp, IfOp, SwitchOp, LoopOp>, Terminator
 
 #### Attributes:
 
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-| `type_info` | ::mlir::FlatSymbolRefAttr | flat symbol reference attribute
-| `dtor` | ::mlir::FlatSymbolRefAttr | flat symbol reference attribute
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>type_info</code></td><td>::mlir::FlatSymbolRefAttr</td><td>flat symbol reference attribute</td></tr>
+<tr><td><code>dtor</code></td><td>::mlir::FlatSymbolRefAttr</td><td>flat symbol reference attribute</td></tr>
+</table>
 
 #### Operands:
 
@@ -1566,9 +1869,10 @@ Effects: MemoryEffects::Effect{}
 
 #### Attributes:
 
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-| `kind` | ::mlir::cir::UnaryOpKindAttr | unary operation kind
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>kind</code></td><td>::mlir::cir::UnaryOpKindAttr</td><td>unary operation kind</td></tr>
+</table>
 
 #### Operands:
 
@@ -1704,11 +2008,12 @@ Effects: MemoryEffects::Effect{}
 
 #### Attributes:
 
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-| `name` | ::mlir::FlatSymbolRefAttr | flat symbol reference attribute
-| `vtable_index` | ::mlir::IntegerAttr | 32-bit signless integer attribute
-| `address_point_index` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>name</code></td><td>::mlir::FlatSymbolRefAttr</td><td>flat symbol reference attribute</td></tr>
+<tr><td><code>vtable_index</code></td><td>::mlir::IntegerAttr</td><td>32-bit signless integer attribute</td></tr>
+<tr><td><code>address_point_index</code></td><td>::mlir::IntegerAttr</td><td>32-bit signless integer attribute</td></tr>
+</table>
 
 #### Operands:
 
@@ -1721,6 +2026,72 @@ Effects: MemoryEffects::Effect{}
 | Result | Description |
 | :----: | ----------- |
 | `addr` | CIR pointer type
+
+### `cir.vec.create` (cir::VecCreateOp)
+
+_Create a vector value_
+
+
+Syntax:
+
+```
+operation ::= `cir.vec.create` `(` ($elements^ `:` type($elements))? `)` `:` type($result) attr-dict
+```
+
+The `cir.vec.create` operation creates a vector value with the given element
+values. The number of element arguments must match the number of elements
+in the vector type.
+
+Traits: AlwaysSpeculatableImplTrait
+
+Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)
+
+Effects: MemoryEffects::Effect{}
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `elements` | variadic of any type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | CIR vector type
+
+### `cir.vec.extract` (cir::VecExtractOp)
+
+_Extract one element from a vector object_
+
+
+Syntax:
+
+```
+operation ::= `cir.vec.extract` $vec `[` $index `:` type($index) `]` type($vec) `->` type($result) attr-dict
+```
+
+The `cir.vec.extract` operation extracts the element at the given index
+from a vector object.
+
+Traits: AlwaysSpeculatableImplTrait
+
+Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)
+
+Effects: MemoryEffects::Effect{}
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `vec` | CIR vector type
+| `index` | Integer type with arbitrary precision up to a fixed limit
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | any type
 
 ### `cir.yield` (cir::YieldOp)
 
@@ -1801,17 +2172,20 @@ cir.scope {
 
 Traits: HasParent<IfOp, ScopeOp, SwitchOp, LoopOp, AwaitOp, TernaryOp, GlobalOp>, ReturnLike, Terminator
 
+Interfaces: RegionBranchTerminatorOpInterface
+
 #### Attributes:
 
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-| `kind` | ::mlir::cir::YieldOpKindAttr | yield kind
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>kind</code></td><td>::mlir::cir::YieldOpKindAttr</td><td>yield kind</td></tr>
+</table>
 
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
-| `args` | any type
+| `args` | variadic of any type
 
 ### `cir.llvmir.zeroinit` (cir::ZeroInitConstOp)
 

@@ -24,7 +24,7 @@ This always implies a non-null AST reference (verified).
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
-| astDecl | `const clang::CXXConstructorDecl *` |  |
+| ast | `const clang::CXXConstructorDecl *` |  |
 
 ### ASTCXXConversionDeclAttr
 
@@ -40,7 +40,7 @@ This always implies a non-null AST reference (verified).
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
-| astDecl | `const clang::CXXConversionDecl *` |  |
+| ast | `const clang::CXXConversionDecl *` |  |
 
 ### ASTCXXDestructorDeclAttr
 
@@ -56,7 +56,7 @@ This always implies a non-null AST reference (verified).
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
-| astDecl | `const clang::CXXDestructorDecl *` |  |
+| ast | `const clang::CXXDestructorDecl *` |  |
 
 ### ASTCXXMethodDeclAttr
 
@@ -72,7 +72,23 @@ This always implies a non-null AST reference (verified).
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
-| astDecl | `const clang::CXXMethodDecl *` |  |
+| ast | `const clang::CXXMethodDecl *` |  |
+
+### ASTCallExprAttr
+
+Wraps a 'const clang::CallExpr *' AST node.
+
+Operations optionally refer to this node, they could be available depending
+on the CIR lowering stage. Whether it's attached to the appropriated
+CIR operation is delegated to the operation verifier.
+
+This always implies a non-null AST reference (verified).
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| ast | `const clang::CallExpr *` |  |
 
 ### ASTDeclAttr
 
@@ -88,7 +104,23 @@ This always implies a non-null AST reference (verified).
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
-| astDecl | `const clang::Decl *` |  |
+| ast | `const clang::Decl *` |  |
+
+### ASTExprAttr
+
+Wraps a 'const clang::Expr *' AST node.
+
+Operations optionally refer to this node, they could be available depending
+on the CIR lowering stage. Whether it's attached to the appropriated
+CIR operation is delegated to the operation verifier.
+
+This always implies a non-null AST reference (verified).
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| ast | `const clang::Expr *` |  |
 
 ### ASTFunctionDeclAttr
 
@@ -104,7 +136,7 @@ This always implies a non-null AST reference (verified).
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
-| astDecl | `const clang::FunctionDecl *` |  |
+| ast | `const clang::FunctionDecl *` |  |
 
 ### ASTRecordDeclAttr
 
@@ -120,7 +152,7 @@ This always implies a non-null AST reference (verified).
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
-| astDecl | `const clang::RecordDecl *` |  |
+| ast | `const clang::RecordDecl *` |  |
 
 ### ASTTagDeclAttr
 
@@ -136,7 +168,7 @@ This always implies a non-null AST reference (verified).
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
-| astDecl | `const clang::TagDecl *` |  |
+| ast | `const clang::TagDecl *` |  |
 
 ### ASTTypeDeclAttr
 
@@ -152,7 +184,7 @@ This always implies a non-null AST reference (verified).
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
-| astDecl | `const clang::TypeDecl *` |  |
+| ast | `const clang::TypeDecl *` |  |
 
 ### ASTVarDeclAttr
 
@@ -168,7 +200,36 @@ This always implies a non-null AST reference (verified).
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
-| astDecl | `const clang::VarDecl *` |  |
+| ast | `const clang::VarDecl *` |  |
+
+### BitfieldInfoAttr
+
+Represents a bit field info
+
+Syntax:
+
+```
+#cir.bitfield_info<
+  StringAttr,   # name
+  Type,   # storage_type
+  uint64_t,   # size
+  uint64_t,   # offset
+  bool   # is_signed
+>
+```
+
+Holds the next information about bitfields: name, storage type, a bitfield size
+and position in the storage, if the bitfield is signed or not.
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| name | `StringAttr` |  |
+| storage_type | `Type` |  |
+| size | `uint64_t` |  |
+| offset | `uint64_t` |  |
+| is_signed | `bool` |  |
 
 ### BoolAttr
 
@@ -431,7 +492,8 @@ itanium on CIRGen).
 
 The verifier enforces that the output type is always a `!cir.struct`,
 and that the ArrayAttr element types match the equivalent member type
-for the resulting struct.
+for the resulting struct, i.e, a GlobalViewAttr for symbol reference or
+an IntAttr for flags.
 
 Example:
 

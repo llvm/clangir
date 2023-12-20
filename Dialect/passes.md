@@ -23,6 +23,35 @@ for such nodes diminish and AST information can be dropped.
 Right now this is enabled by default in Clang prior to dialect
 codegen from CIR, but not before lifetime check, where AST is
 required to be present.
+### `-cir-idiom-recognizer`
+
+_Raise calls to C/C++ libraries to CIR operations_
+
+This pass recognize idiomatic C++ usage and incorporate C++ standard
+containers, library functions calls, and types into CIR operation,
+attributes and types.
+
+Detections done by this pass can be inspected by users by using
+remarks. Currently supported are `all` and `found-calls`.
+
+#### Options
+```
+-remarks : Diagnostic remarks to enable Supported styles: {all|found-calls}
+```
+### `-cir-lib-opt`
+
+_Optimize C/C++ library calls_
+
+By using higher level information from `cir-idiom-recognize`, this pass
+apply transformations to CIR based on specific C/C++ library semantics.
+
+Transformations done by this pass can be inspected by users by using
+remarks. Currently supported are `all` and `transforms`.
+
+#### Options
+```
+-remarks : Diagnostic remarks to enable Supported styles: {all|transforms}
+```
 ### `-cir-lifetime-check`
 
 _Check lifetime safety and generate diagnostics_
