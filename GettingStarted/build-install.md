@@ -35,8 +35,8 @@ $ /Applications/CMake.app/Contents/bin/cmake -GNinja \
 $ ninja install
 ```
 
-Check for `cir-tool` to confirm all is fine:
+Check for `cir-opt` to confirm all is fine:
 
 ```
-$ /tmp/install-llvm/bin/cir-tool --help
+$ /tmp/install-llvm/bin/cir-opt --help
 ```
