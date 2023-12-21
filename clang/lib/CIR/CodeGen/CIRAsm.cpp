@@ -72,7 +72,7 @@ static std::string SimplifyConstraint(
 
 // FIXME(cir): This should be a common helper between CIRGen
 // and traditional CodeGen
-/// AddVariableConstraints - Look at AsmExpr and if it is a variable declared
+/// Look at AsmExpr and if it is a variable declared
 /// as using a particular register add that as a constraint that will be used
 /// in this asm stmt.
 static std::string
