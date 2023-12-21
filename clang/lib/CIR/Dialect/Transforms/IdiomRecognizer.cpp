@@ -109,18 +109,53 @@ void IdiomRecognizerPass::raiseStdFind(CallOp call) {
   call.erase();
 }
 
+static bool isIteratorLikeType(mlir::Type t) {
+  // TODO: some iterators are going to be represented with structs,
+  // in which case we could look at ASTRecordDeclInterface for more
+  // information.
+  auto pTy = mlir::dyn_cast<mlir::cir::PointerType>(t);
+  if (!pTy || !mlir::isa<mlir::cir::IntType>(pTy.getPointee()))
+    return false;
+  return true;
+}
+
+static bool isIteratorInStdContainter(mlir::Type t) {
+  auto sTy = mlir::dyn_cast<mlir::cir::StructType>(t);
+  if (!sTy)
+    return false;
+  auto recordDecl = sTy.getAst();
+  if (!recordDecl.isInStdNamespace())
+    return false;
+
+  // TODO: only std::array supported for now, generalize and
+  // use tablegen. CallDescription.cpp in the static analyzer
+  // could be a good inspiration source too.
+  if (recordDecl.getName().compare("array") != 0)
+    return false;
+
+  return true;
+}
+
 void IdiomRecognizerPass::raiseIteratorBeginEnd(CallOp call) {
   // FIXME: tablegen all of this function.
-  if (call.getNumOperands() != 1)
+  CIRBaseBuilderTy builder(getContext());
+
+  if (call.getNumOperands() != 1 || call.getNumResults() != 1)
     return;
 
   auto callExprAttr = call.getAstAttr();
   if (!callExprAttr)
     return;
 
-  CIRBaseBuilderTy builder(getContext());
-  builder.setInsertionPointAfter(call.getOperation());
+  if (!isIteratorLikeType(call.getResult(0).getType()))
+    return;
 
+  // First argument is the container "this" pointer.
+  auto thisPtr = mlir::dyn_cast<mlir::cir::PointerType>(call.getOperand(0).getType());
+  if (!thisPtr || !isIteratorInStdContainter(thisPtr.getPointee()))
+    return;
+
+  builder.setInsertionPointAfter(call.getOperation());
   mlir::Operation *iterOp;
   if (callExprAttr.isIteratorBeginCall()) {
     if (opts.emitRemarkFoundCalls())
