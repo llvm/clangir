@@ -420,6 +420,7 @@ public:
   CIRGenBuilderTy &getBuilder() { return builder; }
 
   CIRGenModule &getCIRGenModule() { return CGM; }
+  const CIRGenModule &getCIRGenModule() const { return CGM; }
 
   mlir::Block *getCurFunctionEntryBlock() {
     auto Fn = dyn_cast<mlir::cir::FuncOp>(CurFn);
@@ -507,6 +508,18 @@ public:
   CIRGenTypes &getTypes() const { return CGM.getTypes(); }
 
   const TargetInfo &getTarget() const { return CGM.getTarget(); }
+
+  const TargetCIRGenInfo &getTargetHooks() const {
+    return CGM.getTargetCIRGenInfo();
+  }
+
+  std::pair<mlir::Value, mlir::Type> buildAsmInputLValue(
+    const TargetInfo::ConstraintInfo &Info, LValue InputValue,
+    QualType InputType, std::string &ConstraintStr, SourceLocation Loc);
+
+  std::pair<mlir::Value, mlir::Type> 
+    buildAsmInput(const TargetInfo::ConstraintInfo &Info,
+      const Expr *InputExpr, std::string &ConstraintStr);
 
   /// Helpers to convert Clang's SourceLocation to a MLIR Location.
   mlir::Location getLoc(clang::SourceLocation SLoc);

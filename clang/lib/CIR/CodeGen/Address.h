@@ -82,6 +82,10 @@ public:
     return Address(getPointer(), ElemTy, getAlignment(), isKnownNonNull());
   }
 
+  mlir::cir::PointerType getType() const {
+    return llvm::dyn_cast<mlir::cir::PointerType>(getPointer().getType());
+  }
+
   mlir::Value getPointer() const {
     assert(isValid());
     return PointerAndKnownNonNull.getPointer();

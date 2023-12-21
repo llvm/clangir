@@ -168,6 +168,7 @@ public:
   ArrayAttr getF64ArrayAttr(ArrayRef<double> values);
   ArrayAttr getStrArrayAttr(ArrayRef<StringRef> values);
   ArrayAttr getTypeArrayAttr(TypeRange values);
+  TypeAttr getTypeAttr(Type t);
 
   // Affine expressions and affine maps.
   AffineExpr getAffineDimExpr(unsigned position);
