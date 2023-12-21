@@ -2506,40 +2506,53 @@ def ZeroInitConstOp : CIR_Op<"llvmir.zeroinit", [Pure]>,
   let hasVerifier = 0;
 }
 
-def AsmATT : I32EnumAttrCase<"x86_att", 0>;
-def AsmIntel : I32EnumAttrCase<"x86_intel", 1>;
 
-def AsmFlavor : I32EnumAttr<
+def AsmATT : I32EnumAttrCase<"AD_ATT", 0>;
+def AsmIntel : I32EnumAttrCase<"AD_Intel", 1>;
+
+def AsmATTOrIntel : I32EnumAttr<
   "AsmDialect",
   "ATT or Intel",
   [AsmATT, AsmIntel]> {
   let cppNamespace = "::mlir::cir";
 }
 
-def CIR_InlineAsmOp : CIR_Op<"asm", [RecursiveMemoryEffects]> {
+def CIR_InlineAsmOp : CIR_Op<"inline_asm"> {
   let description = [{
-    The `cir.asm` operation represents C/C++ asm inline.
-
-    Example:
-    ```C++
-    __asm__ volatile("xyz" : : : );
-    ```
-
-    ```
-    ```mlir
-    cir.asm(x86_att, {"xyz"}) -> !void 
-    ```
+    The InlineAsmOp mirrors the underlying LLVM semantics with a notable
+    exception: the embedded `asm_string` is not allowed to define or reference
+    any symbol or any global variable: only the operands of the op may be read,
+    written, or referenced.
+    Attempting to define or reference any symbol or any global behavior is
+    considered undefined behavior at this time.
   }];
+  let arguments = (
+    ins Variadic<AnyType>:$operands,
+        StrAttr:$asm_string,
+        StrAttr:$constraints,
+        UnitAttr:$has_side_effects,
+        UnitAttr:$is_align_stack,
+        OptionalAttr<
+          DefaultValuedAttr<AsmATTOrIntel, "AsmDialect::AD_ATT">>:$asm_dialect,
+        OptionalAttr<ArrayAttr>:$operand_attrs);
 
   let results = (outs Optional<AnyType>:$res);
 
-  let arguments = (
-    ins StrAttr:$asm_string,
-        AsmFlavor:$asm_flavor);  
-
   let assemblyFormat = [{
-    `(`$asm_flavor`,` `{` $asm_string `}` `)` attr-dict `:` type($res)
-   }];  
+    (`has_side_effects` $has_side_effects^)?
+    (`is_align_stack` $is_align_stack^)?
+    (`asm_dialect` `=` $asm_dialect^)?
+    (`operand_attrs` `=` $operand_attrs^)?
+    attr-dict
+    $asm_string `,` $constraints
+    operands `:` functional-type(operands, results)
+   }];
+
+  let extraClassDeclaration = [{
+    static StringRef getElementTypeAttrName() {
+      return "elementtype";
+    }
+  }];
 }
 
 #endif // MLIR_CIR_DIALECT_CIR_OPS

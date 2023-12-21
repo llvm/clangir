@@ -328,6 +328,10 @@ ArrayAttr Builder::getAffineMapArrayAttr(ArrayRef<AffineMap> values) {
   return getArrayAttr(attrs);
 }
 
+TypeAttr Builder::getTypeAttr(Type t) {
+  return TypeAttr::get(t);
+}
+
 TypedAttr Builder::getZeroAttr(Type type) {
   if (llvm::isa<FloatType>(type))
     return getFloatAttr(type, 0.0);

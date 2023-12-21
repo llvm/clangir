@@ -622,7 +622,10 @@ RValue CIRGenFunction::buildLoadOfBitfieldLValue(LValue LV,
 }
 
 void CIRGenFunction::buildStoreThroughLValue(RValue Src, LValue Dst) {
-  assert(Dst.isSimple() && "only implemented simple");
+  if (Dst.isBitField()) {
+    mlir::Value result;
+    return buildStoreThroughBitfieldLValue(Src, Dst, result);
+  }
 
   // There's special magic for assigning into an ARC-qualified l-value.
   if (Qualifiers::ObjCLifetime Lifetime = Dst.getQuals().getObjCLifetime()) {

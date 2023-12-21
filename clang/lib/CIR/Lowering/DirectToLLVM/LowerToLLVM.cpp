@@ -2034,6 +2034,64 @@ public:
   }
 };
 
+
+class CIRInlineAsmOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::InlineAsmOp> {
+
+using mlir::OpConversionPattern<mlir::cir::InlineAsmOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::InlineAsmOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+
+    mlir::Type llResTy;
+    if (op.getNumResults())
+        llResTy = getTypeConverter()->convertType(op.getType(0));
+
+    auto dialect = op.getAsmDialect();
+    auto llDialect =
+      dialect == mlir::cir::AsmDialect::AD_ATT
+        ? mlir::LLVM::AsmDialect::AD_ATT
+        : mlir::LLVM::AsmDialect::AD_Intel;
+
+    auto oldAttrName = mlir::cir::InlineAsmOp::getElementTypeAttrName();
+    auto newAttrName = mlir::LLVM::InlineAsmOp::getElementTypeAttrName();
+
+    std::vector<mlir::Attribute> opAttrs;
+    if (auto operandAttrs = op.getOperandAttrs()) {
+      for (auto attr : *operandAttrs) {
+        if (isa<mlir::cir::OptNoneAttr>(attr)) {
+          opAttrs.push_back(mlir::Attribute());
+          continue;
+        }
+
+        mlir::DictionaryAttr dict = cast<mlir::DictionaryAttr>(attr);
+        mlir::TypeAttr tAttr = cast<mlir::TypeAttr>(dict.get(oldAttrName));
+        std::vector<mlir::NamedAttribute> attrs;
+        auto typAttr = rewriter.getTypeAttr(
+          getTypeConverter()->convertType(tAttr.getValue()));
+
+        attrs.push_back(rewriter.getNamedAttr(newAttrName, typAttr));
+        auto newDict = rewriter.getDictionaryAttr(attrs);
+        opAttrs.push_back(newDict);
+      }
+    }
+
+    rewriter.replaceOpWithNewOp<mlir::LLVM::InlineAsmOp>(
+      op,
+      llResTy,
+      adaptor.getOperands(),
+      op.getAsmStringAttr(),
+      op.getConstraintsAttr(),
+      op.getHasSideEffectsAttr(),
+      op.getIsAlignStackAttr(),
+      mlir::LLVM::AsmDialectAttr::get(getContext(),llDialect),
+      rewriter.getArrayAttr(opAttrs));
+
+    return mlir::success();
+  }
+};
+
 void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
                                          mlir::TypeConverter &converter) {
   patterns.add<CIRReturnLowering>(patterns.getContext());
@@ -2048,7 +2106,8 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
                CIRGetMemberOpLowering, CIRSwitchOpLowering,
                CIRPtrDiffOpLowering, CIRCopyOpLowering, CIRMemCpyOpLowering,
                CIRFAbsOpLowering, CIRVTableAddrPointOpLowering,
-               CIRVectorCreateLowering, CIRVectorExtractLowering>(
+               CIRVectorCreateLowering, CIRVectorExtractLowering,
+               CIRInlineAsmOpLowering>(
       converter, patterns.getContext());
 }
 
