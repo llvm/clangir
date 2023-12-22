@@ -413,6 +413,12 @@ public:
   // Enable Clang IR based lifetime check
   unsigned ClangIRLifetimeCheck : 1;
 
+  // Enable Clang IR idiom recognizer
+  unsigned ClangIRIdiomRecognizer : 1;
+
+  // Enable Clang IR library optimizations
+  unsigned ClangIRLibOpt : 1;
+
   CodeCompleteOptions CodeCompleteOpts;
 
   /// Specifies the output format of the AST.
@@ -602,6 +608,7 @@ public:
         UseClangIRPipeline(false), ClangIRDirectLowering(false),
         ClangIRDisablePasses(false), ClangIRDisableCIRVerifier(false),
         ClangIRDisableEmitCXXDefault(false), ClangIRLifetimeCheck(false),
+        ClangIRIdiomRecognizer(false), ClangIRLibOpt(false),
         TimeTraceGranularity(500) {}
 
   /// getInputKindForExtension - Return the appropriate input kind for a file
