@@ -390,12 +390,6 @@ public:
     return mlir::cir::PointerType::get(getContext(), ty);
   }
 
-  mlir::cir::PointerType getVoidPtrTy(unsigned AddrSpace = 0) {
-    if (AddrSpace)
-      llvm_unreachable("address space is NYI");
-    return typeCache.VoidPtrTy;
-  }
-
   /// Get a CIR anonymous struct type.
   mlir::cir::StructType
   getAnonStructTy(llvm::ArrayRef<mlir::Type> members, bool packed = false,
@@ -760,14 +754,18 @@ public:
       Offset %= EltSize;
     } else if (auto StructTy = Ty.dyn_cast<mlir::cir::StructType>()) {
       auto Elts = StructTy.getMembers();
+      unsigned Pos = 0;
       for (size_t I = 0; I < Elts.size(); ++I) {
         auto EltSize = Layout.getTypeAllocSize(Elts[I]);
-        if (Offset < EltSize) {
+        unsigned AlignMask = Layout.getABITypeAlign(Elts[I]) - 1;
+        Pos = (Pos + AlignMask) & ~AlignMask;
+        if (Offset < Pos + EltSize) {
           Indices.push_back(I);
           SubType = Elts[I];
+          Offset -= Pos;
           break;
         }
-        Offset -= EltSize;
+        Pos += EltSize;
       }
     } else {
       llvm_unreachable("unexpected type");
@@ -776,6 +774,15 @@ public:
     assert(SubType);
     computeGlobalViewIndicesFromFlatOffset(Offset, SubType, Layout, Indices);
   }
+
+  mlir::cir::StackSaveOp createStackSave(mlir::Location loc, mlir::Type ty) {
+    return create<mlir::cir::StackSaveOp>(loc, ty);
+  }
+
+  mlir::cir::StackRestoreOp createStackRestore(mlir::Location loc, mlir::Value v) {
+    return create<mlir::cir::StackRestoreOp>(loc, v);
+  }
+
 };
 
 } // namespace cir

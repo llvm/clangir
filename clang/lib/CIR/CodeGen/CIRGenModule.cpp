@@ -162,6 +162,10 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &context,
   // TODO: ConstGlobalsPtrTy
   // TODO: ASTAllocaAddressSpace
 
+  PtrDiffTy = ::mlir::cir::IntType::get(
+      builder.getContext(), astCtx.getTargetInfo().getMaxPointerWidth(),
+      /*isSigned=*/true);
+
   mlir::cir::sob::SignedOverflowBehavior sob;
   switch (langOpts.getSignedOverflowBehavior()) {
   case clang::LangOptions::SignedOverflowBehaviorTy::SOB_Defined:
@@ -2658,7 +2662,8 @@ mlir::cir::SourceLanguage CIRGenModule::getCIRSourceLanguage() {
       opts.CPlusPlus26)
     return CIRLang::CXX;
   if (opts.C99 || opts.C11 || opts.C17 || opts.C23 ||
-      opts.LangStd == ClangStd::lang_c89)
+      opts.LangStd == ClangStd::lang_c89 ||
+      opts.LangStd == ClangStd::lang_gnu89)
     return CIRLang::C;
 
   // TODO(cir): support remaining source languages.

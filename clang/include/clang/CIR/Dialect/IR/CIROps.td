@@ -2338,6 +2338,35 @@ def StdFindOp : CIR_Op<"std.find", [SameFirstSecondOperandAndResultType]> {
 }
 
 //===----------------------------------------------------------------------===//
+// IterBegin/End
+//===----------------------------------------------------------------------===//
+
+def IterBeginOp : CIR_Op<"iterator_begin"> {
+  let arguments = (ins FlatSymbolRefAttr:$original_fn, AnyType:$container);
+  let summary = "Returns an iterator to the first element of a container";
+  let results = (outs AnyType:$result);
+  let assemblyFormat = [{
+    `(`
+      $original_fn `,` $container `:` type($container)
+    `)` `->` type($result) attr-dict
+  }];
+  let hasVerifier = 0;
+}
+
+def IterEndOp : CIR_Op<"iterator_end"> {
+  let arguments = (ins FlatSymbolRefAttr:$original_fn, AnyType:$container);
+  let summary = "Returns an iterator to the element following the last element"
+                " of a container";
+  let results = (outs AnyType:$result);
+  let assemblyFormat = [{
+    `(`
+      $original_fn `,` $container `:` type($container)
+    `)` `->` type($result) attr-dict
+  }];
+  let hasVerifier = 0;
+}
+
+//===----------------------------------------------------------------------===//
 // FAbsOp
 //===----------------------------------------------------------------------===//
 
@@ -2486,6 +2515,43 @@ def ThrowOp : CIR_Op<"throw",
   }];
 
   let hasVerifier = 1;
+}
+
+def StackSaveOp : CIR_Op<"stack_save"> {
+  let summary = "remembers the current state of the function stack";
+  let description = [{
+    Remembers the current state of the function stack. Returns a pointer
+    that later can be passed into cir.stack_restore.
+    Useful for implementing language features like variable length arrays.
+
+    ```mlir
+    %0 = cir.stack_save : <!u8i>
+    ```
+
+  }];
+
+  let results = (outs CIR_PointerType:$result);
+  let assemblyFormat = "attr-dict `:` qualified(type($result))";
+}
+
+def StackRestoreOp : CIR_Op<"stack_restore"> {
+  let summary = "restores the state of the function stack";
+  let description = [{
+    Restore the state of the function stack to the state it was
+    in when the corresponding cir.stack_save executed.
+    Useful for implementing language features like variable length arrays.
+
+    ```mlir
+    %0 = cir.alloca !cir.ptr<!u8i>, cir.ptr <!cir.ptr<!u8i>>, ["saved_stack"] {alignment = 8 : i64}
+    %1 = cir.stack_save : <!u8i>
+    cir.store %1, %0 : !cir.ptr<!u8i>, cir.ptr <!cir.ptr<!u8i>>
+    %2 = cir.load %0 : cir.ptr <!cir.ptr<!u8i>>, !cir.ptr<!u8i>
+    cir.stack_restore %2 : !cir.ptr<!u8i>
+    ```
+    }];
+
+  let arguments = (ins CIR_PointerType:$ptr);
+  let assemblyFormat = "$ptr attr-dict `:` qualified(type($ptr))";
 }
 
 //===----------------------------------------------------------------------===//

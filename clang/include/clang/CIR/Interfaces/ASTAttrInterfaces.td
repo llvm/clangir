@@ -173,6 +173,18 @@ let cppNamespace = "::mlir::cir" in {
           }
           return false;
         }]
+      >,
+      InterfaceMethod<"", "bool", "isInStdNamespace", (ins), [{}],
+        /*defaultImplementation=*/ [{
+          return $_attr.getAst()->getDeclContext()->isStdNamespace();
+        }]
+      >,
+      // Note: `getRawDecl` is useful for debugging because it allows dumping
+      // the RecordDecl - it should not be used in regular code.
+      InterfaceMethod<"", "const clang::RecordDecl *", "getRawDecl", (ins), [{}],
+        /*defaultImplementation=*/ [{
+          return $_attr.getAst();
+        }]
       >
     ];
   }
@@ -231,6 +243,33 @@ let cppNamespace = "::mlir::cir" in {
               fnDecl->getName().compare(fn) != 0)
             return false;
           return true;
+        }]
+      >,
+      InterfaceMethod<"", "bool", "isMemberCallTo",
+                      (ins "llvm::StringRef":$fn),
+                      [{}], /*defaultImplementation=*/ [{
+          auto memberCall = dyn_cast<clang::CXXMemberCallExpr>($_attr.getAst());
+          if (!memberCall)
+            return false;
+          auto methodDecl = memberCall->getMethodDecl();
+          if (!methodDecl)
+            return false;
+          if (!methodDecl->getIdentifier() ||
+              methodDecl->getName().compare(fn) != 0)
+            return false;
+          return true;
+        }]
+      >,
+      InterfaceMethod<"", "bool", "isIteratorBeginCall",
+                      (ins),
+                      [{}], /*defaultImplementation=*/ [{
+          return isMemberCallTo("begin");
+        }]
+      >,
+      InterfaceMethod<"", "bool", "isIteratorEndCall",
+                      (ins),
+                      [{}], /*defaultImplementation=*/ [{
+          return isMemberCallTo("end");
         }]
       >
     ];
