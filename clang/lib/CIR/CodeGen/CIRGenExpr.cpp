@@ -2470,15 +2470,11 @@ Address CIRGenFunction::CreateMemTemp(QualType Ty, CharUnits Align,
 
 /// This creates a alloca and inserts it into the entry block of the
 /// current region.
-Address CIRGenFunction::CreateTempAllocaWithoutCast(mlir::Type Ty,
-                                                    CharUnits Align,
-                                                    mlir::Location Loc,
-                                                    const Twine &Name,
-                                                    mlir::Value ArraySize,
-                                                    mlir::OpBuilder::InsertPoint ip) {
-  auto Alloca = ip.isSet()
-                ? CreateTempAlloca(Ty, Loc, Name, ip, ArraySize)
-                : CreateTempAlloca(Ty, Loc, Name, ArraySize);
+Address CIRGenFunction::CreateTempAllocaWithoutCast(
+    mlir::Type Ty, CharUnits Align, mlir::Location Loc, const Twine &Name,
+    mlir::Value ArraySize, mlir::OpBuilder::InsertPoint ip) {
+  auto Alloca = ip.isSet() ? CreateTempAlloca(Ty, Loc, Name, ip, ArraySize)
+                           : CreateTempAlloca(Ty, Loc, Name, ArraySize);
   Alloca.setAlignmentAttr(CGM.getSize(Align));
   return Address(Alloca, Ty, Align);
 }
@@ -2490,7 +2486,8 @@ Address CIRGenFunction::CreateTempAlloca(mlir::Type Ty, CharUnits Align,
                                          mlir::Value ArraySize,
                                          Address *AllocaAddr,
                                          mlir::OpBuilder::InsertPoint ip) {
-  auto Alloca = CreateTempAllocaWithoutCast(Ty, Align, Loc, Name, ArraySize, ip);
+  auto Alloca =
+      CreateTempAllocaWithoutCast(Ty, Align, Loc, Name, ArraySize, ip);
   if (AllocaAddr)
     *AllocaAddr = Alloca;
   mlir::Value V = Alloca.getPointer();
@@ -2509,22 +2506,21 @@ mlir::cir::AllocaOp
 CIRGenFunction::CreateTempAlloca(mlir::Type Ty, mlir::Location Loc,
                                  const Twine &Name, mlir::Value ArraySize,
                                  bool insertIntoFnEntryBlock) {
-   return cast<mlir::cir::AllocaOp>(
-      buildAlloca(Name.str(), Ty, Loc, CharUnits(), insertIntoFnEntryBlock, ArraySize)
-          .getDefiningOp());
+  return cast<mlir::cir::AllocaOp>(buildAlloca(Name.str(), Ty, Loc, CharUnits(),
+                                               insertIntoFnEntryBlock,
+                                               ArraySize)
+                                       .getDefiningOp());
 }
 
 /// This creates an alloca and inserts it into the provided insertion point
-mlir::cir::AllocaOp
-CIRGenFunction::CreateTempAlloca(mlir::Type Ty, mlir::Location Loc,
-                                 const Twine &Name, 
-                                 mlir::OpBuilder::InsertPoint ip,
-                                 mlir::Value ArraySize) {
+mlir::cir::AllocaOp CIRGenFunction::CreateTempAlloca(
+    mlir::Type Ty, mlir::Location Loc, const Twine &Name,
+    mlir::OpBuilder::InsertPoint ip, mlir::Value ArraySize) {
   assert(ip.isSet() && "Insertion point is not set");
   return cast<mlir::cir::AllocaOp>(
       buildAlloca(Name.str(), Ty, Loc, CharUnits(), ip, ArraySize)
-           .getDefiningOp());
- }
+          .getDefiningOp());
+}
 
 /// Just like CreateTempAlloca above, but place the alloca into the function
 /// entry basic block instead.
