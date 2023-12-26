@@ -978,21 +978,12 @@ void CallOp::build(OpBuilder &builder, OperationState &state, TypeRange results,
 
 void CallOp::build(OpBuilder &builder, OperationState &state, TypeRange results,
                    FlatSymbolRefAttr callee, ValueRange args) {
-  auto fargs = callee ? args : args.drop_front();
   build(builder, state, results,
         /*var_callee_type=*/nullptr, callee, args, /*fastmathFlags=*/nullptr,
         /*branch_weights=*/nullptr,
         /*CConv=*/nullptr, /*TailCallKind=*/nullptr,
         /*memory_effects=*/nullptr,
         /*convergent=*/nullptr, /*no_unwind=*/nullptr, /*will_return=*/nullptr,
-        //
-        // TODO(ClangIR): This was a local change that is no longer valid during
-        // rebase
-        // TypeAttr::get(getLLVMFuncType(builder.getContext(), results, fargs)),
-        // callee, args, /*fastmathFlags=*/nullptr, /*branch_weights=*/nullptr,
-        // /*CConv=*/nullptr,
-        //
-        //
         /*access_groups=*/nullptr, /*alias_scopes=*/nullptr,
         /*noalias_scopes=*/nullptr, /*tbaa=*/nullptr);
 }
