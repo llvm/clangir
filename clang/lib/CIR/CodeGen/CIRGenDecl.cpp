@@ -40,7 +40,10 @@ CIRGenFunction::buildAutoVarAlloca(const VarDecl &D,
   //        getLangOpts().OpenCL))
   assert(!UnimplementedFeature::openCL());
   assert(Ty.getAddressSpace() == LangAS::Default);
-  assert(!Ty->isVariablyModifiedType() && "not implemented");
+  assert(!getContext()
+              .getLangOpts()
+              .OpenMP && // !CGF.getLangOpts().OpenMPIRBuilder
+         "not implemented");
   assert(!D.hasAttr<AnnotateAttr>() && "not implemented");
 
   auto loc = getLoc(D.getSourceRange());
@@ -51,6 +54,11 @@ CIRGenFunction::buildAutoVarAlloca(const VarDecl &D,
   emission.IsEscapingByRef = isEscapingByRef;
 
   CharUnits alignment = getContext().getDeclAlign(&D);
+
+  // If the type is variably-modified, emit all the VLA sizes for it.
+  if (Ty->isVariablyModifiedType())
+    buildVariablyModifiedType(Ty);
+
   assert(!UnimplementedFeature::generateDebugInfo());
   assert(!UnimplementedFeature::cxxABI());
 
@@ -146,7 +154,33 @@ CIRGenFunction::buildAutoVarAlloca(const VarDecl &D,
       assert(!UnimplementedFeature::shouldEmitLifetimeMarkers());
     }
   } else { // not openmp nor constant sized type
-    llvm_unreachable("NYI");
+    if (getLangOpts().OpenMPIsTargetDevice)
+      llvm_unreachable("NYI");
+
+    if (!DidCallStackSave) {
+      // Save the stack.
+      auto defaultTy = AllocaInt8PtrTy;
+      CharUnits Align =
+        CharUnits::fromQuantity(CGM.getDataLayout().getAlignment(defaultTy, false));
+      Address Stack = CreateTempAlloca(defaultTy, Align, loc, "saved_stack");
+      
+      mlir::Value V = builder.createStackSave(loc, defaultTy);
+      assert(V.getType() == AllocaInt8PtrTy);
+      builder.createStore(loc, V, Stack);
+
+      DidCallStackSave = true;
+
+      // Push a cleanup block and restore the stack there.
+      // FIXME: in general circumstances, this should be an EH cleanup.
+      pushStackRestore(NormalCleanup, Stack);
+    }
+
+    auto VlaSize = getVLASize(Ty);
+    mlir::Type mTy = convertTypeForMem(VlaSize.Type);
+
+    // Allocate memory for the array.
+    address = CreateTempAlloca(mTy, alignment, loc, "vla", VlaSize.NumElts,
+                                 &allocaAddr, builder.saveInsertionPoint());
   }
 
   emission.Addr = address;
@@ -858,7 +892,9 @@ struct CallStackRestore final : EHScopeStack::Cleanup {
   CallStackRestore(Address Stack) : Stack(Stack) {}
   bool isRedundantBeforeReturn() override { return true; }
   void Emit(CIRGenFunction &CGF, Flags flags) override {
-    llvm_unreachable("NYI");
+    auto loc = Stack.getPointer().getLoc();
+    mlir::Value V = CGF.getBuilder().createLoad(loc, Stack);
+    CGF.getBuilder().createStackRestore(loc, V);
   }
 };
 
@@ -940,6 +976,11 @@ CIRGenFunction::getDestroyer(QualType::DestructionKind kind) {
   }
   llvm_unreachable("Unknown DestructionKind");
 }
+
+void CIRGenFunction::pushStackRestore(CleanupKind Kind, Address SPMem) {
+  EHStack.pushCleanup<CallStackRestore>(Kind, SPMem);
+}
+
 
 /// Enter a destroy cleanup for the given local variable.
 void CIRGenFunction::buildAutoVarTypeCleanup(
