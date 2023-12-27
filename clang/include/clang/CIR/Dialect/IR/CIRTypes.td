@@ -253,4 +253,15 @@ def VoidPtr : Type<
       "mlir::cir::VoidType::get($_builder.getContext()))"> {
 }
 
+//===----------------------------------------------------------------------===//
+// Global type constraints
+//===----------------------------------------------------------------------===//
+
+def CIR_StructType : Type<CPred<"$_self.isa<::mlir::cir::StructType>()">, "struct">;
+
+def CIR_AnyType : AnyTypeOf<[
+  CIR_IntType, CIR_PointerType, CIR_BoolType, CIR_ArrayType, CIR_VectorType,
+  CIR_FuncType, CIR_VoidType, CIR_StructType, AnyFloat,
+]>;
+
 #endif // MLIR_CIR_DIALECT_CIR_TYPES
