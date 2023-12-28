@@ -1052,14 +1052,14 @@ public:
         return op.emitError() << "array does not have a constant initializer";
 
       // Lower constant array initializer.
-      auto denseAttr = lowerConstArrayAttr(constArr, typeConverter);
-      if (!denseAttr.has_value()) {
-        op.emitError()
-            << "unsupported lowering for #cir.const_array with element type "
-            << arrTy.getEltType();
-        return mlir::failure();
+      if (auto denseAttr = lowerConstArrayAttr(constArr, typeConverter)) {
+        attr = denseAttr.value();
+      } else {
+        auto val = lowerCirAttrAsValue(op, constArr, rewriter, typeConverter);
+        rewriter.replaceAllUsesWith(op, val);
+        rewriter.eraseOp(op);
+        return mlir::success();
       }
-      attr = denseAttr.value();
     } else if (const auto structAttr =
                    op.getValue().dyn_cast<mlir::cir::ConstStructAttr>()) {
       // TODO(cir): this diverges from traditional lowering. Normally the
