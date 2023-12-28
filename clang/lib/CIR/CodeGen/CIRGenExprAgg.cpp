@@ -351,7 +351,7 @@ void AggExprEmitter::buildFinalDestCopy(QualType type, const LValue &src,
   if (Dest.isIgnored())
     return;
 
-  // Copy non-trivial C structs here. 
+  // Copy non-trivial C structs here.
   if (Dest.isVolatile())
     assert(!UnimplementedFeature::volatileTypes());
 
