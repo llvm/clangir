@@ -4,6 +4,17 @@
 !s32i = !cir.int<s, 32>
 !s8i = !cir.int<s, 8>
 module {
+  cir.func @testArrZeroInit() {
+    %0 = cir.alloca !cir.array<!s32i x 2>, cir.ptr <!cir.array<!s32i x 2>>, ["a"] {alignment = 4 : i64}
+    // CHECK: %0 = llvm.mlir.constant(1 : index) : i64
+    // CHECK: %1 = llvm.alloca %0 x !llvm.array<2 x i32> {alignment = 4 : i64} : (i64) -> !llvm.ptr    
+    %1 = cir.const(#cir.zero : !cir.array<!s32i x 2>) : !cir.array<!s32i x 2>
+    // CHECK: %2 = cir.llvmir.zeroinit : !llvm.array<2 x i32>
+    cir.store %1, %0 : !cir.array<!s32i x 2>, cir.ptr <!cir.array<!s32i x 2>>
+    // CHECK: llvm.store %2, %1 : !llvm.array<2 x i32>, !llvm.ptr
+    cir.return
+  }
+
   cir.func @testConstArrInit() {
     %0 = cir.const(#cir.const_array<"string\00" : !cir.array<!s8i x 7>> : !cir.array<!s8i x 7>) : !cir.array<!s8i x 7>
     // CHECK: llvm.mlir.constant(dense<[115, 116, 114, 105, 110, 103, 0]> : tensor<7xi8>) : !llvm.array<7 x i8>
