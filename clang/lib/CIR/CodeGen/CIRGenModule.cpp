@@ -1063,15 +1063,6 @@ CIRGenModule::getConstantArrayFromStringLiteral(const StringLiteral *E) {
     Str.resize(finalSize);
 
     auto eltTy = getTypes().ConvertType(CAT->getElementType());
-
-    // If the string is full of null bytes, emit a #cir.zero rather than
-    // a #cir.const_array.
-    if (Str.count('\0') == Str.size()) {
-      auto arrayTy =
-          mlir::cir::ArrayType::get(builder.getContext(), eltTy, finalSize);
-      return builder.getZeroAttr(arrayTy);
-    }
-
     return builder.getString(Str, eltTy, finalSize);
   }
 
