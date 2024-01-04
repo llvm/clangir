@@ -973,8 +973,7 @@ void CIRGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
 
   // TODO: prologuecleanupdepth
 
-  if (getLangOpts().OpenMP && CurCodeDecl)
-    llvm_unreachable("NYI");
+  // TODO[OpenMP]: Emit OpenMP specific initialization of the device functions.
 
   // TODO: buildFunctionProlog
 

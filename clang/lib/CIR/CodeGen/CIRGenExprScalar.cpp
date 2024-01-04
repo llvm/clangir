@@ -1805,7 +1805,8 @@ LValue ScalarExprEmitter::buildCompoundAssignLValue(
   else
     CGF.buildStoreThroughLValue(RValue::get(Result), LHSLV);
 
-  assert(!CGF.getLangOpts().OpenMP && "Not implemented");
+  // TODO[OpenMP]: Check and handle assignment to a variable declared as
+  // last-private.
   return LHSLV;
 }
 

@@ -27,6 +27,7 @@ add_clang_library(clangCIR
   CIRGenItaniumCXXABI.cpp
   CIRGenModule.cpp
   CIRGenStmt.cpp
+  CIRGenStmtOpenMP.cpp
   CIRGenTBAA.cpp
   CIRGenTypes.cpp
   CIRGenVTables.cpp
@@ -58,6 +59,7 @@ add_clang_library(clangCIR
   MLIRIR
   MLIRLLVMCommonConversion
   MLIRLLVMDialect
+  MLIROpenMPDialect
   MLIRLLVMToLLVMIRTranslation
   MLIRMemRefDialect
   MLIRMemRefToLLVM

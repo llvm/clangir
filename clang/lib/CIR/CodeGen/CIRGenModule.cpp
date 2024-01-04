@@ -316,7 +316,18 @@ bool CIRGenModule::MustBeEmitted(const ValueDecl *Global) {
 }
 
 bool CIRGenModule::MayBeEmittedEagerly(const ValueDecl *Global) {
-  assert(!langOpts.OpenMP && "NYI");
+  // In OpenMP 5.0 variables and function may be marked as
+  // device_type(host/nohost) and we should not emit them eagerly unless we sure
+  // that they must be emitted on the host/device. To be sure we need to have
+  // seen a declare target with an explicit mentioning of the function, we know
+  // we have if the level of the declare target attribute is -1. Note that we
+  // check somewhere else if we should emit this at all.
+  if (langOpts.OpenMP >= 50 && !langOpts.OpenMPSimd) {
+    std::optional<OMPDeclareTargetDeclAttr *> ActiveAttr =
+        OMPDeclareTargetDeclAttr::getActiveAttr(Global);
+    if (!ActiveAttr || (*ActiveAttr)->getLevel() != (unsigned)-1)
+      return false;
+  }
 
   const auto *FD = dyn_cast<FunctionDecl>(Global);
   if (FD) {
@@ -336,6 +347,15 @@ bool CIRGenModule::MayBeEmittedEagerly(const ValueDecl *Global) {
                ASTContext::InlineVariableDefinitionKind::WeakUnknown &&
            "not implemented");
 
+  // If OpenMP is enabled and threadprivates must be generated like TLS, delay
+  // codegen for global variables, because they may be marked as threadprivate.
+  if (langOpts.OpenMP && langOpts.OpenMPUseTLS &&
+      getASTContext().getTargetInfo().isTLSSupported() &&
+      isa<VarDecl>(Global) &&
+      !Global->getType().isConstantStorage(getASTContext(), false, false) &&
+      !OMPDeclareTargetDeclAttr::isDeclareTargetDeclaration(Global))
+    return false;
+
   assert((FD || VD) &&
          "Only FunctionDecl and VarDecl should hit this path so far.");
   return true;
@@ -347,7 +367,18 @@ void CIRGenModule::buildGlobal(GlobalDecl GD) {
   assert(!Global->hasAttr<IFuncAttr>() && "NYI");
   assert(!Global->hasAttr<CPUDispatchAttr>() && "NYI");
   assert(!langOpts.CUDA && "NYI");
-  assert(!langOpts.OpenMP && "NYI");
+
+  if (langOpts.OpenMP) {
+    // If this is OpenMP, check if it is legal to emit this global normally.
+    if (auto *DRD = dyn_cast<OMPDeclareReductionDecl>(Global)) {
+      assert(0 && "OMPDeclareReductionDecl NYI");
+      return;
+    }
+    if (auto *DMD = dyn_cast<OMPDeclareMapperDecl>(Global)) {
+      assert(0 && "OMPDeclareMapperDecl NYI");
+      return;
+    }
+  }
 
   // Ignore declarations, they will be emitted on their first use.
   if (const auto *FD = dyn_cast<FunctionDecl>(Global)) {
@@ -371,7 +402,13 @@ void CIRGenModule::buildGlobal(GlobalDecl GD) {
     assert(VD->isFileVarDecl() && "Cannot emit local var decl as global.");
     if (VD->isThisDeclarationADefinition() != VarDecl::Definition &&
         !astCtx.isMSStaticDataMemberInlineDefinition(VD)) {
-      assert(!getLangOpts().OpenMP && "not implemented");
+      if (langOpts.OpenMP) {
+        // Emit declaration of the must-be-emitted declare target variable.
+        if (std::optional<OMPDeclareTargetDeclAttr::MapTypeTy> Res =
+                OMPDeclareTargetDeclAttr::isDeclareTargetDeclaration(VD)) {
+          assert(0 && "OMPDeclareTargetDeclAttr NYI");
+        }
+      }
       // If this declaration may have caused an inline variable definition
       // to change linkage, make sure that it's emitted.
       // TODO(cir): probably use GetAddrOfGlobalVar(VD) below?
@@ -647,10 +684,8 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef MangledName, mlir::Type Ty,
   }
 
   // Handle things which are present even on external declarations.
-  auto &LangOpts = getLangOpts();
   if (D) {
-    if (LangOpts.OpenMP && !LangOpts.OpenMPSimd)
-      assert(0 && "not implemented");
+    // TODO[OpenMP]: Check and handle target globals.
 
     // FIXME: This code is overly simple and should be merged with other global
     // handling.
@@ -2022,8 +2057,11 @@ mlir::cir::FuncOp CIRGenModule::GetOrCreateCIRFunction(
   // Any attempts to use a MultiVersion function should result in retrieving the
   // iFunc instead. Name mangling will handle the rest of the changes.
   if (const auto *FD = cast_or_null<FunctionDecl>(D)) {
-    if (getLangOpts().OpenMP)
-      llvm_unreachable("open MP NYI");
+    // For the device mark the function as one that should be emitted.
+    if (getLangOpts().OpenMPIsTargetDevice && FD->isDefined() && !DontDefer &&
+        !IsForDefinition) {
+      assert(0 && "OpenMP target functions NYI");
+    }
     if (FD->isMultiVersion())
       llvm_unreachable("NYI");
   }
@@ -2262,7 +2300,7 @@ void CIRGenModule::buildGlobalDecl(clang::GlobalDecl &D) {
 
   // If this is OpenMP, check if it is legal to emit this global normally.
   if (getLangOpts().OpenMP) {
-    llvm_unreachable("NYI");
+    // TODO[OpenMP]: Emit target globals.
   }
 
   // Otherwise, emit the definition and move on to the next one.
@@ -2271,8 +2309,7 @@ void CIRGenModule::buildGlobalDecl(clang::GlobalDecl &D) {
 
 void CIRGenModule::buildDeferred(unsigned recursionLimit) {
   // Emit deferred declare target declarations
-  if (getLangOpts().OpenMP && !getLangOpts().OpenMPSimd)
-    llvm_unreachable("NYI");
+  // TODO[OpenMP]: Emit deferred target declarations.
 
   // Emit code for any potentially referenced deferred decls. Since a previously
   // unused static decl may become used during the generation of code for a

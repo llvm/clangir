@@ -759,7 +759,9 @@ LValue CIRGenFunction::buildDeclRefLValue(const DeclRefExpr *E) {
       if (auto *FD = LambdaCaptureFields.lookup(VD))
         return buildCapturedFieldLValue(*this, FD, CXXABIThisValue);
       assert(!UnimplementedFeature::CGCapturedStmtInfo() && "NYI");
-      llvm_unreachable("NYI");
+      // TODO[OpenMP]: Find the appropiate captured variable value and return
+      // it.
+      // TODO[OpenMP]: Set non-temporal information in the captured LVal.
       // LLVM codegen:
       // Address addr = GetAddrOfBlockDecl(VD);
       // return MakeAddrLValue(addr, T, AlignmentSource::Decl);
@@ -911,8 +913,8 @@ LValue CIRGenFunction::buildBinaryOperatorLValue(const BinaryOperator *E) {
       buildStoreThroughLValue(RV, LV);
     }
 
-    assert(!getContext().getLangOpts().OpenMP &&
-           "last priv cond not implemented");
+    // TODO[OpenMP]: Check and handle assignment to a variable declared as
+    // last-private.
     return LV;
   }
 

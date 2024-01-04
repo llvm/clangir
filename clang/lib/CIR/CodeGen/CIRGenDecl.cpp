@@ -37,13 +37,8 @@ CIRGenFunction::buildAutoVarAlloca(const VarDecl &D) {
   // TODO: (|| Ty.getAddressSpace() == LangAS::opencl_private &&
   //        getLangOpts().OpenCL))
   assert(!UnimplementedFeature::openCL());
-  assert(!UnimplementedFeature::openMP());
   assert(Ty.getAddressSpace() == LangAS::Default);
   assert(!Ty->isVariablyModifiedType() && "not implemented");
-  assert(!getContext()
-              .getLangOpts()
-              .OpenMP && // !CGF.getLangOpts().OpenMPIRBuilder
-         "not implemented");
   assert(!D.hasAttr<AnnotateAttr>() && "not implemented");
 
   auto loc = getLoc(D.getSourceRange());
@@ -59,6 +54,8 @@ CIRGenFunction::buildAutoVarAlloca(const VarDecl &D) {
 
   Address address = Address::invalid();
   Address allocaAddr = Address::invalid();
+  // TODO[OpenMP]: Set openMPLocalAddr with the equivalent of
+  // getOpenMPRuntime().getAddressOfLocalVariable().
   Address openMPLocalAddr = Address::invalid();
   if (getLangOpts().OpenMP && openMPLocalAddr.isValid()) {
     llvm_unreachable("NYI");
