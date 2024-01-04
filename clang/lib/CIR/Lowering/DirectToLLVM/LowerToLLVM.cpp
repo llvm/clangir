@@ -1430,11 +1430,11 @@ public:
       }
 
       for (auto& blk : region.getBlocks()) {
-        if (blk.getNumSuccessors()) 
+        if (blk.getNumSuccessors())
           continue;
 
         // Handle switch-case yields.
-        auto *terminator = blk.getTerminator();        
+        auto *terminator = blk.getTerminator();
         if (auto yieldOp = dyn_cast<mlir::cir::YieldOp>(terminator)) {
           // TODO(cir): Ensure every yield instead of dealing with optional
           // values.
@@ -1458,7 +1458,7 @@ public:
         }
       }
 
-      direct::lowerNestedYield(mlir::cir::YieldOpKind::Break, 
+      direct::lowerNestedYield(mlir::cir::YieldOpKind::Break,
                        rewriter, region, exitBlock);
 
       // Extract region contents before erasing the switch op.
@@ -1981,7 +1981,8 @@ public:
     assert(structTy && "expected struct type");
 
     switch (structTy.getKind()) {
-    case mlir::cir::StructType::Struct: {
+    case mlir::cir::StructType::Struct:
+    case mlir::cir::StructType::Class: {
       // Since the base address is a pointer to an aggregate, the first offset
       // is always zero. The second offset tell us which member it will access.
       llvm::SmallVector<mlir::LLVM::GEPArg, 2> offset{0, op.getIndex()};
@@ -1996,9 +1997,6 @@ public:
       rewriter.replaceOpWithNewOp<mlir::LLVM::BitcastOp>(op, llResTy,
                                                          adaptor.getAddr());
       return mlir::success();
-    default:
-      return op.emitError()
-             << "struct kind '" << structTy.getKind() << "' is NYI";
     }
   }
 };
