@@ -336,7 +336,7 @@ static void lowerNestedYield(mlir::cir::YieldOpKind targetKind,
     [&](mlir::Operation *op) {
       if (!isNested(op))
         return mlir::WalkResult::advance();
-      
+
       // don't process breaks/continues in nested loops and switches
       if (isa<mlir::cir::LoopOp, mlir::cir::SwitchOp>(*op))
         return mlir::WalkResult::skip();
@@ -344,7 +344,7 @@ static void lowerNestedYield(mlir::cir::YieldOpKind targetKind,
       auto yield = dyn_cast<mlir::cir::YieldOp>(*op);
       if (yield && yield.getKind() == targetKind) {
         rewriter.setInsertionPoint(op);
-        rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(op, yield.getArgs(), dst); 
+        rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(op, yield.getArgs(), dst);
       }
 
       return mlir::WalkResult::advance();
@@ -1391,11 +1391,11 @@ public:
       }
 
       for (auto& blk : region.getBlocks()) {
-        if (blk.getNumSuccessors()) 
+        if (blk.getNumSuccessors())
           continue;
 
         // Handle switch-case yields.
-        auto *terminator = blk.getTerminator();        
+        auto *terminator = blk.getTerminator();
         if (auto yieldOp = dyn_cast<mlir::cir::YieldOp>(terminator)) {
           // TODO(cir): Ensure every yield instead of dealing with optional
           // values.
@@ -1419,7 +1419,7 @@ public:
         }
       }
 
-      direct::lowerNestedYield(mlir::cir::YieldOpKind::Break, 
+      direct::lowerNestedYield(mlir::cir::YieldOpKind::Break,
                        rewriter, region, exitBlock);
 
       // Extract region contents before erasing the switch op.
@@ -1937,7 +1937,8 @@ public:
     assert(structTy && "expected struct type");
 
     switch (structTy.getKind()) {
-    case mlir::cir::StructType::Struct: {
+    case mlir::cir::StructType::Struct:
+    case mlir::cir::StructType::Class: {
       // Since the base address is a pointer to an aggregate, the first offset
       // is always zero. The second offset tell us which member it will access.
       llvm::SmallVector<mlir::LLVM::GEPArg, 2> offset{0, op.getIndex()};
@@ -1952,9 +1953,6 @@ public:
       rewriter.replaceOpWithNewOp<mlir::LLVM::BitcastOp>(op, llResTy,
                                                          adaptor.getAddr());
       return mlir::success();
-    default:
-      return op.emitError()
-             << "struct kind '" << structTy.getKind() << "' is NYI";
     }
   }
 };
