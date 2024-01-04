@@ -865,9 +865,9 @@ public:
     // Replace the scopeop return with a branch that jumps out of the body.
     // Stack restore before leaving the body region.
     rewriter.setInsertionPointToEnd(afterBody);
-    auto yieldOp = mlir::cast<mlir::cir::YieldOp>(afterBody->getTerminator());
+    auto yieldOp = mlir::dyn_cast<mlir::cir::YieldOp>(afterBody->getTerminator());
 
-    if (!isBreakOrContinue(yieldOp)) {
+    if (yieldOp && !isBreakOrContinue(yieldOp)) {
       auto branchOp = rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(
           yieldOp, yieldOp.getArgs(), continueBlock);
 
@@ -1094,19 +1094,24 @@ public:
     // then memcopyied into the stack (as done in Clang).
     else if (auto arrTy = mlir::dyn_cast<mlir::cir::ArrayType>(op.getType())) {
       // Fetch operation constant array initializer.
-      auto constArr = mlir::dyn_cast<mlir::cir::ConstArrayAttr>(op.getValue());
-      if (!constArr)
-        return op.emitError() << "array does not have a constant initializer";
+      if (auto constArr = mlir::dyn_cast<mlir::cir::ConstArrayAttr>(op.getValue())) {
+        // Lower constant array initializer.
+        auto denseAttr = direct::lowerConstArrayAttr(constArr, typeConverter);
+        if (!denseAttr.has_value()) {
+          op.emitError()
+              << "unsupported lowering for #cir.const_array with element type "
+              << arrTy.getEltType();
+          return mlir::failure();
+        }
 
-      // Lower constant array initializer.
-      auto denseAttr = lowerConstArrayAttr(constArr, typeConverter);
-      if (!denseAttr.has_value()) {
-        op.emitError()
-            << "unsupported lowering for #cir.const_array with element type "
-            << arrTy.getEltType();
-        return mlir::failure();
+        attr = denseAttr.value();
+      } else if (auto zero = mlir::dyn_cast<mlir::cir::ZeroAttr>(op.getValue())) {
+        auto initVal = direct::lowerCirAttrAsValue(op, zero, rewriter, typeConverter);
+        rewriter.replaceOp(op, initVal);
+        return mlir::success();
+      } else {
+        return op.emitError() << "array does not have a constant initializer";
       }
-      attr = denseAttr.value();
     } else if (const auto structAttr =
                    mlir::dyn_cast<mlir::cir::ConstStructAttr>(op.getValue())) {
       // TODO(cir): this diverges from traditional lowering. Normally the
@@ -1114,13 +1119,13 @@ public:
       // define a local constant with llvm.undef that will be stored into the
       // stack.
       auto initVal =
-          lowerCirAttrAsValue(op, structAttr, rewriter, typeConverter);
+          direct::lowerCirAttrAsValue(op, structAttr, rewriter, typeConverter);
       rewriter.replaceOp(op, initVal);
       return mlir::success();
     } else if (auto strTy = mlir::dyn_cast<mlir::cir::StructType>(op.getType())) {
       if (auto zero = mlir::dyn_cast<mlir::cir::ZeroAttr>(op.getValue())) {
         auto initVal =
-          lowerCirAttrAsValue(op, zero, rewriter, typeConverter);
+          direct::lowerCirAttrAsValue(op, zero, rewriter, typeConverter);
         rewriter.replaceOp(op, initVal);
         return mlir::success();
       }
@@ -1437,7 +1442,7 @@ public:
         }
       }
 
-      lowerNestedYield(mlir::cir::YieldOpKind::Break, 
+      direct::lowerNestedYield(mlir::cir::YieldOpKind::Break, 
                        rewriter, region, exitBlock);
 
       // Extract region contents before erasing the switch op.
@@ -1470,7 +1475,7 @@ public:
       mlir::cir::GlobalOp op, mlir::ConversionPatternRewriter &rewriter) const {
     const auto llvmType = getTypeConverter()->convertType(op.getSymType());
     auto newGlobalOp = rewriter.replaceOpWithNewOp<mlir::LLVM::GlobalOp>(
-        op, llvmType, op.getConstant(), convertLinkage(op.getLinkage()),
+        op, llvmType, op.getConstant(), direct::convertLinkage(op.getLinkage()),
         op.getSymName(), nullptr);
     newGlobalOp.getRegion().push_back(new mlir::Block());
     rewriter.setInsertionPointToEnd(newGlobalOp.getInitializerBlock());
@@ -1483,7 +1488,7 @@ public:
     // Fetch required values to create LLVM op.
     const auto llvmType = getTypeConverter()->convertType(op.getSymType());
     const auto isConst = op.getConstant();
-    const auto linkage = convertLinkage(op.getLinkage());
+    const auto linkage = direct::convertLinkage(op.getLinkage());
     const auto symbol = op.getSymName();
     const auto loc = op.getLoc();
     std::optional<mlir::Attribute> init = op.getInitialValue();
@@ -1502,11 +1507,11 @@ public:
       } else if (auto attr = mlir::dyn_cast<mlir::ArrayAttr>(constArr.getElts())) {
         // Failed to use a compact attribute as an initializer:
         // initialize elements individually.
-        if (!(init = lowerConstArrayAttr(constArr, getTypeConverter()))) {
+        if (!(init = direct::lowerConstArrayAttr(constArr, getTypeConverter()))) {
           setupRegionInitializedLLVMGlobalOp(op, rewriter);
           rewriter.create<mlir::LLVM::ReturnOp>(
               op->getLoc(),
-              lowerCirAttrAsValue(op, constArr, rewriter, typeConverter));
+              direct::lowerCirAttrAsValue(op, constArr, rewriter, typeConverter));
           return mlir::success();
         }
       } else {
@@ -1529,7 +1534,7 @@ public:
       // globals to zero.
       setupRegionInitializedLLVMGlobalOp(op, rewriter);
       auto value =
-          lowerCirAttrAsValue(op, init.value(), rewriter, typeConverter);
+          direct::lowerCirAttrAsValue(op, init.value(), rewriter, typeConverter);
       rewriter.create<mlir::LLVM::ReturnOp>(loc, value);
       return mlir::success();
     } else if (const auto structAttr =
@@ -1537,26 +1542,26 @@ public:
       setupRegionInitializedLLVMGlobalOp(op, rewriter);
       rewriter.create<mlir::LLVM::ReturnOp>(
           op->getLoc(),
-          lowerCirAttrAsValue(op, structAttr, rewriter, typeConverter));
+          direct::lowerCirAttrAsValue(op, structAttr, rewriter, typeConverter));
       return mlir::success();
     } else if (auto attr = mlir::dyn_cast<mlir::cir::GlobalViewAttr>(init.value())) {
       setupRegionInitializedLLVMGlobalOp(op, rewriter);
       rewriter.create<mlir::LLVM::ReturnOp>(
-          loc, lowerCirAttrAsValue(op, attr, rewriter, typeConverter));
+          loc, direct::lowerCirAttrAsValue(op, attr, rewriter, typeConverter));
       return mlir::success();
     } else if (const auto vtableAttr =
                    mlir::dyn_cast<mlir::cir::VTableAttr>(init.value())) {
       setupRegionInitializedLLVMGlobalOp(op, rewriter);
       rewriter.create<mlir::LLVM::ReturnOp>(
           op->getLoc(),
-          lowerCirAttrAsValue(op, vtableAttr, rewriter, typeConverter));
+          direct::lowerCirAttrAsValue(op, vtableAttr, rewriter, typeConverter));
       return mlir::success();
     } else if (const auto typeinfoAttr =
                    mlir::dyn_cast<mlir::cir::TypeInfoAttr>(init.value())) {
       setupRegionInitializedLLVMGlobalOp(op, rewriter);
       rewriter.create<mlir::LLVM::ReturnOp>(
           op->getLoc(),
-          lowerCirAttrAsValue(op, typeinfoAttr, rewriter, typeConverter));
+          direct::lowerCirAttrAsValue(op, typeinfoAttr, rewriter, typeConverter));
       return mlir::success();
     } else {
       op.emitError() << "usupported initializer '" << init.value() << "'";
