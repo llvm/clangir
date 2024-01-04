@@ -75,7 +75,7 @@ Currently, 51% (935/1824) of the SingleSource tests are passing. A good way to s
     ```bash
     # Set TEST_SUITE_CLANGIR_ENABLE=OFF to get the baseline tests.
     for i in {1..15}; do lit --timeout=60 -v -o "baseline_$i.json" .; done;
-    for i in {1..15}; do lit --timeout=60 -v -o "clang_$i.json" .; done;
+    for i in {1..15}; do lit --timeout=60 -v -o "clangir_$i.json" .; done;
     ```
 
 * Create the comparison table using the patched `utils/compare.py`:
