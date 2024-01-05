@@ -517,12 +517,16 @@ void CIRGenModule::replaceGlobal(mlir::cir::GlobalOp Old,
     auto OldSymUses = Old.getSymbolUses(theModule.getOperation());
     if (OldSymUses.has_value()) {
       for (auto Use : *OldSymUses) {
-        auto UseOp = dyn_cast<mlir::cir::GetGlobalOp>(Use.getUser());
-        assert(UseOp && "GlobalOp symbol user is not a GetGlobalOp");
+        auto *UserOp = Use.getUser();
+        assert((isa<mlir::cir::GetGlobalOp>(UserOp) ||
+                isa<mlir::cir::GlobalOp>(UserOp)) &&
+               "GlobalOp symbol user is neither a GetGlobalOp nor a GlobalOp");
 
-        auto UseOpResultValue = UseOp.getAddr();
-        UseOpResultValue.setType(
-            mlir::cir::PointerType::get(builder.getContext(), NewTy));
+        if (auto GGO = dyn_cast<mlir::cir::GetGlobalOp>(Use.getUser())) {
+          auto UseOpResultValue = GGO.getAddr();
+          UseOpResultValue.setType(
+              mlir::cir::PointerType::get(builder.getContext(), NewTy));
+        }
       }
     }
   }
