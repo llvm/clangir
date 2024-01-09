@@ -354,72 +354,91 @@ void StructType::complete(ArrayRef<Type> members, bool packed,
 // Data Layout information for types
 //===----------------------------------------------------------------------===//
 
-unsigned
+llvm::TypeSize
 BoolType::getTypeSizeInBits(const ::mlir::DataLayout &dataLayout,
                             ::mlir::DataLayoutEntryListRef params) const {
-  return 8;
+  return llvm::TypeSize::getFixed(8);
 }
 
-unsigned
+uint64_t
 BoolType::getABIAlignment(const ::mlir::DataLayout &dataLayout,
                           ::mlir::DataLayoutEntryListRef params) const {
   return 1;
 }
 
-unsigned
+uint64_t
 BoolType::getPreferredAlignment(const ::mlir::DataLayout &dataLayout,
                                 ::mlir::DataLayoutEntryListRef params) const {
   return 1;
 }
 
-unsigned
+llvm::TypeSize
 PointerType::getTypeSizeInBits(const ::mlir::DataLayout &dataLayout,
                                ::mlir::DataLayoutEntryListRef params) const {
   // FIXME: improve this in face of address spaces
-  return 64;
+  return llvm::TypeSize::getFixed(64);
 }
 
-unsigned
+uint64_t
 PointerType::getABIAlignment(const ::mlir::DataLayout &dataLayout,
                              ::mlir::DataLayoutEntryListRef params) const {
   // FIXME: improve this in face of address spaces
   return 8;
 }
 
-unsigned PointerType::getPreferredAlignment(
+uint64_t PointerType::getPreferredAlignment(
     const ::mlir::DataLayout &dataLayout,
     ::mlir::DataLayoutEntryListRef params) const {
   // FIXME: improve this in face of address spaces
   return 8;
 }
 
-unsigned
+llvm::TypeSize
 ArrayType::getTypeSizeInBits(const ::mlir::DataLayout &dataLayout,
                              ::mlir::DataLayoutEntryListRef params) const {
   return getSize() * dataLayout.getTypeSizeInBits(getEltType());
 }
 
-unsigned
+uint64_t
 ArrayType::getABIAlignment(const ::mlir::DataLayout &dataLayout,
                            ::mlir::DataLayoutEntryListRef params) const {
   return dataLayout.getTypeABIAlignment(getEltType());
 }
 
-unsigned
+uint64_t
 ArrayType::getPreferredAlignment(const ::mlir::DataLayout &dataLayout,
                                  ::mlir::DataLayoutEntryListRef params) const {
   return dataLayout.getTypePreferredAlignment(getEltType());
 }
 
-unsigned
+llvm::TypeSize cir::VectorType::getTypeSizeInBits(
+    const ::mlir::DataLayout &dataLayout,
+    ::mlir::DataLayoutEntryListRef params) const {
+  return llvm::TypeSize::getFixed(getSize() *
+                                  dataLayout.getTypeSizeInBits(getEltType()));
+}
+
+uint64_t
+cir::VectorType::getABIAlignment(const ::mlir::DataLayout &dataLayout,
+                                 ::mlir::DataLayoutEntryListRef params) const {
+  return getSize() * dataLayout.getTypeABIAlignment(getEltType());
+}
+
+uint64_t cir::VectorType::getPreferredAlignment(
+    const ::mlir::DataLayout &dataLayout,
+    ::mlir::DataLayoutEntryListRef params) const {
+  return getSize() * dataLayout.getTypePreferredAlignment(getEltType());
+}
+
+llvm::TypeSize
 StructType::getTypeSizeInBits(const ::mlir::DataLayout &dataLayout,
                               ::mlir::DataLayoutEntryListRef params) const {
   if (!size)
     computeSizeAndAlignment(dataLayout);
-  return *size * 8;
+  return llvm::TypeSize::getFixed(*size * 8);
 }
 
-unsigned
+uint64_t
 StructType::getABIAlignment(const ::mlir::DataLayout &dataLayout,
                             ::mlir::DataLayoutEntryListRef params) const {
   if (!align)
@@ -427,7 +446,7 @@ StructType::getABIAlignment(const ::mlir::DataLayout &dataLayout,
   return *align;
 }
 
-unsigned
+uint64_t
 StructType::getPreferredAlignment(const ::mlir::DataLayout &dataLayout,
                                   ::mlir::DataLayoutEntryListRef params) const {
   llvm_unreachable("NYI");
@@ -563,20 +582,21 @@ void IntType::print(mlir::AsmPrinter &printer) const {
   printer << '<' << sign << ", " << getWidth() << '>';
 }
 
-unsigned IntType::getTypeSizeInBits(const mlir::DataLayout &dataLayout,
-                                    mlir::DataLayoutEntryListRef params) const {
-  return getWidth();
+llvm::TypeSize
+IntType::getTypeSizeInBits(const mlir::DataLayout &dataLayout,
+                           mlir::DataLayoutEntryListRef params) const {
+  return llvm::TypeSize::getFixed(getWidth());
 }
 
-unsigned IntType::getABIAlignment(const mlir::DataLayout &dataLayout,
+uint64_t IntType::getABIAlignment(const mlir::DataLayout &dataLayout,
                                   mlir::DataLayoutEntryListRef params) const {
-  return (unsigned)(getWidth() / 8);
+  return (uint64_t)(getWidth() / 8);
 }
 
-unsigned
+uint64_t
 IntType::getPreferredAlignment(const ::mlir::DataLayout &dataLayout,
                                ::mlir::DataLayoutEntryListRef params) const {
-  return (unsigned)(getWidth() / 8);
+  return (uint64_t)(getWidth() / 8);
 }
 
 mlir::LogicalResult
@@ -604,9 +624,9 @@ FuncType FuncType::clone(TypeRange inputs, TypeRange results) const {
   return get(llvm::to_vector(inputs), results[0], isVarArg());
 }
 
-static mlir::ParseResult
-parseFuncTypeArgs(mlir::AsmParser &p, llvm::SmallVector<mlir::Type> &params,
-                  bool &isVarArg) {
+mlir::ParseResult parseFuncTypeArgs(mlir::AsmParser &p,
+                                    llvm::SmallVector<mlir::Type> &params,
+                                    bool &isVarArg) {
   isVarArg = false;
   // `(` `)`
   if (succeeded(p.parseOptionalRParen()))
@@ -636,9 +656,8 @@ parseFuncTypeArgs(mlir::AsmParser &p, llvm::SmallVector<mlir::Type> &params,
   return p.parseRParen();
 }
 
-static void printFuncTypeArgs(mlir::AsmPrinter &p,
-                              mlir::ArrayRef<mlir::Type> params,
-                              bool isVarArg) {
+void printFuncTypeArgs(mlir::AsmPrinter &p, mlir::ArrayRef<mlir::Type> params,
+                       bool isVarArg) {
   llvm::interleaveComma(params, p,
                         [&p](mlir::Type type) { p.printType(type); });
   if (isVarArg) {

@@ -3,22 +3,29 @@
 
 class A {
 public:
+  A(): x(0) {}
+  A(A &a) : x(a.x) {}
+  // TODO(cir): Ensure dtors are properly called. The dtor below crashes.
+  // ~A() {}
+  int x;
   void Foo() {}
 };
 
-// Statement expression result must be returned by value.
-// The local var a should be copied into a temporary and this temporary should
-// be used to call the Foo method.
 void test1() {
-  A a;
-  ({a;}).Foo();
+  ({
+    A a;
+    a;
+  }).Foo();
 }
 // CHECK: @_Z5test1v
-// CHECK: %0 = cir.alloca !ty_22A22, cir.ptr <!ty_22A22>, ["a"]
 // CHECK: cir.scope {
-// CHECK:   %1 = cir.alloca !ty_22A22, cir.ptr <!ty_22A22>, ["ref.tmp0"]
+// CHECK:   %[[#RETVAL:]] = cir.alloca !ty_22A22, cir.ptr <!ty_22A22>
 // CHECK:   cir.scope {
-// CHECK:     cir.call @_ZN1AC1ERKS_(%1, %0) : (!cir.ptr<!ty_22A22>, !cir.ptr<!ty_22A22>) -> ()
+// CHECK:     %[[#VAR:]] = cir.alloca !ty_22A22, cir.ptr <!ty_22A22>, ["a", init] {alignment = 4 : i64}
+// CHECK:     cir.call @_ZN1AC1Ev(%[[#VAR]]) : (!cir.ptr<!ty_22A22>) -> ()
+// CHECK:     cir.call @_ZN1AC1ERS_(%[[#RETVAL]], %[[#VAR]]) : (!cir.ptr<!ty_22A22>, !cir.ptr<!ty_22A22>) -> ()
+//            TODO(cir): the local VAR should be destroyed here.
 // CHECK:   }
-// CHECK:   cir.call @_ZN1A3FooEv(%1) : (!cir.ptr<!ty_22A22>) -> ()
+// CHECK:   cir.call @_ZN1A3FooEv(%[[#RETVAL]]) : (!cir.ptr<!ty_22A22>) -> ()
+//          TODO(cir): the temporary RETVAL should be destroyed here.
 // CHECK: }

@@ -44,6 +44,7 @@ enum class Language : uint8_t {
   CIR,
   ///@}
 };
+StringRef languageToString(Language L);
 
 enum LangFeatures {
   LineComment = (1 << 0),

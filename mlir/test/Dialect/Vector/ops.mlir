@@ -206,23 +206,37 @@ func.func @extract_element(%a: vector<16xf32>) -> f32 {
   return %1 : f32
 }
 
-// CHECK-LABEL: @extract
-func.func @extract(%arg0: vector<4x8x16xf32>) -> (vector<4x8x16xf32>, vector<8x16xf32>, vector<16xf32>, f32) {
-  // CHECK: vector.extract {{.*}}[] : vector<4x8x16xf32>
-  %0 = vector.extract %arg0[] : vector<4x8x16xf32>
-  // CHECK: vector.extract {{.*}}[3] : vector<4x8x16xf32>
-  %1 = vector.extract %arg0[3] : vector<4x8x16xf32>
-  // CHECK-NEXT: vector.extract {{.*}}[3, 3] : vector<4x8x16xf32>
-  %2 = vector.extract %arg0[3, 3] : vector<4x8x16xf32>
-  // CHECK-NEXT: vector.extract {{.*}}[3, 3, 3] : vector<4x8x16xf32>
-  %3 = vector.extract %arg0[3, 3, 3] : vector<4x8x16xf32>
+// CHECK-LABEL: @extract_const_idx
+func.func @extract_const_idx(%arg0: vector<4x8x16xf32>)
+                             -> (vector<4x8x16xf32>, vector<8x16xf32>, vector<16xf32>, f32) {
+  // CHECK: vector.extract {{.*}}[] : vector<4x8x16xf32> from vector<4x8x16xf32>
+  %0 = vector.extract %arg0[] : vector<4x8x16xf32> from vector<4x8x16xf32>
+  // CHECK: vector.extract {{.*}}[3] : vector<8x16xf32> from vector<4x8x16xf32>
+  %1 = vector.extract %arg0[3] : vector<8x16xf32> from vector<4x8x16xf32>
+  // CHECK-NEXT: vector.extract {{.*}}[3, 3] : vector<16xf32> from vector<4x8x16xf32>
+  %2 = vector.extract %arg0[3, 3] : vector<16xf32> from vector<4x8x16xf32>
+  // CHECK-NEXT: vector.extract {{.*}}[3, 3, 3] : f32 from vector<4x8x16xf32>
+  %3 = vector.extract %arg0[3, 3, 3] : f32 from vector<4x8x16xf32>
   return %0, %1, %2, %3 : vector<4x8x16xf32>, vector<8x16xf32>, vector<16xf32>, f32
+}
+
+// CHECK-LABEL: @extract_val_idx
+//  CHECK-SAME:   %[[VEC:.+]]: vector<4x8x16xf32>, %[[IDX:.+]]: index
+func.func @extract_val_idx(%arg0: vector<4x8x16xf32>, %idx: index)
+                           -> (vector<8x16xf32>, vector<16xf32>, f32) {
+  // CHECK: vector.extract %[[VEC]][%[[IDX]]] : vector<8x16xf32> from vector<4x8x16xf32>
+  %0 = vector.extract %arg0[%idx] : vector<8x16xf32> from vector<4x8x16xf32>
+  // CHECK-NEXT: vector.extract %[[VEC]][%[[IDX]], %[[IDX]]] : vector<16xf32> from vector<4x8x16xf32>
+  %1 = vector.extract %arg0[%idx, %idx] : vector<16xf32> from vector<4x8x16xf32>
+  // CHECK-NEXT: vector.extract %[[VEC]][%[[IDX]], 5, %[[IDX]]] : f32 from vector<4x8x16xf32>
+  %2 = vector.extract %arg0[%idx, 5, %idx] : f32 from vector<4x8x16xf32>
+  return %0, %1, %2 : vector<8x16xf32>, vector<16xf32>, f32
 }
 
 // CHECK-LABEL: @extract_0d
 func.func @extract_0d(%a: vector<f32>) -> f32 {
-  // CHECK-NEXT: vector.extract %{{.*}}[] : vector<f32>
-  %0 = vector.extract %a[] : vector<f32>
+  // CHECK-NEXT: vector.extract %{{.*}}[] : f32 from vector<f32>
+  %0 = vector.extract %a[] : f32 from vector<f32>
   return %0 : f32
 }
 
@@ -242,8 +256,9 @@ func.func @insert_element(%a: f32, %b: vector<16xf32>) -> vector<16xf32> {
   return %1 : vector<16xf32>
 }
 
-// CHECK-LABEL: @insert
-func.func @insert(%a: f32, %b: vector<16xf32>, %c: vector<8x16xf32>, %res: vector<4x8x16xf32>) -> vector<4x8x16xf32> {
+// CHECK-LABEL: @insert_const_idx
+func.func @insert_const_idx(%a: f32, %b: vector<16xf32>, %c: vector<8x16xf32>,
+                            %res: vector<4x8x16xf32>) -> vector<4x8x16xf32> {
   // CHECK: vector.insert %{{.*}}, %{{.*}}[3] : vector<8x16xf32> into vector<4x8x16xf32>
   %1 = vector.insert %c, %res[3] : vector<8x16xf32> into vector<4x8x16xf32>
   // CHECK: vector.insert %{{.*}}, %{{.*}}[3, 3] : vector<16xf32> into vector<4x8x16xf32>
@@ -253,6 +268,19 @@ func.func @insert(%a: f32, %b: vector<16xf32>, %c: vector<8x16xf32>, %res: vecto
   // CHECK: vector.insert %{{.*}}, %{{.*}}[] : vector<4x8x16xf32> into vector<4x8x16xf32>
   %4 = vector.insert %3, %3[] : vector<4x8x16xf32> into vector<4x8x16xf32>
   return %4 : vector<4x8x16xf32>
+}
+
+// CHECK-LABEL: @insert_val_idx
+//  CHECK-SAME:   %[[A:.+]]: f32, %[[B:.+]]: vector<16xf32>, %[[C:.+]]: vector<8x16xf32>, %[[IDX:.+]]: index
+func.func @insert_val_idx(%a: f32, %b: vector<16xf32>, %c: vector<8x16xf32>,
+                          %idx: index, %res: vector<4x8x16xf32>) -> vector<4x8x16xf32> {
+  // CHECK: vector.insert %[[C]], %{{.*}}[%[[IDX]]] : vector<8x16xf32> into vector<4x8x16xf32>
+  %0 = vector.insert %c, %res[%idx] : vector<8x16xf32> into vector<4x8x16xf32>
+  // CHECK: vector.insert %[[B]], %{{.*}}[%[[IDX]], %[[IDX]]] : vector<16xf32> into vector<4x8x16xf32>
+  %1 = vector.insert %b, %res[%idx, %idx] : vector<16xf32> into vector<4x8x16xf32>
+  // CHECK: vector.insert %[[A]], %{{.*}}[%[[IDX]], 5, %[[IDX]]] : f32 into vector<4x8x16xf32>
+  %2 = vector.insert %a, %res[%idx, 5, %idx] : f32 into vector<4x8x16xf32>
+  return %2 : vector<4x8x16xf32>
 }
 
 // CHECK-LABEL: @insert_0d
@@ -338,13 +366,13 @@ func.func @contraction_extra_attrs(%arg0: vector<10xf32>, %arg1: vector<10xf32>)
 #contraction_to_scalar_max_trait = {
   indexing_maps = #contraction_to_scalar_max_accesses,
   iterator_types = ["reduction"],
-  kind = #vector.kind<maxf>
+  kind = #vector.kind<maxnumf>
 }
 // CHECK-LABEL: @contraction_to_scalar_with_max
 func.func @contraction_to_scalar_with_max(%arg0: vector<10xf32>, %arg1: vector<10xf32>) -> f32 {
   // CHECK:      %[[C0:.*]] = arith.constant 0.000000e+00 : f32
   %f0 = arith.constant 0.0: f32
-  // CHECK:      %[[X:.*]] = vector.contract {indexing_maps = [#{{.*}}, #{{.*}}, #{{.*}}], iterator_types = ["reduction"], kind = #vector.kind<maxf>} %{{.*}}, %{{.*}}, %[[C0]] : vector<10xf32>, vector<10xf32> into f32
+  // CHECK:      %[[X:.*]] = vector.contract {indexing_maps = [#{{.*}}, #{{.*}}, #{{.*}}], iterator_types = ["reduction"], kind = #vector.kind<maxnumf>} %{{.*}}, %{{.*}}, %[[C0]] : vector<10xf32>, vector<10xf32> into f32
   %0 = vector.contract #contraction_to_scalar_max_trait %arg0, %arg1, %f0
     : vector<10xf32>, vector<10xf32> into f32
   // CHECK:      return %[[X]] : f32
@@ -376,7 +404,7 @@ func.func @contraction_to_scalar_with_max(%arg0: vector<10xf32>, %arg1: vector<1
 #contraction_trait2 = {
   indexing_maps = #contraction_accesses1,
   iterator_types = #iterator_types1,
-  kind = #vector.kind<maxf>
+  kind = #vector.kind<maxnumf>
 }
 // CHECK-LABEL: @contraction
 func.func @contraction(%arg0 : vector<7x8x16x15xf32>, %arg1 : vector<8x16x7x5xf32>,
@@ -397,7 +425,7 @@ func.func @contraction(%arg0 : vector<7x8x16x15xf32>, %arg1 : vector<8x16x7x5xf3
   %3 = vector.contract #contraction_trait1 %arg4, %arg5, %arg3
       : vector<7x8x16x15xf16>, vector<8x16x7x5xf16> into vector<8x8x15x5xf32>
   // Test contraction with "max" instead of "add".
-  // CHECK: vector.contract {indexing_maps = [#{{.*}}, #{{.*}}, #{{.*}}], iterator_types = ["parallel", "parallel", "parallel", "parallel", "reduction", "reduction"], kind = #vector.kind<maxf>} {{.*}}, {{.*}}, {{.*}} : vector<7x8x16x15xf32>, vector<8x16x7x5xf32> into vector<8x8x15x5xf32>
+  // CHECK: vector.contract {indexing_maps = [#{{.*}}, #{{.*}}, #{{.*}}], iterator_types = ["parallel", "parallel", "parallel", "parallel", "reduction", "reduction"], kind = #vector.kind<maxnumf>} {{.*}}, {{.*}}, {{.*}} : vector<7x8x16x15xf32>, vector<8x16x7x5xf32> into vector<8x8x15x5xf32>
   %4 = vector.contract #contraction_trait2 %arg0, %arg1, %arg3
       : vector<7x8x16x15xf32>, vector<8x16x7x5xf32> into vector<8x8x15x5xf32>
   return
@@ -578,10 +606,10 @@ func.func @reduce_fp(%arg0: vector<16xf32>, %arg1: f32) -> f32 {
   vector.reduction <mul>, %arg0 : vector<16xf32> into f32
   // CHECK:    vector.reduction <mul>, %{{.*}}, %{{.*}} : vector<16xf32> into f32
   vector.reduction <mul>, %arg0, %arg1 : vector<16xf32> into f32
-  // CHECK:    vector.reduction <minf>, %{{.*}} : vector<16xf32> into f32
-  vector.reduction <minf>, %arg0 : vector<16xf32> into f32
-  // CHECK:    %[[X0:.*]] = vector.reduction <maxf>, %{{.*}} : vector<16xf32> into f32
-  %0 = vector.reduction <maxf>, %arg0 : vector<16xf32> into f32
+  // CHECK:    vector.reduction <minnumf>, %{{.*}} : vector<16xf32> into f32
+  vector.reduction <minnumf>, %arg0 : vector<16xf32> into f32
+  // CHECK:    %[[X0:.*]] = vector.reduction <maxnumf>, %{{.*}} : vector<16xf32> into f32
+  %0 = vector.reduction <maxnumf>, %arg0 : vector<16xf32> into f32
   // CHECK:    vector.reduction <minimumf>, %{{.*}} : vector<16xf32> into f32
   vector.reduction <minimumf>, %arg0 : vector<16xf32> into f32
   // CHECK:    %[[X1:.*]] = vector.reduction <maximumf>, %{{.*}} : vector<16xf32> into f32
@@ -1007,14 +1035,14 @@ func.func @contraction_masked_scalable(%A: vector<3x4xf32>,
                                     %C: vector<3x[8]xf32>,
                                     %M : vector<3x[8]x4xi1>) -> vector<3x[8]xf32> {
  // CHECK:  vector.mask %[[M]] { vector.contract {indexing_maps = [#{{.*}}, #{{.*}}, #{{.*}}], iterator_types = ["parallel", "parallel", "reduction"], kind = #vector.kind<add>} %[[A]], %[[B]], %[[C]] : vector<3x4xf32>, vector<4x[8]xf32> into vector<3x[8]xf32> } : vector<3x[8]x4xi1> -> vector<3x[8]xf32>
-  %0 = vector.mask %M { vector.contract #matmat_trait %A, %B, %C : vector<3x4xf32>, vector<4x[8]xf32> into vector<3x[8]xf32> } 
+  %0 = vector.mask %M { vector.contract #matmat_trait %A, %B, %C : vector<3x4xf32>, vector<4x[8]xf32> into vector<3x[8]xf32> }
     : vector<3x[8]x4xi1> -> vector<3x[8]xf32>
   return %0 : vector<3x[8]xf32>
 }
 
 // CHECK-LABEL:   func.func @fastmath(
 func.func @fastmath(%x: vector<42xf32>) -> f32 {
-  // CHECK: vector.reduction <minf>, %{{.*}} fastmath<reassoc,nnan,ninf>
-  %min = vector.reduction <minf>, %x fastmath<reassoc,nnan,ninf> : vector<42xf32> into f32
+  // CHECK: vector.reduction <minnumf>, %{{.*}} fastmath<reassoc,nnan,ninf>
+  %min = vector.reduction <minnumf>, %x fastmath<reassoc,nnan,ninf> : vector<42xf32> into f32
   return %min: f32
 }

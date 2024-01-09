@@ -11,6 +11,7 @@
 
 #include "Address.h"
 #include "CIRDataLayout.h"
+#include "CIRGenRecordLayout.h"
 #include "CIRGenTypeCache.h"
 #include "UnimplementedFeatureGuarding.h"
 
@@ -148,9 +149,17 @@ public:
     return mlir::cir::ConstPtrAttr::get(getContext(), t, v);
   }
 
-  mlir::cir::ConstArrayAttr getString(llvm::StringRef str, mlir::Type eltTy,
-                                      unsigned size = 0) {
+  mlir::Attribute getString(llvm::StringRef str, mlir::Type eltTy,
+                            unsigned size = 0) {
     unsigned finalSize = size ? size : str.size();
+
+    // If the string is full of null bytes, emit a #cir.zero rather than
+    // a #cir.const_array.
+    if (str.count('\0') == str.size()) {
+      auto arrayTy = mlir::cir::ArrayType::get(getContext(), eltTy, finalSize);
+      return getZeroAttr(arrayTy);
+    }
+
     auto arrayTy = mlir::cir::ArrayType::get(getContext(), eltTy, finalSize);
     return getConstArray(mlir::StringAttr::get(str, arrayTy), arrayTy);
   }
@@ -389,12 +398,6 @@ public:
     return mlir::cir::PointerType::get(getContext(), ty);
   }
 
-  mlir::cir::PointerType getVoidPtrTy(unsigned AddrSpace = 0) {
-    if (AddrSpace)
-      llvm_unreachable("address space is NYI");
-    return typeCache.VoidPtrTy;
-  }
-
   /// Get a CIR anonymous struct type.
   mlir::cir::StructType
   getAnonStructTy(llvm::ArrayRef<mlir::Type> members, bool packed = false,
@@ -412,15 +415,15 @@ public:
   mlir::cir::StructType::RecordKind
   getRecordKind(const clang::TagTypeKind kind) {
     switch (kind) {
-    case clang::TTK_Struct:
+    case clang::TagTypeKind::Struct:
       return mlir::cir::StructType::Struct;
-    case clang::TTK_Union:
+    case clang::TagTypeKind::Union:
       return mlir::cir::StructType::Union;
-    case clang::TTK_Class:
+    case clang::TagTypeKind::Class:
       return mlir::cir::StructType::Class;
-    case clang::TTK_Interface:
+    case clang::TagTypeKind::Interface:
       llvm_unreachable("interface records are NYI");
-    case clang::TTK_Enum:
+    case clang::TagTypeKind::Enum:
       llvm_unreachable("enum records are NYI");
     }
   }
@@ -459,6 +462,19 @@ public:
     type.complete(members, packed, astAttr);
 
     return type;
+  }
+
+  mlir::cir::ArrayType getArrayType(mlir::Type eltType, unsigned size) {
+    return mlir::cir::ArrayType::get(getContext(), eltType, size);
+  }
+
+  bool isSized(mlir::Type ty) {
+    if (ty.isIntOrFloat() ||
+        ty.isa<mlir::cir::PointerType, mlir::cir::StructType,
+               mlir::cir::ArrayType, mlir::cir::BoolType, mlir::cir::IntType>())
+      return true;
+    assert(0 && "Unimplemented size for type");
+    return false;
   }
 
   //
@@ -647,6 +663,26 @@ public:
         global.getLoc(), getPointerTo(global.getSymType()), global.getName());
   }
 
+  mlir::Value createGetBitfield(mlir::Location loc, mlir::Type resultType,
+                                mlir::Value addr, mlir::Type storageType,
+                                const CIRGenBitFieldInfo &info,
+                                bool useVolatile) {
+    auto offset = useVolatile ? info.VolatileOffset : info.Offset;
+    return create<mlir::cir::GetBitfieldOp>(loc, resultType, addr, storageType,
+                                            info.Name, info.Size, offset,
+                                            info.IsSigned);
+  }
+
+  mlir::Value createSetBitfield(mlir::Location loc, mlir::Type resultType,
+                                mlir::Value dstAddr, mlir::Type storageType,
+                                mlir::Value src, const CIRGenBitFieldInfo &info,
+                                bool useVolatile) {
+    auto offset = useVolatile ? info.VolatileOffset : info.Offset;
+    return create<mlir::cir::SetBitfieldOp>(loc, resultType, dstAddr,
+                                            storageType, src, info.Name,
+                                            info.Size, offset, info.IsSigned);
+  }
+
   /// Create a pointer to a record member.
   mlir::Value createGetMember(mlir::Location loc, mlir::Type result,
                               mlir::Value base, llvm::StringRef name,
@@ -726,14 +762,18 @@ public:
       Offset %= EltSize;
     } else if (auto StructTy = Ty.dyn_cast<mlir::cir::StructType>()) {
       auto Elts = StructTy.getMembers();
+      unsigned Pos = 0;
       for (size_t I = 0; I < Elts.size(); ++I) {
         auto EltSize = Layout.getTypeAllocSize(Elts[I]);
-        if (Offset < EltSize) {
+        unsigned AlignMask = Layout.getABITypeAlign(Elts[I]) - 1;
+        Pos = (Pos + AlignMask) & ~AlignMask;
+        if (Offset < Pos + EltSize) {
           Indices.push_back(I);
           SubType = Elts[I];
+          Offset -= Pos;
           break;
         }
-        Offset -= EltSize;
+        Pos += EltSize;
       }
     } else {
       llvm_unreachable("unexpected type");
@@ -741,6 +781,26 @@ public:
 
     assert(SubType);
     computeGlobalViewIndicesFromFlatOffset(Offset, SubType, Layout, Indices);
+  }
+
+  mlir::cir::StackSaveOp createStackSave(mlir::Location loc, mlir::Type ty) {
+    return create<mlir::cir::StackSaveOp>(loc, ty);
+  }
+
+  mlir::cir::StackRestoreOp createStackRestore(mlir::Location loc, mlir::Value v) {
+    return create<mlir::cir::StackRestoreOp>(loc, v);
+  }
+
+  // TODO(cir): Change this to hoist alloca to the parent *scope* instead.
+  /// Move alloca operation to the parent region.
+  void hoistAllocaToParentRegion(mlir::cir::AllocaOp alloca) {
+    auto &block = alloca->getParentOp()->getParentRegion()->front();
+    const auto allocas = block.getOps<mlir::cir::AllocaOp>();
+    if (allocas.empty()) {
+      alloca->moveBefore(&block, block.begin());
+    } else {
+      alloca->moveAfter(*std::prev(allocas.end()));
+    }
   }
 };
 

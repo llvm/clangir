@@ -8,46 +8,34 @@ void test1() { ({ }); }
 // CHECK-NOT:   cir.yield
 //     CHECK: }
 
-// Yields an l-value.
-void test2(int x) { ({ x;}); }
-// CHECK: @test2
-// CHECK: %{{.+}} = cir.scope {
-// CHECK:   %[[#V6:]] = cir.alloca !s32i, cir.ptr <!s32i>, ["tmp"]
-// CHECK:   %[[#V7:]] = cir.load %{{.+}} : cir.ptr <!s32i>, !s32i
-// CHECK:   cir.store %[[#V7]], %[[#V6]] : !s32i, cir.ptr <!s32i>
-// CHECK:   cir.yield %[[#V6]] : !cir.ptr<!s32i>
-// CHECK: } : !cir.ptr<!s32i>
-
 // Yields an out-of-scope scalar.
-void test3() { ({ int x = 3; x;}); }
-// CHECK: @test3
-// CHECK: %{{.+}} = cir.scope {
-// CHECK:   %[[#V2:]] = cir.alloca !s32i, cir.ptr <!s32i>, ["x", init]
-// CHECK:   %[[#V3:]] = cir.alloca !s32i, cir.ptr <!s32i>, ["tmp"]
+void test2() { ({int x = 3; x; }); }
+// CHECK: @test2
+// CHECK: %[[#RETVAL:]] = cir.alloca !s32i, cir.ptr <!s32i>
+// CHECK: cir.scope {
+// CHECK:   %[[#VAR:]] = cir.alloca !s32i, cir.ptr <!s32i>, ["x", init]
 //          [...]
-// CHECK:   %[[#V5:]] = cir.load %[[#V2]] : cir.ptr <!s32i>, !s32i
-// CHECK:   cir.store %[[#V5]], %[[#V3]] : !s32i, cir.ptr <!s32i>
-// CHECK:   cir.yield %[[#V3]] : !cir.ptr<!s32i>
-// CHECK: } : !cir.ptr<!s32i>
+// CHECK:   %[[#TMP:]] = cir.load %[[#VAR]] : cir.ptr <!s32i>, !s32i
+// CHECK:   cir.store %[[#TMP]], %[[#RETVAL]] : !s32i, cir.ptr <!s32i>
+// CHECK: }
+// CHECK: %{{.+}} = cir.load %[[#RETVAL]] : cir.ptr <!s32i>, !s32i
 
 // Yields an aggregate.
 struct S { int x; };
-void test4() { ({ struct S s = {1}; s; }); }
-// CHECK: @test4
-// CHECK: %[[#RET:]] = cir.alloca !ty_22S22, cir.ptr <!ty_22S22>
+int test3() { return ({ struct S s = {1}; s; }).x; }
+// CHECK: @test3
+// CHECK: %[[#RETVAL:]] = cir.alloca !ty_22S22, cir.ptr <!ty_22S22>
 // CHECK: cir.scope {
 // CHECK:   %[[#VAR:]] = cir.alloca !ty_22S22, cir.ptr <!ty_22S22>
 //          [...]
-// CHECK:   cir.copy %[[#VAR]] to %[[#RET]] : !cir.ptr<!ty_22S22>
+// CHECK:   cir.copy %[[#VAR]] to %[[#RETVAL]] : !cir.ptr<!ty_22S22>
 // CHECK: }
+// CHECK: %[[#RETADDR:]] = cir.get_member %1[0] {name = "x"} : !cir.ptr<!ty_22S22> -> !cir.ptr<!s32i>
+// CHECK: %{{.+}} = cir.load %[[#RETADDR]] : cir.ptr <!s32i>, !s32i
 
-// Expression is wrapped in an expression attribute.
-void test5(int x) {
-  ({[[gsl::suppress("foo")]] x;});
-}
-// CHECK: %{{.+}} = cir.scope {
-//         [...]
-// CHECK: } : !cir.ptr<!s32i>
+// Expression is wrapped in an expression attribute (just ensure it does not crash).
+void test4(int x) { ({[[gsl::suppress("foo")]] x;}); }
+// CHECK: @test4
 
 // TODO(cir): Missing label support.
 // // Expression is wrapped in a label.

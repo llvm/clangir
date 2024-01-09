@@ -10,9 +10,9 @@ module {
   // CHECK: @bar = global %struct.S zeroinitializer
 
   // Should null-initialize global pointer initialized with cir.llvmir.zeroinit.
-  llvm.mlir.global external @ptr() {addr_space = 0 : i32} : !llvm.ptr<i32> {
-    %0 = cir.llvmir.zeroinit : !llvm.ptr<i32>
-    llvm.return %0 : !llvm.ptr<i32>
+  llvm.mlir.global external @ptr() {addr_space = 0 : i32} : !llvm.ptr {
+    %0 = cir.llvmir.zeroinit : !llvm.ptr
+    llvm.return %0 : !llvm.ptr
   }
   // CHECK: @ptr = global ptr null
 

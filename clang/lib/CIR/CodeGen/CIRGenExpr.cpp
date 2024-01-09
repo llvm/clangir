@@ -28,6 +28,8 @@
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/ErrorHandling.h"
 
+#include "llvm/ADT/StringExtras.h"
+
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/Value.h"
@@ -217,17 +219,17 @@ static Address buildPointerWithAlignment(const Expr *E,
 
 /// Helper method to check if the underlying ABI is AAPCS
 static bool isAAPCS(const TargetInfo &TargetInfo) {
-  return TargetInfo.getABI().startswith("aapcs");
+  return TargetInfo.getABI().starts_with("aapcs");
 }
 
-Address CIRGenFunction::getAddrOfBitFieldStorage(LValue base, 
+Address CIRGenFunction::getAddrOfBitFieldStorage(LValue base,
                                                  const FieldDecl *field,
                                                  unsigned index,
                                                  unsigned size) {
   if (index == 0)
     return base.getAddress();
 
-  auto loc = getLoc(field->getLocation());  
+  auto loc = getLoc(field->getLocation());
   auto fieldType = builder.getUIntNTy(size);
 
   auto fieldPtr =
@@ -266,7 +268,6 @@ LValue CIRGenFunction::buildLValueForBitField(LValue base,
 
   const unsigned SS = useVolatile ? info.VolatileStorageSize : info.StorageSize;
   Address Addr = getAddrOfBitFieldStorage(base, field, Idx, SS);
- 
   // Get the access type.
   mlir::Type FieldIntTy = builder.getUIntNTy(SS);
 
@@ -276,7 +277,6 @@ LValue CIRGenFunction::buildLValueForBitField(LValue base,
 
   QualType fieldType =
       field->getType().withCVRQualifiers(base.getVRQualifiers());
-  
   assert(!UnimplementedFeature::tbaa() && "NYI TBAA for bit fields");
   LValueBaseInfo FieldBaseInfo(BaseInfo.getAlignmentSource());
   return LValue::MakeBitfield(Addr, info, fieldType, FieldBaseInfo);
@@ -398,7 +398,7 @@ LValue CIRGenFunction::buildLValueForFieldInitialization(
 
   auto& layout = CGM.getTypes().getCIRGenRecordLayout(Field->getParent());
   unsigned FieldIndex = layout.getCIRFieldNo(Field);
-  
+
   Address V = buildAddrOfFieldStorage(*this, Base.getAddress(), Field,
                                       FieldName, FieldIndex);
 
@@ -545,11 +545,9 @@ void CIRGenFunction::buildStoreOfScalar(mlir::Value Value, Address Addr,
                                         bool Volatile, QualType Ty,
                                         LValueBaseInfo BaseInfo, bool isInit,
                                         bool isNontemporal) {
-  if (!CGM.getCodeGenOpts().PreserveVec3Type) {
-    if (Ty->isVectorType()) {
-      llvm_unreachable("NYI");
-    }
-  }
+  if (!CGM.getCodeGenOpts().PreserveVec3Type && Ty->isVectorType() &&
+      Ty->castAs<clang::VectorType>()->getNumElements() == 3)
+    llvm_unreachable("NYI: Special treatment of 3-element vectors");
 
   Value = buildToMemory(Value, Ty);
 
@@ -607,42 +605,20 @@ RValue CIRGenFunction::buildLoadOfLValue(LValue LV, SourceLocation Loc) {
 
 RValue CIRGenFunction::buildLoadOfBitfieldLValue(LValue LV,
                                                  SourceLocation Loc) {
-  const CIRGenBitFieldInfo &Info = LV.getBitFieldInfo();
+  const CIRGenBitFieldInfo &info = LV.getBitFieldInfo();
 
   // Get the output type.
-  mlir::Type ResLTy = convertType(LV.getType());
-  Address Ptr = LV.getBitFieldAddress();
-  mlir::Value Val = builder.createLoad(getLoc(Loc), Ptr);
-  auto ValWidth = Val.getType().cast<IntType>().getWidth();
+  mlir::Type resLTy = convertType(LV.getType());
+  Address ptr = LV.getBitFieldAddress();
 
-  bool UseVolatile = LV.isVolatileQualified() &&
-                     Info.VolatileStorageSize != 0 && isAAPCS(CGM.getTarget());
-  const unsigned Offset = UseVolatile ? Info.VolatileOffset : Info.Offset;
-  const unsigned StorageSize =
-      UseVolatile ? Info.VolatileStorageSize : Info.StorageSize;
+  bool useVolatile = LV.isVolatileQualified() &&
+                     info.VolatileStorageSize != 0 && isAAPCS(CGM.getTarget());
 
-  if (Info.IsSigned) {
-    assert(static_cast<unsigned>(Offset + Info.Size) <= StorageSize);
-
-    mlir::Type typ = builder.getSIntNTy(ValWidth);
-    Val = builder.createIntCast(Val, typ);
-
-    unsigned HighBits = StorageSize - Offset - Info.Size;
-    if (HighBits)
-      Val = builder.createShiftLeft(Val, HighBits);
-    if (Offset + HighBits)
-      Val = builder.createShiftRight(Val, Offset + HighBits);
-  } else {
-    if (Offset)
-      Val = builder.createShiftRight(Val, Offset);
-
-    if (static_cast<unsigned>(Offset) + Info.Size < StorageSize)
-      Val = builder.createAnd(Val,
-                              llvm::APInt::getLowBitsSet(ValWidth, Info.Size));
-  }
-  Val = builder.createIntCast(Val, ResLTy);  
-  assert(!UnimplementedFeature::emitScalarRangeCheck() && "NYI");  
-  return RValue::get(Val);
+  auto field =
+      builder.createGetBitfield(getLoc(Loc), resLTy, ptr.getPointer(),
+                                ptr.getElementType(), info, useVolatile);
+  assert(!UnimplementedFeature::emitScalarRangeCheck() && "NYI");
+  return RValue::get(field);
 }
 
 void CIRGenFunction::buildStoreThroughLValue(RValue Src, LValue Dst) {
@@ -667,79 +643,28 @@ void CIRGenFunction::buildStoreThroughLValue(RValue Src, LValue Dst) {
 
 void CIRGenFunction::buildStoreThroughBitfieldLValue(RValue Src, LValue Dst,
                                                      mlir::Value &Result) {
-  const CIRGenBitFieldInfo &Info = Dst.getBitFieldInfo();
-  mlir::Type ResLTy = getTypes().convertTypeForMem(Dst.getType());
-  Address Ptr = Dst.getBitFieldAddress();
+  // According to the AACPS:
+  // When a volatile bit-field is written, and its container does not overlap
+  // with any non-bit-field member, its container must be read exactly once
+  // and written exactly once using the access width appropriate to the type
+  // of the container. The two accesses are not atomic.
+  if (Dst.isVolatileQualified() && isAAPCS(CGM.getTarget()) &&
+      CGM.getCodeGenOpts().ForceAAPCSBitfieldLoad)
+    llvm_unreachable("volatile bit-field is not implemented for the AACPS");
 
-  // Get the source value, truncated to the width of the bit-field.
-  mlir::Value SrcVal = Src.getScalarVal();
+  const CIRGenBitFieldInfo &info = Dst.getBitFieldInfo();
+  mlir::Type resLTy = getTypes().convertTypeForMem(Dst.getType());
+  Address ptr = Dst.getBitFieldAddress();
 
-  // Cast the source to the storage type and shift it into place.
-  SrcVal = builder.createIntCast(SrcVal, Ptr.getElementType());
-  auto SrcWidth = SrcVal.getType().cast<IntType>().getWidth();
-  mlir::Value MaskedVal = SrcVal;
-
-  const bool UseVolatile =
+  const bool useVolatile =
       CGM.getCodeGenOpts().AAPCSBitfieldWidth && Dst.isVolatileQualified() &&
-      Info.VolatileStorageSize != 0 && isAAPCS(CGM.getTarget());
-  const unsigned StorageSize =
-      UseVolatile ? Info.VolatileStorageSize : Info.StorageSize;
-  const unsigned Offset = UseVolatile ? Info.VolatileOffset : Info.Offset;
-  // See if there are other bits in the bitfield's storage we'll need to load
-  // and mask together with source before storing.
-  if (StorageSize != Info.Size) {
-    assert(StorageSize > Info.Size && "Invalid bitfield size.");
+      info.VolatileStorageSize != 0 && isAAPCS(CGM.getTarget());
 
-    mlir::Value Val = buildLoadOfScalar(Dst, Dst.getPointer().getLoc());
+  mlir::Value dstAddr = Dst.getAddress().getPointer();
 
-    // Mask the source value as needed.
-    if (!hasBooleanRepresentation(Dst.getType()))
-      SrcVal = builder.createAnd(
-          SrcVal, llvm::APInt::getLowBitsSet(SrcWidth, Info.Size));
-
-    MaskedVal = SrcVal;
-    if (Offset)
-      SrcVal = builder.createShiftLeft(SrcVal, Offset);
-
-    // Mask out the original value.
-    Val = builder.createAnd(
-        Val, ~llvm::APInt::getBitsSet(SrcWidth, Offset, Offset + Info.Size));
-
-    // Or together the unchanged values and the source value.
-    SrcVal = builder.createOr(Val, SrcVal);
-
-  } else {
-    // According to the AACPS:
-    // When a volatile bit-field is written, and its container does not overlap
-    // with any non-bit-field member, its container must be read exactly once
-    // and written exactly once using the access width appropriate to the type
-    // of the container. The two accesses are not atomic.
-    if (Dst.isVolatileQualified() && isAAPCS(CGM.getTarget()) &&
-        CGM.getCodeGenOpts().ForceAAPCSBitfieldLoad)
-      llvm_unreachable("volatile bit-field is not implemented for the AACPS");
-  }
-
-  // Write the new value back out.
-  // TODO: constant matrix type, volatile, no init, non temporal, TBAA
-  buildStoreOfScalar(SrcVal, Ptr, Dst.isVolatileQualified(), Dst.getType(),
-                     Dst.getBaseInfo(), false, false);
-
-  // Return the new value of the bit-field.
-  mlir::Value ResultVal = MaskedVal;
-  ResultVal = builder.createIntCast(ResultVal, ResLTy);
-
-  // Sign extend the value if needed.
-  if (Info.IsSigned) {
-    assert(Info.Size <= StorageSize);
-    unsigned HighBits = StorageSize - Info.Size;
-
-    if (HighBits) {
-      ResultVal = builder.createShiftLeft(ResultVal, HighBits);
-      ResultVal = builder.createShiftRight(ResultVal, HighBits);
-    }
-  }
-
-  Result = buildFromMemory(ResultVal, Dst.getType());  
+  Result = builder.createSetBitfield(dstAddr.getLoc(), resLTy, dstAddr,
+                                     ptr.getElementType(), Src.getScalarVal(),
+                                     info, useVolatile);
 }
 
 static LValue buildGlobalVarDeclLValue(CIRGenFunction &CGF, const Expr *E,
@@ -753,9 +678,8 @@ static LValue buildGlobalVarDeclLValue(CIRGenFunction &CGF, const Expr *E,
 
   // Check if the variable is marked as declare target with link clause in
   // device codegen.
-  if (CGF.getLangOpts().OpenMPIsTargetDevice) {
-    assert(0 && "not implemented");
-  }
+  if (CGF.getLangOpts().OpenMP)
+    llvm_unreachable("not implemented");
 
   auto V = CGF.CGM.getAddrOfGlobalVar(VD);
   auto RealVarTy = CGF.getTypes().convertTypeForMem(VD->getType());
@@ -944,7 +868,8 @@ LValue CIRGenFunction::buildDeclRefLValue(const DeclRefExpr *E) {
 LValue CIRGenFunction::buildBinaryOperatorLValue(const BinaryOperator *E) {
   // Comma expressions just emit their LHS then their RHS as an l-value.
   if (E->getOpcode() == BO_Comma) {
-    assert(0 && "not implemented");
+    buildIgnoredExpr(E->getLHS());
+    return buildLValue(E->getRHS());
   }
 
   if (E->getOpcode() == BO_PtrMemD || E->getOpcode() == BO_PtrMemI)
@@ -1104,6 +1029,13 @@ RValue CIRGenFunction::buildCallExpr(const clang::CallExpr *E,
   return buildCall(E->getCallee()->getType(), callee, E, ReturnValue);
 }
 
+LValue CIRGenFunction::buildStmtExprLValue(const StmtExpr *E) {
+  // Can only get l-value for message expression returning aggregate type
+  RValue RV = buildAnyExprToTemp(E);
+  return makeAddrLValue(RV.getAggregateAddress(), E->getType(),
+                        AlignmentSource::Decl);
+}
+
 RValue CIRGenFunction::buildCall(clang::QualType CalleeType,
                                  const CIRGenCallee &OrigCallee,
                                  const clang::CallExpr *E,
@@ -1198,7 +1130,7 @@ RValue CIRGenFunction::buildCall(clang::QualType CalleeType,
   assert(!MustTailCall && "Must tail NYI");
   mlir::cir::CallOp callOP = nullptr;
   RValue Call = buildCall(FnInfo, Callee, ReturnValue, Args, &callOP,
-                          E == MustTailCall, getLoc(E->getExprLoc()));
+                          E == MustTailCall, getLoc(E->getExprLoc()), E);
 
   assert(!getDebugInfo() && "Debug Info NYI");
 
@@ -2068,9 +2000,8 @@ CIRGenFunction::buildConditionalBlocks(const AbstractConditionalOperator *E,
           .create<mlir::cir::TernaryOp>(
               loc, condV, /*trueBuilder=*/
               [&](mlir::OpBuilder &b, mlir::Location loc) {
-                CIRGenFunction::LexicalScopeContext lexScope{
-                    loc, b.getInsertionBlock()};
-                CIRGenFunction::LexicalScopeGuard lexThenGuard{CGF, &lexScope};
+                CIRGenFunction::LexicalScope lexScope{*this, loc,
+                                                      b.getInsertionBlock()};
                 CGF.currLexScope->setAsTernary();
 
                 assert(!UnimplementedFeature::incrementProfileCounter());
@@ -2090,9 +2021,8 @@ CIRGenFunction::buildConditionalBlocks(const AbstractConditionalOperator *E,
               },
               /*falseBuilder=*/
               [&](mlir::OpBuilder &b, mlir::Location loc) {
-                CIRGenFunction::LexicalScopeContext lexScope{
-                    loc, b.getInsertionBlock()};
-                CIRGenFunction::LexicalScopeGuard lexElseGuard{CGF, &lexScope};
+                CIRGenFunction::LexicalScope lexScope{*this, loc,
+                                                      b.getInsertionBlock()};
                 CGF.currLexScope->setAsTernary();
 
                 assert(!UnimplementedFeature::incrementProfileCounter());
@@ -2188,9 +2118,8 @@ LValue CIRGenFunction::buildLValue(const Expr *E) {
     [[maybe_unused]] auto scope = builder.create<mlir::cir::ScopeOp>(
         scopeLoc, /*scopeBuilder=*/
         [&](mlir::OpBuilder &b, mlir::Location loc) {
-          CIRGenFunction::LexicalScopeContext lexScope{
-              loc, builder.getInsertionBlock()};
-          CIRGenFunction::LexicalScopeGuard lexScopeGuard{*this, &lexScope};
+          CIRGenFunction::LexicalScope lexScope{*this, loc,
+                                                builder.getInsertionBlock()};
 
           LV = buildLValue(cleanups->getSubExpr());
           if (LV.isSimple()) {
@@ -2241,6 +2170,8 @@ LValue CIRGenFunction::buildLValue(const Expr *E) {
 
   case Expr::ObjCPropertyRefExprClass:
     llvm_unreachable("cannot emit a property reference directly");
+  case Expr::StmtExprClass:
+    return buildStmtExprLValue(cast<StmtExpr>(E));
   }
 
   return LValue::makeAddr(Address::invalid(), E->getType());
@@ -2304,15 +2235,13 @@ mlir::LogicalResult CIRGenFunction::buildIfOnBoolExpr(const Expr *cond,
       loc, condV, elseS,
       /*thenBuilder=*/
       [&](mlir::OpBuilder &, mlir::Location) {
-        LexicalScopeContext lexScope{thenLoc, builder.getInsertionBlock()};
-        LexicalScopeGuard lexThenGuard{*this, &lexScope};
+        LexicalScope lexScope{*this, thenLoc, builder.getInsertionBlock()};
         resThen = buildStmt(thenS, /*useCurrentScope=*/true);
       },
       /*elseBuilder=*/
       [&](mlir::OpBuilder &, mlir::Location) {
         assert(elseLoc && "Invalid location for elseS.");
-        LexicalScopeContext lexScope{*elseLoc, builder.getInsertionBlock()};
-        LexicalScopeGuard lexElseGuard{*this, &lexScope};
+        LexicalScope lexScope{*this, *elseLoc, builder.getInsertionBlock()};
         resElse = buildStmt(elseS, /*useCurrentScope=*/true);
       });
 
@@ -2367,17 +2296,19 @@ mlir::Value CIRGenFunction::buildOpOnBoolExpr(const Expr *cond,
 
 mlir::Value CIRGenFunction::buildAlloca(StringRef name, mlir::Type ty,
                                         mlir::Location loc, CharUnits alignment,
-                                        bool insertIntoFnEntryBlock) {
+                                        bool insertIntoFnEntryBlock,
+                                        mlir::Value arraySize) {
   mlir::Block *entryBlock = insertIntoFnEntryBlock
                                 ? getCurFunctionEntryBlock()
                                 : currLexScope->getEntryBlock();
   return buildAlloca(name, ty, loc, alignment,
-                     builder.getBestAllocaInsertPoint(entryBlock));
+                     builder.getBestAllocaInsertPoint(entryBlock), arraySize);
 }
 
 mlir::Value CIRGenFunction::buildAlloca(StringRef name, mlir::Type ty,
                                         mlir::Location loc, CharUnits alignment,
-                                        mlir::OpBuilder::InsertPoint ip) {
+                                        mlir::OpBuilder::InsertPoint ip,
+                                        mlir::Value arraySize) {
   auto localVarPtrTy = mlir::cir::PointerType::get(builder.getContext(), ty);
   auto alignIntAttr = CGM.getSize(alignment);
 
@@ -2387,7 +2318,7 @@ mlir::Value CIRGenFunction::buildAlloca(StringRef name, mlir::Type ty,
     builder.restoreInsertionPoint(ip);
     addr = builder.create<mlir::cir::AllocaOp>(loc, /*addr type*/ localVarPtrTy,
                                                /*var type*/ ty, name,
-                                               alignIntAttr);
+                                               alignIntAttr, arraySize);
     if (currVarDecl) {
       auto alloca = cast<mlir::cir::AllocaOp>(addr.getDefiningOp());
       alloca.setAstAttr(ASTVarDeclAttr::get(builder.getContext(), currVarDecl));
@@ -2398,9 +2329,10 @@ mlir::Value CIRGenFunction::buildAlloca(StringRef name, mlir::Type ty,
 
 mlir::Value CIRGenFunction::buildAlloca(StringRef name, QualType ty,
                                         mlir::Location loc, CharUnits alignment,
-                                        bool insertIntoFnEntryBlock) {
+                                        bool insertIntoFnEntryBlock,
+                                        mlir::Value arraySize) {
   return buildAlloca(name, getCIRType(ty), loc, alignment,
-                     insertIntoFnEntryBlock);
+                     insertIntoFnEntryBlock, arraySize);
 }
 
 mlir::Value CIRGenFunction::buildLoadOfScalar(LValue lvalue,
@@ -2437,11 +2369,9 @@ mlir::Value CIRGenFunction::buildLoadOfScalar(Address Addr, bool Volatile,
                                               QualType Ty, mlir::Location Loc,
                                               LValueBaseInfo BaseInfo,
                                               bool isNontemporal) {
-  if (!CGM.getCodeGenOpts().PreserveVec3Type) {
-    if (Ty->isVectorType()) {
-      llvm_unreachable("NYI");
-    }
-  }
+  if (!CGM.getCodeGenOpts().PreserveVec3Type && Ty->isVectorType() &&
+      Ty->castAs<clang::VectorType>()->getNumElements() == 3)
+    llvm_unreachable("NYI: Special treatment of 3-element vectors");
 
   // Atomic operations have to be done on integral types
   LValue AtomicLValue = LValue::makeAddr(Addr, Ty, getContext(), BaseInfo);
@@ -2455,9 +2385,9 @@ mlir::Value CIRGenFunction::buildLoadOfScalar(Address Addr, bool Volatile,
   if (isNontemporal) {
     llvm_unreachable("NYI");
   }
-  
-  assert(!UnimplementedFeature::tbaa() && "NYI");  
-  assert(!UnimplementedFeature::emitScalarRangeCheck() && "NYI");  
+
+  assert(!UnimplementedFeature::tbaa() && "NYI");
+  assert(!UnimplementedFeature::emitScalarRangeCheck() && "NYI");
 
   return buildFromMemory(Load, Ty);
 }
@@ -2550,12 +2480,11 @@ Address CIRGenFunction::CreateMemTemp(QualType Ty, CharUnits Align,
 
 /// This creates a alloca and inserts it into the entry block of the
 /// current region.
-Address CIRGenFunction::CreateTempAllocaWithoutCast(mlir::Type Ty,
-                                                    CharUnits Align,
-                                                    mlir::Location Loc,
-                                                    const Twine &Name,
-                                                    mlir::Value ArraySize) {
-  auto Alloca = CreateTempAlloca(Ty, Loc, Name, ArraySize);
+Address CIRGenFunction::CreateTempAllocaWithoutCast(
+    mlir::Type Ty, CharUnits Align, mlir::Location Loc, const Twine &Name,
+    mlir::Value ArraySize, mlir::OpBuilder::InsertPoint ip) {
+  auto Alloca = ip.isSet() ? CreateTempAlloca(Ty, Loc, Name, ip, ArraySize)
+                           : CreateTempAlloca(Ty, Loc, Name, ArraySize);
   Alloca.setAlignmentAttr(CGM.getSize(Align));
   return Address(Alloca, Ty, Align);
 }
@@ -2565,8 +2494,10 @@ Address CIRGenFunction::CreateTempAllocaWithoutCast(mlir::Type Ty,
 Address CIRGenFunction::CreateTempAlloca(mlir::Type Ty, CharUnits Align,
                                          mlir::Location Loc, const Twine &Name,
                                          mlir::Value ArraySize,
-                                         Address *AllocaAddr) {
-  auto Alloca = CreateTempAllocaWithoutCast(Ty, Align, Loc, Name, ArraySize);
+                                         Address *AllocaAddr,
+                                         mlir::OpBuilder::InsertPoint ip) {
+  auto Alloca =
+      CreateTempAllocaWithoutCast(Ty, Align, Loc, Name, ArraySize, ip);
   if (AllocaAddr)
     *AllocaAddr = Alloca;
   mlir::Value V = Alloca.getPointer();
@@ -2585,10 +2516,19 @@ mlir::cir::AllocaOp
 CIRGenFunction::CreateTempAlloca(mlir::Type Ty, mlir::Location Loc,
                                  const Twine &Name, mlir::Value ArraySize,
                                  bool insertIntoFnEntryBlock) {
-  if (ArraySize)
-    assert(0 && "NYI");
+  return cast<mlir::cir::AllocaOp>(buildAlloca(Name.str(), Ty, Loc, CharUnits(),
+                                               insertIntoFnEntryBlock,
+                                               ArraySize)
+                                       .getDefiningOp());
+}
+
+/// This creates an alloca and inserts it into the provided insertion point
+mlir::cir::AllocaOp CIRGenFunction::CreateTempAlloca(
+    mlir::Type Ty, mlir::Location Loc, const Twine &Name,
+    mlir::OpBuilder::InsertPoint ip, mlir::Value ArraySize) {
+  assert(ip.isSet() && "Insertion point is not set");
   return cast<mlir::cir::AllocaOp>(
-      buildAlloca(Name.str(), Ty, Loc, CharUnits(), insertIntoFnEntryBlock)
+      buildAlloca(Name.str(), Ty, Loc, CharUnits(), ip, ArraySize)
           .getDefiningOp());
 }
 
@@ -2765,7 +2705,7 @@ LValue CIRGenFunction::buildPredefinedLValue(const PredefinedExpr *E) {
   auto Fn = dyn_cast<mlir::cir::FuncOp>(CurFn);
   assert(Fn && "other callables NYI");
   StringRef FnName = Fn.getName();
-  if (FnName.startswith("\01"))
+  if (FnName.starts_with("\01"))
     FnName = FnName.substr(1);
   StringRef NameItems[] = {PredefinedExpr::getIdentKindName(E->getIdentKind()),
                            FnName};

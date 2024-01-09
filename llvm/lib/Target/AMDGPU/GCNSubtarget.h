@@ -107,6 +107,7 @@ protected:
   bool GFX940Insts = false;
   bool GFX10Insts = false;
   bool GFX11Insts = false;
+  bool GFX12Insts = false;
   bool GFX10_3Insts = false;
   bool GFX7GFX8GFX9Insts = false;
   bool SGPRInitBug = false;
@@ -118,6 +119,7 @@ protected:
   bool HasFmaMixInsts = false;
   bool HasMovrel = false;
   bool HasVGPRIndexMode = false;
+  bool HasScalarDwordx3Loads = false;
   bool HasScalarStores = false;
   bool HasScalarAtomics = false;
   bool HasSDWAOmod = false;
@@ -128,6 +130,7 @@ protected:
   bool HasDPP = false;
   bool HasDPP8 = false;
   bool HasDPALU_DPP = false;
+  bool HasDPPSrc1SGPR = false;
   bool HasPackedFP32Ops = false;
   bool HasImageInsts = false;
   bool HasExtendedImageInsts = false;
@@ -159,6 +162,7 @@ protected:
   bool HasAtomicFaddNoRtnInsts = false;
   bool HasAtomicBufferGlobalPkAddF16NoRtnInsts = false;
   bool HasAtomicBufferGlobalPkAddF16Insts = false;
+  bool HasAtomicCSubNoRtnInsts = false;
   bool HasAtomicGlobalPkAddBF16Inst = false;
   bool HasFlatAtomicFaddF32Inst = false;
   bool SupportsSRAMECC = false;
@@ -192,6 +196,10 @@ protected:
   bool UnalignedDSAccess = false;
   bool HasPackedTID = false;
   bool ScalarizeGlobal = false;
+  bool HasSALUFloatInsts = false;
+  bool HasVGPRSingleUseHintInsts = false;
+  bool HasPseudoScalarTrans = false;
+  bool HasRestrictedSOffset = false;
 
   bool HasVcmpxPermlaneHazard = false;
   bool HasVMEMtoScalarWriteHazard = false;
@@ -205,6 +213,7 @@ protected:
   bool HasFlatSegmentOffsetBug = false;
   bool HasImageStoreD16Bug = false;
   bool HasImageGather4D16Bug = false;
+  bool HasMSAALoadDstSelBug = false;
   bool HasGFX11FullVGPRs = false;
   bool HasMADIntraFwdBug = false;
   bool HasVOPDInsts = false;
@@ -671,6 +680,8 @@ public:
     return AddNoCarryInsts;
   }
 
+  bool hasScalarAddSub64() const { return getGeneration() >= GFX12; }
+
   bool hasUnpackedD16VMem() const {
     return HasUnpackedD16VMem;
   }
@@ -822,6 +833,11 @@ public:
 
   bool hasInstPrefetch() const { return getGeneration() >= GFX10; }
 
+  bool hasPrefetch() const { return GFX12Insts; }
+
+  // Has s_cmpk_* instructions.
+  bool hasSCmpK() const { return getGeneration() < GFX12; }
+
   // Scratch is allocated in 256 dword per wave blocks for the entire
   // wavefront. When viewed from the perspective of an arbitrary workitem, this
   // is 4-byte aligned.
@@ -878,6 +894,8 @@ public:
     return getGeneration() >= VOLCANIC_ISLANDS;
   }
 
+  bool hasScalarDwordx3Loads() const { return HasScalarDwordx3Loads; }
+
   bool hasScalarStores() const {
     return HasScalarStores;
   }
@@ -913,6 +931,8 @@ public:
   bool hasDPALU_DPP() const {
     return HasDPALU_DPP;
   }
+
+  bool hasDPPSrc1SGPR() const { return HasDPPSrc1SGPR; }
 
   bool hasPackedFP32Ops() const {
     return HasPackedFP32Ops;
@@ -953,11 +973,15 @@ public:
 
   bool hasMADIntraFwdBug() const { return HasMADIntraFwdBug; }
 
+  bool hasMSAALoadDstSelBug() const { return HasMSAALoadDstSelBug; }
+
   bool hasNSAEncoding() const { return HasNSAEncoding; }
 
   bool hasPartialNSAEncoding() const { return HasPartialNSAEncoding; }
 
-  unsigned getNSAMaxSize() const { return AMDGPU::getNSAMaxSize(*this); }
+  unsigned getNSAMaxSize(bool HasSampler = false) const {
+    return AMDGPU::getNSAMaxSize(*this, HasSampler);
+  }
 
   bool hasGFX10_AEncoding() const {
     return GFX10_AEncoding;
@@ -1136,6 +1160,14 @@ public:
   // hasGFX90AInsts is also true.
   bool hasGFX940Insts() const { return GFX940Insts; }
 
+  bool hasSALUFloatInsts() const { return HasSALUFloatInsts; }
+
+  bool hasVGPRSingleUseHintInsts() const { return HasVGPRSingleUseHintInsts; }
+
+  bool hasPseudoScalarTrans() const { return HasPseudoScalarTrans; }
+
+  bool hasRestrictedSOffset() const { return HasRestrictedSOffset; }
+
   /// Return the maximum number of waves per SIMD for kernels using \p SGPRs
   /// SGPRs
   unsigned getOccupancyWithNumSGPRs(unsigned SGPRs) const;
@@ -1188,8 +1220,27 @@ public:
     return hasKernargPreload() && !hasGFX940Insts();
   }
 
+  // \returns true if the target has split barriers feature
+  bool hasSplitBarriers() const { return getGeneration() >= GFX12; }
+
   // \returns true if FP8/BF8 VOP1 form of conversion to F32 is unreliable.
   bool hasCvtFP8VOP1Bug() const { return true; }
+
+  // \returns true if CSUB (a.k.a. SUB_CLAMP on GFX12) atomics support a
+  // no-return form.
+  bool hasAtomicCSubNoRtnInsts() const { return HasAtomicCSubNoRtnInsts; }
+
+  // \returns true if the target has DX10_CLAMP kernel descriptor mode bit
+  bool hasDX10ClampMode() const { return getGeneration() < GFX12; }
+
+  // \returns true if the target has IEEE kernel descriptor mode bit
+  bool hasIEEEMode() const { return getGeneration() < GFX12; }
+
+  // \returns true if the target has IEEE fminimum/fmaximum instructions
+  bool hasIEEEMinMax() const { return getGeneration() >= GFX12; }
+
+  // \returns true if the target has WG_RR_MODE kernel descriptor mode bit
+  bool hasRrWGMode() const { return getGeneration() >= GFX12; }
 
   /// \returns SGPR allocation granularity supported by the subtarget.
   unsigned getSGPRAllocGranule() const {
@@ -1391,8 +1442,6 @@ public:
 
 class GCNUserSGPRUsageInfo {
 public:
-  unsigned getNumUsedUserSGPRs() const;
-
   bool hasImplicitBufferPtr() const { return ImplicitBufferPtr; }
 
   bool hasPrivateSegmentBuffer() const { return PrivateSegmentBuffer; }
@@ -1406,6 +1455,14 @@ public:
   bool hasDispatchID() const { return DispatchID; }
 
   bool hasFlatScratchInit() const { return FlatScratchInit; }
+
+  unsigned getNumKernargPreloadSGPRs() const { return NumKernargPreloadSGPRs; }
+
+  unsigned getNumUsedUserSGPRs() const { return NumUsedUserSGPRs; }
+
+  unsigned getNumFreeUserSGPRs();
+
+  void allocKernargPreloadSGPRs(unsigned NumSGPRs);
 
   enum UserSGPRID : unsigned {
     ImplicitBufferPtrID = 0,
@@ -1444,6 +1501,8 @@ public:
   GCNUserSGPRUsageInfo(const Function &F, const GCNSubtarget &ST);
 
 private:
+  const GCNSubtarget &ST;
+
   // Private memory buffer
   // Compute directly in sgpr[0:1]
   // Other shaders indirect 64-bits at sgpr[0:1]
@@ -1460,6 +1519,10 @@ private:
   bool DispatchID = false;
 
   bool FlatScratchInit = false;
+
+  unsigned NumKernargPreloadSGPRs = 0;
+
+  unsigned NumUsedUserSGPRs = 0;
 };
 
 } // end namespace llvm
