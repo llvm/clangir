@@ -100,10 +100,10 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &context,
                            const clang::CodeGenOptions &CGO,
                            DiagnosticsEngine &Diags)
     : builder(context, *this), astCtx(astctx), langOpts(astctx.getLangOpts()),
-      codeGenOpts(CGO),
-      theModule{mlir::ModuleOp::create(builder.getUnknownLoc())}, Diags(Diags),
-      target(astCtx.getTargetInfo()), ABI(createCXXABI(*this)), genTypes{*this},
-      VTables{*this} {
+      codeGenOpts(CGO), theModule{mlir::ModuleOp::create(
+                            builder.getUnknownLoc())},
+      Diags(Diags), target(astCtx.getTargetInfo()),
+      ABI(createCXXABI(*this)), genTypes{*this}, VTables{*this} {
 
   // Initialize CIR signed integer types cache.
   SInt8Ty =
@@ -161,6 +161,10 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &context,
   // TODO: GlobalsInt8PtrTy
   // TODO: ConstGlobalsPtrTy
   // TODO: ASTAllocaAddressSpace
+
+  PtrDiffTy = ::mlir::cir::IntType::get(
+      builder.getContext(), astCtx.getTargetInfo().getMaxPointerWidth(),
+      /*isSigned=*/true);
 
   mlir::cir::sob::SignedOverflowBehavior sob;
   switch (langOpts.getSignedOverflowBehavior()) {
@@ -467,7 +471,8 @@ mlir::Value CIRGenModule::getGlobalValue(const Decl *D) {
 mlir::cir::GlobalOp CIRGenModule::createGlobalOp(CIRGenModule &CGM,
                                                  mlir::Location loc,
                                                  StringRef name, mlir::Type t,
-                                                 bool isCst) {
+                                                 bool isCst,
+                                                 mlir::Operation *insertPoint) {
   mlir::cir::GlobalOp g;
   auto &builder = CGM.getBuilder();
   {
@@ -482,8 +487,12 @@ mlir::cir::GlobalOp CIRGenModule::createGlobalOp(CIRGenModule &CGM,
       builder.setInsertionPoint(curCGF->CurFn);
 
     g = builder.create<mlir::cir::GlobalOp>(loc, name, t, isCst);
-    if (!curCGF)
-      CGM.getModule().push_back(g);
+    if (!curCGF) {
+      if (insertPoint)
+        CGM.getModule().insert(insertPoint, g);
+      else
+        CGM.getModule().push_back(g);
+    }
 
     // Default to private until we can judge based on the initializer,
     // since MLIR doesn't allow public declarations.
@@ -495,6 +504,35 @@ mlir::cir::GlobalOp CIRGenModule::createGlobalOp(CIRGenModule &CGM,
 
 void CIRGenModule::setCommonAttributes(GlobalDecl GD, mlir::Operation *GV) {
   assert(!UnimplementedFeature::setCommonAttributes());
+}
+
+void CIRGenModule::replaceGlobal(mlir::cir::GlobalOp Old,
+                                 mlir::cir::GlobalOp New) {
+  assert(Old.getSymName() == New.getSymName() && "symbol names must match");
+
+  // If the types does not match, update all references to Old to the new type.
+  auto OldTy = Old.getSymType();
+  auto NewTy = New.getSymType();
+  if (OldTy != NewTy) {
+    auto OldSymUses = Old.getSymbolUses(theModule.getOperation());
+    if (OldSymUses.has_value()) {
+      for (auto Use : *OldSymUses) {
+        auto *UserOp = Use.getUser();
+        assert((isa<mlir::cir::GetGlobalOp>(UserOp) ||
+                isa<mlir::cir::GlobalOp>(UserOp)) &&
+               "GlobalOp symbol user is neither a GetGlobalOp nor a GlobalOp");
+
+        if (auto GGO = dyn_cast<mlir::cir::GetGlobalOp>(Use.getUser())) {
+          auto UseOpResultValue = GGO.getAddr();
+          UseOpResultValue.setType(
+              mlir::cir::PointerType::get(builder.getContext(), NewTy));
+        }
+      }
+    }
+  }
+
+  // Remove old global from the module.
+  Old.erase();
 }
 
 /// If the specified mangled name is not in the module,
@@ -588,11 +626,14 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef MangledName, mlir::Type Ty,
   // mlir::SymbolTable::Visibility::Public is the default, no need to explicitly
   // mark it as such.
   auto GV = CIRGenModule::createGlobalOp(*this, loc, MangledName, Ty,
-                                         /*isConstant=*/false);
+                                         /*isConstant=*/false,
+                                         /*insertPoint=*/Entry.getOperation());
 
   // If we already created a global with the same mangled name (but different
-  // type) before, take its name and remove it from its parent.
-  assert(!Entry && "not implemented");
+  // type) before, replace it with the new global.
+  if (Entry) {
+    replaceGlobal(Entry, GV);
+  }
 
   // This is the first use or definition of a mangled name.  If there is a
   // deferred decl with this name, remember that we need to emit it at the end
@@ -752,7 +793,7 @@ void CIRGenModule::maybeHandleStaticInExternC(const SomeDecl *D,
     return;
 
   // Must have internal linkage and an ordinary name.
-  if (!D->getIdentifier() || D->getFormalLinkage() != InternalLinkage)
+  if (!D->getIdentifier() || D->getFormalLinkage() != Linkage::Internal)
     return;
 
   // Must be in an extern "C" context. Entities declared directly within
@@ -779,8 +820,8 @@ void CIRGenModule::buildGlobalVarDefinition(const clang::VarDecl *D,
   // If this is OpenMP device, check if it is legal to emit this global
   // normally.
   QualType ASTTy = D->getType();
-  assert(!(getLangOpts().OpenCL || getLangOpts().OpenMPIsTargetDevice) &&
-         "not implemented");
+  if (getLangOpts().OpenCL || getLangOpts().OpenMPIsTargetDevice)
+    llvm_unreachable("not implemented");
 
   // TODO(cir): LLVM's codegen uses a llvm::TrackingVH here. Is that
   // necessary here for CIR gen?
@@ -978,7 +1019,15 @@ void CIRGenModule::buildGlobalVarDefinition(const clang::VarDecl *D,
     assert(!UnimplementedFeature::setDLLStorageClass());
 
   if (Linkage == mlir::cir::GlobalLinkageKind::CommonLinkage) {
-    llvm_unreachable("common linkage is NYI");
+    // common vars aren't constant even if declared const.
+    GV.setConstant(false);
+    // Tentative definition of global variables may be initialized with
+    // non-zero null pointers. In this case they should have weak linkage
+    // since common linkage must have zero initializer and must not have
+    // explicit section therefore cannot have non-zero initial value.
+    auto Initializer = GV.getInitialValue();
+    if (Initializer && !getBuilder().isNullValue(*Initializer))
+      GV.setLinkage(mlir::cir::GlobalLinkageKind::WeakAnyLinkage);
   }
 
   // TODO(cir): setNonAliasAttributes(D, GV);
@@ -1171,8 +1220,8 @@ void CIRGenModule::buildDeclContext(const DeclContext *DC) {
 }
 
 void CIRGenModule::buildLinkageSpec(const LinkageSpecDecl *LSD) {
-  if (LSD->getLanguage() != LinkageSpecDecl::lang_c &&
-      LSD->getLanguage() != LinkageSpecDecl::lang_cxx) {
+  if (LSD->getLanguage() != LinkageSpecLanguageIDs::C &&
+      LSD->getLanguage() != LinkageSpecLanguageIDs::CXX) {
     llvm_unreachable("unsupported linkage spec");
     return;
   }
@@ -1412,6 +1461,7 @@ mlir::SymbolTable::Visibility CIRGenModule::getMLIRVisibilityFromCIRLinkage(
   case mlir::cir::GlobalLinkageKind::ExternalWeakLinkage:
   case mlir::cir::GlobalLinkageKind::LinkOnceODRLinkage:
   case mlir::cir::GlobalLinkageKind::AvailableExternallyLinkage:
+  case mlir::cir::GlobalLinkageKind::CommonLinkage:
     return mlir::SymbolTable::Visibility::Public;
   default: {
     llvm::errs() << "visibility not implemented for '"
@@ -1570,6 +1620,34 @@ mlir::cir::GlobalLinkageKind CIRGenModule::getFunctionLinkage(GlobalDecl GD) {
   }
 
   return getCIRLinkageForDeclarator(D, Linkage, /*IsConstantVariable=*/false);
+}
+
+void CIRGenModule::buildAliasForGlobal(StringRef mangledName,
+                                       mlir::Operation *op, GlobalDecl aliasGD,
+                                       mlir::cir::FuncOp aliasee,
+                                       mlir::cir::GlobalLinkageKind linkage) {
+  auto *aliasFD = dyn_cast<FunctionDecl>(aliasGD.getDecl());
+  assert(aliasFD && "expected FunctionDecl");
+  auto alias =
+      createCIRFunction(getLoc(aliasGD.getDecl()->getSourceRange()),
+                        mangledName, aliasee.getFunctionType(), aliasFD);
+  alias.setAliasee(aliasee.getName());
+  alias.setLinkage(linkage);
+  mlir::SymbolTable::setSymbolVisibility(
+      alias, getMLIRVisibilityFromCIRLinkage(linkage));
+
+  // Alias constructors and destructors are always unnamed_addr.
+  assert(!UnimplementedFeature::unnamedAddr());
+
+  // Switch any previous uses to the alias.
+  if (op) {
+    llvm_unreachable("NYI");
+  } else {
+    // Name already set by createCIRFunction
+  }
+
+  // Finally, set up the alias with its proper name and attributes.
+  setCommonAttributes(aliasGD, alias);
 }
 
 mlir::Type CIRGenModule::getCIRType(const QualType &type) {
@@ -1944,7 +2022,7 @@ mlir::cir::FuncOp CIRGenModule::GetOrCreateCIRFunction(
   // Any attempts to use a MultiVersion function should result in retrieving the
   // iFunc instead. Name mangling will handle the rest of the changes.
   if (const auto *FD = cast_or_null<FunctionDecl>(D)) {
-    if (getLangOpts().OpenMPIsTargetDevice)
+    if (getLangOpts().OpenMP)
       llvm_unreachable("open MP NYI");
     if (FD->isMultiVersion())
       llvm_unreachable("NYI");
@@ -2367,10 +2445,16 @@ bool CIRGenModule::isInNoSanitizeList(SanitizerMask Kind, mlir::cir::FuncOp Fn,
   // If location is unknown, this may be a compiler-generated function. Assume
   // it's located in the main file.
   auto &SM = getASTContext().getSourceManager();
-  if (const auto *MainFile = SM.getFileEntryForID(SM.getMainFileID())) {
-    return NoSanitizeL.containsFile(Kind, MainFile->getName());
-  }
-  return false;
+  FileEntryRef MainFile = *SM.getFileEntryRefForID(SM.getMainFileID());
+  if (NoSanitizeL.containsFile(Kind, MainFile.getName()))
+    return true;
+
+  // Check "src" prefix.
+  if (Loc.isValid())
+    return NoSanitizeL.containsLocation(Kind, Loc);
+  // If location is unknown, this may be a compiler-generated function. Assume
+  // it's located in the main file.
+  return NoSanitizeL.containsFile(Kind, MainFile.getName());
 }
 
 void CIRGenModule::AddDeferredUnusedCoverageMapping(Decl *D) {
@@ -2483,7 +2567,8 @@ mlir::cir::GlobalOp CIRGenModule::createOrReplaceCXXRuntimeVariable(
 }
 
 bool CIRGenModule::shouldOpportunisticallyEmitVTables() {
-  assert(codeGenOpts.OptimizationLevel == 0 && "NYI");
+  if (codeGenOpts.OptimizationLevel != 0)
+    llvm_unreachable("NYI");
   return codeGenOpts.OptimizationLevel > 0;
 }
 
@@ -2502,9 +2587,8 @@ mlir::Attribute CIRGenModule::getAddrOfRTTIDescriptor(mlir::Location loc,
   // and it's not for EH?
   if ((!ForEH && !getLangOpts().RTTI) || getLangOpts().CUDAIsDevice ||
       (getLangOpts().OpenMP && getLangOpts().OpenMPIsTargetDevice &&
-       getTriple().isNVPTX())) {
+       getTriple().isNVPTX()))
     llvm_unreachable("NYI");
-  }
 
   if (ForEH && Ty->isObjCObjectPointerType() &&
       getLangOpts().ObjCRuntime.isGNUFamily()) {
@@ -2615,7 +2699,8 @@ mlir::cir::SourceLanguage CIRGenModule::getCIRSourceLanguage() {
       opts.CPlusPlus26)
     return CIRLang::CXX;
   if (opts.C99 || opts.C11 || opts.C17 || opts.C23 ||
-      opts.LangStd == ClangStd::lang_c89)
+      opts.LangStd == ClangStd::lang_c89 ||
+      opts.LangStd == ClangStd::lang_gnu89)
     return CIRLang::C;
 
   // TODO(cir): support remaining source languages.

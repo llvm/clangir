@@ -84,6 +84,8 @@ public:
   using Base::getChecked;
   using Base::verify;
 
+  static constexpr StringLiteral name = "cir.struct";
+
   enum RecordKind : uint32_t { Class, Union, Struct };
 
   /// Create a identified and complete struct type.
@@ -160,11 +162,11 @@ public:
                 ASTRecordDeclInterface ast = {});
 
   /// DataLayoutTypeInterface methods.
-  unsigned getTypeSizeInBits(const DataLayout &dataLayout,
-                             DataLayoutEntryListRef params) const;
-  unsigned getABIAlignment(const DataLayout &dataLayout,
+  llvm::TypeSize getTypeSizeInBits(const DataLayout &dataLayout,
+                                   DataLayoutEntryListRef params) const;
+  uint64_t getABIAlignment(const DataLayout &dataLayout,
                            DataLayoutEntryListRef params) const;
-  unsigned getPreferredAlignment(const DataLayout &dataLayout,
+  uint64_t getPreferredAlignment(const DataLayout &dataLayout,
                                  DataLayoutEntryListRef params) const;
 
   // Utilities for lazily computing and cacheing data layout info.

@@ -22,7 +22,7 @@ add_clang_mlir_doc(CIRTypes CIRTypes Dialects/ -gen-typedef-doc)
 # Generate extra headers for custom enum and attrs.
 mlir_tablegen(CIROpsEnums.h.inc -gen-enum-decls)
 mlir_tablegen(CIROpsEnums.cpp.inc -gen-enum-defs)
-mlir_tablegen(CIROpsStructs.h.inc -gen-attrdef-defs)
+mlir_tablegen(CIROpsStructs.h.inc -gen-attrdef-decls)
 mlir_tablegen(CIROpsStructs.cpp.inc -gen-attrdef-defs)
 mlir_tablegen(CIROpsAttributes.h.inc -gen-attrdef-decls)
 mlir_tablegen(CIROpsAttributes.cpp.inc -gen-attrdef-defs)

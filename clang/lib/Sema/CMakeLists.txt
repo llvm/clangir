@@ -76,6 +76,7 @@ add_clang_library(clangSema
   MLIRCIR
 
   LINK_LIBS
+  clangAPINotes
   clangAST
   clangAnalysis
   clangBasic
