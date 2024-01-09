@@ -79,7 +79,7 @@ public:
       Value val = rewriter.create<arith::CmpIOp>(loc, arith::CmpIPredicate::slt,
                                                  bnd, idx);
       Value sel = rewriter.create<arith::SelectOp>(loc, val, trueVal, falseVal);
-      result = rewriter.create<vector::InsertOp>(loc, dstType, sel, result, d);
+      result = rewriter.create<vector::InsertOp>(loc, sel, result, d);
     }
     rewriter.replaceOp(op, result);
     return success();
@@ -151,8 +151,8 @@ public:
     Value result = rewriter.create<arith::ConstantOp>(
         loc, dstType, rewriter.getZeroAttr(dstType));
     for (int64_t d = 0; d < trueDimSize; d++)
-      result =
-          rewriter.create<vector::InsertOp>(loc, dstType, trueVal, result, d);
+      result = rewriter.create<vector::InsertOp>(loc, trueVal, result, d);
+
     rewriter.replaceOp(op, result);
     return success();
   }
@@ -188,7 +188,9 @@ struct MaskOpRewritePattern : OpRewritePattern<MaskOp> {
 private:
   LogicalResult matchAndRewrite(MaskOp maskOp,
                                 PatternRewriter &rewriter) const final {
-    auto maskableOp = cast<MaskableOpInterface>(maskOp.getMaskableOp());
+    auto maskableOp = cast_or_null<MaskableOpInterface>(maskOp.getMaskableOp());
+    if (!maskableOp)
+      return failure();
     SourceOp sourceOp = dyn_cast<SourceOp>(maskableOp.getOperation());
     if (!sourceOp)
       return failure();
@@ -282,6 +284,7 @@ struct LowerVectorMaskPass
 
     RewritePatternSet loweringPatterns(context);
     populateVectorMaskLoweringPatternsForSideEffectingOps(loweringPatterns);
+    MaskOp::getCanonicalizationPatterns(loweringPatterns, context);
 
     if (failed(applyPatternsAndFoldGreedily(op, std::move(loweringPatterns))))
       signalPassFailure();

@@ -13,20 +13,15 @@
 #include "mlir/Conversion/ControlFlowToLLVM/ControlFlowToLLVM.h"
 #include "mlir/Conversion/FuncToLLVM/ConvertFuncToLLVM.h"
 #include "mlir/Conversion/FuncToLLVM/ConvertFuncToLLVMPass.h"
-#include "mlir/Conversion/LLVMCommon/ConversionTarget.h"
 #include "mlir/Conversion/LLVMCommon/TypeConverter.h"
 #include "mlir/Conversion/ReconcileUnrealizedCasts/ReconcileUnrealizedCasts.h"
 #include "mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"
-#include "mlir/Dialect/Affine/IR/AffineOps.h"
-#include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/DLTI/DLTI.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMAttrs.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/LLVMIR/LLVMTypes.h"
 #include "mlir/Dialect/LLVMIR/Transforms/Passes.h"
-#include "mlir/Dialect/SCF/IR/SCF.h"
-#include "mlir/Dialect/SCF/Transforms/Passes.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributeInterfaces.h"
@@ -34,7 +29,6 @@
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
-#include "mlir/IR/IRMapping.h"
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/Types.h"
 #include "mlir/IR/Value.h"
@@ -56,11 +50,9 @@
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/Sequence.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/IR/DataLayout.h"
-#include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -81,13 +73,13 @@ namespace direct {
 inline mlir::Value
 lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::Attribute attr,
                     mlir::ConversionPatternRewriter &rewriter,
-                    mlir::TypeConverter const *converter);
+                    const mlir::TypeConverter *converter);
 
 /// IntAttr visitor.
 inline mlir::Value
 lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::cir::IntAttr intAttr,
                     mlir::ConversionPatternRewriter &rewriter,
-                    mlir::TypeConverter const *converter) {
+                    const mlir::TypeConverter *converter) {
   auto loc = parentOp->getLoc();
   return rewriter.create<mlir::LLVM::ConstantOp>(
       loc, converter->convertType(intAttr.getType()), intAttr.getValue());
@@ -97,24 +89,23 @@ lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::cir::IntAttr intAttr,
 inline mlir::Value
 lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::cir::ConstPtrAttr ptrAttr,
                     mlir::ConversionPatternRewriter &rewriter,
-                    mlir::TypeConverter const *converter) {
+                    const mlir::TypeConverter *converter) {
   auto loc = parentOp->getLoc();
   if (ptrAttr.isNullValue()) {
-    return rewriter.create<mlir::LLVM::NullOp>(
+    return rewriter.create<mlir::LLVM::ZeroOp>(
         loc, converter->convertType(ptrAttr.getType()));
-  } else {
-    mlir::Value ptrVal = rewriter.create<mlir::LLVM::ConstantOp>(
-        loc, rewriter.getI64Type(), ptrAttr.getValue());
-    return rewriter.create<mlir::LLVM::IntToPtrOp>(
-        loc, converter->convertType(ptrAttr.getType()), ptrVal);
   }
+  mlir::Value ptrVal = rewriter.create<mlir::LLVM::ConstantOp>(
+      loc, rewriter.getI64Type(), ptrAttr.getValue());
+  return rewriter.create<mlir::LLVM::IntToPtrOp>(
+      loc, converter->convertType(ptrAttr.getType()), ptrVal);
 }
 
 /// FloatAttr visitor.
 inline mlir::Value
 lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::FloatAttr fltAttr,
                     mlir::ConversionPatternRewriter &rewriter,
-                    mlir::TypeConverter const *converter) {
+                    const mlir::TypeConverter *converter) {
   auto loc = parentOp->getLoc();
   return rewriter.create<mlir::LLVM::ConstantOp>(
       loc, converter->convertType(fltAttr.getType()), fltAttr.getValue());
@@ -124,7 +115,7 @@ lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::FloatAttr fltAttr,
 inline mlir::Value
 lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::cir::ZeroAttr zeroAttr,
                     mlir::ConversionPatternRewriter &rewriter,
-                    mlir::TypeConverter const *converter) {
+                    const mlir::TypeConverter *converter) {
   auto loc = parentOp->getLoc();
   return rewriter.create<mlir::cir::ZeroInitConstOp>(
       loc, converter->convertType(zeroAttr.getType()));
@@ -134,7 +125,7 @@ lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::cir::ZeroAttr zeroAttr,
 mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
                                 mlir::cir::ConstStructAttr constStruct,
                                 mlir::ConversionPatternRewriter &rewriter,
-                                mlir::TypeConverter const *converter) {
+                                const mlir::TypeConverter *converter) {
   auto llvmTy = converter->convertType(constStruct.getType());
   auto loc = parentOp->getLoc();
   mlir::Value result = rewriter.create<mlir::LLVM::UndefOp>(loc, llvmTy);
@@ -152,7 +143,7 @@ mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
 mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
                                 mlir::cir::VTableAttr vtableArr,
                                 mlir::ConversionPatternRewriter &rewriter,
-                                mlir::TypeConverter *converter) {
+                                const mlir::TypeConverter *converter) {
   auto llvmTy = converter->convertType(vtableArr.getType());
   auto loc = parentOp->getLoc();
   mlir::Value result = rewriter.create<mlir::LLVM::UndefOp>(loc, llvmTy);
@@ -169,7 +160,7 @@ mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
 mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
                                 mlir::cir::TypeInfoAttr typeinfoArr,
                                 mlir::ConversionPatternRewriter &rewriter,
-                                mlir::TypeConverter *converter) {
+                                const mlir::TypeConverter *converter) {
   auto llvmTy = converter->convertType(typeinfoArr.getType());
   auto loc = parentOp->getLoc();
   mlir::Value result = rewriter.create<mlir::LLVM::UndefOp>(loc, llvmTy);
@@ -186,7 +177,7 @@ mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
 mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
                                 mlir::cir::ConstArrayAttr constArr,
                                 mlir::ConversionPatternRewriter &rewriter,
-                                mlir::TypeConverter const *converter) {
+                                const mlir::TypeConverter *converter) {
   auto llvmTy = converter->convertType(constArr.getType());
   auto loc = parentOp->getLoc();
   mlir::Value result = rewriter.create<mlir::LLVM::UndefOp>(loc, llvmTy);
@@ -223,11 +214,12 @@ mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
 mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
                                 mlir::cir::GlobalViewAttr globalAttr,
                                 mlir::ConversionPatternRewriter &rewriter,
-                                mlir::TypeConverter const *converter) {
+                                const mlir::TypeConverter *converter) {
   auto module = parentOp->getParentOfType<mlir::ModuleOp>();
   mlir::Type sourceType;
   llvm::StringRef symName;
-  auto sourceSymbol = mlir::SymbolTable::lookupSymbolIn(module, globalAttr.getSymbol());
+  auto *sourceSymbol =
+      mlir::SymbolTable::lookupSymbolIn(module, globalAttr.getSymbol());
   if (auto llvmSymbol = dyn_cast<mlir::LLVM::GlobalOp>(sourceSymbol)) {
     sourceType = llvmSymbol.getType();
     symName = llvmSymbol.getSymName();
@@ -237,6 +229,9 @@ mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
   } else if (auto llvmFun = dyn_cast<mlir::LLVM::LLVMFuncOp>(sourceSymbol)) {
     sourceType = llvmFun.getFunctionType();
     symName = llvmFun.getSymName();
+  } else if (auto fun = dyn_cast<mlir::cir::FuncOp>(sourceSymbol)) {
+    sourceType = converter->convertType(fun.getFunctionType());
+    symName = fun.getSymName();
   } else {
     llvm_unreachable("Unexpected GlobalOp type");
   }
@@ -247,10 +242,10 @@ mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
 
   if (globalAttr.getIndices()) {
     llvm::SmallVector<mlir::LLVM::GEPArg> indices;
-    for (auto idx: globalAttr.getIndices()) {
-      auto intAttr = dyn_cast<mlir::cir::IntAttr>(idx);
+    for (auto idx : globalAttr.getIndices()) {
+      auto intAttr = dyn_cast<mlir::IntegerAttr>(idx);
       assert(intAttr && "index must be integers");
-      indices.push_back(intAttr.getSInt());
+      indices.push_back(intAttr.getValue().getSExtValue());
     }
     auto resTy = addrOp.getType();
     auto eltTy = converter->convertType(sourceType);
@@ -274,7 +269,7 @@ mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
 inline mlir::Value
 lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::Attribute attr,
                     mlir::ConversionPatternRewriter &rewriter,
-                    mlir::TypeConverter const *converter) {
+                    const mlir::TypeConverter *converter) {
   if (const auto intAttr = attr.dyn_cast<mlir::cir::IntAttr>())
     return lowerCirAttrAsValue(parentOp, intAttr, rewriter, converter);
   if (const auto fltAttr = attr.dyn_cast<mlir::FloatAttr>())
@@ -328,6 +323,35 @@ mlir::LLVM::Linkage convertLinkage(mlir::cir::GlobalLinkageKind linkage) {
     return LLVM::WeakODR;
   };
 }
+
+static void lowerNestedYield(mlir::cir::YieldOpKind targetKind,
+                             mlir::ConversionPatternRewriter &rewriter,
+                             mlir::Region &body,
+                             mlir::Block *dst) {
+  // top-level yields are lowered in matchAndRewrite of the parent operations
+  auto isNested = [&](mlir::Operation *op) {
+    return op->getParentRegion() != &body;
+  };
+
+  body.walk<mlir::WalkOrder::PreOrder>(
+    [&](mlir::Operation *op) {
+      if (!isNested(op))
+        return mlir::WalkResult::advance();
+
+      // don't process breaks/continues in nested loops and switches
+      if (isa<mlir::cir::LoopOp, mlir::cir::SwitchOp>(*op))
+        return mlir::WalkResult::skip();
+
+      auto yield = dyn_cast<mlir::cir::YieldOp>(*op);
+      if (yield && yield.getKind() == targetKind) {
+        rewriter.setInsertionPoint(op);
+        rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(op, yield.getArgs(), dst);
+      }
+
+      return mlir::WalkResult::advance();
+    });
+}
+
 
 class CIRCopyOpLowering : public mlir::OpConversionPattern<mlir::cir::CopyOp> {
 public:
@@ -403,47 +427,6 @@ public:
     return mlir::success();
   }
 
-  void makeYieldIf(mlir::cir::YieldOpKind kind, mlir::cir::YieldOp &op,
-                   mlir::Block *to,
-                   mlir::ConversionPatternRewriter &rewriter) const {
-    if (op.getKind() == kind) {
-      rewriter.setInsertionPoint(op);
-      rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(op, op.getArgs(), to);
-    }
-  }
-
-  void
-  lowerNestedBreakContinue(mlir::Region &loopBody, mlir::Block *exitBlock,
-                           mlir::Block *continueBlock,
-                           mlir::ConversionPatternRewriter &rewriter) const {
-
-    auto processBreak = [&](mlir::Operation *op) {
-      if (isa<mlir::cir::LoopOp, mlir::cir::SwitchOp>(
-              *op)) // don't process breaks in nested loops and switches
-        return mlir::WalkResult::skip();
-
-      if (auto yield = dyn_cast<mlir::cir::YieldOp>(*op))
-        makeYieldIf(mlir::cir::YieldOpKind::Break, yield, exitBlock, rewriter);
-
-      return mlir::WalkResult::advance();
-    };
-
-    auto processContinue = [&](mlir::Operation *op) {
-      if (isa<mlir::cir::LoopOp>(
-              *op)) // don't process continues in nested loops
-        return mlir::WalkResult::skip();
-
-      if (auto yield = dyn_cast<mlir::cir::YieldOp>(*op))
-        makeYieldIf(mlir::cir::YieldOpKind::Continue, yield, continueBlock,
-                    rewriter);
-
-      return mlir::WalkResult::advance();
-    };
-
-    loopBody.walk<mlir::WalkOrder::PreOrder>(processBreak);
-    loopBody.walk<mlir::WalkOrder::PreOrder>(processContinue);
-  }
-
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::LoopOp loopOp, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
@@ -473,7 +456,10 @@ public:
         dyn_cast<mlir::cir::YieldOp>(stepRegion.back().getTerminator());
     auto &stepBlock = (kind == LoopKind::For ? stepFrontBlock : condFrontBlock);
 
-    lowerNestedBreakContinue(bodyRegion, continueBlock, &stepBlock, rewriter);
+    lowerNestedYield(mlir::cir::YieldOpKind::Break,
+                     rewriter, bodyRegion, continueBlock);
+    lowerNestedYield(mlir::cir::YieldOpKind::Continue,
+                     rewriter, bodyRegion, &stepBlock);
 
     // Move loop op region contents to current CFG.
     rewriter.inlineRegionBefore(condRegion, continueBlock);
@@ -498,7 +484,10 @@ public:
 
     // Branch from body to condition or to step on for-loop cases.
     rewriter.setInsertionPoint(bodyYield);
-    rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(bodyYield, &stepBlock);
+    auto bodyYieldDest = bodyYield.getKind() == mlir::cir::YieldOpKind::Break
+                             ? continueBlock
+                             : &stepBlock;
+    rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(bodyYield, bodyYieldDest);
 
     // Is a for loop: branch from step to condition.
     if (kind == LoopKind::For) {
@@ -705,7 +694,7 @@ public:
   }
 };
 
-static bool isLoopYield(mlir::cir::YieldOp &op) {
+static bool isBreakOrContinue(mlir::cir::YieldOp &op) {
   return op.getKind() == mlir::cir::YieldOpKind::Break ||
          op.getKind() == mlir::cir::YieldOpKind::Continue;
 }
@@ -738,8 +727,8 @@ public:
     rewriter.setInsertionPointToEnd(thenAfterBody);
     if (auto thenYieldOp =
             dyn_cast<mlir::cir::YieldOp>(thenAfterBody->getTerminator())) {
-      if (!isLoopYield(thenYieldOp)) // lowering of parent loop yields is
-                                     // deferred to loop lowering
+      if (!isBreakOrContinue(thenYieldOp)) // lowering of parent loop yields is
+                                           // deferred to loop lowering
         rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(
             thenYieldOp, thenYieldOp.getArgs(), continueBlock);
     } else if (!dyn_cast<mlir::cir::ReturnOp>(thenAfterBody->getTerminator())) {
@@ -769,8 +758,8 @@ public:
       rewriter.setInsertionPointToEnd(elseAfterBody);
       if (auto elseYieldOp =
               dyn_cast<mlir::cir::YieldOp>(elseAfterBody->getTerminator())) {
-        if (!isLoopYield(elseYieldOp)) // lowering of parent loop yields is
-                                       // deferred to loop lowering
+        if (!isBreakOrContinue(elseYieldOp)) // lowering of parent loop yields is
+                                             // deferred to loop lowering
           rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(
               elseYieldOp, elseYieldOp.getArgs(), continueBlock);
       } else if (!dyn_cast<mlir::cir::ReturnOp>(
@@ -802,7 +791,8 @@ public:
       return mlir::success();
     }
 
-    // Split the current block before the ScopeOp to create the inlining point.
+    // Split the current block before the ScopeOp to create the inlining
+    // point.
     auto *currentBlock = rewriter.getInsertionBlock();
     auto *remainingOpsBlock =
         rewriter.splitBlock(currentBlock, rewriter.getInsertionPoint());
@@ -828,12 +818,16 @@ public:
     // Replace the scopeop return with a branch that jumps out of the body.
     // Stack restore before leaving the body region.
     rewriter.setInsertionPointToEnd(afterBody);
-    auto yieldOp = cast<mlir::cir::YieldOp>(afterBody->getTerminator());
-    auto branchOp = rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(
-        yieldOp, yieldOp.getArgs(), continueBlock);
+    auto yieldOp = dyn_cast<mlir::cir::YieldOp>(afterBody->getTerminator());
 
-    // // Insert stack restore before jumping out of the body of the region.
-    rewriter.setInsertionPoint(branchOp);
+    if (yieldOp && !isBreakOrContinue(yieldOp)) {
+      auto branchOp = rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(
+          yieldOp, yieldOp.getArgs(), continueBlock);
+
+      // // Insert stack restore before jumping out of the body of the region.
+      rewriter.setInsertionPoint(branchOp);
+    }
+
     // TODO(CIR): stackrestore?
     // rewriter.create<mlir::LLVM::StackRestoreOp>(loc, stackSaveOp);
 
@@ -879,12 +873,28 @@ public:
                   mlir::ConversionPatternRewriter &rewriter) const override {
     llvm::SmallVector<mlir::Type, 8> llvmResults;
     auto cirResults = op.getResultTypes();
+    auto* converter = getTypeConverter();
 
-    if (getTypeConverter()->convertTypes(cirResults, llvmResults).failed())
+    if (converter->convertTypes(cirResults, llvmResults).failed())
       return mlir::failure();
 
-    rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(
+    if (auto callee = op.getCalleeAttr()) { // direct call      
+      rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(
         op, llvmResults, op.getCalleeAttr(), adaptor.getOperands());
+    } else { // indirect call
+      assert(op.getOperands().size() 
+        && "operands list must no be empty for the indirect call");
+      auto typ = op.getOperands().front().getType();      
+      assert(isa<mlir::cir::PointerType>(typ) && "expected pointer type");
+      auto ptyp = dyn_cast<mlir::cir::PointerType>(typ);
+      auto ftyp = dyn_cast<mlir::cir::FuncType>(ptyp.getPointee());
+      assert(ftyp && "expected a pointer to a function as the first operand");
+     
+      rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(
+          op,
+          dyn_cast<mlir::LLVM::LLVMFunctionType>(converter->convertType(ftyp)),
+          adaptor.getOperands());
+    }
     return mlir::success();
   }
 };
@@ -897,13 +907,17 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::AllocaOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    mlir::Value one = rewriter.create<mlir::LLVM::ConstantOp>(
-        op.getLoc(), typeConverter->convertType(rewriter.getIndexType()),
-        rewriter.getIntegerAttr(rewriter.getIndexType(), 1));
+    mlir::Value size =
+        op.isDynamic()
+            ? adaptor.getDynAllocSize()
+            : rewriter.create<mlir::LLVM::ConstantOp>(
+                  op.getLoc(),
+                  typeConverter->convertType(rewriter.getIndexType()),
+                  rewriter.getIntegerAttr(rewriter.getIndexType(), 1));
     auto elementTy = getTypeConverter()->convertType(op.getAllocaType());
     auto resultTy = mlir::LLVM::LLVMPointerType::get(getContext());
     rewriter.replaceOpWithNewOp<mlir::LLVM::AllocaOp>(
-        op, resultTy, elementTy, one, op.getAlignmentAttr().getInt());
+        op, resultTy, elementTy, size, op.getAlignmentAttr().getInt());
     return mlir::success();
   }
 };
@@ -978,7 +992,7 @@ convertToDenseElementsAttr(mlir::cir::ConstArrayAttr attr,
 
 std::optional<mlir::Attribute>
 lowerConstArrayAttr(mlir::cir::ConstArrayAttr constArr,
-                    mlir::TypeConverter const *converter) {
+                    const mlir::TypeConverter *converter) {
 
   // Ensure ConstArrayAttr has a type.
   auto typedConstArr = constArr.dyn_cast<mlir::TypedAttr>();
@@ -1037,10 +1051,16 @@ public:
       // Optimize with dedicated LLVM op for null pointers.
       if (op.getValue().isa<mlir::cir::ConstPtrAttr>()) {
         if (op.getValue().cast<mlir::cir::ConstPtrAttr>().isNullValue()) {
-          rewriter.replaceOpWithNewOp<mlir::LLVM::NullOp>(
+          rewriter.replaceOpWithNewOp<mlir::LLVM::ZeroOp>(
               op, typeConverter->convertType(op.getType()));
           return mlir::success();
         }
+      }
+      // Lower GlobalViewAttr to llvm.mlir.addressof
+      if (auto gv = op.getValue().dyn_cast<mlir::cir::GlobalViewAttr>()) {
+        auto newOp = lowerCirAttrAsValue(op, gv, rewriter, getTypeConverter());
+        rewriter.replaceOp(op, newOp);
+        return mlir::success();
       }
       attr = op.getValue();
     }
@@ -1049,19 +1069,25 @@ public:
     // then memcopyied into the stack (as done in Clang).
     else if (auto arrTy = op.getType().dyn_cast<mlir::cir::ArrayType>()) {
       // Fetch operation constant array initializer.
-      auto constArr = op.getValue().dyn_cast<mlir::cir::ConstArrayAttr>();
-      if (!constArr)
-        return op.emitError() << "array does not have a constant initializer";
+      if (auto constArr = op.getValue().dyn_cast<mlir::cir::ConstArrayAttr>()) {
+        // Lower constant array initializer.
+        auto denseAttr = lowerConstArrayAttr(constArr, typeConverter);
+        if (!denseAttr.has_value()) {
+          op.emitError()
+              << "unsupported lowering for #cir.const_array with element type "
+              << arrTy.getEltType();
+          return mlir::failure();
+        }
 
-      // Lower constant array initializer.
-      auto denseAttr = lowerConstArrayAttr(constArr, typeConverter);
-      if (!denseAttr.has_value()) {
-        op.emitError()
-            << "unsupported lowering for #cir.const_array with element type "
-            << arrTy.getEltType();
-        return mlir::failure();
+        attr = denseAttr.value();
+      } else if (auto zero = op.getValue().dyn_cast<mlir::cir::ZeroAttr>()) {
+        auto initVal = lowerCirAttrAsValue(op, zero, rewriter, typeConverter);
+        rewriter.replaceAllUsesWith(op, initVal);
+        rewriter.eraseOp(op);
+        return mlir::success();
+      } else {
+        return op.emitError() << "array does not have a constant initializer";
       }
-      attr = denseAttr.value();
     } else if (const auto structAttr =
                    op.getValue().dyn_cast<mlir::cir::ConstStructAttr>()) {
       // TODO(cir): this diverges from traditional lowering. Normally the
@@ -1075,21 +1101,62 @@ public:
       return mlir::success();
     } else if (auto strTy = op.getType().dyn_cast<mlir::cir::StructType>()) {
       if (auto zero = op.getValue().dyn_cast<mlir::cir::ZeroAttr>()) {
-        auto initVal =
-          lowerCirAttrAsValue(op, zero, rewriter, typeConverter);
+        auto initVal = lowerCirAttrAsValue(op, zero, rewriter, typeConverter);
         rewriter.replaceAllUsesWith(op, initVal);
         rewriter.eraseOp(op);
         return mlir::success();
       }
 
-      return op.emitError()
-        << "unsupported lowering for struct constant type " << op.getType();
+      return op.emitError() << "unsupported lowering for struct constant type "
+                            << op.getType();
     } else
       return op.emitError() << "unsupported constant type " << op.getType();
 
     rewriter.replaceOpWithNewOp<mlir::LLVM::ConstantOp>(
         op, getTypeConverter()->convertType(op.getType()), attr);
 
+    return mlir::success();
+  }
+};
+
+class CIRVectorCreateLowering
+    : public mlir::OpConversionPattern<mlir::cir::VecCreateOp> {
+public:
+  using OpConversionPattern<mlir::cir::VecCreateOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::VecCreateOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    // Start with an 'undef' value for the vector.  Then 'insertelement' for
+    // each of the vector elements.
+    auto vecTy = op.getType().dyn_cast<mlir::cir::VectorType>();
+    assert(vecTy && "result type of cir.vec op is not VectorType");
+    auto llvmTy = typeConverter->convertType(vecTy);
+    auto loc = op.getLoc();
+    mlir::Value result = rewriter.create<mlir::LLVM::UndefOp>(loc, llvmTy);
+    assert(vecTy.getSize() == op.getElements().size() &&
+           "cir.vec operands count doesn't match vector type elements count");
+    for (uint64_t i = 0; i < vecTy.getSize(); ++i) {
+      mlir::Value indexValue = rewriter.create<mlir::LLVM::ConstantOp>(
+          loc, rewriter.getI64Type(), i);
+      result = rewriter.create<mlir::LLVM::InsertElementOp>(
+          loc, result, adaptor.getElements()[i], indexValue);
+    }
+    rewriter.replaceOp(op, result);
+    return mlir::success();
+  }
+};
+
+class CIRVectorExtractLowering
+    : public mlir::OpConversionPattern<mlir::cir::VecExtractOp> {
+public:
+  using OpConversionPattern<mlir::cir::VecExtractOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::VecExtractOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOpWithNewOp<mlir::LLVM::ExtractElementOp>(
+        op, adaptor.getVec(), adaptor.getIndex());
     return mlir::success();
   }
 };
@@ -1158,13 +1225,13 @@ class CIRFuncLowering : public mlir::OpConversionPattern<mlir::cir::FuncOp> {
 public:
   using OpConversionPattern<mlir::cir::FuncOp>::OpConversionPattern;
 
-  /// Returns the name used for the linkage attribute. This *must* correspond to
-  /// the name of the attribute in ODS.
+  /// Returns the name used for the linkage attribute. This *must* correspond
+  /// to the name of the attribute in ODS.
   static StringRef getLinkageAttrNameString() { return "linkage"; }
 
   /// Only retain those attributes that are not constructed by
-  /// `LLVMFuncOp::build`. If `filterArgAttrs` is set, also filter out argument
-  /// attributes.
+  /// `LLVMFuncOp::build`. If `filterArgAttrs` is set, also filter out
+  /// argument attributes.
   void
   filterFuncAttributes(mlir::cir::FuncOp func, bool filterArgAndResAttrs,
                        SmallVectorImpl<mlir::NamedAttribute> &result) const {
@@ -1246,8 +1313,8 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::GetGlobalOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    // FIXME(cir): Premature DCE to avoid lowering stuff we're not using. CIRGen
-    // should mitigate this and not emit the get_global.
+    // FIXME(cir): Premature DCE to avoid lowering stuff we're not using.
+    // CIRGen should mitigate this and not emit the get_global.
     if (op->getUses().empty()) {
       rewriter.eraseOp(op);
       return mlir::success();
@@ -1287,7 +1354,8 @@ public:
     auto *exitBlock =
         rewriter.splitBlock(rewriter.getBlock(), rewriter.getInsertionPoint());
 
-    // Allocate required data structures (disconsider default case in vectors).
+    // Allocate required data structures (disconsider default case in
+    // vectors).
     llvm::SmallVector<mlir::APInt, 8> caseValues;
     llvm::SmallVector<mlir::Block *, 8> caseDestinations;
     llvm::SmallVector<mlir::ValueRange, 8> caseOperands;
@@ -1323,33 +1391,37 @@ public:
         fallthroughYieldOp = nullptr;
       }
 
-      // TODO(cir): Handle multi-block case statements.
-      if (region.getBlocks().size() != 1)
-        return op->emitError("multi-block case statement is NYI");
+      for (auto& blk : region.getBlocks()) {
+        if (blk.getNumSuccessors())
+          continue;
 
-      // Handle switch-case yields.
-      auto *terminator = region.front().getTerminator();
-      if (auto yieldOp = dyn_cast<mlir::cir::YieldOp>(terminator)) {
-        // TODO(cir): Ensure every yield instead of dealing with optional
-        // values.
-        assert(yieldOp.getKind().has_value() && "switch yield has no kind");
+        // Handle switch-case yields.
+        auto *terminator = blk.getTerminator();
+        if (auto yieldOp = dyn_cast<mlir::cir::YieldOp>(terminator)) {
+          // TODO(cir): Ensure every yield instead of dealing with optional
+          // values.
+          assert(yieldOp.getKind().has_value() && "switch yield has no kind");
 
-        switch (yieldOp.getKind().value()) {
-        // Fallthrough to next case: track it for the next case to handle.
-        case mlir::cir::YieldOpKind::Fallthrough:
-          fallthroughYieldOp = yieldOp;
-          break;
-        // Break out of switch: branch to exit block.
-        case mlir::cir::YieldOpKind::Break:
-          rewriteYieldOp(rewriter, yieldOp, exitBlock);
-          break;
-        case mlir::cir::YieldOpKind::Continue: // Continue is handled only in
-                                               // loop lowering
-          break;
-        default:
-          return op->emitError("invalid yield kind in case statement");
+          switch (yieldOp.getKind().value()) {
+          // Fallthrough to next case: track it for the next case to handle.
+          case mlir::cir::YieldOpKind::Fallthrough:
+            fallthroughYieldOp = yieldOp;
+            break;
+          // Break out of switch: branch to exit block.
+          case mlir::cir::YieldOpKind::Break:
+            rewriteYieldOp(rewriter, yieldOp, exitBlock);
+            break;
+          case mlir::cir::YieldOpKind::Continue: // Continue is handled only in
+                                                // loop lowering
+            break;
+          default:
+            return op->emitError("invalid yield kind in case statement");
+          }
         }
       }
+
+      lowerNestedYield(mlir::cir::YieldOpKind::Break,
+                       rewriter, region, exitBlock);
 
       // Extract region contents before erasing the switch op.
       rewriter.inlineRegionBefore(region, exitBlock);
@@ -1401,8 +1473,8 @@ public:
 
     // Check for missing funcionalities.
     if (!init.has_value()) {
-      rewriter.replaceOpWithNewOp<mlir::LLVM::GlobalOp>(op, llvmType, isConst,
-                                                        linkage, symbol, mlir::Attribute());
+      rewriter.replaceOpWithNewOp<mlir::LLVM::GlobalOp>(
+          op, llvmType, isConst, linkage, symbol, mlir::Attribute());
       return mlir::success();
     }
 
@@ -1427,7 +1499,8 @@ public:
         return mlir::failure();
       }
     } else if (llvm::isa<mlir::FloatAttr>(init.value())) {
-      // Nothing to do since LLVM already supports these types as initializers.
+      // Nothing to do since LLVM already supports these types as
+      // initializers.
     }
     // Initializer is a constant integer: convert to MLIR builtin constant.
     else if (auto intAttr = init.value().dyn_cast<mlir::cir::IntAttr>()) {
@@ -1596,12 +1669,16 @@ public:
     assert((op.getLhs().getType() == op.getRhs().getType()) &&
            "inconsistent operands' types not supported yet");
     mlir::Type type = op.getRhs().getType();
-    assert((type.isa<mlir::cir::IntType, mlir::FloatType>()) &&
+    assert((type.isa<mlir::cir::IntType, mlir::FloatType,
+                     mlir::cir::VectorType>()) &&
            "operand type not supported yet");
 
     auto llvmTy = getTypeConverter()->convertType(op.getType());
     auto rhs = adaptor.getRhs();
     auto lhs = adaptor.getLhs();
+
+    if (type.isa<mlir::cir::VectorType>())
+      type = type.dyn_cast<mlir::cir::VectorType>().getEltType();
 
     switch (op.getKind()) {
     case mlir::cir::BinOpKind::Add:
@@ -1859,7 +1936,8 @@ public:
     assert(structTy && "expected struct type");
 
     switch (structTy.getKind()) {
-    case mlir::cir::StructType::Struct: {
+    case mlir::cir::StructType::Struct:
+    case mlir::cir::StructType::Class: {
       // Since the base address is a pointer to an aggregate, the first offset
       // is always zero. The second offset tell us which member it will access.
       llvm::SmallVector<mlir::LLVM::GEPArg, 2> offset{0, op.getIndex()};
@@ -1874,9 +1952,6 @@ public:
       rewriter.replaceOpWithNewOp<mlir::LLVM::BitcastOp>(op, llResTy,
                                                          adaptor.getAddr());
       return mlir::success();
-    default:
-      return op.emitError()
-             << "struct kind '" << structTy.getKind() << "' is NYI";
     }
   }
 };
@@ -1942,7 +2017,7 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::VTableAddrPointOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    auto converter = getTypeConverter();
+    const auto *converter = getTypeConverter();
     auto targetType = converter->convertType(op.getType());
     mlir::Value symAddr = op.getSymAddr();
 
@@ -1963,8 +2038,35 @@ public:
       rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(op, targetType, eltType,
                                                      symAddr, offsets, true);
     else
-      rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(op, targetType, symAddr,
-                                                     offsets, true);
+      llvm_unreachable("Shouldn't ever be missing an eltType here");
+
+    return mlir::success();
+  }
+};
+
+class CIRStackSaveLowering : public mlir::OpConversionPattern<mlir::cir::StackSaveOp> {
+public:
+  using OpConversionPattern<mlir::cir::StackSaveOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::StackSaveOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto ptrTy = getTypeConverter()->convertType(op.getType());
+    rewriter.replaceOpWithNewOp<mlir::LLVM::StackSaveOp>(op, ptrTy);
+    return mlir::success();
+  }
+};
+
+class CIRStackRestoreLowering : public mlir::OpConversionPattern<mlir::cir::StackRestoreOp> {
+public:
+  using OpConversionPattern<mlir::cir::StackRestoreOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::StackRestoreOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOpWithNewOp<mlir::LLVM::StackRestoreOp>(
+        op,
+        adaptor.getPtr());
     return mlir::success();
   }
 };
@@ -1982,13 +2084,15 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
                CIRVAArgLowering, CIRBrOpLowering, CIRTernaryOpLowering,
                CIRGetMemberOpLowering, CIRSwitchOpLowering,
                CIRPtrDiffOpLowering, CIRCopyOpLowering, CIRMemCpyOpLowering,
-               CIRFAbsOpLowering, CIRVTableAddrPointOpLowering>(
+               CIRFAbsOpLowering, CIRVTableAddrPointOpLowering,
+               CIRVectorCreateLowering, CIRVectorExtractLowering,
+               CIRStackSaveLowering, CIRStackRestoreLowering>(
       converter, patterns.getContext());
 }
 
 namespace {
-void prepareTypeConverter(mlir::LLVMTypeConverter& converter,
-                                             mlir::DataLayout &dataLayout) {
+void prepareTypeConverter(mlir::LLVMTypeConverter &converter,
+                          mlir::DataLayout &dataLayout) {
   converter.addConversion([&](mlir::cir::PointerType type) -> mlir::Type {
     // Drop pointee type since LLVM dialect only allows opaque pointers.
     return mlir::LLVM::LLVMPointerType::get(type.getContext());
@@ -1996,6 +2100,10 @@ void prepareTypeConverter(mlir::LLVMTypeConverter& converter,
   converter.addConversion([&](mlir::cir::ArrayType type) -> mlir::Type {
     auto ty = converter.convertType(type.getEltType());
     return mlir::LLVM::LLVMArrayType::get(ty, type.getSize());
+  });
+  converter.addConversion([&](mlir::cir::VectorType type) -> mlir::Type {
+    auto ty = converter.convertType(type.getEltType());
+    return mlir::LLVM::getFixedVectorType(ty, type.getSize());
   });
   converter.addConversion([&](mlir::cir::BoolType type) -> mlir::Type {
     return mlir::IntegerType::get(type.getContext(), 8,
@@ -2035,7 +2143,7 @@ void prepareTypeConverter(mlir::LLVMTypeConverter& converter,
 
     // Struct has a name: lower as an identified struct.
     mlir::LLVM::LLVMStructType llvmStruct;
-    if (type.getName().size() != 0) {
+    if (type.getName()) {
       llvmStruct = mlir::LLVM::LLVMStructType::getIdentified(
           type.getContext(), type.getPrefixedName());
       if (llvmStruct.setBody(llvmMembers, /*isPacked=*/type.getPacked())
@@ -2100,19 +2208,19 @@ static void buildCtorList(mlir::ModuleOp module) {
   newGlobalOp.getRegion().push_back(new mlir::Block());
   builder.setInsertionPointToEnd(newGlobalOp.getInitializerBlock());
 
-  mlir::Value result = builder.create<mlir::LLVM::UndefOp>(
-      loc, CtorStructArrayTy);
+  mlir::Value result =
+      builder.create<mlir::LLVM::UndefOp>(loc, CtorStructArrayTy);
 
   for (uint64_t I = 0; I < globalCtors.size(); I++) {
     auto fn = globalCtors[I];
     mlir::Value structInit =
         builder.create<mlir::LLVM::UndefOp>(loc, CtorStructTy);
-    mlir::Value initPriority =
-        builder.create<mlir::LLVM::ConstantOp>(loc, CtorStructFields[0], fn.second);
+    mlir::Value initPriority = builder.create<mlir::LLVM::ConstantOp>(
+        loc, CtorStructFields[0], fn.second);
     mlir::Value initFuncAddr = builder.create<mlir::LLVM::AddressOfOp>(
         loc, CtorStructFields[1], fn.first);
     mlir::Value initAssociate =
-        builder.create<mlir::LLVM::NullOp>(loc, CtorStructFields[2]);
+        builder.create<mlir::LLVM::ZeroOp>(loc, CtorStructFields[2]);
     structInit = builder.create<mlir::LLVM::InsertValueOp>(loc, structInit,
                                                            initPriority, 0);
     structInit = builder.create<mlir::LLVM::InsertValueOp>(loc, structInit,

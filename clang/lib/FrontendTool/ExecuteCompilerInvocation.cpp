@@ -324,7 +324,7 @@ bool ExecuteCompilerInvocation(CompilerInstance *Clang) {
     mlir::registerAsmPrinterCLOptions();
     unsigned NumArgs = Clang->getFrontendOpts().MLIRArgs.size();
     auto Args = std::make_unique<const char *[]>(NumArgs + 2);
-    Args[0] = "ClangIR (MLIR option parsing)";
+    Args[0] = "clang (MLIR option parsing)";
     for (unsigned i = 0; i != NumArgs; ++i)
       Args[i + 1] = Clang->getFrontendOpts().MLIRArgs[i].c_str();
     Args[NumArgs + 1] = nullptr;

@@ -441,30 +441,9 @@ static void emitConstructorDestructorAlias(CIRGenModule &CGM,
   auto Aliasee =
       dyn_cast_or_null<mlir::cir::FuncOp>(CGM.GetAddrOfGlobal(TargetDecl));
   assert(Aliasee && "expected cir.func");
-  auto *AliasFD = dyn_cast<FunctionDecl>(AliasDecl.getDecl());
-  assert(AliasFD && "expected FunctionDecl");
 
   // Populate actual alias.
-  auto Alias =
-      CGM.createCIRFunction(CGM.getLoc(AliasDecl.getDecl()->getSourceRange()),
-                            MangledName, Aliasee.getFunctionType(), AliasFD);
-  Alias.setAliasee(Aliasee.getName());
-  Alias.setLinkage(Linkage);
-  mlir::SymbolTable::setSymbolVisibility(
-      Alias, CGM.getMLIRVisibilityFromCIRLinkage(Linkage));
-
-  // Alias constructors and destructors are always unnamed_addr.
-  assert(!UnimplementedFeature::unnamedAddr());
-
-  // Switch any previous uses to the alias.
-  if (Entry) {
-    llvm_unreachable("NYI");
-  } else {
-    // Name already set by createCIRFunction
-  }
-
-  // Finally, set up the alias with its proper name and attributes.
-  CGM.setCommonAttributes(AliasDecl, Alias);
+  CGM.buildAliasForGlobal(MangledName, Entry, AliasDecl, Aliasee, Linkage);
 }
 
 void CIRGenItaniumCXXABI::buildCXXStructor(GlobalDecl GD) {
@@ -501,7 +480,8 @@ void CIRGenItaniumCXXABI::buildCXXStructor(GlobalDecl GD) {
   // destructor, there are no fields with a non-trivial destructor, and the body
   // of the destructor is trivial.
   if (DD && GD.getDtorType() == Dtor_Base &&
-      CIRGenType != StructorCIRGen::COMDAT)
+      CIRGenType != StructorCIRGen::COMDAT &&
+      !CGM.tryEmitBaseDestructorAsAlias(DD))
     return;
 
   // FIXME: The deleting destructor is equivalent to the selected operator
@@ -1174,14 +1154,14 @@ static mlir::cir::GlobalLinkageKind getTypeInfoLinkage(CIRGenModule &CGM,
     return mlir::cir::GlobalLinkageKind::InternalLinkage;
 
   switch (Ty->getLinkage()) {
-  case NoLinkage:
-  case InternalLinkage:
-  case UniqueExternalLinkage:
+  case Linkage::None:
+  case Linkage::Internal:
+  case Linkage::UniqueExternal:
     return mlir::cir::GlobalLinkageKind::InternalLinkage;
 
-  case VisibleNoLinkage:
-  case ModuleLinkage:
-  case ExternalLinkage:
+  case Linkage::VisibleNone:
+  case Linkage::Module:
+  case Linkage::External:
     // RTTI is not enabled, which means that this type info struct is going
     // to be used for exception handling. Give it linkonce_odr linkage.
     if (!CGM.getLangOpts().RTTI)
@@ -1204,6 +1184,8 @@ static mlir::cir::GlobalLinkageKind getTypeInfoLinkage(CIRGenModule &CGM,
     }
 
     return mlir::cir::GlobalLinkageKind::LinkOnceODRLinkage;
+  case Linkage::Invalid:
+    llvm_unreachable("Invalid linkage!");
   }
 
   llvm_unreachable("Invalid linkage!");
@@ -1381,9 +1363,8 @@ void CIRGenItaniumRTTIBuilder::BuildVTablePointer(mlir::Location loc,
                                    CGM.getBuilder().getUInt8PtrTy());
   }
 
-  assert(!UnimplementedFeature::setDSOLocal());
-  auto PtrDiffTy =
-      CGM.getTypes().ConvertType(CGM.getASTContext().getPointerDiffType());
+  if (UnimplementedFeature::setDSOLocal())
+    llvm_unreachable("NYI");
 
   // The vtable address point is 2.
   mlir::Attribute field{};
@@ -1391,7 +1372,7 @@ void CIRGenItaniumRTTIBuilder::BuildVTablePointer(mlir::Location loc,
     llvm_unreachable("NYI");
   } else {
     SmallVector<mlir::Attribute, 4> offsets{
-        mlir::cir::IntAttr::get(PtrDiffTy, 2)};
+        CGM.getBuilder().getI32IntegerAttr(2)};
     auto indices = mlir::ArrayAttr::get(builder.getContext(), offsets);
     field = CGM.getBuilder().getGlobalViewAttr(CGM.getBuilder().getUInt8PtrTy(),
                                                VTable, indices);
@@ -1416,7 +1397,12 @@ mlir::cir::GlobalOp CIRGenItaniumRTTIBuilder::GetAddrOfTypeName(
   auto Align =
       CGM.getASTContext().getTypeAlignInChars(CGM.getASTContext().CharTy);
 
-  auto GV = CGM.createOrReplaceCXXRuntimeVariable(loc, Name, Init.getType(),
+  // builder.getString can return a #cir.zero if the string given to it only
+  // contains null bytes. However, type names cannot be full of null bytes.
+  // So cast Init to a ConstArrayAttr should be safe.
+  auto InitStr = cast<mlir::cir::ConstArrayAttr>(Init);
+
+  auto GV = CGM.createOrReplaceCXXRuntimeVariable(loc, Name, InitStr.getType(),
                                                   Linkage, Align);
   CIRGenModule::setInitializer(GV, Init);
   return GV;
@@ -1547,8 +1533,8 @@ void CIRGenItaniumRTTIBuilder::BuildVMIClassTypeInfo(mlir::Location loc,
 
   for (const auto &Base : RD->bases()) {
     // The __base_type member points to the RTTI for the base type.
-    Fields.push_back(
-        CIRGenItaniumRTTIBuilder(CXXABI, CGM).BuildTypeInfo(loc, Base.getType()));
+    Fields.push_back(CIRGenItaniumRTTIBuilder(CXXABI, CGM)
+                         .BuildTypeInfo(loc, Base.getType()));
 
     auto *BaseDecl =
         cast<CXXRecordDecl>(Base.getType()->castAs<RecordType>()->getDecl());
@@ -1796,7 +1782,8 @@ mlir::Attribute CIRGenItaniumRTTIBuilder::BuildTypeInfo(
   assert(!UnimplementedFeature::setDSOLocal());
   CIRGenModule::setInitializer(GV, init);
 
-  return builder.getGlobalViewAttr(builder.getUInt8PtrTy(), GV);;
+  return builder.getGlobalViewAttr(builder.getUInt8PtrTy(), GV);
+  ;
 }
 
 mlir::Attribute CIRGenItaniumCXXABI::getAddrOfRTTIDescriptor(mlir::Location loc,

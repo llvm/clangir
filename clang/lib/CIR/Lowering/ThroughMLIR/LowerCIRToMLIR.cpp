@@ -39,6 +39,7 @@
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/Passes.h"
 #include "llvm/ADT/Sequence.h"
+#include "llvm/ADT/TypeSwitch.h"
 
 using namespace cir;
 using namespace llvm;
@@ -65,7 +66,8 @@ struct ConvertCIRToMLIRPass
   void getDependentDialects(mlir::DialectRegistry &registry) const override {
     registry.insert<mlir::BuiltinDialect, mlir::func::FuncDialect,
                     mlir::affine::AffineDialect, mlir::memref::MemRefDialect,
-                    mlir::arith::ArithDialect, mlir::cf::ControlFlowDialect>();
+                    mlir::arith::ArithDialect, mlir::cf::ControlFlowDialect,
+                    mlir::scf::SCFDialect>();
   }
   void runOnOperation() final;
 
@@ -348,7 +350,9 @@ public:
             op.getLoc(), integerType,
             mlir::arith::CmpFPredicateAttr::get(
                 getContext(), mlir::arith::CmpFPredicate::UGT),
-            adaptor.getLhs(), adaptor.getRhs());
+            adaptor.getLhs(), adaptor.getRhs(),
+            mlir::arith::FastMathFlagsAttr::get(
+                getContext(), mlir::arith::FastMathFlags::none));
       } else {
         llvm_unreachable("Unknown Operand Type");
       }
@@ -369,7 +373,9 @@ public:
             op.getLoc(), integerType,
             mlir::arith::CmpFPredicateAttr::get(
                 getContext(), mlir::arith::CmpFPredicate::UGE),
-            adaptor.getLhs(), adaptor.getRhs());
+            adaptor.getLhs(), adaptor.getRhs(),
+            mlir::arith::FastMathFlagsAttr::get(
+                getContext(), mlir::arith::FastMathFlags::none));
       } else {
         llvm_unreachable("Unknown Operand Type");
       }
@@ -390,7 +396,9 @@ public:
             op.getLoc(), integerType,
             mlir::arith::CmpFPredicateAttr::get(
                 getContext(), mlir::arith::CmpFPredicate::ULT),
-            adaptor.getLhs(), adaptor.getRhs());
+            adaptor.getLhs(), adaptor.getRhs(),
+            mlir::arith::FastMathFlagsAttr::get(
+                getContext(), mlir::arith::FastMathFlags::none));
       } else {
         llvm_unreachable("Unknown Operand Type");
       }
@@ -411,7 +419,9 @@ public:
             op.getLoc(), integerType,
             mlir::arith::CmpFPredicateAttr::get(
                 getContext(), mlir::arith::CmpFPredicate::ULE),
-            adaptor.getLhs(), adaptor.getRhs());
+            adaptor.getLhs(), adaptor.getRhs(),
+            mlir::arith::FastMathFlagsAttr::get(
+                getContext(), mlir::arith::FastMathFlags::none));
       } else {
         llvm_unreachable("Unknown Operand Type");
       }
@@ -429,7 +439,9 @@ public:
             op.getLoc(), integerType,
             mlir::arith::CmpFPredicateAttr::get(
                 getContext(), mlir::arith::CmpFPredicate::UEQ),
-            adaptor.getLhs(), adaptor.getRhs());
+            adaptor.getLhs(), adaptor.getRhs(),
+            mlir::arith::FastMathFlagsAttr::get(
+                getContext(), mlir::arith::FastMathFlags::none));
       } else {
         llvm_unreachable("Unknown Operand Type");
       }
@@ -447,7 +459,9 @@ public:
             op.getLoc(), integerType,
             mlir::arith::CmpFPredicateAttr::get(
                 getContext(), mlir::arith::CmpFPredicate::UNE),
-            adaptor.getLhs(), adaptor.getRhs());
+            adaptor.getLhs(), adaptor.getRhs(),
+            mlir::arith::FastMathFlagsAttr::get(
+                getContext(), mlir::arith::FastMathFlags::none));
       } else {
         llvm_unreachable("Unknown Operand Type");
       }
@@ -535,6 +549,55 @@ struct CIRBrCondOpLowering
   }
 };
 
+class CIRTernaryOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::TernaryOp> {
+public:
+  using OpConversionPattern<mlir::cir::TernaryOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::TernaryOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    rewriter.setInsertionPoint(op);
+    auto condition = adaptor.getCond();
+    auto i1Condition = rewriter.create<mlir::arith::TruncIOp>(
+        op.getLoc(), rewriter.getI1Type(), condition);
+    SmallVector<mlir::Type> resultTypes;
+    if (mlir::failed(getTypeConverter()->convertTypes(op->getResultTypes(),
+                                                      resultTypes)))
+      return mlir::failure();
+
+    auto ifOp = rewriter.create<mlir::scf::IfOp>(op.getLoc(), resultTypes,
+                                                 i1Condition.getResult(), true);
+    auto *thenBlock = &ifOp.getThenRegion().front();
+    auto *elseBlock = &ifOp.getElseRegion().front();
+    rewriter.inlineBlockBefore(&op.getTrueRegion().front(), thenBlock,
+                               thenBlock->end());
+    rewriter.inlineBlockBefore(&op.getFalseRegion().front(), elseBlock,
+                               elseBlock->end());
+
+    rewriter.replaceOp(op, ifOp);
+    return mlir::success();
+  }
+};
+
+class CIRYieldOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::YieldOp> {
+public:
+  using OpConversionPattern<mlir::cir::YieldOp>::OpConversionPattern;
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::YieldOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto *parentOp = op->getParentOp();
+    return llvm::TypeSwitch<mlir::Operation *, mlir::LogicalResult>(parentOp)
+        .Case<mlir::scf::IfOp>([&](auto) {
+          rewriter.replaceOpWithNewOp<mlir::scf::YieldOp>(
+              op, adaptor.getOperands());
+          return mlir::success();
+        })
+        .Default([](auto) { return mlir::failure(); });
+  }
+};
+
 void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
                                          mlir::TypeConverter &converter) {
   patterns.add<CIRReturnLowering, CIRBrOpLowering>(patterns.getContext());
@@ -542,8 +605,8 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
   patterns.add<CIRCmpOpLowering, CIRCallLowering, CIRUnaryOpLowering,
                CIRBinOpLowering, CIRLoadLowering, CIRConstantLowering,
                CIRStoreLowering, CIRAllocaLowering, CIRFuncLowering,
-               CIRScopeOpLowering, CIRBrCondOpLowering>(converter,
-                                                        patterns.getContext());
+               CIRScopeOpLowering, CIRBrCondOpLowering, CIRTernaryOpLowering,
+               CIRYieldOpLowering>(converter, patterns.getContext());
 }
 
 static mlir::TypeConverter prepareTypeConverter() {

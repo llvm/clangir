@@ -22,6 +22,7 @@
 #include "mlir/IR/SymbolTable.h"
 
 #include "clang/AST/Decl.h"
+#include "clang/AST/ExprCXX.h"
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -179,7 +180,7 @@ static void emitStoresForConstant(CIRGenModule &CGM, const VarDecl &D,
   if (!ConstantSize)
     return;
   assert(!UnimplementedFeature::addAutoInitAnnotation());
-  assert(!UnimplementedFeature::cirVectorType());
+  assert(!UnimplementedFeature::vectorConstants());
   assert(!UnimplementedFeature::shouldUseBZeroPlusStoresToInitialize());
   assert(!UnimplementedFeature::shouldUseMemSetToInitialize());
   assert(!UnimplementedFeature::shouldSplitConstantStore());
@@ -257,7 +258,11 @@ void CIRGenFunction::buildAutoVarInit(const AutoVarEmission &emission) {
     }
   }
 
-  if (!constant) {
+  // NOTE(cir): In case we have a constant initializer, we can just emit a
+  // store. But, in CIR, we wish to retain any ctor calls, so if it is a
+  // CXX temporary object creation, we ensure the ctor call is used deferring
+  // its removal/optimization to the CIR lowering.
+  if (!constant || isa<CXXTemporaryObjectExpr>(Init)) {
     initializeWhatIsTechnicallyUninitialized(Loc);
     LValue lv = LValue::makeAddr(Loc, type, AlignmentSource::Decl);
     buildExprAsInit(Init, &D, lv);
@@ -325,7 +330,6 @@ void CIRGenFunction::buildAutoVarDecl(const VarDecl &D) {
 
 void CIRGenFunction::buildVarDecl(const VarDecl &D) {
   if (D.hasExternalStorage()) {
-    assert(0 && "should we just returns is there something to track?");
     // Don't emit it now, allow it to be emitted lazily on its first use.
     return;
   }
@@ -718,7 +722,6 @@ void CIRGenFunction::buildDecl(const Decl &D) {
   case Decl::FriendTemplate:
   case Decl::Block:
   case Decl::Captured:
-  case Decl::ClassScopeFunctionSpecialization:
   case Decl::UsingShadow:
   case Decl::ConstructorUsingShadow:
   case Decl::ObjCTypeParam:
@@ -813,8 +816,7 @@ struct DestroyObject final : EHScopeStack::Cleanup {
     [[maybe_unused]] bool useEHCleanupForArray =
         flags.isForNormalCleanup() && this->useEHCleanupForArray;
 
-    llvm_unreachable("NYI");
-    // CGF.emitDestroy(addr, type, destroyer, useEHCleanupForArray);
+    CGF.emitDestroy(addr, type, destroyer, useEHCleanupForArray);
   }
 };
 
@@ -887,11 +889,42 @@ struct CallCleanupFunction final : EHScopeStack::Cleanup {
 };
 } // end anonymous namespace
 
+/// Push the standard destructor for the given type as
+/// at least a normal cleanup.
+void CIRGenFunction::pushDestroy(QualType::DestructionKind dtorKind,
+                                  Address addr, QualType type) {
+  assert(dtorKind && "cannot push destructor for trivial type");
+
+  CleanupKind cleanupKind = getCleanupKind(dtorKind);
+  pushDestroy(cleanupKind, addr, type, getDestroyer(dtorKind),
+              cleanupKind & EHCleanup);
+}
+
 void CIRGenFunction::pushDestroy(CleanupKind cleanupKind, Address addr,
                                  QualType type, Destroyer *destroyer,
                                  bool useEHCleanupForArray) {
   pushFullExprCleanup<DestroyObject>(cleanupKind, addr, type, destroyer,
                                      useEHCleanupForArray);
+}
+
+/// Immediately perform the destruction of the given object.
+///
+/// \param addr - the address of the object; a type*
+/// \param type - the type of the object; if an array type, all
+///   objects are destroyed in reverse order
+/// \param destroyer - the function to call to destroy individual
+///   elements
+/// \param useEHCleanupForArray - whether an EH cleanup should be
+///   used when destroying array elements, in case one of the
+///   destructions throws an exception
+void CIRGenFunction::emitDestroy(Address addr, QualType type,
+                                 Destroyer *destroyer,
+                                 bool useEHCleanupForArray) {
+  const ArrayType *arrayType = getContext().getAsArrayType(type);
+  if (!arrayType)
+    return destroyer(*this, addr, type);
+
+  llvm_unreachable("Array destroy NYI");
 }
 
 CIRGenFunction::Destroyer *

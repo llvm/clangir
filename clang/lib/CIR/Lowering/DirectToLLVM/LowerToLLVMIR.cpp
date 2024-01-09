@@ -36,9 +36,10 @@ public:
 
   /// Any named attribute in the CIR dialect, i.e, with name started with
   /// "cir.", will be handled here.
-  mlir::LogicalResult
-  amendOperation(mlir::Operation *op, mlir::NamedAttribute attribute,
-                 mlir::LLVM::ModuleTranslation &moduleTranslation) const final {
+  mlir::LogicalResult amendOperation(
+      mlir::Operation *op, ArrayRef<llvm::Instruction *> instructions,
+      mlir::NamedAttribute attribute,
+      mlir::LLVM::ModuleTranslation &moduleTranslation) const override {
 
     // Translate CIR's extra function attributes to LLVM's function attributes.
     auto func = dyn_cast<mlir::LLVM::LLVMFuncOp>(op);
