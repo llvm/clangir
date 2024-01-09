@@ -36,8 +36,13 @@ include "mlir/IR/SymbolInterfaces.td"
 // CIR Ops
 //===----------------------------------------------------------------------===//
 
+class LoweringInfo {
+  bit SimpleLowering = 0;
+  string LLVMOpName;
+}
+
 class CIR_Op<string mnemonic, list<Trait> traits = []> :
-    Op<CIR_Dialect, mnemonic, traits>;
+    Op<CIR_Dialect, mnemonic, traits>, LoweringInfo;
 
 //===----------------------------------------------------------------------===//
 // CastOp
@@ -1797,6 +1802,9 @@ def VecInsertOp : CIR_Op<"vec.insert", [Pure,
   }];
 
   let hasVerifier = 0;
+
+  let SimpleLowering = 1;
+  let LLVMOpName = "InsertElementOp";
 }
 
 //===----------------------------------------------------------------------===//
@@ -1821,6 +1829,9 @@ def VecExtractOp : CIR_Op<"vec.extract", [Pure,
   }];
 
   let hasVerifier = 0;
+
+  let SimpleLowering = 1;
+  let LLVMOpName = "ExtractElementOp";
 }
 
 //===----------------------------------------------------------------------===//
@@ -2594,30 +2605,32 @@ def IterEndOp : CIR_Op<"iterator_end"> {
 // Floating Point Ops
 //===----------------------------------------------------------------------===//
 
-class UnaryFPToFPBuiltinOp<string mnemonic>
+class UnaryFPToFPBuiltinOp<string mnemonic, string llvm_op_name>
     : CIR_Op<mnemonic, [Pure, SameOperandsAndResultType]> {
   let arguments = (ins AnyFloat:$src);
   let results = (outs AnyFloat:$result);
   let summary = "libc builtin equivalent ignoring "
                 "floating point exceptions and errno";
   let assemblyFormat = "$src `:` type($src) attr-dict";
+  let SimpleLowering = 1;
+  let LLVMOpName = llvm_op_name;
 }
 
-def CeilOp : UnaryFPToFPBuiltinOp<"ceil">;
-def CosOp : UnaryFPToFPBuiltinOp<"cos">;
-def ExpOp : UnaryFPToFPBuiltinOp<"exp">;
-def Exp2Op : UnaryFPToFPBuiltinOp<"exp2">;
-def FloorOp : UnaryFPToFPBuiltinOp<"floor">;
-def FAbsOp : UnaryFPToFPBuiltinOp<"fabs">;
-def LogOp : UnaryFPToFPBuiltinOp<"log">;
-def Log10Op : UnaryFPToFPBuiltinOp<"log10">;
-def Log2Op : UnaryFPToFPBuiltinOp<"log2">;
-def NearbyintOp : UnaryFPToFPBuiltinOp<"nearbyint">;
-def RintOp : UnaryFPToFPBuiltinOp<"rint">;
-def RoundOp : UnaryFPToFPBuiltinOp<"round">;
-def SinOp : UnaryFPToFPBuiltinOp<"sin">;
-def SqrtOp : UnaryFPToFPBuiltinOp<"sqrt">;
-def TruncOp : UnaryFPToFPBuiltinOp<"trunc">;
+def CeilOp : UnaryFPToFPBuiltinOp<"ceil", "FCeilOp">;
+def CosOp : UnaryFPToFPBuiltinOp<"cos", "CosOp">;
+def ExpOp : UnaryFPToFPBuiltinOp<"exp", "ExpOp">;
+def Exp2Op : UnaryFPToFPBuiltinOp<"exp2", "Exp2Op">;
+def FloorOp : UnaryFPToFPBuiltinOp<"floor", "FFloorOp">;
+def FAbsOp : UnaryFPToFPBuiltinOp<"fabs", "FAbsOp">;
+def LogOp : UnaryFPToFPBuiltinOp<"log", "LogOp">;
+def Log10Op : UnaryFPToFPBuiltinOp<"log10", "Log10Op">;
+def Log2Op : UnaryFPToFPBuiltinOp<"log2", "Log2Op">;
+def NearbyintOp : UnaryFPToFPBuiltinOp<"nearbyint", "NearbyintOp">;
+def RintOp : UnaryFPToFPBuiltinOp<"rint", "RintOp">;
+def RoundOp : UnaryFPToFPBuiltinOp<"round", "RoundOp">;
+def SinOp : UnaryFPToFPBuiltinOp<"sin", "SinOp">;
+def SqrtOp : UnaryFPToFPBuiltinOp<"sqrt", "SqrtOp">;
+def TruncOp : UnaryFPToFPBuiltinOp<"trunc", "FTruncOp">;
 
 //===----------------------------------------------------------------------===//
 // Variadic Operations
@@ -2781,6 +2794,9 @@ def StackRestoreOp : CIR_Op<"stack_restore"> {
 
   let arguments = (ins CIR_PointerType:$ptr);
   let assemblyFormat = "$ptr attr-dict `:` qualified(type($ptr))";
+
+  let SimpleLowering = 1;
+  let LLVMOpName = "StackRestoreOp";
 }
 
 def AsmATT : I32EnumAttrCase<"x86_att", 0>;
@@ -2797,9 +2813,9 @@ def CIR_InlineAsmOp : CIR_Op<"asm", [RecursiveMemoryEffects]> {
   let description = [{
     The `cir.asm` operation represents C/C++ asm inline.
 
-    CIR constraints strings follow barelly the same rules that are established 
-    for the C level assembler constraints with several differences caused by 
-    clang::AsmStmt processing. 
+    CIR constraints strings follow barelly the same rules that are established
+    for the C level assembler constraints with several differences caused by
+    clang::AsmStmt processing.
 
     Thus, numbers that appears in the constraint string may also refer to:
     - the output variable index referenced by the input operands.
@@ -2811,11 +2827,11 @@ def CIR_InlineAsmOp : CIR_Op<"asm", [RecursiveMemoryEffects]> {
     __asm__("bar $42 %[val]" : [val] "=r" (x), "+&r"(x));
     __asm__("baz $42 %[val]" : [val] "=r" (x), "+&r"(x) : "[val]"(y));
     ```
-    
+
     ```mlir
     cir.asm(x86_att, {"foo" ""})
-    cir.asm(x86_att, {"bar $$42 $0" "=r,=&r,1"}) 
-    cir.asm(x86_att, {"baz $$42 $0" "=r,=&r,0,1"}) 
+    cir.asm(x86_att, {"bar $$42 $0" "=r,=&r,1"})
+    cir.asm(x86_att, {"baz $$42 $0" "=r,=&r,0,1"})
     ```
   }];
 
@@ -2824,12 +2840,12 @@ def CIR_InlineAsmOp : CIR_Op<"asm", [RecursiveMemoryEffects]> {
   let arguments = (
     ins StrAttr:$asm_string,
         StrAttr:$constraints,
-        AsmFlavor:$asm_flavor);  
+        AsmFlavor:$asm_flavor);
 
   let assemblyFormat = [{
-    `(`$asm_flavor`,` `{` $asm_string $constraints `}` `)` attr-dict 
+    `(`$asm_flavor`,` `{` $asm_string $constraints `}` `)` attr-dict
     `:` type($res)
-   }];  
+   }];
 }
 
 //===----------------------------------------------------------------------===//
