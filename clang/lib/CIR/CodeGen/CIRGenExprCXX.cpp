@@ -92,7 +92,7 @@ RValue CIRGenFunction::buildCXXMemberOrOperatorCall(
   assert((CE || currSrcLoc) && "expected source location");
   mlir::Location loc = CE ? getLoc(CE->getExprLoc()) : *currSrcLoc;
   return buildCall(FnInfo, Callee, ReturnValue, Args, nullptr,
-                   CE && CE == MustTailCall, loc);
+                   CE && CE == MustTailCall, loc, CE);
 }
 
 // TODO(cir): this can be shared with LLVM codegen
@@ -309,13 +309,13 @@ void CIRGenFunction::buildCXXConstructExpr(const CXXConstructExpr *E,
   // already zeroed.
   if (E->requiresZeroInitialization() && !Dest.isZeroed()) {
     switch (E->getConstructionKind()) {
-    case CXXConstructExpr::CK_Delegating:
-    case CXXConstructExpr::CK_Complete:
+    case CXXConstructionKind::Delegating:
+    case CXXConstructionKind::Complete:
       buildNullInitialization(getLoc(E->getSourceRange()), Dest.getAddress(),
                               E->getType());
       break;
-    case CXXConstructExpr::CK_VirtualBase:
-    case CXXConstructExpr::CK_NonVirtualBase:
+    case CXXConstructionKind::VirtualBase:
+    case CXXConstructionKind::NonVirtualBase:
       llvm_unreachable("NYI");
       break;
     }
@@ -351,16 +351,16 @@ void CIRGenFunction::buildCXXConstructExpr(const CXXConstructExpr *E,
   bool Delegating = false;
 
   switch (E->getConstructionKind()) {
-  case CXXConstructExpr::CK_Complete:
+  case CXXConstructionKind::Complete:
     Type = Ctor_Complete;
     break;
-  case CXXConstructExpr::CK_Delegating:
+  case CXXConstructionKind::Delegating:
     llvm_unreachable("NYI");
     break;
-  case CXXConstructExpr::CK_VirtualBase:
+  case CXXConstructionKind::VirtualBase:
     ForVirtualBase = true;
     [[fallthrough]];
-  case CXXConstructExpr::CK_NonVirtualBase:
+  case CXXConstructionKind::NonVirtualBase:
     Type = Ctor_Base;
     break;
   }

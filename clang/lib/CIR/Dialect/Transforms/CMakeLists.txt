@@ -3,6 +3,9 @@ add_clang_library(MLIRCIRTransforms
   LoweringPrepare.cpp
   MergeCleanups.cpp
   DropAST.cpp
+  IdiomRecognizer.cpp
+  LibOpt.cpp
+  StdHelpers.cpp
 
   DEPENDS
   MLIRCIRPassIncGen

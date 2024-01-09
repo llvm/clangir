@@ -29,7 +29,6 @@
 #include "mlir/IR/OpImplementation.h"
 #include "mlir/IR/StorageUniquerSupport.h"
 #include "mlir/IR/TypeUtilities.h"
-#include "mlir/Interfaces/ControlFlowInterfaces.h"
 #include "mlir/Interfaces/DataLayoutInterfaces.h"
 #include "mlir/Interfaces/FunctionImplementation.h"
 #include "mlir/Interfaces/InferTypeOpInterface.h"
@@ -76,6 +75,10 @@ struct CIROpAsmDialectInterface : public OpAsmDialectInterface {
   AliasResult getAlias(Attribute attr, raw_ostream &os) const final {
     if (auto boolAttr = attr.dyn_cast<mlir::cir::BoolAttr>()) {
       os << (boolAttr.getValue() ? "true" : "false");
+      return AliasResult::FinalAlias;
+    }
+    if (auto bitfield = attr.dyn_cast<mlir::cir::BitfieldInfoAttr>()) {
+      os << "bfi_" << bitfield.getName().str();
       return AliasResult::FinalAlias;
     }
 
@@ -156,7 +159,8 @@ LogicalResult ensureRegionTerm(OpAsmParser &parser, Region &region,
   OpBuilder builder(parser.getBuilder().getContext());
 
   // Region is empty or properly terminated: nothing to do.
-  if (region.empty() || region.back().hasTerminator())
+  if (region.empty() ||
+      (region.back().mightHaveTerminator() && region.back().getTerminator()))
     return success();
 
   // Check for invalid terminator omissions.
@@ -419,6 +423,31 @@ LogicalResult CastOp::verify() {
 }
 
 //===----------------------------------------------------------------------===//
+// VecCreateOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult VecCreateOp::verify() {
+  // Verify that the number of arguments matches the number of elements in the
+  // vector, and that the type of all the arguments matches the type of the
+  // elements in the vector.
+  auto VecTy = getResult().getType();
+  if (getElements().size() != VecTy.getSize()) {
+    return emitOpError() << "operand count of " << getElements().size()
+                         << " doesn't match vector type " << VecTy
+                         << " element count of " << VecTy.getSize();
+  }
+  auto ElementType = VecTy.getEltType();
+  for (auto Element : getElements()) {
+    if (Element.getType() != ElementType) {
+      return emitOpError() << "operand type " << Element.getType()
+                           << " doesn't match vector element type "
+                           << ElementType;
+    }
+  }
+  return success();
+}
+
+//===----------------------------------------------------------------------===//
 // ReturnOp
 //===----------------------------------------------------------------------===//
 
@@ -555,13 +584,13 @@ void IfOp::getSuccessorRegions(mlir::RegionBranchPoint point,
 
   // Otherwise, the successor is dependent on the condition.
   // bool condition;
-  // if (auto condAttr= operands.front().dyn_cast_or_null<IntegerAttr>()) {
+  // if (auto condAttr = operands.front().dyn_cast_or_null<IntegerAttr>()) {
   //   assert(0 && "not implemented");
-  //   // condition = condAttr.getValue().isOneValue();
-  //   // Add the successor regions using the condition.
-  //   // regions.push_back(RegionSuccessor(condition ? &thenRegion() :
-  //   // elseRegion));
-  //   // return;
+  // condition = condAttr.getValue().isOneValue();
+  // Add the successor regions using the condition.
+  // regions.push_back(RegionSuccessor(condition ? &thenRegion() :
+  // elseRegion));
+  // return;
   // }
 
   // If the condition isn't constant, both regions may be executed.
@@ -835,7 +864,8 @@ parseSwitchOp(OpAsmParser &parser,
                               "case region shall not be empty");
     }
 
-    if (!currRegion.back().hasTerminator())
+    if (!(currRegion.back().mightHaveTerminator() &&
+          currRegion.back().getTerminator()))
       return parser.emitError(parserLoc,
                               "case regions must be explicitly terminated");
 
@@ -1044,18 +1074,18 @@ void SwitchOp::getSuccessorRegions(mlir::RegionBranchPoint point,
   }
 
   // for (auto &r : this->getRegions()) {
-  //   // If we can figure out the case stmt we are landing, this can be
-  //   // overly simplified.
-  //   // bool condition;
-  //   if (auto condAttr = operands.front().dyn_cast_or_null<IntegerAttr>()) {
-  //     assert(0 && "not implemented");
-  //     (void)r;
-  //     // condition = condAttr.getValue().isOneValue();
-  //     // Add the successor regions using the condition.
-  //     // regions.push_back(RegionSuccessor(condition ? &thenRegion() :
-  //     // elseRegion));
-  //     // return;
-  //   }
+  // If we can figure out the case stmt we are landing, this can be
+  // overly simplified.
+  // bool condition;
+  // if (auto condAttr = operands.front().dyn_cast_or_null<IntegerAttr>()) {
+  //   assert(0 && "not implemented");
+  //   (void)r;
+  // condition = condAttr.getValue().isOneValue();
+  // Add the successor regions using the condition.
+  // regions.push_back(RegionSuccessor(condition ? &thenRegion() :
+  // elseRegion));
+  // return;
+  // }
   // }
 
   // If the condition isn't constant, all regions may be executed.
@@ -1103,7 +1133,8 @@ parseCatchOp(OpAsmParser &parser,
                               "catch region shall not be empty");
     }
 
-    if (!currRegion.back().hasTerminator())
+    if (!(currRegion.back().mightHaveTerminator() &&
+          currRegion.back().getTerminator()))
       return parser.emitError(
           parserLoc, "blocks are expected to be explicitly terminated");
 
@@ -1449,6 +1480,7 @@ LogicalResult GlobalOp::verify() {
   case GlobalLinkageKind::ExternalWeakLinkage:
   case GlobalLinkageKind::LinkOnceODRLinkage:
   case GlobalLinkageKind::LinkOnceAnyLinkage:
+  case GlobalLinkageKind::CommonLinkage:
     // FIXME: mlir's concept of visibility gets tricky with LLVM ones,
     // for instance, symbol declarations cannot be "public", so we
     // have to mark them "private" to workaround the symbol verifier.
@@ -1533,8 +1565,8 @@ void GlobalOp::getSuccessorRegions(mlir::RegionBranchPoint point,
 
 LogicalResult
 GetGlobalOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
-  // Verify that the result type underlying pointer type matches the type of the
-  // referenced cir.global or cir.func op.
+  // Verify that the result type underlying pointer type matches the type of
+  // the referenced cir.global or cir.func op.
   auto op = symbolTable.lookupNearestSymbolFrom(*this, getNameAttr());
   if (!(isa<GlobalOp>(op) || isa<FuncOp>(op)))
     return emitOpError("'")
@@ -1568,8 +1600,8 @@ VTableAddrPointOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
     return success();
   auto name = *getName();
 
-  // Verify that the result type underlying pointer type matches the type of the
-  // referenced cir.global or cir.func op.
+  // Verify that the result type underlying pointer type matches the type of
+  // the referenced cir.global or cir.func op.
   auto op = dyn_cast_or_null<GlobalOp>(
       symbolTable.lookupNearestSymbolFrom(*this, getNameAttr()));
   if (!op)
@@ -1921,13 +1953,13 @@ MutableOperandRange cir::CallOp::getArgOperandsMutable() {
   return getOperandsMutable();
 }
 
-/// Return the callee of this operation.
+/// Return the callee of this operation
 CallInterfaceCallable cir::CallOp::getCallableForCallee() {
   return (*this)->getAttrOfType<SymbolRefAttr>("callee");
 }
 
 /// Set the callee for this operation.
-void cir::CallOp::setCalleeFromCallable(mlir::CallInterfaceCallable callee) {
+void cir::CallOp::setCalleeFromCallable(::mlir::CallInterfaceCallable callee) {
   if (auto calling =
           (*this)->getAttrOfType<mlir::SymbolRefAttr>(getCalleeAttrName()))
     (*this)->setAttr(getCalleeAttrName(), callee.get<mlir::SymbolRefAttr>());
@@ -2040,6 +2072,7 @@ void CallOp::print(::mlir::OpAsmPrinter &state) {
   state << ")";
   llvm::SmallVector<::llvm::StringRef, 2> elidedAttrs;
   elidedAttrs.push_back("callee");
+  elidedAttrs.push_back("ast");
   state.printOptionalAttrDict((*this)->getAttrs(), elidedAttrs);
   state << ' ' << ":";
   state << ' ';
@@ -2056,7 +2089,8 @@ LogicalResult UnaryOp::verify() {
   case cir::UnaryOpKind::Inc:
     LLVM_FALLTHROUGH;
   case cir::UnaryOpKind::Dec: {
-    // TODO: Consider looking at the memory interface instead of LoadOp/StoreOp.
+    // TODO: Consider looking at the memory interface instead of
+    // LoadOp/StoreOp.
     auto loadOp = getInput().getDefiningOp<cir::LoadOp>();
     if (!loadOp)
       return emitOpError() << "requires input to be defined by a memory load";
@@ -2148,6 +2182,20 @@ mlir::OpTrait::impl::verifySameFirstOperandAndResultType(Operation *op) {
   auto opType = op->getOperand(0).getType();
 
   if (type != opType)
+    return op->emitOpError()
+           << "requires the same type for first operand and result";
+
+  return success();
+}
+
+LogicalResult
+mlir::OpTrait::impl::verifySameFirstSecondOperandAndResultType(Operation *op) {
+  if (failed(verifyAtLeastNOperands(op, 3)) || failed(verifyOneResult(op)))
+    return failure();
+
+  auto checkType = op->getResult(0).getType();
+  if (checkType != op->getOperand(0).getType() &&
+      checkType != op->getOperand(1).getType())
     return op->emitOpError()
            << "requires the same type for first operand and result";
 
@@ -2380,14 +2428,6 @@ LogicalResult MemCpyOp::verify() {
   return mlir::success();
 }
 
-static bool isIncompleteType(mlir::Type typ) {
-  if (auto ptr = typ.dyn_cast<PointerType>())
-    return isIncompleteType(ptr.getPointee());
-  else if (auto rec = typ.dyn_cast<StructType>())
-    return rec.isIncomplete();
-  return false;
-}
-
 //===----------------------------------------------------------------------===//
 // GetMemberOp Definitions
 //===----------------------------------------------------------------------===//
@@ -2398,21 +2438,12 @@ LogicalResult GetMemberOp::verify() {
   if (!recordTy)
     return emitError() << "expected pointer to a record type";
 
-  // FIXME: currently we bypass typechecking of incomplete types due to errors
-  // in the codegen process. This should be removed once the codegen is fixed.
-  if (isIncompleteType(recordTy))
-    return mlir::success();
-
   if (recordTy.getMembers().size() <= getIndex())
     return emitError() << "member index out of bounds";
 
   // FIXME(cir): member type check is disabled for classes as the codegen for
   // these still need to be patched.
-  // Also we bypass the typechecking for the fields of incomplete types.
-  bool shouldSkipMemberTypeMismatch =
-      recordTy.isClass() || isIncompleteType(recordTy.getMembers()[getIndex()]);
-
-  if (!shouldSkipMemberTypeMismatch &&
+  if (!recordTy.isClass() &&
       recordTy.getMembers()[getIndex()] != getResultTy().getPointee())
     return emitError() << "member type mismatch";
 
