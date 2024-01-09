@@ -249,7 +249,7 @@ bool Expr::isFlexibleArrayMemberLike(
   // FIXME: If the base type of the member expr is not FD->getParent(),
   // this should not be treated as a flexible array member access.
   if (const auto *FD = dyn_cast<FieldDecl>(ND)) {
-    // GCC treats an array memeber of a union as an FAM if the size is one or
+    // GCC treats an array member of a union as an FAM if the size is one or
     // zero.
     if (CAT) {
       llvm::APInt Size = CAT->getSize();
