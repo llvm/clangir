@@ -16,8 +16,6 @@
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/Passes.h"
 
-#include "mlir/Dialect/Func/IR/FuncOps.h"
-
 #include "llvm/ADT/SetOperations.h"
 #include "llvm/ADT/SmallSet.h"
 
@@ -219,14 +217,12 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
       if (hasValue() && RHS.hasValue())
         return val.getPointer().getAsOpaquePointer() <
                RHS.val.getPointer().getAsOpaquePointer();
-      else
-        return val.getInt() < RHS.val.getInt();
+      return val.getInt() < RHS.val.getInt();
     }
     bool operator==(const State &RHS) const {
       if (hasValue() && RHS.hasValue())
         return val.getPointer() == RHS.val.getPointer();
-      else
-        return val.getInt() == RHS.val.getInt();
+      return val.getInt() == RHS.val.getInt();
     }
 
     bool isLocalValue() const { return val.getInt() == LocalValue; }

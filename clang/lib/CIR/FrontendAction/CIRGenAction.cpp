@@ -60,6 +60,8 @@ using namespace cir;
 using namespace clang;
 
 static std::string sanitizePassOptions(llvm::StringRef o) {
+  if (o.empty())
+    return "";
   std::string opts{o};
   // MLIR pass options are space separated, but we use ';' in clang since
   // space aren't well supported, switch it back.
@@ -168,18 +170,24 @@ public:
     auto setupCIRPipelineAndExecute = [&] {
       // Sanitize passes options. MLIR uses spaces between pass options
       // and since that's hard to fly in clang, we currently use ';'.
-      std::string lifetimeOpts;
+      std::string lifetimeOpts, idiomRecognizerOpts, libOptOpts;
       if (feOptions.ClangIRLifetimeCheck)
         lifetimeOpts = sanitizePassOptions(feOptions.ClangIRLifetimeCheckOpts);
+      if (feOptions.ClangIRIdiomRecognizer)
+        idiomRecognizerOpts =
+            sanitizePassOptions(feOptions.ClangIRIdiomRecognizerOpts);
+      if (feOptions.ClangIRLibOpt)
+        libOptOpts = sanitizePassOptions(feOptions.ClangIRLibOptOpts);
 
       // Setup and run CIR pipeline.
-      bool passOptParsingFailure = false;
-      if (runCIRToCIRPasses(mlirMod, mlirCtx.get(), C,
-                            !feOptions.ClangIRDisableCIRVerifier,
-                            feOptions.ClangIRLifetimeCheck, lifetimeOpts,
-                            passOptParsingFailure)
+      std::string passOptParsingFailure;
+      if (runCIRToCIRPasses(
+              mlirMod, mlirCtx.get(), C, !feOptions.ClangIRDisableCIRVerifier,
+              feOptions.ClangIRLifetimeCheck, lifetimeOpts,
+              feOptions.ClangIRIdiomRecognizer, idiomRecognizerOpts,
+              feOptions.ClangIRLibOpt, libOptOpts, passOptParsingFailure)
               .failed()) {
-        if (passOptParsingFailure)
+        if (!passOptParsingFailure.empty())
           diagnosticsEngine.Report(diag::err_drv_cir_pass_opt_parsing)
               << feOptions.ClangIRLifetimeCheckOpts;
         else

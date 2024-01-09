@@ -50,7 +50,7 @@ void CIRGenCXXABI::buildThisParam(CIRGenFunction &CGF,
   auto *ThisDecl =
       ImplicitParamDecl::Create(CGM.getASTContext(), nullptr, MD->getLocation(),
                                 &CGM.getASTContext().Idents.get("this"),
-                                MD->getThisType(), ImplicitParamDecl::CXXThis);
+                                MD->getThisType(), ImplicitParamKind::CXXThis);
   params.push_back(ThisDecl);
   CGF.CXXABIThisDecl = ThisDecl;
 

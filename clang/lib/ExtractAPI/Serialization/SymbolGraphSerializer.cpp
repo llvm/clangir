@@ -109,8 +109,8 @@ Object serializeSourcePosition(const PresumedLoc &Loc) {
   assert(Loc.isValid() && "invalid source position");
 
   Object SourcePosition;
-  SourcePosition["line"] = Loc.getLine();
-  SourcePosition["character"] = Loc.getColumn();
+  SourcePosition["line"] = Loc.getLine() - 1;
+  SourcePosition["character"] = Loc.getColumn() - 1;
 
   return SourcePosition;
 }
@@ -177,11 +177,11 @@ serializeAvailability(const AvailabilitySet &Availabilities) {
     if (AvailInfo.Unavailable)
       Availability["isUnconditionallyUnavailable"] = true;
     else {
-      serializeObject(Availability, "introducedVersion",
+      serializeObject(Availability, "introduced",
                       serializeSemanticVersion(AvailInfo.Introduced));
-      serializeObject(Availability, "deprecatedVersion",
+      serializeObject(Availability, "deprecated",
                       serializeSemanticVersion(AvailInfo.Deprecated));
-      serializeObject(Availability, "obsoletedVersion",
+      serializeObject(Availability, "obsoleted",
                       serializeSemanticVersion(AvailInfo.Obsoleted));
     }
     AvailabilityArray.emplace_back(std::move(Availability));
@@ -199,9 +199,10 @@ StringRef getLanguageName(Language Lang) {
     return "objective-c";
   case Language::CXX:
     return "c++";
+  case Language::ObjCXX:
+    return "objective-c++";
 
   // Unsupported language currently
-  case Language::ObjCXX:
   case Language::OpenCL:
   case Language::OpenCLCXX:
   case Language::CUDA:
@@ -743,7 +744,7 @@ bool SymbolGraphSerializer::shouldSkip(const APIRecord &Record) const {
 
   // Filter out symbols prefixed with an underscored as they are understood to
   // be symbols clients should not use.
-  if (Record.Name.startswith("_"))
+  if (Record.Name.starts_with("_"))
     return true;
 
   return false;
@@ -901,7 +902,7 @@ void SymbolGraphSerializer::visitCXXClassRecord(const CXXClassRecord &Record) {
     return;
 
   Symbols.emplace_back(std::move(*Class));
-  for (const auto Base : Record.Bases)
+  for (const auto &Base : Record.Bases)
     serializeRelationship(RelationshipKind::InheritsFrom, Record, Base);
   if (!Record.ParentInformation.empty())
     serializeRelationship(RelationshipKind::MemberOf, Record,
@@ -915,7 +916,7 @@ void SymbolGraphSerializer::visitClassTemplateRecord(
     return;
 
   Symbols.emplace_back(std::move(*Class));
-  for (const auto Base : Record.Bases)
+  for (const auto &Base : Record.Bases)
     serializeRelationship(RelationshipKind::InheritsFrom, Record, Base);
   if (!Record.ParentInformation.empty())
     serializeRelationship(RelationshipKind::MemberOf, Record,
@@ -930,7 +931,7 @@ void SymbolGraphSerializer::visitClassTemplateSpecializationRecord(
 
   Symbols.emplace_back(std::move(*Class));
 
-  for (const auto Base : Record.Bases)
+  for (const auto &Base : Record.Bases)
     serializeRelationship(RelationshipKind::InheritsFrom, Record, Base);
   if (!Record.ParentInformation.empty())
     serializeRelationship(RelationshipKind::MemberOf, Record,
@@ -945,7 +946,7 @@ void SymbolGraphSerializer::visitClassTemplatePartialSpecializationRecord(
 
   Symbols.emplace_back(std::move(*Class));
 
-  for (const auto Base : Record.Bases)
+  for (const auto &Base : Record.Bases)
     serializeRelationship(RelationshipKind::InheritsFrom, Record, Base);
   if (!Record.ParentInformation.empty())
     serializeRelationship(RelationshipKind::MemberOf, Record,

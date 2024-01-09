@@ -63,7 +63,16 @@ std::string CIRGenTypes::getRecordTypeName(const clang::RecordDecl *recordDecl,
       outStream << '<';
       const auto args = templateSpecialization->getTemplateArgs().asArray();
       const auto printer = [&policy, &outStream](const TemplateArgument &arg) {
-        arg.getAsType().print(outStream, policy);
+        switch (arg.getKind()) {
+        case TemplateArgument::Integral:
+          outStream << arg.getAsIntegral();
+          break;
+        case TemplateArgument::Type:
+          arg.getAsType().print(outStream, policy);
+          break;
+        default:
+          llvm_unreachable("NYI");
+        }
       };
       llvm::interleaveComma(args, outStream, printer);
       outStream << '>';
@@ -259,11 +268,6 @@ mlir::Type CIRGenTypes::ConvertFunctionTypeInternal(QualType QFT) {
   // type depends on an incomplete type (e.g. a struct or enum), we cannot lower
   // the function type.
   assert(isFuncTypeConvertible(FT) && "NYI");
-
-  // While we're converting the parameter types for a function, we don't want to
-  // recursively convert any pointed-to structs. Converting directly-used
-  // structs is ok though.
-  assert(RecordsBeingLaidOut.insert(Ty).second && "NYI");
 
   // The function type can be built; call the appropriate routines to build it
   const CIRGenFunctionInfo *FI;
@@ -617,34 +621,36 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
     break;
   }
   case Type::IncompleteArray: {
-    assert(0 && "not implemented");
+    const IncompleteArrayType *A = cast<IncompleteArrayType>(Ty);
+    assert(A->getIndexTypeCVRQualifiers() == 0 &&
+           "FIXME: We only handle trivial array types so far!");
+    // int X[] -> [0 x int], unless the element type is not sized.  If it is
+    // unsized (e.g. an incomplete struct) just use [0 x i8].
+    ResultType = convertTypeForMem(A->getElementType());
+    if (!Builder.isSized(ResultType)) {
+      SkippedLayout = true;
+      ResultType = Builder.getUInt8Ty();
+    }
+    ResultType = Builder.getArrayType(ResultType, 0);  
     break;
   }
   case Type::ConstantArray: {
     const ConstantArrayType *A = cast<ConstantArrayType>(Ty);
     auto EltTy = convertTypeForMem(A->getElementType());
 
-    // FIXME(cir): add a `isSized` method to CIRGenBuilder.
-    auto isSized = [&](mlir::Type ty) {
-      if (ty.isIntOrFloat() ||
-          ty.isa<mlir::cir::PointerType, mlir::cir::StructType,
-                 mlir::cir::ArrayType, mlir::cir::BoolType,
-                 mlir::cir::IntType>())
-        return true;
-      assert(0 && "not implemented");
-      return false;
-    };
-
     // FIXME: In LLVM, "lower arrays of undefined struct type to arrays of
     // i8 just to have a concrete type". Not sure this makes sense in CIR yet.
-    assert(isSized(EltTy) && "not implemented");
+    assert(Builder.isSized(EltTy) && "not implemented");
     ResultType = ::mlir::cir::ArrayType::get(Builder.getContext(), EltTy,
                                              A->getSize().getZExtValue());
     break;
   }
   case Type::ExtVector:
   case Type::Vector: {
-    assert(0 && "not implemented");
+    const VectorType *V = cast<VectorType>(Ty);
+    auto ElementType = convertTypeForMem(V->getElementType());
+    ResultType = ::mlir::cir::VectorType::get(Builder.getContext(), ElementType,
+                                              V->getNumElements());
     break;
   }
   case Type::ConstantMatrix: {

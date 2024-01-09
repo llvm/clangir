@@ -109,6 +109,7 @@ if(CLANG_BUILD_EXAMPLES AND CLANG_PLUGIN_SUPPORT)
     CallSuperAttr
     PluginsOrder
     PrintFunctionNames
+    LLVMPrintFunctionNames
     )
 endif ()
 

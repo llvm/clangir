@@ -10,6 +10,16 @@ typedef struct {
 
 typedef int (*fun_t)(Data* d);
 
+struct A;
+typedef int (*fun_typ)(struct A*);
+
+typedef struct A {
+  fun_typ fun;  
+} A;
+
+// CIR: !ty_22A22 = !cir.struct<struct "A" {!cir.ptr<!cir.func<!cir.int<s, 32> (!cir.ptr<!cir.struct<struct "A">>)>>} #cir.record.decl.ast>
+A a = {(fun_typ)0};
+
 int extract_a(Data* d) {
     return d->a;
 }
@@ -28,7 +38,7 @@ int extract_a(Data* d) {
 // CIR:   [[TMP7:%.*]] = cir.call [[TMP5]]([[TMP6]]) : (!cir.ptr<!cir.func<!s32i (!cir.ptr<!ty_22Data22>)>>, !cir.ptr<!ty_22Data22>) -> !s32i
 // CIR:   cir.store [[TMP7]], [[TMP1]] : !s32i, cir.ptr <!s32i>
 
-// LLVM: define i32 {{@.*foo.*}}(ptr %0) 
+// LLVM: define i32 {{@.*foo.*}}(ptr %0)
 // LLVM:   [[TMP1:%.*]] = alloca ptr, i64 1
 // LLVM:   [[TMP2:%.*]] = alloca i32, i64 1
 // LLVM:   [[TMP3:%.*]] = alloca ptr, i64 1
