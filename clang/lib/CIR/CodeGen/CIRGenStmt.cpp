@@ -16,6 +16,7 @@
 #include "clang/AST/CharUnits.h"
 #include "clang/AST/Stmt.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
+#include "llvm/Support/ErrorHandling.h"
 
 using namespace cir;
 using namespace clang;
@@ -54,7 +55,8 @@ Address CIRGenFunction::buildCompoundStmtWithoutScope(const CompoundStmt &S,
                           /*IsInit*/ false);
       }
     } else {
-      assert(buildStmt(CurStmt, /*useCurrentScope=*/false).succeeded());
+      if (buildStmt(CurStmt, /*useCurrentScope=*/false).failed())
+        llvm_unreachable("failed to build statement");
     }
   }
 
