@@ -335,7 +335,7 @@ public:
   /// Write out entries in to .debug_addr section for CUs.
   virtual void update(DIEBuilder &DIEBlder, DWARFUnit &CUs);
 
-  /// Return buffer with all the entries in .debug_addr already writen out using
+  /// Return buffer with all the entries in .debug_addr already written out using
   /// update(...).
   virtual AddressSectionBuffer &finalize() { return *Buffer; }
 
