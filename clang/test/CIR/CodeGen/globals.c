@@ -3,7 +3,8 @@
 // bit different from the C++ version. This test ensures that these differences
 // are accounted for.
 
-// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -emit-cir %s -o - | FileCheck %s
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -emit-cir %s -o %t.cir
+// RUN: FileCheck --input-file=%t.cir %s
 
 char string[] = "whatnow";
 // CHECK: cir.global external @string = #cir.const_array<"whatnow\00" : !cir.array<!s8i x 8>> : !cir.array<!s8i x 8>
@@ -40,7 +41,7 @@ struct {
   char y[3];
   char z[3];
 } nestedString = {"1", "", "\0"};
-// CHECK: cir.global external @nestedString = #cir.const_struct<{#cir.const_array<"1\00\00" : !cir.array<!s8i x 3>> : !cir.array<!s8i x 3>, #cir.const_array<"\00\00\00" : !cir.array<!s8i x 3>> : !cir.array<!s8i x 3>, #cir.const_array<"\00\00\00" : !cir.array<!s8i x 3>> : !cir.array<!s8i x 3>}>
+// CHECK: cir.global external @nestedString = #cir.const_struct<{#cir.const_array<"1\00\00" : !cir.array<!s8i x 3>> : !cir.array<!s8i x 3>, #cir.zero : !cir.array<!s8i x 3>, #cir.zero : !cir.array<!s8i x 3>}>
 
 struct {
   char *name;
@@ -48,7 +49,48 @@ struct {
 // CHECK: cir.global external @nestedStringPtr = #cir.const_struct<{#cir.global_view<@".str"> : !cir.ptr<!s8i>}>
 
 int *globalPtr = &nestedString.y[1];
-// CHECK: cir.global external @globalPtr = #cir.global_view<@nestedString, [#cir.int<0> : !s64i, #cir.int<1> : !s64i, #cir.int<1> : !s64i]>
+// CHECK: cir.global external @globalPtr = #cir.global_view<@nestedString, [1 : i32, 1 : i32]> : !cir.ptr<!s32i>
+
+const int i = 12;
+int i2 = i;
+struct { int i; } i3 = {i};
+// CHECK: cir.global external @i2 = #cir.int<12> : !s32i
+// CHECK: cir.global external @i3 = #cir.const_struct<{#cir.int<12> : !s32i}> : !ty_22anon2E722
+
+int a[10][10][10];
+int *a2 = &a[3][0][8];
+struct { int *p; } a3 = {&a[3][0][8]};
+// CHECK: cir.global external @a2 = #cir.global_view<@a, [3 : i32, 0 : i32, 8 : i32]> : !cir.ptr<!s32i>
+// CHECK: cir.global external @a3 = #cir.const_struct<{#cir.global_view<@a, [3 : i32, 0 : i32, 8 : i32]> : !cir.ptr<!s32i>}> : !ty_22anon2E922
+
+int p[10];
+int *p1 = &p[0];
+struct { int *x; } p2 = {&p[0]};
+// CHECK: cir.global external @p1 = #cir.global_view<@p> : !cir.ptr<!s32i>
+// CHECK: cir.global external @p2 = #cir.const_struct<{#cir.global_view<@p> : !cir.ptr<!s32i>}> : !ty_22anon2E1122
+
+int q[10];
+int *q1 = q;
+struct { int *x; } q2 = {q};
+// CHECK: cir.global external @q1 = #cir.global_view<@q> : !cir.ptr<!s32i>
+// CHECK: cir.global external @q2 = #cir.const_struct<{#cir.global_view<@q> : !cir.ptr<!s32i>}> : !ty_22anon2E1322
+
+int foo() {
+    extern int optind;
+    return optind;
+}
+// CHECK: cir.global "private" external @optind : !s32i
+// CHECK: cir.func {{.*@foo}}
+// CHECK:   {{.*}} = cir.get_global @optind : cir.ptr <!s32i>
+
+struct Glob {
+  double a[42];
+  int pad1[3];
+  double b[42];
+} glob;
+
+double *const glob_ptr = &glob.b[1];
+// CHECK: cir.global external @glob_ptr = #cir.global_view<@glob, [2 : i32, 1 : i32]> : !cir.ptr<f64>
 
 // TODO: test tentatives with internal linkage.
 

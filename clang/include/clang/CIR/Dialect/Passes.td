@@ -75,4 +75,43 @@ def LoweringPrepare : Pass<"cir-lowering-prepare"> {
   let dependentDialects = ["cir::CIRDialect"];
 }
 
+def IdiomRecognizer : Pass<"cir-idiom-recognizer"> {
+  let summary = "Raise calls to C/C++ libraries to CIR operations";
+  let description = [{
+    This pass recognize idiomatic C++ usage and incorporate C++ standard
+    containers, library functions calls, and types into CIR operation,
+    attributes and types.
+
+    Detections done by this pass can be inspected by users by using
+    remarks. Currently supported are `all` and `found-calls`.
+  }];
+  let constructor = "mlir::createIdiomRecognizerPass()";
+  let dependentDialects = ["cir::CIRDialect"];
+
+  let options = [
+    ListOption<"remarksList", "remarks", "std::string",
+               "Diagnostic remarks to enable"
+               " Supported styles: {all|found-calls}", "llvm::cl::ZeroOrMore">,
+  ];
+}
+
+def LibOpt : Pass<"cir-lib-opt"> {
+  let summary = "Optimize C/C++ library calls";
+  let description = [{
+    By using higher level information from `cir-idiom-recognize`, this pass
+    apply transformations to CIR based on specific C/C++ library semantics.
+
+    Transformations done by this pass can be inspected by users by using
+    remarks. Currently supported are `all` and `transforms`.
+  }];
+  let constructor = "mlir::createLibOptPass()";
+  let dependentDialects = ["cir::CIRDialect"];
+
+  let options = [
+    ListOption<"remarksList", "remarks", "std::string",
+               "Diagnostic remarks to enable"
+               " Supported styles: {all|transforms}", "llvm::cl::ZeroOrMore">,
+  ];
+}
+
 #endif // MLIR_DIALECT_CIR_PASSES

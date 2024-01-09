@@ -79,7 +79,7 @@ struct CIRRecordLowering final {
 
   // Helper function to check if we are targeting AAPCS.
   bool isAAPCS() const {
-    return astContext.getTargetInfo().getABI().startswith("aapcs");
+    return astContext.getTargetInfo().getABI().starts_with("aapcs");
   }
 
   /// Helper function to check if the target machine is BigEndian.
@@ -227,7 +227,8 @@ void CIRRecordLowering::setBitFieldInfo(const FieldDecl *FD,
       (unsigned)(getFieldBitOffset(FD) - astContext.toBits(StartOffset));
   Info.Size = FD->getBitWidthValue(astContext);
   Info.StorageSize = getSizeInBits(StorageType).getQuantity();
-  Info.StorageOffset = StartOffset;
+  Info.StorageOffset = StartOffset;  
+  Info.Name = FD->getName();
 
   if (Info.Size > Info.StorageSize)
     Info.Size = Info.StorageSize;

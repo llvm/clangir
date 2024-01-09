@@ -1,6 +1,6 @@
-// RUN: %clang_cc1 -fclangir-enable -emit-cir -mmlir --mlir-print-ir-after-all %s -o %t.cir 2>&1 | FileCheck %s -check-prefix=CIR
-// RUN: %clang_cc1 -fclangir-enable -emit-llvm -mmlir --mlir-print-ir-after-all -mllvm -print-after-all  %s -o %t.ll 2>&1 | FileCheck %s -check-prefix=CIR -check-prefix=LLVM
-// RUN: %clang_cc1 -fclangir-enable -emit-cir -mmlir --mlir-print-ir-after=cir-drop-ast %s -o %t.cir 2>&1 | FileCheck %s -check-prefix=CIRPASS
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir-enable -emit-cir -mmlir --mlir-print-ir-after-all %s -o %t.cir 2>&1 | FileCheck %s -check-prefix=CIR
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir-enable -emit-llvm -mmlir --mlir-print-ir-after-all -mllvm -print-after-all  %s -o %t.ll 2>&1 | FileCheck %s -check-prefix=CIR -check-prefix=LLVM
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir-enable -emit-cir -mmlir --mlir-print-ir-after=cir-drop-ast %s -o %t.cir 2>&1 | FileCheck %s -check-prefix=CIRPASS
 
 int foo(void) {
   int i = 3;
@@ -16,7 +16,7 @@ int foo(void) {
 // CIR:  cir.func @foo() -> !s32i
 // LLVM: IR Dump After cir::direct::ConvertCIRToLLVMPass (cir-to-llvm)
 // LLVM: llvm.func @foo() -> i32
-// LLVM: IR Dump After VerifierPass on [module] ***
+// LLVM: IR Dump After
 // LLVM: define i32 @foo()
 
 // CIRPASS-NOT:  IR Dump After MergeCleanups

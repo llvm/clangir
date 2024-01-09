@@ -54,6 +54,46 @@ def CIR_IntType : CIR_Type<"Int", "int",
   let genVerifyDecl = 1;
 }
 
+// Constraints
+
+// Unsigned integer type of a specific width.
+class UInt<int width>
+  : Type<And<[
+        CPred<"$_self.isa<::mlir::cir::IntType>()">,
+        CPred<"$_self.cast<::mlir::cir::IntType>().isUnsigned()">,
+        CPred<"$_self.cast<::mlir::cir::IntType>().getWidth() == " # width>
+        ]>, width # "-bit unsigned integer", "::mlir::cir::IntType">,
+    BuildableType<
+      "mlir::cir::IntType::get($_builder.getContext(), "
+      # width # ", /*isSigned=*/false)"> {
+  int bitwidth = width;
+}
+
+def UInt1  : UInt<1>;
+def UInt8  : UInt<8>;
+def UInt16 : UInt<16>;
+def UInt32 : UInt<32>;
+def UInt64 : UInt<64>;
+
+// Signed integer type of a specific width.
+class SInt<int width>
+  : Type<And<[
+        CPred<"$_self.isa<::mlir::cir::IntType>()">,
+        CPred<"$_self.cast<::mlir::cir::IntType>().isSigned()">,
+        CPred<"$_self.cast<::mlir::cir::IntType>().getWidth() == " # width>
+        ]>, width # "-bit signed integer", "::mlir::cir::IntType">,
+    BuildableType<
+      "mlir::cir::IntType::get($_builder.getContext(), "
+      # width # ", /*isSigned=*/true)"> {
+  int bitwidth = width;
+}
+
+def SInt1  : SInt<1>;
+def SInt8  : SInt<8>;
+def SInt16 : SInt<16>;
+def SInt32 : SInt<32>;
+def SInt64 : SInt<64>;
+
 //===----------------------------------------------------------------------===//
 // PointerType
 //===----------------------------------------------------------------------===//
@@ -100,6 +140,26 @@ def CIR_ArrayType : CIR_Type<"Array", "array",
   let summary = "CIR array type";
   let description = [{
     `CIR.array` represents C/C++ constant arrays.
+  }];
+
+  let parameters = (ins "mlir::Type":$eltType, "uint64_t":$size);
+
+  let assemblyFormat = [{
+    `<` $eltType `x` $size `>`
+  }];
+}
+
+//===----------------------------------------------------------------------===//
+// VectorType (fixed size)
+//===----------------------------------------------------------------------===//
+
+def CIR_VectorType : CIR_Type<"Vector", "vector",
+    [DeclareTypeInterfaceMethods<DataLayoutTypeInterface>]> {
+
+  let summary = "CIR vector type";
+  let description = [{
+    `cir.vector' represents fixed-size vector types.  The parameters are the
+    element type and the number of elements.
   }];
 
   let parameters = (ins "mlir::Type":$eltType, "uint64_t":$size);
@@ -179,5 +239,30 @@ def CIR_VoidType : CIR_Type<"Void", "void"> {
     std::string getAlias() const { return "void"; };
   }];
 }
+
+// Constraints
+
+// Pointer to void
+def VoidPtr : Type<
+    And<[
+      CPred<"$_self.isa<::mlir::cir::PointerType>()">,
+      CPred<"$_self.cast<::mlir::cir::PointerType>().getPointee().isa<::mlir::cir::VoidType>()">,
+    ]>, "void*">,
+    BuildableType<
+      "mlir::cir::PointerType::get($_builder.getContext(),"
+      "mlir::cir::VoidType::get($_builder.getContext()))"> {
+}
+
+//===----------------------------------------------------------------------===//
+// Global type constraints
+//===----------------------------------------------------------------------===//
+
+def CIR_StructType : Type<CPred<"$_self.isa<::mlir::cir::StructType>()">,
+                          "CIR struct type">;
+
+def CIR_AnyType : AnyTypeOf<[
+  CIR_IntType, CIR_PointerType, CIR_BoolType, CIR_ArrayType, CIR_VectorType,
+  CIR_FuncType, CIR_VoidType, CIR_StructType, AnyFloat,
+]>;
 
 #endif // MLIR_CIR_DIALECT_CIR_TYPES

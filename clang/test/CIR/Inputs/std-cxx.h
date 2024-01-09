@@ -1310,4 +1310,12 @@ template <typename T, typename... Args>
     return shared_ptr<T>(new T(static_cast<Args &&>(args)...));
   }
 
+template<typename T, unsigned N> struct array {
+  T arr[N];
+  typedef T value_type;
+  typedef value_type* iterator;
+  constexpr iterator begin() { return iterator(arr); }
+  constexpr iterator end() { return iterator(arr + N); }
+};
+
 } // namespace std

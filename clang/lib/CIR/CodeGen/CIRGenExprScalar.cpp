@@ -129,15 +129,15 @@ public:
     // VisitScalarExprClassName(...) to get this working.
     emitError(CGF.getLoc(E->getExprLoc()), "scalar exp no implemented: '")
         << E->getStmtClassName() << "'";
-    assert(0 && "shouldn't be here!");
+    llvm_unreachable("NYI");
     return {};
   }
 
   mlir::Value VisitConstantExpr(ConstantExpr *E) { llvm_unreachable("NYI"); }
   mlir::Value VisitParenExpr(ParenExpr *PE) { return Visit(PE->getSubExpr()); }
   mlir::Value
-  VisitSubstnonTypeTemplateParmExpr(SubstNonTypeTemplateParmExpr *E) {
-    llvm_unreachable("NYI");
+  VisitSubstNonTypeTemplateParmExpr(SubstNonTypeTemplateParmExpr *E) {
+    return Visit(E->getReplacement());
   }
   mlir::Value VisitGenericSelectionExpr(GenericSelectionExpr *GE) {
     llvm_unreachable("NYI");
@@ -213,7 +213,7 @@ public:
   mlir::Value buildLoadOfLValue(const Expr *E) {
     LValue LV = CGF.buildLValue(E);
     // FIXME: add some akin to EmitLValueAlignmentAssumption(E, V);
-    return CGF.buildLoadOfLValue(LV, E->getExprLoc()).getScalarVal();    
+    return CGF.buildLoadOfLValue(LV, E->getExprLoc()).getScalarVal();
   }
 
   mlir::Value buildLoadOfLValue(LValue LV, SourceLocation Loc) {
@@ -246,13 +246,19 @@ public:
   }
   mlir::Value VisitArraySubscriptExpr(ArraySubscriptExpr *E) {
     // Do we need anything like TestAndClearIgnoreResultAssign()?
-    assert(!E->getBase()->getType()->isVectorType() &&
-           "vector types not implemented");
 
-    // Emit subscript expressions in rvalue context's.  For most cases, this
-    // just loads the lvalue formed by the subscript expr.  However, we have to
-    // be careful, because the base of a vector subscript is occasionally an
-    // rvalue, so we can't get it as an lvalue.
+    if (E->getBase()->getType()->isVectorType()) {
+      assert(!UnimplementedFeature::scalableVectors() &&
+             "NYI: index into scalable vector");
+      // Subscript of vector type.  This is handled differently, with a custom
+      // operation.
+      mlir::Value VecValue = Visit(E->getBase());
+      mlir::Value IndexValue = Visit(E->getIdx());
+      return CGF.builder.create<mlir::cir::VecExtractOp>(
+          CGF.getLoc(E->getSourceRange()), VecValue, IndexValue);
+    }
+
+    // Just load the lvalue formed by the subscript expression.
     return buildLoadOfLValue(E);
   }
 
@@ -919,6 +925,7 @@ public:
            "Internal error: conversion between matrix type and scalar type");
 
     // TODO(CIR): Support VectorTypes
+    assert(!UnimplementedFeature::cirVectorType() && "NYI: vector cast");
 
     // Finally, we have the arithmetic types: real int/float.
     mlir::Value Res = nullptr;
@@ -1054,7 +1061,7 @@ static mlir::Value buildPointerArithmetic(CIRGenFunction &CGF,
     std::swap(pointerOperand, indexOperand);
   }
 
-  bool isSigned = indexOperand->getType()->isSignedIntegerOrEnumerationType();  
+  bool isSigned = indexOperand->getType()->isSignedIntegerOrEnumerationType();
 
   // Some versions of glibc and gcc use idioms (particularly in their malloc
   // routines) that add a pointer-sized integer (known to be a pointer value)
@@ -1579,8 +1586,18 @@ mlir::Value ScalarExprEmitter::VisitInitListExpr(InitListExpr *E) {
   if (E->hadArrayRangeDesignator())
     llvm_unreachable("NYI");
 
-  if (UnimplementedFeature::cirVectorType())
-    llvm_unreachable("NYI");
+  if (E->getType()->isVectorType()) {
+    assert(!UnimplementedFeature::scalableVectors() &&
+           "NYI: scalable vector init");
+    assert(!UnimplementedFeature::vectorConstants() && "NYI: vector constants");
+    SmallVector<mlir::Value, 16> Elements;
+    for (Expr *init : E->inits()) {
+      Elements.push_back(Visit(init));
+    }
+    return CGF.getBuilder().create<mlir::cir::VecCreateOp>(
+        CGF.getLoc(E->getSourceRange()), CGF.getCIRType(E->getType()),
+        Elements);
+  }
 
   if (NumInitElements == 0) {
     // C++11 value-initialization for the scalar.
@@ -1594,7 +1611,7 @@ mlir::Value ScalarExprEmitter::VisitUnaryLNot(const UnaryOperator *E) {
   // Perform vector logical not on comparison with zero vector.
   if (E->getType()->isVectorType() &&
       E->getType()->castAs<VectorType>()->getVectorKind() ==
-          VectorType::GenericVector) {
+          VectorKind::Generic) {
     llvm_unreachable("NYI");
   }
 
@@ -1809,9 +1826,8 @@ mlir::Value ScalarExprEmitter::VisitExprWithCleanups(ExprWithCleanups *E) {
   auto scope = builder.create<mlir::cir::ScopeOp>(
       scopeLoc, /*scopeBuilder=*/
       [&](mlir::OpBuilder &b, mlir::Type &yieldTy, mlir::Location loc) {
-        CIRGenFunction::LexicalScopeContext lexScope{
-            loc, builder.getInsertionBlock()};
-        CIRGenFunction::LexicalScopeGuard lexScopeGuard{CGF, &lexScope};
+        CIRGenFunction::LexicalScope lexScope{CGF, loc,
+                                              builder.getInsertionBlock()};
         auto scopeYieldVal = Visit(E->getSubExpr());
         if (scopeYieldVal) {
           builder.create<mlir::cir::YieldOp>(loc, scopeYieldVal);
@@ -2006,9 +2022,8 @@ mlir::Value ScalarExprEmitter::VisitAbstractConditionalOperator(
       .create<mlir::cir::TernaryOp>(
           loc, condV, /*trueBuilder=*/
           [&](mlir::OpBuilder &b, mlir::Location loc) {
-            CIRGenFunction::LexicalScopeContext lexScope{loc,
-                                                         b.getInsertionBlock()};
-            CIRGenFunction::LexicalScopeGuard lexThenGuard{CGF, &lexScope};
+            CIRGenFunction::LexicalScope lexScope{CGF, loc,
+                                                  b.getInsertionBlock()};
             CGF.currLexScope->setAsTernary();
 
             assert(!UnimplementedFeature::incrementProfileCounter());
@@ -2027,9 +2042,8 @@ mlir::Value ScalarExprEmitter::VisitAbstractConditionalOperator(
           },
           /*falseBuilder=*/
           [&](mlir::OpBuilder &b, mlir::Location loc) {
-            CIRGenFunction::LexicalScopeContext lexScope{loc,
-                                                         b.getInsertionBlock()};
-            CIRGenFunction::LexicalScopeGuard lexElseGuard{CGF, &lexScope};
+            CIRGenFunction::LexicalScope lexScope{CGF, loc,
+                                                  b.getInsertionBlock()};
             CGF.currLexScope->setAsTernary();
 
             assert(!UnimplementedFeature::incrementProfileCounter());
@@ -2092,17 +2106,14 @@ mlir::Value ScalarExprEmitter::VisitBinLAnd(const clang::BinaryOperator *E) {
   auto ResOp = Builder.create<mlir::cir::TernaryOp>(
       Loc, LHSCondV, /*trueBuilder=*/
       [&](mlir::OpBuilder &B, mlir::Location Loc) {
-        CIRGenFunction::LexicalScopeContext LexScope{Loc,
-                                                     B.getInsertionBlock()};
-        CIRGenFunction::LexicalScopeGuard lexElseGuard{CGF, &LexScope};
+        CIRGenFunction::LexicalScope LexScope{CGF, Loc, B.getInsertionBlock()};
         CGF.currLexScope->setAsTernary();
         mlir::Value RHSCondV = CGF.evaluateExprAsBool(E->getRHS());
         auto res = B.create<mlir::cir::TernaryOp>(
             Loc, RHSCondV, /*trueBuilder*/
             [&](mlir::OpBuilder &B, mlir::Location Loc) {
-              CIRGenFunction::LexicalScopeContext lexScope{
-                  Loc, B.getInsertionBlock()};
-              CIRGenFunction::LexicalScopeGuard lexElseGuard{CGF, &lexScope};
+              CIRGenFunction::LexicalScope lexScope{CGF, Loc,
+                                                    B.getInsertionBlock()};
               CGF.currLexScope->setAsTernary();
               auto res = B.create<mlir::cir::ConstantOp>(
                   Loc, Builder.getBoolTy(),
@@ -2112,9 +2123,8 @@ mlir::Value ScalarExprEmitter::VisitBinLAnd(const clang::BinaryOperator *E) {
             },
             /*falseBuilder*/
             [&](mlir::OpBuilder &b, mlir::Location Loc) {
-              CIRGenFunction::LexicalScopeContext lexScope{
-                  Loc, b.getInsertionBlock()};
-              CIRGenFunction::LexicalScopeGuard lexElseGuard{CGF, &lexScope};
+              CIRGenFunction::LexicalScope lexScope{CGF, Loc,
+                                                    b.getInsertionBlock()};
               CGF.currLexScope->setAsTernary();
               auto res = b.create<mlir::cir::ConstantOp>(
                   Loc, Builder.getBoolTy(),
@@ -2126,9 +2136,7 @@ mlir::Value ScalarExprEmitter::VisitBinLAnd(const clang::BinaryOperator *E) {
       },
       /*falseBuilder*/
       [&](mlir::OpBuilder &B, mlir::Location Loc) {
-        CIRGenFunction::LexicalScopeContext lexScope{Loc,
-                                                     B.getInsertionBlock()};
-        CIRGenFunction::LexicalScopeGuard lexElseGuard{CGF, &lexScope};
+        CIRGenFunction::LexicalScope lexScope{CGF, Loc, B.getInsertionBlock()};
         CGF.currLexScope->setAsTernary();
         auto res = B.create<mlir::cir::ConstantOp>(
             Loc, Builder.getBoolTy(),
@@ -2172,9 +2180,7 @@ mlir::Value ScalarExprEmitter::VisitBinLOr(const clang::BinaryOperator *E) {
   auto ResOp = Builder.create<mlir::cir::TernaryOp>(
       Loc, LHSCondV, /*trueBuilder=*/
       [&](mlir::OpBuilder &B, mlir::Location Loc) {
-        CIRGenFunction::LexicalScopeContext lexScope{Loc,
-                                                     B.getInsertionBlock()};
-        CIRGenFunction::LexicalScopeGuard lexElseGuard{CGF, &lexScope};
+        CIRGenFunction::LexicalScope lexScope{CGF, Loc, B.getInsertionBlock()};
         CGF.currLexScope->setAsTernary();
         auto res = B.create<mlir::cir::ConstantOp>(
             Loc, Builder.getBoolTy(),
@@ -2183,9 +2189,7 @@ mlir::Value ScalarExprEmitter::VisitBinLOr(const clang::BinaryOperator *E) {
       },
       /*falseBuilder*/
       [&](mlir::OpBuilder &B, mlir::Location Loc) {
-        CIRGenFunction::LexicalScopeContext LexScope{Loc,
-                                                     B.getInsertionBlock()};
-        CIRGenFunction::LexicalScopeGuard lexElseGuard{CGF, &LexScope};
+        CIRGenFunction::LexicalScope LexScope{CGF, Loc, B.getInsertionBlock()};
         CGF.currLexScope->setAsTernary();
         mlir::Value RHSCondV = CGF.evaluateExprAsBool(E->getRHS());
         auto res = B.create<mlir::cir::TernaryOp>(
@@ -2200,9 +2204,8 @@ mlir::Value ScalarExprEmitter::VisitBinLOr(const clang::BinaryOperator *E) {
                 Locs.push_back(fusedLoc.getLocations()[0]);
                 Locs.push_back(fusedLoc.getLocations()[1]);
               }
-              CIRGenFunction::LexicalScopeContext lexScope{
-                  Loc, B.getInsertionBlock()};
-              CIRGenFunction::LexicalScopeGuard lexElseGuard{CGF, &lexScope};
+              CIRGenFunction::LexicalScope lexScope{CGF, Loc,
+                                                    B.getInsertionBlock()};
               CGF.currLexScope->setAsTernary();
               auto res = B.create<mlir::cir::ConstantOp>(
                   Loc, Builder.getBoolTy(),
@@ -2221,9 +2224,8 @@ mlir::Value ScalarExprEmitter::VisitBinLOr(const clang::BinaryOperator *E) {
                 Locs.push_back(fusedLoc.getLocations()[0]);
                 Locs.push_back(fusedLoc.getLocations()[1]);
               }
-              CIRGenFunction::LexicalScopeContext lexScope{
-                  Loc, B.getInsertionBlock()};
-              CIRGenFunction::LexicalScopeGuard lexElseGuard{CGF, &lexScope};
+              CIRGenFunction::LexicalScope lexScope{CGF, Loc,
+                                                    B.getInsertionBlock()};
               CGF.currLexScope->setAsTernary();
               auto res = b.create<mlir::cir::ConstantOp>(
                   Loc, Builder.getBoolTy(),

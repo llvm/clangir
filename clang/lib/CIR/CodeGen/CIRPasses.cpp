@@ -18,24 +18,40 @@
 #include "mlir/Pass/PassManager.h"
 
 namespace cir {
-mlir::LogicalResult runCIRToCIRPasses(mlir::ModuleOp theModule,
-                                      mlir::MLIRContext *mlirCtx,
-                                      clang::ASTContext &astCtx,
-                                      bool enableVerifier, bool enableLifetime,
-                                      llvm::StringRef lifetimeOpts,
-                                      bool &passOptParsingFailure) {
+mlir::LogicalResult runCIRToCIRPasses(
+    mlir::ModuleOp theModule, mlir::MLIRContext *mlirCtx,
+    clang::ASTContext &astCtx, bool enableVerifier, bool enableLifetime,
+    llvm::StringRef lifetimeOpts, bool enableIdiomRecognizer,
+    llvm::StringRef idiomRecognizerOpts, bool enableLibOpt,
+    llvm::StringRef libOptOpts, std::string &passOptParsingFailure) {
   mlir::PassManager pm(mlirCtx);
-  passOptParsingFailure = false;
-
   pm.addPass(mlir::createMergeCleanupsPass());
 
   if (enableLifetime) {
     auto lifetimePass = mlir::createLifetimeCheckPass(&astCtx);
     if (lifetimePass->initializeOptions(lifetimeOpts).failed()) {
-      passOptParsingFailure = true;
+      passOptParsingFailure = lifetimeOpts;
       return mlir::failure();
     }
     pm.addPass(std::move(lifetimePass));
+  }
+
+  if (enableIdiomRecognizer) {
+    auto idiomPass = mlir::createIdiomRecognizerPass(&astCtx);
+    if (idiomPass->initializeOptions(idiomRecognizerOpts).failed()) {
+      passOptParsingFailure = idiomRecognizerOpts;
+      return mlir::failure();
+    }
+    pm.addPass(std::move(idiomPass));
+  }
+
+  if (enableLibOpt) {
+    auto libOpPass = mlir::createLibOptPass(&astCtx);
+    if (libOpPass->initializeOptions(libOptOpts).failed()) {
+      passOptParsingFailure = libOptOpts;
+      return mlir::failure();
+    }
+    pm.addPass(std::move(libOpPass));
   }
 
   pm.addPass(mlir::createLoweringPreparePass(&astCtx));
