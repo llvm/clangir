@@ -27,7 +27,10 @@ add_clang_library(clangCIRLoweringDirectToLLVM
   ${dialect_libs}
   MLIRCIR
   MLIRAnalysis
+  MLIRBuiltinToLLVMIRTranslation
   MLIRIR
+  MLIRLLVMIRToLLVMTranslation
+  MLIRLLVMToLLVMIRTranslation
   MLIRParser
   MLIRSideEffectInterfaces
   MLIRTransforms
