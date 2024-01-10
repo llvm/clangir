@@ -578,6 +578,11 @@ public:
     return create<mlir::cir::CopyOp>(dst.getLoc(), dst, src);
   }
 
+  /// Create a loop condition.
+  mlir::cir::ConditionOp createCondition(mlir::Value condition) {
+    return create<mlir::cir::ConditionOp>(condition.getLoc(), condition);
+  }
+
   mlir::cir::MemCpyOp createMemCpy(mlir::Location loc, mlir::Value dst,
                                    mlir::Value src, mlir::Value len) {
     return create<mlir::cir::MemCpyOp>(loc, dst, src, len);
@@ -787,7 +792,8 @@ public:
     return create<mlir::cir::StackSaveOp>(loc, ty);
   }
 
-  mlir::cir::StackRestoreOp createStackRestore(mlir::Location loc, mlir::Value v) {
+  mlir::cir::StackRestoreOp createStackRestore(mlir::Location loc,
+                                               mlir::Value v) {
     return create<mlir::cir::StackRestoreOp>(loc, v);
   }
 

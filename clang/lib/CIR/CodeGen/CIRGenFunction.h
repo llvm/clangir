@@ -773,7 +773,7 @@ public:
   /// Create a check for a function parameter that may potentially be
   /// declared as non-null.
   void buildNonNullArgCheck(RValue RV, QualType ArgType, SourceLocation ArgLoc,
-                           AbstractCallee AC, unsigned ParmNum);
+                            AbstractCallee AC, unsigned ParmNum);
 
   void buildCallArg(CallArgList &args, const clang::Expr *E,
                     clang::QualType ArgType);
@@ -1366,7 +1366,7 @@ public:
   AggValueSlot::Overlap_t getOverlapForFieldInit(const FieldDecl *FD);
   LValue buildLValueForField(LValue Base, const clang::FieldDecl *Field);
   LValue buildLValueForBitField(LValue base, const FieldDecl *field);
-  
+
   /// Like buildLValueForField, excpet that if the Field is a reference, this
   /// will return the address of the reference and not the address of the value
   /// stored in the reference.
@@ -1524,8 +1524,8 @@ public:
 
   static Destroyer destroyCXXObject;
 
-  void pushDestroy(QualType::DestructionKind dtorKind,
-                   Address addr, QualType type);
+  void pushDestroy(QualType::DestructionKind dtorKind, Address addr,
+                   QualType type);
 
   void pushDestroy(CleanupKind kind, Address addr, QualType type,
                    Destroyer *destroyer, bool useEHCleanupForArray);
