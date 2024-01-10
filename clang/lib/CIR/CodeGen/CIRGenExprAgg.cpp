@@ -203,7 +203,11 @@ public:
   // Operators.
   void VisitCastExpr(CastExpr *E);
   void VisitCallExpr(const CallExpr *E);
-  void VisitStmtExpr(const StmtExpr *E) { llvm_unreachable("NYI"); }
+  void VisitStmtExpr(const StmtExpr *E) {
+    assert(!UnimplementedFeature::stmtExprEvaluation() && "NYI");
+    CGF.buildCompoundStmt(*E->getSubStmt(), /*getLast=*/true, Dest);
+  }
+
   void VisitBinaryOperator(const BinaryOperator *E) {
     switch (E->getOpcode()) {
     case BO_Assign:
@@ -1172,17 +1176,18 @@ void CIRGenFunction::buildAggregateCopy(LValue Dest, LValue Src, QualType Ty,
 
   if (getLangOpts().CPlusPlus) {
     if (const RecordType *RT = Ty->getAs<RecordType>()) {
-      CXXRecordDecl *Record = cast<CXXRecordDecl>(RT->getOriginalDecl());
-      assert((Record->hasTrivialCopyConstructor() ||
-              Record->hasTrivialCopyAssignment() ||
-              Record->hasTrivialMoveConstructor() ||
-              Record->hasTrivialMoveAssignment() ||
-              Record->hasAttr<TrivialABIAttr>() || Record->isUnion()) &&
-             "Trying to aggregate-copy a type without a trivial copy/move "
-             "constructor or assignment operator");
-      // Ignore empty classes in C++.
-      if (Record->isEmpty())
-        return;
+      if (CXXRecordDecl *Record = dyn_cast<CXXRecordDecl>(RT->getOriginalDecl())) {
+        assert((Record->hasTrivialCopyConstructor() ||
+                Record->hasTrivialCopyAssignment() ||
+                Record->hasTrivialMoveConstructor() ||
+                Record->hasTrivialMoveAssignment() ||
+                Record->hasAttr<TrivialABIAttr>() || Record->isUnion()) &&
+               "Trying to aggregate-copy a type without a trivial copy/move "
+               "constructor or assignment operator");
+        // Ignore empty classes in C++.
+        if (Record->isEmpty())
+          return;
+      }
     }
   }
 

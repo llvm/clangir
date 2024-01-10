@@ -1027,6 +1027,13 @@ RValue CIRGenFunction::buildCallExpr(const clang::CallExpr *E,
   return buildCall(E->getCallee()->getType(), callee, E, ReturnValue);
 }
 
+LValue CIRGenFunction::buildStmtExprLValue(const StmtExpr *E) {
+  // Can only get l-value for message expression returning aggregate type
+  RValue RV = buildAnyExprToTemp(E);
+  return makeAddrLValue(RV.getAggregateAddress(), E->getType(),
+                        AlignmentSource::Decl);
+}
+
 RValue CIRGenFunction::buildCall(clang::QualType CalleeType,
                                  const CIRGenCallee &OrigCallee,
                                  const clang::CallExpr *E,
@@ -1795,9 +1802,10 @@ static void pushTemporaryCleanup(CIRGenFunction &CGF,
   if (const RecordType *RT =
           E->getType()->getBaseElementTypeUnsafe()->getAs<RecordType>()) {
     // Get the destructor for the reference temporary.
-    auto *ClassDecl = cast<CXXRecordDecl>(RT->getOriginalDecl());
-    if (!ClassDecl->hasTrivialDestructor())
-      ReferenceTemporaryDtor = ClassDecl->getDestructor();
+    if (auto *ClassDecl = dyn_cast<CXXRecordDecl>(RT->getOriginalDecl())) {
+      if (!ClassDecl->hasTrivialDestructor())
+        ReferenceTemporaryDtor = ClassDecl->getDestructor();
+    }
   }
 
   if (!ReferenceTemporaryDtor)
@@ -2163,6 +2171,8 @@ LValue CIRGenFunction::buildLValue(const Expr *E) {
 
   case Expr::ObjCPropertyRefExprClass:
     llvm_unreachable("cannot emit a property reference directly");
+  case Expr::StmtExprClass:
+    return buildStmtExprLValue(cast<StmtExpr>(E));
   }
 
   return LValue::makeAddr(Address::invalid(), E->getType());
