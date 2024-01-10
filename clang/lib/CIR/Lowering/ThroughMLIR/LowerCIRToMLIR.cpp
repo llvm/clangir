@@ -78,7 +78,7 @@ struct ConvertCIRToMLIRPass
   virtual StringRef getArgument() const override { return "cir-to-mlir"; }
 };
 
-class CIRCallLowering : public mlir::OpConversionPattern<mlir::cir::CallOp> {
+class CIRCallOpLowering : public mlir::OpConversionPattern<mlir::cir::CallOp> {
 public:
   using OpConversionPattern<mlir::cir::CallOp>::OpConversionPattern;
 
@@ -95,7 +95,7 @@ public:
   }
 };
 
-class CIRAllocaLowering
+class CIRAllocaOpLowering
     : public mlir::OpConversionPattern<mlir::cir::AllocaOp> {
 public:
   using OpConversionPattern<mlir::cir::AllocaOp>::OpConversionPattern;
@@ -119,7 +119,7 @@ public:
   }
 };
 
-class CIRLoadLowering : public mlir::OpConversionPattern<mlir::cir::LoadOp> {
+class CIRLoadOpLowering : public mlir::OpConversionPattern<mlir::cir::LoadOp> {
 public:
   using OpConversionPattern<mlir::cir::LoadOp>::OpConversionPattern;
 
@@ -131,7 +131,8 @@ public:
   }
 };
 
-class CIRStoreLowering : public mlir::OpConversionPattern<mlir::cir::StoreOp> {
+class CIRStoreOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::StoreOp> {
 public:
   using OpConversionPattern<mlir::cir::StoreOp>::OpConversionPattern;
 
@@ -144,7 +145,7 @@ public:
   }
 };
 
-class CIRConstantLowering
+class CIRConstantOpLowering
     : public mlir::OpConversionPattern<mlir::cir::ConstantOp> {
 public:
   using OpConversionPattern<mlir::cir::ConstantOp>::OpConversionPattern;
@@ -172,7 +173,7 @@ public:
   }
 };
 
-class CIRFuncLowering : public mlir::OpConversionPattern<mlir::cir::FuncOp> {
+class CIRFuncOpLowering : public mlir::OpConversionPattern<mlir::cir::FuncOp> {
 public:
   using OpConversionPattern<mlir::cir::FuncOp>::OpConversionPattern;
 
@@ -593,6 +594,17 @@ public:
   }
 };
 
+void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
+                                         mlir::TypeConverter &converter) {
+  patterns.add<CIRReturnLowering, CIRBrOpLowering>(patterns.getContext());
+
+  patterns.add<CIRCmpOpLowering, CIRCallOpLowering, CIRUnaryOpLowering,
+               CIRBinOpLowering, CIRLoadOpLowering, CIRConstantOpLowering,
+               CIRStoreOpLowering, CIRAllocaOpLowering, CIRFuncOpLowering,
+               CIRBrCondOpLowering, CIRTernaryOpLowering,
+               CIRYieldOpLowering>(converter, patterns.getContext());
+}
+
 class CIRIfOpLowering : public mlir::OpConversionPattern<mlir::cir::IfOp> {
 public:
   using OpConversionPattern<mlir::cir::IfOp>::OpConversionPattern;
@@ -885,9 +897,9 @@ void ConvertCIRToMLIRPass::runOnOperation() {
   target.addIllegalDialect<mlir::cir::CIRDialect>();
 
   mlir::RewritePatternSet patterns(context);
-  patterns.add<CIRReturnLowering, CIRFuncLowering, CIRCallLowering,
-               CIRAllocaLowering, CIRLoadLowering, CIRStoreLowering,
-               CIRConstantLowering, CIRUnaryOpLowering, CIRBinOpLowering,
+  patterns.add<CIRReturnLowering, CIRFuncOpLowering, CIRCallOpLowering,
+               CIRAllocaOpLowering, CIRLoadOpLowering, CIRStoreOpLowering,
+               CIRConstantOpLowering, CIRUnaryOpLowering, CIRBinOpLowering,
                CIRCmpOpLowering, CIRBrOpLowering, CIRBrCondOpLowering,
                CIRTernaryOpLowering, CIRYieldOpLowering, CIRIfOpLowering,
                CIRLoopOpLowering, CIRScopeOpLowering, CIRCastOpLowering,
