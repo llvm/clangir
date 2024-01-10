@@ -189,8 +189,8 @@ bool omitRegionTerm(mlir::Region &r) {
 // CIR Custom Parsers/Printers
 //===----------------------------------------------------------------------===//
 
-static mlir::ParseResult
-parseOmittedTerminatorRegion(mlir::OpAsmParser &parser, mlir::Region &region) {
+static mlir::ParseResult parseOmittedTerminatorRegion(mlir::OpAsmParser &parser,
+                                                      mlir::Region &region) {
   auto regionLoc = parser.getCurrentLocation();
   if (parser.parseRegion(region))
     return failure();
@@ -200,8 +200,8 @@ parseOmittedTerminatorRegion(mlir::OpAsmParser &parser, mlir::Region &region) {
 }
 
 static void printOmittedTerminatorRegion(mlir::OpAsmPrinter &printer,
-                                          mlir::cir::ScopeOp &op,
-                                          mlir::Region &region) {
+                                         mlir::cir::ScopeOp &op,
+                                         mlir::Region &region) {
   printer.printRegion(region,
                       /*printEntryBlockArgs=*/false,
                       /*printBlockTerminators=*/!omitRegionTerm(region));
@@ -223,6 +223,30 @@ void AllocaOp::build(::mlir::OpBuilder &odsBuilder,
     odsState.addAttribute(getAlignmentAttrName(odsState.name), alignment);
   }
   odsState.addTypes(addr);
+}
+
+//===----------------------------------------------------------------------===//
+// ConditionOp
+//===-----------------------------------------------------------------------===//
+
+//===----------------------------------
+// BranchOpTerminatorInterface Methods
+
+void ConditionOp::getSuccessorRegions(
+    ArrayRef<Attribute> operands, SmallVectorImpl<RegionSuccessor> &regions) {
+  auto loopOp = cast<LoopOp>(getOperation()->getParentOp());
+
+  // TODO(cir): The condition value may be folded to a constant, narrowing
+  // down its list of possible successors.
+  // Condition may branch to the body or to the parent op.
+  regions.emplace_back(&loopOp.getBody(), loopOp.getBody().getArguments());
+  regions.emplace_back(loopOp->getResults());
+}
+
+MutableOperandRange
+ConditionOp::getMutableSuccessorOperands(RegionBranchPoint point) {
+  // No values are yielded to the successor region.
+  return MutableOperandRange(getOperation(), 0, 0);
 }
 
 //===----------------------------------------------------------------------===//
@@ -1303,26 +1327,11 @@ void LoopOp::getSuccessorRegions(mlir::RegionBranchPoint point,
 llvm::SmallVector<Region *> LoopOp::getLoopRegions() { return {&getBody()}; }
 
 LogicalResult LoopOp::verify() {
-  // Cond regions should only terminate with plain 'cir.yield' or
-  // 'cir.yield continue'.
-  auto terminateError = [&]() {
-    return emitOpError() << "cond region must be terminated with "
-                            "'cir.yield' or 'cir.yield continue'";
-  };
+  if (getCond().empty())
+    return emitOpError() << "cond region must not be empty";
 
-  auto &blocks = getCond().getBlocks();
-  for (Block &block : blocks) {
-    if (block.empty())
-      continue;
-    auto &op = block.back();
-    if (isa<BrCondOp>(op))
-      continue;
-    if (!isa<YieldOp>(op))
-      terminateError();
-    auto y = cast<YieldOp>(op);
-    if (!(y.isPlain() || y.isContinue()))
-      terminateError();
-  }
+  if (!llvm::isa<ConditionOp>(getCond().back().getTerminator()))
+    return emitOpError() << "cond region terminate with 'cir.condition'";
 
   return success();
 }
