@@ -647,26 +647,6 @@ CIRGenFunction::buildDefaultStmt(const DefaultStmt &S, mlir::Type condType,
   return buildCaseDefaultCascade(&S, condType, caseAttrs, os);
 }
 
-static mlir::LogicalResult buildLoopCondYield(mlir::OpBuilder &builder,
-                                              mlir::Location loc,
-                                              mlir::Value cond) {
-  mlir::Block *trueBB = nullptr, *falseBB = nullptr;
-  {
-    mlir::OpBuilder::InsertionGuard guard(builder);
-    trueBB = builder.createBlock(builder.getBlock()->getParent());
-    builder.create<mlir::cir::YieldOp>(loc, YieldOpKind::Continue);
-  }
-  {
-    mlir::OpBuilder::InsertionGuard guard(builder);
-    falseBB = builder.createBlock(builder.getBlock()->getParent());
-    builder.create<mlir::cir::YieldOp>(loc);
-  }
-
-  assert((trueBB && falseBB) && "expected both blocks to exist");
-  builder.create<mlir::cir::BrCondOp>(loc, cond, trueBB, falseBB);
-  return mlir::success();
-}
-
 mlir::LogicalResult
 CIRGenFunction::buildCXXForRangeStmt(const CXXForRangeStmt &S,
                                      ArrayRef<const Attr *> ForAttrs) {
@@ -700,8 +680,7 @@ CIRGenFunction::buildCXXForRangeStmt(const CXXForRangeStmt &S,
           assert(!UnimplementedFeature::createProfileWeightsForLoop());
           assert(!UnimplementedFeature::emitCondLikelihoodViaExpectIntrinsic());
           mlir::Value condVal = evaluateExprAsBool(S.getCond());
-          if (buildLoopCondYield(b, loc, condVal).failed())
-            loopRes = mlir::failure();
+          builder.createCondition(condVal);
         },
         /*bodyBuilder=*/
         [&](mlir::OpBuilder &b, mlir::Location loc) {
@@ -783,8 +762,7 @@ mlir::LogicalResult CIRGenFunction::buildForStmt(const ForStmt &S) {
                 loc, boolTy,
                 mlir::cir::BoolAttr::get(b.getContext(), boolTy, true));
           }
-          if (buildLoopCondYield(b, loc, condVal).failed())
-            loopRes = mlir::failure();
+          builder.createCondition(condVal);
         },
         /*bodyBuilder=*/
         [&](mlir::OpBuilder &b, mlir::Location loc) {
@@ -847,8 +825,7 @@ mlir::LogicalResult CIRGenFunction::buildDoStmt(const DoStmt &S) {
           // expression compares unequal to 0. The condition must be a
           // scalar type.
           mlir::Value condVal = evaluateExprAsBool(S.getCond());
-          if (buildLoopCondYield(b, loc, condVal).failed())
-            loopRes = mlir::failure();
+          builder.createCondition(condVal);
         },
         /*bodyBuilder=*/
         [&](mlir::OpBuilder &b, mlir::Location loc) {
@@ -907,8 +884,7 @@ mlir::LogicalResult CIRGenFunction::buildWhileStmt(const WhileStmt &S) {
           // expression compares unequal to 0. The condition must be a
           // scalar type.
           condVal = evaluateExprAsBool(S.getCond());
-          if (buildLoopCondYield(b, loc, condVal).failed())
-            loopRes = mlir::failure();
+          builder.createCondition(condVal);
         },
         /*bodyBuilder=*/
         [&](mlir::OpBuilder &b, mlir::Location loc) {
