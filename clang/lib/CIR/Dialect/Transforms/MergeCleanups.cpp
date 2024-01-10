@@ -54,49 +54,6 @@ struct RemoveRedudantBranches : public OpRewritePattern<BrOp> {
   }
 };
 
-/// Merges basic blocks of trivial conditional branches. This is useful when a
-/// the condition of conditional branch is a constant and the destinations of
-/// the conditional branch both have only one predecessor.
-///
-/// From:
-///   ^bb0:
-///     %0 = cir.const(#true) : !cir.bool
-///     cir.brcond %0 ^bb1, ^bb2
-///   ^bb1: // pred: ^bb0
-///     cir.yield continue
-///   ^bb2: // pred: ^bb0
-///     cir.yield
-///
-/// To:
-///   ^bb0:
-///     cir.yield continue
-///
-struct MergeTrivialConditionalBranches : public OpRewritePattern<BrCondOp> {
-  using OpRewritePattern<BrCondOp>::OpRewritePattern;
-
-  LogicalResult match(BrCondOp op) const final {
-    return success(isa<ConstantOp>(op.getCond().getDefiningOp()) &&
-                   op.getDestFalse()->hasOneUse() &&
-                   op.getDestTrue()->hasOneUse());
-  }
-
-  /// Replace conditional branch with unconditional branch.
-  void rewrite(BrCondOp op, PatternRewriter &rewriter) const final {
-    auto constOp = llvm::cast<ConstantOp>(op.getCond().getDefiningOp());
-    bool cond = constOp.getValue().cast<cir::BoolAttr>().getValue();
-    Block *block = op.getOperation()->getBlock();
-
-    rewriter.eraseOp(op);
-    if (cond) {
-      rewriter.mergeBlocks(op.getDestTrue(), block);
-      rewriter.eraseBlock(op.getDestFalse());
-    } else {
-      rewriter.mergeBlocks(op.getDestFalse(), block);
-      rewriter.eraseBlock(op.getDestTrue());
-    }
-  }
-};
-
 struct RemoveEmptyScope : public OpRewritePattern<ScopeOp> {
   using OpRewritePattern<ScopeOp>::OpRewritePattern;
 
@@ -145,7 +102,6 @@ void populateMergeCleanupPatterns(RewritePatternSet &patterns) {
   // clang-format off
   patterns.add<
     RemoveRedudantBranches,
-    MergeTrivialConditionalBranches,
     RemoveEmptyScope,
     RemoveEmptySwitch
   >(patterns.getContext());
