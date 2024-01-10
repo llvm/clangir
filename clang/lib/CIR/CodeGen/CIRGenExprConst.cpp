@@ -911,7 +911,7 @@ public:
       // Look through the temporary; it's just converting the value to an lvalue
       // to pass it to the constructor.
       if (auto *MTE = dyn_cast<MaterializeTemporaryExpr>(Arg))
-          return Visit(MTE->getSubExpr(), Ty);
+        return Visit(MTE->getSubExpr(), Ty);
       // Don't try to support arbitrary lvalue-to-rvalue conversions for now.
       return nullptr;
     }
@@ -1078,8 +1078,7 @@ private:
   ConstantLValue applyOffset(ConstantLValue &C) {
 
     // Handle attribute constant LValues.
-    if (auto Attr = 
-    mlir::dyn_cast<mlir::Attribute>(C.Value)) {
+    if (auto Attr = mlir::dyn_cast<mlir::Attribute>(C.Value)) {
       if (auto GV = mlir::dyn_cast<mlir::cir::GlobalViewAttr>(Attr)) {
         auto baseTy = mlir::cast<mlir::cir::PointerType>(GV.getType()).getPointee();
         auto destTy = CGM.getTypes().convertTypeForMem(DestType);
@@ -1342,7 +1341,7 @@ mlir::Attribute ConstantEmitter::tryEmitPrivateForVarInit(const VarDecl &D) {
   }
   InConstantContext = D.hasConstantInitialization();
 
-  const Expr * E = D.getInit();
+  const Expr *E = D.getInit();
   assert(E && "No initializer to emit");
 
   QualType destType = D.getType();

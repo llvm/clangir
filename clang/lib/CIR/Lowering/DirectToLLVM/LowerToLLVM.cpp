@@ -493,10 +493,10 @@ public:
         mlir::dyn_cast<mlir::cir::YieldOp>(stepRegion.back().getTerminator());
     auto &stepBlock = (kind == LoopKind::For ? stepFrontBlock : condFrontBlock);
 
-    lowerNestedYield(mlir::cir::YieldOpKind::Break,
-                     rewriter, bodyRegion, continueBlock);
-    lowerNestedYield(mlir::cir::YieldOpKind::Continue,
-                     rewriter, bodyRegion, &stepBlock);
+    lowerNestedYield(mlir::cir::YieldOpKind::Break, rewriter, bodyRegion,
+                     continueBlock);
+    lowerNestedYield(mlir::cir::YieldOpKind::Continue, rewriter, bodyRegion,
+                     &stepBlock);
 
     // Move loop op region contents to current CFG.
     rewriter.inlineRegionBefore(condRegion, continueBlock);
@@ -806,8 +806,8 @@ public:
       rewriter.setInsertionPointToEnd(elseAfterBody);
       if (auto elseYieldOp =
               mlir::dyn_cast<mlir::cir::YieldOp>(elseAfterBody->getTerminator())) {
-        if (!isBreakOrContinue(elseYieldOp)) // lowering of parent loop yields is
-                                             // deferred to loop lowering
+        if (!isBreakOrContinue(elseYieldOp)) // lowering of parent loop yields
+                                             // is deferred to loop lowering
           rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(
               elseYieldOp, elseYieldOp.getArgs(), continueBlock);
       } else if (!mlir::dyn_cast<mlir::cir::ReturnOp>(elseAfterBody->getTerminator())) {
@@ -920,23 +920,23 @@ public:
                   mlir::ConversionPatternRewriter &rewriter) const override {
     llvm::SmallVector<mlir::Type, 8> llvmResults;
     auto cirResults = op.getResultTypes();
-    auto* converter = getTypeConverter();
+    auto *converter = getTypeConverter();
 
     if (converter->convertTypes(cirResults, llvmResults).failed())
       return mlir::failure();
 
-    if (auto callee = op.getCalleeAttr()) { // direct call      
+    if (auto callee = op.getCalleeAttr()) { // direct call
       rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(
-        op, llvmResults, op.getCalleeAttr(), adaptor.getOperands());
+          op, llvmResults, op.getCalleeAttr(), adaptor.getOperands());
     } else { // indirect call
-      assert(op.getOperands().size() 
-        && "operands list must no be empty for the indirect call");
-      auto typ = op.getOperands().front().getType();      
+      assert(op.getOperands().size() &&
+             "operands list must no be empty for the indirect call");
+      auto typ = op.getOperands().front().getType();
       assert(isa<mlir::cir::PointerType>(typ) && "expected pointer type");
       auto ptyp = dyn_cast<mlir::cir::PointerType>(typ);
       auto ftyp = dyn_cast<mlir::cir::FuncType>(ptyp.getPointee());
       assert(ftyp && "expected a pointer to a function as the first operand");
-     
+
       rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(
           op,
           dyn_cast<mlir::LLVM::LLVMFunctionType>(converter->convertType(ftyp)),
@@ -1435,7 +1435,7 @@ public:
         fallthroughYieldOp = nullptr;
       }
 
-      for (auto& blk : region.getBlocks()) {
+      for (auto &blk : region.getBlocks()) {
         if (blk.getNumSuccessors())
           continue;
 
@@ -1456,7 +1456,7 @@ public:
             rewriteYieldOp(rewriter, yieldOp, exitBlock);
             break;
           case mlir::cir::YieldOpKind::Continue: // Continue is handled only in
-                                                // loop lowering
+                                                 // loop lowering
             break;
           default:
             return op->emitError("invalid yield kind in case statement");
@@ -1464,8 +1464,8 @@ public:
         }
       }
 
-      direct::lowerNestedYield(mlir::cir::YieldOpKind::Break,
-                       rewriter, region, exitBlock);
+      direct::lowerNestedYield(mlir::cir::YieldOpKind::Break, rewriter, region,
+                               exitBlock);
 
       // Extract region contents before erasing the switch op.
       rewriter.inlineRegionBefore(region, exitBlock);
@@ -2094,7 +2094,8 @@ public:
   }
 };
 
-class CIRStackSaveLowering : public mlir::OpConversionPattern<mlir::cir::StackSaveOp> {
+class CIRStackSaveLowering
+    : public mlir::OpConversionPattern<mlir::cir::StackSaveOp> {
 public:
   using OpConversionPattern<mlir::cir::StackSaveOp>::OpConversionPattern;
 
@@ -2107,16 +2108,16 @@ public:
   }
 };
 
-class CIRStackRestoreLowering : public mlir::OpConversionPattern<mlir::cir::StackRestoreOp> {
+class CIRStackRestoreLowering
+    : public mlir::OpConversionPattern<mlir::cir::StackRestoreOp> {
 public:
   using OpConversionPattern<mlir::cir::StackRestoreOp>::OpConversionPattern;
 
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::StackRestoreOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<mlir::LLVM::StackRestoreOp>(
-        op,
-        adaptor.getPtr());
+    rewriter.replaceOpWithNewOp<mlir::LLVM::StackRestoreOp>(op,
+                                                            adaptor.getPtr());
     return mlir::success();
   }
 };
@@ -2124,19 +2125,18 @@ public:
 void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
                                          mlir::TypeConverter &converter) {
   patterns.add<CIRReturnLowering>(patterns.getContext());
-  patterns.add<CIRCmpOpLowering, CIRLoopOpLowering, CIRBrCondOpLowering,
-               CIRPtrStrideOpLowering, CIRCallLowering, CIRUnaryOpLowering,
-               CIRBinOpLowering, CIRShiftOpLowering, CIRLoadLowering,
-               CIRConstantLowering, CIRStoreLowering, CIRAllocaLowering,
-               CIRFuncLowering, CIRScopeOpLowering, CIRCastOpLowering,
-               CIRIfLowering, CIRGlobalOpLowering, CIRGetGlobalOpLowering,
-               CIRVAStartLowering, CIRVAEndLowering, CIRVACopyLowering,
-               CIRVAArgLowering, CIRBrOpLowering, CIRTernaryOpLowering,
-               CIRGetMemberOpLowering, CIRSwitchOpLowering,
-               CIRPtrDiffOpLowering, CIRCopyOpLowering, CIRMemCpyOpLowering,
-               CIRFAbsOpLowering, CIRVTableAddrPointOpLowering,
-               CIRVectorCreateLowering, CIRVectorExtractLowering,
-               CIRStackSaveLowering, CIRStackRestoreLowering>(
+  patterns.add<
+      CIRCmpOpLowering, CIRLoopOpLowering, CIRBrCondOpLowering,
+      CIRPtrStrideOpLowering, CIRCallLowering, CIRUnaryOpLowering,
+      CIRBinOpLowering, CIRShiftOpLowering, CIRLoadLowering,
+      CIRConstantLowering, CIRStoreLowering, CIRAllocaLowering, CIRFuncLowering,
+      CIRScopeOpLowering, CIRCastOpLowering, CIRIfLowering, CIRGlobalOpLowering,
+      CIRGetGlobalOpLowering, CIRVAStartLowering, CIRVAEndLowering,
+      CIRVACopyLowering, CIRVAArgLowering, CIRBrOpLowering,
+      CIRTernaryOpLowering, CIRGetMemberOpLowering, CIRSwitchOpLowering,
+      CIRPtrDiffOpLowering, CIRCopyOpLowering, CIRMemCpyOpLowering,
+      CIRFAbsOpLowering, CIRVTableAddrPointOpLowering, CIRVectorCreateLowering,
+      CIRVectorExtractLowering, CIRStackSaveLowering, CIRStackRestoreLowering>(
       converter, patterns.getContext());
 }
 

@@ -18,7 +18,7 @@ jobs:
     concurrency:
       group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
       cancel-in-progress: true
-    if: github.repository == 'llvm/llvm-project'
+    if: github.repository == 'llvm/clangir'
     steps:
       - name: Fetch LLVM sources
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
