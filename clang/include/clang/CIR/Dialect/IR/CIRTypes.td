@@ -118,6 +118,7 @@ def CIR_PointerType : CIR_Type<"Pointer", "ptr",
 // generic.
 //
 //===----------------------------------------------------------------------===//
+
 def CIR_BoolType :
     CIR_Type<"Bool", "bool",
              [DeclareTypeInterfaceMethods<DataLayoutTypeInterface>]> {
@@ -251,6 +252,39 @@ def VoidPtr : Type<
     BuildableType<
       "mlir::cir::PointerType::get($_builder.getContext(),"
       "mlir::cir::VoidType::get($_builder.getContext()))"> {
+}
+
+//===----------------------------------------------------------------------===//
+// Global type constraints
+//===----------------------------------------------------------------------===//
+
+def CIR_StructType : Type<CPred<"$_self.isa<::mlir::cir::StructType>()">,
+                          "CIR struct type">;
+
+def CIR_AnyType : AnyTypeOf<[
+  CIR_IntType, CIR_PointerType, CIR_BoolType, CIR_ArrayType, CIR_VectorType,
+  CIR_FuncType, CIR_VoidType, CIR_StructType, AnyFloat,
+]>;
+
+
+//===----------------------------------------------------------------------===//
+// Exception info type
+//
+// By introducing an exception info type, exception related operations can be
+// more descriptive.
+//
+// This basically wraps a uint8_t* and a uint32_t
+//
+//===----------------------------------------------------------------------===//
+
+def CIR_ExceptionInfo : CIR_Type<"ExceptionInfo", "eh.info"> {
+  let summary = "CIR exception info";
+  let description = [{
+    Represents the content necessary for a `cir.call` to pass back an exception
+    object pointer + some extra selector information. This type is required for
+    some exception related operations, like `cir.catch`, `cir.eh.selector_slot`
+    and `cir.eh.slot`.
+  }];
 }
 
 #endif // MLIR_CIR_DIALECT_CIR_TYPES

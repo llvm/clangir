@@ -196,7 +196,7 @@ public:
 
   mlir::cir::GlobalOp
   getOrCreateStaticVarDecl(const VarDecl &D,
-                              mlir::cir::GlobalLinkageKind Linkage);
+                           mlir::cir::GlobalLinkageKind Linkage);
 
   mlir::cir::GlobalOp buildGlobal(const VarDecl *D, mlir::Type Ty,
                                   ForDefinition_t IsForDefinition);
@@ -220,7 +220,8 @@ public:
 
   static mlir::cir::GlobalOp createGlobalOp(CIRGenModule &CGM,
                                             mlir::Location loc, StringRef name,
-                                            mlir::Type t, bool isCst = false);
+                                            mlir::Type t, bool isCst = false,
+                                            mlir::Operation *insertPoint = nullptr);
 
   /// Return the mlir::Value for the address of the given global variable.
   /// If Ty is non-null and if the global doesn't exist, then it will be created
@@ -238,7 +239,7 @@ public:
                          ForDefinition_t IsForDefinition = NotForDefinition);
 
   /// Get a reference to the target of VD.
-  mlir::Operation* getWeakRefReference(const ValueDecl *VD);
+  mlir::Operation *getWeakRefReference(const ValueDecl *VD);
 
   CharUnits
   computeNonVirtualBaseClassOffset(const CXXRecordDecl *DerivedClass,
@@ -445,6 +446,14 @@ public:
   void setGVProperties(mlir::Operation *Op, const NamedDecl *D) const;
   void setGVPropertiesAux(mlir::Operation *Op, const NamedDecl *D) const;
 
+  /// Replace the present global `Old` with the given global `New`. Their symbol
+  /// names must match; their types can be different. Usages of the old global
+  /// will be automatically updated if their types mismatch.
+  ///
+  /// This function will erase the old global. This function will NOT insert the
+  /// new global into the module.
+  void replaceGlobal(mlir::cir::GlobalOp Old, mlir::cir::GlobalOp New);
+
   /// Determine whether the definition must be emitted; if this returns \c
   /// false, the definition can be emitted lazily if it's used.
   bool MustBeEmitted(const clang::ValueDecl *D);
@@ -500,7 +509,7 @@ public:
 
   /// Emit the function that initializes the specified global
   void buildGlobalVarDeclInit(const VarDecl *D, mlir::cir::GlobalOp Addr,
-                                  bool PerformInit);
+                              bool PerformInit);
 
   void addDeferredVTable(const CXXRecordDecl *RD) {
     DeferredVTables.push_back(RD);
