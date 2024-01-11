@@ -1053,10 +1053,12 @@ public:
         return op.emitError() << "array does not have a constant initializer";
 
       std::optional<mlir::Attribute> denseAttr;
-      if (constArr && (denseAttr = lowerConstArrayAttr(constArr, typeConverter))) {
-          attr = denseAttr.value();
+      if (constArr && 
+          (denseAttr = lowerConstArrayAttr(constArr, typeConverter))) {
+        attr = denseAttr.value();
       } else {
-        auto initVal = lowerCirAttrAsValue(op, op.getValue(), rewriter, typeConverter);
+        auto initVal = 
+            lowerCirAttrAsValue(op, op.getValue(), rewriter, typeConverter);
         rewriter.replaceAllUsesWith(op, initVal);
         rewriter.eraseOp(op);
         return mlir::success();
