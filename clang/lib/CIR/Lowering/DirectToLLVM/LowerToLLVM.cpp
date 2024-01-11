@@ -1047,11 +1047,11 @@ public:
     // then memcopyied into the stack (as done in Clang).
     else if (auto arrTy = op.getType().dyn_cast<mlir::cir::ArrayType>()) {
       // Fetch operation constant array initializer.
-  
+
       auto constArr = op.getValue().dyn_cast<mlir::cir::ConstArrayAttr>();
       if (!constArr && !isa<mlir::cir::ZeroAttr>(op.getValue()))
         return op.emitError() << "array does not have a constant initializer";
-     
+
       std::optional<mlir::Attribute> denseAttr;
       if (constArr && (denseAttr = lowerConstArrayAttr(constArr, typeConverter))) {
           attr = denseAttr.value();
