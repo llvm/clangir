@@ -599,6 +599,7 @@ def ConditionOp : CIR_Op<"condition", [
   }];
   let arguments = (ins CIR_BoolType:$condition);
   let assemblyFormat = " `(` $condition `)` attr-dict ";
+  let hasVerifier = 1;
 }
 
 //===----------------------------------------------------------------------===//
@@ -606,12 +607,11 @@ def ConditionOp : CIR_Op<"condition", [
 //===----------------------------------------------------------------------===//
 
 def YieldOpKind_FT : I32EnumAttrCase<"Fallthrough", 2, "fallthrough">;
-def YieldOpKind_NS : I32EnumAttrCase<"NoSuspend", 4, "nosuspend">;
 
 def YieldOpKind : I32EnumAttr<
     "YieldOpKind",
     "yield kind",
-    [YieldOpKind_FT, YieldOpKind_NS]> {
+    [YieldOpKind_FT]> {
   let cppNamespace = "::mlir::cir";
 }
 
@@ -630,8 +630,6 @@ def YieldOp : CIR_Op<"yield", [ReturnLike, Terminator,
     Optionally, `cir.yield` can be annotated with extra kind specifiers:
     - `fallthrough`: execution falls to the next region in `cir.switch` case list.
     Only available inside `cir.switch` regions.
-    - `nosuspend`: specific to the `ready` region inside `cir.await` op, it makes
-    control-flow to be transfered back to the parent, preventing suspension.
 
     As a general rule, `cir.yield` must be explicitly used whenever a region has
     more than one block and no terminator, or within `cir.switch` regions not
@@ -650,16 +648,6 @@ def YieldOp : CIR_Op<"yield", [ReturnLike, Terminator,
         cir.yield fallthrough
       }, ...
     ]
-
-    cir.await(init, ready : {
-      // Call std::suspend_always::await_ready
-      %18 = cir.call @_ZNSt14suspend_always11await_readyEv(...)
-      cir.if %18 {
-        // yields back to the parent.
-        cir.yield nosuspend
-      }
-      cir.yield // control-flow to the next region for suspension.
-    }, ...)
 
     cir.scope {
       ...
@@ -703,9 +691,6 @@ def YieldOp : CIR_Op<"yield", [ReturnLike, Terminator,
     }
     bool isFallthrough() {
       return !isPlain() && *getKind() == YieldOpKind::Fallthrough;
-    }
-    bool isNoSuspend() {
-      return !isPlain() && *getKind() == YieldOpKind::NoSuspend;
     }
   }];
 

@@ -1380,8 +1380,6 @@ public:
           case mlir::cir::YieldOpKind::Fallthrough:
             fallthroughYieldOp = yieldOp;
             break;
-          default:
-            return op->emitError("invalid yield kind in case statement");
           }
         }
       }
