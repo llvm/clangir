@@ -19,8 +19,8 @@ include "clang/CIR/Dialect/IR/CIRTypes.td"
 include "clang/CIR/Dialect/IR/CIRAttrs.td"
 
 include "clang/CIR/Interfaces/ASTAttrInterfaces.td"
+include "clang/CIR/Interfaces/CIROpInterfaces.td"
 
-include "mlir/Interfaces/CallInterfaces.td"
 include "mlir/Interfaces/ControlFlowInterfaces.td"
 include "mlir/Interfaces/FunctionInterfaces.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
@@ -1919,9 +1919,8 @@ def FuncOp : CIR_Op<"func", [
 //===----------------------------------------------------------------------===//
 
 def CallOp : CIR_Op<"call",
-    [DeclareOpInterfaceMethods<CallOpInterface>,
-     DeclareOpInterfaceMethods<SymbolUserOpInterface>,
-     DeclareOpInterfaceMethods<ArgAndResultAttrsOpInterface>]> {
+    [DeclareOpInterfaceMethods<CIRCallOpInterface>,
+     DeclareOpInterfaceMethods<SymbolUserOpInterface>]> {
   let summary = "call operation";
   let description = [{
     The `call` operation represents a direct call to a function that is within
@@ -1975,32 +1974,29 @@ def CallOp : CIR_Op<"call",
     }]>];
 
   let extraClassDeclaration = [{
-    mlir::Value getIndirectCallee() {
-      assert(!getCallee() && "only works for indirect call");
-      return *arg_operand_begin();
+    /// Get the argument operands to the called function.
+    OperandRange getArgOperands() {
+      return {arg_operand_begin(), arg_operand_end()};
     }
 
-    operand_iterator arg_operand_begin() {
-      auto arg_begin = operand_begin();
-      if (!getCallee())
-        arg_begin++;
-      return arg_begin;
-    }
-    operand_iterator arg_operand_end() { return operand_end(); }
-
-    /// Return the operand at index 'i', accounts for indirect call.
-    Value getArgOperand(unsigned i) {
-      if (!getCallee())
-        i++;
-      return getOperand(i);
+    MutableOperandRange getArgOperandsMutable() {
+      llvm_unreachable("NYI");
     }
 
-    /// Return the number of operands, , accounts for indirect call.
-    unsigned getNumArgOperands() {
-      if (!getCallee())
-        return this->getOperation()->getNumOperands()-1;
-      return this->getOperation()->getNumOperands();
-    }
+    /// Return the callee of this operation.
+    CallInterfaceCallable getCallableForCallee();
+
+    /// Set the callee for this operation.
+    void setCalleeFromCallable(::mlir::CallInterfaceCallable callee);
+
+    ::mlir::ArrayAttr getArgAttrsAttr();
+    ::mlir::ArrayAttr getResAttrsAttr();
+
+    void setResAttrsAttr(::mlir::ArrayAttr attrs);
+    void setArgAttrsAttr(::mlir::ArrayAttr attrs);
+
+    ::mlir::Attribute removeArgAttrsAttr();
+    ::mlir::Attribute removeResAttrsAttr();
   }];
 
   let hasCustomAssemblyFormat = 1;
