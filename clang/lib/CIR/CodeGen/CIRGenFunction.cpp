@@ -24,6 +24,7 @@
 #include "clang/Frontend/FrontendDiagnostic.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Support/LogicalResult.h"
 
 using namespace cir;
 using namespace clang;
@@ -378,8 +379,10 @@ void CIRGenFunction::LexicalScope::cleanup() {
     if (localScope->Depth != 0) { // end of any local scope != function
       // Ternary ops have to deal with matching arms for yielding types
       // and do return a value, it must do its own cir.yield insertion.
-      if (!localScope->isTernary())
-        builder.create<YieldOp>(localScope->EndLoc);
+      if (!localScope->isTernary()) {
+        !retVal ? builder.create<YieldOp>(localScope->EndLoc)
+                : builder.create<YieldOp>(localScope->EndLoc, retVal);
+      }
     } else
       (void)buildReturn(localScope->EndLoc);
   };
@@ -1109,7 +1112,7 @@ mlir::LogicalResult CIRGenFunction::buildFunctionBody(const clang::Stmt *Body) {
 
   auto result = mlir::LogicalResult::success();
   if (const CompoundStmt *S = dyn_cast<CompoundStmt>(Body))
-    result = buildCompoundStmtWithoutScope(*S);
+    buildCompoundStmtWithoutScope(*S);
   else
     result = buildStmt(Body, /*useCurrentScope*/ true);
 

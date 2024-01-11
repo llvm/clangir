@@ -149,9 +149,17 @@ public:
     return mlir::cir::ConstPtrAttr::get(getContext(), t, v);
   }
 
-  mlir::cir::ConstArrayAttr getString(llvm::StringRef str, mlir::Type eltTy,
-                                      unsigned size = 0) {
+  mlir::Attribute getString(llvm::StringRef str, mlir::Type eltTy,
+                            unsigned size = 0) {
     unsigned finalSize = size ? size : str.size();
+
+    // If the string is full of null bytes, emit a #cir.zero rather than
+    // a #cir.const_array.
+    if (str.count('\0') == str.size()) {
+      auto arrayTy = mlir::cir::ArrayType::get(getContext(), eltTy, finalSize);
+      return getZeroAttr(arrayTy);
+    }
+
     auto arrayTy = mlir::cir::ArrayType::get(getContext(), eltTy, finalSize);
     return getConstArray(mlir::StringAttr::get(str, arrayTy), arrayTy);
   }
@@ -570,6 +578,11 @@ public:
     return create<mlir::cir::CopyOp>(dst.getLoc(), dst, src);
   }
 
+  /// Create a loop condition.
+  mlir::cir::ConditionOp createCondition(mlir::Value condition) {
+    return create<mlir::cir::ConditionOp>(condition.getLoc(), condition);
+  }
+
   mlir::cir::MemCpyOp createMemCpy(mlir::Location loc, mlir::Value dst,
                                    mlir::Value src, mlir::Value len) {
     return create<mlir::cir::MemCpyOp>(loc, dst, src, len);
@@ -779,10 +792,22 @@ public:
     return create<mlir::cir::StackSaveOp>(loc, ty);
   }
 
-  mlir::cir::StackRestoreOp createStackRestore(mlir::Location loc, mlir::Value v) {
+  mlir::cir::StackRestoreOp createStackRestore(mlir::Location loc,
+                                               mlir::Value v) {
     return create<mlir::cir::StackRestoreOp>(loc, v);
   }
 
+  // TODO(cir): Change this to hoist alloca to the parent *scope* instead.
+  /// Move alloca operation to the parent region.
+  void hoistAllocaToParentRegion(mlir::cir::AllocaOp alloca) {
+    auto &block = alloca->getParentOp()->getParentRegion()->front();
+    const auto allocas = block.getOps<mlir::cir::AllocaOp>();
+    if (allocas.empty()) {
+      alloca->moveBefore(&block, block.begin());
+    } else {
+      alloca->moveAfter(*std::prev(allocas.end()));
+    }
+  }
 };
 
 } // namespace cir

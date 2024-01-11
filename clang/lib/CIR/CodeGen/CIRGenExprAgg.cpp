@@ -60,37 +60,36 @@ static bool isBlockVarRef(const Expr *E) {
     // FIXME: pointer arithmetic?
     return false;
 
-  // Check both sides of a conditional operator.
-  } else if (const AbstractConditionalOperator *op
-               = dyn_cast<AbstractConditionalOperator>(E)) {
-    return isBlockVarRef(op->getTrueExpr())
-        || isBlockVarRef(op->getFalseExpr());
+    // Check both sides of a conditional operator.
+  } else if (const AbstractConditionalOperator *op =
+                 dyn_cast<AbstractConditionalOperator>(E)) {
+    return isBlockVarRef(op->getTrueExpr()) ||
+           isBlockVarRef(op->getFalseExpr());
 
-  // OVEs are required to support BinaryConditionalOperators.
-  } else if (const OpaqueValueExpr *op
-               = dyn_cast<OpaqueValueExpr>(E)) {
+    // OVEs are required to support BinaryConditionalOperators.
+  } else if (const OpaqueValueExpr *op = dyn_cast<OpaqueValueExpr>(E)) {
     if (const Expr *src = op->getSourceExpr())
       return isBlockVarRef(src);
 
-  // Casts are necessary to get things like (*(int*)&var) = foo().
-  // We don't really care about the kind of cast here, except
-  // we don't want to look through l2r casts, because it's okay
-  // to get the *value* in a __block variable.
+    // Casts are necessary to get things like (*(int*)&var) = foo().
+    // We don't really care about the kind of cast here, except
+    // we don't want to look through l2r casts, because it's okay
+    // to get the *value* in a __block variable.
   } else if (const CastExpr *cast = dyn_cast<CastExpr>(E)) {
     if (cast->getCastKind() == CK_LValueToRValue)
       return false;
     return isBlockVarRef(cast->getSubExpr());
 
-  // Handle unary operators.  Again, just aggressively look through
-  // it, ignoring the operation.
+    // Handle unary operators.  Again, just aggressively look through
+    // it, ignoring the operation.
   } else if (const UnaryOperator *uop = dyn_cast<UnaryOperator>(E)) {
     return isBlockVarRef(uop->getSubExpr());
 
-  // Look into the base of a field access.
+    // Look into the base of a field access.
   } else if (const MemberExpr *mem = dyn_cast<MemberExpr>(E)) {
     return isBlockVarRef(mem->getBase());
 
-  // Look into the base of a subscript.
+    // Look into the base of a subscript.
   } else if (const ArraySubscriptExpr *sub = dyn_cast<ArraySubscriptExpr>(E)) {
     return isBlockVarRef(sub->getBase());
   }
@@ -113,7 +112,8 @@ class AggExprEmitter : public StmtVisitor<AggExprEmitter> {
                            llvm::function_ref<RValue(ReturnValueSlot)> Fn);
 
   AggValueSlot EnsureSlot(mlir::Location loc, QualType T) {
-    if (!Dest.isIgnored()) return Dest;
+    if (!Dest.isIgnored())
+      return Dest;
     return CGF.CreateAggTemp(T, loc, "agg.tmp.ensured");
   }
 
@@ -137,6 +137,9 @@ public:
   void buildAggLoadOfLValue(const Expr *E);
 
   enum ExprValueKind { EVK_RValue, EVK_NonRValue };
+
+  /// Perform the final copy to DestPtr, if desired.
+  void buildFinalDestCopy(QualType type, RValue src);
 
   /// Perform the final copy to DestPtr, if desired. SrcIsRValue is true if
   /// source comes from an RValue.
@@ -200,7 +203,12 @@ public:
   // Operators.
   void VisitCastExpr(CastExpr *E);
   void VisitCallExpr(const CallExpr *E);
-  void VisitStmtExpr(const StmtExpr *E) { llvm_unreachable("NYI"); }
+
+  void VisitStmtExpr(const StmtExpr *E) {
+    assert(!UnimplementedFeature::stmtExprEvaluation() && "NYI");
+    CGF.buildCompoundStmt(*E->getSubStmt(), /*getLast=*/true, Dest);
+  }
+
   void VisitBinaryOperator(const BinaryOperator *E) { llvm_unreachable("NYI"); }
   void VisitPointerToDataMemberBinaryOperator(const BinaryOperator *E) {
     llvm_unreachable("NYI");
@@ -210,11 +218,11 @@ public:
     // For an assignment to work, the value on the right has
     // to be compatible with the value on the left.
     assert(CGF.getContext().hasSameUnqualifiedType(E->getLHS()->getType(),
-                                                   E->getRHS()->getType())
-         && "Invalid assignment");
+                                                   E->getRHS()->getType()) &&
+           "Invalid assignment");
 
     if (isBlockVarRef(E->getLHS()) &&
-      E->getRHS()->HasSideEffects(CGF.getContext())) {
+        E->getRHS()->HasSideEffects(CGF.getContext())) {
       llvm_unreachable("NYI");
     }
 
@@ -230,12 +238,11 @@ public:
 
     // Codegen the RHS so that it stores directly into the LHS.
     AggValueSlot lhsSlot = AggValueSlot::forLValue(
-      lhs, AggValueSlot::IsDestructed, AggValueSlot::DoesNotNeedGCBarriers,
-      AggValueSlot::IsAliased, AggValueSlot::MayOverlap);
+        lhs, AggValueSlot::IsDestructed, AggValueSlot::DoesNotNeedGCBarriers,
+        AggValueSlot::IsAliased, AggValueSlot::MayOverlap);
 
     // A non-volatile aggregate destination might have volatile member.
-    if (!lhsSlot.isVolatile() &&
-        CGF.hasVolatileMember(E->getLHS()->getType()))
+    if (!lhsSlot.isVolatile() && CGF.hasVolatileMember(E->getLHS()->getType()))
       assert(!UnimplementedFeature::atomicTypes());
 
     CGF.buildAggExpr(E->getRHS(), lhsSlot);
@@ -244,10 +251,10 @@ public:
     buildFinalDestCopy(E->getType(), lhs);
 
     if (!Dest.isIgnored() && !Dest.isExternallyDestructed() &&
-      E->getType().isDestructedType() == QualType::DK_nontrivial_c_struct)
+        E->getType().isDestructedType() == QualType::DK_nontrivial_c_struct)
       CGF.pushDestroy(QualType::DK_nontrivial_c_struct, Dest.getAddress(),
-                     E->getType());
-   }
+                      E->getType());
+  }
 
   void VisitBinComma(const BinaryOperator *E) { llvm_unreachable("NYI"); }
   void VisitBinCmp(const BinaryOperator *E) { llvm_unreachable("NYI"); }
@@ -332,6 +339,13 @@ void AggExprEmitter::buildAggLoadOfLValue(const Expr *E) {
 }
 
 /// Perform the final copy to DestPtr, if desired.
+void AggExprEmitter::buildFinalDestCopy(QualType type, RValue src) {
+  assert(src.isAggregate() && "value must be aggregate value!");
+  LValue srcLV = CGF.makeAddrLValue(src.getAggregateAddress(), type);
+  buildFinalDestCopy(type, srcLV, EVK_RValue);
+}
+
+/// Perform the final copy to DestPtr, if desired.
 void AggExprEmitter::buildFinalDestCopy(QualType type, const LValue &src,
                                         ExprValueKind SrcValueKind) {
   // If Dest is ignored, then we're evaluating an aggregate expression
@@ -342,11 +356,13 @@ void AggExprEmitter::buildFinalDestCopy(QualType type, const LValue &src,
     return;
 
   // Copy non-trivial C structs here.
-  if (Dest.isVolatile() || UnimplementedFeature::volatileTypes())
-    llvm_unreachable("volatile is NYI");
+  if (Dest.isVolatile())
+    assert(!UnimplementedFeature::volatileTypes());
 
   if (SrcValueKind == EVK_RValue) {
-    llvm_unreachable("rvalue is NYI");
+    if (type.isNonTrivialToPrimitiveDestructiveMove() == QualType::PCK_Struct) {
+      llvm_unreachable("move assignment/move ctor for rvalue is NYI");
+    }
   } else {
     if (type.isNonTrivialToPrimitiveCopy() == QualType::PCK_Struct)
       llvm_unreachable("non-trivial primitive copy is NYI");
@@ -660,8 +676,8 @@ void AggExprEmitter::VisitLambdaExpr(LambdaExpr *E) {
     }
 
     // Emit initialization
-    LValue LV = CGF.buildLValueForFieldInitialization(
-        SlotLV, *CurField, fieldName);
+    LValue LV =
+        CGF.buildLValueForFieldInitialization(SlotLV, *CurField, fieldName);
     if (CurField->hasCapturedVLAType()) {
       llvm_unreachable("NYI");
     }
@@ -808,7 +824,9 @@ void AggExprEmitter::withReturnValueSlot(
   if (!UseTemp) {
     RetAddr = Dest.getAddress();
   } else {
-    llvm_unreachable("NYI");
+    RetAddr = CGF.CreateMemTemp(RetTy, CGF.getLoc(E->getSourceRange()), "tmp",
+                                &RetAddr);
+    assert(!UnimplementedFeature::shouldEmitLifetimeMarkers() && "NYI");
   }
 
   RValue Src =
@@ -819,14 +837,13 @@ void AggExprEmitter::withReturnValueSlot(
     return;
 
   assert(Dest.isIgnored() || Dest.getPointer() != Src.getAggregatePointer());
-  llvm_unreachable("NYI");
-  // TODO(cir): EmitFinalDestCopy(E->getType(), Src);
+  buildFinalDestCopy(E->getType(), Src);
 
   if (!RequiresDestruction) {
     // If there's no dtor to run, the copy was the last use of our temporary.
     // Since we're not guaranteed to be in an ExprWithCleanups, clean up
     // eagerly.
-    llvm_unreachable("NYI");
+    assert(!UnimplementedFeature::shouldEmitLifetimeMarkers() && "NYI");
   }
 }
 
@@ -927,8 +944,8 @@ void AggExprEmitter::VisitCXXParenListOrInitListExpr(
     if (curInitIndex == NumInitElements && Dest.isZeroed() &&
         CGF.getTypes().isZeroInitializable(ExprToVisit->getType()))
       break;
-    LValue LV = CGF.buildLValueForFieldInitialization(
-        DestLV, field, field->getName());
+    LValue LV =
+        CGF.buildLValueForFieldInitialization(DestLV, field, field->getName());
     // We never generate write-barries for initialized fields.
     assert(!UnimplementedFeature::setNonGC());
 
