@@ -252,7 +252,7 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
   AsmFlavor AsmFlavor = inferFlavor(CGM, S);
 
   builder.create<mlir::cir::InlineAsmOp>(getLoc(S.getAsmLoc()), ResultType,
-                                        AsmString, Constraints, AsmFlavor);
+                                         AsmString, Constraints, AsmFlavor);
 
   return mlir::success();
 }
