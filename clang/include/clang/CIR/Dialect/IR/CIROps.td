@@ -2591,19 +2591,21 @@ def CIR_InlineAsmOp : CIR_Op<"asm", [RecursiveMemoryEffects]> {
     for the C level assembler constraints with several differences caused by 
     clang::AsmStmt processing. 
 
-    Thus, numbers that appears in the constraint string may refer to:
+    Thus, numbers that appears in the constraint string may also refer to:
     - the output variable index referenced by the input operands.
     - the index of early-clobber operand
 
     Example:
     ```C++
-    __asm__ volatile("foo" : : : );
+    __asm__("foo" : : : );
     __asm__("bar $42 %[val]" : [val] "=r" (x), "+&r"(x));
+    __asm__("baz $42 %[val]" : [val] "=r" (x), "+&r"(x) : "[val]"(y));
     ```
     
     ```mlir
     cir.asm(x86_att, {"foo" ""})
     cir.asm(x86_att, {"bar $$42 $0" "=r,=&r,1"}) 
+    cir.asm(x86_att, {"baz $$42 $0" "=r,=&r,0,1"}) 
     ```
   }];
 
