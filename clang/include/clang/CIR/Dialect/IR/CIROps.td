@@ -2587,14 +2587,23 @@ def CIR_InlineAsmOp : CIR_Op<"asm", [RecursiveMemoryEffects]> {
   let description = [{
     The `cir.asm` operation represents C/C++ asm inline.
 
+    CIR constraints strings meet barelly the same rules that are established 
+    for the C level assembler constraints with several differences caused by 
+    clang::AsmStmt processing. 
+
+    Thus, numbers that appears in the constraint string may refer to:
+    - the output variable index referenced by the input operands.
+    - the index of early-clobber operand
+
     Example:
     ```C++
-    __asm__ volatile("xyz" : : : );
+    __asm__ volatile("foo" : : : );
+    __asm__("bar $42 %[val]" : [val] "=r" (x), "+&r"(x));
     ```
-
-    ```
+    
     ```mlir
-    cir.asm(x86_att, {"xyz"}) -> !void
+    cir.asm(x86_att, {"foo" ""})
+    cir.asm(x86_att, {"bar $$42 $0" "=r,=&r,1"}) 
     ```
   }];
 
