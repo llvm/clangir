@@ -235,7 +235,7 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
     }
 
     Constraints += InputConstraint;
-  }// iterate over input operands
+  } // iterate over input operands
 
   Constraints += InOutConstraints;
 
@@ -251,8 +251,8 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
 
   AsmFlavor AsmFlavor = inferFlavor(CGM, S);
 
-  builder.create<mlir::cir::InlineAsmOp>(
-      getLoc(S.getAsmLoc()), ResultType, AsmString, Constraints, AsmFlavor);
+  builder.create<mlir::cir::InlineAsmOp>(getLoc(S.getAsmLoc()), ResultType,
+                                        AsmString, Constraints, AsmFlavor);
 
   return mlir::success();
 }
