@@ -2587,7 +2587,7 @@ def CIR_InlineAsmOp : CIR_Op<"asm", [RecursiveMemoryEffects]> {
   let description = [{
     The `cir.asm` operation represents C/C++ asm inline.
 
-    CIR constraints strings meet barelly the same rules that are established 
+    CIR constraints strings follow barelly the same rules that are established 
     for the C level assembler constraints with several differences caused by 
     clang::AsmStmt processing. 
 
