@@ -174,6 +174,8 @@ struct CIRRecordLowering final {
     return astRecordLayout.getFieldOffset(fieldDecl->getFieldIndex());
   }
 
+  void insertPadding();
+
   /// Fills out the structures that are ultimately consumed.
   void fillOutputFields();
 
@@ -279,6 +281,7 @@ void CIRRecordLowering::lower(bool nonVirtualBaseType) {
   // TODO: implemented packed structs
   // TODO: implement padding
   // TODO: support zeroInit
+  insertPadding();
   fillOutputFields();
   computeVolatileBitfields();
 }
@@ -458,6 +461,33 @@ mlir::Type CIRRecordLowering::getVFPtrType() {
   // FIXME: replay LLVM codegen for now, perhaps add a vtable ptr special
   // type so it's a bit more clear and C++ idiomatic.
   return builder.getVirtualFnPtrType();
+}
+
+
+void CIRRecordLowering::insertPadding() {
+  std::vector<std::pair<CharUnits, CharUnits> > Padding;
+  CharUnits Size = CharUnits::Zero();
+  for (std::vector<MemberInfo>::const_iterator Member = members.begin(),
+                                               MemberEnd = members.end();
+       Member != MemberEnd; ++Member) {
+    if (!Member->data)
+      continue;
+    CharUnits Offset = Member->offset;
+    assert(Offset >= Size);
+    // Insert padding if we need to.
+    if (Offset !=
+        Size.alignTo(isPacked ? CharUnits::One() : getAlignment(Member->data)))
+      Padding.push_back(std::make_pair(Size, Offset - Size));
+    Size = Offset + getSize(Member->data);
+  }
+  if (Padding.empty())
+    return;
+  // Add the padding to the Members list and sort it.
+  for (std::vector<std::pair<CharUnits, CharUnits> >::const_iterator
+        Pad = Padding.begin(), PadEnd = Padding.end();
+        Pad != PadEnd; ++Pad)
+    members.push_back(StorageInfo(Pad->first, getByteArrayType(Pad->second)));
+  llvm::stable_sort(members);
 }
 
 void CIRRecordLowering::fillOutputFields() {
