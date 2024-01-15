@@ -153,7 +153,7 @@ bool ConstantAggregateBuilder::add(mlir::Attribute A, CharUnits Offset,
     CharUnits Align = getAlignment(C);
     CharUnits AlignedSize = Size.alignTo(Align);
     if (AlignedSize > Offset || Offset.alignTo(Align) != Offset) {
-      std::cout <<  "NaturalLayout = false;  <=== 1\n";
+      // std::cout <<  "NaturalLayout = false;  <=== 1\n";
       NaturalLayout = false;
     } else if (AlignedSize < Offset) {
       Elems.push_back(getPadding(Offset - Size));
@@ -181,7 +181,7 @@ bool ConstantAggregateBuilder::add(mlir::Attribute A, CharUnits Offset,
   replace(Elems, *FirstElemToReplace, *LastElemToReplace, {C});
   replace(Offsets, *FirstElemToReplace, *LastElemToReplace, {Offset});
   Size = std::max(Size, Offset + CSize);
-  std::cout <<  "NaturalLayout = false;  <=== 2\n";
+  // std::cout <<  "NaturalLayout = false;  <=== 2\n";
   NaturalLayout = false;
   return true;
 }
@@ -250,9 +250,9 @@ bool ConstantAggregateBuilder::addBits(llvm::APInt Bits, uint64_t OffsetInBits,
         UpdateMask.setBits(OffsetWithinChar, OffsetWithinChar + WantedBits);
       BitsThisChar &= UpdateMask;
 
-      std::cout << "elems " << Elems.size() << " "
-                << *FirstElemToUpdate << " " <<  *LastElemToUpdate 
-                << std::endl;
+      // std::cout << "elems " << Elems.size() << " "
+      //           << *FirstElemToUpdate << " " <<  *LastElemToUpdate 
+      //           << std::endl;
 
       bool isNull = false;
       if (*FirstElemToUpdate < Elems.size()) {
@@ -262,7 +262,7 @@ bool ConstantAggregateBuilder::addBits(llvm::APInt Bits, uint64_t OffsetInBits,
       }
           
       if (*FirstElemToUpdate == *LastElemToUpdate || isNull) {
-        std::cout << "label 1" << std::endl;
+        // std::cout << "label 1" << std::endl;
         // All existing bits are either zero or undef.
         //TODO
         auto tmpTy = CGM.getBuilder().getUInt8Ty();
@@ -354,13 +354,13 @@ mlir::Attribute ConstantAggregateBuilder::buildFrom(
   if (Elems.empty())
     return {};
 
-  std::cout << "ELEMS\n";
-  for (auto& elt : Elems)
-    elt.dump();
-  std::cout << std::endl;
-  std::cout << "Desired type\n";
-  DesiredTy.dump();
-  std::cout << "Natural layout? " << NaturalLayout << std::endl;
+  // std::cout << "ELEMS\n";
+  // for (auto& elt : Elems)
+  //   elt.dump();
+  // std::cout << std::endl;
+  // std::cout << "Desired type\n";
+  // DesiredTy.dump();
+  // std::cout << "Natural layout? " << NaturalLayout << std::endl;
 
   auto Offset = [&](size_t I) { return Offsets[I] - StartOffset; };
 
@@ -413,12 +413,12 @@ mlir::Attribute ConstantAggregateBuilder::buildFrom(
       CharUnits DesiredOffset = Offset(I);
       assert(DesiredOffset >= SizeSoFar && "elements out of order");
 
-      std::cout << "I " << I << std::endl;
-      C.dump();
-      std::cout << "  Align " << Align.getQuantity() << std::endl;
-      std::cout << "  NaturalOffset " << NaturalOffset.getQuantity() << std::endl;
-      std::cout << "  DesiredOffset " << DesiredOffset.getQuantity() << std::endl;
-      std::cout << "  SizeSoFar " << SizeSoFar.getQuantity() << std::endl;
+      // std::cout << "I " << I << std::endl;
+      // C.dump();
+      // std::cout << "  Align " << Align.getQuantity() << std::endl;
+      // std::cout << "  NaturalOffset " << NaturalOffset.getQuantity() << std::endl;
+      // std::cout << "  DesiredOffset " << DesiredOffset.getQuantity() << std::endl;
+      // std::cout << "  SizeSoFar " << SizeSoFar.getQuantity() << std::endl;
 
       if (DesiredOffset != NaturalOffset)
         Packed = true;
@@ -426,33 +426,33 @@ mlir::Attribute ConstantAggregateBuilder::buildFrom(
         PackedElems.push_back(Utils.getPadding(DesiredOffset - SizeSoFar));
       PackedElems.push_back(Elems[I]);
       SizeSoFar = DesiredOffset + Utils.getSize(C);
-      std::cout << " New SizeSoFar " 
-                << SizeSoFar.getQuantity() << " " 
-                << std::endl;
+      // std::cout << " New SizeSoFar " 
+      //           << SizeSoFar.getQuantity() << " " 
+      //           << std::endl;
     }
     // If we're using the packed layout, pad it out to the desired size if
     // necessary.
     if (Packed) {
-      std::cout << "Packed!" << std::endl;
+    //  std::cout << "Packed!" << std::endl;
       assert(SizeSoFar <= DesiredSize &&
              "requested size is too small for contents");
 
-      std::cout << "Packed "
-                << SizeSoFar.getQuantity() << " "  << DesiredSize.getQuantity() << " "
-                << std::endl;
+      // std::cout << "Packed "
+      //           << SizeSoFar.getQuantity() << " "  << DesiredSize.getQuantity() << " "
+      //           << std::endl;
 
       if (SizeSoFar < DesiredSize)
         PackedElems.push_back(Utils.getPadding(DesiredSize - SizeSoFar));
     }
   }
-  std::cout << "Packed? " << Packed << std::endl;
+  //std::cout << "Packed? " << Packed << std::endl;
   // TODO(cir): emit a #cir.zero if all elements are null values.
   auto &builder = CGM.getBuilder();
   auto arrAttr = mlir::ArrayAttr::get(builder.getContext(),
                                       Packed ? PackedElems : UnpackedElems);
   
-  arrAttr.dump();
-  DesiredTy.dump();
+  // arrAttr.dump();
+  // DesiredTy.dump();
   return builder.getAnonConstStruct(arrAttr, Packed);
   
   
@@ -695,7 +695,7 @@ bool ConstStructBuilder::Build(InitListExpr *ILE, bool AllowOverwrite) {
       return false;
 
     if (!Field->isBitField()) {
-      std::cout << "Not  a Bitfield \n";
+      //std::cout << "Not  a Bitfield \n";
       // Handle non-bitfield members.
       if (!AppendField(Field, Layout.getFieldOffset(FieldNo), EltInit,
                        AllowOverwrite))
@@ -706,18 +706,15 @@ bool ConstStructBuilder::Build(InitListExpr *ILE, bool AllowOverwrite) {
         AllowOverwrite = true;
     } else {
       // Otherwise we have a bitfield.      
-      if (auto constInt = dyn_cast<mlir::cir::IntAttr>(EltInit)) {        
-        const auto &RL =
-          CGM.getTypes().getCIRGenRecordLayout(Field->getParent());
-        std::cout << "========= " << Field->getName().str() << std::endl;
-        std::cout << "const Int \n" ;
-        constInt.dump();
-        std::cout << "offset " << Layout.getFieldOffset(FieldNo)  << std::endl;
+      if (auto constInt = dyn_cast<mlir::cir::IntAttr>(EltInit)) {
+        // std::cout << "========= " << Field->getName().str() << std::endl;
+        // std::cout << "const Int \n" ;
+        // constInt.dump();
+        // std::cout << "offset " << Layout.getFieldOffset(FieldNo)  << std::endl;
         if (!AppendBitField(Field, Layout.getFieldOffset(FieldNo), constInt,
                             AllowOverwrite))
           return false;
       } else {
-        std::cout << "not const int\n";
         // We are trying to initialize a bitfield with a non-trivial constant,
         // this must require run-time code.
         return false;
@@ -821,9 +818,9 @@ mlir::Attribute ConstStructBuilder::Finalize(QualType Type) {
   RecordDecl *RD = Type->castAs<RecordType>()->getDecl();
   mlir::Type ValTy = CGM.getTypes().ConvertType(Type);
   
-  std::cout << "CALL build1\n";
-  Type.dump();
-  ValTy.dump();
+  //std::cout << "CALL build1\n";
+  // Type.dump();
+  // ValTy.dump();
 
   return Builder.build(ValTy, RD->hasFlexibleArrayMember());
 }
