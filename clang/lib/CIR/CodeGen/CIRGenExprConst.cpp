@@ -453,7 +453,8 @@ mlir::Attribute ConstantAggregateBuilder::buildFrom(
   
   // arrAttr.dump();
   // DesiredTy.dump();
-  return builder.getAnonConstStruct(arrAttr, Packed);
+  return builder.getConstStructOrZeroAttr(arrAttr, Packed, DesiredTy);
+  //return builder.getAnonConstStruct(arrAttr, Packed);
   
   
   ///return builder.getConstStructOrZeroAttr(arrAttr, Packed, DesiredTy);
@@ -1195,8 +1196,27 @@ buildArrayConstant(CIRGenModule &CGM, mlir::Type DesiredType,
   }
 
   // We have mixed types. Use a packed struct.
-  assert(0 && "NYE");
-  return {};
+  //assert(0 && "NYE");
+
+    // llvm::SmallVector<mlir::Type, 16> Types;
+  // Types.reserve(Elements.size());
+  // for (auto Elt : Elements)
+  //   Types.push_back(Elt.getType());
+
+  SmallVector<mlir::Attribute, 4> Eles;
+    Eles.reserve(Elements.size());
+    for (auto const &Element : Elements)
+      Eles.push_back(Element);
+  
+  auto arrAttr = mlir::ArrayAttr::get(builder.getContext(), Eles);
+      
+
+   return builder.getAnonConstStruct(arrAttr, false);
+  // auto SType = builder.
+  //     llvm::StructType::get(CGM.getLLVMContext(), Types, true);
+  // return llvm::ConstantStruct::get(SType, Elements);
+
+//  return {};
 }
 
 } // end anonymous namespace.

@@ -174,6 +174,11 @@ struct CIRRecordLowering final {
     return astRecordLayout.getFieldOffset(fieldDecl->getFieldIndex());
   }
 
+  void clipTailPadding();
+  /// Determines if we need a packed llvm struct.
+  void determinePacked(bool NVBaseType);
+  /// Inserts padding everywhere it's needed.
+
   void insertPadding();
 
   /// Fills out the structures that are ultimately consumed.
@@ -282,6 +287,8 @@ void CIRRecordLowering::lower(bool nonVirtualBaseType) {
   // TODO: implement padding
   // TODO: support zeroInit
   members.push_back(StorageInfo(Size, getUIntNType(8)));
+  clipTailPadding();
+  determinePacked(nonVirtualBaseType);
   insertPadding();
   members.pop_back();
   fillOutputFields();
@@ -463,6 +470,69 @@ mlir::Type CIRRecordLowering::getVFPtrType() {
   // FIXME: replay LLVM codegen for now, perhaps add a vtable ptr special
   // type so it's a bit more clear and C++ idiomatic.
   return builder.getVirtualFnPtrType();
+}
+
+
+void CIRRecordLowering::clipTailPadding() {
+  std::vector<MemberInfo>::iterator Prior = members.begin();
+  CharUnits Tail = getSize(Prior->data);
+  for (std::vector<MemberInfo>::iterator Member = Prior + 1,
+                                         MemberEnd = members.end();
+       Member != MemberEnd; ++Member) {
+    // Only members with data and the scissor can cut into tail padding.
+    if (!Member->data && Member->kind != MemberInfo::InfoKind::Scissor)
+      continue;
+    if (Member->offset < Tail) {
+      assert(Prior->kind == MemberInfo::InfoKind::Field &&
+             "Only storage fields have tail padding!");
+      if (!Prior->fieldDecl || Prior->fieldDecl->isBitField())
+        Prior->data = getByteArrayType(bitsToCharUnits(llvm::alignTo(
+            cast<mlir::cir::IntType>(Prior->data).getWidth(), 8)));
+      else {
+        assert(Prior->fieldDecl->hasAttr<NoUniqueAddressAttr>() &&
+               "should not have reused this field's tail padding");
+        Prior->data = getByteArrayType(
+            astContext.getTypeInfoDataSizeInChars(Prior->fieldDecl->getType()).Width);
+      }
+    }
+    if (Member->data)
+      Prior = Member;
+    Tail = Prior->offset + getSize(Prior->data);
+  }
+}
+
+void CIRRecordLowering::determinePacked(bool NVBaseType) {
+  if (isPacked)
+    return;
+  CharUnits Alignment = CharUnits::One();
+  CharUnits NVAlignment = CharUnits::One();
+  CharUnits NVSize =
+      !NVBaseType && cxxRecordDecl ? astRecordLayout.getNonVirtualSize() : CharUnits::Zero();
+  for (std::vector<MemberInfo>::const_iterator Member = members.begin(),
+                                               MemberEnd = members.end();
+       Member != MemberEnd; ++Member) {
+    if (!Member->data)
+      continue;
+    // If any member falls at an offset that it not a multiple of its alignment,
+    // then the entire record must be packed.
+    if (Member->offset % getAlignment(Member->data))
+      isPacked = true;
+    if (Member->offset < NVSize)
+      NVAlignment = std::max(NVAlignment, getAlignment(Member->data));
+    Alignment = std::max(Alignment, getAlignment(Member->data));
+  }
+  // If the size of the record (the capstone's offset) is not a multiple of the
+  // record's alignment, it must be packed.
+  if (members.back().offset % Alignment)
+    isPacked = true;
+  // If the non-virtual sub-object is not a multiple of the non-virtual
+  // sub-object's alignment, it must be packed.  We cannot have a packed
+  // non-virtual sub-object and an unpacked complete object or vise versa.
+  if (NVSize % NVAlignment)
+    isPacked = true;
+  // Update the alignment of the sentinel.
+  if (!isPacked)
+    members.back().data = getUIntNType(astContext.toBits(Alignment));
 }
 
 
