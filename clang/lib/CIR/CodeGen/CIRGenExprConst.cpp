@@ -453,7 +453,10 @@ mlir::Attribute ConstantAggregateBuilder::buildFrom(
   
   arrAttr.dump();
   DesiredTy.dump();
-  return builder.getConstStructOrZeroAttr(arrAttr, Packed, DesiredTy);
+  return builder.getAnonConstStruct(arrAttr, Packed);
+  
+  
+  ///return builder.getConstStructOrZeroAttr(arrAttr, Packed, DesiredTy);
 }
 
 void ConstantAggregateBuilder::condense(CharUnits Offset,

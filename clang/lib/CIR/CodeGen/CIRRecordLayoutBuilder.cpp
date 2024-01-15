@@ -281,7 +281,9 @@ void CIRRecordLowering::lower(bool nonVirtualBaseType) {
   // TODO: implemented packed structs
   // TODO: implement padding
   // TODO: support zeroInit
+  members.push_back(StorageInfo(Size, getUIntNType(8)));
   insertPadding();
+  members.pop_back();
   fillOutputFields();
   computeVolatileBitfields();
 }

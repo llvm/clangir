@@ -657,7 +657,8 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef MangledName, mlir::Type Ty,
     // (In LLVM codgen, if global is requested for a definition, we always need
     // to create a new global, otherwise return a bitcast.)
     if (!IsForDefinition)
-      assert(0 && "not implemented");
+      return Entry;
+     // assert(0 && "not implemented");
   }
 
   // TODO(cir): auto DAddrSpace = GetGlobalVarAddressSpace(D);
