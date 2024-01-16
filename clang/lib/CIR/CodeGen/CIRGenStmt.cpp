@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "Address.h"
+#include "CIRGenBuilder.h"
 #include "CIRGenFunction.h"
 #include "mlir/IR/Value.h"
 #include "clang/AST/CharUnits.h"
@@ -340,7 +341,7 @@ mlir::LogicalResult CIRGenFunction::buildLabelStmt(const clang::LabelStmt &S) {
 // Add terminating yield on body regions (loops, ...) in case there are
 // not other terminators used.
 // FIXME: make terminateCaseRegion use this too.
-static void terminateBody(mlir::OpBuilder &builder, mlir::Region &r,
+static void terminateBody(CIRGenBuilderTy &builder, mlir::Region &r,
                           mlir::Location loc) {
   if (r.empty())
     return;
@@ -358,7 +359,7 @@ static void terminateBody(mlir::OpBuilder &builder, mlir::Region &r,
         !block.back().hasTrait<mlir::OpTrait::IsTerminator>()) {
       mlir::OpBuilder::InsertionGuard guardCase(builder);
       builder.setInsertionPointToEnd(&block);
-      builder.create<YieldOp>(loc);
+      builder.createYield(loc);
     }
   }
 
@@ -609,14 +610,6 @@ CIRGenFunction::foldCaseStmt(const clang::CaseStmt &S, mlir::Type condType,
   return lastCase;
 }
 
-void CIRGenFunction::insertFallthrough(const clang::Stmt &S) {
-  builder.create<YieldOp>(
-      getLoc(S.getBeginLoc()),
-      mlir::cir::YieldOpKindAttr::get(builder.getContext(),
-                                      mlir::cir::YieldOpKind::Fallthrough),
-      mlir::ValueRange({}));
-}
-
 template <typename T>
 mlir::LogicalResult CIRGenFunction::buildCaseDefaultCascade(
     const T *stmt, mlir::Type condType,
@@ -638,11 +631,11 @@ mlir::LogicalResult CIRGenFunction::buildCaseDefaultCascade(
   auto *sub = stmt->getSubStmt();
 
   if (isa<DefaultStmt>(sub) && isa<CaseStmt>(stmt)) {
-    insertFallthrough(*stmt);
+    builder.createYield(getLoc(stmt->getBeginLoc()));
     res =
         buildDefaultStmt(*dyn_cast<DefaultStmt>(sub), condType, caseAttrs, os);
   } else if (isa<CaseStmt>(sub) && isa<DefaultStmt>(stmt)) {
-    insertFallthrough(*stmt);
+    builder.createYield(getLoc(stmt->getBeginLoc()));
     res = buildCaseStmt(*dyn_cast<CaseStmt>(sub), condType, caseAttrs, os);
   } else {
     res = buildStmt(sub, /*useCurrentScope=*/!isa<CompoundStmt>(sub));
@@ -728,7 +721,7 @@ CIRGenFunction::buildCXXForRangeStmt(const CXXForRangeStmt &S,
           if (S.getInc())
             if (buildStmt(S.getInc(), /*useCurrentScope=*/true).failed())
               loopRes = mlir::failure();
-          builder.create<YieldOp>(loc);
+          builder.createYield(loc);
         });
     return loopRes;
   };
@@ -810,7 +803,7 @@ mlir::LogicalResult CIRGenFunction::buildForStmt(const ForStmt &S) {
           if (S.getInc())
             if (buildStmt(S.getInc(), /*useCurrentScope=*/true).failed())
               loopRes = mlir::failure();
-          builder.create<YieldOp>(loc);
+          builder.createYield(loc);
         });
     return loopRes;
   };
@@ -864,7 +857,7 @@ mlir::LogicalResult CIRGenFunction::buildDoStmt(const DoStmt &S) {
         },
         /*stepBuilder=*/
         [&](mlir::OpBuilder &b, mlir::Location loc) {
-          builder.create<YieldOp>(loc);
+          builder.createYield(loc);
         });
     return loopRes;
   };
@@ -923,7 +916,7 @@ mlir::LogicalResult CIRGenFunction::buildWhileStmt(const WhileStmt &S) {
         },
         /*stepBuilder=*/
         [&](mlir::OpBuilder &b, mlir::Location loc) {
-          builder.create<YieldOp>(loc);
+          builder.createYield(loc);
         });
     return loopRes;
   };
@@ -1050,11 +1043,7 @@ mlir::LogicalResult CIRGenFunction::buildSwitchStmt(const SwitchStmt &S) {
           !block.back().hasTrait<mlir::OpTrait::IsTerminator>()) {
         mlir::OpBuilder::InsertionGuard guardCase(builder);
         builder.setInsertionPointToEnd(&block);
-        builder.create<YieldOp>(
-            loc,
-            mlir::cir::YieldOpKindAttr::get(
-                builder.getContext(), mlir::cir::YieldOpKind::Fallthrough),
-            mlir::ValueRange({}));
+        builder.createYield(loc);
       }
     }
 
