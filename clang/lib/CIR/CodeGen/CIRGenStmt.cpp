@@ -299,7 +299,6 @@ mlir::LogicalResult CIRGenFunction::buildSimpleStmt(const Stmt *S,
     return buildGotoStmt(cast<GotoStmt>(*S));
   case Stmt::ContinueStmtClass:
     return buildContinueStmt(cast<ContinueStmt>(*S));
-
   case Stmt::NullStmtClass:
     break;
 
@@ -570,11 +569,7 @@ mlir::LogicalResult CIRGenFunction::buildLabel(const LabelDecl *D) {
 
 mlir::LogicalResult
 CIRGenFunction::buildContinueStmt(const clang::ContinueStmt &S) {
-  builder.create<YieldOp>(
-      getLoc(S.getContinueLoc()),
-      mlir::cir::YieldOpKindAttr::get(builder.getContext(),
-                                      mlir::cir::YieldOpKind::Continue),
-      mlir::ValueRange({}));
+  builder.createContinue(getLoc(S.getContinueLoc()));
   return mlir::success();
 }
 
