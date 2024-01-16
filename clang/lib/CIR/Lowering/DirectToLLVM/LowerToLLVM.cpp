@@ -1095,25 +1095,27 @@ public:
     // TODO(cir): constant arrays are currently just pushed into the stack using
     // the store instruction, instead of being stored as global variables and
     // then memcopyied into the stack (as done in Clang).
-    else if (auto arrTy = mlir::dyn_cast<mlir::cir::ArrayType>(op.getType())) {
+    else if (mlir::isa<mlir::cir::ArrayType>(op.getType())) {
       // Fetch operation constant array initializer.
-      if (auto constArr = mlir::dyn_cast<mlir::cir::ConstArrayAttr>(op.getValue())) {
-        // Lower constant array initializer.
-        auto denseAttr = direct::lowerConstArrayAttr(constArr, typeConverter);
-        if (!denseAttr.has_value()) {
-          op.emitError()
-              << "unsupported lowering for #cir.const_array with element type "
-              << arrTy.getEltType();
-          return mlir::failure();
-        }
+      auto constArr = mlir::dyn_cast<mlir::cir::ConstArrayAttr>(op.getValue());
+      if (!constArr && !mlir::isa<mlir::cir::ZeroAttr>(op.getValue()))
+        return op.emitError() << "array does not have a constant initializer";
 
-        attr = denseAttr.value();
-      } else if (auto zero = mlir::dyn_cast<mlir::cir::ZeroAttr>(op.getValue())) {
-        auto initVal = direct::lowerCirAttrAsValue(op, zero, rewriter, typeConverter);
+      if (constArr) {
+        if (auto denseAttr =
+                direct::lowerConstArrayAttr(constArr, typeConverter)) {
+          attr = denseAttr.value();
+        } else {
+          auto initVal = direct::lowerCirAttrAsValue(op, op.getValue(),
+                                                     rewriter, typeConverter);
+          rewriter.replaceOp(op, initVal);
+          return mlir::success();
+        }
+      } else {
+        auto initVal = direct::lowerCirAttrAsValue(op, op.getValue(), rewriter,
+                                                   typeConverter);
         rewriter.replaceOp(op, initVal);
         return mlir::success();
-      } else {
-        return op.emitError() << "array does not have a constant initializer";
       }
     } else if (const auto structAttr =
                    mlir::dyn_cast<mlir::cir::ConstStructAttr>(op.getValue())) {
