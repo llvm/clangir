@@ -19,8 +19,8 @@ include "clang/CIR/Dialect/IR/CIRTypes.td"
 include "clang/CIR/Dialect/IR/CIRAttrs.td"
 
 include "clang/CIR/Interfaces/ASTAttrInterfaces.td"
+include "clang/CIR/Interfaces/CIROpInterfaces.td"
 
-include "mlir/Interfaces/CallInterfaces.td"
 include "mlir/Interfaces/ControlFlowInterfaces.td"
 include "mlir/Interfaces/FunctionInterfaces.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
@@ -1673,13 +1673,38 @@ def GetMemberOp : CIR_Op<"get_member"> {
 }
 
 //===----------------------------------------------------------------------===//
+// VecInsertOp
+//===----------------------------------------------------------------------===//
+
+def VecInsertOp : CIR_Op<"vec.insert", [Pure,
+  TypesMatchWith<"argument type matches vector element type", "vec", "value",
+                 "$_self.cast<VectorType>().getEltType()">,
+  AllTypesMatch<["result", "vec"]>]> {
+
+  let summary = "Insert one element into a vector object";
+  let description = [{
+    The `cir.vec.insert` operation replaces the element of the given vector at
+    the given index with the given value.  The new vector with the inserted
+    element is returned.
+  }];
+
+  let arguments = (ins CIR_VectorType:$vec, AnyType:$value, CIR_IntType:$index);
+  let results = (outs CIR_VectorType:$result);
+
+  let assemblyFormat = [{
+    $value `,` $vec `[` $index `:` type($index) `]` attr-dict `:` type($vec)
+  }];
+
+  let hasVerifier = 0;
+}
+
+//===----------------------------------------------------------------------===//
 // VecExtractOp
 //===----------------------------------------------------------------------===//
 
 def VecExtractOp : CIR_Op<"vec.extract", [Pure,
-  TypesMatchWith<"type of 'result' matches element type of 'vec'",
-                 "vec", "result",
-                 "$_self.cast<VectorType>().getEltType()">]> {
+  TypesMatchWith<"type of 'result' matches element type of 'vec'", "vec",
+                 "result", "$_self.cast<VectorType>().getEltType()">]> {
 
   let summary = "Extract one element from a vector object";
   let description = [{
@@ -1691,7 +1716,7 @@ def VecExtractOp : CIR_Op<"vec.extract", [Pure,
   let results = (outs CIR_AnyType:$result);
 
   let assemblyFormat = [{
-    $vec `[` $index `:` type($index) `]` type($vec) `->` type($result) attr-dict
+    $vec `[` $index `:` type($index) `]` attr-dict `:` type($vec)
   }];
 
   let hasVerifier = 0;
@@ -1909,12 +1934,43 @@ def FuncOp : CIR_Op<"func", [
 }
 
 //===----------------------------------------------------------------------===//
-// CallOp
+// CallOp and TryCallOp
 //===----------------------------------------------------------------------===//
 
-def CallOp : CIR_Op<"call",
-    [DeclareOpInterfaceMethods<CallOpInterface>,
-     DeclareOpInterfaceMethods<SymbolUserOpInterface>]> {
+class CIR_CallOp<string mnemonic> :
+    Op<CIR_Dialect, mnemonic,
+       [DeclareOpInterfaceMethods<CIRCallOpInterface>,
+        DeclareOpInterfaceMethods<SymbolUserOpInterface>]> {
+  let extraClassDeclaration = [{
+    /// Get the argument operands to the called function.
+    OperandRange getArgOperands() {
+      return {arg_operand_begin(), arg_operand_end()};
+    }
+
+    MutableOperandRange getArgOperandsMutable() {
+      llvm_unreachable("NYI");
+    }
+
+    /// Return the callee of this operation
+    CallInterfaceCallable getCallableForCallee() {
+      return (*this)->getAttrOfType<SymbolRefAttr>("callee");
+    }
+
+    /// Set the callee for this operation.
+    void setCalleeFromCallable(::mlir::CallInterfaceCallable callee) {
+      if (auto calling =
+              (*this)->getAttrOfType<mlir::SymbolRefAttr>(getCalleeAttrName()))
+        (*this)->setAttr(getCalleeAttrName(), callee.get<mlir::SymbolRefAttr>());
+      setOperand(0, callee.get<mlir::Value>());
+    }
+  }];
+
+  let hasCustomAssemblyFormat = 1;
+  let skipDefaultBuilders = 1;
+  let hasVerifier = 0;
+}
+
+def CallOp : CIR_CallOp<"call"> {
   let summary = "call operation";
   let description = [{
     The `call` operation represents a direct call to a function that is within
@@ -1966,39 +2022,56 @@ def CallOp : CIR_Op<"call",
       $_state.addAttribute("callee", callee);
       $_state.addTypes(resType);
     }]>];
+}
 
-  let extraClassDeclaration = [{
-    mlir::Value getIndirectCallee() {
-      assert(!getCallee() && "only works for indirect call");
-      return *arg_operand_begin();
-    }
+def TryCallOp : CIR_CallOp<"try_call"> {
+  let summary = "try call operation";
+  let description = [{
+    Works very similar to `cir.call` but passes down an exception object
+    in case anything is thrown by the callee. Upon the callee throwing,
+    `cir.try_call` goes to current `cir.scope`'s `abort` label, otherwise
+    execution follows to the `continue` label.
 
-    operand_iterator arg_operand_begin() {
-      auto arg_begin = operand_begin();
-      if (!getCallee())
-        arg_begin++;
-      return arg_begin;
-    }
-    operand_iterator arg_operand_end() { return operand_end(); }
+    To walk the operands for this operation, use `getNumArgOperands()`,
+    `getArgOperand()`, `getArgOperands()`, `arg_operand_begin()` and
+    `arg_operand_begin()`. Avoid using `getNumOperands()`, `getOperand()`,
+    `operand_begin()`, etc, direclty - might be misleading given the
+    exception object address is also part of the raw operation's operands.
+    ``
 
-    /// Return the operand at index 'i', accounts for indirect call.
-    Value getArgOperand(unsigned i) {
-      if (!getCallee())
-        i++;
-      return getOperand(i);
-    }
+    Example:
 
-    /// Return the number of operands, , accounts for indirect call.
-    unsigned getNumArgOperands() {
-      if (!getCallee())
-        return this->getOperation()->getNumOperands()-1;
-      return this->getOperation()->getNumOperands();
-    }
+    ```mlir
+    %r = cir.try_call @division(%1, %2), ^continue_A, ^abort, %0
+    ```
   }];
 
-  let hasCustomAssemblyFormat = 1;
-  let skipDefaultBuilders = 1;
-  let hasVerifier = 0;
+  let arguments = (ins OptionalAttr<FlatSymbolRefAttr>:$callee,
+                       Variadic<CIR_AnyType>:$operands,
+                       OptionalAttr<ASTCallExprInterface>:$ast);
+  let results = (outs Variadic<CIR_AnyType>);
+
+  let builders = [
+    OpBuilder<(ins "FuncOp":$callee, CArg<"ValueRange", "{}">:$operands), [{
+      $_state.addOperands(operands);
+      $_state.addAttribute("callee", SymbolRefAttr::get(callee));
+      if (!callee.getFunctionType().isVoid())
+        $_state.addTypes(callee.getFunctionType().getReturnType());
+    }]>,
+    OpBuilder<(ins "Value":$ind_target,
+               "FuncType":$fn_type,
+               CArg<"ValueRange", "{}">:$operands), [{
+      $_state.addOperands(ValueRange{ind_target});
+      $_state.addOperands(operands);
+      if (!fn_type.isVoid())
+        $_state.addTypes(fn_type.getReturnType());
+    }]>,
+    OpBuilder<(ins "SymbolRefAttr":$callee, "mlir::Type":$resType,
+              CArg<"ValueRange", "{}">:$operands), [{
+      $_state.addOperands(operands);
+      $_state.addAttribute("callee", callee);
+      $_state.addTypes(resType);
+    }]>];
 }
 
 //===----------------------------------------------------------------------===//
@@ -2386,29 +2459,33 @@ def IterEndOp : CIR_Op<"iterator_end"> {
 }
 
 //===----------------------------------------------------------------------===//
-// FAbsOp
+// Floating Point Ops
 //===----------------------------------------------------------------------===//
 
-def FAbsOp : CIR_Op<"fabs", [Pure, SameOperandsAndResultType]> {
+class UnaryFPToFPBuiltinOp<string mnemonic>
+    : CIR_Op<mnemonic, [Pure, SameOperandsAndResultType]> {
   let arguments = (ins AnyFloat:$src);
   let results = (outs AnyFloat:$result);
-  let summary = "Returns absolute value for floating-point input.";
-  let description = [{
-    Equivalent to libc's `fabs` and LLVM's intrinsic with the same name.
-
-    Examples:
-
-    ```mlir
-      %1 = cir.const(1.0 : f64) : f64
-      %2 = cir.fabs %1 : f64
-    ```
-  }];
-
-  let assemblyFormat = [{
-    $src `:` type($src) attr-dict
-  }];
-  let hasVerifier = 0;
+  let summary = "libc builtin equivalent ignoring "
+                "floating point exceptions and errno";
+  let assemblyFormat = "$src `:` type($src) attr-dict";
 }
+
+def CeilOp : UnaryFPToFPBuiltinOp<"ceil">;
+def CosOp : UnaryFPToFPBuiltinOp<"cos">;
+def ExpOp : UnaryFPToFPBuiltinOp<"exp">;
+def Exp2Op : UnaryFPToFPBuiltinOp<"exp2">;
+def FloorOp : UnaryFPToFPBuiltinOp<"floor">;
+def FAbsOp : UnaryFPToFPBuiltinOp<"fabs">;
+def LogOp : UnaryFPToFPBuiltinOp<"log">;
+def Log10Op : UnaryFPToFPBuiltinOp<"log10">;
+def Log2Op : UnaryFPToFPBuiltinOp<"log2">;
+def NearbyintOp : UnaryFPToFPBuiltinOp<"nearbyint">;
+def RintOp : UnaryFPToFPBuiltinOp<"rint">;
+def RoundOp : UnaryFPToFPBuiltinOp<"round">;
+def SinOp : UnaryFPToFPBuiltinOp<"sin">;
+def SqrtOp : UnaryFPToFPBuiltinOp<"sqrt">;
+def TruncOp : UnaryFPToFPBuiltinOp<"trunc">;
 
 //===----------------------------------------------------------------------===//
 // Variadic Operations
@@ -2573,6 +2650,55 @@ def StackRestoreOp : CIR_Op<"stack_restore"> {
   let assemblyFormat = "$ptr attr-dict `:` qualified(type($ptr))";
 }
 
+def AsmATT : I32EnumAttrCase<"x86_att", 0>;
+def AsmIntel : I32EnumAttrCase<"x86_intel", 1>;
+
+def AsmFlavor : I32EnumAttr<
+  "AsmFlavor",
+  "ATT or Intel",
+  [AsmATT, AsmIntel]> {
+  let cppNamespace = "::mlir::cir";
+}
+
+def CIR_InlineAsmOp : CIR_Op<"asm", [RecursiveMemoryEffects]> {
+  let description = [{
+    The `cir.asm` operation represents C/C++ asm inline.
+
+    CIR constraints strings follow barelly the same rules that are established 
+    for the C level assembler constraints with several differences caused by 
+    clang::AsmStmt processing. 
+
+    Thus, numbers that appears in the constraint string may also refer to:
+    - the output variable index referenced by the input operands.
+    - the index of early-clobber operand
+
+    Example:
+    ```C++
+    __asm__("foo" : : : );
+    __asm__("bar $42 %[val]" : [val] "=r" (x), "+&r"(x));
+    __asm__("baz $42 %[val]" : [val] "=r" (x), "+&r"(x) : "[val]"(y));
+    ```
+    
+    ```mlir
+    cir.asm(x86_att, {"foo" ""})
+    cir.asm(x86_att, {"bar $$42 $0" "=r,=&r,1"}) 
+    cir.asm(x86_att, {"baz $$42 $0" "=r,=&r,0,1"}) 
+    ```
+  }];
+
+  let results = (outs Optional<CIR_AnyType>:$res);
+
+  let arguments = (
+    ins StrAttr:$asm_string,
+        StrAttr:$constraints,
+        AsmFlavor:$asm_flavor);  
+
+  let assemblyFormat = [{
+    `(`$asm_flavor`,` `{` $asm_string $constraints `}` `)` attr-dict 
+    `:` type($res)
+   }];  
+}
+
 //===----------------------------------------------------------------------===//
 // Operations Lowered Directly to LLVM IR
 //
@@ -2589,42 +2715,6 @@ def ZeroInitConstOp : CIR_Op<"llvmir.zeroinit", [Pure]>,
   }];
   let assemblyFormat = "attr-dict `:` type($result)";
   let hasVerifier = 0;
-}
-
-def AsmATT : I32EnumAttrCase<"x86_att", 0>;
-def AsmIntel : I32EnumAttrCase<"x86_intel", 1>;
-
-def AsmFlavor : I32EnumAttr<
-  "AsmDialect",
-  "ATT or Intel",
-  [AsmATT, AsmIntel]> {
-  let cppNamespace = "::mlir::cir";
-}
-
-def CIR_InlineAsmOp : CIR_Op<"asm", [RecursiveMemoryEffects]> {
-  let description = [{
-    The `cir.asm` operation represents C/C++ asm inline.
-
-    Example:
-    ```C++
-    __asm__ volatile("xyz" : : : );
-    ```
-
-    ```
-    ```mlir
-    cir.asm(x86_att, {"xyz"}) -> !void
-    ```
-  }];
-
-  let results = (outs Optional<CIR_AnyType>:$res);
-
-  let arguments = (
-    ins StrAttr:$asm_string,
-        AsmFlavor:$asm_flavor);
-
-  let assemblyFormat = [{
-    `(`$asm_flavor`,` `{` $asm_string `}` `)` attr-dict `:` type($res)
-   }];
 }
 
 #endif // MLIR_CIR_DIALECT_CIR_OPS
