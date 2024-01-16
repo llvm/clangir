@@ -389,14 +389,15 @@ def LoadOp : CIR_Op<"load", [
   }];
 
   let arguments = (ins Arg<CIR_PointerType, "the address to load from",
-                           [MemRead]>:$addr, UnitAttr:$isDeref);
+                           [MemRead]>:$addr, UnitAttr:$isDeref,
+                       UnitAttr:$is_volatile);
   let results = (outs CIR_AnyType:$result);
 
   // FIXME: we should not be printing `cir.ptr` below, that should come
   // from the pointer type directly.
   let assemblyFormat = [{
-    (`deref` $isDeref^)? $addr `:` `cir.ptr` type($addr) `,`
-                                   type($result) attr-dict
+    (`deref` $isDeref^)? (`volatile` $is_volatile^)?
+    $addr `:` `cir.ptr` type($addr) `,` type($result) attr-dict
   }];
 
   // FIXME: add verifier.
@@ -426,12 +427,15 @@ def StoreOp : CIR_Op<"store", [
 
   let arguments = (ins CIR_AnyType:$value,
                        Arg<CIR_PointerType, "the address to store the value",
-                           [MemWrite]>:$addr);
+                           [MemWrite]>:$addr,
+                       UnitAttr:$is_volatile);
 
   // FIXME: we should not be printing `cir.ptr` below, that should come
   // from the pointer type directly.
-  let assemblyFormat =
-      "$value `,` $addr attr-dict `:` type($value) `,` `cir.ptr` type($addr)";
+  let assemblyFormat = [{
+    (`volatile` $is_volatile^)?
+    $value `,` $addr attr-dict `:` type($value) `,` `cir.ptr` type($addr)
+  }];
 
   // FIXME: add verifier.
 }
@@ -1587,7 +1591,8 @@ def SetBitfieldOp : CIR_Op<"set_bitfield"> {
   let arguments = (ins
     CIR_PointerType:$dst,
     CIR_AnyType:$src,
-    BitfieldInfoAttr:$bitfield_info
+    BitfieldInfoAttr:$bitfield_info,
+    UnitAttr:$is_volatile
   );
 
   let results = (outs CIR_IntType:$result);
@@ -1603,14 +1608,15 @@ def SetBitfieldOp : CIR_Op<"set_bitfield"> {
                    "StringRef":$name,
                    "unsigned":$size,
                    "unsigned":$offset,
-                   "bool":$is_signed
+                   "bool":$is_signed,
+                   "bool":$is_volatile
                    ),
    [{
       BitfieldInfoAttr info =
         BitfieldInfoAttr::get($_builder.getContext(),
                               name, storage_type,
                               size, offset, is_signed);
-      build($_builder, $_state, type, dst, src, info);
+      build($_builder, $_state, type, dst, src, info, is_volatile);
     }]>
   ];
 }
@@ -1660,7 +1666,8 @@ def GetBitfieldOp : CIR_Op<"get_bitfield"> {
 
   let arguments = (ins
     CIR_PointerType:$addr,
-    BitfieldInfoAttr:$bitfield_info
+    BitfieldInfoAttr:$bitfield_info,
+    UnitAttr:$is_volatile
     );
 
   let results = (outs CIR_IntType:$result);
@@ -1675,14 +1682,15 @@ def GetBitfieldOp : CIR_Op<"get_bitfield"> {
                    "StringRef":$name,
                    "unsigned":$size,
                    "unsigned":$offset,
-                   "bool":$is_signed
+                   "bool":$is_signed,
+                   "bool":$is_volatile
                    ),
    [{
       BitfieldInfoAttr info =
         BitfieldInfoAttr::get($_builder.getContext(),
                               name, storage_type,
                               size, offset, is_signed);
-      build($_builder, $_state, type, addr, info);
+      build($_builder, $_state, type, addr, info, is_volatile);
     }]>
   ];
 }
