@@ -576,11 +576,7 @@ CIRGenFunction::buildContinueStmt(const clang::ContinueStmt &S) {
 }
 
 mlir::LogicalResult CIRGenFunction::buildBreakStmt(const clang::BreakStmt &S) {
-  builder.create<YieldOp>(
-      getLoc(S.getBeginLoc()),
-      mlir::cir::YieldOpKindAttr::get(builder.getContext(),
-                                      mlir::cir::YieldOpKind::Break),
-      mlir::ValueRange({}));
+  builder.createBreak(getLoc(S.getBeginLoc()));
   return mlir::success();
 }
 
