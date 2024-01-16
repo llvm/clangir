@@ -589,7 +589,8 @@ public:
   }
 
   /// Create a yield operation.
-  mlir::cir::YieldOp createYield(mlir::Location loc, mlir::ValueRange value = {}) {
+  mlir::cir::YieldOp createYield(mlir::Location loc,
+                                 mlir::ValueRange value = {}) {
     return create<mlir::cir::YieldOp>(loc, value);
   }
 
