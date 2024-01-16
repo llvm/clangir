@@ -612,13 +612,12 @@ def ConditionOp : CIR_Op<"condition", [
 
 def YieldOpKind_BK : I32EnumAttrCase<"Break", 1, "break">;
 def YieldOpKind_FT : I32EnumAttrCase<"Fallthrough", 2, "fallthrough">;
-def YieldOpKind_CE : I32EnumAttrCase<"Continue", 3, "continue">;
 def YieldOpKind_NS : I32EnumAttrCase<"NoSuspend", 4, "nosuspend">;
 
 def YieldOpKind : I32EnumAttr<
     "YieldOpKind",
     "yield kind",
-    [YieldOpKind_BK, YieldOpKind_FT, YieldOpKind_CE, YieldOpKind_NS]> {
+    [YieldOpKind_BK, YieldOpKind_FT, YieldOpKind_NS]> {
   let cppNamespace = "::mlir::cir";
 }
 
@@ -640,8 +639,6 @@ def YieldOp : CIR_Op<"yield",
     cannot be used if not dominated by these parent operations.
     - `fallthrough`: execution falls to the next region in `cir.switch` case list.
     Only available inside `cir.switch` regions.
-    - `continue`: only allowed under `cir.loop`, continue execution to the next
-    loop step.
     - `nosuspend`: specific to the `ready` region inside `cir.await` op, it makes
     control-flow to be transfered back to the parent, preventing suspension.
 
@@ -662,11 +659,6 @@ def YieldOp : CIR_Op<"yield",
         cir.yield fallthrough
       }, ...
     ]
-
-    cir.loop (cond : {...}, step : {...}) {
-      ...
-      cir.yield continue
-    }
 
     cir.await(init, ready : {
       // Call std::suspend_always::await_ready
@@ -724,14 +716,25 @@ def YieldOp : CIR_Op<"yield",
     bool isBreak() {
       return !isPlain() && *getKind() == YieldOpKind::Break;
     }
-    bool isContinue() {
-      return !isPlain() && *getKind() == YieldOpKind::Continue;
-    }
     bool isNoSuspend() {
       return !isPlain() && *getKind() == YieldOpKind::NoSuspend;
     }
   }];
 
+  let hasVerifier = 1;
+}
+
+//===----------------------------------------------------------------------===//
+// ContinueOp
+//===----------------------------------------------------------------------===//
+
+def ContinueOp : CIR_Op<"continue", [Terminator]> {
+  let summary = "C/C++ `continue` statement equivalent";
+  let description = [{
+    The `cir.continue` operation is used to continue execution to the next
+    iteration of a loop. It is only allowed within `cir.loop` regions.
+  }];
+  let assemblyFormat = "attr-dict";
   let hasVerifier = 1;
 }
 
@@ -1172,7 +1175,7 @@ def LoopOp : CIR_Op<"loop",
     `cir.loop` represents C/C++ loop forms. It defines 3 blocks:
     - `cond`: region can contain multiple blocks, terminated by regular
     `cir.yield` when control should yield back to the parent, and
-    `cir.yield continue` when execution continues to another region.
+    `cir.continue` when execution continues to the next region.
     The region destination depends on the loop form specified.
     - `step`: region with one block, containing code to compute the
     loop step, must be terminated with `cir.yield`.
@@ -1187,7 +1190,7 @@ def LoopOp : CIR_Op<"loop",
       //  i = i + 1;
       // }
       cir.loop while(cond :  {
-        cir.yield continue
+        cir.continue
       }, step :  {
         cir.yield
       })  {
@@ -1679,13 +1682,38 @@ def GetMemberOp : CIR_Op<"get_member"> {
 }
 
 //===----------------------------------------------------------------------===//
+// VecInsertOp
+//===----------------------------------------------------------------------===//
+
+def VecInsertOp : CIR_Op<"vec.insert", [Pure,
+  TypesMatchWith<"argument type matches vector element type", "vec", "value",
+                 "::mlir::cast<::mlir::cir::VectorType>($_self).getEltType()">,
+  AllTypesMatch<["result", "vec"]>]> {
+
+  let summary = "Insert one element into a vector object";
+  let description = [{
+    The `cir.vec.insert` operation replaces the element of the given vector at
+    the given index with the given value.  The new vector with the inserted
+    element is returned.
+  }];
+
+  let arguments = (ins CIR_VectorType:$vec, AnyType:$value, CIR_IntType:$index);
+  let results = (outs CIR_VectorType:$result);
+
+  let assemblyFormat = [{
+    $value `,` $vec `[` $index `:` type($index) `]` attr-dict `:` type($vec)
+  }];
+
+  let hasVerifier = 0;
+}
+
+//===----------------------------------------------------------------------===//
 // VecExtractOp
 //===----------------------------------------------------------------------===//
 
 def VecExtractOp : CIR_Op<"vec.extract", [Pure,
-  TypesMatchWith<"type of 'result' matches element type of 'vec'",
-                 "vec", "result",
-                 "::mlir::cast<::mlir::cir::VectorType>($_self).getEltType()">]> {
+  TypesMatchWith<"type of 'result' matches element type of 'vec'", "vec",
+                 "result", "::mlir::cast<::mlir::cir::VectorType>($_self).getEltType()">]> {
 
   let summary = "Extract one element from a vector object";
   let description = [{
@@ -1697,7 +1725,7 @@ def VecExtractOp : CIR_Op<"vec.extract", [Pure,
   let results = (outs CIR_AnyType:$result);
 
   let assemblyFormat = [{
-    $vec `[` $index `:` type($index) `]` type($vec) `->` type($result) attr-dict
+    $vec `[` $index `:` type($index) `]` attr-dict `:` type($vec)
   }];
 
   let hasVerifier = 0;
