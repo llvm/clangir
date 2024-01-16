@@ -19,8 +19,8 @@ include "clang/CIR/Dialect/IR/CIRTypes.td"
 include "clang/CIR/Dialect/IR/CIRAttrs.td"
 
 include "clang/CIR/Interfaces/ASTAttrInterfaces.td"
+include "clang/CIR/Interfaces/CIROpInterfaces.td"
 
-include "mlir/Interfaces/CallInterfaces.td"
 include "mlir/Interfaces/ControlFlowInterfaces.td"
 include "mlir/Interfaces/FunctionInterfaces.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
@@ -98,8 +98,8 @@ def CastOp : CIR_Op<"cast", [Pure]> {
     ```
   }];
 
-  let arguments = (ins CastKind:$kind, AnyType:$src);
-  let results = (outs AnyType:$result);
+  let arguments = (ins CastKind:$kind, CIR_AnyType:$src);
+  let results = (outs CIR_AnyType:$result);
 
   let assemblyFormat = [{
     `(` $kind `,` $src `:` type($src) `)`
@@ -168,10 +168,10 @@ def PtrDiffOp : CIR_Op<"ptr_diff", [Pure, SameTypeOperands]> {
   }];
 
   let results = (outs CIR_IntType:$result);
-  let arguments = (ins AnyType:$lhs, AnyType:$rhs);
+  let arguments = (ins CIR_PointerType:$lhs, CIR_PointerType:$rhs);
 
   let assemblyFormat = [{
-    `(` $lhs `,` $rhs  `)` `:` type($lhs) `->` type($result) attr-dict
+    `(` $lhs `,` $rhs  `)` `:` qualified(type($lhs)) `->` qualified(type($result)) attr-dict
   }];
 
   // Already covered by the traits
@@ -198,12 +198,12 @@ def PtrStrideOp : CIR_Op<"ptr_stride",
     ```
   }];
 
-  let arguments = (ins AnyType:$base, CIR_IntType:$stride);
-  let results = (outs AnyType:$result);
+  let arguments = (ins CIR_PointerType:$base, CIR_IntType:$stride);
+  let results = (outs CIR_PointerType:$result);
 
   let assemblyFormat = [{
-    `(` $base `:` type($base) `,` $stride `:` qualified(type($stride)) `)`
-    `,` type($result) attr-dict
+    `(` $base `:` qualified(type($base)) `,` $stride `:` qualified(type($stride)) `)`
+    `,` qualified(type($result)) attr-dict
   }];
 
   let extraClassDeclaration = [{
@@ -241,8 +241,8 @@ def ConstantOp : CIR_Op<"const",
   // The constant operation takes an attribute as the only input.
   let arguments = (ins TypedAttrInterface:$value);
 
-  // The constant operation returns a single value of AnyType.
-  let results = (outs AnyType:$res);
+  // The constant operation returns a single value of CIR_AnyType.
+  let results = (outs CIR_AnyType:$res);
 
   let assemblyFormat = [{
     `(` custom<ConstantValue>($value) `)` attr-dict `:` type($res)
@@ -389,7 +389,7 @@ def LoadOp : CIR_Op<"load", [
 
   let arguments = (ins Arg<CIR_PointerType, "the address to load from",
                            [MemRead]>:$addr, UnitAttr:$isDeref);
-  let results = (outs AnyType:$result);
+  let results = (outs CIR_AnyType:$result);
 
   // FIXME: we should not be printing `cir.ptr` below, that should come
   // from the pointer type directly.
@@ -423,7 +423,7 @@ def StoreOp : CIR_Op<"store", [
     ```
   }];
 
-  let arguments = (ins AnyType:$value,
+  let arguments = (ins CIR_AnyType:$value,
                        Arg<CIR_PointerType, "the address to store the value",
                            [MemWrite]>:$addr);
 
@@ -458,7 +458,7 @@ def ReturnOp : CIR_Op<"return", [HasParent<"FuncOp, ScopeOp, IfOp, SwitchOp, Loo
 
   // The return operation takes an optional input operand to return. This
   // value must match the return type of the enclosing function.
-  let arguments = (ins Variadic<AnyType>:$input);
+  let arguments = (ins Variadic<CIR_AnyType>:$input);
 
   // The return operation only emits the input in the format if it is present.
   let assemblyFormat = "($input^ `:` type($input))? attr-dict ";
@@ -561,7 +561,7 @@ def TernaryOp : CIR_Op<"ternary",
   let arguments = (ins CIR_BoolType:$cond);
   let regions = (region SizedRegion<1>:$trueRegion,
                         SizedRegion<1>:$falseRegion);
-  let results = (outs Optional<AnyType>:$result);
+  let results = (outs Optional<CIR_AnyType>:$result);
 
   let skipDefaultBuilders = 1;
   let builders = [
@@ -580,6 +580,25 @@ def TernaryOp : CIR_Op<"ternary",
       `false` $falseRegion
     `)` `:` functional-type(operands, results) attr-dict
   }];
+}
+
+//===----------------------------------------------------------------------===//
+// ConditionOp
+//===----------------------------------------------------------------------===//
+
+def ConditionOp : CIR_Op<"condition", [
+  Terminator,
+  DeclareOpInterfaceMethods<RegionBranchTerminatorOpInterface,
+                            ["getSuccessorRegions"]>
+]> {
+  let summary = "Loop continuation condition.";
+  let description = [{
+    The `cir.condition` termintes loop's conditional regions. It takes a single
+    `cir.bool` operand. if the operand is true, the loop continues, otherwise
+    it terminates.
+  }];
+  let arguments = (ins CIR_BoolType:$condition);
+  let assemblyFormat = " `(` $condition `)` attr-dict ";
 }
 
 //===----------------------------------------------------------------------===//
@@ -671,7 +690,7 @@ def YieldOp : CIR_Op<"yield", [ReturnLike, Terminator,
   }];
 
   let arguments = (ins OptionalAttr<YieldOpKind>:$kind,
-                       Variadic<AnyType>:$args);
+                       Variadic<CIR_AnyType>:$args);
   let builders = [
     OpBuilder<(ins), [{ /* nothing to do */ }]>,
     OpBuilder<(ins "YieldOpKind":$kind), [{
@@ -739,7 +758,7 @@ def ScopeOp : CIR_Op<"scope", [
     will be inserted implicitly.
   }];
 
-  let results = (outs Optional<AnyType>:$results);
+  let results = (outs Optional<CIR_AnyType>:$results);
   let regions = (region AnyRegion:$scopeRegion);
 
   let hasVerifier = 1;
@@ -799,8 +818,8 @@ def UnaryOp : CIR_Op<"unary", [Pure, SameOperandsAndResultType]> {
     ```
   }];
 
-  let results = (outs AnyType:$result);
-  let arguments = (ins Arg<UnaryOpKind, "unary op kind">:$kind, Arg<AnyType>:$input);
+  let results = (outs CIR_AnyType:$result);
+  let arguments = (ins Arg<UnaryOpKind, "unary op kind">:$kind, Arg<CIR_AnyType>:$input);
 
   let assemblyFormat = [{
       `(` $kind `,` $input `)` `:` type($input) `,` type($result) attr-dict
@@ -852,10 +871,10 @@ def BinOp : CIR_Op<"binop", [Pure,
     ```
   }];
 
-  // TODO: get more accurate than AnyType
-  let results = (outs AnyType:$result);
+  // TODO: get more accurate than CIR_AnyType
+  let results = (outs CIR_AnyType:$result);
   let arguments = (ins Arg<BinOpKind, "binop kind">:$kind,
-                       AnyType:$lhs, AnyType:$rhs);
+                       CIR_AnyType:$lhs, CIR_AnyType:$rhs);
 
   let assemblyFormat = [{
     `(` $kind `,` $lhs `,` $rhs  `)` `:` type($lhs) attr-dict
@@ -929,10 +948,10 @@ def CmpOp : CIR_Op<"cmp", [Pure, SameTypeOperands]> {
     ```
   }];
 
-  // TODO: get more accurate than AnyType
-  let results = (outs AnyType:$result);
+  // TODO: get more accurate than CIR_AnyType
+  let results = (outs CIR_AnyType:$result);
   let arguments = (ins Arg<CmpOpKind, "cmp kind">:$kind,
-                       AnyType:$lhs, AnyType:$rhs);
+                       CIR_AnyType:$lhs, CIR_AnyType:$rhs);
 
   let assemblyFormat = [{
     `(` $kind `,` $lhs `,` $rhs  `)` `:` type($lhs) `,` type($result) attr-dict
@@ -1066,7 +1085,7 @@ def BrOp : CIR_Op<"br",
     }]>
   ];
 
-  let arguments = (ins Variadic<AnyType>:$destOperands);
+  let arguments = (ins Variadic<CIR_AnyType>:$destOperands);
   let successors = (successor AnySuccessor:$dest);
   let assemblyFormat = [{
     $dest (`(` $destOperands^ `:` type($destOperands) `)`)? attr-dict
@@ -1111,8 +1130,8 @@ def BrCondOp : CIR_Op<"brcond",
   ];
 
   let arguments = (ins CIR_BoolType:$cond,
-                       Variadic<AnyType>:$destOperandsTrue,
-                       Variadic<AnyType>:$destOperandsFalse);
+                       Variadic<CIR_AnyType>:$destOperandsTrue,
+                       Variadic<CIR_AnyType>:$destOperandsFalse);
   let successors = (successor AnySuccessor:$destTrue, AnySuccessor:$destFalse);
   let assemblyFormat = [{
     $cond
@@ -1420,7 +1439,7 @@ def VTableAddrPointOp : CIR_Op<"vtable.address_point",
   }];
 
   let arguments = (ins OptionalAttr<FlatSymbolRefAttr>:$name,
-                       Optional<AnyType>:$sym_addr,
+                       Optional<CIR_AnyType>:$sym_addr,
                        I32Attr:$vtable_index,
                        I32Attr:$address_point_index);
   let results = (outs Res<CIR_PointerType, "", []>:$addr);
@@ -1447,13 +1466,13 @@ def VTableAddrPointOp : CIR_Op<"vtable.address_point",
 
 def SetBitfieldOp : CIR_Op<"set_bitfield"> {
   let summary = "Set a bitfield";
-  let description = [{ 
-    The `cir.set_bitfield` operation provides a store-like access to 
+  let description = [{
+    The `cir.set_bitfield` operation provides a store-like access to
     a bit field of a record.
 
     It expects an address of a storage where to store, a type of the storage,
     a value being stored, a name of a bit field, a pointer to the storage in the
-    base record, a size of the storage, a size the bit field, an offset 
+    base record, a size of the storage, a size the bit field, an offset
     of the bit field and a sign. Returns a value being stored.
 
     Example.
@@ -1487,29 +1506,29 @@ def SetBitfieldOp : CIR_Op<"set_bitfield"> {
    }];
 
   let arguments = (ins
-    AnyType:$dst,
-    AnyType:$src,
+    CIR_PointerType:$dst,
+    CIR_AnyType:$src,
     BitfieldInfoAttr:$bitfield_info
   );
 
   let results = (outs CIR_IntType:$result);
 
-  let assemblyFormat = [{ `(`$bitfield_info`,` $dst`:`type($dst)`,`
+  let assemblyFormat = [{ `(`$bitfield_info`,` $dst`:`qualified(type($dst))`,`
     $src`:`type($src) `)`  attr-dict `->` type($result) }];
-  
+
   let builders = [
     OpBuilder<(ins "Type":$type,
                    "Value":$dst,
                    "Type":$storage_type,
                    "Value":$src,
                    "StringRef":$name,
-                   "unsigned":$size, 
+                   "unsigned":$size,
                    "unsigned":$offset,
                    "bool":$is_signed
                    ),
-   [{      
-      BitfieldInfoAttr info = 
-        BitfieldInfoAttr::get($_builder.getContext(), 
+   [{
+      BitfieldInfoAttr info =
+        BitfieldInfoAttr::get($_builder.getContext(),
                               name, storage_type,
                               size, offset, is_signed);
       build($_builder, $_state, type, dst, src, info);
@@ -1523,7 +1542,7 @@ def SetBitfieldOp : CIR_Op<"set_bitfield"> {
 
 def GetBitfieldOp : CIR_Op<"get_bitfield"> {
   let summary = "Get a bitfield";
-  let description = [{ 
+  let description = [{
     The `cir.get_bitfield` operation provides a load-like access to
     a bit field of a record.
 
@@ -1561,14 +1580,14 @@ def GetBitfieldOp : CIR_Op<"get_bitfield"> {
     }];
 
   let arguments = (ins
-    AnyType:$addr,    
+    CIR_PointerType:$addr,
     BitfieldInfoAttr:$bitfield_info
     );
 
   let results = (outs CIR_IntType:$result);
 
-  let assemblyFormat = [{ `(`$bitfield_info `,` $addr attr-dict `:` 
-   type($addr) `)` `->` type($result) }];
+  let assemblyFormat = [{ `(`$bitfield_info `,` $addr attr-dict `:`
+   qualified(type($addr)) `)` `->` type($result) }];
 
   let builders = [
     OpBuilder<(ins "Type":$type,
@@ -1580,8 +1599,8 @@ def GetBitfieldOp : CIR_Op<"get_bitfield"> {
                    "bool":$is_signed
                    ),
    [{
-      BitfieldInfoAttr info = 
-        BitfieldInfoAttr::get($_builder.getContext(), 
+      BitfieldInfoAttr info =
+        BitfieldInfoAttr::get($_builder.getContext(),
                               name, storage_type,
                               size, offset, is_signed);
       build($_builder, $_state, type, addr, info);
@@ -1694,7 +1713,7 @@ def VecExtractOp : CIR_Op<"vec.extract", [Pure,
   }];
 
   let arguments = (ins CIR_VectorType:$vec, CIR_IntType:$index);
-  let results = (outs AnyType:$result);
+  let results = (outs CIR_AnyType:$result);
 
   let assemblyFormat = [{
     $vec `[` $index `:` type($index) `]` attr-dict `:` type($vec)
@@ -1716,7 +1735,7 @@ def VecCreateOp : CIR_Op<"vec.create", [Pure]> {
     in the vector type.
   }];
 
-  let arguments = (ins Variadic<AnyType>:$elements);
+  let arguments = (ins Variadic<CIR_AnyType>:$elements);
   let results = (outs CIR_VectorType:$result);
 
   let assemblyFormat = [{
@@ -1915,12 +1934,43 @@ def FuncOp : CIR_Op<"func", [
 }
 
 //===----------------------------------------------------------------------===//
-// CallOp
+// CallOp and TryCallOp
 //===----------------------------------------------------------------------===//
 
-def CallOp : CIR_Op<"call",
-    [DeclareOpInterfaceMethods<CallOpInterface>,
-     DeclareOpInterfaceMethods<SymbolUserOpInterface>]> {
+class CIR_CallOp<string mnemonic> :
+    Op<CIR_Dialect, mnemonic,
+       [DeclareOpInterfaceMethods<CIRCallOpInterface>,
+        DeclareOpInterfaceMethods<SymbolUserOpInterface>]> {
+  let extraClassDeclaration = [{
+    /// Get the argument operands to the called function.
+    OperandRange getArgOperands() {
+      return {arg_operand_begin(), arg_operand_end()};
+    }
+
+    MutableOperandRange getArgOperandsMutable() {
+      llvm_unreachable("NYI");
+    }
+
+    /// Return the callee of this operation
+    CallInterfaceCallable getCallableForCallee() {
+      return (*this)->getAttrOfType<SymbolRefAttr>("callee");
+    }
+
+    /// Set the callee for this operation.
+    void setCalleeFromCallable(::mlir::CallInterfaceCallable callee) {
+      if (auto calling =
+              (*this)->getAttrOfType<mlir::SymbolRefAttr>(getCalleeAttrName()))
+        (*this)->setAttr(getCalleeAttrName(), callee.get<mlir::SymbolRefAttr>());
+      setOperand(0, callee.get<mlir::Value>());
+    }
+  }];
+
+  let hasCustomAssemblyFormat = 1;
+  let skipDefaultBuilders = 1;
+  let hasVerifier = 0;
+}
+
+def CallOp : CIR_CallOp<"call"> {
   let summary = "call operation";
   let description = [{
     The `call` operation represents a direct call to a function that is within
@@ -1947,9 +1997,9 @@ def CallOp : CIR_Op<"call",
   }];
 
   let arguments = (ins OptionalAttr<FlatSymbolRefAttr>:$callee,
-                       Variadic<AnyType>:$operands,
+                       Variadic<CIR_AnyType>:$operands,
                        OptionalAttr<ASTCallExprInterface>:$ast);
-  let results = (outs Variadic<AnyType>);
+  let results = (outs Variadic<CIR_AnyType>);
 
   let builders = [
     OpBuilder<(ins "FuncOp":$callee, CArg<"ValueRange", "{}">:$operands), [{
@@ -1972,39 +2022,56 @@ def CallOp : CIR_Op<"call",
       $_state.addAttribute("callee", callee);
       $_state.addTypes(resType);
     }]>];
+}
 
-  let extraClassDeclaration = [{
-    mlir::Value getIndirectCallee() {
-      assert(!getCallee() && "only works for indirect call");
-      return *arg_operand_begin();
-    }
+def TryCallOp : CIR_CallOp<"try_call"> {
+  let summary = "try call operation";
+  let description = [{
+    Works very similar to `cir.call` but passes down an exception object
+    in case anything is thrown by the callee. Upon the callee throwing,
+    `cir.try_call` goes to current `cir.scope`'s `abort` label, otherwise
+    execution follows to the `continue` label.
 
-    operand_iterator arg_operand_begin() {
-      auto arg_begin = operand_begin();
-      if (!getCallee())
-        arg_begin++;
-      return arg_begin;
-    }
-    operand_iterator arg_operand_end() { return operand_end(); }
+    To walk the operands for this operation, use `getNumArgOperands()`,
+    `getArgOperand()`, `getArgOperands()`, `arg_operand_begin()` and
+    `arg_operand_begin()`. Avoid using `getNumOperands()`, `getOperand()`,
+    `operand_begin()`, etc, direclty - might be misleading given the
+    exception object address is also part of the raw operation's operands.
+    ``
 
-    /// Return the operand at index 'i', accounts for indirect call.
-    Value getArgOperand(unsigned i) {
-      if (!getCallee())
-        i++;
-      return getOperand(i);
-    }
+    Example:
 
-    /// Return the number of operands, , accounts for indirect call.
-    unsigned getNumArgOperands() {
-      if (!getCallee())
-        return this->getOperation()->getNumOperands()-1;
-      return this->getOperation()->getNumOperands();
-    }
+    ```mlir
+    %r = cir.try_call @division(%1, %2), ^continue_A, ^abort, %0
+    ```
   }];
 
-  let hasCustomAssemblyFormat = 1;
-  let skipDefaultBuilders = 1;
-  let hasVerifier = 0;
+  let arguments = (ins OptionalAttr<FlatSymbolRefAttr>:$callee,
+                       Variadic<CIR_AnyType>:$operands,
+                       OptionalAttr<ASTCallExprInterface>:$ast);
+  let results = (outs Variadic<CIR_AnyType>);
+
+  let builders = [
+    OpBuilder<(ins "FuncOp":$callee, CArg<"ValueRange", "{}">:$operands), [{
+      $_state.addOperands(operands);
+      $_state.addAttribute("callee", SymbolRefAttr::get(callee));
+      if (!callee.getFunctionType().isVoid())
+        $_state.addTypes(callee.getFunctionType().getReturnType());
+    }]>,
+    OpBuilder<(ins "Value":$ind_target,
+               "FuncType":$fn_type,
+               CArg<"ValueRange", "{}">:$operands), [{
+      $_state.addOperands(ValueRange{ind_target});
+      $_state.addOperands(operands);
+      if (!fn_type.isVoid())
+        $_state.addTypes(fn_type.getReturnType());
+    }]>,
+    OpBuilder<(ins "SymbolRefAttr":$callee, "mlir::Type":$resType,
+              CArg<"ValueRange", "{}">:$operands), [{
+      $_state.addOperands(operands);
+      $_state.addAttribute("callee", callee);
+      $_state.addTypes(resType);
+    }]>];
 }
 
 //===----------------------------------------------------------------------===//
@@ -2150,7 +2217,7 @@ def TryOp : CIR_Op<"try",
 
   let regions = (region SizedRegion<1>:$body);
   // FIXME: should be exception type.
-  let results = (outs AnyType:$result);
+  let results = (outs CIR_AnyType:$result);
 
   let assemblyFormat = [{
     `{`
@@ -2186,7 +2253,7 @@ def CatchOp : CIR_Op<"catch",
   let description = [{
   }];
 
-  let arguments = (ins AnyType:$exception_info,
+  let arguments = (ins CIR_AnyType:$exception_info,
                        OptionalAttr<CatchArrayAttr>:$catchers);
   let regions = (region VariadicRegion<AnyRegion>:$regions);
 
@@ -2331,11 +2398,11 @@ def SameFirstSecondOperandAndResultType :
 
 def StdFindOp : CIR_Op<"std.find", [SameFirstSecondOperandAndResultType]> {
   let arguments = (ins FlatSymbolRefAttr:$original_fn,
-                       AnyType:$first,
-                       AnyType:$last,
-                       AnyType:$pattern);
+                       CIR_AnyType:$first,
+                       CIR_AnyType:$last,
+                       CIR_AnyType:$pattern);
   let summary = "std:find()";
-  let results = (outs AnyType:$result);
+  let results = (outs CIR_AnyType:$result);
 
   let description = [{
     Search for `pattern` in data range from `first` to `last`. This currently
@@ -2367,9 +2434,9 @@ def StdFindOp : CIR_Op<"std.find", [SameFirstSecondOperandAndResultType]> {
 //===----------------------------------------------------------------------===//
 
 def IterBeginOp : CIR_Op<"iterator_begin"> {
-  let arguments = (ins FlatSymbolRefAttr:$original_fn, AnyType:$container);
+  let arguments = (ins FlatSymbolRefAttr:$original_fn, CIR_AnyType:$container);
   let summary = "Returns an iterator to the first element of a container";
-  let results = (outs AnyType:$result);
+  let results = (outs CIR_AnyType:$result);
   let assemblyFormat = [{
     `(`
       $original_fn `,` $container `:` type($container)
@@ -2379,10 +2446,10 @@ def IterBeginOp : CIR_Op<"iterator_begin"> {
 }
 
 def IterEndOp : CIR_Op<"iterator_end"> {
-  let arguments = (ins FlatSymbolRefAttr:$original_fn, AnyType:$container);
+  let arguments = (ins FlatSymbolRefAttr:$original_fn, CIR_AnyType:$container);
   let summary = "Returns an iterator to the element following the last element"
                 " of a container";
-  let results = (outs AnyType:$result);
+  let results = (outs CIR_AnyType:$result);
   let assemblyFormat = [{
     `(`
       $original_fn `,` $container `:` type($container)
@@ -2392,29 +2459,33 @@ def IterEndOp : CIR_Op<"iterator_end"> {
 }
 
 //===----------------------------------------------------------------------===//
-// FAbsOp
+// Floating Point Ops
 //===----------------------------------------------------------------------===//
 
-def FAbsOp : CIR_Op<"fabs", [Pure, SameOperandsAndResultType]> {
+class UnaryFPToFPBuiltinOp<string mnemonic>
+    : CIR_Op<mnemonic, [Pure, SameOperandsAndResultType]> {
   let arguments = (ins AnyFloat:$src);
   let results = (outs AnyFloat:$result);
-  let summary = "Returns absolute value for floating-point input.";
-  let description = [{
-    Equivalent to libc's `fabs` and LLVM's intrinsic with the same name.
-
-    Examples:
-
-    ```mlir
-      %1 = cir.const(1.0 : f64) : f64
-      %2 = cir.fabs %1 : f64
-    ```
-  }];
-
-  let assemblyFormat = [{
-    $src `:` type($src) attr-dict
-  }];
-  let hasVerifier = 0;
+  let summary = "libc builtin equivalent ignoring "
+                "floating point exceptions and errno";
+  let assemblyFormat = "$src `:` type($src) attr-dict";
 }
+
+def CeilOp : UnaryFPToFPBuiltinOp<"ceil">;
+def CosOp : UnaryFPToFPBuiltinOp<"cos">;
+def ExpOp : UnaryFPToFPBuiltinOp<"exp">;
+def Exp2Op : UnaryFPToFPBuiltinOp<"exp2">;
+def FloorOp : UnaryFPToFPBuiltinOp<"floor">;
+def FAbsOp : UnaryFPToFPBuiltinOp<"fabs">;
+def LogOp : UnaryFPToFPBuiltinOp<"log">;
+def Log10Op : UnaryFPToFPBuiltinOp<"log10">;
+def Log2Op : UnaryFPToFPBuiltinOp<"log2">;
+def NearbyintOp : UnaryFPToFPBuiltinOp<"nearbyint">;
+def RintOp : UnaryFPToFPBuiltinOp<"rint">;
+def RoundOp : UnaryFPToFPBuiltinOp<"round">;
+def SinOp : UnaryFPToFPBuiltinOp<"sin">;
+def SqrtOp : UnaryFPToFPBuiltinOp<"sqrt">;
+def TruncOp : UnaryFPToFPBuiltinOp<"trunc">;
 
 //===----------------------------------------------------------------------===//
 // Variadic Operations
@@ -2441,7 +2512,7 @@ def VACopyOp : CIR_Op<"va.copy">,
 }
 
 def VAArgOp : CIR_Op<"va.arg">,
-              Results<(outs AnyType:$result)>,
+              Results<(outs CIR_AnyType:$result)>,
               Arguments<(ins CIR_PointerType:$arg_list)> {
   let summary = "Fetches next variadic element as a given type";
   let assemblyFormat = "$arg_list attr-dict `:` functional-type(operands, $result)";
@@ -2523,7 +2594,7 @@ def ThrowOp : CIR_Op<"throw",
     ```
   }];
 
-  let arguments = (ins Optional<AnyType>:$exception_ptr,
+  let arguments = (ins Optional<CIR_AnyType>:$exception_ptr,
                        OptionalAttr<FlatSymbolRefAttr>:$type_info,
                        OptionalAttr<FlatSymbolRefAttr>:$dtor);
 
@@ -2579,6 +2650,55 @@ def StackRestoreOp : CIR_Op<"stack_restore"> {
   let assemblyFormat = "$ptr attr-dict `:` qualified(type($ptr))";
 }
 
+def AsmATT : I32EnumAttrCase<"x86_att", 0>;
+def AsmIntel : I32EnumAttrCase<"x86_intel", 1>;
+
+def AsmFlavor : I32EnumAttr<
+  "AsmFlavor",
+  "ATT or Intel",
+  [AsmATT, AsmIntel]> {
+  let cppNamespace = "::mlir::cir";
+}
+
+def CIR_InlineAsmOp : CIR_Op<"asm", [RecursiveMemoryEffects]> {
+  let description = [{
+    The `cir.asm` operation represents C/C++ asm inline.
+
+    CIR constraints strings follow barelly the same rules that are established 
+    for the C level assembler constraints with several differences caused by 
+    clang::AsmStmt processing. 
+
+    Thus, numbers that appears in the constraint string may also refer to:
+    - the output variable index referenced by the input operands.
+    - the index of early-clobber operand
+
+    Example:
+    ```C++
+    __asm__("foo" : : : );
+    __asm__("bar $42 %[val]" : [val] "=r" (x), "+&r"(x));
+    __asm__("baz $42 %[val]" : [val] "=r" (x), "+&r"(x) : "[val]"(y));
+    ```
+    
+    ```mlir
+    cir.asm(x86_att, {"foo" ""})
+    cir.asm(x86_att, {"bar $$42 $0" "=r,=&r,1"}) 
+    cir.asm(x86_att, {"baz $$42 $0" "=r,=&r,0,1"}) 
+    ```
+  }];
+
+  let results = (outs Optional<CIR_AnyType>:$res);
+
+  let arguments = (
+    ins StrAttr:$asm_string,
+        StrAttr:$constraints,
+        AsmFlavor:$asm_flavor);  
+
+  let assemblyFormat = [{
+    `(`$asm_flavor`,` `{` $asm_string $constraints `}` `)` attr-dict 
+    `:` type($res)
+   }];  
+}
+
 //===----------------------------------------------------------------------===//
 // Operations Lowered Directly to LLVM IR
 //
@@ -2595,42 +2715,6 @@ def ZeroInitConstOp : CIR_Op<"llvmir.zeroinit", [Pure]>,
   }];
   let assemblyFormat = "attr-dict `:` type($result)";
   let hasVerifier = 0;
-}
-
-def AsmATT : I32EnumAttrCase<"x86_att", 0>;
-def AsmIntel : I32EnumAttrCase<"x86_intel", 1>;
-
-def AsmFlavor : I32EnumAttr<
-  "AsmDialect",
-  "ATT or Intel",
-  [AsmATT, AsmIntel]> {
-  let cppNamespace = "::mlir::cir";
-}
-
-def CIR_InlineAsmOp : CIR_Op<"asm", [RecursiveMemoryEffects]> {
-  let description = [{
-    The `cir.asm` operation represents C/C++ asm inline.
-
-    Example:
-    ```C++
-    __asm__ volatile("xyz" : : : );
-    ```
-
-    ```
-    ```mlir
-    cir.asm(x86_att, {"xyz"}) -> !void 
-    ```
-  }];
-
-  let results = (outs Optional<AnyType>:$res);
-
-  let arguments = (
-    ins StrAttr:$asm_string,
-        AsmFlavor:$asm_flavor);  
-
-  let assemblyFormat = [{
-    `(`$asm_flavor`,` `{` $asm_string `}` `)` attr-dict `:` type($res)
-   }];  
 }
 
 #endif // MLIR_CIR_DIALECT_CIR_OPS

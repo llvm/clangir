@@ -18,9 +18,9 @@
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Dialect.h"
 #include "mlir/IR/OpDefinition.h"
-#include "mlir/Interfaces/FunctionInterfaces.h"
 #include "mlir/Interfaces/CallInterfaces.h"
 #include "mlir/Interfaces/ControlFlowInterfaces.h"
+#include "mlir/Interfaces/FunctionInterfaces.h"
 #include "mlir/Interfaces/InferTypeOpInterface.h"
 #include "mlir/Interfaces/LoopLikeInterface.h"
 #include "mlir/Interfaces/SideEffectInterfaces.h"
@@ -32,6 +32,7 @@
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 
 #include "clang/CIR/Interfaces/ASTAttrInterfaces.h"
+#include "clang/CIR/Interfaces/CIROpInterfaces.h"
 
 namespace mlir {
 namespace OpTrait {

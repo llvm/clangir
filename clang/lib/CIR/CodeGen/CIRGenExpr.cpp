@@ -234,8 +234,8 @@ Address CIRGenFunction::getAddrOfBitFieldStorage(LValue base,
 
   auto fieldPtr =
       mlir::cir::PointerType::get(getBuilder().getContext(), fieldType);
-  auto sea = getBuilder().createGetMember(
-    loc, fieldPtr, base.getPointer(), field->getName(), index);
+  auto sea = getBuilder().createGetMember(loc, fieldPtr, base.getPointer(),
+                                          field->getName(), index);
 
   return Address(sea, CharUnits::One());
 }
@@ -341,7 +341,7 @@ LValue CIRGenFunction::buildLValueForField(LValue base,
     if (!IsInPreservedAIRegion &&
         (!getDebugInfo() || !rec->hasAttr<BPFPreserveAccessIndexAttr>())) {
       llvm::StringRef fieldName = field->getName();
-      auto& layout = CGM.getTypes().getCIRGenRecordLayout(field->getParent());
+      auto &layout = CGM.getTypes().getCIRGenRecordLayout(field->getParent());
       unsigned fieldIndex = layout.getCIRFieldNo(field);
 
       if (CGM.LambdaFieldToName.count(field))
@@ -396,7 +396,7 @@ LValue CIRGenFunction::buildLValueForFieldInitialization(
   if (!FieldType->isReferenceType())
     return buildLValueForField(Base, Field);
 
-  auto& layout = CGM.getTypes().getCIRGenRecordLayout(Field->getParent());
+  auto &layout = CGM.getTypes().getCIRGenRecordLayout(Field->getParent());
   unsigned FieldIndex = layout.getCIRFieldNo(Field);
 
   Address V = buildAddrOfFieldStorage(*this, Base.getAddress(), Field,
@@ -1041,6 +1041,13 @@ RValue CIRGenFunction::buildCallExpr(const clang::CallExpr *E,
   assert(!callee.isPsuedoDestructor() && "NYI");
 
   return buildCall(E->getCallee()->getType(), callee, E, ReturnValue);
+}
+
+LValue CIRGenFunction::buildStmtExprLValue(const StmtExpr *E) {
+  // Can only get l-value for message expression returning aggregate type
+  RValue RV = buildAnyExprToTemp(E);
+  return makeAddrLValue(RV.getAggregateAddress(), E->getType(),
+                        AlignmentSource::Decl);
 }
 
 RValue CIRGenFunction::buildCall(clang::QualType CalleeType,
@@ -2180,6 +2187,8 @@ LValue CIRGenFunction::buildLValue(const Expr *E) {
 
   case Expr::ObjCPropertyRefExprClass:
     llvm_unreachable("cannot emit a property reference directly");
+  case Expr::StmtExprClass:
+    return buildStmtExprLValue(cast<StmtExpr>(E));
   }
 
   return LValue::makeAddr(Address::invalid(), E->getType());

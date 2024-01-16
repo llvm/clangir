@@ -252,29 +252,50 @@ void CIRGenFunction::buildAnyExprToExn(const Expr *e, Address addr) {
 }
 
 mlir::LogicalResult CIRGenFunction::buildCXXTryStmt(const CXXTryStmt &S) {
+  const llvm::Triple &T = getTarget().getTriple();
+  // If we encounter a try statement on in an OpenMP target region offloaded to
+  // a GPU, we treat it as a basic block.
+  const bool IsTargetDevice =
+      (CGM.getLangOpts().OpenMPIsTargetDevice && (T.isNVPTX() || T.isAMDGCN()));
+  assert(!IsTargetDevice && "NYI");
+
   auto tryLoc = getLoc(S.getBeginLoc());
   auto numHandlers = S.getNumHandlers();
 
-  // FIXME(cir): create scope, and add catchOp to the lastest possible position
+  // FIXME(cir): add catchOp to the lastest possible position
   // inside the cleanup block.
+  auto scopeLoc = getLoc(S.getSourceRange());
+  auto res = mlir::success();
 
-  // Create the skeleton for the catch statements.
-  auto catchOp = builder.create<mlir::cir::CatchOp>(
-      tryLoc, // FIXME(cir): we can do better source location here.
-      [&](mlir::OpBuilder &b, mlir::Location loc,
-          mlir::OperationState &result) {
-        mlir::OpBuilder::InsertionGuard guard(b);
-        for (int i = 0, e = numHandlers; i != e; ++i) {
-          auto *r = result.addRegion();
-          builder.createBlock(r);
+  builder.create<mlir::cir::ScopeOp>(
+      scopeLoc, /*scopeBuilder=*/
+      [&](mlir::OpBuilder &b, mlir::Location loc) {
+        CIRGenFunction::LexicalScope lexScope{*this, loc,
+                                              builder.getInsertionBlock()};
+
+        // Create the skeleton for the catch statements.
+        auto catchOp = builder.create<mlir::cir::CatchOp>(
+            tryLoc, // FIXME(cir): we can do better source location here.
+            [&](mlir::OpBuilder &b, mlir::Location loc,
+                mlir::OperationState &result) {
+              mlir::OpBuilder::InsertionGuard guard(b);
+              for (int i = 0, e = numHandlers; i != e; ++i) {
+                auto *r = result.addRegion();
+                builder.createBlock(r);
+              }
+            });
+
+        enterCXXTryStmt(S, catchOp);
+
+        if (buildStmt(S.getTryBlock(), /*useCurrentScope=*/true).failed()) {
+          res = mlir::failure();
+          return;
         }
+
+        exitCXXTryStmt(S);
       });
 
-  enterCXXTryStmt(S, catchOp);
-  if (buildStmt(S.getTryBlock(), /*useCurrentScope=*/true).failed())
-    return mlir::failure();
-  exitCXXTryStmt(S);
-  return mlir::success();
+  return res;
 }
 
 /// Emit the structure of the dispatch block for the given catch scope.
@@ -309,7 +330,6 @@ void CIRGenFunction::enterCXXTryStmt(const CXXTryStmt &S,
   for (unsigned I = 0; I != NumHandlers; ++I) {
     const CXXCatchStmt *C = S.getHandler(I);
 
-    // FIXME: hook the CIR block for the right catch region here.
     mlir::Block *Handler = &catchOp.getRegion(I).getBlocks().front();
     if (C->getExceptionDecl()) {
       // FIXME: Dropping the reference type on the type into makes it
@@ -383,6 +403,7 @@ mlir::Block *CIRGenFunction::buildLandingPad() {
   case EHScope::Catch:
   case EHScope::Cleanup:
   case EHScope::Filter:
+    llvm_unreachable("NYI");
     if (auto *lpad = innermostEHScope.getCachedLandingPad())
       return lpad;
   }
@@ -390,12 +411,14 @@ mlir::Block *CIRGenFunction::buildLandingPad() {
   {
     // Save the current CIR generation state.
     mlir::OpBuilder::InsertionGuard guard(builder);
+
     assert(!UnimplementedFeature::generateDebugInfo() && "NYI");
     // FIXME(cir): handle CIR relevant landing pad bits, there's no good
     // way to assert here right now and leaving one in break important
     // testcases. Work to fill this in is coming soon.
   }
 
+  llvm_unreachable("NYI");
   return nullptr;
 }
 
@@ -439,8 +462,7 @@ mlir::Block *CIRGenFunction::getInvokeDestImpl() {
     LP = buildLandingPad();
   }
 
-  // FIXME(cir): this breaks important testcases, fix is coming soon.
-  // assert(LP);
+  assert(LP);
 
   // Cache the landing pad on the innermost scope.  If this is a
   // non-EH scope, cache the landing pad on the enclosing scope, too.

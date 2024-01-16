@@ -744,6 +744,8 @@ public:
   void checkTargetFeatures(const CallExpr *E, const FunctionDecl *TargetDecl);
   void checkTargetFeatures(SourceLocation Loc, const FunctionDecl *TargetDecl);
 
+  LValue buildStmtExprLValue(const StmtExpr *E);
+
   /// Generate a call of the given function, expecting the given
   /// result type, and using the given argument list which specifies both the
   /// LLVM arguments and the types they were derived from.
@@ -771,7 +773,7 @@ public:
   /// Create a check for a function parameter that may potentially be
   /// declared as non-null.
   void buildNonNullArgCheck(RValue RV, QualType ArgType, SourceLocation ArgLoc,
-                           AbstractCallee AC, unsigned ParmNum);
+                            AbstractCallee AC, unsigned ParmNum);
 
   void buildCallArg(CallArgList &args, const clang::Expr *E,
                     clang::QualType ArgType);
@@ -834,11 +836,13 @@ public:
                        bool IsFnTryBlock = false);
   void exitCXXTryStmt(const CXXTryStmt &S, bool IsFnTryBlock = false);
 
-  mlir::LogicalResult buildCompoundStmt(const clang::CompoundStmt &S);
+  Address buildCompoundStmt(const clang::CompoundStmt &S, bool getLast = false,
+                            AggValueSlot slot = AggValueSlot::ignored());
 
-  mlir::LogicalResult
-  buildCompoundStmtWithoutScope(const clang::CompoundStmt &S);
-
+  Address
+  buildCompoundStmtWithoutScope(const clang::CompoundStmt &S,
+                                bool getLast = false,
+                                AggValueSlot slot = AggValueSlot::ignored());
   GlobalDecl CurSEHParent;
   bool currentFunctionUsesSEHTry() const { return !!CurSEHParent; }
 
@@ -1362,7 +1366,7 @@ public:
   AggValueSlot::Overlap_t getOverlapForFieldInit(const FieldDecl *FD);
   LValue buildLValueForField(LValue Base, const clang::FieldDecl *Field);
   LValue buildLValueForBitField(LValue base, const FieldDecl *field);
-  
+
   /// Like buildLValueForField, excpet that if the Field is a reference, this
   /// will return the address of the reference and not the address of the value
   /// stored in the reference.
@@ -1520,8 +1524,8 @@ public:
 
   static Destroyer destroyCXXObject;
 
-  void pushDestroy(QualType::DestructionKind dtorKind,
-                   Address addr, QualType type);
+  void pushDestroy(QualType::DestructionKind dtorKind, Address addr,
+                   QualType type);
 
   void pushDestroy(CleanupKind kind, Address addr, QualType type,
                    Destroyer *destroyer, bool useEHCleanupForArray);
@@ -1703,6 +1707,9 @@ public:
       Switch   // cir.switch
     } ScopeKind = Regular;
 
+    // Track scope return value.
+    mlir::Value retVal = nullptr;
+
   public:
     unsigned Depth = 0;
     bool HasReturn = false;
@@ -1724,6 +1731,8 @@ public:
 
       assert(EntryBlock && "expected valid block");
     }
+
+    void setRetVal(mlir::Value v) { retVal = v; }
 
     void cleanup();
     void restore() { CGF.currLexScope = ParentScope; }

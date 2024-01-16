@@ -43,6 +43,7 @@ using namespace mlir::cir;
 
 #include "clang/CIR/Dialect/IR/CIROpsDialect.cpp.inc"
 #include "clang/CIR/Interfaces/ASTAttrInterfaces.h"
+#include "clang/CIR/Interfaces/CIROpInterfaces.h"
 
 //===----------------------------------------------------------------------===//
 // CIR Dialect
@@ -189,8 +190,8 @@ bool omitRegionTerm(mlir::Region &r) {
 // CIR Custom Parsers/Printers
 //===----------------------------------------------------------------------===//
 
-static mlir::ParseResult
-parseOmittedTerminatorRegion(mlir::OpAsmParser &parser, mlir::Region &region) {
+static mlir::ParseResult parseOmittedTerminatorRegion(mlir::OpAsmParser &parser,
+                                                      mlir::Region &region) {
   auto regionLoc = parser.getCurrentLocation();
   if (parser.parseRegion(region))
     return failure();
@@ -200,8 +201,8 @@ parseOmittedTerminatorRegion(mlir::OpAsmParser &parser, mlir::Region &region) {
 }
 
 static void printOmittedTerminatorRegion(mlir::OpAsmPrinter &printer,
-                                          mlir::cir::ScopeOp &op,
-                                          mlir::Region &region) {
+                                         mlir::cir::ScopeOp &op,
+                                         mlir::Region &region) {
   printer.printRegion(region,
                       /*printEntryBlockArgs=*/false,
                       /*printBlockTerminators=*/!omitRegionTerm(region));
@@ -223,6 +224,30 @@ void AllocaOp::build(::mlir::OpBuilder &odsBuilder,
     odsState.addAttribute(getAlignmentAttrName(odsState.name), alignment);
   }
   odsState.addTypes(addr);
+}
+
+//===----------------------------------------------------------------------===//
+// ConditionOp
+//===-----------------------------------------------------------------------===//
+
+//===----------------------------------
+// BranchOpTerminatorInterface Methods
+
+void ConditionOp::getSuccessorRegions(
+    ArrayRef<Attribute> operands, SmallVectorImpl<RegionSuccessor> &regions) {
+  auto loopOp = cast<LoopOp>(getOperation()->getParentOp());
+
+  // TODO(cir): The condition value may be folded to a constant, narrowing
+  // down its list of possible successors.
+  // Condition may branch to the body or to the parent op.
+  regions.emplace_back(&loopOp.getBody(), loopOp.getBody().getArguments());
+  regions.emplace_back(loopOp->getResults());
+}
+
+MutableOperandRange
+ConditionOp::getMutableSuccessorOperands(RegionBranchPoint point) {
+  // No values are yielded to the successor region.
+  return MutableOperandRange(getOperation(), 0, 0);
 }
 
 //===----------------------------------------------------------------------===//
@@ -250,7 +275,7 @@ static LogicalResult checkConstantTypes(mlir::Operation *op, mlir::Type opType,
     return success();
   }
 
-  if (attrType.isa<IntegerAttr, FloatAttr>()) {
+  if (attrType.isa<mlir::cir::IntAttr, FloatAttr>()) {
     auto at = attrType.cast<TypedAttr>();
     if (at.getType() != opType) {
       return op->emitOpError("result type (")
@@ -1303,26 +1328,11 @@ void LoopOp::getSuccessorRegions(mlir::RegionBranchPoint point,
 llvm::SmallVector<Region *> LoopOp::getLoopRegions() { return {&getBody()}; }
 
 LogicalResult LoopOp::verify() {
-  // Cond regions should only terminate with plain 'cir.yield' or
-  // 'cir.yield continue'.
-  auto terminateError = [&]() {
-    return emitOpError() << "cond region must be terminated with "
-                            "'cir.yield' or 'cir.yield continue'";
-  };
+  if (getCond().empty())
+    return emitOpError() << "cond region must not be empty";
 
-  auto &blocks = getCond().getBlocks();
-  for (Block &block : blocks) {
-    if (block.empty())
-      continue;
-    auto &op = block.back();
-    if (isa<BrCondOp>(op))
-      continue;
-    if (!isa<YieldOp>(op))
-      terminateError();
-    auto y = cast<YieldOp>(op);
-    if (!(y.isPlain() || y.isContinue()))
-      terminateError();
-  }
+  if (!llvm::isa<ConditionOp>(getCond().back().getTerminator()))
+    return emitOpError() << "cond region terminate with 'cir.condition'";
 
   return success();
 }
@@ -1944,78 +1954,80 @@ LogicalResult cir::FuncOp::verify() {
 // CallOp
 //===----------------------------------------------------------------------===//
 
-/// Get the argument operands to the called function.
-OperandRange cir::CallOp::getArgOperands() {
-  return {arg_operand_begin(), arg_operand_end()};
+mlir::Operation::operand_iterator cir::CallOp::arg_operand_begin() {
+  auto arg_begin = operand_begin();
+  if (!getCallee())
+    arg_begin++;
+  return arg_begin;
+}
+mlir::Operation::operand_iterator cir::CallOp::arg_operand_end() {
+  return operand_end();
 }
 
-MutableOperandRange cir::CallOp::getArgOperandsMutable() {
-  return getOperandsMutable();
+/// Return the operand at index 'i', accounts for indirect call.
+Value cir::CallOp::getArgOperand(unsigned i) {
+  if (!getCallee())
+    i++;
+  return getOperand(i);
+}
+/// Return the number of operands, , accounts for indirect call.
+unsigned cir::CallOp::getNumArgOperands() {
+  if (!getCallee())
+    return this->getOperation()->getNumOperands() - 1;
+  return this->getOperation()->getNumOperands();
 }
 
-/// Return the callee of this operation
-CallInterfaceCallable cir::CallOp::getCallableForCallee() {
-  return (*this)->getAttrOfType<SymbolRefAttr>("callee");
-}
-
-/// Set the callee for this operation.
-void cir::CallOp::setCalleeFromCallable(::mlir::CallInterfaceCallable callee) {
-  if (auto calling =
-          (*this)->getAttrOfType<mlir::SymbolRefAttr>(getCalleeAttrName()))
-    (*this)->setAttr(getCalleeAttrName(), callee.get<mlir::SymbolRefAttr>());
-  setOperand(0, callee.get<mlir::Value>());
-}
-
-LogicalResult
-cir::CallOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
+static LogicalResult
+verifyCallCommInSymbolUses(Operation *op, SymbolTableCollection &symbolTable) {
   // Callee attribute only need on indirect calls.
-  auto fnAttr = (*this)->getAttrOfType<FlatSymbolRefAttr>("callee");
+  auto fnAttr = op->getAttrOfType<FlatSymbolRefAttr>("callee");
   if (!fnAttr)
     return success();
 
   FuncOp fn =
-      symbolTable.lookupNearestSymbolFrom<mlir::cir::FuncOp>(*this, fnAttr);
+      symbolTable.lookupNearestSymbolFrom<mlir::cir::FuncOp>(op, fnAttr);
   if (!fn)
-    return emitOpError() << "'" << fnAttr.getValue()
-                         << "' does not reference a valid function";
+    return op->emitOpError() << "'" << fnAttr.getValue()
+                             << "' does not reference a valid function";
 
   // Verify that the operand and result types match the callee. Note that
   // argument-checking is disabled for functions without a prototype.
   auto fnType = fn.getFunctionType();
   if (!fn.getNoProto()) {
-    if (!fnType.isVarArg() && getNumOperands() != fnType.getNumInputs())
-      return emitOpError("incorrect number of operands for callee");
+    if (!fnType.isVarArg() && op->getNumOperands() != fnType.getNumInputs())
+      return op->emitOpError("incorrect number of operands for callee");
 
-    if (fnType.isVarArg() && getNumOperands() < fnType.getNumInputs())
-      return emitOpError("too few operands for callee");
+    if (fnType.isVarArg() && op->getNumOperands() < fnType.getNumInputs())
+      return op->emitOpError("too few operands for callee");
 
     for (unsigned i = 0, e = fnType.getNumInputs(); i != e; ++i)
-      if (getOperand(i).getType() != fnType.getInput(i))
-        return emitOpError("operand type mismatch: expected operand type ")
+      if (op->getOperand(i).getType() != fnType.getInput(i))
+        return op->emitOpError("operand type mismatch: expected operand type ")
                << fnType.getInput(i) << ", but provided "
-               << getOperand(i).getType() << " for operand number " << i;
+               << op->getOperand(i).getType() << " for operand number " << i;
   }
 
   // Void function must not return any results.
-  if (fnType.isVoid() && getNumResults() != 0)
-    return emitOpError("callee returns void but call has results");
+  if (fnType.isVoid() && op->getNumResults() != 0)
+    return op->emitOpError("callee returns void but call has results");
 
   // Non-void function calls must return exactly one result.
-  if (!fnType.isVoid() && getNumResults() != 1)
-    return emitOpError("incorrect number of results for callee");
+  if (!fnType.isVoid() && op->getNumResults() != 1)
+    return op->emitOpError("incorrect number of results for callee");
 
   // Parent function and return value types must match.
-  if (!fnType.isVoid() && getResultTypes().front() != fnType.getReturnType()) {
-    return emitOpError("result type mismatch: expected ")
+  if (!fnType.isVoid() &&
+      op->getResultTypes().front() != fnType.getReturnType()) {
+    return op->emitOpError("result type mismatch: expected ")
            << fnType.getReturnType() << ", but provided "
-           << getResult(0).getType();
+           << op->getResult(0).getType();
   }
 
   return success();
 }
 
-::mlir::ParseResult CallOp::parse(::mlir::OpAsmParser &parser,
-                                  ::mlir::OperationState &result) {
+static ::mlir::ParseResult parseCallCommon(::mlir::OpAsmParser &parser,
+                                           ::mlir::OperationState &result) {
   mlir::FlatSymbolRefAttr calleeAttr;
   llvm::SmallVector<::mlir::OpAsmParser::UnresolvedOperand, 4> ops;
   llvm::SMLoc opsLoc;
@@ -2057,12 +2069,13 @@ cir::CallOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
   return ::mlir::success();
 }
 
-void CallOp::print(::mlir::OpAsmPrinter &state) {
+void printCallCommon(Operation *op, mlir::FlatSymbolRefAttr flatSym,
+                     ::mlir::OpAsmPrinter &state) {
   state << ' ';
-  auto ops = getOperands();
+  auto ops = op->getOperands();
 
-  if (getCallee()) { // Direct calls
-    state.printAttributeWithoutType(getCalleeAttr());
+  if (flatSym) { // Direct calls
+    state.printAttributeWithoutType(flatSym);
   } else { // Indirect calls
     state << ops.front();
     ops = ops.drop_front();
@@ -2073,11 +2086,65 @@ void CallOp::print(::mlir::OpAsmPrinter &state) {
   llvm::SmallVector<::llvm::StringRef, 2> elidedAttrs;
   elidedAttrs.push_back("callee");
   elidedAttrs.push_back("ast");
-  state.printOptionalAttrDict((*this)->getAttrs(), elidedAttrs);
+  state.printOptionalAttrDict(op->getAttrs(), elidedAttrs);
   state << ' ' << ":";
   state << ' ';
-  state.printFunctionalType(getOperands().getTypes(),
-                            getOperation()->getResultTypes());
+  state.printFunctionalType(op->getOperands().getTypes(), op->getResultTypes());
+}
+
+LogicalResult
+cir::CallOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
+  return verifyCallCommInSymbolUses(*this, symbolTable);
+}
+
+::mlir::ParseResult CallOp::parse(::mlir::OpAsmParser &parser,
+                                  ::mlir::OperationState &result) {
+  return parseCallCommon(parser, result);
+}
+
+void CallOp::print(::mlir::OpAsmPrinter &state) {
+  printCallCommon(*this, getCalleeAttr(), state);
+}
+
+//===----------------------------------------------------------------------===//
+// TryCallOp
+//===----------------------------------------------------------------------===//
+
+mlir::Operation::operand_iterator cir::TryCallOp::arg_operand_begin() {
+  auto arg_begin = operand_begin();
+  if (!getCallee())
+    arg_begin++;
+  return arg_begin;
+}
+mlir::Operation::operand_iterator cir::TryCallOp::arg_operand_end() {
+  return operand_end();
+}
+
+/// Return the operand at index 'i', accounts for indirect call.
+Value cir::TryCallOp::getArgOperand(unsigned i) {
+  if (!getCallee())
+    i++;
+  return getOperand(i);
+}
+/// Return the number of operands, , accounts for indirect call.
+unsigned cir::TryCallOp::getNumArgOperands() {
+  if (!getCallee())
+    return this->getOperation()->getNumOperands() - 1;
+  return this->getOperation()->getNumOperands();
+}
+
+LogicalResult
+cir::TryCallOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
+  return verifyCallCommInSymbolUses(*this, symbolTable);
+}
+
+::mlir::ParseResult TryCallOp::parse(::mlir::OpAsmParser &parser,
+                                     ::mlir::OperationState &result) {
+  return parseCallCommon(parser, result);
+}
+
+void TryCallOp::print(::mlir::OpAsmPrinter &state) {
+  printCallCommon(*this, getCalleeAttr(), state);
 }
 
 //===----------------------------------------------------------------------===//
