@@ -1052,24 +1052,20 @@ public:
     // then memcopyied into the stack (as done in Clang).
     else if (auto arrTy = mlir::dyn_cast<mlir::cir::ArrayType>(op.getType())) {
       // Fetch operation constant array initializer.
-      if (auto constArr = mlir::dyn_cast<mlir::cir::ConstArrayAttr>(op.getValue())) {
-        // Lower constant array initializer.
-        auto denseAttr = direct::lowerConstArrayAttr(constArr, typeConverter);
-        if (!denseAttr.has_value()) {
-          op.emitError()
-              << "unsupported lowering for #cir.const_array with element type "
-              << arrTy.getEltType();
-          return mlir::failure();
-        }
+      auto constArr = mlir::dyn_cast<mlir::cir::ConstArrayAttr>(op.getValue());
+      if (!constArr && !mlir::isa<mlir::cir::ZeroAttr>(op.getValue()))
+        return op.emitError() << "array does not have a constant initializer";
 
+      std::optional<mlir::Attribute> denseAttr;
+      if (constArr &&
+          (denseAttr = direct::lowerConstArrayAttr(constArr, typeConverter))) {
         attr = denseAttr.value();
-      } else if (auto zero = mlir::dyn_cast<mlir::cir::ZeroAttr>(op.getValue())) {
-        auto initVal = direct::lowerCirAttrAsValue(op, zero, rewriter, typeConverter);
+      } else {
+        auto initVal =
+            direct::lowerCirAttrAsValue(op, op.getValue(), rewriter, typeConverter);
         rewriter.replaceAllUsesWith(op, initVal);
         rewriter.eraseOp(op);
         return mlir::success();
-      } else {
-        return op.emitError() << "array does not have a constant initializer";
       }
     } else if (const auto structAttr =
                    mlir::dyn_cast<mlir::cir::ConstStructAttr>(op.getValue())) {
