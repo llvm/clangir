@@ -1646,7 +1646,7 @@ mlir::Value ScalarExprEmitter::VisitUnaryLNot(const UnaryOperator *E) {
   if (mlir::isa<mlir::cir::BoolType>(dstTy))
     return boolVal;
 
-  llvm_unreachable("destination type for negation unary operator is NYI");
+  llvm_unreachable("destination type for logical-not unary operator is NYI");
 }
 
 // Conversion from bool, integral, or floating-point to integral or
