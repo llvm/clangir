@@ -275,7 +275,7 @@ static LogicalResult checkConstantTypes(mlir::Operation *op, mlir::Type opType,
     return success();
   }
 
-  if (mlir::isa<IntegerAttr, FloatAttr>(attrType)) {
+  if (mlir::isa<mlir::cir::IntAttr, FloatAttr>(attrType)) {
     auto at = mlir::cast<TypedAttr>(attrType);
     if (at.getType() != opType) {
       return op->emitOpError("result type (")
