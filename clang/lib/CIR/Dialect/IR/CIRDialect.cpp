@@ -182,7 +182,7 @@ bool omitRegionTerm(mlir::Region &r) {
   const auto singleNonEmptyBlock = r.hasOneBlock() && !r.back().empty();
   const auto yieldsNothing = [&r]() {
     YieldOp y = dyn_cast<YieldOp>(r.back().getTerminator());
-    return y && y.isPlain() && y.getArgs().empty();
+    return y && y.getArgs().empty();
   };
   return singleNonEmptyBlock && yieldsNothing();
 }
@@ -794,16 +794,6 @@ void TernaryOp::build(OpBuilder &builder, OperationState &result, Value cond,
 //===----------------------------------------------------------------------===//
 // YieldOp
 //===----------------------------------------------------------------------===//
-
-mlir::LogicalResult YieldOp::verify() {
-  if (isFallthrough()) {
-    if (!llvm::isa<SwitchOp>(getOperation()->getParentOp()))
-      return emitOpError() << "fallthrough only expected within 'cir.switch'";
-    return mlir::success();
-  }
-
-  return mlir::success();
-}
 
 MutableOperandRange
 YieldOp::getMutableSuccessorOperands(RegionSuccessor successor) {

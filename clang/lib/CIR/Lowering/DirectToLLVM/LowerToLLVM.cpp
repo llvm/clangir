@@ -389,32 +389,6 @@ convertSuccessorBlock(mlir::ConversionPatternRewriter &rewriter,
   return rewriter.applySignatureConversion(block, *conversion, converter);
 }
 
-static void lowerNestedYield(mlir::cir::YieldOpKind targetKind,
-                             mlir::ConversionPatternRewriter &rewriter,
-                             mlir::Region &body, mlir::Block *dst) {
-  // Top-level yields are lowered in matchAndRewrite of the parent operations.
-  auto isNested = [&](mlir::Operation *op) {
-    return op->getParentRegion() != &body;
-  };
-
-  body.walk<mlir::WalkOrder::PreOrder>([&](mlir::Operation *op) {
-    if (!isNested(op))
-      return mlir::WalkResult::advance();
-
-    // Don't process breaks/continues in nested loops and switches.
-    if (isa<mlir::cir::LoopOp, mlir::cir::SwitchOp>(*op))
-      return mlir::WalkResult::skip();
-
-    auto yield = dyn_cast<mlir::cir::YieldOp>(*op);
-    if (yield && yield.getKind() == targetKind) {
-      rewriter.setInsertionPoint(op);
-      rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(op, yield.getArgs(), dst);
-    }
-
-    return mlir::WalkResult::advance();
-  });
-}
-
 class CIRCopyOpLowering : public mlir::OpConversionPattern<mlir::cir::CopyOp> {
 public:
   using mlir::OpConversionPattern<mlir::cir::CopyOp>::OpConversionPattern;
@@ -1460,18 +1434,8 @@ public:
           continue;
 
         // Handle switch-case yields.
-        auto *terminator = blk.getTerminator();
-        if (auto yieldOp = dyn_cast<mlir::cir::YieldOp>(terminator)) {
-          // TODO(cir): Ensure every yield instead of dealing with optional
-          // values.
-          assert(yieldOp.getKind().has_value() && "switch yield has no kind");
-          switch (yieldOp.getKind().value()) {
-          // Fallthrough to next case: track it for the next case to handle.
-          case mlir::cir::YieldOpKind::Fallthrough:
-            fallthroughYieldOp = yieldOp;
-            break;
-          }
-        }
+        if (auto yieldOp = dyn_cast<mlir::cir::YieldOp>(blk.getTerminator()))
+          fallthroughYieldOp = yieldOp;
       }
 
       // Handle break statements.
