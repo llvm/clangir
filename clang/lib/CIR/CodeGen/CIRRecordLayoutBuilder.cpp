@@ -109,9 +109,6 @@ struct CIRRecordLowering final {
   CharUnits bitsToCharUnits(uint64_t bitOffset) {
     return astContext.toCharUnitsFromBits(bitOffset);
   }
-
-  void calculateZeroInit();
-
   CharUnits getSize(mlir::Type Ty) {
     return CharUnits::fromQuantity(dataLayout.layout.getTypeSize(Ty));
   }
@@ -180,7 +177,7 @@ struct CIRRecordLowering final {
   /// Inserts padding everywhere it's needed.
 
   void insertPadding();
-
+  void calculateZeroInit();
   /// Fills out the structures that are ultimately consumed.
   void fillOutputFields();
 
@@ -282,15 +279,12 @@ void CIRRecordLowering::lower(bool nonVirtualBaseType) {
   }
 
   llvm::stable_sort(members);
-  // TODO: implement clipTailPadding once bitfields are implemented
-  // TODO: implemented packed structs
-  // TODO: implement padding
-  // TODO: support zeroInit
   members.push_back(StorageInfo(Size, getUIntNType(8)));
   clipTailPadding();
   determinePacked(nonVirtualBaseType);
   insertPadding();
   members.pop_back();
+  calculateZeroInit();
   fillOutputFields();
   computeVolatileBitfields();
 }
@@ -472,6 +466,24 @@ mlir::Type CIRRecordLowering::getVFPtrType() {
   return builder.getVirtualFnPtrType();
 }
 
+void CIRRecordLowering::calculateZeroInit() {
+  for (std::vector<MemberInfo>::const_iterator Member = members.begin(),
+                                               MemberEnd = members.end();
+       IsZeroInitializableAsBase && Member != MemberEnd; ++Member) {
+    if (Member->kind == MemberInfo::InfoKind::Field) {
+      if (!Member->fieldDecl || isZeroInitializable(Member->fieldDecl))
+        continue;
+      IsZeroInitializable = IsZeroInitializableAsBase = false;
+    } else if (Member->kind == MemberInfo::InfoKind::Base ||
+               Member->kind == MemberInfo::InfoKind::VBase) {
+      if (isZeroInitializable(Member->cxxRecordDecl))
+        continue;
+      IsZeroInitializable = false;
+      if (Member->kind == MemberInfo::InfoKind::Base)
+        IsZeroInitializableAsBase = false;
+    }
+  }
+}
 
 void CIRRecordLowering::clipTailPadding() {
   std::vector<MemberInfo>::iterator Prior = members.begin();
@@ -698,22 +710,25 @@ void CIRRecordLowering::accumulateFields() {
 std::unique_ptr<CIRGenRecordLayout>
 CIRGenTypes::computeRecordLayout(const RecordDecl *D,
                                  mlir::cir::StructType *Ty) {
+
   CIRRecordLowering builder(*this, D, /*packed=*/false);
   assert(Ty->isIncomplete() && "recomputing record layout?");
   builder.lower(/*nonVirtualBaseType=*/false);
 
   // If we're in C++, compute the base subobject type.
-  mlir::cir::StructType *BaseTy = nullptr;
+  mlir::cir::StructType BaseTy;
   if (llvm::isa<CXXRecordDecl>(D) && !D->isUnion() &&
       !D->hasAttr<FinalAttr>()) {
-    BaseTy = Ty;
+    BaseTy = *Ty;
     if (builder.astRecordLayout.getNonVirtualSize() !=
         builder.astRecordLayout.getSize()) {
       CIRRecordLowering baseBuilder(*this, D, /*Packed=*/builder.isPacked);
+      baseBuilder.lower(/*NonVirtualBaseType=*/true);
       auto baseIdentifier = getRecordTypeName(D, ".base");
-      *BaseTy =
+      BaseTy =
           Builder.getCompleteStructTy(baseBuilder.fieldTypes, baseIdentifier,
                                       /*packed=*/false, D);
+
       // TODO(cir): add something like addRecordTypeName
 
       // BaseTy and Ty must agree on their packedness for getCIRFieldNo to work
@@ -732,7 +747,7 @@ CIRGenTypes::computeRecordLayout(const RecordDecl *D,
 
   auto RL = std::make_unique<CIRGenRecordLayout>(
       Ty ? *Ty : mlir::cir::StructType{},
-      BaseTy ? *BaseTy : mlir::cir::StructType{},
+      BaseTy ? BaseTy : mlir::cir::StructType{},
       (bool)builder.IsZeroInitializable,
       (bool)builder.IsZeroInitializableAsBase);
 
