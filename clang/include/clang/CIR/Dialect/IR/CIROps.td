@@ -2029,7 +2029,7 @@ def CallOp : CIR_CallOp<"call"> {
 def TryCallOp : CIR_CallOp<"try_call"> {
   let summary = "try call operation";
   let description = [{
-    Works very similar to `cir.call` but passes down an exception object
+    Very similar to `cir.call` but passes down an exception object
     in case anything is thrown by the callee.
 
     To walk the operands for this operation, use `getNumArgOperands()`,
@@ -2042,7 +2042,8 @@ def TryCallOp : CIR_CallOp<"try_call"> {
     Example:
 
     ```mlir
-    %r = cir.try_call @division(%1, %2), %0
+    %0 = cir.alloca !cir.eh.info, cir.ptr <!cir.eh.info> ...
+    %r = cir.try_call %exception(%0) @division(%1, %2), %0
     ```
   }];
 
