@@ -9,7 +9,6 @@
 // This contains code to emit Constant Expr nodes as LLVM code.
 //
 //===----------------------------------------------------------------------===//
-#include <iostream>
 #include "Address.h"
 #include "CIRDataLayout.h"
 #include "CIRGenCstEmitter.h"
@@ -152,10 +151,9 @@ bool ConstantAggregateBuilder::add(mlir::Attribute A, CharUnits Offset,
   if (Offset >= Size) {
     CharUnits Align = getAlignment(C);
     CharUnits AlignedSize = Size.alignTo(Align);
-    if (AlignedSize > Offset || Offset.alignTo(Align) != Offset) {
-      // std::cout <<  "NaturalLayout = false;  <=== 1\n";
+    if (AlignedSize > Offset || Offset.alignTo(Align) != Offset)
       NaturalLayout = false;
-    } else if (AlignedSize < Offset) {
+    else if (AlignedSize < Offset) {
       Elems.push_back(getPadding(Offset - Size));
       Offsets.push_back(Size);
     }
@@ -181,7 +179,6 @@ bool ConstantAggregateBuilder::add(mlir::Attribute A, CharUnits Offset,
   replace(Elems, *FirstElemToReplace, *LastElemToReplace, {C});
   replace(Offsets, *FirstElemToReplace, *LastElemToReplace, {Offset});
   Size = std::max(Size, Offset + CSize);
-  // std::cout <<  "NaturalLayout = false;  <=== 2\n";
   NaturalLayout = false;
   return true;
 }
@@ -249,28 +246,21 @@ bool ConstantAggregateBuilder::addBits(llvm::APInt Bits, uint64_t OffsetInBits,
       else
         UpdateMask.setBits(OffsetWithinChar, OffsetWithinChar + WantedBits);
       BitsThisChar &= UpdateMask;
-
-      // std::cout << "elems " << Elems.size() << " "
-      //           << *FirstElemToUpdate << " " <<  *LastElemToUpdate 
-      //           << std::endl;
-
       bool isNull = false;
       if (*FirstElemToUpdate < Elems.size()) {
         auto firstEltToUpdate = 
           dyn_cast<mlir::cir::IntAttr>(Elems[*FirstElemToUpdate]);
         isNull = firstEltToUpdate && firstEltToUpdate.isNullValue();
       }
-          
+
       if (*FirstElemToUpdate == *LastElemToUpdate || isNull) {
-        // std::cout << "label 1" << std::endl;
         // All existing bits are either zero or undef.
         //TODO
-        auto tmpTy = CGM.getBuilder().getUInt8Ty();
+        auto tmpTy = CGM.getBuilder().getUInt8Ty(); // TODO: check type here!!!
         add(CGM.getBuilder().getAttr<mlir::cir::IntAttr>(tmpTy, BitsThisChar),
             OffsetInChars, /*AllowOverwrite*/ true);
-        //llvm_unreachable("NYI");
       } else {
-        mlir::cir::IntAttr CI = 
+        mlir::cir::IntAttr CI =
             dyn_cast<mlir::cir::IntAttr>(Elems[*FirstElemToUpdate]);
         // In order to perform a partial update, we need the existing bitwise
         // value, which we can only extract for a constant int.
@@ -283,8 +273,8 @@ bool ConstantAggregateBuilder::addBits(llvm::APInt Bits, uint64_t OffsetInBits,
         assert((!(CI.getValue() & UpdateMask) || AllowOverwrite) &&
                "unexpectedly overwriting bitfield");
         BitsThisChar |= (CI.getValue() & ~UpdateMask);
-        
-        auto tmpTy = CGM.getBuilder().getUInt8Ty();
+
+        auto tmpTy = CGM.getBuilder().getUInt8Ty(); // TODO: check type here!!!
         Elems[*FirstElemToUpdate] = 
           CGM.getBuilder().getAttr<mlir::cir::IntAttr>(tmpTy, BitsThisChar);
       }
@@ -353,15 +343,6 @@ mlir::Attribute ConstantAggregateBuilder::buildFrom(
 
   if (Elems.empty())
     return {};
-
-  // std::cout << "ELEMS\n";
-  // for (auto& elt : Elems)
-  //   elt.dump();
-  // std::cout << std::endl;
-  // std::cout << "Desired type\n";
-  // DesiredTy.dump();
-  // std::cout << "Natural layout? " << NaturalLayout << std::endl;
-
   auto Offset = [&](size_t I) { return Offsets[I] - StartOffset; };
 
   // If we want an array type, see if all the elements are the same type and
@@ -413,51 +394,30 @@ mlir::Attribute ConstantAggregateBuilder::buildFrom(
       CharUnits DesiredOffset = Offset(I);
       assert(DesiredOffset >= SizeSoFar && "elements out of order");
 
-      // std::cout << "I " << I << std::endl;
-      // C.dump();
-      // std::cout << "  Align " << Align.getQuantity() << std::endl;
-      // std::cout << "  NaturalOffset " << NaturalOffset.getQuantity() << std::endl;
-      // std::cout << "  DesiredOffset " << DesiredOffset.getQuantity() << std::endl;
-      // std::cout << "  SizeSoFar " << SizeSoFar.getQuantity() << std::endl;
-
       if (DesiredOffset != NaturalOffset)
         Packed = true;
       if (DesiredOffset != SizeSoFar)
         PackedElems.push_back(Utils.getPadding(DesiredOffset - SizeSoFar));
       PackedElems.push_back(Elems[I]);
       SizeSoFar = DesiredOffset + Utils.getSize(C);
-      // std::cout << " New SizeSoFar " 
-      //           << SizeSoFar.getQuantity() << " " 
-      //           << std::endl;
     }
     // If we're using the packed layout, pad it out to the desired size if
     // necessary.
     if (Packed) {
-    //  std::cout << "Packed!" << std::endl;
       assert(SizeSoFar <= DesiredSize &&
              "requested size is too small for contents");
-
-      // std::cout << "Packed "
-      //           << SizeSoFar.getQuantity() << " "  << DesiredSize.getQuantity() << " "
-      //           << std::endl;
 
       if (SizeSoFar < DesiredSize)
         PackedElems.push_back(Utils.getPadding(DesiredSize - SizeSoFar));
     }
   }
-  //std::cout << "Packed? " << Packed << std::endl;
+
   // TODO(cir): emit a #cir.zero if all elements are null values.
   auto &builder = CGM.getBuilder();
   auto arrAttr = mlir::ArrayAttr::get(builder.getContext(),
                                       Packed ? PackedElems : UnpackedElems);
-  
-  // arrAttr.dump();
-  // DesiredTy.dump();
+
   return builder.getConstStructOrZeroAttr(arrAttr, Packed, DesiredTy);
-  //return builder.getAnonConstStruct(arrAttr, Packed);
-  
-  
-  ///return builder.getConstStructOrZeroAttr(arrAttr, Packed, DesiredTy);
 }
 
 void ConstantAggregateBuilder::condense(CharUnits Offset,
@@ -696,7 +656,6 @@ bool ConstStructBuilder::Build(InitListExpr *ILE, bool AllowOverwrite) {
       return false;
 
     if (!Field->isBitField()) {
-      //std::cout << "Not  a Bitfield \n";
       // Handle non-bitfield members.
       if (!AppendField(Field, Layout.getFieldOffset(FieldNo), EltInit,
                        AllowOverwrite))
@@ -706,12 +665,8 @@ bool ConstStructBuilder::Build(InitListExpr *ILE, bool AllowOverwrite) {
       if (Field->hasAttr<NoUniqueAddressAttr>())
         AllowOverwrite = true;
     } else {
-      // Otherwise we have a bitfield.      
+      // Otherwise we have a bitfield.
       if (auto constInt = dyn_cast<mlir::cir::IntAttr>(EltInit)) {
-        // std::cout << "========= " << Field->getName().str() << std::endl;
-        // std::cout << "const Int \n" ;
-        // constInt.dump();
-        // std::cout << "offset " << Layout.getFieldOffset(FieldNo)  << std::endl;
         if (!AppendBitField(Field, Layout.getFieldOffset(FieldNo), constInt,
                             AllowOverwrite))
           return false;
@@ -719,7 +674,7 @@ bool ConstStructBuilder::Build(InitListExpr *ILE, bool AllowOverwrite) {
         // We are trying to initialize a bitfield with a non-trivial constant,
         // this must require run-time code.
         return false;
-      }  
+      }
     }
   }
 
@@ -818,11 +773,6 @@ mlir::Attribute ConstStructBuilder::Finalize(QualType Type) {
   Type = Type.getNonReferenceType();
   RecordDecl *RD = Type->castAs<RecordType>()->getDecl();
   mlir::Type ValTy = CGM.getTypes().ConvertType(Type);
-  
-  //std::cout << "CALL build1\n";
-  // Type.dump();
-  // ValTy.dump();
-
   return Builder.build(ValTy, RD->hasFlexibleArrayMember());
 }
 
@@ -1195,28 +1145,13 @@ buildArrayConstant(CIRGenModule &CGM, mlir::Type DesiredType,
                                   ArrayBound));
   }
 
-  // We have mixed types. Use a packed struct.
-  //assert(0 && "NYE");
-
-    // llvm::SmallVector<mlir::Type, 16> Types;
-  // Types.reserve(Elements.size());
-  // for (auto Elt : Elements)
-  //   Types.push_back(Elt.getType());
-
   SmallVector<mlir::Attribute, 4> Eles;
-    Eles.reserve(Elements.size());
-    for (auto const &Element : Elements)
-      Eles.push_back(Element);
-  
+  Eles.reserve(Elements.size());
+  for (auto const &Element : Elements)
+    Eles.push_back(Element);
+
   auto arrAttr = mlir::ArrayAttr::get(builder.getContext(), Eles);
-      
-
-   return builder.getAnonConstStruct(arrAttr, false);
-  // auto SType = builder.
-  //     llvm::StructType::get(CGM.getLLVMContext(), Types, true);
-  // return llvm::ConstantStruct::get(SType, Elements);
-
-//  return {};
+  return builder.getAnonConstStruct(arrAttr, false);
 }
 
 } // end anonymous namespace.
