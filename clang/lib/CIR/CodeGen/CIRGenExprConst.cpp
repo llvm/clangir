@@ -416,8 +416,7 @@ mlir::Attribute ConstantAggregateBuilder::buildFrom(
   auto &builder = CGM.getBuilder();
   auto arrAttr = mlir::ArrayAttr::get(builder.getContext(),
                                       Packed ? PackedElems : UnpackedElems);
-
-//  return builder.getConstStructOrZeroAttr(arrAttr, Packed, DesiredTy);
+  // TODO: double check here: DestiredType in the original codegen?
   return builder.getAnonConstStruct(arrAttr, Packed);
 }
 
