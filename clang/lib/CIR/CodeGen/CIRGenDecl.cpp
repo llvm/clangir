@@ -14,6 +14,7 @@
 #include "CIRGenBuilder.h"
 #include "CIRGenCstEmitter.h"
 #include "CIRGenFunction.h"
+#include "CIRGenOpenMPRuntime.h"
 #include "EHScopeStack.h"
 #include "UnimplementedFeatureGuarding.h"
 #include "mlir/IR/Attributes.h"
@@ -54,9 +55,10 @@ CIRGenFunction::buildAutoVarAlloca(const VarDecl &D) {
 
   Address address = Address::invalid();
   Address allocaAddr = Address::invalid();
-  // TODO[OpenMP]: Set openMPLocalAddr with the equivalent of
-  // getOpenMPRuntime().getAddressOfLocalVariable().
-  Address openMPLocalAddr = Address::invalid();
+  Address openMPLocalAddr =
+      getCIRGenModule().getOpenMPRuntime().getAddressOfLocalVariable(*this, &D);
+  if (getLangOpts().OpenMPIsTargetDevice)
+    assert(UnimplementedFeature::openMPTarget());
   if (getLangOpts().OpenMP && openMPLocalAddr.isValid()) {
     llvm_unreachable("NYI");
   } else if (Ty->isConstantSizeType()) {

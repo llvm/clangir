@@ -13,6 +13,7 @@
 #include "CIRGenFunction.h"
 #include "CIRGenCXXABI.h"
 #include "CIRGenModule.h"
+#include "CIRGenOpenMPRuntime.h"
 #include "UnimplementedFeatureGuarding.h"
 
 #include "clang/AST/ASTLambda.h"
@@ -973,7 +974,8 @@ void CIRGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
 
   // TODO: prologuecleanupdepth
 
-  // TODO[OpenMP]: Emit OpenMP specific initialization of the device functions.
+  if (getLangOpts().OpenMP && CurCodeDecl)
+    CGM.getOpenMPRuntime().emitFunctionProlog(*this, CurCodeDecl);
 
   // TODO: buildFunctionProlog
 

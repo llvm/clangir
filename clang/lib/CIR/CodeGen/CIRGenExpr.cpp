@@ -15,6 +15,7 @@
 #include "CIRGenCstEmitter.h"
 #include "CIRGenFunction.h"
 #include "CIRGenModule.h"
+#include "CIRGenOpenMPRuntime.h"
 #include "CIRGenValue.h"
 #include "UnimplementedFeatureGuarding.h"
 
@@ -912,9 +913,9 @@ LValue CIRGenFunction::buildBinaryOperatorLValue(const BinaryOperator *E) {
     } else {
       buildStoreThroughLValue(RV, LV);
     }
-
-    // TODO[OpenMP]: Check and handle assignment to a variable declared as
-    // last-private.
+    if (getLangOpts().OpenMP)
+      CGM.getOpenMPRuntime().checkAndEmitLastprivateConditional(*this,
+                                                                E->getLHS());
     return LV;
   }
 

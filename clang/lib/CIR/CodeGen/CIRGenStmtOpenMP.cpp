@@ -11,11 +11,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "CIRGenFunction.h"
+#include "CIRGenOpenMPRuntime.h"
 #include "mlir/Dialect/OpenMP/OpenMPDialect.h"
 
 using namespace cir;
 using namespace clang;
-using namespace mlir::cir;
 using namespace mlir::omp;
 
 mlir::LogicalResult
@@ -28,7 +28,7 @@ CIRGenFunction::buildOMPParallelDirective(const OMPParallelDirective &S) {
   mlir::OpBuilder::InsertionGuard guardCase(builder);
   builder.setInsertionPointToEnd(&block);
   // Create a scope for the OpenMP region.
-  builder.create<ScopeOp>(
+  builder.create<mlir::cir::ScopeOp>(
       scopeLoc, /*scopeBuilder=*/
       [&](mlir::OpBuilder &b, mlir::Location loc) {
         LexicalScope lexScope{*this, scopeLoc, builder.getInsertionBlock()};

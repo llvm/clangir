@@ -15,6 +15,7 @@
 #include "CIRGenCXXABI.h"
 #include "CIRGenCstEmitter.h"
 #include "CIRGenFunction.h"
+#include "CIRGenOpenMPRuntime.h"
 #include "CIRGenTypes.h"
 #include "CIRGenValue.h"
 #include "TargetInfo.h"
@@ -103,7 +104,7 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &context,
       codeGenOpts(CGO),
       theModule{mlir::ModuleOp::create(builder.getUnknownLoc())}, Diags(Diags),
       target(astCtx.getTargetInfo()), ABI(createCXXABI(*this)), genTypes{*this},
-      VTables{*this} {
+      VTables{*this}, openMPRuntime(new CIRGenOpenMPRuntime(*this)) {
 
   // Initialize CIR signed integer types cache.
   SInt8Ty =
@@ -613,8 +614,8 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef MangledName, mlir::Type Ty,
         !D->hasAttr<clang::DLLExportAttr>())
       assert(!UnimplementedFeature::setDLLStorageClass() && "NYI");
 
-    if (getLangOpts().OpenMP && !getLangOpts().OpenMPSimd && D)
-      assert(0 && "not implemented");
+    if (langOpts.OpenMP && !langOpts.OpenMPSimd && D)
+      getOpenMPRuntime().registerTargetGlobalVariable(D, Entry);
 
     // TODO(cir): check TargetAS matches Entry address space
     if (Entry.getSymType() == Ty &&
@@ -685,7 +686,8 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef MangledName, mlir::Type Ty,
 
   // Handle things which are present even on external declarations.
   if (D) {
-    // TODO[OpenMP]: Check and handle target globals.
+    if (langOpts.OpenMP && !langOpts.OpenMPSimd && D)
+      getOpenMPRuntime().registerTargetGlobalVariable(D, Entry);
 
     // FIXME: This code is overly simple and should be merged with other global
     // handling.
@@ -2299,9 +2301,9 @@ void CIRGenModule::buildGlobalDecl(clang::GlobalDecl &D) {
   }
 
   // If this is OpenMP, check if it is legal to emit this global normally.
-  if (getLangOpts().OpenMP) {
-    // TODO[OpenMP]: Emit target globals.
-  }
+  if (getLangOpts().OpenMP && openMPRuntime &&
+      openMPRuntime->emitTargetGlobal(D))
+    return;
 
   // Otherwise, emit the definition and move on to the next one.
   buildGlobalDefinition(D, Op);
@@ -2309,7 +2311,8 @@ void CIRGenModule::buildGlobalDecl(clang::GlobalDecl &D) {
 
 void CIRGenModule::buildDeferred(unsigned recursionLimit) {
   // Emit deferred declare target declarations
-  // TODO[OpenMP]: Emit deferred target declarations.
+  if (getLangOpts().OpenMP && !getLangOpts().OpenMPSimd)
+    getOpenMPRuntime().emitDeferredTargetDecls();
 
   // Emit code for any potentially referenced deferred decls. Since a previously
   // unused static decl may become used during the generation of code for a
