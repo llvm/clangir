@@ -412,7 +412,6 @@ mlir::Attribute ConstantAggregateBuilder::buildFrom(
     }
   }
 
-  // TODO(cir): emit a #cir.zero if all elements are null values.
   auto &builder = CGM.getBuilder();
   auto arrAttr = mlir::ArrayAttr::get(builder.getContext(),
                                       Packed ? PackedElems : UnpackedElems);
