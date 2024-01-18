@@ -1,6 +1,7 @@
 add_clang_library(MLIRCIRInterfaces
   ASTAttrInterfaces.cpp
   CIROpInterfaces.cpp
+  LoopOpInterface.cpp
 
   ADDITIONAL_HEADER_DIRS
   ${MLIR_MAIN_INCLUDE_DIR}/mlir/Interfaces

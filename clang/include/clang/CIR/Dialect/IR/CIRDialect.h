@@ -33,6 +33,7 @@
 
 #include "clang/CIR/Interfaces/ASTAttrInterfaces.h"
 #include "clang/CIR/Interfaces/CIROpInterfaces.h"
+#include "clang/CIR/Interfaces/LoopOpInterface.h"
 
 namespace mlir {
 namespace OpTrait {
