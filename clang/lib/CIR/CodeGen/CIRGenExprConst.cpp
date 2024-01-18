@@ -384,7 +384,7 @@ mlir::Attribute ConstantAggregateBuilder::buildFrom(
   // as a non-packed struct and do so opportunistically if possible.
   llvm::SmallVector<mlir::Attribute, 32> PackedElems;
   if (!NaturalLayout) {
-        CharUnits SizeSoFar = CharUnits::Zero();
+    CharUnits SizeSoFar = CharUnits::Zero();
     for (size_t I = 0; I != Elems.size(); ++I) {
       mlir::TypedAttr C = Elems[I].dyn_cast<mlir::TypedAttr>();
       assert(C && "expected typed attribute");
@@ -416,8 +416,13 @@ mlir::Attribute ConstantAggregateBuilder::buildFrom(
   auto &builder = CGM.getBuilder();
   auto arrAttr = mlir::ArrayAttr::get(builder.getContext(),
                                       Packed ? PackedElems : UnpackedElems);
-  // TODO: double check here: DestiredType in the original codegen?
-  return builder.getAnonConstStruct(arrAttr, Packed);
+  auto strType = builder.getCompleteStructType(arrAttr, Packed);
+
+  if (auto desired = dyn_cast<mlir::cir::StructType>(DesiredTy))
+    if (desired.isLayoutIdentical(strTy))
+      strType = desired;
+
+  return  builder.getConstStructOrZeroAttr(arrAttr, Packed, strType);
 }
 
 void ConstantAggregateBuilder::condense(CharUnits Offset,
