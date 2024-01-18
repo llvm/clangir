@@ -608,6 +608,7 @@ CIRGenTypes::computeRecordLayout(const RecordDecl *D,
     if (builder.astRecordLayout.getNonVirtualSize() !=
         builder.astRecordLayout.getSize()) {
       CIRRecordLowering baseBuilder(*this, D, /*Packed=*/builder.isPacked);
+      baseBuilder.lower(/*NonVirtualBaseType=*/true);
       auto baseIdentifier = getRecordTypeName(D, ".base");
       BaseTy =
           Builder.getCompleteStructTy(baseBuilder.fieldTypes, baseIdentifier,
