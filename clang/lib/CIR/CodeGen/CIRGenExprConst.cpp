@@ -187,7 +187,7 @@ bool ConstantAggregateBuilder::addBits(llvm::APInt Bits, uint64_t OffsetInBits,
                                        bool AllowOverwrite) {
   const ASTContext &Context = CGM.getASTContext();
   const uint64_t CharWidth = CGM.getASTContext().getCharWidth();
-
+  auto charTy = CGM.getBuilder().getUIntNTy(CharWidth);
   // Offset of where we want the first bit to go within the bits of the
   // current char.
   unsigned OffsetWithinChar = OffsetInBits % CharWidth;
@@ -222,7 +222,7 @@ bool ConstantAggregateBuilder::addBits(llvm::APInt Bits, uint64_t OffsetInBits,
 
     if (WantedBits == CharWidth) {
       // Got a full byte: just add it directly.
-      add(mlir::cir::IntAttr::get(CGM.getBuilder().getUInt8Ty(), BitsThisChar),
+      add(mlir::cir::IntAttr::get(charTy, BitsThisChar),
           OffsetInChars, AllowOverwrite);
     } else {
       // Partial byte: update the existing integer if there is one. If we
@@ -255,9 +255,7 @@ bool ConstantAggregateBuilder::addBits(llvm::APInt Bits, uint64_t OffsetInBits,
 
       if (*FirstElemToUpdate == *LastElemToUpdate || isNull) {
         // All existing bits are either zero or undef.
-        //TODO
-        auto tmpTy = CGM.getBuilder().getUInt8Ty(); // TODO: check type here!!!
-        add(CGM.getBuilder().getAttr<mlir::cir::IntAttr>(tmpTy, BitsThisChar),
+        add(CGM.getBuilder().getAttr<mlir::cir::IntAttr>(charTy, BitsThisChar),
             OffsetInChars, /*AllowOverwrite*/ true);
       } else {
         mlir::cir::IntAttr CI =
@@ -273,10 +271,8 @@ bool ConstantAggregateBuilder::addBits(llvm::APInt Bits, uint64_t OffsetInBits,
         assert((!(CI.getValue() & UpdateMask) || AllowOverwrite) &&
                "unexpectedly overwriting bitfield");
         BitsThisChar |= (CI.getValue() & ~UpdateMask);
-
-        auto tmpTy = CGM.getBuilder().getUInt8Ty(); // TODO: check type here!!!
-        Elems[*FirstElemToUpdate] = 
-          CGM.getBuilder().getAttr<mlir::cir::IntAttr>(tmpTy, BitsThisChar);
+        Elems[*FirstElemToUpdate] =
+          CGM.getBuilder().getAttr<mlir::cir::IntAttr>(charTy, BitsThisChar);
       }
     }
 
