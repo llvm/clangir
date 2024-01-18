@@ -1272,9 +1272,7 @@ void LoopOp::getSuccessorRegions(mlir::RegionBranchPoint point,
 
 llvm::SmallVector<Region *> LoopOp::getLoopRegions() { return {&getBody()}; }
 
-LogicalResult LoopOp::verify() {
-  return success();
-}
+LogicalResult LoopOp::verify() { return success(); }
 
 //===----------------------------------------------------------------------===//
 // GlobalOp
