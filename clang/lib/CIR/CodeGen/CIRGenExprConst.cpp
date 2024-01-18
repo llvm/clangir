@@ -418,7 +418,7 @@ mlir::Attribute ConstantAggregateBuilder::buildFrom(
   auto strType = builder.getCompleteStructType(arrAttr, Packed);
 
   if (auto desired = dyn_cast<mlir::cir::StructType>(DesiredTy))
-    if (desired.isLayoutIdentical(strTy))
+    if (desired.isLayoutIdentical(strType))
       strType = desired;
 
   return  builder.getConstStructOrZeroAttr(arrAttr, Packed, strType);
