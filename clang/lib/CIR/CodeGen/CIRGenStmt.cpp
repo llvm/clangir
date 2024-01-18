@@ -670,7 +670,7 @@ CIRGenFunction::buildDefaultStmt(const DefaultStmt &S, mlir::Type condType,
 mlir::LogicalResult
 CIRGenFunction::buildCXXForRangeStmt(const CXXForRangeStmt &S,
                                      ArrayRef<const Attr *> ForAttrs) {
-  mlir::cir::LoopOp loopOp;
+  mlir::cir::ForOp forOp;
 
   // TODO(cir): pass in array of attributes.
   auto forStmtBuilder = [&]() -> mlir::LogicalResult {
@@ -693,8 +693,8 @@ CIRGenFunction::buildCXXForRangeStmt(const CXXForRangeStmt &S,
     // sure we handle all cases.
     assert(!UnimplementedFeature::requiresCleanups());
 
-    loopOp = builder.create<LoopOp>(
-        getLoc(S.getSourceRange()), mlir::cir::LoopOpKind::For,
+    forOp = builder.createFor(
+        getLoc(S.getSourceRange()),
         /*condBuilder=*/
         [&](mlir::OpBuilder &b, mlir::Location loc) {
           assert(!UnimplementedFeature::createProfileWeightsForLoop());
@@ -739,12 +739,12 @@ CIRGenFunction::buildCXXForRangeStmt(const CXXForRangeStmt &S,
   if (res.failed())
     return res;
 
-  terminateBody(builder, loopOp.getBody(), getLoc(S.getEndLoc()));
+  terminateBody(builder, forOp.getBody(), getLoc(S.getEndLoc()));
   return mlir::success();
 }
 
 mlir::LogicalResult CIRGenFunction::buildForStmt(const ForStmt &S) {
-  mlir::cir::LoopOp loopOp;
+  mlir::cir::ForOp forOp;
 
   // TODO: pass in array of attributes.
   auto forStmtBuilder = [&]() -> mlir::LogicalResult {
@@ -760,8 +760,8 @@ mlir::LogicalResult CIRGenFunction::buildForStmt(const ForStmt &S) {
     // sure we handle all cases.
     assert(!UnimplementedFeature::requiresCleanups());
 
-    loopOp = builder.create<LoopOp>(
-        getLoc(S.getSourceRange()), mlir::cir::LoopOpKind::For,
+    forOp = builder.createFor(
+        getLoc(S.getSourceRange()),
         /*condBuilder=*/
         [&](mlir::OpBuilder &b, mlir::Location loc) {
           assert(!UnimplementedFeature::createProfileWeightsForLoop());
@@ -818,7 +818,7 @@ mlir::LogicalResult CIRGenFunction::buildForStmt(const ForStmt &S) {
   if (res.failed())
     return res;
 
-  terminateBody(builder, loopOp.getBody(), getLoc(S.getEndLoc()));
+  terminateBody(builder, forOp.getBody(), getLoc(S.getEndLoc()));
   return mlir::success();
 }
 
