@@ -57,8 +57,7 @@ CIRGenFunction::buildAutoVarAlloca(const VarDecl &D) {
   Address allocaAddr = Address::invalid();
   Address openMPLocalAddr =
       getCIRGenModule().getOpenMPRuntime().getAddressOfLocalVariable(*this, &D);
-  if (getLangOpts().OpenMPIsTargetDevice)
-    assert(UnimplementedFeature::openMPTarget());
+  assert(!getLangOpts().OpenMPIsTargetDevice && "NYI");
   if (getLangOpts().OpenMP && openMPLocalAddr.isValid()) {
     llvm_unreachable("NYI");
   } else if (Ty->isConstantSizeType()) {
