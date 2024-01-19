@@ -371,12 +371,16 @@ void CIRGenModule::buildGlobal(GlobalDecl GD) {
 
   if (langOpts.OpenMP) {
     // If this is OpenMP, check if it is legal to emit this global normally.
+    if (openMPRuntime && openMPRuntime->emitTargetGlobal(GD)) {
+      assert(UnimplementedFeature::openMPRuntime());
+      return;
+    }
     if (auto *DRD = dyn_cast<OMPDeclareReductionDecl>(Global)) {
-      assert(0 && "OMPDeclareReductionDecl NYI");
+      assert(UnimplementedFeature::openMP());
       return;
     }
     if (auto *DMD = dyn_cast<OMPDeclareMapperDecl>(Global)) {
-      assert(0 && "OMPDeclareMapperDecl NYI");
+      assert(UnimplementedFeature::openMP());
       return;
     }
   }
