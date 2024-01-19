@@ -21,34 +21,34 @@ CIRGenOpenMPRuntime::CIRGenOpenMPRuntime(CIRGenModule &CGM) : CGM(CGM) {}
 
 Address CIRGenOpenMPRuntime::getAddressOfLocalVariable(CIRGenFunction &CGF,
                                                        const VarDecl *VD) {
-  // TODO[OpenMP]: Implement this method.
+  assert(!UnimplementedFeature::openMPRuntime());
   return Address::invalid();
 }
 
 void CIRGenOpenMPRuntime::checkAndEmitLastprivateConditional(
     CIRGenFunction &CGF, const Expr *LHS) {
-  // TODO[OpenMP]: Implement this method.
+  assert(!UnimplementedFeature::openMPRuntime());
   return;
 }
 
 void CIRGenOpenMPRuntime::registerTargetGlobalVariable(
     const clang::VarDecl *VD, mlir::cir::GlobalOp globalOp) {
-  // TODO[OpenMP]: Implement this method.
+  assert(!UnimplementedFeature::openMPRuntime());
   return;
 }
 
 void CIRGenOpenMPRuntime::emitDeferredTargetDecls() const {
-  // TODO[OpenMP]: Implement this method.
+  assert(!UnimplementedFeature::openMPRuntime());
   return;
 }
 
 void CIRGenOpenMPRuntime::emitFunctionProlog(CIRGenFunction &CGF,
                                              const clang::Decl *D) {
-  // TODO[OpenMP]: Implement this method.
+  assert(!UnimplementedFeature::openMPRuntime());
   return;
 }
 
 bool CIRGenOpenMPRuntime::emitTargetGlobal(clang::GlobalDecl &GD) {
-  // TODO[OpenMP]: Implement this method.
+  assert(!UnimplementedFeature::openMPRuntime());
   return false;
 }

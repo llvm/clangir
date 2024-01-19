@@ -764,6 +764,7 @@ LValue CIRGenFunction::buildDeclRefLValue(const DeclRefExpr *E) {
       // it.
       // TODO[OpenMP]: Set non-temporal information in the captured LVal.
       // LLVM codegen:
+      assert(!UnimplementedFeature::openMP());
       // Address addr = GetAddrOfBlockDecl(VD);
       // return MakeAddrLValue(addr, T, AlignmentSource::Decl);
     }
