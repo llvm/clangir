@@ -698,8 +698,10 @@ static LValue buildGlobalVarDeclLValue(CIRGenFunction &CGF, const Expr *E,
 
   auto V = CGF.CGM.getAddrOfGlobalVar(VD);
   auto RealVarTy = CGF.getTypes().convertTypeForMem(VD->getType());
-  // TODO(cir): do we need this for CIR?
-  // V = EmitBitCastOfLValueToProperType(CGF, V, RealVarTy);
+  auto realPtrTy = CGF.getBuilder().getPointerTo(RealVarTy);
+  if (realPtrTy != V.getType())
+    V = CGF.getBuilder().createBitcast(V.getLoc(), V, realPtrTy);
+
   CharUnits Alignment = CGF.getContext().getDeclAlign(VD);
   Address Addr(V, RealVarTy, Alignment);
   // Emit reference to the private copy of the variable if it is an OpenMP
