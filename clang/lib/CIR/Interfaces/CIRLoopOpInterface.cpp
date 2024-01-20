@@ -1,4 +1,4 @@
-//===- LoopOpInterface.cpp - Interface for CIR loop-like ops ---*- C++ -*-===//
+//===- CIRLoopOpInterface.cpp - Interface for CIR loop-like ops *- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,10 +6,11 @@
 //
 //===---------------------------------------------------------------------===//
 
-#include "clang/CIR/Interfaces/LoopOpInterface.h"
+#include "clang/CIR/Interfaces/CIRLoopOpInterface.h"
 
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
-#include "clang/CIR/Interfaces/LoopOpInterface.cpp.inc"
+#include "clang/CIR/Interfaces/CIRLoopOpInterface.cpp.inc"
+#include "llvm/Support/ErrorHandling.h"
 
 namespace mlir {
 namespace cir {
@@ -28,14 +29,17 @@ void LoopOpInterface::getLoopOpSuccessorRegions(
     regions.emplace_back(RegionSuccessor(op->getResults()));
     regions.emplace_back(&op.getBody(), op.getBody().getArguments());
   }
-  // Branching from body: go to step (for) or condition (while).
+  // Branching from body: go to step (for) or condition.
   else if (&op.getBody() == point.getRegionOrNull()) {
+    // FIXME(cir): Should we consider break/continue statements here?
     auto *afterBody = (op.maybeGetStep() ? op.maybeGetStep() : &op.getCond());
     regions.emplace_back(afterBody, afterBody->getArguments());
   }
   // Branching from step: go to condition.
   else if (op.maybeGetStep() == point.getRegionOrNull()) {
     regions.emplace_back(&op.getCond(), op.getCond().getArguments());
+  } else {
+    llvm_unreachable("unexpected branch origin");
   }
 }
 

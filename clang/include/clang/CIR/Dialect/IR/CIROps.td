@@ -20,7 +20,7 @@ include "clang/CIR/Dialect/IR/CIRAttrs.td"
 
 include "clang/CIR/Interfaces/ASTAttrInterfaces.td"
 include "clang/CIR/Interfaces/CIROpInterfaces.td"
-include "clang/CIR/Interfaces/LoopOpInterface.td"
+include "clang/CIR/Interfaces/CIRLoopOpInterface.td"
 
 include "mlir/Interfaces/ControlFlowInterfaces.td"
 include "mlir/Interfaces/FunctionInterfaces.td"
