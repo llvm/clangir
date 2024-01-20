@@ -20,7 +20,7 @@ include "clang/CIR/Dialect/IR/CIRAttrs.td"
 
 include "clang/CIR/Interfaces/ASTAttrInterfaces.td"
 include "clang/CIR/Interfaces/CIROpInterfaces.td"
-include "clang/CIR/Interfaces/LoopOpInterface.td"
+include "clang/CIR/Interfaces/CIRLoopOpInterface.td"
 
 include "mlir/Interfaces/ControlFlowInterfaces.td"
 include "mlir/Interfaces/FunctionInterfaces.td"
@@ -1223,9 +1223,14 @@ def LoopOp : CIR_Op<"loop",
     }
 
     llvm::SmallVector<Region *> getRegionsInExecutionOrder() {
-      if (getKind() == LoopOpKind::For)
+      switch(getKind()) {
+      case LoopOpKind::For:
         return llvm::SmallVector<Region *, 3>{&getCond(), &getBody(), &getStep()};
-      return llvm::SmallVector<Region *, 3>{&getCond(), &getBody()};
+      case LoopOpKind::While:
+        return llvm::SmallVector<Region *, 2>{&getCond(), &getBody()};
+      case LoopOpKind::DoWhile:
+        return llvm::SmallVector<Region *, 2>{&getBody(), &getCond()};
+      }
     }
   }];
 }

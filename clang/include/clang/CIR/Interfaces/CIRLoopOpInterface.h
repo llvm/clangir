@@ -1,4 +1,4 @@
-//===- LoopOpInterface.h - Interface for CIR loop-like ops -----*- C++ -*-===//
+//===- CIRLoopOpInterface.h - Interface for CIR loop-like ops --*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -10,8 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CLANG_INTERFACES_CIR_LOOPOPINTERFACE_H_
-#define CLANG_INTERFACES_CIR_LOOPOPINTERFACE_H_
+#ifndef CLANG_INTERFACES_CIR_CIRLOOPOPINTERFACE_H_
+#define CLANG_INTERFACES_CIR_CIRLOOPOPINTERFACE_H_
 
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/OpDefinition.h"
@@ -31,6 +31,6 @@ namespace detail {
 } // namespace mlir
 
 /// Include the tablegen'd interface declarations.
-#include "clang/CIR/Interfaces/LoopOpInterface.h.inc"
+#include "clang/CIR/Interfaces/CIRLoopOpInterface.h.inc"
 
-#endif // CLANG_INTERFACES_CIR_LOOPOPINTERFACE_H_
+#endif // CLANG_INTERFACES_CIR_CIRLOOPOPINTERFACE_H_
