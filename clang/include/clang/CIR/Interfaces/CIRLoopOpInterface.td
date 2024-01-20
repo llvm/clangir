@@ -1,4 +1,4 @@
-//===- LoopOpInterface.td - Interface for CIR loop-like ops ----*- C++ -*-===//
+//===- CIRLoopOpInterface.td - Interface for CIR loop-like ops -*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,8 +6,8 @@
 //
 //===---------------------------------------------------------------------===//
 
-#ifndef CLANG_CIR_INTERFACES_LOOPOPINTERFACE
-#define CLANG_CIR_INTERFACES_LOOPOPINTERFACE
+#ifndef CLANG_CIR_INTERFACES_CIRLOOPOPINTERFACE
+#define CLANG_CIR_INTERFACES_CIRLOOPOPINTERFACE
 
 include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/ControlFlowInterfaces.td"
@@ -97,4 +97,4 @@ def LoopOpInterface : OpInterface<"LoopOpInterface", [
   }];
 }
 
-#endif // CLANG_CIR_INTERFACES_LOOPOPINTERFACE
+#endif // CLANG_CIR_INTERFACES_CIRLOOPOPINTERFACE
