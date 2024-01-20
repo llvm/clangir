@@ -16,7 +16,7 @@
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/Passes.h"
 
-#include "clang/CIR/Interfaces/LoopOpInterface.h"
+#include "clang/CIR/Interfaces/CIRLoopOpInterface.h"
 #include "llvm/ADT/SetOperations.h"
 #include "llvm/ADT/SmallSet.h"
 
