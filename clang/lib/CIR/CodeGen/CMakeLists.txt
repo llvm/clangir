@@ -41,6 +41,7 @@ add_clang_library(clangCIR
   MLIRCIROpsIncGen
   MLIRCIRASTAttrInterfacesIncGen
   MLIRCIROpInterfacesIncGen
+  MLIRCIRLoopOpInterfaceIncGen
   ${dialect_libs}
 
   LINK_LIBS
