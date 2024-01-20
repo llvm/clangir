@@ -14,7 +14,7 @@
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
-#include "clang/CIR/Interfaces/LoopOpInterface.h"
+#include "clang/CIR/Interfaces/CIRLoopOpInterface.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <optional>
 
