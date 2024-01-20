@@ -32,8 +32,8 @@
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 
 #include "clang/CIR/Interfaces/ASTAttrInterfaces.h"
-#include "clang/CIR/Interfaces/CIROpInterfaces.h"
 #include "clang/CIR/Interfaces/CIRLoopOpInterface.h"
+#include "clang/CIR/Interfaces/CIROpInterfaces.h"
 
 namespace mlir {
 namespace OpTrait {
