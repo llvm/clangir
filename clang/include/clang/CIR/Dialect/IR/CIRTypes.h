@@ -16,6 +16,7 @@
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/Types.h"
 #include "mlir/Interfaces/DataLayoutInterfaces.h"
+#include "clang/CIR/Interfaces/FPTypeInterface.h"
 
 #include "clang/CIR/Interfaces/ASTAttrInterfaces.h"
 

@@ -296,6 +296,60 @@ LogicalResult IntAttr::verify(function_ref<InFlightDiagnostic()> emitError,
 }
 
 //===----------------------------------------------------------------------===//
+// FPAttr definitions
+//===----------------------------------------------------------------------===//
+
+Attribute cir::FPAttr::parse(AsmParser &parser, Type odsType) {
+  double value;
+
+  auto odsTypeFpInterface = odsType.dyn_cast<cir::FPTypeInterface>();
+  if (!odsTypeFpInterface)
+    return {};
+
+  if (parser.parseLess())
+    return {};
+
+  if (parser.parseFloat(value))
+    parser.emitError(parser.getCurrentLocation(),
+                     "expected floating-point value");
+
+  if (parser.parseGreater())
+    return {};
+
+  auto losesInfo = false;
+  APFloat convertedValue{value};
+  convertedValue.convert(odsTypeFpInterface.getFloatSemantics(),
+                         llvm::RoundingMode::TowardZero, &losesInfo);
+
+  return cir::FPAttr::get(odsType, convertedValue);
+}
+
+void cir::FPAttr::print(AsmPrinter &printer) const {
+  printer << '<' << getValue() << '>';
+}
+
+cir::FPAttr cir::FPAttr::getZero(mlir::Type type) {
+  return get(type, APFloat::getZero(
+                       type.cast<cir::FPTypeInterface>().getFloatSemantics()));
+}
+
+LogicalResult cir::FPAttr::verify(function_ref<InFlightDiagnostic()> emitError,
+                                  Type type, APFloat value) {
+  auto fltTypeInterface = type.dyn_cast<cir::FPTypeInterface>();
+  if (!fltTypeInterface) {
+    emitError() << "expected floating-point type";
+    return failure();
+  }
+  if (APFloat::SemanticsToEnum(fltTypeInterface.getFloatSemantics()) !=
+      APFloat::SemanticsToEnum(value.getSemantics())) {
+    emitError() << "floating-point semantics mismatch";
+    return failure();
+  }
+
+  return success();
+}
+
+//===----------------------------------------------------------------------===//
 // CIR Dialect
 //===----------------------------------------------------------------------===//
 
