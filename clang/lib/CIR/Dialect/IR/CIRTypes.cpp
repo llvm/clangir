@@ -616,6 +616,78 @@ IntType::verify(llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
 }
 
 //===----------------------------------------------------------------------===//
+// FloatType Definitions
+//===----------------------------------------------------------------------===//
+
+SingleType mlir::cir::FloatType::getSingle(MLIRContext *ctx) {
+  return SingleType::get(ctx);
+}
+
+DoubleType mlir::cir::FloatType::getDouble(MLIRContext *ctx) {
+  return DoubleType::get(ctx);
+}
+
+bool mlir::cir::FloatType::classof(Type type) {
+  return llvm::isa<SingleType, DoubleType>(type);
+}
+
+unsigned mlir::cir::FloatType::getWidth() const {
+  if (llvm::isa<SingleType>(*this))
+    return 32;
+  if (llvm::isa<DoubleType>(*this))
+    return 64;
+  llvm_unreachable("unknown floating-point type");
+}
+
+unsigned mlir::cir::FloatType::getFPMantissaWidth() const {
+  return APFloat::semanticsPrecision(getFloatSemantics());
+}
+
+const llvm::fltSemantics &mlir::cir::FloatType::getFloatSemantics() const {
+  if (llvm::isa<SingleType>(*this))
+    return APFloat::IEEEsingle();
+  if (llvm::isa<DoubleType>(*this))
+    return APFloat::IEEEdouble();
+  llvm_unreachable("unknown floating-point type");
+}
+
+llvm::TypeSize
+SingleType::getTypeSizeInBits(const mlir::DataLayout &dataLayout,
+                              mlir::DataLayoutEntryListRef params) const {
+  return llvm::TypeSize::getFixed(getWidth());
+}
+
+uint64_t
+SingleType::getABIAlignment(const mlir::DataLayout &dataLayout,
+                            mlir::DataLayoutEntryListRef params) const {
+  return (uint64_t)(getWidth() / 8);
+}
+
+uint64_t
+SingleType::getPreferredAlignment(const ::mlir::DataLayout &dataLayout,
+                                  ::mlir::DataLayoutEntryListRef params) const {
+  return (uint64_t)(getWidth() / 8);
+}
+
+llvm::TypeSize
+DoubleType::getTypeSizeInBits(const mlir::DataLayout &dataLayout,
+                              mlir::DataLayoutEntryListRef params) const {
+  return llvm::TypeSize::getFixed(getWidth());
+}
+
+uint64_t
+DoubleType::getABIAlignment(const mlir::DataLayout &dataLayout,
+                            mlir::DataLayoutEntryListRef params) const {
+  return (uint64_t)(getWidth() / 8);
+}
+
+uint64_t
+DoubleType::getPreferredAlignment(const ::mlir::DataLayout &dataLayout,
+                                  ::mlir::DataLayoutEntryListRef params) const {
+  return (uint64_t)(getWidth() / 8);
+}
+
+//===----------------------------------------------------------------------===//
 // FuncType Definitions
 //===----------------------------------------------------------------------===//
 

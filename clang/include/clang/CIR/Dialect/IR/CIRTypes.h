@@ -20,6 +20,43 @@
 #include "clang/CIR/Interfaces/ASTAttrInterfaces.h"
 
 //===----------------------------------------------------------------------===//
+// CIR FloatType
+//
+// The base type for all floating-point types.
+//===----------------------------------------------------------------------===//
+
+namespace mlir {
+namespace cir {
+
+class SingleType;
+class DoubleType;
+
+class FloatType : public Type {
+public:
+  using Type::Type;
+
+  // Convenience factories.
+  static SingleType getSingle(MLIRContext *ctx);
+  static DoubleType getDouble(MLIRContext *ctx);
+
+  /// Methods for support type inquiry through isa, cast, and dyn_cast.
+  static bool classof(Type type);
+
+  /// Return the bitwidth of this float type.
+  unsigned getWidth() const;
+
+  /// Return the width of the mantissa of this type.
+  /// The width includes the integer bit.
+  unsigned getFPMantissaWidth() const;
+
+  /// Return the float semantics of this floating-point type.
+  const llvm::fltSemantics &getFloatSemantics() const;
+};
+
+} // namespace cir
+} // namespace mlir
+
+//===----------------------------------------------------------------------===//
 // CIR Dialect Tablegen'd Types
 //===----------------------------------------------------------------------===//
 

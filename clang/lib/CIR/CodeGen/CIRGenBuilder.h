@@ -226,6 +226,8 @@ public:
       return mlir::cir::IntAttr::get(ty, 0);
     if (ty.isa<mlir::FloatType>())
       return mlir::FloatAttr::get(ty, 0.0);
+    if (auto fltType = ty.dyn_cast<mlir::cir::FloatType>())
+      return mlir::cir::FloatAttr::getZero(fltType);
     if (auto arrTy = ty.dyn_cast<mlir::cir::ArrayType>())
       return getZeroAttr(arrTy);
     if (auto ptrTy = ty.dyn_cast<mlir::cir::PointerType>())
@@ -250,12 +252,18 @@ public:
     if (const auto intVal = attr.dyn_cast<mlir::cir::IntAttr>())
       return intVal.isNullValue();
 
-    if (const auto fpVal = attr.dyn_cast<mlir::FloatAttr>()) {
+    if (attr.isa<mlir::FloatAttr, mlir::cir::FloatAttr>()) {
+      auto fpVal = [&attr] {
+        if (auto fpAttr = attr.dyn_cast<mlir::cir::FloatAttr>())
+          return fpAttr.getValue();
+        return attr.cast<mlir::FloatAttr>().getValue();
+      }();
+
       bool ignored;
       llvm::APFloat FV(+0.0);
-      FV.convert(fpVal.getValue().getSemantics(),
-                 llvm::APFloat::rmNearestTiesToEven, &ignored);
-      return FV.bitwiseIsEqual(fpVal.getValue());
+      FV.convert(fpVal.getSemantics(), llvm::APFloat::rmNearestTiesToEven,
+                 &ignored);
+      return FV.bitwiseIsEqual(fpVal);
     }
 
     if (const auto structVal = attr.dyn_cast<mlir::cir::ConstStructAttr>()) {
@@ -471,7 +479,8 @@ public:
   bool isSized(mlir::Type ty) {
     if (ty.isIntOrFloat() ||
         ty.isa<mlir::cir::PointerType, mlir::cir::StructType,
-               mlir::cir::ArrayType, mlir::cir::BoolType, mlir::cir::IntType>())
+               mlir::cir::ArrayType, mlir::cir::BoolType, mlir::cir::IntType,
+               mlir::cir::FloatType>())
       return true;
     assert(0 && "Unimplemented size for type");
     return false;
