@@ -69,7 +69,7 @@ struct ConstantAggregateBuilderUtils {
   mlir::TypedAttr getPadding(CharUnits size) const {
     auto eltTy = CGM.UCharTy;
     auto arSize = size.getQuantity();
-    auto& bld = CGM.getBuilder();
+    auto &bld = CGM.getBuilder();
     SmallVector<mlir::Attribute, 4> elts(arSize, bld.getZeroAttr(eltTy));
     return bld.getConstArray(mlir::ArrayAttr::get(bld.getContext(), elts),
                              bld.getArrayType(eltTy, arSize));
@@ -227,8 +227,8 @@ bool ConstantAggregateBuilder::addBits(llvm::APInt Bits, uint64_t OffsetInBits,
 
     if (WantedBits == CharWidth) {
       // Got a full byte: just add it directly.
-      add(mlir::cir::IntAttr::get(charTy, BitsThisChar),
-          OffsetInChars, AllowOverwrite);
+      add(mlir::cir::IntAttr::get(charTy, BitsThisChar), OffsetInChars,
+          AllowOverwrite);
     } else {
       // Partial byte: update the existing integer if there is one. If we
       // can't split out a 1-CharUnit range to update, then we can't add
@@ -253,8 +253,8 @@ bool ConstantAggregateBuilder::addBits(llvm::APInt Bits, uint64_t OffsetInBits,
       BitsThisChar &= UpdateMask;
       bool isNull = false;
       if (*FirstElemToUpdate < Elems.size()) {
-        auto firstEltToUpdate = 
-          dyn_cast<mlir::cir::IntAttr>(Elems[*FirstElemToUpdate]);
+        auto firstEltToUpdate =
+            dyn_cast<mlir::cir::IntAttr>(Elems[*FirstElemToUpdate]);
         isNull = firstEltToUpdate && firstEltToUpdate.isNullValue();
       }
 
@@ -277,7 +277,7 @@ bool ConstantAggregateBuilder::addBits(llvm::APInt Bits, uint64_t OffsetInBits,
                "unexpectedly overwriting bitfield");
         BitsThisChar |= (CI.getValue() & ~UpdateMask);
         Elems[*FirstElemToUpdate] =
-          CGM.getBuilder().getAttr<mlir::cir::IntAttr>(charTy, BitsThisChar);
+            CGM.getBuilder().getAttr<mlir::cir::IntAttr>(charTy, BitsThisChar);
       }
     }
 
@@ -422,7 +422,7 @@ mlir::Attribute ConstantAggregateBuilder::buildFrom(
     if (desired.isLayoutIdentical(strType))
       strType = desired;
 
-  return  builder.getConstStructOrZeroAttr(arrAttr, Packed, strType);
+  return builder.getConstStructOrZeroAttr(arrAttr, Packed, strType);
 }
 
 void ConstantAggregateBuilder::condense(CharUnits Offset,
@@ -521,8 +521,7 @@ bool ConstStructBuilder::AppendBitField(const FieldDecl *Field,
                                         uint64_t FieldOffset,
                                         mlir::cir::IntAttr CI,
                                         bool AllowOverwrite) {
-  const auto &RL =
-      CGM.getTypes().getCIRGenRecordLayout(Field->getParent());
+  const auto &RL = CGM.getTypes().getCIRGenRecordLayout(Field->getParent());
   const auto &Info = RL.getBitFieldInfo(Field);
   llvm::APInt FieldValue = CI.getValue();
 

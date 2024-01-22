@@ -350,7 +350,7 @@ void StructType::complete(ArrayRef<Type> members, bool packed,
     llvm_unreachable("failed to complete struct");
 }
 
-bool StructType::isLayoutIdentical(const StructType& other) {
+bool StructType::isLayoutIdentical(const StructType &other) {
   if (getImpl() == other.getImpl())
     return true;
 

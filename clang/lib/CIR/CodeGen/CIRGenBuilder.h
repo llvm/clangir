@@ -464,10 +464,10 @@ public:
     return type;
   }
 
-  mlir::cir::StructType getCompleteStructType(mlir::ArrayAttr fields,
-                                              bool packed = false,
-                                              llvm::StringRef name = "",
-                                              const clang::RecordDecl *ast = nullptr) {
+  mlir::cir::StructType
+  getCompleteStructType(mlir::ArrayAttr fields, bool packed = false,
+                        llvm::StringRef name = "",
+                        const clang::RecordDecl *ast = nullptr) {
     llvm::SmallVector<mlir::Type, 8> members;
     for (auto &attr : fields) {
       const auto typedAttr = attr.dyn_cast<mlir::TypedAttr>();
