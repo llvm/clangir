@@ -33,6 +33,7 @@
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Target/LLVMIR/Dialect/Builtin/BuiltinToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
+#include "mlir/Target/LLVMIR/Dialect/OpenMP/OpenMPToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Export.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
@@ -912,6 +913,36 @@ void ConvertCIRToMLIRPass::runOnOperation() {
     signalPassFailure();
 }
 
+std::unique_ptr<llvm::Module>
+lowerFromCIRToMLIRToLLVMIR(mlir::ModuleOp theModule,
+                           std::unique_ptr<mlir::MLIRContext> mlirCtx,
+                           LLVMContext &llvmCtx) {
+  mlir::PassManager pm(mlirCtx.get());
+
+  pm.addPass(createConvertCIRToMLIRPass());
+  pm.addPass(createConvertMLIRToLLVMPass());
+
+  auto result = !mlir::failed(pm.run(theModule));
+  if (!result)
+    report_fatal_error(
+        "The pass manager failed to lower CIR to LLVMIR dialect!");
+
+  // Now that we ran all the lowering passes, verify the final output.
+  if (theModule.verify().failed())
+    report_fatal_error("Verification of the final LLVMIR dialect failed!");
+
+  mlir::registerBuiltinDialectTranslation(*mlirCtx);
+  mlir::registerLLVMDialectTranslation(*mlirCtx);
+  mlir::registerOpenMPDialectTranslation(*mlirCtx);
+
+  auto llvmModule = mlir::translateModuleToLLVMIR(theModule, llvmCtx);
+
+  if (!llvmModule)
+    report_fatal_error("Lowering from LLVMIR dialect to llvm IR failed!");
+
+  return llvmModule;
+}
+
 std::unique_ptr<mlir::Pass> createConvertCIRToMLIRPass() {
   return std::make_unique<ConvertCIRToMLIRPass>();
 }
@@ -926,30 +957,6 @@ mlir::ModuleOp lowerFromCIRToMLIR(mlir::ModuleOp theModule,
   }
 
   return theModule;
-}
-
-std::unique_ptr<llvm::Module>
-lowerFromCIRToMLIRToLLVMIR(mlir::ModuleOp theModule,
-                           std::unique_ptr<mlir::MLIRContext> mlirCtx,
-                           llvm::LLVMContext &llvmCtx) {
-  // First lower from CIR to MLIR
-  mlir::PassManager pm(mlirCtx.get());
-  pm.addPass(createConvertCIRToMLIRPass());
-
-  if (mlir::failed(pm.run(theModule))) {
-    return nullptr;
-  }
-
-  // Then lower from MLIR to LLVM
-  pm.clear();
-  pm.addPass(createConvertMLIRToLLVMPass());
-
-  if (mlir::failed(pm.run(theModule))) {
-    return nullptr;
-  }
-
-  // Finally export to LLVM IR
-  return mlir::translateModuleToLLVMIR(theModule, llvmCtx);
 }
 
 } // namespace cir

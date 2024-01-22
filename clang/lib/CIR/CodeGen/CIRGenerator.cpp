@@ -16,6 +16,7 @@
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/OpenMP/OpenMPDialect.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/Target/LLVMIR/Import.h"
 #include "llvm/IR/DataLayout.h"
@@ -59,6 +60,7 @@ void CIRGenerator::Initialize(ASTContext &astCtx) {
   mlirCtx->getOrLoadDialect<mlir::cir::CIRDialect>();
   mlirCtx->getOrLoadDialect<mlir::LLVM::LLVMDialect>();
   mlirCtx->getOrLoadDialect<mlir::memref::MemRefDialect>();
+  mlirCtx->getOrLoadDialect<mlir::omp::OpenMPDialect>();
   CGM = std::make_unique<CIRGenModule>(*mlirCtx.get(), astCtx, codeGenOpts,
                                        Diags);
   auto mod = CGM->getModule();
