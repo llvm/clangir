@@ -1280,6 +1280,20 @@ llvm::SmallVector<Region *> LoopOp::getLoopRegions() { return {&getBody()}; }
 LogicalResult LoopOp::verify() { return success(); }
 
 //===----------------------------------------------------------------------===//
+// LoopOpInterface Methods
+//===----------------------------------------------------------------------===//
+
+void DoWhileOp::getSuccessorRegions(
+    ::mlir::RegionBranchPoint point,
+    ::llvm::SmallVectorImpl<::mlir::RegionSuccessor> &regions) {
+  LoopOpInterface::getLoopOpSuccessorRegions(*this, point, regions);
+}
+
+::llvm::SmallVector<Region *> DoWhileOp::getLoopRegions() {
+  return {&getBody()};
+}
+
+//===----------------------------------------------------------------------===//
 // GlobalOp
 //===----------------------------------------------------------------------===//
 
