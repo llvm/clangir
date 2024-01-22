@@ -928,6 +928,9 @@ public:
   mlir::LogicalResult buildBreakStmt(const clang::BreakStmt &S);
   mlir::LogicalResult buildContinueStmt(const clang::ContinueStmt &S);
 
+  // OpenMP gen functions:
+  mlir::LogicalResult buildOMPParallelDirective(const OMPParallelDirective &S);
+
   LValue buildOpaqueValueLValue(const OpaqueValueExpr *e);
 
   /// Emit code to compute a designator that specifies the location
@@ -1503,8 +1506,9 @@ public:
     bool isConditional() const { return IsConditional; }
   };
 
-  /// Emits landing pad information for the current EH stack.
+  /// Emits try/catch information for the current EH stack.
   mlir::Operation *buildLandingPad();
+  mlir::Block *getEHResumeBlock(bool isCleanup);
   mlir::Block *getEHDispatchBlock(EHScopeStack::stable_iterator scope);
 
   mlir::Operation *getInvokeDestImpl();
