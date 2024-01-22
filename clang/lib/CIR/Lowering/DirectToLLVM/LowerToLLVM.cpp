@@ -2320,7 +2320,6 @@ void ConvertCIRToLLVMPass::runOnOperation() {
                     // ,ConstantOp
                     // ,FuncOp
                     // ,LoadOp
-                    // ,LoopOp
                     // ,ReturnOp
                     // ,StoreOp
                     // ,YieldOp

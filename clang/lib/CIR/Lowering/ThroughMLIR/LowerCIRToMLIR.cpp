@@ -38,6 +38,7 @@
 #include "mlir/Transforms/DialectConversion.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
+#include "clang/CIR/Interfaces/CIRLoopOpInterface.h"
 #include "clang/CIR/LowerToLLVM.h"
 #include "clang/CIR/Passes.h"
 #include "llvm/ADT/Sequence.h"
@@ -597,6 +598,40 @@ public:
   }
 };
 
+class CIRLoopOpInterfaceLowering
+    : public mlir::OpInterfaceConversionPattern<mlir::cir::LoopOpInterface> {
+public:
+  using mlir::OpInterfaceConversionPattern<
+      mlir::cir::LoopOpInterface>::OpInterfaceConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::LoopOpInterface op,
+                  mlir::ArrayRef<mlir::Value> operands,
+                  mlir::ConversionPatternRewriter &rewriter) const final {
+
+    auto whileOp = rewriter.create<mlir::scf::WhileOp>(
+        op.getLoc(), mlir::TypeRange{}, mlir::ValueRange{});
+
+    auto before = rewriter.createBlock(&whileOp.getBefore());
+    rewriter.setInsertionPointToStart(before);
+    auto conditionOp = rewriter.create<mlir::cir::ConstantOp>(
+        op.getLoc(), mlir::cir::BoolType::get(getContext()),
+        mlir::cir::BoolAttr::get(getContext(),
+                                 mlir::cir::BoolType::get(getContext()), true));
+    rewriter.create<mlir::scf::ConditionOp>(op.getLoc(), conditionOp.getRes(),
+                                            mlir::ValueRange{});
+
+    auto after = rewriter.createBlock(&whileOp.getAfter());
+    rewriter.inlineRegionBefore(op.getBody(), whileOp.getAfter(),
+                                whileOp.getAfter().end());
+    auto mergedAfter = &whileOp.getAfter().back();
+    rewriter.mergeBlocks(after, mergedAfter, {});
+
+    rewriter.replaceOp(op, whileOp.getResults());
+    return mlir::LogicalResult::success();
+  }
+};
+
 void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
                                          mlir::TypeConverter &converter) {
   patterns.add<CIRReturnLowering, CIRBrOpLowering>(patterns.getContext());
@@ -605,7 +640,7 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
                CIRBinOpLowering, CIRLoadOpLowering, CIRConstantOpLowering,
                CIRStoreOpLowering, CIRAllocaOpLowering, CIRFuncOpLowering,
                CIRBrCondOpLowering, CIRTernaryOpLowering,
-               CIRYieldOpLowering>(converter, patterns.getContext());
+               CIRYieldOpLowering, CIRLoopOpInterfaceLowering>(converter, patterns.getContext());
 }
 
 class CIRIfOpLowering : public mlir::OpConversionPattern<mlir::cir::IfOp> {
@@ -635,36 +670,6 @@ public:
   }
 };
 
-class CIRLoopOpLowering : public mlir::OpConversionPattern<mlir::cir::LoopOp> {
-public:
-  using OpConversionPattern<mlir::cir::LoopOp>::OpConversionPattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(mlir::cir::LoopOp op, OpAdaptor adaptor,
-                  mlir::ConversionPatternRewriter &rewriter) const override {
-
-    auto whileOp = rewriter.create<mlir::scf::WhileOp>(
-        op.getLoc(), mlir::TypeRange{}, mlir::ValueRange{});
-
-    auto before = rewriter.createBlock(&whileOp.getBefore());
-    rewriter.setInsertionPointToStart(before);
-    auto conditionOp = rewriter.create<mlir::cir::ConstantOp>(
-        op.getLoc(), mlir::cir::BoolType::get(getContext()),
-        mlir::cir::BoolAttr::get(getContext(),
-                                 mlir::cir::BoolType::get(getContext()), true));
-    rewriter.create<mlir::scf::ConditionOp>(op.getLoc(), conditionOp.getRes(),
-                                            mlir::ValueRange{});
-
-    auto after = rewriter.createBlock(&whileOp.getAfter());
-    rewriter.inlineRegionBefore(op.getBody(), whileOp.getAfter(),
-                                whileOp.getAfter().end());
-    auto mergedAfter = &whileOp.getAfter().back();
-    rewriter.mergeBlocks(after, mergedAfter, {});
-
-    rewriter.replaceOp(op, whileOp.getResults());
-    return mlir::LogicalResult::success();
-  }
-};
 
 class CIRScopeOpLowering
     : public mlir::OpConversionPattern<mlir::cir::ScopeOp> {
@@ -905,7 +910,7 @@ void ConvertCIRToMLIRPass::runOnOperation() {
                CIRConstantOpLowering, CIRUnaryOpLowering, CIRBinOpLowering,
                CIRCmpOpLowering, CIRBrOpLowering, CIRBrCondOpLowering,
                CIRTernaryOpLowering, CIRYieldOpLowering, CIRIfOpLowering,
-               CIRLoopOpLowering, CIRScopeOpLowering, CIRCastOpLowering,
+               CIRLoopOpInterfaceLowering, CIRScopeOpLowering, CIRCastOpLowering,
                CIRGlobalOpLowering, CIRGetGlobalOpLowering>(converter, context);
 
   if (mlir::failed(

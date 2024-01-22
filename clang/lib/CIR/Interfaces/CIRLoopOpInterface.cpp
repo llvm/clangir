@@ -52,7 +52,7 @@ void LoopOpInterface::getLoopOpSuccessorRegions(
     regions.emplace_back(&op.getCond(), op.getCond().getArguments());
     return;
   }
-  llvm_unreachable("unexpected loop branch point");
+  llvm_unreachable("unexpected branch origin");
 }
 
 /// Verify invariants of the LoopOpInterface.
