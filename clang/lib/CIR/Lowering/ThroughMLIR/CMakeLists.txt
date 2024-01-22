@@ -37,4 +37,6 @@ add_clang_library(clangCIRLoweringThroughMLIR
   MLIRTransforms
   MLIRSupport
   MLIRMemRefDialect
+  MLIROpenMPDialect
+  MLIROpenMPToLLVMIRTranslation
   )
