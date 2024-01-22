@@ -66,11 +66,13 @@ struct ConstantAggregateBuilderUtils {
     return getSize(C.getType());
   }
 
-  mlir::Attribute getPadding(CharUnits size) const {
-    auto Ty = CGM.UCharTy;
-    auto& builder = CGM.getBuilder();
-    SmallVector<mlir::Attribute, 4> elts(size.getQuantity(), builder.getZeroAttr(Ty));
-    return mlir::ArrayAttr::get(builder.getContext(), elts);
+  mlir::TypedAttr getPadding(CharUnits size) const {
+    auto eltTy = CGM.UCharTy;
+    auto arSize = size.getQuantity();
+    auto& bld = CGM.getBuilder();
+    SmallVector<mlir::Attribute, 4> elts(arSize, bld.getZeroAttr(eltTy));
+    return bld.getConstArray(mlir::ArrayAttr::get(bld.getContext(), elts),
+                             bld.getArrayType(eltTy, arSize));
   }
 
   mlir::Attribute getZeroes(CharUnits ZeroSize) const {
