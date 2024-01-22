@@ -16,6 +16,7 @@
 #include "mlir/IR/Value.h"
 #include "clang/AST/CharUnits.h"
 #include "clang/AST/Stmt.h"
+#include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "llvm/Support/ErrorHandling.h"
 
@@ -875,7 +876,7 @@ mlir::LogicalResult CIRGenFunction::buildDoStmt(const DoStmt &S) {
 }
 
 mlir::LogicalResult CIRGenFunction::buildWhileStmt(const WhileStmt &S) {
-  mlir::cir::LoopOp loopOp;
+  mlir::cir::WhileOp whileOp;
 
   // TODO: pass in array of attributes.
   auto whileStmtBuilder = [&]() -> mlir::LogicalResult {
@@ -887,8 +888,8 @@ mlir::LogicalResult CIRGenFunction::buildWhileStmt(const WhileStmt &S) {
     // sure we handle all cases.
     assert(!UnimplementedFeature::requiresCleanups());
 
-    loopOp = builder.create<LoopOp>(
-        getLoc(S.getSourceRange()), mlir::cir::LoopOpKind::While,
+    whileOp = builder.createWhile(
+        getLoc(S.getSourceRange()),
         /*condBuilder=*/
         [&](mlir::OpBuilder &b, mlir::Location loc) {
           assert(!UnimplementedFeature::createProfileWeightsForLoop());
@@ -909,10 +910,6 @@ mlir::LogicalResult CIRGenFunction::buildWhileStmt(const WhileStmt &S) {
           if (buildStmt(S.getBody(), /*useCurrentScope=*/true).failed())
             loopRes = mlir::failure();
           buildStopPoint(&S);
-        },
-        /*stepBuilder=*/
-        [&](mlir::OpBuilder &b, mlir::Location loc) {
-          builder.createYield(loc);
         });
     return loopRes;
   };
@@ -929,7 +926,7 @@ mlir::LogicalResult CIRGenFunction::buildWhileStmt(const WhileStmt &S) {
   if (res.failed())
     return res;
 
-  terminateBody(builder, loopOp.getBody(), getLoc(S.getEndLoc()));
+  terminateBody(builder, whileOp.getBody(), getLoc(S.getEndLoc()));
   return mlir::success();
 }
 
