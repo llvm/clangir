@@ -38,6 +38,17 @@ CIR bool type
 
 `cir.bool` represent's C++ bool type.
 
+### ExceptionInfoType
+
+CIR exception info
+
+Syntax: `!cir.eh.info`
+
+Represents the content necessary for a `cir.call` to pass back an exception
+object pointer + some extra selector information. This type is required for
+some exception related operations, like `cir.catch`, `cir.eh.selector_slot`
+and `cir.eh.slot`.
+
 ### FuncType
 
 CIR function type

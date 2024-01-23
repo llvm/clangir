@@ -30,12 +30,12 @@ optionally contain backreferences to the Clang AST, enabling analysis and
 transformation passes to optionally use AST information, while also allowing
 progressive lowering through late use of AST nodes.
 
-By passing `-Xclang -fclangir-enable` to the clang driver, the compilation
-pipeline is modified and CIR gets emitted from ClangAST and then lowered to
-LLVM IR, backend, etc. Since our LLVM emission support is WIP, functionality is
+By passing `-fclangir-enable` to the clang driver, the compilation pipeline is
+modified and CIR gets emitted from ClangAST and then lowered to LLVM IR,
+backend, etc. Since our LLVM emission support is WIP, functionality is
 currently limited. To get CIR printed out of a compiler invocation, the flag
-`-Xclang -emit-cir` can be used, which will force the compiler to stop right
-after CIR is produced. The picture below depicts how the compiler pipeline works:
+`-emit-cir` can be used, which will force the compiler to stop right after CIR
+is produced. The picture below depicts how the compiler pipeline works:
 
 ![](/Images/Pipeline.png)
 
@@ -97,4 +97,4 @@ branch.
 On vim use ":r!date"
 -->
 
-*Last updated: Wed Dec 20 11:14:20 -03 2023*
+*Last updated: Tue Jan 23 11:51:38 PST 2024*

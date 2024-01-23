@@ -263,14 +263,14 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `lhs` | any type
-| `rhs` | any type
+| `lhs` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+| `rhs` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | any type
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
 
 ### `cir.brcond` (cir::BrCondOp)
 
@@ -313,8 +313,8 @@ Effects: MemoryEffects::Effect{}
 | Operand | Description |
 | :-----: | ----------- |
 | `cond` | CIR bool type
-| `destOperandsTrue` | variadic of any type
-| `destOperandsFalse` | variadic of any type
+| `destOperandsTrue` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+| `destOperandsFalse` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
 
 #### Successors:
 
@@ -356,7 +356,7 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `destOperands` | variadic of any type
+| `destOperands` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
 
 #### Successors:
 
@@ -364,24 +364,53 @@ Effects: MemoryEffects::Effect{}
 | :-------: | ----------- |
 | `dest` | any successor
 
+### `cir.break` (cir::BreakOp)
+
+_C/C++ `break` statement equivalent_
+
+
+Syntax:
+
+```
+operation ::= `cir.break` attr-dict
+```
+
+The `cir.break` operation is used to cease the control flow to the parent
+operation, exiting its region's control flow. It is only allowed if it is
+within a breakable operation (loops and `switch`).
+
+Traits: Terminator
+
 ### `cir.asm` (cir::InlineAsmOp)
 
 Syntax:
 
 ```
-operation ::= `cir.asm` `(`$asm_flavor`,` `{` $asm_string `}` `)` attr-dict `:` type($res)
+operation ::= `cir.asm` `(`$asm_flavor`,` `{` $asm_string $constraints `}` `)` attr-dict
+              `:` type($res)
 ```
 
 The `cir.asm` operation represents C/C++ asm inline.
 
+CIR constraints strings follow barelly the same rules that are established 
+for the C level assembler constraints with several differences caused by 
+clang::AsmStmt processing. 
+
+Thus, numbers that appears in the constraint string may also refer to:
+- the output variable index referenced by the input operands.
+- the index of early-clobber operand
+
 Example:
 ```C++
-__asm__ volatile("xyz" : : : );
+__asm__("foo" : : : );
+__asm__("bar $42 %[val]" : [val] "=r" (x), "+&r"(x));
+__asm__("baz $42 %[val]" : [val] "=r" (x), "+&r"(x) : "[val]"(y));
 ```
 
-```
 ```mlir
-cir.asm(x86_att, {"xyz"}) -> !void 
+cir.asm(x86_att, {"foo" ""})
+cir.asm(x86_att, {"bar $$42 $0" "=r,=&r,1"}) 
+cir.asm(x86_att, {"baz $$42 $0" "=r,=&r,0,1"}) 
 ```
 
 Traits: RecursiveMemoryEffects
@@ -391,14 +420,15 @@ Traits: RecursiveMemoryEffects
 <table>
 <tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
 <tr><td><code>asm_string</code></td><td>::mlir::StringAttr</td><td>string attribute</td></tr>
-<tr><td><code>asm_flavor</code></td><td>::mlir::cir::AsmDialectAttr</td><td>ATT or Intel</td></tr>
+<tr><td><code>constraints</code></td><td>::mlir::StringAttr</td><td>string attribute</td></tr>
+<tr><td><code>asm_flavor</code></td><td>::mlir::cir::AsmFlavorAttr</td><td>ATT or Intel</td></tr>
 </table>
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `res` | any type
+| `res` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
 
 ### `cir.call` (cir::CallOp)
 
@@ -426,7 +456,7 @@ Example:
 %20 = cir.call %18(%17)
 ```
 
-Interfaces: CallOpInterface, SymbolUserOpInterface
+Interfaces: CIRCallOpInterface, CallOpInterface, SymbolUserOpInterface
 
 #### Attributes:
 
@@ -440,13 +470,13 @@ Interfaces: CallOpInterface, SymbolUserOpInterface
 
 | Operand | Description |
 | :-----: | ----------- |
-| `operands` | variadic of any type
+| `operands` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-&laquo;unnamed&raquo; | variadic of any type
+&laquo;unnamed&raquo; | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
 
 ### `cir.cast` (cir::CastOp)
 
@@ -503,13 +533,13 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | any type
+| `src` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | any type
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
 
 ### `cir.catch` (cir::CatchOp)
 
@@ -534,14 +564,76 @@ Interfaces: ConditionallySpeculatable, RegionBranchOpInterface
 
 <table>
 <tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
-<tr><td><code>catchers</code></td><td>::mlir::ArrayAttr</td><td>cir.catch entry array attribute</td></tr>
+<tr><td><code>catchers</code></td><td>::mlir::ArrayAttr</td><td>array attribute</td></tr>
 </table>
 
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
-| `exception_info` | any type
+| `exception_info` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+
+### `cir.catch_param` (cir::CatchParamOp)
+
+_Materialize the catch clause formal parameter_
+
+
+Syntax:
+
+```
+operation ::= `cir.catch_param` `(` $exception_info `)` `->` qualified(type($param)) attr-dict
+```
+
+The `cir.catch_param` binds to a the C/C++ catch clause param and allow
+it to be materialized. This operantion grabs the param by looking into
+a exception info `!cir.eh_info` argument.
+
+Example:
+```mlir
+// TBD
+```
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `exception_info` | !cir.eh_info*
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `param` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+
+### `cir.ceil` (cir::CeilOp)
+
+_Libc builtin equivalent ignoring floating point exceptions and errno_
+
+
+Syntax:
+
+```
+operation ::= `cir.ceil` $src `:` type($src) attr-dict
+```
+
+
+Traits: AlwaysSpeculatableImplTrait, SameOperandsAndResultType
+
+Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)
+
+Effects: MemoryEffects::Effect{}
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `src` | floating-point
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | floating-point
 
 ### `cir.cmp` (cir::CmpOp)
 
@@ -579,14 +671,64 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `lhs` | any type
-| `rhs` | any type
+| `lhs` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+| `rhs` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | any type
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+
+### `cir.condition` (cir::ConditionOp)
+
+_Loop continuation condition._
+
+
+Syntax:
+
+```
+operation ::= `cir.condition` `(` $condition `)` attr-dict
+```
+
+The `cir.condition` terminates conditional regions. It takes a single
+`cir.bool` operand and, depending on its value, may branch to different
+regions:
+
+ - When in the `cond` region of a `cir.loop`, it continues the loop
+   if true, or exits it if false.
+ - When in the `ready` region of a `cir.await`, it branches to the `resume`
+   region when true, and to the `suspend` region when false.
+
+Example:
+
+```mlir
+cir.loop for(cond : {
+  cir.condition(%arg0) // Branches to `step` region or exits.
+}, step : {
+  [...]
+}) {
+  [...]
+}
+
+cir.await(user, ready : {
+  cir.condition(%arg0) // Branches to `resume` or `suspend` region.
+}, suspend : {
+  [...]
+}, resume : {
+  [...]
+},)
+```
+
+Traits: Terminator
+
+Interfaces: RegionBranchTerminatorOpInterface
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `condition` | CIR bool type
 
 ### `cir.const` (cir::ConstantOp)
 
@@ -625,7 +767,23 @@ Effects: MemoryEffects::Effect{}
 
 | Result | Description |
 | :----: | ----------- |
-| `res` | any type
+| `res` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+
+### `cir.continue` (cir::ContinueOp)
+
+_C/C++ `continue` statement equivalent_
+
+
+Syntax:
+
+```
+operation ::= `cir.continue` attr-dict
+```
+
+The `cir.continue` operation is used to continue execution to the next
+iteration of a loop. It is only allowed within `cir.loop` regions.
+
+Traits: Terminator
 
 ### `cir.copy` (cir::CopyOp)
 
@@ -661,25 +819,17 @@ Traits: SameTypeOperands
 | `dst` | CIR pointer type
 | `src` | CIR pointer type
 
-### `cir.fabs` (cir::FAbsOp)
+### `cir.cos` (cir::CosOp)
 
-_Returns absolute value for floating-point input._
+_Libc builtin equivalent ignoring floating point exceptions and errno_
 
 
 Syntax:
 
 ```
-operation ::= `cir.fabs` $src `:` type($src) attr-dict
+operation ::= `cir.cos` $src `:` type($src) attr-dict
 ```
 
-Equivalent to libc's `fabs` and LLVM's intrinsic with the same name.
-
-Examples:
-
-```mlir
-  %1 = cir.const(1.0 : f64) : f64
-  %2 = cir.fabs %1 : f64
-```
 
 Traits: AlwaysSpeculatableImplTrait, SameOperandsAndResultType
 
@@ -698,6 +848,195 @@ Effects: MemoryEffects::Effect{}
 | Result | Description |
 | :----: | ----------- |
 | `result` | floating-point
+
+### `cir.do` (cir::DoWhileOp)
+
+_C/C++ do-while loop_
+
+
+Syntax:
+
+```
+operation ::= `cir.do` $body `while` $cond attr-dict
+```
+
+Represents a C/C++ do-while loop. Identical to `cir.while` but the
+condition is evaluated after the body.
+
+Example:
+
+```mlir
+cir.do {
+  cir.break
+^bb2:
+  cir.yield
+} while {
+  cir.condition %cond : cir.bool
+}
+```
+
+Traits: NoRegionArguments
+
+Interfaces: LoopLikeOpInterface, LoopOpInterface, RegionBranchOpInterface
+
+### `cir.exp2` (cir::Exp2Op)
+
+_Libc builtin equivalent ignoring floating point exceptions and errno_
+
+
+Syntax:
+
+```
+operation ::= `cir.exp2` $src `:` type($src) attr-dict
+```
+
+
+Traits: AlwaysSpeculatableImplTrait, SameOperandsAndResultType
+
+Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)
+
+Effects: MemoryEffects::Effect{}
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `src` | floating-point
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | floating-point
+
+### `cir.exp` (cir::ExpOp)
+
+_Libc builtin equivalent ignoring floating point exceptions and errno_
+
+
+Syntax:
+
+```
+operation ::= `cir.exp` $src `:` type($src) attr-dict
+```
+
+
+Traits: AlwaysSpeculatableImplTrait, SameOperandsAndResultType
+
+Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)
+
+Effects: MemoryEffects::Effect{}
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `src` | floating-point
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | floating-point
+
+### `cir.fabs` (cir::FAbsOp)
+
+_Libc builtin equivalent ignoring floating point exceptions and errno_
+
+
+Syntax:
+
+```
+operation ::= `cir.fabs` $src `:` type($src) attr-dict
+```
+
+
+Traits: AlwaysSpeculatableImplTrait, SameOperandsAndResultType
+
+Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)
+
+Effects: MemoryEffects::Effect{}
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `src` | floating-point
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | floating-point
+
+### `cir.floor` (cir::FloorOp)
+
+_Libc builtin equivalent ignoring floating point exceptions and errno_
+
+
+Syntax:
+
+```
+operation ::= `cir.floor` $src `:` type($src) attr-dict
+```
+
+
+Traits: AlwaysSpeculatableImplTrait, SameOperandsAndResultType
+
+Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)
+
+Effects: MemoryEffects::Effect{}
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `src` | floating-point
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | floating-point
+
+### `cir.for` (cir::ForOp)
+
+_C/C++ for loop counterpart_
+
+
+Syntax:
+
+```
+operation ::= `cir.for` `:` `cond` $cond
+              `body` $body
+              `step` $step
+              attr-dict
+```
+
+Represents a C/C++ for loop. It consists of three regions:
+
+ - `cond`: single block region with the loop's condition. Should be
+ terminated with a `cir.condition` operation.
+ - `body`: contains the loop body and an arbitrary number of blocks.
+ - `step`: single block region with the loop's step.
+
+Example:
+
+```mlir
+cir.for cond {
+  cir.condition(%val)
+} body {
+  cir.break
+^bb2:
+  cir.yield
+} step {
+  cir.yield
+}
+```
+
+Traits: NoRegionArguments
+
+Interfaces: LoopLikeOpInterface, LoopOpInterface, RegionBranchOpInterface
 
 ### `cir.func` (cir::FuncOp)
 
@@ -796,7 +1135,7 @@ Syntax:
 
 ```
 operation ::= `cir.get_bitfield` `(`$bitfield_info `,` $addr attr-dict `:`
-              type($addr) `)` `->` type($result)
+              qualified(type($addr)) `)` `->` type($result)
 ```
 
 The `cir.get_bitfield` operation provides a load-like access to
@@ -845,7 +1184,7 @@ int load_bitfield(S& s) {
 
 | Operand | Description |
 | :-----: | ----------- |
-| `addr` | any type
+| `addr` | CIR pointer type
 
 #### Results:
 
@@ -1042,6 +1381,72 @@ Interfaces: ConditionallySpeculatable, RegionBranchOpInterface
 | :-----: | ----------- |
 | `condition` | CIR bool type
 
+### `cir.iterator_begin` (cir::IterBeginOp)
+
+_Returns an iterator to the first element of a container_
+
+
+Syntax:
+
+```
+operation ::= `cir.iterator_begin` `(`
+              $original_fn `,` $container `:` type($container)
+              `)` `->` type($result) attr-dict
+```
+
+
+#### Attributes:
+
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>original_fn</code></td><td>::mlir::FlatSymbolRefAttr</td><td>flat symbol reference attribute</td></tr>
+</table>
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `container` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+
+### `cir.iterator_end` (cir::IterEndOp)
+
+_Returns an iterator to the element following the last element of a container_
+
+
+Syntax:
+
+```
+operation ::= `cir.iterator_end` `(`
+              $original_fn `,` $container `:` type($container)
+              `)` `->` type($result) attr-dict
+```
+
+
+#### Attributes:
+
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>original_fn</code></td><td>::mlir::FlatSymbolRefAttr</td><td>flat symbol reference attribute</td></tr>
+</table>
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `container` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+
 ### `cir.load` (cir::LoadOp)
 
 _Load value from memory adddress_
@@ -1090,65 +1495,97 @@ Interfaces: InferTypeOpInterface
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | any type
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
 
-### `cir.loop` (cir::LoopOp)
+### `cir.log10` (cir::Log10Op)
 
-_Loop_
+_Libc builtin equivalent ignoring floating point exceptions and errno_
 
 
 Syntax:
 
 ```
-operation ::= `cir.loop` $kind
-              `(`
-              `cond` `:` $cond `,`
-              `step` `:` $step
-              `)`
-              $body
-              attr-dict
+operation ::= `cir.log10` $src `:` type($src) attr-dict
 ```
 
-`cir.loop` represents C/C++ loop forms. It defines 3 blocks:
-- `cond`: region can contain multiple blocks, terminated by regular
-`cir.yield` when control should yield back to the parent, and
-`cir.yield continue` when execution continues to another region.
-The region destination depends on the loop form specified.
-- `step`: region with one block, containing code to compute the
-loop step, must be terminated with `cir.yield`.
-- `body`: region for the loop's body, can contain an arbitrary
-number of blocks.
 
-The loop form: `for`, `while` and `dowhile` must also be specified and
-each implies the loop regions execution order.
+Traits: AlwaysSpeculatableImplTrait, SameOperandsAndResultType
 
-```mlir
-  // while (true) {
-  //  i = i + 1;
-  // }
-  cir.loop while(cond :  {
-    cir.yield continue
-  }, step :  {
-    cir.yield
-  })  {
-    %3 = cir.load %1 : cir.ptr <i32>, i32
-    %4 = cir.const(1 : i32) : i32
-    %5 = cir.binop(add, %3, %4) : i32
-    cir.store %5, %1 : i32, cir.ptr <i32>
-    cir.yield
-  }
+Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)
+
+Effects: MemoryEffects::Effect{}
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `src` | floating-point
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | floating-point
+
+### `cir.log2` (cir::Log2Op)
+
+_Libc builtin equivalent ignoring floating point exceptions and errno_
+
+
+Syntax:
+
+```
+operation ::= `cir.log2` $src `:` type($src) attr-dict
 ```
 
-Traits: NoRegionArguments, RecursivelySpeculatableImplTrait
 
-Interfaces: ConditionallySpeculatable, LoopLikeOpInterface, RegionBranchOpInterface
+Traits: AlwaysSpeculatableImplTrait, SameOperandsAndResultType
 
-#### Attributes:
+Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)
 
-<table>
-<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
-<tr><td><code>kind</code></td><td>::mlir::cir::LoopOpKindAttr</td><td>Loop kind</td></tr>
-</table>
+Effects: MemoryEffects::Effect{}
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `src` | floating-point
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | floating-point
+
+### `cir.log` (cir::LogOp)
+
+_Libc builtin equivalent ignoring floating point exceptions and errno_
+
+
+Syntax:
+
+```
+operation ::= `cir.log` $src `:` type($src) attr-dict
+```
+
+
+Traits: AlwaysSpeculatableImplTrait, SameOperandsAndResultType
+
+Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)
+
+Effects: MemoryEffects::Effect{}
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `src` | floating-point
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | floating-point
 
 ### `cir.libc.memchr` (cir::MemChrOp)
 
@@ -1223,6 +1660,36 @@ Examples:
 | `src` | CIR pointer type
 | `len` | Integer type with arbitrary precision up to a fixed limit
 
+### `cir.nearbyint` (cir::NearbyintOp)
+
+_Libc builtin equivalent ignoring floating point exceptions and errno_
+
+
+Syntax:
+
+```
+operation ::= `cir.nearbyint` $src `:` type($src) attr-dict
+```
+
+
+Traits: AlwaysSpeculatableImplTrait, SameOperandsAndResultType
+
+Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)
+
+Effects: MemoryEffects::Effect{}
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `src` | floating-point
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | floating-point
+
 ### `cir.objsize` (cir::ObjSizeOp)
 
 _Conversion between values of different types_
@@ -1274,7 +1741,7 @@ _Pointer subtraction arithmetic_
 Syntax:
 
 ```
-operation ::= `cir.ptr_diff` `(` $lhs `,` $rhs  `)` `:` type($lhs) `->` type($result) attr-dict
+operation ::= `cir.ptr_diff` `(` $lhs `,` $rhs  `)` `:` qualified(type($lhs)) `->` qualified(type($result)) attr-dict
 ```
 
 `cir.ptr_diff` performs a subtraction between two pointer types with the
@@ -1299,8 +1766,8 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `lhs` | any type
-| `rhs` | any type
+| `lhs` | CIR pointer type
+| `rhs` | CIR pointer type
 
 #### Results:
 
@@ -1316,8 +1783,8 @@ _Pointer access with stride_
 Syntax:
 
 ```
-operation ::= `cir.ptr_stride` `(` $base `:` type($base) `,` $stride `:` qualified(type($stride)) `)`
-              `,` type($result) attr-dict
+operation ::= `cir.ptr_stride` `(` $base `:` qualified(type($base)) `,` $stride `:` qualified(type($stride)) `)`
+              `,` qualified(type($result)) attr-dict
 ```
 
 Given a base pointer as first operand, provides a new pointer after applying
@@ -1338,14 +1805,40 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `base` | any type
+| `base` | CIR pointer type
 | `stride` | Integer type with arbitrary precision up to a fixed limit
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | any type
+| `result` | CIR pointer type
+
+### `cir.resume` (cir::ResumeOp)
+
+_Resumes execution after not catching exceptions_
+
+
+Syntax:
+
+```
+operation ::= `cir.resume` attr-dict
+```
+
+The `cir.resume` operation terminates a region on `cir.catch`, "resuming"
+or continuing the unwind process.
+
+Examples:
+```mlir
+cir.catch ... {
+  ...
+  fallback { cir.resume };
+}
+```
+
+Traits: HasParent<CatchOp>, ReturnLike, Terminator
+
+Interfaces: RegionBranchTerminatorOpInterface
 
 ### `cir.return` (cir::ReturnOp)
 
@@ -1370,13 +1863,73 @@ the operation.
   }
 ```
 
-Traits: HasParent<FuncOp, ScopeOp, IfOp, SwitchOp, LoopOp>, Terminator
+Traits: HasParent<FuncOp, ScopeOp, IfOp, SwitchOp, DoWhileOp, WhileOp, ForOp>, Terminator
 
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input` | variadic of any type
+| `input` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+
+### `cir.rint` (cir::RintOp)
+
+_Libc builtin equivalent ignoring floating point exceptions and errno_
+
+
+Syntax:
+
+```
+operation ::= `cir.rint` $src `:` type($src) attr-dict
+```
+
+
+Traits: AlwaysSpeculatableImplTrait, SameOperandsAndResultType
+
+Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)
+
+Effects: MemoryEffects::Effect{}
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `src` | floating-point
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | floating-point
+
+### `cir.round` (cir::RoundOp)
+
+_Libc builtin equivalent ignoring floating point exceptions and errno_
+
+
+Syntax:
+
+```
+operation ::= `cir.round` $src `:` type($src) attr-dict
+```
+
+
+Traits: AlwaysSpeculatableImplTrait, SameOperandsAndResultType
+
+Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)
+
+Effects: MemoryEffects::Effect{}
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `src` | floating-point
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | floating-point
 
 ### `cir.scope` (cir::ScopeOp)
 
@@ -1415,7 +1968,7 @@ Interfaces: ConditionallySpeculatable, RegionBranchOpInterface
 
 | Result | Description |
 | :----: | ----------- |
-| `results` | any type
+| `results` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
 
 ### `cir.set_bitfield` (cir::SetBitfieldOp)
 
@@ -1425,16 +1978,16 @@ _Set a bitfield_
 Syntax:
 
 ```
-operation ::= `cir.set_bitfield` `(`$bitfield_info`,` $dst`:`type($dst)`,`
+operation ::= `cir.set_bitfield` `(`$bitfield_info`,` $dst`:`qualified(type($dst))`,`
               $src`:`type($src) `)`  attr-dict `->` type($result)
 ```
 
-The `cir.set_bitfield` operation provides a store-like access to 
+The `cir.set_bitfield` operation provides a store-like access to
 a bit field of a record.
 
 It expects an address of a storage where to store, a type of the storage,
 a value being stored, a name of a bit field, a pointer to the storage in the
-base record, a size of the storage, a size the bit field, an offset 
+base record, a size of the storage, a size the bit field, an offset
 of the bit field and a sign. Returns a value being stored.
 
 Example.
@@ -1477,8 +2030,8 @@ void store_bitfield(S& s) {
 
 | Operand | Description |
 | :-----: | ----------- |
-| `dst` | any type
-| `src` | any type
+| `dst` | CIR pointer type
+| `src` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
 
 #### Results:
 
@@ -1534,6 +2087,121 @@ Effects: MemoryEffects::Effect{}
 | :----: | ----------- |
 | `result` | Integer type with arbitrary precision up to a fixed limit
 
+### `cir.sin` (cir::SinOp)
+
+_Libc builtin equivalent ignoring floating point exceptions and errno_
+
+
+Syntax:
+
+```
+operation ::= `cir.sin` $src `:` type($src) attr-dict
+```
+
+
+Traits: AlwaysSpeculatableImplTrait, SameOperandsAndResultType
+
+Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)
+
+Effects: MemoryEffects::Effect{}
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `src` | floating-point
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | floating-point
+
+### `cir.sqrt` (cir::SqrtOp)
+
+_Libc builtin equivalent ignoring floating point exceptions and errno_
+
+
+Syntax:
+
+```
+operation ::= `cir.sqrt` $src `:` type($src) attr-dict
+```
+
+
+Traits: AlwaysSpeculatableImplTrait, SameOperandsAndResultType
+
+Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)
+
+Effects: MemoryEffects::Effect{}
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `src` | floating-point
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | floating-point
+
+### `cir.stack_restore` (cir::StackRestoreOp)
+
+_Restores the state of the function stack_
+
+
+Syntax:
+
+```
+operation ::= `cir.stack_restore` $ptr attr-dict `:` qualified(type($ptr))
+```
+
+Restore the state of the function stack to the state it was
+in when the corresponding cir.stack_save executed.
+Useful for implementing language features like variable length arrays.
+
+```mlir
+%0 = cir.alloca !cir.ptr<!u8i>, cir.ptr <!cir.ptr<!u8i>>, ["saved_stack"] {alignment = 8 : i64}
+%1 = cir.stack_save : <!u8i>
+cir.store %1, %0 : !cir.ptr<!u8i>, cir.ptr <!cir.ptr<!u8i>>
+%2 = cir.load %0 : cir.ptr <!cir.ptr<!u8i>>, !cir.ptr<!u8i>
+cir.stack_restore %2 : !cir.ptr<!u8i>
+```
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `ptr` | CIR pointer type
+
+### `cir.stack_save` (cir::StackSaveOp)
+
+_Remembers the current state of the function stack_
+
+
+Syntax:
+
+```
+operation ::= `cir.stack_save` attr-dict `:` qualified(type($result))
+```
+
+Remembers the current state of the function stack. Returns a pointer
+that later can be passed into cir.stack_restore.
+Useful for implementing language features like variable length arrays.
+
+```mlir
+%0 = cir.stack_save : <!u8i>
+```
+
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | CIR pointer type
+
 ### `cir.std.find` (cir::StdFindOp)
 
 _Std:find()_
@@ -1575,15 +2243,15 @@ Traits: SameFirstSecondOperandAndResultType
 
 | Operand | Description |
 | :-----: | ----------- |
-| `first` | any type
-| `last` | any type
-| `pattern` | any type
+| `first` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+| `last` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+| `pattern` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | any type
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
 
 ### `cir.store` (cir::StoreOp)
 
@@ -1610,7 +2278,7 @@ cir.store %arg0, %0 : i32, !cir.ptr<i32>
 
 | Operand | Description |
 | :-----: | ----------- |
-| `value` | any type
+| `value` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
 | `addr` | CIR pointer type
 
 ### `cir.switch` (cir::SwitchOp)
@@ -1725,7 +2393,7 @@ Interfaces: ConditionallySpeculatable, RegionBranchOpInterface
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | any type
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
 
 ### `cir.throw` (cir::ThrowOp)
 
@@ -1766,7 +2434,7 @@ run as part of this operation.
     cir.throw(%11 : !cir.ptr<!cir.ptr<!u8i>>, @"typeinfo for char const*")
 ```
 
-Traits: HasParent<FuncOp, ScopeOp, IfOp, SwitchOp, LoopOp>, Terminator
+Traits: HasParent<FuncOp, ScopeOp, IfOp, SwitchOp, DoWhileOp, WhileOp, ForOp>, Terminator
 
 #### Attributes:
 
@@ -1780,7 +2448,81 @@ Traits: HasParent<FuncOp, ScopeOp, IfOp, SwitchOp, LoopOp>, Terminator
 
 | Operand | Description |
 | :-----: | ----------- |
-| `exception_ptr` | any type
+| `exception_ptr` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+
+### `cir.trunc` (cir::TruncOp)
+
+_Libc builtin equivalent ignoring floating point exceptions and errno_
+
+
+Syntax:
+
+```
+operation ::= `cir.trunc` $src `:` type($src) attr-dict
+```
+
+
+Traits: AlwaysSpeculatableImplTrait, SameOperandsAndResultType
+
+Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)
+
+Effects: MemoryEffects::Effect{}
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `src` | floating-point
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | floating-point
+
+### `cir.try_call` (cir::TryCallOp)
+
+_Try call operation_
+
+Very similar to `cir.call` but passes down an exception object
+in case anything is thrown by the callee.
+
+To walk the operands for this operation, use `getNumArgOperands()`,
+`getArgOperand()`, `getArgOperands()`, `arg_operand_begin()` and
+`arg_operand_begin()`. Avoid using `getNumOperands()`, `getOperand()`,
+`operand_begin()`, etc, direclty - might be misleading given the
+exception object address is also part of the raw operation's operands.
+``
+
+Example:
+
+```mlir
+%0 = cir.alloca !cir.eh.info, cir.ptr <!cir.eh.info> ...
+%r = cir.try_call %exception(%0) @division(%1, %2), %0
+```
+
+Interfaces: CIRCallOpInterface, CallOpInterface, SymbolUserOpInterface
+
+#### Attributes:
+
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>callee</code></td><td>::mlir::FlatSymbolRefAttr</td><td>flat symbol reference attribute</td></tr>
+<tr><td><code>ast</code></td><td>::mlir::cir::ASTCallExprInterface</td><td>ASTCallExprInterface instance</td></tr>
+</table>
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `exceptionInfo` | !cir.eh_info*
+| `callOps` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+&laquo;unnamed&raquo; | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
 
 ### `cir.try` (cir::TryOp)
 
@@ -1833,7 +2575,7 @@ Interfaces: ConditionallySpeculatable, RegionBranchOpInterface
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | any type
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
 
 ### `cir.unary` (cir::UnaryOp)
 
@@ -1878,13 +2620,13 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input` | any type
+| `input` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | any type
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
 
 ### `cir.va.arg` (cir::VAArgOp)
 
@@ -1908,7 +2650,7 @@ operation ::= `cir.va.arg` $arg_list attr-dict `:` functional-type(operands, $re
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | any type
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
 
 ### `cir.va.copy` (cir::VACopyOp)
 
@@ -2019,7 +2761,7 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `sym_addr` | any type
+| `sym_addr` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
 
 #### Results:
 
@@ -2052,7 +2794,7 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `elements` | variadic of any type
+| `elements` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
 
 #### Results:
 
@@ -2068,7 +2810,7 @@ _Extract one element from a vector object_
 Syntax:
 
 ```
-operation ::= `cir.vec.extract` $vec `[` $index `:` type($index) `]` type($vec) `->` type($result) attr-dict
+operation ::= `cir.vec.extract` $vec `[` $index `:` type($index) `]` attr-dict `:` type($vec)
 ```
 
 The `cir.vec.extract` operation extracts the element at the given index
@@ -2091,35 +2833,97 @@ Effects: MemoryEffects::Effect{}
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | any type
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
 
-### `cir.yield` (cir::YieldOp)
+### `cir.vec.insert` (cir::VecInsertOp)
 
-_Terminate CIR regions_
+_Insert one element into a vector object_
 
 
 Syntax:
 
 ```
-operation ::= `cir.yield` ($kind^)? ($args^ `:` type($args))? attr-dict
+operation ::= `cir.vec.insert` $value `,` $vec `[` $index `:` type($index) `]` attr-dict `:` type($vec)
 ```
 
-The `cir.yield` operation terminates regions on different CIR operations:
-`cir.if`, `cir.scope`, `cir.switch`, `cir.loop`, `cir.await`, `cir.ternary`
-and `cir.global`.
+The `cir.vec.insert` operation replaces the element of the given vector at
+the given index with the given value.  The new vector with the inserted
+element is returned.
 
-Might yield an SSA value and the semantics of how the values are yielded is
-defined by the parent operation.
+Traits: AlwaysSpeculatableImplTrait
 
-Optionally, `cir.yield` can be annotated with extra kind specifiers:
-- `break`: breaking out of the innermost `cir.switch` / `cir.loop` semantics,
-cannot be used if not dominated by these parent operations.
-- `fallthrough`: execution falls to the next region in `cir.switch` case list.
-Only available inside `cir.switch` regions.
-- `continue`: only allowed under `cir.loop`, continue execution to the next
-loop step.
-- `nosuspend`: specific to the `ready` region inside `cir.await` op, it makes
-control-flow to be transfered back to the parent, preventing suspension.
+Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)
+
+Effects: MemoryEffects::Effect{}
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `vec` | CIR vector type
+| `value` | any type
+| `index` | Integer type with arbitrary precision up to a fixed limit
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | CIR vector type
+
+### `cir.while` (cir::WhileOp)
+
+_C/C++ while loop_
+
+
+Syntax:
+
+```
+operation ::= `cir.while` $cond `do` $body attr-dict
+```
+
+Represents a C/C++ while loop. It consists of two regions:
+
+ - `cond`: single block region with the loop's condition. Should be
+ terminated with a `cir.condition` operation.
+ - `body`: contains the loop body and an arbitrary number of blocks.
+
+Example:
+
+```mlir
+cir.while {
+  cir.break
+^bb2:
+  cir.yield
+} do {
+  cir.condition %cond : cir.bool
+}
+```
+
+Traits: NoRegionArguments
+
+Interfaces: LoopLikeOpInterface, LoopOpInterface, RegionBranchOpInterface
+
+### `cir.yield` (cir::YieldOp)
+
+_Represents the default branching behaviour of a region_
+
+
+Syntax:
+
+```
+operation ::= `cir.yield` ($args^ `:` type($args))? attr-dict
+```
+
+The `cir.yield` operation terminates regions on different CIR operations,
+and it is used to represent the default branching behaviour of a region.
+Said branching behaviour is determinted by the parent operation. For
+example, a yield in a `switch-case` region implies a fallthrough, while
+a yield in a `cir.if` region implies a branch to the exit block, and so
+on.
+
+In some cases, it might yield an SSA value and the semantics of how the
+values are yielded is defined by the parent operation. For example, a
+`cir.ternary` operation yields a value from one of its regions.
 
 As a general rule, `cir.yield` must be explicitly used whenever a region has
 more than one block and no terminator, or within `cir.switch` regions not
@@ -2135,24 +2939,9 @@ cir.if %4 {
 cir.switch (%5) [
   case (equal, 3) {
     ...
-    cir.yield fallthrough
+    cir.yield
   }, ...
 ]
-
-cir.loop (cond : {...}, step : {...}) {
-  ...
-  cir.yield continue
-}
-
-cir.await(init, ready : {
-  // Call std::suspend_always::await_ready
-  %18 = cir.call @_ZNSt14suspend_always11await_readyEv(...)
-  cir.if %18 {
-    // yields back to the parent.
-    cir.yield nosuspend
-  }
-  cir.yield // control-flow to the next region for suspension.
-}, ...)
 
 cir.scope {
   ...
@@ -2170,22 +2959,15 @@ cir.scope {
 } : i32
 ```
 
-Traits: HasParent<IfOp, ScopeOp, SwitchOp, LoopOp, AwaitOp, TernaryOp, GlobalOp>, ReturnLike, Terminator
+Traits: HasParent<IfOp, ScopeOp, SwitchOp, WhileOp, ForOp, AwaitOp, TernaryOp, GlobalOp, DoWhileOp, CatchOp>, ReturnLike, Terminator
 
 Interfaces: RegionBranchTerminatorOpInterface
-
-#### Attributes:
-
-<table>
-<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
-<tr><td><code>kind</code></td><td>::mlir::cir::YieldOpKindAttr</td><td>yield kind</td></tr>
-</table>
 
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
-| `args` | variadic of any type
+| `args` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
 
 ### `cir.llvmir.zeroinit` (cir::ZeroInitConstOp)
 
