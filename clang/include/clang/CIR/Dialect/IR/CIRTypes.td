@@ -274,13 +274,13 @@ def VoidPtr : Type<
       "mlir::cir::VoidType::get($_builder.getContext()))"> {
 }
 
-// Pointer to exception info
+// Pointers to exception info
 def ExceptionInfoPtr : Type<
     And<[
       CPred<"mlir::isa<::mlir::cir::PointerType>($_self)">,
       CPred<"mlir::isa<::mlir::cir::ExceptionInfoType>("
             "mlir::cast<::mlir::cir::PointerType>($_self).getPointee())">,
-    ]>, "void*">,
+    ]>, "!cir.eh_info*">,
     BuildableType<
       "mlir::cir::PointerType::get($_builder.getContext(),"
       "mlir::cir::ExceptionInfoType::get($_builder.getContext()))"> {
