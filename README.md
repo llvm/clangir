@@ -37,7 +37,7 @@ currently limited. To get CIR printed out of a compiler invocation, the flag
 `-emit-cir` can be used, which will force the compiler to stop right after CIR
 is produced. The picture below depicts how the compiler pipeline works:
 
-![](/Images/Pipeline.png)
+![](/Images/2024-Jan-Pipeline.png)
 
 See
 [instructions](https://llvm.github.io/clangir/GettingStarted/build-install.html)
