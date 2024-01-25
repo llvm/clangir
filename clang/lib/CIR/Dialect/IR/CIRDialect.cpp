@@ -2305,13 +2305,9 @@ LogicalResult mlir::cir::ConstArrayAttr::verify(
   auto at = type.cast<ArrayType>();
 
   // Make sure both number of elements and subelement types match type.
-<<<<<<< HEAD
-  if (at.getSize() != arrayAttr.size())
-=======
   auto trailingZeros = at.getSize() - arrayAttr.size();
   if ((!hasTrailingZeros && trailingZeros) ||
       (hasTrailingZeros && !trailingZeros))
->>>>>>> 23611f0f5608 (simplified a little)
     return emitError() << "constant array size should match type size";
   LogicalResult eltTypeCheck = success();
   arrayAttr.walkImmediateSubElements(
@@ -2376,13 +2372,6 @@ LogicalResult mlir::cir::ConstArrayAttr::verify(
     }
   }
 
-<<<<<<< HEAD
-  // Parse literal '>'
-  if (parser.parseGreater())
-    return {};
-  return parser.getChecked<ConstArrayAttr>(loc, parser.getContext(),
-                                           resultTy.value(), resultVal.value());
-=======
   bool hasZeros = false;
   if (parser.parseOptionalComma().succeeded()) {
     if (parser.parseOptionalKeyword("trailingZeros").succeeded())
@@ -2397,17 +2386,13 @@ LogicalResult mlir::cir::ConstArrayAttr::verify(
 
   return parser.getChecked<ConstArrayAttr>(
       loc, parser.getContext(), resultTy.value(), resultVal.value(), hasZeros);
->>>>>>> 23611f0f5608 (simplified a little)
 }
 
 void ConstArrayAttr::print(::mlir::AsmPrinter &printer) const {
   printer << "<";
   printer.printStrippedAttrOrType(getElts());
-<<<<<<< HEAD
-=======
   if (auto zeros = getTrailingZerosNum())
     printer << ", trailingZeros";
->>>>>>> 23611f0f5608 (simplified a little)
   printer << ">";
 }
 
