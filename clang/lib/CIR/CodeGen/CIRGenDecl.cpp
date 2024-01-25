@@ -154,33 +154,41 @@ CIRGenFunction::buildAutoVarAlloca(const VarDecl &D,
       assert(!UnimplementedFeature::shouldEmitLifetimeMarkers());
     }
   } else { // not openmp nor constant sized type
+    bool VarAllocated = false;
     if (getLangOpts().OpenMPIsTargetDevice)
       llvm_unreachable("NYI");
 
-    if (!DidCallStackSave) {
-      // Save the stack.
-      auto defaultTy = AllocaInt8PtrTy;
-      CharUnits Align =
-        CharUnits::fromQuantity(CGM.getDataLayout().getAlignment(defaultTy, false));
-      Address Stack = CreateTempAlloca(defaultTy, Align, loc, "saved_stack");
-      
-      mlir::Value V = builder.createStackSave(loc, defaultTy);
-      assert(V.getType() == AllocaInt8PtrTy);
-      builder.createStore(loc, V, Stack);
+    if (!VarAllocated) {
+      if (!DidCallStackSave) {
+        // Save the stack.
+        auto defaultTy = AllocaInt8PtrTy;
+        CharUnits Align = CharUnits::fromQuantity(
+            CGM.getDataLayout().getAlignment(defaultTy, false));
+        Address Stack = CreateTempAlloca(defaultTy, Align, loc, "saved_stack");
 
-      DidCallStackSave = true;
+        mlir::Value V = builder.createStackSave(loc, defaultTy);
+        assert(V.getType() == AllocaInt8PtrTy);
+        builder.createStore(loc, V, Stack);
 
-      // Push a cleanup block and restore the stack there.
-      // FIXME: in general circumstances, this should be an EH cleanup.
-      pushStackRestore(NormalCleanup, Stack);
+        DidCallStackSave = true;
+
+        // Push a cleanup block and restore the stack there.
+        // FIXME: in general circumstances, this should be an EH cleanup.
+        pushStackRestore(NormalCleanup, Stack);
+      }
+
+      auto VlaSize = getVLASize(Ty);
+      mlir::Type mTy = convertTypeForMem(VlaSize.Type);
+
+      // Allocate memory for the array.
+      address = CreateTempAlloca(mTy, alignment, loc, "vla", VlaSize.NumElts,
+                                &allocaAddr, builder.saveInsertionPoint());
     }
 
-    auto VlaSize = getVLASize(Ty);
-    mlir::Type mTy = convertTypeForMem(VlaSize.Type);
-
-    // Allocate memory for the array.
-    address = CreateTempAlloca(mTy, alignment, loc, "vla", VlaSize.NumElts,
-                                 &allocaAddr, builder.saveInsertionPoint());
+    // If we have debug info enabled, properly describe the VLA dimensions for
+    // this type by registering the vla size expression for each of the
+    // dimensions.
+    assert(!UnimplementedFeature::generateDebugInfo());
   }
 
   emission.Addr = address;

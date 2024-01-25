@@ -1423,9 +1423,12 @@ CIRGenFunction::getVLASize(const VariableArrayType *type) {
     }
   } while ((type = getContext().getAsVariableArrayType(elementType)));
 
-  return { numElements, elementType };
+  assert(numElements && "Undefined elements number");
+  return {numElements, elementType};
 }
 
+// TODO(cir): most part of this function can be shared between CIRGen
+// and traditional LLVM codegen
 void CIRGenFunction::buildVariablyModifiedType(QualType type) {
   assert(type->isVariablyModifiedType() &&
          "Must pass variably modified type to EmitVLASizes!");
@@ -1510,25 +1513,7 @@ void CIRGenFunction::buildVariablyModifiedType(QualType type) {
         mlir::Value &entry = VLASizeMap[sizeExpr];
         if (!entry) {
           mlir::Value size = buildScalarExpr(sizeExpr);
-
-          // // C11 6.7.6.2p5:
-          // //   If the size is an expression that is not an integer constant
-          // //   expression [...] each time it is evaluated it shall have a value
-          // //   greater than zero.
-          // if (SanOpts.has(SanitizerKind::VLABound)) {
-          //   SanitizerScope SanScope(this);
-          //   llvm::Value *Zero = llvm::Constant::getNullValue(size->getType());
-          //   clang::QualType SEType = sizeExpr->getType();
-          //   llvm::Value *CheckCondition =
-          //       SEType->isSignedIntegerType()
-          //           ? Builder.CreateICmpSGT(size, Zero)
-          //           : Builder.CreateICmpUGT(size, Zero);
-          //   llvm::Constant *StaticArgs[] = {
-          //       EmitCheckSourceLocation(sizeExpr->getBeginLoc()),
-          //       EmitCheckTypeDescriptor(SEType)};
-          //   EmitCheck(std::make_pair(CheckCondition, SanitizerKind::VLABound),
-          //             SanitizerHandler::VLABoundNotPositive, StaticArgs, size);
-          // }
+          assert(!UnimplementedFeature::sanitizeVLABound()); 
 
           // Always zexting here would be wrong if it weren't
           // undefined behavior to have a negative bound.

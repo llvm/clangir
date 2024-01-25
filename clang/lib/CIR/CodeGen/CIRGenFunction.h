@@ -93,7 +93,7 @@ private:
   llvm::DenseMap<const OpaqueValueExpr *, LValue> OpaqueLValues;
   llvm::DenseMap<const OpaqueValueExpr *, RValue> OpaqueRValues;
 
-  // VLASizeMap - This keeps track of the associated size for each VLA type.
+  // This keeps track of the associated size for each VLA type.
   // We track this by the size expression rather than the type itself because
   // in certain situations, like a const qualifier applied to an VLA typedef,
   // multiple VLA types can share the same size expression.
