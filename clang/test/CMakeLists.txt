@@ -83,13 +83,13 @@ list(APPEND CLANG_TEST_DEPS
   clang-sycl-linker
   diagtool
   hmaptool
-  mlir-translate
   )
 
 if(CLANG_ENABLE_CIR)
   list(APPEND CLANG_TEST_DEPS
     cir-opt
     cir-translate
+    mlir-translate
     )
 endif()
 
