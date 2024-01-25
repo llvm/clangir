@@ -373,7 +373,8 @@ def LoadOp : CIR_Op<"load", [
     `cir.load` reads a value (lvalue to rvalue conversion) given an address
     backed up by a `cir.ptr` type. A unit attribute `deref` can be used to
     mark the resulting value as used by another operation to dereference
-    a pointer.
+    a pointer. A unit attribute `volatile` can be used to indicate a volatile
+    loading.
 
     Example:
 
@@ -385,6 +386,9 @@ def LoadOp : CIR_Op<"load", [
     // Load address from memory at address %0. %3 is used by at least one
     // operation that dereferences a pointer.
     %3 = cir.load deref %0 : cir.ptr <!cir.ptr<i32>>
+
+    // Perform a volatile load from address in %0.
+    %4 = cir.load volatile %0 : !cir.ptr<i32>, i32
     ```
   }];
 
@@ -415,13 +419,17 @@ def StoreOp : CIR_Op<"store", [
   let summary = "Store value to memory address";
   let description = [{
     `cir.store` stores a value (first operand) to the memory address specified
-    in the second operand.
+    in the second operand. A unit attribute `volatile` can be used to indicate
+    a volatile store.
 
     Example:
 
     ```mlir
     // Store a function argument to local storage, address in %0.
     cir.store %arg0, %0 : i32, !cir.ptr<i32>
+
+    // Perform a volatile store into memory location at the address in %0.
+    cir.store volatile %arg0, %0 : i32, !cir.ptr<i32>
     ```
   }];
 
@@ -1558,6 +1566,9 @@ def SetBitfieldOp : CIR_Op<"set_bitfield"> {
     base record, a size of the storage, a size the bit field, an offset
     of the bit field and a sign. Returns a value being stored.
 
+    A unit attribute `volatile` can be used to indicate a volatile load of the
+    bitfield.
+
     Example.
     Suppose we have a struct with multiple bitfields stored in
     different storages. The `cir.set_bitfield` operation sets the value
@@ -1634,6 +1645,9 @@ def GetBitfieldOp : CIR_Op<"get_bitfield"> {
     It expects a name if a bit field, a pointer to a storage in the
     base record, a type of the storage, a name of the bitfield,
     a size the bit field, an offset of the bit field and a sign.
+
+    A unit attribute `volatile` can be used to indicate a volatile load of the
+    bitfield.
 
     Example:
     Suppose we have a struct with multiple bitfields stored in
