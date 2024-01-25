@@ -182,7 +182,7 @@ CIRGenFunction::buildAutoVarAlloca(const VarDecl &D,
 
       // Allocate memory for the array.
       address = CreateTempAlloca(mTy, alignment, loc, "vla", VlaSize.NumElts,
-                                &allocaAddr, builder.saveInsertionPoint());
+                                 &allocaAddr, builder.saveInsertionPoint());
     }
 
     // If we have debug info enabled, properly describe the VLA dimensions for

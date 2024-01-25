@@ -1513,7 +1513,7 @@ void CIRGenFunction::buildVariablyModifiedType(QualType type) {
         mlir::Value &entry = VLASizeMap[sizeExpr];
         if (!entry) {
           mlir::Value size = buildScalarExpr(sizeExpr);
-          assert(!UnimplementedFeature::sanitizeVLABound()); 
+          assert(!UnimplementedFeature::sanitizeVLABound());
 
           // Always zexting here would be wrong if it weren't
           // undefined behavior to have a negative bound.
