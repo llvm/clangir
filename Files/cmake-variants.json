@@ -15,7 +15,8 @@
                     "LLVM_ENABLE_ASSERTIONS": "ON",
                     "LLVM_ENABLE_LLD": "ON",
                     "LLVM_OPTIMIZED_TABLEGEN": "ON",
-                    "LLVM_ENABLE_PROJECTS": ["clang", "mlir", "cir"],
+                    "LLVM_ENABLE_PROJECTS": ["clang", "mlir"],
+                    "CLANG_ENABLE_CIR": "ON",
                     "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
                 }
             },
@@ -28,8 +29,9 @@
                     "CMAKE_CXX_COMPILER_LAUNCHER": "ccache",
                     "CMAKE_C_COMPILER": "clang",
                     "CMAKE_C_COMPILER_LAUNCHER": "ccache",
-                    "LLVM_ENABLE_LLD": "ON",                   
-                    "LLVM_ENABLE_PROJECTS": ["clang", "mlir", "cir", "flang"],
+                    "LLVM_ENABLE_LLD": "ON",
+                    "LLVM_ENABLE_PROJECTS": ["clang", "mlir", "flang"],
+                    "CLANG_ENABLE_CIR": "ON",
                     "LLVM_ENABLE_ASSERTIONS": "ON"
                 }
             }

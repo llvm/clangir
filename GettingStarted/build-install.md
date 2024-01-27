@@ -4,12 +4,12 @@ sort : 2
 
 # Build and install
 
-CIR is enabled by adding the `cir` keyword to `LLVM_ENABLE_PROJECTS`, note
-that it requires both `mlir` and `clang` projects to also be enabled. Other
+CIR is enabled by setting the cmake variable `CLANG_ENABLE_CIR` to `ON`, note
+that it requires both `mlir` and `clang` projects to be enabled. Other
 than that it works with a regular build of Clang/LLVM.
 
 ```
-... -DLLVM_ENABLE_PROJECTS="clang;mlir;cir;..." ...
+... -DLLVM_ENABLE_PROJECTS="clang;mlir;..." -DCLANG_ENABLE_CIR=ON...
 ```
 
 See the [steps
@@ -29,7 +29,8 @@ $ /Applications/CMake.app/Contents/bin/cmake -GNinja \
  -DCMAKE_INSTALL_PREFIX=${INSTALLDIR} \
  -DLLVM_ENABLE_ASSERTIONS=ON \
  -DLLVM_TARGETS_TO_BUILD="host" \
- -DLLVM_ENABLE_PROJECTS="clang;mlir;cir" \
+ -DLLVM_ENABLE_PROJECTS="clang;mlir" \
+ -DCLANG_ENABLE_CIR=ON \
  -DCMAKE_CXX_COMPILER=${CLANG}++ \
  -DCMAKE_C_COMPILER=${CLANG} ../
 $ ninja install
