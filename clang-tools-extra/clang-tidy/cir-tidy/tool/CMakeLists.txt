@@ -15,7 +15,9 @@ add_clang_library(CIRTidyMain
   CIRTidyMain.cpp
 
   LINK_LIBS
+  CIRTidy
   clangTidy
+  MLIRIR
   ${ALL_CLANG_TIDY_CHECKS}
 
   DEPENDS
