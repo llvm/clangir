@@ -2765,13 +2765,14 @@ def CIR_InlineAsmOp : CIR_Op<"asm", [RecursiveMemoryEffects]> {
   let results = (outs Optional<CIR_AnyType>:$res);
 
   let arguments = (
-    ins StrAttr:$asm_string,
+    ins Variadic<AnyType>:$operands,
+        StrAttr:$asm_string,
         StrAttr:$constraints,
         AsmFlavor:$asm_flavor);  
 
   let assemblyFormat = [{
     `(`$asm_flavor`,` `{` $asm_string $constraints `}` `)` attr-dict 
-    `:` type($res)
+     operands `:` functional-type(operands, results)
    }];  
 }
 
