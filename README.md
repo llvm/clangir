@@ -4,9 +4,12 @@ Clang IR (CIR) is a new IR for Clang. ClangIR (CIR) is built on top of MLIR and
 it's basically a mlir dialect for C/C++ based languages in Clang.  It's
 representation level sits somewhere between Clang AST and LLVM IR.
 
-Slides for the Oct 2023 LLVM Developers Meeting talk *Evolution of ClangIR: A
-Year of Progress, Challenges, and Future Plans* available here:
-[clangir-2023-devmtg-slides.pdf](/Files/2023-LLVMDevMtgClangIR.pdf).
+Some outside resources for additional context:
+
+- *January 2024:* [RFC: Upstreaming ClangIR](https://discourse.llvm.org/t/rfc-upstreaming-clangir/76587)
+- *October 2023:* US LLVM Developers Meeting talk [Evolution of ClangIR: A
+Year of Progress, Challenges, and Future Plans](/Files/2023-LLVMDevMtgClangIR.pdf).
+- *June 2022:* [RFC: An MLIR based Clang IR (CIR)](https://discourse.llvm.org/t/rfc-an-mlir-based-clang-ir-cir/63319)
 
 # Motivation
 
@@ -17,10 +20,6 @@ explore on Clang AST or LLVM IR level.
 By using MLIR, ClangIR leverages on a compiler framework to write passes, IR and quickly
 iterate design, while re-using community provided analysis and transformations that can
 be easily adapted for CIR.
-
-The [LLVM's discourse
-RFC](https://discourse.llvm.org/t/rfc-an-mlir-based-clang-ir-cir/63319) goes in
-depth about the initial project motivation, status and design choices.
 
 # What's ClangIR in practice?
 
@@ -97,4 +96,4 @@ branch.
 On vim use ":r!date"
 -->
 
-*Last updated: Tue Jan 23 11:51:38 PST 2024*
+*Last updated: Mon Jan 29 11:41:05 PST 2024*
