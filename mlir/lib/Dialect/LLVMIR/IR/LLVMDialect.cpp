@@ -908,7 +908,6 @@ void CallOp::build(OpBuilder &builder, OperationState &state, TypeRange results,
 
 void CallOp::build(OpBuilder &builder, OperationState &state, TypeRange results,
                    FlatSymbolRefAttr callee, ValueRange args) {
-  assert(callee && "expected non-null callee in direct call builder");
   auto fargs = callee ? args : args.drop_front();
   build(builder, state, results,
         TypeAttr::get(getLLVMFuncType(builder.getContext(), results, fargs)),
