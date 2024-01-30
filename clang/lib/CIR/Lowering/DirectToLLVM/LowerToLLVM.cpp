@@ -983,6 +983,15 @@ lowerConstArrayAttr(mlir::cir::ConstArrayAttr constArr,
   return std::nullopt;
 }
 
+bool hasTrailingZeros(mlir::cir::ConstArrayAttr attr) {
+  auto array = attr.getElts().dyn_cast<mlir::ArrayAttr>();
+  return attr.hasTrailingZeros() ||
+         (array && std::count_if(array.begin(), array.end(), [](auto elt) {
+            auto ar = dyn_cast<mlir::cir::ConstArrayAttr>(elt);
+            return ar && hasTrailingZeros(ar);
+          }));
+}
+
 class CIRConstantLowering
     : public mlir::OpConversionPattern<mlir::cir::ConstantOp> {
 public:
