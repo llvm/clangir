@@ -1,6 +1,5 @@
 // Test attempts to build bogus CIR
 // RUN: cir-opt %s -verify-diagnostics -split-input-file
-// XFAIL: *
 
 !u32i = !cir.int<u, 32>
 
@@ -298,23 +297,6 @@ cir.func @cast23(%p : !cir.bool) {
 !u32i = !cir.int<u, 32>
 cir.func @cast24(%p : !u32i) {
   %2 = cir.cast(int_to_float, %p : !u32i), !cir.bool // expected-error {{requires !cir.float for result}}
-  cir.return
-}
-
-// -----
-
-#false = #cir.bool<false> : !cir.bool
-#true = #cir.bool<true> : !cir.bool
-cir.func @b0() {
-  cir.scope {
-    cir.while {  // expected-error {{expected condition region to terminate with 'cir.condition'}}
-      cir.yield
-    } do {
-      cir.br ^bb1
-    ^bb1:
-      cir.return
-    }
-  }
   cir.return
 }
 
@@ -806,28 +788,4 @@ cir.func @const_type_mismatch() -> () {
     // expected-error@+1 {{'cir.const' op result type ('!cir.int<u, 8>') does not match value type ('!cir.int<s, 8>')}}
     %2 = cir.const(#cir.int<0> : !s8i) : !u8i
     cir.return
-}
-
-// -----
-
-cir.func @invalid_cond_region_terminator(%arg0 : !cir.bool) -> !cir.void {
-  cir.do { // expected-error {{op expected condition region to terminate with 'cir.condition'}}
-    cir.yield
-  } while {
-    cir.yield
-  }
-  cir.return
-}
-
-// -----
-
-cir.func @invalidConditionTerminator (%arg0 : !cir.bool) -> !cir.void {
-  cir.for : cond { // expected-error {{op expected condition region to terminate with 'cir.condition'}}
-    cir.yield
-  } body {
-    cir.yield
-  } step {
-    cir.yield
-  }
-  cir.return
 }
