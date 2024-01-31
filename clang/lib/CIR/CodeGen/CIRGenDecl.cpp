@@ -40,10 +40,6 @@ CIRGenFunction::buildAutoVarAlloca(const VarDecl &D,
   //        getLangOpts().OpenCL))
   assert(!UnimplementedFeature::openCL());
   assert(Ty.getAddressSpace() == LangAS::Default);
-  assert(!getContext()
-              .getLangOpts()
-              .OpenMP && // !CGF.getLangOpts().OpenMPIRBuilder
-         "not implemented");
   assert(!D.hasAttr<AnnotateAttr>() && "not implemented");
 
   auto loc = getLoc(D.getSourceRange());
