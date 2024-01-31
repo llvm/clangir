@@ -985,7 +985,6 @@ void CIRGenFunction::pushStackRestore(CleanupKind Kind, Address SPMem) {
   EHStack.pushCleanup<CallStackRestore>(Kind, SPMem);
 }
 
-
 /// Enter a destroy cleanup for the given local variable.
 void CIRGenFunction::buildAutoVarTypeCleanup(
     const CIRGenFunction::AutoVarEmission &emission,

@@ -1395,8 +1395,9 @@ void CIRGenFunction::checkTargetFeatures(SourceLocation Loc,
   }
 }
 
-CIRGenFunction::VlaSizePair CIRGenFunction::getVLASize(QualType type) {  
-  const VariableArrayType *vla = CGM.getASTContext().getAsVariableArrayType(type);
+CIRGenFunction::VlaSizePair CIRGenFunction::getVLASize(QualType type) {
+  const VariableArrayType *vla =
+      CGM.getASTContext().getAsVariableArrayType(type);
   assert(vla && "type was not a variable array type!");
   return getVLASize(vla);
 }

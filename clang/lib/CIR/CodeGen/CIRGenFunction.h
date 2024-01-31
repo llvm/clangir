@@ -99,7 +99,7 @@ private:
   // multiple VLA types can share the same size expression.
   // FIXME: Maybe this could be a stack of maps that is pushed/popped as we
   // enter/leave scopes.
-  llvm::DenseMap<const Expr*, mlir::Value> VLASizeMap;
+  llvm::DenseMap<const Expr *, mlir::Value> VLASizeMap;
 
 public:
   /// A non-RAII class containing all the information about a bound
@@ -717,7 +717,7 @@ public:
 
   void buildVariablyModifiedType(QualType Ty);
 
-   struct VlaSizePair {
+  struct VlaSizePair {
     mlir::Value NumElts;
     QualType Type;
 
