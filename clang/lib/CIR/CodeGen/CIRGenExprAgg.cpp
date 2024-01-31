@@ -456,9 +456,6 @@ void AggExprEmitter::buildArrayInit(Address DestPtr, mlir::cir::ArrayType AType,
   [[maybe_unused]] Address endOfInit = Address::invalid();
   assert(!CGF.needsEHCleanup(dtorKind) && "destructed types NIY");
 
-  auto one = CGF.getBuilder().getConstInt(
-      loc, CGF.PtrDiffTy.cast<mlir::cir::IntType>(), 1);
-
   // The 'current element to initialize'.  The invariants on this
   // variable are complicated.  Essentially, after each iteration of
   // the loop, it points to the last initialized element, except
@@ -466,8 +463,16 @@ void AggExprEmitter::buildArrayInit(Address DestPtr, mlir::cir::ArrayType AType,
   // elements have been initialized.
   mlir::Value element = begin;
 
+  // Don't build the 'one' before the cycle to avoid
+  // emmiting the redundant cir.const(1) instrs.
+  mlir::Value one;
+
   // Emit the explicit initializers.
   for (uint64_t i = 0; i != NumInitElements; ++i) {
+    if (i == 1)
+      one = CGF.getBuilder().getConstInt(
+          loc, CGF.PtrDiffTy.cast<mlir::cir::IntType>(), 1);
+
     // Advance to the next element.
     if (i > 0) {
       element = CGF.getBuilder().create<mlir::cir::PtrStrideOp>(
