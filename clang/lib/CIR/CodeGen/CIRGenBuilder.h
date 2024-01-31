@@ -250,6 +250,9 @@ public:
     if (const auto intVal = mlir::dyn_cast<mlir::cir::IntAttr>(attr))
       return intVal.isNullValue();
 
+    if (const auto boolVal = mlir::dyn_cast<mlir::cir::BoolAttr>(attr))
+      return !boolVal.getValue();
+
     if (const auto fpVal = mlir::dyn_cast<mlir::FloatAttr>(attr)) {
       bool ignored;
       llvm::APFloat FV(+0.0);
