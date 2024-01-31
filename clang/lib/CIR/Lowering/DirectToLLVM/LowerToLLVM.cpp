@@ -213,7 +213,15 @@ mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
                                 const mlir::TypeConverter *converter) {
   auto llvmTy = converter->convertType(constArr.getType());
   auto loc = parentOp->getLoc();
-  mlir::Value result = rewriter.create<mlir::LLVM::UndefOp>(loc, llvmTy);
+  mlir::Value result;
+
+  if (auto zeros = constArr.getTrailingZerosNum()) {
+    auto arrayTy = constArr.getType();
+    result = rewriter.create<mlir::cir::ZeroInitConstOp>(
+        loc, converter->convertType(arrayTy));
+  } else {
+    result = rewriter.create<mlir::LLVM::UndefOp>(loc, llvmTy);
+  }
 
   // Iteratively lower each constant element of the array.
   if (auto arrayAttr = constArr.getElts().dyn_cast<mlir::ArrayAttr>()) {
