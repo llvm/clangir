@@ -944,8 +944,7 @@ mlir::Value CIRGenFunction::buildDynamicCast(Address ThisAddr,
   QualType srcRecordTy;
   QualType destRecordTy;
   if (isDynCastToVoid) {
-    srcRecordTy = srcTy->getPointeeType();
-    // No DestRecordTy.
+    llvm_unreachable("NYI");
   } else if (const PointerType *DestPTy = destTy->getAs<PointerType>()) {
     srcRecordTy = srcTy->castAs<PointerType>()->getPointeeType();
     destRecordTy = DestPTy->getPointeeType();

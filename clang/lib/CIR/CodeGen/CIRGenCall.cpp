@@ -719,6 +719,9 @@ RValue CIRGenFunction::GetUndefRValue(QualType Ty) {
 mlir::Value CIRGenFunction::buildRuntimeCall(mlir::Location loc,
                                              mlir::cir::FuncOp callee,
                                              ArrayRef<mlir::Value> args) {
+  // TODO(cir): set the calling convention to this runtime call.
+  assert(!UnimplementedFeature::setCallingConv());
+
   auto call = builder.create<mlir::cir::CallOp>(loc, callee, args);
   assert(call->getNumResults() <= 1 &&
          "runtime functions have at most 1 result");

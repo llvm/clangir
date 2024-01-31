@@ -2188,6 +2188,10 @@ void CIRGenItaniumCXXABI::buildThrow(CIRGenFunction &CGF,
 
 static mlir::cir::FuncOp getBadCastFn(CIRGenFunction &CGF) {
   // Prototype: void __cxa_bad_cast();
+
+  // TODO(cir): set the calling convention of the runtime function.
+  assert(!UnimplementedFeature::setCallingConv());
+
   mlir::cir::FuncType FTy =
       CGF.getBuilder().getFuncType({}, CGF.getBuilder().getVoidTy());
   return CGF.CGM.getOrCreateRuntimeFunction(FTy, "__cxa_bad_cast");
@@ -2195,6 +2199,9 @@ static mlir::cir::FuncOp getBadCastFn(CIRGenFunction &CGF) {
 
 void CIRGenItaniumCXXABI::buildBadCastCall(CIRGenFunction &CGF,
                                            mlir::Location loc) {
+  // TODO(cir): set the calling convention to the runtime function.
+  assert(!UnimplementedFeature::setCallingConv());
+
   CGF.buildRuntimeCall(loc, getBadCastFn(CGF));
   // TODO(cir): mark the current insertion point as unreachable.
 }
@@ -2261,6 +2268,9 @@ static mlir::cir::FuncOp getItaniumDynamicCastFn(CIRGenFunction &CGF) {
   mlir::Type PtrDiffTy = CGF.ConvertType(CGF.getContext().getPointerDiffType());
 
   // TODO(cir): mark the function as nowind readonly.
+
+  // TODO(cir): set the calling convention of the runtime function.
+  assert(!UnimplementedFeature::setCallingConv());
 
   mlir::cir::FuncType FTy = CGF.getBuilder().getFuncType(
       {VoidPtrTy, RTTIPtrTy, RTTIPtrTy, PtrDiffTy}, VoidPtrTy);
