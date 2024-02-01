@@ -34,7 +34,7 @@ jobs:
           echo "container-name-tag=$container_name:$tag" >> $GITHUB_OUTPUT
 
       - name: Checkout LLVM
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.1.1
         with:
           sparse-checkout: .github/workflows/containers/github-action-ci/
 
