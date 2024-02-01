@@ -2204,6 +2204,7 @@ void CIRGenItaniumCXXABI::buildBadCastCall(CIRGenFunction &CGF,
 
   CGF.buildRuntimeCall(loc, getBadCastFn(CGF));
   // TODO(cir): mark the current insertion point as unreachable.
+  assert(!UnimplementedFeature::unreachableOp());
 }
 
 static CharUnits computeOffsetHint(ASTContext &Context,
