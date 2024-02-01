@@ -18,7 +18,7 @@ unsigned long long tc() {
     // CHECK: %[[local_a:.*]] = cir.alloca !s32i, cir.ptr <!s32i>, ["a", init]
     int a = 4;
     z = division(x, y);
-    // CHECK: %[[div_res:.*]] = cir.call @_Z8divisionii(%14, %15) : (!s32i, !s32i) -> f64
+    // CHECK: %[[div_res:.*]] = cir.call @_Z8divisionii(%14, %15) : (!s32i, !s32i) -> !cir.double
     a++;
 
   // CHECK: cir.catch(%[[try_eh]] : !cir.ptr<!cir.eh.info>, [

@@ -38,6 +38,11 @@ module {
         %20 = cir.binop(add, %19, %18) : !cir.double
         cir.store %20, %4 : !cir.double, cir.ptr <!cir.double>
         cir.yield
+      } step {
+        %10 = cir.load %8 : cir.ptr <!s32i>, !s32i
+        %11 = cir.unary(inc, %10) : !s32i, !s32i
+        cir.store %11, %8 : !s32i, cir.ptr <!s32i>
+        cir.yield
       }
     }
     %6 = cir.load %4 : cir.ptr <!cir.double>, !cir.double
