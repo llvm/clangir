@@ -847,13 +847,13 @@ static RValue buildNewDeleteCall(CIRGenFunction &CGF,
                                  const FunctionDecl *CalleeDecl,
                                  const FunctionProtoType *CalleeType,
                                  const CallArgList &Args) {
-  mlir::cir::CallOp CallOrInvoke{};
+  mlir::cir::CIRCallOpInterface CallOrTryCall;
   auto CalleePtr = CGF.CGM.GetAddrOfFunction(CalleeDecl);
   CIRGenCallee Callee =
       CIRGenCallee::forDirect(CalleePtr, GlobalDecl(CalleeDecl));
   RValue RV = CGF.buildCall(CGF.CGM.getTypes().arrangeFreeFunctionCall(
                                 Args, CalleeType, /*ChainCall=*/false),
-                            Callee, ReturnValueSlot(), Args, &CallOrInvoke);
+                            Callee, ReturnValueSlot(), Args, &CallOrTryCall);
 
   /// C++1y [expr.new]p10:
   ///   [In a new-expression,] an implementation is allowed to omit a call
@@ -910,4 +910,88 @@ void CIRGenFunction::buildDeleteCall(const FunctionDecl *DeleteFD,
   if (DestroyingDeleteTag && DestroyingDeleteTag.use_empty()) {
     llvm_unreachable("NYI"); // DestroyingDeleteTag->eraseFromParent();
   }
+}
+
+static mlir::Value buildDynamicCastToNull(CIRGenFunction &CGF,
+                                          mlir::Location Loc, QualType DestTy) {
+  mlir::Type DestCIRTy = CGF.ConvertType(DestTy);
+  assert(DestCIRTy.isa<mlir::cir::PointerType>() &&
+         "result of dynamic_cast should be a ptr");
+
+  mlir::Value NullPtrValue = CGF.getBuilder().getNullPtr(DestCIRTy, Loc);
+
+  if (!DestTy->isPointerType()) {
+    /// C++ [expr.dynamic.cast]p9:
+    ///   A failed cast to reference type throws std::bad_cast
+    CGF.CGM.getCXXABI().buildBadCastCall(CGF, Loc);
+  }
+
+  return NullPtrValue;
+}
+
+mlir::Value CIRGenFunction::buildDynamicCast(Address ThisAddr,
+                                             const CXXDynamicCastExpr *DCE) {
+  auto loc = getLoc(DCE->getSourceRange());
+
+  CGM.buildExplicitCastExprType(DCE, this);
+  QualType destTy = DCE->getTypeAsWritten();
+  QualType srcTy = DCE->getSubExpr()->getType();
+
+  // C++ [expr.dynamic.cast]p7:
+  //   If T is "pointer to cv void," then the result is a pointer to the most
+  //   derived object pointed to by v.
+  bool isDynCastToVoid = destTy->isVoidPointerType();
+  QualType srcRecordTy;
+  QualType destRecordTy;
+  if (isDynCastToVoid) {
+    llvm_unreachable("NYI");
+  } else if (const PointerType *DestPTy = destTy->getAs<PointerType>()) {
+    srcRecordTy = srcTy->castAs<PointerType>()->getPointeeType();
+    destRecordTy = DestPTy->getPointeeType();
+  } else {
+    srcRecordTy = srcTy;
+    destRecordTy = destTy->castAs<ReferenceType>()->getPointeeType();
+  }
+
+  buildTypeCheck(TCK_DynamicOperation, DCE->getExprLoc(), ThisAddr.getPointer(),
+                 srcRecordTy);
+
+  if (DCE->isAlwaysNull())
+    return buildDynamicCastToNull(*this, loc, destTy);
+
+  assert(srcRecordTy->isRecordType() && "source type must be a record type!");
+
+  // C++ [expr.dynamic.cast]p4:
+  //   If the value of v is a null pointer value in the pointer case, the result
+  //   is the null pointer value of type T.
+  bool shouldNullCheckSrcValue =
+      CGM.getCXXABI().shouldDynamicCastCallBeNullChecked(srcTy->isPointerType(),
+                                                         srcRecordTy);
+
+  auto buildDynamicCastAfterNullCheck = [&]() -> mlir::Value {
+    if (isDynCastToVoid)
+      llvm_unreachable("NYI");
+    else {
+      assert(destRecordTy->isRecordType() &&
+             "destination type must be a record type!");
+      return CGM.getCXXABI().buildDynamicCastCall(
+          *this, loc, ThisAddr, srcRecordTy, destTy, destRecordTy);
+    }
+  };
+
+  if (!shouldNullCheckSrcValue)
+    return buildDynamicCastAfterNullCheck();
+
+  mlir::Value srcValueIsNull = builder.createPtrIsNull(ThisAddr.getPointer());
+  return builder
+      .create<mlir::cir::TernaryOp>(
+          loc, srcValueIsNull,
+          [&](mlir::OpBuilder &, mlir::Location) {
+            builder.createYield(loc,
+                                buildDynamicCastToNull(*this, loc, destTy));
+          },
+          [&](mlir::OpBuilder &, mlir::Location) {
+            builder.createYield(loc, buildDynamicCastAfterNullCheck());
+          })
+      .getResult();
 }

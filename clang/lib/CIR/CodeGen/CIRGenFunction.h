@@ -93,6 +93,14 @@ private:
   llvm::DenseMap<const OpaqueValueExpr *, LValue> OpaqueLValues;
   llvm::DenseMap<const OpaqueValueExpr *, RValue> OpaqueRValues;
 
+  // This keeps track of the associated size for each VLA type.
+  // We track this by the size expression rather than the type itself because
+  // in certain situations, like a const qualifier applied to an VLA typedef,
+  // multiple VLA types can share the same size expression.
+  // FIXME: Maybe this could be a stack of maps that is pushed/popped as we
+  // enter/leave scopes.
+  llvm::DenseMap<const Expr *, mlir::Value> VLASizeMap;
+
 public:
   /// A non-RAII class containing all the information about a bound
   /// opaque value.  OpaqueValueMapping, below, is a RAII wrapper for
@@ -354,6 +362,9 @@ public:
     TCK_MemberCall,
     /// Checking the 'this' pointer for a constructor call.
     TCK_ConstructorCall,
+    /// Checking the operand of a dynamic_cast or a typeid expression.  Must be
+    /// null or an object within its lifetime.
+    TCK_DynamicOperation
   };
 
   // Holds coroutine data if the current function is a coroutine. We use a
@@ -630,6 +641,8 @@ public:
                        QualType DeleteTy, mlir::Value NumElements = nullptr,
                        CharUnits CookieSize = CharUnits());
 
+  mlir::Value buildDynamicCast(Address ThisAddr, const CXXDynamicCastExpr *DCE);
+
   mlir::Value createLoad(const clang::VarDecl *VD, const char *Name);
 
   mlir::Value buildScalarPrePostIncDec(const UnaryOperator *E, LValue LV,
@@ -707,6 +720,22 @@ public:
   /// \returns SSA value with the argument.
   mlir::Value buildVAArg(VAArgExpr *VE, Address &VAListAddr);
 
+  void buildVariablyModifiedType(QualType Ty);
+
+  struct VlaSizePair {
+    mlir::Value NumElts;
+    QualType Type;
+
+    VlaSizePair(mlir::Value NE, QualType T) : NumElts(NE), Type(T) {}
+  };
+
+  /// Returns an MLIR value that corresponds to the size,
+  /// in non-variably-sized elements, of a variable length array type,
+  /// plus that largest non-variably-sized element type.  Assumes that
+  /// the type has already been emitted with buildVariablyModifiedType.
+  VlaSizePair getVLASize(const VariableArrayType *vla);
+  VlaSizePair getVLASize(QualType vla);
+
   mlir::Value emitBuiltinObjectSize(const Expr *E, unsigned Type,
                                     mlir::cir::IntType ResType,
                                     mlir::Value EmittedE, bool IsDynamic);
@@ -775,16 +804,17 @@ public:
   /// LLVM arguments and the types they were derived from.
   RValue buildCall(const CIRGenFunctionInfo &CallInfo,
                    const CIRGenCallee &Callee, ReturnValueSlot ReturnValue,
-                   const CallArgList &Args, mlir::cir::CallOp *callOrInvoke,
+                   const CallArgList &Args,
+                   mlir::cir::CIRCallOpInterface *callOrTryCall,
                    bool IsMustTail, mlir::Location loc,
                    std::optional<const clang::CallExpr *> E = std::nullopt);
   RValue buildCall(const CIRGenFunctionInfo &CallInfo,
                    const CIRGenCallee &Callee, ReturnValueSlot ReturnValue,
                    const CallArgList &Args,
-                   mlir::cir::CallOp *callOrInvoke = nullptr,
+                   mlir::cir::CIRCallOpInterface *callOrTryCall = nullptr,
                    bool IsMustTail = false) {
     assert(currSrcLoc && "source location must have been set");
-    return buildCall(CallInfo, Callee, ReturnValue, Args, callOrInvoke,
+    return buildCall(CallInfo, Callee, ReturnValue, Args, callOrTryCall,
                      IsMustTail, *currSrcLoc, std::nullopt);
   }
   RValue buildCall(clang::QualType FnType, const CIRGenCallee &Callee,
@@ -793,6 +823,9 @@ public:
 
   RValue buildCallExpr(const clang::CallExpr *E,
                        ReturnValueSlot ReturnValue = ReturnValueSlot());
+
+  mlir::Value buildRuntimeCall(mlir::Location loc, mlir::cir::FuncOp callee,
+                               ArrayRef<mlir::Value> args = {});
 
   /// Create a check for a function parameter that may potentially be
   /// declared as non-null.
@@ -1240,6 +1273,8 @@ public:
 
   void pushEHDestroy(QualType::DestructionKind dtorKind, Address addr,
                      QualType type);
+
+  void pushStackRestore(CleanupKind kind, Address SPMem);
 
   static bool
   IsConstructorDelegationValid(const clang::CXXConstructorDecl *Ctor);

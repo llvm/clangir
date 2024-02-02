@@ -557,8 +557,11 @@ public:
   mlir::Value VisitUnaryImag(const UnaryOperator *E) {
     llvm_unreachable("NYI");
   }
+
   mlir::Value VisitUnaryExtension(const UnaryOperator *E) {
-    llvm_unreachable("NYI");
+    // __extension__ doesn't requred any codegen
+    // just forward the value
+    return Visit(E->getSubExpr());
   }
 
   mlir::Value buildUnaryOp(const UnaryOperator *E, mlir::cir::UnaryOpKind kind,
@@ -765,6 +768,26 @@ public:
     QualType LHSTy = E->getLHS()->getType();
     QualType RHSTy = E->getRHS()->getType();
 
+    auto ClangCmpToCIRCmp = [](auto ClangCmp) -> mlir::cir::CmpOpKind {
+      switch (ClangCmp) {
+      case BO_LT:
+        return mlir::cir::CmpOpKind::lt;
+      case BO_GT:
+        return mlir::cir::CmpOpKind::gt;
+      case BO_LE:
+        return mlir::cir::CmpOpKind::le;
+      case BO_GE:
+        return mlir::cir::CmpOpKind::ge;
+      case BO_EQ:
+        return mlir::cir::CmpOpKind::eq;
+      case BO_NE:
+        return mlir::cir::CmpOpKind::ne;
+      default:
+        llvm_unreachable("unsupported comparison kind");
+        return mlir::cir::CmpOpKind(-1);
+      }
+    };
+
     if (const MemberPointerType *MPT = LHSTy->getAs<MemberPointerType>()) {
       assert(0 && "not implemented");
     } else if (!LHSTy->isAnyComplexType() && !RHSTy->isAnyComplexType()) {
@@ -773,12 +796,18 @@ public:
       mlir::Value RHS = BOInfo.RHS;
 
       if (LHSTy->isVectorType()) {
-        // Cannot handle any vector just yet.
-        assert(0 && "not implemented");
-        // If AltiVec, the comparison results in a numeric type, so we use
-        // intrinsics comparing vectors and giving 0 or 1 as a result
-        if (!E->getType()->isVectorType())
-          assert(0 && "not implemented");
+        if (!E->getType()->isVectorType()) {
+          // If AltiVec, the comparison results in a numeric type, so we use
+          // intrinsics comparing vectors and giving 0 or 1 as a result
+          llvm_unreachable("NYI: AltiVec comparison");
+        } else {
+          // Other kinds of vectors.  Element-wise comparison returning
+          // a vector.
+          mlir::cir::CmpOpKind Kind = ClangCmpToCIRCmp(E->getOpcode());
+          return Builder.create<mlir::cir::VecCmpOp>(
+              CGF.getLoc(BOInfo.Loc), CGF.getCIRType(BOInfo.Ty), Kind,
+              BOInfo.LHS, BOInfo.RHS);
+        }
       }
       if (BOInfo.isFixedPointOp()) {
         assert(0 && "not implemented");
@@ -793,30 +822,7 @@ public:
           llvm_unreachable("NYI");
         }
 
-        mlir::cir::CmpOpKind Kind;
-        switch (E->getOpcode()) {
-        case BO_LT:
-          Kind = mlir::cir::CmpOpKind::lt;
-          break;
-        case BO_GT:
-          Kind = mlir::cir::CmpOpKind::gt;
-          break;
-        case BO_LE:
-          Kind = mlir::cir::CmpOpKind::le;
-          break;
-        case BO_GE:
-          Kind = mlir::cir::CmpOpKind::ge;
-          break;
-        case BO_EQ:
-          Kind = mlir::cir::CmpOpKind::eq;
-          break;
-        case BO_NE:
-          Kind = mlir::cir::CmpOpKind::ne;
-          break;
-        default:
-          llvm_unreachable("unsupported");
-        }
-
+        mlir::cir::CmpOpKind Kind = ClangCmpToCIRCmp(E->getOpcode());
         return Builder.create<mlir::cir::CmpOp>(CGF.getLoc(BOInfo.Loc),
                                                 CGF.getCIRType(BOInfo.Ty), Kind,
                                                 BOInfo.LHS, BOInfo.RHS);
@@ -1399,8 +1405,11 @@ mlir::Value ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
     // the alignment.
     return CGF.buildPointerWithAlignment(CE).getPointer();
   }
-  case CK_Dynamic:
-    llvm_unreachable("NYI");
+  case CK_Dynamic: {
+    Address V = CGF.buildPointerWithAlignment(E);
+    const auto *DCE = cast<CXXDynamicCastExpr>(CE);
+    return CGF.buildDynamicCast(V, DCE);
+  }
   case CK_ArrayToPointerDecay:
     return CGF.buildArrayToPointerDecay(E).getPointer();
   case CK_FunctionToPointerDecay:

@@ -232,6 +232,9 @@ public:
       return getConstPtrAttr(ptrTy, 0);
     if (auto structTy = ty.dyn_cast<mlir::cir::StructType>())
       return getZeroAttr(structTy);
+    if (ty.isa<mlir::cir::BoolType>()) {
+      return getCIRBoolAttr(false);
+    }
     llvm_unreachable("Zero initializer for given type is NYI");
   }
 
@@ -249,6 +252,9 @@ public:
     // TODO(cir): introduce char type in CIR and check for that instead.
     if (const auto intVal = attr.dyn_cast<mlir::cir::IntAttr>())
       return intVal.isNullValue();
+
+    if (const auto boolVal = attr.dyn_cast<mlir::cir::BoolAttr>())
+      return !boolVal.getValue();
 
     if (const auto fpVal = attr.dyn_cast<mlir::FloatAttr>()) {
       bool ignored;
@@ -728,21 +734,21 @@ public:
   mlir::Value createGetBitfield(mlir::Location loc, mlir::Type resultType,
                                 mlir::Value addr, mlir::Type storageType,
                                 const CIRGenBitFieldInfo &info,
-                                bool useVolatile) {
+                                bool isLvalueVolatile, bool useVolatile) {
     auto offset = useVolatile ? info.VolatileOffset : info.Offset;
     return create<mlir::cir::GetBitfieldOp>(loc, resultType, addr, storageType,
                                             info.Name, info.Size, offset,
-                                            info.IsSigned);
+                                            info.IsSigned, isLvalueVolatile);
   }
 
   mlir::Value createSetBitfield(mlir::Location loc, mlir::Type resultType,
                                 mlir::Value dstAddr, mlir::Type storageType,
                                 mlir::Value src, const CIRGenBitFieldInfo &info,
-                                bool useVolatile) {
+                                bool isLvalueVolatile, bool useVolatile) {
     auto offset = useVolatile ? info.VolatileOffset : info.Offset;
-    return create<mlir::cir::SetBitfieldOp>(loc, resultType, dstAddr,
-                                            storageType, src, info.Name,
-                                            info.Size, offset, info.IsSigned);
+    return create<mlir::cir::SetBitfieldOp>(
+        loc, resultType, dstAddr, storageType, src, info.Name, info.Size,
+        offset, info.IsSigned, isLvalueVolatile);
   }
 
   /// Create a pointer to a record member.
@@ -864,6 +870,10 @@ public:
     } else {
       alloca->moveAfter(*std::prev(allocas.end()));
     }
+  }
+
+  mlir::Value createPtrIsNull(mlir::Value ptr) {
+    return createNot(createPtrToBoolCast(ptr));
   }
 };
 

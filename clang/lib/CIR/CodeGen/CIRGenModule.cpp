@@ -158,7 +158,7 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &context,
       /*isSigned=*/false);
   UInt8PtrTy = builder.getPointerTo(UInt8Ty);
   UInt8PtrPtrTy = builder.getPointerTo(UInt8PtrTy);
-  // TODO: AllocaInt8PtrTy
+  AllocaInt8PtrTy = UInt8PtrTy;
   // TODO: GlobalsInt8PtrTy
   // TODO: ConstGlobalsPtrTy
   // TODO: ASTAllocaAddressSpace
@@ -714,10 +714,8 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef MangledName, mlir::Type Ty,
 
     // Emit section information for extern variables.
     if (D->hasExternalStorage()) {
-      if (const SectionAttr *SA = D->getAttr<SectionAttr>()) {
-        assert(!UnimplementedFeature::setGlobalVarSection());
-        llvm_unreachable("section info for extern vars is NYI");
-      }
+      if (const SectionAttr *SA = D->getAttr<SectionAttr>())
+        GV.setSectionAttr(builder.getStringAttr(SA->getName()));
     }
 
     // Handle XCore specific ABI requirements.
@@ -1017,9 +1015,8 @@ void CIRGenModule::buildGlobalVarDefinition(const clang::VarDecl *D,
   //                 isTypeConstant(D->getType(), true));
 
   // If it is in a read-only section, mark it 'constant'.
-  if (const SectionAttr *SA = D->getAttr<SectionAttr>()) {
-    assert(0 && "not implemented");
-  }
+  if (const SectionAttr *SA = D->getAttr<SectionAttr>())
+    GV.setSectionAttr(builder.getStringAttr(SA->getName()));
 
   // TODO(cir):
   // GV->setAlignment(getContext().getDeclAlign(D).getAsAlign());
@@ -1974,6 +1971,17 @@ CIRGenModule::createCIRFunction(mlir::Location loc, StringRef name,
       theModule.push_back(f);
   }
   return f;
+}
+
+mlir::cir::FuncOp
+CIRGenModule::getOrCreateRuntimeFunction(mlir::cir::FuncType Ty,
+                                         StringRef Name) {
+  auto entry = cast_if_present<mlir::cir::FuncOp>(getGlobalValue(Name));
+  if (entry)
+    return entry;
+
+  return createCIRFunction(mlir::UnknownLoc::get(builder.getContext()), Name,
+                           Ty, nullptr);
 }
 
 bool isDefaultedMethod(const clang::FunctionDecl *FD) {

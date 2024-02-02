@@ -96,6 +96,51 @@ void walkRegionSkipping(mlir::Region &region,
   });
 }
 
+/// Convert from a CIR comparison kind to an LLVM IR integral comparison kind.
+mlir::LLVM::ICmpPredicate
+convertCmpKindToICmpPredicate(mlir::cir::CmpOpKind kind, bool isSigned) {
+  using CIR = mlir::cir::CmpOpKind;
+  using LLVMICmp = mlir::LLVM::ICmpPredicate;
+  switch (kind) {
+  case CIR::eq:
+    return LLVMICmp::eq;
+  case CIR::ne:
+    return LLVMICmp::ne;
+  case CIR::lt:
+    return (isSigned ? LLVMICmp::slt : LLVMICmp::ult);
+  case CIR::le:
+    return (isSigned ? LLVMICmp::sle : LLVMICmp::ule);
+  case CIR::gt:
+    return (isSigned ? LLVMICmp::sgt : LLVMICmp::ugt);
+  case CIR::ge:
+    return (isSigned ? LLVMICmp::sge : LLVMICmp::uge);
+  }
+  llvm_unreachable("Unknown CmpOpKind");
+}
+
+/// Convert from a CIR comparison kind to an LLVM IR floating-point comparison
+/// kind.
+mlir::LLVM::FCmpPredicate
+convertCmpKindToFCmpPredicate(mlir::cir::CmpOpKind kind) {
+  using CIR = mlir::cir::CmpOpKind;
+  using LLVMFCmp = mlir::LLVM::FCmpPredicate;
+  switch (kind) {
+  case CIR::eq:
+    return LLVMFCmp::oeq;
+  case CIR::ne:
+    return LLVMFCmp::une;
+  case CIR::lt:
+    return LLVMFCmp::olt;
+  case CIR::le:
+    return LLVMFCmp::ole;
+  case CIR::gt:
+    return LLVMFCmp::ogt;
+  case CIR::ge:
+    return LLVMFCmp::oge;
+  }
+  llvm_unreachable("Unknown CmpOpKind");
+}
+
 } // namespace
 
 //===----------------------------------------------------------------------===//
@@ -890,8 +935,9 @@ public:
                   mlir::ConversionPatternRewriter &rewriter) const override {
     const auto llvmTy =
         getTypeConverter()->convertType(op.getResult().getType());
-    rewriter.replaceOpWithNewOp<mlir::LLVM::LoadOp>(op, llvmTy,
-                                                    adaptor.getAddr());
+    rewriter.replaceOpWithNewOp<mlir::LLVM::LoadOp>(
+        op, llvmTy, adaptor.getAddr(), /* alignment */ 0,
+        /* volatile */ op.getIsVolatile());
     return mlir::LogicalResult::success();
   }
 };
@@ -903,8 +949,9 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::StoreOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<mlir::LLVM::StoreOp>(op, adaptor.getValue(),
-                                                     adaptor.getAddr());
+    rewriter.replaceOpWithNewOp<mlir::LLVM::StoreOp>(
+        op, adaptor.getValue(), adaptor.getAddr(),
+        /* alignment */ 0, /* volatile */ op.getIsVolatile());
     return mlir::LogicalResult::success();
   }
 };
@@ -922,6 +969,38 @@ convertStringAttrToDenseElementsAttr(mlir::cir::ConstArrayAttr attr,
       llvm::ArrayRef(values));
 }
 
+template <typename StorageTy> StorageTy getZeroInitFromType(mlir::Type Ty);
+
+template <> mlir::APInt getZeroInitFromType(mlir::Type Ty) {
+  assert(Ty.isa<mlir::cir::IntType>() && "expected int type");
+  auto IntTy = Ty.cast<mlir::cir::IntType>();
+  return mlir::APInt::getZero(IntTy.getWidth());
+}
+
+template <> mlir::APFloat getZeroInitFromType(mlir::Type Ty) {
+  assert((Ty.isF32() || Ty.isF64()) && "only float and double supported");
+  if (Ty.isF32())
+    return mlir::APFloat(0.f);
+  if (Ty.isF64())
+    return mlir::APFloat(0.0);
+}
+
+// return the nested type and quiantity of elements for cir.array type.
+// e.g: for !cir.array<!cir.array<!s32i x 3> x 1>
+// it returns !s32i as return value and stores 3 to elemQuantity.
+mlir::Type getNestedTypeAndElemQuantity(mlir::Type Ty, unsigned &elemQuantity) {
+  assert(Ty.isa<mlir::cir::ArrayType>() && "expected ArrayType");
+
+  elemQuantity = 1;
+  mlir::Type nestTy = Ty;
+  while (auto ArrTy = nestTy.dyn_cast<mlir::cir::ArrayType>()) {
+    nestTy = ArrTy.getEltType();
+    elemQuantity *= ArrTy.getSize();
+  }
+
+  return nestTy;
+}
+
 template <typename AttrTy, typename StorageTy>
 void convertToDenseElementsAttrImpl(mlir::cir::ConstArrayAttr attr,
                                     llvm::SmallVectorImpl<StorageTy> &values) {
@@ -932,6 +1011,12 @@ void convertToDenseElementsAttrImpl(mlir::cir::ConstArrayAttr attr,
     } else if (auto subArrayAttr =
                    eltAttr.dyn_cast<mlir::cir::ConstArrayAttr>()) {
       convertToDenseElementsAttrImpl<AttrTy>(subArrayAttr, values);
+    } else if (auto zeroAttr = eltAttr.dyn_cast<mlir::cir::ZeroAttr>()) {
+      unsigned numStoredZeros = 0;
+      auto nestTy =
+          getNestedTypeAndElemQuantity(zeroAttr.getType(), numStoredZeros);
+      values.insert(values.end(), numStoredZeros,
+                    getZeroInitFromType<StorageTy>(nestTy));
     } else {
       llvm_unreachable("unknown element in ConstArrayAttr");
     }
@@ -1127,6 +1212,41 @@ public:
                   mlir::ConversionPatternRewriter &rewriter) const override {
     rewriter.replaceOpWithNewOp<mlir::LLVM::ExtractElementOp>(
         op, adaptor.getVec(), adaptor.getIndex());
+    return mlir::success();
+  }
+};
+
+class CIRVectorCmpOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::VecCmpOp> {
+public:
+  using OpConversionPattern<mlir::cir::VecCmpOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::VecCmpOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    assert(op.getType().isa<mlir::cir::VectorType>() &&
+           op.getLhs().getType().isa<mlir::cir::VectorType>() &&
+           op.getRhs().getType().isa<mlir::cir::VectorType>() &&
+           "Vector compare with non-vector type");
+    // LLVM IR vector comparison returns a vector of i1.  This one-bit vector
+    // must be sign-extended to the correct result type.
+    auto elementType =
+        op.getLhs().getType().dyn_cast<mlir::cir::VectorType>().getEltType();
+    mlir::Value bitResult;
+    if (auto intType = elementType.dyn_cast<mlir::cir::IntType>()) {
+      bitResult = rewriter.create<mlir::LLVM::ICmpOp>(
+          op.getLoc(),
+          convertCmpKindToICmpPredicate(op.getKind(), intType.isSigned()),
+          adaptor.getLhs(), adaptor.getRhs());
+    } else if (elementType.isa<mlir::FloatType>()) {
+      bitResult = rewriter.create<mlir::LLVM::FCmpOp>(
+          op.getLoc(), convertCmpKindToFCmpPredicate(op.getKind()),
+          adaptor.getLhs(), adaptor.getRhs());
+    } else {
+      return op.emitError() << "unsupported type for VecCmpOp: " << elementType;
+    }
+    rewriter.replaceOpWithNewOp<mlir::LLVM::SExtOp>(
+        op, typeConverter->convertType(op.getType()), bitResult);
     return mlir::success();
   }
 };
@@ -1423,12 +1543,21 @@ public:
     const auto linkage = convertLinkage(op.getLinkage());
     const auto symbol = op.getSymName();
     const auto loc = op.getLoc();
+    std::optional<mlir::StringRef> section = op.getSection();
     std::optional<mlir::Attribute> init = op.getInitialValue();
+
+    SmallVector<mlir::NamedAttribute> attributes;
+    if (section.has_value())
+      attributes.push_back(rewriter.getNamedAttr(
+          "section", rewriter.getStringAttr(section.value())));
 
     // Check for missing funcionalities.
     if (!init.has_value()) {
       rewriter.replaceOpWithNewOp<mlir::LLVM::GlobalOp>(
-          op, llvmType, isConst, linkage, symbol, mlir::Attribute());
+          op, llvmType, isConst, linkage, symbol, mlir::Attribute(),
+          /*alignment*/ 0, /*addrSpace*/ 0,
+          /*dsoLocal*/ false, /*threadLocal*/ false,
+          /*comdat*/ mlir::SymbolRefAttr(), attributes);
       return mlir::success();
     }
 
@@ -1459,6 +1588,8 @@ public:
     // Initializer is a constant integer: convert to MLIR builtin constant.
     else if (auto intAttr = init.value().dyn_cast<mlir::cir::IntAttr>()) {
       init = rewriter.getIntegerAttr(llvmType, intAttr.getValue());
+    } else if (auto boolAttr = init.value().dyn_cast<mlir::cir::BoolAttr>()) {
+      init = rewriter.getBoolAttr(boolAttr.getValue());
     } else if (isa<mlir::cir::ZeroAttr, mlir::cir::ConstPtrAttr>(
                    init.value())) {
       // TODO(cir): once LLVM's dialect has a proper zeroinitializer attribute
@@ -1502,7 +1633,10 @@ public:
 
     // Rewrite op.
     rewriter.replaceOpWithNewOp<mlir::LLVM::GlobalOp>(
-        op, llvmType, isConst, linkage, symbol, init.value());
+        op, llvmType, isConst, linkage, symbol, init.value(),
+        /*alignment*/ 0, /*addrSpace*/ 0,
+        /*dsoLocal*/ false, /*threadLocal*/ false,
+        /*comdat*/ mlir::SymbolRefAttr(), attributes);
     return mlir::success();
   }
 };
@@ -1833,50 +1967,6 @@ class CIRCmpOpLowering : public mlir::OpConversionPattern<mlir::cir::CmpOp> {
 public:
   using OpConversionPattern<mlir::cir::CmpOp>::OpConversionPattern;
 
-  mlir::LLVM::ICmpPredicate convertToICmpPredicate(mlir::cir::CmpOpKind kind,
-                                                   bool isSigned) const {
-    using CIR = mlir::cir::CmpOpKind;
-    using LLVMICmp = mlir::LLVM::ICmpPredicate;
-
-    switch (kind) {
-    case CIR::eq:
-      return LLVMICmp::eq;
-    case CIR::ne:
-      return LLVMICmp::ne;
-    case CIR::lt:
-      return (isSigned ? LLVMICmp::slt : LLVMICmp::ult);
-    case CIR::le:
-      return (isSigned ? LLVMICmp::sle : LLVMICmp::ule);
-    case CIR::gt:
-      return (isSigned ? LLVMICmp::sgt : LLVMICmp::ugt);
-    case CIR::ge:
-      return (isSigned ? LLVMICmp::sge : LLVMICmp::uge);
-    }
-    llvm_unreachable("Unknown CmpOpKind");
-  }
-
-  mlir::LLVM::FCmpPredicate
-  convertToFCmpPredicate(mlir::cir::CmpOpKind kind) const {
-    using CIR = mlir::cir::CmpOpKind;
-    using LLVMFCmp = mlir::LLVM::FCmpPredicate;
-
-    switch (kind) {
-    case CIR::eq:
-      return LLVMFCmp::ueq;
-    case CIR::ne:
-      return LLVMFCmp::une;
-    case CIR::lt:
-      return LLVMFCmp::ult;
-    case CIR::le:
-      return LLVMFCmp::ule;
-    case CIR::gt:
-      return LLVMFCmp::ugt;
-    case CIR::ge:
-      return LLVMFCmp::uge;
-    }
-    llvm_unreachable("Unknown CmpOpKind");
-  }
-
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::CmpOp cmpOp, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
@@ -1885,15 +1975,17 @@ public:
 
     // Lower to LLVM comparison op.
     if (auto intTy = type.dyn_cast<mlir::cir::IntType>()) {
-      auto kind = convertToICmpPredicate(cmpOp.getKind(), intTy.isSigned());
+      auto kind =
+          convertCmpKindToICmpPredicate(cmpOp.getKind(), intTy.isSigned());
       llResult = rewriter.create<mlir::LLVM::ICmpOp>(
           cmpOp.getLoc(), kind, adaptor.getLhs(), adaptor.getRhs());
     } else if (auto ptrTy = type.dyn_cast<mlir::cir::PointerType>()) {
-      auto kind = convertToICmpPredicate(cmpOp.getKind(), /* isSigned=*/false);
+      auto kind = convertCmpKindToICmpPredicate(cmpOp.getKind(),
+                                                /* isSigned=*/false);
       llResult = rewriter.create<mlir::LLVM::ICmpOp>(
           cmpOp.getLoc(), kind, adaptor.getLhs(), adaptor.getRhs());
     } else if (type.isa<mlir::FloatType>()) {
-      auto kind = convertToFCmpPredicate(cmpOp.getKind());
+      auto kind = convertCmpKindToFCmpPredicate(cmpOp.getKind());
       llResult = rewriter.create<mlir::LLVM::FCmpOp>(
           cmpOp.getLoc(), kind, adaptor.getLhs(), adaptor.getRhs());
     } else {
@@ -2088,8 +2180,9 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
       CIRTernaryOpLowering, CIRGetMemberOpLowering, CIRSwitchOpLowering,
       CIRPtrDiffOpLowering, CIRCopyOpLowering, CIRMemCpyOpLowering,
       CIRFAbsOpLowering, CIRVTableAddrPointOpLowering, CIRVectorCreateLowering,
-      CIRVectorInsertLowering, CIRVectorExtractLowering, CIRStackSaveLowering,
-      CIRStackRestoreLowering>(converter, patterns.getContext());
+      CIRVectorInsertLowering, CIRVectorExtractLowering, CIRVectorCmpOpLowering,
+      CIRStackSaveLowering, CIRStackRestoreLowering>(converter,
+                                                     patterns.getContext());
 }
 
 namespace {
