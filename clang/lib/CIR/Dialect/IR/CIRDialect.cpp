@@ -2282,7 +2282,7 @@ mlir::OpTrait::impl::verifySameFirstSecondOperandAndResultType(Operation *op) {
 
 LogicalResult mlir::cir::ConstArrayAttr::verify(
     ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
-    ::mlir::Type type, Attribute attr, bool hasTrailingZeros) {
+    ::mlir::Type type, Attribute attr, int trailingZerosNum) {
 
   if (!(attr.isa<mlir::ArrayAttr>() || attr.isa<mlir::StringAttr>()))
     return emitError() << "constant array expects ArrayAttr or StringAttr";
@@ -2305,9 +2305,7 @@ LogicalResult mlir::cir::ConstArrayAttr::verify(
   auto at = type.cast<ArrayType>();
 
   // Make sure both number of elements and subelement types match type.
-  auto trailingZeros = at.getSize() - arrayAttr.size();
-  if ((!hasTrailingZeros && trailingZeros) ||
-      (hasTrailingZeros && !trailingZeros))
+  if (at.getSize() != arrayAttr.size() + trailingZerosNum)
     return emitError() << "constant array size should match type size";
   LogicalResult eltTypeCheck = success();
   arrayAttr.walkImmediateSubElements(
@@ -2372,12 +2370,18 @@ LogicalResult mlir::cir::ConstArrayAttr::verify(
     }
   }
 
-  bool hasZeros = false;
+  auto zeros = 0;
   if (parser.parseOptionalComma().succeeded()) {
-    if (parser.parseOptionalKeyword("trailingZeros").succeeded())
-      hasZeros = true;
-    else
+    if (parser.parseOptionalKeyword("trailing_zeros").succeeded()) {
+      auto typeSize = resultTy.value().cast<mlir::cir::ArrayType>().getSize();
+      auto elts = resultVal.value();
+      if (auto str = elts.dyn_cast<mlir::StringAttr>())
+        zeros = typeSize - str.size();
+      else
+        zeros = typeSize - elts.cast<mlir::ArrayAttr>().size();
+    } else {
       return {};
+    }
   }
 
   // Parse literal '>'
@@ -2385,14 +2389,14 @@ LogicalResult mlir::cir::ConstArrayAttr::verify(
     return {};
 
   return parser.getChecked<ConstArrayAttr>(
-      loc, parser.getContext(), resultTy.value(), resultVal.value(), hasZeros);
+      loc, parser.getContext(), resultTy.value(), resultVal.value(), zeros);
 }
 
 void ConstArrayAttr::print(::mlir::AsmPrinter &printer) const {
   printer << "<";
   printer.printStrippedAttrOrType(getElts());
   if (auto zeros = getTrailingZerosNum())
-    printer << ", trailingZeros";
+    printer << ", trailing_zeros";
   printer << ">";
 }
 

@@ -39,7 +39,7 @@ module {
 
   cir.func @testArrWithTrailingZeros() {
     %0 = cir.alloca !cir.array<!s32i x 10>, cir.ptr <!cir.array<!s32i x 10>>, ["a"] {alignment = 16 : i64}
-    %1 = cir.const(#cir.const_array<[#cir.int<1> : !s32i], trailingZeros> : !cir.array<!s32i x 10>) : !cir.array<!s32i x 10>
+    %1 = cir.const(#cir.const_array<[#cir.int<1> : !s32i], trailing_zeros> : !cir.array<!s32i x 10>) : !cir.array<!s32i x 10>
     cir.store %1, %0 : !cir.array<!s32i x 10>, cir.ptr <!cir.array<!s32i x 10>>
     cir.return
   }

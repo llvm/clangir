@@ -967,8 +967,7 @@ buildArrayConstant(CIRGenModule &CGM, mlir::Type DesiredType,
     return builder.getConstArray(
         mlir::ArrayAttr::get(builder.getContext(), Eles),
         mlir::cir::ArrayType::get(builder.getContext(), CommonElementType,
-                                  ArrayBound),
-        TrailingZeroes);
+                                  ArrayBound));
     // TODO(cir): If all the elements had the same type up to the trailing
     // zeroes, emit a struct of two arrays (the nonzero data and the
     // zeroinitializer). Use DesiredType to get the element type.

@@ -165,9 +165,8 @@ public:
   }
 
   mlir::cir::ConstArrayAttr getConstArray(mlir::Attribute attrs,
-                                          mlir::cir::ArrayType arrayTy,
-                                          bool hasTrailingZeros = false) {
-    return mlir::cir::ConstArrayAttr::get(arrayTy, attrs, hasTrailingZeros);
+                                          mlir::cir::ArrayType arrayTy) {
+    return mlir::cir::ConstArrayAttr::get(arrayTy, attrs);
   }
 
   mlir::Attribute getConstStructOrZeroAttr(mlir::ArrayAttr arrayAttr,
