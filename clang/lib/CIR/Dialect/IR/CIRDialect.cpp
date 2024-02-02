@@ -2360,7 +2360,7 @@ mlir::OpTrait::impl::verifySameFirstSecondOperandAndResultType(Operation *op) {
 
 LogicalResult mlir::cir::ConstArrayAttr::verify(
     ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
-    ::mlir::Type type, Attribute attr) {
+    ::mlir::Type type, Attribute attr, int trailingZerosNum) {
 
   if (!(mlir::isa<mlir::ArrayAttr>(attr) || mlir::isa<mlir::StringAttr>(attr)))
     return emitError() << "constant array expects ArrayAttr or StringAttr";
@@ -2383,7 +2383,7 @@ LogicalResult mlir::cir::ConstArrayAttr::verify(
   auto at = mlir::cast<ArrayType>(type);
 
   // Make sure both number of elements and subelement types match type.
-  if (at.getSize() != arrayAttr.size())
+  if (at.getSize() != arrayAttr.size() + trailingZerosNum)
     return emitError() << "constant array size should match type size";
   LogicalResult eltTypeCheck = success();
   arrayAttr.walkImmediateSubElements(
@@ -2448,16 +2448,33 @@ LogicalResult mlir::cir::ConstArrayAttr::verify(
     }
   }
 
+  auto zeros = 0;
+  if (parser.parseOptionalComma().succeeded()) {
+    if (parser.parseOptionalKeyword("trailing_zeros").succeeded()) {
+      auto typeSize = mlir::cast<mlir::cir::ArrayType>(resultTy.value()).getSize();
+      auto elts = resultVal.value();
+      if (auto str = mlir::dyn_cast<mlir::StringAttr>(elts))
+        zeros = typeSize - str.size();
+      else
+        zeros = typeSize - mlir::cast<mlir::ArrayAttr>(elts).size();
+    } else {
+      return {};
+    }
+  }
+
   // Parse literal '>'
   if (parser.parseGreater())
     return {};
-  return parser.getChecked<ConstArrayAttr>(loc, parser.getContext(),
-                                           resultTy.value(), resultVal.value());
+
+  return parser.getChecked<ConstArrayAttr>(
+      loc, parser.getContext(), resultTy.value(), resultVal.value(), zeros);
 }
 
 void ConstArrayAttr::print(::mlir::AsmPrinter &printer) const {
   printer << "<";
   printer.printStrippedAttrOrType(getElts());
+  if (auto zeros = getTrailingZerosNum())
+    printer << ", trailing_zeros";
   printer << ">";
 }
 
