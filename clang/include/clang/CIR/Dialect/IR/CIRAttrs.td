@@ -116,14 +116,22 @@ def ConstArrayAttr : CIR_Attr<"ConstArray", "const_array", [TypedAttrInterface]>
   }];
 
   let parameters = (ins AttributeSelfTypeParameter<"">:$type,
-                        "Attribute":$elts);
+                        "Attribute":$elts,
+                        "int":$trailingZerosNum);
 
   // Define a custom builder for the type; that removes the need to pass
   // in an MLIRContext instance, as it can be infered from the `type`.
   let builders = [
     AttrBuilderWithInferredContext<(ins "mlir::cir::ArrayType":$type,
                                         "Attribute":$elts), [{
-      return $_get(type.getContext(), type, elts);
+      int zeros = 0;
+      auto typeSize = mlir::cast<mlir::cir::ArrayType>(type).getSize();
+      if (auto str = mlir::dyn_cast<mlir::StringAttr>(elts))
+        zeros = typeSize - str.size();
+      else
+        zeros = typeSize - mlir::cast<mlir::ArrayAttr>(elts).size();
+
+      return $_get(type.getContext(), type, elts, zeros);
     }]>
   ];
 
@@ -132,6 +140,10 @@ def ConstArrayAttr : CIR_Attr<"ConstArray", "const_array", [TypedAttrInterface]>
 
   // Enable verifier.
   let genVerifyDecl = 1;
+
+  let extraClassDeclaration = [{
+    bool hasTrailingZeros() const { return getTrailingZerosNum() != 0; };
+  }];
 }
 
 //===----------------------------------------------------------------------===//
