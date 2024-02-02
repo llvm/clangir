@@ -1558,12 +1558,21 @@ public:
     const auto linkage = direct::convertLinkage(op.getLinkage());
     const auto symbol = op.getSymName();
     const auto loc = op.getLoc();
+    std::optional<mlir::StringRef> section = op.getSection();
     std::optional<mlir::Attribute> init = op.getInitialValue();
+
+    SmallVector<mlir::NamedAttribute> attributes;
+    if (section.has_value())
+      attributes.push_back(rewriter.getNamedAttr(
+          "section", rewriter.getStringAttr(section.value())));
 
     // Check for missing funcionalities.
     if (!init.has_value()) {
       rewriter.replaceOpWithNewOp<mlir::LLVM::GlobalOp>(
-          op, llvmType, isConst, linkage, symbol, mlir::Attribute());
+          op, llvmType, isConst, linkage, symbol, mlir::Attribute(),
+          /*alignment*/ 0, /*addrSpace*/ 0,
+          /*dsoLocal*/ false, /*threadLocal*/ false,
+          /*comdat*/ mlir::SymbolRefAttr(), attributes);
       return mlir::success();
     }
 
@@ -1637,7 +1646,10 @@ public:
 
     // Rewrite op.
     rewriter.replaceOpWithNewOp<mlir::LLVM::GlobalOp>(
-        op, llvmType, isConst, linkage, symbol, init.value());
+        op, llvmType, isConst, linkage, symbol, init.value(),
+        /*alignment*/ 0, /*addrSpace*/ 0,
+        /*dsoLocal*/ false, /*threadLocal*/ false,
+        /*comdat*/ mlir::SymbolRefAttr(), attributes);
     return mlir::success();
   }
 };
