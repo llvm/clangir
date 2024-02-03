@@ -159,7 +159,6 @@ struct UnimplementedFeature {
   static bool emitScalarRangeCheck() { return false; }
   static bool stmtExprEvaluation() { return false; }
   static bool setCallingConv() { return false; }
-  static bool unreachableOp() { return false; }
   static bool tryMarkNoThrow() { return false; }
   static bool indirectBranch() { return false; }
   static bool escapedLocals() { return false; }
