@@ -991,6 +991,7 @@ template <> mlir::APFloat getZeroInitFromType(mlir::Type Ty) {
     return mlir::APFloat(0.f);
   if (Ty.isF64())
     return mlir::APFloat(0.0);
+  llvm_unreachable("NYI");
 }
 
 // return the nested type and quiantity of elements for cir.array type.
