@@ -1452,7 +1452,8 @@ public:
       auto FusedLoc = mlir::cast<mlir::FusedLoc>(Loc);
       Loc = FusedLoc.getLocations()[0];
     }
-    assert(mlir::isa<mlir::FileLineColLoc>(Loc) && "expected single location here");
+    assert((mlir::isa<mlir::FileLineColLoc>(Loc) || mlir::isa<mlir::UnknownLoc>(Loc)) &&
+           "expected single location or unknown location here");
     auto linkage = convertLinkage(op.getLinkage());
     SmallVector<mlir::NamedAttribute, 4> attributes;
     filterFuncAttributes(op, /*filterArgAndResAttrs=*/false, attributes);
