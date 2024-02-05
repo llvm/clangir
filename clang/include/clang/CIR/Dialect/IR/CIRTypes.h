@@ -167,6 +167,8 @@ public:
   uint64_t getABIAlignment(const DataLayout &dataLayout,
                            DataLayoutEntryListRef params) const;
 
+  bool isLayoutIdentical(const StructType &other);
+
   // Utilities for lazily computing and cacheing data layout info.
 private:
   mutable Type largestMember{};
