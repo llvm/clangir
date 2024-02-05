@@ -699,6 +699,10 @@ static LValue buildGlobalVarDeclLValue(CIRGenFunction &CGF, const Expr *E,
     llvm_unreachable("not implemented");
 
   auto V = CGF.CGM.getAddrOfGlobalVar(VD);
+
+  if (VD->getTLSKind() != VarDecl::TLS_None)
+    llvm_unreachable("NYI");
+
   auto RealVarTy = CGF.getTypes().convertTypeForMem(VD->getType());
   auto realPtrTy = CGF.getBuilder().getPointerTo(RealVarTy);
   if (realPtrTy != V.getType())
