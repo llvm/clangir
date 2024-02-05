@@ -203,13 +203,13 @@ def IntAttr : CIR_Attr<"Int", "int", [TypedAttrInterface]> {
 }
 
 //===----------------------------------------------------------------------===//
-// FloatAttr
+// FPAttr
 //===----------------------------------------------------------------------===//
 
-def FloatAttr : CIR_Attr<"Float", "float", [TypedAttrInterface]> {
-  let summary = "An Attribute containing a floating-point value";
+def FPAttr : CIR_Attr<"FP", "fp", [TypedAttrInterface]> {
+  let summary = "An attribute containing a floating-point value";
   let description = [{
-    A float attribute is a literal attribute that represents a floating-point
+    An fp attribute is a literal attribute that represents a floating-point
     value of the specified floating-point type.
   }];
   let parameters = (ins AttributeSelfTypeParameter<"">:$type, "APFloat":$value);
@@ -220,7 +220,7 @@ def FloatAttr : CIR_Attr<"Float", "float", [TypedAttrInterface]> {
     }]>,
   ];
   let extraClassDeclaration = [{
-    static FloatAttr getZero(mlir::cir::FloatType type);
+    static FPAttr getZero(mlir::cir::FloatType type);
   }];
   let genVerifyDecl = 1;
   let hasCustomAssemblyFormat = 1;

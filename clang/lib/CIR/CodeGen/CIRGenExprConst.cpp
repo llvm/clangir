@@ -1479,9 +1479,8 @@ mlir::Attribute ConstantEmitter::tryEmitPrivate(const APValue &Value,
       assert(0 && "not implemented");
     else {
       mlir::Type ty = CGM.getCIRType(DestType);
-      if (ty.isa<mlir::cir::FloatType>())
-        return CGM.getBuilder().getAttr<mlir::cir::FloatAttr>(ty, Init);
-      return builder.getFloatAttr(ty, Init);
+      assert(ty.isa<mlir::cir::FloatType>() && "expected floating-point type");
+      return CGM.getBuilder().getAttr<mlir::cir::FPAttr>(ty, Init);
     }
   }
   case APValue::Array: {

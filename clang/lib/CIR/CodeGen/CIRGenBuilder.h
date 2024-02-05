@@ -224,10 +224,8 @@ public:
   mlir::TypedAttr getZeroInitAttr(mlir::Type ty) {
     if (ty.isa<mlir::cir::IntType>())
       return mlir::cir::IntAttr::get(ty, 0);
-    if (ty.isa<mlir::FloatType>())
-      return mlir::FloatAttr::get(ty, 0.0);
     if (auto fltType = ty.dyn_cast<mlir::cir::FloatType>())
-      return mlir::cir::FloatAttr::getZero(fltType);
+      return mlir::cir::FPAttr::getZero(fltType);
     if (auto arrTy = ty.dyn_cast<mlir::cir::ArrayType>())
       return getZeroAttr(arrTy);
     if (auto ptrTy = ty.dyn_cast<mlir::cir::PointerType>())
@@ -252,13 +250,8 @@ public:
     if (const auto intVal = attr.dyn_cast<mlir::cir::IntAttr>())
       return intVal.isNullValue();
 
-    if (attr.isa<mlir::FloatAttr, mlir::cir::FloatAttr>()) {
-      auto fpVal = [&attr] {
-        if (auto fpAttr = attr.dyn_cast<mlir::cir::FloatAttr>())
-          return fpAttr.getValue();
-        return attr.cast<mlir::FloatAttr>().getValue();
-      }();
-
+    if (auto fpAttr = attr.dyn_cast<mlir::cir::FPAttr>()) {
+      auto fpVal = fpAttr.getValue();
       bool ignored;
       llvm::APFloat FV(+0.0);
       FV.convert(fpVal.getSemantics(), llvm::APFloat::rmNearestTiesToEven,
@@ -350,13 +343,13 @@ public:
   }
   bool isInt(mlir::Type i) { return i.isa<mlir::cir::IntType>(); }
 
-  mlir::FloatType getLongDouble80BitsTy() const {
-    return typeCache.LongDouble80BitsTy;
+  mlir::cir::FloatType getLongDouble80BitsTy() const {
+    llvm_unreachable("NYI");
   }
 
   /// Get the proper floating point type for the given semantics.
-  mlir::FloatType getFloatTyForFormat(const llvm::fltSemantics &format,
-                                      bool useNativeHalf) const {
+  mlir::cir::FloatType getFloatTyForFormat(const llvm::fltSemantics &format,
+                                           bool useNativeHalf) const {
     if (&format == &llvm::APFloat::IEEEhalf()) {
       llvm_unreachable("IEEEhalf float format is NYI");
     }
@@ -364,9 +357,9 @@ public:
     if (&format == &llvm::APFloat::BFloat())
       llvm_unreachable("BFloat float format is NYI");
     if (&format == &llvm::APFloat::IEEEsingle())
-      llvm_unreachable("IEEEsingle float format is NYI");
+      return typeCache.FloatTy;
     if (&format == &llvm::APFloat::IEEEdouble())
-      llvm_unreachable("IEEEdouble float format is NYI");
+      return typeCache.DoubleTy;
     if (&format == &llvm::APFloat::IEEEquad())
       llvm_unreachable("IEEEquad float format is NYI");
     if (&format == &llvm::APFloat::PPCDoubleDouble())
@@ -477,8 +470,7 @@ public:
   }
 
   bool isSized(mlir::Type ty) {
-    if (ty.isIntOrFloat() ||
-        ty.isa<mlir::cir::PointerType, mlir::cir::StructType,
+    if (ty.isa<mlir::cir::PointerType, mlir::cir::StructType,
                mlir::cir::ArrayType, mlir::cir::BoolType, mlir::cir::IntType,
                mlir::cir::FloatType>())
       return true;

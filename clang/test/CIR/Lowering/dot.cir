@@ -12,7 +12,7 @@ module {
     cir.store %arg0, %0 : !cir.ptr<!cir.double>, cir.ptr <!cir.ptr<!cir.double>>
     cir.store %arg1, %1 : !cir.ptr<!cir.double>, cir.ptr <!cir.ptr<!cir.double>>
     cir.store %arg2, %2 : !s32i, cir.ptr <!s32i>
-    %5 = cir.const(#cir.float<0.000000e+00> : !cir.double) : !cir.double
+    %5 = cir.const(#cir.fp<0.000000e+00> : !cir.double) : !cir.double
     cir.store %5, %4 : !cir.double, cir.ptr <!cir.double>
     cir.scope {
       %8 = cir.alloca !s32i, cir.ptr <!s32i>, ["i", init] {alignment = 4 : i64}

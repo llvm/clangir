@@ -39,7 +39,6 @@ struct CIRGenTypeCache {
   // cir.long_double type. Said type would also hold the semantics for lowering.
   mlir::cir::SingleType FloatTy;
   mlir::cir::DoubleType DoubleTy;
-  mlir::FloatType LongDouble80BitsTy;
 
   /// int
   mlir::Type UIntTy;

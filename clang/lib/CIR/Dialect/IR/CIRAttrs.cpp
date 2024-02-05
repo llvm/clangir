@@ -296,10 +296,10 @@ LogicalResult IntAttr::verify(function_ref<InFlightDiagnostic()> emitError,
 }
 
 //===----------------------------------------------------------------------===//
-// FloatAttr definitions
+// FPAttr definitions
 //===----------------------------------------------------------------------===//
 
-Attribute cir::FloatAttr::parse(AsmParser &parser, Type odsType) {
+Attribute cir::FPAttr::parse(AsmParser &parser, Type odsType) {
   double value;
 
   if (!odsType.isa<cir::FloatType>())
@@ -321,20 +321,19 @@ Attribute cir::FloatAttr::parse(AsmParser &parser, Type odsType) {
   convertedValue.convert(ty.getFloatSemantics(), llvm::RoundingMode::TowardZero,
                          &losesInfo);
 
-  return cir::FloatAttr::get(ty, convertedValue);
+  return cir::FPAttr::get(ty, convertedValue);
 }
 
-void cir::FloatAttr::print(AsmPrinter &printer) const {
+void cir::FPAttr::print(AsmPrinter &printer) const {
   printer << '<' << getValue() << '>';
 }
 
-cir::FloatAttr cir::FloatAttr::getZero(mlir::cir::FloatType type) {
+cir::FPAttr cir::FPAttr::getZero(mlir::cir::FloatType type) {
   return get(type, APFloat::getZero(type.getFloatSemantics()));
 }
 
-LogicalResult
-cir::FloatAttr::verify(function_ref<InFlightDiagnostic()> emitError, Type type,
-                       APFloat value) {
+LogicalResult cir::FPAttr::verify(function_ref<InFlightDiagnostic()> emitError,
+                                  Type type, APFloat value) {
   auto fltType = type.dyn_cast<cir::FloatType>();
   if (!fltType) {
     emitError() << "expected floating-point type";

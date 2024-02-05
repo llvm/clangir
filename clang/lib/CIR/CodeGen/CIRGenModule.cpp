@@ -137,7 +137,6 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &context,
   DoubleTy = ::mlir::cir::FloatType::getDouble(builder.getContext());
   // TODO(cir): perhaps we should abstract long double variations into a custom
   // cir.long_double type. Said type would also hold the semantics for lowering.
-  LongDouble80BitsTy = ::mlir::FloatType::getF80(builder.getContext());
 
   // TODO: PointerWidthInBits
   PointerAlignInBytes =

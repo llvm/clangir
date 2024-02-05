@@ -123,8 +123,7 @@ def CIR_Double : CIR_FloatType<"Double", "double"> {
 
 // Constraints
 
-def CIR_AnyFloat: Type<
-    CPred<"$_self.isa<::mlir::FloatType, ::mlir::cir::FloatType>()">>;
+def CIR_AnyFloat: Type<CPred<"$_self.isa<::mlir::cir::FloatType>()">>;
 
 //===----------------------------------------------------------------------===//
 // PointerType

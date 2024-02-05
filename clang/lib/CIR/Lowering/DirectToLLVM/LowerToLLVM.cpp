@@ -134,18 +134,9 @@ lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::cir::ConstPtrAttr ptrAttr,
       loc, converter->convertType(ptrAttr.getType()), ptrVal);
 }
 
-/// FloatAttr visitor.
+/// FPAttr visitor.
 inline mlir::Value
-lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::FloatAttr fltAttr,
-                    mlir::ConversionPatternRewriter &rewriter,
-                    const mlir::TypeConverter *converter) {
-  auto loc = parentOp->getLoc();
-  return rewriter.create<mlir::LLVM::ConstantOp>(
-      loc, converter->convertType(fltAttr.getType()), fltAttr.getValue());
-}
-
-inline mlir::Value
-lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::cir::FloatAttr fltAttr,
+lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::cir::FPAttr fltAttr,
                     mlir::ConversionPatternRewriter &rewriter,
                     const mlir::TypeConverter *converter) {
   auto loc = parentOp->getLoc();
@@ -314,9 +305,7 @@ lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::Attribute attr,
                     const mlir::TypeConverter *converter) {
   if (const auto intAttr = attr.dyn_cast<mlir::cir::IntAttr>())
     return lowerCirAttrAsValue(parentOp, intAttr, rewriter, converter);
-  if (const auto fltAttr = attr.dyn_cast<mlir::FloatAttr>())
-    return lowerCirAttrAsValue(parentOp, fltAttr, rewriter, converter);
-  if (const auto fltAttr = attr.dyn_cast<mlir::cir::FloatAttr>())
+  if (const auto fltAttr = attr.dyn_cast<mlir::cir::FPAttr>())
     return lowerCirAttrAsValue(parentOp, fltAttr, rewriter, converter);
   if (const auto ptrAttr = attr.dyn_cast<mlir::cir::ConstPtrAttr>())
     return lowerCirAttrAsValue(parentOp, ptrAttr, rewriter, converter);
@@ -572,20 +561,16 @@ public:
       auto dstTy = castOp.getResult().getType();
       auto srcTy = castOp.getSrc().getType();
 
-      if (!dstTy.isa<mlir::FloatType, mlir::cir::FloatType>() ||
-          !srcTy.isa<mlir::FloatType, mlir::cir::FloatType>())
+      if (!dstTy.isa<mlir::cir::FloatType>() ||
+          !srcTy.isa<mlir::cir::FloatType>())
         return castOp.emitError()
                << "NYI cast from " << srcTy << " to " << dstTy;
 
       auto llvmSrcVal = adaptor.getOperands().front();
-      auto llvmDstTy = dstTy.dyn_cast<mlir::FloatType>();
-      if (!llvmDstTy)
-        llvmDstTy =
-            getTypeConverter()->convertType(dstTy).cast<mlir::FloatType>();
+      auto llvmDstTy =
+          getTypeConverter()->convertType(dstTy).cast<mlir::FloatType>();
 
       auto getFloatWidth = [](mlir::Type ty) -> unsigned {
-        if (auto fltTy = ty.dyn_cast<mlir::FloatType>())
-          return fltTy.getWidth();
         return ty.cast<mlir::cir::FloatType>().getWidth();
       };
 
@@ -999,11 +984,8 @@ lowerConstArrayAttr(mlir::cir::ConstArrayAttr constArr,
   if (type.isa<mlir::cir::IntType>())
     return convertToDenseElementsAttr<mlir::cir::IntAttr, mlir::APInt>(
         constArr, dims, converter->convertType(type));
-  if (type.isa<mlir::FloatType>())
-    return convertToDenseElementsAttr<mlir::FloatAttr, mlir::APFloat>(
-        constArr, dims, converter->convertType(type));
   if (type.isa<mlir::cir::FloatType>())
-    return convertToDenseElementsAttr<mlir::cir::FloatAttr, mlir::APFloat>(
+    return convertToDenseElementsAttr<mlir::cir::FPAttr, mlir::APFloat>(
         constArr, dims, converter->convertType(type));
 
   return std::nullopt;
@@ -1030,12 +1012,10 @@ public:
       attr = rewriter.getIntegerAttr(
           typeConverter->convertType(op.getType()),
           op.getValue().cast<mlir::cir::IntAttr>().getValue());
-    } else if (op.getType().isa<mlir::FloatType>()) {
-      attr = op.getValue();
     } else if (op.getType().isa<mlir::cir::FloatType>()) {
       attr = rewriter.getFloatAttr(
           typeConverter->convertType(op.getType()),
-          op.getValue().cast<mlir::cir::FloatAttr>().getValue());
+          op.getValue().cast<mlir::cir::FPAttr>().getValue());
     } else if (op.getType().isa<mlir::cir::PointerType>()) {
       // Optimize with dedicated LLVM op for null pointers.
       if (op.getValue().isa<mlir::cir::ConstPtrAttr>()) {
@@ -1482,10 +1462,7 @@ public:
             << constArr.getElts();
         return mlir::failure();
       }
-    } else if (llvm::isa<mlir::FloatAttr>(init.value())) {
-      // Nothing to do since LLVM already supports these types as
-      // initializers.
-    } else if (auto fltAttr = init.value().dyn_cast<mlir::cir::FloatAttr>()) {
+    } else if (auto fltAttr = init.value().dyn_cast<mlir::cir::FPAttr>()) {
       // Initializer is a constant floating-point number: convert to MLIR
       // builtin constant.
       init = rewriter.getFloatAttr(llvmType, fltAttr.getValue());
@@ -1626,7 +1603,7 @@ public:
     }
 
     // Floating point unary operations: + - ++ --
-    if (elementType.isa<mlir::FloatType, mlir::cir::FloatType>()) {
+    if (elementType.isa<mlir::cir::FloatType>()) {
       switch (op.getKind()) {
       case mlir::cir::UnaryOpKind::Inc: {
         assert(!IsVector && "++ not allowed on vector types");
@@ -1705,7 +1682,7 @@ public:
     assert((op.getLhs().getType() == op.getRhs().getType()) &&
            "inconsistent operands' types not supported yet");
     mlir::Type type = op.getRhs().getType();
-    assert((type.isa<mlir::cir::IntType, mlir::FloatType, mlir::cir::FloatType,
+    assert((type.isa<mlir::cir::IntType, mlir::cir::FloatType,
                      mlir::cir::VectorType>()) &&
            "operand type not supported yet");
 
@@ -1926,7 +1903,7 @@ public:
       auto kind = convertToICmpPredicate(cmpOp.getKind(), /* isSigned=*/false);
       llResult = rewriter.create<mlir::LLVM::ICmpOp>(
           cmpOp.getLoc(), kind, adaptor.getLhs(), adaptor.getRhs());
-    } else if (type.isa<mlir::FloatType, mlir::cir::FloatType>()) {
+    } else if (type.isa<mlir::cir::FloatType>()) {
       auto kind = convertToFCmpPredicate(cmpOp.getKind());
       llResult = rewriter.create<mlir::LLVM::FCmpOp>(
           cmpOp.getLoc(), kind, adaptor.getLhs(), adaptor.getRhs());

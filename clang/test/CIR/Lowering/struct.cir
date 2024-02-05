@@ -39,7 +39,7 @@ module {
   // CHECK: }
 
   // Should lower basic #cir.const_struct initializer.
-  cir.global external @s1 = #cir.const_struct<{#cir.int<1> : !s32i, #cir.float<1.000000e-01> : !cir.float, #cir.ptr<null> : !cir.ptr<!s32i>}> : !ty_22S122
+  cir.global external @s1 = #cir.const_struct<{#cir.int<1> : !s32i, #cir.fp<1.000000e-01> : !cir.float, #cir.ptr<null> : !cir.ptr<!s32i>}> : !ty_22S122
   // CHECK: llvm.mlir.global external @s1() {addr_space = 0 : i32} : !llvm.struct<"struct.S1", (i32, f32, ptr)> {
   // CHECK:   %0 = llvm.mlir.undef : !llvm.struct<"struct.S1", (i32, f32, ptr)>
   // CHECK:   %1 = llvm.mlir.constant(1 : i32) : i32
