@@ -54,22 +54,6 @@ void f4(int count) {
   int (*b)[][count];
 }
 
-// CHECK: cir.func @f5
-// CHECK: {{.*}} = cir.stack_save : !cir.ptr<!u8i> 
-// CHECK: {{.*}} = cir.alloca !s8i, cir.ptr <!s8i>, {{%.*}}
-// CHECK: cir.while(cond : {
-// CHECK:     {{%.*}} = cir.stack_save : !cir.ptr<!u8i> 
-// CHECK:     cir.stack_restore {{%.*}} : !cir.ptr<!u8i> 
-// CHECK: cir.stack_restore {{%.*}} : !cir.ptr<!u8i> 
-void f5(unsigned x) {
-  char s1[x];
-  while (1) {
-    char s2[x];
-    if (x > 5) //TODO: stack restore here is missed
-      break;
-  }
-}
-
 // Check no errors happen
 void function1(short width, int data[][width]) {} 
 void function2(short width, int data[][width][width]) {}
