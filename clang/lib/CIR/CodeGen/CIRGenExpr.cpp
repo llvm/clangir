@@ -1443,20 +1443,20 @@ LValue CIRGenFunction::buildArraySubscriptExpr(const ArraySubscriptExpr *E,
     // it.  It needs to be emitted first in case it's what captures
     // the VLA bounds.
     Addr = buildPointerWithAlignment(E->getBase(), &EltBaseInfo);
-    auto Idx = EmitIdxAfterBase(/*Promote*/true);
+    auto Idx = EmitIdxAfterBase(/*Promote*/ true);
 
     // The element count here is the total number of non-VLA elements.
     mlir::Value numElements = getVLASize(vla).NumElts;
-    Idx = builder.createCast(mlir::cir::CastKind::integral, Idx, numElements.getType());
+    Idx = builder.createCast(mlir::cir::CastKind::integral, Idx,
+                             numElements.getType());
     Idx = builder.createMul(Idx, numElements);
 
     QualType ptrType = E->getBase()->getType();
     Addr = buildArraySubscriptPtr(
-        *this, CGM.getLoc(E->getBeginLoc()), CGM.getLoc(E->getEndLoc()),
-        Addr, {Idx}, E->getType(),
-        !getLangOpts().isSignedOverflowDefined(), SignedIndices,
-        CGM.getLoc(E->getExprLoc()), /*shouldDecay=*/false, &ptrType,
-        E->getBase());
+        *this, CGM.getLoc(E->getBeginLoc()), CGM.getLoc(E->getEndLoc()), Addr,
+        {Idx}, E->getType(), !getLangOpts().isSignedOverflowDefined(),
+        SignedIndices, CGM.getLoc(E->getExprLoc()), /*shouldDecay=*/false,
+        &ptrType, E->getBase());
   } else if (const ObjCObjectType *OIT =
                  E->getType()->getAs<ObjCObjectType>()) {
     llvm_unreachable("ObjC object type subscript is NYI");
