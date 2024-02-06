@@ -2360,6 +2360,12 @@ def TryOp : CIR_Op<"try",
 // CatchOp
 //===----------------------------------------------------------------------===//
 
+// Represents the unwind region where unwind continues or
+// the program std::terminate's.
+def CatchUnwind : CIRUnitAttr<"CatchUnwind", "unwind"> {
+  let storageType = [{ CatchUnwind }];
+}
+
 def CatchOp : CIR_Op<"catch",
       [SameVariadicOperandSize,
        DeclareOpInterfaceMethods<RegionBranchOpInterface>,
