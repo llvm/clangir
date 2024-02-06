@@ -18,7 +18,7 @@ unsigned long long tc() {
     // CHECK: %[[local_a:.*]] = cir.alloca !s32i, cir.ptr <!s32i>, ["a", init]
     int a = 4;
     z = division(x, y);
-    // CHECK: %[[div_res:.*]] = cir.call @_Z8divisionii(%14, %15) : (!s32i, !s32i) -> f64
+    // CHECK: %[[div_res:.*]] = cir.try_call exception(%[[eh_info]]) @_Z8divisionii({{.*}}) : (!cir.ptr<!cir.ptr<!cir.eh.info>>, !s32i, !s32i) -> f64
     a++;
 
   // CHECK: cir.catch(%[[try_eh]] : !cir.ptr<!cir.eh.info>, [
@@ -27,16 +27,43 @@ unsigned long long tc() {
     // CHECK: {
     // CHECK:   %[[catch_idx_addr:.*]] = cir.catch_param(%[[try_eh]]) -> !cir.ptr<!s32i>
     // CHECK:   %[[idx_load:.*]] = cir.load %[[catch_idx_addr]] : cir.ptr <!s32i>, !s32i
-    // CHECK:   cir.store %[[idx_load]], %[[idx]] : !s32i, cir.ptr <!s32i> loc(#loc25)
+    // CHECK:   cir.store %[[idx_load]], %[[idx]] : !s32i, cir.ptr <!s32i>
     z = 98;
     idx++;
   } catch (const char* msg) {
     // CHECK: type (#cir.global_view<@_ZTIPKc> : !cir.ptr<!u8i>)
     // CHECK: {
-    // CHECK:   %[[msg_addr:.*]] = cir.catch_param(%[[try_eh]]) -> !cir.ptr<!s8i> loc(#loc37)
-    // CHECK:   cir.store %[[msg_addr]], %[[msg]] : !cir.ptr<!s8i>, cir.ptr <!cir.ptr<!s8i>> loc(#loc37)
+    // CHECK:   %[[msg_addr:.*]] = cir.catch_param(%[[try_eh]]) -> !cir.ptr<!s8i>
+    // CHECK:   cir.store %[[msg_addr]], %[[msg]] : !cir.ptr<!s8i>, cir.ptr <!cir.ptr<!s8i>>
     z = 99;
     (void)msg[0];
+  } // CHECK: #cir.unwind
+    // CHECK: cir.resume
+    // CHECK-NEXT: }])
+
+  return z;
+}
+
+// CHECK: cir.func @_Z3tc2v
+unsigned long long tc2() {
+  int x = 50, y = 3;
+  unsigned long long z;
+
+  try {
+    int a = 4;
+    z = division(x, y);
+    a++;
+  } catch (int idx) {
+    z = 98;
+    idx++;
+  } catch (const char* msg) {
+    z = 99;
+    (void)msg[0];
+  } catch (...) {
+    // CHECK: type (#cir.all)
+    // CHECK:   cir.catch_param
+    // CHECK:   cir.const(#cir.int<100> : !s32i) : !s32i
+    z = 100;
   }
 
   return z;

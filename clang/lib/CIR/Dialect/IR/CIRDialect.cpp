@@ -1198,7 +1198,9 @@ void printCatchOp(OpAsmPrinter &p, CatchOp op,
     p.increaseIndent();
     auto exRtti = a;
 
-    if (!exRtti) {
+    if (a.isa<mlir::cir::CatchUnwindAttr>()) {
+      p.printAttribute(a);
+    } else if (!exRtti) {
       p << "all";
     } else {
       p << "type (";
@@ -2030,13 +2032,14 @@ void printCallCommon(
     Operation *op, mlir::FlatSymbolRefAttr flatSym, ::mlir::OpAsmPrinter &state,
     llvm::function_ref<void()> customOpHandler = []() {}) {
   state << ' ';
-  auto ops = op->getOperands();
+
+  auto callLikeOp = mlir::cast<mlir::cir::CIRCallOpInterface>(op);
+  auto ops = callLikeOp.getArgOperands();
 
   if (flatSym) { // Direct calls
     state.printAttributeWithoutType(flatSym);
   } else { // Indirect calls
-    state << ops.front();
-    ops = ops.drop_front();
+    state << op->getOperand(0);
   }
   state << "(";
   state << ops;
@@ -2077,7 +2080,8 @@ mlir::Operation::operand_iterator cir::TryCallOp::arg_operand_begin() {
   // FIXME(cir): for this and all the other calculations in the other methods:
   // we currently have no basic block arguments on cir.try_call, but if it gets
   // to that, this needs further adjustment.
-  return arg_begin++;
+  arg_begin++;
+  return arg_begin;
 }
 mlir::Operation::operand_iterator cir::TryCallOp::arg_operand_end() {
   return operand_end();
@@ -2088,7 +2092,8 @@ Value cir::TryCallOp::getArgOperand(unsigned i) {
   if (!getCallee())
     i++;
   // First operand is the exception pointer, skip it.
-  return getOperand(i + 1);
+  i++;
+  return getOperand(i);
 }
 /// Return the number of operands, , accounts for indirect call.
 unsigned cir::TryCallOp::getNumArgOperands() {
@@ -2103,6 +2108,13 @@ unsigned cir::TryCallOp::getNumArgOperands() {
 LogicalResult
 cir::TryCallOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
   return verifyCallCommInSymbolUses(*this, symbolTable);
+}
+
+LogicalResult cir::TryCallOp::verify() {
+  auto tryScope = (*this)->getParentOfType<mlir::cir::TryOp>();
+  if (!tryScope)
+    return emitOpError() << "expected to be within a 'cir.try' region";
+  return mlir::success();
 }
 
 ::mlir::ParseResult TryCallOp::parse(::mlir::OpAsmParser &parser,
@@ -2131,10 +2143,13 @@ cir::TryCallOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
         if (parser.parseRParen().failed())
           return parser.emitError(parser.getCurrentLocation(), "expected ')'");
 
-        auto exceptionPtrTy = cir::PointerType::get(
-            parser.getBuilder().getContext(),
-            parser.getBuilder().getType<::mlir::cir::ExceptionInfoType>());
-        if (parser.resolveOperands(exceptionOperands, exceptionPtrTy,
+        auto &builder = parser.getBuilder();
+        auto exceptionPtrPtrTy = cir::PointerType::get(
+            builder.getContext(),
+            cir::PointerType::get(
+                builder.getContext(),
+                builder.getType<::mlir::cir::ExceptionInfoType>()));
+        if (parser.resolveOperands(exceptionOperands, exceptionPtrPtrTy,
                                    exceptionOperandsLoc, result.operands))
           return ::mlir::failure();
 
@@ -2282,7 +2297,7 @@ mlir::OpTrait::impl::verifySameFirstSecondOperandAndResultType(Operation *op) {
 
 LogicalResult mlir::cir::ConstArrayAttr::verify(
     ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
-    ::mlir::Type type, Attribute attr) {
+    ::mlir::Type type, Attribute attr, int trailingZerosNum) {
 
   if (!(attr.isa<mlir::ArrayAttr>() || attr.isa<mlir::StringAttr>()))
     return emitError() << "constant array expects ArrayAttr or StringAttr";
@@ -2305,7 +2320,7 @@ LogicalResult mlir::cir::ConstArrayAttr::verify(
   auto at = type.cast<ArrayType>();
 
   // Make sure both number of elements and subelement types match type.
-  if (at.getSize() != arrayAttr.size())
+  if (at.getSize() != arrayAttr.size() + trailingZerosNum)
     return emitError() << "constant array size should match type size";
   LogicalResult eltTypeCheck = success();
   arrayAttr.walkImmediateSubElements(
@@ -2370,16 +2385,33 @@ LogicalResult mlir::cir::ConstArrayAttr::verify(
     }
   }
 
+  auto zeros = 0;
+  if (parser.parseOptionalComma().succeeded()) {
+    if (parser.parseOptionalKeyword("trailing_zeros").succeeded()) {
+      auto typeSize = resultTy.value().cast<mlir::cir::ArrayType>().getSize();
+      auto elts = resultVal.value();
+      if (auto str = elts.dyn_cast<mlir::StringAttr>())
+        zeros = typeSize - str.size();
+      else
+        zeros = typeSize - elts.cast<mlir::ArrayAttr>().size();
+    } else {
+      return {};
+    }
+  }
+
   // Parse literal '>'
   if (parser.parseGreater())
     return {};
-  return parser.getChecked<ConstArrayAttr>(loc, parser.getContext(),
-                                           resultTy.value(), resultVal.value());
+
+  return parser.getChecked<ConstArrayAttr>(
+      loc, parser.getContext(), resultTy.value(), resultVal.value(), zeros);
 }
 
 void ConstArrayAttr::print(::mlir::AsmPrinter &printer) const {
   printer << "<";
   printer.printStrippedAttrOrType(getElts());
+  if (auto zeros = getTrailingZerosNum())
+    printer << ", trailing_zeros";
   printer << ">";
 }
 

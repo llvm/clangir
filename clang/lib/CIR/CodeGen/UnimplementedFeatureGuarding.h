@@ -41,7 +41,6 @@ struct UnimplementedFeature {
   // Unhandled global/linkage information.
   static bool unnamedAddr() { return false; }
   static bool setComdat() { return false; }
-  static bool setGlobalVarSection() { return false; }
   static bool setDSOLocal() { return false; }
   static bool threadLocal() { return false; }
   static bool setDLLStorageClass() { return false; }
@@ -58,6 +57,7 @@ struct UnimplementedFeature {
   static bool emitCheckedInBoundsGEP() { return false; }
   static bool pointerOverflowSanitizer() { return false; }
   static bool sanitizeDtor() { return false; }
+  static bool sanitizeVLABound() { return false; }
 
   // ObjC
   static bool setObjCGCLValueClass() { return false; }
@@ -130,6 +130,7 @@ struct UnimplementedFeature {
   static bool armComputeVolatileBitfields() { return false; }
   static bool setCommonAttributes() { return false; }
   static bool insertBuiltinUnpredictable() { return false; }
+  static bool branchPredictionInfoBuiltin() { return false; }
   static bool createInvariantGroup() { return false; }
   static bool addAutoInitAnnotation() { return false; }
   static bool addHeapAllocSiteMetadata() { return false; }
@@ -147,6 +148,8 @@ struct UnimplementedFeature {
   static bool isSEHTryScope() { return false; }
   static bool emitScalarRangeCheck() { return false; }
   static bool stmtExprEvaluation() { return false; }
+  static bool setCallingConv() { return false; }
+  static bool unreachableOp() { return false; }
 };
 } // namespace cir
 

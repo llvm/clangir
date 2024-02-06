@@ -232,6 +232,9 @@ public:
       return getConstPtrAttr(ptrTy, 0);
     if (auto structTy = ty.dyn_cast<mlir::cir::StructType>())
       return getZeroAttr(structTy);
+    if (ty.isa<mlir::cir::BoolType>()) {
+      return getCIRBoolAttr(false);
+    }
     llvm_unreachable("Zero initializer for given type is NYI");
   }
 
@@ -249,6 +252,9 @@ public:
     // TODO(cir): introduce char type in CIR and check for that instead.
     if (const auto intVal = attr.dyn_cast<mlir::cir::IntAttr>())
       return intVal.isNullValue();
+
+    if (const auto boolVal = attr.dyn_cast<mlir::cir::BoolAttr>())
+      return !boolVal.getValue();
 
     if (const auto fpVal = attr.dyn_cast<mlir::FloatAttr>()) {
       bool ignored;
@@ -464,6 +470,22 @@ public:
     return type;
   }
 
+  mlir::cir::StructType
+  getCompleteStructType(mlir::ArrayAttr fields, bool packed = false,
+                        llvm::StringRef name = "",
+                        const clang::RecordDecl *ast = nullptr) {
+    llvm::SmallVector<mlir::Type, 8> members;
+    for (auto &attr : fields) {
+      const auto typedAttr = attr.dyn_cast<mlir::TypedAttr>();
+      members.push_back(typedAttr.getType());
+    }
+
+    if (name.empty())
+      return getAnonStructTy(members, packed, ast);
+    else
+      return getCompleteStructTy(members, name, packed, ast);
+  }
+
   mlir::cir::ArrayType getArrayType(mlir::Type eltType, unsigned size) {
     return mlir::cir::ArrayType::get(getContext(), eltType, size);
   }
@@ -544,7 +566,9 @@ public:
 
   mlir::cir::ConstantOp getZero(mlir::Location loc, mlir::Type ty) {
     // TODO: dispatch creation for primitive types.
-    assert(ty.isa<mlir::cir::StructType>() && "NYI for other types");
+    assert(
+        (ty.isa<mlir::cir::StructType>() || ty.isa<mlir::cir::ArrayType>()) &&
+        "NYI for other types");
     return create<mlir::cir::ConstantOp>(loc, ty, getZeroAttr(ty));
   }
 
@@ -712,21 +736,21 @@ public:
   mlir::Value createGetBitfield(mlir::Location loc, mlir::Type resultType,
                                 mlir::Value addr, mlir::Type storageType,
                                 const CIRGenBitFieldInfo &info,
-                                bool useVolatile) {
+                                bool isLvalueVolatile, bool useVolatile) {
     auto offset = useVolatile ? info.VolatileOffset : info.Offset;
     return create<mlir::cir::GetBitfieldOp>(loc, resultType, addr, storageType,
                                             info.Name, info.Size, offset,
-                                            info.IsSigned);
+                                            info.IsSigned, isLvalueVolatile);
   }
 
   mlir::Value createSetBitfield(mlir::Location loc, mlir::Type resultType,
                                 mlir::Value dstAddr, mlir::Type storageType,
                                 mlir::Value src, const CIRGenBitFieldInfo &info,
-                                bool useVolatile) {
+                                bool isLvalueVolatile, bool useVolatile) {
     auto offset = useVolatile ? info.VolatileOffset : info.Offset;
-    return create<mlir::cir::SetBitfieldOp>(loc, resultType, dstAddr,
-                                            storageType, src, info.Name,
-                                            info.Size, offset, info.IsSigned);
+    return create<mlir::cir::SetBitfieldOp>(
+        loc, resultType, dstAddr, storageType, src, info.Name, info.Size,
+        offset, info.IsSigned, isLvalueVolatile);
   }
 
   /// Create a pointer to a record member.
@@ -848,6 +872,10 @@ public:
     } else {
       alloca->moveAfter(*std::prev(allocas.end()));
     }
+  }
+
+  mlir::Value createPtrIsNull(mlir::Value ptr) {
+    return createNot(createPtrToBoolCast(ptr));
   }
 };
 

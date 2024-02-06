@@ -373,7 +373,8 @@ def LoadOp : CIR_Op<"load", [
     `cir.load` reads a value (lvalue to rvalue conversion) given an address
     backed up by a `cir.ptr` type. A unit attribute `deref` can be used to
     mark the resulting value as used by another operation to dereference
-    a pointer.
+    a pointer. A unit attribute `volatile` can be used to indicate a volatile
+    loading.
 
     Example:
 
@@ -385,18 +386,22 @@ def LoadOp : CIR_Op<"load", [
     // Load address from memory at address %0. %3 is used by at least one
     // operation that dereferences a pointer.
     %3 = cir.load deref %0 : cir.ptr <!cir.ptr<i32>>
+
+    // Perform a volatile load from address in %0.
+    %4 = cir.load volatile %0 : !cir.ptr<i32>, i32
     ```
   }];
 
   let arguments = (ins Arg<CIR_PointerType, "the address to load from",
-                           [MemRead]>:$addr, UnitAttr:$isDeref);
+                           [MemRead]>:$addr, UnitAttr:$isDeref,
+                       UnitAttr:$is_volatile);
   let results = (outs CIR_AnyType:$result);
 
   // FIXME: we should not be printing `cir.ptr` below, that should come
   // from the pointer type directly.
   let assemblyFormat = [{
-    (`deref` $isDeref^)? $addr `:` `cir.ptr` type($addr) `,`
-                                   type($result) attr-dict
+    (`deref` $isDeref^)? (`volatile` $is_volatile^)?
+    $addr `:` `cir.ptr` type($addr) `,` type($result) attr-dict
   }];
 
   // FIXME: add verifier.
@@ -414,24 +419,31 @@ def StoreOp : CIR_Op<"store", [
   let summary = "Store value to memory address";
   let description = [{
     `cir.store` stores a value (first operand) to the memory address specified
-    in the second operand.
+    in the second operand. A unit attribute `volatile` can be used to indicate
+    a volatile store.
 
     Example:
 
     ```mlir
     // Store a function argument to local storage, address in %0.
     cir.store %arg0, %0 : i32, !cir.ptr<i32>
+
+    // Perform a volatile store into memory location at the address in %0.
+    cir.store volatile %arg0, %0 : i32, !cir.ptr<i32>
     ```
   }];
 
   let arguments = (ins CIR_AnyType:$value,
                        Arg<CIR_PointerType, "the address to store the value",
-                           [MemWrite]>:$addr);
+                           [MemWrite]>:$addr,
+                       UnitAttr:$is_volatile);
 
   // FIXME: we should not be printing `cir.ptr` below, that should come
   // from the pointer type directly.
-  let assemblyFormat =
-      "$value `,` $addr attr-dict `:` type($value) `,` `cir.ptr` type($addr)";
+  let assemblyFormat = [{
+    (`volatile` $is_volatile^)?
+    $value `,` $addr attr-dict `:` type($value) `,` `cir.ptr` type($addr)
+  }];
 
   // FIXME: add verifier.
 }
@@ -1410,7 +1422,8 @@ def GlobalOp : CIR_Op<"global", [Symbol, DeclareOpInterfaceMethods<RegionBranchO
                        OptionalAttr<AnyAttr>:$initial_value,
                        UnitAttr:$constant,
                        OptionalAttr<I64Attr>:$alignment,
-                       OptionalAttr<ASTVarDeclInterface>:$ast
+                       OptionalAttr<ASTVarDeclInterface>:$ast,
+                       OptionalAttr<StrAttr>:$section
                        );
   let regions = (region AnyRegion:$ctorRegion, AnyRegion:$dtorRegion);
   let assemblyFormat = [{
@@ -1554,6 +1567,9 @@ def SetBitfieldOp : CIR_Op<"set_bitfield"> {
     base record, a size of the storage, a size the bit field, an offset
     of the bit field and a sign. Returns a value being stored.
 
+    A unit attribute `volatile` can be used to indicate a volatile load of the
+    bitfield.
+
     Example.
     Suppose we have a struct with multiple bitfields stored in
     different storages. The `cir.set_bitfield` operation sets the value
@@ -1587,7 +1603,8 @@ def SetBitfieldOp : CIR_Op<"set_bitfield"> {
   let arguments = (ins
     CIR_PointerType:$dst,
     CIR_AnyType:$src,
-    BitfieldInfoAttr:$bitfield_info
+    BitfieldInfoAttr:$bitfield_info,
+    UnitAttr:$is_volatile
   );
 
   let results = (outs CIR_IntType:$result);
@@ -1603,14 +1620,15 @@ def SetBitfieldOp : CIR_Op<"set_bitfield"> {
                    "StringRef":$name,
                    "unsigned":$size,
                    "unsigned":$offset,
-                   "bool":$is_signed
+                   "bool":$is_signed,
+                   "bool":$is_volatile
                    ),
    [{
       BitfieldInfoAttr info =
         BitfieldInfoAttr::get($_builder.getContext(),
                               name, storage_type,
                               size, offset, is_signed);
-      build($_builder, $_state, type, dst, src, info);
+      build($_builder, $_state, type, dst, src, info, is_volatile);
     }]>
   ];
 }
@@ -1628,6 +1646,9 @@ def GetBitfieldOp : CIR_Op<"get_bitfield"> {
     It expects a name if a bit field, a pointer to a storage in the
     base record, a type of the storage, a name of the bitfield,
     a size the bit field, an offset of the bit field and a sign.
+
+    A unit attribute `volatile` can be used to indicate a volatile load of the
+    bitfield.
 
     Example:
     Suppose we have a struct with multiple bitfields stored in
@@ -1660,7 +1681,8 @@ def GetBitfieldOp : CIR_Op<"get_bitfield"> {
 
   let arguments = (ins
     CIR_PointerType:$addr,
-    BitfieldInfoAttr:$bitfield_info
+    BitfieldInfoAttr:$bitfield_info,
+    UnitAttr:$is_volatile
     );
 
   let results = (outs CIR_IntType:$result);
@@ -1675,14 +1697,15 @@ def GetBitfieldOp : CIR_Op<"get_bitfield"> {
                    "StringRef":$name,
                    "unsigned":$size,
                    "unsigned":$offset,
-                   "bool":$is_signed
+                   "bool":$is_signed,
+                   "bool":$is_volatile
                    ),
    [{
       BitfieldInfoAttr info =
         BitfieldInfoAttr::get($_builder.getContext(),
                               name, storage_type,
                               size, offset, is_signed);
-      build($_builder, $_state, type, addr, info);
+      build($_builder, $_state, type, addr, info, is_volatile);
     }]>
   ];
 }
@@ -1822,6 +1845,31 @@ def VecCreateOp : CIR_Op<"vec.create", [Pure]> {
   }];
 
   let hasVerifier = 1;
+}
+
+//===----------------------------------------------------------------------===//
+// VecCmp
+//===----------------------------------------------------------------------===//
+
+def VecCmpOp : CIR_Op<"vec.cmp", [Pure, SameTypeOperands]> {
+
+  let summary = "Compare two vectors";
+  let description = [{
+    The `cir.vec.cmp` operation does an element-wise comparison of two vectors
+    of the same type. The result is a vector of the same size as the operands
+    whose element type is the signed integral type that is the same size as the
+    element type of the operands.  The values in the result are 0 or -1.
+  }];
+
+  let arguments = (ins Arg<CmpOpKind, "cmp kind">:$kind, CIR_VectorType:$lhs,
+                       CIR_VectorType:$rhs);
+  let results = (outs CIR_VectorType:$result);
+
+  let assemblyFormat = [{
+    `(` $kind `,` $lhs `,` $rhs `)` `:` type($lhs) `,` type($result) attr-dict
+  }];
+
+  let hasVerifier = 0;
 }
 
 //===----------------------------------------------------------------------===//
@@ -2053,16 +2101,18 @@ class CIR_CallOp<string mnemonic, list<Trait> extra_traits = []> :
 def CallOp : CIR_CallOp<"call"> {
   let summary = "call operation";
   let description = [{
-    The `call` operation represents a direct call to a function that is within
-    the same symbol scope as the call. The operands and result types of the
-    call must match the specified function type. The callee is encoded as a
-    symbol reference attribute named "callee".
+    Direct and indirect calls.
 
-    To walk the operands for this operation, use `getNumArgOperands()`,
-    `getArgOperand()`, `getArgOperands()`, `arg_operand_begin()` and
-    `arg_operand_begin()`. Avoid using `getNumOperands()`, `getOperand()`,
-    `operand_begin()`, etc, direclty - might be misleading given on indirect
-    calls the callee is encoded in the first operation operand.
+    For direct calls, the `call` operation represents a direct call to a
+    function that is within the same symbol scope as the call. The operands
+    and result types of the call must match the specified function type.
+    The callee is encoded as a aymbol reference attribute named "callee".
+
+    For indirect calls, the first `mlir::Operation` operand is the call target.
+
+    Given the way indirect calls are encoded, avoid using `mlir::Operation`
+    methods to walk the operands for this operation, instead use the methods
+    provided by `CIRCallOpInterface`.
     ``
 
     Example:
@@ -2111,51 +2161,59 @@ def CallOp : CIR_CallOp<"call"> {
 def TryCallOp : CIR_CallOp<"try_call"> {
   let summary = "try call operation";
   let description = [{
-    Very similar to `cir.call` but passes down an exception object
-    in case anything is thrown by the callee.
+    Similar to `cir.call`, direct and indirect properties are the same. The
+    difference relies in an exception object address operand. It's encoded
+    as the first operands or second (for indirect calls).
 
-    To walk the operands for this operation, use `getNumArgOperands()`,
-    `getArgOperand()`, `getArgOperands()`, `arg_operand_begin()` and
-    `arg_operand_begin()`. Avoid using `getNumOperands()`, `getOperand()`,
-    `operand_begin()`, etc, direclty - might be misleading given the
-    exception object address is also part of the raw operation's operands.
-    ``
+    Similarly to `cir.call`, avoid using `mlir::Operation` methods to walk the
+    operands for this operation, instead use the methods provided by
+    `CIRCallOpInterface`.
 
     Example:
 
     ```mlir
-    %0 = cir.alloca !cir.eh.info, cir.ptr <!cir.eh.info> ...
-    %r = cir.try_call %exception(%0) @division(%1, %2), %0
+    cir.try {
+      %0 = cir.alloca !cir.ptr<!cir.eh.info>, cir.ptr <!cir.ptr<!cir.eh.info>>
+      ...
+      %r = cir.try_call %exception(%0) @division(%1, %2)
+    } ...
     ```
   }];
 
   let arguments = (ins OptionalAttr<FlatSymbolRefAttr>:$callee,
-                       ExceptionInfoPtr:$exceptionInfo,
+                       ExceptionInfoPtrPtr:$exceptionInfo,
                        Variadic<CIR_AnyType>:$callOps,
                        OptionalAttr<ASTCallExprInterface>:$ast);
   let results = (outs Variadic<CIR_AnyType>);
 
   let builders = [
-    OpBuilder<(ins "FuncOp":$callee, CArg<"ValueRange", "{}">:$operands), [{
+    OpBuilder<(ins "FuncOp":$callee, "mlir::Value":$exception,
+                   CArg<"ValueRange", "{}">:$operands), [{
+      $_state.addOperands(ValueRange{exception});
       $_state.addOperands(operands);
       $_state.addAttribute("callee", SymbolRefAttr::get(callee));
       if (!callee.getFunctionType().isVoid())
         $_state.addTypes(callee.getFunctionType().getReturnType());
     }]>,
-    OpBuilder<(ins "Value":$ind_target,
+    OpBuilder<(ins "Value":$ind_target, "mlir::Value":$exception,
                "FuncType":$fn_type,
                CArg<"ValueRange", "{}">:$operands), [{
       $_state.addOperands(ValueRange{ind_target});
+      $_state.addOperands(ValueRange{exception});
       $_state.addOperands(operands);
       if (!fn_type.isVoid())
         $_state.addTypes(fn_type.getReturnType());
     }]>,
-    OpBuilder<(ins "SymbolRefAttr":$callee, "mlir::Type":$resType,
-              CArg<"ValueRange", "{}">:$operands), [{
+    OpBuilder<(ins "SymbolRefAttr":$callee, "mlir::Value":$exception,
+                   "mlir::Type":$resType, CArg<"ValueRange", "{}">:$operands),
+    [{
+      $_state.addOperands(ValueRange{exception});
       $_state.addOperands(operands);
       $_state.addAttribute("callee", callee);
       $_state.addTypes(resType);
     }]>];
+
+    let hasVerifier = 1;
 }
 
 //===----------------------------------------------------------------------===//
@@ -2292,6 +2350,17 @@ def TryOp : CIR_Op<"try",
 //===----------------------------------------------------------------------===//
 // CatchOp
 //===----------------------------------------------------------------------===//
+
+// Represents the unwind region where unwind continues or
+// the program std::terminate's.
+def CatchUnwind : CIRUnitAttr<"CatchUnwind", "unwind"> {
+  let storageType = [{ CatchUnwind }];
+}
+
+// Represents the catch_all region.
+def CatchAllAttr : CIRUnitAttr<"CatchAll", "all"> {
+  let storageType = [{ CatchAllAttr }];
+}
 
 def CatchOp : CIR_Op<"catch",
       [SameVariadicOperandSize,
