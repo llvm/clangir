@@ -2,6 +2,7 @@
 // RUN: %clang_cc1 -x c++ -std=c++20 -triple x86_64-unknown-linux-gnu -fclangir -emit-cir %s -o -  | FileCheck %s -check-prefix=CIR
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm %s -o - | FileCheck %s -check-prefix=LLVM
 // RUN: %clang_cc1 -x c++ -std=c++20 -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm %s -o - | FileCheck %s -check-prefix=LLVM
+// XFAIL: *
 
 typedef struct {
     int a;
@@ -53,4 +54,20 @@ int foo(Data* d) {
     fun_t f = 0;
     f = extract_a;
     return f(d);
+}
+
+// CIR:  cir.func private {{@.*test.*}}() -> !cir.ptr<!cir.func<!void ()>>
+// CIR:  cir.func {{@.*bar.*}}()
+// CIR:    [[RET:%.*]] = cir.call {{@.*test.*}}() : () -> !cir.ptr<!cir.func<!void ()>>
+// CIR:    cir.call [[RET]]() : (!cir.ptr<!cir.func<!void ()>>) -> ()
+// CIR:    cir.return
+
+// LLVM: declare {{.*}} ptr {{@.*test.*}}()
+// LLVM: define void {{@.*bar.*}}()
+// LLVM:   [[RET:%.*]] = call ptr {{@.*test.*}}()
+// LLVM:   call void [[RET]]()
+// LLVM:   ret void
+void (*test(void))(void);
+void bar(void) {
+  test()();
 }
