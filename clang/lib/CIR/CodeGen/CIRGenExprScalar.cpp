@@ -2127,7 +2127,7 @@ mlir::Value ScalarExprEmitter::VisitBinLAnd(const clang::BinaryOperator *E) {
     }
     // 0 && RHS: If it is safe, just elide the RHS, and return 0/false.
     if (!CGF.ContainsLabel(E->getRHS()))
-      return Builder.getBool(false, Loc);
+      return Builder.getNullValue(ResTy, Loc);
   }
 
   CIRGenFunction::ConditionalEvaluation eval(CGF);
