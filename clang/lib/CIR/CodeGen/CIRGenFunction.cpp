@@ -1081,7 +1081,7 @@ void CIRGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
       Ty = VD->getType();
 
     if (Ty->isVariablyModifiedType())
-      llvm_unreachable("NYI");
+      buildVariablyModifiedType(Ty);
   }
   // Emit a location at the end of the prologue.
   if (getDebugInfo())
