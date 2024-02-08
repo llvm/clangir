@@ -54,6 +54,16 @@ void f4(int count) {
   int (*b)[][count];
 }
 
+// FIXME(cir): the test is commented due to stack_restore operation 
+// is not emitted for the if branch
+// void f5(unsigned x) {
+//   while (1) {
+//     char s[x];
+//     if (x > 5) //: stack restore here is missed
+//       break;
+//   }
+// }
+
 // Check no errors happen
 void function1(short width, int data[][width]) {} 
 void function2(short width, int data[][width][width]) {}
