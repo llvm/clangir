@@ -3,7 +3,9 @@
 
 static const int g = 1;
 void foo() {
-  if((g != 1) && (g != 1))
+  if ((g != 1) && (g != 1))
+    return;
+  if ((g == 1) || (g == 1))
     return;
 }
 // CHECK:  cir.func no_proto @foo()
