@@ -179,9 +179,9 @@ From the C++ snippet we get:
 Note that resulution of the common expression is assumed to happen
 as part of the enclosing await scope.
 
-Traits: NoRegionArguments, RecursivelySpeculatableImplTrait
+Traits: `NoRegionArguments`, `RecursivelySpeculatableImplTrait`
 
-Interfaces: ConditionallySpeculatable, RegionBranchOpInterface
+Interfaces: `ConditionallySpeculatable`, `RegionBranchOpInterface`
 
 #### Attributes:
 
@@ -246,11 +246,11 @@ should be the same.
 %7 = cir.binop(mul, %1, %2) : !u8i
 ```
 
-Traits: AlwaysSpeculatableImplTrait, SameOperandsAndResultType, SameTypeOperands
+Traits: `AlwaysSpeculatableImplTrait`, `SameOperandsAndResultType`, `SameTypeOperands`
 
-Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)
+Interfaces: `ConditionallySpeculatable`, `InferTypeOpInterface`, `NoMemoryEffect (MemoryEffectOpInterface)`
 
-Effects: MemoryEffects::Effect{}
+Effects: `MemoryEffects::Effect{}`
 
 #### Attributes:
 
@@ -302,11 +302,11 @@ Example:
     cir.yield
 ```
 
-Traits: AlwaysSpeculatableImplTrait, SameVariadicOperandSize, Terminator
+Traits: `AlwaysSpeculatableImplTrait`, `SameVariadicOperandSize`, `Terminator`
 
-Interfaces: BranchOpInterface, ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)
+Interfaces: `BranchOpInterface`, `ConditionallySpeculatable`, `NoMemoryEffect (MemoryEffectOpInterface)`
 
-Effects: MemoryEffects::Effect{}
+Effects: `MemoryEffects::Effect{}`
 
 #### Operands:
 
@@ -346,11 +346,11 @@ Example:
     cir.return
 ```
 
-Traits: AlwaysSpeculatableImplTrait, Terminator
+Traits: `AlwaysSpeculatableImplTrait`, `Terminator`
 
-Interfaces: BranchOpInterface, ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)
+Interfaces: `BranchOpInterface`, `ConditionallySpeculatable`, `NoMemoryEffect (MemoryEffectOpInterface)`
 
-Effects: MemoryEffects::Effect{}
+Effects: `MemoryEffects::Effect{}`
 
 #### Operands:
 
@@ -379,7 +379,7 @@ The `cir.break` operation is used to cease the control flow to the parent
 operation, exiting its region's control flow. It is only allowed if it is
 within a breakable operation (loops and `switch`).
 
-Traits: Terminator
+Traits: `Terminator`
 
 ### `cir.asm` (cir::InlineAsmOp)
 
@@ -413,7 +413,7 @@ cir.asm(x86_att, {"bar $$42 $0" "=r,=&r,1"})
 cir.asm(x86_att, {"baz $$42 $0" "=r,=&r,0,1"}) 
 ```
 
-Traits: RecursiveMemoryEffects
+Traits: `RecursiveMemoryEffects`
 
 #### Attributes:
 
@@ -434,16 +434,18 @@ Traits: RecursiveMemoryEffects
 
 _Call operation_
 
-The `call` operation represents a direct call to a function that is within
-the same symbol scope as the call. The operands and result types of the
-call must match the specified function type. The callee is encoded as a
-symbol reference attribute named "callee".
+Direct and indirect calls.
 
-To walk the operands for this operation, use `getNumArgOperands()`,
-`getArgOperand()`, `getArgOperands()`, `arg_operand_begin()` and
-`arg_operand_begin()`. Avoid using `getNumOperands()`, `getOperand()`,
-`operand_begin()`, etc, direclty - might be misleading given on indirect
-calls the callee is encoded in the first operation operand.
+For direct calls, the `call` operation represents a direct call to a
+function that is within the same symbol scope as the call. The operands
+and result types of the call must match the specified function type.
+The callee is encoded as a aymbol reference attribute named "callee".
+
+For indirect calls, the first `mlir::Operation` operand is the call target.
+
+Given the way indirect calls are encoded, avoid using `mlir::Operation`
+methods to walk the operands for this operation, instead use the methods
+provided by `CIRCallOpInterface`.
 ``
 
 Example:
@@ -456,7 +458,7 @@ Example:
 %20 = cir.call %18(%17)
 ```
 
-Interfaces: CIRCallOpInterface, CallOpInterface, SymbolUserOpInterface
+Interfaces: `CIRCallOpInterface`, `CallOpInterface`, `SymbolUserOpInterface`
 
 #### Attributes:
 
@@ -516,11 +518,11 @@ for instance is modeled as a regular `cir.load`.
 %x = cir.cast(array_to_ptrdecay, %0 : !cir.ptr<!cir.array<i32 x 10>>), !cir.ptr<i32>
 ```
 
-Traits: AlwaysSpeculatableImplTrait
+Traits: `AlwaysSpeculatableImplTrait`
 
-Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)
+Interfaces: `ConditionallySpeculatable`, `NoMemoryEffect (MemoryEffectOpInterface)`
 
-Effects: MemoryEffects::Effect{}
+Effects: `MemoryEffects::Effect{}`
 
 #### Attributes:
 
@@ -556,9 +558,9 @@ operation ::= `cir.catch` `(`
 ```
 
 
-Traits: NoRegionArguments, RecursivelySpeculatableImplTrait, SameVariadicOperandSize
+Traits: `NoRegionArguments`, `RecursivelySpeculatableImplTrait`, `SameVariadicOperandSize`
 
-Interfaces: ConditionallySpeculatable, RegionBranchOpInterface
+Interfaces: `ConditionallySpeculatable`, `RegionBranchOpInterface`
 
 #### Attributes:
 
@@ -617,11 +619,11 @@ operation ::= `cir.ceil` $src `:` type($src) attr-dict
 ```
 
 
-Traits: AlwaysSpeculatableImplTrait, SameOperandsAndResultType
+Traits: `AlwaysSpeculatableImplTrait`, `SameOperandsAndResultType`
 
-Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)
+Interfaces: `ConditionallySpeculatable`, `InferTypeOpInterface`, `NoMemoryEffect (MemoryEffectOpInterface)`
 
-Effects: MemoryEffects::Effect{}
+Effects: `MemoryEffects::Effect{}`
 
 #### Operands:
 
@@ -654,11 +656,11 @@ operation ::= `cir.cmp` `(` $kind `,` $lhs `,` $rhs  `)` `:` type($lhs) `,` type
 %7 = cir.cmp(gt, %1, %2) : i32, !cir.bool
 ```
 
-Traits: AlwaysSpeculatableImplTrait, SameTypeOperands
+Traits: `AlwaysSpeculatableImplTrait`, `SameTypeOperands`
 
-Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)
+Interfaces: `ConditionallySpeculatable`, `NoMemoryEffect (MemoryEffectOpInterface)`
 
-Effects: MemoryEffects::Effect{}
+Effects: `MemoryEffects::Effect{}`
 
 #### Attributes:
 
@@ -720,9 +722,9 @@ cir.await(user, ready : {
 },)
 ```
 
-Traits: Terminator
+Traits: `Terminator`
 
-Interfaces: RegionBranchTerminatorOpInterface
+Interfaces: `RegionBranchTerminatorOpInterface`
 
 #### Operands:
 
@@ -750,11 +752,11 @@ attached to the operation as an attribute.
   %2 = cir.const(nullptr : !cir.ptr<i32>) : !cir.ptr<i32>
 ```
 
-Traits: AlwaysSpeculatableImplTrait, ConstantLike
+Traits: `AlwaysSpeculatableImplTrait`, `ConstantLike`
 
-Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)
+Interfaces: `ConditionallySpeculatable`, `NoMemoryEffect (MemoryEffectOpInterface)`
 
-Effects: MemoryEffects::Effect{}
+Effects: `MemoryEffects::Effect{}`
 
 #### Attributes:
 
@@ -783,7 +785,7 @@ operation ::= `cir.continue` attr-dict
 The `cir.continue` operation is used to continue execution to the next
 iteration of a loop. It is only allowed within `cir.loop` regions.
 
-Traits: Terminator
+Traits: `Terminator`
 
 ### `cir.copy` (cir::CopyOp)
 
@@ -810,7 +812,7 @@ Examples:
   cir.copy %0 to %1 : !cir.ptr<!struct_ty>
 ```
 
-Traits: SameTypeOperands
+Traits: `SameTypeOperands`
 
 #### Operands:
 
@@ -831,11 +833,11 @@ operation ::= `cir.cos` $src `:` type($src) attr-dict
 ```
 
 
-Traits: AlwaysSpeculatableImplTrait, SameOperandsAndResultType
+Traits: `AlwaysSpeculatableImplTrait`, `SameOperandsAndResultType`
 
-Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)
+Interfaces: `ConditionallySpeculatable`, `InferTypeOpInterface`, `NoMemoryEffect (MemoryEffectOpInterface)`
 
-Effects: MemoryEffects::Effect{}
+Effects: `MemoryEffects::Effect{}`
 
 #### Operands:
 
@@ -875,9 +877,9 @@ cir.do {
 }
 ```
 
-Traits: NoRegionArguments
+Traits: `NoRegionArguments`
 
-Interfaces: LoopLikeOpInterface, LoopOpInterface, RegionBranchOpInterface
+Interfaces: `LoopLikeOpInterface`, `LoopOpInterface`, `RegionBranchOpInterface`
 
 ### `cir.exp2` (cir::Exp2Op)
 
@@ -891,11 +893,11 @@ operation ::= `cir.exp2` $src `:` type($src) attr-dict
 ```
 
 
-Traits: AlwaysSpeculatableImplTrait, SameOperandsAndResultType
+Traits: `AlwaysSpeculatableImplTrait`, `SameOperandsAndResultType`
 
-Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)
+Interfaces: `ConditionallySpeculatable`, `InferTypeOpInterface`, `NoMemoryEffect (MemoryEffectOpInterface)`
 
-Effects: MemoryEffects::Effect{}
+Effects: `MemoryEffects::Effect{}`
 
 #### Operands:
 
@@ -921,11 +923,11 @@ operation ::= `cir.exp` $src `:` type($src) attr-dict
 ```
 
 
-Traits: AlwaysSpeculatableImplTrait, SameOperandsAndResultType
+Traits: `AlwaysSpeculatableImplTrait`, `SameOperandsAndResultType`
 
-Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)
+Interfaces: `ConditionallySpeculatable`, `InferTypeOpInterface`, `NoMemoryEffect (MemoryEffectOpInterface)`
 
-Effects: MemoryEffects::Effect{}
+Effects: `MemoryEffects::Effect{}`
 
 #### Operands:
 
@@ -951,11 +953,11 @@ operation ::= `cir.fabs` $src `:` type($src) attr-dict
 ```
 
 
-Traits: AlwaysSpeculatableImplTrait, SameOperandsAndResultType
+Traits: `AlwaysSpeculatableImplTrait`, `SameOperandsAndResultType`
 
-Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)
+Interfaces: `ConditionallySpeculatable`, `InferTypeOpInterface`, `NoMemoryEffect (MemoryEffectOpInterface)`
 
-Effects: MemoryEffects::Effect{}
+Effects: `MemoryEffects::Effect{}`
 
 #### Operands:
 
@@ -981,11 +983,11 @@ operation ::= `cir.floor` $src `:` type($src) attr-dict
 ```
 
 
-Traits: AlwaysSpeculatableImplTrait, SameOperandsAndResultType
+Traits: `AlwaysSpeculatableImplTrait`, `SameOperandsAndResultType`
 
-Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)
+Interfaces: `ConditionallySpeculatable`, `InferTypeOpInterface`, `NoMemoryEffect (MemoryEffectOpInterface)`
 
-Effects: MemoryEffects::Effect{}
+Effects: `MemoryEffects::Effect{}`
 
 #### Operands:
 
@@ -1034,9 +1036,9 @@ cir.for cond {
 }
 ```
 
-Traits: NoRegionArguments
+Traits: `NoRegionArguments`
 
-Interfaces: LoopLikeOpInterface, LoopOpInterface, RegionBranchOpInterface
+Interfaces: `LoopLikeOpInterface`, `LoopOpInterface`, `RegionBranchOpInterface`
 
 ### `cir.func` (cir::FuncOp)
 
@@ -1103,9 +1105,9 @@ cir.func coroutine @_Z10silly_taskv() -> !CoroTask {
 }
 ```
 
-Traits: AutomaticAllocationScope, IsolatedFromAbove
+Traits: `AutomaticAllocationScope`, `IsolatedFromAbove`
 
-Interfaces: CallableOpInterface, FunctionOpInterface, Symbol
+Interfaces: `CallableOpInterface`, `FunctionOpInterface`, `Symbol`
 
 #### Attributes:
 
@@ -1145,6 +1147,9 @@ It expects a name if a bit field, a pointer to a storage in the
 base record, a type of the storage, a name of the bitfield,
 a size the bit field, an offset of the bit field and a sign.
 
+A unit attribute `volatile` can be used to indicate a volatile load of the
+bitfield.
+
 Example:
 Suppose we have a struct with multiple bitfields stored in
 different storages. The `cir.get_bitfield` operation gets the value
@@ -1178,6 +1183,7 @@ int load_bitfield(S& s) {
 <table>
 <tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
 <tr><td><code>bitfield_info</code></td><td>::mlir::cir::BitfieldInfoAttr</td><td>Represents a bit field info</td></tr>
+<tr><td><code>is_volatile</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
 </table>
 
 #### Operands:
@@ -1214,11 +1220,11 @@ Example:
 %x = cir.get_global @foo : !cir.ptr<i32>
 ```
 
-Traits: AlwaysSpeculatableImplTrait
+Traits: `AlwaysSpeculatableImplTrait`
 
-Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface), SymbolUserOpInterface
+Interfaces: `ConditionallySpeculatable`, `NoMemoryEffect (MemoryEffectOpInterface)`, `SymbolUserOpInterface`
 
-Effects: MemoryEffects::Effect{}
+Effects: `MemoryEffects::Effect{}`
 
 #### Attributes:
 
@@ -1321,9 +1327,9 @@ Example:
 cir.global public constant @c : i32 = 4;
 ```
 
-Traits: NoRegionArguments
+Traits: `NoRegionArguments`
 
-Interfaces: RegionBranchOpInterface, Symbol
+Interfaces: `RegionBranchOpInterface`, `Symbol`
 
 #### Attributes:
 
@@ -1337,6 +1343,7 @@ Interfaces: RegionBranchOpInterface, Symbol
 <tr><td><code>constant</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
 <tr><td><code>alignment</code></td><td>::mlir::IntegerAttr</td><td>64-bit signless integer attribute</td></tr>
 <tr><td><code>ast</code></td><td>::mlir::cir::ASTVarDeclInterface</td><td>ASTVarDeclInterface instance</td></tr>
+<tr><td><code>section</code></td><td>::mlir::StringAttr</td><td>string attribute</td></tr>
 </table>
 
 ### `cir.if` (cir::IfOp)
@@ -1371,9 +1378,9 @@ cir.if %c  {
 `cir.if` defines no values and the 'else' can be omitted. `cir.yield` must
 explicitly terminate the region if it has more than one block.
 
-Traits: AutomaticAllocationScope, NoRegionArguments, RecursivelySpeculatableImplTrait
+Traits: `AutomaticAllocationScope`, `NoRegionArguments`, `RecursivelySpeculatableImplTrait`
 
-Interfaces: ConditionallySpeculatable, RegionBranchOpInterface
+Interfaces: `ConditionallySpeculatable`, `RegionBranchOpInterface`
 
 #### Operands:
 
@@ -1455,14 +1462,15 @@ _Load value from memory adddress_
 Syntax:
 
 ```
-operation ::= `cir.load` (`deref` $isDeref^)? $addr `:` `cir.ptr` type($addr) `,`
-              type($result) attr-dict
+operation ::= `cir.load` (`deref` $isDeref^)? (`volatile` $is_volatile^)?
+              $addr `:` `cir.ptr` type($addr) `,` type($result) attr-dict
 ```
 
 `cir.load` reads a value (lvalue to rvalue conversion) given an address
 backed up by a `cir.ptr` type. A unit attribute `deref` can be used to
 mark the resulting value as used by another operation to dereference
-a pointer.
+a pointer. A unit attribute `volatile` can be used to indicate a volatile
+loading.
 
 Example:
 
@@ -1474,15 +1482,19 @@ Example:
 // Load address from memory at address %0. %3 is used by at least one
 // operation that dereferences a pointer.
 %3 = cir.load deref %0 : cir.ptr <!cir.ptr<i32>>
+
+// Perform a volatile load from address in %0.
+%4 = cir.load volatile %0 : !cir.ptr<i32>, i32
 ```
 
-Interfaces: InferTypeOpInterface
+Interfaces: `InferTypeOpInterface`
 
 #### Attributes:
 
 <table>
 <tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
 <tr><td><code>isDeref</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
+<tr><td><code>is_volatile</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
 </table>
 
 #### Operands:
@@ -1509,11 +1521,11 @@ operation ::= `cir.log10` $src `:` type($src) attr-dict
 ```
 
 
-Traits: AlwaysSpeculatableImplTrait, SameOperandsAndResultType
+Traits: `AlwaysSpeculatableImplTrait`, `SameOperandsAndResultType`
 
-Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)
+Interfaces: `ConditionallySpeculatable`, `InferTypeOpInterface`, `NoMemoryEffect (MemoryEffectOpInterface)`
 
-Effects: MemoryEffects::Effect{}
+Effects: `MemoryEffects::Effect{}`
 
 #### Operands:
 
@@ -1539,11 +1551,11 @@ operation ::= `cir.log2` $src `:` type($src) attr-dict
 ```
 
 
-Traits: AlwaysSpeculatableImplTrait, SameOperandsAndResultType
+Traits: `AlwaysSpeculatableImplTrait`, `SameOperandsAndResultType`
 
-Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)
+Interfaces: `ConditionallySpeculatable`, `InferTypeOpInterface`, `NoMemoryEffect (MemoryEffectOpInterface)`
 
-Effects: MemoryEffects::Effect{}
+Effects: `MemoryEffects::Effect{}`
 
 #### Operands:
 
@@ -1569,11 +1581,11 @@ operation ::= `cir.log` $src `:` type($src) attr-dict
 ```
 
 
-Traits: AlwaysSpeculatableImplTrait, SameOperandsAndResultType
+Traits: `AlwaysSpeculatableImplTrait`, `SameOperandsAndResultType`
 
-Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)
+Interfaces: `ConditionallySpeculatable`, `InferTypeOpInterface`, `NoMemoryEffect (MemoryEffectOpInterface)`
 
-Effects: MemoryEffects::Effect{}
+Effects: `MemoryEffects::Effect{}`
 
 #### Operands:
 
@@ -1609,7 +1621,7 @@ Examples:
 %p = cir.libc.memchr(%src, %pattern, %len) -> !cir.ptr<!void>
 ```
 
-Interfaces: InferTypeOpInterface
+Interfaces: `InferTypeOpInterface`
 
 #### Operands:
 
@@ -1672,11 +1684,11 @@ operation ::= `cir.nearbyint` $src `:` type($src) attr-dict
 ```
 
 
-Traits: AlwaysSpeculatableImplTrait, SameOperandsAndResultType
+Traits: `AlwaysSpeculatableImplTrait`, `SameOperandsAndResultType`
 
-Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)
+Interfaces: `ConditionallySpeculatable`, `InferTypeOpInterface`, `NoMemoryEffect (MemoryEffectOpInterface)`
 
-Effects: MemoryEffects::Effect{}
+Effects: `MemoryEffects::Effect{}`
 
 #### Operands:
 
@@ -1707,11 +1719,11 @@ operation ::= `cir.objsize` `(`
 ```
 
 
-Traits: AlwaysSpeculatableImplTrait
+Traits: `AlwaysSpeculatableImplTrait`
 
-Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)
+Interfaces: `ConditionallySpeculatable`, `NoMemoryEffect (MemoryEffectOpInterface)`
 
-Effects: MemoryEffects::Effect{}
+Effects: `MemoryEffects::Effect{}`
 
 #### Attributes:
 
@@ -1756,11 +1768,11 @@ yielding 8 means 8 bytes.
 %7 = "cir.ptr_diff"(%0, %1) : !cir.ptr<!u64i> -> !u64i
 ```
 
-Traits: AlwaysSpeculatableImplTrait, SameTypeOperands
+Traits: `AlwaysSpeculatableImplTrait`, `SameTypeOperands`
 
-Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)
+Interfaces: `ConditionallySpeculatable`, `NoMemoryEffect (MemoryEffectOpInterface)`
 
-Effects: MemoryEffects::Effect{}
+Effects: `MemoryEffects::Effect{}`
 
 #### Operands:
 
@@ -1795,11 +1807,11 @@ a stride (second operand).
 %4 = cir.ptr_stride(%2 : !cir.ptr<i32>, %3 : i32), !cir.ptr<i32>
 ```
 
-Traits: AlwaysSpeculatableImplTrait, SameFirstOperandAndResultType
+Traits: `AlwaysSpeculatableImplTrait`, `SameFirstOperandAndResultType`
 
-Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)
+Interfaces: `ConditionallySpeculatable`, `NoMemoryEffect (MemoryEffectOpInterface)`
 
-Effects: MemoryEffects::Effect{}
+Effects: `MemoryEffects::Effect{}`
 
 #### Operands:
 
@@ -1836,9 +1848,9 @@ cir.catch ... {
 }
 ```
 
-Traits: HasParent<CatchOp>, ReturnLike, Terminator
+Traits: `HasParent<CatchOp>`, `ReturnLike`, `Terminator`
 
-Interfaces: RegionBranchTerminatorOpInterface
+Interfaces: `RegionBranchTerminatorOpInterface`
 
 ### `cir.return` (cir::ReturnOp)
 
@@ -1863,7 +1875,7 @@ the operation.
   }
 ```
 
-Traits: HasParent<FuncOp, ScopeOp, IfOp, SwitchOp, DoWhileOp, WhileOp, ForOp>, Terminator
+Traits: `HasParent<FuncOp, ScopeOp, IfOp, SwitchOp, DoWhileOp, WhileOp, ForOp>`, `Terminator`
 
 #### Operands:
 
@@ -1883,11 +1895,11 @@ operation ::= `cir.rint` $src `:` type($src) attr-dict
 ```
 
 
-Traits: AlwaysSpeculatableImplTrait, SameOperandsAndResultType
+Traits: `AlwaysSpeculatableImplTrait`, `SameOperandsAndResultType`
 
-Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)
+Interfaces: `ConditionallySpeculatable`, `InferTypeOpInterface`, `NoMemoryEffect (MemoryEffectOpInterface)`
 
-Effects: MemoryEffects::Effect{}
+Effects: `MemoryEffects::Effect{}`
 
 #### Operands:
 
@@ -1913,11 +1925,11 @@ operation ::= `cir.round` $src `:` type($src) attr-dict
 ```
 
 
-Traits: AlwaysSpeculatableImplTrait, SameOperandsAndResultType
+Traits: `AlwaysSpeculatableImplTrait`, `SameOperandsAndResultType`
 
-Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)
+Interfaces: `ConditionallySpeculatable`, `InferTypeOpInterface`, `NoMemoryEffect (MemoryEffectOpInterface)`
 
-Effects: MemoryEffects::Effect{}
+Effects: `MemoryEffects::Effect{}`
 
 #### Operands:
 
@@ -1960,9 +1972,9 @@ coming out of C++ full-expressions) via `cir.yield`:
 If `cir.scope` yields no value, the `cir.yield` can be left out, and
 will be inserted implicitly.
 
-Traits: AutomaticAllocationScope, NoRegionArguments, RecursivelySpeculatableImplTrait
+Traits: `AutomaticAllocationScope`, `NoRegionArguments`, `RecursivelySpeculatableImplTrait`
 
-Interfaces: ConditionallySpeculatable, RegionBranchOpInterface
+Interfaces: `ConditionallySpeculatable`, `RegionBranchOpInterface`
 
 #### Results:
 
@@ -1989,6 +2001,9 @@ It expects an address of a storage where to store, a type of the storage,
 a value being stored, a name of a bit field, a pointer to the storage in the
 base record, a size of the storage, a size the bit field, an offset
 of the bit field and a sign. Returns a value being stored.
+
+A unit attribute `volatile` can be used to indicate a volatile load of the
+bitfield.
 
 Example.
 Suppose we have a struct with multiple bitfields stored in
@@ -2024,6 +2039,7 @@ void store_bitfield(S& s) {
 <table>
 <tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
 <tr><td><code>bitfield_info</code></td><td>::mlir::cir::BitfieldInfoAttr</td><td>Represents a bit field info</td></tr>
+<tr><td><code>is_volatile</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
 </table>
 
 #### Operands:
@@ -2061,11 +2077,11 @@ the shift target and the third the amount.
 %7 = cir.shift(left, %1 : !u64i, %4 : !s32i) -> !u64i
 ```
 
-Traits: AlwaysSpeculatableImplTrait
+Traits: `AlwaysSpeculatableImplTrait`
 
-Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)
+Interfaces: `ConditionallySpeculatable`, `NoMemoryEffect (MemoryEffectOpInterface)`
 
-Effects: MemoryEffects::Effect{}
+Effects: `MemoryEffects::Effect{}`
 
 #### Attributes:
 
@@ -2099,11 +2115,11 @@ operation ::= `cir.sin` $src `:` type($src) attr-dict
 ```
 
 
-Traits: AlwaysSpeculatableImplTrait, SameOperandsAndResultType
+Traits: `AlwaysSpeculatableImplTrait`, `SameOperandsAndResultType`
 
-Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)
+Interfaces: `ConditionallySpeculatable`, `InferTypeOpInterface`, `NoMemoryEffect (MemoryEffectOpInterface)`
 
-Effects: MemoryEffects::Effect{}
+Effects: `MemoryEffects::Effect{}`
 
 #### Operands:
 
@@ -2129,11 +2145,11 @@ operation ::= `cir.sqrt` $src `:` type($src) attr-dict
 ```
 
 
-Traits: AlwaysSpeculatableImplTrait, SameOperandsAndResultType
+Traits: `AlwaysSpeculatableImplTrait`, `SameOperandsAndResultType`
 
-Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)
+Interfaces: `ConditionallySpeculatable`, `InferTypeOpInterface`, `NoMemoryEffect (MemoryEffectOpInterface)`
 
-Effects: MemoryEffects::Effect{}
+Effects: `MemoryEffects::Effect{}`
 
 #### Operands:
 
@@ -2230,7 +2246,7 @@ Example:
                        %first : !T, %last : !T, %pattern : !P) -> !T
 ```
 
-Traits: SameFirstSecondOperandAndResultType
+Traits: `SameFirstSecondOperandAndResultType`
 
 #### Attributes:
 
@@ -2261,18 +2277,30 @@ _Store value to memory address_
 Syntax:
 
 ```
-operation ::= `cir.store` $value `,` $addr attr-dict `:` type($value) `,` `cir.ptr` type($addr)
+operation ::= `cir.store` (`volatile` $is_volatile^)?
+              $value `,` $addr attr-dict `:` type($value) `,` `cir.ptr` type($addr)
 ```
 
 `cir.store` stores a value (first operand) to the memory address specified
-in the second operand.
+in the second operand. A unit attribute `volatile` can be used to indicate
+a volatile store.
 
 Example:
 
 ```mlir
 // Store a function argument to local storage, address in %0.
 cir.store %arg0, %0 : i32, !cir.ptr<i32>
+
+// Perform a volatile store into memory location at the address in %0.
+cir.store volatile %arg0, %0 : i32, !cir.ptr<i32>
 ```
+
+#### Attributes:
+
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>is_volatile</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
+</table>
 
 #### Operands:
 
@@ -2328,9 +2356,9 @@ cir.switch (%b : i32) [
 ]
 ```
 
-Traits: AutomaticAllocationScope, NoRegionArguments, RecursivelySpeculatableImplTrait, SameVariadicOperandSize
+Traits: `AutomaticAllocationScope`, `NoRegionArguments`, `RecursivelySpeculatableImplTrait`, `SameVariadicOperandSize`
 
-Interfaces: ConditionallySpeculatable, RegionBranchOpInterface
+Interfaces: `ConditionallySpeculatable`, `RegionBranchOpInterface`
 
 #### Attributes:
 
@@ -2379,9 +2407,9 @@ Example:
 }) -> i32
 ```
 
-Traits: AutomaticAllocationScope, NoRegionArguments, RecursivelySpeculatableImplTrait
+Traits: `AutomaticAllocationScope`, `NoRegionArguments`, `RecursivelySpeculatableImplTrait`
 
-Interfaces: ConditionallySpeculatable, RegionBranchOpInterface
+Interfaces: `ConditionallySpeculatable`, `RegionBranchOpInterface`
 
 #### Operands:
 
@@ -2434,7 +2462,7 @@ run as part of this operation.
     cir.throw(%11 : !cir.ptr<!cir.ptr<!u8i>>, @"typeinfo for char const*")
 ```
 
-Traits: HasParent<FuncOp, ScopeOp, IfOp, SwitchOp, DoWhileOp, WhileOp, ForOp>, Terminator
+Traits: `HasParent<FuncOp, ScopeOp, IfOp, SwitchOp, DoWhileOp, WhileOp, ForOp>`, `Terminator`
 
 #### Attributes:
 
@@ -2462,11 +2490,11 @@ operation ::= `cir.trunc` $src `:` type($src) attr-dict
 ```
 
 
-Traits: AlwaysSpeculatableImplTrait, SameOperandsAndResultType
+Traits: `AlwaysSpeculatableImplTrait`, `SameOperandsAndResultType`
 
-Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)
+Interfaces: `ConditionallySpeculatable`, `InferTypeOpInterface`, `NoMemoryEffect (MemoryEffectOpInterface)`
 
-Effects: MemoryEffects::Effect{}
+Effects: `MemoryEffects::Effect{}`
 
 #### Operands:
 
@@ -2484,24 +2512,25 @@ Effects: MemoryEffects::Effect{}
 
 _Try call operation_
 
-Very similar to `cir.call` but passes down an exception object
-in case anything is thrown by the callee.
+Similar to `cir.call`, direct and indirect properties are the same. The
+difference relies in an exception object address operand. It's encoded
+as the first operands or second (for indirect calls).
 
-To walk the operands for this operation, use `getNumArgOperands()`,
-`getArgOperand()`, `getArgOperands()`, `arg_operand_begin()` and
-`arg_operand_begin()`. Avoid using `getNumOperands()`, `getOperand()`,
-`operand_begin()`, etc, direclty - might be misleading given the
-exception object address is also part of the raw operation's operands.
-``
+Similarly to `cir.call`, avoid using `mlir::Operation` methods to walk the
+operands for this operation, instead use the methods provided by
+`CIRCallOpInterface`.
 
 Example:
 
 ```mlir
-%0 = cir.alloca !cir.eh.info, cir.ptr <!cir.eh.info> ...
-%r = cir.try_call %exception(%0) @division(%1, %2), %0
+cir.try {
+  %0 = cir.alloca !cir.ptr<!cir.eh.info>, cir.ptr <!cir.ptr<!cir.eh.info>>
+  ...
+  %r = cir.try_call %exception(%0) @division(%1, %2)
+} ...
 ```
 
-Interfaces: CIRCallOpInterface, CallOpInterface, SymbolUserOpInterface
+Interfaces: `CIRCallOpInterface`, `CallOpInterface`, `SymbolUserOpInterface`
 
 #### Attributes:
 
@@ -2515,7 +2544,7 @@ Interfaces: CIRCallOpInterface, CallOpInterface, SymbolUserOpInterface
 
 | Operand | Description |
 | :-----: | ----------- |
-| `exceptionInfo` | !cir.eh_info*
+| `exceptionInfo` | !cir.eh_info**
 | `callOps` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
 
 #### Results:
@@ -2529,53 +2558,25 @@ Interfaces: CIRCallOpInterface, CallOpInterface, SymbolUserOpInterface
 Syntax:
 
 ```
-operation ::= `cir.try` `{`
-              $body
-              `}` `:` functional-type(operands, results) attr-dict
+operation ::= `cir.try` $body `:` functional-type(operands, results) attr-dict
 ```
 
 ```mlir
-cir.scope  {
-  // Selector and exception control related allocas
-  // C++ `try {}` local variable declarations
-  %except_info = cir.try {
-    %res0, %exh = cir.call @return_something()
-    %if %exh
-      cir.yield %exh
-
-    %exh2 = cir.call @return_void()
-    %if %exh2
-      cir.yield %exh
-    cir.yield #zero : !except_type
-  }
-  ...
-  cir.br ^cleanup
-  ^cleanup:
-    // Run dtors
-    ...
-    // Catch based %except_info
-    cir.catch(%except_info, [
-      /*catch A*/ {},
-      /*catch B*/ {},
-      ...
-      all {}
-    ])
-  cir.yield
-}
+TBD
 ```
 
 Note that variables declared inside a `try {}` in C++ will
-have their allocas places in the surrounding scope.
+have their allocas places in the surrounding (parent) scope.
 
-Traits: NoRegionArguments, RecursivelySpeculatableImplTrait
+Traits: `AutomaticAllocationScope`, `NoRegionArguments`, `RecursivelySpeculatableImplTrait`
 
-Interfaces: ConditionallySpeculatable, RegionBranchOpInterface
+Interfaces: `ConditionallySpeculatable`, `InferTypeOpInterface`, `RegionBranchOpInterface`
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+| `result` | !cir.eh_info*
 
 ### `cir.unary` (cir::UnaryOp)
 
@@ -2603,11 +2604,11 @@ should be the same.
 %8 = cir.unary(dec, %2) : i32 -> i32
 ```
 
-Traits: AlwaysSpeculatableImplTrait, SameOperandsAndResultType
+Traits: `AlwaysSpeculatableImplTrait`, `SameOperandsAndResultType`
 
-Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)
+Interfaces: `ConditionallySpeculatable`, `InferTypeOpInterface`, `NoMemoryEffect (MemoryEffectOpInterface)`
 
-Effects: MemoryEffects::Effect{}
+Effects: `MemoryEffects::Effect{}`
 
 #### Attributes:
 
@@ -2742,11 +2743,11 @@ cir.global linkonce_odr @_ZTV1B = ...
 %3 = cir.vtable.address_point(@_ZTV1B, vtable_index = 0, address_point_index = 2) : cir.ptr <!cir.ptr<() -> i32>>
 ```
 
-Traits: AlwaysSpeculatableImplTrait
+Traits: `AlwaysSpeculatableImplTrait`
 
-Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface), SymbolUserOpInterface
+Interfaces: `ConditionallySpeculatable`, `NoMemoryEffect (MemoryEffectOpInterface)`, `SymbolUserOpInterface`
 
-Effects: MemoryEffects::Effect{}
+Effects: `MemoryEffects::Effect{}`
 
 #### Attributes:
 
@@ -2769,6 +2770,48 @@ Effects: MemoryEffects::Effect{}
 | :----: | ----------- |
 | `addr` | CIR pointer type
 
+### `cir.vec.cmp` (cir::VecCmpOp)
+
+_Compare two vectors_
+
+
+Syntax:
+
+```
+operation ::= `cir.vec.cmp` `(` $kind `,` $lhs `,` $rhs `)` `:` type($lhs) `,` type($result) attr-dict
+```
+
+The `cir.vec.cmp` operation does an element-wise comparison of two vectors
+of the same type. The result is a vector of the same size as the operands
+whose element type is the signed integral type that is the same size as the
+element type of the operands.  The values in the result are 0 or -1.
+
+Traits: `AlwaysSpeculatableImplTrait`, `SameTypeOperands`
+
+Interfaces: `ConditionallySpeculatable`, `NoMemoryEffect (MemoryEffectOpInterface)`
+
+Effects: `MemoryEffects::Effect{}`
+
+#### Attributes:
+
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>kind</code></td><td>::mlir::cir::CmpOpKindAttr</td><td>compare operation kind</td></tr>
+</table>
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `lhs` | CIR vector type
+| `rhs` | CIR vector type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | CIR vector type
+
 ### `cir.vec.create` (cir::VecCreateOp)
 
 _Create a vector value_
@@ -2784,11 +2827,11 @@ The `cir.vec.create` operation creates a vector value with the given element
 values. The number of element arguments must match the number of elements
 in the vector type.
 
-Traits: AlwaysSpeculatableImplTrait
+Traits: `AlwaysSpeculatableImplTrait`
 
-Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)
+Interfaces: `ConditionallySpeculatable`, `NoMemoryEffect (MemoryEffectOpInterface)`
 
-Effects: MemoryEffects::Effect{}
+Effects: `MemoryEffects::Effect{}`
 
 #### Operands:
 
@@ -2816,11 +2859,11 @@ operation ::= `cir.vec.extract` $vec `[` $index `:` type($index) `]` attr-dict `
 The `cir.vec.extract` operation extracts the element at the given index
 from a vector object.
 
-Traits: AlwaysSpeculatableImplTrait
+Traits: `AlwaysSpeculatableImplTrait`
 
-Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)
+Interfaces: `ConditionallySpeculatable`, `InferTypeOpInterface`, `NoMemoryEffect (MemoryEffectOpInterface)`
 
-Effects: MemoryEffects::Effect{}
+Effects: `MemoryEffects::Effect{}`
 
 #### Operands:
 
@@ -2850,11 +2893,11 @@ The `cir.vec.insert` operation replaces the element of the given vector at
 the given index with the given value.  The new vector with the inserted
 element is returned.
 
-Traits: AlwaysSpeculatableImplTrait
+Traits: `AlwaysSpeculatableImplTrait`
 
-Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)
+Interfaces: `ConditionallySpeculatable`, `InferTypeOpInterface`, `NoMemoryEffect (MemoryEffectOpInterface)`
 
-Effects: MemoryEffects::Effect{}
+Effects: `MemoryEffects::Effect{}`
 
 #### Operands:
 
@@ -2899,9 +2942,9 @@ cir.while {
 }
 ```
 
-Traits: NoRegionArguments
+Traits: `NoRegionArguments`
 
-Interfaces: LoopLikeOpInterface, LoopOpInterface, RegionBranchOpInterface
+Interfaces: `LoopLikeOpInterface`, `LoopOpInterface`, `RegionBranchOpInterface`
 
 ### `cir.yield` (cir::YieldOp)
 
@@ -2959,9 +3002,9 @@ cir.scope {
 } : i32
 ```
 
-Traits: HasParent<IfOp, ScopeOp, SwitchOp, WhileOp, ForOp, AwaitOp, TernaryOp, GlobalOp, DoWhileOp, CatchOp>, ReturnLike, Terminator
+Traits: `HasParent<IfOp, ScopeOp, SwitchOp, WhileOp, ForOp, AwaitOp, TernaryOp, GlobalOp, DoWhileOp, CatchOp, TryOp>`, `ReturnLike`, `Terminator`
 
-Interfaces: RegionBranchTerminatorOpInterface
+Interfaces: `RegionBranchTerminatorOpInterface`
 
 #### Operands:
 
@@ -2983,11 +3026,11 @@ operation ::= `cir.llvmir.zeroinit` attr-dict `:` type($result)
 This operation circumvents the lack of a zeroinitializer operation in LLVM
 Dialect. It can zeroinitialize any LLVM type.
 
-Traits: AlwaysSpeculatableImplTrait
+Traits: `AlwaysSpeculatableImplTrait`
 
-Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)
+Interfaces: `ConditionallySpeculatable`, `NoMemoryEffect (MemoryEffectOpInterface)`
 
-Effects: MemoryEffects::Effect{}
+Effects: `MemoryEffects::Effect{}`
 
 #### Results:
 

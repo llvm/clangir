@@ -265,6 +265,7 @@ An CIR array attribute is an array of literals of the specified attr types.
 | :-------: | :-------: | ----------- |
 | type | `::mlir::Type` |  |
 | elts | `Attribute` |  |
+| trailingZerosNum | `int` |  |
 
 ### ConstPtrAttr
 

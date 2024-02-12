@@ -8,7 +8,7 @@ Some outside resources for additional context:
 
 - *January 2024:* [RFC: Upstreaming ClangIR](https://discourse.llvm.org/t/rfc-upstreaming-clangir/76587)
 - *October 2023:* US LLVM Developers Meeting talk [Evolution of ClangIR: A
-Year of Progress, Challenges, and Future Plans](/Files/2023-LLVMDevMtgClangIR.pdf).
+Year of Progress, Challenges, and Future Plans](http://brunocardoso.cc/resources/2023-LLVMDevMtgClangIR.pdf).
 - *June 2022:* [RFC: An MLIR based Clang IR (CIR)](https://discourse.llvm.org/t/rfc-an-mlir-based-clang-ir-cir/63319)
 
 # Motivation
@@ -96,4 +96,4 @@ branch.
 On vim use ":r!date"
 -->
 
-*Last updated: Mon Jan 29 11:41:05 PST 2024*
+*Last updated: Mon Feb 12 12:46:03 PST 2024*
