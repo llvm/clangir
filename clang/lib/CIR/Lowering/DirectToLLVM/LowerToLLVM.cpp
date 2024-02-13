@@ -166,6 +166,16 @@ lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::cir::IntAttr intAttr,
       loc, converter->convertType(intAttr.getType()), intAttr.getValue());
 }
 
+/// BoolAttr visitor.
+inline mlir::Value
+lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::cir::BoolAttr boolAttr,
+                    mlir::ConversionPatternRewriter &rewriter,
+                    const mlir::TypeConverter *converter) {
+  auto loc = parentOp->getLoc();
+  return rewriter.create<mlir::LLVM::ConstantOp>(
+      loc, converter->convertType(boolAttr.getType()), boolAttr.getValue());
+}
+
 /// ConstPtrAttr visitor.
 inline mlir::Value
 lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::cir::ConstPtrAttr ptrAttr,
@@ -369,7 +379,7 @@ lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::Attribute attr,
   if (const auto constArr = mlir::dyn_cast<mlir::cir::ConstArrayAttr>(attr))
     return lowerCirAttrAsValue(parentOp, constArr, rewriter, converter);
   if (const auto boolAttr = mlir::dyn_cast<mlir::cir::BoolAttr>(attr))
-    llvm_unreachable("bool attribute is NYI");
+    return lowerCirAttrAsValue(parentOp, boolAttr, rewriter, converter);
   if (const auto zeroAttr = mlir::dyn_cast<mlir::cir::ZeroAttr>(attr))
     return lowerCirAttrAsValue(parentOp, zeroAttr, rewriter, converter);
   if (const auto globalAttr = mlir::dyn_cast<mlir::cir::GlobalViewAttr>(attr))
