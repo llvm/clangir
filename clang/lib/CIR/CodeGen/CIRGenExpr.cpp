@@ -2537,6 +2537,12 @@ LValue CIRGenFunction::buildLoadOfReferenceLValue(LValue RefLVal,
                         PointeeBaseInfo);
 }
 
+void CIRGenFunction::buildUnreachable(SourceLocation Loc) {
+  if (SanOpts.has(SanitizerKind::Unreachable))
+    llvm_unreachable("NYI");
+  builder.create<mlir::cir::UnreachableOp>(getLoc(Loc));
+}
+
 //===----------------------------------------------------------------------===//
 // CIR builder helpers
 //===----------------------------------------------------------------------===//
