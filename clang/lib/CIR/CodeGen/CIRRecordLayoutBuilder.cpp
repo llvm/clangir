@@ -501,10 +501,10 @@ void CIRRecordLowering::accumulateBitFields(
   // with lower cost.
   auto IsBetterAsSingleFieldRun = [&](uint64_t OffsetInRecord,
                                       uint64_t StartBitOffset,
-                                      uint64_t nextTail=0) {
+                                      uint64_t nextTail = 0) {
     if (OffsetInRecord >= 64 ||
         (nextTail > StartBitOffset &&
-          nextTail - StartBitOffset >= 64)) { // See IntType::verify
+         nextTail - StartBitOffset >= 64)) { // See IntType::verify
       return true;
     }
 
@@ -555,7 +555,8 @@ void CIRRecordLowering::accumulateBitFields(
       nextTail += Field->getBitWidthValue(astContext);
 
     if (!StartFieldAsSingleRun && Field != FieldEnd &&
-        !IsBetterAsSingleFieldRun(Tail - StartBitOffset, StartBitOffset, nextTail) &&
+        !IsBetterAsSingleFieldRun(Tail - StartBitOffset, StartBitOffset,
+                                  nextTail) &&
         (!Field->isZeroLengthBitField(astContext) ||
          (!astContext.getTargetInfo().useZeroLengthBitfieldAlignment() &&
           !astContext.getTargetInfo().useBitFieldTypeAlignment())) &&
