@@ -16,6 +16,12 @@ void m() {
 
 typedef struct {
   int a : 4;
+  int b : 5;
+  int c;
+} D;
+
+typedef struct {
+  int a : 4;
   int b : 27;
   int c : 17;
   int d : 2;
@@ -27,9 +33,12 @@ typedef struct {
   int a : 3;  // one bitfield with size < 8
   unsigned b;
 } T; 
+
+// CHECK: !ty_22D22 = !cir.struct<struct "D" {!cir.int<u, 16>, !cir.int<s, 32>}>
 // CHECK: !ty_22S22 = !cir.struct<struct "S" {!cir.int<u, 32>, !cir.int<u, 32>, !cir.int<u, 16>, !cir.int<u, 32>}>
 // CHECK: !ty_22T22 = !cir.struct<struct "T" {!cir.int<u, 8>, !cir.int<u, 32>} #cir.record.decl.ast>
 // CHECK: !ty_22anon2E122 = !cir.struct<struct "anon.1" {!cir.int<u, 32>} #cir.record.decl.ast>
+// CHECK: !ty_anon_struct = !cir.struct<struct  {!cir.int<u, 8>, !cir.int<u, 8>, !cir.int<s, 32>}>
 // CHECK: !ty_22__long22 = !cir.struct<struct "__long" {!cir.struct<struct "anon.1" {!cir.int<u, 32>} #cir.record.decl.ast>, !cir.int<u, 32>, !cir.ptr<!cir.int<u, 32>>}>
 
 // CHECK: cir.func {{.*@store_field}}
@@ -96,4 +105,8 @@ unsigned load_non_bitfield(S *s) {
 // CHECK: cir.func {{.*@load_one_bitfield}}
 int load_one_bitfield(T* t) {
   return t->a;
+}
+
+void createD() {
+  D d = {1,2,3};
 }
