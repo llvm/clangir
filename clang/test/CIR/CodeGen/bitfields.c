@@ -107,6 +107,12 @@ int load_one_bitfield(T* t) {
   return t->a;
 }
 
+// for this struct type we create an anon structure with different storage types in initialization
+// CHECK: cir.func {{.*@createD}}
+// CHECK:   %0 = cir.alloca !ty_22D22, cir.ptr <!ty_22D22>, ["d"] {alignment = 4 : i64}
+// CHECK:   %1 = cir.cast(bitcast, %0 : !cir.ptr<!ty_22D22>), !cir.ptr<!ty_anon_struct>
+// CHECK:   %2 = cir.const(#cir.const_struct<{#cir.int<33> : !u8i, #cir.int<0> : !u8i, #cir.int<3> : !s32i}> : !ty_anon_struct) : !ty_anon_struct
+// CHECK:   cir.store %2, %1 : !ty_anon_struct, cir.ptr <!ty_anon_struct>
 void createD() {
   D d = {1,2,3};
 }
