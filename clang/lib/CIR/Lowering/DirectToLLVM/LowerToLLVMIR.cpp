@@ -57,6 +57,8 @@ public:
             llvm_unreachable("Unknown inline kind");
         } else if (mlir::dyn_cast<mlir::cir::OptNoneAttr>(attr.getValue())) {
           llvmFunc->addFnAttr(llvm::Attribute::OptimizeNone);
+        } else if (mlir::dyn_cast<mlir::cir::NoThrowAttr>(attr.getValue())) {
+          llvmFunc->addFnAttr(llvm::Attribute::NoUnwind);
         }
       }
     }
