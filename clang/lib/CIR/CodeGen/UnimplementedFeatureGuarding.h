@@ -69,6 +69,8 @@ struct UnimplementedFeature {
   static bool attributeBuiltin() { return false; }
   static bool attributeNoBuiltin() { return false; }
   static bool parameterAttributes() { return false; }
+  static bool minLegalVectorWidthAttr() { return false; }
+  static bool vscaleRangeAttr() { return false; }
 
   // Coroutines
   static bool unhandledException() { return false; }
@@ -77,6 +79,7 @@ struct UnimplementedFeature {
   static bool variablyModifiedTypeEmission() { return false; }
   static bool buildLValueAlignmentAssumption() { return false; }
   static bool buildDerivedToBaseCastForDevirt() { return false; }
+  static bool emitFunctionEpilog() { return false; }
 
   // Data layout
   static bool dataLayoutGetIndexTypeSizeInBits() { return false; }
@@ -105,6 +108,14 @@ struct UnimplementedFeature {
   static bool fastMathFlags() { return false; }
   static bool fastMathFuncAttributes() { return false; }
 
+  // Exception handling
+  static bool setLandingPadCleanup() { return false; }
+  static bool isSEHTryScope() { return false; }
+  static bool ehStack() { return false; }
+  static bool emitStartEHSpec() { return false; }
+  static bool emitEndEHSpec() { return false; }
+  static bool simplifyCleanupEntry() { return false; }
+
   // Type qualifiers.
   static bool atomicTypes() { return false; }
   static bool volatileTypes() { return false; }
@@ -123,7 +134,6 @@ struct UnimplementedFeature {
   static bool openMP() { return false; }
   static bool openMPRuntime() { return false; }
   static bool openMPTarget() { return false; }
-  static bool ehStack() { return false; }
   static bool isVarArg() { return false; }
   static bool setNonGC() { return false; }
   static bool volatileLoadOrStore() { return false; }
@@ -145,11 +155,16 @@ struct UnimplementedFeature {
   static bool operandBundles() { return false; }
   static bool exceptions() { return false; }
   static bool metaDataNode() { return false; }
-  static bool isSEHTryScope() { return false; }
+  static bool emitDeclMetadata() { return false; }
   static bool emitScalarRangeCheck() { return false; }
   static bool stmtExprEvaluation() { return false; }
   static bool setCallingConv() { return false; }
   static bool unreachableOp() { return false; }
+  static bool tryMarkNoThrow() { return false; }
+  static bool indirectBranch() { return false; }
+  static bool escapedLocals() { return false; }
+  static bool deferredReplacements() { return false; }
+  static bool shouldInstrumentFunction() { return false; }
 };
 } // namespace cir
 

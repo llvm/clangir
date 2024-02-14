@@ -358,6 +358,28 @@ void CIRGenModule::ConstructAttributeList(
                                      CalleeInfo.getCalleeFunctionProtoType());
 }
 
+static mlir::cir::CIRCallOpInterface
+buildCallLikeOp(CIRGenFunction &CGF, mlir::Location callLoc,
+                mlir::cir::FuncType indirectFuncTy, mlir::Value indirectFuncVal,
+                mlir::cir::FuncOp directFuncOp,
+                SmallVectorImpl<mlir::Value> &CIRCallArgs, bool InvokeDest) {
+  auto &builder = CGF.getBuilder();
+
+  if (InvokeDest) {
+    auto addr = CGF.currLexScope->getExceptionInfo().addr;
+    if (indirectFuncTy)
+      return builder.create<mlir::cir::TryCallOp>(
+          callLoc, addr, indirectFuncVal, indirectFuncTy, CIRCallArgs);
+    return builder.create<mlir::cir::TryCallOp>(callLoc, directFuncOp, addr,
+                                                CIRCallArgs);
+  }
+
+  if (indirectFuncTy)
+    return builder.create<mlir::cir::CallOp>(callLoc, indirectFuncVal,
+                                             indirectFuncTy, CIRCallArgs);
+  return builder.create<mlir::cir::CallOp>(callLoc, directFuncOp, CIRCallArgs);
+}
+
 RValue CIRGenFunction::buildCall(const CIRGenFunctionInfo &CallInfo,
                                  const CIRGenCallee &Callee,
                                  ReturnValueSlot ReturnValue,
@@ -605,9 +627,6 @@ RValue CIRGenFunction::buildCall(const CIRGenFunctionInfo &CallInfo,
 
     if (auto fnOp = dyn_cast<mlir::cir::FuncOp>(CalleePtr)) {
       directFuncOp = fnOp;
-    } else if (auto loadOp = dyn_cast<mlir::cir::LoadOp>(CalleePtr)) {
-      indirectFuncTy = CIRFuncTy;
-      indirectFuncVal = loadOp->getResult(0);
     } else if (auto getGlobalOp = dyn_cast<mlir::cir::GetGlobalOp>(CalleePtr)) {
       // FIXME(cir): This peephole optimization to avoids indirect calls for
       // builtins. This should be fixed in the builting declaration instead by
@@ -618,29 +637,20 @@ RValue CIRGenFunction::buildCall(const CIRGenFunctionInfo &CallInfo,
       directFuncOp = llvm::dyn_cast<mlir::cir::FuncOp>(globalOp);
       assert(directFuncOp && "operation is not a function");
     } else {
-      llvm_unreachable("expected call variant to be handled");
+      [[maybe_unused]] auto resultTypes = CalleePtr->getResultTypes();
+      [[maybe_unused]] auto FuncPtrTy =
+          resultTypes.front().dyn_cast<mlir::cir::PointerType>();
+      assert((resultTypes.size() == 1) && FuncPtrTy &&
+             FuncPtrTy.getPointee().isa<mlir::cir::FuncType>() &&
+             "expected pointer to function");
+
+      indirectFuncTy = CIRFuncTy;
+      indirectFuncVal = CalleePtr->getResult(0);
     }
 
-    mlir::cir::CIRCallOpInterface callLikeOp;
-    if (indirectFuncTy) {
-      if (InvokeDest) {
-        callLikeOp = builder.create<mlir::cir::TryCallOp>(
-            callLoc, currExceptionInfo.exceptionAddr, indirectFuncVal,
-            indirectFuncTy, CIRCallArgs);
-      } else {
-        callLikeOp = builder.create<mlir::cir::CallOp>(
-            callLoc, indirectFuncVal, indirectFuncTy, CIRCallArgs);
-      }
-    } else {
-      if (InvokeDest) {
-        callLikeOp = builder.create<mlir::cir::TryCallOp>(
-            callLoc, directFuncOp, currExceptionInfo.exceptionAddr,
-            CIRCallArgs);
-      } else {
-        callLikeOp = builder.create<mlir::cir::CallOp>(callLoc, directFuncOp,
-                                                       CIRCallArgs);
-      }
-    }
+    mlir::cir::CIRCallOpInterface callLikeOp =
+        buildCallLikeOp(*this, callLoc, indirectFuncTy, indirectFuncVal,
+                        directFuncOp, CIRCallArgs, InvokeDest);
 
     if (E)
       callLikeOp->setAttr(

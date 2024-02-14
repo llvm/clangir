@@ -312,25 +312,8 @@ public:
   /// Try/Catch: calls within try statements need to refer to local
   /// allocas for the exception info
   struct CIRExceptionInfo {
-    mlir::Value exceptionAddr{};
+    mlir::Value addr{};
     mlir::cir::CatchOp catchOp{};
-  };
-  CIRExceptionInfo currExceptionInfo{};
-  class ExceptionInfoRAIIObject {
-    CIRGenFunction &P;
-    CIRExceptionInfo OldVal{};
-
-  public:
-    ExceptionInfoRAIIObject(CIRGenFunction &p, CIRExceptionInfo info) : P(p) {
-      if (P.currExceptionInfo.exceptionAddr)
-        OldVal = P.currExceptionInfo;
-      P.currExceptionInfo = info;
-    }
-
-    /// Can be used to restore the state early, before the dtor
-    /// is run.
-    void restore() { P.currExceptionInfo = OldVal; }
-    ~ExceptionInfoRAIIObject() { restore(); }
   };
 
   enum class EvaluationOrder {
@@ -847,6 +830,8 @@ public:
 
   CIRGenCallee buildCallee(const clang::Expr *E);
 
+  void finishFunction(SourceLocation EndLoc);
+
   /// Emit code to compute the specified expression which can have any type. The
   /// result is returned as an RValue struct. If this is an aggregate
   /// expression, the aggloc/agglocvolatile arguments indicate where the result
@@ -918,6 +903,9 @@ public:
     assert(!CurrentFuncletPad && "NYI");
     return false;
   }
+
+  /// Return a landing pad that just calls terminate.
+  mlir::Operation *getTerminateLandingPad();
 
   /// Emit code to compute the specified expression,
   /// ignoring the result.
@@ -1112,6 +1100,9 @@ public:
         : Variable(&variable), Addr(Address::invalid()) {}
 
     static AutoVarEmission invalid() { return AutoVarEmission(Invalid()); }
+
+    bool wasEmittedAsGlobal() const { return !Addr.isValid(); }
+
     /// Returns the raw, allocated address, which is not necessarily
     /// the address of the object itself. It is casted to default
     /// address space for address space agnostic languages.
@@ -1561,6 +1552,10 @@ public:
   mlir::Block *getEHResumeBlock(bool isCleanup);
   mlir::Block *getEHDispatchBlock(EHScopeStack::stable_iterator scope);
 
+  /// The cleanup depth enclosing all the cleanups associated with the
+  /// parameters.
+  EHScopeStack::stable_iterator PrologueCleanupDepth;
+
   mlir::Operation *getInvokeDestImpl();
   bool getInvokeDest() {
     if (!EHStack.requiresLandingPad())
@@ -1777,6 +1772,9 @@ public:
 
     LexicalScope *ParentScope = nullptr;
 
+    // If there's exception information for this scope, store it.
+    CIRExceptionInfo exInfo{};
+
     // FIXME: perhaps we can use some info encoded in operations.
     enum Kind {
       Regular, // cir.if, cir.scope, if_regions
@@ -1876,6 +1874,12 @@ public:
 
     // Labels solved inside this scope.
     llvm::SmallPtrSet<const clang::LabelDecl *, 4> SolvedLabels;
+
+    // ---
+    // Exception handling
+    // ---
+    CIRExceptionInfo &getExceptionInfo() { return exInfo; }
+    void setExceptionInfo(const CIRExceptionInfo &info) { exInfo = info; }
 
     // ---
     // Return handling

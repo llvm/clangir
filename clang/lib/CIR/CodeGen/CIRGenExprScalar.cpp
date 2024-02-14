@@ -1130,9 +1130,29 @@ static mlir::Value buildPointerArithmetic(CIRGenFunction &CGF,
 
   QualType elementType = pointerType->getPointeeType();
   if (const VariableArrayType *vla =
-          CGF.getContext().getAsVariableArrayType(elementType))
-    llvm_unreachable("VLA pointer arithmetic is NYI");
+          CGF.getContext().getAsVariableArrayType(elementType)) {
 
+    // The element count here is the total number of non-VLA elements.
+    mlir::Value numElements = CGF.getVLASize(vla).NumElts;
+
+    // GEP indexes are signed, and scaling an index isn't permitted to
+    // signed-overflow, so we use the same semantics for our explicit
+    // multiply.  We suppress this if overflow is not undefined behavior.
+    mlir::Type elemTy = CGF.convertTypeForMem(vla->getElementType());
+
+    index = CGF.getBuilder().createCast(mlir::cir::CastKind::integral, index,
+                                        numElements.getType());
+    index = CGF.getBuilder().createMul(index, numElements);
+
+    if (CGF.getLangOpts().isSignedOverflowDefined()) {
+      pointer = CGF.getBuilder().create<mlir::cir::PtrStrideOp>(
+          CGF.getLoc(op.E->getExprLoc()), pointer.getType(), pointer, index);
+    } else {
+      pointer = CGF.buildCheckedInBoundsGEP(elemTy, pointer, index, isSigned,
+                                            isSubtraction, op.E->getExprLoc());
+    }
+    return pointer;
+  }
   // Explicitly handle GNU void* and function pointer arithmetic extensions. The
   // GNU void* casts amount to no-ops since our void* type is i8*, but this is
   // future proof.
@@ -2127,7 +2147,7 @@ mlir::Value ScalarExprEmitter::VisitBinLAnd(const clang::BinaryOperator *E) {
     }
     // 0 && RHS: If it is safe, just elide the RHS, and return 0/false.
     if (!CGF.ContainsLabel(E->getRHS()))
-      return Builder.getBool(false, Loc);
+      return Builder.getNullValue(ResTy, Loc);
   }
 
   CIRGenFunction::ConditionalEvaluation eval(CGF);
@@ -2200,8 +2220,12 @@ mlir::Value ScalarExprEmitter::VisitBinLOr(const clang::BinaryOperator *E) {
       return Builder.createZExtOrBitCast(RHSCond.getLoc(), RHSCond, ResTy);
     }
     // 1 || RHS: If it is safe, just elide the RHS, and return 1/true.
-    if (!CGF.ContainsLabel(E->getRHS()))
-      return Builder.getBool(true, Loc);
+    if (!CGF.ContainsLabel(E->getRHS())) {
+      if (auto intTy = ResTy.dyn_cast<mlir::cir::IntType>())
+        return Builder.getConstInt(Loc, intTy, 1);
+      else
+        return Builder.getBool(true, Loc);
+    }
   }
 
   CIRGenFunction::ConditionalEvaluation eval(CGF);
@@ -2289,7 +2313,25 @@ mlir::Value ScalarExprEmitter::VisitUnaryExprOrTypeTraitExpr(
   if (E->getKind() == UETT_SizeOf) {
     if (const VariableArrayType *VAT =
             CGF.getContext().getAsVariableArrayType(TypeToSize)) {
-      llvm_unreachable("NYI");
+
+      if (E->isArgumentType()) {
+        // sizeof(type) - make sure to emit the VLA size.
+        CGF.buildVariablyModifiedType(TypeToSize);
+      } else {
+        // C99 6.5.3.4p2: If the argument is an expression of type
+        // VLA, it is evaluated.
+        CGF.buildIgnoredExpr(E->getArgumentExpr());
+      }
+
+      auto VlaSize = CGF.getVLASize(VAT);
+      mlir::Value size = VlaSize.NumElts;
+
+      // Scale the number of non-VLA elements by the non-VLA element size.
+      CharUnits eltSize = CGF.getContext().getTypeSizeInChars(VlaSize.Type);
+      if (!eltSize.isOne())
+        size = Builder.createMul(size, CGF.CGM.getSize(eltSize).getValue());
+
+      return size;
     }
   } else if (E->getKind() == UETT_OpenMPRequiredSimdAlign) {
     llvm_unreachable("NYI");
