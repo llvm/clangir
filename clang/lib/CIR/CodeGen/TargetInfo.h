@@ -45,7 +45,7 @@ public:
   /// type.
   ///
   /// \returns A new MLIR type, possibly the same as the original
-  /// on success 
+  /// on success
   virtual mlir::Type adjustInlineAsmType(CIRGenFunction &CGF,
                                          llvm::StringRef Constraint,
                                          mlir::Type Ty) const {

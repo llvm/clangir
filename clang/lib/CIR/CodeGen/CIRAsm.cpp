@@ -152,7 +152,7 @@ mlir::Value CIRGenFunction::buildAsmInputLValue(
       Ty = mlir::cir::IntType::get(builder.getContext(), Size, false);
 
       return builder.createLoad(getLoc(Loc),
-                                 InputValue.getAddress().withElementType(Ty));
+                                InputValue.getAddress().withElementType(Ty));
     }
   }
 
@@ -269,7 +269,7 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
       const Expr *InputExpr = S.getOutputExpr(i);
 
       mlir::Value Arg =
-        buildAsmInputLValue(Info, Dest, InputExpr->getType(),
+          buildAsmInputLValue(Info, Dest, InputExpr->getType(),
                               InOutConstraints, InputExpr->getExprLoc());
 
       if (mlir::Type AdjTy = getTargetHooks().adjustInlineAsmType(

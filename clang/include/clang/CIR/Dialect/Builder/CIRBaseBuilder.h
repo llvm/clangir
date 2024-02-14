@@ -42,9 +42,8 @@ public:
   CIRBaseBuilderTy(mlir::MLIRContext &C) : mlir::OpBuilder(&C) {}
 
   mlir::Value getConstAPSInt(mlir::Location loc, const llvm::APSInt &val) {
-    auto ty = mlir::cir::IntType::get(getContext(),
-                                       val.getBitWidth(),
-                                       val.isSigned());
+    auto ty = mlir::cir::IntType::get(getContext(), val.getBitWidth(),
+                                      val.isSigned());
     return create<mlir::cir::ConstantOp>(loc, ty,
                                          getAttr<mlir::cir::IntAttr>(ty, val));
   }
