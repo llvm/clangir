@@ -2100,11 +2100,20 @@ class CIR_CallOp<string mnemonic, list<Trait> extra_traits = []> :
 
     ::mlir::Attribute removeArgAttrsAttr();
     ::mlir::Attribute removeResAttrsAttr();
+
+    bool isIndirect() { return !getCallee(); }
+    mlir::Value getIndirectCall();
   }];
 
   let hasCustomAssemblyFormat = 1;
   let skipDefaultBuilders = 1;
   let hasVerifier = 0;
+
+  dag commonArgs = (ins
+    OptionalAttr<FlatSymbolRefAttr>:$callee,
+    Variadic<CIR_AnyType>:$arg_ops,
+    OptionalAttr<ASTCallExprInterface>:$ast
+  );
 }
 
 def CallOp : CIR_CallOp<"call"> {
@@ -2135,9 +2144,7 @@ def CallOp : CIR_CallOp<"call"> {
     ```
   }];
 
-  let arguments = (ins OptionalAttr<FlatSymbolRefAttr>:$callee,
-                       Variadic<CIR_AnyType>:$operands,
-                       OptionalAttr<ASTCallExprInterface>:$ast);
+  let arguments = commonArgs;
   let results = (outs Variadic<CIR_AnyType>);
 
   let builders = [
@@ -2189,10 +2196,10 @@ def TryCallOp : CIR_CallOp<"try_call"> {
     ```
   }];
 
-  let arguments = (ins OptionalAttr<FlatSymbolRefAttr>:$callee,
-                       ExceptionInfoPtrPtr:$exceptionInfo,
-                       Variadic<CIR_AnyType>:$callOps,
-                       OptionalAttr<ASTCallExprInterface>:$ast);
+  let arguments = !con((ins
+    ExceptionInfoPtrPtr:$exceptionInfo
+  ), commonArgs);
+
   let results = (outs Variadic<CIR_AnyType>);
 
   let builders = [
@@ -2207,8 +2214,8 @@ def TryCallOp : CIR_CallOp<"try_call"> {
     OpBuilder<(ins "Value":$ind_target, "mlir::Value":$exception,
                "FuncType":$fn_type,
                CArg<"ValueRange", "{}">:$operands), [{
-      $_state.addOperands(ValueRange{ind_target});
       $_state.addOperands(ValueRange{exception});
+      $_state.addOperands(ValueRange{ind_target});
       $_state.addOperands(operands);
       if (!fn_type.isVoid())
         $_state.addTypes(fn_type.getReturnType());
