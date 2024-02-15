@@ -1919,9 +1919,14 @@ void cir::CallOp::setResAttrsAttr(ArrayAttr) {}
 Attribute cir::CallOp::removeArgAttrsAttr() { return {}; }
 Attribute cir::CallOp::removeResAttrsAttr() { return {}; }
 
+mlir::Value cir::CallOp::getIndirectCall() {
+  assert(isIndirect());
+  return getOperand(0);
+}
+
 mlir::Operation::operand_iterator cir::CallOp::arg_operand_begin() {
   auto arg_begin = operand_begin();
-  if (!getCallee())
+  if (isIndirect())
     arg_begin++;
   return arg_begin;
 }
@@ -1931,7 +1936,7 @@ mlir::Operation::operand_iterator cir::CallOp::arg_operand_end() {
 
 /// Return the operand at index 'i', accounts for indirect call.
 Value cir::CallOp::getArgOperand(unsigned i) {
-  if (!getCallee())
+  if (isIndirect())
     i++;
   return getOperand(i);
 }
@@ -1939,7 +1944,7 @@ Value cir::CallOp::getArgOperand(unsigned i) {
 CallInterfaceCallable cir::CallOp::getCallableForCallee() {
   if (auto calleeAttr = getCalleeAttr())
     return calleeAttr;
-  return getOperand(0);
+  return getIndirectCall();
 }
 
 /// Set the callee for this operation.
@@ -1954,7 +1959,7 @@ void cir::CallOp::setCalleeFromCallable(::mlir::CallInterfaceCallable callee) {
 
 /// Return the number of operands, accounts for indirect call.
 unsigned cir::CallOp::getNumArgOperands() {
-  if (!getCallee())
+  if (isIndirect())
     return this->getOperation()->getNumOperands() - 1;
   return this->getOperation()->getNumOperands();
 }
@@ -2067,7 +2072,8 @@ static ::mlir::ParseResult parseCallCommon(
 }
 
 void printCallCommon(
-    Operation *op, mlir::FlatSymbolRefAttr flatSym, ::mlir::OpAsmPrinter &state,
+    Operation *op, mlir::Value indirectCallee, mlir::FlatSymbolRefAttr flatSym,
+    ::mlir::OpAsmPrinter &state,
     llvm::function_ref<void()> customOpHandler = []() {}) {
   state << ' ';
 
@@ -2077,7 +2083,8 @@ void printCallCommon(
   if (flatSym) { // Direct calls
     state.printAttributeWithoutType(flatSym);
   } else { // Indirect calls
-    state << op->getOperand(0);
+    assert(indirectCallee);
+    state << indirectCallee;
   }
   state << "(";
   state << ops;
@@ -2102,7 +2109,8 @@ cir::CallOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
 }
 
 void CallOp::print(::mlir::OpAsmPrinter &state) {
-  printCallCommon(*this, getCalleeAttr(), state);
+  mlir::Value indirectCallee = isIndirect() ? getIndirectCall() : nullptr;
+  printCallCommon(*this, indirectCallee, getCalleeAttr(), state);
 }
 
 //===----------------------------------------------------------------------===//
@@ -2116,16 +2124,22 @@ void cir::TryCallOp::setResAttrsAttr(ArrayAttr) {}
 Attribute cir::TryCallOp::removeArgAttrsAttr() { return {}; }
 Attribute cir::TryCallOp::removeResAttrsAttr() { return {}; }
 
+mlir::Value cir::TryCallOp::getIndirectCall() {
+  // First operand is the exception pointer, skip it
+  assert(isIndirect());
+  return getOperand(1);
+}
+
 mlir::Operation::operand_iterator cir::TryCallOp::arg_operand_begin() {
   auto arg_begin = operand_begin();
-  if (!getCallee())
-    arg_begin++;
   // First operand is the exception pointer, skip it.
-  //
+  arg_begin++;
+  if (isIndirect())
+    arg_begin++;
+
   // FIXME(cir): for this and all the other calculations in the other methods:
   // we currently have no basic block arguments on cir.try_call, but if it gets
   // to that, this needs further adjustment.
-  arg_begin++;
   return arg_begin;
 }
 mlir::Operation::operand_iterator cir::TryCallOp::arg_operand_end() {
@@ -2134,10 +2148,10 @@ mlir::Operation::operand_iterator cir::TryCallOp::arg_operand_end() {
 
 /// Return the operand at index 'i', accounts for indirect call.
 Value cir::TryCallOp::getArgOperand(unsigned i) {
-  if (!getCallee())
-    i++;
   // First operand is the exception pointer, skip it.
   i++;
+  if (isIndirect())
+    i++;
   return getOperand(i);
 }
 
@@ -2145,7 +2159,7 @@ Value cir::TryCallOp::getArgOperand(unsigned i) {
 CallInterfaceCallable cir::TryCallOp::getCallableForCallee() {
   if (auto calleeAttr = getCalleeAttr())
     return calleeAttr;
-  return getOperand(0);
+  return getIndirectCall();
 }
 
 /// Set the callee for this operation.
@@ -2156,16 +2170,16 @@ void cir::TryCallOp::setCalleeFromCallable(
     setCalleeAttr(cast<FlatSymbolRefAttr>(symRef));
     return;
   }
-  setOperand(0, cast<Value>(callee));
+  setOperand(1, cast<Value>(callee));
 }
 
 /// Return the number of operands, , accounts for indirect call.
 unsigned cir::TryCallOp::getNumArgOperands() {
   unsigned numOperands = this->getOperation()->getNumOperands();
-  if (!getCallee())
-    numOperands--;
   // First operand is the exception pointer, skip it.
   numOperands--;
+  if (isIndirect())
+    numOperands--;
   return numOperands;
 }
 
@@ -2220,7 +2234,8 @@ void TryCallOp::print(::mlir::OpAsmPrinter &state) {
   state << " exception(";
   state << getExceptionInfo();
   state << ")";
-  printCallCommon(*this, getCalleeAttr(), state);
+  mlir::Value indirectCallee = isIndirect() ? getIndirectCall() : nullptr;
+  printCallCommon(*this, indirectCallee, getCalleeAttr(), state);
 }
 
 //===----------------------------------------------------------------------===//
