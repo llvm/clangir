@@ -69,6 +69,10 @@ public:
     return layout.getTypeSizeInBits(Ty);
   }
 
+  unsigned getTypeSizeInBits(mlir::Type Ty) const {
+    return layout.getTypeSizeInBits(Ty);
+  }
+
   mlir::Type getIntPtrType(mlir::Type Ty) const {
     assert(mlir::isa<mlir::cir::PointerType>(Ty) && "Expected pointer type");
     auto IntTy = mlir::cir::IntType::get(Ty.getContext(),
