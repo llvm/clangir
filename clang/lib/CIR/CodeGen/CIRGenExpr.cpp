@@ -1145,10 +1145,6 @@ RValue CIRGenFunction::buildCall(clang::QualType CalleeType,
   if (isa<FunctionNoProtoType>(FnType) || Chain) {
     assert(!UnimplementedFeature::chainCalls());
     assert(!UnimplementedFeature::addressSpace());
-
-    // Set no-proto function as callee.
-    auto Fn = llvm::dyn_cast<mlir::cir::FuncOp>(Callee.getFunctionPointer());
-    Callee.setFunctionPointer(Fn);
   }
 
   assert(!CGM.getLangOpts().HIP && "HIP NYI");
