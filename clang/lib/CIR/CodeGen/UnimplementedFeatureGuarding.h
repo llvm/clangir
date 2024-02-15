@@ -79,8 +79,6 @@ struct UnimplementedFeature {
   static bool variablyModifiedTypeEmission() { return false; }
   static bool buildLValueAlignmentAssumption() { return false; }
   static bool buildDerivedToBaseCastForDevirt() { return false; }
-  static bool emitStartEHSpec() { return false; }
-  static bool emitEndEHSpec() { return false; }
   static bool emitFunctionEpilog() { return false; }
 
   // Data layout
@@ -110,6 +108,14 @@ struct UnimplementedFeature {
   static bool fastMathFlags() { return false; }
   static bool fastMathFuncAttributes() { return false; }
 
+  // Exception handling
+  static bool setLandingPadCleanup() { return false; }
+  static bool isSEHTryScope() { return false; }
+  static bool ehStack() { return false; }
+  static bool emitStartEHSpec() { return false; }
+  static bool emitEndEHSpec() { return false; }
+  static bool simplifyCleanupEntry() { return false; }
+
   // Type qualifiers.
   static bool atomicTypes() { return false; }
   static bool volatileTypes() { return false; }
@@ -125,10 +131,10 @@ struct UnimplementedFeature {
   static bool CGCapturedStmtInfo() { return false; }
   static bool cxxABI() { return false; }
   static bool openCL() { return false; }
+  static bool CUDA() { return false; }
   static bool openMP() { return false; }
   static bool openMPRuntime() { return false; }
   static bool openMPTarget() { return false; }
-  static bool ehStack() { return false; }
   static bool isVarArg() { return false; }
   static bool setNonGC() { return false; }
   static bool volatileLoadOrStore() { return false; }
@@ -151,7 +157,6 @@ struct UnimplementedFeature {
   static bool exceptions() { return false; }
   static bool metaDataNode() { return false; }
   static bool emitDeclMetadata() { return false; }
-  static bool isSEHTryScope() { return false; }
   static bool emitScalarRangeCheck() { return false; }
   static bool stmtExprEvaluation() { return false; }
   static bool setCallingConv() { return false; }

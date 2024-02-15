@@ -312,25 +312,8 @@ public:
   /// Try/Catch: calls within try statements need to refer to local
   /// allocas for the exception info
   struct CIRExceptionInfo {
-    mlir::Value exceptionAddr{};
+    mlir::Value addr{};
     mlir::cir::CatchOp catchOp{};
-  };
-  CIRExceptionInfo currExceptionInfo{};
-  class ExceptionInfoRAIIObject {
-    CIRGenFunction &P;
-    CIRExceptionInfo OldVal{};
-
-  public:
-    ExceptionInfoRAIIObject(CIRGenFunction &p, CIRExceptionInfo info) : P(p) {
-      if (P.currExceptionInfo.exceptionAddr)
-        OldVal = P.currExceptionInfo;
-      P.currExceptionInfo = info;
-    }
-
-    /// Can be used to restore the state early, before the dtor
-    /// is run.
-    void restore() { P.currExceptionInfo = OldVal; }
-    ~ExceptionInfoRAIIObject() { restore(); }
   };
 
   enum class EvaluationOrder {
@@ -916,6 +899,9 @@ public:
     assert(!CurrentFuncletPad && "NYI");
     return false;
   }
+
+  /// Return a landing pad that just calls terminate.
+  mlir::Operation *getTerminateLandingPad();
 
   /// Emit code to compute the specified expression,
   /// ignoring the result.
@@ -1530,6 +1516,10 @@ public:
                           AggValueSlot::Overlap_t MayOverlap,
                           bool isVolatile = false);
 
+  /// Emit a reached-unreachable diagnostic if \p Loc is valid and runtime
+  /// checking is enabled. Otherwise, just emit an unreachable instruction.
+  void buildUnreachable(SourceLocation Loc);
+
   ///
   /// Cleanups
   /// --------
@@ -1773,6 +1763,9 @@ public:
 
     LexicalScope *ParentScope = nullptr;
 
+    // If there's exception information for this scope, store it.
+    CIRExceptionInfo exInfo{};
+
     // FIXME: perhaps we can use some info encoded in operations.
     enum Kind {
       Regular, // cir.if, cir.scope, if_regions
@@ -1872,6 +1865,12 @@ public:
 
     // Labels solved inside this scope.
     llvm::SmallPtrSet<const clang::LabelDecl *, 4> SolvedLabels;
+
+    // ---
+    // Exception handling
+    // ---
+    CIRExceptionInfo &getExceptionInfo() { return exInfo; }
+    void setExceptionInfo(const CIRExceptionInfo &info) { exInfo = info; }
 
     // ---
     // Return handling

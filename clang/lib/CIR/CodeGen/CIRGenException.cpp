@@ -256,7 +256,7 @@ mlir::Block *CIRGenFunction::getEHResumeBlock(bool isCleanup) {
   // Just like some other try/catch related logic: return the basic block
   // pointer but only use it to denote we're tracking things, but there
   // shouldn't be any changes to that block after work done in this function.
-  auto catchOp = currExceptionInfo.catchOp;
+  auto catchOp = currLexScope->getExceptionInfo().catchOp;
   assert(catchOp.getNumRegions() && "expected at least one region");
   auto &fallbackRegion = catchOp.getRegion(catchOp.getNumRegions() - 1);
 
@@ -379,7 +379,7 @@ CIRGenFunction::buildCXXTryStmtUnderScope(const CXXTryStmt &S) {
                                           getBuilder().getInsertionBlock()};
 
     {
-      ExceptionInfoRAIIObject ehx{*this, {exceptionInfoInsideTry, catchOp}};
+      lexScope.setExceptionInfo({exceptionInfoInsideTry, catchOp});
       // Attach the basic blocks for the catchOp regions into ScopeCatch
       // info.
       enterCXXTryStmt(S, catchOp);
@@ -393,7 +393,7 @@ CIRGenFunction::buildCXXTryStmtUnderScope(const CXXTryStmt &S) {
     }
 
     {
-      ExceptionInfoRAIIObject ehx{*this, {tryScope->getResult(0), catchOp}};
+      lexScope.setExceptionInfo({tryScope->getResult(0), catchOp});
       // Emit catch clauses.
       exitCXXTryStmt(S);
     }
@@ -621,7 +621,7 @@ mlir::Operation *CIRGenFunction::buildLandingPad() {
   EHScope &innermostEHScope = *EHStack.find(EHStack.getInnermostEHScope());
   switch (innermostEHScope.getKind()) {
   case EHScope::Terminate:
-    llvm_unreachable("NYI");
+    return getTerminateLandingPad();
 
   case EHScope::Catch:
   case EHScope::Cleanup:
@@ -630,8 +630,45 @@ mlir::Operation *CIRGenFunction::buildLandingPad() {
       return lpad;
   }
 
-  auto catchOp = currExceptionInfo.catchOp;
-  assert(catchOp && "Should be valid");
+  // If there's an existing CatchOp, it means we got a `cir.try` scope
+  // that leads to this "landing pad" creation site. Otherwise, exceptions
+  // are enabled but a throwing function is called anyways.
+  auto catchOp = currLexScope->getExceptionInfo().catchOp;
+  if (!catchOp) {
+    auto loc = *currSrcLoc;
+    auto ehPtrTy = mlir::cir::PointerType::get(
+        getBuilder().getContext(),
+        getBuilder().getType<::mlir::cir::ExceptionInfoType>());
+
+    mlir::Value exceptionAddr;
+    {
+      // Get a new alloca within the current scope.
+      mlir::OpBuilder::InsertionGuard guard(builder);
+      exceptionAddr = buildAlloca(
+          "__exception_ptr", ehPtrTy, loc, CharUnits::One(),
+          builder.getBestAllocaInsertPoint(builder.getInsertionBlock()));
+    }
+
+    {
+      // Insert catch at the end of the block, and place the insert pointer
+      // back to where it was.
+      mlir::OpBuilder::InsertionGuard guard(builder);
+      auto exceptionPtr =
+          builder.create<mlir::cir::LoadOp>(loc, ehPtrTy, exceptionAddr);
+      catchOp = builder.create<mlir::cir::CatchOp>(
+          loc, exceptionPtr,
+          [&](mlir::OpBuilder &b, mlir::Location loc,
+              mlir::OperationState &result) {
+            // There's no source code level catch here, create one region for
+            // the resume block.
+            mlir::OpBuilder::InsertionGuard guard(b);
+            auto *r = result.addRegion();
+            builder.createBlock(r);
+          });
+    }
+    currLexScope->setExceptionInfo({exceptionAddr, catchOp});
+  }
+
   {
     // Save the current CIR generation state.
     mlir::OpBuilder::InsertionGuard guard(builder);
@@ -654,7 +691,7 @@ mlir::Operation *CIRGenFunction::buildLandingPad() {
       switch (I->getKind()) {
       case EHScope::Cleanup:
         // If we have a cleanup, remember that.
-        llvm_unreachable("NYI");
+        hasCleanup = (hasCleanup || cast<EHCleanupScope>(*I).isEHCleanup());
         continue;
 
       case EHScope::Filter: {
@@ -711,7 +748,8 @@ mlir::Operation *CIRGenFunction::buildLandingPad() {
 
       // Otherwise, signal that we at least have cleanups.
     } else if (hasCleanup) {
-      llvm_unreachable("NYI");
+      // FIXME(cir): figure out whether and how we need this in CIR.
+      assert(!UnimplementedFeature::setLandingPadCleanup());
     }
 
     assert((clauses.size() > 0 || hasCleanup) && "CatchOp has no clauses!");
@@ -776,7 +814,8 @@ CIRGenFunction::getEHDispatchBlock(EHScopeStack::stable_iterator si) {
     }
 
     case EHScope::Cleanup:
-      llvm_unreachable("NYI");
+      assert(!UnimplementedFeature::setLandingPadCleanup());
+      dispatchBlock = currLexScope->getOrCreateCleanupBlock(builder);
       break;
 
     case EHScope::Filter:
@@ -843,4 +882,8 @@ mlir::Operation *CIRGenFunction::getInvokeDestImpl() {
   }
 
   return LP;
+}
+
+mlir::Operation *CIRGenFunction::getTerminateLandingPad() {
+  llvm_unreachable("NYI");
 }

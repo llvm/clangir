@@ -163,6 +163,16 @@ lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::cir::IntAttr intAttr,
       loc, converter->convertType(intAttr.getType()), intAttr.getValue());
 }
 
+/// BoolAttr visitor.
+inline mlir::Value
+lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::cir::BoolAttr boolAttr,
+                    mlir::ConversionPatternRewriter &rewriter,
+                    const mlir::TypeConverter *converter) {
+  auto loc = parentOp->getLoc();
+  return rewriter.create<mlir::LLVM::ConstantOp>(
+      loc, converter->convertType(boolAttr.getType()), boolAttr.getValue());
+}
+
 /// ConstPtrAttr visitor.
 inline mlir::Value
 lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::cir::ConstPtrAttr ptrAttr,
@@ -367,7 +377,7 @@ lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::Attribute attr,
   if (const auto constArr = attr.dyn_cast<mlir::cir::ConstArrayAttr>())
     return lowerCirAttrAsValue(parentOp, constArr, rewriter, converter);
   if (const auto boolAttr = attr.dyn_cast<mlir::cir::BoolAttr>())
-    llvm_unreachable("bool attribute is NYI");
+    return lowerCirAttrAsValue(parentOp, boolAttr, rewriter, converter);
   if (const auto zeroAttr = attr.dyn_cast<mlir::cir::ZeroAttr>())
     return lowerCirAttrAsValue(parentOp, zeroAttr, rewriter, converter);
   if (const auto globalAttr = attr.dyn_cast<mlir::cir::GlobalViewAttr>())
@@ -2196,6 +2206,19 @@ public:
   }
 };
 
+class CIRUnreachableLowering
+    : public mlir::OpConversionPattern<mlir::cir::UnreachableOp> {
+public:
+  using OpConversionPattern<mlir::cir::UnreachableOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::UnreachableOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOpWithNewOp<mlir::LLVM::UnreachableOp>(op);
+    return mlir::success();
+  }
+};
+
 void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
                                          mlir::TypeConverter &converter) {
   patterns.add<CIRReturnLowering>(patterns.getContext());
@@ -2211,8 +2234,8 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
       CIRPtrDiffOpLowering, CIRCopyOpLowering, CIRMemCpyOpLowering,
       CIRFAbsOpLowering, CIRVTableAddrPointOpLowering, CIRVectorCreateLowering,
       CIRVectorInsertLowering, CIRVectorExtractLowering, CIRVectorCmpOpLowering,
-      CIRStackSaveLowering, CIRStackRestoreLowering>(converter,
-                                                     patterns.getContext());
+      CIRStackSaveLowering, CIRStackRestoreLowering, CIRUnreachableLowering>(
+      converter, patterns.getContext());
 }
 
 namespace {

@@ -667,7 +667,7 @@ static mlir::Value CallBeginCatch(CIRGenFunction &CGF, mlir::Value Exn,
 static void InitCatchParam(CIRGenFunction &CGF, const VarDecl &CatchParam,
                            Address ParamAddr, SourceLocation Loc) {
   // Load the exception from where the landing pad saved it.
-  auto Exn = CGF.currExceptionInfo.exceptionAddr;
+  auto Exn = CGF.currLexScope->getExceptionInfo().addr;
 
   CanQualType CatchType =
       CGF.CGM.getASTContext().getCanonicalType(CatchParam.getType());
@@ -771,7 +771,7 @@ void CIRGenItaniumCXXABI::emitBeginCatch(CIRGenFunction &CGF,
 
   VarDecl *CatchParam = S->getExceptionDecl();
   if (!CatchParam) {
-    auto Exn = CGF.currExceptionInfo.exceptionAddr;
+    auto Exn = CGF.currLexScope->getExceptionInfo().addr;
     CallBeginCatch(CGF, Exn, CGF.getBuilder().getVoidPtrTy(), true);
     return;
   }
@@ -2208,8 +2208,8 @@ void CIRGenItaniumCXXABI::buildBadCastCall(CIRGenFunction &CGF,
   assert(!UnimplementedFeature::setCallingConv());
 
   CGF.buildRuntimeCall(loc, getBadCastFn(CGF));
-  // TODO(cir): mark the current insertion point as unreachable.
-  assert(!UnimplementedFeature::unreachableOp());
+  CGF.getBuilder().create<mlir::cir::UnreachableOp>(loc);
+  CGF.getBuilder().clearInsertionPoint();
 }
 
 static CharUnits computeOffsetHint(ASTContext &Context,
