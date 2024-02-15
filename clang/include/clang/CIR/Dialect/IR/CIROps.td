@@ -2830,9 +2830,9 @@ def CIR_InlineAsmOp : CIR_Op<"asm", [RecursiveMemoryEffects]> {
     ... 
     %2 = cir.load %0 : cir.ptr <!s32i>, !s32i
     %3 = cir.load %1 : cir.ptr <!s32i>, !s32i
-    cir.asm(x86_att, {"foo" ""} : () -> ())
-    cir.asm(x86_att, {"bar $$42 $0" "=r,=&r,1"} %2 : (!s32i) -> () ) 
-    cir.asm(x86_att, {"baz $$42 $0" "=r,=&r,0,1"} %3, %2 : (!s32i, !s32i) -> ()) 
+    cir.asm(x86_att, {"foo" ""} : () -> ()
+    cir.asm(x86_att, {"bar $$42 $0" "=r,=&r,1"} %2 : (!s32i) -> ()
+    cir.asm(x86_att, {"baz $$42 $0" "=r,=&r,0,1"} %3, %2 : (!s32i, !s32i) -> ()
     ```
   }];
 
