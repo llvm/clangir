@@ -108,7 +108,6 @@ AddVariableConstraints(const std::string &Constraint, const Expr &AsmExpr,
   return (EarlyClobber ? "&{" : "{") + Register.str() + "}";
 }
 
-
 static void collectClobbers(const CIRGenFunction &cgf, const AsmStmt &S,
                             std::string &constraints, bool &hasUnwindClobber,
                             bool &readOnly, bool readNone) {
@@ -156,13 +155,13 @@ static void collectClobbers(const CIRGenFunction &cgf, const AsmStmt &S,
     constraints += "~{";
     constraints += clobber;
     constraints += '}';
-  }  
+  }
 
   // Add machine specific clobbers
   std::string_view machineClobbers = cgf.getTarget().getClobbers();
   if (!machineClobbers.empty()) {
     if (!constraints.empty())
-      constraints += ',';    
+      constraints += ',';
     constraints += machineClobbers;
   }
 }
