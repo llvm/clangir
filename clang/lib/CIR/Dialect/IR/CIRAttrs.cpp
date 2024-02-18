@@ -358,6 +358,47 @@ LogicalResult cir::FPAttr::verify(function_ref<InFlightDiagnostic()> emitError,
 }
 
 //===----------------------------------------------------------------------===//
+// DataMemberAttr definitions
+//===----------------------------------------------------------------------===//
+
+LogicalResult
+DataMemberAttr::verify(function_ref<InFlightDiagnostic()> emitError,
+                       mlir::cir::DataMemberType ty,
+                       std::optional<size_t> memberIndex) {
+  auto clsStructTy = ty.getClsTy();
+  if (!clsStructTy) {
+    emitError() << "class type of a DataMemberAttr must be a struct type";
+    return failure();
+  }
+
+  if (!memberIndex.has_value()) {
+    // DataMemberAttr without a given index represents a null value.
+    return success();
+  }
+
+  if (clsStructTy.isIncomplete()) {
+    emitError() << "trying to build a non-null ptr to data member of an "
+                   "incomplete class";
+    return failure();
+  }
+
+  auto memberIndexValue = memberIndex.value();
+  if (memberIndexValue >= clsStructTy.getNumElements()) {
+    emitError() << "member index of a DataMemberAttr is out of range";
+    return failure();
+  }
+
+  auto memberTy = clsStructTy.getMembers()[memberIndexValue];
+  if (memberTy != ty.getMemberTy()) {
+    emitError()
+        << "member type of a DataMemberAttr must match the attribute type";
+    return failure();
+  }
+
+  return success();
+}
+
+//===----------------------------------------------------------------------===//
 // CIR Dialect
 //===----------------------------------------------------------------------===//
 

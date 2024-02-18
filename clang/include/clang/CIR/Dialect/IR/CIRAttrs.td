@@ -265,6 +265,52 @@ def ConstPtrAttr : CIR_Attr<"ConstPtr", "ptr", [TypedAttrInterface]> {
 }
 
 //===----------------------------------------------------------------------===//
+// DataMemberAttr
+//===----------------------------------------------------------------------===//
+
+def DataMemberAttr : CIR_Attr<"DataMember", "data_member",
+                              [TypedAttrInterface]> {
+  let summary = "Holds a constant data member pointer value";
+  let parameters = (ins AttributeSelfTypeParameter<
+                            "", "mlir::cir::DataMemberType">:$type,
+                        OptionalParameter<
+                            "std::optional<size_t>">:$memberIndex);
+  let description = [{
+    A data member attribute is a literal attribute that represents a constant
+    pointer-to-data-member value.
+
+    The `memberIndex` parameter represents the index of the pointed-to member
+    within its containing struct. It is an optional parameter; lack of this
+    parameter indicates a null pointer-to-data-member value.
+
+    Example:
+    ```
+    #ptr = #cir.data_member<1> : !cir.data_member<!s32i in !ty_22Point22>
+
+    #null = #cir.data_member<null> : !cir.data_member<!s32i in !ty_22Point22>
+    ```
+  }];
+
+  let extraClassDeclaration = [{
+    /// Determine whether the data member pointer is a null pointer value.
+    bool isNullValue() const {
+      return !getMemberIndex().has_value();
+    }
+
+    /// Get the type of the class that contains the target member.
+    mlir::Type getClsTy() const {
+      return getType().getClsTy();
+    }
+  }];
+
+  let genVerifyDecl = 1;
+
+  let assemblyFormat = [{
+    `<` ($memberIndex^):(`null`)? `>`
+  }];
+}
+
+//===----------------------------------------------------------------------===//
 // SignedOverflowBehaviorAttr
 //===----------------------------------------------------------------------===//
 

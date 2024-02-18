@@ -1775,6 +1775,35 @@ def GetMemberOp : CIR_Op<"get_member"> {
 }
 
 //===----------------------------------------------------------------------===//
+// GetRuntimeMemberOp
+//===----------------------------------------------------------------------===//
+
+def GetRuntimeMemberOp : CIR_Op<"get_runtime_member"> {
+  let summary = "Get the address of a member of a struct";
+  let description = [{
+    The `cir.get_runtime_member` operation gets the address of a member from
+    the input record. The target member is given by a value of type
+    `!cir.data_member` (i.e. a pointer-to-data-member value).
+
+    It expects a pointer to the base record as well as the pointer to the target
+    member.
+  }];
+
+  let arguments = (ins
+    Arg<CIR_PointerType, "address of the struct object", [MemRead]>:$addr,
+    Arg<CIR_DataMemberType, "pointer to the target member">:$member);
+
+  let results = (outs Res<CIR_PointerType, "">:$result);
+
+  let assemblyFormat = [{
+    $addr `[` $member `:` qualified(type($member)) `]` attr-dict
+    `:` qualified(type($addr)) `->` qualified(type($result))
+  }];
+
+  let hasVerifier = 1;
+}
+
+//===----------------------------------------------------------------------===//
 // VecInsertOp
 //===----------------------------------------------------------------------===//
 
