@@ -1010,10 +1010,11 @@ template <> mlir::APInt getZeroInitFromType(mlir::Type Ty) {
 }
 
 template <> mlir::APFloat getZeroInitFromType(mlir::Type Ty) {
-  assert((Ty.isF32() || Ty.isF64()) && "only float and double supported");
-  if (Ty.isF32())
+  assert((Ty.isa<mlir::cir::SingleType, mlir::cir::DoubleType>()) &&
+         "only float and double supported");
+  if (Ty.isF32() || Ty.isa<mlir::cir::SingleType>())
     return mlir::APFloat(0.f);
-  if (Ty.isF64())
+  if (Ty.isF64() || Ty.isa<mlir::cir::DoubleType>())
     return mlir::APFloat(0.0);
   llvm_unreachable("NYI");
 }
@@ -1287,7 +1288,7 @@ public:
           op.getLoc(),
           convertCmpKindToICmpPredicate(op.getKind(), intType.isSigned()),
           adaptor.getLhs(), adaptor.getRhs());
-    } else if (elementType.isa<mlir::FloatType>()) {
+    } else if (elementType.isa<mlir::cir::FPTypeInterface>()) {
       bitResult = rewriter.create<mlir::LLVM::FCmpOp>(
           op.getLoc(), convertCmpKindToFCmpPredicate(op.getKind()),
           adaptor.getLhs(), adaptor.getRhs());
