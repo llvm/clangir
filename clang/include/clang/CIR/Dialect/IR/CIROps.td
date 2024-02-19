@@ -2854,10 +2854,14 @@ def CIR_InlineAsmOp : CIR_Op<"asm", [RecursiveMemoryEffects]> {
         AsmFlavor:$asm_flavor);
 
   let assemblyFormat = [{
-    (`has_side_effects` $has_side_effects^)?
-    (`is_align_stack` $is_align_stack^)?    
-    `(`$asm_flavor`,` `{` $asm_string $constraints `}` `)` attr-dict
-     operands `:` functional-type(operands, results)
+    `(`
+    (`has_side_effects` $has_side_effects^ `,`)?
+    (`is_align_stack` $is_align_stack^ `,`)?
+    $asm_flavor`,`
+    `{` $asm_string $constraints `}`
+    `)`
+    attr-dict
+    operands `:` functional-type(operands, results)
    }];  
 }
 
