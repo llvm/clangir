@@ -2222,7 +2222,7 @@ public:
 class CIRInlineAsmOpLowering
     : public mlir::OpConversionPattern<mlir::cir::InlineAsmOp> {
 
-using mlir::OpConversionPattern<mlir::cir::InlineAsmOp>::OpConversionPattern;
+  using mlir::OpConversionPattern<mlir::cir::InlineAsmOp>::OpConversionPattern;
 
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::InlineAsmOp op, OpAdaptor adaptor,
@@ -2230,26 +2230,21 @@ using mlir::OpConversionPattern<mlir::cir::InlineAsmOp>::OpConversionPattern;
 
     mlir::Type llResTy;
     if (op.getNumResults())
-        llResTy = getTypeConverter()->convertType(op.getType(0));
+      llResTy = getTypeConverter()->convertType(op.getType(0));
 
     auto dialect = op.getAsmFlavor();
-    auto llDialect =
-      dialect == mlir::cir::AsmFlavor::x86_att
-        ? mlir::LLVM::AsmDialect::AD_ATT
-        : mlir::LLVM::AsmDialect::AD_Intel;
+    auto llDialect = dialect == mlir::cir::AsmFlavor::x86_att
+                         ? mlir::LLVM::AsmDialect::AD_ATT
+                         : mlir::LLVM::AsmDialect::AD_Intel;
 
     std::vector<mlir::Attribute> opAttrs;
 
     rewriter.replaceOpWithNewOp<mlir::LLVM::InlineAsmOp>(
-      op,
-      llResTy,
-      adaptor.getOperands(),
-      op.getAsmStringAttr(),
-      op.getConstraintsAttr(),
-      op.getHasSideEffectsAttr(),
-      op.getIsAlignStackAttr(),
-      mlir::LLVM::AsmDialectAttr::get(getContext(),llDialect),
-      rewriter.getArrayAttr(opAttrs));
+        op, llResTy, adaptor.getOperands(), op.getAsmStringAttr(),
+        op.getConstraintsAttr(), op.getHasSideEffectsAttr(),
+        op.getIsAlignStackAttr(),
+        mlir::LLVM::AsmDialectAttr::get(getContext(), llDialect),
+        rewriter.getArrayAttr(opAttrs));
 
     return mlir::success();
   }
@@ -2271,8 +2266,7 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
       CIRFAbsOpLowering, CIRVTableAddrPointOpLowering, CIRVectorCreateLowering,
       CIRVectorInsertLowering, CIRVectorExtractLowering, CIRVectorCmpOpLowering,
       CIRStackSaveLowering, CIRStackRestoreLowering, CIRUnreachableLowering,
-      CIRInlineAsmOpLowering>(
-      converter, patterns.getContext());
+      CIRInlineAsmOpLowering>(converter, patterns.getContext());
 }
 
 namespace {
