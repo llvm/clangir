@@ -8,8 +8,8 @@ module {
     %0 = cir.alloca !s32i, cir.ptr <!s32i>, ["x", init] {alignment = 4 : i64}
     cir.store %arg0, %0 : !s32i, cir.ptr <!s32i>
 
-    cir.asm(has_side_effects, x86_att, {"" "~{dirflag},~{fpsr},~{flags}"})  : () -> ()
-    // CHECK: llvm.inline_asm has_side_effects asm_dialect = att operand_attrs = [] "", "~{dirflag},~{fpsr},~{flags}"  : () -> ()
+    cir.asm(x86_att, {"" "~{dirflag},~{fpsr},~{flags}"})  : () -> ()
+    // CHECK: llvm.inline_asm asm_dialect = att operand_attrs = [] "", "~{dirflag},~{fpsr},~{flags}"  : () -> ()
     
     cir.asm(has_side_effects, x86_att, {"xyz" "~{dirflag},~{fpsr},~{flags}"})  : () -> ()
     // CHECK: llvm.inline_asm has_side_effects asm_dialect = att operand_attrs = [] "xyz", "~{dirflag},~{fpsr},~{flags}"  : () -> ()
