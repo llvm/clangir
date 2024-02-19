@@ -2238,28 +2238,7 @@ using mlir::OpConversionPattern<mlir::cir::InlineAsmOp>::OpConversionPattern;
         ? mlir::LLVM::AsmDialect::AD_ATT
         : mlir::LLVM::AsmDialect::AD_Intel;
 
-    // auto oldAttrName = mlir::cir::InlineAsmOp::getElementTypeAttrName();
-    // auto newAttrName = mlir::LLVM::InlineAsmOp::getElementTypeAttrName();
-
     std::vector<mlir::Attribute> opAttrs;
-    // if (auto operandAttrs = op.getOperandAttrs()) {
-    //   for (auto attr : *operandAttrs) {
-    //     if (isa<mlir::cir::OptNoneAttr>(attr)) {
-    //       opAttrs.push_back(mlir::Attribute());
-    //       continue;
-    //     }
-
-    //     mlir::DictionaryAttr dict = cast<mlir::DictionaryAttr>(attr);
-    //     mlir::TypeAttr tAttr = cast<mlir::TypeAttr>(dict.get(oldAttrName));
-    //     std::vector<mlir::NamedAttribute> attrs;
-    //     auto typAttr = rewriter.getTypeAttr(
-    //       getTypeConverter()->convertType(tAttr.getValue()));
-
-    //     attrs.push_back(rewriter.getNamedAttr(newAttrName, typAttr));
-    //     auto newDict = rewriter.getDictionaryAttr(attrs);
-    //     opAttrs.push_back(newDict);
-    //   }
-    // }
 
     rewriter.replaceOpWithNewOp<mlir::LLVM::InlineAsmOp>(
       op,
