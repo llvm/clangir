@@ -23,5 +23,6 @@ void buz() {
 // CHECK:  cir.func no_proto @buz()
 // CHECK:    [[FNPTR_ALLOC:%.*]] = cir.alloca !cir.ptr<!cir.func<!void (...)>>, cir.ptr <!cir.ptr<!cir.func<!void (...)>>>, ["func"] {alignment = 8 : i64}
 // CHECK:    [[FNPTR:%.*]] = cir.load deref [[FNPTR_ALLOC]] : cir.ptr <!cir.ptr<!cir.func<!void (...)>>>, !cir.ptr<!cir.func<!void (...)>>
-// CHECK:    cir.call [[FNPTR]]() : (!cir.ptr<!cir.func<!void (...)>>) -> ()
+// CHECK:    [[CAST:%.*]] = cir.cast(bitcast, %1 : !cir.ptr<!cir.func<!void (...)>>), !cir.ptr<!cir.func<!void ()>>
+// CHECK:    cir.call [[CAST]]() : (!cir.ptr<!cir.func<!void ()>>) -> ()
 // CHECK:    cir.return
