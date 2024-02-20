@@ -67,6 +67,9 @@ struct CIRRecordLowering final {
   void lower(bool nonVirtualBaseType);
   void lowerUnion();
 
+    /// Determines if we need a packed llvm struct.
+  void determinePacked(bool NVBaseType);
+
   void computeVolatileBitfields();
   void accumulateBases();
   void accumulateVPtrs();
@@ -279,6 +282,7 @@ void CIRRecordLowering::lower(bool nonVirtualBaseType) {
   // TODO: implemented packed structs
   // TODO: implement padding
   // TODO: support zeroInit
+  determinePacked(nonVirtualBaseType);
   fillOutputFields();
   computeVolatileBitfields();
 }
@@ -593,6 +597,40 @@ void CIRRecordLowering::accumulateFields() {
   }
 }
 
+void CIRRecordLowering::determinePacked(bool NVBaseType) {
+  if (isPacked)
+    return;
+  CharUnits Alignment = CharUnits::One();
+  CharUnits NVAlignment = CharUnits::One();
+  CharUnits NVSize =
+      !NVBaseType && cxxRecordDecl ? astRecordLayout.getNonVirtualSize() : CharUnits::Zero();
+  for (std::vector<MemberInfo>::const_iterator Member = members.begin(),
+                                               MemberEnd = members.end();
+       Member != MemberEnd; ++Member) {
+    if (!Member->data)
+      continue;
+    // If any member falls at an offset that it not a multiple of its alignment,
+    // then the entire record must be packed.
+    if (Member->offset % getAlignment(Member->data))
+      isPacked = true;
+    if (Member->offset < NVSize)
+      NVAlignment = std::max(NVAlignment, getAlignment(Member->data));
+    Alignment = std::max(Alignment, getAlignment(Member->data));
+  }
+  // If the size of the record (the capstone's offset) is not a multiple of the
+  // record's alignment, it must be packed.
+  if (members.back().offset % Alignment)
+    isPacked = true;
+  // If the non-virtual sub-object is not a multiple of the non-virtual
+  // sub-object's alignment, it must be packed.  We cannot have a packed
+  // non-virtual sub-object and an unpacked complete object or vise versa.
+  if (NVSize % NVAlignment)
+    isPacked = true;
+  // Update the alignment of the sentinel.
+  if (!isPacked)
+    members.back().data = getUIntNType(astContext.toBits(Alignment));
+}
+
 std::unique_ptr<CIRGenRecordLayout>
 CIRGenTypes::computeRecordLayout(const RecordDecl *D,
                                  mlir::cir::StructType *Ty) {
@@ -627,7 +665,7 @@ CIRGenTypes::computeRecordLayout(const RecordDecl *D,
   // but we may need to recursively layout D while laying D out as a base type.
   *Ty =
       Builder.getCompleteStructTy(builder.fieldTypes, getRecordTypeName(D, ""),
-                                  /*packed=*/false, D);
+                                  builder.isPacked, D);
 
   auto RL = std::make_unique<CIRGenRecordLayout>(
       Ty ? *Ty : mlir::cir::StructType{},
