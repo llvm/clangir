@@ -107,14 +107,12 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::AllocaOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    // Get the type being allocated (the pointee type)
-    auto allocaType = op.getAllocaType();
-    auto mlirType = getTypeConverter()->convertType(allocaType);
-    if (!mlirType) {
+    auto type = adaptor.getAllocaType();
+    auto mlirType = getTypeConverter()->convertType(type);
+
+    // FIXME: Some types can not be converted yet (e.g. struct)
+    if (!mlirType)
       return mlir::LogicalResult::failure();
-    }
-    
-    // Create a 0-D memref (scalar) for the allocated type
     auto memreftype = mlir::MemRefType::get({}, mlirType);
     
     rewriter.replaceOpWithNewOp<mlir::memref::AllocaOp>(op, memreftype,
