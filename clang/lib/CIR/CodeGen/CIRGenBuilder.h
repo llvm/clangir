@@ -494,7 +494,7 @@ public:
   bool isSized(mlir::Type ty) {
     if (ty.isa<mlir::cir::PointerType, mlir::cir::StructType,
                mlir::cir::ArrayType, mlir::cir::BoolType, mlir::cir::IntType,
-               mlir::cir::FPTypeInterface>())
+               mlir::cir::CIRFPTypeInterface>())
       return true;
     assert(0 && "Unimplemented size for type");
     return false;

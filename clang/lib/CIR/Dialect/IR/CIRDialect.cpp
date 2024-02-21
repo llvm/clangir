@@ -428,13 +428,13 @@ LogicalResult CastOp::verify() {
     return success();
   }
   case cir::CastKind::floating: {
-    if (!srcType.isa<mlir::cir::FPTypeInterface>() ||
-        !resType.isa<mlir::cir::FPTypeInterface>())
+    if (!srcType.isa<mlir::cir::CIRFPTypeInterface>() ||
+        !resType.isa<mlir::cir::CIRFPTypeInterface>())
       return emitOpError() << "requries floating for source and result";
     return success();
   }
   case cir::CastKind::float_to_int: {
-    if (!srcType.isa<mlir::cir::FPTypeInterface>())
+    if (!srcType.isa<mlir::cir::CIRFPTypeInterface>())
       return emitOpError() << "requires floating for source";
     if (!resType.dyn_cast<mlir::cir::IntType>())
       return emitOpError() << "requires !IntegerType for result";
@@ -455,7 +455,7 @@ LogicalResult CastOp::verify() {
     return success();
   }
   case cir::CastKind::float_to_bool: {
-    if (!srcType.isa<mlir::cir::FPTypeInterface>())
+    if (!srcType.isa<mlir::cir::CIRFPTypeInterface>())
       return emitOpError() << "requires float for source";
     if (!resType.isa<mlir::cir::BoolType>())
       return emitOpError() << "requires !cir.bool for result";
@@ -471,14 +471,14 @@ LogicalResult CastOp::verify() {
   case cir::CastKind::int_to_float: {
     if (!srcType.isa<mlir::cir::IntType>())
       return emitOpError() << "requires !cir.int for source";
-    if (!resType.isa<mlir::cir::FPTypeInterface>())
+    if (!resType.isa<mlir::cir::CIRFPTypeInterface>())
       return emitOpError() << "requires !cir.float for result";
     return success();
   }
   case cir::CastKind::bool_to_float: {
     if (!srcType.isa<mlir::cir::BoolType>())
       return emitOpError() << "requires !cir.bool for source";
-    if (!resType.isa<mlir::cir::FPTypeInterface>())
+    if (!resType.isa<mlir::cir::CIRFPTypeInterface>())
       return emitOpError() << "requires !cir.float for result";
     return success();
   }

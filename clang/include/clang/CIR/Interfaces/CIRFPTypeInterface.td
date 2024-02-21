@@ -1,4 +1,4 @@
-//===- FPTypeInterface.td - CIR FP Interface Definitions --------*- C++ -*-===//
+//===- CIRFPTypeInterface.td - CIR FP Interface Definitions -----*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,12 +6,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MLIR_CIR_INTERFACES_FP_TYPE_INTERFACE
-#define MLIR_CIR_INTERFACES_FP_TYPE_INTERFACE
+#ifndef MLIR_CIR_INTERFACES_CIR_FP_TYPE_INTERFACE
+#define MLIR_CIR_INTERFACES_CIR_FP_TYPE_INTERFACE
 
 include "mlir/IR/OpBase.td"
 
-def FPTypeInterface : TypeInterface<"FPTypeInterface"> {
+def CIRFPTypeInterface : TypeInterface<"CIRFPTypeInterface"> {
   let description = [{
     Contains helper functions to query properties about a floating-point type.
   }];
@@ -49,4 +49,4 @@ def FPTypeInterface : TypeInterface<"FPTypeInterface"> {
   ];
 }
 
-#endif // MLIR_CIR_INTERFACES_FP_TYPE_INTERFACE
+#endif // MLIR_CIR_INTERFACES_CIR_FP_TYPE_INTERFACE

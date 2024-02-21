@@ -322,7 +322,7 @@ parseFloatLiteral(mlir::AsmParser &parser,
   auto losesInfo = false;
   value.emplace(rawValue);
 
-  auto tyFpInterface = ty.dyn_cast<cir::FPTypeInterface>();
+  auto tyFpInterface = ty.dyn_cast<cir::CIRFPTypeInterface>();
   if (!tyFpInterface) {
     // Parsing of the current floating-point literal has succeeded, but the
     // given attribute type is invalid. This error will be reported later when
@@ -336,13 +336,14 @@ parseFloatLiteral(mlir::AsmParser &parser,
 }
 
 cir::FPAttr cir::FPAttr::getZero(mlir::Type type) {
-  return get(type, APFloat::getZero(
-                       type.cast<cir::FPTypeInterface>().getFloatSemantics()));
+  return get(type,
+             APFloat::getZero(
+                 type.cast<cir::CIRFPTypeInterface>().getFloatSemantics()));
 }
 
 LogicalResult cir::FPAttr::verify(function_ref<InFlightDiagnostic()> emitError,
                                   Type type, APFloat value) {
-  auto fltTypeInterface = type.dyn_cast<cir::FPTypeInterface>();
+  auto fltTypeInterface = type.dyn_cast<cir::CIRFPTypeInterface>();
   if (!fltTypeInterface) {
     emitError() << "expected floating-point type";
     return failure();
