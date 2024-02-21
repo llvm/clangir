@@ -1833,7 +1833,7 @@ LValue ScalarExprEmitter::buildCompoundAssignLValue(
   // specially because the result is altered by the store, i.e., [C99 6.5.16p1]
   // 'An assignment expression has the value of the left operand after the
   // assignment...'.
-  if (LHSLV.isBitField())    
+  if (LHSLV.isBitField())
     CGF.buildStoreThroughBitfieldLValue(RValue::get(Result), LHSLV, Result);
   else
     CGF.buildStoreThroughLValue(RValue::get(Result), LHSLV);

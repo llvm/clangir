@@ -17,7 +17,6 @@
 #include "clang/CIR/Interfaces/CIRLoopOpInterface.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <optional>
-#include <iostream>
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMTypes.h"

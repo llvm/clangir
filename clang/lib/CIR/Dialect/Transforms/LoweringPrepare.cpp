@@ -24,7 +24,6 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Path.h"
 
-
 using cir::CIRBaseBuilderTy;
 using namespace mlir;
 using namespace mlir::cir;
