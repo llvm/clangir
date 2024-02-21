@@ -192,9 +192,9 @@ lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::cir::ConstPtrAttr ptrAttr,
       loc, converter->convertType(ptrAttr.getType()), ptrVal);
 }
 
-/// FloatAttr visitor.
+/// FPAttr visitor.
 inline mlir::Value
-lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::FloatAttr fltAttr,
+lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::cir::FPAttr fltAttr,
                     mlir::ConversionPatternRewriter &rewriter,
                     const mlir::TypeConverter *converter) {
   auto loc = parentOp->getLoc();
@@ -370,7 +370,7 @@ lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::Attribute attr,
                     const mlir::TypeConverter *converter) {
   if (const auto intAttr = mlir::dyn_cast<mlir::cir::IntAttr>(attr))
     return lowerCirAttrAsValue(parentOp, intAttr, rewriter, converter);
-  if (const auto fltAttr = mlir::dyn_cast<mlir::FloatAttr>(attr))
+  if (const auto fltAttr = mlir::dyn_cast<mlir::cir::FPAttr>(attr))
     return lowerCirAttrAsValue(parentOp, fltAttr, rewriter, converter);
   if (const auto ptrAttr = mlir::dyn_cast<mlir::cir::ConstPtrAttr>(attr))
     return lowerCirAttrAsValue(parentOp, ptrAttr, rewriter, converter);
@@ -672,21 +672,29 @@ public:
       break;
     }
     case mlir::cir::CastKind::floating: {
-      auto dstTy = mlir::cast<mlir::FloatType>(castOp.getResult().getType());
+      auto dstTy = castOp.getResult().getType();
       auto srcTy = castOp.getSrc().getType();
+
+      if (!mlir::isa<mlir::cir::CIRFPTypeInterface>(dstTy) ||
+          !mlir::isa<mlir::cir::CIRFPTypeInterface>(srcTy))
+        return castOp.emitError()
+               << "NYI cast from " << srcTy << " to " << dstTy;
+
       auto llvmSrcVal = adaptor.getOperands().front();
+      auto llvmDstTy =
+          mlir::cast<mlir::FloatType>(getTypeConverter()->convertType(dstTy));
 
-      if (auto fpSrcTy = mlir::dyn_cast<mlir::FloatType>(srcTy)) {
-        if (fpSrcTy.getWidth() > dstTy.getWidth())
-          rewriter.replaceOpWithNewOp<mlir::LLVM::FPTruncOp>(castOp, dstTy,
-                                                             llvmSrcVal);
-        else
-          rewriter.replaceOpWithNewOp<mlir::LLVM::FPExtOp>(castOp, dstTy,
+      auto getFloatWidth = [](mlir::Type ty) -> unsigned {
+        return mlir::cast<mlir::cir::CIRFPTypeInterface>(ty).getWidth();
+      };
+
+      if (getFloatWidth(srcTy) > getFloatWidth(dstTy))
+        rewriter.replaceOpWithNewOp<mlir::LLVM::FPTruncOp>(castOp, llvmDstTy,
                                                            llvmSrcVal);
-        return mlir::success();
-      }
-
-      return castOp.emitError() << "NYI cast from " << srcTy << " to " << dstTy;
+      else
+        rewriter.replaceOpWithNewOp<mlir::LLVM::FPExtOp>(castOp, llvmDstTy,
+                                                         llvmSrcVal);
+      return mlir::success();
     }
     case mlir::cir::CastKind::int_to_ptr: {
       auto dstTy = mlir::cast<mlir::cir::PointerType>(castOp.getType());
@@ -1053,10 +1061,11 @@ template <> mlir::APInt getZeroInitFromType(mlir::Type Ty) {
 }
 
 template <> mlir::APFloat getZeroInitFromType(mlir::Type Ty) {
-  assert((Ty.isF32() || Ty.isF64()) && "only float and double supported");
-  if (Ty.isF32())
+  assert((mlir::isa<mlir::cir::SingleType, mlir::cir::DoubleType>(Ty)) &&
+         "only float and double supported");
+  if (Ty.isF32() || mlir::isa<mlir::cir::SingleType>(Ty))
     return mlir::APFloat(0.f);
-  if (Ty.isF64())
+  if (Ty.isF64() || mlir::isa<mlir::cir::DoubleType>(Ty))
     return mlir::APFloat(0.0);
   llvm_unreachable("NYI");
 }
@@ -1137,8 +1146,8 @@ lowerConstArrayAttr(mlir::cir::ConstArrayAttr constArr,
   if (mlir::isa<mlir::cir::IntType>(type))
     return convertToDenseElementsAttr<mlir::cir::IntAttr, mlir::APInt>(
         constArr, dims, converter->convertType(type));
-  if (mlir::isa<mlir::FloatType>(type))
-    return convertToDenseElementsAttr<mlir::FloatAttr, mlir::APFloat>(
+  if (mlir::isa<mlir::cir::CIRFPTypeInterface>(type))
+    return convertToDenseElementsAttr<mlir::cir::FPAttr, mlir::APFloat>(
         constArr, dims, converter->convertType(type));
 
   return std::nullopt;
@@ -1174,8 +1183,10 @@ public:
       attr = rewriter.getIntegerAttr(
           typeConverter->convertType(op.getType()),
           mlir::cast<mlir::cir::IntAttr>(op.getValue()).getValue());
-    } else if (mlir::isa<mlir::FloatType>(op.getType())) {
-      attr = op.getValue();
+    } else if (mlir::isa<mlir::cir::CIRFPTypeInterface>(op.getType())) {
+      attr = rewriter.getFloatAttr(
+          typeConverter->convertType(op.getType()),
+          mlir::cast<mlir::cir::FPAttr>(op.getValue()).getValue());
     } else if (mlir::isa<mlir::cir::PointerType>(op.getType())) {
       // Optimize with dedicated LLVM op for null pointers.
       if (mlir::isa<mlir::cir::ConstPtrAttr>(op.getValue())) {
@@ -1332,7 +1343,7 @@ public:
           op.getLoc(),
           convertCmpKindToICmpPredicate(op.getKind(), intType.isSigned()),
           adaptor.getLhs(), adaptor.getRhs());
-    } else if (mlir::isa<mlir::FloatType>(elementType)) {
+    } else if (mlir::isa<mlir::cir::CIRFPTypeInterface>(elementType)) {
       bitResult = rewriter.create<mlir::LLVM::FCmpOp>(
           op.getLoc(), convertCmpKindToFCmpPredicate(op.getKind()),
           adaptor.getLhs(), adaptor.getRhs());
@@ -1675,9 +1686,10 @@ public:
             << constArr.getElts();
         return mlir::failure();
       }
-    } else if (mlir::isa<mlir::FloatAttr>(init.value())) {
-      // Nothing to do since LLVM already supports these types as
-      // initializers.
+    } else if (auto fltAttr = mlir::dyn_cast<mlir::cir::FPAttr>(init.value())) {
+      // Initializer is a constant floating-point number: convert to MLIR
+      // builtin constant.
+      init = rewriter.getFloatAttr(llvmType, fltAttr.getValue());
     }
     // Initializer is a constant integer: convert to MLIR builtin constant.
     else if (auto intAttr = mlir::dyn_cast<mlir::cir::IntAttr>(init.value())) {
@@ -1820,7 +1832,7 @@ public:
     }
 
     // Floating point unary operations: + - ++ --
-    if (mlir::isa<mlir::FloatType>(elementType)) {
+    if (mlir::isa<mlir::cir::CIRFPTypeInterface>(elementType)) {
       switch (op.getKind()) {
       case mlir::cir::UnaryOpKind::Inc: {
         assert(!IsVector && "++ not allowed on vector types");
@@ -1899,8 +1911,8 @@ public:
     assert((op.getLhs().getType() == op.getRhs().getType()) &&
            "inconsistent operands' types not supported yet");
     mlir::Type type = op.getRhs().getType();
-    assert((mlir::isa<mlir::cir::IntType, mlir::FloatType,
-                      mlir::cir::VectorType>(type)) &&
+    assert((mlir::isa<mlir::cir::IntType, mlir::cir::CIRFPTypeInterface,
+                     mlir::cir::VectorType>(type)) &&
            "operand type not supported yet");
 
     auto llvmTy = getTypeConverter()->convertType(op.getType());
@@ -2080,7 +2092,7 @@ public:
                                                 /* isSigned=*/false);
       llResult = rewriter.create<mlir::LLVM::ICmpOp>(
           cmpOp.getLoc(), kind, adaptor.getLhs(), adaptor.getRhs());
-    } else if (mlir::isa<mlir::FloatType>(type)) {
+    } else if (mlir::isa<mlir::cir::CIRFPTypeInterface>(type)) {
       auto kind = convertCmpKindToFCmpPredicate(cmpOp.getKind());
       llResult = rewriter.create<mlir::LLVM::FCmpOp>(
           cmpOp.getLoc(), kind, adaptor.getLhs(), adaptor.getRhs());
@@ -2320,6 +2332,12 @@ void prepareTypeConverter(mlir::LLVMTypeConverter &converter,
   converter.addConversion([&](mlir::cir::IntType type) -> mlir::Type {
     // LLVM doesn't work with signed types, so we drop the CIR signs here.
     return mlir::IntegerType::get(type.getContext(), type.getWidth());
+  });
+  converter.addConversion([&](mlir::cir::SingleType type) -> mlir::Type {
+    return mlir::Float32Type::get(type.getContext());
+  });
+  converter.addConversion([&](mlir::cir::DoubleType type) -> mlir::Type {
+    return mlir::Float64Type::get(type.getContext());
   });
   converter.addConversion([&](mlir::cir::FuncType type) -> mlir::Type {
     auto result = converter.convertType(type.getReturnType());
