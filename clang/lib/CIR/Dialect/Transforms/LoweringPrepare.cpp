@@ -24,7 +24,6 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Path.h"
 
-#include <iostream>
 
 using cir::CIRBaseBuilderTy;
 using namespace mlir;
@@ -306,7 +305,6 @@ void LoweringPreparePass::buildCXXGlobalInitFunc() {
 }
 
 void LoweringPreparePass::lowerGetBitfieldOp(GetBitfieldOp op) {
-  std::cout << "LoweringPreparePass::lowerGetBitfieldOp" << std::endl;
   CIRBaseBuilderTy builder(getContext());
   builder.setInsertionPointAfter(op.getOperation());
 

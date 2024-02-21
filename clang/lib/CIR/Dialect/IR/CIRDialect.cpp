@@ -2189,27 +2189,19 @@ LogicalResult UnaryOp::verify() {
   case cir::UnaryOpKind::Inc:
     LLVM_FALLTHROUGH;
   case cir::UnaryOpKind::Dec: {
-    auto v = getInput();
-    if (!v)
-      std::cout << "no input\n";
-    else
-      std::cout << "HAS input\n";
-
-    return success();
     // TODO: Consider looking at the memory interface instead of
     // LoadOp/StoreOp.
-    ///auto loadOp = getInput().getDefiningOp<cir::LoadOp>();
-    auto loadOp = getInput().getDefiningOp()->getParentOfType<cir::LoadOp>();    
-    if (!loadOp)
-      return emitOpError() << "requires input to be defined by a memory load";
-
-    for (const auto user : getResult().getUsers()) {
-      auto storeOp = dyn_cast<cir::StoreOp>(user);
-      if (storeOp && storeOp.getAddr() == loadOp.getAddr())
-        return success();
+    if (auto loadOp = getInput().getDefiningOp<cir::LoadOp>()) {
+      for (const auto user : getResult().getUsers()) {
+        auto storeOp = dyn_cast<cir::StoreOp>(user);
+        if (storeOp && storeOp.getAddr() == loadOp.getAddr())
+          return success();
+      }
+      return emitOpError() << "requires result to be used by a memory store "
+                              "to the same address as the input memory load";
+    } else {
+      return success();
     }
-    return emitOpError() << "requires result to be used by a memory store "
-                            "to the same address as the input memory load";
   }
   case cir::UnaryOpKind::Plus:
   case cir::UnaryOpKind::Minus:
