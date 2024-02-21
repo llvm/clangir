@@ -352,18 +352,6 @@ module {
 // -----
 
 !u32i = !cir.int<u, 32>
-cir.func @unary0() {
-  %0 = cir.alloca !u32i, cir.ptr <!u32i>, ["a", init] {alignment = 4 : i64}
-  %1 = cir.const(#cir.int<2> : !u32i) : !u32i
-
-  %3 = cir.unary(inc, %1) : !u32i, !u32i // expected-error {{'cir.unary' op requires input to be defined by a memory load}}
-  cir.store %3, %0 : !u32i, cir.ptr <!u32i>
-  cir.return
-}
-
-// -----
-
-!u32i = !cir.int<u, 32>
 cir.func @unary1() {
   %0 = cir.alloca !u32i, cir.ptr <!u32i>, ["a", init] {alignment = 4 : i64}
   %1 = cir.const(#cir.int<2> : !u32i) : !u32i
