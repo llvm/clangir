@@ -331,6 +331,15 @@ def VoidPtr : Type<
       "mlir::cir::VoidType::get($_builder.getContext()))"> {
 }
 
+// Pointer to struct
+def StructPtr : Type<
+    And<[
+      CPred<"$_self.isa<::mlir::cir::PointerType>()">,
+      CPred<"$_self.cast<::mlir::cir::PointerType>()"
+            ".getPointee().isa<::mlir::cir::StructType>()">,
+    ]>, "!cir.struct*"> {
+}
+
 // Pointers to exception info
 def ExceptionInfoPtr : Type<
     And<[

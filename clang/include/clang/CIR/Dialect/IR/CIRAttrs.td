@@ -296,11 +296,6 @@ def DataMemberAttr : CIR_Attr<"DataMember", "data_member",
     bool isNullValue() const {
       return !getMemberIndex().has_value();
     }
-
-    /// Get the type of the class that contains the target member.
-    mlir::Type getClsTy() const {
-      return getType().getClsTy();
-    }
   }];
 
   let genVerifyDecl = 1;

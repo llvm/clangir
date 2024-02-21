@@ -2581,12 +2581,8 @@ LogicalResult GetMemberOp::verify() {
 //===----------------------------------------------------------------------===//
 
 LogicalResult GetRuntimeMemberOp::verify() {
-  auto recordTy = getAddr().getType().getPointee().dyn_cast<StructType>();
-  if (!recordTy) {
-    emitError() << "expected pointer to a record type";
-    return mlir::failure();
-  }
-
+  auto recordTy =
+      getAddr().getType().cast<PointerType>().getPointee().cast<StructType>();
   auto memberPtrTy = getMember().getType();
 
   if (recordTy != memberPtrTy.getClsTy()) {
