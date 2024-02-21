@@ -67,7 +67,7 @@ struct CIRRecordLowering final {
   void lower(bool nonVirtualBaseType);
   void lowerUnion();
 
-    /// Determines if we need a packed llvm struct.
+  /// Determines if we need a packed llvm struct.
   void determinePacked(bool NVBaseType);
 
   void computeVolatileBitfields();
@@ -282,7 +282,7 @@ void CIRRecordLowering::lower(bool nonVirtualBaseType) {
   // TODO: implemented packed structs
   // TODO: implement padding
   // TODO: support zeroInit
-  
+
   members.push_back(StorageInfo(Size, getUIntNType(8)));
   determinePacked(nonVirtualBaseType);
   members.pop_back();
@@ -606,8 +606,9 @@ void CIRRecordLowering::determinePacked(bool NVBaseType) {
     return;
   CharUnits Alignment = CharUnits::One();
   CharUnits NVAlignment = CharUnits::One();
-  CharUnits NVSize =
-      !NVBaseType && cxxRecordDecl ? astRecordLayout.getNonVirtualSize() : CharUnits::Zero();
+  CharUnits NVSize = !NVBaseType && cxxRecordDecl
+                         ? astRecordLayout.getNonVirtualSize()
+                         : CharUnits::Zero();
   for (std::vector<MemberInfo>::const_iterator Member = members.begin(),
                                                MemberEnd = members.end();
        Member != MemberEnd; ++Member) {
@@ -667,9 +668,8 @@ CIRGenTypes::computeRecordLayout(const RecordDecl *D,
   // Fill in the struct *after* computing the base type.  Filling in the body
   // signifies that the type is no longer opaque and record layout is complete,
   // but we may need to recursively layout D while laying D out as a base type.
-  *Ty =
-      Builder.getCompleteStructTy(builder.fieldTypes, getRecordTypeName(D, ""),
-                                  builder.isPacked, D);
+  *Ty = Builder.getCompleteStructTy(
+      builder.fieldTypes, getRecordTypeName(D, ""), builder.isPacked, D);
 
   auto RL = std::make_unique<CIRGenRecordLayout>(
       Ty ? *Ty : mlir::cir::StructType{},
