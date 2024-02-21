@@ -224,8 +224,10 @@ public:
   mlir::TypedAttr getZeroInitAttr(mlir::Type ty) {
     if (mlir::isa<mlir::cir::IntType>(ty))
       return mlir::cir::IntAttr::get(ty, 0);
-    if (mlir::isa<mlir::FloatType>(ty))
-      return mlir::FloatAttr::get(ty, 0.0);
+    if (auto fltType = mlir::dyn_cast<mlir::cir::SingleType>(ty))
+      return mlir::cir::FPAttr::getZero(fltType);
+    if (auto fltType = mlir::dyn_cast<mlir::cir::DoubleType>(ty))
+      return mlir::cir::FPAttr::getZero(fltType);
     if (auto arrTy = mlir::dyn_cast<mlir::cir::ArrayType>(ty))
       return getZeroAttr(arrTy);
     if (auto ptrTy = mlir::dyn_cast<mlir::cir::PointerType>(ty))
@@ -256,12 +258,13 @@ public:
     if (const auto boolVal = mlir::dyn_cast<mlir::cir::BoolAttr>(attr))
       return !boolVal.getValue();
 
-    if (const auto fpVal = mlir::dyn_cast<mlir::FloatAttr>(attr)) {
+    if (auto fpAttr = mlir::dyn_cast<mlir::cir::FPAttr>(attr)) {
+      auto fpVal = fpAttr.getValue();
       bool ignored;
       llvm::APFloat FV(+0.0);
-      FV.convert(fpVal.getValue().getSemantics(),
-                 llvm::APFloat::rmNearestTiesToEven, &ignored);
-      return FV.bitwiseIsEqual(fpVal.getValue());
+      FV.convert(fpVal.getSemantics(), llvm::APFloat::rmNearestTiesToEven,
+                 &ignored);
+      return FV.bitwiseIsEqual(fpVal);
     }
 
     if (const auto structVal = mlir::dyn_cast<mlir::cir::ConstStructAttr>(attr)) {
@@ -348,13 +351,11 @@ public:
   }
   bool isInt(mlir::Type i) { return mlir::isa<mlir::cir::IntType>(i); }
 
-  mlir::FloatType getLongDouble80BitsTy() const {
-    return typeCache.LongDouble80BitsTy;
-  }
+  mlir::Type getLongDouble80BitsTy() const { llvm_unreachable("NYI"); }
 
   /// Get the proper floating point type for the given semantics.
-  mlir::FloatType getFloatTyForFormat(const llvm::fltSemantics &format,
-                                      bool useNativeHalf) const {
+  mlir::Type getFloatTyForFormat(const llvm::fltSemantics &format,
+                                 bool useNativeHalf) const {
     if (&format == &llvm::APFloat::IEEEhalf()) {
       llvm_unreachable("IEEEhalf float format is NYI");
     }
@@ -362,9 +363,9 @@ public:
     if (&format == &llvm::APFloat::BFloat())
       llvm_unreachable("BFloat float format is NYI");
     if (&format == &llvm::APFloat::IEEEsingle())
-      llvm_unreachable("IEEEsingle float format is NYI");
+      return typeCache.FloatTy;
     if (&format == &llvm::APFloat::IEEEdouble())
-      llvm_unreachable("IEEEdouble float format is NYI");
+      return typeCache.DoubleTy;
     if (&format == &llvm::APFloat::IEEEquad())
       llvm_unreachable("IEEEquad float format is NYI");
     if (&format == &llvm::APFloat::PPCDoubleDouble())
@@ -491,10 +492,9 @@ public:
   }
 
   bool isSized(mlir::Type ty) {
-    if (ty.isIntOrFloat() ||
-        mlir::isa<mlir::cir::PointerType, mlir::cir::StructType,
-                  mlir::cir::ArrayType, mlir::cir::BoolType,
-                  mlir::cir::IntType>(ty))
+    if (mlir::isa<mlir::cir::PointerType, mlir::cir::StructType,
+               mlir::cir::ArrayType, mlir::cir::BoolType, mlir::cir::IntType,
+               mlir::cir::CIRFPTypeInterface>(ty))
       return true;
     assert(0 && "Unimplemented size for type");
     return false;

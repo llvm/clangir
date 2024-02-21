@@ -165,9 +165,11 @@ public:
   }
   mlir::Value VisitFloatingLiteral(const FloatingLiteral *E) {
     mlir::Type Ty = CGF.getCIRType(E->getType());
+    assert(mlir::isa<mlir::cir::CIRFPTypeInterface>(Ty) &&
+           "expect floating-point type");
     return Builder.create<mlir::cir::ConstantOp>(
         CGF.getLoc(E->getExprLoc()), Ty,
-        Builder.getFloatAttr(Ty, E->getValue()));
+        Builder.getAttr<mlir::cir::FPAttr>(Ty, E->getValue()));
   }
   mlir::Value VisitCharacterLiteral(const CharacterLiteral *E) {
     mlir::Type Ty = CGF.getCIRType(E->getType());
@@ -1227,7 +1229,7 @@ mlir::Value ScalarExprEmitter::buildSub(const BinOpInfo &Ops) {
       llvm_unreachable("NYI");
 
     assert(!UnimplementedFeature::cirVectorType());
-    if (mlir::isa<mlir::FloatType>(Ops.LHS.getType())) {
+    if (mlir::isa<mlir::cir::CIRFPTypeInterface>(Ops.LHS.getType())) {
       CIRGenFunction::CIRGenFPOptionsRAII FPOptsRAII(CGF, Ops.FPFeatures);
       return Builder.createFSub(Ops.LHS, Ops.RHS);
     }
@@ -1701,7 +1703,7 @@ mlir::Value ScalarExprEmitter::buildScalarCast(
       llvm_unreachable("NYI: signed bool");
     if (CGF.getBuilder().isInt(DstTy)) {
       CastKind = mlir::cir::CastKind::bool_to_int;
-    } else if (mlir::isa<mlir::FloatType>(DstTy)) {
+    } else if (mlir::isa<mlir::cir::CIRFPTypeInterface>(DstTy)) {
       CastKind = mlir::cir::CastKind::bool_to_float;
     } else {
       llvm_unreachable("Internal error: Cast to unexpected type");
@@ -1709,12 +1711,12 @@ mlir::Value ScalarExprEmitter::buildScalarCast(
   } else if (CGF.getBuilder().isInt(SrcTy)) {
     if (CGF.getBuilder().isInt(DstTy)) {
       CastKind = mlir::cir::CastKind::integral;
-    } else if (mlir::isa<mlir::FloatType>(DstTy)) {
+    } else if (mlir::isa<mlir::cir::CIRFPTypeInterface>(DstTy)) {
       CastKind = mlir::cir::CastKind::int_to_float;
     } else {
       llvm_unreachable("Internal error: Cast to unexpected type");
     }
-  } else if (mlir::isa<mlir::FloatType>(SrcTy)) {
+  } else if (mlir::isa<mlir::cir::CIRFPTypeInterface>(SrcTy)) {
     if (CGF.getBuilder().isInt(DstTy)) {
       // If we can't recognize overflow as undefined behavior, assume that
       // overflow saturates. This protects against normal optimizations if we
@@ -1724,7 +1726,7 @@ mlir::Value ScalarExprEmitter::buildScalarCast(
       if (Builder.getIsFPConstrained())
         llvm_unreachable("NYI");
       CastKind = mlir::cir::CastKind::float_to_int;
-    } else if (mlir::isa<mlir::FloatType>(DstTy)) {
+    } else if (mlir::isa<mlir::cir::CIRFPTypeInterface>(DstTy)) {
       // TODO: split this to createFPExt/createFPTrunc
       return Builder.createFloatingCast(Src, DstTy);
     } else {

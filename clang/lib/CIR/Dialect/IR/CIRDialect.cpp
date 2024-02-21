@@ -305,7 +305,7 @@ static LogicalResult checkConstantTypes(mlir::Operation *op, mlir::Type opType,
     return success();
   }
 
-  if (mlir::isa<mlir::cir::IntAttr, FloatAttr>(attrType)) {
+  if (mlir::isa<mlir::cir::IntAttr, mlir::cir::FPAttr>(attrType)) {
     auto at = mlir::cast<TypedAttr>(attrType);
     if (at.getType() != opType) {
       return op->emitOpError("result type (")
@@ -433,13 +433,13 @@ LogicalResult CastOp::verify() {
     return success();
   }
   case cir::CastKind::floating: {
-    if (!mlir::dyn_cast<mlir::FloatType>(srcType) ||
-        !mlir::dyn_cast<mlir::FloatType>(resType))
+    if (!mlir::isa<mlir::cir::CIRFPTypeInterface>(srcType) ||
+        !mlir::isa<mlir::cir::CIRFPTypeInterface>(resType))
       return emitOpError() << "requries floating for source and result";
     return success();
   }
   case cir::CastKind::float_to_int: {
-    if (!mlir::dyn_cast<mlir::FloatType>(srcType))
+    if (!mlir::isa<mlir::cir::CIRFPTypeInterface>(srcType))
       return emitOpError() << "requires floating for source";
     if (!mlir::dyn_cast<mlir::cir::IntType>(resType))
       return emitOpError() << "requires !IntegerType for result";
@@ -460,7 +460,7 @@ LogicalResult CastOp::verify() {
     return success();
   }
   case cir::CastKind::float_to_bool: {
-    if (!mlir::isa<mlir::FloatType>(srcType))
+    if (!mlir::isa<mlir::cir::CIRFPTypeInterface>(srcType))
       return emitOpError() << "requires float for source";
     if (!mlir::isa<mlir::cir::BoolType>(resType))
       return emitOpError() << "requires !cir.bool for result";
@@ -476,14 +476,14 @@ LogicalResult CastOp::verify() {
   case cir::CastKind::int_to_float: {
     if (!mlir::isa<mlir::cir::IntType>(srcType))
       return emitOpError() << "requires !cir.int for source";
-    if (!mlir::isa<mlir::FloatType>(resType))
+    if (!mlir::isa<mlir::cir::CIRFPTypeInterface>(resType))
       return emitOpError() << "requires !cir.float for result";
     return success();
   }
   case cir::CastKind::bool_to_float: {
     if (!mlir::isa<mlir::cir::BoolType>(srcType))
       return emitOpError() << "requires !cir.bool for source";
-    if (!mlir::isa<mlir::FloatType>(resType))
+    if (!mlir::isa<mlir::cir::CIRFPTypeInterface>(resType))
       return emitOpError() << "requires !cir.float for result";
     return success();
   }

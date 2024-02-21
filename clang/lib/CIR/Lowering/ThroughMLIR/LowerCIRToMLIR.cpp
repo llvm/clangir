@@ -111,6 +111,7 @@ public:
     // FIXME: Some types can not be converted yet (e.g. struct)
     if (!mlirType)
       return mlir::LogicalResult::failure();
+    
     auto memreftype = mlir::MemRefType::get({}, mlirType);
     
     rewriter.replaceOpWithNewOp<mlir::memref::AllocaOp>(op, memreftype,
@@ -880,7 +881,14 @@ public:
         return std::nullopt;
       return mlir::MemRefType::get({static_cast<int64_t>(type.getSize())}, elementType);
     });
-    // Add float type conversions
+    // Add CIR float type conversions
+    addConversion([](mlir::cir::SingleType type) -> std::optional<mlir::Type> {
+      return mlir::Float32Type::get(type.getContext());
+    });
+    addConversion([](mlir::cir::DoubleType type) -> std::optional<mlir::Type> {
+      return mlir::Float64Type::get(type.getContext());
+    });
+    // Add MLIR float type conversions
     addConversion([](mlir::FloatType type) -> std::optional<mlir::Type> {
       return type; // Float types are already MLIR native
     });
