@@ -236,7 +236,10 @@ def FPAttr : CIR_Attr<"FP", "fp", [TypedAttrInterface]> {
     static FPAttr getZero(mlir::Type type);
   }];
   let genVerifyDecl = 1;
-  let hasCustomAssemblyFormat = 1;
+
+  let assemblyFormat = [{
+    `<` custom<FloatLiteral>($value, ref($type)) `>`
+  }];
 }
 
 //===----------------------------------------------------------------------===//

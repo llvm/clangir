@@ -37,6 +37,12 @@ static void printStructMembers(mlir::AsmPrinter &p, mlir::ArrayAttr members);
 static mlir::ParseResult parseStructMembers(::mlir::AsmParser &parser,
                                             mlir::ArrayAttr &members);
 
+static void printFloatLiteral(mlir::AsmPrinter &p, llvm::APFloat value,
+                              mlir::Type ty);
+static mlir::ParseResult
+parseFloatLiteral(mlir::AsmParser &parser,
+                  mlir::FailureOr<llvm::APFloat> &value, mlir::Type ty);
+
 #define GET_ATTRDEF_CLASSES
 #include "clang/CIR/Dialect/IR/CIROpsAttributes.cpp.inc"
 
@@ -299,33 +305,34 @@ LogicalResult IntAttr::verify(function_ref<InFlightDiagnostic()> emitError,
 // FPAttr definitions
 //===----------------------------------------------------------------------===//
 
-Attribute cir::FPAttr::parse(AsmParser &parser, Type odsType) {
-  double value;
-
-  auto odsTypeFpInterface = odsType.dyn_cast<cir::FPTypeInterface>();
-  if (!odsTypeFpInterface)
-    return {};
-
-  if (parser.parseLess())
-    return {};
-
-  if (parser.parseFloat(value))
-    parser.emitError(parser.getCurrentLocation(),
-                     "expected floating-point value");
-
-  if (parser.parseGreater())
-    return {};
-
-  auto losesInfo = false;
-  APFloat convertedValue{value};
-  convertedValue.convert(odsTypeFpInterface.getFloatSemantics(),
-                         llvm::RoundingMode::TowardZero, &losesInfo);
-
-  return cir::FPAttr::get(odsType, convertedValue);
+static void printFloatLiteral(mlir::AsmPrinter &p, llvm::APFloat value,
+                              mlir::Type ty) {
+  p << value;
 }
 
-void cir::FPAttr::print(AsmPrinter &printer) const {
-  printer << '<' << getValue() << '>';
+static mlir::ParseResult
+parseFloatLiteral(mlir::AsmParser &parser,
+                  mlir::FailureOr<llvm::APFloat> &value, mlir::Type ty) {
+  double rawValue;
+  if (parser.parseFloat(rawValue)) {
+    return parser.emitError(parser.getCurrentLocation(),
+                            "expected floating-point value");
+  }
+
+  auto losesInfo = false;
+  value.emplace(rawValue);
+
+  auto tyFpInterface = ty.dyn_cast<cir::FPTypeInterface>();
+  if (!tyFpInterface) {
+    // Parsing of the current floating-point literal has succeeded, but the
+    // given attribute type is invalid. This error will be reported later when
+    // the attribute is being verified.
+    return success();
+  }
+
+  value->convert(tyFpInterface.getFloatSemantics(),
+                 llvm::RoundingMode::TowardZero, &losesInfo);
+  return success();
 }
 
 cir::FPAttr cir::FPAttr::getZero(mlir::Type type) {
