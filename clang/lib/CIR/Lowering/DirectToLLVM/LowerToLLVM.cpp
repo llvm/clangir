@@ -2241,8 +2241,8 @@ class CIRInlineAsmOpLowering
 
     rewriter.replaceOpWithNewOp<mlir::LLVM::InlineAsmOp>(
         op, llResTy, adaptor.getOperands(), op.getAsmStringAttr(),
-        op.getConstraintsAttr(), op.getSideEffectsAttr(),        
-        /*is_align_stack*/ mlir::UnitAttr(),         
+        op.getConstraintsAttr(), op.getSideEffectsAttr(),
+        /*is_align_stack*/ mlir::UnitAttr(),
         mlir::LLVM::AsmDialectAttr::get(getContext(), llDialect),
         rewriter.getArrayAttr(opAttrs));
 
