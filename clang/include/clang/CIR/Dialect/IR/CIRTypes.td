@@ -146,6 +146,28 @@ def CIR_PointerType : CIR_Type<"Pointer", "ptr",
 }
 
 //===----------------------------------------------------------------------===//
+// DataMemberType
+//===----------------------------------------------------------------------===//
+
+def CIR_DataMemberType : CIR_Type<"DataMember", "data_member",
+    [DeclareTypeInterfaceMethods<DataLayoutTypeInterface>]> {
+
+  let summary = "CIR type that represents pointer-to-data-member type in C++";
+  let description = [{
+    `cir.member_ptr` models the pointer-to-data-member type in C++. Values of
+    this type are essentially offsets of the pointed-to member within one of
+    its containing struct.
+  }];
+
+  let parameters = (ins "mlir::Type":$memberTy,
+                        "mlir::cir::StructType":$clsTy);
+
+  let assemblyFormat = [{
+    `<` $memberTy `in` $clsTy `>`
+  }];
+}
+
+//===----------------------------------------------------------------------===//
 // BoolType
 //
 // An alternative here is to represent bool as mlir::i1, but let's be more
@@ -308,6 +330,15 @@ def VoidPtr : Type<
       "mlir::cir::VoidType::get($_builder.getContext()))"> {
 }
 
+// Pointer to struct
+def StructPtr : Type<
+    And<[
+      CPred<"mlir::isa<::mlir::cir::PointerType>($_self)">,
+      CPred<"mlir::isa<::mlir::cir::StructType>("
+            "mlir::cast<::mlir::cir::PointerType>($_self).getPointee())">,
+    ]>, "!cir.struct*"> {
+}
+
 // Pointers to exception info
 def ExceptionInfoPtr : Type<
     And<[
@@ -350,8 +381,9 @@ def CIR_StructType : Type<CPred<"::mlir::isa<::mlir::cir::StructType>($_self)">,
 //===----------------------------------------------------------------------===//
 
 def CIR_AnyType : AnyTypeOf<[
-  CIR_IntType, CIR_PointerType, CIR_BoolType, CIR_ArrayType, CIR_VectorType,
-  CIR_FuncType, CIR_VoidType, CIR_StructType, CIR_ExceptionInfo, CIR_AnyFloat,
+  CIR_IntType, CIR_PointerType, CIR_DataMemberType, CIR_BoolType, CIR_ArrayType,
+  CIR_VectorType, CIR_FuncType, CIR_VoidType, CIR_StructType, CIR_ExceptionInfo,
+  CIR_AnyFloat,
 ]>;
 
 #endif // MLIR_CIR_DIALECT_CIR_TYPES
