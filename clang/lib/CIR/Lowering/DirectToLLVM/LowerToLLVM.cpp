@@ -61,7 +61,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include <cstdint>
 #include <optional>
-#include <iostream>
+
 using namespace cir;
 using namespace llvm;
 
