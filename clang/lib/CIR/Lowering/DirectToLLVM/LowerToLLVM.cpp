@@ -61,7 +61,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include <cstdint>
 #include <optional>
-
+#include <iostream>
 using namespace cir;
 using namespace llvm;
 
@@ -2241,8 +2241,8 @@ class CIRInlineAsmOpLowering
 
     rewriter.replaceOpWithNewOp<mlir::LLVM::InlineAsmOp>(
         op, llResTy, adaptor.getOperands(), op.getAsmStringAttr(),
-        op.getConstraintsAttr(), op.getHasSideEffectsAttr(),
-        op.getIsAlignStackAttr(),
+        op.getConstraintsAttr(), op.getSideEffectsAttr(),        
+        /*is_align_stack*/ mlir::UnitAttr(),         
         mlir::LLVM::AsmDialectAttr::get(getContext(), llDialect),
         rewriter.getArrayAttr(opAttrs));
 

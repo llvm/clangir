@@ -432,8 +432,7 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
 
   builder.create<mlir::cir::InlineAsmOp>(
       getLoc(S.getAsmLoc()), ResultType, Args, AsmString, Constraints,
-      HasSideEffect,
-      /* IsAlignStack */ false, inferFlavor(CGM, S));
+      HasSideEffect, inferFlavor(CGM, S));
 
   return mlir::success();
 }

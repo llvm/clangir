@@ -2837,7 +2837,7 @@ def CIR_InlineAsmOp : CIR_Op<"asm", [RecursiveMemoryEffects]> {
     ... 
     %2 = cir.load %0 : cir.ptr <!s32i>, !s32i
     %3 = cir.load %1 : cir.ptr <!s32i>, !s32i
-    cir.asm(has_side_effects, x86_att, {"foo" "~{dirflag},~{fpsr},~{flags}"}) : () -> ()
+    cir.asm(x86_att, {"foo" "~{dirflag},~{fpsr},~{flags}"}) side_effects : () -> ()
     cir.asm(x86_att, {"bar $$42 $0" "=r,=&r,1,~{dirflag},~{fpsr},~{flags}"}) %2 : (!s32i) -> ()
     cir.asm(x86_att, {"baz $$42 $0" "=r,=&r,0,1,~{dirflag},~{fpsr},~{flags}"}) %3, %2 : (!s32i, !s32i) -> ()
     ```
@@ -2849,17 +2849,15 @@ def CIR_InlineAsmOp : CIR_Op<"asm", [RecursiveMemoryEffects]> {
     ins Variadic<AnyType>:$operands,
         StrAttr:$asm_string,
         StrAttr:$constraints,
-        UnitAttr:$has_side_effects,
-        UnitAttr:$is_align_stack,
+        UnitAttr:$side_effects,
         AsmFlavor:$asm_flavor);
 
   let assemblyFormat = [{
     `(`
-    (`has_side_effects` $has_side_effects^ `,`)?
-    (`is_align_stack` $is_align_stack^ `,`)?
     $asm_flavor`,`
     `{` $asm_string $constraints `}`
     `)`
+    (`side_effects` $side_effects^ `,`)?
     attr-dict
     operands `:` functional-type(operands, results)
    }];  
