@@ -291,13 +291,6 @@ def DataMemberAttr : CIR_Attr<"DataMember", "data_member",
     ```
   }];
 
-  let extraClassDeclaration = [{
-    /// Determine whether the data member pointer is a null pointer value.
-    bool isNullValue() const {
-      return !getMemberIndex().has_value();
-    }
-  }];
-
   let genVerifyDecl = 1;
 
   let assemblyFormat = [{
