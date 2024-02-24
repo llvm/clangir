@@ -10,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "UnimplementedFeatureGuarding.h"
+#include "MissingFeatures.h"
 
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
@@ -34,7 +34,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include <optional>
 
-using cir::CIRDialectUnimplementedFeature;
+using cir::MissingFeatures;
 
 //===----------------------------------------------------------------------===//
 // CIR Custom Parser/Printer Signatures
@@ -412,7 +412,7 @@ llvm::TypeSize
 DataMemberType::getTypeSizeInBits(const ::mlir::DataLayout &dataLayout,
                                   ::mlir::DataLayoutEntryListRef params) const {
   // FIXME: consider size differences under different ABIs
-  assert(!CIRDialectUnimplementedFeature::cxxABI());
+  assert(!MissingFeatures::cxxABI());
   return llvm::TypeSize::getFixed(64);
 }
 
@@ -420,7 +420,7 @@ uint64_t
 DataMemberType::getABIAlignment(const ::mlir::DataLayout &dataLayout,
                                 ::mlir::DataLayoutEntryListRef params) const {
   // FIXME: consider alignment differences under different ABIs
-  assert(!CIRDialectUnimplementedFeature::cxxABI());
+  assert(!MissingFeatures::cxxABI());
   return 8;
 }
 
@@ -428,7 +428,7 @@ uint64_t DataMemberType::getPreferredAlignment(
     const ::mlir::DataLayout &dataLayout,
     ::mlir::DataLayoutEntryListRef params) const {
   // FIXME: consider alignment differences under different ABIs
-  assert(!CIRDialectUnimplementedFeature::cxxABI());
+  assert(!MissingFeatures::cxxABI());
   return 8;
 }
 
