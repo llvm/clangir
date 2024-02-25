@@ -66,6 +66,7 @@ struct LoweringPreparePass : public LoweringPrepareBase<LoweringPreparePass> {
 
   void runOnOp(Operation *op);
   void lowerGlobalOp(GlobalOp op);
+  void lowerDynamicCastOp(DynamicCastOp op);
   void lowerGetBitfieldOp(GetBitfieldOp op);
   void lowerSetBitfieldOp(SetBitfieldOp op);
   void lowerStdFindOp(StdFindOp op);
@@ -303,6 +304,11 @@ void LoweringPreparePass::buildCXXGlobalInitFunc() {
   builder.create<ReturnOp>(f.getLoc());
 }
 
+void LoweringPreparePass::lowerDynamicCastOp(DynamicCastOp op) {
+  // TODO(lancern): implement LoweringPreparePass::lowerDynamicCastOp
+  llvm_unreachable("NYI");
+}
+
 void LoweringPreparePass::lowerGetBitfieldOp(GetBitfieldOp op) {
   CIRBaseBuilderTy builder(getContext());
   builder.setInsertionPointAfter(op.getOperation());
@@ -442,6 +448,8 @@ void LoweringPreparePass::lowerIterEndOp(IterEndOp op) {
 void LoweringPreparePass::runOnOp(Operation *op) {
   if (auto getGlobal = dyn_cast<GlobalOp>(op)) {
     lowerGlobalOp(getGlobal);
+  } else if (auto dynamicCast = dyn_cast<DynamicCastOp>(op)) {
+    lowerDynamicCastOp(dynamicCast);
   } else if (auto getBitfield = dyn_cast<GetBitfieldOp>(op)) {
     lowerGetBitfieldOp(getBitfield);
   } else if (auto setBitfield = dyn_cast<SetBitfieldOp>(op)) {
@@ -464,8 +472,8 @@ void LoweringPreparePass::runOnOperation() {
 
   SmallVector<Operation *> opsToTransform;
   op->walk([&](Operation *op) {
-    if (isa<GlobalOp, GetBitfieldOp, SetBitfieldOp, StdFindOp, IterBeginOp,
-            IterEndOp>(op))
+    if (isa<GlobalOp, DynamicCastOp, GetBitfieldOp, SetBitfieldOp, StdFindOp,
+            IterBeginOp, IterEndOp>(op))
       opsToTransform.push_back(op);
   });
 

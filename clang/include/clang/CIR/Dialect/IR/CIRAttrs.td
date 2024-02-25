@@ -450,6 +450,72 @@ def VTableAttr : CIR_Attr<"VTable", "vtable", [TypedAttrInterface]> {
 }
 
 //===----------------------------------------------------------------------===//
+// DynamicCastInfoAttr
+//===----------------------------------------------------------------------===//
+
+def DowncastInfoAttr : CIR_Attr<"DowncastInfo", "downcast_info"> {
+  let summary = "Provide information about a down-cast operation";
+  let description = [{
+    Provide information about a dynamic operation which is a down-cast.
+
+    When casting a pointer to class `From` to a pointer to class `To` and `From`
+    is a public base class of `To`, this attribute provides the following
+    parameters that give more detailed information about the cast:
+
+    - The `offset` parameter gives the offset of the `To` subobject within a
+      `From` object if `From` is a unique non-virtual public base of `To`.
+    - The `isVirtualBase` parameter indicates whether `From` is a virtual base
+      class of `To`.
+  }];
+
+  let parameters = (ins "std::optional<uint64_t>":$offset,
+                        "bool":$isVirtualBase);
+
+  let genVerifyDecl = 1;
+  let assemblyFormat = [{
+    `<` $offset `,` $isVirtualBase `>`
+  }];
+}
+
+def DynamicCastInfoAttr : CIR_Attr<"DynamicCastInfo", "dyn_cast_info"> {
+  let summary = "Provide information about a dynamic cast operation";
+  let description = [{
+    Provide information about a dynamic cast operation.
+
+    The `srcRtti` and the `destRtti` parameters give the RTTI of the source
+    struct type and the destination struct type, respectively.
+
+    If the `downcastInfo` parameter is present, the dynamic cast operation that
+    this attribute attaches to is a down-cast. In such cases, the `downcastInfo`
+    parameter will provide more detailed information about the down-cast.
+  }];
+
+  let parameters = (ins GlobalViewAttr:$srcRtti,
+                        GlobalViewAttr:$destRtti,
+                        OptionalParameter<"DowncastInfoAttr">:$downcastInfo);
+
+  let builders = [
+    AttrBuilderWithInferredContext<(ins "GlobalViewAttr":$srcRtti,
+                                        "GlobalViewAttr":$destRtti), [{
+      return $_get(srcRtti.getContext(), srcRtti, destRtti, DowncastInfoAttr{});
+    }]>,
+    AttrBuilderWithInferredContext<(ins "GlobalViewAttr":$srcRtti,
+                                        "GlobalViewAttr":$destRtti,
+                                        "DowncastInfoAttr":$downcastInfo), [{
+      return $_get(srcRtti.getContext(), srcRtti, destRtti, downcastInfo);
+    }]>,
+  ];
+
+  let genVerifyDecl = 1;
+  let assemblyFormat = [{
+    `<`
+      qualified($srcRtti) `,` qualified($destRtti)
+      (`,` qualified($downcastInfo)^)?
+    `>`
+  }];
+}
+
+//===----------------------------------------------------------------------===//
 // AST Wrappers
 //===----------------------------------------------------------------------===//
 
