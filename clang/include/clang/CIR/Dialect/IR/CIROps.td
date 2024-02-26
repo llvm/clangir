@@ -1607,13 +1607,13 @@ def SetBitfieldOp : CIR_Op<"set_bitfield"> {
     UnitAttr:$is_volatile
   );
 
-  let results = (outs CIR_IntType:$result);
+  //let results = (outs CIR_IntType:$result);
 
   let assemblyFormat = [{ `(`$bitfield_info`,` $dst`:`qualified(type($dst))`,`
-    $src`:`type($src) `)`  attr-dict `->` type($result) }];
+    $src`:`type($src) `)`  attr-dict  }];
 
   let builders = [
-    OpBuilder<(ins "Type":$type,
+    OpBuilder<(ins 
                    "Value":$dst,
                    "Type":$storage_type,
                    "Value":$src,
@@ -1628,7 +1628,7 @@ def SetBitfieldOp : CIR_Op<"set_bitfield"> {
         BitfieldInfoAttr::get($_builder.getContext(),
                               name, storage_type,
                               size, offset, is_signed);
-      build($_builder, $_state, type, dst, src, info, is_volatile);
+      build($_builder, $_state,  dst, src, info, is_volatile);
     }]>
   ];
 }

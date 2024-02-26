@@ -323,6 +323,10 @@ public:
     }
   }
 
+  bool isCIRIntBitwidth(int N) {
+    return N >= 8 && N <= 64 && llvm::isPowerOf2_32(N);
+  }
+
   mlir::cir::VoidType getVoidTy() { return typeCache.VoidTy; }
 
   mlir::cir::IntType getSInt8Ty() { return typeCache.SInt8Ty; }
@@ -487,6 +491,14 @@ public:
 
   mlir::cir::ArrayType getArrayType(mlir::Type eltType, unsigned size) {
     return mlir::cir::ArrayType::get(getContext(), eltType, size);
+  }
+
+  mlir::cir::ArrayType getByteArrayType(unsigned size) {
+    return getArrayType(typeCache.UCharTy, size);
+  }
+
+  unsigned getCharWidth() {
+    return typeCache.UCharTy.cast<mlir::cir::IntType>().getWidth();
   }
 
   bool isSized(mlir::Type ty) {
@@ -733,13 +745,13 @@ public:
                                             info.IsSigned, isLvalueVolatile);
   }
 
-  mlir::Value createSetBitfield(mlir::Location loc, mlir::Type resultType,
+  mlir::cir::SetBitfieldOp createSetBitfield(mlir::Location loc, 
                                 mlir::Value dstAddr, mlir::Type storageType,
                                 mlir::Value src, const CIRGenBitFieldInfo &info,
                                 bool isLvalueVolatile, bool useVolatile) {
     auto offset = useVolatile ? info.VolatileOffset : info.Offset;
     return create<mlir::cir::SetBitfieldOp>(
-        loc, resultType, dstAddr, storageType, src, info.Name, info.Size,
+        loc,  dstAddr, storageType, src, info.Name, info.Size,
         offset, info.IsSigned, isLvalueVolatile);
   }
 
