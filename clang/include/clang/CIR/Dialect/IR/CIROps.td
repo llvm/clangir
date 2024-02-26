@@ -2857,7 +2857,7 @@ def CIR_InlineAsmOp : CIR_Op<"asm", [RecursiveMemoryEffects]> {
     $asm_flavor`,`
     `{` $asm_string $constraints `}`
     `)`
-    (`side_effects` $side_effects^ `,`)?
+    (`side_effects` $side_effects^)?
     attr-dict
     operands `:` functional-type(operands, results)
    }];  
