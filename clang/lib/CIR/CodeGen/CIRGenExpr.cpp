@@ -227,33 +227,23 @@ static bool isAAPCS(const TargetInfo &TargetInfo) {
 }
 
 static mlir::Type getBitFieldType(CIRGenBuilderTy &builder, unsigned numBits) {
-  // if (builder.isCIRIntBitwidth(numBits))
-  //   return builder.getUIntNTy(numBits);
-  // else
-  std::cout << "getBitFieldType " << numBits << " " <<  builder.getCharWidth() << std::endl;
-    return builder.getByteArrayType(numBits / builder.getCharWidth());
+  return builder.getByteArrayType(numBits / builder.getCharWidth());
 }
 
 Address CIRGenFunction::getAddrOfBitFieldStorage(LValue base,
                                                  const FieldDecl *field,
                                                  unsigned index,
                                                  unsigned size) {
-  std::cout << "getAddrOfBitFieldStorage\n";
   if (index == 0)
     return base.getAddress();
 
   auto loc = getLoc(field->getLocation());
-  //std::cout << "size is " << size << std::endl;
 
   mlir::Type fieldType = getBitFieldType(builder, size);
-  fieldType.dump();
   auto fieldPtr =
       mlir::cir::PointerType::get(getBuilder().getContext(), fieldType);
-  fieldPtr.dump();
   auto sea = getBuilder().createGetMember(loc, fieldPtr, base.getPointer(),
                                           field->getName(), index);
-  sea.dump();
-  std::cout << "END getAddrOfBitFieldStorage\n\n";;
   return Address(sea, CharUnits::One());
 }
 
@@ -285,8 +275,7 @@ LValue CIRGenFunction::buildLValueForBitField(LValue base,
 
   const unsigned SS = useVolatile ? info.VolatileStorageSize : info.StorageSize;
   Address Addr = getAddrOfBitFieldStorage(base, field, Idx, SS);
-  // Get the access type.
-  //mlir::Type FieldIntTy = builder.getUIntNTy(SS);
+  // Get the access type.  
   mlir::Type FieldIntTy = getBitFieldType(builder, SS);
 
   auto loc = getLoc(field->getLocation());
@@ -626,7 +615,6 @@ RValue CIRGenFunction::buildLoadOfLValue(LValue LV, SourceLocation Loc) {
 
 RValue CIRGenFunction::buildLoadOfBitfieldLValue(LValue LV,
                                                  SourceLocation Loc) {
-  std::cout << "buildLoadOfBitfieldLValue\n";
   const CIRGenBitFieldInfo &info = LV.getBitFieldInfo();
 
   // Get the output type.
@@ -639,13 +627,8 @@ RValue CIRGenFunction::buildLoadOfBitfieldLValue(LValue LV,
   auto field = builder.createGetBitfield(getLoc(Loc), resLTy, ptr.getPointer(),
                                          ptr.getElementType(), info,
                                          LV.isVolatile(), useVolatile);
-
-  field.dump();
-
   assert(!UnimplementedFeature::emitScalarRangeCheck() && "NYI");
-  auto res = RValue::get(field);
-  std::cout << "ENDED buildLoadOfBitfieldLValue\n\n";
-  return res;
+  return RValue::get(field);
 }
 
 void CIRGenFunction::buildStoreThroughLValue(RValue Src, LValue Dst) {
@@ -704,7 +687,8 @@ void CIRGenFunction::buildStoreThroughBitfieldLValue(RValue Src, LValue Dst,
   builder.createSetBitfield(
       dstAddr.getLoc(), dstAddr, ptr.getElementType(),
       Src.getScalarVal(), info, Dst.isVolatileQualified(), useVolatile);
-  Result = Src.getScalarVal(); //TODO: mega double check!!!!!
+
+  Result = Src.getScalarVal(); //TODO: mega double check!!!!! MaybeLoad here
 }
 
 static LValue buildGlobalVarDeclLValue(CIRGenFunction &CGF, const Expr *E,

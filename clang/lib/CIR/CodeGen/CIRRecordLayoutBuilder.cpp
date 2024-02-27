@@ -159,6 +159,13 @@ struct CIRRecordLowering final {
     return getByteArrayType(numberOfChars.getQuantity());
   }
 
+  mlir::Type getBitfieldStorageType(unsigned numBits) {
+    unsigned alignedBits = llvm::alignTo(numBits, astContext.getCharWidth());
+    mlir::Type type = getCharType();
+    return mlir::cir::ArrayType::get(type.getContext(), type, 
+                                     alignedBits / astContext.getCharWidth());                                     
+  }
+
   // Gets the llvm Basesubobject type from a CXXRecordDecl.
   mlir::Type getStorageType(const CXXRecordDecl *RD) {
     return cirGenTypes.getCIRGenRecordLayout(RD).getBaseSubobjectCIRType();
@@ -288,9 +295,9 @@ void CIRRecordLowering::lower(bool nonVirtualBaseType) {
   // TODO: implement padding
   // TODO: support zeroInit
 
-  // members.push_back(StorageInfo(Size, getUIntNType(8)));
-  // determinePacked(nonVirtualBaseType);
-  // members.pop_back();
+  members.push_back(StorageInfo(Size, getUIntNType(8)));
+  determinePacked(nonVirtualBaseType);
+  members.pop_back();
 
   fillOutputFields();
   computeVolatileBitfields();
@@ -515,12 +522,6 @@ void CIRRecordLowering::accumulateBitFields(
   auto IsBetterAsSingleFieldRun = [&](uint64_t OffsetInRecord,
                                       uint64_t StartBitOffset,
                                       uint64_t nextTail = 0) {
-    // if (OffsetInRecord >= 64 ||
-    //     (nextTail > StartBitOffset &&
-    //      nextTail - StartBitOffset >= 64)) { // See IntType::verify
-    //   return true;
-    // }
-
     if (!cirGenTypes.getModule().getCodeGenOpts().FineGrainedBitfieldAccesses)
       return false;
     llvm_unreachable("NYI");
@@ -580,26 +581,7 @@ void CIRRecordLowering::accumulateBitFields(
     }
 
     // We've hit a break-point in the run and need to emit a storage field.
-    mlir::Type Type;
-    auto numBits = Tail - StartBitOffset;
-    auto& context = cirGenTypes.getMLIRContext();
-    unsigned alignedBits = llvm::alignTo(numBits, astContext.getCharWidth());
-    // if (llvm::isPowerOf2_64(alignedBits) && alignedBits <= 64) {
-    //   Type = mlir::cir::IntType::get(&context, alignedBits,
-    //                                /*isSigned=*/false);
-    // } else {
-    //   Type = getByteArrayType(alignedBits);
-    // }
-    Type = getByteArrayType(alignedBits / astContext.getCharWidth());
-
-    // unsigned AlignedBits = llvm::PowerOf2Ceil(NumBits);
-    // AlignedBits = std::max(8u, AlignedBits);
-
-    // auto Type = getUIntNType(numBits);
-    // auto cirPad = 
-    //   std::max(8ul, llvm::PowerOf2Ceil(numBits)) -
-    //     llvm::alignTo(numBits, 8);
-    // std::cout << "cirPad " << cirPad << std::endl;
+    auto Type = getBitfieldStorageType(Tail - StartBitOffset);
 
     // Add the storage member to the record and set the bitfield info for all of
     // the bitfields in the run. Bitfields get the offset of their storage but
@@ -647,21 +629,12 @@ void CIRRecordLowering::determinePacked(bool NVBaseType) {
   for (std::vector<MemberInfo>::const_iterator Member = members.begin(),
                                                MemberEnd = members.end();
        Member != MemberEnd; ++Member) {
-    std::cout << "===> " << std::endl;
-    if (Member->fieldDecl)
-      std::cout << "process " << Member->fieldDecl->getName().str() << std::endl;
-
     if (!Member->data)
       continue;
     // If any member falls at an offset that it not a multiple of its alignment,
-    // then the entire record must be packed.    
-    std::cout << "  test: " << Member->offset.getQuantity()  << "  "
-              << getAlignment(Member->data).getQuantity() << std::endl;
-    if (Member->offset % getAlignment(Member->data)) {
-      Member->data.dump();
-      std::cout <<  "is packed 1\n";
+    // then the entire record must be packed.
+    if (Member->offset % getAlignment(Member->data))       
       isPacked = true;
-    }
     if (Member->offset < NVSize)
       NVAlignment = std::max(NVAlignment, getAlignment(Member->data));
     Alignment = std::max(Alignment, getAlignment(Member->data));
@@ -669,7 +642,6 @@ void CIRRecordLowering::determinePacked(bool NVBaseType) {
   // If the size of the record (the capstone's offset) is not a multiple of the
   // record's alignment, it must be packed. 
   if (members.back().offset % Alignment) {
-    std::cout <<  "is packed 2\n ";
     isPacked = true;
   }
   // If the non-virtual sub-object is not a multiple of the non-virtual
