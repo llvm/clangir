@@ -5,7 +5,6 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
-#include <iostream>
 #include "PassDetail.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/BuiltinAttributes.h"
@@ -66,8 +65,6 @@ struct LoweringPreparePass : public LoweringPrepareBase<LoweringPreparePass> {
 
   void runOnOp(Operation *op);
   void lowerGlobalOp(GlobalOp op);
-  void lowerGetBitfieldOp(GetBitfieldOp op);
-  void lowerSetBitfieldOp(SetBitfieldOp op);
   void lowerStdFindOp(StdFindOp op);
   void lowerIterBeginOp(IterBeginOp op);
   void lowerIterEndOp(IterEndOp op);
@@ -303,126 +300,6 @@ void LoweringPreparePass::buildCXXGlobalInitFunc() {
   builder.create<ReturnOp>(f.getLoc());
 }
 
-void LoweringPreparePass::lowerGetBitfieldOp(GetBitfieldOp op) {
-  CIRBaseBuilderTy builder(getContext());
-  builder.setInsertionPointAfter(op.getOperation());
-
-  auto info = op.getBitfieldInfo();
-  auto size = info.getSize();
-  auto storageType = info.getStorageType();
-  auto storageSize = storageType.cast<IntType>().getWidth();
-  auto offset = info.getOffset();
-  auto resultTy = op.getType();
-  auto addr = op.getAddr();
-  auto loc = addr.getLoc();
-  mlir::Value val = builder.create<mlir::cir::LoadOp>(
-      loc, storageType, op.getAddr(), /* deref */ false, op.getIsVolatile());
-  auto valWidth = val.getType().cast<IntType>().getWidth();
-
-  if (info.getIsSigned()) {
-    assert(static_cast<unsigned>(offset + size) <= storageSize);
-    mlir::Type typ =
-        mlir::cir::IntType::get(builder.getContext(), valWidth, true);
-
-    val = builder.createIntCast(val, typ);
-
-    unsigned highBits = storageSize - offset - size;
-    if (highBits)
-      val = builder.createShiftLeft(val, highBits);
-    if (offset + highBits)
-      val = builder.createShiftRight(val, offset + highBits);
-  } else {
-    if (offset)
-      val = builder.createShiftRight(val, offset);
-
-    if (static_cast<unsigned>(offset) + size < storageSize)
-      val = builder.createAnd(val, llvm::APInt::getLowBitsSet(valWidth, size));
-  }
-  val = builder.createIntCast(val, resultTy);
-
-  op.replaceAllUsesWith(val);
-  op.erase();
-}
-
-void LoweringPreparePass::lowerSetBitfieldOp(SetBitfieldOp op) {
-  // CIRBaseBuilderTy builder(getContext());
-  // builder.setInsertionPointAfter(op.getOperation());
-
-  // auto srcVal = op.getSrc();
-  // auto addr = op.getDst();
-  // auto info = op.getBitfieldInfo();
-  // auto size = info.getSize();
-  // auto storageType = info.getStorageType();
-  // //auto storageSize = storageType.cast<IntType>().getWidth();
-  
-  // unsigned storageSize = 0;
-  // if (auto intTyp = storageType.dyn_cast<IntType>()) {
-  //   storageSize = intTyp.getWidth();
-  // } else if (auto arTyp = storageType.dyn_cast<ArrayType>()) {
-  //   storageSize = arTyp.getSize() / 8;
-  //   std::cout << "ar size "  << storageSize << std::endl;
-  // } else {
-  //   llvm_unreachable("oops");
-  // }
-
-  // auto offset = info.getOffset();
-  // auto resultTy = op.getType();
-  // auto loc = addr.getLoc();
-
-  // // Get the source value, truncated to the width of the bit-field.
-  // srcVal = op.getSrc();
-  // srcVal = builder.createBitcast(op.getSrc(), storageType);
-  // // srcVal = builder.createIntCast(op.getSrc(), storageType);  
-  // std::cout << "source\n";
-  // srcVal.dump();
-  // // auto srcWidth = srcVal.getType().cast<IntType>().getWidth();
-  // auto srcWidth = storageSize;
-
-  // mlir::Value maskedVal = srcVal;
-
-  // if (storageSize != size) {
-  //   assert(storageSize > size && "Invalid bitfield size.");
-
-  //   mlir::Value val = builder.create<mlir::cir::LoadOp>(loc, storageType, addr);
-
-  //   srcVal =
-  //       builder.createAnd(srcVal, llvm::APInt::getLowBitsSet(srcWidth, size));
-
-  //   maskedVal = srcVal;
-  //   if (offset)
-  //     srcVal = builder.createShiftLeft(srcVal, offset);
-
-  //   // Mask out the original value.
-  //   val = builder.createAnd(
-  //       val, ~llvm::APInt::getBitsSet(srcWidth, offset, offset + size));
-
-  //   // Or together the unchanged values and the source value.
-  //   srcVal = builder.createOr(val, srcVal);
-  // }
-
-  // builder.create<mlir::cir::StoreOp>(loc, srcVal, addr, op.getIsVolatile());
-
-  // if (!op->getUses().empty()) {
-  //   mlir::Value resultVal = maskedVal;
-  //   resultVal = builder.createIntCast(resultVal, resultTy);
-
-  //   if (info.getIsSigned()) {
-  //     assert(size <= storageSize);
-  //     unsigned highBits = storageSize - size;
-
-  //     if (highBits) {
-  //       resultVal = builder.createShiftLeft(resultVal, highBits);
-  //       resultVal = builder.createShiftRight(resultVal, highBits);
-  //     }
-  //   }
-
-  //   op.replaceAllUsesWith(resultVal);
-  // }
-
-  // op.erase();
-
-}
-
 void LoweringPreparePass::lowerStdFindOp(StdFindOp op) {
   CIRBaseBuilderTy builder(getContext());
   builder.setInsertionPointAfter(op.getOperation());
@@ -459,10 +336,6 @@ void LoweringPreparePass::lowerIterEndOp(IterEndOp op) {
 void LoweringPreparePass::runOnOp(Operation *op) {
   if (auto getGlobal = dyn_cast<GlobalOp>(op)) {
     lowerGlobalOp(getGlobal);
-  } else if (auto getBitfield = dyn_cast<GetBitfieldOp>(op)) {
-    //lowerGetBitfieldOp(getBitfield);
-  } else if (auto setBitfield = dyn_cast<SetBitfieldOp>(op)) {
-    //lowerSetBitfieldOp(setBitfield);
   } else if (auto stdFind = dyn_cast<StdFindOp>(op)) {
     lowerStdFindOp(stdFind);
   } else if (auto iterBegin = dyn_cast<IterBeginOp>(op)) {
@@ -481,8 +354,7 @@ void LoweringPreparePass::runOnOperation() {
 
   SmallVector<Operation *> opsToTransform;
   op->walk([&](Operation *op) {
-    if (isa<GlobalOp, /* GetBitfieldOp, SetBitfieldOp, */ StdFindOp, IterBeginOp,
-            IterEndOp>(op))
+    if (isa<GlobalOp, StdFindOp, IterBeginOp, IterEndOp>(op))
       opsToTransform.push_back(op);
   });
 

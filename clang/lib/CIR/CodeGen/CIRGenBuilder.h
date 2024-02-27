@@ -333,10 +333,6 @@ public:
     }
   }
 
-  bool isCIRIntBitwidth(int N) {
-    return N >= 8 && N <= 64 && llvm::isPowerOf2_32(N);
-  }
-
   mlir::cir::VoidType getVoidTy() { return typeCache.VoidTy; }
 
   mlir::cir::IntType getSInt8Ty() { return typeCache.SInt8Ty; }

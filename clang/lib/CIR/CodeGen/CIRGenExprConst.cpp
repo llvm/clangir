@@ -9,7 +9,6 @@
 // This contains code to emit Constant Expr nodes as LLVM code.
 //
 //===----------------------------------------------------------------------===//
-#include <iostream>
 #include "Address.h"
 #include "CIRDataLayout.h"
 #include "CIRGenCstEmitter.h"
@@ -136,7 +135,6 @@ public:
   /// Otherwise, the constant will be of exactly the same size as \p DesiredTy
   /// even if we can't represent it as that type.
   mlir::Attribute build(mlir::Type DesiredTy, bool AllowOversized) const {
-    std::cout << "label 2, call buildFrom\n";
     return buildFrom(CGM, Elems, Offsets, CharUnits::Zero(), Size,
                      NaturalLayout, DesiredTy, AllowOversized);
   }
@@ -342,8 +340,6 @@ mlir::Attribute ConstantAggregateBuilder::buildFrom(
     CIRGenModule &CGM, ArrayRef<mlir::Attribute> Elems,
     ArrayRef<CharUnits> Offsets, CharUnits StartOffset, CharUnits Size,
     bool NaturalLayout, mlir::Type DesiredTy, bool AllowOversized) {
-  std::cout << "ConstantAggregateBuilder::buildFrom" << std::endl;
-  
   ConstantAggregateBuilderUtils Utils(CGM);
 
   if (Elems.empty())
@@ -359,11 +355,6 @@ mlir::Attribute ConstantAggregateBuilder::buildFrom(
   // The size of the constant we plan to generate. This is usually just the size
   // of the initialized type, but in AllowOversized mode (i.e. flexible array
   // init), it can be larger.
-
-  std::cout << "test\n";
-  DesiredTy.dump();
-  std::cout << "size " << Size.getQuantity() << "; DesiredSize "
-            << Utils.getSize(DesiredTy).getQuantity() << std::endl;  
 
   CharUnits DesiredSize = Utils.getSize(DesiredTy);
   if (Size > DesiredSize) {
@@ -387,14 +378,15 @@ mlir::Attribute ConstantAggregateBuilder::buildFrom(
   ArrayRef<mlir::Attribute> UnpackedElems = Elems;
   llvm::SmallVector<mlir::Attribute, 32> UnpackedElemStorage;
   if (DesiredSize < AlignedSize || DesiredSize.alignTo(Align) != DesiredSize) {
-    NaturalLayout = false;
-    Packed = true;
-  } else if (DesiredSize > AlignedSize) {    
+    llvm_unreachable("NYI");
+    // NaturalLayout = false;
+    // Packed = true;
+  } else if (DesiredSize > AlignedSize) {
     // The natural layout would be too small. Add padding to fix it. (This
     // is ignored if we choose a packed layout.)
-    UnpackedElemStorage.assign(Elems.begin(), Elems.end());
-    UnpackedElemStorage.push_back(Utils.getPadding(DesiredSize - Size));
-    UnpackedElems = UnpackedElemStorage;
+    // UnpackedElemStorage.assign(Elems.begin(), Elems.end());
+    // UnpackedElemStorage.push_back(Utils.getPadding(DesiredSize - Size));
+    // UnpackedElems = UnpackedElemStorage;
   }
 
   // If we don't have a natural layout, insert padding as necessary.
@@ -468,7 +460,7 @@ void ConstantAggregateBuilder::condense(CharUnits Offset,
     // element constant of the right size alone even if it has the wrong type.
     llvm_unreachable("NYI");
   }
-  std::cout << "label 1, call buildFrom\n";
+
   mlir::Attribute Replacement = buildFrom(
       CGM, ArrayRef(Elems).slice(First, Length),
       ArrayRef(Offsets).slice(First, Length), Offset, getSize(DesiredTy),

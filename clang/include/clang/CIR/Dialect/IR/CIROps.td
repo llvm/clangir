@@ -1603,14 +1603,11 @@ def SetBitfieldOp : CIR_Op<"set_bitfield"> {
     UnitAttr:$is_volatile
   );
 
-  //let results = (outs CIR_IntType:$result);
-
   let assemblyFormat = [{ `(`$bitfield_info`,` $dst`:`qualified(type($dst))`,`
     $src`:`type($src) `)`  attr-dict  }];
 
   let builders = [
-    OpBuilder<(ins 
-                   "Value":$dst,
+    OpBuilder<(ins "Value":$dst,
                    "Type":$storage_type,
                    "Value":$src,
                    "StringRef":$name,

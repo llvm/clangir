@@ -28,11 +28,9 @@
 
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/Casting.h"
-#include "llvm/Support/ErrorHandling.h"                                
-                 
-#include "llvm/ADT/StringExtras.h"
+#include "llvm/Support/ErrorHandling.h"
 
-#include <iostream>
+#include "llvm/ADT/StringExtras.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/Operation.h"
@@ -275,7 +273,7 @@ LValue CIRGenFunction::buildLValueForBitField(LValue base,
 
   const unsigned SS = useVolatile ? info.VolatileStorageSize : info.StorageSize;
   Address Addr = getAddrOfBitFieldStorage(base, field, Idx, SS);
-  // Get the access type.  
+  // Get the access type.
   mlir::Type FieldIntTy = getBitFieldType(builder, SS);
 
   auto loc = getLoc(field->getLocation());

@@ -17,7 +17,6 @@
 #include "clang/CIR/Interfaces/CIRLoopOpInterface.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <optional>
-#include <iostream>
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMTypes.h"
@@ -2554,15 +2553,10 @@ LogicalResult GetMemberOp::verify() {
     return emitError() << "member index out of bounds";
 
   // FIXME(cir): member type check is disabled for classes as the codegen for
-  // these still need to be patched.  
+  // these still need to be patched.
   if (!recordTy.isClass() &&
-      recordTy.getMembers()[getIndex()] != getResultTy().getPointee()) {
-    std::cout << "GetMemberOp ckeck\n";
-    recordTy.getMembers()[getIndex()].dump();
-    getResultTy().getPointee().dump();
-    
+      recordTy.getMembers()[getIndex()] != getResultTy().getPointee())
     return emitError() << "member type mismatch";
-  }
 
   return mlir::success();
 }
