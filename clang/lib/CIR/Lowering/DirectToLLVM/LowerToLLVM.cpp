@@ -2240,8 +2240,8 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::SetBitfieldOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    std::cout << "CIRSetBitfieldLowering\n" ;
-    
+    std::cout << "CIRSetBitfieldLowering\n";
+
     mlir::OpBuilder::InsertionGuard guard(rewriter);
     rewriter.setInsertionPoint(op);
     
@@ -2250,38 +2250,40 @@ public:
     auto size = info.getSize();
     auto storageType = info.getStorageType();
     auto context = storageType.getContext();    
-    storageType.dump();
     unsigned storageSize = 0;
+
     if (auto intTyp = storageType.dyn_cast<mlir::cir::IntType>()) {
       storageSize = intTyp.getWidth();
-    } else if (auto arTyp = storageType.dyn_cast<mlir::cir::ArrayType>()) {
-      std::cout << "ar type size " << arTyp.getSize() << std::endl;
+    } else if (auto arTyp = storageType.dyn_cast<mlir::cir::ArrayType>()) { 
       storageSize = arTyp.getSize() * 8; // TODO!!!!!      
     } else {
       llvm_unreachable("oops");
     }
 
-    auto offset = info.getOffset();
-    //auto resultTy = op.getType();
+    auto offset = info.getOffset();    
     auto loc = addr.getLoc();
 
-    auto srcVal = adaptor.getSrc();
-    
+    auto srcVal = adaptor.getSrc();    
     auto intType = mlir::IntegerType::get(context, storageSize);
-    srcVal = rewriter.create<mlir::LLVM::BitcastOp>(loc, intType, srcVal);
+    auto srcSize = srcVal.getType().cast<mlir::IntegerType>().getWidth();
+
+    if (storageSize > srcSize)
+      srcVal = rewriter.create<mlir::LLVM::ZExtOp>(loc, intType, srcVal);
+    else if (storageSize < srcSize)
+      srcVal = rewriter.create<mlir::LLVM::TruncOp>(loc, intType, srcVal);
+    else
+      srcVal = rewriter.create<mlir::LLVM::BitcastOp>(loc, intType, srcVal);
     auto srcWidth = storageSize;
 
     mlir::Value maskedVal = srcVal;
 
     if (storageSize != size) {
-      std::cout << "storage size vs size: " << storageSize << " " << size  << std::endl;
       assert(storageSize > size && "Invalid bitfield size.");
       const auto llvmTy =
         getTypeConverter()->convertType(storageType);    
 
       mlir::Value val = rewriter.create<mlir::LLVM::LoadOp>(
         loc, intType, adaptor.getDst(),  /* alignment */ 0, false); //TODO: check zero here
-
 
       auto rhs = llvm::APInt::getLowBitsSet(srcWidth, size);
       //auto rhsVal = ConstantInt::get(intType, llvm::APInt::getLowBitsSet(srcWidth, size));
@@ -2294,26 +2296,17 @@ public:
         srcVal = rewriter.create<mlir::LLVM::ShlOp>(loc, srcVal, offsetVal);
       }
 
-      std::cout << "lowering: " << srcWidth << " "       
-                << offset << " " <<  offset + size << std::endl;
       // Mask out the original value.
       auto mask = rewriter.create<mlir::LLVM::ConstantOp>(loc, intType,
                   ~llvm::APInt::getBitsSet(srcWidth, offset, offset + size));
       val = rewriter.create<mlir::LLVM::AndOp>(loc, val, mask);
 
       // Or together the unchanged values and the source value.      
-      srcVal = rewriter.create<mlir::LLVM::OrOp>(loc, val, mask);
+      srcVal = rewriter.create<mlir::LLVM::OrOp>(loc, val, srcVal);
     }
 
-    auto newOp = rewriter.replaceOpWithNewOp<mlir::LLVM::StoreOp>(op, srcVal, adaptor.getDst(),
+    rewriter.replaceOpWithNewOp<mlir::LLVM::StoreOp>(op, srcVal, adaptor.getDst(),
         /* alignment */ 0, /* volatile */ false);
-    std::cout << "new op\n";
-    newOp.dump();
-    
-    // if (!op->getUses().empty()) {
-    //   std::cout << "HAS USES!\n";
-    // }
-    // op.erase();
 
     return mlir::success();
   }
@@ -2335,9 +2328,7 @@ public:
     auto info = op.getBitfieldInfo();
     auto size = info.getSize();
     auto storageType = info.getStorageType();
-    auto context = storageType.getContext();
-    
-    storageType.dump();
+    auto context = storageType.getContext();      
     
     unsigned storageSize = 0;
     if (auto intTyp = storageType.dyn_cast<mlir::cir::IntType>()) {
@@ -2357,8 +2348,8 @@ public:
     const auto llvmTy = getTypeConverter()->convertType(storageType);    
 
     mlir::Value val = rewriter.create<mlir::LLVM::LoadOp>(
-      loc, intType, adaptor.getAddr(), 0, op.getIsVolatile());
-    val = rewriter.create<mlir::LLVM::BitcastOp>(loc, intType, val);
+      loc, intType, adaptor.getAddr(), 0, op.getIsVolatile());    
+    val = rewriter.create<mlir::LLVM::BitcastOp>(loc, intType, val);    
     auto valWidth = storageSize;
 
     if (info.getIsSigned()) {
@@ -2386,14 +2377,24 @@ public:
       }
 
       if (static_cast<unsigned>(offset) + size < storageSize) {
-        auto mask = llvm::APInt::getLowBitsSet(valWidth, size);
+        auto mask = llvm::APInt::getLowBitsSet(storageSize, size);
         auto maskVal = rewriter.create<mlir::LLVM::ConstantOp>(loc, intType, mask);
         val = rewriter.create<mlir::LLVM::AndOp>(loc, val, maskVal); 
       }
     }
     //val = rewriter.createIntCast(loc, val adaptor.getType());
     auto resTy = getTypeConverter()->convertType(op.getType());
-    rewriter.replaceOpWithNewOp<mlir::LLVM::BitcastOp>(op, resTy, val);
+
+    auto resSize = resTy.cast<mlir::IntegerType>().getWidth();
+    auto valSize = val.getType().cast<mlir::IntegerType>().getWidth();
+
+    mlir::Value x;
+    if (resSize > valSize)
+      x = rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(op, resTy, val);
+    else if (resSize < valSize)
+      x = rewriter.replaceOpWithNewOp<mlir::LLVM::TruncOp>(op, resTy, val);
+    else
+      x = rewriter.replaceOpWithNewOp<mlir::LLVM::BitcastOp>(op, resTy, val);    
   }
 
 
