@@ -898,6 +898,30 @@ LValue CIRGenFunction::buildDeclRefLValue(const DeclRefExpr *E) {
   llvm_unreachable("Unhandled DeclRefExpr");
 }
 
+LValue
+CIRGenFunction::buildPointerToDataMemberBinaryExpr(const BinaryOperator *E) {
+  assert((E->getOpcode() == BO_PtrMemD || E->getOpcode() == BO_PtrMemI) &&
+         "unexpected binary operator opcode");
+
+  auto baseAddr = Address::invalid();
+  if (E->getOpcode() == BO_PtrMemD)
+    baseAddr = buildLValue(E->getLHS()).getAddress();
+  else
+    baseAddr = buildPointerWithAlignment(E->getLHS());
+
+  const auto *memberPtrTy = E->getRHS()->getType()->castAs<MemberPointerType>();
+
+  auto memberPtr = buildScalarExpr(E->getRHS());
+
+  LValueBaseInfo baseInfo;
+  // TODO(cir): add TBAA
+  assert(!UnimplementedFeature::tbaa());
+  auto memberAddr = buildCXXMemberDataPointerAddress(E, baseAddr, memberPtr,
+                                                     memberPtrTy, &baseInfo);
+
+  return makeAddrLValue(memberAddr, memberPtrTy->getPointeeType(), baseInfo);
+}
+
 LValue CIRGenFunction::buildBinaryOperatorLValue(const BinaryOperator *E) {
   // Comma expressions just emit their LHS then their RHS as an l-value.
   if (E->getOpcode() == BO_Comma) {
@@ -906,7 +930,7 @@ LValue CIRGenFunction::buildBinaryOperatorLValue(const BinaryOperator *E) {
   }
 
   if (E->getOpcode() == BO_PtrMemD || E->getOpcode() == BO_PtrMemI)
-    assert(0 && "not implemented");
+    return buildPointerToDataMemberBinaryExpr(E);
 
   assert(E->getOpcode() == BO_Assign && "unexpected binary l-value");
 
@@ -1152,9 +1176,26 @@ RValue CIRGenFunction::buildCall(clang::QualType CalleeType,
   if (isa<FunctionNoProtoType>(FnType) || Chain) {
     assert(!UnimplementedFeature::chainCalls());
     assert(!UnimplementedFeature::addressSpace());
+    auto CalleeTy = getTypes().GetFunctionType(FnInfo);
+    // get non-variadic function type
+    CalleeTy = mlir::cir::FuncType::get(CalleeTy.getInputs(),
+                                        CalleeTy.getReturnType(), false);
+    auto CalleePtrTy =
+        mlir::cir::PointerType::get(builder.getContext(), CalleeTy);
 
-    // Set no-proto function as callee.
-    auto Fn = llvm::dyn_cast<mlir::cir::FuncOp>(Callee.getFunctionPointer());
+    auto *Fn = Callee.getFunctionPointer();
+    mlir::Value Addr;
+    if (auto funcOp = llvm::dyn_cast<mlir::cir::FuncOp>(Fn)) {
+      Addr = builder.create<mlir::cir::GetGlobalOp>(
+          getLoc(E->getSourceRange()),
+          mlir::cir::PointerType::get(builder.getContext(),
+                                      funcOp.getFunctionType()),
+          funcOp.getSymName());
+    } else {
+      Addr = Fn->getResult(0);
+    }
+
+    Fn = builder.createBitcast(Addr, CalleePtrTy).getDefiningOp();
     Callee.setFunctionPointer(Fn);
   }
 
