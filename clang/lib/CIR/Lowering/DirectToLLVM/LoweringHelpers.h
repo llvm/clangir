@@ -36,33 +36,34 @@ mlir::Value createIntCast(mlir::OpBuilder& bld, mlir::Value src,
 
 mlir::Value getConstAPInt(mlir::OpBuilder& bld, mlir::Location loc,
                           mlir::Type typ, const llvm::APInt &val) {
-    return bld.create<mlir::LLVM::ConstantOp>(loc, typ, val);
+  return bld.create<mlir::LLVM::ConstantOp>(loc, typ, val);
 }
 
 mlir::Value getConst(mlir::OpBuilder& bld, mlir::Location loc,
                      mlir::Type typ, unsigned val) {
-    return bld.create<mlir::LLVM::ConstantOp>(loc, typ, val);
+  return bld.create<mlir::LLVM::ConstantOp>(loc, typ, val);
 }
 
 mlir::Value createShL(mlir::OpBuilder& bld, mlir::Value lhs,
                       unsigned rhs) {
+  if (!rhs)
+    return lhs;
   auto rhsVal = getConst(bld, lhs.getLoc(), lhs.getType(), rhs);
   return bld.create<mlir::LLVM::ShlOp>(lhs.getLoc(), lhs, rhsVal);
 }
 
-// mlir::Value createShL(mlir::OpBuilder& bld, mlir::Value lhs,
-//                             const llvm::APInt &rhs) {
-
-// }
-
 mlir::Value createLShR(mlir::OpBuilder& bld, mlir::Value lhs,
                        unsigned rhs) {
+  if (!rhs)
+    return lhs;
   auto rhsVal = getConst(bld, lhs.getLoc(), lhs.getType(), rhs);
   return bld.create<mlir::LLVM::LShrOp>(lhs.getLoc(), lhs, rhsVal);
 }
 
 mlir::Value createAShR(mlir::OpBuilder& bld, mlir::Value lhs,
                        unsigned rhs) {
+  if (!rhs)
+    return lhs;
   auto rhsVal = getConst(bld, lhs.getLoc(), lhs.getType(), rhs);
   return bld.create<mlir::LLVM::AShrOp>(lhs.getLoc(), lhs, rhsVal);
 }

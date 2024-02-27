@@ -2241,8 +2241,6 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::SetBitfieldOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    std::cout << "CIRSetBitfieldLowering\n";
-
     mlir::OpBuilder::InsertionGuard guard(rewriter);
     rewriter.setInsertionPoint(op);
     
@@ -2270,10 +2268,9 @@ public:
         op.getLoc(), intType, adaptor.getDst(),  /* alignment */ 0, false); 
       //TODO: check zero here -----------------------------------^
       
-      srcVal = createAnd(rewriter, srcVal, 
+      srcVal = createAnd(rewriter, srcVal,
                          llvm::APInt::getLowBitsSet(srcWidth, size));      
-      if (offset)
-        srcVal = createShL(rewriter, srcVal, offset);      
+      srcVal = createShL(rewriter, srcVal, offset);
 
       // Mask out the original value.
       val = createAnd(rewriter, val, 
@@ -2321,15 +2318,11 @@ public:
 
     if (info.getIsSigned()) {
       assert(static_cast<unsigned>(offset + size) <= storageSize);
-
       unsigned highBits = storageSize - offset - size;
-      if (highBits)
-        val = createShL(rewriter, val, highBits);
-      if (offset + highBits)
-        val = createAShR(rewriter, val, offset + highBits);        
+      val = createShL(rewriter, val, highBits);
+      val = createAShR(rewriter, val, offset + highBits);
     } else {
-      if (offset)
-        val = createLShR(rewriter, val, offset);      
+      val = createLShR(rewriter, val, offset);      
 
       if (static_cast<unsigned>(offset) + size < storageSize) 
         val = createAnd(rewriter, val, 
