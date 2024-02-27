@@ -370,6 +370,43 @@ void CIRGenFunction::LexicalScope::cleanup() {
     (void)buildReturn(retLoc);
   }
 
+  auto buildImplicitReturn = [&]() {
+    const auto *FD = cast<clang::FunctionDecl>(CGF.CurGD.getDecl());
+
+    // C++11 [stmt.return]p2:
+    //   Flowing off the end of a function [...] results in undefined behavior
+    //   in a value-returning function.
+    // C11 6.9.1p12:
+    //   If the '}' that terminates a function is reached, and the value of the
+    //   function call is used by the caller, the behavior is undefined.
+    if (CGF.getLangOpts().CPlusPlus && !FD->hasImplicitReturnZero() &&
+        !CGF.SawAsmBlock && !FD->getReturnType()->isVoidType() &&
+        builder.getInsertionBlock()) {
+      bool shouldEmitUnreachable =
+          CGF.CGM.getCodeGenOpts().StrictReturn ||
+          !CGF.CGM.MayDropFunctionReturn(FD->getASTContext(),
+                                         FD->getReturnType());
+
+      if (CGF.SanOpts.has(SanitizerKind::Return)) {
+        assert(!UnimplementedFeature::sanitizerReturn());
+        llvm_unreachable("NYI");
+      } else if (shouldEmitUnreachable) {
+        if (CGF.CGM.getCodeGenOpts().OptimizationLevel == 0) {
+          // TODO: buildTrapCall(llvm::Intrinsic::trap);
+          assert(!UnimplementedFeature::trap());
+        }
+      }
+
+      if (CGF.SanOpts.has(SanitizerKind::Return) || shouldEmitUnreachable) {
+        builder.create<mlir::cir::UnreachableOp>(localScope->EndLoc);
+        builder.clearInsertionPoint();
+        return;
+      }
+    }
+
+    (void)buildReturn(localScope->EndLoc);
+  };
+
   auto insertCleanupAndLeave = [&](mlir::Block *InsPt) {
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPointToEnd(InsPt);
@@ -377,15 +414,18 @@ void CIRGenFunction::LexicalScope::cleanup() {
     // Leverage and defers to RunCleanupsScope's dtor and scope handling.
     applyCleanup();
 
-    if (localScope->Depth != 0) { // end of any local scope != function
-      // Ternary ops have to deal with matching arms for yielding types
-      // and do return a value, it must do its own cir.yield insertion.
-      if (!localScope->isTernary()) {
-        !retVal ? builder.create<YieldOp>(localScope->EndLoc)
-                : builder.create<YieldOp>(localScope->EndLoc, retVal);
-      }
-    } else
-      (void)buildReturn(localScope->EndLoc);
+    if (localScope->Depth == 0) {
+      buildImplicitReturn();
+      return;
+    }
+
+    // End of any local scope != function
+    // Ternary ops have to deal with matching arms for yielding types
+    // and do return a value, it must do its own cir.yield insertion.
+    if (!localScope->isTernary()) {
+      !retVal ? builder.create<YieldOp>(localScope->EndLoc)
+              : builder.create<YieldOp>(localScope->EndLoc, retVal);
+    }
   };
 
   // If a cleanup block has been created at some point, branch to it
@@ -656,31 +696,6 @@ CIRGenFunction::generateCode(clang::GlobalDecl GD, mlir::cir::FuncOp Fn,
 
   if (mlir::failed(Fn.verifyBody()))
     return nullptr;
-
-  // C++11 [stmt.return]p2:
-  //   Flowing off the end of a function [...] results in undefined behavior
-  //   in a value-returning function.
-  // C11 6.9.1p12:
-  //   If the '}' that terminates a function is reached, and the value of the
-  //   function call is used by the caller, the behavior is undefined.
-  if (getLangOpts().CPlusPlus && !FD->hasImplicitReturnZero() && !SawAsmBlock &&
-      !FD->getReturnType()->isVoidType() && builder.getInsertionBlock()) {
-    bool shouldEmitUnreachable =
-        CGM.getCodeGenOpts().StrictReturn ||
-        !CGM.MayDropFunctionReturn(FD->getASTContext(), FD->getReturnType());
-
-    if (SanOpts.has(SanitizerKind::Return)) {
-      llvm_unreachable("NYI");
-    } else if (shouldEmitUnreachable) {
-      if (CGM.getCodeGenOpts().OptimizationLevel == 0)
-        ; // TODO: buildTrapCall(llvm::Intrinsic::trap);
-    }
-    if (SanOpts.has(SanitizerKind::Return) || shouldEmitUnreachable) {
-      // TODO: builder.createUnreachable();
-      assert(!UnimplementedFeature::unreachableOp());
-      builder.clearInsertionPoint();
-    }
-  }
 
   // Emit the standard function epilogue.
   finishFunction(BodyRange.getEnd());
