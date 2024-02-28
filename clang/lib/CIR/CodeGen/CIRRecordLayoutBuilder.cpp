@@ -153,9 +153,13 @@ struct CIRRecordLowering final {
 
   mlir::Type getBitfieldStorageType(unsigned numBits) {
     unsigned alignedBits = llvm::alignTo(numBits, astContext.getCharWidth());
-    mlir::Type type = getCharType();
-    return mlir::cir::ArrayType::get(type.getContext(), type,
-                                     alignedBits / astContext.getCharWidth());
+    if (builder.isCIRIntTypeSize(alignedBits)) {
+      return builder.getUIntNTy(alignedBits);
+    } else {
+      mlir::Type type = getCharType();
+      return mlir::cir::ArrayType::get(type.getContext(), type,
+                                       alignedBits / astContext.getCharWidth());
+    }
   }
 
   // Gets the llvm Basesubobject type from a CXXRecordDecl.
@@ -235,6 +239,7 @@ void CIRRecordLowering::setBitFieldInfo(const FieldDecl *FD,
   Info.Size = FD->getBitWidthValue(astContext);
   Info.StorageSize = getSizeInBits(StorageType).getQuantity();
   Info.StorageOffset = StartOffset;
+  Info.StorageType = StorageType;
   Info.Name = FD->getName();
 
   if (Info.Size > Info.StorageSize)

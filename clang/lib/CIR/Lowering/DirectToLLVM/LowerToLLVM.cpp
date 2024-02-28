@@ -2250,11 +2250,14 @@ public:
     auto storageType = info.getStorageType();
     auto context = storageType.getContext();
 
-    assert(isa<mlir::cir::ArrayType>(storageType) &&
-           "ArrayType expected for bitfields storage type");
+    unsigned storageSize = 0;
 
-    unsigned storageSize =
-      storageType.cast<mlir::cir::ArrayType>().getSize() * 8; // TODO!!!!!
+    if (auto arTy = storageType.dyn_cast<mlir::cir::ArrayType>())
+      storageSize = arTy.getSize() * 8; // TODO!!!!!
+    else if (auto intTy = storageType.dyn_cast<mlir::cir::IntType>())
+      storageSize = intTy.getWidth();
+    else 
+      llvm_unreachable("Either ArrayType or IntType expected for bitfields storage");
 
     auto intType = mlir::IntegerType::get(context, storageSize);
     auto srcVal = createIntCast(rewriter, adaptor.getSrc(), intType);
@@ -2303,11 +2306,14 @@ public:
     auto offset = info.getOffset();
     auto storageType = info.getStorageType();
     auto context = storageType.getContext();
-    assert(isa<mlir::cir::ArrayType>(storageType) &&
-           "ArrayType expected for bitfields storage type");
+    unsigned storageSize = 0;
 
-    unsigned storageSize =
-      storageType.cast<mlir::cir::ArrayType>().getSize() * 8; // TODO!!!!!
+    if (auto arTy = storageType.dyn_cast<mlir::cir::ArrayType>())
+      storageSize = arTy.getSize() * 8; // TODO!!!!!
+    else if (auto intTy = storageType.dyn_cast<mlir::cir::IntType>())
+      storageSize = intTy.getWidth();
+    else 
+      llvm_unreachable("Either ArrayType or IntType expected for bitfields storage");
 
     auto intType = mlir::IntegerType::get(context, storageSize);
 
