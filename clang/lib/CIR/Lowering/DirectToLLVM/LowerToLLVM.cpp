@@ -2267,8 +2267,7 @@ public:
       assert(storageSize > size && "Invalid bitfield size.");
 
       mlir::Value val = rewriter.create<mlir::LLVM::LoadOp>(
-        op.getLoc(), intType, adaptor.getDst(),  /* alignment */ 0, false); 
-      //TODO: check zero here -----------------------------------^
+        op.getLoc(), intType, adaptor.getDst(),  /* alignment */ 0, op.getIsVolatile());
 
       srcVal = createAnd(rewriter, srcVal,
                          llvm::APInt::getLowBitsSet(srcWidth, size));
@@ -2283,7 +2282,7 @@ public:
     }
 
     rewriter.replaceOpWithNewOp<mlir::LLVM::StoreOp>(op, srcVal, adaptor.getDst(),
-        /* alignment */ 0, /* volatile */ false);
+        /* alignment */ 0, op.getIsVolatile());
 
     return mlir::success();
   }
