@@ -9,6 +9,7 @@
 // This contains code to emit Expr nodes as CIR code.
 //
 //===----------------------------------------------------------------------===//
+#include <iostream>
 #include "CIRGenBuilder.h"
 #include "CIRGenCXXABI.h"
 #include "CIRGenCall.h"
@@ -268,7 +269,7 @@ LValue CIRGenFunction::buildLValueForBitField(LValue base,
   Address Addr = getAddrOfBitFieldStorage(base, field, info.StorageType, Idx);
 
   auto loc = getLoc(field->getLocation());
-  if (Addr.getElementType() != info.StorageType) // TODO: check this bitcast!
+  if (Addr.getElementType() != info.StorageType)
     Addr = builder.createElementBitCast(loc, Addr, info.StorageType);
 
   QualType fieldType =
