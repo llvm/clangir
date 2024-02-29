@@ -290,8 +290,7 @@ void CIRRecordLowering::lower(bool nonVirtualBaseType) {
   // TODO: implement clipTailPadding once bitfields are implemented
   // TODO: implemented packed structs
   // TODO: implement padding
-  // TODO: support zeroInit  
-
+  // TODO: support zeroInit
   fillOutputFields();
   computeVolatileBitfields();
 }
@@ -643,8 +642,9 @@ CIRGenTypes::computeRecordLayout(const RecordDecl *D,
   // Fill in the struct *after* computing the base type.  Filling in the body
   // signifies that the type is no longer opaque and record layout is complete,
   // but we may need to recursively layout D while laying D out as a base type.
-  *Ty = Builder.getCompleteStructTy(builder.fieldTypes, getRecordTypeName(D, ""),
-                                    /*packed*/false, D);
+  *Ty = 
+      Builder.getCompleteStructTy(builder.fieldTypes, getRecordTypeName(D, ""),
+                                  /*packed=*/false, D);
 
   auto RL = std::make_unique<CIRGenRecordLayout>(
       Ty ? *Ty : mlir::cir::StructType{},

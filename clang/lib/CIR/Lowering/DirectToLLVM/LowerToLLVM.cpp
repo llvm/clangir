@@ -2253,7 +2253,7 @@ public:
     unsigned storageSize = 0;
 
     if (auto arTy = storageType.dyn_cast<mlir::cir::ArrayType>())
-      storageSize = arTy.getSize() * 8; // TODO!!!!!
+      storageSize = arTy.getSize() * 8;
     else if (auto intTy = storageType.dyn_cast<mlir::cir::IntType>())
       storageSize = intTy.getWidth();
     else 
@@ -2308,7 +2308,7 @@ public:
     unsigned storageSize = 0;
 
     if (auto arTy = storageType.dyn_cast<mlir::cir::ArrayType>())
-      storageSize = arTy.getSize() * 8; // TODO!!!!!
+      storageSize = arTy.getSize() * 8;
     else if (auto intTy = storageType.dyn_cast<mlir::cir::IntType>())
       storageSize = intTy.getWidth();
     else 

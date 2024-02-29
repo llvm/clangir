@@ -503,14 +503,6 @@ public:
     return mlir::cir::ArrayType::get(getContext(), eltType, size);
   }
 
-  mlir::cir::ArrayType getByteArrayType(unsigned size) {
-    return getArrayType(typeCache.UCharTy, size);
-  }
-
-  unsigned getCharWidth() {
-    return typeCache.UCharTy.cast<mlir::cir::IntType>().getWidth();
-  }
-
   bool isSized(mlir::Type ty) {
     if (ty.isa<mlir::cir::PointerType, mlir::cir::StructType,
                mlir::cir::ArrayType, mlir::cir::BoolType, mlir::cir::IntType,
