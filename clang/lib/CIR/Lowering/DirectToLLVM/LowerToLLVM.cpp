@@ -2334,7 +2334,8 @@ public:
     }
 
     auto resTy = getTypeConverter()->convertType(op.getType());
-    auto newOp = createIntCast(rewriter, val, resTy.cast<mlir::IntegerType>());
+    auto newOp = createIntCast(rewriter, val, resTy.cast<mlir::IntegerType>(),
+                        info.getIsSigned());
     rewriter.replaceOp(op, newOp);
   }
 };

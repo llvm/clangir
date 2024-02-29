@@ -16,7 +16,7 @@
 using namespace llvm;
 
 mlir::Value createIntCast(mlir::OpBuilder& bld, mlir::Value src,
-                    mlir::IntegerType dstTy) {
+                    mlir::IntegerType dstTy, bool isSigned=false) {
   auto srcTy = src.getType();
   assert(isa<mlir::IntegerType>(srcTy));
 
@@ -24,7 +24,7 @@ mlir::Value createIntCast(mlir::OpBuilder& bld, mlir::Value src,
   auto dstWidth = dstTy.cast<mlir::IntegerType>().getWidth();
   auto loc = src.getLoc();
 
-  if (dstWidth > srcWidth && dstTy.isSigned())
+  if (dstWidth > srcWidth && isSigned)
     return bld.create<mlir::LLVM::SExtOp>(loc, dstTy, src);
   else if (dstWidth > srcWidth)
     return bld.create<mlir::LLVM::ZExtOp>(loc, dstTy, src);
