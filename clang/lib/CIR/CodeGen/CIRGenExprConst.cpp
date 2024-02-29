@@ -355,7 +355,6 @@ mlir::Attribute ConstantAggregateBuilder::buildFrom(
   // The size of the constant we plan to generate. This is usually just the size
   // of the initialized type, but in AllowOversized mode (i.e. flexible array
   // init), it can be larger.
-
   CharUnits DesiredSize = Utils.getSize(DesiredTy);
   if (Size > DesiredSize) {
     assert(AllowOversized && "Elems are oversized");

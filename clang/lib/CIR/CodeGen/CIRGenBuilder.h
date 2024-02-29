@@ -175,6 +175,7 @@ public:
     llvm::SmallVector<mlir::Type, 8> members;
     auto structTy = type.dyn_cast<mlir::cir::StructType>();
     assert(structTy && "expected cir.struct");
+    assert(!packed && "unpacked struct is NYI");
 
     // Collect members and check if they are all zero.
     bool isZero = true;
@@ -199,6 +200,7 @@ public:
   mlir::cir::ConstStructAttr getAnonConstStruct(mlir::ArrayAttr arrayAttr,
                                                 bool packed = false,
                                                 mlir::Type ty = {}) {
+    assert(!packed && "NYI");
     llvm::SmallVector<mlir::Type, 4> members;
     for (auto &f : arrayAttr) {
       auto ta = f.dyn_cast<mlir::TypedAttr>();
@@ -753,13 +755,13 @@ public:
                                             info.IsSigned, isLvalueVolatile);
   }
 
-  mlir::cir::SetBitfieldOp createSetBitfield(mlir::Location loc, mlir::Type resultType,
+  mlir::Value createSetBitfield(mlir::Location loc, mlir::Type resultType,
                                 mlir::Value dstAddr, mlir::Type storageType,
                                 mlir::Value src, const CIRGenBitFieldInfo &info,
                                 bool isLvalueVolatile, bool useVolatile) {
     auto offset = useVolatile ? info.VolatileOffset : info.Offset;
     return create<mlir::cir::SetBitfieldOp>(
-        loc, resultType, dstAddr, storageType, src, info.Name, info.Size,      
+        loc, resultType, dstAddr, storageType, src, info.Name, info.Size,
         offset, info.IsSigned, isLvalueVolatile);
   }
 
