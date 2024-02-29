@@ -94,6 +94,7 @@ struct CIRGenBitFieldInfo {
   /// The name of a bitfield
   llvm::StringRef Name;
 
+  // The actual storage type for the bitfield
   mlir::Type StorageType;
 
   CIRGenBitFieldInfo()

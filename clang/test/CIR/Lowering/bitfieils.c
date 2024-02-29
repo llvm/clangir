@@ -15,7 +15,6 @@ void set_signed(B* b) {
   b->a = -2; 
 }
 
-
 // LLVM: define i32 @get_signed
 // LLVM:   [[TMP0:%.*]] = alloca i32
 // LLVM:   [[TMP1:%.*]] = load ptr

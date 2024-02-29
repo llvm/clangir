@@ -2262,6 +2262,7 @@ public:
     auto intType = mlir::IntegerType::get(context, storageSize);
     auto srcVal = createIntCast(rewriter, adaptor.getSrc(), intType);
     auto srcWidth = storageSize;
+    auto resultVal = srcVal;
 
     if (storageSize != size) {
       assert(storageSize > size && "Invalid bitfield size.");
@@ -2271,6 +2272,7 @@ public:
 
       srcVal = createAnd(rewriter, srcVal,
                          llvm::APInt::getLowBitsSet(srcWidth, size));
+      resultVal = srcVal;
       srcVal = createShL(rewriter, srcVal, offset);
 
       // Mask out the original value.
@@ -2281,8 +2283,24 @@ public:
       srcVal = rewriter.create<mlir::LLVM::OrOp>(op.getLoc(), val, srcVal);
     }
 
-    rewriter.replaceOpWithNewOp<mlir::LLVM::StoreOp>(op, srcVal, adaptor.getDst(),
+    rewriter.create<mlir::LLVM::StoreOp>(op.getLoc(), srcVal, adaptor.getDst(),
         /* alignment */ 0, op.getIsVolatile());
+    
+    auto resultTy = getTypeConverter()->convertType(op.getType());
+
+    resultVal = createIntCast(rewriter, resultVal, resultTy.cast<mlir::IntegerType>());
+
+    if (info.getIsSigned()) {
+      assert(size <= storageSize);
+      unsigned highBits = storageSize - size;
+
+      if (highBits) {
+        resultVal = createShL(rewriter, resultVal, highBits);
+        resultVal = createAShR(rewriter, resultVal, highBits);
+      }
+    }
+
+    rewriter.replaceOp(op, resultVal);     
 
     return mlir::success();
   }

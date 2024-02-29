@@ -673,11 +673,9 @@ void CIRGenFunction::buildStoreThroughBitfieldLValue(RValue Src, LValue Dst,
 
   mlir::Value dstAddr = Dst.getAddress().getPointer();
 
-  builder.createSetBitfield(
-      dstAddr.getLoc(), dstAddr, ptr.getElementType(),
+  Result = builder.createSetBitfield(
+      dstAddr.getLoc(), resLTy, dstAddr, ptr.getElementType(),
       Src.getScalarVal(), info, Dst.isVolatileQualified(), useVolatile);
-
-  Result = Src.getScalarVal(); //TODO: mega double check!!!!! MaybeLoad here
 }
 
 static LValue buildGlobalVarDeclLValue(CIRGenFunction &CGF, const Expr *E,
