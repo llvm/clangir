@@ -15,8 +15,8 @@
 
 using namespace llvm;
 
-mlir::Value createIntCast(mlir::OpBuilder& bld, mlir::Value src,
-                    mlir::IntegerType dstTy, bool isSigned=false) {
+mlir::Value createIntCast(mlir::OpBuilder &bld, mlir::Value src,
+                          mlir::IntegerType dstTy, bool isSigned = false) {
   auto srcTy = src.getType();
   assert(isa<mlir::IntegerType>(srcTy));
 
@@ -34,46 +34,41 @@ mlir::Value createIntCast(mlir::OpBuilder& bld, mlir::Value src,
     return bld.create<mlir::LLVM::BitcastOp>(loc, dstTy, src);
 }
 
-mlir::Value getConstAPInt(mlir::OpBuilder& bld, mlir::Location loc,
+mlir::Value getConstAPInt(mlir::OpBuilder &bld, mlir::Location loc,
                           mlir::Type typ, const llvm::APInt &val) {
   return bld.create<mlir::LLVM::ConstantOp>(loc, typ, val);
 }
 
-mlir::Value getConst(mlir::OpBuilder& bld, mlir::Location loc,
-                     mlir::Type typ, unsigned val) {
+mlir::Value getConst(mlir::OpBuilder &bld, mlir::Location loc, mlir::Type typ,
+                     unsigned val) {
   return bld.create<mlir::LLVM::ConstantOp>(loc, typ, val);
 }
 
-mlir::Value createShL(mlir::OpBuilder& bld, mlir::Value lhs,
-                      unsigned rhs) {
+mlir::Value createShL(mlir::OpBuilder &bld, mlir::Value lhs, unsigned rhs) {
   if (!rhs)
     return lhs;
   auto rhsVal = getConst(bld, lhs.getLoc(), lhs.getType(), rhs);
   return bld.create<mlir::LLVM::ShlOp>(lhs.getLoc(), lhs, rhsVal);
 }
 
-mlir::Value createLShR(mlir::OpBuilder& bld, mlir::Value lhs,
-                       unsigned rhs) {
+mlir::Value createLShR(mlir::OpBuilder &bld, mlir::Value lhs, unsigned rhs) {
   if (!rhs)
     return lhs;
   auto rhsVal = getConst(bld, lhs.getLoc(), lhs.getType(), rhs);
   return bld.create<mlir::LLVM::LShrOp>(lhs.getLoc(), lhs, rhsVal);
 }
 
-mlir::Value createAShR(mlir::OpBuilder& bld, mlir::Value lhs,
-                       unsigned rhs) {
+mlir::Value createAShR(mlir::OpBuilder &bld, mlir::Value lhs, unsigned rhs) {
   if (!rhs)
     return lhs;
   auto rhsVal = getConst(bld, lhs.getLoc(), lhs.getType(), rhs);
   return bld.create<mlir::LLVM::AShrOp>(lhs.getLoc(), lhs, rhsVal);
 }
 
-mlir::Value createAnd(mlir::OpBuilder& bld, mlir::Value lhs,
+mlir::Value createAnd(mlir::OpBuilder &bld, mlir::Value lhs,
                       const llvm::APInt &rhs) {
   auto rhsVal = getConstAPInt(bld, lhs.getLoc(), lhs.getType(), rhs);
   return bld.create<mlir::LLVM::AndOp>(lhs.getLoc(), lhs, rhsVal);
 }
-
-
 
 #endif // LLVM_CLANG_LIB_LOWERINGHELPERS_H

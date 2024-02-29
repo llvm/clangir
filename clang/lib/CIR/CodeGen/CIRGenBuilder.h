@@ -336,7 +336,7 @@ public:
   }
 
   bool isCIRIntTypeSize(unsigned N) {
-    return N >=8 && N <= 64 && llvm::isPowerOf2_32(N);
+    return N >= 8 && N <= 64 && llvm::isPowerOf2_32(N);
   }
 
   mlir::cir::VoidType getVoidTy() { return typeCache.VoidTy; }

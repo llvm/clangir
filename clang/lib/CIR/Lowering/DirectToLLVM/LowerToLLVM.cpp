@@ -2233,7 +2233,7 @@ public:
 };
 
 class CIRSetBitfieldLowering
-  : public mlir::OpConversionPattern<mlir::cir::SetBitfieldOp> {
+    : public mlir::OpConversionPattern<mlir::cir::SetBitfieldOp> {
 public:
   using OpConversionPattern<mlir::cir::SetBitfieldOp>::OpConversionPattern;
 
@@ -2256,8 +2256,9 @@ public:
       storageSize = arTy.getSize() * 8;
     else if (auto intTy = storageType.dyn_cast<mlir::cir::IntType>())
       storageSize = intTy.getWidth();
-    else 
-      llvm_unreachable("Either ArrayType or IntType expected for bitfields storage");
+    else
+      llvm_unreachable(
+          "Either ArrayType or IntType expected for bitfields storage");
 
     auto intType = mlir::IntegerType::get(context, storageSize);
     auto srcVal = createIntCast(rewriter, adaptor.getSrc(), intType);
@@ -2268,7 +2269,8 @@ public:
       assert(storageSize > size && "Invalid bitfield size.");
 
       mlir::Value val = rewriter.create<mlir::LLVM::LoadOp>(
-        op.getLoc(), intType, adaptor.getDst(),  /* alignment */ 0, op.getIsVolatile());
+          op.getLoc(), intType, adaptor.getDst(), /* alignment */ 0,
+          op.getIsVolatile());
 
       srcVal = createAnd(rewriter, srcVal,
                          llvm::APInt::getLowBitsSet(srcWidth, size));
@@ -2276,7 +2278,8 @@ public:
       srcVal = createShL(rewriter, srcVal, offset);
 
       // Mask out the original value.
-      val = createAnd(rewriter, val,
+      val =
+          createAnd(rewriter, val,
                     ~llvm::APInt::getBitsSet(srcWidth, offset, offset + size));
 
       // Or together the unchanged values and the source value.
@@ -2284,11 +2287,12 @@ public:
     }
 
     rewriter.create<mlir::LLVM::StoreOp>(op.getLoc(), srcVal, adaptor.getDst(),
-        /* alignment */ 0, op.getIsVolatile());
-    
+                                         /* alignment */ 0, op.getIsVolatile());
+
     auto resultTy = getTypeConverter()->convertType(op.getType());
 
-    resultVal = createIntCast(rewriter, resultVal, resultTy.cast<mlir::IntegerType>());
+    resultVal =
+        createIntCast(rewriter, resultVal, resultTy.cast<mlir::IntegerType>());
 
     if (info.getIsSigned()) {
       assert(size <= storageSize);
@@ -2300,14 +2304,14 @@ public:
       }
     }
 
-    rewriter.replaceOp(op, resultVal);     
+    rewriter.replaceOp(op, resultVal);
 
     return mlir::success();
   }
 };
 
 class CIRGetBitfieldLowering
-  : public mlir::OpConversionPattern<mlir::cir::GetBitfieldOp> {
+    : public mlir::OpConversionPattern<mlir::cir::GetBitfieldOp> {
 public:
   using OpConversionPattern<mlir::cir::GetBitfieldOp>::OpConversionPattern;
 
@@ -2329,13 +2333,14 @@ public:
       storageSize = arTy.getSize() * 8;
     else if (auto intTy = storageType.dyn_cast<mlir::cir::IntType>())
       storageSize = intTy.getWidth();
-    else 
-      llvm_unreachable("Either ArrayType or IntType expected for bitfields storage");
+    else
+      llvm_unreachable(
+          "Either ArrayType or IntType expected for bitfields storage");
 
     auto intType = mlir::IntegerType::get(context, storageSize);
 
     mlir::Value val = rewriter.create<mlir::LLVM::LoadOp>(
-      op.getLoc(), intType, adaptor.getAddr(), 0, op.getIsVolatile());
+        op.getLoc(), intType, adaptor.getAddr(), 0, op.getIsVolatile());
     val = rewriter.create<mlir::LLVM::BitcastOp>(op.getLoc(), intType, val);
 
     if (info.getIsSigned()) {
@@ -2353,11 +2358,10 @@ public:
 
     auto resTy = getTypeConverter()->convertType(op.getType());
     auto newOp = createIntCast(rewriter, val, resTy.cast<mlir::IntegerType>(),
-                        info.getIsSigned());
+                               info.getIsSigned());
     rewriter.replaceOp(op, newOp);
   }
 };
-
 
 void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
                                          mlir::TypeConverter &converter) {
@@ -2375,8 +2379,8 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
       CIRFAbsOpLowering, CIRVTableAddrPointOpLowering, CIRVectorCreateLowering,
       CIRVectorInsertLowering, CIRVectorExtractLowering, CIRVectorCmpOpLowering,
       CIRStackSaveLowering, CIRStackRestoreLowering, CIRUnreachableLowering,
-      CIRSetBitfieldLowering, CIRGetBitfieldLowering>(
-      converter, patterns.getContext());
+      CIRSetBitfieldLowering, CIRGetBitfieldLowering>(converter,
+                                                      patterns.getContext());
 }
 
 namespace {
