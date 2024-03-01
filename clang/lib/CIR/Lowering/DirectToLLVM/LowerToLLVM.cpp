@@ -2409,8 +2409,8 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
       CIRFAbsOpLowering, CIRVTableAddrPointOpLowering, CIRVectorCreateLowering,
       CIRVectorInsertLowering, CIRVectorExtractLowering, CIRVectorCmpOpLowering,
       CIRStackSaveLowering, CIRStackRestoreLowering, CIRUnreachableLowering,
-      CIRSetBitfieldLowering, CIRGetBitfieldLowering,    
-      CIRInlineAsmOpLowering>(converter, patterns.getContext());
+      CIRSetBitfieldLowering, CIRGetBitfieldLowering, CIRInlineAsmOpLowering>(
+      converter, patterns.getContext());
 }
 
 namespace {
