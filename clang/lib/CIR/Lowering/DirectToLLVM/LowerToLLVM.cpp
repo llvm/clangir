@@ -2390,6 +2390,7 @@ public:
     auto newOp = createIntCast(rewriter, val, resTy.cast<mlir::IntegerType>(),
                                info.getIsSigned());
     rewriter.replaceOp(op, newOp);
+    return mlir::success();
   }
 };
 
