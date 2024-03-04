@@ -399,10 +399,7 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
       if (isa<MatrixType>(OutExpr->getType().getCanonicalType()))
         DestAddr = DestAddr.withElementType(ConvertType(OutExpr->getType()));
 
-      auto ptrTy = // TODO: looks weird
-          llvm::dyn_cast<mlir::cir::PointerType>(
-              DestAddr.getPointer().getType());
-      ArgTypes.push_back(ptrTy);
+      ArgTypes.push_back(DestAddr.getType());
       ArgElemTypes.push_back(DestAddr.getElementType());
       Args.push_back(DestAddr.getPointer());
       Constraints += "=*";
