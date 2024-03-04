@@ -2903,17 +2903,25 @@ def CIR_InlineAsmOp : CIR_Op<"asm", [RecursiveMemoryEffects]> {
         StrAttr:$asm_string,
         StrAttr:$constraints,
         UnitAttr:$side_effects,
-        AsmFlavor:$asm_flavor);
+        AsmFlavor:$asm_flavor,
+        OptionalAttr<ArrayAttr>:$operand_attrs);
 
   let assemblyFormat = [{
     `(`
     $asm_flavor`,`
     `{` $asm_string $constraints `}`
     `)`
+    (`operand_attrs` `=` $operand_attrs^)?
     (`side_effects` $side_effects^)?
     attr-dict
     operands `:` functional-type(operands, results)
-   }];  
+   }];
+
+   let extraClassDeclaration = [{
+    static StringRef getElementTypeAttrName() {
+      return "elementtype";
+    }
+  }];
 }
 
 //===----------------------------------------------------------------------===//
