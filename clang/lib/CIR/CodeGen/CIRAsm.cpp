@@ -209,8 +209,7 @@ static void collectInOutConstrainsInfos(const CIRGenFunction &cgf,
   }
 }
 
-std::pair<mlir::Value, mlir::Type>
-CIRGenFunction::buildAsmInputLValue(
+std::pair<mlir::Value, mlir::Type> CIRGenFunction::buildAsmInputLValue(
     const TargetInfo::ConstraintInfo &Info, LValue InputValue,
     QualType InputType, std::string &ConstraintStr, SourceLocation Loc) {
 
@@ -225,7 +224,7 @@ CIRGenFunction::buildAsmInputLValue(
       Ty = mlir::cir::IntType::get(builder.getContext(), Size, false);
 
       return {builder.createLoad(getLoc(Loc),
-                                InputValue.getAddress().withElementType(Ty)),
+                                 InputValue.getAddress().withElementType(Ty)),
               mlir::Type()};
     }
   }
@@ -286,7 +285,7 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
   std::vector<mlir::Type> ResultRegTypes;
   std::vector<mlir::Type> ResultTruncRegTypes;
   std::vector<mlir::Type> ArgTypes;
-  std::vector<mlir::Type> ArgElemTypes;  
+  std::vector<mlir::Type> ArgElemTypes;
   std::vector<mlir::Value> Args;
   llvm::BitVector ResultTypeRequiresCast;
   llvm::BitVector ResultRegIsFlagReg;
@@ -399,9 +398,10 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
       // input-argument which is represented as vector.
       if (isa<MatrixType>(OutExpr->getType().getCanonicalType()))
         DestAddr = DestAddr.withElementType(ConvertType(OutExpr->getType()));
-      
-      auto ptrTy = //TODO: looks weird
-        llvm::dyn_cast<mlir::cir::PointerType>(DestAddr.getPointer().getType());
+
+      auto ptrTy = // TODO: looks weird
+          llvm::dyn_cast<mlir::cir::PointerType>(
+              DestAddr.getPointer().getType());
       ArgTypes.push_back(ptrTy);
       ArgElemTypes.push_back(DestAddr.getElementType());
       Args.push_back(DestAddr.getPointer());
@@ -523,10 +523,8 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
   bool HasSideEffect = S.isVolatile() || S.getNumOutputs() == 0;
 
   auto IA = builder.create<mlir::cir::InlineAsmOp>(
-              getLoc(S.getAsmLoc()), ResultType,
-              Args, AsmString, Constraints,
-              HasSideEffect, inferFlavor(CGM, S), 
-              mlir::ArrayAttr());
+      getLoc(S.getAsmLoc()), ResultType, Args, AsmString, Constraints,
+      HasSideEffect, inferFlavor(CGM, S), mlir::ArrayAttr());
 
   if (false /*IsGCCAsmGoto*/) {
     assert(!AsmUnimplemented::Goto());
@@ -542,9 +540,10 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
     std::vector<mlir::Attribute> operandAttrs;
     auto attrName = mlir::cir::InlineAsmOp::getElementTypeAttrName();
 
-    // this is for the lowering to LLVM from LLVm dialect. Otherwise, if we don't
-    // have the result (i.e. void type as a result of operation), the element type
-    // attribute will be attached to the whole instruction, but not to the operand
+    // this is for the lowering to LLVM from LLVm dialect. Otherwise, if we
+    // don't have the result (i.e. void type as a result of operation), the
+    // element type attribute will be attached to the whole instruction, but not
+    // to the operand
     if (!IA.getNumResults())
       operandAttrs.push_back(OptNoneAttr::get(builder.getContext()));
 
