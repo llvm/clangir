@@ -2250,6 +2250,27 @@ class CIRInlineAsmOpLowering
                          : mlir::LLVM::AsmDialect::AD_Intel;
 
     std::vector<mlir::Attribute> opAttrs;
+    auto cirAttrName = mlir::cir::InlineAsmOp::getElementTypeAttrName();
+    auto llvmAttrName = mlir::LLVM::InlineAsmOp::getElementTypeAttrName();
+
+    if (auto operandAttrs = op.getOperandAttrs()) {
+      for (auto attr : *operandAttrs) {
+        if (isa<mlir::cir::OptNoneAttr>(attr)) {
+          opAttrs.push_back(mlir::Attribute());
+          continue;
+        }
+
+        mlir::DictionaryAttr dict = cast<mlir::DictionaryAttr>(attr);
+        mlir::TypeAttr tAttr = cast<mlir::TypeAttr>(dict.get(cirAttrName));
+        std::vector<mlir::NamedAttribute> attrs;
+        auto typAttr = mlir::TypeAttr::get(
+          getTypeConverter()->convertType(tAttr.getValue()));
+
+        attrs.push_back(rewriter.getNamedAttr(llvmAttrName, typAttr));
+        auto newDict = rewriter.getDictionaryAttr(attrs);
+        opAttrs.push_back(newDict);
+      }
+    }
 
     rewriter.replaceOpWithNewOp<mlir::LLVM::InlineAsmOp>(
         op, llResTy, adaptor.getOperands(), op.getAsmStringAttr(),
