@@ -2264,7 +2264,7 @@ class CIRInlineAsmOpLowering
         mlir::TypeAttr tAttr = cast<mlir::TypeAttr>(dict.get(cirAttrName));
         std::vector<mlir::NamedAttribute> attrs;
         auto typAttr = mlir::TypeAttr::get(
-          getTypeConverter()->convertType(tAttr.getValue()));
+            getTypeConverter()->convertType(tAttr.getValue()));
 
         attrs.push_back(rewriter.getNamedAttr(llvmAttrName, typAttr));
         auto newDict = rewriter.getDictionaryAttr(attrs);
