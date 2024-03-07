@@ -796,9 +796,27 @@ public:
     }
 
     rewriter.setInsertionPointToEnd(currentBlock);
-    auto trunc = rewriter.create<mlir::LLVM::TruncOp>(loc, rewriter.getI1Type(),
-                                                      adaptor.getCondition());
-    rewriter.create<mlir::LLVM::CondBrOp>(loc, trunc.getRes(), thenBeforeBody,
+
+    // FIXME: CIR always lowers !cir.bool to i8 type.
+    // In this reason CIR CodeGen often emits the redundant zext + trunc
+    // sequence that prevents lowering of llvm.expect in
+    // LowerExpectIntrinsicPass.
+    // We should fix that in a more appropriate way. But as a temporary solution
+    // just avoid the redundant casts here.
+    mlir::Value condition;
+    auto zext =
+        dyn_cast<mlir::LLVM::ZExtOp>(adaptor.getCondition().getDefiningOp());
+    if (zext && zext->getOperand(0).getType() == rewriter.getI1Type()) {
+      condition = zext->getOperand(0);
+      if (zext->use_empty())
+        rewriter.eraseOp(zext);
+    } else {
+      auto trunc = rewriter.create<mlir::LLVM::TruncOp>(
+          loc, rewriter.getI1Type(), adaptor.getCondition());
+      condition = trunc.getRes();
+    }
+
+    rewriter.create<mlir::LLVM::CondBrOp>(loc, condition, thenBeforeBody,
                                           elseBeforeBody);
 
     if (!emptyElse) {
@@ -2156,6 +2174,25 @@ public:
   }
 };
 
+class CIRExpectOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::ExpectOp> {
+public:
+  using OpConversionPattern<mlir::cir::ExpectOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::ExpectOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    std::optional<llvm::APFloat> prob = op.getProb();
+    if (!prob)
+      rewriter.replaceOpWithNewOp<mlir::LLVM::ExpectOp>(op, adaptor.getVal(),
+                                                        adaptor.getExpected());
+    else
+      rewriter.replaceOpWithNewOp<mlir::LLVM::ExpectWithProbabilityOp>(
+          op, adaptor.getVal(), adaptor.getExpected(), prob.value());
+    return mlir::success();
+  }
+};
+
 class CIRVTableAddrPointOpLowering
     : public mlir::OpConversionPattern<mlir::cir::VTableAddrPointOp> {
 public:
@@ -2228,6 +2265,30 @@ public:
   matchAndRewrite(mlir::cir::UnreachableOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     rewriter.replaceOpWithNewOp<mlir::LLVM::UnreachableOp>(op);
+    return mlir::success();
+  }
+};
+
+class CIRTrapLowering : public mlir::OpConversionPattern<mlir::cir::TrapOp> {
+public:
+  using OpConversionPattern<mlir::cir::TrapOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::TrapOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto loc = op->getLoc();
+    rewriter.eraseOp(op);
+
+    auto llvmTrapIntrinsicType =
+        mlir::LLVM::LLVMVoidType::get(op->getContext());
+    rewriter.create<mlir::LLVM::CallIntrinsicOp>(
+        loc, llvmTrapIntrinsicType, "llvm.trap", mlir::ValueRange{});
+
+    // Note that the call to llvm.trap is not a terminator in LLVM dialect.
+    // So we must emit an additional llvm.unreachable to terminate the current
+    // block.
+    rewriter.create<mlir::LLVM::UnreachableOp>(loc);
+
     return mlir::success();
   }
 };
@@ -2407,11 +2468,12 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
       CIRVACopyLowering, CIRVAArgLowering, CIRBrOpLowering,
       CIRTernaryOpLowering, CIRGetMemberOpLowering, CIRSwitchOpLowering,
       CIRPtrDiffOpLowering, CIRCopyOpLowering, CIRMemCpyOpLowering,
-      CIRFAbsOpLowering, CIRVTableAddrPointOpLowering, CIRVectorCreateLowering,
-      CIRVectorInsertLowering, CIRVectorExtractLowering, CIRVectorCmpOpLowering,
-      CIRStackSaveLowering, CIRStackRestoreLowering, CIRUnreachableLowering,
-      CIRSetBitfieldLowering, CIRGetBitfieldLowering, CIRInlineAsmOpLowering>(
-      converter, patterns.getContext());
+      CIRFAbsOpLowering, CIRExpectOpLowering, CIRVTableAddrPointOpLowering,
+      CIRVectorCreateLowering, CIRVectorInsertLowering,
+      CIRVectorExtractLowering, CIRVectorCmpOpLowering, CIRStackSaveLowering,
+      CIRStackRestoreLowering, CIRUnreachableLowering, CIRTrapLowering,
+      CIRSetBitfieldLowering, CIRGetBitfieldLowering, CIRInlineAsmOpLowering>
+      (converter, patterns.getContext());
 }
 
 namespace {
