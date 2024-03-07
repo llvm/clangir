@@ -822,6 +822,19 @@ void TernaryOp::build(OpBuilder &builder, OperationState &result, Value cond,
     result.addTypes(TypeRange{yield.getOperandTypes().front()});
 }
 
+
+//===----------------------------------------------------------------------===//
+// GotoOp
+//===----------------------------------------------------------------------===//
+
+// mlir::SuccessorOperands GotoOp::getSuccessorOperands(unsigned index) {
+//   assert(index == 0 && "invalid successor index");
+//   return mlir::SuccessorOperands(getDestOperandsMutable());
+// }
+
+// Block *GotoOp::getSuccessorForOperands(ArrayRef<Attribute>) { return getDest(); }
+
+
 //===----------------------------------------------------------------------===//
 // BrOp
 //===----------------------------------------------------------------------===//

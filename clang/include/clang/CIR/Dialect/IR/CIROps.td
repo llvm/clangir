@@ -1379,6 +1379,39 @@ def SignedOverflowBehaviorEnum : I32EnumAttr<
   let cppNamespace = "::mlir::cir::sob";
 }
 
+def GotoOp : CIR_Op<"goto", [Terminator]> {
+  let summary = "goto";
+  let description = [{ }];
+
+  let arguments = (ins LabelAttr:$label);
+  let assemblyFormat = [{ $label attr-dict }];
+
+  let builders = [
+    OpBuilder<(ins "StringRef":$label),
+    [{
+      LabelAttr x =
+        LabelAttr::get($_builder.getContext(), label);
+      build($_builder, $_state, x);
+    }]>
+  ];
+}
+
+def LabelOp : CIR_Op<"label"> {
+  let summary = "label";
+  let description = [{ }];
+
+  let arguments = (ins LabelAttr:$label);
+  let assemblyFormat = [{ $label attr-dict }];
+
+  let builders = [
+    OpBuilder<(ins "StringRef":$label),
+    [{
+      LabelAttr x =
+        LabelAttr::get($_builder.getContext(), label);
+      build($_builder, $_state, x);
+    }]>
+  ];
+}
 
 def GlobalOp : CIR_Op<"global", [Symbol, DeclareOpInterfaceMethods<RegionBranchOpInterface>, NoRegionArguments]> {
   let summary = "Declares or defines a global variable";

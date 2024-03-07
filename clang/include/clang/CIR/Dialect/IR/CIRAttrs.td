@@ -584,6 +584,19 @@ def NoThrowAttr : CIRUnitAttr<"NoThrow", "nothrow"> {
   let storageType = [{ NoThrowAttr }];
 }
 
+def LabelAttr : CIR_Attr<"Label", "label"> {
+  let summary = "label";
+  let description = [{ }];
+  let parameters = (ins "StringAttr":$name);
+  let assemblyFormat = [{ `<`  $name `>`  }];
+
+  let builders = [
+    AttrBuilder<(ins "StringRef":$name), [{
+      return $_get($_ctxt, StringAttr::get($_ctxt, name));
+    }]>
+  ];
+}
+
 def GlobalCtorAttr : CIR_Attr<"GlobalCtor", "globalCtor"> {
   let summary = "Indicates a function is a global constructor.";
   let description = [{

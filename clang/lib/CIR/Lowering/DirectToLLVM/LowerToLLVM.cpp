@@ -2262,6 +2262,45 @@ class CIRInlineAsmOpLowering
   }
 };
 
+class CIRGotoOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::GotoOp> {
+
+  using mlir::OpConversionPattern<mlir::cir::GotoOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::GotoOp goTo, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto func = goTo.getOperation()->getParentOfType<mlir::LLVM::LLVMFuncOp>();
+
+    func.getBody().walk<mlir::WalkOrder::PreOrder>([&](mlir::Block *blk) {
+      for (auto& op : blk->getOperations()) {
+        if (auto lab = dyn_cast<mlir::cir::LabelOp>(op)) {
+          if (goTo.getLabel() == lab.getLabel()) {
+            lowerTerminator(goTo, blk, rewriter);
+          return mlir::WalkResult::interrupt();
+          }
+        }
+      }
+      return mlir::WalkResult::advance();
+    });
+
+    return mlir::success();
+  }
+};
+
+class CIRLabelOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::LabelOp> {
+
+  using mlir::OpConversionPattern<mlir::cir::LabelOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::LabelOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+     rewriter.eraseOp(op);
+     return mlir::success();
+  }
+};
+
 void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
                                          mlir::TypeConverter &converter) {
   patterns.add<CIRReturnLowering>(patterns.getContext());
@@ -2278,7 +2317,8 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
       CIRFAbsOpLowering, CIRVTableAddrPointOpLowering, CIRVectorCreateLowering,
       CIRVectorInsertLowering, CIRVectorExtractLowering, CIRVectorCmpOpLowering,
       CIRStackSaveLowering, CIRStackRestoreLowering, CIRUnreachableLowering,
-      CIRInlineAsmOpLowering>(converter, patterns.getContext());
+      CIRInlineAsmOpLowering, CIRGotoOpLowering, CIRLabelOpLowering>(
+        converter, patterns.getContext());
 }
 
 namespace {
