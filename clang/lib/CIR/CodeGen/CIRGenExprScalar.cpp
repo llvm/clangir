@@ -1548,7 +1548,7 @@ mlir::Value ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
     SmallVector<mlir::Value, 16> Elements;
     auto VecType = CGF.getCIRType(DestTy).dyn_cast<mlir::cir::VectorType>();
     auto NumElements = VecType.getSize();
-    for (int Index = 0; Index < NumElements; ++Index) {
+    for (uint64_t Index = 0; Index < NumElements; ++Index) {
       Elements.push_back(Value);
     }
     return CGF.getBuilder().create<mlir::cir::VecCreateOp>(
@@ -1692,7 +1692,7 @@ mlir::Value ScalarExprEmitter::VisitInitListExpr(InitListExpr *E) {
       mlir::Value ZeroValue = CGF.getBuilder().create<mlir::cir::ConstantOp>(
           CGF.getLoc(E->getSourceRange()), VectorType.getEltType(),
           CGF.getBuilder().getZeroInitAttr(VectorType.getEltType()));
-      for (int i = NumInitElements; i < VectorType.getSize(); ++i) {
+      for (uint64_t i = NumInitElements; i < VectorType.getSize(); ++i) {
         Elements.push_back(ZeroValue);
       }
     }
