@@ -10,6 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include <CIRGenCXXABI.h>
 #include <CIRGenFunction.h>
 #include <CIRGenModule.h>
@@ -931,6 +932,74 @@ static mlir::Value buildDynamicCastToNull(CIRGenFunction &CGF,
   return NullPtrValue;
 }
 
+static mlir::cir::DynamicCastInfoAttr
+computeDynamicCastInfo(CIRGenFunction &CGF, mlir::Location loc,
+                       QualType srcRecordTy, QualType destRecordTy) {
+  auto srcRtti = CGF.CGM.getAddrOfRTTIDescriptor(loc, srcRecordTy)
+                     .cast<mlir::cir::GlobalViewAttr>();
+  auto destRtti = CGF.CGM.getAddrOfRTTIDescriptor(loc, destRecordTy)
+                      .cast<mlir::cir::GlobalViewAttr>();
+
+  // Query the inheritance paths from dest to src. Based on the returned
+  // information we can further determine whether the cast is a down-cast, and
+  // the details of the down-cast.
+
+  CXXBasePaths paths(/*FindAmbiguities=*/true, /*RecordPaths=*/true,
+                     /*DetectVirtual=*/false);
+
+  const CXXRecordDecl *srcDecl = srcRecordTy->getAsCXXRecordDecl();
+  const CXXRecordDecl *destDecl = destRecordTy->getAsCXXRecordDecl();
+  if (!destDecl->isDerivedFrom(srcDecl, paths)) {
+    // src type is not a base class of dest type.
+    return mlir::cir::DynamicCastInfoAttr::get(srcRtti, destRtti);
+  }
+
+  unsigned numPublicPaths = 0;
+  bool isVirtualBase = false;
+  CharUnits offsetInCharUnits;
+
+  for (const CXXBasePath &p : paths) {
+    // Ignore non-public inheritance.
+    if (p.Access != AS_public)
+      continue;
+
+    ++numPublicPaths;
+
+    for (const CXXBasePathElement &el : p) {
+      if (el.Base->isVirtual()) {
+        isVirtualBase = true;
+        break;
+      }
+
+      if (numPublicPaths > 1) {
+        // The inheritance paths are ambiguous. No need to compute the offset.
+        continue;
+      }
+
+      // Accumulate the base class offsets.
+      const ASTRecordLayout &layout =
+          CGF.getContext().getASTRecordLayout(el.Class);
+      offsetInCharUnits +=
+          layout.getBaseClassOffset(el.Base->getType()->getAsCXXRecordDecl());
+    }
+  }
+
+  if (numPublicPaths == 0) {
+    // `src` is not a public base of `dest`.
+    return mlir::cir::DynamicCastInfoAttr::get(srcRtti, destRtti);
+  }
+
+  std::optional<uint64_t> offset;
+  if (!isVirtualBase && numPublicPaths == 1) {
+    // `src` is a unique public non-virtual base of `dest`.
+    offset = offsetInCharUnits.getQuantity();
+  }
+
+  auto downcastInfo = mlir::cir::DowncastInfoAttr::get(
+      CGF.getBuilder().getContext(), offset, isVirtualBase);
+  return mlir::cir::DynamicCastInfoAttr::get(srcRtti, destRtti, downcastInfo);
+}
+
 mlir::Value CIRGenFunction::buildDynamicCast(Address ThisAddr,
                                              const CXXDynamicCastExpr *DCE) {
   auto loc = getLoc(DCE->getSourceRange());
@@ -943,6 +1012,8 @@ mlir::Value CIRGenFunction::buildDynamicCast(Address ThisAddr,
   //   If T is "pointer to cv void," then the result is a pointer to the most
   //   derived object pointed to by v.
   bool isDynCastToVoid = destTy->isVoidPointerType();
+  bool isRefCast = destTy->isReferenceType();
+
   QualType srcRecordTy;
   QualType destRecordTy;
   if (isDynCastToVoid) {
@@ -956,45 +1027,35 @@ mlir::Value CIRGenFunction::buildDynamicCast(Address ThisAddr,
     destRecordTy = destTy->castAs<ReferenceType>()->getPointeeType();
   }
 
+  assert(srcRecordTy->isRecordType() && "source type must be a record type!");
   buildTypeCheck(TCK_DynamicOperation, DCE->getExprLoc(), ThisAddr.getPointer(),
                  srcRecordTy);
 
   if (DCE->isAlwaysNull())
     return buildDynamicCastToNull(*this, loc, destTy);
 
-  assert(srcRecordTy->isRecordType() && "source type must be a record type!");
+  if (isDynCastToVoid) {
+    auto srcIsNull = builder.createPtrIsNull(ThisAddr.getPointer());
+    return builder
+        .create<mlir::cir::TernaryOp>(
+            loc, srcIsNull,
+            [&](mlir::OpBuilder &, mlir::Location) {
+              auto nullPtr =
+                  builder.getNullPtr(builder.getVoidPtrTy(), loc).getResult();
+              builder.createYield(loc, nullPtr);
+            },
+            [&](mlir::OpBuilder &, mlir::Location) {
+              auto castedPtr = CGM.getCXXABI().buildDynamicCastToVoid(
+                  *this, loc, ThisAddr, srcRecordTy);
+              builder.createYield(loc, castedPtr);
+            })
+        .getResult();
+  }
 
-  // C++ [expr.dynamic.cast]p4:
-  //   If the value of v is a null pointer value in the pointer case, the result
-  //   is the null pointer value of type T.
-  bool shouldNullCheckSrcValue =
-      CGM.getCXXABI().shouldDynamicCastCallBeNullChecked(srcTy->isPointerType(),
-                                                         srcRecordTy);
+  assert(destRecordTy->isRecordType() && "dest type must be a record type!");
 
-  auto buildDynamicCastAfterNullCheck = [&]() -> mlir::Value {
-    if (isDynCastToVoid)
-      return CGM.getCXXABI().buildDynamicCastToVoid(*this, loc, ThisAddr,
-                                                    srcRecordTy);
-
-    assert(destRecordTy->isRecordType() &&
-           "destination type must be a record type!");
-    return CGM.getCXXABI().buildDynamicCastCall(
-        *this, loc, ThisAddr, srcRecordTy, destTy, destRecordTy);
-  };
-
-  if (!shouldNullCheckSrcValue)
-    return buildDynamicCastAfterNullCheck();
-
-  mlir::Value srcValueIsNull = builder.createPtrIsNull(ThisAddr.getPointer());
-  return builder
-      .create<mlir::cir::TernaryOp>(
-          loc, srcValueIsNull,
-          [&](mlir::OpBuilder &, mlir::Location) {
-            builder.createYield(loc,
-                                buildDynamicCastToNull(*this, loc, destTy));
-          },
-          [&](mlir::OpBuilder &, mlir::Location) {
-            builder.createYield(loc, buildDynamicCastAfterNullCheck());
-          })
-      .getResult();
+  auto destCirTy = ConvertType(destTy).cast<mlir::cir::PointerType>();
+  auto castInfo = computeDynamicCastInfo(*this, loc, srcRecordTy, destRecordTy);
+  return builder.createDynCast(loc, ThisAddr.getPointer(), destCirTy, isRefCast,
+                               castInfo);
 }

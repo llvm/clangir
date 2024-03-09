@@ -112,6 +112,59 @@ def CastOp : CIR_Op<"cast", [Pure]> {
 }
 
 //===----------------------------------------------------------------------===//
+// DynamicCastOp
+//===----------------------------------------------------------------------===//
+
+def DynamicCastOp : CIR_Op<"dyn_cast"> {
+  let summary = "Perform dynamic cast on struct pointers";
+  let description = [{
+    The `cir.dyn_cast` operation models part of the semantics of the
+    `dynamic_cast` operator in C++. It can be used to perform 2 kinds of casts
+    on struct pointers:
+
+    - Down-cast, which casts a base class pointer to a derived class pointer;
+    - Side-cast, which casts a class pointer to a sibling class pointer.
+
+    The input of the operation must be a struct pointer. The result of the
+    operation is also a struct pointer.
+
+    An optional flag `refcast` can be used to further specify the semantics of
+    this operation. If the flag is present, the operation models dynamic casts
+    on references in C++; otherwise, the operation models dynamic casts on
+    pointers in C++. Specifically, the differences are:
+
+    - When the input pointer is a null pointer value:
+      - If the `refcast` flag is present, the operation will invoke undefined
+        behavior. A sanitizer check will be emitted if sanitizer is on.
+      - Otherwise, the operation will return a null pointer value as its result.
+    - When the runtime type check fails:
+      - If the `refcast` flag is present, the operation will throw a bad_cast
+        exception.
+      - Otherwise, the operation will return a null pointer value as its result.
+
+    The `info` argument gives detailed information about the requested dynamic
+    cast operation.
+  }];
+
+  let arguments = (ins StructPtr:$src,
+                       UnitAttr:$refcast,
+                       DynamicCastInfoAttr:$info);
+  let results = (outs StructPtr:$result);
+
+  let assemblyFormat = [{
+    `(` $src `:` type($src) (`,` `refcast` $refcast^)? `,` qualified($info) `)`
+    `->` type($result) attr-dict
+  }];
+
+  let extraClassDeclaration = [{
+    /// Determine whether this operation models reference casting in C++.
+    bool isRefcast() {
+      return getRefcast();
+    }
+  }];
+}
+
+//===----------------------------------------------------------------------===//
 // ObjSizeOp
 //===----------------------------------------------------------------------===//
 

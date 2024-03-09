@@ -704,6 +704,13 @@ public:
                                      mlir::cir::CastKind::ptr_to_bool, v);
   }
 
+  mlir::Value createDynCast(mlir::Location loc, mlir::Value src,
+                            mlir::cir::PointerType destType, bool isRefCast,
+                            mlir::cir::DynamicCastInfoAttr info) {
+    return create<mlir::cir::DynamicCastOp>(loc, destType, src, isRefCast,
+                                            info);
+  }
+
   cir::Address createBaseClassAddr(mlir::Location loc, cir::Address addr,
                                    mlir::Type destType) {
     if (destType == addr.getElementType())
