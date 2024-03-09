@@ -203,8 +203,9 @@ void CIRGenVTables::addVTableComponent(ConstantArrayBuilder &builder,
       //                             vtableHasLocalLinkage,
       //                             /*isCompleteDtor=*/false);
     } else {
-      assert(mlir::isa<mlir::cir::GlobalViewAttr>(rtti) &&
-             "expected GlobalViewAttr");
+      assert((mlir::isa<mlir::cir::GlobalViewAttr>(rtti) ||
+              mlir::isa<mlir::cir::ConstPtrAttr>(rtti)) &&
+             "expected GlobalViewAttr or ConstPtrAttr");
       return builder.add(rtti);
     }
 

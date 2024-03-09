@@ -144,6 +144,11 @@ public:
     return mlir::cir::BoolAttr::get(getContext(), getBoolTy(), state);
   }
 
+  mlir::TypedAttr getConstNullPtrAttr(mlir::Type t) {
+    assert(mlir::isa<mlir::cir::PointerType>(t) && "expected cir.ptr");
+    return mlir::cir::ConstPtrAttr::get(getContext(), t, 0);
+  }
+
   mlir::TypedAttr getConstPtrAttr(mlir::Type t, uint64_t v) {
     assert(mlir::isa<mlir::cir::PointerType>(t) && "expected cir.ptr");
     return mlir::cir::ConstPtrAttr::get(getContext(), t, v);
