@@ -875,9 +875,8 @@ public:
 
     switch (E->getCastKind()) {
     case CK_HLSLVectorTruncation:
-    case CK_ToUnion: {
+    case CK_ToUnion:
       llvm_unreachable("not implemented");
-    }
 
     case CK_AddressSpaceConversion: {
       llvm_unreachable("not implemented");
