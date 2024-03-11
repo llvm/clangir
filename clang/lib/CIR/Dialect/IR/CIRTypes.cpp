@@ -644,8 +644,7 @@ IntType::verify(llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
 
   if (width < IntType::minBitwidth() || width > IntType::maxBitwidth()) {
     emitError() << "IntType only supports widths from "
-      << IntType::minBitwidth()
-      << "up to " << IntType::maxBitwidth();
+                << IntType::minBitwidth() << "up to " << IntType::maxBitwidth();
     return mlir::failure();
   }
   if (width % 8 != 0) {
