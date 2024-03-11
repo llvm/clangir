@@ -428,9 +428,12 @@ LogicalResult CastOp::verify() {
     return success();
   }
   case cir::CastKind::bitcast: {
-    if (!srcType.dyn_cast<mlir::cir::PointerType>() ||
-        !resType.dyn_cast<mlir::cir::PointerType>())
-      return emitOpError() << "requires !cir.ptr type for source and result";
+    if ((!srcType.isa<mlir::cir::PointerType>() ||
+         !resType.isa<mlir::cir::PointerType>()) &&
+        (!srcType.isa<mlir::cir::VectorType>() ||
+         !resType.isa<mlir::cir::VectorType>()))
+      return emitOpError()
+             << "requires !cir.ptr or !cir.vector type for source and result";
     return success();
   }
   case cir::CastKind::floating: {
@@ -514,6 +517,28 @@ LogicalResult VecCreateOp::verify() {
                            << " doesn't match vector element type "
                            << ElementType;
     }
+  }
+  return success();
+}
+
+//===----------------------------------------------------------------------===//
+// VecTernaryOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult VecTernaryOp::verify() {
+  // Verify that the condition operand is a vector of integral type.
+  if (!getCond().getType().getEltType().isa<mlir::cir::IntType>()) {
+    return emitOpError() << "condition operand of type " << getCond().getType()
+                         << " must be a vector type of !cir.int";
+  }
+
+  // Verify that the condition operand has the same number of elements as the
+  // other operands.  (The automatic verification already checked that all
+  // operands are vector types and that the second and third operands are the
+  // same type.)
+  if (getCond().getType().getSize() != getVec1().getType().getSize()) {
+    return emitOpError() << "the number of elements in " << getCond().getType()
+                         << " and " << getVec1().getType() << " don't match";
   }
   return success();
 }

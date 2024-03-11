@@ -58,6 +58,8 @@ struct UnimplementedFeature {
   static bool pointerOverflowSanitizer() { return false; }
   static bool sanitizeDtor() { return false; }
   static bool sanitizeVLABound() { return false; }
+  static bool sanitizerBuiltin() { return false; }
+  static bool sanitizerReturn() { return false; }
 
   // ObjC
   static bool setObjCGCLValueClass() { return false; }
@@ -141,7 +143,6 @@ struct UnimplementedFeature {
   static bool armComputeVolatileBitfields() { return false; }
   static bool setCommonAttributes() { return false; }
   static bool insertBuiltinUnpredictable() { return false; }
-  static bool branchPredictionInfoBuiltin() { return false; }
   static bool createInvariantGroup() { return false; }
   static bool addAutoInitAnnotation() { return false; }
   static bool addHeapAllocSiteMetadata() { return false; }
@@ -160,7 +161,6 @@ struct UnimplementedFeature {
   static bool emitScalarRangeCheck() { return false; }
   static bool stmtExprEvaluation() { return false; }
   static bool setCallingConv() { return false; }
-  static bool unreachableOp() { return false; }
   static bool tryMarkNoThrow() { return false; }
   static bool indirectBranch() { return false; }
   static bool escapedLocals() { return false; }

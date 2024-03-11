@@ -986,6 +986,167 @@ def CmpOp : CIR_Op<"cmp", [Pure, SameTypeOperands]> {
 }
 
 //===----------------------------------------------------------------------===//
+// BitsOp
+//===----------------------------------------------------------------------===//
+
+class CIR_BitOp<string mnemonic, TypeConstraint inputTy>
+    : CIR_Op<mnemonic, [Pure]> {
+  let arguments = (ins inputTy:$input);
+  let results = (outs SInt32:$result);
+
+  let assemblyFormat = [{
+    `(` $input `:` type($input) `)` `:` type($result) attr-dict
+  }];
+}
+
+def BitClrsbOp : CIR_BitOp<"bit.clrsb", SIntOfWidths<[32, 64]>> {
+  let summary = "Get the number of leading redundant sign bits in the input";
+  let description = [{
+    Compute the number of leading redundant sign bits in the input integer.
+
+    The input integer must be a signed integer. The most significant bit of the
+    input integer is the sign bit. The `cir.bit.clrsb` operation returns the
+    number of redundant sign bits in the input, that is, the number of bits
+    following the most significant bit that are identical to it.
+
+    The bit width of the input integer must be either 32 or 64.
+
+    Examples:
+
+    ```mlir
+    !s32i = !cir.int<s, 32>
+
+    // %0 = 0xDEADBEEF, 0b1101_1110_1010_1101_1011_1110_1110_1111
+    %0 = cir.const(#cir.int<3735928559> : !s32i) : !s32i
+    // %1 will be 1 because there is 1 bit following the most significant bit
+    // that is identical to it.
+    %1 = cir.bit.clrsb(%0 : !s32i) : !s32i
+
+    // %2 = 1, 0b0000_0000_0000_0000_0000_0000_0000_0001
+    %2 = cir.const(#cir.int<1> : !s32i) : !s32i
+    // %3 will be 30
+    %3 = cir.bit.clrsb(%2 : !s32i) : !s32i
+    ```
+  }];
+}
+
+def BitClzOp : CIR_BitOp<"bit.clz", UIntOfWidths<[16, 32, 64]>> {
+  let summary = "Get the number of leading 0-bits in the input";
+  let description = [{
+    Compute the number of leading 0-bits in the input.
+
+    The input integer must be an unsigned integer. The `cir.bit.clz` operation
+    returns the number of consecutive 0-bits at the most significant bit
+    position in the input.
+
+    This operation invokes undefined behavior if the input value is 0.
+
+    Example:
+
+    ```mlir
+    !s32i = !cir.int<s, 32>
+    !u32i = !cir.int<u, 32>
+
+    // %0 = 0b0000_0000_0000_0000_0000_0000_0000_1000
+    %0 = cir.const(#cir.int<8> : !u32i) : !u32i
+    // %1 will be 28
+    %1 = cir.bit.clz(%0 : !u32i) : !s32i
+    ```
+  }];
+}
+
+def BitCtzOp : CIR_BitOp<"bit.ctz", UIntOfWidths<[16, 32, 64]>> {
+  let summary = "Get the number of trailing 0-bits in the input";
+  let description = [{
+    Compute the number of trailing 0-bits in the input.
+
+    The input integer must be an unsigned integer. The `cir.bit.ctz` operation
+    returns the number of consecutive 0-bits at the least significant bit
+    position in the input.
+
+    This operation invokes undefined behavior if the input value is 0.
+
+    Example:
+
+    ```mlir
+    !s32i = !cir.int<s, 32>
+    !u32i = !cir.int<u, 32>
+
+    // %0 = 0b1000
+    %0 = cir.const(#cir.int<8> : !u32i) : !u32i
+    // %1 will be 3
+    %1 = cir.bit.ctz(%0 : !u32i) : !s32i
+    ```
+  }];
+}
+
+def BitFfsOp : CIR_BitOp<"bit.ffs", SIntOfWidths<[32, 64]>> {
+  let summary = "Get the position of the least significant 1-bit of input";
+  let description = [{
+    Compute the position of the least significant 1-bit of the input.
+
+    The input integer must be a signed integer. The `cir.bit.ffs` operation
+    returns one plus the index of the least significant 1-bit of the input
+    signed integer. As a special case, if the input integer is 0, `cir.bit.ffs`
+    returns 0.
+
+    Example:
+
+    ```mlir
+    !s32i = !cir.int<s, 32>
+
+    // %0 = 0x0010_1000
+    %0 = cir.const(#cir.int<40> : !s32i) : !s32i
+    // #1 will be 4 since the 4th least significant bit is 1.
+    %1 = cir.bit.ffs(%0 : !s32i) : !s32i
+    ```
+  }];
+}
+
+def BitParityOp : CIR_BitOp<"bit.parity", UIntOfWidths<[32, 64]>> {
+  let summary = "Get the parity of input";
+  let description = [{
+    Compute the parity of the input. The parity of an integer is the number of
+    1-bits in it modulo 2.
+
+    The input must be an unsigned integer.
+
+    Example:
+
+    ```mlir
+    !s32i = !cir.int<s, 32>
+    !u32i = !cir.int<u, 32>
+
+    // %0 = 0x0110_1000
+    %0 = cir.const(#cir.int<104> : !u32i) : !s32i
+    // %1 will be 1 since there are 3 1-bits in %0
+    %1 = cir.bit.parity(%0 : !u32i) : !s32i
+    ```
+  }];
+}
+
+def BitPopcountOp : CIR_BitOp<"bit.popcount", UIntOfWidths<[16, 32, 64]>> {
+  let summary = "Get the number of 1-bits in input";
+  let description = [{
+    Compute the number of 1-bits in the input.
+
+    The input must be an unsigned integer.
+
+    Example:
+
+    ```mlir
+    !s32i = !cir.int<s, 32>
+    !u32i = !cir.int<u, 32>
+
+    // %0 = 0x0110_1000
+    %0 = cir.const(#cir.int<104> : !u32i) : !s32i
+    // %1 will be 3 since there are 3 1-bits in %0
+    %1 = cir.bit.popcount(%0 : !u32i) : !s32i
+    ```
+  }];
+}
+
+//===----------------------------------------------------------------------===//
 // SwitchOp
 //===----------------------------------------------------------------------===//
 
@@ -1926,6 +2087,36 @@ def VecCmpOp : CIR_Op<"vec.cmp", [Pure, SameTypeOperands]> {
 }
 
 //===----------------------------------------------------------------------===//
+// VecTernary
+//===----------------------------------------------------------------------===//
+
+def VecTernaryOp : CIR_Op<"vec.ternary",
+                   [Pure, AllTypesMatch<["result", "vec1", "vec2"]>]> {
+  let summary = "The `cond ? a : b` ternary operator for vector types";
+  let description = [{
+    The `cir.vec.ternary` operation represents the C/C++ ternary operator,
+    `?:`, for vector types, which does a `select` on individual elements of the
+    vectors. Unlike a regular `?:` operator, there is no short circuiting. All
+    three arguments are always evaluated.  Because there is no short
+    circuiting, there are no regions in this operation, unlike cir.ternary.
+
+    The first argument is a vector of integral type. The second and third
+    arguments are vectors of the same type and have the same number of elements
+    as the first argument.
+
+    The result is a vector of the same type as the second and third arguments.
+    Each element of the result is `(bool)a[n] ? b[n] : c[n]`.
+  }];
+  let arguments = (ins CIR_VectorType:$cond, CIR_VectorType:$vec1,
+		       CIR_VectorType:$vec2);
+  let results = (outs CIR_VectorType:$result);
+  let assemblyFormat = [{
+    `(` $cond `,` $vec1 `,` $vec2 `)` `:` type($cond) `,` type($vec1) attr-dict
+  }];
+  let hasVerifier = 1;
+}
+
+//===----------------------------------------------------------------------===//
 // BaseClassAddr
 //===----------------------------------------------------------------------===//
 
@@ -2692,6 +2883,31 @@ def SqrtOp : UnaryFPToFPBuiltinOp<"sqrt">;
 def TruncOp : UnaryFPToFPBuiltinOp<"trunc">;
 
 //===----------------------------------------------------------------------===//
+// Branch Probability Operations
+//===----------------------------------------------------------------------===//
+
+def ExpectOp : CIR_Op<"expect",
+  [Pure, AllTypesMatch<["result", "val", "expected"]>]> {
+  let summary =
+    "Compute whether expression is likely to evaluate to a specified value";
+  let description = [{
+    Provides __builtin_expect functionality in Clang IR.
+
+    If $prob is not specified, then behaviour is same as __builtin_expect.
+    If specified, then behaviour is same as __builtin_expect_with_probability,
+    where probability = $prob.
+  }];
+
+  let arguments = (ins CIR_IntType:$val,
+                       CIR_IntType:$expected,
+                       OptionalAttr<F64Attr>:$prob);
+  let results = (outs CIR_IntType:$result);
+  let assemblyFormat = [{
+    `(` $val`,` $expected (`,` $prob^)? `)` `:` type($val) attr-dict
+  }];
+}
+
+//===----------------------------------------------------------------------===//
 // Variadic Operations
 //===----------------------------------------------------------------------===//
 
@@ -2935,6 +3151,23 @@ def UnreachableOp : CIR_Op<"unreachable", [Terminator]> {
     program exhibits undefined behavior immediately. This operation is useful
     in cases where the unreachability of a program point needs to be explicitly
     marked.
+  }];
+
+  let assemblyFormat = "attr-dict";
+}
+
+//===----------------------------------------------------------------------===//
+// TrapOp
+//===----------------------------------------------------------------------===//
+
+def TrapOp : CIR_Op<"trap", [Terminator]> {
+  let summary = "Exit the program abnormally";
+  let description = [{
+    The cir.trap operation causes the program to exit abnormally. The
+    implementations may implement this operation with different mechanisms. For
+    example, an implementation may implement this operation by calling abort,
+    while another implementation may implement this operation by executing an
+    illegal instruction.
   }];
 
   let assemblyFormat = "attr-dict";
