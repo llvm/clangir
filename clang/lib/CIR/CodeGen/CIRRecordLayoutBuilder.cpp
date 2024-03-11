@@ -151,9 +151,12 @@ struct CIRRecordLowering final {
                                            numberOfChars.getQuantity());
   }
 
+  // This is different from LLVM traditional codegen because CIRGen uses arrays
+  // of bytes instead of arbitrary-sized integers. This is important for packed
+  // structures support.
   mlir::Type getBitfieldStorageType(unsigned numBits) {
     unsigned alignedBits = llvm::alignTo(numBits, astContext.getCharWidth());
-    if (builder.isCIRIntTypeSize(alignedBits)) {
+    if (mlir::cir::IntType::isValidBitwidth(alignedBits)) {
       return builder.getUIntNTy(alignedBits);
     } else {
       mlir::Type type = getCharType();
