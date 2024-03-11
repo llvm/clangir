@@ -264,7 +264,6 @@ LValue CIRGenFunction::buildLValueForBitField(LValue base,
     llvm_unreachable("NYI");
   }
 
-  const unsigned SS = useVolatile ? info.VolatileStorageSize : info.StorageSize;
   Address Addr = getAddrOfBitFieldStorage(base, field, info.StorageType, Idx);
 
   auto loc = getLoc(field->getLocation());
