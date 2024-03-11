@@ -11,17 +11,17 @@ void empty2() {
   __asm__ volatile("xyz" : : : );
 }
 
-//CHECK: cir.asm(x86_att, {"" "=*m,*m,~{dirflag},~{fpsr},~{flags}"}) operand_attrs = [#cir.optnone, {elementtype = !s32i}, {elementtype = !s32i}] side_effects %0, %0 : (!cir.ptr<!s32i>, !cir.ptr<!s32i>) -> ()
+//CHECK: cir.asm(x86_att, {"" "=*m,*m,~{dirflag},~{fpsr},~{flags}"}) operand_attrs = [#cir.optnone, !s32i, !s32i] side_effects %0, %0 : (!cir.ptr<!s32i>, !cir.ptr<!s32i>) -> ()
 void t1(int x) {
   __asm__ volatile("" : "+m"(x));
 }
 
-//CHECK: cir.asm(x86_att, {"" "*m,~{dirflag},~{fpsr},~{flags}"}) operand_attrs = [#cir.optnone, {elementtype = !s32i}] side_effects %0 : (!cir.ptr<!s32i>) -> ()
+//CHECK: cir.asm(x86_att, {"" "*m,~{dirflag},~{fpsr},~{flags}"}) operand_attrs = [#cir.optnone, !s32i] side_effects %0 : (!cir.ptr<!s32i>) -> ()
 void t2(int x) {
   __asm__ volatile("" : : "m"(x));
 }
 
-//CHECK: cir.asm(x86_att, {"" "=*m,~{dirflag},~{fpsr},~{flags}"}) operand_attrs = [#cir.optnone, {elementtype = !s32i}] side_effects %0 : (!cir.ptr<!s32i>) -> ()
+//CHECK: cir.asm(x86_att, {"" "=*m,~{dirflag},~{fpsr},~{flags}"}) operand_attrs = [#cir.optnone, !s32i] side_effects %0 : (!cir.ptr<!s32i>) -> ()
 void t3(int x) {
   __asm__ volatile("" : "=m"(x));
 }

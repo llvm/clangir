@@ -3,20 +3,11 @@
 
 #include "CIRGenFunction.h"
 #include "TargetInfo.h"
+#include "UnimplementedFeatureGuarding.h"
 
 using namespace cir;
 using namespace clang;
 using namespace mlir::cir;
-
-// The unimplemented features are too local to place them into the
-// UnimplementedFeatureGuarding.h
-struct AsmUnimplemented {
-  static bool Goto() { return false; }
-  static bool LLVMassume() { return false; }
-  static bool unwindClobber() { return false; }
-  static bool memoryEffects() { return false; }
-  static bool vectorType() { return UnimplementedFeature::cirVectorType(); }
-};
 
 static bool isAggregateType(mlir::Type typ) {
   return isa<mlir::cir::StructType, mlir::cir::ArrayType>(typ);
@@ -387,7 +378,7 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
       }
 
       // Update largest vector width for any vector types.
-      assert(!AsmUnimplemented::vectorType());
+      assert(!UnimplementedFeature::asm_vector_type());
     } else {
       Address DestAddr = Dest.getAddress();
 
@@ -524,18 +515,17 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
       HasSideEffect, inferFlavor(CGM, S), mlir::ArrayAttr());
 
   if (false /*IsGCCAsmGoto*/) {
-    assert(!AsmUnimplemented::Goto());
+    assert(!UnimplementedFeature::asm_goto());
   } else if (HasUnwindClobber) {
-    assert(!AsmUnimplemented::unwindClobber());
+    assert(!UnimplementedFeature::asm_unwind_clobber());
   } else {
-    assert(!AsmUnimplemented::memoryEffects());
+    assert(!UnimplementedFeature::asm_memory_effects());
 
     mlir::Value result;
     if (IA.getNumResults())
       result = IA.getResult(0);
 
     std::vector<mlir::Attribute> operandAttrs;
-    auto attrName = mlir::cir::InlineAsmOp::getElementTypeAttrName();
 
     // this is for the lowering to LLVM from LLVm dialect. Otherwise, if we
     // don't have the result (i.e. void type as a result of operation), the
@@ -545,12 +535,8 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
       operandAttrs.push_back(OptNoneAttr::get(builder.getContext()));
 
     for (auto typ : ArgElemTypes) {
-      std::vector<mlir::NamedAttribute> attrs;
       if (typ) {
-        auto typAttr = mlir::TypeAttr::get(typ);
-        attrs.push_back(builder.getNamedAttr(attrName, typAttr));
-        auto dict = builder.getDictionaryAttr(attrs);
-        operandAttrs.push_back(dict);
+        operandAttrs.push_back(mlir::TypeAttr::get(typ));
       } else {
         // We need to add an attribute for every arg since later, during
         // the lowering to LLVM IR the attributes will be assigned to the

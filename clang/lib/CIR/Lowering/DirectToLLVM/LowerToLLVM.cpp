@@ -2336,7 +2336,6 @@ class CIRInlineAsmOpLowering
                          : mlir::LLVM::AsmDialect::AD_Intel;
 
     std::vector<mlir::Attribute> opAttrs;
-    auto cirAttrName = mlir::cir::InlineAsmOp::getElementTypeAttrName();
     auto llvmAttrName = mlir::LLVM::InlineAsmOp::getElementTypeAttrName();
 
     if (auto operandAttrs = op.getOperandAttrs()) {
@@ -2346,8 +2345,7 @@ class CIRInlineAsmOpLowering
           continue;
         }
 
-        mlir::DictionaryAttr dict = cast<mlir::DictionaryAttr>(attr);
-        mlir::TypeAttr tAttr = cast<mlir::TypeAttr>(dict.get(cirAttrName));
+        mlir::TypeAttr tAttr = cast<mlir::TypeAttr>(attr);
         std::vector<mlir::NamedAttribute> attrs;
         auto typAttr = mlir::TypeAttr::get(
             getTypeConverter()->convertType(tAttr.getValue()));

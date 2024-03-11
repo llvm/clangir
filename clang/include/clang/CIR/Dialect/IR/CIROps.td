@@ -3093,6 +3093,10 @@ def CIR_InlineAsmOp : CIR_Op<"asm", [RecursiveMemoryEffects]> {
     - the output variable index referenced by the input operands.
     - the index of early-clobber operand
 
+    Operand attributes is a storage of attributes, where each element corresponds
+    to the operand with the same index. The first index relates to the operation
+    result.
+
     Example:
     ```C++
     __asm__("foo" : : : );
@@ -3133,11 +3137,6 @@ def CIR_InlineAsmOp : CIR_Op<"asm", [RecursiveMemoryEffects]> {
     operands `:` functional-type(operands, results)
    }];
 
-   let extraClassDeclaration = [{
-    static StringRef getElementTypeAttrName() {
-      return "elementtype";
-    }
-  }];
 }
 
 //===----------------------------------------------------------------------===//
