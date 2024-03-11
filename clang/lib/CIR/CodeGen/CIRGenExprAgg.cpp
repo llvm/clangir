@@ -600,6 +600,8 @@ bool AggExprEmitter::TypeRequiresGCollection(QualType T) {
 /// TODO(cir): this can be shared with LLVM codegen.
 static bool castPreservesZero(const CastExpr *CE) {
   switch (CE->getCastKind()) {
+  case CK_HLSLVectorTruncation:
+    llvm_unreachable("NYI");
     // No-ops.
   case CK_NoOp:
   case CK_UserDefinedConversion:

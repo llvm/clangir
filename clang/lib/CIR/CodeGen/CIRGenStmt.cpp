@@ -189,9 +189,7 @@ mlir::LogicalResult CIRGenFunction::buildStmt(const Stmt *S,
   case Stmt::SEHTryStmtClass:
   case Stmt::OMPMetaDirectiveClass:
   case Stmt::OMPCanonicalLoopClass:
-  case Stmt::OMPErrorDirectiveClass:
   case Stmt::OMPSimdDirectiveClass:
-  case Stmt::OMPScopeDirectiveClass:
   case Stmt::OMPTileDirectiveClass:
   case Stmt::OMPUnrollDirectiveClass:
   case Stmt::OMPForDirectiveClass:
