@@ -93,6 +93,11 @@ public:
     return Alignment;
   }
 
+  /// Return the type of the pointer value.
+  mlir::cir::PointerType getType() const {
+    return mlir::cast<mlir::cir::PointerType>(getPointer().getType());
+  }
+
   mlir::Type getElementType() const {
     assert(isValid());
     return ElementType;
