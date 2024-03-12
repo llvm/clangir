@@ -195,6 +195,7 @@ public:
   void VisitDeclRefExpr(DeclRefExpr *E) { buildAggLoadOfLValue(E); }
   void VisitMemberExpr(MemberExpr *E) { buildAggLoadOfLValue(E); }
   void VisitUnaryDeref(UnaryOperator *E) { buildAggLoadOfLValue(E); }
+  void VisitCompoundLiteralExpr(CompoundLiteralExpr *E);
   void VisitStringLiteral(StringLiteral *E) { llvm_unreachable("NYI"); }
   void VisitCompoundLIteralExpr(CompoundLiteralExpr *E) {
     llvm_unreachable("NYI");
@@ -879,6 +880,29 @@ void AggExprEmitter::VisitLambdaExpr(LambdaExpr *E) {
   // Destroy the placeholder if we made one.
   if (CleanupDominator)
     CleanupDominator->erase();
+}
+
+void AggExprEmitter::VisitCompoundLiteralExpr(CompoundLiteralExpr *E) {
+  if (Dest.isPotentiallyAliased() && E->getType().isPODType(CGF.getContext())) {
+    // For a POD type, just emit a load of the lvalue + a copy, because our
+    // compound literal might alias the destination.
+    buildAggLoadOfLValue(E);
+    return;
+  }
+
+  AggValueSlot Slot = EnsureSlot(CGF.getLoc(E->getSourceRange()), E->getType());
+
+  // Block-scope compound literals are destroyed at the end of the enclosing
+  // scope in C.
+  bool Destruct =
+      !CGF.getLangOpts().CPlusPlus && !Slot.isExternallyDestructed();
+  if (Destruct)
+    Slot.setExternallyDestructed();
+
+  CGF.buildAggExpr(E->getInitializer(), Slot);
+
+  if (Destruct && E->getType().isDestructedType())
+    llvm_unreachable("NYI");
 }
 
 void AggExprEmitter::VisitCastExpr(CastExpr *E) {
