@@ -1680,3 +1680,53 @@ void CIRGenFunction::buildVariablyModifiedType(QualType type) {
     }
   } while (type->isVariablyModifiedType());
 }
+
+/// Computes the length of an array in elements, as well as the base
+/// element type and a properly-typed first element pointer.
+mlir::Value
+CIRGenFunction::buildArrayLength(const clang::ArrayType *origArrayType,
+                                 QualType &baseType, Address &addr) {
+  const auto *arrayType = origArrayType;
+
+  // If it's a VLA, we have to load the stored size.  Note that
+  // this is the size of the VLA in bytes, not its size in elements.
+  mlir::Value numVLAElements{};
+  if (isa<VariableArrayType>(arrayType)) {
+    llvm_unreachable("NYI");
+  }
+
+  uint64_t countFromCLAs = 1;
+  QualType eltType;
+
+  // llvm::ArrayType *llvmArrayType =
+  //     dyn_cast<llvm::ArrayType>(addr.getElementType());
+  auto cirArrayType = mlir::dyn_cast<mlir::cir::ArrayType>(addr.getElementType());
+
+  while (cirArrayType) {
+    assert(isa<ConstantArrayType>(arrayType));
+    countFromCLAs *= cirArrayType.getSize();
+    eltType = arrayType->getElementType();
+
+    cirArrayType = mlir::dyn_cast<mlir::cir::ArrayType>(cirArrayType.getEltType());
+
+    arrayType = getContext().getAsArrayType(arrayType->getElementType());
+    assert((!cirArrayType || arrayType) &&
+           "CIR and Clang types are out-of-synch");
+  }
+
+  if (arrayType) {
+    // From this point onwards, the Clang array type has been emitted
+    // as some other type (probably a packed struct). Compute the array
+    // size, and just emit the 'begin' expression as a bitcast.
+    llvm_unreachable("NYI");
+  }
+
+  baseType = eltType;
+  auto numElements = builder.getConstInt(*currSrcLoc, SizeTy, countFromCLAs);
+
+  // If we had any VLA dimensions, factor them in.
+  if (numVLAElements)
+    llvm_unreachable("NYI");
+
+  return numElements;
+}
