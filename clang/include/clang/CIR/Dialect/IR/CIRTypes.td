@@ -53,6 +53,18 @@ def CIR_IntType : CIR_Type<"Int", "int",
     std::string getAlias() const {
       return (isSigned() ? 's' : 'u') + std::to_string(getWidth()) + 'i';
     };
+
+    /// Returns a minimum bitwidth of cir::IntType
+    static unsigned minBitwidth() { return 8; }
+    /// Returns a maximum bitwidth of cir::IntType
+    static unsigned maxBitwidth() { return 64; }
+
+    /// Returns true if cir::IntType can be constructed from the provided bitwidth
+    static bool isValidBitwidth(unsigned width) {
+      return width >= minBitwidth()
+        && width <= maxBitwidth()
+        && llvm::isPowerOf2_32(width);
+    }
   }];
   let genVerifyDecl = 1;
 }
@@ -96,6 +108,36 @@ def SInt8  : SInt<8>;
 def SInt16 : SInt<16>;
 def SInt32 : SInt<32>;
 def SInt64 : SInt<64>;
+
+// A type constraint that allows unsigned integer type whose width is among the
+// specified list of possible widths.
+class UIntOfWidths<list<int> widths>
+  : Type<And<[
+            CPred<"$_self.isa<::mlir::cir::IntType>()">,
+            CPred<"$_self.cast<::mlir::cir::IntType>().isUnsigned()">,
+            Or<!foreach(
+              w, widths,
+              CPred<"$_self.cast<::mlir::cir::IntType>().getWidth() == " # w>
+            )>
+        ]>,
+        !interleave(!foreach(w, widths, w # "-bit"), " or ") # " uint",
+        "::mlir::cir::IntType"
+    > {}
+
+// A type constraint that allows unsigned integer type whose width is among the
+// specified list of possible widths.
+class SIntOfWidths<list<int> widths>
+  : Type<And<[
+            CPred<"$_self.isa<::mlir::cir::IntType>()">,
+            CPred<"$_self.cast<::mlir::cir::IntType>().isSigned()">,
+            Or<!foreach(
+              w, widths,
+              CPred<"$_self.cast<::mlir::cir::IntType>().getWidth() == " # w>
+            )>
+        ]>,
+        !interleave(!foreach(w, widths, w # "-bit"), " or ") # " sint",
+        "::mlir::cir::IntType"
+    > {}
 
 //===----------------------------------------------------------------------===//
 // FloatType
@@ -368,6 +410,15 @@ def ExceptionInfoPtrPtr : Type<
       "mlir::cir::PointerType::get($_builder.getContext(),"
       "mlir::cir::PointerType::get($_builder.getContext(),"
       "mlir::cir::ExceptionInfoType::get($_builder.getContext())))"> {
+}
+
+// Vector of integral type
+def IntegerVector : Type<
+    And<[
+      CPred<"$_self.isa<::mlir::cir::VectorType>()">,
+      CPred<"$_self.cast<::mlir::cir::VectorType>()"
+            ".getEltType().isa<::mlir::cir::IntType>()">,
+    ]>, "!cir.vector of !cir.int"> {
 }
 
 //===----------------------------------------------------------------------===//

@@ -226,19 +226,15 @@ static bool isAAPCS(const TargetInfo &TargetInfo) {
 
 Address CIRGenFunction::getAddrOfBitFieldStorage(LValue base,
                                                  const FieldDecl *field,
-                                                 unsigned index,
-                                                 unsigned size) {
+                                                 mlir::Type fieldType,
+                                                 unsigned index) {
   if (index == 0)
     return base.getAddress();
-
   auto loc = getLoc(field->getLocation());
-  auto fieldType = builder.getUIntNTy(size);
-
   auto fieldPtr =
       mlir::cir::PointerType::get(getBuilder().getContext(), fieldType);
   auto sea = getBuilder().createGetMember(loc, fieldPtr, base.getPointer(),
                                           field->getName(), index);
-
   return Address(sea, CharUnits::One());
 }
 
@@ -268,14 +264,11 @@ LValue CIRGenFunction::buildLValueForBitField(LValue base,
     llvm_unreachable("NYI");
   }
 
-  const unsigned SS = useVolatile ? info.VolatileStorageSize : info.StorageSize;
-  Address Addr = getAddrOfBitFieldStorage(base, field, Idx, SS);
-  // Get the access type.
-  mlir::Type FieldIntTy = builder.getUIntNTy(SS);
+  Address Addr = getAddrOfBitFieldStorage(base, field, info.StorageType, Idx);
 
   auto loc = getLoc(field->getLocation());
-  if (Addr.getElementType() != FieldIntTy)
-    Addr = builder.createElementBitCast(loc, Addr, FieldIntTy);
+  if (Addr.getElementType() != info.StorageType)
+    Addr = builder.createElementBitCast(loc, Addr, info.StorageType);
 
   QualType fieldType =
       field->getType().withCVRQualifiers(base.getVRQualifiers());
@@ -1650,7 +1643,7 @@ LValue CIRGenFunction::buildCastLValue(const CastExpr *E) {
   case CK_CPointerToObjCPointerCast:
   case CK_BlockPointerToObjCPointerCast:
   case CK_LValueToRValue:
-    assert(0 && "NYI");
+    return buildLValue(E->getSubExpr());
 
   case CK_NoOp: {
     // CK_NoOp can model a qualification conversion, which can remove an array
@@ -2247,7 +2240,6 @@ LValue CIRGenFunction::buildLValue(const Expr *E) {
     return buildMemberExpr(cast<MemberExpr>(E));
   case Expr::PredefinedExprClass:
     return buildPredefinedLValue(cast<PredefinedExpr>(E));
-  case Expr::CStyleCastExprClass:
   case Expr::CXXFunctionalCastExprClass:
   case Expr::CXXReinterpretCastExprClass:
   case Expr::CXXConstCastExprClass:
@@ -2256,6 +2248,7 @@ LValue CIRGenFunction::buildLValue(const Expr *E) {
     emitError(getLoc(E->getExprLoc()), "l-value not implemented for '")
         << E->getStmtClassName() << "'";
     assert(0 && "Use buildCastLValue below, remove me when adding testcase");
+  case Expr::CStyleCastExprClass:
   case Expr::CXXStaticCastExprClass:
   case Expr::CXXDynamicCastExprClass:
   case Expr::ImplicitCastExprClass:

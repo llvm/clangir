@@ -9,6 +9,7 @@
 // This file implements lowering of CIR operations to LLVMIR.
 //
 //===----------------------------------------------------------------------===//
+#include "LoweringHelpers.h"
 #include "mlir/Conversion/AffineToStandard/AffineToStandard.h"
 #include "mlir/Conversion/ControlFlowToLLVM/ControlFlowToLLVM.h"
 #include "mlir/Conversion/FuncToLLVM/ConvertFuncToLLVM.h"
@@ -795,9 +796,27 @@ public:
     }
 
     rewriter.setInsertionPointToEnd(currentBlock);
-    auto trunc = rewriter.create<mlir::LLVM::TruncOp>(loc, rewriter.getI1Type(),
-                                                      adaptor.getCondition());
-    rewriter.create<mlir::LLVM::CondBrOp>(loc, trunc.getRes(), thenBeforeBody,
+
+    // FIXME: CIR always lowers !cir.bool to i8 type.
+    // In this reason CIR CodeGen often emits the redundant zext + trunc
+    // sequence that prevents lowering of llvm.expect in
+    // LowerExpectIntrinsicPass.
+    // We should fix that in a more appropriate way. But as a temporary solution
+    // just avoid the redundant casts here.
+    mlir::Value condition;
+    auto zext =
+        dyn_cast<mlir::LLVM::ZExtOp>(adaptor.getCondition().getDefiningOp());
+    if (zext && zext->getOperand(0).getType() == rewriter.getI1Type()) {
+      condition = zext->getOperand(0);
+      if (zext->use_empty())
+        rewriter.eraseOp(zext);
+    } else {
+      auto trunc = rewriter.create<mlir::LLVM::TruncOp>(
+          loc, rewriter.getI1Type(), adaptor.getCondition());
+      condition = trunc.getRes();
+    }
+
+    rewriter.create<mlir::LLVM::CondBrOp>(loc, condition, thenBeforeBody,
                                           elseBeforeBody);
 
     if (!emptyElse) {
@@ -1297,6 +1316,62 @@ public:
     }
     rewriter.replaceOpWithNewOp<mlir::LLVM::SExtOp>(
         op, typeConverter->convertType(op.getType()), bitResult);
+    return mlir::success();
+  }
+};
+
+class CIRVectorSplatLowering
+    : public mlir::OpConversionPattern<mlir::cir::VecSplatOp> {
+public:
+  using OpConversionPattern<mlir::cir::VecSplatOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::VecSplatOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    // Vector splat can be implemented with an `insertelement` and a
+    // `shufflevector`, which is better than an `insertelement` for each
+    // element in vector.  Start with an undef vector.  Insert the value into
+    // the first element.  Then use a `shufflevector` with a mask of all 0 to
+    // fill out the entire vector with that value.
+    auto vecTy = op.getType().dyn_cast<mlir::cir::VectorType>();
+    assert(vecTy && "result type of cir.vec.splat op is not VectorType");
+    auto llvmTy = typeConverter->convertType(vecTy);
+    auto loc = op.getLoc();
+    mlir::Value undef = rewriter.create<mlir::LLVM::UndefOp>(loc, llvmTy);
+    mlir::Value indexValue =
+        rewriter.create<mlir::LLVM::ConstantOp>(loc, rewriter.getI64Type(), 0);
+    mlir::Value elementValue = adaptor.getValue();
+    mlir::Value oneElement = rewriter.create<mlir::LLVM::InsertElementOp>(
+        loc, undef, elementValue, indexValue);
+    SmallVector<int32_t> zeroValues(vecTy.getSize(), 0);
+    mlir::Value shuffled = rewriter.create<mlir::LLVM::ShuffleVectorOp>(
+        loc, oneElement, undef, zeroValues);
+    rewriter.replaceOp(op, shuffled);
+    return mlir::success();
+  }
+};
+
+class CIRVectorTernaryLowering
+    : public mlir::OpConversionPattern<mlir::cir::VecTernaryOp> {
+public:
+  using OpConversionPattern<mlir::cir::VecTernaryOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::VecTernaryOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    assert(op.getType().isa<mlir::cir::VectorType>() &&
+           op.getCond().getType().isa<mlir::cir::VectorType>() &&
+           op.getVec1().getType().isa<mlir::cir::VectorType>() &&
+           op.getVec2().getType().isa<mlir::cir::VectorType>() &&
+           "Vector ternary op with non-vector type");
+    // Convert `cond` into a vector of i1, then use that in a `select` op.
+    mlir::Value bitVec = rewriter.create<mlir::LLVM::ICmpOp>(
+        op.getLoc(), mlir::LLVM::ICmpPredicate::ne, adaptor.getCond(),
+        rewriter.create<mlir::LLVM::ZeroOp>(
+            op.getCond().getLoc(),
+            typeConverter->convertType(op.getCond().getType())));
+    rewriter.replaceOpWithNewOp<mlir::LLVM::SelectOp>(
+        op, bitVec, adaptor.getVec1(), adaptor.getVec2());
     return mlir::success();
   }
 };
@@ -2055,6 +2130,187 @@ public:
   }
 };
 
+static mlir::Value createLLVMBitOp(mlir::Location loc,
+                                   const llvm::Twine &llvmIntrinBaseName,
+                                   mlir::Type resultTy, mlir::Value operand,
+                                   std::optional<bool> poisonZeroInputFlag,
+                                   mlir::ConversionPatternRewriter &rewriter) {
+  auto operandIntTy = operand.getType().cast<mlir::IntegerType>();
+  auto resultIntTy = resultTy.cast<mlir::IntegerType>();
+
+  std::string llvmIntrinName =
+      llvmIntrinBaseName.concat(".i")
+          .concat(std::to_string(operandIntTy.getWidth()))
+          .str();
+  auto llvmIntrinNameAttr =
+      mlir::StringAttr::get(rewriter.getContext(), llvmIntrinName);
+
+  // Note that LLVM intrinsic calls to bit intrinsics have the same type as the
+  // operand.
+  mlir::LLVM::CallIntrinsicOp op;
+  if (poisonZeroInputFlag.has_value()) {
+    auto poisonZeroInputValue = rewriter.create<mlir::LLVM::ConstantOp>(
+        loc, rewriter.getI1Type(), static_cast<int64_t>(*poisonZeroInputFlag));
+    op = rewriter.create<mlir::LLVM::CallIntrinsicOp>(
+        loc, operand.getType(), llvmIntrinNameAttr,
+        mlir::ValueRange{operand, poisonZeroInputValue});
+  } else {
+    op = rewriter.create<mlir::LLVM::CallIntrinsicOp>(
+        loc, operand.getType(), llvmIntrinNameAttr, operand);
+  }
+
+  mlir::Value result = op->getResult(0);
+  if (operandIntTy.getWidth() > resultIntTy.getWidth()) {
+    result = rewriter.create<mlir::LLVM::TruncOp>(loc, resultTy, result);
+  } else if (operandIntTy.getWidth() < resultIntTy.getWidth()) {
+    result = rewriter.create<mlir::LLVM::ZExtOp>(loc, resultTy, result);
+  }
+
+  return result;
+}
+
+class CIRBitClrsbOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::BitClrsbOp> {
+public:
+  using OpConversionPattern<mlir::cir::BitClrsbOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::BitClrsbOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto zero = rewriter.create<mlir::LLVM::ConstantOp>(
+        op.getLoc(), adaptor.getInput().getType(), 0);
+    auto isNeg = rewriter.create<mlir::LLVM::ICmpOp>(
+        op.getLoc(),
+        mlir::LLVM::ICmpPredicateAttr::get(rewriter.getContext(),
+                                           mlir::LLVM::ICmpPredicate::slt),
+        adaptor.getInput(), zero);
+
+    auto negOne = rewriter.create<mlir::LLVM::ConstantOp>(
+        op.getLoc(), adaptor.getInput().getType(), -1);
+    auto flipped = rewriter.create<mlir::LLVM::XOrOp>(
+        op.getLoc(), adaptor.getInput(), negOne);
+
+    auto select = rewriter.create<mlir::LLVM::SelectOp>(
+        op.getLoc(), isNeg, flipped, adaptor.getInput());
+
+    auto resTy = getTypeConverter()->convertType(op.getType());
+    auto clz = createLLVMBitOp(op.getLoc(), "llvm.ctlz", resTy, select,
+                               /*poisonZeroInputFlag=*/false, rewriter);
+
+    auto one = rewriter.create<mlir::LLVM::ConstantOp>(op.getLoc(), resTy, 1);
+    auto res = rewriter.create<mlir::LLVM::SubOp>(op.getLoc(), clz, one);
+    rewriter.replaceOp(op, res);
+
+    return mlir::LogicalResult::success();
+  }
+};
+
+class CIRBitClzOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::BitClzOp> {
+public:
+  using OpConversionPattern<mlir::cir::BitClzOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::BitClzOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto resTy = getTypeConverter()->convertType(op.getType());
+    auto llvmOp =
+        createLLVMBitOp(op.getLoc(), "llvm.ctlz", resTy, adaptor.getInput(),
+                        /*poisonZeroInputFlag=*/true, rewriter);
+    rewriter.replaceOp(op, llvmOp);
+    return mlir::LogicalResult::success();
+  }
+};
+
+class CIRBitCtzOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::BitCtzOp> {
+public:
+  using OpConversionPattern<mlir::cir::BitCtzOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::BitCtzOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto resTy = getTypeConverter()->convertType(op.getType());
+    auto llvmOp =
+        createLLVMBitOp(op.getLoc(), "llvm.cttz", resTy, adaptor.getInput(),
+                        /*poisonZeroInputFlag=*/true, rewriter);
+    rewriter.replaceOp(op, llvmOp);
+    return mlir::LogicalResult::success();
+  }
+};
+
+class CIRBitFfsOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::BitFfsOp> {
+public:
+  using OpConversionPattern<mlir::cir::BitFfsOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::BitFfsOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto resTy = getTypeConverter()->convertType(op.getType());
+    auto ctz =
+        createLLVMBitOp(op.getLoc(), "llvm.cttz", resTy, adaptor.getInput(),
+                        /*poisonZeroInputFlag=*/false, rewriter);
+
+    auto one = rewriter.create<mlir::LLVM::ConstantOp>(op.getLoc(), resTy, 1);
+    auto ctzAddOne = rewriter.create<mlir::LLVM::AddOp>(op.getLoc(), ctz, one);
+
+    auto zeroInputTy = rewriter.create<mlir::LLVM::ConstantOp>(
+        op.getLoc(), adaptor.getInput().getType(), 0);
+    auto isZero = rewriter.create<mlir::LLVM::ICmpOp>(
+        op.getLoc(),
+        mlir::LLVM::ICmpPredicateAttr::get(rewriter.getContext(),
+                                           mlir::LLVM::ICmpPredicate::eq),
+        adaptor.getInput(), zeroInputTy);
+
+    auto zero = rewriter.create<mlir::LLVM::ConstantOp>(op.getLoc(), resTy, 0);
+    auto res = rewriter.create<mlir::LLVM::SelectOp>(op.getLoc(), isZero, zero,
+                                                     ctzAddOne);
+    rewriter.replaceOp(op, res);
+
+    return mlir::LogicalResult::success();
+  }
+};
+
+class CIRBitParityOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::BitParityOp> {
+public:
+  using OpConversionPattern<mlir::cir::BitParityOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::BitParityOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto resTy = getTypeConverter()->convertType(op.getType());
+    auto popcnt =
+        createLLVMBitOp(op.getLoc(), "llvm.ctpop", resTy, adaptor.getInput(),
+                        /*poisonZeroInputFlag=*/std::nullopt, rewriter);
+
+    auto one = rewriter.create<mlir::LLVM::ConstantOp>(op.getLoc(), resTy, 1);
+    auto popcntMod2 =
+        rewriter.create<mlir::LLVM::AndOp>(op.getLoc(), popcnt, one);
+    rewriter.replaceOp(op, popcntMod2);
+
+    return mlir::LogicalResult::success();
+  }
+};
+
+class CIRBitPopcountOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::BitPopcountOp> {
+public:
+  using OpConversionPattern<mlir::cir::BitPopcountOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::BitPopcountOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto resTy = getTypeConverter()->convertType(op.getType());
+    auto llvmOp =
+        createLLVMBitOp(op.getLoc(), "llvm.ctpop", resTy, adaptor.getInput(),
+                        /*poisonZeroInputFlag=*/std::nullopt, rewriter);
+    rewriter.replaceOp(op, llvmOp);
+    return mlir::LogicalResult::success();
+  }
+};
+
 class CIRBrOpLowering : public mlir::OpConversionPattern<mlir::cir::BrOp> {
 public:
   using OpConversionPattern<mlir::cir::BrOp>::OpConversionPattern;
@@ -2155,6 +2411,25 @@ public:
   }
 };
 
+class CIRExpectOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::ExpectOp> {
+public:
+  using OpConversionPattern<mlir::cir::ExpectOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::ExpectOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    std::optional<llvm::APFloat> prob = op.getProb();
+    if (!prob)
+      rewriter.replaceOpWithNewOp<mlir::LLVM::ExpectOp>(op, adaptor.getVal(),
+                                                        adaptor.getExpected());
+    else
+      rewriter.replaceOpWithNewOp<mlir::LLVM::ExpectWithProbabilityOp>(
+          op, adaptor.getVal(), adaptor.getExpected(), prob.value());
+    return mlir::success();
+  }
+};
+
 class CIRVTableAddrPointOpLowering
     : public mlir::OpConversionPattern<mlir::cir::VTableAddrPointOp> {
 public:
@@ -2231,6 +2506,30 @@ public:
   }
 };
 
+class CIRTrapLowering : public mlir::OpConversionPattern<mlir::cir::TrapOp> {
+public:
+  using OpConversionPattern<mlir::cir::TrapOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::TrapOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto loc = op->getLoc();
+    rewriter.eraseOp(op);
+
+    auto llvmTrapIntrinsicType =
+        mlir::LLVM::LLVMVoidType::get(op->getContext());
+    rewriter.create<mlir::LLVM::CallIntrinsicOp>(
+        loc, llvmTrapIntrinsicType, "llvm.trap", mlir::ValueRange{});
+
+    // Note that the call to llvm.trap is not a terminator in LLVM dialect.
+    // So we must emit an additional llvm.unreachable to terminate the current
+    // block.
+    rewriter.create<mlir::LLVM::UnreachableOp>(loc);
+
+    return mlir::success();
+  }
+};
+
 class CIRInlineAsmOpLowering
     : public mlir::OpConversionPattern<mlir::cir::InlineAsmOp> {
 
@@ -2250,6 +2549,25 @@ class CIRInlineAsmOpLowering
                          : mlir::LLVM::AsmDialect::AD_Intel;
 
     std::vector<mlir::Attribute> opAttrs;
+    auto llvmAttrName = mlir::LLVM::InlineAsmOp::getElementTypeAttrName();
+
+    if (auto operandAttrs = op.getOperandAttrs()) {
+      for (auto attr : *operandAttrs) {
+        if (isa<mlir::cir::OptNoneAttr>(attr)) {
+          opAttrs.push_back(mlir::Attribute());
+          continue;
+        }
+
+        mlir::TypeAttr tAttr = cast<mlir::TypeAttr>(attr);
+        std::vector<mlir::NamedAttribute> attrs;
+        auto typAttr = mlir::TypeAttr::get(
+            getTypeConverter()->convertType(tAttr.getValue()));
+
+        attrs.push_back(rewriter.getNamedAttr(llvmAttrName, typAttr));
+        auto newDict = rewriter.getDictionaryAttr(attrs);
+        opAttrs.push_back(newDict);
+      }
+    }
 
     rewriter.replaceOpWithNewOp<mlir::LLVM::InlineAsmOp>(
         op, llResTy, adaptor.getOperands(), op.getAsmStringAttr(),
@@ -2288,6 +2606,83 @@ class CIRGotoOpLowering
   }
 };
 
+class CIRSetBitfieldLowering
+    : public mlir::OpConversionPattern<mlir::cir::SetBitfieldOp> {
+public:
+  using OpConversionPattern<mlir::cir::SetBitfieldOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::SetBitfieldOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    mlir::OpBuilder::InsertionGuard guard(rewriter);
+    rewriter.setInsertionPoint(op);
+
+    auto addr = op.getDst();
+    auto info = op.getBitfieldInfo();
+    auto size = info.getSize();
+    auto offset = info.getOffset();
+    auto storageType = info.getStorageType();
+    auto context = storageType.getContext();
+
+    unsigned storageSize = 0;
+
+    if (auto arTy = storageType.dyn_cast<mlir::cir::ArrayType>())
+      storageSize = arTy.getSize() * 8;
+    else if (auto intTy = storageType.dyn_cast<mlir::cir::IntType>())
+      storageSize = intTy.getWidth();
+    else
+      llvm_unreachable(
+          "Either ArrayType or IntType expected for bitfields storage");
+
+    auto intType = mlir::IntegerType::get(context, storageSize);
+    auto srcVal = createIntCast(rewriter, adaptor.getSrc(), intType);
+    auto srcWidth = storageSize;
+    auto resultVal = srcVal;
+
+    if (storageSize != size) {
+      assert(storageSize > size && "Invalid bitfield size.");
+
+      mlir::Value val = rewriter.create<mlir::LLVM::LoadOp>(
+          op.getLoc(), intType, adaptor.getDst(), /* alignment */ 0,
+          op.getIsVolatile());
+
+      srcVal = createAnd(rewriter, srcVal,
+                         llvm::APInt::getLowBitsSet(srcWidth, size));
+      resultVal = srcVal;
+      srcVal = createShL(rewriter, srcVal, offset);
+
+      // Mask out the original value.
+      val =
+          createAnd(rewriter, val,
+                    ~llvm::APInt::getBitsSet(srcWidth, offset, offset + size));
+
+      // Or together the unchanged values and the source value.
+      srcVal = rewriter.create<mlir::LLVM::OrOp>(op.getLoc(), val, srcVal);
+    }
+
+    rewriter.create<mlir::LLVM::StoreOp>(op.getLoc(), srcVal, adaptor.getDst(),
+                                         /* alignment */ 0, op.getIsVolatile());
+
+    auto resultTy = getTypeConverter()->convertType(op.getType());
+
+    resultVal =
+        createIntCast(rewriter, resultVal, resultTy.cast<mlir::IntegerType>());
+
+    if (info.getIsSigned()) {
+      assert(size <= storageSize);
+      unsigned highBits = storageSize - size;
+
+      if (highBits) {
+        resultVal = createShL(rewriter, resultVal, highBits);
+        resultVal = createAShR(rewriter, resultVal, highBits);
+      }
+    }
+
+    rewriter.replaceOp(op, resultVal);
+    return mlir::success();
+  }
+};
+
 class CIRLabelOpLowering
     : public mlir::OpConversionPattern<mlir::cir::LabelOp> {
 
@@ -2301,11 +2696,67 @@ class CIRLabelOpLowering
   }
 };
 
+class CIRGetBitfieldLowering
+    : public mlir::OpConversionPattern<mlir::cir::GetBitfieldOp> {
+public:
+  using OpConversionPattern<mlir::cir::GetBitfieldOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::GetBitfieldOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+
+    mlir::OpBuilder::InsertionGuard guard(rewriter);
+    rewriter.setInsertionPoint(op);
+
+    auto info = op.getBitfieldInfo();
+    auto size = info.getSize();
+    auto offset = info.getOffset();
+    auto storageType = info.getStorageType();
+    auto context = storageType.getContext();
+    unsigned storageSize = 0;
+
+    if (auto arTy = storageType.dyn_cast<mlir::cir::ArrayType>())
+      storageSize = arTy.getSize() * 8;
+    else if (auto intTy = storageType.dyn_cast<mlir::cir::IntType>())
+      storageSize = intTy.getWidth();
+    else
+      llvm_unreachable(
+          "Either ArrayType or IntType expected for bitfields storage");
+
+    auto intType = mlir::IntegerType::get(context, storageSize);
+
+    mlir::Value val = rewriter.create<mlir::LLVM::LoadOp>(
+        op.getLoc(), intType, adaptor.getAddr(), 0, op.getIsVolatile());
+    val = rewriter.create<mlir::LLVM::BitcastOp>(op.getLoc(), intType, val);
+
+    if (info.getIsSigned()) {
+      assert(static_cast<unsigned>(offset + size) <= storageSize);
+      unsigned highBits = storageSize - offset - size;
+      val = createShL(rewriter, val, highBits);
+      val = createAShR(rewriter, val, offset + highBits);
+    } else {
+      val = createLShR(rewriter, val, offset);
+
+      if (static_cast<unsigned>(offset) + size < storageSize)
+        val = createAnd(rewriter, val,
+                        llvm::APInt::getLowBitsSet(storageSize, size));
+    }
+
+    auto resTy = getTypeConverter()->convertType(op.getType());
+    auto newOp = createIntCast(rewriter, val, resTy.cast<mlir::IntegerType>(),
+                               info.getIsSigned());
+    rewriter.replaceOp(op, newOp);
+    return mlir::success();
+  }
+};
+
 void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
                                          mlir::TypeConverter &converter) {
   patterns.add<CIRReturnLowering>(patterns.getContext());
   patterns.add<
-      CIRCmpOpLowering, CIRLoopOpInterfaceLowering, CIRBrCondOpLowering,
+      CIRCmpOpLowering, CIRBitClrsbOpLowering, CIRBitClzOpLowering,
+      CIRBitCtzOpLowering, CIRBitFfsOpLowering, CIRBitParityOpLowering,
+      CIRBitPopcountOpLowering, CIRLoopOpInterfaceLowering, CIRBrCondOpLowering,
       CIRPtrStrideOpLowering, CIRCallLowering, CIRUnaryOpLowering,
       CIRBinOpLowering, CIRShiftOpLowering, CIRLoadLowering,
       CIRConstantLowering, CIRStoreLowering, CIRAllocaLowering, CIRFuncLowering,
@@ -2314,11 +2765,14 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
       CIRVACopyLowering, CIRVAArgLowering, CIRBrOpLowering,
       CIRTernaryOpLowering, CIRGetMemberOpLowering, CIRSwitchOpLowering,
       CIRPtrDiffOpLowering, CIRCopyOpLowering, CIRMemCpyOpLowering,
-      CIRFAbsOpLowering, CIRVTableAddrPointOpLowering, CIRVectorCreateLowering,
-      CIRVectorInsertLowering, CIRVectorExtractLowering, CIRVectorCmpOpLowering,
-      CIRStackSaveLowering, CIRStackRestoreLowering, CIRUnreachableLowering,
-      CIRInlineAsmOpLowering, CIRGotoOpLowering, CIRLabelOpLowering>(
-        converter, patterns.getContext());
+      CIRFAbsOpLowering, CIRExpectOpLowering, CIRVTableAddrPointOpLowering,
+      CIRVectorCreateLowering, CIRVectorInsertLowering,
+      CIRVectorExtractLowering, CIRVectorCmpOpLowering, CIRVectorSplatLowering,
+      CIRVectorTernaryLowering, CIRStackSaveLowering, CIRStackRestoreLowering,
+      CIRUnreachableLowering, CIRTrapLowering, CIRInlineAsmOpLowering,
+      CIRSetBitfieldLowering, CIRGetBitfieldLowering,
+      CIRGotoOpLowering, CIRLabelOpLowering>(converter,
+                                                      patterns.getContext());
 }
 
 namespace {
