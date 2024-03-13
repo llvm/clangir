@@ -60,9 +60,9 @@ struct RemoveEmptyScope : public OpRewritePattern<ScopeOp> {
   LogicalResult match(ScopeOp op) const final {
     return success(op.getRegion().empty() ||
                   (op.getRegion().getBlocks().size() == 1 && 
-                   op.getRegion().front().empty()) ||
-                  (std::distance(op.getRegion().front().begin(), op.getRegion().front().end()) == 1 && 
-                   isa<YieldOp>(&op.getRegion().front().front())));
+                  op.getRegion().front().empty()) ||
+                  (op.getRegion().front().getOperations().size() == 1 && 
+                  isa<YieldOp>(&op.getRegion().front().front())));
   }
 
   void rewrite(ScopeOp op, PatternRewriter &rewriter) const final {
