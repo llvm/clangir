@@ -292,6 +292,12 @@ static LogicalResult checkConstantTypes(mlir::Operation *op, mlir::Type opType,
     return op->emitOpError("nullptr expects pointer type");
   }
 
+  if (attrType.isa<DataMemberAttr>()) {
+    // More detailed type verifications are already done in
+    // DataMemberAttr::verify. Don't need to repeat here.
+    return success();
+  }
+
   if (attrType.isa<ZeroAttr>()) {
     if (opType.isa<::mlir::cir::StructType, ::mlir::cir::ArrayType>())
       return success();
@@ -422,9 +428,12 @@ LogicalResult CastOp::verify() {
     return success();
   }
   case cir::CastKind::bitcast: {
-    if (!srcType.dyn_cast<mlir::cir::PointerType>() ||
-        !resType.dyn_cast<mlir::cir::PointerType>())
-      return emitOpError() << "requires !cir.ptr type for source and result";
+    if ((!srcType.isa<mlir::cir::PointerType>() ||
+         !resType.isa<mlir::cir::PointerType>()) &&
+        (!srcType.isa<mlir::cir::VectorType>() ||
+         !resType.isa<mlir::cir::VectorType>()))
+      return emitOpError()
+             << "requires !cir.ptr or !cir.vector type for source and result";
     return success();
   }
   case cir::CastKind::floating: {
@@ -508,6 +517,24 @@ LogicalResult VecCreateOp::verify() {
                            << " doesn't match vector element type "
                            << ElementType;
     }
+  }
+  return success();
+}
+
+//===----------------------------------------------------------------------===//
+// VecTernaryOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult VecTernaryOp::verify() {
+  // Verify that the condition operand has the same number of elements as the
+  // other operands.  (The automatic verification already checked that all
+  // operands are vector types and that the second and third operands are the
+  // same type.)
+  if (getCond().getType().cast<mlir::cir::VectorType>().getSize() !=
+      getVec1().getType().getSize()) {
+    return emitOpError() << ": the number of elements in "
+                         << getCond().getType() << " and "
+                         << getVec1().getType() << " don't match";
   }
   return success();
 }
@@ -2186,22 +2213,7 @@ void TryCallOp::print(::mlir::OpAsmPrinter &state) {
 LogicalResult UnaryOp::verify() {
   switch (getKind()) {
   case cir::UnaryOpKind::Inc:
-    LLVM_FALLTHROUGH;
-  case cir::UnaryOpKind::Dec: {
-    // TODO: Consider looking at the memory interface instead of
-    // LoadOp/StoreOp.
-    auto loadOp = getInput().getDefiningOp<cir::LoadOp>();
-    if (!loadOp)
-      return emitOpError() << "requires input to be defined by a memory load";
-
-    for (const auto user : getResult().getUsers()) {
-      auto storeOp = dyn_cast<cir::StoreOp>(user);
-      if (storeOp && storeOp.getAddr() == loadOp.getAddr())
-        return success();
-    }
-    return emitOpError() << "requires result to be used by a memory store "
-                            "to the same address as the input memory load";
-  }
+  case cir::UnaryOpKind::Dec:
   case cir::UnaryOpKind::Plus:
   case cir::UnaryOpKind::Minus:
   case cir::UnaryOpKind::Not:
@@ -2566,6 +2578,28 @@ LogicalResult GetMemberOp::verify() {
   if (!recordTy.isClass() &&
       recordTy.getMembers()[getIndex()] != getResultTy().getPointee())
     return emitError() << "member type mismatch";
+
+  return mlir::success();
+}
+
+//===----------------------------------------------------------------------===//
+// GetRuntimeMemberOp Definitions
+//===----------------------------------------------------------------------===//
+
+LogicalResult GetRuntimeMemberOp::verify() {
+  auto recordTy =
+      getAddr().getType().cast<PointerType>().getPointee().cast<StructType>();
+  auto memberPtrTy = getMember().getType();
+
+  if (recordTy != memberPtrTy.getClsTy()) {
+    emitError() << "record type does not match the member pointer type";
+    return mlir::failure();
+  }
+
+  if (getType().getPointee() != memberPtrTy.getMemberTy()) {
+    emitError() << "result type does not match the member pointer type";
+    return mlir::failure();
+  }
 
   return mlir::success();
 }

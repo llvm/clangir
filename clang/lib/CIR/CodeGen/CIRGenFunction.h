@@ -624,6 +624,7 @@ public:
   void buildCXXTemporary(const CXXTemporary *Temporary, QualType TempType,
                          Address Ptr);
   mlir::Value buildCXXNewExpr(const CXXNewExpr *E);
+  void buildCXXDeleteExpr(const CXXDeleteExpr *E);
 
   void buildDeleteCall(const FunctionDecl *DeleteFD, mlir::Value Ptr,
                        QualType DeleteTy, mlir::Value NumElements = nullptr,
@@ -787,6 +788,13 @@ public:
 
   LValue buildStmtExprLValue(const StmtExpr *E);
 
+  LValue buildPointerToDataMemberBinaryExpr(const BinaryOperator *E);
+
+  /// TODO: Add TBAAAccessInfo
+  Address buildCXXMemberDataPointerAddress(
+      const Expr *E, Address base, mlir::Value memberPtr,
+      const MemberPointerType *memberPtrType, LValueBaseInfo *baseInfo);
+
   /// Generate a call of the given function, expecting the given
   /// result type, and using the given argument list which specifies both the
   /// LLVM arguments and the types they were derived from.
@@ -943,13 +951,14 @@ public:
 
   mlir::LogicalResult buildAsmStmt(const clang::AsmStmt &S);
 
-  mlir::Value buildAsmInputLValue(const TargetInfo::ConstraintInfo &Info,
-                                  LValue InputValue, QualType InputType,
-                                  std::string &ConstraintStr,
-                                  SourceLocation Loc);
+  std::pair<mlir::Value, mlir::Type>
+  buildAsmInputLValue(const TargetInfo::ConstraintInfo &Info, LValue InputValue,
+                      QualType InputType, std::string &ConstraintStr,
+                      SourceLocation Loc);
 
-  mlir::Value buildAsmInput(const TargetInfo::ConstraintInfo &Info,
-                            const Expr *InputExpr, std::string &ConstraintStr);
+  std::pair<mlir::Value, mlir::Type>
+  buildAsmInput(const TargetInfo::ConstraintInfo &Info, const Expr *InputExpr,
+                std::string &ConstraintStr);
 
   mlir::LogicalResult buildIfStmt(const clang::IfStmt &S);
 
@@ -1461,7 +1470,7 @@ public:
   }
 
   Address getAddrOfBitFieldStorage(LValue base, const clang::FieldDecl *field,
-                                   unsigned index, unsigned size);
+                                   mlir::Type fieldType, unsigned index);
 
   /// Given an opaque value expression, return its LValue mapping if it exists,
   /// otherwise create one.
@@ -1501,6 +1510,17 @@ public:
 
   LValue buildCheckedLValue(const Expr *E, TypeCheckKind TCK);
   LValue buildMemberExpr(const MemberExpr *E);
+
+  /// Specifies which type of sanitizer check to apply when handling a
+  /// particular builtin.
+  enum BuiltinCheckKind {
+    BCK_CTZPassedZero,
+    BCK_CLZPassedZero,
+  };
+
+  /// Emits an argument for a call to a builtin. If the builtin sanitizer is
+  /// enabled, a runtime check specified by \p Kind is also emitted.
+  mlir::Value buildCheckedArgForBuiltin(const Expr *E, BuiltinCheckKind Kind);
 
   /// returns true if aggregate type has a volatile member.
   /// TODO(cir): this could be a common AST helper between LLVM / CIR.
@@ -1910,6 +1930,9 @@ public:
       RetLocs.push_back(loc);
       return b;
     }
+
+    mlir::cir::ReturnOp buildReturn(mlir::Location loc);
+    void buildImplicitReturn();
 
   public:
     void updateCurrentSwitchCaseRegion() { CurrentSwitchRegionIdx++; }

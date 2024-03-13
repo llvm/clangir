@@ -226,19 +226,15 @@ static bool isAAPCS(const TargetInfo &TargetInfo) {
 
 Address CIRGenFunction::getAddrOfBitFieldStorage(LValue base,
                                                  const FieldDecl *field,
-                                                 unsigned index,
-                                                 unsigned size) {
+                                                 mlir::Type fieldType,
+                                                 unsigned index) {
   if (index == 0)
     return base.getAddress();
-
   auto loc = getLoc(field->getLocation());
-  auto fieldType = builder.getUIntNTy(size);
-
   auto fieldPtr =
       mlir::cir::PointerType::get(getBuilder().getContext(), fieldType);
   auto sea = getBuilder().createGetMember(loc, fieldPtr, base.getPointer(),
                                           field->getName(), index);
-
   return Address(sea, CharUnits::One());
 }
 
@@ -268,14 +264,11 @@ LValue CIRGenFunction::buildLValueForBitField(LValue base,
     llvm_unreachable("NYI");
   }
 
-  const unsigned SS = useVolatile ? info.VolatileStorageSize : info.StorageSize;
-  Address Addr = getAddrOfBitFieldStorage(base, field, Idx, SS);
-  // Get the access type.
-  mlir::Type FieldIntTy = builder.getUIntNTy(SS);
+  Address Addr = getAddrOfBitFieldStorage(base, field, info.StorageType, Idx);
 
   auto loc = getLoc(field->getLocation());
-  if (Addr.getElementType() != FieldIntTy)
-    Addr = builder.createElementBitCast(loc, Addr, FieldIntTy);
+  if (Addr.getElementType() != info.StorageType)
+    Addr = builder.createElementBitCast(loc, Addr, info.StorageType);
 
   QualType fieldType =
       field->getType().withCVRQualifiers(base.getVRQualifiers());
@@ -891,6 +884,30 @@ LValue CIRGenFunction::buildDeclRefLValue(const DeclRefExpr *E) {
   llvm_unreachable("Unhandled DeclRefExpr");
 }
 
+LValue
+CIRGenFunction::buildPointerToDataMemberBinaryExpr(const BinaryOperator *E) {
+  assert((E->getOpcode() == BO_PtrMemD || E->getOpcode() == BO_PtrMemI) &&
+         "unexpected binary operator opcode");
+
+  auto baseAddr = Address::invalid();
+  if (E->getOpcode() == BO_PtrMemD)
+    baseAddr = buildLValue(E->getLHS()).getAddress();
+  else
+    baseAddr = buildPointerWithAlignment(E->getLHS());
+
+  const auto *memberPtrTy = E->getRHS()->getType()->castAs<MemberPointerType>();
+
+  auto memberPtr = buildScalarExpr(E->getRHS());
+
+  LValueBaseInfo baseInfo;
+  // TODO(cir): add TBAA
+  assert(!UnimplementedFeature::tbaa());
+  auto memberAddr = buildCXXMemberDataPointerAddress(E, baseAddr, memberPtr,
+                                                     memberPtrTy, &baseInfo);
+
+  return makeAddrLValue(memberAddr, memberPtrTy->getPointeeType(), baseInfo);
+}
+
 LValue CIRGenFunction::buildBinaryOperatorLValue(const BinaryOperator *E) {
   // Comma expressions just emit their LHS then their RHS as an l-value.
   if (E->getOpcode() == BO_Comma) {
@@ -899,7 +916,7 @@ LValue CIRGenFunction::buildBinaryOperatorLValue(const BinaryOperator *E) {
   }
 
   if (E->getOpcode() == BO_PtrMemD || E->getOpcode() == BO_PtrMemI)
-    assert(0 && "not implemented");
+    return buildPointerToDataMemberBinaryExpr(E);
 
   assert(E->getOpcode() == BO_Assign && "unexpected binary l-value");
 
@@ -1145,9 +1162,26 @@ RValue CIRGenFunction::buildCall(clang::QualType CalleeType,
   if (isa<FunctionNoProtoType>(FnType) || Chain) {
     assert(!UnimplementedFeature::chainCalls());
     assert(!UnimplementedFeature::addressSpace());
+    auto CalleeTy = getTypes().GetFunctionType(FnInfo);
+    // get non-variadic function type
+    CalleeTy = mlir::cir::FuncType::get(CalleeTy.getInputs(),
+                                        CalleeTy.getReturnType(), false);
+    auto CalleePtrTy =
+        mlir::cir::PointerType::get(builder.getContext(), CalleeTy);
 
-    // Set no-proto function as callee.
-    auto Fn = llvm::dyn_cast<mlir::cir::FuncOp>(Callee.getFunctionPointer());
+    auto *Fn = Callee.getFunctionPointer();
+    mlir::Value Addr;
+    if (auto funcOp = llvm::dyn_cast<mlir::cir::FuncOp>(Fn)) {
+      Addr = builder.create<mlir::cir::GetGlobalOp>(
+          getLoc(E->getSourceRange()),
+          mlir::cir::PointerType::get(builder.getContext(),
+                                      funcOp.getFunctionType()),
+          funcOp.getSymName());
+    } else {
+      Addr = Fn->getResult(0);
+    }
+
+    Fn = builder.createBitcast(Addr, CalleePtrTy).getDefiningOp();
     Callee.setFunctionPointer(Fn);
   }
 
@@ -1609,7 +1643,7 @@ LValue CIRGenFunction::buildCastLValue(const CastExpr *E) {
   case CK_CPointerToObjCPointerCast:
   case CK_BlockPointerToObjCPointerCast:
   case CK_LValueToRValue:
-    assert(0 && "NYI");
+    return buildLValue(E->getSubExpr());
 
   case CK_NoOp: {
     // CK_NoOp can model a qualification conversion, which can remove an array
@@ -2206,7 +2240,6 @@ LValue CIRGenFunction::buildLValue(const Expr *E) {
     return buildMemberExpr(cast<MemberExpr>(E));
   case Expr::PredefinedExprClass:
     return buildPredefinedLValue(cast<PredefinedExpr>(E));
-  case Expr::CStyleCastExprClass:
   case Expr::CXXFunctionalCastExprClass:
   case Expr::CXXReinterpretCastExprClass:
   case Expr::CXXConstCastExprClass:
@@ -2215,6 +2248,7 @@ LValue CIRGenFunction::buildLValue(const Expr *E) {
     emitError(getLoc(E->getExprLoc()), "l-value not implemented for '")
         << E->getStmtClassName() << "'";
     assert(0 && "Use buildCastLValue below, remove me when adding testcase");
+  case Expr::CStyleCastExprClass:
   case Expr::CXXStaticCastExprClass:
   case Expr::CXXDynamicCastExprClass:
   case Expr::ImplicitCastExprClass:

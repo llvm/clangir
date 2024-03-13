@@ -195,7 +195,17 @@ public:
   mlir::Value VisitGNUNullExpr(const GNUNullExpr *E) {
     llvm_unreachable("NYI");
   }
-  mlir::Value VisitOffsetOfExpr(OffsetOfExpr *E) { llvm_unreachable("NYI"); }
+  mlir::Value VisitOffsetOfExpr(OffsetOfExpr *E) {
+    // Try folding the offsetof to a constant.
+    Expr::EvalResult EVResult;
+    if (E->EvaluateAsInt(EVResult, CGF.getContext())) {
+      llvm::APSInt Value = EVResult.Val.getInt();
+      return Builder.getConstInt(CGF.getLoc(E->getExprLoc()), Value);
+    }
+
+    llvm_unreachable("NYI");
+  }
+
   mlir::Value VisitUnaryExprOrTypeTraitExpr(const UnaryExprOrTypeTraitExpr *E);
   mlir::Value VisitAddrLabelExpr(const AddrLabelExpr *E) {
     llvm_unreachable("NYI");
@@ -358,10 +368,6 @@ public:
     // An interesting aspect of this is that increment is always true.
     // Decrement does not have this property.
     if (isInc && type->isBooleanType()) {
-      llvm_unreachable("inc simplification for booleans not implemented yet");
-
-      // NOTE: We likely want the code below, but loading/store booleans need to
-      // work first. See CIRGenFunction::buildFromMemory().
       value = Builder.create<mlir::cir::ConstantOp>(
           CGF.getLoc(E->getExprLoc()), CGF.getCIRType(type),
           Builder.getCIRBoolAttr(true));
@@ -463,7 +469,7 @@ public:
 
     // Store the updated result through the lvalue
     if (LV.isBitField())
-      llvm_unreachable("no bitfield inc/dec yet");
+      CGF.buildStoreThroughBitfieldLValue(RValue::get(value), LV, value);
     else
       CGF.buildStoreThroughLValue(RValue::get(value), LV);
 
@@ -498,7 +504,9 @@ public:
   }
 
   mlir::Value VisitUnaryAddrOf(const UnaryOperator *E) {
-    assert(!llvm::isa<MemberPointerType>(E->getType()) && "not implemented");
+    if (llvm::isa<MemberPointerType>(E->getType()))
+      return CGF.CGM.buildMemberPointerConstant(E);
+
     return CGF.buildLValue(E->getSubExpr()).getPointer();
   }
 
@@ -594,7 +602,8 @@ public:
     return CGF.buildCXXNewExpr(E);
   }
   mlir::Value VisitCXXDeleteExpr(const CXXDeleteExpr *E) {
-    llvm_unreachable("NYI");
+    CGF.buildCXXDeleteExpr(E);
+    return {};
   }
   mlir::Value VisitTypeTraitExpr(const TypeTraitExpr *E) {
     llvm_unreachable("NYI");
@@ -653,8 +662,13 @@ public:
     return Visit(E->getRHS());
   }
 
-  mlir::Value VisitBinPtrMemD(const Expr *E) { llvm_unreachable("NYI"); }
-  mlir::Value VisitBinPtrMemI(const Expr *E) { llvm_unreachable("NYI"); }
+  mlir::Value VisitBinPtrMemD(const BinaryOperator *E) {
+    return buildLoadOfLValue(E);
+  }
+
+  mlir::Value VisitBinPtrMemI(const BinaryOperator *E) {
+    return buildLoadOfLValue(E);
+  }
 
   mlir::Value VisitCXXRewrittenBinaryOperator(CXXRewrittenBinaryOperator *E) {
     llvm_unreachable("NYI");
@@ -1447,8 +1461,18 @@ mlir::Value ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
         mlir::cir::ConstPtrAttr::get(Builder.getContext(), Ty, 0));
   }
 
-  case CK_NullToMemberPointer:
-    llvm_unreachable("NYI");
+  case CK_NullToMemberPointer: {
+    if (MustVisitNullValue(E))
+      CGF.buildIgnoredExpr(E);
+
+    assert(!UnimplementedFeature::cxxABI());
+
+    const MemberPointerType *MPT = CE->getType()->getAs<MemberPointerType>();
+    assert(!MPT->isMemberFunctionPointerType() && "NYI");
+
+    auto Ty = CGF.getCIRType(DestTy).cast<mlir::cir::DataMemberType>();
+    return Builder.getNullDataMemberPtr(Ty, CGF.getLoc(E->getExprLoc()));
+  }
   case CK_ReinterpretMemberPointer:
     llvm_unreachable("NYI");
   case CK_BaseToDerivedMemberPointer:
@@ -1514,8 +1538,12 @@ mlir::Value ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
   }
   case CK_MatrixCast:
     llvm_unreachable("NYI");
-  case CK_VectorSplat:
-    llvm_unreachable("NYI");
+  case CK_VectorSplat: {
+    // Create a vector object and fill all elements with the same scalar value.
+    assert(DestTy->isVectorType() && "CK_VectorSplat to non-vector type");
+    return CGF.getBuilder().create<mlir::cir::VecSplatOp>(
+        CGF.getLoc(E->getSourceRange()), CGF.getCIRType(DestTy), Visit(E));
+  }
   case CK_FixedPointCast:
     llvm_unreachable("NYI");
   case CK_FixedPointToBoolean:
@@ -1643,13 +1671,23 @@ mlir::Value ScalarExprEmitter::VisitInitListExpr(InitListExpr *E) {
     assert(!UnimplementedFeature::scalableVectors() &&
            "NYI: scalable vector init");
     assert(!UnimplementedFeature::vectorConstants() && "NYI: vector constants");
+    auto VectorType =
+        CGF.getCIRType(E->getType()).dyn_cast<mlir::cir::VectorType>();
     SmallVector<mlir::Value, 16> Elements;
     for (Expr *init : E->inits()) {
       Elements.push_back(Visit(init));
     }
+    // Zero-initialize any remaining values.
+    if (NumInitElements < VectorType.getSize()) {
+      mlir::Value ZeroValue = CGF.getBuilder().create<mlir::cir::ConstantOp>(
+          CGF.getLoc(E->getSourceRange()), VectorType.getEltType(),
+          CGF.getBuilder().getZeroInitAttr(VectorType.getEltType()));
+      for (uint64_t i = NumInitElements; i < VectorType.getSize(); ++i) {
+        Elements.push_back(ZeroValue);
+      }
+    }
     return CGF.getBuilder().create<mlir::cir::VecCreateOp>(
-        CGF.getLoc(E->getSourceRange()), CGF.getCIRType(E->getType()),
-        Elements);
+        CGF.getLoc(E->getSourceRange()), VectorType, Elements);
   }
 
   if (NumInitElements == 0) {
@@ -1836,7 +1874,7 @@ LValue ScalarExprEmitter::buildCompoundAssignLValue(
   // 'An assignment expression has the value of the left operand after the
   // assignment...'.
   if (LHSLV.isBitField())
-    assert(0 && "not yet implemented");
+    CGF.buildStoreThroughBitfieldLValue(RValue::get(Result), LHSLV, Result);
   else
     CGF.buildStoreThroughLValue(RValue::get(Result), LHSLV);
 
@@ -2011,7 +2049,12 @@ mlir::Value ScalarExprEmitter::VisitAbstractConditionalOperator(
 
   if (condExpr->getType()->isVectorType() ||
       condExpr->getType()->isSveVLSBuiltinType()) {
-    llvm_unreachable("NYI");
+    assert(condExpr->getType()->isVectorType() && "?: op for SVE vector NYI");
+    mlir::Value condValue = Visit(condExpr);
+    mlir::Value lhsValue = Visit(lhsExpr);
+    mlir::Value rhsValue = Visit(rhsExpr);
+    return builder.create<mlir::cir::VecTernaryOp>(loc, condValue, lhsValue,
+                                                   rhsValue);
   }
 
   // If this is a really simple expression (like x ? 4 : 5), emit this as a

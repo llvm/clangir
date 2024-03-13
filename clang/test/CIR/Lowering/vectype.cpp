@@ -45,6 +45,19 @@ void vector_int_test(int x) {
   // CHECK: %[[#T57:]] = llvm.insertelement %[[#T48]], %[[#T55]][%[[#T56]] : i64] : vector<4xi32>
   // CHECK: llvm.store %[[#T57]], %[[#T5:]] : vector<4xi32>, !llvm.ptr
 
+  // Vector to vector conversion
+  vd2 bb = (vd2)b;
+  // CHECK: %[[#bval:]] = llvm.load %[[#bmem:]] : !llvm.ptr -> vector<4xi32>
+  // CHECK: %[[#bbval:]] = llvm.bitcast %[[#bval]] : vector<4xi32> to vector<2xf64>
+  // CHECK: llvm.store %[[#bbval]], %[[#bbmem:]] : vector<2xf64>, !llvm.ptr
+
+  // Scalar to vector conversion, a.k.a. vector splat.
+  b = a + 7;
+  // CHECK: %[[#undef:]] = llvm.mlir.undef : vector<4xi32>
+  // CHECK: %[[#zeroInt:]] = llvm.mlir.constant(0 : i64) : i64
+  // CHECK: %[[#inserted:]] = llvm.insertelement %[[#seven:]], %[[#undef]][%[[#zeroInt]] : i64] : vector<4xi32>
+  // CHECK: %[[#shuffled:]] = llvm.shufflevector %[[#inserted]], %[[#undef]] [0, 0, 0, 0] : vector<4xi32>
+
   // Extract element.
   int c = a[x];
   // CHECK: %[[#T58:]] = llvm.load %[[#T3]] : !llvm.ptr -> vector<4xi32>
@@ -125,6 +138,12 @@ void vector_int_test(int x) {
   // CHECK: %[[#T103:]] = llvm.insertelement %[[#T94]], %[[#T101]][%[[#T102]] : i64] : vector<4xi32>
   // CHECK: %[[#T104:]] = llvm.xor %[[#T103]], %[[#T93]]  : vector<4xi32>
   // CHECK: llvm.store %[[#T104]], %[[#T29:]] : vector<4xi32>, !llvm.ptr
+
+  // Ternary conditional operator
+  vi4 tc = a ? b : d;
+  // CHECK: %[[#Zero:]] = llvm.mlir.zero : vector<4xi32>
+  // CHECK: %[[#BitVec:]] = llvm.icmp "ne" %[[#A:]], %[[#Zero]] : vector<4xi32>
+  // CHECK: %[[#Res:]] = llvm.select %[[#BitVec]], %[[#B:]], %[[#D:]] : vector<4xi1>, vector<4xi32>
 
   // Comparisons
   vi4 o = a == b;

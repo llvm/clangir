@@ -53,6 +53,18 @@ def CIR_IntType : CIR_Type<"Int", "int",
     std::string getAlias() const {
       return (isSigned() ? 's' : 'u') + std::to_string(getWidth()) + 'i';
     };
+
+    /// Returns a minimum bitwidth of cir::IntType
+    static unsigned minBitwidth() { return 8; }
+    /// Returns a maximum bitwidth of cir::IntType
+    static unsigned maxBitwidth() { return 64; }
+
+    /// Returns true if cir::IntType can be constructed from the provided bitwidth
+    static bool isValidBitwidth(unsigned width) {
+      return width >= minBitwidth()
+        && width <= maxBitwidth()
+        && llvm::isPowerOf2_32(width);
+    }
   }];
   let genVerifyDecl = 1;
 }
@@ -96,6 +108,36 @@ def SInt8  : SInt<8>;
 def SInt16 : SInt<16>;
 def SInt32 : SInt<32>;
 def SInt64 : SInt<64>;
+
+// A type constraint that allows unsigned integer type whose width is among the
+// specified list of possible widths.
+class UIntOfWidths<list<int> widths>
+  : Type<And<[
+            CPred<"$_self.isa<::mlir::cir::IntType>()">,
+            CPred<"$_self.cast<::mlir::cir::IntType>().isUnsigned()">,
+            Or<!foreach(
+              w, widths,
+              CPred<"$_self.cast<::mlir::cir::IntType>().getWidth() == " # w>
+            )>
+        ]>,
+        !interleave(!foreach(w, widths, w # "-bit"), " or ") # " uint",
+        "::mlir::cir::IntType"
+    > {}
+
+// A type constraint that allows unsigned integer type whose width is among the
+// specified list of possible widths.
+class SIntOfWidths<list<int> widths>
+  : Type<And<[
+            CPred<"$_self.isa<::mlir::cir::IntType>()">,
+            CPred<"$_self.cast<::mlir::cir::IntType>().isSigned()">,
+            Or<!foreach(
+              w, widths,
+              CPred<"$_self.cast<::mlir::cir::IntType>().getWidth() == " # w>
+            )>
+        ]>,
+        !interleave(!foreach(w, widths, w # "-bit"), " or ") # " sint",
+        "::mlir::cir::IntType"
+    > {}
 
 //===----------------------------------------------------------------------===//
 // FloatType
@@ -143,6 +185,28 @@ def CIR_PointerType : CIR_Type<"Pointer", "ptr",
   let parameters = (ins "mlir::Type":$pointee);
 
   let hasCustomAssemblyFormat = 1;
+}
+
+//===----------------------------------------------------------------------===//
+// DataMemberType
+//===----------------------------------------------------------------------===//
+
+def CIR_DataMemberType : CIR_Type<"DataMember", "data_member",
+    [DeclareTypeInterfaceMethods<DataLayoutTypeInterface>]> {
+
+  let summary = "CIR type that represents pointer-to-data-member type in C++";
+  let description = [{
+    `cir.member_ptr` models the pointer-to-data-member type in C++. Values of
+    this type are essentially offsets of the pointed-to member within one of
+    its containing struct.
+  }];
+
+  let parameters = (ins "mlir::Type":$memberTy,
+                        "mlir::cir::StructType":$clsTy);
+
+  let assemblyFormat = [{
+    `<` $memberTy `in` $clsTy `>`
+  }];
 }
 
 //===----------------------------------------------------------------------===//
@@ -309,6 +373,15 @@ def VoidPtr : Type<
       "mlir::cir::VoidType::get($_builder.getContext()))"> {
 }
 
+// Pointer to struct
+def StructPtr : Type<
+    And<[
+      CPred<"$_self.isa<::mlir::cir::PointerType>()">,
+      CPred<"$_self.cast<::mlir::cir::PointerType>()"
+            ".getPointee().isa<::mlir::cir::StructType>()">,
+    ]>, "!cir.struct*"> {
+}
+
 // Pointers to exception info
 def ExceptionInfoPtr : Type<
     And<[
@@ -339,6 +412,15 @@ def ExceptionInfoPtrPtr : Type<
       "mlir::cir::ExceptionInfoType::get($_builder.getContext())))"> {
 }
 
+// Vector of integral type
+def IntegerVector : Type<
+    And<[
+      CPred<"$_self.isa<::mlir::cir::VectorType>()">,
+      CPred<"$_self.cast<::mlir::cir::VectorType>()"
+            ".getEltType().isa<::mlir::cir::IntType>()">,
+    ]>, "!cir.vector of !cir.int"> {
+}
+
 //===----------------------------------------------------------------------===//
 // StructType (defined in cpp files)
 //===----------------------------------------------------------------------===//
@@ -351,8 +433,9 @@ def CIR_StructType : Type<CPred<"$_self.isa<::mlir::cir::StructType>()">,
 //===----------------------------------------------------------------------===//
 
 def CIR_AnyType : AnyTypeOf<[
-  CIR_IntType, CIR_PointerType, CIR_BoolType, CIR_ArrayType, CIR_VectorType,
-  CIR_FuncType, CIR_VoidType, CIR_StructType, CIR_ExceptionInfo, CIR_AnyFloat,
+  CIR_IntType, CIR_PointerType, CIR_DataMemberType, CIR_BoolType, CIR_ArrayType,
+  CIR_VectorType, CIR_FuncType, CIR_VoidType, CIR_StructType, CIR_ExceptionInfo,
+  CIR_AnyFloat,
 ]>;
 
 #endif // MLIR_CIR_DIALECT_CIR_TYPES

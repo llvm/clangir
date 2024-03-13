@@ -144,6 +144,11 @@ public:
     return mlir::cir::BoolAttr::get(getContext(), getBoolTy(), state);
   }
 
+  mlir::TypedAttr getConstNullPtrAttr(mlir::Type t) {
+    assert(t.isa<mlir::cir::PointerType>() && "expected cir.ptr");
+    return mlir::cir::ConstPtrAttr::get(getContext(), t, 0);
+  }
+
   mlir::TypedAttr getConstPtrAttr(mlir::Type t, uint64_t v) {
     assert(t.isa<mlir::cir::PointerType>() && "expected cir.ptr");
     return mlir::cir::ConstPtrAttr::get(getContext(), t, v);
@@ -217,6 +222,16 @@ public:
   mlir::cir::TypeInfoAttr getTypeInfo(mlir::ArrayAttr fieldsAttr) {
     auto anonStruct = getAnonConstStruct(fieldsAttr);
     return mlir::cir::TypeInfoAttr::get(anonStruct.getType(), fieldsAttr);
+  }
+
+  mlir::cir::DataMemberAttr getDataMemberAttr(mlir::cir::DataMemberType ty,
+                                              size_t memberIndex) {
+    return mlir::cir::DataMemberAttr::get(getContext(), ty, memberIndex);
+  }
+
+  mlir::cir::DataMemberAttr
+  getNullDataMemberAttr(mlir::cir::DataMemberType ty) {
+    return mlir::cir::DataMemberAttr::get(getContext(), ty, std::nullopt);
   }
 
   mlir::TypedAttr getZeroInitAttr(mlir::Type ty) {
@@ -522,9 +537,12 @@ public:
     return create<mlir::cir::ConstantOp>(loc, uInt64Ty,
                                          mlir::cir::IntAttr::get(uInt64Ty, C));
   }
-  mlir::cir::ConstantOp getConstInt(mlir::Location loc, mlir::cir::IntType t,
+  mlir::cir::ConstantOp getConstInt(mlir::Location loc, mlir::Type t,
                                     uint64_t C) {
-    return create<mlir::cir::ConstantOp>(loc, t, mlir::cir::IntAttr::get(t, C));
+    auto intTy = t.dyn_cast<mlir::cir::IntType>();
+    assert(intTy && "expected mlir::cir::IntType");
+    return create<mlir::cir::ConstantOp>(loc, intTy,
+                                         mlir::cir::IntAttr::get(t, C));
   }
   mlir::cir::ConstantOp getConstInt(mlir::Location loc, llvm::APSInt intVal) {
     bool isSigned = intVal.isSigned();
@@ -547,6 +565,12 @@ public:
   // Creates constant nullptr for pointer type ty.
   mlir::cir::ConstantOp getNullPtr(mlir::Type ty, mlir::Location loc) {
     return create<mlir::cir::ConstantOp>(loc, ty, getConstPtrAttr(ty, 0));
+  }
+
+  /// Create constant nullptr for pointer-to-data-member type ty.
+  mlir::cir::ConstantOp getNullDataMemberPtr(mlir::cir::DataMemberType ty,
+                                             mlir::Location loc) {
+    return create<mlir::cir::ConstantOp>(loc, ty, getNullDataMemberAttr(ty));
   }
 
   // Creates constant null value for integral type ty.
@@ -862,6 +886,19 @@ public:
     } else {
       alloca->moveAfter(*std::prev(allocas.end()));
     }
+  }
+
+  mlir::cir::GetRuntimeMemberOp createGetIndirectMember(mlir::Location loc,
+                                                        mlir::Value objectPtr,
+                                                        mlir::Value memberPtr) {
+    auto memberPtrTy = memberPtr.getType().cast<mlir::cir::DataMemberType>();
+
+    // TODO(cir): consider address space.
+    assert(!UnimplementedFeature::addressSpace());
+    auto resultTy = getPointerTo(memberPtrTy.getMemberTy());
+
+    return create<mlir::cir::GetRuntimeMemberOp>(loc, resultTy, objectPtr,
+                                                 memberPtr);
   }
 
   mlir::Value createPtrIsNull(mlir::Value ptr) {
