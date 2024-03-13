@@ -107,6 +107,16 @@ module  {
   //      CHECK: cir.func @removeEmptyScope
   // CHECK-NEXT: cir.return
 
+  //Should remove empty scopes with only one yield operation
+  cir.func @removeEmptyScopeWithYieldOperation() {
+    cir.scope {
+      cir.yield
+    }
+    cir.return
+  }
+  //      CHECK: cir.func @removeEmptyScopeWithYieldOperation
+  // CHECK-NEXT: cir.return
+
   // Should remove empty switch-case statements.
   cir.func @removeEmptySwitch(%arg0: !s32i) {
   //      CHECK: cir.func @removeEmptySwitch
