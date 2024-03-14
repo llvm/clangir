@@ -2634,8 +2634,7 @@ public:
       srcVal = rewriter.create<mlir::LLVM::OrOp>(op.getLoc(), val, srcVal);
     }
 
-    rewriter.create<mlir::LLVM::StoreOp>(op.getLoc(), srcVal, 
-                                         adaptor.getAddr(),
+    rewriter.create<mlir::LLVM::StoreOp>(op.getLoc(), srcVal, adaptor.getAddr(),
                                          /* alignment */ 0, op.getIsVolatile());
 
     auto resultTy = getTypeConverter()->convertType(op.getType());
