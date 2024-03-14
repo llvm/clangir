@@ -299,9 +299,6 @@ void RegionInliningPass::runOnOperation() {
     signalPassFailure();
 
   process_gotos(gotos);
-    getOperation()->dump();
-
-
 }
 
 } // namespace
