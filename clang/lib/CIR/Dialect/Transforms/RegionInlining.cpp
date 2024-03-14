@@ -88,6 +88,8 @@ struct IfOpRegionsInlining : public OpRewritePattern<IfOp> {
       elseBeforeBody = elseAfterBody = continueBlock;
     }
 
+    // FIXME: there is either Zero extend ir truncate in lowering here.
+    // I believe it can be done in BrCondOp lowering, and we don't need it here.
     rewriter.setInsertionPointToEnd(currentBlock);
     rewriter.create<mlir::cir::BrCondOp>(loc, ifOp.getCondition(),
                                          thenBeforeBody,
