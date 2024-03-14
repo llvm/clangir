@@ -330,7 +330,7 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
       ResultRegQualTys.push_back(QTy);
       ResultRegDests.push_back(Dest);
 
-      bool IsFlagReg = llvm::StringRef(OutputConstraint).startswith("{@cc");
+      bool IsFlagReg = llvm::StringRef(OutputConstraint).starts_with("{@cc");
       ResultRegIsFlagReg.push_back(IsFlagReg);
 
       mlir::Type Ty = convertTypeForMem(QTy);

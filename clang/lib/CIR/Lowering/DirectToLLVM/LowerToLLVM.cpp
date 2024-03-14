@@ -2591,7 +2591,6 @@ public:
     mlir::OpBuilder::InsertionGuard guard(rewriter);
     rewriter.setInsertionPoint(op);
 
-    auto addr = op.getDst();
     auto info = op.getBitfieldInfo();
     auto size = info.getSize();
     auto offset = info.getOffset();
