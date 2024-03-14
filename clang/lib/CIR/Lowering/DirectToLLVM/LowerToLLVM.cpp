@@ -2980,7 +2980,7 @@ void ConvertCIRToLLVMPass::runOnOperation() {
   for (auto* root : unreachable_blocks) {
     
     // We create a work list for each unreachable block.
-    // Just to traverse operations in some order.
+    // Thus we traverse operations in some order.
     std::deque<mlir::Block*> blocks;
     blocks.push_back(root);
 
