@@ -994,9 +994,10 @@ public:
   // OpenMP gen functions:
   mlir::LogicalResult buildOMPParallelDirective(const OMPParallelDirective &S);
   mlir::LogicalResult buildOMPTaskwaitDirective(const OMPTaskwaitDirective &S);
-  mlir::LogicalResult buildOMPTaskyieldDirective(const OMPTaskyieldDirective &S);
+  mlir::LogicalResult
+  buildOMPTaskyieldDirective(const OMPTaskyieldDirective &S);
   mlir::LogicalResult buildOMPBarrierDirective(const OMPBarrierDirective &S);
-  
+
   LValue buildOpaqueValueLValue(const OpaqueValueExpr *e);
 
   /// Emit code to compute a designator that specifies the location
