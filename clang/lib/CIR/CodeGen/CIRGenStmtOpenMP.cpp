@@ -43,3 +43,15 @@ CIRGenFunction::buildOMPParallelDirective(const OMPParallelDirective &S) {
   builder.create<TerminatorOp>(getLoc(S.getSourceRange().getEnd()));
   return res;
 }
+
+mlir::LogicalResult 
+CIRGenFunction::buildOMPTaskwaitDirective(const OMPTaskwaitDirective &S) {
+  mlir::LogicalResult res = mlir::success();
+  //Getting the source location information of AST node S scope
+  auto scopeLoc = getLoc(S.getSourceRange());
+  //Creation of an omp.taskwait operation
+  auto taskwaitOp = builder.create<mlir::omp::TaskwaitOp>(scopeLoc);
+
+  return res;
+
+}
