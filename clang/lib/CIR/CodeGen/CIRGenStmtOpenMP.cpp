@@ -112,14 +112,3 @@ CIRGenFunction::buildOMPBarrierDirective(const OMPBarrierDirective &S) {
 
   return res;
 }
-
-mlir::LogicalResult
-CIRGenFunction::buildOMPBarrierDirective(const OMPBarrierDirective &S) {
-  mlir::LogicalResult res = mlir::success();
-  // Getting the source location information of AST node S scope
-  auto scopeLoc = getLoc(S.getSourceRange());
-  // Creation of an omp.barrier operation
-  auto barrierOp = builder.create<mlir::omp::BarrierOp>(scopeLoc);
-
-  return res;
-}
