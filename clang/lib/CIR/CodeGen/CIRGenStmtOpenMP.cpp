@@ -47,11 +47,21 @@ CIRGenFunction::buildOMPParallelDirective(const OMPParallelDirective &S) {
 mlir::LogicalResult 
 CIRGenFunction::buildOMPTaskwaitDirective(const OMPTaskwaitDirective &S) {
   mlir::LogicalResult res = mlir::success();
-  //Getting the source location information of AST node S scope
+  // Getting the source location information of AST node S scope
   auto scopeLoc = getLoc(S.getSourceRange());
-  //Creation of an omp.taskwait operation
+  // Creation of an omp.taskwait operation
   auto taskwaitOp = builder.create<mlir::omp::TaskwaitOp>(scopeLoc);
 
   return res;
 
+}
+mlir::LogicalResult 
+CIRGenFunction::buildOMPTaskyieldDirective(const OMPTaskyieldDirective &S){
+  mlir::LogicalResult res = mlir::success();
+  // Getting the source location information of AST node S scope
+  auto scopeLoc = getLoc(S.getSourceRange());
+  // Creation of an omp.taskyield operation
+  auto taskyieldOp = builder.create<mlir::omp::TaskyieldOp>(scopeLoc);
+
+  return res;
 }
