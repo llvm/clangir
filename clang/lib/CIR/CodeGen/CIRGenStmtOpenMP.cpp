@@ -44,7 +44,7 @@ CIRGenFunction::buildOMPParallelDirective(const OMPParallelDirective &S) {
   return res;
 }
 
-mlir::LogicalResult 
+mlir::LogicalResult
 CIRGenFunction::buildOMPTaskwaitDirective(const OMPTaskwaitDirective &S) {
   mlir::LogicalResult res = mlir::success();
   // Getting the source location information of AST node S scope
@@ -53,10 +53,9 @@ CIRGenFunction::buildOMPTaskwaitDirective(const OMPTaskwaitDirective &S) {
   auto taskwaitOp = builder.create<mlir::omp::TaskwaitOp>(scopeLoc);
 
   return res;
-
 }
-mlir::LogicalResult 
-CIRGenFunction::buildOMPTaskyieldDirective(const OMPTaskyieldDirective &S){
+mlir::LogicalResult
+CIRGenFunction::buildOMPTaskyieldDirective(const OMPTaskyieldDirective &S) {
   mlir::LogicalResult res = mlir::success();
   // Getting the source location information of AST node S scope
   auto scopeLoc = getLoc(S.getSourceRange());
@@ -67,7 +66,7 @@ CIRGenFunction::buildOMPTaskyieldDirective(const OMPTaskyieldDirective &S){
 }
 
 mlir::LogicalResult
-CIRGenFunction::buildOMPBarrierDirective(const OMPBarrierDirective &S){
+CIRGenFunction::buildOMPBarrierDirective(const OMPBarrierDirective &S) {
   mlir::LogicalResult res = mlir::success();
   // Getting the source location information of AST node S scope
   auto scopeLoc = getLoc(S.getSourceRange());
