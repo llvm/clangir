@@ -5,6 +5,7 @@ add_clang_library(MLIRCIRTransforms
   DropAST.cpp
   IdiomRecognizer.cpp
   LibOpt.cpp
+  RegionInlining.cpp
   StdHelpers.cpp
 
   DEPENDS

@@ -114,4 +114,11 @@ def LibOpt : Pass<"cir-lib-opt"> {
   ];
 }
 
+def RegionInlining : Pass<"cir-region-inlining"> {
+  let summary = "TODO";
+  let description = [{ TODO }];
+  let constructor = "mlir::createRegionInliningPass()";
+  let dependentDialects = ["cir::CIRDialect"];
+}
+
 #endif // MLIR_DIALECT_CIR_PASSES
