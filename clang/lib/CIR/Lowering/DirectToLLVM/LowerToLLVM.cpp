@@ -2582,32 +2582,6 @@ class CIRInlineAsmOpLowering
   }
 };
 
-class CIRGotoOpLowering
-    : public mlir::OpConversionPattern<mlir::cir::GotoOp> {
-
-  using mlir::OpConversionPattern<mlir::cir::GotoOp>::OpConversionPattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(mlir::cir::GotoOp goTo, OpAdaptor adaptor,
-                  mlir::ConversionPatternRewriter &rewriter) const override {
-    auto func = goTo.getOperation()->getParentOfType<mlir::LLVM::LLVMFuncOp>();
-
-    func.getBody().walk<mlir::WalkOrder::PreOrder>([&](mlir::Block *blk) {
-      for (auto& op : blk->getOperations()) {
-        if (auto lab = dyn_cast<mlir::cir::LabelOp>(op)) {
-          if (goTo.getLabel() == lab.getLabel()) {
-            lowerTerminator(goTo, blk, rewriter);
-          return mlir::WalkResult::interrupt();
-          }
-        }
-      }
-      return mlir::WalkResult::advance();
-    });
-
-    return mlir::success();
-  }
-};
-
 class CIRSetBitfieldLowering
     : public mlir::OpConversionPattern<mlir::cir::SetBitfieldOp> {
 public:
@@ -2772,8 +2746,7 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
       CIRVectorTernaryLowering, CIRStackSaveLowering, CIRStackRestoreLowering,
       CIRUnreachableLowering, CIRTrapLowering, CIRInlineAsmOpLowering,
       CIRSetBitfieldLowering, CIRGetBitfieldLowering,
-      CIRGotoOpLowering, CIRLabelOpLowering>(converter,
-                                                      patterns.getContext());
+      CIRLabelOpLowering>(converter, patterns.getContext());
 }
 
 namespace {
