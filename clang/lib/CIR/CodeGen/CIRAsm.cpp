@@ -669,7 +669,7 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
       auto addr = Address(dest, alignment);
       builder.createStore(getLoc(S.getAsmLoc()), result, addr);
 
-      for (unsigned i = 0, e = ResultRegTypes.size(); i != e; ++i) {        
+      for (unsigned i = 0, e = ResultRegTypes.size(); i != e; ++i) {
         auto typ = builder.getPointerTo(ResultRegTypes[i]);
         auto ptr =
             builder.createGetMember(getLoc(S.getAsmLoc()), typ, dest, "", i);
