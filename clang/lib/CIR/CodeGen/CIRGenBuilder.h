@@ -175,7 +175,6 @@ public:
     llvm::SmallVector<mlir::Type, 8> members;
     auto structTy = mlir::dyn_cast<mlir::cir::StructType>(type);
     assert(structTy && "expected cir.struct");
-    assert(!packed && "unpacked struct is NYI");
 
     // Collect members and check if they are all zero.
     bool isZero = true;
@@ -200,7 +199,6 @@ public:
   mlir::cir::ConstStructAttr getAnonConstStruct(mlir::ArrayAttr arrayAttr,
                                                 bool packed = false,
                                                 mlir::Type ty = {}) {
-    assert(!packed && "NYI");
     llvm::SmallVector<mlir::Type, 4> members;
     for (auto &f : arrayAttr) {
       auto ta = mlir::dyn_cast<mlir::TypedAttr>(f);
