@@ -30,3 +30,35 @@ void t3(int x) {
 void t4(int x) {
   __asm__ volatile("" : "=&r"(x), "+&r"(x));
 }
+
+unsigned add1(unsigned int x) {  
+  int a;
+  __asm__("addl $42, %[val]"
+      : "=r" (a)
+      : [val] "r" (x)
+      );
+  
+  return a;
+}
+
+unsigned add2(unsigned int x) {
+  __asm__("addl $42, %[val]"
+      : [val] "+r" (x)
+      );
+  return x;
+}
+
+unsigned add3(unsigned int x) {
+  __asm__("addl $42, %[val]  \n\t\
+          subl $1, %[val]    \n\t\
+          imul $2, %[val]"
+      : [val] "+r" (x)
+      );  
+  return x;
+}
+
+void add4(int *x) {    
+  __asm__("addl $42, %[addr]" : [addr] "=m" (*x));
+}
+
+
