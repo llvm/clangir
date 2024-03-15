@@ -3280,6 +3280,7 @@ def ArrayDtor : CIR_ArrayInitDestroy<"array.dtor"> {
     Destroy each array element using the same C++ destructor. This
     operation has one region, with one single block. The block has an
     incoming argument for the current array index to initialize.
+  }];
 }
 
 //===----------------------------------------------------------------------===//
