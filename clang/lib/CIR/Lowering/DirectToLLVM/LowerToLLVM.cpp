@@ -61,7 +61,9 @@
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <cstdint>
+#include <deque>
 #include <optional>
+#include <set>
 
 using namespace cir;
 using namespace llvm;
@@ -2656,6 +2658,19 @@ public:
   }
 };
 
+class CIRLabelOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::LabelOp> {
+
+  using mlir::OpConversionPattern<mlir::cir::LabelOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::LabelOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+     rewriter.eraseOp(op);
+     return mlir::success();
+  }
+};
+
 class CIRGetBitfieldLowering
     : public mlir::OpConversionPattern<mlir::cir::GetBitfieldOp> {
 public:
@@ -2730,8 +2745,8 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
       CIRVectorExtractLowering, CIRVectorCmpOpLowering, CIRVectorSplatLowering,
       CIRVectorTernaryLowering, CIRStackSaveLowering, CIRStackRestoreLowering,
       CIRUnreachableLowering, CIRTrapLowering, CIRInlineAsmOpLowering,
-      CIRSetBitfieldLowering, CIRGetBitfieldLowering>(converter,
-                                                      patterns.getContext());
+      CIRSetBitfieldLowering, CIRGetBitfieldLowering,
+      CIRLabelOpLowering>(converter, patterns.getContext());
 }
 
 namespace {
@@ -2924,7 +2939,40 @@ void ConvertCIRToLLVMPass::runOnOperation() {
   getOperation()->removeAttr("cir.sob");
   getOperation()->removeAttr("cir.lang");
 
-  if (failed(applyPartialConversion(module, target, std::move(patterns))))
+  llvm::SmallVector<mlir::Operation*> ops;
+  ops.push_back(module);
+  llvm::SmallVector<mlir::Block*> unreachable_blocks;
+  module->walk(
+    [&](mlir::Block* blk) {
+      if (blk->hasNoPredecessors() && !blk->isEntryBlock())
+        unreachable_blocks.push_back(blk);
+  });
+
+  std::set<mlir::Block*> visited;
+  for (auto* root : unreachable_blocks) {
+    
+    // We create a work list for each unreachable block.
+    // Thus we traverse operations in some order.
+    std::deque<mlir::Block*> blocks;
+    blocks.push_back(root);
+
+    while (!blocks.empty()) {
+      auto* blk = blocks.back();
+      blocks.pop_back();
+      if (visited.count(blk)) 
+        continue;
+      visited.emplace(blk);
+
+      for (auto& op : *blk)
+        ops.push_back(&op);
+
+      for (auto it = blk->succ_begin(); it != blk->succ_end(); ++it)
+        blocks.push_back(*it);
+    }
+  }
+
+
+  if (failed(applyPartialConversion(ops, target, std::move(patterns))))
     signalPassFailure();
 
   // Emit the llvm.global_ctors array.
