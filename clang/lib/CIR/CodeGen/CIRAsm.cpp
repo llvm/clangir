@@ -639,17 +639,12 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
       auto addr = Address(dest, alignment);
       builder.createStore(getLoc(S.getAsmLoc()), result, addr);
 
-      for (unsigned i = 0, e = ResultRegTypes.size(); i != e; ++i) {
-        // TODO: double check. The point is the elt in the reg types should be
-        // the same that is returned by getMember, i.e. should be a pointer.
+      for (unsigned i = 0, e = ResultRegTypes.size(); i != e; ++i) {        
         auto typ = builder.getPointerTo(ResultRegTypes[i]);
-
         auto ptr =
             builder.createGetMember(getLoc(S.getAsmLoc()), typ, dest, "", i);
-
         auto tmp =
             builder.createLoad(getLoc(S.getAsmLoc()), Address(ptr, alignment));
-        // TODO: do we need to load after the getMember?
         RegResults.push_back(tmp);
       }
     }
