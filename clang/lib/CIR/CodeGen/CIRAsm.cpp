@@ -251,9 +251,9 @@ CIRGenFunction::buildAsmInput(const TargetInfo::ConstraintInfo &Info,
 
   if (Info.allowsRegister() || !Info.allowsMemory())
     if (CIRGenFunction::hasScalarEvaluationKind(InputExpr->getType()))
-      return {buildScalarExpr(InputExpr), nullptr};
+      return {buildScalarExpr(InputExpr), mlir::Type()};
   if (InputExpr->getStmtClass() == Expr::CXXThisExprClass)
-    return {buildScalarExpr(InputExpr), nullptr};
+    return {buildScalarExpr(InputExpr), mlir::Type()};
   InputExpr = InputExpr->IgnoreParenNoopCasts(getContext());
   LValue Dest = buildLValue(InputExpr);
   return buildAsmInputLValue(Info, Dest, InputExpr->getType(), ConstraintStr,
@@ -371,6 +371,9 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
   // Keep track of out constraints for tied input operand.
   std::vector<std::string> OutputConstraints;
 
+  // Keep track of defined physregs.
+  llvm::SmallSet<std::string, 8> PhysRegOutputs;
+
   // An inline asm can be marked readonly if it meets the following conditions:
   //  - it doesn't have any sideeffects
   //  - it doesn't clobber memory
@@ -394,6 +397,10 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
     OutputConstraint =
         AddVariableConstraints(OutputConstraint, *OutExpr, getTarget(), CGM, S,
                                Info.earlyClobber(), &GCCReg);
+
+    // Give an error on multiple outputs to same physreg.
+    if (!GCCReg.empty() && !PhysRegOutputs.insert(GCCReg).second)
+      CGM.Error(S.getAsmLoc(), "multiple outputs to hard register: " + GCCReg);
 
     OutputConstraints.push_back(OutputConstraint);
     LValue Dest = buildLValue(OutExpr);
@@ -493,6 +500,9 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
               *this, OutputConstraint, Arg.getType()))
         Arg = builder.createBitcast(Arg, AdjTy);
 
+      // Update largest vector width for any vector types.
+      assert(!UnimplementedFeature::asm_vector_type());
+
       // Only tie earlyclobber physregs.
       if (Info.allowsRegister() && (GCCReg.empty() || Info.earlyClobber()))
         InOutConstraints += llvm::utostr(i);
@@ -505,10 +515,27 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
     }
   } // iterate over output operands
 
+  // If this is a Microsoft-style asm blob, store the return registers (EAX:EDX)
+  // to the return value slot. Only do this when returning in registers.
+  if (isa<MSAsmStmt>(&S)) {
+    const ABIArgInfo &RetAI = CurFnInfo->getReturnInfo();
+    if (RetAI.isDirect() || RetAI.isExtend()) {
+      // Make a fake lvalue for the return value slot.
+      LValue ReturnSlot = makeAddrLValue(ReturnValue, FnRetTy);
+      CGM.getTargetCIRGenInfo().addReturnRegisterOutputs(
+          *this, ReturnSlot, Constraints, ResultRegTypes, ResultTruncRegTypes,
+          ResultRegDests, AsmString, S.getNumOutputs());
+      SawAsmBlock = true;
+    }
+  }
+
   for (unsigned i = 0, e = S.getNumInputs(); i != e; i++) {
     const Expr *InputExpr = S.getInputExpr(i);
 
     TargetInfo::ConstraintInfo &Info = InputConstraintInfos[i];
+
+    if (Info.allowsMemory())
+      ReadNone = false;
 
     if (!Constraints.empty())
       Constraints += ',';
@@ -561,6 +588,9 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
     else
       CGM.getDiags().Report(S.getAsmLoc(), diag::err_asm_invalid_type_in_input)
           << InputExpr->getType() << InputConstraint;
+
+    // Update largest vector width for any vector types.
+    assert(!UnimplementedFeature::asm_vector_type());
 
     ArgTypes.push_back(Arg.getType());
     ArgElemTypes.push_back(ArgElemType);
