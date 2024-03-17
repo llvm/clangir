@@ -57,6 +57,9 @@ def CK_FloatToBoolean : I32EnumAttrCase<"float_to_bool", 10>;
 def CK_BooleanToIntegral : I32EnumAttrCase<"bool_to_int", 11>;
 def CK_IntegralToFloat : I32EnumAttrCase<"int_to_float", 12>;
 def CK_BooleanToFloat : I32EnumAttrCase<"bool_to_float", 13>;
+def CK_IntegralToComplex : I32EnumAttrCase<"int_to_complex", 14>;
+def CK_FloatToComplex : I32EnumAttrCase<"float_to_complex", 15>;
+def CK_ComplexCast : I32EnumAttrCase<"complex", 16>;
 
 def CastKind : I32EnumAttr<
     "CastKind",
@@ -64,7 +67,8 @@ def CastKind : I32EnumAttr<
     [CK_IntegralToBoolean, CK_ArrayToPointerDecay, CK_IntegralCast,
      CK_BitCast, CK_FloatingCast, CK_PtrToBoolean, CK_FloatToIntegral,
      CK_IntegralToPointer, CK_PointerToIntegral, CK_FloatToBoolean,
-     CK_BooleanToIntegral, CK_IntegralToFloat, CK_BooleanToFloat]> {
+     CK_BooleanToIntegral, CK_IntegralToFloat, CK_BooleanToFloat,
+     CK_IntegralToComplex, CK_FloatToComplex, CK_ComplexCast]> {
   let cppNamespace = "::mlir::cir";
 }
 
@@ -86,6 +90,8 @@ def CastOp : CIR_Op<"cast", [Pure]> {
     - `ptr_to_bool`
     - `bool_to_int`
     - `bool_to_float`
+    - `int_to_complex`
+    - `float_to_complex`
 
     This is effectively a subset of the rules from
     `llvm-project/clang/include/clang/AST/OperationKinds.def`; but note that some
@@ -984,6 +990,60 @@ def CmpOp : CIR_Op<"cmp", [Pure, SameTypeOperands]> {
 
   // Already covered by the traits
   let hasVerifier = 0;
+}
+
+//===----------------------------------------------------------------------===//
+// ComplexRealOp and ComplexImagOp
+//===----------------------------------------------------------------------===//
+
+def ComplexRealOp : CIR_Op<"complex.real", [Pure]> {
+  let summary = "Extract the real part of a complex value";
+  let description = [{
+    `cir.complex.real` operation takes an operand of complex type and returns
+    the real part of it.
+
+    Example:
+
+    ```mlir
+    !complex = !cir.complex<!cir.float>
+    %0 = cir.const(#cir.complex<#cir.fp<1.0>, #cir.fp<2.0>> : !complex) : !complex
+    %1 = cir.complex.real(%0 : !complex) : !cir.float
+    ```
+  }];
+
+  let results = (outs CIR_AnyType:$result);
+  let arguments = (ins CIR_ComplexType:$operand);
+
+  let assemblyFormat = [{
+    `(` $operand `:` qualified(type($operand)) `)` `:` type($result) attr-dict
+  }];
+
+  let hasVerifier = 1;
+}
+
+def ComplexImagOp : CIR_Op<"complex.imag", [Pure]> {
+  let summary = "Extract the imaginary part of a complex value";
+  let description = [{
+    `cir.complex.imag` operation takes an operand of complex type and returns
+    the imaginary part of it.
+
+    Example:
+
+    ```mlir
+    !complex = !cir.complex<!cir.float>
+    %0 = cir.const(#cir.complex<#cir.fp<1.0>, #cir.fp<2.0>> : !complex) : !complex
+    %1 = cir.complex.imag(%0 : !complex) : !cir.float
+    ```
+  }];
+
+  let results = (outs CIR_AnyType:$result);
+  let arguments = (ins CIR_ComplexType:$operand);
+
+  let assemblyFormat = [{
+    `(` $operand `:` qualified(type($operand)) `)` `:` type($result) attr-dict
+  }];
+
+  let hasVerifier = 1;
 }
 
 //===----------------------------------------------------------------------===//

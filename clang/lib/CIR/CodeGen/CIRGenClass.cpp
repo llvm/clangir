@@ -804,9 +804,6 @@ void CIRGenFunction::buildInitializerForField(FieldDecl *Field, LValue LHS,
       llvm_unreachable("NYI");
     }
     break;
-  case TEK_Complex:
-    llvm_unreachable("NYI");
-    break;
   case TEK_Aggregate: {
     AggValueSlot Slot = AggValueSlot::forLValue(
         LHS, AggValueSlot::IsDestructed, AggValueSlot::DoesNotNeedGCBarriers,

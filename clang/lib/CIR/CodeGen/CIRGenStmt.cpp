@@ -500,9 +500,6 @@ mlir::LogicalResult CIRGenFunction::buildReturnStmt(const ReturnStmt &S) {
         V = buildScalarExpr(RV);
         builder.create<mlir::cir::StoreOp>(loc, V, *FnRetAlloca);
         break;
-      case TEK_Complex:
-        llvm_unreachable("NYI");
-        break;
       case TEK_Aggregate:
         buildAggExpr(
             RV, AggValueSlot::forAddr(

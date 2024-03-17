@@ -316,7 +316,8 @@ static LogicalResult checkConstantTypes(mlir::Operation *op, mlir::Type opType,
     return success();
   }
 
-  if (attrType.isa<mlir::cir::IntAttr, mlir::cir::FPAttr>()) {
+  if (attrType.isa<mlir::cir::IntAttr, mlir::cir::FPAttr,
+                   mlir::cir::ComplexAttr>()) {
     auto at = attrType.cast<TypedAttr>();
     if (at.getType() != opType) {
       return op->emitOpError("result type (")
@@ -496,9 +497,56 @@ LogicalResult CastOp::verify() {
       return emitOpError() << "requires !cir.float for result";
     return success();
   }
+  case cir::CastKind::int_to_complex: {
+    if (!srcType.isa<mlir::cir::IntType>())
+      return emitOpError() << "requires !cir.int for source";
+    if (!resType.isa<mlir::cir::ComplexType>())
+      return emitOpError() << "requires !cir.complex for result";
+    if (srcType != resType.cast<mlir::cir::ComplexType>().getElementTy())
+      return emitOpError() << "source type does not match result complex type";
+    return success();
+  }
+  case cir::CastKind::float_to_complex: {
+    if (!srcType.isa<mlir::cir::CIRFPTypeInterface>())
+      return emitOpError() << "requires floating-point type for source";
+    if (!resType.isa<mlir::cir::ComplexType>())
+      return emitOpError() << "requires !cir.complex for result";
+    if (srcType != resType.cast<mlir::cir::ComplexType>().getElementTy())
+      return emitOpError() << "source type does not match result complex type";
+    return success();
+  }
+  case cir::CastKind::complex: {
+    if (!srcType.isa<mlir::cir::ComplexType>())
+      return emitOpError() << "requires !cir.complex for source";
+    if (!resType.isa<mlir::cir::ComplexType>())
+      return emitOpError() << "requires !cir.complex for result";
+    return success();
+  }
   }
 
   llvm_unreachable("Unknown CastOp kind?");
+}
+
+//===----------------------------------------------------------------------===//
+// ComplexRealOp and ComplexImagOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult ComplexRealOp::verify() {
+  if (getType() != getOperand().getType().getElementTy()) {
+    emitOpError() << "cir.complex.real result type does not match operand type";
+    return failure();
+  }
+
+  return success();
+}
+
+LogicalResult ComplexImagOp::verify() {
+  if (getType() != getOperand().getType().getElementTy()) {
+    emitOpError() << "cir.complex.imag result type does not match operand type";
+    return failure();
+  }
+
+  return success();
 }
 
 //===----------------------------------------------------------------------===//

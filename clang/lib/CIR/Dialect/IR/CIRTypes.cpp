@@ -27,6 +27,7 @@
 #include "mlir/Support/LogicalResult.h"
 
 #include "clang/CIR/Interfaces/ASTAttrInterfaces.h"
+#include "clang/CIR/Interfaces/CIRFPTypeInterface.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
@@ -701,6 +702,58 @@ uint64_t
 DoubleType::getPreferredAlignment(const ::mlir::DataLayout &dataLayout,
                                   ::mlir::DataLayoutEntryListRef params) const {
   return (uint64_t)(getWidth() / 8);
+}
+
+//===----------------------------------------------------------------------===//
+// ComplexType Definitions
+//===----------------------------------------------------------------------===//
+
+mlir::LogicalResult mlir::cir::ComplexType::verify(
+    llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
+    mlir::Type elementTy) {
+  if (!elementTy.isa<mlir::cir::IntType, mlir::cir::CIRFPTypeInterface>()) {
+    emitError() << "element type of !cir.complex must be either a "
+                   "floating-point type or an integer type";
+    return failure();
+  }
+
+  return success();
+}
+
+llvm::TypeSize mlir::cir::ComplexType::getTypeSizeInBits(
+    const mlir::DataLayout &dataLayout,
+    mlir::DataLayoutEntryListRef params) const {
+  // C17 6.2.5p13:
+  //   Each complex type has the same representation and alignment requirements
+  //   as an array type containing exactly two elements of the corresponding
+  //   real type.
+
+  auto elementTy = getElementTy();
+  return dataLayout.getTypeSizeInBits(elementTy) * 2;
+}
+
+uint64_t mlir::cir::ComplexType::getABIAlignment(
+    const mlir::DataLayout &dataLayout,
+    mlir::DataLayoutEntryListRef params) const {
+  // C17 6.2.5p13:
+  //   Each complex type has the same representation and alignment requirements
+  //   as an array type containing exactly two elements of the corresponding
+  //   real type.
+
+  auto elementTy = getElementTy();
+  return dataLayout.getTypeABIAlignment(elementTy);
+}
+
+uint64_t mlir::cir::ComplexType::getPreferredAlignment(
+    const ::mlir::DataLayout &dataLayout,
+    ::mlir::DataLayoutEntryListRef params) const {
+  // C17 6.2.5p13:
+  //   Each complex type has the same representation and alignment requirements
+  //   as an array type containing exactly two elements of the corresponding
+  //   real type.
+
+  auto elementTy = getElementTy();
+  return dataLayout.getTypePreferredAlignment(elementTy);
 }
 
 //===----------------------------------------------------------------------===//

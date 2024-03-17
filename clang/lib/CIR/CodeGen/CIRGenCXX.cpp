@@ -200,8 +200,6 @@ static void buildDeclInit(CIRGenFunction &CGF, const VarDecl *D,
   case TEK_Scalar:
     CGF.buildScalarInit(Init, CGF.getLoc(D->getLocation()), lv, false);
     return;
-  case TEK_Complex:
-    llvm_unreachable("complext evaluation NYI");
   }
 }
 

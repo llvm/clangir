@@ -171,6 +171,32 @@ def CIR_Double : CIR_FloatType<"Double", "double"> {
 def CIR_AnyFloat: AnyTypeOf<[CIR_Single, CIR_Double]>;
 
 //===----------------------------------------------------------------------===//
+// ComplexType
+//===----------------------------------------------------------------------===//
+
+def CIR_ComplexType : CIR_Type<"Complex", "complex",
+    [DeclareTypeInterfaceMethods<DataLayoutTypeInterface>]> {
+
+  let summary = "CIR complex type";
+  let description = [{
+    CIR type that represents a C/C++ complex number. `cir.complex` models the
+    C type `_Complex`.
+
+    The parameter `elementTy` gives the type of the real and imaginary part of
+    the complex number. `elementTy` must be either a CIR integer type or a CIR
+    floating-point type.
+  }];
+
+  let parameters = (ins "mlir::Type":$elementTy);
+
+  let assemblyFormat = [{
+    `<` $elementTy `>`
+  }];
+
+  let genVerifyDecl = 1;
+}
+
+//===----------------------------------------------------------------------===//
 // PointerType
 //===----------------------------------------------------------------------===//
 
@@ -444,7 +470,7 @@ def CIR_StructType : Type<CPred<"$_self.isa<::mlir::cir::StructType>()">,
 def CIR_AnyType : AnyTypeOf<[
   CIR_IntType, CIR_PointerType, CIR_DataMemberType, CIR_BoolType, CIR_ArrayType,
   CIR_VectorType, CIR_FuncType, CIR_VoidType, CIR_StructType, CIR_ExceptionInfo,
-  CIR_AnyFloat,
+  CIR_AnyFloat, CIR_ComplexType
 ]>;
 
 #endif // MLIR_CIR_DIALECT_CIR_TYPES

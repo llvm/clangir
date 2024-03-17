@@ -41,6 +41,35 @@ class CIRBaseBuilderTy : public mlir::OpBuilder {
 public:
   CIRBaseBuilderTy(mlir::MLIRContext &C) : mlir::OpBuilder(&C) {}
 
+  mlir::cir::BoolType getBoolTy() {
+    return ::mlir::cir::BoolType::get(getContext());
+  }
+
+  mlir::cir::BoolAttr getCIRBoolAttr(bool state) {
+    return mlir::cir::BoolAttr::get(getContext(), getBoolTy(), state);
+  }
+
+  mlir::TypedAttr getZeroInitAttr(mlir::Type ty) {
+    if (ty.isa<mlir::cir::IntType>())
+      return mlir::cir::IntAttr::get(ty, 0);
+    if (auto fltType = ty.dyn_cast<mlir::cir::SingleType>())
+      return mlir::cir::FPAttr::getZero(fltType);
+    if (auto fltType = ty.dyn_cast<mlir::cir::DoubleType>())
+      return mlir::cir::FPAttr::getZero(fltType);
+    if (auto complexTy = ty.dyn_cast<mlir::cir::ComplexType>())
+      return mlir::cir::ComplexAttr::getZero(complexTy);
+    if (auto arrTy = ty.dyn_cast<mlir::cir::ArrayType>())
+      return getZeroAttr(arrTy);
+    if (auto ptrTy = ty.dyn_cast<mlir::cir::PointerType>())
+      return getConstPtrAttr(ptrTy, 0);
+    if (auto structTy = ty.dyn_cast<mlir::cir::StructType>())
+      return getZeroAttr(structTy);
+    if (ty.isa<mlir::cir::BoolType>()) {
+      return getCIRBoolAttr(false);
+    }
+    llvm_unreachable("Zero initializer for given type is NYI");
+  }
+
   mlir::Value getConstAPSInt(mlir::Location loc, const llvm::APSInt &val) {
     auto ty = mlir::cir::IntType::get(getContext(), val.getBitWidth(),
                                       val.isSigned());

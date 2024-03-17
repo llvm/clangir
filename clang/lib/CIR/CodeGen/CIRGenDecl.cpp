@@ -700,11 +700,8 @@ void CIRGenFunction::buildExprAsInit(const Expr *init, const ValueDecl *D,
     return;
   }
   switch (CIRGenFunction::getEvaluationKind(type)) {
-  case TEK_Scalar:
+  case TEK_Scalar: {
     buildScalarInit(init, getLoc(D->getSourceRange()), lvalue);
-    return;
-  case TEK_Complex: {
-    assert(0 && "not implemented");
     return;
   }
   case TEK_Aggregate:

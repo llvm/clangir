@@ -782,9 +782,6 @@ void AggExprEmitter::buildInitializationToLValue(Expr *E, LValue LV) {
   }
 
   switch (CGF.getEvaluationKind(type)) {
-  case TEK_Complex:
-    llvm_unreachable("NYI");
-    return;
   case TEK_Aggregate:
     CGF.buildAggExpr(
         E, AggValueSlot::forLValue(LV, AggValueSlot::IsDestructed,
