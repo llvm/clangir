@@ -55,7 +55,7 @@ mlir::LogicalResult runCIRToCIRPasses(
   }
 
   pm.addPass(mlir::createLoweringPreparePass(&astCtx));
-  //pm.addPass(mlir::createStructuredCFGPass());
+  pm.addPass(mlir::createStructuredCFGPass());
 
   // FIXME: once CIRCodenAction fixes emission other than CIR we
   // need to run this right before dialect emission.
