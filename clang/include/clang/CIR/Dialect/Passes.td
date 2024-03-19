@@ -75,6 +75,20 @@ def LoweringPrepare : Pass<"cir-lowering-prepare"> {
   let dependentDialects = ["cir::CIRDialect"];
 }
 
+def StructuredCFG : Pass<"cir-structured-cfg"> {
+  let summary = "Produces structured cfg";
+  let description = [{ 
+    This pass transforms CIR and inline all the nested regions. Thus,
+    the next post condtions are met after the pass applied:
+    - there are not any nested region in a function body
+    - all the blocks in a function belong to the parent region
+    In other words, this pass removes such CIR operations like IfOp, LoopOp,
+    ScopeOp and etc. and produce flat CIR.
+  }];
+  let constructor = "mlir::createStructuredCFGPass()";
+  let dependentDialects = ["cir::CIRDialect"];
+}
+
 def IdiomRecognizer : Pass<"cir-idiom-recognizer"> {
   let summary = "Raise calls to C/C++ libraries to CIR operations";
   let description = [{
