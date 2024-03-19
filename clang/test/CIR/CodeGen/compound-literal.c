@@ -27,3 +27,19 @@ S b = {
 
 // LLVM: @.compoundLiteral.1 = internal global [1 x i32] [i32 1]
 // LLVM: @b = global %struct.S { ptr @.compoundLiteral.1 }
+
+typedef struct {
+  int a;
+} A;
+
+A foo(void) {
+  return (A){1};
+}
+
+// CIR: cir.func @foo
+// CIR:    [[TMP0:%.*]] = cir.alloca !ty_22A22, cir.ptr <!ty_22A22>, ["__retval"] {alignment = 4 : i64}
+// CIR:    [[TMP1:%.*]] = cir.get_member [[TMP0]][0] {name = "a"} : !cir.ptr<!ty_22A22> -> !cir.ptr<!s32i>
+// CIR:    [[TMP2:%.*]] = cir.const(#cir.int<1> : !s32i) : !s32i
+// CIR:    cir.store [[TMP2]], [[TMP1]] : !s32i, cir.ptr <!s32i>
+// CIR:    [[TMP3:%.*]] = cir.load [[TMP0]] : cir.ptr <!ty_22A22>, !ty_22A22
+// CIR:    cir.return [[TMP3]] : !ty_22A22
