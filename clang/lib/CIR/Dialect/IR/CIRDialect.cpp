@@ -89,6 +89,11 @@ struct CIROpAsmDialectInterface : public OpAsmDialectInterface {
       os << "fn_attr";
       return AliasResult::FinalAlias;
     }
+    if (auto cmpThreeWayInfoAttr =
+            mlir::dyn_cast<mlir::cir::CmpThreeWayInfoAttr>(attr)) {
+      os << cmpThreeWayInfoAttr.getAlias();
+      return AliasResult::FinalAlias;
+    }
 
     return AliasResult::NoAlias;
   }
@@ -879,6 +884,20 @@ Block *BrCondOp::getSuccessorForOperands(ArrayRef<Attribute> operands) {
   if (IntegerAttr condAttr = llvm::dyn_cast_or_null<IntegerAttr>(operands.front()))
     return condAttr.getValue().isOne() ? getDestTrue() : getDestFalse();
   return nullptr;
+}
+
+//===----------------------------------------------------------------------===//
+// CmpThreeWayOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult CmpThreeWayOp::verify() {
+  // Type of the result must be a signed integer type.
+  if (!getType().isSigned()) {
+    emitOpError() << "result type of cir.cmp3way must be a signed integer type";
+    return failure();
+  }
+
+  return success();
 }
 
 //===----------------------------------------------------------------------===//
