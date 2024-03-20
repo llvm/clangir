@@ -185,7 +185,8 @@ public:
               mlirMod, mlirCtx.get(), C, !feOptions.ClangIRDisableCIRVerifier,
               feOptions.ClangIRLifetimeCheck, lifetimeOpts,
               feOptions.ClangIRIdiomRecognizer, idiomRecognizerOpts,
-              feOptions.ClangIRLibOpt, libOptOpts, passOptParsingFailure)
+              feOptions.ClangIRLibOpt, libOptOpts, passOptParsingFailure,
+              action==CIRGenAction::OutputType::EmitFlatCIR)
               .failed()) {
         if (!passOptParsingFailure.empty())
           diagnosticsEngine.Report(diag::err_drv_cir_pass_opt_parsing)
@@ -233,6 +234,7 @@ public:
 
     switch (action) {
     case CIRGenAction::OutputType::EmitCIR:
+    case CIRGenAction::OutputType::EmitFlatCIR:
       if (outputStream && mlirMod) {
         // Emit remaining defaulted C++ methods
         if (!feOptions.ClangIRDisableEmitCXXDefault)
@@ -244,15 +246,6 @@ public:
         mlirMod->print(*outputStream, flags);
       }
       break;
-    case CIRGenAction::OutputType::EmitFlatCIR: {
-      auto flatCIRModule = runCIRToFlatCIRPasses(mlirMod, mlirCtx.get());        
-
-      // FIXME: we cannot roundtrip prettyForm=true right now.
-      mlir::OpPrintingFlags flags;
-      flags.enableDebugInfo(/*enable=*/true, /*prettyForm=*/false);
-      mlirMod->print(*outputStream, flags);
-      break;
-    }
     case CIRGenAction::OutputType::EmitMLIR: {
       auto loweredMlirModule = lowerFromCIRToMLIR(mlirMod, mlirCtx.get());
       assert(outputStream && "Why are we here without an output stream?");

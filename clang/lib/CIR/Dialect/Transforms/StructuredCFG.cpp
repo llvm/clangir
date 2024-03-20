@@ -7,7 +7,6 @@
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/Passes.h"
 
-
 using namespace mlir;
 using namespace mlir::cir;
 
