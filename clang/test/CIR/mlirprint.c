@@ -14,7 +14,7 @@ int foo(void) {
 // CIR:  cir.func @foo() -> !s32i
 // CIR:  IR Dump After DropAST (cir-drop-ast)
 // CIR:  cir.func @foo() -> !s32i
-// LLVM: IR Dump After cir::direct::ConvertCIRToLLVMPass (cir-to-llvm)
+// LLVM: IR Dump After cir::direct::ConvertCIRToLLVMPass (cir-to-llvm-internal)
 // LLVM: llvm.func @foo() -> i32
 // LLVM: IR Dump After
 // LLVM: define i32 @foo()
