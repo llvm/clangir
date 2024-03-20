@@ -2969,7 +2969,7 @@ std::unique_ptr<mlir::Pass> createConvertCIRToLLVMPass() {
   return std::make_unique<ConvertCIRToLLVMPass>();
 }
 
-void createCIRToLLVMPipeline(mlir::OpPassManager &pm) {
+void populateCIRToLLVMPasses(mlir::OpPassManager &pm) {
   populateCIRFlatteningPasses(pm);
   pm.addPass(createConvertCIRToLLVMPass());
 }
@@ -2981,7 +2981,7 @@ lowerDirectlyFromCIRToLLVMIR(mlir::ModuleOp theModule, LLVMContext &llvmCtx,
                              bool disableVerifier) {
   mlir::MLIRContext *mlirCtx = theModule.getContext();
   mlir::PassManager pm(mlirCtx);
-  createCIRToLLVMPipeline(pm);  
+  populateCIRToLLVMPasses(pm);  
 
   // This is necessary to have line tables emitted and basic
   // debugger working. In the future we will add proper debug information

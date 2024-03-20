@@ -49,7 +49,7 @@ int main(int argc, char **argv) {
   mlir::PassPipelineRegistration<mlir::EmptyPipelineOptions> pipeline(
     "cir-to-llvm", "", 
       [](mlir::OpPassManager &pm) {
-        cir::direct::createCIRToLLVMPipeline(pm);
+        cir::direct::populateCIRToLLVMPasses(pm);
   });
 
   ::mlir::registerPass([]() -> std::unique_ptr<::mlir::Pass> {
