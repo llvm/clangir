@@ -1,4 +1,5 @@
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir-enable -emit-cir -mmlir --mlir-print-ir-after-all %s -o %t.cir 2>&1 | FileCheck %s -check-prefix=CIR
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir-enable -emit-flat-cir -mmlir --mlir-print-ir-after-all %s -o %t.cir 2>&1 | FileCheck %s -check-prefix=FLATCIR
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir-enable -emit-llvm -mmlir --mlir-print-ir-after-all -mllvm -print-after-all  %s -o %t.ll 2>&1 | FileCheck %s -check-prefix=CIR -check-prefix=LLVM
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir-enable -emit-cir -mmlir --mlir-print-ir-after=cir-drop-ast %s -o %t.cir 2>&1 | FileCheck %s -check-prefix=CIRPASS
 
@@ -12,8 +13,16 @@ int foo(void) {
 // CIR:  cir.func @foo() -> !s32i
 // CIR:  IR Dump After LoweringPrepare (cir-lowering-prepare)
 // CIR:  cir.func @foo() -> !s32i
+// CIR-NOT: IR Dump After StructuredCFG
 // CIR:  IR Dump After DropAST (cir-drop-ast)
 // CIR:  cir.func @foo() -> !s32i
+// FLATCIR:  IR Dump After MergeCleanups (cir-merge-cleanups)
+// FLATCIR:  cir.func @foo() -> !s32i
+// FLATCIR:  IR Dump After LoweringPrepare (cir-lowering-prepare)
+// FLATCIR:  cir.func @foo() -> !s32i
+// FLATCIR:  IR Dump After StructuredCFG
+// FLATCIR:  IR Dump After DropAST (cir-drop-ast)
+// FLATCIR:  cir.func @foo() -> !s32i
 // LLVM: IR Dump After cir::direct::ConvertCIRToLLVMPass (cir-to-llvm-internal)
 // LLVM: llvm.func @foo() -> i32
 // LLVM: IR Dump After
