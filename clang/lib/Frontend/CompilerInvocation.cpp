@@ -2908,9 +2908,8 @@ static bool ParseFrontendArgs(FrontendOptions &Opts, ArgList &Args,
   if (Opts.ProgramAction != frontend::GenerateModule && Opts.IsSystemModule)
     Diags.Report(diag::err_drv_argument_only_allowed_with) << "-fsystem-module"
                                                            << "-emit-module";
-  if (Args.hasArg(OPT_fclangir_enable)
-      || Args.hasArg(OPT_emit_cir)
-      || Args.hasArg(OPT_emit_flat_cir))
+  if (Args.hasArg(OPT_fclangir_enable) || Args.hasArg(OPT_emit_cir) ||
+      Args.hasArg(OPT_emit_flat_cir))
     Opts.UseClangIRPipeline = true;
 
   if (Args.hasArg(OPT_fclangir_direct_lowering))

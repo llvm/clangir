@@ -81,7 +81,8 @@ CreateFrontendBaseAction(CompilerInstance &CI) {
   case EmitBC:                 return std::make_unique<EmitBCAction>();
 #if CLANG_ENABLE_CIR
   case EmitCIR:                return std::make_unique<::cir::EmitCIRAction>();
-  case EmitFlatCIR:            return std::make_unique<::cir::EmitFlatCIRAction>();
+  case EmitFlatCIR:
+    return std::make_unique<::cir::EmitFlatCIRAction>();
   case EmitCIROnly:            return std::make_unique<::cir::EmitCIROnlyAction>();
   case EmitMLIR:               return std::make_unique<::cir::EmitMLIRAction>();
 #else

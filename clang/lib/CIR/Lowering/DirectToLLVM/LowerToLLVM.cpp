@@ -917,7 +917,9 @@ struct ConvertCIRToLLVMPass
   }
   void runOnOperation() final;
 
-  virtual StringRef getArgument() const override { return "cir-to-llvm-internal"; }
+  virtual StringRef getArgument() const override {
+    return "cir-to-llvm-internal";
+  }
 };
 
 class CIRCallLowering : public mlir::OpConversionPattern<mlir::cir::CallOp> {
@@ -2981,7 +2983,7 @@ lowerDirectlyFromCIRToLLVMIR(mlir::ModuleOp theModule, LLVMContext &llvmCtx,
                              bool disableVerifier) {
   mlir::MLIRContext *mlirCtx = theModule.getContext();
   mlir::PassManager pm(mlirCtx);
-  populateCIRToLLVMPasses(pm);  
+  populateCIRToLLVMPasses(pm);
 
   // This is necessary to have line tables emitted and basic
   // debugger working. In the future we will add proper debug information

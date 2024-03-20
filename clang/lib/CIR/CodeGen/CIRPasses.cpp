@@ -18,13 +18,14 @@
 #include "mlir/Pass/PassManager.h"
 
 namespace cir {
-mlir::LogicalResult runCIRToCIRPasses(
-    mlir::ModuleOp theModule, mlir::MLIRContext *mlirCtx,
-    clang::ASTContext &astCtx, bool enableVerifier, bool enableLifetime,
-    llvm::StringRef lifetimeOpts, bool enableIdiomRecognizer,
-    llvm::StringRef idiomRecognizerOpts, bool enableLibOpt,
-    llvm::StringRef libOptOpts, std::string &passOptParsingFailure,
-    bool flattenCIR) {
+mlir::LogicalResult
+runCIRToCIRPasses(mlir::ModuleOp theModule, mlir::MLIRContext *mlirCtx,
+                  clang::ASTContext &astCtx, bool enableVerifier,
+                  bool enableLifetime, llvm::StringRef lifetimeOpts,
+                  bool enableIdiomRecognizer,
+                  llvm::StringRef idiomRecognizerOpts, bool enableLibOpt,
+                  llvm::StringRef libOptOpts,
+                  std::string &passOptParsingFailure, bool flattenCIR) {
   mlir::PassManager pm(mlirCtx);
   pm.addPass(mlir::createMergeCleanupsPass());
 
