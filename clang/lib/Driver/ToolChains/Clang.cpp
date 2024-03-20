@@ -4910,7 +4910,8 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   }
 
   if (Args.hasArg(options::OPT_fclangir_enable) ||
-      Args.hasArg(options::OPT_emit_cir))
+      Args.hasArg(options::OPT_emit_cir) ||
+      Args.hasArg(options::OPT_emit_flat_cir))
     CmdArgs.push_back("-fclangir-enable");
 
   if (Args.hasArg(options::OPT_fclangir_direct_lowering))
@@ -5052,6 +5053,8 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
       CmdArgs.push_back("-emit-llvm");
     } else if (JA.getType() == types::TY_CIR) {
       CmdArgs.push_back("-emit-cir");
+    } else if (JA.getType() == types::TY_FLAT_CIR) {
+      CmdArgs.push_back("-emit-flat-cir");
     } else if (JA.getType() == types::TY_LLVM_BC ||
                JA.getType() == types::TY_LTO_BC) {
       // Emit textual llvm IR for AMDGPU offloading for -emit-llvm -S

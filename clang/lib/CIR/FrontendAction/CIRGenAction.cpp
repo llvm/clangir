@@ -251,8 +251,8 @@ public:
       mlir::OpPrintingFlags flags;
       flags.enableDebugInfo(/*enable=*/true, /*prettyForm=*/false);
       mlirMod->print(*outputStream, flags);
-    }    
-    break;
+      break;
+    }
     case CIRGenAction::OutputType::EmitMLIR: {
       auto loweredMlirModule = lowerFromCIRToMLIR(mlirMod, mlirCtx.get());
       assert(outputStream && "Why are we here without an output stream?");
@@ -456,6 +456,10 @@ EmitAssemblyAction::EmitAssemblyAction(mlir::MLIRContext *_MLIRContext)
 void EmitCIRAction::anchor() {}
 EmitCIRAction::EmitCIRAction(mlir::MLIRContext *_MLIRContext)
     : CIRGenAction(OutputType::EmitCIR, _MLIRContext) {}
+
+void EmitFlatCIRAction::anchor() {}
+EmitFlatCIRAction::EmitFlatCIRAction(mlir::MLIRContext *_MLIRContext)
+    : CIRGenAction(OutputType::EmitFlatCIR, _MLIRContext) {}
 
 void EmitCIROnlyAction::anchor() {}
 EmitCIROnlyAction::EmitCIROnlyAction(mlir::MLIRContext *_MLIRContext)

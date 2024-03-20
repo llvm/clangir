@@ -78,6 +78,13 @@ public:
   EmitCIRAction(mlir::MLIRContext *mlirCtx = nullptr);
 };
 
+class EmitFlatCIRAction : public CIRGenAction {
+  virtual void anchor();
+
+public:
+  EmitFlatCIRAction(mlir::MLIRContext *mlirCtx = nullptr);
+};
+
 class EmitCIROnlyAction : public CIRGenAction {
   virtual void anchor();
 
