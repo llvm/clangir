@@ -34,6 +34,10 @@ mlir::LogicalResult runCIRToCIRPasses(
     llvm::StringRef lifetimeOpts, bool enableIdiomRecognizer,
     llvm::StringRef idiomRecognizerOpts, bool enableLibOpt,
     llvm::StringRef libOptOpts, std::string &passOptParsingFailure);
+
+mlir::LogicalResult runCIRToFlatCIRPasses(
+    mlir::ModuleOp &theModule, mlir::MLIRContext *mlirCtx);
+
 } // namespace cir
 
 #endif // CLANG_CIR_CIRTOCIRPASSES_H_

@@ -23,7 +23,7 @@ mlir::LogicalResult runCIRToCIRPasses(
     clang::ASTContext &astCtx, bool enableVerifier, bool enableLifetime,
     llvm::StringRef lifetimeOpts, bool enableIdiomRecognizer,
     llvm::StringRef idiomRecognizerOpts, bool enableLibOpt,
-    llvm::StringRef libOptOpts, std::string &passOptParsingFailure) {
+    llvm::StringRef libOptOpts, std::string &passOptParsingFailure) {    
   mlir::PassManager pm(mlirCtx);
   pm.addPass(mlir::createMergeCleanupsPass());
 
@@ -55,13 +55,20 @@ mlir::LogicalResult runCIRToCIRPasses(
   }
 
   pm.addPass(mlir::createLoweringPreparePass(&astCtx));
-  pm.addPass(mlir::createStructuredCFGPass());
 
   // FIXME: once CIRCodenAction fixes emission other than CIR we
   // need to run this right before dialect emission.
   pm.addPass(mlir::createDropASTPass());
   pm.enableVerifier(enableVerifier);
   (void)mlir::applyPassManagerCLOptions(pm);
+  return pm.run(theModule);
+}
+
+mlir::LogicalResult runCIRToFlatCIRPasses(
+  mlir::ModuleOp &theModule, mlir::MLIRContext *mlirCtx) {
+  mlir::PassManager pm(mlirCtx);  
+  mlir::populateCIRFlatteningPasses(pm);
+  pm.addPass(mlir::createStructuredCFGPass());
   return pm.run(theModule);
 }
 } // namespace cir

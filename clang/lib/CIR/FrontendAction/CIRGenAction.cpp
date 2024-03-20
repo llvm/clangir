@@ -244,6 +244,15 @@ public:
         mlirMod->print(*outputStream, flags);
       }
       break;
+    case CIRGenAction::OutputType::EmitFlatCIR: {
+      auto flatCIRModule = runCIRToFlatCIRPasses(mlirMod, mlirCtx.get());        
+
+      // FIXME: we cannot roundtrip prettyForm=true right now.
+      mlir::OpPrintingFlags flags;
+      flags.enableDebugInfo(/*enable=*/true, /*prettyForm=*/false);
+      mlirMod->print(*outputStream, flags);
+    }    
+    break;
     case CIRGenAction::OutputType::EmitMLIR: {
       auto loweredMlirModule = lowerFromCIRToMLIR(mlirMod, mlirCtx.get());
       assert(outputStream && "Why are we here without an output stream?");
@@ -352,6 +361,8 @@ getOutputStream(CompilerInstance &ci, StringRef inFile,
   case CIRGenAction::OutputType::EmitAssembly:
     return ci.createDefaultOutputFile(false, inFile, "s");
   case CIRGenAction::OutputType::EmitCIR:
+    return ci.createDefaultOutputFile(false, inFile, "cir");
+  case CIRGenAction::OutputType::EmitFlatCIR:
     return ci.createDefaultOutputFile(false, inFile, "cir");
   case CIRGenAction::OutputType::EmitMLIR:
     return ci.createDefaultOutputFile(false, inFile, "mlir");

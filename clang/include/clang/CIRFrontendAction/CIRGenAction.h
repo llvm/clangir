@@ -32,6 +32,7 @@ public:
   enum class OutputType {
     EmitAssembly,
     EmitCIR,
+    EmitFlatCIR,
     EmitLLVM,
     EmitMLIR,
     EmitObj,

@@ -28,6 +28,10 @@ std::unique_ptr<mlir::Pass> createConvertCIRToMLIRPass();
 namespace direct {
 /// Create a pass that fully lowers CIR to the LLVMIR dialect.
 std::unique_ptr<mlir::Pass> createConvertCIRToLLVMPass();
+
+/// Create a pass pipeline that fully lowers CIR to the LLVMIR dialect.
+void createCIRToLLVMPipeline(mlir::OpPassManager &pm);
+
 } // namespace direct
 } // end namespace cir
 
