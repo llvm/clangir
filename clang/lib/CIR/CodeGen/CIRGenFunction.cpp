@@ -1553,6 +1553,7 @@ void CIRGenFunction::buildVariablyModifiedType(QualType type) {
 
     const Type *ty = type.getTypePtr();
     switch (ty->getTypeClass()) {
+    case Type::CountAttributed:
     case Type::PackIndexing:
       llvm_unreachable("NYI");
 
