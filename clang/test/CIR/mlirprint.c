@@ -14,14 +14,14 @@ int foo(void) {
 // CIR:  cir.func @foo() -> !s32i
 // CIR:  IR Dump After LoweringPrepare (cir-lowering-prepare)
 // CIR:  cir.func @foo() -> !s32i
-// CIR-NOT: IR Dump After StructuredCFG (cir-structured-cfg)
+// CIR-NOT: IR Dump After StructuredCFG
 // CIR:  IR Dump After DropAST (cir-drop-ast)
 // CIR:  cir.func @foo() -> !s32i
 // FLATCIR:  IR Dump After MergeCleanups (cir-merge-cleanups)
 // FLATCIR:  cir.func @foo() -> !s32i
 // FLATCIR:  IR Dump After LoweringPrepare (cir-lowering-prepare)
 // FLATCIR:  cir.func @foo() -> !s32i
-// FLATCIR:  IR Dump After StructuredCFG
+// FLATCIR:  IR Dump After StructuredCFG (cir-structured-cfg)
 // FLATCIR:  IR Dump After DropAST (cir-drop-ast)
 // FLATCIR:  cir.func @foo() -> !s32i
 // LLVM: IR Dump After cir::direct::ConvertCIRToLLVMPass (cir-to-llvm-internal)
@@ -32,4 +32,4 @@ int foo(void) {
 // CIRPASS-NOT:  IR Dump After MergeCleanups
 // CIRPASS:      IR Dump After DropAST
 
-// CFGPASS: IR Dump Before StructuredCFG
+// CFGPASS: IR Dump Before StructuredCFG (cir-structured-cfg)
