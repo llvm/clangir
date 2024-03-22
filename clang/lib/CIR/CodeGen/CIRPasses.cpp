@@ -77,4 +77,4 @@ void populateCIRPreLoweringPasses(OpPassManager &pm) {
   // add other passes here
 }
 
-} // namespace mlir {
+} // namespace mlir
