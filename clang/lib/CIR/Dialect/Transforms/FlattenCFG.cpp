@@ -12,19 +12,19 @@ using namespace mlir::cir;
 
 namespace {
 
-struct StructuredCFGPass : public StructuredCFGBase<StructuredCFGPass> {
+struct FlattenCFGPass : public FlattenCFGBase<FlattenCFGPass> {
 
-  StructuredCFGPass() = default;
+  FlattenCFGPass() = default;
   void runOnOperation() override;
 };
 
-void populateStructuredCFGPatterns(RewritePatternSet &patterns) {
+void populateFlattenCFGPatterns(RewritePatternSet &patterns) {
   // TODO: add patterns here
 }
 
-void StructuredCFGPass::runOnOperation() {
+void FlattenCFGPass::runOnOperation() {
   RewritePatternSet patterns(&getContext());
-  populateStructuredCFGPatterns(patterns);
+  populateFlattenCFGPatterns(patterns);
 
   // Collect operations to apply patterns.
   SmallVector<Operation *, 16> ops;
@@ -41,8 +41,8 @@ void StructuredCFGPass::runOnOperation() {
 
 namespace mlir {
 
-std::unique_ptr<Pass> createStructuredCFGPass() {
-  return std::make_unique<StructuredCFGPass>();
+std::unique_ptr<Pass> createFlattenCFGPass() {
+  return std::make_unique<FlattenCFGPass>();
 }
 
 } // namespace mlir

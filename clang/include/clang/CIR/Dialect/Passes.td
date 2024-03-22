@@ -75,8 +75,8 @@ def LoweringPrepare : Pass<"cir-lowering-prepare"> {
   let dependentDialects = ["cir::CIRDialect"];
 }
 
-def StructuredCFG : Pass<"cir-structured-cfg"> {
-  let summary = "Produces structured cfg";
+def FlattenCFG : Pass<"cir-flatten-cfg"> {
+  let summary = "Produces flatten cfg";
   let description = [{ 
     This pass transforms CIR and inline all the nested regions. Thus,
     the next post condtions are met after the pass applied:
@@ -85,7 +85,7 @@ def StructuredCFG : Pass<"cir-structured-cfg"> {
     In other words, this pass removes such CIR operations like IfOp, LoopOp,
     ScopeOp and etc. and produces a flat CIR.
   }];
-  let constructor = "mlir::createStructuredCFGPass()";
+  let constructor = "mlir::createFlattenCFGPass()";
   let dependentDialects = ["cir::CIRDialect"];
 }
 

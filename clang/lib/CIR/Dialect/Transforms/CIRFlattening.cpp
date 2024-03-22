@@ -2,5 +2,5 @@
 #include "clang/CIR/Dialect/Passes.h"
 
 void mlir::populateCIRFlatteningPasses(mlir::OpPassManager &pm) {
-  pm.addPass(mlir::createStructuredCFGPass());
+  pm.addPass(mlir::createFlattenCFGPass());
 }

@@ -34,7 +34,7 @@ std::unique_ptr<Pass> createIdiomRecognizerPass();
 std::unique_ptr<Pass> createIdiomRecognizerPass(clang::ASTContext *astCtx);
 std::unique_ptr<Pass> createLibOptPass();
 std::unique_ptr<Pass> createLibOptPass(clang::ASTContext *astCtx);
-std::unique_ptr<Pass> createStructuredCFGPass();
+std::unique_ptr<Pass> createFlattenCFGPass();
 
 void populateCIRFlatteningPasses(mlir::OpPassManager &pm);
 
