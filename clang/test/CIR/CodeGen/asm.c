@@ -77,7 +77,7 @@ float add5(float x, float y) {
 
 /*
 There are tests from clang/test/CodeGen/asm.c. No checks for now - we just make
-sure no crushes happen
+sure no crashes happen
 */
 
 
