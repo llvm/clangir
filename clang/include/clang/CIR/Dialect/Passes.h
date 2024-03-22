@@ -36,7 +36,7 @@ std::unique_ptr<Pass> createLibOptPass();
 std::unique_ptr<Pass> createLibOptPass(clang::ASTContext *astCtx);
 std::unique_ptr<Pass> createFlattenCFGPass();
 
-void populateCIRFlatteningPasses(mlir::OpPassManager &pm);
+void populateCIRPreLoweringPasses(mlir::OpPassManager &pm);
 
 //===----------------------------------------------------------------------===//
 // Registration

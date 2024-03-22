@@ -1,5 +1,4 @@
 add_clang_library(MLIRCIRTransforms
-  CIRFlattening.cpp
   LifetimeCheck.cpp
   LoweringPrepare.cpp
   MergeCleanups.cpp
