@@ -361,7 +361,7 @@ phases::ID Driver::getFinalPhase(const DerivedArgList &DAL,
              (PhaseArg = DAL.getLastArg(options::OPT__migrate)) ||
              (PhaseArg = DAL.getLastArg(options::OPT__analyze)) ||
              (PhaseArg = DAL.getLastArg(options::OPT_emit_cir)) ||
-             (PhaseArg = DAL.getLastArg(options::OPT_emit_flat_cir)) ||
+             (PhaseArg = DAL.getLastArg(options::OPT_emit_cir_flat)) ||
              (PhaseArg = DAL.getLastArg(options::OPT_emit_ast))) {
     FinalPhase = phases::Compile;
 
@@ -4788,8 +4788,8 @@ Action *Driver::ConstructPhaseAction(
       return C.MakeAction<CompileJobAction>(Input, types::TY_AST);
     if (Args.hasArg(options::OPT_emit_cir))
       return C.MakeAction<CompileJobAction>(Input, types::TY_CIR);
-    if (Args.hasArg(options::OPT_emit_flat_cir))
-      return C.MakeAction<CompileJobAction>(Input, types::TY_FLAT_CIR);
+    if (Args.hasArg(options::OPT_emit_cir_flat))
+      return C.MakeAction<CompileJobAction>(Input, types::TY_CIR_FLAT);
     if (Args.hasArg(options::OPT_module_file_info))
       return C.MakeAction<CompileJobAction>(Input, types::TY_ModuleFile);
     if (Args.hasArg(options::OPT_verify_pch))

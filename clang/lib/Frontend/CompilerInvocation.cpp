@@ -2552,7 +2552,7 @@ static const auto &getFrontendActionTable() {
       {frontend::EmitAssembly, OPT_S},
       {frontend::EmitBC, OPT_emit_llvm_bc},
       {frontend::EmitCIR, OPT_emit_cir},
-      {frontend::EmitFlatCIR, OPT_emit_flat_cir},
+      {frontend::EmitCIRFlat, OPT_emit_cir_flat},
       {frontend::EmitCIROnly, OPT_emit_cir_only},
       {frontend::EmitMLIR, OPT_emit_mlir},
       {frontend::EmitHTML, OPT_emit_html},
@@ -2909,7 +2909,7 @@ static bool ParseFrontendArgs(FrontendOptions &Opts, ArgList &Args,
     Diags.Report(diag::err_drv_argument_only_allowed_with) << "-fsystem-module"
                                                            << "-emit-module";
   if (Args.hasArg(OPT_fclangir_enable) || Args.hasArg(OPT_emit_cir) ||
-      Args.hasArg(OPT_emit_flat_cir))
+      Args.hasArg(OPT_emit_cir_flat))
     Opts.UseClangIRPipeline = true;
 
   if (Args.hasArg(OPT_fclangir_direct_lowering))
@@ -4385,7 +4385,7 @@ static bool isStrictlyPreprocessorAction(frontend::ActionKind Action) {
   case frontend::EmitAssembly:
   case frontend::EmitBC:
   case frontend::EmitCIR:
-  case frontend::EmitFlatCIR:
+  case frontend::EmitCIRFlat:
   case frontend::EmitCIROnly:
   case frontend::EmitMLIR:
   case frontend::EmitHTML:

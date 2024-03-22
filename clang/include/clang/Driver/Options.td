@@ -2926,8 +2926,8 @@ defm clangir_direct_lowering : BoolFOption<"clangir-direct-lowering",
 
 def emit_cir : Flag<["-"], "emit-cir">, Visibility<[ClangOption, CC1Option]>,
   Group<Action_Group>, HelpText<"Build ASTs and then lower to ClangIR, emit the .cir file">;
-def emit_flat_cir : Flag<["-"], "emit-flat-cir">, Visibility<[ClangOption, CC1Option]>,
-  Group<Action_Group>, HelpText<"Build ASTs and then lower to ClangIR with no nested regions, then emit the .cir file">;
+def emit_cir_flat : Flag<["-"], "emit-cir-flat">, Visibility<[ClangOption, CC1Option]>,
+  Group<Action_Group>, HelpText<"Similar to -emit-cir but also lowers structured CFG into basic blocks.">;
 def emit_mlir : Flag<["-"], "emit-mlir">, Visibility<[CC1Option]>, Group<Action_Group>,
   HelpText<"Build ASTs and then lower through ClangIR to MLIR, emit the .milr file">;
 /// ClangIR-specific options - END

@@ -68,7 +68,7 @@ enum ActionKind {
   EmitCIR,
 
   /// Emit a .cir file with flat ClangIR
-  EmitFlatCIR,
+  EmitCIRFlat,
 
   /// Generate CIR, bud don't emit anything.
   EmitCIROnly,
