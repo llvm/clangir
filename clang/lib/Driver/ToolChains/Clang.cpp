@@ -5054,7 +5054,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     } else if (JA.getType() == types::TY_CIR) {
       CmdArgs.push_back("-emit-cir");
     } else if (JA.getType() == types::TY_CIR_FLAT) {
-      CmdArgs.push_back("-emit-flat-cir");
+      CmdArgs.push_back("-emit-cir-flat");
     } else if (JA.getType() == types::TY_LLVM_BC ||
                JA.getType() == types::TY_LTO_BC) {
       // Emit textual llvm IR for AMDGPU offloading for -emit-llvm -S

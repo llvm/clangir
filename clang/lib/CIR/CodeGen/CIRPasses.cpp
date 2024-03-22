@@ -70,7 +70,6 @@ runCIRToCIRPasses(mlir::ModuleOp theModule, mlir::MLIRContext *mlirCtx,
 
 } // namespace cir
 
-
 namespace mlir {
 
 void populateCIRPreLoweringPasses(OpPassManager &pm) {
