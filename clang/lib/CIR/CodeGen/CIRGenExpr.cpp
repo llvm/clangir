@@ -974,8 +974,6 @@ LValue CIRGenFunction::buildBinaryOperatorLValue(const BinaryOperator *E) {
     return LV;
   }
 
-  case TEK_Complex:
-    assert(0 && "not implemented");
   case TEK_Aggregate:
     assert(0 && "not implemented");
   }
@@ -1065,8 +1063,6 @@ RValue CIRGenFunction::buildAnyExpr(const Expr *E, AggValueSlot aggSlot,
   switch (CIRGenFunction::getEvaluationKind(E->getType())) {
   case TEK_Scalar:
     return RValue::get(buildScalarExpr(E));
-  case TEK_Complex:
-    assert(0 && "not implemented");
   case TEK_Aggregate: {
     if (!ignoreResult && aggSlot.isIgnored())
       aggSlot = CreateAggTemp(E->getType(), getLoc(E->getSourceRange()),
@@ -1854,10 +1850,6 @@ void CIRGenFunction::buildAnyExprToMem(const Expr *E, Address Location,
                                        Qualifiers Quals, bool IsInit) {
   // FIXME: This function should take an LValue as an argument.
   switch (getEvaluationKind(E->getType())) {
-  case TEK_Complex:
-    assert(0 && "NYI");
-    return;
-
   case TEK_Aggregate: {
     buildAggExpr(E, AggValueSlot::forAddr(Location, Quals,
                                           AggValueSlot::IsDestructed_t(IsInit),
@@ -2306,8 +2298,6 @@ RValue CIRGenFunction::convertTempToRValue(Address addr, clang::QualType type,
                                            clang::SourceLocation loc) {
   LValue lvalue = makeAddrLValue(addr, type, AlignmentSource::Decl);
   switch (getEvaluationKind(type)) {
-  case TEK_Complex:
-    llvm_unreachable("NYI");
   case TEK_Aggregate:
     llvm_unreachable("NYI");
   case TEK_Scalar:

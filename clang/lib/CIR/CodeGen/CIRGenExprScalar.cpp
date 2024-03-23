@@ -171,6 +171,25 @@ public:
         CGF.getLoc(E->getExprLoc()), Ty,
         Builder.getAttr<mlir::cir::FPAttr>(Ty, E->getValue()));
   }
+  mlir::Value VisitImaginaryLiteral(const ImaginaryLiteral *E) {
+    auto Loc = CGF.getLoc(E->getExprLoc());
+    auto Ty = CGF.getCIRType(E->getType()).cast<mlir::cir::ComplexType>();
+    auto ElementTy = Ty.getElementTy();
+
+    mlir::TypedAttr Real = Builder.getZeroInitAttr(ElementTy);
+    mlir::TypedAttr Imag;
+    if (ElementTy.isa<mlir::cir::IntType>()) {
+      auto RealValue = cast<IntegerLiteral>(E->getSubExpr())->getValue();
+      Imag = mlir::cir::IntAttr::get(ElementTy, RealValue);
+    } else if (ElementTy.isa<mlir::cir::CIRFPTypeInterface>()) {
+      auto RealValue = cast<FloatingLiteral>(E->getSubExpr())->getValue();
+      Imag = mlir::cir::FPAttr::get(ElementTy, RealValue);
+    } else
+      llvm_unreachable("unexpected complex element type");
+
+    auto Attr = mlir::cir::ComplexAttr::get(Ty, Real, Imag);
+    return Builder.getConstant(Loc, Attr);
+  }
   mlir::Value VisitCharacterLiteral(const CharacterLiteral *E) {
     mlir::Type Ty = CGF.getCIRType(E->getType());
     auto loc = CGF.getLoc(E->getExprLoc());
@@ -727,7 +746,43 @@ public:
     Result.Loc = E->getSourceRange();
     // TODO: Result.FPFeatures
     Result.E = E;
+
+    buildComplexPromotion(Result);
+
     return Result;
+  }
+
+  // If any of the two operands of a binary operation is of complex type,
+  // ensure both operands are promoted to complex type.
+  void buildComplexPromotion(BinOpInfo &Info) {
+    auto LHSTy = Info.LHS.getType().dyn_cast<mlir::cir::ComplexType>();
+    auto RHSTy = Info.RHS.getType().dyn_cast<mlir::cir::ComplexType>();
+    if (!LHSTy && !RHSTy)
+      return;
+
+    if (LHSTy && RHSTy)
+      return;
+
+    // We need to promote *Scalar to ComplexTy.
+    mlir::Value *Scalar;
+    mlir::cir::ComplexType ComplexTy;
+    if (LHSTy) {
+      Scalar = &Info.RHS;
+      ComplexTy = LHSTy;
+    } else {
+      Scalar = &Info.LHS;
+      ComplexTy = RHSTy;
+    }
+
+    mlir::cir::CastKind Kind;
+    if (Scalar->getType().isa<mlir::cir::IntType>())
+      Kind = mlir::cir::CastKind::int_to_complex;
+    else if (Scalar->getType().isa<mlir::cir::CIRFPTypeInterface>())
+      Kind = mlir::cir::CastKind::float_to_complex;
+    else
+      llvm_unreachable("unexpected complex promotion candidate");
+
+    *Scalar = Builder.createCast(Kind, *Scalar, ComplexTy);
   }
 
   mlir::Value buildMul(const BinOpInfo &Ops);
@@ -753,7 +808,9 @@ public:
   // codegen.
   QualType getPromotionType(QualType Ty) {
     if (auto *CT = Ty->getAs<ComplexType>()) {
-      llvm_unreachable("NYI");
+      QualType ElementType = CT->getElementType();
+      if (ElementType.UseExcessPrecision(CGF.getContext()))
+        llvm_unreachable("NYI");
     }
     if (Ty.UseExcessPrecision(CGF.getContext()))
       llvm_unreachable("NYI");
@@ -763,7 +820,8 @@ public:
   // Binary operators and binary compound assignment operators.
 #define HANDLEBINOP(OP)                                                        \
   mlir::Value VisitBin##OP(const BinaryOperator *E) {                          \
-    return build##OP(buildBinOps(E));                                          \
+    auto binOpInfo = buildBinOps(E);                                           \
+    return build##OP(binOpInfo);                                               \
   }                                                                            \
   mlir::Value VisitBin##OP##Assign(const CompoundAssignOperator *E) {          \
     return buildCompoundAssign(E, &ScalarExprEmitter::build##OP);              \
@@ -1491,14 +1549,25 @@ mlir::Value ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
     llvm_unreachable("NYI");
   case CK_CopyAndAutoreleaseBlockObject:
     llvm_unreachable("NYI");
-  case CK_FloatingRealToComplex:
-    llvm_unreachable("NYI");
+  case CK_IntegralRealToComplex: {
+    auto DestComplexTy = ConvertType(DestTy).cast<mlir::cir::ComplexType>();
+    auto Src = Visit(const_cast<Expr *>(E));
+    return Builder.createCast(mlir::cir::CastKind::int_to_complex, Src,
+                              DestComplexTy);
+  }
+  case CK_FloatingRealToComplex: {
+    auto DestComplexTy = ConvertType(DestTy).cast<mlir::cir::ComplexType>();
+    auto Src = Visit(const_cast<Expr *>(E));
+    return Builder.createCast(mlir::cir::CastKind::float_to_complex, Src,
+                              DestComplexTy);
+  }
   case CK_FloatingComplexCast:
-    llvm_unreachable("NYI");
   case CK_IntegralComplexToFloatingComplex:
-    llvm_unreachable("NYI");
-  case CK_FloatingComplexToIntegralComplex:
-    llvm_unreachable("NYI");
+  case CK_FloatingComplexToIntegralComplex: {
+    auto DestComplexTy = ConvertType(DestTy).cast<mlir::cir::ComplexType>();
+    auto Src = Visit(const_cast<Expr *>(E));
+    return Builder.createCast(mlir::cir::CastKind::complex, Src, DestComplexTy);
+  }
   case CK_ConstructorConversion:
     llvm_unreachable("NYI");
   case CK_ToUnion:
@@ -1590,13 +1659,15 @@ mlir::Value ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
   case CK_MemberPointerToBoolean:
     llvm_unreachable("NYI");
   case CK_FloatingComplexToReal:
-    llvm_unreachable("NYI");
-  case CK_IntegralComplexToReal:
-    llvm_unreachable("NYI");
+  case CK_IntegralComplexToReal: {
+    auto Src = Visit(const_cast<Expr *>(E));
+    return Builder.createComplexReal(CGF.getLoc(CE->getSourceRange()), Src);
+  }
   case CK_FloatingComplexToBoolean:
-    llvm_unreachable("NYI");
-  case CK_IntegralComplexToBoolean:
-    llvm_unreachable("NYI");
+  case CK_IntegralComplexToBoolean: {
+    auto Src = Visit(const_cast<Expr *>(E));
+    return Builder.createComplexIsZero(CGF.getLoc(CE->getSourceRange()), Src);
+  }
   case CK_ZeroToOCLOpaqueType:
     llvm_unreachable("NYI");
   case CK_IntToOCLSampler:

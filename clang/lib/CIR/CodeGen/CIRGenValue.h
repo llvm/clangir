@@ -30,10 +30,11 @@ namespace cir {
 
 /// This trivial value class is used to represent the result of an
 /// expression that is evaluated. It can be one of three things: either a
-/// simple MLIR SSA value, a pair of SSA values for complex numbers, or the
-/// address of an aggregate value in memory.
+/// simple MLIR SSA value, or the address of an aggregate value in memory.
+///
+/// Note that in CIR, we treat expressions of complex type as scalars.
 class RValue {
-  enum Flavor { Scalar, Complex, Aggregate };
+  enum Flavor { Scalar, Aggregate };
 
   // The shift to make to an aggregate's alignment to make it look
   // like a pointer.
@@ -48,7 +49,6 @@ class RValue {
 
 public:
   bool isScalar() const { return V1.getInt() == Scalar; }
-  bool isComplex() const { return V1.getInt() == Complex; }
   bool isAggregate() const { return V1.getInt() == Aggregate; }
   bool isIgnored() const { return isScalar() && !getScalarVal(); }
 
@@ -58,12 +58,6 @@ public:
   mlir::Value getScalarVal() const {
     assert(isScalar() && "Not a scalar!");
     return V1.getPointer();
-  }
-
-  /// Return the real/imag components of this complex value.
-  std::pair<mlir::Value, mlir::Value> getComplexVal() const {
-    assert(0 && "not implemented");
-    return {};
   }
 
   /// Return the mlir::Value of the address of the aggregate.
@@ -91,14 +85,6 @@ public:
     ER.V1.setInt(Scalar);
     ER.V2.setInt(false);
     return ER;
-  }
-  static RValue getComplex(mlir::Value V1, mlir::Value V2) {
-    assert(0 && "not implemented");
-    return RValue{};
-  }
-  static RValue getComplex(const std::pair<mlir::Value, mlir::Value> &C) {
-    assert(0 && "not implemented");
-    return RValue{};
   }
   // FIXME: Aggregate rvalues need to retain information about whether they are
   // volatile or not. Remove default to find all places that probably get this

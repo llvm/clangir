@@ -592,9 +592,6 @@ static void StoreAnyExprIntoOneUnit(CIRGenFunction &CGF, const Expr *Init,
     CGF.buildScalarInit(Init, CGF.getLoc(Init->getSourceRange()),
                         CGF.makeAddrLValue(NewPtr, AllocType), false);
     return;
-  case TEK_Complex:
-    llvm_unreachable("NYI");
-    return;
   case TEK_Aggregate: {
     AggValueSlot Slot = AggValueSlot::forAddr(
         NewPtr, AllocType.getQualifiers(), AggValueSlot::IsDestructed,

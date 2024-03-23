@@ -140,10 +140,6 @@ public:
     return mlir::cir::ZeroAttr::get(getContext(), t);
   }
 
-  mlir::cir::BoolAttr getCIRBoolAttr(bool state) {
-    return mlir::cir::BoolAttr::get(getContext(), getBoolTy(), state);
-  }
-
   mlir::TypedAttr getConstNullPtrAttr(mlir::Type t) {
     assert(t.isa<mlir::cir::PointerType>() && "expected cir.ptr");
     return mlir::cir::ConstPtrAttr::get(getContext(), t, 0);
@@ -241,25 +237,6 @@ public:
   mlir::cir::DataMemberAttr
   getNullDataMemberAttr(mlir::cir::DataMemberType ty) {
     return mlir::cir::DataMemberAttr::get(getContext(), ty, std::nullopt);
-  }
-
-  mlir::TypedAttr getZeroInitAttr(mlir::Type ty) {
-    if (ty.isa<mlir::cir::IntType>())
-      return mlir::cir::IntAttr::get(ty, 0);
-    if (auto fltType = ty.dyn_cast<mlir::cir::SingleType>())
-      return mlir::cir::FPAttr::getZero(fltType);
-    if (auto fltType = ty.dyn_cast<mlir::cir::DoubleType>())
-      return mlir::cir::FPAttr::getZero(fltType);
-    if (auto arrTy = ty.dyn_cast<mlir::cir::ArrayType>())
-      return getZeroAttr(arrTy);
-    if (auto ptrTy = ty.dyn_cast<mlir::cir::PointerType>())
-      return getConstPtrAttr(ptrTy, 0);
-    if (auto structTy = ty.dyn_cast<mlir::cir::StructType>())
-      return getZeroAttr(structTy);
-    if (ty.isa<mlir::cir::BoolType>()) {
-      return getCIRBoolAttr(false);
-    }
-    llvm_unreachable("Zero initializer for given type is NYI");
   }
 
   // TODO(cir): Once we have CIR float types, replace this by something like a
@@ -398,9 +375,6 @@ public:
     llvm_unreachable("Unknown float format!");
   }
 
-  mlir::cir::BoolType getBoolTy() {
-    return ::mlir::cir::BoolType::get(getContext());
-  }
   mlir::Type getVirtualFnPtrType(bool isVarArg = false) {
     // FIXME: replay LLVM codegen for now, perhaps add a vtable ptr special
     // type so it's a bit more clear and C++ idiomatic.
@@ -887,6 +861,24 @@ public:
 
   mlir::Value createPtrIsNull(mlir::Value ptr) {
     return createNot(createPtrToBoolCast(ptr));
+  }
+
+  mlir::Value createComplexReal(mlir::Location loc, mlir::Value operand) {
+    auto operandComplexTy = operand.getType().cast<mlir::cir::ComplexType>();
+    auto resultTy = operandComplexTy.getElementTy();
+    return create<mlir::cir::ComplexRealOp>(loc, resultTy, operand);
+  }
+
+  mlir::Value createComplexImag(mlir::Location loc, mlir::Value operand) {
+    auto operandComplexTy = operand.getType().cast<mlir::cir::ComplexType>();
+    auto resultTy = operandComplexTy.getElementTy();
+    return create<mlir::cir::ComplexImagOp>(loc, resultTy, operand);
+  }
+
+  mlir::Value createComplexIsZero(mlir::Location loc, mlir::Value operand) {
+    auto zero = getNullValue(operand.getType(), loc);
+    return create<mlir::cir::CmpOp>(loc, getBoolTy(), mlir::cir::CmpOpKind::eq,
+                                    operand, zero);
   }
 };
 

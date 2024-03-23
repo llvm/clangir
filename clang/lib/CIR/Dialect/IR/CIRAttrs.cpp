@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
+#include "clang/CIR/Dialect/Builder/CIRBaseBuilder.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
@@ -322,7 +323,7 @@ parseFloatLiteral(mlir::AsmParser &parser,
   auto losesInfo = false;
   value.emplace(rawValue);
 
-  auto tyFpInterface = ty.dyn_cast<cir::CIRFPTypeInterface>();
+  auto tyFpInterface = ty.dyn_cast<mlir::cir::CIRFPTypeInterface>();
   if (!tyFpInterface) {
     // Parsing of the current floating-point literal has succeeded, but the
     // given attribute type is invalid. This error will be reported later when
@@ -335,14 +336,16 @@ parseFloatLiteral(mlir::AsmParser &parser,
   return success();
 }
 
-cir::FPAttr cir::FPAttr::getZero(mlir::Type type) {
-  return get(type,
-             APFloat::getZero(
-                 type.cast<cir::CIRFPTypeInterface>().getFloatSemantics()));
+mlir::cir::FPAttr mlir::cir::FPAttr::getZero(mlir::Type type) {
+  return get(
+      type,
+      APFloat::getZero(
+          type.cast<mlir::cir::CIRFPTypeInterface>().getFloatSemantics()));
 }
 
-LogicalResult cir::FPAttr::verify(function_ref<InFlightDiagnostic()> emitError,
-                                  Type type, APFloat value) {
+LogicalResult
+mlir::cir::FPAttr::verify(function_ref<InFlightDiagnostic()> emitError,
+                          Type type, APFloat value) {
   auto fltTypeInterface = type.dyn_cast<cir::CIRFPTypeInterface>();
   if (!fltTypeInterface) {
     emitError() << "expected floating-point type";
@@ -407,6 +410,43 @@ CmpThreeWayInfoAttr::verify(function_ref<InFlightDiagnostic()> emitError,
   }
 
   return success();
+}
+
+//===----------------------------------------------------------------------===//
+// ComplexAttr definitions
+//===----------------------------------------------------------------------===//
+
+LogicalResult
+mlir::cir::ComplexAttr::verify(function_ref<InFlightDiagnostic()> emitError,
+                               Type type, TypedAttr real, TypedAttr imag) {
+  auto complexTy = type.dyn_cast<mlir::cir::ComplexType>();
+  if (!complexTy) {
+    emitError() << "expected complex type";
+    return failure();
+  }
+
+  auto elementTy = complexTy.getElementTy();
+  if (real.getType() != elementTy) {
+    emitError() << "real part does not match complex element type";
+    return failure();
+  }
+  if (imag.getType() != elementTy) {
+    emitError() << "imaginary part does not match complex element type";
+    return failure();
+  }
+
+  return success();
+}
+
+mlir::cir::ComplexAttr mlir::cir::ComplexAttr::getZero(Type type) {
+  auto complexTy = type.cast<mlir::cir::ComplexType>();
+  auto elementTy = complexTy.getElementTy();
+
+  ::cir::CIRBaseBuilderTy builder(*type.getContext());
+
+  auto real = builder.getZeroInitAttr(elementTy);
+  auto imag = builder.getZeroInitAttr(elementTy);
+  return get(type, real, imag);
 }
 
 //===----------------------------------------------------------------------===//

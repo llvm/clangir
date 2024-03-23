@@ -84,11 +84,8 @@ TypeEvaluationKind CIRGenFunction::getEvaluationKind(QualType type) {
     case Type::ObjCObjectPointer:
     case Type::Pipe:
     case Type::BitInt:
+    case Type::Complex: // In CIR we treat complex types as scalars
       return TEK_Scalar;
-
-    // Complexes.
-    case Type::Complex:
-      return TEK_Complex;
 
     // Arrays, records, and Objective-C objects.
     case Type::ConstantArray:

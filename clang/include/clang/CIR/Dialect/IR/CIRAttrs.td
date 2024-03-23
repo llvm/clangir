@@ -243,6 +243,41 @@ def FPAttr : CIR_Attr<"FP", "fp", [TypedAttrInterface]> {
 }
 
 //===----------------------------------------------------------------------===//
+// ComplexAttr
+//===----------------------------------------------------------------------===//
+
+def ComplexAttr : CIR_Attr<"Complex", "complex", [TypedAttrInterface]> {
+  let summary = "An attribute containing a complex number value";
+  let description = [{
+    A `#cir.complex` attribute is a literal attribute that represents a complex
+    number value of the specified complex type.
+
+    The `real` parameter gives the real part of the complex number, and the
+    `imag` parameter gives the imaginary part of the complex number.
+  }];
+
+  let parameters = (ins AttributeSelfTypeParameter<"">:$type, "TypedAttr":$real,
+                        "TypedAttr":$imag);
+
+  let builders = [
+    AttrBuilderWithInferredContext<(ins "Type":$type, "TypedAttr":$real,
+                                        "TypedAttr":$imag), [{
+      return $_get(type.getContext(), type, real, imag);
+    }]>,
+  ];
+
+  let extraClassDeclaration = [{
+    static ComplexAttr getZero(Type type);
+  }];
+
+  let genVerifyDecl = 1;
+
+  let assemblyFormat = [{
+    `<` $real `,` $imag `>`
+  }];
+}
+
+//===----------------------------------------------------------------------===//
 // ConstPointerAttr
 //===----------------------------------------------------------------------===//
 

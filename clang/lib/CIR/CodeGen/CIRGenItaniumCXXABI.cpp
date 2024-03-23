@@ -717,9 +717,6 @@ static void InitCatchParam(CIRGenFunction &CGF, const VarDecl &CatchParam,
     LValue srcLV = CGF.MakeNaturalAlignAddrLValue(catchParam, CatchType);
     LValue destLV = CGF.makeAddrLValue(ParamAddr, CatchType);
     switch (TEK) {
-    case TEK_Complex:
-      llvm_unreachable("NYI");
-      return;
     case TEK_Scalar: {
       auto exnLoad = CGF.buildLoadOfScalar(srcLV, catchParam.getLoc());
       CGF.buildStoreOfScalar(exnLoad, destLV, /*init*/ true);
