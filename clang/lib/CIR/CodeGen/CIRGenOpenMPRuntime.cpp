@@ -13,6 +13,9 @@
 #include "CIRGenOpenMPRuntime.h"
 #include "CIRGenFunction.h"
 #include "CIRGenModule.h"
+#include "mlir/Dialect/OpenMP/OpenMPDialect.h"
+#include <mlir/IR/Dialect.h>
+#include <mlir/IR/Location.h>
 
 using namespace cir;
 using namespace clang;
@@ -51,4 +54,14 @@ void CIRGenOpenMPRuntime::emitFunctionProlog(CIRGenFunction &CGF,
 bool CIRGenOpenMPRuntime::emitTargetGlobal(clang::GlobalDecl &GD) {
   assert(!UnimplementedFeature::openMPRuntime());
   return false;
+}
+
+void CIRGenOpenMPRuntime::emitTaskWaitCall(CIRGenFunction &CGF,
+                                           mlir::Location Loc,
+                                           const OMPTaskDataTy Data,
+                                           mlir::OpBuilder &builder) {
+  if (!CGF.HaveInsertPoint())
+    return;
+  // This could change in the near future when OpenMP 5.0 gets supported by MLIR
+  builder.create<mlir::omp::TaskwaitOp>(Loc);
 }
