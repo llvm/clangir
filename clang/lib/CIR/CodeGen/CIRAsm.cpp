@@ -639,13 +639,6 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
 
     std::vector<mlir::Attribute> operandAttrs;
 
-    // this is for the lowering to LLVM from LLVm dialect. Otherwise, if we
-    // don't have the result (i.e. void type as a result of operation), the
-    // element type attribute will be attached to the whole instruction, but not
-    // to the operand
-    if (!IA.getNumResults())
-      operandAttrs.push_back(OptNoneAttr::get(builder.getContext()));
-
     for (auto typ : ArgElemTypes) {
       if (typ) {
         operandAttrs.push_back(mlir::TypeAttr::get(typ));

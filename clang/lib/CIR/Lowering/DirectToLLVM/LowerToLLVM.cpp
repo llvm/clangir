@@ -2853,6 +2853,13 @@ class CIRInlineAsmOpLowering
     std::vector<mlir::Attribute> opAttrs;
     auto llvmAttrName = mlir::LLVM::InlineAsmOp::getElementTypeAttrName();
 
+    // this is for the lowering to LLVM from LLVm dialect. Otherwise, if we
+    // don't have the result (i.e. void type as a result of operation), the
+    // element type attribute will be attached to the whole instruction, but not
+    // to the operand
+    if (!op.getNumResults())
+      opAttrs.push_back(mlir::Attribute());
+
     if (auto operandAttrs = op.getOperandAttrs()) {
       for (auto attr : *operandAttrs) {
         if (isa<mlir::cir::OptNoneAttr>(attr)) {

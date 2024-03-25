@@ -2,32 +2,32 @@
 // RUN: FileCheck --input-file=%t.cir %s
 
 
-// CHECK: cir.asm(x86_att, operands = [ : ] attrs = [#cir.optnone]
+// CHECK: cir.asm(x86_att, operands = [] attrs = []
 // CHECK:        {"" "~{dirflag},~{fpsr},~{flags}"})
 void empty1() {
   __asm__ volatile("" : : : );
 }
 
-// CHECK: cir.asm(x86_att, operands = [ : ] attrs = [#cir.optnone]
+// CHECK: cir.asm(x86_att, operands = [] attrs = []
 // CHECK:         {"xyz" "~{dirflag},~{fpsr},~{flags}"}) side_effects
 void empty2() {
   __asm__ volatile("xyz" : : : );
 }
 
 
-// CHECK: cir.asm(x86_att, operands = [%0, %0 : !cir.ptr<!s32i>, !cir.ptr<!s32i>] attrs = [#cir.optnone, !s32i, !s32i]
+// CHECK: cir.asm(x86_att, operands = [%0, %0 : !cir.ptr<!s32i>, !cir.ptr<!s32i>] attrs = [!s32i, !s32i]
 // CHECK:        {"" "=*m,*m,~{dirflag},~{fpsr},~{flags}"}) side_effects
 void empty3(int x) {
   __asm__ volatile("" : "+m"(x));
 }
 
-// CHECK: cir.asm(x86_att, operands = [%0 : !cir.ptr<!s32i>] attrs = [#cir.optnone, !s32i]
+// CHECK: cir.asm(x86_att, operands = [%0 : !cir.ptr<!s32i>] attrs = [!s32i]
 // CHECK:        {"" "*m,~{dirflag},~{fpsr},~{flags}"}) side_effects
 void empty4(int x) {
   __asm__ volatile("" : : "m"(x));
 }
 
-// CHECK: cir.asm(x86_att, operands = [%0 : !cir.ptr<!s32i>] attrs = [#cir.optnone, !s32i]
+// CHECK: cir.asm(x86_att, operands = [%0 : !cir.ptr<!s32i>] attrs = [!s32i]
 // CHECK:        {"" "=*m,~{dirflag},~{fpsr},~{flags}"}) side_effects
 void empty5(int x) {
   __asm__ volatile("" : "=m"(x));
@@ -85,7 +85,7 @@ unsigned add3(unsigned int x) { // ((42 + x) - 1) * 2
 // CHECK: [[TMP0:%.*]] = cir.alloca !cir.ptr<!s32i>, cir.ptr <!cir.ptr<!s32i>>, ["x", init] 
 // CHECK: cir.store %arg0, [[TMP0]] : !cir.ptr<!s32i>, cir.ptr <!cir.ptr<!s32i>>
 // CHECK: [[TMP1:%.*]] = cir.load deref [[TMP0]] : cir.ptr <!cir.ptr<!s32i>>, !cir.ptr<!s32i>
-// CHECK: cir.asm(x86_att, operands = [[[TMP1]] : !cir.ptr<!s32i>] attrs = [#cir.optnone, !s32i]
+// CHECK: cir.asm(x86_att, operands = [[[TMP1]] : !cir.ptr<!s32i>] attrs = [!s32i]
 // CHECK:            {"addl $$42, $0" "=*m,~{dirflag},~{fpsr},~{flags}"})
 // CHECK-NEXT: cir.return
 void add4(int *x) {    
@@ -100,7 +100,7 @@ void add4(int *x) {
 // CHECK: cir.store %arg1, [[TMP1]] : !cir.float, cir.ptr <!cir.float>
 // CHECK: [[TMP3:%.*]] = cir.load [[TMP0]] : cir.ptr <!cir.float>, !cir.float
 // CHECK: [[TMP4:%.*]] = cir.load [[TMP1]] : cir.ptr <!cir.float>, !cir.float
-// CHECK: [[TMP5:%.*]] = cir.asm(x86_att, operands = [[[TMP3]], [[TMP4]] : !cir.float, !cir.float] attrs = [#cir.optnone, #cir.optnone]
+// CHECK: [[TMP5:%.*]] = cir.asm(x86_att, operands = [%4, %5 : !cir.float, !cir.float] attrs = [#cir.optnone, #cir.optnone]
 // CHECK:         {"flds $1; flds $2; faddp" "=&{st},imr,imr,~{dirflag},~{fpsr},~{flags}"}) -> !cir.float
 // CHECK: cir.store [[TMP5]], [[TMP2]] : !cir.float, cir.ptr <!cir.float>
 float add5(float x, float y) {
@@ -108,7 +108,7 @@ float add5(float x, float y) {
   __asm__("flds %[x]; flds %[y]; faddp"
           : "=&t" (r)
           : [x] "g" (x), [y] "g" (y));
-  return x;
+  return r;
 }
 
 /*

@@ -3365,7 +3365,7 @@ def CIR_InlineAsmOp : CIR_Op<"asm", [RecursiveMemoryEffects]> {
   let assemblyFormat = [{
     `(`
     $asm_flavor`,`
-    `operands` `=` `[` operands `:` type($operands) `]`
+    `operands` `=` `[` $operands (`:`  type($operands)^)? `]`
     (`attrs` `=` $operand_attrs^)?
     `\n`  ` `  ` `  ` `  ` `  ` `  ` `  ` `
     `{` $asm_string $constraints `}`
