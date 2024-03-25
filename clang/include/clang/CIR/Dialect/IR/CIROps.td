@@ -3213,11 +3213,9 @@ def CIR_InlineAsmOp : CIR_Op<"asm", [RecursiveMemoryEffects]> {
     $asm_flavor`,`
     `operands` `=` `[` operands `:` type($operands) `]`
     (`attrs` `=` $operand_attrs^)?
-    `\n`  ` `  ` `  ` `  ` `  ` `  ` `
-
+    `\n`  ` `  ` `  ` `  ` `  ` `  ` `  ` `
     `{` $asm_string $constraints `}`
     `)`
-
     (`side_effects` $side_effects^)?
     attr-dict
     (`->` type($res)^)?
