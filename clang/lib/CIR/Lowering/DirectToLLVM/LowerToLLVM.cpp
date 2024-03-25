@@ -2311,6 +2311,32 @@ public:
   }
 };
 
+class CIRByteswapOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::ByteswapOp> {
+public:
+  using OpConversionPattern<mlir::cir::ByteswapOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::ByteswapOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    // Note that LLVM intrinsic calls to @llvm.bswap.i* have the same type as
+    // the operand.
+
+    auto resTy =
+        getTypeConverter()->convertType(op.getType()).cast<mlir::IntegerType>();
+
+    std::string llvmIntrinName = "llvm.bswap.i";
+    llvmIntrinName.append(std::to_string(resTy.getWidth()));
+    auto llvmIntrinNameAttr =
+        mlir::StringAttr::get(rewriter.getContext(), llvmIntrinName);
+
+    rewriter.replaceOpWithNewOp<mlir::LLVM::CallIntrinsicOp>(
+        op, resTy, llvmIntrinNameAttr, adaptor.getInput());
+
+    return mlir::LogicalResult::success();
+  }
+};
+
 class CIRBrOpLowering : public mlir::OpConversionPattern<mlir::cir::BrOp> {
 public:
   using OpConversionPattern<mlir::cir::BrOp>::OpConversionPattern;
@@ -2749,13 +2775,13 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
   patterns.add<
       CIRCmpOpLowering, CIRBitClrsbOpLowering, CIRBitClzOpLowering,
       CIRBitCtzOpLowering, CIRBitFfsOpLowering, CIRBitParityOpLowering,
-      CIRBitPopcountOpLowering, CIRLoopOpInterfaceLowering, CIRBrCondOpLowering,
-      CIRPtrStrideOpLowering, CIRCallLowering, CIRUnaryOpLowering,
-      CIRBinOpLowering, CIRShiftOpLowering, CIRLoadLowering,
-      CIRConstantLowering, CIRStoreLowering, CIRAllocaLowering, CIRFuncLowering,
-      CIRScopeOpLowering, CIRCastOpLowering, CIRIfLowering, CIRGlobalOpLowering,
-      CIRGetGlobalOpLowering, CIRVAStartLowering, CIRVAEndLowering,
-      CIRVACopyLowering, CIRVAArgLowering, CIRBrOpLowering,
+      CIRBitPopcountOpLowering, CIRByteswapOpLowering,
+      CIRLoopOpInterfaceLowering, CIRBrCondOpLowering, CIRPtrStrideOpLowering,
+      CIRCallLowering, CIRUnaryOpLowering, CIRBinOpLowering, CIRShiftOpLowering,
+      CIRLoadLowering, CIRConstantLowering, CIRStoreLowering, CIRAllocaLowering,
+      CIRFuncLowering, CIRScopeOpLowering, CIRCastOpLowering, CIRIfLowering,
+      CIRGlobalOpLowering, CIRGetGlobalOpLowering, CIRVAStartLowering,
+      CIRVAEndLowering, CIRVACopyLowering, CIRVAArgLowering, CIRBrOpLowering,
       CIRTernaryOpLowering, CIRGetMemberOpLowering, CIRSwitchOpLowering,
       CIRPtrDiffOpLowering, CIRCopyOpLowering, CIRMemCpyOpLowering,
       CIRFAbsOpLowering, CIRExpectOpLowering, CIRVTableAddrPointOpLowering,
