@@ -14,7 +14,6 @@ void empty2() {
   __asm__ volatile("xyz" : : : );
 }
 
-
 // CHECK: cir.asm(x86_att, operands = [%0, %0 : !cir.ptr<!s32i>, !cir.ptr<!s32i>] attrs = [!s32i, !s32i]
 // CHECK:        {"" "=*m,*m,~{dirflag},~{fpsr},~{flags}"}) side_effects
 void empty3(int x) {
