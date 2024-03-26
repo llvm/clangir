@@ -251,13 +251,94 @@ CIRGenFunction::buildAsmInput(const TargetInfo::ConstraintInfo &Info,
 
   if (Info.allowsRegister() || !Info.allowsMemory())
     if (CIRGenFunction::hasScalarEvaluationKind(InputExpr->getType()))
-      return {buildScalarExpr(InputExpr), nullptr};
+      return {buildScalarExpr(InputExpr), mlir::Type()};
   if (InputExpr->getStmtClass() == Expr::CXXThisExprClass)
-    return {buildScalarExpr(InputExpr), nullptr};
+    return {buildScalarExpr(InputExpr), mlir::Type()};
   InputExpr = InputExpr->IgnoreParenNoopCasts(getContext());
   LValue Dest = buildLValue(InputExpr);
   return buildAsmInputLValue(Info, Dest, InputExpr->getType(), ConstraintStr,
                              InputExpr->getExprLoc());
+}
+
+static void buildAsmStores(CIRGenFunction &CGF, const AsmStmt &S,
+                           const llvm::ArrayRef<mlir::Value> RegResults,
+                           const llvm::ArrayRef<mlir::Type> ResultRegTypes,
+                           const llvm::ArrayRef<mlir::Type> ResultTruncRegTypes,
+                           const llvm::ArrayRef<LValue> ResultRegDests,
+                           const llvm::ArrayRef<QualType> ResultRegQualTys,
+                           const llvm::BitVector &ResultTypeRequiresCast,
+                           const llvm::BitVector &ResultRegIsFlagReg) {
+  CIRGenBuilderTy &Builder = CGF.getBuilder();
+  CIRGenModule &CGM = CGF.CGM;
+  auto CTX = Builder.getContext();
+
+  assert(RegResults.size() == ResultRegTypes.size());
+  assert(RegResults.size() == ResultTruncRegTypes.size());
+  assert(RegResults.size() == ResultRegDests.size());
+  // ResultRegDests can be also populated by addReturnRegisterOutputs() above,
+  // in which case its size may grow.
+  assert(ResultTypeRequiresCast.size() <= ResultRegDests.size());
+  assert(ResultRegIsFlagReg.size() <= ResultRegDests.size());
+
+  for (unsigned i = 0, e = RegResults.size(); i != e; ++i) {
+    mlir::Value Tmp = RegResults[i];
+    mlir::Type TruncTy = ResultTruncRegTypes[i];
+
+    if ((i < ResultRegIsFlagReg.size()) && ResultRegIsFlagReg[i]) {
+      assert(!UnimplementedFeature::asm_llvm_assume());
+    }
+
+    // If the result type of the LLVM IR asm doesn't match the result type of
+    // the expression, do the conversion.
+    if (ResultRegTypes[i] != TruncTy) {
+
+      // Truncate the integer result to the right size, note that TruncTy can be
+      // a pointer.
+      if (TruncTy.isa<mlir::FloatType>())
+        Tmp = Builder.createFloatingCast(Tmp, TruncTy);
+      else if (isa<mlir::cir::PointerType>(TruncTy) &&
+               isa<mlir::cir::IntType>(Tmp.getType())) {
+        uint64_t ResSize = CGM.getDataLayout().getTypeSizeInBits(TruncTy);
+        Tmp = Builder.createIntCast(
+            Tmp, mlir::cir::IntType::get(CTX, (unsigned)ResSize, false));
+        Tmp = Builder.createIntToPtr(Tmp, TruncTy);
+      } else if (isa<mlir::cir::PointerType>(Tmp.getType()) &&
+                 isa<mlir::cir::IntType>(TruncTy)) {
+        uint64_t TmpSize = CGM.getDataLayout().getTypeSizeInBits(Tmp.getType());
+        Tmp = Builder.createPtrToInt(
+            Tmp, mlir::cir::IntType::get(CTX, (unsigned)TmpSize, false));
+        Tmp = Builder.createIntCast(Tmp, TruncTy);
+      } else if (isa<mlir::cir::IntType>(TruncTy)) {
+        Tmp = Builder.createIntCast(Tmp, TruncTy);
+      } else if (false /*TruncTy->isVectorTy()*/) {
+        assert(!UnimplementedFeature::asm_vector_type());
+      }
+    }
+
+    LValue Dest = ResultRegDests[i];
+    // ResultTypeRequiresCast elements correspond to the first
+    // ResultTypeRequiresCast.size() elements of RegResults.
+    if ((i < ResultTypeRequiresCast.size()) && ResultTypeRequiresCast[i]) {
+      unsigned Size = CGF.getContext().getTypeSize(ResultRegQualTys[i]);
+      Address A = Dest.getAddress().withElementType(ResultRegTypes[i]);
+      if (CGF.getTargetHooks().isScalarizableAsmOperand(CGF, TruncTy)) {
+        Builder.createStore(CGF.getLoc(S.getAsmLoc()), Tmp, A);
+        continue;
+      }
+
+      QualType Ty =
+          CGF.getContext().getIntTypeForBitwidth(Size, /*Signed=*/false);
+      if (Ty.isNull()) {
+        const Expr *OutExpr = S.getOutputExpr(i);
+        CGM.getDiags().Report(OutExpr->getExprLoc(),
+                              diag::err_store_value_to_reg);
+        return;
+      }
+      Dest = CGF.makeAddrLValue(A, Ty);
+    }
+
+    CGF.buildStoreThroughLValue(RValue::get(Tmp), Dest);
+  }
 }
 
 mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
@@ -290,6 +371,9 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
   // Keep track of out constraints for tied input operand.
   std::vector<std::string> OutputConstraints;
 
+  // Keep track of defined physregs.
+  llvm::SmallSet<std::string, 8> PhysRegOutputs;
+
   // An inline asm can be marked readonly if it meets the following conditions:
   //  - it doesn't have any sideeffects
   //  - it doesn't clobber memory
@@ -313,6 +397,10 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
     OutputConstraint =
         AddVariableConstraints(OutputConstraint, *OutExpr, getTarget(), CGM, S,
                                Info.earlyClobber(), &GCCReg);
+
+    // Give an error on multiple outputs to same physreg.
+    if (!GCCReg.empty() && !PhysRegOutputs.insert(GCCReg).second)
+      CGM.Error(S.getAsmLoc(), "multiple outputs to hard register: " + GCCReg);
 
     OutputConstraints.push_back(OutputConstraint);
     LValue Dest = buildLValue(OutExpr);
@@ -412,6 +500,9 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
               *this, OutputConstraint, Arg.getType()))
         Arg = builder.createBitcast(Arg, AdjTy);
 
+      // Update largest vector width for any vector types.
+      assert(!UnimplementedFeature::asm_vector_type());
+
       // Only tie earlyclobber physregs.
       if (Info.allowsRegister() && (GCCReg.empty() || Info.earlyClobber()))
         InOutConstraints += llvm::utostr(i);
@@ -424,10 +515,27 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
     }
   } // iterate over output operands
 
+  // If this is a Microsoft-style asm blob, store the return registers (EAX:EDX)
+  // to the return value slot. Only do this when returning in registers.
+  if (isa<MSAsmStmt>(&S)) {
+    const ABIArgInfo &RetAI = CurFnInfo->getReturnInfo();
+    if (RetAI.isDirect() || RetAI.isExtend()) {
+      // Make a fake lvalue for the return value slot.
+      LValue ReturnSlot = makeAddrLValue(ReturnValue, FnRetTy);
+      CGM.getTargetCIRGenInfo().addReturnRegisterOutputs(
+          *this, ReturnSlot, Constraints, ResultRegTypes, ResultTruncRegTypes,
+          ResultRegDests, AsmString, S.getNumOutputs());
+      SawAsmBlock = true;
+    }
+  }
+
   for (unsigned i = 0, e = S.getNumInputs(); i != e; i++) {
     const Expr *InputExpr = S.getInputExpr(i);
 
     TargetInfo::ConstraintInfo &Info = InputConstraintInfos[i];
+
+    if (Info.allowsMemory())
+      ReadNone = false;
 
     if (!Constraints.empty())
       Constraints += ',';
@@ -481,6 +589,9 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
       CGM.getDiags().Report(S.getAsmLoc(), diag::err_asm_invalid_type_in_input)
           << InputExpr->getType() << InputConstraint;
 
+    // Update largest vector width for any vector types.
+    assert(!UnimplementedFeature::asm_vector_type());
+
     ArgTypes.push_back(Arg.getType());
     ArgElemTypes.push_back(ArgElemType);
     Args.push_back(Arg);
@@ -509,6 +620,7 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
   }
 
   bool HasSideEffect = S.isVolatile() || S.getNumOutputs() == 0;
+  std::vector<mlir::Value> RegResults;
 
   auto IA = builder.create<mlir::cir::InlineAsmOp>(
       getLoc(S.getAsmLoc()), ResultType, Args, AsmString, Constraints,
@@ -527,13 +639,6 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
 
     std::vector<mlir::Attribute> operandAttrs;
 
-    // this is for the lowering to LLVM from LLVm dialect. Otherwise, if we
-    // don't have the result (i.e. void type as a result of operation), the
-    // element type attribute will be attached to the whole instruction, but not
-    // to the operand
-    if (!IA.getNumResults())
-      operandAttrs.push_back(OptNoneAttr::get(builder.getContext()));
-
     for (auto typ : ArgElemTypes) {
       if (typ) {
         operandAttrs.push_back(mlir::TypeAttr::get(typ));
@@ -545,8 +650,35 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
       }
     }
 
+    assert(Args.size() == operandAttrs.size() &&
+           "The number of attributes is not even with the number of operands");
+
     IA.setOperandAttrsAttr(builder.getArrayAttr(operandAttrs));
+
+    if (ResultRegTypes.size() == 1) {
+      RegResults.push_back(result);
+    } else if (ResultRegTypes.size() > 1) {
+      auto alignment = CharUnits::One();
+      auto sname = cast<mlir::cir::StructType>(ResultType).getName();
+      auto dest = buildAlloca(sname, ResultType, getLoc(S.getAsmLoc()),
+                              alignment, false);
+      auto addr = Address(dest, alignment);
+      builder.createStore(getLoc(S.getAsmLoc()), result, addr);
+
+      for (unsigned i = 0, e = ResultRegTypes.size(); i != e; ++i) {
+        auto typ = builder.getPointerTo(ResultRegTypes[i]);
+        auto ptr =
+            builder.createGetMember(getLoc(S.getAsmLoc()), typ, dest, "", i);
+        auto tmp =
+            builder.createLoad(getLoc(S.getAsmLoc()), Address(ptr, alignment));
+        RegResults.push_back(tmp);
+      }
+    }
   }
+
+  buildAsmStores(*this, S, RegResults, ResultRegTypes, ResultTruncRegTypes,
+                 ResultRegDests, ResultRegQualTys, ResultTypeRequiresCast,
+                 ResultRegIsFlagReg);
 
   return mlir::success();
 }
