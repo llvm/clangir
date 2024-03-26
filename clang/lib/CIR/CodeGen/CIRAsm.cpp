@@ -650,8 +650,8 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
       }
     }
 
-    assert(Args.size() == operandAttrs.size() 
-      && "The number of attributes is not even with the number of operands");
+    assert(Args.size() == operandAttrs.size() &&
+           "The number of attributes is not even with the number of operands");
 
     IA.setOperandAttrsAttr(builder.getArrayAttr(operandAttrs));
 
