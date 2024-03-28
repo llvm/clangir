@@ -3643,6 +3643,25 @@ def SwitchFlatOp : CIR_Op<"switch.flat", [AttrSizedOperandSegments, Terminator]>
   ];
 }
 
+def GotoOp : CIR_Op<"goto", [Terminator]> {
+  let summary = "goto";
+  let description = [{ }];
+
+  let arguments = (ins StrAttr:$label);
+  let assemblyFormat = [{ $label attr-dict }];
+
+
+}
+
+def LabelOp : CIR_Op<"label"> {
+  let summary = "label";
+  let description = [{ }];
+
+  let arguments = (ins StrAttr:$label);
+  let assemblyFormat = [{ $label attr-dict }];
+
+}
+
 //===----------------------------------------------------------------------===//
 // Atomic operations
 //===----------------------------------------------------------------------===//

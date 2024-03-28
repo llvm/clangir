@@ -554,11 +554,8 @@ mlir::LogicalResult CIRGenFunction::buildGotoStmt(const GotoStmt &S) {
   // A goto marks the end of a block, create a new one for codegen after
   // buildGotoStmt can resume building in that block.
 
-  // Build a cir.br to the target label.
-  auto &JD = LabelMap[S.getLabel()];
-  auto brOp = buildBranchThroughCleanup(getLoc(S.getSourceRange()), JD);
-  if (!JD.isValid())
-    currLexScope->PendingGotos.push_back(std::make_pair(brOp, S.getLabel()));
+  builder.create<mlir::cir::GotoOp>(getLoc(S.getSourceRange()),
+                                    S.getLabel()->getName());
 
   // Insert the new block to continue codegen after goto.
   builder.createBlock(builder.getBlock()->getParent());
@@ -568,31 +565,22 @@ mlir::LogicalResult CIRGenFunction::buildGotoStmt(const GotoStmt &S) {
 }
 
 mlir::LogicalResult CIRGenFunction::buildLabel(const LabelDecl *D) {
-  JumpDest &Dest = LabelMap[D];
-
   // Create a new block to tag with a label and add a branch from
   // the current one to it. If the block is empty just call attach it
   // to this label.
   mlir::Block *currBlock = builder.getBlock();
   mlir::Block *labelBlock = currBlock;
   if (!currBlock->empty()) {
-
     {
       mlir::OpBuilder::InsertionGuard guard(builder);
       labelBlock = builder.createBlock(builder.getBlock()->getParent());
     }
-
     builder.create<BrOp>(getLoc(D->getSourceRange()), labelBlock);
-    builder.setInsertionPointToEnd(labelBlock);
   }
 
-  if (!Dest.isValid()) {
-    Dest.Block = labelBlock;
-    currLexScope->SolvedLabels.insert(D);
-    // FIXME: add a label attribute to block...
-  } else {
-    assert(0 && "unimplemented");
-  }
+  builder.setInsertionPointToEnd(labelBlock);
+  builder.create<mlir::cir::LabelOp>(getLoc(D->getSourceRange()), D->getName());
+  builder.setInsertionPointToEnd(labelBlock);
 
   //  FIXME: emit debug info for labels, incrementProfileCounter
   return mlir::success();

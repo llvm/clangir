@@ -1952,13 +1952,6 @@ public:
       return CleanupBlock;
     }
 
-    // Goto's introduced in this scope but didn't get fixed.
-    llvm::SmallVector<std::pair<mlir::Operation *, const clang::LabelDecl *>, 4>
-        PendingGotos;
-
-    // Labels solved inside this scope.
-    llvm::SmallPtrSet<const clang::LabelDecl *, 4> SolvedLabels;
-
     // ---
     // Exception handling
     // ---
