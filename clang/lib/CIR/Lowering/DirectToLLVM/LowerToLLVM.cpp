@@ -50,6 +50,7 @@
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
+#include "clang/CIR/Dialect/Passes.h"
 #include "clang/CIR/Passes.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/ArrayRef.h"
@@ -967,7 +968,9 @@ struct ConvertCIRToLLVMPass
   }
   void runOnOperation() final;
 
-  virtual StringRef getArgument() const override { return "cir-to-llvm"; }
+  virtual StringRef getArgument() const override {
+    return "cir-to-llvm-internal";
+  }
 };
 
 class CIRCallLowering : public mlir::OpConversionPattern<mlir::cir::CallOp> {
@@ -3030,6 +3033,11 @@ std::unique_ptr<mlir::Pass> createConvertCIRToLLVMPass() {
   return std::make_unique<ConvertCIRToLLVMPass>();
 }
 
+void populateCIRToLLVMPasses(mlir::OpPassManager &pm) {
+  populateCIRPreLoweringPasses(pm);
+  pm.addPass(createConvertCIRToLLVMPass());
+}
+
 extern void registerCIRDialectTranslation(mlir::MLIRContext &context);
 
 std::unique_ptr<llvm::Module>
@@ -3037,8 +3045,7 @@ lowerDirectlyFromCIRToLLVMIR(mlir::ModuleOp theModule, LLVMContext &llvmCtx,
                              bool disableVerifier) {
   mlir::MLIRContext *mlirCtx = theModule.getContext();
   mlir::PassManager pm(mlirCtx);
-
-  pm.addPass(createConvertCIRToLLVMPass());
+  populateCIRToLLVMPasses(pm);
 
   // This is necessary to have line tables emitted and basic
   // debugger working. In the future we will add proper debug information

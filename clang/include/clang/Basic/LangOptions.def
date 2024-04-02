@@ -247,6 +247,8 @@ LANGOPT(HLSLSpvUseUnknownImageFormat, 1, 0, NotCompatible, "For storage images a
 LANGOPT(HLSLSpvEnableMaximalReconvergence, 1, 0, NotCompatible, "Enables the MaximallyReconvergesKHR execution mode for this module. This ensures that control flow reconverges at well-defined merge points as defined by the Vulkan spec.")
 
 LANGOPT(CUDAIsDevice      , 1, 0, NotCompatible, "compiling for CUDA device")
+LANGOPT(CUDAAllowVariadicFunctions, 1, 0, NotCompatible,
+        "allowing variadic functions in CUDA device code")
 LANGOPT(CUDAHostDeviceConstexpr, 1, 1, NotCompatible, "treating unattributed constexpr functions as __host__ __device__")
 LANGOPT(GPUDeviceApproxTranscendentals, 1, 0, NotCompatible, "using approximate transcendental functions")
 LANGOPT(GPURelocatableDeviceCode, 1, 0, NotCompatible, "generate relocatable device code")

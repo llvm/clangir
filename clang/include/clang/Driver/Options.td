@@ -3155,7 +3155,8 @@ defm clangir : BoolFOption<"clangir",
   PosFlag<SetTrue, [], [ClangOption, CC1Option], "Use the ClangIR pipeline to compile">,
   NegFlag<SetFalse, [], [ClangOption, CC1Option], "Use the AST -> LLVM pipeline to compile">,
   BothFlags<[], [ClangOption, CC1Option], "">>;
-def emit_cir : Flag<["-"], "emit-cir">, Visibility<[CC1Option]>,
+def emit_cir : Flag<["-"], "emit-cir">,
+  Visibility<[ClangOption, CC1Option]>,
   Group<Action_Group>,
   HelpText<"Build ASTs and then lower to ClangIR, emit the .cir file">;
 def emit_cir_only : Flag<["-"], "emit-cir-only">,
@@ -3168,6 +3169,10 @@ def fcir_output_EQ : Joined<["-"], "fcir-output=">,
 def fcir_output : Flag<["-"], "fcir-output">,
   Visibility<[ClangOption, CC1Option]>,
   HelpText<"Write Clang IR output to <input>.cir">;
+def emit_cir_flat : Flag<["-"], "emit-cir-flat">,
+  Visibility<[ClangOption, CC1Option]>,
+  Group<Action_Group>,
+  HelpText<"Similar to -emit-cir but also lowers structured CFG into basic blocks.">;
 
 def emit_mlir : Flag<["-"], "emit-mlir">, Visibility<[CC1Option]>, Group<Action_Group>,
   HelpText<"Build ASTs and then lower through ClangIR to MLIR, emit the .mlir file">;

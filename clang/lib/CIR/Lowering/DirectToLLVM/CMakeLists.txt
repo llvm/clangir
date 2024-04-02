@@ -30,6 +30,7 @@ add_clang_library(clangCIRLoweringDirectToLLVM
   MLIRCIR
   MLIRAnalysis
   MLIRBuiltinToLLVMIRTranslation
+  MLIRCIRTransforms
   MLIRIR
   MLIRLLVMIRToLLVMTranslation
   MLIRLLVMToLLVMIRTranslation
