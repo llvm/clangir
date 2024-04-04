@@ -88,9 +88,9 @@ void vector_int_test(int x) {
 
   // __builtin_shufflevector
   vi4 u = __builtin_shufflevector(a, b, 7, 5, 3, 1);
-  // CHECK: %{{[0-9]+}} = cir.vec.shuffle.ints(%{{[0-9]+}}, %{{[0-9]+}} : !cir.vector<!s32i x 4>) [#cir.int<7> : !s64i, #cir.int<5> : !s64i, #cir.int<3> : !s64i, #cir.int<1> : !s64i] : !cir.vector<!s32i x 4>
+  // CHECK: %{{[0-9]+}} = cir.vec.shuffle(%{{[0-9]+}}, %{{[0-9]+}} : !cir.vector<!s32i x 4>) [#cir.int<7> : !s64i, #cir.int<5> : !s64i, #cir.int<3> : !s64i, #cir.int<1> : !s64i] : !cir.vector<!s32i x 4>
   vi4 v = __builtin_shufflevector(a, b);
-  // CHECK: %{{[0-9]+}} = cir.vec.shuffle.vec %{{[0-9]+}} : !cir.vector<!s32i x 4>, %{{[0-9]+}} : !cir.vector<!s32i x 4>
+  // CHECK: %{{[0-9]+}} = cir.vec.shuffle.dynamic %{{[0-9]+}} : !cir.vector<!s32i x 4>, %{{[0-9]+}} : !cir.vector<!s32i x 4>
 }
 
 void vector_double_test(int x, double y) {

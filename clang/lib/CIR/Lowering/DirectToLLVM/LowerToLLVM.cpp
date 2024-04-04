@@ -1396,12 +1396,12 @@ public:
 };
 
 class CIRVectorShuffleIntsLowering
-    : public mlir::OpConversionPattern<mlir::cir::VecShuffleIntsOp> {
+    : public mlir::OpConversionPattern<mlir::cir::VecShuffleOp> {
 public:
-  using OpConversionPattern<mlir::cir::VecShuffleIntsOp>::OpConversionPattern;
+  using OpConversionPattern<mlir::cir::VecShuffleOp>::OpConversionPattern;
 
   mlir::LogicalResult
-  matchAndRewrite(mlir::cir::VecShuffleIntsOp op, OpAdaptor adaptor,
+  matchAndRewrite(mlir::cir::VecShuffleOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     // LLVM::ShuffleVectorOp takes an ArrayRef of int for the list of indices.
     // Convert the ClangIR ArrayAttr of IntAttr constants into a
@@ -1419,12 +1419,13 @@ public:
 };
 
 class CIRVectorShuffleVecLowering
-    : public mlir::OpConversionPattern<mlir::cir::VecShuffleVecOp> {
+    : public mlir::OpConversionPattern<mlir::cir::VecShuffleDynamicOp> {
 public:
-  using OpConversionPattern<mlir::cir::VecShuffleVecOp>::OpConversionPattern;
+  using OpConversionPattern<
+      mlir::cir::VecShuffleDynamicOp>::OpConversionPattern;
 
   mlir::LogicalResult
-  matchAndRewrite(mlir::cir::VecShuffleVecOp op, OpAdaptor adaptor,
+  matchAndRewrite(mlir::cir::VecShuffleDynamicOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     // LLVM IR does not have an operation that corresponds to this form of
     // the built-in.

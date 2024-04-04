@@ -475,7 +475,7 @@ cir.func @vec_ternary_not_int(%p : !cir.float) {
 cir.func @vec_shuffle_mismatch_args(%f : !cir.float, %n : !s32i) {
   %0 = cir.vec.create(%f, %f : !cir.float, !cir.float) : !cir.vector<!cir.float x 2>
   %1 = cir.vec.create(%n, %n : !s32i, !s32i) : !cir.vector<!s32i x 2> // expected-note {{prior use here}}
-  %2 = cir.vec.shuffle.ints(%0, %1 : !cir.vector<!cir.float x 2>) [#cir.int<0> : !s32i, #cir.int<1> : !s32i] : !cir.vector<!cir.float x 2> // expected-error {{use of value '%1' expects different type than prior uses: '!cir.vector<!cir.float x 2>' vs '!cir.vector<!cir.int<s, 32> x 2>}}
+  %2 = cir.vec.shuffle(%0, %1 : !cir.vector<!cir.float x 2>) [#cir.int<0> : !s32i, #cir.int<1> : !s32i] : !cir.vector<!cir.float x 2> // expected-error {{use of value '%1' expects different type than prior uses: '!cir.vector<!cir.float x 2>' vs '!cir.vector<!cir.int<s, 32> x 2>}}
   cir.return
 }
 
@@ -483,7 +483,7 @@ cir.func @vec_shuffle_mismatch_args(%f : !cir.float, %n : !s32i) {
 
 cir.func @vec_shuffle_non_ints(%f : !cir.float) {
   %0 = cir.vec.create(%f, %f : !cir.float, !cir.float) : !cir.vector<!cir.float x 2>
-  %1 = cir.vec.shuffle.ints(%0, %0 : !cir.vector<!cir.float x 2>) [#cir.fp<1.000000e+00> : !cir.float, #cir.fp<1.000000e+00> : !cir.float] : !cir.vector<!cir.float x 2> // expected-error {{'cir.vec.shuffle.ints' op all index values must be integers}}
+  %1 = cir.vec.shuffle(%0, %0 : !cir.vector<!cir.float x 2>) [#cir.fp<1.000000e+00> : !cir.float, #cir.fp<1.000000e+00> : !cir.float] : !cir.vector<!cir.float x 2> // expected-error {{'cir.vec.shuffle' op all index values must be integers}}
   cir.return
 }
 
@@ -492,7 +492,7 @@ cir.func @vec_shuffle_non_ints(%f : !cir.float) {
 !s32i = !cir.int<s, 32>
 cir.func @vec_shuffle_result_size(%f : !cir.float) {
   %0 = cir.vec.create(%f, %f : !cir.float, !cir.float) : !cir.vector<!cir.float x 2>
-  %1 = cir.vec.shuffle.ints(%0, %0 : !cir.vector<!cir.float x 2>) [#cir.int<1> : !s32i, #cir.int<1> : !s32i] : !cir.vector<!cir.float x 4> // expected-error {{'cir.vec.shuffle.ints' op : the number of elements in [#cir.int<1> : !cir.int<s, 32>, #cir.int<1> : !cir.int<s, 32>] and '!cir.vector<!cir.float x 4>' don't match}}
+  %1 = cir.vec.shuffle(%0, %0 : !cir.vector<!cir.float x 2>) [#cir.int<1> : !s32i, #cir.int<1> : !s32i] : !cir.vector<!cir.float x 4> // expected-error {{'cir.vec.shuffle' op : the number of elements in [#cir.int<1> : !cir.int<s, 32>, #cir.int<1> : !cir.int<s, 32>] and '!cir.vector<!cir.float x 4>' don't match}}
   cir.return
 }
 
@@ -501,7 +501,7 @@ cir.func @vec_shuffle_result_size(%f : !cir.float) {
 !s32i = !cir.int<s, 32>
 cir.func @vec_shuffle_result_element(%f : !cir.float) {
   %0 = cir.vec.create(%f, %f : !cir.float, !cir.float) : !cir.vector<!cir.float x 2>
-  %1 = cir.vec.shuffle.ints(%0, %0 : !cir.vector<!cir.float x 2>) [#cir.int<1> : !s32i, #cir.int<1> : !s32i] : !cir.vector<!s32i x 2> // expected-error {{'cir.vec.shuffle.ints' op : element types of '!cir.vector<!cir.float x 2>' and '!cir.vector<!cir.int<s, 32> x 2>' don't match}}
+  %1 = cir.vec.shuffle(%0, %0 : !cir.vector<!cir.float x 2>) [#cir.int<1> : !s32i, #cir.int<1> : !s32i] : !cir.vector<!s32i x 2> // expected-error {{'cir.vec.shuffle' op : element types of '!cir.vector<!cir.float x 2>' and '!cir.vector<!cir.int<s, 32> x 2>' don't match}}
   cir.return
 }
 

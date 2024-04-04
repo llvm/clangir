@@ -284,7 +284,7 @@ public:
       // The undocumented form of __builtin_shufflevector.
       mlir::Value InputVec = Visit(E->getExpr(0));
       mlir::Value IndexVec = Visit(E->getExpr(1));
-      return CGF.builder.create<mlir::cir::VecShuffleVecOp>(
+      return CGF.builder.create<mlir::cir::VecShuffleDynamicOp>(
           CGF.getLoc(E->getSourceRange()), InputVec, IndexVec);
     } else {
       // The documented form of __builtin_shufflevector, where the indices are
@@ -300,7 +300,7 @@ public:
                 ->EvaluateKnownConstInt(CGF.getContext())
                 .getSExtValue()));
       }
-      return CGF.builder.create<mlir::cir::VecShuffleIntsOp>(
+      return CGF.builder.create<mlir::cir::VecShuffleOp>(
           CGF.getLoc(E->getSourceRange()), CGF.getCIRType(E->getType()), Vec1,
           Vec2, CGF.builder.getArrayAttr(Indices));
     }

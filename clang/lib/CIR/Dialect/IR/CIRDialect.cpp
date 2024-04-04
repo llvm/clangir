@@ -555,10 +555,10 @@ LogicalResult VecTernaryOp::verify() {
 }
 
 //===----------------------------------------------------------------------===//
-// VecShuffleInts
+// VecShuffle
 //===----------------------------------------------------------------------===//
 
-LogicalResult VecShuffleIntsOp::verify() {
+LogicalResult VecShuffleOp::verify() {
   // The number of elements in the indices array must match the number of
   // elements in the result type.
   if (getIndices().size() != getResult().getType().getSize()) {
@@ -582,10 +582,10 @@ LogicalResult VecShuffleIntsOp::verify() {
 }
 
 //===----------------------------------------------------------------------===//
-// VecShuffleVec
+// VecShuffleDynamic
 //===----------------------------------------------------------------------===//
 
-LogicalResult VecShuffleVecOp::verify() {
+LogicalResult VecShuffleDynamicOp::verify() {
   // The number of elements in the two input vectors must match.
   if (getVec().getType().getSize() !=
       getIndices().getType().cast<mlir::cir::VectorType>().getSize()) {

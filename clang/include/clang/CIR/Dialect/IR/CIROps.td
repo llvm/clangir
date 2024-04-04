@@ -2199,23 +2199,30 @@ def VecTernaryOp : CIR_Op<"vec.ternary",
 }
 
 //===----------------------------------------------------------------------===//
-// VecShuffleInts
+// VecShuffle
 //===----------------------------------------------------------------------===//
 
-def VecShuffleIntsOp : CIR_Op<"vec.shuffle.ints",
-                       [Pure, AllTypesMatch<["vec1", "vec2"]>]> {
+// TODO: Create an interface that both VecShuffleOp and VecShuffleDynamicOp
+// implement.  This could be useful for passes that don't care how the vector
+// shuffle was specified.
+
+def VecShuffleOp : CIR_Op<"vec.shuffle",
+                   [Pure, AllTypesMatch<["vec1", "vec2"]>]> {
   let summary = "Combine two vectors using indices passed as constant integers";
   let description = [{
-    The `cir.vec.shuffle.ints` operation implements the documented form of
-    Clang's __builtin_shufflevector. The two input vectors, which must have the
-    same type, are concatenated. Each of the integer constant arguments is
-    interpreted as an index into that concatenated vector, which a value of -1
-    meaning that the result value doesn't matter. The result vector, which must
-    have the same element type as the input vectors and the same number of
-    elements as the list of integer constant indices, is constructed by taking
-    the elements at the given indices from the concatenated vector.  The size
-    of the result vector does not have to match the size of the individual
-    input vector or of the concatenated vector.
+    The `cir.vec.shuffle` operation implements the documented form of Clang's
+    __builtin_shufflevector, where the indices of the shuffled result are
+    integer constants.
+
+    The two input vectors, which must have the same type, are concatenated.
+    Each of the integer constant arguments is interpreted as an index into that
+    concatenated vector, with a value of -1 meaning that the result value
+    doesn't matter. The result vector, which must have the same element type as
+    the input vectors and the same number of elements as the list of integer
+    constant indices, is constructed by taking the elements at the given
+    indices from the concatenated vector.  The size of the result vector does
+    not have to match the size of the individual input vectors or of the
+    concatenated vector.
   }];
   let arguments = (ins CIR_VectorType:$vec1, CIR_VectorType:$vec2,
 		       ArrayAttr:$indices);
@@ -2228,20 +2235,22 @@ def VecShuffleIntsOp : CIR_Op<"vec.shuffle.ints",
 }
 
 //===----------------------------------------------------------------------===//
-// VecShuffleVec
+// VecShuffleDynamic
 //===----------------------------------------------------------------------===//
 
-def VecShuffleVecOp : CIR_Op<"vec.shuffle.vec",
-                      [Pure, AllTypesMatch<["vec", "result"]>]> {
+def VecShuffleDynamicOp : CIR_Op<"vec.shuffle.dynamic",
+                          [Pure, AllTypesMatch<["vec", "result"]>]> {
   let summary = "Shuffle a vector using indices in another vector";
   let description = [{
-    The `cir.vec.shuffle.vec` operation implements the undocumented form of
-    Clang's __builtin_shufflevector. There are two input vectors, which must
-    have the same number of elements. The second input vector must have an
-    integral element type. The elements of the second vector are interpreted as
-    indices into the first vector. The result vector is constructed by taking
-    the elements from the first input vector from the indices indicated by the
-    elements of the second vector.
+    The `cir.vec.shuffle.dynamic` operation implements the undocumented form of
+    Clang's __builtin_shufflevector, where the indices of the shuffled result
+    can be runtime values.
+
+    There are two input vectors, which must have the same number of elements.
+    The second input vector must have an integral element type. The elements of
+    the second vector are interpreted as indices into the first vector. The
+    result vector is constructed by taking the elements from the first input
+    vector from the indices indicated by the elements of the second vector.
   }];
   let arguments = (ins CIR_VectorType:$vec, IntegerVector:$indices);
   let results = (outs CIR_VectorType:$result);
