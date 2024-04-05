@@ -400,6 +400,14 @@ LogicalResult CastOp::verify() {
   auto resType = getResult().getType();
   auto srcType = getSrc().getType();
 
+  if (mlir::isa<mlir::cir::VectorType>(srcType) &&
+      mlir::isa<mlir::cir::VectorType>(resType)) {
+    // Use the element type of the vector to verify the cast kind. (Except for
+    // bitcast, see below.)
+    srcType = mlir::dyn_cast<mlir::cir::VectorType>(srcType).getEltType();
+    resType = mlir::dyn_cast<mlir::cir::VectorType>(resType).getEltType();
+  }
+
   switch (getKind()) {
   case cir::CastKind::int_to_bool: {
     if (!llvm::isa<mlir::cir::BoolType>(resType))
@@ -438,10 +446,12 @@ LogicalResult CastOp::verify() {
     return success();
   }
   case cir::CastKind::bitcast: {
-    if ((!mlir::isa<mlir::cir::PointerType>(srcType) ||
-         !mlir::isa<mlir::cir::PointerType>(resType)) &&
-        (!mlir::isa<mlir::cir::VectorType>(srcType) ||
-         !mlir::isa<mlir::cir::VectorType>(resType)))
+    // This is the only cast kind where we don't want vector types to decay
+    // into the element type.
+    if ((!mlir::isa<mlir::cir::PointerType>(getSrc().getType()) ||
+         !mlir::isa<mlir::cir::PointerType>(getResult().getType())) &&
+        (!mlir::isa<mlir::cir::VectorType>(getSrc().getType()) ||
+         !mlir::isa<mlir::cir::VectorType>(getResult().getType())))
       return emitOpError()
              << "requires !cir.ptr or !cir.vector type for source and result";
     return success();
@@ -449,7 +459,7 @@ LogicalResult CastOp::verify() {
   case cir::CastKind::floating: {
     if (!mlir::isa<mlir::cir::CIRFPTypeInterface>(srcType) ||
         !mlir::isa<mlir::cir::CIRFPTypeInterface>(resType))
-      return emitOpError() << "requries floating for source and result";
+      return emitOpError() << "requires floating for source and result";
     return success();
   }
   case cir::CastKind::float_to_int: {
@@ -545,6 +555,47 @@ LogicalResult VecTernaryOp::verify() {
     return emitOpError() << ": the number of elements in "
                          << getCond().getType() << " and "
                          << getVec1().getType() << " don't match";
+  }
+  return success();
+}
+
+//===----------------------------------------------------------------------===//
+// VecShuffle
+//===----------------------------------------------------------------------===//
+
+LogicalResult VecShuffleOp::verify() {
+  // The number of elements in the indices array must match the number of
+  // elements in the result type.
+  if (getIndices().size() != getResult().getType().getSize()) {
+    return emitOpError() << ": the number of elements in " << getIndices()
+                         << " and " << getResult().getType() << " don't match";
+  }
+  // The element types of the two input vectors and of the result type must
+  // match.
+  if (getVec1().getType().getEltType() != getResult().getType().getEltType()) {
+    return emitOpError() << ": element types of " << getVec1().getType()
+                         << " and " << getResult().getType() << " don't match";
+  }
+  // The indices must all be integer constants
+  if (not std::all_of(getIndices().begin(), getIndices().end(),
+                      [](mlir::Attribute attr) {
+                        return mlir::isa<mlir::cir::IntAttr>(attr);
+                      })) {
+    return emitOpError() << "all index values must be integers";
+  }
+  return success();
+}
+
+//===----------------------------------------------------------------------===//
+// VecShuffleDynamic
+//===----------------------------------------------------------------------===//
+
+LogicalResult VecShuffleDynamicOp::verify() {
+  // The number of elements in the two input vectors must match.
+  if (getVec().getType().getSize() !=
+      mlir::cast<mlir::cir::VectorType>(getIndices().getType()).getSize()) {
+    return emitOpError() << ": the number of elements in " << getVec().getType()
+                         << " and " << getIndices().getType() << " don't match";
   }
   return success();
 }
