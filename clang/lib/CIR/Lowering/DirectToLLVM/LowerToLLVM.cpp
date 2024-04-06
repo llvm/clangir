@@ -2516,6 +2516,32 @@ public:
   }
 };
 
+class CIRByteswapOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::ByteswapOp> {
+public:
+  using OpConversionPattern<mlir::cir::ByteswapOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::ByteswapOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    // Note that LLVM intrinsic calls to @llvm.bswap.i* have the same type as
+    // the operand.
+
+    auto resTy =
+        mlir::cast<mlir::IntegerType>(getTypeConverter()->convertType(op.getType()));
+
+    std::string llvmIntrinName = "llvm.bswap.i";
+    llvmIntrinName.append(std::to_string(resTy.getWidth()));
+    auto llvmIntrinNameAttr =
+        mlir::StringAttr::get(rewriter.getContext(), llvmIntrinName);
+
+    rewriter.replaceOpWithNewOp<mlir::LLVM::CallIntrinsicOp>(
+        op, resTy, llvmIntrinNameAttr, adaptor.getInput());
+
+    return mlir::LogicalResult::success();
+  }
+};
+
 class CIRBrOpLowering : public mlir::OpConversionPattern<mlir::cir::BrOp> {
 public:
   using OpConversionPattern<mlir::cir::BrOp>::OpConversionPattern;
@@ -2960,7 +2986,7 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
   patterns.add<
       CIRCmpOpLowering, CIRBitClrsbOpLowering, CIRBitClzOpLowering,
       CIRBitCtzOpLowering, CIRBitFfsOpLowering, CIRBitParityOpLowering,
-      CIRBitPopcountOpLowering, CIRAtomicFetchLowering,
+      CIRBitPopcountOpLowering, CIRAtomicFetchLowering, CIRByteswapOpLowering,
       CIRLoopOpInterfaceLowering, CIRBrCondOpLowering, CIRPtrStrideOpLowering,
       CIRCallLowering, CIRUnaryOpLowering, CIRBinOpLowering, CIRShiftOpLowering,
       CIRLoadLowering, CIRConstantLowering, CIRStoreLowering, CIRAllocaLowering,
