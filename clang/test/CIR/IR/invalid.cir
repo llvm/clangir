@@ -1062,3 +1062,10 @@ module {
     cir.return
   }
 }
+
+// -----
+
+// expected-error@+1 {{invalid underlying type for long double}}
+cir.func @bad_long_double(%arg0 : !cir.long_double<!cir.float>) -> () {
+  cir.return
+}
