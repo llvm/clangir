@@ -20,6 +20,9 @@ namespace cir {
 struct MissingFeatures {
   // C++ ABI support
   static bool cxxABI() { return false; }
+
+  // Sanitizers
+  static bool sanitizers() { return false; }
 };
 
 } // namespace cir
