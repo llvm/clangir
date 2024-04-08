@@ -75,8 +75,8 @@ struct CIRIfFlattening : public OpRewritePattern<IfOp> {
     }
 
     rewriter.setInsertionPointToEnd(currentBlock);
-    rewriter.create<mlir::cir::BrCondOp>(loc, ifOp.getCondition(), thenBeforeBody,
-                                          elseBeforeBody);
+    rewriter.create<mlir::cir::BrCondOp>(loc, ifOp.getCondition(),
+                                         thenBeforeBody, elseBeforeBody);
 
     if (!emptyElse) {
       rewriter.setInsertionPointToEnd(elseAfterBody);
@@ -103,14 +103,13 @@ void FlattenCFGPass::runOnOperation() {
   // Collect operations to apply patterns.
   SmallVector<Operation *, 16> ops;
   getOperation()->walk<mlir::WalkOrder::PostOrder>([&](Operation *op) {
-    if (isa<IfOp>(op)) 
+    if (isa<IfOp>(op))
       ops.push_back(op);
   });
 
   // Apply patterns.
   if (applyOpPatternsAndFold(ops, std::move(patterns)).failed())
     signalPassFailure();
-
 }
 
 } // namespace

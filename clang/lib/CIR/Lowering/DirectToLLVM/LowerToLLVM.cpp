@@ -62,9 +62,9 @@
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <cstdint>
+#include <deque>
 #include <optional>
 #include <set>
-#include <deque>
 
 using namespace cir;
 using namespace llvm;
@@ -580,9 +580,8 @@ public:
           brOp.getLoc(), rewriter.getI1Type(), adaptor.getCond());
 
     rewriter.replaceOpWithNewOp<mlir::LLVM::CondBrOp>(
-        brOp, i1Condition, brOp.getDestTrue(),
-        adaptor.getDestOperandsTrue(), brOp.getDestFalse(),
-        adaptor.getDestOperandsFalse());
+        brOp, i1Condition, brOp.getDestTrue(), adaptor.getDestOperandsTrue(),
+        brOp.getDestFalse(), adaptor.getDestOperandsFalse());
 
     return mlir::success();
   }
@@ -868,9 +867,7 @@ struct ConvertCIRToLLVMPass
   }
   void runOnOperation() final;
 
-  virtual StringRef getArgument() const override {
-    return "cir-flat-to-llvm";
-  }
+  virtual StringRef getArgument() const override { return "cir-flat-to-llvm"; }
 };
 
 class CIRCallLowering : public mlir::OpConversionPattern<mlir::cir::CallOp> {
@@ -2122,7 +2119,7 @@ public:
 
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::CmpOp cmpOp, OpAdaptor adaptor,
-                  mlir::ConversionPatternRewriter &rewriter) const override {  
+                  mlir::ConversionPatternRewriter &rewriter) const override {
     auto type = cmpOp.getLhs().getType();
     mlir::Value llResult;
 
@@ -2144,10 +2141,10 @@ public:
     } else {
       return cmpOp.emitError() << "unsupported type for CmpOp: " << type;
     }
-   
+
     // LLVM comparison ops return i1, but cir::CmpOp returns the same type as
     // the LHS value. Since this return value can be used later, we need to
-    // restore the type with the extension below.  
+    // restore the type with the extension below.
     auto llResultTy = getTypeConverter()->convertType(cmpOp.getType());
     rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(cmpOp, llResultTy,
                                                     llResult);
@@ -3031,38 +3028,36 @@ static void buildCtorList(mlir::ModuleOp module) {
   builder.create<mlir::LLVM::ReturnOp>(loc, result);
 }
 
-void collect_unreachable(mlir::Operation* parent,
-                         llvm::SmallVector<mlir::Operation*>& ops) {
+void collect_unreachable(mlir::Operation *parent,
+                         llvm::SmallVector<mlir::Operation *> &ops) {
 
-  llvm::SmallVector<mlir::Block*> unreachable_blocks;
-  parent->walk(
-    [&](mlir::Block* blk) { // check
-      if (blk->hasNoPredecessors() && !blk->isEntryBlock())
-        unreachable_blocks.push_back(blk);
+  llvm::SmallVector<mlir::Block *> unreachable_blocks;
+  parent->walk([&](mlir::Block *blk) { // check
+    if (blk->hasNoPredecessors() && !blk->isEntryBlock())
+      unreachable_blocks.push_back(blk);
   });
 
-  std::set<mlir::Block*> visited;
-  for (auto* root : unreachable_blocks) {
+  std::set<mlir::Block *> visited;
+  for (auto *root : unreachable_blocks) {
     // We create a work list for each unreachable block.
     // Thus we traverse operations in some order.
-    std::deque<mlir::Block*> workList;
+    std::deque<mlir::Block *> workList;
     workList.push_back(root);
 
     while (!workList.empty()) {
-      auto* blk = workList.back();
+      auto *blk = workList.back();
       workList.pop_back();
-      if (visited.count(blk)) 
+      if (visited.count(blk))
         continue;
       visited.emplace(blk);
 
-      for (auto& op : *blk)
+      for (auto &op : *blk)
         ops.push_back(&op);
 
       for (auto it = blk->succ_begin(); it != blk->succ_end(); ++it)
         workList.push_back(*it);
     }
   }
-
 }
 
 void ConvertCIRToLLVMPass::runOnOperation() {
@@ -3103,8 +3098,8 @@ void ConvertCIRToLLVMPass::runOnOperation() {
 
   getOperation()->removeAttr("cir.sob");
   getOperation()->removeAttr("cir.lang");
-  
-  llvm::SmallVector<mlir::Operation*> ops;
+
+  llvm::SmallVector<mlir::Operation *> ops;
   ops.push_back(module);
   collect_unreachable(module, ops);
 
