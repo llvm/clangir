@@ -32,7 +32,7 @@ struct FlattenCFGPass : public FlattenCFGBase<FlattenCFGPass> {
   void runOnOperation() override;
 };
 
-struct CIRIfLowering : public OpRewritePattern<IfOp> {
+struct CIRIfFlattening : public OpRewritePattern<IfOp> {
   using OpRewritePattern<IfOp>::OpRewritePattern;
 
   mlir::LogicalResult
@@ -95,7 +95,7 @@ struct CIRIfLowering : public OpRewritePattern<IfOp> {
 };
 
 void populateFlattenCFGPatterns(RewritePatternSet &patterns) {
-  patterns.add<CIRIfLowering>(patterns.getContext());
+  patterns.add<CIRIfFlattening>(patterns.getContext());
 }
 
 void FlattenCFGPass::runOnOperation() {

@@ -564,33 +564,26 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::BrCondOp brOp, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    auto condition = adaptor.getCond();
-
     mlir::Value i1Condition;
-    mlir::LLVM::ZExtOp zext;
 
-    if (auto defOp = adaptor.getCond().getDefiningOp())
-      zext =
-         dyn_cast<mlir::LLVM::ZExtOp>(adaptor.getCond().getDefiningOp());
-
-    bool remove = false;
-    if (zext 
-        && zext->getOperand(0).getType() == rewriter.getI1Type()
-        && zext->use_empty()) {
-      i1Condition = zext->getOperand(0);           
-      remove = true;
-    } else {
-      i1Condition = rewriter.create<mlir::LLVM::TruncOp>(
-          brOp.getLoc(), rewriter.getI1Type(), condition);
+    if (auto defOp = adaptor.getCond().getDefiningOp()) {
+      if (auto zext = dyn_cast<mlir::LLVM::ZExtOp>(defOp)) {
+        if (zext->use_empty() &&
+            zext->getOperand(0).getType() == rewriter.getI1Type()) {
+          i1Condition = zext->getOperand(0);
+          rewriter.eraseOp(zext);
+        }
+      }
     }
-     
+
+    if (!i1Condition)
+      i1Condition = rewriter.create<mlir::LLVM::TruncOp>(
+          brOp.getLoc(), rewriter.getI1Type(), adaptor.getCond());
+
     rewriter.replaceOpWithNewOp<mlir::LLVM::CondBrOp>(
         brOp, i1Condition, brOp.getDestTrue(),
         adaptor.getDestOperandsTrue(), brOp.getDestFalse(),
         adaptor.getDestOperandsFalse());
-    
-    if (remove) 
-      rewriter.eraseOp(zext);
 
     return mlir::success();
   }
@@ -789,90 +782,6 @@ public:
       break;
     }
     }
-
-    return mlir::success();
-  }
-};
-
-class CIRIfLowering : public mlir::OpConversionPattern<mlir::cir::IfOp> {
-public:
-  using mlir::OpConversionPattern<mlir::cir::IfOp>::OpConversionPattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(mlir::cir::IfOp ifOp, OpAdaptor adaptor,
-                  mlir::ConversionPatternRewriter &rewriter) const override {
-    mlir::OpBuilder::InsertionGuard guard(rewriter);
-    auto loc = ifOp.getLoc();
-    auto emptyElse = ifOp.getElseRegion().empty();
-
-    auto *currentBlock = rewriter.getInsertionBlock();
-    auto *remainingOpsBlock =
-        rewriter.splitBlock(currentBlock, rewriter.getInsertionPoint());
-    mlir::Block *continueBlock;
-    if (ifOp->getResults().size() == 0)
-      continueBlock = remainingOpsBlock;
-    else
-      llvm_unreachable("NYI");
-
-    // Inline then region
-    auto *thenBeforeBody = &ifOp.getThenRegion().front();
-    auto *thenAfterBody = &ifOp.getThenRegion().back();
-    rewriter.inlineRegionBefore(ifOp.getThenRegion(), continueBlock);
-
-    rewriter.setInsertionPointToEnd(thenAfterBody);
-    if (auto thenYieldOp =
-            dyn_cast<mlir::cir::YieldOp>(thenAfterBody->getTerminator())) {
-      rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(
-          thenYieldOp, thenYieldOp.getArgs(), continueBlock);
-    }
-
-    rewriter.setInsertionPointToEnd(continueBlock);
-
-    // Has else region: inline it.
-    mlir::Block *elseBeforeBody = nullptr;
-    mlir::Block *elseAfterBody = nullptr;
-    if (!emptyElse) {
-      elseBeforeBody = &ifOp.getElseRegion().front();
-      elseAfterBody = &ifOp.getElseRegion().back();
-      rewriter.inlineRegionBefore(ifOp.getElseRegion(), thenAfterBody);
-    } else {
-      elseBeforeBody = elseAfterBody = continueBlock;
-    }
-
-    rewriter.setInsertionPointToEnd(currentBlock);
-
-    // FIXME: CIR always lowers !cir.bool to i8 type.
-    // In this reason CIR CodeGen often emits the redundant zext + trunc
-    // sequence that prevents lowering of llvm.expect in
-    // LowerExpectIntrinsicPass.
-    // We should fix that in a more appropriate way. But as a temporary solution
-    // just avoid the redundant casts here.
-    mlir::Value condition;
-    auto zext =
-        dyn_cast<mlir::LLVM::ZExtOp>(adaptor.getCondition().getDefiningOp());
-    if (zext && zext->getOperand(0).getType() == rewriter.getI1Type()) {
-      condition = zext->getOperand(0);
-      if (zext->use_empty())
-        rewriter.eraseOp(zext);
-    } else {
-      auto trunc = rewriter.create<mlir::LLVM::TruncOp>(
-          loc, rewriter.getI1Type(), adaptor.getCondition());
-      condition = trunc.getRes();
-    }
-
-    rewriter.create<mlir::LLVM::CondBrOp>(loc, condition, thenBeforeBody,
-                                          elseBeforeBody);
-
-    if (!emptyElse) {
-      rewriter.setInsertionPointToEnd(elseAfterBody);
-      if (auto elseYieldOp =
-              dyn_cast<mlir::cir::YieldOp>(elseAfterBody->getTerminator())) {
-        rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(
-            elseYieldOp, elseYieldOp.getArgs(), continueBlock);
-      }
-    }
-
-    rewriter.replaceOp(ifOp, continueBlock->getArguments());
 
     return mlir::success();
   }
