@@ -140,6 +140,18 @@ public:
     return create<mlir::cir::StoreOp>(loc, val, dst, _volatile, order);
   }
 
+  mlir::Value createSub(mlir::Value lhs, mlir::Value rhs) {
+    return createBinop(lhs, mlir::cir::BinOpKind::Sub, rhs);
+  }
+
+  mlir::Value createNSWSub(mlir::Value lhs, mlir::Value rhs) {
+    auto op = create<mlir::cir::BinOp>(lhs.getLoc(), lhs.getType(), 
+                                       mlir::cir::BinOpKind::Sub,
+                                       lhs, rhs);
+    op.setHasNoSignedWrap(true);
+    return op;
+  }
+
   //===--------------------------------------------------------------------===//
   // Cast/Conversion Operators
   //===--------------------------------------------------------------------===//
