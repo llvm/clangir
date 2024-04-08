@@ -870,7 +870,7 @@ struct ConvertCIRToLLVMPass
   void runOnOperation() final;
 
   virtual StringRef getArgument() const override {
-    return "cir-to-llvm-internal";
+    return "cir-flat-to-llvm";
   }
 };
 
