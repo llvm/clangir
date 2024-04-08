@@ -63,7 +63,6 @@
 #include "llvm/Support/ErrorHandling.h"
 #include <cstdint>
 #include <optional>
-#include <iostream>
 #include <set>
 #include <deque>
 
@@ -3032,9 +3031,8 @@ static void buildCtorList(mlir::ModuleOp module) {
   builder.create<mlir::LLVM::ReturnOp>(loc, result);
 }
 
-void collect_unreachable_operations(
-                          mlir::Operation* parent,
-                          llvm::SmallVector<mlir::Operation*>& ops) {
+void collect_unreachable(mlir::Operation* parent,
+                         llvm::SmallVector<mlir::Operation*>& ops) {
 
   llvm::SmallVector<mlir::Block*> unreachable_blocks;
   parent->walk(
@@ -3047,12 +3045,12 @@ void collect_unreachable_operations(
   for (auto* root : unreachable_blocks) {
     // We create a work list for each unreachable block.
     // Thus we traverse operations in some order.
-    std::deque<mlir::Block*> blocks;
-    blocks.push_back(root);
+    std::deque<mlir::Block*> workList;
+    workList.push_back(root);
 
-    while (!blocks.empty()) {
-      auto* blk = blocks.back();
-      blocks.pop_back();
+    while (!workList.empty()) {
+      auto* blk = workList.back();
+      workList.pop_back();
       if (visited.count(blk)) 
         continue;
       visited.emplace(blk);
@@ -3061,7 +3059,7 @@ void collect_unreachable_operations(
         ops.push_back(&op);
 
       for (auto it = blk->succ_begin(); it != blk->succ_end(); ++it)
-        blocks.push_back(*it);
+        workList.push_back(*it);
     }
   }
 
@@ -3109,7 +3107,7 @@ void ConvertCIRToLLVMPass::runOnOperation() {
   
   llvm::SmallVector<mlir::Operation*> ops;
   ops.push_back(module);
-  collect_unreachable_operations(module, ops);
+  collect_unreachable(module, ops);
 
   if (failed(applyPartialConversion(ops, target, std::move(patterns))))
     signalPassFailure();

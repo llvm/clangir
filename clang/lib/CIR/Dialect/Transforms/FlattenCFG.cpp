@@ -19,8 +19,6 @@
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/Passes.h"
 
-#include <iostream>
-
 using namespace mlir;
 using namespace mlir::cir;
 
