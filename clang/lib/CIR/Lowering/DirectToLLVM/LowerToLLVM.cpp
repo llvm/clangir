@@ -3067,7 +3067,6 @@ void collect_unreachable(mlir::Operation* parent,
 
 void ConvertCIRToLLVMPass::runOnOperation() {
   auto module = getOperation();
-  //module.dump();
   mlir::DataLayout dataLayout(module);
   mlir::LLVMTypeConverter converter(&getContext());
   prepareTypeConverter(converter, dataLayout);
