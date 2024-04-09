@@ -468,7 +468,7 @@ public:
         auto amt = builder.getSInt32(amount, loc);
         if (CGF.getLangOpts().isSignedOverflowDefined()) {
           value = builder.create<mlir::cir::PtrStrideOp>(loc, value.getType(),
-                                                         value, amt);          
+                                                         value, amt);
         } else {
           value = builder.create<mlir::cir::PtrStrideOp>(loc, value.getType(),
                                                          value, amt);
@@ -1209,7 +1209,7 @@ static mlir::Value buildPointerArithmetic(CIRGenFunction &CGF,
   mlir::Type elemTy = CGF.convertTypeForMem(elementType);
   if (CGF.getLangOpts().isSignedOverflowDefined())
     return CGF.getBuilder().create<mlir::cir::PtrStrideOp>(
-      CGF.getLoc(op.E->getExprLoc()), pointer.getType(), pointer, index);
+        CGF.getLoc(op.E->getExprLoc()), pointer.getType(), pointer, index);
 
   return CGF.buildCheckedInBoundsGEP(elemTy, pointer, index, isSigned,
                                      isSubtraction, op.E->getExprLoc());
@@ -1247,9 +1247,8 @@ mlir::Value ScalarExprEmitter::buildSub(const BinOpInfo &Ops) {
     if (Ops.CompType->isSignedIntegerOrEnumerationType()) {
       switch (CGF.getLangOpts().getSignedOverflowBehavior()) {
       case LangOptions::SOB_Defined: {
-        if (!CGF.SanOpts.has(SanitizerKind::SignedIntegerOverflow)) {
+        if (!CGF.SanOpts.has(SanitizerKind::SignedIntegerOverflow))
           return Builder.createSub(Ops.LHS, Ops.RHS);
-        }
         [[fallthrough]];
       }
       case LangOptions::SOB_Undefined:
