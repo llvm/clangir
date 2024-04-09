@@ -647,10 +647,6 @@ IntType::verify(llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
                 << IntType::minBitwidth() << "up to " << IntType::maxBitwidth();
     return mlir::failure();
   }
-  if (width % 8 != 0) {
-    emitError() << "IntType width is not a multiple of 8";
-    return mlir::failure();
-  }
 
   return mlir::success();
 }

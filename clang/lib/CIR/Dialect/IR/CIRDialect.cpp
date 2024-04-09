@@ -64,6 +64,10 @@ struct CIROpAsmDialectInterface : public OpAsmDialectInterface {
       return AliasResult::OverridableAlias;
     }
     if (auto intType = type.dyn_cast<IntType>()) {
+      // We only provide alias for standard integer types (i.e. integer types
+      // whose width is divisible by 8).
+      if (intType.getWidth() % 8 != 0)
+        return AliasResult::NoAlias;
       os << intType.getAlias();
       return AliasResult::OverridableAlias;
     }
