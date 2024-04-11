@@ -3347,11 +3347,8 @@ void ConvertCIRToLLVMPass::runOnOperation() {
                       assert(mlir::isa<mlir::cir::GlobalCtorAttr>(attr) &&
                              "must be a GlobalCtorAttr");
                       auto ctorAttr = mlir::cast<mlir::cir::GlobalCtorAttr>(attr);
-                      // default priority is 65536
-                      int priority = 65536;
-                      if (ctorAttr.getPriority())
-                        priority = *ctorAttr.getPriority();
-                      return std::make_pair(ctorAttr.getName(), priority);
+                      return std::make_pair(ctorAttr.getName(),
+                                            ctorAttr.getPriority());
                     });
   // Emit the llvm.global_dtors array.
   buildCtorDtorList(module, "cir.global_dtors", "llvm.global_dtors",
@@ -3359,11 +3356,8 @@ void ConvertCIRToLLVMPass::runOnOperation() {
                       assert(mlir::isa<mlir::cir::GlobalDtorAttr>(attr) &&
                              "must be a GlobalDtorAttr");
                       auto dtorAttr = mlir::cast<mlir::cir::GlobalDtorAttr>(attr);
-                      // default priority is 65536
-                      int priority = 65536;
-                      if (dtorAttr.getPriority())
-                        priority = *dtorAttr.getPriority();
-                      return std::make_pair(dtorAttr.getName(), priority);
+                      return std::make_pair(dtorAttr.getName(),
+                                            dtorAttr.getPriority());
                     });
 }
 
