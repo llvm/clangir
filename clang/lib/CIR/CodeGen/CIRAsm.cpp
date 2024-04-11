@@ -603,7 +603,6 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
   for (unsigned i = 0, e = InOutArgs.size(); i != e; i++) {
     ArgTypes.push_back(InOutArgTypes[i]);
     ArgElemTypes.push_back(InOutArgElemTypes[i]);
-    //Args.push_back(InOutArgs[i]);
   }
   Constraints += InOutConstraints;
 
@@ -656,8 +655,9 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
       }
     }
 
-    // assert(Args.size() == operandAttrs.size() &&
-    //        "The number of attributes is not even with the number of operands");
+    auto size = OutArgs.size() + InOutArgs.size() + InArgs.size();
+    assert(size == operandAttrs.size() &&
+           "The number of attributes is not even with the number of operands");
 
     IA.setOperandAttrsAttr(builder.getArrayAttr(operandAttrs));
 

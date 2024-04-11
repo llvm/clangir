@@ -2860,7 +2860,7 @@ class CIRInlineAsmOpLowering
     // to the operand
     if (!op.getNumResults())
       opAttrs.push_back(mlir::Attribute());
-  
+
     for (auto attr : op.getOperandAttrs()) {
       if (!attr) {
         opAttrs.push_back(mlir::Attribute());
