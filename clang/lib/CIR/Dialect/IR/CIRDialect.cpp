@@ -2916,7 +2916,7 @@ ParseResult cir::InlineAsmOp::parse(OpAsmParser &parser, OperationState &result)
     
   if (parser.parseOptionalArrow().succeeded());
     parser.parseType(resType);
-  
+
   if (parser.parseOptionalAttrDict(result.attributes))
     return mlir::failure();
 
@@ -2925,7 +2925,9 @@ ParseResult cir::InlineAsmOp::parse(OpAsmParser &parser, OperationState &result)
   result.attributes.set("constraints", StringAttr::get(ctxt, constraints));
   result.attributes.set("operand_attrs", ArrayAttr::get(ctxt, operand_attrs));
   result.getOrAddProperties<InlineAsmOp::Properties>().operands_segments = parser.getBuilder().getDenseI32ArrayAttr(operandsGroupSizes);
-
+  if (resType)
+    result.addTypes(TypeRange{resType});
+    
   return mlir::success();
 }
 
