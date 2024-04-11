@@ -653,8 +653,6 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
         // the lowering to LLVM IR the attributes will be assigned to the
         // CallInsn argument by index, i.e. we can't skip null type here
         operandAttrs.push_back(mlir::Attribute());
-        //operandAttrs.push_back(mlir::UnitAttr::get(builder.getContext()));
-        //operandAttrs.push_back(OptNoneAttr::get(builder.getContext()));
       }
     }
 

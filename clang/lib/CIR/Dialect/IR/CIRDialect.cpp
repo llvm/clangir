@@ -2799,15 +2799,7 @@ void cir::InlineAsmOp::print(OpAsmPrinter &p) {
   if (auto v = getRes())
     p << " -> " << v.getType(); 
 }
-/*
-cir.asm(x86_att,
-  out = [%0 : !cir.ptr<!s32i> : ElementType !s32i],
-  in_out = [%0 : !cir.ptr<!s32i>, %1 : !cir.ptr<!s32i>],
-  in = [%2 : !cir.ptr<!s32i>],
-  {"add" "~{dirflag},~{fpsr},~{flags}"}
-) side_effects
-*/
-// TODO!! CHECK OPTIONAL!!
+
 ParseResult cir::InlineAsmOp::parse(OpAsmParser &parser, OperationState &result) {
   llvm::SmallVector<mlir::Attribute> operand_attrs;
   llvm::SmallVector<int32_t> operandsGroupSizes;
@@ -2855,18 +2847,18 @@ ParseResult cir::InlineAsmOp::parse(OpAsmParser &parser, OperationState &result)
     if (parser.parseKeyword(name).failed())
       return error("expected " + name + " operands here");
     if (parser.parseEqual().failed())
-      return error("expected '=' here");
+      return expected("=");
     if (parser.parseLSquare().failed())
-      return error("expected '[' here");
+      return expected("[");
 
     int size = 0;
     if (parser.parseOptionalRSquare().succeeded()) {
       operandsGroupSizes.push_back(size);
       if (parser.parseComma())
-        return error("expected ',' here");
+        return expected(",");
       return mlir::success();
     }
-    
+
     if (parser.parseCommaSeparatedList([&]() {
             Type eltTyp; 
             Value val;
@@ -2890,7 +2882,7 @@ ParseResult cir::InlineAsmOp::parse(OpAsmParser &parser, OperationState &result)
       return mlir::failure();
       
       if (parser.parseRSquare().failed() || parser.parseComma().failed())
-        return error("expected '],' here");
+        return expected("]");
       operandsGroupSizes.push_back(size);
       return mlir::success();
   };  
@@ -2901,15 +2893,15 @@ ParseResult cir::InlineAsmOp::parse(OpAsmParser &parser, OperationState &result)
       return error("failed to parse operands");
   
   if (parser.parseLBrace())
-    return error("expected '{' here");
+    return expected("{");
   if (parser.parseString(&asm_string))
     return error("asm string parsing failed");
   if (parser.parseString(&constraints))
     return error("constraints string parsing failed");
   if (parser.parseRBrace())
-    return error("expected '}' here");
+    return expected("}");
   if (parser.parseRParen())
-    return error("expected ')' here");
+    return expected(")");
 
   if (parser.parseOptionalKeyword("side_effects").succeeded()) 
     result.attributes.set("side_effects", UnitAttr::get(ctxt));
@@ -2927,7 +2919,7 @@ ParseResult cir::InlineAsmOp::parse(OpAsmParser &parser, OperationState &result)
   result.getOrAddProperties<InlineAsmOp::Properties>().operands_segments = parser.getBuilder().getDenseI32ArrayAttr(operandsGroupSizes);
   if (resType)
     result.addTypes(TypeRange{resType});
-    
+
   return mlir::success();
 }
 
