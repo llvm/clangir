@@ -2809,64 +2809,80 @@ cir.asm(x86_att,
 */
 // TODO!! CHECK OPTIONAL!!
 ParseResult cir::InlineAsmOp::parse(OpAsmParser &parser, OperationState &result) {
+  llvm::SmallVector<mlir::Attribute> operand_attrs;
+  llvm::SmallVector<int32_t> operandsGroupSizes;
+  std::string asm_string, constraints;
+  bool side_effects = false;
+  Type resType;
+  auto* ctxt = parser.getBuilder().getContext();
+
   auto error = [&](const Twine &msg) {
     parser.emitError(parser.getCurrentLocation(), msg);;
     return mlir::failure();
   };
 
+  auto expected = [&](const std::string& c) {
+    return error("expected '" + c + "'");
+  };
+
   if (parser.parseLParen().failed())
-    return error("expected '('");
+    return expected("(");
   
   auto flavor = mlir::FieldParser<AsmFlavor>::parse(parser);
   if (failed(flavor))
     return error("Unknown AsmFlavor");
 
   if (parser.parseComma().failed())
-    return error("expected ','");
- 
-  auto parseValue = [&]() {
+    return expected(",");
+   
+  auto parseValue = [&](Value& v) {
     OpAsmParser::UnresolvedOperand op;
     
     if (parser.parseOperand(op) || parser.parseColon())
-      return mlir::Value();
+      return mlir::failure();
     
     Type typ; 
     if (parser.parseType(typ).failed())
-      return Value();
+      return error("can't parse operand type");
     llvm::SmallVector<mlir::Value> tmp;
     if (parser.resolveOperand(op, typ, tmp))
-      return Value();
-    return tmp[0];
+      return error("can't resolve operand");
+    v = tmp[0];
+    return mlir::success();
   };
 
-  auto parseOperands = [&](llvm::StringRef name,
-                           llvm::SmallVector<mlir::Value>& ops,
-                           llvm::SmallVector<mlir::Attribute>& attrs) {
+  auto parseOperands = [&](llvm::StringRef name) {
     if (parser.parseKeyword(name).failed())
       return error("expected " + name + " operands here");
     if (parser.parseEqual().failed())
       return error("expected '=' here");
     if (parser.parseLSquare().failed())
       return error("expected '[' here");
-    
+
+    int size = 0;
     if (parser.parseOptionalRSquare().succeeded()) {
+      operandsGroupSizes.push_back(size);
       if (parser.parseComma())
         return error("expected ',' here");
       return mlir::success();
     }
-
+    
     if (parser.parseCommaSeparatedList([&]() {
-            Type typ; 
-            if (auto val = parseValue()) {
-              ops.push_back(val);
-              if (parser.parseOptionalColon().failed())
+            Type eltTyp; 
+            Value val;
+            if (parseValue(val).succeeded()) {
+              result.operands.push_back(val);
+              size++;
+              if (parser.parseOptionalColon().failed()) {
+                operand_attrs.push_back(mlir::Attribute());
                 return mlir::success();              
+              }
               
               if (parser.parseKeyword("ElementType").succeeded()) {
-                if (parser.parseType(typ).succeeded()) {
-                  attrs.push_back(mlir::TypeAttr::get(typ));
+                if (parser.parseType(eltTyp).succeeded()) {
+                  operand_attrs.push_back(mlir::TypeAttr::get(eltTyp));
                   return mlir::success();
-                }
+                }              
               }
             }
             return mlir::failure();
@@ -2875,38 +2891,41 @@ ParseResult cir::InlineAsmOp::parse(OpAsmParser &parser, OperationState &result)
       
       if (parser.parseRSquare().failed() || parser.parseComma().failed())
         return error("expected '],' here");
-
+      operandsGroupSizes.push_back(size);
       return mlir::success();
   };  
 
-  llvm::SmallVector<mlir::Value> out;
-  llvm::SmallVector<mlir::Value> in;
-  llvm::SmallVector<mlir::Value> in_out;
-  llvm::SmallVector<mlir::Attribute> attrs;
-  std::string asm_string, constraints;
-  bool side_effects = false;
-  Type resType;
-
-  if (parseOperands("out", out, attrs).failed()
-      || parseOperands("in", in, attrs).failed()
-      || parseOperands("in_out", in_out, attrs).failed())
+  if (parseOperands("out").failed()
+      || parseOperands("in").failed()
+      || parseOperands("in_out").failed())
       return error("failed to parse operands");
   
-  parser.parseLBrace();
-  parser.parseString(&asm_string);
-  parser.parseString(&constraints);
-  parser.parseRBrace();
-  parser.parseRParen();
+  if (parser.parseLBrace())
+    return error("expected '{' here");
+  if (parser.parseString(&asm_string))
+    return error("asm string parsing failed");
+  if (parser.parseString(&constraints))
+    return error("constraints string parsing failed");
+  if (parser.parseRBrace())
+    return error("expected '}' here");
+  if (parser.parseRParen())
+    return error("expected ')' here");
 
   if (parser.parseOptionalKeyword("side_effects").succeeded()) 
-    side_effects = true;
+    result.attributes.set("side_effects", UnitAttr::get(ctxt));
     
   if (parser.parseOptionalArrow().succeeded());
     parser.parseType(resType);
   
   if (parser.parseOptionalAttrDict(result.attributes))
     return mlir::failure();
-  std::cout << "good exit\n";
+
+  result.attributes.set("asm_flavor", AsmFlavorAttr::get(ctxt, *flavor));
+  result.attributes.set("asm_string", StringAttr::get(ctxt, asm_string));
+  result.attributes.set("constraints", StringAttr::get(ctxt, constraints));
+  result.attributes.set("operand_attrs", ArrayAttr::get(ctxt, operand_attrs));
+  result.getOrAddProperties<InlineAsmOp::Properties>().operands_segments = parser.getBuilder().getDenseI32ArrayAttr(operandsGroupSizes);
+
   return mlir::success();
 }
 
