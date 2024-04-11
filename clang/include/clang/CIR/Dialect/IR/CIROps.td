@@ -11,8 +11,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef MLIR_CIR_DIALECT_CIR_OPS
-#define MLIR_CIR_DIALECT_CIR_OPS
+#ifndef LLVM_CLANG_CIR_DIALECT_IR_CIROPS
+#define LLVM_CLANG_CIR_DIALECT_IR_CIROPS
 
 include "clang/CIR/Dialect/IR/CIRDialect.td"
 include "clang/CIR/Dialect/IR/CIRTypes.td"
@@ -3560,4 +3560,4 @@ def ZeroInitConstOp : CIR_Op<"llvmir.zeroinit", [Pure]>,
   let hasVerifier = 0;
 }
 
-#endif // MLIR_CIR_DIALECT_CIR_OPS
+#endif // LLVM_CLANG_CIR_DIALECT_IR_CIROPS
