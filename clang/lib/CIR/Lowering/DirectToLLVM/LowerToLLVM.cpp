@@ -3236,7 +3236,7 @@ void prepareTypeConverter(mlir::LLVMTypeConverter &converter,
 static void buildCtorList(mlir::ModuleOp module) {
   llvm::SmallVector<std::pair<StringRef, int>, 2> globalCtors;
   for (auto namedAttr : module->getAttrs()) {
-    if (namedAttr.getName() == "cir.globalCtors") {
+    if (namedAttr.getName() == "cir.global_ctors") {
       for (auto attr : mlir::cast<mlir::ArrayAttr>(namedAttr.getValue())) {
         assert(mlir::isa<mlir::cir::GlobalCtorAttr>(attr) &&
                "must be a GlobalCtorAttr");
