@@ -31,6 +31,7 @@ include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/BuiltinAttributeInterfaces.td"
 include "mlir/IR/EnumAttr.td"
 include "mlir/IR/SymbolInterfaces.td"
+include "mlir/IR/CommonAttrConstraints.td"
 
 //===----------------------------------------------------------------------===//
 // CIR Ops
@@ -3355,25 +3356,39 @@ def CIR_InlineAsmOp : CIR_Op<"asm", [RecursiveMemoryEffects]> {
   let results = (outs Optional<CIR_AnyType>:$res);
 
   let arguments = (
-    ins Variadic<AnyType>:$operands,
+    ins VariadicOfVariadic<AnyType, "operands_segments">:$operands,
         StrAttr:$asm_string,
         StrAttr:$constraints,
         UnitAttr:$side_effects,
         AsmFlavor:$asm_flavor,
-        OptionalAttr<ArrayAttr>:$operand_attrs);
+        ArrayAttr:$operand_attrs,
+        DenseI32ArrayAttr:$operands_segments
+        );
 
-  let assemblyFormat = [{
-    `(`
-    $asm_flavor`,`
-    `operands` `=` `[` $operands (`:`  type($operands)^)? `]` `,`
-    (`attrs` `=` $operand_attrs^)?
-    `)` `{` `\n`
-    $asm_string $constraints
-    `}`
-    (`side_effects` $side_effects^)?
-    (`->` type($res)^)?
-    attr-dict
-   }];
+  let builders = [OpBuilder<(ins
+    "ArrayRef<ValueRange>":$operands,
+    "StringRef":$asm_string,
+    "StringRef":$constraints,
+    "bool":$side_effects,
+    "AsmFlavor":$asm_flavor,
+    "ArrayRef<Attribute>":$operand_attrs
+  )>
+  ];
+  
+  let hasCustomAssemblyFormat = 1;
+
+  // let assemblyFormat = [{
+  //   `(`
+  //   $asm_flavor`,`
+  //   `operands` `=` `[` $operands (`:`  type($operands)^)? `]` `,`
+  //   (`attrs` `=` $operand_attrs^)?
+  //   `)` `{` `\n`
+  //   $asm_string $constraints
+  //   `}`
+  //   (`side_effects` $side_effects^)?
+  //   (`->` type($res)^)?
+  //   attr-dict
+  //  }];
 
 }
 

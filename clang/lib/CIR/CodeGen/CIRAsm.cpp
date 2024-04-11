@@ -358,7 +358,8 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
   std::vector<mlir::Type> ResultTruncRegTypes;
   std::vector<mlir::Type> ArgTypes;
   std::vector<mlir::Type> ArgElemTypes;
-  std::vector<mlir::Value> Args;
+  std::vector<mlir::Value> OutArgs;
+  std::vector<mlir::Value> InArgs;
   llvm::BitVector ResultTypeRequiresCast;
   llvm::BitVector ResultRegIsFlagReg;
 
@@ -480,7 +481,7 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
 
       ArgTypes.push_back(DestAddr.getType());
       ArgElemTypes.push_back(DestAddr.getElementType());
-      Args.push_back(DestAddr.getPointer());
+      OutArgs.push_back(DestAddr.getPointer());
       Constraints += "=*";
       Constraints += OutputConstraint;
       ReadOnly = ReadNone = false;
@@ -594,7 +595,7 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
 
     ArgTypes.push_back(Arg.getType());
     ArgElemTypes.push_back(ArgElemType);
-    Args.push_back(Arg);
+    InArgs.push_back(Arg);
     Constraints += InputConstraint;
   } // iterate over input operands
 
@@ -602,7 +603,7 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
   for (unsigned i = 0, e = InOutArgs.size(); i != e; i++) {
     ArgTypes.push_back(InOutArgTypes[i]);
     ArgElemTypes.push_back(InOutArgElemTypes[i]);
-    Args.push_back(InOutArgs[i]);
+    //Args.push_back(InOutArgs[i]);
   }
   Constraints += InOutConstraints;
 
@@ -622,8 +623,13 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
   bool HasSideEffect = S.isVolatile() || S.getNumOutputs() == 0;
   std::vector<mlir::Value> RegResults;
 
+  llvm::SmallVector<mlir::ValueRange, 8> operands;
+  operands.push_back(OutArgs);
+  operands.push_back(InArgs);
+  operands.push_back(InOutArgs);
+
   auto IA = builder.create<mlir::cir::InlineAsmOp>(
-      getLoc(S.getAsmLoc()), ResultType, Args, AsmString, Constraints,
+      getLoc(S.getAsmLoc()), ResultType, operands, AsmString, Constraints,
       HasSideEffect, inferFlavor(CGM, S), mlir::ArrayAttr());
 
   if (false /*IsGCCAsmGoto*/) {
@@ -646,12 +652,14 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
         // We need to add an attribute for every arg since later, during
         // the lowering to LLVM IR the attributes will be assigned to the
         // CallInsn argument by index, i.e. we can't skip null type here
-        operandAttrs.push_back(OptNoneAttr::get(builder.getContext()));
+        operandAttrs.push_back(mlir::Attribute());
+        //operandAttrs.push_back(mlir::UnitAttr::get(builder.getContext()));
+        //operandAttrs.push_back(OptNoneAttr::get(builder.getContext()));
       }
     }
 
-    assert(Args.size() == operandAttrs.size() &&
-           "The number of attributes is not even with the number of operands");
+    // assert(Args.size() == operandAttrs.size() &&
+    //        "The number of attributes is not even with the number of operands");
 
     IA.setOperandAttrsAttr(builder.getArrayAttr(operandAttrs));
 

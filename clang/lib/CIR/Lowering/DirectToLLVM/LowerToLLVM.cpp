@@ -2859,27 +2859,32 @@ class CIRInlineAsmOpLowering
     // to the operand
     if (!op.getNumResults())
       opAttrs.push_back(mlir::Attribute());
+  
+    for (auto attr : op.getOperandAttrs()) {
+      if (!attr) {
+        opAttrs.push_back(mlir::Attribute());
+        continue;
+      }
 
-    if (auto operandAttrs = op.getOperandAttrs()) {
-      for (auto attr : *operandAttrs) {
-        if (isa<mlir::cir::OptNoneAttr>(attr)) {
-          opAttrs.push_back(mlir::Attribute());
-          continue;
-        }
+      mlir::TypeAttr tAttr = cast<mlir::TypeAttr>(attr);
+      std::vector<mlir::NamedAttribute> attrs;
+      auto typAttr = mlir::TypeAttr::get(
+          getTypeConverter()->convertType(tAttr.getValue()));
 
-        mlir::TypeAttr tAttr = cast<mlir::TypeAttr>(attr);
-        std::vector<mlir::NamedAttribute> attrs;
-        auto typAttr = mlir::TypeAttr::get(
-            getTypeConverter()->convertType(tAttr.getValue()));
+      attrs.push_back(rewriter.getNamedAttr(llvmAttrName, typAttr));
+      auto newDict = rewriter.getDictionaryAttr(attrs);
+      opAttrs.push_back(newDict);
+    }
 
-        attrs.push_back(rewriter.getNamedAttr(llvmAttrName, typAttr));
-        auto newDict = rewriter.getDictionaryAttr(attrs);
-        opAttrs.push_back(newDict);
+    llvm::SmallVector<mlir::Value> operands;
+    for (auto ops : adaptor.getOperands()) {
+      for (auto o : ops) {
+        operands.push_back(o);
       }
     }
 
     rewriter.replaceOpWithNewOp<mlir::LLVM::InlineAsmOp>(
-        op, llResTy, adaptor.getOperands(), op.getAsmStringAttr(),
+        op, llResTy, operands, op.getAsmStringAttr(),
         op.getConstraintsAttr(), op.getSideEffectsAttr(),
         /*is_align_stack*/ mlir::UnitAttr(),
         mlir::LLVM::AsmDialectAttr::get(getContext(), llDialect),

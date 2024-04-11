@@ -17,6 +17,7 @@
 #include "clang/CIR/Interfaces/CIRLoopOpInterface.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <optional>
+#include <iostream>
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMTypes.h"
@@ -2747,6 +2748,165 @@ LogicalResult GetRuntimeMemberOp::verify() {
     return mlir::failure();
   }
 
+  return mlir::success();
+}
+
+void cir::InlineAsmOp::print(OpAsmPrinter &p) {
+  p << '(' << getAsmFlavor() << ", ";
+  p.increaseIndent();  
+  p.printNewline();
+
+  llvm::SmallVector<std::string, 3> names{"out", "in", "in_out"};
+  auto nameIt = names.begin();
+  auto attrIt = getOperandAttrs().begin();
+  
+  for (auto ops : getOperands()) {
+    p << *nameIt << " = ";
+
+    p << '[';
+      llvm::interleaveComma(llvm::make_range(ops.begin(), ops.end()), p,
+                            [&](Value value) { 
+                              p.printOperand(value); 
+                              p << " : " << value.getType();
+                              if (*attrIt)
+                                p << " : ElementType " << *attrIt;
+                              attrIt++;
+                            });
+    p << "],";    
+    p.printNewline();
+    ++nameIt;
+  }
+  
+  p << "{";
+  p.printString(getAsmString());
+  p << " ";
+  p.printString(getConstraints()); 
+  p << "}";
+  p.decreaseIndent();
+  p << ')';
+  if (getSideEffects())
+    p << " side_effects";
+  
+  llvm::SmallVector<::llvm::StringRef, 2> elidedAttrs;
+  elidedAttrs.push_back("asm_flavor");
+  elidedAttrs.push_back("asm_string");
+  elidedAttrs.push_back("constraints");
+  elidedAttrs.push_back("operand_attrs");
+  elidedAttrs.push_back("operands_segments");
+  elidedAttrs.push_back("side_effects");  
+  p.printOptionalAttrDict(getOperation()->getAttrs(), elidedAttrs);
+  
+  if (auto v = getRes())
+    p << " -> " << v.getType(); 
+}
+/*
+cir.asm(x86_att,
+  out = [%0 : !cir.ptr<!s32i> : ElementType !s32i],
+  in_out = [%0 : !cir.ptr<!s32i>, %1 : !cir.ptr<!s32i>],
+  in = [%2 : !cir.ptr<!s32i>],
+  {"add" "~{dirflag},~{fpsr},~{flags}"}
+) side_effects
+*/
+// TODO!! CHECK OPTIONAL!!
+ParseResult cir::InlineAsmOp::parse(OpAsmParser &parser, OperationState &result) {
+  auto error = [&](const Twine &msg) {
+    parser.emitError(parser.getCurrentLocation(), msg);;
+    return mlir::failure();
+  };
+
+  if (parser.parseLParen().failed())
+    return error("expected '('");
+  
+  auto flavor = mlir::FieldParser<AsmFlavor>::parse(parser);
+  if (failed(flavor))
+    return error("Unknown AsmFlavor");
+
+  if (parser.parseComma().failed())
+    return error("expected ','");
+ 
+  auto parseValue = [&]() {
+    OpAsmParser::UnresolvedOperand op;
+    
+    if (parser.parseOperand(op) || parser.parseColon())
+      return mlir::Value();
+    
+    Type typ; 
+    if (parser.parseType(typ).failed())
+      return Value();
+    llvm::SmallVector<mlir::Value> tmp;
+    if (parser.resolveOperand(op, typ, tmp))
+      return Value();
+    return tmp[0];
+  };
+
+  auto parseOperands = [&](llvm::StringRef name,
+                           llvm::SmallVector<mlir::Value>& ops,
+                           llvm::SmallVector<mlir::Attribute>& attrs) {
+    if (parser.parseKeyword(name).failed())
+      return error("expected " + name + " operands here");
+    if (parser.parseEqual().failed())
+      return error("expected '=' here");
+    if (parser.parseLSquare().failed())
+      return error("expected '[' here");
+    
+    if (parser.parseOptionalRSquare().succeeded()) {
+      if (parser.parseComma())
+        return error("expected ',' here");
+      return mlir::success();
+    }
+
+    if (parser.parseCommaSeparatedList([&]() {
+            Type typ; 
+            if (auto val = parseValue()) {
+              ops.push_back(val);
+              if (parser.parseOptionalColon().failed())
+                return mlir::success();              
+              
+              if (parser.parseKeyword("ElementType").succeeded()) {
+                if (parser.parseType(typ).succeeded()) {
+                  attrs.push_back(mlir::TypeAttr::get(typ));
+                  return mlir::success();
+                }
+              }
+            }
+            return mlir::failure();
+          }))
+      return mlir::failure();
+      
+      if (parser.parseRSquare().failed() || parser.parseComma().failed())
+        return error("expected '],' here");
+
+      return mlir::success();
+  };  
+
+  llvm::SmallVector<mlir::Value> out;
+  llvm::SmallVector<mlir::Value> in;
+  llvm::SmallVector<mlir::Value> in_out;
+  llvm::SmallVector<mlir::Attribute> attrs;
+  std::string asm_string, constraints;
+  bool side_effects = false;
+  Type resType;
+
+  if (parseOperands("out", out, attrs).failed()
+      || parseOperands("in", in, attrs).failed()
+      || parseOperands("in_out", in_out, attrs).failed())
+      return error("failed to parse operands");
+  
+  parser.parseLBrace();
+  parser.parseString(&asm_string);
+  parser.parseString(&constraints);
+  parser.parseRBrace();
+  parser.parseRParen();
+
+  if (parser.parseOptionalKeyword("side_effects").succeeded()) 
+    side_effects = true;
+    
+  if (parser.parseOptionalArrow().succeeded());
+    parser.parseType(resType);
+  
+  if (parser.parseOptionalAttrDict(result.attributes))
+    return mlir::failure();
+  std::cout << "good exit\n";
   return mlir::success();
 }
 
