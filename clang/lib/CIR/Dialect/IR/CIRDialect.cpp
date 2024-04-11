@@ -945,20 +945,6 @@ Block *BrCondOp::getSuccessorForOperands(ArrayRef<Attribute> operands) {
 }
 
 //===----------------------------------------------------------------------===//
-// CmpThreeWayOp
-//===----------------------------------------------------------------------===//
-
-LogicalResult CmpThreeWayOp::verify() {
-  // Type of the result must be a signed integer type.
-  if (!getType().isSigned()) {
-    emitOpError() << "result type of cir.cmp3way must be a signed integer type";
-    return failure();
-  }
-
-  return success();
-}
-
-//===----------------------------------------------------------------------===//
 // SwitchOp
 //===----------------------------------------------------------------------===//
 

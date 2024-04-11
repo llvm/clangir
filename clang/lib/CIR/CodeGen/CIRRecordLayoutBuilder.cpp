@@ -159,7 +159,7 @@ struct CIRRecordLowering final {
   // structures support.
   mlir::Type getBitfieldStorageType(unsigned numBits) {
     unsigned alignedBits = llvm::alignTo(numBits, astContext.getCharWidth());
-    if (mlir::cir::IntType::isValidBitwidth(alignedBits)) {
+    if (mlir::cir::IntType::isValidStdIntBitwidth(alignedBits)) {
       return builder.getUIntNTy(alignedBits);
     } else {
       mlir::Type type = getCharType();

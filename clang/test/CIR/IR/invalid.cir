@@ -794,7 +794,7 @@ module {
 !s32i = !cir.int<s, 32>
 module {
   cir.func @tmp(%arg0: !cir.float) {
-    // expected-error@+1 {{operand #0 must be Integer type}}
+    // expected-error@+1 {{operand #0 must be 8-bit or 16-bit or 32-bit or 64-bit signed or unsigned int}}
     %0 = cir.alloca !s32i, cir.ptr <!s32i>, %arg0 : !cir.float, ["tmp"]
     cir.return
   }

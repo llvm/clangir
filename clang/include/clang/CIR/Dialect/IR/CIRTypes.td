@@ -53,17 +53,21 @@ def CIR_IntType : CIR_Type<"Int", "int",
     std::string getAlias() const {
       return (isSigned() ? 's' : 'u') + std::to_string(getWidth()) + 'i';
     };
+    /// Return true if this is a standard integer type (i.e. not a bit-precise
+    /// integer type).
+    bool isStandard() const {
+      return isValidStdIntBitwidth(getWidth());
+    }
 
     /// Returns a minimum bitwidth of cir::IntType
     static unsigned minBitwidth() { return 1; }
     /// Returns a maximum bitwidth of cir::IntType
     static unsigned maxBitwidth() { return 64; }
 
-    /// Returns true if cir::IntType can be constructed from the provided bitwidth
-    static bool isValidBitwidth(unsigned width) {
-      return width >= minBitwidth()
-        && width <= maxBitwidth()
-        && llvm::isPowerOf2_32(width);
+    /// Returns true if cir::IntType that represents a standard integer type
+    /// can be constructed from the provided bitwidth.
+    static bool isValidStdIntBitwidth(unsigned width) {
+      return width == 8 || width == 16 || width == 32 || width == 64;
     }
   }];
   let genVerifyDecl = 1;
@@ -138,6 +142,26 @@ class SIntOfWidths<list<int> widths>
         !interleave(!foreach(w, widths, w # "-bit"), " or ") # " sint",
         "::mlir::cir::IntType"
     > {}
+
+// A type constraint that allows integer type whose width is among the specified
+// list of possible widths. The signedness of the integer type is not
+// constrained.
+class IntOfWidths<list<int> widths>
+  : Type<And<[
+            CPred<"$_self.isa<::mlir::cir::IntType>()">,
+            Or<!foreach(
+              w, widths,
+              CPred<"$_self.cast<::mlir::cir::IntType>().getWidth() == " # w>
+            )>
+        ]>,
+        !interleave(!foreach(w, widths, w # "-bit"), " or ") #
+            " signed or unsigned int",
+        "::mlir::cir::IntType"
+    > {}
+
+def StdUInt : UIntOfWidths<[8, 16, 32, 64]>;
+def StdSInt : SIntOfWidths<[8, 16, 32, 64]>;
+def StdInt : IntOfWidths<[8, 16, 32, 64]>;
 
 //===----------------------------------------------------------------------===//
 // FloatType
@@ -375,7 +399,7 @@ def VoidPtr : Type<
 }
 
 // Pointer to int, float or double
-def IntOrFPPtr : Type<
+def StdIntOrFPPtr : Type<
     And<[
       CPred<"$_self.isa<::mlir::cir::PointerType>()">,
       CPred<"$_self.cast<::mlir::cir::PointerType>()"
@@ -429,6 +453,9 @@ def IntegerVector : Type<
       CPred<"$_self.isa<::mlir::cir::VectorType>()">,
       CPred<"$_self.cast<::mlir::cir::VectorType>()"
             ".getEltType().isa<::mlir::cir::IntType>()">,
+      CPred<"$_self.cast<::mlir::cir::VectorType>()"
+            ".getEltType().cast<::mlir::cir::IntType>()"
+            ".isStandard()">
     ]>, "!cir.vector of !cir.int"> {
 }
 

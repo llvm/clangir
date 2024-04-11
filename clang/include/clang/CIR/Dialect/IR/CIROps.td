@@ -144,7 +144,7 @@ def ObjSizeOp : CIR_Op<"objsize", [Pure]> {
 
   let arguments = (ins CIR_PointerType:$ptr, SizeInfoType:$kind,
                    UnitAttr:$dynamic);
-  let results = (outs CIR_IntType:$result);
+  let results = (outs StdInt:$result);
 
   let assemblyFormat = [{
     `(`
@@ -180,7 +180,7 @@ def PtrDiffOp : CIR_Op<"ptr_diff", [Pure, SameTypeOperands]> {
     ```
   }];
 
-  let results = (outs CIR_IntType:$result);
+  let results = (outs StdInt:$result);
   let arguments = (ins CIR_PointerType:$lhs, CIR_PointerType:$rhs);
 
   let assemblyFormat = [{
@@ -208,7 +208,7 @@ def PtrStrideOp : CIR_Op<"ptr_stride",
     ```
   }];
 
-  let arguments = (ins CIR_PointerType:$base, CIR_IntType:$stride);
+  let arguments = (ins CIR_PointerType:$base, StdInt:$stride);
   let results = (outs CIR_PointerType:$result);
 
   let assemblyFormat = [{
@@ -337,7 +337,7 @@ def AllocaOp : CIR_Op<"alloca", [
   }];
 
   let arguments = (ins
-    Optional<CIR_IntType>:$dynAllocSize,
+    Optional<StdInt>:$dynAllocSize,
     TypeAttr:$allocaType,
     StrAttr:$name,
     UnitAttr:$init,
@@ -1252,7 +1252,7 @@ def CmpThreeWayOp : CIR_Op<"cmp3way", [Pure, SameTypeOperands]> {
     ```
   }];
 
-  let results = (outs CIR_IntType:$result);
+  let results = (outs StdSInt:$result);
   let arguments = (ins CIR_AnyType:$lhs, CIR_AnyType:$rhs,
                        CmpThreeWayInfoAttr:$info);
 
@@ -1261,7 +1261,7 @@ def CmpThreeWayOp : CIR_Op<"cmp3way", [Pure, SameTypeOperands]> {
     `:` type($result) attr-dict
   }];
 
-  let hasVerifier = 1;
+  let hasVerifier = 0;
 }
 
 //===----------------------------------------------------------------------===//
@@ -2122,7 +2122,7 @@ def VecInsertOp : CIR_Op<"vec.insert", [Pure,
     element is returned.
   }];
 
-  let arguments = (ins CIR_VectorType:$vec, AnyType:$value, CIR_IntType:$index);
+  let arguments = (ins CIR_VectorType:$vec, AnyType:$value, StdInt:$index);
   let results = (outs CIR_VectorType:$result);
 
   let assemblyFormat = [{
@@ -2147,7 +2147,7 @@ def VecExtractOp : CIR_Op<"vec.extract", [Pure,
     from a vector object.
   }];
 
-  let arguments = (ins CIR_VectorType:$vec, CIR_IntType:$index);
+  let arguments = (ins CIR_VectorType:$vec, StdInt:$index);
   let results = (outs CIR_AnyType:$result);
 
   let assemblyFormat = [{
@@ -2935,7 +2935,7 @@ def CopyOp : CIR_Op<"copy", [SameTypeOperands]> {
 def MemCpyOp : CIR_Op<"libc.memcpy"> {
   let arguments = (ins Arg<CIR_PointerType, "", [MemWrite]>:$dst,
                        Arg<CIR_PointerType, "", [MemRead]>:$src,
-                       CIR_IntType:$len);
+                       StdInt:$len);
   let summary = "Equivalent to libc's `memcpy`";
   let description = [{
     Given two CIR pointers, `src` and `dst`, `cir.libc.memcpy` will copy `len`
@@ -3115,10 +3115,10 @@ def ExpectOp : CIR_Op<"expect",
     where probability = $prob.
   }];
 
-  let arguments = (ins CIR_IntType:$val,
-                       CIR_IntType:$expected,
+  let arguments = (ins StdInt:$val,
+                       StdInt:$expected,
                        OptionalAttr<F64Attr>:$prob);
-  let results = (outs CIR_IntType:$result);
+  let results = (outs StdInt:$result);
   let assemblyFormat = [{
     `(` $val`,` $expected (`,` $prob^)? `)` `:` type($val) attr-dict
   }];
@@ -3524,7 +3524,7 @@ def AtomicFetch : CIR_Op<"atomic.fetch",
     of the computation (`__atomic_binop_fetch`).
   }];
   let results = (outs CIR_AnyIntOrFloat:$result);
-  let arguments = (ins IntOrFPPtr:$ptr, CIR_AnyIntOrFloat:$val,
+  let arguments = (ins StdIntOrFPPtr:$ptr, CIR_AnyIntOrFloat:$val,
                        AtomicFetchKind:$binop,
                        Arg<MemOrder, "memory order">:$mem_order,
                        UnitAttr:$is_volatile,
