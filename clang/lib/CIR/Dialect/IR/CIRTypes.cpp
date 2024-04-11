@@ -601,12 +601,8 @@ Type IntType::parse(mlir::AsmParser &parser) {
   // Fetch integer size.
   if (parser.parseInteger(width))
     return {};
-  if (width % 8 != 0) {
-    parser.emitError(loc, "expected integer width to be a multiple of 8");
-    return {};
-  }
-  if (width < 8 || width > 64) {
-    parser.emitError(loc, "expected integer width to be from 8 up to 64");
+  if (width < 1 || width > 64) {
+    parser.emitError(loc, "expected integer width to be from 1 up to 64");
     return {};
   }
 
