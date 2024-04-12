@@ -3169,6 +3169,31 @@ static void buildCtorDtorList(
   builder.create<mlir::LLVM::ReturnOp>(loc, result);
 }
 
+// The unreachable code is not lowered by applyPartialConversion function
+// since it traverses blocks in the dominance order. At the same time we
+// do need to lower such code - otherwise verification errors occur.
+// For instance, the next CIR code:
+//
+//    cir.func @foo(%arg0: !s32i) -> !s32i {
+//      %4 = cir.cast(int_to_bool, %arg0 : !s32i), !cir.bool
+//      cir.if %4 {
+//        %5 = cir.const(#cir.int<1> : !s32i) : !s32i
+//        cir.return %5 : !s32i
+//      } else {
+//        %5 = cir.const(#cir.int<0> : !s32i) : !s32i
+//       cir.return %5 : !s32i
+//      }
+//     cir.return %arg0 : !s32i
+//    }
+//
+// contains an unreachable return operation (the last one). After the flattening pass
+// it will be placed into the unreachable block. And the possible error after the lowering
+// pass is:
+// error: 'cir.return' op expects parent op to be one of 'cir.func, cir.scope, cir.if ...
+// The reason that this operation was not lowered and the new parent is lllvm.func.
+//
+// In the future we may want to get rid of this function and use DCE pass or something
+// similar. But now we need to guarantee the absence of the dialect verification errors.
 void collect_unreachable(mlir::Operation *parent,
                          llvm::SmallVector<mlir::Operation *> &ops) {
 
