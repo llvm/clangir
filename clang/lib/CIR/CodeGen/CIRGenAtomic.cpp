@@ -322,8 +322,12 @@ static void buildAtomicOp(CIRGenFunction &CGF, AtomicExpr *E, Address Dest,
                           uint8_t Scope) {
   assert(!UnimplementedFeature::syncScopeID());
   StringRef Op;
-  [[maybe_unused]] bool PostOpMinMax = false;
+
+  auto &builder = CGF.getBuilder();
   auto loc = CGF.getLoc(E->getSourceRange());
+  auto orderAttr = mlir::cir::MemOrderAttr::get(builder.getContext(), Order);
+  mlir::cir::AtomicFetchKindAttr fetchAttr;
+  bool fetchFirst = true;
 
   switch (E->getOp()) {
   case AtomicExpr::AO__c11_atomic_init:
@@ -354,7 +358,13 @@ static void buildAtomicOp(CIRGenFunction &CGF, AtomicExpr *E, Address Dest,
   case AtomicExpr::AO__atomic_load:
   case AtomicExpr::AO__scoped_atomic_load_n:
   case AtomicExpr::AO__scoped_atomic_load: {
-    llvm_unreachable("NYI");
+    auto *load = builder.createLoad(loc, Ptr).getDefiningOp();
+    // FIXME(cir): add scope information.
+    assert(!UnimplementedFeature::syncScopeID());
+    load->setAttr("mem_order", orderAttr);
+    if (E->isVolatile())
+      load->setAttr("is_volatile", mlir::UnitAttr::get(builder.getContext()));
+    builder.createStore(loc, load->getResult(0), Dest);
     return;
   }
 
@@ -365,7 +375,10 @@ static void buildAtomicOp(CIRGenFunction &CGF, AtomicExpr *E, Address Dest,
   case AtomicExpr::AO__atomic_store_n:
   case AtomicExpr::AO__scoped_atomic_store:
   case AtomicExpr::AO__scoped_atomic_store_n: {
-    llvm_unreachable("NYI");
+    auto loadVal1 = builder.createLoad(loc, Val1);
+    // FIXME(cir): add scope information.
+    assert(!UnimplementedFeature::syncScopeID());
+    builder.createStore(loc, loadVal1, Ptr, E->isVolatile(), orderAttr);
     return;
   }
 
@@ -381,128 +394,133 @@ static void buildAtomicOp(CIRGenFunction &CGF, AtomicExpr *E, Address Dest,
 
   case AtomicExpr::AO__atomic_add_fetch:
   case AtomicExpr::AO__scoped_atomic_add_fetch:
-    // In LLVM codegen, the post operation codegen is tracked here.
+    fetchFirst = false;
     [[fallthrough]];
   case AtomicExpr::AO__c11_atomic_fetch_add:
   case AtomicExpr::AO__hip_atomic_fetch_add:
   case AtomicExpr::AO__opencl_atomic_fetch_add:
   case AtomicExpr::AO__atomic_fetch_add:
   case AtomicExpr::AO__scoped_atomic_fetch_add:
-    Op = mlir::cir::AtomicAddFetch::getOperationName();
+    Op = mlir::cir::AtomicFetch::getOperationName();
+    fetchAttr = mlir::cir::AtomicFetchKindAttr::get(
+        builder.getContext(), mlir::cir::AtomicFetchKind::Add);
     break;
 
   case AtomicExpr::AO__atomic_sub_fetch:
   case AtomicExpr::AO__scoped_atomic_sub_fetch:
-    // In LLVM codegen, the post operation codegen is tracked here.
-    llvm_unreachable("NYI");
+    fetchFirst = false;
     [[fallthrough]];
   case AtomicExpr::AO__c11_atomic_fetch_sub:
   case AtomicExpr::AO__hip_atomic_fetch_sub:
   case AtomicExpr::AO__opencl_atomic_fetch_sub:
   case AtomicExpr::AO__atomic_fetch_sub:
   case AtomicExpr::AO__scoped_atomic_fetch_sub:
-    llvm_unreachable("NYI");
+    Op = mlir::cir::AtomicFetch::getOperationName();
+    fetchAttr = mlir::cir::AtomicFetchKindAttr::get(
+        builder.getContext(), mlir::cir::AtomicFetchKind::Sub);
     break;
 
   case AtomicExpr::AO__atomic_min_fetch:
   case AtomicExpr::AO__scoped_atomic_min_fetch:
-    PostOpMinMax = true;
+    fetchFirst = false;
     [[fallthrough]];
   case AtomicExpr::AO__c11_atomic_fetch_min:
   case AtomicExpr::AO__hip_atomic_fetch_min:
   case AtomicExpr::AO__opencl_atomic_fetch_min:
   case AtomicExpr::AO__atomic_fetch_min:
   case AtomicExpr::AO__scoped_atomic_fetch_min:
-    llvm_unreachable("NYI");
+    Op = mlir::cir::AtomicFetch::getOperationName();
+    fetchAttr = mlir::cir::AtomicFetchKindAttr::get(
+        builder.getContext(), mlir::cir::AtomicFetchKind::Min);
     break;
 
   case AtomicExpr::AO__atomic_max_fetch:
   case AtomicExpr::AO__scoped_atomic_max_fetch:
-    PostOpMinMax = true;
+    fetchFirst = false;
     [[fallthrough]];
   case AtomicExpr::AO__c11_atomic_fetch_max:
   case AtomicExpr::AO__hip_atomic_fetch_max:
   case AtomicExpr::AO__opencl_atomic_fetch_max:
   case AtomicExpr::AO__atomic_fetch_max:
   case AtomicExpr::AO__scoped_atomic_fetch_max:
-    llvm_unreachable("NYI");
+    Op = mlir::cir::AtomicFetch::getOperationName();
+    fetchAttr = mlir::cir::AtomicFetchKindAttr::get(
+        builder.getContext(), mlir::cir::AtomicFetchKind::Max);
     break;
 
   case AtomicExpr::AO__atomic_and_fetch:
   case AtomicExpr::AO__scoped_atomic_and_fetch:
-    // In LLVM codegen, the post operation codegen is tracked here.
-    llvm_unreachable("NYI");
+    fetchFirst = false;
     [[fallthrough]];
   case AtomicExpr::AO__c11_atomic_fetch_and:
   case AtomicExpr::AO__hip_atomic_fetch_and:
   case AtomicExpr::AO__opencl_atomic_fetch_and:
   case AtomicExpr::AO__atomic_fetch_and:
   case AtomicExpr::AO__scoped_atomic_fetch_and:
-    llvm_unreachable("NYI");
+    Op = mlir::cir::AtomicFetch::getOperationName();
+    fetchAttr = mlir::cir::AtomicFetchKindAttr::get(
+        builder.getContext(), mlir::cir::AtomicFetchKind::And);
     break;
 
   case AtomicExpr::AO__atomic_or_fetch:
   case AtomicExpr::AO__scoped_atomic_or_fetch:
-    // In LLVM codegen, the post operation codegen is tracked here.
-    llvm_unreachable("NYI");
+    fetchFirst = false;
     [[fallthrough]];
   case AtomicExpr::AO__c11_atomic_fetch_or:
   case AtomicExpr::AO__hip_atomic_fetch_or:
   case AtomicExpr::AO__opencl_atomic_fetch_or:
   case AtomicExpr::AO__atomic_fetch_or:
   case AtomicExpr::AO__scoped_atomic_fetch_or:
-    llvm_unreachable("NYI");
+    Op = mlir::cir::AtomicFetch::getOperationName();
+    fetchAttr = mlir::cir::AtomicFetchKindAttr::get(
+        builder.getContext(), mlir::cir::AtomicFetchKind::Or);
     break;
 
   case AtomicExpr::AO__atomic_xor_fetch:
   case AtomicExpr::AO__scoped_atomic_xor_fetch:
-    // In LLVM codegen, the post operation codegen is tracked here.
-    llvm_unreachable("NYI");
+    fetchFirst = false;
     [[fallthrough]];
   case AtomicExpr::AO__c11_atomic_fetch_xor:
   case AtomicExpr::AO__hip_atomic_fetch_xor:
   case AtomicExpr::AO__opencl_atomic_fetch_xor:
   case AtomicExpr::AO__atomic_fetch_xor:
   case AtomicExpr::AO__scoped_atomic_fetch_xor:
-    llvm_unreachable("NYI");
+    Op = mlir::cir::AtomicFetch::getOperationName();
+    fetchAttr = mlir::cir::AtomicFetchKindAttr::get(
+        builder.getContext(), mlir::cir::AtomicFetchKind::Xor);
     break;
 
   case AtomicExpr::AO__atomic_nand_fetch:
   case AtomicExpr::AO__scoped_atomic_nand_fetch:
-    // In LLVM codegen, the post operation codegen is tracked here.
-    llvm_unreachable("NYI");
+    fetchFirst = false;
     [[fallthrough]];
   case AtomicExpr::AO__c11_atomic_fetch_nand:
   case AtomicExpr::AO__atomic_fetch_nand:
   case AtomicExpr::AO__scoped_atomic_fetch_nand:
-    llvm_unreachable("NYI");
+    Op = mlir::cir::AtomicFetch::getOperationName();
+    fetchAttr = mlir::cir::AtomicFetchKindAttr::get(
+        builder.getContext(), mlir::cir::AtomicFetchKind::Nand);
     break;
   }
 
   assert(Op.size() && "expected operation name to build");
-  auto &builder = CGF.getBuilder();
-
   auto LoadVal1 = builder.createLoad(loc, Val1);
 
   SmallVector<mlir::Value> atomicOperands = {Ptr.getPointer(), LoadVal1};
   SmallVector<mlir::Type> atomicResTys = {
       Ptr.getPointer().getType().cast<mlir::cir::PointerType>().getPointee()};
-  auto orderAttr = mlir::cir::MemOrderAttr::get(builder.getContext(), Order);
   auto RMWI = builder.create(loc, builder.getStringAttr(Op), atomicOperands,
                              atomicResTys, {});
+
+  if (fetchAttr)
+    RMWI->setAttr("binop", fetchAttr);
   RMWI->setAttr("mem_order", orderAttr);
   if (E->isVolatile())
     RMWI->setAttr("is_volatile", mlir::UnitAttr::get(builder.getContext()));
+  if (fetchFirst)
+    RMWI->setAttr("fetch_first", mlir::UnitAttr::get(builder.getContext()));
+
   auto Result = RMWI->getResult(0);
-
-  if (PostOpMinMax)
-    llvm_unreachable("NYI");
-
-  // This should be handled in LowerToLLVM.cpp, still tracking here for now.
-  if (E->getOp() == AtomicExpr::AO__atomic_nand_fetch ||
-      E->getOp() == AtomicExpr::AO__scoped_atomic_nand_fetch)
-    llvm_unreachable("NYI");
-
   builder.createStore(loc, Result, Dest);
 }
 
@@ -592,12 +610,12 @@ RValue CIRGenFunction::buildAtomicExpr(AtomicExpr *E) {
 
   case AtomicExpr::AO__atomic_load:
   case AtomicExpr::AO__scoped_atomic_load:
-    llvm_unreachable("NYI");
+    Dest = buildPointerWithAlignment(E->getVal1());
     break;
 
   case AtomicExpr::AO__atomic_store:
   case AtomicExpr::AO__scoped_atomic_store:
-    llvm_unreachable("NYI");
+    Val1 = buildPointerWithAlignment(E->getVal1());
     break;
 
   case AtomicExpr::AO__atomic_exchange:
@@ -707,7 +725,8 @@ RValue CIRGenFunction::buildAtomicExpr(AtomicExpr *E) {
       Val2 = Atomics.convertToAtomicIntPointer(Val2);
   }
   if (Dest.isValid()) {
-    llvm_unreachable("NYI");
+    if (ShouldCastToIntPtrTy)
+      Dest = Atomics.castToAtomicIntPointer(Dest);
   } else if (E->isCmpXChg())
     llvm_unreachable("NYI");
   else if (!RValTy->isVoidType()) {
@@ -1078,9 +1097,8 @@ RValue CIRGenFunction::buildAtomicExpr(AtomicExpr *E) {
         break;
       }
     }
-    if (RValTy->isVoidType()) {
-      llvm_unreachable("NYI");
-    }
+    if (RValTy->isVoidType())
+      return RValue::get(nullptr);
 
     return convertTempToRValue(Dest.withElementType(convertTypeForMem(RValTy)),
                                RValTy, E->getExprLoc());

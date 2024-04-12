@@ -646,27 +646,38 @@ def NoThrowAttr : CIRUnitAttr<"NoThrow", "nothrow"> {
   let storageType = [{ NoThrowAttr }];
 }
 
-def GlobalCtorAttr : CIR_Attr<"GlobalCtor", "globalCtor"> {
-  let summary = "Indicates a function is a global constructor.";
-  let description = [{
-    Describing a global constructor with an optional priority.
-  }];
-  let parameters = (ins "StringAttr":$name,
-                        OptionalParameter<"std::optional<int>">:$priority);
+class CIR_GlobalCtorDtor<string name, string attrMnemonic,
+                         string sum, string desc>
+    : CIR_Attr<"Global" # name, "global_" # attrMnemonic> {
+  let summary = sum;
+  let description = desc;
+
+  let parameters = (ins "StringAttr":$name, "int":$priority);
   let assemblyFormat = [{
     `<`
-      $name
-      (`,` $priority^)?
+      $name `,` $priority
     `>`
   }];
   let builders = [
     AttrBuilder<(ins "StringRef":$name,
-                      CArg<"std::optional<int>", "{}">:$priority), [{
+                      CArg<"int", "65536">:$priority), [{
       return $_get($_ctxt, StringAttr::get($_ctxt, name), priority);
     }]>
   ];
+  let extraClassDeclaration = [{
+    bool isDefaultPriority() const { return getPriority() == 65536; };
+  }];
   let skipDefaultBuilders = 1;
 }
+
+def GlobalCtorAttr : CIR_GlobalCtorDtor<"Ctor", "ctor",
+  "Marks a function as a global constructor",
+  "A function with this attribute executes before main()"
+>;
+def GlobalDtorAttr : CIR_GlobalCtorDtor<"Dtor", "dtor",
+  "Marks a function as a global destructor",
+  "A function with this attribute excutes before module unloading"
+>;
 
 def BitfieldInfoAttr : CIR_Attr<"BitfieldInfo", "bitfield_info"> {
   let summary = "Represents a bit field info";

@@ -80,6 +80,9 @@ struct LoweringPreparePass : public LoweringPrepareBase<LoweringPreparePass> {
   /// Build a module init function that calls all the dynamic initializers.
   void buildCXXGlobalInitFunc();
 
+  /// Materialize global ctor/dtor list
+  void buildGlobalCtorDtorList();
+
   FuncOp
   buildRuntimeFunction(mlir::OpBuilder &builder, llvm::StringRef name,
                        mlir::Location loc, mlir::cir::FuncType type,
@@ -105,6 +108,11 @@ struct LoweringPreparePass : public LoweringPrepareBase<LoweringPreparePass> {
   /// Tracks existing dynamic initializers.
   llvm::StringMap<uint32_t> dynamicInitializerNames;
   llvm::SmallVector<FuncOp, 4> dynamicInitializers;
+
+  /// List of ctors to be called before main()
+  SmallVector<mlir::Attribute, 4> globalCtorList;
+  /// List of dtors to be called when unloading module.
+  SmallVector<mlir::Attribute, 4> globalDtorList;
 };
 } // namespace
 
@@ -315,19 +323,26 @@ void LoweringPreparePass::lowerGlobalOp(GlobalOp op) {
   }
 }
 
+void LoweringPreparePass::buildGlobalCtorDtorList() {
+  if (!globalCtorList.empty()) {
+    theModule->setAttr("cir.global_ctors",
+                       mlir::ArrayAttr::get(&getContext(), globalCtorList));
+  }
+  if (!globalDtorList.empty()) {
+    theModule->setAttr("cir.global_dtors",
+                       mlir::ArrayAttr::get(&getContext(), globalDtorList));
+  }
+}
+
 void LoweringPreparePass::buildCXXGlobalInitFunc() {
   if (dynamicInitializers.empty())
     return;
 
-  SmallVector<mlir::Attribute, 4> attrs;
   for (auto &f : dynamicInitializers) {
     // TODO: handle globals with a user-specified initialzation priority.
     auto ctorAttr = mlir::cir::GlobalCtorAttr::get(&getContext(), f.getName());
-    attrs.push_back(ctorAttr);
+    globalCtorList.push_back(ctorAttr);
   }
-
-  theModule->setAttr("cir.globalCtors",
-                     mlir::ArrayAttr::get(&getContext(), attrs));
 
   SmallString<256> fnName;
   // Include the filename in the symbol name. Including "sub_" matches gcc
@@ -387,13 +402,14 @@ static void lowerArrayDtorCtorIntoLoop(CIRBaseBuilderTy &builder,
       builder.getSizeFromCharUnits(builder.getContext(),
                                    clang::CharUnits::One()),
       nullptr);
-  builder.create<mlir::cir::StoreOp>(loc, begin, tmpAddr);
+  builder.createStore(loc, begin, tmpAddr);
 
   auto loop = builder.createDoWhile(
       loc,
       /*condBuilder=*/
       [&](mlir::OpBuilder &b, mlir::Location loc) {
-        auto currentElement = b.create<mlir::cir::LoadOp>(loc, eltTy, tmpAddr);
+        auto currentElement =
+            b.create<mlir::cir::LoadOp>(loc, eltTy, tmpAddr.getResult());
         mlir::Type boolTy = mlir::cir::BoolType::get(b.getContext());
         auto cmp = builder.create<mlir::cir::CmpOp>(
             loc, boolTy, mlir::cir::CmpOpKind::eq, currentElement, end);
@@ -401,7 +417,8 @@ static void lowerArrayDtorCtorIntoLoop(CIRBaseBuilderTy &builder,
       },
       /*bodyBuilder=*/
       [&](mlir::OpBuilder &b, mlir::Location loc) {
-        auto currentElement = b.create<mlir::cir::LoadOp>(loc, eltTy, tmpAddr);
+        auto currentElement =
+            b.create<mlir::cir::LoadOp>(loc, eltTy, tmpAddr.getResult());
 
         CallOp ctorCall;
         op->walk([&](CallOp c) { ctorCall = c; });
@@ -416,7 +433,7 @@ static void lowerArrayDtorCtorIntoLoop(CIRBaseBuilderTy &builder,
         // Advance pointer and store them to temporary variable
         auto nextElement = builder.create<mlir::cir::PtrStrideOp>(
             loc, eltTy, currentElement, one);
-        b.create<mlir::cir::StoreOp>(loc, nextElement, tmpAddr);
+        builder.createStore(loc, nextElement, tmpAddr);
         builder.createYield(loc);
       });
 
@@ -500,6 +517,12 @@ void LoweringPreparePass::runOnOp(Operation *op) {
     lowerArrayCtor(arrayCtor);
   } else if (auto arrayDtor = dyn_cast<ArrayDtor>(op)) {
     lowerArrayDtor(arrayDtor);
+  } else if (auto fnOp = dyn_cast<mlir::cir::FuncOp>(op)) {
+    if (auto globalCtor = fnOp.getGlobalCtorAttr()) {
+      globalCtorList.push_back(globalCtor);
+    } else if (auto globalDtor = fnOp.getGlobalDtorAttr()) {
+      globalDtorList.push_back(globalDtor);
+    }
   }
 }
 
@@ -513,7 +536,7 @@ void LoweringPreparePass::runOnOperation() {
   SmallVector<Operation *> opsToTransform;
   op->walk([&](Operation *op) {
     if (isa<CmpThreeWayOp, GlobalOp, StdFindOp, IterBeginOp, IterEndOp,
-            ArrayCtor, ArrayDtor>(op))
+            ArrayCtor, ArrayDtor, mlir::cir::FuncOp>(op))
       opsToTransform.push_back(op);
   });
 
@@ -521,6 +544,7 @@ void LoweringPreparePass::runOnOperation() {
     runOnOp(o);
 
   buildCXXGlobalInitFunc();
+  buildGlobalCtorDtorList();
 }
 
 std::unique_ptr<Pass> mlir::createLoweringPreparePass() {

@@ -591,8 +591,7 @@ void CIRGenFunction::buildStoreOfScalar(mlir::Value Value, Address Addr,
   }
 
   assert(currSrcLoc && "must pass in source location");
-  builder.create<mlir::cir::StoreOp>(*currSrcLoc, Value, Addr.getPointer(),
-                                     Volatile);
+  builder.createStore(*currSrcLoc, Value, Addr, Volatile);
 
   if (isNontemporal) {
     llvm_unreachable("NYI");
@@ -2528,7 +2527,7 @@ mlir::Value CIRGenFunction::buildLoadOfScalar(Address Addr, bool Volatile,
 
   mlir::cir::LoadOp Load = builder.create<mlir::cir::LoadOp>(
       Loc, Addr.getElementType(), Addr.getPointer(), /* deref */ false,
-      Volatile);
+      Volatile, ::mlir::cir::MemOrderAttr{});
 
   if (isNontemporal) {
     llvm_unreachable("NYI");

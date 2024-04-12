@@ -11,8 +11,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef MLIR_CIR_DIALECT_CIR_OPS
-#define MLIR_CIR_DIALECT_CIR_OPS
+#ifndef LLVM_CLANG_CIR_DIALECT_IR_CIROPS
+#define LLVM_CLANG_CIR_DIALECT_IR_CIROPS
 
 include "clang/CIR/Dialect/IR/CIRDialect.td"
 include "clang/CIR/Dialect/IR/CIRTypes.td"
@@ -272,6 +272,25 @@ def ConstantOp : CIR_Op<"const",
 }
 
 //===----------------------------------------------------------------------===//
+// C/C++ memory order definitions
+//===----------------------------------------------------------------------===//
+
+def MemOrderRelaxed : I32EnumAttrCase<"Relaxed", 0, "relaxed">;
+def MemOrderConsume : I32EnumAttrCase<"Consume", 1, "consume">;
+def MemOrderAcquire : I32EnumAttrCase<"Acquire", 2, "acquire">;
+def MemOrderRelease : I32EnumAttrCase<"Release", 3, "release">;
+def MemOrderAcqRel : I32EnumAttrCase<"AcquireRelease", 4, "acq_rel">;
+def MemOrderSeqCst : I32EnumAttrCase<"SequentiallyConsistent", 5, "seq_cst">;
+
+def MemOrder : I32EnumAttr<
+    "MemOrder",
+    "Memory order according to C++11 memory model",
+    [MemOrderRelaxed, MemOrderConsume, MemOrderAcquire,
+     MemOrderRelease, MemOrderAcqRel, MemOrderSeqCst]> {
+  let cppNamespace = "::mlir::cir";
+}
+
+//===----------------------------------------------------------------------===//
 // AllocaOp
 //===----------------------------------------------------------------------===//
 
@@ -383,7 +402,7 @@ def LoadOp : CIR_Op<"load", [
     backed up by a `cir.ptr` type. A unit attribute `deref` can be used to
     mark the resulting value as used by another operation to dereference
     a pointer. A unit attribute `volatile` can be used to indicate a volatile
-    loading.
+    loading. Load can be marked atomic by using `atomic(<mem_order>)`.
 
     Example:
 
@@ -403,13 +422,16 @@ def LoadOp : CIR_Op<"load", [
 
   let arguments = (ins Arg<CIR_PointerType, "the address to load from",
                            [MemRead]>:$addr, UnitAttr:$isDeref,
-                       UnitAttr:$is_volatile);
+                       UnitAttr:$is_volatile,
+                       OptionalAttr<MemOrder>:$mem_order);
   let results = (outs CIR_AnyType:$result);
 
   // FIXME: we should not be printing `cir.ptr` below, that should come
   // from the pointer type directly.
   let assemblyFormat = [{
-    (`deref` $isDeref^)? (`volatile` $is_volatile^)?
+    (`deref` $isDeref^)?
+    (`volatile` $is_volatile^)?
+    (`atomic` `(` $mem_order^ `)`)?
     $addr `:` `cir.ptr` type($addr) `,` type($result) attr-dict
   }];
 
@@ -429,7 +451,8 @@ def StoreOp : CIR_Op<"store", [
   let description = [{
     `cir.store` stores a value (first operand) to the memory address specified
     in the second operand. A unit attribute `volatile` can be used to indicate
-    a volatile store.
+    a volatile store. Store's can be marked atomic by using
+    `atomic(<mem_order>)`.
 
     Example:
 
@@ -445,12 +468,14 @@ def StoreOp : CIR_Op<"store", [
   let arguments = (ins CIR_AnyType:$value,
                        Arg<CIR_PointerType, "the address to store the value",
                            [MemWrite]>:$addr,
-                       UnitAttr:$is_volatile);
+                       UnitAttr:$is_volatile,
+                       OptionalAttr<MemOrder>:$mem_order);
 
   // FIXME: we should not be printing `cir.ptr` below, that should come
   // from the pointer type directly.
   let assemblyFormat = [{
     (`volatile` $is_volatile^)?
+    (`atomic` `(` $mem_order^ `)`)?
     $value `,` $addr attr-dict `:` type($value) `,` `cir.ptr` type($addr)
   }];
 
@@ -2385,6 +2410,11 @@ def FuncOp : CIR_Op<"func", [
     above. Though mandatory, the prining of the attribute can be omitted if it is
     empty.
 
+    The `global_ctor` indicates whether a function should execute before `main()`
+    function, as specified by `__attribute__((constructor))`. A execution priority
+    can also be specified `global_ctor(<prio>)`. Similarly, for global destructors
+    both `global_dtor` and `global_dtor(<prio>)` are available.
+
     Example:
 
     ```mlir
@@ -2424,6 +2454,8 @@ def FuncOp : CIR_Op<"func", [
                        OptionalAttr<DictArrayAttr>:$arg_attrs,
                        OptionalAttr<DictArrayAttr>:$res_attrs,
                        OptionalAttr<FlatSymbolRefAttr>:$aliasee,
+                       OptionalAttr<GlobalCtorAttr>:$global_ctor,
+                       OptionalAttr<GlobalDtorAttr>:$global_dtor,
                        OptionalAttr<AnyASTFunctionDeclAttr>:$ast);
   let regions = (region AnyRegion:$body);
   let skipDefaultBuilders = 1;
@@ -3456,40 +3488,60 @@ def IsConstantOp : CIR_Op<"is_constant", [Pure]> {
 // Atomic operations
 //===----------------------------------------------------------------------===//
 
-def MemOrderRelaxed : I32EnumAttrCase<"Relaxed", 0, "relaxed">;
-def MemOrderConsume : I32EnumAttrCase<"Consume", 1, "consume">;
-def MemOrderAcquire : I32EnumAttrCase<"Acquire", 2, "acquire">;
-def MemOrderRelease : I32EnumAttrCase<"Release", 3, "release">;
-def MemOrderAcqRel : I32EnumAttrCase<"AcquireRelease", 4, "acq_rel">;
-def MemOrderSeqCst : I32EnumAttrCase<"SequentiallyConsistent", 5, "seq_cst">;
+// Binary opcodes for atomic fetch.
+def Atomic_Add  : I32EnumAttrCase<"Add",  0, "add">;
+def Atomic_Sub  : I32EnumAttrCase<"Sub",  1, "sub">;
+def Atomic_And  : I32EnumAttrCase<"And",  2, "and">;
+def Atomic_Xor  : I32EnumAttrCase<"Xor",  3, "xor">;
+def Atomic_Or   : I32EnumAttrCase<"Or",   4, "or">;
+def Atomic_Nand : I32EnumAttrCase<"Nand", 5, "nand">;
+def Atomic_Max  : I32EnumAttrCase<"Max",  6, "max">;
+def Atomic_Min  : I32EnumAttrCase<"Min",  7, "min">;
 
-def MemOrder : I32EnumAttr<
-    "MemOrder",
-    "Memory order according to C++11 memory model",
-    [MemOrderRelaxed, MemOrderConsume, MemOrderAcquire,
-     MemOrderRelease, MemOrderAcqRel, MemOrderSeqCst]> {
+def AtomicFetchKind : I32EnumAttr<
+    "AtomicFetchKind",
+    "Binary opcode for atomic fetch operations",
+    [Atomic_Add, Atomic_Sub, Atomic_And, Atomic_Xor, Atomic_Or, Atomic_Nand,
+     Atomic_Max, Atomic_Min]> {
   let cppNamespace = "::mlir::cir";
 }
 
-def AtomicAddFetch : CIR_Op<"atomic.add_fetch",
-                            [Pure, SameSecondOperandAndResultType]> {
-  let summary = "Represents the __atomic_add_fetch builtin";
-  let description = [{}];
+def AtomicFetch : CIR_Op<"atomic.fetch",
+                         [Pure, SameSecondOperandAndResultType]> {
+  let summary = "Atomic fetch with unary and binary operations";
+  let description = [{
+    Represents `__atomic_binop_fetch` and `__atomic_fetch_binop` builtins,
+    where `binop` is on of the binary opcodes : `add`, `sub`, `and`, `xor`,
+    `or` and `nand`.
+
+    `ptr` is an integer or fp pointer, followed by `val`, which must be
+    an integer or fp (only supported for `add` and `sub`). The operation
+    can also be marked `volatile`.
+
+    If `fetch_first` is present, the operation works like
+    `__atomic_fetch_binop` and returns the value that had
+    previously been in *ptr, otherwise it returns the final result
+    of the computation (`__atomic_binop_fetch`).
+  }];
   let results = (outs CIR_AnyIntOrFloat:$result);
   let arguments = (ins IntOrFPPtr:$ptr, CIR_AnyIntOrFloat:$val,
+                       AtomicFetchKind:$binop,
                        Arg<MemOrder, "memory order">:$mem_order,
-                       UnitAttr:$is_volatile);
+                       UnitAttr:$is_volatile,
+                       UnitAttr:$fetch_first);
 
   let assemblyFormat = [{
     `(`
+    $binop `,`
     $ptr `:` type($ptr) `,`
     $val `:` type($val) `,`
     $mem_order `)`
     (`volatile` $is_volatile^)?
+    (`fetch_first` $fetch_first^)?
     `:` type($result) attr-dict
   }];
 
-  let hasVerifier = 0;
+  let hasVerifier = 1;
 }
 
 //===----------------------------------------------------------------------===//
@@ -3510,4 +3562,4 @@ def ZeroInitConstOp : CIR_Op<"llvmir.zeroinit", [Pure]>,
   let hasVerifier = 0;
 }
 
-#endif // MLIR_CIR_DIALECT_CIR_OPS
+#endif // LLVM_CLANG_CIR_DIALECT_IR_CIROPS

@@ -928,6 +928,26 @@ public:
   }
 };
 
+static mlir::LLVM::AtomicOrdering
+getLLVMMemOrder(std::optional<mlir::cir::MemOrder> &memorder) {
+  if (!memorder)
+    return mlir::LLVM::AtomicOrdering::not_atomic;
+  switch (*memorder) {
+  case mlir::cir::MemOrder::Relaxed:
+    return mlir::LLVM::AtomicOrdering::monotonic;
+  case mlir::cir::MemOrder::Consume:
+  case mlir::cir::MemOrder::Acquire:
+    return mlir::LLVM::AtomicOrdering::acquire;
+  case mlir::cir::MemOrder::Release:
+    return mlir::LLVM::AtomicOrdering::release;
+  case mlir::cir::MemOrder::AcquireRelease:
+    return mlir::LLVM::AtomicOrdering::acq_rel;
+  case mlir::cir::MemOrder::SequentiallyConsistent:
+    return mlir::LLVM::AtomicOrdering::seq_cst;
+  }
+  llvm_unreachable("unknown memory order");
+}
+
 class CIRLoadLowering : public mlir::OpConversionPattern<mlir::cir::LoadOp> {
 public:
   using OpConversionPattern<mlir::cir::LoadOp>::OpConversionPattern;
@@ -937,9 +957,22 @@ public:
                   mlir::ConversionPatternRewriter &rewriter) const override {
     const auto llvmTy =
         getTypeConverter()->convertType(op.getResult().getType());
+    unsigned alignment = 0;
+    auto memorder = op.getMemOrder();
+    auto ordering = getLLVMMemOrder(memorder);
+
+    // FIXME: right now we only pass in the alignment when the memory access
+    // is atomic, we should always pass it instead.
+    if (ordering != mlir::LLVM::AtomicOrdering::not_atomic) {
+      mlir::DataLayout layout(op->getParentOfType<mlir::ModuleOp>());
+      alignment = (unsigned)layout.getTypeABIAlignment(llvmTy);
+    }
+
+    // TODO: nontemporal, invariant, syncscope.
     rewriter.replaceOpWithNewOp<mlir::LLVM::LoadOp>(
-        op, llvmTy, adaptor.getAddr(), /* alignment */ 0,
-        /* volatile */ op.getIsVolatile());
+        op, llvmTy, adaptor.getAddr(), /* alignment */ alignment,
+        op.getIsVolatile(), /* nontemporal */ false,
+        /* invariant */ false, ordering);
     return mlir::LogicalResult::success();
   }
 };
@@ -951,9 +984,23 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::StoreOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
+    unsigned alignment = 0;
+    auto memorder = op.getMemOrder();
+    auto ordering = getLLVMMemOrder(memorder);
+
+    // FIXME: right now we only pass in the alignment when the memory access
+    // is atomic, we should always pass it instead.
+    if (ordering != mlir::LLVM::AtomicOrdering::not_atomic) {
+      const auto llvmTy =
+          getTypeConverter()->convertType(op.getValue().getType());
+      mlir::DataLayout layout(op->getParentOfType<mlir::ModuleOp>());
+      alignment = (unsigned)layout.getTypeABIAlignment(llvmTy);
+    }
+
+    // TODO: nontemporal, syncscope.
     rewriter.replaceOpWithNewOp<mlir::LLVM::StoreOp>(
-        op, adaptor.getValue(), adaptor.getAddr(),
-        /* alignment */ 0, /* volatile */ op.getIsVolatile());
+        op, adaptor.getValue(), adaptor.getAddr(), alignment,
+        op.getIsVolatile(), /* nontemporal */ false, ordering);
     return mlir::LogicalResult::success();
   }
 };
@@ -2335,9 +2382,9 @@ public:
 };
 
 class CIRAtomicFetchLowering
-    : public mlir::OpConversionPattern<mlir::cir::AtomicAddFetch> {
+    : public mlir::OpConversionPattern<mlir::cir::AtomicFetch> {
 public:
-  using OpConversionPattern<mlir::cir::AtomicAddFetch>::OpConversionPattern;
+  using OpConversionPattern<mlir::cir::AtomicFetch>::OpConversionPattern;
 
   mlir::LLVM::AtomicOrdering
   getLLVMAtomicOrder(mlir::cir::MemOrder memo) const {
@@ -2357,38 +2404,139 @@ public:
     llvm_unreachable("shouldn't get here");
   }
 
-  mlir::LogicalResult buildPostOp(mlir::cir::AtomicAddFetch op,
-                                  OpAdaptor adaptor,
-                                  mlir::ConversionPatternRewriter &rewriter,
-                                  mlir::Value rmwVal) const {
-    if (op.getVal().getType().isa<mlir::cir::IntType>())
-      rewriter.replaceOpWithNewOp<mlir::LLVM::AddOp>(op, rmwVal,
-                                                     adaptor.getVal());
-    else if (op.getVal()
-                 .getType()
-                 .isa<mlir::cir::SingleType, mlir::cir::DoubleType>())
-      rewriter.replaceOpWithNewOp<mlir::LLVM::FAddOp>(op, rmwVal,
-                                                      adaptor.getVal());
-    else
-      return op.emitError() << "Unsupported type";
-    return mlir::success();
+  mlir::Value buildPostOp(mlir::cir::AtomicFetch op, OpAdaptor adaptor,
+                          mlir::ConversionPatternRewriter &rewriter,
+                          mlir::Value rmwVal, bool isInt) const {
+    SmallVector<mlir::Value> atomicOperands = {rmwVal, adaptor.getVal()};
+    SmallVector<mlir::Type> atomicResTys = {rmwVal.getType()};
+    return rewriter
+        .create(op.getLoc(),
+                rewriter.getStringAttr(getLLVMBinop(op.getBinop(), isInt)),
+                atomicOperands, atomicResTys, {})
+        ->getResult(0);
+  }
+
+  mlir::Value buildMinMaxPostOp(mlir::cir::AtomicFetch op, OpAdaptor adaptor,
+                                mlir::ConversionPatternRewriter &rewriter,
+                                mlir::Value rmwVal, bool isSigned) const {
+    auto loc = op.getLoc();
+    mlir::LLVM::ICmpPredicate pred;
+    if (op.getBinop() == mlir::cir::AtomicFetchKind::Max) {
+      pred = isSigned ? mlir::LLVM::ICmpPredicate::sgt
+                      : mlir::LLVM::ICmpPredicate::ugt;
+    } else { // Min
+      pred = isSigned ? mlir::LLVM::ICmpPredicate::slt
+                      : mlir::LLVM::ICmpPredicate::ult;
+    }
+
+    auto cmp = rewriter.create<mlir::LLVM::ICmpOp>(
+        loc, mlir::LLVM::ICmpPredicateAttr::get(rewriter.getContext(), pred),
+        rmwVal, adaptor.getVal());
+    return rewriter.create<mlir::LLVM::SelectOp>(loc, cmp, rmwVal,
+                                                 adaptor.getVal());
+  }
+
+  llvm::StringLiteral getLLVMBinop(mlir::cir::AtomicFetchKind k,
+                                   bool isInt) const {
+    switch (k) {
+    case mlir::cir::AtomicFetchKind::Add:
+      return isInt ? mlir::LLVM::AddOp::getOperationName()
+                   : mlir::LLVM::FAddOp::getOperationName();
+    case mlir::cir::AtomicFetchKind::Sub:
+      return isInt ? mlir::LLVM::SubOp::getOperationName()
+                   : mlir::LLVM::FSubOp::getOperationName();
+    case mlir::cir::AtomicFetchKind::And:
+      return mlir::LLVM::AndOp::getOperationName();
+    case mlir::cir::AtomicFetchKind::Xor:
+      return mlir::LLVM::XOrOp::getOperationName();
+    case mlir::cir::AtomicFetchKind::Or:
+      return mlir::LLVM::OrOp::getOperationName();
+    case mlir::cir::AtomicFetchKind::Nand:
+      // There's no nand binop in LLVM, this is later fixed with a not.
+      return mlir::LLVM::AndOp::getOperationName();
+    case mlir::cir::AtomicFetchKind::Max:
+    case mlir::cir::AtomicFetchKind::Min:
+      llvm_unreachable("handled in buildMinMaxPostOp");
+    }
+    llvm_unreachable("Unknown atomic fetch opcode");
+  }
+
+  mlir::LLVM::AtomicBinOp getLLVMAtomicBinOp(mlir::cir::AtomicFetchKind k,
+                                             bool isInt,
+                                             bool isSignedInt) const {
+    switch (k) {
+    case mlir::cir::AtomicFetchKind::Add:
+      return isInt ? mlir::LLVM::AtomicBinOp::add
+                   : mlir::LLVM::AtomicBinOp::fadd;
+    case mlir::cir::AtomicFetchKind::Sub:
+      return isInt ? mlir::LLVM::AtomicBinOp::sub
+                   : mlir::LLVM::AtomicBinOp::fsub;
+    case mlir::cir::AtomicFetchKind::And:
+      return mlir::LLVM::AtomicBinOp::_and;
+    case mlir::cir::AtomicFetchKind::Xor:
+      return mlir::LLVM::AtomicBinOp::_xor;
+    case mlir::cir::AtomicFetchKind::Or:
+      return mlir::LLVM::AtomicBinOp::_or;
+    case mlir::cir::AtomicFetchKind::Nand:
+      return mlir::LLVM::AtomicBinOp::nand;
+    case mlir::cir::AtomicFetchKind::Max: {
+      if (!isInt)
+        return mlir::LLVM::AtomicBinOp::fmax;
+      return isSignedInt ? mlir::LLVM::AtomicBinOp::max
+                         : mlir::LLVM::AtomicBinOp::umax;
+    }
+    case mlir::cir::AtomicFetchKind::Min: {
+      if (!isInt)
+        return mlir::LLVM::AtomicBinOp::fmin;
+      return isSignedInt ? mlir::LLVM::AtomicBinOp::min
+                         : mlir::LLVM::AtomicBinOp::umin;
+    }
+    }
+    llvm_unreachable("Unknown atomic fetch opcode");
   }
 
   mlir::LogicalResult
-  matchAndRewrite(mlir::cir::AtomicAddFetch op, OpAdaptor adaptor,
+  matchAndRewrite(mlir::cir::AtomicFetch op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    auto llvmOrder = getLLVMAtomicOrder(adaptor.getMemOrder());
+
+    bool isInt, isSignedInt = false; // otherwise it's float.
+    if (auto intTy = op.getVal().getType().dyn_cast<mlir::cir::IntType>()) {
+      isInt = true;
+      isSignedInt = intTy.isSigned();
+    } else if (op.getVal()
+                   .getType()
+                   .isa<mlir::cir::SingleType, mlir::cir::DoubleType>())
+      isInt = false;
+    else {
+      return op.emitError()
+             << "Unsupported type: " << adaptor.getVal().getType();
+    }
 
     // FIXME: add syncscope.
+    auto llvmOrder = getLLVMAtomicOrder(adaptor.getMemOrder());
+    auto llvmBinOpc = getLLVMAtomicBinOp(op.getBinop(), isInt, isSignedInt);
     auto rmwVal = rewriter.create<mlir::LLVM::AtomicRMWOp>(
-        op.getLoc(), mlir::LLVM::AtomicBinOp::add, adaptor.getPtr(),
-        adaptor.getVal(), llvmOrder);
+        op.getLoc(), llvmBinOpc, adaptor.getPtr(), adaptor.getVal(), llvmOrder);
 
-    // FIXME: Make the rewrite generic and expand this to more opcodes.
-    bool hasPostOp = isa<mlir::cir::AtomicAddFetch>(op);
+    mlir::Value result = rmwVal.getRes();
+    if (!op.getFetchFirst()) {
+      if (op.getBinop() == mlir::cir::AtomicFetchKind::Max ||
+          op.getBinop() == mlir::cir::AtomicFetchKind::Min)
+        result = buildMinMaxPostOp(op, adaptor, rewriter, rmwVal.getRes(),
+                                   isSignedInt);
+      else
+        result = buildPostOp(op, adaptor, rewriter, rmwVal.getRes(), isInt);
 
-    if (hasPostOp)
-      return buildPostOp(op, adaptor, rewriter, rmwVal.getRes());
+      // Compensate lack of nand binop in LLVM IR.
+      if (op.getBinop() == mlir::cir::AtomicFetchKind::Nand) {
+        auto negOne = rewriter.create<mlir::LLVM::ConstantOp>(
+            op.getLoc(), result.getType(), -1);
+        result =
+            rewriter.create<mlir::LLVM::XOrOp>(op.getLoc(), result, negOne);
+      }
+    }
+
+    rewriter.replaceOp(op, result);
     return mlir::success();
   }
 };
@@ -2955,26 +3103,19 @@ void prepareTypeConverter(mlir::LLVMTypeConverter &converter,
 }
 } // namespace
 
-static void buildCtorList(mlir::ModuleOp module) {
-  llvm::SmallVector<std::pair<StringRef, int>, 2> globalCtors;
+static void buildCtorDtorList(
+    mlir::ModuleOp module, StringRef globalXtorName, StringRef llvmXtorName,
+    llvm::function_ref<std::pair<StringRef, int>(mlir::Attribute)> createXtor) {
+  llvm::SmallVector<std::pair<StringRef, int>, 2> globalXtors;
   for (auto namedAttr : module->getAttrs()) {
-    if (namedAttr.getName() == "cir.globalCtors") {
-      for (auto attr : namedAttr.getValue().cast<mlir::ArrayAttr>()) {
-        assert(attr.isa<mlir::cir::GlobalCtorAttr>() &&
-               "must be a GlobalCtorAttr");
-        if (auto ctorAttr = attr.cast<mlir::cir::GlobalCtorAttr>()) {
-          // default priority is 65536
-          int priority = 65536;
-          if (ctorAttr.getPriority())
-            priority = *ctorAttr.getPriority();
-          globalCtors.emplace_back(ctorAttr.getName(), priority);
-        }
-      }
+    if (namedAttr.getName() == globalXtorName) {
+      for (auto attr : namedAttr.getValue().cast<mlir::ArrayAttr>())
+        globalXtors.emplace_back(createXtor(attr));
       break;
     }
   }
 
-  if (globalCtors.empty())
+  if (globalXtors.empty())
     return;
 
   mlir::OpBuilder builder(module.getContext());
@@ -2991,12 +3132,12 @@ static void buildCtorList(mlir::ModuleOp module) {
   auto CtorStructTy = mlir::LLVM::LLVMStructType::getLiteral(
       builder.getContext(), CtorStructFields);
   auto CtorStructArrayTy =
-      mlir::LLVM::LLVMArrayType::get(CtorStructTy, globalCtors.size());
+      mlir::LLVM::LLVMArrayType::get(CtorStructTy, globalXtors.size());
 
   auto loc = module.getLoc();
   auto newGlobalOp = builder.create<mlir::LLVM::GlobalOp>(
       loc, CtorStructArrayTy, true, mlir::LLVM::Linkage::Appending,
-      "llvm.global_ctors", mlir::Attribute());
+      llvmXtorName, mlir::Attribute());
 
   newGlobalOp.getRegion().push_back(new mlir::Block());
   builder.setInsertionPointToEnd(newGlobalOp.getInitializerBlock());
@@ -3004,8 +3145,8 @@ static void buildCtorList(mlir::ModuleOp module) {
   mlir::Value result =
       builder.create<mlir::LLVM::UndefOp>(loc, CtorStructArrayTy);
 
-  for (uint64_t I = 0; I < globalCtors.size(); I++) {
-    auto fn = globalCtors[I];
+  for (uint64_t I = 0; I < globalXtors.size(); I++) {
+    auto fn = globalXtors[I];
     mlir::Value structInit =
         builder.create<mlir::LLVM::UndefOp>(loc, CtorStructTy);
     mlir::Value initPriority = builder.create<mlir::LLVM::ConstantOp>(
@@ -3107,7 +3248,23 @@ void ConvertCIRToLLVMPass::runOnOperation() {
     signalPassFailure();
 
   // Emit the llvm.global_ctors array.
-  buildCtorList(module);
+  buildCtorDtorList(module, "cir.global_ctors", "llvm.global_ctors",
+                    [](mlir::Attribute attr) {
+                      assert(attr.isa<mlir::cir::GlobalCtorAttr>() &&
+                             "must be a GlobalCtorAttr");
+                      auto ctorAttr = attr.cast<mlir::cir::GlobalCtorAttr>();
+                      return std::make_pair(ctorAttr.getName(),
+                                            ctorAttr.getPriority());
+                    });
+  // Emit the llvm.global_dtors array.
+  buildCtorDtorList(module, "cir.global_dtors", "llvm.global_dtors",
+                    [](mlir::Attribute attr) {
+                      assert(attr.isa<mlir::cir::GlobalDtorAttr>() &&
+                             "must be a GlobalDtorAttr");
+                      auto dtorAttr = attr.cast<mlir::cir::GlobalDtorAttr>();
+                      return std::make_pair(dtorAttr.getName(),
+                                            dtorAttr.getPriority());
+                    });
 }
 
 std::unique_ptr<mlir::Pass> createConvertCIRToLLVMPass() {
