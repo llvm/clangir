@@ -2239,6 +2239,32 @@ static mlir::Value createLLVMBitOp(mlir::Location loc,
   return result;
 }
 
+class CIRObjSizeOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::ObjSizeOp> {
+public:
+  using OpConversionPattern<mlir::cir::ObjSizeOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::ObjSizeOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto resTy =
+        getTypeConverter()->convertType(op.getType()).cast<mlir::IntegerType>();
+    auto loc = op->getLoc();
+
+    std::string llvmIntrinName = "llvm.objectsize";
+    auto llvmIntrinNameAttr =
+        mlir::StringAttr::get(rewriter.getContext(), llvmIntrinName);
+    auto falseValue = rewriter.create<mlir::LLVM::ConstantOp>(
+        loc, rewriter.getI1Type(), false);
+    auto trueValue = rewriter.create<mlir::LLVM::ConstantOp>(loc, rewriter.getI1Type(), true);
+
+    rewriter.replaceOpWithNewOp<mlir::LLVM::CallIntrinsicOp>(
+        op, resTy, llvmIntrinNameAttr, mlir::ValueRange{adaptor.getPtr(), falseValue, trueValue, falseValue});
+
+    return mlir::LogicalResult::success();
+  }
+};
+
 class CIRBitClrsbOpLowering
     : public mlir::OpConversionPattern<mlir::cir::BitClrsbOp> {
 public:
@@ -3021,7 +3047,7 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
       CIRVectorShuffleVecLowering, CIRStackSaveLowering,
       CIRStackRestoreLowering, CIRUnreachableLowering, CIRTrapLowering,
       CIRInlineAsmOpLowering, CIRSetBitfieldLowering, CIRGetBitfieldLowering,
-      CIRPrefetchLowering, CIRIsConstantOpLowering>(converter,
+      CIRPrefetchLowering, CIRIsConstantOpLowering, CIRObjSizeOpLowering>(converter,
                                                     patterns.getContext());
 }
 
