@@ -2326,12 +2326,18 @@ public:
     std::string llvmIntrinName = "llvm.objectsize";
     auto llvmIntrinNameAttr =
         mlir::StringAttr::get(rewriter.getContext(), llvmIntrinName);
+    // kindInfo can only be 0 or 2, a.k.a min or max,
+    // should we have a validity check here?
+    mlir::cir::SizeInfoType kindInfo = op.getKind();
     auto falseValue = rewriter.create<mlir::LLVM::ConstantOp>(
         loc, rewriter.getI1Type(), false);
     auto trueValue = rewriter.create<mlir::LLVM::ConstantOp>(loc, rewriter.getI1Type(), true);
 
     rewriter.replaceOpWithNewOp<mlir::LLVM::CallIntrinsicOp>(
-        op, resTy, llvmIntrinNameAttr, mlir::ValueRange{adaptor.getPtr(), falseValue, trueValue, falseValue});
+        op, resTy, llvmIntrinNameAttr, mlir::ValueRange{adaptor.getPtr(),
+                                                        kindInfo ==  mlir::cir::SizeInfoType::max?falseValue:trueValue,
+                                                        trueValue,
+                                                        op.getDynamic()?trueValue:falseValue});
 
     return mlir::LogicalResult::success();
   }
