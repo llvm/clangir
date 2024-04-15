@@ -1773,7 +1773,6 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
 
   StringAttr nameAttr;
   SmallVector<OpAsmParser::Argument, 8> arguments;
-  SmallVector<DictionaryAttr, 1> argAttrs;
   SmallVector<DictionaryAttr, 1> resultAttrs;
   SmallVector<Type, 8> argTypes;
   SmallVector<Type, 4> resultTypes;
@@ -1832,6 +1831,49 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
       return failure();
     hasAlias = true;
   }
+
+  auto parseGlobalDtorCtor =
+      [&](StringRef keyword,
+          llvm::function_ref<void(std::optional<int> prio)> createAttr)
+      -> mlir::LogicalResult {
+    if (::mlir::succeeded(parser.parseOptionalKeyword(keyword))) {
+      std::optional<int> prio;
+      if (mlir::succeeded(parser.parseOptionalLParen())) {
+        auto parsedPrio = mlir::FieldParser<int>::parse(parser);
+        if (mlir::failed(parsedPrio)) {
+          return parser.emitError(parser.getCurrentLocation(),
+                                  "failed to parse 'priority', of type 'int'");
+          return failure();
+        }
+        prio = parsedPrio.value_or(int());
+        // Parse literal ')'
+        if (parser.parseRParen())
+          return failure();
+      }
+      createAttr(prio);
+    }
+    return success();
+  };
+
+  if (parseGlobalDtorCtor("global_ctor", [&](std::optional<int> prio) {
+        mlir::cir::GlobalCtorAttr globalCtorAttr =
+            prio ? mlir::cir::GlobalCtorAttr::get(builder.getContext(),
+                                                  nameAttr, *prio)
+                 : mlir::cir::GlobalCtorAttr::get(builder.getContext(),
+                                                  nameAttr);
+        state.addAttribute(getGlobalCtorAttrName(state.name), globalCtorAttr);
+      }).failed())
+    return failure();
+
+  if (parseGlobalDtorCtor("global_dtor", [&](std::optional<int> prio) {
+        mlir::cir::GlobalDtorAttr globalDtorAttr =
+            prio ? mlir::cir::GlobalDtorAttr::get(builder.getContext(),
+                                                  nameAttr, *prio)
+                 : mlir::cir::GlobalDtorAttr::get(builder.getContext(),
+                                                  nameAttr);
+        state.addAttribute(getGlobalDtorAttrName(state.name), globalDtorAttr);
+      }).failed())
+    return failure();
 
   Attribute extraAttrs;
   if (::mlir::succeeded(parser.parseOptionalKeyword("extra"))) {
@@ -1925,14 +1967,28 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
         p, *this, fnType.getInputs(), fnType.isVarArg(), {});
   function_interface_impl::printFunctionAttributes(
       p, *this,
+      // These are all omitted since they are custom printed already.
       {getSymVisibilityAttrName(), getAliaseeAttrName(),
        getFunctionTypeAttrName(), getLinkageAttrName(), getBuiltinAttrName(),
-       getNoProtoAttrName(), getExtraAttrsAttrName()});
+       getNoProtoAttrName(), getGlobalCtorAttrName(), getGlobalDtorAttrName(),
+       getExtraAttrsAttrName()});
 
   if (auto aliaseeName = getAliasee()) {
     p << " alias(";
     p.printSymbolName(*aliaseeName);
     p << ")";
+  }
+
+  if (auto globalCtor = getGlobalCtorAttr()) {
+    p << " global_ctor";
+    if (!globalCtor.isDefaultPriority())
+      p << "(" << globalCtor.getPriority() << ")";
+  }
+
+  if (auto globalDtor = getGlobalDtorAttr()) {
+    p << " global_dtor";
+    if (!globalDtor.isDefaultPriority())
+      p << "(" << globalDtor.getPriority() << ")";
   }
 
   if (!getExtraAttrs().getElements().empty()) {
@@ -2007,6 +2063,7 @@ LogicalResult cir::FuncOp::verify() {
       return emitOpError() << "a function alias '" << *fn
                            << "' must have empty body";
   }
+
   return success();
 }
 

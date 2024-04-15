@@ -227,6 +227,11 @@ public:
                                             mlir::Type t, bool isCst = false,
                                             mlir::Operation *insertPoint = nullptr);
 
+  // FIXME: Hardcoding priority here is gross.
+  void AddGlobalCtor(mlir::cir::FuncOp Ctor, int Priority = 65535);
+  void AddGlobalDtor(mlir::cir::FuncOp Dtor, int Priority = 65535,
+                     bool IsDtorAttrFunc = false);
+
   /// Return the mlir::Value for the address of the given global variable.
   /// If Ty is non-null and if the global doesn't exist, then it will be created
   /// with the specified type instead of whatever the normal requested type
@@ -461,6 +466,10 @@ public:
   /// This must be called after dllimport/dllexport is set.
   void setGVProperties(mlir::Operation *Op, const NamedDecl *D) const;
   void setGVPropertiesAux(mlir::Operation *Op, const NamedDecl *D) const;
+
+  /// Set the TLS mode for the given global Op for the thread-local
+  /// variable declaration D.
+  void setTLSMode(mlir::Operation *Op, const VarDecl &D) const;
 
   /// Replace the present global `Old` with the given global `New`. Their symbol
   /// names must match; their types can be different. Usages of the old global

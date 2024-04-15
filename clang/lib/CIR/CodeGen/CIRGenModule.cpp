@@ -492,9 +492,42 @@ void CIRGenModule::buildGlobalFunctionDefinition(GlobalDecl GD,
   // TODO: setNonAliasAttributes
   // TODO: SetLLVMFunctionAttributesForDeclaration
 
-  assert(!D->getAttr<ConstructorAttr>() && "NYI");
-  assert(!D->getAttr<DestructorAttr>() && "NYI");
+  if (const ConstructorAttr *CA = D->getAttr<ConstructorAttr>())
+    AddGlobalCtor(Fn, CA->getPriority());
+  if (const DestructorAttr *DA = D->getAttr<DestructorAttr>())
+    AddGlobalDtor(Fn, DA->getPriority(), true);
+
   assert(!D->getAttr<AnnotateAttr>() && "NYI");
+}
+
+/// Track functions to be called before main() runs.
+void CIRGenModule::AddGlobalCtor(mlir::cir::FuncOp Ctor, int Priority) {
+  // FIXME(cir): handle LexOrder and Associated data upon testcases.
+  //
+  // Traditional LLVM codegen directly adds the function to the list of global
+  // ctors. In CIR we just add a global_ctor attribute to the function. The
+  // global list is created in LoweringPrepare.
+  //
+  // FIXME(from traditional LLVM): Type coercion of void()* types.
+  Ctor->setAttr(Ctor.getGlobalCtorAttrName(),
+                mlir::cir::GlobalCtorAttr::get(builder.getContext(),
+                                               Ctor.getName(), Priority));
+}
+
+/// Add a function to the list that will be called when the module is unloaded.
+void CIRGenModule::AddGlobalDtor(mlir::cir::FuncOp Dtor, int Priority,
+                                 bool IsDtorAttrFunc) {
+  assert(IsDtorAttrFunc && "NYI");
+  if (codeGenOpts.RegisterGlobalDtorsWithAtExit &&
+      (!getASTContext().getTargetInfo().getTriple().isOSAIX() ||
+       IsDtorAttrFunc)) {
+    llvm_unreachable("NYI");
+  }
+
+  // FIXME(from traditional LLVM): Type coercion of void()* types.
+  Dtor->setAttr(Dtor.getGlobalDtorAttrName(),
+                mlir::cir::GlobalDtorAttr::get(builder.getContext(),
+                                               Dtor.getName(), Priority));
 }
 
 mlir::Operation *CIRGenModule::getGlobalValue(StringRef Name) {
@@ -574,6 +607,18 @@ void CIRGenModule::replaceGlobal(mlir::cir::GlobalOp Old,
 
   // Remove old global from the module.
   Old.erase();
+}
+
+void CIRGenModule::setTLSMode(mlir::Operation *Op, const VarDecl &D) const {
+  assert(D.getTLSKind() && "setting TLS mode on non-TLS var!");
+  llvm_unreachable("NYI");
+
+  // Override the TLS model if it is explicitly specified.
+  if (const TLSModelAttr *Attr = D.getAttr<TLSModelAttr>()) {
+    llvm_unreachable("NYI");
+  }
+
+  llvm_unreachable("NYI");
 }
 
 /// If the specified mangled name is not in the module,
@@ -700,7 +745,9 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef MangledName, mlir::Type Ty,
     //   setLinkageForGV(GV, D);
 
     if (D->getTLSKind()) {
-      assert(0 && "not implemented");
+      if (D->getTLSKind() == VarDecl::TLS_Dynamic)
+        llvm_unreachable("NYI");
+      setTLSMode(GV, *D);
     }
 
     setGVProperties(GV, D);

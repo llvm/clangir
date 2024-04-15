@@ -222,7 +222,11 @@ public:
     llvm_unreachable("NYI");
   }
   mlir::Value VisitOpaqueValueExpr(OpaqueValueExpr *E) {
-    llvm_unreachable("NYI");
+    if (E->isGLValue())
+      llvm_unreachable("NYI");
+
+    // Otherwise, assume the mapping is the scalar directly.
+    return CGF.getOrCreateOpaqueRValueMapping(E).getScalarVal();
   }
 
   /// Emits the address of the l-value, then loads and returns the result.

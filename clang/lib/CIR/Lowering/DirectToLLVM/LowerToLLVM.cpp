@@ -1000,6 +1000,26 @@ public:
   }
 };
 
+static mlir::LLVM::AtomicOrdering
+getLLVMMemOrder(std::optional<mlir::cir::MemOrder> &memorder) {
+  if (!memorder)
+    return mlir::LLVM::AtomicOrdering::not_atomic;
+  switch (*memorder) {
+  case mlir::cir::MemOrder::Relaxed:
+    return mlir::LLVM::AtomicOrdering::monotonic;
+  case mlir::cir::MemOrder::Consume:
+  case mlir::cir::MemOrder::Acquire:
+    return mlir::LLVM::AtomicOrdering::acquire;
+  case mlir::cir::MemOrder::Release:
+    return mlir::LLVM::AtomicOrdering::release;
+  case mlir::cir::MemOrder::AcquireRelease:
+    return mlir::LLVM::AtomicOrdering::acq_rel;
+  case mlir::cir::MemOrder::SequentiallyConsistent:
+    return mlir::LLVM::AtomicOrdering::seq_cst;
+  }
+  llvm_unreachable("unknown memory order");
+}
+
 class CIRLoadLowering : public mlir::OpConversionPattern<mlir::cir::LoadOp> {
 public:
   using OpConversionPattern<mlir::cir::LoadOp>::OpConversionPattern;
@@ -1009,30 +1029,13 @@ public:
                   mlir::ConversionPatternRewriter &rewriter) const override {
     const auto llvmTy =
         getTypeConverter()->convertType(op.getResult().getType());
-    // FIXME: right now we only pass in the alignment when the memory access is
-    // atomic, we should always pass it instead.
     unsigned alignment = 0;
-    auto ordering = mlir::LLVM::AtomicOrdering::not_atomic;
-    if (op.getMemOrder()) {
-      switch (*op.getMemOrder()) {
-      case mlir::cir::MemOrder::Relaxed:
-        ordering = mlir::LLVM::AtomicOrdering::monotonic;
-        break;
-      case mlir::cir::MemOrder::Consume:
-      case mlir::cir::MemOrder::Acquire:
-        ordering = mlir::LLVM::AtomicOrdering::acquire;
-        break;
-      case mlir::cir::MemOrder::Release:
-        ordering = mlir::LLVM::AtomicOrdering::release;
-        break;
-      case mlir::cir::MemOrder::AcquireRelease:
-        ordering = mlir::LLVM::AtomicOrdering::acq_rel;
-        break;
-      case mlir::cir::MemOrder::SequentiallyConsistent:
-        ordering = mlir::LLVM::AtomicOrdering::seq_cst;
-        break;
-      }
+    auto memorder = op.getMemOrder();
+    auto ordering = getLLVMMemOrder(memorder);
 
+    // FIXME: right now we only pass in the alignment when the memory access
+    // is atomic, we should always pass it instead.
+    if (ordering != mlir::LLVM::AtomicOrdering::not_atomic) {
       mlir::DataLayout layout(op->getParentOfType<mlir::ModuleOp>());
       alignment = (unsigned)layout.getTypeABIAlignment(llvmTy);
     }
@@ -1040,8 +1043,7 @@ public:
     // TODO: nontemporal, invariant, syncscope.
     rewriter.replaceOpWithNewOp<mlir::LLVM::LoadOp>(
         op, llvmTy, adaptor.getAddr(), /* alignment */ alignment,
-        /* volatile */ op.getIsVolatile(),
-        /* nontemporal */ false,
+        op.getIsVolatile(), /* nontemporal */ false,
         /* invariant */ false, ordering);
     return mlir::LogicalResult::success();
   }
@@ -1054,9 +1056,23 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::StoreOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
+    unsigned alignment = 0;
+    auto memorder = op.getMemOrder();
+    auto ordering = getLLVMMemOrder(memorder);
+
+    // FIXME: right now we only pass in the alignment when the memory access
+    // is atomic, we should always pass it instead.
+    if (ordering != mlir::LLVM::AtomicOrdering::not_atomic) {
+      const auto llvmTy =
+          getTypeConverter()->convertType(op.getValue().getType());
+      mlir::DataLayout layout(op->getParentOfType<mlir::ModuleOp>());
+      alignment = (unsigned)layout.getTypeABIAlignment(llvmTy);
+    }
+
+    // TODO: nontemporal, syncscope.
     rewriter.replaceOpWithNewOp<mlir::LLVM::StoreOp>(
-        op, adaptor.getValue(), adaptor.getAddr(),
-        /* alignment */ 0, /* volatile */ op.getIsVolatile());
+        op, adaptor.getValue(), adaptor.getAddr(), alignment,
+        op.getIsVolatile(), /* nontemporal */ false, ordering);
     return mlir::LogicalResult::success();
   }
 };
@@ -3185,26 +3201,19 @@ void prepareTypeConverter(mlir::LLVMTypeConverter &converter,
 }
 } // namespace
 
-static void buildCtorList(mlir::ModuleOp module) {
-  llvm::SmallVector<std::pair<StringRef, int>, 2> globalCtors;
+static void buildCtorDtorList(
+    mlir::ModuleOp module, StringRef globalXtorName, StringRef llvmXtorName,
+    llvm::function_ref<std::pair<StringRef, int>(mlir::Attribute)> createXtor) {
+  llvm::SmallVector<std::pair<StringRef, int>, 2> globalXtors;
   for (auto namedAttr : module->getAttrs()) {
-    if (namedAttr.getName() == "cir.globalCtors") {
-      for (auto attr : namedAttr.getValue().cast<mlir::ArrayAttr>()) {
-        assert(attr.isa<mlir::cir::GlobalCtorAttr>() &&
-               "must be a GlobalCtorAttr");
-        if (auto ctorAttr = attr.cast<mlir::cir::GlobalCtorAttr>()) {
-          // default priority is 65536
-          int priority = 65536;
-          if (ctorAttr.getPriority())
-            priority = *ctorAttr.getPriority();
-          globalCtors.emplace_back(ctorAttr.getName(), priority);
-        }
-      }
+    if (namedAttr.getName() == globalXtorName) {
+      for (auto attr : namedAttr.getValue().cast<mlir::ArrayAttr>())
+        globalXtors.emplace_back(createXtor(attr));
       break;
     }
   }
 
-  if (globalCtors.empty())
+  if (globalXtors.empty())
     return;
 
   mlir::OpBuilder builder(module.getContext());
@@ -3221,12 +3230,12 @@ static void buildCtorList(mlir::ModuleOp module) {
   auto CtorStructTy = mlir::LLVM::LLVMStructType::getLiteral(
       builder.getContext(), CtorStructFields);
   auto CtorStructArrayTy =
-      mlir::LLVM::LLVMArrayType::get(CtorStructTy, globalCtors.size());
+      mlir::LLVM::LLVMArrayType::get(CtorStructTy, globalXtors.size());
 
   auto loc = module.getLoc();
   auto newGlobalOp = builder.create<mlir::LLVM::GlobalOp>(
       loc, CtorStructArrayTy, true, mlir::LLVM::Linkage::Appending,
-      "llvm.global_ctors", mlir::Attribute());
+      llvmXtorName, mlir::Attribute());
 
   newGlobalOp.getRegion().push_back(new mlir::Block());
   builder.setInsertionPointToEnd(newGlobalOp.getInitializerBlock());
@@ -3234,8 +3243,8 @@ static void buildCtorList(mlir::ModuleOp module) {
   mlir::Value result =
       builder.create<mlir::LLVM::UndefOp>(loc, CtorStructArrayTy);
 
-  for (uint64_t I = 0; I < globalCtors.size(); I++) {
-    auto fn = globalCtors[I];
+  for (uint64_t I = 0; I < globalXtors.size(); I++) {
+    auto fn = globalXtors[I];
     mlir::Value structInit =
         builder.create<mlir::LLVM::UndefOp>(loc, CtorStructTy);
     mlir::Value initPriority = builder.create<mlir::LLVM::ConstantOp>(
@@ -3301,7 +3310,23 @@ void ConvertCIRToLLVMPass::runOnOperation() {
     signalPassFailure();
 
   // Emit the llvm.global_ctors array.
-  buildCtorList(module);
+  buildCtorDtorList(module, "cir.global_ctors", "llvm.global_ctors",
+                    [](mlir::Attribute attr) {
+                      assert(attr.isa<mlir::cir::GlobalCtorAttr>() &&
+                             "must be a GlobalCtorAttr");
+                      auto ctorAttr = attr.cast<mlir::cir::GlobalCtorAttr>();
+                      return std::make_pair(ctorAttr.getName(),
+                                            ctorAttr.getPriority());
+                    });
+  // Emit the llvm.global_dtors array.
+  buildCtorDtorList(module, "cir.global_dtors", "llvm.global_dtors",
+                    [](mlir::Attribute attr) {
+                      assert(attr.isa<mlir::cir::GlobalDtorAttr>() &&
+                             "must be a GlobalDtorAttr");
+                      auto dtorAttr = attr.cast<mlir::cir::GlobalDtorAttr>();
+                      return std::make_pair(dtorAttr.getName(),
+                                            dtorAttr.getPriority());
+                    });
 }
 
 std::unique_ptr<mlir::Pass> createConvertCIRToLLVMPass() {

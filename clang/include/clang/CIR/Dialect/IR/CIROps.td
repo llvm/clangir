@@ -11,8 +11,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef MLIR_CIR_DIALECT_CIR_OPS
-#define MLIR_CIR_DIALECT_CIR_OPS
+#ifndef LLVM_CLANG_CIR_DIALECT_IR_CIROPS
+#define LLVM_CLANG_CIR_DIALECT_IR_CIROPS
 
 include "clang/CIR/Dialect/IR/CIRDialect.td"
 include "clang/CIR/Dialect/IR/CIRTypes.td"
@@ -402,7 +402,7 @@ def LoadOp : CIR_Op<"load", [
     backed up by a `cir.ptr` type. A unit attribute `deref` can be used to
     mark the resulting value as used by another operation to dereference
     a pointer. A unit attribute `volatile` can be used to indicate a volatile
-    loading.
+    loading. Load can be marked atomic by using `atomic(<mem_order>)`.
 
     Example:
 
@@ -451,7 +451,8 @@ def StoreOp : CIR_Op<"store", [
   let description = [{
     `cir.store` stores a value (first operand) to the memory address specified
     in the second operand. A unit attribute `volatile` can be used to indicate
-    a volatile store.
+    a volatile store. Store's can be marked atomic by using
+    `atomic(<mem_order>)`.
 
     Example:
 
@@ -467,12 +468,14 @@ def StoreOp : CIR_Op<"store", [
   let arguments = (ins CIR_AnyType:$value,
                        Arg<CIR_PointerType, "the address to store the value",
                            [MemWrite]>:$addr,
-                       UnitAttr:$is_volatile);
+                       UnitAttr:$is_volatile,
+                       OptionalAttr<MemOrder>:$mem_order);
 
   // FIXME: we should not be printing `cir.ptr` below, that should come
   // from the pointer type directly.
   let assemblyFormat = [{
     (`volatile` $is_volatile^)?
+    (`atomic` `(` $mem_order^ `)`)?
     $value `,` $addr attr-dict `:` type($value) `,` `cir.ptr` type($addr)
   }];
 
@@ -2407,6 +2410,11 @@ def FuncOp : CIR_Op<"func", [
     above. Though mandatory, the prining of the attribute can be omitted if it is
     empty.
 
+    The `global_ctor` indicates whether a function should execute before `main()`
+    function, as specified by `__attribute__((constructor))`. A execution priority
+    can also be specified `global_ctor(<prio>)`. Similarly, for global destructors
+    both `global_dtor` and `global_dtor(<prio>)` are available.
+
     Example:
 
     ```mlir
@@ -2446,6 +2454,8 @@ def FuncOp : CIR_Op<"func", [
                        OptionalAttr<DictArrayAttr>:$arg_attrs,
                        OptionalAttr<DictArrayAttr>:$res_attrs,
                        OptionalAttr<FlatSymbolRefAttr>:$aliasee,
+                       OptionalAttr<GlobalCtorAttr>:$global_ctor,
+                       OptionalAttr<GlobalDtorAttr>:$global_dtor,
                        OptionalAttr<AnyASTFunctionDeclAttr>:$ast);
   let regions = (region AnyRegion:$body);
   let skipDefaultBuilders = 1;
@@ -3552,4 +3562,4 @@ def ZeroInitConstOp : CIR_Op<"llvmir.zeroinit", [Pure]>,
   let hasVerifier = 0;
 }
 
-#endif // MLIR_CIR_DIALECT_CIR_OPS
+#endif // LLVM_CLANG_CIR_DIALECT_IR_CIROPS
