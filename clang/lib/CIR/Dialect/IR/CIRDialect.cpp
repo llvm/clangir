@@ -2769,15 +2769,17 @@ LogicalResult BinOp::verify() {
   bool noWrap = getNoUnsignedWrap() || getNoSignedWrap();
 
   if (!isa<mlir::cir::IntType>(getType()) && noWrap)
-    return emitError() << "only operations on integer values may have nsw/nuw flags";
-  
-  bool noWrapOps = getKind() == mlir::cir::BinOpKind::Add 
-      || getKind() == mlir::cir::BinOpKind::Sub
-      || getKind() == mlir::cir::BinOpKind::Mul;
+    return emitError()
+           << "only operations on integer values may have nsw/nuw flags";
+
+  bool noWrapOps = getKind() == mlir::cir::BinOpKind::Add ||
+                   getKind() == mlir::cir::BinOpKind::Sub ||
+                   getKind() == mlir::cir::BinOpKind::Mul;
 
   if (noWrap && !noWrapOps)
-    return emitError() << "The nsw/nuw flags are applicable to Add, Sub and Mul operations only";
-  
+    return emitError() << "The nsw/nuw flags are applicable to Add, Sub and "
+                          "Mul operations only";
+
   return mlir::success();
 }
 
