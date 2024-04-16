@@ -2287,6 +2287,7 @@ public:
   matchAndRewrite(mlir::cir::ObjSizeOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto llvmResTy = getTypeConverter()->convertType(op.getType());
+
     auto loc = op->getLoc();
 
     auto llvmIntrinNameAttr =
