@@ -944,7 +944,6 @@ def BinOp : CIR_Op<"binop", [Pure,
     `:` type($lhs) attr-dict
   }];
 
-  // Already covered by the traits
   let hasVerifier = 1;
 }
 
