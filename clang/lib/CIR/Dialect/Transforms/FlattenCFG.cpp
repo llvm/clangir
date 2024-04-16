@@ -116,7 +116,7 @@ struct CIRIfFlattening : public OpRewritePattern<IfOp> {
   }
 };
 
-class CIRScopeOpLowering
+class CIRScopeOpFlattening
     : public mlir::OpRewritePattern<mlir::cir::ScopeOp> {
 public:
   using OpRewritePattern<mlir::cir::ScopeOp>::OpRewritePattern;
@@ -175,7 +175,7 @@ public:
   }
 };
 
-class CIRLoopOpInterfaceLowering
+class CIRLoopOpInterfaceFlattening
     : public mlir::OpInterfaceRewritePattern<mlir::cir::LoopOpInterface> {
 public:
   using mlir::OpInterfaceRewritePattern<
@@ -249,7 +249,9 @@ public:
 };
 
 void populateFlattenCFGPatterns(RewritePatternSet &patterns) {
-  patterns.add<CIRIfFlattening, CIRLoopOpInterfaceLowering, CIRScopeOpLowering>(patterns.getContext());
+  patterns.add<CIRIfFlattening, CIRLoopOpInterfaceFlattening,
+               CIRScopeOpFlattening>
+  (patterns.getContext());
 }
 
 void FlattenCFGPass::runOnOperation() {
