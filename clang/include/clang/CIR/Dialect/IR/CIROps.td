@@ -934,18 +934,18 @@ def BinOp : CIR_Op<"binop", [Pure,
   let results = (outs CIR_AnyType:$result);
   let arguments = (ins Arg<BinOpKind, "binop kind">:$kind,
                        CIR_AnyType:$lhs, CIR_AnyType:$rhs,
-                       UnitAttr:$hasNoUnsignedWrap,
-                       UnitAttr:$hasNoSignedWrap);
+                       UnitAttr:$no_unsigned_wrap,
+                       UnitAttr:$no_signed_wrap);
 
   let assemblyFormat = [{
     `(` $kind `,` $lhs `,` $rhs  `)` 
-    (`nsw` $hasNoSignedWrap^)?
-    (`nuw` $hasNoUnsignedWrap^)?
+    (`nsw` $no_signed_wrap^)?
+    (`nuw` $no_unsigned_wrap^)?
     `:` type($lhs) attr-dict
   }];
 
   // Already covered by the traits
-  let hasVerifier = 0;
+  let hasVerifier = 1;
 }
 
 //===----------------------------------------------------------------------===//

@@ -2016,9 +2016,9 @@ class CIRBinOpLowering : public mlir::OpConversionPattern<mlir::cir::BinOp> {
 
     auto flag = mlir::LLVM::IntegerOverflowFlags::none;
 
-    if (op.getHasNoUnsignedWrap())
+    if (op.getNoUnsignedWrap())
       flag = mlir::LLVM::IntegerOverflowFlags::nuw;
-    else if (op.getHasNoSignedWrap())
+    else if (op.getNoSignedWrap())
       flag = mlir::LLVM::IntegerOverflowFlags::nsw;
 
     return mlir::LLVM::IntegerOverflowFlagsAttr::get(op.getContext(), flag);

@@ -147,7 +147,7 @@ public:
   mlir::Value createNSWSub(mlir::Value lhs, mlir::Value rhs) {
     auto op = create<mlir::cir::BinOp>(lhs.getLoc(), lhs.getType(),
                                        mlir::cir::BinOpKind::Sub, lhs, rhs);
-    op.setHasNoSignedWrap(true);
+    op.setNoSignedWrap(true);
     return op;
   }
 
