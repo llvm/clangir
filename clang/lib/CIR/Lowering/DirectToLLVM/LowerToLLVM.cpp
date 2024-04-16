@@ -3103,7 +3103,7 @@ static void buildCtorDtorList(
 // pass it will be placed into the unreachable block. And the possible error
 // after the lowering pass is: error: 'cir.return' op expects parent op to be
 // one of 'cir.func, cir.scope, cir.if ... The reason that this operation was
-// not lowered and the new parent is lllvm.func.
+// not lowered and the new parent is llvm.func.
 //
 // In the future we may want to get rid of this function and use DCE pass or
 // something similar. But now we need to guarantee the absence of the dialect
