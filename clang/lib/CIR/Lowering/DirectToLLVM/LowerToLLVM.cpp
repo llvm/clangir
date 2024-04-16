@@ -1613,16 +1613,7 @@ public:
 
     auto type = getTypeConverter()->convertType(op.getType());
     auto symbol = op.getName();
-    mlir::Operation *newop =
-        rewriter.create<mlir::LLVM::AddressOfOp>(op.getLoc(), type, symbol);
-
-    if (op.getTls()) {
-      // Handle access to TLS via intrinsic.
-      newop = rewriter.create<mlir::LLVM::ThreadlocalAddressOp>(
-          op.getLoc(), type, newop->getResult(0));
-    }
-
-    rewriter.replaceOp(op, newop);
+    rewriter.replaceOpWithNewOp<mlir::LLVM::AddressOfOp>(op, type, symbol);
     return mlir::success();
   }
 };
