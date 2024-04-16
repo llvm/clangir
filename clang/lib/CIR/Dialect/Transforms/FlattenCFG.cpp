@@ -33,7 +33,6 @@ void lowerTerminator(mlir::Operation *op, mlir::Block *dest,
   rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(op, dest);
 }
 
-
 /// Walks a region while skipping operations of type `Ops`. This ensures the
 /// callback is not applied to said operations and its children.
 template <typename... Ops>
@@ -46,7 +45,6 @@ void walkRegionSkipping(mlir::Region &region,
     return mlir::WalkResult::advance();
   });
 }
-
 
 struct FlattenCFGPass : public FlattenCFGBase<FlattenCFGPass> {
 
@@ -116,13 +114,12 @@ struct CIRIfFlattening : public OpRewritePattern<IfOp> {
   }
 };
 
-class CIRScopeOpFlattening
-    : public mlir::OpRewritePattern<mlir::cir::ScopeOp> {
+class CIRScopeOpFlattening : public mlir::OpRewritePattern<mlir::cir::ScopeOp> {
 public:
   using OpRewritePattern<mlir::cir::ScopeOp>::OpRewritePattern;
 
   mlir::LogicalResult
-  matchAndRewrite(mlir::cir::ScopeOp scopeOp,   
+  matchAndRewrite(mlir::cir::ScopeOp scopeOp,
                   mlir::PatternRewriter &rewriter) const override {
     mlir::OpBuilder::InsertionGuard guard(rewriter);
     auto loc = scopeOp.getLoc();
@@ -181,10 +178,9 @@ public:
   using mlir::OpInterfaceRewritePattern<
       mlir::cir::LoopOpInterface>::OpInterfaceRewritePattern;
 
-  inline void
-  lowerConditionOp(mlir::cir::ConditionOp op, mlir::Block *body,
-                   mlir::Block *exit,
-                   mlir::PatternRewriter &rewriter) const {
+  inline void lowerConditionOp(mlir::cir::ConditionOp op, mlir::Block *body,
+                               mlir::Block *exit,
+                               mlir::PatternRewriter &rewriter) const {
     mlir::OpBuilder::InsertionGuard guard(rewriter);
     rewriter.setInsertionPoint(op);
     rewriter.replaceOpWithNewOp<mlir::cir::BrCondOp>(op, op.getCondition(),
@@ -249,9 +245,9 @@ public:
 };
 
 void populateFlattenCFGPatterns(RewritePatternSet &patterns) {
-  patterns.add<CIRIfFlattening, CIRLoopOpInterfaceFlattening,
-               CIRScopeOpFlattening>
-  (patterns.getContext());
+  patterns
+      .add<CIRIfFlattening, CIRLoopOpInterfaceFlattening, CIRScopeOpFlattening>(
+          patterns.getContext());
 }
 
 void FlattenCFGPass::runOnOperation() {
