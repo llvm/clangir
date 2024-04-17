@@ -653,10 +653,9 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
       if (typ) {
         auto op = Args[i++];
         assert(op.getType().isa<mlir::cir::PointerType>() &&
-          "pointer type expected"
-        );
-        assert(cast<mlir::cir::PointerType>(op.getType()).getPointee() == typ
-          && "element type differs from pointee type!");
+               "pointer type expected");
+        assert(cast<mlir::cir::PointerType>(op.getType()).getPointee() == typ &&
+               "element type differs from pointee type!");
 
         operandAttrs.push_back(mlir::UnitAttr::get(builder.getContext()));
       } else {
