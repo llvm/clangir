@@ -2812,7 +2812,6 @@ ParseResult cir::InlineAsmOp::parse(OpAsmParser &parser,
   llvm::SmallVector<mlir::Attribute> operand_attrs;
   llvm::SmallVector<int32_t> operandsGroupSizes;
   std::string asm_string, constraints;
-  bool side_effects = false;
   Type resType;
   auto *ctxt = parser.getBuilder().getContext();
 
@@ -2869,7 +2868,6 @@ ParseResult cir::InlineAsmOp::parse(OpAsmParser &parser,
     }
 
     if (parser.parseCommaSeparatedList([&]() {
-          Type eltTyp;
           Value val;
           if (parseValue(val).succeeded()) {
             result.operands.push_back(val);
@@ -2915,9 +2913,11 @@ ParseResult cir::InlineAsmOp::parse(OpAsmParser &parser,
   if (parser.parseOptionalKeyword("side_effects").succeeded())
     result.attributes.set("side_effects", UnitAttr::get(ctxt));
 
-  if (parser.parseOptionalArrow().succeeded())
-    ;
-  parser.parseType(resType);
+  if (parser.parseOptionalArrow().failed())
+    return mlir::failure();
+
+  if (parser.parseType(resType).failed())
+    return mlir::failure();
 
   if (parser.parseOptionalAttrDict(result.attributes))
     return mlir::failure();
