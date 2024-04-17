@@ -360,12 +360,13 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
   std::vector<mlir::Type> ArgElemTypes;
   std::vector<mlir::Value> OutArgs;
   std::vector<mlir::Value> InArgs;
+  std::vector<mlir::Value> InOutArgs;
+  std::vector<mlir::Value> Args;
   llvm::BitVector ResultTypeRequiresCast;
   llvm::BitVector ResultRegIsFlagReg;
 
   // Keep track of input constraints.
   std::string InOutConstraints;
-  std::vector<mlir::Value> InOutArgs;
   std::vector<mlir::Type> InOutArgTypes;
   std::vector<mlir::Type> InOutArgElemTypes;
 
@@ -482,6 +483,7 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
       ArgTypes.push_back(DestAddr.getType());
       ArgElemTypes.push_back(DestAddr.getElementType());
       OutArgs.push_back(DestAddr.getPointer());
+      Args.push_back(DestAddr.getPointer());
       Constraints += "=*";
       Constraints += OutputConstraint;
       ReadOnly = ReadNone = false;
@@ -596,11 +598,13 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
     ArgTypes.push_back(Arg.getType());
     ArgElemTypes.push_back(ArgElemType);
     InArgs.push_back(Arg);
+    Args.push_back(Arg);
     Constraints += InputConstraint;
   } // iterate over input operands
 
   // Append the "input" part of inout constraints.
   for (unsigned i = 0, e = InOutArgs.size(); i != e; i++) {
+    Args.push_back(InOutArgs[i]);
     ArgTypes.push_back(InOutArgTypes[i]);
     ArgElemTypes.push_back(InOutArgElemTypes[i]);
   }
@@ -643,15 +647,11 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
       result = IA.getResult(0);
 
     llvm::SmallVector<mlir::Attribute> operandAttrs;
-    llvm::SmallVector<mlir::Value, 8> allOperands;
-
-    for (auto r : operands) 
-      allOperands.insert(allOperands.end(), r.begin(), r.end());
 
     int i = 0;
     for (auto typ : ArgElemTypes) {
       if (typ) {
-        auto op = allOperands[i];
+        auto op = Args[i++];
         assert(op.getType().isa<mlir::cir::PointerType>() &&
           "pointer type expected"
         );
@@ -665,11 +665,9 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
         // CallInsn argument by index, i.e. we can't skip null type here
         operandAttrs.push_back(mlir::Attribute());
       }
-      ++i;
     }
 
-    auto size = OutArgs.size() + InOutArgs.size() + InArgs.size();
-    assert(size == operandAttrs.size() &&
+    assert(Args.size() == operandAttrs.size() &&
            "The number of attributes is not even with the number of operands");
 
     IA.setOperandAttrsAttr(builder.getArrayAttr(operandAttrs));

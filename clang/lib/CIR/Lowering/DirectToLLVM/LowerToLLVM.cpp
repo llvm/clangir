@@ -2879,16 +2879,16 @@ class CIRInlineAsmOpLowering
       std::vector<mlir::NamedAttribute> attrs;
       auto typ = cast<mlir::cir::PointerType>(cirOperands[i].getType());
       auto typAttr = mlir::TypeAttr::get(
-        getTypeConverter()->convertType(typ.getPointee()));
+          getTypeConverter()->convertType(typ.getPointee()));
 
       attrs.push_back(rewriter.getNamedAttr(llvmAttrName, typAttr));
       auto newDict = rewriter.getDictionaryAttr(attrs);
       opAttrs.push_back(newDict);
-    }    
+    }
 
     rewriter.replaceOpWithNewOp<mlir::LLVM::InlineAsmOp>(
-        op, llResTy, llvmOperands, op.getAsmStringAttr(), op.getConstraintsAttr(),
-        op.getSideEffectsAttr(),
+        op, llResTy, llvmOperands, op.getAsmStringAttr(),
+        op.getConstraintsAttr(), op.getSideEffectsAttr(),
         /*is_align_stack*/ mlir::UnitAttr(),
         mlir::LLVM::AsmDialectAttr::get(getContext(), llDialect),
         rewriter.getArrayAttr(opAttrs));
