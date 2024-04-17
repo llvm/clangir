@@ -3331,7 +3331,9 @@ def CIR_InlineAsmOp : CIR_Op<"asm", [RecursiveMemoryEffects]> {
     - the index of early-clobber operand
 
     Operand attributes is a storage, where each element corresponds to the operand with
-    the same index. The first index relates to the operation result (if any).
+    the same index. The first index relates to the operation result (if any). 
+    Note, the operands themselves are stored as VariadicOfVariadic in the next order:
+    output, input and then in/out operands.
 
     Note, when several output operands are present, the result type may be represented as
     an anon struct type.

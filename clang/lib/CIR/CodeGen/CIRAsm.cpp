@@ -642,17 +642,30 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
     if (IA.getNumResults())
       result = IA.getResult(0);
 
-    std::vector<mlir::Attribute> operandAttrs;
+    llvm::SmallVector<mlir::Attribute> operandAttrs;
+    llvm::SmallVector<mlir::Value, 8> allOperands;
 
+    for (auto r : operands) 
+      allOperands.insert(allOperands.end(), r.begin(), r.end());
+
+    int i = 0;
     for (auto typ : ArgElemTypes) {
       if (typ) {
-        operandAttrs.push_back(mlir::TypeAttr::get(typ));
+        auto op = allOperands[i];
+        assert(op.getType().isa<mlir::cir::PointerType>() &&
+          "pointer type expected"
+        );
+        assert(cast<mlir::cir::PointerType>(op.getType()).getPointee() == typ
+          && "element type differs from pointee type!");
+
+        operandAttrs.push_back(mlir::UnitAttr::get(builder.getContext()));
       } else {
         // We need to add an attribute for every arg since later, during
         // the lowering to LLVM IR the attributes will be assigned to the
         // CallInsn argument by index, i.e. we can't skip null type here
         operandAttrs.push_back(mlir::Attribute());
       }
+      ++i;
     }
 
     auto size = OutArgs.size() + InOutArgs.size() + InArgs.size();

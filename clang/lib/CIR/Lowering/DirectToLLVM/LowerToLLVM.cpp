@@ -65,6 +65,7 @@
 #include <deque>
 #include <optional>
 #include <set>
+#include <iostream>
 
 using namespace cir;
 using namespace llvm;
@@ -2840,6 +2841,7 @@ class CIRInlineAsmOpLowering
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::InlineAsmOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
+    std::cout << "CIRInlineAsmOpLowering\n";
     mlir::Type llResTy;
     if (op.getNumResults())
       llResTy = getTypeConverter()->convertType(op.getType(0));
@@ -2859,35 +2861,41 @@ class CIRInlineAsmOpLowering
     if (!op.getNumResults())
       opAttrs.push_back(mlir::Attribute());
 
-    for (auto attr : op.getOperandAttrs()) {
-      if (!attr) {
+    llvm::SmallVector<mlir::Value> llvmOperands;
+    llvm::SmallVector<mlir::Value> cirOperands;
+    for (auto i = 0; i < op.getOperands().size(); ++i) {
+      auto llvmOps = adaptor.getOperands()[i];
+      auto cirOps = op.getOperands()[i];
+      llvmOperands.insert(llvmOperands.end(), llvmOps.begin(), llvmOps.end());
+      cirOperands.insert(cirOperands.end(), cirOps.begin(), cirOps.end());
+    }
+
+    for (std::size_t i = 0; i < op.getOperandAttrs().size(); ++i) {
+      if (op.getOperandAttrs()[i]) {
         opAttrs.push_back(mlir::Attribute());
+        std::cout << "here!\n";
         continue;
       }
-
-      mlir::TypeAttr tAttr = cast<mlir::TypeAttr>(attr);
+      std::cout << "here!!\n";
       std::vector<mlir::NamedAttribute> attrs;
+      auto typ = cast<mlir::cir::PointerType>(cirOperands[i].getType());
       auto typAttr = mlir::TypeAttr::get(
-          getTypeConverter()->convertType(tAttr.getValue()));
+        getTypeConverter()->convertType(typ));
 
       attrs.push_back(rewriter.getNamedAttr(llvmAttrName, typAttr));
       auto newDict = rewriter.getDictionaryAttr(attrs);
       opAttrs.push_back(newDict);
-    }
+    }    
 
-    llvm::SmallVector<mlir::Value> operands;
-    for (auto ops : adaptor.getOperands()) {
-      for (auto o : ops) {
-        operands.push_back(o);
-      }
-    }
-
-    rewriter.replaceOpWithNewOp<mlir::LLVM::InlineAsmOp>(
-        op, llResTy, operands, op.getAsmStringAttr(), op.getConstraintsAttr(),
+    auto newOp = rewriter.replaceOpWithNewOp<mlir::LLVM::InlineAsmOp>(
+        op, llResTy, llvmOperands, op.getAsmStringAttr(), op.getConstraintsAttr(),
         op.getSideEffectsAttr(),
         /*is_align_stack*/ mlir::UnitAttr(),
         mlir::LLVM::AsmDialectAttr::get(getContext(), llDialect),
         rewriter.getArrayAttr(opAttrs));
+
+    newOp.dump();
+
     return mlir::success();
   }
 };

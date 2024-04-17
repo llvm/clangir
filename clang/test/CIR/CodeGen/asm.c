@@ -21,9 +21,9 @@ void empty2() {
 }
 
 // CHECK: cir.asm(x86_att, 
-// CHECK:   out = [%0 : !cir.ptr<!s32i> : ElementType !s32i],
+// CHECK:   out = [%0 : !cir.ptr<!s32i> (maybe_memory)],
 // CHECK:   in = [],
-// CHECK:   in_out = [%0 : !cir.ptr<!s32i> : ElementType !s32i],
+// CHECK:   in_out = [%0 : !cir.ptr<!s32i> (maybe_memory)],
 // CHECK:   {"" "=*m,*m,~{dirflag},~{fpsr},~{flags}"}) side_effects
 void empty3(int x) {
   __asm__ volatile("" : "+m"(x));
@@ -31,7 +31,7 @@ void empty3(int x) {
 
 // CHECK: cir.asm(x86_att, 
 // CHECK:   out = [],
-// CHECK:   in = [%0 : !cir.ptr<!s32i> : ElementType !s32i],
+// CHECK:   in = [%0 : !cir.ptr<!s32i> (maybe_memory)],
 // CHECK:   in_out = [],
 // CHECK:   {"" "*m,~{dirflag},~{fpsr},~{flags}"}) side_effects
 void empty4(int x) {
@@ -39,7 +39,7 @@ void empty4(int x) {
 }
 
 // CHECK: cir.asm(x86_att, 
-// CHECK:   out = [%0 : !cir.ptr<!s32i> : ElementType !s32i],
+// CHECK:   out = [%0 : !cir.ptr<!s32i> (maybe_memory)],
 // CHECK:   in = [],
 // CHECK:   in_out = [],
 // CHECK:   {"" "=*m,~{dirflag},~{fpsr},~{flags}"}) side_effects
@@ -112,7 +112,7 @@ unsigned add3(unsigned int x) { // ((42 + x) - 1) * 2
 // CHECK: cir.store %arg0, [[TMP0]] : !cir.ptr<!s32i>, cir.ptr <!cir.ptr<!s32i>>
 // CHECK: [[TMP1:%.*]] = cir.load deref [[TMP0]] : cir.ptr <!cir.ptr<!s32i>>, !cir.ptr<!s32i>
 // CHECK: cir.asm(x86_att, 
-// CHECK:       out = [%1 : !cir.ptr<!s32i> : ElementType !s32i],
+// CHECK:       out = [%1 : !cir.ptr<!s32i> (maybe_memory)],
 // CHECK:       in = [],
 // CHECK:       in_out = [],
 // CHECK:       {"addl $$42, $0" "=*m,~{dirflag},~{fpsr},~{flags}"}) 

@@ -23,21 +23,21 @@ module {
     // CHECK: llvm.inline_asm has_side_effects asm_dialect = att operand_attrs = [] "xyz", "~{dirflag},~{fpsr},~{flags}" : () -> i32
 
     cir.asm(x86_att, 
-      out = [%0 : !cir.ptr<!s32i> : ElementType !s32i],
+      out = [%0 : !cir.ptr<!s32i> (maybe_memory)],
       in = [],
-      in_out = [%0 : !cir.ptr<!s32i> : ElementType !s32i],
+      in_out = [%0 : !cir.ptr<!s32i> (maybe_memory)],
       {"" "=*m,*m,~{dirflag},~{fpsr},~{flags}"}) side_effects -> !s32i
     // CHECK: llvm.inline_asm has_side_effects asm_dialect = att operand_attrs = [{elementtype = i32}, {elementtype = i32}] "", "=*m,*m,~{dirflag},~{fpsr},~{flags}" %1, %1 : (!llvm.ptr, !llvm.ptr) -> i32
 
     cir.asm(x86_att, 
       out = [],
-      in = [%0 : !cir.ptr<!s32i> : ElementType !s32i],
+      in = [%0 : !cir.ptr<!s32i> (maybe_memory)],
       in_out = [],
       {"" "*m,~{dirflag},~{fpsr},~{flags}"}) side_effects -> !s32i      
     // CHECK: llvm.inline_asm has_side_effects asm_dialect = att operand_attrs = [{elementtype = i32}] "", "*m,~{dirflag},~{fpsr},~{flags}" %1 : (!llvm.ptr) -> i32
 
     cir.asm(x86_att, 
-      out = [%0 : !cir.ptr<!s32i> : ElementType !s32i],
+      out = [%0 : !cir.ptr<!s32i> (maybe_memory)],
       in = [],
       in_out = [],
       {"" "=*m,~{dirflag},~{fpsr},~{flags}"}) side_effects -> !s32i

@@ -2772,7 +2772,7 @@ void cir::InlineAsmOp::print(OpAsmPrinter &p) {
                             p.printOperand(value);
                             p << " : " << value.getType();
                             if (*attrIt)
-                              p << " : ElementType " << *attrIt;
+                              p << " (maybe_memory)";
                             attrIt++;
                           });
     p << "],";
@@ -2870,16 +2870,17 @@ ParseResult cir::InlineAsmOp::parse(OpAsmParser &parser,
           if (parseValue(val).succeeded()) {
             result.operands.push_back(val);
             size++;
-            if (parser.parseOptionalColon().failed()) {
+
+            if (parser.parseOptionalLParen().failed()) {
               operand_attrs.push_back(mlir::Attribute());
               return mlir::success();
             }
 
-            if (parser.parseKeyword("ElementType").succeeded()) {
-              if (parser.parseType(eltTyp).succeeded()) {
-                operand_attrs.push_back(mlir::TypeAttr::get(eltTyp));
-                return mlir::success();
-              }
+            if (parser.parseKeyword("maybe_memory").succeeded()) {
+              operand_attrs.push_back(mlir::UnitAttr::get(ctxt));
+              if (parser.parseRParen())
+                return expected(")");
+              return mlir::success();
             }
           }
           return mlir::failure();
