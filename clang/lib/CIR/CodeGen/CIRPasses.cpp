@@ -16,6 +16,7 @@
 
 #include "mlir/Pass/Pass.h"
 #include "mlir/Pass/PassManager.h"
+#include "mlir/Support/LogicalResult.h"
 
 namespace cir {
 mlir::LogicalResult
@@ -29,9 +30,15 @@ runCIRToCIRPasses(mlir::ModuleOp theModule, mlir::MLIRContext *mlirCtx,
   mlir::PassManager pm(mlirCtx);
   pm.addPass(mlir::createMergeCleanupsPass());
 
+  // TODO(CIR): Make this actually propagate errors correctly. This is stubbed
+  // in to get rebases going.
+  auto errorHandler = [](const llvm::Twine &) -> mlir::LogicalResult {
+    return mlir::LogicalResult::failure();
+  };
+
   if (enableLifetime) {
     auto lifetimePass = mlir::createLifetimeCheckPass(&astCtx);
-    if (lifetimePass->initializeOptions(lifetimeOpts).failed()) {
+    if (lifetimePass->initializeOptions(lifetimeOpts, errorHandler).failed()) {
       passOptParsingFailure = lifetimeOpts;
       return mlir::failure();
     }
@@ -40,7 +47,8 @@ runCIRToCIRPasses(mlir::ModuleOp theModule, mlir::MLIRContext *mlirCtx,
 
   if (enableIdiomRecognizer) {
     auto idiomPass = mlir::createIdiomRecognizerPass(&astCtx);
-    if (idiomPass->initializeOptions(idiomRecognizerOpts).failed()) {
+    if (idiomPass->initializeOptions(idiomRecognizerOpts, errorHandler)
+            .failed()) {
       passOptParsingFailure = idiomRecognizerOpts;
       return mlir::failure();
     }
@@ -49,7 +57,7 @@ runCIRToCIRPasses(mlir::ModuleOp theModule, mlir::MLIRContext *mlirCtx,
 
   if (enableLibOpt) {
     auto libOpPass = mlir::createLibOptPass(&astCtx);
-    if (libOpPass->initializeOptions(libOptOpts).failed()) {
+    if (libOpPass->initializeOptions(libOptOpts, errorHandler).failed()) {
       passOptParsingFailure = libOptOpts;
       return mlir::failure();
     }
