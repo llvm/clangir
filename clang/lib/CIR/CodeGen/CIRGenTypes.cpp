@@ -374,6 +374,8 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
   // If we don't have it in the cache, convert it now.
   mlir::Type ResultType = nullptr;
   switch (Ty->getTypeClass()) {
+  case Type::ArrayParameter:
+    llvm_unreachable("NYI");
   case Type::Record: // Handled above.
 #define TYPE(Class, Base)
 #define ABSTRACT_TYPE(Class, Base)

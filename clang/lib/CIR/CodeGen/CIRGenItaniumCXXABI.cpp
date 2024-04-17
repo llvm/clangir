@@ -1467,6 +1467,8 @@ void CIRGenItaniumRTTIBuilder::BuildVTablePointer(mlir::Location loc,
   const char *VTableName = nullptr;
 
   switch (Ty->getTypeClass()) {
+  case Type::ArrayParameter:
+    llvm_unreachable("NYI");
 #define TYPE(Class, Base)
 #define ABSTRACT_TYPE(Class, Base)
 #define NON_CANONICAL_UNLESS_DEPENDENT_TYPE(Class, Base) case Type::Class:
@@ -1838,6 +1840,8 @@ mlir::Attribute CIRGenItaniumRTTIBuilder::BuildTypeInfo(
   Fields.push_back(TypeNameField);
 
   switch (Ty->getTypeClass()) {
+  case Type::ArrayParameter:
+    llvm_unreachable("NYI");
 #define TYPE(Class, Base)
 #define ABSTRACT_TYPE(Class, Base)
 #define NON_CANONICAL_UNLESS_DEPENDENT_TYPE(Class, Base) case Type::Class:

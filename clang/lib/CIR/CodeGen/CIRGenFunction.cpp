@@ -56,6 +56,8 @@ TypeEvaluationKind CIRGenFunction::getEvaluationKind(QualType type) {
   type = type.getCanonicalType();
   while (true) {
     switch (type->getTypeClass()) {
+    case Type::ArrayParameter:
+      llvm_unreachable("NYI");
 #define TYPE(name, parent)
 #define ABSTRACT_TYPE(name, parent)
 #define NON_CANONICAL_TYPE(name, parent) case Type::name:
@@ -1554,6 +1556,8 @@ void CIRGenFunction::buildVariablyModifiedType(QualType type) {
 
     const Type *ty = type.getTypePtr();
     switch (ty->getTypeClass()) {
+    case Type::ArrayParameter:
+      llvm_unreachable("NYI");
     case clang::Type::CountAttributed:
     case clang::Type::PackIndexing:
       llvm_unreachable("NYI");

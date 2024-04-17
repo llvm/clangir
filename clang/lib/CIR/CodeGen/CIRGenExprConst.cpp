@@ -877,6 +877,7 @@ public:
     Expr *subExpr = E->getSubExpr();
 
     switch (E->getCastKind()) {
+    case CK_HLSLArrayRValue:
     case CK_HLSLVectorTruncation:
     case CK_ToUnion:
       llvm_unreachable("not implemented");

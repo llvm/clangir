@@ -21,6 +21,7 @@
 
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/GlobalDecl.h"
+#include "clang/AST/OperationKinds.h"
 #include "clang/Basic/Builtins.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
@@ -1601,6 +1602,7 @@ LValue CIRGenFunction::buildStringLiteralLValue(const StringLiteral *E) {
 /// result, including noop aggregate casts, and cast from scalar to union.
 LValue CIRGenFunction::buildCastLValue(const CastExpr *E) {
   switch (E->getCastKind()) {
+  case CK_HLSLArrayRValue:
   case CK_HLSLVectorTruncation:
   case CK_ToVoid:
   case CK_BitCast:
