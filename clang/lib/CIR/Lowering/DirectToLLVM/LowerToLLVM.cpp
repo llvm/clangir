@@ -2840,7 +2840,6 @@ class CIRInlineAsmOpLowering
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::InlineAsmOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    std::cout << "CIRInlineAsmOpLowering\n";
     mlir::Type llResTy;
     if (op.getNumResults())
       llResTy = getTypeConverter()->convertType(op.getType(0));
