@@ -1939,6 +1939,18 @@ public:
 };
 
 class CIRBinOpLowering : public mlir::OpConversionPattern<mlir::cir::BinOp> {
+
+  mlir::LLVM::IntegerOverflowFlags
+  getIntOverflowFlag(mlir::cir::BinOp op) const {
+    if (op.getNoUnsignedWrap())
+      return mlir::LLVM::IntegerOverflowFlags::nuw;
+
+    if (op.getNoSignedWrap())
+      return mlir::LLVM::IntegerOverflowFlags::nsw;
+
+    return mlir::LLVM::IntegerOverflowFlags::none;
+  }
+
 public:
   using OpConversionPattern<mlir::cir::BinOp>::OpConversionPattern;
 
@@ -1961,19 +1973,22 @@ public:
     switch (op.getKind()) {
     case mlir::cir::BinOpKind::Add:
       if (mlir::isa<mlir::cir::IntType>(type))
-        rewriter.replaceOpWithNewOp<mlir::LLVM::AddOp>(op, llvmTy, lhs, rhs);
+        rewriter.replaceOpWithNewOp<mlir::LLVM::AddOp>(op, llvmTy, lhs, rhs,
+                                                       getIntOverflowFlag(op));
       else
         rewriter.replaceOpWithNewOp<mlir::LLVM::FAddOp>(op, llvmTy, lhs, rhs);
       break;
     case mlir::cir::BinOpKind::Sub:
       if (mlir::isa<mlir::cir::IntType>(type))
-        rewriter.replaceOpWithNewOp<mlir::LLVM::SubOp>(op, llvmTy, lhs, rhs);
+        rewriter.replaceOpWithNewOp<mlir::LLVM::SubOp>(op, llvmTy, lhs, rhs,
+                                                       getIntOverflowFlag(op));
       else
         rewriter.replaceOpWithNewOp<mlir::LLVM::FSubOp>(op, llvmTy, lhs, rhs);
       break;
     case mlir::cir::BinOpKind::Mul:
       if (mlir::isa<mlir::cir::IntType>(type))
-        rewriter.replaceOpWithNewOp<mlir::LLVM::MulOp>(op, llvmTy, lhs, rhs);
+        rewriter.replaceOpWithNewOp<mlir::LLVM::MulOp>(op, llvmTy, lhs, rhs,
+                                                       getIntOverflowFlag(op));
       else
         rewriter.replaceOpWithNewOp<mlir::LLVM::FMulOp>(op, llvmTy, lhs, rhs);
       break;
