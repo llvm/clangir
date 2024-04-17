@@ -2754,7 +2754,7 @@ class CIRInlineAsmOpLowering
 
     llvm::SmallVector<mlir::Value> llvmOperands;
     llvm::SmallVector<mlir::Value> cirOperands;
-    for (auto i = 0; i < op.getOperands().size(); ++i) {
+    for (unsigned i = 0; i < op.getOperands().size(); ++i) {
       auto llvmOps = adaptor.getOperands()[i];
       auto cirOps = op.getOperands()[i];
       llvmOperands.insert(llvmOperands.end(), llvmOps.begin(), llvmOps.end());
