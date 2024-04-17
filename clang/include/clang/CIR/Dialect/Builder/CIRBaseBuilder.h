@@ -140,8 +140,8 @@ public:
     return create<mlir::cir::StoreOp>(loc, val, dst, _volatile, order);
   }
 
-  mlir::Value createSub(mlir::Value lhs, mlir::Value rhs,
-                        bool hasNUW = false, bool hasNSW = false) {
+  mlir::Value createSub(mlir::Value lhs, mlir::Value rhs, bool hasNUW = false,
+                        bool hasNSW = false) {
     auto op = create<mlir::cir::BinOp>(lhs.getLoc(), lhs.getType(),
                                        mlir::cir::BinOpKind::Sub, lhs, rhs);
     if (hasNUW)

@@ -2777,8 +2777,8 @@ LogicalResult BinOp::verify() {
                    getKind() == mlir::cir::BinOpKind::Mul;
 
   if (noWrap && !noWrapOps)
-    return emitError() <<
-      "The nsw/nuw flags are applicable to opcodes: 'add', 'sub' and 'mul'";
+    return emitError() << "The nsw/nuw flags are applicable to opcodes: 'add', "
+                          "'sub' and 'mul'";
 
   return mlir::success();
 }
