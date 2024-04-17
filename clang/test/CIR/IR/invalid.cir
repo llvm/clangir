@@ -1049,3 +1049,16 @@ cir.func @bad_binop_for_nowrap(%x: !u32i, %y: !u32i) {
   // expected-error@+1 {{The nsw/nuw flags are applicable to opcodes: 'add', 'sub' and 'mul'}}
   %0 = cir.binop(div, %x, %y) nsw : !u32i
 }
+
+// -----
+
+!s32i = !cir.int<s, 32>
+
+module {
+  cir.global "private" external @batata : !s32i
+  cir.func @f35() {
+    // expected-error@+1 {{access to global not marked thread local}}
+    %0 = cir.get_global thread_local @batata : cir.ptr <!s32i>
+    cir.return
+  }
+}
