@@ -65,7 +65,6 @@
 #include <deque>
 #include <optional>
 #include <set>
-#include <iostream>
 
 using namespace cir;
 using namespace llvm;
@@ -2885,8 +2884,8 @@ class CIRInlineAsmOpLowering
     }
 
     rewriter.replaceOpWithNewOp<mlir::LLVM::InlineAsmOp>(
-        op, llResTy, operands, op.getAsmStringAttr(),
-        op.getConstraintsAttr(), op.getSideEffectsAttr(),
+        op, llResTy, operands, op.getAsmStringAttr(), op.getConstraintsAttr(),
+        op.getSideEffectsAttr(),
         /*is_align_stack*/ mlir::UnitAttr(),
         mlir::LLVM::AsmDialectAttr::get(getContext(), llDialect),
         rewriter.getArrayAttr(opAttrs));
