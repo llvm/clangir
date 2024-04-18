@@ -3542,6 +3542,11 @@ def IsConstantOp : CIR_Op<"is_constant", [Pure]> {
 
 def CIR_FlatSwitchOp : CIR_Op<"flat.switch", [AttrSizedOperandSegments, Terminator]> {
 
+  let description = [{
+    The `cir.flat.switch` operation is a region-less of the `cir.switch` and is a 
+    intermediate between codegen and lowering. 
+  }];
+
   let arguments = (ins
     CIR_IntType:$condition,
     Variadic<AnyType>:$defaultOperands,

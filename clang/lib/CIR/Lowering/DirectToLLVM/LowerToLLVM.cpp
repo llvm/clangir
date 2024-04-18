@@ -1517,12 +1517,6 @@ public:
   matchAndRewrite(mlir::cir::FlatSwitchOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
                     
-    // Empty switch statement: just erase it.
-    // if (!op.getCases().has_value() || op.getCases()->empty()) {
-    //   rewriter.eraseOp(op);
-    //   return mlir::success();
-    // }
-
     llvm::SmallVector<mlir::APInt, 8> caseValues;
     if (op.getCaseValues()) {
       for (auto val : *op.getCaseValues()) {

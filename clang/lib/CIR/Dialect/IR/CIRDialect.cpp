@@ -18,7 +18,6 @@
 #include "llvm/Support/ErrorHandling.h"
 #include <optional>
 #include <numeric>
-#include <iostream>
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMTypes.h"
@@ -1249,13 +1248,12 @@ static ParseResult parseFlatSwitchOpCases(
   if (succeeded(parser.parseOptionalRSquare()))
     return success();
   SmallVector<mlir::Attribute> values;
-  unsigned bitWidth = flagType.getIntOrFloatBitWidth();
-  
+ 
   auto parseCase = [&]() {
     int64_t value = 0;
     if (failed(parser.parseInteger(value)))
       return failure();
-    //values.push_back(APInt(bitWidth, value));
+
     values.push_back(IntAttr::get(flagType, value));
 
     Block *destination;
@@ -1276,10 +1274,6 @@ static ParseResult parseFlatSwitchOpCases(
   };
   if (failed(parser.parseCommaSeparatedList(parseCase)))
     return failure();
-
-  // ShapedType caseValueType =
-  //     mlir::VectorType::get(static_cast<int64_t>(values.size()), flagType);
-  // caseValues = DenseIntElementsAttr::get(caseValueType, values);
 
   caseValues = ArrayAttr::get(flagType.getContext(), values);
 
@@ -1303,7 +1297,8 @@ static void printFlatSwitchOpCases(OpAsmPrinter &p, FlatSwitchOp op, Type flagTy
       llvm::zip(caseValues, caseDestinations),
       [&](auto i) {
         p << "  ";
-        p << std::get<0>(i);
+        mlir::Attribute a = std::get<0>(i);
+        p << a.cast<mlir::cir::IntAttr>().getValue();
         p << ": ";
         p.printSuccessorAndUseList(std::get<1>(i), caseOperands[index++]);
       },

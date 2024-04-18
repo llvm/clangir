@@ -365,7 +365,6 @@ void FlattenCFGPass::runOnOperation() {
   if (applyOpPatternsAndFold(ops, std::move(patterns)).failed())
     signalPassFailure();
 
-    getOperation()->dump();
 }
 
 } // namespace
