@@ -2914,17 +2914,17 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
       CIRConstantLowering, CIRStoreLowering, CIRAllocaLowering, CIRFuncLowering,
       CIRCastOpLowering, CIRGlobalOpLowering, CIRGetGlobalOpLowering,
       CIRVAStartLowering, CIRVAEndLowering, CIRVACopyLowering, CIRVAArgLowering,
-      CIRBrOpLowering, CIRGetMemberOpLowering,
-      CIRSwitchOpLowering, CIRPtrDiffOpLowering, CIRCopyOpLowering,
-      CIRMemCpyOpLowering, CIRFAbsOpLowering, CIRExpectOpLowering,
-      CIRVTableAddrPointOpLowering, CIRVectorCreateLowering,
-      CIRVectorInsertLowering, CIRVectorExtractLowering, CIRVectorCmpOpLowering,
-      CIRVectorSplatLowering, CIRVectorTernaryLowering,
-      CIRVectorShuffleIntsLowering, CIRVectorShuffleVecLowering,
-      CIRStackSaveLowering, CIRStackRestoreLowering, CIRUnreachableLowering,
-      CIRTrapLowering, CIRInlineAsmOpLowering, CIRSetBitfieldLowering,
-      CIRGetBitfieldLowering, CIRPrefetchLowering, CIRObjSizeOpLowering,
-      CIRIsConstantOpLowering>(converter, patterns.getContext());
+      CIRBrOpLowering, CIRGetMemberOpLowering, CIRSwitchOpLowering,
+      CIRPtrDiffOpLowering, CIRCopyOpLowering, CIRMemCpyOpLowering,
+      CIRFAbsOpLowering, CIRExpectOpLowering, CIRVTableAddrPointOpLowering,
+      CIRVectorCreateLowering, CIRVectorInsertLowering,
+      CIRVectorExtractLowering, CIRVectorCmpOpLowering, CIRVectorSplatLowering,
+      CIRVectorTernaryLowering, CIRVectorShuffleIntsLowering,
+      CIRVectorShuffleVecLowering, CIRStackSaveLowering,
+      CIRStackRestoreLowering, CIRUnreachableLowering, CIRTrapLowering,
+      CIRInlineAsmOpLowering, CIRSetBitfieldLowering, CIRGetBitfieldLowering,
+      CIRPrefetchLowering, CIRObjSizeOpLowering, CIRIsConstantOpLowering>(
+      converter, patterns.getContext());
 }
 
 namespace {

@@ -283,8 +283,8 @@ public:
     rewriter.inlineRegionBefore(falseRegion, continueBlock);
 
     rewriter.setInsertionPointToEnd(condBlock);
-    rewriter.create<mlir::cir::BrCondOp>(loc, op.getCond(),
-                                          trueBlock, falseBlock);
+    rewriter.create<mlir::cir::BrCondOp>(loc, op.getCond(), trueBlock,
+                                         falseBlock);
 
     rewriter.replaceOp(op, continueBlock->getArguments());
 
@@ -294,10 +294,9 @@ public:
 };
 
 void populateFlattenCFGPatterns(RewritePatternSet &patterns) {
-  patterns
-      .add<CIRIfFlattening, CIRLoopOpInterfaceFlattening, 
-           CIRScopeOpFlattening, CIRTernaryOpFlattening>(
-          patterns.getContext());
+  patterns.add<CIRIfFlattening, CIRLoopOpInterfaceFlattening,
+               CIRScopeOpFlattening, CIRTernaryOpFlattening>(
+      patterns.getContext());
 }
 
 void FlattenCFGPass::runOnOperation() {
