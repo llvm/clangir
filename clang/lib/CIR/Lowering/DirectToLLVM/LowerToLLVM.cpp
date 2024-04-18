@@ -1512,11 +1512,10 @@ class CIRFlatSwitchOpLowering
 public:
   using OpConversionPattern<mlir::cir::FlatSwitchOp>::OpConversionPattern;
 
-  
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::FlatSwitchOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-                    
+
     llvm::SmallVector<mlir::APInt, 8> caseValues;
     if (op.getCaseValues()) {
       for (auto val : *op.getCaseValues()) {
@@ -1535,15 +1534,12 @@ public:
     for (auto x : op.getCaseOperands()) {
       caseOperands.push_back(x);
     }
-    
+
     // Set switch op to branch to the newly created blocks.
     rewriter.setInsertionPoint(op);
     rewriter.replaceOpWithNewOp<mlir::LLVM::SwitchOp>(
-        op, adaptor.getCondition(), op.getDefaultDestination(), 
-        op.getDefaultOperands(), 
-        caseValues, 
-        caseDestinations,
-        caseOperands);
+        op, adaptor.getCondition(), op.getDefaultDestination(),
+        op.getDefaultOperands(), caseValues, caseDestinations, caseOperands);
     return mlir::success();
   }
 };

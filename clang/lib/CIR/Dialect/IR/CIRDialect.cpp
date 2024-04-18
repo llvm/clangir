@@ -16,8 +16,8 @@
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/Interfaces/CIRLoopOpInterface.h"
 #include "llvm/Support/ErrorHandling.h"
-#include <optional>
 #include <numeric>
+#include <optional>
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMTypes.h"
@@ -1221,19 +1221,20 @@ void SwitchOp::build(
 // FlatSwitchOp
 //===----------------------------------------------------------------------===//
 
-void FlatSwitchOp::build(OpBuilder &builder, OperationState &result, Value value,
-                     Block *defaultDestination, ValueRange defaultOperands,
-                     ArrayRef<APInt> caseValues, BlockRange caseDestinations,
-                     ArrayRef<ValueRange> caseOperands) {
+void FlatSwitchOp::build(OpBuilder &builder, OperationState &result,
+                         Value value, Block *defaultDestination,
+                         ValueRange defaultOperands, ArrayRef<APInt> caseValues,
+                         BlockRange caseDestinations,
+                         ArrayRef<ValueRange> caseOperands) {
 
   std::vector<mlir::Attribute> caseValuesAttrs;
-  for (auto& val : caseValues) {
-      caseValuesAttrs.push_back(mlir::cir::IntAttr::get(value.getType(), val));
+  for (auto &val : caseValues) {
+    caseValuesAttrs.push_back(mlir::cir::IntAttr::get(value.getType(), val));
   }
   auto attrs = ArrayAttr::get(builder.getContext(), caseValuesAttrs);
-  
+
   build(builder, result, value, defaultOperands, caseOperands, attrs,
-         defaultDestination, caseDestinations);
+        defaultDestination, caseDestinations);
 }
 
 /// <cases> ::= `[` (case (`,` case )* )? `]`
@@ -1248,7 +1249,7 @@ static ParseResult parseFlatSwitchOpCases(
   if (succeeded(parser.parseOptionalRSquare()))
     return success();
   SmallVector<mlir::Attribute> values;
- 
+
   auto parseCase = [&]() {
     int64_t value = 0;
     if (failed(parser.parseInteger(value)))
@@ -1280,11 +1281,11 @@ static ParseResult parseFlatSwitchOpCases(
   return parser.parseRSquare();
 }
 
-static void printFlatSwitchOpCases(OpAsmPrinter &p, FlatSwitchOp op, Type flagType,
-                               mlir::ArrayAttr caseValues,
-                               SuccessorRange caseDestinations,
-                               OperandRangeRange caseOperands,
-                               const TypeRangeRange &caseOperandTypes) {
+static void printFlatSwitchOpCases(OpAsmPrinter &p, FlatSwitchOp op,
+                                   Type flagType, mlir::ArrayAttr caseValues,
+                                   SuccessorRange caseDestinations,
+                                   OperandRangeRange caseOperands,
+                                   const TypeRangeRange &caseOperandTypes) {
   p << '[';
   p.printNewline();
   if (!caseValues) {

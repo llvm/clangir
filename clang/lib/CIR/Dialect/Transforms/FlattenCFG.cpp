@@ -259,7 +259,7 @@ public:
 
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::SwitchOp op,
-                  mlir::PatternRewriter &rewriter) const override {  
+                  mlir::PatternRewriter &rewriter) const override {
     // Empty switch statement: just erase it.
     if (!op.getCases().has_value() || op.getCases()->empty()) {
       rewriter.eraseOp(op);
@@ -335,19 +335,18 @@ public:
     }
 
     // Set switch op to branch to the newly created blocks.
-    rewriter.setInsertionPoint(op);    
+    rewriter.setInsertionPoint(op);
     rewriter.replaceOpWithNewOp<mlir::cir::FlatSwitchOp>(
-        op, op.getCondition(), defaultDestination, defaultOperands,
-        caseValues, caseDestinations, caseOperands);
+        op, op.getCondition(), defaultDestination, defaultOperands, caseValues,
+        caseDestinations, caseOperands);
     return mlir::success();
   }
 };
 
 void populateFlattenCFGPatterns(RewritePatternSet &patterns) {
-  patterns
-      .add<CIRIfFlattening, CIRLoopOpInterfaceFlattening, 
-      CIRScopeOpFlattening, CIRSwitchOpFlattening>(
-          patterns.getContext());
+  patterns.add<CIRIfFlattening, CIRLoopOpInterfaceFlattening,
+               CIRScopeOpFlattening, CIRSwitchOpFlattening>(
+      patterns.getContext());
 }
 
 void FlattenCFGPass::runOnOperation() {
@@ -364,7 +363,6 @@ void FlattenCFGPass::runOnOperation() {
   // Apply patterns.
   if (applyOpPatternsAndFold(ops, std::move(patterns)).failed())
     signalPassFailure();
-
 }
 
 } // namespace
