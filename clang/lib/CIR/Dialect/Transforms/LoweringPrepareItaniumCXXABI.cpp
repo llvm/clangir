@@ -39,6 +39,8 @@ LoweringPrepareCXXABI *LoweringPrepareCXXABI::createItaniumABI() {
 static void buildBadCastCall(CIRBaseBuilderTy &builder, mlir::Location loc,
                              mlir::FlatSymbolRefAttr badCastFuncRef) {
   // TODO(cir): set the calling convention to __cxa_bad_cast.
+  assert(!MissingFeatures::setCallingConv());
+
   builder.create<mlir::cir::CallOp>(loc, badCastFuncRef, mlir::ValueRange{});
   builder.create<mlir::cir::UnreachableOp>(loc);
   builder.clearInsertionPoint();
@@ -51,6 +53,8 @@ static mlir::Value buildDynamicCastAfterNullCheck(CIRBaseBuilderTy &builder,
   auto castInfo = op.getInfo().cast<mlir::cir::DynamicCastInfoAttr>();
 
   // TODO(cir): consider address space
+  assert(!MissingFeatures::addressSpace());
+
   auto srcPtr = builder.createBitcast(srcValue, builder.getVoidPtrTy());
   auto srcRtti = builder.getConstant(loc, castInfo.getSrcRtti());
   auto destRtti = builder.getConstant(loc, castInfo.getDestRtti());
@@ -58,7 +62,9 @@ static mlir::Value buildDynamicCastAfterNullCheck(CIRBaseBuilderTy &builder,
 
   auto dynCastFuncRef = castInfo.getRuntimeFunc();
   mlir::Value dynCastFuncArgs[4] = {srcPtr, srcRtti, destRtti, offsetHint};
+
   // TODO(cir): set the calling convention for __dynamic_cast.
+  assert(!MissingFeatures::setCallingConv());
   mlir::Value castedPtr =
       builder
           .create<mlir::cir::CallOp>(loc, dynCastFuncRef,
@@ -90,11 +96,7 @@ LoweringPrepareItaniumCXXABI::lowerDynamicCast(CIRBaseBuilderTy &builder,
   auto loc = op->getLoc();
   auto srcValue = op.getSrc();
 
-  // TODO: emit a sanitizer check.
-  // buildTypeCheck(
-  //   TCK_DynamicOperation, DCE->getExprLoc(),
-  //   ThisAddr.getPointer(), srcRecordTy)
-  assert(!MissingFeatures::sanitizers());
+  assert(!MissingFeatures::buildTypeCheck());
 
   if (op.isRefcast())
     return buildDynamicCastAfterNullCheck(builder, op);

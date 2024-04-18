@@ -284,6 +284,12 @@ public:
 
   void buildBadCastCall(CIRGenFunction &CGF, mlir::Location loc) override;
 
+  // The traditional clang CodeGen emits calls to `__dynamic_cast` directly into
+  // LLVM in the `emitDynamicCastCall` function. In CIR, `dynamic_cast`
+  // expressions are lowered to `cir.dyn_cast` ops instead of calls to runtime
+  // functions. So during CIRGen we don't need the `emitDynamicCastCall`
+  // function that clang CodeGen has.
+
   mlir::cir::DynamicCastInfoAttr
   buildDynamicCastInfo(CIRGenFunction &CGF, mlir::Location Loc,
                        QualType SrcRecordTy, QualType DestRecordTy) override;
