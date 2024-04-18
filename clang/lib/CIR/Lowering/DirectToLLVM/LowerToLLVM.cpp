@@ -1518,7 +1518,7 @@ public:
 
     llvm::SmallVector<mlir::APInt, 8> caseValues;
     if (op.getCaseValues()) {
-      for (auto val : *op.getCaseValues()) {
+      for (auto val : op.getCaseValues()) {
         auto intAttr = dyn_cast<mlir::cir::IntAttr>(val);
         caseValues.push_back(intAttr.getValue());
       }

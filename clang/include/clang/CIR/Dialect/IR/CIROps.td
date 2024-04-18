@@ -3551,7 +3551,7 @@ def CIR_FlatSwitchOp : CIR_Op<"flat.switch", [AttrSizedOperandSegments, Terminat
     CIR_IntType:$condition,
     Variadic<AnyType>:$defaultOperands,
     VariadicOfVariadic<AnyType, "case_operand_segments">:$caseOperands,
-    OptionalAttr<ArrayAttr>:$case_values,
+    ArrayAttr:$case_values,
     DenseI32ArrayAttr:$case_operand_segments
   );
 
