@@ -27,6 +27,7 @@ public:
 
   virtual mlir::Value lowerDynamicCast(CIRBaseBuilderTy &builder,
                                        mlir::cir::DynamicCastOp op) = 0;
+  virtual ~LoweringPrepareCXXABI() {}
 };
 
 } // namespace cir
