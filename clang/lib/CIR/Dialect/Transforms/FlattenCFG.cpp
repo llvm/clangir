@@ -339,7 +339,7 @@ public:
     rewriter.replaceOpWithNewOp<mlir::cir::SwitchFlatOp>(
         op, op.getCondition(), defaultDestination, defaultOperands, caseValues,
         caseDestinations, caseOperands);
-    
+
     return mlir::success();
   }
 };
@@ -393,10 +393,10 @@ public:
 };
 
 void populateFlattenCFGPatterns(RewritePatternSet &patterns) {
-  patterns.add<CIRIfFlattening, CIRLoopOpInterfaceFlattening,
-               CIRScopeOpFlattening, CIRSwitchOpFlattening,
-               CIRTernaryOpFlattening>(
-      patterns.getContext());
+  patterns
+      .add<CIRIfFlattening, CIRLoopOpInterfaceFlattening, CIRScopeOpFlattening,
+           CIRSwitchOpFlattening, CIRTernaryOpFlattening>(
+          patterns.getContext());
 }
 
 void FlattenCFGPass::runOnOperation() {
