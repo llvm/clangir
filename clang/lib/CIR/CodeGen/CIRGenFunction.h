@@ -1079,24 +1079,18 @@ public:
 
   mlir::Type getCIRType(const clang::QualType &type);
 
-  const CaseStmt *foldCaseStmt(const clang::CaseStmt &S, mlir::Type condType,
-                               SmallVector<mlir::Attribute, 4> &caseAttrs);
+  const CaseStmt *foldCaseStmt(const clang::CaseStmt &S);
 
   template <typename T>
-  mlir::LogicalResult
-  buildCaseDefaultCascade(const T *stmt, mlir::Type condType,
-                          SmallVector<mlir::Attribute, 4> &caseAttrs,
-                          mlir::OperationState &os);
+  mlir::LogicalResult buildCaseDefaultCascade(const T *stmt);
 
-  mlir::LogicalResult buildCaseStmt(const clang::CaseStmt &S,
-                                    mlir::Type condType,
-                                    SmallVector<mlir::Attribute, 4> &caseAttrs,
-                                    mlir::OperationState &op);
+  mlir::LogicalResult buildCaseStmt(const clang::CaseStmt &S);
 
-  mlir::LogicalResult
-  buildDefaultStmt(const clang::DefaultStmt &S, mlir::Type condType,
-                   SmallVector<mlir::Attribute, 4> &caseAttrs,
-                   mlir::OperationState &op);
+  mlir::LogicalResult buildDefaultStmt(const clang::DefaultStmt &S);
+
+  mlir::LogicalResult buildSwitchCase(const clang::SwitchCase &S);
+
+  mlir::LogicalResult buildSwitchBody(const clang::Stmt *S);
 
   mlir::cir::FuncOp generateCode(clang::GlobalDecl GD, mlir::cir::FuncOp Fn,
                                  const CIRGenFunctionInfo &FnInfo);
@@ -1951,7 +1945,7 @@ public:
     // have their own scopes but are distinct regions nonetheless.
     llvm::SmallVector<mlir::Block *> RetBlocks;
     llvm::SmallVector<std::optional<mlir::Location>> RetLocs;
-    unsigned int CurrentSwitchRegionIdx = -1;
+    llvm::SmallVector<std::unique_ptr<mlir::Region>> SwitchRegions;
 
     // There's usually only one ret block per scope, but this needs to be
     // get or create because of potential unreachable return statements, note
@@ -1972,16 +1966,25 @@ public:
     void buildImplicitReturn();
 
   public:
-    void updateCurrentSwitchCaseRegion() { CurrentSwitchRegionIdx++; }
     llvm::ArrayRef<mlir::Block *> getRetBlocks() { return RetBlocks; }
     llvm::ArrayRef<std::optional<mlir::Location>> getRetLocs() {
       return RetLocs;
+    }
+    llvm::MutableArrayRef<std::unique_ptr<mlir::Region>> getSwitchRegions() {
+      assert(isSwitch() && "expected switch scope");
+      return SwitchRegions;
+    }
+
+    mlir::Region *createSwitchRegion() {
+      assert(isSwitch() && "expected switch scope");
+      SwitchRegions.push_back(std::make_unique<mlir::Region>());
+      return SwitchRegions.back().get();
     }
 
     mlir::Block *getOrCreateRetBlock(CIRGenFunction &CGF, mlir::Location loc) {
       unsigned int regionIdx = 0;
       if (isSwitch())
-        regionIdx = CurrentSwitchRegionIdx;
+        regionIdx = SwitchRegions.size() - 1;
       if (regionIdx >= RetBlocks.size())
         return createRetBlock(CGF, loc);
       return &*RetBlocks.back();
@@ -1991,6 +1994,10 @@ public:
     mlir::Block *getEntryBlock() { return EntryBlock; }
 
     mlir::Location BeginLoc, EndLoc;
+    // Each SmallVector<APSInt> object is corresponding to a case region, empty
+    // vector means default case region.
+    llvm::SmallVector<llvm::SmallVector<llvm::APSInt>> caseEltValueLists;
+    mlir::Block *lastCaseBlock = nullptr;
   };
 
   LexicalScope *currLexScope = nullptr;

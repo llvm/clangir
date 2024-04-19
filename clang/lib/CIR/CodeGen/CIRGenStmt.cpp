@@ -605,38 +605,25 @@ mlir::LogicalResult CIRGenFunction::buildBreakStmt(const clang::BreakStmt &S) {
   return mlir::success();
 }
 
-const CaseStmt *
-CIRGenFunction::foldCaseStmt(const clang::CaseStmt &S, mlir::Type condType,
-                             SmallVector<mlir::Attribute, 4> &caseAttrs) {
+const CaseStmt *CIRGenFunction::foldCaseStmt(const clang::CaseStmt &S) {
   const CaseStmt *caseStmt = &S;
   const CaseStmt *lastCase = &S;
-  SmallVector<mlir::Attribute, 4> caseEltValueListAttr;
+  SmallVector<llvm::APSInt> caseEltValueList;
 
   // Fold cascading cases whenever possible to simplify codegen a bit.
   while (caseStmt) {
     lastCase = caseStmt;
     auto intVal = caseStmt->getLHS()->EvaluateKnownConstInt(getContext());
-    caseEltValueListAttr.push_back(mlir::cir::IntAttr::get(condType, intVal));
+    caseEltValueList.push_back(intVal);
     caseStmt = dyn_cast_or_null<CaseStmt>(caseStmt->getSubStmt());
   }
-
-  auto *ctxt = builder.getContext();
-
-  auto caseAttr = mlir::cir::CaseAttr::get(
-      ctxt, builder.getArrayAttr(caseEltValueListAttr),
-      CaseOpKindAttr::get(ctxt, caseEltValueListAttr.size() > 1
-                                    ? mlir::cir::CaseOpKind::Anyof
-                                    : mlir::cir::CaseOpKind::Equal));
-
-  caseAttrs.push_back(caseAttr);
+  currLexScope->caseEltValueLists.push_back(std::move(caseEltValueList));
 
   return lastCase;
 }
 
 template <typename T>
-mlir::LogicalResult CIRGenFunction::buildCaseDefaultCascade(
-    const T *stmt, mlir::Type condType,
-    SmallVector<mlir::Attribute, 4> &caseAttrs, mlir::OperationState &os) {
+mlir::LogicalResult CIRGenFunction::buildCaseDefaultCascade(const T *stmt) {
 
   assert((isa<CaseStmt, DefaultStmt>(stmt)) &&
          "only case or default stmt go here");
@@ -646,20 +633,18 @@ mlir::LogicalResult CIRGenFunction::buildCaseDefaultCascade(
   // Update scope information with the current region we are
   // emitting code for. This is useful to allow return blocks to be
   // automatically and properly placed during cleanup.
-  auto *region = os.addRegion();
+  auto *region = currLexScope->createSwitchRegion();
   auto *block = builder.createBlock(region);
   builder.setInsertionPointToEnd(block);
-  currLexScope->updateCurrentSwitchCaseRegion();
 
   auto *sub = stmt->getSubStmt();
 
   if (isa<DefaultStmt>(sub) && isa<CaseStmt>(stmt)) {
     builder.createYield(getLoc(stmt->getBeginLoc()));
-    res =
-        buildDefaultStmt(*dyn_cast<DefaultStmt>(sub), condType, caseAttrs, os);
+    res = buildDefaultStmt(*dyn_cast<DefaultStmt>(sub));
   } else if (isa<CaseStmt>(sub) && isa<DefaultStmt>(stmt)) {
     builder.createYield(getLoc(stmt->getBeginLoc()));
-    res = buildCaseStmt(*dyn_cast<CaseStmt>(sub), condType, caseAttrs, os);
+    res = buildCaseStmt(*dyn_cast<CaseStmt>(sub));
   } else {
     res = buildStmt(sub, /*useCurrentScope=*/!isa<CompoundStmt>(sub));
   }
@@ -667,29 +652,27 @@ mlir::LogicalResult CIRGenFunction::buildCaseDefaultCascade(
   return res;
 }
 
-mlir::LogicalResult
-CIRGenFunction::buildCaseStmt(const CaseStmt &S, mlir::Type condType,
-                              SmallVector<mlir::Attribute, 4> &caseAttrs,
-                              mlir::OperationState &os) {
+mlir::LogicalResult CIRGenFunction::buildCaseStmt(const CaseStmt &S) {
   assert((!S.getRHS() || !S.caseStmtIsGNURange()) &&
          "case ranges not implemented");
 
-  auto *caseStmt = foldCaseStmt(S, condType, caseAttrs);
-  return buildCaseDefaultCascade(caseStmt, condType, caseAttrs, os);
+  auto *caseStmt = foldCaseStmt(S);
+  return buildCaseDefaultCascade(caseStmt);
 }
 
-mlir::LogicalResult
-CIRGenFunction::buildDefaultStmt(const DefaultStmt &S, mlir::Type condType,
-                                 SmallVector<mlir::Attribute, 4> &caseAttrs,
-                                 mlir::OperationState &os) {
-  auto ctxt = builder.getContext();
+mlir::LogicalResult CIRGenFunction::buildDefaultStmt(const DefaultStmt &S) {
+  currLexScope->caseEltValueLists.push_back({});
+  return buildCaseDefaultCascade(&S);
+}
 
-  auto defAttr = mlir::cir::CaseAttr::get(
-      ctxt, builder.getArrayAttr({}),
-      CaseOpKindAttr::get(ctxt, mlir::cir::CaseOpKind::Default));
+mlir::LogicalResult CIRGenFunction::buildSwitchCase(const SwitchCase &S) {
+  if (S.getStmtClass() == Stmt::CaseStmtClass)
+    return buildCaseStmt(cast<CaseStmt>(S));
 
-  caseAttrs.push_back(defAttr);
-  return buildCaseDefaultCascade(&S, condType, caseAttrs, os);
+  if (S.getStmtClass() == Stmt::DefaultStmtClass)
+    return buildDefaultStmt(cast<DefaultStmt>(S));
+
+  llvm_unreachable("expect case or default stmt");
 }
 
 mlir::LogicalResult
@@ -952,6 +935,33 @@ mlir::LogicalResult CIRGenFunction::buildWhileStmt(const WhileStmt &S) {
   return mlir::success();
 }
 
+mlir::LogicalResult CIRGenFunction::buildSwitchBody(const Stmt *S) {
+  if (auto *compoundStmt = dyn_cast<CompoundStmt>(S)) {
+    auto res = mlir::success();
+    for (auto *c : compoundStmt->body()) {
+      if (auto *switchCase = dyn_cast<SwitchCase>(c)) {
+        res = buildSwitchCase(*switchCase);
+      } else if (currLexScope->lastCaseBlock) {
+        // This means it's a random stmt following up a case, just
+        // emit it as part of previous known case.
+        mlir::OpBuilder::InsertionGuard guardCase(builder);
+        builder.setInsertionPointToEnd(currLexScope->lastCaseBlock);
+        res = buildStmt(c, /*useCurrentScope=*/!isa<CompoundStmt>(c));
+      } else {
+        llvm_unreachable("statement doesn't belong to any case region, NYI");
+      }
+
+      currLexScope->lastCaseBlock = builder.getBlock();
+
+      if (res.failed())
+        break;
+    }
+    return res;
+  }
+
+  llvm_unreachable("switch body is not CompoundStmt, NYI");
+}
+
 mlir::LogicalResult CIRGenFunction::buildSwitchStmt(const SwitchStmt &S) {
   // TODO: LLVM codegen does some early optimization to fold the condition and
   // only emit live cases. CIR should use MLIR to achieve similar things,
@@ -974,49 +984,36 @@ mlir::LogicalResult CIRGenFunction::buildSwitchStmt(const SwitchStmt &S) {
     // TODO: PGO and likelihood (e.g. PGO.haveRegionCounts())
     // TODO: if the switch has a condition wrapped by __builtin_unpredictable?
 
-    // FIXME: track switch to handle nested stmts.
     swop = builder.create<SwitchOp>(
         getLoc(S.getBeginLoc()), condV,
         /*switchBuilder=*/
         [&](mlir::OpBuilder &b, mlir::Location loc, mlir::OperationState &os) {
-          auto *cs = dyn_cast<CompoundStmt>(S.getBody());
-          assert(cs && "expected compound stmt");
-          SmallVector<mlir::Attribute, 4> caseAttrs;
-
           currLexScope->setAsSwitch();
-          mlir::Block *lastCaseBlock = nullptr;
-          for (auto *c : cs->body()) {
-            bool caseLike = isa<CaseStmt, DefaultStmt>(c);
-            if (!caseLike) {
-              // This means it's a random stmt following up a case, just
-              // emit it as part of previous known case.
-              assert(lastCaseBlock && "expects pre-existing case block");
-              mlir::OpBuilder::InsertionGuard guardCase(builder);
-              builder.setInsertionPointToEnd(lastCaseBlock);
-              res = buildStmt(c, /*useCurrentScope=*/!isa<CompoundStmt>(c));
-              lastCaseBlock = builder.getBlock();
-              if (res.failed())
-                break;
-              continue;
+          res = buildSwitchBody(S.getBody());
+
+          os.addRegions(currLexScope->getSwitchRegions());
+
+          SmallVector<mlir::Attribute, 4> caseAttrs;
+          auto ctxt = builder.getContext();
+          for (const auto &caseEltValueList : currLexScope->caseEltValueLists) {
+            if (caseEltValueList.empty()) {
+              auto defAttr = mlir::cir::CaseAttr::get(
+                  ctxt, builder.getArrayAttr({}),
+                  CaseOpKindAttr::get(ctxt, mlir::cir::CaseOpKind::Default));
+              caseAttrs.push_back(defAttr);
+            } else {
+              SmallVector<mlir::Attribute, 4> caseEltValueListAttr;
+              for (auto intVal : caseEltValueList)
+                caseEltValueListAttr.push_back(
+                    mlir::cir::IntAttr::get(condV.getType(), intVal));
+              caseAttrs.push_back(mlir::cir::CaseAttr::get(
+                  ctxt, builder.getArrayAttr(caseEltValueListAttr),
+                  CaseOpKindAttr::get(ctxt,
+                                      caseEltValueListAttr.size() > 1
+                                          ? mlir::cir::CaseOpKind::Anyof
+                                          : mlir::cir::CaseOpKind::Equal)));
             }
-
-            auto *caseStmt = dyn_cast<CaseStmt>(c);
-
-            if (caseStmt)
-              res = buildCaseStmt(*caseStmt, condV.getType(), caseAttrs, os);
-            else {
-              auto *defaultStmt = dyn_cast<DefaultStmt>(c);
-              assert(defaultStmt && "expected default stmt");
-              res = buildDefaultStmt(*defaultStmt, condV.getType(), caseAttrs,
-                                     os);
-            }
-
-            lastCaseBlock = builder.getBlock();
-
-            if (res.failed())
-              break;
           }
-
           os.addAttribute("cases", builder.getArrayAttr(caseAttrs));
         });
 
