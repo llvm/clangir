@@ -3605,11 +3605,11 @@ def IsConstantOp : CIR_Op<"is_constant", [Pure]> {
 }
 
 
-def CIR_FlatSwitchOp : CIR_Op<"flat.switch", [AttrSizedOperandSegments, Terminator]> {
+def CIR_SwitchFlatOp : CIR_Op<"switch.flat", [AttrSizedOperandSegments, Terminator]> {
 
   let description = [{
-    The `cir.flat.switch` operation is a region-less of the `cir.switch` and is a 
-    intermediate between codegen and lowering. 
+    The `cir.switch.flat` operation is a region-less and simplified version of the `cir.switch`.
+    It's representation is closer to LLVM IR dialect than the C/C++ language feature.
   }];
 
   let arguments = (ins
@@ -3628,7 +3628,7 @@ def CIR_FlatSwitchOp : CIR_Op<"flat.switch", [AttrSizedOperandSegments, Terminat
   let assemblyFormat = [{
     $condition `:` type($condition) `,`
     $defaultDestination (`(` $defaultOperands^ `:` type($defaultOperands) `)`)?
-    custom<FlatSwitchOpCases>(ref(type($condition)), $case_values, $caseDestinations,
+    custom<SwitchFlatOpCases>(ref(type($condition)), $case_values, $caseDestinations,
                                    $caseOperands, type($caseOperands))
     attr-dict
   }];
