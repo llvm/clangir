@@ -99,6 +99,11 @@ struct CIROpAsmDialectInterface : public OpAsmDialectInterface {
       os << cmpThreeWayInfoAttr.getAlias();
       return AliasResult::FinalAlias;
     }
+    if (auto dynCastInfoAttr =
+            attr.dyn_cast<mlir::cir::DynamicCastInfoAttr>()) {
+      os << dynCastInfoAttr.getAlias();
+      return AliasResult::FinalAlias;
+    }
 
     return AliasResult::NoAlias;
   }
@@ -1218,10 +1223,10 @@ void SwitchOp::build(
 }
 
 //===----------------------------------------------------------------------===//
-// FlatSwitchOp
+// SwitchFlatOp
 //===----------------------------------------------------------------------===//
 
-void FlatSwitchOp::build(OpBuilder &builder, OperationState &result,
+void SwitchFlatOp::build(OpBuilder &builder, OperationState &result,
                          Value value, Block *defaultDestination,
                          ValueRange defaultOperands, ArrayRef<APInt> caseValues,
                          BlockRange caseDestinations,
@@ -1239,7 +1244,7 @@ void FlatSwitchOp::build(OpBuilder &builder, OperationState &result,
 
 /// <cases> ::= `[` (case (`,` case )* )? `]`
 /// <case>  ::= integer `:` bb-id (`(` ssa-use-and-type-list `)`)?
-static ParseResult parseFlatSwitchOpCases(
+static ParseResult parseSwitchFlatOpCases(
     OpAsmParser &parser, Type flagType, mlir::ArrayAttr &caseValues,
     SmallVectorImpl<Block *> &caseDestinations,
     SmallVectorImpl<SmallVector<OpAsmParser::UnresolvedOperand>> &caseOperands,
@@ -1281,7 +1286,7 @@ static ParseResult parseFlatSwitchOpCases(
   return parser.parseRSquare();
 }
 
-static void printFlatSwitchOpCases(OpAsmPrinter &p, FlatSwitchOp op,
+static void printSwitchFlatOpCases(OpAsmPrinter &p, SwitchFlatOp op,
                                    Type flagType, mlir::ArrayAttr caseValues,
                                    SuccessorRange caseDestinations,
                                    OperandRangeRange caseOperands,

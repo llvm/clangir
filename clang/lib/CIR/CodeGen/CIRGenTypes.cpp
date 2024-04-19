@@ -479,8 +479,7 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
       ResultType = CGM.DoubleTy;
       break;
     case BuiltinType::LongDouble:
-      ResultType = Builder.getFloatTyForFormat(Context.getFloatTypeSemantics(T),
-                                               /*useNativeHalf=*/false);
+      ResultType = Builder.getLongDoubleTy(Context.getFloatTypeSemantics(T));
       break;
     case BuiltinType::Float128:
     case BuiltinType::Ibm128:
@@ -745,12 +744,14 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
 }
 
 const CIRGenFunctionInfo &CIRGenTypes::arrangeCIRFunctionInfo(
-    CanQualType resultType, bool instanceMethod, bool chainCall,
+    CanQualType resultType, FnInfoOpts opts,
     llvm::ArrayRef<CanQualType> argTypes, FunctionType::ExtInfo info,
     llvm::ArrayRef<FunctionProtoType::ExtParameterInfo> paramInfos,
     RequiredArgs required) {
   assert(llvm::all_of(argTypes,
                       [](CanQualType T) { return T.isCanonicalAsParam(); }));
+  bool instanceMethod = opts == FnInfoOpts::IsInstanceMethod;
+  bool chainCall = opts == FnInfoOpts::IsChainCall;
 
   // Lookup or create unique function info.
   llvm::FoldingSetNodeID ID;

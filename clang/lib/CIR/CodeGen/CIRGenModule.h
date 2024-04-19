@@ -538,6 +538,10 @@ public:
   // Make sure that this type is translated.
   void UpdateCompletedType(const clang::TagDecl *TD);
 
+  /// Set function attributes for a function declaration.
+  void setFunctionAttributes(GlobalDecl GD, mlir::cir::FuncOp F,
+                             bool IsIncompleteFunction, bool IsThunk);
+
   void buildGlobalDefinition(clang::GlobalDecl D,
                              mlir::Operation *Op = nullptr);
   void buildGlobalFunctionDefinition(clang::GlobalDecl D, mlir::Operation *Op);
@@ -632,15 +636,18 @@ public:
   GetOrCreateCIRFunction(llvm::StringRef MangledName, mlir::Type Ty,
                          clang::GlobalDecl D, bool ForVTable,
                          bool DontDefer = false, bool IsThunk = false,
-                         ForDefinition_t IsForDefinition = NotForDefinition);
+                         ForDefinition_t IsForDefinition = NotForDefinition,
+                         mlir::ArrayAttr ExtraAttrs = {});
   // Effectively create the CIR instruction, properly handling insertion
   // points.
   mlir::cir::FuncOp createCIRFunction(mlir::Location loc, StringRef name,
                                       mlir::cir::FuncType Ty,
                                       const clang::FunctionDecl *FD);
 
-  mlir::cir::FuncOp getOrCreateRuntimeFunction(mlir::cir::FuncType Ty,
-                                               StringRef Name);
+  mlir::cir::FuncOp createRuntimeFunction(mlir::cir::FuncType Ty,
+                                          StringRef Name, mlir::ArrayAttr = {},
+                                          bool Local = false,
+                                          bool AssumeConvergent = false);
 
   /// Emit type info if type of an expression is a variably modified
   /// type. Also emit proper debug info for cast types.

@@ -135,6 +135,7 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &context,
   // TODO: BFloatTy
   FloatTy = ::mlir::cir::SingleType::get(builder.getContext());
   DoubleTy = ::mlir::cir::DoubleType::get(builder.getContext());
+  FP80Ty = ::mlir::cir::FP80Type::get(builder.getContext());
   // TODO(cir): perhaps we should abstract long double variations into a custom
   // cir.long_double type. Said type would also hold the semantics for lowering.
 
@@ -2045,15 +2046,24 @@ CIRGenModule::createCIRFunction(mlir::Location loc, StringRef name,
   return f;
 }
 
-mlir::cir::FuncOp
-CIRGenModule::getOrCreateRuntimeFunction(mlir::cir::FuncType Ty,
-                                         StringRef Name) {
-  auto entry = cast_if_present<mlir::cir::FuncOp>(getGlobalValue(Name));
-  if (entry)
-    return entry;
+mlir::cir::FuncOp CIRGenModule::createRuntimeFunction(
+    mlir::cir::FuncType Ty, StringRef Name, mlir::ArrayAttr,
+    [[maybe_unused]] bool Local, bool AssumeConvergent) {
+  if (AssumeConvergent) {
+    llvm_unreachable("NYI");
+  }
 
-  return createCIRFunction(mlir::UnknownLoc::get(builder.getContext()), Name,
-                           Ty, nullptr);
+  auto entry = GetOrCreateCIRFunction(Name, Ty, GlobalDecl(),
+                                      /*ForVtable=*/false);
+
+  // Traditional codegen checks for a valid dyn_cast llvm::Function for `entry`,
+  // no testcase that cover this path just yet though.
+  if (!entry) {
+    // Setup runtime CC, DLL support for windows and set dso local.
+    llvm_unreachable("NYI");
+  }
+
+  return entry;
 }
 
 bool isDefaultedMethod(const clang::FunctionDecl *FD) {
@@ -2065,9 +2075,8 @@ bool isDefaultedMethod(const clang::FunctionDecl *FD) {
 }
 
 mlir::Location CIRGenModule::getLocForFunction(const clang::FunctionDecl *FD) {
-  assert(FD && "Not sure which location to use yet");
-  bool invalidLoc = (FD->getSourceRange().getBegin().isInvalid() ||
-                     FD->getSourceRange().getEnd().isInvalid());
+  bool invalidLoc = !FD || (FD->getSourceRange().getBegin().isInvalid() ||
+                            FD->getSourceRange().getEnd().isInvalid());
   if (!invalidLoc)
     return getLoc(FD->getSourceRange());
 
@@ -2182,6 +2191,12 @@ void CIRGenModule::setExtraAttributesForFunc(FuncOp f,
       builder.getContext(), attrs.getDictionary(builder.getContext())));
 }
 
+void CIRGenModule::setFunctionAttributes(GlobalDecl GD, mlir::cir::FuncOp F,
+                                         bool IsIncompleteFunction,
+                                         bool IsThunk) {
+  assert(!UnimplementedFeature::setFunctionAttributes());
+}
+
 /// If the specified mangled name is not in the module,
 /// create and return a CIR Function with the specified type. If there is
 /// something in the module with the specified name, return it potentially
@@ -2191,7 +2206,8 @@ void CIRGenModule::setExtraAttributesForFunc(FuncOp f,
 /// used to set the attributes on the function when it is first created.
 mlir::cir::FuncOp CIRGenModule::GetOrCreateCIRFunction(
     StringRef MangledName, mlir::Type Ty, GlobalDecl GD, bool ForVTable,
-    bool DontDefer, bool IsThunk, ForDefinition_t IsForDefinition) {
+    bool DontDefer, bool IsThunk, ForDefinition_t IsForDefinition,
+    mlir::ArrayAttr ExtraAttrs) {
   assert(!IsThunk && "NYI");
 
   const auto *D = GD.getDecl();
@@ -2267,8 +2283,7 @@ mlir::cir::FuncOp CIRGenModule::GetOrCreateCIRFunction(
     IsIncompleteFunction = true;
   }
 
-  auto *FD = llvm::cast<FunctionDecl>(D);
-  assert(FD && "Only FunctionDecl supported so far.");
+  auto *FD = llvm::cast_or_null<FunctionDecl>(D);
 
   // TODO: CodeGen includeds the linkage (ExternalLinkage) and only passes the
   // mangledname if Entry is nullptr
@@ -2303,16 +2318,11 @@ mlir::cir::FuncOp CIRGenModule::GetOrCreateCIRFunction(
     Entry->erase();
   }
 
-  // TODO: This might not be valid, seems the uniqueing system doesn't make
-  // sense for MLIR
-  // assert(F->getName().getStringRef() == MangledName && "name was uniqued!");
-
   if (D)
-    ; // TODO: set function attributes from the declaration
-
-  // TODO: set function attributes from the missing attributes param
-
-  // TODO: Handle extra attributes
+    setFunctionAttributes(GD, F, IsIncompleteFunction, IsThunk);
+  if (ExtraAttrs) {
+    llvm_unreachable("NYI");
+  }
 
   if (!DontDefer) {
     // All MSVC dtors other than the base dtor are linkonce_odr and delegate to

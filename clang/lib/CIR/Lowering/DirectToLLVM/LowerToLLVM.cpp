@@ -1507,13 +1507,13 @@ public:
   }
 };
 
-class CIRFlatSwitchOpLowering
-    : public mlir::OpConversionPattern<mlir::cir::FlatSwitchOp> {
+class CIRSwitchFlatOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::SwitchFlatOp> {
 public:
-  using OpConversionPattern<mlir::cir::FlatSwitchOp>::OpConversionPattern;
+  using OpConversionPattern<mlir::cir::SwitchFlatOp>::OpConversionPattern;
 
   mlir::LogicalResult
-  matchAndRewrite(mlir::cir::FlatSwitchOp op, OpAdaptor adaptor,
+  matchAndRewrite(mlir::cir::SwitchFlatOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
 
     llvm::SmallVector<mlir::APInt, 8> caseValues;
@@ -1951,58 +1951,6 @@ public:
         rewriter.replaceOpWithNewOp<mlir::LLVM::AShrOp>(op, llvmTy, val, amt);
     }
 
-    return mlir::success();
-  }
-};
-
-class CIRTernaryOpLowering
-    : public mlir::OpConversionPattern<mlir::cir::TernaryOp> {
-public:
-  using OpConversionPattern<mlir::cir::TernaryOp>::OpConversionPattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(mlir::cir::TernaryOp op, OpAdaptor adaptor,
-                  mlir::ConversionPatternRewriter &rewriter) const override {
-    auto loc = op->getLoc();
-    auto *condBlock = rewriter.getInsertionBlock();
-    auto opPosition = rewriter.getInsertionPoint();
-    auto *remainingOpsBlock = rewriter.splitBlock(condBlock, opPosition);
-    auto *continueBlock = rewriter.createBlock(
-        remainingOpsBlock, op->getResultTypes(),
-        SmallVector<mlir::Location>(/* result number always 1 */ 1, loc));
-    rewriter.create<mlir::cir::BrOp>(loc, remainingOpsBlock);
-
-    auto &trueRegion = op.getTrueRegion();
-    auto *trueBlock = &trueRegion.front();
-    mlir::Operation *trueTerminator = trueRegion.back().getTerminator();
-    rewriter.setInsertionPointToEnd(&trueRegion.back());
-    auto trueYieldOp = dyn_cast<mlir::cir::YieldOp>(trueTerminator);
-
-    rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(
-        trueYieldOp, trueYieldOp.getArgs(), continueBlock);
-    rewriter.inlineRegionBefore(trueRegion, continueBlock);
-
-    auto *falseBlock = continueBlock;
-    auto &falseRegion = op.getFalseRegion();
-
-    falseBlock = &falseRegion.front();
-    mlir::Operation *falseTerminator = falseRegion.back().getTerminator();
-    rewriter.setInsertionPointToEnd(&falseRegion.back());
-    auto falseYieldOp = dyn_cast<mlir::cir::YieldOp>(falseTerminator);
-    rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(
-        falseYieldOp, falseYieldOp.getArgs(), continueBlock);
-    rewriter.inlineRegionBefore(falseRegion, continueBlock);
-
-    rewriter.setInsertionPointToEnd(condBlock);
-    auto condition = adaptor.getCond();
-    auto i1Condition = rewriter.create<mlir::LLVM::TruncOp>(
-        op.getLoc(), rewriter.getI1Type(), condition);
-    rewriter.create<mlir::LLVM::CondBrOp>(loc, i1Condition.getResult(),
-                                          trueBlock, falseBlock);
-
-    rewriter.replaceOp(op, continueBlock->getArguments());
-
-    // Ok, we're done!
     return mlir::success();
   }
 };
@@ -2904,8 +2852,8 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
       CIRConstantLowering, CIRStoreLowering, CIRAllocaLowering, CIRFuncLowering,
       CIRCastOpLowering, CIRGlobalOpLowering, CIRGetGlobalOpLowering,
       CIRVAStartLowering, CIRVAEndLowering, CIRVACopyLowering, CIRVAArgLowering,
-      CIRBrOpLowering, CIRTernaryOpLowering, CIRGetMemberOpLowering,
-      CIRFlatSwitchOpLowering, CIRPtrDiffOpLowering, CIRCopyOpLowering,
+      CIRBrOpLowering, CIRGetMemberOpLowering,
+      CIRSwitchFlatOpLowering, CIRPtrDiffOpLowering, CIRCopyOpLowering,
       CIRMemCpyOpLowering, CIRFAbsOpLowering, CIRExpectOpLowering,
       CIRVTableAddrPointOpLowering, CIRVectorCreateLowering,
       CIRVectorInsertLowering, CIRVectorExtractLowering, CIRVectorCmpOpLowering,
@@ -2945,6 +2893,12 @@ void prepareTypeConverter(mlir::LLVMTypeConverter &converter,
   });
   converter.addConversion([&](mlir::cir::DoubleType type) -> mlir::Type {
     return mlir::FloatType::getF64(type.getContext());
+  });
+  converter.addConversion([&](mlir::cir::FP80Type type) -> mlir::Type {
+    return mlir::FloatType::getF80(type.getContext());
+  });
+  converter.addConversion([&](mlir::cir::LongDoubleType type) -> mlir::Type {
+    return converter.convertType(type.getUnderlying());
   });
   converter.addConversion([&](mlir::cir::FuncType type) -> mlir::Type {
     auto result = converter.convertType(type.getReturnType());
