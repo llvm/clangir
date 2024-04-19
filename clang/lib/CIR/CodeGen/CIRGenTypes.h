@@ -14,6 +14,7 @@
 #define LLVM_CLANG_LIB_CODEGEN_CODEGENTYPES_H
 
 #include "ABIInfo.h"
+#include "CIRGenCall.h"
 #include "CIRGenFunctionInfo.h"
 #include "CIRGenRecordLayout.h"
 
@@ -227,6 +228,10 @@ public:
   const CIRGenFunctionInfo &
   arrangeFunctionDeclaration(const clang::FunctionDecl *FD);
 
+  const CIRGenFunctionInfo &
+  arrangeBuiltinFunctionCall(clang::QualType resultType,
+                             const CallArgList &args);
+
   const CIRGenFunctionInfo &arrangeCXXConstructorCall(
       const CallArgList &Args, const clang::CXXConstructorDecl *D,
       clang::CXXCtorType CtorKind, unsigned ExtraPrefixArgs,
@@ -257,13 +262,14 @@ public:
   const CIRGenFunctionInfo &
   arrangeFreeFunctionType(clang::CanQual<clang::FunctionNoProtoType> FTNP);
 
-  /// "Arrange" the CIR information for a call or type with the given
-  /// signature. This is largely an internal method; other clients should use
-  /// one of the above routines, which ultimatley defer to this.
+  /// "Arrange" the LLVM information for a call or type with the given
+  /// signature.  This is largely an internal method; other clients
+  /// should use one of the above routines, which ultimately defer to
+  /// this.
   ///
   /// \param argTypes - must all actually be canonical as params
   const CIRGenFunctionInfo &arrangeCIRFunctionInfo(
-      clang::CanQualType returnType, bool instanceMethod, bool chainCall,
+      clang::CanQualType returnType, FnInfoOpts opts,
       llvm::ArrayRef<clang::CanQualType> argTypes,
       clang::FunctionType::ExtInfo info,
       llvm::ArrayRef<clang::FunctionProtoType::ExtParameterInfo> paramInfos,

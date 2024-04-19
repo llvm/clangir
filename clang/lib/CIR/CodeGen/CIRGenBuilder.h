@@ -387,9 +387,6 @@ public:
     llvm_unreachable("unsupported long double format");
   }
 
-  mlir::cir::BoolType getBoolTy() {
-    return ::mlir::cir::BoolType::get(getContext());
-  }
   mlir::Type getVirtualFnPtrType(bool isVarArg = false) {
     // FIXME: replay LLVM codegen for now, perhaps add a vtable ptr special
     // type so it's a bit more clear and C++ idiomatic.
@@ -577,10 +574,6 @@ public:
     return create<mlir::cir::ConstantOp>(loc, ty, getZeroAttr(ty));
   }
 
-  mlir::cir::ConstantOp getConstant(mlir::Location loc, mlir::TypedAttr attr) {
-    return create<mlir::cir::ConstantOp>(loc, attr.getType(), attr);
-  }
-
   //
   // Operation creation helpers
   // --------------------------
@@ -644,9 +637,12 @@ public:
                                     lhs, rhs);
   }
 
-  mlir::Value createPtrToBoolCast(mlir::Value v) {
-    return create<mlir::cir::CastOp>(v.getLoc(), getBoolTy(),
-                                     mlir::cir::CastKind::ptr_to_bool, v);
+  mlir::Value createDynCast(mlir::Location loc, mlir::Value src,
+                            mlir::cir::PointerType destType, bool isRefCast,
+                            mlir::cir::DynamicCastInfoAttr info) {
+    auto castKind = isRefCast ? mlir::cir::DynamicCastKind::ref
+                              : mlir::cir::DynamicCastKind::ptr;
+    return create<mlir::cir::DynamicCastOp>(loc, destType, castKind, src, info);
   }
 
   cir::Address createBaseClassAddr(mlir::Location loc, cir::Address addr,
@@ -878,10 +874,6 @@ public:
 
     return create<mlir::cir::GetRuntimeMemberOp>(loc, resultTy, objectPtr,
                                                  memberPtr);
-  }
-
-  mlir::Value createPtrIsNull(mlir::Value ptr) {
-    return createNot(createPtrToBoolCast(ptr));
   }
 };
 
