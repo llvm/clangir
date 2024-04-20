@@ -1994,9 +1994,8 @@ public:
     mlir::Block *getEntryBlock() { return EntryBlock; }
 
     mlir::Location BeginLoc, EndLoc;
-    // Each SmallVector<APSInt> object is corresponding to a case region, empty
-    // vector means default case region.
-    llvm::SmallVector<llvm::SmallVector<llvm::APSInt>> caseEltValueLists;
+    mlir::Type switchCondType;
+    llvm::SmallVector<mlir::Attribute, 4> caseAttrs;
     mlir::Block *lastCaseBlock = nullptr;
   };
 
