@@ -27,6 +27,7 @@
 #include "clang/AST/Type.h"
 #include "clang/Basic/ABI.h"
 #include "clang/Basic/TargetInfo.h"
+#include <mlir/Support/LogicalResult.h>
 
 #include "mlir/IR/TypeRange.h"
 #include "mlir/IR/Value.h"
@@ -993,6 +994,10 @@ public:
 
   // OpenMP gen functions:
   mlir::LogicalResult buildOMPParallelDirective(const OMPParallelDirective &S);
+  mlir::LogicalResult buildOMPTaskwaitDirective(const OMPTaskwaitDirective &S);
+  mlir::LogicalResult
+  buildOMPTaskyieldDirective(const OMPTaskyieldDirective &S);
+  mlir::LogicalResult buildOMPBarrierDirective(const OMPBarrierDirective &S);
 
   LValue buildOpaqueValueLValue(const OpaqueValueExpr *e);
 

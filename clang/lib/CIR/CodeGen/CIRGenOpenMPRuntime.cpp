@@ -52,3 +52,13 @@ bool CIRGenOpenMPRuntime::emitTargetGlobal(clang::GlobalDecl &GD) {
   assert(!UnimplementedFeature::openMPRuntime());
   return false;
 }
+
+void CIRGenOpenMPRuntime::emitTaskWaitCall(CIRGenFunction &CGF,
+                                           mlir::Location Loc,
+                                           const OMPTaskDataTy &Data,
+                                           mlir::OpBuilder &builder) {
+  if (!CGF.HaveInsertPoint())
+    return;
+  // This could change in the near future when OpenMP 5.0 gets supported by MLIR
+  builder.create<mlir::omp::TaskwaitOp>(Loc);
+}
