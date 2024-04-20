@@ -167,7 +167,13 @@ LogicalResult ConstStructAttr::verify(
 
 LogicalResult StructLayoutAttr::verify(
     ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError, unsigned size,
-    unsigned alignment, bool padded, mlir::Type largest_member) {
+    unsigned alignment, bool padded, mlir::Type largest_member,
+    mlir::ArrayAttr offsets) {
+  if (not std::all_of(offsets.begin(), offsets.end(), [](mlir::Attribute attr) {
+        return mlir::isa<mlir::IntegerAttr>(attr);
+      })) {
+    return emitError() << "all index values must be integers";
+  }
   return success();
 }
 
