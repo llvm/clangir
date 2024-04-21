@@ -1079,18 +1079,29 @@ public:
 
   mlir::Type getCIRType(const clang::QualType &type);
 
-  const CaseStmt *foldCaseStmt(const clang::CaseStmt &S);
+  const CaseStmt *foldCaseStmt(const clang::CaseStmt &S, mlir::Type condType,
+                               SmallVector<mlir::Attribute, 4> &caseAttrs);
 
   template <typename T>
-  mlir::LogicalResult buildCaseDefaultCascade(const T *stmt);
+  mlir::LogicalResult
+  buildCaseDefaultCascade(const T *stmt, mlir::Type condType,
+                          SmallVector<mlir::Attribute, 4> &caseAttrs);
 
-  mlir::LogicalResult buildCaseStmt(const clang::CaseStmt &S);
+  mlir::LogicalResult buildCaseStmt(const clang::CaseStmt &S,
+                                    mlir::Type condType,
+                                    SmallVector<mlir::Attribute, 4> &caseAttrs);
 
-  mlir::LogicalResult buildDefaultStmt(const clang::DefaultStmt &S);
+  mlir::LogicalResult
+  buildDefaultStmt(const clang::DefaultStmt &S, mlir::Type condType,
+                   SmallVector<mlir::Attribute, 4> &caseAttrs);
 
-  mlir::LogicalResult buildSwitchCase(const clang::SwitchCase &S);
+  mlir::LogicalResult
+  buildSwitchCase(const clang::SwitchCase &S, mlir::Type condType,
+                  SmallVector<mlir::Attribute, 4> &caseAttrs);
 
-  mlir::LogicalResult buildSwitchBody(const clang::Stmt *S);
+  mlir::LogicalResult
+  buildSwitchBody(const clang::Stmt *S, mlir::Type condType,
+                  SmallVector<mlir::Attribute, 4> &caseAttrs);
 
   mlir::cir::FuncOp generateCode(clang::GlobalDecl GD, mlir::cir::FuncOp Fn,
                                  const CIRGenFunctionInfo &FnInfo);
@@ -1994,9 +2005,6 @@ public:
     mlir::Block *getEntryBlock() { return EntryBlock; }
 
     mlir::Location BeginLoc, EndLoc;
-    mlir::Type switchCondType;
-    llvm::SmallVector<mlir::Attribute, 4> caseAttrs;
-    mlir::Block *lastCaseBlock = nullptr;
   };
 
   LexicalScope *currLexScope = nullptr;
