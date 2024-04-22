@@ -160,6 +160,7 @@ public:
                                    DataLayoutEntryListRef params) const;
   uint64_t getABIAlignment(const DataLayout &dataLayout,
                            DataLayoutEntryListRef params) const;
+  uint64_t getElementOffset(const DataLayout &dataLayout, unsigned idx) const;
 
   bool isLayoutIdentical(const StructType &other);
 
@@ -170,8 +171,6 @@ private:
   // instead.
   mutable mlir::Attribute layoutInfo;
   bool isPadded(const DataLayout &dataLayout) const;
-  uint64_t getElementOffset(const DataLayout &dataLayout, unsigned idx) const;
-
   void computeSizeAndAlignment(const DataLayout &dataLayout) const;
 };
 
