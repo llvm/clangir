@@ -3605,7 +3605,7 @@ def IsConstantOp : CIR_Op<"is_constant", [Pure]> {
 }
 
 
-def CIR_SwitchFlatOp : CIR_Op<"switch.flat", [AttrSizedOperandSegments, Terminator]> {
+def SwitchFlatOp : CIR_Op<"switch.flat", [AttrSizedOperandSegments, Terminator]> {
 
   let description = [{
     The `cir.switch.flat` operation is a region-less and simplified version of the `cir.switch`.
