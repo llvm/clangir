@@ -203,3 +203,52 @@ err:
 // CHECK:  ^bb[[#RETURN2]]:
 // CHECK:    cir.return 
   
+
+void flatLoopWithNoTerminatorInFront(int* ptr) {
+  
+  if (ptr)
+    goto loop;
+
+  do {
+    if (!ptr)
+      goto end;
+  loop:
+      ptr++;
+  } while(ptr);
+
+  end:
+  ;
+}
+
+// CHECK:  cir.func @_Z31flatLoopWithNoTerminatorInFrontPi
+// CHECK:    cir.brcond {{.*}} ^bb[[#BLK2:]], ^bb[[#BLK3:]]
+// CHECK:  ^bb[[#BLK2]]:
+// CHECK:    cir.br ^bb[[#LABEL_LOOP:]]
+// CHECK:  ^bb[[#BLK3]]:
+// CHECK:    cir.br ^bb[[#BLK4:]] 
+// CHECK:  ^bb[[#BLK4]]:
+// CHECK:    cir.br ^bb[[#BLK5:]]
+// CHECK:  ^bb[[#BLK5]]:
+// CHECK:    cir.br ^bb[[#BODY:]]
+// CHECK:  ^bb[[#COND]]: 
+// CHECK:    cir.brcond {{.*}} ^bb[[#BODY]], ^bb[[#EXIT:]]
+// CHECK:  ^bb[[#BODY]]:
+// CHECK:    cir.br ^bb[[#BLK8:]]
+// CHECK:  ^bb[[#BLK8]]:
+// CHECK:    cir.brcond {{.*}} ^bb[[#BLK9:]], ^bb[[#BLK10:]]
+// CHECK:  ^bb[[#BLK9]]:
+// CHECK:    cir.br ^bb[[#RETURN:]]
+// CHECK:  ^bb[[#BLK10]]:
+// CHECK:    cir.br ^bb[[#BLK11:]]
+// CHECK:  ^bb[[#BLK11]]:
+// CHECK:    cir.br ^bb[[#LABEL_LOOP]]
+// CHECK:  ^bb[[#LABEL_LOOP]]:
+// CHECK:    cir.br ^bb[[#COND]]
+// CHECK:  ^bb[[#EXIT]]:
+// CHECK:    cir.br ^bb[[#BLK14:]]
+// CHECK:  ^bb[[#BLK14]]:
+// CHECK:    cir.br ^bb[[#RETURN]]
+// CHECK:  ^bb[[#RETURN]]:
+// CHECK:    cir.return
+// CHECK:  }
+// CHECK:}
