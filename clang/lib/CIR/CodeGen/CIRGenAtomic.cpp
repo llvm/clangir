@@ -389,7 +389,7 @@ static void buildAtomicOp(CIRGenFunction &CGF, AtomicExpr *E, Address Dest,
   case AtomicExpr::AO__atomic_exchange:
   case AtomicExpr::AO__scoped_atomic_exchange_n:
   case AtomicExpr::AO__scoped_atomic_exchange:
-    llvm_unreachable("NYI");
+    Op = mlir::cir::AtomicXchg::getOperationName();
     break;
 
   case AtomicExpr::AO__atomic_add_fetch:
@@ -507,8 +507,7 @@ static void buildAtomicOp(CIRGenFunction &CGF, AtomicExpr *E, Address Dest,
   auto LoadVal1 = builder.createLoad(loc, Val1);
 
   SmallVector<mlir::Value> atomicOperands = {Ptr.getPointer(), LoadVal1};
-  SmallVector<mlir::Type> atomicResTys = {
-      mlir::cast<mlir::cir::PointerType>(Ptr.getPointer().getType()).getPointee()};
+  SmallVector<mlir::Type> atomicResTys = {LoadVal1.getType()};
   auto RMWI = builder.create(loc, builder.getStringAttr(Op), atomicOperands,
                              atomicResTys, {});
 
@@ -517,10 +516,18 @@ static void buildAtomicOp(CIRGenFunction &CGF, AtomicExpr *E, Address Dest,
   RMWI->setAttr("mem_order", orderAttr);
   if (E->isVolatile())
     RMWI->setAttr("is_volatile", mlir::UnitAttr::get(builder.getContext()));
-  if (fetchFirst)
+  if (fetchFirst && Op == mlir::cir::AtomicFetch::getOperationName())
     RMWI->setAttr("fetch_first", mlir::UnitAttr::get(builder.getContext()));
 
   auto Result = RMWI->getResult(0);
+
+  // TODO(cir): this logic should be part of createStore, but doing so currently
+  // breaks CodeGen/union.cpp and CodeGen/union.cpp.
+  auto ptrTy = mlir::cast<mlir::cir::PointerType>(Dest.getPointer().getType());
+  if (Dest.getElementType() != ptrTy.getPointee()) {
+    Dest = Dest.withPointer(
+        builder.createPtrBitcast(Dest.getPointer(), Dest.getElementType()));
+  }
   builder.createStore(loc, Result, Dest);
 }
 
