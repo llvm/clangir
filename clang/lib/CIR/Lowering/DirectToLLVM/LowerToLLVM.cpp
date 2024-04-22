@@ -78,15 +78,6 @@ namespace direct {
 
 namespace {
 
-/// Lowers operations with the terminator trait that have a single successor.
-void lowerTerminator(mlir::Operation *op, mlir::Block *dest,
-                     mlir::ConversionPatternRewriter &rewriter) {
-  assert(op->hasTrait<mlir::OpTrait::IsTerminator>() && "not a terminator");
-  mlir::OpBuilder::InsertionGuard guard(rewriter);
-  rewriter.setInsertionPoint(op);
-  rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(op, dest);
-}
-
 /// Walks a region while skipping operations of type `Ops`. This ensures the
 /// callback is not applied to said operations and its children.
 template <typename... Ops>
