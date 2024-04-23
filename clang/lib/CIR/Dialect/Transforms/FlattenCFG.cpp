@@ -224,7 +224,7 @@ public:
         });
 
     // Lower optional body region yield.
-    for (auto& blk : op.getBody().getBlocks()) {
+    for (auto &blk : op.getBody().getBlocks()) {
       auto bodyYield = dyn_cast<mlir::cir::YieldOp>(blk.getTerminator());
       if (bodyYield)
         lowerTerminator(bodyYield, (step ? step : cond), rewriter);

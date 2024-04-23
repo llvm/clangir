@@ -1981,7 +1981,8 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
   state.addAttribute(getExtraAttrsAttrName(state.name), extraAttrs);
 
   auto hasLabelsNameAttr = getGlobalDtorAttrName(state.name);
-  if (::mlir::succeeded(parser.parseOptionalKeyword(hasLabelsNameAttr.strref())))
+  if (::mlir::succeeded(
+          parser.parseOptionalKeyword(hasLabelsNameAttr.strref())))
     state.addAttribute(hasLabelsNameAttr, parser.getBuilder().getUnitAttr());
 
   // Parse the optional function body.
@@ -3075,8 +3076,8 @@ LogicalResult BinOp::verify() {
 //===----------------------------------------------------------------------===//
 
 LogicalResult LabelOp::verify() {
-  auto* op = getOperation();
-  auto* blk = op->getBlock();
+  auto *op = getOperation();
+  auto *blk = op->getBlock();
   if (&blk->front() != op)
     return emitError() << "LabelOp must be the first operation in a block";
   return mlir::success();

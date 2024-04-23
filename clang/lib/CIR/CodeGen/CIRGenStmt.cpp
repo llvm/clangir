@@ -554,6 +554,14 @@ mlir::LogicalResult CIRGenFunction::buildGotoStmt(const GotoStmt &S) {
   // info support just yet, look at this again once we have it.
   assert(builder.getInsertionBlock() && "not yet implemented");
 
+  mlir::Block *currBlock = builder.getBlock();
+  mlir::Block *gotoBlock = currBlock;
+  if (!currBlock->empty() &&
+      currBlock->back().hasTrait<mlir::OpTrait::IsTerminator>()) {
+    gotoBlock = builder.createBlock(builder.getBlock()->getParent());
+    builder.setInsertionPointToEnd(gotoBlock);
+  }
+
   // A goto marks the end of a block, create a new one for codegen after
   // buildGotoStmt can resume building in that block.
 

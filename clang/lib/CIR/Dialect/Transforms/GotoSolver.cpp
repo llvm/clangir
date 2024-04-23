@@ -19,12 +19,12 @@ struct GotoSolverPass : public GotoSolverBase<GotoSolverPass> {
 };
 
 static void process(mlir::cir::FuncOp func) {
-  
+
   mlir::OpBuilder rewriter(func.getContext());
-  std::map<std::string, Block*> labels;
+  std::map<std::string, Block *> labels;
   std::vector<mlir::cir::GotoOp> gotos;
 
-  func.getBody().walk([&](mlir::Operation* op) {
+  func.getBody().walk([&](mlir::Operation *op) {
     if (auto lab = dyn_cast<mlir::cir::LabelOp>(op)) {
       labels.emplace(lab.getLabel().str(), lab->getBlock());
       lab.erase();
@@ -40,19 +40,18 @@ static void process(mlir::cir::FuncOp func) {
     rewriter.create<mlir::cir::BrOp>(goTo.getLoc(), dest);
     goTo.erase();
   }
-  
 }
 
 void GotoSolverPass::runOnOperation() {
-    SmallVector<Operation *, 16> ops;
-    getOperation()->walk([&](mlir::cir::FuncOp op) {
-      if (op.getHasLabels())
-        process(op);
-    });
+  SmallVector<Operation *, 16> ops;
+  getOperation()->walk([&](mlir::cir::FuncOp op) {
+    if (op.getHasLabels())
+      process(op);
+  });
 }
 
 } // namespace
 
 std::unique_ptr<Pass> mlir::createGotoSolverPass() {
-    return std::make_unique<GotoSolverPass>();
+  return std::make_unique<GotoSolverPass>();
 }
