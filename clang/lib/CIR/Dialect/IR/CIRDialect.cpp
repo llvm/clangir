@@ -1980,6 +1980,10 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
   }
   state.addAttribute(getExtraAttrsAttrName(state.name), extraAttrs);
 
+  auto hasLabelsNameAttr = getGlobalDtorAttrName(state.name);
+  if (::mlir::succeeded(parser.parseOptionalKeyword(hasLabelsNameAttr.strref())))
+    state.addAttribute(hasLabelsNameAttr, parser.getBuilder().getUnitAttr());
+
   // Parse the optional function body.
   auto *body = state.addRegion();
   OptionalParseResult parseResult = parser.parseOptionalRegion(
@@ -2061,7 +2065,7 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
       {getSymVisibilityAttrName(), getAliaseeAttrName(),
        getFunctionTypeAttrName(), getLinkageAttrName(), getBuiltinAttrName(),
        getNoProtoAttrName(), getGlobalCtorAttrName(), getGlobalDtorAttrName(),
-       getExtraAttrsAttrName()});
+       getExtraAttrsAttrName(), getHasLabelsAttrName()});
 
   if (auto aliaseeName = getAliasee()) {
     p << " alias(";
@@ -2086,6 +2090,9 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
     p.printAttributeWithoutType(getExtraAttrs());
     p << ")";
   }
+
+  if (getHasLabels())
+    p << " has_labels";
 
   // Print the body if this is not an external function.
   Region &body = getOperation()->getRegion(0);
@@ -3060,6 +3067,18 @@ LogicalResult BinOp::verify() {
     return emitError() << "The nsw/nuw flags are applicable to opcodes: 'add', "
                           "'sub' and 'mul'";
 
+  return mlir::success();
+}
+
+//===----------------------------------------------------------------------===//
+// LabelOp Definitions
+//===----------------------------------------------------------------------===//
+
+LogicalResult LabelOp::verify() {
+  auto* op = getOperation();
+  auto* blk = op->getBlock();
+  if (&blk->front() != op)
+    return emitError() << "LabelOp must be the first operation in a block";
   return mlir::success();
 }
 

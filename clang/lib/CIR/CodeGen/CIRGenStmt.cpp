@@ -325,6 +325,9 @@ mlir::LogicalResult CIRGenFunction::buildLabelStmt(const clang::LabelStmt &S) {
   if (buildLabel(S.getDecl()).failed())
     return mlir::failure();
 
+  auto fn = dyn_cast<mlir::cir::FuncOp>(CurFn);
+  fn.setHasLabels(true);
+
   // IsEHa: not implemented.
   assert(!(getContext().getLangOpts().EHAsynch && S.isSideEntry()));
 

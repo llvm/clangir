@@ -121,6 +121,35 @@ exit:
 // NOFLAT:     cir.goto "exit"
 // NOFLAT:   }
 
+void severalLabelsInARow(int a) {
+  int b = a;
+  goto end1;
+  b = b + 1;
+  goto end2;
+end1:
+end2:
+  b = b + 2;
+}
+// NOFLAT:  cir.func @_Z19severalLabelsInARowi
+// NOFLAT:  ^bb[[#BLK1:]]:
+// NOFLAT:    cir.label "end1"
+// NOFLAT:    cir.br ^bb[[#BLK2:]]
+// NOFLAT:  ^bb[[#BLK2]]:
+// NOFLAT:    cir.label "end2"
+
+void severalGotosInARow(int a) {
+  int b = a;
+  goto end;
+  goto end;
+end:
+  b = b + 2;
+}
+// NOFLAT:  cir.func @_Z18severalGotosInARowi
+// NOFLAT:    cir.goto "end"
+// NOFLAT:  ^bb[[#BLK1:]]:
+// NOFLAT:    cir.goto "end"
+// NOFLAT:  ^bb[[#BLK2:]]:
+// NOFLAT:    cir.label "end"
 
 int jumpIntoLoop(int* ar) {
 
@@ -165,7 +194,7 @@ int jumpFromLoop(int* ar) {
 
   if (!ar) {
 err:
-  return -1;
+    return -1;
 }
 
   while (ar) {

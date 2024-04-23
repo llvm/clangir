@@ -2506,6 +2506,8 @@ def FuncOp : CIR_Op<"func", [
     can also be specified `global_ctor(<prio>)`. Similarly, for global destructors
     both `global_dtor` and `global_dtor(<prio>)` are available.
 
+    The `has_labels` indicates whether labels and goto-s operations exists in a function.
+
     Example:
 
     ```mlir
@@ -2538,6 +2540,7 @@ def FuncOp : CIR_Op<"func", [
                        UnitAttr:$coroutine,
                        UnitAttr:$lambda,
                        UnitAttr:$no_proto,
+                       UnitAttr:$has_labels,
                        DefaultValuedAttr<GlobalLinkageKind,
                                          "GlobalLinkageKind::ExternalLinkage">:$linkage,
                        ExtraFuncAttr:$extra_attrs,
@@ -3644,22 +3647,16 @@ def SwitchFlatOp : CIR_Op<"switch.flat", [AttrSizedOperandSegments, Terminator]>
 }
 
 def GotoOp : CIR_Op<"goto", [Terminator]> {
-  let summary = "goto";
-  let description = [{ }];
-
+  let description = [{ Transfers control to the specified label }];
   let arguments = (ins StrAttr:$label);
   let assemblyFormat = [{ $label attr-dict }];
-
-
 }
 
 def LabelOp : CIR_Op<"label"> {
-  let summary = "label";
-  let description = [{ }];
-
+  let description = [{ An identifier which may be referred by Goto operation }];
   let arguments = (ins StrAttr:$label);
   let assemblyFormat = [{ $label attr-dict }];
-
+  let hasVerifier = 1;
 }
 
 //===----------------------------------------------------------------------===//
