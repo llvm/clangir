@@ -2920,7 +2920,10 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::CmpThreeWayOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    assert(op.isIntegralComparison() && op.isStrongOrdering());
+    if (!op.isIntegralComparison() || !op.isStrongOrdering()) {
+      op.emitError() << "unsupported three-way comparison type";
+      return mlir::failure();
+    }
 
     auto cmpInfo = op.getInfo();
     assert(cmpInfo.getLt() == -1 && cmpInfo.getEq() == 0 &&
