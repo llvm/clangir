@@ -9,27 +9,24 @@
 // This contains code to emit OpenMP Stmt nodes as MLIR code.
 //
 //===----------------------------------------------------------------------===//
-
-#include <clang/AST/StmtIterator.h>
-#include <mlir/IR/Builders.h>
-#include <mlir/IR/Location.h>
-#include <mlir/Support/LogicalResult.h>
+#include "clang/AST/ASTFwd.h"
+#include "clang/AST/StmtIterator.h"
+#include "clang/AST/StmtOpenMP.h"
+#include "clang/Basic/OpenMPKinds.h"
 
 #include "CIRGenFunction.h"
 #include "CIRGenOpenMPRuntime.h"
-#include "mlir/Dialect/OpenMP/OpenMPDialect.h"
-#include "mlir/IR/Value.h"
-
-#include <clang/AST/ASTFwd.h>
-#include <clang/AST/StmtOpenMP.h>
-#include <clang/Basic/OpenMPKinds.h>
-#include <cstdint>
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
-#include <mlir/IR/Attributes.h>
-#include <mlir/IR/BuiltinAttributeInterfaces.h>
-#include <mlir/IR/BuiltinAttributes.h>
-#include <mlir/IR/BuiltinTypes.h>
+#include "mlir/Dialect/OpenMP/OpenMPDialect.h"
+#include "mlir/IR/Attributes.h"
+#include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinAttributeInterfaces.h"
+#include "mlir/IR/BuiltinAttributes.h"
+#include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/Location.h"
+#include "mlir/IR/Value.h"
+#include "mlir/Support/LogicalResult.h"
 
 using namespace cir;
 using namespace clang;
@@ -103,7 +100,7 @@ CIRGenFunction::buildOMPTaskwaitDirective(const OMPTaskwaitDirective &S) {
   OMPTaskDataTy Data;
   buildDependences(S, Data);
   Data.HasNowaitClause = S.hasClausesOfKind<OMPNowaitClause>();
-  CGM.getOpenMPRuntime().emitTaskWaitCall(*this, scopeLoc, Data, builder);
+  CGM.getOpenMPRuntime().emitTaskWaitCall(builder, *this, scopeLoc, Data);
   return res;
 }
 mlir::LogicalResult
@@ -112,18 +109,16 @@ CIRGenFunction::buildOMPTaskyieldDirective(const OMPTaskyieldDirective &S) {
   // Getting the source location information of AST node S scope
   auto scopeLoc = getLoc(S.getSourceRange());
   // Creation of an omp.taskyield operation
-  auto taskyieldOp = builder.create<mlir::omp::TaskyieldOp>(scopeLoc);
-
+  CGM.getOpenMPRuntime().emitTaskyieldCall(builder, *this, scopeLoc);
   return res;
 }
 
 mlir::LogicalResult
 CIRGenFunction::buildOMPBarrierDirective(const OMPBarrierDirective &S) {
   mlir::LogicalResult res = mlir::success();
-  // Getting the source location information of AST node SD scope
+  // Getting the source location information of AST node S scope
   auto scopeLoc = getLoc(S.getSourceRange());
   // Creation of an omp.barrier operation
-  auto barrierOp = builder.create<mlir::omp::BarrierOp>(scopeLoc);
-
+  CGM.getOpenMPRuntime().emitBarrierCall(builder, *this, scopeLoc);
   return res;
 }

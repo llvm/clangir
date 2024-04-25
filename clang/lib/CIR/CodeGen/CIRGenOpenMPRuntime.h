@@ -13,14 +13,18 @@
 #ifndef LLVM_CLANG_LIB_CIR_CODEGEN_CIRGENOPENMPRUNTIME_H
 #define LLVM_CLANG_LIB_CIR_CODEGEN_CIRGENOPENMPRUNTIME_H
 
+#include "CIRGenBuilder.h"
 #include "CIRGenValue.h"
+
 #include "clang/AST/Redeclarable.h"
 #include "clang/Basic/OpenMPKinds.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 
+#include "llvm/Support/ErrorHandling.h"
+
 #include "mlir/Dialect/OpenMP/OpenMPDialect.h"
-#include <mlir/IR/Dialect.h>
-#include <mlir/IR/Location.h>
+#include "mlir/IR/Dialect.h"
+#include "mlir/IR/Location.h"
 
 namespace clang {
 class Decl;
@@ -90,9 +94,17 @@ public:
   virtual bool emitTargetGlobal(clang::GlobalDecl &D);
 
   /// Emit code for 'taskwait' directive
-  virtual void emitTaskWaitCall(CIRGenFunction &CGF, mlir::Location Loc,
-                                const OMPTaskDataTy &Data,
-                                mlir::OpBuilder &builder);
+  virtual void emitTaskWaitCall(CIRGenBuilderTy& builder,
+                                CIRGenFunction &CGF,
+                                mlir::Location Loc,
+                                const OMPTaskDataTy &Data
+                                );
+
+  virtual void emitBarrierCall(CIRGenBuilderTy& builder, CIRGenFunction &CGF,
+                               mlir::Location Loc);
+
+  virtual void emitTaskyieldCall(CIRGenBuilderTy& builder, CIRGenFunction &CGF,
+                               mlir::Location Loc);
 
 protected:
   CIRGenModule &CGM;

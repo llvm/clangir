@@ -53,12 +53,36 @@ bool CIRGenOpenMPRuntime::emitTargetGlobal(clang::GlobalDecl &GD) {
   return false;
 }
 
-void CIRGenOpenMPRuntime::emitTaskWaitCall(CIRGenFunction &CGF,
+void CIRGenOpenMPRuntime::emitTaskWaitCall(CIRGenBuilderTy &builder,
+                                           CIRGenFunction &CGF,
                                            mlir::Location Loc,
-                                           const OMPTaskDataTy &Data,
-                                           mlir::OpBuilder &builder) {
-  if (!CGF.HaveInsertPoint())
-    return;
-  // This could change in the near future when OpenMP 5.0 gets supported by MLIR
-  builder.create<mlir::omp::TaskwaitOp>(Loc);
+                                           const OMPTaskDataTy &Data) {
+  if (CGF.CGM.getLangOpts().OpenMPIRBuilder && Data.Dependences.empty()) {
+    // TODO: Need to support taskwait with dependences in the OpenMPIRBuilder.
+    // TODO(cir): This could change in the near future when OpenMP 5.0 gets
+    // supported by MLIR
+    builder.create<mlir::omp::TaskwaitOp>(Loc);
+  } else {
+    llvm_unreachable("NYI");
+  }
+}
+
+void CIRGenOpenMPRuntime::emitBarrierCall(CIRGenBuilderTy &builder,
+                                          CIRGenFunction &CGF,
+                                          mlir::Location Loc) {
+  if (CGF.CGM.getLangOpts().OpenMPIRBuilder) {
+    builder.create<mlir::omp::BarrierOp>(Loc);
+  } else {
+    llvm_unreachable("NYI");
+  }
+}
+
+void CIRGenOpenMPRuntime::emitTaskyieldCall(CIRGenBuilderTy &builder,
+                                            CIRGenFunction &CGF,
+                                            mlir::Location Loc) {
+  if (CGF.CGM.getLangOpts().OpenMPIRBuilder) {
+    builder.create<mlir::omp::TaskyieldOp>(Loc);
+  } else {
+    llvm_unreachable("NYI");
+  }
 }
