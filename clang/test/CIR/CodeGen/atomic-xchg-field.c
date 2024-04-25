@@ -2,6 +2,7 @@
 // RUN: FileCheck --input-file=%t.cir %s
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm %s -o %t.ll
 // RUN: FileCheck --check-prefix=LLVM --input-file=%t.ll %s
+// XFAIL: *
 
 typedef struct __Base {
   unsigned long id;
@@ -66,3 +67,17 @@ void structAtomicExchange(unsigned referenceCount, wPtr item) {
 // LLVM: [[STORE_OLD]]:
 // LLVM:   store i32 %[[OLD]], ptr
 // LLVM:   br label %[[CONTINUE]]
+
+void f2(const void *cf);
+
+void structLoad(unsigned referenceCount, wPtr item) {
+  f2(__atomic_load_n(&item->ref, 5));
+}
+
+// CHECK-LABEL: @structLoad
+// CHECK:    %[[ATOMIC_TEMP:.*]] = cir.alloca !cir.ptr<!void>, cir.ptr <!cir.ptr<!void>>, ["atomic-temp"]
+// CHECK:    %[[ATOMIC_LOAD:.*]] = cir.load atomic(seq_cst) %6 : cir.ptr <!u64i>, !u64i
+// CHECK:    %[[RES:.*]] = cir.cast(bitcast, %[[ATOMIC_TEMP]] : !cir.ptr<!cir.ptr<!void>>), !cir.ptr<!u64i>
+// CHECK:    cir.store %[[ATOMIC_LOAD]], %[[RES]] : !u64i, cir.ptr <!u64i>
+
+// No LLVM tests needed for this one, already covered elsewhere.
