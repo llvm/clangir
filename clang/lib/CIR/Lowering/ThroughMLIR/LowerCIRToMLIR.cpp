@@ -24,6 +24,7 @@
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
+#include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/SCF/Transforms/Passes.h"
@@ -75,7 +76,7 @@ struct ConvertCIRToMLIRPass
     registry.insert<mlir::BuiltinDialect, mlir::func::FuncDialect,
                     mlir::affine::AffineDialect, mlir::memref::MemRefDialect,
                     mlir::arith::ArithDialect, mlir::cf::ControlFlowDialect,
-                    mlir::scf::SCFDialect>();
+                    mlir::scf::SCFDialect, mlir::math::MathDialect>();
   }
   void runOnOperation() final;
 
@@ -148,6 +149,19 @@ public:
   }
 };
 
+class CIRCosOpLowering : public mlir::OpConversionPattern<mlir::cir::CosOp> {
+public:
+  using OpConversionPattern<mlir::cir::CosOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::CosOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto convertedType = getTypeConverter()->convertType(op.getType());
+    rewriter.replaceOpWithNewOp<mlir::math::CosOp>(op, convertedType, adaptor.getSrc());
+    return mlir::LogicalResult::success();
+  }
+};
+
 class CIRConstantOpLowering
     : public mlir::OpConversionPattern<mlir::cir::ConstantOp> {
 public:
@@ -164,9 +178,39 @@ public:
       value = rewriter.getIntegerAttr(ty, boolValue.getValue());
     } else if (auto cirIntAttr = mlir::dyn_cast<mlir::cir::IntAttr>(op.getValue())) {
       value = rewriter.getIntegerAttr(ty, cirIntAttr.getValue());
-    } else if (auto floatAttr = mlir::dyn_cast<mlir::FloatAttr>(op.getValue())) {
-      // Handle floating-point constants
-      value = rewriter.getFloatAttr(ty, floatAttr.getValueAsDouble());
+    } else if (mlir::isa<mlir::cir::CIRFPTypeInterface>(op.getType())) {
+      auto fpAttr = mlir::cast<mlir::cir::FPAttr>(op.getValue());
+      auto apFloat = fpAttr.getValue();
+      
+      // Handle specific floating-point types explicitly
+      if (mlir::isa<mlir::cir::SingleType>(op.getType())) {
+        auto f32Type = mlir::Float32Type::get(rewriter.getContext());
+        // Convert APFloat to f32 precision
+        bool losesInfo = false;
+        llvm::APFloat f32Float = apFloat;
+        f32Float.convert(llvm::APFloat::IEEEsingle(), llvm::RoundingMode::NearestTiesToEven, &losesInfo);
+        value = rewriter.getFloatAttr(f32Type, f32Float);
+        rewriter.replaceOpWithNewOp<mlir::arith::ConstantOp>(op, f32Type, value);
+        return mlir::LogicalResult::success();
+      } else if (mlir::isa<mlir::cir::DoubleType>(op.getType())) {
+        auto f64Type = mlir::Float64Type::get(rewriter.getContext());
+        // Convert APFloat to f64 precision  
+        bool losesInfo = false;
+        llvm::APFloat f64Float = apFloat;
+        f64Float.convert(llvm::APFloat::IEEEdouble(), llvm::RoundingMode::NearestTiesToEven, &losesInfo);
+        value = rewriter.getFloatAttr(f64Type, f64Float);
+        rewriter.replaceOpWithNewOp<mlir::arith::ConstantOp>(op, f64Type, value);
+        return mlir::LogicalResult::success();
+      } else {
+        // Fallback to type converter for other floating-point types
+        auto convertedTy = getTypeConverter()->convertType(op.getType());
+        if (!convertedTy || !mlir::isa<mlir::FloatType>(convertedTy)) {
+          return mlir::LogicalResult::failure();
+        }
+        value = rewriter.getFloatAttr(convertedTy, apFloat);
+        rewriter.replaceOpWithNewOp<mlir::arith::ConstantOp>(op, convertedTy, value);
+        return mlir::LogicalResult::success();
+      }
     } else {
       return mlir::LogicalResult::failure();
     }
@@ -639,7 +683,7 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
                CIRBinOpLowering, CIRLoadOpLowering, CIRConstantOpLowering,
                CIRStoreOpLowering, CIRAllocaOpLowering, CIRFuncOpLowering,
                CIRBrCondOpLowering, CIRTernaryOpLowering,
-               CIRYieldOpLowering, CIRLoopOpInterfaceLowering>(converter, patterns.getContext());
+               CIRYieldOpLowering, CIRLoopOpInterfaceLowering, CIRCosOpLowering>(converter, patterns.getContext());
 }
 
 class CIRIfOpLowering : public mlir::OpConversionPattern<mlir::cir::IfOp> {
@@ -834,6 +878,12 @@ public:
       else
         return mlir::MemRefType::get({}, pointeeType);
     });
+    addConversion([&](mlir::cir::SingleType type) -> std::optional<mlir::Type> {
+      return mlir::Float32Type::get(type.getContext());
+    });
+    addConversion([&](mlir::cir::DoubleType type) -> std::optional<mlir::Type> {
+      return mlir::Float64Type::get(type.getContext());
+    });
     
     // Add materialization for i1 <-> i8 conversions (for cir.bool handling)
     addSourceMaterialization([&](mlir::OpBuilder &builder,
@@ -906,8 +956,8 @@ void ConvertCIRToMLIRPass::runOnOperation() {
 
   target.addLegalDialect<mlir::BuiltinDialect, mlir::func::FuncDialect,
                          mlir::memref::MemRefDialect, mlir::arith::ArithDialect,
-                         mlir::cf::ControlFlowDialect, mlir::scf::SCFDialect>();
-
+                         mlir::cf::ControlFlowDialect, mlir::scf::SCFDialect,
+                         mlir::math::MathDialect>();
   target.addIllegalDialect<mlir::cir::CIRDialect>();
 
   mlir::RewritePatternSet patterns(context);
@@ -917,7 +967,7 @@ void ConvertCIRToMLIRPass::runOnOperation() {
                CIRCmpOpLowering, CIRBrOpLowering, CIRBrCondOpLowering,
                CIRTernaryOpLowering, CIRYieldOpLowering, CIRIfOpLowering,
                CIRLoopOpInterfaceLowering, CIRScopeOpLowering, CIRCastOpLowering,
-               CIRGlobalOpLowering, CIRGetGlobalOpLowering>(converter, context);
+               CIRGlobalOpLowering, CIRGetGlobalOpLowering, CIRCosOpLowering>(converter, context);
 
   if (mlir::failed(
           mlir::applyPartialConversion(theModule, target, std::move(patterns))))
