@@ -686,6 +686,50 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
                CIRYieldOpLowering, CIRLoopOpInterfaceLowering, CIRCosOpLowering>(converter, patterns.getContext());
 }
 
+static mlir::TypeConverter prepareTypeConverter() {
+  mlir::TypeConverter converter;
+  converter.addConversion([&](mlir::cir::PointerType type) -> mlir::Type {
+    auto ty = converter.convertType(type.getPointee());
+    // FIXME: The pointee type might not be converted (e.g. struct)
+    if (!ty)
+      return nullptr;
+    return mlir::MemRefType::get({}, ty);
+  });
+  converter.addConversion(
+      [&](mlir::IntegerType type) -> mlir::Type { return type; });
+  converter.addConversion(
+      [&](mlir::cir::VoidType type) -> mlir::Type { return {}; });
+  converter.addConversion([&](mlir::cir::IntType type) -> mlir::Type {
+    // arith dialect ops doesn't take signed integer -- drop cir sign here
+    return mlir::IntegerType::get(
+        type.getContext(), type.getWidth(),
+        mlir::IntegerType::SignednessSemantics::Signless);
+  });
+  converter.addConversion([&](mlir::cir::BoolType type) -> mlir::Type {
+    return mlir::IntegerType::get(type.getContext(), 8);
+  });
+  converter.addConversion([&](mlir::cir::SingleType type) -> mlir::Type {
+    return mlir::Float32Type::get(type.getContext());
+  });
+  converter.addConversion([&](mlir::cir::DoubleType type) -> mlir::Type {
+    return mlir::Float64Type::get(type.getContext());
+  });
+  converter.addConversion([&](mlir::cir::FP80Type type) -> mlir::Type {
+    return mlir::Float80Type::get(type.getContext());
+  });
+  converter.addConversion([&](mlir::cir::LongDoubleType type) -> mlir::Type {
+    return converter.convertType(type.getUnderlying());
+  });
+  converter.addConversion([&](mlir::cir::ArrayType type) -> mlir::Type {
+    auto elementType = converter.convertType(type.getEltType());
+    if (!elementType)
+      return nullptr;
+    return mlir::MemRefType::get(type.getSize(), elementType);
+  });
+  
+  
+  return converter;
+}
 class CIRIfOpLowering : public mlir::OpConversionPattern<mlir::cir::IfOp> {
 public:
   using OpConversionPattern<mlir::cir::IfOp>::OpConversionPattern;
@@ -940,15 +984,11 @@ public:
     addConversion([](mlir::cir::DoubleType type) -> std::optional<mlir::Type> {
       return mlir::Float64Type::get(type.getContext());
     });
-    // Add MLIR float type conversions
-    addConversion([](mlir::FloatType type) -> std::optional<mlir::Type> {
-      return type; // Float types are already MLIR native
+    addConversion([&](mlir::cir::FP80Type type) -> std::optional<mlir::Type> {
+      return mlir::Float80Type::get(type.getContext());
     });
-    addConversion([&](mlir::cir::SingleType type) -> std::optional<mlir::Type> {
-      return mlir::Float32Type::get(type.getContext());
-    });
-    addConversion([&](mlir::cir::DoubleType type) -> std::optional<mlir::Type> {
-      return mlir::Float64Type::get(type.getContext());
+    addConversion([&](mlir::cir::LongDoubleType type) -> std::optional<mlir::Type> {
+      return convertType(type.getUnderlying());
     });
   }
 };
