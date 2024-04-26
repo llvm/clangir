@@ -2506,8 +2506,6 @@ def FuncOp : CIR_Op<"func", [
     can also be specified `global_ctor(<prio>)`. Similarly, for global destructors
     both `global_dtor` and `global_dtor(<prio>)` are available.
 
-    The `has_labels` indicates whether labels and goto-s operations exists in a function.
-
     Example:
 
     ```mlir
@@ -2540,7 +2538,6 @@ def FuncOp : CIR_Op<"func", [
                        UnitAttr:$coroutine,
                        UnitAttr:$lambda,
                        UnitAttr:$no_proto,
-                       UnitAttr:$has_labels,
                        DefaultValuedAttr<GlobalLinkageKind,
                                          "GlobalLinkageKind::ExternalLinkage">:$linkage,
                        ExtraFuncAttr:$extra_attrs,
@@ -3646,14 +3643,42 @@ def SwitchFlatOp : CIR_Op<"switch.flat", [AttrSizedOperandSegments, Terminator]>
   ];
 }
 
+//===----------------------------------------------------------------------===//
+// GotoOp
+//===----------------------------------------------------------------------===//
+
 def GotoOp : CIR_Op<"goto", [Terminator]> {
-  let description = [{ Transfers control to the specified label }];
+  let description = [{ Transfers control to the specified label.
+
+  Example:
+  ```C++
+    void foo() {
+      goto exit;
+
+    exit:
+      return;
+    }
+    ```
+
+    ```mlir
+    cir.func @foo() {
+      cir.goto "exit"
+    ^bb1:
+      cir.label "exit"
+      cir.return
+    }
+    ```
+  }];
   let arguments = (ins StrAttr:$label);
   let assemblyFormat = [{ $label attr-dict }];
 }
 
+//===----------------------------------------------------------------------===//
+// LabelOp
+//===----------------------------------------------------------------------===//
+
 def LabelOp : CIR_Op<"label"> {
-  let description = [{ An identifier which may be referred by Goto operation }];
+  let description = [{ An identifier which may be referred by cir.goto operation }];
   let arguments = (ins StrAttr:$label);
   let assemblyFormat = [{ $label attr-dict }];
   let hasVerifier = 1;

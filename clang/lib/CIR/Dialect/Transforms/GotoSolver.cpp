@@ -45,8 +45,7 @@ static void process(mlir::cir::FuncOp func) {
 void GotoSolverPass::runOnOperation() {
   SmallVector<Operation *, 16> ops;
   getOperation()->walk([&](mlir::cir::FuncOp op) {
-    if (op.getHasLabels())
-      process(op);
+    process(op);
   });
 }
 
