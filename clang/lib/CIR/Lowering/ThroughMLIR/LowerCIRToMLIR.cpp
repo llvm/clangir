@@ -944,6 +944,12 @@ public:
     addConversion([](mlir::FloatType type) -> std::optional<mlir::Type> {
       return type; // Float types are already MLIR native
     });
+    addConversion([&](mlir::cir::SingleType type) -> std::optional<mlir::Type> {
+      return mlir::Float32Type::get(type.getContext());
+    });
+    addConversion([&](mlir::cir::DoubleType type) -> std::optional<mlir::Type> {
+      return mlir::Float64Type::get(type.getContext());
+    });
   }
 };
 
