@@ -24,6 +24,26 @@ using namespace cir;
 using namespace clang;
 using namespace mlir::cir;
 
+namespace {
+
+// Handle stmt that don't belong to any cases.
+void checkCaseNoneStmt(const Stmt &S, bool checkCaseStmt = true) {
+  if (S.getStmtClass() == Stmt::LabelStmtClass)
+    llvm_unreachable("LabelStmtClass support NYI");
+
+  if (S.getStmtClass() == Stmt::CaseStmtClass ||
+      S.getStmtClass() == Stmt::DefaultStmtClass)
+    assert(!checkCaseStmt && "CaseStmtClass/DefaultStmtClass support NYI");
+
+  if (S.getStmtClass() == Stmt::SwitchStmtClass)
+    checkCaseStmt = false;
+
+  for (const Stmt *c : S.children())
+    checkCaseNoneStmt(*c, checkCaseStmt);
+}
+
+} // namespace
+
 Address CIRGenFunction::buildCompoundStmtWithoutScope(const CompoundStmt &S,
                                                       bool getLast,
                                                       AggValueSlot slot) {
@@ -967,6 +987,10 @@ mlir::LogicalResult CIRGenFunction::buildWhileStmt(const WhileStmt &S) {
 mlir::LogicalResult CIRGenFunction::buildSwitchBody(
     const Stmt *S, mlir::Type condType,
     llvm::SmallVector<mlir::Attribute, 4> &caseAttrs) {
+  if (auto *switchCase = dyn_cast<SwitchCase>(S)) {
+    return buildSwitchCase(*switchCase, condType, caseAttrs);
+  }
+
   if (auto *compoundStmt = dyn_cast<CompoundStmt>(S)) {
     mlir::Block *lastCaseBlock = nullptr;
     auto res = mlir::success();
@@ -980,7 +1004,8 @@ mlir::LogicalResult CIRGenFunction::buildSwitchBody(
         builder.setInsertionPointToEnd(lastCaseBlock);
         res = buildStmt(c, /*useCurrentScope=*/!isa<CompoundStmt>(c));
       } else {
-        llvm_unreachable("statement doesn't belong to any case region, NYI");
+        checkCaseNoneStmt(*c);
+        continue;
       }
 
       lastCaseBlock = builder.getBlock();
@@ -991,7 +1016,8 @@ mlir::LogicalResult CIRGenFunction::buildSwitchBody(
     return res;
   }
 
-  llvm_unreachable("switch body is not CompoundStmt, NYI");
+  checkCaseNoneStmt(*S);
+  return mlir::success();
 }
 
 mlir::LogicalResult CIRGenFunction::buildSwitchStmt(const SwitchStmt &S) {

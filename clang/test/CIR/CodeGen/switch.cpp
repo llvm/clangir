@@ -302,14 +302,84 @@ void sw13(int a, int b) {
 //      CHECK:    }
 //      CHECK:    cir.return
 
-void fallthrough(int x) {
-  switch (x) {
-    case 1:
-      __attribute__((fallthrough));
+void sw14(int a) {
+  switch (a)
+  default:
+    break;
+}
+
+//      CHECK: cir.func @_Z4sw14i
+//      CHECK:   cir.scope {
+//      CHECK:     cir.switch
+// CHECK-NEXT:     case (default) {
+// CHECK-NEXT:       cir.break
+// CHECK-NEXT:     }
+//      CHECK:    cir.return
+
+void sw15(int a) {
+  switch (a)
+  case 1:
+    break;
+}
+
+//      CHECK: cir.func @_Z4sw15i
+//      CHECK:   cir.scope {
+//      CHECK:     cir.switch
+// CHECK-NEXT:     case (equal, 1) {
+// CHECK-NEXT:       cir.break
+// CHECK-NEXT:     }
+//      CHECK:    cir.return
+
+void sw16(int a) {
+  switch (a)
+  case 1:
+    switch (a)
     case 2:
       break;
-    default:
-      break;
+}
+
+//      CHECK:  cir.func @_Z4sw16i
+//      CHECK:    cir.scope {
+//      CHECK:      cir.switch
+// CHECK-NEXT:      case (equal, 1) {
+// CHECK-NEXT:        cir.scope {
+//      CHECK:          cir.switch
+// CHECK-NEXT:          case (equal, 2) {
+// CHECK-NEXT:            cir.break
+// CHECK-NEXT:          }
+// CHECK-NEXT:          ]
+// CHECK-NEXT:        }
+// CHECK-NEXT:        cir.yield
+// CHECK-NEXT:      }
+//      CHECK:    }
+//      CHECK:    cir.return
+
+void sw17(int a) {
+  switch(a)
+  case 1:
+  case 2:
+  case 3:
+    break;
+}
+
+//      CHECK:  cir.func @_Z4sw17i
+//      CHECK:  cir.scope {
+//      CHECK:    cir.switch
+// CHECK-NEXT:    case (anyof, [1, 2, 3] : !s32i) {
+// CHECK-NEXT:      cir.break
+// CHECK-NEXT:    }
+// CHECK-NEXT:    ]
+// CHECK-NEXT:  }
+// CHECK-NEXT:  cir.return
+
+void fallthrough(int x) {
+  switch (x) {
+  case 1:
+    __attribute__((fallthrough));
+  case 2:
+    break;
+  default:
+    break;
   }
 }
 
@@ -327,3 +397,86 @@ void fallthrough(int x) {
 // CHECK-NEXT:      }
 // CHECK-NEXT:      ]
 // CHECK-NEXT:    }
+
+int caseNone1(int a) {
+  switch (a)
+    return -1;
+  return 1;
+}
+
+//      CHECK:  cir.func @_Z9caseNone1i
+//      CHECK:    cir.scope {
+// CHECK-NEXT:    }
+//      CHECK:    cir.return
+
+int caseNone2(int a) {
+  switch (a) {
+    return -1;
+  }
+  return 1;
+}
+
+//      CHECK:  cir.func @_Z9caseNone2i
+//      CHECK:    cir.scope {
+// CHECK-NEXT:    }
+//      CHECK:    cir.return
+
+int caseNone3(int a) {
+  switch (a) {
+    a = 2;
+    return -1;
+  }
+  return 1;
+}
+
+//      CHECK:  cir.func @_Z9caseNone3i
+//      CHECK:    cir.scope {
+// CHECK-NEXT:    }
+//      CHECK:    cir.return
+
+int caseNone4(int a) {
+  switch (a) {
+    return 0;
+  case 1:
+    return -1;
+  }
+  return a;
+}
+
+//      CHECK:  cir.func @_Z9caseNone4i
+//      CHECK:    cir.scope {
+//      CHECK:      cir.switch
+// CHECK-NEXT:      case (equal, 1) {
+//      CHECK:        cir.return
+// CHECK-NEXT:      }
+//      CHECK:    }
+//      CHECK:    cir.return
+
+int caseNone5(int a) {
+  switch (a)
+    switch (a) {
+      case 1:
+        return 0;
+    }
+  return a;
+}
+
+//      CHECK:  cir.func @_Z9caseNone5i
+//      CHECK:    cir.scope {
+// CHECK-NEXT:    }
+//      CHECK:    cir.return
+
+int caseNone6(int a) {
+  switch (a) {
+    switch (a) {
+      case 1:
+        return 0;
+    }
+  }
+  return a;
+}
+
+//      CHECK:  cir.func @_Z9caseNone6i
+//      CHECK:    cir.scope {
+// CHECK-NEXT:    }
+//      CHECK:    cir.return
