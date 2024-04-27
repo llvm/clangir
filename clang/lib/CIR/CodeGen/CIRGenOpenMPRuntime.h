@@ -26,6 +26,8 @@
 #include "mlir/IR/Dialect.h"
 #include "mlir/IR/Location.h"
 
+#include "UnimplementedFeatureGuarding.h"
+
 namespace clang {
 class Decl;
 class Expr;
@@ -94,17 +96,14 @@ public:
   virtual bool emitTargetGlobal(clang::GlobalDecl &D);
 
   /// Emit code for 'taskwait' directive
-  virtual void emitTaskWaitCall(CIRGenBuilderTy& builder,
-                                CIRGenFunction &CGF,
-                                mlir::Location Loc,
-                                const OMPTaskDataTy &Data
-                                );
+  virtual void emitTaskWaitCall(CIRGenBuilderTy &builder, CIRGenFunction &CGF,
+                                mlir::Location Loc, const OMPTaskDataTy &Data);
 
-  virtual void emitBarrierCall(CIRGenBuilderTy& builder, CIRGenFunction &CGF,
+  virtual void emitBarrierCall(CIRGenBuilderTy &builder, CIRGenFunction &CGF,
                                mlir::Location Loc);
 
-  virtual void emitTaskyieldCall(CIRGenBuilderTy& builder, CIRGenFunction &CGF,
-                               mlir::Location Loc);
+  virtual void emitTaskyieldCall(CIRGenBuilderTy &builder, CIRGenFunction &CGF,
+                                 mlir::Location Loc);
 
 protected:
   CIRGenModule &CGM;

@@ -95,30 +95,27 @@ CIRGenFunction::buildOMPParallelDirective(const OMPParallelDirective &S) {
 mlir::LogicalResult
 CIRGenFunction::buildOMPTaskwaitDirective(const OMPTaskwaitDirective &S) {
   mlir::LogicalResult res = mlir::success();
-  // Getting the source location information of AST node S scope
-  auto scopeLoc = getLoc(S.getSourceRange());
   OMPTaskDataTy Data;
   buildDependences(S, Data);
   Data.HasNowaitClause = S.hasClausesOfKind<OMPNowaitClause>();
-  CGM.getOpenMPRuntime().emitTaskWaitCall(builder, *this, scopeLoc, Data);
+  CGM.getOpenMPRuntime().emitTaskWaitCall(builder, *this,
+                                          getLoc(S.getSourceRange()), Data);
   return res;
 }
 mlir::LogicalResult
 CIRGenFunction::buildOMPTaskyieldDirective(const OMPTaskyieldDirective &S) {
   mlir::LogicalResult res = mlir::success();
-  // Getting the source location information of AST node S scope
-  auto scopeLoc = getLoc(S.getSourceRange());
   // Creation of an omp.taskyield operation
-  CGM.getOpenMPRuntime().emitTaskyieldCall(builder, *this, scopeLoc);
+  CGM.getOpenMPRuntime().emitTaskyieldCall(builder, *this,
+                                           getLoc(S.getSourceRange()));
   return res;
 }
 
 mlir::LogicalResult
 CIRGenFunction::buildOMPBarrierDirective(const OMPBarrierDirective &S) {
   mlir::LogicalResult res = mlir::success();
-  // Getting the source location information of AST node S scope
-  auto scopeLoc = getLoc(S.getSourceRange());
   // Creation of an omp.barrier operation
-  CGM.getOpenMPRuntime().emitBarrierCall(builder, *this, scopeLoc);
+  CGM.getOpenMPRuntime().emitBarrierCall(builder, *this,
+                                         getLoc(S.getSourceRange()));
   return res;
 }
