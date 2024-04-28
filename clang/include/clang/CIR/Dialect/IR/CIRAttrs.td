@@ -223,13 +223,20 @@ def FPAttr : CIR_Attr<"FP", "fp", [TypedAttrInterface]> {
   let summary = "An attribute containing a floating-point value";
   let description = [{
     An fp attribute is a literal attribute that represents a floating-point
-    value of the specified floating-point type.
+    value of the specified floating-point type. Supporting only CIR FP types.
   }];
-  let parameters = (ins AttributeSelfTypeParameter<"">:$type, "APFloat":$value);
+  let parameters = (ins
+    AttributeSelfTypeParameter<"", "::mlir::cir::CIRFPTypeInterface">:$type,
+    APFloatParameter<"">:$value
+  );
   let builders = [
     AttrBuilderWithInferredContext<(ins "Type":$type,
                                         "const APFloat &":$value), [{
-      return $_get(type.getContext(), type, value);
+      return $_get(type.getContext(), type.cast<CIRFPTypeInterface>(), value);
+    }]>,
+    AttrBuilder<(ins "Type":$type,
+                     "const APFloat &":$value), [{
+      return $_get($_ctxt, type.cast<CIRFPTypeInterface>(), value);
     }]>,
   ];
   let extraClassDeclaration = [{
