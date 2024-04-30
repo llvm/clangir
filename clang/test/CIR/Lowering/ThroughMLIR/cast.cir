@@ -1,0 +1,102 @@
+// RUN: cir-opt %s -cir-to-mlir | FileCheck %s -check-prefix=MLIR
+// RUN: cir-opt %s -cir-to-mlir -cir-mlir-to-llvm | mlir-translate -mlir-to-llvmir | FileCheck %s -check-prefix=LLVM
+
+!s32i = !cir.int<s, 32>
+!s16i = !cir.int<s, 16>
+!u32i = !cir.int<u, 32>
+!u16i = !cir.int<u, 16>
+!u8i  = !cir.int<u, 8>
+module {
+  cir.func @cast_int_to_bool(%i : !u32i) -> !cir.bool {
+    %1 = cir.cast(int_to_bool, %i : !u32i), !cir.bool
+    cir.return %1 : !cir.bool
+  }
+  cir.func @cast_integral_trunc(%i : !u32i) -> !u16i {
+    %1 = cir.cast(integral, %i : !u32i), !u16i
+    cir.return %1 : !u16i
+  }
+  cir.func @cast_integral_extu(%i : !u16i) -> !u32i {
+    %1 = cir.cast(integral, %i : !u16i), !u32i
+    cir.return %1 : !u32i
+  }
+  cir.func @cast_integral_exts(%i : !s16i) -> !s32i {
+    %1 = cir.cast(integral, %i : !s16i), !s32i
+    cir.return %1 : !s32i
+  }
+  cir.func @cast_integral_same_size(%i : !u32i) -> !s32i {
+    %1 = cir.cast(integral, %i : !u32i), !s32i
+    cir.return %1 : !s32i
+  }
+  cir.func @cast_floating_trunc(%d : !cir.double) -> !cir.float {
+    %1 = cir.cast(floating, %d : !cir.double), !cir.float
+    cir.return %1 : !cir.float
+  }
+  cir.func @cast_floating_extf(%f : !cir.float) -> !cir.double {
+    %1 = cir.cast(floating, %f : !cir.float), !cir.double
+    cir.return %1 : !cir.double
+  }
+  cir.func @cast_float_to_bool(%f : !cir.float) -> !cir.bool {
+    %1 = cir.cast(float_to_bool, %f : !cir.float), !cir.bool
+    cir.return %1 : !cir.bool
+  }
+  cir.func @cast_bool_to_int8(%b : !cir.bool) -> !u8i {
+    %1 = cir.cast(bool_to_int, %b : !cir.bool), !u8i
+    cir.return %1 : !u8i
+  }
+  cir.func @cast_bool_to_int(%b : !cir.bool) -> !u32i {
+    %1 = cir.cast(bool_to_int, %b : !cir.bool), !u32i
+    cir.return %1 : !u32i
+  }
+  cir.func @cast_bool_to_float(%b : !cir.bool) -> !cir.float {
+    %1 = cir.cast(bool_to_float, %b : !cir.bool), !cir.float
+    cir.return %1 : !cir.float
+  }
+  cir.func @cast_signed_int_to_float(%i : !s32i) -> !cir.float {
+    %1 = cir.cast(int_to_float, %i : !s32i), !cir.float
+    cir.return %1 : !cir.float
+  }
+  cir.func @cast_unsigned_int_to_float(%i : !u32i) -> !cir.float {
+    %1 = cir.cast(int_to_float, %i : !u32i), !cir.float
+    cir.return %1 : !cir.float
+  }
+  cir.func @cast_float_to_int_signed(%f : !cir.float) -> !s32i {
+    %1 = cir.cast(float_to_int, %f : !cir.float), !s32i
+    cir.return %1 : !s32i
+  }
+  cir.func @cast_float_to_int_unsigned(%f : !cir.float) -> !u32i {
+    %1 = cir.cast(float_to_int, %f : !cir.float), !u32i
+    cir.return %1 : !u32i
+  }
+}
+
+// MLIR: arith.cmpi ne, %arg0, %c0_i32
+// MLIR: arith.trunci %arg0 : i32 to i16
+// MLIR: arith.extui %arg0 : i16 to i32
+// MLIR: arith.extsi %arg0 : i16 to i32
+// MLIR: return %arg0 : i32
+// MLIR: arith.truncf %arg0 : f64 to f32
+// MLIR: arith.extf %arg0 : f32 to f64
+// MLIR: arith.cmpf une, %arg0, %cst : f32
+// MLIR: arith.bitcast %arg0 : i8 to i8
+// MLIR: arith.extui %arg0 : i8 to i32
+// MLIR: arith.uitofp %arg0 : i8 to f32
+// MLIR: arith.sitofp %arg0 : i32 to f32
+// MLIR: arith.uitofp %arg0 : i32 to f32
+// MLIR: arith.fptosi %arg0 : f32 to i32
+// MLIR: arith.fptoui %arg0 : f32 to i32
+
+// LLVM: icmp ne i32 %0, 0
+// LLVM: trunc i32 %0 to i16
+// LLVM: zext i16 %0 to i32
+// LLVM: sext i16 %0 to i32
+// LLVM: ret i32 %0
+// LLVM: fptrunc double %0 to float
+// LLVM: fpext float %0 to double
+// LLVM: fcmp une float %0, 0.000000e+00
+// LLVM: ret i8 %0
+// LLVM: zext i8 %0 to i32
+// LLVM: uitofp i8 %0 to float
+// LLVM: sitofp i32 %0 to float
+// LLVM: uitofp i32 %0 to float
+// LLVM: fptosi float %0 to i32
+// LLVM: fptoui float %0 to i32

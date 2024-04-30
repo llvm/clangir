@@ -709,6 +709,145 @@ public:
   }
 };
 
+class CIRCastOpLowering : public mlir::OpConversionPattern<mlir::cir::CastOp> {
+public:
+  using OpConversionPattern<mlir::cir::CastOp>::OpConversionPattern;
+
+  inline mlir::Type convertTy(mlir::Type ty) const {
+    return getTypeConverter()->convertType(ty);
+  }
+
+  /// If the given type is a vector type, return the vector's element type.
+  /// Otherwise return the given type unchanged.
+  inline mlir::Type elementTypeIfVector(mlir::Type type) const {
+    if (auto VecType = type.dyn_cast<mlir::cir::VectorType>()) {
+      return VecType.getEltType();
+    }
+    return type;
+  }
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::CastOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto src = adaptor.getSrc();
+    auto dstType = op.getResult().getType();
+    using CIR = mlir::cir::CastKind;
+    switch (op.getKind()) {
+    case CIR::int_to_bool: {
+      auto zero = rewriter.create<mlir::cir::ConstantOp>(
+          src.getLoc(), op.getSrc().getType(),
+          mlir::cir::IntAttr::get(op.getSrc().getType(), 0));
+      rewriter.replaceOpWithNewOp<mlir::cir::CmpOp>(
+          op, mlir::cir::BoolType::get(getContext()), mlir::cir::CmpOpKind::ne,
+          op.getSrc(), zero);
+      return mlir::success();
+    }
+    case CIR::integral: {
+      auto srcType = op.getSrc().getType();
+      auto newDstType = convertTy(dstType);
+      mlir::cir::IntType srcIntType =
+          elementTypeIfVector(srcType).cast<mlir::cir::IntType>();
+      mlir::cir::IntType dstIntType =
+          elementTypeIfVector(dstType).cast<mlir::cir::IntType>();
+
+      if (dstIntType.getWidth() < srcIntType.getWidth()) {
+        // Bigger to smaller. Truncate.
+        rewriter.replaceOpWithNewOp<mlir::arith::TruncIOp>(op, newDstType, src);
+      } else if (dstIntType.getWidth() > srcIntType.getWidth()) {
+        // Smaller to bigger. Zero extend or sign extend based on signedness.
+        if (srcIntType.isUnsigned())
+          rewriter.replaceOpWithNewOp<mlir::arith::ExtUIOp>(op, newDstType,
+                                                            src);
+        else
+          rewriter.replaceOpWithNewOp<mlir::arith::ExtSIOp>(op, newDstType,
+                                                            src);
+      } else {
+        // Same size. Signedness changes doesn't matter. Do nothing.
+        rewriter.replaceOp(op, src);
+      }
+      return mlir::success();
+    }
+    case CIR::floating: {
+      auto newDstType = convertTy(dstType);
+      auto srcTy = elementTypeIfVector(op.getSrc().getType());
+      auto dstTy = elementTypeIfVector(op.getResult().getType());
+
+      if (!dstTy.isa<mlir::cir::CIRFPTypeInterface>() ||
+          !srcTy.isa<mlir::cir::CIRFPTypeInterface>())
+        return op.emitError() << "NYI cast from " << srcTy << " to " << dstTy;
+
+      auto getFloatWidth = [](mlir::Type ty) -> unsigned {
+        return ty.cast<mlir::cir::CIRFPTypeInterface>().getWidth();
+      };
+
+      if (getFloatWidth(srcTy) > getFloatWidth(dstTy))
+        rewriter.replaceOpWithNewOp<mlir::arith::TruncFOp>(op, newDstType, src);
+      else
+        rewriter.replaceOpWithNewOp<mlir::arith::ExtFOp>(op, newDstType, src);
+      return mlir::success();
+    }
+    case CIR::float_to_bool: {
+      auto dstTy = op.getType().cast<mlir::cir::BoolType>();
+      auto newDstType = convertTy(dstTy);
+      auto kind = mlir::arith::CmpFPredicate::UNE;
+
+      // Check if float is not equal to zero.
+      auto zeroFloat = rewriter.create<mlir::arith::ConstantOp>(
+          op.getLoc(), src.getType(), mlir::FloatAttr::get(src.getType(), 0.0));
+
+      // Extend comparison result to either bool (C++) or int (C).
+      mlir::Value cmpResult = rewriter.create<mlir::arith::CmpFOp>(
+          op.getLoc(), kind, src, zeroFloat);
+      rewriter.replaceOpWithNewOp<mlir::arith::ExtUIOp>(op, newDstType,
+                                                        cmpResult);
+      return mlir::success();
+    }
+    case CIR::bool_to_int: {
+      auto newSrcTy = src.getType().cast<mlir::IntegerType>();
+      auto dstTy = op.getType().cast<mlir::cir::IntType>();
+      auto newDstType = convertTy(dstTy).cast<mlir::IntegerType>();
+      if (newSrcTy.getWidth() == newDstType.getWidth())
+        rewriter.replaceOpWithNewOp<mlir::arith::BitcastOp>(op, newDstType,
+                                                            src);
+      else
+        rewriter.replaceOpWithNewOp<mlir::arith::ExtUIOp>(op, newDstType, src);
+      return mlir::success();
+    }
+    case CIR::bool_to_float: {
+      auto dstTy = op.getType();
+      auto newDstType = convertTy(dstTy);
+      rewriter.replaceOpWithNewOp<mlir::arith::UIToFPOp>(op, newDstType, src);
+      return mlir::success();
+    }
+    case CIR::int_to_float: {
+      auto dstTy = op.getType();
+      auto newDstType = convertTy(dstTy);
+      if (elementTypeIfVector(op.getSrc().getType())
+              .cast<mlir::cir::IntType>()
+              .isSigned())
+        rewriter.replaceOpWithNewOp<mlir::arith::SIToFPOp>(op, newDstType, src);
+      else
+        rewriter.replaceOpWithNewOp<mlir::arith::UIToFPOp>(op, newDstType, src);
+      return mlir::success();
+    }
+    case CIR::float_to_int: {
+      auto dstTy = op.getType();
+      auto newDstType = convertTy(dstTy);
+      if (elementTypeIfVector(op.getResult().getType())
+              .cast<mlir::cir::IntType>()
+              .isSigned())
+        rewriter.replaceOpWithNewOp<mlir::arith::FPToSIOp>(op, newDstType, src);
+      else
+        rewriter.replaceOpWithNewOp<mlir::arith::FPToUIOp>(op, newDstType, src);
+      return mlir::success();
+    }
+    default:
+      break;
+    }
+    return mlir::failure();
+  }
+};
+
 void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
                                          mlir::TypeConverter &converter) {
   patterns.add<CIRReturnLowering, CIRBrOpLowering>(patterns.getContext());
@@ -718,7 +857,8 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
                CIRStoreOpLowering, CIRAllocaOpLowering, CIRFuncOpLowering,
                CIRScopeOpLowering, CIRBrCondOpLowering, CIRTernaryOpLowering,
                CIRYieldOpLowering, CIRCosOpLowering, CIRGlobalOpLowering,
-               CIRGetGlobalOpLowering>(converter, patterns.getContext());
+               CIRGetGlobalOpLowering, CIRCastOpLowering>(
+      converter, patterns.getContext());
 }
 
 static mlir::TypeConverter prepareTypeConverter() {
