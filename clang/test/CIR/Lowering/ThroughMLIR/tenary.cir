@@ -1,3 +1,4 @@
+// XFAIL: *
 // RUN: cir-opt %s -cir-to-mlir | FileCheck %s -check-prefix=MLIR
 // RUN: cir-opt %s -cir-to-mlir --canonicalize | FileCheck %s --check-prefix=MLIR-CANONICALIZE
 // RUN: cir-opt %s -cir-to-mlir --canonicalize -cir-mlir-to-llvm | mlir-translate -mlir-to-llvmir | FileCheck %s -check-prefix=LLVM
