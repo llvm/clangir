@@ -235,9 +235,9 @@ public:
         fnType.getNumInputs());
 
     for (const auto &argType : enumerate(fnType.getInputs())) {
-      auto convertedType = typeConverter->convertType(argType.value());
+      auto convertedType = getTypeConverter()->convertType(argType.value());
       if (!convertedType)
-        return failure();
+        return mlir::failure();
       signatureConversion.addInputs(argType.index(), convertedType);
     }
 
@@ -246,7 +246,7 @@ public:
     if (!fnType.isVoid()) {
       auto resultType = getTypeConverter()->convertType(fnType.getReturnType());
       if (!resultType)
-        return failure();
+        return mlir::failure();
       resultTypes.push_back(resultType);
     }
 
@@ -256,7 +256,7 @@ public:
                                  resultTypes));
 
     rewriter.inlineRegionBefore(op.getBody(), fn.getBody(), fn.end());
-    if (failed(rewriter.convertRegionTypes(&fn.getBody(), *typeConverter,
+    if (failed(rewriter.convertRegionTypes(&fn.getBody(), *getTypeConverter(),
                                            &signatureConversion)))
       return mlir::failure();
 
@@ -585,16 +585,17 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::TernaryOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    rewriter.setInsertionPoint(op);
     auto condition = adaptor.getCond();
     
-    // Convert condition to i1 if needed (type converter will handle the conversion)
+    // Convert from i8 boolean to i1 for SCF operations
     auto i1Type = rewriter.getI1Type();
-    auto i1Condition = getTypeConverter()->materializeSourceConversion(
-        rewriter, op.getLoc(), i1Type, condition);
-    if (!i1Condition) {
-      return mlir::failure();
-    }
+    auto zero = rewriter.create<mlir::arith::ConstantOp>(
+        op.getLoc(), condition.getType(), rewriter.getIntegerAttr(condition.getType(), 0));
+    auto i1Condition = rewriter.create<mlir::arith::CmpIOp>(
+        op.getLoc(), i1Type,
+        mlir::arith::CmpIPredicateAttr::get(rewriter.getContext(),
+                                            mlir::arith::CmpIPredicate::ne),
+        condition, zero);
     
     SmallVector<mlir::Type> resultTypes;
     if (mlir::failed(getTypeConverter()->convertTypes(op->getResultTypes(),
