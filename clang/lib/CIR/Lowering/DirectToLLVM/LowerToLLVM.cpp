@@ -495,6 +495,25 @@ public:
   }
 };
 
+static mlir::Value getLLVMIntCast(mlir::ConversionPatternRewriter &rewriter,
+                                  mlir::Value llvmSrc,
+                                  mlir::IntegerType llvmDstIntTy,
+                                  bool isUnsigned, uint64_t cirDstIntWidth) {
+  auto cirSrcWidth = llvm::cast<mlir::IntegerType>(llvmSrc.getType()).getWidth();
+  if (cirSrcWidth == cirDstIntWidth)
+    return llvmSrc;
+
+  auto loc = llvmSrc.getLoc();
+  if (cirSrcWidth < cirDstIntWidth) {
+    if (isUnsigned)
+      return rewriter.create<mlir::LLVM::ZExtOp>(loc, llvmDstIntTy, llvmSrc);
+    return rewriter.create<mlir::LLVM::SExtOp>(loc, llvmDstIntTy, llvmSrc);
+  }
+
+  // Otherwise truncate
+  return rewriter.create<mlir::LLVM::TruncOp>(loc, llvmDstIntTy, llvmSrc);
+}
+
 class CIRPtrStrideOpLowering
     : public mlir::OpConversionPattern<mlir::cir::PtrStrideOp> {
 public:
@@ -527,12 +546,9 @@ public:
         LLVMLayout.getTypeIndexBitwidth(adaptor.getBase().getType());
     if (isVoid && layoutWidth && width < *layoutWidth) {
       auto llvmDstType = mlir::IntegerType::get(ctx, *layoutWidth);
-      if (ptrStrideOp.getStride().getType().isUnsigned())
-        index = rewriter.create<mlir::LLVM::ZExtOp>(ptrStrideOp.getLoc(),
-                                                    llvmDstType, index);
-      else
-        index = rewriter.create<mlir::LLVM::SExtOp>(ptrStrideOp.getLoc(),
-                                                    llvmDstType, index);
+      index = getLLVMIntCast(rewriter, index, llvmDstType,
+                             ptrStrideOp.getStride().getType().isUnsigned(),
+                             *layoutWidth);
     }
 
     rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(
@@ -631,23 +647,11 @@ public:
           mlir::cast<mlir::cir::IntType>(elementTypeIfVector(srcType));
       mlir::cir::IntType dstIntType =
           mlir::cast<mlir::cir::IntType>(elementTypeIfVector(dstType));
-
-      if (dstIntType.getWidth() < srcIntType.getWidth()) {
-        // Bigger to smaller. Truncate.
-        rewriter.replaceOpWithNewOp<mlir::LLVM::TruncOp>(castOp, llvmDstType,
-                                                         llvmSrcVal);
-      } else if (dstIntType.getWidth() > srcIntType.getWidth()) {
-        // Smaller to bigger. Zero extend or sign extend based on signedness.
-        if (srcIntType.isUnsigned())
-          rewriter.replaceOpWithNewOp<mlir::LLVM::ZExtOp>(castOp, llvmDstType,
-                                                          llvmSrcVal);
-        else
-          rewriter.replaceOpWithNewOp<mlir::LLVM::SExtOp>(castOp, llvmDstType,
-                                                          llvmSrcVal);
-      } else {
-        // Same size. Signedness changes doesn't matter to LLVM. Do nothing.
-        rewriter.replaceOp(castOp, llvmSrcVal);
-      }
+      rewriter.replaceOp(castOp,
+                         getLLVMIntCast(rewriter, llvmSrcVal,
+                                        llvm::cast<mlir::IntegerType>(llvmDstType),
+                                        srcIntType.isUnsigned(),
+                                        dstIntType.getWidth()));
       break;
     }
     case mlir::cir::CastKind::floating: {
@@ -1994,7 +1998,6 @@ public:
     auto cirAmtTy = mlir::dyn_cast<mlir::cir::IntType>(op.getAmount().getType());
     auto cirValTy = mlir::dyn_cast<mlir::cir::IntType>(op.getValue().getType());
     auto llvmTy = getTypeConverter()->convertType(op.getType());
-    auto loc = op.getLoc();
     mlir::Value amt = adaptor.getAmount();
     mlir::Value val = adaptor.getValue();
 
@@ -2003,14 +2006,8 @@ public:
 
     // Ensure shift amount is the same type as the value. Some undefined
     // behavior might occur in the casts below as per [C99 6.5.7.3].
-    if (cirAmtTy.getWidth() > cirValTy.getWidth()) {
-      amt = rewriter.create<mlir::LLVM::TruncOp>(loc, llvmTy, amt);
-    } else if (cirAmtTy.getWidth() < cirValTy.getWidth()) {
-      if (cirAmtTy.isSigned())
-        amt = rewriter.create<mlir::LLVM::SExtOp>(loc, llvmTy, amt);
-      else
-        amt = rewriter.create<mlir::LLVM::ZExtOp>(loc, llvmTy, amt);
-    }
+    amt = getLLVMIntCast(rewriter, amt, llvm::cast<mlir::IntegerType>(llvmTy),
+                         !cirAmtTy.isSigned(), cirValTy.getWidth());
 
     // Lower to the proper LLVM shift operation.
     if (op.getIsShiftleft())
@@ -2115,14 +2112,9 @@ static mlir::Value createLLVMBitOp(mlir::Location loc,
                                    operand.getType(), operand);
   }
 
-  mlir::Value result = op->getResult(0);
-  if (operandIntTy.getWidth() > resultIntTy.getWidth()) {
-    result = rewriter.create<mlir::LLVM::TruncOp>(loc, resultTy, result);
-  } else if (operandIntTy.getWidth() < resultIntTy.getWidth()) {
-    result = rewriter.create<mlir::LLVM::ZExtOp>(loc, resultTy, result);
-  }
-
-  return result;
+  return getLLVMIntCast(rewriter, op->getResult(0),
+                        llvm::cast<mlir::IntegerType>(resultTy),
+                        /*isUnsigned=*/true, resultIntTy.getWidth());
 }
 
 class CIRBitClrsbOpLowering
