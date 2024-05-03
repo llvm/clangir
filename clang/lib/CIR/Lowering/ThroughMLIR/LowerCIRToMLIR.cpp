@@ -709,6 +709,27 @@ public:
   }
 };
 
+static mlir::Value createIntCast(mlir::ConversionPatternRewriter &rewriter,
+                                 mlir::Value src, mlir::Type dstTy,
+                                 bool isSigned = false) {
+  auto srcTy = src.getType();
+  assert(isa<mlir::IntegerType>(srcTy));
+  assert(isa<mlir::IntegerType>(dstTy));
+
+  auto srcWidth = srcTy.cast<mlir::IntegerType>().getWidth();
+  auto dstWidth = dstTy.cast<mlir::IntegerType>().getWidth();
+  auto loc = src.getLoc();
+
+  if (dstWidth > srcWidth && isSigned)
+    return rewriter.create<mlir::arith::ExtSIOp>(loc, dstTy, src);
+  else if (dstWidth > srcWidth)
+    return rewriter.create<mlir::arith::ExtUIOp>(loc, dstTy, src);
+  else if (dstWidth < srcWidth)
+    return rewriter.create<mlir::arith::TruncIOp>(loc, dstTy, src);
+  else
+    return rewriter.create<mlir::arith::BitcastOp>(loc, dstTy, src);
+}
+
 class CIRCastOpLowering : public mlir::OpConversionPattern<mlir::cir::CastOp> {
 public:
   using OpConversionPattern<mlir::cir::CastOp>::OpConversionPattern;
@@ -734,26 +755,12 @@ public:
       return mlir::success();
     }
     case CIR::integral: {
-      auto srcType = op.getSrc().getType();
       auto newDstType = convertTy(dstType);
+      auto srcType = op.getSrc().getType();
       mlir::cir::IntType srcIntType = srcType.cast<mlir::cir::IntType>();
-      mlir::cir::IntType dstIntType = dstType.cast<mlir::cir::IntType>();
-
-      if (dstIntType.getWidth() < srcIntType.getWidth()) {
-        // Bigger to smaller. Truncate.
-        rewriter.replaceOpWithNewOp<mlir::arith::TruncIOp>(op, newDstType, src);
-      } else if (dstIntType.getWidth() > srcIntType.getWidth()) {
-        // Smaller to bigger. Zero extend or sign extend based on signedness.
-        if (srcIntType.isUnsigned())
-          rewriter.replaceOpWithNewOp<mlir::arith::ExtUIOp>(op, newDstType,
-                                                            src);
-        else
-          rewriter.replaceOpWithNewOp<mlir::arith::ExtSIOp>(op, newDstType,
-                                                            src);
-      } else {
-        // Same size. Signedness changes doesn't matter. Do nothing.
-        rewriter.replaceOp(op, src);
-      }
+      auto newOp =
+          createIntCast(rewriter, src, newDstType, srcIntType.isSigned());
+      rewriter.replaceOp(op, newOp);
       return mlir::success();
     }
     case CIR::floating: {
@@ -792,14 +799,10 @@ public:
       return mlir::success();
     }
     case CIR::bool_to_int: {
-      auto newSrcTy = src.getType().cast<mlir::IntegerType>();
       auto dstTy = op.getType().cast<mlir::cir::IntType>();
       auto newDstType = convertTy(dstTy).cast<mlir::IntegerType>();
-      if (newSrcTy.getWidth() == newDstType.getWidth())
-        rewriter.replaceOpWithNewOp<mlir::arith::BitcastOp>(op, newDstType,
-                                                            src);
-      else
-        rewriter.replaceOpWithNewOp<mlir::arith::ExtUIOp>(op, newDstType, src);
+      auto newOp = createIntCast(rewriter, src, newDstType);
+      rewriter.replaceOp(op, newOp);
       return mlir::success();
     }
     case CIR::bool_to_float: {
