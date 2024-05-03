@@ -742,8 +742,7 @@ public:
   matchAndRewrite(mlir::cir::CastOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     if (isa<mlir::cir::VectorType>(op.getSrc().getType()))
-      llvm_unreachable(
-          "CastOp lowering for vector type is not supported yet");
+      llvm_unreachable("CastOp lowering for vector type is not supported yet");
     auto src = adaptor.getSrc();
     auto dstType = op.getResult().getType();
     using CIR = mlir::cir::CastKind;
