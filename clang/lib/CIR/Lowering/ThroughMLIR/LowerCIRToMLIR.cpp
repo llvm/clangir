@@ -717,15 +717,6 @@ public:
     return getTypeConverter()->convertType(ty);
   }
 
-  /// If the given type is a vector type, return the vector's element type.
-  /// Otherwise return the given type unchanged.
-  inline mlir::Type elementTypeIfVector(mlir::Type type) const {
-    if (auto VecType = type.dyn_cast<mlir::cir::VectorType>()) {
-      return VecType.getEltType();
-    }
-    return type;
-  }
-
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::CastOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
@@ -745,10 +736,8 @@ public:
     case CIR::integral: {
       auto srcType = op.getSrc().getType();
       auto newDstType = convertTy(dstType);
-      mlir::cir::IntType srcIntType =
-          elementTypeIfVector(srcType).cast<mlir::cir::IntType>();
-      mlir::cir::IntType dstIntType =
-          elementTypeIfVector(dstType).cast<mlir::cir::IntType>();
+      mlir::cir::IntType srcIntType = srcType.cast<mlir::cir::IntType>();
+      mlir::cir::IntType dstIntType = dstType.cast<mlir::cir::IntType>();
 
       if (dstIntType.getWidth() < srcIntType.getWidth()) {
         // Bigger to smaller. Truncate.
@@ -769,8 +758,8 @@ public:
     }
     case CIR::floating: {
       auto newDstType = convertTy(dstType);
-      auto srcTy = elementTypeIfVector(op.getSrc().getType());
-      auto dstTy = elementTypeIfVector(op.getResult().getType());
+      auto srcTy = op.getSrc().getType();
+      auto dstTy = op.getResult().getType();
 
       if (!dstTy.isa<mlir::cir::CIRFPTypeInterface>() ||
           !srcTy.isa<mlir::cir::CIRFPTypeInterface>())
@@ -822,9 +811,7 @@ public:
     case CIR::int_to_float: {
       auto dstTy = op.getType();
       auto newDstType = convertTy(dstTy);
-      if (elementTypeIfVector(op.getSrc().getType())
-              .cast<mlir::cir::IntType>()
-              .isSigned())
+      if (op.getSrc().getType().cast<mlir::cir::IntType>().isSigned())
         rewriter.replaceOpWithNewOp<mlir::arith::SIToFPOp>(op, newDstType, src);
       else
         rewriter.replaceOpWithNewOp<mlir::arith::UIToFPOp>(op, newDstType, src);
@@ -833,9 +820,7 @@ public:
     case CIR::float_to_int: {
       auto dstTy = op.getType();
       auto newDstType = convertTy(dstTy);
-      if (elementTypeIfVector(op.getResult().getType())
-              .cast<mlir::cir::IntType>()
-              .isSigned())
+      if (op.getResult().getType().cast<mlir::cir::IntType>().isSigned())
         rewriter.replaceOpWithNewOp<mlir::arith::FPToSIOp>(op, newDstType, src);
       else
         rewriter.replaceOpWithNewOp<mlir::arith::FPToUIOp>(op, newDstType, src);
