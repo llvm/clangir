@@ -808,7 +808,7 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
 
     auto Loc = getLoc(E->getSourceRange());
     auto ArithResult =
-        builder.createCheckedBinOp(Loc, ResultCIRTy, OpKind, Left, Right);
+        builder.createBinOpOverflowOp(Loc, ResultCIRTy, OpKind, Left, Right);
 
     // Here is a slight difference from the original clang CodeGen:
     //   - In the original clang CodeGen, the checked arithmetic result is
@@ -891,7 +891,7 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
 
     auto Loc = getLoc(E->getSourceRange());
     auto ArithResult =
-        builder.createCheckedBinOp(Loc, ResultCIRTy, ArithKind, X, Y);
+        builder.createBinOpOverflowOp(Loc, ResultCIRTy, ArithKind, X, Y);
 
     bool isVolatile =
         ResultArg->getType()->getPointeeType().isVolatileQualified();
