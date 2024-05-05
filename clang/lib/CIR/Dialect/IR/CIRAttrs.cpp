@@ -289,7 +289,7 @@ void IntAttr::print(AsmPrinter &printer) const {
 }
 
 LogicalResult IntAttr::verify(function_ref<InFlightDiagnostic()> emitError,
-                              Type type, APInt value) {
+                              Type type, const APInt &value) {
   if (!type.isa<IntType>()) {
     emitError() << "expected 'simple.int' type";
     return failure();
@@ -346,7 +346,7 @@ cir::FPAttr cir::FPAttr::getZero(mlir::Type type) {
 }
 
 LogicalResult cir::FPAttr::verify(function_ref<InFlightDiagnostic()> emitError,
-                                  Type type, APFloat value) {
+                                  Type type, const APFloat &value) {
   auto fltTypeInterface = type.dyn_cast<cir::CIRFPTypeInterface>();
   if (!fltTypeInterface) {
     emitError() << "expected floating-point type";
