@@ -81,7 +81,7 @@ err:
 // NOFLAT:      cir.goto "err"
 // NOFLAT:    }
 // NOFLAT:  ^bb1:
-// NOFLAT:    %3 = cir.load %1 : cir.ptr <!s32i>, !s32i
+// NOFLAT:    %3 = cir.load %1 : !cir.ptr<!s32i>, !s32i
 // NOFLAT:    cir.return %3 : !s32i
 // NOFLAT:  ^bb2:  // no predecessors
 // NOFLAT:    cir.label "err"
