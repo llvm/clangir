@@ -2108,8 +2108,6 @@ private:
     case mlir::cir::BinOpOverflowKind::Mul:
       name.append("mul.");
       break;
-    default:
-      llvm_unreachable("unknown checked arith kind");
     }
 
     name.append("with.overflow.i");
