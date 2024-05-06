@@ -32,6 +32,7 @@
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Pass/PassManager.h"
+#include "mlir/Support/LogicalResult.h"
 #include "mlir/Target/LLVMIR/Dialect/Builtin/BuiltinToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Dialect/OpenMP/OpenMPToLLVMIRTranslation.h"
@@ -149,6 +150,18 @@ public:
   matchAndRewrite(mlir::cir::CosOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     rewriter.replaceOpWithNewOp<mlir::math::CosOp>(op, adaptor.getSrc());
+    return mlir::LogicalResult::success();
+  }
+};
+
+class CIRSinOpLowering : public mlir::OpConversionPattern<mlir::cir::SinOp> {
+public:
+  using mlir::OpConversionPattern<mlir::cir::SinOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::SinOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOpWithNewOp<mlir::math::SinOp>(op, adaptor.getSrc());
     return mlir::LogicalResult::success();
   }
 };
@@ -847,7 +860,7 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
                CIRStoreOpLowering, CIRAllocaOpLowering, CIRFuncOpLowering,
                CIRScopeOpLowering, CIRBrCondOpLowering, CIRTernaryOpLowering,
                CIRYieldOpLowering, CIRCosOpLowering, CIRGlobalOpLowering,
-               CIRGetGlobalOpLowering, CIRCastOpLowering>(
+               CIRGetGlobalOpLowering, CIRCastOpLowering, CIRSinOpLowering>(
       converter, patterns.getContext());
 }
 
