@@ -506,7 +506,9 @@ public:
       auto sub = dyn_cast<mlir::LLVM::SubOp>(index.getDefiningOp());
       auto unary =
           dyn_cast<mlir::cir::UnaryOp>(ptrStrideOp.getStride().getDefiningOp());
-      if (unary && unary.getKind() == mlir::cir::UnaryOpKind::Minus && sub)
+      bool rewriteSub =
+          unary && unary.getKind() == mlir::cir::UnaryOpKind::Minus && sub;
+      if (rewriteSub)
         index = index.getDefiningOp()->getOperand(1);
 
       // Handle the cast
@@ -516,7 +518,7 @@ public:
                              *layoutWidth);
 
       // Rewrite the sub in front of extensions/trunc
-      if (sub) {
+      if (rewriteSub) {
         index = rewriter.create<mlir::LLVM::SubOp>(
             index.getLoc(), index.getType(),
             rewriter.create<mlir::LLVM::ConstantOp>(
@@ -2053,8 +2055,6 @@ private:
     case mlir::cir::BinOpOverflowKind::Mul:
       name.append("mul.");
       break;
-    default:
-      llvm_unreachable("unknown checked arith kind");
     }
 
     name.append("with.overflow.i");
@@ -2608,6 +2608,27 @@ public:
   }
 };
 
+class CIRRotateOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::RotateOp> {
+public:
+  using OpConversionPattern<mlir::cir::RotateOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::RotateOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    // Note that LLVM intrinsic calls to @llvm.fsh{r,l}.i* have the same type as
+    // the operand.
+    auto src = adaptor.getSrc();
+    if (op.getLeft())
+      rewriter.replaceOpWithNewOp<mlir::LLVM::FshlOp>(op, src, src,
+                                                      adaptor.getAmt());
+    else
+      rewriter.replaceOpWithNewOp<mlir::LLVM::FshrOp>(op, src, src,
+                                                      adaptor.getAmt());
+    return mlir::LogicalResult::success();
+  }
+};
+
 class CIRBrOpLowering : public mlir::OpConversionPattern<mlir::cir::BrOp> {
 public:
   using OpConversionPattern<mlir::cir::BrOp>::OpConversionPattern;
@@ -3130,13 +3151,13 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
       CIRCmpOpLowering, CIRBitClrsbOpLowering, CIRBitClzOpLowering,
       CIRBitCtzOpLowering, CIRBitFfsOpLowering, CIRBitParityOpLowering,
       CIRBitPopcountOpLowering, CIRAtomicCmpXchgLowering, CIRAtomicXchgLowering,
-      CIRAtomicFetchLowering, CIRByteswapOpLowering, CIRBrCondOpLowering,
-      CIRPtrStrideOpLowering, CIRCallLowering, CIRUnaryOpLowering,
-      CIRBinOpLowering, CIRBinOpOverflowOpLowering, CIRShiftOpLowering,
-      CIRLoadLowering, CIRConstantLowering, CIRStoreLowering, CIRAllocaLowering,
-      CIRFuncLowering, CIRCastOpLowering, CIRGlobalOpLowering,
-      CIRGetGlobalOpLowering, CIRVAStartLowering, CIRVAEndLowering,
-      CIRVACopyLowering, CIRVAArgLowering, CIRBrOpLowering,
+      CIRAtomicFetchLowering, CIRByteswapOpLowering, CIRRotateOpLowering,
+      CIRBrCondOpLowering, CIRPtrStrideOpLowering, CIRCallLowering,
+      CIRUnaryOpLowering, CIRBinOpLowering, CIRBinOpOverflowOpLowering,
+      CIRShiftOpLowering, CIRLoadLowering, CIRConstantLowering,
+      CIRStoreLowering, CIRAllocaLowering, CIRFuncLowering, CIRCastOpLowering,
+      CIRGlobalOpLowering, CIRGetGlobalOpLowering, CIRVAStartLowering,
+      CIRVAEndLowering, CIRVACopyLowering, CIRVAArgLowering, CIRBrOpLowering,
       CIRGetMemberOpLowering, CIRSwitchFlatOpLowering, CIRPtrDiffOpLowering,
       CIRCopyOpLowering, CIRMemCpyOpLowering, CIRFAbsOpLowering,
       CIRExpectOpLowering, CIRVTableAddrPointOpLowering,
