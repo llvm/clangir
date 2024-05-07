@@ -3677,7 +3677,8 @@ def GotoOp : CIR_Op<"goto", [Terminator]> {
 // LabelOp
 //===----------------------------------------------------------------------===//
 
-def LabelOp : CIR_Op<"label"> {
+// The LabelOp has AlwaysSpeculatable trait in order to not to be swept by canonicalizer
+def LabelOp : CIR_Op<"label", [AlwaysSpeculatable]> {
   let description = [{ An identifier which may be referred by cir.goto operation }];
   let arguments = (ins StrAttr:$label);
   let assemblyFormat = [{ $label attr-dict }];
