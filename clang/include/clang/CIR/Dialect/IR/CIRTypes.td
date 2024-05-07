@@ -197,6 +197,12 @@ def CIR_PointerType : CIR_Type<"Pointer", "ptr",
   let parameters = (ins "mlir::Type":$pointee);
 
   let assemblyFormat = "`<` $pointee `>`";
+
+  let extraClassDeclaration = [{
+    bool isVoidPtr() const {
+      return llvm::isa<mlir::cir::VoidType>(getPointee());
+    }
+  }];
 }
 
 //===----------------------------------------------------------------------===//

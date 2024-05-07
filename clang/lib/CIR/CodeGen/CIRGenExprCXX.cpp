@@ -1156,7 +1156,7 @@ mlir::Value CIRGenFunction::buildDynamicCast(Address ThisAddr,
 
   assert(destRecordTy->isRecordType() && "dest type must be a record type!");
 
-  auto destCirTy = mlir::cast<mlir::cir::PointerType>(ConvertType(destTy));
+  auto destCirTy = llvm::cast<mlir::cir::PointerType>(ConvertType(destTy));
   auto castInfo = CGM.getCXXABI().buildDynamicCastInfo(*this, loc, srcRecordTy,
                                                        destRecordTy);
   return builder.createDynCast(loc, ThisAddr.getPointer(), destCirTy, isRefCast,
