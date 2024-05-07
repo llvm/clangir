@@ -1006,8 +1006,7 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
                CIRScopeOpLowering, CIRBrCondOpLowering, CIRTernaryOpLowering,
                CIRYieldOpLowering, CIRCosOpLowering, CIRGlobalOpLowering,
                CIRGetGlobalOpLowering, CIRCastOpLowering, CIRPtrStrideOpLowering,
-               CIRSinOpLowering>(
-      converter, patterns.getContext());
+               CIRSinOpLowering>(converter, patterns.getContext());
 }
 
 static mlir::TypeConverter prepareTypeConverter() {
