@@ -290,13 +290,17 @@ public:
   // functions. So during CIRGen we don't need the `emitDynamicCastCall`
   // function that clang CodeGen has.
 
-  mlir::cir::DynamicCastInfoAttr
-  buildDynamicCastInfo(CIRGenFunction &CGF, mlir::Location Loc,
-                       QualType SrcRecordTy, QualType DestRecordTy) override;
+  mlir::Value buildDynamicCast(CIRGenFunction &CGF, mlir::Location Loc,
+                               QualType SrcRecordTy, QualType DestRecordTy,
+                               mlir::cir::PointerType DestCIRTy, bool isRefCast,
+                               mlir::Value Src) override;
 
   mlir::Value buildDynamicCastToVoid(CIRGenFunction &CGF, mlir::Location Loc,
-                                     Address Value,
-                                     QualType SrcRecordTy) override;
+                                     Address ThisAddr, QualType SrcRecordTy);
+
+  mlir::cir::DynamicCastInfoAttr 
+    buildDynamicCastInfo(CIRGenFunction &CGF, mlir::Location Loc, 
+                         QualType SrcRecordTy, QualType DestRecordTy);
 
   /**************************** RTTI Uniqueness ******************************/
 protected:
@@ -2283,12 +2287,23 @@ static mlir::cir::FuncOp getItaniumDynamicCastFn(CIRGenFunction &CGF) {
   return CGF.CGM.createRuntimeFunction(FTy, "__dynamic_cast");
 }
 
-mlir::cir::DynamicCastInfoAttr CIRGenItaniumCXXABI::buildDynamicCastInfo(
+static mlir::Value buildDynamicCastToVoid(CIRGenFunction &CGF,
+                                          mlir::Location Loc,
+                                          QualType SrcRecordTy,
+                                          mlir::Value Src) {
+  auto vtableUsesRelativeLayout =
+      CGF.CGM.getItaniumVTableContext().isRelativeLayout();
+  return CGF.getBuilder().createDynCastToVoid(Loc, Src,
+                                              vtableUsesRelativeLayout);
+}
+
+static mlir::cir::DynamicCastInfoAttr
+buildDynamicCastInfo(
     CIRGenFunction &CGF, mlir::Location Loc, QualType SrcRecordTy,
     QualType DestRecordTy) {
-  auto srcRtti = mlir::cast<mlir::cir::GlobalViewAttr>(
+  auto srcRtti = llvm::cast<mlir::cir::GlobalViewAttr>(
       CGF.CGM.getAddrOfRTTIDescriptor(Loc, SrcRecordTy));
-  auto destRtti = mlir::cast<mlir::cir::GlobalViewAttr>(
+  auto destRtti = llvm::cast<mlir::cir::GlobalViewAttr>(
       CGF.CGM.getAddrOfRTTIDescriptor(Loc, DestRecordTy));
 
   auto runtimeFuncOp = getItaniumDynamicCastFn(CGF);
@@ -2308,51 +2323,29 @@ mlir::cir::DynamicCastInfoAttr CIRGenItaniumCXXABI::buildDynamicCastInfo(
                                              badCastFuncRef, offsetHintAttr);
 }
 
-mlir::Value CIRGenItaniumCXXABI::buildDynamicCastToVoid(CIRGenFunction &CGF,
-                                                        mlir::Location Loc,
-                                                        Address Value,
-                                                        QualType SrcRecordTy) {
-  auto *clsDecl =
-      cast<CXXRecordDecl>(SrcRecordTy->castAs<RecordType>()->getOriginalDecl());
+mlir::Value CIRGenItaniumCXXABI::buildDynamicCastToVoid(
+    CIRGenFunction &CGF, mlir::Location Loc, Address ThisAddr,
+    QualType SrcRecordTy) {
+  return ::buildDynamicCastToVoid(CGF, Loc, SrcRecordTy, ThisAddr.getPointer());
+}
 
-  // TODO(cir): consider address space in this function.
-  assert(!UnimplementedFeature::addressSpace());
+mlir::cir::DynamicCastInfoAttr CIRGenItaniumCXXABI::buildDynamicCastInfo(
+    CIRGenFunction &CGF, mlir::Location Loc, QualType SrcRecordTy,
+    QualType DestRecordTy) {
+  return ::buildDynamicCastInfo(CGF, Loc, SrcRecordTy, DestRecordTy);
+}
 
-  auto loadOffsetToTopFromVTable =
-      [&](mlir::Type vtableElemTy, CharUnits vtableElemAlign) -> mlir::Value {
-    mlir::Type vtablePtrTy = CGF.getBuilder().getPointerTo(vtableElemTy);
-    mlir::Value vtablePtr = CGF.getVTablePtr(Loc, Value, vtablePtrTy, clsDecl);
+mlir::Value CIRGenItaniumCXXABI::buildDynamicCast(
+    CIRGenFunction &CGF, mlir::Location Loc, QualType SrcRecordTy,
+    QualType DestRecordTy, mlir::cir::PointerType DestCIRTy, bool isRefCast,
+    mlir::Value Src) {
+  bool isCastToVoid = DestRecordTy.isNull();
+  assert((!isCastToVoid || !isRefCast) && "cannot cast to void reference");
 
-    // Get the address point in the vtable that contains offset-to-top.
-    mlir::Value offsetToTopSlotPtr =
-        CGF.getBuilder().create<mlir::cir::VTableAddrPointOp>(
-            Loc, vtablePtrTy, mlir::FlatSymbolRefAttr{}, vtablePtr,
-            /*vtable_index=*/0, -2ULL);
-    return CGF.getBuilder().createAlignedLoad(
-        Loc, vtableElemTy, offsetToTopSlotPtr, vtableElemAlign);
-  };
+  if (isCastToVoid)
+    return ::buildDynamicCastToVoid(CGF, Loc, SrcRecordTy, Src);
 
-  // Calculate the offset from the given object to its containing complete
-  // object.
-  mlir::Value offsetToTop;
-  if (CGM.getItaniumVTableContext().isRelativeLayout()) {
-    offsetToTop = loadOffsetToTopFromVTable(CGF.getBuilder().getSInt32Ty(),
-                                            CharUnits::fromQuantity(4));
-  } else {
-    offsetToTop = loadOffsetToTopFromVTable(
-        CGF.convertType(CGF.getContext().getPointerDiffType()),
-        CGF.getPointerAlign());
-  }
-
-  // Finally, add the offset to the given pointer.
-  // Cast the input pointer to a uint8_t* to allow pointer arithmetic.
-  auto u8PtrTy = CGF.getBuilder().getUInt8PtrTy();
-  mlir::Value srcBytePtr =
-      CGF.getBuilder().createBitcast(Value.getPointer(), u8PtrTy);
-  // Do the pointer arithmetic.
-  mlir::Value dstBytePtr = CGF.getBuilder().create<mlir::cir::PtrStrideOp>(
-      Loc, u8PtrTy, srcBytePtr, offsetToTop);
-  // Cast the result to a void*.
-  return CGF.getBuilder().createBitcast(dstBytePtr,
-                                        CGF.getBuilder().getVoidPtrTy());
+  auto castInfo = ::buildDynamicCastInfo(CGF, Loc, SrcRecordTy, DestRecordTy);
+  return CGF.getBuilder().createDynCast(Loc, Src, DestCIRTy, isRefCast,
+                                        castInfo);
 }

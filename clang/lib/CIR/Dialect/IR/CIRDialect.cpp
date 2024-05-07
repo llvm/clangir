@@ -520,6 +520,19 @@ OpFoldResult CastOp::fold(FoldAdaptor adaptor) {
 }
 
 //===----------------------------------------------------------------------===//
+// DynamicCastOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult DynamicCastOp::verify() {
+  auto resultPointeeTy = llvm::cast<mlir::cir::PointerType>(getType()).getPointee();
+  if (!llvm::isa<mlir::cir::VoidType, mlir::cir::StructType>(resultPointeeTy))
+    return emitOpError()
+           << "cir.dyn_cast must produce a void ptr or struct ptr";
+
+  return mlir::success();
+}
+
+//===----------------------------------------------------------------------===//
 // VecCreateOp
 //===----------------------------------------------------------------------===//
 
