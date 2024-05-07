@@ -125,6 +125,78 @@ public:
   }
 };
 
+// Find base and indices from memref.reinterpret_cast
+// and put it into eraseList.
+static bool findBaseAndIndices(mlir::Value addr, mlir::Value &base,
+                               SmallVector<mlir::Value> &indices,
+                               SmallVector<mlir::Operation *> &eraseList,
+                               mlir::ConversionPatternRewriter &rewriter) {
+  while (mlir::Operation *addrOp = addr.getDefiningOp()) {
+    if (!isa<mlir::memref::ReinterpretCastOp>(addrOp))
+      break;
+    indices.push_back(addrOp->getOperand(1));
+    addr = addrOp->getOperand(0);
+    eraseList.push_back(addrOp);
+  }
+  base = addr;
+  if (indices.size() == 0)
+    return false;
+  std::reverse(indices.begin(), indices.end());
+  return true;
+}
+
+// For memref.reinterpret_cast has multiple users, erasing the operation
+// after the last load or store been generated.
+static void eraseIfSafe(mlir::Value oldAddr, mlir::Value newAddr,
+                        SmallVector<mlir::Operation *> &eraseList,
+                        mlir::ConversionPatternRewriter &rewriter) {
+  unsigned oldUsedNum =
+      std::distance(oldAddr.getUses().begin(), oldAddr.getUses().end());
+  unsigned newUsedNum = 0;
+  for (auto *user : newAddr.getUsers()) {
+    if (isa<mlir::memref::LoadOp>(*user) || isa<mlir::memref::StoreOp>(*user))
+      ++newUsedNum;
+  }
+  if (oldUsedNum == newUsedNum) {
+    for (auto op : eraseList)
+      rewriter.eraseOp(op);
+  }
+}
+
+static mlir::LogicalResult prepareReinterpretMetadata(
+    mlir::MemRefType type, mlir::ConversionPatternRewriter &rewriter,
+    llvm::SmallVectorImpl<mlir::OpFoldResult> &sizes,
+    llvm::SmallVectorImpl<mlir::OpFoldResult> &strides,
+    mlir::Operation *anchorOp) {
+  sizes.clear();
+  strides.clear();
+
+  for (int64_t dim : type.getShape()) {
+    if (mlir::ShapedType::isDynamic(dim)) {
+      anchorOp->emitError("dynamic memref sizes are not supported yet");
+      return mlir::failure();
+    }
+    sizes.push_back(rewriter.getIndexAttr(dim));
+  }
+
+  llvm::SmallVector<int64_t, 4> strideValues;
+  int64_t layoutOffset = 0;
+  if (mlir::failed(type.getStridesAndOffset(strideValues, layoutOffset))) {
+    anchorOp->emitError("expected strided memref layout");
+    return mlir::failure();
+  }
+
+  for (int64_t stride : strideValues) {
+    if (mlir::ShapedType::isDynamic(stride)) {
+      anchorOp->emitError("dynamic memref strides are not supported yet");
+      return mlir::failure();
+    }
+    strides.push_back(rewriter.getIndexAttr(stride));
+  }
+
+  return mlir::success();
+}
+
 class CIRLoadOpLowering : public mlir::OpConversionPattern<mlir::cir::LoadOp> {
 public:
   using OpConversionPattern<mlir::cir::LoadOp>::OpConversionPattern;
@@ -132,7 +204,15 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::LoadOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<mlir::memref::LoadOp>(op, adaptor.getAddr());
+    mlir::Value base;
+    SmallVector<mlir::Value> indices;
+    SmallVector<mlir::Operation *> eraseList;
+    if (findBaseAndIndices(adaptor.getAddr(), base, indices, eraseList,
+                           rewriter)) {
+      rewriter.replaceOpWithNewOp<mlir::memref::LoadOp>(op, base, indices);
+      eraseIfSafe(op.getAddr(), base, eraseList, rewriter);
+    } else
+      rewriter.replaceOpWithNewOp<mlir::memref::LoadOp>(op, adaptor.getAddr());
     return mlir::LogicalResult::success();
   }
 };
@@ -145,8 +225,17 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::StoreOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<mlir::memref::StoreOp>(op, adaptor.getValue(),
-                                                       adaptor.getAddr());
+    mlir::Value base;
+    SmallVector<mlir::Value> indices;
+    SmallVector<mlir::Operation *> eraseList;
+    if (findBaseAndIndices(adaptor.getAddr(), base, indices, eraseList,
+                           rewriter)) {
+      rewriter.replaceOpWithNewOp<mlir::memref::StoreOp>(op, adaptor.getValue(),
+                                                         base, indices);
+      eraseIfSafe(op.getAddr(), base, eraseList, rewriter);
+    } else
+      rewriter.replaceOpWithNewOp<mlir::memref::StoreOp>(op, adaptor.getValue(),
+                                                         adaptor.getAddr());
     return mlir::LogicalResult::success();
   }
 };
@@ -805,6 +894,16 @@ public:
     auto dstType = op.getResult().getType();
     using CIR = mlir::cir::CastKind;
     switch (op.getKind()) {
+    case CIR::array_to_ptrdecay: {
+      auto newDstType = llvm::cast<mlir::MemRefType>(convertTy(dstType));
+      llvm::SmallVector<mlir::OpFoldResult> sizes, strides;
+      if (mlir::failed(prepareReinterpretMetadata(newDstType, rewriter, sizes,
+                                                  strides, op.getOperation())))
+        return mlir::failure();
+      rewriter.replaceOpWithNewOp<mlir::memref::ReinterpretCastOp>(
+          op, newDstType, src, rewriter.getIndexAttr(0), sizes, strides);
+      return mlir::success();
+    }
     case CIR::int_to_bool: {
       auto zero = rewriter.create<mlir::cir::ConstantOp>(
           src.getLoc(), op.getSrc().getType(),
@@ -896,17 +995,106 @@ public:
   }
 };
 
+class CIRPtrStrideOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::PtrStrideOp> {
+public:
+  using mlir::OpConversionPattern<mlir::cir::PtrStrideOp>::OpConversionPattern;
+
+  // Return true if PtrStrideOp is produced by cast with array_to_ptrdecay kind
+  // and they are in the same block.
+  inline bool isCastArrayToPtrConsumer(mlir::cir::PtrStrideOp op) const {
+    auto defOp = op->getOperand(0).getDefiningOp();
+    if (!defOp)
+      return false;
+    auto castOp = dyn_cast<mlir::cir::CastOp>(defOp);
+    if (!castOp)
+      return false;
+    if (castOp.getKind() != mlir::cir::CastKind::array_to_ptrdecay)
+      return false;
+    if (!castOp->hasOneUse())
+      return false;
+    if (!castOp->isBeforeInBlock(op))
+      return false;
+    return true;
+  }
+
+  // Return true if all the PtrStrideOp users are load, store or cast
+  // with array_to_ptrdecay kind and they are in the same block.
+  inline bool
+  isLoadStoreOrCastArrayToPtrProduer(mlir::cir::PtrStrideOp op) const {
+    if (op.use_empty())
+      return false;
+    for (auto *user : op->getUsers()) {
+      if (!op->isBeforeInBlock(user))
+        return false;
+      if (isa<mlir::cir::LoadOp>(*user) || isa<mlir::cir::StoreOp>(*user))
+        continue;
+      auto castOp = dyn_cast<mlir::cir::CastOp>(*user);
+      if (castOp &&
+          (castOp.getKind() == mlir::cir::CastKind::array_to_ptrdecay))
+        continue;
+      return false;
+    }
+    return true;
+  }
+
+  inline mlir::Type convertTy(mlir::Type ty) const {
+    return getTypeConverter()->convertType(ty);
+  }
+
+  // Rewrite
+  //        %0 = cir.cast(array_to_ptrdecay, %base)
+  //        cir.ptr_stride(%0, %stride)
+  // to
+  //        memref.reinterpret_cast (%base, %stride)
+  //
+  // MemRef Dialect doesn't have GEP-like operation. memref.reinterpret_cast
+  // only been used to propogate %base and %stride to memref.load/store and
+  // should be erased after the conversion.
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::PtrStrideOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    if (!isCastArrayToPtrConsumer(op))
+      return mlir::failure();
+    if (!isLoadStoreOrCastArrayToPtrProduer(op))
+      return mlir::failure();
+    auto baseOp = adaptor.getBase().getDefiningOp();
+    if (!baseOp)
+      return mlir::failure();
+    if (!isa<mlir::memref::ReinterpretCastOp>(baseOp))
+      return mlir::failure();
+    auto base = baseOp->getOperand(0);
+    auto dstType = op.getResult().getType();
+    auto newDstType = llvm::cast<mlir::MemRefType>(convertTy(dstType));
+    auto stride = adaptor.getStride();
+    auto indexType = rewriter.getIndexType();
+    // Generate casting if the stride is not index type.
+    if (stride.getType() != indexType)
+      stride = rewriter.create<mlir::arith::IndexCastOp>(op.getLoc(), indexType,
+                                                         stride);
+    llvm::SmallVector<mlir::OpFoldResult> sizes, strides;
+    if (mlir::failed(prepareReinterpretMetadata(newDstType, rewriter, sizes,
+                                                strides, op.getOperation())))
+      return mlir::failure();
+    rewriter.replaceOpWithNewOp<mlir::memref::ReinterpretCastOp>(
+        op, newDstType, base, stride, sizes, strides);
+    rewriter.eraseOp(baseOp);
+    return mlir::success();
+  }
+};
+
 void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
                                          mlir::TypeConverter &converter) {
   patterns.add<CIRReturnLowering, CIRBrOpLowering>(patterns.getContext());
 
-  patterns.add<CIRCmpOpLowering, CIRCallOpLowering, CIRUnaryOpLowering,
-               CIRBinOpLowering, CIRLoadOpLowering, CIRConstantOpLowering,
-               CIRStoreOpLowering, CIRAllocaOpLowering, CIRFuncOpLowering,
-               CIRBrCondOpLowering, CIRTernaryOpLowering,
-               CIRYieldOpLowering, CIRLoopOpInterfaceLowering, CIRCosOpLowering,
-               CIRGlobalOpLowering, CIRGetGlobalOpLowering, CIRCastOpLowering>(
-      converter, patterns.getContext());
+  patterns
+      .add<CIRCmpOpLowering, CIRCallOpLowering, CIRUnaryOpLowering,
+           CIRBinOpLowering, CIRLoadOpLowering, CIRConstantOpLowering,
+           CIRStoreOpLowering, CIRAllocaOpLowering, CIRFuncOpLowering,
+           CIRBrCondOpLowering, CIRTernaryOpLowering,
+           CIRYieldOpLowering, CIRLoopOpInterfaceLowering, CIRCosOpLowering,
+           CIRGlobalOpLowering, CIRGetGlobalOpLowering, CIRCastOpLowering,
+           CIRPtrStrideOpLowering>(converter, patterns.getContext());
 }
 
 static mlir::TypeConverter prepareTypeConverter() {
