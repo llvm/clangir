@@ -182,7 +182,7 @@ def DynamicCastOp : CIR_Op<"dyn_cast"> {
     `(`
       $kind `,` $src `:` type($src)
       (`,` qualified($info)^)?
-      (`,` `relative_layout` $relative_layout^)?
+      (`relative_layout` $relative_layout^)?
     `)`
     `->` qualified(type($result)) attr-dict
   }];
