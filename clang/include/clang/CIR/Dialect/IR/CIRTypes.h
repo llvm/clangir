@@ -174,6 +174,8 @@ private:
   void computeSizeAndAlignment(const DataLayout &dataLayout) const;
 };
 
+bool isAnyFloatingPointType(mlir::Type t);
+
 } // namespace cir
 } // namespace mlir
 
