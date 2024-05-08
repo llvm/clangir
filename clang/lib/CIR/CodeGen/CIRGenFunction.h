@@ -655,11 +655,6 @@ public:
   mlir::Value buildScalarPrePostIncDec(const UnaryOperator *E, LValue LV,
                                        bool isInc, bool isPre);
 
-  // Target specific builtin emission
-  mlir::Value buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
-                                      llvm::Triple::ArchType Arch);
-  mlir::Value buildX86BuiltinExpr(unsigned BuiltinID, const CallExpr *E);
-
   // Wrapper for function prototype sources. Wraps either a FunctionProtoType or
   // an ObjCMethodDecl.
   struct PrototypeWrapper {
@@ -1219,9 +1214,15 @@ public:
   RValue buildBuiltinExpr(const clang::GlobalDecl GD, unsigned BuiltinID,
                           const clang::CallExpr *E,
                           ReturnValueSlot ReturnValue);
+  RValue buildRotate(const CallExpr *E, bool IsRotateRight);
   mlir::Value buildTargetBuiltinExpr(unsigned BuiltinID,
                                      const clang::CallExpr *E,
                                      ReturnValueSlot ReturnValue);
+
+  // Target specific builtin emission
+  mlir::Value buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
+                                      llvm::Triple::ArchType Arch);
+  mlir::Value buildX86BuiltinExpr(unsigned BuiltinID, const CallExpr *E);
 
   /// Given an expression with a pointer type, emit the value and compute our
   /// best estimate of the alignment of the pointee.
@@ -1509,6 +1510,10 @@ public:
   void buildCXXThrowExpr(const CXXThrowExpr *E);
 
   RValue buildAtomicExpr(AtomicExpr *E);
+  void buildAtomicStore(RValue rvalue, LValue lvalue, bool isInit);
+  void buildAtomicStore(RValue rvalue, LValue lvalue, mlir::cir::MemOrder MO,
+                        bool IsVolatile, bool isInit);
+  void buildAtomicInit(Expr *init, LValue dest);
 
   /// Return the address of a local variable.
   Address GetAddrOfLocalVar(const clang::VarDecl *VD) {
