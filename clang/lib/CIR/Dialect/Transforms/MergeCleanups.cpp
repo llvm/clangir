@@ -34,7 +34,7 @@ namespace {
 /// To:
 ///   ^bb0:
 ///     cir.return
-struct RemoveRedudantBranches : public OpRewritePattern<BrOp> {
+struct RemoveRedundantBranches : public OpRewritePattern<BrOp> {
   using OpRewritePattern<BrOp>::OpRewritePattern;
 
   LogicalResult matchAndRewrite(BrOp op,
@@ -101,7 +101,7 @@ struct MergeCleanupsPass : public MergeCleanupsBase<MergeCleanupsPass> {
 void populateMergeCleanupPatterns(RewritePatternSet &patterns) {
   // clang-format off
   patterns.add<
-    RemoveRedudantBranches,
+    RemoveRedundantBranches,
     RemoveEmptyScope,
     RemoveEmptySwitch
   >(patterns.getContext());
@@ -116,7 +116,9 @@ void MergeCleanupsPass::runOnOperation() {
   // Collect operations to apply patterns.
   SmallVector<Operation *, 16> ops;
   getOperation()->walk([&](Operation *op) {
-    if (isa<BrOp, BrCondOp, ScopeOp, SwitchOp>(op))
+    // CastOp here is to perform an manual `fold` in
+    // applyOpPatternsAndFold
+    if (isa<BrOp, BrCondOp, ScopeOp, SwitchOp, CastOp>(op))
       ops.push_back(op);
   });
 
