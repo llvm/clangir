@@ -19,6 +19,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include <numeric>
 #include <optional>
+#include <set>
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMTypes.h"
@@ -2173,6 +2174,25 @@ LogicalResult cir::FuncOp::verify() {
       return emitOpError() << "a function alias '" << *fn
                            << "' must have empty body";
   }
+
+  std::set<llvm::StringRef> labels;
+  std::set<llvm::StringRef> gotos;
+
+  getOperation()->walk([&](mlir::Operation *op) {
+    if (auto lab = dyn_cast<mlir::cir::LabelOp>(op)) {
+      labels.emplace(lab.getLabel());
+    } else if (auto goTo = dyn_cast<mlir::cir::GotoOp>(op)) {
+      gotos.emplace(goTo.getLabel());
+    }
+  });
+
+  std::vector<llvm::StringRef> mismatched;
+  std::set_difference(gotos.begin(), gotos.end(), 
+                      labels.begin(), labels.end(), 
+                      std::back_inserter(mismatched));
+
+  if (!mismatched.empty())    
+    return emitOpError() << "goto/label mismatch";
 
   return success();
 }

@@ -151,6 +151,17 @@ end:
 // NOFLAT:  ^bb[[#BLK2:]]:
 // NOFLAT:    cir.label "end"
 
+
+void labelWithoutMatch() {
+end:
+  return;
+}
+// NOFLAT:  cir.func @_Z17labelWithoutMatchv()
+// NOFLAT:    cir.label "end"
+// NOFLAT:    cir.return
+// NOFLAT:  }
+
+
 int jumpIntoLoop(int* ar) {
 
   if (ar)
