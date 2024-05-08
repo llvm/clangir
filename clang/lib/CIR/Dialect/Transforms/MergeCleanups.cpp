@@ -116,7 +116,7 @@ void MergeCleanupsPass::runOnOperation() {
   // Collect operations to apply patterns.
   SmallVector<Operation *, 16> ops;
   getOperation()->walk([&](Operation *op) {
-    // CastOp here is to perform an manual `fold` in
+    // CastOp here is to perform a manual `fold` in
     // applyOpPatternsAndFold
     if (isa<BrOp, BrCondOp, ScopeOp, SwitchOp, CastOp>(op))
       ops.push_back(op);
