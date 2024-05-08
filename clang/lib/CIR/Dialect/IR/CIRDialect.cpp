@@ -2187,11 +2187,10 @@ LogicalResult cir::FuncOp::verify() {
   });
 
   std::vector<llvm::StringRef> mismatched;
-  std::set_difference(gotos.begin(), gotos.end(), 
-                      labels.begin(), labels.end(), 
+  std::set_difference(gotos.begin(), gotos.end(), labels.begin(), labels.end(),
                       std::back_inserter(mismatched));
 
-  if (!mismatched.empty())    
+  if (!mismatched.empty())
     return emitOpError() << "goto/label mismatch";
 
   return success();
