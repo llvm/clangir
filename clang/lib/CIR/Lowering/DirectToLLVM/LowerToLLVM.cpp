@@ -492,8 +492,7 @@ public:
       elementTy = mlir::IntegerType::get(elementTy.getContext(), 8,
                                          mlir::IntegerType::Signless);
 
-    // Zero-extend or sign-extend the pointer value according to
-    // whether the index is signed or not.
+    // Zero-extend, sign-extend or trunc the pointer value.
     auto index = adaptor.getStride();
     auto width = index.getType().cast<mlir::IntegerType>().getWidth();
     mlir::DataLayout LLVMLayout(
@@ -501,10 +500,33 @@ public:
     auto layoutWidth =
         LLVMLayout.getTypeIndexBitwidth(adaptor.getBase().getType());
     if (layoutWidth && width != *layoutWidth) {
+      // If the index comes from a subtraction, make sure the extension happens
+      // before it. To achieve that, look at unary minus, which already got
+      // lowered to "sub 0, x".
+      auto sub = dyn_cast<mlir::LLVM::SubOp>(index.getDefiningOp());
+      auto unary =
+          dyn_cast<mlir::cir::UnaryOp>(ptrStrideOp.getStride().getDefiningOp());
+      bool rewriteSub =
+          unary && unary.getKind() == mlir::cir::UnaryOpKind::Minus && sub;
+      if (rewriteSub)
+        index = index.getDefiningOp()->getOperand(1);
+
+      // Handle the cast
       auto llvmDstType = mlir::IntegerType::get(ctx, *layoutWidth);
       index = getLLVMIntCast(rewriter, index, llvmDstType,
                              ptrStrideOp.getStride().getType().isUnsigned(),
                              *layoutWidth);
+
+      // Rewrite the sub in front of extensions/trunc
+      if (rewriteSub) {
+        index = rewriter.create<mlir::LLVM::SubOp>(
+            index.getLoc(), index.getType(),
+            rewriter.create<mlir::LLVM::ConstantOp>(
+                index.getLoc(), index.getType(),
+                mlir::IntegerAttr::get(index.getType(), 0)),
+            index);
+        sub->erase();
+      }
     }
 
     rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(
@@ -1930,6 +1952,133 @@ public:
   }
 };
 
+class CIRBinOpOverflowOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::BinOpOverflowOp> {
+public:
+  using OpConversionPattern<mlir::cir::BinOpOverflowOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::BinOpOverflowOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto loc = op.getLoc();
+    auto arithKind = op.getKind();
+    auto operandTy = op.getLhs().getType();
+    auto resultTy = op.getResult().getType();
+
+    auto encompassedTyInfo = computeEncompassedTypeWidth(operandTy, resultTy);
+    auto encompassedLLVMTy = rewriter.getIntegerType(encompassedTyInfo.width);
+
+    auto lhs = adaptor.getLhs();
+    auto rhs = adaptor.getRhs();
+    if (operandTy.getWidth() < encompassedTyInfo.width) {
+      if (operandTy.isSigned()) {
+        lhs = rewriter.create<mlir::LLVM::SExtOp>(loc, encompassedLLVMTy, lhs);
+        rhs = rewriter.create<mlir::LLVM::SExtOp>(loc, encompassedLLVMTy, rhs);
+      } else {
+        lhs = rewriter.create<mlir::LLVM::ZExtOp>(loc, encompassedLLVMTy, lhs);
+        rhs = rewriter.create<mlir::LLVM::ZExtOp>(loc, encompassedLLVMTy, rhs);
+      }
+    }
+
+    auto intrinName = getLLVMIntrinName(arithKind, encompassedTyInfo.sign,
+                                        encompassedTyInfo.width);
+    auto intrinNameAttr = mlir::StringAttr::get(op.getContext(), intrinName);
+
+    auto overflowLLVMTy = rewriter.getI1Type();
+    auto intrinRetTy = mlir::LLVM::LLVMStructType::getLiteral(
+        rewriter.getContext(), {encompassedLLVMTy, overflowLLVMTy});
+
+    auto callLLVMIntrinOp = rewriter.create<mlir::LLVM::CallIntrinsicOp>(
+        loc, intrinRetTy, intrinNameAttr, mlir::ValueRange{lhs, rhs});
+    auto intrinRet = callLLVMIntrinOp.getResult(0);
+
+    auto result = rewriter
+                      .create<mlir::LLVM::ExtractValueOp>(loc, intrinRet,
+                                                          ArrayRef<int64_t>{0})
+                      .getResult();
+    auto overflow = rewriter
+                        .create<mlir::LLVM::ExtractValueOp>(
+                            loc, intrinRet, ArrayRef<int64_t>{1})
+                        .getResult();
+
+    if (resultTy.getWidth() < encompassedTyInfo.width) {
+      auto resultLLVMTy = getTypeConverter()->convertType(resultTy);
+      auto truncResult =
+          rewriter.create<mlir::LLVM::TruncOp>(loc, resultLLVMTy, result);
+
+      // Extend the truncated result back to the encompassing type to check for
+      // any overflows during the truncation.
+      mlir::Value truncResultExt;
+      if (resultTy.isSigned())
+        truncResultExt = rewriter.create<mlir::LLVM::SExtOp>(
+            loc, encompassedLLVMTy, truncResult);
+      else
+        truncResultExt = rewriter.create<mlir::LLVM::ZExtOp>(
+            loc, encompassedLLVMTy, truncResult);
+      auto truncOverflow = rewriter.create<mlir::LLVM::ICmpOp>(
+          loc, mlir::LLVM::ICmpPredicate::ne, truncResultExt, result);
+
+      result = truncResult;
+      overflow =
+          rewriter.create<mlir::LLVM::OrOp>(loc, overflow, truncOverflow);
+    }
+
+    auto boolLLVMTy =
+        getTypeConverter()->convertType(op.getOverflow().getType());
+    if (boolLLVMTy != rewriter.getI1Type())
+      overflow = rewriter.create<mlir::LLVM::ZExtOp>(loc, boolLLVMTy, overflow);
+
+    rewriter.replaceOp(op, mlir::ValueRange{result, overflow});
+
+    return mlir::success();
+  }
+
+private:
+  static std::string getLLVMIntrinName(mlir::cir::BinOpOverflowKind opKind,
+                                       bool isSigned, unsigned width) {
+    // The intrinsic name is `@llvm.{s|u}{opKind}.with.overflow.i{width}`
+
+    std::string name = "llvm.";
+
+    if (isSigned)
+      name.push_back('s');
+    else
+      name.push_back('u');
+
+    switch (opKind) {
+    case mlir::cir::BinOpOverflowKind::Add:
+      name.append("add.");
+      break;
+    case mlir::cir::BinOpOverflowKind::Sub:
+      name.append("sub.");
+      break;
+    case mlir::cir::BinOpOverflowKind::Mul:
+      name.append("mul.");
+      break;
+    }
+
+    name.append("with.overflow.i");
+    name.append(std::to_string(width));
+
+    return name;
+  }
+
+  struct EncompassedTypeInfo {
+    bool sign;
+    unsigned width;
+  };
+
+  static EncompassedTypeInfo
+  computeEncompassedTypeWidth(mlir::cir::IntType operandTy,
+                              mlir::cir::IntType resultTy) {
+    auto sign = operandTy.getIsSigned() || resultTy.getIsSigned();
+    auto width =
+        std::max(operandTy.getWidth() + (sign && operandTy.isUnsigned()),
+                 resultTy.getWidth() + (sign && resultTy.isUnsigned()));
+    return {sign, width};
+  }
+};
+
 class CIRShiftOpLowering
     : public mlir::OpConversionPattern<mlir::cir::ShiftOp> {
 public:
@@ -2459,6 +2608,27 @@ public:
   }
 };
 
+class CIRRotateOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::RotateOp> {
+public:
+  using OpConversionPattern<mlir::cir::RotateOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::RotateOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    // Note that LLVM intrinsic calls to @llvm.fsh{r,l}.i* have the same type as
+    // the operand.
+    auto src = adaptor.getSrc();
+    if (op.getLeft())
+      rewriter.replaceOpWithNewOp<mlir::LLVM::FshlOp>(op, src, src,
+                                                      adaptor.getAmt());
+    else
+      rewriter.replaceOpWithNewOp<mlir::LLVM::FshrOp>(op, src, src,
+                                                      adaptor.getAmt());
+    return mlir::LogicalResult::success();
+  }
+};
+
 class CIRBrOpLowering : public mlir::OpConversionPattern<mlir::cir::BrOp> {
 public:
   using OpConversionPattern<mlir::cir::BrOp>::OpConversionPattern;
@@ -2513,6 +2683,9 @@ public:
 
   uint64_t getTypeSize(mlir::Type type, mlir::Operation &op) const {
     mlir::DataLayout layout(op.getParentOfType<mlir::ModuleOp>());
+    // For LLVM purposes we treat void as u8.
+    if (isa<mlir::cir::VoidType>(type))
+      type = mlir::cir::IntType::get(type.getContext(), 8, /*isSigned=*/false);
     return llvm::divideCeil(layout.getTypeSizeInBits(type), 8);
   }
 
@@ -2532,16 +2705,21 @@ public:
 
     auto ptrTy = op.getLhs().getType().cast<mlir::cir::PointerType>();
     auto typeSize = getTypeSize(ptrTy.getPointee(), *op);
-    auto typeSizeVal = rewriter.create<mlir::LLVM::ConstantOp>(
-        op.getLoc(), llvmDstTy, mlir::IntegerAttr::get(llvmDstTy, typeSize));
 
-    if (dstTy.isUnsigned())
-      rewriter.replaceOpWithNewOp<mlir::LLVM::UDivOp>(op, llvmDstTy, diff,
-                                                      typeSizeVal);
-    else
-      rewriter.replaceOpWithNewOp<mlir::LLVM::SDivOp>(op, llvmDstTy, diff,
-                                                      typeSizeVal);
+    // Avoid silly division by 1.
+    auto resultVal = diff.getResult();
+    if (typeSize != 1) {
+      auto typeSizeVal = rewriter.create<mlir::LLVM::ConstantOp>(
+          op.getLoc(), llvmDstTy, mlir::IntegerAttr::get(llvmDstTy, typeSize));
 
+      if (dstTy.isUnsigned())
+        resultVal = rewriter.create<mlir::LLVM::UDivOp>(op.getLoc(), llvmDstTy,
+                                                        diff, typeSizeVal);
+      else
+        resultVal = rewriter.create<mlir::LLVM::SDivOp>(op.getLoc(), llvmDstTy,
+                                                        diff, typeSizeVal);
+    }
+    rewriter.replaceOp(op, resultVal);
     return mlir::success();
   }
 };
@@ -2973,15 +3151,16 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
       CIRCmpOpLowering, CIRBitClrsbOpLowering, CIRBitClzOpLowering,
       CIRBitCtzOpLowering, CIRBitFfsOpLowering, CIRBitParityOpLowering,
       CIRBitPopcountOpLowering, CIRAtomicCmpXchgLowering, CIRAtomicXchgLowering,
-      CIRAtomicFetchLowering, CIRByteswapOpLowering, CIRBrCondOpLowering,
-      CIRPtrStrideOpLowering, CIRCallLowering, CIRUnaryOpLowering,
-      CIRBinOpLowering, CIRShiftOpLowering, CIRLoadLowering,
-      CIRConstantLowering, CIRStoreLowering, CIRAllocaLowering, CIRFuncLowering,
-      CIRCastOpLowering, CIRGlobalOpLowering, CIRGetGlobalOpLowering,
-      CIRVAStartLowering, CIRVAEndLowering, CIRVACopyLowering, CIRVAArgLowering,
-      CIRBrOpLowering, CIRGetMemberOpLowering, CIRSwitchFlatOpLowering,
-      CIRPtrDiffOpLowering, CIRCopyOpLowering, CIRMemCpyOpLowering,
-      CIRFAbsOpLowering, CIRExpectOpLowering, CIRVTableAddrPointOpLowering,
+      CIRAtomicFetchLowering, CIRByteswapOpLowering, CIRRotateOpLowering,
+      CIRBrCondOpLowering, CIRPtrStrideOpLowering, CIRCallLowering,
+      CIRUnaryOpLowering, CIRBinOpLowering, CIRBinOpOverflowOpLowering,
+      CIRShiftOpLowering, CIRLoadLowering, CIRConstantLowering,
+      CIRStoreLowering, CIRAllocaLowering, CIRFuncLowering, CIRCastOpLowering,
+      CIRGlobalOpLowering, CIRGetGlobalOpLowering, CIRVAStartLowering,
+      CIRVAEndLowering, CIRVACopyLowering, CIRVAArgLowering, CIRBrOpLowering,
+      CIRGetMemberOpLowering, CIRSwitchFlatOpLowering, CIRPtrDiffOpLowering,
+      CIRCopyOpLowering, CIRMemCpyOpLowering, CIRFAbsOpLowering,
+      CIRExpectOpLowering, CIRVTableAddrPointOpLowering,
       CIRVectorCreateLowering, CIRVectorInsertLowering,
       CIRVectorExtractLowering, CIRVectorCmpOpLowering, CIRVectorSplatLowering,
       CIRVectorTernaryLowering, CIRVectorShuffleIntsLowering,
@@ -3150,10 +3329,10 @@ static void buildCtorDtorList(
 //    cir.func @foo(%arg0: !s32i) -> !s32i {
 //      %4 = cir.cast(int_to_bool, %arg0 : !s32i), !cir.bool
 //      cir.if %4 {
-//        %5 = cir.const(#cir.int<1> : !s32i) : !s32i
+//        %5 = cir.const #cir.int<1> : !s32i
 //        cir.return %5 : !s32i
 //      } else {
-//        %5 = cir.const(#cir.int<0> : !s32i) : !s32i
+//        %5 = cir.const #cir.int<0> : !s32i
 //       cir.return %5 : !s32i
 //      }
 //     cir.return %arg0 : !s32i

@@ -15,6 +15,7 @@
 #include "CIRGenCall.h"
 #include "CIRGenFunction.h"
 #include "CIRGenModule.h"
+#include "TargetInfo.h"
 #include "UnimplementedFeatureGuarding.h"
 
 // TODO(cir): we shouldn't need this but we currently reuse intrinsic IDs for
@@ -24,6 +25,7 @@
 
 #include "clang/AST/GlobalDecl.h"
 #include "clang/Basic/Builtins.h"
+#include "clang/Basic/TargetBuiltins.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/Value.h"
@@ -89,6 +91,67 @@ static void initializeAlloca(CIRGenFunction &CGF,
   }
 }
 
+namespace {
+struct WidthAndSignedness {
+  unsigned Width;
+  bool Signed;
+};
+} // namespace
+
+static WidthAndSignedness
+getIntegerWidthAndSignedness(const clang::ASTContext &context,
+                             const clang::QualType Type) {
+  assert(Type->isIntegerType() && "Given type is not an integer.");
+  unsigned Width = Type->isBooleanType()  ? 1
+                   : Type->isBitIntType() ? context.getIntWidth(Type)
+                                          : context.getTypeInfo(Type).Width;
+  bool Signed = Type->isSignedIntegerType();
+  return {Width, Signed};
+}
+
+// Given one or more integer types, this function produces an integer type that
+// encompasses them: any value in one of the given types could be expressed in
+// the encompassing type.
+static struct WidthAndSignedness
+EncompassingIntegerType(ArrayRef<struct WidthAndSignedness> Types) {
+  assert(Types.size() > 0 && "Empty list of types.");
+
+  // If any of the given types is signed, we must return a signed type.
+  bool Signed = false;
+  for (const auto &Type : Types) {
+    Signed |= Type.Signed;
+  }
+
+  // The encompassing type must have a width greater than or equal to the width
+  // of the specified types.  Additionally, if the encompassing type is signed,
+  // its width must be strictly greater than the width of any unsigned types
+  // given.
+  unsigned Width = 0;
+  for (const auto &Type : Types) {
+    unsigned MinWidth = Type.Width + (Signed && !Type.Signed);
+    if (Width < MinWidth) {
+      Width = MinWidth;
+    }
+  }
+
+  return {Width, Signed};
+}
+
+RValue CIRGenFunction::buildRotate(const CallExpr *E, bool IsRotateRight) {
+  auto src = buildScalarExpr(E->getArg(0));
+  auto shiftAmt = buildScalarExpr(E->getArg(1));
+
+  // The builtin's shift arg may have a different type than the source arg and
+  // result, but the CIR ops uses the same type for all values.
+  auto ty = src.getType();
+  shiftAmt = builder.createIntCast(shiftAmt, ty);
+  auto r = builder.create<mlir::cir::RotateOp>(getLoc(E->getSourceRange()), src,
+                                               shiftAmt);
+  if (!IsRotateRight)
+    r->setAttr("left", mlir::UnitAttr::get(src.getContext()));
+  return RValue::get(r);
+}
+
 RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
                                         const CallExpr *E,
                                         ReturnValueSlot ReturnValue) {
@@ -122,6 +185,24 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   const unsigned BuiltinIDIfNoAsmLabel =
       FD->hasAttr<AsmLabelAttr>() ? 0 : BuiltinID;
 
+  std::optional<bool> ErrnoOverriden;
+  // ErrnoOverriden is true if math-errno is overriden via the
+  // '#pragma float_control(precise, on)'. This pragma disables fast-math,
+  // which implies math-errno.
+  if (E->hasStoredFPFeatures()) {
+    llvm_unreachable("NYI");
+  }
+  // True if 'atttibute__((optnone)) is used. This attibute overrides
+  // fast-math which implies math-errno.
+  bool OptNone = CurFuncDecl && CurFuncDecl->hasAttr<OptimizeNoneAttr>();
+
+  // True if we are compiling at -O2 and errno has been disabled
+  // using the '#pragma float_control(precise, off)', and
+  // attribute opt-none hasn't been seen.
+  [[maybe_unused]] bool ErrnoOverridenToFalseWithOpt =
+      ErrnoOverriden.has_value() && !ErrnoOverriden.value() && !OptNone &&
+      CGM.getCodeGenOpts().OptimizationLevel != 0;
+
   // There are LLVM math intrinsics/instructions corresponding to math library
   // functions except the LLVM op will never set errno while the math library
   // might. Also, math builtins have the same semantics as their math library
@@ -129,13 +210,70 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   // LLVM counterparts if the call is marked 'const' (known to never set errno).
   // In case FP exceptions are enabled, the experimental versions of the
   // intrinsics model those.
+  [[maybe_unused]] bool ConstAlways =
+      getContext().BuiltinInfo.isConst(BuiltinID);
+
+  // There's a special case with the fma builtins where they are always const
+  // if the target environment is GNU or the target is OS is Windows and we're
+  // targeting the MSVCRT.dll environment.
+  // FIXME: This list can be become outdated. Need to find a way to get it some
+  // other way.
+  switch (BuiltinID) {
+  case Builtin::BI__builtin_fma:
+  case Builtin::BI__builtin_fmaf:
+  case Builtin::BI__builtin_fmal:
+  case Builtin::BIfma:
+  case Builtin::BIfmaf:
+  case Builtin::BIfmal: {
+    auto &Trip = CGM.getTriple();
+    if (Trip.isGNUEnvironment() || Trip.isOSMSVCRT())
+      ConstAlways = true;
+    break;
+  }
+  default:
+    break;
+  }
+
   bool ConstWithoutErrnoAndExceptions =
       getContext().BuiltinInfo.isConstWithoutErrnoAndExceptions(BuiltinID);
   bool ConstWithoutExceptions =
       getContext().BuiltinInfo.isConstWithoutExceptions(BuiltinID);
-  if (FD->hasAttr<ConstAttr>() ||
-      ((ConstWithoutErrnoAndExceptions || ConstWithoutExceptions) &&
-       (!ConstWithoutErrnoAndExceptions || (!getLangOpts().MathErrno)))) {
+
+  // ConstAttr is enabled in fast-math mode. In fast-math mode, math-errno is
+  // disabled.
+  // Math intrinsics are generated only when math-errno is disabled. Any pragmas
+  // or attributes that affect math-errno should prevent or allow math
+  // intrincs to be generated. Intrinsics are generated:
+  //   1- In fast math mode, unless math-errno is overriden
+  //      via '#pragma float_control(precise, on)', or via an
+  //      'attribute__((optnone))'.
+  //   2- If math-errno was enabled on command line but overriden
+  //      to false via '#pragma float_control(precise, off))' and
+  //      'attribute__((optnone))' hasn't been used.
+  //   3- If we are compiling with optimization and errno has been disabled
+  //      via '#pragma float_control(precise, off)', and
+  //      'attribute__((optnone))' hasn't been used.
+
+  bool ConstWithoutErrnoOrExceptions =
+      ConstWithoutErrnoAndExceptions || ConstWithoutExceptions;
+  bool GenerateIntrinsics =
+      (ConstAlways && !OptNone) ||
+      (!getLangOpts().MathErrno &&
+       !(ErrnoOverriden.has_value() && ErrnoOverriden.value()) && !OptNone);
+  if (!GenerateIntrinsics) {
+    GenerateIntrinsics =
+        ConstWithoutErrnoOrExceptions && !ConstWithoutErrnoAndExceptions;
+    if (!GenerateIntrinsics)
+      GenerateIntrinsics =
+          ConstWithoutErrnoOrExceptions &&
+          (!getLangOpts().MathErrno &&
+           !(ErrnoOverriden.has_value() && ErrnoOverriden.value()) && !OptNone);
+    if (!GenerateIntrinsics)
+      GenerateIntrinsics =
+          ConstWithoutErrnoOrExceptions && ErrnoOverridenToFalseWithOpt;
+  }
+
+  if (GenerateIntrinsics) {
     switch (BuiltinIDIfNoAsmLabel) {
     case Builtin::BIceil:
     case Builtin::BIceilf:
@@ -393,6 +531,9 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   switch (BuiltinIDIfNoAsmLabel) {
   default:
     break;
+  case Builtin::BI__builtin___CFStringMakeConstantString:
+  case Builtin::BI__builtin___NSStringMakeConstantString:
+    llvm_unreachable("NYI");
 
   case Builtin::BIprintf:
     if (getTarget().getTriple().isNVPTX() ||
@@ -625,6 +766,28 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
         getLoc(E->getSourceRange()), arg));
   }
 
+  case Builtin::BI__builtin_rotateleft8:
+  case Builtin::BI__builtin_rotateleft16:
+  case Builtin::BI__builtin_rotateleft32:
+  case Builtin::BI__builtin_rotateleft64:
+  case Builtin::BI_rotl8: // Microsoft variants of rotate left
+  case Builtin::BI_rotl16:
+  case Builtin::BI_rotl:
+  case Builtin::BI_lrotl:
+  case Builtin::BI_rotl64:
+    return buildRotate(E, false);
+
+  case Builtin::BI__builtin_rotateright8:
+  case Builtin::BI__builtin_rotateright16:
+  case Builtin::BI__builtin_rotateright32:
+  case Builtin::BI__builtin_rotateright64:
+  case Builtin::BI_rotr8: // Microsoft variants of rotate right
+  case Builtin::BI_rotr16:
+  case Builtin::BI_rotr:
+  case Builtin::BI_lrotr:
+  case Builtin::BI_rotr64:
+    return buildRotate(E, true);
+
   case Builtin::BI__builtin_constant_p: {
     mlir::Type ResultType = ConvertType(E->getType());
 
@@ -702,6 +865,157 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     // Bitcast the alloca to the expected type.
     return RValue::get(
         builder.createBitcast(AllocaAddr, builder.getVoidPtrTy()));
+  }
+
+  case Builtin::BI__builtin_add_overflow:
+  case Builtin::BI__builtin_sub_overflow:
+  case Builtin::BI__builtin_mul_overflow: {
+    const clang::Expr *LeftArg = E->getArg(0);
+    const clang::Expr *RightArg = E->getArg(1);
+    const clang::Expr *ResultArg = E->getArg(2);
+
+    clang::QualType ResultQTy =
+        ResultArg->getType()->castAs<clang::PointerType>()->getPointeeType();
+
+    WidthAndSignedness LeftInfo =
+        getIntegerWidthAndSignedness(CGM.getASTContext(), LeftArg->getType());
+    WidthAndSignedness RightInfo =
+        getIntegerWidthAndSignedness(CGM.getASTContext(), RightArg->getType());
+    WidthAndSignedness ResultInfo =
+        getIntegerWidthAndSignedness(CGM.getASTContext(), ResultQTy);
+
+    // Note we compute the encompassing type with the consideration to the
+    // result type, so later in LLVM lowering we don't get redundant integral
+    // extension casts.
+    WidthAndSignedness EncompassingInfo =
+        EncompassingIntegerType({LeftInfo, RightInfo, ResultInfo});
+
+    auto EncompassingCIRTy = mlir::cir::IntType::get(
+        builder.getContext(), EncompassingInfo.Width, EncompassingInfo.Signed);
+    auto ResultCIRTy =
+        CGM.getTypes().ConvertType(ResultQTy).cast<mlir::cir::IntType>();
+
+    mlir::Value Left = buildScalarExpr(LeftArg);
+    mlir::Value Right = buildScalarExpr(RightArg);
+    Address ResultPtr = buildPointerWithAlignment(ResultArg);
+
+    // Extend each operand to the encompassing type, if necessary.
+    if (Left.getType() != EncompassingCIRTy)
+      Left = builder.createCast(mlir::cir::CastKind::integral, Left,
+                                EncompassingCIRTy);
+    if (Right.getType() != EncompassingCIRTy)
+      Right = builder.createCast(mlir::cir::CastKind::integral, Right,
+                                 EncompassingCIRTy);
+
+    // Perform the operation on the extended values.
+    mlir::cir::BinOpOverflowKind OpKind;
+    switch (BuiltinID) {
+    default:
+      llvm_unreachable("Unknown overflow builtin id.");
+    case Builtin::BI__builtin_add_overflow:
+      OpKind = mlir::cir::BinOpOverflowKind::Add;
+      break;
+    case Builtin::BI__builtin_sub_overflow:
+      OpKind = mlir::cir::BinOpOverflowKind::Sub;
+      break;
+    case Builtin::BI__builtin_mul_overflow:
+      OpKind = mlir::cir::BinOpOverflowKind::Mul;
+      break;
+    }
+
+    auto Loc = getLoc(E->getSourceRange());
+    auto ArithResult =
+        builder.createBinOpOverflowOp(Loc, ResultCIRTy, OpKind, Left, Right);
+
+    // Here is a slight difference from the original clang CodeGen:
+    //   - In the original clang CodeGen, the checked arithmetic result is
+    //     first computed as a value of the encompassing type, and then it is
+    //     truncated to the actual result type with a second overflow checking.
+    //   - In CIRGen, the checked arithmetic operation directly produce the
+    //     checked arithmetic result in its expected type.
+    //
+    // So we don't need a truncation and a second overflow checking here.
+
+    // Finally, store the result using the pointer.
+    bool isVolatile =
+        ResultArg->getType()->getPointeeType().isVolatileQualified();
+    builder.createStore(Loc, buildToMemory(ArithResult.result, ResultQTy),
+                        ResultPtr, isVolatile);
+
+    return RValue::get(ArithResult.overflow);
+  }
+
+  case Builtin::BI__builtin_uadd_overflow:
+  case Builtin::BI__builtin_uaddl_overflow:
+  case Builtin::BI__builtin_uaddll_overflow:
+  case Builtin::BI__builtin_usub_overflow:
+  case Builtin::BI__builtin_usubl_overflow:
+  case Builtin::BI__builtin_usubll_overflow:
+  case Builtin::BI__builtin_umul_overflow:
+  case Builtin::BI__builtin_umull_overflow:
+  case Builtin::BI__builtin_umulll_overflow:
+  case Builtin::BI__builtin_sadd_overflow:
+  case Builtin::BI__builtin_saddl_overflow:
+  case Builtin::BI__builtin_saddll_overflow:
+  case Builtin::BI__builtin_ssub_overflow:
+  case Builtin::BI__builtin_ssubl_overflow:
+  case Builtin::BI__builtin_ssubll_overflow:
+  case Builtin::BI__builtin_smul_overflow:
+  case Builtin::BI__builtin_smull_overflow:
+  case Builtin::BI__builtin_smulll_overflow: {
+    // Scalarize our inputs.
+    mlir::Value X = buildScalarExpr(E->getArg(0));
+    mlir::Value Y = buildScalarExpr(E->getArg(1));
+
+    const clang::Expr *ResultArg = E->getArg(2);
+    Address ResultPtr = buildPointerWithAlignment(ResultArg);
+
+    // Decide which of the arithmetic operation we are lowering to:
+    mlir::cir::BinOpOverflowKind ArithKind;
+    switch (BuiltinID) {
+    default:
+      llvm_unreachable("Unknown overflow builtin id.");
+    case Builtin::BI__builtin_uadd_overflow:
+    case Builtin::BI__builtin_uaddl_overflow:
+    case Builtin::BI__builtin_uaddll_overflow:
+    case Builtin::BI__builtin_sadd_overflow:
+    case Builtin::BI__builtin_saddl_overflow:
+    case Builtin::BI__builtin_saddll_overflow:
+      ArithKind = mlir::cir::BinOpOverflowKind::Add;
+      break;
+    case Builtin::BI__builtin_usub_overflow:
+    case Builtin::BI__builtin_usubl_overflow:
+    case Builtin::BI__builtin_usubll_overflow:
+    case Builtin::BI__builtin_ssub_overflow:
+    case Builtin::BI__builtin_ssubl_overflow:
+    case Builtin::BI__builtin_ssubll_overflow:
+      ArithKind = mlir::cir::BinOpOverflowKind::Sub;
+      break;
+    case Builtin::BI__builtin_umul_overflow:
+    case Builtin::BI__builtin_umull_overflow:
+    case Builtin::BI__builtin_umulll_overflow:
+    case Builtin::BI__builtin_smul_overflow:
+    case Builtin::BI__builtin_smull_overflow:
+    case Builtin::BI__builtin_smulll_overflow:
+      ArithKind = mlir::cir::BinOpOverflowKind::Mul;
+      break;
+    }
+
+    clang::QualType ResultQTy =
+        ResultArg->getType()->castAs<clang::PointerType>()->getPointeeType();
+    auto ResultCIRTy =
+        CGM.getTypes().ConvertType(ResultQTy).cast<mlir::cir::IntType>();
+
+    auto Loc = getLoc(E->getSourceRange());
+    auto ArithResult =
+        builder.createBinOpOverflowOp(Loc, ResultCIRTy, ArithKind, X, Y);
+
+    bool isVolatile =
+        ResultArg->getType()->getPointeeType().isVolatileQualified();
+    builder.createStore(Loc, buildToMemory(ArithResult.result, ResultQTy),
+                        ResultPtr, isVolatile);
+
+    return RValue::get(ArithResult.overflow);
   }
   }
 
@@ -786,8 +1100,56 @@ static mlir::Value buildTargetArchBuiltinExpr(CIRGenFunction *CGF,
                                               const CallExpr *E,
                                               ReturnValueSlot ReturnValue,
                                               llvm::Triple::ArchType Arch) {
-  llvm_unreachable("NYI");
-  return {};
+  // When compiling in HipStdPar mode we have to be conservative in rejecting
+  // target specific features in the FE, and defer the possible error to the
+  // AcceleratorCodeSelection pass, wherein iff an unsupported target builtin is
+  // referenced by an accelerator executable function, we emit an error.
+  // Returning nullptr here leads to the builtin being handled in
+  // EmitStdParUnsupportedBuiltin.
+  if (CGF->getLangOpts().HIPStdPar && CGF->getLangOpts().CUDAIsDevice &&
+      Arch != CGF->getTarget().getTriple().getArch())
+    return nullptr;
+
+  switch (Arch) {
+  case llvm::Triple::arm:
+  case llvm::Triple::armeb:
+  case llvm::Triple::thumb:
+  case llvm::Triple::thumbeb:
+    llvm_unreachable("NYI");
+  case llvm::Triple::aarch64:
+  case llvm::Triple::aarch64_32:
+  case llvm::Triple::aarch64_be:
+    return CGF->buildAArch64BuiltinExpr(BuiltinID, E, Arch);
+  case llvm::Triple::bpfeb:
+  case llvm::Triple::bpfel:
+    llvm_unreachable("NYI");
+  case llvm::Triple::x86:
+  case llvm::Triple::x86_64:
+    return CGF->buildX86BuiltinExpr(BuiltinID, E);
+  case llvm::Triple::ppc:
+  case llvm::Triple::ppcle:
+  case llvm::Triple::ppc64:
+  case llvm::Triple::ppc64le:
+    llvm_unreachable("NYI");
+  case llvm::Triple::r600:
+  case llvm::Triple::amdgcn:
+    llvm_unreachable("NYI");
+  case llvm::Triple::systemz:
+    llvm_unreachable("NYI");
+  case llvm::Triple::nvptx:
+  case llvm::Triple::nvptx64:
+    llvm_unreachable("NYI");
+  case llvm::Triple::wasm32:
+  case llvm::Triple::wasm64:
+    llvm_unreachable("NYI");
+  case llvm::Triple::hexagon:
+    llvm_unreachable("NYI");
+  case llvm::Triple::riscv32:
+  case llvm::Triple::riscv64:
+    llvm_unreachable("NYI");
+  default:
+    return {};
+  }
 }
 
 mlir::Value

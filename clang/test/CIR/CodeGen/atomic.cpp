@@ -23,7 +23,7 @@ int basic_binop_fetch(int *i) {
 // CHECK:  %[[ONE_ADDR:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, [".atomictmp"] {alignment = 4 : i64}
 // CHECK:  cir.store %arg0, %[[ARGI]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
 // CHECK:  %[[I:.*]] = cir.load %[[ARGI]] : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
-// CHECK:  %[[ONE:.*]] = cir.const(#cir.int<1> : !s32i) : !s32i
+// CHECK:  %[[ONE:.*]] = cir.const #cir.int<1> : !s32i
 // CHECK:  cir.store %[[ONE]], %[[ONE_ADDR]] : !s32i, !cir.ptr<!s32i>
 // CHECK:  %[[VAL:.*]] = cir.load %[[ONE_ADDR]] : !cir.ptr<!s32i>, !s32i
 // CHECK:  cir.atomic.fetch(add, %[[I]] : !cir.ptr<!s32i>, %[[VAL]] : !s32i, seq_cst) : !s32i
@@ -308,3 +308,10 @@ bool fsb(bool *c) {
 
 // LLVM-LABEL: @_Z3fsbPb
 // LLVM: atomicrmw xchg ptr {{.*}}, i8 {{.*}} seq_cst, align 1
+
+// FIXME: crashes
+// void atomicinit(void)
+// {
+//   _Atomic(unsigned int) j = 12;
+//   __c11_atomic_init(&j, 1);
+// }

@@ -364,23 +364,6 @@ LogicalResult ConstantOp::verify() {
   return checkConstantTypes(getOperation(), getType(), getValue());
 }
 
-static ParseResult parseConstantValue(OpAsmParser &parser,
-                                      mlir::Attribute &valueAttr) {
-  NamedAttrList attr;
-  return parser.parseAttribute(valueAttr, "value", attr);
-}
-
-// FIXME: create a CIRConstAttr and hide this away for both global
-// initialization and cir.const operation.
-static void printConstant(OpAsmPrinter &p, Attribute value) {
-  p.printAttribute(value);
-}
-
-static void printConstantValue(OpAsmPrinter &p, cir::ConstantOp op,
-                               Attribute value) {
-  printConstant(p, value);
-}
-
 OpFoldResult ConstantOp::fold(FoldAdaptor /*adaptor*/) { return getValue(); }
 
 //===----------------------------------------------------------------------===//
@@ -529,6 +512,19 @@ OpFoldResult CastOp::fold(FoldAdaptor adaptor) {
   if (foldOrder.succeeded() && foldResults[0].is<mlir::Attribute>())
     return foldResults[0].get<mlir::Attribute>();
   return {};
+}
+
+//===----------------------------------------------------------------------===//
+// DynamicCastOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult DynamicCastOp::verify() {
+  auto resultPointeeTy = getType().cast<mlir::cir::PointerType>().getPointee();
+  if (!resultPointeeTy.isa<mlir::cir::VoidType, mlir::cir::StructType>())
+    return emitOpError()
+           << "cir.dyn_cast must produce a void ptr or struct ptr";
+
+  return mlir::success();
 }
 
 //===----------------------------------------------------------------------===//
@@ -1487,6 +1483,18 @@ void ForOp::getSuccessorRegions(
 // GlobalOp
 //===----------------------------------------------------------------------===//
 
+static ParseResult parseConstantValue(OpAsmParser &parser,
+                                      mlir::Attribute &valueAttr) {
+  NamedAttrList attr;
+  return parser.parseAttribute(valueAttr, "value", attr);
+}
+
+// FIXME: create a CIRConstAttr and hide this away for both global
+// initialization and cir.const operation.
+static void printConstant(OpAsmPrinter &p, Attribute value) {
+  p.printAttribute(value);
+}
+
 static void printGlobalOpTypeAndInitialValue(OpAsmPrinter &p, GlobalOp op,
                                              TypeAttr type, Attribute initAttr,
                                              mlir::Region &ctorRegion,
@@ -2025,6 +2033,9 @@ bool cir::FuncOp::isDeclaration() {
 void cir::FuncOp::print(OpAsmPrinter &p) {
   p << ' ';
 
+  // When adding a specific keyword here, do not forget to omit it in
+  // printFunctionAttributes below or there will be a syntax error when
+  // parsing
   if (getBuiltin())
     p << "builtin ";
 
@@ -2058,10 +2069,19 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
   function_interface_impl::printFunctionAttributes(
       p, *this,
       // These are all omitted since they are custom printed already.
-      {getSymVisibilityAttrName(), getAliaseeAttrName(),
-       getFunctionTypeAttrName(), getLinkageAttrName(), getBuiltinAttrName(),
-       getNoProtoAttrName(), getGlobalCtorAttrName(), getGlobalDtorAttrName(),
-       getExtraAttrsAttrName()});
+      {
+          getAliaseeAttrName(),
+          getBuiltinAttrName(),
+          getCoroutineAttrName(),
+          getExtraAttrsAttrName(),
+          getFunctionTypeAttrName(),
+          getGlobalCtorAttrName(),
+          getGlobalDtorAttrName(),
+          getLambdaAttrName(),
+          getLinkageAttrName(),
+          getNoProtoAttrName(),
+          getSymVisibilityAttrName(),
+      });
 
   if (auto aliaseeName = getAliasee()) {
     p << " alias(";

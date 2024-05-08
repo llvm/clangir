@@ -140,14 +140,15 @@ def DynamicCastOp : CIR_Op<"dyn_cast"> {
   let summary = "Perform dynamic cast on struct pointers";
   let description = [{
     The `cir.dyn_cast` operation models part of the semantics of the
-    `dynamic_cast` operator in C++. It can be used to perform 2 kinds of casts
+    `dynamic_cast` operator in C++. It can be used to perform 3 kinds of casts
     on struct pointers:
 
     - Down-cast, which casts a base class pointer to a derived class pointer;
-    - Side-cast, which casts a class pointer to a sibling class pointer.
+    - Side-cast, which casts a class pointer to a sibling class pointer;
+    - Cast-to-complete, which casts a class pointer to a void pointer.
 
     The input of the operation must be a struct pointer. The result of the
-    operation is also a struct pointer.
+    operation is either a struct pointer or a void pointer.
 
     The parameter `kind` specifies the semantics of this operation. If its value
     is `ptr`, then the operation models dynamic casts on pointers. Otherwise, if
@@ -163,17 +164,27 @@ def DynamicCastOp : CIR_Op<"dyn_cast"> {
       - Otherwise, the operation will return a null pointer value as its result.
 
     The `info` argument gives detailed information about the requested dynamic
-    cast operation.
+    cast operation. It is an optional `#cir.dyn_cast_info` attribute that is
+    only present when the operation models a down-cast or a side-cast.
+
+    The `relative_layout` argument specifies whether the Itanium C++ ABI vtable
+    uses relative layout. It is only meaningful when the operation models a
+    cast-to-complete operation.
   }];
 
   let arguments = (ins DynamicCastKind:$kind,
                        StructPtr:$src,
-                       DynamicCastInfoAttr:$info);
-  let results = (outs StructPtr:$result);
+                       OptionalAttr<DynamicCastInfoAttr>:$info,
+                       UnitAttr:$relative_layout);
+  let results = (outs CIR_PointerType:$result);
 
   let assemblyFormat = [{
-    `(` $kind `,` $src `:` type($src) `,` qualified($info) `)`
-    `->` type($result) attr-dict
+    `(`
+      $kind `,` $src `:` type($src)
+      (`,` qualified($info)^)?
+      (`relative_layout` $relative_layout^)?
+    `)`
+    `->` qualified(type($result)) attr-dict
   }];
 
   let extraClassDeclaration = [{
@@ -181,7 +192,15 @@ def DynamicCastOp : CIR_Op<"dyn_cast"> {
     bool isRefcast() {
       return getKind() == ::mlir::cir::DynamicCastKind::ref;
     }
+
+    /// Determine whether this operation represents a dynamic cast to a void
+    /// pointer.
+    bool isCastToVoid() {
+      return getType().isVoidPtr();
+    }
   }];
+
+  let hasVerifier = 1;
 }
 
 //===----------------------------------------------------------------------===//
@@ -264,7 +283,7 @@ def PtrStrideOp : CIR_Op<"ptr_stride",
     a stride (second operand).
 
     ```mlir
-    %3 = cir.const(0 : i32) : i32
+    %3 = cir.const 0 : i32
     %4 = cir.ptr_stride(%2 : !cir.ptr<i32>, %3 : i32), !cir.ptr<i32>
     ```
   }];
@@ -293,7 +312,7 @@ def PtrStrideOp : CIR_Op<"ptr_stride",
 //===----------------------------------------------------------------------===//
 
 def ConstantOp : CIR_Op<"const",
-    [ConstantLike, Pure]> {
+    [ConstantLike, Pure, AllTypesMatch<["value", "res"]>]> {
   // FIXME: Use SameOperandsAndResultType or similar and prevent eye bleeding
   // type repetition in the assembly form.
 
@@ -303,9 +322,9 @@ def ConstantOp : CIR_Op<"const",
     attached to the operation as an attribute.
 
     ```mlir
-      %0 = cir.const(42 : i32) : i32
-      %1 = cir.const(4.2 : f32) : f32
-      %2 = cir.const(nullptr : !cir.ptr<i32>) : !cir.ptr<i32>
+      %0 = cir.const 42 : i32
+      %1 = cir.const 4.2 : f32
+      %2 = cir.const nullptr : !cir.ptr<i32>
     ```
   }];
 
@@ -315,9 +334,7 @@ def ConstantOp : CIR_Op<"const",
   // The constant operation returns a single value of CIR_AnyType.
   let results = (outs CIR_AnyType:$res);
 
-  let assemblyFormat = [{
-    `(` custom<ConstantValue>($value) `)` attr-dict `:` type($res)
-  }];
+  let assemblyFormat = "attr-dict $value";
 
   let hasVerifier = 1;
 
@@ -1080,6 +1097,64 @@ def CmpOp : CIR_Op<"cmp", [Pure, SameTypeOperands]> {
 }
 
 //===----------------------------------------------------------------------===//
+// BinOpOverflowOp
+//===----------------------------------------------------------------------===//
+
+def BinOpOverflowKind : I32EnumAttr<
+    "BinOpOverflowKind",
+    "checked binary arithmetic operation kind",
+    [BinOpKind_Add, BinOpKind_Sub, BinOpKind_Mul]> {
+  let cppNamespace = "::mlir::cir";
+}
+
+def BinOpOverflowOp : CIR_Op<"binop.overflow", [Pure, SameTypeOperands]> {
+  let summary = "Perform binary integral arithmetic with overflow checking";
+  let description = [{
+    `cir.binop.overflow` performs binary arithmetic operations with overflow
+    checking on integral operands.
+
+    The `kind` argument specifies the kind of arithmetic operation to perform.
+    It can be either `add`, `sub`, or `mul`. The `lhs` and `rhs` arguments
+    specify the input operands of the arithmetic operation. The types of `lhs`
+    and `rhs` must be the same.
+
+    `cir.binop.overflow` produces two SSA values. `result` is the result of the
+    arithmetic operation truncated to its specified type. `overflow` is a
+    boolean value indicating whether overflow happens during the operation.
+
+    The exact semantic of this operation is as follows:
+
+      - `lhs` and `rhs` are promoted to an imaginary integral type that has
+        infinite precision.
+      - The arithmetic operation is performed on the promoted operands.
+      - The infinite-precision result is truncated to the type of `result`. The
+        truncated result is assigned to `result`.
+      - If the truncated result is equal to the un-truncated result, `overflow`
+        is assigned to false. Otherwise, `overflow` is assigned to true.
+  }];
+
+  let arguments = (ins Arg<BinOpOverflowKind, "arithmetic kind">:$kind,
+                       CIR_IntType:$lhs, CIR_IntType:$rhs);
+  let results = (outs CIR_IntType:$result, CIR_BoolType:$overflow);
+
+  let assemblyFormat = [{
+    `(` $kind `,` $lhs `,` $rhs `)` `:` type($lhs) `,`
+    `(` type($result) `,` type($overflow) `)`
+    attr-dict
+  }];
+
+  let builders = [
+    OpBuilder<(ins "mlir::cir::IntType":$resultTy,
+                   "mlir::cir::BinOpOverflowKind":$kind,
+                   "mlir::Value":$lhs,
+                   "mlir::Value":$rhs), [{
+      auto overflowTy = mlir::cir::BoolType::get($_builder.getContext());
+      build($_builder, $_state, resultTy, overflowTy, kind, lhs, rhs);
+    }]>
+  ];
+}
+
+//===----------------------------------------------------------------------===//
 // BitsOp
 //===----------------------------------------------------------------------===//
 
@@ -1111,13 +1186,13 @@ def BitClrsbOp : CIR_BitOp<"bit.clrsb", AnyTypeOf<[SInt32, SInt64]>> {
     !s32i = !cir.int<s, 32>
 
     // %0 = 0xDEADBEEF, 0b1101_1110_1010_1101_1011_1110_1110_1111
-    %0 = cir.const(#cir.int<3735928559> : !s32i) : !s32i
+    %0 = cir.const #cir.int<3735928559> : !s32i
     // %1 will be 1 because there is 1 bit following the most significant bit
     // that is identical to it.
     %1 = cir.bit.clrsb(%0 : !s32i) : !s32i
 
     // %2 = 1, 0b0000_0000_0000_0000_0000_0000_0000_0001
-    %2 = cir.const(#cir.int<1> : !s32i) : !s32i
+    %2 = cir.const #cir.int<1> : !s32i
     // %3 will be 30
     %3 = cir.bit.clrsb(%2 : !s32i) : !s32i
     ```
@@ -1142,7 +1217,7 @@ def BitClzOp : CIR_BitOp<"bit.clz", AnyTypeOf<[UInt16, UInt32, UInt64]>> {
     !u32i = !cir.int<u, 32>
 
     // %0 = 0b0000_0000_0000_0000_0000_0000_0000_1000
-    %0 = cir.const(#cir.int<8> : !u32i) : !u32i
+    %0 = cir.const #cir.int<8> : !u32i
     // %1 will be 28
     %1 = cir.bit.clz(%0 : !u32i) : !s32i
     ```
@@ -1167,7 +1242,7 @@ def BitCtzOp : CIR_BitOp<"bit.ctz", AnyTypeOf<[UInt16, UInt32, UInt64]>> {
     !u32i = !cir.int<u, 32>
 
     // %0 = 0b1000
-    %0 = cir.const(#cir.int<8> : !u32i) : !u32i
+    %0 = cir.const #cir.int<8> : !u32i
     // %1 will be 3
     %1 = cir.bit.ctz(%0 : !u32i) : !s32i
     ```
@@ -1190,7 +1265,7 @@ def BitFfsOp : CIR_BitOp<"bit.ffs", AnyTypeOf<[SInt32, SInt64]>> {
     !s32i = !cir.int<s, 32>
 
     // %0 = 0x0010_1000
-    %0 = cir.const(#cir.int<40> : !s32i) : !s32i
+    %0 = cir.const #cir.int<40> : !s32i
     // #1 will be 4 since the 4th least significant bit is 1.
     %1 = cir.bit.ffs(%0 : !s32i) : !s32i
     ```
@@ -1212,9 +1287,9 @@ def BitParityOp : CIR_BitOp<"bit.parity", AnyTypeOf<[UInt32, UInt64]>> {
     !u32i = !cir.int<u, 32>
 
     // %0 = 0x0110_1000
-    %0 = cir.const(#cir.int<104> : !u32i) : !s32i
+    %0 = cir.const #cir.int<104> : !u32i
     // %1 will be 1 since there are 3 1-bits in %0
-    %1 = cir.bit.parity(%0 : !u32i) : !s32i
+    %1 = cir.bit.parity(%0 : !u32i) : !u32i
     ```
   }];
 }
@@ -1230,13 +1305,12 @@ def BitPopcountOp
     Example:
 
     ```mlir
-    !s32i = !cir.int<s, 32>
     !u32i = !cir.int<u, 32>
 
     // %0 = 0x0110_1000
-    %0 = cir.const(#cir.int<104> : !u32i) : !s32i
+    %0 = cir.const #cir.int<104> : !u32i
     // %1 will be 3 since there are 3 1-bits in %0
-    %1 = cir.bit.popcount(%0 : !u32i) : !s32i
+    %1 = cir.bit.popcount(%0 : !u32i) : !u32i
     ```
   }];
 }
@@ -1260,7 +1334,7 @@ def ByteswapOp : CIR_Op<"bswap", [Pure, SameOperandsAndResultType]> {
     !u32i = !cir.int<u, 32>
 
     // %0 = 0x12345678
-    %0 = cir.const(#cir.int<305419896> : !u32i) : !u32i
+    %0 = cir.const #cir.int<305419896> : !u32i
 
     // %1 should be 0x78563412
     %1 = cir.bswap(%0 : !u32i) : !u32i
@@ -1272,6 +1346,40 @@ def ByteswapOp : CIR_Op<"bswap", [Pure, SameOperandsAndResultType]> {
 
   let assemblyFormat = [{
     `(` $input `:` type($input) `)` `:` type($result) attr-dict
+  }];
+}
+
+//===----------------------------------------------------------------------===//
+// RotateOp
+//===----------------------------------------------------------------------===//
+
+def RotateOp : CIR_Op<"rotate", [Pure, SameOperandsAndResultType]> {
+  let summary = "Reverse the bytes that constitute the operand integer";
+  let description = [{
+    The `cir.rotate` rotates operand in `src` by the given bit amount `amt`.
+    Its widths must be either 8, 16, 32, or 64 and both `src`, `amt` and
+    `result` be of the same type. The rotate direction is specified by a
+    `left`/`right` keyword.
+
+    This operation covers different C/C++
+    builtins, some examples: `__builtin_rotateleft8`, `__builtin_rotateleft16`,
+    `__builtin_rotateleft32`, `__builtin_rotateleft64`, `_rotl8`, `_rotl16`,
+    `_rotl`, `_lrotl`, `_rotl64`, etc and their "right" variants.
+
+    Example:
+
+    ```mlir
+    %r = cir.rotate left %0, %1 -> !u32i
+    ```
+  }];
+
+  let results = (outs CIR_IntType:$result);
+  let arguments = (ins PrimitiveInt:$src, PrimitiveInt:$amt,
+                       UnitAttr:$left);
+
+  let assemblyFormat = [{
+    (`left` $left^) : (`right`)?
+    $src `,` $amt `->` type($result) attr-dict
   }];
 }
 
@@ -1302,12 +1410,12 @@ def CmpThreeWayOp : CIR_Op<"cmp3way", [Pure, SameTypeOperands]> {
     #cmp3way_strong = #cmp3way_info<strong, lt = -1, eq = 0, gt = 1>
     #cmp3way_partial = #cmp3way_info<strong, lt = -1, eq = 0, gt = 1, unordered = 2>
 
-    %0 = cir.const(#cir.int<0> : !s32i) : !s32i
-    %1 = cir.const(#cir.int<1> : !s32i) : !s32i
+    %0 = cir.const #cir.int<0> : !s32i
+    %1 = cir.const #cir.int<1> : !s32i
     %2 = cir.cmp3way(%0 : !s32i, %1, #cmp3way_strong) : !s8i
 
-    %3 = cir.const(#cir.fp<0.0> : !cir.float) : !cir.float
-    %4 = cir.const(#cir.fp<1.0> : !cir.float) : !cir.float
+    %3 = cir.const #cir.fp<0.0> : !cir.float
+    %4 = cir.const #cir.fp<1.0> : !cir.float
     %5 = cir.cmp3way(%3 : !cir.float, %4, #cmp3way_partial) : !s8i
     ```
   }];
@@ -1961,7 +2069,7 @@ def SetBitfieldOp : CIR_Op<"set_bitfield"> {
     !struct_type = !cir.struct<struct "S" {!cir.int<u, 32>, !cir.int<u, 32>, !cir.int<u, 16>} #cir.record.decl.ast>
     #bfi_d = #cir.bitfield_info<name = "d", storage_type = !u32i, size = 2, offset = 17, is_signed = true>
 
-    %1 = cir.const(#cir.int<3> : !s32i) : !s32i
+    %1 = cir.const #cir.int<3> : !s32i
     %2 = cir.load %0 : !cir.ptr<!cir.ptr<!struct_type>>, !cir.ptr<!struct_type>
     %3 = cir.get_member %2[1] {name = "d"} : !cir.ptr<!struct_type> -> !cir.ptr<!u32i>
     %4 = cir.set_bitfield(#bfi_d, %3 : !cir.ptr<!u32i>, %1 : !s32i) -> !s32i
@@ -3045,7 +3153,7 @@ def MemCpyOp : CIR_Op<"libc.memcpy"> {
 
     ```mlir
       // Copying 2 bytes from one array to a struct:
-      %2 = cir.const(#cir.int<2> : !u32i) : !u32i
+      %2 = cir.const #cir.int<2> : !u32i
       cir.libc.memcpy %2 bytes from %arr to %struct : !cir.ptr<!arr> -> !cir.ptr<!struct>
     ```
   }];
