@@ -274,7 +274,7 @@ public:
                       E->getType());
   }
 
-  void VisitBinComma(const BinaryOperator *E) { llvm_unreachable("NYI"); }
+  void VisitBinComma(const BinaryOperator *E);
   void VisitBinCmp(const BinaryOperator *E);
   void VisitCXXRewrittenBinaryOperator(CXXRewrittenBinaryOperator *E) {
     llvm_unreachable("NYI");
@@ -1364,6 +1364,11 @@ void AggExprEmitter::VisitAbstractConditionalOperator(
   if (destructNonTrivialCStruct)
     llvm_unreachable("NYI");
   assert(!UnimplementedFeature::incrementProfileCounter());
+}
+
+void AggExprEmitter::VisitBinComma(const BinaryOperator *E) {
+  CGF.buildIgnoredExpr(E->getLHS());
+  Visit(E->getRHS());
 }
 
 //===----------------------------------------------------------------------===//
