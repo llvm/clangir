@@ -250,22 +250,24 @@ def ConstPtrAttr : CIR_Attr<"ConstPtr", "ptr", [TypedAttrInterface]> {
   let summary = "Holds a constant pointer value";
   let parameters = (ins
     AttributeSelfTypeParameter<"", "::mlir::cir::PointerType">:$type,
-    "uint64_t":$value);
+    "mlir::IntegerAttr":$value);
   let description = [{
     A pointer attribute is a literal attribute that represents an integral
     value of a pointer type.
   }];
   let builders = [
-    AttrBuilderWithInferredContext<(ins "Type":$type, "uint64_t":$value), [{
-      return $_get(type.getContext(), type.cast<mlir::cir::PointerType>(), value);
+    AttrBuilderWithInferredContext<(ins "Type":$type, "int64_t":$value), [{
+      auto val = mlir::IntegerAttr::get(mlir::IntegerType::get(type.getContext(), 64), value);
+      return $_get(type.getContext(), type.cast<mlir::cir::PointerType>(), val);
     }]>,
     AttrBuilder<(ins "Type":$type,
-                     "uint64_t":$value), [{
-      return $_get($_ctxt, type.cast<mlir::cir::PointerType>(), value);
+                     "int64_t":$value), [{
+      auto val = mlir::IntegerAttr::get(mlir::IntegerType::get(type.getContext(), 64), value);
+      return $_get($_ctxt, type.cast<mlir::cir::PointerType>(), val);
     }]>,
   ];
   let extraClassDeclaration = [{
-    bool isNullValue() const { return getValue() == 0; }
+    bool isNullValue() const { return getValue().getInt() == 0; }
   }];
 
   let assemblyFormat = [{
