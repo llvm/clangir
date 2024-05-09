@@ -655,11 +655,6 @@ public:
   mlir::Value buildScalarPrePostIncDec(const UnaryOperator *E, LValue LV,
                                        bool isInc, bool isPre);
 
-  // Target specific builtin emission
-  mlir::Value buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
-                                      llvm::Triple::ArchType Arch);
-  mlir::Value buildX86BuiltinExpr(unsigned BuiltinID, const CallExpr *E);
-
   // Wrapper for function prototype sources. Wraps either a FunctionProtoType or
   // an ObjCMethodDecl.
   struct PrototypeWrapper {
@@ -1036,13 +1031,17 @@ public:
   mlir::LogicalResult buildIfOnBoolExpr(const clang::Expr *cond,
                                         const clang::Stmt *thenS,
                                         const clang::Stmt *elseS);
+  mlir::cir::IfOp buildIfOnBoolExpr(
+      const clang::Expr *cond,
+      llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)> thenBuilder,
+      mlir::Location thenLoc,
+      llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)> elseBuilder,
+      std::optional<mlir::Location> elseLoc = {});
   mlir::Value buildTernaryOnBoolExpr(const clang::Expr *cond,
                                      mlir::Location loc,
                                      const clang::Stmt *thenS,
                                      const clang::Stmt *elseS);
-  mlir::Value buildOpOnBoolExpr(const clang::Expr *cond, mlir::Location loc,
-                                const clang::Stmt *thenS,
-                                const clang::Stmt *elseS);
+  mlir::Value buildOpOnBoolExpr(mlir::Location loc, const clang::Expr *cond);
 
   class ConstantEmission {
     // Cannot use mlir::TypedAttr directly here because of bit availability.
@@ -1186,7 +1185,7 @@ public:
   /// Store the specified rvalue into the specified
   /// lvalue, where both are guaranteed to the have the same type, and that type
   /// is 'Ty'.
-  void buildStoreThroughLValue(RValue Src, LValue Dst);
+  void buildStoreThroughLValue(RValue Src, LValue Dst, bool isInit = false);
 
   void buildStoreThroughBitfieldLValue(RValue Src, LValue Dst,
                                        mlir::Value &Result);
@@ -1219,9 +1218,15 @@ public:
   RValue buildBuiltinExpr(const clang::GlobalDecl GD, unsigned BuiltinID,
                           const clang::CallExpr *E,
                           ReturnValueSlot ReturnValue);
+  RValue buildRotate(const CallExpr *E, bool IsRotateRight);
   mlir::Value buildTargetBuiltinExpr(unsigned BuiltinID,
                                      const clang::CallExpr *E,
                                      ReturnValueSlot ReturnValue);
+
+  // Target specific builtin emission
+  mlir::Value buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
+                                      llvm::Triple::ArchType Arch);
+  mlir::Value buildX86BuiltinExpr(unsigned BuiltinID, const CallExpr *E);
 
   /// Given an expression with a pointer type, emit the value and compute our
   /// best estimate of the alignment of the pointee.
@@ -1509,6 +1514,10 @@ public:
   void buildCXXThrowExpr(const CXXThrowExpr *E);
 
   RValue buildAtomicExpr(AtomicExpr *E);
+  void buildAtomicStore(RValue rvalue, LValue lvalue, bool isInit);
+  void buildAtomicStore(RValue rvalue, LValue lvalue, mlir::cir::MemOrder MO,
+                        bool IsVolatile, bool isInit);
+  void buildAtomicInit(Expr *init, LValue dest);
 
   /// Return the address of a local variable.
   Address GetAddrOfLocalVar(const clang::VarDecl *VD) {
@@ -1956,13 +1965,6 @@ public:
       assert(builder.getInsertionBlock() && "Should be valid");
       return CleanupBlock;
     }
-
-    // Goto's introduced in this scope but didn't get fixed.
-    llvm::SmallVector<std::pair<mlir::Operation *, const clang::LabelDecl *>, 4>
-        PendingGotos;
-
-    // Labels solved inside this scope.
-    llvm::SmallPtrSet<const clang::LabelDecl *, 4> SolvedLabels;
 
     // ---
     // Exception handling

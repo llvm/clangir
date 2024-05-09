@@ -1454,7 +1454,6 @@ mlir::Value ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
   case CK_AtomicToNonAtomic:
     llvm_unreachable("NYI");
   case CK_NonAtomicToAtomic:
-    llvm_unreachable("NYI");
   case CK_UserDefinedConversion:
     return Visit(const_cast<Expr *>(E));
   case CK_NoOp: {
@@ -2140,7 +2139,7 @@ mlir::Value ScalarExprEmitter::VisitAbstractConditionalOperator(
         .getResult();
   }
 
-  mlir::Value condV = CGF.buildOpOnBoolExpr(condExpr, loc, lhsExpr, rhsExpr);
+  mlir::Value condV = CGF.buildOpOnBoolExpr(loc, condExpr);
   CIRGenFunction::ConditionalEvaluation eval(CGF);
   SmallVector<mlir::OpBuilder::InsertPoint, 2> insertPoints{};
   mlir::Type yieldTy{};

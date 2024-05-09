@@ -19,6 +19,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include <numeric>
 #include <optional>
+#include <set>
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMTypes.h"
@@ -501,17 +502,37 @@ LogicalResult CastOp::verify() {
 }
 
 OpFoldResult CastOp::fold(FoldAdaptor adaptor) {
-  if (getKind() != mlir::cir::CastKind::integral)
-    return {};
   if (getSrc().getType() != getResult().getType())
     return {};
-  // TODO: for sign differences, it's possible in certain conditions to
-  // create a new attributes that's capable or representing the source.
-  SmallVector<mlir::OpFoldResult, 1> foldResults;
-  auto foldOrder = getSrc().getDefiningOp()->fold(foldResults);
-  if (foldOrder.succeeded() && foldResults[0].is<mlir::Attribute>())
-    return foldResults[0].get<mlir::Attribute>();
-  return {};
+  switch (getKind()) {
+  case mlir::cir::CastKind::integral: {
+    // TODO: for sign differences, it's possible in certain conditions to
+    // create a new attribute that's capable of representing the source.
+    SmallVector<mlir::OpFoldResult, 1> foldResults;
+    auto foldOrder = getSrc().getDefiningOp()->fold(foldResults);
+    if (foldOrder.succeeded() && foldResults[0].is<mlir::Attribute>())
+      return foldResults[0].get<mlir::Attribute>();
+    return {};
+  }
+  case mlir::cir::CastKind::bitcast: {
+    return getSrc();
+  }
+  default:
+    return {};
+  }
+}
+
+//===----------------------------------------------------------------------===//
+// DynamicCastOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult DynamicCastOp::verify() {
+  auto resultPointeeTy = getType().cast<mlir::cir::PointerType>().getPointee();
+  if (!resultPointeeTy.isa<mlir::cir::VoidType, mlir::cir::StructType>())
+    return emitOpError()
+           << "cir.dyn_cast must produce a void ptr or struct ptr";
+
+  return mlir::success();
 }
 
 //===----------------------------------------------------------------------===//
@@ -2161,6 +2182,24 @@ LogicalResult cir::FuncOp::verify() {
                            << "' must have empty body";
   }
 
+  std::set<llvm::StringRef> labels;
+  std::set<llvm::StringRef> gotos;
+
+  getOperation()->walk([&](mlir::Operation *op) {
+    if (auto lab = dyn_cast<mlir::cir::LabelOp>(op)) {
+      labels.emplace(lab.getLabel());
+    } else if (auto goTo = dyn_cast<mlir::cir::GotoOp>(op)) {
+      gotos.emplace(goTo.getLabel());
+    }
+  });
+
+  std::vector<llvm::StringRef> mismatched;
+  std::set_difference(gotos.begin(), gotos.end(), labels.begin(), labels.end(),
+                      std::back_inserter(mismatched));
+
+  if (!mismatched.empty())
+    return emitOpError() << "goto/label mismatch";
+
   return success();
 }
 
@@ -3067,6 +3106,18 @@ LogicalResult BinOp::verify() {
     return emitError() << "The nsw/nuw flags are applicable to opcodes: 'add', "
                           "'sub' and 'mul'";
 
+  return mlir::success();
+}
+
+//===----------------------------------------------------------------------===//
+// LabelOp Definitions
+//===----------------------------------------------------------------------===//
+
+LogicalResult LabelOp::verify() {
+  auto *op = getOperation();
+  auto *blk = op->getBlock();
+  if (&blk->front() != op)
+    return emitError() << "must be the first operation in a block";
   return mlir::success();
 }
 
