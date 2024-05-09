@@ -328,6 +328,14 @@ public:
   matchAndRewrite(mlir::cir::Exp2Op op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     rewriter.replaceOpWithNewOp<mlir::math::Exp2Op>(op, adaptor.getSrc());
+class CIRSinOpLowering : public mlir::OpConversionPattern<mlir::cir::SinOp> {
+public:
+  using mlir::OpConversionPattern<mlir::cir::SinOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::SinOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOpWithNewOp<mlir::math::SinOp>(op, adaptor.getSrc());
     return mlir::LogicalResult::success();
   }
 };
@@ -1120,8 +1128,8 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
                CIRPtrStrideOpLowering, CIRSqrtOpLowering, CIRCeilOpLowering,
                CIRExp2OpLowering, CIRExpOpLowering, CIRFAbsOpLowering,
                CIRFloorOpLowering, CIRLog10OpLowering, CIRLog2OpLowering,
-               CIRLogOpLowering, CIRRoundOpLowering>(converter,
-                                                     patterns.getContext());
+               CIRLogOpLowering, CIRRoundOpLowering, CIRPtrStrideOpLowering, 
+               CIRSinOpLowering>(converter,patterns.getContext());
 }
 
 static mlir::TypeConverter prepareTypeConverter() {

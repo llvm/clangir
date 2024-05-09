@@ -309,9 +309,32 @@ bool fsb(bool *c) {
 // LLVM-LABEL: @_Z3fsbPb
 // LLVM: atomicrmw xchg ptr {{.*}}, i8 {{.*}} seq_cst, align 1
 
-// FIXME: crashes
-// void atomicinit(void)
-// {
-//   _Atomic(unsigned int) j = 12;
-//   __c11_atomic_init(&j, 1);
-// }
+void atomicinit(void)
+{
+  _Atomic(unsigned int) j = 12;
+  __c11_atomic_init(&j, 1);
+}
+
+// CHECK-LABEL: @_Z10atomicinitv
+// CHECK: %[[ADDR:.*]] = cir.alloca !u32i, !cir.ptr<!u32i>, ["j"
+// CHECK: cir.store {{.*}}, %[[ADDR]] : !u32i, !cir.ptr<!u32i>
+// CHECK: cir.store {{.*}}, %[[ADDR]] : !u32i, !cir.ptr<!u32i>
+
+// LLVM-LABEL: @_Z10atomicinitv
+// LLVM: %[[ADDR:.*]] = alloca i32, i64 1, align 4
+// LLVM: store i32 12, ptr %[[ADDR]], align 4
+// LLVM: store i32 1, ptr %[[ADDR]], align 4
+
+void incdec() {
+  _Atomic(unsigned int) j = 12;
+  __c11_atomic_fetch_add(&j, 1, 0);
+  __c11_atomic_fetch_sub(&j, 1, 0);
+}
+
+// CHECK-LABEL: @_Z6incdecv
+// CHECK: cir.atomic.fetch(add, {{.*}} : !cir.ptr<!u32i>, {{.*}} : !u32i, relaxed) fetch_first
+// CHECK: cir.atomic.fetch(sub, {{.*}} : !cir.ptr<!u32i>, {{.*}} : !u32i, relaxed) fetch_first
+
+// LLVM-LABEL: @_Z6incdecv
+// LLVM: atomicrmw add ptr {{.*}}, i32 {{.*}} monotonic, align 4
+// LLVM: atomicrmw sub ptr {{.*}}, i32 {{.*}} monotonic, align 4

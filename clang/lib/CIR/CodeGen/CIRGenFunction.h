@@ -1181,7 +1181,7 @@ public:
   /// Store the specified rvalue into the specified
   /// lvalue, where both are guaranteed to the have the same type, and that type
   /// is 'Ty'.
-  void buildStoreThroughLValue(RValue Src, LValue Dst);
+  void buildStoreThroughLValue(RValue Src, LValue Dst, bool isInit = false);
 
   void buildStoreThroughBitfieldLValue(RValue Src, LValue Dst,
                                        mlir::Value &Result);
@@ -1961,13 +1961,6 @@ public:
       assert(builder.getInsertionBlock() && "Should be valid");
       return CleanupBlock;
     }
-
-    // Goto's introduced in this scope but didn't get fixed.
-    llvm::SmallVector<std::pair<mlir::Operation *, const clang::LabelDecl *>, 4>
-        PendingGotos;
-
-    // Labels solved inside this scope.
-    llvm::SmallPtrSet<const clang::LabelDecl *, 4> SolvedLabels;
 
     // ---
     // Exception handling

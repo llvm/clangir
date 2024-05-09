@@ -801,7 +801,9 @@ RValue CIRGenFunction::buildAtomicExpr(AtomicExpr *E) {
   case AtomicExpr::AO__hip_atomic_fetch_sub:
   case AtomicExpr::AO__opencl_atomic_fetch_add:
   case AtomicExpr::AO__opencl_atomic_fetch_sub:
-    llvm_unreachable("NYI");
+    if (MemTy->isPointerType()) {
+      llvm_unreachable("NYI");
+    }
     [[fallthrough]];
   case AtomicExpr::AO__atomic_fetch_add:
   case AtomicExpr::AO__atomic_fetch_max:
@@ -1206,11 +1208,11 @@ void AtomicInfo::emitCopyIntoMemory(RValue rvalue) const {
   emitMemSetZeroIfNecessary();
 
   // Drill past the padding if present.
-  llvm_unreachable("NYI");
+  LValue TempLVal = projectValue();
 
   // Okay, store the rvalue in.
   if (rvalue.isScalar()) {
-    llvm_unreachable("NYI");
+    CGF.buildStoreOfScalar(rvalue.getScalarVal(), TempLVal, /*init*/ true);
   } else {
     llvm_unreachable("NYI");
   }
@@ -1251,7 +1253,7 @@ void CIRGenFunction::buildAtomicStore(RValue rvalue, LValue dest,
   // If this is an initialization, just put the value there normally.
   if (LVal.isSimple()) {
     if (isInit) {
-      llvm_unreachable("NYI");
+      atomics.emitCopyIntoMemory(rvalue);
       return;
     }
 
