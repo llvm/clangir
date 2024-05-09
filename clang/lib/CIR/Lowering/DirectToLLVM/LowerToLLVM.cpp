@@ -525,10 +525,12 @@ public:
     auto *tc = getTypeConverter();
     const auto resultTy = tc->convertType(ptrStrideOp.getType());
     auto elementTy = tc->convertType(ptrStrideOp.getElementTy());
-    auto ctx = elementTy.getContext();
+    auto *ctx = elementTy.getContext();
 
-    // void doesn't really have a layout to use in GEPs, make it i8 instead.
-    if (llvm::isa<mlir::LLVM::LLVMVoidType>(elementTy))
+    // void and function types doesn't really have a layout to use in GEPs,
+    // make it i8 instead.
+    if (llvm::isa<mlir::LLVM::LLVMVoidType>(elementTy) ||
+        llvm::isa<mlir::LLVM::LLVMFunctionType>(elementTy))
       elementTy = mlir::IntegerType::get(elementTy.getContext(), 8,
                                          mlir::IntegerType::Signless);
 
