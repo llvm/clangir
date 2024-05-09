@@ -864,6 +864,13 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::LoadOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
+    // if the result type is void, we can just remove the load operation since
+    // it's useless
+    if (op.getResult().getType().isa<mlir::cir::VoidType>()) {
+      rewriter.eraseOp(op);
+      return mlir::LogicalResult::success();
+    }
+
     const auto llvmTy =
         getTypeConverter()->convertType(op.getResult().getType());
     unsigned alignment = 0;
