@@ -188,8 +188,10 @@ lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::cir::ConstPtrAttr ptrAttr,
     return rewriter.create<mlir::LLVM::ZeroOp>(
         loc, converter->convertType(ptrAttr.getType()));
   }
+  mlir::DataLayout layout(parentOp->getParentOfType<mlir::ModuleOp>());
   mlir::Value ptrVal = rewriter.create<mlir::LLVM::ConstantOp>(
-      loc, rewriter.getI64Type(), ptrAttr.getValue());
+      loc, rewriter.getIntegerType(layout.getTypeSizeInBits(ptrAttr.getType())),
+      ptrAttr.getValue());
   return rewriter.create<mlir::LLVM::IntToPtrOp>(
       loc, converter->convertType(ptrAttr.getType()), ptrVal);
 }

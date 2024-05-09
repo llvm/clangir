@@ -327,7 +327,7 @@ public:
     return create<mlir::cir::ForOp>(loc, condBuilder, bodyBuilder, stepBuilder);
   }
 
-  mlir::TypedAttr getConstPtrAttr(mlir::Type t, uint64_t v) {
+  mlir::TypedAttr getConstPtrAttr(mlir::Type t, int64_t v) {
     assert(t.isa<mlir::cir::PointerType>() && "expected cir.ptr");
     return mlir::cir::ConstPtrAttr::get(getContext(), t, v);
   }

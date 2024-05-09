@@ -213,7 +213,7 @@ void LangAttr::print(AsmPrinter &printer) const {
 //===----------------------------------------------------------------------===//
 
 Attribute ConstPtrAttr::parse(AsmParser &parser, Type odsType) {
-  uint64_t value;
+  int64_t value;
 
   if (!odsType.isa<cir::PointerType>())
     return {};

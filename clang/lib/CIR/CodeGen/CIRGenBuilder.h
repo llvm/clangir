@@ -253,7 +253,7 @@ public:
     if (auto arrTy = ty.dyn_cast<mlir::cir::ArrayType>())
       return getZeroAttr(arrTy);
     if (auto ptrTy = ty.dyn_cast<mlir::cir::PointerType>())
-      return getConstPtrAttr(ptrTy, 0);
+      return getConstNullPtrAttr(ptrTy);
     if (auto structTy = ty.dyn_cast<mlir::cir::StructType>())
       return getZeroAttr(structTy);
     if (ty.isa<mlir::cir::BoolType>()) {

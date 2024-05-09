@@ -248,13 +248,13 @@ def FPAttr : CIR_Attr<"FP", "fp", [TypedAttrInterface]> {
 
 def ConstPtrAttr : CIR_Attr<"ConstPtr", "ptr", [TypedAttrInterface]> {
   let summary = "Holds a constant pointer value";
-  let parameters = (ins AttributeSelfTypeParameter<"">:$type, "uint64_t":$value);
+  let parameters = (ins AttributeSelfTypeParameter<"">:$type, "int64_t":$value);
   let description = [{
     A pointer attribute is a literal attribute that represents an integral
     value of a pointer type.
   }];
   let builders = [
-    AttrBuilderWithInferredContext<(ins "Type":$type, "uint64_t":$value), [{
+    AttrBuilderWithInferredContext<(ins "Type":$type, "int64_t":$value), [{
       return $_get(type.getContext(), type, value);
     }]>,
   ];
