@@ -24,26 +24,6 @@ using namespace cir;
 using namespace clang;
 using namespace mlir::cir;
 
-namespace {
-
-// Handle stmt that don't belong to any cases.
-void checkCaseNoneStmt(const Stmt &S, bool checkCaseStmt = true) {
-  if (S.getStmtClass() == Stmt::LabelStmtClass)
-    llvm_unreachable("LabelStmtClass support NYI");
-
-  if (S.getStmtClass() == Stmt::CaseStmtClass ||
-      S.getStmtClass() == Stmt::DefaultStmtClass)
-    assert(!checkCaseStmt && "CaseStmtClass/DefaultStmtClass support NYI");
-
-  if (S.getStmtClass() == Stmt::SwitchStmtClass)
-    checkCaseStmt = false;
-
-  for (const Stmt *c : S.children())
-    checkCaseNoneStmt(*c, checkCaseStmt);
-}
-
-} // namespace
-
 Address CIRGenFunction::buildCompoundStmtWithoutScope(const CompoundStmt &S,
                                                       bool getLast,
                                                       AggValueSlot slot) {
@@ -348,6 +328,14 @@ mlir::LogicalResult CIRGenFunction::buildLabelStmt(const clang::LabelStmt &S) {
   // IsEHa: not implemented.
   assert(!(getContext().getLangOpts().EHAsynch && S.isSideEntry()));
 
+  // TODO: After support case stmt crossing scopes, we should build LabelStmt
+  //       and clean LexicalScope::IsInsideCaseNoneStmt.
+  for (auto *lexScope = currLexScope; lexScope;
+       lexScope = lexScope->getParentScope()) {
+    assert(!lexScope->IsInsideCaseNoneStmt &&
+           "LabelStmt inside case none stmt NYI");
+  }
+
   return buildStmt(S.getSubStmt(), /* useCurrentScope */ true);
 }
 
@@ -478,6 +466,11 @@ mlir::LogicalResult CIRGenFunction::buildDeclStmt(const DeclStmt &S) {
 mlir::LogicalResult CIRGenFunction::buildReturnStmt(const ReturnStmt &S) {
   assert(!UnimplementedFeature::requiresReturnValueCheck());
   auto loc = getLoc(S.getSourceRange());
+
+  // TODO: Rewrite the logic to handle ReturnStmt inside SwitchStmt, then
+  //       clean up the code below.
+  if (currLexScope->IsInsideCaseNoneStmt)
+    return mlir::success();
 
   // Emit the result value, even if unused, to evaluate the side effects.
   const Expr *RV = S.getRetValue();
@@ -722,6 +715,22 @@ CIRGenFunction::buildSwitchCase(const SwitchCase &S, mlir::Type condType,
     return buildDefaultStmt(cast<DefaultStmt>(S), condType, caseAttrs);
 
   llvm_unreachable("expect case or default stmt");
+}
+
+mlir::LogicalResult CIRGenFunction::buildCaseNoneStmt(const Stmt *S) {
+  // Create orphan region to skip over the case none stmts.
+  mlir::Region region;
+  auto *block = builder.createBlock(&region);
+  mlir::OpBuilder::InsertionGuard guard(builder);
+  builder.setInsertionPointToStart(block);
+
+  currLexScope->IsInsideCaseNoneStmt = true;
+
+  auto res = buildStmt(S, /*useCurrentScope=*/isa<CompoundStmt>(S));
+
+  currLexScope->IsInsideCaseNoneStmt = false;
+
+  return res;
 }
 
 mlir::LogicalResult
@@ -1004,7 +1013,7 @@ mlir::LogicalResult CIRGenFunction::buildSwitchBody(
         builder.setInsertionPointToEnd(lastCaseBlock);
         res = buildStmt(c, /*useCurrentScope=*/!isa<CompoundStmt>(c));
       } else {
-        checkCaseNoneStmt(*c);
+        buildCaseNoneStmt(c);
         continue;
       }
 
@@ -1016,7 +1025,7 @@ mlir::LogicalResult CIRGenFunction::buildSwitchBody(
     return res;
   }
 
-  checkCaseNoneStmt(*S);
+  buildCaseNoneStmt(S);
   return mlir::success();
 }
 
