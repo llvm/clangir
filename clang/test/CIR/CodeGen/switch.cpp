@@ -327,3 +327,31 @@ void fallthrough(int x) {
 // CHECK-NEXT:      }
 // CHECK-NEXT:      ]
 // CHECK-NEXT:    }
+
+enum letter {
+ A, B, C, D, E, F, G, H, I, J, L
+};
+
+int gnurange(enum letter c) {
+  switch (c) { 
+    case A ... C:
+    case D:
+    case E ... F:
+    case L ... A:
+      return 1;
+    default: 
+      return 0;
+  }
+}
+
+//      CHECK:  cir.func @_Z8gnurange6letter
+//      CHECK:    cir.scope {
+//      CHECK:      cir.switch
+// CHECK-NEXT:      case (anyof, [0, 1, 2, 3, 4, 5] : !s32i) {
+//      CHECK:        cir.return
+// CHECK-NEXT:      },
+// CHECK-NEXT:      case (default) {
+//      CHECK:        cir.return
+// CHECK-NEXT:      }
+// CHECK-NEXT:      ]
+// CHECK-NEXT:    }
