@@ -250,6 +250,10 @@ public:
       return mlir::cir::FPAttr::getZero(fltType);
     if (auto fltType = mlir::dyn_cast<mlir::cir::DoubleType>(ty))
       return mlir::cir::FPAttr::getZero(fltType);
+    if (auto fltType = mlir::dyn_cast<mlir::cir::FP16Type>(ty))
+      return mlir::cir::FPAttr::getZero(fltType);
+    if (auto fltType = mlir::dyn_cast<mlir::cir::BF16Type>(ty))
+      return mlir::cir::FPAttr::getZero(fltType);
     if (auto arrTy = mlir::dyn_cast<mlir::cir::ArrayType>(ty))
       return getZeroAttr(arrTy);
     if (auto ptrTy = mlir::dyn_cast<mlir::cir::PointerType>(ty))
