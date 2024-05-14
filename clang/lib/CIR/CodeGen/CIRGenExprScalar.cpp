@@ -488,11 +488,15 @@ public:
     } else if (type->isVectorType()) {
       llvm_unreachable("no vector inc/dec yet");
     } else if (type->isRealFloatingType()) {
-      if (type->isHalfType())
+      // TODO(cir): CGFPOptionsRAII
+      assert(!UnimplementedFeature::CGFPOptionsRAII());
+
+      if (type->isHalfType() && !CGF.getContext().getLangOpts().NativeHalfType)
         llvm_unreachable("__fp16 type NYI");
 
       if (value.getType().isa<mlir::cir::SingleType, mlir::cir::DoubleType>()) {
         // Create the inc/dec operation.
+        // NOTE(CIR): clang calls CreateAdd but folds this to a unary op
         auto kind =
             (isInc ? mlir::cir::UnaryOpKind::Inc : mlir::cir::UnaryOpKind::Dec);
         value = buildUnaryOp(E, kind, input);
@@ -520,6 +524,9 @@ public:
             loc, mlir::cir::FPAttr::get(value.getType(), F));
         value = Builder.createBinop(value, mlir::cir::BinOpKind::Add, amt);
       }
+
+      if (type->isHalfType() && !CGF.getContext().getLangOpts().NativeHalfType)
+        llvm_unreachable("NYI");
 
     } else if (type->isFixedPointType()) {
       llvm_unreachable("no fixed point inc/dec yet");
@@ -803,6 +810,7 @@ public:
     Result.Opcode = E->getOpcode();
     Result.Loc = E->getSourceRange();
     // TODO: Result.FPFeatures
+    assert(!UnimplementedFeature::getFPFeaturesInEffect());
     Result.E = E;
     return Result;
   }
