@@ -18,6 +18,12 @@
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Support/LogicalResult.h"
 
+// #define GEN_PASS_DECL
+// using namespace mlir;
+// #include "mlir/Transforms/Passes.h.inc"
+
+#include "mlir/Transforms/Passes.h"
+
 namespace cir {
 mlir::LogicalResult runCIRToCIRPasses(
     mlir::ModuleOp theModule, mlir::MLIRContext *mlirCtx,
@@ -76,6 +82,8 @@ mlir::LogicalResult runCIRToCIRPasses(
   if (emitMLIR)
     pm.addPass(mlir::createSCFPreparePass());
 
+  pm.addPass(mlir::createMem2Reg());  
+             
   // FIXME: once CIRCodenAction fixes emission other than CIR we
   // need to run this right before dialect emission.
   pm.addPass(mlir::createDropASTPass());

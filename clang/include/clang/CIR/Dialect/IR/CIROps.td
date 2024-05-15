@@ -26,6 +26,7 @@ include "mlir/Interfaces/ControlFlowInterfaces.td"
 include "mlir/Interfaces/FunctionInterfaces.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/LoopLikeInterface.td"
+include "mlir/Interfaces/MemorySlotInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
 include "mlir/IR/BuiltinAttributeInterfaces.td"
@@ -389,7 +390,8 @@ class AllocaTypesMatchWith<string summary, string lhsArg, string rhsArg,
 def AllocaOp : CIR_Op<"alloca", [
   AllocaTypesMatchWith<"'allocaType' matches pointee type of 'addr'",
                  "addr", "allocaType",
-                 "cast<PointerType>($_self).getPointee()">]> {
+                 "cast<PointerType>($_self).getPointee()">,
+                 DeclareOpInterfaceMethods<PromotableAllocationOpInterface>]> {
   let summary = "Defines a scope-local variable";
   let description = [{
     The `cir.alloca` operation defines a scope-local variable.
@@ -473,7 +475,8 @@ def AllocaOp : CIR_Op<"alloca", [
 def LoadOp : CIR_Op<"load", [
   TypesMatchWith<"type of 'result' matches pointee type of 'addr'",
                  "addr", "result",
-                 "cast<PointerType>($_self).getPointee()">]> {
+                 "cast<PointerType>($_self).getPointee()">,
+                 DeclareOpInterfaceMethods<PromotableMemOpInterface>]> {
 
   let summary = "Load value from memory adddress";
   let description = [{
@@ -531,7 +534,8 @@ def LoadOp : CIR_Op<"load", [
 def StoreOp : CIR_Op<"store", [
   TypesMatchWith<"type of 'value' matches pointee type of 'addr'",
                  "addr", "value",
-                 "cast<PointerType>($_self).getPointee()">]> {
+                 "cast<PointerType>($_self).getPointee()">,
+                 DeclareOpInterfaceMethods<PromotableMemOpInterface>]> {
 
   let summary = "Store value to memory address";
   let description = [{
@@ -4063,6 +4067,13 @@ def AtomicCmpXchg : CIR_Op<"atomic.cmp_xchg",
   }];
 
   let hasVerifier = 0;
+}
+
+def UndefOp : CIR_Op<"undef", [Pure]> {
+  let summary = "Creates an undefined value of CIR dialect type.";
+  let description = [{ TODO }];
+  let results = (outs AnyType:$res);
+  let assemblyFormat = "attr-dict `:` type($res)";
 }
 
 #endif // LLVM_CLANG_CIR_DIALECT_IR_CIROPS
