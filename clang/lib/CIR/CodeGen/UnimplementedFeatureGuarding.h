@@ -29,8 +29,9 @@ struct UnimplementedFeature {
   static bool vectorConstants() { return false; }
 
   // Address space related
-  static bool addressSpace() { return false; }
+  static bool addressSpace() { return true; }
   static bool addressSpaceInGlobalVar() { return false; }
+  static bool addressSpaceCasting() { return false; }
 
   // Clang codegen options
   static bool strictVTablePointers() { return false; }

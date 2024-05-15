@@ -842,8 +842,11 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     // FIXME(cir): It may make sense to allow AllocaOp of type `u8` to return a
     // pointer of type `void *`. This will require a change to the allocaOp
     // verifier.
+
+    LangAS AAS = getASTAllocaAddressSpace();
+    auto TargetAAS = CGM.getASTContext().getTargetAddressSpace(AAS);
     auto AllocaAddr = builder.createAlloca(
-        getLoc(E->getSourceRange()), builder.getUInt8PtrTy(),
+        getLoc(E->getSourceRange()), builder.getUInt8PtrTy(TargetAAS),
         builder.getUInt8Ty(), "bi_alloca", SuitableAlignmentInBytes, Size);
 
     // Initialize the allocated buffer if required.
@@ -855,16 +858,16 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     // default (e.g. in C / C++ auto vars are in the generic address space). At
     // the AST level this is handled within CreateTempAlloca et al., but for the
     // builtin / dynamic alloca we have to handle it here.
-    assert(!UnimplementedFeature::addressSpace());
-    LangAS AAS = getASTAllocaAddressSpace();
     LangAS EAS = E->getType()->getPointeeType().getAddressSpace();
     if (EAS != AAS) {
-      assert(false && "Non-default address space for alloca NYI");
+      // TODO(cir): perform a address space casting from AAS to EAS
+      assert(!UnimplementedFeature::addressSpaceCasting());
+      llvm_unreachable("Non-default address space for alloca NYI");
     }
 
     // Bitcast the alloca to the expected type.
     return RValue::get(
-        builder.createBitcast(AllocaAddr, builder.getVoidPtrTy()));
+        builder.createBitcast(AllocaAddr, builder.getVoidPtrTy(TargetAAS)));
   }
 
   case Builtin::BI__builtin_add_overflow:

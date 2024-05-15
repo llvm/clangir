@@ -694,8 +694,8 @@ void CIRGenFunction::initializeVTablePointer(mlir::Location loc,
   // Finally, store the address point. Use the same CIR types as the field.
   //
   // vtable field is derived from `this` pointer, therefore they should be in
-  // the same addr space.
-  assert(!UnimplementedFeature::addressSpace());
+  // the same addr space. while vtable APs should use addr space for globals,
+  // which we should ensure when creating these ops in CXX ABI.
   VTableField = builder.createElementBitCast(loc, VTableField,
                                              VTableAddressPoint.getType());
   builder.createStore(loc, VTableAddressPoint, VTableField);
@@ -1384,7 +1384,7 @@ CIRGenFunction::getAddressOfBaseClass(Address Value,
 
   // Get the base pointer type.
   auto BaseValueTy = convertType((PathEnd[-1])->getType());
-  assert(!UnimplementedFeature::addressSpace());
+  // TODO(cir): specify addr space in base ptr ty
   // auto BasePtrTy = builder.getPointerTo(BaseValueTy);
   // QualType DerivedTy = getContext().getRecordType(Derived);
   // CharUnits DerivedAlign = CGM.getClassPointerAlignment(Derived);

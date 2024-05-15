@@ -439,7 +439,7 @@ static void buildCatchDispatchBlock(CIRGenFunction &CGF,
     assert(typeValue && "fell into catch-all case!");
     // Check for address space mismatch: if (typeValue->getType() !=
     // argTy)
-    assert(!UnimplementedFeature::addressSpace());
+    assert(!UnimplementedFeature::addressSpaceCasting());
 
     bool nextIsEnd = false;
     // If this is the last handler, we're at the end, and the next

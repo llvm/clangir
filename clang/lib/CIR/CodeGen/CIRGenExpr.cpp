@@ -173,7 +173,7 @@ static Address buildPointerWithAlignment(const Expr *E,
         Addr = CGF.getBuilder().createElementBitCast(
             CGF.getLoc(E->getSourceRange()), Addr, ElemTy);
         if (CE->getCastKind() == CK_AddressSpaceConversion) {
-          assert(!UnimplementedFeature::addressSpace());
+          assert(!UnimplementedFeature::addressSpaceCasting());
           llvm_unreachable("NYI");
         }
         return Addr;
@@ -1206,23 +1206,21 @@ RValue CIRGenFunction::buildCall(clang::QualType CalleeType,
   //   some trivial cases].
   // That is, in the general case, we should assume that a call through an
   // unprototyped function type works like a *non-variadic* call. The way we
-  // make this work is to cast to the exxact type fo the promoted arguments.
+  // make this work is to cast to the exact type fo the promoted arguments.
   //
-  // Chain calls use the same code path to add the inviisble chain parameter to
+  // Chain calls use the same code path to add the invisible chain parameter to
   // the function type.
   if (isa<FunctionNoProtoType>(FnType) || Chain) {
     assert(!UnimplementedFeature::chainCalls());
-    assert(!UnimplementedFeature::addressSpace());
     auto CalleeTy = getTypes().GetFunctionType(FnInfo);
     // get non-variadic function type
     CalleeTy = mlir::cir::FuncType::get(CalleeTy.getInputs(),
                                         CalleeTy.getReturnType(), false);
-    auto CalleePtrTy =
-        mlir::cir::PointerType::get(builder.getContext(), CalleeTy);
 
     auto *Fn = Callee.getFunctionPointer();
     mlir::Value Addr;
     if (auto funcOp = llvm::dyn_cast<mlir::cir::FuncOp>(Fn)) {
+      assert(!UnimplementedFeature::addressSpaceInGlobalVar());
       Addr = builder.create<mlir::cir::GetGlobalOp>(
           getLoc(E->getSourceRange()),
           mlir::cir::PointerType::get(builder.getContext(),
@@ -1231,6 +1229,12 @@ RValue CIRGenFunction::buildCall(clang::QualType CalleeType,
     } else {
       Addr = Fn->getResult(0);
     }
+
+    // Use the same addr space as Addr
+    auto CalleePtrAS =
+        Addr.getType().cast<mlir::cir::PointerType>().getAddrSpace();
+    auto CalleePtrTy = mlir::cir::PointerType::get(builder.getContext(),
+                                                   CalleeTy, CalleePtrAS);
 
     Fn = builder.createBitcast(Addr, CalleePtrTy).getDefiningOp();
     Callee.setFunctionPointer(Fn);

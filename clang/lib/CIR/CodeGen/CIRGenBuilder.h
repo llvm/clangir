@@ -643,9 +643,8 @@ public:
 
   mlir::Value createDynCastToVoid(mlir::Location loc, mlir::Value src,
                                   bool vtableUseRelativeLayout) {
-    // TODO(cir): consider address space here.
-    assert(!UnimplementedFeature::addressSpace());
-    auto destTy = getVoidPtrTy();
+    auto srcTy = src.getType().cast<mlir::cir::PointerType>();
+    auto destTy = getVoidPtrTy(srcTy.getAddrSpace());
     return create<mlir::cir::DynamicCastOp>(
         loc, destTy, mlir::cir::DynamicCastKind::ptr, src,
         mlir::cir::DynamicCastInfoAttr{}, vtableUseRelativeLayout);
@@ -875,11 +874,11 @@ public:
   mlir::cir::GetRuntimeMemberOp createGetIndirectMember(mlir::Location loc,
                                                         mlir::Value objectPtr,
                                                         mlir::Value memberPtr) {
+    auto objectPtrTy = objectPtr.getType().cast<mlir::cir::PointerType>();
     auto memberPtrTy = memberPtr.getType().cast<mlir::cir::DataMemberType>();
 
-    // TODO(cir): consider address space.
-    assert(!UnimplementedFeature::addressSpace());
-    auto resultTy = getPointerTo(memberPtrTy.getMemberTy());
+    auto resultTy =
+        getPointerTo(memberPtrTy.getMemberTy(), objectPtrTy.getAddrSpace());
 
     return create<mlir::cir::GetRuntimeMemberOp>(loc, resultTy, objectPtr,
                                                  memberPtr);

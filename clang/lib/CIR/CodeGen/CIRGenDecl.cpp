@@ -464,7 +464,7 @@ CIRGenModule::getOrCreateStaticVarDecl(const VarDecl &D,
     Name = getStaticDeclName(*this, D);
 
   mlir::Type LTy = getTypes().convertTypeForMem(Ty);
-  assert(!UnimplementedFeature::addressSpace());
+  assert(!UnimplementedFeature::addressSpaceInGlobalVar());
 
   // OpenCL variables in local address space and CUDA shared
   // variables cannot have an initializer.
@@ -491,7 +491,7 @@ CIRGenModule::getOrCreateStaticVarDecl(const VarDecl &D,
   setGVProperties(GV, &D);
 
   // Make sure the result is of the correct type.
-  assert(!UnimplementedFeature::addressSpace());
+  assert(!UnimplementedFeature::addressSpaceCasting());
 
   // Ensure that the static local gets initialized by making sure the parent
   // function gets emitted eventually.

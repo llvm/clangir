@@ -1414,9 +1414,15 @@ mlir::Value ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
   case CK_AnyPointerToBlockPointerCast:
   case CK_BitCast: {
     auto Src = Visit(const_cast<Expr *>(E));
+    mlir::Type SrcTy = Src.getType();
     mlir::Type DstTy = CGF.convertType(DestTy);
 
-    assert(!UnimplementedFeature::addressSpace());
+    if (SrcTy.isa<mlir::cir::PointerType>() &&
+        DstTy.isa<mlir::cir::PointerType>()) {
+      assert((SrcTy.cast<mlir::cir::PointerType>().getAddrSpace() ==
+              DstTy.cast<mlir::cir::PointerType>().getAddrSpace()) &&
+             "Address-space cast must be used to convert address spaces");
+    }
     if (CGF.SanOpts.has(SanitizerKind::CFIUnrelatedCast)) {
       llvm_unreachable("NYI");
     }
@@ -1449,8 +1455,10 @@ mlir::Value ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
     return CGF.getBuilder().createBitcast(CGF.getLoc(E->getSourceRange()), Src,
                                           DstTy);
   }
-  case CK_AddressSpaceConversion:
+  case CK_AddressSpaceConversion: {
+    assert(!UnimplementedFeature::addressSpaceCasting());
     llvm_unreachable("NYI");
+  }
   case CK_AtomicToNonAtomic:
     llvm_unreachable("NYI");
   case CK_NonAtomicToAtomic:

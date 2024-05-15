@@ -721,7 +721,8 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef MangledName, mlir::Type Ty,
       return Entry;
   }
 
-  // TODO(cir): auto DAddrSpace = GetGlobalVarAddressSpace(D);
+  // TODO(cir): auto DAddrSpace = getGlobalVarAddressSpace(D);
+  assert(!UnimplementedFeature::addressSpaceInGlobalVar());
   // TODO(cir): do we need to strip pointer casts for Entry?
 
   auto loc = getLoc(D->getSourceRange());
@@ -809,6 +810,7 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef MangledName, mlir::Type Ty,
   }
 
   // TODO(cir): address space cast when needed for DAddrSpace.
+  assert(!UnimplementedFeature::addressSpaceCasting());
   return GV;
 }
 
@@ -2378,8 +2380,8 @@ mlir::cir::FuncOp CIRGenModule::GetOrCreateCIRFunction(
     return F;
   }
 
-  // TODO(cir): Might need bitcast to different address space.
-  assert(!UnimplementedFeature::addressSpace());
+  // TODO(cir): Might need address-space cast to different address space.
+  assert(!UnimplementedFeature::addressSpaceCasting());
   return F;
 }
 
@@ -2803,9 +2805,10 @@ mlir::cir::GlobalOp CIRGenModule::getOrInsertGlobal(
   // If the variable exists but has the wrong type, return a bitcast to the
   // right type.
   auto GVTy = GV.getSymType();
-  assert(!UnimplementedFeature::addressSpace());
+  assert(!UnimplementedFeature::addressSpaceInGlobalVar());
   auto PTy = builder.getPointerTo(Ty);
 
+  assert(!UnimplementedFeature::addressSpaceCasting());
   if (GVTy != PTy)
     llvm_unreachable("NYI");
 
