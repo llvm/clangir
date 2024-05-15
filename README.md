@@ -8,11 +8,9 @@ ClangIR [upstreaming
 RFC](https://discourse.llvm.org/t/rfc-upstreaming-clangir/76587) was
 [accepted](https://discourse.llvm.org/t/rfc-upstreaming-clangir/76587/46?u=bcardosolopes)
 in Feb 2024, and we already started the upstreaming
-[work](https://github.com/llvm/llvm-project/labels/ClangIR).
-
-ClangIR development is still currently done in the
-[incubator](https://github.com/llvm/clangir) but shall move to upstream as soon
-as the bulk of the base work lands.
+[work](https://github.com/llvm/llvm-project/labels/ClangIR). Development is
+still currently done in the [incubator](https://github.com/llvm/clangir) but
+shall move to upstream as soon as the bulk of the base work lands.
 
 Other resources for additional context:
 
