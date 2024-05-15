@@ -55,7 +55,7 @@ static mlir::Value buildDynamicCastAfterNullCheck(CIRBaseBuilderTy &builder,
   auto castInfo = op.getInfo().value();
 
   // TODO(cir): consider address space
-  assert(!MissingFeatures::addressSpace());
+  assert(!MissingFeatures::addressSpaceCasting());
 
   auto srcPtr = builder.createBitcast(srcValue, builder.getVoidPtrTy());
   auto srcRtti = builder.getConstant(loc, castInfo.getSrcRtti());
@@ -100,7 +100,7 @@ buildDynamicCastToVoidAfterNullCheck(CIRBaseBuilderTy &builder,
   bool vtableUsesRelativeLayout = op.getRelativeLayout();
 
   // TODO(cir): consider address space in this function.
-  assert(!MissingFeatures::addressSpace());
+  assert(!MissingFeatures::addressSpaceCasting());
 
   mlir::Type vtableElemTy;
   uint64_t vtableElemAlign;

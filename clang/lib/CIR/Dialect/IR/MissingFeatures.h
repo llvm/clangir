@@ -23,7 +23,8 @@ struct MissingFeatures {
   static bool setCallingConv() { return false; }
 
   // Address space related
-  static bool addressSpace() { return false; }
+  static bool addressSpace() { return true; }
+  static bool addressSpaceCasting() { return false; }
 
   // Sanitizers
   static bool buildTypeCheck() { return false; }
