@@ -146,7 +146,7 @@ public:
 
   mlir::TypedAttr getConstNullPtrAttr(mlir::Type t) {
     assert(t.isa<mlir::cir::PointerType>() && "expected cir.ptr");
-    return mlir::cir::ConstPtrAttr::get(getContext(), t, 0);
+    return getConstPtrAttr(t, 0);
   }
 
   mlir::Attribute getString(llvm::StringRef str, mlir::Type eltTy,
