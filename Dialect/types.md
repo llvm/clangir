@@ -32,11 +32,52 @@ Syntax:
 | eltType | `mlir::Type` |  |
 | size | `uint64_t` |  |
 
+### BF16Type
+
+CIR type that represents
+
+Syntax: `!cir.bf16`
+
+Floating-point type that represents the bfloat16 format.
+
 ### BoolType
 
 CIR bool type
 
 `cir.bool` represent's C++ bool type.
+
+### DataMemberType
+
+CIR type that represents pointer-to-data-member type in C++
+
+Syntax:
+
+```
+!cir.data_member<
+  mlir::Type,   # memberTy
+  mlir::cir::StructType   # clsTy
+>
+```
+
+`cir.member_ptr` models the pointer-to-data-member type in C++. Values of
+this type are essentially offsets of the pointed-to member within one of
+its containing struct.
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| memberTy | `mlir::Type` |  |
+| clsTy | `mlir::cir::StructType` |  |
+
+### DoubleType
+
+CIR double-precision float type
+
+Syntax: `!cir.double`
+
+Floating-point type that represents the `double` type in C/C++. Its
+underlying floating-point format is the IEEE-754 binar64 format.
 
 ### ExceptionInfoType
 
@@ -48,6 +89,22 @@ Represents the content necessary for a `cir.call` to pass back an exception
 object pointer + some extra selector information. This type is required for
 some exception related operations, like `cir.catch`, `cir.eh.selector_slot`
 and `cir.eh.slot`.
+
+### FP16Type
+
+CIR type that represents IEEE-754 binary16 format
+
+Syntax: `!cir.f16`
+
+Floating-point type that represents the IEEE-754 binary16 format.
+
+### FP80Type
+
+CIR type that represents x87 80-bit floating-point format
+
+Syntax: `!cir.f80`
+
+Floating-point type that represents the x87 80-bit floating-point format.
 
 ### FuncType
 
@@ -97,9 +154,42 @@ unsigned variations.
 | width | `unsigned` |  |
 | isSigned | `bool` |  |
 
+### LongDoubleType
+
+CIR extended-precision float type
+
+Syntax:
+
+```
+!cir.long_double<
+  mlir::Type   # underlying
+>
+```
+
+Floating-point type that represents the `long double` type in C/C++.
+
+The underlying floating-point format of a long double value depends on the
+implementation. The `underlying` parameter specifies the CIR floating-point
+type that corresponds to this format. For now, it can only be either
+`!cir.double` or `!cir.fp80`.
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| underlying | `mlir::Type` |  |
+
 ### PointerType
 
 CIR pointer type
+
+Syntax:
+
+```
+!cir.ptr<
+  mlir::Type   # pointee
+>
+```
 
 `CIR.ptr` is a type returned by any op generating a pointer in C++.
 
@@ -108,6 +198,15 @@ CIR pointer type
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
 | pointee | `mlir::Type` |  |
+
+### SingleType
+
+CIR single-precision float type
+
+Syntax: `!cir.float`
+
+Floating-point type that represents the `float` type in C/C++. Its
+underlying floating-point format is the IEEE-754 binary32 format.
 
 ### VectorType
 

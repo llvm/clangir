@@ -4,9 +4,18 @@ Clang IR (CIR) is a new IR for Clang. ClangIR (CIR) is built on top of MLIR and
 it's basically a mlir dialect for C/C++ based languages in Clang.  It's
 representation level sits somewhere between Clang AST and LLVM IR.
 
-Some outside resources for additional context:
+ClangIR [upstreaming
+RFC](https://discourse.llvm.org/t/rfc-upstreaming-clangir/76587) was
+[accepted](https://discourse.llvm.org/t/rfc-upstreaming-clangir/76587/46?u=bcardosolopes)
+in Feb 2024, and we already started the upstreaming
+[work](https://github.com/llvm/llvm-project/labels/ClangIR).
 
-- *January 2024:* [RFC: Upstreaming ClangIR](https://discourse.llvm.org/t/rfc-upstreaming-clangir/76587)
+ClangIR development is still currently done in the
+[incubator](https://github.com/llvm/clangir) but shall move to upstream as soon
+as the bulk of the base work lands.
+
+Other resources for additional context:
+
 - *October 2023:* US LLVM Developers Meeting talk [Evolution of ClangIR: A
 Year of Progress, Challenges, and Future Plans](http://brunocardoso.cc/resources/2023-LLVMDevMtgClangIR.pdf).
 - *June 2022:* [RFC: An MLIR based Clang IR (CIR)](https://discourse.llvm.org/t/rfc-an-mlir-based-clang-ir-cir/63319)
@@ -29,7 +38,7 @@ optionally contain backreferences to the Clang AST, enabling analysis and
 transformation passes to optionally use AST information, while also allowing
 progressive lowering through late use of AST nodes.
 
-By passing `-fclangir-enable` to the clang driver, the compilation pipeline is
+By passing `-fclangir` to the clang driver, the compilation pipeline is
 modified and CIR gets emitted from ClangAST and then lowered to LLVM IR,
 backend, etc. Since our LLVM emission support is WIP, functionality is
 currently limited. To get CIR printed out of a compiler invocation, the flag
@@ -96,4 +105,4 @@ branch.
 On vim use ":r!date"
 -->
 
-*Last updated: Mon Feb 12 12:46:03 PST 2024*
+*Last updated: Tue May 14 16:52:35 PDT 2024*

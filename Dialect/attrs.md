@@ -253,6 +253,44 @@ The BoolAttr represents a 'true' or 'false' value.
 | type | `mlir::cir::BoolType` |  |
 | value | `bool` |  |
 
+### CmpThreeWayInfoAttr
+
+Holds information about a three-way comparison operation
+
+Syntax:
+
+```
+#cir.cmp3way_info<
+  CmpOrdering,   # ordering
+  int64_t,   # lt
+  int64_t,   # eq
+  int64_t,   # gt
+  std::optional<int64_t>   # unordered
+>
+```
+
+The `#cmp3way_info` attribute contains information about a three-way
+comparison operation `cir.cmp3way`.
+
+The `ordering` parameter gives the ordering kind of the three-way comparison
+operation. It may be either strong ordering or partial ordering.
+
+Given the two input operands of the three-way comparison operation `lhs` and
+`rhs`, the `lt`, `eq`, `gt`, and `unordered` parameters gives the result
+value that should be produced by the three-way comparison operation when the
+ordering between `lhs` and `rhs` is `lhs < rhs`, `lhs == rhs`, `lhs > rhs`,
+or neither, respectively.
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| ordering | `CmpOrdering` |  |
+| lt | `int64_t` |  |
+| eq | `int64_t` |  |
+| gt | `int64_t` |  |
+| unordered | `std::optional<int64_t>` |  |
+
 ### ConstArrayAttr
 
 A constant array from ArrayAttr or StringRefAttr
@@ -271,6 +309,15 @@ An CIR array attribute is an array of literals of the specified attr types.
 
 Holds a constant pointer value
 
+Syntax:
+
+```
+#cir.ptr<
+  ::mlir::cir::PointerType,   # type
+  uint64_t   # value
+>
+```
+
 A pointer attribute is a literal attribute that represents an integral
 value of a pointer type.
 
@@ -278,7 +325,7 @@ value of a pointer type.
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
-| type | `::mlir::Type` |  |
+| type | `::mlir::cir::PointerType` |  |
 | value | `uint64_t` |  |
 
 ### ConstStructAttr
@@ -312,6 +359,78 @@ cir.global external @rgb2 = #cir.const_struct<{0 : i8,
 | type | `::mlir::Type` |  |
 | members | `ArrayAttr` |  |
 
+### DataMemberAttr
+
+Holds a constant data member pointer value
+
+Syntax:
+
+```
+#cir.data_member<
+  mlir::cir::DataMemberType,   # type
+  std::optional<size_t>   # memberIndex
+>
+```
+
+A data member attribute is a literal attribute that represents a constant
+pointer-to-data-member value.
+
+The `memberIndex` parameter represents the index of the pointed-to member
+within its containing struct. It is an optional parameter; lack of this
+parameter indicates a null pointer-to-data-member value.
+
+Example:
+```
+#ptr = #cir.data_member<1> : !cir.data_member<!s32i in !ty_22Point22>
+
+#null = #cir.data_member<null> : !cir.data_member<!s32i in !ty_22Point22>
+```
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| type | `mlir::cir::DataMemberType` |  |
+| memberIndex | `std::optional<size_t>` |  |
+
+### DynamicCastInfoAttr
+
+ABI specific information about a dynamic cast
+
+Syntax:
+
+```
+#cir.dyn_cast_info<
+  ::mlir::cir::GlobalViewAttr,   # srcRtti
+  ::mlir::cir::GlobalViewAttr,   # destRtti
+  FlatSymbolRefAttr,   # runtimeFunc
+  FlatSymbolRefAttr,   # badCastFunc
+  ::mlir::cir::IntAttr   # offsetHint
+>
+```
+
+Provide ABI specific information about a dynamic cast operation.
+
+The `srcRtti` and the `destRtti` parameters give the RTTI of the source
+struct type and the destination struct type, respectively.
+
+The `runtimeFunc` parameter gives the `__dynamic_cast` function which is
+provided by the runtime. The `badCastFunc` parameter gives the
+`__cxa_bad_cast` function which is also provided by the runtime.
+
+The `offsetHint` parameter gives the hint value that should be passed to the
+`__dynamic_cast` runtime function.
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| srcRtti | `::mlir::cir::GlobalViewAttr` | Provides constant access to a global address |
+| destRtti | `::mlir::cir::GlobalViewAttr` | Provides constant access to a global address |
+| runtimeFunc | `FlatSymbolRefAttr` |  |
+| badCastFunc | `FlatSymbolRefAttr` |  |
+| offsetHint | `::mlir::cir::IntAttr` | An Attribute containing a integer value |
+
 ### ExtraFuncAttributesAttr
 
 Represents aggregated attributes for a function
@@ -333,27 +452,70 @@ a function.
 | :-------: | :-------: | ----------- |
 | elements | `DictionaryAttr` |  |
 
-### GlobalCtorAttr
+### FPAttr
 
-Indicates a function is a global constructor.
+An attribute containing a floating-point value
 
 Syntax:
 
 ```
-#cir.globalCtor<
-  StringAttr,   # name
-  std::optional<int>   # priority
+#cir.fp<
+  ::mlir::Type,   # type
+  APFloat   # value
 >
 ```
 
-Describing a global constructor with an optional priority.
+An fp attribute is a literal attribute that represents a floating-point
+value of the specified floating-point type.
 
 #### Parameters:
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
+| type | `::mlir::Type` |  |
+| value | `APFloat` |  |
+
+### GlobalCtorAttr
+
+Marks a function as a global constructor
+
+Syntax:
+
+```
+#cir.global_ctor<
+  StringAttr,   # name
+  int   # priority
+>
+```
+
+A function with this attribute executes before main()
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
 | name | `StringAttr` |  |
-| priority | `std::optional<int>` |  |
+| priority | `int` |  |
+
+### GlobalDtorAttr
+
+Marks a function as a global destructor
+
+Syntax:
+
+```
+#cir.global_dtor<
+  StringAttr,   # name
+  int   # priority
+>
+```
+
+A function with this attribute excutes before module unloading
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| name | `StringAttr` |  |
+| priority | `int` |  |
 
 ### GlobalViewAttr
 
@@ -456,6 +618,13 @@ module attributes {cir.lang = cir.lang<cxx>} {}
 | :-------: | :-------: | ----------- |
 | lang | `::mlir::cir::SourceLanguage` | Source language |
 
+### NoThrowAttr
+
+
+
+Syntax: `#cir.nothrow`
+
+
 ### OptNoneAttr
 
 
@@ -473,6 +642,35 @@ Syntax: `#cir.optnone`
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
 | behavior | `sob::SignedOverflowBehavior` |  |
+
+### StructLayoutAttr
+
+ABI specific information about a struct layout
+
+Syntax:
+
+```
+#cir.struct_layout<
+  unsigned,   # size
+  unsigned,   # alignment
+  bool,   # padded
+  mlir::Type,   # largest_member
+  mlir::ArrayAttr   # offsets
+>
+```
+
+Holds layout information often queried by !cir.struct users
+during lowering passes and optimizations.
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| size | `unsigned` |  |
+| alignment | `unsigned` |  |
+| padded | `bool` |  |
+| largest_member | `mlir::Type` |  |
+| offsets | `mlir::ArrayAttr` |  |
 
 ### TypeInfoAttr
 

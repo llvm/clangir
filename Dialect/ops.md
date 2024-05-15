@@ -60,7 +60,7 @@ _Defines a scope-local variable_
 Syntax:
 
 ```
-operation ::= `cir.alloca` $allocaType `,` `cir.ptr` type($addr) `,`
+operation ::= `cir.alloca` $allocaType `,` qualified(type($addr)) `,`
               ($dynAllocSize^ `:` type($dynAllocSize) `,`)?
               `[` $name
               (`,` `init` $init^)?
@@ -88,7 +88,7 @@ Example:
 %0 = cir.alloca i32, !cir.ptr<i32>, ["count", init] {alignment = 4 : i64}
 
 // int *ptr;
-%1 = cir.alloca !cir.ptr<i32>, cir.ptr <!cir.ptr<i32>>, ["ptr"] {alignment = 8 : i64}
+%1 = cir.alloca !cir.ptr<i32>, !cir.ptr<!cir.ptr<i32>>, ["ptr"] {alignment = 8 : i64}
 ...
 ```
 
@@ -107,13 +107,220 @@ Example:
 
 | Operand | Description |
 | :-----: | ----------- |
-| `dynAllocSize` | Integer type with arbitrary precision up to a fixed limit
+| `dynAllocSize` | primitive int
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
 | `addr` | CIR pointer type
+
+### `cir.array.ctor` (cir::ArrayCtor)
+
+_Initialize array elements with C++ constructors_
+
+
+Syntax:
+
+```
+operation ::= `cir.array.ctor` `(` $addr `:` qualified(type($addr)) `)` $body attr-dict
+```
+
+Initialize each array element using the same C++ constructor. This
+operation has one region, with one single block. The block has an
+incoming argument for the current array index to initialize.
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `addr` | !cir.ptr<!cir.eh_info>
+
+### `cir.array.dtor` (cir::ArrayDtor)
+
+_Destroy array elements with C++ dtors_
+
+
+Syntax:
+
+```
+operation ::= `cir.array.dtor` `(` $addr `:` qualified(type($addr)) `)` $body attr-dict
+```
+
+Destroy each array element using the same C++ destructor. This
+operation has one region, with one single block. The block has an
+incoming argument for the current array index to initialize.
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `addr` | !cir.ptr<!cir.eh_info>
+
+### `cir.atomic.cmp_xchg` (cir::AtomicCmpXchg)
+
+_Atomic compare exchange_
+
+
+Syntax:
+
+```
+operation ::= `cir.atomic.cmp_xchg` `(`
+              $ptr `:` qualified(type($ptr)) `,`
+              $expected `:` type($expected) `,`
+              $desired `:` type($desired) `,`
+              `success` `=`  $succ_order `,`
+              `failure` `=`  $fail_order
+              `)`
+              (`weak` $weak^)?
+              (`volatile` $is_volatile^)?
+              `:` `(` type($old) `,` type($cmp) `)` attr-dict
+```
+
+C/C++ Atomic compare and exchange operation. Implements builtins like
+`__atomic_compare_exchange_n` and `__atomic_compare_exchange`.
+
+Example:
+%old, %cmp = cir.atomic.cmp_xchg(%ptr : !cir.ptr<!some_struct>,
+                                 %expected : !u64i,
+                                 %desired : !u64i,
+                                 success = seq_cst,
+                                 failure = seq_cst) weak
+                                 : (!u64i, !cir.bool)
+
+
+Interfaces: `InferTypeOpInterface`
+
+#### Attributes:
+
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>succ_order</code></td><td>::mlir::cir::MemOrderAttr</td><td>Memory order according to C++11 memory model</td></tr>
+<tr><td><code>fail_order</code></td><td>::mlir::cir::MemOrderAttr</td><td>Memory order according to C++11 memory model</td></tr>
+<tr><td><code>weak</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
+<tr><td><code>is_volatile</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
+</table>
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `ptr` | CIR pointer type
+| `expected` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
+| `desired` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `old` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
+| `cmp` | CIR bool type
+
+### `cir.atomic.fetch` (cir::AtomicFetch)
+
+_Atomic fetch with unary and binary operations_
+
+
+Syntax:
+
+```
+operation ::= `cir.atomic.fetch` `(`
+              $binop `,`
+              $ptr `:` type($ptr) `,`
+              $val `:` type($val) `,`
+              $mem_order `)`
+              (`volatile` $is_volatile^)?
+              (`fetch_first` $fetch_first^)?
+              `:` type($result) attr-dict
+```
+
+Represents `__atomic_<binop>_fetch` and `__atomic_fetch_<binop>` builtins,
+where `binop` is on of the binary opcodes : `add`, `sub`, `and`, `xor`,
+`or`, `nand`, `max` and `min`.
+
+`ptr` is an integer or fp pointer, followed by `val`, which must be
+an integer or fp (only supported for `add` and `sub`). The operation
+can also be marked `volatile`.
+
+If `fetch_first` is present, the operation works like
+`__atomic_fetch_binop` and returns the value that had
+previously been in *ptr, otherwise it returns the final result
+of the computation (`__atomic_binop_fetch`).
+
+Example:
+%res = cir.atomic.fetch(add, %ptr : !cir.ptr<!s32i>,
+                        %val : !s32i, seq_cst) : !s32i
+
+Interfaces: `InferTypeOpInterface`
+
+#### Attributes:
+
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>binop</code></td><td>::mlir::cir::AtomicFetchKindAttr</td><td>Binary opcode for atomic fetch operations</td></tr>
+<tr><td><code>mem_order</code></td><td>::mlir::cir::MemOrderAttr</td><td>Memory order according to C++11 memory model</td></tr>
+<tr><td><code>is_volatile</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
+<tr><td><code>fetch_first</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
+</table>
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `ptr` | {int,void}*
+| `val` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or Integer type with arbitrary precision up to a fixed limit
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or Integer type with arbitrary precision up to a fixed limit
+
+### `cir.atomic.xchg` (cir::AtomicXchg)
+
+_Atomic exchange_
+
+
+Syntax:
+
+```
+operation ::= `cir.atomic.xchg` `(`
+              $ptr `:` qualified(type($ptr)) `,`
+              $val `:` type($val) `,`
+              $mem_order `)`
+              (`volatile` $is_volatile^)?
+              `:` type($result) attr-dict
+```
+
+Atomic exchange operations. Implements C/C++ builtins such as
+`__atomic_exchange`and `__atomic_exchange_n`.
+
+Example:
+%res = cir.atomic.xchg(%ptr : !cir.ptr<!some_struct>,
+                       %val : !u64i, seq_cst) : !u64i
+
+Interfaces: `InferTypeOpInterface`
+
+#### Attributes:
+
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>mem_order</code></td><td>::mlir::cir::MemOrderAttr</td><td>Memory order according to C++11 memory model</td></tr>
+<tr><td><code>is_volatile</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
+</table>
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `ptr` | CIR pointer type
+| `val` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 ### `cir.await` (cir::AwaitOp)
 
@@ -199,8 +406,8 @@ Syntax:
 
 ```
 operation ::= `cir.base_class_addr` `(`
-              $derived_addr `:` `cir.ptr` type($derived_addr)
-              `)` `->` `cir.ptr` type($base_addr) attr-dict
+              $derived_addr `:` qualified(type($derived_addr))
+              `)` `->` qualified(type($base_addr)) attr-dict
 ```
 
 The `cir.base_class_addr` operaration gets the address of a particular
@@ -231,7 +438,10 @@ _Binary operations (arith and logic)_
 Syntax:
 
 ```
-operation ::= `cir.binop` `(` $kind `,` $lhs `,` $rhs  `)` `:` type($lhs) attr-dict
+operation ::= `cir.binop` `(` $kind `,` $lhs `,` $rhs  `)`
+              (`nsw` $no_signed_wrap^)?
+              (`nuw` $no_unsigned_wrap^)?
+              `:` type($lhs) attr-dict
 ```
 
 cir.binop performs the binary operation according to
@@ -257,20 +467,374 @@ Effects: `MemoryEffects::Effect{}`
 <table>
 <tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
 <tr><td><code>kind</code></td><td>::mlir::cir::BinOpKindAttr</td><td>binary operation (arith and logic) kind</td></tr>
+<tr><td><code>no_unsigned_wrap</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
+<tr><td><code>no_signed_wrap</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
 </table>
 
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
-| `lhs` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
-| `rhs` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+| `lhs` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
+| `rhs` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
+
+### `cir.binop.overflow` (cir::BinOpOverflowOp)
+
+_Perform binary integral arithmetic with overflow checking_
+
+
+Syntax:
+
+```
+operation ::= `cir.binop.overflow` `(` $kind `,` $lhs `,` $rhs `)` `:` type($lhs) `,`
+              `(` type($result) `,` type($overflow) `)`
+              attr-dict
+```
+
+`cir.binop.overflow` performs binary arithmetic operations with overflow
+checking on integral operands.
+
+The `kind` argument specifies the kind of arithmetic operation to perform.
+It can be either `add`, `sub`, or `mul`. The `lhs` and `rhs` arguments
+specify the input operands of the arithmetic operation. The types of `lhs`
+and `rhs` must be the same.
+
+`cir.binop.overflow` produces two SSA values. `result` is the result of the
+arithmetic operation truncated to its specified type. `overflow` is a
+boolean value indicating whether overflow happens during the operation.
+
+The exact semantic of this operation is as follows:
+
+  - `lhs` and `rhs` are promoted to an imaginary integral type that has
+    infinite precision.
+  - The arithmetic operation is performed on the promoted operands.
+  - The infinite-precision result is truncated to the type of `result`. The
+    truncated result is assigned to `result`.
+  - If the truncated result is equal to the un-truncated result, `overflow`
+    is assigned to false. Otherwise, `overflow` is assigned to true.
+
+Traits: `AlwaysSpeculatableImplTrait`, `SameTypeOperands`
+
+Interfaces: `ConditionallySpeculatable`, `NoMemoryEffect (MemoryEffectOpInterface)`
+
+Effects: `MemoryEffects::Effect{}`
+
+#### Attributes:
+
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>kind</code></td><td>::mlir::cir::BinOpOverflowKindAttr</td><td>checked binary arithmetic operation kind</td></tr>
+</table>
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `lhs` | Integer type with arbitrary precision up to a fixed limit
+| `rhs` | Integer type with arbitrary precision up to a fixed limit
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | Integer type with arbitrary precision up to a fixed limit
+| `overflow` | CIR bool type
+
+### `cir.bit.clrsb` (cir::BitClrsbOp)
+
+_Get the number of leading redundant sign bits in the input_
+
+
+Syntax:
+
+```
+operation ::= `cir.bit.clrsb` `(` $input `:` type($input) `)` `:` type($result) attr-dict
+```
+
+Compute the number of leading redundant sign bits in the input integer.
+
+The input integer must be a signed integer. The most significant bit of the
+input integer is the sign bit. The `cir.bit.clrsb` operation returns the
+number of redundant sign bits in the input, that is, the number of bits
+following the most significant bit that are identical to it.
+
+The bit width of the input integer must be either 32 or 64.
+
+Examples:
+
+```mlir
+!s32i = !cir.int<s, 32>
+
+// %0 = 0xDEADBEEF, 0b1101_1110_1010_1101_1011_1110_1110_1111
+%0 = cir.const #cir.int<3735928559> : !s32i
+// %1 will be 1 because there is 1 bit following the most significant bit
+// that is identical to it.
+%1 = cir.bit.clrsb(%0 : !s32i) : !s32i
+
+// %2 = 1, 0b0000_0000_0000_0000_0000_0000_0000_0001
+%2 = cir.const #cir.int<1> : !s32i
+// %3 will be 30
+%3 = cir.bit.clrsb(%2 : !s32i) : !s32i
+```
+
+Traits: `AlwaysSpeculatableImplTrait`
+
+Interfaces: `ConditionallySpeculatable`, `InferTypeOpInterface`, `NoMemoryEffect (MemoryEffectOpInterface)`
+
+Effects: `MemoryEffects::Effect{}`
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `input` | 32-bit signed integer or 64-bit signed integer
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | 32-bit signed integer
+
+### `cir.bit.clz` (cir::BitClzOp)
+
+_Get the number of leading 0-bits in the input_
+
+
+Syntax:
+
+```
+operation ::= `cir.bit.clz` `(` $input `:` type($input) `)` `:` type($result) attr-dict
+```
+
+Compute the number of leading 0-bits in the input.
+
+The input integer must be an unsigned integer. The `cir.bit.clz` operation
+returns the number of consecutive 0-bits at the most significant bit
+position in the input.
+
+This operation invokes undefined behavior if the input value is 0.
+
+Example:
+
+```mlir
+!s32i = !cir.int<s, 32>
+!u32i = !cir.int<u, 32>
+
+// %0 = 0b0000_0000_0000_0000_0000_0000_0000_1000
+%0 = cir.const #cir.int<8> : !u32i
+// %1 will be 28
+%1 = cir.bit.clz(%0 : !u32i) : !s32i
+```
+
+Traits: `AlwaysSpeculatableImplTrait`
+
+Interfaces: `ConditionallySpeculatable`, `InferTypeOpInterface`, `NoMemoryEffect (MemoryEffectOpInterface)`
+
+Effects: `MemoryEffects::Effect{}`
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `input` | 16-bit unsigned integer or 32-bit unsigned integer or 64-bit unsigned integer
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | 32-bit signed integer
+
+### `cir.bit.ctz` (cir::BitCtzOp)
+
+_Get the number of trailing 0-bits in the input_
+
+
+Syntax:
+
+```
+operation ::= `cir.bit.ctz` `(` $input `:` type($input) `)` `:` type($result) attr-dict
+```
+
+Compute the number of trailing 0-bits in the input.
+
+The input integer must be an unsigned integer. The `cir.bit.ctz` operation
+returns the number of consecutive 0-bits at the least significant bit
+position in the input.
+
+This operation invokes undefined behavior if the input value is 0.
+
+Example:
+
+```mlir
+!s32i = !cir.int<s, 32>
+!u32i = !cir.int<u, 32>
+
+// %0 = 0b1000
+%0 = cir.const #cir.int<8> : !u32i
+// %1 will be 3
+%1 = cir.bit.ctz(%0 : !u32i) : !s32i
+```
+
+Traits: `AlwaysSpeculatableImplTrait`
+
+Interfaces: `ConditionallySpeculatable`, `InferTypeOpInterface`, `NoMemoryEffect (MemoryEffectOpInterface)`
+
+Effects: `MemoryEffects::Effect{}`
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `input` | 16-bit unsigned integer or 32-bit unsigned integer or 64-bit unsigned integer
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | 32-bit signed integer
+
+### `cir.bit.ffs` (cir::BitFfsOp)
+
+_Get the position of the least significant 1-bit of input_
+
+
+Syntax:
+
+```
+operation ::= `cir.bit.ffs` `(` $input `:` type($input) `)` `:` type($result) attr-dict
+```
+
+Compute the position of the least significant 1-bit of the input.
+
+The input integer must be a signed integer. The `cir.bit.ffs` operation
+returns one plus the index of the least significant 1-bit of the input
+signed integer. As a special case, if the input integer is 0, `cir.bit.ffs`
+returns 0.
+
+Example:
+
+```mlir
+!s32i = !cir.int<s, 32>
+
+// %0 = 0x0010_1000
+%0 = cir.const #cir.int<40> : !s32i
+// #1 will be 4 since the 4th least significant bit is 1.
+%1 = cir.bit.ffs(%0 : !s32i) : !s32i
+```
+
+Traits: `AlwaysSpeculatableImplTrait`
+
+Interfaces: `ConditionallySpeculatable`, `InferTypeOpInterface`, `NoMemoryEffect (MemoryEffectOpInterface)`
+
+Effects: `MemoryEffects::Effect{}`
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `input` | 32-bit signed integer or 64-bit signed integer
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | 32-bit signed integer
+
+### `cir.bit.parity` (cir::BitParityOp)
+
+_Get the parity of input_
+
+
+Syntax:
+
+```
+operation ::= `cir.bit.parity` `(` $input `:` type($input) `)` `:` type($result) attr-dict
+```
+
+Compute the parity of the input. The parity of an integer is the number of
+1-bits in it modulo 2.
+
+The input must be an unsigned integer.
+
+Example:
+
+```mlir
+!s32i = !cir.int<s, 32>
+!u32i = !cir.int<u, 32>
+
+// %0 = 0x0110_1000
+%0 = cir.const #cir.int<104> : !u32i
+// %1 will be 1 since there are 3 1-bits in %0
+%1 = cir.bit.parity(%0 : !u32i) : !u32i
+```
+
+Traits: `AlwaysSpeculatableImplTrait`
+
+Interfaces: `ConditionallySpeculatable`, `InferTypeOpInterface`, `NoMemoryEffect (MemoryEffectOpInterface)`
+
+Effects: `MemoryEffects::Effect{}`
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `input` | 32-bit unsigned integer or 64-bit unsigned integer
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | 32-bit signed integer
+
+### `cir.bit.popcount` (cir::BitPopcountOp)
+
+_Get the number of 1-bits in input_
+
+
+Syntax:
+
+```
+operation ::= `cir.bit.popcount` `(` $input `:` type($input) `)` `:` type($result) attr-dict
+```
+
+Compute the number of 1-bits in the input.
+
+The input must be an unsigned integer.
+
+Example:
+
+```mlir
+!u32i = !cir.int<u, 32>
+
+// %0 = 0x0110_1000
+%0 = cir.const #cir.int<104> : !u32i
+// %1 will be 3 since there are 3 1-bits in %0
+%1 = cir.bit.popcount(%0 : !u32i) : !u32i
+```
+
+Traits: `AlwaysSpeculatableImplTrait`
+
+Interfaces: `ConditionallySpeculatable`, `InferTypeOpInterface`, `NoMemoryEffect (MemoryEffectOpInterface)`
+
+Effects: `MemoryEffects::Effect{}`
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `input` | 16-bit unsigned integer or 32-bit unsigned integer or 64-bit unsigned integer
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | 32-bit signed integer
 
 ### `cir.brcond` (cir::BrCondOp)
 
@@ -313,8 +877,8 @@ Effects: `MemoryEffects::Effect{}`
 | Operand | Description |
 | :-----: | ----------- |
 | `cond` | CIR bool type
-| `destOperandsTrue` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
-| `destOperandsFalse` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+| `destOperandsTrue` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
+| `destOperandsFalse` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 #### Successors:
 
@@ -356,7 +920,7 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `destOperands` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+| `destOperands` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 #### Successors:
 
@@ -381,24 +945,71 @@ within a breakable operation (loops and `switch`).
 
 Traits: `Terminator`
 
-### `cir.asm` (cir::InlineAsmOp)
+### `cir.bswap` (cir::ByteswapOp)
+
+_Reverse the bytes that constitute the operand integer_
+
 
 Syntax:
 
 ```
-operation ::= `cir.asm` `(`$asm_flavor`,` `{` $asm_string $constraints `}` `)` attr-dict
-              `:` type($res)
+operation ::= `cir.bswap` `(` $input `:` type($input) `)` `:` type($result) attr-dict
 ```
 
+The `cir.bswap` operation takes an integer as operand, and returns it with
+the order of bytes that constitute the operand reversed.
+
+The operand integer must be an unsigned integer. Its widths must be either
+16, 32, or 64.
+
+Example:
+
+```mlir
+!u32i = !cir.int<u, 32>
+
+// %0 = 0x12345678
+%0 = cir.const #cir.int<305419896> : !u32i
+
+// %1 should be 0x78563412
+%1 = cir.bswap(%0 : !u32i) : !u32i
+```
+
+Traits: `AlwaysSpeculatableImplTrait`, `SameOperandsAndResultType`
+
+Interfaces: `ConditionallySpeculatable`, `InferTypeOpInterface`, `NoMemoryEffect (MemoryEffectOpInterface)`
+
+Effects: `MemoryEffects::Effect{}`
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `input` | 16-bit unsigned integer or 32-bit unsigned integer or 64-bit unsigned integer
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | Integer type with arbitrary precision up to a fixed limit
+
+### `cir.asm` (cir::InlineAsmOp)
 The `cir.asm` operation represents C/C++ asm inline.
 
-CIR constraints strings follow barelly the same rules that are established 
-for the C level assembler constraints with several differences caused by 
-clang::AsmStmt processing. 
+CIR constraints strings follow barelly the same rules that are established
+for the C level assembler constraints with several differences caused by
+clang::AsmStmt processing.
 
 Thus, numbers that appears in the constraint string may also refer to:
 - the output variable index referenced by the input operands.
 - the index of early-clobber operand
+
+Operand attributes is a storage, where each element corresponds to the operand with
+the same index. The first index relates to the operation result (if any).
+Note, the operands themselves are stored as VariadicOfVariadic in the next order:
+output, input and then in/out operands.
+
+Note, when several output operands are present, the result type may be represented as
+an anon struct type.
 
 Example:
 ```C++
@@ -408,9 +1019,32 @@ __asm__("baz $42 %[val]" : [val] "=r" (x), "+&r"(x) : "[val]"(y));
 ```
 
 ```mlir
-cir.asm(x86_att, {"foo" ""})
-cir.asm(x86_att, {"bar $$42 $0" "=r,=&r,1"}) 
-cir.asm(x86_att, {"baz $$42 $0" "=r,=&r,0,1"}) 
+!ty_22anon2E022 = !cir.struct<struct "anon.0" {!cir.int<s, 32>, !cir.int<s, 32>}>
+!ty_22anon2E122 = !cir.struct<struct "anon.1" {!cir.int<s, 32>, !cir.int<s, 32>}>
+...
+%0 = cir.alloca !s32i, !cir.ptr<!s32i>, ["x", init]
+%1 = cir.alloca !s32i, !cir.ptr<!s32i>, ["y", init]
+...
+%2 = cir.load %0 : !cir.ptr<!s32i>, !s32i
+%3 = cir.load %1 : !cir.ptr<!s32i>, !s32i
+
+cir.asm(x86_att,
+  out = [],
+  in = [],
+  in_out = [],
+  {"foo" "~{dirflag},~{fpsr},~{flags}"}) side_effects
+
+cir.asm(x86_att,
+  out = [],
+  in = [],
+  in_out = [%2 : !s32i],
+  {"bar $$42 $0" "=r,=&r,1,~{dirflag},~{fpsr},~{flags}"}) -> !ty_22anon2E022
+
+cir.asm(x86_att,
+  out = [],
+  in = [%3 : !s32i],
+  in_out = [%2 : !s32i],
+  {"baz $$42 $0" "=r,=&r,0,1,~{dirflag},~{fpsr},~{flags}"}) -> !ty_22anon2E122
 ```
 
 Traits: `RecursiveMemoryEffects`
@@ -421,14 +1055,23 @@ Traits: `RecursiveMemoryEffects`
 <tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
 <tr><td><code>asm_string</code></td><td>::mlir::StringAttr</td><td>string attribute</td></tr>
 <tr><td><code>constraints</code></td><td>::mlir::StringAttr</td><td>string attribute</td></tr>
+<tr><td><code>side_effects</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
 <tr><td><code>asm_flavor</code></td><td>::mlir::cir::AsmFlavorAttr</td><td>ATT or Intel</td></tr>
+<tr><td><code>operand_attrs</code></td><td>::mlir::ArrayAttr</td><td>array attribute</td></tr>
+<tr><td><code>operands_segments</code></td><td>::mlir::DenseI32ArrayAttr</td><td>i32 dense array attribute</td></tr>
 </table>
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `operands` | variadic of any type
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `res` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+| `res` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 ### `cir.call` (cir::CallOp)
 
@@ -472,13 +1115,13 @@ Interfaces: `CIRCallOpInterface`, `CallOpInterface`, `SymbolUserOpInterface`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `operands` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+| `arg_ops` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-&laquo;unnamed&raquo; | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+&laquo;unnamed&raquo; | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 ### `cir.cast` (cir::CastOp)
 
@@ -535,13 +1178,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+| `src` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 ### `cir.catch` (cir::CatchOp)
 
@@ -573,7 +1216,7 @@ Interfaces: `ConditionallySpeculatable`, `RegionBranchOpInterface`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `exception_info` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+| `exception_info` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 ### `cir.catch_param` (cir::CatchParamOp)
 
@@ -605,7 +1248,7 @@ Example:
 
 | Result | Description |
 | :----: | ----------- |
-| `param` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+| `param` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 ### `cir.ceil` (cir::CeilOp)
 
@@ -629,13 +1272,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | floating-point
+| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | floating-point
+| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
 
 ### `cir.cmp` (cir::CmpOp)
 
@@ -673,14 +1316,81 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `lhs` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
-| `rhs` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+| `lhs` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
+| `rhs` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
+
+### `cir.cmp3way` (cir::CmpThreeWayOp)
+
+_Compare two values with C++ three-way comparison semantics_
+
+
+Syntax:
+
+```
+operation ::= `cir.cmp3way` `(` $lhs `:` type($lhs) `,` $rhs `,` qualified($info) `)`
+              `:` type($result) attr-dict
+```
+
+The `cir.cmp3way` operation models the `<=>` operator in C++20. It takes two
+operands with the same type and produces a result indicating the ordering
+between the two input operands.
+
+The result of the operation is a signed integer that indicates the ordering
+between the two input operands.
+
+There are two kinds of ordering: strong ordering and partial ordering.
+Comparing different types of values yields different kinds of orderings.
+The `info` parameter gives the ordering kind and other necessary information
+about the comparison.
+
+Example:
+
+```mlir
+!s32i = !cir.int<s, 32>
+
+#cmp3way_strong = #cmp3way_info<strong, lt = -1, eq = 0, gt = 1>
+#cmp3way_partial = #cmp3way_info<strong, lt = -1, eq = 0, gt = 1, unordered = 2>
+
+%0 = cir.const #cir.int<0> : !s32i
+%1 = cir.const #cir.int<1> : !s32i
+%2 = cir.cmp3way(%0 : !s32i, %1, #cmp3way_strong) : !s8i
+
+%3 = cir.const #cir.fp<0.0> : !cir.float
+%4 = cir.const #cir.fp<1.0> : !cir.float
+%5 = cir.cmp3way(%3 : !cir.float, %4, #cmp3way_partial) : !s8i
+```
+
+Traits: `AlwaysSpeculatableImplTrait`, `SameTypeOperands`
+
+Interfaces: `ConditionallySpeculatable`, `NoMemoryEffect (MemoryEffectOpInterface)`
+
+Effects: `MemoryEffects::Effect{}`
+
+#### Attributes:
+
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>info</code></td><td>::mlir::cir::CmpThreeWayInfoAttr</td><td>Holds information about a three-way comparison operation</td></tr>
+</table>
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `lhs` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
+| `rhs` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | primitive signed int
 
 ### `cir.condition` (cir::ConditionOp)
 
@@ -740,21 +1450,21 @@ _Defines a CIR constant_
 Syntax:
 
 ```
-operation ::= `cir.const` `(` custom<ConstantValue>($value) `)` attr-dict `:` type($res)
+operation ::= `cir.const` attr-dict $value
 ```
 
 The `cir.const` operation turns a literal into an SSA value. The data is
 attached to the operation as an attribute.
 
 ```mlir
-  %0 = cir.const(42 : i32) : i32
-  %1 = cir.const(4.2 : f32) : f32
-  %2 = cir.const(nullptr : !cir.ptr<i32>) : !cir.ptr<i32>
+  %0 = cir.const 42 : i32
+  %1 = cir.const 4.2 : f32
+  %2 = cir.const nullptr : !cir.ptr<i32>
 ```
 
 Traits: `AlwaysSpeculatableImplTrait`, `ConstantLike`
 
-Interfaces: `ConditionallySpeculatable`, `NoMemoryEffect (MemoryEffectOpInterface)`
+Interfaces: `ConditionallySpeculatable`, `InferTypeOpInterface`, `NoMemoryEffect (MemoryEffectOpInterface)`
 
 Effects: `MemoryEffects::Effect{}`
 
@@ -769,7 +1479,7 @@ Effects: `MemoryEffects::Effect{}`
 
 | Result | Description |
 | :----: | ----------- |
-| `res` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+| `res` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 ### `cir.continue` (cir::ContinueOp)
 
@@ -843,13 +1553,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | floating-point
+| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | floating-point
+| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
 
 ### `cir.do` (cir::DoWhileOp)
 
@@ -881,6 +1591,75 @@ Traits: `NoRegionArguments`
 
 Interfaces: `LoopLikeOpInterface`, `LoopOpInterface`, `RegionBranchOpInterface`
 
+### `cir.dyn_cast` (cir::DynamicCastOp)
+
+_Perform dynamic cast on struct pointers_
+
+
+Syntax:
+
+```
+operation ::= `cir.dyn_cast` `(`
+              $kind `,` $src `:` type($src)
+              (`,` qualified($info)^)?
+              (`relative_layout` $relative_layout^)?
+              `)`
+              `->` qualified(type($result)) attr-dict
+```
+
+The `cir.dyn_cast` operation models part of the semantics of the
+`dynamic_cast` operator in C++. It can be used to perform 3 kinds of casts
+on struct pointers:
+
+- Down-cast, which casts a base class pointer to a derived class pointer;
+- Side-cast, which casts a class pointer to a sibling class pointer;
+- Cast-to-complete, which casts a class pointer to a void pointer.
+
+The input of the operation must be a struct pointer. The result of the
+operation is either a struct pointer or a void pointer.
+
+The parameter `kind` specifies the semantics of this operation. If its value
+is `ptr`, then the operation models dynamic casts on pointers. Otherwise, if
+its value is `ref`, the operation models dynamic casts on references.
+Specifically:
+
+- When the input pointer is a null pointer value:
+  - If `kind` is `ref`, the operation will invoke undefined behavior. A
+    sanitizer check will be emitted if sanitizer is on.
+  - Otherwise, the operation will return a null pointer value as its result.
+- When the runtime type check fails:
+  - If `kind` is `ref`, the operation will throw a `bad_cast` exception.
+  - Otherwise, the operation will return a null pointer value as its result.
+
+The `info` argument gives detailed information about the requested dynamic
+cast operation. It is an optional `#cir.dyn_cast_info` attribute that is
+only present when the operation models a down-cast or a side-cast.
+
+The `relative_layout` argument specifies whether the Itanium C++ ABI vtable
+uses relative layout. It is only meaningful when the operation models a
+cast-to-complete operation.
+
+#### Attributes:
+
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>kind</code></td><td>::mlir::cir::DynamicCastKindAttr</td><td>dynamic cast kind</td></tr>
+<tr><td><code>info</code></td><td>::mlir::cir::DynamicCastInfoAttr</td><td>ABI specific information about a dynamic cast</td></tr>
+<tr><td><code>relative_layout</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
+</table>
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `src` | !cir.struct*
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | CIR pointer type
+
 ### `cir.exp2` (cir::Exp2Op)
 
 _Libc builtin equivalent ignoring floating point exceptions and errno_
@@ -903,13 +1682,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | floating-point
+| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | floating-point
+| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
 
 ### `cir.exp` (cir::ExpOp)
 
@@ -933,13 +1712,56 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | floating-point
+| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | floating-point
+| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+
+### `cir.expect` (cir::ExpectOp)
+
+_Compute whether expression is likely to evaluate to a specified value_
+
+
+Syntax:
+
+```
+operation ::= `cir.expect` `(` $val`,` $expected (`,` $prob^)? `)` `:` type($val) attr-dict
+```
+
+Provides __builtin_expect functionality in Clang IR.
+
+If $prob is not specified, then behaviour is same as __builtin_expect.
+If specified, then behaviour is same as __builtin_expect_with_probability,
+where probability = $prob.
+
+Traits: `AlwaysSpeculatableImplTrait`
+
+Interfaces: `ConditionallySpeculatable`, `InferTypeOpInterface`, `NoMemoryEffect (MemoryEffectOpInterface)`
+
+Effects: `MemoryEffects::Effect{}`
+
+#### Attributes:
+
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>prob</code></td><td>::mlir::FloatAttr</td><td>64-bit float attribute</td></tr>
+</table>
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `val` | primitive int
+| `expected` | primitive int
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | primitive int
 
 ### `cir.fabs` (cir::FAbsOp)
 
@@ -963,13 +1785,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | floating-point
+| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | floating-point
+| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
 
 ### `cir.floor` (cir::FloorOp)
 
@@ -993,13 +1815,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | floating-point
+| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | floating-point
+| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
 
 ### `cir.for` (cir::ForOp)
 
@@ -1080,6 +1902,11 @@ required and mandatory to describle additional attributes that are not listed
 above. Though mandatory, the prining of the attribute can be omitted if it is
 empty.
 
+The `global_ctor` indicates whether a function should execute before `main()`
+function, as specified by `__attribute__((constructor))`. A execution priority
+can also be specified `global_ctor(<prio>)`. Similarly, for global destructors
+both `global_dtor` and `global_dtor(<prio>)` are available.
+
 Example:
 
 ```mlir
@@ -1125,6 +1952,8 @@ Interfaces: `CallableOpInterface`, `FunctionOpInterface`, `Symbol`
 <tr><td><code>arg_attrs</code></td><td>::mlir::ArrayAttr</td><td>Array of dictionary attributes</td></tr>
 <tr><td><code>res_attrs</code></td><td>::mlir::ArrayAttr</td><td>Array of dictionary attributes</td></tr>
 <tr><td><code>aliasee</code></td><td>::mlir::FlatSymbolRefAttr</td><td>flat symbol reference attribute</td></tr>
+<tr><td><code>global_ctor</code></td><td>::mlir::cir::GlobalCtorAttr</td><td>Marks a function as a global constructor</td></tr>
+<tr><td><code>global_dtor</code></td><td>::mlir::cir::GlobalDtorAttr</td><td>Marks a function as a global destructor</td></tr>
 <tr><td><code>ast</code></td><td>::mlir::Attribute</td><td>AST Function attribute</td></tr>
 </table>
 
@@ -1173,7 +2002,7 @@ int load_bitfield(S& s) {
 !struct_type = !cir.struct<struct "S" {!cir.int<u, 32>, !cir.int<u, 32>, !cir.int<u, 16>} #cir.record.decl.ast>
 #bfi_d = #cir.bitfield_info<name = "d", storage_type = !u32i, size = 2, offset = 17, is_signed = true>
 
-%2 = cir.load %0 : cir.ptr <!cir.ptr<!struct_type>>, !cir.ptr<!struct_type>
+%2 = cir.load %0 : !cir.ptr<!cir.ptr<!struct_type>>, !cir.ptr<!struct_type>
 %3 = cir.get_member %2[1] {name = "d"} : !cir.ptr<!struct_type> -> !cir.ptr<!u32i>
 %4 = cir.get_bitfield(#bfi_d, %3 : !cir.ptr<!u32i>) -> !s32i
 ```
@@ -1206,7 +2035,8 @@ _Get the address of a global variable_
 Syntax:
 
 ```
-operation ::= `cir.get_global` $name `:` `cir.ptr` type($addr) attr-dict
+operation ::= `cir.get_global` (`thread_local` $tls^)?
+              $name `:` qualified(type($addr)) attr-dict
 ```
 
 The `cir.get_global` operation retrieves the address pointing to a
@@ -1214,10 +2044,14 @@ named global variable. If the global variable is marked constant, writing
 to the resulting address (such as through a `cir.store` operation) is
 undefined. Resulting type must always be a `!cir.ptr<...>` type.
 
-Example:
+Addresses of thread local globals can only be retrieved if this operation
+is marked `thread_local`, which indicates the address isn't constant.
 
+Example:
 ```mlir
 %x = cir.get_global @foo : !cir.ptr<i32>
+...
+%y = cir.get_global thread_local @batata : !cir.ptr<i32>
 ```
 
 Traits: `AlwaysSpeculatableImplTrait`
@@ -1231,6 +2065,7 @@ Effects: `MemoryEffects::Effect{}`
 <table>
 <tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
 <tr><td><code>name</code></td><td>::mlir::FlatSymbolRefAttr</td><td>flat symbol reference attribute</td></tr>
+<tr><td><code>tls</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
 </table>
 
 #### Results:
@@ -1288,6 +2123,66 @@ Example:
 | :----: | ----------- |
 | `result` | CIR pointer type
 
+### `cir.get_runtime_member` (cir::GetRuntimeMemberOp)
+
+_Get the address of a member of a struct_
+
+
+Syntax:
+
+```
+operation ::= `cir.get_runtime_member` $addr `[` $member `:` qualified(type($member)) `]` attr-dict
+              `:` qualified(type($addr)) `->` qualified(type($result))
+```
+
+The `cir.get_runtime_member` operation gets the address of a member from
+the input record. The target member is given by a value of type
+`!cir.data_member` (i.e. a pointer-to-data-member value).
+
+This operation differs from `cir.get_member` in when the target member can
+be determined. For the `cir.get_member` operation, the target member is
+specified as a constant index so the member it returns access to is known
+when the operation is constructed. For the `cir.get_runtime_member`
+operation, the target member is given through a pointer-to-data-member
+value which is unknown until the program being compiled is executed. In
+other words, `cir.get_member` represents a normal member access through the
+`.` operator in C/C++:
+
+```cpp
+struct Foo { int x; };
+Foo f;
+(void)f.x;  // cir.get_member
+```
+
+And `cir.get_runtime_member` represents a member access through the `.*` or
+the `->*` operator in C++:
+
+```cpp
+struct Foo { int x; }
+Foo f;
+Foo *p;
+int Foo::*member;
+
+(void)f.*member;   // cir.get_runtime_member
+(void)f->*member;  // cir.get_runtime_member
+```
+
+This operation expects a pointer to the base record as well as the pointer
+to the target member.
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `addr` | !cir.struct*
+| `member` | CIR type that represents pointer-to-data-member type in C++
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | CIR pointer type
+
 ### `cir.global` (cir::GlobalOp)
 
 _Declares or defines a global variable_
@@ -1299,6 +2194,7 @@ Syntax:
 operation ::= `cir.global` ($sym_visibility^)?
               (`constant` $constant^)?
               $linkage
+              ($tls_model^)?
               $sym_name
               custom<GlobalOpTypeAndInitialValue>($sym_type, $initial_value, $ctorRegion, $dtorRegion)
               attr-dict
@@ -1339,11 +2235,50 @@ Interfaces: `RegionBranchOpInterface`, `Symbol`
 <tr><td><code>sym_visibility</code></td><td>::mlir::StringAttr</td><td>string attribute</td></tr>
 <tr><td><code>sym_type</code></td><td>::mlir::TypeAttr</td><td>any type attribute</td></tr>
 <tr><td><code>linkage</code></td><td>::mlir::cir::GlobalLinkageKindAttr</td><td>Linkage type/kind</td></tr>
+<tr><td><code>tls_model</code></td><td>::mlir::cir::TLS_ModelAttr</td><td>TLS model</td></tr>
 <tr><td><code>initial_value</code></td><td>::mlir::Attribute</td><td>any attribute</td></tr>
 <tr><td><code>constant</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
 <tr><td><code>alignment</code></td><td>::mlir::IntegerAttr</td><td>64-bit signless integer attribute</td></tr>
 <tr><td><code>ast</code></td><td>::mlir::cir::ASTVarDeclInterface</td><td>ASTVarDeclInterface instance</td></tr>
 <tr><td><code>section</code></td><td>::mlir::StringAttr</td><td>string attribute</td></tr>
+</table>
+
+### `cir.goto` (cir::GotoOp)
+
+Syntax:
+
+```
+operation ::= `cir.goto` $label attr-dict
+```
+
+Transfers control to the specified label.
+
+ Example:
+ ```C++
+   void foo() {
+     goto exit;
+
+   exit:
+     return;
+   }
+   ```
+
+   ```mlir
+   cir.func @foo() {
+     cir.goto "exit"
+   ^bb1:
+     cir.label "exit"
+     cir.return
+   }
+   ```
+
+Traits: `Terminator`
+
+#### Attributes:
+
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>label</code></td><td>::mlir::StringAttr</td><td>string attribute</td></tr>
 </table>
 
 ### `cir.if` (cir::IfOp)
@@ -1388,6 +2323,35 @@ Interfaces: `ConditionallySpeculatable`, `RegionBranchOpInterface`
 | :-----: | ----------- |
 | `condition` | CIR bool type
 
+### `cir.is_constant` (cir::IsConstantOp)
+
+Syntax:
+
+```
+operation ::= `cir.is_constant` `(` $val `:` type($val) `)` `:` type($result) attr-dict
+```
+
+Returns `true` if the argument is known to be a compile-time constant
+otherwise returns 'false'.
+
+Traits: `AlwaysSpeculatableImplTrait`
+
+Interfaces: `ConditionallySpeculatable`, `InferTypeOpInterface`, `NoMemoryEffect (MemoryEffectOpInterface)`
+
+Effects: `MemoryEffects::Effect{}`
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `val` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | CIR bool type
+
 ### `cir.iterator_begin` (cir::IterBeginOp)
 
 _Returns an iterator to the first element of a container_
@@ -1413,13 +2377,13 @@ operation ::= `cir.iterator_begin` `(`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `container` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+| `container` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 ### `cir.iterator_end` (cir::IterEndOp)
 
@@ -1446,13 +2410,33 @@ operation ::= `cir.iterator_end` `(`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `container` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+| `container` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
+
+### `cir.label` (cir::LabelOp)
+
+Syntax:
+
+```
+operation ::= `cir.label` $label attr-dict
+```
+
+An identifier which may be referred by cir.goto operation
+Traits: `AlwaysSpeculatableImplTrait`
+
+Interfaces: `ConditionallySpeculatable`
+
+#### Attributes:
+
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>label</code></td><td>::mlir::StringAttr</td><td>string attribute</td></tr>
+</table>
 
 ### `cir.load` (cir::LoadOp)
 
@@ -1462,15 +2446,17 @@ _Load value from memory adddress_
 Syntax:
 
 ```
-operation ::= `cir.load` (`deref` $isDeref^)? (`volatile` $is_volatile^)?
-              $addr `:` `cir.ptr` type($addr) `,` type($result) attr-dict
+operation ::= `cir.load` (`deref` $isDeref^)?
+              (`volatile` $is_volatile^)?
+              (`atomic` `(` $mem_order^ `)`)?
+              $addr `:` qualified(type($addr)) `,` type($result) attr-dict
 ```
 
 `cir.load` reads a value (lvalue to rvalue conversion) given an address
 backed up by a `cir.ptr` type. A unit attribute `deref` can be used to
 mark the resulting value as used by another operation to dereference
 a pointer. A unit attribute `volatile` can be used to indicate a volatile
-loading.
+loading. Load can be marked atomic by using `atomic(<mem_order>)`.
 
 Example:
 
@@ -1481,7 +2467,7 @@ Example:
 
 // Load address from memory at address %0. %3 is used by at least one
 // operation that dereferences a pointer.
-%3 = cir.load deref %0 : cir.ptr <!cir.ptr<i32>>
+%3 = cir.load deref %0 : !cir.ptr<!cir.ptr<i32>>
 
 // Perform a volatile load from address in %0.
 %4 = cir.load volatile %0 : !cir.ptr<i32>, i32
@@ -1495,6 +2481,7 @@ Interfaces: `InferTypeOpInterface`
 <tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
 <tr><td><code>isDeref</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
 <tr><td><code>is_volatile</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
+<tr><td><code>mem_order</code></td><td>::mlir::cir::MemOrderAttr</td><td>Memory order according to C++11 memory model</td></tr>
 </table>
 
 #### Operands:
@@ -1507,7 +2494,7 @@ Interfaces: `InferTypeOpInterface`
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 ### `cir.log10` (cir::Log10Op)
 
@@ -1531,13 +2518,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | floating-point
+| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | floating-point
+| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
 
 ### `cir.log2` (cir::Log2Op)
 
@@ -1561,13 +2548,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | floating-point
+| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | floating-point
+| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
 
 ### `cir.log` (cir::LogOp)
 
@@ -1591,13 +2578,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | floating-point
+| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | floating-point
+| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
 
 ### `cir.libc.memchr` (cir::MemChrOp)
 
@@ -1660,7 +2647,7 @@ Examples:
 
 ```mlir
   // Copying 2 bytes from one array to a struct:
-  %2 = cir.const(#cir.int<2> : !u32i) : !u32i
+  %2 = cir.const #cir.int<2> : !u32i
   cir.libc.memcpy %2 bytes from %arr to %struct : !cir.ptr<!arr> -> !cir.ptr<!struct>
 ```
 
@@ -1670,7 +2657,7 @@ Examples:
 | :-----: | ----------- |
 | `dst` | CIR pointer type
 | `src` | CIR pointer type
-| `len` | Integer type with arbitrary precision up to a fixed limit
+| `len` | primitive int
 
 ### `cir.nearbyint` (cir::NearbyintOp)
 
@@ -1694,13 +2681,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | floating-point
+| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | floating-point
+| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
 
 ### `cir.objsize` (cir::ObjSizeOp)
 
@@ -1743,7 +2730,48 @@ Effects: `MemoryEffects::Effect{}`
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit
+| `result` | primitive int
+
+### `cir.prefetch` (cir::PrefetchOp)
+
+_Prefetch operation_
+
+
+Syntax:
+
+```
+operation ::= `cir.prefetch` `(` $addr `:` qualified(type($addr)) `)`
+              `locality``(` $locality `)`
+              (`write` $isWrite^) : (`read`)?
+              attr-dict
+```
+
+The `cir.prefetch` op prefetches data from the memmory address.
+
+```mlir
+cir.prefetch(%0 : !cir.ptr<!void>) locality(1) write
+```
+
+This opcode has the three attributes:
+1. The $locality is a temporal locality specifier
+ranging from (0) - no locality, to (3) - extremely local keep in cache.
+2. The $isWrite is the specifier determining if the prefetch is prepaired
+for a 'read' or 'write'.
+If $isWrite doesn't specified it means that prefetch is prepared for 'read'.
+
+#### Attributes:
+
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>locality</code></td><td>::mlir::IntegerAttr</td><td>32-bit signless integer attribute whose minimum value is 0 whose maximum value is 3</td></tr>
+<tr><td><code>isWrite</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
+</table>
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `addr` | void*
 
 ### `cir.ptr_diff` (cir::PtrDiffOp)
 
@@ -1785,7 +2813,7 @@ Effects: `MemoryEffects::Effect{}`
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit
+| `result` | primitive int
 
 ### `cir.ptr_stride` (cir::PtrStrideOp)
 
@@ -1803,7 +2831,7 @@ Given a base pointer as first operand, provides a new pointer after applying
 a stride (second operand).
 
 ```mlir
-%3 = cir.const(0 : i32) : i32
+%3 = cir.const 0 : i32
 %4 = cir.ptr_stride(%2 : !cir.ptr<i32>, %3 : i32), !cir.ptr<i32>
 ```
 
@@ -1818,7 +2846,7 @@ Effects: `MemoryEffects::Effect{}`
 | Operand | Description |
 | :-----: | ----------- |
 | `base` | CIR pointer type
-| `stride` | Integer type with arbitrary precision up to a fixed limit
+| `stride` | primitive int
 
 #### Results:
 
@@ -1881,7 +2909,7 @@ Traits: `HasParent<FuncOp, ScopeOp, IfOp, SwitchOp, DoWhileOp, WhileOp, ForOp>`,
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+| `input` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 ### `cir.rint` (cir::RintOp)
 
@@ -1905,13 +2933,67 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | floating-point
+| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | floating-point
+| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+
+### `cir.rotate` (cir::RotateOp)
+
+_Reverse the bytes that constitute the operand integer_
+
+
+Syntax:
+
+```
+operation ::= `cir.rotate` (`left` $left^) : (`right`)?
+              $src `,` $amt `->` type($result) attr-dict
+```
+
+The `cir.rotate` rotates operand in `src` by the given bit amount `amt`.
+Its widths must be either 8, 16, 32, or 64 and both `src`, `amt` and
+`result` be of the same type. The rotate direction is specified by a
+`left`/`right` keyword.
+
+This operation covers different C/C++
+builtins, some examples: `__builtin_rotateleft8`, `__builtin_rotateleft16`,
+`__builtin_rotateleft32`, `__builtin_rotateleft64`, `_rotl8`, `_rotl16`,
+`_rotl`, `_lrotl`, `_rotl64`, etc and their "right" variants.
+
+Example:
+
+```mlir
+%r = cir.rotate left %0, %1 -> !u32i
+```
+
+Traits: `AlwaysSpeculatableImplTrait`, `SameOperandsAndResultType`
+
+Interfaces: `ConditionallySpeculatable`, `InferTypeOpInterface`, `NoMemoryEffect (MemoryEffectOpInterface)`
+
+Effects: `MemoryEffects::Effect{}`
+
+#### Attributes:
+
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>left</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
+</table>
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `src` | primitive int
+| `amt` | primitive int
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | Integer type with arbitrary precision up to a fixed limit
 
 ### `cir.round` (cir::RoundOp)
 
@@ -1935,13 +3017,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | floating-point
+| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | floating-point
+| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
 
 ### `cir.scope` (cir::ScopeOp)
 
@@ -1980,7 +3062,7 @@ Interfaces: `ConditionallySpeculatable`, `RegionBranchOpInterface`
 
 | Result | Description |
 | :----: | ----------- |
-| `results` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+| `results` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 ### `cir.set_bitfield` (cir::SetBitfieldOp)
 
@@ -1990,7 +3072,7 @@ _Set a bitfield_
 Syntax:
 
 ```
-operation ::= `cir.set_bitfield` `(`$bitfield_info`,` $dst`:`qualified(type($dst))`,`
+operation ::= `cir.set_bitfield` `(`$bitfield_info`,` $addr`:`qualified(type($addr))`,`
               $src`:`type($src) `)`  attr-dict `->` type($result)
 ```
 
@@ -2028,8 +3110,8 @@ void store_bitfield(S& s) {
 !struct_type = !cir.struct<struct "S" {!cir.int<u, 32>, !cir.int<u, 32>, !cir.int<u, 16>} #cir.record.decl.ast>
 #bfi_d = #cir.bitfield_info<name = "d", storage_type = !u32i, size = 2, offset = 17, is_signed = true>
 
-%1 = cir.const(#cir.int<3> : !s32i) : !s32i
-%2 = cir.load %0 : cir.ptr <!cir.ptr<!struct_type>>, !cir.ptr<!struct_type>
+%1 = cir.const #cir.int<3> : !s32i
+%2 = cir.load %0 : !cir.ptr<!cir.ptr<!struct_type>>, !cir.ptr<!struct_type>
 %3 = cir.get_member %2[1] {name = "d"} : !cir.ptr<!struct_type> -> !cir.ptr<!u32i>
 %4 = cir.set_bitfield(#bfi_d, %3 : !cir.ptr<!u32i>, %1 : !s32i) -> !s32i
 ```
@@ -2046,8 +3128,8 @@ void store_bitfield(S& s) {
 
 | Operand | Description |
 | :-----: | ----------- |
-| `dst` | CIR pointer type
-| `src` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+| `addr` | CIR pointer type
+| `src` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 #### Results:
 
@@ -2125,13 +3207,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | floating-point
+| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | floating-point
+| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
 
 ### `cir.sqrt` (cir::SqrtOp)
 
@@ -2155,13 +3237,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | floating-point
+| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | floating-point
+| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
 
 ### `cir.stack_restore` (cir::StackRestoreOp)
 
@@ -2179,10 +3261,10 @@ in when the corresponding cir.stack_save executed.
 Useful for implementing language features like variable length arrays.
 
 ```mlir
-%0 = cir.alloca !cir.ptr<!u8i>, cir.ptr <!cir.ptr<!u8i>>, ["saved_stack"] {alignment = 8 : i64}
+%0 = cir.alloca !cir.ptr<!u8i>, !cir.ptr<!cir.ptr<!u8i>>, ["saved_stack"] {alignment = 8 : i64}
 %1 = cir.stack_save : <!u8i>
-cir.store %1, %0 : !cir.ptr<!u8i>, cir.ptr <!cir.ptr<!u8i>>
-%2 = cir.load %0 : cir.ptr <!cir.ptr<!u8i>>, !cir.ptr<!u8i>
+cir.store %1, %0 : !cir.ptr<!u8i>, !cir.ptr<!cir.ptr<!u8i>>
+%2 = cir.load %0 : !cir.ptr<!cir.ptr<!u8i>>, !cir.ptr<!u8i>
 cir.stack_restore %2 : !cir.ptr<!u8i>
 ```
 
@@ -2259,15 +3341,15 @@ Traits: `SameFirstSecondOperandAndResultType`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `first` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
-| `last` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
-| `pattern` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+| `first` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
+| `last` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
+| `pattern` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 ### `cir.store` (cir::StoreOp)
 
@@ -2278,12 +3360,14 @@ Syntax:
 
 ```
 operation ::= `cir.store` (`volatile` $is_volatile^)?
-              $value `,` $addr attr-dict `:` type($value) `,` `cir.ptr` type($addr)
+              (`atomic` `(` $mem_order^ `)`)?
+              $value `,` $addr attr-dict `:` type($value) `,` qualified(type($addr))
 ```
 
 `cir.store` stores a value (first operand) to the memory address specified
 in the second operand. A unit attribute `volatile` can be used to indicate
-a volatile store.
+a volatile store. Store's can be marked atomic by using
+`atomic(<mem_order>)`.
 
 Example:
 
@@ -2300,14 +3384,55 @@ cir.store volatile %arg0, %0 : i32, !cir.ptr<i32>
 <table>
 <tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
 <tr><td><code>is_volatile</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
+<tr><td><code>mem_order</code></td><td>::mlir::cir::MemOrderAttr</td><td>Memory order according to C++11 memory model</td></tr>
 </table>
 
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
-| `value` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+| `value` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 | `addr` | CIR pointer type
+
+### `cir.switch.flat` (cir::SwitchFlatOp)
+
+Syntax:
+
+```
+operation ::= `cir.switch.flat` $condition `:` type($condition) `,`
+              $defaultDestination (`(` $defaultOperands^ `:` type($defaultOperands) `)`)?
+              custom<SwitchFlatOpCases>(ref(type($condition)), $case_values, $caseDestinations,
+              $caseOperands, type($caseOperands))
+              attr-dict
+```
+
+The `cir.switch.flat` operation is a region-less and simplified version of the `cir.switch`.
+It's representation is closer to LLVM IR dialect than the C/C++ language feature.
+
+Traits: `AttrSizedOperandSegments`, `Terminator`
+
+#### Attributes:
+
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>case_values</code></td><td>::mlir::ArrayAttr</td><td>array attribute</td></tr>
+<tr><td><code>case_operand_segments</code></td><td>::mlir::DenseI32ArrayAttr</td><td>i32 dense array attribute</td></tr>
+</table>
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `condition` | Integer type with arbitrary precision up to a fixed limit
+| `defaultOperands` | variadic of any type
+| `caseOperands` | variadic of any type
+
+#### Successors:
+
+| Successor | Description |
+| :-------: | ----------- |
+| `defaultDestination` | any successor
+| `caseDestinations` | any successor
 
 ### `cir.switch` (cir::SwitchOp)
 
@@ -2421,7 +3546,7 @@ Interfaces: `ConditionallySpeculatable`, `RegionBranchOpInterface`
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 ### `cir.throw` (cir::ThrowOp)
 
@@ -2476,7 +3601,26 @@ Traits: `HasParent<FuncOp, ScopeOp, IfOp, SwitchOp, DoWhileOp, WhileOp, ForOp>`,
 
 | Operand | Description |
 | :-----: | ----------- |
-| `exception_ptr` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+| `exception_ptr` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
+
+### `cir.trap` (cir::TrapOp)
+
+_Exit the program abnormally_
+
+
+Syntax:
+
+```
+operation ::= `cir.trap` attr-dict
+```
+
+The cir.trap operation causes the program to exit abnormally. The
+implementations may implement this operation with different mechanisms. For
+example, an implementation may implement this operation by calling abort,
+while another implementation may implement this operation by executing an
+illegal instruction.
+
+Traits: `Terminator`
 
 ### `cir.trunc` (cir::TruncOp)
 
@@ -2500,13 +3644,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | floating-point
+| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | floating-point
+| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
 
 ### `cir.try_call` (cir::TryCallOp)
 
@@ -2524,7 +3668,7 @@ Example:
 
 ```mlir
 cir.try {
-  %0 = cir.alloca !cir.ptr<!cir.eh.info>, cir.ptr <!cir.ptr<!cir.eh.info>>
+  %0 = cir.alloca !cir.ptr<!cir.eh.info>, !cir.ptr<!cir.ptr<!cir.eh.info>>
   ...
   %r = cir.try_call %exception(%0) @division(%1, %2)
 } ...
@@ -2545,13 +3689,13 @@ Interfaces: `CIRCallOpInterface`, `CallOpInterface`, `SymbolUserOpInterface`
 | Operand | Description |
 | :-----: | ----------- |
 | `exceptionInfo` | !cir.eh_info**
-| `callOps` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+| `arg_ops` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-&laquo;unnamed&raquo; | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+&laquo;unnamed&raquo; | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 ### `cir.try` (cir::TryOp)
 
@@ -2592,10 +3736,6 @@ operation ::= `cir.unary` `(` $kind `,` $input `)` `:` type($input) `,` type($re
 `cir.unary` performs the unary operation according to
 the specified opcode kind: [inc, dec, plus, minus, not].
 
-Note for inc and dec: the operation corresponds only to the
-addition/subtraction, its input is expect to come from a load
-and the result to be used by a corresponding store.
-
 It requires one input operand and has one result, both types
 should be the same.
 
@@ -2621,13 +3761,31 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+| `input` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
+
+### `cir.unreachable` (cir::UnreachableOp)
+
+_Invoke immediate undefined behavior_
+
+
+Syntax:
+
+```
+operation ::= `cir.unreachable` attr-dict
+```
+
+If the program control flow reaches a `cir.unreachable` operation, the
+program exhibits undefined behavior immediately. This operation is useful
+in cases where the unreachability of a program point needs to be explicitly
+marked.
+
+Traits: `Terminator`
 
 ### `cir.va.arg` (cir::VAArgOp)
 
@@ -2651,7 +3809,7 @@ operation ::= `cir.va.arg` $arg_list attr-dict `:` functional-type(operands, $re
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 ### `cir.va.copy` (cir::VACopyOp)
 
@@ -2723,7 +3881,7 @@ operation ::= `cir.vtable.address_point` `(`
               `vtable_index` `=` $vtable_index `,`
               `address_point_index` `=` $address_point_index
               `)`
-              `:` `cir.ptr` type($addr) attr-dict
+              `:` qualified(type($addr)) attr-dict
 ```
 
 The `vtable.address_point` operation retrieves the "effective" address
@@ -2740,7 +3898,7 @@ Example:
 ```mlir
 cir.global linkonce_odr @_ZTV1B = ...
 ...
-%3 = cir.vtable.address_point(@_ZTV1B, vtable_index = 0, address_point_index = 2) : cir.ptr <!cir.ptr<() -> i32>>
+%3 = cir.vtable.address_point(@_ZTV1B, vtable_index = 0, address_point_index = 2) : !cir.ptr<!cir.ptr<() -> i32>>
 ```
 
 Traits: `AlwaysSpeculatableImplTrait`
@@ -2762,7 +3920,7 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `sym_addr` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+| `sym_addr` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 #### Results:
 
@@ -2778,7 +3936,8 @@ _Compare two vectors_
 Syntax:
 
 ```
-operation ::= `cir.vec.cmp` `(` $kind `,` $lhs `,` $rhs `)` `:` type($lhs) `,` type($result) attr-dict
+operation ::= `cir.vec.cmp` `(` $kind `,` $lhs `,` $rhs `)` `:` qualified(type($lhs)) `,`
+              qualified(type($result)) attr-dict
 ```
 
 The `cir.vec.cmp` operation does an element-wise comparison of two vectors
@@ -2820,7 +3979,8 @@ _Create a vector value_
 Syntax:
 
 ```
-operation ::= `cir.vec.create` `(` ($elements^ `:` type($elements))? `)` `:` type($result) attr-dict
+operation ::= `cir.vec.create` `(` ($elements^ `:` type($elements))? `)` `:` qualified(type($result))
+              attr-dict
 ```
 
 The `cir.vec.create` operation creates a vector value with the given element
@@ -2837,7 +3997,7 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `elements` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+| `elements` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 #### Results:
 
@@ -2853,7 +4013,7 @@ _Extract one element from a vector object_
 Syntax:
 
 ```
-operation ::= `cir.vec.extract` $vec `[` $index `:` type($index) `]` attr-dict `:` type($vec)
+operation ::= `cir.vec.extract` $vec `[` $index `:` type($index) `]` attr-dict `:` qualified(type($vec))
 ```
 
 The `cir.vec.extract` operation extracts the element at the given index
@@ -2870,13 +4030,13 @@ Effects: `MemoryEffects::Effect{}`
 | Operand | Description |
 | :-----: | ----------- |
 | `vec` | CIR vector type
-| `index` | Integer type with arbitrary precision up to a fixed limit
+| `index` | primitive int
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 ### `cir.vec.insert` (cir::VecInsertOp)
 
@@ -2886,7 +4046,8 @@ _Insert one element into a vector object_
 Syntax:
 
 ```
-operation ::= `cir.vec.insert` $value `,` $vec `[` $index `:` type($index) `]` attr-dict `:` type($vec)
+operation ::= `cir.vec.insert` $value `,` $vec `[` $index `:` type($index) `]` attr-dict `:`
+              qualified(type($vec))
 ```
 
 The `cir.vec.insert` operation replaces the element of the given vector at
@@ -2905,7 +4066,177 @@ Effects: `MemoryEffects::Effect{}`
 | :-----: | ----------- |
 | `vec` | CIR vector type
 | `value` | any type
-| `index` | Integer type with arbitrary precision up to a fixed limit
+| `index` | primitive int
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | CIR vector type
+
+### `cir.vec.shuffle.dynamic` (cir::VecShuffleDynamicOp)
+
+_Shuffle a vector using indices in another vector_
+
+
+Syntax:
+
+```
+operation ::= `cir.vec.shuffle.dynamic` $vec `:` qualified(type($vec)) `,` $indices `:` qualified(type($indices))
+              attr-dict
+```
+
+The `cir.vec.shuffle.dynamic` operation implements the undocumented form of
+Clang's __builtin_shufflevector, where the indices of the shuffled result
+can be runtime values.
+
+There are two input vectors, which must have the same number of elements.
+The second input vector must have an integral element type. The elements of
+the second vector are interpreted as indices into the first vector. The
+result vector is constructed by taking the elements from the first input
+vector from the indices indicated by the elements of the second vector.
+
+Traits: `AlwaysSpeculatableImplTrait`
+
+Interfaces: `ConditionallySpeculatable`, `InferTypeOpInterface`, `NoMemoryEffect (MemoryEffectOpInterface)`
+
+Effects: `MemoryEffects::Effect{}`
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `vec` | CIR vector type
+| `indices` | !cir.vector of !cir.int
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | CIR vector type
+
+### `cir.vec.shuffle` (cir::VecShuffleOp)
+
+_Combine two vectors using indices passed as constant integers_
+
+
+Syntax:
+
+```
+operation ::= `cir.vec.shuffle` `(` $vec1 `,` $vec2 `:` qualified(type($vec1)) `)` $indices `:`
+              qualified(type($result)) attr-dict
+```
+
+The `cir.vec.shuffle` operation implements the documented form of Clang's
+__builtin_shufflevector, where the indices of the shuffled result are
+integer constants.
+
+The two input vectors, which must have the same type, are concatenated.
+Each of the integer constant arguments is interpreted as an index into that
+concatenated vector, with a value of -1 meaning that the result value
+doesn't matter. The result vector, which must have the same element type as
+the input vectors and the same number of elements as the list of integer
+constant indices, is constructed by taking the elements at the given
+indices from the concatenated vector.  The size of the result vector does
+not have to match the size of the individual input vectors or of the
+concatenated vector.
+
+Traits: `AlwaysSpeculatableImplTrait`
+
+Interfaces: `ConditionallySpeculatable`, `NoMemoryEffect (MemoryEffectOpInterface)`
+
+Effects: `MemoryEffects::Effect{}`
+
+#### Attributes:
+
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>indices</code></td><td>::mlir::ArrayAttr</td><td>array attribute</td></tr>
+</table>
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `vec1` | CIR vector type
+| `vec2` | CIR vector type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | CIR vector type
+
+### `cir.vec.splat` (cir::VecSplatOp)
+
+_Convert a scalar into a vector_
+
+
+Syntax:
+
+```
+operation ::= `cir.vec.splat` $value `:` type($value) `,` qualified(type($result)) attr-dict
+```
+
+The `cir.vec.splat` operation creates a vector value from a scalar value.
+All elements of the vector have the same value, that of the given scalar.
+
+Traits: `AlwaysSpeculatableImplTrait`
+
+Interfaces: `ConditionallySpeculatable`, `NoMemoryEffect (MemoryEffectOpInterface)`
+
+Effects: `MemoryEffects::Effect{}`
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `value` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | CIR vector type
+
+### `cir.vec.ternary` (cir::VecTernaryOp)
+
+_The `cond ? a : b` ternary operator for vector types_
+
+
+Syntax:
+
+```
+operation ::= `cir.vec.ternary` `(` $cond `,` $vec1 `,` $vec2 `)` `:` qualified(type($cond)) `,`
+              qualified(type($vec1)) attr-dict
+```
+
+The `cir.vec.ternary` operation represents the C/C++ ternary operator,
+`?:`, for vector types, which does a `select` on individual elements of the
+vectors. Unlike a regular `?:` operator, there is no short circuiting. All
+three arguments are always evaluated.  Because there is no short
+circuiting, there are no regions in this operation, unlike cir.ternary.
+
+The first argument is a vector of integral type. The second and third
+arguments are vectors of the same type and have the same number of elements
+as the first argument.
+
+The result is a vector of the same type as the second and third arguments.
+Each element of the result is `(bool)a[n] ? b[n] : c[n]`.
+
+Traits: `AlwaysSpeculatableImplTrait`
+
+Interfaces: `ConditionallySpeculatable`, `InferTypeOpInterface`, `NoMemoryEffect (MemoryEffectOpInterface)`
+
+Effects: `MemoryEffects::Effect{}`
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `cond` | !cir.vector of !cir.int
+| `vec1` | CIR vector type
+| `vec2` | CIR vector type
 
 #### Results:
 
@@ -3002,7 +4333,7 @@ cir.scope {
 } : i32
 ```
 
-Traits: `HasParent<IfOp, ScopeOp, SwitchOp, WhileOp, ForOp, AwaitOp, TernaryOp, GlobalOp, DoWhileOp, CatchOp, TryOp>`, `ReturnLike`, `Terminator`
+Traits: `HasParent<IfOp, ScopeOp, SwitchOp, WhileOp, ForOp, AwaitOp, TernaryOp, GlobalOp, DoWhileOp, CatchOp, TryOp, ArrayCtor, ArrayDtor>`, `ReturnLike`, `Terminator`
 
 Interfaces: `RegionBranchTerminatorOpInterface`
 
@@ -3010,7 +4341,7 @@ Interfaces: `RegionBranchTerminatorOpInterface`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `args` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or floating-point
+| `args` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 ### `cir.llvmir.zeroinit` (cir::ZeroInitConstOp)
 

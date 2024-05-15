@@ -23,6 +23,22 @@ for such nodes diminish and AST information can be dropped.
 Right now this is enabled by default in Clang prior to dialect
 codegen from CIR, but not before lifetime check, where AST is
 required to be present.
+### `-cir-flatten-cfg`
+
+_Produces flatten cfg_
+
+This pass transforms CIR and inline all the nested regions. Thus,
+the next post condtions are met after the pass applied:
+- there is not any nested region in a function body
+- all the blocks in a function belong to the parent region
+In other words, this pass removes such CIR operations like IfOp, LoopOp,
+ScopeOp and etc. and produces a flat CIR.
+### `-cir-goto-solver`
+
+_Replaces goto operatations with branches_
+
+This pass transforms CIR and replaces goto-s with branch
+operations to the proper blocks.
 ### `-cir-idiom-recognizer`
 
 _Raise calls to C/C++ libraries to CIR operations_
