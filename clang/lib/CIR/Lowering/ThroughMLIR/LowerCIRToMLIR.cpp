@@ -811,6 +811,18 @@ public:
   }
 };
 
+class CIRConditionOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::ConditionOp> {
+public:
+  using OpConversionPattern<mlir::cir::ConditionOp>::OpConversionPattern;
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::ConditionOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+
+    return mlir::success();
+  }
+};
+
 class CIRGlobalOpLowering
     : public mlir::OpConversionPattern<mlir::cir::GlobalOp> {
 public:
@@ -1123,18 +1135,18 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
                                          mlir::TypeConverter &converter) {
   patterns.add<CIRReturnLowering, CIRBrOpLowering>(patterns.getContext());
 
-  patterns
-      .add<CIRCmpOpLowering, CIRCallOpLowering, CIRUnaryOpLowering,
-           CIRBinOpLowering, CIRLoadOpLowering, CIRConstantOpLowering,
-           CIRStoreOpLowering, CIRAllocaOpLowering, CIRFuncOpLowering,
-           CIRScopeOpLowering, CIRBrCondOpLowering, CIRTernaryOpLowering,
-           CIRYieldOpLowering, CIRCosOpLowering, CIRGlobalOpLowering,
-           CIRGetGlobalOpLowering, CIRCastOpLowering, CIRPtrStrideOpLowering,
-           CIRSqrtOpLowering, CIRCeilOpLowering, CIRExp2OpLowering,
-           CIRExpOpLowering, CIRFAbsOpLowering, CIRFloorOpLowering,
-           CIRLog10OpLowering, CIRLog2OpLowering, CIRLogOpLowering,
-           CIRRoundOpLowering, CIRPtrStrideOpLowering, CIRSinOpLowering>(
-          converter, patterns.getContext());
+  patterns.add<CIRCmpOpLowering, CIRCallOpLowering, CIRUnaryOpLowering,
+               CIRBinOpLowering, CIRLoadOpLowering, CIRConstantOpLowering,
+               CIRStoreOpLowering, CIRAllocaOpLowering, CIRFuncOpLowering,
+               CIRScopeOpLowering, CIRBrCondOpLowering, CIRTernaryOpLowering,
+               CIRYieldOpLowering, CIRCosOpLowering, CIRGlobalOpLowering,
+               CIRGetGlobalOpLowering, CIRCastOpLowering,
+               CIRPtrStrideOpLowering, CIRSqrtOpLowering, CIRCeilOpLowering,
+               CIRExp2OpLowering, CIRExpOpLowering, CIRFAbsOpLowering,
+               CIRFloorOpLowering, CIRLog10OpLowering, CIRLog2OpLowering,
+               CIRLogOpLowering, CIRRoundOpLowering, CIRPtrStrideOpLowering,
+               CIRSinOpLowering, CIRConditionOpLowering>(converter,
+                                                         patterns.getContext());
 }
 
 static mlir::TypeConverter prepareTypeConverter() {
