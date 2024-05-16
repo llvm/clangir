@@ -361,7 +361,8 @@ public:
   }
 
   mlir::TypedAttr getConstPtrAttr(mlir::Type t, int64_t v) {
-    auto val = mlir::IntegerAttr::get(mlir::IntegerType::get(t.getContext(), 64), v);
+    auto val =
+        mlir::IntegerAttr::get(mlir::IntegerType::get(t.getContext(), 64), v);
     return mlir::cir::ConstPtrAttr::get(getContext(),
                                         t.cast<mlir::cir::PointerType>(), val);
   }
