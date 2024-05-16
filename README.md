@@ -12,11 +12,10 @@ in Feb 2024, and we already started the upstreaming
 still currently done in the [incubator](https://github.com/llvm/clangir) but
 shall move to upstream as soon as the bulk of the base work lands.
 
-Other resources for additional context:
+Other resources:
 
-- *October 2023:* US LLVM Developers Meeting talk [Evolution of ClangIR: A
-Year of Progress, Challenges, and Future Plans](http://brunocardoso.cc/resources/2023-LLVMDevMtgClangIR.pdf).
-- *June 2022:* [RFC: An MLIR based Clang IR (CIR)](https://discourse.llvm.org/t/rfc-an-mlir-based-clang-ir-cir/63319)
+- Oct 2023: *Evolution of ClangIR: A Year of Progress, Challenges, and Future Plans*. US LLVM Developers Meeting. [video](https://www.youtube.com/watch?v=XNOPO3ogdfQ), [pdf](ttp://brunocardoso.cc/resources/2023-LLVMDevMtgClangIR.pdf).
+- June 2022: [RFC: An MLIR based Clang IR (CIR)](https://discourse.llvm.org/t/rfc-an-mlir-based-clang-ir-cir/63319)
 
 # Motivation
 
