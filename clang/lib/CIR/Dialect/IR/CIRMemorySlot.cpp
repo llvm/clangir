@@ -9,11 +9,13 @@
 
 using namespace mlir;
 
+//===----------------------------------------------------------------------===//
+// Interfaces for AllocaOp
+//===----------------------------------------------------------------------===//
 
 llvm::SmallVector<MemorySlot> cir::AllocaOp::getPromotableSlots() {
   return {MemorySlot{getResult(), getAllocaType()}};
 }
-
 
 Value cir::AllocaOp::getDefaultValue(const MemorySlot &slot,
                                       RewriterBase &rewriter) {
@@ -22,8 +24,7 @@ Value cir::AllocaOp::getDefaultValue(const MemorySlot &slot,
 
 void cir::AllocaOp::handleBlockArgument(const MemorySlot &slot,
                                          BlockArgument argument,
-                                         RewriterBase &rewriter) {
-}
+                                         RewriterBase &rewriter) {}
 
 void cir::AllocaOp::handlePromotionComplete(const MemorySlot &slot,
                                             Value defaultValue,
@@ -33,9 +34,8 @@ void cir::AllocaOp::handlePromotionComplete(const MemorySlot &slot,
   rewriter.eraseOp(*this);
 }
 
-
 //===----------------------------------------------------------------------===//
-// Interfaces for LoadOp/StoreOp
+// Interfaces for LoadOp
 //===----------------------------------------------------------------------===//
 
 bool cir::LoadOp::loadsFrom(const MemorySlot &slot) {
@@ -68,6 +68,9 @@ DeletionKind cir::LoadOp::removeBlockingUses(
   return DeletionKind::Delete;
 }
 
+//===----------------------------------------------------------------------===//
+// Interfaces for StoreOp
+//===----------------------------------------------------------------------===//
 
 bool cir::StoreOp::loadsFrom(const MemorySlot &slot) { return false; }
 

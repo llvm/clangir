@@ -1697,7 +1697,7 @@ def BrOp : CIR_Op<"br",
 
 def BrCondOp : CIR_Op<"brcond",
       [DeclareOpInterfaceMethods<BranchOpInterface, ["getSuccessorForOperands"]>,
-       Pure, Terminator, SameVariadicOperandSize]> {
+       Pure, Terminator, AttrSizedOperandSegments]> {
   let summary = "Conditional branch";
   let description = [{
     The `cir.brcond %cond, ^bb0, ^bb1` branches to 'bb0' block in case
@@ -1720,11 +1720,8 @@ def BrCondOp : CIR_Op<"brcond",
     OpBuilder<(ins "Value":$cond, "Block *":$destTrue, "Block *":$destFalse,
                CArg<"ValueRange", "{}">:$destOperandsTrue,
                CArg<"ValueRange", "{}">:$destOperandsFalse), [{
-      $_state.addOperands(cond);
-      $_state.addSuccessors(destTrue);
-      $_state.addSuccessors(destFalse);
-      $_state.addOperands(destOperandsTrue);
-      $_state.addOperands(destOperandsFalse);
+      build($_builder, $_state, cond, destOperandsTrue,
+            destOperandsFalse, destTrue, destFalse);
     }]>
   ];
 

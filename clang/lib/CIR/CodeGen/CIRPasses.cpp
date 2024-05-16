@@ -17,11 +17,6 @@
 #include "mlir/Pass/Pass.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Support/LogicalResult.h"
-
-// #define GEN_PASS_DECL
-// using namespace mlir;
-// #include "mlir/Transforms/Passes.h.inc"
-
 #include "mlir/Transforms/Passes.h"
 
 namespace cir {
@@ -100,6 +95,8 @@ void populateCIRPreLoweringPasses(OpPassManager &pm) {
   pm.addPass(createFlattenCFGPass());
   pm.addPass(createGotoSolverPass());
   pm.addPass(createMergeCleanupsPass());
+  pm.addPass(mlir::createMem2Reg());
 }
+
 
 } // namespace mlir
