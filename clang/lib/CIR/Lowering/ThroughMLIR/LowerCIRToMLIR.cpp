@@ -811,6 +811,44 @@ public:
   }
 };
 
+class CIRIfOpLowering : public mlir::OpConversionPattern<mlir::cir::IfOp> {
+public:
+  using mlir::OpConversionPattern<mlir::cir::IfOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::IfOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    rewriter.setInsertionPoint(op);
+    auto condition = adaptor.getCondition();
+    auto i1Condition = rewriter.create<mlir::arith::TruncIOp>(
+        op->getLoc(), rewriter.getI1Type(), condition);
+    auto ifOp =
+        rewriter.create<mlir::scf::IfOp>(op->getLoc(), i1Condition.getResult());
+    
+    auto *thenBlcok = &ifOp.getThenRegion().front();
+    rewriter.inlineBlockBefore(&op.getThenRegion().front(), thenBlcok, thenBlcok->end());
+    // rewriter.inlineRegionBefore(op.getThenRegion(), ifOp.getThenRegion(),
+    //                             ifOp.getThenRegion().end());
+    op->emitWarning() << "HERE: scf.if then region blocks " << ifOp.getThenRegion().hasOneBlock() << "\n";
+    op.emitWarning() << "HERE scf.if else region empty " << ifOp.getElseRegion().empty() << "\n";
+    if (!ifOp.getElseRegion().empty()) {
+      // rewriter.inlineRegionBefore(op.getElseRegion(), ifOp.getElseRegion(),
+      //                             ifOp.getElseRegion().end());
+      auto *elseBlock = &ifOp.getElseRegion().front();
+      if (elseBlock == nullptr) {
+        op->emitWarning() << "HERE elseBlock is nullptr\n";
+      }
+      if (auto *source =  &op.getElseRegion().front(); source == nullptr) {
+        op.emitWarning() << "op.elseRegion.front is nullptr" << "\n";
+      }
+      rewriter.inlineBlockBefore(&op.getElseRegion().front(), elseBlock, elseBlock->end());
+      op.emitWarning() << "HERE scf.if else region blocks " << ifOp.getElseRegion().hasOneBlock() << "\n";
+    }
+    rewriter.replaceOp(op, ifOp);
+    return mlir::success();
+  }
+};
+
 class CIRGlobalOpLowering
     : public mlir::OpConversionPattern<mlir::cir::GlobalOp> {
 public:
@@ -1123,18 +1161,18 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
                                          mlir::TypeConverter &converter) {
   patterns.add<CIRReturnLowering, CIRBrOpLowering>(patterns.getContext());
 
-  patterns
-      .add<CIRCmpOpLowering, CIRCallOpLowering, CIRUnaryOpLowering,
-           CIRBinOpLowering, CIRLoadOpLowering, CIRConstantOpLowering,
-           CIRStoreOpLowering, CIRAllocaOpLowering, CIRFuncOpLowering,
-           CIRScopeOpLowering, CIRBrCondOpLowering, CIRTernaryOpLowering,
-           CIRYieldOpLowering, CIRCosOpLowering, CIRGlobalOpLowering,
-           CIRGetGlobalOpLowering, CIRCastOpLowering, CIRPtrStrideOpLowering,
-           CIRSqrtOpLowering, CIRCeilOpLowering, CIRExp2OpLowering,
-           CIRExpOpLowering, CIRFAbsOpLowering, CIRFloorOpLowering,
-           CIRLog10OpLowering, CIRLog2OpLowering, CIRLogOpLowering,
-           CIRRoundOpLowering, CIRPtrStrideOpLowering, CIRSinOpLowering>(
-          converter, patterns.getContext());
+  patterns.add<CIRCmpOpLowering, CIRCallOpLowering, CIRUnaryOpLowering,
+               CIRBinOpLowering, CIRLoadOpLowering, CIRConstantOpLowering,
+               CIRStoreOpLowering, CIRAllocaOpLowering, CIRFuncOpLowering,
+               CIRScopeOpLowering, CIRBrCondOpLowering, CIRTernaryOpLowering,
+               CIRYieldOpLowering, CIRCosOpLowering, CIRGlobalOpLowering,
+               CIRGetGlobalOpLowering, CIRCastOpLowering,
+               CIRPtrStrideOpLowering, CIRSqrtOpLowering, CIRCeilOpLowering,
+               CIRExp2OpLowering, CIRExpOpLowering, CIRFAbsOpLowering,
+               CIRFloorOpLowering, CIRLog10OpLowering, CIRLog2OpLowering,
+               CIRLogOpLowering, CIRRoundOpLowering, CIRPtrStrideOpLowering,
+               CIRSinOpLowering, CIRIfOpLowering>(converter,
+                                                  patterns.getContext());
 }
 
 static mlir::TypeConverter prepareTypeConverter() {

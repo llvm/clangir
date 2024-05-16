@@ -1,0 +1,62 @@
+// RUN: cir-opt %s -cir-to-mlir -o %t.mlir
+// RUN: FileCheck %s --input-file %t.mlir
+
+#false = #cir.bool<false> : !cir.bool
+#true = #cir.bool<true> : !cir.bool
+!s32i = !cir.int<s,32>
+module {
+  cir.func @foo(%arg0: !s32i) -> !s32i {
+    %0 = cir.alloca !cir.bool, !cir.ptr<!cir.bool>, ["a", init] {alignment = 1 : i64}
+    %1 = cir.const #true
+    cir.store %1, %0 : !cir.bool, !cir.ptr<!cir.bool>
+    %2 = cir.load %0 : !cir.ptr<!cir.bool>, !cir.bool
+    
+    cir.if %2 {
+      %3 = cir.const #cir.int<1> : !s32i
+    } else {
+      %3 = cir.const #cir.int<0> : !s32i
+    }
+    cir.return %arg0 : !s32i
+  }
+
+  cir.func @onlyIf(%arg0: !s32i) -> !s32i {
+    %3 = cir.alloca !cir.bool, !cir.ptr<!cir.bool>, ["a", init] {alignment = 1 : i64}
+    %4 = cir.const #true
+    cir.store %4, %3 : !cir.bool, !cir.ptr<!cir.bool>
+    %5 = cir.load %3 : !cir.ptr<!cir.bool>, !cir.bool
+
+    cir.if %5 {
+      %6 = cir.const #cir.int<1> : !s32i
+    }
+    cir.return %arg0 : !s32i
+  }
+  
+}
+
+
+// CHECK: module {
+// CHECK:   func @foo(%arg0 : i32) -> i32 {
+// CHECK:     [[Value:%[a-z0-9]+]] = memref.alloca() {alignment = 1 : i64} : memref<i8>
+// CHECK:     %c1_i8 = arith.constant 1 : i8
+// CHECK:     memref.store %c1_i8, [[Value]][] : memref<i8>
+// CHECK:     [[cond:%[a-z0-9]+]] = memref.load [[Value]][] : memref<i8>
+// CHECK:     scf.if [[cond]] {
+// CHECK:       %c1_i32 = arith.constant 1 : i32
+// CHECK:     } else {
+// CHECK:       %c1_i32 = arith.constant 0 : i32
+// CHECK:     }
+// CHECK:     return %arg0 : i32
+// CHECK:   } 
+
+
+// CHECK:   func @onlyIf(%arg0 : i32) -> i32 {
+// CHECK:     [[Value:%[a-z0-9]+]] = memref.alloca() {alignment = 1 : i64} : memref<i8>
+// CHECK:     = arith.constant 1 : i8
+// CHECK:     memref.store {{.*}}, [[Value]][] : memref<i8>
+// CHECK:     [[cond:%[a-z0-9]+]] = memref.load [[Value]][] : memref<i32>
+// CHECK:     scf.if %[[cond]] {
+// CHECK:       %c1_i32 = arith.constant 1 : i32
+// CHECK:     } 
+// CHECK:     return %arg0 : i32
+// CHECK:   }
+// CHECK: }
