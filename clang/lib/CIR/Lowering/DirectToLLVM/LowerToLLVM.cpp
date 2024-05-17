@@ -67,6 +67,7 @@
 #include <deque>
 #include <optional>
 #include <set>
+#include <iostream>
 
 using namespace cir;
 using namespace llvm;
@@ -543,7 +544,7 @@ public:
       // lowered to "sub 0, x".
       auto sub = dyn_cast<mlir::LLVM::SubOp>(indexOp);
       auto unary =
-          dyn_cast<mlir::cir::UnaryOp>(ptrStrideOp.getStride().getDefiningOp());
+          dyn_cast_or_null<mlir::cir::UnaryOp>(ptrStrideOp.getStride().getDefiningOp());
       bool rewriteSub =
           unary && unary.getKind() == mlir::cir::UnaryOpKind::Minus && sub;
       if (rewriteSub)
@@ -3269,70 +3270,36 @@ private:
   }
 };
 
-template <typename CIROp, typename LLVMOp>
-class CIRUnaryFPBuiltinOpLowering : public mlir::OpConversionPattern<CIROp> {
-public:
-  using mlir::OpConversionPattern<CIROp>::OpConversionPattern;
+class CIRUndefOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::UndefOp> {
+
+  using mlir::OpConversionPattern<mlir::cir::UndefOp>::OpConversionPattern;
 
   mlir::LogicalResult
-  matchAndRewrite(CIROp op,
-                  typename mlir::OpConversionPattern<CIROp>::OpAdaptor adaptor,
+  matchAndRewrite(mlir::cir::UndefOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    auto resTy = this->getTypeConverter()->convertType(op.getType());
-    rewriter.replaceOpWithNewOp<LLVMOp>(op, resTy, adaptor.getSrc());
+    auto typ = getTypeConverter()->convertType(op.getRes().getType());
+    
+    rewriter.replaceOpWithNewOp<mlir::LLVM::UndefOp>(op, typ);
     return mlir::success();
   }
 };
 
-using CIRCeilOpLowering =
-    CIRUnaryFPBuiltinOpLowering<mlir::cir::CeilOp, mlir::LLVM::FCeilOp>;
-using CIRFloorOpLowering =
-    CIRUnaryFPBuiltinOpLowering<mlir::cir::FloorOp, mlir::LLVM::FFloorOp>;
-using CIRFabsOpLowering =
-    CIRUnaryFPBuiltinOpLowering<mlir::cir::FAbsOp, mlir::LLVM::FAbsOp>;
-using CIRNearbyintOpLowering =
-    CIRUnaryFPBuiltinOpLowering<mlir::cir::NearbyintOp,
-                                mlir::LLVM::NearbyintOp>;
-using CIRRintOpLowering =
-    CIRUnaryFPBuiltinOpLowering<mlir::cir::RintOp, mlir::LLVM::RintOp>;
-using CIRRoundOpLowering =
-    CIRUnaryFPBuiltinOpLowering<mlir::cir::RoundOp, mlir::LLVM::RoundOp>;
-using CIRTruncOpLowering =
-    CIRUnaryFPBuiltinOpLowering<mlir::cir::TruncOp, mlir::LLVM::FTruncOp>;
+class CIRUndefOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::UndefOp> {
 
-using CIRLroundOpLowering =
-    CIRUnaryFPBuiltinOpLowering<mlir::cir::LroundOp, mlir::LLVM::LroundOp>;
-using CIRLLroundOpLowering =
-    CIRUnaryFPBuiltinOpLowering<mlir::cir::LLroundOp, mlir::LLVM::LlroundOp>;
-using CIRLrintOpLowering =
-    CIRUnaryFPBuiltinOpLowering<mlir::cir::LrintOp, mlir::LLVM::LrintOp>;
-using CIRLLrintOpLowering =
-    CIRUnaryFPBuiltinOpLowering<mlir::cir::LLrintOp, mlir::LLVM::LlrintOp>;
-
-template <typename CIROp, typename LLVMOp>
-class CIRBinaryFPToFPBuiltinOpLowering
-    : public mlir::OpConversionPattern<CIROp> {
-public:
-  using mlir::OpConversionPattern<CIROp>::OpConversionPattern;
+  using mlir::OpConversionPattern<mlir::cir::UndefOp>::OpConversionPattern;
 
   mlir::LogicalResult
-  matchAndRewrite(CIROp op,
-                  typename mlir::OpConversionPattern<CIROp>::OpAdaptor adaptor,
+  matchAndRewrite(mlir::cir::UndefOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    auto resTy = this->getTypeConverter()->convertType(op.getType());
-    rewriter.replaceOpWithNewOp<LLVMOp>(op, resTy, adaptor.getLhs(),
-                                        adaptor.getRhs());
+    auto typ = getTypeConverter()->convertType(op.getRes().getType());
+    
+    rewriter.replaceOpWithNewOp<mlir::LLVM::UndefOp>(op, typ);
     return mlir::success();
   }
 };
 
-using CIRCopysignOpLowering =
-    CIRBinaryFPToFPBuiltinOpLowering<mlir::cir::CopysignOp,
-                                     mlir::LLVM::CopySignOp>;
-using CIRFMaxOpLowering =
-    CIRBinaryFPToFPBuiltinOpLowering<mlir::cir::FMaxOp, mlir::LLVM::MaxNumOp>;
-using CIRFMinOpLowering =
-    CIRBinaryFPToFPBuiltinOpLowering<mlir::cir::FMinOp, mlir::LLVM::MinNumOp>;
 
 void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
                                          mlir::TypeConverter &converter) {
@@ -3363,7 +3330,7 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
       CIRCeilOpLowering, CIRFloorOpLowering, CIRFAbsOpLowering,
       CIRNearbyintOpLowering, CIRRintOpLowering, CIRRoundOpLowering,
       CIRTruncOpLowering, CIRCopysignOpLowering, CIRFMaxOpLowering,
-      CIRFMinOpLowering>(converter, patterns.getContext());
+      CIRFMinOpLowering, CIRUndefOpLowering>(converter, patterns.getContext());
 }
 
 namespace {
@@ -3598,7 +3565,11 @@ void collect_unreachable(mlir::Operation *parent,
 }
 
 void ConvertCIRToLLVMPass::runOnOperation() {
+
   auto module = getOperation();
+
+  module.dump();
+
   mlir::DataLayout dataLayout(module);
   mlir::LLVMTypeConverter converter(&getContext());
   prepareTypeConverter(converter, dataLayout);
