@@ -30,6 +30,7 @@
 #include "mlir/Dialect/SCF/Transforms/Passes.h"
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/Operation.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Support/LogicalResult.h"
@@ -818,7 +819,27 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::ConditionOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
+    auto *parentOp = op->getParentOp();
+    return llvm::TypeSwitch<mlir::Operation *, mlir::LogicalResult>(parentOp)
+        .Case<mlir::scf::ForOp, mlir::scf::WhileOp>([&](auto) {
+          rewriter.replaceOpWithNewOp<mlir::scf::ConditionOp>(
+              op, adaptor.getCondition(), adaptor.getOperands());
+          return mlir::success();
+        })
+        .Default([](auto) { return mlir::failure(); });
+  }
+};
 
+class CIRForOpLowering : public mlir::OpConversionPattern<mlir::cir::ForOp> {
+public:
+  using OpConversionPattern<mlir::cir::ForOp>::OpConversionPattern;
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::ForOp forOp, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    // build mlir::scf::for need
+    // function_ref<void(OpBuilder &, Location)> condBuilder,
+    // function_ref<void(OpBuilder &, Location)> bodyBuilder,
+    // function_ref<void(OpBuilder &, Location)> stepBuilder
     return mlir::success();
   }
 };
