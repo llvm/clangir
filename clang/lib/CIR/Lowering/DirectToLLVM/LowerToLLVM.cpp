@@ -66,6 +66,7 @@
 #include <deque>
 #include <optional>
 #include <set>
+#include <iostream>
 
 using namespace cir;
 using namespace llvm;
@@ -497,17 +498,16 @@ public:
     // Zero-extend, sign-extend or trunc the pointer value.
     auto index = adaptor.getStride();
     auto width = index.getType().cast<mlir::IntegerType>().getWidth();
-    mlir::DataLayout LLVMLayout(
-        index.getDefiningOp()->getParentOfType<mlir::ModuleOp>());
+    mlir::DataLayout LLVMLayout(ptrStrideOp->getParentOfType<mlir::ModuleOp>());
     auto layoutWidth =
         LLVMLayout.getTypeIndexBitwidth(adaptor.getBase().getType());
     if (layoutWidth && width != *layoutWidth) {
       // If the index comes from a subtraction, make sure the extension happens
       // before it. To achieve that, look at unary minus, which already got
       // lowered to "sub 0, x".
-      auto sub = dyn_cast<mlir::LLVM::SubOp>(index.getDefiningOp());
+      auto sub = dyn_cast_or_null<mlir::LLVM::SubOp>(index.getDefiningOp());
       auto unary =
-          dyn_cast<mlir::cir::UnaryOp>(ptrStrideOp.getStride().getDefiningOp());
+          dyn_cast_or_null<mlir::cir::UnaryOp>(ptrStrideOp.getStride().getDefiningOp());
       bool rewriteSub =
           unary && unary.getKind() == mlir::cir::UnaryOpKind::Minus && sub;
       if (rewriteSub)
@@ -3146,6 +3146,21 @@ private:
   }
 };
 
+class CIRUndefOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::UndefOp> {
+
+  using mlir::OpConversionPattern<mlir::cir::UndefOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::UndefOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto typ = getTypeConverter()->convertType(op.getRes().getType());
+    
+    rewriter.replaceOpWithNewOp<mlir::LLVM::UndefOp>(op, typ);
+    return mlir::success();
+  }
+};
+
 void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
                                          mlir::TypeConverter &converter) {
   patterns.add<CIRReturnLowering>(patterns.getContext());
@@ -3170,7 +3185,7 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
       CIRStackRestoreLowering, CIRUnreachableLowering, CIRTrapLowering,
       CIRInlineAsmOpLowering, CIRSetBitfieldLowering, CIRGetBitfieldLowering,
       CIRPrefetchLowering, CIRObjSizeOpLowering, CIRIsConstantOpLowering,
-      CIRCmpThreeWayOpLowering>(converter, patterns.getContext());
+      CIRCmpThreeWayOpLowering, CIRUndefOpLowering>(converter, patterns.getContext());
 }
 
 namespace {
@@ -3382,7 +3397,11 @@ void collect_unreachable(mlir::Operation *parent,
 }
 
 void ConvertCIRToLLVMPass::runOnOperation() {
+
   auto module = getOperation();
+
+  module.dump();
+
   mlir::DataLayout dataLayout(module);
   mlir::LLVMTypeConverter converter(&getContext());
   prepareTypeConverter(converter, dataLayout);
