@@ -328,8 +328,8 @@ mlir::LogicalResult CIRGenFunction::buildLabelStmt(const clang::LabelStmt &S) {
   // IsEHa: not implemented.
   assert(!(getContext().getLangOpts().EHAsynch && S.isSideEntry()));
 
-  // TODO: After support case stmt crossing scopes, we should build LabelStmt
-  //       and clean LexicalScope::IsInsideCaseNoneStmt.
+  // TODO(cir): After support case stmt crossing scopes, we should build
+  // LabelStmt and clean LexicalScope::IsInsideCaseNoneStmt.
   for (auto *lexScope = currLexScope; lexScope;
        lexScope = lexScope->getParentScope()) {
     assert(!lexScope->IsInsideCaseNoneStmt &&
@@ -467,8 +467,8 @@ mlir::LogicalResult CIRGenFunction::buildReturnStmt(const ReturnStmt &S) {
   assert(!UnimplementedFeature::requiresReturnValueCheck());
   auto loc = getLoc(S.getSourceRange());
 
-  // TODO: Rewrite the logic to handle ReturnStmt inside SwitchStmt, then
-  //       clean up the code below.
+  // TODO(cir): Rewrite the logic to handle ReturnStmt inside SwitchStmt, then
+  // clean up the code below.
   if (currLexScope->IsInsideCaseNoneStmt)
     return mlir::success();
 
