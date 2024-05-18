@@ -146,7 +146,7 @@ public:
 
   mlir::TypedAttr getConstNullPtrAttr(mlir::Type t) {
     assert(mlir::isa<mlir::cir::PointerType>(t) && "expected cir.ptr");
-    return mlir::cir::ConstPtrAttr::get(getContext(), t, 0);
+    return getConstPtrAttr(t, 0);
   }
 
   mlir::Attribute getString(llvm::StringRef str, mlir::Type eltTy,
@@ -257,7 +257,7 @@ public:
     if (auto arrTy = mlir::dyn_cast<mlir::cir::ArrayType>(ty))
       return getZeroAttr(arrTy);
     if (auto ptrTy = mlir::dyn_cast<mlir::cir::PointerType>(ty))
-      return getConstPtrAttr(ptrTy, 0);
+      return getConstNullPtrAttr(ptrTy);
     if (auto structTy = mlir::dyn_cast<mlir::cir::StructType>(ty))
       return getZeroAttr(structTy);
     if (mlir::isa<mlir::cir::BoolType>(ty)) {
