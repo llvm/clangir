@@ -58,6 +58,36 @@ static RValue buildUnaryFPBuiltin(CIRGenFunction &CGF, const CallExpr &E) {
 }
 
 template <typename Op>
+static RValue buildBinaryFPBuiltin(CIRGenFunction &CGF, const CallExpr &E) {
+  auto Arg0 = CGF.buildScalarExpr(E.getArg(0));
+  auto Arg1 = CGF.buildScalarExpr(E.getArg(1));
+
+  auto Loc = CGF.getLoc(E.getExprLoc());
+  auto Ty = CGF.ConvertType(E.getType());
+  auto Call = CGF.getBuilder().create<Op>(Loc, Ty, Arg0, Arg1);
+
+  return RValue::get(Call->getResult(0));
+}
+
+template <typename Op>
+static mlir::Value buildBinaryMaybeConstrainedFPBuiltin(CIRGenFunction &CGF,
+                                                        const CallExpr &E) {
+  auto Arg0 = CGF.buildScalarExpr(E.getArg(0));
+  auto Arg1 = CGF.buildScalarExpr(E.getArg(1));
+
+  auto Loc = CGF.getLoc(E.getExprLoc());
+  auto Ty = CGF.ConvertType(E.getType());
+
+  if (CGF.getBuilder().getIsFPConstrained()) {
+    CIRGenFunction::CIRGenFPOptionsRAII FPOptsRAII(CGF, &E);
+    llvm_unreachable("constrained FP operations are NYI");
+  } else {
+    auto Call = CGF.getBuilder().create<Op>(Loc, Ty, Arg0, Arg1);
+    return Call->getResult(0);
+  }
+}
+
+template <typename Op>
 static RValue
 buildBuiltinBitOp(CIRGenFunction &CGF, const CallExpr *E,
                   std::optional<CIRGenFunction::BuiltinCheckKind> CK) {
@@ -293,7 +323,7 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     case Builtin::BI__builtin_copysignf16:
     case Builtin::BI__builtin_copysignl:
     case Builtin::BI__builtin_copysignf128:
-      llvm_unreachable("NYI");
+      return buildBinaryFPBuiltin<mlir::cir::CopysignOp>(*this, *E);
 
     case Builtin::BIcos:
     case Builtin::BIcosf:
@@ -363,7 +393,8 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     case Builtin::BI__builtin_fmaxf16:
     case Builtin::BI__builtin_fmaxl:
     case Builtin::BI__builtin_fmaxf128:
-      llvm_unreachable("NYI");
+      return RValue::get(
+          buildBinaryMaybeConstrainedFPBuiltin<mlir::cir::FMaxOp>(*this, *E));
 
     case Builtin::BIfmin:
     case Builtin::BIfminf:
@@ -373,7 +404,8 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     case Builtin::BI__builtin_fminf16:
     case Builtin::BI__builtin_fminl:
     case Builtin::BI__builtin_fminf128:
-      llvm_unreachable("NYI");
+      return RValue::get(
+          buildBinaryMaybeConstrainedFPBuiltin<mlir::cir::FMinOp>(*this, *E));
 
     // fmod() is a special-case. It maps to the frem instruction rather than an
     // LLVM intrinsic.
@@ -384,9 +416,8 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     case Builtin::BI__builtin_fmodf:
     case Builtin::BI__builtin_fmodf16:
     case Builtin::BI__builtin_fmodl:
-    case Builtin::BI__builtin_fmodf128: {
-      llvm_unreachable("NYI");
-    }
+    case Builtin::BI__builtin_fmodf128:
+      return buildBinaryFPBuiltin<mlir::cir::FModOp>(*this, *E);
 
     case Builtin::BIlog:
     case Builtin::BIlogf:
@@ -435,7 +466,8 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     case Builtin::BI__builtin_powf16:
     case Builtin::BI__builtin_powl:
     case Builtin::BI__builtin_powf128:
-      llvm_unreachable("NYI");
+      return RValue::get(
+          buildBinaryMaybeConstrainedFPBuiltin<mlir::cir::PowOp>(*this, *E));
 
     case Builtin::BIrint:
     case Builtin::BIrintf:
