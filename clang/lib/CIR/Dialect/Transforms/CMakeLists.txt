@@ -1,3 +1,5 @@
+add_subdirectory(TargetLowering)
+
 add_clang_library(MLIRCIRTransforms
   LifetimeCheck.cpp
   LoweringPrepare.cpp
@@ -19,6 +21,7 @@ add_clang_library(MLIRCIRTransforms
   LINK_LIBS PUBLIC
   clangAST
   clangBasic
+  TargetLowering
 
   MLIRAnalysis
   MLIRIR
