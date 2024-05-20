@@ -1,18 +1,19 @@
-//====- LoweringPrepareItaniumCXXABI.h - Itanium ABI specific code --------===//
+//====- LoweringPrepareItaniumCXXABI.cpp - Itanium ABI specific code-----===//
 //
-// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// Part of the LLVM Project, under the Apache License v2.0 with
+// LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------===//
 //
-// This file provides Itanium C++ ABI specific code that is used during LLVMIR
-// lowering prepare.
+// This file provides Itanium C++ ABI specific code
+// that is used during LLVMIR lowering prepare.
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------===//
 
+#include "LoweringPrepareItaniumCXXABI.h"
 #include "../IR/MissingFeatures.h"
-#include "LoweringPrepareCXXABI.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/Value.h"
 #include "mlir/IR/ValueRange.h"
@@ -23,18 +24,7 @@
 
 using namespace cir;
 
-namespace {
-
-class LoweringPrepareItaniumCXXABI : public LoweringPrepareCXXABI {
-public:
-  mlir::Value lowerDynamicCast(CIRBaseBuilderTy &builder,
-                               clang::ASTContext &astCtx,
-                               mlir::cir::DynamicCastOp op) override;
-};
-
-} // namespace
-
-LoweringPrepareCXXABI *LoweringPrepareCXXABI::createItaniumABI() {
+cir::LoweringPrepareCXXABI *cir::LoweringPrepareCXXABI::createItaniumABI() {
   return new LoweringPrepareItaniumCXXABI();
 }
 
@@ -168,4 +158,11 @@ LoweringPrepareItaniumCXXABI::lowerDynamicCast(CIRBaseBuilderTy &builder,
                 loc, builder.getNullPtr(op.getType(), loc).getResult());
           })
       .getResult();
+}
+
+mlir::Value LoweringPrepareItaniumCXXABI::lowerVAArg(CIRBaseBuilderTy &builder,
+                                                     mlir::cir::VAArgOp op) {
+  // There is no generic cir lowering for var_arg, here we fail
+  // so to prevent attempt of calling lowerVAArg for ItaniumCXXABI
+  llvm_unreachable("NYI");
 }
