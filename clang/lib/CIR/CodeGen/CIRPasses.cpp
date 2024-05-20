@@ -73,6 +73,8 @@ mlir::LogicalResult runCIRToCIRPasses(
 
   if (flattenCIR)
     mlir::populateCIRPreLoweringPasses(pm);
+    pm.addPass(mlir::createMem2Reg());
+  }
 
   if (emitMLIR)
     pm.addPass(mlir::createSCFPreparePass());

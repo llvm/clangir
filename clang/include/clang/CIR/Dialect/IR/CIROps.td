@@ -2301,7 +2301,7 @@ def GetBitfieldOp : CIR_Op<"get_bitfield"> {
 // GetMemberOp
 //===----------------------------------------------------------------------===//
 
-def GetMemberOp : CIR_Op<"get_member"> {
+def GetMemberOp : CIR_Op<"get_member", [DeclareOpInterfaceMethods<PromotableOpInterface>] > {
   let summary = "Get the address of a member of a struct";
   let description = [{
     The `cir.get_member` operation gets the address of a particular named
@@ -3196,7 +3196,7 @@ def CatchParamOp : CIR_Op<"catch_param"> {
 // CopyOp
 //===----------------------------------------------------------------------===//
 
-def CopyOp : CIR_Op<"copy", [SameTypeOperands]> {
+def CopyOp : CIR_Op<"copy", [SameTypeOperands, DeclareOpInterfaceMethods<PromotableMemOpInterface>]> {
   let arguments = (ins Arg<CIR_PointerType, "", [MemWrite]>:$dst,
                        Arg<CIR_PointerType, "", [MemRead]>:$src,
                        UnitAttr:$is_volatile);
