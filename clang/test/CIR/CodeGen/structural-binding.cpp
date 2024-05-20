@@ -39,10 +39,11 @@ struct tuple_element<I, C> { using type = const int; };
 
 }
 
+
+// binding to data members
 void f(A &a) {
   // CHECK: @_Z1fR1A
 
-  // binding to data members
   auto &[x, y, z] = a;
   (x, y, z);
   // CHECK: %[[a:.*]] = cir.load %1 : !cir.ptr<!cir.ptr<!ty_22A22>>, !cir.ptr<!ty_22A22>
@@ -68,13 +69,15 @@ void f(A &a) {
 
   const auto [x5, y5, z5] = a;
   (x5, y5, z5);
+}
 
-  // binding a tuple-like type
-  C c(1, 2);
+// binding to a tuple-like type
+void g(C &c) {
+  // CHECK: @_Z1gR1C
 
   auto [x8, y8] = c;
   (x8, y8);
-  // CHECK: cir.call @_ZN1CC1ERKS_(%[[c:.*]], %6) : (!cir.ptr<!ty_22C22>, !cir.ptr<!ty_22C22>) -> ()
+  // CHECK: cir.call @_ZN1CC1ERKS_(%[[c:.*]], %7) : (!cir.ptr<!ty_22C22>, !cir.ptr<!ty_22C22>) -> ()
   // CHECK: %[[x8:.*]] = cir.call @_Z3getILj0EERKiRK1C(%[[c]]) : (!cir.ptr<!ty_22C22>) -> !cir.ptr<!s32i>
   // CHECK: cir.store %[[x8]], %[[x8p:.*]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
   // CHECK: %[[x9:.*]] = cir.call @_Z3getILj1EERKiRK1C(%[[c]]) : (!cir.ptr<!ty_22C22>) -> !cir.ptr<!s32i>
@@ -84,7 +87,7 @@ void f(A &a) {
 
   auto &[x9, y9] = c;
   (x9, y9);
-  // CHECK: cir.store %6, %[[cp:.*]] : !cir.ptr<!ty_22C22>, !cir.ptr<!cir.ptr<!ty_22C22>>
+  // CHECK: cir.store %12, %[[cp:.*]] : !cir.ptr<!ty_22C22>, !cir.ptr<!cir.ptr<!ty_22C22>>
   // CHECK: %[[c:.*]] = cir.load %[[cp]] : !cir.ptr<!cir.ptr<!ty_22C22>>, !cir.ptr<!ty_22C22>
   // CHECK: %[[x8:.*]] = cir.call @_Z3getILj0EERKiRK1C(%[[c]]) : (!cir.ptr<!ty_22C22>) -> !cir.ptr<!s32i>
   // CHECK: cir.store %[[x8]], %[[x8p:.*]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
@@ -92,9 +95,8 @@ void f(A &a) {
   // CHECK: %[[x9:.*]] = cir.call @_Z3getILj1EERKiRK1C(%[[c]]) : (!cir.ptr<!ty_22C22>) -> !cir.ptr<!s32i>
   // CHECK: cir.store %[[x9]], %[[x9p:.*]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
   // CHECK: {{.*}} = cir.load %[[x8p]] : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
-  // CHECK: {{.*}} = cir.load %[[x9p]] : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
-
-  
-  // TODO: add test case for binding to an array type
-  // after ArrayInitLoopExpr is supported
+  // CHECK: {{.*}} = cir.load %[[x9p]] : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i> 
 }
+
+// TODO: add test case for binding to an array type
+// after ArrayInitLoopExpr is supported
