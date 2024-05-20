@@ -101,3 +101,70 @@ DeletionKind cir::StoreOp::removeBlockingUses(
     const DataLayout &dataLayout) {
   return DeletionKind::Delete;
 }
+
+
+//===----------------------------------------------------------------------===//
+// Interfaces for CopyOp
+//===----------------------------------------------------------------------===//
+
+
+bool cir::CopyOp::loadsFrom(const MemorySlot &slot) {
+  return getSrc() == slot.ptr;
+}
+
+bool cir::CopyOp::storesTo(const MemorySlot &slot) {
+  return getDst() == slot.ptr;
+}
+
+Value cir::CopyOp::getStored(const MemorySlot &slot, RewriterBase &rewriter,
+                             Value reachingDef,
+                             const DataLayout &dataLayout) {
+  return rewriter.create<cir::LoadOp>(getLoc(), slot.elemType, getSrc());
+}
+
+
+DeletionKind cir::CopyOp::removeBlockingUses(const MemorySlot &slot,
+                         const SmallPtrSetImpl<OpOperand *> &blockingUses,
+                         RewriterBase &rewriter, Value reachingDefinition,
+                         const DataLayout &dataLayout) {
+  if (loadsFrom(slot))
+    rewriter.create<cir::StoreOp>(getLoc(), reachingDefinition, getDst(), 
+                                  false, mlir::cir::MemOrderAttr());
+  return DeletionKind::Delete;
+}
+
+bool cir::CopyOp::canUsesBeRemoved(
+    const MemorySlot &slot, const SmallPtrSetImpl<OpOperand *> &blockingUses,
+    SmallVectorImpl<OpOperand *> &newBlockingUses,
+    const DataLayout &dataLayout) {
+  
+  if (getDst() == getSrc())
+    return false;
+
+  return getLength() == dataLayout.getTypeSize(slot.elemType);
+}
+
+/// Conditions the deletion of the operation to the removal of all its uses.
+static bool forwardToUsers(Operation *op,
+                           SmallVectorImpl<OpOperand *> &newBlockingUses) {
+  for (Value result : op->getResults())
+    for (OpOperand &use : result.getUses())
+      newBlockingUses.push_back(&use);
+  return true;
+}
+
+bool cir::GetMemberOp::canUsesBeRemoved(
+    const SmallPtrSetImpl<OpOperand *> &blockingUses,
+    SmallVectorImpl<OpOperand *> &newBlockingUses,
+    const DataLayout &dataLayout) {
+  // GetMemberOp can be removed as long as it is a no-op and its users can be removed.
+  if (getIndex() != 0)
+    return false; 
+  return forwardToUsers(*this, newBlockingUses);
+}
+
+DeletionKind cir::GetMemberOp::removeBlockingUses(
+    const SmallPtrSetImpl<OpOperand *> &blockingUses, RewriterBase &rewriter) {
+  return DeletionKind::Delete;
+}
+

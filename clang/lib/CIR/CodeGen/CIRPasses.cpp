@@ -66,8 +66,10 @@ runCIRToCIRPasses(mlir::ModuleOp theModule, mlir::MLIRContext *mlirCtx,
   }
 
   pm.addPass(mlir::createLoweringPreparePass(&astCtx));
-  if (flattenCIR)
+  if (flattenCIR) {
     mlir::populateCIRPreLoweringPasses(pm);
+    pm.addPass(mlir::createMem2Reg());
+  }
 
   // FIXME: once CIRCodenAction fixes emission other than CIR we
   // need to run this right before dialect emission.
@@ -84,7 +86,7 @@ namespace mlir {
 void populateCIRPreLoweringPasses(OpPassManager &pm) {
   pm.addPass(createFlattenCFGPass());
   pm.addPass(createGotoSolverPass());
-  pm.addPass(mlir::createMem2Reg());
+  //pm.addPass(mlir::createMem2Reg());
 }
 
 
