@@ -7,7 +7,7 @@
 // RUN: FileCheck --input-file=%t.cir %s
 
 char string[] = "whatnow";
-// CHECK: cir.global external @string = #cir.const_array<"whatnow" : !cir.array<!s8i x 7>, trailing_zeros> : !cir.array<!s8i x 8>
+// CHECK: cir.global external @string = #cir.const_array<"whatnow\00" : !cir.array<!s8i x 8>> : !cir.array<!s8i x 8>
 char big_string[100000] = "123";
 // CHECK: cir.global external @big_string = #cir.const_array<"123" : !cir.array<!s8i x 3>, trailing_zeros> : !cir.array<!s8i x 100000>
 int sint[] = {123, 456, 789};

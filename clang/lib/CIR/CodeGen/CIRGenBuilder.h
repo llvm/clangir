@@ -160,8 +160,10 @@ public:
       auto arrayTy = mlir::cir::ArrayType::get(getContext(), eltTy, finalSize);
       return getZeroAttr(arrayTy);
     }
+    // We will use trailing zeros only if there are more than one zero
+    // at the end
     int trailingZerosNum =
-        finalSize > lastNonZeroPos ? finalSize - lastNonZeroPos - 1 : 0;
+        finalSize > lastNonZeroPos + 2 ? finalSize - lastNonZeroPos - 1 : 0;
     auto truncatedArrayTy = mlir::cir::ArrayType::get(
         getContext(), eltTy, finalSize - trailingZerosNum);
     auto fullArrayTy =

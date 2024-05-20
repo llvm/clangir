@@ -46,5 +46,5 @@ void func3(void) {
 // Should match type size in bytes between var and initializer.
 void func4(void) {
   static char string[] = "Hello";
-  // CHECK-DAG: cir.global "private" internal @func4.string = #cir.const_array<"Hello" : !cir.array<!s8i x 5>, trailing_zeros> : !cir.array<!s8i x 6> {alignment = 1 : i64}
+  // CHECK-DAG: cir.global "private" internal @func4.string = #cir.const_array<"Hello\00" : !cir.array<!s8i x 6>> : !cir.array<!s8i x 6>
 }

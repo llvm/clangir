@@ -47,12 +47,12 @@ int use_func() { return func<int>(); }
 // CHECK-NEXT: cir.global external @w = #cir.fp<4.300000e+00> : !cir.double
 // CHECK-NEXT: cir.global external @x = #cir.int<51> : !s8i
 // CHECK-NEXT: cir.global external @rgb = #cir.const_array<[#cir.int<0> : !u8i, #cir.int<233> : !u8i, #cir.int<33> : !u8i]> : !cir.array<!u8i x 3>
-// CHECK-NEXT: cir.global external @alpha = #cir.const_array<"abc" : !cir.array<!s8i x 3>, trailing_zeros> : !cir.array<!s8i x 4>
+// CHECK-NEXT: cir.global external @alpha = #cir.const_array<"abc\00" : !cir.array<!s8i x 4>> : !cir.array<!s8i x 4>
 
-// CHECK-NEXT: cir.global "private" constant internal @".str" = #cir.const_array<"example" : !cir.array<!s8i x 7>, trailing_zeros> : !cir.array<!s8i x 8> {alignment = 1 : i64}
+// CHECK-NEXT: cir.global "private" constant internal @".str" = #cir.const_array<"example\00" : !cir.array<!s8i x 8>> : !cir.array<!s8i x 8> {alignment = 1 : i64}
 // CHECK-NEXT: cir.global external @s = #cir.global_view<@".str"> : !cir.ptr<!s8i>
 
-// CHECK-NEXT: cir.global "private" constant internal @".str1" = #cir.const_array<"example1" : !cir.array<!s8i x 8>, trailing_zeros> : !cir.array<!s8i x 9> {alignment = 1 : i64}
+// CHECK-NEXT: cir.global "private" constant internal @".str1" = #cir.const_array<"example1\00" : !cir.array<!s8i x 9>> : !cir.array<!s8i x 9> {alignment = 1 : i64}
 // CHECK-NEXT: cir.global external @s1 = #cir.global_view<@".str1"> : !cir.ptr<!s8i>
 
 // CHECK-NEXT: cir.global external @s2 = #cir.global_view<@".str"> : !cir.ptr<!s8i>
@@ -91,7 +91,7 @@ int use_func() { return func<int>(); }
 
 
 char string[] = "whatnow";
-// CHECK: cir.global external @string = #cir.const_array<"whatnow" : !cir.array<!s8i x 7>, trailing_zeros> : !cir.array<!s8i x 8>
+// CHECK: cir.global external @string = #cir.const_array<"whatnow\00" : !cir.array<!s8i x 8>> : !cir.array<!s8i x 8>
 unsigned uint[] = {255};
 // CHECK: cir.global external @uint = #cir.const_array<[#cir.int<255> : !u32i]> : !cir.array<!u32i x 1>
 short sshort[] = {11111, 22222};
