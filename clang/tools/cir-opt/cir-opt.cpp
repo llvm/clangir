@@ -62,6 +62,11 @@ int main(int argc, char **argv) {
     return mlir::createReconcileUnrealizedCastsPass();
   });
 
+  mlir::PassPipelineRegistration<mlir::EmptyPipelineOptions> flatPipeline(
+      "cir-flat", "", [](mlir::OpPassManager &pm) {
+        mlir::populateCIRPreLoweringPasses(pm);
+      });
+
   mlir::registerTransformsPasses();
 
   return failed(MlirOptMain(

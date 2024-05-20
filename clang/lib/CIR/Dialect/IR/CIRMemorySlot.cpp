@@ -9,6 +9,15 @@
 
 using namespace mlir;
 
+/// Conditions the deletion of the operation to the removal of all its uses.
+static bool forwardToUsers(Operation *op,
+                           SmallVectorImpl<OpOperand *> &newBlockingUses) {
+  for (Value result : op->getResults())
+    for (OpOperand &use : result.getUses())
+      newBlockingUses.push_back(&use);
+  return true;
+}
+
 //===----------------------------------------------------------------------===//
 // Interfaces for AllocaOp
 //===----------------------------------------------------------------------===//
@@ -107,7 +116,6 @@ DeletionKind cir::StoreOp::removeBlockingUses(
 // Interfaces for CopyOp
 //===----------------------------------------------------------------------===//
 
-
 bool cir::CopyOp::loadsFrom(const MemorySlot &slot) {
   return getSrc() == slot.ptr;
 }
@@ -144,14 +152,9 @@ bool cir::CopyOp::canUsesBeRemoved(
   return getLength() == dataLayout.getTypeSize(slot.elemType);
 }
 
-/// Conditions the deletion of the operation to the removal of all its uses.
-static bool forwardToUsers(Operation *op,
-                           SmallVectorImpl<OpOperand *> &newBlockingUses) {
-  for (Value result : op->getResults())
-    for (OpOperand &use : result.getUses())
-      newBlockingUses.push_back(&use);
-  return true;
-}
+//===----------------------------------------------------------------------===//
+// Interfaces for GetMemberOp
+//===----------------------------------------------------------------------===//
 
 bool cir::GetMemberOp::canUsesBeRemoved(
     const SmallPtrSetImpl<OpOperand *> &blockingUses,
@@ -168,3 +171,21 @@ DeletionKind cir::GetMemberOp::removeBlockingUses(
   return DeletionKind::Delete;
 }
 
+//===----------------------------------------------------------------------===//
+// Interfaces for CastOp
+//===----------------------------------------------------------------------===//
+
+bool cir::CastOp::canUsesBeRemoved(
+    const SmallPtrSetImpl<OpOperand *> &blockingUses,
+    SmallVectorImpl<OpOperand *> &newBlockingUses,
+    const DataLayout &dataLayout) {
+  if (getKind() == cir::CastKind::bitcast)
+    return forwardToUsers(*this, newBlockingUses);
+  else 
+    return false;
+}
+
+DeletionKind cir::CastOp::removeBlockingUses(
+    const SmallPtrSetImpl<OpOperand *> &blockingUses, RewriterBase &rewriter) {
+  return DeletionKind::Delete;
+}
