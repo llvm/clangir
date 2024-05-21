@@ -2785,6 +2785,7 @@ class CIR_CallOp<string mnemonic, list<Trait> extra_traits = []> :
   dag commonArgs = (ins
     OptionalAttr<FlatSymbolRefAttr>:$callee,
     Variadic<CIR_AnyType>:$arg_ops,
+    ExtraFuncAttr:$extra_attrs,
     OptionalAttr<ASTCallExprInterface>:$ast
   );
 }
