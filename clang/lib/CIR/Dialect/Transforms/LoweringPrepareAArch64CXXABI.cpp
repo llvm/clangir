@@ -14,6 +14,7 @@
 
 #include "../IR/MissingFeatures.h"
 #include "LoweringPrepareItaniumCXXABI.h"
+#include "clang/AST/CharUnits.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 
 #include <assert.h>
@@ -67,6 +68,8 @@ LoweringPrepareAArch64CXXABI::lowerAAPCSVAArg(cir::CIRBaseBuilderTy &builder,
   assert(!cir::MissingFeatures::classifyArgumentTypeForAArch64());
   // indirect arg passing would expect one more level of pointer dereference.
   assert(!cir::MissingFeatures::handleAArch64Indirect());
+  // false as a place holder for now, as we don't have a way to query
+  bool isIndirect = false;
   assert(!cir::MissingFeatures::supportgetCoerceToTypeForAArch64());
   // we don't convert to LLVM Type here as we are lowering to CIR here.
   // so baseTy is the just type of the result of va_arg.
@@ -82,7 +85,7 @@ LoweringPrepareAArch64CXXABI::lowerAAPCSVAArg(cir::CIRBaseBuilderTy &builder,
   if (Kind == AArch64ABIKind::AAPCSSoft) {
     llvm_unreachable("AAPCSSoft cir.var_arg lowering NYI");
   }
-  bool IsFPR = mlir::cir::isAnyFloatingPointType(opResTy);
+  bool IsFPR = mlir::cir::isAnyFloatingPointType(baseTy);
 
   // The AArch64 va_list type and handling is specified in the Procedure Call
   // Standard, section B.4:
@@ -111,13 +114,19 @@ LoweringPrepareAArch64CXXABI::lowerAAPCSVAArg(cir::CIRBaseBuilderTy &builder,
   // though anyone passing 2GB of arguments, each at most 16 bytes, deserves
   // whatever they get).
 
-  assert(!cir::MissingFeatures::handleAArch64Indirect());
   assert(!cir::MissingFeatures::supportTySizeQueryForAArch64());
   assert(!cir::MissingFeatures::supportTyAlignQueryForAArch64());
+  // One is just place holder for now, as we don't have a way to query
+  // type size and alignment.
+  clang::CharUnits tySize = clang::CharUnits::One();
+  clang::CharUnits tyAlign = clang::CharUnits::One();
+  ;
+
   // indirectness, type size and type alignment all
   // decide regSize, but they are all ABI defined
   // thus need ABI lowering query system.
-  int regSize = 8;
+  assert(!cir::MissingFeatures::handleAArch64Indirect());
+  int regSize = isIndirect ? 8 : tySize.getQuantity();
   int regTopIndex;
   mlir::Value regOffsP;
   mlir::cir::LoadOp regOffs;
@@ -160,9 +169,10 @@ LoweringPrepareAArch64CXXABI::lowerAAPCSVAArg(cir::CIRBaseBuilderTy &builder,
   // Integer arguments may need to correct register alignment (for example a
   // "struct { __int128 a; };" gets passed in x_2N, x_{2N+1}). In this case we
   // align __gr_offs to calculate the potential address.
-  if (!IsFPR) {
+  if (!IsFPR && !isIndirect && tyAlign.getQuantity() > 8) {
     assert(!cir::MissingFeatures::handleAArch64Indirect());
     assert(!cir::MissingFeatures::supportTyAlignQueryForAArch64());
+    llvm_unreachable("register alignment correction NYI");
   }
 
   // Update the gr_offs/vr_offs pointer for next call to va_arg on this va_list.
@@ -193,6 +203,49 @@ LoweringPrepareAArch64CXXABI::lowerAAPCSVAArg(cir::CIRBaseBuilderTy &builder,
   auto i8Ty = mlir::IntegerType::get(builder.getContext(), 8);
   auto i8PtrTy = mlir::cir::PointerType::get(builder.getContext(), i8Ty);
   auto castRegTop = builder.createBitcast(regTop, i8PtrTy);
+  auto resAsInt8P = builder.create<mlir::cir::PtrStrideOp>(
+      loc, castRegTop.getType(), castRegTop, regOffs);
+
+  if (isIndirect) {
+    assert(!cir::MissingFeatures::handleAArch64Indirect());
+    llvm_unreachable("indirect arg passing NYI");
+  }
+
+  // TODO: isHFA, numMembers and base should be query result from query
+  uint64_t numMembers = 0;
+  assert(!cir::MissingFeatures::supportisHomogeneousAggregateQueryForAArch64());
+  bool isHFA = false;
+  assert(!cir::MissingFeatures::supportisEndianQueryForAArch64());
+  // TODO: endianess should be query result from ABI info
+  bool isBigEndian = false;
+  assert(!cir::MissingFeatures::supportisAggregateTypeForABIAArch64());
+  // TODO: isAggregateTypeForABI should be query result from ABI info
+  bool isAggregateTypeForABI = false;
+  if (isHFA && numMembers > 1) {
+    // Homogeneous aggregates passed in registers will have their elements split
+    // and stored 16-bytes apart regardless of size (they're notionally in qN,
+    // qN+1, ...). We reload and store into a temporary local variable
+    // contiguously.
+    assert(!isIndirect && "Homogeneous aggregates should be passed directly");
+    llvm_unreachable("Homogeneous aggregates NYI");
+  } else {
+    assert(!cir::MissingFeatures::supportTyAlignQueryForAArch64());
+    // TODO: slotSize should be query result about alignment.
+    clang::CharUnits slotSize = clang::CharUnits::fromQuantity(8);
+    if (isBigEndian && !isIndirect && (isHFA || isAggregateTypeForABI) &&
+        tySize < slotSize) {
+      clang::CharUnits offset = slotSize - tySize;
+      auto offsetConst = builder.create<mlir::cir::ConstantOp>(
+          loc, regOffs.getType(),
+          mlir::cir::IntAttr::get(regOffs.getType(), offset.getQuantity()));
+
+      resAsInt8P = builder.create<mlir::cir::PtrStrideOp>(
+          loc, castRegTop.getType(), resAsInt8P, offsetConst);
+    }
+  }
+
+  auto resAsVoidP = builder.createBitcast(resAsInt8P, regTop.getType());
+
   // On big-endian platforms, the value will be right-aligned in its stack slot.
   // and we also need to think about other ABI lowering concerns listed below.
   assert(!cir::MissingFeatures::handleBigEndian());
@@ -201,9 +254,6 @@ LoweringPrepareAArch64CXXABI::lowerAAPCSVAArg(cir::CIRBaseBuilderTy &builder,
   assert(!cir::MissingFeatures::supportTySizeQueryForAArch64());
   assert(!cir::MissingFeatures::supportTyAlignQueryForAArch64());
 
-  auto resAsInt8P = builder.create<mlir::cir::PtrStrideOp>(
-      loc, castRegTop.getType(), castRegTop, regOffs);
-  auto resAsVoidP = builder.createBitcast(resAsInt8P, regTop.getType());
   builder.create<mlir::cir::BrOp>(loc, mlir::ValueRange{resAsVoidP}, contBlock);
 
   //=======================================
@@ -216,25 +266,57 @@ LoweringPrepareAArch64CXXABI::lowerAAPCSVAArg(cir::CIRBaseBuilderTy &builder,
   auto ptrDiffTy =
       mlir::cir::IntType::get(builder.getContext(), 64, /*signed=*/false);
 
+  assert(!cir::MissingFeatures::handleAArch64Indirect());
+  assert(!cir::MissingFeatures::supportTyAlignQueryForAArch64());
+  // Again, stack arguments may need realignment. In this case both integer and
+  // floating-point ones might be affected.
+  if (!isIndirect && tyAlign.getQuantity() > 8) {
+    // TODO: this algorithm requres casting from ptr type to int type, then
+    // back to ptr type thus needs careful handling. NYI now.
+    llvm_unreachable("alignment greater than 8 NYI");
+  }
+
+  // All stack slots are multiples of 8 bytes.
+  clang::CharUnits stackSlotSize = clang::CharUnits::fromQuantity(8);
+  clang::CharUnits stackSize;
+  if (isIndirect)
+    stackSize = stackSlotSize;
+  else
+    stackSize = tySize.alignTo(stackSlotSize);
+
   // On big-endian platforms, the value will be right-aligned in its stack slot
   // Also, the consideration involves type size and alignment, arg indirectness
   // which are all ABI defined thus need ABI lowering query system.
   // The implementation we have now supports most common cases which assumes
   // no indirectness, no alignment greater than 8, and little endian.
   assert(!cir::MissingFeatures::handleBigEndian());
-  assert(!cir::MissingFeatures::handleAArch64Indirect());
-  assert(!cir::MissingFeatures::supportTyAlignQueryForAArch64());
   assert(!cir::MissingFeatures::supportTySizeQueryForAArch64());
 
-  auto eight = builder.create<mlir::cir::ConstantOp>(
-      loc, ptrDiffTy, mlir::cir::IntAttr::get(ptrDiffTy, 8));
+  auto stackSizeC = builder.create<mlir::cir::ConstantOp>(
+      loc, ptrDiffTy,
+      mlir::cir::IntAttr::get(ptrDiffTy, stackSize.getQuantity()));
   auto castStack = builder.createBitcast(onStackPtr, i8PtrTy);
   // Write the new value of __stack for the next call to va_arg
   auto newStackAsi8Ptr = builder.create<mlir::cir::PtrStrideOp>(
-      loc, castStack.getType(), castStack, eight);
+      loc, castStack.getType(), castStack, stackSizeC);
   auto newStack = builder.createBitcast(newStackAsi8Ptr, onStackPtr.getType());
   builder.createStore(loc, newStack, stackP);
-  builder.create<mlir::cir::BrOp>(loc, mlir::ValueRange{onStackPtr}, contBlock);
+
+  if (isBigEndian && !isAggregateTypeForABI && tySize < stackSlotSize) {
+    clang::CharUnits offset = stackSlotSize - tySize;
+    auto offsetConst = builder.create<mlir::cir::ConstantOp>(
+        loc, ptrDiffTy,
+        mlir::cir::IntAttr::get(ptrDiffTy, offset.getQuantity()));
+    auto offsetStackAsi8Ptr = builder.create<mlir::cir::PtrStrideOp>(
+        loc, castStack.getType(), castStack, offsetConst);
+    auto onStackPtrBE =
+        builder.createBitcast(offsetStackAsi8Ptr, onStackPtr.getType());
+    builder.create<mlir::cir::BrOp>(loc, mlir::ValueRange{onStackPtrBE},
+                                    contBlock);
+  } else {
+    builder.create<mlir::cir::BrOp>(loc, mlir::ValueRange{onStackPtr},
+                                    contBlock);
+  }
 
   // generate additional instructions for end block
   builder.setInsertionPoint(op);
@@ -246,6 +328,9 @@ LoweringPrepareAArch64CXXABI::lowerAAPCSVAArg(cir::CIRBaseBuilderTy &builder,
   auto res = builder.create<mlir::cir::LoadOp>(loc, castResP);
   // there would be another level of ptr dereference if indirect arg passing
   assert(!cir::MissingFeatures::handleAArch64Indirect());
+  if (isIndirect) {
+    res = builder.create<mlir::cir::LoadOp>(loc, res.getResult());
+  }
   return res.getResult();
 }
 

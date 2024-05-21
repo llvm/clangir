@@ -28,6 +28,8 @@ struct MissingFeatures {
   static bool supportTySizeQueryForAArch64() { return false; }
   static bool supportTyAlignQueryForAArch64() { return false; }
   static bool supportisHomogeneousAggregateQueryForAArch64() { return false; }
+  static bool supportisEndianQueryForAArch64() { return false; }
+  static bool supportisAggregateTypeForABIAArch64() { return false; }
 
   // Address space related
   static bool addressSpace() { return false; }
