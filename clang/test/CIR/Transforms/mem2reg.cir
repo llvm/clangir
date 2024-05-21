@@ -26,7 +26,7 @@ module {
   }
 
 // Verifies:
-// - no allocas remain in function
+// - no allocas remain in the function
 // CHECK:  cir.func @return_42() -> !s32i {
 // CHECK:    %0 = cir.const #cir.int<42> : !s32i
 // CHECK:    cir.return %0 : !s32i
@@ -94,7 +94,7 @@ module {
   }
 
 // Verifies:
-// - no allocas remain in function
+// - no allocas remain in the function
 // - blocks have arguments 
 // CHECK:  cir.func @alloca_in_loop(%arg0: !cir.ptr<!s32i>, %arg1: !s32i) -> !s32i {
 // CHECK:    %0 = cir.const #cir.int<0> : !s32i
@@ -182,7 +182,7 @@ module {
   }
 
 // Verifies:
-// - no allocas remain in function
+// - no allocas remain in the function
 // - blocks have arguments 
 // CHECK:  cir.func @alloca_in_ifelse(%arg0: !s32i) -> !s32i {
 // CHECK:    %0 = cir.const #cir.int<0> : !s32i
@@ -231,13 +231,9 @@ module {
   }
 
 // Verifies:
-// - no allocas remain in function
-// CHECK:  cir.func @test_bitcast(%arg0: !u64i) extra(#fn_attr) {
+// - no allocas remain in the function
+// CHECK:  cir.func @test_bitcast(%arg0: !u64i) {
 // CHECK:    cir.return
 // CHECK:  }
-
-
-
-
 
 } //module
