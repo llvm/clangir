@@ -1118,7 +1118,7 @@ void CIRGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
   }
 
   if (D && isa<CXXMethodDecl>(D) && cast<CXXMethodDecl>(D)->isInstance()) {
-    CGM.getCXXABI().buildInstanceFunctionProlog(*this);
+    CGM.getCXXABI().buildInstanceFunctionProlog(Loc, *this);
 
     const auto *MD = cast<CXXMethodDecl>(D);
     if (MD->getParent()->isLambda() && MD->getOverloadedOperator() == OO_Call) {

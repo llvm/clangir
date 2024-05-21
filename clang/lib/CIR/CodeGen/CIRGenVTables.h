@@ -117,26 +117,22 @@ public:
   //     return *cast<MicrosoftVTableContext>(VTContext);
   //   }
 
-  //   /// getSubVTTIndex - Return the index of the sub-VTT for the base class
-  //   of the
-  //   /// given record decl.
-  //   uint64_t getSubVTTIndex(const CXXRecordDecl *RD, BaseSubobject Base);
+  /// getSubVTTIndex - Return the index of the sub-VTT for the base class of the
+  /// given record decl.
+  uint64_t getSubVTTIndex(const CXXRecordDecl *RD, BaseSubobject Base);
 
-  //   /// getSecondaryVirtualPointerIndex - Return the index in the VTT where
-  //   the
-  //   /// virtual pointer for the given subobject is located.
-  //   uint64_t getSecondaryVirtualPointerIndex(const CXXRecordDecl *RD,
-  //                                            BaseSubobject Base);
+  /// getSecondaryVirtualPointerIndex - Return the index in the VTT where the
+  /// virtual pointer for the given subobject is located.
+  uint64_t getSecondaryVirtualPointerIndex(const CXXRecordDecl *RD,
+                                           BaseSubobject Base);
 
-  //   /// GenerateConstructionVTable - Generate a construction vtable for the
-  //   given
-  //   /// base subobject.
-  //   llvm::GlobalVariable *
-  //   GenerateConstructionVTable(const CXXRecordDecl *RD, const BaseSubobject
-  //   &Base,
-  //                              bool BaseIsVirtual,
-  //                              llvm::GlobalVariable::LinkageTypes Linkage,
-  //                              VTableAddressPointsMapTy &AddressPoints);
+  /// generateConstructionVTable - Generate a construction vtable for the given
+  /// base subobject.
+  mlir::cir::GlobalOp
+  generateConstructionVTable(const CXXRecordDecl *RD, const BaseSubobject &Base,
+                             bool BaseIsVirtual,
+                             mlir::cir::GlobalLinkageKind Linkage,
+                             VTableAddressPointsMapTy &AddressPoints);
 
   /// Get the address of the VTT for the given record decl.
   mlir::cir::GlobalOp getAddrOfVTT(const CXXRecordDecl *RD);
