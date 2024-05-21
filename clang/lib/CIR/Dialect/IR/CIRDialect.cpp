@@ -2854,32 +2854,37 @@ VTableAttr::verify(::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
     emitError() << "expected !cir.struct type result";
     return failure();
   }
-  if (sTy.getMembers().size() != 1 || vtableData.size() != 1) {
-    emitError() << "expected struct type with only one subtype";
+  if (sTy.getMembers().empty() || vtableData.empty()) {
+    emitError() << "expected struct type with one or more subtype";
     return failure();
   }
 
-  auto arrayTy = mlir::dyn_cast<mlir::cir::ArrayType>(sTy.getMembers()[0]);
-  auto constArrayAttr = mlir::dyn_cast<mlir::cir::ConstArrayAttr>(vtableData[0]);
-  if (!arrayTy || !constArrayAttr) {
-    emitError() << "expected struct type with one array element";
-    return failure();
-  }
+  for (size_t i = 0; i < sTy.getMembers().size(); ++i) {
+    auto arrayTy = mlir::dyn_cast<mlir::cir::ArrayType>(sTy.getMembers()[i]);
+    auto constArrayAttr = mlir::dyn_cast<mlir::cir::ConstArrayAttr>(vtableData[i]);
+    if (!arrayTy || !constArrayAttr) {
+      emitError() << "expected struct type with one array element";
+      return failure();
+    }
 
-  if (mlir::cir::ConstStructAttr::verify(emitError, type, vtableData).failed())
-    return failure();
+    if (mlir::cir::ConstStructAttr::verify(emitError, type, vtableData)
+            .failed())
+      return failure();
 
-  LogicalResult eltTypeCheck = success();
-  if (auto arrayElts = mlir::dyn_cast<ArrayAttr>(constArrayAttr.getElts())) {
-    arrayElts.walkImmediateSubElements(
-        [&](Attribute attr) {
-          if (mlir::isa<GlobalViewAttr>(attr) || mlir::isa<ConstPtrAttr>(attr))
-            return;
-          emitError() << "expected GlobalViewAttr attribute";
-          eltTypeCheck = failure();
-        },
-        [&](Type type) {});
-    return eltTypeCheck;
+    LogicalResult eltTypeCheck = success();
+    if (auto arrayElts = mlir::dyn_cast<ArrayAttr>(constArrayAttr.getElts())) {
+      arrayElts.walkImmediateSubElements(
+          [&](Attribute attr) {
+            if (mlir::isa<GlobalViewAttr>(attr) || mlir::isa<ConstPtrAttr>(attr))
+              return;
+            emitError() << "expected GlobalViewAttr attribute";
+            eltTypeCheck = failure();
+          },
+          [&](Type type) {});
+      if (eltTypeCheck.failed()) {
+        return eltTypeCheck;
+      }
+    }
   }
 
   return success();
