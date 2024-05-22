@@ -75,6 +75,16 @@ def LoweringPrepare : Pass<"cir-lowering-prepare"> {
   let dependentDialects = ["cir::CIRDialect"];
 }
 
+def SCFPrepare : Pass<"cir-mlir-scf-prepare"> {
+  let summary = "Preparation work before lowering to SCF dialect";
+  let description = [{
+    This pass does preparation work for SCF lowering. For example, it may
+    hoist the loop invariant or canonicalize the loop comparison.
+  }];
+  let constructor = "mlir::createSCFPreparePass()";
+  let dependentDialects = ["cir::CIRDialect"];
+}
+
 def FlattenCFG : Pass<"cir-flatten-cfg"> {
   let summary = "Produces flatten cfg";
   let description = [{ 
