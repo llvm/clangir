@@ -787,14 +787,13 @@ static LValue buildFunctionDeclLValue(CIRGenFunction &CGF, const Expr *E,
   mlir::Value addr = CGF.getBuilder().create<mlir::cir::GetGlobalOp>(
       loc, ptrTy, funcOp.getSymName());
 
-  if (funcOp.getFunctionType() != CGF.CGM.getTypes().ConvertType(FD->getType())) {
+  if (funcOp.getFunctionType() !=
+      CGF.CGM.getTypes().ConvertType(FD->getType())) {
     fnTy = CGF.CGM.getTypes().ConvertType(FD->getType());
     ptrTy = mlir::cir::PointerType::get(CGF.getBuilder().getContext(), fnTy);
 
     addr = CGF.getBuilder().create<mlir::cir::CastOp>(
-              addr.getLoc(),
-              ptrTy,
-              mlir::cir::CastKind::bitcast, addr);
+        addr.getLoc(), ptrTy, mlir::cir::CastKind::bitcast, addr);
   }
 
   return CGF.makeAddrLValue(Address(addr, fnTy, align), E->getType(),
