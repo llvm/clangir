@@ -2,7 +2,7 @@
 sort : 5
 ---
 
-# CIR Assembly Style Guide
+# ASM Style Guide
 
 ## Naming Convention
 
@@ -92,9 +92,9 @@ The type specification gives the types of operation operands and results. Type
 specifications are placed after the regions list (if any), separated from it
 with a colon.
 
-If the operation has trait `SameOperandsAndResultType` , the type specification
-should only give a single type that represents the type of the operands and the
-results:
+If the operation has trait `SameOperandsAndResultType` or `AllTypesMatch` , the
+type specification should only give a single type that represents the type of
+the operands and the results:
 
 ```mlir
 %1 = cir.cos %0 : !cir.float
@@ -124,46 +124,53 @@ operands and the results. Examples:
 
 ### Placement of Attributes
 
-Attributes on an operation can be classified into the following categories:
+Attributes on an operation can be classified into the following 2 categories:
 
-1. Attributes that affect the semantics of an operation. The operation becomes
-   meaningless or changes semantics without the attribute. For example, a lot
-   of operations take a `kind` attribute that specify which specific operation \
-   to perform. These attributes are classified into this category.
-2. Attributes that provide information for further CIR analysis,
-   transformations, and translations, but do not affect the high-level
-   semantics of the operation. AST reference attributes are typical examples in
-   this category.
-3. All other attributes that do not meet the conditions above.
+1. **Required attributes**. These attributes are required to build a valid
+   operation. Missing of these attributes either makes the operation meaningless
+   or breaks some passes in the CIR pipeline. Note that `UnitAttr` should be
+   regarded as a boolean attribute for the purpose of classification.
+2. **Optional attributes**. These attributes can always be safely removed from
+   the operation, without breaking anything in CIR.
 
-For attributes in the first category, put them in the argument list. One may
-place the attribute at any appropriate position within the argument list to
-make the assembly readable. Example:
+#### Required Attributes
+
+Put required attributes in the argument list. One may place the attribute at
+any appropriate position within the argument list to make the assembly
+readable. Example:
 
 ```mlir
 %0 = cir.const #cir.int<42> : !s32i
 %1 = cir.unary inc %0 : !s32i
 %2 = cir.binop add %0, %1 : !s32i
-%1 = cir.dyn_cast ptrcast %0 : !cir.ptr<!struct> -> !cir.ptr<!cir.void> #cir.dyn_cast_info
 ```
 
-For the second category of attributes, put them in the `<attrs>` part before
-any other attributes.
+If the attribute is too long in its assembly form (longer than just a keyword or
+an attribute name), one should define an alias for the attribute:
 
 ```mlir
-%2 = cir.cmp3way %0, %1 : !s32i -> !u8i #cir.cmp3way<...>
+#dyn_cast_info_1 = #cir.dyn_cast_info<...>
+#cmp3wayinfo = #cir.cmp3way_info<...>
+
+%1 = cir.dyn_cast ptrcast %0 #dyn_cast_info_1 : !cir.ptr<!struct> -> !cir.ptr<!cir.void>
+%2 = cir.cmp3way %0, %1 #cmp3wayinfo : !s32i -> !u8i
 ```
 
-One may use auxiliary keywords when specifying these attributes to make the
-assembly more readable:
+#### Optional Attributes
+
+Put optional attributes in the `<attrs>` part with the `attr-dict` TableGen
+directive:
 
 ```mlir
-%0 = cir.alloca !s32i init : !cir.ptr<!s32i> name("var")
+cir.global external @foo = #cir.int<42> : !s32i #cir.ast
 ```
 
-For the third category of attributes, put them at the end of the `<attrs>` part
-with the `attr-dict` TableGen directive.
+> Note that the above example categories a `VarDecl` AST reference to a global
+> variable declaration node as an optional attribute. But not all AST reference
+> attributes are "optional"; you should categorize each specific attribute
+> according to the conventions listed before.
 
-## Unresolved Problems
+## Current Status
 
-TODO
+The status quo doesn't implement this full guide just yet, but while we convert
+more code to use it, new entities added to the dialect shall follow this guide.
