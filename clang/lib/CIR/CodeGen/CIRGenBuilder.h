@@ -775,9 +775,10 @@ public:
 
   mlir::cir::StoreOp createStore(mlir::Location loc, mlir::Value val,
                                  Address dst, bool _volatile = false,
+                                 ::mlir::IntegerAttr align = {},
                                  ::mlir::cir::MemOrderAttr order = {}) {
     return CIRBaseBuilderTy::createStore(loc, val, dst.getPointer(), _volatile,
-                                         order);
+                                         align, order);
   }
 
   mlir::cir::StoreOp createFlagStore(mlir::Location loc, bool val,
@@ -794,8 +795,10 @@ public:
     // TODO: add alignment for LoadOp/StoreOp, right now LowerToLLVM knows
     // how to figure out for most part, but it's possible the client might want
     // to enforce a different alignment.
+    mlir::IntegerAttr alignAttr;
     assert(!UnimplementedFeature::alignedStore());
-    return CIRBaseBuilderTy::createStore(loc, val, dst, _volatile, order);
+    return CIRBaseBuilderTy::createStore(loc, val, dst, _volatile, alignAttr,
+                                         order);
   }
 
   // Convert byte offset to sequence of high-level indices suitable for
