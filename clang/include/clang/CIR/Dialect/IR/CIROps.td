@@ -3927,6 +3927,44 @@ def AtomicCmpXchg : CIR_Op<"atomic.cmp_xchg",
   let hasVerifier = 0;
 }
 
+
+def AtomicOrderingNotAtomic : I32EnumAttrCase<"NotAtomic", 0, "not_atomic">;
+def AtomicOrderingUnordered : I32EnumAttrCase<"Unordered", 1, "unordered">;
+def AtomicOrderingMonotonic : I32EnumAttrCase<"Monotonic", 2, "monotonic">;
+def AtomicOrderingAcquire   : I32EnumAttrCase<"Acquire", 4, "acquire">;
+def AtomicOrderingRelease   : I32EnumAttrCase<"Release", 5, "release">;
+def AtomicOrderingAcqRel    : I32EnumAttrCase<"AcquireRelease", 6, "acq_rel">;
+def AtomicOrderingSeqCst    : I32EnumAttrCase<"SequentiallyConsistent", 7, "seq_cst">;
+
+def AtomicOrdering : I32EnumAttr<
+    "AtomicOrdering",    
+    "Atomicity levels for atomic operations",
+    [AtomicOrderingNotAtomic, AtomicOrderingUnordered, AtomicOrderingMonotonic,
+     AtomicOrderingAcquire, AtomicOrderingRelease, AtomicOrderingAcqRel,
+     AtomicOrderingSeqCst  ]> {
+  let cppNamespace = "::mlir::cir";
+}
+
+def AtomicRMWType : AnyTypeOf<[CIR_AnyFloat, CIR_PointerType, CIR_IntType]>; 
+
+def AtomicRMWOp : CIR_Op<"atomic.rmw", 
+                    [AllTypesMatch<["val", "res"]>]> {
+  
+    let summary = "";
+    let description = [{ }];
+
+    let arguments = (ins
+                     AtomicFetchKind:$bin_op,
+                     CIR_PointerType:$ptr,
+                     AtomicRMWType:$val,
+                     AtomicOrdering:$ordering,
+                     OptionalAttr<I64Attr>:$alignment,                     
+                     UnitAttr:$isVolatile);
+    let results = (outs AtomicRMWType:$res);
+
+    let hasVerifier = 0;
+ 
+}
 //===----------------------------------------------------------------------===//
 // Operations Lowered Directly to LLVM IR
 //

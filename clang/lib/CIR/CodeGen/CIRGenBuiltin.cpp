@@ -137,6 +137,85 @@ EncompassingIntegerType(ArrayRef<struct WidthAndSignedness> Types) {
   return {Width, Signed};
 }
 
+
+/// Emit the conversions required to turn the given value into an
+/// integer of the given size.
+static mlir::Value buildToInt(CIRGenFunction &CGF, mlir::Value v,
+                        QualType t, mlir::cir::IntType intType) {
+  v = CGF.buildToMemory(v, t);
+
+  if (isa<mlir::cir::PointerType>(v.getType()))
+    return CGF.getBuilder().createPtrToInt(v, intType);
+
+  assert(v.getType() == intType);
+  return v;
+}
+
+static mlir::Value buildFromInt(CIRGenFunction &CGF, mlir::Value v,
+                          QualType t, mlir::Type resultType) {
+  v = CGF.buildFromMemory(v, t);
+  
+  if (isa<mlir::cir::PointerType>(resultType))
+    return CGF.getBuilder().createIntToPtr(v, resultType);
+
+  assert(v.getType() == resultType);
+  return v;
+}
+
+static Address checkAtomicAlignment(CIRGenFunction &CGF, const CallExpr *E) {
+  ASTContext &ctx = CGF.getContext();
+  Address ptr = CGF.buildPointerWithAlignment(E->getArg(0));
+  unsigned bytes = isa<mlir::cir::PointerType>(ptr.getElementType())
+                       ? ctx.getTypeSizeInChars(ctx.VoidPtrTy).getQuantity()
+                       : CGF.CGM.getDataLayout().getTypeSizeInBits(ptr.getElementType()) / 8;
+  unsigned align = ptr.getAlignment().getQuantity();
+  if (align % bytes != 0) {
+    DiagnosticsEngine &diags = CGF.CGM.getDiags();
+    // TODO
+    //diags.Report(E->getBeginLoc(), diag::warn_sync_op_misaligned);
+    
+    // Force address to be at least naturally-aligned.
+    return ptr.withAlignment(CharUnits::fromQuantity(bytes));
+  }
+  return ptr;
+}
+
+/// Utility to insert an atomic instruction based on Intrinsic::ID
+/// and the expression node.
+static mlir::Value makeBinaryAtomicValue(
+    CIRGenFunction &CGF, mlir::cir::AtomicFetchKind Kind, const CallExpr *E,
+    mlir::cir::AtomicOrdering Ordering = 
+      mlir::cir::AtomicOrdering::SequentiallyConsistent) {
+
+  QualType T = E->getType();
+
+  assert(E->getArg(0)->getType()->isPointerType());
+  assert(CGF.getContext().hasSameUnqualifiedType(T,
+                                  E->getArg(0)->getType()->getPointeeType()));
+  assert(CGF.getContext().hasSameUnqualifiedType(T, E->getArg(1)->getType()));
+
+  Address destAddr = checkAtomicAlignment(CGF, E);
+  auto& builder = CGF.getBuilder();
+  auto* ctxt = builder.getContext();
+  auto intType = builder.getSIntNTy(CGF.getContext().getTypeSize(T)); 
+
+  mlir::Value val = CGF.buildScalarExpr(E->getArg(1));
+  mlir::Type valueType = val.getType();
+  val = buildToInt(CGF, val, T, intType);
+    
+  auto loc = CGF.getLoc(E->getSourceRange());
+  auto result = builder.createAtomicRMW(loc, Kind, destAddr.emitRawPointer(), 
+    val, Ordering, destAddr.getAlignment().getAsAlign().value(), false);
+  
+  return buildFromInt(CGF, result, T, valueType);
+}
+
+static RValue buildBinaryAtomic(CIRGenFunction &CGF,
+                               mlir::cir::AtomicFetchKind kind,
+                               const CallExpr *E) {
+  return RValue::get(makeBinaryAtomicValue(CGF, kind, E));
+}
+
 RValue CIRGenFunction::buildRotate(const CallExpr *E, bool IsRotateRight) {
   auto src = buildScalarExpr(E->getArg(0));
   auto shiftAmt = buildScalarExpr(E->getArg(1));
@@ -865,6 +944,16 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     // Bitcast the alloca to the expected type.
     return RValue::get(
         builder.createBitcast(AllocaAddr, builder.getVoidPtrTy()));
+  }
+
+  case Builtin::BI__sync_fetch_and_add:
+    llvm_unreachable("Shouldn't make it through sema");
+  case Builtin::BI__sync_fetch_and_add_1:
+  case Builtin::BI__sync_fetch_and_add_2:
+  case Builtin::BI__sync_fetch_and_add_4:
+  case Builtin::BI__sync_fetch_and_add_8:
+  case Builtin::BI__sync_fetch_and_add_16: {
+    return buildBinaryAtomic(*this, mlir::cir::AtomicFetchKind::Add, E);
   }
 
   case Builtin::BI__builtin_add_overflow:
