@@ -477,7 +477,7 @@ public:
     const mlir::Value length = rewriter.create<mlir::LLVM::ConstantOp>(
         op.getLoc(), rewriter.getI32Type(), mlir::IntegerAttr::get(rewriter.getI32Type(), typeSize));
     rewriter.replaceOpWithNewOp<mlir::LLVM::MemcpyOp>(
-        op, adaptor.getDst(), adaptor.getSrc(), length, /*isVolatile=*/false);
+        op, adaptor.getDst(), adaptor.getSrc(), length, op.getIsVolatile());
     return mlir::success();
   }
 };
