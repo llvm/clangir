@@ -1,0 +1,12 @@
+!s16i = !cir.int<s, 16>
+!s32i = !cir.int<s, 32>
+!s64i = !cir.int<s, 64>
+!u16i = !cir.int<u, 16>
+module {
+  cir.func @testShiftWithDifferentValueAndAmountTypes(%arg0: !s16i, %arg1: !s32i, %arg2: !s64i, %arg3: !u16i) {
+    %1 = cir.shift(left, %arg1: !s32i, %arg2 : !s64i) -> !s32i
+    %2 = cir.shift(left, %arg1 : !s32i, %arg0 : !s16i) -> !s32i
+    %14 = cir.shift(left, %arg1 : !s32i, %arg3 : !u16i) -> !s32i
+    cir.return
+  }
+}
