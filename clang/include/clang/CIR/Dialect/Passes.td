@@ -79,7 +79,8 @@ def SCFPrepare : Pass<"cir-mlir-scf-prepare"> {
   let summary = "Preparation work before lowering to SCF dialect";
   let description = [{
     This pass does preparation work for SCF lowering. For example, it may
-    hoist the loop invariant or canonicalize the loop comparison.
+    hoist the loop invariant or canonicalize the loop comparison. Currently,
+    the pass only be enabled for through MLIR pipeline.
   }];
   let constructor = "mlir::createSCFPreparePass()";
   let dependentDialects = ["cir::CIRDialect"];
