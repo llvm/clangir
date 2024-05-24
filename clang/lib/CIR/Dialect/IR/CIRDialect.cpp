@@ -315,6 +315,9 @@ static LogicalResult checkConstantTypes(mlir::Operation *op, mlir::Type opType,
     return success();
   }
 
+  if (attrType.isa<mlir::cir::UndefAttr>())
+    return success();
+
   if (attrType.isa<ZeroAttr>()) {
     if (opType.isa<::mlir::cir::StructType, ::mlir::cir::ArrayType>())
       return success();

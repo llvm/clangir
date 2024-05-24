@@ -140,6 +140,10 @@ public:
     return mlir::cir::ZeroAttr::get(getContext(), t);
   }
 
+  mlir::TypedAttr getUndefAttr(mlir::Type t) {
+    return mlir::cir::UndefAttr::get(getContext(), t);
+  }
+
   mlir::cir::BoolAttr getCIRBoolAttr(bool state) {
     return mlir::cir::BoolAttr::get(getContext(), getBoolTy(), state);
   }

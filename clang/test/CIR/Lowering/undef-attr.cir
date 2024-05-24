@@ -1,0 +1,9 @@
+// RUN: cir-opt %s -cir-to-llvm -o - | FileCheck %s -check-prefix=MLIR
+// RUN: cir-translate %s -cir-to-llvmir  | FileCheck %s -check-prefix=LLVM
+!s32i = !cir.int<s, 32>
+module {
+    cir.global external @a = #cir.undef : !s32i
+// MLIR: = llvm.mlir.undef : i32
+// MLIR: llvm.return
+// LLVM: @a = global i32 undef
+}

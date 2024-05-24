@@ -106,6 +106,20 @@ def ZeroAttr : CIR_Attr<"Zero", "zero", [TypedAttrInterface]> {
 }
 
 //===----------------------------------------------------------------------===//
+// UndefAttr
+//===----------------------------------------------------------------------===//
+
+def UndefAttr : CIR_Attr<"Undef", "undef", [TypedAttrInterface]> {
+  let summary = "Represents an undefined initialization";
+  let description = [{
+    The UndefAttr is used to indicate undefined initialization on structs.
+  }];
+
+  let parameters = (ins AttributeSelfTypeParameter<"">:$type);
+  let assemblyFormat = [{}];
+}
+
+//===----------------------------------------------------------------------===//
 // ConstArrayAttr
 //===----------------------------------------------------------------------===//
 

@@ -216,6 +216,16 @@ lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::cir::ZeroAttr zeroAttr,
       loc, converter->convertType(zeroAttr.getType()));
 }
 
+/// UndefAttr visitor.
+inline mlir::Value
+lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::cir::UndefAttr undefAttr,
+                    mlir::ConversionPatternRewriter &rewriter,
+                    const mlir::TypeConverter *converter) {
+  auto loc = parentOp->getLoc();
+  return rewriter.create<mlir::LLVM::UndefOp>(
+      loc, converter->convertType(undefAttr.getType()));
+}
+
 /// ConstStruct visitor.
 mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
                                 mlir::cir::ConstStructAttr constStruct,
@@ -387,6 +397,8 @@ lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::Attribute attr,
     return lowerCirAttrAsValue(parentOp, boolAttr, rewriter, converter);
   if (const auto zeroAttr = attr.dyn_cast<mlir::cir::ZeroAttr>())
     return lowerCirAttrAsValue(parentOp, zeroAttr, rewriter, converter);
+  if (const auto undefAttr = attr.dyn_cast<mlir::cir::UndefAttr>())
+    return lowerCirAttrAsValue(parentOp, undefAttr, rewriter, converter);
   if (const auto globalAttr = attr.dyn_cast<mlir::cir::GlobalViewAttr>())
     return lowerCirAttrAsValue(parentOp, globalAttr, rewriter, converter);
   if (const auto vtableAttr = attr.dyn_cast<mlir::cir::VTableAttr>())
@@ -983,6 +995,8 @@ void convertToDenseElementsAttrImpl(mlir::cir::ConstArrayAttr attr,
           getNestedTypeAndElemQuantity(zeroAttr.getType(), numStoredZeros);
       values.insert(values.end(), numStoredZeros,
                     getZeroInitFromType<StorageTy>(nestTy));
+    } else if (auto undefAttr = eltAttr.dyn_cast<mlir::cir::UndefAttr>()) {
+      llvm_unreachable("densify undefined initialization is not supported");
     } else {
       llvm_unreachable("unknown element in ConstArrayAttr");
     }
@@ -1675,6 +1689,12 @@ public:
       // TODO(cir): once LLVM's dialect has a proper zeroinitializer attribute
       // this should be updated. For now, we use a custom op to initialize
       // globals to zero.
+      setupRegionInitializedLLVMGlobalOp(op, rewriter);
+      auto value =
+          lowerCirAttrAsValue(op, init.value(), rewriter, typeConverter);
+      rewriter.create<mlir::LLVM::ReturnOp>(loc, value);
+      return mlir::success();
+    } else if (isa<mlir::cir::UndefAttr>(init.value())) {
       setupRegionInitializedLLVMGlobalOp(op, rewriter);
       auto value =
           lowerCirAttrAsValue(op, init.value(), rewriter, typeConverter);

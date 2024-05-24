@@ -471,7 +471,7 @@ CIRGenModule::getOrCreateStaticVarDecl(const VarDecl &D,
   mlir::Attribute Init = nullptr;
   if (Ty.getAddressSpace() == LangAS::opencl_local ||
       D.hasAttr<CUDASharedAttr>() || D.hasAttr<LoaderUninitializedAttr>())
-    llvm_unreachable("OpenCL & CUDA are NYI");
+    Init = builder.getUndefAttr(getTypes().ConvertType(Ty));
   else
     Init = builder.getZeroInitAttr(getTypes().ConvertType(Ty));
 
