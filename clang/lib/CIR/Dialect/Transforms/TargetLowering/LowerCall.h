@@ -22,6 +22,8 @@ namespace cir {
 /// Contains the address where the return value of a function can be stored, and
 /// whether the address is volatile or not.
 class ReturnValueSlot {
+  // FIXME(cir): We should be able to query this directly from CIR at some
+  // point. This class can then be removed.
   Value Addr = {};
 
   // Return value slot flags
@@ -42,6 +44,13 @@ public:
   Value getValue() const { return Addr; }
   bool isUnused() const { return IsUnused; }
   bool isExternallyDestructed() const { return IsExternallyDestructed; }
+};
+
+enum class FnInfoOpts {
+  None = 0,
+  IsInstanceMethod = 1 << 0,
+  IsChainCall = 1 << 1,
+  IsDelegateCall = 1 << 2,
 };
 
 } // namespace cir

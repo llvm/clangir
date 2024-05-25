@@ -68,7 +68,7 @@ public:
   LogicalResult rewriteGlobalFunctionDefinition(FuncOp op, LowerModule &state);
 
   // Rewrite CIR CallOp to match the target ABI.
-  LogicalResult rewriteFunctionCall(CallOp caller, FuncOp callee);
+  LogicalResult rewriteFunctionCall(CallOp callOp, FuncOp funcOp);
 };
 
 } // namespace cir

@@ -156,7 +156,6 @@ struct MissingFeatures {
   static bool zeroInitializer() { return false; }
   static bool targetCodeGenInfoIsProtoCallVariadic() { return false; }
   static bool targetCodeGenInfoGetNullPointer() { return false; }
-  static bool chainCalls() { return false; }
   static bool operandBundles() { return false; }
   static bool exceptions() { return false; }
   static bool metaDataNode() { return false; }
@@ -189,6 +188,32 @@ struct MissingFeatures {
   static bool supportisAggregateTypeForABIAArch64() { return false; }
 
   //===--- ABI lowering --===//
+
+  //-- Missing AST queries
+
+  static bool recordDeclCanPassInRegisters() { return true; }
+
+  //-- Missing types
+
+  static bool vectorType() { return true; }
+
+  //-- Other missing features
+
+  // Calls with a static chain pointer argument may be optimized (p.e. freeing
+  // up argument registers), but we do not yet track such cases.
+  static bool chainCall() { return true; }
+
+  // ABI-lowering has special handling for regcall calling convention (tries to
+  // pass every argument in regs). We don't support it just yet.
+  static bool regCall() { return true; }
+
+  // Some ABIs (e.g. x86) require special handling for returning large structs
+  // by value. The sret argument parameter aids in this, but it is current NYI.
+  static bool sretArgs() { return true; }
+
+  // Inalloca parameter attributes are mostly used for Windows x86_32 ABI. We
+  // do not yet support this yet.
+  static bool inallocaArgs() { return true; }
 
   // Parameters may have additional attributes (e.g. [[noescape]]) that affect
   // the compiler. This is not yet supported in CIR.
