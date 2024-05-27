@@ -9,7 +9,8 @@ module {
   cir.func @testShiftWithDifferentValueAndAmountTypes(%arg0: !s16i, %arg1: !s32i, %arg2: !s64i, %arg3: !u16i) {
     %1 = cir.shift(left, %arg1: !s32i, %arg2 : !s64i) -> !s32i
     %2 = cir.shift(left, %arg1 : !s32i, %arg0 : !s16i) -> !s32i
-    %14 = cir.shift(left, %arg1 : !s32i, %arg3 : !u16i) -> !s32i
+    %3 = cir.shift(left, %arg1 : !s32i, %arg3 : !u16i) -> !s32i
+    %4 = cir.shift(left, %arg1 : !s32i, %arg1 : !s32i) -> !s32i
     cir.return
   }
 }
@@ -22,6 +23,8 @@ module {
 // CHECK-NEXT:     %[[SHIFT_EXTS:.+]] = arith.shli %arg1, %[[EXTS]] : i32
 // CHECK-NEXT:     %[[EXTU:.+]] = arith.extui %arg3 : i16 to i32
 // CHECK-NEXT:     %[[SHIFT_EXTU:.+]] = arith.shli %arg1, %[[EXTU]] : i32
+// CHECK-NEXT:     %[[BITCAST:.+]] = arith.bitcast %arg1 : i32 to i32
+// CHECK-NEXT:     %[[SHIFT_BITCAST:.+]] = arith.shli %arg1, %[[BITCAST]] : i32
 // CHECK-NEXT:     return
 // CHECK-NEXT:   }
 // CHECK-NEXT: }
