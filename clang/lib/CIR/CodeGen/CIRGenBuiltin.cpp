@@ -202,21 +202,22 @@ static mlir::Value makeBinaryAtomicValue(
   mlir::Value val = cgf.buildScalarExpr(expr->getArg(1));
   mlir::Type valueType = val.getType();
   val = buildToInt(cgf, val, typ, intType);
-    
-  auto loc = cgf.getLoc(expr->getSourceRange());
+
   auto op = mlir::cir::AtomicFetch::getOperationName();
-  SmallVector<mlir::Value> atomicOperands = {destAddr.emitRawPointer(), val};
-  SmallVector<mlir::Type> atomicResTys = {val.getType()};
+  SmallVector<mlir::Value> atomicOperands = {destAddr.emitRawPointer(), val};  
   auto fetchAttr = mlir::cir::AtomicFetchKindAttr::get(builder.getContext(), kind);
-  auto rmwi = builder.create(loc, builder.getStringAttr(op), atomicOperands,
-                             atomicResTys, {});
+  auto rmwi = builder.create(cgf.getLoc(expr->getSourceRange()), 
+                             builder.getStringAttr(op), 
+                             atomicOperands,
+                             {val.getType()},
+                             {});
+  
   auto orderAttr = mlir::cir::MemOrderAttr::get(builder.getContext(), ordering);
   rmwi->setAttr("binop", fetchAttr);
   rmwi->setAttr("mem_order", orderAttr);
   rmwi->setAttr("fetch_first", mlir::UnitAttr::get(builder.getContext()));
-  auto result = rmwi->getResult(0);
-
-  return buildFromInt(cgf, result, typ, valueType);
+ 
+  return buildFromInt(cgf, rmwi->getResult(0), typ, valueType);
 }
 
 static RValue buildBinaryAtomic(CIRGenFunction &CGF,

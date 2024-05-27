@@ -338,3 +338,16 @@ void incdec() {
 // LLVM-LABEL: @_Z6incdecv
 // LLVM: atomicrmw add ptr {{.*}}, i32 {{.*}} monotonic, align 4
 // LLVM: atomicrmw sub ptr {{.*}}, i32 {{.*}} monotonic, align 4
+
+
+void inc(int* a) {
+  int b = __sync_fetch_and_add(a, 1);
+}
+// CHECK-LABEL: @_Z3inc 
+// CHECK: %[[PTR:.*]] = cir.load {{.*}} : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i> 
+// CHECK: %[[VAL:.*]] = cir.const #cir.int<1> : !s32i
+// CHECK: %[[RES:.*]] = cir.atomic.fetch(add, %[[PTR]] : !cir.ptr<!s32i>, %[[VAL]] : !s32i, seq_cst) fetch_first : !s32i
+// CHECK: cir.store %[[RES]], {{.*}} : !s32i, !cir.ptr<!s32i>
+
+// LLVM-LABEL: @_Z3inc
+// LLVM: atomicrmw add ptr {{.*}}, i32 1 seq_cst, align 4
