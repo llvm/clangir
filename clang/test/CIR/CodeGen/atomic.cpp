@@ -339,7 +339,6 @@ void incdec() {
 // LLVM: atomicrmw add ptr {{.*}}, i32 {{.*}} monotonic, align 4
 // LLVM: atomicrmw sub ptr {{.*}}, i32 {{.*}} monotonic, align 4
 
-
 void inc(int* a) {
   int b = __sync_fetch_and_add(a, 1);
 }

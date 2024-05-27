@@ -137,11 +137,10 @@ EncompassingIntegerType(ArrayRef<struct WidthAndSignedness> Types) {
   return {Width, Signed};
 }
 
-
 /// Emit the conversions required to turn the given value into an
 /// integer of the given size.
-static mlir::Value buildToInt(CIRGenFunction &CGF, mlir::Value v,
-                        QualType t, mlir::cir::IntType intType) {
+static mlir::Value buildToInt(CIRGenFunction &CGF, mlir::Value v, QualType t,
+                              mlir::cir::IntType intType) {
   v = CGF.buildToMemory(v, t);
 
   if (isa<mlir::cir::PointerType>(v.getType()))
@@ -151,10 +150,10 @@ static mlir::Value buildToInt(CIRGenFunction &CGF, mlir::Value v,
   return v;
 }
 
-static mlir::Value buildFromInt(CIRGenFunction &CGF, mlir::Value v,
-                          QualType t, mlir::Type resultType) {
+static mlir::Value buildFromInt(CIRGenFunction &CGF, mlir::Value v, QualType t,
+                                mlir::Type resultType) {
   v = CGF.buildFromMemory(v, t);
-  
+
   if (isa<mlir::cir::PointerType>(resultType))
     return CGF.getBuilder().createIntToPtr(v, resultType);
 
@@ -165,15 +164,16 @@ static mlir::Value buildFromInt(CIRGenFunction &CGF, mlir::Value v,
 static Address checkAtomicAlignment(CIRGenFunction &CGF, const CallExpr *E) {
   ASTContext &ctx = CGF.getContext();
   Address ptr = CGF.buildPointerWithAlignment(E->getArg(0));
-  unsigned bytes = isa<mlir::cir::PointerType>(ptr.getElementType())
-                       ? ctx.getTypeSizeInChars(ctx.VoidPtrTy).getQuantity()
-                       : CGF.CGM.getDataLayout().getTypeSizeInBits(ptr.getElementType()) / 8;
+  unsigned bytes =
+      isa<mlir::cir::PointerType>(ptr.getElementType())
+          ? ctx.getTypeSizeInChars(ctx.VoidPtrTy).getQuantity()
+          : CGF.CGM.getDataLayout().getTypeSizeInBits(ptr.getElementType()) / 8;
   unsigned align = ptr.getAlignment().getQuantity();
   if (align % bytes != 0) {
     DiagnosticsEngine &diags = CGF.CGM.getDiags();
     // TODO
-    //diags.Report(E->getBeginLoc(), diag::warn_sync_op_misaligned);
-    
+    // diags.Report(E->getBeginLoc(), diag::warn_sync_op_misaligned);
+
     // Force address to be at least naturally-aligned.
     return ptr.withAlignment(CharUnits::fromQuantity(bytes));
   }
@@ -182,47 +182,48 @@ static Address checkAtomicAlignment(CIRGenFunction &CGF, const CallExpr *E) {
 
 /// Utility to insert an atomic instruction based on Intrinsic::ID
 /// and the expression node.
-static mlir::Value makeBinaryAtomicValue(
-    CIRGenFunction &cgf, mlir::cir::AtomicFetchKind kind, const CallExpr *expr,
-    mlir::cir::MemOrder ordering = 
-      mlir::cir::MemOrder::SequentiallyConsistent) {
+static mlir::Value
+makeBinaryAtomicValue(CIRGenFunction &cgf, mlir::cir::AtomicFetchKind kind,
+                      const CallExpr *expr,
+                      mlir::cir::MemOrder ordering =
+                          mlir::cir::MemOrder::SequentiallyConsistent) {
 
   QualType typ = expr->getType();
 
   assert(expr->getArg(0)->getType()->isPointerType());
-  assert(cgf.getContext().hasSameUnqualifiedType(typ,
-                                  expr->getArg(0)->getType()->getPointeeType()));
-  assert(cgf.getContext().hasSameUnqualifiedType(typ, expr->getArg(1)->getType()));
+  assert(cgf.getContext().hasSameUnqualifiedType(
+      typ, expr->getArg(0)->getType()->getPointeeType()));
+  assert(
+      cgf.getContext().hasSameUnqualifiedType(typ, expr->getArg(1)->getType()));
 
   Address destAddr = checkAtomicAlignment(cgf, expr);
-  auto& builder = cgf.getBuilder();
-  auto* ctxt = builder.getContext();
-  auto intType = builder.getSIntNTy(cgf.getContext().getTypeSize(typ)); 
+  auto &builder = cgf.getBuilder();
+  auto *ctxt = builder.getContext();
+  auto intType = builder.getSIntNTy(cgf.getContext().getTypeSize(typ));
 
   mlir::Value val = cgf.buildScalarExpr(expr->getArg(1));
   mlir::Type valueType = val.getType();
   val = buildToInt(cgf, val, typ, intType);
 
   auto op = mlir::cir::AtomicFetch::getOperationName();
-  SmallVector<mlir::Value> atomicOperands = {destAddr.emitRawPointer(), val};  
-  auto fetchAttr = mlir::cir::AtomicFetchKindAttr::get(builder.getContext(), kind);
-  auto rmwi = builder.create(cgf.getLoc(expr->getSourceRange()), 
-                             builder.getStringAttr(op), 
-                             atomicOperands,
-                             {val.getType()},
-                             {});
-  
+  SmallVector<mlir::Value> atomicOperands = {destAddr.emitRawPointer(), val};
+  auto fetchAttr =
+      mlir::cir::AtomicFetchKindAttr::get(builder.getContext(), kind);
+  auto rmwi = builder.create(cgf.getLoc(expr->getSourceRange()),
+                             builder.getStringAttr(op), atomicOperands,
+                             {val.getType()}, {});
+
   auto orderAttr = mlir::cir::MemOrderAttr::get(builder.getContext(), ordering);
   rmwi->setAttr("binop", fetchAttr);
   rmwi->setAttr("mem_order", orderAttr);
   rmwi->setAttr("fetch_first", mlir::UnitAttr::get(builder.getContext()));
- 
+
   return buildFromInt(cgf, rmwi->getResult(0), typ, valueType);
 }
 
 static RValue buildBinaryAtomic(CIRGenFunction &CGF,
-                               mlir::cir::AtomicFetchKind kind,
-                               const CallExpr *E) {
+                                mlir::cir::AtomicFetchKind kind,
+                                const CallExpr *E) {
   return RValue::get(makeBinaryAtomicValue(CGF, kind, E));
 }
 
