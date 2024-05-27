@@ -359,8 +359,7 @@ public:
 
     // Ensure shift amount is the same type as the value. Some undefined
     // behavior might occur in the casts below as per [C99 6.5.7.3].
-    amt = createIntCast(rewriter, amt, mlirTy,
-                         cirAmtTy.isSigned());
+    amt = createIntCast(rewriter, amt, mlirTy, cirAmtTy.isSigned());
 
     // Lower to the proper arith shift operation.
     if (op.getIsShiftleft())
