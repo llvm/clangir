@@ -2449,41 +2449,6 @@ public:
   }
 };
 
-
-static mlir::LLVM::AtomicBinOp getLLVMAtomicBinOp(mlir::cir::AtomicFetchKind k,
-                                            bool isInt,
-                                            bool isSignedInt) {
-  switch (k) {
-  case mlir::cir::AtomicFetchKind::Add:
-    return isInt ? mlir::LLVM::AtomicBinOp::add
-                  : mlir::LLVM::AtomicBinOp::fadd;
-  case mlir::cir::AtomicFetchKind::Sub:
-    return isInt ? mlir::LLVM::AtomicBinOp::sub
-                  : mlir::LLVM::AtomicBinOp::fsub;
-  case mlir::cir::AtomicFetchKind::And:
-    return mlir::LLVM::AtomicBinOp::_and;
-  case mlir::cir::AtomicFetchKind::Xor:
-    return mlir::LLVM::AtomicBinOp::_xor;
-  case mlir::cir::AtomicFetchKind::Or:
-    return mlir::LLVM::AtomicBinOp::_or;
-  case mlir::cir::AtomicFetchKind::Nand:
-    return mlir::LLVM::AtomicBinOp::nand;
-  case mlir::cir::AtomicFetchKind::Max: {
-    if (!isInt)
-      return mlir::LLVM::AtomicBinOp::fmax;
-    return isSignedInt ? mlir::LLVM::AtomicBinOp::max
-                        : mlir::LLVM::AtomicBinOp::umax;
-  }
-  case mlir::cir::AtomicFetchKind::Min: {
-    if (!isInt)
-      return mlir::LLVM::AtomicBinOp::fmin;
-    return isSignedInt ? mlir::LLVM::AtomicBinOp::min
-                        : mlir::LLVM::AtomicBinOp::umin;
-  }
-  }
-  llvm_unreachable("Unknown atomic fetch opcode");
-}
-
 class CIRAtomicFetchLowering
     : public mlir::OpConversionPattern<mlir::cir::AtomicFetch> {
 public:
@@ -2542,6 +2507,40 @@ public:
     case mlir::cir::AtomicFetchKind::Max:
     case mlir::cir::AtomicFetchKind::Min:
       llvm_unreachable("handled in buildMinMaxPostOp");
+    }
+    llvm_unreachable("Unknown atomic fetch opcode");
+  }
+
+  mlir::LLVM::AtomicBinOp getLLVMAtomicBinOp(mlir::cir::AtomicFetchKind k,
+                                             bool isInt,
+                                             bool isSignedInt) const {
+    switch (k) {
+    case mlir::cir::AtomicFetchKind::Add:
+      return isInt ? mlir::LLVM::AtomicBinOp::add
+                   : mlir::LLVM::AtomicBinOp::fadd;
+    case mlir::cir::AtomicFetchKind::Sub:
+      return isInt ? mlir::LLVM::AtomicBinOp::sub
+                   : mlir::LLVM::AtomicBinOp::fsub;
+    case mlir::cir::AtomicFetchKind::And:
+      return mlir::LLVM::AtomicBinOp::_and;
+    case mlir::cir::AtomicFetchKind::Xor:
+      return mlir::LLVM::AtomicBinOp::_xor;
+    case mlir::cir::AtomicFetchKind::Or:
+      return mlir::LLVM::AtomicBinOp::_or;
+    case mlir::cir::AtomicFetchKind::Nand:
+      return mlir::LLVM::AtomicBinOp::nand;
+    case mlir::cir::AtomicFetchKind::Max: {
+      if (!isInt)
+        return mlir::LLVM::AtomicBinOp::fmax;
+      return isSignedInt ? mlir::LLVM::AtomicBinOp::max
+                         : mlir::LLVM::AtomicBinOp::umax;
+    }
+    case mlir::cir::AtomicFetchKind::Min: {
+      if (!isInt)
+        return mlir::LLVM::AtomicBinOp::fmin;
+      return isSignedInt ? mlir::LLVM::AtomicBinOp::min
+                         : mlir::LLVM::AtomicBinOp::umin;
+    }
     }
     llvm_unreachable("Unknown atomic fetch opcode");
   }
@@ -3162,66 +3161,6 @@ private:
   }
 };
 
-
-static mlir::LLVM::AtomicOrdering getLLVMAtomicOrder(mlir::cir::AtomicOrdering ord) {
-  switch (ord) {
-  case mlir::cir::AtomicOrdering::NotAtomic:
-    return mlir::LLVM::AtomicOrdering::not_atomic;
-  case mlir::cir::AtomicOrdering::Unordered:  
-    return mlir::LLVM::AtomicOrdering::unordered;
-  case mlir::cir::AtomicOrdering::Monotonic:
-    return mlir::LLVM::AtomicOrdering::monotonic;
-  case mlir::cir::AtomicOrdering::Acquire:
-    return mlir::LLVM::AtomicOrdering::acquire;
-  case mlir::cir::AtomicOrdering::Release:
-    return mlir::LLVM::AtomicOrdering::release;
-  case mlir::cir::AtomicOrdering::AcquireRelease:
-    return mlir::LLVM::AtomicOrdering::acq_rel;
-  case mlir::cir::AtomicOrdering::SequentiallyConsistent:
-    return mlir::LLVM::AtomicOrdering::seq_cst;
-  }
-  llvm_unreachable("shouldn't get here");
-}
-
-class CIRAtomicRMWOpLowering
-    : public mlir::OpConversionPattern<mlir::cir::AtomicRMWOp> {
-
-  using mlir::OpConversionPattern<mlir::cir::AtomicRMWOp>::OpConversionPattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(mlir::cir::AtomicRMWOp op, OpAdaptor adaptor,
-                  mlir::ConversionPatternRewriter &rewriter) const override {
-                    
-    auto val = op.getVal();
-    bool isInt = false;
-    bool isSigned = false;
-    
-    if (auto typ = dyn_cast<mlir::cir::IntType>(val.getType())) {
-      isInt = true;
-      isSigned = typ.isSigned();
-    }
-
-    auto newOp = rewriter.replaceOpWithNewOp<mlir::LLVM::AtomicRMWOp>(
-      op, 
-      getLLVMAtomicBinOp(op.getBinOp(), isInt, isSigned),
-      adaptor.getPtr(),
-      adaptor.getVal(),
-      getLLVMAtomicOrder(op.getOrdering())
-    );
-
-    newOp.dump();
-
-    if (auto al = op.getAlignmentAttr())
-      newOp.setAlignmentAttr(al);
-
-    if (auto v = op.getIsVolatile())
-      newOp.setVolatile_(true);
-
-    return mlir::success();
-  }
-};
-
-
 void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
                                          mlir::TypeConverter &converter) {
   patterns.add<CIRReturnLowering>(patterns.getContext());
@@ -3246,7 +3185,7 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
       CIRStackRestoreLowering, CIRUnreachableLowering, CIRTrapLowering,
       CIRInlineAsmOpLowering, CIRSetBitfieldLowering, CIRGetBitfieldLowering,
       CIRPrefetchLowering, CIRObjSizeOpLowering, CIRIsConstantOpLowering,
-      CIRCmpThreeWayOpLowering, CIRAtomicRMWOpLowering>(converter, patterns.getContext());
+      CIRCmpThreeWayOpLowering>(converter, patterns.getContext());
 }
 
 namespace {

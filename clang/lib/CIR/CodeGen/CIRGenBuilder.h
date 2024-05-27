@@ -888,20 +888,6 @@ public:
     return create<mlir::cir::GetRuntimeMemberOp>(loc, resultTy, objectPtr,
                                                  memberPtr);
   }
-
-  mlir::cir::AtomicRMWOp createAtomicRMW(mlir::Location loc,
-                                        mlir::cir::AtomicFetchKind kind,
-                                        mlir::Value ptr,
-                                        mlir::Value val,
-                                        mlir::cir::AtomicOrdering ordering,
-                                        unsigned alignment,
-                                        bool isVolatile) {
-    auto alignAttr = 
-      mlir::IntegerAttr::get(mlir::IntegerType::get(getContext(), 64), alignment);
-    return create<mlir::cir::AtomicRMWOp>(    
-      loc, kind, ptr, val, ordering, alignAttr, isVolatile);
-  }
-
 };
 
 } // namespace cir

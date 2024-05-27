@@ -183,31 +183,40 @@ static Address checkAtomicAlignment(CIRGenFunction &CGF, const CallExpr *E) {
 /// Utility to insert an atomic instruction based on Intrinsic::ID
 /// and the expression node.
 static mlir::Value makeBinaryAtomicValue(
-    CIRGenFunction &CGF, mlir::cir::AtomicFetchKind Kind, const CallExpr *E,
-    mlir::cir::AtomicOrdering Ordering = 
-      mlir::cir::AtomicOrdering::SequentiallyConsistent) {
+    CIRGenFunction &cgf, mlir::cir::AtomicFetchKind kind, const CallExpr *expr,
+    mlir::cir::MemOrder ordering = 
+      mlir::cir::MemOrder::SequentiallyConsistent) {
 
-  QualType T = E->getType();
+  QualType typ = expr->getType();
 
-  assert(E->getArg(0)->getType()->isPointerType());
-  assert(CGF.getContext().hasSameUnqualifiedType(T,
-                                  E->getArg(0)->getType()->getPointeeType()));
-  assert(CGF.getContext().hasSameUnqualifiedType(T, E->getArg(1)->getType()));
+  assert(expr->getArg(0)->getType()->isPointerType());
+  assert(cgf.getContext().hasSameUnqualifiedType(typ,
+                                  expr->getArg(0)->getType()->getPointeeType()));
+  assert(cgf.getContext().hasSameUnqualifiedType(typ, expr->getArg(1)->getType()));
 
-  Address destAddr = checkAtomicAlignment(CGF, E);
-  auto& builder = CGF.getBuilder();
+  Address destAddr = checkAtomicAlignment(cgf, expr);
+  auto& builder = cgf.getBuilder();
   auto* ctxt = builder.getContext();
-  auto intType = builder.getSIntNTy(CGF.getContext().getTypeSize(T)); 
+  auto intType = builder.getSIntNTy(cgf.getContext().getTypeSize(typ)); 
 
-  mlir::Value val = CGF.buildScalarExpr(E->getArg(1));
+  mlir::Value val = cgf.buildScalarExpr(expr->getArg(1));
   mlir::Type valueType = val.getType();
-  val = buildToInt(CGF, val, T, intType);
+  val = buildToInt(cgf, val, typ, intType);
     
-  auto loc = CGF.getLoc(E->getSourceRange());
-  auto result = builder.createAtomicRMW(loc, Kind, destAddr.emitRawPointer(), 
-    val, Ordering, destAddr.getAlignment().getAsAlign().value(), false);
-  
-  return buildFromInt(CGF, result, T, valueType);
+  auto loc = cgf.getLoc(expr->getSourceRange());
+  auto op = mlir::cir::AtomicFetch::getOperationName();
+  SmallVector<mlir::Value> atomicOperands = {destAddr.emitRawPointer(), val};
+  SmallVector<mlir::Type> atomicResTys = {val.getType()};
+  auto fetchAttr = mlir::cir::AtomicFetchKindAttr::get(builder.getContext(), kind);
+  auto rmwi = builder.create(loc, builder.getStringAttr(op), atomicOperands,
+                             atomicResTys, {});
+  auto orderAttr = mlir::cir::MemOrderAttr::get(builder.getContext(), ordering);
+  rmwi->setAttr("binop", fetchAttr);
+  rmwi->setAttr("mem_order", orderAttr);
+  rmwi->setAttr("fetch_first", mlir::UnitAttr::get(builder.getContext()));
+  auto result = rmwi->getResult(0);
+
+  return buildFromInt(cgf, result, typ, valueType);
 }
 
 static RValue buildBinaryAtomic(CIRGenFunction &CGF,
