@@ -269,6 +269,19 @@ public:
     return createCast(mlir::cir::CastKind::int_to_ptr, src, newTy);
   }
 
+  mlir::Value createGetMemberOp(mlir::Location &loc, mlir::Value structPtr,
+                                const char *fldName, unsigned idx) {
+
+    assert(llvm::isa<mlir::cir::PointerType>(structPtr.getType()));
+    auto structBaseTy =
+        llvm::cast<mlir::cir::PointerType>(structPtr.getType()).getPointee();
+    assert(llvm::isa<mlir::cir::StructType>(structBaseTy));
+    auto fldTy = llvm::cast<mlir::cir::StructType>(structBaseTy).getMembers()[idx];
+    auto fldPtrTy = ::mlir::cir::PointerType::get(getContext(), fldTy);
+    return create<mlir::cir::GetMemberOp>(loc, fldPtrTy, structPtr, fldName,
+                                          idx);
+  }
+
   mlir::Value createPtrToInt(mlir::Value src, mlir::Type newTy) {
     return createCast(mlir::cir::CastKind::ptr_to_int, src, newTy);
   }
