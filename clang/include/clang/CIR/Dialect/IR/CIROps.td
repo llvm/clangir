@@ -2824,7 +2824,7 @@ def CallOp : CIR_CallOp<"call"> {
   }];
 
   let arguments = commonArgs;
-  let results = (outs Variadic<CIR_AnyType>);
+  let results = (outs Optional<CIR_AnyType>:$result);
 
   let builders = [
     OpBuilder<(ins "FuncOp":$callee, CArg<"ValueRange", "{}">:$operands), [{
@@ -2845,13 +2845,15 @@ def CallOp : CIR_CallOp<"call"> {
               CArg<"ValueRange", "{}">:$operands), [{
       $_state.addOperands(operands);
       $_state.addAttribute("callee", callee);
-      $_state.addTypes(resType);
+      if (resType && !llvm::isa<VoidType>(resType))
+        $_state.addTypes(resType);
     }]>,
     OpBuilder<(ins "SymbolRefAttr":$callee,
               CArg<"ValueRange", "{}">:$operands), [{
       $_state.addOperands(operands);
       $_state.addAttribute("callee", callee);
-    }]>];
+    }]>
+  ];
 }
 
 //===----------------------------------------------------------------------===//
