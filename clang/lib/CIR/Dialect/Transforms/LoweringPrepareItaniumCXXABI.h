@@ -12,12 +12,13 @@
 //===----------------------------------------------------------------------===//
 
 #include "LoweringPrepareCXXABI.h"
+#include "clang/CIR/Dialect/IR/CIRDataLayout.h"
 
 class LoweringPrepareItaniumCXXABI : public cir::LoweringPrepareCXXABI {
 public:
   mlir::Value lowerDynamicCast(cir::CIRBaseBuilderTy &builder,
                                clang::ASTContext &astCtx,
                                mlir::cir::DynamicCastOp op) override;
-  mlir::Value lowerVAArg(cir::CIRBaseBuilderTy &builder,
-                         mlir::cir::VAArgOp op) override;
+  mlir::Value lowerVAArg(cir::CIRBaseBuilderTy &builder, mlir::cir::VAArgOp op,
+                         const cir::CIRDataLayout &datalayout) override;
 };

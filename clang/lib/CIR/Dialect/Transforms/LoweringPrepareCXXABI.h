@@ -18,6 +18,7 @@
 #include "mlir/IR/Value.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/CIR/Dialect/Builder/CIRBaseBuilder.h"
+#include "clang/CIR/Dialect/IR/CIRDataLayout.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 
 namespace cir {
@@ -36,7 +37,8 @@ public:
   static LoweringPrepareCXXABI *createAArch64ABI(AArch64ABIKind k);
 
   virtual mlir::Value lowerVAArg(CIRBaseBuilderTy &builder,
-                                 mlir::cir::VAArgOp op) = 0;
+                                 mlir::cir::VAArgOp op,
+                                 const cir::CIRDataLayout &datalayout) = 0;
   virtual ~LoweringPrepareCXXABI() {}
 
   virtual mlir::Value lowerDynamicCast(CIRBaseBuilderTy &builder,

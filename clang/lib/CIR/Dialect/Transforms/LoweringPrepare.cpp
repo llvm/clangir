@@ -17,6 +17,7 @@
 #include "clang/Basic/Module.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/CIR/Dialect/Builder/CIRBaseBuilder.h"
+#include "clang/CIR/Dialect/IR/CIRDataLayout.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/Passes.h"
 #include "clang/CIR/Interfaces/ASTAttrInterfaces.h"
@@ -334,8 +335,9 @@ static void canonicalizeIntrinsicThreeWayCmp(CIRBaseBuilderTy &builder,
 void LoweringPreparePass::lowerVAArgOp(VAArgOp op) {
   CIRBaseBuilderTy builder(getContext());
   builder.setInsertionPoint(op);
+  ::cir::CIRDataLayout datalayout(theModule);
 
-  auto res = cxxABI->lowerVAArg(builder, op);
+  auto res = cxxABI->lowerVAArg(builder, op, datalayout);
   if (res) {
     op.replaceAllUsesWith(res);
     op.erase();

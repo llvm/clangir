@@ -15,6 +15,7 @@
 #include "../IR/MissingFeatures.h"
 #include "LoweringPrepareItaniumCXXABI.h"
 #include "clang/AST/CharUnits.h"
+#include "clang/CIR/Dialect/IR/CIRDataLayout.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 
 #include <assert.h>
@@ -25,20 +26,23 @@ namespace {
 class LoweringPrepareAArch64CXXABI : public LoweringPrepareItaniumCXXABI {
 public:
   LoweringPrepareAArch64CXXABI(AArch64ABIKind k) : Kind(k) {}
-  mlir::Value lowerVAArg(cir::CIRBaseBuilderTy &builder,
-                         mlir::cir::VAArgOp op) override;
+  mlir::Value lowerVAArg(cir::CIRBaseBuilderTy &builder, mlir::cir::VAArgOp op,
+                         const cir::CIRDataLayout &datalayout) override;
 
 private:
   AArch64ABIKind Kind;
   mlir::Value lowerAAPCSVAArg(cir::CIRBaseBuilderTy &builder,
-                              mlir::cir::VAArgOp op);
+                              mlir::cir::VAArgOp op,
+                              const cir::CIRDataLayout &datalayout);
   bool isDarwinPCS() const { return Kind == AArch64ABIKind::DarwinPCS; }
   mlir::Value lowerMSVAArg(cir::CIRBaseBuilderTy &builder,
-                           mlir::cir::VAArgOp op) {
+                           mlir::cir::VAArgOp op,
+                           const cir::CIRDataLayout &datalayout) {
     llvm_unreachable("MSVC ABI not supported yet");
   }
   mlir::Value lowerDarwinVAArg(cir::CIRBaseBuilderTy &builder,
-                               mlir::cir::VAArgOp op) {
+                               mlir::cir::VAArgOp op,
+                               const cir::CIRDataLayout &datalayout) {
     llvm_unreachable("Darwin ABI not supported yet");
   }
 };
@@ -49,9 +53,9 @@ cir::LoweringPrepareCXXABI::createAArch64ABI(AArch64ABIKind k) {
   return new LoweringPrepareAArch64CXXABI(k);
 }
 
-mlir::Value
-LoweringPrepareAArch64CXXABI::lowerAAPCSVAArg(cir::CIRBaseBuilderTy &builder,
-                                              mlir::cir::VAArgOp op) {
+mlir::Value LoweringPrepareAArch64CXXABI::lowerAAPCSVAArg(
+    cir::CIRBaseBuilderTy &builder, mlir::cir::VAArgOp op,
+    const cir::CIRDataLayout &datalayout) {
   auto loc = op->getLoc();
   auto valist = op->getOperand(0);
   auto opResTy = op.getType();
@@ -118,9 +122,10 @@ LoweringPrepareAArch64CXXABI::lowerAAPCSVAArg(cir::CIRBaseBuilderTy &builder,
   assert(!cir::MissingFeatures::supportTyAlignQueryForAArch64());
   // One is just place holder for now, as we don't have a way to query
   // type size and alignment.
-  clang::CharUnits tySize = clang::CharUnits::One();
-  clang::CharUnits tyAlign = clang::CharUnits::One();
-  ;
+  clang::CharUnits tySize =
+      clang::CharUnits::fromQuantity(datalayout.getTypeStoreSize(opResTy));
+  clang::CharUnits tyAlign =
+      clang::CharUnits::fromQuantity(datalayout.getAlignment(opResTy, true));
 
   // indirectness, type size and type alignment all
   // decide regSize, but they are all ABI defined
@@ -215,9 +220,10 @@ LoweringPrepareAArch64CXXABI::lowerAAPCSVAArg(cir::CIRBaseBuilderTy &builder,
   uint64_t numMembers = 0;
   assert(!cir::MissingFeatures::supportisHomogeneousAggregateQueryForAArch64());
   bool isHFA = false;
+  // though endianess can be known from datalayout, it might need an unified
+  // ABI lowering query system to answer the question.
   assert(!cir::MissingFeatures::supportisEndianQueryForAArch64());
-  // TODO: endianess should be query result from ABI info
-  bool isBigEndian = false;
+  bool isBigEndian = datalayout.isBigEndian();
   assert(!cir::MissingFeatures::supportisAggregateTypeForABIAArch64());
   // TODO: isAggregateTypeForABI should be query result from ABI info
   bool isAggregateTypeForABI = false;
@@ -336,8 +342,9 @@ LoweringPrepareAArch64CXXABI::lowerAAPCSVAArg(cir::CIRBaseBuilderTy &builder,
 
 mlir::Value
 LoweringPrepareAArch64CXXABI::lowerVAArg(cir::CIRBaseBuilderTy &builder,
-                                         mlir::cir::VAArgOp op) {
-  return Kind == AArch64ABIKind::Win64 ? lowerMSVAArg(builder, op)
-         : isDarwinPCS()               ? lowerDarwinVAArg(builder, op)
-                                       : lowerAAPCSVAArg(builder, op);
+                                         mlir::cir::VAArgOp op,
+                                         const cir::CIRDataLayout &datalayout) {
+  return Kind == AArch64ABIKind::Win64 ? lowerMSVAArg(builder, op, datalayout)
+         : isDarwinPCS() ? lowerDarwinVAArg(builder, op, datalayout)
+                         : lowerAAPCSVAArg(builder, op, datalayout);
 }

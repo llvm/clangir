@@ -20,6 +20,7 @@
 #include "clang/Basic/TargetInfo.h"
 #include "clang/CIR/Dialect/Builder/CIRBaseBuilder.h"
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
+#include "clang/CIR/Dialect/IR/CIRDataLayout.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 
 using namespace cir;
@@ -160,8 +161,9 @@ LoweringPrepareItaniumCXXABI::lowerDynamicCast(CIRBaseBuilderTy &builder,
       .getResult();
 }
 
-mlir::Value LoweringPrepareItaniumCXXABI::lowerVAArg(CIRBaseBuilderTy &builder,
-                                                     mlir::cir::VAArgOp op) {
+mlir::Value LoweringPrepareItaniumCXXABI::lowerVAArg(
+    CIRBaseBuilderTy &builder, mlir::cir::VAArgOp op,
+    const ::cir::CIRDataLayout &datalayout) {
   // There is no generic cir lowering for var_arg, here we fail
   // so to prevent attempt of calling lowerVAArg for ItaniumCXXABI
   llvm_unreachable("NYI");
