@@ -152,6 +152,7 @@ add_clang_library(clangCodeGen
   clangAST
   clangAnalysis
   clangBasic
+  clangCIRFrontendAction
   clangFrontend
   clangLex
   clangSerialization
