@@ -877,13 +877,15 @@ public:
     auto condition = adaptor.getCondition();
     auto i1Condition = rewriter.create<mlir::arith::TruncIOp>(
         ifop->getLoc(), rewriter.getI1Type(), condition);
-    auto newIfOp =
-        rewriter.create<mlir::scf::IfOp>(ifop->getLoc(), ifop->getResultTypes(),i1Condition);
+    auto newIfOp = rewriter.create<mlir::scf::IfOp>(
+        ifop->getLoc(), ifop->getResultTypes(), i1Condition);
     auto *thenBlock = rewriter.createBlock(&newIfOp.getThenRegion());
-    rewriter.inlineBlockBefore(&ifop.getThenRegion().front(), thenBlock, thenBlock->end());
+    rewriter.inlineBlockBefore(&ifop.getThenRegion().front(), thenBlock,
+                               thenBlock->end());
     if (!ifop.getElseRegion().empty()) {
       auto *elseBlock = rewriter.createBlock(&newIfOp.getElseRegion());
-      rewriter.inlineBlockBefore(&ifop.getElseRegion().front(), elseBlock, elseBlock->end());
+      rewriter.inlineBlockBefore(&ifop.getElseRegion().front(), elseBlock,
+                                 elseBlock->end());
     }
     rewriter.replaceOp(ifop, newIfOp);
     return mlir::success();
@@ -1191,8 +1193,8 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
                CIRExp2OpLowering, CIRExpOpLowering, CIRFAbsOpLowering,
                CIRFloorOpLowering, CIRLog10OpLowering, CIRLog2OpLowering,
                CIRLogOpLowering, CIRRoundOpLowering, CIRPtrStrideOpLowering,
-               CIRSinOpLowering, CIRShiftOpLowering, CIRIfOpLowering>(converter,
-                                                     patterns.getContext());
+               CIRSinOpLowering, CIRShiftOpLowering, CIRIfOpLowering>(
+      converter, patterns.getContext());
 }
 
 static mlir::TypeConverter prepareTypeConverter() {
