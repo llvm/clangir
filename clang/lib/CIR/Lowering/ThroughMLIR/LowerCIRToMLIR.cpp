@@ -872,35 +872,20 @@ public:
   using mlir::OpConversionPattern<mlir::cir::IfOp>::OpConversionPattern;
 
   mlir::LogicalResult
-  matchAndRewrite(mlir::cir::IfOp op, OpAdaptor adaptor,
+  matchAndRewrite(mlir::cir::IfOp ifop, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    rewriter.setInsertionPoint(op);
     auto condition = adaptor.getCondition();
     auto i1Condition = rewriter.create<mlir::arith::TruncIOp>(
-        op->getLoc(), rewriter.getI1Type(), condition);
-    auto ifOp =
-        rewriter.create<mlir::scf::IfOp>(op->getLoc(), i1Condition.getResult());
-    
-    auto *thenBlcok = &ifOp.getThenRegion().front();
-    rewriter.inlineBlockBefore(&op.getThenRegion().front(), thenBlcok, thenBlcok->end());
-    // rewriter.inlineRegionBefore(op.getThenRegion(), ifOp.getThenRegion(),
-    //                             ifOp.getThenRegion().end());
-    op->emitWarning() << "HERE: scf.if then region blocks " << ifOp.getThenRegion().hasOneBlock() << "\n";
-    op.emitWarning() << "HERE scf.if else region empty " << ifOp.getElseRegion().empty() << "\n";
-    if (!ifOp.getElseRegion().empty()) {
-      // rewriter.inlineRegionBefore(op.getElseRegion(), ifOp.getElseRegion(),
-      //                             ifOp.getElseRegion().end());
-      auto *elseBlock = &ifOp.getElseRegion().front();
-      if (elseBlock == nullptr) {
-        op->emitWarning() << "HERE elseBlock is nullptr\n";
-      }
-      if (auto *source =  &op.getElseRegion().front(); source == nullptr) {
-        op.emitWarning() << "op.elseRegion.front is nullptr" << "\n";
-      }
-      rewriter.inlineBlockBefore(&op.getElseRegion().front(), elseBlock, elseBlock->end());
-      op.emitWarning() << "HERE scf.if else region blocks " << ifOp.getElseRegion().hasOneBlock() << "\n";
+        ifop->getLoc(), rewriter.getI1Type(), condition);
+    auto newIfOp =
+        rewriter.create<mlir::scf::IfOp>(ifop->getLoc(), ifop->getResultTypes(),i1Condition);
+    auto *thenBlock = rewriter.createBlock(&newIfOp.getThenRegion());
+    rewriter.inlineBlockBefore(&ifop.getThenRegion().front(), thenBlock, thenBlock->end());
+    if (!ifop.getElseRegion().empty()) {
+      auto *elseBlock = rewriter.createBlock(&newIfOp.getElseRegion());
+      rewriter.inlineBlockBefore(&ifop.getElseRegion().front(), elseBlock, elseBlock->end());
     }
-    rewriter.replaceOp(op, ifOp);
+    rewriter.replaceOp(ifop, newIfOp);
     return mlir::success();
   }
 };

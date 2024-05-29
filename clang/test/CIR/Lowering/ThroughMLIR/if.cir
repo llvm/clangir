@@ -34,29 +34,30 @@ module {
 }
 
 
-// CHECK: module {
-// CHECK:   func @foo(%arg0 : i32) -> i32 {
-// CHECK:     [[Value:%[a-z0-9]+]] = memref.alloca() {alignment = 1 : i64} : memref<i8>
-// CHECK:     %c1_i8 = arith.constant 1 : i8
-// CHECK:     memref.store %c1_i8, [[Value]][] : memref<i8>
-// CHECK:     [[cond:%[a-z0-9]+]] = memref.load [[Value]][] : memref<i8>
-// CHECK:     scf.if [[cond]] {
-// CHECK:       %c1_i32 = arith.constant 1 : i32
-// CHECK:     } else {
-// CHECK:       %c1_i32 = arith.constant 0 : i32
-// CHECK:     }
-// CHECK:     return %arg0 : i32
-// CHECK:   } 
+//CHECK: module {
+//CHECK:   func.func @foo(%arg0: i32) -> i32 {
+//CHECK:     %alloca = memref.alloca() {alignment = 1 : i64} : memref<i8>
+//CHECK:     %c1_i8 = arith.constant 1 : i8
+//CHECK:     memref.store %c1_i8, %alloca[] : memref<i8>
+//CHECK:     %0 = memref.load %alloca[] : memref<i8>
+//CHECK:     %1 = arith.trunci %0 : i8 to i1
+//CHECK:     scf.if %1 {
+//CHECK:       %c1_i32 = arith.constant 1 : i32
+//CHECK:     } else {
+//CHECK:       %c0_i32 = arith.constant 0 : i32
+//CHECK:     }
+//CHECK:     return %arg0 : i32
+//CHECK:   }
+//CHECK:   func.func @onlyIf(%arg0: i32) -> i32 {
+//CHECK:     %alloca = memref.alloca() {alignment = 1 : i64} : memref<i8>
+//CHECK:     %c1_i8 = arith.constant 1 : i8
+//CHECK:     memref.store %c1_i8, %alloca[] : memref<i8>
+//CHECK:     %0 = memref.load %alloca[] : memref<i8>
+//CHECK:     %1 = arith.trunci %0 : i8 to i1
+//CHECK:     scf.if %1 {
+//CHECK:       %c1_i32 = arith.constant 1 : i32
+//CHECK:     }
+//CHECK:     return %arg0 : i32
+//CHECK:   }
+//CHECK: }
 
-
-// CHECK:   func @onlyIf(%arg0 : i32) -> i32 {
-// CHECK:     [[Value:%[a-z0-9]+]] = memref.alloca() {alignment = 1 : i64} : memref<i8>
-// CHECK:     = arith.constant 1 : i8
-// CHECK:     memref.store {{.*}}, [[Value]][] : memref<i8>
-// CHECK:     [[cond:%[a-z0-9]+]] = memref.load [[Value]][] : memref<i32>
-// CHECK:     scf.if %[[cond]] {
-// CHECK:       %c1_i32 = arith.constant 1 : i32
-// CHECK:     } 
-// CHECK:     return %arg0 : i32
-// CHECK:   }
-// CHECK: }
