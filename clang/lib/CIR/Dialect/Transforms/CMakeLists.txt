@@ -2,6 +2,7 @@ add_clang_library(MLIRCIRTransforms
   LifetimeCheck.cpp
   LoweringPrepare.cpp
   LoweringPrepareItaniumCXXABI.cpp
+  LoweringPrepareAArch64CXXABI.cpp
   MergeCleanups.cpp
   DropAST.cpp
   IdiomRecognizer.cpp
@@ -9,6 +10,7 @@ add_clang_library(MLIRCIRTransforms
   StdHelpers.cpp
   FlattenCFG.cpp
   GotoSolver.cpp
+  SCFPrepare.cpp
 
   DEPENDS
   MLIRCIRPassIncGen

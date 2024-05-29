@@ -646,6 +646,13 @@ RValue CIRGenFunction::buildLoadOfLValue(LValue LV, SourceLocation Loc) {
 
   if (LV.isSimple())
     return RValue::get(buildLoadOfScalar(LV, Loc));
+
+  if (LV.isVectorElt()) {
+    auto load = builder.createLoad(getLoc(Loc), LV.getVectorAddress());
+    return RValue::get(builder.create<mlir::cir::VecExtractOp>(
+        getLoc(Loc), load, LV.getVectorIdx()));
+  }
+
   llvm_unreachable("NYI");
 }
 
@@ -782,10 +789,20 @@ static LValue buildFunctionDeclLValue(CIRGenFunction &CGF, const Expr *E,
   auto loc = CGF.getLoc(E->getSourceRange());
   CharUnits align = CGF.getContext().getDeclAlign(FD);
 
-  auto fnTy = funcOp.getFunctionType();
+  mlir::Type fnTy = funcOp.getFunctionType();
   auto ptrTy = mlir::cir::PointerType::get(CGF.getBuilder().getContext(), fnTy);
-  auto addr = CGF.getBuilder().create<mlir::cir::GetGlobalOp>(
+  mlir::Value addr = CGF.getBuilder().create<mlir::cir::GetGlobalOp>(
       loc, ptrTy, funcOp.getSymName());
+
+  if (funcOp.getFunctionType() !=
+      CGF.CGM.getTypes().ConvertType(FD->getType())) {
+    fnTy = CGF.CGM.getTypes().ConvertType(FD->getType());
+    ptrTy = mlir::cir::PointerType::get(CGF.getBuilder().getContext(), fnTy);
+
+    addr = CGF.getBuilder().create<mlir::cir::CastOp>(
+        addr.getLoc(), ptrTy, mlir::cir::CastKind::bitcast, addr);
+  }
+
   return CGF.makeAddrLValue(Address(addr, fnTy, align), E->getType(),
                             AlignmentSource::Decl);
 }
@@ -920,7 +937,11 @@ LValue CIRGenFunction::buildDeclRefLValue(const DeclRefExpr *E) {
   // DeclRefExprs we see should be implicitly treated as if they also refer to
   // an enclosing scope.
   if (const auto *BD = dyn_cast<BindingDecl>(ND)) {
-    llvm_unreachable("NYI");
+    if (E->refersToEnclosingVariableOrCapture()) {
+      auto *FD = LambdaCaptureFields.lookup(BD);
+      return buildCapturedFieldLValue(*this, FD, CXXABIThisValue);
+    }
+    return buildLValue(BD->getBinding());
   }
 
   // We can form DeclRefExprs naming GUID declarations when reconstituting
@@ -2555,9 +2576,16 @@ mlir::Value CIRGenFunction::buildLoadOfScalar(Address Addr, bool Volatile,
       llvm_unreachable("NYI: Special treatment of 3-element vector load");
   }
 
-  mlir::cir::LoadOp Load = builder.create<mlir::cir::LoadOp>(
-      Loc, Addr.getElementType(), Addr.getPointer(), /* deref */ false,
-      Volatile, ::mlir::cir::MemOrderAttr{});
+  auto Ptr = Addr.getPointer();
+  auto ElemTy = Addr.getElementType();
+  if (ElemTy.isa<mlir::cir::VoidType>()) {
+    ElemTy = mlir::cir::IntType::get(builder.getContext(), 8, true);
+    auto ElemPtrTy = mlir::cir::PointerType::get(builder.getContext(), ElemTy);
+    Ptr = builder.create<mlir::cir::CastOp>(Loc, ElemPtrTy,
+                                            mlir::cir::CastKind::bitcast, Ptr);
+  }
+
+  mlir::Value Load = builder.CIRBaseBuilderTy::createLoad(Loc, Ptr, Volatile);
 
   if (isNontemporal) {
     llvm_unreachable("NYI");
