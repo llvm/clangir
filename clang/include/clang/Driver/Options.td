@@ -3007,6 +3007,10 @@ defm clangir_direct_lowering : BoolFOption<"clangir-direct-lowering",
   FrontendOpts<"ClangIRDirectLowering">, DefaultTrue,
   PosFlag<SetTrue, [], [ClangOption, CC1Option], "Lower directly from ClangIR to LLVM">,
   NegFlag<SetFalse, [], [ClangOption, CC1Option],  "Lower through MLIR to LLVM">>;
+defm clangir_analysis_only_pipeline : BoolFOption<"clangir-analysis-only",
+  FrontendOpts<"ClangIRAnalysisOnlyPipeline">, DefaultFalse,
+  PosFlag<SetTrue, [], [ClangOption, CC1Option], "Enable CIR analysis for the traditional code gen pipeline">,
+  NegFlag<SetFalse, [], [ClangOption, CC1Option],  "">>;
 
 def emit_cir : Flag<["-"], "emit-cir">, Visibility<[CC1Option]>,
   Group<Action_Group>, HelpText<"Build ASTs and then lower to ClangIR, emit the .cir file">;
