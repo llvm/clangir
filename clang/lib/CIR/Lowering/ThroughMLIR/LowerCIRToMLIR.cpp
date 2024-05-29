@@ -31,6 +31,9 @@
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Operation.h"
+#include "mlir/IR/Region.h"
+#include "mlir/IR/TypeRange.h"
+#include "mlir/IR/ValueRange.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Support/LogicalResult.h"
@@ -42,8 +45,14 @@
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/Passes.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Sequence.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/TypeSwitch.h"
+#include "llvm/Analysis/RegionInfo.h"
+#include "llvm/IR/Type.h"
+#include "llvm/IR/Value.h"
+#include "llvm/Support/Casting.h"
 
 using namespace cir;
 using namespace llvm;
@@ -405,7 +414,6 @@ public:
       return mlir::failure();
 
     rewriter.eraseOp(op);
-
     return mlir::LogicalResult::success();
   }
 };
@@ -730,7 +738,6 @@ class CIRScopeOpLowering
     if (mlir::failed(getTypeConverter()->convertTypes(scopeOp->getResultTypes(),
                                                       mlirResultTypes)))
       return mlir::LogicalResult::failure();
-
     rewriter.setInsertionPoint(scopeOp);
     auto newScopeOp = rewriter.create<mlir::memref::AllocaScopeOp>(
         scopeOp.getLoc(), mlirResultTypes);
@@ -803,7 +810,7 @@ public:
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto *parentOp = op->getParentOp();
     return llvm::TypeSwitch<mlir::Operation *, mlir::LogicalResult>(parentOp)
-        .Case<mlir::scf::IfOp>([&](auto) {
+        .Case<mlir::scf::IfOp, mlir::scf::WhileOp>([&](auto) {
           rewriter.replaceOpWithNewOp<mlir::scf::YieldOp>(
               op, adaptor.getOperands());
           return mlir::success();
@@ -821,25 +828,38 @@ public:
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto *parentOp = op->getParentOp();
     return llvm::TypeSwitch<mlir::Operation *, mlir::LogicalResult>(parentOp)
-        .Case<mlir::scf::ForOp, mlir::scf::WhileOp>([&](auto) {
+        .Case<mlir::scf::WhileOp>([&](auto) {
+          auto condition = adaptor.getCondition();
+          auto i1Condition = rewriter.create<mlir::arith::TruncIOp>(
+              op.getLoc(), rewriter.getI1Type(), condition);
           rewriter.replaceOpWithNewOp<mlir::scf::ConditionOp>(
-              op, adaptor.getCondition(), adaptor.getOperands());
+              op, i1Condition, parentOp->getOperands());
           return mlir::success();
         })
         .Default([](auto) { return mlir::failure(); });
   }
 };
 
-class CIRForOpLowering : public mlir::OpConversionPattern<mlir::cir::ForOp> {
+class CIRWhileOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::WhileOp> {
 public:
-  using OpConversionPattern<mlir::cir::ForOp>::OpConversionPattern;
+  using OpConversionPattern<mlir::cir::WhileOp>::OpConversionPattern;
+
   mlir::LogicalResult
-  matchAndRewrite(mlir::cir::ForOp forOp, OpAdaptor adaptor,
+  matchAndRewrite(mlir::cir::WhileOp whileOp, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    // build mlir::scf::for need
-    // function_ref<void(OpBuilder &, Location)> condBuilder,
-    // function_ref<void(OpBuilder &, Location)> bodyBuilder,
-    // function_ref<void(OpBuilder &, Location)> stepBuilder
+    auto newWhile = rewriter.create<mlir::scf::WhileOp>(
+        whileOp->getLoc(), whileOp->getResultTypes(), adaptor.getOperands());
+    rewriter.createBlock(&newWhile.getBefore());
+    rewriter.createBlock(&newWhile.getAfter());
+
+    rewriter.cloneRegionBefore(whileOp.getCond(), &newWhile.getBefore().back());
+    rewriter.eraseBlock(&newWhile.getBefore().back());
+
+    rewriter.cloneRegionBefore(whileOp.getBody(), &newWhile.getAfter().back());
+    rewriter.eraseBlock(&newWhile.getAfter().back());
+
+    rewriter.replaceOp(whileOp, newWhile->getResults());
     return mlir::success();
   }
 };
@@ -1166,8 +1186,8 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
                CIRExp2OpLowering, CIRExpOpLowering, CIRFAbsOpLowering,
                CIRFloorOpLowering, CIRLog10OpLowering, CIRLog2OpLowering,
                CIRLogOpLowering, CIRRoundOpLowering, CIRPtrStrideOpLowering,
-               CIRSinOpLowering, CIRConditionOpLowering>(converter,
-                                                         patterns.getContext());
+               CIRSinOpLowering, CIRConditionOpLowering, CIRWhileOpLowering>(
+      converter, patterns.getContext());
 }
 
 static mlir::TypeConverter prepareTypeConverter() {
