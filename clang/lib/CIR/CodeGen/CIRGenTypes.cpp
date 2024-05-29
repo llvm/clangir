@@ -464,14 +464,14 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
       break;
 
     case BuiltinType::Float16:
-      ResultType = Builder.getF16Type();
+      ResultType = CGM.FP16Ty;
       break;
     case BuiltinType::Half:
       // Should be the same as above?
       assert(0 && "not implemented");
       break;
     case BuiltinType::BFloat16:
-      ResultType = Builder.getBF16Type();
+      ResultType = CGM.BFloat16Ty;
       break;
     case BuiltinType::Float:
       ResultType = CGM.FloatTy;
@@ -598,9 +598,9 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
     const ReferenceType *RTy = cast<ReferenceType>(Ty);
     QualType ETy = RTy->getPointeeType();
     auto PointeeType = convertTypeForMem(ETy);
-    // TODO(cir): use Context.getTargetAddressSpace(ETy) on pointer
-    ResultType =
-        ::mlir::cir::PointerType::get(Builder.getContext(), PointeeType);
+    ResultType = ::mlir::cir::PointerType::get(
+        Builder.getContext(), PointeeType,
+        Context.getTargetAddressSpace(ETy.getAddressSpace()));
     assert(ResultType && "Cannot get pointer type?");
     break;
   }
@@ -615,9 +615,9 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
     // if (PointeeType->isVoidTy())
     //  PointeeType = Builder.getI8Type();
 
-    // FIXME: add address specifier to cir::PointerType?
-    ResultType =
-        ::mlir::cir::PointerType::get(Builder.getContext(), PointeeType);
+    ResultType = ::mlir::cir::PointerType::get(
+        Builder.getContext(), PointeeType,
+        Context.getTargetAddressSpace(ETy.getAddressSpace()));
     assert(ResultType && "Cannot get pointer type?");
     break;
   }

@@ -188,8 +188,10 @@ lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::cir::ConstPtrAttr ptrAttr,
     return rewriter.create<mlir::LLVM::ZeroOp>(
         loc, converter->convertType(ptrAttr.getType()));
   }
+  mlir::DataLayout layout(parentOp->getParentOfType<mlir::ModuleOp>());
   mlir::Value ptrVal = rewriter.create<mlir::LLVM::ConstantOp>(
-      loc, rewriter.getI64Type(), ptrAttr.getValue());
+      loc, rewriter.getIntegerType(layout.getTypeSizeInBits(ptrAttr.getType())),
+      ptrAttr.getValue().getInt());
   return rewriter.create<mlir::LLVM::IntToPtrOp>(
       loc, converter->convertType(ptrAttr.getType()), ptrVal);
 }
@@ -435,7 +437,7 @@ public:
     const mlir::Value length = rewriter.create<mlir::LLVM::ConstantOp>(
         op.getLoc(), rewriter.getI32Type(), op.getLength());
     rewriter.replaceOpWithNewOp<mlir::LLVM::MemcpyOp>(
-        op, adaptor.getDst(), adaptor.getSrc(), length, /*isVolatile=*/false);
+        op, adaptor.getDst(), adaptor.getSrc(), length, op.getIsVolatile());
     return mlir::success();
   }
 };
@@ -740,10 +742,12 @@ public:
       return mlir::success();
     }
     case mlir::cir::CastKind::ptr_to_bool: {
+      auto zero =
+          mlir::IntegerAttr::get(mlir::IntegerType::get(getContext(), 64), 0);
       auto null = rewriter.create<mlir::cir::ConstantOp>(
           src.getLoc(), castOp.getSrc().getType(),
           mlir::cir::ConstPtrAttr::get(getContext(), castOp.getSrc().getType(),
-                                       0));
+                                       zero));
       rewriter.replaceOpWithNewOp<mlir::cir::CmpOp>(
           castOp, mlir::cir::BoolType::get(getContext()),
           mlir::cir::CmpOpKind::ne, castOp.getSrc(), null);
@@ -868,15 +872,15 @@ public:
                   mlir::ConversionPatternRewriter &rewriter) const override {
     const auto llvmTy =
         getTypeConverter()->convertType(op.getResult().getType());
-    unsigned alignment = 0;
     auto memorder = op.getMemOrder();
     auto ordering = getLLVMMemOrder(memorder);
-
-    // FIXME: right now we only pass in the alignment when the memory access
-    // is atomic, we should always pass it instead.
-    if (ordering != mlir::LLVM::AtomicOrdering::not_atomic) {
+    auto alignOpt = op.getAlignment();
+    unsigned alignment = 0;
+    if (!alignOpt) {
       mlir::DataLayout layout(op->getParentOfType<mlir::ModuleOp>());
       alignment = (unsigned)layout.getTypeABIAlignment(llvmTy);
+    } else {
+      alignment = *alignOpt;
     }
 
     // TODO: nontemporal, invariant, syncscope.
@@ -895,17 +899,17 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::StoreOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    unsigned alignment = 0;
     auto memorder = op.getMemOrder();
     auto ordering = getLLVMMemOrder(memorder);
-
-    // FIXME: right now we only pass in the alignment when the memory access
-    // is atomic, we should always pass it instead.
-    if (ordering != mlir::LLVM::AtomicOrdering::not_atomic) {
+    auto alignOpt = op.getAlignment();
+    unsigned alignment = 0;
+    if (!alignOpt) {
       const auto llvmTy =
           getTypeConverter()->convertType(op.getValue().getType());
       mlir::DataLayout layout(op->getParentOfType<mlir::ModuleOp>());
       alignment = (unsigned)layout.getTypeABIAlignment(llvmTy);
+    } else {
+      alignment = *alignOpt;
     }
 
     // TODO: nontemporal, syncscope.
@@ -2769,20 +2773,31 @@ public:
     const auto *converter = getTypeConverter();
     auto targetType = converter->convertType(op.getType());
     mlir::Value symAddr = op.getSymAddr();
-
+    llvm::SmallVector<mlir::LLVM::GEPArg> offsets;
     mlir::Type eltType;
     if (!symAddr) {
+      // Get the vtable address point from a global variable
       auto module = op->getParentOfType<mlir::ModuleOp>();
-      auto symbol = dyn_cast<mlir::LLVM::GlobalOp>(
-          mlir::SymbolTable::lookupSymbolIn(module, op.getNameAttr()));
+      auto *symbol =
+          mlir::SymbolTable::lookupSymbolIn(module, op.getNameAttr());
+      if (auto llvmSymbol = dyn_cast<mlir::LLVM::GlobalOp>(symbol)) {
+        eltType = llvmSymbol.getType();
+      } else if (auto cirSymbol = dyn_cast<mlir::cir::GlobalOp>(symbol)) {
+        eltType = converter->convertType(cirSymbol.getSymType());
+      }
       symAddr = rewriter.create<mlir::LLVM::AddressOfOp>(
           op.getLoc(), mlir::LLVM::LLVMPointerType::get(getContext()),
           *op.getName());
-      eltType = converter->convertType(symbol.getType());
+      offsets = llvm::SmallVector<mlir::LLVM::GEPArg>{
+          0, op.getVtableIndex(), op.getAddressPointIndex()};
+    } else {
+      // Get indirect vtable address point retrieval
+      symAddr = adaptor.getSymAddr();
+      eltType = converter->convertType(symAddr.getType());
+      offsets =
+          llvm::SmallVector<mlir::LLVM::GEPArg>{op.getAddressPointIndex()};
     }
 
-    auto offsets = llvm::SmallVector<mlir::LLVM::GEPArg>{
-        0, op.getVtableIndex(), op.getAddressPointIndex()};
     if (eltType)
       rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(op, targetType, eltType,
                                                      symAddr, offsets, true);
@@ -3178,7 +3193,8 @@ void prepareTypeConverter(mlir::LLVMTypeConverter &converter,
                           mlir::DataLayout &dataLayout) {
   converter.addConversion([&](mlir::cir::PointerType type) -> mlir::Type {
     // Drop pointee type since LLVM dialect only allows opaque pointers.
-    return mlir::LLVM::LLVMPointerType::get(type.getContext());
+    return mlir::LLVM::LLVMPointerType::get(type.getContext(),
+                                            type.getAddrSpace());
   });
   converter.addConversion([&](mlir::cir::ArrayType type) -> mlir::Type {
     auto ty = converter.convertType(type.getEltType());

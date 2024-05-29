@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "Address.h"
-#include "CIRDataLayout.h"
+
 #include "CIRGenFunction.h"
 #include "CIRGenModule.h"
 #include "CIRGenOpenMPRuntime.h"
@@ -20,6 +20,7 @@
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/StmtVisitor.h"
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
+#include "clang/CIR/Dialect/IR/CIRDataLayout.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
@@ -512,7 +513,8 @@ static void buildAtomicOp(CIRGenFunction &CGF, AtomicExpr *E, Address Dest,
     auto loadVal1 = builder.createLoad(loc, Val1);
     // FIXME(cir): add scope information.
     assert(!UnimplementedFeature::syncScopeID());
-    builder.createStore(loc, loadVal1, Ptr, E->isVolatile(), orderAttr);
+    builder.createStore(loc, loadVal1, Ptr, E->isVolatile(),
+                        /*alignment=*/mlir::IntegerAttr{}, orderAttr);
     return;
   }
 

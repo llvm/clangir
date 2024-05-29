@@ -1071,12 +1071,21 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   }
 
   // Now see if we can emit a target-specific builtin.
-  if (auto v = buildTargetBuiltinExpr(BuiltinID, E, ReturnValue)) {
-    llvm_unreachable("NYI");
+  if (auto V = buildTargetBuiltinExpr(BuiltinID, E, ReturnValue)) {
+    switch (EvalKind) {
+    case TEK_Scalar:
+      if (V.getType().isa<mlir::cir::VoidType>())
+        return RValue::get(nullptr);
+      return RValue::get(V);
+    case TEK_Aggregate:
+      llvm_unreachable("NYI");
+    case TEK_Complex:
+      llvm_unreachable("No current target builtin returns complex");
+    }
+    llvm_unreachable("Bad evaluation kind in EmitBuiltinExpr");
   }
 
-  llvm_unreachable("NYI");
-  //   ErrorUnsupported(E, "builtin function");
+  CGM.ErrorUnsupported(E, "builtin function");
 
   // Unknown builtin, for now just dump it out and return undef.
   return GetUndefRValue(E->getType());
@@ -1119,7 +1128,7 @@ static mlir::Value buildTargetArchBuiltinExpr(CIRGenFunction *CGF,
   case llvm::Triple::aarch64:
   case llvm::Triple::aarch64_32:
   case llvm::Triple::aarch64_be:
-    return CGF->buildAArch64BuiltinExpr(BuiltinID, E, Arch);
+    return CGF->buildAArch64BuiltinExpr(BuiltinID, E, ReturnValue, Arch);
   case llvm::Triple::bpfeb:
   case llvm::Triple::bpfel:
     llvm_unreachable("NYI");

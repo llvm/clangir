@@ -130,6 +130,8 @@ struct UnimplementedFeature {
   static bool shouldEmitLifetimeMarkers() { return false; }
   static bool peepholeProtection() { return false; }
   static bool CGCapturedStmtInfo() { return false; }
+  static bool CGFPOptionsRAII() { return false; }
+  static bool getFPFeaturesInEffect() { return false; }
   static bool cxxABI() { return false; }
   static bool openCL() { return false; }
   static bool CUDA() { return false; }
@@ -150,6 +152,7 @@ struct UnimplementedFeature {
   static bool requiresCleanups() { return false; }
   static bool constantFoldsToSimpleInteger() { return false; }
   static bool alignedLoad() { return false; }
+  static bool alignedStore() { return false; }
   static bool checkFunctionCallABI() { return false; }
   static bool zeroInitializer() { return false; }
   static bool targetCodeGenInfoIsProtoCallVariadic() { return false; }
@@ -173,12 +176,6 @@ struct UnimplementedFeature {
   static bool asm_memory_effects() { return false; }
   static bool asm_vector_type() { return false; }
   static bool asm_llvm_assume() { return false; }
-
-  // ARM builtins
-  static bool translateAarch64ToMsvcIntrin() { return false; }
-  static bool neonEquivalentIntrinsicMap() { return false; }
-  static bool arm64SISDIntrinsicMap() { return false; }
-  static bool getNeonType() { return false; }
 };
 } // namespace cir
 

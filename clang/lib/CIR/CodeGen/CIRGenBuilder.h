@@ -10,7 +10,6 @@
 #define LLVM_CLANG_LIB_CIR_CIRGENBUILDER_H
 
 #include "Address.h"
-#include "CIRDataLayout.h"
 #include "CIRGenRecordLayout.h"
 #include "CIRGenTypeCache.h"
 #include "UnimplementedFeatureGuarding.h"
@@ -19,6 +18,7 @@
 #include "clang/AST/Type.h"
 #include "clang/CIR/Dialect/Builder/CIRBaseBuilder.h"
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
+#include "clang/CIR/Dialect/IR/CIRDataLayout.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
@@ -146,22 +146,33 @@ public:
 
   mlir::TypedAttr getConstNullPtrAttr(mlir::Type t) {
     assert(t.isa<mlir::cir::PointerType>() && "expected cir.ptr");
-    return mlir::cir::ConstPtrAttr::get(getContext(), t, 0);
+    return getConstPtrAttr(t, 0);
   }
 
   mlir::Attribute getString(llvm::StringRef str, mlir::Type eltTy,
                             unsigned size = 0) {
     unsigned finalSize = size ? size : str.size();
 
+    size_t lastNonZeroPos = str.find_last_not_of('\0');
     // If the string is full of null bytes, emit a #cir.zero rather than
     // a #cir.const_array.
-    if (str.count('\0') == str.size()) {
+    if (lastNonZeroPos == llvm::StringRef::npos) {
       auto arrayTy = mlir::cir::ArrayType::get(getContext(), eltTy, finalSize);
       return getZeroAttr(arrayTy);
     }
-
-    auto arrayTy = mlir::cir::ArrayType::get(getContext(), eltTy, finalSize);
-    return getConstArray(mlir::StringAttr::get(str, arrayTy), arrayTy);
+    // We will use trailing zeros only if there are more than one zero
+    // at the end
+    int trailingZerosNum =
+        finalSize > lastNonZeroPos + 2 ? finalSize - lastNonZeroPos - 1 : 0;
+    auto truncatedArrayTy = mlir::cir::ArrayType::get(
+        getContext(), eltTy, finalSize - trailingZerosNum);
+    auto fullArrayTy =
+        mlir::cir::ArrayType::get(getContext(), eltTy, finalSize);
+    return mlir::cir::ConstArrayAttr::get(
+        getContext(), fullArrayTy,
+        mlir::StringAttr::get(str.drop_back(trailingZerosNum),
+                              truncatedArrayTy),
+        trailingZerosNum);
   }
 
   mlir::cir::ConstArrayAttr getConstArray(mlir::Attribute attrs,
@@ -250,10 +261,14 @@ public:
       return mlir::cir::FPAttr::getZero(fltType);
     if (auto fltType = ty.dyn_cast<mlir::cir::DoubleType>())
       return mlir::cir::FPAttr::getZero(fltType);
+    if (auto fltType = ty.dyn_cast<mlir::cir::FP16Type>())
+      return mlir::cir::FPAttr::getZero(fltType);
+    if (auto fltType = ty.dyn_cast<mlir::cir::BF16Type>())
+      return mlir::cir::FPAttr::getZero(fltType);
     if (auto arrTy = ty.dyn_cast<mlir::cir::ArrayType>())
       return getZeroAttr(arrTy);
     if (auto ptrTy = ty.dyn_cast<mlir::cir::PointerType>())
-      return getConstPtrAttr(ptrTy, 0);
+      return getConstNullPtrAttr(ptrTy);
     if (auto structTy = ty.dyn_cast<mlir::cir::StructType>())
       return getZeroAttr(structTy);
     if (ty.isa<mlir::cir::BoolType>()) {
@@ -580,8 +595,9 @@ public:
   //
 
   /// Create a copy with inferred length.
-  mlir::cir::CopyOp createCopy(mlir::Value dst, mlir::Value src) {
-    return create<mlir::cir::CopyOp>(dst.getLoc(), dst, src);
+  mlir::cir::CopyOp createCopy(mlir::Value dst, mlir::Value src,
+                               bool isVolatile = false) {
+    return create<mlir::cir::CopyOp>(dst.getLoc(), dst, src, isVolatile);
   }
 
   /// Create a break operation.
@@ -750,6 +766,11 @@ public:
                                 [[maybe_unused]] bool isVolatile) {
     assert(!UnimplementedFeature::volatileLoadOrStore());
     assert(!UnimplementedFeature::alignedLoad());
+    // FIXME: create a more generic version of createLoad and rewrite this and
+    // others in terms of that. Ideally there should only be one call to
+    // create<mlir::cir::LoadOp> in all helpers.
+    if (ty != ptr.getType().cast<mlir::cir::PointerType>().getPointee())
+      ptr = createPtrBitcast(ptr, ty);
     return create<mlir::cir::LoadOp>(loc, ty, ptr);
   }
 
@@ -766,15 +787,30 @@ public:
 
   mlir::cir::StoreOp createStore(mlir::Location loc, mlir::Value val,
                                  Address dst, bool _volatile = false,
+                                 ::mlir::IntegerAttr align = {},
                                  ::mlir::cir::MemOrderAttr order = {}) {
     return CIRBaseBuilderTy::createStore(loc, val, dst.getPointer(), _volatile,
-                                         order);
+                                         align, order);
   }
 
   mlir::cir::StoreOp createFlagStore(mlir::Location loc, bool val,
                                      mlir::Value dst) {
     auto flag = getBool(val, loc);
     return CIRBaseBuilderTy::createStore(loc, flag, dst);
+  }
+
+  mlir::cir::StoreOp createAlignedStore(mlir::Location loc, mlir::Value val,
+                                        mlir::Value dst,
+                                        [[maybe_unused]] clang::CharUnits align,
+                                        bool _volatile = false,
+                                        ::mlir::cir::MemOrderAttr order = {}) {
+    // TODO: add alignment for LoadOp/StoreOp, right now LowerToLLVM knows
+    // how to figure out for most part, but it's possible the client might want
+    // to enforce a different alignment.
+    mlir::IntegerAttr alignAttr;
+    assert(!UnimplementedFeature::alignedStore());
+    return CIRBaseBuilderTy::createStore(loc, val, dst, _volatile, alignAttr,
+                                         order);
   }
 
   // Convert byte offset to sequence of high-level indices suitable for
