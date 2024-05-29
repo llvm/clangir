@@ -14,7 +14,7 @@ shall move to upstream as soon as the bulk of the base work lands.
 
 Other resources:
 
-- Oct 2023: *Evolution of ClangIR: A Year of Progress, Challenges, and Future Plans*. US LLVM Developers Meeting. [video](https://www.youtube.com/watch?v=XNOPO3ogdfQ), [pdf](ttp://brunocardoso.cc/resources/2023-LLVMDevMtgClangIR.pdf).
+- Oct 2023: *Evolution of ClangIR: A Year of Progress, Challenges, and Future Plans*. US LLVM Developers Meeting. [video](https://www.youtube.com/watch?v=XNOPO3ogdfQ), [pdf](http://brunocardoso.cc/resources/2023-LLVMDevMtgClangIR.pdf).
 - June 2022: [RFC: An MLIR based Clang IR (CIR)](https://discourse.llvm.org/t/rfc-an-mlir-based-clang-ir-cir/63319)
 
 # Motivation
