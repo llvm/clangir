@@ -21,7 +21,9 @@
 #include "clang/Basic/LangStandard.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Basic/TargetInfo.h"
+#if CLANG_ENABLE_CIR
 #include "clang/CIRFrontendAction/CIRGenAction.h"
+#endif
 #include "clang/CodeGen/BackendUtil.h"
 #include "clang/CodeGen/ModuleBuilder.h"
 #include "clang/Driver/DriverDiagnostic.h"
@@ -1046,8 +1048,10 @@ CodeGenAction::CreateASTConsumer(CompilerInstance &CI, StringRef InFile) {
         CI.getFrontendOpts().ModuleOutputPath));
   }
 
-  if (CI.getFrontendOpts().ClangIRAnalysisOnlyPipeline)
+#if CLANG_ENABLE_CIR
+  if (CI.getFrontendOpts().ClangIRAnalysisOnly)
     AdditionalConsumers.push_back(cir::createCIRAnalysisOnlyConsumer(CI));
+#endif
 
   if (!AdditionalConsumers.empty()) {
     AdditionalConsumers.push_back(std::move(Result));

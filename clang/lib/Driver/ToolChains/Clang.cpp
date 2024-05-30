@@ -4992,7 +4992,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
       CmdArgs.push_back("-fclangir-idiom-recognizer");
   }
 
-  if (Args.hasArg(options::OPT_fclangir_analysis_only_pipeline)) {
+  if (Args.hasArg(options::OPT_fclangir_analysis_only)) {
     CmdArgs.push_back("-fclangir-analysis-only");
 
     // TODO: We should pass some default analysis configuration here.

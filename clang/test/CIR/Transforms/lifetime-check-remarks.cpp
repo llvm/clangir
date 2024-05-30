@@ -1,4 +1,3 @@
-// RUN: %clang_cc1 -std=c++17 -triple x86_64-unknown-linux-gnu -fclangir -fclangir-lifetime-check="remarks=pset-invalid" -clangir-verify-diagnostics -emit-cir %s -o %t.cir
 // RUN: %clang_cc1 -std=c++17 -triple x86_64-unknown-linux-gnu -fclangir-analysis-only -fclangir-lifetime-check="remarks=pset-invalid" -clangir-verify-diagnostics -emit-obj %s -o /dev/null
 
 int *p0() {
