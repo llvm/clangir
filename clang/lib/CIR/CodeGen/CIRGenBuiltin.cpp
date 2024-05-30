@@ -320,10 +320,12 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     case Builtin::BIcopysignl:
     case Builtin::BI__builtin_copysign:
     case Builtin::BI__builtin_copysignf:
-    case Builtin::BI__builtin_copysignf16:
     case Builtin::BI__builtin_copysignl:
-    case Builtin::BI__builtin_copysignf128:
       return buildBinaryFPBuiltin<mlir::cir::CopysignOp>(*this, *E);
+
+    case Builtin::BI__builtin_copysignf16:
+    case Builtin::BI__builtin_copysignf128:
+      llvm_unreachable("NYI");
 
     case Builtin::BIcos:
     case Builtin::BIcosf:
@@ -390,22 +392,26 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     case Builtin::BIfmaxl:
     case Builtin::BI__builtin_fmax:
     case Builtin::BI__builtin_fmaxf:
-    case Builtin::BI__builtin_fmaxf16:
     case Builtin::BI__builtin_fmaxl:
-    case Builtin::BI__builtin_fmaxf128:
       return RValue::get(
           buildBinaryMaybeConstrainedFPBuiltin<mlir::cir::FMaxOp>(*this, *E));
+
+    case Builtin::BI__builtin_fmaxf16:
+    case Builtin::BI__builtin_fmaxf128:
+      llvm_unreachable("NYI");
 
     case Builtin::BIfmin:
     case Builtin::BIfminf:
     case Builtin::BIfminl:
     case Builtin::BI__builtin_fmin:
     case Builtin::BI__builtin_fminf:
-    case Builtin::BI__builtin_fminf16:
     case Builtin::BI__builtin_fminl:
-    case Builtin::BI__builtin_fminf128:
       return RValue::get(
           buildBinaryMaybeConstrainedFPBuiltin<mlir::cir::FMinOp>(*this, *E));
+
+    case Builtin::BI__builtin_fminf16:
+    case Builtin::BI__builtin_fminf128:
+      llvm_unreachable("NYI");
 
     // fmod() is a special-case. It maps to the frem instruction rather than an
     // LLVM intrinsic.
@@ -414,10 +420,12 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     case Builtin::BIfmodl:
     case Builtin::BI__builtin_fmod:
     case Builtin::BI__builtin_fmodf:
-    case Builtin::BI__builtin_fmodf16:
     case Builtin::BI__builtin_fmodl:
-    case Builtin::BI__builtin_fmodf128:
       return buildBinaryFPBuiltin<mlir::cir::FModOp>(*this, *E);
+
+    case Builtin::BI__builtin_fmodf16:
+    case Builtin::BI__builtin_fmodf128:
+      llvm_unreachable("NYI");
 
     case Builtin::BIlog:
     case Builtin::BIlogf:
@@ -463,11 +471,13 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     case Builtin::BIpowl:
     case Builtin::BI__builtin_pow:
     case Builtin::BI__builtin_powf:
-    case Builtin::BI__builtin_powf16:
     case Builtin::BI__builtin_powl:
-    case Builtin::BI__builtin_powf128:
       return RValue::get(
           buildBinaryMaybeConstrainedFPBuiltin<mlir::cir::PowOp>(*this, *E));
+
+    case Builtin::BI__builtin_powf16:
+    case Builtin::BI__builtin_powf128:
+      llvm_unreachable("NYI");
 
     case Builtin::BIrint:
     case Builtin::BIrintf:
