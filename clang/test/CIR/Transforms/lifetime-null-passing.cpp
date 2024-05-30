@@ -1,4 +1,3 @@
-// RUN: %clang_cc1 -std=c++20 -triple x86_64-unknown-linux-gnu -mconstructor-aliases -fclangir -clangir-disable-emit-cxx-default -fclangir-lifetime-check="history=all" -clangir-verify-diagnostics -emit-cir %s -o %t.cir
 // RUN: %clang_cc1 -std=c++20 -triple x86_64-unknown-linux-gnu -mconstructor-aliases -fclangir-analysis-only -fclangir-lifetime-check="history=all" -clangir-verify-diagnostics -emit-obj %s -o /dev/null
 
 class _j {};
