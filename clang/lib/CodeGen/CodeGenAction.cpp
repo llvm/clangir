@@ -21,6 +21,7 @@
 #include "clang/Basic/LangStandard.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Basic/TargetInfo.h"
+#include "clang/Config/config.h"
 #if CLANG_ENABLE_CIR
 #include "clang/CIRFrontendAction/CIRGenAction.h"
 #endif
