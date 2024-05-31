@@ -49,7 +49,7 @@ class CIRToCIRArgMapping {
 public:
   CIRToCIRArgMapping(const CIRContext &context, const LowerFunctionInfo &FI,
                      bool onlyRequiredArgs = false)
-      : ArgInfo(onlyRequiredArgs ? FI.getNumRequiredArgs() : FI.arg_size()){};
+      : ArgInfo(onlyRequiredArgs ? FI.getNumRequiredArgs() : FI.arg_size()) {};
 
   unsigned totalIRArgs() const { return TotalIRArgs; }
 };

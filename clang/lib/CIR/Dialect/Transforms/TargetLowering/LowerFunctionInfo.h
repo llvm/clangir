@@ -61,7 +61,7 @@ private:
   bool SignExt : 1;        // isExtend()
 
 public:
-  ABIArgInfo(Kind kind = Direct) : kind(kind), InReg(false), SignExt(false){};
+  ABIArgInfo(Kind kind = Direct) : kind(kind), InReg(false), SignExt(false) {};
   ~ABIArgInfo() = default;
 
   void setCanBeFlattened(bool Flatten) {
