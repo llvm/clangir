@@ -400,6 +400,121 @@ public:
   }
 };
 
+class CIRBitClzOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::BitClzOp> {
+public:
+  using OpConversionPattern<mlir::cir::BitClzOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::BitClzOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto resultIntTy =
+        getTypeConverter()->convertType(op.getType()).cast<mlir::IntegerType>();
+    auto clz = rewriter.create<mlir::math::CountLeadingZerosOp>(
+        op->getLoc(), adaptor.getInput());
+    auto newOp = createIntCast(rewriter, clz->getResult(0), resultIntTy,
+                               /*isSigned=*/false);
+    rewriter.replaceOp(op, newOp);
+    return mlir::LogicalResult::success();
+  }
+};
+
+class CIRBitCtzOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::BitCtzOp> {
+public:
+  using OpConversionPattern<mlir::cir::BitCtzOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::BitCtzOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto resultIntTy =
+        getTypeConverter()->convertType(op.getType()).cast<mlir::IntegerType>();
+    auto ctz = rewriter.create<mlir::math::CountTrailingZerosOp>(
+        op->getLoc(), adaptor.getInput());
+    auto newOp = createIntCast(rewriter, ctz->getResult(0), resultIntTy,
+                               /*isSigned=*/false);
+    rewriter.replaceOp(op, newOp);
+    return mlir::LogicalResult::success();
+  }
+};
+
+class CIRBitFfsOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::BitFfsOp> {
+public:
+  using OpConversionPattern<mlir::cir::BitFfsOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::BitFfsOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto mlirType = getTypeConverter()->convertType(op.getType());
+    auto integerType =
+        mlir::IntegerType::get(getContext(), 1, mlir::IntegerType::Signless);
+
+    auto ctz = rewriter.create<mlir::math::CountTrailingZerosOp>(
+        op->getLoc(), adaptor.getInput());
+    auto one = rewriter.create<mlir::arith::ConstantOp>(
+        op.getLoc(), mlirType, mlir::IntegerAttr::get(mlirType, 1));
+    auto ctzAddOne =
+        rewriter.create<mlir::arith::AddIOp>(op.getLoc(), ctz, one);
+
+    auto zeroInputTy = rewriter.create<mlir::arith::ConstantOp>(
+        op.getLoc(), adaptor.getInput().getType(),
+        mlir::IntegerAttr::get(adaptor.getInput().getType(), 0));
+    auto isZero = rewriter.create<mlir::arith::CmpIOp>(
+        op.getLoc(), integerType,
+        mlir::arith::CmpIPredicateAttr::get(getContext(),
+                                            mlir::arith::CmpIPredicate::eq),
+        adaptor.getInput(), zeroInputTy);
+
+    auto zero = rewriter.create<mlir::arith::ConstantOp>(
+        op.getLoc(), mlirType, mlir::IntegerAttr::get(mlirType, 0));
+    auto res = rewriter.create<mlir::arith::SelectOp>(op.getLoc(), isZero, zero,
+                                                      ctzAddOne);
+    rewriter.replaceOp(op, res);
+
+    return mlir::LogicalResult::success();
+  }
+};
+
+// class CIRBitParityOpLowering
+//     : public mlir::OpConversionPattern<mlir::cir::BitParityOp> {
+// public:
+//   using OpConversionPattern<mlir::cir::BitParityOp>::OpConversionPattern;
+
+//   mlir::LogicalResult
+//   matchAndRewrite(mlir::cir::BitParityOp op, OpAdaptor adaptor,
+//                   mlir::ConversionPatternRewriter &rewriter) const override {
+//     auto resTy = getTypeConverter()->convertType(op.getType());
+//     auto popcnt =
+//         createLLVMBitOp(op.getLoc(), "llvm.ctpop", resTy, adaptor.getInput(),
+//                         /*poisonZeroInputFlag=*/std::nullopt, rewriter);
+
+//     auto one = rewriter.create<mlir::LLVM::ConstantOp>(op.getLoc(), resTy,
+//     1); auto popcntMod2 =
+//         rewriter.create<mlir::LLVM::AndOp>(op.getLoc(), popcnt, one);
+//     rewriter.replaceOp(op, popcntMod2);
+
+//     return mlir::LogicalResult::success();
+//   }
+// };
+
+// class CIRBitPopcountOpLowering
+//     : public mlir::OpConversionPattern<mlir::cir::BitPopcountOp> {
+// public:
+//   using OpConversionPattern<mlir::cir::BitPopcountOp>::OpConversionPattern;
+
+//   mlir::LogicalResult
+//   matchAndRewrite(mlir::cir::BitPopcountOp op, OpAdaptor adaptor,
+//                   mlir::ConversionPatternRewriter &rewriter) const override {
+//     auto resTy = getTypeConverter()->convertType(op.getType());
+//     auto llvmOp =
+//         createLLVMBitOp(op.getLoc(), "llvm.ctpop", resTy, adaptor.getInput(),
+//                         /*poisonZeroInputFlag=*/std::nullopt, rewriter);
+//     rewriter.replaceOp(op, llvmOp);
+//     return mlir::LogicalResult::success();
+//   }
+// };
+
 class CIRConstantOpLowering
     : public mlir::OpConversionPattern<mlir::cir::ConstantOp> {
 public:
@@ -1158,18 +1273,19 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
                                          mlir::TypeConverter &converter) {
   patterns.add<CIRReturnLowering, CIRBrOpLowering>(patterns.getContext());
 
-  patterns.add<CIRCmpOpLowering, CIRCallOpLowering, CIRUnaryOpLowering,
-               CIRBinOpLowering, CIRLoadOpLowering, CIRConstantOpLowering,
-               CIRStoreOpLowering, CIRAllocaOpLowering, CIRFuncOpLowering,
-               CIRScopeOpLowering, CIRBrCondOpLowering, CIRTernaryOpLowering,
-               CIRYieldOpLowering, CIRCosOpLowering, CIRGlobalOpLowering,
-               CIRGetGlobalOpLowering, CIRCastOpLowering,
-               CIRPtrStrideOpLowering, CIRSqrtOpLowering, CIRCeilOpLowering,
-               CIRExp2OpLowering, CIRExpOpLowering, CIRFAbsOpLowering,
-               CIRFloorOpLowering, CIRLog10OpLowering, CIRLog2OpLowering,
-               CIRLogOpLowering, CIRRoundOpLowering, CIRPtrStrideOpLowering,
-               CIRSinOpLowering, CIRShiftOpLowering>(converter,
-                                                     patterns.getContext());
+  patterns
+      .add<CIRCmpOpLowering, CIRCallOpLowering, CIRUnaryOpLowering,
+           CIRBinOpLowering, CIRLoadOpLowering, CIRConstantOpLowering,
+           CIRStoreOpLowering, CIRAllocaOpLowering, CIRFuncOpLowering,
+           CIRScopeOpLowering, CIRBrCondOpLowering, CIRTernaryOpLowering,
+           CIRYieldOpLowering, CIRCosOpLowering, CIRGlobalOpLowering,
+           CIRGetGlobalOpLowering, CIRCastOpLowering, CIRPtrStrideOpLowering,
+           CIRSqrtOpLowering, CIRCeilOpLowering, CIRExp2OpLowering,
+           CIRExpOpLowering, CIRFAbsOpLowering, CIRFloorOpLowering,
+           CIRLog10OpLowering, CIRLog2OpLowering, CIRLogOpLowering,
+           CIRRoundOpLowering, CIRPtrStrideOpLowering, CIRSinOpLowering,
+           CIRShiftOpLowering, CIRBitClzOpLowering, CIRBitCtzOpLowering>(
+          converter, patterns.getContext());
 }
 
 static mlir::TypeConverter prepareTypeConverter() {
