@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -std=c++17 -triple x86_64-unknown-linux-gnu -fclangir-analysis-only -fclangir-lifetime-check="history=invalid,null" -clangir-verify-diagnostics -emit-obj %s -o /dev/null
+// RUN: %clang_cc1 -std=c++17 -triple x86_64-unknown-linux-gnu -fclangir -fclangir-lifetime-check="history=invalid,null" -clangir-verify-diagnostics -emit-cir %s -o %t.cir
 
 void s0(int b) {
   int *p = nullptr;
