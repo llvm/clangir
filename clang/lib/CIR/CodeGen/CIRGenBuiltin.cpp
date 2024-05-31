@@ -206,13 +206,9 @@ makeBinaryAtomicValue(CIRGenFunction &cgf, mlir::cir::AtomicFetchKind kind,
   auto fetchAttr =
       mlir::cir::AtomicFetchKindAttr::get(builder.getContext(), kind);
   auto rmwi = builder.create<mlir::cir::AtomicFetch>(
-                                  cgf.getLoc(expr->getSourceRange()),
-                                  destAddr.emitRawPointer(),
-                                  val,
-                                  kind,
-                                  ordering,
-                                  false,  /* is volatile */
-                                  true);  /* fetch first */
+      cgf.getLoc(expr->getSourceRange()), destAddr.emitRawPointer(), val, kind,
+      ordering, false, /* is volatile */
+      true);           /* fetch first */
   return buildFromInt(cgf, rmwi->getResult(0), typ, valueType);
 }
 
