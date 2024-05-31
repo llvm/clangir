@@ -400,43 +400,30 @@ public:
   }
 };
 
-class CIRBitClzOpLowering
-    : public mlir::OpConversionPattern<mlir::cir::BitClzOp> {
+template <typename CIROp, typename MLIROp>
+class CIRBitOpLowering : public mlir::OpConversionPattern<CIROp> {
 public:
-  using OpConversionPattern<mlir::cir::BitClzOp>::OpConversionPattern;
+  using mlir::OpConversionPattern<CIROp>::OpConversionPattern;
 
   mlir::LogicalResult
-  matchAndRewrite(mlir::cir::BitClzOp op, OpAdaptor adaptor,
+  matchAndRewrite(CIROp op,
+                  typename mlir::OpConversionPattern<CIROp>::OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    auto resultIntTy =
-        getTypeConverter()->convertType(op.getType()).cast<mlir::IntegerType>();
-    auto clz = rewriter.create<mlir::math::CountLeadingZerosOp>(
-        op->getLoc(), adaptor.getInput());
-    auto newOp = createIntCast(rewriter, clz->getResult(0), resultIntTy,
+    auto resultIntTy = this->getTypeConverter()
+                           ->convertType(op.getType())
+                           .template cast<mlir::IntegerType>();
+    auto res = rewriter.create<MLIROp>(op->getLoc(), adaptor.getInput());
+    auto newOp = createIntCast(rewriter, res->getResult(0), resultIntTy,
                                /*isSigned=*/false);
     rewriter.replaceOp(op, newOp);
     return mlir::LogicalResult::success();
   }
 };
 
-class CIRBitCtzOpLowering
-    : public mlir::OpConversionPattern<mlir::cir::BitCtzOp> {
-public:
-  using OpConversionPattern<mlir::cir::BitCtzOp>::OpConversionPattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(mlir::cir::BitCtzOp op, OpAdaptor adaptor,
-                  mlir::ConversionPatternRewriter &rewriter) const override {
-    auto resultIntTy =
-        getTypeConverter()->convertType(op.getType()).cast<mlir::IntegerType>();
-    auto ctz = rewriter.create<mlir::math::CountTrailingZerosOp>(
-        op->getLoc(), adaptor.getInput());
-    auto newOp = createIntCast(rewriter, ctz->getResult(0), resultIntTy,
-                               /*isSigned=*/false);
-    rewriter.replaceOp(op, newOp);
-    return mlir::LogicalResult::success();
-  }
-};
+using CIRBitClzOpLowering =
+    CIRBitOpLowering<mlir::cir::BitClzOp, mlir::math::CountLeadingZerosOp>;
+using CIRBitCtzOpLowering =
+    CIRBitOpLowering<mlir::cir::BitCtzOp, mlir::math::CountTrailingZerosOp>;
 
 class CIRConstantOpLowering
     : public mlir::OpConversionPattern<mlir::cir::ConstantOp> {
