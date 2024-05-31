@@ -339,14 +339,33 @@ void incdec() {
 // LLVM: atomicrmw add ptr {{.*}}, i32 {{.*}} monotonic, align 4
 // LLVM: atomicrmw sub ptr {{.*}}, i32 {{.*}} monotonic, align 4
 
-void inc(int* a) {
-  int b = __sync_fetch_and_add(a, 1);
+void inc_int(int* a, int b) {
+  int c = __sync_fetch_and_add(a, b);
 }
-// CHECK-LABEL: @_Z3inc 
+// CHECK-LABEL: @_Z7inc_int
 // CHECK: %[[PTR:.*]] = cir.load {{.*}} : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i> 
-// CHECK: %[[VAL:.*]] = cir.const #cir.int<1> : !s32i
+// CHECK: %[[VAL:.*]] = cir.load {{.*}} : !cir.ptr<!s32i>, !s32i
 // CHECK: %[[RES:.*]] = cir.atomic.fetch(add, %[[PTR]] : !cir.ptr<!s32i>, %[[VAL]] : !s32i, seq_cst) fetch_first : !s32i
 // CHECK: cir.store %[[RES]], {{.*}} : !s32i, !cir.ptr<!s32i>
 
-// LLVM-LABEL: @_Z3inc
-// LLVM: atomicrmw add ptr {{.*}}, i32 1 seq_cst, align 4
+// LLVM-LABEL: @_Z7inc_int
+// LLVM: atomicrmw add ptr {{.*}}, i32 {{.*}} seq_cst, align 4
+
+
+// CHECK-LABEL: @_Z8inc_long
+// CHECK: cir.atomic.fetch(add, {{.*}} : !cir.ptr<!s64i>, {{.*}} : !s64i, seq_cst) fetch_first : !s64i
+void inc_long(long* a, long b) {
+  long c = __sync_fetch_and_add(a, 2);
+}
+
+// CHECK-LABEL: @_Z9inc_short
+// CHECK: cir.atomic.fetch(add, {{.*}} : !cir.ptr<!s16i>, {{.*}} : !s16i, seq_cst) fetch_first : !s16i
+void inc_short(short* a, short b) {
+  short c = __sync_fetch_and_add(a, 2);
+}
+
+// CHECK-LABEL: @_Z8inc_byte
+// CHECK: cir.atomic.fetch(add, {{.*}} : !cir.ptr<!s8i>, {{.*}} : !s8i, seq_cst) fetch_first : !s8i
+void inc_byte(char* a, char b) {
+  char c = __sync_fetch_and_add(a, b);
+}

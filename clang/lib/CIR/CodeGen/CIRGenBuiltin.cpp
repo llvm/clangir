@@ -26,6 +26,7 @@
 #include "clang/AST/GlobalDecl.h"
 #include "clang/Basic/Builtins.h"
 #include "clang/Basic/TargetBuiltins.h"
+#include "clang/Frontend/FrontendDiagnostic.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/Value.h"
@@ -171,9 +172,7 @@ static Address checkAtomicAlignment(CIRGenFunction &CGF, const CallExpr *E) {
   unsigned align = ptr.getAlignment().getQuantity();
   if (align % bytes != 0) {
     DiagnosticsEngine &diags = CGF.CGM.getDiags();
-    // TODO
-    // diags.Report(E->getBeginLoc(), diag::warn_sync_op_misaligned);
-
+    diags.Report(E->getBeginLoc(), diag::warn_sync_op_misaligned);
     // Force address to be at least naturally-aligned.
     return ptr.withAlignment(CharUnits::fromQuantity(bytes));
   }
@@ -200,24 +199,20 @@ makeBinaryAtomicValue(CIRGenFunction &cgf, mlir::cir::AtomicFetchKind kind,
   auto &builder = cgf.getBuilder();
   auto *ctxt = builder.getContext();
   auto intType = builder.getSIntNTy(cgf.getContext().getTypeSize(typ));
-
   mlir::Value val = cgf.buildScalarExpr(expr->getArg(1));
   mlir::Type valueType = val.getType();
   val = buildToInt(cgf, val, typ, intType);
 
-  auto op = mlir::cir::AtomicFetch::getOperationName();
-  SmallVector<mlir::Value> atomicOperands = {destAddr.emitRawPointer(), val};
   auto fetchAttr =
       mlir::cir::AtomicFetchKindAttr::get(builder.getContext(), kind);
-  auto rmwi = builder.create(cgf.getLoc(expr->getSourceRange()),
-                             builder.getStringAttr(op), atomicOperands,
-                             {val.getType()}, {});
-
-  auto orderAttr = mlir::cir::MemOrderAttr::get(builder.getContext(), ordering);
-  rmwi->setAttr("binop", fetchAttr);
-  rmwi->setAttr("mem_order", orderAttr);
-  rmwi->setAttr("fetch_first", mlir::UnitAttr::get(builder.getContext()));
-
+  auto rmwi = builder.create<mlir::cir::AtomicFetch>(
+                                  cgf.getLoc(expr->getSourceRange()),
+                                  destAddr.emitRawPointer(),
+                                  val,
+                                  kind,
+                                  ordering,
+                                  false,  /* is volatile */
+                                  true);  /* fetch first */
   return buildFromInt(cgf, rmwi->getResult(0), typ, valueType);
 }
 
