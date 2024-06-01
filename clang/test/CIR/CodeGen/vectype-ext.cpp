@@ -174,13 +174,18 @@ void vector_double_test(int x, double y) {
   // CIR: %{{[0-9]+}} = cir.cast(float_to_int, %{{[0-9]+}} : !cir.vector<!cir.double x 2>), !cir.vector<!u16i x 2>
 }
 
-// CIR: cir.func {{@.*vector_swizzle.*}}
-// LLVM: define void {{@.*vector_swizzle.*}}
-void vector_swizzle() {
-
+// CIR: cir.func {{@.*test_load.*}}
+// LLVM: define void {{@.*test_load.*}}
+void test_load() {
   vi4 a = { 1, 2, 3, 4 };
 
-  vi2 b = a.wz;
+  vi2 b;
+
+  vi7 c = {};
+  // CIR: %[[#PVECC:]] = cir.alloca !cir.vector<!s32i x 7>
+  // LLVM: %[[#PVECC:]] = alloca <7 x i32>
+
+  b = a.wz;
   // CIR:      %[[#LOAD1:]] = cir.load %{{[0-9]+}} : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
   // CIR-NEXT: %[[#SHUFFLE1:]] = cir.vec.shuffle(%[[#LOAD1]], %[[#LOAD1]] : !cir.vector<!s32i x 4>) [#cir.int<3> : !s32i, #cir.int<2> : !s32i] : !cir.vector<!s32i x 2>
   // CIR-NEXT: cir.store %[[#SHUFFLE1]], %{{[0-9]+}} : !cir.vector<!s32i x 2>, !cir.ptr<!cir.vector<!s32i x 2>>
@@ -188,54 +193,6 @@ void vector_swizzle() {
   // LLVM:      %[[#LOAD1:]] = load <4 x i32>, ptr %{{[0-9]+}}, align 16
   // LLVM-NEXT: %[[#SHUFFLE1:]] = shufflevector <4 x i32> %[[#LOAD1]], <4 x i32> %[[#LOAD1]], <2 x i32> <i32 3, i32 2>
   // LLVM-NEXT: store <2 x i32> %[[#SHUFFLE1]], ptr %{{[0-9]+}}, align 8
-
-  a.wz = a.xy;
-  // CIR-NEXT: %[[#LOAD2:]] = cir.load %{{[0-9]+}} : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
-  // CIR-NEXT: %[[#SHUFFLE2:]] = cir.vec.shuffle(%[[#LOAD2]], %[[#LOAD2]] : !cir.vector<!s32i x 4>) [#cir.int<0> : !s32i, #cir.int<1> : !s32i] : !cir.vector<!s32i x 2>
-  // CIR-NEXT: %[[#LOAD3:]] = cir.load %{{[0-9]+}} : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
-  // CIR-NEXT: %[[#SHUFFLE3:]] = cir.vec.shuffle(%[[#SHUFFLE2]], %[[#SHUFFLE2]] : !cir.vector<!s32i x 2>) [#cir.int<0> : !s32i, #cir.int<1> : !s32i, #cir.int<-1> : !s32i, #cir.int<-1> : !s32i] : !cir.vector<!s32i x 4>
-  // CIR-NEXT: %[[#SHUFFLE4:]] = cir.vec.shuffle(%[[#LOAD3]], %[[#SHUFFLE3]] : !cir.vector<!s32i x 4>) [#cir.int<0> : !s32i, #cir.int<1> : !s32i, #cir.int<5> : !s32i, #cir.int<4> : !s32i] : !cir.vector<!s32i x 4>
-  // CIR-NEXT: cir.store %[[#SHUFFLE4]], %{{[0-9]+}} : !cir.vector<!s32i x 4>, !cir.ptr<!cir.vector<!s32i x 4>>
-
-  // LLVM-NEXT: %[[#LOAD2:]] = load <4 x i32>, ptr %{{[0-9]+}}, align 16
-  // LLVM-NEXT: %[[#SHUFFLE2:]] = shufflevector <4 x i32> %[[#LOAD2]], <4 x i32> %[[#LOAD2]], <2 x i32> <i32 0, i32 1>
-  // LLVM-NEXT: %[[#LOAD3:]] = load <4 x i32>, ptr %{{[0-9]+}}, align 16
-  // LLVM-NEXT: %[[#SHUFFLE3:]] = shufflevector <2 x i32> %[[#SHUFFLE2]], <2 x i32> %[[#SHUFFLE2]], <4 x i32> <i32 0, i32 1, i32 poison, i32 poison>
-  // LLVM-NEXT: %[[#SHUFFLE4:]] = shufflevector <4 x i32> %[[#LOAD3]], <4 x i32> %[[#SHUFFLE3]], <4 x i32> <i32 0, i32 1, i32 5, i32 4>
-  // LLVM-NEXT: store <4 x i32> %[[#SHUFFLE4]], ptr %{{[0-9]+}}, align 16
-
-  a.xy = b;
-  // CIR-NEXT: %[[#LOAD4RHS:]] = cir.load %{{[0-9]+}} : !cir.ptr<!cir.vector<!s32i x 2>>, !cir.vector<!s32i x 2>
-  // CIR-NEXT: %[[#LOAD5LHS:]] = cir.load %{{[0-9]+}} : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
-  // CIR-NEXT: %[[#SHUFFLE5:]] = cir.vec.shuffle(%[[#LOAD4RHS]], %[[#LOAD4RHS]] : !cir.vector<!s32i x 2>) [#cir.int<0> : !s32i, #cir.int<1> : !s32i, #cir.int<-1> : !s32i, #cir.int<-1> : !s32i] : !cir.vector<!s32i x 4>
-  // CIR-NEXT: %[[#SHUFFLE6:]] = cir.vec.shuffle(%[[#LOAD5LHS]], %[[#SHUFFLE5]] : !cir.vector<!s32i x 4>) [#cir.int<4> : !s32i, #cir.int<5> : !s32i, #cir.int<2> : !s32i, #cir.int<3> : !s32i] : !cir.vector<!s32i x 4>
-  // CIR-NEXT: cir.store %[[#SHUFFLE6]], %{{[0-9]+}} : !cir.vector<!s32i x 4>, !cir.ptr<!cir.vector<!s32i x 4>>
-
-  // LLVM-NEXT: %[[#LOAD4RHS:]] = load <2 x i32>, ptr %{{[0-9]+}}, align 8
-  // LLVM-NEXT: %[[#LOAD5LHS:]] = load <4 x i32>, ptr %{{[0-9]+}}, align 16
-  // LLVM-NEXT: %[[#SHUFFLE5:]] = shufflevector <2 x i32> %[[#LOAD4RHS]], <2 x i32> %[[#LOAD4RHS]], <4 x i32> <i32 0, i32 1, i32 poison, i32 poison>
-  // LLVM-NEXT: %[[#SHUFFLE6:]] = shufflevector <4 x i32> %[[#LOAD5LHS]], <4 x i32> %[[#SHUFFLE5]], <4 x i32> <i32 4, i32 5, i32 2, i32 3>
-  // LLVM-NEXT: store <4 x i32> %[[#SHUFFLE6]], ptr %{{[0-9]+}}, align 16
-
-  b = a.yw;
-  // CIR-NEXT: %[[#LOAD6:]] = cir.load %{{[0-9]+}} : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
-  // CIR-NEXT: %[[#SHUFFLE7:]] = cir.vec.shuffle(%[[#LOAD6]], %[[#LOAD6]] : !cir.vector<!s32i x 4>) [#cir.int<1> : !s32i, #cir.int<3> : !s32i] : !cir.vector<!s32i x 2>
-  // CIR-NEXT: cir.store %[[#SHUFFLE7]], %{{[0-9]+}} : !cir.vector<!s32i x 2>, !cir.ptr<!cir.vector<!s32i x 2>>
-
-  // LLVM-NEXT: %[[#LOAD6:]] = load <4 x i32>, ptr %{{[0-9]+}}, align 16
-  // LLVM-NEXT: %[[#SHUFFLE7:]] = shufflevector <4 x i32> %[[#LOAD6]], <4 x i32> %[[#LOAD6]], <2 x i32> <i32 1, i32 3>
-  // LLVM-NEXT: store <2 x i32> %[[#SHUFFLE7]], ptr %{{[0-9]+}}, align 8
-
-  a.s0 = 1;
-  // CIR-NEXT: cir.const #cir.int<1>
-  // CIR-NEXT: %[[#LOAD7:]] = cir.load %{{[0-9]+}} : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
-  // CIR-NEXT: %[[#INSERT_INDEX:]] = cir.const #cir.int<0> : !s64i
-  // CIR-NEXT: %[[#INSERT1:]] = cir.vec.insert %{{[0-9]+}}, %[[#LOAD7]][%[[#INSERT_INDEX]] : !s64i] : !cir.vector<!s32i x 4>
-  // CIR-NEXT: cir.store %[[#INSERT1]], %{{[0-9]+}} : !cir.vector<!s32i x 4>, !cir.ptr<!cir.vector<!s32i x 4>>
-
-  // LLVM-NEXT: %[[#LOAD7:]] = load <4 x i32>, ptr %{{[0-9]+}}, align 16
-  // LLVM-NEXT: %[[#INSERT1:]] = insertelement <4 x i32> %[[#LOAD7]], i32 1, i64 0
-  // LLVM-NEXT: store <4 x i32> %[[#INSERT1]], ptr %{{[0-9]+}}, align 16
 
   int one_elem_load = a.s2;
   // CIR-NEXT: %[[#LOAD8:]] = cir.load %{{[0-9]+}} : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
@@ -247,11 +204,26 @@ void vector_swizzle() {
   // LLVM-NEXT: %[[#EXTRACT1:]] = extractelement <4 x i32> %[[#LOAD8]], i64 2
   // LLVM-NEXT: store i32 %[[#EXTRACT1]], ptr %{{[0-9]+}}, align 4
 
+
+  // OpenCL C Specification 6.3.7. Vector Components
+  // The suffixes .lo (or .even) and .hi (or .odd) for a 3-component vector type
+  // operate as if the 3-component vector type is a 4-component vector type with
+  // the value in the w component undefined.
+  a = c.hi;
+
+  // CIR-NEXT: %[[#VECC:]] = cir.load %[[#PVECC]] : !cir.ptr<!cir.vector<!s32i x 7>>, !cir.vector<!s32i x 7>
+  // CIR-NEXT: %[[#HIPART:]] = cir.vec.shuffle(%[[#VECC]], %[[#VECC]] : !cir.vector<!s32i x 7>) [#cir.int<4> : !s32i, #cir.int<5> : !s32i, #cir.int<6> : !s32i, #cir.int<7> : !s32i] : !cir.vector<!s32i x 4>
+  // CIR-NEXT: cir.store %[[#HIPART]], %{{[0-9]+}} : !cir.vector<!s32i x 4>, !cir.ptr<!cir.vector<!s32i x 4>>
+
+  // LLVM-NEXT: %[[#VECC:]] = load <7 x i32>, ptr %[[#PVECC]], align 32
+  // LLVM-NEXT: %[[#HIPART:]] = shufflevector <7 x i32> %[[#VECC]], <7 x i32> %[[#VECC]], <4 x i32> <i32 4, i32 5, i32 6, i32 7>
+  // LLVM-NEXT: store <4 x i32> %[[#HIPART]], ptr %{{[0-9]+}}, align 16
+
 }
 
-// CIR: cir.func {{@.*vector_extend.*}}
-// LLVM: define void {{@.*vector_extend.*}}
-void vector_extend() {
+// CIR: cir.func {{@.*test_store.*}}
+// LLVM: define void {{@.*test_store.*}}
+void test_store() {
   vi4 a;
   // CIR: %[[#PVECA:]] = cir.alloca !cir.vector<!s32i x 4>
   // LLVM: %[[#PVECA:]] = alloca <4 x i32>
@@ -264,32 +236,44 @@ void vector_extend() {
   // CIR-NEXT: %[[#PVECC:]] = cir.alloca !cir.vector<!s32i x 7>
   // LLVM-NEXT: %[[#PVECC:]] = alloca <7 x i32>
 
+  a.xy = b;
+  // CIR:      %[[#LOAD4RHS:]] = cir.load %{{[0-9]+}} : !cir.ptr<!cir.vector<!s32i x 2>>, !cir.vector<!s32i x 2>
+  // CIR-NEXT: %[[#LOAD5LHS:]] = cir.load %{{[0-9]+}} : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
+  // CIR-NEXT: %[[#SHUFFLE5:]] = cir.vec.shuffle(%[[#LOAD4RHS]], %[[#LOAD4RHS]] : !cir.vector<!s32i x 2>) [#cir.int<0> : !s32i, #cir.int<1> : !s32i, #cir.int<-1> : !s32i, #cir.int<-1> : !s32i] : !cir.vector<!s32i x 4>
+  // CIR-NEXT: %[[#SHUFFLE6:]] = cir.vec.shuffle(%[[#LOAD5LHS]], %[[#SHUFFLE5]] : !cir.vector<!s32i x 4>) [#cir.int<4> : !s32i, #cir.int<5> : !s32i, #cir.int<2> : !s32i, #cir.int<3> : !s32i] : !cir.vector<!s32i x 4>
+  // CIR-NEXT: cir.store %[[#SHUFFLE6]], %{{[0-9]+}} : !cir.vector<!s32i x 4>, !cir.ptr<!cir.vector<!s32i x 4>>
+
+  // LLVM:      %[[#LOAD4RHS:]] = load <2 x i32>, ptr %{{[0-9]+}}, align 8
+  // LLVM-NEXT: %[[#LOAD5LHS:]] = load <4 x i32>, ptr %{{[0-9]+}}, align 16
+  // LLVM-NEXT: %[[#SHUFFLE5:]] = shufflevector <2 x i32> %[[#LOAD4RHS]], <2 x i32> %[[#LOAD4RHS]], <4 x i32> <i32 0, i32 1, i32 poison, i32 poison>
+  // LLVM-NEXT: %[[#SHUFFLE6:]] = shufflevector <4 x i32> %[[#LOAD5LHS]], <4 x i32> %[[#SHUFFLE5]], <4 x i32> <i32 4, i32 5, i32 2, i32 3>
+  // LLVM-NEXT: store <4 x i32> %[[#SHUFFLE6]], ptr %{{[0-9]+}}, align 16
+
+  // load single element
+  a.s0 = 1;
+  // CIR-NEXT: cir.const #cir.int<1>
+  // CIR-NEXT: %[[#LOAD7:]] = cir.load %{{[0-9]+}} : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
+  // CIR-NEXT: %[[#INSERT_INDEX:]] = cir.const #cir.int<0> : !s64i
+  // CIR-NEXT: %[[#INSERT1:]] = cir.vec.insert %{{[0-9]+}}, %[[#LOAD7]][%[[#INSERT_INDEX]] : !s64i] : !cir.vector<!s32i x 4>
+  // CIR-NEXT: cir.store %[[#INSERT1]], %{{[0-9]+}} : !cir.vector<!s32i x 4>, !cir.ptr<!cir.vector<!s32i x 4>>
+
+  // LLVM-NEXT: %[[#LOAD7:]] = load <4 x i32>, ptr %{{[0-9]+}}, align 16
+  // LLVM-NEXT: %[[#INSERT1:]] = insertelement <4 x i32> %[[#LOAD7]], i32 1, i64 0
+  // LLVM-NEXT: store <4 x i32> %[[#INSERT1]], ptr %{{[0-9]+}}, align 16
+
+  // extend length from 2 to 4, then merge two vectors
   a.lo = b;
-  // CIR: %[[#VECB:]] = cir.load %[[#PVECB]] : !cir.ptr<!cir.vector<!s32i x 2>>, !cir.vector<!s32i x 2>
+  // CIR:      %[[#VECB:]] = cir.load %[[#PVECB]] : !cir.ptr<!cir.vector<!s32i x 2>>, !cir.vector<!s32i x 2>
   // CIR-NEXT: %[[#VECA:]] = cir.load %[[#PVECA]] : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
   // CIR-NEXT: %[[#EXTVECB:]] = cir.vec.shuffle(%[[#VECB]], %[[#VECB]] : !cir.vector<!s32i x 2>) [#cir.int<0> : !s32i, #cir.int<1> : !s32i, #cir.int<-1> : !s32i, #cir.int<-1> : !s32i] : !cir.vector<!s32i x 4>
   // CIR-NEXT: %[[#RESULT:]] = cir.vec.shuffle(%[[#VECA]], %[[#EXTVECB]] : !cir.vector<!s32i x 4>) [#cir.int<4> : !s32i, #cir.int<5> : !s32i, #cir.int<2> : !s32i, #cir.int<3> : !s32i] : !cir.vector<!s32i x 4>
   // CIR-NEXT: cir.store %[[#RESULT]], %[[#PVECA]] : !cir.vector<!s32i x 4>, !cir.ptr<!cir.vector<!s32i x 4>>
 
-  // LLVM: %[[#VECB:]] = load <2 x i32>, ptr %[[#PVECB]], align 8
+  // LLVM:      %[[#VECB:]] = load <2 x i32>, ptr %[[#PVECB]], align 8
   // LLVM-NEXT: %[[#VECA:]] = load <4 x i32>, ptr %[[#PVECA]], align 16
   // LLVM-NEXT: %[[#EXTVECB:]] = shufflevector <2 x i32> %[[#VECB]], <2 x i32> %[[#VECB]], <4 x i32> <i32 0, i32 1, i32 poison, i32 poison>
   // LLVM-NEXT: %[[#RESULT:]] = shufflevector <4 x i32> %[[#VECA]], <4 x i32> %[[#EXTVECB]], <4 x i32> <i32 4, i32 5, i32 2, i32 3>
   // LLVM-NEXT: store <4 x i32> %[[#RESULT]], ptr %[[#PVECA]], align 16
-
-  // OpenCL C Specification 6.3.7. Vector Components
-  // The suffixes .lo (or .even) and .hi (or .odd) for a 3-component vector type
-  // operate as if the 3-component vector type is a 4-component vector type with
-  // the value in the w component undefined.
-  a = c.hi;
-
-  // CIR-NEXT: %[[#VECC:]] = cir.load %[[#PVECC]] : !cir.ptr<!cir.vector<!s32i x 7>>, !cir.vector<!s32i x 7>
-  // CIR-NEXT: %[[#HIPART:]] = cir.vec.shuffle(%[[#VECC]], %[[#VECC]] : !cir.vector<!s32i x 7>) [#cir.int<4> : !s32i, #cir.int<5> : !s32i, #cir.int<6> : !s32i, #cir.int<7> : !s32i] : !cir.vector<!s32i x 4>
-  // CIR-NEXT: cir.store %[[#HIPART]], %[[#PVECA]] : !cir.vector<!s32i x 4>, !cir.ptr<!cir.vector<!s32i x 4>>
-
-  // LLVM-NEXT: %[[#VECC:]] = load <7 x i32>, ptr %[[#PVECC]], align 32
-  // LLVM-NEXT: %[[#HIPART:]] = shufflevector <7 x i32> %[[#VECC]], <7 x i32> %[[#VECC]], <4 x i32> <i32 4, i32 5, i32 6, i32 7>
-  // LLVM-NEXT: store <4 x i32> %[[#HIPART]], ptr %[[#PVECA]], align 16
 
   // c.hi is c[4, 5, 6, 7], in which 7 should be ignored in CIRGen for store
   c.hi = a;
@@ -307,4 +291,42 @@ void vector_extend() {
   // LLVM-NEXT: store <7 x i32> %[[#RESULT]], ptr %[[#PVECC]], align 32
 }
 
-// TODO(cir): Enable concat test when OpenCL lands
+// CIR: cir.func {{@.*test_build_lvalue.*}}
+// LLVM: define void {{@.*test_build_lvalue.*}}
+void test_build_lvalue() {
+  // special cases only
+
+  vi4 *pv, v;
+
+  // CIR:      %[[#ALLOCAPV:]] = cir.alloca !cir.ptr<!cir.vector<!s32i x 4>>, !cir.ptr<!cir.ptr<!cir.vector<!s32i x 4>>>, ["pv"] {alignment = 8 : i64}
+  // CIR-NEXT: %[[#ALLOCAV:]] = cir.alloca !cir.vector<!s32i x 4>, !cir.ptr<!cir.vector<!s32i x 4>>, ["v"] {alignment = 16 : i64}
+  // CIR-NEXT: %[[#ALLOCAS:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["s", init] {alignment = 4 : i64}
+  // CIR-NEXT: %[[#ALLOCATMP:]] = cir.alloca !cir.vector<!s32i x 4>, !cir.ptr<!cir.vector<!s32i x 4>>, ["tmp"] {alignment = 16 : i64}
+  // CIR-NEXT: %[[#ALLOCAR:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["r", init] {alignment = 4 : i64}
+
+  pv->x = 99;
+  // CIR: %[[#VAL:]] = cir.const #cir.int<99> : !s32i
+  // CIR-NEXT: %[[#PV:]] = cir.load %{{[0-9]+}} : !cir.ptr<!cir.ptr<!cir.vector<!s32i x 4>>>, !cir.ptr<!cir.vector<!s32i x 4>>
+  // CIR-NEXT: %[[#V:]] = cir.load %[[#PV]] : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
+  // CIR-NEXT: %[[#IDX:]] = cir.const #cir.int<0> : !s64i
+  // CIR-NEXT: %[[#RESULT:]] = cir.vec.insert %[[#VAL]], %[[#V]][%[[#IDX]] : !s64i] : !cir.vector<!s32i x 4>
+  // CIR-NEXT: cir.store %[[#RESULT]], %[[#PV]] : !cir.vector<!s32i x 4>, !cir.ptr<!cir.vector<!s32i x 4>>
+
+  int s = (v+v).x;
+
+  // CIR-NEXT: %[[#LOAD1:]] = cir.load %[[#ALLOCAV]] : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
+  // CIR-NEXT: %[[#LOAD2:]] = cir.load %[[#ALLOCAV]] : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
+  // CIR-NEXT: %[[#SUM:]] = cir.binop(add, %[[#LOAD1]], %[[#LOAD2]]) : !cir.vector<!s32i x 4>
+  // CIR-NEXT: cir.store %[[#SUM]], %[[#ALLOCATMP]] : !cir.vector<!s32i x 4>, !cir.ptr<!cir.vector<!s32i x 4>>
+  // CIR-NEXT: %[[#TMP:]] = cir.load %[[#ALLOCATMP]] : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
+  // CIR-NEXT: %[[#IDX:]] = cir.const #cir.int<0> : !s64i
+  // CIR-NEXT: %[[#RESULT:]] = cir.vec.extract %[[#TMP]][%[[#IDX]] : !s64i] : !cir.vector<!s32i x 4>
+  // CIR-NEXT: cir.store %[[#RESULT]], %[[#ALLOCAS]] : !s32i, !cir.ptr<!s32i>
+
+  int r = v.xy.x;
+  // CIR-NEXT: %[[#V:]] = cir.load %[[#ALLOCAV]] : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
+  // CIR-NEXT: %[[#IDX:]] = cir.const #cir.int<0> : !s64i
+  // CIR-NEXT: %[[#RESULT:]] = cir.vec.extract %[[#V]][%[[#IDX]] : !s64i] : !cir.vector<!s32i x 4>
+  // CIR-NEXT: cir.store %[[#RESULT]], %[[#ALLOCAR]] : !s32i, !cir.ptr<!s32i>
+
+}
