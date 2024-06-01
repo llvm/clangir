@@ -4,7 +4,6 @@ add_clang_library(TargetLowering
   CIRCXXABI.cpp
   CIRQueries.cpp
   CIRRecordLayout.cpp
-  DataLayout.cpp
   ItaniumCXXABI.cpp
   LowerCall.cpp
   LowerFunction.cpp

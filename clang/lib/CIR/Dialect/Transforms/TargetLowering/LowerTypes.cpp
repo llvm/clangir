@@ -15,11 +15,10 @@
 #include "LowerModule.h"
 #include "mlir/Support/LLVM.h"
 
-using namespace mlir;
-using namespace cir;
+using namespace ::mlir::cir;
 
 LowerTypes::LowerTypes(LowerModule &LM, StringRef DLString)
     : LM(LM), queries(LM.getContext()), Target(LM.getTarget()),
       CXXABI(LM.getCXXABI()),
       TheABIInfo(LM.getTargetLoweringInfo().getABIInfo()),
-      mlirContext(LM.getMLIRContext()), DL(DLString, LM.getModule()) {}
+      mlirContext(LM.getMLIRContext()), DL(LM.getModule()) {}

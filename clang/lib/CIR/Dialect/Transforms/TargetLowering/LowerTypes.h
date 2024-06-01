@@ -17,8 +17,8 @@
 #include "ABIInfo.h"
 #include "CIRCXXABI.h"
 #include "CIRQueries.h"
-#include "DataLayout.h"
 #include "mlir/IR/MLIRContext.h"
+#include "clang/CIR/Dialect/IR/CIRDataLayout.h"
 
 namespace mlir {
 namespace cir {
@@ -44,7 +44,7 @@ private:
   // Used to build types and other MLIR operations.
   MLIRContext *mlirContext;
 
-  CIRDataLayout DL;
+  ::cir::CIRDataLayout DL;
 
 public:
   LowerTypes(LowerModule &LM, StringRef DLString);
