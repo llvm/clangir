@@ -3,8 +3,6 @@ add_subdirectory(TargetLowering)
 add_clang_library(MLIRCIRTransforms
   LifetimeCheck.cpp
   LoweringPrepare.cpp
-  LoweringPrepareItaniumCXXABI.cpp
-  LoweringPrepareAArch64CXXABI.cpp
   MergeCleanups.cpp
   DropAST.cpp
   IdiomRecognizer.cpp

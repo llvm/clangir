@@ -12,7 +12,10 @@
 //
 //===------------------------------------------------------------------===//
 
-#include "LoweringPrepareItaniumCXXABI.h"
+// TODO(cir): Refactor this to follow some level of codegen parity.
+
+#include "../../IR/MissingFeatures.h"
+#include "../LoweringPrepareItaniumCXXABI.h"
 #include "clang/AST/CharUnits.h"
 #include "clang/CIR/Dialect/IR/CIRDataLayout.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"

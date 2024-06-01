@@ -55,3 +55,14 @@ CIRCXXABI *CreateItaniumCXXABI(LowerModule &LM) {
 
 } // namespace cir
 } // namespace mlir
+
+// FIXME(cir): Merge this into the CIRCXXABI class above.
+class LoweringPrepareItaniumCXXABI : public cir::LoweringPrepareCXXABI {
+public:
+  mlir::Value lowerDynamicCast(cir::CIRBaseBuilderTy &builder,
+                               clang::ASTContext &astCtx,
+                               mlir::cir::DynamicCastOp op) override;
+  mlir::Value lowerVAArg(cir::CIRBaseBuilderTy &builder, mlir::cir::VAArgOp op,
+                         const cir::CIRDataLayout &datalayout) override;
+};
+
