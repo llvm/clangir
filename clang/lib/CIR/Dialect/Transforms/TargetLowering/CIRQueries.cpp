@@ -26,7 +26,9 @@ CIRQueries::CIRQueries(MLIRContext *MLIRCtx, clang::LangOptions &LOpts)
 
 CIRQueries::~CIRQueries() {}
 
-void CIRQueries::initBuiltinType(Type &Ty, clang::BuiltinType::Kind K) {
+Type CIRQueries::initBuiltinType(clang::BuiltinType::Kind K) {
+  Type Ty;
+
   // NOTE(cir): Clang does more stuff here. Not sure if we need to do the same.
   assert(MissingFeature::qualifiedTypes());
   switch (K) {
@@ -36,7 +38,9 @@ void CIRQueries::initBuiltinType(Type &Ty, clang::BuiltinType::Kind K) {
   default:
     llvm_unreachable("NYI");
   }
+
   Types.push_back(Ty);
+  return Ty;
 }
 
 void CIRQueries::initBuiltinTypes(const clang::TargetInfo &Target,
@@ -48,7 +52,7 @@ void CIRQueries::initBuiltinTypes(const clang::TargetInfo &Target,
 
   // C99 6.2.5p3.
   if (LangOpts.CharIsSigned)
-    initBuiltinType(CharTy, clang::BuiltinType::Char_S);
+    CharTy = initBuiltinType(clang::BuiltinType::Char_S);
   else
     llvm_unreachable("NYI");
 }

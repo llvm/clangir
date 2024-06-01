@@ -62,7 +62,7 @@ public:
                         const clang::TargetInfo *AuxTarget = nullptr);
 
 private:
-  void initBuiltinType(Type &R, clang::BuiltinType::Kind K);
+  Type initBuiltinType(clang::BuiltinType::Kind K);
 
 public:
   MLIRContext *getMLIRContext() const { return MLIRCtx; }
