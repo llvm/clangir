@@ -1114,6 +1114,7 @@ CIRGenFunction::buildExtVectorElementExpr(const ExtVectorElementExpr *E) {
     // it.
     LValueBaseInfo BaseInfo;
     // TODO(cir): Support TBAA
+    assert(!UnimplementedFeature::tbaa());
     Address Ptr = buildPointerWithAlignment(E->getBase(), &BaseInfo);
     const auto *PT = E->getBase()->getType()->castAs<clang::PointerType>();
     Base = makeAddrLValue(Ptr, PT->getPointeeType(), BaseInfo);
