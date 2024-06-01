@@ -1,4 +1,4 @@
-//===---- UnimplementedFeatureGuarding.h - Checks against NYI ---*- C++ -*-===//
+//===---- MissingFeatures.h - Checks for unimplemented features -*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -7,16 +7,17 @@
 //===----------------------------------------------------------------------===//
 //
 // This file introduces some helper classes to guard against features that
-// CodeGen supports that we do not have and also do not have great ways to
+// CIR dialect supports that we do not have and also do not have great ways to
 // assert against.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_LIB_CIR_UFG
-#define LLVM_CLANG_LIB_CIR_UFG
+#ifndef LLVM_CLANG_LIB_CIR_DIALECT_IR_MISSINGFEATURES_H
+#define LLVM_CLANG_LIB_CIR_DIALECT_IR_MISSINGFEATURES_H
 
 namespace cir {
-struct UnimplementedFeature {
+
+struct MissingFeatures {
   // TODO(CIR): Implement the CIRGenFunction::buildTypeCheck method that handles
   // sanitizer related type check features
   static bool buildTypeCheck() { return false; }
@@ -174,7 +175,19 @@ struct UnimplementedFeature {
   static bool asm_memory_effects() { return false; }
   static bool asm_vector_type() { return false; }
   static bool asm_llvm_assume() { return false; }
+
+  // C++ ABI support
+  static bool handleBigEndian() { return false; }
+  static bool handleAArch64Indirect() { return false; }
+  static bool classifyArgumentTypeForAArch64() { return false; }
+  static bool supportgetCoerceToTypeForAArch64() { return false; }
+  static bool supportTySizeQueryForAArch64() { return false; }
+  static bool supportTyAlignQueryForAArch64() { return false; }
+  static bool supportisHomogeneousAggregateQueryForAArch64() { return false; }
+  static bool supportisEndianQueryForAArch64() { return false; }
+  static bool supportisAggregateTypeForABIAArch64() { return false; }
 };
+
 } // namespace cir
 
-#endif
+#endif // LLVM_CLANG_LIB_CIR_DIALECT_IR_MISSINGFEATURES_H
