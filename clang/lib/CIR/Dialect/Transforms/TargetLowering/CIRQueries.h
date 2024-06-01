@@ -1,4 +1,4 @@
-//===- CIRContext.h - Context to lower CIR ----------------------*- C++ -*-===//
+//===- CIRQueries.h - Context to lower CIR ----------------------*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_LIB_CIR_DIALECT_TRANSFORMS_TARGETLOWERING_CIRCONTEXT_H
-#define LLVM_CLANG_LIB_CIR_DIALECT_TRANSFORMS_TARGETLOWERING_CIRCONTEXT_H
+#ifndef LLVM_CLANG_LIB_CIR_DIALECT_TRANSFORMS_TARGETLOWERING_CIRQUERIES_H
+#define LLVM_CLANG_LIB_CIR_DIALECT_TRANSFORMS_TARGETLOWERING_CIRQUERIES_H
 
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/Types.h"
@@ -25,7 +25,7 @@ namespace cir {
 
 // FIXME(cir): Most of this is type-related information that should already be
 // embedded into CIR. Maybe we can move this to an MLIR interface.
-class CIRContext : public llvm::RefCountedBase<CIRContext> {
+class CIRQueries : public llvm::RefCountedBase<CIRQueries> {
 
 private:
   mutable SmallVector<Type, 0> Types;
@@ -47,10 +47,10 @@ private:
   Type CharTy;
 
 public:
-  CIRContext(MLIRContext *MLIRCtx, clang::LangOptions &LOpts);
-  CIRContext(const CIRContext &) = delete;
-  CIRContext &operator=(const CIRContext &) = delete;
-  ~CIRContext();
+  CIRQueries(MLIRContext *MLIRCtx, clang::LangOptions &LOpts);
+  CIRQueries(const CIRQueries &) = delete;
+  CIRQueries &operator=(const CIRQueries &) = delete;
+  ~CIRQueries();
 
   /// Initialize built-in types.
   ///
@@ -71,4 +71,4 @@ public:
 } // namespace cir
 } // namespace mlir
 
-#endif // LLVM_CLANG_LIB_CIR_DIALECT_TRANSFORMS_TARGETLOWERING_CIRCONTEXT_H
+#endif // LLVM_CLANG_LIB_CIR_DIALECT_TRANSFORMS_TARGETLOWERING_CIRQUERIES_H

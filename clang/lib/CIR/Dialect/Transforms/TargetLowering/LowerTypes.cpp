@@ -19,7 +19,7 @@ using namespace mlir;
 using namespace cir;
 
 LowerTypes::LowerTypes(LowerModule &LM, StringRef DLString)
-    : LM(LM), context(LM.getContext()), Target(LM.getTarget()),
+    : LM(LM), queries(LM.getContext()), Target(LM.getTarget()),
       CXXABI(LM.getCXXABI()),
       TheABIInfo(LM.getTargetLoweringInfo().getABIInfo()),
       mlirContext(LM.getMLIRContext()), DL(DLString, LM.getModule()) {}

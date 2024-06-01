@@ -1,4 +1,4 @@
-//===- CIRContext.cpp -----------------------------------------------------===//
+//===- CIRQueries.cpp -----------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -11,7 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "CIRContext.h"
+#include "CIRQueries.h"
 #include "MissingFeature.h"
 #include "mlir/IR/MLIRContext.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
@@ -21,12 +21,12 @@
 namespace mlir {
 namespace cir {
 
-CIRContext::CIRContext(MLIRContext *MLIRCtx, clang::LangOptions &LOpts)
+CIRQueries::CIRQueries(MLIRContext *MLIRCtx, clang::LangOptions &LOpts)
     : MLIRCtx(MLIRCtx), LangOpts(LOpts) {}
 
-CIRContext::~CIRContext() {}
+CIRQueries::~CIRQueries() {}
 
-void CIRContext::initBuiltinType(Type &Ty, clang::BuiltinType::Kind K) {
+void CIRQueries::initBuiltinType(Type &Ty, clang::BuiltinType::Kind K) {
   // NOTE(cir): Clang does more stuff here. Not sure if we need to do the same.
   assert(MissingFeature::qualifiedTypes());
   switch (K) {
@@ -39,7 +39,7 @@ void CIRContext::initBuiltinType(Type &Ty, clang::BuiltinType::Kind K) {
   Types.push_back(Ty);
 }
 
-void CIRContext::initBuiltinTypes(const clang::TargetInfo &Target,
+void CIRQueries::initBuiltinTypes(const clang::TargetInfo &Target,
                                   const clang::TargetInfo *AuxTarget) {
   assert((!this->Target || this->Target == &Target) &&
          "Incorrect target reinitialization");
