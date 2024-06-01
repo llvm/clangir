@@ -16,96 +16,12 @@
 
 #include "MissingFeature.h"
 #include "mlir/IR/Types.h"
+#include "clang/CIR/Common/ABIArgInfo.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "llvm/Support/TrailingObjects.h"
-#include <cstdint>
 
 namespace mlir {
 namespace cir {
-
-/// Helper class to encapsulate information about how a
-/// specific ABI-independent CIR type should be passed to or returned from a
-/// function in an ABI-specific way.
-class ABIArgInfo {
-public:
-  enum Kind : uint8_t {
-    /// Not yet supported.
-    Direct,
-    Ignore,
-    Extend,
-    Indirect,
-    IndirectAliased,
-    Expand,
-    CoerceAndExpand,
-    InAlloca,
-    KindFirst = Direct,
-    KindLast = InAlloca
-  };
-
-private:
-  mlir::Type typeData;
-  union {
-    Type PaddingType;                 // canHavePaddingType()
-    Type UnpaddedCoerceAndExpandType; // isCoerceAndExpand()
-  };
-  struct DirectAttrInfo {
-    unsigned Offset;
-    unsigned Align;
-  };
-  union {
-    DirectAttrInfo DirectAttr; // isDirect() || isExtend()
-  };
-  Kind kind;
-  bool CanBeFlattened : 1; // isDirect()
-  bool InReg : 1;          // isDirect() || isExtend() || isIndirect()
-  bool SignExt : 1;        // isExtend()
-
-public:
-  ABIArgInfo(Kind kind = Direct) : kind(kind), InReg(false), SignExt(false) {};
-  ~ABIArgInfo() = default;
-
-  void setCanBeFlattened(bool Flatten) {
-    assert(isDirect() && "Invalid kind!");
-    CanBeFlattened = Flatten;
-  }
-
-  void setCoerceToType(Type T) {
-    assert(canHaveCoerceToType() && "Invalid kind!");
-    typeData = T;
-  }
-
-  void setDirectAlign(unsigned Align) {
-    assert((isDirect() || isExtend()) && "Not a direct or extend kind");
-    DirectAttr.Align = Align;
-  }
-
-  Kind getKind() const { return kind; }
-  bool isDirect() const { return kind == Direct; }
-  bool isInAlloca() const { return kind == InAlloca; }
-  bool isExtend() const { return kind == Extend; }
-  bool isIndirect() const { return kind == Indirect; }
-  bool isIndirectAliased() const { return kind == IndirectAliased; }
-  bool isExpand() const { return kind == Expand; }
-  bool isCoerceAndExpand() const { return kind == CoerceAndExpand; }
-
-  bool isSignExt() const {
-    assert(isExtend() && "Invalid kind!");
-    return SignExt;
-  }
-
-  bool getInReg() const {
-    assert((isDirect() || isExtend() || isIndirect()) && "Invalid kind!");
-    return InReg;
-  }
-  void setInReg(bool IR) {
-    assert((isDirect() || isExtend() || isIndirect()) && "Invalid kind!");
-    InReg = IR;
-  }
-
-  bool canHaveCoerceToType() const {
-    return isDirect() || isExtend() || isCoerceAndExpand();
-  }
-};
 
 /// A class for recording the number of arguments that a function
 /// signature requires.
@@ -126,8 +42,8 @@ public:
 // Implementation detail of LowerFunctionInfo, factored out so it can be
 // named in the TrailingObjects base class of CGFunctionInfo.
 struct LowerFunctionInfoArgInfo {
-  mlir::Type type; // Original ABI-agnostic type.
-  ABIArgInfo info; // ABI-specific information.
+  mlir::Type type;      // Original ABI-agnostic type.
+  ::cir::ABIArgInfo info; // ABI-specific information.
 };
 
 class LowerFunctionInfo final
