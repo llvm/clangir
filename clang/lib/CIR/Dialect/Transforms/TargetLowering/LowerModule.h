@@ -28,12 +28,7 @@
 namespace mlir {
 namespace cir {
 
-/// Replaces CodeGenModule from Clang in ABI lowering.
 class LowerModule {
-  // FIXME(cir): This abstraction is not very useful withing CIR's lowering
-  // context. I'm keeping it here for parity, but it should probably be removed.
-
-private:
   CIRQueries &context;
   ModuleOp module;
   const clang::TargetInfo &Target;
