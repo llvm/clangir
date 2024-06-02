@@ -298,19 +298,30 @@ void test_build_lvalue() {
 
   vi4 *pv, v;
 
-  // CIR:      %[[#ALLOCAPV:]] = cir.alloca !cir.ptr<!cir.vector<!s32i x 4>>, !cir.ptr<!cir.ptr<!cir.vector<!s32i x 4>>>, ["pv"] {alignment = 8 : i64}
+  // CIR-NEXT: %[[#ALLOCAPV:]] = cir.alloca !cir.ptr<!cir.vector<!s32i x 4>>, !cir.ptr<!cir.ptr<!cir.vector<!s32i x 4>>>, ["pv"] {alignment = 8 : i64}
   // CIR-NEXT: %[[#ALLOCAV:]] = cir.alloca !cir.vector<!s32i x 4>, !cir.ptr<!cir.vector<!s32i x 4>>, ["v"] {alignment = 16 : i64}
   // CIR-NEXT: %[[#ALLOCAS:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["s", init] {alignment = 4 : i64}
   // CIR-NEXT: %[[#ALLOCATMP:]] = cir.alloca !cir.vector<!s32i x 4>, !cir.ptr<!cir.vector<!s32i x 4>>, ["tmp"] {alignment = 16 : i64}
   // CIR-NEXT: %[[#ALLOCAR:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["r", init] {alignment = 4 : i64}
 
+  // LLVM-NEXT: %[[#ALLOCAPV:]] = alloca ptr, i64 1, align 8
+  // LLVM-NEXT: %[[#ALLOCAV:]] = alloca <4 x i32>, i64 1, align 16
+  // LLVM-NEXT: %[[#ALLOCAS:]] = alloca i32, i64 1, align 4
+  // LLVM-NEXT: %[[#ALLOCATMP:]] = alloca <4 x i32>, i64 1, align 16
+  // LLVM-NEXT: %[[#ALLOCAR:]] = alloca i32, i64 1, align 4
+
   pv->x = 99;
-  // CIR: %[[#VAL:]] = cir.const #cir.int<99> : !s32i
-  // CIR-NEXT: %[[#PV:]] = cir.load %{{[0-9]+}} : !cir.ptr<!cir.ptr<!cir.vector<!s32i x 4>>>, !cir.ptr<!cir.vector<!s32i x 4>>
+  // CIR-NEXT: %[[#VAL:]] = cir.const #cir.int<99> : !s32i
+  // CIR-NEXT: %[[#PV:]] = cir.load %[[#ALLOCAPV]] : !cir.ptr<!cir.ptr<!cir.vector<!s32i x 4>>>, !cir.ptr<!cir.vector<!s32i x 4>>
   // CIR-NEXT: %[[#V:]] = cir.load %[[#PV]] : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
   // CIR-NEXT: %[[#IDX:]] = cir.const #cir.int<0> : !s64i
   // CIR-NEXT: %[[#RESULT:]] = cir.vec.insert %[[#VAL]], %[[#V]][%[[#IDX]] : !s64i] : !cir.vector<!s32i x 4>
   // CIR-NEXT: cir.store %[[#RESULT]], %[[#PV]] : !cir.vector<!s32i x 4>, !cir.ptr<!cir.vector<!s32i x 4>>
+
+  // LLVM-NEXT: %[[#PV:]] = load ptr, ptr %[[#ALLOCAPV]], align 8
+  // LLVM-NEXT: %[[#V:]] = load <4 x i32>, ptr %[[#PV]], align 16
+  // LLVM-NEXT: %[[#RESULT:]] = insertelement <4 x i32> %[[#V]], i32 99, i64 0
+  // LLVM-NEXT: store <4 x i32> %[[#RESULT]], ptr %[[#PV]], align 16
 
   int s = (v+v).x;
 
@@ -323,10 +334,22 @@ void test_build_lvalue() {
   // CIR-NEXT: %[[#RESULT:]] = cir.vec.extract %[[#TMP]][%[[#IDX]] : !s64i] : !cir.vector<!s32i x 4>
   // CIR-NEXT: cir.store %[[#RESULT]], %[[#ALLOCAS]] : !s32i, !cir.ptr<!s32i>
 
+  // LLVM-NEXT: %[[#LOAD1:]] = load <4 x i32>, ptr %2, align 16
+  // LLVM-NEXT: %[[#LOAD2:]] = load <4 x i32>, ptr %2, align 16
+  // LLVM-NEXT: %[[#SUM:]] = add <4 x i32> %9, %10
+  // LLVM-NEXT: store <4 x i32> %11, ptr %[[#ALLOCATMP]], align 16
+  // LLVM-NEXT: %[[#TMP:]] = load <4 x i32>, ptr %[[#ALLOCATMP]], align 16
+  // LLVM-NEXT: %[[#RESULT:]] = extractelement <4 x i32> %12, i64 0
+  // LLVM-NEXT: store i32 %[[#RESULT]], ptr %[[#ALLOCAS]], align 4
+
   int r = v.xy.x;
   // CIR-NEXT: %[[#V:]] = cir.load %[[#ALLOCAV]] : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
   // CIR-NEXT: %[[#IDX:]] = cir.const #cir.int<0> : !s64i
   // CIR-NEXT: %[[#RESULT:]] = cir.vec.extract %[[#V]][%[[#IDX]] : !s64i] : !cir.vector<!s32i x 4>
   // CIR-NEXT: cir.store %[[#RESULT]], %[[#ALLOCAR]] : !s32i, !cir.ptr<!s32i>
+
+  // LLVM-NEXT: %[[#V:]] = load <4 x i32>, ptr %[[#ALLOCAV]], align 16
+  // LLVM-NEXT: %[[#RESULT:]] = extractelement <4 x i32> %[[#V]], i64 0
+  // LLVM-NEXT: store i32 %[[#RESULT]], ptr %[[#ALLOCAR]], align 4
 
 }
