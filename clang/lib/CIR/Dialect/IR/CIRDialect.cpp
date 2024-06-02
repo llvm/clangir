@@ -496,6 +496,15 @@ LogicalResult CastOp::verify() {
       return emitOpError() << "requires !cir.float type for result";
     return success();
   }
+  case cir::CastKind::addrspace_cast: {
+    auto srcPtrTy = srcType.dyn_cast<mlir::cir::PointerType>();
+    auto resPtrTy = resType.dyn_cast<mlir::cir::PointerType>();
+    if (!srcPtrTy || !resPtrTy)
+      return emitOpError() << "requires !cir.ptr type for source and result";
+    if (srcPtrTy.getPointee() != resPtrTy.getPointee())
+      return emitOpError() << "requires two types differ in addrspace only";
+    return success();
+  }
   }
 
   llvm_unreachable("Unknown CastOp kind?");
