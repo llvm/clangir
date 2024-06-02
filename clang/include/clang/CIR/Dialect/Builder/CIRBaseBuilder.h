@@ -328,6 +328,15 @@ public:
     return createBitcast(src, getPointerTo(newPointeeTy));
   }
 
+  mlir::Value createAddrSpaceCast(mlir::Location loc, mlir::Value src,
+                                  mlir::Type newTy) {
+    return createCast(loc, mlir::cir::CastKind::addrspace_cast, src, newTy);
+  }
+
+  mlir::Value createAddrSpaceCast(mlir::Value src, mlir::Type newTy) {
+    return createCast(mlir::cir::CastKind::addrspace_cast, src, newTy);
+  }
+
   mlir::Value createPtrIsNull(mlir::Value ptr) {
     return createNot(createPtrToBoolCast(ptr));
   }
