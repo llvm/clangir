@@ -17,6 +17,10 @@ void test_ptr() {
   // CIR:      %[[#PTR1:]] = cir.load %{{[0-9]+}} : !cir.ptr<!cir.ptr<!s32i, addrspace(1)>>, !cir.ptr<!s32i, addrspace(1)>
   // CIR-NEXT: %[[#CAST:]] = cir.cast(addrspace_cast, %[[#PTR1]] : !cir.ptr<!s32i, addrspace(1)>), !cir.ptr<!s32i, addrspace(2)>
   // CIR-NEXT: cir.store %[[#CAST]], %{{[0-9]+}} : !cir.ptr<!s32i, addrspace(2)>, !cir.ptr<!cir.ptr<!s32i, addrspace(2)>>
+
+  // LLVM:      %[[#PTR1:]] = load ptr addrspace(1), ptr %{{[0-9]+}}, align 8
+  // LLVM-NEXT: %[[#CAST:]] = addrspacecast ptr addrspace(1) %[[#PTR1]] to ptr addrspace(2)
+  // LLVM-NEXT: store ptr addrspace(2) %[[#CAST]], ptr %{{[0-9]+}}, align 8
 }
 
 // CIR: cir.func @{{.*test_ref.*}}
@@ -30,6 +34,12 @@ void test_ref() {
   // CIR-NEXT: %[[#REF1:]] = cir.load %[[#ALLOCAREF1]] : !cir.ptr<!cir.ptr<!s32i, addrspace(1)>>, !cir.ptr<!s32i, addrspace(1)>
   // CIR-NEXT: %[[#CAST:]] = cir.cast(addrspace_cast, %[[#REF1]] : !cir.ptr<!s32i, addrspace(1)>), !cir.ptr<!s32i, addrspace(2)>
   // CIR-NEXT: cir.store %[[#CAST]], %{{[0-9]+}} : !cir.ptr<!s32i, addrspace(2)>, !cir.ptr<!cir.ptr<!s32i, addrspace(2)>>
+
+  // LLVM:      %[[#DEREF:]] = load ptr addrspace(1), ptr %{{[0-9]+}}, align 8
+  // LLVM-NEXT: store ptr addrspace(1) %[[#DEREF]], ptr %[[#ALLOCAREF1:]], align 8
+  // LLVM-NEXT: %[[#REF1:]] = load ptr addrspace(1), ptr %[[#ALLOCAREF1]], align 8
+  // LLVM-NEXT: %[[#CAST:]] = addrspacecast ptr addrspace(1) %[[#REF1]] to ptr addrspace(2)
+  // LLVM-NEXT: store ptr addrspace(2) %[[#CAST]], ptr %{{[0-9]+}}, align 8
 }
 
 // CIR: cir.func @{{.*test_nullptr.*}}
@@ -38,7 +48,10 @@ void test_nullptr() {
   constexpr pi1_t null1 = nullptr;
   pi2_t ptr = (pi2_t)null1;
   // CIR:      %[[#NULL1:]] = cir.const #cir.ptr<null> : !cir.ptr<!s32i, addrspace(1)>
-  // CIR-NEXT: cir.store %[[#NULL1]], %[[#ALLOCAPTR:]] : !cir.ptr<!s32i, addrspace(1)>, !cir.ptr<!cir.ptr<!s32i, addrspace(1)>>
+  // CIR-NEXT: cir.store %[[#NULL1]], %{{[0-9]+}} : !cir.ptr<!s32i, addrspace(1)>, !cir.ptr<!cir.ptr<!s32i, addrspace(1)>>
   // CIR-NEXT: %[[#NULL2:]] = cir.const #cir.ptr<null> : !cir.ptr<!s32i, addrspace(2)>
   // CIR-NEXT: cir.store %[[#NULL2]], %{{[0-9]+}} : !cir.ptr<!s32i, addrspace(2)>, !cir.ptr<!cir.ptr<!s32i, addrspace(2)>>
+
+  // LLVM:      store ptr addrspace(1) null, ptr %{{[0-9]+}}, align 8
+  // LLVM-NEXT: store ptr addrspace(2) null, ptr %{{[0-9]+}}, align 8
 }
