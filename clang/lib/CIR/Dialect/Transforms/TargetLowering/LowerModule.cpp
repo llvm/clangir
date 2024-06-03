@@ -12,7 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "LowerModule.h"
-#include "CIRQueries.h"
+#include "CIRLowerContext.h"
 #include "TargetInfo.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/BuiltinAttributes.h"
@@ -67,7 +67,7 @@ createTargetLoweringInfo(LowerModule &LM) {
   }
 }
 
-LowerModule::LowerModule(CIRQueries &C, ModuleOp &module, StringAttr DL,
+LowerModule::LowerModule(CIRLowerContext &C, ModuleOp &module, StringAttr DL,
                          const clang::TargetInfo &target,
                          PatternRewriter &rewriter)
     : context(C), module(module), Target(target), ABI(createCXXABI(*this)),

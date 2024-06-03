@@ -16,7 +16,7 @@
 #ifndef LLVM_CLANG_LIB_CIR_DIALECT_TRANSFORMS_TARGETLOWERING_CIRTOCIRARGMAPPING_H
 #define LLVM_CLANG_LIB_CIR_DIALECT_TRANSFORMS_TARGETLOWERING_CIRTOCIRARGMAPPING_H
 
-#include "CIRQueries.h"
+#include "CIRLowerContext.h"
 #include "LoweringFunctionInfo.h"
 #include "llvm/ADT/SmallVector.h"
 
@@ -47,7 +47,7 @@ class CIRToCIRArgMapping {
   llvm::SmallVector<IRArgs, 8> ArgInfo;
 
 public:
-  CIRToCIRArgMapping(const CIRQueries &context, const LowerFunctionInfo &FI,
+  CIRToCIRArgMapping(const CIRLowerContext &context, const LowerFunctionInfo &FI,
                      bool onlyRequiredArgs = false)
       : ArgInfo(onlyRequiredArgs ? FI.getNumRequiredArgs() : FI.arg_size()) {};
 

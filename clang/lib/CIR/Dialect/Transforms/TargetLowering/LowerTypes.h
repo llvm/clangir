@@ -16,7 +16,7 @@
 
 #include "ABIInfo.h"
 #include "CIRCXXABI.h"
-#include "CIRQueries.h"
+#include "CIRLowerContext.h"
 #include "mlir/IR/MLIRContext.h"
 #include "clang/CIR/Dialect/IR/CIRDataLayout.h"
 
@@ -33,7 +33,7 @@ class LowerTypes {
 
 private:
   LowerModule &LM;
-  CIRQueries &queries;
+  CIRLowerContext &queries;
   const clang::TargetInfo &Target;
   CIRCXXABI &CXXABI;
 

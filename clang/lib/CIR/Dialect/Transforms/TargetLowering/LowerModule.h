@@ -14,7 +14,7 @@
 #ifndef LLVM_CLANG_LIB_CIR_DIALECT_TRANSFORMS_TARGETLOWERING_LOWERMODULE_H
 #define LLVM_CLANG_LIB_CIR_DIALECT_TRANSFORMS_TARGETLOWERING_LOWERMODULE_H
 
-#include "CIRQueries.h"
+#include "CIRLowerContext.h"
 #include "LowerTypes.h"
 #include "MissingFeature.h"
 #include "TargetLoweringInfo.h"
@@ -29,7 +29,7 @@ namespace mlir {
 namespace cir {
 
 class LowerModule {
-  CIRQueries &context;
+  CIRLowerContext &context;
   ModuleOp module;
   const clang::TargetInfo &Target;
   mutable std::unique_ptr<TargetLoweringInfo> TheTargetCodeGenInfo;
@@ -40,13 +40,13 @@ class LowerModule {
   PatternRewriter &rewriter;
 
 public:
-  LowerModule(CIRQueries &C, ModuleOp &module, StringAttr DL,
+  LowerModule(CIRLowerContext &C, ModuleOp &module, StringAttr DL,
               const clang::TargetInfo &target, PatternRewriter &rewriter);
   ~LowerModule() = default;
 
   // Trivial getters.
   LowerTypes &getTypes() { return types; }
-  CIRQueries &getContext() { return context; }
+  CIRLowerContext &getContext() { return context; }
   CIRCXXABI &getCXXABI() const { return *ABI; }
   const clang::TargetInfo &getTarget() const { return Target; }
   MLIRContext *getMLIRContext() { return module.getContext(); }

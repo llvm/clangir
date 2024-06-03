@@ -17,7 +17,7 @@
 namespace mlir {
 namespace cir {
 
-class CIRQueries;
+class CIRLowerContext;
 
 /// This class contains layout information for one RecordDecl, which is a
 /// struct/union/class.  The decl represented must be a definition, not a

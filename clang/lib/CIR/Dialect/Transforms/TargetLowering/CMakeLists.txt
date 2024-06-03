@@ -2,7 +2,7 @@ add_clang_library(TargetLowering
   ABIInfo.cpp
   ABIInfoImpl.cpp
   CIRCXXABI.cpp
-  CIRQueries.cpp
+  CIRLowerContext.cpp
   CIRRecordLayout.cpp
   ItaniumCXXABI.cpp
   LowerCall.cpp
