@@ -328,7 +328,7 @@ public:
   }
   mlir::ArrayAttr getExtVectorElts() const {
     assert(isExtVectorElt());
-    return VectorElts.cast<mlir::ArrayAttr>();
+    return mlir::cast<mlir::ArrayAttr>(VectorElts);
   }
 
   static LValue MakeVectorElt(Address vecAddress, mlir::Value Index,

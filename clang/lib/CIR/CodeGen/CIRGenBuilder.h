@@ -799,7 +799,7 @@ public:
   mlir::cir::VecShuffleOp
   createVecShuffle(mlir::Location loc, mlir::Value vec1, mlir::Value vec2,
                    llvm::ArrayRef<mlir::Attribute> maskAttrs) {
-    auto vecType = vec1.getType().cast<mlir::cir::VectorType>();
+    auto vecType = mlir::cast<mlir::cir::VectorType>(vec1.getType());
     auto resultTy = mlir::cir::VectorType::get(
         getContext(), vecType.getEltType(), maskAttrs.size());
     return CIRBaseBuilderTy::create<mlir::cir::VecShuffleOp>(

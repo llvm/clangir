@@ -662,7 +662,7 @@ RValue CIRGenFunction::buildLoadOfLValue(LValue LV, SourceLocation Loc) {
 
 int64_t CIRGenFunction::getAccessedFieldNo(unsigned int idx,
                                            const mlir::ArrayAttr elts) {
-  auto elt = elts.cast<mlir::ArrayAttr>()[idx].dyn_cast<mlir::IntegerAttr>();
+  auto elt = mlir::dyn_cast<mlir::IntegerAttr>(elts[idx]);
   assert(elt && "The indices should be integer attributes");
   return elt.getInt();
 }
@@ -675,7 +675,7 @@ RValue CIRGenFunction::buildLoadOfExtVectorElementLValue(LValue LV) {
 
   // HLSL allows treating scalars as one-element vectors. Converting the scalar
   // IR value to a vector here allows the rest of codegen to behave as normal.
-  if (getLangOpts().HLSL && !Vec.getType().isa<mlir::cir::VectorType>()) {
+  if (getLangOpts().HLSL && !mlir::isa<mlir::cir::VectorType>(Vec.getType())) {
     llvm_unreachable("HLSL NYI");
   }
 
@@ -728,7 +728,7 @@ void CIRGenFunction::buildStoreThroughExtVectorComponentLValue(RValue Src,
   // To support this we need to handle the case where the destination address is
   // a scalar.
   Address DstAddr = Dst.getExtVectorAddress();
-  if (!DstAddr.getElementType().isa<mlir::cir::VectorType>()) {
+  if (!mlir::isa<mlir::cir::VectorType>(DstAddr.getElementType())) {
     llvm_unreachable("HLSL NYI");
   }
 
