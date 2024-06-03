@@ -354,18 +354,28 @@ void inc_int(int* a, int b) {
 
 // CHECK-LABEL: @_Z8inc_long
 // CHECK: cir.atomic.fetch(add, {{.*}} : !cir.ptr<!s64i>, {{.*}} : !s64i, seq_cst) fetch_first : !s64i
+
+// LLVM-LABEL: @_Z8inc_long
+// LLVM: atomicrmw add ptr {{.*}}, i64 {{.*}} seq_cst, align 8
+
 void inc_long(long* a, long b) {
   long c = __sync_fetch_and_add(a, 2);
 }
 
 // CHECK-LABEL: @_Z9inc_short
 // CHECK: cir.atomic.fetch(add, {{.*}} : !cir.ptr<!s16i>, {{.*}} : !s16i, seq_cst) fetch_first : !s16i
+
+// LLVM-LABEL: @_Z9inc_short
+// LLVM: atomicrmw add ptr {{.*}}, i16 {{.*}} seq_cst, align 2
 void inc_short(short* a, short b) {
   short c = __sync_fetch_and_add(a, 2);
 }
 
 // CHECK-LABEL: @_Z8inc_byte
 // CHECK: cir.atomic.fetch(add, {{.*}} : !cir.ptr<!s8i>, {{.*}} : !s8i, seq_cst) fetch_first : !s8i
+
+// LLVM-LABEL: @_Z8inc_byte
+// LLVM: atomicrmw add ptr {{.*}}, i8 {{.*}} seq_cst, align 1
 void inc_byte(char* a, char b) {
   char c = __sync_fetch_and_add(a, b);
 }
