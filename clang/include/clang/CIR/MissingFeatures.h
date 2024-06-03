@@ -170,11 +170,11 @@ struct MissingFeatures {
   static bool shouldInstrumentFunction() { return false; }
 
   // Inline assembly
-  static bool asm_goto() { return false; }
-  static bool asm_unwind_clobber() { return false; }
-  static bool asm_memory_effects() { return false; }
-  static bool asm_vector_type() { return false; }
-  static bool asm_llvm_assume() { return false; }
+  static bool asmGoto() { return false; }
+  static bool asmUnwindClobber() { return false; }
+  static bool asmMemoryEffects() { return false; }
+  static bool asmVectorType() { return false; }
+  static bool asmLLVMAssume() { return false; }
 
   // C++ ABI support
   static bool handleBigEndian() { return false; }
