@@ -410,6 +410,31 @@ public:
   }
 };
 
+template <typename CIROp, typename MLIROp>
+class CIRBitOpLowering : public mlir::OpConversionPattern<CIROp> {
+public:
+  using mlir::OpConversionPattern<CIROp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(CIROp op,
+                  typename mlir::OpConversionPattern<CIROp>::OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto resultIntTy = this->getTypeConverter()
+                           ->convertType(op.getType())
+                           .template cast<mlir::IntegerType>();
+    auto res = rewriter.create<MLIROp>(op->getLoc(), adaptor.getInput());
+    auto newOp = createIntCast(rewriter, res->getResult(0), resultIntTy,
+                               /*isSigned=*/false);
+    rewriter.replaceOp(op, newOp);
+    return mlir::LogicalResult::success();
+  }
+};
+
+using CIRBitClzOpLowering =
+    CIRBitOpLowering<mlir::cir::BitClzOp, mlir::math::CountLeadingZerosOp>;
+using CIRBitCtzOpLowering =
+    CIRBitOpLowering<mlir::cir::BitCtzOp, mlir::math::CountTrailingZerosOp>;
+
 class CIRConstantOpLowering
     : public mlir::OpConversionPattern<mlir::cir::ConstantOp> {
 public:
@@ -1197,7 +1222,8 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
                CIRExp2OpLowering, CIRExpOpLowering, CIRFAbsOpLowering,
                CIRFloorOpLowering, CIRLog10OpLowering, CIRLog2OpLowering,
                CIRLogOpLowering, CIRRoundOpLowering, CIRPtrStrideOpLowering,
-               CIRSinOpLowering, CIRShiftOpLowering, CIRConditionOpLowering>(
+               CIRSinOpLowering, CIRShiftOpLowering, CIRBitClzOpLowering,
+               CIRBitCtzOpLowering, CIRConditionOpLowering>(
       converter, patterns.getContext());
 }
 
