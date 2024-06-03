@@ -698,7 +698,7 @@ static void InitCatchParam(CIRGenFunction &CGF, const VarDecl &CatchParam,
       case Qualifiers::OCL_Strong:
         llvm_unreachable("NYI");
         // arc retain non block:
-        assert(!UnimplementedFeature::ARC());
+        assert(!MissingFeatures::ARC());
         [[fallthrough]];
 
       case Qualifiers::OCL_None:
@@ -710,7 +710,7 @@ static void InitCatchParam(CIRGenFunction &CGF, const VarDecl &CatchParam,
       case Qualifiers::OCL_Weak:
         llvm_unreachable("NYI");
         // arc init weak:
-        assert(!UnimplementedFeature::ARC());
+        assert(!MissingFeatures::ARC());
         return;
       }
       llvm_unreachable("bad ownership qualifier!");
@@ -835,7 +835,7 @@ CIRGenItaniumCXXABI::getAddrOfVTable(const CXXRecordDecl *RD,
       mlir::cir::GlobalLinkageKind::ExternalLinkage,
       getContext().toCharUnitsFromBits(PAlign));
   // LLVM codegen handles unnamedAddr
-  assert(!UnimplementedFeature::unnamedAddr());
+  assert(!MissingFeatures::unnamedAddr());
 
   // In MS C++ if you have a class with virtual functions in which you are using
   // selective member import/export, then all virtual functions must be exported
@@ -1440,8 +1440,8 @@ mlir::Attribute CIRGenItaniumRTTIBuilder::BuildTypeInfo(mlir::Location loc,
 
   // Give the type_info object and name the formal visibility of the
   // type itself.
-  assert(!UnimplementedFeature::hiddenVisibility());
-  assert(!UnimplementedFeature::protectedVisibility());
+  assert(!MissingFeatures::hiddenVisibility());
+  assert(!MissingFeatures::protectedVisibility());
   mlir::SymbolTable::Visibility symVisibility;
   if (mlir::cir::isLocalLinkage(Linkage))
     // If the linkage is local, only default visibility makes sense.
@@ -1452,7 +1452,7 @@ mlir::Attribute CIRGenItaniumRTTIBuilder::BuildTypeInfo(mlir::Location loc,
   else
     symVisibility = CIRGenModule::getCIRVisibility(Ty->getVisibility());
 
-  assert(!UnimplementedFeature::setDLLStorageClass());
+  assert(!MissingFeatures::setDLLStorageClass());
   return BuildTypeInfo(loc, Ty, Linkage, symVisibility);
 }
 
@@ -1584,7 +1584,7 @@ void CIRGenItaniumRTTIBuilder::BuildVTablePointer(mlir::Location loc,
                                    CGM.getBuilder().getUInt8PtrTy());
   }
 
-  if (UnimplementedFeature::setDSOLocal())
+  if (MissingFeatures::setDSOLocal())
     llvm_unreachable("NYI");
 
   // The vtable address point is 2.
@@ -1822,7 +1822,7 @@ mlir::Attribute CIRGenItaniumRTTIBuilder::BuildTypeInfo(
     mlir::Location loc, QualType Ty, mlir::cir::GlobalLinkageKind Linkage,
     mlir::SymbolTable::Visibility Visibility) {
   auto &builder = CGM.getBuilder();
-  assert(!UnimplementedFeature::setDLLStorageClass());
+  assert(!MissingFeatures::setDLLStorageClass());
 
   // Add the vtable pointer.
   BuildVTablePointer(loc, cast<Type>(Ty));
@@ -1938,7 +1938,7 @@ mlir::Attribute CIRGenItaniumRTTIBuilder::BuildTypeInfo(
     break;
   }
 
-  assert(!UnimplementedFeature::setDLLImportDLLExport());
+  assert(!MissingFeatures::setDLLImportDLLExport());
   auto init = builder.getTypeInfo(builder.getArrayAttr(Fields));
 
   SmallString<256> Name;
@@ -1969,7 +1969,7 @@ mlir::Attribute CIRGenItaniumRTTIBuilder::BuildTypeInfo(
   }
 
   if (CGM.supportsCOMDAT() && mlir::cir::isWeakForLinker(GV.getLinkage())) {
-    assert(!UnimplementedFeature::setComdat());
+    assert(!MissingFeatures::setComdat());
     llvm_unreachable("NYI");
   }
 
@@ -1993,16 +1993,16 @@ mlir::Attribute CIRGenItaniumRTTIBuilder::BuildTypeInfo(
   // object and the type_info name be uniqued when weakly emitted.
 
   // TODO(cir): setup other bits for TypeName
-  assert(!UnimplementedFeature::setDLLStorageClass());
-  assert(!UnimplementedFeature::setPartition());
-  assert(!UnimplementedFeature::setDSOLocal());
+  assert(!MissingFeatures::setDLLStorageClass());
+  assert(!MissingFeatures::setPartition());
+  assert(!MissingFeatures::setDSOLocal());
   mlir::SymbolTable::setSymbolVisibility(
       TypeName, CIRGenModule::getMLIRVisibility(TypeName));
 
   // TODO(cir): setup other bits for GV
-  assert(!UnimplementedFeature::setDLLStorageClass());
-  assert(!UnimplementedFeature::setPartition());
-  assert(!UnimplementedFeature::setDSOLocal());
+  assert(!MissingFeatures::setDLLStorageClass());
+  assert(!MissingFeatures::setPartition());
+  assert(!MissingFeatures::setDSOLocal());
   CIRGenModule::setInitializer(GV, init);
 
   return builder.getGlobalViewAttr(builder.getUInt8PtrTy(), GV);
@@ -2038,7 +2038,7 @@ void CIRGenItaniumCXXABI::emitVTableDefinitions(CIRGenVTables &CGVT,
   VTable.setLinkage(Linkage);
 
   if (CGM.supportsCOMDAT() && mlir::cir::isWeakForLinker(Linkage)) {
-    assert(!UnimplementedFeature::setComdat());
+    assert(!MissingFeatures::setComdat());
   }
 
   // Set the right visibility.
@@ -2075,7 +2075,7 @@ void CIRGenItaniumCXXABI::emitVTableDefinitions(CIRGenVTables &CGVT,
     if (isDeclarationForLinker) {
       llvm_unreachable("NYI");
       assert(CGM.getCodeGenOpts().WholeProgramVTables);
-      assert(!UnimplementedFeature::addCompilerUsedGlobal());
+      assert(!MissingFeatures::addCompilerUsedGlobal());
     }
   }
 
@@ -2208,7 +2208,7 @@ static mlir::cir::FuncOp getBadCastFn(CIRGenFunction &CGF) {
   // Prototype: void __cxa_bad_cast();
 
   // TODO(cir): set the calling convention of the runtime function.
-  assert(!UnimplementedFeature::setCallingConv());
+  assert(!MissingFeatures::setCallingConv());
 
   mlir::cir::FuncType FTy =
       CGF.getBuilder().getFuncType({}, CGF.getBuilder().getVoidTy());
@@ -2218,7 +2218,7 @@ static mlir::cir::FuncOp getBadCastFn(CIRGenFunction &CGF) {
 void CIRGenItaniumCXXABI::buildBadCastCall(CIRGenFunction &CGF,
                                            mlir::Location loc) {
   // TODO(cir): set the calling convention to the runtime function.
-  assert(!UnimplementedFeature::setCallingConv());
+  assert(!MissingFeatures::setCallingConv());
 
   CGF.buildRuntimeCall(loc, getBadCastFn(CGF));
   CGF.getBuilder().create<mlir::cir::UnreachableOp>(loc);
@@ -2289,7 +2289,7 @@ static mlir::cir::FuncOp getItaniumDynamicCastFn(CIRGenFunction &CGF) {
   // TODO(cir): mark the function as nowind readonly.
 
   // TODO(cir): set the calling convention of the runtime function.
-  assert(!UnimplementedFeature::setCallingConv());
+  assert(!MissingFeatures::setCallingConv());
 
   mlir::cir::FuncType FTy = CGF.getBuilder().getFuncType(
       {VoidPtrTy, RTTIPtrTy, RTTIPtrTy, PtrDiffTy}, VoidPtrTy);
