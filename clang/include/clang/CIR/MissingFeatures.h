@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_LIB_CIR_DIALECT_IR_MISSINGFEATURES_H
-#define LLVM_CLANG_LIB_CIR_DIALECT_IR_MISSINGFEATURES_H
+#ifndef CLANG_CIR_MISSINGFEATURES_H
+#define CLANG_CIR_MISSINGFEATURES_H
 
 namespace cir {
 
@@ -190,4 +190,4 @@ struct MissingFeatures {
 
 } // namespace cir
 
-#endif // LLVM_CLANG_LIB_CIR_DIALECT_IR_MISSINGFEATURES_H
+#endif // CLANG_CIR_MISSINGFEATURES_H
