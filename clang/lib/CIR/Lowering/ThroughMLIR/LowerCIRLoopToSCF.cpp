@@ -26,7 +26,6 @@
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/LowerToMLIR.h"
 #include "clang/CIR/Passes.h"
-#include <functional>
 
 using namespace cir;
 using namespace llvm;
