@@ -47,9 +47,9 @@ class CIRToCIRArgMapping {
   llvm::SmallVector<IRArgs, 8> ArgInfo;
 
 public:
-  CIRToCIRArgMapping(const CIRLowerContext &context, const LowerFunctionInfo &FI,
-                     bool onlyRequiredArgs = false)
-      : ArgInfo(onlyRequiredArgs ? FI.getNumRequiredArgs() : FI.arg_size()) {};
+  CIRToCIRArgMapping(const CIRLowerContext &context,
+                     const LowerFunctionInfo &FI, bool onlyRequiredArgs = false)
+      : ArgInfo(onlyRequiredArgs ? FI.getNumRequiredArgs() : FI.arg_size()){};
 
   unsigned totalIRArgs() const { return TotalIRArgs; }
 };
