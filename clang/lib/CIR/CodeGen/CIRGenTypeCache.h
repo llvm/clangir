@@ -13,12 +13,12 @@
 #ifndef LLVM_CLANG_LIB_CIR_CODEGENTYPECACHE_H
 #define LLVM_CLANG_LIB_CIR_CODEGENTYPECACHE_H
 
-#include "clang/CIR/MissingFeatures.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Types.h"
 #include "clang/AST/CharUnits.h"
 #include "clang/Basic/AddressSpaces.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
+#include "clang/CIR/MissingFeatures.h"
 
 namespace cir {
 

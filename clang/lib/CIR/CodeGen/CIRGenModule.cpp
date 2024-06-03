@@ -20,7 +20,6 @@
 #include "CIRGenValue.h"
 #include "TargetInfo.h"
 
-#include "clang/CIR/MissingFeatures.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/IR/Attributes.h"
@@ -32,6 +31,7 @@
 #include "mlir/IR/OperationSupport.h"
 #include "mlir/IR/SymbolTable.h"
 #include "mlir/IR/Verifier.h"
+#include "clang/CIR/MissingFeatures.h"
 
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/DeclCXX.h"
@@ -683,8 +683,7 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef MangledName, mlir::Type Ty,
       getOpenMPRuntime().registerTargetGlobalVariable(D, Entry);
 
     // TODO(cir): check TargetAS matches Entry address space
-    if (Entry.getSymType() == Ty &&
-        !MissingFeatures::addressSpaceInGlobalVar())
+    if (Entry.getSymType() == Ty && !MissingFeatures::addressSpaceInGlobalVar())
       return Entry;
 
     // If there are two attempts to define the same mangled name, issue an
@@ -1256,8 +1255,7 @@ generateStringLiteral(mlir::Location loc, mlir::TypedAttr C,
                       StringRef GlobalName, CharUnits Alignment) {
   unsigned AddrSpace = CGM.getASTContext().getTargetAddressSpace(
       CGM.getGlobalConstantAddressSpace());
-  assert((AddrSpace == 0 &&
-          !cir::MissingFeatures::addressSpaceInGlobalVar()) &&
+  assert((AddrSpace == 0 && !cir::MissingFeatures::addressSpaceInGlobalVar()) &&
          "NYI");
 
   // Create a global variable for this string
