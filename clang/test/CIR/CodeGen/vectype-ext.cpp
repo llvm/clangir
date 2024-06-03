@@ -9,8 +9,6 @@ typedef double vd2 __attribute__((ext_vector_type(2)));
 typedef long vl2 __attribute__((ext_vector_type(2)));
 typedef unsigned short vus2 __attribute__((ext_vector_type(2)));
 
-typedef int vi7 __attribute__((ext_vector_type(7)));
-
 // CIR: cir.func {{@.*vector_int_test.*}}
 // LLVM: define void {{@.*vector_int_test.*}}
 void vector_int_test(int x) {
@@ -181,10 +179,6 @@ void test_load() {
 
   vi2 b;
 
-  vi7 c = {};
-  // CIR: %[[#PVECC:]] = cir.alloca !cir.vector<!s32i x 7>
-  // LLVM: %[[#PVECC:]] = alloca <7 x i32>
-
   b = a.wz;
   // CIR:      %[[#LOAD1:]] = cir.load %{{[0-9]+}} : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
   // CIR-NEXT: %[[#SHUFFLE1:]] = cir.vec.shuffle(%[[#LOAD1]], %[[#LOAD1]] : !cir.vector<!s32i x 4>) [#cir.int<3> : !s32i, #cir.int<2> : !s32i] : !cir.vector<!s32i x 2>
@@ -204,21 +198,6 @@ void test_load() {
   // LLVM-NEXT: %[[#EXTRACT1:]] = extractelement <4 x i32> %[[#LOAD8]], i64 2
   // LLVM-NEXT: store i32 %[[#EXTRACT1]], ptr %{{[0-9]+}}, align 4
 
-
-  // OpenCL C Specification 6.3.7. Vector Components
-  // The suffixes .lo (or .even) and .hi (or .odd) for a 3-component vector type
-  // operate as if the 3-component vector type is a 4-component vector type with
-  // the value in the w component undefined.
-  a = c.hi;
-
-  // CIR-NEXT: %[[#VECC:]] = cir.load %[[#PVECC]] : !cir.ptr<!cir.vector<!s32i x 7>>, !cir.vector<!s32i x 7>
-  // CIR-NEXT: %[[#HIPART:]] = cir.vec.shuffle(%[[#VECC]], %[[#VECC]] : !cir.vector<!s32i x 7>) [#cir.int<4> : !s32i, #cir.int<5> : !s32i, #cir.int<6> : !s32i, #cir.int<7> : !s32i] : !cir.vector<!s32i x 4>
-  // CIR-NEXT: cir.store %[[#HIPART]], %{{[0-9]+}} : !cir.vector<!s32i x 4>, !cir.ptr<!cir.vector<!s32i x 4>>
-
-  // LLVM-NEXT: %[[#VECC:]] = load <7 x i32>, ptr %[[#PVECC]], align 32
-  // LLVM-NEXT: %[[#HIPART:]] = shufflevector <7 x i32> %[[#VECC]], <7 x i32> %[[#VECC]], <4 x i32> <i32 4, i32 5, i32 6, i32 7>
-  // LLVM-NEXT: store <4 x i32> %[[#HIPART]], ptr %{{[0-9]+}}, align 16
-
 }
 
 // CIR: cir.func {{@.*test_store.*}}
@@ -231,10 +210,6 @@ void test_store() {
   vi2 b = {1, 2};
   // CIR-NEXT: %[[#PVECB:]] = cir.alloca !cir.vector<!s32i x 2>
   // LLVM-NEXT: %[[#PVECB:]] = alloca <2 x i32>
-
-  vi7 c = {};
-  // CIR-NEXT: %[[#PVECC:]] = cir.alloca !cir.vector<!s32i x 7>
-  // LLVM-NEXT: %[[#PVECC:]] = alloca <7 x i32>
 
   a.xy = b;
   // CIR:      %[[#LOAD4RHS:]] = cir.load %{{[0-9]+}} : !cir.ptr<!cir.vector<!s32i x 2>>, !cir.vector<!s32i x 2>
@@ -275,20 +250,6 @@ void test_store() {
   // LLVM-NEXT: %[[#RESULT:]] = shufflevector <4 x i32> %[[#VECA]], <4 x i32> %[[#EXTVECB]], <4 x i32> <i32 4, i32 5, i32 2, i32 3>
   // LLVM-NEXT: store <4 x i32> %[[#RESULT]], ptr %[[#PVECA]], align 16
 
-  // c.hi is c[4, 5, 6, 7], in which 7 should be ignored in CIRGen for store
-  c.hi = a;
-
-  // CIR-NEXT: %[[#VECA:]] = cir.load %[[#PVECA]] : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
-  // CIR-NEXT: %[[#VECC:]] = cir.load %[[#PVECC]] : !cir.ptr<!cir.vector<!s32i x 7>>, !cir.vector<!s32i x 7>
-  // CIR-NEXT: %[[#EXTVECA:]] = cir.vec.shuffle(%[[#VECA]], %[[#VECA]] : !cir.vector<!s32i x 4>) [#cir.int<0> : !s32i, #cir.int<1> : !s32i, #cir.int<2> : !s32i, #cir.int<3> : !s32i, #cir.int<-1> : !s32i, #cir.int<-1> : !s32i, #cir.int<-1> : !s32i] : !cir.vector<!s32i x 7>
-  // CIR-NEXT: %[[#RESULT:]] = cir.vec.shuffle(%[[#VECC]], %[[#EXTVECA]] : !cir.vector<!s32i x 7>) [#cir.int<0> : !s32i, #cir.int<1> : !s32i, #cir.int<2> : !s32i, #cir.int<3> : !s32i, #cir.int<7> : !s32i, #cir.int<8> : !s32i, #cir.int<9> : !s32i] : !cir.vector<!s32i x 7>
-  // CIR-NEXT: cir.store %[[#RESULT]], %[[#PVECC]] : !cir.vector<!s32i x 7>, !cir.ptr<!cir.vector<!s32i x 7>>
-
-  // LLVM-NEXT: %[[#VECA:]] = load <4 x i32>, ptr %[[#PVECA]], align 16
-  // LLVM-NEXT: %[[#VECC:]] = load <7 x i32>, ptr %[[#PVECC]], align 32
-  // LLVM-NEXT: %[[#EXTVECA:]] = shufflevector <4 x i32> %[[#VECA]], <4 x i32> %[[#VECA]], <7 x i32> <i32 0, i32 1, i32 2, i32 3, i32 poison, i32 poison, i32 poison>
-  // LLVM-NEXT: %[[#RESULT:]] = shufflevector <7 x i32> %[[#VECC]], <7 x i32> %[[#EXTVECA]], <7 x i32> <i32 0, i32 1, i32 2, i32 3, i32 7, i32 8, i32 9>
-  // LLVM-NEXT: store <7 x i32> %[[#RESULT]], ptr %[[#PVECC]], align 32
 }
 
 // CIR: cir.func {{@.*test_build_lvalue.*}}

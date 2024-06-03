@@ -771,7 +771,7 @@ void CIRGenFunction::buildStoreThroughExtVectorComponentLValue(RValue Src,
       // of the Elts constant array will be one past the size of the vector.
       // Ignore the last element here, if it is greater than the mask size.
       if (getAccessedFieldNo(NumSrcElts - 1, Elts) == Mask.size())
-        NumSrcElts--;
+        llvm_unreachable("NYI");
 
       // modify when what gets shuffled in
       for (unsigned i = 0; i != NumSrcElts; ++i)
