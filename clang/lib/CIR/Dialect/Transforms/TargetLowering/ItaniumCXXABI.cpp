@@ -65,4 +65,3 @@ public:
   mlir::Value lowerVAArg(cir::CIRBaseBuilderTy &builder, mlir::cir::VAArgOp op,
                          const cir::CIRDataLayout &datalayout) override;
 };
-
