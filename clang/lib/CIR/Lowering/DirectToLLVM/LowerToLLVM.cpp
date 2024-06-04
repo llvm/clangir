@@ -753,7 +753,7 @@ public:
           mlir::cir::CmpOpKind::ne, castOp.getSrc(), null);
       break;
     }
-    case mlir::cir::CastKind::addrspace_cast: {
+    case mlir::cir::CastKind::address_space: {
       auto dstTy = castOp.getType();
       auto llvmSrcVal = adaptor.getOperands().front();
       auto llvmDstTy = getTypeConverter()->convertType(dstTy);

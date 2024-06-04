@@ -496,7 +496,7 @@ LogicalResult CastOp::verify() {
       return emitOpError() << "requires !cir.float type for result";
     return success();
   }
-  case cir::CastKind::addrspace_cast: {
+  case cir::CastKind::address_space: {
     auto srcPtrTy = srcType.dyn_cast<mlir::cir::PointerType>();
     auto resPtrTy = resType.dyn_cast<mlir::cir::PointerType>();
     if (!srcPtrTy || !resPtrTy)
