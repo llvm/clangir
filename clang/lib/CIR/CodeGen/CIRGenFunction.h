@@ -153,7 +153,7 @@ public:
       // Work around an extremely aggressive peephole optimization in
       // EmitScalarConversion which assumes that all other uses of a
       // value are extant.
-      assert(!UnimplementedFeature::peepholeProtection() && "NYI");
+      assert(!MissingFeatures::peepholeProtection() && "NYI");
       return data;
     }
 
@@ -167,7 +167,7 @@ public:
         CGF.OpaqueLValues.erase(OpaqueValue);
       } else {
         CGF.OpaqueRValues.erase(OpaqueValue);
-        assert(!UnimplementedFeature::peepholeProtection() && "NYI");
+        assert(!MissingFeatures::peepholeProtection() && "NYI");
       }
     }
   };
@@ -885,6 +885,15 @@ public:
   RValue buildCoroutineIntrinsic(const CallExpr *E, unsigned int IID);
   RValue buildCoroutineFrame();
 
+  enum class MSVCIntrin;
+
+  mlir::Value buildARMMVEBuiltinExpr(unsigned BuiltinID, const CallExpr *E,
+                                     ReturnValueSlot ReturnValue,
+                                     llvm::Triple::ArchType Arch);
+  mlir::Value buildARMCDEBuiltinExpr(unsigned BuiltinID, const CallExpr *E,
+                                     ReturnValueSlot ReturnValue,
+                                     llvm::Triple::ArchType Arch);
+
   /// Build a debug stoppoint if we are emitting debug info.
   void buildStopPoint(const Stmt *S);
 
@@ -921,7 +930,7 @@ public:
   bool currentFunctionUsesSEHTry() const { return !!CurSEHParent; }
 
   /// Returns true inside SEH __try blocks.
-  bool isSEHTryScope() const { return UnimplementedFeature::isSEHTryScope(); }
+  bool isSEHTryScope() const { return MissingFeatures::isSEHTryScope(); }
 
   mlir::Operation *CurrentFuncletPad = nullptr;
 
@@ -1227,8 +1236,13 @@ public:
                                      ReturnValueSlot ReturnValue);
 
   // Target specific builtin emission
+  mlir::Value buildScalarOrConstFoldImmArg(unsigned ICEArguments, unsigned Idx,
+                                           const CallExpr *E);
   mlir::Value buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
+                                      ReturnValueSlot ReturnValue,
                                       llvm::Triple::ArchType Arch);
+  mlir::Value buildAArch64SVEBuiltinExpr(unsigned BuiltinID, const CallExpr *E);
+  mlir::Value buildAArch64SMEBuiltinExpr(unsigned BuiltinID, const CallExpr *E);
   mlir::Value buildX86BuiltinExpr(unsigned BuiltinID, const CallExpr *E);
 
   /// Given an expression with a pointer type, emit the value and compute our
@@ -1917,7 +1931,7 @@ public:
 
     ~LexicalScope() {
       // EmitLexicalBlockEnd
-      assert(!UnimplementedFeature::generateDebugInfo());
+      assert(!MissingFeatures::generateDebugInfo());
       // If we should perform a cleanup, force them now.  Note that
       // this ends the cleanup scope before rescoping any labels.
       cleanup();

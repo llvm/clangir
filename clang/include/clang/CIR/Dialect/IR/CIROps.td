@@ -480,6 +480,9 @@ def LoadOp : CIR_Op<"load", [
     a pointer. A unit attribute `volatile` can be used to indicate a volatile
     loading. Load can be marked atomic by using `atomic(<mem_order>)`.
 
+    `align` can be used to specify an alignment that's different from the
+    default, which is computed from `result`'s type ABI data layout.
+
     Example:
 
     ```mlir
@@ -493,18 +496,24 @@ def LoadOp : CIR_Op<"load", [
 
     // Perform a volatile load from address in %0.
     %4 = cir.load volatile %0 : !cir.ptr<i32>, i32
+
+    // Others
+    %x = cir.load align(16) atomic(seq_cst) %0 : !cir.ptr<i32>, i32
     ```
   }];
 
   let arguments = (ins Arg<CIR_PointerType, "the address to load from",
                            [MemRead]>:$addr, UnitAttr:$isDeref,
                        UnitAttr:$is_volatile,
-                       OptionalAttr<MemOrder>:$mem_order);
+                       OptionalAttr<I64Attr>:$alignment,
+                       OptionalAttr<MemOrder>:$mem_order
+                       );
   let results = (outs CIR_AnyType:$result);
 
   let assemblyFormat = [{
     (`deref` $isDeref^)?
     (`volatile` $is_volatile^)?
+    (`align` `(` $alignment^ `)`)?
     (`atomic` `(` $mem_order^ `)`)?
     $addr `:` qualified(type($addr)) `,` type($result) attr-dict
   }];
@@ -528,6 +537,9 @@ def StoreOp : CIR_Op<"store", [
     a volatile store. Store's can be marked atomic by using
     `atomic(<mem_order>)`.
 
+    `align` can be used to specify an alignment that's different from the
+    default, which is computed from `result`'s type ABI data layout.
+
     Example:
 
     ```mlir
@@ -536,6 +548,9 @@ def StoreOp : CIR_Op<"store", [
 
     // Perform a volatile store into memory location at the address in %0.
     cir.store volatile %arg0, %0 : i32, !cir.ptr<i32>
+
+    // Others
+    cir.store align(16) atomic(seq_cst) %x, %addr : i32, !cir.ptr<i32>
     ```
   }];
 
@@ -543,10 +558,12 @@ def StoreOp : CIR_Op<"store", [
                        Arg<CIR_PointerType, "the address to store the value",
                            [MemWrite]>:$addr,
                        UnitAttr:$is_volatile,
+                       OptionalAttr<I64Attr>:$alignment,
                        OptionalAttr<MemOrder>:$mem_order);
 
   let assemblyFormat = [{
     (`volatile` $is_volatile^)?
+    (`align` `(` $alignment^ `)`)?
     (`atomic` `(` $mem_order^ `)`)?
     $value `,` $addr attr-dict `:` type($value) `,` qualified(type($addr))
   }];
@@ -1855,7 +1872,10 @@ def TLSModel : I32EnumAttr<
   let cppNamespace = "::mlir::cir";
 }
 
-def GlobalOp : CIR_Op<"global", [Symbol, DeclareOpInterfaceMethods<RegionBranchOpInterface>, NoRegionArguments]> {
+def GlobalOp : CIR_Op<"global",
+                      [DeclareOpInterfaceMethods<RegionBranchOpInterface>,
+                       DeclareOpInterfaceMethods<CIRGlobalValueInterface>,
+                       NoRegionArguments]> {
   let summary = "Declares or defines a global variable";
   let description = [{
     The `cir.global` operation declares or defines a named global variable.
@@ -1916,13 +1936,6 @@ def GlobalOp : CIR_Op<"global", [Symbol, DeclareOpInterfaceMethods<RegionBranchO
     bool hasAvailableExternallyLinkage() {
       return mlir::cir::isAvailableExternallyLinkage(getLinkage());
     }
-    bool isDeclarationForLinker() {
-      if (hasAvailableExternallyLinkage())
-        return true;
-
-      return isDeclaration();
-    }
-
     /// Whether the definition of this global may be replaced at link time.
     bool isWeakForLinker() { return cir::isWeakForLinker(getLinkage()); }
   }];
@@ -2568,7 +2581,8 @@ def BaseClassAddrOp : CIR_Op<"base_class_addr"> {
 
 def FuncOp : CIR_Op<"func", [
   AutomaticAllocationScope, CallableOpInterface, FunctionOpInterface,
-  IsolatedFromAbove, Symbol
+  DeclareOpInterfaceMethods<CIRGlobalValueInterface>,
+  IsolatedFromAbove
 ]> {
   let summary = "Declare or define a function";
   let description = [{
@@ -2710,12 +2724,8 @@ def FuncOp : CIR_Op<"func", [
 
     bool isDeclaration();
 
-    // FIXME: should be shared with GlobalOp extra declaration.
-    bool isDeclarationForLinker() {
-      if (mlir::cir::isAvailableExternallyLinkage(getLinkage()))
-        return true;
-
-      return isDeclaration();
+    bool hasAvailableExternallyLinkage() {
+      return mlir::cir::isAvailableExternallyLinkage(getLinkage());
     }
   }];
 
@@ -2799,7 +2809,7 @@ def CallOp : CIR_CallOp<"call"> {
   }];
 
   let arguments = commonArgs;
-  let results = (outs Variadic<CIR_AnyType>);
+  let results = (outs Optional<CIR_AnyType>:$result);
 
   let builders = [
     OpBuilder<(ins "FuncOp":$callee, CArg<"ValueRange", "{}">:$operands), [{
@@ -2820,13 +2830,15 @@ def CallOp : CIR_CallOp<"call"> {
               CArg<"ValueRange", "{}">:$operands), [{
       $_state.addOperands(operands);
       $_state.addAttribute("callee", callee);
-      $_state.addTypes(resType);
+      if (resType && !resType.isa<VoidType>())
+        $_state.addTypes(resType);
     }]>,
     OpBuilder<(ins "SymbolRefAttr":$callee,
               CArg<"ValueRange", "{}">:$operands), [{
       $_state.addOperands(operands);
       $_state.addAttribute("callee", callee);
-    }]>];
+    }]>
+  ];
 }
 
 //===----------------------------------------------------------------------===//
@@ -3100,7 +3112,8 @@ def CatchParamOp : CIR_Op<"catch_param"> {
 
 def CopyOp : CIR_Op<"copy", [SameTypeOperands]> {
   let arguments = (ins Arg<CIR_PointerType, "", [MemWrite]>:$dst,
-                       Arg<CIR_PointerType, "", [MemRead]>:$src);
+                       Arg<CIR_PointerType, "", [MemRead]>:$src,
+                       UnitAttr:$is_volatile);
   let summary = "Copies contents from a CIR pointer to another";
   let description = [{
     Given two CIR pointers, `src` and `dst`, `cir.copy` will copy the memory
@@ -3118,7 +3131,8 @@ def CopyOp : CIR_Op<"copy", [SameTypeOperands]> {
     ```
   }];
 
-  let assemblyFormat = "$src `to` $dst attr-dict `:` qualified(type($dst))";
+  let assemblyFormat = [{$src `to` $dst (`volatile` $is_volatile^)?
+                        attr-dict `:` qualified(type($dst)) }];
   let hasVerifier = 1;
 
   let extraClassDeclaration = [{
@@ -3302,6 +3316,26 @@ def RoundOp : UnaryFPToFPBuiltinOp<"round">;
 def SinOp : UnaryFPToFPBuiltinOp<"sin">;
 def SqrtOp : UnaryFPToFPBuiltinOp<"sqrt">;
 def TruncOp : UnaryFPToFPBuiltinOp<"trunc">;
+
+class BinaryFPToFPBuiltinOp<string mnemonic>
+    : CIR_Op<mnemonic, [Pure, SameOperandsAndResultType]> {
+  let summary = [{
+    libc builtin equivalent ignoring floating-point exceptions and errno.
+  }];
+
+  let arguments = (ins CIR_AnyFloat:$lhs, CIR_AnyFloat:$rhs);
+  let results = (outs CIR_AnyFloat:$result);
+
+  let assemblyFormat = [{
+    $lhs `,` $rhs `:` qualified(type($lhs)) attr-dict
+  }];
+}
+
+def CopysignOp : BinaryFPToFPBuiltinOp<"copysign">;
+def FMaxOp : BinaryFPToFPBuiltinOp<"fmax">;
+def FMinOp : BinaryFPToFPBuiltinOp<"fmin">;
+def FModOp : BinaryFPToFPBuiltinOp<"fmod">;
+def PowOp : BinaryFPToFPBuiltinOp<"pow">;
 
 //===----------------------------------------------------------------------===//
 // Branch Probability Operations
@@ -3924,24 +3958,6 @@ def AtomicCmpXchg : CIR_Op<"atomic.cmp_xchg",
     `:` `(` type($old) `,` type($cmp) `)` attr-dict
   }];
 
-  let hasVerifier = 0;
-}
-
-//===----------------------------------------------------------------------===//
-// Operations Lowered Directly to LLVM IR
-//
-// These operations are hacks to get around missing features in LLVM's dialect.
-// Use it sparingly and remove it once the features are added.
-//===----------------------------------------------------------------------===//
-
-def ZeroInitConstOp : CIR_Op<"llvmir.zeroinit", [Pure]>,
-                      Results<(outs AnyType:$result)> {
-  let summary = "Zero initializes a constant value of a given type";
-  let description = [{
-    This operation circumvents the lack of a zeroinitializer operation in LLVM
-    Dialect. It can zeroinitialize any LLVM type.
-  }];
-  let assemblyFormat = "attr-dict `:` type($result)";
   let hasVerifier = 0;
 }
 

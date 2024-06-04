@@ -12,7 +12,7 @@
 #include "Address.h"
 #include "CIRGenRecordLayout.h"
 #include "CIRGenTypeCache.h"
-#include "UnimplementedFeatureGuarding.h"
+#include "clang/CIR/MissingFeatures.h"
 
 #include "clang/AST/Decl.h"
 #include "clang/AST/Type.h"
@@ -153,15 +153,26 @@ public:
                             unsigned size = 0) {
     unsigned finalSize = size ? size : str.size();
 
+    size_t lastNonZeroPos = str.find_last_not_of('\0');
     // If the string is full of null bytes, emit a #cir.zero rather than
     // a #cir.const_array.
-    if (str.count('\0') == str.size()) {
+    if (lastNonZeroPos == llvm::StringRef::npos) {
       auto arrayTy = mlir::cir::ArrayType::get(getContext(), eltTy, finalSize);
       return getZeroAttr(arrayTy);
     }
-
-    auto arrayTy = mlir::cir::ArrayType::get(getContext(), eltTy, finalSize);
-    return getConstArray(mlir::StringAttr::get(str, arrayTy), arrayTy);
+    // We will use trailing zeros only if there are more than one zero
+    // at the end
+    int trailingZerosNum =
+        finalSize > lastNonZeroPos + 2 ? finalSize - lastNonZeroPos - 1 : 0;
+    auto truncatedArrayTy = mlir::cir::ArrayType::get(
+        getContext(), eltTy, finalSize - trailingZerosNum);
+    auto fullArrayTy =
+        mlir::cir::ArrayType::get(getContext(), eltTy, finalSize);
+    return mlir::cir::ConstArrayAttr::get(
+        getContext(), fullArrayTy,
+        mlir::StringAttr::get(str.drop_back(trailingZerosNum),
+                              truncatedArrayTy),
+        trailingZerosNum);
   }
 
   mlir::cir::ConstArrayAttr getConstArray(mlir::Attribute attrs,
@@ -395,7 +406,7 @@ public:
     // FIXME: replay LLVM codegen for now, perhaps add a vtable ptr special
     // type so it's a bit more clear and C++ idiomatic.
     auto fnTy = mlir::cir::FuncType::get({}, getUInt32Ty(), isVarArg);
-    assert(!UnimplementedFeature::isVarArg());
+    assert(!MissingFeatures::isVarArg());
     return getPointerTo(getPointerTo(fnTy));
   }
 
@@ -584,8 +595,9 @@ public:
   //
 
   /// Create a copy with inferred length.
-  mlir::cir::CopyOp createCopy(mlir::Value dst, mlir::Value src) {
-    return create<mlir::cir::CopyOp>(dst.getLoc(), dst, src);
+  mlir::cir::CopyOp createCopy(mlir::Value dst, mlir::Value src,
+                               bool isVolatile = false) {
+    return create<mlir::cir::CopyOp>(dst.getLoc(), dst, src, isVolatile);
   }
 
   /// Create a break operation.
@@ -627,11 +639,11 @@ public:
   }
 
   mlir::Value createFSub(mlir::Value lhs, mlir::Value rhs) {
-    assert(!UnimplementedFeature::metaDataNode());
+    assert(!MissingFeatures::metaDataNode());
     if (IsFPConstrained)
       llvm_unreachable("Constrained FP NYI");
 
-    assert(!UnimplementedFeature::foldBinOpFMF());
+    assert(!MissingFeatures::foldBinOpFMF());
     return create<mlir::cir::BinOp>(lhs.getLoc(), mlir::cir::BinOpKind::Sub,
                                     lhs, rhs);
   }
@@ -648,7 +660,7 @@ public:
   mlir::Value createDynCastToVoid(mlir::Location loc, mlir::Value src,
                                   bool vtableUseRelativeLayout) {
     // TODO(cir): consider address space here.
-    assert(!UnimplementedFeature::addressSpace());
+    assert(!MissingFeatures::addressSpace());
     auto destTy = getVoidPtrTy();
     return create<mlir::cir::DynamicCastOp>(
         loc, destTy, mlir::cir::DynamicCastKind::ptr, src,
@@ -749,16 +761,18 @@ public:
   }
 
   mlir::Value createAlignedLoad(mlir::Location loc, mlir::Type ty,
-                                mlir::Value ptr,
-                                [[maybe_unused]] llvm::MaybeAlign align,
-                                [[maybe_unused]] bool isVolatile) {
-    assert(!UnimplementedFeature::volatileLoadOrStore());
-    assert(!UnimplementedFeature::alignedLoad());
-    return create<mlir::cir::LoadOp>(loc, ty, ptr);
+                                mlir::Value ptr, llvm::MaybeAlign align,
+                                bool isVolatile) {
+    if (ty != ptr.getType().cast<mlir::cir::PointerType>().getPointee())
+      ptr = createPtrBitcast(ptr, ty);
+    uint64_t alignment = align ? align->value() : 0;
+    return CIRBaseBuilderTy::createLoad(loc, ptr, isVolatile, alignment);
   }
 
   mlir::Value createAlignedLoad(mlir::Location loc, mlir::Type ty,
                                 mlir::Value ptr, llvm::MaybeAlign align) {
+    // TODO: make sure callsites shouldn't be really passing volatile.
+    assert(!MissingFeatures::volatileLoadOrStore());
     return createAlignedLoad(loc, ty, ptr, align, /*isVolatile=*/false);
   }
 
@@ -770,15 +784,32 @@ public:
 
   mlir::cir::StoreOp createStore(mlir::Location loc, mlir::Value val,
                                  Address dst, bool _volatile = false,
+                                 ::mlir::IntegerAttr align = {},
                                  ::mlir::cir::MemOrderAttr order = {}) {
     return CIRBaseBuilderTy::createStore(loc, val, dst.getPointer(), _volatile,
-                                         order);
+                                         align, order);
   }
 
   mlir::cir::StoreOp createFlagStore(mlir::Location loc, bool val,
                                      mlir::Value dst) {
     auto flag = getBool(val, loc);
     return CIRBaseBuilderTy::createStore(loc, flag, dst);
+  }
+
+  mlir::cir::StoreOp
+  createAlignedStore(mlir::Location loc, mlir::Value val, mlir::Value dst,
+                     clang::CharUnits align = clang::CharUnits::One(),
+                     bool _volatile = false,
+                     ::mlir::cir::MemOrderAttr order = {}) {
+    llvm::MaybeAlign mayAlign = align.getAsAlign();
+    mlir::IntegerAttr alignAttr;
+    if (mayAlign) {
+      uint64_t alignment = mayAlign ? mayAlign->value() : 0;
+      alignAttr = mlir::IntegerAttr::get(
+          mlir::IntegerType::get(dst.getContext(), 64), alignment);
+    }
+    return CIRBaseBuilderTy::createStore(loc, val, dst, _volatile, alignAttr,
+                                         order);
   }
 
   // Convert byte offset to sequence of high-level indices suitable for
@@ -882,7 +913,7 @@ public:
     auto memberPtrTy = memberPtr.getType().cast<mlir::cir::DataMemberType>();
 
     // TODO(cir): consider address space.
-    assert(!UnimplementedFeature::addressSpace());
+    assert(!MissingFeatures::addressSpace());
     auto resultTy = getPointerTo(memberPtrTy.getMemberTy());
 
     return create<mlir::cir::GetRuntimeMemberOp>(loc, resultTy, objectPtr,

@@ -84,16 +84,21 @@ public:
     return getPointerTo(::mlir::cir::VoidType::get(getContext()), addressSpace);
   }
 
-  mlir::Value createLoad(mlir::Location loc, mlir::Value ptr) {
-    return create<mlir::cir::LoadOp>(loc, ptr, /*isDeref=*/false,
-                                     /*is_volatile=*/false,
+  mlir::Value createLoad(mlir::Location loc, mlir::Value ptr,
+                         bool isVolatile = false, uint64_t alignment = 0) {
+    mlir::IntegerAttr intAttr;
+    if (alignment)
+      intAttr = mlir::IntegerAttr::get(
+          mlir::IntegerType::get(ptr.getContext(), 64), alignment);
+
+    return create<mlir::cir::LoadOp>(loc, ptr, /*isDeref=*/false, isVolatile,
+                                     /*alignment=*/intAttr,
                                      /*mem_order=*/mlir::cir::MemOrderAttr{});
   }
 
   mlir::Value createAlignedLoad(mlir::Location loc, mlir::Value ptr,
                                 uint64_t alignment) {
-    // TODO(cir): implement aligned load in CIRBaseBuilder.
-    return createLoad(loc, ptr);
+    return createLoad(loc, ptr, /*isVolatile=*/false, alignment);
   }
 
   mlir::Value createNot(mlir::Value value) {
@@ -176,8 +181,12 @@ public:
 
   mlir::cir::StoreOp createStore(mlir::Location loc, mlir::Value val,
                                  mlir::Value dst, bool _volatile = false,
+                                 ::mlir::IntegerAttr align = {},
                                  ::mlir::cir::MemOrderAttr order = {}) {
-    return create<mlir::cir::StoreOp>(loc, val, dst, _volatile, order);
+    if (dst.getType().cast<mlir::cir::PointerType>().getPointee() !=
+        val.getType())
+      dst = createPtrBitcast(dst, val.getType());
+    return create<mlir::cir::StoreOp>(loc, val, dst, _volatile, align, order);
   }
 
   mlir::Value createAlloca(mlir::Location loc, mlir::cir::PointerType addrType,
@@ -262,6 +271,19 @@ public:
 
   mlir::Value createIntToPtr(mlir::Value src, mlir::Type newTy) {
     return createCast(mlir::cir::CastKind::int_to_ptr, src, newTy);
+  }
+
+  mlir::Value createGetMemberOp(mlir::Location &loc, mlir::Value structPtr,
+                                const char *fldName, unsigned idx) {
+
+    assert(structPtr.getType().isa<mlir::cir::PointerType>());
+    auto structBaseTy =
+        structPtr.getType().cast<mlir::cir::PointerType>().getPointee();
+    assert(structBaseTy.isa<mlir::cir::StructType>());
+    auto fldTy = structBaseTy.cast<mlir::cir::StructType>().getMembers()[idx];
+    auto fldPtrTy = ::mlir::cir::PointerType::get(getContext(), fldTy);
+    return create<mlir::cir::GetMemberOp>(loc, fldPtrTy, structPtr, fldName,
+                                          idx);
   }
 
   mlir::Value createPtrToInt(mlir::Value src, mlir::Type newTy) {

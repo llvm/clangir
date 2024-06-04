@@ -16,7 +16,7 @@
 #include "CIRGenFunction.h"
 #include "CIRGenModule.h"
 #include "TargetInfo.h"
-#include "UnimplementedFeatureGuarding.h"
+#include "clang/CIR/MissingFeatures.h"
 
 // TODO(cir): we shouldn't need this but we currently reuse intrinsic IDs for
 // convenience.
@@ -26,6 +26,7 @@
 #include "clang/AST/GlobalDecl.h"
 #include "clang/Basic/Builtins.h"
 #include "clang/Basic/TargetBuiltins.h"
+#include "clang/Frontend/FrontendDiagnostic.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/Value.h"
@@ -55,6 +56,36 @@ static RValue buildUnaryFPBuiltin(CIRGenFunction &CGF, const CallExpr &E) {
   auto Call =
       CGF.getBuilder().create<Operation>(Arg.getLoc(), Arg.getType(), Arg);
   return RValue::get(Call->getResult(0));
+}
+
+template <typename Op>
+static RValue buildBinaryFPBuiltin(CIRGenFunction &CGF, const CallExpr &E) {
+  auto Arg0 = CGF.buildScalarExpr(E.getArg(0));
+  auto Arg1 = CGF.buildScalarExpr(E.getArg(1));
+
+  auto Loc = CGF.getLoc(E.getExprLoc());
+  auto Ty = CGF.ConvertType(E.getType());
+  auto Call = CGF.getBuilder().create<Op>(Loc, Ty, Arg0, Arg1);
+
+  return RValue::get(Call->getResult(0));
+}
+
+template <typename Op>
+static mlir::Value buildBinaryMaybeConstrainedFPBuiltin(CIRGenFunction &CGF,
+                                                        const CallExpr &E) {
+  auto Arg0 = CGF.buildScalarExpr(E.getArg(0));
+  auto Arg1 = CGF.buildScalarExpr(E.getArg(1));
+
+  auto Loc = CGF.getLoc(E.getExprLoc());
+  auto Ty = CGF.ConvertType(E.getType());
+
+  if (CGF.getBuilder().getIsFPConstrained()) {
+    CIRGenFunction::CIRGenFPOptionsRAII FPOptsRAII(CGF, &E);
+    llvm_unreachable("constrained FP operations are NYI");
+  } else {
+    auto Call = CGF.getBuilder().create<Op>(Loc, Ty, Arg0, Arg1);
+    return Call->getResult(0);
+  }
 }
 
 template <typename Op>
@@ -171,9 +202,7 @@ static Address checkAtomicAlignment(CIRGenFunction &CGF, const CallExpr *E) {
   unsigned align = ptr.getAlignment().getQuantity();
   if (align % bytes != 0) {
     DiagnosticsEngine &diags = CGF.CGM.getDiags();
-    // TODO
-    // diags.Report(E->getBeginLoc(), diag::warn_sync_op_misaligned);
-
+    diags.Report(E->getBeginLoc(), diag::warn_sync_op_misaligned);
     // Force address to be at least naturally-aligned.
     return ptr.withAlignment(CharUnits::fromQuantity(bytes));
   }
@@ -200,24 +229,16 @@ makeBinaryAtomicValue(CIRGenFunction &cgf, mlir::cir::AtomicFetchKind kind,
   auto &builder = cgf.getBuilder();
   auto *ctxt = builder.getContext();
   auto intType = builder.getSIntNTy(cgf.getContext().getTypeSize(typ));
-
   mlir::Value val = cgf.buildScalarExpr(expr->getArg(1));
   mlir::Type valueType = val.getType();
   val = buildToInt(cgf, val, typ, intType);
 
-  auto op = mlir::cir::AtomicFetch::getOperationName();
-  SmallVector<mlir::Value> atomicOperands = {destAddr.emitRawPointer(), val};
   auto fetchAttr =
       mlir::cir::AtomicFetchKindAttr::get(builder.getContext(), kind);
-  auto rmwi = builder.create(cgf.getLoc(expr->getSourceRange()),
-                             builder.getStringAttr(op), atomicOperands,
-                             {val.getType()}, {});
-
-  auto orderAttr = mlir::cir::MemOrderAttr::get(builder.getContext(), ordering);
-  rmwi->setAttr("binop", fetchAttr);
-  rmwi->setAttr("mem_order", orderAttr);
-  rmwi->setAttr("fetch_first", mlir::UnitAttr::get(builder.getContext()));
-
+  auto rmwi = builder.create<mlir::cir::AtomicFetch>(
+      cgf.getLoc(expr->getSourceRange()), destAddr.emitRawPointer(), val, kind,
+      ordering, false, /* is volatile */
+      true);           /* fetch first */
   return buildFromInt(cgf, rmwi->getResult(0), typ, valueType);
 }
 
@@ -403,8 +424,10 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     case Builtin::BIcopysignl:
     case Builtin::BI__builtin_copysign:
     case Builtin::BI__builtin_copysignf:
-    case Builtin::BI__builtin_copysignf16:
     case Builtin::BI__builtin_copysignl:
+      return buildBinaryFPBuiltin<mlir::cir::CopysignOp>(*this, *E);
+
+    case Builtin::BI__builtin_copysignf16:
     case Builtin::BI__builtin_copysignf128:
       llvm_unreachable("NYI");
 
@@ -473,8 +496,11 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     case Builtin::BIfmaxl:
     case Builtin::BI__builtin_fmax:
     case Builtin::BI__builtin_fmaxf:
-    case Builtin::BI__builtin_fmaxf16:
     case Builtin::BI__builtin_fmaxl:
+      return RValue::get(
+          buildBinaryMaybeConstrainedFPBuiltin<mlir::cir::FMaxOp>(*this, *E));
+
+    case Builtin::BI__builtin_fmaxf16:
     case Builtin::BI__builtin_fmaxf128:
       llvm_unreachable("NYI");
 
@@ -483,8 +509,11 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     case Builtin::BIfminl:
     case Builtin::BI__builtin_fmin:
     case Builtin::BI__builtin_fminf:
-    case Builtin::BI__builtin_fminf16:
     case Builtin::BI__builtin_fminl:
+      return RValue::get(
+          buildBinaryMaybeConstrainedFPBuiltin<mlir::cir::FMinOp>(*this, *E));
+
+    case Builtin::BI__builtin_fminf16:
     case Builtin::BI__builtin_fminf128:
       llvm_unreachable("NYI");
 
@@ -495,11 +524,12 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     case Builtin::BIfmodl:
     case Builtin::BI__builtin_fmod:
     case Builtin::BI__builtin_fmodf:
-    case Builtin::BI__builtin_fmodf16:
     case Builtin::BI__builtin_fmodl:
-    case Builtin::BI__builtin_fmodf128: {
+      return buildBinaryFPBuiltin<mlir::cir::FModOp>(*this, *E);
+
+    case Builtin::BI__builtin_fmodf16:
+    case Builtin::BI__builtin_fmodf128:
       llvm_unreachable("NYI");
-    }
 
     case Builtin::BIlog:
     case Builtin::BIlogf:
@@ -545,8 +575,11 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     case Builtin::BIpowl:
     case Builtin::BI__builtin_pow:
     case Builtin::BI__builtin_powf:
-    case Builtin::BI__builtin_powf16:
     case Builtin::BI__builtin_powl:
+      return RValue::get(
+          buildBinaryMaybeConstrainedFPBuiltin<mlir::cir::PowOp>(*this, *E));
+
+    case Builtin::BI__builtin_powf16:
     case Builtin::BI__builtin_powf128:
       llvm_unreachable("NYI");
 
@@ -707,7 +740,7 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   }
   case Builtin::BI__builtin_unpredictable: {
     if (CGM.getCodeGenOpts().OptimizationLevel != 0)
-      assert(!UnimplementedFeature::insertBuiltinUnpredictable());
+      assert(!MissingFeatures::insertBuiltinUnpredictable());
     return RValue::get(buildScalarExpr(E->getArg(0)));
   }
 
@@ -968,7 +1001,7 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     // default (e.g. in C / C++ auto vars are in the generic address space). At
     // the AST level this is handled within CreateTempAlloca et al., but for the
     // builtin / dynamic alloca we have to handle it here.
-    assert(!UnimplementedFeature::addressSpace());
+    assert(!MissingFeatures::addressSpace());
     LangAS AAS = getASTAllocaAddressSpace();
     LangAS EAS = E->getType()->getPointeeType().getAddressSpace();
     if (EAS != AAS) {
@@ -1208,12 +1241,21 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   }
 
   // Now see if we can emit a target-specific builtin.
-  if (auto v = buildTargetBuiltinExpr(BuiltinID, E, ReturnValue)) {
-    llvm_unreachable("NYI");
+  if (auto V = buildTargetBuiltinExpr(BuiltinID, E, ReturnValue)) {
+    switch (EvalKind) {
+    case TEK_Scalar:
+      if (V.getType().isa<mlir::cir::VoidType>())
+        return RValue::get(nullptr);
+      return RValue::get(V);
+    case TEK_Aggregate:
+      llvm_unreachable("NYI");
+    case TEK_Complex:
+      llvm_unreachable("No current target builtin returns complex");
+    }
+    llvm_unreachable("Bad evaluation kind in EmitBuiltinExpr");
   }
 
-  llvm_unreachable("NYI");
-  //   ErrorUnsupported(E, "builtin function");
+  CGM.ErrorUnsupported(E, "builtin function");
 
   // Unknown builtin, for now just dump it out and return undef.
   return GetUndefRValue(E->getType());
@@ -1228,7 +1270,7 @@ mlir::Value CIRGenFunction::buildCheckedArgForBuiltin(const Expr *E,
   if (!SanOpts.has(SanitizerKind::Builtin))
     return value;
 
-  assert(!UnimplementedFeature::sanitizerBuiltin());
+  assert(!MissingFeatures::sanitizerBuiltin());
   llvm_unreachable("NYI");
 }
 
@@ -1256,7 +1298,7 @@ static mlir::Value buildTargetArchBuiltinExpr(CIRGenFunction *CGF,
   case llvm::Triple::aarch64:
   case llvm::Triple::aarch64_32:
   case llvm::Triple::aarch64_be:
-    return CGF->buildAArch64BuiltinExpr(BuiltinID, E, Arch);
+    return CGF->buildAArch64BuiltinExpr(BuiltinID, E, ReturnValue, Arch);
   case llvm::Triple::bpfeb:
   case llvm::Triple::bpfel:
     llvm_unreachable("NYI");

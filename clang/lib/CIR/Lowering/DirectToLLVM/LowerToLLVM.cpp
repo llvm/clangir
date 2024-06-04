@@ -212,7 +212,7 @@ lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::cir::ZeroAttr zeroAttr,
                     mlir::ConversionPatternRewriter &rewriter,
                     const mlir::TypeConverter *converter) {
   auto loc = parentOp->getLoc();
-  return rewriter.create<mlir::cir::ZeroInitConstOp>(
+  return rewriter.create<mlir::LLVM::ZeroOp>(
       loc, converter->convertType(zeroAttr.getType()));
 }
 
@@ -279,7 +279,7 @@ mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
 
   if (auto zeros = constArr.getTrailingZerosNum()) {
     auto arrayTy = constArr.getType();
-    result = rewriter.create<mlir::cir::ZeroInitConstOp>(
+    result = rewriter.create<mlir::LLVM::ZeroOp>(
         loc, converter->convertType(arrayTy));
   } else {
     result = rewriter.create<mlir::LLVM::UndefOp>(loc, llvmTy);
@@ -437,7 +437,7 @@ public:
     const mlir::Value length = rewriter.create<mlir::LLVM::ConstantOp>(
         op.getLoc(), rewriter.getI32Type(), op.getLength());
     rewriter.replaceOpWithNewOp<mlir::LLVM::MemcpyOp>(
-        op, adaptor.getDst(), adaptor.getSrc(), length, /*isVolatile=*/false);
+        op, adaptor.getDst(), adaptor.getSrc(), length, op.getIsVolatile());
     return mlir::success();
   }
 };
@@ -872,15 +872,15 @@ public:
                   mlir::ConversionPatternRewriter &rewriter) const override {
     const auto llvmTy =
         getTypeConverter()->convertType(op.getResult().getType());
-    unsigned alignment = 0;
     auto memorder = op.getMemOrder();
     auto ordering = getLLVMMemOrder(memorder);
-
-    // FIXME: right now we only pass in the alignment when the memory access
-    // is atomic, we should always pass it instead.
-    if (ordering != mlir::LLVM::AtomicOrdering::not_atomic) {
+    auto alignOpt = op.getAlignment();
+    unsigned alignment = 0;
+    if (!alignOpt) {
       mlir::DataLayout layout(op->getParentOfType<mlir::ModuleOp>());
       alignment = (unsigned)layout.getTypeABIAlignment(llvmTy);
+    } else {
+      alignment = *alignOpt;
     }
 
     // TODO: nontemporal, invariant, syncscope.
@@ -899,17 +899,17 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::StoreOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    unsigned alignment = 0;
     auto memorder = op.getMemOrder();
     auto ordering = getLLVMMemOrder(memorder);
-
-    // FIXME: right now we only pass in the alignment when the memory access
-    // is atomic, we should always pass it instead.
-    if (ordering != mlir::LLVM::AtomicOrdering::not_atomic) {
+    auto alignOpt = op.getAlignment();
+    unsigned alignment = 0;
+    if (!alignOpt) {
       const auto llvmTy =
           getTypeConverter()->convertType(op.getValue().getType());
       mlir::DataLayout layout(op->getParentOfType<mlir::ModuleOp>());
       alignment = (unsigned)layout.getTypeABIAlignment(llvmTy);
+    } else {
+      alignment = *alignOpt;
     }
 
     // TODO: nontemporal, syncscope.
@@ -3161,6 +3161,31 @@ private:
   }
 };
 
+template <typename CIROp, typename LLVMOp>
+class CIRBinaryFPToFPBuiltinOpLowering
+    : public mlir::OpConversionPattern<CIROp> {
+public:
+  using mlir::OpConversionPattern<CIROp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(CIROp op,
+                  typename mlir::OpConversionPattern<CIROp>::OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto resTy = this->getTypeConverter()->convertType(op.getType());
+    rewriter.replaceOpWithNewOp<LLVMOp>(op, resTy, adaptor.getLhs(),
+                                        adaptor.getRhs());
+    return mlir::success();
+  }
+};
+
+using CIRCopysignOpLowering =
+    CIRBinaryFPToFPBuiltinOpLowering<mlir::cir::CopysignOp,
+                                     mlir::LLVM::CopySignOp>;
+using CIRFMaxOpLowering =
+    CIRBinaryFPToFPBuiltinOpLowering<mlir::cir::FMaxOp, mlir::LLVM::MaxNumOp>;
+using CIRFMinOpLowering =
+    CIRBinaryFPToFPBuiltinOpLowering<mlir::cir::FMinOp, mlir::LLVM::MinNumOp>;
+
 void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
                                          mlir::TypeConverter &converter) {
   patterns.add<CIRReturnLowering>(patterns.getContext());
@@ -3185,7 +3210,8 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
       CIRStackRestoreLowering, CIRUnreachableLowering, CIRTrapLowering,
       CIRInlineAsmOpLowering, CIRSetBitfieldLowering, CIRGetBitfieldLowering,
       CIRPrefetchLowering, CIRObjSizeOpLowering, CIRIsConstantOpLowering,
-      CIRCmpThreeWayOpLowering>(converter, patterns.getContext());
+      CIRCmpThreeWayOpLowering, CIRCopysignOpLowering, CIRFMaxOpLowering,
+      CIRFMinOpLowering>(converter, patterns.getContext());
 }
 
 namespace {
@@ -3431,7 +3457,7 @@ void ConvertCIRToLLVMPass::runOnOperation() {
                            mlir::func::FuncDialect>();
 
   // Allow operations that will be lowered directly to LLVM IR.
-  target.addLegalOp<mlir::cir::ZeroInitConstOp>();
+  target.addLegalOp<mlir::LLVM::ZeroOp>();
 
   getOperation()->removeAttr("cir.sob");
   getOperation()->removeAttr("cir.lang");
