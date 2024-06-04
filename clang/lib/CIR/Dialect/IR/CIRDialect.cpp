@@ -523,7 +523,8 @@ OpFoldResult CastOp::fold(FoldAdaptor adaptor) {
       return foldResults[0].get<mlir::Attribute>();
     return {};
   }
-  case mlir::cir::CastKind::bitcast: {
+  case mlir::cir::CastKind::bitcast:
+  case mlir::cir::CastKind::address_space: {
     return getSrc();
   }
   default:
