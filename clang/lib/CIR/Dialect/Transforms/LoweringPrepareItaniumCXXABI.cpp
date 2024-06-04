@@ -13,7 +13,6 @@
 //===--------------------------------------------------------------------===//
 
 #include "LoweringPrepareItaniumCXXABI.h"
-#include "../IR/MissingFeatures.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/Value.h"
 #include "mlir/IR/ValueRange.h"
@@ -22,6 +21,7 @@
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "clang/CIR/Dialect/IR/CIRDataLayout.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
+#include "clang/CIR/MissingFeatures.h"
 
 using namespace cir;
 
@@ -106,7 +106,8 @@ buildDynamicCastToVoidAfterNullCheck(CIRBaseBuilderTy &builder,
 
     vtableElemTy = mlir::cir::IntType::get(builder.getContext(), ptrdiffTyWidth,
                                            ptrdiffTyIsSigned);
-    vtableElemAlign = targetInfo.getPointerAlign(clang::LangAS::Default);
+    vtableElemAlign =
+        llvm::divideCeil(targetInfo.getPointerAlign(clang::LangAS::Default), 8);
   }
 
   // Access vtable to get the offset from the given object to its containing

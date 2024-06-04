@@ -1872,7 +1872,10 @@ def TLSModel : I32EnumAttr<
   let cppNamespace = "::mlir::cir";
 }
 
-def GlobalOp : CIR_Op<"global", [Symbol, DeclareOpInterfaceMethods<RegionBranchOpInterface>, NoRegionArguments]> {
+def GlobalOp : CIR_Op<"global",
+                      [DeclareOpInterfaceMethods<RegionBranchOpInterface>,
+                       DeclareOpInterfaceMethods<CIRGlobalValueInterface>,
+                       NoRegionArguments]> {
   let summary = "Declares or defines a global variable";
   let description = [{
     The `cir.global` operation declares or defines a named global variable.
@@ -1933,13 +1936,6 @@ def GlobalOp : CIR_Op<"global", [Symbol, DeclareOpInterfaceMethods<RegionBranchO
     bool hasAvailableExternallyLinkage() {
       return mlir::cir::isAvailableExternallyLinkage(getLinkage());
     }
-    bool isDeclarationForLinker() {
-      if (hasAvailableExternallyLinkage())
-        return true;
-
-      return isDeclaration();
-    }
-
     /// Whether the definition of this global may be replaced at link time.
     bool isWeakForLinker() { return cir::isWeakForLinker(getLinkage()); }
   }];
@@ -2585,7 +2581,8 @@ def BaseClassAddrOp : CIR_Op<"base_class_addr"> {
 
 def FuncOp : CIR_Op<"func", [
   AutomaticAllocationScope, CallableOpInterface, FunctionOpInterface,
-  IsolatedFromAbove, Symbol
+  DeclareOpInterfaceMethods<CIRGlobalValueInterface>,
+  IsolatedFromAbove
 ]> {
   let summary = "Declare or define a function";
   let description = [{
@@ -2727,12 +2724,8 @@ def FuncOp : CIR_Op<"func", [
 
     bool isDeclaration();
 
-    // FIXME: should be shared with GlobalOp extra declaration.
-    bool isDeclarationForLinker() {
-      if (mlir::cir::isAvailableExternallyLinkage(getLinkage()))
-        return true;
-
-      return isDeclaration();
+    bool hasAvailableExternallyLinkage() {
+      return mlir::cir::isAvailableExternallyLinkage(getLinkage());
     }
   }];
 
@@ -3323,6 +3316,26 @@ def RoundOp : UnaryFPToFPBuiltinOp<"round">;
 def SinOp : UnaryFPToFPBuiltinOp<"sin">;
 def SqrtOp : UnaryFPToFPBuiltinOp<"sqrt">;
 def TruncOp : UnaryFPToFPBuiltinOp<"trunc">;
+
+class BinaryFPToFPBuiltinOp<string mnemonic>
+    : CIR_Op<mnemonic, [Pure, SameOperandsAndResultType]> {
+  let summary = [{
+    libc builtin equivalent ignoring floating-point exceptions and errno.
+  }];
+
+  let arguments = (ins CIR_AnyFloat:$lhs, CIR_AnyFloat:$rhs);
+  let results = (outs CIR_AnyFloat:$result);
+
+  let assemblyFormat = [{
+    $lhs `,` $rhs `:` qualified(type($lhs)) attr-dict
+  }];
+}
+
+def CopysignOp : BinaryFPToFPBuiltinOp<"copysign">;
+def FMaxOp : BinaryFPToFPBuiltinOp<"fmax">;
+def FMinOp : BinaryFPToFPBuiltinOp<"fmin">;
+def FModOp : BinaryFPToFPBuiltinOp<"fmod">;
+def PowOp : BinaryFPToFPBuiltinOp<"pow">;
 
 //===----------------------------------------------------------------------===//
 // Branch Probability Operations
@@ -3945,24 +3958,6 @@ def AtomicCmpXchg : CIR_Op<"atomic.cmp_xchg",
     `:` `(` type($old) `,` type($cmp) `)` attr-dict
   }];
 
-  let hasVerifier = 0;
-}
-
-//===----------------------------------------------------------------------===//
-// Operations Lowered Directly to LLVM IR
-//
-// These operations are hacks to get around missing features in LLVM's dialect.
-// Use it sparingly and remove it once the features are added.
-//===----------------------------------------------------------------------===//
-
-def ZeroInitConstOp : CIR_Op<"llvmir.zeroinit", [Pure]>,
-                      Results<(outs AnyType:$result)> {
-  let summary = "Zero initializes a constant value of a given type";
-  let description = [{
-    This operation circumvents the lack of a zeroinitializer operation in LLVM
-    Dialect. It can zeroinitialize any LLVM type.
-  }];
-  let assemblyFormat = "attr-dict `:` type($result)";
   let hasVerifier = 0;
 }
 

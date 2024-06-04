@@ -12,7 +12,7 @@
 #include "Address.h"
 #include "CIRGenRecordLayout.h"
 #include "CIRGenTypeCache.h"
-#include "UnimplementedFeatureGuarding.h"
+#include "clang/CIR/MissingFeatures.h"
 
 #include "clang/AST/Decl.h"
 #include "clang/AST/Type.h"
@@ -406,7 +406,7 @@ public:
     // FIXME: replay LLVM codegen for now, perhaps add a vtable ptr special
     // type so it's a bit more clear and C++ idiomatic.
     auto fnTy = mlir::cir::FuncType::get({}, getUInt32Ty(), isVarArg);
-    assert(!UnimplementedFeature::isVarArg());
+    assert(!MissingFeatures::isVarArg());
     return getPointerTo(getPointerTo(fnTy));
   }
 
@@ -639,11 +639,11 @@ public:
   }
 
   mlir::Value createFSub(mlir::Value lhs, mlir::Value rhs) {
-    assert(!UnimplementedFeature::metaDataNode());
+    assert(!MissingFeatures::metaDataNode());
     if (IsFPConstrained)
       llvm_unreachable("Constrained FP NYI");
 
-    assert(!UnimplementedFeature::foldBinOpFMF());
+    assert(!MissingFeatures::foldBinOpFMF());
     return create<mlir::cir::BinOp>(lhs.getLoc(), mlir::cir::BinOpKind::Sub,
                                     lhs, rhs);
   }
@@ -660,7 +660,7 @@ public:
   mlir::Value createDynCastToVoid(mlir::Location loc, mlir::Value src,
                                   bool vtableUseRelativeLayout) {
     // TODO(cir): consider address space here.
-    assert(!UnimplementedFeature::addressSpace());
+    assert(!MissingFeatures::addressSpace());
     auto destTy = getVoidPtrTy();
     return create<mlir::cir::DynamicCastOp>(
         loc, destTy, mlir::cir::DynamicCastKind::ptr, src,
@@ -761,21 +761,18 @@ public:
   }
 
   mlir::Value createAlignedLoad(mlir::Location loc, mlir::Type ty,
-                                mlir::Value ptr,
-                                [[maybe_unused]] llvm::MaybeAlign align,
-                                [[maybe_unused]] bool isVolatile) {
-    assert(!UnimplementedFeature::volatileLoadOrStore());
-    assert(!UnimplementedFeature::alignedLoad());
-    // FIXME: create a more generic version of createLoad and rewrite this and
-    // others in terms of that. Ideally there should only be one call to
-    // create<mlir::cir::LoadOp> in all helpers.
+                                mlir::Value ptr, llvm::MaybeAlign align,
+                                bool isVolatile) {
     if (ty != ptr.getType().cast<mlir::cir::PointerType>().getPointee())
       ptr = createPtrBitcast(ptr, ty);
-    return create<mlir::cir::LoadOp>(loc, ty, ptr);
+    uint64_t alignment = align ? align->value() : 0;
+    return CIRBaseBuilderTy::createLoad(loc, ptr, isVolatile, alignment);
   }
 
   mlir::Value createAlignedLoad(mlir::Location loc, mlir::Type ty,
                                 mlir::Value ptr, llvm::MaybeAlign align) {
+    // TODO: make sure callsites shouldn't be really passing volatile.
+    assert(!MissingFeatures::volatileLoadOrStore());
     return createAlignedLoad(loc, ty, ptr, align, /*isVolatile=*/false);
   }
 
@@ -799,16 +796,18 @@ public:
     return CIRBaseBuilderTy::createStore(loc, flag, dst);
   }
 
-  mlir::cir::StoreOp createAlignedStore(mlir::Location loc, mlir::Value val,
-                                        mlir::Value dst,
-                                        [[maybe_unused]] clang::CharUnits align,
-                                        bool _volatile = false,
-                                        ::mlir::cir::MemOrderAttr order = {}) {
-    // TODO: add alignment for LoadOp/StoreOp, right now LowerToLLVM knows
-    // how to figure out for most part, but it's possible the client might want
-    // to enforce a different alignment.
+  mlir::cir::StoreOp
+  createAlignedStore(mlir::Location loc, mlir::Value val, mlir::Value dst,
+                     clang::CharUnits align = clang::CharUnits::One(),
+                     bool _volatile = false,
+                     ::mlir::cir::MemOrderAttr order = {}) {
+    llvm::MaybeAlign mayAlign = align.getAsAlign();
     mlir::IntegerAttr alignAttr;
-    assert(!UnimplementedFeature::alignedStore());
+    if (mayAlign) {
+      uint64_t alignment = mayAlign ? mayAlign->value() : 0;
+      alignAttr = mlir::IntegerAttr::get(
+          mlir::IntegerType::get(dst.getContext(), 64), alignment);
+    }
     return CIRBaseBuilderTy::createStore(loc, val, dst, _volatile, alignAttr,
                                          order);
   }
@@ -914,7 +913,7 @@ public:
     auto memberPtrTy = memberPtr.getType().cast<mlir::cir::DataMemberType>();
 
     // TODO(cir): consider address space.
-    assert(!UnimplementedFeature::addressSpace());
+    assert(!MissingFeatures::addressSpace());
     auto resultTy = getPointerTo(memberPtrTy.getMemberTy());
 
     return create<mlir::cir::GetRuntimeMemberOp>(loc, resultTy, objectPtr,
