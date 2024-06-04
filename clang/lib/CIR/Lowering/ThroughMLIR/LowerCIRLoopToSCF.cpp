@@ -134,7 +134,7 @@ template <typename LoopOp> mlir::cir::CmpOp SCFLoop<LoopOp>::findCmpOp() {
     llvm_unreachable("Can't find loop CmpOp");
 
   auto type = cmpOp.getLhs().getType();
-  if (!type.isa<mlir::cir::IntType>())
+  if (!type.template isa<mlir::cir::IntType>())
     llvm_unreachable("Non-integer type IV is not supported");
 
   auto *lhsDefOp = cmpOp.getLhs().getDefiningOp();
