@@ -248,22 +248,22 @@ static RValue buildBinaryAtomic(CIRGenFunction &CGF,
   return RValue::get(makeBinaryAtomicValue(CGF, kind, E));
 }
 
-static mlir::Value MakeAtomicCmpXchgValue(CIRGenFunction &cgf, const CallExpr *expr,
-                                     bool returnBool) {
+static mlir::Value MakeAtomicCmpXchgValue(CIRGenFunction &cgf,
+                                          const CallExpr *expr,
+                                          bool returnBool) {
   QualType typ = returnBool ? expr->getArg(1)->getType() : expr->getType();
   Address destAddr = checkAtomicAlignment(cgf, expr);
-  auto& builder = cgf.getBuilder();
+  auto &builder = cgf.getBuilder();
 
   auto intType = builder.getSIntNTy(cgf.getContext().getTypeSize(typ));
   auto cmpVal = cgf.buildScalarExpr(expr->getArg(1));
   auto valueType = cmpVal.getType();
   cmpVal = buildToInt(cgf, cmpVal, typ, intType);
-  auto newVal = buildToInt(cgf, cgf.buildScalarExpr(expr->getArg(2)), typ, intType);
+  auto newVal =
+      buildToInt(cgf, cgf.buildScalarExpr(expr->getArg(2)), typ, intType);
 
   auto op = builder.create<mlir::cir::AtomicCmpXchg>(
-      cgf.getLoc(expr->getSourceRange()),
-      cmpVal.getType(),
-      builder.getBoolTy(),
+      cgf.getLoc(expr->getSourceRange()), cmpVal.getType(), builder.getBoolTy(),
       destAddr.getPointer(), cmpVal, newVal,
       mlir::cir::MemOrder::SequentiallyConsistent,
       mlir::cir::MemOrder::SequentiallyConsistent);
