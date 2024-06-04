@@ -15,7 +15,6 @@
 // TODO(cir): Refactor this to follow some level of codegen parity.
 
 #include "../LoweringPrepareItaniumCXXABI.h"
-#include "../../IR/MissingFeatures.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/Value.h"
 #include "mlir/IR/ValueRange.h"

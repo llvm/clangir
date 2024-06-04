@@ -12,9 +12,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "CIRLowerContext.h"
-#include "MissingFeature.h"
 #include "mlir/IR/MLIRContext.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
+#include "clang/CIR/MissingFeatures.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <cmath>
 
@@ -31,7 +31,7 @@ Type CIRLowerContext::initBuiltinType(clang::BuiltinType::Kind K) {
   Type Ty;
 
   // NOTE(cir): Clang does more stuff here. Not sure if we need to do the same.
-  assert(MissingFeature::qualifiedTypes());
+  assert(::cir::MissingFeatures::qualifiedTypes());
   switch (K) {
   case clang::BuiltinType::Char_S:
     Ty = IntType::get(getMLIRContext(), 8, true);

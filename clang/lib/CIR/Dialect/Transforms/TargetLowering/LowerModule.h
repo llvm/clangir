@@ -16,7 +16,6 @@
 
 #include "CIRLowerContext.h"
 #include "LowerTypes.h"
-#include "MissingFeature.h"
 #include "TargetLoweringInfo.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -24,6 +23,7 @@
 #include "mlir/Interfaces/DataLayoutInterfaces.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
+#include "clang/CIR/MissingFeatures.h"
 
 namespace mlir {
 namespace cir {
@@ -60,7 +60,7 @@ public:
   // FIXME(cir): This would be in ASTContext, not CodeGenModule.
   clang::TargetCXXABI::Kind getCXXABIKind() const {
     auto kind = getTarget().getCXXABI().getKind();
-    assert(MissingFeature::langOpts());
+    assert(::cir::MissingFeatures::langOpts());
     return kind;
   }
 

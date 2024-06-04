@@ -45,7 +45,7 @@ LowerModule createLowerModule(FuncOp op, PatternRewriter &rewriter) {
   // FIXME(cir): This just uses the default language options. We need to account
   // for custom options.
   // Create context.
-  assert(MissingFeature::langOpts());
+  assert(::cir::MissingFeatures::langOpts());
   clang::LangOptions langOpts;
   auto context = CIRLowerContext(module.getContext(), langOpts);
   context.initBuiltinTypes(*targetInfo);

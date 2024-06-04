@@ -14,10 +14,10 @@
 #ifndef LLVM_CLANG_LIB_CIR_DIALECT_TRANSFORMS_TARGETLOWERING_LOWERFUNCTIONINFO_H
 #define LLVM_CLANG_LIB_CIR_DIALECT_TRANSFORMS_TARGETLOWERING_LOWERFUNCTIONINFO_H
 
-#include "MissingFeature.h"
 #include "mlir/IR/Types.h"
 #include "clang/CIR/Common/ABIArgInfo.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
+#include "clang/CIR/MissingFeatures.h"
 #include "llvm/Support/TrailingObjects.h"
 
 namespace mlir {
@@ -89,7 +89,7 @@ public:
                                    ArrayRef<mlir::Type> argTypes,
                                    RequiredArgs required) {
     // TODO(cir): Add assertions?
-    assert(MissingFeature::extParamInfo());
+    assert(::cir::MissingFeatures::extParamInfo());
     void *buffer = operator new(totalSizeToAlloc<ArgInfo>(argTypes.size() + 1));
 
     LowerFunctionInfo *FI = new (buffer) LowerFunctionInfo();
@@ -118,7 +118,7 @@ public:
   unsigned arg_size() const { return NumArgs; }
 
   bool isVariadic() const {
-    assert(MissingFeature::variadicFunctions());
+    assert(::cir::MissingFeatures::variadicFunctions());
     return false;
   }
   unsigned getNumRequiredArgs() const {

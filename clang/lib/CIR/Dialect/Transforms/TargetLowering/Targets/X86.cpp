@@ -1,8 +1,8 @@
 #include "ABIInfo.h"
 #include "LowerModule.h"
 #include "LowerTypes.h"
-#include "MissingFeature.h"
 #include "TargetInfo.h"
+#include "clang/CIR/MissingFeatures.h"
 #include <memory>
 
 namespace mlir {
@@ -18,7 +18,7 @@ class X86_64TargetLoweringInfo : public TargetLoweringInfo {
 public:
   X86_64TargetLoweringInfo(LowerTypes &LM, X86AVXABILevel AVXLevel)
       : TargetLoweringInfo(std::make_unique<X86_64ABIInfo>(LM, AVXLevel)) {
-    assert(MissingFeature::swift());
+    assert(::cir::MissingFeatures::swift());
   }
 };
 
