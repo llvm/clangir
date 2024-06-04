@@ -401,6 +401,7 @@ public:
         continue;
 
       // If range is small, add multiple switch instruction cases.
+      // This magical number is from the original CGStmt code.
       constexpr int kSmallRangeThreshold = 64;
       if ((upperBound - lowerBound)
               .ult(llvm::APInt(32, kSmallRangeThreshold))) {
