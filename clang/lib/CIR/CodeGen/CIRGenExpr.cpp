@@ -1770,7 +1770,7 @@ LValue CIRGenFunction::buildCastLValue(const CastExpr *E) {
     mlir::Value V = getTargetHooks().performAddrSpaceCast(
         *this, LV.getPointer(), E->getSubExpr()->getType().getAddressSpace(),
         E->getType().getAddressSpace(), ConvertType(DestTy));
-    assert(!UnimplementedFeature::tbaa());
+    assert(!MissingFeatures::tbaa());
     return makeAddrLValue(Address(V, getTypes().convertTypeForMem(E->getType()),
                                   LV.getAddress().getAlignment()),
                           E->getType(), LV.getBaseInfo());
