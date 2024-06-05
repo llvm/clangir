@@ -1,0 +1,29 @@
+// RUN: cir-translate %s -cir-to-llvmir | FileCheck %s
+
+!s32i = !cir.int<s, 32>
+module {
+  cir.func @omp_master_test() {
+    %y = cir.alloca !s32i, !cir.ptr<!s32i>, ["y", init] {alignment = 4 : i64}
+    %y_val = cir.const #cir.int<0> : !s32i
+    cir.store %y_val, %y : !s32i, !cir.ptr<!s32i>
+
+    // CHECK-LABEL: @omp_master_test
+    // CHECK: call i32 @__kmpc_global_thread_num
+    // CHECK: call i32 @__kmpc_master({{.*}},{{.*}})
+
+    omp.master {
+      cir.scope {
+        %x = cir.alloca !s32i, !cir.ptr<!s32i>, ["x", init] {alignment = 4 : i64}
+        %x_val = cir.const #cir.int<1> : !s32i
+        cir.store %x_val, %x : !s32i, !cir.ptr<!s32i>
+        %x_load = cir.load %x : !cir.ptr<!s32i>, !s32i
+        %one = cir.const #cir.int<1> : !s32i
+        %inc_val = cir.binop(add, %x_load, %one) : !s32i
+        cir.store %inc_val, %y : !s32i, !cir.ptr<!s32i>
+      }
+      omp.terminator
+    }
+
+    cir.return
+  }
+}
