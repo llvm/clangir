@@ -16,7 +16,7 @@
 #define LLVM_CLANG_CIR_CIRGENFUNCTIONINFO_H
 
 #include "clang/AST/CanonicalType.h"
-#include "clang/CIR/Common/ABIArgInfo.h"
+#include "clang/CIR/ABIArgInfo.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 
 #include "llvm/ADT/FoldingSet.h"

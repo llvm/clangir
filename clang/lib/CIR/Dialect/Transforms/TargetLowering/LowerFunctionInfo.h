@@ -15,7 +15,7 @@
 #define LLVM_CLANG_LIB_CIR_DIALECT_TRANSFORMS_TARGETLOWERING_LOWERFUNCTIONINFO_H
 
 #include "mlir/IR/Types.h"
-#include "clang/CIR/Common/ABIArgInfo.h"
+#include "clang/CIR/ABIArgInfo.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/MissingFeatures.h"
 #include "llvm/Support/TrailingObjects.h"
