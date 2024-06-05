@@ -25,13 +25,6 @@
 namespace mlir {
 namespace cir {
 
-/// The kind of evaluation to perform on values of a particular
-/// type.  Basically, is the code in CGExprScalar, CGExprComplex, or
-/// CGExprAgg?
-///
-/// TODO: should vectors maybe be split out into their own thing?
-enum TypeEvaluationKind { TEK_Scalar, TEK_Complex, TEK_Aggregate };
-
 class LowerFunction {
   LowerFunction(const LowerFunction &) = delete;
   void operator=(const LowerFunction &) = delete;
