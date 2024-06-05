@@ -1,4 +1,4 @@
-// RUN: cir-opt %s -cir-flat -o - | FileCheck %s
+// RUN: cir-opt %s -cir-flat -mem2reg -o - | FileCheck %s
 
 !s32i = !cir.int<s, 32>
 !u64i = !cir.int<u, 64>
@@ -7,7 +7,7 @@
 
 module {
 
-//  ====   Alloca in the top of a function
+//  ====   Alloca at the beginning of a function
 // C code
 // int return_42() {
 //   int y = 42;

@@ -19,6 +19,8 @@
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Transforms/Passes.h"
 
+#include <iostream>
+
 namespace cir {
 mlir::LogicalResult runCIRToCIRPasses(
     mlir::ModuleOp theModule, mlir::MLIRContext *mlirCtx,
@@ -26,9 +28,16 @@ mlir::LogicalResult runCIRToCIRPasses(
     llvm::StringRef lifetimeOpts, bool enableIdiomRecognizer,
     llvm::StringRef idiomRecognizerOpts, bool enableLibOpt,
     llvm::StringRef libOptOpts, std::string &passOptParsingFailure,
+<<<<<<< HEAD
     bool flattenCIR, bool emitMLIR, bool enableCallConvLowering) {
+=======
+    bool flattenCIR, bool emitMLIR, bool enableCallConvLowering,
+    bool enableMem2Reg) {
+>>>>>>> 6339bedbb0db (added an option)
   mlir::PassManager pm(mlirCtx);
   pm.addPass(mlir::createMergeCleanupsPass());
+
+  std::cout << "test " << enableMem2Reg << std::endl;
 
   // TODO(CIR): Make this actually propagate errors correctly. This is stubbed
   // in to get rebases going.
@@ -73,8 +82,6 @@ mlir::LogicalResult runCIRToCIRPasses(
 
   if (flattenCIR)
     mlir::populateCIRPreLoweringPasses(pm);
-    //pm.addPass(mlir::createMem2Reg());
-  }
 
   if (emitMLIR)
     pm.addPass(mlir::createSCFPreparePass());
