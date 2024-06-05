@@ -137,7 +137,9 @@ DeletionKind cir::CopyOp::removeBlockingUses(const MemorySlot &slot,
                          const DataLayout &dataLayout) {
   if (loadsFrom(slot))
     rewriter.create<cir::StoreOp>(getLoc(), reachingDefinition, getDst(), 
-                                  false, mlir::cir::MemOrderAttr());
+                                  false, 
+                                  mlir::IntegerAttr{},
+                                  mlir::cir::MemOrderAttr());
   return DeletionKind::Delete;
 }
 

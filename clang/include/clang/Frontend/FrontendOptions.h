@@ -451,6 +451,9 @@ public:
   // pipeline.
   unsigned ClangIRAnalysisOnly : 1;
 
+  // Enable Clang IR mem2reg pass on the flat CIR.
+  unsigned ClangIREnableMem2Reg : 1;
+
   CodeCompleteOptions CodeCompleteOpts;
 
   /// Specifies the output format of the AST.
