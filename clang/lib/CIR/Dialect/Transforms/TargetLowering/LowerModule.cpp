@@ -50,11 +50,6 @@ createTargetLoweringInfo(LowerModule &LM) {
 
   switch (Triple.getArch()) {
   case llvm::Triple::x86_64: {
-    // StringRef ABI = Target.getABI();
-    // X86AVXABILevel AVXLevel = (ABI == "avx512" ? X86AVXABILevel::AVX512
-    //                            : ABI == "avx"  ? X86AVXABILevel::AVX
-    //                                            : X86AVXABILevel::None);
-
     switch (Triple.getOS()) {
     case llvm::Triple::Win32:
       llvm_unreachable("Windows ABI NYI");
