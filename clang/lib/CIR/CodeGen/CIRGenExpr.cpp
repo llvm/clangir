@@ -867,8 +867,9 @@ LValue CIRGenFunction::buildDeclRefLValue(const DeclRefExpr *E) {
     else if (VD->isStaticLocal()) {
       mlir::cir::GlobalOp var = CGM.getOrCreateStaticVarDecl(
           *VD, CGM.getCIRLinkageVarDefinition(VD, /*IsConstant=*/false));
-      addr = Address(builder.createGetGlobal(var), convertType(VD->getType()),
-                     getContext().getDeclAlign(VD));
+      auto getGlobalOp = builder.createGetGlobal(var);
+      auto actualElemTy = llvm::cast<mlir::cir::PointerType>(getGlobalOp.getType()).getPointee();
+      addr = Address(getGlobalOp, actualElemTy, getContext().getDeclAlign(VD));
     } else {
       llvm_unreachable("DeclRefExpr for decl not entered in LocalDeclMap?");
     }
