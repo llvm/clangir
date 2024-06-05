@@ -2301,7 +2301,7 @@ def GetBitfieldOp : CIR_Op<"get_bitfield"> {
 // GetMemberOp
 //===----------------------------------------------------------------------===//
 
-def GetMemberOp : CIR_Op<"get_member", [DeclareOpInterfaceMethods<PromotableOpInterface>] > {
+def GetMemberOp : CIR_Op<"get_member"> {
   let summary = "Get the address of a member of a struct";
   let description = [{
     The `cir.get_member` operation gets the address of a particular named

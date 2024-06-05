@@ -155,25 +155,6 @@ bool cir::CopyOp::canUsesBeRemoved(
 }
 
 //===----------------------------------------------------------------------===//
-// Interfaces for GetMemberOp
-//===----------------------------------------------------------------------===//
-
-bool cir::GetMemberOp::canUsesBeRemoved(
-    const SmallPtrSetImpl<OpOperand *> &blockingUses,
-    SmallVectorImpl<OpOperand *> &newBlockingUses,
-    const DataLayout &dataLayout) {
-  // GetMemberOp can be removed as long as it is a no-op and its users can be removed.
-  if (getIndex() != 0)
-    return false; 
-  return forwardToUsers(*this, newBlockingUses);
-}
-
-DeletionKind cir::GetMemberOp::removeBlockingUses(
-    const SmallPtrSetImpl<OpOperand *> &blockingUses, RewriterBase &rewriter) {
-  return DeletionKind::Delete;
-}
-
-//===----------------------------------------------------------------------===//
 // Interfaces for CastOp
 //===----------------------------------------------------------------------===//
 
