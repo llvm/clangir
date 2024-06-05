@@ -1014,7 +1014,8 @@ parseSwitchOp(OpAsmParser &parser,
     // 2. Get the value (next in list)
 
     // These needs to be in sync with CIROps.td
-    if (parser.parseOptionalKeyword(&attrStr, {"default", "equal", "anyof"})) {
+    if (parser.parseOptionalKeyword(&attrStr,
+                                    {"default", "equal", "anyof", "range"})) {
       ::mlir::StringAttr attrVal;
       ::mlir::OptionalParseResult parseResult = parser.parseOptionalAttribute(
           attrVal, parser.getBuilder().getNoneType(), "kind", attrStorage);
@@ -1027,8 +1028,9 @@ parseSwitchOp(OpAsmParser &parser,
 
     if (attrStr.empty()) {
       return parser.emitError(
-          loc, "expected string or keyword containing one of the following "
-               "enum values for attribute 'kind' [default, equal, anyof]");
+          loc,
+          "expected string or keyword containing one of the following "
+          "enum values for attribute 'kind' [default, equal, anyof, range]");
     }
 
     auto attrOptional = ::mlir::cir::symbolizeCaseOpKind(attrStr.str());
@@ -1053,6 +1055,7 @@ parseSwitchOp(OpAsmParser &parser,
       caseEltValueListAttr.push_back(mlir::cir::IntAttr::get(intCondType, val));
       break;
     }
+    case cir::CaseOpKind::Range:
     case cir::CaseOpKind::Anyof: {
       if (parser.parseComma().failed())
         return mlir::failure();
@@ -1140,7 +1143,7 @@ void printSwitchOp(OpAsmPrinter &p, SwitchOp op,
     auto attr = llvm::cast<CaseAttr>(casesAttr[idx]);
     auto kind = attr.getKind().getValue();
     assert((kind == CaseOpKind::Default || kind == CaseOpKind::Equal ||
-            kind == CaseOpKind::Anyof) &&
+            kind == CaseOpKind::Anyof || kind == CaseOpKind::Range) &&
            "unknown case");
 
     // Case kind
@@ -1155,6 +1158,9 @@ void printSwitchOp(OpAsmPrinter &p, SwitchOp op,
       (intAttrTy.isSigned() ? p << intAttr.getSInt() : p << intAttr.getUInt());
       break;
     }
+    case cir::CaseOpKind::Range:
+      assert(attr.getValue().size() == 2 && "range must have two values");
+      // The print format of the range is the same as anyof
     case cir::CaseOpKind::Anyof: {
       p << ", [";
       llvm::interleaveComma(attr.getValue(), p, [&](const Attribute &a) {
