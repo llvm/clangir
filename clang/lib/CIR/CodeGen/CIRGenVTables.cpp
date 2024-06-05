@@ -151,7 +151,7 @@ void CIRGenModule::buildDeferredVTables() {
 }
 
 void CIRGenVTables::GenerateClassData(const CXXRecordDecl *RD) {
-  assert(!UnimplementedFeature::generateDebugInfo());
+  assert(!MissingFeatures::generateDebugInfo());
 
   if (RD->getNumVBases())
     CGM.getCXXABI().emitVirtualInheritanceTables(RD);
@@ -162,9 +162,8 @@ void CIRGenVTables::GenerateClassData(const CXXRecordDecl *RD) {
 static void AddPointerLayoutOffset(CIRGenModule &CGM,
                                    ConstantArrayBuilder &builder,
                                    CharUnits offset) {
-  builder.add(mlir::cir::ConstPtrAttr::get(CGM.getBuilder().getContext(),
-                                           CGM.getBuilder().getUInt8PtrTy(),
-                                           offset.getQuantity()));
+  builder.add(CGM.getBuilder().getConstPtrAttr(CGM.getBuilder().getUInt8PtrTy(),
+                                               offset.getQuantity()));
 }
 
 static void AddRelativeLayoutOffset(CIRGenModule &CGM,
@@ -525,7 +524,7 @@ void CIRGenVTables::buildVTTDefinition(mlir::cir::GlobalOp VTT,
                                          CIRGenModule::getMLIRVisibility(VTT));
 
   if (CGM.supportsCOMDAT() && VTT.isWeakForLinker()) {
-    assert(!UnimplementedFeature::setComdat());
+    assert(!MissingFeatures::setComdat());
   }
 }
 

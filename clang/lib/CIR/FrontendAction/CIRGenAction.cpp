@@ -186,7 +186,9 @@ public:
               feOptions.ClangIRLifetimeCheck, lifetimeOpts,
               feOptions.ClangIRIdiomRecognizer, idiomRecognizerOpts,
               feOptions.ClangIRLibOpt, libOptOpts, passOptParsingFailure,
-              action == CIRGenAction::OutputType::EmitCIRFlat)
+              action == CIRGenAction::OutputType::EmitCIRFlat,
+              action == CIRGenAction::OutputType::EmitMLIR,
+              feOptions.ClangIREnableCallConvLowering)
               .failed()) {
         if (!passOptParsingFailure.empty())
           diagnosticsEngine.Report(diag::err_drv_cir_pass_opt_parsing)
@@ -469,3 +471,11 @@ EmitLLVMAction::EmitLLVMAction(mlir::MLIRContext *_MLIRContext)
 void EmitObjAction::anchor() {}
 EmitObjAction::EmitObjAction(mlir::MLIRContext *_MLIRContext)
     : CIRGenAction(OutputType::EmitObj, _MLIRContext) {}
+
+std::unique_ptr<clang::ASTConsumer>
+cir::createCIRAnalysisOnlyConsumer(clang::CompilerInstance &ci) {
+  return std::make_unique<cir::CIRGenConsumer>(
+      CIRGenAction::OutputType::None, ci.getDiagnostics(),
+      &ci.getVirtualFileSystem(), ci.getHeaderSearchOpts(), ci.getCodeGenOpts(),
+      ci.getTargetOpts(), ci.getLangOpts(), ci.getFrontendOpts(), nullptr);
+}

@@ -20,14 +20,14 @@
 #include "mlir/Transforms/Passes.h"
 
 namespace cir {
-mlir::LogicalResult
-runCIRToCIRPasses(mlir::ModuleOp theModule, mlir::MLIRContext *mlirCtx,
-                  clang::ASTContext &astCtx, bool enableVerifier,
-                  bool enableLifetime, llvm::StringRef lifetimeOpts,
-                  bool enableIdiomRecognizer,
-                  llvm::StringRef idiomRecognizerOpts, bool enableLibOpt,
-                  llvm::StringRef libOptOpts,
-                  std::string &passOptParsingFailure, bool flattenCIR) {
+mlir::LogicalResult runCIRToCIRPasses(
+    mlir::ModuleOp theModule, mlir::MLIRContext *mlirCtx,
+    clang::ASTContext &astCtx, bool enableVerifier, bool enableLifetime,
+    llvm::StringRef lifetimeOpts, bool enableIdiomRecognizer,
+    llvm::StringRef idiomRecognizerOpts, bool enableLibOpt,
+    llvm::StringRef libOptOpts, std::string &passOptParsingFailure,
+    bool flattenCIR, bool emitMLIR, bool enableCallConvLowering,
+    bool enableMem2reg) {
   mlir::PassManager pm(mlirCtx);
   pm.addPass(mlir::createMergeCleanupsPass());
 
@@ -66,10 +66,17 @@ runCIRToCIRPasses(mlir::ModuleOp theModule, mlir::MLIRContext *mlirCtx,
   }
 
   pm.addPass(mlir::createLoweringPreparePass(&astCtx));
-  if (flattenCIR) {
+
+  // FIXME(cir): This pass should run by default, but it is lacking support for
+  // several code bits. Once it's more mature, we should fix this.
+  if (enableCallConvLowering)
+    pm.addPass(mlir::createCallConvLoweringPass());
+
+  if (flattenCIR)
     mlir::populateCIRPreLoweringPasses(pm);
-    //pm.addPass(mlir::createMem2Reg());
-  }
+
+  if (emitMLIR)
+    pm.addPass(mlir::createSCFPreparePass());
 
   // FIXME: once CIRCodenAction fixes emission other than CIR we
   // need to run this right before dialect emission.
@@ -83,10 +90,11 @@ runCIRToCIRPasses(mlir::ModuleOp theModule, mlir::MLIRContext *mlirCtx,
 
 namespace mlir {
 
-void populateCIRPreLoweringPasses(OpPassManager &pm) {
+void populateCIRPreLoweringPasses(OpPassManager &pm, bool enableMem2Reg) {
   pm.addPass(createFlattenCFGPass());
   pm.addPass(createGotoSolverPass());
-  pm.addPass(mlir::createMem2Reg());
+  if (enableMem2Reg)
+    pm.addPass(mlir::createMem2Reg());
 }
 
 

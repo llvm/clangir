@@ -4971,12 +4971,24 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   if (Args.hasArg(options::OPT_clangir_disable_passes))
     CmdArgs.push_back("-clangir-disable-passes");
 
+  if (Args.hasArg(options::OPT_fclangir_call_conv_lowering))
+    CmdArgs.push_back("-fclangir-call-conv-lowering");
+
   // ClangIR lib opt requires idiom recognizer.
   if (Args.hasArg(options::OPT_fclangir_lib_opt,
                   options::OPT_fclangir_lib_opt_EQ)) {
     if (!Args.hasArg(options::OPT_fclangir_idiom_recognizer,
                      options::OPT_fclangir_idiom_recognizer_EQ))
       CmdArgs.push_back("-fclangir-idiom-recognizer");
+  }
+
+  if (Args.hasArg(options::OPT_fclangir_analysis_only)) {
+    CmdArgs.push_back("-fclangir-analysis-only");
+
+    // TODO: We should pass some default analysis configuration here.
+
+    // TODO2: Should we emit some diagnostics if the configurations conflict
+    // with each other?
   }
 
   if (IsOpenMPDevice) {

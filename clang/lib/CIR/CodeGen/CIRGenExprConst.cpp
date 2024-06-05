@@ -10,7 +10,6 @@
 //
 //===----------------------------------------------------------------------===//
 #include "Address.h"
-#include "CIRDataLayout.h"
 #include "CIRGenCstEmitter.h"
 #include "CIRGenFunction.h"
 #include "CIRGenModule.h"
@@ -25,6 +24,7 @@
 #include "clang/AST/StmtVisitor.h"
 #include "clang/Basic/Builtins.h"
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
+#include "clang/CIR/Dialect/IR/CIRDataLayout.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Sequence.h"
@@ -1771,7 +1771,7 @@ mlir::Attribute ConstantEmitter::tryEmitPrivate(const APValue &Value,
                               Elts, typedFiller);
   }
   case APValue::MemberPointer: {
-    assert(!UnimplementedFeature::cxxABI());
+    assert(!MissingFeatures::cxxABI());
 
     const ValueDecl *memberDecl = Value.getMemberPointerDecl();
     assert(!Value.isMemberPointerToDerivedMember() && "NYI");
@@ -1824,7 +1824,7 @@ mlir::Value CIRGenModule::buildNullConstant(QualType T, mlir::Location loc) {
 }
 
 mlir::Value CIRGenModule::buildMemberPointerConstant(const UnaryOperator *E) {
-  assert(!UnimplementedFeature::cxxABI());
+  assert(!MissingFeatures::cxxABI());
 
   auto loc = getLoc(E->getSourceRange());
 

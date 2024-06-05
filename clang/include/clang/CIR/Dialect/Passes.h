@@ -28,6 +28,7 @@ std::unique_ptr<Pass> createLifetimeCheckPass(ArrayRef<StringRef> remark,
                                               clang::ASTContext *astCtx);
 std::unique_ptr<Pass> createMergeCleanupsPass();
 std::unique_ptr<Pass> createDropASTPass();
+std::unique_ptr<Pass> createSCFPreparePass();
 std::unique_ptr<Pass> createLoweringPreparePass();
 std::unique_ptr<Pass> createLoweringPreparePass(clang::ASTContext *astCtx);
 std::unique_ptr<Pass> createIdiomRecognizerPass();
@@ -36,6 +37,9 @@ std::unique_ptr<Pass> createLibOptPass();
 std::unique_ptr<Pass> createLibOptPass(clang::ASTContext *astCtx);
 std::unique_ptr<Pass> createFlattenCFGPass();
 std::unique_ptr<Pass> createGotoSolverPass();
+
+/// Create a pass to lower ABI-independent function definitions/calls.
+std::unique_ptr<Pass> createCallConvLoweringPass();
 
 void populateCIRPreLoweringPasses(mlir::OpPassManager &pm);
 

@@ -2934,6 +2934,10 @@ def fclangir_lib_opt : Flag<["-"], "fclangir-lib-opt">,
   Visibility<[ClangOption, CC1Option]>, Group<f_Group>,
   Alias<fclangir_lib_opt_EQ>,
   HelpText<"Enable C/C++ library based optimizations">;
+def fclangir_call_conv_lowering : Flag<["-"], "fclangir-call-conv-lowering">,
+  Visibility<[ClangOption, CC1Option]>, Group<f_Group>,
+  HelpText<"Enable ClangIR calling convention lowering">,
+  MarshallingInfoFlag<FrontendOpts<"ClangIREnableCallConvLowering">>;
 
 def clangir_disable_passes : Flag<["-"], "clangir-disable-passes">,
   Visibility<[ClangOption, CC1Option]>,
@@ -2955,6 +2959,11 @@ defm clangir_direct_lowering : BoolFOption<"clangir-direct-lowering",
   FrontendOpts<"ClangIRDirectLowering">, DefaultTrue,
   PosFlag<SetTrue, [], [ClangOption, CC1Option], "Lower directly from ClangIR to LLVM">,
   NegFlag<SetFalse, [], [ClangOption, CC1Option],  "Lower through MLIR to LLVM">>;
+defm clangir_analysis_only : BoolFOption<"clangir-analysis-only",
+  FrontendOpts<"ClangIRAnalysisOnly">, DefaultFalse,
+  PosFlag<SetTrue, [], [ClangOption, CC1Option],
+    "Enable CIR analysis but keep traditional LLVM codegen (not through CIR)">,
+  NegFlag<SetFalse, [], [ClangOption, CC1Option],  "">>;
 
 def emit_cir : Flag<["-"], "emit-cir">, Visibility<[CC1Option]>,
   Group<Action_Group>, HelpText<"Build ASTs and then lower to ClangIR, emit the .cir file">;

@@ -75,6 +75,17 @@ def LoweringPrepare : Pass<"cir-lowering-prepare"> {
   let dependentDialects = ["cir::CIRDialect"];
 }
 
+def SCFPrepare : Pass<"cir-mlir-scf-prepare"> {
+  let summary = "Preparation work before lowering to SCF dialect";
+  let description = [{
+    This pass does preparation work for SCF lowering. For example, it may
+    hoist the loop invariant or canonicalize the loop comparison. Currently,
+    the pass only be enabled for through MLIR pipeline.
+  }];
+  let constructor = "mlir::createSCFPreparePass()";
+  let dependentDialects = ["cir::CIRDialect"];
+}
+
 def FlattenCFG : Pass<"cir-flatten-cfg"> {
   let summary = "Produces flatten cfg";
   let description = [{ 
@@ -136,6 +147,17 @@ def LibOpt : Pass<"cir-lib-opt"> {
                "Diagnostic remarks to enable"
                " Supported styles: {all|transforms}", "llvm::cl::ZeroOrMore">,
   ];
+}
+
+def CallConvLowering : Pass<"cir-call-conv-lowering"> {
+  let summary = "Handle calling conventions for CIR functions";
+  let description = [{
+    This pass lowers CIR function definitions and calls according to the
+    calling conventions for the target architecture. This pass is necessary
+    to properly lower CIR functions to LLVM IR.
+  }];
+  let constructor = "mlir::createCallConvLoweringPass()";
+  let dependentDialects = ["mlir::cir::CIRDialect"];
 }
 
 #endif // MLIR_DIALECT_CIR_PASSES
