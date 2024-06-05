@@ -3278,7 +3278,7 @@ class CIRUndefOpLowering
   matchAndRewrite(mlir::cir::UndefOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto typ = getTypeConverter()->convertType(op.getRes().getType());
-    
+
     rewriter.replaceOpWithNewOp<mlir::LLVM::UndefOp>(op, typ);
     return mlir::success();
   }
@@ -3565,7 +3565,7 @@ void collect_unreachable(mlir::Operation *parent,
 
 void ConvertCIRToLLVMPass::runOnOperation() {
 
-  auto module = getOperation();  
+  auto module = getOperation();
 
   mlir::DataLayout dataLayout(module);
   mlir::LLVMTypeConverter converter(&getContext());
