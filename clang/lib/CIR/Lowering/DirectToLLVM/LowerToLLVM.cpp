@@ -67,7 +67,6 @@
 #include <deque>
 #include <optional>
 #include <set>
-#include <iostream>
 
 using namespace cir;
 using namespace llvm;
