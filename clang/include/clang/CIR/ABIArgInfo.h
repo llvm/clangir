@@ -22,12 +22,12 @@
 
 namespace cir {
 
-/// ABIArgInfo - Helper class to encapsulate information about how a specific C
+/// Helper class to encapsulate information about how a specific C
 /// type should be passed to or returned from a function.
 class ABIArgInfo {
 public:
   enum Kind : uint8_t {
-    /// Direct - Pass the argument directly using the normal converted CIR type,
+    /// Pass the argument directly using the normal converted CIR type,
     /// or by coercing to another specified type stored in 'CoerceToType'). If
     /// an offset is specified (in UIntData), then the argument passed is offset
     /// by some number of bytes in the memory representation. A dummy argument
@@ -35,15 +35,15 @@ public:
     /// "PaddingType" is not zero.
     Direct,
 
-    /// Extend - Valid only for integer argument types. Same as 'direct' but
+    /// Valid only for integer argument types. Same as 'direct' but
     /// also emit a zer/sign extension attribute.
     Extend,
 
-    /// Indirect - Pass the argument indirectly via a hidden pointer with the
+    /// Pass the argument indirectly via a hidden pointer with the
     /// specified alignment (0 indicates default alignment) and address space.
     Indirect,
 
-    /// IndirectAliased - Similar to Indirect, but the pointer may be to an
+    /// Similar to Indirect, but the pointer may be to an
     /// object that is otherwise referenced. The object is known to not be
     /// modified through any other references for the duration of the call, and
     /// the callee must not itself modify the object. Because C allows parameter
@@ -56,17 +56,17 @@ public:
     /// naturally produces an unaliased object for the argument.
     IndirectAliased,
 
-    /// Ignore - Ignore the argument (treat as void). Useful for void and empty
+    /// Ignore the argument (treat as void). Useful for void and empty
     /// structs.
     Ignore,
 
-    /// Expand - Only valid for aggregate argument types. The structure should
+    /// Only valid for aggregate argument types. The structure should
     /// be expanded into consecutive arguments for its constituent fields.
     /// Currently expand is only allowed on structures whose fields are all
     /// scalar types or are themselves expandable types.
     Expand,
 
-    /// CoerceAndExpand - Only valid for aggregate argument types. The structure
+    /// Only valid for aggregate argument types. The structure
     /// should be expanded into consecutive arguments corresponding to the
     /// non-array elements of the type stored in CoerceToType.
     /// Array elements in the type are assumed to be padding and skipped.
