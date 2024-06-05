@@ -1,9 +1,9 @@
-#include "clang/CIR/Dialect/IR/CIRDialect.h"
-#include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "mlir/IR/Matchers.h"
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/Interfaces/DataLayoutInterfaces.h"
 #include "mlir/Interfaces/MemorySlotInterfaces.h"
+#include "clang/CIR/Dialect/IR/CIRDialect.h"
+#include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/TypeSwitch.h"
 
@@ -27,13 +27,13 @@ llvm::SmallVector<MemorySlot> cir::AllocaOp::getPromotableSlots() {
 }
 
 Value cir::AllocaOp::getDefaultValue(const MemorySlot &slot,
-                                      RewriterBase &rewriter) {
+                                     RewriterBase &rewriter) {
   return rewriter.create<cir::UndefOp>(getLoc(), slot.elemType);
 }
 
 void cir::AllocaOp::handleBlockArgument(const MemorySlot &slot,
-                                         BlockArgument argument,
-                                         RewriterBase &rewriter) {}
+                                        BlockArgument argument,
+                                        RewriterBase &rewriter) {}
 
 void cir::AllocaOp::handlePromotionComplete(const MemorySlot &slot,
                                             Value defaultValue,
@@ -54,7 +54,7 @@ bool cir::LoadOp::loadsFrom(const MemorySlot &slot) {
 bool cir::LoadOp::storesTo(const MemorySlot &slot) { return false; }
 
 Value cir::LoadOp::getStored(const MemorySlot &slot, RewriterBase &rewriter,
-                              Value reachingDef, const DataLayout &dataLayout) {
+                             Value reachingDef, const DataLayout &dataLayout) {
   llvm_unreachable("getStored should not be called on LoadOp");
 }
 
@@ -84,7 +84,7 @@ DeletionKind cir::LoadOp::removeBlockingUses(
 bool cir::StoreOp::loadsFrom(const MemorySlot &slot) { return false; }
 
 bool cir::StoreOp::storesTo(const MemorySlot &slot) {
-  return getAddr() == slot.ptr;  
+  return getAddr() == slot.ptr;
 }
 
 Value cir::StoreOp::getStored(const MemorySlot &slot, RewriterBase &rewriter,
@@ -100,8 +100,7 @@ bool cir::StoreOp::canUsesBeRemoved(
     return false;
   Value blockingUse = (*blockingUses.begin())->get();
   return blockingUse == slot.ptr && getAddr() == slot.ptr &&
-         getValue() != slot.ptr &&
-         slot.elemType == getValue().getType();
+         getValue() != slot.ptr && slot.elemType == getValue().getType();
 }
 
 DeletionKind cir::StoreOp::removeBlockingUses(
@@ -110,7 +109,6 @@ DeletionKind cir::StoreOp::removeBlockingUses(
     const DataLayout &dataLayout) {
   return DeletionKind::Delete;
 }
-
 
 //===----------------------------------------------------------------------===//
 // Interfaces for CopyOp
@@ -125,19 +123,16 @@ bool cir::CopyOp::storesTo(const MemorySlot &slot) {
 }
 
 Value cir::CopyOp::getStored(const MemorySlot &slot, RewriterBase &rewriter,
-                             Value reachingDef,
-                             const DataLayout &dataLayout) {
+                             Value reachingDef, const DataLayout &dataLayout) {
   return rewriter.create<cir::LoadOp>(getLoc(), slot.elemType, getSrc());
 }
 
-
-DeletionKind cir::CopyOp::removeBlockingUses(const MemorySlot &slot,
-                         const SmallPtrSetImpl<OpOperand *> &blockingUses,
-                         RewriterBase &rewriter, Value reachingDefinition,
-                         const DataLayout &dataLayout) {
+DeletionKind cir::CopyOp::removeBlockingUses(
+    const MemorySlot &slot, const SmallPtrSetImpl<OpOperand *> &blockingUses,
+    RewriterBase &rewriter, Value reachingDefinition,
+    const DataLayout &dataLayout) {
   if (loadsFrom(slot))
-    rewriter.create<cir::StoreOp>(getLoc(), reachingDefinition, getDst(), 
-                                  false, 
+    rewriter.create<cir::StoreOp>(getLoc(), reachingDefinition, getDst(), false,
                                   mlir::IntegerAttr{},
                                   mlir::cir::MemOrderAttr());
   return DeletionKind::Delete;
@@ -147,7 +142,7 @@ bool cir::CopyOp::canUsesBeRemoved(
     const MemorySlot &slot, const SmallPtrSetImpl<OpOperand *> &blockingUses,
     SmallVectorImpl<OpOperand *> &newBlockingUses,
     const DataLayout &dataLayout) {
-  
+
   if (getDst() == getSrc())
     return false;
 
@@ -164,7 +159,7 @@ bool cir::CastOp::canUsesBeRemoved(
     const DataLayout &dataLayout) {
   if (getKind() == cir::CastKind::bitcast)
     return forwardToUsers(*this, newBlockingUses);
-  else 
+  else
     return false;
 }
 

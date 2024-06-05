@@ -507,8 +507,8 @@ public:
       // before it. To achieve that, look at unary minus, which already got
       // lowered to "sub 0, x".
       auto sub = dyn_cast_or_null<mlir::LLVM::SubOp>(index.getDefiningOp());
-      auto unary =
-          dyn_cast_or_null<mlir::cir::UnaryOp>(ptrStrideOp.getStride().getDefiningOp());
+      auto unary = dyn_cast_or_null<mlir::cir::UnaryOp>(
+          ptrStrideOp.getStride().getDefiningOp());
       bool rewriteSub =
           unary && unary.getKind() == mlir::cir::UnaryOpKind::Minus && sub;
       if (rewriteSub)
@@ -3169,7 +3169,7 @@ class CIRUndefOpLowering
   matchAndRewrite(mlir::cir::UndefOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto typ = getTypeConverter()->convertType(op.getRes().getType());
-    
+
     rewriter.replaceOpWithNewOp<mlir::LLVM::UndefOp>(op, typ);
     return mlir::success();
   }
@@ -3439,7 +3439,7 @@ void collect_unreachable(mlir::Operation *parent,
 
 void ConvertCIRToLLVMPass::runOnOperation() {
 
-  auto module = getOperation();  
+  auto module = getOperation();
 
   mlir::DataLayout dataLayout(module);
   mlir::LLVMTypeConverter converter(&getContext());

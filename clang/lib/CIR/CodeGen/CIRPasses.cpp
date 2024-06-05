@@ -97,5 +97,4 @@ void populateCIRPreLoweringPasses(OpPassManager &pm, bool enableMem2Reg) {
     pm.addPass(mlir::createMem2Reg());
 }
 
-
 } // namespace mlir
