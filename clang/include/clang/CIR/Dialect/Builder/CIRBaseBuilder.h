@@ -334,7 +334,7 @@ public:
   }
 
   mlir::Value createAddrSpaceCast(mlir::Value src, mlir::Type newTy) {
-    return createCast(mlir::cir::CastKind::address_space, src, newTy);
+    return createAddrSpaceCast(src.getLoc(), src, newTy);
   }
 
   mlir::Value createPtrIsNull(mlir::Value ptr) {
