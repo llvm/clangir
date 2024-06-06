@@ -4,6 +4,7 @@ add_clang_library(MLIRCIRTransforms
   LoweringPrepareItaniumCXXABI.cpp
   LoweringPrepareAArch64CXXABI.cpp
   MergeCleanups.cpp
+  CIRSimplify.cpp
   DropAST.cpp
   IdiomRecognizer.cpp
   LibOpt.cpp
