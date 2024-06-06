@@ -1521,7 +1521,6 @@ mlir::Value ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
       if (Result.HasSideEffects) {
         llvm_unreachable("NYI");
       }
-      assert(!MissingFeatures::targetCodeGenInfoGetNullPointer());
       return CGF.CGM.buildNullConstant(DestTy, CGF.getLoc(E->getExprLoc()));
     }
     // Since target may map different address spaces in AST to the same address
