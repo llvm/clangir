@@ -250,8 +250,6 @@ module {
 // CHECK-NEXT:  ^[[CASE_DEFAULT]]:
 // CHECK-NEXT:    cir.int<3>
 // CHECK-NEXT:    cir.store
-// CHECK-NEXT:    cir.br ^[[EPILOG]]
-// CHECK-NEXT:  ^[[EPILOG]]:
 // CHECK-NEXT:    cir.br ^[[EPILOG_END:bb[0-9]+]]
 // CHECK-NEXT:  ^[[EPILOG_END]]:
 //      CHECK:    cir.return

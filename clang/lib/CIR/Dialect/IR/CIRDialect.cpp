@@ -935,7 +935,7 @@ mlir::SuccessorOperands BrOp::getSuccessorOperands(unsigned index) {
 
 Block *BrOp::getSuccessorForOperands(ArrayRef<Attribute>) { return getDest(); }
 
-void eraseBlock(Block *block) {
+static void eraseBlock(Block *block) {
   for (auto &op : llvm::make_early_inc_range(*block))
     op.erase();
   block->erase();
