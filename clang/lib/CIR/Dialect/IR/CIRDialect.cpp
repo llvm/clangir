@@ -1161,6 +1161,7 @@ void printSwitchOp(OpAsmPrinter &p, SwitchOp op,
     case cir::CaseOpKind::Range:
       assert(attr.getValue().size() == 2 && "range must have two values");
       // The print format of the range is the same as anyof
+      LLVM_FALLTHROUGH;
     case cir::CaseOpKind::Anyof: {
       p << ", [";
       llvm::interleaveComma(attr.getValue(), p, [&](const Attribute &a) {
