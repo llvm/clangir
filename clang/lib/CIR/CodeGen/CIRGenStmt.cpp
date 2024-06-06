@@ -328,6 +328,14 @@ mlir::LogicalResult CIRGenFunction::buildLabelStmt(const clang::LabelStmt &S) {
   // IsEHa: not implemented.
   assert(!(getContext().getLangOpts().EHAsynch && S.isSideEntry()));
 
+  // TODO(cir): After support case stmt crossing scopes, we should build
+  // LabelStmt and clean LexicalScope::IsInsideCaseNoneStmt.
+  for (auto *lexScope = currLexScope; lexScope;
+       lexScope = lexScope->getParentScope()) {
+    assert(!lexScope->IsInsideCaseNoneStmt &&
+           "LabelStmt inside case none stmt NYI");
+  }
+
   return buildStmt(S.getSubStmt(), /* useCurrentScope */ true);
 }
 
@@ -458,6 +466,11 @@ mlir::LogicalResult CIRGenFunction::buildDeclStmt(const DeclStmt &S) {
 mlir::LogicalResult CIRGenFunction::buildReturnStmt(const ReturnStmt &S) {
   assert(!MissingFeatures::requiresReturnValueCheck());
   auto loc = getLoc(S.getSourceRange());
+
+  // TODO(cir): Rewrite the logic to handle ReturnStmt inside SwitchStmt, then
+  // clean up the code below.
+  if (currLexScope->IsInsideCaseNoneStmt)
+    return mlir::success();
 
   // Emit the result value, even if unused, to evaluate the side effects.
   const Expr *RV = S.getRetValue();
@@ -725,6 +738,22 @@ CIRGenFunction::buildSwitchCase(const SwitchCase &S, mlir::Type condType,
   llvm_unreachable("expect case or default stmt");
 }
 
+mlir::LogicalResult CIRGenFunction::buildCaseNoneStmt(const Stmt *S) {
+  // Create orphan region to skip over the case none stmts.
+  mlir::Region region;
+  auto *block = builder.createBlock(&region);
+  mlir::OpBuilder::InsertionGuard guard(builder);
+  builder.setInsertionPointToStart(block);
+
+  currLexScope->IsInsideCaseNoneStmt = true;
+
+  auto res = buildStmt(S, /*useCurrentScope=*/isa<CompoundStmt>(S));
+
+  currLexScope->IsInsideCaseNoneStmt = false;
+
+  return res;
+}
+
 mlir::LogicalResult
 CIRGenFunction::buildCXXForRangeStmt(const CXXForRangeStmt &S,
                                      ArrayRef<const Attr *> ForAttrs) {
@@ -988,6 +1017,10 @@ mlir::LogicalResult CIRGenFunction::buildWhileStmt(const WhileStmt &S) {
 mlir::LogicalResult CIRGenFunction::buildSwitchBody(
     const Stmt *S, mlir::Type condType,
     llvm::SmallVector<mlir::Attribute, 4> &caseAttrs) {
+  if (auto *switchCase = dyn_cast<SwitchCase>(S)) {
+    return buildSwitchCase(*switchCase, condType, caseAttrs);
+  }
+
   if (auto *compoundStmt = dyn_cast<CompoundStmt>(S)) {
     mlir::Block *lastCaseBlock = nullptr;
     auto res = mlir::success();
@@ -1001,7 +1034,8 @@ mlir::LogicalResult CIRGenFunction::buildSwitchBody(
         builder.setInsertionPointToEnd(lastCaseBlock);
         res = buildStmt(c, /*useCurrentScope=*/!isa<CompoundStmt>(c));
       } else {
-        llvm_unreachable("statement doesn't belong to any case region, NYI");
+        buildCaseNoneStmt(c);
+        continue;
       }
 
       lastCaseBlock = builder.getBlock();
@@ -1012,7 +1046,8 @@ mlir::LogicalResult CIRGenFunction::buildSwitchBody(
     return res;
   }
 
-  llvm_unreachable("switch body is not CompoundStmt, NYI");
+  buildCaseNoneStmt(S);
+  return mlir::success();
 }
 
 mlir::LogicalResult CIRGenFunction::buildSwitchStmt(const SwitchStmt &S) {

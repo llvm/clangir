@@ -1126,6 +1126,8 @@ public:
   buildSwitchCase(const clang::SwitchCase &S, mlir::Type condType,
                   SmallVector<mlir::Attribute, 4> &caseAttrs);
 
+  mlir::LogicalResult buildCaseNoneStmt(const Stmt *stmt);
+
   mlir::LogicalResult
   buildSwitchBody(const clang::Stmt *S, mlir::Type condType,
                   SmallVector<mlir::Attribute, 4> &caseAttrs);
@@ -1934,6 +1936,8 @@ public:
 
     void setRetVal(mlir::Value v) { retVal = v; }
 
+    LexicalScope *getParentScope() { return ParentScope; }
+
     void cleanup();
     void restore() { CGF.currLexScope = ParentScope; }
 
@@ -2055,6 +2059,8 @@ public:
 
     // Scope entry block tracking
     mlir::Block *getEntryBlock() { return EntryBlock; }
+
+    bool IsInsideCaseNoneStmt = false;
 
     mlir::Location BeginLoc, EndLoc;
   };
