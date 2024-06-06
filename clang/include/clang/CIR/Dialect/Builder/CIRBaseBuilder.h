@@ -16,6 +16,7 @@
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/Dialect/IR/FPEnv.h"
+#include "clang/CIR/MissingFeatures.h"
 
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/Builders.h"
