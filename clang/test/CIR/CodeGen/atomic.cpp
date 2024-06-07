@@ -389,9 +389,9 @@ void inc_byte(char* a, char b) {
 // CHECK: cir.store %[[RES]], {{.*}} : !cir.bool, !cir.ptr<!cir.bool>
 
 // LLVM-LABEL: @_Z12cmp_bool_int
-// LLVM: %[[PTR:.*]] = load ptr, ptr %4
-// LLVM: %[[CMP:.*]] = load i32, ptr %5
-// LLVM: %[[UPD:.*]] = load i32, ptr %6
+// LLVM: %[[PTR:.*]] = load ptr
+// LLVM: %[[CMP:.*]] = load i32
+// LLVM: %[[UPD:.*]] = load i32
 // LLVM: %[[RES:.*]] = cmpxchg ptr %[[PTR]], i32 %[[CMP]], i32 %[[UPD]] seq_cst seq_cst
 // LLVM: %[[TMP:.*]] = extractvalue { i32, i1 } %[[RES]], 1
 // LLVM: %[[EXT:.*]] = zext i1 %[[TMP]] to i8
@@ -435,9 +435,9 @@ void cmp_bool_byte(char* p, char x, char u) {
 // CHECK: cir.store %[[OLD]], {{.*}} : !s32i, !cir.ptr<!s32i>
 
 // LLVM-LABEL: @_Z11cmp_val_int
-// LLVM: %[[PTR:.*]] = load ptr, ptr %4
-// LLVM: %[[CMP:.*]] = load i32, ptr %5
-// LLVM: %[[UPD:.*]] = load i32, ptr %6
+// LLVM: %[[PTR:.*]] = load ptr
+// LLVM: %[[CMP:.*]] = load i32
+// LLVM: %[[UPD:.*]] = load i32
 // LLVM: %[[RES:.*]] = cmpxchg ptr %[[PTR]], i32 %[[CMP]], i32 %[[UPD]] seq_cst seq_cst
 // LLVM: %[[TMP:.*]] = extractvalue { i32, i1 } %[[RES]], 0
 // LLVM: store i32 %[[TMP]], ptr {{.*}}
