@@ -1,4 +1,5 @@
 
+#include "clang/CIR/x86.h"
 #include "ABIInfo.h"
 #include "ABIInfoImpl.h"
 #include "LowerModule.h"
@@ -13,16 +14,7 @@ namespace mlir {
 namespace cir {
 
 class X86_64ABIInfo : public ABIInfo {
-  enum Class {
-    Integer = 0,
-    SSE,
-    SSEUp,
-    X87,
-    X87Up,
-    ComplexX87,
-    NoClass,
-    Memory
-  };
+  using Class = ::cir::X86ArgClass;
 
   /// Determine the x86_64 register classes in which the given type T should be
   /// passed.
@@ -79,16 +71,16 @@ void X86_64ABIInfo::classify(Type Ty, uint64_t OffsetBase, Class &Lo, Class &Hi,
   // shouldn't be passed in registers for example, so there is no chance they
   // can straddle an eightbyte. Verify & simplify.
 
-  Lo = Hi = NoClass;
+  Lo = Hi = Class::NoClass;
 
   Class &Current = OffsetBase < 64 ? Lo : Hi;
-  Current = Memory;
+  Current = Class::Memory;
 
   // FIXME(cir): There's currently no direct way to identify if a type is a
   // builtin.
   if (/*isBuitinType=*/true) {
     if (Ty.isa<VoidType>()) {
-      Current = NoClass;
+      Current = Class::NoClass;
     } else {
       llvm::outs() << "Missing X86 classification for type " << Ty << "\n";
       llvm_unreachable("NYI");
@@ -109,12 +101,12 @@ void X86_64ABIInfo::classify(Type Ty, uint64_t OffsetBase, Class &Lo, Class &Hi,
   classify(RetTy, 0, Lo, Hi, true);
 
   // Check some invariants.
-  assert((Hi != Memory || Lo == Memory) && "Invalid memory classification.");
-  assert((Hi != SSEUp || Lo == SSE) && "Invalid SSEUp classification.");
+  assert((Hi != Class::Memory || Lo == Class::Memory) && "Invalid memory classification.");
+  assert((Hi != Class::SSEUp || Lo == Class::SSE) && "Invalid SSEUp classification.");
 
   switch (Lo) {
-  case NoClass:
-    if (Hi == NoClass)
+  case Class::NoClass:
+    if (Hi == Class::NoClass)
       return ::cir::ABIArgInfo::getIgnore();
     break;
   default:
