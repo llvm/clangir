@@ -1056,6 +1056,35 @@ public:
   }
 };
 
+class CIRIfOpLowering : public mlir::OpConversionPattern<mlir::cir::IfOp> {
+public:
+  using mlir::OpConversionPattern<mlir::cir::IfOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::IfOp ifop, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto condition = adaptor.getCondition();
+    
+    // CIR BoolType gets converted to i8, but scf.if needs i1
+    // Convert from i8 boolean to i1 for SCF operations
+    auto i1Condition = rewriter.create<mlir::arith::TruncIOp>(
+        ifop->getLoc(), rewriter.getI1Type(), condition);
+    
+    auto newIfOp = rewriter.create<mlir::scf::IfOp>(
+        ifop->getLoc(), ifop->getResultTypes(), i1Condition);
+    auto *thenBlock = rewriter.createBlock(&newIfOp.getThenRegion());
+    rewriter.inlineBlockBefore(&ifop.getThenRegion().front(), thenBlock,
+                               thenBlock->end());
+    if (!ifop.getElseRegion().empty()) {
+      auto *elseBlock = rewriter.createBlock(&newIfOp.getElseRegion());
+      rewriter.inlineBlockBefore(&ifop.getElseRegion().front(), elseBlock,
+                                 elseBlock->end());
+    }
+    rewriter.replaceOp(ifop, newIfOp);
+    return mlir::success();
+  }
+};
+
 class CIRGlobalOpLowering
     : public mlir::OpConversionPattern<mlir::cir::GlobalOp> {
 public:
@@ -1355,20 +1384,20 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
                                          mlir::TypeConverter &converter) {
   patterns.add<CIRReturnLowering, CIRBrOpLowering>(patterns.getContext());
 
-  patterns.add<CIRCmpOpLowering, CIRCallOpLowering, CIRUnaryOpLowering,
-               CIRBinOpLowering, CIRLoadOpLowering, CIRConstantOpLowering,
-               CIRStoreOpLowering, CIRAllocaOpLowering, CIRFuncOpLowering,
-               CIRBrCondOpLowering, CIRTernaryOpLowering,
-               CIRYieldOpLowering, CIRLoopOpInterfaceLowering, CIRCosOpLowering,
-               CIRGlobalOpLowering, CIRGetGlobalOpLowering, CIRCastOpLowering,
-               CIRPtrStrideOpLowering, CIRSqrtOpLowering, CIRCeilOpLowering,
-               CIRExp2OpLowering, CIRExpOpLowering, CIRFAbsOpLowering,
-               CIRFloorOpLowering, CIRLog10OpLowering, CIRLog2OpLowering,
-               CIRLogOpLowering, CIRRoundOpLowering, CIRSinOpLowering,
-               CIRShiftOpLowering, CIRBitClzOpLowering, CIRBitCtzOpLowering,
-               CIRBitPopcountOpLowering, CIRBitClrsbOpLowering,
-               CIRBitFfsOpLowering, CIRBitParityOpLowering>(converter,
-                                                            patterns.getContext());
+  patterns.add<
+      CIRCmpOpLowering, CIRCallOpLowering, CIRUnaryOpLowering, CIRBinOpLowering,
+      CIRLoadOpLowering, CIRConstantOpLowering, CIRStoreOpLowering,
+      CIRAllocaOpLowering, CIRFuncOpLowering, CIRBrCondOpLowering,
+      CIRTernaryOpLowering, CIRYieldOpLowering, CIRLoopOpInterfaceLowering,
+      CIRCosOpLowering, CIRGlobalOpLowering, CIRGetGlobalOpLowering,
+      CIRCastOpLowering, CIRPtrStrideOpLowering, CIRSqrtOpLowering,
+      CIRCeilOpLowering, CIRExp2OpLowering, CIRExpOpLowering, CIRFAbsOpLowering,
+      CIRFloorOpLowering, CIRLog10OpLowering, CIRLog2OpLowering,
+      CIRLogOpLowering, CIRRoundOpLowering, CIRSinOpLowering,
+      CIRShiftOpLowering, CIRBitClzOpLowering, CIRBitCtzOpLowering,
+      CIRBitPopcountOpLowering, CIRBitClrsbOpLowering, CIRBitFfsOpLowering,
+      CIRBitParityOpLowering, CIRIfOpLowering>(
+      converter, patterns.getContext());
 }
 
 static mlir::TypeConverter prepareTypeConverter() {
@@ -1424,32 +1453,6 @@ static mlir::TypeConverter prepareTypeConverter() {
   
   return converter;
 }
-class CIRIfOpLowering : public mlir::OpConversionPattern<mlir::cir::IfOp> {
-public:
-  using OpConversionPattern<mlir::cir::IfOp>::OpConversionPattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(mlir::cir::IfOp op, OpAdaptor adaptor,
-                  mlir::ConversionPatternRewriter &rewriter) const override {
-    mlir::scf::IfOp ifOp;
-    // CIR IfOp doesn't have results, it's a void operation
-    ifOp =
-        rewriter.create<mlir::scf::IfOp>(op.getLoc(), adaptor.getCondition());
-
-    auto inlineIfCase = [&](mlir::Region &ifCase, mlir::Region &cirCase) {
-      if (cirCase.empty())
-        return;
-
-      rewriter.inlineRegionBefore(cirCase, ifCase, ifCase.end());
-    };
-
-    inlineIfCase(ifOp.getThenRegion(), op.getThenRegion());
-    inlineIfCase(ifOp.getElseRegion(), op.getElseRegion());
-
-    rewriter.replaceOp(op, ifOp.getResults());
-    return mlir::LogicalResult::success();
-  }
-};
 
 
 class CIRScopeOpLowering
