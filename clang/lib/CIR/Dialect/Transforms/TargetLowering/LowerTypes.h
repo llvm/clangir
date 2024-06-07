@@ -21,6 +21,7 @@
 #include "mlir/IR/MLIRContext.h"
 #include "clang/Basic/Specifiers.h"
 #include "clang/CIR/Dialect/IR/CIRDataLayout.h"
+#include "clang/CIR/FnInfoOpts.h"
 
 namespace mlir {
 namespace cir {
@@ -77,7 +78,7 @@ public:
   /// \param argTypes - ABI-agnostic CIR argument types.
   /// \param required - Information about required/optional arguments.
   const LowerFunctionInfo &arrangeLLVMFunctionInfo(Type resultType,
-                                                   FnInfoOpts opts,
+                                                   ::cir::FnInfoOpts opts,
                                                    ArrayRef<Type> argTypes,
                                                    RequiredArgs required);
 

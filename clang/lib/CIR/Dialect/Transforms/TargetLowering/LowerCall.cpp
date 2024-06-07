@@ -1,9 +1,12 @@
 #include "LowerCall.h"
 #include "LowerFunctionInfo.h"
 #include "LowerTypes.h"
+#include "clang/CIR/FnInfoOpts.h"
 
 using namespace mlir;
 using namespace mlir::cir;
+
+using FnInfoOpts = ::cir::FnInfoOpts;
 
 namespace {
 
