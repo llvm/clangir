@@ -551,20 +551,11 @@ mlir::LogicalResult CIRGenFunction::buildGotoStmt(const GotoStmt &S) {
   // info support just yet, look at this again once we have it.
   assert(builder.getInsertionBlock() && "not yet implemented");
 
-  mlir::Block *currBlock = builder.getBlock();
-  mlir::Block *gotoBlock = currBlock;
-  if (!currBlock->empty() &&
-      currBlock->back().hasTrait<mlir::OpTrait::IsTerminator>()) {
-    gotoBlock = builder.createBlock(builder.getBlock()->getParent());
-    builder.setInsertionPointToEnd(gotoBlock);
-  }
-
-  // A goto marks the end of a block, create a new one for codegen after
-  // buildGotoStmt can resume building in that block.
-
   builder.create<mlir::cir::GotoOp>(getLoc(S.getSourceRange()),
                                     S.getLabel()->getName());
 
+  // A goto marks the end of a block, create a new one for codegen after
+  // buildGotoStmt can resume building in that block.
   // Insert the new block to continue codegen after goto.
   builder.createBlock(builder.getBlock()->getParent());
 
@@ -597,48 +588,74 @@ mlir::LogicalResult CIRGenFunction::buildLabel(const LabelDecl *D) {
 mlir::LogicalResult
 CIRGenFunction::buildContinueStmt(const clang::ContinueStmt &S) {
   builder.createContinue(getLoc(S.getContinueLoc()));
+
+  // Insert the new block to continue codegen after the continue statement.
+  builder.createBlock(builder.getBlock()->getParent());
+
   return mlir::success();
 }
 
 mlir::LogicalResult CIRGenFunction::buildBreakStmt(const clang::BreakStmt &S) {
   builder.createBreak(getLoc(S.getBreakLoc()));
+
+  // Insert the new block to continue codegen after the break statement.
+  builder.createBlock(builder.getBlock()->getParent());
+
   return mlir::success();
 }
 
 const CaseStmt *
 CIRGenFunction::foldCaseStmt(const clang::CaseStmt &S, mlir::Type condType,
                              SmallVector<mlir::Attribute, 4> &caseAttrs) {
+  auto *ctxt = builder.getContext();
+
   const CaseStmt *caseStmt = &S;
   const CaseStmt *lastCase = &S;
   SmallVector<mlir::Attribute, 4> caseEltValueListAttr;
+
+  int caseAttrCount = 0;
 
   // Fold cascading cases whenever possible to simplify codegen a bit.
   while (caseStmt) {
     lastCase = caseStmt;
 
-    auto startVal = caseStmt->getLHS()->EvaluateKnownConstInt(getContext());
-    auto endVal = startVal;
+    auto intVal = caseStmt->getLHS()->EvaluateKnownConstInt(getContext());
+
     if (auto *rhs = caseStmt->getRHS()) {
-      endVal = rhs->EvaluateKnownConstInt(getContext());
-    }
-    for (auto intVal = startVal; intVal <= endVal; ++intVal) {
+      auto endVal = rhs->EvaluateKnownConstInt(getContext());
+      SmallVector<mlir::Attribute, 4> rangeCaseAttr = {
+          mlir::cir::IntAttr::get(condType, intVal),
+          mlir::cir::IntAttr::get(condType, endVal)};
+      auto caseAttr = mlir::cir::CaseAttr::get(
+          ctxt, builder.getArrayAttr(rangeCaseAttr),
+          CaseOpKindAttr::get(ctxt, mlir::cir::CaseOpKind::Range));
+      caseAttrs.push_back(caseAttr);
+      ++caseAttrCount;
+    } else {
       caseEltValueListAttr.push_back(mlir::cir::IntAttr::get(condType, intVal));
     }
 
     caseStmt = dyn_cast_or_null<CaseStmt>(caseStmt->getSubStmt());
   }
 
-  assert(!caseEltValueListAttr.empty() && "empty case value NYI");
+  if (!caseEltValueListAttr.empty()) {
+    auto caseOpKind = caseEltValueListAttr.size() > 1
+                          ? mlir::cir::CaseOpKind::Anyof
+                          : mlir::cir::CaseOpKind::Equal;
+    auto caseAttr = mlir::cir::CaseAttr::get(
+        ctxt, builder.getArrayAttr(caseEltValueListAttr),
+        CaseOpKindAttr::get(ctxt, caseOpKind));
+    caseAttrs.push_back(caseAttr);
+    ++caseAttrCount;
+  }
 
-  auto *ctxt = builder.getContext();
+  assert(caseAttrCount > 0 && "there should be at least one valid case attr");
 
-  auto caseAttr = mlir::cir::CaseAttr::get(
-      ctxt, builder.getArrayAttr(caseEltValueListAttr),
-      CaseOpKindAttr::get(ctxt, caseEltValueListAttr.size() > 1
-                                    ? mlir::cir::CaseOpKind::Anyof
-                                    : mlir::cir::CaseOpKind::Equal));
-
-  caseAttrs.push_back(caseAttr);
+  for (int i = 1; i < caseAttrCount; ++i) {
+    // If there are multiple case attributes, we need to create a new region
+    auto *region = currLexScope->createSwitchRegion();
+    builder.createBlock(region);
+  }
 
   return lastCase;
 }
