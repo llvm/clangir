@@ -31,6 +31,10 @@
 #include "mlir/Dialect/SCF/Transforms/Passes.h"
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/Operation.h"
+#include "mlir/IR/Region.h"
+#include "mlir/IR/TypeRange.h"
+#include "mlir/IR/ValueRange.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Support/LogicalResult.h"
@@ -43,12 +47,13 @@
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/LowerToMLIR.h"
 #include "clang/CIR/Passes.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/Interfaces/CIRLoopOpInterface.h"
 #include "clang/CIR/LowerToLLVM.h"
 #include "clang/CIR/Passes.h"
 #include "llvm/ADT/Sequence.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/TypeSwitch.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
@@ -639,7 +644,6 @@ public:
       return mlir::failure();
 
     rewriter.eraseOp(op);
-
     return mlir::LogicalResult::success();
   }
 };
@@ -1004,7 +1008,7 @@ public:
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto *parentOp = op->getParentOp();
     return llvm::TypeSwitch<mlir::Operation *, mlir::LogicalResult>(parentOp)
-        .Case<mlir::scf::IfOp, mlir::scf::ForOp>([&](auto) {
+        .Case<mlir::scf::IfOp, mlir::scf::ForOp, mlir::scf::WhileOp>([&](auto) {
           rewriter.replaceOpWithNewOp<mlir::scf::YieldOp>(
               op, adaptor.getOperands());
           return mlir::success();
