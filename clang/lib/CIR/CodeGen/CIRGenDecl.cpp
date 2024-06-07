@@ -631,6 +631,9 @@ void CIRGenFunction::buildStaticVarDecl(const VarDecl &D,
   if (D.getType()->isVariablyModifiedType())
     llvm_unreachable("VLAs are NYI");
 
+  // Save the type in case adding the initializer forces a type change.
+  auto expectedType = addr.getType();
+
   auto var = globalOp;
 
   // CUDA's local and local static __shared__ variables should not
@@ -673,11 +676,11 @@ void CIRGenFunction::buildStaticVarDecl(const VarDecl &D,
   // RAUW's the GV uses of this constant will be invalid.
   //
   // Since in CIR the address materialization is done over cir.get_global
-  // and that's already updated, update the map directly instead of using
-  // casts.
-  auto actualElemTy = llvm::cast<mlir::cir::PointerType>(getAddrOp.getAddr().getType()).getPointee();
-  LocalDeclMap.find(&D)->second =
-      Address(getAddrOp.getAddr(), actualElemTy, alignment);
+  // and that's already updated, but for unions the type might be different,
+  // we need to cast to the expected type.
+  auto castedAddr = builder.createBitcast(getAddrOp.getAddr(), expectedType);
+  auto actualElemTy = llvm::cast<mlir::cir::PointerType>(castedAddr.getType()).getPointee();
+  LocalDeclMap.find(&D)->second = Address(castedAddr, actualElemTy, alignment);
   CGM.setStaticLocalDeclAddress(&D, var);
 
   assert(!MissingFeatures::reportGlobalToASan());
