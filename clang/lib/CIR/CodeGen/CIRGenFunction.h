@@ -763,6 +763,12 @@ public:
                                 mlir::Location Loc, LValueBaseInfo BaseInfo,
                                 bool isNontemporal = false);
 
+  int64_t getAccessedFieldNo(unsigned idx, const mlir::ArrayAttr elts);
+
+  RValue buildLoadOfExtVectorElementLValue(LValue LV);
+
+  void buildStoreThroughExtVectorComponentLValue(RValue Src, LValue Dst);
+
   RValue buildLoadOfBitfieldLValue(LValue LV, SourceLocation Loc);
 
   /// Load a scalar value from an address, taking care to appropriately convert
@@ -1223,6 +1229,7 @@ public:
                        LValue lvalue, bool capturedByInit = false);
 
   LValue buildDeclRefLValue(const clang::DeclRefExpr *E);
+  LValue buildExtVectorElementExpr(const ExtVectorElementExpr *E);
   LValue buildBinaryOperatorLValue(const clang::BinaryOperator *E);
   LValue buildCompoundAssignmentLValue(const clang::CompoundAssignOperator *E);
   LValue buildUnaryOpLValue(const clang::UnaryOperator *E);
@@ -1291,8 +1298,9 @@ public:
   /// inside a function, including static vars etc.
   void buildVarDecl(const clang::VarDecl &D);
 
-  mlir::cir::GlobalOp addInitializerToStaticVarDecl(const VarDecl &D,
-                                                    mlir::cir::GlobalOp GV);
+  mlir::cir::GlobalOp
+  addInitializerToStaticVarDecl(const VarDecl &D, mlir::cir::GlobalOp GV,
+                                mlir::cir::GetGlobalOp GVAddr);
 
   void buildStaticVarDecl(const VarDecl &D,
                           mlir::cir::GlobalLinkageKind Linkage);

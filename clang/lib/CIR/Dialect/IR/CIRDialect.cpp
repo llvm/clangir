@@ -496,6 +496,15 @@ LogicalResult CastOp::verify() {
       return emitOpError() << "requires !cir.float type for result";
     return success();
   }
+  case cir::CastKind::address_space: {
+    auto srcPtrTy = srcType.dyn_cast<mlir::cir::PointerType>();
+    auto resPtrTy = resType.dyn_cast<mlir::cir::PointerType>();
+    if (!srcPtrTy || !resPtrTy)
+      return emitOpError() << "requires !cir.ptr type for source and result";
+    if (srcPtrTy.getPointee() != resPtrTy.getPointee())
+      return emitOpError() << "requires two types differ in addrspace only";
+    return success();
+  }
   }
 
   llvm_unreachable("Unknown CastOp kind?");
@@ -514,7 +523,8 @@ OpFoldResult CastOp::fold(FoldAdaptor adaptor) {
       return foldResults[0].get<mlir::Attribute>();
     return {};
   }
-  case mlir::cir::CastKind::bitcast: {
+  case mlir::cir::CastKind::bitcast:
+  case mlir::cir::CastKind::address_space: {
     return getSrc();
   }
   default:
@@ -1003,7 +1013,8 @@ parseSwitchOp(OpAsmParser &parser,
     // 2. Get the value (next in list)
 
     // These needs to be in sync with CIROps.td
-    if (parser.parseOptionalKeyword(&attrStr, {"default", "equal", "anyof"})) {
+    if (parser.parseOptionalKeyword(&attrStr,
+                                    {"default", "equal", "anyof", "range"})) {
       ::mlir::StringAttr attrVal;
       ::mlir::OptionalParseResult parseResult = parser.parseOptionalAttribute(
           attrVal, parser.getBuilder().getNoneType(), "kind", attrStorage);
@@ -1016,8 +1027,9 @@ parseSwitchOp(OpAsmParser &parser,
 
     if (attrStr.empty()) {
       return parser.emitError(
-          loc, "expected string or keyword containing one of the following "
-               "enum values for attribute 'kind' [default, equal, anyof]");
+          loc,
+          "expected string or keyword containing one of the following "
+          "enum values for attribute 'kind' [default, equal, anyof, range]");
     }
 
     auto attrOptional = ::mlir::cir::symbolizeCaseOpKind(attrStr.str());
@@ -1042,6 +1054,7 @@ parseSwitchOp(OpAsmParser &parser,
       caseEltValueListAttr.push_back(mlir::cir::IntAttr::get(intCondType, val));
       break;
     }
+    case cir::CaseOpKind::Range:
     case cir::CaseOpKind::Anyof: {
       if (parser.parseComma().failed())
         return mlir::failure();
@@ -1129,7 +1142,7 @@ void printSwitchOp(OpAsmPrinter &p, SwitchOp op,
     auto attr = casesAttr[idx].cast<CaseAttr>();
     auto kind = attr.getKind().getValue();
     assert((kind == CaseOpKind::Default || kind == CaseOpKind::Equal ||
-            kind == CaseOpKind::Anyof) &&
+            kind == CaseOpKind::Anyof || kind == CaseOpKind::Range) &&
            "unknown case");
 
     // Case kind
@@ -1144,6 +1157,10 @@ void printSwitchOp(OpAsmPrinter &p, SwitchOp op,
       (intAttrTy.isSigned() ? p << intAttr.getSInt() : p << intAttr.getUInt());
       break;
     }
+    case cir::CaseOpKind::Range:
+      assert(attr.getValue().size() == 2 && "range must have two values");
+      // The print format of the range is the same as anyof
+      LLVM_FALLTHROUGH;
     case cir::CaseOpKind::Anyof: {
       p << ", [";
       llvm::interleaveComma(attr.getValue(), p, [&](const Attribute &a) {
