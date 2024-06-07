@@ -969,27 +969,6 @@ public:
   }
 };
 
-class CIRConditionOpLowering
-    : public mlir::OpConversionPattern<mlir::cir::ConditionOp> {
-public:
-  using OpConversionPattern<mlir::cir::ConditionOp>::OpConversionPattern;
-  mlir::LogicalResult
-  matchAndRewrite(mlir::cir::ConditionOp op, OpAdaptor adaptor,
-                  mlir::ConversionPatternRewriter &rewriter) const override {
-    auto *parentOp = op->getParentOp();
-    return llvm::TypeSwitch<mlir::Operation *, mlir::LogicalResult>(parentOp)
-        .Case<mlir::scf::WhileOp>([&](auto) {
-          auto condition = adaptor.getCondition();
-          auto i1Condition = rewriter.create<mlir::arith::TruncIOp>(
-              op.getLoc(), rewriter.getI1Type(), condition);
-          rewriter.replaceOpWithNewOp<mlir::scf::ConditionOp>(
-              op, i1Condition, parentOp->getOperands());
-          return mlir::success();
-        })
-        .Default([](auto) { return mlir::failure(); });
-  }
-};
-
 class CIRGlobalOpLowering
     : public mlir::OpConversionPattern<mlir::cir::GlobalOp> {
 public:
@@ -1293,8 +1272,8 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
       CIRLogOpLowering, CIRRoundOpLowering, CIRPtrStrideOpLowering,
       CIRSinOpLowering, CIRShiftOpLowering, CIRBitClzOpLowering,
       CIRBitCtzOpLowering, CIRBitPopcountOpLowering, CIRBitClrsbOpLowering,
-      CIRBitFfsOpLowering, CIRBitParityOpLowering, CIRConditionOpLowering>(
-      converter, patterns.getContext());
+      CIRBitFfsOpLowering, CIRBitParityOpLowering>(converter,
+                                                   patterns.getContext());
 }
 
 static mlir::TypeConverter prepareTypeConverter() {

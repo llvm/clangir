@@ -16,8 +16,6 @@
 #include "mlir/Dialect/SCF/Transforms/Passes.h"
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/IR/BuiltinTypes.h"
-#include "mlir/IR/Operation.h"
-#include "mlir/IR/Visitors.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Support/LogicalResult.h"
@@ -26,17 +24,18 @@
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/LowerToMLIR.h"
 #include "clang/CIR/Passes.h"
+#include "llvm/ADT/TypeSwitch.h"
 
 using namespace cir;
 using namespace llvm;
 
 namespace cir {
 
-template <typename LoopOp> class SCFLoop {
+class SCFLoop {
 public:
-  SCFLoop(LoopOp loopOp, typename LoopOp::Adaptor adaptor,
-          mlir::ConversionPatternRewriter *rewriter)
-      : loopOp(loopOp), adaptor(adaptor), rewriter(rewriter) {}
+  SCFLoop(mlir::cir::ForOp op, mlir::ConversionPatternRewriter *rewriter)
+      : forOp(op), rewriter(rewriter) {}
+
   int64_t getStep() { return step; }
   mlir::Value getLowerBound() { return lowerBound; }
   mlir::Value getUpperBound() { return upperBound; }
@@ -48,15 +47,26 @@ public:
 
   mlir::Value plusConstant(mlir::Value V, mlir::Location loc, int addend);
   void transferToSCFForOp();
-  void transferToSCFWhileOp();
 
 private:
-  LoopOp loopOp;
-  typename LoopOp::Adaptor adaptor;
+  mlir::cir::ForOp forOp;
   mlir::cir::CmpOp cmpOp;
   mlir::Value IVAddr, lowerBound = nullptr, upperBound = nullptr;
   mlir::ConversionPatternRewriter *rewriter;
   int64_t step = 0;
+};
+
+class SCFWhileLoop {
+public:
+  SCFWhileLoop(mlir::cir::WhileOp op, mlir::cir::WhileOp::Adaptor adaptor,
+               mlir::ConversionPatternRewriter *rewriter)
+      : whileOp(op), adaptor(adaptor), rewriter(rewriter) {}
+  void transferToSCFWhileOp();
+
+private:
+  mlir::cir::WhileOp whileOp;
+  mlir::cir::WhileOp::Adaptor adaptor;
+  mlir::ConversionPatternRewriter *rewriter;
 };
 
 static int64_t getConstant(mlir::cir::ConstantOp op) {
@@ -65,10 +75,9 @@ static int64_t getConstant(mlir::cir::ConstantOp op) {
   return IntAttr.getValue().getSExtValue();
 }
 
-template <typename LoopOp>
-int64_t SCFLoop<LoopOp>::findStepAndIV(mlir::Value &addr) {
+int64_t SCFLoop::findStepAndIV(mlir::Value &addr) {
   auto *stepBlock =
-      (loopOp.maybeGetStep() ? &loopOp.maybeGetStep()->front() : nullptr);
+      (forOp.maybeGetStep() ? &forOp.maybeGetStep()->front() : nullptr);
   assert(stepBlock && "Can not find step block");
 
   int64_t step = 0;
@@ -116,10 +125,10 @@ static bool isIVLoad(mlir::Operation *op, mlir::Value IVAddr) {
   return false;
 }
 
-template <typename LoopOp> mlir::cir::CmpOp SCFLoop<LoopOp>::findCmpOp() {
+mlir::cir::CmpOp SCFLoop::findCmpOp() {
   cmpOp = nullptr;
   for (auto *user : IVAddr.getUsers()) {
-    if (user->getParentRegion() != &loopOp.getCond())
+    if (user->getParentRegion() != &forOp.getCond())
       continue;
     if (auto loadOp = dyn_cast<mlir::cir::LoadOp>(*user)) {
       if (!loadOp->hasOneUse())
@@ -134,10 +143,10 @@ template <typename LoopOp> mlir::cir::CmpOp SCFLoop<LoopOp>::findCmpOp() {
     llvm_unreachable("Can't find loop CmpOp");
 
   auto type = cmpOp.getLhs().getType();
-  if (!type.template isa<mlir::cir::IntType>())
+  if (!type.isa<mlir::cir::IntType>())
     llvm_unreachable("Non-integer type IV is not supported");
 
-  auto *lhsDefOp = cmpOp.getLhs().getDefiningOp();
+  auto lhsDefOp = cmpOp.getLhs().getDefiningOp();
   if (!lhsDefOp)
     llvm_unreachable("Can't find IV load");
   if (!isIVLoad(lhsDefOp, IVAddr))
@@ -150,9 +159,8 @@ template <typename LoopOp> mlir::cir::CmpOp SCFLoop<LoopOp>::findCmpOp() {
   return cmpOp;
 }
 
-template <typename LoopOp>
-mlir::Value SCFLoop<LoopOp>::plusConstant(mlir::Value V, mlir::Location loc,
-                                          int addend) {
+mlir::Value SCFLoop::plusConstant(mlir::Value V, mlir::Location loc,
+                                  int addend) {
   auto type = V.getType();
   auto c1 = rewriter->create<mlir::arith::ConstantOp>(
       loc, type, mlir::IntegerAttr::get(type, addend));
@@ -162,7 +170,7 @@ mlir::Value SCFLoop<LoopOp>::plusConstant(mlir::Value V, mlir::Location loc,
 // Return IV initial value by searching the store before the loop.
 // The operations before the loop have been transferred to MLIR.
 // So we need to go through getRemappedValue to find the value.
-template <typename LoopOp> mlir::Value SCFLoop<LoopOp>::findIVInitValue() {
+mlir::Value SCFLoop::findIVInitValue() {
   auto remapAddr = rewriter->getRemappedValue(IVAddr);
   if (!remapAddr)
     return nullptr;
@@ -174,7 +182,7 @@ template <typename LoopOp> mlir::Value SCFLoop<LoopOp>::findIVInitValue() {
   return memrefStore->getOperand(0);
 }
 
-template <typename LoopOp> void SCFLoop<LoopOp>::analysis() {
+void SCFLoop::analysis() {
   step = findStepAndIV(IVAddr);
   cmpOp = findCmpOp();
   auto IVInit = findIVInitValue();
@@ -209,19 +217,19 @@ static bool isInLoopBody(mlir::Operation *op) {
   return false;
 }
 
-template <typename LoopOp> void SCFLoop<LoopOp>::transferToSCFForOp() {
+void SCFLoop::transferToSCFForOp() {
   auto ub = getUpperBound();
   auto lb = getLowerBound();
-  auto loc = loopOp.getLoc();
+  auto loc = forOp.getLoc();
   auto type = lb.getType();
   auto step = rewriter->create<mlir::arith::ConstantOp>(
       loc, type, mlir::IntegerAttr::get(type, getStep()));
   auto scfForOp = rewriter->create<mlir::scf::ForOp>(loc, lb, ub, step);
   SmallVector<mlir::Value> bbArg;
   rewriter->eraseOp(&scfForOp.getBody()->back());
-  rewriter->inlineBlockBefore(&loopOp.getBody().front(), scfForOp.getBody(),
+  rewriter->inlineBlockBefore(&forOp.getBody().front(), scfForOp.getBody(),
                               scfForOp.getBody()->end(), bbArg);
-  scfForOp->template walk<mlir::WalkOrder::PreOrder>([&](mlir::Operation *op) {
+  scfForOp->walk<mlir::WalkOrder::PreOrder>([&](mlir::Operation *op) {
     if (isa<mlir::cir::BreakOp>(op) || isa<mlir::cir::ContinueOp>(op) ||
         isa<mlir::cir::IfOp>(op))
       llvm_unreachable(
@@ -239,16 +247,17 @@ template <typename LoopOp> void SCFLoop<LoopOp>::transferToSCFForOp() {
   });
 }
 
-template <typename LoopOp> void SCFLoop<LoopOp>::transferToSCFWhileOp() {
+void SCFWhileLoop::transferToSCFWhileOp() {
   auto scfWhileOp = rewriter->create<mlir::scf::WhileOp>(
-      loopOp->getLoc(), loopOp->getResultTypes(), adaptor.getOperands());
+      whileOp->getLoc(), whileOp->getResultTypes(), adaptor.getOperands());
   rewriter->createBlock(&scfWhileOp.getBefore());
   rewriter->createBlock(&scfWhileOp.getAfter());
 
-  rewriter->cloneRegionBefore(loopOp.getCond(), &scfWhileOp.getBefore().back());
+  rewriter->cloneRegionBefore(whileOp.getCond(),
+                              &scfWhileOp.getBefore().back());
   rewriter->eraseBlock(&scfWhileOp.getBefore().back());
 
-  rewriter->cloneRegionBefore(loopOp.getBody(), &scfWhileOp.getAfter().back());
+  rewriter->cloneRegionBefore(whileOp.getBody(), &scfWhileOp.getAfter().back());
   rewriter->eraseBlock(&scfWhileOp.getAfter().back());
 }
 
@@ -259,7 +268,7 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::ForOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    SCFLoop<mlir::cir::ForOp> loop(op, adaptor, &rewriter);
+    SCFLoop loop(op, &rewriter);
     loop.analysis();
     loop.transferToSCFForOp();
     rewriter.eraseOp(op);
@@ -275,17 +284,38 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::WhileOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    SCFLoop<mlir::cir::WhileOp> loop(op, adaptor, &rewriter);
+    SCFWhileLoop loop(op, adaptor, &rewriter);
     loop.transferToSCFWhileOp();
     rewriter.eraseOp(op);
     return mlir::success();
   }
 };
 
+class CIRConditionOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::ConditionOp> {
+public:
+  using OpConversionPattern<mlir::cir::ConditionOp>::OpConversionPattern;
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::ConditionOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto *parentOp = op->getParentOp();
+    return llvm::TypeSwitch<mlir::Operation *, mlir::LogicalResult>(parentOp)
+        .Case<mlir::scf::WhileOp>([&](auto) {
+          auto condition = adaptor.getCondition();
+          auto i1Condition = rewriter.create<mlir::arith::TruncIOp>(
+              op.getLoc(), rewriter.getI1Type(), condition);
+          rewriter.replaceOpWithNewOp<mlir::scf::ConditionOp>(
+              op, i1Condition, parentOp->getOperands());
+          return mlir::success();
+        })
+        .Default([](auto) { return mlir::failure(); });
+  }
+};
+
 void populateCIRLoopToSCFConversionPatterns(mlir::RewritePatternSet &patterns,
                                             mlir::TypeConverter &converter) {
-  patterns.add<CIRForOpLowering, CIRWhileOpLowering>(converter,
-                                                     patterns.getContext());
+  patterns.add<CIRForOpLowering, CIRWhileOpLowering, CIRConditionOpLowering>(
+      converter, patterns.getContext());
 }
 
 } // namespace cir
