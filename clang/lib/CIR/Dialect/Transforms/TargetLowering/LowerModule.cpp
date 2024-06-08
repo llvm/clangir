@@ -52,6 +52,17 @@ createTargetLoweringInfo(LowerModule &LM) {
   const llvm::Triple &Triple = Target.getTriple();
 
   switch (Triple.getArch()) {
+  case llvm::Triple::aarch64: {
+    AArch64ABIKind Kind = AArch64ABIKind::AAPCS;
+    if (Target.getABI() == "darwinpcs")
+      llvm_unreachable("DarwinPCS ABI NYI");
+    else if (Triple.isOSWindows())
+      llvm_unreachable("Windows ABI NYI");
+    else if (Target.getABI() == "aapcs-soft")
+      llvm_unreachable("AAPCS-soft ABI NYI");
+
+    return createAArch64TargetLoweringInfo(LM, Kind);
+  }
   case llvm::Triple::x86_64: {
     switch (Triple.getOS()) {
     case llvm::Triple::Win32:

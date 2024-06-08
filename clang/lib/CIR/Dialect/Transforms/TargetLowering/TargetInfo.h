@@ -27,8 +27,19 @@ enum class X86AVXABILevel {
   AVX512,
 };
 
+/// The ABI kind for AArch64 targets.
+enum class AArch64ABIKind {
+  AAPCS = 0,
+  DarwinPCS,
+  Win64,
+  AAPCSSoft,
+};
+
 std::unique_ptr<TargetLoweringInfo>
 createX86_64TargetLoweringInfo(LowerModule &CGM, X86AVXABILevel AVXLevel);
+
+std::unique_ptr<TargetLoweringInfo>
+createAArch64TargetLoweringInfo(LowerModule &CGM, AArch64ABIKind AVXLevel);
 
 } // namespace cir
 } // namespace mlir
