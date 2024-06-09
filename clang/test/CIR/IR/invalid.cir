@@ -1143,3 +1143,17 @@ cir.func @bad_goto() -> () {
   cir.label "label"
   cir.return
 } 
+
+// -----
+
+!s64i = !cir.int<s, 64>
+
+module attributes { dlti.dl_spec = #dlti.dl_spec<
+  #dlti.dl_entry<"dlti.alloca_memory_space", 5 : ui64>
+>} {
+  cir.func @bad_alloca() -> () {
+    // expected-error@+1 {{alloca expects addrspace 5 but using 0}}
+    %0 = cir.alloca !s64i, !cir.ptr<!s64i, addrspace(0)>, ["x", init] {alignment = 8 : i64}
+    cir.return
+  }
+}

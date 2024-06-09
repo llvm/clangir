@@ -13,6 +13,7 @@
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/AST/Attrs.inc"
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
+#include "clang/CIR/Dialect/IR/CIRDataLayout.h"
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/Interfaces/CIRLoopOpInterface.h"
@@ -248,6 +249,29 @@ void AllocaOp::build(::mlir::OpBuilder &odsBuilder,
     odsState.addAttribute(getAlignmentAttrName(odsState.name), alignment);
   }
   odsState.addTypes(addr);
+}
+
+LogicalResult AllocaOp::verify() {
+  auto modOp = getOperation()->getParentOfType<ModuleOp>();
+  // If no data layout info specified, just skip it
+  if (!mlir::dyn_cast_or_null<mlir::DataLayoutSpecAttr>(
+          modOp->getAttr(mlir::DLTIDialect::kDataLayoutAttrName))) {
+    return success();
+  }
+
+  // TODO: do not initialize every time
+  ::cir::CIRDataLayout dataLayout{modOp};
+
+  auto resultType = getResult().getType();
+
+  unsigned actualAS = resultType.getAddrSpace();
+  unsigned expectedAS = dataLayout.getAllocaMemorySpace();
+
+  if (actualAS != expectedAS)
+    return emitOpError() << "alloca expects addrspace " << expectedAS
+                         << " but using " << actualAS;
+
+  return success();
 }
 
 //===----------------------------------------------------------------------===//

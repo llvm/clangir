@@ -87,6 +87,16 @@ public:
                                          getPointerTypeSizeInBits(Ty), false);
     return IntTy;
   }
+
+  unsigned getAllocaMemorySpace() const {
+    mlir::Attribute memorySpaceAttr = layout.getAllocaMemorySpace();
+    // The empty attribute represents the default address space (0)
+    if (!memorySpaceAttr)
+      return 0;
+    auto intAttr = mlir::dyn_cast<mlir::IntegerAttr>(memorySpaceAttr);
+    assert(intAttr && "Expects integer attributes for memory space");
+    return static_cast<unsigned>(intAttr.getUInt());
+  }
 };
 
 } // namespace cir

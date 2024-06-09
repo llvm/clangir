@@ -463,7 +463,7 @@ def AllocaOp : CIR_Op<"alloca", [
     (`ast` $ast^)? attr-dict
   }];
 
-  let hasVerifier = 0;
+  let hasVerifier = 1;
 }
 
 //===----------------------------------------------------------------------===//
