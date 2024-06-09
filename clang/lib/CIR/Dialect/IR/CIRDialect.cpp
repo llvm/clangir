@@ -114,7 +114,7 @@ struct CIROpAsmDialectInterface : public OpAsmDialectInterface {
 
 /// Dialect initialization, the instance will be owned by the context. This is
 /// the point of registration of types and operations for the dialect.
-void cir::CIRDialect::initialize() {
+void mlir::cir::CIRDialect::initialize() {
   registerTypes();
   registerAttributes();
   addOperations<
@@ -196,7 +196,7 @@ LogicalResult ensureRegionTerm(OpAsmParser &parser, Region &region,
     return parser.emitError(errLoc, "empty region must not omit terminator");
 
   // Terminator was omited correctly: recreate it.
-  region.back().push_back(builder.create<cir::YieldOp>(eLoc));
+  region.back().push_back(builder.create<mlir::cir::YieldOp>(eLoc));
   return success();
 }
 
@@ -394,28 +394,28 @@ LogicalResult CastOp::verify() {
   }
 
   switch (getKind()) {
-  case cir::CastKind::int_to_bool: {
+  case mlir::cir::CastKind::int_to_bool: {
     if (!resType.isa<mlir::cir::BoolType>())
       return emitOpError() << "requires !cir.bool type for result";
     if (!srcType.isa<mlir::cir::IntType>())
       return emitOpError() << "requires !cir.int type for source";
     return success();
   }
-  case cir::CastKind::ptr_to_bool: {
+  case mlir::cir::CastKind::ptr_to_bool: {
     if (!resType.isa<mlir::cir::BoolType>())
       return emitOpError() << "requires !cir.bool type for result";
     if (!srcType.isa<mlir::cir::PointerType>())
       return emitOpError() << "requires !cir.ptr type for source";
     return success();
   }
-  case cir::CastKind::integral: {
+  case mlir::cir::CastKind::integral: {
     if (!resType.isa<mlir::cir::IntType>())
       return emitOpError() << "requires !cir.int type for result";
     if (!srcType.isa<mlir::cir::IntType>())
       return emitOpError() << "requires !cir.int type for source";
     return success();
   }
-  case cir::CastKind::array_to_ptrdecay: {
+  case mlir::cir::CastKind::array_to_ptrdecay: {
     auto arrayPtrTy = srcType.dyn_cast<mlir::cir::PointerType>();
     auto flatPtrTy = resType.dyn_cast<mlir::cir::PointerType>();
     if (!arrayPtrTy || !flatPtrTy)
@@ -430,7 +430,7 @@ LogicalResult CastOp::verify() {
              << "requires same type for array element and pointee result";
     return success();
   }
-  case cir::CastKind::bitcast: {
+  case mlir::cir::CastKind::bitcast: {
     // This is the only cast kind where we don't want vector types to decay
     // into the element type.
     if ((!getSrc().getType().isa<mlir::cir::PointerType>() ||
@@ -441,62 +441,62 @@ LogicalResult CastOp::verify() {
              << "requires !cir.ptr or !cir.vector type for source and result";
     return success();
   }
-  case cir::CastKind::floating: {
+  case mlir::cir::CastKind::floating: {
     if (!srcType.isa<mlir::cir::CIRFPTypeInterface>() ||
         !resType.isa<mlir::cir::CIRFPTypeInterface>())
       return emitOpError() << "requires !cir.float type for source and result";
     return success();
   }
-  case cir::CastKind::float_to_int: {
+  case mlir::cir::CastKind::float_to_int: {
     if (!srcType.isa<mlir::cir::CIRFPTypeInterface>())
       return emitOpError() << "requires !cir.float type for source";
     if (!resType.dyn_cast<mlir::cir::IntType>())
       return emitOpError() << "requires !cir.int type for result";
     return success();
   }
-  case cir::CastKind::int_to_ptr: {
+  case mlir::cir::CastKind::int_to_ptr: {
     if (!srcType.dyn_cast<mlir::cir::IntType>())
       return emitOpError() << "requires !cir.int type for source";
     if (!resType.dyn_cast<mlir::cir::PointerType>())
       return emitOpError() << "requires !cir.ptr type for result";
     return success();
   }
-  case cir::CastKind::ptr_to_int: {
+  case mlir::cir::CastKind::ptr_to_int: {
     if (!srcType.dyn_cast<mlir::cir::PointerType>())
       return emitOpError() << "requires !cir.ptr type for source";
     if (!resType.dyn_cast<mlir::cir::IntType>())
       return emitOpError() << "requires !cir.int type for result";
     return success();
   }
-  case cir::CastKind::float_to_bool: {
+  case mlir::cir::CastKind::float_to_bool: {
     if (!srcType.isa<mlir::cir::CIRFPTypeInterface>())
       return emitOpError() << "requires !cir.float type for source";
     if (!resType.isa<mlir::cir::BoolType>())
       return emitOpError() << "requires !cir.bool type for result";
     return success();
   }
-  case cir::CastKind::bool_to_int: {
+  case mlir::cir::CastKind::bool_to_int: {
     if (!srcType.isa<mlir::cir::BoolType>())
       return emitOpError() << "requires !cir.bool type for source";
     if (!resType.isa<mlir::cir::IntType>())
       return emitOpError() << "requires !cir.int type for result";
     return success();
   }
-  case cir::CastKind::int_to_float: {
+  case mlir::cir::CastKind::int_to_float: {
     if (!srcType.isa<mlir::cir::IntType>())
       return emitOpError() << "requires !cir.int type for source";
     if (!resType.isa<mlir::cir::CIRFPTypeInterface>())
       return emitOpError() << "requires !cir.float type for result";
     return success();
   }
-  case cir::CastKind::bool_to_float: {
+  case mlir::cir::CastKind::bool_to_float: {
     if (!srcType.isa<mlir::cir::BoolType>())
       return emitOpError() << "requires !cir.bool type for source";
     if (!resType.isa<mlir::cir::CIRFPTypeInterface>())
       return emitOpError() << "requires !cir.float type for result";
     return success();
   }
-  case cir::CastKind::address_space: {
+  case mlir::cir::CastKind::address_space: {
     auto srcPtrTy = srcType.dyn_cast<mlir::cir::PointerType>();
     auto resPtrTy = resType.dyn_cast<mlir::cir::PointerType>();
     if (!srcPtrTy || !resPtrTy)
@@ -634,7 +634,7 @@ LogicalResult VecShuffleDynamicOp::verify() {
 //===----------------------------------------------------------------------===//
 
 static mlir::LogicalResult checkReturnAndFunction(ReturnOp op,
-                                                  cir::FuncOp function) {
+                                                  mlir::cir::FuncOp function) {
   // ReturnOps currently only have a single optional operand.
   if (op.getNumOperands() > 1)
     return op.emitOpError() << "expects at most 1 return operand";
@@ -655,11 +655,11 @@ mlir::LogicalResult ReturnOp::verify() {
   // Returns can be present in multiple different scopes, get the
   // wrapping function and start from there.
   auto *fnOp = getOperation()->getParentOp();
-  while (!isa<cir::FuncOp>(fnOp))
+  while (!isa<mlir::cir::FuncOp>(fnOp))
     fnOp = fnOp->getParentOp();
 
   // Make sure return types match function return type.
-  if (checkReturnAndFunction(*this, cast<cir::FuncOp>(fnOp)).failed())
+  if (checkReturnAndFunction(*this, cast<mlir::cir::FuncOp>(fnOp)).failed())
     return failure();
 
   return success();
@@ -687,7 +687,8 @@ mlir::LogicalResult ThrowOp::verify() {
 // IfOp
 //===----------------------------------------------------------------------===//
 
-ParseResult cir::IfOp::parse(OpAsmParser &parser, OperationState &result) {
+ParseResult mlir::cir::IfOp::parse(OpAsmParser &parser,
+                                   OperationState &result) {
   // Create the regions for 'then'.
   result.regions.reserve(2);
   Region *thenRegion = result.addRegion();
@@ -724,7 +725,7 @@ ParseResult cir::IfOp::parse(OpAsmParser &parser, OperationState &result) {
   return success();
 }
 
-void cir::IfOp::print(OpAsmPrinter &p) {
+void mlir::cir::IfOp::print(OpAsmPrinter &p) {
   p << " " << getCondition() << " ";
   auto &thenRegion = this->getThenRegion();
   p.printRegion(thenRegion,
@@ -1045,7 +1046,7 @@ parseSwitchOp(OpAsmParser &parser,
     mlir::ArrayAttr caseValueList;
 
     switch (kindAttr.getValue()) {
-    case cir::CaseOpKind::Equal: {
+    case mlir::cir::CaseOpKind::Equal: {
       if (parser.parseComma().failed())
         return mlir::failure();
       int64_t val = 0;
@@ -1054,8 +1055,8 @@ parseSwitchOp(OpAsmParser &parser,
       caseEltValueListAttr.push_back(mlir::cir::IntAttr::get(intCondType, val));
       break;
     }
-    case cir::CaseOpKind::Range:
-    case cir::CaseOpKind::Anyof: {
+    case mlir::cir::CaseOpKind::Range:
+    case mlir::cir::CaseOpKind::Anyof: {
       if (parser.parseComma().failed())
         return mlir::failure();
       if (parser.parseLSquare().failed())
@@ -1073,10 +1074,10 @@ parseSwitchOp(OpAsmParser &parser,
         return mlir::failure();
       break;
     }
-    case cir::CaseOpKind::Default: {
+    case mlir::cir::CaseOpKind::Default: {
       if (parser.parseRParen().failed())
         return parser.emitError(parser.getCurrentLocation(), "expected ')'");
-      cases.push_back(cir::CaseAttr::get(
+      cases.push_back(mlir::cir::CaseAttr::get(
           parser.getContext(), parser.getBuilder().getArrayAttr({}), kindAttr));
       return parseAndCheckRegion();
     }
@@ -1084,7 +1085,7 @@ parseSwitchOp(OpAsmParser &parser,
 
     caseValueList = parser.getBuilder().getArrayAttr(caseEltValueListAttr);
     cases.push_back(
-        cir::CaseAttr::get(parser.getContext(), caseValueList, kindAttr));
+        mlir::cir::CaseAttr::get(parser.getContext(), caseValueList, kindAttr));
     if (succeeded(parser.parseOptionalColon())) {
       Type caseIntTy;
       if (parser.parseType(caseIntTy).failed())
@@ -1150,22 +1151,22 @@ void printSwitchOp(OpAsmPrinter &p, SwitchOp op,
 
     // Case value
     switch (kind) {
-    case cir::CaseOpKind::Equal: {
+    case mlir::cir::CaseOpKind::Equal: {
       p << ", ";
-      auto intAttr = attr.getValue()[0].cast<cir::IntAttr>();
-      auto intAttrTy = intAttr.getType().cast<cir::IntType>();
+      auto intAttr = attr.getValue()[0].cast<mlir::cir::IntAttr>();
+      auto intAttrTy = intAttr.getType().cast<mlir::cir::IntType>();
       (intAttrTy.isSigned() ? p << intAttr.getSInt() : p << intAttr.getUInt());
       break;
     }
-    case cir::CaseOpKind::Range:
+    case mlir::cir::CaseOpKind::Range:
       assert(attr.getValue().size() == 2 && "range must have two values");
       // The print format of the range is the same as anyof
       LLVM_FALLTHROUGH;
-    case cir::CaseOpKind::Anyof: {
+    case mlir::cir::CaseOpKind::Anyof: {
       p << ", [";
       llvm::interleaveComma(attr.getValue(), p, [&](const Attribute &a) {
-        auto intAttr = a.cast<cir::IntAttr>();
-        auto intAttrTy = intAttr.getType().cast<cir::IntType>();
+        auto intAttr = a.cast<mlir::cir::IntAttr>();
+        auto intAttrTy = intAttr.getType().cast<mlir::cir::IntType>();
         (intAttrTy.isSigned() ? p << intAttr.getSInt()
                               : p << intAttr.getUInt());
       });
@@ -1175,7 +1176,7 @@ void printSwitchOp(OpAsmPrinter &p, SwitchOp op,
       p.printType(typedAttr.getType());
       break;
     }
-    case cir::CaseOpKind::Default:
+    case mlir::cir::CaseOpKind::Default:
       break;
     }
 
@@ -1690,7 +1691,7 @@ LogicalResult GlobalOp::verify() {
 
 void GlobalOp::build(OpBuilder &odsBuilder, OperationState &odsState,
                      StringRef sym_name, Type sym_type, bool isConstant,
-                     cir::GlobalLinkageKind linkage,
+                     mlir::cir::GlobalLinkageKind linkage,
                      function_ref<void(OpBuilder &, Location)> ctorBuilder,
                      function_ref<void(OpBuilder &, Location)> dtorBuilder) {
   odsState.addAttribute(getSymNameAttrName(odsState.name),
@@ -1702,7 +1703,7 @@ void GlobalOp::build(OpBuilder &odsBuilder, OperationState &odsState,
                           odsBuilder.getUnitAttr());
 
   ::mlir::cir::GlobalLinkageKindAttr linkageAttr =
-      cir::GlobalLinkageKindAttr::get(odsBuilder.getContext(), linkage);
+      mlir::cir::GlobalLinkageKindAttr::get(odsBuilder.getContext(), linkage);
   odsState.addAttribute(getLinkageAttrName(odsState.name), linkageAttr);
 
   Region *ctorRegion = odsState.addRegion();
@@ -1809,7 +1810,7 @@ VTableAddrPointOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
   return success();
 }
 
-LogicalResult cir::VTableAddrPointOp::verify() {
+LogicalResult mlir::cir::VTableAddrPointOp::verify() {
   // The operation uses either a symbol or a value to operate, but not both
   if (getName() && getSymAddr())
     return emitOpError("should use either a symbol or value, but not both");
@@ -1839,11 +1840,11 @@ LogicalResult cir::VTableAddrPointOp::verify() {
 /// the name of the attribute in ODS.
 static StringRef getLinkageAttrNameString() { return "linkage"; }
 
-void cir::FuncOp::build(OpBuilder &builder, OperationState &result,
-                        StringRef name, cir::FuncType type,
-                        GlobalLinkageKind linkage,
-                        ArrayRef<NamedAttribute> attrs,
-                        ArrayRef<DictionaryAttr> argAttrs) {
+void mlir::cir::FuncOp::build(OpBuilder &builder, OperationState &result,
+                              StringRef name, mlir::cir::FuncType type,
+                              GlobalLinkageKind linkage,
+                              ArrayRef<NamedAttribute> attrs,
+                              ArrayRef<DictionaryAttr> argAttrs) {
   result.addRegion();
   result.addAttribute(SymbolTable::getSymbolAttrName(),
                       builder.getStringAttr(name));
@@ -1862,7 +1863,8 @@ void cir::FuncOp::build(OpBuilder &builder, OperationState &result,
       getResAttrsAttrName(result.name));
 }
 
-ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
+ParseResult mlir::cir::FuncOp::parse(OpAsmParser &parser,
+                                     OperationState &state) {
   llvm::SMLoc loc = parser.getCurrentLocation();
 
   auto builtinNameAttr = getBuiltinAttrName(state.name);
@@ -2029,7 +2031,7 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
   return success();
 }
 
-bool cir::FuncOp::isDeclaration() {
+bool mlir::cir::FuncOp::isDeclaration() {
   auto aliasee = getAliasee();
   if (!aliasee)
     return isExternal();
@@ -2041,7 +2043,7 @@ bool cir::FuncOp::isDeclaration() {
   return targetFn.isDeclaration();
 }
 
-::mlir::Region *cir::FuncOp::getCallableRegion() {
+::mlir::Region *mlir::cir::FuncOp::getCallableRegion() {
   auto aliasee = getAliasee();
   if (!aliasee)
     return isExternal() ? nullptr : &getBody();
@@ -2055,7 +2057,7 @@ bool cir::FuncOp::isDeclaration() {
   return targetFn.getCallableRegion();
 }
 
-void cir::FuncOp::print(OpAsmPrinter &p) {
+void mlir::cir::FuncOp::print(OpAsmPrinter &p) {
   p << ' ';
 
   // When adding a specific keyword here, do not forget to omit it in
@@ -2146,9 +2148,9 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
 // Hook for OpTrait::FunctionLike, called after verifying that the 'type'
 // attribute is present.  This can check for preconditions of the
 // getNumArguments hook not failing.
-LogicalResult cir::FuncOp::verifyType() {
+LogicalResult mlir::cir::FuncOp::verifyType() {
   auto type = getFunctionType();
-  if (!type.isa<cir::FuncType>())
+  if (!type.isa<mlir::cir::FuncType>())
     return emitOpError("requires '" + getFunctionTypeAttrName().str() +
                        "' attribute of function type");
   if (!getNoProto() && type.isVarArg() && type.getNumInputs() == 0)
@@ -2161,23 +2163,24 @@ LogicalResult cir::FuncOp::verifyType() {
 // - functions don't have 'common' linkage
 // - external functions have 'external' or 'extern_weak' linkage
 // - coroutine body must use at least one cir.await operation.
-LogicalResult cir::FuncOp::verify() {
-  if (getLinkage() == cir::GlobalLinkageKind::CommonLinkage)
+LogicalResult mlir::cir::FuncOp::verify() {
+  if (getLinkage() == mlir::cir::GlobalLinkageKind::CommonLinkage)
     return emitOpError() << "functions cannot have '"
                          << stringifyGlobalLinkageKind(
-                                cir::GlobalLinkageKind::CommonLinkage)
+                                mlir::cir::GlobalLinkageKind::CommonLinkage)
                          << "' linkage";
 
   if (isExternal()) {
-    if (getLinkage() != cir::GlobalLinkageKind::ExternalLinkage &&
-        getLinkage() != cir::GlobalLinkageKind::ExternalWeakLinkage)
-      return emitOpError() << "external functions must have '"
-                           << stringifyGlobalLinkageKind(
-                                  cir::GlobalLinkageKind::ExternalLinkage)
-                           << "' or '"
-                           << stringifyGlobalLinkageKind(
-                                  cir::GlobalLinkageKind::ExternalWeakLinkage)
-                           << "' linkage";
+    if (getLinkage() != mlir::cir::GlobalLinkageKind::ExternalLinkage &&
+        getLinkage() != mlir::cir::GlobalLinkageKind::ExternalWeakLinkage)
+      return emitOpError()
+             << "external functions must have '"
+             << stringifyGlobalLinkageKind(
+                    mlir::cir::GlobalLinkageKind::ExternalLinkage)
+             << "' or '"
+             << stringifyGlobalLinkageKind(
+                    mlir::cir::GlobalLinkageKind::ExternalWeakLinkage)
+             << "' linkage";
     return success();
   }
 
@@ -2226,29 +2229,29 @@ LogicalResult cir::FuncOp::verify() {
 // CallOp
 //===----------------------------------------------------------------------===//
 
-mlir::Value cir::CallOp::getIndirectCall() {
+mlir::Value mlir::cir::CallOp::getIndirectCall() {
   assert(isIndirect());
   return getOperand(0);
 }
 
-mlir::Operation::operand_iterator cir::CallOp::arg_operand_begin() {
+mlir::Operation::operand_iterator mlir::cir::CallOp::arg_operand_begin() {
   auto arg_begin = operand_begin();
   if (isIndirect())
     arg_begin++;
   return arg_begin;
 }
-mlir::Operation::operand_iterator cir::CallOp::arg_operand_end() {
+mlir::Operation::operand_iterator mlir::cir::CallOp::arg_operand_end() {
   return operand_end();
 }
 
 /// Return the operand at index 'i', accounts for indirect call.
-Value cir::CallOp::getArgOperand(unsigned i) {
+Value mlir::cir::CallOp::getArgOperand(unsigned i) {
   if (isIndirect())
     i++;
   return getOperand(i);
 }
 /// Return the number of operands, accounts for indirect call.
-unsigned cir::CallOp::getNumArgOperands() {
+unsigned mlir::cir::CallOp::getNumArgOperands() {
   if (isIndirect())
     return this->getOperation()->getNumOperands() - 1;
   return this->getOperation()->getNumOperands();
@@ -2389,7 +2392,7 @@ void printCallCommon(
 }
 
 LogicalResult
-cir::CallOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
+mlir::cir::CallOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
   return verifyCallCommInSymbolUses(*this, symbolTable);
 }
 
@@ -2407,13 +2410,13 @@ void CallOp::print(::mlir::OpAsmPrinter &state) {
 // TryCallOp
 //===----------------------------------------------------------------------===//
 
-mlir::Value cir::TryCallOp::getIndirectCall() {
+mlir::Value mlir::cir::TryCallOp::getIndirectCall() {
   // First operand is the exception pointer, skip it
   assert(isIndirect());
   return getOperand(1);
 }
 
-mlir::Operation::operand_iterator cir::TryCallOp::arg_operand_begin() {
+mlir::Operation::operand_iterator mlir::cir::TryCallOp::arg_operand_begin() {
   auto arg_begin = operand_begin();
   // First operand is the exception pointer, skip it.
   arg_begin++;
@@ -2425,12 +2428,12 @@ mlir::Operation::operand_iterator cir::TryCallOp::arg_operand_begin() {
   // to that, this needs further adjustment.
   return arg_begin;
 }
-mlir::Operation::operand_iterator cir::TryCallOp::arg_operand_end() {
+mlir::Operation::operand_iterator mlir::cir::TryCallOp::arg_operand_end() {
   return operand_end();
 }
 
 /// Return the operand at index 'i', accounts for indirect call.
-Value cir::TryCallOp::getArgOperand(unsigned i) {
+Value mlir::cir::TryCallOp::getArgOperand(unsigned i) {
   // First operand is the exception pointer, skip it.
   i++;
   if (isIndirect())
@@ -2438,7 +2441,7 @@ Value cir::TryCallOp::getArgOperand(unsigned i) {
   return getOperand(i);
 }
 /// Return the number of operands, , accounts for indirect call.
-unsigned cir::TryCallOp::getNumArgOperands() {
+unsigned mlir::cir::TryCallOp::getNumArgOperands() {
   unsigned numOperands = this->getOperation()->getNumOperands();
   // First operand is the exception pointer, skip it.
   numOperands--;
@@ -2448,11 +2451,11 @@ unsigned cir::TryCallOp::getNumArgOperands() {
 }
 
 LogicalResult
-cir::TryCallOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
+mlir::cir::TryCallOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
   return verifyCallCommInSymbolUses(*this, symbolTable);
 }
 
-LogicalResult cir::TryCallOp::verify() { return mlir::success(); }
+LogicalResult mlir::cir::TryCallOp::verify() { return mlir::success(); }
 
 ::mlir::ParseResult TryCallOp::parse(::mlir::OpAsmParser &parser,
                                      ::mlir::OperationState &result) {
@@ -2481,9 +2484,9 @@ LogicalResult cir::TryCallOp::verify() { return mlir::success(); }
           return parser.emitError(parser.getCurrentLocation(), "expected ')'");
 
         auto &builder = parser.getBuilder();
-        auto exceptionPtrPtrTy = cir::PointerType::get(
+        auto exceptionPtrPtrTy = mlir::cir::PointerType::get(
             builder.getContext(),
-            cir::PointerType::get(
+            mlir::cir::PointerType::get(
                 builder.getContext(),
                 builder.getType<::mlir::cir::ExceptionInfoType>()));
         if (parser.resolveOperands(exceptionOperands, exceptionPtrPtrTy,
@@ -2508,11 +2511,11 @@ void TryCallOp::print(::mlir::OpAsmPrinter &state) {
 
 LogicalResult UnaryOp::verify() {
   switch (getKind()) {
-  case cir::UnaryOpKind::Inc:
-  case cir::UnaryOpKind::Dec:
-  case cir::UnaryOpKind::Plus:
-  case cir::UnaryOpKind::Minus:
-  case cir::UnaryOpKind::Not:
+  case mlir::cir::UnaryOpKind::Inc:
+  case mlir::cir::UnaryOpKind::Dec:
+  case mlir::cir::UnaryOpKind::Plus:
+  case mlir::cir::UnaryOpKind::Minus:
+  case mlir::cir::UnaryOpKind::Not:
     // Nothing to verify.
     return success();
   }
@@ -2529,8 +2532,9 @@ void AwaitOp::build(OpBuilder &builder, OperationState &result,
                     function_ref<void(OpBuilder &, Location)> readyBuilder,
                     function_ref<void(OpBuilder &, Location)> suspendBuilder,
                     function_ref<void(OpBuilder &, Location)> resumeBuilder) {
-  result.addAttribute(getKindAttrName(result.name),
-                      cir::AwaitKindAttr::get(builder.getContext(), kind));
+  result.addAttribute(
+      getKindAttrName(result.name),
+      mlir::cir::AwaitKindAttr::get(builder.getContext(), kind));
   {
     OpBuilder::InsertionGuard guard(builder);
     Region *readyRegion = result.addRegion();
@@ -2642,7 +2646,7 @@ LogicalResult mlir::cir::ConstArrayAttr::verify(
 
   if (auto strAttr = attr.dyn_cast<mlir::StringAttr>()) {
     mlir::cir::ArrayType at = type.cast<mlir::cir::ArrayType>();
-    auto intTy = at.getEltType().dyn_cast<cir::IntType>();
+    auto intTy = at.getEltType().dyn_cast<mlir::cir::IntType>();
 
     // TODO: add CIR type for char.
     if (!intTy || intTy.getWidth() != 8) {
@@ -2865,8 +2869,8 @@ LogicalResult CopyOp::verify() {
 //===----------------------------------------------------------------------===//
 
 LogicalResult MemCpyOp::verify() {
-  auto voidPtr =
-      cir::PointerType::get(getContext(), cir::VoidType::get(getContext()));
+  auto voidPtr = mlir::cir::PointerType::get(
+      getContext(), mlir::cir::VoidType::get(getContext()));
 
   if (!getLenTy().isUnsigned())
     return emitError() << "memcpy length must be an unsigned integer";
@@ -2925,7 +2929,7 @@ LogicalResult GetRuntimeMemberOp::verify() {
 // InlineAsmOp Definitions
 //===----------------------------------------------------------------------===//
 
-void cir::InlineAsmOp::print(OpAsmPrinter &p) {
+void mlir::cir::InlineAsmOp::print(OpAsmPrinter &p) {
   p << '(' << getAsmFlavor() << ", ";
   p.increaseIndent();
   p.printNewline();
@@ -2974,8 +2978,8 @@ void cir::InlineAsmOp::print(OpAsmPrinter &p) {
     p << " -> " << v.getType();
 }
 
-ParseResult cir::InlineAsmOp::parse(OpAsmParser &parser,
-                                    OperationState &result) {
+ParseResult mlir::cir::InlineAsmOp::parse(OpAsmParser &parser,
+                                          OperationState &result) {
   llvm::SmallVector<mlir::Attribute> operand_attrs;
   llvm::SmallVector<int32_t> operandsGroupSizes;
   std::string asm_string, constraints;
