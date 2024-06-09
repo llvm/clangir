@@ -27,7 +27,6 @@
 #include "clang/AST/Type.h"
 #include "clang/Basic/ABI.h"
 #include "clang/Basic/TargetInfo.h"
-#include <clang/AST/ASTFwd.h>
 
 #include "mlir/IR/TypeRange.h"
 #include "mlir/IR/Value.h"
