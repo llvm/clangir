@@ -6,7 +6,7 @@
 #include "CallingConv.h"
 
 #include "clang/Basic/TargetInfo.h"
-#include "clang/CIR/x86.h"
+#include "clang/CIR/Target/x86.h"
 
 using namespace cir;
 using namespace clang;

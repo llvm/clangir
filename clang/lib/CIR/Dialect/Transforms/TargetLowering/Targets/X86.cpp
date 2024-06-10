@@ -1,5 +1,5 @@
 
-#include "clang/CIR/x86.h"
+#include "clang/CIR/Target/x86.h"
 #include "ABIInfo.h"
 #include "ABIInfoImpl.h"
 #include "LowerModule.h"
@@ -101,8 +101,10 @@ void X86_64ABIInfo::classify(Type Ty, uint64_t OffsetBase, Class &Lo, Class &Hi,
   classify(RetTy, 0, Lo, Hi, true);
 
   // Check some invariants.
-  assert((Hi != Class::Memory || Lo == Class::Memory) && "Invalid memory classification.");
-  assert((Hi != Class::SSEUp || Lo == Class::SSE) && "Invalid SSEUp classification.");
+  assert((Hi != Class::Memory || Lo == Class::Memory) &&
+         "Invalid memory classification.");
+  assert((Hi != Class::SSEUp || Lo == Class::SSE) &&
+         "Invalid SSEUp classification.");
 
   switch (Lo) {
   case Class::NoClass:

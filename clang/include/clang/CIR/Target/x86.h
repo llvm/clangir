@@ -1,4 +1,4 @@
-//==-- x86.h - Common definitions of the x86 ABI ---------------------------==//
+//==-- x86.h - Definitions common to all x86 ABI variants ------------------==//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
