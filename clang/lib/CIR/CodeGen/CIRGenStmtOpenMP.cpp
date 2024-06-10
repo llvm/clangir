@@ -119,3 +119,36 @@ CIRGenFunction::buildOMPBarrierDirective(const OMPBarrierDirective &S) {
                                          getLoc(S.getSourceRange()));
   return res;
 }
+
+mlir::LogicalResult
+CIRGenFunction::buildOMPCriticalDirective(const OMPCriticalDirective &S) {
+  mlir::LogicalResult res = mlir::success();
+  if (CGM.getLangOpts().OpenMPIRBuilder) {
+    auto scopeLoc = getLoc(S.getSourceRange());
+    // WIP: named critical regions
+    mlir::FlatSymbolRefAttr refAttr;
+
+    auto criticalOp = builder.create<mlir::omp::CriticalOp>(scopeLoc, refAttr);
+    const Stmt *criticalBody = S.getAssociatedStmt();
+    mlir::Block &block = criticalOp.getRegion().emplaceBlock();
+    mlir::OpBuilder::InsertionGuard guardCase(builder);
+    builder.setInsertionPointToEnd(&block);
+    // Create a scope for the OpenMP region.
+    builder.create<mlir::cir::ScopeOp>(
+        scopeLoc, /*scopeBuilder=*/
+        [&](mlir::OpBuilder &b, mlir::Location loc) {
+          LexicalScope lexScope{*this, scopeLoc, builder.getInsertionBlock()};
+          // Emit the body of the region.
+          if (buildStmt(criticalBody, /*useCurrentScope=*/true).failed())
+            res = mlir::failure();
+        });
+    // Add the terminator for `omp.parallel`.
+    builder.create<TerminatorOp>(getLoc(S.getSourceRange().getEnd()));
+  } else {
+    res = mlir::failure();
+    llvm_unreachable(
+        "OpenMP generation without OpenMPIRBuilder is not yet supported");
+  }
+
+  return res;
+}
