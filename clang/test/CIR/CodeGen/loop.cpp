@@ -177,9 +177,13 @@ void l5() {
 
 // CHECK: cir.func @_Z2l5v()
 // CHECK-NEXT:   cir.scope {
-// CHECK-NEXT:     cir.yield
-// CHECK-NEXT:   ^bb1:  // no predecessors
-// CHECK-NEXT:     cir.yield loc(#loc92)
+// CHECK-NEXT:     cir.do {
+// CHECK-NEXT:       cir.yield
+// CHECK-NEXT:     } while {
+// CHECK-NEXT:       %0 = cir.const #cir.int<0> : !s32i
+// CHECK-NEXT:       %1 = cir.cast(int_to_bool, %0 : !s32i), !cir.bool
+// CHECK-NEXT:       cir.condition(%1)
+// CHECK-NEXT:     }
 // CHECK-NEXT:   }
 // CHECK-NEXT:   cir.return
 // CHECK-NEXT: }
