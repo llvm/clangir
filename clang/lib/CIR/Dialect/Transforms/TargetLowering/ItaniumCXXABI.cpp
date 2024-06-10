@@ -44,7 +44,7 @@ bool ItaniumCXXABI::classifyReturnType(LowerFunctionInfo &FI) const {
     return false;
 
   // If C++ prohibits us from making a copy, return by address.
-  if (!::cir::MissingFeatures::recordDeclCanPassInRegisters())
+  if (::cir::MissingFeatures::recordDeclCanPassInRegisters())
     llvm_unreachable("NYI");
 
   return false;

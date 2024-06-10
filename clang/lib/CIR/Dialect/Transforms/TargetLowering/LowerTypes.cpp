@@ -53,10 +53,10 @@ FuncType LowerTypes::getFunctionType(const LowerFunctionInfo &FI) {
   SmallVector<Type, 8> ArgTypes(IRFunctionArgs.totalIRArgs());
 
   // Add type for sret argument.
-  assert(::cir::MissingFeatures::sretArgs());
+  assert(!::cir::MissingFeatures::sretArgs());
 
   // Add type for inalloca argument.
-  assert(::cir::MissingFeatures::inallocaArgs());
+  assert(!::cir::MissingFeatures::inallocaArgs());
 
   // Add in all of the required arguments.
   unsigned ArgNo = 0;

@@ -57,7 +57,7 @@ class X86_64TargetLoweringInfo : public TargetLoweringInfo {
 public:
   X86_64TargetLoweringInfo(LowerTypes &LM, X86AVXABILevel AVXLevel)
       : TargetLoweringInfo(std::make_unique<X86_64ABIInfo>(LM, AVXLevel)) {
-    assert(::cir::MissingFeatures::swift());
+    assert(!::cir::MissingFeatures::swift());
   }
 };
 
@@ -133,7 +133,7 @@ void X86_64ABIInfo::computeInfo(LowerFunctionInfo &FI) const {
   unsigned NeededSSE = 0, MaxVectorWidth = 0;
 
   if (!::mlir::cir::classifyReturnType(getCXXABI(), FI, *this)) {
-    if (IsRegCall || !::cir::MissingFeatures::regCall()) {
+    if (IsRegCall || ::cir::MissingFeatures::regCall()) {
       llvm_unreachable("RegCall is NYI");
     } else
       FI.getReturnInfo() = classifyReturnType(FI.getReturnType());
@@ -147,7 +147,7 @@ void X86_64ABIInfo::computeInfo(LowerFunctionInfo &FI) const {
     llvm_unreachable("NYI");
 
   // The chain argument effectively gives us another free register.
-  if (!::cir::MissingFeatures::chainCall())
+  if (::cir::MissingFeatures::chainCall())
     llvm_unreachable("NYI");
 
   // AMD64-ABI 3.2.3p3: Once arguments are classified, the registers

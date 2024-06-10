@@ -92,7 +92,7 @@ public:
                                    ArrayRef<mlir::Type> argTypes,
                                    RequiredArgs required) {
     // TODO(cir): Add assertions?
-    assert(::cir::MissingFeatures::extParamInfo());
+    assert(!::cir::MissingFeatures::extParamInfo());
     void *buffer = operator new(totalSizeToAlloc<ArgInfo>(argTypes.size() + 1));
 
     LowerFunctionInfo *FI = new (buffer) LowerFunctionInfo();
@@ -133,7 +133,7 @@ public:
   unsigned arg_size() const { return NumArgs; }
 
   bool isVariadic() const {
-    assert(::cir::MissingFeatures::variadicFunctions());
+    assert(!::cir::MissingFeatures::variadicFunctions());
     return false;
   }
   unsigned getNumRequiredArgs() const {

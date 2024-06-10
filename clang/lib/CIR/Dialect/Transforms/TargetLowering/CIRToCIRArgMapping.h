@@ -75,7 +75,7 @@ public:
     }
     assert(ArgNo == ArgInfo.size());
 
-    if (!::cir::MissingFeatures::inallocaArgs()) {
+    if (::cir::MissingFeatures::inallocaArgs()) {
       llvm_unreachable("NYI");
     }
 

@@ -168,7 +168,7 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
     llvm_unreachable("NYI");
   }
 
-  assert(::cir::MissingFeatures::swift());
+  assert(!::cir::MissingFeatures::swift());
 
   // NOTE(cir): Skipping lifetime markers here.
 
@@ -191,7 +191,7 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
   // debugging stuff here.
 
   // Update the largest vector width if any arguments have vector types.
-  assert(::cir::MissingFeatures::vectorType());
+  assert(!::cir::MissingFeatures::vectorType());
 
   // Compute the calling convention and attributes.
 
@@ -214,7 +214,7 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
   CallOp _ = rewriter.create<CallOp>(loc, Caller.getCalleeAttr(),
                                      IRFuncTy.getReturnType(), IRCallArgs);
 
-  assert(::cir::MissingFeatures::vectorType());
+  assert(!::cir::MissingFeatures::vectorType());
 
   // NOTE(cir): Skipping some ObjC, tail-call, debug, and attribute stuff here.
 

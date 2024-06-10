@@ -18,7 +18,7 @@ arrangeFreeFunctionLikeCall(LowerTypes &LT, LowerModule &LM,
                             unsigned numExtraRequiredArgs, bool chainCall) {
   assert(args.size() >= numExtraRequiredArgs);
 
-  assert(::cir::MissingFeatures::extParamInfo());
+  assert(!::cir::MissingFeatures::extParamInfo());
 
   // In most cases, there are no optional arguments.
   RequiredArgs required = RequiredArgs::All;
@@ -30,7 +30,7 @@ arrangeFreeFunctionLikeCall(LowerTypes &LT, LowerModule &LM,
     if (fnType.isVarArg())
       llvm_unreachable("NYI");
 
-    if (!::cir::MissingFeatures::extParamInfo())
+    if (::cir::MissingFeatures::extParamInfo())
       llvm_unreachable("NYI");
   }
 
@@ -38,7 +38,7 @@ arrangeFreeFunctionLikeCall(LowerTypes &LT, LowerModule &LM,
   // I'm skipping it since it requires CodeGen info. Maybe we can embbed this
   // information in the FuncOp during CIRGen.
 
-  assert(::cir::MissingFeatures::chainCall() && !chainCall && "NYI");
+  assert(!::cir::MissingFeatures::chainCall() && !chainCall && "NYI");
   FnInfoOpts opts = chainCall ? FnInfoOpts::IsChainCall : FnInfoOpts::None;
   return LT.arrangeLLVMFunctionInfo(fnType.getReturnType(), opts,
                                     fnType.getInputs(), required);
@@ -69,12 +69,12 @@ const LowerFunctionInfo &
 LowerTypes::arrangeLLVMFunctionInfo(Type resultType, FnInfoOpts opts,
                                     ArrayRef<Type> argTypes,
                                     RequiredArgs required) {
-  assert(::cir::MissingFeatures::qualifiedTypes());
+  assert(!::cir::MissingFeatures::qualifiedTypes());
 
   LowerFunctionInfo *FI = nullptr;
 
   // FIXME(cir): Allow user-defined CCs (e.g. __attribute__((vectorcall))).
-  assert(::cir::MissingFeatures::extParamInfo());
+  assert(!::cir::MissingFeatures::extParamInfo());
   unsigned CC = clangCallConvToLLVMCallConv(clang::CallingConv::CC_C);
 
   // Construct the function info. We co-allocate the ArgInfos.
@@ -86,7 +86,7 @@ LowerTypes::arrangeLLVMFunctionInfo(Type resultType, FnInfoOpts opts,
   // Compute ABI information.
   if (CC == llvm::CallingConv::SPIR_KERNEL) {
     llvm_unreachable("NYI");
-  } else if (!::cir::MissingFeatures::extParamInfo()) {
+  } else if (::cir::MissingFeatures::extParamInfo()) {
     llvm_unreachable("NYI");
   } else {
     // NOTE(cir): This corects the initial function info data.
