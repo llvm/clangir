@@ -31,6 +31,10 @@
 #include "mlir/Dialect/SCF/Transforms/Passes.h"
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/Operation.h"
+#include "mlir/IR/Region.h"
+#include "mlir/IR/TypeRange.h"
+#include "mlir/IR/ValueRange.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Support/LogicalResult.h"
@@ -43,7 +47,9 @@
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/LowerToMLIR.h"
 #include "clang/CIR/Passes.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Sequence.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/TypeSwitch.h"
 
 using namespace cir;
@@ -558,7 +564,6 @@ public:
       return mlir::failure();
 
     rewriter.eraseOp(op);
-
     return mlir::LogicalResult::success();
   }
 };
@@ -883,7 +888,6 @@ class CIRScopeOpLowering
     if (mlir::failed(getTypeConverter()->convertTypes(scopeOp->getResultTypes(),
                                                       mlirResultTypes)))
       return mlir::LogicalResult::failure();
-
     rewriter.setInsertionPoint(scopeOp);
     auto newScopeOp = rewriter.create<mlir::memref::AllocaScopeOp>(
         scopeOp.getLoc(), mlirResultTypes);
@@ -956,12 +960,37 @@ public:
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto *parentOp = op->getParentOp();
     return llvm::TypeSwitch<mlir::Operation *, mlir::LogicalResult>(parentOp)
-        .Case<mlir::scf::IfOp, mlir::scf::ForOp>([&](auto) {
+        .Case<mlir::scf::IfOp, mlir::scf::ForOp, mlir::scf::WhileOp>([&](auto) {
           rewriter.replaceOpWithNewOp<mlir::scf::YieldOp>(
               op, adaptor.getOperands());
           return mlir::success();
         })
         .Default([](auto) { return mlir::failure(); });
+  }
+};
+
+class CIRIfOpLowering : public mlir::OpConversionPattern<mlir::cir::IfOp> {
+public:
+  using mlir::OpConversionPattern<mlir::cir::IfOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::IfOp ifop, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto condition = adaptor.getCondition();
+    auto i1Condition = rewriter.create<mlir::arith::TruncIOp>(
+        ifop->getLoc(), rewriter.getI1Type(), condition);
+    auto newIfOp = rewriter.create<mlir::scf::IfOp>(
+        ifop->getLoc(), ifop->getResultTypes(), i1Condition);
+    auto *thenBlock = rewriter.createBlock(&newIfOp.getThenRegion());
+    rewriter.inlineBlockBefore(&ifop.getThenRegion().front(), thenBlock,
+                               thenBlock->end());
+    if (!ifop.getElseRegion().empty()) {
+      auto *elseBlock = rewriter.createBlock(&newIfOp.getElseRegion());
+      rewriter.inlineBlockBefore(&ifop.getElseRegion().front(), elseBlock,
+                                 elseBlock->end());
+    }
+    rewriter.replaceOp(ifop, newIfOp);
+    return mlir::success();
   }
 };
 
@@ -1268,8 +1297,8 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
       CIRLogOpLowering, CIRRoundOpLowering, CIRPtrStrideOpLowering,
       CIRSinOpLowering, CIRShiftOpLowering, CIRBitClzOpLowering,
       CIRBitCtzOpLowering, CIRBitPopcountOpLowering, CIRBitClrsbOpLowering,
-      CIRBitFfsOpLowering, CIRBitParityOpLowering>(converter,
-                                                   patterns.getContext());
+      CIRBitFfsOpLowering, CIRBitParityOpLowering, CIRIfOpLowering>(
+      converter, patterns.getContext());
 }
 
 static mlir::TypeConverter prepareTypeConverter() {

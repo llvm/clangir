@@ -17,6 +17,7 @@
 #include "CIRGenModule.h"
 #include "CIRGenOpenMPRuntime.h"
 #include "CIRGenValue.h"
+#include "TargetInfo.h"
 
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/GlobalDecl.h"
@@ -595,10 +596,23 @@ void CIRGenFunction::buildStoreOfScalar(mlir::Value Value, Address Addr,
     return;
   }
 
+  mlir::Type SrcTy = Value.getType();
   if (const auto *ClangVecTy = Ty->getAs<clang::VectorType>()) {
+    auto VecTy = dyn_cast<mlir::cir::VectorType>(SrcTy);
     if (!CGM.getCodeGenOpts().PreserveVec3Type &&
-        ClangVecTy->getNumElements() == 3)
-      llvm_unreachable("NYI: Special treatment of 3-element vector store");
+        ClangVecTy->getNumElements() == 3) {
+      // Handle vec3 special.
+      if (VecTy && VecTy.getSize() == 3) {
+        // Our source is a vec3, do a shuffle vector to make it a vec4.
+        Value = builder.createVecShuffle(Value.getLoc(), Value,
+                                         ArrayRef<int64_t>{0, 1, 2, -1});
+        SrcTy = mlir::cir::VectorType::get(VecTy.getContext(),
+                                           VecTy.getEltType(), 4);
+      }
+      if (Addr.getElementType() != SrcTy) {
+        Addr = Addr.withElementType(SrcTy);
+      }
+    }
   }
 
   // Update the alloca with more info on initialization.
@@ -653,7 +667,53 @@ RValue CIRGenFunction::buildLoadOfLValue(LValue LV, SourceLocation Loc) {
         getLoc(Loc), load, LV.getVectorIdx()));
   }
 
+  if (LV.isExtVectorElt()) {
+    return buildLoadOfExtVectorElementLValue(LV);
+  }
+
   llvm_unreachable("NYI");
+}
+
+int64_t CIRGenFunction::getAccessedFieldNo(unsigned int idx,
+                                           const mlir::ArrayAttr elts) {
+  auto elt = mlir::dyn_cast<mlir::IntegerAttr>(elts[idx]);
+  assert(elt && "The indices should be integer attributes");
+  return elt.getInt();
+}
+
+// If this is a reference to a subset of the elements of a vector, create an
+// appropriate shufflevector.
+RValue CIRGenFunction::buildLoadOfExtVectorElementLValue(LValue LV) {
+  mlir::Location loc = LV.getExtVectorPointer().getLoc();
+  mlir::Value Vec = builder.createLoad(loc, LV.getExtVectorAddress());
+
+  // HLSL allows treating scalars as one-element vectors. Converting the scalar
+  // IR value to a vector here allows the rest of codegen to behave as normal.
+  if (getLangOpts().HLSL && !mlir::isa<mlir::cir::VectorType>(Vec.getType())) {
+    llvm_unreachable("HLSL NYI");
+  }
+
+  const mlir::ArrayAttr Elts = LV.getExtVectorElts();
+
+  // If the result of the expression is a non-vector type, we must be extracting
+  // a single element.  Just codegen as an extractelement.
+  const auto *ExprVT = LV.getType()->getAs<clang::VectorType>();
+  if (!ExprVT) {
+    int64_t InIdx = getAccessedFieldNo(0, Elts);
+    mlir::cir::ConstantOp Elt =
+        builder.getConstInt(loc, builder.getSInt64Ty(), InIdx);
+    return RValue::get(builder.create<mlir::cir::VecExtractOp>(loc, Vec, Elt));
+  }
+
+  // Always use shuffle vector to try to retain the original program structure
+  unsigned NumResultElts = ExprVT->getNumElements();
+
+  SmallVector<int64_t, 4> Mask;
+  for (unsigned i = 0; i != NumResultElts; ++i)
+    Mask.push_back(getAccessedFieldNo(i, Elts));
+
+  Vec = builder.createVecShuffle(loc, Vec, Mask);
+  return RValue::get(Vec);
 }
 
 RValue CIRGenFunction::buildLoadOfBitfieldLValue(LValue LV,
@@ -674,6 +734,80 @@ RValue CIRGenFunction::buildLoadOfBitfieldLValue(LValue LV,
   return RValue::get(field);
 }
 
+void CIRGenFunction::buildStoreThroughExtVectorComponentLValue(RValue Src,
+                                                               LValue Dst) {
+  mlir::Location loc = Dst.getExtVectorPointer().getLoc();
+
+  // HLSL allows storing to scalar values through ExtVector component LValues.
+  // To support this we need to handle the case where the destination address is
+  // a scalar.
+  Address DstAddr = Dst.getExtVectorAddress();
+  if (!mlir::isa<mlir::cir::VectorType>(DstAddr.getElementType())) {
+    llvm_unreachable("HLSL NYI");
+  }
+
+  // This access turns into a read/modify/write of the vector.  Load the input
+  // value now.
+  mlir::Value Vec = builder.createLoad(loc, DstAddr);
+  const mlir::ArrayAttr Elts = Dst.getExtVectorElts();
+
+  mlir::Value SrcVal = Src.getScalarVal();
+
+  if (const clang::VectorType *VTy =
+          Dst.getType()->getAs<clang::VectorType>()) {
+    unsigned NumSrcElts = VTy->getNumElements();
+    unsigned NumDstElts = cast<mlir::cir::VectorType>(Vec.getType()).getSize();
+    if (NumDstElts == NumSrcElts) {
+      // Use shuffle vector is the src and destination are the same number of
+      // elements and restore the vector mask since it is on the side it will be
+      // stored.
+      SmallVector<int64_t, 4> Mask(NumDstElts);
+      for (unsigned i = 0; i != NumSrcElts; ++i)
+        Mask[getAccessedFieldNo(i, Elts)] = i;
+
+      Vec = builder.createVecShuffle(loc, SrcVal, Mask);
+    } else if (NumDstElts > NumSrcElts) {
+      // Extended the source vector to the same length and then shuffle it
+      // into the destination.
+      // FIXME: since we're shuffling with undef, can we just use the indices
+      //        into that?  This could be simpler.
+      SmallVector<int64_t, 4> ExtMask;
+      for (unsigned i = 0; i != NumSrcElts; ++i)
+        ExtMask.push_back(i);
+      ExtMask.resize(NumDstElts, -1);
+      mlir::Value ExtSrcVal = builder.createVecShuffle(loc, SrcVal, ExtMask);
+      // build identity
+      SmallVector<int64_t, 4> Mask;
+      for (unsigned i = 0; i != NumDstElts; ++i)
+        Mask.push_back(i);
+
+      // When the vector size is odd and .odd or .hi is used, the last element
+      // of the Elts constant array will be one past the size of the vector.
+      // Ignore the last element here, if it is greater than the mask size.
+      if (getAccessedFieldNo(NumSrcElts - 1, Elts) == Mask.size())
+        NumSrcElts--;
+
+      // modify when what gets shuffled in
+      for (unsigned i = 0; i != NumSrcElts; ++i)
+        Mask[getAccessedFieldNo(i, Elts)] = i + NumDstElts;
+      Vec = builder.createVecShuffle(loc, Vec, ExtSrcVal, Mask);
+    } else {
+      // We should never shorten the vector
+      llvm_unreachable("unexpected shorten vector length");
+    }
+  } else {
+    // If the Src is a scalar (not a vector), and the target is a vector it must
+    // be updating one element.
+    unsigned InIdx = getAccessedFieldNo(0, Elts);
+    auto Elt = builder.getSInt64(InIdx, loc);
+
+    Vec = builder.create<mlir::cir::VecInsertOp>(loc, Vec, SrcVal, Elt);
+  }
+
+  builder.createStore(loc, Vec, Dst.getExtVectorAddress(),
+                      Dst.isVolatileQualified());
+}
+
 void CIRGenFunction::buildStoreThroughLValue(RValue Src, LValue Dst,
                                              bool isInit) {
   if (!Dst.isSimple()) {
@@ -686,6 +820,10 @@ void CIRGenFunction::buildStoreThroughLValue(RValue Src, LValue Dst,
       builder.createStore(loc, Vector, Dst.getVectorAddress());
       return;
     }
+
+    if (Dst.isExtVectorElt())
+      return buildStoreThroughExtVectorComponentLValue(Src, Dst);
+
     assert(Dst.isBitField() && "NIY LValue type");
     mlir::Value result;
     return buildStoreThroughBitfieldLValue(Src, Dst, result);
@@ -977,6 +1115,71 @@ CIRGenFunction::buildPointerToDataMemberBinaryExpr(const BinaryOperator *E) {
                                                      memberPtrTy, &baseInfo);
 
   return makeAddrLValue(memberAddr, memberPtrTy->getPointeeType(), baseInfo);
+}
+
+LValue
+CIRGenFunction::buildExtVectorElementExpr(const ExtVectorElementExpr *E) {
+  // Emit the base vector as an l-value.
+  LValue Base;
+
+  // ExtVectorElementExpr's base can either be a vector or pointer to vector.
+  if (E->isArrow()) {
+    // If it is a pointer to a vector, emit the address and form an lvalue with
+    // it.
+    LValueBaseInfo BaseInfo;
+    // TODO(cir): Support TBAA
+    assert(!MissingFeatures::tbaa());
+    Address Ptr = buildPointerWithAlignment(E->getBase(), &BaseInfo);
+    const auto *PT = E->getBase()->getType()->castAs<clang::PointerType>();
+    Base = makeAddrLValue(Ptr, PT->getPointeeType(), BaseInfo);
+    Base.getQuals().removeObjCGCAttr();
+  } else if (E->getBase()->isGLValue()) {
+    // Otherwise, if the base is an lvalue ( as in the case of foo.x.x),
+    // emit the base as an lvalue.
+    assert(E->getBase()->getType()->isVectorType());
+    Base = buildLValue(E->getBase());
+  } else {
+    // Otherwise, the base is a normal rvalue (as in (V+V).x), emit it as such.
+    assert(E->getBase()->getType()->isVectorType() &&
+           "Result must be a vector");
+    mlir::Value Vec = buildScalarExpr(E->getBase());
+
+    // Store the vector to memory (because LValue wants an address).
+    QualType BaseTy = E->getBase()->getType();
+    Address VecMem = CreateMemTemp(BaseTy, Vec.getLoc(), "tmp");
+    builder.createStore(Vec.getLoc(), Vec, VecMem);
+    Base = makeAddrLValue(VecMem, BaseTy, AlignmentSource::Decl);
+  }
+
+  QualType type =
+      E->getType().withCVRQualifiers(Base.getQuals().getCVRQualifiers());
+
+  // Encode the element access list into a vector of unsigned indices.
+  SmallVector<uint32_t, 4> indices;
+  E->getEncodedElementAccess(indices);
+
+  if (Base.isSimple()) {
+    SmallVector<int64_t, 4> attrElts;
+    for (uint32_t i : indices) {
+      attrElts.push_back(static_cast<int64_t>(i));
+    }
+    auto elts = builder.getI64ArrayAttr(attrElts);
+    return LValue::MakeExtVectorElt(Base.getAddress(), elts, type,
+                                    Base.getBaseInfo());
+  }
+  assert(Base.isExtVectorElt() && "Can only subscript lvalue vec elts here!");
+
+  mlir::ArrayAttr baseElts = Base.getExtVectorElts();
+
+  // Composite the two indices
+  SmallVector<int64_t, 4> attrElts;
+  for (uint32_t i : indices) {
+    attrElts.push_back(getAccessedFieldNo(i, baseElts));
+  }
+  auto elts = builder.getI64ArrayAttr(attrElts);
+
+  return LValue::MakeExtVectorElt(Base.getExtVectorAddress(), elts, type,
+                                  Base.getBaseInfo());
 }
 
 LValue CIRGenFunction::buildBinaryOperatorLValue(const BinaryOperator *E) {
@@ -1764,7 +1967,15 @@ LValue CIRGenFunction::buildCastLValue(const CastExpr *E) {
     assert(0 && "NYI");
   }
   case CK_AddressSpaceConversion: {
-    assert(0 && "NYI");
+    LValue LV = buildLValue(E->getSubExpr());
+    QualType DestTy = getContext().getPointerType(E->getType());
+    mlir::Value V = getTargetHooks().performAddrSpaceCast(
+        *this, LV.getPointer(), E->getSubExpr()->getType().getAddressSpace(),
+        E->getType().getAddressSpace(), ConvertType(DestTy));
+    assert(!MissingFeatures::tbaa());
+    return makeAddrLValue(Address(V, getTypes().convertTypeForMem(E->getType()),
+                                  LV.getAddress().getAlignment()),
+                          E->getType(), LV.getBaseInfo());
   }
   case CK_ObjCObjectLValueCast: {
     assert(0 && "NYI");
@@ -2263,6 +2474,8 @@ LValue CIRGenFunction::buildLValue(const Expr *E) {
     return buildConditionalOperatorLValue(cast<ConditionalOperator>(E));
   case Expr::ArraySubscriptExprClass:
     return buildArraySubscriptExpr(cast<ArraySubscriptExpr>(E));
+  case Expr::ExtVectorElementExprClass:
+    return buildExtVectorElementExpr(cast<ExtVectorElementExpr>(E));
   case Expr::BinaryOperatorClass:
     return buildBinaryOperatorLValue(cast<BinaryOperator>(E));
   case Expr::CompoundAssignOperatorClass: {
@@ -2570,14 +2783,28 @@ mlir::Value CIRGenFunction::buildLoadOfScalar(Address Addr, bool Volatile,
     llvm_unreachable("NYI");
   }
 
+  auto ElemTy = Addr.getElementType();
+
   if (const auto *ClangVecTy = Ty->getAs<clang::VectorType>()) {
+    // Handle vectors of size 3 like size 4 for better performance.
+    const auto VTy = cast<mlir::cir::VectorType>(ElemTy);
+
     if (!CGM.getCodeGenOpts().PreserveVec3Type &&
-        ClangVecTy->getNumElements() == 3)
-      llvm_unreachable("NYI: Special treatment of 3-element vector load");
+        ClangVecTy->getNumElements() == 3) {
+      auto loc = Addr.getPointer().getLoc();
+      auto vec4Ty =
+          mlir::cir::VectorType::get(VTy.getContext(), VTy.getEltType(), 4);
+      Address Cast = Addr.withElementType(vec4Ty);
+      // Now load value.
+      mlir::Value V = builder.createLoad(loc, Cast);
+
+      // Shuffle vector to get vec3.
+      V = builder.createVecShuffle(loc, V, ArrayRef<int64_t>{0, 1, 2});
+      return buildFromMemory(V, Ty);
+    }
   }
 
   auto Ptr = Addr.getPointer();
-  auto ElemTy = Addr.getElementType();
   if (ElemTy.isa<mlir::cir::VoidType>()) {
     ElemTy = mlir::cir::IntType::get(builder.getContext(), 8, true);
     auto ElemPtrTy = mlir::cir::PointerType::get(builder.getContext(), ElemTy);

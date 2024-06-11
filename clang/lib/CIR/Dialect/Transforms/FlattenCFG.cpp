@@ -356,8 +356,6 @@ public:
           caseDestinations.push_back(&region.front());
         }
         break;
-      default:
-        llvm_unreachable("unsupported case kind");
       }
 
       // Previous case is a fallthrough: branch it to this case.
@@ -405,7 +403,7 @@ public:
       constexpr int kSmallRangeThreshold = 64;
       if ((upperBound - lowerBound)
               .ult(llvm::APInt(32, kSmallRangeThreshold))) {
-        for (auto iValue = lowerBound; iValue.sle(upperBound); iValue++) {
+        for (auto iValue = lowerBound; iValue.sle(upperBound); (void)iValue++) {
           caseValues.push_back(iValue);
           caseOperands.push_back(rangeOperands[index]);
           caseDestinations.push_back(rangeDestinations[index]);
@@ -440,9 +438,13 @@ public:
     auto *condBlock = rewriter.getInsertionBlock();
     auto opPosition = rewriter.getInsertionPoint();
     auto *remainingOpsBlock = rewriter.splitBlock(condBlock, opPosition);
-    auto *continueBlock = rewriter.createBlock(
-        remainingOpsBlock, op->getResultTypes(),
-        SmallVector<mlir::Location>(/* result number always 1 */ 1, loc));
+    SmallVector<mlir::Location, 2> locs;
+    // Ternary result is optional, make sure to populate the location only
+    // when relevant.
+    if (op->getResultTypes().size())
+      locs.push_back(loc);
+    auto *continueBlock =
+        rewriter.createBlock(remainingOpsBlock, op->getResultTypes(), locs);
     rewriter.create<mlir::cir::BrOp>(loc, remainingOpsBlock);
 
     auto &trueRegion = op.getTrueRegion();
