@@ -22,7 +22,6 @@
 #include <set>
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
-#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/LLVMIR/LLVMTypes.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
@@ -935,13 +934,6 @@ mlir::SuccessorOperands BrOp::getSuccessorOperands(unsigned index) {
 
 Block *BrOp::getSuccessorForOperands(ArrayRef<Attribute>) { return getDest(); }
 
-static void eraseBlock(Block *block) {
-  for (auto &op : llvm::make_early_inc_range(*block))
-    op.erase();
-  block->erase();
-  return;
-}
-
 /// Removes branches between two blocks if it is the only branch.
 ///
 /// From:
@@ -958,15 +950,20 @@ LogicalResult BrOp::fold(FoldAdaptor adaptor,
   Block *block = getOperation()->getBlock();
   Block *dest = getDest();
 
-  if (getOperation()->getParentOfType<mlir::LLVM::LLVMFuncOp>() ||
-      isa<mlir::cir::LabelOp>(dest->front())) {
+  if (isa<mlir::cir::LabelOp>(dest->front())) {
     return failure();
   }
 
   if (block->getNumSuccessors() == 1 && dest->getSinglePredecessor() == block) {
     getOperation()->erase();
     block->getOperations().splice(block->end(), dest->getOperations());
+    auto eraseBlock = [](Block *block) {
+      for (auto &op : llvm::make_early_inc_range(*block))
+        op.erase();
+      block->erase();
+    };
     eraseBlock(dest);
+
     return success();
   }
 
