@@ -46,11 +46,29 @@ let cppNamespace = "::mlir::cir" in {
       /*defaultImplementation=*/[{ return false; }]
       >,
       InterfaceMethod<"",
+      "bool", "hasLocalLinkage", (ins), [{}],
+      /*defaultImplementation=*/[{ 
+        return mlir::cir::isLocalLinkage($_op.getLinkage()) ; 
+      }]
+      >,
+      InterfaceMethod<"",
+      "bool", "hasExternalWeakLinkage", (ins), [{}],
+      /*defaultImplementation=*/[{ 
+        return mlir::cir::isExternalWeakLinkage($_op.getLinkage()) ; 
+      }]
+      >,
+      InterfaceMethod<"",
       "bool", "isDeclarationForLinker", (ins), [{}],
       /*defaultImplementation=*/[{
         if ($_op.hasAvailableExternallyLinkage())
           return true;
         return $_op.isDeclaration();
+      }]
+      >,
+      InterfaceMethod<"",
+      "void", "setDSOLocal", (ins "bool":$val), [{}],
+      /*defaultImplementation=*/[{
+        $_op.setDsolocal(val);
       }]
       >,
     ];

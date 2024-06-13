@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 #include "clang/CIR/Interfaces/CIROpInterfaces.h"
 
+#include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 #include "llvm/ADT/SmallVector.h"
 
 using namespace mlir::cir;

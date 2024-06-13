@@ -364,6 +364,16 @@ bool CIRGenModule::MayBeEmittedEagerly(const ValueDecl *Global) {
   return true;
 }
 
+static bool shouldAssumeDSOLocal(CIRGlobalValueInterface GV) {
+  if (GV.hasLocalLinkage())
+    return true;
+  return false;
+}
+
+void CIRGenModule::setDSOLocal(CIRGlobalValueInterface GV) const {
+  GV.setDSOLocal(shouldAssumeDSOLocal(GV));
+}
+
 void CIRGenModule::buildGlobal(GlobalDecl GD) {
   const auto *Global = cast<ValueDecl>(GD.getDecl());
 
@@ -1979,6 +1989,10 @@ void CIRGenModule::setGlobalVisibility(mlir::Operation *GV,
 
 void CIRGenModule::setDSOLocal(mlir::Operation *Op) const {
   assert(!MissingFeatures::setDSOLocal());
+  auto globalValue = dyn_cast<mlir::cir::CIRGlobalValueInterface>(Op);
+  if (globalValue) {
+    setDSOLocal(globalValue);
+  }
 }
 
 void CIRGenModule::setGVProperties(mlir::Operation *Op,
