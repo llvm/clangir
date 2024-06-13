@@ -15,6 +15,7 @@
 #include "CIRGenModule.h"
 #include "CIRGenOpenMPRuntime.h"
 #include "TargetInfo.h"
+#include "clang/AST/Type.h"
 #include "clang/CIR/MissingFeatures.h"
 
 #include "clang/AST/StmtVisitor.h"
@@ -85,6 +86,16 @@ struct BinOpInfo {
 static bool PromotionIsPotentiallyEligibleForImplicitIntegerConversionCheck(
     QualType SrcType, QualType DstType) {
   return SrcType->isIntegerType() && DstType->isIntegerType();
+}
+
+static bool isFPOrFPVectorTy(QualType CompType) {
+  if (const auto *vecType = CompType->getAs<VectorType>()) {
+    return vecType->getElementType()->isFloatingType();
+  }
+  if (const auto *extVecType = CompType->getAs<VectorType>()) {
+    return extVecType->getElementType()->isFloatingType();
+  }
+  return CompType->isFloatingType();
 }
 
 class ScalarExprEmitter : public StmtVisitor<ScalarExprEmitter, mlir::Value> {
@@ -1313,7 +1324,7 @@ mlir::Value ScalarExprEmitter::buildMul(const BinOpInfo &Ops) {
       !CanElideOverflowCheck(CGF.getContext(), Ops))
     llvm_unreachable("NYI");
 
-  if (Ops.CompType->isFloatingType()) {
+  if (isFPOrFPVectorTy(Ops.CompType)) {
     CIRGenFunction::CIRGenFPOptionsRAII FPOptsRAII(CGF, Ops.FPFeatures);
     return Builder.createFMul(Ops.LHS, Ops.RHS);
   }
@@ -1366,7 +1377,7 @@ mlir::Value ScalarExprEmitter::buildAdd(const BinOpInfo &Ops) {
       !CanElideOverflowCheck(CGF.getContext(), Ops))
     llvm_unreachable("NYI");
 
-  if (Ops.CompType->isFloatingType()) {
+  if (isFPOrFPVectorTy(Ops.CompType)) {
     CIRGenFunction::CIRGenFPOptionsRAII FPOptsRAII(CGF, Ops.FPFeatures);
     return Builder.createFAdd(Ops.LHS, Ops.RHS);
   }
@@ -1409,7 +1420,7 @@ mlir::Value ScalarExprEmitter::buildSub(const BinOpInfo &Ops) {
         !CanElideOverflowCheck(CGF.getContext(), Ops))
       llvm_unreachable("NYI");
 
-    if (Ops.CompType->isFloatingType()) {
+    if (isFPOrFPVectorTy(Ops.CompType)) {
       CIRGenFunction::CIRGenFPOptionsRAII FPOptsRAII(CGF, Ops.FPFeatures);
       return Builder.createFSub(Ops.LHS, Ops.RHS);
     }
