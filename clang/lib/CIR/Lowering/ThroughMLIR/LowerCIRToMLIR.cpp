@@ -638,10 +638,10 @@ public:
         rewriter.getFunctionType(signatureConversion.getConvertedTypes(),
                                  resultTypes));
 
-    rewriter.inlineRegionBefore(op.getBody(), fn.getBody(), fn.end());
-    if (failed(rewriter.convertRegionTypes(&fn.getBody(), *getTypeConverter(),
+    if (failed(rewriter.convertRegionTypes(&op.getBody(), *getTypeConverter(),
                                            &signatureConversion)))
       return mlir::failure();
+    rewriter.inlineRegionBefore(op.getBody(), fn.getBody(), fn.end());
 
     rewriter.eraseOp(op);
     return mlir::LogicalResult::success();
