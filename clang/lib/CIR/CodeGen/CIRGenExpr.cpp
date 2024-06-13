@@ -2718,7 +2718,8 @@ mlir::Value CIRGenFunction::buildAlloca(StringRef name, mlir::Type ty,
                                         mlir::Location loc, CharUnits alignment,
                                         mlir::OpBuilder::InsertPoint ip,
                                         mlir::Value arraySize) {
-  auto localVarPtrTy = mlir::cir::PointerType::get(builder.getContext(), ty);
+  auto localVarPtrTy = mlir::cir::PointerType::get(
+      builder.getContext(), ty, CGM.getDataLayout().getAllocaMemorySpace());
   auto alignIntAttr = CGM.getSize(alignment);
 
   mlir::Value addr;

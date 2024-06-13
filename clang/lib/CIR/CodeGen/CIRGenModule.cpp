@@ -31,6 +31,7 @@
 #include "mlir/IR/OperationSupport.h"
 #include "mlir/IR/SymbolTable.h"
 #include "mlir/IR/Verifier.h"
+#include "mlir/Target/LLVMIR/Import.h"
 #include "clang/CIR/MissingFeatures.h"
 
 #include "clang/AST/ASTConsumer.h"
@@ -96,6 +97,14 @@ static CIRGenCXXABI *createCXXABI(CIRGenModule &CGM) {
   }
 }
 
+static void setMLIRDataLayout(mlir::ModuleOp &mod, const llvm::DataLayout &dl) {
+  auto *context = mod.getContext();
+  mod->setAttr(mlir::LLVM::LLVMDialect::getDataLayoutAttrName(),
+               mlir::StringAttr::get(context, dl.getStringRepresentation()));
+  mlir::DataLayoutSpecInterface dlSpec = mlir::translateDataLayout(dl, context);
+  mod->setAttr(mlir::DLTIDialect::kDataLayoutAttrName, dlSpec);
+}
+
 CIRGenModule::CIRGenModule(mlir::MLIRContext &context,
                            clang::ASTContext &astctx,
                            const clang::CodeGenOptions &CGO,
@@ -105,6 +114,10 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &context,
       theModule{mlir::ModuleOp::create(builder.getUnknownLoc())}, Diags(Diags),
       target(astCtx.getTargetInfo()), ABI(createCXXABI(*this)), genTypes{*this},
       VTables{*this}, openMPRuntime(new CIRGenOpenMPRuntime(*this)) {
+
+  // Initialize DataLayout in the module op.
+  auto layout = llvm::DataLayout(astCtx.getTargetInfo().getDataLayoutString());
+  setMLIRDataLayout(theModule, layout);
 
   // Initialize CIR signed integer types cache.
   SInt8Ty =
@@ -156,7 +169,8 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &context,
       /*isSigned=*/false);
   UInt8PtrTy = builder.getPointerTo(UInt8Ty);
   UInt8PtrPtrTy = builder.getPointerTo(UInt8PtrTy);
-  AllocaInt8PtrTy = UInt8PtrTy;
+  AllocaInt8PtrTy =
+      builder.getPointerTo(UInt8Ty, getDataLayout().getAllocaMemorySpace());
   // TODO: GlobalsInt8PtrTy
   // TODO: ConstGlobalsPtrTy
   ASTAllocaAddressSpace = getTargetCIRGenInfo().getASTAllocaAddressSpace();

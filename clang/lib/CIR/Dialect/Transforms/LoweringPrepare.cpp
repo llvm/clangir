@@ -20,6 +20,7 @@
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/Passes.h"
 #include "clang/CIR/Interfaces/ASTAttrInterfaces.h"
+#include "clang/CIR/MissingFeatures.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
@@ -525,6 +526,7 @@ static void lowerArrayDtorCtorIntoLoop(CIRBaseBuilderTy &builder,
   mlir::Value end = builder.create<mlir::cir::PtrStrideOp>(
       loc, eltTy, begin, numArrayElementsConst);
 
+  assert(!::cir::MissingFeatures::addressSpaceInAlloca());
   auto tmpAddr = builder.createAlloca(
       loc, /*addr type*/ builder.getPointerTo(eltTy),
       /*var type*/ eltTy, "__array_idx", clang::CharUnits::One());

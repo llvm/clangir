@@ -417,10 +417,14 @@ public:
 
   // Fetch the type representing a pointer to unsigned int values.
   mlir::cir::PointerType getUInt8PtrTy(unsigned AddrSpace = 0) {
-    return typeCache.UInt8PtrTy;
+    if (AddrSpace == 0)
+      return typeCache.UInt8PtrTy;
+    return mlir::cir::PointerType::get(getContext(), typeCache.UInt8Ty,
+                                       AddrSpace);
   }
   mlir::cir::PointerType getUInt32PtrTy(unsigned AddrSpace = 0) {
-    return mlir::cir::PointerType::get(getContext(), typeCache.UInt32Ty);
+    return mlir::cir::PointerType::get(getContext(), typeCache.UInt32Ty,
+                                       AddrSpace);
   }
 
   /// Get a CIR anonymous struct type.
