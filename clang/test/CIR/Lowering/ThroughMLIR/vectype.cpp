@@ -64,9 +64,3 @@ void vector_int_test(int x) {
 
   // CHECK: return
 }
-
-
-
-
-
-
