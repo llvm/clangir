@@ -38,6 +38,7 @@ public:
   void clear();
 
   CIRDataLayout(mlir::ModuleOp modOp);
+
   bool isBigEndian() const { return bigEndian; }
 
   // `useABI` is `true` if not using prefered alignment.
