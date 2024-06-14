@@ -6,6 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "clang/CIR/Target/AArch64.h"
 #include "ABIInfoImpl.h"
 #include "LowerFunctionInfo.h"
 #include "LowerTypes.h"
@@ -16,6 +17,7 @@
 #include "clang/CIR/MissingFeatures.h"
 #include "llvm/Support/ErrorHandling.h"
 
+using AArch64ABIKind = ::cir::AArch64ABIKind;
 using ABIArgInfo = ::cir::ABIArgInfo;
 using MissingFeature = ::cir::MissingFeatures;
 

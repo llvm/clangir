@@ -16,30 +16,17 @@
 
 #include "LowerModule.h"
 #include "TargetLoweringInfo.h"
+#include "clang/CIR/Target/AArch64.h"
+#include "clang/CIR/Target/x86.h"
 
 namespace mlir {
 namespace cir {
 
-/// The AVX ABI level for X86 targets.
-enum class X86AVXABILevel {
-  None,
-  AVX,
-  AVX512,
-};
-
-/// The ABI kind for AArch64 targets.
-enum class AArch64ABIKind {
-  AAPCS = 0,
-  DarwinPCS,
-  Win64,
-  AAPCSSoft,
-};
+std::unique_ptr<TargetLoweringInfo>
+createX86_64TargetLoweringInfo(LowerModule &CGM, ::cir::X86AVXABILevel AVXLevel);
 
 std::unique_ptr<TargetLoweringInfo>
-createX86_64TargetLoweringInfo(LowerModule &CGM, X86AVXABILevel AVXLevel);
-
-std::unique_ptr<TargetLoweringInfo>
-createAArch64TargetLoweringInfo(LowerModule &CGM, AArch64ABIKind AVXLevel);
+createAArch64TargetLoweringInfo(LowerModule &CGM, ::cir::AArch64ABIKind AVXLevel);
 
 } // namespace cir
 } // namespace mlir

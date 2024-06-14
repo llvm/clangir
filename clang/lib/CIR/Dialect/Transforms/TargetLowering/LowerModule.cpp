@@ -19,9 +19,12 @@
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/Support/LogicalResult.h"
+#include "clang/CIR/Target/AArch64.h"
 #include "llvm/Support/ErrorHandling.h"
 
 using MissingFeatures = ::cir::MissingFeatures;
+using AArch64ABIKind = ::cir::AArch64ABIKind;
+using X86AVXABILevel = ::cir::X86AVXABILevel;
 
 namespace mlir {
 namespace cir {
