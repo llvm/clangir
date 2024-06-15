@@ -19,16 +19,16 @@
 #include "clang/CIR/Target/AArch64.h"
 #include "clang/CIR/Target/x86.h"
 
-using namespace ::cir;
-
 namespace mlir {
 namespace cir {
 
 std::unique_ptr<TargetLoweringInfo>
-createX86_64TargetLoweringInfo(LowerModule &CGM, X86AVXABILevel AVXLevel);
+createX86_64TargetLoweringInfo(LowerModule &CGM,
+                               ::cir::X86AVXABILevel AVXLevel);
 
 std::unique_ptr<TargetLoweringInfo>
-createAArch64TargetLoweringInfo(LowerModule &CGM, AArch64ABIKind AVXLevel);
+createAArch64TargetLoweringInfo(LowerModule &CGM,
+                                ::cir::AArch64ABIKind AVXLevel);
 
 } // namespace cir
 } // namespace mlir
