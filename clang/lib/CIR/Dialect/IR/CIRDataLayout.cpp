@@ -33,4 +33,4 @@ void CIRDataLayout::reset(llvm::StringRef Desc) { clear(); }
 
 void CIRDataLayout::clear() {}
 
-}
+} // namespace cir
