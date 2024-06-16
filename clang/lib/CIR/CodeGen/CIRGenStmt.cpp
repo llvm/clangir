@@ -186,6 +186,9 @@ mlir::LogicalResult CIRGenFunction::buildStmt(const Stmt *S,
     return buildOMPTaskyieldDirective(cast<OMPTaskyieldDirective>(*S));
   case Stmt::OMPBarrierDirectiveClass:
     return buildOMPBarrierDirective(cast<OMPBarrierDirective>(*S));
+  case Stmt::OMPCriticalDirectiveClass:
+    return buildOMPCriticalDirective(cast<OMPCriticalDirective>(*S));
+
   // Unsupported AST nodes:
   case Stmt::CapturedStmtClass:
   case Stmt::ObjCAtTryStmtClass:
@@ -205,7 +208,6 @@ mlir::LogicalResult CIRGenFunction::buildStmt(const Stmt *S,
   case Stmt::OMPSectionDirectiveClass:
   case Stmt::OMPSingleDirectiveClass:
   case Stmt::OMPMasterDirectiveClass:
-  case Stmt::OMPCriticalDirectiveClass:
   case Stmt::OMPParallelForDirectiveClass:
   case Stmt::OMPParallelForSimdDirectiveClass:
   case Stmt::OMPParallelMasterDirectiveClass:

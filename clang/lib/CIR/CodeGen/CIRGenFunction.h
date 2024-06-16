@@ -1013,6 +1013,7 @@ public:
   mlir::LogicalResult
   buildOMPTaskyieldDirective(const OMPTaskyieldDirective &S);
   mlir::LogicalResult buildOMPBarrierDirective(const OMPBarrierDirective &S);
+  mlir::LogicalResult buildOMPCriticalDirective(const OMPCriticalDirective &S);
 
   LValue buildOpaqueValueLValue(const OpaqueValueExpr *e);
 
