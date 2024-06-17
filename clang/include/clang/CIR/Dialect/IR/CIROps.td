@@ -1935,6 +1935,7 @@ def GlobalOp : CIR_Op<"global",
        (`constant` $constant^)?
        $linkage
        ($tls_model^)?
+       (`dsolocal` $dsolocal^)?
        $sym_name
        custom<GlobalOpTypeAndInitialValue>($sym_type, $initial_value, $ctorRegion, $dtorRegion)
        attr-dict
