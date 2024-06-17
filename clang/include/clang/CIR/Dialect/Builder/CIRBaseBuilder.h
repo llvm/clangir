@@ -82,7 +82,7 @@ public:
     std::optional<unsigned> targetAddrSpaceValue = std::nullopt;
     if (addrSpaceKind == mlir::cir::LangAddrSpace::target)
       targetAddrSpaceValue = clang::toTargetAddressSpace(langAS);
-    
+
     return mlir::cir::PointerType::get(getContext(), ty, addrSpaceKind,
                                        targetAddrSpaceValue);
   }
