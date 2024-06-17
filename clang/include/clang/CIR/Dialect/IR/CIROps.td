@@ -1605,6 +1605,8 @@ def BrOp : CIR_Op<"br",
   let assemblyFormat = [{
     $dest (`(` $destOperands^ `:` type($destOperands) `)`)? attr-dict
   }];
+
+  let hasFolder = 1;
 }
 
 //===----------------------------------------------------------------------===//
@@ -2791,6 +2793,7 @@ class CIR_CallOp<string mnemonic, list<Trait> extra_traits = []> :
   dag commonArgs = (ins
     OptionalAttr<FlatSymbolRefAttr>:$callee,
     Variadic<CIR_AnyType>:$arg_ops,
+    ExtraFuncAttr:$extra_attrs,
     OptionalAttr<ASTCallExprInterface>:$ast
   );
 }
@@ -2826,12 +2829,16 @@ def CallOp : CIR_CallOp<"call"> {
   let arguments = commonArgs;
   let results = (outs Optional<CIR_AnyType>:$result);
 
+  let skipDefaultBuilders = 1;
+
   let builders = [
-    OpBuilder<(ins "FuncOp":$callee, CArg<"ValueRange", "{}">:$operands), [{
+    OpBuilder<(ins "SymbolRefAttr":$callee, "mlir::Type":$resType,
+              CArg<"ValueRange", "{}">:$operands), [{
       $_state.addOperands(operands);
-      $_state.addAttribute("callee", SymbolRefAttr::get(callee));
-      if (!callee.getFunctionType().isVoid())
-        $_state.addTypes(callee.getFunctionType().getReturnType());
+      if (callee)
+        $_state.addAttribute("callee", callee);
+      if (resType && !resType.isa<VoidType>())
+        $_state.addTypes(resType);
     }]>,
     OpBuilder<(ins "Value":$ind_target,
                "FuncType":$fn_type,
@@ -2840,18 +2847,6 @@ def CallOp : CIR_CallOp<"call"> {
       $_state.addOperands(operands);
       if (!fn_type.isVoid())
         $_state.addTypes(fn_type.getReturnType());
-    }]>,
-    OpBuilder<(ins "SymbolRefAttr":$callee, "mlir::Type":$resType,
-              CArg<"ValueRange", "{}">:$operands), [{
-      $_state.addOperands(operands);
-      $_state.addAttribute("callee", callee);
-      if (resType && !resType.isa<VoidType>())
-        $_state.addTypes(resType);
-    }]>,
-    OpBuilder<(ins "SymbolRefAttr":$callee,
-              CArg<"ValueRange", "{}">:$operands), [{
-      $_state.addOperands(operands);
-      $_state.addAttribute("callee", callee);
     }]>
   ];
 }
