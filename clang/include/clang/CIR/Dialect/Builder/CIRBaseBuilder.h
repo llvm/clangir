@@ -75,14 +75,21 @@ public:
     return mlir::cir::IntType::get(getContext(), N, true);
   }
 
-  mlir::cir::PointerType getPointerTo(mlir::Type ty,
-                                      unsigned addressSpace = 0) {
-    assert(!addressSpace && "address space is NYI");
-    return mlir::cir::PointerType::get(getContext(), ty);
+  mlir::cir::PointerType
+  getPointerTo(mlir::Type ty, clang::LangAS langAS = clang::LangAS::Default) {
+    auto addrSpaceKind = mlir::cir::PointerType::getCIRASKindFromLangAS(langAS);
+
+    std::optional<unsigned> targetAddrSpaceValue = std::nullopt;
+    if (addrSpaceKind == mlir::cir::LangAddrSpace::target)
+      targetAddrSpaceValue = clang::toTargetAddressSpace(langAS);
+    
+    return mlir::cir::PointerType::get(getContext(), ty, addrSpaceKind,
+                                       targetAddrSpaceValue);
   }
 
-  mlir::cir::PointerType getVoidPtrTy(unsigned addressSpace = 0) {
-    return getPointerTo(::mlir::cir::VoidType::get(getContext()), addressSpace);
+  mlir::cir::PointerType
+  getVoidPtrTy(clang::LangAS langAS = clang::LangAS::Default) {
+    return getPointerTo(::mlir::cir::VoidType::get(getContext()), langAS);
   }
 
   mlir::Value createLoad(mlir::Location loc, mlir::Value ptr,

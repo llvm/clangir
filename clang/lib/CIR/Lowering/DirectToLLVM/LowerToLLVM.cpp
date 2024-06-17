@@ -3335,8 +3335,18 @@ void prepareTypeConverter(mlir::LLVMTypeConverter &converter,
                           mlir::DataLayout &dataLayout) {
   converter.addConversion([&](mlir::cir::PointerType type) -> mlir::Type {
     // Drop pointee type since LLVM dialect only allows opaque pointers.
-    return mlir::LLVM::LLVMPointerType::get(type.getContext(),
-                                            type.getAddrSpace());
+    using mlir::cir::LangAddrSpace;
+    // TODO(cir): Query the target-specific address space map to lower other ASs
+    // like `opencl_private`.
+    switch (type.getAddrSpaceKind()) {
+    case LangAddrSpace::Default:
+      return mlir::LLVM::LLVMPointerType::get(type.getContext());
+    case LangAddrSpace::target:
+      return mlir::LLVM::LLVMPointerType::get(type.getContext(),
+                                              *type.getTargetAddrSpaceValue());
+    default:
+      llvm_unreachable("target specific converions NYI");
+    }
   });
   converter.addConversion([&](mlir::cir::DataMemberType type) -> mlir::Type {
     return mlir::IntegerType::get(type.getContext(),
