@@ -526,6 +526,7 @@ static void lowerArrayDtorCtorIntoLoop(CIRBaseBuilderTy &builder,
   mlir::Value end = builder.create<mlir::cir::PtrStrideOp>(
       loc, eltTy, begin, numArrayElementsConst);
 
+  // TODO: fix getPointerTo(eltTy) by querying the data layout
   assert(!::cir::MissingFeatures::addressSpaceInAlloca());
   auto tmpAddr = builder.createAlloca(
       loc, /*addr type*/ builder.getPointerTo(eltTy),
