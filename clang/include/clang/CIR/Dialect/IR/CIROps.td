@@ -917,6 +917,7 @@ def ScopeOp : CIR_Op<"scope", [
   let regions = (region AnyRegion:$scopeRegion);
 
   let hasVerifier = 1;
+  let hasFolder = 1;
   let skipDefaultBuilders = 1;
   let assemblyFormat = [{
     custom<OmittedTerminatorRegion>($scopeRegion) (`:` type($results)^)? attr-dict
@@ -1549,6 +1550,7 @@ def SwitchOp : CIR_Op<"switch",
   let regions = (region VariadicRegion<AnyRegion>:$regions);
 
   let hasVerifier = 1;
+  let hasFolder = 1;
 
   let skipDefaultBuilders = 1;
   let builders = [

@@ -42,6 +42,7 @@ std::unique_ptr<Pass> createGotoSolverPass();
 std::unique_ptr<Pass> createCallConvLoweringPass();
 
 void populateCIRPreLoweringPasses(mlir::OpPassManager &pm);
+void populateCIRToMLIRPreLoweringPasses(mlir::OpPassManager &pm);
 
 //===----------------------------------------------------------------------===//
 // Registration

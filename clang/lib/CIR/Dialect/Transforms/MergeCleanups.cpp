@@ -23,32 +23,6 @@ using namespace cir;
 
 namespace {
 
-struct RemoveEmptyScope : public OpRewritePattern<ScopeOp> {
-  using OpRewritePattern<ScopeOp>::OpRewritePattern;
-
-  LogicalResult match(ScopeOp op) const final {
-    return success(op.getRegion().empty() ||
-                   (op.getRegion().getBlocks().size() == 1 &&
-                    op.getRegion().front().empty()));
-  }
-
-  void rewrite(ScopeOp op, PatternRewriter &rewriter) const final {
-    rewriter.eraseOp(op);
-  }
-};
-
-struct RemoveEmptySwitch : public OpRewritePattern<SwitchOp> {
-  using OpRewritePattern<SwitchOp>::OpRewritePattern;
-
-  LogicalResult match(SwitchOp op) const final {
-    return success(op.getRegions().empty());
-  }
-
-  void rewrite(SwitchOp op, PatternRewriter &rewriter) const final {
-    rewriter.eraseOp(op);
-  }
-};
-
 //===----------------------------------------------------------------------===//
 // MergeCleanupsPass
 //===----------------------------------------------------------------------===//
@@ -67,19 +41,9 @@ struct MergeCleanupsPass : public MergeCleanupsBase<MergeCleanupsPass> {
   void runOnOperation() override;
 };
 
-void populateMergeCleanupPatterns(RewritePatternSet &patterns) {
-  // clang-format off
-  patterns.add<
-    RemoveEmptyScope,
-    RemoveEmptySwitch
-  >(patterns.getContext());
-  // clang-format on
-}
-
 void MergeCleanupsPass::runOnOperation() {
   // Collect rewrite patterns.
   RewritePatternSet patterns(&getContext());
-  populateMergeCleanupPatterns(patterns);
 
   // Collect operations to apply patterns.
   SmallVector<Operation *, 16> ops;

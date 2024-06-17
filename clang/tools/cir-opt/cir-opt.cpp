@@ -45,11 +45,11 @@ int main(int argc, char **argv) {
   ::mlir::registerPass([]() -> std::unique_ptr<::mlir::Pass> {
     return mlir::createSCFPreparePass();
   });
-  ::mlir::registerPass([]() -> std::unique_ptr<::mlir::Pass> {
-    return cir::createConvertCIRToMLIRPass();
-  });
+  mlir::PassPipelineRegistration<mlir::EmptyPipelineOptions> CIRToMLIRPipeline(
+      "cir-to-mlir", "",
+      [](mlir::OpPassManager &pm) { cir::populateCIRToMLIRPasses(pm); });
 
-  mlir::PassPipelineRegistration<mlir::EmptyPipelineOptions> pipeline(
+  mlir::PassPipelineRegistration<mlir::EmptyPipelineOptions> CIRToLLVMPipeline(
       "cir-to-llvm", "", [](mlir::OpPassManager &pm) {
         cir::direct::populateCIRToLLVMPasses(pm);
       });

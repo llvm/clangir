@@ -852,6 +852,17 @@ void ScopeOp::build(OpBuilder &builder, OperationState &result,
   scopeBuilder(builder, result.location);
 }
 
+LogicalResult ScopeOp::fold(FoldAdaptor adaptor,
+                            SmallVectorImpl<OpFoldResult> &results) {
+  if (getRegion().empty() ||
+      (getRegion().getBlocks().size() == 1 && getRegion().front().empty())) {
+    getOperation()->dropAllUses();
+    getOperation()->erase();
+    return success();
+  }
+  return failure();
+}
+
 LogicalResult ScopeOp::verify() { return success(); }
 
 //===----------------------------------------------------------------------===//
@@ -1273,6 +1284,17 @@ void SwitchOp::build(
   OpBuilder::InsertionGuard guardSwitch(builder);
   result.addOperands({cond});
   switchBuilder(builder, result.location, result);
+}
+
+LogicalResult SwitchOp::fold(FoldAdaptor adaptor,
+                             SmallVectorImpl<OpFoldResult> &results) {
+  // If the region is empty, we can remove the operation.
+  if (getRegions().empty()) {
+    getOperation()->dropAllUses();
+    getOperation()->erase();
+    return success();
+  }
+  return failure();
 }
 
 //===----------------------------------------------------------------------===//

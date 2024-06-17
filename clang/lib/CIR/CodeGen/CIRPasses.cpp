@@ -94,4 +94,8 @@ void populateCIRPreLoweringPasses(OpPassManager &pm) {
   pm.addPass(createMergeCleanupsPass());
 }
 
+void populateCIRToMLIRPreLoweringPasses(OpPassManager &pm) {
+  pm.addPass(createMergeCleanupsPass());
+  pm.addPass(createSCFPreparePass());
+}
 } // namespace mlir

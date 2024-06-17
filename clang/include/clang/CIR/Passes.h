@@ -25,6 +25,9 @@ std::unique_ptr<mlir::Pass> createConvertMLIRToLLVMPass();
 /// Create a pass that fully lowers CIR to the MLIR in-tree dialects.
 std::unique_ptr<mlir::Pass> createConvertCIRToMLIRPass();
 
+/// Adds passes that fully lower CIR to the MLIR in-tree dialects.
+void populateCIRToMLIRPasses(mlir::OpPassManager &pm);
+
 namespace direct {
 /// Create a pass that fully lowers CIR to the LLVMIR dialect.
 std::unique_ptr<mlir::Pass> createConvertCIRToLLVMPass();

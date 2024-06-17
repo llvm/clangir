@@ -45,6 +45,7 @@
 #include "mlir/Transforms/DialectConversion.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
+#include "clang/CIR/Dialect/Passes.h"
 #include "clang/CIR/LowerToMLIR.h"
 #include "clang/CIR/Passes.h"
 #include "llvm/ADT/STLExtras.h"
@@ -871,11 +872,6 @@ class CIRScopeOpLowering
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::ScopeOp scopeOp, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    // Empty scope: just remove it.
-    if (scopeOp.getRegion().empty()) {
-      rewriter.eraseOp(scopeOp);
-      return mlir::success();
-    }
 
     for (auto &block : scopeOp.getRegion()) {
       rewriter.setInsertionPointToEnd(&block);
@@ -1412,11 +1408,16 @@ std::unique_ptr<mlir::Pass> createConvertCIRToMLIRPass() {
   return std::make_unique<ConvertCIRToMLIRPass>();
 }
 
+void populateCIRToMLIRPasses(mlir::OpPassManager &pm) {
+  mlir::populateCIRToMLIRPreLoweringPasses(pm);
+  pm.addPass(createConvertCIRToMLIRPass());
+}
+
 mlir::ModuleOp lowerFromCIRToMLIR(mlir::ModuleOp theModule,
                                   mlir::MLIRContext *mlirCtx) {
   mlir::PassManager pm(mlirCtx);
 
-  pm.addPass(createConvertCIRToMLIRPass());
+  populateCIRToMLIRPasses(pm);
 
   auto result = !mlir::failed(pm.run(theModule));
   if (!result)
