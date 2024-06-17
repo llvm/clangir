@@ -874,6 +874,30 @@ llvm::ArrayRef<mlir::Type> FuncType::getReturnTypes() const {
 bool FuncType::isVoid() const { return mlir::isa<VoidType>(getReturnType()); }
 
 //===----------------------------------------------------------------------===//
+// PointerType Definitions
+//===----------------------------------------------------------------------===//
+
+mlir::LogicalResult
+PointerType::verify(llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
+                    mlir::Type pointee, mlir::cir::LangAddrSpace langAS,
+                    std::optional<unsigned> targetAS) {
+  if (langAS == mlir::cir::LangAddrSpace::target) {
+    if (!targetAS.has_value()) {
+      emitError()
+          << "target address space must be specified for target pointers";
+      return mlir::failure();
+    }
+  } else {
+    if (targetAS.has_value()) {
+      emitError()
+          << "unexpected target address space value for non-target pointers";
+      return mlir::failure();
+    }
+  }
+  return mlir::success();
+}
+
+//===----------------------------------------------------------------------===//
 // CIR Dialect
 //===----------------------------------------------------------------------===//
 

@@ -300,6 +300,8 @@ def CIR_PointerType : CIR_Type<"Pointer", "ptr",
     `)` )? `>`
   }];
 
+  let genVerifyDecl = 1;
+
   // AS_TargetAddressSpace should be excluded in codegen 
   list<I32EnumAttrCase> langASCases =
     LangAddrSpace.enumerants[0...!sub(!size(LangAddrSpace.enumerants), 2)];
