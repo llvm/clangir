@@ -206,27 +206,12 @@ def CIR_PointerType : CIR_Type<"Pointer", "ptr",
   let summary = "CIR pointer type";
   let description = [{
     `CIR.ptr` is a type returned by any op generating a pointer in C++.
-
-    The address space modeled by it essentially represents the same concept
-    as `clang::LangAS`, but treats target address spaces as a single enum type.
-    The targetAddrSpaceValue parameter is non-null only when addrSpaceKind is
-    set to `target`.
   }];
 
   let parameters = (ins
     "mlir::Type":$pointee,
     OptionalParameter<"mlir::Attribute">:$addrSpace
   );
-
-  let assemblyFormat = [{
-    `<` $pointee ( `,` `addrspace` `(`
-      custom<PointerAddrSpace>($addrSpace)^
-    `)` )? `>`
-  }];
-
-  let genVerifyDecl = 1;
-
-  let skipDefaultBuilders = 1;
 
   let builders = [
     TypeBuilderWithInferredContext<(ins
@@ -240,6 +225,16 @@ def CIR_PointerType : CIR_Type<"Pointer", "ptr",
       return $_get($_ctxt, pointee, addrSpace);
     }]>
   ];
+
+  let assemblyFormat = [{
+    `<` $pointee ( `,` `addrspace` `(`
+      custom<PointerAddrSpace>($addrSpace)^
+    `)` )? `>`
+  }];
+
+  let genVerifyDecl = 1;
+
+  let skipDefaultBuilders = 1;
 
   let extraClassDeclaration = [{
     bool isVoidPtr() const {
