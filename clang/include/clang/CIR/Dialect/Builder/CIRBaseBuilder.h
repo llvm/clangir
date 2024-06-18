@@ -77,14 +77,11 @@ public:
 
   mlir::cir::PointerType
   getPointerTo(mlir::Type ty, clang::LangAS langAS = clang::LangAS::Default) {
-    auto addrSpaceKind = mlir::cir::PointerType::getCIRASKindFromLangAS(langAS);
+    mlir::cir::AddressSpaceAttr addrSpaceAttr;
+    if (langAS != clang::LangAS::Default)
+      addrSpaceAttr = mlir::cir::AddressSpaceAttr::get(getContext(), langAS);
 
-    std::optional<unsigned> targetAddrSpaceValue = std::nullopt;
-    if (addrSpaceKind == mlir::cir::LangAddrSpace::target)
-      targetAddrSpaceValue = clang::toTargetAddressSpace(langAS);
-
-    return mlir::cir::PointerType::get(getContext(), ty, addrSpaceKind,
-                                       targetAddrSpaceValue);
+    return mlir::cir::PointerType::get(getContext(), ty, addrSpaceAttr);
   }
 
   mlir::cir::PointerType

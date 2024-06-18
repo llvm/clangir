@@ -618,6 +618,164 @@ def DynamicCastInfoAttr
 }
 
 //===----------------------------------------------------------------------===//
+// AddressSpaceAttr
+//===----------------------------------------------------------------------===//
+
+// These keywords should always be sync with clang::LangAS
+def AS_OpenCLGlobal : I32EnumAttrCase<"opencl_global", 1>;
+def AS_OpenCLLocal : I32EnumAttrCase<"opencl_local", 2>;
+def AS_OpenCLConstant : I32EnumAttrCase<"opencl_constant", 3>;
+def AS_OpenCLPrivate : I32EnumAttrCase<"opencl_private", 4>;
+def AS_OpenCLGeneric : I32EnumAttrCase<"opencl_generic", 5>;
+def AS_OpenCLGlobalDevice : I32EnumAttrCase<"opencl_global_device", 6>;
+def AS_OpenCLGlobalHost : I32EnumAttrCase<"opencl_global_host", 7>;
+def AS_CUDADevice : I32EnumAttrCase<"cuda_device", 8>;
+def AS_CUDAConstant : I32EnumAttrCase<"cuda_constant", 9>;
+def AS_CUDAShared : I32EnumAttrCase<"cuda_shared", 10>;
+def AS_SYCLGlobal : I32EnumAttrCase<"sycl_global", 11>;
+def AS_SYCLGlobalDevice : I32EnumAttrCase<"sycl_global_device", 12>;
+def AS_SYCLGlobalHost : I32EnumAttrCase<"sycl_global_host", 13>;
+def AS_SYCLLocal : I32EnumAttrCase<"sycl_local", 14>;
+def AS_SYCLPrivate : I32EnumAttrCase<"sycl_private", 15>;
+def AS_Ptr32SPtr : I32EnumAttrCase<"ptr32_sptr", 16>;
+def AS_Ptr32UPtr : I32EnumAttrCase<"ptr32_uptr", 17>;
+def AS_Ptr64 : I32EnumAttrCase<"ptr64", 18>;
+def AS_HLSLGroupShared : I32EnumAttrCase<"hlsl_groupshared", 19>;
+def AS_WasmFuncref : I32EnumAttrCase<"wasm_funcref", 20>;
+def AS_Target : I32EnumAttrCase<"target", 21>;
+
+def AddressSpaceAttr : CIR_Attr<"AddressSpace", "addrspace"> {
+
+  let summary = "Address space attribute for pointer types";
+  let description = [{
+    The address space attribute models `clang::LangAS` rather than the LLVM
+    address space, which means it's not yet converted by the address space map
+    to carry target-specific semantics.
+
+    The representation is one-to-one except for `LangAS::Default`, which
+    corresponds to a null attribute instead.
+  }];
+
+  let parameters = (ins "int64_t":$value);
+
+  let assemblyFormat = [{
+    `<` $value `>`
+  }];
+
+  let builders = [
+    AttrBuilder<(ins "clang::LangAS":$langAS), [{
+      assert(langAS != clang::LangAS::Default &&
+        "Default address space is encoded as null attribute");
+      return $_get($_ctxt, getValueFromLangAS(langAS).value());
+    }]>
+  ];
+
+  let cppNamespace = "::mlir::cir";
+
+  // The following codes implement these conversions:
+  // clang::LangAS -> int64_t <-> text-form CIR
+
+  // CIR_PointerType manipulates the parse- and stringify- methods to provide
+  // simplified assembly format `custom<PointerAddrSpace>`.
+
+  list<I32EnumAttrCase> langASCases = [
+    AS_OpenCLGlobal, AS_OpenCLLocal, AS_OpenCLConstant, AS_OpenCLPrivate,
+    AS_OpenCLGeneric, AS_OpenCLGlobalDevice, AS_OpenCLGlobalHost,
+    AS_CUDADevice, AS_CUDAConstant, AS_CUDAShared, AS_SYCLGlobal,
+    AS_SYCLGlobalDevice, AS_SYCLGlobalHost, AS_SYCLLocal, AS_SYCLPrivate,
+    AS_Ptr32SPtr, AS_Ptr32UPtr, AS_Ptr64, AS_HLSLGroupShared, AS_WasmFuncref
+  ];
+
+  I32EnumAttrCase targetASCase = AS_Target;
+
+  let extraClassDeclaration = [{
+    static constexpr char kTargetKeyword[] = "}]#targetASCase.symbol#[{";
+    static constexpr int64_t kFirstTargetASValue = }]#targetASCase.value#[{;
+  
+    bool isLang() const;
+    bool isTarget() const;
+    unsigned getTargetValue() const;
+
+    static std::optional<int64_t> parseValueFromString(llvm::StringRef s);
+    static std::optional<int64_t> getValueFromLangAS(clang::LangAS v);
+    static std::optional<llvm::StringRef> stringifyValue(int64_t v);
+  }];
+
+  let extraClassDefinition = [{
+    bool $cppClass::isLang() const {
+      return !isTarget();
+    }
+
+    bool $cppClass::isTarget() const {
+      return getValue() >= kFirstTargetASValue;
+    }
+
+    unsigned $cppClass::getTargetValue() const {
+      assert(isTarget() && "Not a target address space");
+      return getValue() - kFirstTargetASValue;
+    }
+
+    std::optional<int64_t>
+    $cppClass::parseValueFromString(llvm::StringRef str) {
+      return llvm::StringSwitch<::std::optional<int64_t>>(str)
+        }]
+        #
+        !interleave(
+          !foreach(case, langASCases,
+            ".Case(\""#case.symbol# "\", "#case.value # ")\n"
+          ),
+          "\n"
+        )
+        #
+        [{
+        // Target address spaces are not parsed here
+        .Default(std::nullopt);
+    }
+
+    std::optional<llvm::StringRef>
+    $cppClass::stringifyValue(int64_t value) {
+      switch (value) {
+      }]
+      #
+      !interleave(
+        !foreach(case, langASCases,
+          "case "#case.value
+          # ": return \""#case.symbol # "\";" ),
+        "\n"
+      )
+      #
+      [{
+      default:
+        // Target address spaces are not processed here
+        return std::nullopt;
+      }
+    }
+
+    std::optional<int64_t>
+    $cppClass::getValueFromLangAS(clang::LangAS langAS) {
+      switch (langAS) {
+      }]
+      #
+      !interleave(
+        !foreach(case, langASCases,
+          "case clang::LangAS::"#case.symbol
+          # ": return "#case.value # ";" ),
+        "\n"
+      )
+      #
+      [{
+      case clang::LangAS::Default:
+        // Default address space should be encoded as a null attribute.
+        return std::nullopt;
+      default:
+        // Target address space offset arithmetics
+        return clang::toTargetAddressSpace(langAS) + kFirstTargetASValue;
+      }
+    }
+  }];
+}
+
+//===----------------------------------------------------------------------===//
 // AST Wrappers
 //===----------------------------------------------------------------------===//
 

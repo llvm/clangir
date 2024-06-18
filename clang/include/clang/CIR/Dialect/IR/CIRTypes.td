@@ -200,63 +200,6 @@ def CIR_AnyIntOrFloat: AnyTypeOf<[CIR_AnyFloat, CIR_IntType]>;
 // PointerType
 //===----------------------------------------------------------------------===//
 
-def AS_Default : I32EnumAttrCase<"Default", 1>;
-def AS_OpenCLGlobal : I32EnumAttrCase<"opencl_global", 2>;
-def AS_OpenCLLocal : I32EnumAttrCase<"opencl_local", 3>;
-def AS_OpenCLConstant : I32EnumAttrCase<"opencl_constant", 4>;
-def AS_OpenCLPrivate : I32EnumAttrCase<"opencl_private", 5>;
-def AS_OpenCLGeneric : I32EnumAttrCase<"opencl_generic", 6>;
-def AS_OpenCLGlobalDevice : I32EnumAttrCase<"opencl_global_device", 7>;
-def AS_OpenCLGlobalHost : I32EnumAttrCase<"opencl_global_host", 8>;
-def AS_CUDADevice : I32EnumAttrCase<"cuda_device", 9>;
-def AS_CUDAConstant : I32EnumAttrCase<"cuda_constant", 10>;
-def AS_CUDAShared : I32EnumAttrCase<"cuda_shared", 11>;
-def AS_SYCLGlobal : I32EnumAttrCase<"sycl_global", 12>;
-def AS_SYCLGlobalDevice : I32EnumAttrCase<"sycl_global_device", 13>;
-def AS_SYCLGlobalHost : I32EnumAttrCase<"sycl_global_host", 14>;
-def AS_SYCLLocal : I32EnumAttrCase<"sycl_local", 15>;
-def AS_SYCLPrivate : I32EnumAttrCase<"sycl_private", 16>;
-def AS_Ptr32SPtr : I32EnumAttrCase<"ptr32_sptr", 17>;
-def AS_Ptr32UPtr : I32EnumAttrCase<"ptr32_uptr", 18>;
-def AS_Ptr64 : I32EnumAttrCase<"ptr64", 19>;
-def AS_HLSLGroupShared : I32EnumAttrCase<"hlsl_groupshared", 20>;
-def AS_WasmFuncref : I32EnumAttrCase<"wasm_funcref", 21>;
-def AS_Target : I32EnumAttrCase<"target", 22>;
-
-// This enum must be sync with `clang::LangAS`
-def LangAddrSpace : I32EnumAttr<
-    "LangAddrSpace",
-    "language address space",
-    [
-      AS_Default, AS_OpenCLGlobal, AS_OpenCLLocal, AS_OpenCLConstant,
-      AS_OpenCLPrivate, AS_OpenCLGeneric, AS_OpenCLGlobalDevice,
-      AS_OpenCLGlobalHost, AS_CUDADevice, AS_CUDAConstant, AS_CUDAShared,
-      AS_SYCLGlobal, AS_SYCLGlobalDevice, AS_SYCLGlobalHost, AS_SYCLLocal,
-      AS_SYCLPrivate, AS_Ptr32SPtr, AS_Ptr32UPtr, AS_Ptr64, AS_HLSLGroupShared,
-      AS_WasmFuncref, AS_Target
-    ]> {
-  let cppNamespace = "::mlir::cir";
-
-  let genSpecializedAttr = 0;
-}
-
-// Shorthands for long types
-def LangAddrSpaceParam : DefaultValuedParameter<
-  "::mlir::cir::LangAddrSpace",
-  "::mlir::cir::LangAddrSpace::Default"
->;
-def LangAddrSpaceArg : CArg<
-  "::mlir::cir::LangAddrSpace",
-  "::mlir::cir::LangAddrSpace::Default"
->;
-def TargetAddrSpaceParam : OptionalParameter<
-  "std::optional<unsigned>"
->;
-def TargetAddrSpaceArg : CArg<
-  "std::optional<unsigned>",
-  "std::nullopt"
->;
-
 def CIR_PointerType : CIR_Type<"Pointer", "ptr",
     [DeclareTypeInterfaceMethods<DataLayoutTypeInterface>]> {
 
@@ -272,81 +215,35 @@ def CIR_PointerType : CIR_Type<"Pointer", "ptr",
 
   let parameters = (ins
     "mlir::Type":$pointee,
-    LangAddrSpaceParam:$addrSpaceKind,
-    TargetAddrSpaceParam:$targetAddrSpaceValue
+    OptionalParameter<"mlir::Attribute">:$addrSpace
   );
+
+  let assemblyFormat = [{
+    `<` $pointee ( `,` `addrspace` `(`
+      custom<PointerAddrSpace>($addrSpace)^
+    `)` )? `>`
+  }];
+
+  let genVerifyDecl = 1;
 
   let skipDefaultBuilders = 1;
 
   let builders = [
     TypeBuilderWithInferredContext<(ins
       "mlir::Type":$pointee,
-      LangAddrSpaceArg:$addrSpaceKind,
-      TargetAddrSpaceArg:$targetAddrSpaceValue), [{
-      return $_get(
-        pointee.getContext(), pointee, addrSpaceKind, targetAddrSpaceValue);
+      CArg<"mlir::Attribute", "{}">:$addrSpace), [{
+      return $_get(pointee.getContext(), pointee, addrSpace);
     }]>,
     TypeBuilder<(ins
       "mlir::Type":$pointee,
-      LangAddrSpaceArg:$addrSpaceKind,
-      TargetAddrSpaceArg:$targetAddrSpaceValue), [{
-      return $_get($_ctxt, pointee, addrSpaceKind, targetAddrSpaceValue);
+      CArg<"mlir::Attribute", "{}">:$addrSpace), [{
+      return $_get($_ctxt, pointee, addrSpace);
     }]>
   ];
-
-  let assemblyFormat = [{
-    `<` $pointee ( `,` `addrspace` `(`
-      $addrSpaceKind^
-      (`<` $targetAddrSpaceValue^ `>`)?
-    `)` )? `>`
-  }];
-
-  let genVerifyDecl = 1;
-
-  // AS_Target should be excluded in codegen 
-  list<I32EnumAttrCase> langASCases =
-    LangAddrSpace.enumerants[0...!sub(!size(LangAddrSpace.enumerants), 2)];
 
   let extraClassDeclaration = [{
     bool isVoidPtr() const {
       return mlir::isa<mlir::cir::VoidType>(getPointee());
-    }
-
-    static LangAddrSpace getCIRASKindFromLangAS(clang::LangAS langAS) {
-      switch (langAS) {
-  }]
-  #
-  !interleave(
-    !foreach(case, langASCases, "case clang::LangAS::"#case.symbol
-      # ": return LangAddrSpace::"#case.symbol # ";" ),
-    "\n"
-  )
-  #
-  [{
-      default:
-        return LangAddrSpace::target;
-      }
-    }
-
-    clang::LangAS getLangAS() {
-      auto kind = getAddrSpaceKind();
-      auto targetValue = getTargetAddrSpaceValue();
-      switch (kind) {
-  }]
-  #
-  !interleave(
-    !foreach(case, langASCases, "case LangAddrSpace::"#case.symbol
-      # ": return clang::LangAS::"#case.symbol # ";" ),
-    "\n"
-  )
-  #
-  [{
-      default: {
-        assert(kind == LangAddrSpace::target &&
-               targetValue.has_value() && "unexpected address space kind");
-        return clang::getLangASFromTargetAS(*targetValue);
-      }
-      }
     }
   }];
 }
