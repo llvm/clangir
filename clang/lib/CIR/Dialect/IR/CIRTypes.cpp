@@ -906,7 +906,6 @@ mlir::ParseResult parsePointerAddrSpace(mlir::AsmParser &p,
   if (addrSpaceKind == AddressSpaceAttr::kTargetKeyword) {
     int64_t targetValue = -1;
     if (p.parseLess() || p.parseInteger(targetValue) || p.parseGreater()) {
-      p.emitError(attrLoc, "expected integer value for target addrspace");
       return mlir::failure();
     }
     addrSpaceAttr = AddressSpaceAttr::get(

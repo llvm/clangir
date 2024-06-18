@@ -1143,3 +1143,31 @@ cir.func @bad_goto() -> () {
   cir.label "label"
   cir.return
 } 
+
+// -----
+
+!u64i = !cir.int<u, 64>
+cir.func @address_space1(%p : !cir.ptr<!u64i, addrspace()>) { // expected-error {{expected keyword for addrspace kind}}
+  cir.return
+}
+
+// -----
+
+!u64i = !cir.int<u, 64>
+cir.func @address_space2(%p : !cir.ptr<!u64i, addrspace(target<>)>) { // expected-error {{expected integer value}}
+  cir.return
+}
+
+// -----
+
+!u64i = !cir.int<u, 64>
+cir.func @address_space3(%p : !cir.ptr<!u64i, addrspace(target)>) { // expected-error {{expected '<'}}
+  cir.return
+}
+
+// -----
+
+!u64i = !cir.int<u, 64>
+cir.func @address_space4(%p : !cir.ptr<!u64i, addrspace(foobar)>) { // expected-error {{invalid addrspace kind keyword: foobar}}
+  cir.return
+}
