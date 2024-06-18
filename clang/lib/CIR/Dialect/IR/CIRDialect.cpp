@@ -854,12 +854,6 @@ void ScopeOp::build(OpBuilder &builder, OperationState &result,
 
 LogicalResult ScopeOp::fold(FoldAdaptor adaptor,
                             SmallVectorImpl<OpFoldResult> &results) {
-  if (getRegion().empty() ||
-      (getRegion().getBlocks().size() == 1 && getRegion().front().empty())) {
-    getOperation()->dropAllUses();
-    getOperation()->erase();
-    return success();
-  }
   return failure();
 }
 

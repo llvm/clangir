@@ -23,6 +23,23 @@ using namespace cir;
 
 namespace {
 
+// FIXME: It should be moved to ScopeOp::fold
+struct RemoveEmptyScope : public OpRewritePattern<ScopeOp> {
+  using OpRewritePattern<ScopeOp>::OpRewritePattern;
+
+  LogicalResult match(ScopeOp op) const final {
+    return success(op.getRegion().empty() ||
+                   (op.getRegion().getBlocks().size() == 1 &&
+                    op.getRegion().front().empty()) ||
+                   (op.getRegion().front().getOperations().size() == 1 &&
+                    isa<YieldOp>(&op.getRegion().front().front())));
+  }
+
+  void rewrite(ScopeOp op, PatternRewriter &rewriter) const final {
+    rewriter.eraseOp(op);
+  }
+};
+
 //===----------------------------------------------------------------------===//
 // MergeCleanupsPass
 //===----------------------------------------------------------------------===//
@@ -41,10 +58,18 @@ struct MergeCleanupsPass : public MergeCleanupsBase<MergeCleanupsPass> {
   void runOnOperation() override;
 };
 
+void populateMergeCleanupPatterns(RewritePatternSet &patterns) {
+  // clang-format off
+  patterns.add<
+    RemoveEmptyScope
+  >(patterns.getContext());
+  // clang-format on
+}
+
 void MergeCleanupsPass::runOnOperation() {
   // Collect rewrite patterns.
   RewritePatternSet patterns(&getContext());
-
+  populateMergeCleanupPatterns(patterns);
   // Collect operations to apply patterns.
   SmallVector<Operation *, 16> ops;
   getOperation()->walk([&](Operation *op) {

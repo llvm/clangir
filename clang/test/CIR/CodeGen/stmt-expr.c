@@ -4,9 +4,6 @@
 // Yields void.
 void test1() { ({ }); }
 // CHECK: @test1
-//     CHECK: cir.scope {
-// CHECK-NOT:   cir.yield
-//     CHECK: }
 
 // Yields an out-of-scope scalar.
 void test2() { ({int x = 3; x; }); }
