@@ -53,6 +53,7 @@
 #include "clang/CIR/Dialect/Passes.h"
 #include "clang/CIR/MissingFeatures.h"
 #include "clang/CIR/Passes.h"
+#include "clang/CIR/MissingFeatures.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/STLExtras.h"
@@ -3338,6 +3339,7 @@ void prepareTypeConverter(mlir::LLVMTypeConverter &converter,
     using mlir::cir::LangAddrSpace;
     // TODO(cir): Query the target-specific address space map to lower other ASs
     // like `opencl_private`.
+    assert(!MissingFeatures::targetLoweringInfoAddressSpaceMap());
     switch (type.getAddrSpaceKind()) {
     case LangAddrSpace::Default:
       return mlir::LLVM::LLVMPointerType::get(type.getContext());

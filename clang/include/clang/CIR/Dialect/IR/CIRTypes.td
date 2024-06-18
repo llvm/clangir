@@ -221,8 +221,9 @@ def AS_Ptr32UPtr : I32EnumAttrCase<"ptr32_uptr", 18>;
 def AS_Ptr64 : I32EnumAttrCase<"ptr64", 19>;
 def AS_HLSLGroupShared : I32EnumAttrCase<"hlsl_groupshared", 20>;
 def AS_WasmFuncref : I32EnumAttrCase<"wasm_funcref", 21>;
-def AS_TargetAddressSpace : I32EnumAttrCase<"target", 22>;
+def AS_Target : I32EnumAttrCase<"target", 22>;
 
+// This enum must be sync with `clang::LangAS`
 def LangAddrSpace : I32EnumAttr<
     "LangAddrSpace",
     "language address space",
@@ -232,7 +233,7 @@ def LangAddrSpace : I32EnumAttr<
       AS_OpenCLGlobalHost, AS_CUDADevice, AS_CUDAConstant, AS_CUDAShared,
       AS_SYCLGlobal, AS_SYCLGlobalDevice, AS_SYCLGlobalHost, AS_SYCLLocal,
       AS_SYCLPrivate, AS_Ptr32SPtr, AS_Ptr32UPtr, AS_Ptr64, AS_HLSLGroupShared,
-      AS_WasmFuncref, AS_TargetAddressSpace
+      AS_WasmFuncref, AS_Target
     ]> {
   let cppNamespace = "::mlir::cir";
 
@@ -302,7 +303,7 @@ def CIR_PointerType : CIR_Type<"Pointer", "ptr",
 
   let genVerifyDecl = 1;
 
-  // AS_TargetAddressSpace should be excluded in codegen 
+  // AS_Target should be excluded in codegen 
   list<I32EnumAttrCase> langASCases =
     LangAddrSpace.enumerants[0...!sub(!size(LangAddrSpace.enumerants), 2)];
 
