@@ -33,7 +33,7 @@ static QualType useFirstFieldIfTransparentUnion(QualType Ty) {
 
 namespace {
 
-/// DefaultABIInfo - The default implementation for ABI specific
+/// The default implementation for ABI specific
 /// details. This implementation provides information which results in
 /// self-consistent and sensible LLVM IR generation, but does not
 /// conform to any particular ABI.
