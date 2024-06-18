@@ -65,8 +65,11 @@ public:
     if (const auto *EIT = Ty->getAs<BitIntType>())
       llvm_unreachable("NYI");
 
-    return (isPromotableIntegerTypeForABI(Ty) ? ABIArgInfo::getExtend(Ty)
-                                              : ABIArgInfo::getDirect());
+    if (isPromotableIntegerTypeForABI(Ty)) {
+      llvm_unreachable("ArgInfo integer extend NYI");
+    } else {
+      return ABIArgInfo::getDirect();
+    }
   }
 
   void computeInfo(CIRGenFunctionInfo &FI) const override {
