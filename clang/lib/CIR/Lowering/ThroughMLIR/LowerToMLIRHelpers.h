@@ -1,11 +1,13 @@
 #ifndef LLVM_CLANG_LIB_CIR_LOWERING_THROUGHMLIR_LOWERTOMLIRHELPERS_H
 #define LLVM_CLANG_LIB_CIR_LOWERING_THROUGHMLIR_LOWERTOMLIRHELPERS_H
 
+#include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "llvm/Support/Casting.h"
+#include "llvm/Support/ErrorHandling.h"
 
 #include <cassert>
 
@@ -43,6 +45,48 @@ inline mlir::Value createIntCast(mlir::ConversionPatternRewriter &rewriter,
   if (dstWidth < srcWidth)
     return rewriter.create<mlir::arith::TruncIOp>(loc, dstTy, src);
   return rewriter.create<mlir::arith::BitcastOp>(loc, dstTy, src);
+}
+
+inline mlir::arith::CmpIPredicate
+convertCmpKindToCmpIPredicate(mlir::cir::CmpOpKind kind, bool isSigned) {
+  using CIR = mlir::cir::CmpOpKind;
+  using arithCmpI = mlir::arith::CmpIPredicate;
+  switch (kind) {
+  case CIR::eq:
+    return arithCmpI::eq;
+  case CIR::ne:
+    return arithCmpI::ne;
+  case CIR::lt:
+    return (isSigned ? arithCmpI::slt : arithCmpI::ult);
+  case CIR::le:
+    return (isSigned ? arithCmpI::sle : arithCmpI::ule);
+  case CIR::gt:
+    return (isSigned ? arithCmpI::sgt : arithCmpI::ugt);
+  case CIR::ge:
+    return (isSigned ? arithCmpI::sge : arithCmpI::uge);
+  }
+  llvm_unreachable("Unknown CmpOpKind");
+}
+
+inline mlir::arith::CmpFPredicate
+convertCmpKindToCmpFPredicate(mlir::cir::CmpOpKind kind) {
+  using CIR = mlir::cir::CmpOpKind;
+  using arithCmpF = mlir::arith::CmpFPredicate;
+  switch (kind) {
+  case CIR::eq:
+    return arithCmpF::OEQ;
+  case CIR::ne:
+    return arithCmpF::UNE;
+  case CIR::lt:
+    return arithCmpF::OLT;
+  case CIR::le:
+    return arithCmpF::OLE;
+  case CIR::gt:
+    return arithCmpF::OGT;
+  case CIR::ge:
+    return arithCmpF::OGE;
+  }
+  llvm_unreachable("Unknown CmpOpKind");
 }
 
 } // namespace cir
