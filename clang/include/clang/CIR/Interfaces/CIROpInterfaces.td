@@ -72,6 +72,9 @@ let cppNamespace = "::mlir::cir" in {
       }]
       >,
     ];
+    let extraClassDeclaration = [{ 
+    bool canBenefitFromLocalAlias() const;
+  }];
   }
 
 } // namespace mlir::cir

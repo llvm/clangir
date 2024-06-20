@@ -14,3 +14,11 @@ using namespace mlir::cir;
 
 /// Include the generated type qualifiers interfaces.
 #include "clang/CIR/Interfaces/CIROpInterfaces.cpp.inc"
+
+#include "clang/CIR/MissingFeatures.h"
+
+bool CIRGlobalValueInterface::canBenefitFromLocalAlias() const {
+  assert(!::cir::MissingFeatures::supportIFuncAttr());
+  assert(!::cir::MissingFeatures::setComdat());
+  return false;
+}
