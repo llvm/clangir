@@ -48,13 +48,13 @@ let cppNamespace = "::mlir::cir" in {
       InterfaceMethod<"",
       "bool", "hasLocalLinkage", (ins), [{}],
       /*defaultImplementation=*/[{ 
-        return mlir::cir::isLocalLinkage($_op.getLinkage()) ; 
+        return mlir::cir::isLocalLinkage($_op.getLinkage()); 
       }]
       >,
       InterfaceMethod<"",
       "bool", "hasExternalWeakLinkage", (ins), [{}],
       /*defaultImplementation=*/[{ 
-        return mlir::cir::isExternalWeakLinkage($_op.getLinkage()) ; 
+        return mlir::cir::isExternalWeakLinkage($_op.getLinkage()); 
       }]
       >,
       InterfaceMethod<"",
