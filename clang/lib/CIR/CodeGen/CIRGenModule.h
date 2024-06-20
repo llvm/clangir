@@ -608,6 +608,7 @@ public:
   getMLIRVisibilityFromCIRLinkage(mlir::cir::GlobalLinkageKind GLK);
   static mlir::SymbolTable::Visibility
   getMLIRVisibility(mlir::cir::GlobalOp op);
+  bool isDefaultVibility(mlir::cir::CIRGlobalValueInterface GV) const;
   mlir::cir::GlobalLinkageKind getFunctionLinkage(GlobalDecl GD);
   mlir::cir::GlobalLinkageKind
   getCIRLinkageForDeclarator(const DeclaratorDecl *D, GVALinkage Linkage,
