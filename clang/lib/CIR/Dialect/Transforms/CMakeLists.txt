@@ -4,6 +4,7 @@ add_clang_library(MLIRCIRTransforms
   LifetimeCheck.cpp
   LoweringPrepare.cpp
   MergeCleanups.cpp
+  CIRSimplify.cpp
   DropAST.cpp
   IdiomRecognizer.cpp
   LibOpt.cpp

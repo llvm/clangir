@@ -347,6 +347,12 @@ def ConstantOp : CIR_Op<"const",
        return ptrAttr.isNullValue();
       return false;
      }
+
+     bool isIntZero() {
+      if (const auto intAttr = getValue().dyn_cast<mlir::cir::IntAttr>())
+       return intAttr.getValue() == 0;
+      return false;
+     }
   }];
 
   let hasFolder = 1;
