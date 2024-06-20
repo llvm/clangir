@@ -102,6 +102,9 @@ module  {
   cir.func @removeEmptyScope() {
     cir.scope {
     }
+    cir.scope {
+      cir.yield
+    }
     cir.return
   }
   //      CHECK: cir.func @removeEmptyScope
