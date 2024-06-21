@@ -1,8 +1,8 @@
+// XFAIL: *
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -Wno-unused-value -emit-cir %s -o %t.cir
 // RUN: FileCheck --input-file=%t.cir %s -check-prefix=CIR
-// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -Wno-unused-value -S -emit-llvm %s -o %t.ll
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -Wno-unused-value -emit-llvm %s -o %t.ll
 // RUN: FileCheck --input-file=%t.ll %s -check-prefix=LLVM
-// XFAIL: *
 
 
 typedef struct {
@@ -74,23 +74,26 @@ void split_large_page(unsigned long addr, pgprot_t prot)
 }
 
 // CIR-LABEL: @split_large_page
-// CIR:   %[[VAL_2:.*]] = cir.alloca !u64i, !cir.ptr<!u64i>, ["addr", init] {alignment = 8 : i64}
-// CIR:   %[[VAL_3:.*]] = cir.alloca !ty_22pgprot_t22, !cir.ptr<!ty_22pgprot_t22>, ["prot", init] {alignment = 8 : i64}
-// CIR:   %[[VAL_4:.*]] = cir.alloca !ty_22pgprot_t22, !cir.ptr<!ty_22pgprot_t22>, ["tmp"] {alignment = 8 : i64}
-// CIR:   cir.store {{.*}}, %[[VAL_2]] : !u64i, !cir.ptr<!u64i>
-// CIR:   cir.store {{.*}}, %[[VAL_3]] : !ty_22pgprot_t22, !cir.ptr<!ty_22pgprot_t22>
-// CIR:   %[[VAL_5:.*]] = cir.load %[[VAL_2]] : !cir.ptr<!u64i>, !u64i
-// CIR:   %[[VAL_6:.*]] = cir.cast(int_to_bool, %[[VAL_5]] : !u64i), !cir.bool
-// CIR:   cir.if %[[VAL_6]] {
-// CIR:     cir.copy %[[VAL_3]] to %[[VAL_4]] : !cir.ptr<!ty_22pgprot_t22>
-// CIR:   } else {
-// CIR:     %[[VAL_7:.*]] = cir.get_member %[[VAL_4]][0] {name = "pgprot"} : !cir.ptr<!ty_22pgprot_t22> -> !cir.ptr<!u64i>
-// CIR:     %[[VAL_8:.*]] = cir.const #cir.int<1> : !s32i
-// CIR:     %[[VAL_9:.*]] = cir.cast(integral, %[[VAL_8]] : !s32i), !u64i
-// CIR:     cir.store %[[VAL_9]], %[[VAL_7]] : !u64i, !cir.ptr<!u64i>
-// CIR:   }
-// CIR:   %[[VAL_10:.*]] = cir.get_member %[[VAL_4]][0] {name = "pgprot"} : !cir.ptr<!ty_22pgprot_t22> -> !cir.ptr<!u64i>
-// CIR:   %[[VAL_11:.*]] = cir.load %[[VAL_10]] : !cir.ptr<!u64i>, !u64i
+// CIR:   %[[VAL_0:.*]] = cir.alloca !u64i, !cir.ptr<!u64i>, ["addr", init] {alignment = 8 : i64}
+// CIR:   %[[VAL_1:.*]] = cir.alloca !ty_22pgprot_t22, !cir.ptr<!ty_22pgprot_t22>, ["prot", init] {alignment = 8 : i64}
+// CIR:   cir.store {{.*}}, %[[VAL_0]] : !u64i, !cir.ptr<!u64i>
+// CIR:   cir.store {{.*}}, %[[VAL_1]] : !ty_22pgprot_t22, !cir.ptr<!ty_22pgprot_t22>
+// CIR:   %[[VAL_2:.*]] = cir.scope {
+// CIR:     %[[VAL_3:.*]] = cir.alloca !ty_22pgprot_t22, !cir.ptr<!ty_22pgprot_t22>, ["ref.tmp0"] {alignment = 8 : i64}
+// CIR:     %[[VAL_4:.*]] = cir.load %[[VAL_0]] : !cir.ptr<!u64i>, !u64i
+// CIR:     %[[VAL_5:.*]] = cir.cast(int_to_bool, %[[VAL_4]] : !u64i), !cir.bool
+// CIR:     cir.if %[[VAL_5]] {
+// CIR:       cir.copy %[[VAL_1]] to %[[VAL_3]] : !cir.ptr<!ty_22pgprot_t22>
+// CIR:     } else {
+// CIR:       %[[VAL_8:.*]] = cir.get_member %[[VAL_3]][0] {name = "pgprot"} : !cir.ptr<!ty_22pgprot_t22> -> !cir.ptr<!u64i>
+// CIR:       %[[VAL_9:.*]] = cir.const #cir.int<1> : !s32i
+// CIR:       %[[VAL_10:.*]] = cir.cast(integral, %[[VAL_9]] : !s32i), !u64i
+// CIR:       cir.store %[[VAL_10]], %[[VAL_8]] : !u64i, !cir.ptr<!u64i>
+// CIR:     }
+// CIR:     %[[VAL_6:.*]] = cir.get_member %[[VAL_3]][0] {name = "pgprot"} : !cir.ptr<!ty_22pgprot_t22> -> !cir.ptr<!u64i>
+// CIR:     %[[VAL_7:.*]] = cir.load %[[VAL_6]] : !cir.ptr<!u64i>, !u64i
+// CIR:     cir.yield %[[VAL_7]] : !u64i
+// CIR:   } : !u64i
 // CIR:   cir.return
 // CIR: }
 
