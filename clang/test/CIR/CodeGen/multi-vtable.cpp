@@ -2,7 +2,6 @@
 // RUN: FileCheck --check-prefix=CIR --input-file=%t.cir %s
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -mconstructor-aliases -fclangir -emit-llvm %s -o %t.ll
 // RUN: FileCheck --check-prefix=LLVM --input-file=%t.ll %s
-// XFAIL: *
 
 class Mother {
 public:
@@ -65,7 +64,7 @@ int main() {
 
 // LLVM-DAG: define linkonce_odr void @_ZN5ChildC2Ev(ptr %0)
 // LLVM-DAG:  store ptr getelementptr inbounds ({ [4 x ptr], [3 x ptr] }, ptr @_ZTV5Child, i32 0, i32 0, i32 2), ptr %{{[0-9]+}}, align 8
-// LLVM-DAG:  %{{[0-9]+}} = getelementptr %class.Child, ptr %3, i32 8
+// LLVM-DAG:  %{{[0-9]+}} = getelementptr %class.Child, ptr %3, i64 8
 // LLVM-DAG:  store ptr getelementptr inbounds ({ [4 x ptr], [3 x ptr] }, ptr @_ZTV5Child, i32 0, i32 1, i32 2), ptr %{{[0-9]+}}, align 8
 // LLVM-DAG:  ret void
 // }
