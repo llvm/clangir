@@ -2137,6 +2137,7 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
           getAliaseeAttrName(),
           getBuiltinAttrName(),
           getCoroutineAttrName(),
+          getDsolocalAttrName(),
           getExtraAttrsAttrName(),
           getFunctionTypeAttrName(),
           getGlobalCtorAttrName(),
