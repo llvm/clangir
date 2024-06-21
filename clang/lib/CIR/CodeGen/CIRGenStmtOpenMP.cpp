@@ -119,3 +119,33 @@ CIRGenFunction::buildOMPBarrierDirective(const OMPBarrierDirective &S) {
                                          getLoc(S.getSourceRange()));
   return res;
 }
+
+mlir::LogicalResult
+CIRGenFunction::buildOMPMasterDirective(const OMPMasterDirective &S) {
+  mlir::LogicalResult res = mlir::success();
+  if (CGM.getLangOpts().OpenMPIRBuilder) {
+    const Stmt *bodyStmt = S.getAssociatedStmt();
+    auto scopeLoc = getLoc(S.getSourceRange());
+
+    auto masterOp = builder.create<mlir::omp::MasterOp>(scopeLoc);
+    mlir::Block &block = masterOp.getRegion().emplaceBlock();
+    mlir::OpBuilder::InsertionGuard guardCase(builder);
+    builder.setInsertionPointToEnd(&block);
+    // Build an scope for the master region
+    builder.create<mlir::cir::ScopeOp>(
+        scopeLoc, /*scopeBuilder=*/
+        [&](mlir::OpBuilder &b, mlir::Location loc) {
+          LexicalScope lexScope{*this, scopeLoc, builder.getInsertionBlock()};
+          // Emit the statement within the master region
+          if (buildStmt(bodyStmt, /*useCurrentScope=*/true).failed())
+            res = mlir::failure();
+        });
+    builder.create<TerminatorOp>(getLoc(S.getSourceRange().getEnd()));
+  } else {
+    res = mlir::failure();
+    llvm_unreachable(
+        "OpenMP generation without OpenMPIRBuilder is not yet supported");
+  }
+
+  return res;
+}
