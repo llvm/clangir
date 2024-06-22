@@ -210,6 +210,8 @@ def CIR_PointerType : CIR_Type<"Pointer", "ptr",
 
   let parameters = (ins
     "mlir::Type":$pointee,
+    // FIXME(cir): Currently unable to directly use AddressSpaceAttr because of
+    // cyclic dep. Workaround with the top type and verifier.
     OptionalParameter<"mlir::Attribute">:$addrSpace
   );
 
