@@ -347,6 +347,7 @@ static LogicalResult checkConstantTypes(mlir::Operation *op, mlir::Type opType,
   if (attrType.isa<mlir::cir::GlobalViewAttr>() ||
       attrType.isa<mlir::cir::TypeInfoAttr>() ||
       attrType.isa<mlir::cir::ConstArrayAttr>() ||
+      attrType.isa<mlir::cir::ConstVectorAttr>() ||
       attrType.isa<mlir::cir::ConstStructAttr>() ||
       attrType.isa<mlir::cir::VTableAttr>())
     return success();
@@ -2815,6 +2816,98 @@ void ConstArrayAttr::print(::mlir::AsmPrinter &printer) const {
   printer.printStrippedAttrOrType(getElts());
   if (auto zeros = getTrailingZerosNum())
     printer << ", trailing_zeros";
+  printer << ">";
+}
+
+LogicalResult mlir::cir::ConstVectorAttr::verify(
+    ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
+    ::mlir::Type type, Attribute attr) {
+
+  if (!type.isa<mlir::cir::VectorType>()) {
+    return emitError()
+           << "type of cir::ConstVectorAttr is not a cir::VectorType: " << type;
+  }
+  if (!attr.isa<mlir::ArrayAttr>()) {
+    return emitError() << "the sub-attribute within a cir::ConstVectorAttr is "
+                          "not an ArrayAttr";
+  }
+  auto arrayAttr = attr.cast<mlir::ArrayAttr>();
+  auto vecType = type.cast<mlir::cir::VectorType>();
+
+  // Do the number of elements match?
+  if (vecType.getSize() != arrayAttr.size()) {
+    return emitError()
+           << "number of constant elements should match vector size";
+  }
+  // Do the types of the elements match?
+  LogicalResult elementTypeCheck = success();
+  arrayAttr.walkImmediateSubElements(
+      [&](Attribute element) {
+        if (elementTypeCheck.failed()) {
+          // An earlier element didn't match
+          return;
+        }
+        auto typedElement = element.dyn_cast<TypedAttr>();
+        if (!typedElement || typedElement.getType() != vecType.getEltType()) {
+          elementTypeCheck = failure();
+          emitError() << "constant type should match vector element type";
+        }
+      },
+      [&](Type) {});
+  return elementTypeCheck;
+}
+
+::mlir::Attribute ConstVectorAttr::parse(::mlir::AsmParser &parser,
+                                         ::mlir::Type type) {
+  ::mlir::FailureOr<::mlir::Type> resultType;
+  ::mlir::FailureOr<Attribute> resultValue;
+  ::llvm::SMLoc loc = parser.getCurrentLocation();
+
+  // Parse literal '<'
+  if (parser.parseLess()) {
+    return {};
+  }
+
+  // Parse variable 'value'
+  resultValue = ::mlir::FieldParser<Attribute>::parse(parser);
+  if (failed(resultValue)) {
+    parser.emitError(parser.getCurrentLocation(),
+                     "failed to parse ConstVectorAttr parameter 'value' as "
+                     "an attribute");
+    return {};
+  }
+
+  if (resultValue->dyn_cast<ArrayAttr>()) {
+    if (parser.parseOptionalColon().failed()) {
+      resultType = type;
+    } else {
+      resultType = ::mlir::FieldParser<::mlir::Type>::parse(parser);
+      if (failed(resultType)) {
+        parser.emitError(parser.getCurrentLocation(),
+                         "failed to parse ConstVectorAttr parameter 'type' as "
+                         "an MLIR type");
+        return {};
+      }
+    }
+  } else {
+    parser.emitError(parser.getCurrentLocation(),
+                     "failed to parse ConstVectorAttr parameter 'value' as "
+                     "an array attribute");
+    return {};
+  }
+
+  // Parse literal '>'
+  if (parser.parseGreater()) {
+    return {};
+  }
+
+  return parser.getChecked<ConstVectorAttr>(
+      loc, parser.getContext(), resultType.value(), resultValue.value());
+}
+
+void ConstVectorAttr::print(::mlir::AsmPrinter &printer) const {
+  printer << "<";
+  printer.printStrippedAttrOrType(getElts());
   printer << ">";
 }
 

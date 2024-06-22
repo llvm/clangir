@@ -511,24 +511,49 @@ class CIRConstantOpLowering
 public:
   using OpConversionPattern<mlir::cir::ConstantOp>::OpConversionPattern;
 
+private:
+  // This code is in a separate function rather than part of matchAndRewrite
+  // because it is recursive.  There is currently only one level of recursion;
+  // when lowing a vector attribute the attributes for the elements also need
+  // to be lowered.
+  mlir::TypedAttr
+  lowerCirAttrToMlirAttr(mlir::Attribute cirAttr,
+                         mlir::ConversionPatternRewriter &rewriter) const {
+    assert(cirAttr.isa<mlir::TypedAttr>() &&
+           "Can't lower a non-typed attribute");
+    auto mlirType = getTypeConverter()->convertType(
+        cirAttr.cast<mlir::TypedAttr>().getType());
+    if (auto vecAttr = cirAttr.dyn_cast<mlir::cir::ConstVectorAttr>()) {
+      assert(mlirType.isa<mlir::VectorType>() &&
+             "MLIR type for CIR vector attribute is not mlir::VectorType");
+      assert(mlirType.isa<mlir::ShapedType>() &&
+             "mlir::VectorType is not a mlir::ShapedType ??");
+      SmallVector<mlir::Attribute> mlirValues;
+      for (auto elementAttr : vecAttr.getElts().cast<mlir::ArrayAttr>()) {
+        mlirValues.push_back(
+            this->lowerCirAttrToMlirAttr(elementAttr, rewriter));
+      }
+      return mlir::DenseElementsAttr::get(mlirType.cast<mlir::ShapedType>(),
+                                          mlirValues);
+    } else if (auto boolAttr = cirAttr.dyn_cast<mlir::cir::BoolAttr>()) {
+      return rewriter.getIntegerAttr(mlirType, boolAttr.getValue());
+    } else if (auto floatAttr = cirAttr.dyn_cast<mlir::cir::FPAttr>()) {
+      return rewriter.getFloatAttr(mlirType, floatAttr.getValue());
+    } else if (auto intAttr = cirAttr.dyn_cast<mlir::cir::IntAttr>()) {
+      return rewriter.getIntegerAttr(mlirType, intAttr.getValue());
+    } else {
+      llvm_unreachable("NYI: unsupported attribute kind lowering to MLIR");
+      return {};
+    }
+  }
+
+public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::ConstantOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    auto ty = getTypeConverter()->convertType(op.getType());
-    mlir::TypedAttr value;
-    if (mlir::isa<mlir::cir::BoolType>(op.getType())) {
-      auto boolValue = mlir::cast<mlir::cir::BoolAttr>(op.getValue());
-      value = rewriter.getIntegerAttr(ty, boolValue.getValue());
-    } else if (op.getType().isa<mlir::cir::CIRFPTypeInterface>()) {
-      value = rewriter.getFloatAttr(
-          ty, op.getValue().cast<mlir::cir::FPAttr>().getValue());
-    } else {
-      auto cirIntAttr = mlir::dyn_cast<mlir::cir::IntAttr>(op.getValue());
-      assert(cirIntAttr && "NYI non cir.int attr");
-      value = rewriter.getIntegerAttr(
-          ty, cast<mlir::cir::IntAttr>(op.getValue()).getValue());
-    }
-    rewriter.replaceOpWithNewOp<mlir::arith::ConstantOp>(op, ty, value);
+    rewriter.replaceOpWithNewOp<mlir::arith::ConstantOp>(
+        op, getTypeConverter()->convertType(op.getType()),
+        this->lowerCirAttrToMlirAttr(op.getValue(), rewriter));
     return mlir::LogicalResult::success();
   }
 };
