@@ -2129,6 +2129,9 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
   if (vis != mlir::SymbolTable::Visibility::Public)
     p << vis << " ";
 
+  if (getDsolocal())
+    p << "dsolocal ";
+
   // Print function name, signature, and control.
   p.printSymbolName(getSymName());
   auto fnType = getFunctionType();
@@ -2147,6 +2150,7 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
           getAliaseeAttrName(),
           getBuiltinAttrName(),
           getCoroutineAttrName(),
+          getDsolocalAttrName(),
           getExtraAttrsAttrName(),
           getFunctionTypeAttrName(),
           getGlobalCtorAttrName(),

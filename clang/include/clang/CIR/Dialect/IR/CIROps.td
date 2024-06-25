@@ -1930,6 +1930,7 @@ def GlobalOp : CIR_Op<"global",
                        // Note this can also be a FlatSymbolRefAttr
                        OptionalAttr<AnyAttr>:$initial_value,
                        UnitAttr:$constant,
+                       UnitAttr:$dsolocal,
                        OptionalAttr<I64Attr>:$alignment,
                        OptionalAttr<ASTVarDeclInterface>:$ast,
                        OptionalAttr<StrAttr>:$section
@@ -1940,6 +1941,7 @@ def GlobalOp : CIR_Op<"global",
        (`constant` $constant^)?
        $linkage
        ($tls_model^)?
+       (`dsolocal` $dsolocal^)?
        $sym_name
        custom<GlobalOpTypeAndInitialValue>($sym_type, $initial_value, $ctorRegion, $dtorRegion)
        attr-dict
@@ -2677,6 +2679,7 @@ def FuncOp : CIR_Op<"func", [
                        UnitAttr:$coroutine,
                        UnitAttr:$lambda,
                        UnitAttr:$no_proto,
+                       UnitAttr:$dsolocal,
                        DefaultValuedAttr<GlobalLinkageKind,
                                          "GlobalLinkageKind::ExternalLinkage">:$linkage,
                        ExtraFuncAttr:$extra_attrs,
