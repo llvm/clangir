@@ -69,6 +69,19 @@ private:
   mlir::ConversionPatternRewriter *rewriter;
 };
 
+class SCFDoLoop {
+public:
+  SCFDoLoop(mlir::cir::DoWhileOp op, mlir::cir::DoWhileOp::Adaptor adaptor,
+            mlir::ConversionPatternRewriter *rewriter)
+      : DoOp(op), adaptor(adaptor), rewriter(rewriter) {}
+  void transferToSCFWhileOp();
+
+private:
+  mlir::cir::DoWhileOp DoOp;
+  mlir::cir::DoWhileOp::Adaptor adaptor;
+  mlir::ConversionPatternRewriter *rewriter;
+};
+
 static int64_t getConstant(mlir::cir::ConstantOp op) {
   auto attr = op->getAttrs().front().getValue();
   const auto IntAttr = attr.dyn_cast<mlir::cir::IntAttr>();
@@ -261,6 +274,40 @@ void SCFWhileLoop::transferToSCFWhileOp() {
   rewriter->eraseBlock(&scfWhileOp.getAfter().back());
 }
 
+void SCFDoLoop::transferToSCFWhileOp() {
+  // only support a simple do-while
+  // FIXME: can not support nested do-while
+
+  auto scfWhileOp = rewriter->create<mlir::scf::WhileOp>(
+      DoOp.getLoc(), DoOp->getResultTypes(), adaptor.getOperands());
+
+  rewriter->createBlock(&scfWhileOp.getBefore());
+  rewriter->createBlock(&scfWhileOp.getAfter());
+
+  rewriter->cloneRegionBefore(DoOp.getBody(), &scfWhileOp.getBefore().back());
+  rewriter->eraseBlock(&scfWhileOp.getBefore().back());
+
+  rewriter->cloneRegionBefore(DoOp.getCond(), &scfWhileOp.getAfter().back());
+  rewriter->eraseBlock(&scfWhileOp.getAfter().back());
+
+  rewriter->inlineBlockBefore(&scfWhileOp.getAfter().back(),
+                              &scfWhileOp.getBefore().back(),
+                              scfWhileOp.getBefore().back().end());
+
+  rewriter->createBlock(&scfWhileOp.getAfter());
+
+  auto &beforeFrontBlock = scfWhileOp.getBefore().front();
+  for (auto it = beforeFrontBlock.begin(); it != beforeFrontBlock.end(); ++it) {
+    if (auto yieldOp = llvm::dyn_cast<mlir::cir::YieldOp>(&*it)) {
+      rewriter->eraseOp(yieldOp);
+      break;
+    }
+  }
+
+  rewriter->setInsertionPointToEnd(&scfWhileOp.getAfter().front());
+  rewriter->create<mlir::scf::YieldOp>(DoOp.getLoc());
+}
+
 class CIRForOpLowering : public mlir::OpConversionPattern<mlir::cir::ForOp> {
 public:
   using OpConversionPattern<mlir::cir::ForOp>::OpConversionPattern;
@@ -291,6 +338,20 @@ public:
   }
 };
 
+class CIRDoOpLowering : public mlir::OpConversionPattern<mlir::cir::DoWhileOp> {
+public:
+  using OpConversionPattern<mlir::cir::DoWhileOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::DoWhileOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    SCFDoLoop loop(op, adaptor, &rewriter);
+    loop.transferToSCFWhileOp();
+    rewriter.eraseOp(op);
+    return mlir::success();
+  }
+};
+
 class CIRConditionOpLowering
     : public mlir::OpConversionPattern<mlir::cir::ConditionOp> {
 public:
@@ -314,8 +375,8 @@ public:
 
 void populateCIRLoopToSCFConversionPatterns(mlir::RewritePatternSet &patterns,
                                             mlir::TypeConverter &converter) {
-  patterns.add<CIRForOpLowering, CIRWhileOpLowering, CIRConditionOpLowering>(
-      converter, patterns.getContext());
+  patterns.add<CIRForOpLowering, CIRWhileOpLowering, CIRConditionOpLowering,
+               CIRDoOpLowering>(converter, patterns.getContext());
 }
 
 } // namespace cir
