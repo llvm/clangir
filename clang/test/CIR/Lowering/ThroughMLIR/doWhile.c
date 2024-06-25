@@ -31,7 +31,7 @@ int sum() {
 // CHECK:     memref.store %[[ADD1]], %[[ALLOC1]][] : memref<i32>
 // CHECK:     %[[VAR4:.+]] = memref.load %[[ALLOC1]][] : memref<i32>
 // CHECK:     %[[C10_I32:.+]] = arith.constant 10 : i32
-// CHECK:     %[[CMP:.+]] = arith.cmpi ule, %[[VAR4]], %[[C10_I32]] : i32
+// CHECK:     %[[CMP:.+]] = arith.cmpi sle, %[[VAR4]], %[[C10_I32]] : i32
 // CHECK:     %[[EXT:.+]] = arith.extui %[[CMP]] : i1 to i32
 // CHECK:     %[[C0_I32_3:.+]] = arith.constant 0 : i32
 // CHECK:     %[[NE:.+]] = arith.cmpi ne, %[[EXT]], %[[C0_I32_3]] : i32
