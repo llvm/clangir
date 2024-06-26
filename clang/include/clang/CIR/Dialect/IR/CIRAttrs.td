@@ -636,7 +636,7 @@ def AddressSpaceAttr : CIR_Attr<"AddressSpace", "addrspace"> {
     corresponds to a null attribute instead.
   }];
 
-  let parameters = (ins "int64_t":$value);
+  let parameters = (ins "int32_t":$value);
 
   let assemblyFormat = [{
     `<` $value `>`
@@ -653,7 +653,7 @@ def AddressSpaceAttr : CIR_Attr<"AddressSpace", "addrspace"> {
   let cppNamespace = "::mlir::cir";
 
   // The following codes implement these conversions:
-  // clang::LangAS -> int64_t <-> text-form CIR
+  // clang::LangAS -> int32_t <-> text-form CIR
 
   // CIR_PointerType manipulates the parse- and stringify- methods to provide
   // simplified assembly format `custom<PointerAddrSpace>`.
@@ -666,15 +666,15 @@ def AddressSpaceAttr : CIR_Attr<"AddressSpace", "addrspace"> {
 
   let extraClassDeclaration = [{
     static constexpr char kTargetKeyword[] = "}]#targetASCase.symbol#[{";
-    static constexpr int64_t kFirstTargetASValue = }]#targetASCase.value#[{;
+    static constexpr int32_t kFirstTargetASValue = }]#targetASCase.value#[{;
   
     bool isLang() const;
     bool isTarget() const;
     unsigned getTargetValue() const;
 
-    static std::optional<int64_t> parseValueFromString(llvm::StringRef s);
-    static std::optional<int64_t> getValueFromLangAS(clang::LangAS v);
-    static std::optional<llvm::StringRef> stringifyValue(int64_t v);
+    static std::optional<int32_t> parseValueFromString(llvm::StringRef s);
+    static std::optional<int32_t> getValueFromLangAS(clang::LangAS v);
+    static std::optional<llvm::StringRef> stringifyValue(int32_t v);
   }];
 
   let extraClassDefinition = [{
@@ -691,9 +691,9 @@ def AddressSpaceAttr : CIR_Attr<"AddressSpace", "addrspace"> {
       return getValue() - kFirstTargetASValue;
     }
 
-    std::optional<int64_t>
+    std::optional<int32_t>
     $cppClass::parseValueFromString(llvm::StringRef str) {
-      return llvm::StringSwitch<::std::optional<int64_t>>(str)
+      return llvm::StringSwitch<::std::optional<int32_t>>(str)
         }]
         #
         !interleave(
@@ -709,7 +709,7 @@ def AddressSpaceAttr : CIR_Attr<"AddressSpace", "addrspace"> {
     }
 
     std::optional<llvm::StringRef>
-    $cppClass::stringifyValue(int64_t value) {
+    $cppClass::stringifyValue(int32_t value) {
       switch (value) {
       }]
       #
@@ -727,7 +727,7 @@ def AddressSpaceAttr : CIR_Attr<"AddressSpace", "addrspace"> {
       }
     }
 
-    std::optional<int64_t>
+    std::optional<int32_t>
     $cppClass::getValueFromLangAS(clang::LangAS langAS) {
       switch (langAS) {
       }]
