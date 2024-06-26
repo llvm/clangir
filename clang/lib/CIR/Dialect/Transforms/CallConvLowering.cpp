@@ -31,12 +31,12 @@ LowerModule createLowerModule(FuncOp op, PatternRewriter &rewriter) {
   auto module = op->getParentOfType<mlir::ModuleOp>();
 
   // Fetch the LLVM data layout string.
-  auto dataLayoutStr = mlir::cast<StringAttr>(
+  auto dataLayoutStr = cast<StringAttr>(
       module->getAttr(LLVM::LLVMDialect::getDataLayoutAttrName()));
 
   // Fetch target information.
   llvm::Triple triple(
-      mlir::cast<StringAttr>(module->getAttr("cir.triple")).getValue());
+      cast<StringAttr>(module->getAttr("cir.triple")).getValue());
   clang::TargetOptions targetOptions;
   targetOptions.Triple = triple.str();
   auto targetInfo = clang::targets::AllocateTarget(triple, targetOptions);

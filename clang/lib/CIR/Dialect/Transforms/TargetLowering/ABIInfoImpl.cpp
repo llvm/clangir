@@ -23,7 +23,7 @@ bool classifyReturnType(const CIRCXXABI &CXXABI, LowerFunctionInfo &FI,
                         const ABIInfo &Info) {
   Type Ty = FI.getReturnType();
 
-  if (const auto RT = mlir::dyn_cast<StructType>(Ty)) {
+  if (const auto RT = dyn_cast<StructType>(Ty)) {
     llvm_unreachable("NYI");
   }
 
