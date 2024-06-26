@@ -542,9 +542,9 @@ Type IntType::parse(mlir::AsmParser &parser) {
   llvm::StringRef sign;
   if (parser.parseKeyword(&sign))
     return {};
-  if (sign.equals_insensitive("s"))
+  if (sign == "s")
     isSigned = true;
-  else if (sign.equals_insensitive("u"))
+  else if (sign == "u")
     isSigned = false;
   else {
     parser.emitError(loc, "expected 's' or 'u'");

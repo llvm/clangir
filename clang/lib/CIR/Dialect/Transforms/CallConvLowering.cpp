@@ -121,7 +121,7 @@ void CallConvLoweringPass::runOnOperation() {
   config.setStrictness(GreedyRewriteStrictness::ExistingOps);
 
   // Apply patterns.
-  if (failed(applyOpPatternsAndFold(ops, std::move(patterns), config)))
+  if (failed(applyOpPatternsGreedily(ops, std::move(patterns), config)))
     signalPassFailure();
 }
 
