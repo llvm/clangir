@@ -946,8 +946,7 @@ void CIRGenFunction::buildCallArgs(
   // First, if a prototype was provided, use those argument types.
   bool IsVariadic = false;
   if (Prototype.P) {
-    const auto *MD =
-        mlir::dyn_cast_if_present<const ObjCMethodDecl *>(Prototype.P);
+    const auto *MD = mlir::dyn_cast<const ObjCMethodDecl *>(Prototype.P);
     assert(!MD && "ObjCMethodDecl NYI");
 
     const auto *FPT = Prototype.P.get<const FunctionProtoType *>();

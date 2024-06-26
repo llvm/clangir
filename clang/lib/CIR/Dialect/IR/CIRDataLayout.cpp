@@ -11,7 +11,7 @@ CIRDataLayout::CIRDataLayout(mlir::ModuleOp modOp) : layout{modOp} {
 
   for (auto entry : entries) {
     auto entryKey = entry.getKey();
-    auto strKey = mlir::dyn_cast_if_present<mlir::StringAttr>(entryKey);
+    auto strKey = mlir::dyn_cast<mlir::StringAttr>(entryKey);
     if (!strKey)
       continue;
     auto entryName = strKey.strref();

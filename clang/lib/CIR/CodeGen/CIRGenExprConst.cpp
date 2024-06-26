@@ -1263,7 +1263,7 @@ private:
   ConstantLValue applyOffset(ConstantLValue &C) {
 
     // Handle attribute constant LValues.
-    if (auto Attr = mlir::dyn_cast_if_present<mlir::Attribute>(C.Value)) {
+    if (auto Attr = mlir::dyn_cast<mlir::Attribute>(C.Value)) {
       if (auto GV = mlir::dyn_cast<mlir::cir::GlobalViewAttr>(Attr)) {
         auto baseTy =
             mlir::cast<mlir::cir::PointerType>(GV.getType()).getPointee();

@@ -34,8 +34,7 @@ mlir::Type ConstantInitFuture::getType() const {
 
 void ConstantInitFuture::abandon() {
   assert(Data && "abandoning null future");
-  if (auto builder =
-          mlir::dyn_cast_if_present<ConstantInitBuilderBase *>(Data)) {
+  if (auto builder = mlir::dyn_cast<ConstantInitBuilderBase *>(Data)) {
     builder->abandon(0);
   }
   Data = nullptr;
