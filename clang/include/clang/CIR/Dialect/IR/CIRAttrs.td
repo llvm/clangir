@@ -754,6 +754,43 @@ def AddressSpaceAttr : CIR_Attr<"AddressSpace", "addrspace"> {
   }];
 }
 
+
+//===----------------------------------------------------------------------===//
+// OpenCLKernelMetadataAttr
+//===----------------------------------------------------------------------===//
+
+def OpenCLKernelMetadataAttr
+    : CIR_Attr<"OpenCLKernelMetadata", "ocl.kernel_metadata"> {
+  
+  let summary = "OpenCL kernel metadata for backend";
+  let description = [{
+    Provide the required information of an OpenCL kernel for the SPIR-V backend.
+
+    Example:
+    ```
+    #fn_attr = #cir<extra({ocl.kernel_metadata = #cir.ocl.kernel_metadata<
+      workGroupSizeHint = [8 : i32, 16 : i32, 32 : i32],
+      reqdWorkGroupSize = [1 : i32, 2 : i32, 4 : i32],
+      vecTypeHint = !s32i,
+      intelReqdSubGroupSize = 8 : i32
+    >})>
+
+    cir.func @kernel(%arg0: !s32i) extra(#fn_attr) {
+      cir.return
+    }
+    ```
+  }];
+
+  let parameters = (ins OptionalParameter<"ArrayAttr">:$workGroupSizeHint,
+                        OptionalParameter<"ArrayAttr">:$reqdWorkGroupSize,
+                        OptionalParameter<"TypeAttr">:$vecTypeHint,
+                        OptionalParameter<"IntegerAttr">:$intelReqdSubGroupSize
+  );
+
+  let assemblyFormat = "`<` struct(params) `>`";
+
+}
+
 //===----------------------------------------------------------------------===//
 // AST Wrappers
 //===----------------------------------------------------------------------===//

@@ -61,6 +61,11 @@ public:
           llvmFunc->addFnAttr(llvm::Attribute::OptimizeNone);
         } else if (mlir::dyn_cast<mlir::cir::NoThrowAttr>(attr.getValue())) {
           llvmFunc->addFnAttr(llvm::Attribute::NoUnwind);
+        } else if (auto oclKernelMetadata =
+                       mlir::dyn_cast<mlir::cir::OpenCLKernelMetadataAttr>(
+                           attr.getValue())) {
+          emitOpenCLKernelMetadata(oclKernelMetadata, llvmFunc,
+                                   moduleTranslation);
         }
       }
     }
@@ -82,6 +87,89 @@ public:
               moduleTranslation.convertType(cirOp.getType()));
 
     return mlir::success();
+  }
+
+private:
+  void emitOpenCLKernelMetadata(
+      mlir::cir::OpenCLKernelMetadataAttr oclKernelMetadata,
+      llvm::Function *llvmFunc,
+      mlir::LLVM::ModuleTranslation &moduleTranslation) const {
+    auto &vmCtx = moduleTranslation.getLLVMContext();
+
+    auto unpackDim3ArrayAttr = [](mlir::ArrayAttr arrayAttr) {
+      llvm::SmallVector<int64_t, 3> dims;
+      for (auto dim : arrayAttr) {
+        dims.push_back(cast<mlir::IntegerAttr>(dim).getInt());
+      }
+      return dims;
+    };
+
+    if (auto workGroupSizeHint = oclKernelMetadata.getWorkGroupSizeHint()) {
+      auto dim3Value = unpackDim3ArrayAttr(workGroupSizeHint);
+      llvm::Metadata *AttrMDArgs[] = {
+          llvm::ConstantAsMetadata::get(
+              llvm::ConstantInt::get(llvm::IntegerType::get(vmCtx, 32),
+                                     llvm::APInt(32, dim3Value[0]))),
+          llvm::ConstantAsMetadata::get(
+              llvm::ConstantInt::get(llvm::IntegerType::get(vmCtx, 32),
+                                     llvm::APInt(32, dim3Value[1]))),
+          llvm::ConstantAsMetadata::get(
+              llvm::ConstantInt::get(llvm::IntegerType::get(vmCtx, 32),
+                                     llvm::APInt(32, dim3Value[2]))),
+      };
+      llvmFunc->setMetadata("work_group_size_hint",
+                            llvm::MDNode::get(vmCtx, AttrMDArgs));
+    }
+
+    if (auto reqdWorkGroupSize = oclKernelMetadata.getReqdWorkGroupSize()) {
+      auto dim3Value = unpackDim3ArrayAttr(reqdWorkGroupSize);
+      llvm::Metadata *AttrMDArgs[] = {
+          llvm::ConstantAsMetadata::get(
+              llvm::ConstantInt::get(llvm::IntegerType::get(vmCtx, 32),
+                                     llvm::APInt(32, dim3Value[0]))),
+          llvm::ConstantAsMetadata::get(
+              llvm::ConstantInt::get(llvm::IntegerType::get(vmCtx, 32),
+                                     llvm::APInt(32, dim3Value[1]))),
+          llvm::ConstantAsMetadata::get(
+              llvm::ConstantInt::get(llvm::IntegerType::get(vmCtx, 32),
+                                     llvm::APInt(32, dim3Value[2]))),
+      };
+      llvmFunc->setMetadata("reqd_work_group_size",
+                            llvm::MDNode::get(vmCtx, AttrMDArgs));
+    }
+
+    if (auto vecTypeHint = oclKernelMetadata.getVecTypeHint()) {
+      auto hintQTy = vecTypeHint.getValue();
+      auto hintEltQTy = dyn_cast<mlir::LLVM::LLVMFixedVectorType>(hintQTy);
+      bool isSignedInteger =
+          hintQTy.isSignedInteger() ||
+          (hintEltQTy && hintEltQTy.getElementType().isSignedInteger());
+      auto droppedHintQTy = hintQTy.replace(
+          [&](mlir::IntegerType ty) -> std::pair<mlir::Type, mlir::WalkResult> {
+            return std::make_pair(
+                mlir::IntegerType::get(ty.getContext(), ty.getWidth()),
+                mlir::WalkResult::advance());
+          });
+      llvm::Metadata *AttrMDArgs[] = {
+          llvm::ConstantAsMetadata::get(llvm::UndefValue::get(
+              moduleTranslation.convertType(droppedHintQTy))),
+          llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(
+              llvm::IntegerType::get(vmCtx, 32),
+              llvm::APInt(32, (uint64_t)(isSignedInteger ? 1 : 0))))};
+      llvmFunc->setMetadata("vec_type_hint",
+                            llvm::MDNode::get(vmCtx, AttrMDArgs));
+    }
+
+    if (auto intelReqdSubgroupSize = oclKernelMetadata.getIntelReqdSubGroupSize()) {
+      int64_t reqdSubgroupSize = intelReqdSubgroupSize.getInt();
+      llvm::Metadata *AttrMDArgs[] = {
+          llvm::ConstantAsMetadata::get(
+              llvm::ConstantInt::get(llvm::IntegerType::get(vmCtx, 32),
+                                     llvm::APInt(32, reqdSubgroupSize))),
+      };
+      llvmFunc->setMetadata("intel_reqd_sub_group_size",
+                            llvm::MDNode::get(vmCtx, AttrMDArgs));
+    }
   }
 };
 
