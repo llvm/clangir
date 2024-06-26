@@ -2979,7 +2979,7 @@ LogicalResult GetMemberOp::verify() {
 
 LogicalResult GetRuntimeMemberOp::verify() {
   auto recordTy =
-      cast<StructType>(getAddr().getType().cast<PointerType>().getPointee());
+      cast<StructType>(cast<PointerType>(getAddr().getType()).getPointee());
   auto memberPtrTy = getMember().getType();
 
   if (recordTy != memberPtrTy.getClsTy()) {

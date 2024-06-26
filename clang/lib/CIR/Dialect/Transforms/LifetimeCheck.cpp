@@ -1682,7 +1682,7 @@ void LifetimeCheckPass::checkForOwnerAndPointerArguments(CallOp callOp,
     if (aggregates.count(arg)) {
       int memberIdx = 0;
       auto sTy =
-          dyn_cast<StructType>(arg.getType().cast<PointerType>().getPointee());
+          dyn_cast<StructType>(cast<PointerType>(arg.getType()).getPointee());
       assert(sTy && "expected struct type");
       for (auto m : sTy.getMembers()) {
         auto ptrMemberAddr = aggregates[arg][memberIdx];
