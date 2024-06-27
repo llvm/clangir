@@ -738,7 +738,7 @@ def AddressSpaceAttr : CIR_Attr<"AddressSpace", "addrspace"> {
       !interleave(
         !foreach(case, langASCases,
           "case clang::LangAS::"#case.symbol
-          # ": return "#case.value # ";" ),
+          # [{: llvm_unreachable("Not Yet Supported");}] ),
         "\n"
       )
       #
