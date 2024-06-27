@@ -605,14 +605,7 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
     const ReferenceType *RTy = cast<ReferenceType>(Ty);
     QualType ETy = RTy->getPointeeType();
     auto PointeeType = convertTypeForMem(ETy);
-    // TODO(cir): when address space mapping in CIR lowering is implemented,
-    // passthrough these non-target address spaces like `opencl_global`
-    assert(!MissingFeatures::targetLoweringInfoAddressSpaceMap());
-    // Here we convert them to target AS ahead of time
-    LangAS langAS = ETy.getAddressSpace();
-    if (langAS != LangAS::Default)
-      langAS = getLangASFromTargetAS(Context.getTargetAddressSpace(langAS));
-    ResultType = Builder.getPointerTo(PointeeType, langAS);
+    ResultType = Builder.getPointerTo(PointeeType, ETy.getAddressSpace());
     assert(ResultType && "Cannot get pointer type?");
     break;
   }
@@ -627,14 +620,7 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
     // if (PointeeType->isVoidTy())
     //  PointeeType = Builder.getI8Type();
 
-    // TODO(cir): when address space mapping in CIR lowering is implemented,
-    // passthrough these non-target address spaces like `opencl_global`
-    assert(!MissingFeatures::targetLoweringInfoAddressSpaceMap());
-    // Here we convert them to target AS ahead of time
-    LangAS langAS = ETy.getAddressSpace();
-    if (langAS != LangAS::Default)
-      langAS = getLangASFromTargetAS(Context.getTargetAddressSpace(langAS));
-    ResultType = Builder.getPointerTo(PointeeType, langAS);
+    ResultType = Builder.getPointerTo(PointeeType, ETy.getAddressSpace());
     assert(ResultType && "Cannot get pointer type?");
     break;
   }

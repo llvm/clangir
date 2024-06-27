@@ -3,6 +3,9 @@
 // RUN: %clang_cc1 -cl-std=CL3.0 -O0 -fclangir -emit-llvm -triple spirv64-unknown-unknown %s -o %t.ll
 // RUN: FileCheck --input-file=%t.ll %s --check-prefix=LLVM
 
+// Lowering of language-specific AS not supported
+// XFAIL: *
+
 // CIR: cir.func @func(%arg0: !cir.ptr<!s32i, addrspace(target<3>)>
 // LLVM: @func(ptr addrspace(3)
 kernel void func(local int *p) {

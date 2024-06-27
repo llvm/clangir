@@ -729,6 +729,9 @@ def AddressSpaceAttr : CIR_Attr<"AddressSpace", "addrspace"> {
 
     std::optional<int32_t>
     $cppClass::getValueFromLangAS(clang::LangAS langAS) {
+      assert((langAS == clang::LangAS::Default ||
+             clang::isTargetAddressSpace(langAS)) &&
+             "Language-specific address spaces are not supported");
       switch (langAS) {
       }]
       #
