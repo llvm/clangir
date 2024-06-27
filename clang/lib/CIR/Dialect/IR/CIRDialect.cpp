@@ -2821,17 +2821,12 @@ void ConstArrayAttr::print(::mlir::AsmPrinter &printer) const {
 
 LogicalResult mlir::cir::ConstVectorAttr::verify(
     ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
-    ::mlir::Type type, Attribute attr) {
+    ::mlir::Type type, mlir::ArrayAttr arrayAttr) {
 
   if (!type.isa<mlir::cir::VectorType>()) {
     return emitError()
            << "type of cir::ConstVectorAttr is not a cir::VectorType: " << type;
   }
-  if (!attr.isa<mlir::ArrayAttr>()) {
-    return emitError() << "the sub-attribute within a cir::ConstVectorAttr is "
-                          "not an ArrayAttr";
-  }
-  auto arrayAttr = attr.cast<mlir::ArrayAttr>();
   auto vecType = type.cast<mlir::cir::VectorType>();
 
   // Do the number of elements match?
@@ -2860,7 +2855,7 @@ LogicalResult mlir::cir::ConstVectorAttr::verify(
 ::mlir::Attribute ConstVectorAttr::parse(::mlir::AsmParser &parser,
                                          ::mlir::Type type) {
   ::mlir::FailureOr<::mlir::Type> resultType;
-  ::mlir::FailureOr<Attribute> resultValue;
+  ::mlir::FailureOr<ArrayAttr> resultValue;
   ::llvm::SMLoc loc = parser.getCurrentLocation();
 
   // Parse literal '<'
@@ -2869,7 +2864,7 @@ LogicalResult mlir::cir::ConstVectorAttr::verify(
   }
 
   // Parse variable 'value'
-  resultValue = ::mlir::FieldParser<Attribute>::parse(parser);
+  resultValue = ::mlir::FieldParser<ArrayAttr>::parse(parser);
   if (failed(resultValue)) {
     parser.emitError(parser.getCurrentLocation(),
                      "failed to parse ConstVectorAttr parameter 'value' as "
@@ -2877,23 +2872,16 @@ LogicalResult mlir::cir::ConstVectorAttr::verify(
     return {};
   }
 
-  if (resultValue->dyn_cast<ArrayAttr>()) {
-    if (parser.parseOptionalColon().failed()) {
-      resultType = type;
-    } else {
-      resultType = ::mlir::FieldParser<::mlir::Type>::parse(parser);
-      if (failed(resultType)) {
-        parser.emitError(parser.getCurrentLocation(),
-                         "failed to parse ConstVectorAttr parameter 'type' as "
-                         "an MLIR type");
-        return {};
-      }
-    }
+  if (parser.parseOptionalColon().failed()) {
+    resultType = type;
   } else {
-    parser.emitError(parser.getCurrentLocation(),
-                     "failed to parse ConstVectorAttr parameter 'value' as "
-                     "an array attribute");
-    return {};
+    resultType = ::mlir::FieldParser<::mlir::Type>::parse(parser);
+    if (failed(resultType)) {
+      parser.emitError(parser.getCurrentLocation(),
+                       "failed to parse ConstVectorAttr parameter 'type' as "
+                       "an MLIR type");
+      return {};
+    }
   }
 
   // Parse literal '>'

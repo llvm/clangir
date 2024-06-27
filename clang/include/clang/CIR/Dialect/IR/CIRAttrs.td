@@ -159,7 +159,7 @@ def ConstVectorAttr : CIR_Attr<"ConstVector", "const_vector",
   }];
 
   let parameters = (ins AttributeSelfTypeParameter<"">:$type,
-		        "Attribute":$elts);
+		        "ArrayAttr":$elts);
 
   // Define a custom builder for the type; that removes the need to pass in an
   // MLIRContext instance, as it can be inferred from the `type`.
