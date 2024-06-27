@@ -928,7 +928,7 @@ mlir::ParseResult parsePointerAddrSpace(mlir::AsmParser &p,
 void printPointerAddrSpace(mlir::AsmPrinter &p,
                            mlir::Attribute rawAddrSpaceAttr) {
   using mlir::cir::AddressSpaceAttr;
-  auto addrSpaceAttr = rawAddrSpaceAttr.cast<AddressSpaceAttr>();
+  auto addrSpaceAttr = mlir::cast<AddressSpaceAttr>(rawAddrSpaceAttr);
   if (addrSpaceAttr.isTarget()) {
     p << AddressSpaceAttr::kTargetKeyword << "<"
       << addrSpaceAttr.getTargetValue() << ">";
