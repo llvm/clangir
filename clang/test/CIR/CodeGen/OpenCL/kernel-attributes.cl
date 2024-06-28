@@ -1,6 +1,6 @@
-// RUN: %clang_cc1 -fclangir -emit-cir %s -o %t.cir
+// RUN: %clang_cc1 -fclangir -emit-cir -triple x86_64-unknown-linux-gnu %s -o %t.cir
 // RUN: FileCheck %s --input-file=%t.cir --check-prefix=CIR
-// RUN: %clang_cc1 -fclangir -emit-llvm %s -o %t.ll
+// RUN: %clang_cc1 -fclangir -emit-llvm -triple x86_64-unknown-linux-gnu %s -o %t.ll
 // RUN: FileCheck %s --input-file=%t.ll --check-prefix=LLVM
 
 typedef unsigned int uint4 __attribute__((ext_vector_type(4)));
