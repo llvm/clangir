@@ -114,13 +114,13 @@ void X86_64ABIInfo::classify(Type Ty, uint64_t OffsetBase, Class &Lo, Class &Hi,
   if (/*isBuitinType=*/true) {
     if (isa<VoidType>(Ty)) {
       Current = Class::NoClass;
-    } else if (Ty.isa<IntType>()) {
+    } else if (isa<IntType>(Ty)) {
 
       // FIXME(cir): Clang's BuiltinType::Kind allow comparisons (GT, LT, etc).
       // We should implement this in CIR to simplify the conditions below. BTW,
       // I'm not sure if the comparisons below are truly equivalent to the ones
       // in Clang.
-      if (Ty.isa<IntType>()) {
+      if (isa<IntType>(Ty)) {
         Current = Class::Integer;
       }
       return;
@@ -226,12 +226,12 @@ Type X86_64ABIInfo::GetINTEGERTypeAtOffset(Type DestTy, unsigned IROffset,
 
     // If we have a sign or zero extended integer, make sure to return Extend
     // so that the parameter gets the right LLVM IR attributes.
-    if (Hi == Class::NoClass && resType.isa<IntType>()) {
+    if (Hi == Class::NoClass && isa<IntType>(resType)) {
       // NOTE(cir): We skip enum types handling here since CIR represents
       // enums directly as their unerlying integer types. NOTE(cir): For some
       // reason, Clang does not set the coerce type here and delays it to
       // arrangeLLVMFunctionInfo. We do the same to keep parity.
-      if (RetTy.isa<IntType>() && isPromotableIntegerTypeForABI(RetTy))
+      if (isa<IntType>(RetTy) && isPromotableIntegerTypeForABI(RetTy))
         return ABIArgInfo::getExtend(RetTy);
     }
     break;
@@ -291,12 +291,12 @@ ABIArgInfo X86_64ABIInfo::classifyArgumentType(Type Ty, unsigned freeIntRegs,
 
     // If we have a sign or zero extended integer, make sure to return Extend
     // so that the parameter gets the right LLVM IR attributes.
-    if (Hi == Class::NoClass && ResType.isa<IntType>()) {
+    if (Hi == Class::NoClass && isa<IntType>(ResType)) {
       // NOTE(cir): We skip enum types handling here since CIR represents
       // enums directly as their unerlying integer types. NOTE(cir): For some
       // reason, Clang does not set the coerce type here and delays it to
       // arrangeLLVMFunctionInfo. We do the same to keep parity.
-      if (Ty.isa<IntType, BoolType>() && isPromotableIntegerTypeForABI(Ty))
+      if (isa<IntType, BoolType>(Ty) && isPromotableIntegerTypeForABI(Ty))
         return ABIArgInfo::getExtend(Ty);
     }
 

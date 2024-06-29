@@ -31,7 +31,7 @@ bool classifyReturnType(const CIRCXXABI &CXXABI, LowerFunctionInfo &FI,
 }
 
 Type useFirstFieldIfTransparentUnion(Type Ty) {
-  if (auto RT = Ty.dyn_cast<StructType>()) {
+  if (auto RT = dyn_cast<StructType>(Ty)) {
     if (RT.isUnion())
       llvm_unreachable("NYI");
   }

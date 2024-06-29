@@ -63,9 +63,15 @@ mlir::Value LoweringPrepareAArch64CXXABI::lowerAAPCSVAArg(
   auto opResTy = op.getType();
   // front end should not produce non-scalar type of VAArgOp
   bool isSupportedType =
+<<<<<<< HEAD
       mlir::isa<mlir::cir::IntType, mlir::cir::SingleType,
                 mlir::cir::PointerType, mlir::cir::BoolType,
                 mlir::cir::DoubleType, mlir::cir::ArrayType>(opResTy);
+=======
+      isa<mlir::cir::IntType, mlir::cir::SingleType, mlir::cir::PointerType,
+          mlir::cir::BoolType, mlir::cir::DoubleType, mlir::cir::ArrayType>(
+          opResTy);
+>>>>>>> 92b5444bae17 (Remove deprecated methods (isa, cast, and dyn_cast))
 
   // Homogenous Aggregate type not supported and indirect arg
   // passing not supported yet. And for these supported types,
@@ -82,7 +88,11 @@ mlir::Value LoweringPrepareAArch64CXXABI::lowerAAPCSVAArg(
   // but it depends on arg type indirectness and coercion defined by ABI.
   auto baseTy = opResTy;
 
+<<<<<<< HEAD
   if (mlir::isa<mlir::cir::ArrayType>(baseTy)) {
+=======
+  if (isa<mlir::cir::ArrayType>(baseTy)) {
+>>>>>>> 92b5444bae17 (Remove deprecated methods (isa, cast, and dyn_cast))
     llvm_unreachable("ArrayType VAArg loweing NYI");
   }
   // numRegs may not be 1 if ArrayType is supported.

@@ -50,7 +50,7 @@ clang::TypeInfo CIRLowerContext::getTypeInfoImpl(const Type T) const {
   // TODO(cir): We should implement a better way to identify type kinds and use
   // builting data layout interface for this.
   auto typeKind = clang::Type::Builtin;
-  if (T.isa<IntType>()) {
+  if (isa<IntType>(T)) {
     typeKind = clang::Type::Builtin;
   } else {
     llvm_unreachable("Unhandled type class");
@@ -66,7 +66,7 @@ clang::TypeInfo CIRLowerContext::getTypeInfoImpl(const Type T) const {
   // current level of CIR.
   switch (typeKind) {
   case clang::Type::Builtin: {
-    if (auto intTy = T.dyn_cast<IntType>()) {
+    if (auto intTy = dyn_cast<IntType>(T)) {
       // NOTE(cir): This assumes int types are already ABI-specific.
       // FIXME(cir): Use data layout interface here instead.
       Width = intTy.getWidth();
@@ -139,8 +139,8 @@ bool CIRLowerContext::isPromotableIntegerType(Type T) const {
   // FIXME(cir): CIR does not distinguish between char, short, etc. So we just
   // assume it is promotable if smaller than 32 bits. This is wrong since, for
   // example, Char32 is promotable. Improve CIR or add an AST query here.
-  if (auto intTy = T.dyn_cast<IntType>()) {
-    return T.cast<IntType>().getWidth() < 32;
+  if (auto intTy = dyn_cast<IntType>(T)) {
+    return cast<IntType>(T).getWidth() < 32;
   }
 
   // Enumerated types are promotable to their compatible integer types

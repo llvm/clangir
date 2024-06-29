@@ -113,8 +113,8 @@ LowerFunction::buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
       // Prepare parameter attributes. So far, only attributes for pointer
       // parameters are prepared. See
       // http://llvm.org/docs/LangRef.html#paramattrs.
-      if (ArgI.getDirectOffset() == 0 && LTy.isa<PointerType>() &&
-          ArgI.getCoerceToType().isa<PointerType>()) {
+      if (ArgI.getDirectOffset() == 0 && isa<PointerType>(LTy) &&
+          isa<PointerType>(ArgI.getCoerceToType())) {
         llvm_unreachable("NYI");
       }
 
@@ -413,7 +413,7 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
       // NOTE(cir): While booleans are lowered directly as `i1`s in the
       // original codegen, in CIR they require a trivial bitcast. This is
       // handled here.
-      if (info_it->type.isa<BoolType>()) {
+      if (isa<BoolType>(info_it->type)) {
         IRCallArgs[FirstIRArg] =
             createBitcast(*I, ArgInfo.getCoerceToType(), *this);
         break;
@@ -424,7 +424,7 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
           ArgInfo.getDirectOffset() == 0) {
         assert(NumIRArgs == 1);
         Value V;
-        if (!I->getType().isa<StructType>()) {
+        if (isa<StructType>(!I->getType())) {
           V = *I;
         } else {
           llvm_unreachable("NYI");
@@ -435,7 +435,7 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
         }
 
         if (ArgInfo.getCoerceToType() != V.getType() &&
-            V.getType().isa<IntType>())
+            isa<IntType>(V.getType()))
           llvm_unreachable("NYI");
 
         if (FirstIRArg < IRFuncTy.getNumInputs() &&
@@ -517,7 +517,7 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
       // NOTE(cir): While booleans are lowered directly as `i1`s in the
       // original codegen, in CIR they require a trivial bitcast. This is
       // handled here.
-      assert(!RetTy.isa<BoolType>());
+      assert(!isa<BoolType>(RetTy));
 
       Type RetIRTy = RetTy;
       if (RetAI.getCoerceToType() == RetIRTy && RetAI.getDirectOffset() == 0) {
@@ -562,9 +562,9 @@ Value LowerFunction::getUndefRValue(Type Ty) {
 
 ::cir::TypeEvaluationKind LowerFunction::getEvaluationKind(Type type) {
   // FIXME(cir): Implement type classes for CIR types.
-  if (type.isa<StructType>())
+  if (isa<StructType>(type))
     return ::cir::TypeEvaluationKind::TEK_Aggregate;
-  if (type.isa<IntType, SingleType, DoubleType>())
+  if (isa<IntType, SingleType, DoubleType>(type))
     return ::cir::TypeEvaluationKind::TEK_Scalar;
   llvm_unreachable("NYI");
 }
