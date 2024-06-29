@@ -116,7 +116,7 @@ void CIRLowerContext::initBuiltinTypes(const clang::TargetInfo &Target,
     llvm_unreachable("NYI");
 }
 
-/// toCharUnitsFromBits - Convert a size in bits to a size in characters.
+/// Convert a size in bits to a size in characters.
 clang::CharUnits CIRLowerContext::toCharUnitsFromBits(int64_t BitSize) const {
   return clang::CharUnits::fromQuantity(BitSize / getCharWidth());
 }
