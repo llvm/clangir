@@ -75,14 +75,18 @@ public:
     return mlir::cir::IntType::get(getContext(), N, true);
   }
 
-  mlir::cir::PointerType getPointerTo(mlir::Type ty,
-                                      unsigned addressSpace = 0) {
-    assert(!addressSpace && "address space is NYI");
-    return mlir::cir::PointerType::get(getContext(), ty);
+  mlir::cir::PointerType
+  getPointerTo(mlir::Type ty, clang::LangAS langAS = clang::LangAS::Default) {
+    mlir::cir::AddressSpaceAttr addrSpaceAttr;
+    if (langAS != clang::LangAS::Default)
+      addrSpaceAttr = mlir::cir::AddressSpaceAttr::get(getContext(), langAS);
+
+    return mlir::cir::PointerType::get(getContext(), ty, addrSpaceAttr);
   }
 
-  mlir::cir::PointerType getVoidPtrTy(unsigned addressSpace = 0) {
-    return getPointerTo(::mlir::cir::VoidType::get(getContext()), addressSpace);
+  mlir::cir::PointerType
+  getVoidPtrTy(clang::LangAS langAS = clang::LangAS::Default) {
+    return getPointerTo(::mlir::cir::VoidType::get(getContext()), langAS);
   }
 
   mlir::Value createLoad(mlir::Location loc, mlir::Value ptr,
@@ -133,7 +137,7 @@ public:
   }
 
   mlir::Value createShift(mlir::Value lhs, unsigned bits, bool isShiftLeft) {
-    auto width = lhs.getType().dyn_cast<mlir::cir::IntType>().getWidth();
+    auto width = mlir::dyn_cast<mlir::cir::IntType>(lhs.getType()).getWidth();
     auto shift = llvm::APInt(width, bits);
     return createShift(lhs, shift, isShiftLeft);
   }
@@ -197,7 +201,7 @@ public:
                                  mlir::Value dst, bool _volatile = false,
                                  ::mlir::IntegerAttr align = {},
                                  ::mlir::cir::MemOrderAttr order = {}) {
-    if (dst.getType().cast<mlir::cir::PointerType>().getPointee() !=
+    if (mlir::cast<mlir::cir::PointerType>(dst.getType()).getPointee() !=
         val.getType())
       dst = createPtrBitcast(dst, val.getType());
     return create<mlir::cir::StoreOp>(loc, val, dst, _volatile, align, order);
@@ -312,11 +316,12 @@ public:
   mlir::Value createGetMemberOp(mlir::Location &loc, mlir::Value structPtr,
                                 const char *fldName, unsigned idx) {
 
-    assert(structPtr.getType().isa<mlir::cir::PointerType>());
+    assert(mlir::isa<mlir::cir::PointerType>(structPtr.getType()));
     auto structBaseTy =
-        structPtr.getType().cast<mlir::cir::PointerType>().getPointee();
-    assert(structBaseTy.isa<mlir::cir::StructType>());
-    auto fldTy = structBaseTy.cast<mlir::cir::StructType>().getMembers()[idx];
+        mlir::cast<mlir::cir::PointerType>(structPtr.getType()).getPointee();
+    assert(mlir::isa<mlir::cir::StructType>(structBaseTy));
+    auto fldTy =
+        mlir::cast<mlir::cir::StructType>(structBaseTy).getMembers()[idx];
     auto fldPtrTy = ::mlir::cir::PointerType::get(getContext(), fldTy);
     return create<mlir::cir::GetMemberOp>(loc, fldPtrTy, structPtr, fldName,
                                           idx);
@@ -340,7 +345,8 @@ public:
     if (srcTy == newTy)
       return src;
 
-    if (srcTy.isa<mlir::cir::BoolType>() && newTy.isa<mlir::cir::IntType>())
+    if (mlir::isa<mlir::cir::BoolType>(srcTy) &&
+        mlir::isa<mlir::cir::IntType>(newTy))
       return createBoolToInt(src, newTy);
 
     llvm_unreachable("unhandled extension cast");
@@ -360,7 +366,8 @@ public:
   }
 
   mlir::Value createPtrBitcast(mlir::Value src, mlir::Type newPointeeTy) {
-    assert(src.getType().isa<mlir::cir::PointerType>() && "expected ptr src");
+    assert(mlir::isa<mlir::cir::PointerType>(src.getType()) &&
+           "expected ptr src");
     return createBitcast(src, getPointerTo(newPointeeTy));
   }
 
@@ -430,8 +437,8 @@ public:
   mlir::TypedAttr getConstPtrAttr(mlir::Type t, int64_t v) {
     auto val =
         mlir::IntegerAttr::get(mlir::IntegerType::get(t.getContext(), 64), v);
-    return mlir::cir::ConstPtrAttr::get(getContext(),
-                                        t.cast<mlir::cir::PointerType>(), val);
+    return mlir::cir::ConstPtrAttr::get(
+        getContext(), mlir::cast<mlir::cir::PointerType>(t), val);
   }
 
   // Creates constant nullptr for pointer type ty.
@@ -500,6 +507,45 @@ public:
                mlir::cir::ExtraFuncAttributesAttr extraFnAttr = {}) {
     return createCallOp(loc, callee, mlir::cir::VoidType(), operands,
                         extraFnAttr);
+  }
+
+  mlir::cir::TryCallOp
+  createTryCallOp(mlir::Location loc, mlir::Value exception,
+                  mlir::SymbolRefAttr callee = mlir::SymbolRefAttr(),
+                  mlir::Type returnType = mlir::cir::VoidType(),
+                  mlir::ValueRange operands = mlir::ValueRange(),
+                  mlir::cir::ExtraFuncAttributesAttr extraFnAttr = {}) {
+    mlir::cir::TryCallOp tryCallOp = create<mlir::cir::TryCallOp>(
+        loc, callee, exception, returnType, operands);
+    if (extraFnAttr) {
+      tryCallOp->setAttr("extra_attrs", extraFnAttr);
+    } else {
+      mlir::NamedAttrList empty;
+      tryCallOp->setAttr("extra_attrs",
+                         mlir::cir::ExtraFuncAttributesAttr::get(
+                             getContext(), empty.getDictionary(getContext())));
+    }
+    return tryCallOp;
+  }
+
+  mlir::cir::TryCallOp
+  createTryCallOp(mlir::Location loc, mlir::cir::FuncOp callee,
+                  mlir::Value exception, mlir::ValueRange operands,
+                  mlir::cir::ExtraFuncAttributesAttr extraFnAttr = {}) {
+    return createTryCallOp(loc, exception, mlir::SymbolRefAttr::get(callee),
+                           callee.getFunctionType().getReturnType(), operands,
+                           extraFnAttr);
+  }
+
+  mlir::cir::TryCallOp createIndirectTryCallOp(mlir::Location loc,
+                                               mlir::Value ind_target,
+                                               mlir::Value exception,
+                                               mlir::cir::FuncType fn_type,
+                                               mlir::ValueRange operands) {
+    llvm::SmallVector<mlir::Value, 4> resOperands({ind_target});
+    resOperands.append(operands.begin(), operands.end());
+    return createTryCallOp(loc, exception, mlir::SymbolRefAttr(),
+                           fn_type.getReturnType(), resOperands);
   }
 };
 

@@ -151,7 +151,7 @@ static void replace(Container &C, size_t BeginOff, size_t EndOff, Range Vals) {
 bool ConstantAggregateBuilder::add(mlir::Attribute A, CharUnits Offset,
                                    bool AllowOverwrite) {
   // FIXME(cir): migrate most of this file to use mlir::TypedAttr directly.
-  mlir::TypedAttr C = A.dyn_cast<mlir::TypedAttr>();
+  mlir::TypedAttr C = mlir::dyn_cast<mlir::TypedAttr>(A);
   assert(C && "expected typed attribute");
   // Common case: appending to a layout.
   if (Offset >= Size) {
@@ -319,7 +319,7 @@ std::optional<size_t> ConstantAggregateBuilder::splitAt(CharUnits Pos) {
     // We found an element starting before Pos. Check for overlap.
     // FIXME(cir): migrate most of this file to use mlir::TypedAttr directly.
     mlir::TypedAttr C =
-        Elems[LastAtOrBeforePosIndex].dyn_cast<mlir::TypedAttr>();
+        mlir::dyn_cast<mlir::TypedAttr>(Elems[LastAtOrBeforePosIndex]);
     assert(C && "expected typed attribute");
     if (Offsets[LastAtOrBeforePosIndex] + getSize(C) <= Pos)
       return LastAtOrBeforePosIndex + 1;
@@ -349,7 +349,7 @@ mlir::Attribute ConstantAggregateBuilder::buildFrom(
 
   // If we want an array type, see if all the elements are the same type and
   // appropriately spaced.
-  if (auto aty = DesiredTy.dyn_cast<mlir::cir::ArrayType>()) {
+  if (auto aty = mlir::dyn_cast<mlir::cir::ArrayType>(DesiredTy)) {
     llvm_unreachable("NYI");
   }
 
@@ -366,7 +366,7 @@ mlir::Attribute ConstantAggregateBuilder::buildFrom(
   CharUnits Align = CharUnits::One();
   for (auto e : Elems) {
     // FIXME(cir): migrate most of this file to use mlir::TypedAttr directly.
-    auto C = e.dyn_cast<mlir::TypedAttr>();
+    auto C = mlir::dyn_cast<mlir::TypedAttr>(e);
     assert(C && "expected typed attribute");
     Align = std::max(Align, Utils.getAlignment(C));
   }
@@ -395,7 +395,7 @@ mlir::Attribute ConstantAggregateBuilder::buildFrom(
   if (!NaturalLayout) {
     CharUnits SizeSoFar = CharUnits::Zero();
     for (size_t I = 0; I != Elems.size(); ++I) {
-      mlir::TypedAttr C = Elems[I].dyn_cast<mlir::TypedAttr>();
+      mlir::TypedAttr C = mlir::dyn_cast<mlir::TypedAttr>(Elems[I]);
       assert(C && "expected typed attribute");
 
       CharUnits Align = Utils.getAlignment(C);
@@ -452,7 +452,7 @@ void ConstantAggregateBuilder::condense(CharUnits Offset,
     return;
 
   // FIXME(cir): migrate most of this file to use mlir::TypedAttr directly.
-  mlir::TypedAttr C = Elems[First].dyn_cast<mlir::TypedAttr>();
+  mlir::TypedAttr C = mlir::dyn_cast<mlir::TypedAttr>(Elems[First]);
   assert(C && "expected typed attribute");
   if (Length == 1 && Offsets[First] == Offset && getSize(C) == Size) {
     // Re-wrap single element structs if necessary. Otherwise, leave any single
@@ -1041,7 +1041,7 @@ public:
 
   mlir::Attribute EmitVectorInitialization(InitListExpr *ILE, QualType T) {
     mlir::cir::VectorType VecTy =
-        CGM.getTypes().ConvertType(T).cast<mlir::cir::VectorType>();
+        mlir::cast<mlir::cir::VectorType>(CGM.getTypes().ConvertType(T));
     unsigned NumElements = VecTy.getSize();
     unsigned NumInits = ILE->getNumInits();
     assert(NumElements >= NumInits && "Too many initializers for a vector");
@@ -1289,9 +1289,10 @@ private:
   ConstantLValue applyOffset(ConstantLValue &C) {
 
     // Handle attribute constant LValues.
-    if (auto Attr = C.Value.dyn_cast<mlir::Attribute>()) {
-      if (auto GV = Attr.dyn_cast<mlir::cir::GlobalViewAttr>()) {
-        auto baseTy = GV.getType().cast<mlir::cir::PointerType>().getPointee();
+    if (auto Attr = mlir::dyn_cast<mlir::Attribute>(C.Value)) {
+      if (auto GV = mlir::dyn_cast<mlir::cir::GlobalViewAttr>(Attr)) {
+        auto baseTy =
+            mlir::cast<mlir::cir::PointerType>(GV.getType()).getPointee();
         auto destTy = CGM.getTypes().convertTypeForMem(DestType);
         assert(!GV.getIndices() && "Global view is already indexed");
         return mlir::cir::GlobalViewAttr::get(destTy, GV.getSymbol(),
@@ -1318,7 +1319,7 @@ mlir::Attribute ConstantLValueEmitter::tryEmit() {
   // non-zero null pointer and addrspace casts that aren't trivially
   // represented in LLVM IR.
   auto destTy = CGM.getTypes().convertTypeForMem(DestType);
-  assert(destTy.isa<mlir::cir::PointerType>());
+  assert(mlir::isa<mlir::cir::PointerType>(destTy));
 
   // If there's no base at all, this is a null or absolute pointer,
   // possibly cast back to an integer type.
@@ -1341,7 +1342,7 @@ mlir::Attribute ConstantLValueEmitter::tryEmit() {
 
   // Convert to the appropriate type; this could be an lvalue for
   // an integer. FIXME: performAddrSpaceCast
-  if (destTy.isa<mlir::cir::PointerType>()) {
+  if (mlir::isa<mlir::cir::PointerType>(destTy)) {
     if (value.is<mlir::Attribute>())
       return value.get<mlir::Attribute>();
     llvm_unreachable("NYI");
@@ -1354,7 +1355,7 @@ mlir::Attribute ConstantLValueEmitter::tryEmit() {
 /// bitcast to pointer type.
 mlir::Attribute ConstantLValueEmitter::tryEmitAbsolute(mlir::Type destTy) {
   // If we're producing a pointer, this is easy.
-  auto destPtrTy = destTy.dyn_cast<mlir::cir::PointerType>();
+  auto destPtrTy = mlir::dyn_cast<mlir::cir::PointerType>(destTy);
   assert(destPtrTy && "expected !cir.ptr type");
   return CGM.getBuilder().getConstPtrAttr(
       destPtrTy, Value.getLValueOffset().getQuantity());
@@ -1678,8 +1679,8 @@ mlir::Attribute ConstantEmitter::emitForMemory(CIRGenModule &CGM,
   }
 
   // Zero-extend bool.
-  auto typed = C.dyn_cast<mlir::TypedAttr>();
-  if (typed && typed.getType().isa<mlir::cir::BoolType>()) {
+  auto typed = mlir::dyn_cast<mlir::TypedAttr>(C);
+  if (typed && mlir::isa<mlir::cir::BoolType>(typed.getType())) {
     // Already taken care given that bool values coming from
     // integers only carry true/false.
   }
@@ -1692,7 +1693,7 @@ mlir::TypedAttr ConstantEmitter::tryEmitPrivate(const Expr *E,
   assert(!destType->isVoidType() && "can't emit a void constant");
 
   if (auto C = ConstExprEmitter(*this).Visit(const_cast<Expr *>(E), destType)) {
-    if (auto TypedC = C.dyn_cast_or_null<mlir::TypedAttr>())
+    if (auto TypedC = mlir::dyn_cast_if_present<mlir::TypedAttr>(C))
       return TypedC;
     llvm_unreachable("this should always be typed");
   }
@@ -1709,7 +1710,7 @@ mlir::TypedAttr ConstantEmitter::tryEmitPrivate(const Expr *E,
 
   if (Success && !Result.hasSideEffects()) {
     auto C = tryEmitPrivate(Result.Val, destType);
-    if (auto TypedC = C.dyn_cast_or_null<mlir::TypedAttr>())
+    if (auto TypedC = mlir::dyn_cast_if_present<mlir::TypedAttr>(C))
       return TypedC;
     llvm_unreachable("this should always be typed");
   }
@@ -1728,9 +1729,9 @@ mlir::Attribute ConstantEmitter::tryEmitPrivate(const APValue &Value,
     assert(0 && "not implemented");
   case APValue::Int: {
     mlir::Type ty = CGM.getCIRType(DestType);
-    if (ty.isa<mlir::cir::BoolType>())
+    if (mlir::isa<mlir::cir::BoolType>(ty))
       return builder.getCIRBoolAttr(Value.getInt().getZExtValue());
-    assert(ty.isa<mlir::cir::IntType>() && "expected integral type");
+    assert(mlir::isa<mlir::cir::IntType>(ty) && "expected integral type");
     return CGM.getBuilder().getAttr<mlir::cir::IntAttr>(ty, Value.getInt());
   }
   case APValue::Float: {
@@ -1741,7 +1742,7 @@ mlir::Attribute ConstantEmitter::tryEmitPrivate(const APValue &Value,
       assert(0 && "not implemented");
     else {
       mlir::Type ty = CGM.getCIRType(DestType);
-      assert(ty.isa<mlir::cir::CIRFPTypeInterface>() &&
+      assert(mlir::isa<mlir::cir::CIRFPTypeInterface>(ty) &&
              "expected floating-point type");
       return CGM.getBuilder().getAttr<mlir::cir::FPAttr>(ty, Init);
     }
@@ -1774,8 +1775,9 @@ mlir::Attribute ConstantEmitter::tryEmitPrivate(const APValue &Value,
       if (!C)
         return {};
 
-      assert(C.isa<mlir::TypedAttr>() && "This should always be a TypedAttr.");
-      auto CTyped = C.cast<mlir::TypedAttr>();
+      assert(mlir::isa<mlir::TypedAttr>(C) &&
+             "This should always be a TypedAttr.");
+      auto CTyped = mlir::cast<mlir::TypedAttr>(C);
 
       if (I == 0)
         CommonElementType = CTyped.getType();
@@ -1809,7 +1811,7 @@ mlir::Attribute ConstantEmitter::tryEmitPrivate(const APValue &Value,
       Elts.push_back(C);
     }
     auto Desired =
-        CGM.getTypes().ConvertType(DestType).cast<mlir::cir::VectorType>();
+        mlir::cast<mlir::cir::VectorType>(CGM.getTypes().ConvertType(DestType));
     return mlir::cir::ConstVectorAttr::get(
         Desired, mlir::ArrayAttr::get(CGM.getBuilder().getContext(), Elts));
   }
@@ -1822,8 +1824,8 @@ mlir::Attribute ConstantEmitter::tryEmitPrivate(const APValue &Value,
     if (const auto *memberFuncDecl = dyn_cast<CXXMethodDecl>(memberDecl))
       assert(0 && "not implemented");
 
-    auto cirTy =
-        CGM.getTypes().ConvertType(DestType).cast<mlir::cir::DataMemberType>();
+    auto cirTy = mlir::cast<mlir::cir::DataMemberType>(
+        CGM.getTypes().ConvertType(DestType));
 
     const auto *fieldDecl = cast<FieldDecl>(memberDecl);
     return builder.getDataMemberAttr(cirTy, fieldDecl->getFieldIndex());
@@ -1877,7 +1879,7 @@ mlir::Value CIRGenModule::buildMemberPointerConstant(const UnaryOperator *E) {
   if (const auto *methodDecl = dyn_cast<CXXMethodDecl>(decl))
     assert(0 && "not implemented");
 
-  auto ty = getCIRType(E->getType()).cast<mlir::cir::DataMemberType>();
+  auto ty = mlir::cast<mlir::cir::DataMemberType>(getCIRType(E->getType()));
 
   // Otherwise, a member data pointer.
   const auto *fieldDecl = cast<FieldDecl>(decl);
@@ -1888,7 +1890,7 @@ mlir::Value CIRGenModule::buildMemberPointerConstant(const UnaryOperator *E) {
 mlir::Attribute ConstantEmitter::emitAbstract(const Expr *E,
                                               QualType destType) {
   auto state = pushAbstract();
-  auto C = tryEmitPrivate(E, destType).cast<mlir::Attribute>();
+  auto C = mlir::cast<mlir::Attribute>(tryEmitPrivate(E, destType));
   C = validateAndPopAbstract(C, state);
   if (!C) {
     llvm_unreachable("NYI");

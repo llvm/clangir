@@ -125,11 +125,11 @@ def ConstArrayAttr : CIR_Attr<"ConstArray", "const_array", [TypedAttrInterface]>
     AttrBuilderWithInferredContext<(ins "mlir::cir::ArrayType":$type,
                                         "Attribute":$elts), [{
       int zeros = 0;
-      auto typeSize = type.cast<mlir::cir::ArrayType>().getSize();
-      if (auto str = elts.dyn_cast<mlir::StringAttr>())
+      auto typeSize = mlir::cast<mlir::cir::ArrayType>(type).getSize();
+      if (auto str = mlir::dyn_cast<mlir::StringAttr>(elts))
         zeros = typeSize - str.size();
       else
-        zeros = typeSize - elts.cast<mlir::ArrayAttr>().size();
+        zeros = typeSize - mlir::cast<mlir::ArrayAttr>(elts).size();
 
       return $_get(type.getContext(), type, elts, zeros);
     }]>
@@ -231,7 +231,7 @@ def IntAttr : CIR_Attr<"Int", "int", [TypedAttrInterface]> {
       return $_get(type.getContext(), type, value);
     }]>,
     AttrBuilderWithInferredContext<(ins "Type":$type, "int64_t":$value), [{
-      IntType intType = type.cast<IntType>();
+      IntType intType = mlir::cast<IntType>(type);
       mlir::APInt apValue(intType.getWidth(), value, intType.isSigned());
       return $_get(intType.getContext(), intType, apValue);
     }]>,
@@ -240,7 +240,7 @@ def IntAttr : CIR_Attr<"Int", "int", [TypedAttrInterface]> {
     int64_t getSInt() const { return getValue().getSExtValue(); }
     uint64_t getUInt() const { return getValue().getZExtValue(); }
     bool isNullValue() const { return getValue() == 0; }
-    uint64_t getBitWidth() const { return getType().cast<IntType>().getWidth(); }
+    uint64_t getBitWidth() const { return mlir::cast<IntType>(getType()).getWidth(); }
   }];
   let genVerifyDecl = 1;
   let hasCustomAssemblyFormat = 1;
@@ -288,11 +288,11 @@ def ConstPtrAttr : CIR_Attr<"ConstPtr", "ptr", [TypedAttrInterface]> {
   }];
   let builders = [
     AttrBuilderWithInferredContext<(ins "Type":$type, "mlir::IntegerAttr":$value), [{
-      return $_get(type.getContext(), type.cast<mlir::cir::PointerType>(), value);
+      return $_get(type.getContext(), mlir::cast<mlir::cir::PointerType>(type), value);
     }]>,
     AttrBuilder<(ins "Type":$type,
                      "mlir::IntegerAttr":$value), [{
-      return $_get($_ctxt, type.cast<mlir::cir::PointerType>(), value);
+      return $_get($_ctxt, mlir::cast<mlir::cir::PointerType>(type), value);
     }]>,
   ];
   let extraClassDeclaration = [{
@@ -645,6 +645,143 @@ def DynamicCastInfoAttr
   let extraClassDeclaration = [{
     /// Get attribute alias name for this attribute.
     std::string getAlias() const;
+  }];
+}
+
+//===----------------------------------------------------------------------===//
+// AddressSpaceAttr
+//===----------------------------------------------------------------------===//
+
+// TODO: other CIR AS cases
+def AS_Target : I32EnumAttrCase<"target", 21>;
+
+def AddressSpaceAttr : CIR_Attr<"AddressSpace", "addrspace"> {
+
+  let summary = "Address space attribute for pointer types";
+  let description = [{
+    The address space attribute models `clang::LangAS` rather than the LLVM
+    address space, which means it's not yet converted by the address space map
+    to carry target-specific semantics.
+
+    The representation is one-to-one except for `LangAS::Default`, which
+    corresponds to a null attribute instead.
+  }];
+
+  let parameters = (ins "int32_t":$value);
+
+  let assemblyFormat = [{
+    `<` $value `>`
+  }];
+
+  let builders = [
+    AttrBuilder<(ins "clang::LangAS":$langAS), [{
+      assert(langAS != clang::LangAS::Default &&
+        "Default address space is encoded as null attribute");
+      return $_get($_ctxt, getValueFromLangAS(langAS).value());
+    }]>
+  ];
+
+  let cppNamespace = "::mlir::cir";
+
+  // The following codes implement these conversions:
+  // clang::LangAS -> int32_t <-> text-form CIR
+
+  // CIR_PointerType manipulates the parse- and stringify- methods to provide
+  // simplified assembly format `custom<PointerAddrSpace>`.
+
+  list<I32EnumAttrCase> langASCases = [
+    // TODO: includes all non-target CIR AS cases here
+  ];
+
+  I32EnumAttrCase targetASCase = AS_Target;
+
+  let extraClassDeclaration = [{
+    static constexpr char kTargetKeyword[] = "}]#targetASCase.symbol#[{";
+    static constexpr int32_t kFirstTargetASValue = }]#targetASCase.value#[{;
+  
+    bool isLang() const;
+    bool isTarget() const;
+    unsigned getTargetValue() const;
+
+    static std::optional<int32_t> parseValueFromString(llvm::StringRef s);
+    static std::optional<int32_t> getValueFromLangAS(clang::LangAS v);
+    static std::optional<llvm::StringRef> stringifyValue(int32_t v);
+  }];
+
+  let extraClassDefinition = [{
+    bool $cppClass::isLang() const {
+      return !isTarget();
+    }
+
+    bool $cppClass::isTarget() const {
+      return getValue() >= kFirstTargetASValue;
+    }
+
+    unsigned $cppClass::getTargetValue() const {
+      assert(isTarget() && "Not a target address space");
+      return getValue() - kFirstTargetASValue;
+    }
+
+    std::optional<int32_t>
+    $cppClass::parseValueFromString(llvm::StringRef str) {
+      return llvm::StringSwitch<::std::optional<int32_t>>(str)
+        }]
+        #
+        !interleave(
+          !foreach(case, langASCases,
+            ".Case(\""#case.symbol# "\", "#case.value # ")\n"
+          ),
+          "\n"
+        )
+        #
+        [{
+        // Target address spaces are not parsed here
+        .Default(std::nullopt);
+    }
+
+    std::optional<llvm::StringRef>
+    $cppClass::stringifyValue(int32_t value) {
+      switch (value) {
+      }]
+      #
+      !interleave(
+        !foreach(case, langASCases,
+          "case "#case.value
+          # ": return \""#case.symbol # "\";" ),
+        "\n"
+      )
+      #
+      [{
+      default:
+        // Target address spaces are not processed here
+        return std::nullopt;
+      }
+    }
+
+    std::optional<int32_t>
+    $cppClass::getValueFromLangAS(clang::LangAS langAS) {
+      assert((langAS == clang::LangAS::Default ||
+             clang::isTargetAddressSpace(langAS)) &&
+             "Language-specific address spaces are not supported");
+      switch (langAS) {
+      }]
+      #
+      !interleave(
+        !foreach(case, langASCases,
+          "case clang::LangAS::"#case.symbol
+          # [{: llvm_unreachable("Not Yet Supported");}] ),
+        "\n"
+      )
+      #
+      [{
+      case clang::LangAS::Default:
+        // Default address space should be encoded as a null attribute.
+        return std::nullopt;
+      default:
+        // Target address space offset arithmetics
+        return clang::toTargetAddressSpace(langAS) + kFirstTargetASValue;
+      }
+    }
   }];
 }
 

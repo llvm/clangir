@@ -48,6 +48,8 @@ struct MissingFeatures {
   static bool hiddenVisibility() { return false; }
   static bool protectedVisibility() { return false; }
   static bool addCompilerUsedGlobal() { return false; }
+  static bool supportIFuncAttr() { return false; }
+  static bool setDefaultVisibility() { return false; }
 
   // Sanitizers
   static bool reportGlobalToASan() { return false; }
@@ -154,6 +156,7 @@ struct MissingFeatures {
   static bool constantFoldsToSimpleInteger() { return false; }
   static bool checkFunctionCallABI() { return false; }
   static bool zeroInitializer() { return false; }
+  static bool targetLoweringInfoAddressSpaceMap() { return false; }
   static bool targetCodeGenInfoIsProtoCallVariadic() { return false; }
   static bool targetCodeGenInfoGetNullPointer() { return false; }
   static bool operandBundles() { return false; }

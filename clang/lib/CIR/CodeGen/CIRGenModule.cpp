@@ -364,6 +364,103 @@ bool CIRGenModule::MayBeEmittedEagerly(const ValueDecl *Global) {
   return true;
 }
 
+static bool hasDefaultVisibility(CIRGlobalValueInterface GV) {
+  // TODO: we need to have a precise definition of what is a default visibility.
+  // in the context of MILR and CIR, now we default to
+  assert(!MissingFeatures::setDefaultVisibility());
+  return true;
+}
+
+static bool shouldAssumeDSOLocal(const CIRGenModule &CGM,
+                                 CIRGlobalValueInterface GV) {
+  if (GV.hasLocalLinkage())
+    return true;
+
+  if (!hasDefaultVisibility(GV) && !GV.hasExternalWeakLinkage()) {
+    return true;
+  }
+
+  // DLLImport explicitly marks the GV as external.
+  // so it shouldn't be dso_local
+  // But we don't have the info set now
+  assert(!MissingFeatures::setDLLImportDLLExport());
+
+  const llvm::Triple &TT = CGM.getTriple();
+  const auto &CGOpts = CGM.getCodeGenOpts();
+  if (TT.isWindowsGNUEnvironment()) {
+    // In MinGW, variables without DLLImport can still be automatically
+    // imported from a DLL by the linker; don't mark variables that
+    // potentially could come from another DLL as DSO local.
+
+    // With EmulatedTLS, TLS variables can be autoimported from other DLLs
+    // (and this actually happens in the public interface of libstdc++), so
+    // such variables can't be marked as DSO local. (Native TLS variables
+    // can't be dllimported at all, though.)
+    llvm_unreachable("MinGW not supported here");
+  }
+
+  // On COFF, don't mark 'extern_weak' symbols as DSO local. If these symbols
+  // remain unresolved in the link, they can be resolved to zero, which is
+  // outside the current DSO.
+  if (TT.isOSBinFormatCOFF() && GV.hasExternalWeakLinkage())
+    return false;
+
+  // Every other GV is local on COFF.
+  // Make an exception for windows OS in the triple: Some firmware builds use
+  // *-win32-macho triples. This (accidentally?) produced windows relocations
+  // without GOT tables in older clang versions; Keep this behaviour.
+  // FIXME: even thread local variables?
+  if (TT.isOSBinFormatCOFF() || (TT.isOSWindows() && TT.isOSBinFormatMachO()))
+    return true;
+
+  // Only handle COFF and ELF for now.
+  if (!TT.isOSBinFormatELF())
+    return false;
+
+  llvm::Reloc::Model RM = CGOpts.RelocationModel;
+  const auto &LOpts = CGM.getLangOpts();
+  if (RM != llvm::Reloc::Static && !LOpts.PIE) {
+    // On ELF, if -fno-semantic-interposition is specified and the target
+    // supports local aliases, there will be neither CC1
+    // -fsemantic-interposition nor -fhalf-no-semantic-interposition. Set
+    // dso_local on the function if using a local alias is preferable (can avoid
+    // PLT indirection).
+    if (!(isa<mlir::cir::FuncOp>(GV) && GV.canBenefitFromLocalAlias())) {
+      return false;
+    }
+    return !(CGM.getLangOpts().SemanticInterposition ||
+             CGM.getLangOpts().HalfNoSemanticInterposition);
+  }
+
+  // A definition cannot be preempted from an executable.
+  if (!GV.isDeclarationForLinker())
+    return true;
+
+  // Most PIC code sequences that assume that a symbol is local cannot produce a
+  // 0 if it turns out the symbol is undefined. While this is ABI and relocation
+  // depended, it seems worth it to handle it here.
+  if (RM == llvm::Reloc::PIC_ && GV.hasExternalWeakLinkage())
+    return false;
+
+  // PowerPC64 prefers TOC indirection to avoid copy relocations.
+  if (TT.isPPC64())
+    return false;
+
+  if (CGOpts.DirectAccessExternalData) {
+    llvm_unreachable("-fdirect-access-external-data not supported");
+  }
+
+  // If we can use copy relocations we can assume it is local.
+
+  // Otherwise don't assume it is local.
+
+  return false;
+}
+
+void CIRGenModule::setDSOLocal(CIRGlobalValueInterface GV) const {
+  GV.setDSOLocal(shouldAssumeDSOLocal(*this, GV));
+}
+
 void CIRGenModule::buildGlobal(GlobalDecl GD) {
   const auto *Global = cast<ValueDecl>(GD.getDecl());
 
@@ -872,7 +969,7 @@ mlir::Operation *CIRGenModule::getWeakRefReference(const ValueDecl *VD) {
   }
 
   mlir::Type DeclTy = getTypes().convertTypeForMem(VD->getType());
-  if (DeclTy.isa<mlir::cir::FuncType>()) {
+  if (mlir::isa<mlir::cir::FuncType>(DeclTy)) {
     auto F = GetOrCreateCIRFunction(AA->getAliasee(), DeclTy,
                                     GlobalDecl(cast<FunctionDecl>(VD)),
                                     /*ForVtable=*/false);
@@ -1013,23 +1110,23 @@ void CIRGenModule::buildGlobalVarDefinition(const clang::VarDecl *D,
   //
   // TODO(cir): create another attribute to contain the final type and abstract
   // away SymbolRefAttr.
-  if (auto symAttr = Init.dyn_cast<mlir::SymbolRefAttr>()) {
+  if (auto symAttr = mlir::dyn_cast<mlir::SymbolRefAttr>(Init)) {
     auto cstGlobal = mlir::SymbolTable::lookupSymbolIn(theModule, symAttr);
     assert(isa<mlir::cir::GlobalOp>(cstGlobal) &&
            "unaware of other symbol providers");
     auto g = cast<mlir::cir::GlobalOp>(cstGlobal);
-    auto arrayTy = g.getSymType().dyn_cast<mlir::cir::ArrayType>();
+    auto arrayTy = mlir::dyn_cast<mlir::cir::ArrayType>(g.getSymType());
     // TODO(cir): pointer to array decay. Should this be modeled explicitly in
     // CIR?
     if (arrayTy)
       InitType = mlir::cir::PointerType::get(builder.getContext(),
                                              arrayTy.getEltType());
   } else {
-    assert(Init.isa<mlir::TypedAttr>() && "This should have a type");
-    auto TypedInitAttr = Init.cast<mlir::TypedAttr>();
+    assert(mlir::isa<mlir::TypedAttr>(Init) && "This should have a type");
+    auto TypedInitAttr = mlir::cast<mlir::TypedAttr>(Init);
     InitType = TypedInitAttr.getType();
   }
-  assert(!InitType.isa<mlir::NoneType>() && "Should have a type by now");
+  assert(!mlir::isa<mlir::NoneType>(InitType) && "Should have a type by now");
 
   auto Entry = buildGlobal(D, InitType, ForDefinition_t(!IsTentative));
   // TODO(cir): Strip off pointer casts from Entry if we get them?
@@ -1208,11 +1305,11 @@ CIRGenModule::getConstantArrayFromStringLiteral(const StringLiteral *E) {
     return builder.getString(Str, eltTy, finalSize);
   }
 
-  auto arrayTy =
-      getTypes().ConvertType(E->getType()).dyn_cast<mlir::cir::ArrayType>();
+  auto arrayTy = mlir::dyn_cast<mlir::cir::ArrayType>(
+      getTypes().ConvertType(E->getType()));
   assert(arrayTy && "string literals must be emitted as an array type");
 
-  auto arrayEltTy = arrayTy.getEltType().dyn_cast<mlir::cir::IntType>();
+  auto arrayEltTy = mlir::dyn_cast<mlir::cir::IntType>(arrayTy.getEltType());
   assert(arrayEltTy &&
          "string literal elements must be emitted as integral type");
 
@@ -1272,7 +1369,6 @@ generateStringLiteral(mlir::Location loc, mlir::TypedAttr C,
   GV.setLinkageAttr(
       mlir::cir::GlobalLinkageKindAttr::get(CGM.getBuilder().getContext(), LT));
   CIRGenModule::setInitializer(GV, C);
-
   // TODO(cir)
   assert(!cir::MissingFeatures::threadLocal() && "NYI");
   assert(!cir::MissingFeatures::unnamedAddr() && "NYI");
@@ -1326,12 +1422,13 @@ CIRGenModule::getAddrOfConstantStringFromLiteral(const StringLiteral *S,
       llvm_unreachable("this should never be untyped at this point");
     GV = generateStringLiteral(loc, typedC, LT, *this, GlobalVariableName,
                                Alignment);
+    setDSOLocal(static_cast<mlir::Operation *>(GV));
     ConstantStringMap[C] = GV;
 
     assert(!cir::MissingFeatures::reportGlobalToASan() && "NYI");
   }
 
-  auto ArrayTy = GV.getSymType().dyn_cast<mlir::cir::ArrayType>();
+  auto ArrayTy = mlir::dyn_cast<mlir::cir::ArrayType>(GV.getSymType());
   assert(ArrayTy && "String literal must be array");
   auto PtrTy =
       mlir::cir::PointerType::get(builder.getContext(), ArrayTy.getEltType());
@@ -1979,6 +2076,9 @@ void CIRGenModule::setGlobalVisibility(mlir::Operation *GV,
 
 void CIRGenModule::setDSOLocal(mlir::Operation *Op) const {
   assert(!MissingFeatures::setDSOLocal());
+  if (auto globalValue = dyn_cast<mlir::cir::CIRGlobalValueInterface>(Op)) {
+    setDSOLocal(globalValue);
+  }
 }
 
 void CIRGenModule::setGVProperties(mlir::Operation *Op,
@@ -2276,8 +2376,8 @@ mlir::cir::FuncOp CIRGenModule::GetOrCreateCIRFunction(
   bool IsIncompleteFunction = false;
 
   mlir::cir::FuncType FTy;
-  if (Ty.isa<mlir::cir::FuncType>()) {
-    FTy = Ty.cast<mlir::cir::FuncType>();
+  if (mlir::isa<mlir::cir::FuncType>(Ty)) {
+    FTy = mlir::cast<mlir::cir::FuncType>(Ty);
   } else {
     assert(false && "NYI");
     // FTy = mlir::FunctionType::get(VoidTy, false);
@@ -2750,6 +2850,7 @@ mlir::cir::GlobalOp CIRGenModule::createOrReplaceCXXRuntimeVariable(
     assert(!MissingFeatures::setComdat());
 
   GV.setAlignmentAttr(getSize(Alignment));
+  setDSOLocal(static_cast<mlir::Operation *>(GV));
   return GV;
 }
 

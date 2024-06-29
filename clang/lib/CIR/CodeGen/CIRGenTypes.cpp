@@ -605,9 +605,7 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
     const ReferenceType *RTy = cast<ReferenceType>(Ty);
     QualType ETy = RTy->getPointeeType();
     auto PointeeType = convertTypeForMem(ETy);
-    ResultType = ::mlir::cir::PointerType::get(
-        Builder.getContext(), PointeeType,
-        Context.getTargetAddressSpace(ETy.getAddressSpace()));
+    ResultType = Builder.getPointerTo(PointeeType, ETy.getAddressSpace());
     assert(ResultType && "Cannot get pointer type?");
     break;
   }
@@ -622,9 +620,7 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
     // if (PointeeType->isVoidTy())
     //  PointeeType = Builder.getI8Type();
 
-    ResultType = ::mlir::cir::PointerType::get(
-        Builder.getContext(), PointeeType,
-        Context.getTargetAddressSpace(ETy.getAddressSpace()));
+    ResultType = Builder.getPointerTo(PointeeType, ETy.getAddressSpace());
     assert(ResultType && "Cannot get pointer type?");
     break;
   }
@@ -714,8 +710,8 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
     assert(MPT->isMemberDataPointer() && "ptr-to-member-function is NYI");
 
     auto memberTy = ConvertType(MPT->getPointeeType());
-    auto clsTy =
-        ConvertType(QualType(MPT->getClass(), 0)).cast<mlir::cir::StructType>();
+    auto clsTy = mlir::cast<mlir::cir::StructType>(
+        ConvertType(QualType(MPT->getClass(), 0)));
     ResultType =
         mlir::cir::DataMemberType::get(Builder.getContext(), memberTy, clsTy);
     break;

@@ -78,9 +78,9 @@ def CIR_IntType : CIR_Type<"Int", "int",
 // Unsigned integer type of a specific width.
 class UInt<int width>
   : Type<And<[
-        CPred<"$_self.isa<::mlir::cir::IntType>()">,
-        CPred<"$_self.cast<::mlir::cir::IntType>().isUnsigned()">,
-        CPred<"$_self.cast<::mlir::cir::IntType>().getWidth() == " # width>
+        CPred<"::mlir::isa<::mlir::cir::IntType>($_self)">,
+        CPred<"::mlir::cast<::mlir::cir::IntType>($_self).isUnsigned()">,
+        CPred<"::mlir::cast<::mlir::cir::IntType>($_self).getWidth() == " # width>
         ]>, width # "-bit unsigned integer", "::mlir::cir::IntType">,
     BuildableType<
       "mlir::cir::IntType::get($_builder.getContext(), "
@@ -97,9 +97,9 @@ def UInt64 : UInt<64>;
 // Signed integer type of a specific width.
 class SInt<int width>
   : Type<And<[
-        CPred<"$_self.isa<::mlir::cir::IntType>()">,
-        CPred<"$_self.cast<::mlir::cir::IntType>().isSigned()">,
-        CPred<"$_self.cast<::mlir::cir::IntType>().getWidth() == " # width>
+        CPred<"::mlir::isa<::mlir::cir::IntType>($_self)">,
+        CPred<"::mlir::cast<::mlir::cir::IntType>($_self).isSigned()">,
+        CPred<"::mlir::cast<::mlir::cir::IntType>($_self).getWidth() == " # width>
         ]>, width # "-bit signed integer", "::mlir::cir::IntType">,
     BuildableType<
       "mlir::cir::IntType::get($_builder.getContext(), "
@@ -208,29 +208,39 @@ def CIR_PointerType : CIR_Type<"Pointer", "ptr",
     `CIR.ptr` is a type returned by any op generating a pointer in C++.
   }];
 
-  let parameters = (ins "mlir::Type":$pointee,
-                        DefaultValuedParameter<"unsigned", "0">:$addrSpace);
+  let parameters = (ins
+    "mlir::Type":$pointee,
+    // FIXME(cir): Currently unable to directly use AddressSpaceAttr because of
+    // cyclic dep. Workaround with the top type and verifier.
+    OptionalParameter<"mlir::Attribute">:$addrSpace
+  );
 
   let builders = [
     TypeBuilderWithInferredContext<(ins
-      "mlir::Type":$pointee, CArg<"unsigned", "0">:$addrSpace), [{
-      return Base::get(pointee.getContext(), pointee, addrSpace);
+      "mlir::Type":$pointee,
+      CArg<"mlir::Attribute", "{}">:$addrSpace), [{
+      return $_get(pointee.getContext(), pointee, addrSpace);
     }]>,
     TypeBuilder<(ins
-      "mlir::Type":$pointee, CArg<"unsigned", "0">:$addrSpace), [{
-      return Base::get($_ctxt, pointee, addrSpace);
-    }]>,
+      "mlir::Type":$pointee,
+      CArg<"mlir::Attribute", "{}">:$addrSpace), [{
+      return $_get($_ctxt, pointee, addrSpace);
+    }]>
   ];
 
   let assemblyFormat = [{
-    `<` $pointee ( `,` `addrspace` `(` $addrSpace^ `)` )? `>`
+    `<` $pointee ( `,` `addrspace` `(`
+      custom<PointerAddrSpace>($addrSpace)^
+    `)` )? `>`
   }];
+
+  let genVerifyDecl = 1;
 
   let skipDefaultBuilders = 1;
 
   let extraClassDeclaration = [{
     bool isVoidPtr() const {
-      return getPointee().isa<mlir::cir::VoidType>();
+      return mlir::isa<mlir::cir::VoidType>(getPointee());
     }
   }];
 }
@@ -412,9 +422,9 @@ def CIR_VoidType : CIR_Type<"Void", "void"> {
 // Pointer to void
 def VoidPtr : Type<
     And<[
-      CPred<"$_self.isa<::mlir::cir::PointerType>()">,
-      CPred<"$_self.cast<::mlir::cir::PointerType>()"
-            ".getPointee().isa<::mlir::cir::VoidType>()">,
+      CPred<"::mlir::isa<::mlir::cir::PointerType>($_self)">,
+      CPred<"::mlir::isa<::mlir::cir::VoidType>("
+            "::mlir::cast<::mlir::cir::PointerType>($_self).getPointee())">,
     ]>, "void*">,
     BuildableType<
       "mlir::cir::PointerType::get($_builder.getContext(),"
@@ -424,28 +434,28 @@ def VoidPtr : Type<
 // Pointer to a primitive int, float or double
 def PrimitiveIntOrFPPtr : Type<
     And<[
-      CPred<"$_self.isa<::mlir::cir::PointerType>()">,
-      CPred<"$_self.cast<::mlir::cir::PointerType>()"
-            ".getPointee().isa<::mlir::cir::IntType,"
-            "::mlir::cir::SingleType, ::mlir::cir::DoubleType>()">,
+      CPred<"::mlir::isa<::mlir::cir::PointerType>($_self)">,
+      CPred<"::mlir::isa<::mlir::cir::IntType, ::mlir::cir::SingleType,"
+            "::mlir::cir::DoubleType>("
+            "::mlir::cast<::mlir::cir::PointerType>($_self).getPointee())">,
     ]>, "{int,void}*"> {
 }
 
 // Pointer to struct
 def StructPtr : Type<
     And<[
-      CPred<"$_self.isa<::mlir::cir::PointerType>()">,
-      CPred<"$_self.cast<::mlir::cir::PointerType>()"
-            ".getPointee().isa<::mlir::cir::StructType>()">,
+      CPred<"::mlir::isa<::mlir::cir::PointerType>($_self)">,
+      CPred<"::mlir::isa<::mlir::cir::StructType>("
+            "::mlir::cast<::mlir::cir::PointerType>($_self).getPointee())">
     ]>, "!cir.struct*"> {
 }
 
 // Pointers to exception info
 def ExceptionInfoPtr : Type<
     And<[
-      CPred<"$_self.isa<::mlir::cir::PointerType>()">,
-      CPred<"$_self.cast<::mlir::cir::PointerType>()"
-            ".getPointee().isa<::mlir::cir::ExceptionInfoType>()">,
+      CPred<"::mlir::isa<::mlir::cir::PointerType>($_self)">,
+      CPred<"::mlir::isa<::mlir::cir::ExceptionInfoType>("
+            "::mlir::cast<::mlir::cir::PointerType>($_self).getPointee())">
     ]>, "!cir.eh_info*">,
     BuildableType<
       "mlir::cir::PointerType::get($_builder.getContext(),"
@@ -455,13 +465,14 @@ def ExceptionInfoPtr : Type<
 // Pooint to pointers to exception info
 def ExceptionInfoPtrPtr : Type<
     And<[
-      CPred<"$_self.isa<::mlir::cir::PointerType>()">,
+      CPred<"::mlir::isa<::mlir::cir::PointerType>($_self)">,
       And<[
-        CPred<"$_self.cast<::mlir::cir::PointerType>()"
-              ".getPointee().isa<::mlir::cir::PointerType>()">,
-        CPred<"$_self.cast<::mlir::cir::PointerType>()"
-              ".getPointee().cast<::mlir::cir::PointerType>()"
-              ".getPointee().isa<::mlir::cir::ExceptionInfoType>()">,
+        CPred<"::mlir::isa<::mlir::cir::PointerType>("
+              "::mlir::cast<::mlir::cir::PointerType>($_self).getPointee()">,
+        CPred<"::mlir::isa<::mlir::cir::ExceptionInfoType>("
+              "::mlir::cast<::mlir::cir::PointerType>("
+              "::mlir::cast<::mlir::cir::PointerType>($_self).getPointee())"
+              ".getPointee()))">
       ]>
     ]>, "!cir.eh_info**">,
     BuildableType<
@@ -473,11 +484,11 @@ def ExceptionInfoPtrPtr : Type<
 // Vector of integral type
 def IntegerVector : Type<
     And<[
-      CPred<"$_self.isa<::mlir::cir::VectorType>()">,
-      CPred<"$_self.cast<::mlir::cir::VectorType>()"
-            ".getEltType().isa<::mlir::cir::IntType>()">,
-      CPred<"$_self.cast<::mlir::cir::VectorType>()"
-            ".getEltType().cast<::mlir::cir::IntType>()"
+      CPred<"::mlir::isa<::mlir::cir::VectorType>($_self)">,
+      CPred<"::mlir::isa<::mlir::cir::IntType>("
+            "::mlir::cast<::mlir::cir::VectorType>($_self).getEltType())">,
+      CPred<"::mlir::cast<::mlir::cir::IntType>("
+            "::mlir::cast<::mlir::cir::VectorType>($_self).getEltType())"
             ".isPrimitive()">
     ]>, "!cir.vector of !cir.int"> {
 }
@@ -485,9 +496,9 @@ def IntegerVector : Type<
 // Pointer to Arrays
 def ArrayPtr : Type<
     And<[
-      CPred<"$_self.isa<::mlir::cir::PointerType>()">,
-      CPred<"$_self.cast<::mlir::cir::PointerType>()"
-            ".getPointee().isa<::mlir::cir::ArrayType>()">,
+      CPred<"::mlir::isa<::mlir::cir::PointerType>($_self)">,
+      CPred<"::mlir::isa<::mlir::cir::ArrayType>("
+            "::mlir::cast<::mlir::cir::PointerType>($_self).getPointee())">,
     ]>, "!cir.ptr<!cir.eh_info>"> {
 }
 
@@ -495,7 +506,7 @@ def ArrayPtr : Type<
 // StructType (defined in cpp files)
 //===----------------------------------------------------------------------===//
 
-def CIR_StructType : Type<CPred<"$_self.isa<::mlir::cir::StructType>()">,
+def CIR_StructType : Type<CPred<"::mlir::isa<::mlir::cir::StructType>($_self)">,
                           "CIR struct type">;
 
 //===----------------------------------------------------------------------===//
