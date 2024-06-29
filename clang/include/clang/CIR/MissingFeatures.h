@@ -261,6 +261,10 @@ struct MissingFeatures {
   // Despite carrying some information about variadics, we are currently
   // ignoring this to focus only on the code necessary to lower non-variadics.
   static bool variadicFunctions() { return false; }
+
+  // If a store op is guaranteed to execute before the retun value load op, we
+  // can optimize away the store and load ops. Seems like an early optimization.
+  static bool returnValueDominatingStoreOptmiization() { return false; }
 };
 
 } // namespace cir

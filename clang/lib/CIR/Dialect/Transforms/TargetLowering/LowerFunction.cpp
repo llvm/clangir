@@ -190,7 +190,7 @@ LogicalResult LowerFunction::buildFunctionEpilog(const LowerFunctionInfo &FI) {
       // the load, zap the store, and usually zap the alloca.
       // NOTE(cir): This seems like a premature optimization case, so I'm
       // skipping it.
-      if (/*findDominatingStoreToReturnValue(*this)=*/false) {
+      if (::cir::MissingFeatures::returnValueDominatingStoreOptmiization()) {
         llvm_unreachable("NYI");
       }
       // Otherwise, we have to do a simple load.
