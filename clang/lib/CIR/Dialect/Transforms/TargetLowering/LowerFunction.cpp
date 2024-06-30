@@ -424,7 +424,7 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
           ArgInfo.getDirectOffset() == 0) {
         assert(NumIRArgs == 1);
         Value V;
-        if (isa<StructType>(!I->getType())) {
+        if (!isa<StructType>(I->getType())) {
           V = *I;
         } else {
           llvm_unreachable("NYI");
