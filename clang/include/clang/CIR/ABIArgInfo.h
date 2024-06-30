@@ -100,8 +100,8 @@ private:
     unsigned AllocaFieldIndex;     // isInAlloca()
   };
   Kind TheKind;
-  bool CanBeFlattened : 1; // isDirect()
   bool InReg : 1;          // isDirect() || isExtend() || isIndirect()
+  bool CanBeFlattened : 1; // isDirect()
   bool SignExt : 1;        // isExtend()
 
   bool canHavePaddingType() const {
@@ -117,7 +117,7 @@ private:
 public:
   ABIArgInfo(Kind K = Direct)
       : TypeData(nullptr), PaddingType(nullptr), DirectAttr{0, 0}, TheKind(K),
-        CanBeFlattened(false) {}
+        InReg(false), CanBeFlattened(false), SignExt(false) {}
 
   static ABIArgInfo getDirect(mlir::Type T = nullptr, unsigned Offset = 0,
                               mlir::Type Padding = nullptr,
