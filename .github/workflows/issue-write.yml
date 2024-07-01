@@ -20,14 +20,14 @@ jobs:
       github.event.workflow_run.event == 'pull_request'
     steps:
       - name: 'Download artifact'
-        uses: actions/download-artifact@6b208ae046db98c579e8a3aa621ab581ff575935 # v4.1.1
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           github-token: ${{ secrets.ISSUE_WRITE_DOWNLOAD_ARTIFACT }}
           run-id: ${{ github.event.workflow_run.id }}
           name: workflow-args
 
       - name: 'Comment on PR'
-        uses: actions/github-script@v3
+        uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |

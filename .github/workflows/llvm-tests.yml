@@ -48,7 +48,7 @@ jobs:
       LLVM_VERSION_PATCH: ${{ steps.version.outputs.LLVM_VERSION_PATCH }}
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.1.7
         with:
           fetch-depth: 250
 
@@ -157,17 +157,17 @@ jobs:
       - abi-dump
     steps:
       - name: Download baseline
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: build-baseline
           path: build-baseline
       - name: Download latest
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: build-latest
           path: build-latest
       - name: Download symbol list
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: symbol-list
           path: symbol-list

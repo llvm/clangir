@@ -66,7 +66,7 @@ jobs:
             cc: 'gcc-13'
             cxx: 'g++-13'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.1.7
       - name: ${{ matrix.config }}.${{ matrix.cxx }}
         run: libcxx/utils/ci/run-buildbot ${{ matrix.config }}
         env:
@@ -110,7 +110,7 @@ jobs:
             cc: 'clang-18'
             cxx: 'clang++-18'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.1.7
       - name: ${{ matrix.config }}
         run: libcxx/utils/ci/run-buildbot ${{ matrix.config }}
         env:
@@ -174,7 +174,7 @@ jobs:
           machine: libcxx-runners-8-set
     runs-on: ${{ matrix.machine }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.1.7
       - name: ${{ matrix.config }}
         run: libcxx/utils/ci/run-buildbot ${{ matrix.config }}
         env:
@@ -206,7 +206,7 @@ jobs:
         - { config: mingw-static, mingw: true }
         - { config: mingw-dll-i686, mingw: true }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.1.7
       - name: Install dependencies
         run: |
           choco install -y ninja

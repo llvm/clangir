@@ -67,7 +67,7 @@ jobs:
       attestations: write
     steps:
       - name: Checkout LLVM
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           ref: ${{ needs.inputs.outputs.ref }}
           fetch-tags: true
@@ -88,7 +88,7 @@ jobs:
       - name: Attest Build Provenance
         if: github.event_name != 'pull_request'
         id: provenance
-        uses: actions/attest-build-provenance@897ed5eab6ed058a474202017ada7f40bfa52940 # v1.0.0
+        uses: actions/attest-build-provenance@bdd51370e0416ac948727f861e03c2f05d32d78e # v1.3.2
         with:
           subject-path: "*.xz"
       - if: github.event_name != 'pull_request'
