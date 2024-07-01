@@ -1548,6 +1548,57 @@ public:
     }
   }
 
+  /// Do necessary lowering of the function attributes. The argument `attrs`
+  /// is used as input and output.
+  void lowerFuncAttributes(const mlir::TypeConverter *converter,
+                           SmallVectorImpl<mlir::NamedAttribute> &attrs) const {
+    mlir::AttrTypeReplacer replacer;
+    replacer.addReplacement(
+        [&](mlir::cir::OpenCLKernelMetadataAttr attr)
+            -> std::pair<mlir::Attribute, mlir::WalkResult> {
+          mlir::TypeAttr vecTypeHint = attr.getVecTypeHint();
+          // Lower the type in vector type hint from CIR to MLIR type,
+          // then we can use it directly in the module translation.
+          if (vecTypeHint) {
+            // See also clang::CodeGen::CodeGenFunction::EmitKernelMetadata
+            auto hintQTy = vecTypeHint.getValue();
+            auto hintEltQTy = dyn_cast<mlir::cir::VectorType>(hintQTy);
+            auto isCIRSignedIntType = [](mlir::Type t) {
+              return isa<mlir::cir::IntType>(t) &&
+                     cast<mlir::cir::IntType>(t).isSigned();
+            };
+            bool isSignedInteger =
+                isCIRSignedIntType(hintQTy) ||
+                (hintEltQTy && isCIRSignedIntType(hintEltQTy.getEltType()));
+            // Restore the signedness on integer types for future translation.
+            // OpenCL / SPIR-V requires the signedness of integer types, but
+            // we usually drops it in the type converter.
+            // The non-signless type resides in the attribute, which is a CIR
+            // attribute. It won't affect the verification of LLVM dialect.
+            auto signedness = isSignedInteger ? mlir::IntegerType::Signed
+                                              : mlir::IntegerType::Unsigned;
+            auto loweredHintQTy = converter->convertType(hintQTy).replace(
+                [&](mlir::IntegerType type)
+                    -> std::pair<mlir::Type, mlir::WalkResult> {
+                  return std::make_pair(
+                      mlir::IntegerType::get(type.getContext(), type.getWidth(),
+                                             signedness),
+                      mlir::WalkResult::advance());
+                });
+            return std::make_pair(mlir::cir::OpenCLKernelMetadataAttr::get(
+                                      loweredHintQTy.getContext(),
+                                      attr.getWorkGroupSizeHint(),
+                                      attr.getReqdWorkGroupSize(),
+                                      mlir::TypeAttr::get(loweredHintQTy),
+                                      attr.getIntelReqdSubGroupSize()),
+                                  mlir::WalkResult::advance());
+          }
+          return std::make_pair(attr, mlir::WalkResult::advance());
+        });
+    for (auto &attr : attrs)
+      attr.setValue(replacer.replace(attr.getValue()));
+  }
+
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::FuncOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
@@ -1586,6 +1637,7 @@ public:
     auto linkage = convertLinkage(op.getLinkage());
     SmallVector<mlir::NamedAttribute, 4> attributes;
     filterFuncAttributes(op, /*filterArgAndResAttrs=*/false, attributes);
+    lowerFuncAttributes(typeConverter, attributes);
 
     auto fn = rewriter.create<mlir::LLVM::LLVMFuncOp>(
         Loc, op.getName(), llvmFnTy, linkage, isDsoLocal, mlir::LLVM::CConv::C,
