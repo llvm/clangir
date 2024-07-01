@@ -554,55 +554,49 @@ class CIRConstantOpLowering
 public:
   using OpConversionPattern<mlir::cir::ConstantOp>::OpConversionPattern;
 
+private:
+  // This code is in a separate function rather than part of matchAndRewrite
+  // because it is recursive.  There is currently only one level of recursion;
+  // when lowing a vector attribute the attributes for the elements also need
+  // to be lowered.
+  mlir::TypedAttr
+  lowerCirAttrToMlirAttr(mlir::Attribute cirAttr,
+                         mlir::ConversionPatternRewriter &rewriter) const {
+    assert(mlir::isa<mlir::TypedAttr>(cirAttr) &&
+           "Can't lower a non-typed attribute");
+    auto mlirType = getTypeConverter()->convertType(
+        mlir::cast<mlir::TypedAttr>(cirAttr).getType());
+    if (auto vecAttr = mlir::dyn_cast<mlir::cir::ConstVectorAttr>(cirAttr)) {
+      assert(mlir::isa<mlir::VectorType>(mlirType) &&
+             "MLIR type for CIR vector attribute is not mlir::VectorType");
+      assert(mlir::isa<mlir::ShapedType>(mlirType) &&
+             "mlir::VectorType is not a mlir::ShapedType ??");
+      SmallVector<mlir::Attribute> mlirValues;
+      for (auto elementAttr : vecAttr.getElts()) {
+        mlirValues.push_back(
+            this->lowerCirAttrToMlirAttr(elementAttr, rewriter));
+      }
+      return mlir::DenseElementsAttr::get(
+          mlir::cast<mlir::ShapedType>(mlirType), mlirValues);
+    } else if (auto boolAttr = mlir::dyn_cast<mlir::cir::BoolAttr>(cirAttr)) {
+      return rewriter.getIntegerAttr(mlirType, boolAttr.getValue());
+    } else if (auto floatAttr = mlir::dyn_cast<mlir::cir::FPAttr>(cirAttr)) {
+      return rewriter.getFloatAttr(mlirType, floatAttr.getValue());
+    } else if (auto intAttr = mlir::dyn_cast<mlir::cir::IntAttr>(cirAttr)) {
+      return rewriter.getIntegerAttr(mlirType, intAttr.getValue());
+    } else {
+      llvm_unreachable("NYI: unsupported attribute kind lowering to MLIR");
+      return {};
+    }
+  }
+
+public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::ConstantOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    auto ty = getTypeConverter()->convertType(op.getType());
-    mlir::TypedAttr value;
-    
-    if (mlir::isa<mlir::cir::BoolType>(op.getType())) {
-      auto boolValue = mlir::cast<mlir::cir::BoolAttr>(op.getValue());
-      value = rewriter.getIntegerAttr(ty, boolValue.getValue());
-    } else if (auto cirIntAttr = mlir::dyn_cast<mlir::cir::IntAttr>(op.getValue())) {
-      value = rewriter.getIntegerAttr(ty, cirIntAttr.getValue());
-    } else if (mlir::isa<mlir::cir::CIRFPTypeInterface>(op.getType())) {
-      auto fpAttr = mlir::cast<mlir::cir::FPAttr>(op.getValue());
-      auto apFloat = fpAttr.getValue();
-      
-      // Handle specific floating-point types explicitly
-      if (mlir::isa<mlir::cir::SingleType>(op.getType())) {
-        auto f32Type = mlir::Float32Type::get(rewriter.getContext());
-        // Convert APFloat to f32 precision
-        bool losesInfo = false;
-        llvm::APFloat f32Float = apFloat;
-        f32Float.convert(llvm::APFloat::IEEEsingle(), llvm::RoundingMode::NearestTiesToEven, &losesInfo);
-        value = rewriter.getFloatAttr(f32Type, f32Float);
-        rewriter.replaceOpWithNewOp<mlir::arith::ConstantOp>(op, f32Type, value);
-        return mlir::LogicalResult::success();
-      } else if (mlir::isa<mlir::cir::DoubleType>(op.getType())) {
-        auto f64Type = mlir::Float64Type::get(rewriter.getContext());
-        // Convert APFloat to f64 precision  
-        bool losesInfo = false;
-        llvm::APFloat f64Float = apFloat;
-        f64Float.convert(llvm::APFloat::IEEEdouble(), llvm::RoundingMode::NearestTiesToEven, &losesInfo);
-        value = rewriter.getFloatAttr(f64Type, f64Float);
-        rewriter.replaceOpWithNewOp<mlir::arith::ConstantOp>(op, f64Type, value);
-        return mlir::LogicalResult::success();
-      } else {
-        // Fallback to type converter for other floating-point types
-        auto convertedTy = getTypeConverter()->convertType(op.getType());
-        if (!convertedTy || !mlir::isa<mlir::FloatType>(convertedTy)) {
-          return mlir::LogicalResult::failure();
-        }
-        value = rewriter.getFloatAttr(convertedTy, apFloat);
-        rewriter.replaceOpWithNewOp<mlir::arith::ConstantOp>(op, convertedTy, value);
-        return mlir::LogicalResult::success();
-      }
-    } else {
-      return mlir::LogicalResult::failure();
-    }
-    
-    rewriter.replaceOpWithNewOp<mlir::arith::ConstantOp>(op, ty, value);
+    rewriter.replaceOpWithNewOp<mlir::arith::ConstantOp>(
+        op, getTypeConverter()->convertType(op.getType()),
+        this->lowerCirAttrToMlirAttr(op.getValue(), rewriter));
     return mlir::LogicalResult::success();
   }
 };
