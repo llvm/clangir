@@ -399,7 +399,7 @@ AArch64ABIInfo::classifyArgumentType(QualType Ty, bool IsVariadic,
   return getNaturalAlignIndirect(Ty, /*ByVal=*/false);
 }
 
-ABIArgInfo AArch64ABIInfo:: classifyReturnType(QualType RetTy,
+ABIArgInfo AArch64ABIInfo::classifyReturnType(QualType RetTy,
                                               bool IsVariadic) const {
   if (RetTy->isVoidType())
     return ABIArgInfo::getIgnore();
