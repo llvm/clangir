@@ -40,14 +40,6 @@ CIRGenerator::~CIRGenerator() {
   assert(DeferredInlineMemberFuncDefs.empty() || Diags.hasErrorOccurred());
 }
 
-static void setMLIRDataLayout(mlir::ModuleOp &mod, const llvm::DataLayout &dl) {
-  auto *context = mod.getContext();
-  mod->setAttr(mlir::LLVM::LLVMDialect::getDataLayoutAttrName(),
-               mlir::StringAttr::get(context, dl.getStringRepresentation()));
-  mlir::DataLayoutSpecInterface dlSpec = mlir::translateDataLayout(dl, context);
-  mod->setAttr(mlir::DLTIDialect::kDataLayoutAttrName, dlSpec);
-}
-
 void CIRGenerator::Initialize(ASTContext &astCtx) {
   using namespace llvm;
 
@@ -62,9 +54,6 @@ void CIRGenerator::Initialize(ASTContext &astCtx) {
   mlirCtx->getOrLoadDialect<mlir::omp::OpenMPDialect>();
   CGM = std::make_unique<CIRGenModule>(*mlirCtx.get(), astCtx, codeGenOpts,
                                        Diags);
-  auto mod = CGM->getModule();
-  auto layout = llvm::DataLayout(astCtx.getTargetInfo().getDataLayoutString());
-  setMLIRDataLayout(mod, layout);
 }
 
 bool CIRGenerator::verifyModule() { return CGM->verifyModule(); }

@@ -1011,8 +1011,8 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     // pointer of type `void *`. This will require a change to the allocaOp
     // verifier.
     auto AllocaAddr = builder.createAlloca(
-        getLoc(E->getSourceRange()), builder.getUInt8PtrTy(),
-        builder.getUInt8Ty(), "bi_alloca", SuitableAlignmentInBytes, Size);
+        getLoc(E->getSourceRange()), CGM.AllocaInt8PtrTy, builder.getUInt8Ty(),
+        "bi_alloca", SuitableAlignmentInBytes, Size);
 
     // Initialize the allocated buffer if required.
     if (BuiltinID != Builtin::BI__builtin_alloca_uninitialized)
