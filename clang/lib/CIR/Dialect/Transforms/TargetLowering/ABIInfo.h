@@ -17,6 +17,7 @@
 #include "CIRCXXABI.h"
 #include "CIRLowerContext.h"
 #include "LowerFunctionInfo.h"
+#include "clang/CIR/Dialect/IR/CIRDataLayout.h"
 #include "llvm/IR/CallingConv.h"
 
 namespace mlir {
@@ -38,7 +39,9 @@ public:
 
   CIRCXXABI &getCXXABI() const;
 
-  CIRLowerContext &getContext() const;
+  CIRLowerContext &getContext() const;\
+
+  const ::cir::CIRDataLayout &getDataLayout() const;
 
   virtual void computeInfo(LowerFunctionInfo &FI) const = 0;
 
