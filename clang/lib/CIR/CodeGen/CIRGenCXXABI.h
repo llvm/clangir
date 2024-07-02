@@ -309,7 +309,7 @@ public:
                                        QualType SrcRecordTy,
                                        QualType DestRecordTy,
                                        mlir::cir::PointerType DestCIRTy,
-                                       bool isRefCast, mlir::Value Src) = 0;
+                                       bool isRefCast, Address Src) = 0;
 
   virtual mlir::Value buildDynamicCastToVoid(CIRGenFunction &CGF, 
                                              mlir::Location Loc,
