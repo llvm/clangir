@@ -315,8 +315,9 @@ static LogicalResult checkConstantTypes(mlir::Operation *op, mlir::Type opType,
     return success();
   }
 
-  if (mlir::isa<ZeroAttr>(attrType)) {
-    if (mlir::isa<::mlir::cir::StructType, ::mlir::cir::ArrayType>(opType))
+  if (isa<ZeroAttr>(attrType)) {
+    if (::mlir::isa<::mlir::cir::StructType, ::mlir::cir::ArrayType,
+                    ::mlir::cir::ComplexType>(opType))
       return success();
     return op->emitOpError("zero expects struct or array type");
   }
@@ -549,6 +550,58 @@ LogicalResult DynamicCastOp::verify() {
            << "cir.dyn_cast must produce a void ptr or struct ptr";
 
   return mlir::success();
+}
+
+//===----------------------------------------------------------------------===//
+// ComplexCreateOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult ComplexCreateOp::verify() {
+  if (getType().getElementTy() != getReal().getType()) {
+    emitOpError()
+        << "operand type of cir.complex.create does not match its result type";
+    return failure();
+  }
+
+  return success();
+}
+
+//===----------------------------------------------------------------------===//
+// ComplexRealPtrOp and ComplexImagPtrOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult ComplexRealPtrOp::verify() {
+  auto resultPointeeTy =
+      mlir::cast<mlir::cir::PointerType>(getType()).getPointee();
+  auto operandPtrTy =
+      mlir::cast<mlir::cir::PointerType>(getOperand().getType());
+  auto operandPointeeTy =
+      mlir::cast<mlir::cir::ComplexType>(operandPtrTy.getPointee());
+
+  if (resultPointeeTy != operandPointeeTy.getElementTy()) {
+    emitOpError()
+        << "cir.complex.real_ptr result type does not match operand type";
+    return failure();
+  }
+
+  return success();
+}
+
+LogicalResult ComplexImagPtrOp::verify() {
+  auto resultPointeeTy =
+      mlir::cast<mlir::cir::PointerType>(getType()).getPointee();
+  auto operandPtrTy =
+      mlir::cast<mlir::cir::PointerType>(getOperand().getType());
+  auto operandPointeeTy =
+      mlir::cast<mlir::cir::ComplexType>(operandPtrTy.getPointee());
+
+  if (resultPointeeTy != operandPointeeTy.getElementTy()) {
+    emitOpError()
+        << "cir.complex.imag_ptr result type does not match operand type";
+    return failure();
+  }
+
+  return success();
 }
 
 //===----------------------------------------------------------------------===//
