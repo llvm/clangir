@@ -261,6 +261,9 @@ struct MissingFeatures {
   // evaluating ABI-specific lowering.
   static bool qualifiedTypes() { return false; }
 
+  // Target-specific data layout information.
+  static bool dataLayout() { return false; }
+
   // We're ignoring several details regarding ABI-halding for Swift.
   static bool swift() { return false; }
 

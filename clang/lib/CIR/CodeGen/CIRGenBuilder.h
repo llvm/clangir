@@ -246,6 +246,16 @@ public:
     return mlir::cir::DataMemberAttr::get(getContext(), ty, std::nullopt);
   }
 
+  mlir::cir::MethodAttr getMethodAttr(mlir::cir::MethodType ty,
+                                      mlir::cir::FuncOp methodFuncOp) {
+    auto methodFuncSymbolRef = mlir::FlatSymbolRefAttr::get(methodFuncOp);
+    return mlir::cir::MethodAttr::get(ty, methodFuncSymbolRef);
+  }
+
+  mlir::cir::MethodAttr getNullMethodAttr(mlir::cir::MethodType ty) {
+    return mlir::cir::MethodAttr::get(ty);
+  }
+
   mlir::TypedAttr getZeroInitAttr(mlir::Type ty) {
     if (mlir::isa<mlir::cir::IntType>(ty))
       return mlir::cir::IntAttr::get(ty, 0);
@@ -569,6 +579,11 @@ public:
   mlir::cir::ConstantOp getNullDataMemberPtr(mlir::cir::DataMemberType ty,
                                              mlir::Location loc) {
     return create<mlir::cir::ConstantOp>(loc, ty, getNullDataMemberAttr(ty));
+  }
+
+  mlir::cir::ConstantOp getNullMethodPtr(mlir::cir::MethodType ty,
+                                         mlir::Location loc) {
+    return create<mlir::cir::ConstantOp>(loc, ty, getNullMethodAttr(ty));
   }
 
   // Creates constant null value for integral type ty.
