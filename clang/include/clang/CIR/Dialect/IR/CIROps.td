@@ -3800,6 +3800,24 @@ def PrefetchOp : CIR_Op<"prefetch"> {
 }
 
 //===----------------------------------------------------------------------===//
+// ClearCacheOp
+//===----------------------------------------------------------------------===//
+
+def ClearCacheOp : CIR_Op<"clear_cache", [AllTypesMatch<["begin", "end"]>]> {
+  let summary = "clear cache operation";
+  let description = [{
+    CIR representation for `__builtin___clear_cache`.
+  }];
+
+  let arguments = (ins VoidPtr:$begin, VoidPtr:$end);
+  let assemblyFormat = [{
+    $begin `:` qualified(type($begin)) `,`
+    $end `,`
+    attr-dict
+  }];
+}
+
+//===----------------------------------------------------------------------===//
 // ArrayCtor & ArrayDtor
 //===----------------------------------------------------------------------===//
 
