@@ -27,20 +27,22 @@ llvm::SmallVector<MemorySlot> cir::AllocaOp::getPromotableSlots() {
 }
 
 Value cir::AllocaOp::getDefaultValue(const MemorySlot &slot,
-                                     RewriterBase &rewriter) {
-  return rewriter.create<cir::UndefOp>(getLoc(), slot.elemType);
+                                     OpBuilder &builder) {
+  return builder.create<cir::UndefOp>(getLoc(), slot.elemType);
 }
 
 void cir::AllocaOp::handleBlockArgument(const MemorySlot &slot,
                                         BlockArgument argument,
-                                        RewriterBase &rewriter) {}
+                                        OpBuilder &builder) {}
 
-void cir::AllocaOp::handlePromotionComplete(const MemorySlot &slot,
+std::optional<PromotableAllocationOpInterface>
+cir::AllocaOp::handlePromotionComplete(const MemorySlot &slot,
                                             Value defaultValue,
-                                            RewriterBase &rewriter) {
+                                            OpBuilder &builder) {
   if (defaultValue && defaultValue.use_empty())
-    rewriter.eraseOp(defaultValue.getDefiningOp());
-  rewriter.eraseOp(*this);
+    defaultValue.getDefiningOp()->erase();
+  this->erase();
+  return std::nullopt;
 }
 
 //===----------------------------------------------------------------------===//
@@ -53,7 +55,7 @@ bool cir::LoadOp::loadsFrom(const MemorySlot &slot) {
 
 bool cir::LoadOp::storesTo(const MemorySlot &slot) { return false; }
 
-Value cir::LoadOp::getStored(const MemorySlot &slot, RewriterBase &rewriter,
+Value cir::LoadOp::getStored(const MemorySlot &slot, OpBuilder &builder,
                              Value reachingDef, const DataLayout &dataLayout) {
   llvm_unreachable("getStored should not be called on LoadOp");
 }
@@ -71,9 +73,9 @@ bool cir::LoadOp::canUsesBeRemoved(
 
 DeletionKind cir::LoadOp::removeBlockingUses(
     const MemorySlot &slot, const SmallPtrSetImpl<OpOperand *> &blockingUses,
-    RewriterBase &rewriter, Value reachingDefinition,
+    OpBuilder &builder, Value reachingDefinition,
     const DataLayout &dataLayout) {
-  rewriter.replaceAllUsesWith(getResult(), reachingDefinition);
+  getResult().replaceAllUsesWith(reachingDefinition);
   return DeletionKind::Delete;
 }
 
@@ -87,7 +89,7 @@ bool cir::StoreOp::storesTo(const MemorySlot &slot) {
   return getAddr() == slot.ptr;
 }
 
-Value cir::StoreOp::getStored(const MemorySlot &slot, RewriterBase &rewriter,
+Value cir::StoreOp::getStored(const MemorySlot &slot, OpBuilder &builder,
                               Value reachingDef, const DataLayout &dataLayout) {
   return getValue();
 }
@@ -105,7 +107,7 @@ bool cir::StoreOp::canUsesBeRemoved(
 
 DeletionKind cir::StoreOp::removeBlockingUses(
     const MemorySlot &slot, const SmallPtrSetImpl<OpOperand *> &blockingUses,
-    RewriterBase &rewriter, Value reachingDefinition,
+    OpBuilder &builder, Value reachingDefinition,
     const DataLayout &dataLayout) {
   return DeletionKind::Delete;
 }
@@ -122,17 +124,17 @@ bool cir::CopyOp::storesTo(const MemorySlot &slot) {
   return getDst() == slot.ptr;
 }
 
-Value cir::CopyOp::getStored(const MemorySlot &slot, RewriterBase &rewriter,
+Value cir::CopyOp::getStored(const MemorySlot &slot, OpBuilder &builder,
                              Value reachingDef, const DataLayout &dataLayout) {
-  return rewriter.create<cir::LoadOp>(getLoc(), slot.elemType, getSrc());
+  return builder.create<cir::LoadOp>(getLoc(), slot.elemType, getSrc());
 }
 
 DeletionKind cir::CopyOp::removeBlockingUses(
     const MemorySlot &slot, const SmallPtrSetImpl<OpOperand *> &blockingUses,
-    RewriterBase &rewriter, Value reachingDefinition,
+    OpBuilder &builder, Value reachingDefinition,
     const DataLayout &dataLayout) {
   if (loadsFrom(slot))
-    rewriter.create<cir::StoreOp>(getLoc(), reachingDefinition, getDst(), false,
+    builder.create<cir::StoreOp>(getLoc(), reachingDefinition, getDst(), false,
                                   mlir::IntegerAttr{},
                                   mlir::cir::MemOrderAttr());
   return DeletionKind::Delete;
@@ -164,6 +166,6 @@ bool cir::CastOp::canUsesBeRemoved(
 }
 
 DeletionKind cir::CastOp::removeBlockingUses(
-    const SmallPtrSetImpl<OpOperand *> &blockingUses, RewriterBase &rewriter) {
+    const SmallPtrSetImpl<OpOperand *> &blockingUses, OpBuilder &builder) {
   return DeletionKind::Delete;
 }

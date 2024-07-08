@@ -3269,20 +3269,71 @@ private:
   }
 };
 
-class CIRUndefOpLowering
-    : public mlir::OpConversionPattern<mlir::cir::UndefOp> {
 
-  using mlir::OpConversionPattern<mlir::cir::UndefOp>::OpConversionPattern;
+template <typename CIROp, typename LLVMOp>
+class CIRUnaryFPBuiltinOpLowering : public mlir::OpConversionPattern<CIROp> {
+public:
+  using mlir::OpConversionPattern<CIROp>::OpConversionPattern;
 
   mlir::LogicalResult
-  matchAndRewrite(mlir::cir::UndefOp op, OpAdaptor adaptor,
+  matchAndRewrite(CIROp op,
+                  typename mlir::OpConversionPattern<CIROp>::OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    auto typ = getTypeConverter()->convertType(op.getRes().getType());
-
-    rewriter.replaceOpWithNewOp<mlir::LLVM::UndefOp>(op, typ);
+    auto resTy = this->getTypeConverter()->convertType(op.getType());
+    rewriter.replaceOpWithNewOp<LLVMOp>(op, resTy, adaptor.getSrc());
     return mlir::success();
   }
 };
+
+using CIRCeilOpLowering =
+    CIRUnaryFPBuiltinOpLowering<mlir::cir::CeilOp, mlir::LLVM::FCeilOp>;
+using CIRFloorOpLowering =
+    CIRUnaryFPBuiltinOpLowering<mlir::cir::FloorOp, mlir::LLVM::FFloorOp>;
+using CIRFabsOpLowering =
+    CIRUnaryFPBuiltinOpLowering<mlir::cir::FAbsOp, mlir::LLVM::FAbsOp>;
+using CIRNearbyintOpLowering =
+    CIRUnaryFPBuiltinOpLowering<mlir::cir::NearbyintOp,
+                                mlir::LLVM::NearbyintOp>;
+using CIRRintOpLowering =
+    CIRUnaryFPBuiltinOpLowering<mlir::cir::RintOp, mlir::LLVM::RintOp>;
+using CIRRoundOpLowering =
+    CIRUnaryFPBuiltinOpLowering<mlir::cir::RoundOp, mlir::LLVM::RoundOp>;
+using CIRTruncOpLowering =
+    CIRUnaryFPBuiltinOpLowering<mlir::cir::TruncOp, mlir::LLVM::FTruncOp>;
+
+using CIRLroundOpLowering =
+    CIRUnaryFPBuiltinOpLowering<mlir::cir::LroundOp, mlir::LLVM::LroundOp>;
+using CIRLLroundOpLowering =
+    CIRUnaryFPBuiltinOpLowering<mlir::cir::LLroundOp, mlir::LLVM::LlroundOp>;
+using CIRLrintOpLowering =
+    CIRUnaryFPBuiltinOpLowering<mlir::cir::LrintOp, mlir::LLVM::LrintOp>;
+using CIRLLrintOpLowering =
+    CIRUnaryFPBuiltinOpLowering<mlir::cir::LLrintOp, mlir::LLVM::LlrintOp>;
+
+template <typename CIROp, typename LLVMOp>
+class CIRBinaryFPToFPBuiltinOpLowering
+    : public mlir::OpConversionPattern<CIROp> {
+public:
+  using mlir::OpConversionPattern<CIROp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(CIROp op,
+                  typename mlir::OpConversionPattern<CIROp>::OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto resTy = this->getTypeConverter()->convertType(op.getType());
+    rewriter.replaceOpWithNewOp<LLVMOp>(op, resTy, adaptor.getLhs(),
+                                        adaptor.getRhs());
+    return mlir::success();
+  }
+};
+
+using CIRCopysignOpLowering =
+    CIRBinaryFPToFPBuiltinOpLowering<mlir::cir::CopysignOp,
+                                     mlir::LLVM::CopySignOp>;
+using CIRFMaxOpLowering =
+    CIRBinaryFPToFPBuiltinOpLowering<mlir::cir::FMaxOp, mlir::LLVM::MaxNumOp>;
+using CIRFMinOpLowering =
+    CIRBinaryFPToFPBuiltinOpLowering<mlir::cir::FMinOp, mlir::LLVM::MinNumOp>;
 
 class CIRUndefOpLowering
     : public mlir::OpConversionPattern<mlir::cir::UndefOp> {
@@ -3298,7 +3349,6 @@ class CIRUndefOpLowering
     return mlir::success();
   }
 };
-
 
 void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
                                          mlir::TypeConverter &converter) {
