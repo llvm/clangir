@@ -3343,7 +3343,6 @@ private:
   }
 };
 
-
 template <typename CIROp, typename LLVMOp>
 class CIRUnaryFPBuiltinOpLowering : public mlir::OpConversionPattern<CIROp> {
 public:
@@ -3472,7 +3471,7 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
       CIRLLroundOpLowering, CIRLrintOpLowering, CIRLLrintOpLowering,
       CIRCeilOpLowering, CIRFloorOpLowering, CIRFAbsOpLowering,
       CIRNearbyintOpLowering, CIRRintOpLowering, CIRRoundOpLowering,
-      CIRTruncOpLowering, CIRCopysignOpLowering, CIRFMaxOpLowering,      
+      CIRTruncOpLowering, CIRCopysignOpLowering, CIRFMaxOpLowering,
       CIRFMinOpLowering, CIRClearCacheOpLowering,
       CIRUndefOpLowering>(converter, patterns.getContext());
 }
@@ -3717,9 +3716,7 @@ void collect_unreachable(mlir::Operation *parent,
 }
 
 void ConvertCIRToLLVMPass::runOnOperation() {
-
   auto module = getOperation();
-
   mlir::DataLayout dataLayout(module);
   mlir::LLVMTypeConverter converter(&getContext());
   prepareTypeConverter(converter, dataLayout);

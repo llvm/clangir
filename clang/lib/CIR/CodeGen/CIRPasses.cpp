@@ -18,7 +18,7 @@
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Transforms/Passes.h"
-#include <iostream>
+
 namespace cir {
 mlir::LogicalResult runCIRToCIRPasses(
     mlir::ModuleOp theModule, mlir::MLIRContext *mlirCtx,
@@ -28,7 +28,7 @@ mlir::LogicalResult runCIRToCIRPasses(
     llvm::StringRef libOptOpts, std::string &passOptParsingFailure,
     bool flattenCIR, bool emitMLIR, bool enableCallConvLowering,
     bool enableMem2Reg) {
-  std::cout << "runCIRToCIRPasses: " << flattenCIR << enableMem2Reg << std::endl;
+
   mlir::PassManager pm(mlirCtx);
   pm.addPass(mlir::createMergeCleanupsPass());
 
@@ -75,13 +75,13 @@ mlir::LogicalResult runCIRToCIRPasses(
 
   if (flattenCIR)
     mlir::populateCIRPreLoweringPasses(pm);
-  
+
   if (enableMem2Reg)
     pm.addPass(mlir::createMem2Reg());
 
   if (emitMLIR)
     pm.addPass(mlir::createSCFPreparePass());
-             
+
   // FIXME: once CIRCodenAction fixes emission other than CIR we
   // need to run this right before dialect emission.
   pm.addPass(mlir::createDropASTPass());
