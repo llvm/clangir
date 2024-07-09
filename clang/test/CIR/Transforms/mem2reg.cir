@@ -76,22 +76,31 @@ module {
   }
   
   // CHECK:  cir.func @alloca_in_loop(%arg0: !cir.ptr<!s32i>, %arg1: !s32i) {
+  // CHECK:    cir.br ^bb1
+  // CHECK:  ^bb1:  // pred: ^bb0
   // CHECK:    %0 = cir.const #cir.int<0> : !s32i
-  // CHECK:    cir.br ^bb1(%0 : !s32i)
-  // CHECK:  ^bb1(%1: !s32i):  // 2 preds: ^bb0, ^bb2
+  // CHECK:    cir.br ^bb2(%0 : !s32i)
+  // CHECK:  ^bb2(%1: !s32i):  // 2 preds: ^bb1, ^bb6
   // CHECK:    %2 = cir.cmp(lt, %1, %arg1) : !s32i, !s32i
   // CHECK:    %3 = cir.cast(int_to_bool, %2 : !s32i), !cir.bool
-  // CHECK:    cir.brcond %3 ^bb2, ^bb3
-  // CHECK:  ^bb2:  // pred: ^bb1
+  // CHECK:    cir.brcond %3 ^bb3, ^bb7
+  // CHECK:  ^bb3:  // pred: ^bb2
+  // CHECK:    cir.br ^bb4
+  // CHECK:  ^bb4:  // pred: ^bb3
   // CHECK:    %4 = cir.const #cir.int<4> : !s32i
   // CHECK:    %5 = cir.ptr_stride(%arg0 : !cir.ptr<!s32i>, %1 : !s32i), !cir.ptr<!s32i>
   // CHECK:    cir.store %4, %5 : !s32i, !cir.ptr<!s32i>
+  // CHECK:    cir.br ^bb5
+  // CHECK:  ^bb5:  // pred: ^bb4
+  // CHECK:    cir.br ^bb6
+  // CHECK:  ^bb6:  // pred: ^bb5
   // CHECK:    %6 = cir.unary(inc, %1) : !s32i, !s32i
-  // CHECK:    cir.br ^bb1(%6 : !s32i)
-  // CHECK:  ^bb3:  // pred: ^bb1
+  // CHECK:    cir.br ^bb2(%6 : !s32i)
+  // CHECK:  ^bb7:  // pred: ^bb2
+  // CHECK:    cir.br ^bb8
+  // CHECK:  ^bb8:  // pred: ^bb7
   // CHECK:    cir.return
   // CHECK:  }
-
 
   //  ====   Alloca inside If Op
   // C code 
@@ -147,26 +156,29 @@ module {
     %8 = cir.load %1 : !cir.ptr<!s32i>, !s32i
     cir.return %8 : !s32i
   }
-  // CHECK: cir.func @alloca_in_ifelse(%arg0: !s32i) -> !s32i {
+  // CHECK:  cir.func @alloca_in_ifelse(%arg0: !s32i) -> !s32i {
   // CHECK:    %0 = cir.const #cir.int<0> : !s32i
+  // CHECK:    cir.br ^bb1
+  // CHECK:  ^bb1:  // pred: ^bb0
   // CHECK:    %1 = cir.const #cir.int<42> : !s32i
   // CHECK:    %2 = cir.cmp(gt, %arg0, %1) : !s32i, !s32i
   // CHECK:    %3 = cir.cast(int_to_bool, %2 : !s32i), !cir.bool
-  // CHECK:    cir.brcond %3 ^bb2, ^bb1
-  // CHECK:  ^bb1:  // pred: ^bb0
+  // CHECK:    cir.brcond %3 ^bb3, ^bb2
+  // CHECK:  ^bb2:  // pred: ^bb1
   // CHECK:    %4 = cir.const #cir.int<3> : !s32i
   // CHECK:    %5 = cir.binop(mul, %arg0, %4) : !s32i
-  // CHECK:    cir.br ^bb3(%5 : !s32i)
-  // CHECK:  ^bb2:  // pred: ^bb0
+  // CHECK:    cir.br ^bb4(%5 : !s32i)
+  // CHECK:  ^bb3:  // pred: ^bb1
   // CHECK:    %6 = cir.const #cir.int<2> : !s32i
   // CHECK:    %7 = cir.binop(mul, %arg0, %6) : !s32i
-  // CHECK:    cir.br ^bb3(%7 : !s32i)
-  // CHECK:  ^bb3(%8: !s32i):  // 2 preds: ^bb1, ^bb2
+  // CHECK:    cir.br ^bb4(%7 : !s32i)
+  // CHECK:  ^bb4(%8: !s32i):  // 2 preds: ^bb2, ^bb3
+  // CHECK:    cir.br ^bb5
+  // CHECK:  ^bb5:  // pred: ^bb4
   // CHECK:    %9 = cir.const #cir.int<1> : !s32i
   // CHECK:    %10 = cir.binop(add, %8, %9) : !s32i
   // CHECK:    cir.return %10 : !s32i
   // CHECK:  }
-
 
   //  ====   Alloca promoted through bitcast
   // C code
