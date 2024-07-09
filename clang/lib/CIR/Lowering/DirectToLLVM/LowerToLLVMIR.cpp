@@ -96,46 +96,25 @@ private:
       mlir::LLVM::ModuleTranslation &moduleTranslation) const {
     auto &vmCtx = moduleTranslation.getLLVMContext();
 
-    auto unpackDim3ArrayAttr = [](mlir::ArrayAttr arrayAttr) {
-      llvm::SmallVector<int64_t, 3> dims;
-      for (auto dim : arrayAttr) {
-        dims.push_back(cast<mlir::IntegerAttr>(dim).getInt());
+    auto lowerArrayAttr = [&](mlir::ArrayAttr arrayAttr) {
+      llvm::SmallVector<llvm::Metadata *, 3> attrMDArgs;
+      for (mlir::Attribute attr : arrayAttr) {
+        int64_t value = mlir::cast<mlir::IntegerAttr>(attr).getInt();
+        attrMDArgs.push_back(
+            llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(
+                llvm::IntegerType::get(vmCtx, 32), llvm::APInt(32, value))));
       }
-      return dims;
+      return llvm::MDNode::get(vmCtx, attrMDArgs);
     };
 
     if (auto workGroupSizeHint = clKernelMetadata.getWorkGroupSizeHint()) {
-      auto dim3Value = unpackDim3ArrayAttr(workGroupSizeHint);
-      llvm::Metadata *attrMDArgs[] = {
-          llvm::ConstantAsMetadata::get(
-              llvm::ConstantInt::get(llvm::IntegerType::get(vmCtx, 32),
-                                     llvm::APInt(32, dim3Value[0]))),
-          llvm::ConstantAsMetadata::get(
-              llvm::ConstantInt::get(llvm::IntegerType::get(vmCtx, 32),
-                                     llvm::APInt(32, dim3Value[1]))),
-          llvm::ConstantAsMetadata::get(
-              llvm::ConstantInt::get(llvm::IntegerType::get(vmCtx, 32),
-                                     llvm::APInt(32, dim3Value[2]))),
-      };
       llvmFunc->setMetadata("work_group_size_hint",
-                            llvm::MDNode::get(vmCtx, attrMDArgs));
+                            lowerArrayAttr(workGroupSizeHint));
     }
 
     if (auto reqdWorkGroupSize = clKernelMetadata.getReqdWorkGroupSize()) {
-      auto dim3Value = unpackDim3ArrayAttr(reqdWorkGroupSize);
-      llvm::Metadata *attrMDArgs[] = {
-          llvm::ConstantAsMetadata::get(
-              llvm::ConstantInt::get(llvm::IntegerType::get(vmCtx, 32),
-                                     llvm::APInt(32, dim3Value[0]))),
-          llvm::ConstantAsMetadata::get(
-              llvm::ConstantInt::get(llvm::IntegerType::get(vmCtx, 32),
-                                     llvm::APInt(32, dim3Value[1]))),
-          llvm::ConstantAsMetadata::get(
-              llvm::ConstantInt::get(llvm::IntegerType::get(vmCtx, 32),
-                                     llvm::APInt(32, dim3Value[2]))),
-      };
       llvmFunc->setMetadata("reqd_work_group_size",
-                            llvm::MDNode::get(vmCtx, attrMDArgs));
+                            lowerArrayAttr(reqdWorkGroupSize));
     }
 
     if (auto vecTypeHint = clKernelMetadata.getVecTypeHint()) {

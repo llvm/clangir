@@ -511,8 +511,8 @@ LogicalResult OpenCLKernelMetadataAttr::verify(
   // If no field is present, the attribute is considered invalid.
   if (!workGroupSizeHint && !reqdWorkGroupSize && !vecTypeHint &&
       !vecTypeHintSignedness && !intelReqdSubGroupSize) {
-    emitError() << "metadata attribute without any field present is invalid";
-    return failure();
+    return emitError()
+           << "metadata attribute without any field present is invalid";
   }
 
   // Check for 3-dim integer tuples
@@ -521,19 +521,18 @@ LogicalResult OpenCLKernelMetadataAttr::verify(
     return arr.size() == 3 && llvm::all_of(arr, isInt);
   };
   if (workGroupSizeHint && !is3dimIntTuple(workGroupSizeHint)) {
-    emitError() << "work_group_size_hint must have exactly 3 integer elements";
-    return failure();
+    return emitError()
+           << "work_group_size_hint must have exactly 3 integer elements";
   }
   if (reqdWorkGroupSize && !is3dimIntTuple(reqdWorkGroupSize)) {
-    emitError() << "reqd_work_group_size must have exactly 3 integer elements";
-    return failure();
+    return emitError()
+           << "reqd_work_group_size must have exactly 3 integer elements";
   }
 
   // Check for co-presence of vecTypeHintSignedness
   if (!!vecTypeHint != vecTypeHintSignedness.has_value()) {
-    emitError() << "vec_type_hint_signedness should be present if and only if "
-                   "vec_type_hint is set";
-    return failure();
+    return emitError() << "vec_type_hint_signedness should be present if and "
+                          "only if vec_type_hint is set";
   }
 
   if (vecTypeHint) {
@@ -541,15 +540,13 @@ LogicalResult OpenCLKernelMetadataAttr::verify(
     if (mlir::isa<cir::CIRDialect>(vecTypeHintValue.getDialect())) {
       // Check for signedness alignment in CIR
       if (isSignedHint(vecTypeHintValue) != vecTypeHintSignedness) {
-        emitError() << "vec_type_hint_signedness must match the signedness of "
-                       "the vec_type_hint type";
-        return failure();
+        return emitError() << "vec_type_hint_signedness must match the "
+                              "signedness of the vec_type_hint type";
       }
       // Check for the dialect of type hint
     } else if (!LLVM::isCompatibleType(vecTypeHintValue)) {
-      emitError() << "vec_type_hint must be a type from the CIR or LLVM "
-                     "dialect";
-      return failure();
+      return emitError() << "vec_type_hint must be a type from the CIR or LLVM "
+                            "dialect";
     }
   }
 

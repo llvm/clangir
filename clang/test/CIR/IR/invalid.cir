@@ -1186,6 +1186,13 @@ cir.func @address_space4(%p : !cir.ptr<!u64i, addrspace(foobar)>) { // expected-
 
 // -----
 
+// expected-error@+1 {{reqd_work_group_size must have exactly 3 integer elements}}
+#fn_attr = #cir.cl.kernel_metadata<
+  reqd_work_group_size = [3.0 : f32, 1.7 : f32]
+>
+
+// -----
+
 // expected-error@+1 {{vec_type_hint_signedness should be present if and only if vec_type_hint is set}}
 #fn_attr = #cir.cl.kernel_metadata<
   vec_type_hint_signedness = 1
