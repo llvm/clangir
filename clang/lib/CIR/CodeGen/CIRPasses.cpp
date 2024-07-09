@@ -18,7 +18,7 @@
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Transforms/Passes.h"
-
+#include <iostream>
 namespace cir {
 mlir::LogicalResult runCIRToCIRPasses(
     mlir::ModuleOp theModule, mlir::MLIRContext *mlirCtx,
@@ -28,6 +28,7 @@ mlir::LogicalResult runCIRToCIRPasses(
     llvm::StringRef libOptOpts, std::string &passOptParsingFailure,
     bool flattenCIR, bool emitMLIR, bool enableCallConvLowering,
     bool enableMem2Reg) {
+  std::cout << "runCIRToCIRPasses: " << flattenCIR << enableMem2Reg << std::endl;
   mlir::PassManager pm(mlirCtx);
   pm.addPass(mlir::createMergeCleanupsPass());
 
@@ -73,7 +74,10 @@ mlir::LogicalResult runCIRToCIRPasses(
     pm.addPass(mlir::createCallConvLoweringPass());
 
   if (flattenCIR)
-    mlir::populateCIRPreLoweringPasses(pm, enableMem2Reg);
+    mlir::populateCIRPreLoweringPasses(pm);
+  
+  if (enableMem2Reg)
+    pm.addPass(mlir::createMem2Reg());
 
   if (emitMLIR)
     pm.addPass(mlir::createSCFPreparePass());
@@ -90,13 +94,10 @@ mlir::LogicalResult runCIRToCIRPasses(
 
 namespace mlir {
 
-void populateCIRPreLoweringPasses(OpPassManager &pm, bool enableMem2Reg) {
+void populateCIRPreLoweringPasses(OpPassManager &pm) {
   pm.addPass(createFlattenCFGPass());
   pm.addPass(createGotoSolverPass());
-  if (enableMem2Reg)
-    pm.addPass(mlir::createMem2Reg());
   pm.addPass(createMergeCleanupsPass());
 }
-
 
 } // namespace mlir

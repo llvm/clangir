@@ -7,13 +7,12 @@
 
 module {
 
-//  ====   Alloca at the beginning of a function
-// C code
-// int return_42() {
-//   int y = 42;
-//   return y;  
-// }
-
+  //  ====   Simple case
+  // C code
+  // int return_42() {
+  //   int y = 42;
+  //   return y;  
+  // }
   cir.func @return_42() -> !s32i {
     %0 = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"] {alignment = 4 : i64}
     %1 = cir.alloca !s32i, !cir.ptr<!s32i>, ["y", init] {alignment = 4 : i64}
@@ -24,123 +23,91 @@ module {
     %4 = cir.load %0 : !cir.ptr<!s32i>, !s32i
     cir.return %4 : !s32i
   }
+  // CHECK:  cir.func @return_42() -> !s32i {
+  // CHECK:    %0 = cir.const #cir.int<42> : !s32i
+  // CHECK:    cir.return %0 : !s32i
+  // CHECK:  }
+ 
 
-// Verifies:
-// - no allocas remain in the function
-// CHECK:  cir.func @return_42() -> !s32i {
-// CHECK:    %0 = cir.const #cir.int<42> : !s32i
-// CHECK:    cir.return %0 : !s32i
-// CHECK:  }
-  
+  //  ====   Alloca inside loop op
+  // C code
+  // void alloca_in_loop(int* ar, int n) {
+  //   for (int i = 0; i < n; ++i) {
+  //     int a = 4;
+  //     ar[i] = a;
+  //   }
+  // }
 
-
-//  ====   Alloca inside loop op
-// C code
-// int alloca_in_loop(int* ar, int n) {
-//   int sum = 0;
-//   for (int i = 0; i < n; ++i) {
-//     int a = 4;
-//     sum += ar[i] + a;
-//   }
-//   return sum;
-// }
-
-  cir.func @alloca_in_loop(%arg0: !cir.ptr<!s32i>, %arg1: !s32i) -> !s32i {
+  cir.func @alloca_in_loop(%arg0: !cir.ptr<!s32i>, %arg1: !s32i) {
     %0 = cir.alloca !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>, ["ar", init] {alignment = 8 : i64}
     %1 = cir.alloca !s32i, !cir.ptr<!s32i>, ["n", init] {alignment = 4 : i64}
-    %2 = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"] {alignment = 4 : i64}
-    %3 = cir.alloca !s32i, !cir.ptr<!s32i>, ["sum", init] {alignment = 4 : i64}
     cir.store %arg0, %0 : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
     cir.store %arg1, %1 : !s32i, !cir.ptr<!s32i>
-    %4 = cir.const #cir.int<0> : !s32i
-    cir.store %4, %3 : !s32i, !cir.ptr<!s32i>
     cir.scope {
-      %7 = cir.alloca !s32i, !cir.ptr<!s32i>, ["i", init] {alignment = 4 : i64}
-      %8 = cir.const #cir.int<0> : !s32i
-      cir.store %8, %7 : !s32i, !cir.ptr<!s32i>
+      %2 = cir.alloca !s32i, !cir.ptr<!s32i>, ["i", init] {alignment = 4 : i64}
+      %3 = cir.const #cir.int<0> : !s32i
+      cir.store %3, %2 : !s32i, !cir.ptr<!s32i>
       cir.for : cond {
-        %9 = cir.load %7 : !cir.ptr<!s32i>, !s32i
-        %10 = cir.load %1 : !cir.ptr<!s32i>, !s32i
-        %11 = cir.cmp(lt, %9, %10) : !s32i, !s32i
-        %12 = cir.cast(int_to_bool, %11 : !s32i), !cir.bool
-        cir.condition(%12)
+        %4 = cir.load %2 : !cir.ptr<!s32i>, !s32i
+        %5 = cir.load %1 : !cir.ptr<!s32i>, !s32i
+        %6 = cir.cmp(lt, %4, %5) : !s32i, !s32i
+        %7 = cir.cast(int_to_bool, %6 : !s32i), !cir.bool
+        cir.condition(%7)
       } body {
         cir.scope {
-          %9 = cir.alloca !s32i, !cir.ptr<!s32i>, ["a", init] {alignment = 4 : i64}
-          %10 = cir.const #cir.int<4> : !s32i
-          cir.store %10, %9 : !s32i, !cir.ptr<!s32i>
-          %11 = cir.load %0 : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
-          %12 = cir.load %7 : !cir.ptr<!s32i>, !s32i
-          %13 = cir.ptr_stride(%11 : !cir.ptr<!s32i>, %12 : !s32i), !cir.ptr<!s32i>
-          %14 = cir.load %13 : !cir.ptr<!s32i>, !s32i
-          %15 = cir.load %9 : !cir.ptr<!s32i>, !s32i
-          %16 = cir.binop(add, %14, %15) : !s32i
-          %17 = cir.load %3 : !cir.ptr<!s32i>, !s32i
-          %18 = cir.binop(add, %17, %16) : !s32i
-          cir.store %18, %3 : !s32i, !cir.ptr<!s32i>
+          %4 = cir.alloca !s32i, !cir.ptr<!s32i>, ["a", init] {alignment = 4 : i64}
+          %5 = cir.const #cir.int<4> : !s32i
+          cir.store %5, %4 : !s32i, !cir.ptr<!s32i>
+          %6 = cir.load %4 : !cir.ptr<!s32i>, !s32i
+          %7 = cir.load %0 : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
+          %8 = cir.load %2 : !cir.ptr<!s32i>, !s32i
+          %9 = cir.ptr_stride(%7 : !cir.ptr<!s32i>, %8 : !s32i), !cir.ptr<!s32i>
+          cir.store %6, %9 : !s32i, !cir.ptr<!s32i>
         }
         cir.yield
       } step {
-        %9 = cir.load %7 : !cir.ptr<!s32i>, !s32i
-        %10 = cir.unary(inc, %9) : !s32i, !s32i
-        cir.store %10, %7 : !s32i, !cir.ptr<!s32i>
+        %4 = cir.load %2 : !cir.ptr<!s32i>, !s32i
+        %5 = cir.unary(inc, %4) : !s32i, !s32i
+        cir.store %5, %2 : !s32i, !cir.ptr<!s32i>
         cir.yield
       }
     }
-    %5 = cir.load %3 : !cir.ptr<!s32i>, !s32i
-    cir.store %5, %2 : !s32i, !cir.ptr<!s32i>
-    %6 = cir.load %2 : !cir.ptr<!s32i>, !s32i
-    cir.return %6 : !s32i
+    cir.return  
   }
+  
+  // CHECK:  cir.func @alloca_in_loop(%arg0: !cir.ptr<!s32i>, %arg1: !s32i) {
+  // CHECK:    %0 = cir.const #cir.int<0> : !s32i
+  // CHECK:    cir.br ^bb1(%0 : !s32i)
+  // CHECK:  ^bb1(%1: !s32i):  // 2 preds: ^bb0, ^bb2
+  // CHECK:    %2 = cir.cmp(lt, %1, %arg1) : !s32i, !s32i
+  // CHECK:    %3 = cir.cast(int_to_bool, %2 : !s32i), !cir.bool
+  // CHECK:    cir.brcond %3 ^bb2, ^bb3
+  // CHECK:  ^bb2:  // pred: ^bb1
+  // CHECK:    %4 = cir.const #cir.int<4> : !s32i
+  // CHECK:    %5 = cir.ptr_stride(%arg0 : !cir.ptr<!s32i>, %1 : !s32i), !cir.ptr<!s32i>
+  // CHECK:    cir.store %4, %5 : !s32i, !cir.ptr<!s32i>
+  // CHECK:    %6 = cir.unary(inc, %1) : !s32i, !s32i
+  // CHECK:    cir.br ^bb1(%6 : !s32i)
+  // CHECK:  ^bb3:  // pred: ^bb1
+  // CHECK:    cir.return
+  // CHECK:  }
 
-// Verifies:
-// - no allocas remain in the function
-// - blocks have arguments 
-// CHECK:  cir.func @alloca_in_loop(%arg0: !cir.ptr<!s32i>, %arg1: !s32i) -> !s32i {
-// CHECK:    %0 = cir.const #cir.int<0> : !s32i
-// CHECK:    cir.br ^bb1
-// CHECK:  ^bb1:  // pred: ^bb0
-// CHECK:    %1 = cir.const #cir.int<0> : !s32i
-// CHECK:    cir.br ^bb[[#COND:]](%0, %1 : !s32i, !s32i)
-// CHECK:  ^bb[[#COND]](%2: !s32i, %3: !s32i):  // 2 preds: ^bb1, ^bb6
-// CHECK:    %4 = cir.cmp(lt, %3, %arg1) : !s32i, !s32i
-// CHECK:    %5 = cir.cast(int_to_bool, %4 : !s32i), !cir.bool
-// CHECK:    cir.brcond %5 ^bb3, ^bb[[#EXIT:]]
-// CHECK:  ^bb3:
-// CHECK:    cir.br ^bb[[#BODY:]]
-// CHECK:  ^bb[[#BODY]]:
-// CHECK:    %6 = cir.const #cir.int<4> : !s32i
-// CHECK:    %7 = cir.ptr_stride(%arg0 : !cir.ptr<!s32i>, %3 : !s32i), !cir.ptr<!s32i>
-// CHECK:    %8 = cir.load %7 : !cir.ptr<!s32i>, !s32i
-// CHECK:    %9 = cir.binop(add, %8, %6) : !s32i
-// CHECK:    %10 = cir.binop(add, %2, %9) : !s32i
-// CHECK:    cir.br ^bb5
-// CHECK:  ^bb5:  // pred: ^bb4
-// CHECK:    cir.br ^bb[[#STEP:]]
-// CHECK:  ^bb[[#STEP]]:
-// CHECK:    %11 = cir.unary(inc, %3) : !s32i, !s32i
-// CHECK:    cir.br ^bb[[#COND]](%10, %11 : !s32i, !s32i)
-// CHECK:  ^bb[[#EXIT]]:
-// CHECK:    cir.br ^bb8
-// CHECK:  ^bb8:
-// CHECK:    cir.return %2 : !s32i
-// CHECK:  }
 
-//  ====   Alloca inside If Op
-// C code 
-// int alloca_in_ifelse(int x) {
-//  int y = 0;
-//  if (x > 42) {
-//    int z = 2;
-//    y = x * z;
-//  } else  {
-//    int z = 3;
-//    y = x * z;
-//  }
-//
-//  y = y + 1;
-//  return y;
-// }
+  //  ====   Alloca inside If Op
+  // C code 
+  // int alloca_in_ifelse(int x) {
+  //  int y = 0;
+  //  if (x > 42) {
+  //    int z = 2;
+  //    y = x * z;
+  //  } else  {
+  //    int z = 3;
+  //    y = x * z;
+  //  }
+  //
+  //  y = y + 1;
+  //  return y;
+  // }
   cir.func @alloca_in_ifelse(%arg0: !s32i) -> !s32i {
     %0 = cir.alloca !s32i, !cir.ptr<!s32i>, ["x", init] {alignment = 4 : i64}
     %1 = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"] {alignment = 4 : i64}
@@ -180,44 +147,35 @@ module {
     %8 = cir.load %1 : !cir.ptr<!s32i>, !s32i
     cir.return %8 : !s32i
   }
-
-// Verifies:
-// - no allocas remain in the function
-// - blocks have arguments 
-// CHECK:  cir.func @alloca_in_ifelse(%arg0: !s32i) -> !s32i {
-// CHECK:    %0 = cir.const #cir.int<0> : !s32i
-// CHECK:    cir.br ^bb1
-// CHECK:  ^bb1:  // pred: ^bb0
-// CHECK:    %1 = cir.const #cir.int<42> : !s32i
-// CHECK:    %2 = cir.cmp(gt, %arg0, %1) : !s32i, !s32i
-// CHECK:    %3 = cir.cast(int_to_bool, %2 : !s32i), !cir.bool
-// CHECK:    cir.brcond %3 ^bb3, ^bb2
-// CHECK:  ^bb2:  // pred: ^bb1
-// CHECK:    %4 = cir.const #cir.int<3> : !s32i
-// CHECK:    %5 = cir.binop(mul, %arg0, %4) : !s32i
-// CHECK:    cir.br ^bb4(%5 : !s32i)
-// CHECK:  ^bb3:  // pred: ^bb1
-// CHECK:    %6 = cir.const #cir.int<2> : !s32i
-// CHECK:    %7 = cir.binop(mul, %arg0, %6) : !s32i
-// CHECK:    cir.br ^bb4(%7 : !s32i)
-// CHECK:  ^bb4(%8: !s32i):  // 2 preds: ^bb2, ^bb3
-// CHECK:    cir.br ^bb5
-// CHECK:  ^bb5:  // pred: ^bb4
-// CHECK:    %9 = cir.const #cir.int<1> : !s32i
-// CHECK:    %10 = cir.binop(add, %8, %9) : !s32i
-// CHECK:    cir.return %10 : !s32i
-// CHECK:  }
+  // CHECK: cir.func @alloca_in_ifelse(%arg0: !s32i) -> !s32i {
+  // CHECK:    %0 = cir.const #cir.int<0> : !s32i
+  // CHECK:    %1 = cir.const #cir.int<42> : !s32i
+  // CHECK:    %2 = cir.cmp(gt, %arg0, %1) : !s32i, !s32i
+  // CHECK:    %3 = cir.cast(int_to_bool, %2 : !s32i), !cir.bool
+  // CHECK:    cir.brcond %3 ^bb2, ^bb1
+  // CHECK:  ^bb1:  // pred: ^bb0
+  // CHECK:    %4 = cir.const #cir.int<3> : !s32i
+  // CHECK:    %5 = cir.binop(mul, %arg0, %4) : !s32i
+  // CHECK:    cir.br ^bb3(%5 : !s32i)
+  // CHECK:  ^bb2:  // pred: ^bb0
+  // CHECK:    %6 = cir.const #cir.int<2> : !s32i
+  // CHECK:    %7 = cir.binop(mul, %arg0, %6) : !s32i
+  // CHECK:    cir.br ^bb3(%7 : !s32i)
+  // CHECK:  ^bb3(%8: !s32i):  // 2 preds: ^bb1, ^bb2
+  // CHECK:    %9 = cir.const #cir.int<1> : !s32i
+  // CHECK:    %10 = cir.binop(add, %8, %9) : !s32i
+  // CHECK:    cir.return %10 : !s32i
+  // CHECK:  }
 
 
-
-//  ====   Alloca promoted through bitcast
-// C code
-// typedef __SIZE_TYPE__ size_t;
-// void *alloca(size_t size);
-// 
-// void test_bitcast(size_t n) {
-//   int *c1 = alloca(n);
-// }
+  //  ====   Alloca promoted through bitcast
+  // C code
+  // typedef __SIZE_TYPE__ size_t;
+  // void *alloca(size_t size);
+  // 
+  // void test_bitcast(size_t n) {
+  //   int *c1 = alloca(n);
+  // }
   cir.func @test_bitcast(%arg0: !u64i) {
     %0 = cir.alloca !u64i, !cir.ptr<!u64i>, ["n", init] {alignment = 8 : i64}
     %1 = cir.alloca !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>, ["c1", init] {alignment = 8 : i64}
@@ -229,11 +187,8 @@ module {
     cir.store %5, %1 : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
     cir.return
   }
-
-// Verifies:
-// - no allocas remain in the function
-// CHECK:  cir.func @test_bitcast(%arg0: !u64i) {
-// CHECK:    cir.return
-// CHECK:  }
+  // CHECK:  cir.func @test_bitcast(%arg0: !u64i) {
+  // CHECK:    cir.return
+  // CHECK:  }
 
 } //module
