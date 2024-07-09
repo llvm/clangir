@@ -160,4 +160,15 @@ def CallConvLowering : Pass<"cir-call-conv-lowering"> {
   let dependentDialects = ["mlir::cir::CIRDialect"];
 }
 
+def CIRSimplify : Pass<"cir-simplify"> {
+  let summary = "Performs CIR simplification";
+  let description = [{
+    Performs CIR simplification, e.g. !! on bool values 
+    or redundant casts.
+  }];
+  let constructor = "mlir::createCIRSimplifyPass()";
+  let dependentDialects = ["cir::CIRDialect"];
+}
+
+
 #endif // MLIR_DIALECT_CIR_PASSES
