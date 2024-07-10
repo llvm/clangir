@@ -17,6 +17,7 @@
 #include "clang/CIR/MissingFeatures.h"
 
 #include "clang/AST/ASTLambda.h"
+#include "clang/AST/Attr.h"
 #include "clang/AST/ExprObjC.h"
 #include "clang/Basic/Builtins.h"
 #include "clang/Basic/DiagnosticCategories.h"
@@ -1716,8 +1717,7 @@ CIRGenFunction::buildArrayLength(const clang::ArrayType *origArrayType,
 
 void CIRGenFunction::buildKernelMetadata(const FunctionDecl *FD,
                                          mlir::cir::FuncOp Fn) {
-  // OpenCL kernel metadata generation is not yet implemented
-  if (!MissingFeatures::openCLGenKernelMetadata())
+  if (!FD->hasAttr<DeviceKernelAttr>() && !FD->hasAttr<CUDAGlobalAttr>())
     return;
 
   // TODO(cir): CGM.genKernelArgMetadata(Fn, FD, this);
