@@ -1936,8 +1936,6 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
     state.addAttribute(lambdaNameAttr, parser.getBuilder().getUnitAttr());
   if (parser.parseOptionalKeyword(noProtoNameAttr).succeeded())
     state.addAttribute(noProtoNameAttr, parser.getBuilder().getUnitAttr());
-  if (parser.parseOptionalKeyword(dsolocalNameAttr).succeeded())
-    state.addAttribute(dsolocalNameAttr, parser.getBuilder().getUnitAttr());
 
   // Default to external linkage if no keyword is provided.
   state.addAttribute(getLinkageAttrNameString(),
@@ -1952,6 +1950,8 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
     state.addAttribute(visNameAttr,
                        parser.getBuilder().getStringAttr(visAttrStr));
   }
+  if (parser.parseOptionalKeyword(dsolocalNameAttr).succeeded())
+    state.addAttribute(dsolocalNameAttr, parser.getBuilder().getUnitAttr());
 
   StringAttr nameAttr;
   SmallVector<OpAsmParser::Argument, 8> arguments;
