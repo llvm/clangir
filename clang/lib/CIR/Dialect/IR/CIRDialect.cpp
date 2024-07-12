@@ -1926,6 +1926,7 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
   auto lambdaNameAttr = getLambdaAttrName(state.name);
   auto visNameAttr = getSymVisibilityAttrName(state.name);
   auto noProtoNameAttr = getNoProtoAttrName(state.name);
+  auto dsolocalNameAttr = getDsolocalAttrName(state.name);
   if (::mlir::succeeded(parser.parseOptionalKeyword(builtinNameAttr.strref())))
     state.addAttribute(builtinNameAttr, parser.getBuilder().getUnitAttr());
   if (::mlir::succeeded(
@@ -1935,6 +1936,8 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
     state.addAttribute(lambdaNameAttr, parser.getBuilder().getUnitAttr());
   if (parser.parseOptionalKeyword(noProtoNameAttr).succeeded())
     state.addAttribute(noProtoNameAttr, parser.getBuilder().getUnitAttr());
+  if (parser.parseOptionalKeyword(dsolocalNameAttr).succeeded())
+    state.addAttribute(dsolocalNameAttr, parser.getBuilder().getUnitAttr());
 
   // Default to external linkage if no keyword is provided.
   state.addAttribute(getLinkageAttrNameString(),
