@@ -364,7 +364,7 @@ bool CIRGenModule::MayBeEmittedEagerly(const ValueDecl *Global) {
   return true;
 }
 
-static bool hasDefaultVisibilityForDsoLocal(CIRGlobalValueInterface GV) {
+static bool hasDefaultVisibility(CIRGlobalValueInterface GV) {
   // Since we do not support hidden visibility and private visibility,
   // we can assume that the default visibility is public or private.
   // The way we use private visibility now simply is just treating it
@@ -379,7 +379,7 @@ static bool shouldAssumeDSOLocal(const CIRGenModule &CGM,
   if (GV.hasLocalLinkage())
     return true;
 
-  if (!hasDefaultVisibilityForDsoLocal(GV) && !GV.hasExternalWeakLinkage()) {
+  if (!hasDefaultVisibility(GV) && !GV.hasExternalWeakLinkage()) {
     return true;
   }
 
