@@ -82,6 +82,29 @@ struct RemoveEmptySwitch : public OpRewritePattern<SwitchOp> {
   }
 };
 
+struct RemoveTrivialTry : public OpRewritePattern<TryOp> {
+  using OpRewritePattern<TryOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(TryOp op,
+                                PatternRewriter &rewriter) const final {
+    if (!(op.getResult().use_empty() && op.getBody().hasOneBlock()))
+      return failure();
+
+    // Move try body to the parent.
+    assert(op.getBody().hasOneBlock());
+
+    Block *parentBlock = op.getOperation()->getBlock();
+    mlir::Block *tryBody = &op.getBody().getBlocks().front();
+    YieldOp y = dyn_cast<YieldOp>(tryBody->getTerminator());
+    assert(y && "expected well wrapped up try block");
+    y->erase();
+
+    rewriter.inlineBlockBefore(tryBody, parentBlock, Block::iterator(op));
+    rewriter.eraseOp(op);
+    return success();
+  }
+};
+
 //===----------------------------------------------------------------------===//
 // MergeCleanupsPass
 //===----------------------------------------------------------------------===//
@@ -105,7 +128,8 @@ void populateMergeCleanupPatterns(RewritePatternSet &patterns) {
   patterns.add<
     RemoveRedundantBranches,
     RemoveEmptyScope,
-    RemoveEmptySwitch
+    RemoveEmptySwitch,
+    RemoveTrivialTry
   >(patterns.getContext());
   // clang-format on
 }
@@ -120,7 +144,7 @@ void MergeCleanupsPass::runOnOperation() {
   getOperation()->walk([&](Operation *op) {
     // CastOp here is to perform a manual `fold` in
     // applyOpPatternsAndFold
-    if (isa<BrOp, BrCondOp, ScopeOp, SwitchOp, CastOp>(op))
+    if (isa<BrOp, BrCondOp, ScopeOp, SwitchOp, CastOp, TryOp>(op))
       ops.push_back(op);
   });
 
