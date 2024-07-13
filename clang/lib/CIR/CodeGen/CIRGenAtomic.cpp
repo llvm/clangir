@@ -380,8 +380,8 @@ static void startRegion(mlir::OpBuilder &builder, RegionsCont &Regions,
                         mlir::Location loc) {
 
   Regions.push_back(std::make_unique<mlir::Region>());
-  auto Region = Regions.back().get();
-  auto Block = builder.createBlock(Region);
+  mlir::Region *Region = Regions.back().get();
+  mlir::Block *Block = builder.createBlock(Region);
   builder.setInsertionPointToEnd(Block);
   auto Break = builder.create<mlir::cir::BreakOp>(loc);
   builder.setInsertionPoint(Break);
