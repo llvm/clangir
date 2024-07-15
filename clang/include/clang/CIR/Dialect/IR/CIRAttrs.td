@@ -712,10 +712,10 @@ def AddressSpaceAttr : CIR_Attr<"AddressSpace", "addrspace"> {
     bool isTarget() const;
     unsigned getTargetValue() const;
 
-    /// Convert CIRGen-processed LangAS to CIR AS storage value.
-    /// For offloading languages like CUDA/SYCL, the actual LangAS like generic
-    /// or private should be passed, rather than Default.
-    /// Such "actual LangAS" should be figured out in CIRGen instead.
+    /// Convert a clang LangAS to its corresponding CIR AS storage value. This
+    /// helper does not perform any language-specific mappings (e.g. determining
+    /// the default AS for offloading languages), so these must be handled in
+    /// the caller.
     static std::optional<int32_t> getValueFromLangAS(clang::LangAS v);
 
     /// Helper methods for the assembly format `custom<PointerAddrSpace>`.
