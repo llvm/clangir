@@ -142,6 +142,7 @@ struct MissingFeatures {
   static bool getFPFeaturesInEffect() { return false; }
   static bool cxxABI() { return false; }
   static bool openCL() { return false; }
+  static bool openCLGenKernelMetadata() { return false; }
   static bool CUDA() { return false; }
   static bool openMP() { return false; }
   static bool openMPRuntime() { return false; }
@@ -263,6 +264,9 @@ struct MissingFeatures {
 
   // We're ignoring several details regarding ABI-halding for Swift.
   static bool swift() { return false; }
+
+  // The AppleARM64 is using ItaniumCXXABI, which is not quite right.
+  static bool appleArm64CXXABI() { return false; }
 
   // Despite carrying some information about variadics, we are currently
   // ignoring this to focus only on the code necessary to lower non-variadics.
