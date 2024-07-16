@@ -1,3 +1,16 @@
+//====- CIRMemorySlot.cpp - MemorySlot interfaces -------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file implements MemorySlot-related interfaces for CIR dialect
+// operations.
+//
+//===----------------------------------------------------------------------===//
+
 #include "mlir/IR/Matchers.h"
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/Interfaces/DataLayoutInterfaces.h"
@@ -37,8 +50,8 @@ void cir::AllocaOp::handleBlockArgument(const MemorySlot &slot,
 
 std::optional<PromotableAllocationOpInterface>
 cir::AllocaOp::handlePromotionComplete(const MemorySlot &slot,
-                                            Value defaultValue,
-                                            OpBuilder &builder) {
+                                       Value defaultValue,
+                                       OpBuilder &builder) {
   if (defaultValue && defaultValue.use_empty())
     defaultValue.getDefiningOp()->erase();
   this->erase();

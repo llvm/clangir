@@ -83,7 +83,9 @@ def CastKind : I32EnumAttr<
   let cppNamespace = "::mlir::cir";
 }
 
-def CastOp : CIR_Op<"cast", [Pure, DeclareOpInterfaceMethods<PromotableOpInterface>]> {
+def CastOp : CIR_Op<"cast",
+             [Pure,
+              DeclareOpInterfaceMethods<PromotableOpInterface>]> {
   // FIXME: not all conversions are free of side effects.
   let summary = "Conversion between values of different types";
   let description = [{
@@ -3203,7 +3205,9 @@ def CatchParamOp : CIR_Op<"catch_param"> {
 // CopyOp
 //===----------------------------------------------------------------------===//
 
-def CopyOp : CIR_Op<"copy", [SameTypeOperands, DeclareOpInterfaceMethods<PromotableMemOpInterface>]> {
+def CopyOp : CIR_Op<"copy",
+             [SameTypeOperands,
+              DeclareOpInterfaceMethods<PromotableMemOpInterface>]> {
   let arguments = (ins Arg<CIR_PointerType, "", [MemWrite]>:$dst,
                        Arg<CIR_PointerType, "", [MemRead]>:$src,
                        UnitAttr:$is_volatile);
