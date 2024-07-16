@@ -29,7 +29,7 @@ namespace {
 
 class SPIRVABIInfo : public ABIInfo {
 public:
-  SPIRVABIInfo(LowerTypes &CGT) : ABIInfo(CGT) {}
+  SPIRVABIInfo(LowerTypes &LT) : ABIInfo(LT) {}
 
 private:
   void computeInfo(LowerFunctionInfo &FI) const override {
@@ -46,8 +46,8 @@ public:
 } // namespace
 
 std::unique_ptr<TargetLoweringInfo>
-createSPIRVTargetLoweringInfo(LowerModule &CGM) {
-  return std::make_unique<SPIRVTargetLoweringInfo>(CGM.getTypes());
+createSPIRVTargetLoweringInfo(LowerModule &lowerModule) {
+  return std::make_unique<SPIRVTargetLoweringInfo>(lowerModule.getTypes());
 }
 
 } // namespace cir
