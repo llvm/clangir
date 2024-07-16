@@ -335,6 +335,11 @@ public:
   /// in AST is always in default address space.
   LangAS getGlobalConstantAddressSpace() const;
 
+  /// Returns the address space for temporary alloca in the language. This makes
+  /// the allocated variable's address matches the expectation of AST, rather
+  /// than keep the address space of the alloca in CIR.
+  LangAS getLangTempAllocaAddressSpace() const;
+
   /// Set attributes which are common to any form of a global definition (alias,
   /// Objective-C method, function, global variable).
   ///
