@@ -1523,12 +1523,13 @@ public:
   /// to the name of the attribute in ODS.
   static StringRef getLinkageAttrNameString() { return "linkage"; }
 
+  /// Convert the `cir.func` attributes to `llvm.func` attributes.
   /// Only retain those attributes that are not constructed by
   /// `LLVMFuncOp::build`. If `filterArgAttrs` is set, also filter out
   /// argument attributes.
   void
-  filterFuncAttributes(mlir::cir::FuncOp func, bool filterArgAndResAttrs,
-                       SmallVectorImpl<mlir::NamedAttribute> &result) const {
+  lowerFuncAttributes(mlir::cir::FuncOp func, bool filterArgAndResAttrs,
+                      SmallVectorImpl<mlir::NamedAttribute> &result) const {
     for (auto attr : func->getAttrs()) {
       if (attr.getName() == mlir::SymbolTable::getSymbolAttrName() ||
           attr.getName() == func.getFunctionTypeAttrName() ||
@@ -1543,9 +1544,43 @@ public:
       if (attr.getName() == func.getExtraAttrsAttrName()) {
         std::string cirName = "cir." + func.getExtraAttrsAttrName().str();
         attr.setName(mlir::StringAttr::get(getContext(), cirName));
+
+        lowerFuncOpenCLKernelMetadata(attr);
       }
       result.push_back(attr);
     }
+  }
+
+  /// When do module translation, we can only translate LLVM-compatible types.
+  /// Here we lower possible OpenCLKernelMetadataAttr to use the converted type.
+  void
+  lowerFuncOpenCLKernelMetadata(mlir::NamedAttribute &extraAttrsEntry) const {
+    const auto attrKey = mlir::cir::OpenCLKernelMetadataAttr::getMnemonic();
+    auto oldExtraAttrs =
+        cast<mlir::cir::ExtraFuncAttributesAttr>(extraAttrsEntry.getValue());
+    if (!oldExtraAttrs.getElements().contains(attrKey))
+      return;
+    
+    mlir::NamedAttrList newExtraAttrs;
+    for (auto entry : oldExtraAttrs.getElements()) {
+      if (entry.getName() == attrKey) {
+        auto clKernelMetadata =
+            cast<mlir::cir::OpenCLKernelMetadataAttr>(entry.getValue());
+        if (auto vecTypeHint = clKernelMetadata.getVecTypeHint()) {
+          auto newType = typeConverter->convertType(vecTypeHint.getValue());
+          auto newTypeHint = mlir::TypeAttr::get(newType);
+          auto newCLKMAttr = mlir::cir::OpenCLKernelMetadataAttr::get(
+              getContext(), clKernelMetadata.getWorkGroupSizeHint(),
+              clKernelMetadata.getReqdWorkGroupSize(), newTypeHint,
+              clKernelMetadata.getVecTypeHintSignedness(),
+              clKernelMetadata.getIntelReqdSubGroupSize());
+          entry.setValue(newCLKMAttr);
+        }
+      }
+      newExtraAttrs.push_back(entry);
+    }
+    extraAttrsEntry.setValue(mlir::cir::ExtraFuncAttributesAttr::get(
+        getContext(), newExtraAttrs.getDictionary(getContext())));
   }
 
   mlir::LogicalResult
@@ -1585,7 +1620,7 @@ public:
 
     auto linkage = convertLinkage(op.getLinkage());
     SmallVector<mlir::NamedAttribute, 4> attributes;
-    filterFuncAttributes(op, /*filterArgAndResAttrs=*/false, attributes);
+    lowerFuncAttributes(op, /*filterArgAndResAttrs=*/false, attributes);
 
     auto fn = rewriter.create<mlir::LLVM::LLVMFuncOp>(
         Loc, op.getName(), llvmFnTy, linkage, isDsoLocal, mlir::LLVM::CConv::C,
@@ -3360,10 +3395,22 @@ public:
 
 using CIRCeilOpLowering =
     CIRUnaryFPBuiltinOpLowering<mlir::cir::CeilOp, mlir::LLVM::FCeilOp>;
+using CIRCosOpLowering =
+    CIRUnaryFPBuiltinOpLowering<mlir::cir::CosOp, mlir::LLVM::CosOp>;
+using CIRExpOpLowering =
+    CIRUnaryFPBuiltinOpLowering<mlir::cir::ExpOp, mlir::LLVM::ExpOp>;
+using CIRExp2OpLowering =
+    CIRUnaryFPBuiltinOpLowering<mlir::cir::Exp2Op, mlir::LLVM::Exp2Op>;
 using CIRFloorOpLowering =
     CIRUnaryFPBuiltinOpLowering<mlir::cir::FloorOp, mlir::LLVM::FFloorOp>;
 using CIRFabsOpLowering =
     CIRUnaryFPBuiltinOpLowering<mlir::cir::FAbsOp, mlir::LLVM::FAbsOp>;
+using CIRLogOpLowering =
+    CIRUnaryFPBuiltinOpLowering<mlir::cir::LogOp, mlir::LLVM::LogOp>;
+using CIRLog10OpLowering =
+    CIRUnaryFPBuiltinOpLowering<mlir::cir::Log10Op, mlir::LLVM::Log10Op>;
+using CIRLog2OpLowering =
+    CIRUnaryFPBuiltinOpLowering<mlir::cir::Log2Op, mlir::LLVM::Log2Op>;
 using CIRNearbyintOpLowering =
     CIRUnaryFPBuiltinOpLowering<mlir::cir::NearbyintOp,
                                 mlir::LLVM::NearbyintOp>;
@@ -3371,6 +3418,10 @@ using CIRRintOpLowering =
     CIRUnaryFPBuiltinOpLowering<mlir::cir::RintOp, mlir::LLVM::RintOp>;
 using CIRRoundOpLowering =
     CIRUnaryFPBuiltinOpLowering<mlir::cir::RoundOp, mlir::LLVM::RoundOp>;
+using CIRSinOpLowering =
+    CIRUnaryFPBuiltinOpLowering<mlir::cir::SinOp, mlir::LLVM::SinOp>;
+using CIRSqrtOpLowering =
+    CIRUnaryFPBuiltinOpLowering<mlir::cir::SqrtOp, mlir::LLVM::SqrtOp>;
 using CIRTruncOpLowering =
     CIRUnaryFPBuiltinOpLowering<mlir::cir::TruncOp, mlir::LLVM::FTruncOp>;
 
@@ -3407,6 +3458,24 @@ using CIRFMaxOpLowering =
     CIRBinaryFPToFPBuiltinOpLowering<mlir::cir::FMaxOp, mlir::LLVM::MaxNumOp>;
 using CIRFMinOpLowering =
     CIRBinaryFPToFPBuiltinOpLowering<mlir::cir::FMinOp, mlir::LLVM::MinNumOp>;
+using CIRPowOpLowering =
+    CIRBinaryFPToFPBuiltinOpLowering<mlir::cir::PowOp, mlir::LLVM::PowOp>;
+
+// cir.fmod is special. Instead of lowering it to an intrinsic call, lower it to
+// the frem LLVM instruction.
+class CIRFModOpLowering : public mlir::OpConversionPattern<mlir::cir::FModOp> {
+public:
+  using mlir::OpConversionPattern<mlir::cir::FModOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::FModOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto resTy = this->getTypeConverter()->convertType(op.getType());
+    rewriter.replaceOpWithNewOp<mlir::LLVM::FRemOp>(op, resTy, adaptor.getLhs(),
+                                                    adaptor.getRhs());
+    return mlir::success();
+  }
+};
 
 class CIRClearCacheOpLowering
     : public mlir::OpConversionPattern<mlir::cir::ClearCacheOp> {
@@ -3454,11 +3523,13 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
       CIRGetBitfieldLowering, CIRPrefetchLowering, CIRObjSizeOpLowering,
       CIRIsConstantOpLowering, CIRCmpThreeWayOpLowering, CIRLroundOpLowering,
       CIRLLroundOpLowering, CIRLrintOpLowering, CIRLLrintOpLowering,
-      CIRCeilOpLowering, CIRFloorOpLowering, CIRFAbsOpLowering,
-      CIRNearbyintOpLowering, CIRRintOpLowering, CIRRoundOpLowering,
-      CIRTruncOpLowering, CIRCopysignOpLowering, CIRFMaxOpLowering,
-      CIRFMinOpLowering, CIRClearCacheOpLowering>(converter,
-                                                  patterns.getContext());
+      CIRCeilOpLowering, CIRCosOpLowering, CIRExpOpLowering, CIRExp2OpLowering,
+      CIRFloorOpLowering, CIRFAbsOpLowering, CIRLogOpLowering,
+      CIRLog10OpLowering, CIRLog2OpLowering, CIRNearbyintOpLowering,
+      CIRRintOpLowering, CIRRoundOpLowering, CIRSinOpLowering,
+      CIRSqrtOpLowering, CIRTruncOpLowering, CIRCopysignOpLowering,
+      CIRFModOpLowering, CIRFMaxOpLowering, CIRFMinOpLowering, CIRPowOpLowering,
+      CIRClearCacheOpLowering>(converter, patterns.getContext());
 }
 
 namespace {
