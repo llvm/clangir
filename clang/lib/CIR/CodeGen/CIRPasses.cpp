@@ -19,6 +19,8 @@
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Transforms/Passes.h"
 
+#include <iostream>
+
 namespace cir {
 mlir::LogicalResult runCIRToCIRPasses(
     mlir::ModuleOp theModule, mlir::MLIRContext *mlirCtx,
@@ -73,7 +75,7 @@ mlir::LogicalResult runCIRToCIRPasses(
   if (enableCallConvLowering)
     pm.addPass(mlir::createCallConvLoweringPass());
 
-  if (flattenCIR)
+  if (flattenCIR || enableMem2Reg)
     mlir::populateCIRPreLoweringPasses(pm);
 
   if (enableMem2Reg)
