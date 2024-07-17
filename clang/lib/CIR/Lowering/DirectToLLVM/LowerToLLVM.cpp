@@ -3541,6 +3541,21 @@ public:
   }
 };
 
+class CIRUndefOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::UndefOp> {
+
+  using mlir::OpConversionPattern<mlir::cir::UndefOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::UndefOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto typ = getTypeConverter()->convertType(op.getRes().getType());
+    
+    rewriter.replaceOpWithNewOp<mlir::LLVM::UndefOp>(op, typ);
+    return mlir::success();
+  }
+};
+
 void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
                                          mlir::TypeConverter &converter) {
   patterns.add<CIRReturnLowering>(patterns.getContext());
@@ -3574,7 +3589,7 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
       CIRRintOpLowering, CIRRoundOpLowering, CIRSinOpLowering,
       CIRSqrtOpLowering, CIRTruncOpLowering, CIRCopysignOpLowering,
       CIRFModOpLowering, CIRFMaxOpLowering, CIRFMinOpLowering, CIRPowOpLowering,
-      CIRClearCacheOpLowering>(converter, patterns.getContext());
+      CIRClearCacheOpLowering, CIRUndefOpLowering>(converter, patterns.getContext());
 }
 
 namespace {
