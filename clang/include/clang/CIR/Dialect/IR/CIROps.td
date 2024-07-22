@@ -2083,6 +2083,27 @@ def TLSModel : I32EnumAttr<
   let cppNamespace = "::mlir::cir";
 }
 
+/// Definition of Comdat selection kind
+/// Notice here the item value and order is synced with 
+/// llvm/include/llvm/IR/Comdat.h
+def COMDAT_Any : 
+  I32EnumAttrCase<"Any", 0, "The linker may choose any COMDAT">;
+def COMDAT_ExactMatch : 
+  I32EnumAttrCase<"ExactMatch", 1, "The data referenced by the COMDAT must be the same">;
+def COMDAT_Largest :
+  I32EnumAttrCase<"Largest", 2, "The linker will choose the largest COMDAT">;
+def COMDAT_NoDuplicate :
+  I32EnumAttrCase<"NoDuplicate", 3, "No deduplication is performed">;
+def COMDAT_SameSize :
+  I32EnumAttrCase<"SameSize", 4, "The data referenced by the COMDAT must be the same size">;
+
+def ComdatSelectionKind : I32EnumAttr<
+  "ComdatSelectionKind",
+  "Comdat selection kind",
+  [COMDAT_Any, COMDAT_ExactMatch, COMDAT_Largest, COMDAT_NoDuplicate, COMDAT_SameSize]> {
+  let cppNamespace = "::mlir::cir";
+}
+  
 def GlobalOp : CIR_Op<"global",
                       [DeclareOpInterfaceMethods<RegionBranchOpInterface>,
                        DeclareOpInterfaceMethods<CIRGlobalValueInterface>,
@@ -2123,6 +2144,7 @@ def GlobalOp : CIR_Op<"global",
                        OptionalAttr<TLSModel>:$tls_model,
                        // Note this can also be a FlatSymbolRefAttr
                        OptionalAttr<AnyAttr>:$initial_value,
+                       OptionalAttr<ComdatSelectionKind>:$comdat,
                        UnitAttr:$constant,
                        UnitAttr:$dsolocal,
                        OptionalAttr<I64Attr>:$alignment,
@@ -2138,6 +2160,7 @@ def GlobalOp : CIR_Op<"global",
        (`dsolocal` $dsolocal^)?
        $sym_name
        custom<GlobalOpTypeAndInitialValue>($sym_type, $initial_value, $ctorRegion, $dtorRegion)
+       custom<GlobalOpComdat>($comdat)
        attr-dict
   }];
 
@@ -2878,6 +2901,7 @@ def FuncOp : CIR_Op<"func", [
                                          "GlobalLinkageKind::ExternalLinkage">:$linkage,
                        ExtraFuncAttr:$extra_attrs,
                        OptionalAttr<StrAttr>:$sym_visibility,
+                       OptionalAttr<ComdatSelectionKind>:$comdat,
                        OptionalAttr<DictArrayAttr>:$arg_attrs,
                        OptionalAttr<DictArrayAttr>:$res_attrs,
                        OptionalAttr<FlatSymbolRefAttr>:$aliasee,

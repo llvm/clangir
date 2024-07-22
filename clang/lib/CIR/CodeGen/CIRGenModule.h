@@ -181,6 +181,7 @@ public:
 
   llvm::DenseMap<const Decl *, mlir::cir::GlobalOp> StaticLocalDeclMap;
   llvm::DenseMap<StringRef, mlir::Value> Globals;
+  llvm::DenseMap<StringRef, mlir::cir::ComdatSelectionKind> ComdatMap;
   mlir::Operation *getGlobalValue(StringRef Ref);
   mlir::Value getGlobalValue(const clang::Decl *D);
 
@@ -193,6 +194,25 @@ public:
 
   mlir::cir::GlobalOp getStaticLocalDeclAddress(const VarDecl *D) {
     return StaticLocalDeclMap[D];
+  }
+
+  /// we optimize the map by not storing entry with ComdatSelectionKind::Any
+  /// because it is almost the case all the time.
+  mlir::cir::ComdatSelectionKind getOrInsertComdat(StringRef Name) {
+    if (ComdatMap.count(Name) == 0) {
+      return mlir::cir::ComdatSelectionKind::Any;
+    } else {
+      return ComdatMap[Name];
+    }
+  }
+
+  void setSelectionKind(StringRef Name, mlir::cir::ComdatSelectionKind Val) {
+    // remember if SelectionKind is any, it won't have an entry in the map.
+    // Then there is a hypothetical case where SelectionKind conflicts
+    // between different call to setSelectionKind with different valus.
+    // In reality, it would never happen during clang OG.
+    // So it is not concern here in CIR CG as well.
+    ComdatMap[Name] = Val;
   }
 
   void setStaticLocalDeclAddress(const VarDecl *D, mlir::cir::GlobalOp C) {

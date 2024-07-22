@@ -1551,6 +1551,17 @@ static void printConstant(OpAsmPrinter &p, Attribute value) {
   p.printAttribute(value);
 }
 
+static void printGlobalOpComdat(OpAsmPrinter &p, GlobalOp op,
+                                Attribute comdatAttr) {
+  // we don't print the comdat attribute, as it almost always just COMDAT_Any
+  return;
+}
+
+static ParseResult parseGlobalOpComdat(OpAsmParser &parser,
+                                       Attribute &comdatAttr) {
+  return success();
+}
+
 static void printGlobalOpTypeAndInitialValue(OpAsmPrinter &p, GlobalOp op,
                                              TypeAttr type, Attribute initAttr,
                                              mlir::Region &ctorRegion,
@@ -2116,9 +2127,6 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
   if (vis != mlir::SymbolTable::Visibility::Public)
     p << vis << " ";
 
-  if (getDsolocal())
-    p << "dsolocal ";
-
   // Print function name, signature, and control.
   p.printSymbolName(getSymName());
   auto fnType = getFunctionType();
@@ -2148,6 +2156,7 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
           getSymVisibilityAttrName(),
           getArgAttrsAttrName(),
           getResAttrsAttrName(),
+          getComdatAttrName(),
       });
 
   if (auto aliaseeName = getAliasee()) {

@@ -17,8 +17,15 @@ using namespace mlir::cir;
 
 #include "clang/CIR/MissingFeatures.h"
 
-bool CIRGlobalValueInterface::canBenefitFromLocalAlias() const {
+bool CIRGlobalValueInterface::hasDefaultVisibility() {
+  assert(!::cir::MissingFeatures::hiddenVisibility());
+  assert(!::cir::MissingFeatures::protectedVisibility());
+  return isPublic() || isPrivate();
+}
+
+bool CIRGlobalValueInterface::canBenefitFromLocalAlias() {
   assert(!::cir::MissingFeatures::supportIFuncAttr());
-  assert(!::cir::MissingFeatures::setComdat());
+  return hasDefaultVisibility() && isExternalLinkage() && !isDeclaration() &&
+         !isDeduplicateComdat();
   return false;
 }
