@@ -206,15 +206,6 @@ public:
     }
   }
 
-  void setSelectionKind(StringRef Name, mlir::cir::ComdatSelectionKind Val) {
-    // remember if SelectionKind is any, it won't have an entry in the map.
-    // Then there is a hypothetical case where SelectionKind conflicts
-    // between different call to setSelectionKind with different valus.
-    // In reality, it would never happen during clang OG.
-    // So it is not concern here in CIR CG as well.
-    ComdatMap[Name] = Val;
-  }
-
   void setStaticLocalDeclAddress(const VarDecl *D, mlir::cir::GlobalOp C) {
     StaticLocalDeclMap[D] = C;
   }
