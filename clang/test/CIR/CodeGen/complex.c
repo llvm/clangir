@@ -57,7 +57,7 @@ void builtin_init(double r, double i) {
 // CHECK:   %{{.+}} = cir.complex.create %{{.+}}, %{{.+}} : !cir.double -> !cir.complex<!cir.double>
 // CHECK: }
 
-//      LLVM: define void @builtin_init
+//      LLVM: define dso_local void @builtin_init
 //      LLVM:   %[[#A:]] = insertvalue { double, double } undef, double %{{.+}}, 0
 // LLVM-NEXT:   %[[#B:]] = insertvalue { double, double } %[[#A]], double %{{.+}}, 1
 // LLVM-NEXT:   store { double, double } %[[#B]], ptr %{{.+}}, align 8
@@ -142,7 +142,7 @@ void real() {
 // CHECK-NEXT:   %{{.+}} = cir.complex.real %[[#B]] : !cir.complex<!cir.double> -> !cir.double
 //      CHECK: }
 
-//      LLVM: define void @real()
+//      LLVM: define dso_local void @real()
 //      LLVM:   %[[#A:]] = extractvalue { double, double } %{{.+}}, 0
 // LLVM-NEXT:   store double %[[#A]], ptr %{{.+}}, align 8
 //      LLVM: }
@@ -158,7 +158,7 @@ void imag() {
 // CHECK-NEXT:   %{{.+}} = cir.complex.imag %[[#B]] : !cir.complex<!cir.double> -> !cir.double
 //      CHECK: }
 
-//      LLVM: define void @imag()
+//      LLVM: define dso_local void @imag()
 //      LLVM:   %[[#A:]] = extractvalue { double, double } %{{.+}}, 1
 // LLVM-NEXT:   store double %[[#A]], ptr %{{.+}}, align 8
 //      LLVM: }
