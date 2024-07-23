@@ -1,4 +1,4 @@
-//===- MergeCleanups.cpp - merge simple return/yield blocks ---------------===//
+//===- CIRSimplify.cpp - performs CIR simplification ----------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -108,11 +108,11 @@ struct RemoveTrivialTry : public OpRewritePattern<TryOp> {
 };
 
 //===----------------------------------------------------------------------===//
-// MergeCleanupsPass
+// CIRSimplifyPass
 //===----------------------------------------------------------------------===//
 
-struct MergeCleanupsPass : public MergeCleanupsBase<MergeCleanupsPass> {
-  using MergeCleanupsBase::MergeCleanupsBase;
+struct CIRSimplifyPass : public CIRSimplifyBase<CIRSimplifyPass> {
+  using CIRSimplifyBase::CIRSimplifyBase;
 
   // The same operation rewriting done here could have been performed
   // by CanonicalizerPass (adding hasCanonicalizer for target Ops and
@@ -136,7 +136,7 @@ void populateMergeCleanupPatterns(RewritePatternSet &patterns) {
   // clang-format on
 }
 
-void MergeCleanupsPass::runOnOperation() {
+void CIRSimplifyPass::runOnOperation() {
   // Collect rewrite patterns.
   RewritePatternSet patterns(&getContext());
   populateMergeCleanupPatterns(patterns);
@@ -158,6 +158,6 @@ void MergeCleanupsPass::runOnOperation() {
 
 } // namespace
 
-std::unique_ptr<Pass> mlir::createMergeCleanupsPass() {
-  return std::make_unique<MergeCleanupsPass>();
+std::unique_ptr<Pass> mlir::createCIRSimplifyPass() {
+  return std::make_unique<CIRSimplifyPass>();
 }
