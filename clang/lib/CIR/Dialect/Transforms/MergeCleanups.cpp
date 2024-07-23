@@ -146,7 +146,8 @@ void MergeCleanupsPass::runOnOperation() {
   getOperation()->walk([&](Operation *op) {
     // CastOp here is to perform a manual `fold` in
     // applyOpPatternsAndFold
-    if (isa<BrOp, BrCondOp, ScopeOp, SwitchOp, CastOp, TryOp>(op))
+    if (isa<BrOp, BrCondOp, ScopeOp, SwitchOp, 
+            CastOp, TryOp, UnaryOp>(op))
       ops.push_back(op);
   });
 

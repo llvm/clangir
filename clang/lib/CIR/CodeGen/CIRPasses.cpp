@@ -31,8 +31,7 @@ mlir::LogicalResult runCIRToCIRPasses(
     bool flattenCIR, bool emitMLIR, bool enableCallConvLowering,
     bool enableMem2Reg) {
 
-  mlir::PassManager pm(mlirCtx);
-  pm.addPass(mlir::createCIRSimplifyPass());
+  mlir::PassManager pm(mlirCtx);  
   pm.addPass(mlir::createMergeCleanupsPass());
 
   // TODO(CIR): Make this actually propagate errors correctly. This is stubbed
