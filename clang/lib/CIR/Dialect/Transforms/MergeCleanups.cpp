@@ -61,7 +61,7 @@ struct RemoveEmptyScope : public OpRewritePattern<ScopeOp> {
   using OpRewritePattern<ScopeOp>::OpRewritePattern;
 
   LogicalResult matchAndRewrite(ScopeOp op,
-                                PatternRewriter &rewriter) const override {
+                                PatternRewriter &rewriter) const final {
     if (!(op.getRegion().empty() || (op.getRegion().getBlocks().size() == 1 &&
                                      op.getRegion().front().empty())))
       return failure();
@@ -74,7 +74,7 @@ struct RemoveEmptySwitch : public OpRewritePattern<SwitchOp> {
   using OpRewritePattern<SwitchOp>::OpRewritePattern;
 
   LogicalResult matchAndRewrite(SwitchOp op,
-                                PatternRewriter &rewriter) const override {
+                                PatternRewriter &rewriter) const final {
     if (!op.getRegions().empty())
       return failure();
     rewriter.eraseOp(op);
@@ -87,14 +87,15 @@ struct RemoveTrivialTry : public OpRewritePattern<TryOp> {
 
   LogicalResult matchAndRewrite(TryOp op,
                                 PatternRewriter &rewriter) const final {
-    if (!(op.getResult().use_empty() && op.getBody().hasOneBlock()))
-      return failure();
+    // FIXME: also check all catch regions are empty
+    // return success(op.getTryRegion().hasOneBlock());
+    return mlir::failure();
 
     // Move try body to the parent.
-    assert(op.getBody().hasOneBlock());
+    assert(op.getTryRegion().hasOneBlock());
 
     Block *parentBlock = op.getOperation()->getBlock();
-    mlir::Block *tryBody = &op.getBody().getBlocks().front();
+    mlir::Block *tryBody = &op.getTryRegion().getBlocks().front();
     YieldOp y = dyn_cast<YieldOp>(tryBody->getTerminator());
     assert(y && "expected well wrapped up try block");
     y->erase();
