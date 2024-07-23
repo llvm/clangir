@@ -513,11 +513,57 @@ LogicalResult CastOp::verify() {
   llvm_unreachable("Unknown CastOp kind?");
 }
 
+Value fold_casts(llvm::SmallVector<CastOp>& ops) {
+  if (ops.size() < 2)
+    return {};
+
+  auto first = *ops.begin();
+  auto last = *ops.rbegin();
+
+  // if bool_to_int -> ...  -> int_to_bool: take the bool
+  // as we had it was before all casts
+  if (first.getKind() == mlir::cir::CastKind::bool_to_int
+      && last.getKind() == mlir::cir::CastKind::int_to_bool)
+    return first.getSrc();
+
+  // if int_to_bool -> ...  -> int_to_bool: take the result
+  // of the first one, as no other casts (and ext casts as well)
+  // don't change the first result
+  if (first.getKind() == mlir::cir::CastKind::int_to_bool
+      && last.getKind() == mlir::cir::CastKind::int_to_bool)
+    return first.getResult();
+
+  return {};
+}
+
+bool is_int_or_bool_cast(mlir::cir::CastOp op) {
+  auto kind = op.getKind();
+  return kind == mlir::cir::CastKind::bool_to_int ||
+          kind == mlir::cir::CastKind::int_to_bool ||
+          kind == mlir::cir::CastKind::integral;
+}
+
+void collect_casts(CastOp op, llvm::SmallVector<CastOp>& ops) {
+  if (!is_int_or_bool_cast(op))
+    return;
+
+  if (auto par = dyn_cast_or_null<CastOp>(op.getSrc().getDefiningOp()))
+    collect_casts(par, ops);
+
+  ops.push_back(op);
+}
+
 OpFoldResult CastOp::fold(FoldAdaptor adaptor) {
+  llvm::SmallVector<CastOp> casts;
+  collect_casts(*this, casts);
+  if (auto v = fold_casts(casts))
+    return v;
+
   if (getSrc().getType() != getResult().getType())
     return {};
   switch (getKind()) {
   case mlir::cir::CastKind::integral: {
+
     // TODO: for sign differences, it's possible in certain conditions to
     // create a new attribute that's capable of representing the source.
     SmallVector<mlir::OpFoldResult, 1> foldResults;
@@ -533,6 +579,22 @@ OpFoldResult CastOp::fold(FoldAdaptor adaptor) {
   default:
     return {};
   }
+}
+
+static bool is_unary_not(mlir::cir::UnaryOpKind kind) {
+  return kind == mlir::cir::UnaryOpKind::Not;
+}
+
+OpFoldResult UnaryOp::fold(FoldAdaptor adaptor) {
+  if (is_unary_not(getKind()) && isa<BoolType>(getInput().getType())) {
+    if (auto op = getInput().getDefiningOp()) {
+      auto uop = dyn_cast<UnaryOp>(op);
+      if (uop && is_unary_not(uop.getKind())) {
+        return uop.getInput();
+      }
+    }
+  }
+  return {};
 }
 
 //===----------------------------------------------------------------------===//
