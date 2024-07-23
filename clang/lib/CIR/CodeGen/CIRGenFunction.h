@@ -316,7 +316,7 @@ public:
   /// allocas for the exception info
   struct CIRExceptionInfo {
     mlir::Value addr{};
-    mlir::cir::CatchOp catchOp{};
+    mlir::cir::TryOp catchOp{};
   };
 
   enum class EvaluationOrder {
@@ -599,6 +599,7 @@ public:
                                    QualType complexType);
 
   LValue buildComplexAssignmentLValue(const BinaryOperator *E);
+  LValue buildComplexCompoundAssignmentLValue(const CompoundAssignOperator *E);
 
   /// Emits a reference binding to the passed in expression.
   RValue buildReferenceBindingToExpr(const Expr *E);
@@ -939,7 +940,7 @@ public:
 
   mlir::LogicalResult buildCXXTryStmtUnderScope(const clang::CXXTryStmt &S);
   mlir::LogicalResult buildCXXTryStmt(const clang::CXXTryStmt &S);
-  void enterCXXTryStmt(const CXXTryStmt &S, mlir::cir::CatchOp catchOp,
+  void enterCXXTryStmt(const CXXTryStmt &S, mlir::cir::TryOp catchOp,
                        bool IsFnTryBlock = false);
   void exitCXXTryStmt(const CXXTryStmt &S, bool IsFnTryBlock = false);
 
@@ -1119,8 +1120,11 @@ public:
   mlir::Value buildScalarExpr(const clang::Expr *E);
   mlir::Value buildScalarConstant(const ConstantEmission &Constant, Expr *E);
 
+  mlir::Value buildPromotedComplexExpr(const Expr *E, QualType PromotionType);
   mlir::Value buildPromotedScalarExpr(const clang::Expr *E,
                                       QualType PromotionType);
+  mlir::Value buildPromotedValue(mlir::Value result, QualType PromotionType);
+  mlir::Value buildUnPromotedValue(mlir::Value result, QualType PromotionType);
 
   mlir::Type getCIRType(const clang::QualType &type);
 
@@ -1518,6 +1522,12 @@ public:
   mlir::Value buildScalarConversion(mlir::Value Src, clang::QualType SrcTy,
                                     clang::QualType DstTy,
                                     clang::SourceLocation Loc);
+
+  /// Emit a conversion from the specified complex type to the specified
+  /// destination type, where the destination type is an LLVM scalar type.
+  mlir::Value buildComplexToScalarConversion(mlir::Value Src, QualType SrcTy,
+                                             QualType DstTy,
+                                             SourceLocation Loc);
 
   LValue makeAddrLValue(Address Addr, clang::QualType T,
                         LValueBaseInfo BaseInfo) {

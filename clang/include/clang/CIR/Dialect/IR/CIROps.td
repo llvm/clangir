@@ -26,6 +26,7 @@ include "mlir/Interfaces/ControlFlowInterfaces.td"
 include "mlir/Interfaces/FunctionInterfaces.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/LoopLikeInterface.td"
+include "mlir/Interfaces/MemorySlotInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
 include "mlir/IR/BuiltinAttributeInterfaces.td"
@@ -82,7 +83,9 @@ def CastKind : I32EnumAttr<
   let cppNamespace = "::mlir::cir";
 }
 
-def CastOp : CIR_Op<"cast", [Pure]> {
+def CastOp : CIR_Op<"cast",
+             [Pure,
+              DeclareOpInterfaceMethods<PromotableOpInterface>]> {
   // FIXME: not all conversions are free of side effects.
   let summary = "Conversion between values of different types";
   let description = [{
@@ -389,7 +392,8 @@ class AllocaTypesMatchWith<string summary, string lhsArg, string rhsArg,
 def AllocaOp : CIR_Op<"alloca", [
   AllocaTypesMatchWith<"'allocaType' matches pointee type of 'addr'",
                  "addr", "allocaType",
-                 "cast<PointerType>($_self).getPointee()">]> {
+                 "cast<PointerType>($_self).getPointee()">,
+                 DeclareOpInterfaceMethods<PromotableAllocationOpInterface>]> {
   let summary = "Defines a scope-local variable";
   let description = [{
     The `cir.alloca` operation defines a scope-local variable.
@@ -473,7 +477,8 @@ def AllocaOp : CIR_Op<"alloca", [
 def LoadOp : CIR_Op<"load", [
   TypesMatchWith<"type of 'result' matches pointee type of 'addr'",
                  "addr", "result",
-                 "cast<PointerType>($_self).getPointee()">]> {
+                 "cast<PointerType>($_self).getPointee()">,
+                 DeclareOpInterfaceMethods<PromotableMemOpInterface>]> {
 
   let summary = "Load value from memory adddress";
   let description = [{
@@ -531,7 +536,8 @@ def LoadOp : CIR_Op<"load", [
 def StoreOp : CIR_Op<"store", [
   TypesMatchWith<"type of 'value' matches pointee type of 'addr'",
                  "addr", "value",
-                 "cast<PointerType>($_self).getPointee()">]> {
+                 "cast<PointerType>($_self).getPointee()">,
+                 DeclareOpInterfaceMethods<PromotableMemOpInterface>]> {
 
   let summary = "Store value to memory address";
   let description = [{
@@ -774,8 +780,8 @@ def ConditionOp : CIR_Op<"condition", [
 
 def YieldOp : CIR_Op<"yield", [ReturnLike, Terminator,
     ParentOneOf<["IfOp", "ScopeOp", "SwitchOp", "WhileOp", "ForOp", "AwaitOp",
-                 "TernaryOp", "GlobalOp", "DoWhileOp", "CatchOp", "TryOp",
-                 "ArrayCtor", "ArrayDtor"]>]> {
+                 "TernaryOp", "GlobalOp", "DoWhileOp", "TryOp", "ArrayCtor",
+                 "ArrayDtor"]>]> {
   let summary = "Represents the default branching behaviour of a region";
   let description = [{
     The `cir.yield` operation terminates regions on different CIR operations,
@@ -865,7 +871,7 @@ def ContinueOp : CIR_Op<"continue", [Terminator]> {
 //===----------------------------------------------------------------------===//
 
 def ResumeOp : CIR_Op<"resume", [ReturnLike, Terminator,
-                                 ParentOneOf<["CatchOp"]>]> {
+                                 ParentOneOf<["TryOp"]>]> {
   let summary = "Resumes execution after not catching exceptions";
   let description = [{
     The `cir.resume` operation terminates a region on `cir.catch`, "resuming"
@@ -1206,11 +1212,63 @@ def ComplexCreateOp : CIR_Op<"complex.create", [Pure, SameTypeOperands]> {
 }
 
 //===----------------------------------------------------------------------===//
+// ComplexRealOp and ComplexImagOp
+//===----------------------------------------------------------------------===//
+
+def ComplexRealOp : CIR_Op<"complex.real", [Pure]> {
+  let summary = "Extract the real part of a complex value";
+  let description = [{
+    `cir.complex.real` operation takes an operand of `!cir.complex` type and
+    yields the real part of it.
+
+    Example:
+
+    ```mlir
+    %1 = cir.complex.real %0 : !cir.complex<!cir.float> -> !cir.float
+    ```
+  }];
+
+  let results = (outs CIR_AnyIntOrFloat:$result);
+  let arguments = (ins CIR_ComplexType:$operand);
+
+  let assemblyFormat = [{
+    $operand `:` qualified(type($operand)) `->` qualified(type($result))
+    attr-dict
+  }];
+
+  let hasVerifier = 1;
+}
+
+def ComplexImagOp : CIR_Op<"complex.imag", [Pure]> {
+  let summary = "Extract the imaginary part of a complex value";
+  let description = [{
+    `cir.complex.imag` operation takes an operand of `!cir.complex` type and
+    yields the imaginary part of it.
+
+    Example:
+
+    ```mlir
+    %1 = cir.complex.imag %0 : !cir.complex<!cir.float> -> !cir.float
+    ```
+  }];
+
+  let results = (outs CIR_AnyIntOrFloat:$result);
+  let arguments = (ins CIR_ComplexType:$operand);
+
+  let assemblyFormat = [{
+    $operand `:` qualified(type($operand)) `->` qualified(type($result))
+    attr-dict
+  }];
+
+  let hasVerifier = 1;
+}
+
+//===----------------------------------------------------------------------===//
 // ComplexRealPtrOp and ComplexImagPtrOp
 //===----------------------------------------------------------------------===//
 
 def ComplexRealPtrOp : CIR_Op<"complex.real_ptr", [Pure]> {
-  let summary = "Extract the real part of a complex value";
+  let summary = "Derive a pointer to the real part of a complex value";
   let description = [{
     `cir.complex.real_ptr` operation takes a pointer operand that points to a
     complex value of type `!cir.complex` and yields a pointer to the real part
@@ -1235,7 +1293,7 @@ def ComplexRealPtrOp : CIR_Op<"complex.real_ptr", [Pure]> {
 }
 
 def ComplexImagPtrOp : CIR_Op<"complex.imag_ptr", [Pure]> {
-  let summary = "Extract the imaginary part of a complex value";
+  let summary = "Derive a pointer to the imaginary part of a complex value";
   let description = [{
     `cir.complex.imag_ptr` operation takes a pointer operand that points to a
     complex value of type `!cir.complex` and yields a pointer to the imaginary
@@ -1257,6 +1315,68 @@ def ComplexImagPtrOp : CIR_Op<"complex.imag_ptr", [Pure]> {
   }];
 
   let hasVerifier = 1;
+}
+
+//===----------------------------------------------------------------------===//
+// ComplexBinOp
+//===----------------------------------------------------------------------===//
+
+def ComplexBinOpKind : I32EnumAttr<
+    "ComplexBinOpKind",
+    "complex number binary operation kind",
+    [BinOpKind_Mul, BinOpKind_Div]> {
+  let cppNamespace = "::mlir::cir";
+}
+
+def ComplexRangeKind_Full : I32EnumAttrCase<"Full", 1, "full">;
+def ComplexRangeKind_Improved : I32EnumAttrCase<"Improved", 2, "improved">;
+def ComplexRangeKind_Promoted : I32EnumAttrCase<"Promoted", 3, "promoted">;
+def ComplexRangeKind_Basic : I32EnumAttrCase<"Basic", 4, "basic">;
+def ComplexRangeKind_None : I32EnumAttrCase<"None", 5, "none">;
+
+def ComplexRangeKind : I32EnumAttr<
+    "ComplexRangeKind",
+    "complex multiplication and division implementation",
+    [ComplexRangeKind_Full, ComplexRangeKind_Improved,
+     ComplexRangeKind_Promoted, ComplexRangeKind_Basic,
+     ComplexRangeKind_None]> {
+  let cppNamespace = "::mlir::cir";
+}
+
+def ComplexBinOp : CIR_Op<"complex.binop",
+    [Pure, SameTypeOperands, SameOperandsAndResultType]> {
+  let summary = "Binary operations on operands of complex type";
+  let description = [{
+    The `cir.complex.binop` operation represents a binary operation on operands
+    of C complex type (e.g. `float _Complex`). The operation can only represent
+    binary multiplication or division on complex numbers; other binary
+    operations, such as addition and subtraction, are represented by the
+    `cir.binop` operation.
+
+    The operation requires two input operands and has one result. The types of
+    all the operands and the result should be of the same `!cir.complex` type.
+
+    The operation also takes a `range` attribute that specifies the complex
+    range of the binary operation.
+
+    Examples:
+
+    ```mlir
+    %2 = cir.complex.binop add %0, %1 : !cir.complex<!cir.float>
+    %2 = cir.complex.binop mul %0, %1 : !cir.complex<!cir.float>
+    ```
+  }];
+
+  let results = (outs CIR_ComplexType:$result);
+  let arguments = (ins Arg<ComplexBinOpKind, "operation kind">:$kind,
+                       CIR_ComplexType:$lhs, CIR_ComplexType:$rhs,
+                       Arg<ComplexRangeKind, "complex range kind">:$range,
+                       UnitAttr:$promoted);
+
+  let assemblyFormat = [{
+    $kind $lhs `,` $rhs `range` `(` $range `)` (`promoted` $promoted^)?
+    `:` qualified(type($lhs)) attr-dict
+  }];
 }
 
 //===----------------------------------------------------------------------===//
@@ -1692,7 +1812,7 @@ def BrOp : CIR_Op<"br",
 
 def BrCondOp : CIR_Op<"brcond",
       [DeclareOpInterfaceMethods<BranchOpInterface, ["getSuccessorForOperands"]>,
-       Pure, Terminator, SameVariadicOperandSize]> {
+       Pure, Terminator, AttrSizedOperandSegments]> {
   let summary = "Conditional branch";
   let description = [{
     The `cir.brcond %cond, ^bb0, ^bb1` branches to 'bb0' block in case
@@ -1715,11 +1835,8 @@ def BrCondOp : CIR_Op<"brcond",
     OpBuilder<(ins "Value":$cond, "Block *":$destTrue, "Block *":$destFalse,
                CArg<"ValueRange", "{}">:$destOperandsTrue,
                CArg<"ValueRange", "{}">:$destOperandsFalse), [{
-      $_state.addOperands(cond);
-      $_state.addSuccessors(destTrue);
-      $_state.addSuccessors(destFalse);
-      $_state.addOperands(destOperandsTrue);
-      $_state.addOperands(destOperandsFalse);
+      build($_builder, $_state, cond, destOperandsTrue,
+            destOperandsFalse, destTrue, destFalse);
     }]>
   ];
 
@@ -3089,6 +3206,17 @@ def AwaitOp : CIR_Op<"await",
 // TryOp
 //===----------------------------------------------------------------------===//
 
+// Represents the unwind region where unwind continues or
+// the program std::terminate's.
+def CatchUnwind : CIRUnitAttr<"CatchUnwind", "unwind"> {
+  let storageType = [{ CatchUnwind }];
+}
+
+// Represents the catch_all region.
+def CatchAllAttr : CIRUnitAttr<"CatchAll", "all"> {
+  let storageType = [{ CatchAllAttr }];
+}
+
 def TryOp : CIR_Op<"try",
        [DeclareOpInterfaceMethods<RegionBranchOpInterface>,
         RecursivelySpeculatable, AutomaticAllocationScope,
@@ -3112,65 +3240,24 @@ def TryOp : CIR_Op<"try",
     ```
   }];
 
-  let regions = (region AnyRegion:$body);
-  let results = (outs ExceptionInfoPtr:$result);
+  let arguments = (ins OptionalAttr<ArrayAttr>:$catch_types);
+  let regions = (region AnyRegion:$try_region,
+                        VariadicRegion<AnyRegion>:$catch_regions);
 
   let assemblyFormat = [{
-    $body `:` functional-type(operands, results) attr-dict
+    $try_region
+    custom<CatchRegions>($catch_regions, $catch_types)
+    attr-dict
   }];
 
   // Everything already covered elsewhere.
   let hasVerifier = 0;
   let builders = [
     OpBuilder<(ins
-              "function_ref<void(OpBuilder &, Type &, Location)>":$tryBuilder)>,
+              "function_ref<void(OpBuilder &, Location)>":$tryBuilder,
+              "function_ref<void(OpBuilder &, Location, OperationState &)>"
+              :$catchBuilder)>,
   ];
-}
-
-//===----------------------------------------------------------------------===//
-// CatchOp
-//===----------------------------------------------------------------------===//
-
-// Represents the unwind region where unwind continues or
-// the program std::terminate's.
-def CatchUnwind : CIRUnitAttr<"CatchUnwind", "unwind"> {
-  let storageType = [{ CatchUnwind }];
-}
-
-// Represents the catch_all region.
-def CatchAllAttr : CIRUnitAttr<"CatchAll", "all"> {
-  let storageType = [{ CatchAllAttr }];
-}
-
-def CatchOp : CIR_Op<"catch",
-      [SameVariadicOperandSize,
-       DeclareOpInterfaceMethods<RegionBranchOpInterface>,
-       RecursivelySpeculatable, NoRegionArguments]> {
-  let summary = "Catch operation";
-  let description = [{
-  }];
-
-  let arguments = (ins CIR_AnyType:$exception_info,
-                       OptionalAttr<ArrayAttr>:$catchers);
-  let regions = (region VariadicRegion<AnyRegion>:$regions);
-
-  // Already verified elsewhere
-  let hasVerifier = 0;
-
-  let skipDefaultBuilders = 1;
-  let builders = [
-    OpBuilder<(ins
-      "Value":$exception_info,
-      "function_ref<void(OpBuilder &, Location, OperationState &)>"
-      :$catchBuilder)>
-  ];
-
-  let assemblyFormat = [{
-    `(`
-      $exception_info `:` type($exception_info) `,`
-      custom<CatchOp>($regions, $catchers)
-    `)` attr-dict
-  }];
 }
 
 //===----------------------------------------------------------------------===//
@@ -3190,10 +3277,9 @@ def CatchParamOp : CIR_Op<"catch_param"> {
     ```
   }];
 
-  let arguments = (ins ExceptionInfoPtr:$exception_info);
   let results = (outs CIR_AnyType:$param);
   let assemblyFormat = [{
-    `(` $exception_info `)` `->` qualified(type($param)) attr-dict
+    `->` qualified(type($param)) attr-dict
   }];
 
   let hasVerifier = 0;
@@ -3203,7 +3289,9 @@ def CatchParamOp : CIR_Op<"catch_param"> {
 // CopyOp
 //===----------------------------------------------------------------------===//
 
-def CopyOp : CIR_Op<"copy", [SameTypeOperands]> {
+def CopyOp : CIR_Op<"copy",
+             [SameTypeOperands,
+              DeclareOpInterfaceMethods<PromotableMemOpInterface>]> {
   let arguments = (ins Arg<CIR_PointerType, "", [MemWrite]>:$dst,
                        Arg<CIR_PointerType, "", [MemRead]>:$src,
                        UnitAttr:$is_volatile);
@@ -4089,6 +4177,13 @@ def AtomicCmpXchg : CIR_Op<"atomic.cmp_xchg",
   }];
 
   let hasVerifier = 0;
+}
+
+def UndefOp : CIR_Op<"undef", [Pure]> {
+  let summary = "Creates an undefined value of CIR dialect type.";
+  let description = [{ `cir.undef` is similar to the one in the LLVM IR dialect }];
+  let results = (outs AnyType:$res);
+  let assemblyFormat = "attr-dict `:` type($res)";
 }
 
 #endif // LLVM_CLANG_CIR_DIALECT_IR_CIROPS

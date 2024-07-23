@@ -1694,7 +1694,41 @@ public:
   }
 };
 
-class CIRComplexRealPtrOPLowering
+class CIRComplexRealOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::ComplexRealOp> {
+public:
+  using OpConversionPattern<mlir::cir::ComplexRealOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::ComplexRealOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto resultLLVMTy =
+        getTypeConverter()->convertType(op.getResult().getType());
+    rewriter.replaceOpWithNewOp<mlir::LLVM::ExtractValueOp>(
+        op, resultLLVMTy, adaptor.getOperand(),
+        llvm::ArrayRef<std::int64_t>{0});
+    return mlir::success();
+  }
+};
+
+class CIRComplexImagOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::ComplexImagOp> {
+public:
+  using OpConversionPattern<mlir::cir::ComplexImagOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::ComplexImagOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto resultLLVMTy =
+        getTypeConverter()->convertType(op.getResult().getType());
+    rewriter.replaceOpWithNewOp<mlir::LLVM::ExtractValueOp>(
+        op, resultLLVMTy, adaptor.getOperand(),
+        llvm::ArrayRef<std::int64_t>{1});
+    return mlir::success();
+  }
+};
+
+class CIRComplexRealPtrOpLowering
     : public mlir::OpConversionPattern<mlir::cir::ComplexRealPtrOp> {
 public:
   using OpConversionPattern<mlir::cir::ComplexRealPtrOp>::OpConversionPattern;
@@ -3496,6 +3530,21 @@ public:
   }
 };
 
+class CIRUndefOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::UndefOp> {
+
+  using mlir::OpConversionPattern<mlir::cir::UndefOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::UndefOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto typ = getTypeConverter()->convertType(op.getRes().getType());
+    
+    rewriter.replaceOpWithNewOp<mlir::LLVM::UndefOp>(op, typ);
+    return mlir::success();
+  }
+};
+
 void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
                                          mlir::TypeConverter &converter) {
   patterns.add<CIRReturnLowering>(patterns.getContext());
@@ -3509,7 +3558,8 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
       CIRShiftOpLowering, CIRLoadLowering, CIRConstantLowering,
       CIRStoreLowering, CIRAllocaLowering, CIRFuncLowering, CIRCastOpLowering,
       CIRGlobalOpLowering, CIRGetGlobalOpLowering, CIRComplexCreateOpLowering,
-      CIRComplexRealPtrOPLowering, CIRComplexImagPtrOpLowering,
+      CIRComplexRealOpLowering, CIRComplexImagOpLowering,
+      CIRComplexRealPtrOpLowering, CIRComplexImagPtrOpLowering,
       CIRVAStartLowering, CIRVAEndLowering, CIRVACopyLowering, CIRVAArgLowering,
       CIRBrOpLowering, CIRGetMemberOpLowering, CIRGetRuntimeMemberOpLowering,
       CIRSwitchFlatOpLowering, CIRPtrDiffOpLowering, CIRCopyOpLowering,
@@ -3529,7 +3579,7 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
       CIRRintOpLowering, CIRRoundOpLowering, CIRSinOpLowering,
       CIRSqrtOpLowering, CIRTruncOpLowering, CIRCopysignOpLowering,
       CIRFModOpLowering, CIRFMaxOpLowering, CIRFMinOpLowering, CIRPowOpLowering,
-      CIRClearCacheOpLowering>(converter, patterns.getContext());
+      CIRClearCacheOpLowering, CIRUndefOpLowering>(converter, patterns.getContext());
 }
 
 namespace {
