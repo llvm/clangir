@@ -517,21 +517,21 @@ Value fold_casts(llvm::SmallVector<CastOp>& ops) {
   if (ops.size() < 2)
     return {};
 
-  auto first = *ops.begin();
-  auto last = *ops.rbegin();
+  auto head = *ops.begin();
+  auto tail = *ops.rbegin();
 
   // if bool_to_int -> ...  -> int_to_bool: take the bool
   // as we had it was before all casts
-  if (first.getKind() == mlir::cir::CastKind::bool_to_int
-      && last.getKind() == mlir::cir::CastKind::int_to_bool)
-    return first.getSrc();
+  if (head.getKind() == mlir::cir::CastKind::bool_to_int
+      && tail.getKind() == mlir::cir::CastKind::int_to_bool)
+    return head.getSrc();
 
   // if int_to_bool -> ...  -> int_to_bool: take the result
   // of the first one, as no other casts (and ext casts as well)
   // don't change the first result
-  if (first.getKind() == mlir::cir::CastKind::int_to_bool
-      && last.getKind() == mlir::cir::CastKind::int_to_bool)
-    return first.getResult();
+  if (head.getKind() == mlir::cir::CastKind::int_to_bool
+      && tail.getKind() == mlir::cir::CastKind::int_to_bool)
+    return head.getResult();
 
   return {};
 }
@@ -563,7 +563,6 @@ OpFoldResult CastOp::fold(FoldAdaptor adaptor) {
     return {};
   switch (getKind()) {
   case mlir::cir::CastKind::integral: {
-
     // TODO: for sign differences, it's possible in certain conditions to
     // create a new attribute that's capable of representing the source.
     SmallVector<mlir::OpFoldResult, 1> foldResults;
@@ -581,19 +580,17 @@ OpFoldResult CastOp::fold(FoldAdaptor adaptor) {
   }
 }
 
-static bool is_unary_not(mlir::cir::UnaryOpKind kind) {
-  return kind == mlir::cir::UnaryOpKind::Not;
+static bool is_bool_not(mlir::cir::UnaryOp op) {
+  return isa<BoolType>(op.getInput().getType()) 
+    && op.getKind() == mlir::cir::UnaryOpKind::Not;
 }
 
 OpFoldResult UnaryOp::fold(FoldAdaptor adaptor) {
-  if (is_unary_not(getKind()) && isa<BoolType>(getInput().getType())) {
-    if (auto op = getInput().getDefiningOp()) {
-      auto uop = dyn_cast<UnaryOp>(op);
-      if (uop && is_unary_not(uop.getKind())) {
-        return uop.getInput();
-      }
-    }
-  }
+  if (is_bool_not(*this))
+    if (auto par = dyn_cast_or_null<UnaryOp>(getInput().getDefiningOp()))
+      if (is_bool_not(par))
+        return par.getInput();
+
   return {};
 }
 

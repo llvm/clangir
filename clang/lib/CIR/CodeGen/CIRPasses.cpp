@@ -19,7 +19,6 @@
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Transforms/Passes.h"
 
-#include <iostream>
 
 namespace cir {
 mlir::LogicalResult runCIRToCIRPasses(
@@ -31,7 +30,7 @@ mlir::LogicalResult runCIRToCIRPasses(
     bool flattenCIR, bool emitMLIR, bool enableCallConvLowering,
     bool enableMem2Reg) {
 
-  mlir::PassManager pm(mlirCtx);  
+  mlir::PassManager pm(mlirCtx);
   pm.addPass(mlir::createCIRSimplifyPass());
 
   // TODO(CIR): Make this actually propagate errors correctly. This is stubbed
