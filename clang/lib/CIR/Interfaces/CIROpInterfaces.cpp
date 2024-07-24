@@ -25,9 +25,12 @@ bool CIRGlobalValueInterface::hasDefaultVisibility() {
 
 bool CIRGlobalValueInterface::canBenefitFromLocalAlias() {
   assert(!::cir::MissingFeatures::supportIFuncAttr());
-  // hasComdat here should be isDeduplicateComdat, but as far as clang gen is
-  // concerned, there is no case for Comdat::NoDeduplicate as all comdat
-  // would be Comdat::Any. so its really where there is comdat.
+  // hasComdat here should be isDeduplicateComdat, but as far as clang codegen
+  // is concerned, there is no case for Comdat::NoDeduplicate as all comdat
+  // would be Comdat::Any or Comdat::Largest (in the case of MS ABI). And CIRGen
+  // wouldn't even generate Comdat::Largest comdat as it tries to leave ABI
+  // specifics to LLVM lowering stage, thus here we don't need test Comdat
+  // selectionKind.
   return hasDefaultVisibility() && isExternalLinkage() && !isDeclaration() &&
          !hasComdat();
   return false;
