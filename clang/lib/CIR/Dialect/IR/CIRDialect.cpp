@@ -513,7 +513,7 @@ LogicalResult CastOp::verify() {
   llvm_unreachable("Unknown CastOp kind?");
 }
 
-Value fold_casts(llvm::SmallVector<CastOp>& ops) {
+Value foldCasts(llvm::SmallVector<CastOp>& ops) {
   if (ops.size() < 2)
     return {};
 
@@ -536,27 +536,27 @@ Value fold_casts(llvm::SmallVector<CastOp>& ops) {
   return {};
 }
 
-bool is_int_or_bool_cast(mlir::cir::CastOp op) {
+bool isIntOrBoolCast(mlir::cir::CastOp op) {
   auto kind = op.getKind();
   return kind == mlir::cir::CastKind::bool_to_int ||
           kind == mlir::cir::CastKind::int_to_bool ||
           kind == mlir::cir::CastKind::integral;
 }
 
-void collect_casts(CastOp op, llvm::SmallVector<CastOp>& ops) {
-  if (!is_int_or_bool_cast(op))
+void collectCasts(CastOp op, llvm::SmallVector<CastOp>& ops) {
+  if (!isIntOrBoolCast(op))
     return;
 
   if (auto par = dyn_cast_or_null<CastOp>(op.getSrc().getDefiningOp()))
-    collect_casts(par, ops);
+    collectCasts(par, ops);
 
   ops.push_back(op);
 }
 
 OpFoldResult CastOp::fold(FoldAdaptor adaptor) {
   llvm::SmallVector<CastOp> casts;
-  collect_casts(*this, casts);
-  if (auto v = fold_casts(casts))
+  collectCasts(*this, casts);
+  if (auto v = foldCasts(casts))
     return v;
 
   if (getSrc().getType() != getResult().getType())
@@ -580,15 +580,15 @@ OpFoldResult CastOp::fold(FoldAdaptor adaptor) {
   }
 }
 
-static bool is_bool_not(mlir::cir::UnaryOp op) {
+static bool isBoolNot(mlir::cir::UnaryOp op) {
   return isa<BoolType>(op.getInput().getType()) 
     && op.getKind() == mlir::cir::UnaryOpKind::Not;
 }
 
 OpFoldResult UnaryOp::fold(FoldAdaptor adaptor) {
-  if (is_bool_not(*this))
+  if (isBoolNot(*this))
     if (auto par = dyn_cast_or_null<UnaryOp>(getInput().getDefiningOp()))
-      if (is_bool_not(par))
+      if (isBoolNot(par))
         return par.getInput();
 
   return {};
