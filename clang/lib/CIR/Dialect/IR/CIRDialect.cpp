@@ -1551,17 +1551,6 @@ static void printConstant(OpAsmPrinter &p, Attribute value) {
   p.printAttribute(value);
 }
 
-static void printGlobalOpComdat(OpAsmPrinter &p, GlobalOp op,
-                                Attribute comdatAttr) {
-  // we don't print the comdat attribute, as it almost always just COMDAT_Any
-  return;
-}
-
-static ParseResult parseGlobalOpComdat(OpAsmParser &parser,
-                                       Attribute &comdatAttr) {
-  return success();
-}
-
 static void printGlobalOpTypeAndInitialValue(OpAsmPrinter &p, GlobalOp op,
                                              TypeAttr type, Attribute initAttr,
                                              mlir::Region &ctorRegion,
@@ -2119,6 +2108,9 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
 
   if (getNoProto())
     p << "no_proto ";
+
+  if (getComdat())
+    p << "comdat ";
 
   if (getLinkage() != GlobalLinkageKind::ExternalLinkage)
     p << stringifyGlobalLinkageKind(getLinkage()) << ' ';

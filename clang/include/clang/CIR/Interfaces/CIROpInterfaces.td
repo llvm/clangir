@@ -72,9 +72,9 @@ let cppNamespace = "::mlir::cir" in {
       }]
       >,
       InterfaceMethod<"",
-      "bool", "isDeduplicateComdat", (ins), [{}],
+      "bool", "hasComdat", (ins), [{}],
       /*defaultImplementation=*/[{
-        return mlir::cir::isDeduplicateComdat($_op.getComdat());
+        return $_op.getComdat();
       }]
       >,
       InterfaceMethod<"",

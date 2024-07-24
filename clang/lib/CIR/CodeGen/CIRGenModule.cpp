@@ -1427,7 +1427,7 @@ generateStringLiteral(mlir::Location loc, mlir::TypedAttr C,
   assert(!cir::MissingFeatures::unnamedAddr() && "NYI");
   if (GV.isWeakForLinker()) {
     assert(CGM.supportsCOMDAT() && "Only COFF uses weak string literals");
-    GV.setComdat(CGM.getOrInsertComdat(GV.getName()));
+    GV.setComdat(true);
   }
   CGM.setDSOLocal(static_cast<mlir::Operation *>(GV));
   return GV;
@@ -2904,7 +2904,7 @@ mlir::cir::GlobalOp CIRGenModule::createOrReplaceCXXRuntimeVariable(
 
   if (supportsCOMDAT() && mlir::cir::isWeakForLinker(Linkage) &&
       !GV.hasAvailableExternallyLinkage()) {
-    GV.setComdat(getOrInsertComdat(GV.getName()));
+    GV.setComdat(true);
   }
 
   GV.setAlignmentAttr(getSize(Alignment));

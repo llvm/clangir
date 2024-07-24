@@ -25,7 +25,10 @@ bool CIRGlobalValueInterface::hasDefaultVisibility() {
 
 bool CIRGlobalValueInterface::canBenefitFromLocalAlias() {
   assert(!::cir::MissingFeatures::supportIFuncAttr());
+  // hasComdat here should be isDeduplicateComdat, but as far as clang gen is
+  // concerned, there is no case for Comdat::NoDeduplicate as all comdat
+  // would be Comdat::Any. so its really where there is comdat.
   return hasDefaultVisibility() && isExternalLinkage() && !isDeclaration() &&
-         !isDeduplicateComdat();
+         !hasComdat();
   return false;
 }

@@ -127,11 +127,6 @@ template <typename Int> inline bool isValidCIRAtomicOrderingCABI(Int I) {
          I <= (Int)mlir::cir::MemOrder::SequentiallyConsistent;
 }
 
-static inline bool
-isDeduplicateComdat(std::optional<ComdatSelectionKind> Kind) {
-  return Kind.has_value() && Kind != ComdatSelectionKind::NoDuplicate;
-}
-
 } // namespace cir
 } // namespace mlir
 

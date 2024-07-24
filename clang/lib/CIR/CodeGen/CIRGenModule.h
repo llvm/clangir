@@ -181,7 +181,6 @@ public:
 
   llvm::DenseMap<const Decl *, mlir::cir::GlobalOp> StaticLocalDeclMap;
   llvm::DenseMap<StringRef, mlir::Value> Globals;
-  llvm::DenseMap<StringRef, mlir::cir::ComdatSelectionKind> ComdatMap;
   mlir::Operation *getGlobalValue(StringRef Ref);
   mlir::Value getGlobalValue(const clang::Decl *D);
 
@@ -194,16 +193,6 @@ public:
 
   mlir::cir::GlobalOp getStaticLocalDeclAddress(const VarDecl *D) {
     return StaticLocalDeclMap[D];
-  }
-
-  /// we optimize the map by not storing entry with ComdatSelectionKind::Any
-  /// because it is almost the case all the time.
-  mlir::cir::ComdatSelectionKind getOrInsertComdat(StringRef Name) {
-    if (ComdatMap.count(Name) == 0) {
-      return mlir::cir::ComdatSelectionKind::Any;
-    } else {
-      return ComdatMap[Name];
-    }
   }
 
   void setStaticLocalDeclAddress(const VarDecl *D, mlir::cir::GlobalOp C) {
