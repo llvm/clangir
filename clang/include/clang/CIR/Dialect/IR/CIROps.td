@@ -2136,6 +2136,7 @@ def GlobalOp : CIR_Op<"global",
        ($sym_visibility^)?
        (`constant` $constant^)?
        $linkage
+       (`comdat` $comdat^)?
        ($tls_model^)?
        (`dsolocal` $dsolocal^)?
        $sym_name

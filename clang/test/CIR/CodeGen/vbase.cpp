@@ -23,12 +23,12 @@ void ppp() { B b; }
 // CIR:  cir.global "private" external @_ZTVN10__cxxabiv121__vmi_class_type_infoE
 
 // Type info name for B
-// CIR:  cir.global linkonce_odr @_ZTS1B = #cir.const_array<"1B" : !cir.array<!s8i x 2>> : !cir.array<!s8i x 2>
+// CIR:  cir.global linkonce_odr comdat @_ZTS1B = #cir.const_array<"1B" : !cir.array<!s8i x 2>> : !cir.array<!s8i x 2>
 
 // CIR:  cir.global "private" external @_ZTVN10__cxxabiv117__class_type_infoE : !cir.ptr<!cir.ptr<!u8i>>
 
 // Type info name for A
-// CIR:  cir.global linkonce_odr @_ZTS1A = #cir.const_array<"1A" : !cir.array<!s8i x 2>> : !cir.array<!s8i x 2>
+// CIR:  cir.global linkonce_odr comdat @_ZTS1A = #cir.const_array<"1A" : !cir.array<!s8i x 2>> : !cir.array<!s8i x 2>
 
 // Type info A.
 // CIR:  cir.global constant external @_ZTI1A = #cir.typeinfo<{#cir.global_view<@_ZTVN10__cxxabiv117__class_type_infoE, [2 : i32]> : !cir.ptr<!u8i>, #cir.global_view<@_ZTS1A> : !cir.ptr<!u8i>}>
