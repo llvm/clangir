@@ -513,7 +513,7 @@ LogicalResult CastOp::verify() {
   llvm_unreachable("Unknown CastOp kind?");
 }
 
-Value foldCasts(llvm::SmallVector<CastOp>& ops) {
+Value foldCasts(llvm::SmallVector<CastOp> &ops) {
   if (ops.size() < 2)
     return {};
 
@@ -522,15 +522,15 @@ Value foldCasts(llvm::SmallVector<CastOp>& ops) {
 
   // if bool_to_int -> ...  -> int_to_bool: take the bool
   // as we had it was before all casts
-  if (head.getKind() == mlir::cir::CastKind::bool_to_int
-      && tail.getKind() == mlir::cir::CastKind::int_to_bool)
+  if (head.getKind() == mlir::cir::CastKind::bool_to_int &&
+      tail.getKind() == mlir::cir::CastKind::int_to_bool)
     return head.getSrc();
 
   // if int_to_bool -> ...  -> int_to_bool: take the result
   // of the first one, as no other casts (and ext casts as well)
   // don't change the first result
-  if (head.getKind() == mlir::cir::CastKind::int_to_bool
-      && tail.getKind() == mlir::cir::CastKind::int_to_bool)
+  if (head.getKind() == mlir::cir::CastKind::int_to_bool &&
+      tail.getKind() == mlir::cir::CastKind::int_to_bool)
     return head.getResult();
 
   return {};
@@ -539,11 +539,11 @@ Value foldCasts(llvm::SmallVector<CastOp>& ops) {
 bool isIntOrBoolCast(mlir::cir::CastOp op) {
   auto kind = op.getKind();
   return kind == mlir::cir::CastKind::bool_to_int ||
-          kind == mlir::cir::CastKind::int_to_bool ||
-          kind == mlir::cir::CastKind::integral;
+         kind == mlir::cir::CastKind::int_to_bool ||
+         kind == mlir::cir::CastKind::integral;
 }
 
-void collectCasts(CastOp op, llvm::SmallVector<CastOp>& ops) {
+void collectCasts(CastOp op, llvm::SmallVector<CastOp> &ops) {
   if (!isIntOrBoolCast(op))
     return;
 
@@ -581,8 +581,8 @@ OpFoldResult CastOp::fold(FoldAdaptor adaptor) {
 }
 
 static bool isBoolNot(mlir::cir::UnaryOp op) {
-  return isa<BoolType>(op.getInput().getType()) 
-    && op.getKind() == mlir::cir::UnaryOpKind::Not;
+  return isa<BoolType>(op.getInput().getType()) &&
+         op.getKind() == mlir::cir::UnaryOpKind::Not;
 }
 
 OpFoldResult UnaryOp::fold(FoldAdaptor adaptor) {

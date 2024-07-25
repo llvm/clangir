@@ -19,7 +19,6 @@
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Transforms/Passes.h"
 
-
 namespace cir {
 mlir::LogicalResult runCIRToCIRPasses(
     mlir::ModuleOp theModule, mlir::MLIRContext *mlirCtx,
