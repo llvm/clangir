@@ -36,7 +36,8 @@ struct CallConvLoweringPattern : public OpRewritePattern<FuncOp> {
       return op.emitError("function has no AST information");
 
     auto modOp = op->getParentOfType<ModuleOp>();
-    auto lowerModule = createLowerModule(modOp, rewriter);
+    std::unique_ptr<LowerModule> lowerModule =
+        createLowerModule(modOp, rewriter);
 
     // Rewrite function calls before definitions. This should be done before
     // lowering the definition.
