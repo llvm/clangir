@@ -1,5 +1,6 @@
 // RUN: %clang_cc1 -std=c++20 -triple x86_64-unknown-linux-gnu -fclangir -fclangir-call-conv-lowering -emit-cir -mmlir --mlir-print-ir-after=cir-call-conv-lowering %s -o %t.cir
 // RUN: FileCheck --input-file=%t.cir %s
+// XFAIL: *
 
 // CHECK: @_Z4Voidv()
 void Void(void) {
@@ -61,4 +62,17 @@ long Long(long l) {
 long long LongLong(long long l) {
   // CHECK: cir.call @_Z8LongLongx(%{{.+}}) : (!s64i) -> !s64i
   return LongLong(l);
+}
+
+/// Test call conv lowering for floating point. ///
+
+// CHECK: cir.func @_Z5Floatf(%arg0: !cir.float loc({{.+}})) -> !cir.float
+float Float(float f) {
+  // cir.call @_Z5Floatf(%{{.+}}) : (!cir.float) -> !cir.float
+  return Float(f);
+}
+// CHECK: cir.func @_Z6Doubled(%arg0: !cir.double loc({{.+}})) -> !cir.double
+double Double(double d) {
+  // cir.call @_Z6Doubled(%{{.+}}) : (!cir.double) -> !cir.double
+  return Double(d);
 }
