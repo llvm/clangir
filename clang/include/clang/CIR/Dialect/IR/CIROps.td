@@ -2123,7 +2123,6 @@ def GlobalOp : CIR_Op<"global",
                        OptionalAttr<TLSModel>:$tls_model,
                        // Note this can also be a FlatSymbolRefAttr
                        OptionalAttr<AnyAttr>:$initial_value,
-                       // whether op has comdat, its selection kind is ANY
                        UnitAttr:$comdat,
                        UnitAttr:$constant,
                        UnitAttr:$dsolocal,

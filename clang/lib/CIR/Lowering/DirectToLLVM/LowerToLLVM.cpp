@@ -1821,27 +1821,21 @@ public:
         /*dsoLocal*/ false, /*threadLocal*/ (bool)op.getTlsModelAttr(),
         /*comdat*/ mlir::SymbolRefAttr(), attributes);
     auto mod = op->getParentOfType<mlir::ModuleOp>();
-    if (op.getComdat()) {
-      addComdat(llvmGlobalOp, comdatOpMap, mod);
-    }
+    if (op.getComdat())
+      addComdat(llvmGlobalOp, comdatOp, rewriter, mod);
     return mlir::success();
   }
 
 private:
-  mutable DenseMap<StringRef, mlir::LLVM::ComdatOp> comdatOpMap;
+  mutable mlir::LLVM::ComdatOp comdatOp = nullptr;
   static void addComdat(mlir::LLVM::GlobalOp &op,
-                        DenseMap<StringRef, mlir::LLVM::ComdatOp> &comdatOpMap,
-                        mlir::ModuleOp &module) {
-    mlir::OpBuilder builder(op.getContext());
-    mlir::LLVM::ComdatOp comdatOp;
-    StringRef comdatName("__llvm_comdat");
-    if (!comdatOpMap.contains(comdatName)) {
+                        mlir::LLVM::ComdatOp &comdatOp,
+                        mlir::OpBuilder &builder, mlir::ModuleOp &module) {
+    StringRef comdatName("__llvm_comdat_globals");
+    if (!comdatOp) {
       builder.setInsertionPointToStart(module.getBody());
       comdatOp =
           builder.create<mlir::LLVM::ComdatOp>(module.getLoc(), comdatName);
-      comdatOpMap[comdatName] = comdatOp;
-    } else {
-      comdatOp = comdatOpMap[comdatName];
     }
     builder.setInsertionPointToStart(&comdatOp.getBody().back());
     auto selectorOp = builder.create<mlir::LLVM::ComdatSelectorOp>(
