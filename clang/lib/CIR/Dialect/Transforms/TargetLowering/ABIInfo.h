@@ -39,7 +39,7 @@ public:
 
   CIRCXXABI &getCXXABI() const;
 
-  CIRLowerContext &getContext() const;\
+  CIRLowerContext &getContext() const;
 
   const ::cir::CIRDataLayout &getDataLayout() const;
 
