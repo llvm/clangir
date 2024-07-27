@@ -64,6 +64,8 @@ public:
 
   /// Get the CIR address space for alloca.
   virtual mlir::cir::AddressSpaceAttr getCIRAllocaAddressSpace() const {
+    // Return the null attribute, which means the target does not care about the
+    // alloca address space.
     return {};
   }
 
