@@ -47,8 +47,8 @@ void LowerModuleRegistry::initializeWithModule(ModuleOp module) {
 }
 
 LowerModuleRegistry &LowerModuleRegistry::instance() {
-  static LowerModuleRegistry lowerModuleRegistry;
-  return lowerModuleRegistry;
+  static llvm::ManagedStatic<LowerModuleRegistry> lowerModuleRegistry;
+  return *lowerModuleRegistry;
 }
 
 } // namespace cir
