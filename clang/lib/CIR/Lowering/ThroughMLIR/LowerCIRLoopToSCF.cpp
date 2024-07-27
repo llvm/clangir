@@ -280,27 +280,9 @@ void SCFDoLoop::transferToSCFWhileOp() {
     rewriter->create<mlir::scf::YieldOp>(loc, args);
   };
 
-  rewriter->create<mlir::scf::WhileOp>(
-      DoOp.getLoc(), DoOp->getResultTypes(), adaptor.getOperands(),
-      beforeBuilder, afterBuilder);
-  // rewriter->createBlock(&scfWhileOp.getBefore());
-  // rewriter->createBlock(&scfWhileOp.getAfter());
-
-  // rewriter->inlineBlockBefore(&DoOp.getBody().front(),
-  //                             scfWhileOp.getBeforeBody(),
-  //                             scfWhileOp.getBeforeBody()->end());
-  // rewriter->inlineBlockBefore(&DoOp.getCond().front(),
-  //                             scfWhileOp.getAfterBody(),
-  //                             scfWhileOp.getAfterBody()->end());
-
-  // auto &beforeFrontBlock = scfWhileOp.getBefore().front();
-  // auto scfYieldOp = rewriter->create<mlir::scf::YieldOp>(DoOp->getLoc());
-  // for (auto it = beforeFrontBlock.begin(); it != beforeFrontBlock.end();
-  // ++it) {
-  //   if (isa<mlir::cir::YieldOp>(&(*it))) {
-  //     rewriter->replaceOp(&*it, scfYieldOp);
-  //     break;
-  //   }
+  rewriter->create<mlir::scf::WhileOp>(DoOp.getLoc(), DoOp->getResultTypes(),
+                                       adaptor.getOperands(), beforeBuilder,
+                                       afterBuilder);
 }
 
 class CIRForOpLowering : public mlir::OpConversionPattern<mlir::cir::ForOp> {
