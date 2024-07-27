@@ -51,6 +51,7 @@
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/Dialect/Passes.h"
+#include "clang/CIR/Dialect/Transforms/TargetLowering/LowerModuleRegistry.h"
 #include "clang/CIR/LoweringHelpers.h"
 #include "clang/CIR/MissingFeatures.h"
 #include "clang/CIR/Passes.h"
@@ -3482,15 +3483,19 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
 
 namespace {
 
-std::unique_ptr<mlir::cir::LowerModule>
-prepareLowerModule(mlir::ModuleOp module) {
-  mlir::PatternRewriter rewriter{module->getContext()};
-  // If the triple is not present, e.g. CIR modules parsed from text, we
-  // cannot init LowerModule properly.
-  assert(!::cir::MissingFeatures::makeTripleAlwaysPresent());
-  if (!module->hasAttr("cir.triple"))
-    return {};
-  return mlir::cir::createLowerModule(module, rewriter);
+mlir::cir::LowerModule *prepareLowerModule(mlir::ModuleOp module) {
+  auto &registry = mlir::cir::LowerModuleRegistry::instance();
+  if (!registry.isInitialized()) {
+    // If the triple is not present, e.g. CIR modules parsed from text, we
+    // cannot init LowerModule properly.
+    assert(!::cir::MissingFeatures::makeTripleAlwaysPresent());
+    if (!module->hasAttr("cir.triple"))
+      return nullptr;
+
+    registry.initializeWithModule(module);
+  }
+
+  return &registry.get();
 }
 
 // FIXME: change the type of lowerModule to `LowerModule &` to have better
@@ -3742,9 +3747,7 @@ void ConvertCIRToLLVMPass::runOnOperation() {
   auto module = getOperation();
   mlir::DataLayout dataLayout(module);
   mlir::LLVMTypeConverter converter(&getContext());
-  std::unique_ptr<mlir::cir::LowerModule> lowerModule =
-      prepareLowerModule(module);
-  prepareTypeConverter(converter, dataLayout, lowerModule.get());
+  prepareTypeConverter(converter, dataLayout, prepareLowerModule(module));
 
   mlir::RewritePatternSet patterns(&getContext());
 

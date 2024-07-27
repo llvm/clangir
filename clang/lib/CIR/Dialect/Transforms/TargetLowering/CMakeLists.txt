@@ -8,6 +8,7 @@ add_clang_library(TargetLowering
   LowerCall.cpp
   LowerFunction.cpp
   LowerModule.cpp
+  LowerModuleRegistry.cpp
   LowerTypes.cpp
   RecordLayoutBuilder.cpp
   TargetInfo.cpp

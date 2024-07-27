@@ -14,6 +14,7 @@
 #include "mlir/Pass/Pass.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
+#include "clang/CIR/Dialect/Transforms/TargetLowering/LowerModuleRegistry.h"
 
 #define GEN_PASS_DEF_CALLCONVLOWERING
 #include "clang/CIR/Dialect/Passes.h.inc"
@@ -36,8 +37,7 @@ struct CallConvLoweringPattern : public OpRewritePattern<FuncOp> {
       return op.emitError("function has no AST information");
 
     auto modOp = op->getParentOfType<ModuleOp>();
-    std::unique_ptr<LowerModule> lowerModule =
-        createLowerModule(modOp, rewriter);
+    LowerModule &lowerModule = LowerModuleRegistry::instance().get();
 
     // Rewrite function calls before definitions. This should be done before
     // lowering the definition.
@@ -45,14 +45,14 @@ struct CallConvLoweringPattern : public OpRewritePattern<FuncOp> {
     if (calls.has_value()) {
       for (auto call : calls.value()) {
         auto callOp = cast<CallOp>(call.getUser());
-        if (lowerModule->rewriteFunctionCall(callOp, op).failed())
+        if (lowerModule.rewriteFunctionCall(callOp, op).failed())
           return failure();
       }
     }
 
     // TODO(cir): Instead of re-emmiting every load and store, bitcast arguments
     // and return values to their ABI-specific counterparts when possible.
-    if (lowerModule->rewriteFunctionDefinition(op).failed())
+    if (lowerModule.rewriteFunctionDefinition(op).failed())
       return failure();
 
     return success();
@@ -76,6 +76,13 @@ void populateCallConvLoweringPassPatterns(RewritePatternSet &patterns) {
 }
 
 void CallConvLoweringPass::runOnOperation() {
+  auto module = cast<ModuleOp>(getOperation());
+
+  // Initialize LowerModule here to avoid create it for each function.
+  if (auto &registry = LowerModuleRegistry::instance();
+      !registry.isInitialized()) {
+    registry.initializeWithModule(module);
+  }
 
   // Collect rewrite patterns.
   RewritePatternSet patterns(&getContext());
@@ -83,7 +90,7 @@ void CallConvLoweringPass::runOnOperation() {
 
   // Collect operations to be considered by the pass.
   SmallVector<Operation *, 16> ops;
-  getOperation()->walk([&](FuncOp op) { ops.push_back(op); });
+  module->walk([&](FuncOp op) { ops.push_back(op); });
 
   // Configure rewrite to ignore new ops created during the pass.
   GreedyRewriteConfig config;

@@ -11,9 +11,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-// FIXME(cir): This header file is not exposed to the public API, but can be
-// reused by CIR ABI lowering since it holds target-specific information.
-#include "../../../../Basic/Targets.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Basic/TargetOptions.h"
 
@@ -219,30 +216,6 @@ LogicalResult LowerModule::rewriteFunctionCall(CallOp callOp, FuncOp funcOp) {
     return failure();
 
   return success();
-}
-
-// TODO: not to create it every time
-std::unique_ptr<LowerModule> createLowerModule(ModuleOp module,
-                                               PatternRewriter &rewriter) {
-  // Fetch the LLVM data layout string.
-  auto dataLayoutStr = cast<StringAttr>(
-      module->getAttr(LLVM::LLVMDialect::getDataLayoutAttrName()));
-
-  // Fetch target information.
-  llvm::Triple triple(
-      cast<StringAttr>(module->getAttr("cir.triple")).getValue());
-  clang::TargetOptions targetOptions;
-  targetOptions.Triple = triple.str();
-  auto targetInfo = clang::targets::AllocateTarget(triple, targetOptions);
-
-  // FIXME(cir): This just uses the default language options. We need to account
-  // for custom options.
-  // Create context.
-  assert(!::cir::MissingFeatures::langOpts());
-  clang::LangOptions langOpts;
-
-  return std::make_unique<LowerModule>(langOpts, module, dataLayoutStr,
-                                       std::move(targetInfo), rewriter);
 }
 
 } // namespace cir
