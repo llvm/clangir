@@ -1,0 +1,21 @@
+// RUN: cir-opt %s -o %t.cir
+// RUN: FileCheck --input-file=%t.cir %s
+
+!s32i = !cir.int<s, 32>
+module {
+    // CHECK: cir.func @foo()
+    cir.func cc_c @foo() {
+        cir.return
+    }
+
+    // CHECK: cir.func cc_spir_kernel @bar()
+    cir.func cc_spir_kernel @bar() {
+        cir.return
+    }
+
+    // CHECK: cir.func cc_spir_function @baz()
+    cir.func cc_spir_function @baz() {
+        cir.return
+    }
+}
+

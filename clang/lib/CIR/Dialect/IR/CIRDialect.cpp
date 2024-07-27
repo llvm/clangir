@@ -157,6 +157,7 @@ template <typename Ty> struct EnumTraits {};
   }
 
 REGISTER_ENUM_TYPE(GlobalLinkageKind);
+REGISTER_ENUM_TYPE(CallingConv);
 REGISTER_ENUM_TYPE_WITH_NS(sob, SignedOverflowBehavior);
 } // namespace
 
@@ -1874,7 +1875,7 @@ static StringRef getLinkageAttrNameString() { return "linkage"; }
 
 void cir::FuncOp::build(OpBuilder &builder, OperationState &result,
                         StringRef name, cir::FuncType type,
-                        GlobalLinkageKind linkage,
+                        GlobalLinkageKind linkage, CallingConv callingConv,
                         ArrayRef<NamedAttribute> attrs,
                         ArrayRef<DictionaryAttr> argAttrs) {
   result.addRegion();
@@ -1885,6 +1886,8 @@ void cir::FuncOp::build(OpBuilder &builder, OperationState &result,
   result.addAttribute(
       getLinkageAttrNameString(),
       GlobalLinkageKindAttr::get(builder.getContext(), linkage));
+  result.addAttribute(getCallingConvAttrName(result.name),
+                      CallingConvAttr::get(builder.getContext(), callingConv));
   result.attributes.append(attrs.begin(), attrs.end());
   if (argAttrs.empty())
     return;
@@ -1920,6 +1923,12 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
                          parser.getContext(),
                          parseOptionalCIRKeyword<GlobalLinkageKind>(
                              parser, GlobalLinkageKind::ExternalLinkage)));
+
+  // Default to C calling convention if no keyword is provided.
+  state.addAttribute(getCallingConvAttrName(state.name),
+                     CallingConvAttr::get(parser.getContext(),
+                                          parseOptionalCIRKeyword<CallingConv>(
+                                              parser, CallingConv::C)));
 
   ::llvm::StringRef visAttrStr;
   if (parser.parseOptionalKeyword(&visAttrStr, {"private", "public", "nested"})
@@ -2115,6 +2124,9 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
   if (getLinkage() != GlobalLinkageKind::ExternalLinkage)
     p << stringifyGlobalLinkageKind(getLinkage()) << ' ';
 
+  if (getCallingConv() != CallingConv::C)
+    p << stringifyCallingConv(getCallingConv()) << ' ';
+
   auto vis = getVisibility();
   if (vis != mlir::SymbolTable::Visibility::Public)
     p << vis << " ";
@@ -2144,6 +2156,7 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
           getGlobalDtorAttrName(),
           getLambdaAttrName(),
           getLinkageAttrName(),
+          getCallingConvAttrName(),
           getNoProtoAttrName(),
           getSymVisibilityAttrName(),
           getArgAttrsAttrName(),
