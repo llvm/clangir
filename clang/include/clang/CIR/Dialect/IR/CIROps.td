@@ -3359,8 +3359,10 @@ def EhInflightOp : CIR_Op<"eh.inflight_exception"> {
     exception path out of `cir.try_call` operations.
   }];
 
+  let arguments = (ins OptionalAttr<FlatSymbolRefArrayAttr>:$sym_type_list);
   let results = (outs VoidPtr:$exception_ptr, UInt32:$type_id);
   let assemblyFormat = [{
+    ($sym_type_list^)?
     attr-dict
   }];
 
