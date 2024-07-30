@@ -3323,38 +3323,22 @@ def CatchParamOp : CIR_Op<"catch_param"> {
 }
 
 //===----------------------------------------------------------------------===//
-// Exception related: EhInflightOp, EhSelectorOp
+// Exception related: EhInflightOp, EhTypeIdOp
 //===----------------------------------------------------------------------===//
 
 def EhInflightOp : CIR_Op<"eh.inflight_exception"> {
   let summary = "Materialize the catch clause formal parameter";
   let description = [{
-    `cir.eh.inflight_exception` returns an exception coming from a
-    `cir.call exception` that might throw. The returned value is opaque
-    but can be further decomposed by other operations.
+    `cir.eh.inflight_exception` returns two values:
+      - `exception_ptr`: The exception pointer for the inflight exception
+      - `type_id`: pointer to the exception object
+    This operation is expected to be the first one basic blocks on the
+    exception path out of `cir.try_call` operations.
   }];
 
-  let results = (outs CIR_ExceptionType:$exception);
+  let results = (outs VoidPtr:$exception_ptr, UInt32:$type_id);
   let assemblyFormat = [{
     attr-dict
-  }];
-
-  let hasVerifier = 0;
-}
-
-def EhSelectorOp : CIR_Op<"eh.selector"> {
-  let summary = "Materialize the eh selector";
-  let description = [{
-    `cir.eh.inflight_exception` returns an exception coming from a
-    `cir.call exception ...` that might throw. `cir.eh.selector` returns the
-    runtime selector value (type id) for the needed , which represents the type id used by
-    operations to compare against other type ids.
-  }];
-
-  let arguments = (ins CIR_ExceptionType:$exception);
-  let results = (outs UInt32:$type_id);
-  let assemblyFormat = [{
-    $exception attr-dict
   }];
 
   let hasVerifier = 0;
