@@ -9,7 +9,7 @@
 // This contains code to emit Expr nodes as CIR code.
 //
 //===----------------------------------------------------------------------===//
-#include "CIRGenBuilder.h"
+#include "CIRGenExpr.h"
 #include "CIRGenCXXABI.h"
 #include "CIRGenCall.h"
 #include "CIRGenCstEmitter.h"
@@ -1648,11 +1648,11 @@ static CharUnits getArrayElementAlign(CharUnits arrayAlign, mlir::Value idx,
   }
 }
 
-static mlir::Value buildArrayAccessOp(mlir::OpBuilder &builder,
-                                      mlir::Location arrayLocBegin,
-                                      mlir::Location arrayLocEnd,
-                                      mlir::Value arrayPtr, mlir::Type eltTy,
-                                      mlir::Value idx, bool shouldDecay) {
+mlir::Value cir::buildArrayAccessOp(mlir::OpBuilder &builder,
+                                    mlir::Location arrayLocBegin,
+                                    mlir::Location arrayLocEnd,
+                                    mlir::Value arrayPtr, mlir::Type eltTy,
+                                    mlir::Value idx, bool shouldDecay) {
   mlir::Value basePtr = arrayPtr;
   if (shouldDecay)
     basePtr = maybeBuildArrayDecay(builder, arrayLocBegin, arrayPtr, eltTy);
@@ -1675,8 +1675,8 @@ buildArraySubscriptPtr(CIRGenFunction &CGF, mlir::Location beginLoc,
   // that would enhance tracking this later in CIR?
   if (inbounds)
     assert(!MissingFeatures::emitCheckedInBoundsGEP() && "NYI");
-  return buildArrayAccessOp(CGM.getBuilder(), beginLoc, endLoc, ptr, eltTy, idx,
-                            shouldDecay);
+  return cir::buildArrayAccessOp(CGM.getBuilder(), beginLoc, endLoc, ptr, eltTy,
+                                 idx, shouldDecay);
 }
 
 static QualType getFixedSizeElementType(const ASTContext &ctx,
@@ -1999,8 +1999,8 @@ LValue CIRGenFunction::buildCastLValue(const CastExpr *E) {
   case CK_AddressSpaceConversion: {
     LValue LV = buildLValue(E->getSubExpr());
     QualType DestTy = getContext().getPointerType(E->getType());
-    auto SrcAS = builder.getAddrSpaceAttr(
-        E->getSubExpr()->getType().getAddressSpace());
+    auto SrcAS =
+        builder.getAddrSpaceAttr(E->getSubExpr()->getType().getAddressSpace());
     auto DestAS = builder.getAddrSpaceAttr(E->getType().getAddressSpace());
     mlir::Value V = getTargetHooks().performAddrSpaceCast(
         *this, LV.getPointer(), SrcAS, DestAS, ConvertType(DestTy));
