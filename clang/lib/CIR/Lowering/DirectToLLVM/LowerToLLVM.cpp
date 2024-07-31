@@ -881,7 +881,9 @@ mlir::LogicalResult
 rewriteToCallOrInvoke(mlir::Operation *op, mlir::ValueRange callOperands,
                       mlir::ConversionPatternRewriter &rewriter,
                       const mlir::TypeConverter *converter,
-                      mlir::FlatSymbolRefAttr calleeAttr) {
+                      mlir::FlatSymbolRefAttr calleeAttr, bool invoke = false,
+                      mlir::Block *continueBlock = nullptr,
+                      mlir::Block *landingPadBlock = nullptr) {
   llvm::SmallVector<mlir::Type, 8> llvmResults;
   auto cirResults = op->getResultTypes();
 
@@ -889,8 +891,13 @@ rewriteToCallOrInvoke(mlir::Operation *op, mlir::ValueRange callOperands,
     return mlir::failure();
 
   if (calleeAttr) { // direct call
-    rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, llvmResults, calleeAttr,
-                                                    callOperands);
+    if (invoke)
+      rewriter.replaceOpWithNewOp<mlir::LLVM::InvokeOp>(
+          op, llvmResults, calleeAttr, callOperands, continueBlock,
+          mlir::ValueRange{}, landingPadBlock, mlir::ValueRange{});
+    else
+      rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, llvmResults,
+                                                      calleeAttr, callOperands);
   } else { // indirect call
     assert(op->getOperands().size() &&
            "operands list must no be empty for the indirect call");
@@ -900,10 +907,17 @@ rewriteToCallOrInvoke(mlir::Operation *op, mlir::ValueRange callOperands,
     auto ftyp = dyn_cast<mlir::cir::FuncType>(ptyp.getPointee());
     assert(ftyp && "expected a pointer to a function as the first operand");
 
-    rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(
-        op,
-        dyn_cast<mlir::LLVM::LLVMFunctionType>(converter->convertType(ftyp)),
-        callOperands);
+    if (invoke) {
+      auto llvmFnTy =
+          dyn_cast<mlir::LLVM::LLVMFunctionType>(converter->convertType(ftyp));
+      rewriter.replaceOpWithNewOp<mlir::LLVM::InvokeOp>(
+          op, llvmFnTy, mlir::FlatSymbolRefAttr{}, callOperands, continueBlock,
+          mlir::ValueRange{}, landingPadBlock, mlir::ValueRange{});
+    } else
+      rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(
+          op,
+          dyn_cast<mlir::LLVM::LLVMFunctionType>(converter->convertType(ftyp)),
+          callOperands);
   }
       return mlir::success();
 }
@@ -914,6 +928,20 @@ public:
 
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::CallOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    return rewriteToCallOrInvoke(op.getOperation(), adaptor.getOperands(),
+                                 rewriter, getTypeConverter(),
+                                 op.getCalleeAttr());
+  }
+};
+
+class CIRTryCallLowering
+    : public mlir::OpConversionPattern<mlir::cir::TryCallOp> {
+public:
+  using OpConversionPattern<mlir::cir::TryCallOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::TryCallOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     return rewriteToCallOrInvoke(op.getOperation(), adaptor.getOperands(),
                                  rewriter, getTypeConverter(),
@@ -3506,14 +3534,15 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
       CIRBitPopcountOpLowering, CIRAtomicCmpXchgLowering, CIRAtomicXchgLowering,
       CIRAtomicFetchLowering, CIRByteswapOpLowering, CIRRotateOpLowering,
       CIRBrCondOpLowering, CIRPtrStrideOpLowering, CIRCallLowering,
-      CIRUnaryOpLowering, CIRBinOpLowering, CIRBinOpOverflowOpLowering,
-      CIRShiftOpLowering, CIRLoadLowering, CIRConstantLowering,
-      CIRStoreLowering, CIRAllocaLowering, CIRFuncLowering, CIRCastOpLowering,
-      CIRGlobalOpLowering, CIRGetGlobalOpLowering, CIRComplexCreateOpLowering,
-      CIRComplexRealOpLowering, CIRComplexImagOpLowering,
-      CIRComplexRealPtrOpLowering, CIRComplexImagPtrOpLowering,
-      CIRVAStartLowering, CIRVAEndLowering, CIRVACopyLowering, CIRVAArgLowering,
-      CIRBrOpLowering, CIRGetMemberOpLowering, CIRGetRuntimeMemberOpLowering,
+      CIRTryCallLowering, CIRUnaryOpLowering, CIRBinOpLowering,
+      CIRBinOpOverflowOpLowering, CIRShiftOpLowering, CIRLoadLowering,
+      CIRConstantLowering, CIRStoreLowering, CIRAllocaLowering, CIRFuncLowering,
+      CIRCastOpLowering, CIRGlobalOpLowering, CIRGetGlobalOpLowering,
+      CIRComplexCreateOpLowering, CIRComplexRealOpLowering,
+      CIRComplexImagOpLowering, CIRComplexRealPtrOpLowering,
+      CIRComplexImagPtrOpLowering, CIRVAStartLowering, CIRVAEndLowering,
+      CIRVACopyLowering, CIRVAArgLowering, CIRBrOpLowering,
+      CIRGetMemberOpLowering, CIRGetRuntimeMemberOpLowering,
       CIRSwitchFlatOpLowering, CIRPtrDiffOpLowering, CIRCopyOpLowering,
       CIRMemCpyOpLowering, CIRFAbsOpLowering, CIRExpectOpLowering,
       CIRVTableAddrPointOpLowering, CIRVectorCreateLowering,
