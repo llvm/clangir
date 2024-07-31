@@ -3343,8 +3343,8 @@ def CatchParamOp : CIR_Op<"catch_param"> {
   }];
 
   let extraClassDeclaration = [{
-    bool isBegin() { return getKind() ==  mlir::cir::CatchParamKind::begin; }
-    bool isEnd() { return getKind() ==  mlir::cir::CatchParamKind::end; }
+    bool isBegin() { return getKind() == mlir::cir::CatchParamKind::begin; }
+    bool isEnd() { return getKind() == mlir::cir::CatchParamKind::end; }
   }];
 
   let hasVerifier = 1;
