@@ -3648,7 +3648,6 @@ public:
             op->getParentOfType<mlir::LLVM::LLVMFuncOp>());
         auto catchFn = rewriter.create<mlir::LLVM::LLVMFuncOp>(
             op.getLoc(), cxaBeginCatch, catchFnTy);
-        sourceSymbol = catchFn;
       }
       rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(
           op, mlir::TypeRange{llvmPtrTy}, cxaBeginCatch,
@@ -3668,7 +3667,6 @@ public:
             op->getParentOfType<mlir::LLVM::LLVMFuncOp>());
         auto catchFn = rewriter.create<mlir::LLVM::LLVMFuncOp>(
             op.getLoc(), cxaEndCatch, catchFnTy);
-        sourceSymbol = catchFn;
       }
       rewriter.create<mlir::LLVM::CallOp>(op.getLoc(), mlir::TypeRange{},
                                           cxaEndCatch, mlir::ValueRange{});
