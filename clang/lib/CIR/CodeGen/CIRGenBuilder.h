@@ -516,6 +516,12 @@ public:
         loc, t, isSigned ? intVal.getSExtValue() : intVal.getZExtValue());
   }
 
+  mlir::cir::ConstantOp getConstInt(mlir::Location loc, llvm::APInt intVal) {
+    auto width = intVal.getBitWidth();
+    mlir::cir::IntType t = getUIntNTy(width);
+    return getConstInt(loc, t, intVal.getZExtValue());
+  }
+
   mlir::cir::ConstantOp getConstInt(mlir::Location loc, mlir::Type t,
                                     uint64_t C) {
     auto intTy = mlir::dyn_cast<mlir::cir::IntType>(t);
