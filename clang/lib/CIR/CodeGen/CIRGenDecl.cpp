@@ -411,7 +411,7 @@ void CIRGenFunction::buildVarDecl(const VarDecl &D) {
   }
 
   if (D.getType().getAddressSpace() == LangAS::opencl_local)
-    llvm_unreachable("OpenCL and address space are NYI");
+    return CGM.getOpenCLRuntime().buildWorkGroupLocalVarDecl(*this, D);
 
   assert(D.hasLocalStorage());
 
@@ -471,10 +471,9 @@ CIRGenModule::getOrCreateStaticVarDecl(const VarDecl &D,
   // OpenCL variables in local address space and CUDA shared
   // variables cannot have an initializer.
   mlir::Attribute Init = nullptr;
-  if (Ty.getAddressSpace() == LangAS::opencl_local ||
-      D.hasAttr<CUDASharedAttr>() || D.hasAttr<LoaderUninitializedAttr>())
-    llvm_unreachable("OpenCL & CUDA are NYI");
-  else
+  if (D.hasAttr<CUDASharedAttr>() || D.hasAttr<LoaderUninitializedAttr>())
+    llvm_unreachable("CUDA is NYI");
+  else if (Ty.getAddressSpace() != LangAS::opencl_local)
     Init = builder.getZeroInitAttr(getTypes().ConvertType(Ty));
 
   mlir::cir::GlobalOp GV = builder.createVersionedGlobal(
