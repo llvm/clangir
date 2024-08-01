@@ -39,10 +39,36 @@ public:
       mlir::Operation *op, llvm::ArrayRef<llvm::Instruction *> instructions,
       mlir::NamedAttribute attribute,
       mlir::LLVM::ModuleTranslation &moduleTranslation) const override {
-    // Translate CIR's extra function attributes to LLVM's function attributes.
-    auto func = dyn_cast<mlir::LLVM::LLVMFuncOp>(op);
-    if (!func)
-      return mlir::success();
+    if (auto func = dyn_cast<mlir::LLVM::LLVMFuncOp>(op)) {
+      auto result = amendOperationOnFunction(func, instructions, attribute,
+                                             moduleTranslation);
+      if (failed(result))
+        return result;
+    }
+    return mlir::success();
+  }
+
+  /// Translates the given operation to LLVM IR using the provided IR builder
+  /// and saving the state in `moduleTranslation`.
+  mlir::LogicalResult convertOperation(
+      mlir::Operation *op, llvm::IRBuilderBase &builder,
+      mlir::LLVM::ModuleTranslation &moduleTranslation) const final {
+
+    if (auto cirOp = llvm::dyn_cast<mlir::LLVM::ZeroOp>(op))
+      moduleTranslation.mapValue(cirOp.getResult()) =
+          llvm::Constant::getNullValue(
+              moduleTranslation.convertType(cirOp.getType()));
+
+    return mlir::success();
+  }
+
+private:
+  // Translate CIR's extra function attributes to LLVM's function attributes.
+  mlir::LogicalResult amendOperationOnFunction(
+      mlir::LLVM::LLVMFuncOp func,
+      llvm::ArrayRef<llvm::Instruction *> instructions,
+      mlir::NamedAttribute attribute,
+      mlir::LLVM::ModuleTranslation &moduleTranslation) const {
     llvm::Function *llvmFunc = moduleTranslation.lookupFunction(func.getName());
     if (auto extraAttr = mlir::dyn_cast<mlir::cir::ExtraFuncAttributesAttr>(
             attribute.getValue())) {
@@ -71,25 +97,10 @@ public:
     }
 
     // Drop ammended CIR attribute from LLVM op.
-    op->removeAttr(attribute.getName());
+    func->removeAttr(attribute.getName());
     return mlir::success();
   }
 
-  /// Translates the given operation to LLVM IR using the provided IR builder
-  /// and saving the state in `moduleTranslation`.
-  mlir::LogicalResult convertOperation(
-      mlir::Operation *op, llvm::IRBuilderBase &builder,
-      mlir::LLVM::ModuleTranslation &moduleTranslation) const final {
-
-    if (auto cirOp = llvm::dyn_cast<mlir::LLVM::ZeroOp>(op))
-      moduleTranslation.mapValue(cirOp.getResult()) =
-          llvm::Constant::getNullValue(
-              moduleTranslation.convertType(cirOp.getType()));
-
-    return mlir::success();
-  }
-
-private:
   void emitOpenCLKernelMetadata(
       mlir::cir::OpenCLKernelMetadataAttr clKernelMetadata,
       llvm::Function *llvmFunc,
