@@ -2797,8 +2797,8 @@ def BaseClassAddrOp : CIR_Op<"base_class_addr"> {
 // The enumeration values are not necessarily in sync with `clang::CallingConv`
 // or `llvm::CallingConv`.
 def CC_C : I32EnumAttrCase<"C", 1, "c">;
-def CC_SpirKernel : I32EnumAttrCase<"SpirKernel", 75, "spir_kernel">;
-def CC_SpirFunction : I32EnumAttrCase<"SpirFunction", 76, "spir_function">;
+def CC_SpirKernel : I32EnumAttrCase<"SpirKernel", 2, "spir_kernel">;
+def CC_SpirFunction : I32EnumAttrCase<"SpirFunction", 3, "spir_function">;
 
 def CallingConv : I32EnumAttr<
     "CallingConv",
