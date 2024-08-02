@@ -6,7 +6,7 @@
 #fn_attr = #cir<extra({inline = #cir.inline<no>})>
 
 module {
-    // CHECK: cir.func @foo()
+    // CHECK: cir.func @foo() {
     cir.func @foo() cc(c) {
         cir.return
     }
