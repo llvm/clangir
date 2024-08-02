@@ -40,10 +40,7 @@ public:
       mlir::NamedAttribute attribute,
       mlir::LLVM::ModuleTranslation &moduleTranslation) const override {
     if (auto func = dyn_cast<mlir::LLVM::LLVMFuncOp>(op)) {
-      auto result = amendOperationOnFunction(func, instructions, attribute,
-                                             moduleTranslation);
-      if (failed(result))
-        return result;
+      amendFunction(func, instructions, attribute, moduleTranslation);
     }
     return mlir::success();
   }
@@ -64,11 +61,10 @@ public:
 
 private:
   // Translate CIR's extra function attributes to LLVM's function attributes.
-  mlir::LogicalResult amendOperationOnFunction(
-      mlir::LLVM::LLVMFuncOp func,
-      llvm::ArrayRef<llvm::Instruction *> instructions,
-      mlir::NamedAttribute attribute,
-      mlir::LLVM::ModuleTranslation &moduleTranslation) const {
+  void amendFunction(mlir::LLVM::LLVMFuncOp func,
+                     llvm::ArrayRef<llvm::Instruction *> instructions,
+                     mlir::NamedAttribute attribute,
+                     mlir::LLVM::ModuleTranslation &moduleTranslation) const {
     llvm::Function *llvmFunc = moduleTranslation.lookupFunction(func.getName());
     if (auto extraAttr = mlir::dyn_cast<mlir::cir::ExtraFuncAttributesAttr>(
             attribute.getValue())) {
@@ -98,7 +94,6 @@ private:
 
     // Drop ammended CIR attribute from LLVM op.
     func->removeAttr(attribute.getName());
-    return mlir::success();
   }
 
   void emitOpenCLKernelMetadata(
