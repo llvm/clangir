@@ -47,7 +47,18 @@ public:
     if (RetTy->isVoidType())
       return ABIArgInfo::getIgnore();
 
-    llvm_unreachable("Non-void return type NYI");
+    if (isAggregateTypeForABI(RetTy))
+      llvm_unreachable("NYI");
+
+    // Treat an enum type as its underlying type.
+    if (const EnumType *EnumTy = RetTy->getAs<EnumType>())
+      llvm_unreachable("NYI");
+
+    if (const auto *EIT = RetTy->getAs<BitIntType>())
+      llvm_unreachable("NYI");
+
+    return (isPromotableIntegerTypeForABI(RetTy) ? ABIArgInfo::getExtend(RetTy)
+                                                 : ABIArgInfo::getDirect());
   }
 
   ABIArgInfo classifyArgumentType(QualType Ty) const {
@@ -65,11 +76,8 @@ public:
     if (const auto *EIT = Ty->getAs<BitIntType>())
       llvm_unreachable("NYI");
 
-    if (isPromotableIntegerTypeForABI(Ty)) {
-      llvm_unreachable("ArgInfo integer extend NYI");
-    } else {
-      return ABIArgInfo::getDirect();
-    }
+    return (isPromotableIntegerTypeForABI(Ty) ? ABIArgInfo::getExtend(Ty)
+                                              : ABIArgInfo::getDirect());
   }
 
   void computeInfo(CIRGenFunctionInfo &FI) const override {
@@ -262,6 +270,12 @@ class CommonSPIRTargetCIRGenInfo : public TargetCIRGenInfo {
 public:
   CommonSPIRTargetCIRGenInfo(std::unique_ptr<ABIInfo> ABIInfo)
       : TargetCIRGenInfo(std::move(ABIInfo)) {}
+
+  mlir::cir::AddressSpaceAttr getCIRAllocaAddressSpace() const override {
+    return mlir::cir::AddressSpaceAttr::get(
+        &getABIInfo().CGT.getMLIRContext(),
+        mlir::cir::AddressSpaceAttr::Kind::offload_private);
+  }
 
   unsigned getOpenCLKernelCallingConv() const override {
     return llvm::CallingConv::SPIR_KERNEL;

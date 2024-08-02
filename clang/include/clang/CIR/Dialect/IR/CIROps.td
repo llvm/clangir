@@ -3169,12 +3169,13 @@ def TryCallOp : CIR_CallOp<"try_call",
 
 def AK_Initial : I32EnumAttrCase<"init", 1>;
 def AK_User    : I32EnumAttrCase<"user", 2>;
-def AK_Final   : I32EnumAttrCase<"final", 3>;
+def AK_Yield   : I32EnumAttrCase<"yield", 3>;
+def AK_Final   : I32EnumAttrCase<"final", 4>;
 
 def AwaitKind : I32EnumAttr<
     "AwaitKind",
     "await kind",
-    [AK_Initial, AK_User, AK_Final]> {
+    [AK_Initial, AK_User, AK_Yield, AK_Final]> {
   let cppNamespace = "::mlir::cir";
 }
 
@@ -3208,9 +3209,10 @@ def AwaitOp : CIR_Op<"await",
     of CIR, e.g. LLVM, should use the `suspend` region to track more
     lower level codegen (e.g. intrinsic emission for coro.save/coro.suspend).
 
-    There are also 3 flavors of `cir.await` available:
+    There are also 4 flavors of `cir.await` available:
     - `init`: compiler generated initial suspend via implicit `co_await`.
     - `user`: also known as normal, representing user written co_await's.
+    - `yield`: user written `co_yield` expressions.
     - `final`: compiler generated final suspend via implicit `co_await`.
 
     From the C++ snippet we get:
@@ -3323,12 +3325,21 @@ def TryOp : CIR_Op<"try",
 // CatchParamOp
 //===----------------------------------------------------------------------===//
 
+def CatchParamBegin : I32EnumAttrCase<"begin",  0>;
+def CatchParamEnd   : I32EnumAttrCase<"end",  1>;
+def CatchParamKind  : I32EnumAttr<
+    "CatchParamKind",
+    "Designate limits for begin/end of catch param handling",
+    [CatchParamBegin, CatchParamEnd]> {
+  let cppNamespace = "::mlir::cir";
+}
+
 def CatchParamOp : CIR_Op<"catch_param"> {
-  let summary = "Materialize the catch clause formal parameter";
+  let summary = "Represents catch clause formal parameter";
   let description = [{
-    The `cir.catch_param` binds to a the C/C++ catch clause param and allow
-    it to be materialized. This operantion grabs the param by looking into
-    a exception info `!cir.eh_info` argument.
+    The `cir.catch_param` can operate in two modes: within catch regions of
+    `cir.try` or anywhere else with the `begin` or `end` markers. The `begin`
+    version requires an exception pointer of `cir.ptr<!void>`.
 
     Example:
     ```mlir
@@ -3336,47 +3347,43 @@ def CatchParamOp : CIR_Op<"catch_param"> {
     ```
   }];
 
-  let results = (outs CIR_AnyType:$param);
+  let arguments = (ins Optional<VoidPtr>:$exception_ptr,
+                       OptionalAttr<CatchParamKind>:$kind);
+  let results = (outs Optional<CIR_AnyType>:$param);
   let assemblyFormat = [{
-    `->` qualified(type($param)) attr-dict
+    ($kind^)?
+    ($exception_ptr^)?
+    (`->` qualified(type($param))^)?
+    attr-dict
   }];
 
-  let hasVerifier = 0;
+  let extraClassDeclaration = [{
+    bool isBegin() { return getKind() == mlir::cir::CatchParamKind::begin; }
+    bool isEnd() { return getKind() == mlir::cir::CatchParamKind::end; }
+  }];
+
+  let hasVerifier = 1;
 }
 
 //===----------------------------------------------------------------------===//
-// Exception related: EhInflightOp, EhSelectorOp
+// Exception related: EhInflightOp, EhTypeIdOp
 //===----------------------------------------------------------------------===//
 
 def EhInflightOp : CIR_Op<"eh.inflight_exception"> {
   let summary = "Materialize the catch clause formal parameter";
   let description = [{
-    `cir.eh.inflight_exception` returns an exception coming from a
-    `cir.call exception` that might throw. The returned value is opaque
-    but can be further decomposed by other operations.
+    `cir.eh.inflight_exception` returns two values:
+      - `exception_ptr`: The exception pointer for the inflight exception
+      - `type_id`: pointer to the exception object
+    This operation is expected to be the first one basic blocks on the
+    exception path out of `cir.try_call` operations.
   }];
 
-  let results = (outs CIR_ExceptionType:$exception);
+  let arguments = (ins OptionalAttr<FlatSymbolRefArrayAttr>:$sym_type_list);
+  let results = (outs VoidPtr:$exception_ptr, UInt32:$type_id);
   let assemblyFormat = [{
+    ($sym_type_list^)?
     attr-dict
-  }];
-
-  let hasVerifier = 0;
-}
-
-def EhSelectorOp : CIR_Op<"eh.selector"> {
-  let summary = "Materialize the eh selector";
-  let description = [{
-    `cir.eh.inflight_exception` returns an exception coming from a
-    `cir.call exception ...` that might throw. `cir.eh.selector` returns the
-    runtime selector value (type id) for the needed , which represents the type id used by
-    operations to compare against other type ids.
-  }];
-
-  let arguments = (ins CIR_ExceptionType:$exception);
-  let results = (outs UInt32:$type_id);
-  let assemblyFormat = [{
-    $exception attr-dict
   }];
 
   let hasVerifier = 0;
