@@ -1216,3 +1216,12 @@ cir.func @address_space4(%p : !cir.ptr<!u64i, addrspace(foobar)>) { // expected-
   vec_type_hint = !s32i,
   vec_type_hint_signedness = 0
 >
+
+// -----
+
+module {
+    // expected-error@+1 {{unknown calling convention}}
+    cir.func @foo() cc(foobar) {
+        cir.return
+    }
+}

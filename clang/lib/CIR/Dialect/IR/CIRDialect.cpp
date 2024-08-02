@@ -177,6 +177,20 @@ static RetTy parseOptionalCIRKeyword(AsmParser &parser, EnumTy defaultValue) {
   return static_cast<RetTy>(index);
 }
 
+/// Parse an enum from the keyword, return failure if the keyword is not found.
+template <typename EnumTy, typename RetTy = EnumTy>
+static ParseResult parseCIRKeyword(AsmParser &parser, RetTy &result) {
+  SmallVector<StringRef, 10> names;
+  for (unsigned i = 0, e = EnumTraits<EnumTy>::getMaxEnumVal(); i <= e; ++i)
+    names.push_back(EnumTraits<EnumTy>::stringify(static_cast<EnumTy>(i)));
+
+  int index = parseOptionalKeywordAlternative(parser, names);
+  if (index == -1)
+    return failure();
+  result = static_cast<RetTy>(index);
+  return success();
+}
+
 // Check if a region's termination omission is valid and, if so, creates and
 // inserts the omitted terminator into the region.
 LogicalResult ensureRegionTerm(OpAsmParser &parser, Region &region,
@@ -1924,12 +1938,6 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
                          parseOptionalCIRKeyword<GlobalLinkageKind>(
                              parser, GlobalLinkageKind::ExternalLinkage)));
 
-  // Default to C calling convention if no keyword is provided.
-  state.addAttribute(getCallingConvAttrName(state.name),
-                     CallingConvAttr::get(parser.getContext(),
-                                          parseOptionalCIRKeyword<CallingConv>(
-                                              parser, CallingConv::C)));
-
   ::llvm::StringRef visAttrStr;
   if (parser.parseOptionalKeyword(&visAttrStr, {"private", "public", "nested"})
           .succeeded()) {
@@ -1999,6 +2007,20 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
       return failure();
     hasAlias = true;
   }
+
+  // Default to C calling convention if no keyword is provided.
+  auto callConvNameAttr = getCallingConvAttrName(state.name);
+  CallingConv callConv = CallingConv::C;
+  if (parser.parseOptionalKeyword("cc").succeeded()) {
+    if (parser.parseLParen().failed())
+      return failure();
+    if (parseCIRKeyword<CallingConv>(parser, callConv).failed())
+      return parser.emitError(loc) << "unknown calling convention";
+    if (parser.parseRParen().failed())
+      return failure();
+  }
+  state.addAttribute(callConvNameAttr,
+                     CallingConvAttr::get(parser.getContext(), callConv));
 
   auto parseGlobalDtorCtor =
       [&](StringRef keyword,
@@ -2124,9 +2146,6 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
   if (getLinkage() != GlobalLinkageKind::ExternalLinkage)
     p << stringifyGlobalLinkageKind(getLinkage()) << ' ';
 
-  if (getCallingConv() != CallingConv::C)
-    p << stringifyCallingConv(getCallingConv()) << ' ';
-
   auto vis = getVisibility();
   if (vis != mlir::SymbolTable::Visibility::Public)
     p << vis << " ";
@@ -2167,6 +2186,12 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
   if (auto aliaseeName = getAliasee()) {
     p << " alias(";
     p.printSymbolName(*aliaseeName);
+    p << ")";
+  }
+
+  if (getCallingConv() != CallingConv::C) {
+    p << " cc(";
+    p << stringifyCallingConv(getCallingConv());
     p << ")";
   }
 

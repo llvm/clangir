@@ -2796,9 +2796,9 @@ def BaseClassAddrOp : CIR_Op<"base_class_addr"> {
 
 // The enumeration values are not necessarily in sync with `clang::CallingConv`
 // or `llvm::CallingConv`.
-def CC_C : I32EnumAttrCase<"C", 1, "cc_c">;
-def CC_SpirKernel : I32EnumAttrCase<"SpirKernel", 75, "cc_spir_kernel">;
-def CC_SpirFunction : I32EnumAttrCase<"SpirFunction", 76, "cc_spir_function">;
+def CC_C : I32EnumAttrCase<"C", 1, "c">;
+def CC_SpirKernel : I32EnumAttrCase<"SpirKernel", 75, "spir_kernel">;
+def CC_SpirFunction : I32EnumAttrCase<"SpirFunction", 76, "spir_function">;
 
 def CallingConv : I32EnumAttr<
     "CallingConv",
@@ -2872,6 +2872,9 @@ def FuncOp : CIR_Op<"func", [
 
     // Linkage information
     cir.func linkonce_odr @some_method(...)
+
+    // Calling convention information
+    cir.func @another_func(...) cc(spir_kernel) extra(#fn_attr)
 
     // Builtin function
     cir.func builtin @__builtin_coro_end(!cir.ptr<i8>, !cir.bool) -> !cir.bool
