@@ -1012,6 +1012,8 @@ public:
       auto dlAllocaASAttr = mlir::cast_if_present<mlir::IntegerAttr>(
           dataLayout.getAllocaMemorySpace());
       // Absence means 0
+      // TODO: The query for the alloca AS should be done through CIRDataLayout
+      // instead to reuse the logic of interpret null attr as 0.
       auto dlAllocaAS = dlAllocaASAttr ? dlAllocaASAttr.getInt() : 0;
       assert(dlAllocaAS == resPtrTy.getAddressSpace() &&
              "Alloca address space doesn't match the one from the data layout");
