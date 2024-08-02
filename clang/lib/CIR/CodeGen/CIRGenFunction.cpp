@@ -1724,8 +1724,7 @@ void CIRGenFunction::buildKernelMetadata(const FunctionDecl *FD,
   if (!FD->hasAttr<DeviceKernelAttr>() && !FD->hasAttr<CUDAGlobalAttr>())
     return;
 
-  // TODO(cir): CGM.genKernelArgMetadata(Fn, FD, this);
-  assert(!MissingFeatures::openCLGenKernelMetadata());
+  CGM.genKernelArgMetadata(Fn, FD, this);
 
   if (!getLangOpts().OpenCL)
     return;
