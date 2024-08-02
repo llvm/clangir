@@ -143,6 +143,8 @@ def OpenCLKernelArgMetadataAttr
   );
 
   let assemblyFormat = "`<` struct(params) `>`";
+
+  let genVerifyDecl = 1;
 }
 
 #endif // MLIR_CIR_DIALECT_CIR_OPENCL_ATTRS
