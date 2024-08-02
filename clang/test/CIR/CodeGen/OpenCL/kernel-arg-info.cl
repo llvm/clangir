@@ -33,14 +33,14 @@ kernel void foo(global int * globalintp, global int * restrict globalintrestrict
 // CIR-ARGINFO-DAG: #fn_attr[[KERNEL0:[0-9]*]] = {{.+}}cl.kernel_arg_metadata = #cir.cl.kernel_arg_metadata<addr_space = [1 : i32, 1 : i32, 1 : i32, 1 : i32, 2 : i32, 2 : i32, 1 : i32, 1 : i32, 1 : i32, 1 : i32, 3 : i32, 3 : i32, 3 : i32, 3 : i32, 3 : i32, 3 : i32, 3 : i32, 3 : i32, 0 : i32, 0 : i32, 0 : i32, 0 : i32], access_qual = ["none", "none", "none", "none", "none", "none", "none", "none", "none", "none", "none", "none", "none", "none", "none", "none", "none", "none", "none", "none", "none", "none"], type = ["int*", "int*", "int*", "int*", "int*", "int*", "int*", "int*", "int*", "int*", "int*", "int*", "int*", "int*", "int*", "int*", "int*", "int*", "int", "int", "int", "int"], base_type = ["int*", "int*", "int*", "int*", "int*", "int*", "int*", "int*", "int*", "int*", "int*", "int*", "int*", "int*", "int*", "int*", "int*", "int*", "int", "int", "int", "int"], type_qual = ["", "restrict", "const", "restrict const", "const", "restrict const", "const volatile", "restrict const volatile", "volatile", "restrict volatile", "", "restrict", "const", "restrict const", "const volatile", "restrict const volatile", "volatile", "restrict volatile", "", "", "", ""], name = ["globalintp", "globalintrestrictp", "globalconstintp", "globalconstintrestrictp", "constantintp", "constantintrestrictp", "globalconstvolatileintp", "globalconstvolatileintrestrictp", "globalvolatileintp", "globalvolatileintrestrictp", "localintp", "localintrestrictp", "localconstintp", "localconstintrestrictp", "localconstvolatileintp", "localconstvolatileintrestrictp", "localvolatileintp", "localvolatileintrestrictp", "X", "constint", "constvolatileint", "volatileint"]>
 // CIR-ARGINFO-DAG: cir.func @foo({{.+}}) extra(#fn_attr[[KERNEL0]])
 
-// LLVM: define{{.*}} void @foo{{[^!]+}}
-// LLVM: !kernel_arg_addr_space ![[MD11:[0-9]+]]
-// LLVM: !kernel_arg_access_qual ![[MD12:[0-9]+]]
-// LLVM: !kernel_arg_type ![[MD13:[0-9]+]]
-// LLVM: !kernel_arg_base_type ![[MD13]]
-// LLVM: !kernel_arg_type_qual ![[MD14:[0-9]+]]
-// LLVM-NOT: !kernel_arg_name
-// LLVM-ARGINFO: !kernel_arg_name ![[MD15:[0-9]+]]
+// LLVM-DAG: define{{.*}} void @foo{{.+}} !kernel_arg_addr_space ![[MD11:[0-9]+]] !kernel_arg_access_qual ![[MD12:[0-9]+]] !kernel_arg_type ![[MD13:[0-9]+]] !kernel_arg_base_type ![[MD13]] !kernel_arg_type_qual ![[MD14:[0-9]+]] {
+// LLVM-ARGINFO-DAG: define{{.*}} void @foo{{.+}} !kernel_arg_addr_space ![[MD11:[0-9]+]] !kernel_arg_access_qual ![[MD12:[0-9]+]] !kernel_arg_type ![[MD13:[0-9]+]] !kernel_arg_base_type ![[MD13]] !kernel_arg_type_qual ![[MD14:[0-9]+]] !kernel_arg_name ![[MD15:[0-9]+]] {
+
+// LLVM-DAG: ![[MD11]] = !{i32 1, i32 1, i32 1, i32 1, i32 2, i32 2, i32 1, i32 1, i32 1, i32 1, i32 3, i32 3, i32 3, i32 3, i32 3, i32 3, i32 3, i32 3, i32 0, i32 0, i32 0, i32 0}
+// LLVM-DAG: ![[MD12]] = !{!"none", !"none", !"none", !"none", !"none", !"none", !"none", !"none", !"none", !"none", !"none", !"none", !"none", !"none", !"none", !"none", !"none", !"none", !"none", !"none", !"none", !"none"}
+// LLVM-DAG: ![[MD13]] = !{!"int*", !"int*", !"int*", !"int*", !"int*", !"int*", !"int*", !"int*", !"int*", !"int*", !"int*", !"int*", !"int*", !"int*", !"int*", !"int*", !"int*", !"int*", !"int", !"int", !"int", !"int"}
+// LLVM-DAG: ![[MD14]] = !{!"", !"restrict", !"const", !"restrict const", !"const", !"restrict const", !"const volatile", !"restrict const volatile", !"volatile", !"restrict volatile", !"", !"restrict", !"const", !"restrict const", !"const volatile", !"restrict const volatile", !"volatile", !"restrict volatile", !"", !"", !"", !""}
+// LLVM-ARGINFO-DAG: ![[MD15]] = !{!"globalintp", !"globalintrestrictp", !"globalconstintp", !"globalconstintrestrictp", !"constantintp", !"constantintrestrictp", !"globalconstvolatileintp", !"globalconstvolatileintrestrictp", !"globalvolatileintp", !"globalvolatileintrestrictp", !"localintp", !"localintrestrictp", !"localconstintp", !"localconstintrestrictp", !"localconstvolatileintp", !"localconstvolatileintrestrictp", !"localvolatileintp", !"localvolatileintrestrictp", !"X", !"constint", !"constvolatileint", !"volatileint"}
 
 typedef unsigned int myunsignedint;
 kernel void foo4(__global unsigned int * X, __global myunsignedint * Y) {
@@ -51,14 +51,15 @@ kernel void foo4(__global unsigned int * X, __global myunsignedint * Y) {
 // CIR-ARGINFO-DAG: #fn_attr[[KERNEL4:[0-9]*]] = {{.+}}cl.kernel_arg_metadata = #cir.cl.kernel_arg_metadata<addr_space = [1 : i32, 1 : i32], access_qual = ["none", "none"], type = ["uint*", "myunsignedint*"], base_type = ["uint*", "uint*"], type_qual = ["", ""], name = ["X", "Y"]>
 // CIR-ARGINFO-DAG: cir.func @foo4({{.+}}) extra(#fn_attr[[KERNEL4]])
 
-// LLVM: define{{.*}} void @foo4{{[^!]+}}
-// LLVM: !kernel_arg_addr_space ![[MD41:[0-9]+]]
-// LLVM: !kernel_arg_access_qual ![[MD42:[0-9]+]]
-// LLVM: !kernel_arg_type ![[MD43:[0-9]+]]
-// LLVM: !kernel_arg_base_type ![[MD44:[0-9]+]]
-// LLVM: !kernel_arg_type_qual ![[MD45:[0-9]+]]
-// LLVM-NOT: !kernel_arg_name
-// LLVM-ARGINFO: !kernel_arg_name ![[MD46:[0-9]+]]
+// LLVM-DAG: define{{.*}} void @foo4{{.+}} !kernel_arg_addr_space ![[MD41:[0-9]+]] !kernel_arg_access_qual ![[MD42:[0-9]+]] !kernel_arg_type ![[MD43:[0-9]+]] !kernel_arg_base_type ![[MD44:[0-9]+]] !kernel_arg_type_qual ![[MD45:[0-9]+]] {
+// LLVM-ARGINFO-DAG: define{{.*}} void @foo4{{.+}} !kernel_arg_addr_space ![[MD41:[0-9]+]] !kernel_arg_access_qual ![[MD42:[0-9]+]] !kernel_arg_type ![[MD43:[0-9]+]] !kernel_arg_base_type ![[MD44:[0-9]+]] !kernel_arg_type_qual ![[MD45:[0-9]+]] !kernel_arg_name ![[MD46:[0-9]+]] {
+
+// LLVM-DAG: ![[MD41]] = !{i32 1, i32 1}
+// LLVM-DAG: ![[MD42]] = !{!"none", !"none"}
+// LLVM-DAG: ![[MD43]] = !{!"uint*", !"myunsignedint*"}
+// LLVM-DAG: ![[MD44]] = !{!"uint*", !"uint*"}
+// LLVM-DAG: ![[MD45]] = !{!"", !""}
+// LLVM-ARGINFO-DAG: ![[MD46]] = !{!"X", !"Y"}
 
 typedef char char16 __attribute__((ext_vector_type(16)));
 __kernel void foo6(__global char16 arg[]) {}
@@ -68,8 +69,10 @@ __kernel void foo6(__global char16 arg[]) {}
 // CIR-ARGINFO-DAG: #fn_attr[[KERNEL6:[0-9]*]] = {{.+}}cl.kernel_arg_metadata = #cir.cl.kernel_arg_metadata<addr_space = [1 : i32], access_qual = ["none"], type = ["char16*"], base_type = ["char __attribute__((ext_vector_type(16)))*"], type_qual = [""], name = ["arg"]>
 // CIR-ARGINFO-DAG: cir.func @foo6({{.+}}) extra(#fn_attr[[KERNEL6]])
 
-// LLVM: !kernel_arg_type ![[MD61:[0-9]+]]
-// LLVM-ARGINFO: !kernel_arg_name ![[MD62:[0-9]+]]
+// LLVM-DAG: !kernel_arg_type ![[MD61:[0-9]+]]
+// LLVM-ARGINFO-DAG: !kernel_arg_name ![[MD62:[0-9]+]]
+// LLVM-DAG: ![[MD61]] = !{!"char16*"}
+// LLVM-ARGINFO-DAG: ![[MD62]] = !{!"arg"}
 
 kernel void foo9(signed char sc1,  global const signed char* sc2) {}
 
@@ -78,34 +81,10 @@ kernel void foo9(signed char sc1,  global const signed char* sc2) {}
 // CIR-ARGINFO-DAG: #fn_attr[[KERNEL9:[0-9]*]] = {{.+}}cl.kernel_arg_metadata = #cir.cl.kernel_arg_metadata<addr_space = [0 : i32, 1 : i32], access_qual = ["none", "none"], type = ["char", "char*"], base_type = ["char", "char*"], type_qual = ["", "const"], name = ["sc1", "sc2"]>
 // CIR-ARGINFO-DAG: cir.func @foo9({{.+}}) extra(#fn_attr[[KERNEL9]])
 
-// LLVM: define{{.*}} void @foo9{{[^!]+}}
-// LLVM: !kernel_arg_addr_space ![[SCHAR_AS_QUAL:[0-9]+]]
-// LLVM: !kernel_arg_access_qual ![[MD42]]
-// LLVM: !kernel_arg_type ![[SCHAR_TY:[0-9]+]]
-// LLVM: !kernel_arg_base_type ![[SCHAR_TY]]
-// LLVM: !kernel_arg_type_qual ![[SCHAR_QUAL:[0-9]+]]
-// LLVM-NOT: !kernel_arg_name
-// LLVM-ARGINFO: !kernel_arg_name ![[SCHAR_ARG_NAMES:[0-9]+]]
+// LLVM-DAG: define{{.*}} void @foo9{{.+}} !kernel_arg_addr_space ![[SCHAR_AS_QUAL:[0-9]+]] !kernel_arg_access_qual ![[MD42]] !kernel_arg_type ![[SCHAR_TY:[0-9]+]] !kernel_arg_base_type ![[SCHAR_TY]] !kernel_arg_type_qual ![[SCHAR_QUAL:[0-9]+]] {
+// LLVM-ARGINFO-DAG: define{{.*}} void @foo9{{.+}} !kernel_arg_addr_space ![[SCHAR_AS_QUAL:[0-9]+]] !kernel_arg_access_qual ![[MD42]] !kernel_arg_type ![[SCHAR_TY:[0-9]+]] !kernel_arg_base_type ![[SCHAR_TY]] !kernel_arg_type_qual ![[SCHAR_QUAL:[0-9]+]] !kernel_arg_name ![[SCHAR_ARG_NAMES:[0-9]+]] {
 
-
-
-// LLVM: ![[MD11]] = !{i32 1, i32 1, i32 1, i32 1, i32 2, i32 2, i32 1, i32 1, i32 1, i32 1, i32 3, i32 3, i32 3, i32 3, i32 3, i32 3, i32 3, i32 3, i32 0, i32 0, i32 0, i32 0}
-// LLVM: ![[MD12]] = !{!"none", !"none", !"none", !"none", !"none", !"none", !"none", !"none", !"none", !"none", !"none", !"none", !"none", !"none", !"none", !"none", !"none", !"none", !"none", !"none", !"none", !"none"}
-// LLVM: ![[MD13]] = !{!"int*", !"int*", !"int*", !"int*", !"int*", !"int*", !"int*", !"int*", !"int*", !"int*", !"int*", !"int*", !"int*", !"int*", !"int*", !"int*", !"int*", !"int*", !"int", !"int", !"int", !"int"}
-// LLVM: ![[MD14]] = !{!"", !"restrict", !"const", !"restrict const", !"const", !"restrict const", !"const volatile", !"restrict const volatile", !"volatile", !"restrict volatile", !"", !"restrict", !"const", !"restrict const", !"const volatile", !"restrict const volatile", !"volatile", !"restrict volatile", !"", !"", !"", !""}
-// LLVM-ARGINFO: ![[MD15]] = !{!"globalintp", !"globalintrestrictp", !"globalconstintp", !"globalconstintrestrictp", !"constantintp", !"constantintrestrictp", !"globalconstvolatileintp", !"globalconstvolatileintrestrictp", !"globalvolatileintp", !"globalvolatileintrestrictp", !"localintp", !"localintrestrictp", !"localconstintp", !"localconstintrestrictp", !"localconstvolatileintp", !"localconstvolatileintrestrictp", !"localvolatileintp", !"localvolatileintrestrictp", !"X", !"constint", !"constvolatileint", !"volatileint"}
-
-// LLVM: ![[MD41]] = !{i32 1, i32 1}
-// LLVM: ![[MD42]] = !{!"none", !"none"}
-// LLVM: ![[MD43]] = !{!"uint*", !"myunsignedint*"}
-// LLVM: ![[MD44]] = !{!"uint*", !"uint*"}
-// LLVM: ![[MD45]] = !{!"", !""}
-// LLVM-ARGINFO: ![[MD46]] = !{!"X", !"Y"}
-
-// LLVM: ![[MD61]] = !{!"char16*"}
-// LLVM-ARGINFO: ![[MD62]] = !{!"arg"}
-
-// LLVM: ![[SCHAR_AS_QUAL]] = !{i32 0, i32 1}
-// LLVM: ![[SCHAR_TY]] = !{!"char", !"char*"}
-// LLVM: ![[SCHAR_QUAL]] = !{!"", !"const"}
-// LLVM-ARGINFO: ![[SCHAR_ARG_NAMES]] = !{!"sc1", !"sc2"}
+// LLVM-DAG: ![[SCHAR_AS_QUAL]] = !{i32 0, i32 1}
+// LLVM-DAG: ![[SCHAR_TY]] = !{!"char", !"char*"}
+// LLVM-DAG: ![[SCHAR_QUAL]] = !{!"", !"const"}
+// LLVM-ARGINFO-DAG: ![[SCHAR_ARG_NAMES]] = !{!"sc1", !"sc2"}
