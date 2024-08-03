@@ -1015,8 +1015,11 @@ public:
       // TODO: The query for the alloca AS should be done through CIRDataLayout
       // instead to reuse the logic of interpret null attr as 0.
       auto dlAllocaAS = dlAllocaASAttr ? dlAllocaASAttr.getInt() : 0;
-      assert(dlAllocaAS == resPtrTy.getAddressSpace() &&
-             "Alloca address space doesn't match the one from the data layout");
+      if (dlAllocaAS != resPtrTy.getAddressSpace()) {
+        return op.emitError() << "alloca address space doesn't match the one "
+                                 "from the target data layout: "
+                              << dlAllocaAS;
+      }
     }
     rewriter.replaceOpWithNewOp<mlir::LLVM::AllocaOp>(
         op, resultTy, elementTy, size, op.getAlignmentAttr().getInt());
