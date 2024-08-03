@@ -3246,9 +3246,9 @@ void CIRGenModule::buildOpenCLMetadata() {
   // SPIR v2.0 s2.13 - The OpenCL version used by the module is stored in the
   // opencl.ocl.version named metadata node.
   // C++ for OpenCL has a distinct mapping for versions compatibile with OpenCL.
-  auto version = langOpts.getOpenCLCompatibleVersion();
-  auto major = version / 100;
-  auto minor = (version % 100) / 10;
+  unsigned version = langOpts.getOpenCLCompatibleVersion();
+  unsigned major = version / 100;
+  unsigned minor = (version % 100) / 10;
 
   auto clVersionAttr =
       mlir::cir::OpenCLVersionAttr::get(builder.getContext(), major, minor);

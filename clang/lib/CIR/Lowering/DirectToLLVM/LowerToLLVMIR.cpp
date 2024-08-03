@@ -63,23 +63,22 @@ public:
 
 private:
   // Translate CIR's module attributes to LLVM's module metadata
-  void amendModule(
-      mlir::ModuleOp module, mlir::NamedAttribute attribute,
-      mlir::LLVM::ModuleTranslation &moduleTranslation) const {
+  void amendModule(mlir::ModuleOp module, mlir::NamedAttribute attribute,
+                   mlir::LLVM::ModuleTranslation &moduleTranslation) const {
     llvm::Module *llvmModule = moduleTranslation.getLLVMModule();
     llvm::LLVMContext &llvmContext = llvmModule->getContext();
 
     if (auto openclVersionAttr = mlir::dyn_cast<mlir::cir::OpenCLVersionAttr>(
             attribute.getValue())) {
       auto *int32Ty = llvm::IntegerType::get(llvmContext, 32);
-      llvm::Metadata *OCLVerElts[] = {
+      llvm::Metadata *olcVerElts[] = {
           llvm::ConstantAsMetadata::get(
               llvm::ConstantInt::get(int32Ty, openclVersionAttr.getMajor())),
           llvm::ConstantAsMetadata::get(
               llvm::ConstantInt::get(int32Ty, openclVersionAttr.getMinor()))};
-      llvm::NamedMDNode *OCLVerMD =
+      llvm::NamedMDNode *oclVerMD =
           llvmModule->getOrInsertNamedMetadata("opencl.ocl.version");
-      OCLVerMD->addOperand(llvm::MDNode::get(llvmContext, OCLVerElts));
+      oclVerMD->addOperand(llvm::MDNode::get(llvmContext, olcVerElts));
     }
 
     // Drop ammended CIR attribute from LLVM op.
