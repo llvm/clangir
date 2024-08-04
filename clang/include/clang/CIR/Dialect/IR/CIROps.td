@@ -1217,6 +1217,7 @@ def ComplexCreateOp : CIR_Op<"complex.create", [Pure, SameTypeOperands]> {
   }];
 
   let hasVerifier = 1;
+  let hasFolder = 1;
 }
 
 //===----------------------------------------------------------------------===//
@@ -1245,6 +1246,7 @@ def ComplexRealOp : CIR_Op<"complex.real", [Pure]> {
   }];
 
   let hasVerifier = 1;
+  let hasFolder = 1;
 }
 
 def ComplexImagOp : CIR_Op<"complex.imag", [Pure]> {
@@ -1269,6 +1271,7 @@ def ComplexImagOp : CIR_Op<"complex.imag", [Pure]> {
   }];
 
   let hasVerifier = 1;
+  let hasFolder = 1;
 }
 
 //===----------------------------------------------------------------------===//
