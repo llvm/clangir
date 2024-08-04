@@ -9,7 +9,6 @@
 // This contains code to emit Expr nodes as CIR code.
 //
 //===----------------------------------------------------------------------===//
-#include "CIRGenExpr.h"
 #include "CIRGenCXXABI.h"
 #include "CIRGenCall.h"
 #include "CIRGenCstEmitter.h"
@@ -1508,28 +1507,6 @@ void CIRGenFunction::buildIgnoredExpr(const Expr *E) {
   buildLValue(E);
 }
 
-static mlir::Value maybeBuildArrayDecay(mlir::OpBuilder &builder,
-                                        mlir::Location loc,
-                                        mlir::Value arrayPtr,
-                                        mlir::Type eltTy) {
-  auto arrayPtrTy =
-      ::mlir::dyn_cast<::mlir::cir::PointerType>(arrayPtr.getType());
-  assert(arrayPtrTy && "expected pointer type");
-  auto arrayTy =
-      ::mlir::dyn_cast<::mlir::cir::ArrayType>(arrayPtrTy.getPointee());
-
-  if (arrayTy) {
-    mlir::cir::PointerType flatPtrTy =
-        mlir::cir::PointerType::get(builder.getContext(), arrayTy.getEltType());
-    return builder.create<mlir::cir::CastOp>(
-        loc, flatPtrTy, mlir::cir::CastKind::array_to_ptrdecay, arrayPtr);
-  }
-
-  assert(arrayPtrTy.getPointee() == eltTy &&
-         "flat pointee type must match original array element type");
-  return arrayPtr;
-}
-
 Address CIRGenFunction::buildArrayToPointerDecay(const Expr *E,
                                                  LValueBaseInfo *BaseInfo) {
   assert(E->getType()->isArrayType() &&
@@ -1566,8 +1543,8 @@ Address CIRGenFunction::buildArrayToPointerDecay(const Expr *E,
     *BaseInfo = LV.getBaseInfo();
   assert(!MissingFeatures::tbaa() && "NYI");
 
-  mlir::Value ptr = maybeBuildArrayDecay(
-      CGM.getBuilder(), CGM.getLoc(E->getSourceRange()), Addr.getPointer(),
+  mlir::Value ptr = CGM.getBuilder().maybeBuildArrayDecay(
+      CGM.getLoc(E->getSourceRange()), Addr.getPointer(),
       getTypes().convertTypeForMem(EltType));
   return Address(ptr, Addr.getAlignment());
 }
@@ -1648,20 +1625,6 @@ static CharUnits getArrayElementAlign(CharUnits arrayAlign, mlir::Value idx,
   }
 }
 
-mlir::Value cir::buildArrayAccessOp(mlir::OpBuilder &builder,
-                                    mlir::Location arrayLocBegin,
-                                    mlir::Location arrayLocEnd,
-                                    mlir::Value arrayPtr, mlir::Type eltTy,
-                                    mlir::Value idx, bool shouldDecay) {
-  mlir::Value basePtr = arrayPtr;
-  if (shouldDecay)
-    basePtr = maybeBuildArrayDecay(builder, arrayLocBegin, arrayPtr, eltTy);
-  mlir::Type flatPtrTy = basePtr.getType();
-
-  return builder.create<mlir::cir::PtrStrideOp>(arrayLocEnd, flatPtrTy, basePtr,
-                                                idx);
-}
-
 static mlir::Value
 buildArraySubscriptPtr(CIRGenFunction &CGF, mlir::Location beginLoc,
                        mlir::Location endLoc, mlir::Value ptr, mlir::Type eltTy,
@@ -1675,8 +1638,8 @@ buildArraySubscriptPtr(CIRGenFunction &CGF, mlir::Location beginLoc,
   // that would enhance tracking this later in CIR?
   if (inbounds)
     assert(!MissingFeatures::emitCheckedInBoundsGEP() && "NYI");
-  return cir::buildArrayAccessOp(CGM.getBuilder(), beginLoc, endLoc, ptr, eltTy,
-                                 idx, shouldDecay);
+  return CGM.getBuilder().buildArrayAccessOp(beginLoc, endLoc, ptr, eltTy, idx,
+                                             shouldDecay);
 }
 
 static QualType getFixedSizeElementType(const ASTContext &ctx,
@@ -1717,7 +1680,7 @@ static Address buildArraySubscriptPtr(
     // assert(indices.size() == 1 && "cannot handle multiple indices yet");
     // auto idx = indices.back();
     // auto &CGM = CGF.getCIRGenModule();
-    // eltPtr = buildArrayAccessOp(CGM.getBuilder(), beginLoc, endLoc,
+    // eltPtr = CGM.getBuilder().buildArrayAccessOp(beginLoc, endLoc,
     //                             addr.getPointer(), addr.getElementType(),
     //                             idx);
     assert(0 && "NYI");

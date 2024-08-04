@@ -965,6 +965,14 @@ public:
     return create<mlir::cir::GetRuntimeMemberOp>(loc, resultTy, objectPtr,
                                                  memberPtr);
   }
+
+  mlir::Value buildArrayAccessOp(mlir::Location arrayLocBegin,
+                                 mlir::Location arrayLocEnd,
+                                 mlir::Value arrayPtr, mlir::Type eltTy,
+                                 mlir::Value idx, bool shouldDecay);
+
+  mlir::Value maybeBuildArrayDecay(mlir::Location loc, mlir::Value arrayPtr,
+                                   mlir::Type eltTy);
 };
 
 } // namespace cir

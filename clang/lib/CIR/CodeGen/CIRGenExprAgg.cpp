@@ -10,7 +10,6 @@
 //
 //===----------------------------------------------------------------------===//
 #include "CIRGenCall.h"
-#include "CIRGenExpr.h"
 #include "CIRGenFunction.h"
 #include "CIRGenModule.h"
 #include "CIRGenTypes.h"
@@ -351,8 +350,8 @@ public:
              "Expected std::initializer_list second field to be const E *");
 
       auto ArrayEnd =
-          cir::buildArrayAccessOp(Builder, loc, loc, ArrayPtr.getPointer(),
-                                  ArrayPtr.getElementType(), Size, false);
+          Builder.buildArrayAccessOp(loc, loc, ArrayPtr.getPointer(),
+                                     ArrayPtr.getElementType(), Size, false);
       CGF.buildStoreThroughLValue(RValue::get(ArrayEnd), EndOrLength);
     }
     assert(++Field == Record->field_end() &&
