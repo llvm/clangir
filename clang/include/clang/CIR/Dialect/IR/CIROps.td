@@ -2142,6 +2142,8 @@ def GlobalOp : CIR_Op<"global",
     Symbol visibility in `sym_visibility` is defined in terms of MLIR's visibility
     and verified to be in accordance to `linkage`.
 
+    `visibility_attr` is defined in terms of CIR's visibility
+
     Example:
 
     ```mlir
@@ -2166,11 +2168,13 @@ def GlobalOp : CIR_Op<"global",
                        UnitAttr:$dsolocal,
                        OptionalAttr<I64Attr>:$alignment,
                        OptionalAttr<ASTVarDeclInterface>:$ast,
-                       OptionalAttr<StrAttr>:$section
+                       OptionalAttr<StrAttr>:$section,
+                       VisibilityAttr:$visibility_attr
                        );
   let regions = (region AnyRegion:$ctorRegion, AnyRegion:$dtorRegion);
   let assemblyFormat = [{
        ($sym_visibility^)?
+       custom<OmitDefaultVisibility>($visibility_attr)
        (`constant` $constant^)?
        $linkage
        (`comdat` $comdat^)?
@@ -2947,7 +2951,8 @@ def FuncOp : CIR_Op<"func", [
                        OptionalAttr<FlatSymbolRefAttr>:$aliasee,
                        OptionalAttr<GlobalCtorAttr>:$global_ctor,
                        OptionalAttr<GlobalDtorAttr>:$global_dtor,
-                       OptionalAttr<AnyASTFunctionDeclAttr>:$ast);
+                       OptionalAttr<AnyASTFunctionDeclAttr>:$ast,
+                       VisibilityAttr:$visibility_attr);
   let regions = (region AnyRegion:$body);
   let skipDefaultBuilders = 1;
 

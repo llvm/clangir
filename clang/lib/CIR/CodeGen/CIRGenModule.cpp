@@ -934,6 +934,16 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef MangledName, mlir::Type Ty,
         GV.setSectionAttr(builder.getStringAttr(SA->getName()));
     }
 
+    const clang::VisibilityAttr *VA = D->getAttr<clang::VisibilityAttr>();
+    mlir::cir::VisibilityAttr cirVisibility =
+        mlir::cir::VisibilityAttr::get(builder.getContext());
+    if (VA) {
+      cirVisibility = mlir::cir::VisibilityAttr::get(
+          builder.getContext(),
+          getCIRVisibilityKindFromClangVisibility(VA->getVisibility()));
+    }
+    GV.setVisibilityAttrAttr(cirVisibility);
+
     // Handle XCore specific ABI requirements.
     if (getTriple().getArch() == llvm::Triple::xcore)
       assert(0 && "not implemented");
@@ -1771,6 +1781,18 @@ mlir::SymbolTable::Visibility CIRGenModule::getMLIRVisibilityFromCIRLinkage(
   llvm_unreachable("linkage should be handled above!");
 }
 
+VisibilityKind CIRGenModule::getCIRVisibilityKindFromClangVisibility(
+    clang::VisibilityAttr::VisibilityType visibility) {
+  switch (visibility) {
+  case clang::VisibilityAttr::VisibilityType::Default:
+    return VisibilityKind::Default;
+  case clang::VisibilityAttr::VisibilityType::Hidden:
+    return VisibilityKind::Hidden;
+  case clang::VisibilityAttr::VisibilityType::Protected:
+    return VisibilityKind::Protected;
+  }
+}
+
 mlir::cir::GlobalLinkageKind CIRGenModule::getCIRLinkageForDeclarator(
     const DeclaratorDecl *D, GVALinkage Linkage, bool IsConstantVariable) {
   if (Linkage == GVA_Internal)
@@ -2390,6 +2412,16 @@ void CIRGenModule::setFunctionAttributes(GlobalDecl globalDecl,
 
   // TODO(cir): Complete the remaining part of the function.
   assert(!MissingFeatures::setFunctionAttributes());
+  auto decl = globalDecl.getDecl();
+  const clang::VisibilityAttr *VA = decl->getAttr<clang::VisibilityAttr>();
+  mlir::cir::VisibilityAttr cirVisibility =
+      mlir::cir::VisibilityAttr::get(builder.getContext());
+  if (VA) {
+    cirVisibility = mlir::cir::VisibilityAttr::get(
+        builder.getContext(),
+        getCIRVisibilityKindFromClangVisibility(VA->getVisibility()));
+  }
+  func.setVisibilityAttrAttr(cirVisibility);
 }
 
 /// If the specified mangled name is not in the module,
