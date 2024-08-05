@@ -71,14 +71,14 @@ private:
     if (auto openclVersionAttr = mlir::dyn_cast<mlir::cir::OpenCLVersionAttr>(
             attribute.getValue())) {
       auto *int32Ty = llvm::IntegerType::get(llvmContext, 32);
-      llvm::Metadata *olcVerElts[] = {
+      llvm::Metadata *oclVerElts[] = {
           llvm::ConstantAsMetadata::get(
               llvm::ConstantInt::get(int32Ty, openclVersionAttr.getMajor())),
           llvm::ConstantAsMetadata::get(
               llvm::ConstantInt::get(int32Ty, openclVersionAttr.getMinor()))};
       llvm::NamedMDNode *oclVerMD =
           llvmModule->getOrInsertNamedMetadata("opencl.ocl.version");
-      oclVerMD->addOperand(llvm::MDNode::get(llvmContext, olcVerElts));
+      oclVerMD->addOperand(llvm::MDNode::get(llvmContext, oclVerElts));
     }
 
     // Drop ammended CIR attribute from LLVM op.

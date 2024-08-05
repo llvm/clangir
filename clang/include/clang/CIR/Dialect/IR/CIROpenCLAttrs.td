@@ -93,27 +93,6 @@ def OpenCLKernelMetadataAttr
 }
 
 //===----------------------------------------------------------------------===//
-// OpenCLVersionAttr
-//===----------------------------------------------------------------------===//
-
-def OpenCLVersionAttr : CIR_Attr<"OpenCLVersion", "cl.version"> {
-  let summary = "OpenCL version";
-  let parameters = (ins "int32_t":$major, "int32_t":$minor);
-  let description = [{
-    Represents the version of OpenCL.
-
-    Example:
-    ```
-    // Module compiled from OpenCL 1.2.
-    module attributes {cir.cl.version = cir.cl.version<1,2>} {}
-    // Module compiled from OpenCL 3.0.
-    module attributes {cir.cl.version = cir.cl.version<3,0>} {}
-    ```
-  }];
-  let assemblyFormat = "`<` $major `,` $minor `>`";
-}
-
-//===----------------------------------------------------------------------===//
 // OpenCLKernelArgMetadataAttr
 //===----------------------------------------------------------------------===//
 
@@ -166,6 +145,27 @@ def OpenCLKernelArgMetadataAttr
   let assemblyFormat = "`<` struct(params) `>`";
 
   let genVerifyDecl = 1;
+}
+
+//===----------------------------------------------------------------------===//
+// OpenCLVersionAttr
+//===----------------------------------------------------------------------===//
+
+def OpenCLVersionAttr : CIR_Attr<"OpenCLVersion", "cl.version"> {
+  let summary = "OpenCL version";
+  let parameters = (ins "int32_t":$major, "int32_t":$minor);
+  let description = [{
+    Represents the version of OpenCL.
+
+    Example:
+    ```
+    // Module compiled from OpenCL 1.2.
+    module attributes {cir.cl.version = cir.cl.version<1, 2>} {}
+    // Module compiled from OpenCL 3.0.
+    module attributes {cir.cl.version = cir.cl.version<3, 0>} {}
+    ```
+  }];
+  let assemblyFormat = "`<` $major `,` $minor `>`";
 }
 
 #endif // MLIR_CIR_DIALECT_CIR_OPENCL_ATTRS
