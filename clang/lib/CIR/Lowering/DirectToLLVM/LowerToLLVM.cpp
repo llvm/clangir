@@ -506,9 +506,8 @@ mlir::LLVM::CConv convertCallingConv(mlir::cir::CallingConv callinvConv) {
     return LLVM::SPIR_KERNEL;
   case CIR::SpirFunction:
     return LLVM::SPIR_FUNC;
-  default:
-    llvm_unreachable("Unknown calling convention");
   }
+  llvm_unreachable("Unknown calling convention");
 }
 
 class CIRCopyOpLowering : public mlir::OpConversionPattern<mlir::cir::CopyOp> {
@@ -3689,8 +3688,8 @@ public:
         mlir::OpBuilder::InsertionGuard guard(rewriter);
         rewriter.setInsertionPoint(
             op->getParentOfType<mlir::LLVM::LLVMFuncOp>());
-        auto catchFn = rewriter.create<mlir::LLVM::LLVMFuncOp>(
-            op.getLoc(), cxaBeginCatch, catchFnTy);
+        rewriter.create<mlir::LLVM::LLVMFuncOp>(op.getLoc(), cxaBeginCatch,
+                                                catchFnTy);
       }
       rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(
           op, mlir::TypeRange{llvmPtrTy}, cxaBeginCatch,
@@ -3708,8 +3707,8 @@ public:
         mlir::OpBuilder::InsertionGuard guard(rewriter);
         rewriter.setInsertionPoint(
             op->getParentOfType<mlir::LLVM::LLVMFuncOp>());
-        auto catchFn = rewriter.create<mlir::LLVM::LLVMFuncOp>(
-            op.getLoc(), cxaEndCatch, catchFnTy);
+        rewriter.create<mlir::LLVM::LLVMFuncOp>(op.getLoc(), cxaEndCatch,
+                                                catchFnTy);
       }
       rewriter.create<mlir::LLVM::CallOp>(op.getLoc(), mlir::TypeRange{},
                                           cxaEndCatch, mlir::ValueRange{});
