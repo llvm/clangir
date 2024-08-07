@@ -176,11 +176,246 @@ class CIRTryOpFlattening : public mlir::OpRewritePattern<mlir::cir::TryOp> {
 public:
   using OpRewritePattern<mlir::cir::TryOp>::OpRewritePattern;
 
+  mlir::Block *buildTypeCase(mlir::PatternRewriter &rewriter, mlir::Region &r,
+                             mlir::Block *afterTry,
+                             mlir::Type exceptionPtrTy) const {
+    YieldOp yieldOp;
+    CatchParamOp paramOp;
+    r.walk([&](YieldOp op) {
+      assert(!yieldOp && "expect to only find one");
+      yieldOp = op;
+    });
+    r.walk([&](CatchParamOp op) {
+      assert(!paramOp && "expect to only find one");
+      paramOp = op;
+    });
+    rewriter.inlineRegionBefore(r, afterTry);
+
+    // Rewrite `cir.catch_param` to be scope aware and instead generate:
+    // ```
+    //   cir.catch_param begin %exception_ptr
+    //   ...
+    //   cir.catch_param end
+    //   cir.br ...
+    mlir::Value catchResult = paramOp.getParam();
+    assert(catchResult && "expected to be available");
+    rewriter.setInsertionPointAfterValue(catchResult);
+    auto catchType = catchResult.getType();
+    mlir::Block *entryBlock = paramOp->getBlock();
+    mlir::Location catchLoc = paramOp.getLoc();
+    // Catch handler only gets the exception pointer (selection not needed).
+    mlir::Value exceptionPtr =
+        entryBlock->addArgument(exceptionPtrTy, paramOp.getLoc());
+
+    rewriter.replaceOpWithNewOp<mlir::cir::CatchParamOp>(
+        paramOp, catchType, exceptionPtr,
+        mlir::cir::CatchParamKindAttr::get(rewriter.getContext(),
+                                           mlir::cir::CatchParamKind::begin));
+
+    rewriter.setInsertionPoint(yieldOp);
+    rewriter.create<mlir::cir::CatchParamOp>(
+        catchLoc, mlir::Type{}, nullptr,
+        mlir::cir::CatchParamKindAttr::get(rewriter.getContext(),
+                                           mlir::cir::CatchParamKind::end));
+
+    rewriter.setInsertionPointToEnd(yieldOp->getBlock());
+    rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(yieldOp, afterTry);
+    return entryBlock;
+  }
+
+  void buildUnwindCase(mlir::PatternRewriter &rewriter, mlir::Region &r,
+                       mlir::Block *unwindBlock) const {
+    assert(&r.front() == &r.back() && "only one block expected");
+    rewriter.mergeBlocks(&r.back(), unwindBlock);
+  }
+
+  void buildAllCase(mlir::PatternRewriter &rewriter, mlir::Region &r,
+                    mlir::Block *afterTry, mlir::Block *catchAllBlock,
+                    mlir::Value exceptionPtr) const {
+    YieldOp yieldOp;
+    CatchParamOp paramOp;
+    r.walk([&](YieldOp op) {
+      assert(!yieldOp && "expect to only find one");
+      yieldOp = op;
+    });
+    r.walk([&](CatchParamOp op) {
+      assert(!paramOp && "expect to only find one");
+      paramOp = op;
+    });
+    mlir::Block *catchAllStartBB = &r.front();
+    rewriter.inlineRegionBefore(r, afterTry);
+    rewriter.mergeBlocks(catchAllStartBB, catchAllBlock);
+
+    // Rewrite `cir.catch_param` to be scope aware and instead generate:
+    // ```
+    //   cir.catch_param begin %exception_ptr
+    //   ...
+    //   cir.catch_param end
+    //   cir.br ...
+    mlir::Value catchResult = paramOp.getParam();
+    assert(catchResult && "expected to be available");
+    rewriter.setInsertionPointAfterValue(catchResult);
+    auto catchType = catchResult.getType();
+    mlir::Location catchLoc = paramOp.getLoc();
+    rewriter.replaceOpWithNewOp<mlir::cir::CatchParamOp>(
+        paramOp, catchType, exceptionPtr,
+        mlir::cir::CatchParamKindAttr::get(rewriter.getContext(),
+                                           mlir::cir::CatchParamKind::begin));
+
+    rewriter.setInsertionPoint(yieldOp);
+    rewriter.create<mlir::cir::CatchParamOp>(
+        catchLoc, mlir::Type{}, nullptr,
+        mlir::cir::CatchParamKindAttr::get(rewriter.getContext(),
+                                           mlir::cir::CatchParamKind::end));
+
+    rewriter.setInsertionPointToEnd(yieldOp->getBlock());
+    rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(yieldOp, afterTry);
+  }
+
+  mlir::ArrayAttr collectTypeSymbols(mlir::cir::TryOp tryOp) const {
+    mlir::ArrayAttr caseAttrList = tryOp.getCatchTypesAttr();
+    llvm::SmallVector<mlir::Attribute, 4> symbolList;
+
+    for (mlir::Attribute caseAttr : caseAttrList) {
+      auto typeIdGlobal = dyn_cast<mlir::cir::GlobalViewAttr>(caseAttr);
+      if (!typeIdGlobal)
+        continue;
+      symbolList.push_back(typeIdGlobal.getSymbol());
+    }
+
+    // Return an empty attribute instead of an empty list...
+    if (symbolList.empty())
+      return {};
+    return mlir::ArrayAttr::get(caseAttrList.getContext(), symbolList);
+  }
+
+  mlir::Block *buildCatchers(mlir::cir::TryOp tryOp,
+                             mlir::PatternRewriter &rewriter,
+                             mlir::Block *afterBody,
+                             mlir::Block *afterTry) const {
+    auto loc = tryOp.getLoc();
+    // Replace the tryOp return with a branch that jumps out of the body.
+    rewriter.setInsertionPointToEnd(afterBody);
+    auto tryBodyYield = cast<mlir::cir::YieldOp>(afterBody->getTerminator());
+
+    mlir::Block *beforeCatch = rewriter.getInsertionBlock();
+    auto *catchBegin =
+        rewriter.splitBlock(beforeCatch, rewriter.getInsertionPoint());
+    rewriter.setInsertionPointToEnd(beforeCatch);
+    rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(tryBodyYield, afterTry);
+
+    // Start the landing pad by getting the inflight exception information.
+    rewriter.setInsertionPointToEnd(catchBegin);
+    auto exceptionPtrType = mlir::cir::PointerType::get(
+        mlir::cir::VoidType::get(rewriter.getContext()));
+    auto typeIdType = mlir::cir::IntType::get(getContext(), 32, false);
+    mlir::ArrayAttr symlist = collectTypeSymbols(tryOp);
+    auto inflightEh = rewriter.create<mlir::cir::EhInflightOp>(
+        loc, exceptionPtrType, typeIdType, symlist);
+    auto selector = inflightEh.getTypeId();
+    auto exceptionPtr = inflightEh.getExceptionPtr();
+
+    // Handle dispatch. In could in theory use a switch, but let's just
+    // mimic LLVM more closely since we have no specific thing to achieve
+    // doing that (might not play as well with existing optimizers either).
+    auto *nextDispatcher =
+        rewriter.splitBlock(catchBegin, rewriter.getInsertionPoint());
+    rewriter.setInsertionPointToEnd(catchBegin);
+    mlir::ArrayAttr caseAttrList = tryOp.getCatchTypesAttr();
+    nextDispatcher->addArgument(exceptionPtr.getType(), loc);
+    SmallVector<mlir::Value> dispatcherInitOps = {exceptionPtr};
+    bool tryOnlyHasCatchAll = caseAttrList.size() == 1 &&
+                              isa<mlir::cir::CatchAllAttr>(caseAttrList[0]);
+    if (!tryOnlyHasCatchAll) {
+      nextDispatcher->addArgument(selector.getType(), loc);
+      dispatcherInitOps.push_back(selector);
+    }
+    rewriter.create<mlir::cir::BrOp>(loc, nextDispatcher, dispatcherInitOps);
+
+    // Fill in dispatcher.
+    rewriter.setInsertionPointToEnd(nextDispatcher);
+    llvm::MutableArrayRef<mlir::Region> caseRegions = tryOp.getCatchRegions();
+    unsigned caseCnt = 0;
+
+    for (mlir::Attribute caseAttr : caseAttrList) {
+      if (auto typeIdGlobal = dyn_cast<mlir::cir::GlobalViewAttr>(caseAttr)) {
+        auto *previousDispatcher = nextDispatcher;
+        auto typeId = rewriter.create<mlir::cir::EhTypeIdOp>(
+            loc, typeIdGlobal.getSymbol());
+        auto ehPtr = previousDispatcher->getArgument(0);
+        auto ehSel = previousDispatcher->getArgument(1);
+
+        auto match = rewriter.create<mlir::cir::CmpOp>(
+            loc, mlir::cir::BoolType::get(rewriter.getContext()),
+            mlir::cir::CmpOpKind::eq, ehSel, typeId);
+
+        mlir::Block *typeCatchBlock = buildTypeCase(
+            rewriter, caseRegions[caseCnt], afterTry, ehPtr.getType());
+        nextDispatcher = rewriter.createBlock(afterTry);
+        rewriter.setInsertionPointToEnd(previousDispatcher);
+
+        // Next dispatcher gets by default both exception ptr and selector info,
+        // but on a catch all we don't need selector info.
+        nextDispatcher->addArgument(ehPtr.getType(), loc);
+        SmallVector<mlir::Value> nextDispatchOps = {ehPtr};
+        if (!isa<mlir::cir::CatchAllAttr>(caseAttrList[caseCnt + 1])) {
+          nextDispatcher->addArgument(ehSel.getType(), loc);
+          nextDispatchOps.push_back(ehSel);
+        }
+
+        rewriter.create<mlir::cir::BrCondOp>(
+            loc, match, typeCatchBlock, nextDispatcher, mlir::ValueRange{ehPtr},
+            nextDispatchOps);
+        rewriter.setInsertionPointToEnd(nextDispatcher);
+      } else if (auto catchAll = dyn_cast<mlir::cir::CatchAllAttr>(caseAttr)) {
+        // In case the catch(...) is all we got, `nextDispatcher` shall be
+        // non-empty.
+        assert(nextDispatcher->getArguments().size() == 1 &&
+               "expected one block argument");
+        auto ehPtr = nextDispatcher->getArgument(0);
+        buildAllCase(rewriter, caseRegions[caseCnt], afterTry, nextDispatcher,
+                     ehPtr);
+        nextDispatcher = nullptr; // No more business in try/catch
+      } else if (auto catchUnwind =
+                     dyn_cast<mlir::cir::CatchUnwindAttr>(caseAttr)) {
+        // assert(nextDispatcher->empty() && "expect empty dispatcher");
+        // assert(!nextDispatcher->args_empty() && "expected block argument");
+        assert(nextDispatcher->getArguments().size() == 2 &&
+               "expected two block argument");
+        buildUnwindCase(rewriter, caseRegions[caseCnt], nextDispatcher);
+        nextDispatcher = nullptr; // No more business in try/catch
+      }
+      caseCnt++;
+    }
+
+    assert(!nextDispatcher && "no dispatcher available anymore");
+    return catchBegin;
+  }
+
+  mlir::Block *buildTryBody(mlir::cir::TryOp tryOp,
+                            mlir::PatternRewriter &rewriter) const {
+    auto loc = tryOp.getLoc();
+    // Split the current block before the TryOp to create the inlining
+    // point.
+    auto *beforeTryScopeBlock = rewriter.getInsertionBlock();
+    mlir::Block *afterTry =
+        rewriter.splitBlock(beforeTryScopeBlock, rewriter.getInsertionPoint());
+
+    // Inline body region.
+    auto *beforeBody = &tryOp.getTryRegion().front();
+    rewriter.inlineRegionBefore(tryOp.getTryRegion(), afterTry);
+
+    // Branch into the body of the region.
+    rewriter.setInsertionPointToEnd(beforeTryScopeBlock);
+    rewriter.create<mlir::cir::BrOp>(loc, mlir::ValueRange(), beforeBody);
+    return afterTry;
+  }
+
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::TryOp tryOp,
                   mlir::PatternRewriter &rewriter) const override {
     mlir::OpBuilder::InsertionGuard guard(rewriter);
-    auto loc = tryOp.getLoc();
+    auto *afterBody = &tryOp.getTryRegion().back();
 
     // Empty scope: just remove it.
     if (tryOp.getTryRegion().empty()) {
@@ -188,31 +423,51 @@ public:
       return mlir::success();
     }
 
-    // Split the current block before the TryOp to create the inlining
-    // point.
-    auto *currentBlock = rewriter.getInsertionBlock();
-    auto *remainingOpsBlock =
-        rewriter.splitBlock(currentBlock, rewriter.getInsertionPoint());
-    mlir::Block *continueBlock;
-    continueBlock = remainingOpsBlock;
+    // Grab the collection of `cir.call exception`s to rewrite to
+    // `cir.try_call`.
+    SmallVector<mlir::cir::CallOp, 4> callsToRewrite;
+    tryOp.getTryRegion().walk([&](CallOp op) {
+      // Only grab calls within immediate closest TryOp scope.
+      if (op->getParentOfType<mlir::cir::TryOp>() != tryOp)
+        return;
+      if (!op.getException())
+        return;
+      callsToRewrite.push_back(op);
+    });
 
-    // Inline body region.
-    auto *beforeBody = &tryOp.getTryRegion().front();
-    auto *afterBody = &tryOp.getTryRegion().back();
-    rewriter.inlineRegionBefore(tryOp.getTryRegion(), continueBlock);
+    // Build try body.
+    mlir::Block *afterTry = buildTryBody(tryOp, rewriter);
 
-    // Branch into the body of the region.
-    rewriter.setInsertionPointToEnd(currentBlock);
-    rewriter.create<mlir::cir::BrOp>(loc, mlir::ValueRange(), beforeBody);
-
-    // Replace the tryOp return with a branch that jumps out of the body.
-    rewriter.setInsertionPointToEnd(afterBody);
-    auto yieldOp = cast<mlir::cir::YieldOp>(afterBody->getTerminator());
-    rewriter.replaceOpWithNewOp<mlir::cir::BrOp>(yieldOp, continueBlock);
-
-    // TODO: handle the catch clauses and cir.try_call while here.
-
+    // Build catchers.
+    mlir::Block *landingPad =
+        buildCatchers(tryOp, rewriter, afterBody, afterTry);
     rewriter.eraseOp(tryOp);
+
+    // Rewrite calls.
+    for (CallOp callOp : callsToRewrite) {
+      mlir::Block *callBlock = callOp->getBlock();
+      mlir::Block *cont =
+          rewriter.splitBlock(callBlock, mlir::Block::iterator(callOp));
+      mlir::cir::ExtraFuncAttributesAttr extraAttrs = callOp.getExtraAttrs();
+      std::optional<mlir::cir::ASTCallExprInterface> ast = callOp.getAst();
+
+      mlir::FlatSymbolRefAttr symbol;
+      if (!callOp.isIndirect())
+        symbol = callOp.getCalleeAttr();
+      rewriter.setInsertionPointToEnd(callBlock);
+      auto tryCall = rewriter.replaceOpWithNewOp<mlir::cir::TryCallOp>(
+          callOp, symbol, callOp.getResult().getType(), cont, landingPad,
+          callOp.getOperands());
+      tryCall.setExtraAttrsAttr(extraAttrs);
+      if (ast)
+        tryCall.setAstAttr(*ast);
+    }
+
+    // Quick block cleanup: no indirection to the post try block.
+    auto brOp = dyn_cast<mlir::cir::BrOp>(afterTry->getTerminator());
+    mlir::Block *srcBlock = brOp.getDest();
+    rewriter.eraseOp(brOp);
+    rewriter.mergeBlocks(srcBlock, afterTry);
     return mlir::success();
   }
 };

@@ -47,7 +47,18 @@ public:
     if (RetTy->isVoidType())
       return ABIArgInfo::getIgnore();
 
-    llvm_unreachable("Non-void return type NYI");
+    if (isAggregateTypeForABI(RetTy))
+      llvm_unreachable("NYI");
+
+    // Treat an enum type as its underlying type.
+    if (const EnumType *EnumTy = RetTy->getAs<EnumType>())
+      llvm_unreachable("NYI");
+
+    if (const auto *EIT = RetTy->getAs<BitIntType>())
+      llvm_unreachable("NYI");
+
+    return (isPromotableIntegerTypeForABI(RetTy) ? ABIArgInfo::getExtend(RetTy)
+                                                 : ABIArgInfo::getDirect());
   }
 
   ABIArgInfo classifyArgumentType(QualType Ty) const {
@@ -65,11 +76,8 @@ public:
     if (const auto *EIT = Ty->getAs<BitIntType>())
       llvm_unreachable("NYI");
 
-    if (isPromotableIntegerTypeForABI(Ty)) {
-      llvm_unreachable("ArgInfo integer extend NYI");
-    } else {
-      return ABIArgInfo::getDirect();
-    }
+    return (isPromotableIntegerTypeForABI(Ty) ? ABIArgInfo::getExtend(Ty)
+                                              : ABIArgInfo::getDirect());
   }
 
   void computeInfo(CIRGenFunctionInfo &FI) const override {
@@ -233,7 +241,7 @@ public:
   void computeInfo(CIRGenFunctionInfo &FI) const override {
     // The logic is same as in DefaultABIInfo with an exception on the kernel
     // arguments handling.
-    llvm::CallingConv::ID CC = FI.getCallingConvention();
+    mlir::cir::CallingConv CC = FI.getCallingConvention();
 
     bool cxxabiHit = getCXXABI().classifyReturnType(FI);
     assert(!cxxabiHit && "C++ ABI not considered");
@@ -241,7 +249,7 @@ public:
     FI.getReturnInfo() = classifyReturnType(FI.getReturnType());
 
     for (auto &I : FI.arguments()) {
-      if (CC == llvm::CallingConv::SPIR_KERNEL) {
+      if (CC == mlir::cir::CallingConv::SpirKernel) {
         I.info = classifyKernelArgumentType(I.type);
       } else {
         I.info = classifyArgumentType(I.type);
@@ -263,8 +271,14 @@ public:
   CommonSPIRTargetCIRGenInfo(std::unique_ptr<ABIInfo> ABIInfo)
       : TargetCIRGenInfo(std::move(ABIInfo)) {}
 
-  unsigned getOpenCLKernelCallingConv() const override {
-    return llvm::CallingConv::SPIR_KERNEL;
+  mlir::cir::AddressSpaceAttr getCIRAllocaAddressSpace() const override {
+    return mlir::cir::AddressSpaceAttr::get(
+        &getABIInfo().CGT.getMLIRContext(),
+        mlir::cir::AddressSpaceAttr::Kind::offload_private);
+  }
+
+  mlir::cir::CallingConv getOpenCLKernelCallingConv() const override {
+    return mlir::cir::CallingConv::SpirKernel;
   }
 };
 

@@ -39,7 +39,7 @@ using namespace cir;
 using namespace clang;
 
 CIRGenFunctionInfo *CIRGenFunctionInfo::create(
-    unsigned cirCC, bool instanceMethod, bool chainCall,
+    mlir::cir::CallingConv cirCC, bool instanceMethod, bool chainCall,
     const FunctionType::ExtInfo &info,
     llvm::ArrayRef<ExtParameterInfo> paramInfos, CanQualType resultType,
     llvm::ArrayRef<CanQualType> argTypes, RequiredArgs required) {
@@ -452,15 +452,12 @@ buildCallLikeOp(CIRGenFunction &CGF, mlir::Location callLoc,
   auto &builder = CGF.getBuilder();
 
   if (InvokeDest) {
-    auto addr = CGF.currLexScope->getExceptionInfo().addr;
-
-    mlir::cir::TryCallOp tryCallOp;
+    mlir::cir::CallOp tryCallOp;
     if (indirectFuncTy) {
-      tryCallOp = builder.createIndirectTryCallOp(
-          callLoc, addr, indirectFuncVal, indirectFuncTy, CIRCallArgs);
+      tryCallOp = builder.createIndirectTryCallOp(callLoc, indirectFuncVal,
+                                                  indirectFuncTy, CIRCallArgs);
     } else {
-      tryCallOp =
-          builder.createTryCallOp(callLoc, directFuncOp, addr, CIRCallArgs);
+      tryCallOp = builder.createTryCallOp(callLoc, directFuncOp, CIRCallArgs);
     }
     tryCallOp->setAttr("extra_attrs", extraFnAttrs);
     return tryCallOp;

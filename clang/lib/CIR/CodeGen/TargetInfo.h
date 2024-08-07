@@ -62,9 +62,11 @@ public:
                            std::vector<LValue> &ResultRegDests,
                            std::string &AsmString, unsigned NumOutputs) const {}
 
-  /// Get the AST address space for alloca.
-  virtual clang::LangAS getASTAllocaAddressSpace() const {
-    return clang::LangAS::Default;
+  /// Get the CIR address space for alloca.
+  virtual mlir::cir::AddressSpaceAttr getCIRAllocaAddressSpace() const {
+    // Return the null attribute, which means the target does not care about the
+    // alloca address space.
+    return {};
   }
 
   /// Perform address space cast of an expression of pointer type.
@@ -79,8 +81,8 @@ public:
                                            mlir::Type DestTy,
                                            bool IsNonNull = false) const;
 
-  /// Get LLVM calling convention for OpenCL kernel.
-  virtual unsigned getOpenCLKernelCallingConv() const {
+  /// Get CIR calling convention for OpenCL kernel.
+  virtual mlir::cir::CallingConv getOpenCLKernelCallingConv() const {
     // OpenCL kernels are called via an explicit runtime API with arguments
     // set with clSetKernelArg(), not as normal sub-functions.
     // Return SPIR_KERNEL by default as the kernel calling convention to
@@ -91,7 +93,7 @@ public:
     // clSetKernelArg() might break depending on the target-specific
     // conventions; different targets might split structs passed as values
     // to multiple function arguments etc.
-    return llvm::CallingConv::SPIR_KERNEL;
+    return mlir::cir::CallingConv::SpirKernel;
   }
 
   virtual ~TargetCIRGenInfo() {}

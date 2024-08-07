@@ -756,8 +756,12 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   case Builtin::BI__builtin_conjl:
   case Builtin::BIconj:
   case Builtin::BIconjf:
-  case Builtin::BIconjl:
-    llvm_unreachable("NYI");
+  case Builtin::BIconjl: {
+    mlir::Value ComplexVal = buildComplexExpr(E->getArg(0));
+    mlir::Value Conj = builder.createUnaryOp(
+        getLoc(E->getExprLoc()), mlir::cir::UnaryOpKind::Not, ComplexVal);
+    return RValue::getComplex(Conj);
+  }
 
   case Builtin::BI__builtin___CFStringMakeConstantString:
   case Builtin::BI__builtin___NSStringMakeConstantString:
@@ -1096,7 +1100,7 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     // the AST level this is handled within CreateTempAlloca et al., but for the
     // builtin / dynamic alloca we have to handle it here.
     assert(!MissingFeatures::addressSpace());
-    auto AAS = builder.getAddrSpaceAttr(getASTAllocaAddressSpace());
+    auto AAS = getCIRAllocaAddressSpace();
     auto EAS = builder.getAddrSpaceAttr(
         E->getType()->getPointeeType().getAddressSpace());
     if (EAS != AAS) {

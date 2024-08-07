@@ -654,22 +654,19 @@ struct CallEndCatch final : EHScopeStack::Cleanup {
 static mlir::Value CallBeginCatch(CIRGenFunction &CGF, mlir::Type ParamTy,
                                   bool EndMightThrow) {
   auto catchParam = CGF.getBuilder().create<mlir::cir::CatchParamOp>(
-      CGF.getBuilder().getUnknownLoc(), ParamTy);
+      CGF.getBuilder().getUnknownLoc(), ParamTy, nullptr, nullptr);
 
   CGF.EHStack.pushCleanup<CallEndCatch>(
       NormalAndEHCleanup,
       EndMightThrow && !CGF.CGM.getLangOpts().AssumeNothrowExceptionDtor);
 
-  return catchParam;
+  return catchParam.getParam();
 }
 
 /// A "special initializer" callback for initializing a catch
 /// parameter during catch initialization.
 static void InitCatchParam(CIRGenFunction &CGF, const VarDecl &CatchParam,
                            Address ParamAddr, SourceLocation Loc) {
-  // Load the exception from where the landing pad saved it.
-  auto Exn = CGF.currLexScope->getExceptionInfo().addr;
-
   CanQualType CatchType =
       CGF.CGM.getASTContext().getCanonicalType(CatchParam.getType());
   auto CIRCatchTy = CGF.convertTypeForMem(CatchType);

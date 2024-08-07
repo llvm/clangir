@@ -870,8 +870,7 @@ def ContinueOp : CIR_Op<"continue", [Terminator]> {
 // Resume
 //===----------------------------------------------------------------------===//
 
-def ResumeOp : CIR_Op<"resume", [ReturnLike, Terminator,
-                                 ParentOneOf<["TryOp"]>]> {
+def ResumeOp : CIR_Op<"resume", [ReturnLike, Terminator]> {
   let summary = "Resumes execution after not catching exceptions";
   let description = [{
     The `cir.resume` operation terminates a region on `cir.catch`, "resuming"
@@ -886,8 +885,10 @@ def ResumeOp : CIR_Op<"resume", [ReturnLike, Terminator,
     ```
   }];
 
-  let arguments = (ins);
-  let assemblyFormat = "attr-dict";
+  let arguments = (ins UnitAttr:$rethrow);
+  let assemblyFormat = [{
+    (`rethrow` $rethrow^)? attr-dict
+  }];
 }
 
 //===----------------------------------------------------------------------===//
@@ -2082,7 +2083,7 @@ def TLSModel : I32EnumAttr<
     [TLS_GeneralDynamic, TLS_LocalDynamic, TLS_InitialExec, TLS_LocalExec]> {
   let cppNamespace = "::mlir::cir";
 }
-
+  
 def GlobalOp : CIR_Op<"global",
                       [DeclareOpInterfaceMethods<RegionBranchOpInterface>,
                        DeclareOpInterfaceMethods<CIRGlobalValueInterface>,
@@ -2123,6 +2124,7 @@ def GlobalOp : CIR_Op<"global",
                        OptionalAttr<TLSModel>:$tls_model,
                        // Note this can also be a FlatSymbolRefAttr
                        OptionalAttr<AnyAttr>:$initial_value,
+                       UnitAttr:$comdat,
                        UnitAttr:$constant,
                        UnitAttr:$dsolocal,
                        OptionalAttr<I64Attr>:$alignment,
@@ -2134,6 +2136,7 @@ def GlobalOp : CIR_Op<"global",
        ($sym_visibility^)?
        (`constant` $constant^)?
        $linkage
+       (`comdat` $comdat^)?
        ($tls_model^)?
        (`dsolocal` $dsolocal^)?
        $sym_name
@@ -2792,6 +2795,19 @@ def BaseClassAddrOp : CIR_Op<"base_class_addr"> {
 // FuncOp
 //===----------------------------------------------------------------------===//
 
+// The enumeration values are not necessarily in sync with `clang::CallingConv`
+// or `llvm::CallingConv`.
+def CC_C : I32EnumAttrCase<"C", 1, "c">;
+def CC_SpirKernel : I32EnumAttrCase<"SpirKernel", 2, "spir_kernel">;
+def CC_SpirFunction : I32EnumAttrCase<"SpirFunction", 3, "spir_function">;
+
+def CallingConv : I32EnumAttr<
+    "CallingConv",
+    "calling convention",
+    [CC_C, CC_SpirKernel, CC_SpirFunction]> {
+  let cppNamespace = "::mlir::cir";
+}
+
 def FuncOp : CIR_Op<"func", [
   AutomaticAllocationScope, CallableOpInterface, FunctionOpInterface,
   DeclareOpInterfaceMethods<CIRGlobalValueInterface>,
@@ -2816,6 +2832,9 @@ def FuncOp : CIR_Op<"func", [
 
     The function linkage information is specified by `linkage`, as defined by
     `GlobalLinkageKind` attribute.
+
+    The `calling_conv` attribute specifies the calling convention of the function.
+    The default calling convention is `CallingConv::C`.
 
     A compiler builtin function must be marked as `builtin` for further
     processing when lowering from CIR.
@@ -2855,6 +2874,9 @@ def FuncOp : CIR_Op<"func", [
     // Linkage information
     cir.func linkonce_odr @some_method(...)
 
+    // Calling convention information
+    cir.func @another_func(...) cc(spir_kernel) extra(#fn_attr)
+
     // Builtin function
     cir.func builtin @__builtin_coro_end(!cir.ptr<i8>, !cir.bool) -> !cir.bool
 
@@ -2876,8 +2898,11 @@ def FuncOp : CIR_Op<"func", [
                        UnitAttr:$dsolocal,
                        DefaultValuedAttr<GlobalLinkageKind,
                                          "GlobalLinkageKind::ExternalLinkage">:$linkage,
+                       DefaultValuedAttr<CallingConv,
+                                         "CallingConv::C">:$calling_conv,
                        ExtraFuncAttr:$extra_attrs,
                        OptionalAttr<StrAttr>:$sym_visibility,
+                       UnitAttr:$comdat,
                        OptionalAttr<DictArrayAttr>:$arg_attrs,
                        OptionalAttr<DictArrayAttr>:$res_attrs,
                        OptionalAttr<FlatSymbolRefAttr>:$aliasee,
@@ -2890,6 +2915,7 @@ def FuncOp : CIR_Op<"func", [
   let builders = [OpBuilder<(ins
     "StringRef":$name, "FuncType":$type,
     CArg<"GlobalLinkageKind", "GlobalLinkageKind::ExternalLinkage">:$linkage,
+    CArg<"CallingConv", "CallingConv::C">:$callingConv,
     CArg<"ArrayRef<NamedAttribute>", "{}">:$attrs,
     CArg<"ArrayRef<DictionaryAttr>", "{}">:$argAttrs)
   >];
@@ -2948,7 +2974,7 @@ def FuncOp : CIR_Op<"func", [
 }
 
 //===----------------------------------------------------------------------===//
-// CallOp
+// CallOp and TryCallOp
 //===----------------------------------------------------------------------===//
 
 class CIR_CallOp<string mnemonic, list<Trait> extra_traits = []> :
@@ -3023,85 +3049,119 @@ def CallOp : CIR_CallOp<"call"> {
     ```
   }];
 
-  let arguments = commonArgs;
   let results = (outs Optional<CIR_AnyType>:$result);
+  let arguments = !con((ins
+    UnitAttr:$exception
+  ), commonArgs);
 
   let skipDefaultBuilders = 1;
 
   let builders = [
     OpBuilder<(ins "SymbolRefAttr":$callee, "mlir::Type":$resType,
-              CArg<"ValueRange", "{}">:$operands), [{
+              CArg<"ValueRange", "{}">:$operands,
+              CArg<"UnitAttr", "{}">:$exception), [{
       $_state.addOperands(operands);
       if (callee)
         $_state.addAttribute("callee", callee);
+      if (exception)
+        $_state.addAttribute("exception", exception);
       if (resType && !isa<VoidType>(resType))
         $_state.addTypes(resType);
     }]>,
     OpBuilder<(ins "Value":$ind_target,
                "FuncType":$fn_type,
-               CArg<"ValueRange", "{}">:$operands), [{
+               CArg<"ValueRange", "{}">:$operands,
+               CArg<"UnitAttr", "{}">:$exception), [{
       $_state.addOperands(ValueRange{ind_target});
       $_state.addOperands(operands);
       if (!fn_type.isVoid())
         $_state.addTypes(fn_type.getReturnType());
+      if (exception)
+        $_state.addAttribute("exception", exception);
     }]>
   ];
 }
 
-//===----------------------------------------------------------------------===//
-// TryCallOp
-//===----------------------------------------------------------------------===//
-
-def TryCallOp : CIR_CallOp<"try_call"> {
-  let summary = "try call operation";
+def TryCallOp : CIR_CallOp<"try_call",
+      [DeclareOpInterfaceMethods<BranchOpInterface>, Terminator,
+       AttrSizedOperandSegments]> {
+  let summary = "try_call operation";
   let description = [{
-    Similar to `cir.call`, direct and indirect properties are the same. The
-    difference relies in an exception object address operand. It's encoded
-    as the first operands or second (for indirect calls).
-
-    Similarly to `cir.call`, avoid using `mlir::Operation` methods to walk the
-    operands for this operation, instead use the methods provided by
-    `CIRCallOpInterface`.
+    Mostly similar to cir.call but requires two destination
+    branches, one for handling exceptions in case its thrown and
+    the other one to follow on regular control-flow.
 
     Example:
 
     ```mlir
-    cir.try {
-      %0 = cir.alloca !cir.ptr<!cir.eh.info>, !cir.ptr<!cir.ptr<!cir.eh.info>>
-      ...
-      %r = cir.try_call %exception(%0) @division(%1, %2)
-    } ...
+    // Direct call
+    %2 = cir.try_call @my_add(%0, %1) ^continue, ^landing_pad : (f32, f32) -> f32
     ```
   }];
 
   let arguments = !con((ins
-    ExceptionInfoPtrPtr:$exceptionInfo
+    Variadic<CIR_AnyType>:$contOperands,
+    Variadic<CIR_AnyType>:$landingPadOperands
   ), commonArgs);
 
-  let results = (outs Variadic<CIR_AnyType>);
+  let results = (outs Optional<CIR_AnyType>:$result);
+  let successors = (successor AnySuccessor:$cont,
+                              AnySuccessor:$landing_pad);
+
+  let skipDefaultBuilders = 1;
 
   let builders = [
-    OpBuilder<(ins "Value":$ind_target, "mlir::Value":$exception,
-               "FuncType":$fn_type,
-               CArg<"ValueRange", "{}">:$operands), [{
-      $_state.addOperands(ValueRange{exception});
-      $_state.addOperands(ValueRange{ind_target});
-      $_state.addOperands(operands);
-      if (!fn_type.isVoid())
-        $_state.addTypes(fn_type.getReturnType());
-    }]>,
-    OpBuilder<(ins "SymbolRefAttr":$callee, "mlir::Value":$exception,
-                   "mlir::Type":$resType, CArg<"ValueRange", "{}">:$operands),
-    [{
-      $_state.addOperands(ValueRange{exception});
+    OpBuilder<(ins "SymbolRefAttr":$callee, "mlir::Type":$resType,
+               "Block *":$cont, "Block *":$landing_pad,
+               CArg<"ValueRange", "{}">:$operands,
+               CArg<"ValueRange", "{}">:$contOperands,
+               CArg<"ValueRange", "{}">:$landingPadOperands), [{
       $_state.addOperands(operands);
       if (callee)
         $_state.addAttribute("callee", callee);
       if (resType && !isa<VoidType>(resType))
         $_state.addTypes(resType);
-    }]>];
 
-    let hasVerifier = 1;
+      // Handle branches
+      $_state.addOperands(contOperands);
+      $_state.addOperands(landingPadOperands);
+      // The TryCall ODS layout is: cont, landing_pad, operands.
+      llvm::copy(::llvm::ArrayRef<int32_t>({
+        static_cast<int32_t>(contOperands.size()),
+        static_cast<int32_t>(landingPadOperands.size()),
+        static_cast<int32_t>(operands.size())
+        }),
+        odsState.getOrAddProperties<Properties>().operandSegmentSizes.begin());
+      $_state.addSuccessors(cont);
+      $_state.addSuccessors(landing_pad);
+    }]>,
+    OpBuilder<(ins "Value":$ind_target,
+               "FuncType":$fn_type,
+               "Block *":$cont, "Block *":$landing_pad,
+               CArg<"ValueRange", "{}">:$operands,
+               CArg<"ValueRange", "{}">:$contOperands,
+               CArg<"ValueRange", "{}">:$landingPadOperands), [{
+      ::llvm::SmallVector<mlir::Value, 4> finalCallOperands({ind_target});
+      finalCallOperands.append(operands.begin(), operands.end());
+      $_state.addOperands(finalCallOperands);
+
+      if (!fn_type.isVoid())
+        $_state.addTypes(fn_type.getReturnType());
+
+      // Handle branches
+      $_state.addOperands(contOperands);
+      $_state.addOperands(landingPadOperands);
+      // The TryCall ODS layout is: cont, landing_pad, operands.
+      llvm::copy(::llvm::ArrayRef<int32_t>({
+        static_cast<int32_t>(contOperands.size()),
+        static_cast<int32_t>(landingPadOperands.size()),
+        static_cast<int32_t>(finalCallOperands.size())
+        }),
+        odsState.getOrAddProperties<Properties>().operandSegmentSizes.begin());
+      $_state.addSuccessors(cont);
+      $_state.addSuccessors(landing_pad);
+    }]>
+  ];
 }
 
 //===----------------------------------------------------------------------===//
@@ -3110,12 +3170,13 @@ def TryCallOp : CIR_CallOp<"try_call"> {
 
 def AK_Initial : I32EnumAttrCase<"init", 1>;
 def AK_User    : I32EnumAttrCase<"user", 2>;
-def AK_Final   : I32EnumAttrCase<"final", 3>;
+def AK_Yield   : I32EnumAttrCase<"yield", 3>;
+def AK_Final   : I32EnumAttrCase<"final", 4>;
 
 def AwaitKind : I32EnumAttr<
     "AwaitKind",
     "await kind",
-    [AK_Initial, AK_User, AK_Final]> {
+    [AK_Initial, AK_User, AK_Yield, AK_Final]> {
   let cppNamespace = "::mlir::cir";
 }
 
@@ -3149,9 +3210,10 @@ def AwaitOp : CIR_Op<"await",
     of CIR, e.g. LLVM, should use the `suspend` region to track more
     lower level codegen (e.g. intrinsic emission for coro.save/coro.suspend).
 
-    There are also 3 flavors of `cir.await` available:
+    There are also 4 flavors of `cir.await` available:
     - `init`: compiler generated initial suspend via implicit `co_await`.
     - `user`: also known as normal, representing user written co_await's.
+    - `yield`: user written `co_yield` expressions.
     - `final`: compiler generated final suspend via implicit `co_await`.
 
     From the C++ snippet we get:
@@ -3264,12 +3326,21 @@ def TryOp : CIR_Op<"try",
 // CatchParamOp
 //===----------------------------------------------------------------------===//
 
+def CatchParamBegin : I32EnumAttrCase<"begin",  0>;
+def CatchParamEnd   : I32EnumAttrCase<"end",  1>;
+def CatchParamKind  : I32EnumAttr<
+    "CatchParamKind",
+    "Designate limits for begin/end of catch param handling",
+    [CatchParamBegin, CatchParamEnd]> {
+  let cppNamespace = "::mlir::cir";
+}
+
 def CatchParamOp : CIR_Op<"catch_param"> {
-  let summary = "Materialize the catch clause formal parameter";
+  let summary = "Represents catch clause formal parameter";
   let description = [{
-    The `cir.catch_param` binds to a the C/C++ catch clause param and allow
-    it to be materialized. This operantion grabs the param by looking into
-    a exception info `!cir.eh_info` argument.
+    The `cir.catch_param` can operate in two modes: within catch regions of
+    `cir.try` or anywhere else with the `begin` or `end` markers. The `begin`
+    version requires an exception pointer of `cir.ptr<!void>`.
 
     Example:
     ```mlir
@@ -3277,9 +3348,60 @@ def CatchParamOp : CIR_Op<"catch_param"> {
     ```
   }];
 
-  let results = (outs CIR_AnyType:$param);
+  let arguments = (ins Optional<VoidPtr>:$exception_ptr,
+                       OptionalAttr<CatchParamKind>:$kind);
+  let results = (outs Optional<CIR_AnyType>:$param);
   let assemblyFormat = [{
-    `->` qualified(type($param)) attr-dict
+    ($kind^)?
+    ($exception_ptr^)?
+    (`->` qualified(type($param))^)?
+    attr-dict
+  }];
+
+  let extraClassDeclaration = [{
+    bool isBegin() { return getKind() == mlir::cir::CatchParamKind::begin; }
+    bool isEnd() { return getKind() == mlir::cir::CatchParamKind::end; }
+  }];
+
+  let hasVerifier = 1;
+}
+
+//===----------------------------------------------------------------------===//
+// Exception related: EhInflightOp, EhTypeIdOp
+//===----------------------------------------------------------------------===//
+
+def EhInflightOp : CIR_Op<"eh.inflight_exception"> {
+  let summary = "Materialize the catch clause formal parameter";
+  let description = [{
+    `cir.eh.inflight_exception` returns two values:
+      - `exception_ptr`: The exception pointer for the inflight exception
+      - `type_id`: pointer to the exception object
+    This operation is expected to be the first one basic blocks on the
+    exception path out of `cir.try_call` operations.
+  }];
+
+  let arguments = (ins OptionalAttr<FlatSymbolRefArrayAttr>:$sym_type_list);
+  let results = (outs VoidPtr:$exception_ptr, UInt32:$type_id);
+  let assemblyFormat = [{
+    ($sym_type_list^)?
+    attr-dict
+  }];
+
+  let hasVerifier = 0;
+}
+
+def EhTypeIdOp : CIR_Op<"eh.typeid",
+  [Pure, DeclareOpInterfaceMethods<SymbolUserOpInterface>]> {
+  let summary = "Compute exception type id from it's global type symbol";
+  let description = [{
+    Returns the exception type id for a given global symbol representing
+    a type.
+  }];
+
+  let arguments = (ins FlatSymbolRefAttr:$type_sym);
+  let results = (outs UInt32:$type_id);
+  let assemblyFormat = [{
+    $type_sym attr-dict
   }];
 
   let hasVerifier = 0;
