@@ -528,12 +528,25 @@ LogicalResult CastOp::verify() {
   llvm_unreachable("Unknown CastOp kind?");
 }
 
-Value foldCasts(llvm::SmallVector<CastOp> &ops) {
-  if (ops.size() < 2)
-    return {};
+bool isIntOrBoolCast(mlir::cir::CastOp op) {
+  auto kind = op.getKind();
+  return kind == mlir::cir::CastKind::bool_to_int ||
+         kind == mlir::cir::CastKind::int_to_bool ||
+         kind == mlir::cir::CastKind::integral;
+}
 
-  auto head = *ops.begin();
-  auto tail = *ops.rbegin();
+Value tryFoldCastChain(CastOp op) {
+  CastOp head = op, tail = op;  
+
+  while(op) {
+    if (!isIntOrBoolCast(op))  
+      break;
+    head = op;
+    op = dyn_cast_or_null<CastOp>(head.getSrc().getDefiningOp());
+  }
+
+  if (head == tail)
+    return {};
 
   // if bool_to_int -> ...  -> int_to_bool: take the bool
   // as we had it was before all casts
@@ -551,48 +564,27 @@ Value foldCasts(llvm::SmallVector<CastOp> &ops) {
   return {};
 }
 
-bool isIntOrBoolCast(mlir::cir::CastOp op) {
-  auto kind = op.getKind();
-  return kind == mlir::cir::CastKind::bool_to_int ||
-         kind == mlir::cir::CastKind::int_to_bool ||
-         kind == mlir::cir::CastKind::integral;
-}
-
-void collectCasts(CastOp op, llvm::SmallVector<CastOp> &ops) {
-  if (!isIntOrBoolCast(op))
-    return;
-
-  if (auto par = dyn_cast_or_null<CastOp>(op.getSrc().getDefiningOp()))
-    collectCasts(par, ops);
-
-  ops.push_back(op);
-}
-
-OpFoldResult CastOp::fold(FoldAdaptor adaptor) {
-  llvm::SmallVector<CastOp> casts;
-  collectCasts(*this, casts);
-  if (auto v = foldCasts(casts))
-    return v;
-
-  if (getSrc().getType() != getResult().getType())
-    return {};
-  switch (getKind()) {
-  case mlir::cir::CastKind::integral: {
-    // TODO: for sign differences, it's possible in certain conditions to
-    // create a new attribute that's capable of representing the source.
-    SmallVector<mlir::OpFoldResult, 1> foldResults;
-    auto foldOrder = getSrc().getDefiningOp()->fold(foldResults);
-    if (foldOrder.succeeded() && foldResults[0].is<mlir::Attribute>())
-      return foldResults[0].get<mlir::Attribute>();
-    return {};
+OpFoldResult CastOp::fold(FoldAdaptor adaptor) {  
+  if (getSrc().getType() == getResult().getType()) {
+    switch (getKind()) {
+    case mlir::cir::CastKind::integral: {    
+      // TODO: for sign differences, it's possible in certain conditions to
+      // create a new attribute that's capable of representing the source.
+      SmallVector<mlir::OpFoldResult, 1> foldResults;
+      auto foldOrder = getSrc().getDefiningOp()->fold(foldResults);
+      if (foldOrder.succeeded() && foldResults[0].is<mlir::Attribute>())
+        return foldResults[0].get<mlir::Attribute>();
+      return {};
+    }
+    case mlir::cir::CastKind::bitcast:
+    case mlir::cir::CastKind::address_space: {
+      return getSrc();
+    }  
+    default:
+      return {};
+    }
   }
-  case mlir::cir::CastKind::bitcast:
-  case mlir::cir::CastKind::address_space: {
-    return getSrc();
-  }
-  default:
-    return {};
-  }
+  return tryFoldCastChain(*this);
 }
 
 static bool isBoolNot(mlir::cir::UnaryOp op) {
@@ -600,11 +592,20 @@ static bool isBoolNot(mlir::cir::UnaryOp op) {
          op.getKind() == mlir::cir::UnaryOpKind::Not;
 }
 
+/*  This folder simplifies the sequential boolean not operations.
+    For instance, the next two unary operations will be eliminated:
+    
+    ```mlir
+    %1 = cir.unary(not, %0) : !cir.bool, !cir.bool
+    %2 = cir.unary(not, %1) : !cir.bool, !cir.bool
+    ```
+    
+    and the argument of the first one (%0) will be used instead. */
 OpFoldResult UnaryOp::fold(FoldAdaptor adaptor) {
   if (isBoolNot(*this))
-    if (auto par = dyn_cast_or_null<UnaryOp>(getInput().getDefiningOp()))
-      if (isBoolNot(par))
-        return par.getInput();
+    if (auto previous = dyn_cast_or_null<UnaryOp>(getInput().getDefiningOp()))
+      if (isBoolNot(previous))
+        return previous.getInput();
 
   return {};
 }
