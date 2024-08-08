@@ -400,7 +400,7 @@ llvm::TypeSize
 DataMemberType::getTypeSizeInBits(const ::mlir::DataLayout &dataLayout,
                                   ::mlir::DataLayoutEntryListRef params) const {
   // FIXME: consider size differences under different ABIs
-  assert(!MissingFeatures::cxxABI());
+  assert(!MissingFeatures::dataLayout());
   return llvm::TypeSize::getFixed(64);
 }
 
@@ -408,7 +408,7 @@ uint64_t
 DataMemberType::getABIAlignment(const ::mlir::DataLayout &dataLayout,
                                 ::mlir::DataLayoutEntryListRef params) const {
   // FIXME: consider alignment differences under different ABIs
-  assert(!MissingFeatures::cxxABI());
+  assert(!MissingFeatures::dataLayout());
   return 8;
 }
 
@@ -416,7 +416,7 @@ uint64_t DataMemberType::getPreferredAlignment(
     const ::mlir::DataLayout &dataLayout,
     ::mlir::DataLayoutEntryListRef params) const {
   // FIXME: consider alignment differences under different ABIs
-  assert(!MissingFeatures::cxxABI());
+  assert(!MissingFeatures::dataLayout());
   return 8;
 }
 
@@ -931,6 +931,34 @@ llvm::ArrayRef<mlir::Type> FuncType::getReturnTypes() const {
 }
 
 bool FuncType::isVoid() const { return mlir::isa<VoidType>(getReturnType()); }
+
+//===----------------------------------------------------------------------===//
+// MethodType Definitions
+//===----------------------------------------------------------------------===//
+
+llvm::TypeSize
+MethodType::getTypeSizeInBits(const mlir::DataLayout &dataLayout,
+                              mlir::DataLayoutEntryListRef params) const {
+  // TODO: consider size differences under different ABIs
+  assert(!MissingFeatures::dataLayout());
+  return llvm::TypeSize::getFixed(128);
+}
+
+uint64_t
+MethodType::getABIAlignment(const mlir::DataLayout &dataLayout,
+                            mlir::DataLayoutEntryListRef params) const {
+  // TODO: consider size differences under different ABIs
+  assert(!MissingFeatures::dataLayout());
+  return 8;
+}
+
+uint64_t
+MethodType::getPreferredAlignment(const ::mlir::DataLayout &dataLayout,
+                                  mlir::DataLayoutEntryListRef params) const {
+  // TODO: consider size differences under different ABIs
+  assert(!MissingFeatures::dataLayout());
+  return 8;
+}
 
 //===----------------------------------------------------------------------===//
 // PointerType Definitions
