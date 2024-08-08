@@ -160,11 +160,9 @@ def OpenCLVersionAttr : CIR_Attr<"OpenCLVersion", "cl.version"> {
     Example:
     ```
     // Module compiled from OpenCL 1.2.
-    #cl_version_attr = #cir.cl.version<1, 2>
-    module attributes {cir.cl.version = #cl_version_attr} {}
+    module attributes {cir.cl.version = cir.cl.version<1, 2>} {}
     // Module compiled from OpenCL 3.0.
-    #cl_version_attr = #cir.cl.version<3, 0>
-    module attributes {cir.cl.version = #cl_version_attr} {}
+    module attributes {cir.cl.version = cir.cl.version<3, 0>} {}
     ```
   }];
   let assemblyFormat = "`<` $major `,` $minor `>`";
