@@ -616,6 +616,8 @@ public:
   static void setInitializer(mlir::cir::GlobalOp &op, mlir::Attribute value);
   static mlir::SymbolTable::Visibility
   getMLIRVisibilityFromCIRLinkage(mlir::cir::GlobalLinkageKind GLK);
+  static mlir::cir::VisibilityKind getCIRVisibilityKindFromClangVisibility(
+      clang::VisibilityAttr::VisibilityType visibility);
   static mlir::SymbolTable::Visibility
   getMLIRVisibility(mlir::cir::GlobalOp op);
   mlir::cir::GlobalLinkageKind getFunctionLinkage(GlobalDecl GD);
