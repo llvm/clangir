@@ -105,25 +105,25 @@ void Lifetime::setupAndRunClangIRLifetimeChecker(ASTContext &astCtx) {
 
     clang::SourceLocation getClangSrcLoc(mlir::Location loc) {
       // Direct maps into a clang::SourceLocation.
-      if (auto fileLoc = mlir::dyn_cast<mlir::FileLineColLoc>(loc)) {
+      if (auto fileLoc = dyn_cast<mlir::FileLineColLoc>(loc)) {
         return getClangFromFileLineCol(fileLoc);
       }
 
       // FusedLoc needs to be decomposed but the canonical one
       // is the first location, we handle source ranges somewhere
       // else.
-      if (auto fileLoc = mlir::dyn_cast<mlir::FusedLoc>(loc)) {
+      if (auto fileLoc = dyn_cast<mlir::FusedLoc>(loc)) {
         auto locArray = fileLoc.getLocations();
         assert(locArray.size() > 0 && "expected multiple locs");
         return getClangFromFileLineCol(
-            mlir::dyn_cast<mlir::FileLineColLoc>(locArray[0]));
+            dyn_cast<mlir::FileLineColLoc>(locArray[0]));
       }
 
       // Many loc styles are yet to be handled.
-      if (auto fileLoc = mlir::dyn_cast<mlir::UnknownLoc>(loc)) {
+      if (auto fileLoc = dyn_cast<mlir::UnknownLoc>(loc)) {
         llvm_unreachable("mlir::UnknownLoc not implemented!");
       }
-      if (auto fileLoc = mlir::dyn_cast<mlir::CallSiteLoc>(loc)) {
+      if (auto fileLoc = dyn_cast<mlir::CallSiteLoc>(loc)) {
         llvm_unreachable("mlir::CallSiteLoc not implemented!");
       }
       llvm_unreachable("Unknown location style");
@@ -178,7 +178,7 @@ void Lifetime::setupAndRunClangIRLifetimeChecker(ASTContext &astCtx) {
   mlir::PassManager pm(mlirCtx.get());
 
   // Add pre-requisite passes to the pipeline
-  pm.addPass(mlir::createMergeCleanupsPass());
+  pm.addPass(mlir::createCIRSimplifyPass());
 
   // Insert the lifetime checker.
   pm.addPass(mlir::createLifetimeCheckPass(
