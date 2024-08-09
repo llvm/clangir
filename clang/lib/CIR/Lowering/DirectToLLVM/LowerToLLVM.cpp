@@ -1879,7 +1879,7 @@ public:
 
   // Get addrspace by converting a pointer type.
   // TODO: Use a more direct way to get the addrspace.
-  inline unsigned getGlobalOpTargetAddrSpace(mlir::cir::GlobalOp op) const {
+  unsigned getGlobalOpTargetAddrSpace(mlir::cir::GlobalOp op) const {
     auto tempPtrTy = mlir::cir::PointerType::get(getContext(), op.getSymType(),
                                                  op.getAddrSpaceAttr());
     return cast<mlir::LLVM::LLVMPointerType>(
