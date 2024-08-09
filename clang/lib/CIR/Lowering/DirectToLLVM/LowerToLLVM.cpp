@@ -1878,7 +1878,9 @@ public:
   using OpConversionPattern<mlir::cir::GlobalOp>::OpConversionPattern;
 
   // Get addrspace by converting a pointer type.
-  // TODO: Use a more direct way to get the addrspace.
+  // TODO: The approach here is a little hacky. We should access the target info
+  // directly to convert the address space of global op, similar to what we do
+  // for type converter.
   unsigned getGlobalOpTargetAddrSpace(mlir::cir::GlobalOp op) const {
     auto tempPtrTy = mlir::cir::PointerType::get(getContext(), op.getSymType(),
                                                  op.getAddrSpaceAttr());
