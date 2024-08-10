@@ -30,7 +30,7 @@ CIRDataLayout::CIRDataLayout(mlir::ModuleOp modOp) : layout{modOp} {
   }
 }
 
-void CIRDataLayout::reset(llvm::StringRef Desc) { clear(); }
+void CIRDataLayout::reset() { clear(); }
 
 void CIRDataLayout::clear() {}
 
