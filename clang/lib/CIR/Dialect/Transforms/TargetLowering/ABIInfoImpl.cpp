@@ -45,5 +45,13 @@ Type useFirstFieldIfTransparentUnion(Type Ty) {
   return Ty;
 }
 
+CIRCXXABI::RecordArgABI getRecordArgABI(const StructType RT,
+                                        CIRCXXABI &CXXABI) {
+  if (::cir::MissingFeatures::typeIsCXXRecordDecl()) {
+    llvm_unreachable("NYI");
+  }
+  return CXXABI.getRecordArgABI(RT);
+}
+
 } // namespace cir
 } // namespace mlir

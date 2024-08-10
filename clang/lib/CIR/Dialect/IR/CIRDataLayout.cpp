@@ -1,4 +1,5 @@
 #include "clang/CIR/Dialect/IR/CIRDataLayout.h"
+#include "mlir/Dialect/DLTI/DLTI.h"
 #include "llvm/ADT/StringRef.h"
 
 namespace cir {

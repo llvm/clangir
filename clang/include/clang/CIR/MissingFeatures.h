@@ -206,6 +206,7 @@ struct MissingFeatures {
   //-- Missing AST queries
 
   static bool recordDeclCanPassInRegisters() { return false; }
+  static bool recordDeclIsCXXDecl() { return false; }
   static bool funcDeclIsCXXConstructorDecl() { return false; }
   static bool funcDeclIsCXXDestructorDecl() { return false; }
   static bool funcDeclIsCXXMethodDecl() { return false; }
@@ -214,6 +215,7 @@ struct MissingFeatures {
   static bool qualTypeIsReferenceType() { return false; }
   static bool typeGetAsEnumType() { return false; }
   static bool typeGetAsBuiltinType() { return false; }
+  static bool typeIsCXXRecordDecl() { return false; }
   static bool varDeclIsKNRPromoted() { return false; }
 
   //-- Missing types
