@@ -14,6 +14,8 @@
 
 #include "mlir/IR/BuiltinOps.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
+#include "llvm/Support/Alignment.h"
+#include "llvm/Support/TypeSize.h"
 
 namespace cir {
 
@@ -35,21 +37,22 @@ public:
   bool isBigEndian() const { return bigEndian; }
 
   // `useABI` is `true` if not using prefered alignment.
-  unsigned getAlignment(mlir::Type ty, bool useABI) const {
+  llvm::Align getAlignment(mlir::Type ty, bool useABI) const {
     if (llvm::isa<mlir::cir::StructType>(ty)) {
       auto sTy = mlir::cast<mlir::cir::StructType>(ty);
       if (sTy.getPacked() && useABI)
-        return 1;
+        return llvm::Align(1);
     } else if (llvm::isa<mlir::cir::ArrayType>(ty)) {
       return getAlignment(mlir::cast<mlir::cir::ArrayType>(ty).getEltType(),
                           useABI);
     }
 
-    return useABI ? layout.getTypeABIAlignment(ty)
-                  : layout.getTypePreferredAlignment(ty);
+    uint align = useABI ? layout.getTypeABIAlignment(ty)
+                        : layout.getTypePreferredAlignment(ty);
+    return llvm::Align(align);
   }
 
-  unsigned getABITypeAlign(mlir::Type ty) const {
+  llvm::Align getABITypeAlign(mlir::Type ty) const {
     return getAlignment(ty, true);
   }
 
@@ -60,10 +63,10 @@ public:
   /// the runtime size will be a positive integer multiple of the base size.
   ///
   /// For example, returns 5 for i36 and 10 for x86_fp80.
-  unsigned getTypeStoreSize(mlir::Type Ty) const {
+  llvm::TypeSize getTypeStoreSize(mlir::Type Ty) const {
     // FIXME: this is a bit inaccurate, see DataLayout::getTypeStoreSize for
     // more information.
-    return llvm::divideCeil(layout.getTypeSizeInBits(Ty), 8);
+    return {llvm::divideCeil(layout.getTypeSizeInBits(Ty), 8), false};
   }
 
   /// Returns the offset in bytes between successive objects of the
@@ -74,18 +77,18 @@ public:
   ///
   /// This is the amount that alloca reserves for this type. For example,
   /// returns 12 or 16 for x86_fp80, depending on alignment.
-  unsigned getTypeAllocSize(mlir::Type Ty) const {
+  llvm::TypeSize getTypeAllocSize(mlir::Type Ty) const {
     // Round up to the next alignment boundary.
-    return llvm::alignTo(getTypeStoreSize(Ty), getABITypeAlign(Ty));
+    return llvm::alignTo(getTypeStoreSize(Ty), getABITypeAlign(Ty).value());
   }
 
-  unsigned getPointerTypeSizeInBits(mlir::Type Ty) const {
+  llvm::TypeSize getPointerTypeSizeInBits(mlir::Type Ty) const {
     assert(mlir::isa<mlir::cir::PointerType>(Ty) &&
            "This should only be called with a pointer type");
     return layout.getTypeSizeInBits(Ty);
   }
 
-  unsigned getTypeSizeInBits(mlir::Type Ty) const {
+  llvm::TypeSize getTypeSizeInBits(mlir::Type Ty) const {
     return layout.getTypeSizeInBits(Ty);
   }
 
