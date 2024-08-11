@@ -508,28 +508,12 @@ public:
                                          mlir::cir::IntAttr::get(uInt64Ty, C));
   }
 
-  mlir::cir::ConstantOp getConstInt(mlir::Location loc, llvm::APSInt intVal) {
-    bool isSigned = intVal.isSigned();
-    auto width = intVal.getBitWidth();
-    mlir::cir::IntType t = isSigned ? getSIntNTy(width) : getUIntNTy(width);
-    return getConstInt(
-        loc, t, isSigned ? intVal.getSExtValue() : intVal.getZExtValue());
-  }
+  mlir::cir::ConstantOp getConstInt(mlir::Location loc, llvm::APSInt intVal);
 
-  mlir::cir::ConstantOp getConstInt(mlir::Location loc, llvm::APInt intVal) {
-    auto width = intVal.getBitWidth();
-    mlir::cir::IntType t = getUIntNTy(width);
-    return getConstInt(loc, t, intVal.getZExtValue());
-  }
+  mlir::cir::ConstantOp getConstInt(mlir::Location loc, llvm::APInt intVal);
 
   mlir::cir::ConstantOp getConstInt(mlir::Location loc, mlir::Type t,
-                                    uint64_t C) {
-    auto intTy = mlir::dyn_cast<mlir::cir::IntType>(t);
-    assert(intTy && "expected mlir::cir::IntType");
-    return create<mlir::cir::ConstantOp>(loc, intTy,
-                                         mlir::cir::IntAttr::get(t, C));
-  }
-
+                                    uint64_t C);
   /// Create constant nullptr for pointer-to-data-member type ty.
   mlir::cir::ConstantOp getNullDataMemberPtr(mlir::cir::DataMemberType ty,
                                              mlir::Location loc) {
