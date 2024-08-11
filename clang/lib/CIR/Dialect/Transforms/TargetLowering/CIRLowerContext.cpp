@@ -136,6 +136,11 @@ clang::CharUnits CIRLowerContext::toCharUnitsFromBits(int64_t BitSize) const {
   return clang::CharUnits::fromQuantity(BitSize / getCharWidth());
 }
 
+/// Convert a size in characters to a size in characters.
+int64_t CIRLowerContext::toBits(clang::CharUnits CharSize) const {
+  return CharSize.getQuantity() * getCharWidth();
+}
+
 clang::TypeInfoChars CIRLowerContext::getTypeInfoInChars(Type T) const {
   if (auto arrTy = dyn_cast<ArrayType>(T))
     llvm_unreachable("NYI");

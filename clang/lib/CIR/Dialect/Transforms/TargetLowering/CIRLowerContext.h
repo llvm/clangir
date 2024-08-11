@@ -14,6 +14,7 @@
 #ifndef LLVM_CLANG_LIB_CIR_DIALECT_TRANSFORMS_TARGETLOWERING_CIRLowerContext_H
 #define LLVM_CLANG_LIB_CIR_DIALECT_TRANSFORMS_TARGETLOWERING_CIRLowerContext_H
 
+#include "CIRRecordLayout.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/Types.h"
 #include "mlir/Interfaces/DataLayoutInterfaces.h"
@@ -69,6 +70,10 @@ private:
   Type initBuiltinType(clang::BuiltinType::Kind K);
 
 public:
+  const clang::TargetInfo &getTargetInfo() const { return *Target; }
+
+  const clang::LangOptions &getLangOpts() const { return LangOpts; }
+
   MLIRContext *getMLIRContext() const { return MLIRCtx; }
 
   //===--------------------------------------------------------------------===//
@@ -88,6 +93,9 @@ public:
 
   /// Convert a size in bits to a size in characters.
   clang::CharUnits toCharUnitsFromBits(int64_t BitSize) const;
+
+  /// Convert a size in characters to a size in bits.
+  int64_t toBits(clang::CharUnits CharSize) const;
 
   clang::CharUnits getTypeSizeInChars(Type T) const {
     // FIXME(cir): We should query MLIR's Datalayout here instead.
