@@ -42,7 +42,7 @@ private:
 
   /// The language options used to create the AST associated with
   /// this ASTContext object.
-  clang::LangOptions &LangOpts;
+  clang::LangOptions LangOpts;
 
   //===--------------------------------------------------------------------===//
   //                         Built-in Types
@@ -51,7 +51,7 @@ private:
   Type CharTy;
 
 public:
-  CIRLowerContext(ModuleOp module, clang::LangOptions &LOpts);
+  CIRLowerContext(ModuleOp module, clang::LangOptions LOpts);
   CIRLowerContext(const CIRLowerContext &) = delete;
   CIRLowerContext &operator=(const CIRLowerContext &) = delete;
   ~CIRLowerContext();

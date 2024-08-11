@@ -23,7 +23,7 @@
 namespace mlir {
 namespace cir {
 
-CIRLowerContext::CIRLowerContext(ModuleOp module, clang::LangOptions &LOpts)
+CIRLowerContext::CIRLowerContext(ModuleOp module, clang::LangOptions LOpts)
     : MLIRCtx(module.getContext()), LangOpts(LOpts) {}
 
 CIRLowerContext::~CIRLowerContext() {}
