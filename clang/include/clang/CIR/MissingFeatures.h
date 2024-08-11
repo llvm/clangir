@@ -234,6 +234,7 @@ struct MissingFeatures {
   static bool typeGetAsBuiltinType() { return false; }
   static bool typeGetAsEnumType() { return false; }
   static bool typeIsCXXRecordDecl() { return false; }
+  static bool typeIsSized() { return false; }
   static bool varDeclIsKNRPromoted() { return false; }
 
   // We need to track parent (base) classes to determine the layout of a class.

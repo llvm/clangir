@@ -1,37 +1,52 @@
 #include "clang/CIR/Dialect/IR/CIRDataLayout.h"
-#include "mlir/Dialect/DLTI/DLTI.h"
-#include "llvm/ADT/StringRef.h"
+#include "clang/CIR/MissingFeatures.h"
 
-namespace cir {
+//===----------------------------------------------------------------------===//
+//                       DataLayout Class Implementation
+//===----------------------------------------------------------------------===//
 
-CIRDataLayout::CIRDataLayout(mlir::ModuleOp modOp) : layout{modOp} {
-  auto dlSpec = mlir::dyn_cast<mlir::DataLayoutSpecAttr>(
-      modOp->getAttr(mlir::DLTIDialect::kDataLayoutAttrName));
-  assert(dlSpec && "expected dl_spec in the module");
-  auto entries = dlSpec.getEntries();
+using namespace cir;
 
-  for (auto entry : entries) {
-    auto entryKey = entry.getKey();
-    auto strKey = mlir::dyn_cast<mlir::StringAttr>(entryKey);
-    if (!strKey)
-      continue;
-    auto entryName = strKey.strref();
-    if (entryName == mlir::DLTIDialect::kDataLayoutEndiannessKey) {
-      auto value = mlir::dyn_cast<mlir::StringAttr>(entry.getValue());
-      assert(value && "expected string attribute");
-      auto endian = value.getValue();
-      if (endian == mlir::DLTIDialect::kDataLayoutEndiannessBig)
-        bigEndian = true;
-      else if (endian == mlir::DLTIDialect::kDataLayoutEndiannessLittle)
-        bigEndian = false;
-      else
-        llvm_unreachable("unknown endianess");
-    }
-  }
+CIRDataLayout::CIRDataLayout(mlir::ModuleOp modOp) : layout{modOp} { reset(); }
+
+void CIRDataLayout::reset() {
+  clear();
+
+  // NOTE(cir): Alignment setter functions are skipped as these should already
+  // be set in MLIR's data layout.
 }
-
-void CIRDataLayout::reset() { clear(); }
 
 void CIRDataLayout::clear() {}
 
-} // namespace cir
+/*!
+  \param abi_or_pref Flag that determines which alignment is returned. true
+  returns the ABI alignment, false returns the preferred alignment.
+  \param Ty The underlying type for which alignment is determined.
+
+  Get the ABI (\a abi_or_pref == true) or preferred alignment (\a abi_or_pref
+  == false) for the requested type \a Ty.
+ */
+llvm::Align CIRDataLayout::getAlignment(mlir::Type Ty, bool abi_or_pref) const {
+
+  // FIXME(cir): This does not account for differnt address spaces, and relies
+  // on CIR's data layout to give the proper alignment.
+  assert(!::cir::MissingFeatures::addressSpace());
+
+  // Fetch type alignment from MLIR's data layout.
+  uint align = abi_or_pref ? layout.getTypeABIAlignment(Ty)
+                           : layout.getTypePreferredAlignment(Ty);
+  return llvm::Align(align);
+}
+
+// The implementation of this method is provided inline as it is particularly
+// well suited to constant folding when called on a specific Type subclass.
+llvm::TypeSize CIRDataLayout::getTypeSizeInBits(mlir::Type Ty) const {
+  assert(!::cir::MissingFeatures::typeIsSized() &&
+         "Cannot getTypeInfo() on a type that is unsized!");
+
+  // FIXME(cir): This does not account for different address spaces, and relies
+  // on CIR's data layout to give the proper ABI-specific type width.
+  assert(!::cir::MissingFeatures::addressSpace());
+
+  return llvm::TypeSize::getFixed(layout.getTypeSizeInBits(Ty));
+}

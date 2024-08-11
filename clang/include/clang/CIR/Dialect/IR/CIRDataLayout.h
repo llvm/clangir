@@ -19,6 +19,8 @@
 
 namespace cir {
 
+// FIXME(cir): This might be replaced by a CIRDataLayout interface which can
+// provide the same functionalities.
 class CIRDataLayout {
   bool bigEndian = false;
 
@@ -36,21 +38,9 @@ public:
 
   bool isBigEndian() const { return bigEndian; }
 
-  // `useABI` is `true` if not using prefered alignment.
-  llvm::Align getAlignment(mlir::Type ty, bool useABI) const {
-    if (llvm::isa<mlir::cir::StructType>(ty)) {
-      auto sTy = mlir::cast<mlir::cir::StructType>(ty);
-      if (sTy.getPacked() && useABI)
-        return llvm::Align(1);
-    } else if (llvm::isa<mlir::cir::ArrayType>(ty)) {
-      return getAlignment(mlir::cast<mlir::cir::ArrayType>(ty).getEltType(),
-                          useABI);
-    }
 
-    uint align = useABI ? layout.getTypeABIAlignment(ty)
-                        : layout.getTypePreferredAlignment(ty);
-    return llvm::Align(align);
-  }
+  /// Internal helper method that returns requested alignment for type.
+  llvm::Align getAlignment(mlir::Type Ty, bool abi_or_pref) const;
 
   llvm::Align getABITypeAlign(mlir::Type ty) const {
     return getAlignment(ty, true);
@@ -64,9 +54,9 @@ public:
   ///
   /// For example, returns 5 for i36 and 10 for x86_fp80.
   llvm::TypeSize getTypeStoreSize(mlir::Type Ty) const {
-    // FIXME: this is a bit inaccurate, see DataLayout::getTypeStoreSize for
-    // more information.
-    return {llvm::divideCeil(layout.getTypeSizeInBits(Ty), 8), false};
+    llvm::TypeSize BaseSize = getTypeSizeInBits(Ty);
+    return {llvm::divideCeil(BaseSize.getKnownMinValue(), 8),
+            BaseSize.isScalable()};
   }
 
   /// Returns the offset in bytes between successive objects of the
@@ -88,9 +78,9 @@ public:
     return layout.getTypeSizeInBits(Ty);
   }
 
-  llvm::TypeSize getTypeSizeInBits(mlir::Type Ty) const {
-    return layout.getTypeSizeInBits(Ty);
-  }
+  // The implementation of this method is provided inline as it is particularly
+  // well suited to constant folding when called on a specific Type subclass.
+  llvm::TypeSize getTypeSizeInBits(mlir::Type Ty) const;
 
   mlir::Type getIntPtrType(mlir::Type Ty) const {
     assert(mlir::isa<mlir::cir::PointerType>(Ty) && "Expected pointer type");
