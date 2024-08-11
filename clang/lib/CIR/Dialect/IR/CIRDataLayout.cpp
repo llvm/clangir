@@ -183,8 +183,8 @@ llvm::Align CIRDataLayout::getAlignment(mlir::Type Ty, bool abi_or_pref) const {
   assert(!::cir::MissingFeatures::addressSpace());
 
   // Fetch type alignment from MLIR's data layout.
-  uint align = abi_or_pref ? layout.getTypeABIAlignment(Ty)
-                           : layout.getTypePreferredAlignment(Ty);
+  unsigned align = abi_or_pref ? layout.getTypeABIAlignment(Ty)
+                               : layout.getTypePreferredAlignment(Ty);
   return llvm::Align(align);
 }
 
