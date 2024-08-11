@@ -226,6 +226,7 @@ struct MissingFeatures {
   static bool isCXXRecordDecl() { return false; }
   static bool qualTypeIsReferenceType() { return false; }
   static bool recordDeclCanPassInRegisters() { return false; }
+  static bool recordDeclHasAlignmentAttr() { return false; }
   static bool recordDeclHasFlexibleArrayMember() { return false; }
   static bool recordDeclIsCXXDecl() { return false; }
   static bool recordDeclIsMSStruct() { return false; }
@@ -265,6 +266,10 @@ struct MissingFeatures {
   // wanna add later.
   static bool bitFieldPaddingDiagnostics() { return false; }
 
+  // Clang considers both enums and records as tag types. We don't have a way to
+  // transparently handle both these types yet. Might need an interface here.
+  static bool tagTypeClassAbstraction() { return false; }
+
   // Empty values might be passed as arguments to serve as padding, ensuring
   // alignment and compliance (e.g. MIPS). We do not yet support this.
   static bool argumentPadding() { return false; }
@@ -301,7 +306,7 @@ struct MissingFeatures {
   // evaluating ABI-specific lowering.
   static bool qualifiedTypes() { return false; }
 
-  // We're ignoring several details regarding ABI-halding for Swift.
+  // We're ignoring several details regarding ABI-handling for Swift.
   static bool swift() { return false; }
 
   // The AppleARM64 is using ItaniumCXXABI, which is not quite right.

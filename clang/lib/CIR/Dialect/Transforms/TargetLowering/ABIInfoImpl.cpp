@@ -26,7 +26,7 @@ bool classifyReturnType(const CIRCXXABI &CXXABI, LowerFunctionInfo &FI,
   Type Ty = FI.getReturnType();
 
   if (const auto RT = dyn_cast<StructType>(Ty)) {
-    llvm_unreachable("NYI");
+    assert(!::cir::MissingFeatures::isCXXRecordDecl());
   }
 
   return CXXABI.classifyReturnType(FI);

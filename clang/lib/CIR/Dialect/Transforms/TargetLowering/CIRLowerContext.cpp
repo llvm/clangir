@@ -52,6 +52,8 @@ clang::TypeInfo CIRLowerContext::getTypeInfoImpl(const Type T) const {
   auto typeKind = clang::Type::Builtin;
   if (isa<IntType, SingleType, DoubleType, BoolType>(T)) {
     typeKind = clang::Type::Builtin;
+  } else if (isa<StructType>(T)) {
+    typeKind = clang::Type::Record;
   } else {
     llvm_unreachable("Unhandled type class");
   }
@@ -90,6 +92,26 @@ clang::TypeInfo CIRLowerContext::getTypeInfoImpl(const Type T) const {
       break;
     }
     llvm_unreachable("Unknown builtin type!");
+    break;
+  }
+  case clang::Type::Record: {
+    const auto RT = dyn_cast<StructType>(T);
+    assert(!::cir::MissingFeatures::tagTypeClassAbstraction());
+
+    // Only handle TagTypes (names types) for now.
+    assert(RT.getName() && "Anonymous record is NYI");
+
+    // NOTE(cir): Clang does some hanlding of invalid tagged declarations here.
+    // Not sure if this is necessary in CIR.
+
+    if (::cir::MissingFeatures::typeGetAsEnumType()) {
+      llvm_unreachable("NYI");
+    }
+
+    const CIRRecordLayout &Layout = getCIRRecordLayout(RT);
+    Width = toBits(Layout.getSize());
+    Align = toBits(Layout.getAlignment());
+    assert(!::cir::MissingFeatures::recordDeclHasAlignmentAttr());
     break;
   }
   default:
