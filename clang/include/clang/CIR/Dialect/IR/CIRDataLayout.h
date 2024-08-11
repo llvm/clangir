@@ -14,15 +14,25 @@
 
 #include "mlir/IR/BuiltinOps.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
+#include "llvm/IR/DataLayout.h"
 #include "llvm/Support/Alignment.h"
 #include "llvm/Support/TypeSize.h"
 
 namespace cir {
 
+class StructLayout;
+
 // FIXME(cir): This might be replaced by a CIRDataLayout interface which can
 // provide the same functionalities.
 class CIRDataLayout {
   bool bigEndian = false;
+
+  /// Primitive type alignment data. This is sorted by type and bit
+  /// width during construction.
+  llvm::LayoutAlignElem StructAlignment;
+
+  // The StructType -> StructLayout map.
+  mutable void *LayoutMap = nullptr;
 
 public:
   mlir::DataLayout layout;
@@ -38,6 +48,11 @@ public:
 
   bool isBigEndian() const { return bigEndian; }
 
+  /// Returns a StructLayout object, indicating the alignment of the
+  /// struct, its size, and the offsets of its fields.
+  ///
+  /// Note that this information is lazily cached.
+  const StructLayout *getStructLayout(mlir::cir::StructType Ty) const;
 
   /// Internal helper method that returns requested alignment for type.
   llvm::Align getAlignment(mlir::Type Ty, bool abi_or_pref) const;
@@ -87,6 +102,58 @@ public:
     auto IntTy = mlir::cir::IntType::get(Ty.getContext(),
                                          getPointerTypeSizeInBits(Ty), false);
     return IntTy;
+  }
+};
+
+/// Used to lazily calculate structure layout information for a target machine,
+/// based on the DataLayout structure.
+class StructLayout final
+    : public llvm::TrailingObjects<StructLayout, llvm::TypeSize> {
+  llvm::TypeSize StructSize;
+  llvm::Align StructAlignment;
+  unsigned IsPadded : 1;
+  unsigned NumElements : 31;
+
+public:
+  llvm::TypeSize getSizeInBytes() const { return StructSize; }
+
+  llvm::TypeSize getSizeInBits() const { return 8 * StructSize; }
+
+  llvm::Align getAlignment() const { return StructAlignment; }
+
+  /// Returns whether the struct has padding or not between its fields.
+  /// NB: Padding in nested element is not taken into account.
+  bool hasPadding() const { return IsPadded; }
+
+  /// Given a valid byte offset into the structure, returns the structure
+  /// index that contains it.
+  unsigned getElementContainingOffset(uint64_t FixedOffset) const;
+
+  llvm::MutableArrayRef<llvm::TypeSize> getMemberOffsets() {
+    return llvm::MutableArrayRef(getTrailingObjects<llvm::TypeSize>(),
+                                 NumElements);
+  }
+
+  llvm::ArrayRef<llvm::TypeSize> getMemberOffsets() const {
+    return llvm::ArrayRef(getTrailingObjects<llvm::TypeSize>(), NumElements);
+  }
+
+  llvm::TypeSize getElementOffset(unsigned Idx) const {
+    assert(Idx < NumElements && "Invalid element idx!");
+    return getMemberOffsets()[Idx];
+  }
+
+  llvm::TypeSize getElementOffsetInBits(unsigned Idx) const {
+    return getElementOffset(Idx) * 8;
+  }
+
+private:
+  friend class CIRDataLayout; // Only DataLayout can create this class
+
+  StructLayout(mlir::cir::StructType ST, const CIRDataLayout &DL);
+
+  size_t numTrailingObjects(OverloadToken<llvm::TypeSize>) const {
+    return NumElements;
   }
 };
 

@@ -234,6 +234,7 @@ struct MissingFeatures {
   static bool typeGetAsBuiltinType() { return false; }
   static bool typeGetAsEnumType() { return false; }
   static bool typeIsCXXRecordDecl() { return false; }
+  static bool typeIsScalableType() { return false; }
   static bool typeIsSized() { return false; }
   static bool varDeclIsKNRPromoted() { return false; }
 
