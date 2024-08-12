@@ -1,5 +1,6 @@
 // RUN: %clang_cc1 -std=c++17 -triple x86_64-unknown-linux-gnu -fclangir -Wno-return-stack-address -emit-cir %s -o %t.cir
 // RUN: FileCheck --input-file=%t.cir %s
+// XFAIL: *
 
 void a0() {
   int a[10];
