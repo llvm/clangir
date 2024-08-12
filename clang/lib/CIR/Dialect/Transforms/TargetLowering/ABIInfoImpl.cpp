@@ -25,8 +25,8 @@ bool classifyReturnType(const CIRCXXABI &CXXABI, LowerFunctionInfo &FI,
                         const ABIInfo &Info) {
   Type Ty = FI.getReturnType();
 
-  if (const auto RT = mlir::dyn_cast<StructType>(Ty)) {
-    llvm_unreachable("NYI");
+  if (const auto RT = dyn_cast<StructType>(Ty)) {
+    assert(!::cir::MissingFeatures::isCXXRecordDecl());
   }
 
   return CXXABI.classifyReturnType(FI);
@@ -43,6 +43,14 @@ Type useFirstFieldIfTransparentUnion(Type Ty) {
       llvm_unreachable("NYI");
   }
   return Ty;
+}
+
+CIRCXXABI::RecordArgABI getRecordArgABI(const StructType RT,
+                                        CIRCXXABI &CXXABI) {
+  if (::cir::MissingFeatures::typeIsCXXRecordDecl()) {
+    llvm_unreachable("NYI");
+  }
+  return CXXABI.getRecordArgABI(RT);
 }
 
 } // namespace cir
