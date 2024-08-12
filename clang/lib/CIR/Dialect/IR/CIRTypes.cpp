@@ -32,6 +32,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/TypeSwitch.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/MathExtras.h"
 #include <optional>
 
 using cir::MissingFeatures;
@@ -420,7 +421,7 @@ llvm::TypeSize mlir::cir::VectorType::getTypeSizeInBits(
 uint64_t mlir::cir::VectorType::getABIAlignment(
     const ::mlir::DataLayout &dataLayout,
     ::mlir::DataLayoutEntryListRef params) const {
-  return getSize() * dataLayout.getTypeABIAlignment(getEltType());
+  return llvm::NextPowerOf2(dataLayout.getTypeSizeInBits(*this));
 }
 
 llvm::TypeSize
