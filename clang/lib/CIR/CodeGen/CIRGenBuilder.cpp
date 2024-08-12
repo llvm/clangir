@@ -39,4 +39,28 @@ mlir::Value CIRGenBuilderTy::buildArrayAccessOp(
   mlir::Type flatPtrTy = basePtr.getType();
   return create<mlir::cir::PtrStrideOp>(arrayLocEnd, flatPtrTy, basePtr, idx);
 }
+
+mlir::cir::ConstantOp CIRGenBuilderTy::getConstInt(mlir::Location loc,
+                                                   llvm::APSInt intVal) {
+  bool isSigned = intVal.isSigned();
+  auto width = intVal.getBitWidth();
+  mlir::cir::IntType t = isSigned ? getSIntNTy(width) : getUIntNTy(width);
+  return getConstInt(loc, t,
+                     isSigned ? intVal.getSExtValue() : intVal.getZExtValue());
+}
+
+mlir::cir::ConstantOp CIRGenBuilderTy::getConstInt(mlir::Location loc,
+                                                   llvm::APInt intVal) {
+  auto width = intVal.getBitWidth();
+  mlir::cir::IntType t = getUIntNTy(width);
+  return getConstInt(loc, t, intVal.getZExtValue());
+}
+
+mlir::cir::ConstantOp CIRGenBuilderTy::getConstInt(mlir::Location loc,
+                                                   mlir::Type t, uint64_t C) {
+  auto intTy = mlir::dyn_cast<mlir::cir::IntType>(t);
+  assert(intTy && "expected mlir::cir::IntType");
+  return create<mlir::cir::ConstantOp>(loc, intTy,
+                                       mlir::cir::IntAttr::get(t, C));
+}
 }; // namespace cir
