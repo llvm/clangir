@@ -30,9 +30,11 @@ mlir::Value CIRGenBuilderTy::maybeBuildArrayDecay(mlir::Location loc,
   return arrayPtr;
 }
 
-mlir::Value CIRGenBuilderTy::buildArrayAccessOp(
-    mlir::Location arrayLocBegin, mlir::Location arrayLocEnd,
-    mlir::Value arrayPtr, mlir::Type eltTy, mlir::Value idx, bool shouldDecay) {
+mlir::Value CIRGenBuilderTy::getArrayElement(mlir::Location arrayLocBegin,
+                                             mlir::Location arrayLocEnd,
+                                             mlir::Value arrayPtr,
+                                             mlir::Type eltTy, mlir::Value idx,
+                                             bool shouldDecay) {
   mlir::Value basePtr = arrayPtr;
   if (shouldDecay)
     basePtr = maybeBuildArrayDecay(arrayLocBegin, arrayPtr, eltTy);

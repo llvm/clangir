@@ -350,8 +350,8 @@ public:
              "Expected std::initializer_list second field to be const E *");
 
       auto ArrayEnd =
-          Builder.buildArrayAccessOp(loc, loc, ArrayPtr.getPointer(),
-                                     ArrayPtr.getElementType(), Size, false);
+          Builder.getArrayElement(loc, loc, ArrayPtr.getPointer(),
+                                  ArrayPtr.getElementType(), Size, false);
       CGF.buildStoreThroughLValue(RValue::get(ArrayEnd), EndOrLength);
     }
     assert(++Field == Record->field_end() &&

@@ -1638,8 +1638,8 @@ buildArraySubscriptPtr(CIRGenFunction &CGF, mlir::Location beginLoc,
   // that would enhance tracking this later in CIR?
   if (inbounds)
     assert(!MissingFeatures::emitCheckedInBoundsGEP() && "NYI");
-  return CGM.getBuilder().buildArrayAccessOp(beginLoc, endLoc, ptr, eltTy, idx,
-                                             shouldDecay);
+  return CGM.getBuilder().getArrayElement(beginLoc, endLoc, ptr, eltTy, idx,
+                                          shouldDecay);
 }
 
 static QualType getFixedSizeElementType(const ASTContext &ctx,
@@ -1680,7 +1680,7 @@ static Address buildArraySubscriptPtr(
     // assert(indices.size() == 1 && "cannot handle multiple indices yet");
     // auto idx = indices.back();
     // auto &CGM = CGF.getCIRGenModule();
-    // eltPtr = CGM.getBuilder().buildArrayAccessOp(beginLoc, endLoc,
+    // eltPtr = CGM.getBuilder().getArrayElement(beginLoc, endLoc,
     //                             addr.getPointer(), addr.getElementType(),
     //                             idx);
     assert(0 && "NYI");
