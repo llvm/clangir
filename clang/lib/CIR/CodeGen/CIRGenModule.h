@@ -337,7 +337,7 @@ public:
   ///
   /// For languages without explicit address spaces, if D has default address
   /// space, target-specific global or constant address space may be returned.
-  LangAS GetGlobalVarAddressSpace(const VarDecl *D);
+  LangAS getGlobalVarAddressSpace(const VarDecl *D);
 
   /// Return the AST address space of constant literal, which is used to emit
   /// the constant literal as global variable in LLVM IR.

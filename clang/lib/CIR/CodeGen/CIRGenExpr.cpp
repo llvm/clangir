@@ -896,7 +896,7 @@ static LValue buildGlobalVarDeclLValue(CIRGenFunction &CGF, const Expr *E,
   auto V = CGF.CGM.getAddrOfGlobalVar(VD);
 
   auto RealVarTy = CGF.getTypes().convertTypeForMem(VD->getType());
-  auto realPtrTy = CGF.getBuilder().getPointerTo(
+  mlir::cir::PointerType realPtrTy = CGF.getBuilder().getPointerTo(
       RealVarTy, cast_if_present<mlir::cir::AddressSpaceAttr>(
                      cast<mlir::cir::PointerType>(V.getType()).getAddrSpace()));
   if (realPtrTy != V.getType())
@@ -2001,8 +2001,8 @@ LValue CIRGenFunction::buildCastLValue(const CastExpr *E) {
   case CK_AddressSpaceConversion: {
     LValue LV = buildLValue(E->getSubExpr());
     QualType DestTy = getContext().getPointerType(E->getType());
-    auto SrcAS = builder.getAddrSpaceAttr(
-        E->getSubExpr()->getType().getAddressSpace());
+    auto SrcAS =
+        builder.getAddrSpaceAttr(E->getSubExpr()->getType().getAddressSpace());
     auto DestAS = builder.getAddrSpaceAttr(E->getType().getAddressSpace());
     mlir::Value V = getTargetHooks().performAddrSpaceCast(
         *this, LV.getPointer(), SrcAS, DestAS, ConvertType(DestTy));

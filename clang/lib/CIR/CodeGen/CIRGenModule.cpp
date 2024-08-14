@@ -742,10 +742,10 @@ void CIRGenModule::replaceGlobal(mlir::cir::GlobalOp Old,
   // If the types does not match, update all references to Old to the new type.
   auto OldTy = Old.getSymType();
   auto NewTy = New.getSymType();
-  auto OldAS = Old.getAddrSpaceAttr();
-  auto NewAS = New.getAddrSpaceAttr();
+  mlir::cir::AddressSpaceAttr oldAS = Old.getAddrSpaceAttr();
+  mlir::cir::AddressSpaceAttr newAS = New.getAddrSpaceAttr();
   // TODO(cir): If the AS differs, we should also update all references.
-  if (OldAS != NewAS) {
+  if (oldAS != newAS) {
     llvm_unreachable("NYI");
   }
   if (OldTy != NewTy) {
@@ -882,7 +882,7 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef MangledName, mlir::Type Ty,
       return Entry;
   }
 
-  auto declCIRAS = builder.getAddrSpaceAttr(GetGlobalVarAddressSpace(D));
+  auto declCIRAS = builder.getAddrSpaceAttr(getGlobalVarAddressSpace(D));
   // TODO(cir): do we need to strip pointer casts for Entry?
 
   auto loc = getLoc(D->getSourceRange());
@@ -1418,7 +1418,7 @@ LangAS CIRGenModule::getLangTempAllocaAddressSpace() const {
   if (getLangOpts().OpenCL)
     return LangAS::opencl_private;
   if (getLangOpts().SYCLIsDevice || getLangOpts().CUDAIsDevice ||
-    (getLangOpts().OpenMP && getLangOpts().OpenMPIsTargetDevice))
+      (getLangOpts().OpenMP && getLangOpts().OpenMPIsTargetDevice))
     llvm_unreachable("NYI");
   return LangAS::Default;
 }
@@ -3110,7 +3110,7 @@ mlir::cir::SourceLanguage CIRGenModule::getCIRSourceLanguage() {
   llvm_unreachable("CIR does not yet support the given source language");
 }
 
-LangAS CIRGenModule::GetGlobalVarAddressSpace(const VarDecl *D) {
+LangAS CIRGenModule::getGlobalVarAddressSpace(const VarDecl *D) {
   if (langOpts.OpenCL) {
     LangAS AS = D ? D->getType().getAddressSpace() : LangAS::opencl_global;
     assert(AS == LangAS::opencl_global || AS == LangAS::opencl_global_device ||
