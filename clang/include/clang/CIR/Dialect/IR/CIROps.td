@@ -2154,6 +2154,8 @@ def GlobalOp : CIR_Op<"global",
     Symbol visibility in `sym_visibility` is defined in terms of MLIR's visibility
     and verified to be in accordance to `linkage`.
 
+    `visibility_attr` is defined in terms of CIR's visibility.
+
     Example:
 
     ```mlir
@@ -2166,6 +2168,7 @@ def GlobalOp : CIR_Op<"global",
   // TODO: sym_visibility can possibly be represented by implementing the
   // necessary Symbol's interface in terms of linkage instead.
   let arguments = (ins SymbolNameAttr:$sym_name,
+                       VisibilityAttr:$global_visibility,
                        OptionalAttr<StrAttr>:$sym_visibility,
                        TypeAttr:$sym_type,
                        Arg<GlobalLinkageKind, "linkage type">:$linkage,
@@ -2178,11 +2181,11 @@ def GlobalOp : CIR_Op<"global",
                        UnitAttr:$dsolocal,
                        OptionalAttr<I64Attr>:$alignment,
                        OptionalAttr<ASTVarDeclInterface>:$ast,
-                       OptionalAttr<StrAttr>:$section
-                       );
+                       OptionalAttr<StrAttr>:$section);
   let regions = (region AnyRegion:$ctorRegion, AnyRegion:$dtorRegion);
   let assemblyFormat = [{
        ($sym_visibility^)?
+       custom<OmitDefaultVisibility>($global_visibility)
        (`constant` $constant^)?
        $linkage
        (`comdat` $comdat^)?
@@ -2220,7 +2223,8 @@ def GlobalOp : CIR_Op<"global",
       CArg<"function_ref<void(OpBuilder &, Location)>",
            "nullptr">:$ctorBuilder,
       CArg<"function_ref<void(OpBuilder &, Location)>",
-           "nullptr">:$dtorBuilder)>
+           "nullptr">:$dtorBuilder)
+    >
   ];
 
   let hasVerifier = 1;
@@ -2945,6 +2949,7 @@ def FuncOp : CIR_Op<"func", [
   }];
 
   let arguments = (ins SymbolNameAttr:$sym_name,
+                       VisibilityAttr:$global_visibility,
                        TypeAttrOf<CIR_FuncType>:$function_type,
                        UnitAttr:$builtin,
                        UnitAttr:$coroutine,
