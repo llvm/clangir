@@ -332,7 +332,7 @@ struct MissingFeatures {
   static bool makeTripleAlwaysPresent() { return false; }
 
   // This Itanium bit is currently being skipped in cir.
-  static bool ItaniumRecordLayoutBuilderFinishLayout() { return false; }
+  static bool itaniumRecordLayoutBuilderFinishLayout() { return false; }
 };
 
 } // namespace cir

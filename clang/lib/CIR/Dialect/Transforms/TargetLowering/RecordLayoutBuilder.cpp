@@ -242,7 +242,7 @@ void ItaniumRecordLayoutBuilder::layout(const StructType RT) {
   // FIXME(cir): Handle virtual-related layouts.
   assert(!::cir::MissingFeatures::getCXXRecordBases());
 
-  assert(!::cir::MissingFeatures::ItaniumRecordLayoutBuilderFinishLayout());
+  assert(!::cir::MissingFeatures::itaniumRecordLayoutBuilderFinishLayout());
 }
 
 void ItaniumRecordLayoutBuilder::initializeLayout(const mlir::Type Ty) {
