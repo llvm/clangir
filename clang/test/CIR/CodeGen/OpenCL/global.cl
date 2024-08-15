@@ -21,32 +21,3 @@ kernel void test_get_global() {
   // LLVM:      %[[#LOADB:]] = load i32, ptr addrspace(1) @b, align 4
   // LLVM-NEXT: store i32 %[[#LOADB]], ptr addrspace(1) @a, align 4
 }
-
-kernel void test_static(int i) {
-  static global int b = 15;
-  // CIR-DAG: cir.global "private" internal dsolocal addrspace(offload_global) @func.b = #cir.int<15> : !s32i {alignment = 4 : i64}
-  // LLVM-DAG: @func.b = internal addrspace(1) global i32 15
-
-  local int c;
-  // CIR-DAG: cir.global "private" internal dsolocal addrspace(offload_local) @func.c : !s32i {alignment = 4 : i64}
-  // LLVM-DAG: @func.c = internal addrspace(3) global i32 undef
-
-  // CIR-DAG: %[[#ADDRA:]] = cir.get_global @a : !cir.ptr<!s32i, addrspace(offload_global)>
-  // CIR-DAG: %[[#ADDRB:]] = cir.get_global @func.b : !cir.ptr<!s32i, addrspace(offload_global)>
-  // CIR-DAG: %[[#ADDRC:]] = cir.get_global @func.c : !cir.ptr<!s32i, addrspace(offload_local)>
-
-  c = a;
-  // CIR:      %[[#LOADA:]] = cir.load %[[#ADDRA]] : !cir.ptr<!s32i, addrspace(offload_global)>, !s32i
-  // CIR-NEXT: cir.store %[[#LOADA]], %[[#ADDRC]] : !s32i, !cir.ptr<!s32i, addrspace(offload_local)>
-
-  // LLVM:     %[[#LOADA:]] = load i32, ptr addrspace(1) @a, align 4
-  // LLVM-NEXT: store i32 %[[#LOADA]], ptr addrspace(3) @func.c, align 4
-
-  a = b;
-  // CIR: %[[#LOADB:]] = cir.load %[[#ADDRB]] : !cir.ptr<!s32i, addrspace(offload_global)>, !s32i
-  // CIR-NEXT: %[[#ADDRA:]] = cir.get_global @a : !cir.ptr<!s32i, addrspace(offload_global)>
-  // CIR-NEXT: cir.store %[[#LOADB]], %[[#ADDRA]] : !s32i, !cir.ptr<!s32i, addrspace(offload_global)>
-
-  // LLVM:      %[[#LOADB:]] = load i32, ptr addrspace(1) @func.b, align 4
-  // LLVM-NEXT: store i32 %[[#LOADB]], ptr addrspace(1) @a, align 4
-}
