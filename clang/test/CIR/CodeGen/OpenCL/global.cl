@@ -21,3 +21,13 @@ kernel void test_get_global() {
   // LLVM:      %[[#LOADB:]] = load i32, ptr addrspace(1) @b, align 4
   // LLVM-NEXT: store i32 %[[#LOADB]], ptr addrspace(1) @a, align 4
 }
+
+kernel void test_static(int i) {
+  static global int b = 15;
+  // CIR-DAG: cir.global "private" internal dsolocal addrspace(offload_global) @func.b = #cir.int<15> : !s32i {alignment = 4 : i64}
+  a = b;
+  // CIR: %[[#ADDRB:]] = cir.get_global @func.b : !cir.ptr<!s32i, addrspace(offload_global)>
+  // CIR-NEXT: %[[#LOADB:]] = cir.load %[[#ADDRB]] : !cir.ptr<!s32i, addrspace(offload_global)>, !s32i
+  // CIR-NEXT: %[[#ADDRA:]] = cir.get_global @a : !cir.ptr<!s32i, addrspace(offload_global)>
+  // CIR-NEXT: cir.store %[[#LOADB]], %[[#ADDRA]] : !s32i, !cir.ptr<!s32i, addrspace(offload_global)>
+}

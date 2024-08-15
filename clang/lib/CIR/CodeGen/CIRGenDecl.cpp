@@ -465,7 +465,8 @@ CIRGenModule::getOrCreateStaticVarDecl(const VarDecl &D,
     Name = getStaticDeclName(*this, D);
 
   mlir::Type LTy = getTypes().convertTypeForMem(Ty);
-  assert(!MissingFeatures::addressSpace());
+  mlir::cir::AddressSpaceAttr AS =
+      builder.getAddrSpaceAttr(getGlobalVarAddressSpace(&D));
 
   // OpenCL variables in local address space and CUDA shared
   // variables cannot have an initializer.
@@ -477,7 +478,7 @@ CIRGenModule::getOrCreateStaticVarDecl(const VarDecl &D,
     Init = builder.getZeroInitAttr(getTypes().ConvertType(Ty));
 
   mlir::cir::GlobalOp GV = builder.createVersionedGlobal(
-      getModule(), getLoc(D.getLocation()), Name, LTy, false, Linkage);
+      getModule(), getLoc(D.getLocation()), Name, LTy, false, Linkage, AS);
   // TODO(cir): infer visibility from linkage in global op builder.
   GV.setVisibility(getMLIRVisibilityFromCIRLinkage(Linkage));
   GV.setInitialValueAttr(Init);
@@ -492,7 +493,8 @@ CIRGenModule::getOrCreateStaticVarDecl(const VarDecl &D,
   setGVProperties(GV, &D);
 
   // Make sure the result is of the correct type.
-  assert(!MissingFeatures::addressSpace());
+  if (AS != builder.getAddrSpaceAttr(Ty.getAddressSpace()))
+    llvm_unreachable("address space cast NYI");
 
   // Ensure that the static local gets initialized by making sure the parent
   // function gets emitted eventually.
