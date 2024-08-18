@@ -855,7 +855,7 @@ public:
 
     mlir::Type SubType;
 
-    auto getOffsetAndIndex =
+    auto getIndexAndNewOffset =
         [](int64_t Offset, int64_t EltSize) -> std::pair<int64_t, int64_t> {
       int64_t DivRet = Offset / EltSize;
       if (DivRet < 0)
@@ -867,13 +867,13 @@ public:
     if (auto ArrayTy = mlir::dyn_cast<mlir::cir::ArrayType>(Ty)) {
       int64_t EltSize = Layout.getTypeAllocSize(ArrayTy.getEltType());
       SubType = ArrayTy.getEltType();
-      auto const [Index, NewOffset] = getOffsetAndIndex(Offset, EltSize);
+      auto const [Index, NewOffset] = getIndexAndNewOffset(Offset, EltSize);
       Indices.push_back(Index);
       Offset = NewOffset;
     } else if (auto PtrTy = mlir::dyn_cast<mlir::cir::PointerType>(Ty)) {
       int64_t EltSize = Layout.getTypeAllocSize(PtrTy.getPointee());
       SubType = PtrTy.getPointee();
-      auto const [Index, NewOffset] = getOffsetAndIndex(Offset, EltSize);
+      auto const [Index, NewOffset] = getIndexAndNewOffset(Offset, EltSize);
       Indices.push_back(Index);
       Offset = NewOffset;
     } else if (auto StructTy = mlir::dyn_cast<mlir::cir::StructType>(Ty)) {
