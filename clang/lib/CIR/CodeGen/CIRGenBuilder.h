@@ -870,12 +870,6 @@ public:
       auto const [Index, NewOffset] = getIndexAndNewOffset(Offset, EltSize);
       Indices.push_back(Index);
       Offset = NewOffset;
-    } else if (auto PtrTy = mlir::dyn_cast<mlir::cir::PointerType>(Ty)) {
-      int64_t EltSize = Layout.getTypeAllocSize(PtrTy.getPointee());
-      SubType = PtrTy.getPointee();
-      auto const [Index, NewOffset] = getIndexAndNewOffset(Offset, EltSize);
-      Indices.push_back(Index);
-      Offset = NewOffset;
     } else if (auto StructTy = mlir::dyn_cast<mlir::cir::StructType>(Ty)) {
       auto Elts = StructTy.getMembers();
       unsigned Pos = 0;
