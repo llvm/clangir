@@ -319,6 +319,10 @@ public:
   virtual mlir::cir::DynamicCastInfoAttr 
     buildDynamicCastInfo(CIRGenFunction &CGF, mlir::Location Loc, 
                          QualType SrcRecordTy, QualType DestRecordTy) = 0;
+
+  virtual mlir::cir::MethodAttr
+  buildVirtualMethodAttr(mlir::cir::MethodType MethodTy,
+                         const CXXMethodDecl *MD) = 0;
 };
 
 /// Creates and Itanium-family ABI
