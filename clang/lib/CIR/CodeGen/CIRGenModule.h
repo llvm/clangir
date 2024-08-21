@@ -127,6 +127,21 @@ private:
   /// for the same decl.
   llvm::DenseSet<clang::GlobalDecl> DiagnosedConflictingDefinitions;
 
+  /// -------
+  /// Annotations
+  /// -------
+
+  /// We do not store global annotations in the module as annotation is
+  /// represented as attribute of GlobalOp, we defer creation of global
+  /// annotation variable to LoweringPrepare as CIR passes do not
+  /// need to have a global view of all annotations.
+
+  /// Map used to get unique annotation related strings.
+  llvm::StringMap<mlir::StringAttr> AnnotationStrings;
+
+  /// Used for uniquing of annotation arguments.
+  llvm::DenseMap<unsigned, mlir::ArrayAttr> AnnotationArgs;
+
 public:
   mlir::ModuleOp getModule() const { return theModule; }
   CIRGenBuilderTy &getBuilder() { return builder; }
@@ -761,6 +776,37 @@ private:
   void setNonAliasAttributes(GlobalDecl GD, mlir::Operation *GV);
   /// Map source language used to a CIR attribute.
   mlir::cir::SourceLanguage getCIRSourceLanguage();
+
+  /// Emit an annotation string as the returned StringAttr is needed to
+  /// assemble AnnotationAttr for a GlobalOp or FuncOp.
+  mlir::StringAttr EmitAnnotationString(StringRef Str);
+
+  /// Emit the annotation's translation unit.
+  mlir::StringAttr EmitAnnotationUnit(SourceLocation Loc);
+
+  /// Emit the annotation line number.
+  mlir::IntegerAttr EmitAnnotationLineNo(SourceLocation L);
+
+  /// Emit additional args of the annotation.
+  mlir::ArrayAttr EmitAnnotationArgs(const AnnotateAttr *Attr);
+
+  /// Create cir::AnnotationAttr which contains the annotation
+  /// information for a given GlobalValue. The annotation struct is
+  /// {i8 *, i8 *, i32, optional<struct>}. The first field is
+  /// the constant string created from the AnnotateAttr's annotation. The second
+  /// field is a constant string containing the name of the translation unit.
+  /// The third field is the line number in the file of the annotated value
+  /// declaration. And the last field is additional args of the
+  /// annotation, which could be empty. Notice that a GlobalValue could
+  /// have multiple annotations, and this function creates attribute for
+  /// one of them.
+  mlir::cir::AnnotationAttr EmitAnnotateAttr(mlir::Operation *GV,
+                                             const AnnotateAttr *AA,
+                                             SourceLocation L);
+
+  /// Add global annotations that are set on D, for the global GV. Those
+  /// annotations are emitted during finalization of the LLVM code.
+  void AddGlobalAnnotations(const ValueDecl *D, mlir::Operation *GV);
 };
 } // namespace cir
 

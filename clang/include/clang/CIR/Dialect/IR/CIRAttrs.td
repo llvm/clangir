@@ -1101,6 +1101,34 @@ def BitfieldInfoAttr : CIR_Attr<"BitfieldInfo", "bitfield_info"> {
   ];
 }
 
+//===----------------------------------------------------------------------===//
+// AnnotationAttr
+//===----------------------------------------------------------------------===//
+def AnnotationAttr : CIR_Attr<"Annotation", "annotation"> {
+  let summary = "Annotation attribute for global variables and functions";
+  let description = [{
+    Represent C/C++ attribute of annotate in CIR. example c code is:
+    ```
+     in test.c line 10
+     int *a __attribute__((annotate("testptr", "21", 12 ))); 
+    ```
+     this example code, the AnnotationAttr records annotation name "testptr", 
+     source file "test.c", line number 12, and arguments "21" and 12 for 
+     global variable a
+  }];
+
+  let parameters = (ins "StringAttr":$name,
+                        "StringAttr":$unit,
+                        "IntegerAttr":$lineno,
+                        "ArrayAttr":$args);
+
+  let assemblyFormat = "`<` struct($name, $unit, $lineno, $args) `>`";                      
+
+  let extraClassDeclaration = [{
+    bool isNoArgs() const { return getArgs().empty(); };
+  }];
+}
+
 include "clang/CIR/Dialect/IR/CIROpenCLAttrs.td"
 
 #endif // MLIR_CIR_DIALECT_CIR_ATTRS

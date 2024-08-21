@@ -1231,7 +1231,7 @@ void CIRGenModule::buildGlobalVarDefinition(const clang::VarDecl *D,
   maybeHandleStaticInExternC(D, GV);
 
   if (D->hasAttr<AnnotateAttr>())
-    assert(0 && "not implemented");
+    AddGlobalAnnotations(D, GV);
 
   // Set CIR's linkage type as appropriate.
   mlir::cir::GlobalLinkageKind Linkage =
@@ -3186,4 +3186,81 @@ LangAS CIRGenModule::getGlobalVarAddressSpace(const VarDecl *D) {
     llvm_unreachable("NYI");
 
   return getTargetCIRGenInfo().getGlobalVarAddressSpace(*this, D);
+}
+
+mlir::StringAttr CIRGenModule::EmitAnnotationString(StringRef Str) {
+  auto &Astr = AnnotationStrings[Str];
+  if (Astr)
+    return Astr;
+  Astr = builder.getStringAttr(Str);
+  return Astr;
+}
+
+mlir::StringAttr CIRGenModule::EmitAnnotationUnit(SourceLocation Loc) {
+  SourceManager &SM = astCtx.getSourceManager();
+  PresumedLoc PLoc = SM.getPresumedLoc(Loc);
+  if (PLoc.isValid())
+    return EmitAnnotationString(PLoc.getFilename());
+  return EmitAnnotationString(SM.getBufferName(Loc));
+}
+
+mlir::IntegerAttr CIRGenModule::EmitAnnotationLineNo(SourceLocation L) {
+  SourceManager &SM = astCtx.getSourceManager();
+  PresumedLoc PLoc = SM.getPresumedLoc(L);
+  unsigned LineNo =
+      PLoc.isValid() ? PLoc.getLine() : SM.getExpansionLineNumber(L);
+  return builder.getI32IntegerAttr(LineNo);
+}
+
+mlir::ArrayAttr CIRGenModule::EmitAnnotationArgs(const AnnotateAttr *Attr) {
+  ArrayRef<Expr *> Exprs = {Attr->args_begin(), Attr->args_size()};
+  if (Exprs.empty())
+    return mlir::ArrayAttr();
+  llvm::FoldingSetNodeID ID;
+  for (Expr *E : Exprs) {
+    ID.Add(cast<clang::ConstantExpr>(E)->getAPValueResult());
+  }
+  auto &Lookup = AnnotationArgs[ID.ComputeHash()];
+  if (Lookup)
+    return Lookup;
+
+  llvm::SmallVector<mlir::Attribute, 4> Args;
+  Args.reserve(Exprs.size());
+  cir::ConstantEmitter ConstEmiter(*this);
+  llvm::transform(Exprs, std::back_inserter(Args), [&](const Expr *E) {
+    const auto *CE = cast<clang::ConstantExpr>(E);
+    return ConstEmiter.emitAbstract(CE->getBeginLoc(), CE->getAPValueResult(),
+                                    CE->getType());
+  });
+
+  // Create array attr for these arguments
+  mlir::ArrayAttr ArgsArrayAttr = builder.getArrayAttr(Args);
+  Lookup = ArgsArrayAttr;
+  return Lookup;
+}
+
+mlir::cir::AnnotationAttr CIRGenModule::EmitAnnotateAttr(mlir::Operation *GV,
+                                                         const AnnotateAttr *AA,
+                                                         SourceLocation L) {
+
+  auto AnnoGV = EmitAnnotationString(AA->getAnnotation());
+  auto UnitGV = EmitAnnotationUnit(L);
+  auto LineNoCst = EmitAnnotationLineNo(L);
+  auto Args = EmitAnnotationArgs(AA);
+  return mlir::cir::AnnotationAttr::get(builder.getContext(), AnnoGV, UnitGV,
+                                        LineNoCst, Args);
+}
+
+void CIRGenModule::AddGlobalAnnotations(const ValueDecl *D,
+                                        mlir::Operation *GV) {
+  assert(D->hasAttr<AnnotateAttr>() && "no annotate attribute");
+  assert((isa<GlobalOp>(GV) || isa<FuncOp>(GV)) &&
+         "annotation only on globals");
+  llvm::SmallVector<mlir::Attribute, 4> Annotations;
+  for (const auto *I : D->specific_attrs<AnnotateAttr>())
+    Annotations.push_back(EmitAnnotateAttr(GV, I, D->getLocation()));
+  if (auto global = dyn_cast<mlir::cir::GlobalOp>(GV))
+    global.setAnnotatesAttr(builder.getArrayAttr(Annotations));
+  else if (auto func = dyn_cast<mlir::cir::FuncOp>(GV))
+    func.setAnnotatesAttr(builder.getArrayAttr(Annotations));
 }
