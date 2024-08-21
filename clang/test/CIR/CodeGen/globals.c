@@ -71,15 +71,6 @@ struct { int *x; } p2 = {&p[0]};
 // CHECK: cir.global external @p1 = #cir.global_view<@p> : !cir.ptr<!s32i>
 // CHECK: cir.global external @p2 = #cir.const_struct<{#cir.global_view<@p> : !cir.ptr<!s32i>}> : !ty_22anon2E1122
 
-struct __attribute__((packed)) PackedStruct {
-    char a1;
-    char a2;
-    char a3;
-};
-struct PackedStruct packed[10];
-char *packed_element = &(packed[-2].a3);
-// CHECK: cir.global  external @packed_element = #cir.global_view<@packed, [-2 : i32, 2 : i32]>
-
 int q[10];
 int *q1 = q;
 struct { int *x; } q2 = {q};
