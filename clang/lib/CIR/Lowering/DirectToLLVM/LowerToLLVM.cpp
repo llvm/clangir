@@ -825,6 +825,10 @@ public:
           castOp, llvmDstTy, llvmSrcVal);
       break;
     }
+    default: {
+      return castOp.emitError("Unhandled cast kind: ")
+             << castOp.getKindAttrName();
+    }
     }
 
     return mlir::success();
