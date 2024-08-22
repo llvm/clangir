@@ -1117,8 +1117,11 @@ def AnnotationAttr : CIR_Attr<"Annotation", "annotation"> {
      global variable a
   }];
 
-  let parameters = (ins "StringAttr":$name,
-                        "StringAttr":$unit,
+  // Use ConstArrayAttr as type of name and translation unit
+  // because they will be used to generate global variable. Using ConstArrayAttr
+  // is a lot more suitable for that than StringAttr.
+  let parameters = (ins "ConstArrayAttr":$name,
+                        "ConstArrayAttr":$unit,
                         "IntegerAttr":$lineno,
                         "ArrayAttr":$args);
 

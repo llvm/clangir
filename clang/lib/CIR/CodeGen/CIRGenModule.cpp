@@ -3188,15 +3188,18 @@ LangAS CIRGenModule::getGlobalVarAddressSpace(const VarDecl *D) {
   return getTargetCIRGenInfo().getGlobalVarAddressSpace(*this, D);
 }
 
-mlir::StringAttr CIRGenModule::EmitAnnotationString(StringRef Str) {
+mlir::cir::ConstArrayAttr CIRGenModule::EmitAnnotationString(StringRef Str) {
   auto &Astr = AnnotationStrings[Str];
   if (Astr)
     return Astr;
-  Astr = builder.getStringAttr(Str);
+  Astr = dyn_cast<mlir::cir::ConstArrayAttr>(
+      builder.getString(Str, getTypes().ConvertType(getASTContext().CharTy)));
+  // the only way Astr is null is if that Str is empty which should never happen
+  assert(Astr && "failed to emit annotation string as constant array");
   return Astr;
 }
 
-mlir::StringAttr CIRGenModule::EmitAnnotationUnit(SourceLocation Loc) {
+mlir::cir::ConstArrayAttr CIRGenModule::EmitAnnotationUnit(SourceLocation Loc) {
   SourceManager &SM = astCtx.getSourceManager();
   PresumedLoc PLoc = SM.getPresumedLoc(Loc);
   if (PLoc.isValid())

@@ -137,7 +137,7 @@ private:
   /// need to have a global view of all annotations.
 
   /// Map used to get unique annotation related strings.
-  llvm::StringMap<mlir::StringAttr> AnnotationStrings;
+  llvm::StringMap<mlir::cir::ConstArrayAttr> AnnotationStrings;
 
   /// Used for uniquing of annotation arguments.
   llvm::DenseMap<unsigned, mlir::ArrayAttr> AnnotationArgs;
@@ -779,10 +779,10 @@ private:
 
   /// Emit an annotation string as the returned StringAttr is needed to
   /// assemble AnnotationAttr for a GlobalOp or FuncOp.
-  mlir::StringAttr EmitAnnotationString(StringRef Str);
+  mlir::cir::ConstArrayAttr EmitAnnotationString(StringRef Str);
 
   /// Emit the annotation's translation unit.
-  mlir::StringAttr EmitAnnotationUnit(SourceLocation Loc);
+  mlir::cir::ConstArrayAttr EmitAnnotationUnit(SourceLocation Loc);
 
   /// Emit the annotation line number.
   mlir::IntegerAttr EmitAnnotationLineNo(SourceLocation L);

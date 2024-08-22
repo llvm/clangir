@@ -94,6 +94,9 @@ struct LoweringPreparePass : public LoweringPrepareBase<LoweringPreparePass> {
   /// Materialize global ctor/dtor list
   void buildGlobalCtorDtorList();
 
+  /// Build global vars for annotations
+  void buildGlobalAnnotationVars();
+
   FuncOp
   buildRuntimeFunction(mlir::OpBuilder &builder, llvm::StringRef name,
                        mlir::Location loc, mlir::cir::FuncType type,
@@ -149,6 +152,8 @@ struct LoweringPreparePass : public LoweringPrepareBase<LoweringPreparePass> {
   SmallVector<mlir::Attribute, 4> globalCtorList;
   /// List of dtors to be called when unloading module.
   SmallVector<mlir::Attribute, 4> globalDtorList;
+  /// List of annotations in the module.
+  std::vector<mlir::Attribute> globalAnnotations;
 };
 } // namespace
 
@@ -878,6 +883,14 @@ void LoweringPreparePass::lowerGlobalOp(GlobalOp op) {
            "custom initialization priority NYI");
     dynamicInitializers.push_back(f);
   }
+
+  // collect global annotations
+  auto annotates = op.getAnnotates();
+  if (annotates) {
+    for (auto &annot : annotates.value()) {
+      globalAnnotations.push_back(annot);
+    }
+  }
 }
 
 void LoweringPreparePass::buildGlobalCtorDtorList() {
@@ -1061,6 +1074,46 @@ void LoweringPreparePass::lowerIterEndOp(IterEndOp op) {
   op.erase();
 }
 
+void LoweringPreparePass::buildGlobalAnnotationVars() {
+  llvm::SmallSet<StringRef, 10> annotateStringSet;
+  llvm::DenseMap<mlir::ArrayAttr, GlobalOp> argsGlobalsMap;
+  CIRBaseBuilderTy builder(getContext());
+  const char *annoSection = "llvm.metadata";
+  builder.setInsertionPointToStart(&theModule.getBodyRegion().front());
+  auto createStringGlobalOp = [&](const mlir::cir::ConstArrayAttr &annoStrAttr,
+                                  mlir::Location loc) {
+    auto stringAttr = mlir::dyn_cast<mlir::StringAttr>(annoStrAttr.getElts());
+    assert(stringAttr && "expected the attribute representing a string here");
+    StringRef annoStr = stringAttr.getValue();
+    if (!annotateStringSet.contains(annoStr)) {
+      auto annoStrGlobal = builder.create<mlir::cir::GlobalOp>(
+          loc, ".str.llvm.metadata." + std::to_string(annotateStringSet.size()),
+          annoStrAttr.getType());
+      annoStrGlobal.setLinkage(mlir::cir::GlobalLinkageKind::PrivateLinkage);
+      annoStrGlobal.setConstant(true);
+      annoStrGlobal.setSection(annoSection);
+      annoStrGlobal.setInitialValueAttr(annoStrAttr);
+      // Symbol visibility
+      annoStrGlobal.setPrivate();
+      // private linkage, implicit dso local
+      annoStrGlobal.setDsolocal(true);
+      // We don't have to worry about dso local here as its linkage is private.
+      // so when we lower it to llvm, it'll be implicit dso local.
+      assert(!::cir::MissingFeatures::threadLocal() && "NYI");
+      assert(!::cir::MissingFeatures::unnamedAddr() && "NYI");
+      annotateStringSet.insert(annoStr);
+    }
+  };
+
+  for (auto &annot : globalAnnotations) {
+    auto annotation = dyn_cast<AnnotationAttr>(annot);
+    if (!annotation)
+      continue;
+    createStringGlobalOp(annotation.getName(), builder.getUnknownLoc());
+    createStringGlobalOp(annotation.getUnit(), builder.getUnknownLoc());
+  }
+}
+
 void LoweringPreparePass::runOnOp(Operation *op) {
   if (auto unary = dyn_cast<UnaryOp>(op)) {
     lowerUnaryOp(unary);
@@ -1094,6 +1147,11 @@ void LoweringPreparePass::runOnOp(Operation *op) {
     } else if (auto globalDtor = fnOp.getGlobalDtorAttr()) {
       globalDtorList.push_back(globalDtor);
     }
+    if (auto annotates = fnOp.getAnnotates()) {
+      for (auto &annot : annotates.value()) {
+        globalAnnotations.push_back(annot);
+      }
+    }
   }
 }
 
@@ -1118,6 +1176,7 @@ void LoweringPreparePass::runOnOperation() {
 
   buildCXXGlobalInitFunc();
   buildGlobalCtorDtorList();
+  buildGlobalAnnotationVars();
 }
 
 std::unique_ptr<Pass> mlir::createLoweringPreparePass() {
