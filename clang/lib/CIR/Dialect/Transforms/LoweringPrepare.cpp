@@ -1114,8 +1114,8 @@ void LoweringPreparePass::buildGlobalAnnotationVars() {
   CIRBaseBuilderTy builder(getContext());
   builder.setInsertionPointToStart(&theModule.getBodyRegion().front());
 
-  // Given a string used in annotation, get global view to its corresponding
-  // string global.
+  // Given a string used in annotation, create global op, and
+  // get its global view.
   auto getStringGlobalOpView = [&](const mlir::cir::ConstArrayAttr &annoStrAttr,
                                    mlir::Location loc) {
     auto stringAttr = mlir::dyn_cast<mlir::StringAttr>(annoStrAttr.getElts());

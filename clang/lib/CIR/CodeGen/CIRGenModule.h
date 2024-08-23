@@ -142,6 +142,10 @@ private:
   /// Used for uniquing of annotation arguments.
   llvm::DenseMap<unsigned, mlir::Attribute> AnnotationArgs;
 
+  /// Store deferred function annotations so they can be emitted at the end with
+  /// most up to date ValueDecl that will have all the inherited annotations.
+  llvm::DenseMap<StringRef, const ValueDecl *> DeferredAnnotations;
+
 public:
   mlir::ModuleOp getModule() const { return theModule; }
   CIRGenBuilderTy &getBuilder() { return builder; }
@@ -776,6 +780,11 @@ private:
   void setNonAliasAttributes(GlobalDecl GD, mlir::Operation *GV);
   /// Map source language used to a CIR attribute.
   mlir::cir::SourceLanguage getCIRSourceLanguage();
+
+  /// Emit all the global annotations.
+  /// This actually only emits annotations for deffered declarations of
+  /// functions, because global variables need to deffred emission.
+  void EmitGlobalAnnotations();
 
   /// Emit an annotation string as the returned StringAttr is needed to
   /// assemble AnnotationAttr for a GlobalOp or FuncOp.

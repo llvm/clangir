@@ -483,6 +483,13 @@ void CIRGenModule::buildGlobal(GlobalDecl GD) {
 
   // Ignore declarations, they will be emitted on their first use.
   if (const auto *FD = dyn_cast<FunctionDecl>(Global)) {
+    // Update deferred annotations with the latest declaration if the function
+    // function was already used or defined.
+    if (FD->hasAttr<AnnotateAttr>()) {
+      StringRef MangledName = getMangledName(GD);
+      if (getGlobalValue(MangledName))
+        DeferredAnnotations[MangledName] = FD;
+    }
     // Forward declarations are emitted lazily on first use.
     if (!FD->doesThisDeclarationHaveABody()) {
       if (!FD->doesDeclarationForceExternallyVisibleDefinition())
@@ -594,7 +601,8 @@ void CIRGenModule::buildGlobalFunctionDefinition(GlobalDecl GD,
   if (const DestructorAttr *DA = D->getAttr<DestructorAttr>())
     AddGlobalDtor(Fn, DA->getPriority(), true);
 
-  assert(!D->getAttr<AnnotateAttr>() && "NYI");
+  if (D->getAttr<AnnotateAttr>())
+    DeferredAnnotations[getMangledName(GD)] = cast<ValueDecl>(D);
 }
 
 /// Track functions to be called before main() runs.
@@ -2833,7 +2841,7 @@ void CIRGenModule::Release() {
   // TODO: PGOReader
   // TODO: buildCtorList(GlobalCtors);
   // TODO: builtCtorList(GlobalDtors);
-  // TODO: buildGlobalAnnotations();
+  EmitGlobalAnnotations();
   // TODO: buildDeferredUnusedCoverageMappings();
   // TODO: CIRGenPGO
   // TODO: CoverageMapping
@@ -3267,4 +3275,13 @@ void CIRGenModule::AddGlobalAnnotations(const ValueDecl *D,
     global.setAnnotatesAttr(builder.getArrayAttr(Annotations));
   else if (auto func = dyn_cast<mlir::cir::FuncOp>(GV))
     func.setAnnotatesAttr(builder.getArrayAttr(Annotations));
+}
+
+void CIRGenModule::EmitGlobalAnnotations() {
+  for (const auto &[MangledName, VD] : DeferredAnnotations) {
+    mlir::Operation *GV = getGlobalValue(MangledName);
+    if (GV)
+      AddGlobalAnnotations(VD, GV);
+  }
+  DeferredAnnotations.clear();
 }
