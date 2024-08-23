@@ -84,6 +84,7 @@ isInterposableLinkage(GlobalLinkageKind Linkage) {
   case GlobalLinkageKind::ExternalLinkage:
   case GlobalLinkageKind::InternalLinkage:
   case GlobalLinkageKind::PrivateLinkage:
+  case GlobalLinkageKind::AppendingLinkage:
     return false;
   }
   llvm_unreachable("Fully covered switch above!");

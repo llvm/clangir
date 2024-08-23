@@ -471,6 +471,8 @@ mlir::LLVM::Linkage convertLinkage(mlir::cir::GlobalLinkageKind linkage) {
     return LLVM::Weak;
   case CIR::WeakODRLinkage:
     return LLVM::WeakODR;
+  case CIR::AppendingLinkage:
+    return LLVM::Appending;
   };
 }
 

@@ -91,6 +91,10 @@ public:
     return mlir::cir::IntType::get(getContext(), N, true);
   }
 
+  mlir::cir::ArrayType getArrayType(mlir::Type eltType, unsigned size) {
+    return mlir::cir::ArrayType::get(getContext(), eltType, size);
+  }
+
   mlir::cir::AddressSpaceAttr getAddrSpaceAttr(clang::LangAS langAS) {
     if (langAS == clang::LangAS::Default)
       return {};
@@ -741,6 +745,91 @@ public:
     auto op = create<mlir::cir::GetMethodOp>(loc, calleeTy, adjustedThisTy,
                                              method, objectPtr);
     return {op.getCallee(), op.getAdjustedThis()};
+  }
+
+  /// Get a CIR record kind from a AST declaration tag.
+  mlir::cir::StructType::RecordKind
+  getRecordKind(const clang::TagTypeKind kind) {
+    switch (kind) {
+    case clang::TagTypeKind::Struct:
+      return mlir::cir::StructType::Struct;
+    case clang::TagTypeKind::Union:
+      return mlir::cir::StructType::Union;
+    case clang::TagTypeKind::Class:
+      return mlir::cir::StructType::Class;
+    case clang::TagTypeKind::Interface:
+      llvm_unreachable("interface records are NYI");
+    case clang::TagTypeKind::Enum:
+      llvm_unreachable("enum records are NYI");
+    }
+  }
+
+  /// Get a CIR anonymous struct type.
+  mlir::cir::StructType
+  getAnonStructTy(llvm::ArrayRef<mlir::Type> members, bool packed = false,
+                  const clang::RecordDecl *ast = nullptr) {
+    mlir::cir::ASTRecordDeclAttr astAttr = nullptr;
+    auto kind = mlir::cir::StructType::RecordKind::Struct;
+    if (ast) {
+      astAttr = getAttr<mlir::cir::ASTRecordDeclAttr>(ast);
+      kind = getRecordKind(ast->getTagKind());
+    }
+    return getType<mlir::cir::StructType>(members, packed, kind, astAttr);
+  }
+
+  mlir::cir::ConstStructAttr getAnonConstStruct(mlir::ArrayAttr arrayAttr,
+                                                bool packed = false,
+                                                mlir::Type ty = {}) {
+    llvm::SmallVector<mlir::Type, 4> members;
+    for (auto &f : arrayAttr) {
+      auto ta = mlir::dyn_cast<mlir::TypedAttr>(f);
+      assert(ta && "expected typed attribute member");
+      members.push_back(ta.getType());
+    }
+
+    if (!ty)
+      ty = getAnonStructTy(members, packed);
+
+    auto sTy = mlir::dyn_cast<mlir::cir::StructType>(ty);
+    assert(sTy && "expected struct type");
+    return mlir::cir::ConstStructAttr::get(sTy, arrayAttr);
+  }
+
+  //
+  // Attribute helpers
+  // -----------------
+  //
+
+  /// Get constant address of a global variable as an MLIR attribute.
+  mlir::cir::GlobalViewAttr getGlobalViewAttr(mlir::cir::PointerType type,
+                                              mlir::cir::GlobalOp globalOp,
+                                              mlir::ArrayAttr indices = {}) {
+    auto symbol = mlir::FlatSymbolRefAttr::get(globalOp.getSymNameAttr());
+    return mlir::cir::GlobalViewAttr::get(type, symbol, indices);
+  }
+
+  /// Get constant address of a global variable as an MLIR attribute.
+  /// This wrapper infers the attribute type through the global op.
+  mlir::cir::GlobalViewAttr getGlobalViewAttr(mlir::cir::GlobalOp globalOp,
+                                              mlir::ArrayAttr indices = {}) {
+    auto type = getPointerTo(globalOp.getSymType());
+    return getGlobalViewAttr(type, globalOp, indices);
+  }
+
+  /// Get constant address of a function as an MLIR attribute.
+  mlir::cir::GlobalViewAttr getGlobalViewAttr(mlir::cir::PointerType type,
+                                              mlir::cir::FuncOp funcOp,
+                                              mlir::ArrayAttr indices = {}) {
+    auto symbol = mlir::FlatSymbolRefAttr::get(funcOp.getSymNameAttr());
+    return mlir::cir::GlobalViewAttr::get(type, symbol, indices);
+  }
+
+  /// Get constant address of a function as an MLIR attribute.
+  /// This wrapper infers the attribute type through the global op.
+  mlir::cir::GlobalViewAttr getGlobalViewAttr(mlir::cir::FuncOp globalOp,
+                                              mlir::ArrayAttr indices = {}) {
+    auto type = getPointerTo(globalOp.getFunctionType());
+    return getGlobalViewAttr(type, globalOp, indices);
   }
 };
 

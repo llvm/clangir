@@ -2147,10 +2147,9 @@ def Global_WeakAnyLinkage :
 // Same, but only replaced by something equivalent.
 def Global_WeakODRLinkage :
   I32EnumAttrCase<"WeakODRLinkage", 5, "weak_odr">;
-// TODO: should we add something like appending linkage too?
-// Special purpose, only applies to global arrays
-// def Global_AppendingLinkage :
-//   I32EnumAttrCase<"AppendingLinkage", 6, "appending">;
+// Special purpose, only applies to global arrays  
+def Global_AppendingLinkage :
+   I32EnumAttrCase<"AppendingLinkage", 6, "appending">;
 // Rename collisions when linking (static functions).
 def Global_InternalLinkage :
   I32EnumAttrCase<"InternalLinkage", 7, "internal">;
@@ -2171,7 +2170,7 @@ def GlobalLinkageKind : I32EnumAttr<
     "Linkage type/kind",
     [Global_ExternalLinkage, Global_AvailableExternallyLinkage,
      Global_LinkOnceAnyLinkage, Global_LinkOnceODRLinkage,
-     Global_WeakAnyLinkage, Global_WeakODRLinkage,
+     Global_WeakAnyLinkage, Global_WeakODRLinkage, Global_AppendingLinkage,
      Global_InternalLinkage, Global_PrivateLinkage,
      Global_ExternalWeakLinkage, Global_CommonLinkage
      ]> {

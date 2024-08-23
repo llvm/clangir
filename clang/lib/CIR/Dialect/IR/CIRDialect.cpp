@@ -2042,6 +2042,13 @@ LogicalResult GlobalOp::verify() {
                          << stringifyGlobalLinkageKind(getLinkage())
                          << "' linkage";
     break;
+  case GlobalLinkageKind::AppendingLinkage:
+    // Only applies to ArrayType
+    if (!isa<mlir::cir::ArrayType>(getSymType()))
+      return emitError() << "linkage attribute '"
+                         << stringifyGlobalLinkageKind(getLinkage())
+                         << "' not allowed with type " << getSymType();
+    break;
   default:
     emitError() << stringifyGlobalLinkageKind(getLinkage())
                 << ": verifier not implemented\n";

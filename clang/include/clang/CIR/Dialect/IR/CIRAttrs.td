@@ -1122,13 +1122,13 @@ def AnnotationAttr : CIR_Attr<"Annotation", "annotation"> {
   // is a lot more suitable for that than StringAttr.
   let parameters = (ins "ConstArrayAttr":$name,
                         "ConstArrayAttr":$unit,
-                        "IntegerAttr":$lineno,
-                        "ArrayAttr":$args);
+                        "IntAttr":$lineno,
+                        "mlir::Attribute":$args);
 
   let assemblyFormat = "`<` struct($name, $unit, $lineno, $args) `>`";                      
 
   let extraClassDeclaration = [{
-    bool isNoArgs() const { return getArgs().empty(); };
+    bool isNoArgs() const { return mlir::isa<mlir::cir::ZeroAttr>(getArgs()); };
   }];
 }
 

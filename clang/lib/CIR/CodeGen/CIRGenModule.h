@@ -140,7 +140,7 @@ private:
   llvm::StringMap<mlir::cir::ConstArrayAttr> AnnotationStrings;
 
   /// Used for uniquing of annotation arguments.
-  llvm::DenseMap<unsigned, mlir::ArrayAttr> AnnotationArgs;
+  llvm::DenseMap<unsigned, mlir::Attribute> AnnotationArgs;
 
 public:
   mlir::ModuleOp getModule() const { return theModule; }
@@ -785,10 +785,10 @@ private:
   mlir::cir::ConstArrayAttr EmitAnnotationUnit(SourceLocation Loc);
 
   /// Emit the annotation line number.
-  mlir::IntegerAttr EmitAnnotationLineNo(SourceLocation L);
+  mlir::cir::IntAttr EmitAnnotationLineNo(SourceLocation L);
 
   /// Emit additional args of the annotation.
-  mlir::ArrayAttr EmitAnnotationArgs(const AnnotateAttr *Attr);
+  mlir::Attribute EmitAnnotationArgs(const AnnotateAttr *Attr);
 
   /// Create cir::AnnotationAttr which contains the annotation
   /// information for a given GlobalValue. The annotation struct is

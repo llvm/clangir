@@ -3207,18 +3207,19 @@ mlir::cir::ConstArrayAttr CIRGenModule::EmitAnnotationUnit(SourceLocation Loc) {
   return EmitAnnotationString(SM.getBufferName(Loc));
 }
 
-mlir::IntegerAttr CIRGenModule::EmitAnnotationLineNo(SourceLocation L) {
+mlir::cir::IntAttr CIRGenModule::EmitAnnotationLineNo(SourceLocation L) {
   SourceManager &SM = astCtx.getSourceManager();
   PresumedLoc PLoc = SM.getPresumedLoc(L);
   unsigned LineNo =
       PLoc.isValid() ? PLoc.getLine() : SM.getExpansionLineNumber(L);
-  return builder.getI32IntegerAttr(LineNo);
+  return mlir::cir::IntAttr::get(builder.getUInt32Ty(), LineNo);
 }
 
-mlir::ArrayAttr CIRGenModule::EmitAnnotationArgs(const AnnotateAttr *Attr) {
+mlir::Attribute CIRGenModule::EmitAnnotationArgs(const AnnotateAttr *Attr) {
   ArrayRef<Expr *> Exprs = {Attr->args_begin(), Attr->args_size()};
-  if (Exprs.empty())
-    return mlir::ArrayAttr();
+  if (Exprs.empty()) {
+    return builder.getZeroAttr(builder.getVoidPtrTy());
+  }
   llvm::FoldingSetNodeID ID;
   for (Expr *E : Exprs) {
     ID.Add(cast<clang::ConstantExpr>(E)->getAPValueResult());
@@ -3236,9 +3237,9 @@ mlir::ArrayAttr CIRGenModule::EmitAnnotationArgs(const AnnotateAttr *Attr) {
                                     CE->getType());
   });
 
-  // Create array attr for these arguments
+  // Create const struct attr for these arguments
   mlir::ArrayAttr ArgsArrayAttr = builder.getArrayAttr(Args);
-  Lookup = ArgsArrayAttr;
+  Lookup = builder.getAnonConstStruct(ArgsArrayAttr);
   return Lookup;
 }
 
