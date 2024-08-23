@@ -155,7 +155,7 @@ struct LoweringPreparePass : public LoweringPrepareBase<LoweringPreparePass> {
   /// List of annotations in the module, need to be a map with value GlobalOp
   /// as we need view to annotated GlobalOp to create global annotation var
   /// and one GlobalOp could have multiple AnnotateAttr
-  llvm::DenseMap<mlir::Attribute, mlir::Operation *> globalAnnotations;
+  llvm::MapVector<mlir::Attribute, mlir::Operation *> globalAnnotations;
 };
 } // namespace
 
@@ -1144,14 +1144,14 @@ void LoweringPreparePass::buildGlobalAnnotationVars() {
   globalAnnotationsVec.reserve(globalAnnotations.size());
 
   for (auto &annotEntry : globalAnnotations) {
-    auto annotation = dyn_cast<AnnotationAttr>(annotEntry.getFirst());
+    auto annotation = dyn_cast<AnnotationAttr>(annotEntry.first);
     if (!annotation)
       continue;
     mlir::cir::GlobalViewAttr globalValueView;
-    if (auto global = dyn_cast<GlobalOp>(annotEntry.getSecond())) {
+    if (auto global = dyn_cast<GlobalOp>(annotEntry.second)) {
       globalValueView =
           builder.getGlobalViewAttr(builder.getVoidPtrTy(), global);
-    } else if (auto func = dyn_cast<FuncOp>(annotEntry.getSecond())) {
+    } else if (auto func = dyn_cast<FuncOp>(annotEntry.second)) {
       globalValueView = builder.getGlobalViewAttr(builder.getVoidPtrTy(), func);
     } else {
       continue;

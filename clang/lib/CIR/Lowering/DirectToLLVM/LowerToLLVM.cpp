@@ -1923,6 +1923,8 @@ public:
         /*addrSpace*/ getGlobalOpTargetAddrSpace(op),
         /*dsoLocal*/ false, /*threadLocal*/ (bool)op.getTlsModelAttr(),
         /*comdat*/ mlir::SymbolRefAttr(), attributes);
+    if (op.getSection())
+      newGlobalOp.setSection(op.getSection());
     newGlobalOp.getRegion().push_back(new mlir::Block());
     rewriter.setInsertionPointToEnd(newGlobalOp.getInitializerBlock());
   }
