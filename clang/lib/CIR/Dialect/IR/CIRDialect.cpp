@@ -1212,8 +1212,11 @@ void TryOp::build(
 
   OpBuilder::InsertionGuard guard(builder);
   Region *tryBodyRegion = result.addRegion();
-  builder.createBlock(tryBodyRegion);
+  mlir::Block *tryBodyBlock = builder.createBlock(tryBodyRegion);
 
+  Region *cleanupRegion = result.addRegion();
+
+  builder.setInsertionPointToStart(tryBodyBlock);
   tryBodyBuilder(builder, result.location);
   catchBuilder(builder, result.location, result);
 }
@@ -1230,6 +1233,7 @@ void TryOp::getSuccessorRegions(mlir::RegionBranchPoint point,
 
   // If the condition isn't constant, both regions may be executed.
   regions.push_back(RegionSuccessor(&getTryRegion()));
+  regions.push_back(RegionSuccessor(&getCleanupRegion()));
   // FIXME: optimize, ideas include:
   // - If we know a target function never throws a specific type, we can
   //   remove the catch handler.
