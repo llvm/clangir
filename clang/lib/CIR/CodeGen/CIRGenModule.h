@@ -794,13 +794,7 @@ private:
   mlir::ArrayAttr buildAnnotationArgs(const AnnotateAttr *Attr);
 
   /// Create cir::AnnotationAttr which contains the annotation
-  /// information for a given GlobalValue. The annotation struct is
-  /// {i8 *, i8 *, i32, optional<struct>}. The first field is
-  /// the constant string created from the AnnotateAttr's annotation. The second
-  /// field is a constant string containing the name of the translation unit.
-  /// The third field is the line number in the file of the annotated value
-  /// declaration. And the last field is additional args of the
-  /// annotation, which could be empty. Notice that a GlobalValue could
+  /// information for a given GlobalValue. Notice that a GlobalValue could
   /// have multiple annotations, and this function creates attribute for
   /// one of them.
   mlir::cir::AnnotationAttr buildAnnotateAttr(mlir::Operation *GV,
@@ -808,7 +802,7 @@ private:
                                               SourceLocation L);
 
   /// Add global annotations that are set on D, for the global GV. Those
-  /// annotations are emitted during finalization of the LLVM code.
+  /// annotations are emitted during lowering to the LLVM code.
   void addGlobalAnnotations(const ValueDecl *D, mlir::Operation *GV);
 };
 } // namespace cir

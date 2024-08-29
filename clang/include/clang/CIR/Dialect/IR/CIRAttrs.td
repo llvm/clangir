@@ -1134,9 +1134,10 @@ def AnnotationValueAttr : CIR_Attr<"AnnotationValue", "annotation value"> {
   let summary = "An annotation value, consist of name of a global var or func"
                 "and one of its annotations";
   let description = [{
-    Holds the annotation values for all global variables and functions in a module.
-    This whole collection is the initial value of global annotation metadata variable
-    that will be created in LLVM IR code.
+    This is element type of annotation value array, which holds the annotation 
+    values for all global variables and functions in a module.
+    This array is used to create the initial value of a global annotation 
+    metadata variable in LLVM IR.
   }];
 
   // here the name is the name of a global var or func.

@@ -283,13 +283,6 @@ mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
   return result;
 }
 
-mlir::Value lowerAnnotationValue(mlir::cir::AnnotationValueAttr value,
-                                 mlir::OpBuilder &builder,
-                                 const mlir::TypeConverter *converter) {
-  mlir::Value result;
-  return result;
-}
-
 // ConstArrayAttr visitor
 mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
                                 mlir::cir::ConstArrayAttr constArr,

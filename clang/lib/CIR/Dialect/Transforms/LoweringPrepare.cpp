@@ -152,9 +152,10 @@ struct LoweringPreparePass : public LoweringPrepareBase<LoweringPreparePass> {
   SmallVector<mlir::Attribute, 4> globalCtorList;
   /// List of dtors to be called when unloading module.
   SmallVector<mlir::Attribute, 4> globalDtorList;
-  /// List of annotations in the module, need to be a map with value GlobalOp
-  /// as we need view to annotated GlobalOp to create global annotation var
-  /// and one GlobalOp could have multiple AnnotateAttr
+  /// List of annotations in the module, need to be a vector of Ops
+  /// as we need view to annotated global values to create global annotation var
+  /// later in LLVM lowering.
+  //  One global value could have multiple AnnotateAttr
   std::vector<std::pair<mlir::Attribute, mlir::Operation *>> globalAnnotations;
 };
 } // namespace
