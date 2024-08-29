@@ -4130,8 +4130,11 @@ static void buildGlobalAnnotationsVar(mlir::ModuleOp module) {
           auto strGlobalOp = globalVarBuilder.create<mlir::LLVM::GlobalOp>(
               loc, llvmStrTy,
               /*isConstant=*/true, mlir::LLVM::Linkage::Private,
-              ".str." + std::to_string(globalsMap.size()) + ".annotation" +
-                  (isArg ? ".arg" : ""),
+              ".str" +
+                  (globalsMap.empty()
+                       ? ""
+                       : "." + std::to_string(globalsMap.size())) +
+                  ".annotation" + (isArg ? ".arg" : ""),
               strAttr,
               /*alignment=*/isArg ? 1 : 0);
           if (!isArg)
@@ -4206,6 +4209,10 @@ static void buildGlobalAnnotationsVar(mlir::ModuleOp module) {
             llvm::SmallVector<mlir::Value> argStrutFields;
             for (auto arg : annotation.getArgs()) {
               if (auto strArgAttr = mlir::dyn_cast<mlir::StringAttr>(arg)) {
+                // Call getAnnotationStringGlobal here to make sure
+                // have a global for this string before
+                // creation of the args var.
+                getAnnotationStringGlobal(strArgAttr, true);
                 // This will become a ptr to the global string
                 argStrutFldTypes.push_back(annoPtrTy);
               } else if (auto intArgAttr =
@@ -4220,7 +4227,11 @@ static void buildGlobalAnnotationsVar(mlir::ModuleOp module) {
                 globalVarBuilder.getContext(), argStrutFldTypes);
             auto argsGlobalOp = globalVarBuilder.create<mlir::LLVM::GlobalOp>(
                 loc, argsStructTy, true, mlir::LLVM::Linkage::Private,
-                ".args." + std::to_string(argsVarMap.size()) + ".annotation",
+                ".args" +
+                    (argsVarMap.empty()
+                         ? ""
+                         : "." + std::to_string(argsVarMap.size())) +
+                    ".annotation",
                 mlir::Attribute());
             argsGlobalOp.setSection(annotationSection);
             argsGlobalOp.setUnnamedAddr(mlir::LLVM::UnnamedAddr::Global);
@@ -4237,7 +4248,9 @@ static void buildGlobalAnnotationsVar(mlir::ModuleOp module) {
             int idx = 0;
             for (auto arg : annotation.getArgs()) {
               if (auto strArgAttr = mlir::dyn_cast<mlir::StringAttr>(arg)) {
-                // This will become a ptr to the global string
+                // This would be simply return with existing map entry value
+                // from argStringGlobalsMap as string global is already
+                // created in the previous loop.
                 auto argStrVar = getAnnotationStringGlobal(strArgAttr, true);
                 auto argStrVarAddr =
                     argsInitBuilder.create<mlir::LLVM::AddressOfOp>(
