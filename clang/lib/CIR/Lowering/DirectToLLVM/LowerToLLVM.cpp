@@ -4187,7 +4187,7 @@ static void buildGlobalAnnotationsVar(mlir::ModuleOp module) {
             loc, annoStructFields[3], lineNo);
         valueEntry = varInitBuilder.create<mlir::LLVM::InsertValueOp>(
             loc, valueEntry, lineNoFld, 3);
-        // The fifth field is ptr to the annotation args, it could be empty
+        // The fifth field is ptr to the annotation args var, it could be null
         if (annotation.isNoArgs()) {
           auto nullPtrFld =
               varInitBuilder.create<mlir::LLVM::ZeroOp>(loc, annoPtrTy);

@@ -887,7 +887,7 @@ void LoweringPreparePass::lowerGlobalOp(GlobalOp op) {
     dynamicInitializers.push_back(f);
   }
 
-  // collect global annotations
+  // Collect global annotations
   auto annotations = op.getAnnotations();
   if (annotations) {
     for (auto &annot : annotations.value()) {

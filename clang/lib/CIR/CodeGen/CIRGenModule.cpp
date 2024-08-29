@@ -484,7 +484,7 @@ void CIRGenModule::buildGlobal(GlobalDecl GD) {
   // Ignore declarations, they will be emitted on their first use.
   if (const auto *FD = dyn_cast<FunctionDecl>(Global)) {
     // Update deferred annotations with the latest declaration if the function
-    // function was already used or defined.
+    // was already used or defined.
     if (FD->hasAttr<AnnotateAttr>()) {
       StringRef MangledName = getMangledName(GD);
       if (getGlobalValue(MangledName))

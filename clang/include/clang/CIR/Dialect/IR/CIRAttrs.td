@@ -1140,7 +1140,7 @@ def AnnotationValueAttr : CIR_Attr<"AnnotationValue", "annotation value"> {
     metadata variable in LLVM IR.
   }];
 
-  // here the name is the name of a global var or func.
+  // Here the name is the name of a global var or func.
   let parameters = (ins "StringAttr":$name,
                         "AnnotationAttr":$value);
 
