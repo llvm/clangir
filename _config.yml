@@ -1,4 +1,4 @@
-remote_theme: rundocs/jekyll-rtd-theme
+theme: just-the-docs
 title: ClangIR
 description: A new high-level IR for clang.
 

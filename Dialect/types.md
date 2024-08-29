@@ -46,6 +46,31 @@ CIR bool type
 
 `cir.bool` represent's C++ bool type.
 
+### ComplexType
+
+CIR complex type
+
+Syntax:
+
+```
+!cir.complex<
+  mlir::Type   # elementTy
+>
+```
+
+CIR type that represents a C complex number. `cir.complex` models the C type
+`T _Complex`.
+
+The parameter `elementTy` gives the type of the real and imaginary part of
+the complex number. `elementTy` must be either a CIR integer type or a CIR
+floating-point type.
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| elementTy | `mlir::Type` |  |
+
 ### DataMemberType
 
 CIR type that represents pointer-to-data-member type in C++
@@ -83,12 +108,12 @@ underlying floating-point format is the IEEE-754 binar64 format.
 
 CIR exception info
 
-Syntax: `!cir.eh.info`
+Syntax: `!cir.exception`
 
-Represents the content necessary for a `cir.call` to pass back an exception
-object pointer + some extra selector information. This type is required for
-some exception related operations, like `cir.catch`, `cir.eh.selector_slot`
-and `cir.eh.slot`.
+In presence of an inflight exception, this type holds all specific
+information for an exception: the associated type id, and the exception
+object pointer. These are materialzed from this type through other
+specific operations.
 
 ### FP16Type
 
@@ -179,6 +204,29 @@ type that corresponds to this format. For now, it can only be either
 | :-------: | :-------: | ----------- |
 | underlying | `mlir::Type` |  |
 
+### MethodType
+
+CIR type that represents C++ pointer-to-member-function type
+
+Syntax:
+
+```
+!cir.method<
+  mlir::cir::FuncType,   # memberFuncTy
+  mlir::cir::StructType   # clsTy
+>
+```
+
+`cir.method` models the pointer-to-member-function type in C++. The layout
+of this type is ABI-dependent.
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| memberFuncTy | `mlir::cir::FuncType` |  |
+| clsTy | `mlir::cir::StructType` |  |
+
 ### PointerType
 
 CIR pointer type
@@ -187,7 +235,8 @@ Syntax:
 
 ```
 !cir.ptr<
-  mlir::Type   # pointee
+  mlir::Type,   # pointee
+  mlir::Attribute   # addrSpace
 >
 ```
 
@@ -198,6 +247,7 @@ Syntax:
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
 | pointee | `mlir::Type` |  |
+| addrSpace | `mlir::Attribute` |  |
 
 ### SingleType
 

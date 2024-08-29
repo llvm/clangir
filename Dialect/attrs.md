@@ -202,6 +202,35 @@ This always implies a non-null AST reference (verified).
 | :-------: | :-------: | ----------- |
 | ast | `const clang::VarDecl *` |  |
 
+### AddressSpaceAttr
+
+Address space attribute for pointer types
+
+Syntax:
+
+```
+#cir.addrspace<
+  int32_t   # value
+>
+```
+
+The address space attribute is used in pointer types. It essentially
+provides a unified model on top of `clang::LangAS`, rather than LLVM address
+spaces.
+
+The representation is further simplified: `LangAS::Default` is encoded as
+a null attribute; many address spaces from different offloading languages
+are unified as `offload_*`; etc.
+
+The meaning of `value` parameter is defined as an extensible enum `Kind`,
+which encodes target AS as offset to the last language AS.
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| value | `int32_t` |  |
+
 ### BitfieldInfoAttr
 
 Represents a bit field info
@@ -291,6 +320,35 @@ or neither, respectively.
 | gt | `int64_t` |  |
 | unordered | `std::optional<int64_t>` |  |
 
+### ComplexAttr
+
+An attribute that contains a constant complex value
+
+Syntax:
+
+```
+#cir.complex<
+  mlir::cir::ComplexType,   # type
+  mlir::TypedAttr,   # real
+  mlir::TypedAttr   # imag
+>
+```
+
+The `#cir.complex` attribute contains a constant value of complex number
+type. The `real` parameter gives the real part of the complex number and the
+`imag` parameter gives the imaginary part of the complex number.
+
+The `real` and `imag` parameter must be either an IntAttr or an FPAttr that
+contains values of the same CIR type.
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| type | `mlir::cir::ComplexType` |  |
+| real | `mlir::TypedAttr` |  |
+| imag | `mlir::TypedAttr` |  |
+
 ### ConstArrayAttr
 
 A constant array from ArrayAttr or StringRefAttr
@@ -314,7 +372,7 @@ Syntax:
 ```
 #cir.ptr<
   ::mlir::cir::PointerType,   # type
-  uint64_t   # value
+  mlir::IntegerAttr   # value
 >
 ```
 
@@ -326,7 +384,7 @@ value of a pointer type.
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
 | type | `::mlir::cir::PointerType` |  |
-| value | `uint64_t` |  |
+| value | `mlir::IntegerAttr` |  |
 
 ### ConstStructAttr
 
@@ -359,6 +417,20 @@ cir.global external @rgb2 = #cir.const_struct<{0 : i8,
 | type | `::mlir::Type` |  |
 | members | `ArrayAttr` |  |
 
+### ConstVectorAttr
+
+A constant vector from ArrayAttr
+
+A CIR vector attribute is an array of literals of the specified attribute
+types.
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| type | `::mlir::Type` |  |
+| elts | `ArrayAttr` |  |
+
 ### DataMemberAttr
 
 Holds a constant data member pointer value
@@ -368,14 +440,14 @@ Syntax:
 ```
 #cir.data_member<
   mlir::cir::DataMemberType,   # type
-  std::optional<size_t>   # memberIndex
+  std::optional<unsigned>   # member_index
 >
 ```
 
 A data member attribute is a literal attribute that represents a constant
 pointer-to-data-member value.
 
-The `memberIndex` parameter represents the index of the pointed-to member
+The `member_index` parameter represents the index of the pointed-to member
 within its containing struct. It is an optional parameter; lack of this
 parameter indicates a null pointer-to-data-member value.
 
@@ -391,7 +463,7 @@ Example:
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
 | type | `mlir::cir::DataMemberType` |  |
-| memberIndex | `std::optional<size_t>` |  |
+| member_index | `std::optional<unsigned>` |  |
 
 ### DynamicCastInfoAttr
 
@@ -618,12 +690,186 @@ module attributes {cir.lang = cir.lang<cxx>} {}
 | :-------: | :-------: | ----------- |
 | lang | `::mlir::cir::SourceLanguage` | Source language |
 
+### MethodAttr
+
+Holds a constant pointer-to-member-function value
+
+A method attribute is a literal attribute that represents a constant
+pointer-to-member-function value.
+
+If the member function is a non-virtual function, the `symbol` parameter
+gives the global symbol for the non-virtual member function.
+
+If the member function is a virtual function, the `vtable_offset` parameter
+gives the offset of the vtable entry corresponding to the virtual member
+function.
+
+`symbol` and `vtable_offset` cannot be present at the same time. If both of
+`symbol` and `vtable_offset` are not present, the attribute represents a
+null pointer constant.
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| type | `mlir::cir::MethodType` |  |
+| symbol | `std::optional<FlatSymbolRefAttr>` |  |
+| vtable_offset | `std::optional<uint64_t>` |  |
+
 ### NoThrowAttr
 
 
 
 Syntax: `#cir.nothrow`
 
+
+### OpenCLKernelArgMetadataAttr
+
+OpenCL kernel argument metadata
+
+Syntax:
+
+```
+#cir.cl.kernel_arg_metadata<
+  ArrayAttr,   # addr_space
+  ArrayAttr,   # access_qual
+  ArrayAttr,   # type
+  ArrayAttr,   # base_type
+  ArrayAttr,   # type_qual
+  ArrayAttr   # name
+>
+```
+
+Provide the required information of an OpenCL kernel argument for the SPIR-V
+backend.
+
+All parameters are arrays, containing the information of the argument in
+the same order as they appear in the source code.
+
+The `addr_space` parameter is an array of I32 that provides the address
+space of the argument. It's useful for special types like `image`, which
+have implicit global address space.
+
+Other parameters are arrays of strings that pass through the information
+from the source code correspondingly.
+
+All the fields are mandatory except for `name`, which is optional.
+
+Example:
+```
+#fn_attr = #cir<extra({cl.kernel_arg_metadata = #cir.cl.kernel_arg_metadata<
+  addr_space = [1 : i32],
+  access_qual = ["none"],
+  type = ["char*"],
+  base_type = ["char*"],
+  type_qual = [""],
+  name = ["in"]
+>})>
+
+cir.func @kernel(%arg0: !s32i) extra(#fn_attr) {
+  cir.return
+}
+```
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| addr_space | `ArrayAttr` |  |
+| access_qual | `ArrayAttr` |  |
+| type | `ArrayAttr` |  |
+| base_type | `ArrayAttr` |  |
+| type_qual | `ArrayAttr` |  |
+| name | `ArrayAttr` |  |
+
+### OpenCLKernelMetadataAttr
+
+OpenCL kernel metadata
+
+Syntax:
+
+```
+#cir.cl.kernel_metadata<
+  ArrayAttr,   # work_group_size_hint
+  ArrayAttr,   # reqd_work_group_size
+  TypeAttr,   # vec_type_hint
+  std::optional<bool>,   # vec_type_hint_signedness
+  IntegerAttr   # intel_reqd_sub_group_size
+>
+```
+
+Provide the required information of an OpenCL kernel for the SPIR-V backend.
+
+The `work_group_size_hint` and `reqd_work_group_size` parameter are integer
+arrays with 3 elements that provide hints for the work-group size and the
+required work-group size, respectively.
+
+The `vec_type_hint` parameter is a type attribute that provides a hint for
+the vectorization. It can be a CIR or LLVM type, depending on the lowering
+stage.
+
+The `vec_type_hint_signedness` parameter is a boolean that indicates the
+signedness of the vector type hint. It's useful when LLVM type is set in
+`vec_type_hint`, which is signless by design. It should be set if and only
+if the `vec_type_hint` is present.
+
+The `intel_reqd_sub_group_size` parameter is an integer that restricts the
+sub-group size to the specified value.
+
+Example:
+```
+#fn_attr = #cir<extra({cl.kernel_metadata = #cir.cl.kernel_metadata<
+  work_group_size_hint = [8 : i32, 16 : i32, 32 : i32],
+  reqd_work_group_size = [1 : i32, 2 : i32, 4 : i32],
+  vec_type_hint = !s32i,
+  vec_type_hint_signedness = 1,
+  intel_reqd_sub_group_size = 8 : i32
+>})>
+
+cir.func @kernel(%arg0: !s32i) extra(#fn_attr) {
+  cir.return
+}
+```
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| work_group_size_hint | `ArrayAttr` |  |
+| reqd_work_group_size | `ArrayAttr` |  |
+| vec_type_hint | `TypeAttr` |  |
+| vec_type_hint_signedness | `std::optional<bool>` |  |
+| intel_reqd_sub_group_size | `IntegerAttr` |  |
+
+### OpenCLVersionAttr
+
+OpenCL version
+
+Syntax:
+
+```
+#cir.cl.version<
+  int32_t,   # major
+  int32_t   # minor
+>
+```
+
+Represents the version of OpenCL.
+
+Example:
+```
+// Module compiled from OpenCL 1.2.
+module attributes {cir.cl.version = cir.cl.version<1, 2>} {}
+// Module compiled from OpenCL 3.0.
+module attributes {cir.cl.version = cir.cl.version<3, 0>} {}
+```
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| major | `int32_t` |  |
+| minor | `int32_t` |  |
 
 ### OptNoneAttr
 
@@ -744,6 +990,26 @@ cir.global linkonce_odr @_ZTV1B = #cir.vtable<<
 | :-------: | :-------: | ----------- |
 | type | `::mlir::Type` |  |
 | vtable_data | `ArrayAttr` |  |
+
+### VisibilityAttr
+
+Visibility attribute
+
+Syntax:
+
+```
+#cir.visibility<
+  VisibilityKind   # value
+>
+```
+
+Visibility attributes.
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| value | `VisibilityKind` |  |
 
 ### ZeroAttr
 
