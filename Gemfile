@@ -9,7 +9,6 @@ source "https://rubygems.org"
 # Happy Jekylling!
 gem "webrick"
 gem "github-pages", group: :jekyll_plugins
-gem "just-the-docs"
 
 group :jekyll_plugins do
     # If you have any plugins, put them here!
