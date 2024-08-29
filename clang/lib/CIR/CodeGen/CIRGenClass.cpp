@@ -15,6 +15,7 @@
 
 #include "clang/AST/EvaluatedExprVisitor.h"
 #include "clang/AST/RecordLayout.h"
+#include "clang/AST/Type.h"
 #include "clang/Basic/NoSanitizeList.h"
 #include "clang/Basic/TargetBuiltins.h"
 #include "clang/CIR/MissingFeatures.h"
@@ -1236,6 +1237,33 @@ struct CallDtorDelete final : EHScopeStack::Cleanup {
 };
 } // namespace
 
+class DestroyField final : public EHScopeStack::Cleanup {
+  const FieldDecl *field;
+  CIRGenFunction::Destroyer *destroyer;
+  bool useEHCleanupForArray;
+
+public:
+  DestroyField(const FieldDecl *field, CIRGenFunction::Destroyer *destroyer,
+               bool useEHCleanupForArray)
+      : field(field), destroyer(destroyer),
+        useEHCleanupForArray(useEHCleanupForArray) {}
+
+  void Emit(CIRGenFunction &CGF, Flags flags) override {
+    // Find the address of the field.
+    Address thisValue = CGF.LoadCXXThisAddress();
+    QualType RecordTy = CGF.getContext().getTagType(ElaboratedTypeKeyword::None,
+                                                    /*Qualifier=*/std::nullopt,
+                                                    field->getParent(),
+                                                    /*OwnsTag=*/false);
+    LValue ThisLV = CGF.makeAddrLValue(thisValue, RecordTy);
+    LValue LV = CGF.buildLValueForField(ThisLV, field);
+    assert(LV.isSimple());
+
+    CGF.emitDestroy(LV.getAddress(), field->getType(), destroyer,
+                    flags.isForNormalCleanup() && useEHCleanupForArray);
+  }
+};
+
 /// Emit all code that comes at the end of class's destructor. This is to call
 /// destructors on members and base classes in reverse order of their
 /// construction.
@@ -1346,8 +1374,9 @@ void CIRGenFunction::EnterDtorCleanups(const CXXDestructorDecl *DD,
     if (RT && RT->getOriginalDecl()->isAnonymousStructOrUnion())
       continue;
 
-    [[maybe_unused]] CleanupKind cleanupKind = getCleanupKind(dtorKind);
-    llvm_unreachable("EHStack.pushCleanup<DestroyField>(...) NYI");
+    CleanupKind cleanupKind = getCleanupKind(dtorKind);
+    EHStack.pushCleanup<DestroyField>(
+        cleanupKind, Field, getDestroyer(dtorKind), cleanupKind & EHCleanup);
   }
 
   if (SanitizeFields)
