@@ -1113,23 +1113,41 @@ def AnnotationAttr : CIR_Attr<"Annotation", "annotation"> {
      int *a __attribute__((annotate("testptr", "21", 12 ))); 
     ```
      this example code, the AnnotationAttr records annotation name "testptr", 
-     source file "test.c", line number 12, and arguments "21" and 12 for 
-     global variable a
+     and arguments "21" and 12 as ArrayAttr args for global variable a. 
   }];
 
-  // Use ConstArrayAttr as type of name and translation unit
-  // because they will be used to generate global variable. Using ConstArrayAttr
-  // is a lot more suitable for that than StringAttr.
-  let parameters = (ins "ConstArrayAttr":$name,
-                        "ConstArrayAttr":$unit,
-                        "IntAttr":$lineno,
-                        "mlir::Attribute":$args);
+  // args is empty when there is no arg.
+  let parameters = (ins "StringAttr":$name,
+                        "ArrayAttr":$args);
 
-  let assemblyFormat = "`<` struct($name, $unit, $lineno, $args) `>`";                      
+  let assemblyFormat = "`<` struct($name, $args) `>`";                      
 
   let extraClassDeclaration = [{
-    bool isNoArgs() const { return mlir::isa<mlir::cir::ZeroAttr>(getArgs()); };
+    bool isNoArgs() const { return getArgs().empty(); };
   }];
+}
+
+//===----------------------------------------------------------------------===//
+// AnnotationValueAttr
+//===----------------------------------------------------------------------===//
+def AnnotationValueAttr : CIR_Attr<"AnnotationValue", "annotation value"> {
+  let summary = "An annotation value, consist of name of a global var or func"
+                "and one of its annotations";
+  let description = [{
+    Holds the annotation values for all global variables and functions in a module.
+    This whole collection is the initial value of global annotation metadata variable
+    that will be created in LLVM IR code.
+  }];
+
+  // here the name is the name of a global var or func.
+  let parameters = (ins "StringAttr":$name,
+                        "AnnotationAttr":$value);
+
+
+  let assemblyFormat = "`<` struct($name, $value) `>`"; 
+  
+  // Enable verifier.
+  let genVerifyDecl = 1;                       
 }
 
 include "clang/CIR/Dialect/IR/CIROpenCLAttrs.td"

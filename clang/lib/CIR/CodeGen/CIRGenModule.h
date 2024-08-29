@@ -137,10 +137,10 @@ private:
   /// need to have a global view of all annotations.
 
   /// Map used to get unique annotation related strings.
-  llvm::StringMap<mlir::cir::ConstArrayAttr> AnnotationStrings;
+  llvm::StringMap<mlir::StringAttr> AnnotationStrings;
 
   /// Used for uniquing of annotation arguments.
-  llvm::DenseMap<unsigned, mlir::Attribute> AnnotationArgs;
+  llvm::DenseMap<unsigned, mlir::ArrayAttr> AnnotationArgs;
 
   /// Store deferred function annotations so they can be emitted at the end with
   /// most up to date ValueDecl that will have all the inherited annotations.
@@ -784,20 +784,14 @@ private:
   /// Emit all the global annotations.
   /// This actually only emits annotations for deffered declarations of
   /// functions, because global variables need to deffred emission.
-  void EmitGlobalAnnotations();
+  void buildGlobalAnnotations();
 
   /// Emit an annotation string as the returned StringAttr is needed to
   /// assemble AnnotationAttr for a GlobalOp or FuncOp.
-  mlir::cir::ConstArrayAttr EmitAnnotationString(StringRef Str);
-
-  /// Emit the annotation's translation unit.
-  mlir::cir::ConstArrayAttr EmitAnnotationUnit(SourceLocation Loc);
-
-  /// Emit the annotation line number.
-  mlir::cir::IntAttr EmitAnnotationLineNo(SourceLocation L);
+  mlir::StringAttr buildAnnotationString(StringRef Str);
 
   /// Emit additional args of the annotation.
-  mlir::Attribute EmitAnnotationArgs(const AnnotateAttr *Attr);
+  mlir::ArrayAttr buildAnnotationArgs(const AnnotateAttr *Attr);
 
   /// Create cir::AnnotationAttr which contains the annotation
   /// information for a given GlobalValue. The annotation struct is
@@ -809,13 +803,13 @@ private:
   /// annotation, which could be empty. Notice that a GlobalValue could
   /// have multiple annotations, and this function creates attribute for
   /// one of them.
-  mlir::cir::AnnotationAttr EmitAnnotateAttr(mlir::Operation *GV,
-                                             const AnnotateAttr *AA,
-                                             SourceLocation L);
+  mlir::cir::AnnotationAttr buildAnnotateAttr(mlir::Operation *GV,
+                                              const AnnotateAttr *AA,
+                                              SourceLocation L);
 
   /// Add global annotations that are set on D, for the global GV. Those
   /// annotations are emitted during finalization of the LLVM code.
-  void AddGlobalAnnotations(const ValueDecl *D, mlir::Operation *GV);
+  void addGlobalAnnotations(const ValueDecl *D, mlir::Operation *GV);
 };
 } // namespace cir
 

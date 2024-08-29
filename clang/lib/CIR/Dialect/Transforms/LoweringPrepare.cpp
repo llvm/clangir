@@ -94,8 +94,8 @@ struct LoweringPreparePass : public LoweringPrepareBase<LoweringPreparePass> {
   /// Materialize global ctor/dtor list
   void buildGlobalCtorDtorList();
 
-  /// Build global vars for annotations
-  void buildGlobalAnnotationVars();
+  /// Build attribute of global annotation values
+  void buildGlobalAnnotationValues();
 
   FuncOp
   buildRuntimeFunction(mlir::OpBuilder &builder, llvm::StringRef name,
@@ -155,7 +155,7 @@ struct LoweringPreparePass : public LoweringPrepareBase<LoweringPreparePass> {
   /// List of annotations in the module, need to be a map with value GlobalOp
   /// as we need view to annotated GlobalOp to create global annotation var
   /// and one GlobalOp could have multiple AnnotateAttr
-  llvm::MapVector<mlir::Attribute, mlir::Operation *> globalAnnotations;
+  std::vector<std::pair<mlir::Attribute, mlir::Operation *>> globalAnnotations;
 };
 } // namespace
 
@@ -887,10 +887,10 @@ void LoweringPreparePass::lowerGlobalOp(GlobalOp op) {
   }
 
   // collect global annotations
-  auto annotates = op.getAnnotates();
-  if (annotates) {
-    for (auto &annot : annotates.value()) {
-      globalAnnotations[annot] = op;
+  auto annotations = op.getAnnotations();
+  if (annotations) {
+    for (auto &annot : annotations.value()) {
+      globalAnnotations.push_back({annot, op});
     }
   }
 }
@@ -1076,124 +1076,23 @@ void LoweringPreparePass::lowerIterEndOp(IterEndOp op) {
   op.erase();
 }
 
-static void setAnnoVarCommAttr(GlobalOp global) {
-  const char *annoSection = "llvm.metadata";
-  global.setLinkage(mlir::cir::GlobalLinkageKind::PrivateLinkage);
-  global.setConstant(true);
-  global.setSection(annoSection);
-  // Symbol visibility
-  global.setPrivate();
-  // private linkage, implicit dso local
-  global.setDsolocal(true);
-  assert(!::cir::MissingFeatures::threadLocal() && "NYI");
-  assert(!::cir::MissingFeatures::unnamedAddr() && "NYI");
-}
-
-static void
-createGlobalAnnotationVar(CIRBaseBuilderTy &builder,
-                          std::vector<mlir::cir::ConstStructAttr> &attrVec) {
-  auto varType = builder.getArrayType(attrVec[0].getType(), attrVec.size());
-  auto varName = "llvm.global.annotations";
-  std::vector<mlir::Attribute> tmpVec;
-  tmpVec.reserve(attrVec.size());
-  std::copy(attrVec.begin(), attrVec.end(), std::back_inserter(tmpVec));
-  auto globalVar = builder.create<mlir::cir::GlobalOp>(builder.getUnknownLoc(),
-                                                       varName, varType);
-  globalVar.setInitialValueAttr(
-      mlir::cir::ConstArrayAttr::get(varType, builder.getArrayAttr(tmpVec)));
-  globalVar.setConstant(false);
-  globalVar.setSection("llvm.metadata");
-  globalVar.setLinkage(mlir::cir::GlobalLinkageKind::AppendingLinkage);
-}
-
-void LoweringPreparePass::buildGlobalAnnotationVars() {
+void LoweringPreparePass::buildGlobalAnnotationValues() {
   if (globalAnnotations.empty())
     return;
-
-  llvm::StringMap<mlir::cir::GlobalViewAttr> annotateStringMap;
-  CIRBaseBuilderTy builder(getContext());
-  builder.setInsertionPointToStart(&theModule.getBodyRegion().front());
-
-  // Given a string used in annotation, create global op, and
-  // get its global view.
-  auto getStringGlobalOpView = [&](const mlir::cir::ConstArrayAttr &annoStrAttr,
-                                   mlir::Location loc) {
-    auto stringAttr = mlir::dyn_cast<mlir::StringAttr>(annoStrAttr.getElts());
-    assert(stringAttr && "expected the attribute representing a string here");
-    StringRef annoStr = stringAttr.getValue();
-    if (!annotateStringMap.contains(annoStr)) {
-      auto annoStrGlobal = builder.create<mlir::cir::GlobalOp>(
-          loc,
-          ".str." + std::to_string(annotateStringMap.size()) + ".llvm.metadata",
-          annoStrAttr.getType());
-      annoStrGlobal.setInitialValueAttr(annoStrAttr);
-      setAnnoVarCommAttr(annoStrGlobal);
-      // Since these global views will be used as part of a const struct, which
-      // will be element of a const array, we need to have an uniformed type for
-      // them. So we set void* as the type for global view. Ideally, we should
-      // have ConstGlobalsPtrTy defined and used here.
-      auto globalView =
-          builder.getGlobalViewAttr(builder.getVoidPtrTy(), annoStrGlobal);
-      annotateStringMap[annoStr] = globalView;
-    }
-    return annotateStringMap[annoStr];
-  };
-
-  llvm::DenseMap<mlir::Attribute, mlir::cir::GlobalViewAttr> argsGlobalsMap;
-  std::vector<mlir::cir::ConstStructAttr> globalAnnotationsVec;
-  globalAnnotationsVec.reserve(globalAnnotations.size());
+  std::vector<mlir::Attribute> annotationValueVec;
 
   for (auto &annotEntry : globalAnnotations) {
-    auto annotation = dyn_cast<AnnotationAttr>(annotEntry.first);
-    if (!annotation)
-      continue;
-    mlir::cir::GlobalViewAttr globalValueView;
-    if (auto global = dyn_cast<GlobalOp>(annotEntry.second)) {
-      globalValueView =
-          builder.getGlobalViewAttr(builder.getVoidPtrTy(), global);
-    } else if (auto func = dyn_cast<FuncOp>(annotEntry.second)) {
-      globalValueView = builder.getGlobalViewAttr(builder.getVoidPtrTy(), func);
-    } else {
-      continue;
-    }
-    auto annoStrView =
-        getStringGlobalOpView(annotation.getName(), builder.getUnknownLoc());
-    auto unitStrView =
-        getStringGlobalOpView(annotation.getUnit(), builder.getUnknownLoc());
-    auto lineNoAttr = annotation.getLineno();
-
-    llvm::SmallVector<mlir::Attribute, 5> annotationEntry = {
-        globalValueView, annoStrView, unitStrView, lineNoAttr};
-
-    auto argsAttr = annotation.getArgs();
-    // If args do exist, create an arg constant var, creat a global view to it
-    // and add it to annotation entry. Otherwise, argsAttr is a zeroAttr, we
-    // just simply add it to annotation entry.
-    if (!annotation.isNoArgs()) {
-      if (!argsGlobalsMap.contains(argsAttr)) {
-        auto argsAttrInit = dyn_cast<mlir::cir::ConstStructAttr>(argsAttr);
-        auto annoArgsGlobal = builder.create<mlir::cir::GlobalOp>(
-            builder.getUnknownLoc(),
-            ".args." + std::to_string(argsGlobalsMap.size()) + ".llvm.metadata",
-            argsAttrInit.getType());
-        setAnnoVarCommAttr(annoArgsGlobal);
-        annoArgsGlobal.setInitialValueAttr(argsAttrInit);
-        auto globalView =
-            builder.getGlobalViewAttr(builder.getVoidPtrTy(), annoArgsGlobal);
-        argsGlobalsMap[argsAttr] = globalView;
-      }
-      annotationEntry.push_back(argsGlobalsMap[argsAttr]);
-    } else {
-      // If args do not exist, argsAttr is a ZeroAttr which will be lowered.
-      // to a null pointer.
-      annotationEntry.push_back(argsAttr);
-    }
-    // build a const struct for annotation entry
-    mlir::ArrayAttr entryArrayAttr = builder.getArrayAttr(annotationEntry);
-    auto annoEntryConstStrut = builder.getAnonConstStruct(entryArrayAttr);
-    globalAnnotationsVec.push_back(annoEntryConstStrut);
+    auto annot = dyn_cast<mlir::cir::AnnotationAttr>(annotEntry.first);
+    auto op = annotEntry.second;
+    auto globalValue = dyn_cast<mlir::SymbolOpInterface>(op);
+    auto globalValueName = globalValue.getNameAttr();
+    auto valueEntry = mlir::cir::AnnotationValueAttr::get(
+        theModule.getContext(), globalValueName, annot);
+    annotationValueVec.push_back(valueEntry);
   }
-  createGlobalAnnotationVar(builder, globalAnnotationsVec);
+  mlir::ArrayAttr annotationValueArray =
+      mlir::ArrayAttr::get(theModule.getContext(), annotationValueVec);
+  theModule->setAttr("cir.global_annotations", annotationValueArray);
 }
 
 void LoweringPreparePass::runOnOp(Operation *op) {
@@ -1229,9 +1128,9 @@ void LoweringPreparePass::runOnOp(Operation *op) {
     } else if (auto globalDtor = fnOp.getGlobalDtorAttr()) {
       globalDtorList.push_back(globalDtor);
     }
-    if (auto annotates = fnOp.getAnnotates()) {
+    if (auto annotates = fnOp.getAnnotations()) {
       for (auto &annot : annotates.value()) {
-        globalAnnotations[annot] = fnOp;
+        globalAnnotations.push_back({annot, fnOp});
       }
     }
   }
@@ -1258,7 +1157,7 @@ void LoweringPreparePass::runOnOperation() {
 
   buildCXXGlobalInitFunc();
   buildGlobalCtorDtorList();
-  buildGlobalAnnotationVars();
+  buildGlobalAnnotationValues();
 }
 
 std::unique_ptr<Pass> mlir::createLoweringPreparePass() {

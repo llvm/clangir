@@ -545,6 +545,19 @@ void MethodAttr::print(AsmPrinter &printer) const {
 }
 
 //===----------------------------------------------------------------------===//
+// AnnotationValueAttr definitions
+//===----------------------------------------------------------------------===//
+LogicalResult AnnotationValueAttr::verify(
+    function_ref<::mlir::InFlightDiagnostic()> emitError, mlir::StringAttr name,
+    mlir::cir::AnnotationAttr value) {
+  if (name.empty()) {
+    emitError() << "annotation has to be associated with a global variable";
+    return failure();
+  }
+  return success();
+}
+
+//===----------------------------------------------------------------------===//
 // DynamicCastInfoAtttr definitions
 //===----------------------------------------------------------------------===//
 

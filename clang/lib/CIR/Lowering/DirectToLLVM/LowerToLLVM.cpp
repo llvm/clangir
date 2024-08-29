@@ -283,6 +283,13 @@ mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
   return result;
 }
 
+mlir::Value lowerAnnotationValue(mlir::cir::AnnotationValueAttr value,
+                                 mlir::OpBuilder &builder,
+                                 const mlir::TypeConverter *converter) {
+  mlir::Value result;
+  return result;
+}
+
 // ConstArrayAttr visitor
 mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
                                 mlir::cir::ConstArrayAttr constArr,
@@ -4061,6 +4068,220 @@ void collect_unreachable(mlir::Operation *parent,
   }
 }
 
+static void buildGlobalAnnotationsVar(mlir::ModuleOp module) {
+  auto annotationValuesAttr = module->getAttr("cir.global_annotations");
+  StringRef annotationSection = "llvm.metadata";
+  if (annotationValuesAttr) {
+    auto annotationValuesArray =
+        mlir::cast<mlir::ArrayAttr>(annotationValuesAttr);
+    if (!annotationValuesArray || annotationValuesArray.empty())
+      return;
+    mlir::OpBuilder globalVarBuilder(module.getContext());
+    globalVarBuilder.setInsertionPointToEnd(&module.getBodyRegion().front());
+
+    // Create a global array for annotation values with element type of
+    // struct { ptr, ptr, ptr, i32, ptr }
+    auto annoPtrTy =
+        mlir::LLVM::LLVMPointerType::get(globalVarBuilder.getContext());
+    llvm::SmallVector<mlir::Type> annoStructFields;
+    annoStructFields.push_back(annoPtrTy);
+    annoStructFields.push_back(annoPtrTy);
+    annoStructFields.push_back(annoPtrTy);
+    annoStructFields.push_back(globalVarBuilder.getI32Type());
+    annoStructFields.push_back(annoPtrTy);
+
+    auto annoStructTy = mlir::LLVM::LLVMStructType::getLiteral(
+        globalVarBuilder.getContext(), annoStructFields);
+    auto annoStructArrayTy = mlir::LLVM::LLVMArrayType::get(
+        annoStructTy, annotationValuesArray.size());
+
+    auto loc = module.getLoc();
+    auto newGlobalOp = globalVarBuilder.create<mlir::LLVM::GlobalOp>(
+        loc, annoStructArrayTy, false, mlir::LLVM::Linkage::Appending,
+        "llvm.global.annotations", mlir::Attribute());
+    newGlobalOp.setSection("llvm.metadata");
+    newGlobalOp.getRegion().push_back(new mlir::Block());
+    mlir::OpBuilder varInitBuilder(module.getContext());
+    varInitBuilder.setInsertionPointToEnd(newGlobalOp.getInitializerBlock());
+    // Here we want globals created for annotation strings and args to be
+    // placed before the var llvm.global.annotations. This is to be consistent
+    // with clang code gen.
+    globalVarBuilder.setInsertionPointToStart(&module.getBodyRegion().front());
+    auto lowerAnnotationValuesArray = [&](mlir::ArrayAttr annotationValues) {
+      mlir::Value result =
+          varInitBuilder.create<mlir::LLVM::UndefOp>(loc, annoStructArrayTy);
+      // Track globals created for annotation related strings
+      llvm::StringMap<mlir::LLVM::GlobalOp> stringGlobalsMap;
+      // Track globals created for annotation arg related strings.
+      // They are different from annotation strings, as strings used in args
+      // are not in annotationSection, and also has aligment 1.
+      llvm::StringMap<mlir::LLVM::GlobalOp> argStringGlobalsMap;
+
+      // Track globals created for annotation args.
+      llvm::MapVector<mlir::ArrayAttr, mlir::LLVM::GlobalOp> argsVarMap;
+
+      // Create a string global for annotation related string.
+      auto getAnnotationStringGlobal = [&](mlir::StringAttr strAttr,
+                                           bool isArg =
+                                               false) -> mlir::LLVM::GlobalOp {
+        auto str = strAttr.getValue();
+        auto &globalsMap = isArg ? argStringGlobalsMap : stringGlobalsMap;
+        if (!globalsMap.contains(str)) {
+          auto llvmStrTy = mlir::LLVM::LLVMArrayType::get(
+              mlir::IntegerType::get(module.getContext(), 8), str.size());
+          auto strGlobalOp = globalVarBuilder.create<mlir::LLVM::GlobalOp>(
+              loc, llvmStrTy,
+              /*isConstant=*/true, mlir::LLVM::Linkage::Private,
+              ".str." + std::to_string(globalsMap.size()) + ".annotation" +
+                  (isArg ? ".arg" : ""),
+              strAttr,
+              /*alignment=*/isArg ? 1 : 0);
+          if (!isArg)
+            strGlobalOp.setSection(annotationSection);
+          strGlobalOp.setUnnamedAddr(mlir::LLVM::UnnamedAddr::Global);
+          strGlobalOp.setDsoLocal(true);
+          globalsMap[str] = strGlobalOp;
+        }
+        return globalsMap[str];
+      };
+
+      auto lowerAnnotationValue = [&](mlir::cir::AnnotationValueAttr
+                                          annotValue) {
+        mlir::Value valueEntry =
+            varInitBuilder.create<mlir::LLVM::UndefOp>(loc, annoStructTy);
+        auto globalValueName = annotValue.getName();
+        auto globalValue =
+            mlir::SymbolTable::lookupSymbolIn(module, globalValueName);
+        // The first field is ptr to the global value
+        auto globalValueFld = varInitBuilder.create<mlir::LLVM::AddressOfOp>(
+            loc, annoPtrTy, globalValueName);
+
+        valueEntry = varInitBuilder.create<mlir::LLVM::InsertValueOp>(
+            loc, valueEntry, globalValueFld, 0);
+        auto annotation = annotValue.getValue();
+
+        // The second field is ptr to the annotation name
+        auto annotationName = annotation.getName();
+        auto annotationNameFld = varInitBuilder.create<mlir::LLVM::AddressOfOp>(
+            loc, annoPtrTy,
+            getAnnotationStringGlobal(annotationName).getSymName());
+
+        valueEntry = varInitBuilder.create<mlir::LLVM::InsertValueOp>(
+            loc, valueEntry, annotationNameFld, 1);
+
+        // The third field is ptr to the translation unit name,
+        // and the fourth field is the line number
+        auto annotLoc = globalValue->getLoc();
+        if (mlir::isa<mlir::FusedLoc>(annotLoc)) {
+          auto FusedLoc = mlir::cast<mlir::FusedLoc>(annotLoc);
+          annotLoc = FusedLoc.getLocations()[0];
+        }
+        auto annotFileLoc = mlir::cast<mlir::FileLineColLoc>(annotLoc);
+        assert(annotFileLoc && "annotation value has to be FileLineColLoc");
+        // To be consistent with clang code gen, we add trailing null char
+        auto fileName = mlir::StringAttr::get(
+            module.getContext(),
+            std::string(annotFileLoc.getFilename().getValue()) + '\0');
+        auto fileNameFld = varInitBuilder.create<mlir::LLVM::AddressOfOp>(
+            loc, annoPtrTy, getAnnotationStringGlobal(fileName).getSymName());
+        valueEntry = varInitBuilder.create<mlir::LLVM::InsertValueOp>(
+            loc, valueEntry, fileNameFld, 2);
+        auto lineNo = annotFileLoc.getLine();
+        auto lineNoFld = varInitBuilder.create<mlir::LLVM::ConstantOp>(
+            loc, annoStructFields[3], lineNo);
+        valueEntry = varInitBuilder.create<mlir::LLVM::InsertValueOp>(
+            loc, valueEntry, lineNoFld, 3);
+        // The fifth field is ptr to the annotation args, it could be empty
+        if (annotation.isNoArgs()) {
+          auto nullPtrFld =
+              varInitBuilder.create<mlir::LLVM::ZeroOp>(loc, annoPtrTy);
+          valueEntry = varInitBuilder.create<mlir::LLVM::InsertValueOp>(
+              loc, valueEntry, nullPtrFld, 4);
+        } else {
+          mlir::ArrayAttr argsAttr = annotation.getArgs();
+          // First time we see this argsAttr, create a global for it
+          // and build its initializer
+          if (!argsVarMap.contains(argsAttr)) {
+            llvm::SmallVector<mlir::Type> argStrutFldTypes;
+            llvm::SmallVector<mlir::Value> argStrutFields;
+            for (auto arg : annotation.getArgs()) {
+              if (auto strArgAttr = mlir::dyn_cast<mlir::StringAttr>(arg)) {
+                // This will become a ptr to the global string
+                argStrutFldTypes.push_back(annoPtrTy);
+              } else if (auto intArgAttr =
+                             mlir::dyn_cast<mlir::IntegerAttr>(arg)) {
+                argStrutFldTypes.push_back(intArgAttr.getType());
+              } else {
+                llvm_unreachable("Unsupported annotation arg type");
+              }
+            }
+
+            auto argsStructTy = mlir::LLVM::LLVMStructType::getLiteral(
+                globalVarBuilder.getContext(), argStrutFldTypes);
+            auto argsGlobalOp = globalVarBuilder.create<mlir::LLVM::GlobalOp>(
+                loc, argsStructTy, true, mlir::LLVM::Linkage::Private,
+                ".args." + std::to_string(argsVarMap.size()) + ".annotation",
+                mlir::Attribute());
+            argsGlobalOp.setSection(annotationSection);
+            argsGlobalOp.setUnnamedAddr(mlir::LLVM::UnnamedAddr::Global);
+            argsGlobalOp.setDsoLocal(true);
+
+            // create the initializer for this args global
+            argsGlobalOp.getRegion().push_back(new mlir::Block());
+            mlir::OpBuilder argsInitBuilder(module.getContext());
+            argsInitBuilder.setInsertionPointToEnd(
+                argsGlobalOp.getInitializerBlock());
+
+            mlir::Value argsStructInit =
+                argsInitBuilder.create<mlir::LLVM::UndefOp>(loc, argsStructTy);
+            int idx = 0;
+            for (auto arg : annotation.getArgs()) {
+              if (auto strArgAttr = mlir::dyn_cast<mlir::StringAttr>(arg)) {
+                // This will become a ptr to the global string
+                auto argStrVar = getAnnotationStringGlobal(strArgAttr, true);
+                auto argStrVarAddr =
+                    argsInitBuilder.create<mlir::LLVM::AddressOfOp>(
+                        loc, annoPtrTy, argStrVar.getSymName());
+                argsStructInit =
+                    argsInitBuilder.create<mlir::LLVM::InsertValueOp>(
+                        loc, argsStructInit, argStrVarAddr, idx++);
+              } else if (auto intArgAttr =
+                             mlir::dyn_cast<mlir::IntegerAttr>(arg)) {
+                auto intArgFld = argsInitBuilder.create<mlir::LLVM::ConstantOp>(
+                    loc, intArgAttr.getType(), intArgAttr.getValue());
+                argsStructInit =
+                    argsInitBuilder.create<mlir::LLVM::InsertValueOp>(
+                        loc, argsStructInit, intArgFld, idx++);
+              } else {
+                llvm_unreachable("Unsupported annotation arg type");
+              }
+            }
+            argsInitBuilder.create<mlir::LLVM::ReturnOp>(loc, argsStructInit);
+            argsVarMap[argsAttr] = argsGlobalOp;
+          }
+          auto argsVarView = varInitBuilder.create<mlir::LLVM::AddressOfOp>(
+              loc, annoPtrTy, argsVarMap[argsAttr].getSymName());
+          valueEntry = varInitBuilder.create<mlir::LLVM::InsertValueOp>(
+              loc, valueEntry, argsVarView, 4);
+        }
+        return valueEntry;
+      };
+      int idx = 0;
+      for (auto entry : annotationValues) {
+        auto annotValue = cast<mlir::cir::AnnotationValueAttr>(entry);
+        assert(entry && "annotation values has to be AnnotationValueAttr");
+        mlir::Value init = lowerAnnotationValue(annotValue);
+        result = varInitBuilder.create<mlir::LLVM::InsertValueOp>(loc, result,
+                                                                  init, idx++);
+      }
+      return result;
+    };
+
+    auto initValue = lowerAnnotationValuesArray(annotationValuesArray);
+    varInitBuilder.create<mlir::LLVM::ReturnOp>(loc, initValue);
+  }
+}
+
 void ConvertCIRToLLVMPass::runOnOperation() {
   auto module = getOperation();
   mlir::DataLayout dataLayout(module);
@@ -4127,6 +4348,7 @@ void ConvertCIRToLLVMPass::runOnOperation() {
         auto dtorAttr = mlir::cast<mlir::cir::GlobalDtorAttr>(attr);
         return std::make_pair(dtorAttr.getName(), dtorAttr.getPriority());
       });
+  buildGlobalAnnotationsVar(module);
 }
 
 std::unique_ptr<mlir::Pass> createConvertCIRToLLVMPass() {
