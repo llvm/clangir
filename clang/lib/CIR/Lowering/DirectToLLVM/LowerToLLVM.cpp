@@ -478,8 +478,6 @@ mlir::LLVM::Linkage convertLinkage(mlir::cir::GlobalLinkageKind linkage) {
     return LLVM::Weak;
   case CIR::WeakODRLinkage:
     return LLVM::WeakODR;
-  case CIR::AppendingLinkage:
-    return LLVM::Appending;
   };
 }
 
@@ -1930,8 +1928,6 @@ public:
         /*addrSpace*/ getGlobalOpTargetAddrSpace(op),
         /*dsoLocal*/ false, /*threadLocal*/ (bool)op.getTlsModelAttr(),
         /*comdat*/ mlir::SymbolRefAttr(), attributes);
-    if (op.getSection())
-      newGlobalOp.setSection(op.getSection());
     newGlobalOp.getRegion().push_back(new mlir::Block());
     rewriter.setInsertionPointToEnd(newGlobalOp.getInitializerBlock());
   }
@@ -4096,17 +4092,19 @@ static void buildGlobalAnnotationsVar(mlir::ModuleOp module) {
         annoStructTy, annotationValuesArray.size());
 
     auto loc = module.getLoc();
-    auto newGlobalOp = globalVarBuilder.create<mlir::LLVM::GlobalOp>(
+    auto annotationGlobalOp = globalVarBuilder.create<mlir::LLVM::GlobalOp>(
         loc, annoStructArrayTy, false, mlir::LLVM::Linkage::Appending,
         "llvm.global.annotations", mlir::Attribute());
-    newGlobalOp.setSection("llvm.metadata");
-    newGlobalOp.getRegion().push_back(new mlir::Block());
+    annotationGlobalOp.setSection("llvm.metadata");
+    annotationGlobalOp.getRegion().push_back(new mlir::Block());
     mlir::OpBuilder varInitBuilder(module.getContext());
-    varInitBuilder.setInsertionPointToEnd(newGlobalOp.getInitializerBlock());
-    // Here we want globals created for annotation strings and args to be
-    // placed before the var llvm.global.annotations. This is to be consistent
+    varInitBuilder.setInsertionPointToEnd(
+        annotationGlobalOp.getInitializerBlock());
+    // Globals created for annotation strings and args to be
+    // placed before the var llvm.global.annotations. This is consistent
     // with clang code gen.
-    globalVarBuilder.setInsertionPointToStart(&module.getBodyRegion().front());
+    globalVarBuilder.setInsertionPoint(annotationGlobalOp);
+
     auto lowerAnnotationValuesArray = [&](mlir::ArrayAttr annotationValues) {
       mlir::Value result =
           varInitBuilder.create<mlir::LLVM::UndefOp>(loc, annoStructArrayTy);
@@ -4145,6 +4143,8 @@ static void buildGlobalAnnotationsVar(mlir::ModuleOp module) {
         return globalsMap[str];
       };
 
+      // Create init values an element of Annotation Value Array,
+      // also create string or args global variables if needed.
       auto lowerAnnotationValue = [&](mlir::cir::AnnotationValueAttr
                                           annotValue) {
         mlir::Value valueEntry =
@@ -4226,7 +4226,7 @@ static void buildGlobalAnnotationsVar(mlir::ModuleOp module) {
             argsGlobalOp.setUnnamedAddr(mlir::LLVM::UnnamedAddr::Global);
             argsGlobalOp.setDsoLocal(true);
 
-            // create the initializer for this args global
+            // Create the initializer for this args global
             argsGlobalOp.getRegion().push_back(new mlir::Block());
             mlir::OpBuilder argsInitBuilder(module.getContext());
             argsInitBuilder.setInsertionPointToEnd(
@@ -4266,6 +4266,7 @@ static void buildGlobalAnnotationsVar(mlir::ModuleOp module) {
         }
         return valueEntry;
       };
+
       int idx = 0;
       for (auto entry : annotationValues) {
         auto annotValue = cast<mlir::cir::AnnotationValueAttr>(entry);
