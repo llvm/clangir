@@ -1893,7 +1893,9 @@ public:
     SmallVector<mlir::NamedAttribute> attributes;
     auto newGlobalOp = rewriter.replaceOpWithNewOp<mlir::LLVM::GlobalOp>(
         op, llvmType, op.getConstant(), convertLinkage(op.getLinkage()),
-        op.getSymName(), nullptr, /*alignment*/ 0,
+        op.getSymName(), nullptr,
+        /*alignment*/ op.getAlignment().has_value() ? op.getAlignment().value()
+                                                    : 0,
         /*addrSpace*/ getGlobalOpTargetAddrSpace(op),
         /*dsoLocal*/ false, /*threadLocal*/ (bool)op.getTlsModelAttr(),
         /*comdat*/ mlir::SymbolRefAttr(), attributes);
@@ -2017,7 +2019,9 @@ public:
     // Rewrite op.
     auto llvmGlobalOp = rewriter.replaceOpWithNewOp<mlir::LLVM::GlobalOp>(
         op, llvmType, isConst, linkage, symbol, init.value(),
-        /*alignment*/ 0, /*addrSpace*/ getGlobalOpTargetAddrSpace(op),
+        /*alignment*/ op.getAlignment().has_value() ? op.getAlignment().value()
+                                                    : 0,
+        /*addrSpace*/ getGlobalOpTargetAddrSpace(op),
         /*dsoLocal*/ false, /*threadLocal*/ (bool)op.getTlsModelAttr(),
         /*comdat*/ mlir::SymbolRefAttr(), attributes);
 
