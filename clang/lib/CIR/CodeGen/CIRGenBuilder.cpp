@@ -19,8 +19,11 @@ mlir::Value CIRGenBuilderTy::maybeBuildArrayDecay(mlir::Location loc,
       ::mlir::dyn_cast<::mlir::cir::ArrayType>(arrayPtrTy.getPointee());
 
   if (arrayTy) {
+    mlir::cir::AddressSpaceAttr addrSpace =
+        ::mlir::cast_if_present<::mlir::cir::AddressSpaceAttr>(
+            arrayPtrTy.getAddrSpace());
     mlir::cir::PointerType flatPtrTy =
-        mlir::cir::PointerType::get(getContext(), arrayTy.getEltType());
+        getPointerTo(arrayTy.getEltType(), addrSpace);
     return create<mlir::cir::CastOp>(
         loc, flatPtrTy, mlir::cir::CastKind::array_to_ptrdecay, arrayPtr);
   }
