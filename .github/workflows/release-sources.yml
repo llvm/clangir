@@ -67,7 +67,7 @@ jobs:
       attestations: write
     steps:
       - name: Checkout LLVM
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        uses: actions/checkout@9a9194f87191a7e9055e3e9b95b8cfb13023bb08 # v4.1.1
         with:
           ref: ${{ needs.inputs.outputs.ref }}
           fetch-tags: true
@@ -88,14 +88,14 @@ jobs:
       - name: Attest Build Provenance
         if: github.event_name != 'pull_request'
         id: provenance
-        uses: actions/attest-build-provenance@897ed5eab6ed058a474202017ada7f40bfa52940 # v1.0.0
+        uses: actions/attest-build-provenance@6149ea5740be74af77f260b9db67e633f6b0a9a1 # v1.4.2
         with:
           subject-path: "*.xz"
       - if: github.event_name != 'pull_request'
         run: |
           mv ${{ steps.provenance.outputs.bundle-path }} .
       - name: Create Tarball Artifacts
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 #v4.3.3
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 #v4.4.0
         with:
           path: |
             *.xz

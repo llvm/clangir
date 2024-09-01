@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout LLVM
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.1.7
         with:
           sparse-checkout: .github/workflows/containers/github-action-ci/
       - name: Change podman Root Direcotry
@@ -65,7 +65,7 @@ jobs:
           echo "container-name-tag=$container_name:$tag" >> $GITHUB_OUTPUT
 
       - name: Checkout LLVM
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.1.7
         with:
           sparse-checkout: .github/workflows/containers/github-action-ci/
 
