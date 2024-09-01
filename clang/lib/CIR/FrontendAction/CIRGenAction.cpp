@@ -206,7 +206,7 @@ public:
               codeGenOptions.OptimizationLevel > 0,
               action == CIRGenAction::OutputType::EmitCIRFlat,
               action == CIRGenAction::OutputType::EmitMLIR,
-              feOptions.ClangIREnableCallConvLowering,
+              feOptions.ClangIRCallConvLowering,
               feOptions.ClangIREnableMem2Reg)
               .failed()) {
         if (!passOptParsingFailure.empty())

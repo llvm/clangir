@@ -199,10 +199,13 @@ LogicalResult LowerModule::rewriteFunctionDefinition(FuncOp op) {
     llvm_unreachable("ExtraAttrs are NYI");
   }
 
-  if (LowerFunction(*this, rewriter, op, newFn)
-          .generateCode(op, newFn, FI)
-          .failed())
-    return failure();
+  // Is a function definition: handle the body.
+  if (!op.isDeclaration()) {
+    if (LowerFunction(*this, rewriter, op, newFn)
+            .generateCode(op, newFn, FI)
+            .failed())
+      return failure();
+  }
 
   // Erase original ABI-agnostic function.
   rewriter.eraseOp(op);

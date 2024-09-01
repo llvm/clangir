@@ -70,7 +70,7 @@ void EmptySubobjectMap::ComputeEmptySubobjectSizes() {
       continue;
 
     // TODO(cir): Handle nested record types.
-    llvm_unreachable("NYI");
+    assert_or_abort(!::cir::MissingFeatures::ABINestedRecordLayout(), "NYI");
   }
 }
 

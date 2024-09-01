@@ -47,7 +47,8 @@ public:
     if (!prototype.isVarArg())
       return All;
 
-    llvm_unreachable("Variadic function is NYI");
+    assert_or_abort(!::cir::MissingFeatures::variadicFunctions(), "NYI");
+    return All; // FIXME(cir): Temporary workaround for the assertion above.
   }
 
   bool allowsOptionalArgs() const { return NumRequired != ~0U; }

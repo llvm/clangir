@@ -40,7 +40,8 @@ bool isAggregateTypeForABI(Type T) {
 Type useFirstFieldIfTransparentUnion(Type Ty) {
   if (auto RT = dyn_cast<StructType>(Ty)) {
     if (RT.isUnion())
-      llvm_unreachable("NYI");
+      assert_or_abort(!::cir::MissingFeatures::ABITransparentUnionHandling(),
+                      "NYI");
   }
   return Ty;
 }

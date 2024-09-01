@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -emit-cir %s -o - | FileCheck %s
+// RUN: %clang_cc1 -fno-clangir-call-conv-lowering -triple x86_64-unknown-linux-gnu -emit-cir %s -o - | FileCheck %s
 
 typedef struct {
   int x;

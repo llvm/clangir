@@ -33,7 +33,7 @@ public:
 
 private:
   void computeInfo(LowerFunctionInfo &FI) const override {
-    llvm_unreachable("ABI NYI");
+    assert_or_abort(!::cir::MissingFeatures::SPIRVABI(), "NYI");
   }
 };
 

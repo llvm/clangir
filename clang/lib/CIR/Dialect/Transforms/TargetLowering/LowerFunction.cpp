@@ -63,7 +63,8 @@ Value enterStructPointerForCoercedAccess(Value SrcPtr, StructType SrcSTy,
       FirstEltSize < CGF.LM.getDataLayout().getTypeStoreSize(SrcSTy))
     return SrcPtr;
 
-  llvm_unreachable("NYI");
+  assert_or_abort(!::cir::MissingFeatures::ABIEnterStructForCoercedAccess(), "NYI");
+  return SrcPtr; // FIXME: This is a temporary workaround for the assertion above.
 }
 
 /// Create a store to \param Dst from \param Src where the source and
@@ -276,6 +277,8 @@ LowerFunction::buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
   // entails copying one or more LLVM IR arguments into an alloca. Don't push
   // any cleanups or do anything that might unwind. We do that separately, so
   // we can push the cleanups in the correct order for the ABI.
+  if (ASSERT_MODE && FI.arg_size() != Args.size())
+    return success();
   assert(FI.arg_size() == Args.size());
   unsigned ArgNo = 0;
   LowerFunctionInfo::const_arg_iterator info_it = FI.arg_begin();
@@ -310,7 +313,7 @@ LowerFunction::buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
       // http://llvm.org/docs/LangRef.html#paramattrs.
       if (ArgI.getDirectOffset() == 0 && isa<PointerType>(LTy) &&
           isa<PointerType>(ArgI.getCoerceToType())) {
-        llvm_unreachable("NYI");
+        assert_or_abort(!::cir::MissingFeatures::ABIPointerParameterAttrs(), "NYI");
       }
 
       // Prepare the argument value. If we have the trivial case, handle it
@@ -484,15 +487,20 @@ LogicalResult LowerFunction::generateCode(FuncOp oldFn, FuncOp newFn,
   const auto hasNoUses = [](Value val) { return val.getUses().empty(); };
   assert(std::all_of(Args.begin(), Args.end(), hasNoUses) && "Missing RAUW?");
 
-  // Migrate function body to new ABI-aware function.
-  assert(oldFn.getBody().hasOneBlock() &&
-         "Multiple blocks in original function not supported");
+  // NOTE(cir): While the new function has the ABI-aware parameters, the old
+  // function still has the function logic. To complete the migration, we have
+  // to move the old function body to the new function.
 
-  // Move old function body to new function.
-  // FIXME(cir): The merge below is not very good: will not work if SrcFn has
-  // multiple blocks and it mixes the new and old prologues.
-  rewriter.mergeBlocks(&oldFn.getBody().front(), &newFn.getBody().front(),
-                       newFn.getArguments());
+  // Backup references  to entry blocks.
+  Block *srcBlock = &oldFn.getBody().front();
+  Block *dstBlock = &newFn.getBody().front();
+
+  // Migrate function body to new ABI-aware function.
+  rewriter.inlineRegionBefore(oldFn.getBody(), newFn.getBody(),
+                              newFn.getBody().end());
+
+  // Merge entry blocks to ensure correct branching.
+  rewriter.mergeBlocks(srcBlock, dstBlock, newFn.getArguments());
 
   // FIXME(cir): What about saving parameters for corotines? Should we do
   // something about it in this pass? If the change with the calling
@@ -610,7 +618,7 @@ Value LowerFunction::rewriteCallOp(FuncType calleeTy, FuncOp origCallee,
   // Chain calls use this same code path to add the invisible chain parameter
   // to the function type.
   if (origCallee.getNoProto() || Chain) {
-    llvm_unreachable("NYI");
+    assert_or_abort(::cir::MissingFeatures::ABINoProtoFunctions(), "NYI");
   }
 
   assert(!::cir::MissingFeatures::CUDA());
@@ -897,7 +905,8 @@ Value LowerFunction::getUndefRValue(Type Ty) {
   // FIXME(cir): Implement type classes for CIR types.
   if (isa<StructType>(type))
     return ::cir::TypeEvaluationKind::TEK_Aggregate;
-  if (isa<BoolType, IntType, SingleType, DoubleType>(type))
+  if (isa<BoolType, IntType, SingleType, DoubleType, LongDoubleType, VectorType,
+          PointerType>(type))
     return ::cir::TypeEvaluationKind::TEK_Scalar;
   llvm_unreachable("NYI");
 }

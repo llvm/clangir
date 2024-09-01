@@ -34,7 +34,7 @@ arrangeFreeFunctionLikeCall(LowerTypes &LT, LowerModule &LM,
   // extra prefix plus the arguments in the prototype.
   // FIXME(cir): Properly check if function is no-proto.
   if (/*IsPrototypedFunction=*/true) {
-    if (fnType.isVarArg())
+    if (fnType.isVarArg() && !ASSERT_MODE)
       llvm_unreachable("NYI");
 
     if (::cir::MissingFeatures::extParamInfo())
@@ -147,7 +147,7 @@ void LowerModule::constructAttributeList(StringRef Name,
     [[fallthrough]];
   case ABIArgInfo::Direct:
     if (RetAI.getInReg())
-      llvm_unreachable("InReg attribute is NYI");
+      assert_or_abort(!::cir::MissingFeatures::ABIInRegAttribute(), "NYI");
     assert(!::cir::MissingFeatures::noFPClass());
     break;
   case ABIArgInfo::Ignore:
@@ -253,7 +253,7 @@ const LowerFunctionInfo &LowerTypes::arrangeFunctionDeclaration(FuncOp fnOp) {
   // When declaring a function without a prototype, always use a
   // non-variadic type.
   if (fnOp.getNoProto()) {
-    llvm_unreachable("NYI");
+    assert_or_abort(!::cir::MissingFeatures::ABINoProtoFunctions(), "NYI");
   }
 
   return arrangeFreeFunctionType(FTy);

@@ -1,5 +1,5 @@
-// RUN: %clang_cc1 -triple aarch64-none-linux-android24  -fclangir -emit-cir -mmlir --mlir-print-ir-before=cir-lowering-prepare %s -o %t.cir 2>&1 | FileCheck %s
-// RUN: %clang_cc1 -x c++ -std=c++20 -triple aarch64-none-linux-android24  -fclangir -emit-cir -mmlir --mlir-print-ir-before=cir-lowering-prepare %s -o %t.cir 2>&1 | FileCheck %s
+// RUN: %clang_cc1 -triple aarch64-none-linux-android24  -fclangir -fno-clangir-call-conv-lowering -emit-cir -mmlir --mlir-print-ir-before=cir-lowering-prepare %s -o %t.cir 2>&1 | FileCheck %s
+// RUN: %clang_cc1 -x c++ -std=c++20 -triple aarch64-none-linux-android24  -fclangir -fno-clangir-call-conv-lowering -emit-cir -mmlir --mlir-print-ir-before=cir-lowering-prepare %s -o %t.cir 2>&1 | FileCheck %s
 
 typedef __builtin_va_list va_list;
 

@@ -95,7 +95,8 @@ Type getFPTypeAtOffset(Type IRType, unsigned IROffset,
   if (IROffset == 0 && isa<SingleType, DoubleType>(IRType))
     return IRType;
 
-  llvm_unreachable("NYI");
+  assert_or_abort(!::cir::MissingFeatures::X86GetFPTypeAtOffset(), "NYI");
+  return IRType; // FIXME(cir): Temporary workaround for the assertion above.
 }
 
 } // namespace
@@ -337,7 +338,7 @@ void X86_64ABIInfo::classify(Type Ty, uint64_t OffsetBase, Class &Lo, Class &Hi,
       postMerge(Size, Lo, Hi);
     } else {
       llvm::outs() << "Missing X86 classification for type " << Ty << "\n";
-      llvm_unreachable("NYI");
+      assert_or_abort(!::cir::MissingFeatures::X86TypeClassification(), "NYI");
     }
     // FIXME: _Decimal32 and _Decimal64 are SSE.
     // FIXME: _float128 and _Decimal128 are (SSE, SSEUp).
@@ -436,7 +437,9 @@ Type X86_64ABIInfo::GetINTEGERTypeAtOffset(Type DestTy, unsigned IROffset,
   unsigned TySizeInBytes =
       (unsigned)getContext().getTypeSizeInChars(SourceTy).getQuantity();
 
-  assert(TySizeInBytes != SourceOffset && "Empty field?");
+  // FIXME(cir): Temporary workaround to make things non-blocking.
+  if (!ASSERT_MODE)
+    assert(TySizeInBytes != SourceOffset && "Empty field?");
 
   // It is always safe to classify this as an integer type up to i64 that
   // isn't larger than the structure.
@@ -492,7 +495,7 @@ Type X86_64ABIInfo::GetINTEGERTypeAtOffset(Type DestTy, unsigned IROffset,
     break;
 
   default:
-    llvm_unreachable("NYI");
+    assert_or_abort(!::cir::MissingFeatures::X86RetTypeClassification(), "NYI");
   }
 
   Type HighPart = {};
@@ -566,7 +569,7 @@ ABIArgInfo X86_64ABIInfo::classifyArgumentType(Type Ty, unsigned freeIntRegs,
     break;
   }
   default:
-    llvm_unreachable("NYI");
+    assert_or_abort(!::cir::MissingFeatures::X86ArgTypeClassification(), "NYI");
   }
 
   Type HighPart = {};

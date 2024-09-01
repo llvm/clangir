@@ -1,6 +1,6 @@
-// RUN: %clang_cc1 -std=c++20 -triple aarch64-none-linux-android21 -Wno-unused-value -fclangir -emit-cir %s -o %t.cir
+// RUN: %clang_cc1 -std=c++20 -triple aarch64-none-linux-android21 -Wno-unused-value -fclangir -fno-clangir-call-conv-lowering -emit-cir %s -o %t.cir
 // RUN: FileCheck --check-prefix=CIR --input-file=%t.cir %s
-// RUN: %clang_cc1 -std=c++20 -fexceptions -fcxx-exceptions -triple aarch64-none-linux-android21 -Wno-unused-value -fclangir -emit-cir %s -o %t.eh.cir
+// RUN: %clang_cc1 -std=c++20 -fexceptions -fcxx-exceptions -triple aarch64-none-linux-android21 -Wno-unused-value -fclangir -fno-clangir-call-conv-lowering -emit-cir %s -o %t.eh.cir
 // RUN: FileCheck --check-prefix=CIR_EH --input-file=%t.eh.cir %s
 
 struct Vec {
