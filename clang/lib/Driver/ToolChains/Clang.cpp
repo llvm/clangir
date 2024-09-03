@@ -4975,12 +4975,15 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   if (Args.hasArg(options::OPT_fclangir_direct_lowering))
     CmdArgs.push_back("-fclangir-direct-lowering");
 
+  if (Args.hasArg(options::OPT_fno_clangir_direct_lowering))
+    CmdArgs.push_back("-fno-clangir-direct-lowering");
+
   if (Args.hasArg(options::OPT_clangir_disable_passes))
     CmdArgs.push_back("-clangir-disable-passes");
 
   if (Args.hasArg(options::OPT_fclangir_call_conv_lowering))
     CmdArgs.push_back("-fclangir-call-conv-lowering");
-  
+
   if (Args.hasArg(options::OPT_fclangir_mem2reg))
     CmdArgs.push_back("-fclangir-mem2reg");
 
