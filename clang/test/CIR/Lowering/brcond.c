@@ -4,9 +4,7 @@
 
 bool test() {
   bool x = false;
-  if (x) {
-    bool u = x;
-    return u;
-  }
+  if (x) 
+    return x;
   return x;
 }

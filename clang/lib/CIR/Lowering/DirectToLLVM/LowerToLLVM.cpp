@@ -620,7 +620,7 @@ public:
     if (auto defOp = adaptor.getCond().getDefiningOp()) {
       if (auto zext = dyn_cast<mlir::LLVM::ZExtOp>(defOp)) {
         if (zext->use_empty() &&
-            zext->getOperand(0).getType() == rewriter.getI1Type() && 
+            zext->getOperand(0).getType() == rewriter.getI1Type() &&
             hasOneUse) {
           i1Condition = zext->getOperand(0);
           rewriter.eraseOp(zext);
