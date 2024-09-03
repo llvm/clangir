@@ -1894,8 +1894,7 @@ public:
     auto newGlobalOp = rewriter.replaceOpWithNewOp<mlir::LLVM::GlobalOp>(
         op, llvmType, op.getConstant(), convertLinkage(op.getLinkage()),
         op.getSymName(), nullptr,
-        /*alignment*/ op.getAlignment().has_value() ? op.getAlignment().value()
-                                                    : 0,
+        /*alignment*/ op.getAlignment().value_or(0),
         /*addrSpace*/ getGlobalOpTargetAddrSpace(op),
         /*dsoLocal*/ false, /*threadLocal*/ (bool)op.getTlsModelAttr(),
         /*comdat*/ mlir::SymbolRefAttr(), attributes);
@@ -2019,8 +2018,7 @@ public:
     // Rewrite op.
     auto llvmGlobalOp = rewriter.replaceOpWithNewOp<mlir::LLVM::GlobalOp>(
         op, llvmType, isConst, linkage, symbol, init.value(),
-        /*alignment*/ op.getAlignment().has_value() ? op.getAlignment().value()
-                                                    : 0,
+        /*alignment*/op.getAlignment().value_or(0),
         /*addrSpace*/ getGlobalOpTargetAddrSpace(op),
         /*dsoLocal*/ false, /*threadLocal*/ (bool)op.getTlsModelAttr(),
         /*comdat*/ mlir::SymbolRefAttr(), attributes);
