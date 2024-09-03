@@ -613,9 +613,9 @@ public:
     mlir::Value i1Condition;
 
     auto hasOneUse = false;
+
     if (auto defOp = brOp.getCond().getDefiningOp())
-      if (defOp->getResult(0).hasOneUse())
-        hasOneUse = true;
+      hasOneUse = defOp->getResult(0).hasOneUse();
 
     if (auto defOp = adaptor.getCond().getDefiningOp()) {
       if (auto zext = dyn_cast<mlir::LLVM::ZExtOp>(defOp)) {
