@@ -786,24 +786,18 @@ private:
   /// functions, because global variables need to deffred emission.
   void buildGlobalAnnotations();
 
-  /// Emit an annotation string as the returned StringAttr is needed to
-  /// assemble AnnotationAttr for a GlobalOp or FuncOp.
-  mlir::StringAttr buildAnnotationString(StringRef Str);
-
   /// Emit additional args of the annotation.
-  mlir::ArrayAttr buildAnnotationArgs(const AnnotateAttr *Attr);
+  mlir::ArrayAttr buildAnnotationArgs(const AnnotateAttr *attr);
 
   /// Create cir::AnnotationAttr which contains the annotation
   /// information for a given GlobalValue. Notice that a GlobalValue could
   /// have multiple annotations, and this function creates attribute for
   /// one of them.
-  mlir::cir::AnnotationAttr buildAnnotateAttr(mlir::Operation *GV,
-                                              const AnnotateAttr *AA,
-                                              SourceLocation L);
+  mlir::cir::AnnotationAttr buildAnnotateAttr(const AnnotateAttr *aa);
 
   /// Add global annotations that are set on D, for the global GV. Those
   /// annotations are emitted during lowering to the LLVM code.
-  void addGlobalAnnotations(const ValueDecl *D, mlir::Operation *GV);
+  void addGlobalAnnotations(const ValueDecl *d, mlir::Operation *gv);
 };
 } // namespace cir
 

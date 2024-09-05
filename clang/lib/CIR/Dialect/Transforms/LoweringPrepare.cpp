@@ -156,7 +156,7 @@ struct LoweringPreparePass : public LoweringPrepareBase<LoweringPreparePass> {
   /// as we need view to annotated global values to create global annotation var
   /// later in LLVM lowering.
   //  One global value could have multiple AnnotateAttr
-  std::vector<std::pair<mlir::Attribute, mlir::Operation *>> globalAnnotations;
+  SmallVector<std::pair<mlir::Attribute, mlir::Operation *>> globalAnnotations;
 };
 } // namespace
 
@@ -1080,15 +1080,19 @@ void LoweringPreparePass::lowerIterEndOp(IterEndOp op) {
 void LoweringPreparePass::buildGlobalAnnotationValues() {
   if (globalAnnotations.empty())
     return;
-  std::vector<mlir::Attribute> annotationValueVec;
+  SmallVector<mlir::Attribute> annotationValueVec;
+  annotationValueVec.reserve(globalAnnotations.size());
 
   for (auto &annotEntry : globalAnnotations) {
     auto annot = dyn_cast<mlir::cir::AnnotationAttr>(annotEntry.first);
-    auto op = annotEntry.second;
+    mlir::Operation *op = annotEntry.second;
     auto globalValue = dyn_cast<mlir::SymbolOpInterface>(op);
-    auto globalValueName = globalValue.getNameAttr();
-    auto valueEntry = mlir::cir::AnnotationValueAttr::get(
-        theModule.getContext(), globalValueName, annot);
+    mlir::StringAttr globalValueName = globalValue.getNameAttr();
+    SmallVector<mlir::Attribute, 2> entryArray = {globalValueName, annot};
+    mlir::cir::GlobalAnnotationValueAttr valueEntry =
+        mlir::cir::GlobalAnnotationValueAttr::get(
+            theModule.getContext(),
+            mlir::ArrayAttr::get(theModule.getContext(), entryArray));
     annotationValueVec.push_back(valueEntry);
   }
   mlir::ArrayAttr annotationValueArray =

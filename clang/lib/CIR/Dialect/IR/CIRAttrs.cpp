@@ -545,13 +545,24 @@ void MethodAttr::print(AsmPrinter &printer) const {
 }
 
 //===----------------------------------------------------------------------===//
-// AnnotationValueAttr definitions
+// GlobalAnnotationValueAttr definitions
 //===----------------------------------------------------------------------===//
-LogicalResult AnnotationValueAttr::verify(
-    function_ref<::mlir::InFlightDiagnostic()> emitError, mlir::StringAttr name,
-    mlir::cir::AnnotationAttr value) {
-  if (name.empty()) {
-    emitError() << "annotation has to be associated with a global variable";
+LogicalResult GlobalAnnotationValueAttr::verify(
+    function_ref<::mlir::InFlightDiagnostic()> emitError,
+    mlir::ArrayAttr value) {
+  if (value.size() < 2) {
+    emitError()
+        << "GlobalAnnotationValueAttr should at least have two elements";
+    return failure();
+  } else if (!::mlir::isa<mlir::StringAttr>(value[0])) {
+    emitError()
+        << "The first element of GlobalAnnotationValueAttr must be string";
+    return failure();
+  }
+  auto annoPart = ::mlir::cast<mlir::cir::AnnotationAttr>(value[1]);
+  if (!annoPart) {
+    emitError() << "The second element of GlobalAnnotationValueAttr must be "
+                   "AnnotationValueAttr";
     return failure();
   }
   return success();

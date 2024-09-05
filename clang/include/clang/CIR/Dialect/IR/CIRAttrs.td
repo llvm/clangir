@@ -1104,19 +1104,20 @@ def BitfieldInfoAttr : CIR_Attr<"BitfieldInfo", "bitfield_info"> {
 //===----------------------------------------------------------------------===//
 // AnnotationAttr
 //===----------------------------------------------------------------------===//
+
 def AnnotationAttr : CIR_Attr<"Annotation", "annotation"> {
   let summary = "Annotation attribute for global variables and functions";
   let description = [{
-    Represent C/C++ attribute of annotate in CIR. example c code is:
+    Represent C/C++ attribute of annotate in CIR. Example c code is:
     ```
-     in test.c line 10
      int *a __attribute__((annotate("testptr", "21", 12 ))); 
     ```
-     this example code, the AnnotationAttr records annotation name "testptr", 
-     and arguments "21" and 12 as ArrayAttr args for global variable a. 
+    In this example code, the `AnnotationAttr` records annotation name "testptr", 
+    and arguments "21" and 12 as `ArrayAttr` type parameter `args`
+    for global variable `a`. 
   }];
 
-  // args is empty when there is no arg.
+  // The parameter args is empty when there is no arg.
   let parameters = (ins "StringAttr":$name,
                         "ArrayAttr":$args);
 
@@ -1128,27 +1129,26 @@ def AnnotationAttr : CIR_Attr<"Annotation", "annotation"> {
 }
 
 //===----------------------------------------------------------------------===//
-// AnnotationValueAttr
+// GlobalAnnotationValueAttr
 //===----------------------------------------------------------------------===//
-def AnnotationValueAttr : CIR_Attr<"AnnotationValue", "annotation value"> {
+
+def GlobalAnnotationValueAttr : CIR_Attr<"GlobalAnnotationValue", "annotation value"> {
   let summary = "An annotation value, consist of name of a global var or func"
                 "and one of its annotations";
   let description = [{
     This is element type of annotation value array, which holds the annotation 
     values for all global variables and functions in a module.
-    This array is used to create the initial value of a global annotation 
+    This array is used to create the initial value of a global annotation
     metadata variable in LLVM IR.
   }];
 
   // Here the name is the name of a global var or func.
-  let parameters = (ins "StringAttr":$name,
-                        "AnnotationAttr":$value);
+  let parameters = (ins "ArrayAttr":$value);
 
+  let assemblyFormat = " $value ";
 
-  let assemblyFormat = "`<` struct($name, $value) `>`"; 
-  
   // Enable verifier.
-  let genVerifyDecl = 1;                       
+  let genVerifyDecl = 1;                      
 }
 
 include "clang/CIR/Dialect/IR/CIROpenCLAttrs.td"
