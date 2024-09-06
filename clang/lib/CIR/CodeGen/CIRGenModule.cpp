@@ -488,7 +488,7 @@ void CIRGenModule::buildGlobal(GlobalDecl GD) {
     if (FD->hasAttr<AnnotateAttr>()) {
       StringRef MangledName = getMangledName(GD);
       if (getGlobalValue(MangledName))
-        DeferredAnnotations[MangledName] = FD;
+        deferredAnnotations[MangledName] = FD;
     }
     // Forward declarations are emitted lazily on first use.
     if (!FD->doesThisDeclarationHaveABody()) {
@@ -602,7 +602,7 @@ void CIRGenModule::buildGlobalFunctionDefinition(GlobalDecl GD,
     AddGlobalDtor(Fn, DA->getPriority(), true);
 
   if (D->getAttr<AnnotateAttr>())
-    DeferredAnnotations[getMangledName(GD)] = cast<ValueDecl>(D);
+    deferredAnnotations[getMangledName(GD)] = cast<ValueDecl>(D);
 }
 
 /// Track functions to be called before main() runs.
@@ -3205,23 +3205,23 @@ mlir::ArrayAttr CIRGenModule::buildAnnotationArgs(const AnnotateAttr *attr) {
   for (Expr *e : exprs) {
     id.Add(cast<clang::ConstantExpr>(e)->getAPValueResult());
   }
-  mlir::ArrayAttr &lookup = AnnotationArgs[id.ComputeHash()];
+  mlir::ArrayAttr &lookup = annotationArgs[id.ComputeHash()];
   if (lookup)
     return lookup;
 
   llvm::SmallVector<mlir::Attribute, 4> args;
   args.reserve(exprs.size());
   for (Expr *e : exprs) {
-    if (const auto StrE =
+    if (const auto strE =
             ::clang::dyn_cast<clang::StringLiteral>(e->IgnoreParenCasts())) {
       // Add trailing null character as StringLiteral->getString() does not
-      args.push_back(builder.getStringAttr(StrE->getString()));
-    } else if (const auto IntE = ::clang::dyn_cast<clang::IntegerLiteral>(
+      args.push_back(builder.getStringAttr(strE->getString()));
+    } else if (const auto intE = ::clang::dyn_cast<clang::IntegerLiteral>(
                    e->IgnoreParenCasts())) {
       args.push_back(mlir::IntegerAttr::get(
           mlir::IntegerType::get(builder.getContext(),
-                                 IntE->getValue().getBitWidth()),
-          IntE->getValue()));
+                                 intE->getValue().getBitWidth()),
+          intE->getValue()));
     } else {
       llvm_unreachable("NYI");
     }
@@ -3234,7 +3234,7 @@ mlir::ArrayAttr CIRGenModule::buildAnnotationArgs(const AnnotateAttr *attr) {
 
 mlir::cir::AnnotationAttr
 CIRGenModule::buildAnnotateAttr(const AnnotateAttr *aa) {
-  auto annoGV = builder.getStringAttr(aa->getAnnotation());
+  mlir::StringAttr annoGV = builder.getStringAttr(aa->getAnnotation());
   mlir::ArrayAttr args = buildAnnotationArgs(aa);
   return mlir::cir::AnnotationAttr::get(builder.getContext(), annoGV, args);
 }
@@ -3254,10 +3254,10 @@ void CIRGenModule::addGlobalAnnotations(const ValueDecl *d,
 }
 
 void CIRGenModule::buildGlobalAnnotations() {
-  for (const auto &[MangledName, VD] : DeferredAnnotations) {
+  for (const auto &[MangledName, VD] : deferredAnnotations) {
     mlir::Operation *GV = getGlobalValue(MangledName);
     if (GV)
       addGlobalAnnotations(VD, GV);
   }
-  DeferredAnnotations.clear();
+  deferredAnnotations.clear();
 }

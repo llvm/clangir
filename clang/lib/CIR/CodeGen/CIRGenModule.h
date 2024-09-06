@@ -131,20 +131,17 @@ private:
   /// Annotations
   /// -------
 
-  /// We do not store global annotations in the module as annotation is
-  /// represented as attribute of GlobalOp, we defer creation of global
-  /// annotation variable to LoweringPrepare as CIR passes do not
-  /// need to have a global view of all annotations.
-
-  /// Map used to get unique annotation related strings.
-  llvm::StringMap<mlir::StringAttr> AnnotationStrings;
+  /// We do not store global annotations in the module here, instead, we store
+  /// each annotation as attribute of GlobalOp and FuncOp.
+  /// We defer creation of global annotation variable to LoweringPrepare
+  //  as CIR passes do not need to have a global view of all annotations.
 
   /// Used for uniquing of annotation arguments.
-  llvm::DenseMap<unsigned, mlir::ArrayAttr> AnnotationArgs;
+  llvm::DenseMap<unsigned, mlir::ArrayAttr> annotationArgs;
 
   /// Store deferred function annotations so they can be emitted at the end with
   /// most up to date ValueDecl that will have all the inherited annotations.
-  llvm::DenseMap<StringRef, const ValueDecl *> DeferredAnnotations;
+  llvm::DenseMap<StringRef, const ValueDecl *> deferredAnnotations;
 
 public:
   mlir::ModuleOp getModule() const { return theModule; }
@@ -783,7 +780,7 @@ private:
 
   /// Emit all the global annotations.
   /// This actually only emits annotations for deffered declarations of
-  /// functions, because global variables need to deffred emission.
+  /// functions, because global variables need no deffred emission.
   void buildGlobalAnnotations();
 
   /// Emit additional args of the annotation.
@@ -795,8 +792,8 @@ private:
   /// one of them.
   mlir::cir::AnnotationAttr buildAnnotateAttr(const AnnotateAttr *aa);
 
-  /// Add global annotations that are set on D, for the global GV. Those
-  /// annotations are emitted during lowering to the LLVM code.
+  /// Add global annotations for a global value.
+  /// Those annotations are emitted during lowering to the LLVM code.
   void addGlobalAnnotations(const ValueDecl *d, mlir::Operation *gv);
 };
 } // namespace cir

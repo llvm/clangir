@@ -888,7 +888,7 @@ void LoweringPreparePass::lowerGlobalOp(GlobalOp op) {
   }
 
   // Collect global annotations
-  auto annotations = op.getAnnotations();
+  std::optional<mlir::ArrayAttr> annotations = op.getAnnotations();
   if (annotations) {
     for (auto &annot : annotations.value()) {
       globalAnnotations.push_back({annot, op});
@@ -1084,9 +1084,9 @@ void LoweringPreparePass::buildGlobalAnnotationValues() {
   annotationValueVec.reserve(globalAnnotations.size());
 
   for (auto &annotEntry : globalAnnotations) {
-    auto annot = dyn_cast<mlir::cir::AnnotationAttr>(annotEntry.first);
+    auto annot = cast<mlir::cir::AnnotationAttr>(annotEntry.first);
     mlir::Operation *op = annotEntry.second;
-    auto globalValue = dyn_cast<mlir::SymbolOpInterface>(op);
+    auto globalValue = cast<mlir::SymbolOpInterface>(op);
     mlir::StringAttr globalValueName = globalValue.getNameAttr();
     SmallVector<mlir::Attribute, 2> entryArray = {globalValueName, annot};
     mlir::cir::GlobalAnnotationValueAttr valueEntry =
@@ -1133,7 +1133,7 @@ void LoweringPreparePass::runOnOp(Operation *op) {
     } else if (auto globalDtor = fnOp.getGlobalDtorAttr()) {
       globalDtorList.push_back(globalDtor);
     }
-    if (auto annotates = fnOp.getAnnotations()) {
+    if (std::optional<mlir::ArrayAttr> annotates = fnOp.getAnnotations()) {
       for (auto &annot : annotates.value()) {
         globalAnnotations.push_back({annot, fnOp});
       }

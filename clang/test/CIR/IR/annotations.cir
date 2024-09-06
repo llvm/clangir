@@ -1,0 +1,20 @@
+// RUN: cir-opt %s -o %t.cir
+// RUN: FileCheck --input-file=%t.cir %s
+
+!s32i = !cir.int<s, 32>
+module {
+cir.global external @a = #cir.int<0> : !s32i [#cir.annotation<name = "testanno", args = ["21", 12 : i32]>]
+cir.func @foo() attributes {annotations = [#cir.annotation<name = "withargfunc", args = ["os", 22 : i32]>]} {
+    cir.return
+}
+cir.func @bar() attributes {annotations = [#cir.annotation<name = "noargfunc", args = []>, #cir.annotation<name = "withargfunc", args = ["os", 23 : i32]>]} {
+    cir.return
+}
+}
+// CHECK: cir.global  external @a = #cir.int<0> : !s32i
+// CHECK-SAME: [#cir.annotation<name = "testanno", args = ["21", 12 : i32]>]
+// CHECK: cir.func @foo() attributes
+// CHECK-SAME: {annotations = [#cir.annotation<name = "withargfunc", args = ["os", 22 : i32]>]}
+// CHECK: cir.func @bar() attributes
+// CHECK-SAME: {annotations = [#cir.annotation<name = "noargfunc", args = []>,
+// CHECK-SAME: #cir.annotation<name = "withargfunc", args = ["os", 23 : i32]>]}
