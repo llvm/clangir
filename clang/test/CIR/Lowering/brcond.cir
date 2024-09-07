@@ -1,0 +1,43 @@
+// RUN: cir-opt %s -cir-to-llvm | FileCheck %s -check-prefix=MLIR
+// RUN: cir-translate %s -cir-to-llvmir | FileCheck %s -check-prefix=LLVM
+
+!s32i = !cir.int<s, 32>
+#fn_attr = #cir<extra({inline = #cir.inline<no>, nothrow = #cir.nothrow, optnone = #cir.optnone})>
+module { cir.func no_proto  @test() -> !cir.bool extra(#fn_attr) {
+    %0 = cir.const #cir.int<0> : !s32i 
+    %1 = cir.cast(int_to_bool, %0 : !s32i), !cir.bool 
+    cir.br ^bb1 
+  ^bb1:  // pred: ^bb0
+    cir.brcond %1 ^bb2, ^bb3 
+  ^bb2:  // pred: ^bb1
+    cir.return %1 : !cir.bool 
+  ^bb3:  // pred: ^bb1
+    cir.br ^bb4 
+  ^bb4:  // pred: ^bb3
+    cir.return %1 : !cir.bool 
+  } 
+}
+
+// MLIR:         %0 = llvm.mlir.constant(0 : i32) : i32
+// MLIR-NEXT:    %1 = llvm.mlir.constant(0 : i32) : i32
+// MLIR-NEXT:    %2 = llvm.icmp "ne" %0, %1 : i32
+// MLIR-NEXT:    %3 = llvm.zext %2 : i1 to i8
+// MLIR-NEXT:    llvm.br ^bb1
+// MLIR-NEXT:  ^bb1:  // pred: ^bb0
+// MLIR-NEXT:    llvm.cond_br %2, ^bb2, ^bb3
+// MLIR-NEXT:  ^bb2:  // pred: ^bb1
+// MLIR-NEXT:    llvm.return %3 : i8
+// MLIR-NEXT:  ^bb3:  // pred: ^bb1
+// MLIR-NEXT:    llvm.br ^bb4
+// MLIR-NEXT:  ^bb4:  // pred: ^bb3
+// MLIR-NEXT:    llvm.return %3 : i8
+
+// LLVM: br label %1, !dbg !6
+// LLVM: 1:                                                ; preds = %0
+// LLVM: br i1 false, label %2, label %3, !dbg !7
+// LLVM: 2:                                                ; preds = %1
+// LLVM:  ret i8 0, !dbg !8
+// LLVM: 3:                                                ; preds = %1
+// LLVM:  br label %4, !dbg !9
+// LLVM: 4:                                                ; preds = %3
+// LLVM:  ret i8 0, !dbg !10
