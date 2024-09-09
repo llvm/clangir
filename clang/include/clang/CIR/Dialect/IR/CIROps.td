@@ -3805,7 +3805,8 @@ def IterEndOp : CIR_Op<"iterator_end"> {
 // Floating Point Ops
 //===----------------------------------------------------------------------===//
 
-class UnaryFPToIntBuiltinOp<string mnemonic> : CIR_Op<mnemonic, [Pure]> {
+class UnaryFPToIntBuiltinOp<string mnemonic, string llvmOpName>
+    : CIR_Op<mnemonic, [Pure]> {
   let arguments = (ins CIR_AnyFloat:$src);
   let results = (outs CIR_IntType:$result);
 
@@ -3817,12 +3818,14 @@ class UnaryFPToIntBuiltinOp<string mnemonic> : CIR_Op<mnemonic, [Pure]> {
   let assemblyFormat = [{
     $src `:` type($src) `->` type($result) attr-dict
   }];
+
+  let llvmOp = llvmOpName;
 }
 
-def LroundOp : UnaryFPToIntBuiltinOp<"lround">;
-def LLroundOp : UnaryFPToIntBuiltinOp<"llround">;
-def LrintOp : UnaryFPToIntBuiltinOp<"lrint">;
-def LLrintOp : UnaryFPToIntBuiltinOp<"llrint">;
+def LroundOp : UnaryFPToIntBuiltinOp<"lround", "LroundOp">;
+def LLroundOp : UnaryFPToIntBuiltinOp<"llround", "LlroundOp">;
+def LrintOp : UnaryFPToIntBuiltinOp<"lrint", "LrintOp">;
+def LLrintOp : UnaryFPToIntBuiltinOp<"llrint", "LlrintOp">;
 
 class UnaryFPToFPBuiltinOp<string mnemonic, string llvmOpName>
     : CIR_Op<mnemonic, [Pure, SameOperandsAndResultType]> {
@@ -3851,7 +3854,7 @@ def SinOp : UnaryFPToFPBuiltinOp<"sin", "SinOp">;
 def SqrtOp : UnaryFPToFPBuiltinOp<"sqrt", "SqrtOp">;
 def TruncOp : UnaryFPToFPBuiltinOp<"trunc", "FTruncOp">;
 
-class BinaryFPToFPBuiltinOp<string mnemonic>
+class BinaryFPToFPBuiltinOp<string mnemonic, string llvmOpName>
     : CIR_Op<mnemonic, [Pure, SameOperandsAndResultType]> {
   let summary = [{
     libc builtin equivalent ignoring floating-point exceptions and errno.
@@ -3863,13 +3866,15 @@ class BinaryFPToFPBuiltinOp<string mnemonic>
   let assemblyFormat = [{
     $lhs `,` $rhs `:` qualified(type($lhs)) attr-dict
   }];
+
+  let llvmOp = llvmOpName;
 }
 
-def CopysignOp : BinaryFPToFPBuiltinOp<"copysign">;
-def FMaxOp : BinaryFPToFPBuiltinOp<"fmax">;
-def FMinOp : BinaryFPToFPBuiltinOp<"fmin">;
-def FModOp : BinaryFPToFPBuiltinOp<"fmod">;
-def PowOp : BinaryFPToFPBuiltinOp<"pow">;
+def CopysignOp : BinaryFPToFPBuiltinOp<"copysign", "CopySignOp">;
+def FMaxOp : BinaryFPToFPBuiltinOp<"fmax", "MaxNumOp">;
+def FMinOp : BinaryFPToFPBuiltinOp<"fmin", "MinNumOp">;
+def FModOp : BinaryFPToFPBuiltinOp<"fmod", "FRemOp">;
+def PowOp : BinaryFPToFPBuiltinOp<"pow", "PowOp">;
 
 //===----------------------------------------------------------------------===//
 // Branch Probability Operations
