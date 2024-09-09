@@ -4972,12 +4972,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
       Args.hasArg(options::OPT_emit_cir_flat))
     CmdArgs.push_back("-fclangir");
 
-  if (Args.hasArg(options::OPT_fclangir_direct_lowering))
-    CmdArgs.push_back("-fclangir-direct-lowering");
-
-  if (Args.hasArg(options::OPT_fno_clangir_direct_lowering))
-    CmdArgs.push_back("-fno-clangir-direct-lowering");
-
+  Args.addOptOutFlag(CmdArgs, options::OPT_fclangir_direct_lowering, options::OPT_fno_clangir_direct_lowering)
   if (Args.hasArg(options::OPT_clangir_disable_passes))
     CmdArgs.push_back("-clangir-disable-passes");
 
