@@ -1649,6 +1649,13 @@ public:
                                        const FunctionArgList &Args,
                                        clang::SourceLocation Loc);
 
+  // It's important not to confuse this and the previous function. Delegating
+  // constructors are the C++11 feature. The constructor delegate optimization
+  // is used to reduce duplication in the base and complete constructors where
+  // they are substantially the same.
+  void buildDelegatingCXXConstructorCall(const CXXConstructorDecl *Ctor,
+                                         const FunctionArgList &Args);
+
   /// We are performing a delegate call; that is, the current function is
   /// delegating to another one. Produce a r-value suitable for passing the
   /// given parameter.
@@ -2215,9 +2222,11 @@ public:
   /// appropriate alignmen and cast it to the default address space. Returns
   /// the original alloca instruction by \p Alloca if it is not nullptr.
   Address CreateMemTemp(QualType T, mlir::Location Loc,
-                        const Twine &Name = "tmp", Address *Alloca = nullptr);
+                        const Twine &Name = "tmp", Address *Alloca = nullptr,
+                        mlir::OpBuilder::InsertPoint ip = {});
   Address CreateMemTemp(QualType T, CharUnits Align, mlir::Location Loc,
-                        const Twine &Name = "tmp", Address *Alloca = nullptr);
+                        const Twine &Name = "tmp", Address *Alloca = nullptr,
+                        mlir::OpBuilder::InsertPoint ip = {});
 
   /// Create a temporary memory object of the given type, with
   /// appropriate alignment without casting it to the default address space.
