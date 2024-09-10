@@ -7,13 +7,13 @@ module { cir.func no_proto  @test() -> !cir.bool extra(#fn_attr) {
     %0 = cir.const #cir.int<0> : !s32i 
     %1 = cir.cast(int_to_bool, %0 : !s32i), !cir.bool 
     cir.br ^bb1 
-  ^bb1:  // pred: ^bb0
+  ^bb1:
     cir.brcond %1 ^bb2, ^bb3 
-  ^bb2:  // pred: ^bb1
+  ^bb2:
     cir.return %1 : !cir.bool 
-  ^bb3:  // pred: ^bb1
+  ^bb3:
     cir.br ^bb4 
-  ^bb4:  // pred: ^bb3
+  ^bb4:
     cir.return %1 : !cir.bool 
   } 
 }
@@ -23,16 +23,16 @@ module { cir.func no_proto  @test() -> !cir.bool extra(#fn_attr) {
 // MLIR-NEXT:    {{.*}} = llvm.icmp "ne" {{.*}}, {{.*}} : i32
 // MLIR-NEXT:    {{.*}} = llvm.zext {{.*}} : i1 to i8
 // MLIR-NEXT:    llvm.br ^bb1
-// MLIR-NEXT:  ^bb1:  // pred: ^bb0
+// MLIR-NEXT:  ^bb1:
 // MLIR-NEXT:    llvm.cond_br {{.*}}, ^bb2, ^bb3
-// MLIR-NEXT:  ^bb2:  // pred: ^bb1
+// MLIR-NEXT:  ^bb2:
 // MLIR-NEXT:    llvm.return {{.*}} : i8
-// MLIR-NEXT:  ^bb3:  // pred: ^bb1
+// MLIR-NEXT:  ^bb3:
 // MLIR-NEXT:    llvm.br ^bb4
-// MLIR-NEXT:  ^bb4:  // pred: ^bb3
+// MLIR-NEXT:  ^bb4:
 // MLIR-NEXT:    llvm.return {{.*}} : i8
 
-// LLVM: br label {{.*}}, !dbg !6
+// LLVM: br label {{.*}}
 // LLVM: 1:
 // LLVM: br i1 false, label {{.*}}, label {{.*}}
 // LLVM: 2:
