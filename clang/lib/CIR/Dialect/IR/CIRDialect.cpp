@@ -2864,6 +2864,18 @@ static ::mlir::ParseResult parseCallCommon(::mlir::OpAsmParser &parser,
       return ::mlir::failure();
   }
 
+  if (parser.parseOptionalKeyword("cc").succeeded()) {
+    if (parser.parseLParen().failed())
+      return failure();
+    mlir::cir::CallingConv callingConv;
+    if (parseCIRKeyword<mlir::cir::CallingConv>(parser, callingConv).failed())
+      return failure();
+    if (parser.parseRParen().failed())
+      return failure();
+    result.addAttribute("calling_conv", mlir::cir::CallingConvAttr::get(
+                                            builder.getContext(), callingConv));
+  }
+
   return ::mlir::success();
 }
 
@@ -2871,6 +2883,7 @@ void printCallCommon(Operation *op, mlir::Value indirectCallee,
                      mlir::FlatSymbolRefAttr flatSym,
                      ::mlir::OpAsmPrinter &state,
                      ::mlir::cir::ExtraFuncAttributesAttr extraAttrs,
+                     ::mlir::cir::CallingConv callingConv,
                      ::mlir::UnitAttr exception = {},
                      mlir::Block *cont = nullptr,
                      mlir::Block *landingPad = nullptr) {
@@ -2922,6 +2935,7 @@ void printCallCommon(Operation *op, mlir::Value indirectCallee,
   elidedAttrs.push_back("callee");
   elidedAttrs.push_back("ast");
   elidedAttrs.push_back("extra_attrs");
+  elidedAttrs.push_back("calling_conv");
   elidedAttrs.push_back("exception");
   elidedAttrs.push_back("operandSegmentSizes");
 
@@ -2929,6 +2943,13 @@ void printCallCommon(Operation *op, mlir::Value indirectCallee,
   state << ' ' << ":";
   state << ' ';
   state.printFunctionalType(op->getOperands().getTypes(), op->getResultTypes());
+
+  if (callingConv != mlir::cir::CallingConv::C) {
+    state << " cc(";
+    state << stringifyCallingConv(callingConv);
+    state << ")";
+  }
+
   if (!extraAttrs.getElements().empty()) {
     state << " extra(";
     state.printAttributeWithoutType(extraAttrs);
@@ -2949,9 +2970,10 @@ cir::CallOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
 
 void CallOp::print(::mlir::OpAsmPrinter &state) {
   mlir::Value indirectCallee = isIndirect() ? getIndirectCall() : nullptr;
+  mlir::cir::CallingConv callingConv = getCallingConv();
   mlir::UnitAttr exception = getExceptionAttr();
   printCallCommon(*this, indirectCallee, getCalleeAttr(), state,
-                  getExtraAttrs(), exception);
+                  getExtraAttrs(), callingConv, exception);
 }
 
 //===----------------------------------------------------------------------===//
@@ -3000,8 +3022,9 @@ cir::TryCallOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
 
 void TryCallOp::print(::mlir::OpAsmPrinter &state) {
   mlir::Value indirectCallee = isIndirect() ? getIndirectCall() : nullptr;
+  mlir::cir::CallingConv callingConv = getCallingConv();
   printCallCommon(*this, indirectCallee, getCalleeAttr(), state,
-                  getExtraAttrs(), {}, getCont(), getLandingPad());
+                  getExtraAttrs(), callingConv, {}, getCont(), getLandingPad());
 }
 
 mlir::SuccessorOperands TryCallOp::getSuccessorOperands(unsigned index) {
