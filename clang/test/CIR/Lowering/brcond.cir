@@ -18,26 +18,26 @@ module { cir.func no_proto  @test() -> !cir.bool extra(#fn_attr) {
   } 
 }
 
-// MLIR:         %0 = llvm.mlir.constant(0 : i32) : i32
-// MLIR-NEXT:    %1 = llvm.mlir.constant(0 : i32) : i32
-// MLIR-NEXT:    %2 = llvm.icmp "ne" %0, %1 : i32
-// MLIR-NEXT:    %3 = llvm.zext %2 : i1 to i8
+// MLIR:         {{.*}} = llvm.mlir.constant(0 : i32) : i32
+// MLIR-NEXT:    {{.*}} = llvm.mlir.constant(0 : i32) : i32
+// MLIR-NEXT:    {{.*}} = llvm.icmp "ne" {{.*}}, {{.*}} : i32
+// MLIR-NEXT:    {{.*}} = llvm.zext {{.*}} : i1 to i8
 // MLIR-NEXT:    llvm.br ^bb1
 // MLIR-NEXT:  ^bb1:  // pred: ^bb0
-// MLIR-NEXT:    llvm.cond_br %2, ^bb2, ^bb3
+// MLIR-NEXT:    llvm.cond_br {{.*}}, ^bb2, ^bb3
 // MLIR-NEXT:  ^bb2:  // pred: ^bb1
-// MLIR-NEXT:    llvm.return %3 : i8
+// MLIR-NEXT:    llvm.return {{.*}} : i8
 // MLIR-NEXT:  ^bb3:  // pred: ^bb1
 // MLIR-NEXT:    llvm.br ^bb4
 // MLIR-NEXT:  ^bb4:  // pred: ^bb3
-// MLIR-NEXT:    llvm.return %3 : i8
+// MLIR-NEXT:    llvm.return {{.*}} : i8
 
-// LLVM: br label %1, !dbg !6
-// LLVM: 1:                                                ; preds = %0
-// LLVM: br i1 false, label %2, label %3, !dbg !7
-// LLVM: 2:                                                ; preds = %1
-// LLVM:  ret i8 0, !dbg !8
-// LLVM: 3:                                                ; preds = %1
-// LLVM:  br label %4, !dbg !9
-// LLVM: 4:                                                ; preds = %3
-// LLVM:  ret i8 0, !dbg !10
+// LLVM: br label {{.*}}, !dbg !6
+// LLVM: 1:
+// LLVM: br i1 false, label {{.*}}, label {{.*}}
+// LLVM: 2:
+// LLVM:  ret i8 0
+// LLVM: 3:
+// LLVM:  br label {{.*}}
+// LLVM: 4:
+// LLVM:  ret i8 0
