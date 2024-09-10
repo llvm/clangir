@@ -4,8 +4,8 @@
 // RUN: FileCheck --check-prefix=LLVM --input-file=%t.ll %s
 // XFAIL: *
 
-// CIR: ![[sized_array:.*]] = !cir.struct<struct "sized_array" {!cir.int<s, 32>, !cir.array<!cir.int<s, 32> x 0>}
 // CIR: ![[annon_struct:.*]] = !cir.struct<struct  {!cir.int<s, 32>, !cir.array<!cir.int<s, 32> x 2>}>
+// CIR: ![[sized_array:.*]] = !cir.struct<struct "sized_array" {!cir.int<s, 32>, !cir.array<!cir.int<s, 32> x 0>}
 
 void escape(const void *);
 
