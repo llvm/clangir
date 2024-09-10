@@ -4,9 +4,14 @@
 // RUN: FileCheck --input-file=%t2.cir %s -check-prefix=CIR
 // RUN: %clang -target x86_64-unknown-linux-gnu -fclangir -fclangir-direct-lowering -S -emit-llvm %s -o %t1.ll
 // RUN: FileCheck --input-file=%t1.ll %s -check-prefix=LLVM
-// RUN %clang -target x86_64-unknown-linux-gnu -fclangir -fno-clangir-direct-lowering -S -emit-llvm %s -o %t2.ll
-// RUN FileCheck --input-file=%t2.ll %s -check-prefix=CIR_STD_LLVM
-// RUN: %clang -target x86_64-unknown-linux-gnu -fclangir -fclangir-direct-lowering -c -emit-llvm %s -o %t1.bc
+// RUN: %clang -target x86_64-unknown-linux-gnu -fclangir -fno-clangir-direct-lowering -S -emit-llvm %s -o %t2.ll
+// RUN: FileCheck --input-file=%t2.ll %s -check-prefix=CIR_STD_LLVM
+// Test also the cases for both -fclangir-direct-lowering and -fno-clangir-direct-lowering,
+// with -fno-clangir-direct-lowering having the preference
+// RUN: %clang -target x86_64-unknown-linux-gnu -fclangir -fclangir-direct-lowering -fno-clangir-direct-lowering -S -emit-llvm %s -o %t2.ll
+// RUN: FileCheck --input-file=%t2.ll %s -check-prefix=CIR_STD_LLVM
+// RUN: %clang -target x86_64-unknown-linux-gnu -fclangir -fno-clangir-direct-lowering -fclangir-direct-lowering -c -emit-llvm %s -o %t1.bc
+// RUN: FileCheck --input-file=%t2.ll %s -check-prefix=CIR_STD_LLVM
 // RUN: llvm-dis %t1.bc -o %t1.bc.ll
 // RUN: FileCheck --input-file=%t1.bc.ll %s -check-prefix=LLVM
 // RUN: %clang -target x86_64-unknown-linux-gnu -fclangir -fno-clangir-direct-lowering -c -emit-llvm %s -o %t2.bc
