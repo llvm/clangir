@@ -700,14 +700,14 @@ public:
                            callingConv, extraFnAttr);
   }
 
-  mlir::cir::CallOp createIndirectTryCallOp(mlir::Location loc,
-                                            mlir::Value ind_target,
-                                            mlir::cir::FuncType fn_type,
-                                            mlir::ValueRange operands) {
+  mlir::cir::CallOp createIndirectTryCallOp(
+      mlir::Location loc, mlir::Value ind_target, mlir::cir::FuncType fn_type,
+      mlir::ValueRange operands,
+      mlir::cir::CallingConv callingConv = mlir::cir::CallingConv::C) {
     llvm::SmallVector<mlir::Value, 4> resOperands({ind_target});
     resOperands.append(operands.begin(), operands.end());
     return createTryCallOp(loc, mlir::SymbolRefAttr(), fn_type.getReturnType(),
-                           resOperands);
+                           resOperands, callingConv);
   }
 
   struct GetMethodResults {
