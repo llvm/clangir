@@ -1016,6 +1016,8 @@ public:
     assert(entryBlock->isEntryBlock());
 
     // %x = landingpad { ptr, i32 }
+    // Note that since llvm.landingpad has to be the first operation on the
+    // block, any needed value for its operands has to be added somewhere else.
     if (symListAttr) {
       //   catch ptr @_ZTIi
       //   catch ptr @_ZTIPKc
@@ -1033,6 +1035,8 @@ public:
     } else {
       if (!op.getCleanup()) {
         //   catch ptr null
+        mlir::OpBuilder::InsertionGuard guard(rewriter);
+        rewriter.setInsertionPointToStart(entryBlock);
         mlir::Value nullOp = rewriter.create<mlir::LLVM::ZeroOp>(
             loc, mlir::LLVM::LLVMPointerType::get(rewriter.getContext()));
         symAddrs.push_back(nullOp);
