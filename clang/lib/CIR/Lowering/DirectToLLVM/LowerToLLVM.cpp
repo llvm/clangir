@@ -2538,6 +2538,25 @@ static mlir::LLVM::CallIntrinsicOp replaceOpWithCallLLVMIntrinsicOp(
   return callIntrinOp;
 }
 
+class CIRIntrinsicCallLowering
+    : public mlir::OpConversionPattern<mlir::cir::IntrinsicCallOp> {
+public:
+  using OpConversionPattern<mlir::cir::IntrinsicCallOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::IntrinsicCallOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    mlir::Type llvmResTy =
+        getTypeConverter()->convertType(op->getResultTypes()[0]);
+    if (!llvmResTy)
+      return mlir::failure();
+    StringRef name = op.getName();
+    replaceOpWithCallLLVMIntrinsicOp(rewriter, op, name, llvmResTy,
+                                     adaptor.getOperands());
+    return mlir::success();
+  }
+};
+
 static mlir::Value createLLVMBitOp(mlir::Location loc,
                                    const llvm::Twine &llvmIntrinBaseName,
                                    mlir::Type resultTy, mlir::Value operand,
@@ -3795,7 +3814,7 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
       CIRPrefetchLowering, CIRObjSizeOpLowering, CIRIsConstantOpLowering,
       CIRCmpThreeWayOpLowering, CIRClearCacheOpLowering, CIRUndefOpLowering,
       CIREhTypeIdOpLowering, CIRCatchParamOpLowering, CIRResumeOpLowering,
-      CIRAllocExceptionOpLowering, CIRThrowOpLowering
+      CIRAllocExceptionOpLowering, CIRThrowOpLowering, CIRIntrinsicCallLowering
 #define GET_BUILTIN_LOWERING_LIST
 #include "clang/CIR/Dialect/IR/CIRBuiltinsLowering.inc"
 #undef GET_BUILTIN_LOWERING_LIST

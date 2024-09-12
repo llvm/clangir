@@ -3169,6 +3169,34 @@ def FuncOp : CIR_Op<"func", [
 }
 
 //===----------------------------------------------------------------------===//
+// IntrinsicCallOp
+//===----------------------------------------------------------------------===//
+def IntrinsicCallOp : CIR_Op<"intrinsic_call"> {
+  let summary = "Call to intrinsic functions that is not defined in CIR";
+  let description = [{
+    IntrinsicCallOp operation represents an call-like expression which has
+    return type and arguments. However, this operation has to callee in CIR, it
+    only records intrinsic name and leaves the callee declaration and generation to LLVM.
+  }];
+
+  let results = (outs CIR_AnyType:$result);
+  let arguments = (ins
+                   StrAttr:$name, Variadic<CIR_AnyType>:$arg_ops, OptionalAttr<ASTCallExprInterface>:$ast);
+
+  let skipDefaultBuilders = 1;
+
+  let builders = [
+    OpBuilder<(ins "mlir::StringAttr":$name, "mlir::Type":$resType,
+              CArg<"ValueRange", "{}">:$operands), [{
+      $_state.addAttribute("name", name);
+      $_state.addOperands(operands);
+      if (resType)
+        $_state.addTypes(resType);
+    }]>,
+  ];
+}
+
+//===----------------------------------------------------------------------===//
 // CallOp and TryCallOp
 //===----------------------------------------------------------------------===//
 

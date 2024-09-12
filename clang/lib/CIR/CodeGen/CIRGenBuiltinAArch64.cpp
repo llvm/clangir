@@ -1708,7 +1708,11 @@ CIRGenFunction::buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
     llvm_unreachable("NYI");
   } else if (BuiltinID == clang::AArch64::BI__builtin_arm_ldrex ||
              BuiltinID == clang::AArch64::BI__builtin_arm_ldaex) {
-    llvm_unreachable("NYI");
+    return buildIntrinsicCall(E, ReturnValue,
+                              BuiltinID == clang::AArch64::BI__builtin_arm_ldrex
+                                  ? "llvm.aarch64.ldxr"
+                                  : "llvm.aarch64.ldaxr",
+                              builder.getSInt64Ty());
   }
 
   if ((BuiltinID == clang::AArch64::BI__builtin_arm_strex ||
