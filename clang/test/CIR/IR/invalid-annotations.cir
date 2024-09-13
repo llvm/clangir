@@ -1,6 +1,13 @@
 // Test attempt to construct ill-formed global annotations
 // RUN: cir-opt %s -verify-diagnostics -split-input-file
 
+
+// expected-error @below {{invalid kind of attribute specified}}
+// expected-error @below {{failed to parse AnnotationAttr parameter 'name' which is to be a `StringAttr`}}
+cir.global  external @a = #cir.ptr<null> : !cir.ptr<!cir.double> [#cir.annotation<name = 18, args = ["21", 12 : i32]>]
+
+// -----
+
 // expected-error @below {{GlobalAnnotationValuesAttr should at least have one annotation}}
 module attributes {cir.global_annotations = #cir<annotation_values []>} {}
 

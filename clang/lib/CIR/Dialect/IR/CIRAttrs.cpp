@@ -547,6 +547,7 @@ void MethodAttr::print(AsmPrinter &printer) const {
 //===----------------------------------------------------------------------===//
 // GlobalAnnotationValuesAttr definitions
 //===----------------------------------------------------------------------===//
+
 LogicalResult GlobalAnnotationValuesAttr::verify(
     function_ref<::mlir::InFlightDiagnostic()> emitError,
     mlir::ArrayAttr annotations) {
