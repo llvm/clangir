@@ -721,7 +721,7 @@ bool isIntOrBoolCast(mlir::cir::CastOp op) {
 Value tryFoldCastChain(CastOp op) {
   CastOp head = op, tail = op;
 
-  while(op) {
+  while (op) {
     if (!isIntOrBoolCast(op))
       break;
     head = op;
@@ -2269,6 +2269,7 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
   auto noProtoNameAttr = getNoProtoAttrName(state.name);
   auto visibilityNameAttr = getGlobalVisibilityAttrName(state.name);
   auto dsolocalNameAttr = getDsolocalAttrName(state.name);
+  auto annotationsNameAttr = getAnnotationsAttrName(state.name);
   if (::mlir::succeeded(parser.parseOptionalKeyword(builtinNameAttr.strref())))
     state.addAttribute(builtinNameAttr, parser.getBuilder().getUnitAttr());
   if (::mlir::succeeded(
@@ -2299,6 +2300,9 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
 
   if (parser.parseOptionalKeyword(dsolocalNameAttr).succeeded())
     state.addAttribute(dsolocalNameAttr, parser.getBuilder().getUnitAttr());
+
+  if (parser.parseOptionalKeyword(annotationsNameAttr).succeeded())
+    state.addAttribute(annotationsNameAttr, parser.getBuilder().getUnitAttr());
 
   StringAttr nameAttr;
   SmallVector<OpAsmParser::Argument, 8> arguments;
@@ -2518,6 +2522,12 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
   else
     function_interface_impl::printFunctionSignature(
         p, *this, fnType.getInputs(), fnType.isVarArg(), {});
+
+  if (mlir::ArrayAttr annotations = getAnnotationsAttr()) {
+    p << " ";
+    p.printAttribute(annotations);
+  }
+
   function_interface_impl::printFunctionAttributes(
       p, *this,
       // These are all omitted since they are custom printed already.
@@ -2527,7 +2537,8 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
        getGlobalDtorAttrName(), getLambdaAttrName(), getLinkageAttrName(),
        getCallingConvAttrName(), getNoProtoAttrName(),
        getSymVisibilityAttrName(), getArgAttrsAttrName(), getResAttrsAttrName(),
-       getComdatAttrName(), getGlobalVisibilityAttrName()});
+       getComdatAttrName(), getGlobalVisibilityAttrName(),
+       getAnnotationsAttrName()});
 
   if (auto aliaseeName = getAliasee()) {
     p << " alias(";
