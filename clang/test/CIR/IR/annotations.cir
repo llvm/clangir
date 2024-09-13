@@ -3,7 +3,7 @@
 
 !s32i = !cir.int<s, 32>
 module attributes {cir.global_annotations =
-#cir<annotation_values [["a", #cir.annotation<name = "testanno", args = ["21", 12 : i32]>],
+#cir<global_annotations [["a", #cir.annotation<name = "testanno", args = ["21", 12 : i32]>],
 ["foo", #cir.annotation<name = "withargfunc", args = ["os", 22 : i32]>],
 ["bar", #cir.annotation<name = "noargfunc", args = []>],
 ["bar", #cir.annotation<name = "withargfunc", args = ["os", 23 : i32]>]]>}
@@ -17,7 +17,7 @@ cir.func @bar() attributes {annotations = [#cir.annotation<name = "noargfunc", a
 }
 }
 
-// CHECK: module attributes {cir.global_annotations = #cir<annotation_values [
+// CHECK: module attributes {cir.global_annotations = #cir<global_annotations [
 // CHECK-SAME: ["a", #cir.annotation<name = "testanno", args = ["21", 12 : i32]>],
 // CHECK-SAME: ["foo", #cir.annotation<name = "withargfunc", args = ["os", 22 : i32]>],
 // CHECK-SAME: ["bar", #cir.annotation<name = "noargfunc", args = []>],

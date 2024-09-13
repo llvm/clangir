@@ -1137,8 +1137,9 @@ def AnnotationAttr : CIR_Attr<"Annotation", "annotation"> {
 // GlobalAnnotationValuesAttr
 //===----------------------------------------------------------------------===//
 
-def GlobalAnnotationValuesAttr : CIR_Attr<"GlobalAnnotationValues", "annotation_values"> {
-  let summary = "Array of annotations, each element consists of name of" 
+def GlobalAnnotationValuesAttr : CIR_Attr<"GlobalAnnotationValues",
+                                          "global_annotations"> {
+  let summary = "Array of annotations, each element consists of name of"
                 "a global var or func and one of its annotations";
   let description = [{
     This is annotation value array, which holds the annotation
@@ -1155,7 +1156,7 @@ def GlobalAnnotationValuesAttr : CIR_Attr<"GlobalAnnotationValues", "annotation_
     After CIR lowering prepare pass, compiler generates a 
     `GlobalAnnotationValuesAttr` like the following:
     ```
-    #cir<annotation.values [
+    #cir<global_annotations [
       ["a", #cir.annotation<name = "withargs", args = ["21", 12 : i32]>],
       ["b", #cir.annotation<name = "withargs", args = ["21", 12 : i32]>],
       ["c", #cir.annotation<name = "noargvar", args = []>],

@@ -27,7 +27,7 @@ void bar() __attribute__((annotate("withargfunc", "os", 22))) {
 
 
 // AFTER: module {{.*}}attribute-annotate-multiple.cpp" attributes
-// AFTER-SAME: {cir.global_annotations = #cir<annotation_values [
+// AFTER-SAME: {cir.global_annotations = #cir<global_annotations [
 // AFTER-SAME: ["a", #cir.annotation<name = "withargs", args = ["21", 12 : i32]>],
 // AFTER-SAME: ["b", #cir.annotation<name = "withargs", args = ["21", 12 : i32]>],
 // AFTER-SAME: ["c", #cir.annotation<name = "noargvar", args = []>],
