@@ -3225,7 +3225,7 @@ class CIR_CallOp<string mnemonic, list<Trait> extra_traits = []> :
   );
 }
 
-def CallOp : CIR_CallOp<"call"> {
+def CallOp : CIR_CallOp<"call", [NoRegionArguments]> {
   let summary = "call operation";
   let description = [{
     Direct and indirect calls.
@@ -3240,7 +3240,9 @@ def CallOp : CIR_CallOp<"call"> {
     Given the way indirect calls are encoded, avoid using `mlir::Operation`
     methods to walk the operands for this operation, instead use the methods
     provided by `CIRCallOpInterface`.
-    ``
+
+    If the `cir.call` has the `exception` keyword, the call can throw. In this
+    case, cleanups can be added in the `cleanup` region.
 
     Example:
 
@@ -3250,6 +3252,11 @@ def CallOp : CIR_CallOp<"call"> {
      ...
     // Indirect call
     %20 = cir.call %18(%17)
+     ...
+    // Call that might throw
+    cir.call exception @my_div() -> () cleanup {
+      // call dtor...
+    }
     ```
   }];
 
@@ -3257,6 +3264,7 @@ def CallOp : CIR_CallOp<"call"> {
   let arguments = !con((ins
     UnitAttr:$exception
   ), commonArgs);
+  let regions = (region AnyRegion:$cleanup);
 
   let skipDefaultBuilders = 1;
 
@@ -3274,6 +3282,8 @@ def CallOp : CIR_CallOp<"call"> {
         $_state.addAttribute("exception", exception);
       if (resType && !llvm::isa<VoidType>(resType))
         $_state.addTypes(resType);
+      // Create region placeholder for potential cleanups.
+      $_state.addRegion();
     }]>,
     OpBuilder<(ins "Value":$ind_target,
                "FuncType":$fn_type,
@@ -3288,6 +3298,8 @@ def CallOp : CIR_CallOp<"call"> {
         CallingConvAttr::get($_builder.getContext(), callingConv));
       if (exception)
         $_state.addAttribute("exception", exception);
+      // Create region placeholder for potential cleanups.
+      $_state.addRegion();
     }]>
   ];
 }
