@@ -85,6 +85,9 @@ struct LoweringPreparePass : public LoweringPrepareBase<LoweringPreparePass> {
   void lowerArrayDtor(ArrayDtor op);
   void lowerArrayCtor(ArrayCtor op);
 
+  /// Collect annotations of global values in the module
+  void addGlobalAnnotations(mlir::Operation *op, mlir::ArrayAttr annotations);
+
   /// Build the function that initializes the specified global
   FuncOp buildCXXGlobalVarDeclInitFunc(GlobalOp op);
 
@@ -152,11 +155,8 @@ struct LoweringPreparePass : public LoweringPrepareBase<LoweringPreparePass> {
   SmallVector<mlir::Attribute, 4> globalCtorList;
   /// List of dtors to be called when unloading module.
   SmallVector<mlir::Attribute, 4> globalDtorList;
-  /// List of annotations in the module, need to be a vector of Ops
-  /// as we need view to annotated global values to create global annotation var
-  /// later in LLVM lowering.
-  //  One global value could have multiple AnnotateAttr
-  SmallVector<std::pair<mlir::Attribute, mlir::Operation *>> globalAnnotations;
+  /// List of annotations in the module
+  SmallVector<mlir::Attribute, 4> globalAnnotations;
 };
 } // namespace
 
@@ -887,12 +887,9 @@ void LoweringPreparePass::lowerGlobalOp(GlobalOp op) {
     dynamicInitializers.push_back(f);
   }
 
-  // Collect global annotations
   std::optional<mlir::ArrayAttr> annotations = op.getAnnotations();
   if (annotations) {
-    for (auto &annot : annotations.value()) {
-      globalAnnotations.push_back({annot, op});
-    }
+    addGlobalAnnotations(op, annotations.value());
   }
 }
 
@@ -1077,27 +1074,25 @@ void LoweringPreparePass::lowerIterEndOp(IterEndOp op) {
   op.erase();
 }
 
+void LoweringPreparePass::addGlobalAnnotations(mlir::Operation *op,
+                                               mlir::ArrayAttr annotations) {
+  auto globalValue = cast<mlir::SymbolOpInterface>(op);
+  mlir::StringAttr globalValueName = globalValue.getNameAttr();
+  for (auto &annot : annotations) {
+    SmallVector<mlir::Attribute, 2> entryArray = {globalValueName, annot};
+    globalAnnotations.push_back(
+        mlir::ArrayAttr::get(theModule.getContext(), entryArray));
+  }
+}
+
 void LoweringPreparePass::buildGlobalAnnotationValues() {
   if (globalAnnotations.empty())
     return;
-  SmallVector<mlir::Attribute> annotationValueVec;
-  annotationValueVec.reserve(globalAnnotations.size());
-
-  for (auto &annotEntry : globalAnnotations) {
-    auto annot = cast<mlir::cir::AnnotationAttr>(annotEntry.first);
-    mlir::Operation *op = annotEntry.second;
-    auto globalValue = cast<mlir::SymbolOpInterface>(op);
-    mlir::StringAttr globalValueName = globalValue.getNameAttr();
-    SmallVector<mlir::Attribute, 2> entryArray = {globalValueName, annot};
-    mlir::cir::GlobalAnnotationValueAttr valueEntry =
-        mlir::cir::GlobalAnnotationValueAttr::get(
-            theModule.getContext(),
-            mlir::ArrayAttr::get(theModule.getContext(), entryArray));
-    annotationValueVec.push_back(valueEntry);
-  }
   mlir::ArrayAttr annotationValueArray =
-      mlir::ArrayAttr::get(theModule.getContext(), annotationValueVec);
-  theModule->setAttr("cir.global_annotations", annotationValueArray);
+      mlir::ArrayAttr::get(theModule.getContext(), globalAnnotations);
+  theModule->setAttr("cir.global_annotations",
+                     mlir::cir::GlobalAnnotationValuesAttr::get(
+                         theModule.getContext(), annotationValueArray));
 }
 
 void LoweringPreparePass::runOnOp(Operation *op) {
@@ -1133,11 +1128,8 @@ void LoweringPreparePass::runOnOp(Operation *op) {
     } else if (auto globalDtor = fnOp.getGlobalDtorAttr()) {
       globalDtorList.push_back(globalDtor);
     }
-    if (std::optional<mlir::ArrayAttr> annotates = fnOp.getAnnotations()) {
-      for (auto &annot : annotates.value()) {
-        globalAnnotations.push_back({annot, fnOp});
-      }
-    }
+    if (std::optional<mlir::ArrayAttr> annotations = fnOp.getAnnotations())
+      addGlobalAnnotations(fnOp, annotations.value());
   }
 }
 

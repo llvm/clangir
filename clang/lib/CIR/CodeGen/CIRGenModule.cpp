@@ -3196,7 +3196,7 @@ LangAS CIRGenModule::getGlobalVarAddressSpace(const VarDecl *D) {
   return getTargetCIRGenInfo().getGlobalVarAddressSpace(*this, D);
 }
 
-mlir::ArrayAttr CIRGenModule::buildAnnotationArgs(const AnnotateAttr *attr) {
+mlir::ArrayAttr CIRGenModule::buildAnnotationArgs(AnnotateAttr *attr) {
   ArrayRef<Expr *> exprs = {attr->args_begin(), attr->args_size()};
   if (exprs.empty()) {
     return mlir::ArrayAttr::get(builder.getContext(), {});
@@ -3212,11 +3212,11 @@ mlir::ArrayAttr CIRGenModule::buildAnnotationArgs(const AnnotateAttr *attr) {
   llvm::SmallVector<mlir::Attribute, 4> args;
   args.reserve(exprs.size());
   for (Expr *e : exprs) {
-    if (const auto strE =
+    if (auto *const strE =
             ::clang::dyn_cast<clang::StringLiteral>(e->IgnoreParenCasts())) {
       // Add trailing null character as StringLiteral->getString() does not
       args.push_back(builder.getStringAttr(strE->getString()));
-    } else if (const auto intE = ::clang::dyn_cast<clang::IntegerLiteral>(
+    } else if (auto *const intE = ::clang::dyn_cast<clang::IntegerLiteral>(
                    e->IgnoreParenCasts())) {
       args.push_back(mlir::IntegerAttr::get(
           mlir::IntegerType::get(builder.getContext(),
@@ -3226,14 +3226,13 @@ mlir::ArrayAttr CIRGenModule::buildAnnotationArgs(const AnnotateAttr *attr) {
       llvm_unreachable("NYI");
     }
   }
-  // Create const struct attr for these arguments
-  mlir::ArrayAttr argsArrayAttr = builder.getArrayAttr(args);
-  lookup = argsArrayAttr;
+
+  lookup = builder.getArrayAttr(args);
   return lookup;
 }
 
 mlir::cir::AnnotationAttr
-CIRGenModule::buildAnnotateAttr(const AnnotateAttr *aa) {
+CIRGenModule::buildAnnotateAttr(clang::AnnotateAttr *aa) {
   mlir::StringAttr annoGV = builder.getStringAttr(aa->getAnnotation());
   mlir::ArrayAttr args = buildAnnotationArgs(aa);
   return mlir::cir::AnnotationAttr::get(builder.getContext(), annoGV, args);
@@ -3245,7 +3244,7 @@ void CIRGenModule::addGlobalAnnotations(const ValueDecl *d,
   assert((isa<GlobalOp>(gv) || isa<FuncOp>(gv)) &&
          "annotation only on globals");
   llvm::SmallVector<mlir::Attribute, 4> annotations;
-  for (const auto *i : d->specific_attrs<AnnotateAttr>())
+  for (auto *i : d->specific_attrs<AnnotateAttr>())
     annotations.push_back(buildAnnotateAttr(i));
   if (auto global = dyn_cast<mlir::cir::GlobalOp>(gv))
     global.setAnnotationsAttr(builder.getArrayAttr(annotations));
@@ -3254,10 +3253,10 @@ void CIRGenModule::addGlobalAnnotations(const ValueDecl *d,
 }
 
 void CIRGenModule::buildGlobalAnnotations() {
-  for (const auto &[MangledName, VD] : deferredAnnotations) {
-    mlir::Operation *GV = getGlobalValue(MangledName);
-    if (GV)
-      addGlobalAnnotations(VD, GV);
+  for (const auto &[mangledName, vd] : deferredAnnotations) {
+    mlir::Operation *gv = getGlobalValue(mangledName);
+    if (gv)
+      addGlobalAnnotations(vd, gv);
   }
   deferredAnnotations.clear();
 }

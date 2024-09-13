@@ -4089,7 +4089,7 @@ getAnnotationStringGlobal(mlir::StringAttr strAttr, mlir::ModuleOp &module,
 }
 
 mlir::Value lowerAnnotationValue(
-    mlir::cir::GlobalAnnotationValueAttr annotValue, mlir::ModuleOp &module,
+    mlir::ArrayAttr annotValue, mlir::ModuleOp &module,
     mlir::OpBuilder &varInitBuilder, mlir::OpBuilder &globalVarBuilder,
     llvm::StringMap<mlir::LLVM::GlobalOp> &stringGlobalsMap,
     llvm::StringMap<mlir::LLVM::GlobalOp> &argStringGlobalsMap,
@@ -4099,8 +4099,7 @@ mlir::Value lowerAnnotationValue(
     mlir::LLVM::LLVMPointerType &annoPtrTy, mlir::Location &loc) {
   mlir::Value valueEntry =
       varInitBuilder.create<mlir::LLVM::UndefOp>(loc, annoStructTy);
-  mlir::ArrayAttr value = annotValue.getValue();
-  auto globalValueName = mlir::cast<mlir::StringAttr>(value[0]);
+  auto globalValueName = mlir::cast<mlir::StringAttr>(annotValue[0]);
   mlir::Operation *globalValue =
       mlir::SymbolTable::lookupSymbolIn(module, globalValueName);
   // The first field is ptr to the global value
@@ -4110,7 +4109,7 @@ mlir::Value lowerAnnotationValue(
   valueEntry = varInitBuilder.create<mlir::LLVM::InsertValueOp>(
       loc, valueEntry, globalValueFld, 0);
   mlir::cir::AnnotationAttr annotation =
-      mlir::cast<mlir::cir::AnnotationAttr>(value[1]);
+      mlir::cast<mlir::cir::AnnotationAttr>(annotValue[1]);
 
   // The second field is ptr to the annotation name
   mlir::StringAttr annotationName = annotation.getName();
@@ -4232,11 +4231,13 @@ mlir::Value lowerAnnotationValue(
 
 void ConvertCIRToLLVMPass::buildGlobalAnnotationsVar() {
   mlir::ModuleOp module = getOperation();
-  mlir::Attribute annotationValuesAttr =
-      module->getAttr("cir.global_annotations");
-  if (annotationValuesAttr) {
+  mlir::Attribute attr = module->getAttr("cir.global_annotations");
+  if (!attr)
+    return;
+  if (auto globalAnnotValues =
+          mlir::dyn_cast<mlir::cir::GlobalAnnotationValuesAttr>(attr)) {
     auto annotationValuesArray =
-        mlir::cast<mlir::ArrayAttr>(annotationValuesAttr);
+        mlir::dyn_cast<mlir::ArrayAttr>(globalAnnotValues.getAnnotations());
     if (!annotationValuesArray || annotationValuesArray.empty())
       return;
     mlir::OpBuilder globalVarBuilder(module.getContext());
@@ -4259,7 +4260,7 @@ void ConvertCIRToLLVMPass::buildGlobalAnnotationsVar() {
     mlir::LLVM::LLVMArrayType annoStructArrayTy =
         mlir::LLVM::LLVMArrayType::get(annoStructTy,
                                        annotationValuesArray.size());
-    auto loc = module.getLoc();
+    mlir::Location loc = module.getLoc();
     auto annotationGlobalOp = globalVarBuilder.create<mlir::LLVM::GlobalOp>(
         loc, annoStructArrayTy, false, mlir::LLVM::Linkage::Appending,
         "llvm.global.annotations", mlir::Attribute());
@@ -4269,8 +4270,8 @@ void ConvertCIRToLLVMPass::buildGlobalAnnotationsVar() {
     varInitBuilder.setInsertionPointToEnd(
         annotationGlobalOp.getInitializerBlock());
     // Globals created for annotation strings and args to be
-    // placed before the var llvm.global.annotations. This is consistent
-    // with clang code gen.
+    // placed before the var llvm.global.annotations.
+    // This is consistent with clang code gen.
     globalVarBuilder.setInsertionPoint(annotationGlobalOp);
 
     mlir::Value result =
@@ -4286,8 +4287,7 @@ void ConvertCIRToLLVMPass::buildGlobalAnnotationsVar() {
 
     int idx = 0;
     for (mlir::Attribute entry : annotationValuesArray) {
-      auto annotValue = cast<mlir::cir::GlobalAnnotationValueAttr>(entry);
-      assert(entry && "annotation values has to be AnnotationValueAttr");
+      auto annotValue = cast<mlir::ArrayAttr>(entry);
       mlir::Value init = lowerAnnotationValue(
           annotValue, module, varInitBuilder, globalVarBuilder,
           stringGlobalsMap, argStringGlobalsMap, argsVarMap, annoStructFields,

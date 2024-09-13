@@ -2512,6 +2512,12 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
   else
     function_interface_impl::printFunctionSignature(
         p, *this, fnType.getInputs(), fnType.isVarArg(), {});
+
+  if (mlir::ArrayAttr annotations = getAnnotationsAttr()) {
+    p << " ";
+    p.printAttribute(annotations);
+  }
+
   function_interface_impl::printFunctionAttributes(
       p, *this,
       // These are all omitted since they are custom printed already.
@@ -2521,7 +2527,8 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
        getGlobalDtorAttrName(), getLambdaAttrName(), getLinkageAttrName(),
        getCallingConvAttrName(), getNoProtoAttrName(),
        getSymVisibilityAttrName(), getArgAttrsAttrName(), getResAttrsAttrName(),
-       getComdatAttrName(), getGlobalVisibilityAttrName()});
+       getComdatAttrName(), getGlobalVisibilityAttrName(),
+       getAnnotationsAttrName()});
 
   if (auto aliaseeName = getAliasee()) {
     p << " alias(";

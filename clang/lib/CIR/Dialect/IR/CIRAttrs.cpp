@@ -545,25 +545,40 @@ void MethodAttr::print(AsmPrinter &printer) const {
 }
 
 //===----------------------------------------------------------------------===//
-// GlobalAnnotationValueAttr definitions
+// GlobalAnnotationValuesAttr definitions
 //===----------------------------------------------------------------------===//
-LogicalResult GlobalAnnotationValueAttr::verify(
+LogicalResult GlobalAnnotationValuesAttr::verify(
     function_ref<::mlir::InFlightDiagnostic()> emitError,
-    mlir::ArrayAttr value) {
-  if (value.size() < 2) {
+    mlir::ArrayAttr annotations) {
+  if (annotations.empty()) {
     emitError()
-        << "GlobalAnnotationValueAttr should at least have two elements";
-    return failure();
-  } else if (!::mlir::isa<mlir::StringAttr>(value[0])) {
-    emitError()
-        << "The first element of GlobalAnnotationValueAttr must be string";
+        << "GlobalAnnotationValuesAttr should at least have one annotation";
     return failure();
   }
-  auto annoPart = ::mlir::cast<mlir::cir::AnnotationAttr>(value[1]);
-  if (!annoPart) {
-    emitError() << "The second element of GlobalAnnotationValueAttr must be "
-                   "AnnotationValueAttr";
-    return failure();
+  for (auto &entry : annotations) {
+    auto annoEntry = ::mlir::dyn_cast<mlir::ArrayAttr>(entry);
+    if (!annoEntry) {
+      emitError() << "Element of GlobalAnnotationValuesAttr annotations array"
+                     " must be an array";
+      return failure();
+    } else if (annoEntry.size() != 2) {
+      emitError() << "Element of GlobalAnnotationValuesAttr annotations array"
+                  << " must be a 2-element array and you have "
+                  << annoEntry.size();
+      return failure();
+    } else if (!::mlir::isa<mlir::StringAttr>(annoEntry[0])) {
+      emitError() << "Element of GlobalAnnotationValuesAttr annotations"
+                     "array must start with a string, which is the name of "
+                     "global op or func it annotates";
+      return failure();
+    }
+    auto annoPart = ::mlir::dyn_cast<mlir::cir::AnnotationAttr>(annoEntry[1]);
+    if (!annoPart) {
+      emitError() << "The second element of GlobalAnnotationValuesAttr"
+                     "annotations array element must be of "
+                     "type AnnotationValueAttr";
+      return failure();
+    }
   }
   return success();
 }

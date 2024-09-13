@@ -21,21 +21,19 @@ void bar() __attribute__((annotate("withargfunc", "os", 22))) {
 // BEFORE: cir.global  external @c = #cir.ptr<null> : !cir.ptr<!void>
 // BEFORE-SAME: [#cir.annotation<name = "noargvar", args = []>]
 
-// BEFORE: cir.func  @_Z3fooi(%arg0: !s32i) attributes {annotations =
-// BEFORE-SAME: [#cir.annotation<name = "noargfunc", args = []>,
-// BEFORE-SAME: #cir.annotation<name = "withargfunc", args = ["os", 23 : i32]>],
-// BEFORE: cir.func  @_Z3barv() attributes {annotations =
-// BEFORE-SAME: [#cir.annotation<name = "withargfunc", args = ["os", 22 : i32]>],
+// BEFORE: cir.func  @_Z3fooi(%arg0: !s32i) [#cir.annotation<name = "noargfunc", args = []>,
+// BEFORE-SAME: #cir.annotation<name = "withargfunc", args = ["os", 23 : i32]>]
+// BEFORE: cir.func  @_Z3barv() [#cir.annotation<name = "withargfunc", args = ["os", 22 : i32]>]
 
 
 // AFTER: module {{.*}}attribute-annotate-multiple.cpp" attributes
-// AFTER-SAME: {cir.global_annotations = [
-// AFTER-SAME: #cir<annotation value ["a", #cir.annotation<name = "withargs", args = ["21", 12 : i32]>]>,
-// AFTER-SAME: #cir<annotation value ["b", #cir.annotation<name = "withargs", args = ["21", 12 : i32]>]>,
-// AFTER-SAME: #cir<annotation value ["c", #cir.annotation<name = "noargvar", args = []>]>,
-// AFTER-SAME: #cir<annotation value ["_Z3fooi", #cir.annotation<name = "noargfunc", args = []>]>,
-// AFTER-SAME: #cir<annotation value ["_Z3fooi", #cir.annotation<name = "withargfunc", args = ["os", 23 : i32]>]>,
-// AFTER-SAME: #cir<annotation value ["_Z3barv", #cir.annotation<name = "withargfunc", args = ["os", 22 : i32]>]>],
+// AFTER-SAME: {cir.global_annotations = #cir<annotation_values [
+// AFTER-SAME: ["a", #cir.annotation<name = "withargs", args = ["21", 12 : i32]>],
+// AFTER-SAME: ["b", #cir.annotation<name = "withargs", args = ["21", 12 : i32]>],
+// AFTER-SAME: ["c", #cir.annotation<name = "noargvar", args = []>],
+// AFTER-SAME: ["_Z3fooi", #cir.annotation<name = "noargfunc", args = []>],
+// AFTER-SAME: ["_Z3fooi", #cir.annotation<name = "withargfunc", args = ["os", 23 : i32]>],
+// AFTER-SAME: ["_Z3barv", #cir.annotation<name = "withargfunc", args = ["os", 22 : i32]>]]>,
 
 
 // LLVM: @a = global ptr null
