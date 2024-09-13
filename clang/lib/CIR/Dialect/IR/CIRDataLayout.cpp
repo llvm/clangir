@@ -171,7 +171,7 @@ llvm::Align CIRDataLayout::getAlignment(mlir::Type Ty, bool abiOrPref) const {
     if (::cir::MissingFeatures::recordDeclIsPacked() && abiOrPref)
       llvm_unreachable("NYI");
 
-    auto stTy = llvm::cast<mlir::cir::StructType>(Ty);
+    auto stTy = llvm::dyn_cast<mlir::cir::StructType>(Ty);
     if (stTy && stTy.getPacked() && abiOrPref)
       return llvm::Align(1);
 
