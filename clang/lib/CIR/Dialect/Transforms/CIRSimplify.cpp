@@ -110,6 +110,31 @@ struct RemoveTrivialTry : public OpRewritePattern<TryOp> {
   }
 };
 
+// Remove call exception with empty cleanups
+struct SimplifyCallOp : public OpRewritePattern<CallOp> {
+  using OpRewritePattern<CallOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(CallOp op,
+                                PatternRewriter &rewriter) const final {
+    // Applicable to cir.call exception ... clean { cir.yield }
+    mlir::Region *r = &op.getCleanup();
+    if (r->empty() || !r->hasOneBlock())
+      return failure();
+
+    mlir::Block *b = &r->getBlocks().back();
+    if (&b->back() != &b->front())
+      return failure();
+
+    if (!isa<YieldOp>(&b->getOperations().back()))
+      return failure();
+
+    b = &op.getCleanup().back();
+    rewriter.eraseOp(&b->back());
+    rewriter.eraseBlock(b);
+    return success();
+  }
+};
+
 /// Simplify suitable ternary operations into select operations.
 ///
 /// For now we only simplify those ternary operations whose true and false
@@ -254,7 +279,8 @@ void populateMergeCleanupPatterns(RewritePatternSet &patterns) {
     RemoveEmptySwitch,
     RemoveTrivialTry,
     SimplifyTernary,
-    SimplifySelect
+    SimplifySelect,
+    SimplifyCallOp
   >(patterns.getContext());
   // clang-format on
 }
@@ -270,8 +296,8 @@ void CIRSimplifyPass::runOnOperation() {
     // CastOp here is to perform a manual `fold` in
     // applyOpPatternsAndFold
     if (isa<BrOp, BrCondOp, ScopeOp, SwitchOp, CastOp, TryOp, UnaryOp,
-            TernaryOp, SelectOp, ComplexCreateOp, ComplexRealOp, ComplexImagOp>(
-            op))
+            TernaryOp, SelectOp, ComplexCreateOp, ComplexRealOp, ComplexImagOp,
+            CallOp>(op))
       ops.push_back(op);
   });
 
