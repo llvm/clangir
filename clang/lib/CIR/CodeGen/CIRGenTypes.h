@@ -94,6 +94,10 @@ class CIRGenTypes {
   /// Contains the CIR type for any converted RecordDecl
   llvm::DenseMap<const clang::Type *, mlir::cir::StructType> recordDeclTypes;
 
+  /// Contains the final name for any converted RecordDecl
+  llvm::DenseMap<const clang::Type *, std::string> nameOfRecordDeclTypes;
+  llvm::StringMap<unsigned int> nameUniqueIDOfRDtypes;
+
   /// Hold memoized CIRGenFunctionInfo results
   llvm::FoldingSet<CIRGenFunctionInfo> FunctionInfos;
 

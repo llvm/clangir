@@ -54,6 +54,12 @@ CIRGenTypes::~CIRGenTypes() {
 // This is CIR's version of CIRGenTypes::addRecordTypeName
 std::string CIRGenTypes::getRecordTypeName(const clang::RecordDecl *recordDecl,
                                            StringRef suffix) {
+
+  const auto *key = Context.getTagDeclType(recordDecl).getTypePtr();
+  if (nameOfRecordDeclTypes.find(key) != nameOfRecordDeclTypes.end()) {
+    return nameOfRecordDeclTypes[key];
+  };
+
   llvm::SmallString<256> typeName;
   llvm::raw_svector_ostream outStream(typeName);
 
@@ -91,7 +97,18 @@ std::string CIRGenTypes::getRecordTypeName(const clang::RecordDecl *recordDecl,
   if (!suffix.empty())
     outStream << suffix;
 
-  return std::string(typeName);
+  if (nameUniqueIDOfRDtypes.find(typeName) != nameUniqueIDOfRDtypes.end()) {
+    unsigned int nameUniqueID = (++nameUniqueIDOfRDtypes[typeName]);
+
+    outStream << ".";
+    outStream << std::to_string(nameUniqueID);
+  } else {
+    nameUniqueIDOfRDtypes[typeName] = 0;
+  }
+
+  nameOfRecordDeclTypes[key] = std::string(typeName);
+
+  return nameOfRecordDeclTypes[key];
 }
 
 /// Return true if the specified type is already completely laid out.
