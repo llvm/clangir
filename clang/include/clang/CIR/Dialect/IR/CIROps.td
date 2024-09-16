@@ -893,7 +893,7 @@ def ConditionOp : CIR_Op<"condition", [
 def YieldOp : CIR_Op<"yield", [ReturnLike, Terminator,
     ParentOneOf<["IfOp", "ScopeOp", "SwitchOp", "WhileOp", "ForOp", "AwaitOp",
                  "TernaryOp", "GlobalOp", "DoWhileOp", "TryOp", "ArrayCtor",
-                 "ArrayDtor"]>]> {
+                 "ArrayDtor", "CallOp"]>]> {
   let summary = "Represents the default branching behaviour of a region";
   let description = [{
     The `cir.yield` operation terminates regions on different CIR operations,
@@ -2205,7 +2205,7 @@ def TLSModel : I32EnumAttr<
     [TLS_GeneralDynamic, TLS_LocalDynamic, TLS_InitialExec, TLS_LocalExec]> {
   let cppNamespace = "::mlir::cir";
 }
-  
+
 def GlobalOp : CIR_Op<"global",
                       [DeclareOpInterfaceMethods<RegionBranchOpInterface>,
                        DeclareOpInterfaceMethods<CIRGlobalValueInterface>,
@@ -2255,7 +2255,8 @@ def GlobalOp : CIR_Op<"global",
                        UnitAttr:$dsolocal,
                        OptionalAttr<I64Attr>:$alignment,
                        OptionalAttr<ASTVarDeclInterface>:$ast,
-                       OptionalAttr<StrAttr>:$section);
+                       OptionalAttr<StrAttr>:$section,
+                       OptionalAttr<ArrayAttr>:$annotations);
   let regions = (region AnyRegion:$ctorRegion, AnyRegion:$dtorRegion);
   let assemblyFormat = [{
        ($sym_visibility^)?
@@ -2268,6 +2269,7 @@ def GlobalOp : CIR_Op<"global",
        (`addrspace` `(` custom<GlobalOpAddrSpace>($addr_space)^ `)`)?
        $sym_name
        custom<GlobalOpTypeAndInitialValue>($sym_type, $initial_value, $ctorRegion, $dtorRegion)
+       ($annotations^)?
        attr-dict
   }];
 
@@ -3100,6 +3102,7 @@ def FuncOp : CIR_Op<"func", [
                        OptionalAttr<FlatSymbolRefAttr>:$aliasee,
                        OptionalAttr<GlobalCtorAttr>:$global_ctor,
                        OptionalAttr<GlobalDtorAttr>:$global_dtor,
+                       OptionalAttr<ArrayAttr>:$annotations,
                        OptionalAttr<AnyASTFunctionDeclAttr>:$ast);
   let regions = (region AnyRegion:$body);
   let skipDefaultBuilders = 1;
@@ -3214,7 +3217,7 @@ class CIR_CallOp<string mnemonic, list<Trait> extra_traits = []> :
   );
 }
 
-def CallOp : CIR_CallOp<"call"> {
+def CallOp : CIR_CallOp<"call", [NoRegionArguments]> {
   let summary = "call operation";
   let description = [{
     Direct and indirect calls.
@@ -3229,7 +3232,9 @@ def CallOp : CIR_CallOp<"call"> {
     Given the way indirect calls are encoded, avoid using `mlir::Operation`
     methods to walk the operands for this operation, instead use the methods
     provided by `CIRCallOpInterface`.
-    ``
+
+    If the `cir.call` has the `exception` keyword, the call can throw. In this
+    case, cleanups can be added in the `cleanup` region.
 
     Example:
 
@@ -3239,6 +3244,11 @@ def CallOp : CIR_CallOp<"call"> {
      ...
     // Indirect call
     %20 = cir.call %18(%17)
+     ...
+    // Call that might throw
+    cir.call exception @my_div() -> () cleanup {
+      // call dtor...
+    }
     ```
   }];
 
@@ -3246,6 +3256,7 @@ def CallOp : CIR_CallOp<"call"> {
   let arguments = !con((ins
     UnitAttr:$exception
   ), commonArgs);
+  let regions = (region AnyRegion:$cleanup);
 
   let skipDefaultBuilders = 1;
 
@@ -3263,6 +3274,8 @@ def CallOp : CIR_CallOp<"call"> {
         $_state.addAttribute("exception", exception);
       if (resType && !isa<VoidType>(resType))
         $_state.addTypes(resType);
+      // Create region placeholder for potential cleanups.
+      $_state.addRegion();
     }]>,
     OpBuilder<(ins "Value":$ind_target,
                "FuncType":$fn_type,
@@ -3277,6 +3290,8 @@ def CallOp : CIR_CallOp<"call"> {
         CallingConvAttr::get($_builder.getContext(), callingConv));
       if (exception)
         $_state.addAttribute("exception", exception);
+      // Create region placeholder for potential cleanups.
+      $_state.addRegion();
     }]>
   ];
 }

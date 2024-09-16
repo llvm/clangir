@@ -717,7 +717,7 @@ bool isIntOrBoolCast(mlir::cir::CastOp op) {
 Value tryFoldCastChain(CastOp op) {
   CastOp head = op, tail = op;
 
-  while(op) {
+  while (op) {
     if (!isIntOrBoolCast(op))
       break;
     head = op;
@@ -2259,6 +2259,7 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
   auto noProtoNameAttr = getNoProtoAttrName(state.name);
   auto visibilityNameAttr = getGlobalVisibilityAttrName(state.name);
   auto dsolocalNameAttr = getDsolocalAttrName(state.name);
+  auto annotationsNameAttr = getAnnotationsAttrName(state.name);
   if (::mlir::succeeded(parser.parseOptionalKeyword(builtinNameAttr.strref())))
     state.addAttribute(builtinNameAttr, parser.getBuilder().getUnitAttr());
   if (::mlir::succeeded(
@@ -2289,6 +2290,9 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
 
   if (parser.parseOptionalKeyword(dsolocalNameAttr).succeeded())
     state.addAttribute(dsolocalNameAttr, parser.getBuilder().getUnitAttr());
+
+  if (parser.parseOptionalKeyword(annotationsNameAttr).succeeded())
+    state.addAttribute(annotationsNameAttr, parser.getBuilder().getUnitAttr());
 
   StringAttr nameAttr;
   SmallVector<OpAsmParser::Argument, 8> arguments;
@@ -2508,6 +2512,12 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
   else
     function_interface_impl::printFunctionSignature(
         p, *this, fnType.getInputs(), fnType.isVarArg(), {});
+
+  if (mlir::ArrayAttr annotations = getAnnotationsAttr()) {
+    p << " ";
+    p.printAttribute(annotations);
+  }
+
   function_interface_impl::printFunctionAttributes(
       p, *this,
       // These are all omitted since they are custom printed already.
@@ -2517,7 +2527,8 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
        getGlobalDtorAttrName(), getLambdaAttrName(), getLinkageAttrName(),
        getCallingConvAttrName(), getNoProtoAttrName(),
        getSymVisibilityAttrName(), getArgAttrsAttrName(), getResAttrsAttrName(),
-       getComdatAttrName(), getGlobalVisibilityAttrName()});
+       getComdatAttrName(), getGlobalVisibilityAttrName(),
+       getAnnotationsAttrName()});
 
   if (auto aliaseeName = getAliasee()) {
     p << " alias(";
@@ -2704,6 +2715,12 @@ verifyCallCommInSymbolUses(Operation *op, SymbolTableCollection &symbolTable) {
                << op->getOperand(i).getType() << " for operand number " << i;
   }
 
+  // Calling convention must match.
+  if (callIf.getCallingConv() != fn.getCallingConv())
+    return op->emitOpError("calling convention mismatch: expected ")
+           << stringifyCallingConv(fn.getCallingConv()) << ", but provided "
+           << stringifyCallingConv(callIf.getCallingConv());
+
   // Void function must not return any results.
   if (fnType.isVoid() && op->getNumResults() != 0)
     return op->emitOpError("callee returns void but call has results");
@@ -2798,8 +2815,11 @@ static ::mlir::ParseResult parseCallCommon(::mlir::OpAsmParser &parser,
   llvm::SMLoc landingPadOperandsLoc;
   llvm::SmallVector<mlir::Type, 1> landingPadTypes;
 
-  if (::mlir::succeeded(parser.parseOptionalKeyword("exception")))
+  bool hasExceptions = false;
+  if (::mlir::succeeded(parser.parseOptionalKeyword("exception"))) {
     result.addAttribute("exception", parser.getBuilder().getUnitAttr());
+    hasExceptions = true;
+  }
 
   // If we cannot parse a string callee, it means this is an indirect call.
   if (!parser.parseOptionalAttribute(calleeAttr, "callee", result.attributes)
@@ -2827,6 +2847,18 @@ static ::mlir::ParseResult parseCallCommon(::mlir::OpAsmParser &parser,
             .failed())
       return ::mlir::failure();
 
+  if (parser.parseOptionalAttrDict(result.attributes))
+    return ::mlir::failure();
+  if (parser.parseColon())
+    return ::mlir::failure();
+
+  ::mlir::FunctionType opsFnTy;
+  if (parser.parseType(opsFnTy))
+    return ::mlir::failure();
+  operandsTypes = opsFnTy.getInputs();
+  allResultTypes = opsFnTy.getResults();
+  result.addTypes(allResultTypes);
+
   auto &builder = parser.getBuilder();
   Attribute extraAttrs;
   if (::mlir::succeeded(parser.parseOptionalKeyword("extra"))) {
@@ -2842,18 +2874,6 @@ static ::mlir::ParseResult parseCallCommon(::mlir::OpAsmParser &parser,
         builder.getContext(), empty.getDictionary(builder.getContext()));
   }
   result.addAttribute(extraAttrsAttrName, extraAttrs);
-
-  if (parser.parseOptionalAttrDict(result.attributes))
-    return ::mlir::failure();
-  if (parser.parseColon())
-    return ::mlir::failure();
-
-  ::mlir::FunctionType opsFnTy;
-  if (parser.parseType(opsFnTy))
-    return ::mlir::failure();
-  operandsTypes = opsFnTy.getInputs();
-  allResultTypes = opsFnTy.getResults();
-  result.addTypes(allResultTypes);
 
   if (parser.resolveOperands(ops, operandsTypes, opsLoc, result.operands))
     return ::mlir::failure();
@@ -2884,6 +2904,18 @@ static ::mlir::ParseResult parseCallCommon(::mlir::OpAsmParser &parser,
       return failure();
     result.addAttribute("calling_conv", mlir::cir::CallingConvAttr::get(
                                             builder.getContext(), callingConv));
+  }
+
+  // If exception is present and there are cleanups, this should be latest thing
+  // present (after all attributes, etc).
+  mlir::Region *cleanupRegion = nullptr;
+  if (!hasDestinationBlocks) // Regular cir.call
+    cleanupRegion = result.addRegion();
+  if (hasExceptions) {
+    if (parser.parseOptionalKeyword("cleanup").succeeded()) {
+      if (parser.parseRegion(*cleanupRegion, /*arguments=*/{}, /*argTypes=*/{}))
+        return failure();
+    }
   }
 
   return ::mlir::success();
@@ -2964,6 +2996,17 @@ void printCallCommon(Operation *op, mlir::Value indirectCallee,
     state << " extra(";
     state.printAttributeWithoutType(extraAttrs);
     state << ")";
+  }
+
+  // If exception is present and there are cleanups, this should be latest thing
+  // present (after all attributes, etc).
+  if (exception) {
+    auto call = dyn_cast<mlir::cir::CallOp>(op);
+    assert(call && "expected regular call");
+    if (!call.getCleanup().empty()) {
+      state << "cleanup ";
+      state.printRegion(call.getCleanup());
+    }
   }
 }
 

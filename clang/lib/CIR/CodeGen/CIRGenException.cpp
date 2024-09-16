@@ -742,7 +742,9 @@ mlir::Operation *CIRGenFunction::buildLandingPad(mlir::cir::TryOp tryOp) {
     // landing pad by generating a branch to the dispatch block. In CIR the same
     // function is called to gather some state, but this block info it's not
     // useful per-se.
-    (void)getEHDispatchBlock(EHStack.getInnermostEHScope(), tryOp);
+    mlir::Block *dispatch =
+        getEHDispatchBlock(EHStack.getInnermostEHScope(), tryOp);
+    (void)dispatch;
   }
 
   return tryOp;
@@ -789,9 +791,12 @@ CIRGenFunction::getEHDispatchBlock(EHScopeStack::stable_iterator si,
 
     case EHScope::Cleanup: {
       assert(tryOp && "expected cir.try available");
-      llvm::MutableArrayRef<mlir::Region> regions = tryOp.getCatchRegions();
-      assert(regions.size() == 1 && "expected only one region");
-      dispatchBlock = &regions[0].getBlocks().back();
+      assert(callWithExceptionCtx && "expected call information");
+      {
+        mlir::OpBuilder::InsertionGuard guard(getBuilder());
+        dispatchBlock = builder.createBlock(&callWithExceptionCtx.getCleanup());
+        builder.createYield(callWithExceptionCtx.getLoc());
+      }
       break;
     }
 
@@ -808,9 +813,9 @@ CIRGenFunction::getEHDispatchBlock(EHScopeStack::stable_iterator si,
   return dispatchBlock;
 }
 
-mlir::Operation *CIRGenFunction::getInvokeDestImpl() {
-  assert(EHStack.requiresLandingPad());
-  assert(!EHStack.empty());
+bool CIRGenFunction::isInvokeDest() {
+  if (!EHStack.requiresLandingPad())
+    return false;
 
   // If exceptions are disabled/ignored and SEH is not in use, then there is no
   // invoke destination. SEH "works" even if exceptions are off. In practice,
@@ -819,14 +824,22 @@ mlir::Operation *CIRGenFunction::getInvokeDestImpl() {
   const LangOptions &LO = CGM.getLangOpts();
   if (!LO.Exceptions || LO.IgnoreExceptions) {
     if (!LO.Borland && !LO.MicrosoftExt)
-      return nullptr;
+      return false;
     if (!currentFunctionUsesSEHTry())
-      return nullptr;
+      return false;
   }
 
   // CUDA device code doesn't have exceptions.
   if (LO.CUDA && LO.CUDAIsDevice)
-    return nullptr;
+    return false;
+
+  return true;
+}
+
+mlir::Operation *CIRGenFunction::getInvokeDestImpl(mlir::cir::TryOp tryOp) {
+  assert(EHStack.requiresLandingPad());
+  assert(!EHStack.empty());
+  assert(isInvokeDest());
 
   // Check the innermost scope for a cached landing pad.  If this is
   // a non-EH cleanup, we'll check enclosing scopes in EmitLandingPad.
@@ -840,43 +853,11 @@ mlir::Operation *CIRGenFunction::getInvokeDestImpl() {
   // if (!CurFn->hasPersonalityFn())
   //   CurFn->setPersonalityFn(getOpaquePersonalityFn(CGM, Personality));
 
-  auto createSurroundingTryOp = [&]() {
-    // In OG, we build the landing pad for this scope. In CIR, we emit a
-    // synthetic cir.try because this didn't come from codegenerating from a
-    // try/catch in C++.
-    auto tryOp = builder.create<mlir::cir::TryOp>(
-        *currSrcLoc, /*scopeBuilder=*/
-        [&](mlir::OpBuilder &b, mlir::Location loc) {},
-        // Don't emit the code right away for catch clauses, for
-        // now create the regions and consume the try scope result.
-        // Note that clauses are later populated in
-        // CIRGenFunction::buildLandingPad.
-        [&](mlir::OpBuilder &b, mlir::Location loc,
-            mlir::OperationState &result) {
-          // Since this didn't come from an explicit try, we only need one
-          // handler: unwind.
-          auto *r = result.addRegion();
-          builder.createBlock(r);
-        });
-    tryOp.setSynthetic(true);
-    return tryOp;
-  };
-
   if (Personality.usesFuncletPads()) {
     // We don't need separate landing pads in the funclet model.
     llvm::errs() << "PersonalityFn: " << Personality.PersonalityFn << "\n";
     llvm_unreachable("NYI");
   } else {
-    mlir::cir::TryOp tryOp = nullptr;
-    // Attempt to find a suitable existing parent try/catch, if none
-    // is available, create a synthetic cir.try in order to wrap the side
-    // effects of a potential throw.
-    if (currLexScope)
-      tryOp = currLexScope->getClosestTryParent();
-    if (!tryOp)
-      tryOp = createSurroundingTryOp();
-
-    assert(tryOp && "cir.try expected");
     LP = buildLandingPad(tryOp);
   }
 
