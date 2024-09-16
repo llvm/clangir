@@ -53,7 +53,6 @@ class CIRGenBuilderTy : public CIRBaseBuilderTy {
   llvm::RoundingMode DefaultConstrainedRounding = llvm::RoundingMode::Dynamic;
 
   llvm::StringMap<unsigned> GlobalsVersioning;
-  llvm::StringSet<> anonRecordNames;
   llvm::StringMap<unsigned> RecordNames;
 
 public:
