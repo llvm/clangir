@@ -16,6 +16,7 @@
 #include "CIRGenModule.h"
 #include "CIRGenOpenMPRuntime.h"
 #include "CIRGenValue.h"
+#include "EHScopeStack.h"
 #include "TargetInfo.h"
 
 #include "clang/AST/ExprCXX.h"
@@ -2215,7 +2216,9 @@ static void pushTemporaryCleanup(CIRGenFunction &CGF,
   }
 
   case SD_FullExpression:
-    llvm_unreachable("SD_FullExpression not implemented");
+    CGF.pushDestroy(NormalAndEHCleanup, ReferenceTemporary, E->getType(),
+                    CIRGenFunction::destroyCXXObject,
+                    CGF.getLangOpts().Exceptions);
     break;
 
   case SD_Automatic:
