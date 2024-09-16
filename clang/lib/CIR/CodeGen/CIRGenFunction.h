@@ -15,7 +15,6 @@
 
 #include "CIRGenBuilder.h"
 #include "CIRGenCall.h"
-#include "CIRGenFunctionInfo.h"
 #include "CIRGenModule.h"
 #include "CIRGenTypeCache.h"
 #include "CIRGenValue.h"
@@ -871,13 +870,6 @@ public:
       llvm::iterator_range<clang::CallExpr::const_arg_iterator> ArgRange,
       AbstractCallee AC = AbstractCallee(), unsigned ParamsToSkip = 0,
       EvaluationOrder Order = EvaluationOrder::Default);
-
-  void buildIntrinsicCallArgs(
-      CallArgList &Args,
-      llvm::iterator_range<clang::CallExpr::const_arg_iterator> ArgRang);
-  mlir::Value buildIntrinsicCall(const CallExpr *E, ReturnValueSlot ReturnValue,
-                                 StringRef intrinsicName,
-                                 mlir::Type resultType);
 
   void checkTargetFeatures(const CallExpr *E, const FunctionDecl *TargetDecl);
   void checkTargetFeatures(SourceLocation Loc, const FunctionDecl *TargetDecl);

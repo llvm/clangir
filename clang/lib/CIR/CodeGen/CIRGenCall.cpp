@@ -14,6 +14,7 @@
 #include "CIRGenBuilder.h"
 #include "CIRGenCXXABI.h"
 #include "CIRGenFunction.h"
+#include "CIRGenFunctionInfo.h"
 #include "CIRGenTypes.h"
 #include "TargetInfo.h"
 
@@ -76,6 +77,63 @@ CIRGenFunctionInfo *CIRGenFunctionInfo::create(
   return FI;
 }
 
+namespace {
+
+/// Encapsulates information about the way function arguments from
+/// CIRGenFunctionInfo should be passed to actual CIR function.
+class ClangToCIRArgMapping {
+  static const unsigned InvalidIndex = ~0U;
+  unsigned InallocaArgNo;
+  unsigned SRetArgNo;
+  unsigned TotalCIRArgs;
+
+  /// Arguments of CIR function corresponding to single Clang argument.
+  struct CIRArgs {
+    unsigned PaddingArgIndex = 0;
+    // Argument is expanded to CIR arguments at positions
+    // [FirstArgIndex, FirstArgIndex + NumberOfArgs).
+    unsigned FirstArgIndex = 0;
+    unsigned NumberOfArgs = 0;
+
+    CIRArgs()
+        : PaddingArgIndex(InvalidIndex), FirstArgIndex(InvalidIndex),
+          NumberOfArgs(0) {}
+  };
+
+  SmallVector<CIRArgs, 8> ArgInfo;
+
+public:
+  ClangToCIRArgMapping(const ASTContext &Context, const CIRGenFunctionInfo &FI,
+                       bool OnlyRequiredArgs = false)
+      : InallocaArgNo(InvalidIndex), SRetArgNo(InvalidIndex), TotalCIRArgs(0),
+        ArgInfo(OnlyRequiredArgs ? FI.getNumRequiredArgs() : FI.arg_size()) {
+    construct(Context, FI, OnlyRequiredArgs);
+  }
+
+  bool hasSRetArg() const { return SRetArgNo != InvalidIndex; }
+
+  bool hasInallocaArg() const { return InallocaArgNo != InvalidIndex; }
+
+  unsigned totalCIRArgs() const { return TotalCIRArgs; }
+
+  bool hasPaddingArg(unsigned ArgNo) const {
+    assert(ArgNo < ArgInfo.size());
+    return ArgInfo[ArgNo].PaddingArgIndex != InvalidIndex;
+  }
+
+  /// Returns index of first CIR argument corresponding to ArgNo, and their
+  /// quantity.
+  std::pair<unsigned, unsigned> getCIRArgs(unsigned ArgNo) const {
+    assert(ArgNo < ArgInfo.size());
+    return std::make_pair(ArgInfo[ArgNo].FirstArgIndex,
+                          ArgInfo[ArgNo].NumberOfArgs);
+  }
+
+private:
+  void construct(const ASTContext &Context, const CIRGenFunctionInfo &FI,
+                 bool OnlyRequiredArgs);
+};
+
 void ClangToCIRArgMapping::construct(const ASTContext &Context,
                                      const CIRGenFunctionInfo &FI,
                                      bool OnlyRequiredArgs) {
@@ -126,6 +184,8 @@ void ClangToCIRArgMapping::construct(const ASTContext &Context,
 
   TotalCIRArgs = CIRArgNo;
 }
+
+} // namespace
 
 static bool hasInAllocaArgs(CIRGenModule &CGM, CallingConv ExplicitCC,
                             ArrayRef<QualType> ArgTypes) {

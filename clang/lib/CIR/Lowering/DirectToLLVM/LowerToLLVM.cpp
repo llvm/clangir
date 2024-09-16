@@ -2550,7 +2550,7 @@ public:
         getTypeConverter()->convertType(op->getResultTypes()[0]);
     if (!llvmResTy)
       return mlir::failure();
-    StringRef name = op.getName();
+    StringRef name = op.getLlvmName();
     replaceOpWithCallLLVMIntrinsicOp(rewriter, op, name, llvmResTy,
                                      adaptor.getOperands());
     return mlir::success();

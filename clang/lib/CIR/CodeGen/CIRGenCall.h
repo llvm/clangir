@@ -14,7 +14,6 @@
 #ifndef LLVM_CLANG_LIB_CODEGEN_CIRGENCALL_H
 #define LLVM_CLANG_LIB_CODEGEN_CIRGENCALL_H
 
-#include "CIRGenFunctionInfo.h"
 #include "CIRGenValue.h"
 
 #include "clang/AST/GlobalDecl.h"
@@ -289,62 +288,6 @@ public:
   bool isUnused() const { return IsUnused; }
   bool isExternallyDestructed() const { return IsExternallyDestructed; }
   Address getAddress() const { return Addr; }
-};
-
-/// Encapsulates information about the way function arguments from
-/// CIRGenFunctionInfo should be passed to actual CIR function.
-class ClangToCIRArgMapping {
-  static const unsigned InvalidIndex = ~0U;
-  unsigned InallocaArgNo;
-  unsigned SRetArgNo;
-  unsigned TotalCIRArgs;
-
-  /// Arguments of CIR function corresponding to single Clang argument.
-  struct CIRArgs {
-    unsigned PaddingArgIndex = 0;
-    // Argument is expanded to CIR arguments at positions
-    // [FirstArgIndex, FirstArgIndex + NumberOfArgs).
-    unsigned FirstArgIndex = 0;
-    unsigned NumberOfArgs = 0;
-
-    CIRArgs()
-        : PaddingArgIndex(InvalidIndex), FirstArgIndex(InvalidIndex),
-          NumberOfArgs(0) {}
-  };
-
-  llvm::SmallVector<CIRArgs, 8> ArgInfo;
-
-public:
-  ClangToCIRArgMapping(const clang::ASTContext &Context,
-                       const CIRGenFunctionInfo &FI,
-                       bool OnlyRequiredArgs = false)
-      : InallocaArgNo(InvalidIndex), SRetArgNo(InvalidIndex), TotalCIRArgs(0),
-        ArgInfo(OnlyRequiredArgs ? FI.getNumRequiredArgs() : FI.arg_size()) {
-    construct(Context, FI, OnlyRequiredArgs);
-  }
-
-  bool hasSRetArg() const { return SRetArgNo != InvalidIndex; }
-
-  bool hasInallocaArg() const { return InallocaArgNo != InvalidIndex; }
-
-  unsigned totalCIRArgs() const { return TotalCIRArgs; }
-
-  bool hasPaddingArg(unsigned ArgNo) const {
-    assert(ArgNo < ArgInfo.size());
-    return ArgInfo[ArgNo].PaddingArgIndex != InvalidIndex;
-  }
-
-  /// Returns index of first CIR argument corresponding to ArgNo, and their
-  /// quantity.
-  std::pair<unsigned, unsigned> getCIRArgs(unsigned ArgNo) const {
-    assert(ArgNo < ArgInfo.size());
-    return std::make_pair(ArgInfo[ArgNo].FirstArgIndex,
-                          ArgInfo[ArgNo].NumberOfArgs);
-  }
-
-private:
-  void construct(const clang::ASTContext &Context, const CIRGenFunctionInfo &FI,
-                 bool OnlyRequiredArgs);
 };
 
 } // namespace cir
