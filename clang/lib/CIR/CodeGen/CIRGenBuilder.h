@@ -59,7 +59,7 @@ class CIRGenBuilderTy : public CIRBaseBuilderTy {
 public:
   CIRGenBuilderTy(mlir::MLIRContext &C, const CIRGenTypeCache &tc)
       : CIRBaseBuilderTy(C), typeCache(tc) {
-    RecordNames["anon"] = 0;
+    RecordNames["anon"] = 0; // in order to start from the name "anon.0"
   }
 
   std::string getUniqueAnonRecordName() {
