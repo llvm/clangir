@@ -2558,7 +2558,7 @@ public:
     // %3 = call i64 @llvm.aarch64.ldxr.p0(ptr %2)
     // The expected LLVM IR should be like
     // %3 = call i64 @llvm.aarch64.ldxr.p0(ptr elementtype(i32) %2)
-    // TODO(cir): MLIR LLVM dialectM should handle this part as CIR has no way
+    // TODO(cir): MLIR LLVM dialect should handle this part as CIR has no way
     // to set LLVM IR attribute.
     assert(!::cir::MissingFeatures::llvmIntrinsicElementTypeSupport());
     replaceOpWithCallLLVMIntrinsicOp(rewriter, op, name, llvmResTy,
