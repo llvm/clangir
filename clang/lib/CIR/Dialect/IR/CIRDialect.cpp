@@ -2581,7 +2581,7 @@ LogicalResult cir::FuncOp::verifyType() {
 }
 
 LogicalResult cir::IntrinsicCallOp::verify() {
-  if (!getLlvmName().starts_with("llvm."))
+  if (!getIntrinsicName().starts_with("llvm."))
     return emitOpError() << "intrinsic name must start with 'llvm.'";
   return success();
 }

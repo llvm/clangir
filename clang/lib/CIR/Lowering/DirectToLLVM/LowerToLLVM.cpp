@@ -2549,8 +2549,18 @@ public:
     mlir::Type llvmResTy =
         getTypeConverter()->convertType(op->getResultTypes()[0]);
     if (!llvmResTy)
-      return mlir::failure();
-    StringRef name = op.getLlvmName();
+      return op.emitError("expected LLVM result type");
+    StringRef name = op.getIntrinsicName();
+    // Some llvm intrinsics require ElementType attribute to be attached to
+    // the argument of pointer type. That prevents us from generating LLVM IR
+    // because from LLVM dialect, we have LLVM IR like the below which fails
+    // LLVM IR verification.
+    // %3 = call i64 @llvm.aarch64.ldxr.p0(ptr %2)
+    // The expected LLVM IR should be like
+    // %3 = call i64 @llvm.aarch64.ldxr.p0(ptr elementtype(i32) %2)
+    // MLIR LLVM dialect should handle this part as CIR has no way
+    // to set LLVM IR attribute.
+    assert(!::cir::MissingFeatures::llvmIntrinsicElementTypeSupport());
     replaceOpWithCallLLVMIntrinsicOp(rewriter, op, name, llvmResTy,
                                      adaptor.getOperands());
     return mlir::success();

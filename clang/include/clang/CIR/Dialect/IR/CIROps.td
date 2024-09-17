@@ -3177,23 +3177,23 @@ def IntrinsicCallOp : CIR_Op<"llvm.intrinsic"> {
   let description = [{
     `cir.llvm.intrinsic` operation represents a call-like expression which has
     return type and arguments that maps directly to a llvm intrinsic.
-    It only records intrinsic `llvm_name`.
+    It only records intrinsic `intrinsic_name`.
   }];
 
   let results = (outs Optional<CIR_AnyType>:$result);
   let arguments = (ins
-                   StrAttr:$llvm_name, Variadic<CIR_AnyType>:$arg_ops);
+                   StrAttr:$intrinsic_name, Variadic<CIR_AnyType>:$arg_ops);
 
   let skipDefaultBuilders = 1;
 
   let assemblyFormat = [{
-    $llvm_name $arg_ops `:` functional-type($arg_ops, $result) attr-dict
+    $intrinsic_name $arg_ops `:` functional-type($arg_ops, $result) attr-dict
   }];
 
   let builders = [
-    OpBuilder<(ins "mlir::StringAttr":$llvm_name, "mlir::Type":$resType,
+    OpBuilder<(ins "mlir::StringAttr":$intrinsic_name, "mlir::Type":$resType,
               CArg<"ValueRange", "{}">:$operands), [{
-      $_state.addAttribute("llvm_name", llvm_name);
+      $_state.addAttribute("intrinsic_name", intrinsic_name);
       $_state.addOperands(operands);
       if (resType)
         $_state.addTypes(resType);
