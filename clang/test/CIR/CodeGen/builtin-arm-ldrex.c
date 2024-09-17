@@ -38,7 +38,7 @@ int test_ldrex(char *addr, long long *addr64, float *addrfloat) {
 // CIR: [[MEMBER_A:%.*]] = cir.get_member [[CAST3]][0] {name = "a"} : !cir.ptr<!ty_twoFldT> -> !cir.ptr<!s8i>
 
 
- // TODO: Uncomment next 2 lines add tests when floating result type supported
+ // TODO: Uncomment next 2 lines, add tests when floating result type supported
  // sum += __builtin_arm_ldrex(addrfloat);
 
  // sum += __builtin_arm_ldrex((double *)addr);
