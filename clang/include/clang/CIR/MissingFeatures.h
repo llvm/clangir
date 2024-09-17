@@ -15,20 +15,19 @@
 #ifndef CLANG_CIR_MISSINGFEATURES_H
 #define CLANG_CIR_MISSINGFEATURES_H
 
-
-constexpr bool ASSERT_MODE = true;  // Change to `false` to use llvm_unreachable
+constexpr bool cirMissingFeatureAssertionMode =
+    true; // Change to `false` to use llvm_unreachable
 
 // Some assertions knowingly generate incorrect code. This macro allows us to
 // switch between using `assert` and `llvm_unreachable` for these cases.
-#define assert_or_abort(cond, msg) \
-    do { \
-        if (ASSERT_MODE) { \
-            assert((cond) && msg); \
-        } else { \
-            llvm_unreachable(msg); \
-        } \
-    } while (0)
-
+#define assert_or_abort(cond, msg)                                             \
+  do {                                                                         \
+    if (cirMissingFeatureAssertionMode) {                                                         \
+      assert((cond) && msg);                                                   \
+    } else {                                                                   \
+      llvm_unreachable(msg);                                                   \
+    }                                                                          \
+  } while (0)
 
 namespace cir {
 

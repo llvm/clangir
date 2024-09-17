@@ -438,7 +438,7 @@ Type X86_64ABIInfo::GetINTEGERTypeAtOffset(Type DestTy, unsigned IROffset,
       (unsigned)getContext().getTypeSizeInChars(SourceTy).getQuantity();
 
   // FIXME(cir): Temporary workaround to make things non-blocking.
-  if (!ASSERT_MODE)
+  if (!cirMissingFeatureAssertionMode)
     assert(TySizeInBytes != SourceOffset && "Empty field?");
 
   // It is always safe to classify this as an integer type up to i64 that

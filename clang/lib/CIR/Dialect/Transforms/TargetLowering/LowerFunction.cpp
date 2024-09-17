@@ -275,7 +275,7 @@ LowerFunction::buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
 
   // FIXME(cir): non-blocking workaround for argument types that are not yet
   // properly handled by the ABI.
-  if (ASSERT_MODE && FI.arg_size() != Args.size()) {
+  if (cirMissingFeatureAssertionMode && FI.arg_size() != Args.size()) {
     assert(::cir::MissingFeatures::ABIParameterCoercion());
     return success();
   }
