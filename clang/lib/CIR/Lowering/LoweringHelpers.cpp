@@ -64,6 +64,16 @@ mlir::Type getNestedTypeAndElemQuantity(mlir::Type Ty, unsigned &elemQuantity) {
 template <typename AttrTy, typename StorageTy>
 void convertToDenseElementsAttrImpl(mlir::cir::ConstArrayAttr attr,
                                     llvm::SmallVectorImpl<StorageTy> &values) {
+  if (auto stringAttr = mlir::dyn_cast<mlir::StringAttr>(attr.getElts())) {
+    if (auto arrayType = mlir::dyn_cast<mlir::cir::ArrayType>(attr.getType())) {
+      for (auto element : stringAttr) {
+        auto intAttr = mlir::cir::IntAttr::get(arrayType.getEltType(), element);
+        values.push_back(mlir::dyn_cast<AttrTy>(intAttr).getValue());
+      }
+      return;
+    }
+  }
+
   auto arrayAttr = mlir::cast<mlir::ArrayAttr>(attr.getElts());
   for (auto eltAttr : arrayAttr) {
     if (auto valueAttr = mlir::dyn_cast<AttrTy>(eltAttr)) {
