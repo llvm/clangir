@@ -34,8 +34,8 @@ arrangeFreeFunctionLikeCall(LowerTypes &LT, LowerModule &LM,
   // extra prefix plus the arguments in the prototype.
   // FIXME(cir): Properly check if function is no-proto.
   if (/*IsPrototypedFunction=*/true) {
-    if (fnType.isVarArg() && !ASSERT_MODE)
-      llvm_unreachable("NYI");
+    if (fnType.isVarArg())
+      assert_or_abort(!::cir::MissingFeatures::isVarArg(), "NYI");
 
     if (::cir::MissingFeatures::extParamInfo())
       llvm_unreachable("NYI");
