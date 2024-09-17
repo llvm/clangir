@@ -273,12 +273,17 @@ LowerFunction::buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
   SmallVector<Value, 8> ArgVals;
   ArgVals.reserve(Args.size());
 
+  // FIXME(cir): non-blocking workaround for argument types that are not yet
+  // properly handled by the ABI.
+  if (ASSERT_MODE && FI.arg_size() != Args.size()) {
+    assert(::cir::MissingFeatures::ABIParameterCoercion());
+    return success();
+  }
+
   // Create a pointer value for every parameter declaration. This usually
   // entails copying one or more LLVM IR arguments into an alloca. Don't push
   // any cleanups or do anything that might unwind. We do that separately, so
   // we can push the cleanups in the correct order for the ABI.
-  if (ASSERT_MODE && FI.arg_size() != Args.size())
-    return success();
   assert(FI.arg_size() == Args.size());
   unsigned ArgNo = 0;
   LowerFunctionInfo::const_arg_iterator info_it = FI.arg_begin();

@@ -240,6 +240,7 @@ struct MissingFeatures {
   static bool ABIInRegAttribute() { return false; }
   static bool ABINestedRecordLayout() { return false; }
   static bool ABINoProtoFunctions() { return false; }
+  static bool ABIParameterCoercion() { return false; }
   static bool ABIPointerParameterAttrs() { return false; }
   static bool ABITransparentUnionHandling() { return false; }
 
