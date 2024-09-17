@@ -1660,12 +1660,12 @@ CIRGenModule::getAddrOfGlobalTemporary(const MaterializeTemporaryExpr *expr,
   if (!gv.hasLocalLinkage()) {
     llvm_unreachable("NYI");
   }
-  // TODO(CIR): gv->setAlignment(align.getAsAlign());
+  gv.setAlignment(align.getAsAlign().value());
   if (supportsCOMDAT() && gv.isWeakForLinker())
     llvm_unreachable("NYI");
   if (varDecl->getTLSKind())
     llvm_unreachable("NYI");
-  // TODO(CIR): llvm::Constant *cv = gv;
+  mlir::Operation *cv = gv;
   if (addrSpace != LangAS::Default)
     llvm_unreachable("NYI");
 
@@ -1673,12 +1673,12 @@ CIRGenModule::getAddrOfGlobalTemporary(const MaterializeTemporaryExpr *expr,
   // replace it with the new global now.
   mlir::Operation *&entry = materializedGlobalTemporaryMap[expr];
   if (entry) {
-    entry->replaceAllUsesWith(gv);
+    entry->replaceAllUsesWith(cv);
     entry->erase();
   }
-  entry = gv;
+  entry = cv;
 
-  return gv;
+  return cv;
 }
 
 // Emit code for a single top level declaration.
