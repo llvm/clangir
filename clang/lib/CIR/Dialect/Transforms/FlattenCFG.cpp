@@ -36,13 +36,13 @@ void lowerTerminator(mlir::Operation *op, mlir::Block *dest,
 /// Walks a region while skipping operations of type `Ops`. This ensures the
 /// callback is not applied to said operations and its children.
 template <typename... Ops>
-void walkRegionSkipping(mlir::Region &region,
-                        mlir::function_ref<void(mlir::Operation *)> callback) {
+void walkRegionSkipping(
+    mlir::Region &region,
+    mlir::function_ref<mlir::WalkResult(mlir::Operation *)> callback) {
   region.walk<mlir::WalkOrder::PreOrder>([&](mlir::Operation *op) {
     if (isa<Ops...>(op))
       return mlir::WalkResult::skip();
-    callback(op);
-    return mlir::WalkResult::advance();
+    return callback(op);
   });
 }
 
@@ -294,10 +294,10 @@ public:
     return mlir::ArrayAttr::get(caseAttrList.getContext(), symbolList);
   }
 
-  mlir::Block *buildCatchers(mlir::cir::TryOp tryOp,
-                             mlir::PatternRewriter &rewriter,
-                             mlir::Block *afterBody,
-                             mlir::Block *afterTry) const {
+  mlir::Block *
+  buildCatchers(mlir::cir::TryOp tryOp, mlir::PatternRewriter &rewriter,
+                mlir::Block *afterBody, mlir::Block *afterTry,
+                SmallVectorImpl<mlir::cir::CallOp> &callsToRewrite) const {
     auto loc = tryOp.getLoc();
     // Replace the tryOp return with a branch that jumps out of the body.
     rewriter.setInsertionPointToEnd(afterBody);
@@ -317,22 +317,22 @@ public:
     mlir::ArrayAttr symlist = collectTypeSymbols(tryOp);
     auto inflightEh = rewriter.create<mlir::cir::EhInflightOp>(
         loc, exceptionPtrType, typeIdType,
-        tryOp.isCleanupActive() ? mlir::UnitAttr::get(tryOp.getContext())
-                                : nullptr,
+        tryOp.getCleanup() ? mlir::UnitAttr::get(tryOp.getContext()) : nullptr,
         symlist);
     auto selector = inflightEh.getTypeId();
     auto exceptionPtr = inflightEh.getExceptionPtr();
 
     // Time to emit cleanup's.
-    if (tryOp.isCleanupActive()) {
-      assert(tryOp.getCleanupRegion().getBlocks().size() == 1 &&
+    if (tryOp.getCleanup()) {
+      assert(callsToRewrite.size() == 1 &&
              "NYI: if this isn't enough, move region instead");
       // TODO(cir): this might need to be duplicated instead of consumed since
       // for user-written try/catch we want these cleanups to also run when the
       // regular try scope adjurns (in case no exception is triggered).
       assert(tryOp.getSynthetic() &&
              "not implemented for user written try/catch");
-      mlir::Block *cleanupBlock = &tryOp.getCleanupRegion().getBlocks().back();
+      mlir::Block *cleanupBlock =
+          &callsToRewrite[0].getCleanup().getBlocks().back();
       auto cleanupYield =
           cast<mlir::cir::YieldOp>(cleanupBlock->getTerminator());
       cleanupYield->erase();
@@ -465,7 +465,7 @@ public:
 
     // Build catchers.
     mlir::Block *landingPad =
-        buildCatchers(tryOp, rewriter, afterBody, afterTry);
+        buildCatchers(tryOp, rewriter, afterBody, afterTry, callsToRewrite);
     rewriter.eraseOp(tryOp);
 
     // Rewrite calls.
@@ -541,15 +541,21 @@ public:
     // Lower continue statements.
     mlir::Block *dest = (step ? step : cond);
     op.walkBodySkippingNestedLoops([&](mlir::Operation *op) {
-      if (isa<mlir::cir::ContinueOp>(op))
-        lowerTerminator(op, dest, rewriter);
+      if (!isa<mlir::cir::ContinueOp>(op))
+        return mlir::WalkResult::advance();
+
+      lowerTerminator(op, dest, rewriter);
+      return mlir::WalkResult::skip();
     });
 
     // Lower break statements.
     walkRegionSkipping<mlir::cir::LoopOpInterface, mlir::cir::SwitchOp>(
         op.getBody(), [&](mlir::Operation *op) {
-          if (isa<mlir::cir::BreakOp>(op))
-            lowerTerminator(op, exit, rewriter);
+          if (!isa<mlir::cir::BreakOp>(op))
+            return mlir::WalkResult::advance();
+
+          lowerTerminator(op, exit, rewriter);
+          return mlir::WalkResult::skip();
         });
 
     // Lower optional body region yield.
@@ -705,8 +711,11 @@ public:
       // Handle break statements.
       walkRegionSkipping<mlir::cir::LoopOpInterface, mlir::cir::SwitchOp>(
           region, [&](mlir::Operation *op) {
-            if (isa<mlir::cir::BreakOp>(op))
-              lowerTerminator(op, exitBlock, rewriter);
+            if (!isa<mlir::cir::BreakOp>(op))
+              return mlir::WalkResult::advance();
+
+            lowerTerminator(op, exitBlock, rewriter);
+            return mlir::WalkResult::skip();
           });
 
       // Extract region contents before erasing the switch op.
