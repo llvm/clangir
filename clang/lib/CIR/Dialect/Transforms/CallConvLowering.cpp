@@ -46,7 +46,7 @@ struct CallConvLoweringPattern : public OpRewritePattern<FuncOp> {
       for (auto call : calls.value()) {
         // FIXME(cir): Function pointers are ignored.
         if (isa<GetGlobalOp>(call.getUser())) {
-          assert_or_abort(!::cir::MissingFeatures::ABIFuncPtr(), "NYI");
+          cir_assert_or_abort(!::cir::MissingFeatures::ABIFuncPtr(), "NYI");
           continue;
         }
 

@@ -63,7 +63,8 @@ Value enterStructPointerForCoercedAccess(Value SrcPtr, StructType SrcSTy,
       FirstEltSize < CGF.LM.getDataLayout().getTypeStoreSize(SrcSTy))
     return SrcPtr;
 
-  assert_or_abort(!::cir::MissingFeatures::ABIEnterStructForCoercedAccess(), "NYI");
+  cir_assert_or_abort(!::cir::MissingFeatures::ABIEnterStructForCoercedAccess(),
+                      "NYI");
   return SrcPtr; // FIXME: This is a temporary workaround for the assertion above.
 }
 
@@ -318,7 +319,7 @@ LowerFunction::buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
       // http://llvm.org/docs/LangRef.html#paramattrs.
       if (ArgI.getDirectOffset() == 0 && isa<PointerType>(LTy) &&
           isa<PointerType>(ArgI.getCoerceToType())) {
-        assert_or_abort(!::cir::MissingFeatures::ABIPointerParameterAttrs(), "NYI");
+        cir_assert_or_abort(!::cir::MissingFeatures::ABIPointerParameterAttrs(), "NYI");
       }
 
       // Prepare the argument value. If we have the trivial case, handle it
@@ -623,7 +624,7 @@ Value LowerFunction::rewriteCallOp(FuncType calleeTy, FuncOp origCallee,
   // Chain calls use this same code path to add the invisible chain parameter
   // to the function type.
   if (origCallee.getNoProto() || Chain) {
-    assert_or_abort(::cir::MissingFeatures::ABINoProtoFunctions(), "NYI");
+    cir_assert_or_abort(::cir::MissingFeatures::ABINoProtoFunctions(), "NYI");
   }
 
   assert(!::cir::MissingFeatures::CUDA());

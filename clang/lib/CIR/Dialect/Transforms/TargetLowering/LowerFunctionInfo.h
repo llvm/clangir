@@ -47,7 +47,7 @@ public:
     if (!prototype.isVarArg())
       return All;
 
-    assert_or_abort(!::cir::MissingFeatures::variadicFunctions(), "NYI");
+    cir_assert_or_abort(!::cir::MissingFeatures::variadicFunctions(), "NYI");
     return All; // FIXME(cir): Temporary workaround for the assertion above.
   }
 

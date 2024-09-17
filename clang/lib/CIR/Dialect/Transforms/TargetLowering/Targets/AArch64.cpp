@@ -87,7 +87,7 @@ ABIArgInfo AArch64ABIInfo::classifyReturnType(Type RetTy,
     return ABIArgInfo::getIgnore();
 
   if (const auto _ = dyn_cast<VectorType>(RetTy)) {
-    assert_or_abort(!::cir::MissingFeatures::vectorType(), "NYI");
+    cir_assert_or_abort(!::cir::MissingFeatures::vectorType(), "NYI");
   }
 
   // Large vector types should be returned via memory.
@@ -128,7 +128,8 @@ AArch64ABIInfo::classifyArgumentType(Type Ty, bool IsVariadic,
                 : ABIArgInfo::getDirect());
   }
 
-  assert_or_abort(!::cir::MissingFeatures::AArch64TypeClassification(), "NYI");
+  cir_assert_or_abort(!::cir::MissingFeatures::AArch64TypeClassification(),
+                      "NYI");
   return {};
 }
 

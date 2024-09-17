@@ -117,6 +117,7 @@ mlir::Type LowerTypes::convertType(Type T) {
   }
 
   llvm::outs() << "Missing default ABI-specific type for " << T << "\n";
-  assert_or_abort(!::cir::MissingFeatures::X86DefaultABITypeConvertion(), "NYI");
+  cir_assert_or_abort(!::cir::MissingFeatures::X86DefaultABITypeConvertion(),
+                      "NYI");
   return T;
 }

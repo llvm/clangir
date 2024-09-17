@@ -20,9 +20,9 @@ constexpr bool cirMissingFeatureAssertionMode =
 
 // Some assertions knowingly generate incorrect code. This macro allows us to
 // switch between using `assert` and `llvm_unreachable` for these cases.
-#define assert_or_abort(cond, msg)                                             \
+#define cir_assert_or_abort(cond, msg)                                         \
   do {                                                                         \
-    if (cirMissingFeatureAssertionMode) {                                                         \
+    if (cirMissingFeatureAssertionMode) {                                      \
       assert((cond) && msg);                                                   \
     } else {                                                                   \
       llvm_unreachable(msg);                                                   \

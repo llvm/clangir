@@ -55,8 +55,8 @@ clang::TypeInfo CIRLowerContext::getTypeInfoImpl(const Type T) const {
   } else if (isa<StructType>(T)) {
     typeKind = clang::Type::Record;
   } else {
-    assert_or_abort(!::cir::MissingFeatures::ABIClangTypeKind(),
-                    "Unhandled type class");
+    cir_assert_or_abort(!::cir::MissingFeatures::ABIClangTypeKind(),
+                        "Unhandled type class");
     // FIXME(cir): Completely wrong. Just here to make it non-blocking.
     typeKind = clang::Type::Builtin;
   }
