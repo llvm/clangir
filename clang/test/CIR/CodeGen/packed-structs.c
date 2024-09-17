@@ -1,5 +1,7 @@
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-cir %s -o %t.cir
-// RUN: FileCheck --input-file=%t.cir %s
+// RUN: FileCheck --check-prefix=CIR --input-file=%t.cir %s
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm %s -o %t.ll
+// RUN: FileCheck --check-prefix=LLVM --input-file=%t.ll %s
 
 #pragma pack(1)
 
@@ -20,21 +22,36 @@ typedef struct {
 } __attribute__((aligned(2))) C;
 
 
-// CHECK: !ty_A = !cir.struct<struct "A" packed {!cir.int<s, 32>, !cir.int<s, 8>}>
-// CHECK: !ty_C = !cir.struct<struct "C" packed {!cir.int<s, 32>, !cir.int<s, 8>, !cir.int<u, 8>}>
-// CHECK: !ty_D = !cir.struct<struct "D" packed {!cir.int<s, 8>, !cir.int<u, 8>, !cir.int<s, 32>}
-// CHECK: !ty_F = !cir.struct<struct "F" packed {!cir.int<s, 64>, !cir.int<s, 8>}
-// CHECK: !ty_E = !cir.struct<struct "E" packed {!cir.struct<struct "D" packed {!cir.int<s, 8>, !cir.int<u, 8>, !cir.int<s, 32>}
-// CHECK: !ty_G = !cir.struct<struct "G" {!cir.struct<struct "F" packed {!cir.int<s, 64>, !cir.int<s, 8>}
-// CHECK: !ty_H = !cir.struct<struct "H" {!cir.int<s, 32>, !cir.struct<union "anon.1" {!cir.int<s, 8>, !cir.int<s, 32>}
-// CHECK: !ty_B = !cir.struct<struct "B" packed {!cir.int<s, 32>, !cir.int<s, 8>, !cir.array<!cir.struct<struct "A" packed {!cir.int<s, 32>, !cir.int<s, 8>}> x 6>}>
-// CHECK: !ty_I = !cir.struct<struct "I" packed {!cir.int<s, 8>, !cir.struct<struct "H" {!cir.int<s, 32>, !cir.struct<union "anon.1" {!cir.int<s, 8>, !cir.int<s, 32>}
-// CHECK: !ty_J = !cir.struct<struct "J" packed {!cir.int<s, 8>, !cir.int<s, 8>, !cir.int<s, 8>, !cir.int<s, 8>, !cir.struct<struct "I" packed {!cir.int<s, 8>, !cir.struct<struct "H" {!cir.int<s, 32>, !cir.struct<union "anon.1" {!cir.int<s, 8>, !cir.int<s, 32>}
+// CIR: !ty_A = !cir.struct<struct "A" packed {!cir.int<s, 32>, !cir.int<s, 8>}>
+// CIR: !ty_C = !cir.struct<struct "C" packed {!cir.int<s, 32>, !cir.int<s, 8>, !cir.int<u, 8>}>
+// CIR: !ty_D = !cir.struct<struct "D" packed {!cir.int<s, 8>, !cir.int<u, 8>, !cir.int<s, 32>}
+// CIR: !ty_F = !cir.struct<struct "F" packed {!cir.int<s, 64>, !cir.int<s, 8>}
+// CIR: !ty_E = !cir.struct<struct "E" packed {!cir.struct<struct "D" packed {!cir.int<s, 8>, !cir.int<u, 8>, !cir.int<s, 32>}
+// CIR: !ty_G = !cir.struct<struct "G" {!cir.struct<struct "F" packed {!cir.int<s, 64>, !cir.int<s, 8>}
+// CIR: !ty_H = !cir.struct<struct "H" {!cir.int<s, 32>, !cir.struct<union "anon.{{.*}}" {!cir.int<s, 8>, !cir.int<s, 32>}
+// CIR: !ty_B = !cir.struct<struct "B" packed {!cir.int<s, 32>, !cir.int<s, 8>, !cir.array<!cir.struct<struct "A" packed {!cir.int<s, 32>, !cir.int<s, 8>}> x 6>}>
+// CIR: !ty_I = !cir.struct<struct "I" packed {!cir.int<s, 8>, !cir.struct<struct "H" {!cir.int<s, 32>, !cir.struct<union "anon.{{.*}}" {!cir.int<s, 8>, !cir.int<s, 32>}
+// CIR: !ty_J = !cir.struct<struct "J" packed {!cir.int<s, 8>, !cir.int<s, 8>, !cir.int<s, 8>, !cir.int<s, 8>, !cir.struct<struct "I" packed {!cir.int<s, 8>, !cir.struct<struct "H" {!cir.int<s, 32>, !cir.struct<union "anon.{{.*}}" {!cir.int<s, 8>, !cir.int<s, 32>}
 
-// CHECK: cir.func {{.*@foo()}}
-// CHECK:  %0 = cir.alloca !ty_A, !cir.ptr<!ty_A>, ["a"] {alignment = 1 : i64}
-// CHECK:  %1 = cir.alloca !ty_B, !cir.ptr<!ty_B>, ["b"] {alignment = 1 : i64}
-// CHECK:  %2 = cir.alloca !ty_C, !cir.ptr<!ty_C>, ["c"] {alignment = 2 : i64}
+// LLVM: %struct.A = type <{ i32, i8 }>
+// LLVM: %struct.B = type <{ i32, i8, [6 x %struct.A] }>
+// LLVM: %struct.C = type <{ i32, i8, i8 }>
+// LLVM: %struct.E = type <{ %struct.D, i32 }>
+// LLVM: %struct.D = type <{ i8, i8, i32 }>
+// LLVM: %struct.G = type { %struct.F, i8 }
+// LLVM: %struct.F = type <{ i64, i8 }>
+// LLVM: %struct.J = type <{ i8, i8, i8, i8, %struct.I, i32 }>
+// LLVM: %struct.I = type <{ i8, %struct.H }>
+// LLVM: %struct.H = type { i32, %union.anon.{{.*}} }
+
+// CIR: cir.func {{.*@foo()}}
+// CIR:  {{.*}} = cir.alloca !ty_A, !cir.ptr<!ty_A>, ["a"] {alignment = 1 : i64}
+// CIR:  {{.*}} = cir.alloca !ty_B, !cir.ptr<!ty_B>, ["b"] {alignment = 1 : i64}
+// CIR:  {{.*}} = cir.alloca !ty_C, !cir.ptr<!ty_C>, ["c"] {alignment = 2 : i64}
+
+// LLVM: {{.*}} = alloca %struct.A, i64 1, align 1
+// LLVM: {{.*}} = alloca %struct.B, i64 1, align 1
+// LLVM: {{.*}} = alloca %struct.C, i64 1, align 2
 void foo() {
     A a;
     B b;
@@ -53,8 +70,10 @@ typedef struct {
     int f;
 } E;
 
-// CHECK: cir.func {{.*@f1()}}
-// CHECK:  %0 = cir.alloca !ty_E, !cir.ptr<!ty_E>, ["a"] {alignment = 2 : i64}
+// CIR: cir.func {{.*@f1()}}
+// CIR:  {{.*}} = cir.alloca !ty_E, !cir.ptr<!ty_E>, ["a"] {alignment = 2 : i64}
+
+// LLVM: {{.*}} = alloca %struct.E, i64 1, align 2
 void f1() {
     E a = {};
 }
@@ -71,8 +90,10 @@ typedef struct {
     char f;
 } G;
 
-// CHECK: cir.func {{.*@f2()}}
-// CHECK:  %0 = cir.alloca !ty_G, !cir.ptr<!ty_G>, ["a"] {alignment = 1 : i64}
+// CIR: cir.func {{.*@f2()}}
+// CIR:  {{.*}} = cir.alloca !ty_G, !cir.ptr<!ty_G>, ["a"] {alignment = 1 : i64}
+
+// LLVM: {{.*}} = alloca %struct.G, i64 1, align 1
 void f2() {
     G a = {};
 }
@@ -101,8 +122,10 @@ typedef struct {
     int a;
 } J;
 
-// CHECK: cir.func {{.*@f3()}}
-// CHECK:  %0 = cir.alloca !ty_J, !cir.ptr<!ty_J>, ["a"] {alignment = 1 : i64}
+// CIR: cir.func {{.*@f3()}}
+// CIR:  {{.*}} = cir.alloca !ty_J, !cir.ptr<!ty_J>, ["a"] {alignment = 1 : i64}
+
+// LLVM: {{.*}} = alloca %struct.J, i64 1, align 1
 void f3() {
     J a = {0};
 }
