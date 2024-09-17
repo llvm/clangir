@@ -65,7 +65,8 @@ Value enterStructPointerForCoercedAccess(Value SrcPtr, StructType SrcSTy,
 
   cir_assert_or_abort(!::cir::MissingFeatures::ABIEnterStructForCoercedAccess(),
                       "NYI");
-  return SrcPtr; // FIXME: This is a temporary workaround for the assertion above.
+  return SrcPtr; // FIXME: This is a temporary workaround for the assertion
+                 // above.
 }
 
 /// Create a store to \param Dst from \param Src where the source and
@@ -319,7 +320,8 @@ LowerFunction::buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
       // http://llvm.org/docs/LangRef.html#paramattrs.
       if (ArgI.getDirectOffset() == 0 && isa<PointerType>(LTy) &&
           isa<PointerType>(ArgI.getCoerceToType())) {
-        cir_assert_or_abort(!::cir::MissingFeatures::ABIPointerParameterAttrs(), "NYI");
+        cir_assert_or_abort(!::cir::MissingFeatures::ABIPointerParameterAttrs(),
+                            "NYI");
       }
 
       // Prepare the argument value. If we have the trivial case, handle it

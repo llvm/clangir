@@ -206,8 +206,7 @@ public:
               codeGenOptions.OptimizationLevel > 0,
               action == CIRGenAction::OutputType::EmitCIRFlat,
               action == CIRGenAction::OutputType::EmitMLIR,
-              feOptions.ClangIRCallConvLowering,
-              feOptions.ClangIREnableMem2Reg)
+              feOptions.ClangIRCallConvLowering, feOptions.ClangIREnableMem2Reg)
               .failed()) {
         if (!passOptParsingFailure.empty())
           diagnosticsEngine.Report(diag::err_drv_cir_pass_opt_parsing)
