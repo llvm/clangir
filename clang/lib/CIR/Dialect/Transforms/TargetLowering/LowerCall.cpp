@@ -147,7 +147,7 @@ void LowerModule::constructAttributeList(StringRef Name,
     [[fallthrough]];
   case ABIArgInfo::Direct:
     if (RetAI.getInReg())
-      assert_or_abort(!::cir::MissingFeatures::ABIInRegAttribute(), "NYI");
+      cir_assert_or_abort(!::cir::MissingFeatures::ABIInRegAttribute(), "NYI");
     assert(!::cir::MissingFeatures::noFPClass());
     break;
   case ABIArgInfo::Ignore:
@@ -253,7 +253,7 @@ const LowerFunctionInfo &LowerTypes::arrangeFunctionDeclaration(FuncOp fnOp) {
   // When declaring a function without a prototype, always use a
   // non-variadic type.
   if (fnOp.getNoProto()) {
-    assert_or_abort(!::cir::MissingFeatures::ABINoProtoFunctions(), "NYI");
+    cir_assert_or_abort(!::cir::MissingFeatures::ABINoProtoFunctions(), "NYI");
   }
 
   return arrangeFreeFunctionType(FTy);
