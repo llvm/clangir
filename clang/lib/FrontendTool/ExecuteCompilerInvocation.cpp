@@ -52,6 +52,7 @@ CreateFrontendBaseAction(CompilerInstance &CI) {
 
   auto UseCIR = CI.getFrontendOpts().UseClangIRPipeline;
   auto Act = CI.getFrontendOpts().ProgramAction;
+  auto CIRAnalysisOnly = CI.getFrontendOpts().ClangIRAnalysisOnly;
   auto EmitsCIR = Act == EmitCIR || Act == EmitCIRFlat || Act == EmitCIROnly;
 
   if (!UseCIR && EmitsCIR)
@@ -75,12 +76,16 @@ CreateFrontendBaseAction(CompilerInstance &CI) {
 #if CLANG_ENABLE_CIR
     if (UseCIR)
       return std::make_unique<::cir::EmitAssemblyAction>();
+    if (CIRAnalysisOnly)
+      return std::make_unique<::cir::AnalysisOnlyAndEmitAssemblyAction>();
 #endif
     return std::make_unique<EmitAssemblyAction>();
   case EmitBC: {
 #if CLANG_ENABLE_CIR
     if (UseCIR)
       return std::make_unique<::cir::EmitBCAction>();
+    if (CIRAnalysisOnly)
+      return std::make_unique<::cir::AnalysisOnlyAndEmitBCAction>();
 #endif
     return std::make_unique<EmitBCAction>();
   }
@@ -101,15 +106,31 @@ CreateFrontendBaseAction(CompilerInstance &CI) {
 #if CLANG_ENABLE_CIR
     if (UseCIR)
       return std::make_unique<::cir::EmitLLVMAction>();
+    if (CIRAnalysisOnly)
+      return std::make_unique<::cir::AnalysisOnlyAndEmitLLVMAction>();
 #endif
     return std::make_unique<EmitLLVMAction>();
   }
-  case EmitLLVMOnly:           return std::make_unique<EmitLLVMOnlyAction>();
-  case EmitCodeGenOnly:        return std::make_unique<EmitCodeGenOnlyAction>();
+  case EmitLLVMOnly: {
+#if CLANG_ENABLE_CIR
+    if (CIRAnalysisOnly)
+      return std::make_unique<::cir::AnalysisOnlyAndEmitLLVMOnlyAction>();
+#endif
+    return std::make_unique<EmitLLVMOnlyAction>();
+  }
+  case EmitCodeGenOnly: {
+#if CLANG_ENABLE_CIR
+    if (CIRAnalysisOnly)
+      return std::make_unique<::cir::AnalysisOnlyAndEmitLLVMOnlyAction>();
+#endif
+    return std::make_unique<EmitCodeGenOnlyAction>();
+  }
   case EmitObj: {
 #if CLANG_ENABLE_CIR
     if (UseCIR)
       return std::make_unique<::cir::EmitObjAction>();
+    if (CIRAnalysisOnly)
+      return std::make_unique<::cir::AnalysisOnlyAndEmitObjAction>();
 #endif
     return std::make_unique<EmitObjAction>();
   }
