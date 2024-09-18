@@ -446,6 +446,10 @@ public:
 
   // Enable Clang IR mem2reg pass on the flat CIR.
   unsigned ClangIREnableMem2Reg : 1;
+
+  // Enable Clang IR analysis only pipeline that uses traditional codegen
+  // pipeline.
+  unsigned ClangIRAnalysisOnly : 1;
   CodeCompleteOptions CodeCompleteOpts;
 
   /// Specifies the output format of the AST.
@@ -585,7 +589,8 @@ public:
         ClangIRDisableEmitCXXDefault(false), ClangIRLifetimeCheck(false),
         ClangIRIdiomRecognizer(false), ClangIRLibOpt(false),
         ClangIREnableCallConvLowering(false), ClangIREnableMem2Reg(false),
-        TimeTraceGranularity(500), TimeTraceVerbose(false) {}
+        ClangIRAnalysisOnly(false), TimeTraceGranularity(500),
+        TimeTraceVerbose(false) {}
 
   /// getInputKindForExtension - Return the appropriate input kind for a file
   /// extension. For example, "c" would return Language::C.
