@@ -96,7 +96,8 @@ void convertToDenseElementsAttrImpl(mlir::cir::ConstArrayAttr attr,
     } else if (auto subArrayAttr =
                    mlir::dyn_cast<mlir::cir::ConstArrayAttr>(eltAttr)) {
       convertToDenseElementsAttrImpl<AttrTy>(subArrayAttr, values);
-      fillTrailingZeros(subArrayAttr, values);
+      if (mlir::dyn_cast<mlir::StringAttr>(subArrayAttr.getElts()))
+        fillTrailingZeros(subArrayAttr, values);
     } else if (auto zeroAttr = mlir::dyn_cast<mlir::cir::ZeroAttr>(eltAttr)) {
       unsigned numStoredZeros = 0;
       auto nestTy =
