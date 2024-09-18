@@ -129,6 +129,7 @@ public:
   EmitObjAction(mlir::MLIRContext *mlirCtx = nullptr);
 };
 
+// Used for -fclangir-analysis-only: use CIR analysis but still use original LLVM codegen path
 class AnalysisOnlyActionBase : public clang::CodeGenAction {
   virtual void anchor();
 

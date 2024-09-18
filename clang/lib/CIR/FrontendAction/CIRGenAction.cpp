@@ -474,6 +474,7 @@ EmitObjAction::EmitObjAction(mlir::MLIRContext *_MLIRContext)
     : CIRGenAction(OutputType::EmitObj, _MLIRContext) {}
 } // namespace cir
 
+// Used for -fclangir-analysis-only: use CIR analysis but still use original LLVM codegen path
 void AnalysisOnlyActionBase::anchor() {}
 AnalysisOnlyActionBase::AnalysisOnlyActionBase(unsigned _Act,
                                                llvm::LLVMContext *_VMContext)
