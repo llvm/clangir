@@ -612,7 +612,7 @@ public:
                 index.getLoc(), index.getType(),
                 mlir::IntegerAttr::get(index.getType(), 0)),
             index);
-        sub->erase();
+        rewriter.eraseOp(sub);
       }
     }
 
