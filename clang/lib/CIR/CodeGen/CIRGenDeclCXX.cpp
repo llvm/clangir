@@ -10,11 +10,20 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "Address.h"
+#include "CIRGenCXXABI.h"
 #include "CIRGenFunction.h"
 #include "CIRGenModule.h"
+#include "CIRGenTypes.h"
 #include "TargetInfo.h"
+#include "mlir-c/IR.h"
 #include "clang/AST/Attr.h"
 #include "clang/Basic/LangOptions.h"
+#include "clang/Basic/Linkage.h"
+#include "clang/Basic/Specifiers.h"
+#include "clang/CIR/Dialect/IR/CIRAttrs.h"
+#include "clang/CIR/Dialect/IR/CIRDialect.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace clang;
 using namespace mlir::cir;
@@ -44,14 +53,44 @@ void CIRGenModule::buildCXXGlobalVarDeclInitFunc(const VarDecl *D,
        D->hasAttr<CUDASharedAttr>()))
     return;
 
-  assert(!getLangOpts().OpenMP && "OpenMP global var init not implemented");
-
   // Check if we've already initialized this decl.
   auto I = DelayedCXXInitPosition.find(D);
   if (I != DelayedCXXInitPosition.end() && I->second == ~0U)
     return;
 
-  buildCXXGlobalVarDeclInit(D, Addr, PerformInit);
+  mlir::FunctionType fTy =
+      mlir::FunctionType::get(builder.getContext(), VoidTy, VoidTy);
+  SmallString<256> fnName;
+  {
+    llvm::raw_svector_ostream out(fnName);
+    getCXXABI().getMangleContext().mangleDynamicInitializer(D, out);
+  }
+
+  // Create a variable initialization function.
+  mlir::cir::FuncOp fn = createGlobalInitOrCleanUpFunction(
+      fTy, fnName.str(), getTypes().arrangeNullaryFunction(), D->getLocation());
+
+  auto *isa = D->getAttr<InitSegAttr>();
+  CIRGenFunction(*this, getBuilder())
+      .generateCXXGlobalVarDeclInitFunc(fn, D, Addr, PerformInit);
+
+  mlir::cir::GlobalOp comdatKey = supportsCOMDAT() && D->isExternallyVisible() ? Addr : nullptr;
+
+  if (D->getTLSKind()) {
+    llvm_unreachable("NYI");
+  } else if (PerformInit && isa) {
+    llvm_unreachable("performinit && isa");
+  } else if (auto *ipa = D->getAttr<InitPriorityAttr>()) {
+    llvm_unreachable("NYI");
+  } else if (isTemplateInstantiation(D->getTemplateSpecializationKind()) ||
+    getASTContext().GetGVALinkageForVariable(D) == clang::GVA_DiscardableODR ||
+    D->hasAttr<SelectAnyAttr>()) {
+    llvm_unreachable("NYI");
+  } else {
+    llvm_unreachable("NYI");
+  }
+
+  DelayedCXXInitPosition[D] = ~0U;
 }
 
 void CIRGenModule::buildCXXGlobalVarDeclInit(const VarDecl *D,
@@ -94,5 +133,18 @@ void CIRGenModule::buildCXXGlobalVarDeclInit(const VarDecl *D,
   assert(PerformInit && "cannot have constant initializer which needs "
                         "destruction for reference");
   // TODO(cir): buildReferenceBindingToExpr
+}
+
+mlir::cir::FuncOp CIRGenModule::createGlobalInitOrCleanUpFunction(
+    mlir::FunctionType ty, const Twine &name, const CIRGenFunctionInfo &fi,
+    SourceLocation loc, bool tls, mlir::cir::GlobalLinkageKind linkage) {
+  llvm_unreachable("NYI");
+}
+
+/// Emit the code necessary to initialize the given global variable.
+void CIRGenFunction::generateCXXGlobalVarDeclInitFunc(mlir::cir::FuncOp fn,
+                                                      const VarDecl *varDecl,
+                                                      mlir::cir::GlobalOp addr,
+                                                      bool performInit) {
   llvm_unreachable("NYI");
 }

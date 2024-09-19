@@ -263,6 +263,10 @@ public:
   const CIRGenFunctionInfo &
   arrangeFreeFunctionType(clang::CanQual<clang::FunctionNoProtoType> FTNP);
 
+  /// A nullary function is a freestanding function of type 'void ()'.
+  /// This method works for both calls and declarations.
+  const CIRGenFunctionInfo &arrangeNullaryFunction();
+
   /// "Arrange" the LLVM information for a call or type with the given
   /// signature.  This is largely an internal method; other clients
   /// should use one of the above routines, which ultimately defer to

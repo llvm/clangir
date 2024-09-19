@@ -16,6 +16,7 @@
 #include "Address.h"
 #include "CIRGenBuilder.h"
 #include "CIRGenCall.h"
+#include "CIRGenFunctionInfo.h"
 #include "CIRGenOpenCLRuntime.h"
 #include "CIRGenTBAA.h"
 #include "CIRGenTypeCache.h"
@@ -325,6 +326,12 @@ public:
   mlir::cir::GlobalOp createOrReplaceCXXRuntimeVariable(
       mlir::Location loc, StringRef Name, mlir::Type Ty,
       mlir::cir::GlobalLinkageKind Linkage, clang::CharUnits Alignment);
+
+  mlir::cir::FuncOp createGlobalInitOrCleanUpFunction(
+      mlir::FunctionType ty, const Twine &name, const CIRGenFunctionInfo &fi,
+      SourceLocation loc = SourceLocation(), bool tls = false,
+      mlir::cir::GlobalLinkageKind linkage =
+          mlir::cir::GlobalLinkageKind::InternalLinkage);
 
   /// Emit any vtables which we deferred and still have a use for.
   void buildDeferredVTables();

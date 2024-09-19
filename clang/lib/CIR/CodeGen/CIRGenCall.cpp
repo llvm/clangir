@@ -21,6 +21,7 @@
 #include "clang/AST/Attr.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/GlobalDecl.h"
+#include "clang/AST/Type.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/FnInfoOpts.h"
@@ -1442,6 +1443,12 @@ const CIRGenFunctionInfo &CIRGenTypes::arrangeCXXMethodCall(
   return arrangeCIRFunctionInfo(GetReturnType(proto->getReturnType()),
                                 FnInfoOpts::IsInstanceMethod, argTypes, info,
                                 paramInfos, required);
+}
+
+const CIRGenFunctionInfo &CIRGenTypes::arrangeNullaryFunction() {
+  return arrangeCIRFunctionInfo(getContext().VoidTy, FnInfoOpts::None,
+                                std::nullopt, FunctionType::ExtInfo(), {},
+                                RequiredArgs::All);
 }
 
 /// Figure out the rules for calling a function with the given formal type using

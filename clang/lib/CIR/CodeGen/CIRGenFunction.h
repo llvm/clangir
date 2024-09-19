@@ -645,6 +645,11 @@ public:
 
   LValue buildCastLValue(const CastExpr *E);
 
+  void generateCXXGlobalVarDeclInitFunc(mlir::cir::FuncOp fn,
+                                        const VarDecl *varDecl,
+                                        mlir::cir::GlobalOp addr,
+                                        bool performInit);
+
   void buildCXXConstructExpr(const clang::CXXConstructExpr *E,
                              AggValueSlot Dest);
 
