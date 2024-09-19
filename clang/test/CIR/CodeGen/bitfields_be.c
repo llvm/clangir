@@ -1,8 +1,8 @@
 // RUN: %clang_cc1 -triple aarch64_be-unknown-linux-gnu -emit-llvm %s -o %t.cir
 // RUN: FileCheck --input-file=%t.cir %s -check-prefix=LLVM
 
-// RUN: %clang_cc1 -triple aarch64_be-unknown-linux-gnu -fclangir -emit-llvm %s -o %t.cir
-// RUN: FileCheck --input-file=%t.cir %s 
+// RUN: %clang_cc1 -triple aarch64_be-unknown-linux-gnu -fclangir -emit-llvm %s -o %t1.cir
+// RUN: FileCheck --input-file=%t1.cir %s 
 
 typedef struct {
     int a : 4;
