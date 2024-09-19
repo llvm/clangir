@@ -526,7 +526,7 @@ public:
   /// delcs.
   DeclMapTy LocalDeclMap;
 
-  CIRGenDebugInfo *debugInfo;
+  CIRGenDebugInfo *debugInfo = nullptr;
 
   /// The current source location that should be used for exception handling
   /// handling code.
@@ -593,9 +593,6 @@ public:
 
   const clang::LangOptions &getLangOpts() const { return CGM.getLangOpts(); }
 
-  // TODO: This is currently just a dumb stub. But we want to be able to clearly
-  // assert where we arne't doing things that we know we should and will crash
-  // as soon as we add a DebugInfo type to this class.
   CIRGenDebugInfo *getDebugInfo() { return debugInfo; }
 
   void buildReturnOfRValue(mlir::Location loc, RValue RV, QualType Ty);
