@@ -119,8 +119,8 @@ void CIRDataLayout::reset(mlir::DataLayoutSpecInterface spec) {
 
   bigEndian = false;
   if (spec) {
-    auto key = mlir::StringAttr::get(spec.getContext(),
-                    mlir::DLTIDialect::kDataLayoutEndiannessKey);
+    auto key = mlir::StringAttr::get(
+        spec.getContext(), mlir::DLTIDialect::kDataLayoutEndiannessKey);
     if (auto entry = spec.getSpecForIdentifier(key))
       if (auto str = llvm::dyn_cast<mlir::StringAttr>(entry.getValue()))
         bigEndian = str == mlir::DLTIDialect::kDataLayoutEndiannessBig;
