@@ -163,11 +163,3 @@ LoweringPrepareItaniumCXXABI::lowerDynamicCast(CIRBaseBuilderTy &builder,
           })
       .getResult();
 }
-
-mlir::Value LoweringPrepareItaniumCXXABI::lowerVAArg(
-    CIRBaseBuilderTy &builder, mlir::cir::VAArgOp op,
-    const ::cir::CIRDataLayout &datalayout) {
-  // There is no generic cir lowering for var_arg, here we fail
-  // so to prevent attempt of calling lowerVAArg for ItaniumCXXABI
-  llvm_unreachable("NYI");
-}

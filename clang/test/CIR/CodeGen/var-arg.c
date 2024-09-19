@@ -2,6 +2,8 @@
 // RUN: %clang_cc1 -triple aarch64-none-linux-android21 -fclangir -emit-cir -mmlir --mlir-print-ir-after=cir-lowering-prepare %s -o %t.cir 2>&1 | FileCheck %s -check-prefix=AFTER
 // RUN: %clang_cc1 -triple aarch64-none-linux-android21 -fclangir -emit-llvm %s -o %t.ll
 // RUN: FileCheck --input-file=%t.ll %s -check-prefix=LLVM
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm %s -o %t.ll
+// RUN: FileCheck --input-file=%t.ll %s -check-prefix=LLVM-X86
 #include <stdarg.h>
 
 int f1(int n, ...) {
@@ -118,3 +120,9 @@ int f1(int n, ...) {
 // LLVM: store i32 [[RES]], ptr [[RETP]], align 4,
 // LLVM: [[RETV:%.*]] = load i32, ptr [[RETP]], align 4,
 // LLVM-NEXT: ret i32 [[RETV]],
+
+// LLVM-X86: %struct.__va_list_tag = type { i32, i32, ptr, ptr }
+// LLVM-X86: define {{.*}} @f1
+// LLVM-X86: call void @llvm.va_start.p0(
+// LLVM-X86: va_arg ptr %{{.*}}, i32
+// LLVM-X86: call void @llvm.va_end.p0(

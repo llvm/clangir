@@ -1603,7 +1603,12 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::VAArgOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    return op.emitError("cir.vaarg lowering is NYI");
+    auto vaArgResTy = getTypeConverter()->convertType(op.getType());
+    auto opaquePtr = mlir::LLVM::LLVMPointerType::get(getContext());
+    auto va_list = rewriter.create<mlir::LLVM::BitcastOp>(
+        op.getLoc(), opaquePtr, adaptor.getOperands().front());
+    rewriter.replaceOpWithNewOp<mlir::LLVM::VaArgOp>(op, vaArgResTy, va_list);
+    return mlir::success();
   }
 };
 
