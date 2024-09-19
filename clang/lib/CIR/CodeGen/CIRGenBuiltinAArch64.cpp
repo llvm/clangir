@@ -1599,22 +1599,20 @@ static mlir::Value buildArmLdrexNon128Intrinsic(unsigned int builtinID,
   }
 }
 
-mlir::Value buildAArch64NeonCall(unsigned int builtinID, CIRGenFunction &cgf,
-                                 llvm::SmallVector<mlir::Type> argTypes,
-                                 llvm::SmallVector<mlir::Value, 4> args,
-                                 llvm::StringRef intrinsicName,
-                                 mlir::Type funcResTy, mlir::Location loc,
-                                 bool isConstrainedFPIntrinsic = false,
-                                 unsigned shift = 0, bool rightshift = false) {
+mlir::Value buildNeonCall(unsigned int builtinID, CIRGenFunction &cgf,
+                          llvm::SmallVector<mlir::Type> argTypes,
+                          llvm::SmallVector<mlir::Value, 4> args,
+                          llvm::StringRef intrinsicName, mlir::Type funcResTy,
+                          mlir::Location loc,
+                          bool isConstrainedFPIntrinsic = false,
+                          unsigned shift = 0, bool rightshift = false) {
   // TODO: Consider removing the following unreachable when we have
-  // metaDataTypes and buildConstrainedFPCall features implemented
-  assert(!MissingFeatures::metaDataTypes());
+  // buildConstrainedFPCall feature implemented
   assert(!MissingFeatures::buildConstrainedFPCall());
   if (isConstrainedFPIntrinsic)
     llvm_unreachable("isConstrainedFPIntrinsic NYI");
   // TODO: Remove the following unreachable and call it in the loop once
   // there is an implementation of buildNeonShiftVector
-  assert(!MissingFeatures::metaDataTypes());
   if (shift > 0)
     llvm_unreachable("Argument shift NYI");
 
@@ -1624,7 +1622,7 @@ mlir::Value buildAArch64NeonCall(unsigned int builtinID, CIRGenFunction &cgf,
   CIRGenBuilderTy &builder = cgf.getBuilder();
   for (unsigned j = 0; j < argTypes.size(); ++j) {
     if (isConstrainedFPIntrinsic) {
-      assert(!MissingFeatures::metaDataTypes());
+      assert(!MissingFeatures::buildConstrainedFPCall());
     }
     if (shift > 0 && shift == j) {
       assert(!MissingFeatures::buildNeonShiftVector());
@@ -2433,10 +2431,9 @@ CIRGenFunction::buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   case NEON::BI__builtin_neon_vrndns_f32: {
     mlir::Value arg0 = buildScalarExpr(E->getArg(0));
     args.push_back(arg0);
-    return buildAArch64NeonCall(NEON::BI__builtin_neon_vrndns_f32, *this,
-                                {arg0.getType()}, args, "llvm.roundeven.f32",
-                                getCIRGenModule().FloatTy,
-                                getLoc(E->getExprLoc()));
+    return buildNeonCall(NEON::BI__builtin_neon_vrndns_f32, *this,
+                         {arg0.getType()}, args, "llvm.roundeven.f32",
+                         getCIRGenModule().FloatTy, getLoc(E->getExprLoc()));
   }
   case NEON::BI__builtin_neon_vrndph_f16: {
     llvm_unreachable("NYI");

@@ -187,7 +187,6 @@ struct MissingFeatures {
   static bool deferredReplacements() { return false; }
   static bool shouldInstrumentFunction() { return false; }
   static bool xray() { return false; }
-  static bool metaDataTypes() { return false; }
   static bool buildConstrainedFPCall() { return false; }
 
   // Inline assembly
