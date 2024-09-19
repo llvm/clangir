@@ -12,17 +12,21 @@
 
 #include "Address.h"
 #include "CIRGenCXXABI.h"
+#include "CIRGenCall.h"
 #include "CIRGenFunction.h"
 #include "CIRGenModule.h"
 #include "CIRGenTypes.h"
 #include "TargetInfo.h"
 #include "mlir-c/IR.h"
 #include "clang/AST/Attr.h"
+#include "clang/AST/GlobalDecl.h"
+#include "clang/Basic/AttrKinds.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Basic/Linkage.h"
 #include "clang/Basic/Specifiers.h"
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
+#include "clang/CIR/MissingFeatures.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace clang;
@@ -74,7 +78,8 @@ void CIRGenModule::buildCXXGlobalVarDeclInitFunc(const VarDecl *D,
   CIRGenFunction(*this, getBuilder())
       .generateCXXGlobalVarDeclInitFunc(fn, D, Addr, PerformInit);
 
-  mlir::cir::GlobalOp comdatKey = supportsCOMDAT() && D->isExternallyVisible() ? Addr : nullptr;
+  mlir::cir::GlobalOp comdatKey =
+      supportsCOMDAT() && D->isExternallyVisible() ? Addr : nullptr;
 
   if (D->getTLSKind()) {
     llvm_unreachable("NYI");
@@ -83,8 +88,9 @@ void CIRGenModule::buildCXXGlobalVarDeclInitFunc(const VarDecl *D,
   } else if (auto *ipa = D->getAttr<InitPriorityAttr>()) {
     llvm_unreachable("NYI");
   } else if (isTemplateInstantiation(D->getTemplateSpecializationKind()) ||
-    getASTContext().GetGVALinkageForVariable(D) == clang::GVA_DiscardableODR ||
-    D->hasAttr<SelectAnyAttr>()) {
+             getASTContext().GetGVALinkageForVariable(D) ==
+                 clang::GVA_DiscardableODR ||
+             D->hasAttr<SelectAnyAttr>()) {
     llvm_unreachable("NYI");
   } else {
     llvm_unreachable("NYI");
@@ -146,5 +152,36 @@ void CIRGenFunction::generateCXXGlobalVarDeclInitFunc(mlir::cir::FuncOp fn,
                                                       const VarDecl *varDecl,
                                                       mlir::cir::GlobalOp addr,
                                                       bool performInit) {
-  llvm_unreachable("NYI");
+  // Check if we need to emit debug info for variable initializer.
+  if (varDecl->hasAttr<NoDebugAttr>())
+    debugInfo = nullptr;
+
+  curEHLocation = varDecl->getBeginLoc();
+
+  StartFunction(GlobalDecl(varDecl, DynamicInitKind::Initializer),
+                CGM.getASTContext().VoidTy, fn,
+                getTypes().arrangeNullaryFunction(), FunctionArgList(),
+                varDecl->getLocation(), varDecl->getLocation());
+  // Emit an artificial location for this function.
+  assert(MissingFeatures::generateDebugInfo());
+
+  // Use guarded initialization if the global variable is weak. This occurs for,
+  // e.g., instantiated static data members and definitions explicitly marked
+  // weak.
+  //
+  // Also use guarded initialization for a variable with dynamic TLS and
+  // unordered initialization. (If the initialization is ordered, the ABI layer
+  // will guard the whole-TU initialization for us.)
+  if (addr.hasExternalWeakLinkage() || addr.hasLinkOnceLinkage() ||
+      (varDecl->getTLSKind() == VarDecl::TLS_Dynamic &&
+       isTemplateInstantiation(varDecl->getTemplateSpecializationKind()))) {
+    llvm_unreachable("NYI");
+  } else {
+    llvm_unreachable("NYI");
+  }
+
+  if (getLangOpts().HLSL)
+    llvm_unreachable("NYI");
+
+  finishFunction(varDecl->getLocation());
 }

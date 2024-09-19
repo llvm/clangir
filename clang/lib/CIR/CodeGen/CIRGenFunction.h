@@ -15,6 +15,7 @@
 
 #include "CIRGenBuilder.h"
 #include "CIRGenCall.h"
+#include "CIRGenDebugInfo.h"
 #include "CIRGenModule.h"
 #include "CIRGenTBAA.h"
 #include "CIRGenTypeCache.h"
@@ -27,6 +28,7 @@
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/Type.h"
 #include "clang/Basic/ABI.h"
+#include "clang/Basic/LangOptions.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/CIR/TypeEvaluationKind.h"
 
@@ -524,6 +526,12 @@ public:
   /// delcs.
   DeclMapTy LocalDeclMap;
 
+  CIRGenDebugInfo *debugInfo;
+
+  /// The current source location that should be used for exception handling
+  /// handling code.
+  SourceLocation curEHLocation;
+
   /// Whether llvm.stacksave has been called. Used to avoid
   /// calling llvm.stacksave for multiple VLAs in the same scope.
   /// TODO: Translate to MLIR
@@ -588,7 +596,7 @@ public:
   // TODO: This is currently just a dumb stub. But we want to be able to clearly
   // assert where we arne't doing things that we know we should and will crash
   // as soon as we add a DebugInfo type to this class.
-  std::nullptr_t *getDebugInfo() { return nullptr; }
+  CIRGenDebugInfo *getDebugInfo() { return debugInfo; }
 
   void buildReturnOfRValue(mlir::Location loc, RValue RV, QualType Ty);
 

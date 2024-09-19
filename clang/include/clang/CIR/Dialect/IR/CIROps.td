@@ -2283,6 +2283,9 @@ def GlobalOp : CIR_Op<"global",
     }
     /// Whether the definition of this global may be replaced at link time.
     bool isWeakForLinker() { return cir::isWeakForLinker(getLinkage()); }
+    bool hasLinkOnceLinkage() {
+      return cir::isLinkOnceLinkage(getLinkage());
+    }
   }];
 
   let skipDefaultBuilders = 1;
