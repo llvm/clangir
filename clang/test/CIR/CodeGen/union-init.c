@@ -48,7 +48,7 @@ unsigned is_little(void) {
 // CHECK: %[[VAL_3:.*]] = cir.get_member %[[VAL_2]][1] {name = "c"} : !cir.ptr<![[anon1]]> -> !cir.ptr<!cir.array<!u8i x 4>>
 
 typedef union {
-	int x;
+  int x;
 } U;
 
 // CHECK: %[[VAL_0:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["x", init] {alignment = 4 : i64}
@@ -59,5 +59,5 @@ typedef union {
 // CHECK: cir.store %[[VAL_2]], %[[VAL_3]] : !s32i, !cir.ptr<!s32i>
 
 void union_cast(int x) {
-	U u = (U) x;
+  U u = (U) x;
 }
