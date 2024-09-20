@@ -630,8 +630,8 @@ public:
                                 bool IsTentative = false);
 
   /// Emit the function that initializes the specified global
-  void buildCXXGlobalVarDeclInit(const VarDecl *D, mlir::cir::GlobalOp Addr,
-                                 bool PerformInit);
+  void buildCXXGlobalVarDeclInit(const VarDecl *varDecl,
+                                 mlir::cir::GlobalOp addr, bool performInit);
 
   void buildCXXGlobalVarDeclInitFunc(const VarDecl *D, mlir::cir::GlobalOp Addr,
                                      bool PerformInit);

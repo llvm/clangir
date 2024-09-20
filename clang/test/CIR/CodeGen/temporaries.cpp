@@ -37,3 +37,6 @@ const int &r = (const int&)n;
 //      LLVM: @_ZGR1r_ = internal constant i32 1234, align 4
 // LLVM-NEXT: @r = global ptr @_ZGR1r_, align 8
 
+
+struct A { ~A(); };
+A &&a = dynamic_cast<A&&>(A{});

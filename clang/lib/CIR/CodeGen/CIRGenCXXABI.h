@@ -171,7 +171,7 @@ public:
   /// \param Addr - a pointer to pass to the destructor function.
   virtual void registerGlobalDtor(CIRGenFunction &CGF, const VarDecl *D,
                                   mlir::cir::FuncOp dtor,
-                                  mlir::Attribute Addr) = 0;
+                                  mlir::Value Addr) = 0;
 
   virtual size_t getSrcArgforCopyCtor(const CXXConstructorDecl *,
                                       FunctionArgList &Args) const = 0;
