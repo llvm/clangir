@@ -3013,7 +3013,7 @@ defm clangir_analysis_only : BoolFOption<"clangir-analysis-only",
     "Enable CIR analysis but keep traditional LLVM codegen (not through CIR)">,
   NegFlag<SetFalse, [], [ClangOption, CC1Option],  "">>;
 
-def emit_cir : Flag<["-"], "emit-cir">, Visibility<[CC1Option]>,
+def emit_cir : Flag<["-"], "emit-cir">, Visibility<[ClangOption, CC1Option]>,
   Group<Action_Group>, HelpText<"Build ASTs and then lower to ClangIR, emit the .cir file">;
 def emit_cir_only : Flag<["-"], "emit-cir-only">,
   HelpText<"Build ASTs and convert to CIR, discarding output">;
