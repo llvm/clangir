@@ -1,7 +1,7 @@
-// RUN: %clang_cc1 -triple aarch64-none-linux-android24  -fclangir \
+// RUN: %clang_cc1 -triple aarch64-none-linux-android24  -fclangir -fno-clangir-call-conv-lowering \
 // RUN:            -ffreestanding -emit-cir -target-feature +neon %s -o %t.cir
 // RUN: FileCheck --check-prefix=CIR --input-file=%t.cir %s
-// RUN: %clang_cc1 -triple aarch64-none-linux-android24  -fclangir \
+// RUN: %clang_cc1 -triple aarch64-none-linux-android24  -fclangir -fno-clangir-call-conv-lowering \
 // RUN:            -ffreestanding -emit-llvm -target-feature +neon %s -o %t.ll
 // RUN: FileCheck --check-prefix=LLVM --input-file=%t.ll %s
 
