@@ -83,13 +83,13 @@ void createCoercedStore(Value Src, Value Dst, bool DstIsVolatile,
   }
 
   // FIXME(cir): We need a better way to handle datalayout queries.
-  assert(isa<IntType>(SrcTy));
+  cir_tl_assert(isa<IntType>(SrcTy));
   llvm::TypeSize SrcSize = CGF.LM.getDataLayout().getTypeAllocSize(SrcTy);
 
   if (StructType DstSTy = dyn_cast<StructType>(DstTy)) {
     Dst = enterStructPointerForCoercedAccess(Dst, DstSTy,
                                              SrcSize.getFixedValue(), CGF);
-    assert(isa<PointerType>(Dst.getType()));
+    cir_tl_assert(isa<PointerType>(Dst.getType()));
     DstTy = cast<PointerType>(Dst.getType()).getPointee();
   }
 
@@ -110,7 +110,7 @@ void createCoercedStore(Value Src, Value Dst, bool DstIsVolatile,
   llvm::TypeSize DstSize = CGF.LM.getDataLayout().getTypeAllocSize(DstTy);
 
   // If store is legal, just bitcast the src pointer.
-  assert(!::cir::MissingFeatures::vectorType());
+  cir_tl_assert(!::cir::MissingFeatures::vectorType());
   if (SrcSize.getFixedValue() <= DstSize.getFixedValue()) {
     // Dst = Dst.withElementType(SrcTy);
     CGF.buildAggregateStore(Src, Dst, DstIsVolatile);
@@ -260,14 +260,14 @@ LowerFunction::buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
   // are dealt with in CIRGen.
 
   CIRToCIRArgMapping IRFunctionArgs(LM.getContext(), FI);
-  assert(Fn.getNumArguments() == IRFunctionArgs.totalIRArgs());
+  cir_tl_assert(Fn.getNumArguments() == IRFunctionArgs.totalIRArgs());
 
   // If we're using inalloca, all the memory arguments are GEPs off of the last
   // parameter, which is a pointer to the complete memory area.
-  assert(!::cir::MissingFeatures::inallocaArgs());
+  cir_tl_assert(!::cir::MissingFeatures::inallocaArgs());
 
   // Name the struct return parameter.
-  assert(!::cir::MissingFeatures::sretArgs());
+  cir_tl_assert(!::cir::MissingFeatures::sretArgs());
 
   // Track if we received the parameter as a pointer (indirect, byval, or
   // inalloca). If already have a pointer, EmitParmDecl doesn't need to copy it
@@ -278,7 +278,7 @@ LowerFunction::buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
   // FIXME(cir): non-blocking workaround for argument types that are not yet
   // properly handled by the ABI.
   if (cirMissingFeatureAssertionMode && FI.arg_size() != Args.size()) {
-    assert(::cir::MissingFeatures::ABIParameterCoercion());
+    cir_tl_assert(::cir::MissingFeatures::ABIParameterCoercion());
     return success();
   }
 
@@ -286,7 +286,7 @@ LowerFunction::buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
   // entails copying one or more LLVM IR arguments into an alloca. Don't push
   // any cleanups or do anything that might unwind. We do that separately, so
   // we can push the cleanups in the correct order for the ABI.
-  assert(FI.arg_size() == Args.size());
+  cir_tl_assert(FI.arg_size() == Args.size());
   unsigned ArgNo = 0;
   LowerFunctionInfo::const_arg_iterator info_it = FI.arg_begin();
   for (MutableArrayRef<BlockArgument>::const_iterator i = Args.begin(),
@@ -304,7 +304,7 @@ LowerFunction::buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
       llvm_unreachable("NYI");
     else
       Ty = Arg.getType();
-    assert(!::cir::MissingFeatures::evaluationKind());
+    cir_tl_assert(!::cir::MissingFeatures::evaluationKind());
 
     unsigned FirstIRArg, NumIRArgs;
     std::tie(FirstIRArg, NumIRArgs) = IRFunctionArgs.getIRArgs(ArgNo);
@@ -328,7 +328,7 @@ LowerFunction::buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
       // with no muss and fuss.
       if (!isa<StructType>(ArgI.getCoerceToType()) &&
           ArgI.getCoerceToType() == Ty && ArgI.getDirectOffset() == 0) {
-        assert(NumIRArgs == 1);
+        cir_tl_assert(NumIRArgs == 1);
 
         // LLVM expects swifterror parameters to be used in very restricted
         // ways. Copy the value into a less-restricted temporary.
@@ -355,7 +355,7 @@ LowerFunction::buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
         break;
       }
 
-      assert(!::cir::MissingFeatures::vectorType());
+      cir_tl_assert(!::cir::MissingFeatures::vectorType());
 
       // Allocate original argument to be "uncoerced".
       // FIXME(cir): We should have a alloca op builder that does not required
@@ -377,7 +377,7 @@ LowerFunction::buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
         llvm_unreachable("NYI");
       } else {
         // Simple case, just do a coerced store of the argument into the alloca.
-        assert(NumIRArgs == 1);
+        cir_tl_assert(NumIRArgs == 1);
         Value AI = Fn.getArgument(FirstIRArg);
         // TODO(cir): Set argument name in the new function.
         createCoercedStore(AI, Ptr, /*DstIsVolatile=*/false, *this);
@@ -396,7 +396,7 @@ LowerFunction::buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
       // RAUW the original argument alloca with the new one. This assumes that
       // the argument is used only to be stored in a alloca.
       Value arg = SrcFn.getArgument(ArgNo);
-      assert(arg.hasOneUse());
+      cir_tl_assert(arg.hasOneUse());
       auto *firstStore = *arg.user_begin();
       auto argAlloca = cast<StoreOp>(firstStore).getAddr();
       rewriter.replaceAllUsesWith(argAlloca, Alloca);
@@ -482,18 +482,18 @@ LogicalResult LowerFunction::buildFunctionEpilog(const LowerFunctionInfo &FI) {
 /// focuses on the ABI-specific details. So a lot of codegen stuff is removed.
 LogicalResult LowerFunction::generateCode(FuncOp oldFn, FuncOp newFn,
                                           const LowerFunctionInfo &FnInfo) {
-  assert(newFn && "generating code for null Function");
+  cir_tl_assert(newFn && "generating code for null Function");
   auto Args = oldFn.getArguments();
 
   // Emit the ABI-specific function prologue.
-  assert(newFn.empty() && "Function already has a body");
+  cir_tl_assert(newFn.empty() && "Function already has a body");
   rewriter.setInsertionPointToEnd(newFn.addEntryBlock());
   if (buildFunctionProlog(FnInfo, newFn, oldFn.getArguments()).failed())
     return failure();
 
   // Ensure that old ABI-agnostic arguments uses were replaced.
   const auto hasNoUses = [](Value val) { return val.getUses().empty(); };
-  assert(std::all_of(Args.begin(), Args.end(), hasNoUses) && "Missing RAUW?");
+  cir_tl_assert(std::all_of(Args.begin(), Args.end(), hasNoUses) && "Missing RAUW?");
 
   // NOTE(cir): While the new function has the ABI-aware parameters, the old
   // function still has the function logic. To complete the migration, we have
@@ -527,14 +527,14 @@ void LowerFunction::buildAggregateStore(Value Val, Value Dest,
   // Function to store a first-class aggregate into memory. We prefer to
   // store the elements rather than the aggregate to be more friendly to
   // fast-isel.
-  assert(mlir::isa<PointerType>(Dest.getType()) && "Storing in a non-pointer!");
+  cir_tl_assert(mlir::isa<PointerType>(Dest.getType()) && "Storing in a non-pointer!");
   (void)DestIsVolatile;
 
   // Circumvent CIR's type checking.
   Type pointeeTy = mlir::cast<PointerType>(Dest.getType()).getPointee();
   if (Val.getType() != pointeeTy) {
     // NOTE(cir):  We only bitcast and store if the types have the same size.
-    assert((LM.getDataLayout().getTypeSizeInBits(Val.getType()) ==
+    cir_tl_assert((LM.getDataLayout().getTypeSizeInBits(Val.getType()) ==
             LM.getDataLayout().getTypeSizeInBits(pointeeTy)) &&
            "Incompatible types");
     auto loc = Val.getLoc();
@@ -568,7 +568,7 @@ LogicalResult LowerFunction::rewriteCallOp(CallOp op,
   // NOTE(cir): There is no direct way to fetch the function type from the
   // CallOp, so we fetch it from the source function. This assumes the
   // function definition has not yet been lowered.
-  assert(SrcFn && "No source function");
+  cir_tl_assert(SrcFn && "No source function");
   auto fnType = SrcFn.getFunctionType();
 
   // Rewrite the call operation to abide to the ABI calling convention.
@@ -629,7 +629,7 @@ Value LowerFunction::rewriteCallOp(FuncType calleeTy, FuncOp origCallee,
     cir_assert_or_abort(::cir::MissingFeatures::ABINoProtoFunctions(), "NYI");
   }
 
-  assert(!::cir::MissingFeatures::CUDA());
+  cir_tl_assert(!::cir::MissingFeatures::CUDA());
 
   // TODO(cir): LLVM IR has the concept of "CallBase", which is a base class
   // for all types of calls. Perhaps we should have a CIR interface to mimic
@@ -681,12 +681,12 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
     llvm_unreachable("NYI");
   }
 
-  assert(!::cir::MissingFeatures::swift());
+  cir_tl_assert(!::cir::MissingFeatures::swift());
 
   // NOTE(cir): Skipping lifetime markers here.
 
   // Translate all of the arguments as necessary to match the IR lowering.
-  assert(CallInfo.arg_size() == CallArgs.size() &&
+  cir_tl_assert(CallInfo.arg_size() == CallArgs.size() &&
          "Mismatch between function signature & arguments.");
   unsigned ArgNo = 0;
   LowerFunctionInfo::const_arg_iterator info_it = CallInfo.arg_begin();
@@ -712,7 +712,7 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
       if (!isa<StructType>(ArgInfo.getCoerceToType()) &&
           ArgInfo.getCoerceToType() == info_it->type &&
           ArgInfo.getDirectOffset() == 0) {
-        assert(NumIRArgs == 1);
+        cir_tl_assert(NumIRArgs == 1);
         Value V;
         if (!isa<StructType>(I->getType())) {
           V = *I;
@@ -758,11 +758,11 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
         llvm_unreachable("NYI");
       } else {
         // In the simple case, just pass the coerced loaded value.
-        assert(NumIRArgs == 1);
+        cir_tl_assert(NumIRArgs == 1);
         Value Load = createCoercedValue(Src, ArgInfo.getCoerceToType(), *this);
 
         // FIXME(cir): We should probably handle CMSE non-secure calls here
-        assert(!::cir::MissingFeatures::cmseNonSecureCallAttr());
+        cir_tl_assert(!::cir::MissingFeatures::cmseNonSecureCallAttr());
 
         // since they are a ARM-specific feature.
         if (::cir::MissingFeatures::undef())
@@ -787,7 +787,7 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
   // debugging stuff here.
 
   // Update the largest vector width if any arguments have vector types.
-  assert(!::cir::MissingFeatures::vectorType());
+  cir_tl_assert(!::cir::MissingFeatures::vectorType());
 
   // Compute the calling convention and attributes.
 
@@ -813,7 +813,7 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
       rewriter.getAttr<ExtraFuncAttributesAttr>(rewriter.getDictionaryAttr({}));
   newCallOp->setAttr("extra_attrs", extraAttrs);
 
-  assert(!::cir::MissingFeatures::vectorType());
+  cir_tl_assert(!::cir::MissingFeatures::vectorType());
 
   // NOTE(cir): Skipping some ObjC, tail-call, debug, and attribute stuff
   // here.
@@ -863,7 +863,7 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
       // FIXME(cir): Use return value slot here.
       Value RetVal = callOp.getResult();
       // TODO(cir): Check for volatile return values.
-      assert(!::cir::MissingFeatures::volatileTypes());
+      cir_tl_assert(!::cir::MissingFeatures::volatileTypes());
 
       // NOTE(cir): If the function returns, there should always be a valid
       // return value present. Instead of setting the return value here, we
@@ -871,7 +871,7 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
       if (!RetVal) {
         RetVal = callOp.getResult();
         // TODO(cir): Check for volatile return values.
-        assert(::cir::MissingFeatures::volatileTypes());
+        cir_tl_assert(::cir::MissingFeatures::volatileTypes());
       }
 
       // An empty record can overlap other data (if declared with

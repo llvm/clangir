@@ -18,14 +18,21 @@
 constexpr bool cirMissingFeatureAssertionMode =
     true; // Change to `false` to use llvm_unreachable
 
+#define NOTE                                                                   \
+  " Target lowering is now required. Disable it with "                         \
+  "-fno-clangir-call-conv-lowering."
+
+// Special assertion to be used in the target lowering library.
+#define cir_tl_assert(cond) assert((cond) && NOTE);
+
 // Some assertions knowingly generate incorrect code. This macro allows us to
 // switch between using `assert` and `llvm_unreachable` for these cases.
 #define cir_assert_or_abort(cond, msg)                                         \
   do {                                                                         \
     if (cirMissingFeatureAssertionMode) {                                      \
-      assert((cond) && msg);                                                   \
+      assert((cond) && msg NOTE);                                              \
     } else {                                                                   \
-      llvm_unreachable(msg);                                                   \
+      llvm_unreachable(msg NOTE);                                              \
     }                                                                          \
   } while (0)
 

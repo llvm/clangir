@@ -242,7 +242,7 @@ std::unique_ptr<LowerModule> createLowerModule(ModuleOp module,
   // FIXME(cir): This just uses the default language options. We need to account
   // for custom options.
   // Create context.
-  assert(!::cir::MissingFeatures::langOpts());
+  cir_tl_assert(!::cir::MissingFeatures::langOpts());
   clang::LangOptions langOpts;
 
   return std::make_unique<LowerModule>(langOpts, module, dataLayoutStr,

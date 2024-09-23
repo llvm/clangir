@@ -35,7 +35,7 @@ public:
   enum All_t { All };
 
   RequiredArgs(All_t _) : NumRequired(~0U) {}
-  explicit RequiredArgs(unsigned n) : NumRequired(n) { assert(n != ~0U); }
+  explicit RequiredArgs(unsigned n) : NumRequired(n) { cir_tl_assert(n != ~0U); }
 
   /// Compute the arguments required by the given formal prototype,
   /// given that there may be some additional, non-formal arguments
@@ -106,7 +106,7 @@ public:
                                    ArrayRef<mlir::Type> argTypes,
                                    RequiredArgs required) {
     // TODO(cir): Add assertions?
-    assert(!::cir::MissingFeatures::extParamInfo());
+    cir_tl_assert(!::cir::MissingFeatures::extParamInfo());
     void *buffer = operator new(totalSizeToAlloc<ArgInfo>(argTypes.size() + 1));
 
     LowerFunctionInfo *FI = new (buffer) LowerFunctionInfo();
@@ -147,7 +147,7 @@ public:
   unsigned arg_size() const { return NumArgs; }
 
   bool isVariadic() const {
-    assert(!::cir::MissingFeatures::variadicFunctions());
+    cir_tl_assert(!::cir::MissingFeatures::variadicFunctions());
     return false;
   }
   unsigned getNumRequiredArgs() const {

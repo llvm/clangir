@@ -60,7 +60,7 @@ class AArch64TargetLoweringInfo : public TargetLoweringInfo {
 public:
   AArch64TargetLoweringInfo(LowerTypes &LT, AArch64ABIKind Kind)
       : TargetLoweringInfo(std::make_unique<AArch64ABIInfo>(LT, Kind)) {
-    assert(!MissingFeature::swift());
+    cir_tl_assert(!MissingFeature::swift());
   }
 
   unsigned getTargetAddrSpaceFromCIRAddrSpace(

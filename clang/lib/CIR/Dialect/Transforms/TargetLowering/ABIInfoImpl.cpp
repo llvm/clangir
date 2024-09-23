@@ -26,14 +26,14 @@ bool classifyReturnType(const CIRCXXABI &CXXABI, LowerFunctionInfo &FI,
   Type Ty = FI.getReturnType();
 
   if (const auto RT = dyn_cast<StructType>(Ty)) {
-    assert(!::cir::MissingFeatures::isCXXRecordDecl());
+    cir_tl_assert(!::cir::MissingFeatures::isCXXRecordDecl());
   }
 
   return CXXABI.classifyReturnType(FI);
 }
 
 bool isAggregateTypeForABI(Type T) {
-  assert(!::cir::MissingFeatures::functionMemberPointerType());
+  cir_tl_assert(!::cir::MissingFeatures::functionMemberPointerType());
   return !LowerFunction::hasScalarEvaluationKind(T);
 }
 
