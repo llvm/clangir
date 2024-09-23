@@ -3337,7 +3337,7 @@ mlir::ArrayAttr CIRGenModule::buildAnnotationArgs(AnnotateAttr *attr) {
       // Add trailing null character as StringLiteral->getString() does not
       args.push_back(builder.getStringAttr(strE->getString()));
     } else if (ce.hasAPValueResult()) {
-      // Handle case which can be evaluated to some numbers, not only litterals
+      // Handle case which can be evaluated to some numbers, not only literals
       const auto &ap = ce.getAPValueResult();
       if (ap.isInt()) {
         args.push_back(mlir::IntegerAttr::get(
