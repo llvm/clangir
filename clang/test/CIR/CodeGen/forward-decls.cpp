@@ -3,7 +3,7 @@
 
 //--- incomplete_struct
 
-// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -fno-clangir-call-conv-lowering -emit-cir %t/incomplete_struct -o %t/incomplete_struct.cir
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-cir %t/incomplete_struct -o %t/incomplete_struct.cir
 // RUN: FileCheck %s --input-file=%t/incomplete_struct.cir --check-prefix=CHECK1
 
 // Forward declaration of the record is never defined, so it is created as
@@ -18,7 +18,7 @@ void testIncompleteStruct(struct IncompleteStruct *s) {};
 
 //--- mutated_struct
 
-// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -fno-clangir-call-conv-lowering -emit-cir %t/mutated_struct -o %t/mutated_struct.cir
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-cir %t/mutated_struct -o %t/mutated_struct.cir
 // RUN: FileCheck %s --input-file=%t/mutated_struct.cir --check-prefix=CHECK2
 
 // Foward declaration of the struct is followed by usage, then definition.
@@ -36,7 +36,7 @@ struct ForwardDeclaredStruct {
 
 //--- recursive_struct
 
-// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -fno-clangir-call-conv-lowering -emit-cir %t/recursive_struct -o %t/recursive_struct.cir
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-cir %t/recursive_struct -o %t/recursive_struct.cir
 // RUN: FileCheck --check-prefix=CHECK3 --input-file=%t/recursive_struct.cir %s
 
 // Struct is initially forward declared since the self-reference is generated
@@ -59,7 +59,7 @@ void testRecursiveStruct(struct RecursiveStruct *arg) {
 
 //--- indirect_recursive_struct
 
-// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -fno-clangir-call-conv-lowering -emit-cir %t/indirect_recursive_struct -o %t/indirect_recursive_struct.cir
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-cir %t/indirect_recursive_struct -o %t/indirect_recursive_struct.cir
 // RUN: FileCheck --check-prefix=CHECK4 --input-file=%t/indirect_recursive_struct.cir %s
 
 // Node B refers to A, and vice-versa, so a forward declaration is used to
@@ -92,7 +92,7 @@ void testIndirectSelfReference(struct StructNodeA arg) {
 
 //--- complex_struct
 
-// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -fno-clangir-call-conv-lowering -emit-cir %t/complex_struct -o %t/complex_struct.cir
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-cir %t/complex_struct -o %t/complex_struct.cir
 // RUN: FileCheck --check-prefix=CHECK5 --input-file=%t/complex_struct.cir %s
 
 // A sizeable complex struct just to double check that stuff is working.
