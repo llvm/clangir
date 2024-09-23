@@ -196,6 +196,9 @@ public:
       if (feOptions.ClangIRLibOpt)
         libOptOpts = sanitizePassOptions(feOptions.ClangIRLibOptOpts);
 
+      bool enableCCLowering = feOptions.ClangIRCallConvLowering &&
+                              action == CIRGenAction::OutputType::EmitCIRFlat;
+
       // Setup and run CIR pipeline.
       std::string passOptParsingFailure;
       if (runCIRToCIRPasses(
@@ -205,8 +208,8 @@ public:
               feOptions.ClangIRLibOpt, libOptOpts, passOptParsingFailure,
               codeGenOptions.OptimizationLevel > 0,
               action == CIRGenAction::OutputType::EmitCIRFlat,
-              action == CIRGenAction::OutputType::EmitMLIR,
-              feOptions.ClangIRCallConvLowering, feOptions.ClangIREnableMem2Reg)
+              action == CIRGenAction::OutputType::EmitMLIR, enableCCLowering,
+              feOptions.ClangIREnableMem2Reg)
               .failed()) {
         if (!passOptParsingFailure.empty())
           diagnosticsEngine.Report(diag::err_drv_cir_pass_opt_parsing)
