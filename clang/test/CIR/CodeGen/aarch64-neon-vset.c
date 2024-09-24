@@ -5,6 +5,14 @@
 // RUN:            -emit-llvm -target-feature +neon %s -o %t.ll
 // RUN: FileCheck --check-prefix=LLVM --input-file=%t.ll %s
 
+// This test file is similar to but not the same as 
+// clang/test/CodeGen/aarch64-neon-vget.c 
+// The difference is that this file only tests uses vset intrinsics, as we feel
+// it would be proper to have a separate test file testing vget intrinsics 
+// with the file name aarch64-neon-vget.c 
+// Also, for each integer type, we only test signed or unsigned, not both. 
+// This is because integer types of the same size just use same intrinsic.
+
 // REQUIRES: aarch64-registered-target || arm-registered-target
 #include <arm_neon.h>
 
