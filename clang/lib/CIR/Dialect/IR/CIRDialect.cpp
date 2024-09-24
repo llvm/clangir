@@ -2336,6 +2336,8 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
   if (parser.parseOptionalKeyword(noProtoNameAttr).succeeded())
     state.addAttribute(noProtoNameAttr, parser.getBuilder().getUnitAttr());
 
+  // \todo Missing comdat
+
   // Default to external linkage if no keyword is provided.
   state.addAttribute(getLinkageAttrNameString(),
                      GlobalLinkageKindAttr::get(
@@ -2354,11 +2356,9 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
   parseVisibilityAttr(parser, cirVisibilityAttr);
   state.addAttribute(visibilityNameAttr, cirVisibilityAttr);
 
+  // \todo It is unclear whether this is printed in the pretty-printer
   if (parser.parseOptionalKeyword(dsolocalNameAttr).succeeded())
     state.addAttribute(dsolocalNameAttr, parser.getBuilder().getUnitAttr());
-
-  if (parser.parseOptionalKeyword(annotationsNameAttr).succeeded())
-    state.addAttribute(annotationsNameAttr, parser.getBuilder().getUnitAttr());
 
   StringAttr nameAttr;
   SmallVector<OpAsmParser::Argument, 8> arguments;
@@ -2396,6 +2396,15 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
     return failure();
   state.addAttribute(getFunctionTypeAttrName(state.name),
                      TypeAttr::get(fnType));
+
+  {
+    // Parse an OptionalAttr<ArrayAttr>:$annotations
+    mlir::ArrayAttr annotations;
+    // \todo is there a way to restrict the element type to cir.annotation?
+    // parseOptionalAttribute takes a type, but unclear how to use this.
+    if (auto oa = parser.parseOptionalAttribute(annotations); oa.has_value())
+      state.addAttribute(annotationsNameAttr, annotations);
+  }
 
   // If additional attributes are present, parse them.
   if (parser.parseOptionalAttrDictWithKeyword(state.attributes))
@@ -2565,6 +2574,11 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
 
   auto cirVisibilityAttr = getGlobalVisibilityAttr();
   printVisibilityAttr(p, cirVisibilityAttr);
+  // \todo This is a problematic space to be handled conditionally by
+  // printVisibilityAttr which leads often to a double space in the output. But
+  // it looks like from here we have also switched from adding a conditional
+  // leading space to inserting a leading space, to avoid trailing space at EOL.
+  // \todo Only use the "insert leading space everywhere".
   p << " ";
 
   // Print function name, signature, and control.
