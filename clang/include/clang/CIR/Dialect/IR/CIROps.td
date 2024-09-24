@@ -3579,6 +3579,15 @@ def TryOp : CIR_Op<"try",
     attr-dict
   }];
 
+  let extraClassDeclaration = [{
+  private:
+    mlir::Region *getCatchLastRegion();
+  public:
+    mlir::Block *getCatchAllEntryBlock();
+    mlir::Block *getCatchUnwindEntryBlock();
+    bool isCatchAllOnly();
+  }];
+
   // Everything already covered elsewhere.
   let hasVerifier = 0;
   let builders = [
