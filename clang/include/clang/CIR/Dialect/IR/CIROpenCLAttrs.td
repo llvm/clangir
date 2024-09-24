@@ -168,4 +168,19 @@ def OpenCLVersionAttr : CIR_Attr<"OpenCLVersion", "cl.version"> {
   let assemblyFormat = "`<` $major_version `,` $minor_version `>`";
 }
 
+
+//===----------------------------------------------------------------------===//
+// OpenCLKernelAttr
+//===----------------------------------------------------------------------===//
+
+def OpenCLKernelAttr : CIRUnitAttr<
+    "OpenCLKernel", "cl.kernel"> {
+  let summary = "OpenCL kernel";
+  let description = [{
+    Indicate the function is a OpenCL kernel.
+  }];
+
+  let storageType = [{ OpenCLKernelAttr }];
+}
+
 #endif // MLIR_CIR_DIALECT_CIR_OPENCL_ATTRS
