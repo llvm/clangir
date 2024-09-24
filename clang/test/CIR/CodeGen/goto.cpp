@@ -310,3 +310,28 @@ extern "C" void multiple_non_case(int v) {
 // NOFLAT: cir.label
 // NOFLAT: cir.call @action2()
 // NOFLAT: cir.break
+
+extern "C" void case_follow_label(int v) {
+  switch (v) {
+    case 1:
+    label:
+    case 2:
+      action1();
+      break;
+    default:
+      action2();
+      goto label;
+  }
+}
+
+// NOFLAT: cir.func  @case_follow_label
+// NOFLAT: cir.switch
+// NOFLAT: case (equal, 1)
+// NOFLAT: cir.label "label"
+// NOFLAT: cir.yield
+// NOFLAT: case (equal, 2)
+// NOFLAT: cir.call @action1()
+// NOFLAT: cir.break
+// NOFLAT: case (default)
+// NOFLAT: cir.call @action2()
+// NOFLAT: cir.goto "label"
