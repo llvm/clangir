@@ -173,6 +173,8 @@ def OpenCLVersionAttr : CIR_Attr<"OpenCLVersion", "cl.version"> {
 // OpenCLKernelAttr
 //===----------------------------------------------------------------------===//
 
+// TODO: It might be worthwhile to introduce a generic attribute applicable to
+// all offloading languages.
 def OpenCLKernelAttr : CIRUnitAttr<
     "OpenCLKernel", "cl.kernel"> {
   let summary = "OpenCL kernel";
