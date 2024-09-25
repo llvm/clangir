@@ -335,3 +335,26 @@ extern "C" void case_follow_label(int v) {
 // NOFLAT: case (default)
 // NOFLAT: cir.call @action2()
 // NOFLAT: cir.goto "label"
+
+extern "C" void default_follow_label(int v) {
+  switch (v) {
+    case 1:
+    case 2:
+      action1();
+      break;
+    label:
+    default:
+      action2();
+      goto label;
+  }
+}
+
+// NOFLAT: cir.func  @default_follow_label
+// NOFLAT: cir.switch
+// NOFLAT: case (anyof, [1, 2] : !s32i)
+// NOFLAT: cir.call @action1()
+// NOFLAT: cir.break
+// NOFLAT: cir.label "label"
+// NOFLAT: case (default)
+// NOFLAT: cir.call @action2()
+// NOFLAT: cir.goto "label"
