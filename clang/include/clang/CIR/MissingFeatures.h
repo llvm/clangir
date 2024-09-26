@@ -136,6 +136,9 @@ struct MissingFeatures {
   // AArch64 Neon builtin related.
   static bool buildNeonShiftVector() { return false; }
 
+  // ABIInfo queries.
+  static bool allowBFloatArgsAndRet() { return false; }
+
   // Misc
   static bool cacheRecordLayouts() { return false; }
   static bool capturedByInit() { return false; }
