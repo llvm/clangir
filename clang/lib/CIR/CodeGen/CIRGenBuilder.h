@@ -538,7 +538,12 @@ public:
                                     uint64_t C);
 
   mlir::cir::ConstantOp getConstFP(mlir::Location loc, mlir::Type t,
-                                   llvm::APFloat fpVal);
+                                   llvm::APFloat fpVal) {
+    assert((mlir::isa<mlir::cir::SingleType, mlir::cir::DoubleType>(t)) &&
+           "expected mlir::cir::SingleType or mlir::cir::DoubleType");
+    return create<mlir::cir::ConstantOp>(loc, t,
+                                         getAttr<mlir::cir::FPAttr>(t, fpVal));
+  }
 
   /// Create constant nullptr for pointer-to-data-member type ty.
   mlir::cir::ConstantOp getNullDataMemberPtr(mlir::cir::DataMemberType ty,
