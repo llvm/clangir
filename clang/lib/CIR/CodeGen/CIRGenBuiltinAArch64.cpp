@@ -1657,10 +1657,10 @@ mlir::Value CIRGenFunction::buildCommonNeonBuiltinExpr(
   bool isUnsigned = neonType.isUnsigned();
   bool isQuad = neonType.isQuad();
   const bool hasLegalHalfType = getTarget().hasLegalHalfType();
-  assert(!MissingFeatures::allowBFloatArgsAndRet());
   // The value of allowBFloatArgsAndRet is true for AArch64, but it should
   // come from ABI info.
-  const bool allowBFloatArgsAndRet = true;
+  const bool allowBFloatArgsAndRet =
+      getTargetHooks().getABIInfo().allowBFloatArgsAndRet();
 
   mlir::Type vTy = GetNeonType(this, neonType, hasLegalHalfType, false,
                                allowBFloatArgsAndRet);

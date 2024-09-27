@@ -137,7 +137,7 @@ struct MissingFeatures {
   static bool buildNeonShiftVector() { return false; }
 
   // ABIInfo queries.
-  static bool allowBFloatArgsAndRet() { return false; }
+  static bool useTargetLoweringABIInfo() { return false; }
 
   // Misc
   static bool cacheRecordLayouts() { return false; }
