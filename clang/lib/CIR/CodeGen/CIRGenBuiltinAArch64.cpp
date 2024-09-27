@@ -1347,7 +1347,7 @@ findARMVectorIntrinsicInMap(ArrayRef<ARMVectorIntrinsicInfo> IntrinsicMap,
 }
 
 static mlir::Type GetNeonType(CIRGenFunction *CGF, NeonTypeFlags TypeFlags,
-                              bool HasLegalHalfType = true, bool V1Ty = false,
+                              bool HasFastHalfType = true, bool V1Ty = false,
                               bool AllowBFloatArgsAndRet = true) {
   int IsQuad = TypeFlags.isQuad();
   switch (TypeFlags.getEltType()) {
@@ -1369,10 +1369,12 @@ static mlir::Type GetNeonType(CIRGenFunction *CGF, NeonTypeFlags TypeFlags,
     else
       llvm_unreachable("NYI");
   case NeonTypeFlags::Float16:
-    if (HasLegalHalfType)
+    if (HasFastHalfType)
       llvm_unreachable("NYI");
     else
       llvm_unreachable("NYI");
+  case NeonTypeFlags::MFloat8:
+    llvm_unreachable("NYI");
   case NeonTypeFlags::Int32:
     return mlir::cir::VectorType::get(CGF->getBuilder().getContext(),
                                       TypeFlags.isUnsigned() ? CGF->UInt32Ty
@@ -1603,7 +1605,7 @@ static mlir::Value buildArmLdrexNon128Intrinsic(unsigned int builtinID,
 
 mlir::Value buildNeonCall(unsigned int builtinID, CIRGenFunction &cgf,
                           llvm::SmallVector<mlir::Type> argTypes,
-                          llvm::SmallVector<mlir::Value, 4> args,
+                          llvm::SmallVectorImpl<mlir::Value> &args,
                           llvm::StringRef intrinsicName, mlir::Type funcResTy,
                           mlir::Location loc,
                           bool isConstrainedFPIntrinsic = false,
@@ -1638,6 +1640,54 @@ mlir::Value buildNeonCall(unsigned int builtinID, CIRGenFunction &cgf,
             loc, builder.getStringAttr(intrinsicName), funcResTy, args)
         .getResult();
   }
+}
+
+mlir::Value CIRGenFunction::buildCommonNeonBuiltinExpr(
+    unsigned builtinID, unsigned llvmIntrinsic, unsigned altLLVMIntrinsic,
+    const char *nameHint, unsigned modifier, const CallExpr *e,
+    llvm::SmallVectorImpl<mlir::Value> &ops, cir::Address ptrOp0,
+    cir::Address ptrOp1, llvm::Triple::ArchType arch) {
+  // Get the last argument, which specifies the vector type.
+  const clang::Expr *arg = e->getArg(e->getNumArgs() - 1);
+  std::optional<llvm::APSInt> neonTypeConst =
+      arg->getIntegerConstantExpr(getContext());
+  if (!neonTypeConst)
+    return nullptr;
+
+  // Determine the type of this overloaded NEON intrinsic.
+  NeonTypeFlags neonType(neonTypeConst->getZExtValue());
+  bool isUnsigned = neonType.isUnsigned();
+  const bool hasFastHalfType = getTarget().hasFastHalfType();
+  // The value of allowBFloatArgsAndRet is true for AArch64, but it should
+  // come from ABI info.
+  const bool allowBFloatArgsAndRet =
+      getTargetHooks().getABIInfo().allowBFloatArgsAndRet();
+
+  mlir::Type vTy = GetNeonType(this, neonType, hasFastHalfType, false,
+                               allowBFloatArgsAndRet);
+  if (!vTy)
+    return nullptr;
+
+  unsigned intrinicId = llvmIntrinsic;
+  if ((modifier & UnsignedAlts) && !isUnsigned)
+    intrinicId = altLLVMIntrinsic;
+
+  switch (builtinID) {
+  default:
+    llvm_unreachable("NYI");
+  case NEON::BI__builtin_neon_vqadd_v:
+    mlir::Value res = buildNeonCall(builtinID, *this, {vTy, vTy}, ops,
+                                    (intrinicId != altLLVMIntrinsic)
+                                        ? "llvm.aarch64.neon.uqadd"
+                                        : "llvm.aarch64.neon.sqadd",
+                                    vTy, getLoc(e->getExprLoc()));
+    mlir::Type resultType = ConvertType(e->getType());
+    // AArch64 intrinsic one-element vector type cast to
+    // scalar type expected by the builtin
+    return builder.createBitcast(res, resultType);
+    break;
+  }
+  return nullptr;
 }
 
 mlir::Value
@@ -2359,9 +2409,11 @@ CIRGenFunction::buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   // defer to common code if it's been added to our special map.
   Builtin = findARMVectorIntrinsicInMap(AArch64SIMDIntrinsicMap, BuiltinID,
                                         AArch64SIMDIntrinsicsProvenSorted);
-  if (Builtin) {
-    llvm_unreachable("NYI");
-  }
+  if (Builtin)
+    return buildCommonNeonBuiltinExpr(
+        Builtin->BuiltinID, Builtin->LLVMIntrinsic, Builtin->AltLLVMIntrinsic,
+        Builtin->NameHint, Builtin->TypeModifier, E, Ops,
+        /*never use addresses*/ Address::invalid(), Address::invalid(), Arch);
 
   if (mlir::Value V =
           buildAArch64TblBuiltinExpr(*this, BuiltinID, E, Ops, Arch))
