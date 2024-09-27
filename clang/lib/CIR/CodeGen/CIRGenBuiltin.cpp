@@ -320,9 +320,8 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
       // it is hard to imagine a builtin function evaluates to
       // a value that over/underflows its own defined type.
       mlir::Type resTy = getCIRType(E->getType());
-      return RValue::get(builder.create<mlir::cir::ConstantOp>(
-          getLoc(E->getExprLoc()), resTy,
-          builder.getAttr<mlir::cir::FPAttr>(resTy, Result.Val.getFloat())));
+      return RValue::get(builder.getConstFP(getLoc(E->getExprLoc()), resTy,
+                                            Result.Val.getFloat()));
     }
   }
 

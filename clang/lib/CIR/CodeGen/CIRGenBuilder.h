@@ -536,6 +536,10 @@ public:
 
   mlir::cir::ConstantOp getConstInt(mlir::Location loc, mlir::Type t,
                                     uint64_t C);
+
+  mlir::cir::ConstantOp getConstFP(mlir::Location loc, mlir::Type t,
+                                   llvm::APFloat fpVal);
+
   /// Create constant nullptr for pointer-to-data-member type ty.
   mlir::cir::ConstantOp getNullDataMemberPtr(mlir::cir::DataMemberType ty,
                                              mlir::Location loc) {

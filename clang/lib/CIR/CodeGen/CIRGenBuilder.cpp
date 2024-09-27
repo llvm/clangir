@@ -67,4 +67,14 @@ mlir::cir::ConstantOp CIRGenBuilderTy::getConstInt(mlir::Location loc,
   return create<mlir::cir::ConstantOp>(loc, intTy,
                                        mlir::cir::IntAttr::get(t, C));
 }
+
+mlir::cir::ConstantOp CIRGenBuilderTy::getConstFP(mlir::Location loc,
+                                                  mlir::Type t,
+                                                  llvm::APFloat fpVal) {
+  assert((mlir::isa<mlir::cir::SingleType, mlir::cir::DoubleType>(t)) &&
+         "expected mlir::cir::SingleType or mlir::cir::DoubleType");
+  return create<mlir::cir::ConstantOp>(loc, t,
+                                       getAttr<mlir::cir::FPAttr>(t, fpVal));
+}
+
 } // namespace cir
