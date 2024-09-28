@@ -2307,6 +2307,103 @@ def GlobalOp : CIR_Op<"global",
 }
 
 //===----------------------------------------------------------------------===//
+// RGOp
+//===----------------------------------------------------------------------===//
+
+// well, following code is copy from GlobalOP
+
+// Linkage types. This is currently a replay of llvm/IR/GlobalValue.h, this is
+// currently handy as part of forwarding appropriate linkage types for LLVM
+// lowering, specially useful for C++ support.
+
+// remove GlobalLinkageKind
+
+// remove SignedOverflowBehavior
+
+// remove thread local related
+
+// In my mind, RG is similar to Global, but each RG represent a special register
+// which label is from '__asm__' key word.
+
+
+def RGOp : CIR_Op<"RG", [Symbol]> {
+  let summary = "Declares or defines a RG";
+  let description = [{
+    The `cir.global` operation declares or defines a named global variable.
+
+    The backing memory for the variable is allocated statically and is
+    described by the type of the variable.
+
+    The operation is a declaration if no `inital_value` is
+    specified, else it is a definition.
+
+    The global variable can also be marked constant using the
+    `constant` unit attribute. Writing to such constant global variables is
+    undefined.
+
+    The `linkage` tracks C/C++ linkage types, currently very similar to LLVM's.
+    Symbol visibility in `sym_visibility` is defined in terms of MLIR's visibility
+    and verified to be in accordance to `linkage`.
+
+    Example:
+
+    ```mlir
+    // Public and constant variable with initial value.
+    cir.global public constant @c : i32 = 4;
+    ```
+
+    The above is description of global variable, and here is RG description in
+    comparison with the above
+
+    1. The `cir.RG` operation declares a named register global.
+
+    2. The backing memory for the RG make no sence as this no address info could
+    represent register address. While read and write intrinsic just have 32&64
+    bit output.
+
+    3. The operation could only be a declaration
+
+    4. RGV hasn't constant attribute.
+
+    5. There's no decision whether reserve linkage info or not.
+
+  }];
+
+  // Note that both sym_name and sym_visibility are tied to Symbol trait.
+  // TODO: sym_visibility can possibly be represented by implementing the
+  // necessary Symbol's interface in terms of linkage instead.
+  let arguments = (ins SymbolNameAttr:$sym_name,
+                       OptionalAttr<StrAttr>:$sym_visibility,
+                       TypeAttr:$sym_type,
+                       // Arg<GlobalLinkageKind, "linkage type">:$linkage,
+                       // Note this can also be a FlatSymbolRefAttr
+                       // OptionalAttr<AnyAttr>:$initial_value,
+                       // UnitAttr:$constant,
+                       OptionalAttr<I64Attr>:$alignment
+                      //  OptionalAttr<ASTVarDeclInterface>:$ast,
+                      //  OptionalAttr<StrAttr>:$section
+                       );
+  // let regions = (region AnyRegion:$ctorRegion, AnyRegion:$dtorRegion);
+  let assemblyFormat = [{
+       ($sym_visibility^)?
+       $sym_name
+       $sym_type
+       attr-dict
+  }];
+
+
+  let skipDefaultBuilders = 1;
+  let builders = [
+    OpBuilder<(ins
+      // MLIR's default visibility is public.
+      "StringRef":$sym_name,
+      "Type":$sym_type)>
+  ];
+
+  let hasVerifier = 0;
+}
+
+//===----------------------------------------------------------------------===//
 // GetGlobalOp
 //===----------------------------------------------------------------------===//
 
@@ -2343,6 +2440,51 @@ def GetGlobalOp : CIR_Op<"get_global",
   }];
 
   // `GetGlobalOp` is fully verified by its traits.
+  let hasVerifier = 0;
+}
+
+//===----------------------------------------------------------------------===//
+// GetRGOp
+//===----------------------------------------------------------------------===//
+
+def GetRGOp : CIR_Op<"get_RG",
+    [Pure, DeclareOpInterfaceMethods<SymbolUserOpInterface>]> {
+  let summary = "Get the abstraction address of a register";
+  let description = [{
+    The `cir.get_global` operation retrieves the address pointing to a
+    named global variable. If the global variable is marked constant, writing
+    to the resulting address (such as through a `cir.store` operation) is
+    undefined. Resulting type must always be a `!cir.ptr<...>` type.
+
+    Addresses of thread local globals can only be retrieved if this operation
+    is marked `thread_local`, which indicates the address isn't constant.
+
+    Example:
+    ```mlir
+    %x = cir.get_global @foo : !cir.ptr<i32>
+    ...
+    %y = cir.get_global thread_local @batata : !cir.ptr<i32>
+    ```
+
+    The above is description of get_global, and here is get_RG description in
+    comparison with the above
+
+    1. The `cir.get_RG` operation retrieves the abstract address pointing to a
+    named register.
+
+    2. Resulting type must always be a `!cir.ptr<...>` type. Actually, i wanna
+    keep the type !cir.ptr<!u64i>. The coming problem is that we have to trunc
+    the type for 32bit integer.
+  }];
+
+  let arguments = (ins FlatSymbolRefAttr:$name);
+  let results = (outs Res<CIR_PointerType, "", []>:$addr);
+
+  let assemblyFormat = [{
+    $name `:` qualified(type($addr)) attr-dict
+  }];
+
+  // `GetRG` is fully verified by its traits.
   let hasVerifier = 0;
 }
 

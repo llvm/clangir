@@ -222,6 +222,9 @@ public:
                        const VarDecl *D,
                        ForDefinition_t IsForDefinition = NotForDefinition);
 
+  mlir::cir::RGOp
+  getOrCreateCIRRG(StringRef RGNameRef, mlir::Type Ty, const VarDecl *D);
+
   mlir::cir::GlobalOp getStaticLocalDeclAddress(const VarDecl *D) {
     return StaticLocalDeclMap[D];
   }
@@ -236,6 +239,8 @@ public:
 
   mlir::cir::GlobalOp buildGlobal(const VarDecl *D, mlir::Type Ty,
                                   ForDefinition_t IsForDefinition);
+
+  mlir::cir::RGOp buildRG(const VarDecl *D, mlir::Type Ty);
 
   /// TODO(cir): once we have cir.module, add this as a convenience method
   /// there instead of here.
@@ -262,6 +267,11 @@ public:
                  mlir::cir::GlobalLinkageKind linkage =
                      mlir::cir::GlobalLinkageKind::ExternalLinkage);
 
+  static mlir::cir::RGOp createRGOp(CIRGenModule &CGM,
+                                    mlir::Location loc, StringRef name,
+                                    mlir::Type type,
+                                    mlir::Operation *insertPoint = nullptr);
+
   // FIXME: Hardcoding priority here is gross.
   void AddGlobalCtor(mlir::cir::FuncOp Ctor, int Priority = 65535);
   void AddGlobalDtor(mlir::cir::FuncOp Dtor, int Priority = 65535,
@@ -276,6 +286,9 @@ public:
   mlir::Value
   getAddrOfGlobalVar(const VarDecl *D, mlir::Type Ty = {},
                      ForDefinition_t IsForDefinition = NotForDefinition);
+
+  mlir::Value
+  getAddrOfRG(const VarDecl *D, mlir::Type Ty = {});
 
   /// Return the mlir::GlobalViewAttr for the address of the given global.
   mlir::cir::GlobalViewAttr

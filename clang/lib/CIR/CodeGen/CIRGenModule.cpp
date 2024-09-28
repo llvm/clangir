@@ -1020,6 +1020,87 @@ mlir::Value CIRGenModule::getAddrOfGlobalVar(const VarDecl *D, mlir::Type Ty,
       getLoc(D->getSourceRange()), ptrTy, g.getSymName(), tlsAccess);
 }
 
+// static class method
+mlir::cir::RGOp CIRGenModule::createRGOp(CIRGenModule &CGM,
+                                  mlir::Location loc, StringRef name,
+                                  mlir::Type type,
+                                  mlir::Operation *insertPoint) {
+  mlir::cir::RGOp rg;
+  auto &builder = CGM.getBuilder();
+  {
+    mlir::OpBuilder::InsertionGuard guard(builder);
+
+    auto *curCGF = CGM.getCurrCIRGenFun();
+
+    if (!curCGF)
+      llvm_unreachable("NYI");
+
+    builder.setInsertionPoint(curCGF->CurFn);
+
+    rg = builder.create<mlir::cir::RGOp>(loc, name, type);
+
+    mlir::SymbolTable::setSymbolVisibility(
+        rg, mlir::SymbolTable::Visibility::Private);
+  }
+
+  return rg;
+}
+
+mlir::cir::RGOp
+CIRGenModule::getOrCreateCIRRG(StringRef RGNameRef, mlir::Type Ty,
+                              const VarDecl *D) {
+  mlir::cir::RGOp Entry;
+
+  if (auto *V = getGlobalValue(RGNameRef)) {
+    assert(isa<mlir::cir::RGOp>(V) && "only supports RGOp for now");
+    Entry = dyn_cast_or_null<mlir::cir::RGOp>(V);
+  }
+
+  if (Entry) {
+    if (Entry.getSymType() == Ty) {
+      return Entry;
+    }
+  }
+
+  auto loc = getLoc(D->getSourceRange());
+
+  auto RGV = createRGOp(*this, loc, RGNameRef, Ty, nullptr);
+
+  return RGV;
+}
+
+
+mlir::cir::RGOp CIRGenModule::buildRG(const VarDecl *D, mlir::Type Ty) {
+  assert(D->hasGlobalStorage() && "Not a global variable");
+
+  if (!Ty)
+    llvm_unreachable("NYI");
+
+  SmallString<64> RGName("llvm.named.register.");
+  AsmLabelAttr *Asm = D->getAttr<AsmLabelAttr>();
+  assert(Asm->getLabel().size() < 64 - RGName.size() &&
+      "Register name too big");
+  RGName.append(Asm->getLabel());
+
+  StringRef RGNameRef(RGName);
+
+  return getOrCreateCIRRG(RGNameRef, Ty, D);
+}
+
+mlir::Value CIRGenModule::getAddrOfRG(const VarDecl *D, mlir::Type Ty) {
+  if (!Ty) {
+    Ty = this->UInt64Ty;
+  }
+
+  auto rg = buildRG(D, Ty);
+
+  auto ptrTy =
+      mlir::cir::PointerType::get(builder.getContext(), rg.getSymType());
+
+  return builder.create<mlir::cir::GetRGOp>(
+      getLoc(D->getSourceRange()), ptrTy, rg.getSymName());
+}
+
 mlir::cir::GlobalViewAttr
 CIRGenModule::getAddrOfGlobalVarAttr(const VarDecl *D, mlir::Type Ty,
                                      ForDefinition_t IsForDefinition) {

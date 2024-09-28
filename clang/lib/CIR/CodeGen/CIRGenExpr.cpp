@@ -957,6 +957,47 @@ static LValue buildFunctionDeclLValue(CIRGenFunction &CGF, const Expr *E,
                             AlignmentSource::Decl);
 }
 
+static LValue buildGlobalNamedRegister(CIRGenFunction &CGF, const Expr *E,
+                                      const VarDecl *VD) {
+  // SmallString<64> Nmae("llvm.named.register.");
+  // AsmLabelAttr *Asm = VD->getAttr<AsmLabelAttr>();
+  // assert(Asm->getLabel().size() < 64-Name.size() &&
+  //     "Register name too big");
+  // Name.append(Asm->getLabel());
+
+  QualType T = E->getType();
+
+  // ptr->u64i
+  auto V = CGF.CGM.getAddrOfRG(VD);
+
+  // here's cast(bitcast) operation
+  // As 'V' here is always ptr which points to u64i, it seems a good way to just
+  // bitcast current ptr to another ptr with different type.
+
+  auto RealVarTy = CGF.getTypes().convertTypeForMem(VD->getType());
+  auto realPtrTy = CGF.getBuilder().getPointerTo(RealVarTy);
+
+  if (realPtrTy != V.getType())
+    V = CGF.getBuilder().createBitcast(V.getLoc(), V, realPtrTy);
+
+  // The following is copied from ``buildGlobalVarDeclLValue``
+  CharUnits Alignment = CGF.getContext().getDeclAlign(VD);
+  Address Addr(V, RealVarTy, Alignment);
+  // Emit reference to the private copy of the variable if it is an OpenMP
+  // threadprivate variable.
+  if (CGF.getLangOpts().OpenMP && !CGF.getLangOpts().OpenMPSimd &&
+      VD->hasAttr<clang::OMPThreadPrivateDeclAttr>()) {
+    assert(0 && "NYI");
+  }
+  LValue LV;
+  if (VD->getType()->isReferenceType())
+    assert(0 && "NYI");
+  else
+    LV = CGF.makeAddrLValue(Addr, T, AlignmentSource::Decl);
+  assert(!MissingFeatures::setObjCGCLValueClass() && "NYI");
+  return LV;
+}
+
 LValue CIRGenFunction::buildDeclRefLValue(const DeclRefExpr *E) {
   const NamedDecl *ND = E->getDecl();
   QualType T = E->getType();
@@ -968,7 +1009,8 @@ LValue CIRGenFunction::buildDeclRefLValue(const DeclRefExpr *E) {
     // Global Named registers access via intrinsics only
     if (VD->getStorageClass() == SC_Register && VD->hasAttr<AsmLabelAttr>() &&
         !VD->isLocalVarDecl())
-      llvm_unreachable("NYI");
+      return buildGlobalNamedRegister(*this, E, VD);
+      // llvm_unreachable("NYI");
 
     assert(E->isNonOdrUse() != NOUR_Constant && "not implemented");
 

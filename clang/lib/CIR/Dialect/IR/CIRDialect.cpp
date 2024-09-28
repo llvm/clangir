@@ -2139,6 +2139,18 @@ void GlobalOp::getSuccessorRegions(mlir::RegionBranchPoint point,
 }
 
 //===----------------------------------------------------------------------===//
+// RGOp
+//===----------------------------------------------------------------------===//
+void RGOp::build(OpBuilder &odsBuilder, OperationState &odsState,
+                     StringRef sym_name, Type sym_type) {
+  odsState.addAttribute(getSymNameAttrName(odsState.name),
+                        odsBuilder.getStringAttr(sym_name));
+  odsState.addAttribute(getSymTypeAttrName(odsState.name),
+                        ::mlir::TypeAttr::get(sym_type));
+}
+
+
+//===----------------------------------------------------------------------===//
 // GetGlobalOp
 //===----------------------------------------------------------------------===//
 
@@ -2181,6 +2193,37 @@ GetGlobalOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
 
   return success();
 }
+
+//===----------------------------------------------------------------------===//
+// GetRGOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult
+GetRGOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
+  // Verify that the result type underlying pointer type matches the type of
+  // the referenced cir.RG op.
+  auto op = symbolTable.lookupNearestSymbolFrom(*this, getNameAttr());
+  if (!(isa<RGOp>(op)))
+    return emitOpError("'")
+           << getName()
+           << "' does not reference a valid cir.RG";
+
+  mlir::Type symTy;
+  if (auto g = dyn_cast<RGOp>(op)) {
+    // i64???
+    symTy = g.getSymType();
+  } else
+    llvm_unreachable("shall not get here");
+
+  // result is always ptr<i64>???
+  auto resultType = getAddr().getType().dyn_cast<PointerType>();
+  if (!resultType || symTy != resultType.getPointee())
+    return emitOpError("result type pointee type '")
+           << resultType.getPointee() << "' does not match type " << symTy
+           << " of the RG @" << getName();
+  return success();
+}
+
 
 //===----------------------------------------------------------------------===//
 // VTableAddrPointOp
