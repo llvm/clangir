@@ -4441,7 +4441,7 @@ std::unique_ptr<mlir::Pass> createConvertCIRToLLVMPass() {
 }
 
 void populateCIRToLLVMPasses(mlir::OpPassManager &pm) {
-  populateCIRPreLoweringPasses(pm, true);
+  populateCIRPreLoweringPasses(pm);
   pm.addPass(createConvertCIRToLLVMPass());
 }
 
