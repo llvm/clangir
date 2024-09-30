@@ -1899,9 +1899,11 @@ findARMVectorIntrinsicInMap(ArrayRef<ARMVectorIntrinsicInfo> IntrinsicMap,
   return nullptr;
 }
 
-static mlir::Type GetNeonType(CIRGenFunction *CGF, NeonTypeFlags TypeFlags,
-                              bool HasLegalHalfType = true, bool V1Ty = false,
-                              bool AllowBFloatArgsAndRet = true) {
+static mlir::cir::VectorType GetNeonType(CIRGenFunction *CGF,
+                                         NeonTypeFlags TypeFlags,
+                                         bool HasLegalHalfType = true,
+                                         bool V1Ty = false,
+                                         bool AllowBFloatArgsAndRet = true) {
   int IsQuad = TypeFlags.isQuad();
   switch (TypeFlags.getEltType()) {
   case NeonTypeFlags::Int8:
@@ -2002,7 +2004,7 @@ static mlir::Value buildAArch64TblBuiltinExpr(CIRGenFunction &CGF,
 
   // Determine the type of this overloaded NEON intrinsic.
   NeonTypeFlags Type = Result->getZExtValue();
-  auto Ty = GetNeonType(&CGF, Type);
+  mlir::cir::VectorType Ty = GetNeonType(&CGF, Type);
   if (!Ty)
     return nullptr;
 
@@ -2215,8 +2217,8 @@ mlir::Value CIRGenFunction::buildCommonNeonBuiltinExpr(
   const bool allowBFloatArgsAndRet =
       getTargetHooks().getABIInfo().allowBFloatArgsAndRet();
 
-  mlir::Type vTy = GetNeonType(this, neonType, hasLegalHalfType, false,
-                               allowBFloatArgsAndRet);
+  mlir::cir::VectorType vTy = GetNeonType(this, neonType, hasLegalHalfType,
+                                          false, allowBFloatArgsAndRet);
   if (!vTy)
     return nullptr;
 
@@ -2947,7 +2949,7 @@ CIRGenFunction::buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   }
   }
 
-  auto Ty = GetNeonType(this, Type);
+  mlir::cir::VectorType Ty = GetNeonType(this, Type);
   if (!Ty)
     return nullptr;
 
@@ -3041,7 +3043,12 @@ CIRGenFunction::buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   case NEON::BI__builtin_neon_vqshrun_n_v:
     llvm_unreachable("NYI");
   case NEON::BI__builtin_neon_vqrshrun_n_v:
-    llvm_unreachable("NYI");
+    // The prototype of builtin_neon_vqrshrun_n can be found at
+    // https://developer.arm.com/architectures/instruction-sets/intrinsics/
+    return buildNeonCall(
+        BuiltinID, *this,
+        {builder.getExtendedElementVectorType(Ty, true), SInt32Ty}, Ops,
+        "llvm.aarch64.neon.sqrshrun", Ty, getLoc(E->getExprLoc()));
   case NEON::BI__builtin_neon_vqshrn_n_v:
     llvm_unreachable("NYI");
   case NEON::BI__builtin_neon_vrshrn_n_v:
