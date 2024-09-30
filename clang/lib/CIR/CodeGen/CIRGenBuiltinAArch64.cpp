@@ -3400,7 +3400,12 @@ CIRGenFunction::buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   }
   case NEON::BI__builtin_neon_vld1_lane_v:
   case NEON::BI__builtin_neon_vld1q_lane_v: {
-    llvm_unreachable("NYI");
+    Ops[1] = builder.createBitcast(Ops[1], VTy);
+    Ops[0] = builder.createAlignedLoad(
+        Ops[0].getLoc(), mlir::cast<mlir::cir::VectorType>(VTy).getEltType(),
+        Ops[0], PtrOp0.getAlignment());
+    return builder.create<mlir::cir::VecInsertOp>(getLoc(E->getExprLoc()),
+                                                  Ops[1], Ops[0], Ops[2]);
   }
   case NEON::BI__builtin_neon_vldap1_lane_s64:
   case NEON::BI__builtin_neon_vldap1q_lane_s64: {
