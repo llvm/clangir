@@ -2967,7 +2967,7 @@ CIRGenFunction::buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
           buildAArch64TblBuiltinExpr(*this, BuiltinID, E, Ops, Arch))
     return V;
 
-  mlir::Type VTy = Ty;
+  mlir::cir::VectorType VTy = Ty;
   llvm::SmallVector<mlir::Value, 4> args;
   switch (BuiltinID) {
   default:
@@ -3401,9 +3401,8 @@ CIRGenFunction::buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   case NEON::BI__builtin_neon_vld1_lane_v:
   case NEON::BI__builtin_neon_vld1q_lane_v: {
     Ops[1] = builder.createBitcast(Ops[1], VTy);
-    Ops[0] = builder.createAlignedLoad(
-        Ops[0].getLoc(), mlir::cast<mlir::cir::VectorType>(VTy).getEltType(),
-        Ops[0], PtrOp0.getAlignment());
+    Ops[0] = builder.createAlignedLoad(Ops[0].getLoc(), VTy.getEltType(),
+                                       Ops[0], PtrOp0.getAlignment());
     return builder.create<mlir::cir::VecInsertOp>(getLoc(E->getExprLoc()),
                                                   Ops[1], Ops[0], Ops[2]);
   }
