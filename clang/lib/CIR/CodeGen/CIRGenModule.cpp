@@ -1009,8 +1009,9 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef MangledName, mlir::Type Ty,
   return GV;
 }
 
-mlir::cir::GlobalOp CIRGenModule::buildGlobal(const VarDecl *D, mlir::Type Ty,
-                                              ForDefinition_t IsForDefinition) {
+mlir::cir::GlobalOp
+CIRGenModule::getOrCreateCIRGlobal(const VarDecl *D, mlir::Type Ty,
+                                   ForDefinition_t IsForDefinition) {
   assert(D->hasGlobalStorage() && "Not a global variable");
   QualType ASTTy = D->getType();
   if (!Ty)
@@ -1035,7 +1036,7 @@ mlir::Value CIRGenModule::getAddrOfGlobalVar(const VarDecl *D, mlir::Type Ty,
     Ty = getTypes().convertTypeForMem(ASTTy);
 
   bool tlsAccess = D->getTLSKind() != VarDecl::TLS_None;
-  auto g = buildGlobal(D, Ty, IsForDefinition);
+  auto g = getOrCreateCIRGlobal(D, Ty, IsForDefinition);
   auto ptrTy = builder.getPointerTo(g.getSymType(), g.getAddrSpaceAttr());
   return builder.create<mlir::cir::GetGlobalOp>(
       getLoc(D->getSourceRange()), ptrTy, g.getSymName(), tlsAccess);
@@ -1049,7 +1050,7 @@ CIRGenModule::getAddrOfGlobalVarAttr(const VarDecl *D, mlir::Type Ty,
   if (!Ty)
     Ty = getTypes().convertTypeForMem(ASTTy);
 
-  auto globalOp = buildGlobal(D, Ty, IsForDefinition);
+  auto globalOp = getOrCreateCIRGlobal(D, Ty, IsForDefinition);
   return builder.getGlobalViewAttr(builder.getPointerTo(Ty), globalOp);
 }
 
@@ -1237,7 +1238,7 @@ void CIRGenModule::buildGlobalVarDefinition(const clang::VarDecl *D,
     InitType = TypedInitAttr.getType();
   }
   assert(!mlir::isa<mlir::NoneType>(InitType) && "Should have a type by now");
-  auto Entry = buildGlobal(D, InitType, ForDefinition_t(!IsTentative));
+  auto Entry = getOrCreateCIRGlobal(D, InitType, ForDefinition_t(!IsTentative));
   // TODO(cir): Strip off pointer casts from Entry if we get them?
 
   // TODO(cir): use GlobalValue interface
