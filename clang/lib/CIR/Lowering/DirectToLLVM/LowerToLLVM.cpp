@@ -64,6 +64,7 @@
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/TimeProfiler.h"
 #include <cstdint>
 #include <deque>
 #include <optional>
@@ -4325,6 +4326,8 @@ void ConvertCIRToLLVMPass::buildGlobalAnnotationsVar() {
 }
 
 void ConvertCIRToLLVMPass::runOnOperation() {
+  llvm::TimeTraceScope scope("Convert CIR to LLVM Pass");
+
   auto module = getOperation();
   mlir::DataLayout dataLayout(module);
   mlir::LLVMTypeConverter converter(&getContext());
@@ -4407,6 +4410,8 @@ extern void registerCIRDialectTranslation(mlir::MLIRContext &context);
 std::unique_ptr<llvm::Module>
 lowerDirectlyFromCIRToLLVMIR(mlir::ModuleOp theModule, LLVMContext &llvmCtx,
                              bool disableVerifier) {
+  llvm::TimeTraceScope scope("lower from CIR to LLVM directly");
+
   mlir::MLIRContext *mlirCtx = theModule.getContext();
   mlir::PassManager pm(mlirCtx);
   populateCIRToLLVMPasses(pm);
@@ -4437,6 +4442,8 @@ lowerDirectlyFromCIRToLLVMIR(mlir::ModuleOp theModule, LLVMContext &llvmCtx,
   mlir::registerLLVMDialectTranslation(*mlirCtx);
   mlir::registerOpenMPDialectTranslation(*mlirCtx);
   registerCIRDialectTranslation(*mlirCtx);
+
+  llvm::TimeTraceScope __scope("translateModuleToLLVMIR");
 
   auto ModuleName = theModule.getName();
   auto llvmModule = mlir::translateModuleToLLVMIR(
