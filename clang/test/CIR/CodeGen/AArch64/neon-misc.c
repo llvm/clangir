@@ -5,8 +5,8 @@
 // RUN:            -emit-llvm -target-feature +neon %s -o %t.ll
 // RUN: FileCheck --check-prefix=LLVM --input-file=%t.ll %s
 
-// This test file contains AArch64 NEON intrinsics that are not covered by
-// other tests.
+// This test file contains tests of AArch64 NEON intrinsics 
+// that are not covered by other tests.
 
 // REQUIRES: aarch64-registered-target || arm-registered-target
 #include <arm_neon.h>
