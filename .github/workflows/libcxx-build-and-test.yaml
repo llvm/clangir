@@ -63,13 +63,13 @@ jobs:
             cc: 'gcc-13'
             cxx: 'g++-13'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.2.0
       - name: ${{ matrix.config }}.${{ matrix.cxx }}
         run: libcxx/utils/ci/run-buildbot ${{ matrix.config }}
         env:
           CC: ${{ matrix.cc }}
           CXX: ${{ matrix.cxx }}
-      - uses: actions/upload-artifact@26f96dfa697d77e81fd5907df203aa23a56210a8 # v4.3.0
+      - uses: actions/upload-artifact@3eadd8b791cabf7cd572f194da82158c24125bd8 # v4.3.0
         if: always()
         with:
           name: ${{ matrix.config }}-${{ matrix.cxx }}-results
@@ -107,13 +107,13 @@ jobs:
             cc: 'clang-18'
             cxx: 'clang++-18'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.2.0
       - name: ${{ matrix.config }}
         run: libcxx/utils/ci/run-buildbot ${{ matrix.config }}
         env:
           CC: ${{ matrix.cc }}
           CXX: ${{ matrix.cxx }}
-      - uses: actions/upload-artifact@26f96dfa697d77e81fd5907df203aa23a56210a8 # v4.3.0
+      - uses: actions/upload-artifact@3eadd8b791cabf7cd572f194da82158c24125bd8 # v4.3.0
         if: always()  # Upload artifacts even if the build or test suite fails
         with:
           name: ${{ matrix.config }}-${{ matrix.cxx }}-results
@@ -171,13 +171,13 @@ jobs:
           machine: libcxx-runners-8-set
     runs-on: ${{ matrix.machine }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.2.0
       - name: ${{ matrix.config }}
         run: libcxx/utils/ci/run-buildbot ${{ matrix.config }}
         env:
           CC: clang-19
           CXX: clang++-19
-      - uses: actions/upload-artifact@26f96dfa697d77e81fd5907df203aa23a56210a8 # v4.3.0
+      - uses: actions/upload-artifact@3eadd8b791cabf7cd572f194da82158c24125bd8 # v4.3.0
         if: always()
         with:
           name: ${{ matrix.config }}-results
@@ -203,7 +203,7 @@ jobs:
         - { config: mingw-static, mingw: true }
         - { config: mingw-dll-i686, mingw: true }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.2.0
       - name: Install dependencies
         run: |
           choco install -y ninja

@@ -14,7 +14,7 @@ jobs:
     if: github.repository == 'llvm/clangir'
     steps:
       - name: Fetch LLVM sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.0
         with:
           ref: ${{ github.event.pull_request.head.sha }}
 
@@ -27,7 +27,7 @@ jobs:
 
       - name: Get changed files
         id: changed-files
-        uses: tj-actions/changed-files@v39
+        uses: tj-actions/changed-files@v45
         with:
           separator: ","
           skip_initial_fetch: true
@@ -35,7 +35,7 @@ jobs:
       # We need to pull the script from the main branch, so that we ensure
       # we get the latest version of this script.
       - name: Fetch code formatting utils
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.0
         with:
           repository: ${{ github.repository }}
           ref: ${{ github.base_ref }}
@@ -88,7 +88,7 @@ jobs:
             --end-rev $END_REV \
             --changed-files "$CHANGED_FILES"
 
-      - uses: actions/upload-artifact@26f96dfa697d77e81fd5907df203aa23a56210a8 #v4.3.0
+      - uses: actions/upload-artifact@3eadd8b791cabf7cd572f194da82158c24125bd8 #v4.3.0
         if: always()
         with:
           name: workflow-args
