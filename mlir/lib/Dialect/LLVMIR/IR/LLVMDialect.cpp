@@ -978,11 +978,8 @@ void CallOp::build(OpBuilder &builder, OperationState &state, TypeRange results,
 
 void CallOp::build(OpBuilder &builder, OperationState &state, TypeRange results,
                    FlatSymbolRefAttr callee, ValueRange args) {
-  auto fargs = callee ? args : args.drop_front();
   build(builder, state, results,
-        /*var_callee_type=*/
-        TypeAttr::get(getLLVMFuncType(builder.getContext(), results, fargs)),
-        callee, args, /*fastmathFlags=*/nullptr,
+        /*var_callee_type=*/nullptr, callee, args, /*fastmathFlags=*/nullptr,
         /*branch_weights=*/nullptr,
         /*CConv=*/nullptr, /*TailCallKind=*/nullptr,
         /*memory_effects=*/nullptr,
