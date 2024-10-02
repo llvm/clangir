@@ -261,7 +261,10 @@ uint8_t test_vget_lane_u8(uint8x8_t a) {
 // CIR: {{%.*}} = cir.vec.extract {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!u8i x 8>
 
 // LLVM: define dso_local i8 @test_vget_lane_u8(<8 x i8> [[ARG:%.*]])
+<<<<<<< HEAD
 // LLVM: alloca <8 x i8>
+=======
+>>>>>>> 1cd59442d8cf ([CIR][Test][NFC] Organize CIR CodeGen AArch64 neon tests (#910))
 // LLVM: [[ARG_SAVE:%.*]] = alloca <8 x i8>, i64 1, align 8
 // LLVM: store <8 x i8> [[ARG]], ptr [[ARG_SAVE]], align 8
 // LLVM: [[TMP:%.*]] = load <8 x i8>, ptr [[ARG_SAVE:%.*]], align 8
@@ -279,7 +282,10 @@ uint8_t test_vgetq_lane_u8(uint8x16_t a) {
 // CIR: {{%.*}} = cir.vec.extract {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!u8i x 16>
 
 // LLVM: define dso_local i8 @test_vgetq_lane_u8(<16 x i8> [[ARG:%.*]])
+<<<<<<< HEAD
 // LLVM: alloca <16 x i8>
+=======
+>>>>>>> 1cd59442d8cf ([CIR][Test][NFC] Organize CIR CodeGen AArch64 neon tests (#910))
 // LLVM: [[ARG_SAVE:%.*]] = alloca <16 x i8>, i64 1, align 16
 // LLVM: store <16 x i8> [[ARG]], ptr [[ARG_SAVE]], align 16
 // LLVM: [[TMP:%.*]] = load <16 x i8>, ptr [[ARG_SAVE:%.*]], align 16
@@ -297,7 +303,10 @@ uint16_t test_vget_lane_u16(uint16x4_t a) {
 // CIR: {{%.*}} = cir.vec.extract {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!u16i x 4>
 
 // LLVM: define dso_local i16 @test_vget_lane_u16(<4 x i16> [[ARG:%.*]])
+<<<<<<< HEAD
 // LLVM: alloca <4 x i16>
+=======
+>>>>>>> 1cd59442d8cf ([CIR][Test][NFC] Organize CIR CodeGen AArch64 neon tests (#910))
 // LLVM: [[ARG_SAVE:%.*]] = alloca <4 x i16>, i64 1, align 8
 // LLVM: store <4 x i16> [[ARG]], ptr [[ARG_SAVE]], align 8
 // LLVM: [[TMP:%.*]] = load <4 x i16>, ptr [[ARG_SAVE:%.*]], align 8
@@ -315,7 +324,10 @@ uint16_t test_vgetq_lane_u16(uint16x8_t a) {
 // CIR: {{%.*}} = cir.vec.extract {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!u16i x 8>
 
 // LLVM: define dso_local i16 @test_vgetq_lane_u16(<8 x i16> [[ARG:%.*]])
+<<<<<<< HEAD
 // LLVM: alloca <8 x i16>
+=======
+>>>>>>> 1cd59442d8cf ([CIR][Test][NFC] Organize CIR CodeGen AArch64 neon tests (#910))
 // LLVM: [[ARG_SAVE:%.*]] = alloca <8 x i16>, i64 1, align 16
 // LLVM: store <8 x i16> [[ARG]], ptr [[ARG_SAVE]], align 16
 // LLVM: [[TMP:%.*]] = load <8 x i16>, ptr [[ARG_SAVE:%.*]], align 16
@@ -333,7 +345,10 @@ uint32_t test_vget_lane_u32(uint32x2_t a) {
 // CIR: {{%.*}} = cir.vec.extract {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!u32i x 2>
 
 // LLVM: define dso_local i32 @test_vget_lane_u32(<2 x i32> [[ARG:%.*]])
+<<<<<<< HEAD
 // LLVM: alloca <2 x i32>
+=======
+>>>>>>> 1cd59442d8cf ([CIR][Test][NFC] Organize CIR CodeGen AArch64 neon tests (#910))
 // LLVM: [[ARG_SAVE:%.*]] = alloca <2 x i32>, i64 1, align 8
 // LLVM: store <2 x i32> [[ARG]], ptr [[ARG_SAVE]], align 8
 // LLVM: [[TMP:%.*]] = load <2 x i32>, ptr [[ARG_SAVE:%.*]], align 8
@@ -351,7 +366,10 @@ uint32_t test_vgetq_lane_u32(uint32x4_t a) {
 // CIR: {{%.*}} = cir.vec.extract {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!u32i x 4>
 
 // LLVM: define dso_local i32 @test_vgetq_lane_u32(<4 x i32> [[ARG:%.*]])
+<<<<<<< HEAD
 // LLVM: alloca <4 x i32>
+=======
+>>>>>>> 1cd59442d8cf ([CIR][Test][NFC] Organize CIR CodeGen AArch64 neon tests (#910))
 // LLVM: [[ARG_SAVE:%.*]] = alloca <4 x i32>, i64 1, align 16
 // LLVM: store <4 x i32> [[ARG]], ptr [[ARG_SAVE]], align 16
 // LLVM: [[TMP:%.*]] = load <4 x i32>, ptr [[ARG_SAVE:%.*]], align 16
@@ -369,7 +387,10 @@ uint64_t test_vget_lane_u64(uint64x1_t a) {
 // CIR: {{%.*}} = cir.vec.extract {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!u64i x 1>
 
 // LLVM: define dso_local i64 @test_vget_lane_u64(<1 x i64> [[ARG:%.*]])
+<<<<<<< HEAD
 // LLVM: alloca <1 x i64>
+=======
+>>>>>>> 1cd59442d8cf ([CIR][Test][NFC] Organize CIR CodeGen AArch64 neon tests (#910))
 // LLVM: [[ARG_SAVE:%.*]] = alloca <1 x i64>, i64 1, align 8
 // LLVM: store <1 x i64> [[ARG]], ptr [[ARG_SAVE]], align 8
 // LLVM: [[TMP:%.*]] = load <1 x i64>, ptr [[ARG_SAVE:%.*]], align 8
@@ -387,7 +408,10 @@ uint64_t test_vgetq_lane_u64(uint64x2_t a) {
 // CIR: {{%.*}} = cir.vec.extract {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!u64i x 2>
 
 // LLVM: define dso_local i64 @test_vgetq_lane_u64(<2 x i64> [[ARG:%.*]])
+<<<<<<< HEAD
 // LLVM: alloca <2 x i64>
+=======
+>>>>>>> 1cd59442d8cf ([CIR][Test][NFC] Organize CIR CodeGen AArch64 neon tests (#910))
 // LLVM: [[ARG_SAVE:%.*]] = alloca <2 x i64>, i64 1, align 16
 // LLVM: store <2 x i64> [[ARG]], ptr [[ARG_SAVE]], align 16
 // LLVM: [[TMP:%.*]] = load <2 x i64>, ptr [[ARG_SAVE:%.*]], align 16
@@ -405,7 +429,10 @@ float32_t test_vget_lane_f32(float32x2_t a) {
 // CIR: {{%.*}} = cir.vec.extract {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!cir.float x 2>
 
 // LLVM: define dso_local float @test_vget_lane_f32(<2 x float> [[ARG:%.*]])
+<<<<<<< HEAD
 // LLVM: alloca <2 x float>
+=======
+>>>>>>> 1cd59442d8cf ([CIR][Test][NFC] Organize CIR CodeGen AArch64 neon tests (#910))
 // LLVM: [[ARG_SAVE:%.*]] = alloca <2 x float>, i64 1, align 8
 // LLVM: store <2 x float> [[ARG]], ptr [[ARG_SAVE]], align 8
 // LLVM: [[TMP:%.*]] = load <2 x float>, ptr [[ARG_SAVE:%.*]], align 8
@@ -423,7 +450,10 @@ float64_t test_vget_lane_f64(float64x1_t a) {
 // CIR: {{%.*}} = cir.vec.extract {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!cir.double x 1>
 
 // LLVM: define dso_local double @test_vget_lane_f64(<1 x double> [[ARG:%.*]])
+<<<<<<< HEAD
 // LLVM: alloca <1 x double>
+=======
+>>>>>>> 1cd59442d8cf ([CIR][Test][NFC] Organize CIR CodeGen AArch64 neon tests (#910))
 // LLVM: [[ARG_SAVE:%.*]] = alloca <1 x double>, i64 1, align 8
 // LLVM: store <1 x double> [[ARG]], ptr [[ARG_SAVE]], align 8
 // LLVM: [[TMP:%.*]] = load <1 x double>, ptr [[ARG_SAVE:%.*]], align 8
@@ -441,7 +471,10 @@ float32_t test_vgetq_lane_f32(float32x4_t a) {
 // CIR: {{%.*}} = cir.vec.extract {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!cir.float x 4>
 
 // LLVM: define dso_local float @test_vgetq_lane_f32(<4 x float> [[ARG:%.*]])
+<<<<<<< HEAD
 // LLVM: alloca <4 x float>
+=======
+>>>>>>> 1cd59442d8cf ([CIR][Test][NFC] Organize CIR CodeGen AArch64 neon tests (#910))
 // LLVM: [[ARG_SAVE:%.*]] = alloca <4 x float>, i64 1, align 16
 // LLVM: store <4 x float> [[ARG]], ptr [[ARG_SAVE]], align 16
 // LLVM: [[TMP:%.*]] = load <4 x float>, ptr [[ARG_SAVE:%.*]], align 16
@@ -459,7 +492,10 @@ float64_t test_vgetq_lane_f64(float64x2_t a) {
 // CIR: {{%.*}} = cir.vec.extract {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!cir.double x 2>
 
 // LLVM: define dso_local double @test_vgetq_lane_f64(<2 x double> [[ARG:%.*]])
+<<<<<<< HEAD
 // LLVM: alloca <2 x double>
+=======
+>>>>>>> 1cd59442d8cf ([CIR][Test][NFC] Organize CIR CodeGen AArch64 neon tests (#910))
 // LLVM: [[ARG_SAVE:%.*]] = alloca <2 x double>, i64 1, align 16
 // LLVM: store <2 x double> [[ARG]], ptr [[ARG_SAVE]], align 16
 // LLVM: [[TMP:%.*]] = load <2 x double>, ptr [[ARG_SAVE:%.*]], align 16
