@@ -693,6 +693,559 @@ static const ARMVectorIntrinsicInfo AArch64SISDIntrinsicMap[] = {
     NEONMAP1(vrsqrtsh_f16, aarch64_neon_frsqrts, Add1ArgType),
 };
 
+/// Get name of intrinsics in the AArch64SIMDIntrinsicMap defined above.
+static std::string getAArch64SIMDIntrinsicString(unsigned int intrinsicID) {
+  switch (intrinsicID) {
+  default:
+    return std::string("Unexpected intrinsic id " +
+                       std::to_string(intrinsicID));
+  case NEON::BI__builtin_neon___a64_vcvtq_low_bf16_f32:
+    return "NEON::BI__builtin_neon___a64_vcvtq_low_bf16_f32";
+  case NEON::BI__builtin_neon_splat_lane_v:
+    return "NEON::BI__builtin_neon_splat_lane_v";
+  case NEON::BI__builtin_neon_splat_laneq_v:
+    return "NEON::BI__builtin_neon_splat_laneq_v";
+  case NEON::BI__builtin_neon_splatq_lane_v:
+    return "NEON::BI__builtin_neon_splatq_lane_v";
+  case NEON::BI__builtin_neon_splatq_laneq_v:
+    return "NEON::BI__builtin_neon_splatq_laneq_v";
+  case NEON::BI__builtin_neon_vabs_v:
+    return "NEON::BI__builtin_neon_vabs_v";
+  case NEON::BI__builtin_neon_vabsq_v:
+    return "NEON::BI__builtin_neon_vabsq_v";
+  case NEON::BI__builtin_neon_vadd_v:
+    return "NEON::BI__builtin_neon_vadd_v";
+  case NEON::BI__builtin_neon_vaddhn_v:
+    return "NEON::BI__builtin_neon_vaddhn_v";
+  case NEON::BI__builtin_neon_vaddq_p128:
+    return "NEON::BI__builtin_neon_vaddq_p128";
+  case NEON::BI__builtin_neon_vaddq_v:
+    return "NEON::BI__builtin_neon_vaddq_v";
+  case NEON::BI__builtin_neon_vaesdq_u8:
+    return "NEON::BI__builtin_neon_vaesdq_u8";
+  case NEON::BI__builtin_neon_vaeseq_u8:
+    return "NEON::BI__builtin_neon_vaeseq_u8";
+  case NEON::BI__builtin_neon_vaesimcq_u8:
+    return "NEON::BI__builtin_neon_vaesimcq_u8";
+  case NEON::BI__builtin_neon_vaesmcq_u8:
+    return "NEON::BI__builtin_neon_vaesmcq_u8";
+  case NEON::BI__builtin_neon_vbcaxq_s16:
+    return "NEON::BI__builtin_neon_vbcaxq_s16";
+  case NEON::BI__builtin_neon_vbcaxq_s32:
+    return "NEON::BI__builtin_neon_vbcaxq_s32";
+  case NEON::BI__builtin_neon_vbcaxq_s64:
+    return "NEON::BI__builtin_neon_vbcaxq_s64";
+  case NEON::BI__builtin_neon_vbcaxq_s8:
+    return "NEON::BI__builtin_neon_vbcaxq_s8";
+  case NEON::BI__builtin_neon_vbcaxq_u16:
+    return "NEON::BI__builtin_neon_vbcaxq_u16";
+  case NEON::BI__builtin_neon_vbcaxq_u32:
+    return "NEON::BI__builtin_neon_vbcaxq_u32";
+  case NEON::BI__builtin_neon_vbcaxq_u64:
+    return "NEON::BI__builtin_neon_vbcaxq_u64";
+  case NEON::BI__builtin_neon_vbcaxq_u8:
+    return "NEON::BI__builtin_neon_vbcaxq_u8";
+  case NEON::BI__builtin_neon_vbfdot_f32:
+    return "NEON::BI__builtin_neon_vbfdot_f32";
+  case NEON::BI__builtin_neon_vbfdotq_f32:
+    return "NEON::BI__builtin_neon_vbfdotq_f32";
+  case NEON::BI__builtin_neon_vbfmlalbq_f32:
+    return "NEON::BI__builtin_neon_vbfmlalbq_f32";
+  case NEON::BI__builtin_neon_vbfmlaltq_f32:
+    return "NEON::BI__builtin_neon_vbfmlaltq_f32";
+  case NEON::BI__builtin_neon_vbfmmlaq_f32:
+    return "NEON::BI__builtin_neon_vbfmmlaq_f32";
+  case NEON::BI__builtin_neon_vcadd_rot270_f16:
+    return "NEON::BI__builtin_neon_vcadd_rot270_f16";
+  case NEON::BI__builtin_neon_vcadd_rot270_f32:
+    return "NEON::BI__builtin_neon_vcadd_rot270_f32";
+  case NEON::BI__builtin_neon_vcadd_rot90_f16:
+    return "NEON::BI__builtin_neon_vcadd_rot90_f16";
+  case NEON::BI__builtin_neon_vcadd_rot90_f32:
+    return "NEON::BI__builtin_neon_vcadd_rot90_f32";
+  case NEON::BI__builtin_neon_vcaddq_rot270_f16:
+    return "NEON::BI__builtin_neon_vcaddq_rot270_f16";
+  case NEON::BI__builtin_neon_vcaddq_rot270_f32:
+    return "NEON::BI__builtin_neon_vcaddq_rot270_f32";
+  case NEON::BI__builtin_neon_vcaddq_rot270_f64:
+    return "NEON::BI__builtin_neon_vcaddq_rot270_f64";
+  case NEON::BI__builtin_neon_vcaddq_rot90_f16:
+    return "NEON::BI__builtin_neon_vcaddq_rot90_f16";
+  case NEON::BI__builtin_neon_vcaddq_rot90_f32:
+    return "NEON::BI__builtin_neon_vcaddq_rot90_f32";
+  case NEON::BI__builtin_neon_vcaddq_rot90_f64:
+    return "NEON::BI__builtin_neon_vcaddq_rot90_f64";
+  case NEON::BI__builtin_neon_vcage_v:
+    return "NEON::BI__builtin_neon_vcage_v";
+  case NEON::BI__builtin_neon_vcageq_v:
+    return "NEON::BI__builtin_neon_vcageq_v";
+  case NEON::BI__builtin_neon_vcagt_v:
+    return "NEON::BI__builtin_neon_vcagt_v";
+  case NEON::BI__builtin_neon_vcagtq_v:
+    return "NEON::BI__builtin_neon_vcagtq_v";
+  case NEON::BI__builtin_neon_vcale_v:
+    return "NEON::BI__builtin_neon_vcale_v";
+  case NEON::BI__builtin_neon_vcaleq_v:
+    return "NEON::BI__builtin_neon_vcaleq_v";
+  case NEON::BI__builtin_neon_vcalt_v:
+    return "NEON::BI__builtin_neon_vcalt_v";
+  case NEON::BI__builtin_neon_vcaltq_v:
+    return "NEON::BI__builtin_neon_vcaltq_v";
+  case NEON::BI__builtin_neon_vceqz_v:
+    return "NEON::BI__builtin_neon_vceqz_v";
+  case NEON::BI__builtin_neon_vceqzq_v:
+    return "NEON::BI__builtin_neon_vceqzq_v";
+  case NEON::BI__builtin_neon_vcgez_v:
+    return "NEON::BI__builtin_neon_vcgez_v";
+  case NEON::BI__builtin_neon_vcgezq_v:
+    return "NEON::BI__builtin_neon_vcgezq_v";
+  case NEON::BI__builtin_neon_vcgtz_v:
+    return "NEON::BI__builtin_neon_vcgtz_v";
+  case NEON::BI__builtin_neon_vcgtzq_v:
+    return "NEON::BI__builtin_neon_vcgtzq_v";
+  case NEON::BI__builtin_neon_vclez_v:
+    return "NEON::BI__builtin_neon_vclez_v";
+  case NEON::BI__builtin_neon_vclezq_v:
+    return "NEON::BI__builtin_neon_vclezq_v";
+  case NEON::BI__builtin_neon_vcls_v:
+    return "NEON::BI__builtin_neon_vcls_v";
+  case NEON::BI__builtin_neon_vclsq_v:
+    return "NEON::BI__builtin_neon_vclsq_v";
+  case NEON::BI__builtin_neon_vcltz_v:
+    return "NEON::BI__builtin_neon_vcltz_v";
+  case NEON::BI__builtin_neon_vcltzq_v:
+    return "NEON::BI__builtin_neon_vcltzq_v";
+  case NEON::BI__builtin_neon_vclz_v:
+    return "NEON::BI__builtin_neon_vclz_v";
+  case NEON::BI__builtin_neon_vclzq_v:
+    return "NEON::BI__builtin_neon_vclzq_v";
+  case NEON::BI__builtin_neon_vcmla_f16:
+    return "NEON::BI__builtin_neon_vcmla_f16";
+  case NEON::BI__builtin_neon_vcmla_f32:
+    return "NEON::BI__builtin_neon_vcmla_f32";
+  case NEON::BI__builtin_neon_vcmla_rot180_f16:
+    return "NEON::BI__builtin_neon_vcmla_rot180_f16";
+  case NEON::BI__builtin_neon_vcmla_rot180_f32:
+    return "NEON::BI__builtin_neon_vcmla_rot180_f32";
+  case NEON::BI__builtin_neon_vcmla_rot270_f16:
+    return "NEON::BI__builtin_neon_vcmla_rot270_f16";
+  case NEON::BI__builtin_neon_vcmla_rot270_f32:
+    return "NEON::BI__builtin_neon_vcmla_rot270_f32";
+  case NEON::BI__builtin_neon_vcmla_rot90_f16:
+    return "NEON::BI__builtin_neon_vcmla_rot90_f16";
+  case NEON::BI__builtin_neon_vcmla_rot90_f32:
+    return "NEON::BI__builtin_neon_vcmla_rot90_f32";
+  case NEON::BI__builtin_neon_vcmlaq_f16:
+    return "NEON::BI__builtin_neon_vcmlaq_f16";
+  case NEON::BI__builtin_neon_vcmlaq_f32:
+    return "NEON::BI__builtin_neon_vcmlaq_f32";
+  case NEON::BI__builtin_neon_vcmlaq_f64:
+    return "NEON::BI__builtin_neon_vcmlaq_f64";
+  case NEON::BI__builtin_neon_vcmlaq_rot180_f16:
+    return "NEON::BI__builtin_neon_vcmlaq_rot180_f16";
+  case NEON::BI__builtin_neon_vcmlaq_rot180_f32:
+    return "NEON::BI__builtin_neon_vcmlaq_rot180_f32";
+  case NEON::BI__builtin_neon_vcmlaq_rot180_f64:
+    return "NEON::BI__builtin_neon_vcmlaq_rot180_f64";
+  case NEON::BI__builtin_neon_vcmlaq_rot270_f16:
+    return "NEON::BI__builtin_neon_vcmlaq_rot270_f16";
+  case NEON::BI__builtin_neon_vcmlaq_rot270_f32:
+    return "NEON::BI__builtin_neon_vcmlaq_rot270_f32";
+  case NEON::BI__builtin_neon_vcmlaq_rot270_f64:
+    return "NEON::BI__builtin_neon_vcmlaq_rot270_f64";
+  case NEON::BI__builtin_neon_vcmlaq_rot90_f16:
+    return "NEON::BI__builtin_neon_vcmlaq_rot90_f16";
+  case NEON::BI__builtin_neon_vcmlaq_rot90_f32:
+    return "NEON::BI__builtin_neon_vcmlaq_rot90_f32";
+  case NEON::BI__builtin_neon_vcmlaq_rot90_f64:
+    return "NEON::BI__builtin_neon_vcmlaq_rot90_f64";
+  case NEON::BI__builtin_neon_vcnt_v:
+    return "NEON::BI__builtin_neon_vcnt_v";
+  case NEON::BI__builtin_neon_vcntq_v:
+    return "NEON::BI__builtin_neon_vcntq_v";
+  case NEON::BI__builtin_neon_vcvt_f16_f32:
+    return "NEON::BI__builtin_neon_vcvt_f16_f32";
+  case NEON::BI__builtin_neon_vcvt_f16_s16:
+    return "NEON::BI__builtin_neon_vcvt_f16_s16";
+  case NEON::BI__builtin_neon_vcvt_f16_u16:
+    return "NEON::BI__builtin_neon_vcvt_f16_u16";
+  case NEON::BI__builtin_neon_vcvt_f32_f16:
+    return "NEON::BI__builtin_neon_vcvt_f32_f16";
+  case NEON::BI__builtin_neon_vcvt_f32_v:
+    return "NEON::BI__builtin_neon_vcvt_f32_v";
+  case NEON::BI__builtin_neon_vcvt_n_f16_s16:
+    return "NEON::BI__builtin_neon_vcvt_n_f16_s16";
+  case NEON::BI__builtin_neon_vcvt_n_f16_u16:
+    return "NEON::BI__builtin_neon_vcvt_n_f16_u16";
+  case NEON::BI__builtin_neon_vcvt_n_f32_v:
+    return "NEON::BI__builtin_neon_vcvt_n_f32_v";
+  case NEON::BI__builtin_neon_vcvt_n_f64_v:
+    return "NEON::BI__builtin_neon_vcvt_n_f64_v";
+  case NEON::BI__builtin_neon_vcvt_n_s16_f16:
+    return "NEON::BI__builtin_neon_vcvt_n_s16_f16";
+  case NEON::BI__builtin_neon_vcvt_n_s32_v:
+    return "NEON::BI__builtin_neon_vcvt_n_s32_v";
+  case NEON::BI__builtin_neon_vcvt_n_s64_v:
+    return "NEON::BI__builtin_neon_vcvt_n_s64_v";
+  case NEON::BI__builtin_neon_vcvt_n_u16_f16:
+    return "NEON::BI__builtin_neon_vcvt_n_u16_f16";
+  case NEON::BI__builtin_neon_vcvt_n_u32_v:
+    return "NEON::BI__builtin_neon_vcvt_n_u32_v";
+  case NEON::BI__builtin_neon_vcvt_n_u64_v:
+    return "NEON::BI__builtin_neon_vcvt_n_u64_v";
+  case NEON::BI__builtin_neon_vcvtq_f16_s16:
+    return "NEON::BI__builtin_neon_vcvtq_f16_s16";
+  case NEON::BI__builtin_neon_vcvtq_f16_u16:
+    return "NEON::BI__builtin_neon_vcvtq_f16_u16";
+  case NEON::BI__builtin_neon_vcvtq_f32_v:
+    return "NEON::BI__builtin_neon_vcvtq_f32_v";
+  case NEON::BI__builtin_neon_vcvtq_high_bf16_f32:
+    return "NEON::BI__builtin_neon_vcvtq_high_bf16_f32";
+  case NEON::BI__builtin_neon_vcvtq_n_f16_s16:
+    return "NEON::BI__builtin_neon_vcvtq_n_f16_s16";
+  case NEON::BI__builtin_neon_vcvtq_n_f16_u16:
+    return "NEON::BI__builtin_neon_vcvtq_n_f16_u16";
+  case NEON::BI__builtin_neon_vcvtq_n_f32_v:
+    return "NEON::BI__builtin_neon_vcvtq_n_f32_v";
+  case NEON::BI__builtin_neon_vcvtq_n_f64_v:
+    return "NEON::BI__builtin_neon_vcvtq_n_f64_v";
+  case NEON::BI__builtin_neon_vcvtq_n_s16_f16:
+    return "NEON::BI__builtin_neon_vcvtq_n_s16_f16";
+  case NEON::BI__builtin_neon_vcvtq_n_s32_v:
+    return "NEON::BI__builtin_neon_vcvtq_n_s32_v";
+  case NEON::BI__builtin_neon_vcvtq_n_s64_v:
+    return "NEON::BI__builtin_neon_vcvtq_n_s64_v";
+  case NEON::BI__builtin_neon_vcvtq_n_u16_f16:
+    return "NEON::BI__builtin_neon_vcvtq_n_u16_f16";
+  case NEON::BI__builtin_neon_vcvtq_n_u32_v:
+    return "NEON::BI__builtin_neon_vcvtq_n_u32_v";
+  case NEON::BI__builtin_neon_vcvtq_n_u64_v:
+    return "NEON::BI__builtin_neon_vcvtq_n_u64_v";
+  case NEON::BI__builtin_neon_vcvtx_f32_v:
+    return "NEON::BI__builtin_neon_vcvtx_f32_v";
+  case NEON::BI__builtin_neon_vdot_s32:
+    return "NEON::BI__builtin_neon_vdot_s32";
+  case NEON::BI__builtin_neon_vdot_u32:
+    return "NEON::BI__builtin_neon_vdot_u32";
+  case NEON::BI__builtin_neon_vdotq_s32:
+    return "NEON::BI__builtin_neon_vdotq_s32";
+  case NEON::BI__builtin_neon_vdotq_u32:
+    return "NEON::BI__builtin_neon_vdotq_u32";
+  case NEON::BI__builtin_neon_veor3q_s16:
+    return "NEON::BI__builtin_neon_veor3q_s16";
+  case NEON::BI__builtin_neon_veor3q_s32:
+    return "NEON::BI__builtin_neon_veor3q_s32";
+  case NEON::BI__builtin_neon_veor3q_s64:
+    return "NEON::BI__builtin_neon_veor3q_s64";
+  case NEON::BI__builtin_neon_veor3q_s8:
+    return "NEON::BI__builtin_neon_veor3q_s8";
+  case NEON::BI__builtin_neon_veor3q_u16:
+    return "NEON::BI__builtin_neon_veor3q_u16";
+  case NEON::BI__builtin_neon_veor3q_u32:
+    return "NEON::BI__builtin_neon_veor3q_u32";
+  case NEON::BI__builtin_neon_veor3q_u64:
+    return "NEON::BI__builtin_neon_veor3q_u64";
+  case NEON::BI__builtin_neon_veor3q_u8:
+    return "NEON::BI__builtin_neon_veor3q_u8";
+  case NEON::BI__builtin_neon_vext_v:
+    return "NEON::BI__builtin_neon_vext_v";
+  case NEON::BI__builtin_neon_vextq_v:
+    return "NEON::BI__builtin_neon_vextq_v";
+  case NEON::BI__builtin_neon_vfma_v:
+    return "NEON::BI__builtin_neon_vfma_v";
+  case NEON::BI__builtin_neon_vfmaq_v:
+    return "NEON::BI__builtin_neon_vfmaq_v";
+  case NEON::BI__builtin_neon_vfmlal_high_f16:
+    return "NEON::BI__builtin_neon_vfmlal_high_f16";
+  case NEON::BI__builtin_neon_vfmlal_low_f16:
+    return "NEON::BI__builtin_neon_vfmlal_low_f16";
+  case NEON::BI__builtin_neon_vfmlalq_high_f16:
+    return "NEON::BI__builtin_neon_vfmlalq_high_f16";
+  case NEON::BI__builtin_neon_vfmlalq_low_f16:
+    return "NEON::BI__builtin_neon_vfmlalq_low_f16";
+  case NEON::BI__builtin_neon_vfmlsl_high_f16:
+    return "NEON::BI__builtin_neon_vfmlsl_high_f16";
+  case NEON::BI__builtin_neon_vfmlsl_low_f16:
+    return "NEON::BI__builtin_neon_vfmlsl_low_f16";
+  case NEON::BI__builtin_neon_vfmlslq_high_f16:
+    return "NEON::BI__builtin_neon_vfmlslq_high_f16";
+  case NEON::BI__builtin_neon_vfmlslq_low_f16:
+    return "NEON::BI__builtin_neon_vfmlslq_low_f16";
+  case NEON::BI__builtin_neon_vhadd_v:
+    return "NEON::BI__builtin_neon_vhadd_v";
+  case NEON::BI__builtin_neon_vhaddq_v:
+    return "NEON::BI__builtin_neon_vhaddq_v";
+  case NEON::BI__builtin_neon_vhsub_v:
+    return "NEON::BI__builtin_neon_vhsub_v";
+  case NEON::BI__builtin_neon_vhsubq_v:
+    return "NEON::BI__builtin_neon_vhsubq_v";
+  case NEON::BI__builtin_neon_vld1_x2_v:
+    return "NEON::BI__builtin_neon_vld1_x2_v";
+  case NEON::BI__builtin_neon_vld1_x3_v:
+    return "NEON::BI__builtin_neon_vld1_x3_v";
+  case NEON::BI__builtin_neon_vld1_x4_v:
+    return "NEON::BI__builtin_neon_vld1_x4_v";
+  case NEON::BI__builtin_neon_vld1q_x2_v:
+    return "NEON::BI__builtin_neon_vld1q_x2_v";
+  case NEON::BI__builtin_neon_vld1q_x3_v:
+    return "NEON::BI__builtin_neon_vld1q_x3_v";
+  case NEON::BI__builtin_neon_vld1q_x4_v:
+    return "NEON::BI__builtin_neon_vld1q_x4_v";
+  case NEON::BI__builtin_neon_vmmlaq_s32:
+    return "NEON::BI__builtin_neon_vmmlaq_s32";
+  case NEON::BI__builtin_neon_vmmlaq_u32:
+    return "NEON::BI__builtin_neon_vmmlaq_u32";
+  case NEON::BI__builtin_neon_vmovl_v:
+    return "NEON::BI__builtin_neon_vmovl_v";
+  case NEON::BI__builtin_neon_vmovn_v:
+    return "NEON::BI__builtin_neon_vmovn_v";
+  case NEON::BI__builtin_neon_vmul_v:
+    return "NEON::BI__builtin_neon_vmul_v";
+  case NEON::BI__builtin_neon_vmulq_v:
+    return "NEON::BI__builtin_neon_vmulq_v";
+  case NEON::BI__builtin_neon_vpadd_v:
+    return "NEON::BI__builtin_neon_vpadd_v";
+  case NEON::BI__builtin_neon_vpaddl_v:
+    return "NEON::BI__builtin_neon_vpaddl_v";
+  case NEON::BI__builtin_neon_vpaddlq_v:
+    return "NEON::BI__builtin_neon_vpaddlq_v";
+  case NEON::BI__builtin_neon_vpaddq_v:
+    return "NEON::BI__builtin_neon_vpaddq_v";
+  case NEON::BI__builtin_neon_vqabs_v:
+    return "NEON::BI__builtin_neon_vqabs_v";
+  case NEON::BI__builtin_neon_vqabsq_v:
+    return "NEON::BI__builtin_neon_vqabsq_v";
+  case NEON::BI__builtin_neon_vqadd_v:
+    return "NEON::BI__builtin_neon_vqadd_v";
+  case NEON::BI__builtin_neon_vqaddq_v:
+    return "NEON::BI__builtin_neon_vqaddq_v";
+  case NEON::BI__builtin_neon_vqdmlal_v:
+    return "NEON::BI__builtin_neon_vqdmlal_v";
+  case NEON::BI__builtin_neon_vqdmlsl_v:
+    return "NEON::BI__builtin_neon_vqdmlsl_v";
+  case NEON::BI__builtin_neon_vqdmulh_lane_v:
+    return "NEON::BI__builtin_neon_vqdmulh_lane_v";
+  case NEON::BI__builtin_neon_vqdmulh_laneq_v:
+    return "NEON::BI__builtin_neon_vqdmulh_laneq_v";
+  case NEON::BI__builtin_neon_vqdmulh_v:
+    return "NEON::BI__builtin_neon_vqdmulh_v";
+  case NEON::BI__builtin_neon_vqdmulhq_lane_v:
+    return "NEON::BI__builtin_neon_vqdmulhq_lane_v";
+  case NEON::BI__builtin_neon_vqdmulhq_laneq_v:
+    return "NEON::BI__builtin_neon_vqdmulhq_laneq_v";
+  case NEON::BI__builtin_neon_vqdmulhq_v:
+    return "NEON::BI__builtin_neon_vqdmulhq_v";
+  case NEON::BI__builtin_neon_vqdmull_v:
+    return "NEON::BI__builtin_neon_vqdmull_v";
+  case NEON::BI__builtin_neon_vqmovn_v:
+    return "NEON::BI__builtin_neon_vqmovn_v";
+  case NEON::BI__builtin_neon_vqmovun_v:
+    return "NEON::BI__builtin_neon_vqmovun_v";
+  case NEON::BI__builtin_neon_vqneg_v:
+    return "NEON::BI__builtin_neon_vqneg_v";
+  case NEON::BI__builtin_neon_vqnegq_v:
+    return "NEON::BI__builtin_neon_vqnegq_v";
+  case NEON::BI__builtin_neon_vqrdmlah_s16:
+    return "NEON::BI__builtin_neon_vqrdmlah_s16";
+  case NEON::BI__builtin_neon_vqrdmlah_s32:
+    return "NEON::BI__builtin_neon_vqrdmlah_s32";
+  case NEON::BI__builtin_neon_vqrdmlahq_s16:
+    return "NEON::BI__builtin_neon_vqrdmlahq_s16";
+  case NEON::BI__builtin_neon_vqrdmlahq_s32:
+    return "NEON::BI__builtin_neon_vqrdmlahq_s32";
+  case NEON::BI__builtin_neon_vqrdmlsh_s16:
+    return "NEON::BI__builtin_neon_vqrdmlsh_s16";
+  case NEON::BI__builtin_neon_vqrdmlsh_s32:
+    return "NEON::BI__builtin_neon_vqrdmlsh_s32";
+  case NEON::BI__builtin_neon_vqrdmlshq_s16:
+    return "NEON::BI__builtin_neon_vqrdmlshq_s16";
+  case NEON::BI__builtin_neon_vqrdmlshq_s32:
+    return "NEON::BI__builtin_neon_vqrdmlshq_s32";
+  case NEON::BI__builtin_neon_vqrdmulh_lane_v:
+    return "NEON::BI__builtin_neon_vqrdmulh_lane_v";
+  case NEON::BI__builtin_neon_vqrdmulh_laneq_v:
+    return "NEON::BI__builtin_neon_vqrdmulh_laneq_v";
+  case NEON::BI__builtin_neon_vqrdmulh_v:
+    return "NEON::BI__builtin_neon_vqrdmulh_v";
+  case NEON::BI__builtin_neon_vqrdmulhq_lane_v:
+    return "NEON::BI__builtin_neon_vqrdmulhq_lane_v";
+  case NEON::BI__builtin_neon_vqrdmulhq_laneq_v:
+    return "NEON::BI__builtin_neon_vqrdmulhq_laneq_v";
+  case NEON::BI__builtin_neon_vqrdmulhq_v:
+    return "NEON::BI__builtin_neon_vqrdmulhq_v";
+  case NEON::BI__builtin_neon_vqrshl_v:
+    return "NEON::BI__builtin_neon_vqrshl_v";
+  case NEON::BI__builtin_neon_vqrshlq_v:
+    return "NEON::BI__builtin_neon_vqrshlq_v";
+  case NEON::BI__builtin_neon_vqshl_n_v:
+    return "NEON::BI__builtin_neon_vqshl_n_v";
+  case NEON::BI__builtin_neon_vqshl_v:
+    return "NEON::BI__builtin_neon_vqshl_v";
+  case NEON::BI__builtin_neon_vqshlq_n_v:
+    return "NEON::BI__builtin_neon_vqshlq_n_v";
+  case NEON::BI__builtin_neon_vqshlq_v:
+    return "NEON::BI__builtin_neon_vqshlq_v";
+  case NEON::BI__builtin_neon_vqshlu_n_v:
+    return "NEON::BI__builtin_neon_vqshlu_n_v";
+  case NEON::BI__builtin_neon_vqshluq_n_v:
+    return "NEON::BI__builtin_neon_vqshluq_n_v";
+  case NEON::BI__builtin_neon_vqsub_v:
+    return "NEON::BI__builtin_neon_vqsub_v";
+  case NEON::BI__builtin_neon_vqsubq_v:
+    return "NEON::BI__builtin_neon_vqsubq_v";
+  case NEON::BI__builtin_neon_vraddhn_v:
+    return "NEON::BI__builtin_neon_vraddhn_v";
+  case NEON::BI__builtin_neon_vrax1q_u64:
+    return "NEON::BI__builtin_neon_vrax1q_u64";
+  case NEON::BI__builtin_neon_vrecpe_v:
+    return "NEON::BI__builtin_neon_vrecpe_v";
+  case NEON::BI__builtin_neon_vrecpeq_v:
+    return "NEON::BI__builtin_neon_vrecpeq_v";
+  case NEON::BI__builtin_neon_vrecps_v:
+    return "NEON::BI__builtin_neon_vrecps_v";
+  case NEON::BI__builtin_neon_vrecpsq_v:
+    return "NEON::BI__builtin_neon_vrecpsq_v";
+  case NEON::BI__builtin_neon_vrhadd_v:
+    return "NEON::BI__builtin_neon_vrhadd_v";
+  case NEON::BI__builtin_neon_vrhaddq_v:
+    return "NEON::BI__builtin_neon_vrhaddq_v";
+  case NEON::BI__builtin_neon_vrnd32x_f32:
+    return "NEON::BI__builtin_neon_vrnd32x_f32";
+  case NEON::BI__builtin_neon_vrnd32x_f64:
+    return "NEON::BI__builtin_neon_vrnd32x_f64";
+  case NEON::BI__builtin_neon_vrnd32xq_f32:
+    return "NEON::BI__builtin_neon_vrnd32xq_f32";
+  case NEON::BI__builtin_neon_vrnd32xq_f64:
+    return "NEON::BI__builtin_neon_vrnd32xq_f64";
+  case NEON::BI__builtin_neon_vrnd32z_f32:
+    return "NEON::BI__builtin_neon_vrnd32z_f32";
+  case NEON::BI__builtin_neon_vrnd32z_f64:
+    return "NEON::BI__builtin_neon_vrnd32z_f64";
+  case NEON::BI__builtin_neon_vrnd32zq_f32:
+    return "NEON::BI__builtin_neon_vrnd32zq_f32";
+  case NEON::BI__builtin_neon_vrnd32zq_f64:
+    return "NEON::BI__builtin_neon_vrnd32zq_f64";
+  case NEON::BI__builtin_neon_vrnd64x_f32:
+    return "NEON::BI__builtin_neon_vrnd64x_f32";
+  case NEON::BI__builtin_neon_vrnd64x_f64:
+    return "NEON::BI__builtin_neon_vrnd64x_f64";
+  case NEON::BI__builtin_neon_vrnd64xq_f32:
+    return "NEON::BI__builtin_neon_vrnd64xq_f32";
+  case NEON::BI__builtin_neon_vrnd64xq_f64:
+    return "NEON::BI__builtin_neon_vrnd64xq_f64";
+  case NEON::BI__builtin_neon_vrnd64z_f32:
+    return "NEON::BI__builtin_neon_vrnd64z_f32";
+  case NEON::BI__builtin_neon_vrnd64z_f64:
+    return "NEON::BI__builtin_neon_vrnd64z_f64";
+  case NEON::BI__builtin_neon_vrnd64zq_f32:
+    return "NEON::BI__builtin_neon_vrnd64zq_f32";
+  case NEON::BI__builtin_neon_vrnd64zq_f64:
+    return "NEON::BI__builtin_neon_vrnd64zq_f64";
+  case NEON::BI__builtin_neon_vrndi_v:
+    return "NEON::BI__builtin_neon_vrndi_v";
+  case NEON::BI__builtin_neon_vrndiq_v:
+    return "NEON::BI__builtin_neon_vrndiq_v";
+  case NEON::BI__builtin_neon_vrshl_v:
+    return "NEON::BI__builtin_neon_vrshl_v";
+  case NEON::BI__builtin_neon_vrshlq_v:
+    return "NEON::BI__builtin_neon_vrshlq_v";
+  case NEON::BI__builtin_neon_vrshr_n_v:
+    return "NEON::BI__builtin_neon_vrshr_n_v";
+  case NEON::BI__builtin_neon_vrshrq_n_v:
+    return "NEON::BI__builtin_neon_vrshrq_n_v";
+  case NEON::BI__builtin_neon_vrsqrte_v:
+    return "NEON::BI__builtin_neon_vrsqrte_v";
+  case NEON::BI__builtin_neon_vrsqrteq_v:
+    return "NEON::BI__builtin_neon_vrsqrteq_v";
+  case NEON::BI__builtin_neon_vrsqrts_v:
+    return "NEON::BI__builtin_neon_vrsqrts_v";
+  case NEON::BI__builtin_neon_vrsqrtsq_v:
+    return "NEON::BI__builtin_neon_vrsqrtsq_v";
+  case NEON::BI__builtin_neon_vrsubhn_v:
+    return "NEON::BI__builtin_neon_vrsubhn_v";
+  case NEON::BI__builtin_neon_vsha1su0q_u32:
+    return "NEON::BI__builtin_neon_vsha1su0q_u32";
+  case NEON::BI__builtin_neon_vsha1su1q_u32:
+    return "NEON::BI__builtin_neon_vsha1su1q_u32";
+  case NEON::BI__builtin_neon_vsha256h2q_u32:
+    return "NEON::BI__builtin_neon_vsha256h2q_u32";
+  case NEON::BI__builtin_neon_vsha256hq_u32:
+    return "NEON::BI__builtin_neon_vsha256hq_u32";
+  case NEON::BI__builtin_neon_vsha256su0q_u32:
+    return "NEON::BI__builtin_neon_vsha256su0q_u32";
+  case NEON::BI__builtin_neon_vsha256su1q_u32:
+    return "NEON::BI__builtin_neon_vsha256su1q_u32";
+  case NEON::BI__builtin_neon_vsha512h2q_u64:
+    return "NEON::BI__builtin_neon_vsha512h2q_u64";
+  case NEON::BI__builtin_neon_vsha512hq_u64:
+    return "NEON::BI__builtin_neon_vsha512hq_u64";
+  case NEON::BI__builtin_neon_vsha512su0q_u64:
+    return "NEON::BI__builtin_neon_vsha512su0q_u64";
+  case NEON::BI__builtin_neon_vsha512su1q_u64:
+    return "NEON::BI__builtin_neon_vsha512su1q_u64";
+  case NEON::BI__builtin_neon_vshl_n_v:
+    return "NEON::BI__builtin_neon_vshl_n_v";
+  case NEON::BI__builtin_neon_vshl_v:
+    return "NEON::BI__builtin_neon_vshl_v";
+  case NEON::BI__builtin_neon_vshll_n_v:
+    return "NEON::BI__builtin_neon_vshll_n_v";
+  case NEON::BI__builtin_neon_vshlq_n_v:
+    return "NEON::BI__builtin_neon_vshlq_n_v";
+  case NEON::BI__builtin_neon_vshlq_v:
+    return "NEON::BI__builtin_neon_vshlq_v";
+  case NEON::BI__builtin_neon_vshr_n_v:
+    return "NEON::BI__builtin_neon_vshr_n_v";
+  case NEON::BI__builtin_neon_vshrn_n_v:
+    return "NEON::BI__builtin_neon_vshrn_n_v";
+  case NEON::BI__builtin_neon_vshrq_n_v:
+    return "NEON::BI__builtin_neon_vshrq_n_v";
+  case NEON::BI__builtin_neon_vsm3partw1q_u32:
+    return "NEON::BI__builtin_neon_vsm3partw1q_u32";
+  case NEON::BI__builtin_neon_vsm3partw2q_u32:
+    return "NEON::BI__builtin_neon_vsm3partw2q_u32";
+  case NEON::BI__builtin_neon_vsm3ss1q_u32:
+    return "NEON::BI__builtin_neon_vsm3ss1q_u32";
+  case NEON::BI__builtin_neon_vsm3tt1aq_u32:
+    return "NEON::BI__builtin_neon_vsm3tt1aq_u32";
+  case NEON::BI__builtin_neon_vsm3tt1bq_u32:
+    return "NEON::BI__builtin_neon_vsm3tt1bq_u32";
+  case NEON::BI__builtin_neon_vsm3tt2aq_u32:
+    return "NEON::BI__builtin_neon_vsm3tt2aq_u32";
+  case NEON::BI__builtin_neon_vsm3tt2bq_u32:
+    return "NEON::BI__builtin_neon_vsm3tt2bq_u32";
+  case NEON::BI__builtin_neon_vsm4ekeyq_u32:
+    return "NEON::BI__builtin_neon_vsm4ekeyq_u32";
+  case NEON::BI__builtin_neon_vsm4eq_u32:
+    return "NEON::BI__builtin_neon_vsm4eq_u32";
+  case NEON::BI__builtin_neon_vst1_x2_v:
+    return "NEON::BI__builtin_neon_vst1_x2_v";
+  case NEON::BI__builtin_neon_vst1_x3_v:
+    return "NEON::BI__builtin_neon_vst1_x3_v";
+  case NEON::BI__builtin_neon_vst1_x4_v:
+    return "NEON::BI__builtin_neon_vst1_x4_v";
+  case NEON::BI__builtin_neon_vst1q_x2_v:
+    return "NEON::BI__builtin_neon_vst1q_x2_v";
+  case NEON::BI__builtin_neon_vst1q_x3_v:
+    return "NEON::BI__builtin_neon_vst1q_x3_v";
+  case NEON::BI__builtin_neon_vst1q_x4_v:
+    return "NEON::BI__builtin_neon_vst1q_x4_v";
+  case NEON::BI__builtin_neon_vsubhn_v:
+    return "NEON::BI__builtin_neon_vsubhn_v";
+  case NEON::BI__builtin_neon_vtst_v:
+    return "NEON::BI__builtin_neon_vtst_v";
+  case NEON::BI__builtin_neon_vtstq_v:
+    return "NEON::BI__builtin_neon_vtstq_v";
+  case NEON::BI__builtin_neon_vusdot_s32:
+    return "NEON::BI__builtin_neon_vusdot_s32";
+  case NEON::BI__builtin_neon_vusdotq_s32:
+    return "NEON::BI__builtin_neon_vusdotq_s32";
+  case NEON::BI__builtin_neon_vusmmlaq_s32:
+    return "NEON::BI__builtin_neon_vusmmlaq_s32";
+  case NEON::BI__builtin_neon_vxarq_u64:
+    return "NEON::BI__builtin_neon_vxarq_u64";
+  }
+}
+
 // Some intrinsics are equivalent for codegen.
 static const std::pair<unsigned, unsigned> NEONEquivalentIntrinsicMap[] = {
     {
@@ -1346,9 +1899,11 @@ findARMVectorIntrinsicInMap(ArrayRef<ARMVectorIntrinsicInfo> IntrinsicMap,
   return nullptr;
 }
 
-static mlir::Type GetNeonType(CIRGenFunction *CGF, NeonTypeFlags TypeFlags,
-                              bool HasLegalHalfType = true, bool V1Ty = false,
-                              bool AllowBFloatArgsAndRet = true) {
+static mlir::cir::VectorType GetNeonType(CIRGenFunction *CGF,
+                                         NeonTypeFlags TypeFlags,
+                                         bool HasLegalHalfType = true,
+                                         bool V1Ty = false,
+                                         bool AllowBFloatArgsAndRet = true) {
   int IsQuad = TypeFlags.isQuad();
   switch (TypeFlags.getEltType()) {
   case NeonTypeFlags::Int8:
@@ -1449,7 +2004,7 @@ static mlir::Value buildAArch64TblBuiltinExpr(CIRGenFunction &CGF,
 
   // Determine the type of this overloaded NEON intrinsic.
   NeonTypeFlags Type = Result->getZExtValue();
-  auto Ty = GetNeonType(&CGF, Type);
+  mlir::cir::VectorType Ty = GetNeonType(&CGF, Type);
   if (!Ty)
     return nullptr;
 
@@ -1603,7 +2158,7 @@ static mlir::Value buildArmLdrexNon128Intrinsic(unsigned int builtinID,
 
 mlir::Value buildNeonCall(unsigned int builtinID, CIRGenFunction &cgf,
                           llvm::SmallVector<mlir::Type> argTypes,
-                          llvm::SmallVector<mlir::Value, 4> args,
+                          llvm::SmallVectorImpl<mlir::Value> &args,
                           llvm::StringRef intrinsicName, mlir::Type funcResTy,
                           mlir::Location loc,
                           bool isConstrainedFPIntrinsic = false,
@@ -1638,6 +2193,55 @@ mlir::Value buildNeonCall(unsigned int builtinID, CIRGenFunction &cgf,
             loc, builder.getStringAttr(intrinsicName), funcResTy, args)
         .getResult();
   }
+}
+
+mlir::Value CIRGenFunction::buildCommonNeonBuiltinExpr(
+    unsigned builtinID, unsigned llvmIntrinsic, unsigned altLLVMIntrinsic,
+    const char *nameHint, unsigned modifier, const CallExpr *e,
+    llvm::SmallVectorImpl<mlir::Value> &ops, cir::Address ptrOp0,
+    cir::Address ptrOp1, llvm::Triple::ArchType arch) {
+  // Get the last argument, which specifies the vector type.
+  const clang::Expr *arg = e->getArg(e->getNumArgs() - 1);
+  std::optional<llvm::APSInt> neonTypeConst =
+      arg->getIntegerConstantExpr(getContext());
+  if (!neonTypeConst)
+    return nullptr;
+
+  // Determine the type of this overloaded NEON intrinsic.
+  NeonTypeFlags neonType(neonTypeConst->getZExtValue());
+  bool isUnsigned = neonType.isUnsigned();
+  const bool hasLegalHalfType = getTarget().hasLegalHalfType();
+  // The value of allowBFloatArgsAndRet is true for AArch64, but it should
+  // come from ABI info.
+  const bool allowBFloatArgsAndRet =
+      getTargetHooks().getABIInfo().allowBFloatArgsAndRet();
+
+  mlir::cir::VectorType vTy = GetNeonType(this, neonType, hasLegalHalfType,
+                                          false, allowBFloatArgsAndRet);
+  if (!vTy)
+    return nullptr;
+
+  unsigned intrinicId = llvmIntrinsic;
+  if ((modifier & UnsignedAlts) && !isUnsigned)
+    intrinicId = altLLVMIntrinsic;
+
+  switch (builtinID) {
+  default:
+    llvm::errs() << getAArch64SIMDIntrinsicString(builtinID) << " ";
+    llvm_unreachable("NYI");
+  case NEON::BI__builtin_neon_vqadd_v:
+    mlir::Value res = buildNeonCall(builtinID, *this, {vTy, vTy}, ops,
+                                    (intrinicId != altLLVMIntrinsic)
+                                        ? "llvm.aarch64.neon.uqadd"
+                                        : "llvm.aarch64.neon.sqadd",
+                                    vTy, getLoc(e->getExprLoc()));
+    mlir::Type resultType = ConvertType(e->getType());
+    // AArch64 intrinsic one-element vector type cast to
+    // scalar type expected by the builtin
+    return builder.createBitcast(res, resultType);
+    break;
+  }
+  return nullptr;
 }
 
 mlir::Value
@@ -2162,14 +2766,20 @@ CIRGenFunction::buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   case NEON::BI__builtin_neon_vset_lane_i16:
   case NEON::BI__builtin_neon_vset_lane_i32:
   case NEON::BI__builtin_neon_vset_lane_i64:
-  case NEON::BI__builtin_neon_vset_lane_bf16:
   case NEON::BI__builtin_neon_vset_lane_f32:
   case NEON::BI__builtin_neon_vsetq_lane_i8:
   case NEON::BI__builtin_neon_vsetq_lane_i16:
   case NEON::BI__builtin_neon_vsetq_lane_i32:
   case NEON::BI__builtin_neon_vsetq_lane_i64:
-  case NEON::BI__builtin_neon_vsetq_lane_bf16:
   case NEON::BI__builtin_neon_vsetq_lane_f32:
+    Ops.push_back(buildScalarExpr(E->getArg(2)));
+    return builder.create<mlir::cir::VecInsertOp>(getLoc(E->getExprLoc()),
+                                                  Ops[1], Ops[0], Ops[2]);
+  case NEON::BI__builtin_neon_vset_lane_bf16:
+  case NEON::BI__builtin_neon_vsetq_lane_bf16:
+    // No support for now as no real/test case for them
+    // at the moment, the implementation should be the same as above
+    // vset_lane or vsetq_lane intrinsics
     llvm_unreachable("NYI");
   case NEON::BI__builtin_neon_vset_lane_f64:
     // The vector type needs a cast for the v1f64 variant.
@@ -2180,42 +2790,76 @@ CIRGenFunction::buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
 
   case NEON::BI__builtin_neon_vget_lane_i8:
   case NEON::BI__builtin_neon_vdupb_lane_i8:
-    llvm_unreachable("NYI");
+    Ops[0] = builder.createBitcast(
+        Ops[0], mlir::cir::VectorType::get(builder.getContext(), UInt8Ty, 8));
+    return builder.create<mlir::cir::VecExtractOp>(
+        getLoc(E->getExprLoc()), Ops[0], buildScalarExpr(E->getArg(1)));
   case NEON::BI__builtin_neon_vgetq_lane_i8:
   case NEON::BI__builtin_neon_vdupb_laneq_i8:
-    llvm_unreachable("NYI");
+    Ops[0] = builder.createBitcast(
+        Ops[0], mlir::cir::VectorType::get(builder.getContext(), UInt8Ty, 16));
+    return builder.create<mlir::cir::VecExtractOp>(
+        getLoc(E->getExprLoc()), Ops[0], buildScalarExpr(E->getArg(1)));
   case NEON::BI__builtin_neon_vget_lane_i16:
   case NEON::BI__builtin_neon_vduph_lane_i16:
-    llvm_unreachable("NYI");
+    Ops[0] = builder.createBitcast(
+        Ops[0], mlir::cir::VectorType::get(builder.getContext(), UInt16Ty, 4));
+    return builder.create<mlir::cir::VecExtractOp>(
+        getLoc(E->getExprLoc()), Ops[0], buildScalarExpr(E->getArg(1)));
   case NEON::BI__builtin_neon_vgetq_lane_i16:
   case NEON::BI__builtin_neon_vduph_laneq_i16:
-    llvm_unreachable("NYI");
+    Ops[0] = builder.createBitcast(
+        Ops[0], mlir::cir::VectorType::get(builder.getContext(), UInt16Ty, 8));
+    return builder.create<mlir::cir::VecExtractOp>(
+        getLoc(E->getExprLoc()), Ops[0], buildScalarExpr(E->getArg(1)));
   case NEON::BI__builtin_neon_vget_lane_i32:
   case NEON::BI__builtin_neon_vdups_lane_i32:
-    llvm_unreachable("NYI");
+    Ops[0] = builder.createBitcast(
+        Ops[0], mlir::cir::VectorType::get(builder.getContext(), UInt32Ty, 2));
+    return builder.create<mlir::cir::VecExtractOp>(
+        getLoc(E->getExprLoc()), Ops[0], buildScalarExpr(E->getArg(1)));
+  case NEON::BI__builtin_neon_vget_lane_f32:
   case NEON::BI__builtin_neon_vdups_lane_f32:
-    llvm_unreachable("NYI");
+    Ops[0] = builder.createBitcast(
+        Ops[0], mlir::cir::VectorType::get(builder.getContext(), FloatTy, 2));
+    return builder.create<mlir::cir::VecExtractOp>(
+        getLoc(E->getExprLoc()), Ops[0], buildScalarExpr(E->getArg(1)));
   case NEON::BI__builtin_neon_vgetq_lane_i32:
   case NEON::BI__builtin_neon_vdups_laneq_i32:
-    llvm_unreachable("NYI");
+    Ops[0] = builder.createBitcast(
+        Ops[0], mlir::cir::VectorType::get(builder.getContext(), UInt32Ty, 4));
+    return builder.create<mlir::cir::VecExtractOp>(
+        getLoc(E->getExprLoc()), Ops[0], buildScalarExpr(E->getArg(1)));
   case NEON::BI__builtin_neon_vget_lane_i64:
   case NEON::BI__builtin_neon_vdupd_lane_i64:
-    llvm_unreachable("NYI");
+    Ops[0] = builder.createBitcast(
+        Ops[0], mlir::cir::VectorType::get(builder.getContext(), UInt64Ty, 1));
+    return builder.create<mlir::cir::VecExtractOp>(
+        getLoc(E->getExprLoc()), Ops[0], buildScalarExpr(E->getArg(1)));
   case NEON::BI__builtin_neon_vdupd_lane_f64:
-    llvm_unreachable("NYI");
+  case NEON::BI__builtin_neon_vget_lane_f64:
+    Ops[0] = builder.createBitcast(
+        Ops[0], mlir::cir::VectorType::get(builder.getContext(), DoubleTy, 1));
+    return builder.create<mlir::cir::VecExtractOp>(
+        getLoc(E->getExprLoc()), Ops[0], buildScalarExpr(E->getArg(1)));
   case NEON::BI__builtin_neon_vgetq_lane_i64:
   case NEON::BI__builtin_neon_vdupd_laneq_i64:
-    llvm_unreachable("NYI");
-  case NEON::BI__builtin_neon_vget_lane_f32:
-    llvm_unreachable("NYI");
-  case NEON::BI__builtin_neon_vget_lane_f64:
-    llvm_unreachable("NYI");
+    Ops[0] = builder.createBitcast(
+        Ops[0], mlir::cir::VectorType::get(builder.getContext(), UInt64Ty, 2));
+    return builder.create<mlir::cir::VecExtractOp>(
+        getLoc(E->getExprLoc()), Ops[0], buildScalarExpr(E->getArg(1)));
   case NEON::BI__builtin_neon_vgetq_lane_f32:
   case NEON::BI__builtin_neon_vdups_laneq_f32:
-    llvm_unreachable("NYI");
+    Ops[0] = builder.createBitcast(
+        Ops[0], mlir::cir::VectorType::get(builder.getContext(), FloatTy, 4));
+    return builder.create<mlir::cir::VecExtractOp>(
+        getLoc(E->getExprLoc()), Ops[0], buildScalarExpr(E->getArg(1)));
   case NEON::BI__builtin_neon_vgetq_lane_f64:
   case NEON::BI__builtin_neon_vdupd_laneq_f64:
-    llvm_unreachable("NYI");
+    Ops[0] = builder.createBitcast(
+        Ops[0], mlir::cir::VectorType::get(builder.getContext(), DoubleTy, 2));
+    return builder.create<mlir::cir::VecExtractOp>(
+        getLoc(E->getExprLoc()), Ops[0], buildScalarExpr(E->getArg(1)));
   case NEON::BI__builtin_neon_vaddh_f16:
     llvm_unreachable("NYI");
   case NEON::BI__builtin_neon_vsubh_f16:
@@ -2304,7 +2948,7 @@ CIRGenFunction::buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   }
   }
 
-  auto Ty = GetNeonType(this, Type);
+  mlir::cir::VectorType Ty = GetNeonType(this, Type);
   if (!Ty)
     return nullptr;
 
@@ -2312,15 +2956,17 @@ CIRGenFunction::buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   // defer to common code if it's been added to our special map.
   Builtin = findARMVectorIntrinsicInMap(AArch64SIMDIntrinsicMap, BuiltinID,
                                         AArch64SIMDIntrinsicsProvenSorted);
-  if (Builtin) {
-    llvm_unreachable("NYI");
-  }
+  if (Builtin)
+    return buildCommonNeonBuiltinExpr(
+        Builtin->BuiltinID, Builtin->LLVMIntrinsic, Builtin->AltLLVMIntrinsic,
+        Builtin->NameHint, Builtin->TypeModifier, E, Ops,
+        /*never use addresses*/ Address::invalid(), Address::invalid(), Arch);
 
   if (mlir::Value V =
           buildAArch64TblBuiltinExpr(*this, BuiltinID, E, Ops, Arch))
     return V;
 
-  mlir::Type VTy = Ty;
+  mlir::cir::VectorType VTy = Ty;
   llvm::SmallVector<mlir::Value, 4> args;
   switch (BuiltinID) {
   default:
@@ -2396,7 +3042,12 @@ CIRGenFunction::buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   case NEON::BI__builtin_neon_vqshrun_n_v:
     llvm_unreachable("NYI");
   case NEON::BI__builtin_neon_vqrshrun_n_v:
-    llvm_unreachable("NYI");
+    // The prototype of builtin_neon_vqrshrun_n can be found at
+    // https://developer.arm.com/architectures/instruction-sets/intrinsics/
+    return buildNeonCall(
+        BuiltinID, *this,
+        {builder.getExtendedElementVectorType(Ty, true), SInt32Ty}, Ops,
+        "llvm.aarch64.neon.sqrshrun", Ty, getLoc(E->getExprLoc()));
   case NEON::BI__builtin_neon_vqshrn_n_v:
     llvm_unreachable("NYI");
   case NEON::BI__builtin_neon_vrshrn_n_v:
@@ -2748,7 +3399,11 @@ CIRGenFunction::buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   }
   case NEON::BI__builtin_neon_vld1_lane_v:
   case NEON::BI__builtin_neon_vld1q_lane_v: {
-    llvm_unreachable("NYI");
+    Ops[1] = builder.createBitcast(Ops[1], VTy);
+    Ops[0] = builder.createAlignedLoad(Ops[0].getLoc(), VTy.getEltType(),
+                                       Ops[0], PtrOp0.getAlignment());
+    return builder.create<mlir::cir::VecInsertOp>(getLoc(E->getExprLoc()),
+                                                  Ops[1], Ops[0], Ops[2]);
   }
   case NEON::BI__builtin_neon_vldap1_lane_s64:
   case NEON::BI__builtin_neon_vldap1q_lane_s64: {

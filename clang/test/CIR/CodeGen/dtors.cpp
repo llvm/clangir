@@ -1,7 +1,6 @@
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -std=c++20 -fclangir -mconstructor-aliases -clangir-disable-emit-cxx-default -emit-cir %s -o %t.cir
 // RUN: FileCheck --input-file=%t.cir %s
 
-
 enum class EFMode { Always, Verbose };
 
 class PSEvent {

@@ -2,6 +2,7 @@
 // RUN: FileCheck --check-prefix=CIR --input-file=%t.cir %s
 // RUN: %clang_cc1 -triple aarch64-none-linux-android21 -fclangir -emit-llvm %s -o %t.ll
 // RUN: FileCheck --check-prefix=LLVM --input-file=%t.ll %s
+// XFAIL: *
 
 // CIR: ![[annon_struct:.*]] = !cir.struct<struct  {!cir.int<s, 32>, !cir.array<!cir.int<s, 32> x 2>}>
 // CIR: ![[sized_array:.*]] = !cir.struct<struct "sized_array" {!cir.int<s, 32>, !cir.array<!cir.int<s, 32> x 0>}

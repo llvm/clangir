@@ -370,10 +370,6 @@ bool CIRGenItaniumCXXABI::NeedsVTTParameter(GlobalDecl GD) {
 CIRGenCXXABI *cir::CreateCIRGenItaniumCXXABI(CIRGenModule &CGM) {
   switch (CGM.getASTContext().getCXXABIKind()) {
   case TargetCXXABI::GenericItanium:
-    assert(CGM.getASTContext().getTargetInfo().getTriple().getArch() !=
-               llvm::Triple::le32 &&
-           "le32 NYI");
-    LLVM_FALLTHROUGH;
   case TargetCXXABI::GenericAArch64:
   case TargetCXXABI::AppleARM64:
     // TODO: this isn't quite right, clang uses AppleARM64CXXABI which inherits
@@ -1122,6 +1118,7 @@ static bool TypeInfoIsInStandardLibrary(const BuiltinType *Ty) {
   // Types added here must also be added to EmitFundamentalRTTIDescriptors.
   switch (Ty->getKind()) {
   case BuiltinType::WasmExternRef:
+  case BuiltinType::HLSLResource:
     llvm_unreachable("NYI");
   case BuiltinType::Void:
   case BuiltinType::NullPtr:

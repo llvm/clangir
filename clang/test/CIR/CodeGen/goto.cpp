@@ -272,3 +272,89 @@ void flatLoopWithNoTerminatorInFront(int* ptr) {
 // CHECK:    cir.return
 // CHECK:  }
 // CHECK:}
+
+struct S {};
+struct S get();
+void bar(struct S);
+
+void foo() {
+  { 
+    label:      
+      bar(get());
+  }   
+}
+
+// NOFLAT: cir.func  @_Z3foov()
+// NOFLAT:   cir.scope {
+// NOFLAT:     cir.label "label"
+// NOFLAT:     %0 = cir.alloca !ty_S, !cir.ptr<!ty_S>, ["agg.tmp0"]
+
+extern "C" void action1();
+extern "C" void action2();
+extern "C" void multiple_non_case(int v) {
+  switch (v) {
+    default:
+        action1();
+      l2:
+        action2();
+        break;
+  }
+}
+
+// NOFLAT: cir.func @multiple_non_case
+// NOFLAT: cir.switch
+// NOFLAT: case (default)
+// NOFLAT: cir.call @action1()
+// NOFLAT: cir.br ^[[BB1:[a-zA-Z0-9]+]]
+// NOFLAT: ^[[BB1]]:
+// NOFLAT: cir.label
+// NOFLAT: cir.call @action2()
+// NOFLAT: cir.break
+
+extern "C" void case_follow_label(int v) {
+  switch (v) {
+    case 1:
+    label:
+    case 2:
+      action1();
+      break;
+    default:
+      action2();
+      goto label;
+  }
+}
+
+// NOFLAT: cir.func  @case_follow_label
+// NOFLAT: cir.switch
+// NOFLAT: case (equal, 1)
+// NOFLAT: cir.label "label"
+// NOFLAT: cir.yield
+// NOFLAT: case (equal, 2)
+// NOFLAT: cir.call @action1()
+// NOFLAT: cir.break
+// NOFLAT: case (default)
+// NOFLAT: cir.call @action2()
+// NOFLAT: cir.goto "label"
+
+extern "C" void default_follow_label(int v) {
+  switch (v) {
+    case 1:
+    case 2:
+      action1();
+      break;
+    label:
+    default:
+      action2();
+      goto label;
+  }
+}
+
+// NOFLAT: cir.func  @default_follow_label
+// NOFLAT: cir.switch
+// NOFLAT: case (anyof, [1, 2] : !s32i)
+// NOFLAT: cir.call @action1()
+// NOFLAT: cir.break
+// NOFLAT: cir.label "label"
+// NOFLAT: case (default)
+// NOFLAT: cir.call @action2()
+// NOFLAT: cir.goto "label"

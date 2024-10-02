@@ -207,11 +207,12 @@ Attribute LangAttr::parse(AsmParser &parser, Type odsType) {
   if (parser.parseGreater())
     return {};
 
-  return get(parser.getContext(), langEnum.value());
+  return get(parser.getContext(),
+             SourceLanguageAttr::get(parser.getContext(), langEnum.value()));
 }
 
 void LangAttr::print(AsmPrinter &printer) const {
-  printer << "<" << getLang() << '>';
+  printer << "<" << getLang().getValue() << '>';
 }
 
 //===----------------------------------------------------------------------===//

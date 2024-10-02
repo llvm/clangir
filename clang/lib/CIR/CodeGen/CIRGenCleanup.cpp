@@ -53,12 +53,39 @@ void CIRGenFunction::buildCXXTemporary(const CXXTemporary *Temporary,
               /*useEHCleanup*/ true);
 }
 
-Address CIRGenFunction::createCleanupActiveFlag() { llvm_unreachable("NYI"); }
+Address CIRGenFunction::createCleanupActiveFlag() {
+  mlir::Location loc = currSrcLoc ? *currSrcLoc : builder.getUnknownLoc();
+
+  // Create a variable to decide whether the cleanup needs to be run.
+  // FIXME: set the insertion point for the alloca to be at the entry
+  // basic block of the previous scope, not the entry block of the function.
+  Address active = CreateTempAllocaWithoutCast(
+      builder.getBoolTy(), CharUnits::One(), loc, "cleanup.cond");
+  mlir::Value falseVal, trueVal;
+  {
+    // Place true/false flags close to their allocas.
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.setInsertionPointAfterValue(active.getPointer());
+    falseVal = builder.getFalse(loc);
+    trueVal = builder.getTrue(loc);
+  }
+
+  // Initialize it to false at a site that's guaranteed to be run
+  // before each evaluation.
+  setBeforeOutermostConditional(falseVal, active);
+
+  // Initialize it to true at the current location.
+  builder.createStore(loc, trueVal, active);
+  return active;
+}
 
 DominatingValue<RValue>::saved_type
-DominatingValue<RValue>::saved_type::save(CIRGenFunction &CGF, RValue rv) {
+DominatingValue<RValue>::saved_type::save(CIRGenFunction &cgf, RValue rv) {
   if (rv.isScalar()) {
-    llvm_unreachable("scalar NYI");
+    mlir::Value val = rv.getScalarVal();
+    return saved_type(DominatingCIRValue::save(cgf, val),
+                      DominatingCIRValue::needsSaving(val) ? ScalarAddress
+                                                           : ScalarLiteral);
   }
 
   if (rv.isComplex()) {
@@ -66,6 +93,95 @@ DominatingValue<RValue>::saved_type::save(CIRGenFunction &CGF, RValue rv) {
   }
 
   llvm_unreachable("aggregate NYI");
+}
+
+/// Given a saved r-value produced by SaveRValue, perform the code
+/// necessary to restore it to usability at the current insertion
+/// point.
+RValue DominatingValue<RValue>::saved_type::restore(CIRGenFunction &CGF) {
+  switch (K) {
+  case ScalarLiteral:
+  case ScalarAddress:
+    return RValue::get(DominatingCIRValue::restore(CGF, Vals.first));
+  case AggregateLiteral:
+  case AggregateAddress:
+    return RValue::getAggregate(
+        DominatingValue<Address>::restore(CGF, AggregateAddr));
+  case ComplexAddress: {
+    llvm_unreachable("NYI");
+  }
+  }
+
+  llvm_unreachable("bad saved r-value kind");
+}
+
+static bool IsUsedAsEHCleanup(EHScopeStack &EHStack,
+                              EHScopeStack::stable_iterator cleanup) {
+  // If we needed an EH block for any reason, that counts.
+  if (EHStack.find(cleanup)->hasEHBranches())
+    return true;
+
+  // Check whether any enclosed cleanups were needed.
+  for (EHScopeStack::stable_iterator i = EHStack.getInnermostEHScope();
+       i != cleanup;) {
+    assert(cleanup.strictlyEncloses(i));
+
+    EHScope &scope = *EHStack.find(i);
+    if (scope.hasEHBranches())
+      return true;
+
+    i = scope.getEnclosingEHScope();
+  }
+
+  return false;
+}
+
+enum ForActivation_t { ForActivation, ForDeactivation };
+
+/// The given cleanup block is changing activation state.  Configure a
+/// cleanup variable if necessary.
+///
+/// It would be good if we had some way of determining if there were
+/// extra uses *after* the change-over point.
+static void setupCleanupBlockActivation(CIRGenFunction &CGF,
+                                        EHScopeStack::stable_iterator C,
+                                        ForActivation_t kind,
+                                        mlir::Operation *dominatingIP) {
+  EHCleanupScope &Scope = cast<EHCleanupScope>(*CGF.EHStack.find(C));
+
+  // We always need the flag if we're activating the cleanup in a
+  // conditional context, because we have to assume that the current
+  // location doesn't necessarily dominate the cleanup's code.
+  bool isActivatedInConditional =
+      (kind == ForActivation && CGF.isInConditionalBranch());
+
+  bool needFlag = false;
+
+  // Calculate whether the cleanup was used:
+
+  //   - as a normal cleanup
+  if (Scope.isNormalCleanup()) {
+    Scope.setTestFlagInNormalCleanup();
+    needFlag = true;
+  }
+
+  //  - as an EH cleanup
+  if (Scope.isEHCleanup() &&
+      (isActivatedInConditional || IsUsedAsEHCleanup(CGF.EHStack, C))) {
+    Scope.setTestFlagInEHCleanup();
+    needFlag = true;
+  }
+
+  // If it hasn't yet been used as either, we're done.
+  if (!needFlag)
+    return;
+
+  Address var = Scope.getActiveFlag();
+  if (!var.isValid()) {
+    llvm_unreachable("NYI");
+  }
+
+  llvm_unreachable("NYI");
 }
 
 /// Deactive a cleanup that was created in an active state.
@@ -96,7 +212,9 @@ void CIRGenFunction::DeactivateCleanupBlock(EHScopeStack::stable_iterator C,
     return;
   }
 
-  llvm_unreachable("NYI");
+  // Otherwise, follow the general case.
+  setupCleanupBlockActivation(*this, C, ForDeactivation, dominatingIP);
+  Scope.setActive(false);
 }
 
 void CIRGenFunction::initFullExprCleanupWithFlag(Address ActiveFlag) {
@@ -129,21 +247,30 @@ static void destroyOptimisticNormalEntry(CIRGenFunction &CGF,
 static void buildCleanup(CIRGenFunction &CGF, EHScopeStack::Cleanup *Fn,
                          EHScopeStack::Cleanup::Flags flags,
                          Address ActiveFlag) {
+  auto emitCleanup = [&]() {
+    // Ask the cleanup to emit itself.
+    assert(CGF.HaveInsertPoint() && "expected insertion point");
+    Fn->Emit(CGF, flags);
+    assert(CGF.HaveInsertPoint() && "cleanup ended with no insertion point?");
+  };
+
   // If there's an active flag, load it and skip the cleanup if it's
   // false.
-  if (ActiveFlag.isValid()) {
-    llvm_unreachable("NYI");
-  }
+  cir::CIRGenBuilderTy &builder = CGF.getBuilder();
+  mlir::Location loc =
+      CGF.currSrcLoc ? *CGF.currSrcLoc : builder.getUnknownLoc();
 
-  // Ask the cleanup to emit itself.
-  assert(CGF.HaveInsertPoint() && "expected insertion point");
-  Fn->Emit(CGF, flags);
-  assert(CGF.HaveInsertPoint() && "cleanup ended with no insertion point?");
-
-  // Emit the continuation block if there was an active flag.
   if (ActiveFlag.isValid()) {
-    llvm_unreachable("NYI");
+    mlir::Value isActive = builder.createLoad(loc, ActiveFlag);
+    builder.create<mlir::cir::IfOp>(loc, isActive, false,
+                                    [&](mlir::OpBuilder &b, mlir::Location) {
+                                      emitCleanup();
+                                      builder.createYield(loc);
+                                    });
+  } else {
+    emitCleanup();
   }
+  // No need to emit continuation block because CIR uses a cir.if.
 }
 
 /// Pops a cleanup block. If the block includes a normal cleanup, the

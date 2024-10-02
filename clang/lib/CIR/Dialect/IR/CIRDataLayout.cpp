@@ -1,6 +1,7 @@
 #include "clang/CIR/Dialect/IR/CIRDataLayout.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/MissingFeatures.h"
+#include "llvm/IR/DataLayout.h"
 
 using namespace cir;
 
@@ -132,7 +133,7 @@ void CIRDataLayout::reset(mlir::DataLayoutSpecInterface spec) {
   // ManglingMode = MM_None;
   // NonIntegralAddressSpaces.clear();
   StructAlignment =
-      llvm::LayoutAlignElem::get(llvm::Align(1), llvm::Align(8), 0);
+      llvm::DataLayout::PrimitiveSpec{0, llvm::Align(8), llvm::Align(1)};
 
   // NOTE(cir): Alignment setter functions are skipped as these should already
   // be set in MLIR's data layout.

@@ -478,6 +478,13 @@ public:
   // applies to. nullptr if there is no 'musttail' on the current statement.
   const clang::CallExpr *MustTailCall = nullptr;
 
+  /// The attributes of cases collected during emitting the body of a switch
+  /// stmt.
+  llvm::SmallVector<llvm::SmallVector<mlir::Attribute, 4>, 2> caseAttrsStack;
+
+  /// The type of the condition for the emitting switch statement.
+  llvm::SmallVector<mlir::Type, 2> condTypeStack;
+
   clang::ASTContext &getContext() const;
 
   CIRGenBuilderTy &getBuilder() { return builder; }
@@ -973,6 +980,11 @@ public:
   mlir::Value buildARMCDEBuiltinExpr(unsigned BuiltinID, const CallExpr *E,
                                      ReturnValueSlot ReturnValue,
                                      llvm::Triple::ArchType Arch);
+  mlir::Value buildCommonNeonBuiltinExpr(
+      unsigned builtinID, unsigned llvmIntrinsic, unsigned altLLVMIntrinsic,
+      const char *nameHint, unsigned modifier, const CallExpr *e,
+      llvm::SmallVectorImpl<mlir::Value> &ops, cir::Address ptrOp0,
+      cir::Address ptrOp1, llvm::Triple::ArchType arch);
 
   mlir::Value buildAlignmentAssumption(mlir::Value ptrValue, QualType ty,
                                        SourceLocation loc,
@@ -1210,13 +1222,9 @@ public:
   buildDefaultStmt(const clang::DefaultStmt &S, mlir::Type condType,
                    SmallVector<mlir::Attribute, 4> &caseAttrs);
 
-  mlir::LogicalResult
-  buildSwitchCase(const clang::SwitchCase &S, mlir::Type condType,
-                  SmallVector<mlir::Attribute, 4> &caseAttrs);
+  mlir::LogicalResult buildSwitchCase(const clang::SwitchCase &S);
 
-  mlir::LogicalResult
-  buildSwitchBody(const clang::Stmt *S, mlir::Type condType,
-                  SmallVector<mlir::Attribute, 4> &caseAttrs);
+  mlir::LogicalResult buildSwitchBody(const clang::Stmt *S);
 
   mlir::cir::FuncOp generateCode(clang::GlobalDecl GD, mlir::cir::FuncOp Fn,
                                  const CIRGenFunctionInfo &FnInfo);
@@ -1844,11 +1852,12 @@ public:
 
   /// An object to manage conditionally-evaluated expressions.
   class ConditionalEvaluation {
-    // llvm::BasicBlock *StartBB;
+    mlir::OpBuilder::InsertPoint insertPt;
 
   public:
     ConditionalEvaluation(CIRGenFunction &CGF)
-    /*: StartBB(CGF.Builder.GetInsertBlock())*/ {}
+        : insertPt(CGF.builder.saveInsertionPoint()) {}
+    ConditionalEvaluation(mlir::OpBuilder::InsertPoint ip) : insertPt(ip) {}
 
     void begin(CIRGenFunction &CGF) {
       assert(CGF.OutermostConditional != this);
@@ -1862,9 +1871,10 @@ public:
         CGF.OutermostConditional = nullptr;
     }
 
-    /// Returns a block which will be executed prior to each
-    /// evaluation of the conditional code.
-    // llvm::BasicBlock *getStartingBlock() const { return StartBB; }
+    /// Returns the insertion point which will be executed prior to each
+    /// evaluation of the conditional code. In LLVM OG, this method
+    /// is called getStartingBlock.
+    mlir::OpBuilder::InsertPoint getInsertPoint() const { return insertPt; }
   };
 
   struct ConditionalInfo {
@@ -1882,7 +1892,16 @@ public:
 
   void setBeforeOutermostConditional(mlir::Value value, Address addr) {
     assert(isInConditionalBranch());
-    llvm_unreachable("NYI");
+    {
+      mlir::OpBuilder::InsertionGuard guard(builder);
+      builder.restoreInsertionPoint(OutermostConditional->getInsertPoint());
+      builder.createStore(
+          value.getLoc(), value, addr,
+          /*volatile*/ false,
+          mlir::IntegerAttr::get(
+              mlir::IntegerType::get(value.getContext(), 64),
+              (uint64_t)addr.getAlignment().getAsAlign().value()));
+    }
   }
 
   void pushIrregularPartialArrayCleanup(mlir::Value arrayBegin,
@@ -1909,6 +1928,11 @@ public:
   // we know if a temporary should be destroyed conditionally.
   ConditionalEvaluation *OutermostConditional = nullptr;
 
+  template <class T>
+  typename DominatingValue<T>::saved_type saveValueInCond(T value) {
+    return DominatingValue<T>::save(*this, value);
+  }
+
   /// Push a cleanup to be run at the end of the current full-expression.  Safe
   /// against the possibility that we're currently inside a
   /// conditionally-evaluated expression.
@@ -1919,14 +1943,13 @@ public:
     if (!isInConditionalBranch())
       return EHStack.pushCleanup<T>(kind, A...);
 
-    llvm_unreachable("NYI");
     // Stash values in a tuple so we can guarantee the order of saves.
-    // typedef std::tuple<typename DominatingValue<As>::saved_type...>
-    // SavedTuple; SavedTuple Saved{saveValueInCond(A)...};
+    typedef std::tuple<typename DominatingValue<As>::saved_type...> SavedTuple;
+    SavedTuple Saved{saveValueInCond(A)...};
 
-    // typedef EHScopeStack::ConditionalCleanup<T, As...> CleanupType;
-    // EHStack.pushCleanupTuple<CleanupType>(kind, Saved);
-    // initFullExprCleanup();
+    typedef EHScopeStack::ConditionalCleanup<T, As...> CleanupType;
+    EHStack.pushCleanupTuple<CleanupType>(kind, Saved);
+    initFullExprCleanup();
   }
 
   /// Set up the last cleanup that was pushed as a conditional
@@ -2286,6 +2309,70 @@ private:
   QualType getVarArgType(const Expr *Arg);
 };
 
+/// Helper class with most of the code for saving a value for a
+/// conditional expression cleanup.
+struct DominatingCIRValue {
+  typedef llvm::PointerIntPair<mlir::Value, 1, bool> saved_type;
+
+  /// Answer whether the given value needs extra work to be saved.
+  static bool needsSaving(mlir::Value value) {
+    if (!value)
+      return false;
+
+    // If it's a block argument, we don't need to save.
+    mlir::Operation *definingOp = value.getDefiningOp();
+    if (!definingOp)
+      return false;
+
+    // If value is defined the function or a global init entry block, we don't
+    // need to save.
+    mlir::Block *currBlock = definingOp->getBlock();
+    if (!currBlock->isEntryBlock() || !definingOp->getParentOp())
+      return false;
+
+    if (auto fnOp = definingOp->getParentOfType<mlir::cir::FuncOp>()) {
+      if (&fnOp.getBody().front() == currBlock)
+        return true;
+      return false;
+    }
+
+    if (auto globalOp = definingOp->getParentOfType<mlir::cir::GlobalOp>()) {
+      assert(globalOp.getNumRegions() == 2 && "other regions NYI");
+      if (&globalOp.getCtorRegion().front() == currBlock)
+        return true;
+      if (&globalOp.getDtorRegion().front() == currBlock)
+        return true;
+      return false;
+    }
+
+    return false;
+  }
+
+  static saved_type save(CIRGenFunction &CGF, mlir::Value value);
+  static mlir::Value restore(CIRGenFunction &CGF, saved_type value);
+};
+
+inline DominatingCIRValue::saved_type
+DominatingCIRValue::save(CIRGenFunction &CGF, mlir::Value value) {
+  if (!needsSaving(value))
+    return saved_type(value, false);
+
+  // Otherwise, we need an alloca.
+  auto align = CharUnits::fromQuantity(
+      CGF.CGM.getDataLayout().getPrefTypeAlign(value.getType()));
+  mlir::Location loc = value.getLoc();
+  Address alloca =
+      CGF.CreateTempAlloca(value.getType(), align, loc, "cond-cleanup.save");
+  CGF.getBuilder().createStore(loc, value, alloca);
+
+  return saved_type(alloca.emitRawPointer(), true);
+}
+
+inline mlir::Value DominatingCIRValue::restore(CIRGenFunction &CGF,
+                                               saved_type value) {
+  llvm_unreachable("NYI");
+}
+
 /// A specialization of DominatingValue for RValue.
 template <> struct DominatingValue<RValue> {
   typedef RValue type;
@@ -2297,20 +2384,29 @@ template <> struct DominatingValue<RValue> {
       AggregateAddress,
       ComplexAddress
     };
-
-    llvm::Value *Value;
-    llvm::Type *ElementType;
+    union {
+      struct {
+        DominatingCIRValue::saved_type first, second;
+      } Vals;
+      DominatingValue<Address>::saved_type AggregateAddr;
+    };
+    LLVM_PREFERRED_TYPE(Kind)
     unsigned K : 3;
-    unsigned Align : 29;
-    saved_type(llvm::Value *v, llvm::Type *e, Kind k, unsigned a = 0)
-        : Value(v), ElementType(e), K(k), Align(a) {}
+
+    saved_type(DominatingCIRValue::saved_type Val1, unsigned K)
+        : Vals{Val1, DominatingCIRValue::saved_type()}, K(K) {}
+
+    saved_type(DominatingCIRValue::saved_type Val1,
+               DominatingCIRValue::saved_type Val2)
+        : Vals{Val1, Val2}, K(ComplexAddress) {}
+
+    saved_type(DominatingValue<Address>::saved_type AggregateAddr, unsigned K)
+        : AggregateAddr(AggregateAddr), K(K) {}
 
   public:
     static bool needsSaving(RValue value);
     static saved_type save(CIRGenFunction &CGF, RValue value);
-    RValue restore(CIRGenFunction &CGF) { llvm_unreachable("NYI"); }
-
-    // implementations in CGCleanup.cpp
+    RValue restore(CIRGenFunction &CGF);
   };
 
   static bool needsSaving(type value) { return saved_type::needsSaving(value); }

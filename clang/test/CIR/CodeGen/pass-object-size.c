@@ -2,6 +2,7 @@
 // RUN: FileCheck --input-file=%t.cir %s -check-prefix=CIR
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm %s -o %t.ll
 // RUN: FileCheck --input-file=%t.ll %s -check-prefix=LLVM
+
 void b(void *__attribute__((pass_object_size(0))));
 void e(void *__attribute__((pass_object_size(2))));
 void c() {
