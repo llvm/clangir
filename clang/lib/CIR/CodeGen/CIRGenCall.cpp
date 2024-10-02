@@ -430,7 +430,25 @@ void CIRGenModule::constructAttributeList(StringRef Name,
     }
 
     if (TargetDecl->hasAttr<OpenCLKernelAttr>()) {
-      assert(!MissingFeatures::openCL());
+      auto cirKernelAttr =
+          mlir::cir::OpenCLKernelAttr::get(builder.getContext());
+      funcAttrs.set(cirKernelAttr.getMnemonic(), cirKernelAttr);
+
+      auto uniformAttr = mlir::cir::OpenCLKernelUniformWorkGroupSizeAttr::get(
+          builder.getContext());
+      if (getLangOpts().OpenCLVersion <= 120) {
+        // OpenCL v1.2 Work groups are always uniform
+        funcAttrs.set(uniformAttr.getMnemonic(), uniformAttr);
+      } else {
+        // OpenCL v2.0 Work groups may be whether uniform or not.
+        // '-cl-uniform-work-group-size' compile option gets a hint
+        // to the compiler that the global work-size be a multiple of
+        // the work-group size specified to clEnqueueNDRangeKernel
+        // (i.e. work groups are uniform).
+        if (getLangOpts().OffloadUniformBlock) {
+          funcAttrs.set(uniformAttr.getMnemonic(), uniformAttr);
+        }
+      }
     }
 
     if (TargetDecl->hasAttr<CUDAGlobalAttr>() &&
@@ -1572,6 +1590,16 @@ static void getTrivialDefaultFunctionAttributes(
 
     auto convgt = mlir::cir::ConvergentAttr::get(CGM.getBuilder().getContext());
     funcAttrs.set(convgt.getMnemonic(), convgt);
+  }
+
+  // TODO: NoThrow attribute should be added for other GPU modes CUDA, SYCL,
+  // HIP, OpenMP offload.
+  // AFAIK, neither of them support exceptions in device code.
+  if ((langOpts.CUDA && langOpts.CUDAIsDevice) || langOpts.SYCLIsDevice)
+    llvm_unreachable("NYI");
+  if (langOpts.OpenCL) {
+    auto noThrow = mlir::cir::NoThrowAttr::get(CGM.getBuilder().getContext());
+    funcAttrs.set(noThrow.getMnemonic(), noThrow);
   }
 }
 

@@ -49,12 +49,11 @@ def SourceLanguage : I32EnumAttr<"SourceLanguage", "Source language", [
   C, CXX, OpenCLC
 ]> {
   let cppNamespace = "::mlir::cir";
-  let genSpecializedAttr = 0;
 }
 
 def LangAttr : CIR_Attr<"Lang", "lang"> {
   let summary = "Module source language";
-  let parameters = (ins SourceLanguage:$lang);
+  let parameters = (ins "SourceLanguageAttr":$lang);
   let description = [{
     Represents the source language used to generate the module.
 
@@ -68,9 +67,10 @@ def LangAttr : CIR_Attr<"Lang", "lang"> {
   }];
   let hasCustomAssemblyFormat = 1;
   let extraClassDeclaration = [{
-    bool isC() const { return getLang() == SourceLanguage::C; };
-    bool isCXX() const { return getLang() == SourceLanguage::CXX; };
+    bool isC() const { return getLang().getValue() == SourceLanguage::C; };
+    bool isCXX() const { return getLang().getValue() == SourceLanguage::CXX; };
   }];
+  let genVerifyDecl = 0;
 }
 
 //===----------------------------------------------------------------------===//

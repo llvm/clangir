@@ -78,7 +78,7 @@ class StructType
 public:
   using Base::Base;
   using Base::getChecked;
-  using Base::verify;
+  // using Base::verify;
 
   static constexpr StringLiteral name = "cir.struct";
 

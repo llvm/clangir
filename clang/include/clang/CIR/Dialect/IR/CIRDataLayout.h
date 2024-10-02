@@ -30,7 +30,7 @@ class CIRDataLayout {
 
   /// Primitive type alignment data. This is sorted by type and bit
   /// width during construction.
-  llvm::LayoutAlignElem StructAlignment;
+  llvm::DataLayout::PrimitiveSpec StructAlignment;
 
   // The StructType -> StructLayout map.
   mutable void *LayoutMap = nullptr;
@@ -60,6 +60,10 @@ public:
 
   llvm::Align getABITypeAlign(mlir::Type ty) const {
     return getAlignment(ty, true);
+  }
+
+  llvm::Align getPrefTypeAlign(mlir::Type Ty) const {
+    return getAlignment(Ty, false);
   }
 
   /// Returns the maximum number of bytes that may be overwritten by

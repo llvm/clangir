@@ -65,7 +65,8 @@ void CIRGenOpenMPRuntime::emitTaskWaitCall(CIRGenBuilderTy &builder,
     // TODO: Need to support taskwait with dependences in the OpenMPIRBuilder.
     // TODO(cir): This could change in the near future when OpenMP 5.0 gets
     // supported by MLIR
-    builder.create<mlir::omp::TaskwaitOp>(Loc);
+    llvm_unreachable("NYI");
+    // builder.create<mlir::omp::TaskwaitOp>(Loc);
   } else {
     llvm_unreachable("NYI");
   }

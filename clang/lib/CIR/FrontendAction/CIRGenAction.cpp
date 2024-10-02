@@ -169,6 +169,8 @@ public:
   }
 
   void HandleTranslationUnit(ASTContext &C) override {
+    llvm::TimeTraceScope scope("CIR Gen");
+
     // Note that this method is called after `HandleTopLevelDecl` has already
     // ran all over the top level decls. Here clang mostly wraps defered and
     // global codegen, followed by running CIR passes.
@@ -315,7 +317,7 @@ public:
     gen->CompleteTentativeDefinition(D);
   }
 
-  void CompleteExternalDeclaration(VarDecl *D) override {
+  void CompleteExternalDeclaration(DeclaratorDecl *D) override {
     llvm_unreachable("NYI");
   }
 

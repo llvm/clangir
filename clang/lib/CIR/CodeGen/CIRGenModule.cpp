@@ -33,6 +33,8 @@
 #include "mlir/IR/OperationSupport.h"
 #include "mlir/IR/SymbolTable.h"
 #include "mlir/IR/Verifier.h"
+#include "clang/AST/Expr.h"
+#include "clang/Basic/Cuda.h"
 #include "clang/CIR/MissingFeatures.h"
 
 #include "clang/AST/ASTConsumer.h"
@@ -73,6 +75,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/TimeProfiler.h"
 
 #include <iterator>
 #include <numeric>
@@ -188,8 +191,9 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &context,
   // MLIR features.
   theModule->setAttr("cir.sob",
                      mlir::cir::SignedOverflowBehaviorAttr::get(&context, sob));
+  auto lang = SourceLanguageAttr::get(&context, getCIRSourceLanguage());
   theModule->setAttr(
-      "cir.lang", mlir::cir::LangAttr::get(&context, getCIRSourceLanguage()));
+      "cir.lang", mlir::cir::LangAttr::get(&context, lang));
   theModule->setAttr("cir.triple", builder.getStringAttr(getTriple().str()));
   // Set the module name to be the name of the main file. TranslationUnitDecl
   // often contains invalid source locations and isn't a reliable source for the
@@ -460,6 +464,19 @@ void CIRGenModule::setDSOLocal(CIRGlobalValueInterface GV) const {
 }
 
 void CIRGenModule::buildGlobal(GlobalDecl GD) {
+  llvm::TimeTraceScope scope("build CIR Global", [&]() -> std::string {
+    auto *ND = dyn_cast<NamedDecl>(GD.getDecl());
+    if (!ND)
+      // TODO: How to print decls which is not named decl?
+      return "Unnamed decl";
+
+    std::string Name;
+    llvm::raw_string_ostream OS(Name);
+    ND->getNameForDiagnostic(OS, getASTContext().getPrintingPolicy(),
+                             /*Qualified=*/true);
+    return Name;
+  });
+
   const auto *Global = cast<ValueDecl>(GD.getDecl());
 
   assert(!Global->hasAttr<IFuncAttr>() && "NYI");
@@ -930,9 +947,8 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef MangledName, mlir::Type Ty,
     // FIXME: This code is overly simple and should be merged with other global
     // handling.
     GV.setAlignmentAttr(getSize(astCtx.getDeclAlign(D)));
-    // TODO(cir):
-    //   GV->setConstant(isTypeConstant(D->getType(), false));
-    //   setLinkageForGV(GV, D);
+    GV.setConstant(isTypeConstant(D->getType(), false, false));
+    // TODO(cir): setLinkageForGV(GV, D);
 
     if (D->getTLSKind()) {
       if (D->getTLSKind() == VarDecl::TLS_Dynamic)
@@ -986,8 +1002,9 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef MangledName, mlir::Type Ty,
   return GV;
 }
 
-mlir::cir::GlobalOp CIRGenModule::buildGlobal(const VarDecl *D, mlir::Type Ty,
-                                              ForDefinition_t IsForDefinition) {
+mlir::cir::GlobalOp
+CIRGenModule::getOrCreateCIRGlobal(const VarDecl *D, mlir::Type Ty,
+                                   ForDefinition_t IsForDefinition) {
   assert(D->hasGlobalStorage() && "Not a global variable");
   QualType ASTTy = D->getType();
   if (!Ty)
@@ -1012,7 +1029,7 @@ mlir::Value CIRGenModule::getAddrOfGlobalVar(const VarDecl *D, mlir::Type Ty,
     Ty = getTypes().convertTypeForMem(ASTTy);
 
   bool tlsAccess = D->getTLSKind() != VarDecl::TLS_None;
-  auto g = buildGlobal(D, Ty, IsForDefinition);
+  auto g = getOrCreateCIRGlobal(D, Ty, IsForDefinition);
   auto ptrTy = builder.getPointerTo(g.getSymType(), g.getAddrSpaceAttr());
   return builder.create<mlir::cir::GetGlobalOp>(
       getLoc(D->getSourceRange()), ptrTy, g.getSymName(), tlsAccess);
@@ -1026,7 +1043,7 @@ CIRGenModule::getAddrOfGlobalVarAttr(const VarDecl *D, mlir::Type Ty,
   if (!Ty)
     Ty = getTypes().convertTypeForMem(ASTTy);
 
-  auto globalOp = buildGlobal(D, Ty, IsForDefinition);
+  auto globalOp = getOrCreateCIRGlobal(D, Ty, IsForDefinition);
   return builder.getGlobalViewAttr(builder.getPointerTo(Ty), globalOp);
 }
 
@@ -1215,7 +1232,7 @@ void CIRGenModule::buildGlobalVarDefinition(const clang::VarDecl *D,
   }
   assert(!mlir::isa<mlir::NoneType>(InitType) && "Should have a type by now");
 
-  auto Entry = buildGlobal(D, InitType, ForDefinition_t(!IsTentative));
+  auto Entry = getOrCreateCIRGlobal(D, InitType, ForDefinition_t(!IsTentative));
   // TODO(cir): Strip off pointer casts from Entry if we get them?
 
   // TODO(cir): use GlobalValue interface
@@ -1260,8 +1277,8 @@ void CIRGenModule::buildGlobalVarDefinition(const clang::VarDecl *D,
     emitter->finalize(GV);
 
   // TODO(cir): If it is safe to mark the global 'constant', do so now.
-  // GV->setConstant(!NeedsGlobalCtor && !NeedsGlobalDtor &&
-  //                 isTypeConstant(D->getType(), true));
+  GV.setConstant(!NeedsGlobalCtor && !NeedsGlobalDtor &&
+                 isTypeConstant(D->getType(), true, true));
 
   // If it is in a read-only section, mark it 'constant'.
   if (const SectionAttr *SA = D->getAttr<SectionAttr>())
@@ -1326,7 +1343,7 @@ void CIRGenModule::buildGlobalVarDefinition(const clang::VarDecl *D,
     setTLSMode(GV, *D);
   }
 
-  // TODO(cir): maybeSetTrivialComdat(*D, *GV);
+  maybeSetTrivialComdat(*D, GV);
 
   // TODO(cir):
   // Emit the initializer function if necessary.
@@ -3006,11 +3023,14 @@ bool CIRGenModule::supportsCOMDAT() const {
   return getTriple().supportsCOMDAT();
 }
 
-void CIRGenModule::maybeSetTrivialComdat(const Decl &D, mlir::Operation *Op) {
-  if (!shouldBeInCOMDAT(*this, D))
+void CIRGenModule::maybeSetTrivialComdat(const Decl &d, mlir::Operation *op) {
+  if (!shouldBeInCOMDAT(*this, d))
     return;
-
-  // TODO: Op.setComdat
+  auto globalOp = dyn_cast_or_null<mlir::cir::GlobalOp>(op);
+  if (globalOp)
+    globalOp.setComdat(true);
+  // Keep it as missing feature as we need to implement comdat for FuncOp.
+  // in the future.
   assert(!MissingFeatures::setComdat() && "NYI");
 }
 
@@ -3329,16 +3349,22 @@ mlir::ArrayAttr CIRGenModule::buildAnnotationArgs(AnnotateAttr *attr) {
   llvm::SmallVector<mlir::Attribute, 4> args;
   args.reserve(exprs.size());
   for (Expr *e : exprs) {
+    auto &ce = *cast<clang::ConstantExpr>(e);
     if (auto *const strE =
-            ::clang::dyn_cast<clang::StringLiteral>(e->IgnoreParenCasts())) {
+            clang::dyn_cast<clang::StringLiteral>(ce.IgnoreParenCasts())) {
       // Add trailing null character as StringLiteral->getString() does not
       args.push_back(builder.getStringAttr(strE->getString()));
-    } else if (auto *const intE = ::clang::dyn_cast<clang::IntegerLiteral>(
-                   e->IgnoreParenCasts())) {
-      args.push_back(mlir::IntegerAttr::get(
-          mlir::IntegerType::get(builder.getContext(),
-                                 intE->getValue().getBitWidth()),
-          intE->getValue()));
+    } else if (ce.hasAPValueResult()) {
+      // Handle case which can be evaluated to some numbers, not only literals
+      const auto &ap = ce.getAPValueResult();
+      if (ap.isInt()) {
+        args.push_back(mlir::IntegerAttr::get(
+            mlir::IntegerType::get(builder.getContext(),
+                                   ap.getInt().getBitWidth()),
+            ap.getInt()));
+      } else {
+        llvm_unreachable("NYI like float, fixed-point, array...");
+      }
     } else {
       llvm_unreachable("NYI");
     }

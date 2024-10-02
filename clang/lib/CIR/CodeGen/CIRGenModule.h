@@ -234,7 +234,7 @@ public:
   getOrCreateStaticVarDecl(const VarDecl &D,
                            mlir::cir::GlobalLinkageKind Linkage);
 
-  mlir::cir::GlobalOp buildGlobal(const VarDecl *D, mlir::Type Ty,
+  mlir::cir::GlobalOp getOrCreateCIRGlobal(const VarDecl *D, mlir::Type Ty,
                                   ForDefinition_t IsForDefinition);
 
   /// TODO(cir): once we have cir.module, add this as a convenience method
@@ -682,7 +682,7 @@ public:
                                 clang::GlobalDecl &Result) const;
 
   bool supportsCOMDAT() const;
-  void maybeSetTrivialComdat(const clang::Decl &D, mlir::Operation *Op);
+  void maybeSetTrivialComdat(const clang::Decl &d, mlir::Operation *op);
 
   void emitError(const llvm::Twine &message) { theModule.emitError(message); }
 

@@ -2204,7 +2204,7 @@ static Address createReferenceTemporary(CIRGenFunction &CGF,
         CGF.CGM.getAddrOfGlobalTemporary(M, Inner));
     auto f = CGF.CGM.getBuilder().createGetGlobal(a);
     assert(a.getAlignment().has_value() &&
-           "This should always have an alaignment");
+           "This should always have an alignment");
     return Address(f, clang::CharUnits::fromQuantity(a.getAlignment().value()));
   }
 

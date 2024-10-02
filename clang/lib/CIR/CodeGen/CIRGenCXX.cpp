@@ -253,7 +253,7 @@ static void buildDeclDestroy(CIRGenFunction &CGF, const VarDecl *D) {
   if (Record && (CanRegisterDestructor || UsingExternalHelper)) {
     assert(!D->getTLSKind() && "TLS NYI");
     assert(!Record->hasTrivialDestructor());
-    assert(!MissingFeatures::openCL());
+    assert(!MissingFeatures::openCLCXX());
     CXXDestructorDecl *Dtor = Record->getDestructor();
     // In LLVM OG codegen this is done in registerGlobalDtor, but CIRGen
     // relies on LoweringPrepare for further decoupling, so build the
@@ -367,7 +367,21 @@ void CIRGenModule::buildCXXGlobalVarDeclInit(const VarDecl *varDecl,
     assert(performInit && "cannot have constant initializer which needs "
                           "destruction for reference");
     RValue rv = cgf.buildReferenceBindingToExpr(init);
-    cgf.buildStoreOfScalar(rv.getScalarVal(), declAddr, false, ty);
+    {
+      mlir::OpBuilder::InsertionGuard guard(builder);
+      mlir::Operation *rvalueDefOp = rv.getScalarVal().getDefiningOp();
+      if (rvalueDefOp && rvalueDefOp->getBlock()) {
+        mlir::Block *rvalSrcBlock = rvalueDefOp->getBlock();
+        if (!rvalSrcBlock->empty() &&
+            isa<mlir::cir::YieldOp>(rvalSrcBlock->back())) {
+          auto &front = rvalSrcBlock->front();
+          getGlobal.getDefiningOp()->moveBefore(&front);
+          auto yield = cast<mlir::cir::YieldOp>(rvalSrcBlock->back());
+          builder.setInsertionPoint(yield);
+        }
+      }
+      cgf.buildStoreOfScalar(rv.getScalarVal(), declAddr, false, ty);
+    }
     builder.setInsertionPointToEnd(block);
     builder.create<mlir::cir::YieldOp>(addr->getLoc());
   } else {

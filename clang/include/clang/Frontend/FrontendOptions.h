@@ -311,6 +311,10 @@ public:
   LLVM_PREFERRED_TYPE(bool)
   unsigned PrintSupportedExtensions : 1;
 
+  /// Print the extensions enabled for the current target.
+  LLVM_PREFERRED_TYPE(bool)
+  unsigned PrintEnabledExtensions : 1;
+
   /// Show the -version text.
   LLVM_PREFERRED_TYPE(bool)
   unsigned ShowVersion : 1;
@@ -623,6 +627,11 @@ public:
   /// Minimum time granularity (in microseconds) traced by time profiler.
   unsigned TimeTraceGranularity;
 
+  /// Make time trace capture verbose event details (e.g. source filenames).
+  /// This can increase the size of the output by 2-3 times.
+  LLVM_PREFERRED_TYPE(bool)
+  unsigned TimeTraceVerbose : 1;
+
   /// Path which stores the output files for -ftime-trace
   std::string TimeTracePath;
 
@@ -648,7 +657,8 @@ public:
         ClangIRDisablePasses(false), ClangIRDisableCIRVerifier(false),
         ClangIRDisableEmitCXXDefault(false), ClangIRLifetimeCheck(false),
         ClangIRIdiomRecognizer(false), ClangIRLibOpt(false),
-        ClangIRAnalysisOnly(false), TimeTraceGranularity(500) {}
+        ClangIRAnalysisOnly(false), TimeTraceGranularity(500),
+        TimeTraceVerbose(false) {}
 
   /// getInputKindForExtension - Return the appropriate input kind for a file
   /// extension. For example, "c" would return Language::C.

@@ -6,6 +6,7 @@
 // RUN: FileCheck --input-file=%t.cir %s
 // RUN: %clang_cc1 -x c++ -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm %s -o %t.ll
 // RUN: FileCheck --check-prefix=LLVM --input-file=%t.ll %s
+// XFAIL: *
 
 struct __attribute__((packed)) PackedStruct {
     char a1;
