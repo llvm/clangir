@@ -25,7 +25,7 @@ A &&a = dynamic_cast<A&&>(A{});
 // LLVM-DAG: @a = global ptr null, align 8
 // LLVM-DAG: @llvm.global_ctors = appending constant [1 x { i32, ptr, ptr }] [{ i32, ptr, ptr } { i32 65536, ptr @__cxx_global_var_init, ptr null }]
 
-// LLVM-DAG: declare !dbg !3 void @_ZN1AD1Ev(ptr)
+// LLVM-DAG: declare {{.*}} void @_ZN1AD1Ev(ptr)
 
 // LLVM-DAG: define internal void @__cxx_global_var_init()
 // LLVM-DAG:   br label %[[L1:[0-9]+]]
