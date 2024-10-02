@@ -1955,7 +1955,7 @@ LValue CIRGenFunction::buildCastLValue(const CastExpr *E) {
     LValue LV = buildLValue(E->getSubExpr());
     // Propagate the volatile qualifier to LValue, if exists in E.
     if (E->changesVolatileQualification())
-        llvm_unreachable("NYI");
+      llvm_unreachable("NYI");
     if (LV.isSimple()) {
       Address V = LV.getAddress();
       if (V.isValid()) {

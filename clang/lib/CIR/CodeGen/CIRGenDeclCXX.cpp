@@ -51,4 +51,3 @@ void CIRGenModule::buildCXXGlobalVarDeclInitFunc(const VarDecl *D,
 
   buildCXXGlobalVarDeclInit(D, Addr, PerformInit);
 }
-

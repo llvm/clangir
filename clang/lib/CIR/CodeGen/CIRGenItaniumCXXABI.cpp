@@ -173,8 +173,7 @@ public:
                            bool Delegating, Address This,
                            QualType ThisTy) override;
   void registerGlobalDtor(CIRGenFunction &CGF, const VarDecl *D,
-                          mlir::cir::FuncOp dtor,
-                          mlir::Value Addr) override;
+                          mlir::cir::FuncOp dtor, mlir::Value Addr) override;
   virtual void buildRethrow(CIRGenFunction &CGF, bool isNoReturn) override;
   virtual void buildThrow(CIRGenFunction &CGF, const CXXThrowExpr *E) override;
   CatchTypeInfo
