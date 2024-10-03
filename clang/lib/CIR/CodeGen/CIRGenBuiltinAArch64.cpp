@@ -2232,7 +2232,8 @@ mlir::Value CIRGenFunction::buildCommonNeonBuiltinExpr(
   default:
     break;
   case NEON::BI__builtin_neon_vmovn_v: {
-    mlir::cir::VectorType qTy = builder.getExtendedElementVectorType(vTy);
+    mlir::cir::VectorType qTy = builder.getExtendedElementVectorType(
+        vTy, mlir::cast<mlir::cir::IntType>(vTy.getEltType()).isSigned());
     ops[0] = builder.createBitcast(ops[0], qTy);
     // It really is truncation in this context.
     // In CIR, integral cast op supports vector of int type truncating.

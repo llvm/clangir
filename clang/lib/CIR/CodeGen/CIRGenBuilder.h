@@ -385,30 +385,13 @@ public:
     llvm_unreachable("NYI");
   }
 
-  static mlir::cir::IntType checkAndGetIntEltTy(mlir::cir::VectorType vt) {
+  mlir::cir::VectorType getExtendedElementVectorType(mlir::cir::VectorType vt,
+                                                     bool isSigned = false) {
     auto elementTy =
         mlir::dyn_cast_or_null<mlir::cir::IntType>(vt.getEltType());
     assert(elementTy && "expected int vector");
-    return elementTy;
-  }
-
-  /// This function `getExtendedElementVectorType` is used to
-  /// get the vector type of extended int element type for a given vector type.
-  /// The extended element type has the signess specified.
-  mlir::cir::VectorType getExtendedElementVectorType(mlir::cir::VectorType vt,
-                                                     bool isSigned) {
     return mlir::cir::VectorType::get(
-        getContext(), getExtendedIntTy(checkAndGetIntEltTy(vt), isSigned),
-        vt.getSize());
-  }
-
-  /// This version of `getExtendedElementVectorType` is used when signess of
-  /// extended element type is the same as that of the original element type.
-  mlir::cir::VectorType getExtendedElementVectorType(mlir::cir::VectorType vt) {
-    mlir::cir::IntType elementTy = checkAndGetIntEltTy(vt);
-    return mlir::cir::VectorType::get(
-        getContext(), getExtendedIntTy(elementTy, elementTy.isSigned()),
-        vt.getSize());
+        getContext(), getExtendedIntTy(elementTy, isSigned), vt.getSize());
   }
 
   mlir::cir::LongDoubleType
