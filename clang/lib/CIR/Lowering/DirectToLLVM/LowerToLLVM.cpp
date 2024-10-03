@@ -1629,15 +1629,18 @@ public:
     assert(vecTy && "result type of cir.vec.splat op is not VectorType");
     auto llvmTy = typeConverter->convertType(vecTy);
     auto loc = op.getLoc();
-    mlir::Value undef = rewriter.create<mlir::LLVM::UndefOp>(loc, llvmTy);
+    mlir::Value startVal =
+        op.getPoison()
+            ? rewriter.create<mlir::LLVM::PoisonOp>(loc, llvmTy).getRes()
+            : rewriter.create<mlir::LLVM::UndefOp>(loc, llvmTy);
     mlir::Value indexValue =
         rewriter.create<mlir::LLVM::ConstantOp>(loc, rewriter.getI64Type(), 0);
     mlir::Value elementValue = adaptor.getValue();
     mlir::Value oneElement = rewriter.create<mlir::LLVM::InsertElementOp>(
-        loc, undef, elementValue, indexValue);
+        loc, startVal, elementValue, indexValue);
     SmallVector<int32_t> zeroValues(vecTy.getSize(), 0);
     mlir::Value shuffled = rewriter.create<mlir::LLVM::ShuffleVectorOp>(
-        loc, oneElement, undef, zeroValues);
+        loc, oneElement, startVal, zeroValues);
     rewriter.replaceOp(op, shuffled);
     return mlir::success();
   }

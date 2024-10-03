@@ -2823,13 +2823,16 @@ def VecSplatOp : CIR_Op<"vec.splat", [Pure,
   let description = [{
     The `cir.vec.splat` operation creates a vector value from a scalar value.
     All elements of the vector have the same value, that of the given scalar.
+    If `poison` is specified, the start value of the result is poison values
+    instead of undef.
   }];
 
-  let arguments = (ins CIR_AnyType:$value);
+  let arguments = (ins CIR_AnyType:$value, UnitAttr:$poison);
   let results = (outs CIR_VectorType:$result);
 
   let assemblyFormat = [{
-    $value `:` type($value) `,` qualified(type($result)) attr-dict
+    $value `:` type($value) `,` qualified(type($result))
+    (`poison` $poison^)? attr-dict
   }];
   let hasVerifier = 0;
 }
