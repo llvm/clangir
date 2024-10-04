@@ -36,9 +36,6 @@ struct CallConvLoweringPattern : public OpRewritePattern<FuncOp> {
 
     const auto module = op->getParentOfType<mlir::ModuleOp>();
 
-    if (!op.getAst())
-      return op.emitError("function has no AST information");
-
     auto modOp = op->getParentOfType<ModuleOp>();
     std::unique_ptr<LowerModule> lowerModule =
         createLowerModule(modOp, rewriter);
