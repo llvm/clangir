@@ -1252,15 +1252,15 @@ void CIRGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
       auto address = Address(addr, alignment);
       setAddrOfLocalVar(paramVar, address);
 
-      bool isPromoted =
-        isa<ParmVarDecl>(paramVar) && cast<ParmVarDecl>(paramVar)->isKNRPromoted();
+      bool isPromoted = isa<ParmVarDecl>(paramVar) &&
+                        cast<ParmVarDecl>(paramVar)->isKNRPromoted();
       if (isPromoted) {
         auto ty = getCIRType(paramVar->getType());
         if (isa<mlir::cir::IntType>(ty))
           paramVal = builder.CIRBaseBuilderTy::createIntCast(paramVal, ty);
         else if (mlir::cir::isAnyFloatingPointType(ty)) {
-          paramVal = builder.CIRBaseBuilderTy::createCast(mlir::cir::CastKind::floating,
-                                                          paramVal, ty);
+          paramVal = builder.CIRBaseBuilderTy::createCast(
+              mlir::cir::CastKind::floating, paramVal, ty);
         }
       }
 
