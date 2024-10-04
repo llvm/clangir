@@ -581,10 +581,9 @@ public:
 };
 
 static mlir::Value getLLVMIntCast(mlir::ConversionPatternRewriter &rewriter,
-                                  mlir::Value llvmSrc,
-                                  mlir::IntegerType llvmDstIntTy,
-                                  bool isUnsigned, uint64_t cirDstIntWidth) {
-  auto cirSrcWidth = llvm::cast<mlir::IntegerType>(llvmSrc.getType()).getWidth();
+                                  mlir::Value llvmSrc, mlir::Type llvmDstIntTy,
+                                  bool isUnsigned, uint64_t cirSrcWidth,
+                                  uint64_t cirDstIntWidth) {
   if (cirSrcWidth == cirDstIntWidth)
     return llvmSrc;
 
@@ -642,7 +641,7 @@ public:
       auto llvmDstType = mlir::IntegerType::get(ctx, *layoutWidth);
       index = getLLVMIntCast(rewriter, index, llvmDstType,
                              ptrStrideOp.getStride().getType().isUnsigned(),
-                             *layoutWidth);
+                             width, *layoutWidth);
 
       // Rewrite the sub in front of extensions/trunc
       if (rewriteSub) {
@@ -758,11 +757,10 @@ public:
           mlir::cast<mlir::cir::IntType>(elementTypeIfVector(srcType));
       mlir::cir::IntType dstIntType =
           mlir::cast<mlir::cir::IntType>(elementTypeIfVector(dstType));
-      rewriter.replaceOp(castOp,
-                         getLLVMIntCast(rewriter, llvmSrcVal,
-                                        llvm::cast<mlir::IntegerType>(llvmDstType),
-                                        srcIntType.isUnsigned(),
-                                        dstIntType.getWidth()));
+      rewriter.replaceOp(
+          castOp, getLLVMIntCast(rewriter, llvmSrcVal, llvmDstType,
+                                 srcIntType.isUnsigned(), srcIntType.getWidth(),
+                                 dstIntType.getWidth()));
       break;
     }
     case mlir::cir::CastKind::floating: {
@@ -2526,8 +2524,8 @@ public:
 
     // Ensure shift amount is the same type as the value. Some undefined
     // behavior might occur in the casts below as per [C99 6.5.7.3].
-    amt = getLLVMIntCast(rewriter, amt, llvm::cast<mlir::IntegerType>(llvmTy),
-                         !cirAmtTy.isSigned(), cirValTy.getWidth());
+    amt = getLLVMIntCast(rewriter, amt, llvmTy, !cirAmtTy.isSigned(),
+                         cirAmtTy.getWidth(), cirValTy.getWidth());
 
     // Lower to the proper LLVM shift operation.
     if (op.getIsShiftleft())
@@ -2661,9 +2659,9 @@ static mlir::Value createLLVMBitOp(mlir::Location loc,
                                    operand.getType(), operand);
   }
 
-  return getLLVMIntCast(rewriter, op->getResult(0),
-                        llvm::cast<mlir::IntegerType>(resultTy),
-                        /*isUnsigned=*/true, resultIntTy.getWidth());
+  return getLLVMIntCast(rewriter, op->getResult(0), resultTy,
+                        /*isUnsigned=*/true, operandIntTy.getWidth(),
+                        resultIntTy.getWidth());
 }
 
 class CIRBitClrsbOpLowering
