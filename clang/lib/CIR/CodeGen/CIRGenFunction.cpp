@@ -1239,7 +1239,7 @@ void CIRGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
     // Declare all the function arguments in the symbol table.
     for (const auto nameValue : llvm::zip(Args, EntryBB->getArguments())) {
       auto *paramVar = std::get<0>(nameValue);
-      auto paramVal = std::get<1>(nameValue);
+      mlir::Value paramVal = std::get<1>(nameValue);
       auto alignment = getContext().getDeclAlign(paramVar);
       auto paramLoc = getLoc(paramVar->getSourceRange());
       paramVal.setLoc(paramLoc);
@@ -1251,6 +1251,18 @@ void CIRGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
 
       auto address = Address(addr, alignment);
       setAddrOfLocalVar(paramVar, address);
+
+      bool isPromoted =
+        isa<ParmVarDecl>(paramVar) && cast<ParmVarDecl>(paramVar)->isKNRPromoted();
+      if (isPromoted) {
+        auto ty = getCIRType(paramVar->getType());
+        if (isa<mlir::cir::IntType>(ty))
+          paramVal = builder.CIRBaseBuilderTy::createIntCast(paramVal, ty);
+        else if (mlir::cir::isAnyFloatingPointType(ty)) {
+          paramVal = builder.CIRBaseBuilderTy::createCast(mlir::cir::CastKind::floating,
+                                                          paramVal, ty);
+        }
+      }
 
       // Location of the store to the param storage tracked as beginning of
       // the function body.
