@@ -24,12 +24,11 @@
 namespace cir {
 namespace direct {
 extern void registerCIRDialectTranslation(mlir::DialectRegistry &registry);
-extern std::unique_ptr<llvm::Module>
-lowerDirectlyFromCIRToLLVMIR(mlir::ModuleOp theModule,
-                             llvm::LLVMContext &llvmCtx,
-                             bool disableVerifier = false);
+extern std::unique_ptr<llvm::Module> lowerDirectlyFromCIRToLLVMIR(
+    mlir::ModuleOp theModule, llvm::LLVMContext &llvmCtx,
+    bool disableVerifier = false, bool disableCCLowering = false);
 } // namespace direct
-}
+} // namespace cir
 
 void registerToLLVMTranslation() {
   mlir::TranslateFromMLIRRegistration registration(
