@@ -682,14 +682,14 @@ public:
   }
 
   cir::Address createBaseClassAddr(mlir::Location loc, cir::Address addr,
-                                   mlir::Type destType) {
+                                   mlir::Type destType, unsigned offset,
+                                   bool assumeNotNull) {
     if (destType == addr.getElementType())
       return addr;
 
     auto ptrTy = getPointerTo(destType);
-    auto baseAddr =
-        create<mlir::cir::BaseClassAddrOp>(loc, ptrTy, addr.getPointer());
-
+    auto baseAddr = create<mlir::cir::BaseClassAddrOp>(
+        loc, ptrTy, addr.getPointer(), mlir::APInt(64, offset), assumeNotNull);
     return Address(baseAddr, destType, addr.getAlignment());
   }
 
