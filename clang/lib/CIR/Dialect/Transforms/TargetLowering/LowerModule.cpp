@@ -228,6 +228,9 @@ LogicalResult LowerModule::rewriteFunctionCall(CallOp callOp, FuncOp funcOp) {
 // TODO: not to create it every time
 std::unique_ptr<LowerModule> createLowerModule(ModuleOp module,
                                                PatternRewriter &rewriter) {
+  assert(module->getAttr(LLVM::LLVMDialect::getDataLayoutAttrName()) &&
+         "Missing data layout attribute");
+
   // Fetch the LLVM data layout string.
   auto dataLayoutStr = cast<StringAttr>(
       module->getAttr(LLVM::LLVMDialect::getDataLayoutAttrName()));
