@@ -133,7 +133,7 @@ void CIRDataLayout::reset(mlir::DataLayoutSpecInterface spec) {
   // ManglingMode = MM_None;
   // NonIntegralAddressSpaces.clear();
   StructAlignment =
-      llvm::DataLayout::PrimitiveSpec{0, llvm::Align(8), llvm::Align(1)};
+      llvm::DataLayout::PrimitiveSpec{0, llvm::Align(1), llvm::Align(8)};
 
   // NOTE(cir): Alignment setter functions are skipped as these should already
   // be set in MLIR's data layout.
