@@ -3536,7 +3536,7 @@ CIRGenFunction::buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
         indices.push_back(i + vi);
         indices.push_back(i + e + vi);
       }
-      mlir::cir::ConstantOp idx = builder.getConstInt(loc, PtrDiffTy, vi);
+      mlir::cir::ConstantOp idx = builder.getConstInt(loc, SInt32Ty, vi);
       mlir::Value addr = builder.create<mlir::cir::PtrStrideOp>(
           loc, baseAddr.getType(), baseAddr, idx);
       sv = builder.createVecShuffle(loc, Ops[1], Ops[2], indices);
