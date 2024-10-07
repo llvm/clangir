@@ -542,11 +542,9 @@ public:
 };
 
 static mlir::Value getLLVMIntCast(mlir::ConversionPatternRewriter &rewriter,
-                                  mlir::Value llvmSrc,
-                                  mlir::IntegerType llvmDstIntTy,
-                                  bool isUnsigned, uint64_t cirDstIntWidth) {
-  auto cirSrcWidth =
-      mlir::cast<mlir::IntegerType>(llvmSrc.getType()).getWidth();
+                                  mlir::Value llvmSrc, mlir::Type llvmDstIntTy,
+                                  bool isUnsigned, uint64_t cirSrcWidth,
+                                  uint64_t cirDstIntWidth) {
   if (cirSrcWidth == cirDstIntWidth)
     return llvmSrc;
 
@@ -604,7 +602,7 @@ public:
       auto llvmDstType = mlir::IntegerType::get(ctx, *layoutWidth);
       index = getLLVMIntCast(rewriter, index, llvmDstType,
                              ptrStrideOp.getStride().getType().isUnsigned(),
-                             *layoutWidth);
+                             width, *layoutWidth);
 
       // Rewrite the sub in front of extensions/trunc
       if (rewriteSub) {
@@ -620,6 +618,39 @@ public:
 
     rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(
         ptrStrideOp, resultTy, elementTy, adaptor.getBase(), index);
+    return mlir::success();
+  }
+};
+
+class CIRBaseClassAddrOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::BaseClassAddrOp> {
+public:
+  using mlir::OpConversionPattern<
+      mlir::cir::BaseClassAddrOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::BaseClassAddrOp baseClassOp, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    const auto resultType =
+        getTypeConverter()->convertType(baseClassOp.getType());
+    mlir::Value derivedAddr = adaptor.getDerivedAddr();
+    llvm::SmallVector<mlir::LLVM::GEPArg, 1> offset = {
+        adaptor.getOffset().getZExtValue()};
+    mlir::Type byteType = mlir::IntegerType::get(resultType.getContext(), 8,
+                                                 mlir::IntegerType::Signless);
+    if (baseClassOp.getAssumeNotNull()) {
+      rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(
+          baseClassOp, resultType, byteType, derivedAddr, offset);
+    } else {
+      auto loc = baseClassOp.getLoc();
+      mlir::Value isNull = rewriter.create<mlir::LLVM::ICmpOp>(
+          loc, mlir::LLVM::ICmpPredicate::eq, derivedAddr,
+          rewriter.create<mlir::LLVM::ZeroOp>(loc, derivedAddr.getType()));
+      mlir::Value adjusted = rewriter.create<mlir::LLVM::GEPOp>(
+          loc, resultType, byteType, derivedAddr, offset);
+      rewriter.replaceOpWithNewOp<mlir::LLVM::SelectOp>(baseClassOp, isNull,
+                                                        derivedAddr, adjusted);
+    }
     return mlir::success();
   }
 };
@@ -709,10 +740,9 @@ public:
       mlir::cir::IntType dstIntType =
           mlir::cast<mlir::cir::IntType>(elementTypeIfVector(dstType));
       rewriter.replaceOp(
-          castOp,
-          getLLVMIntCast(rewriter, llvmSrcVal,
-                         mlir::cast<mlir::IntegerType>(llvmDstType),
-                         srcIntType.isUnsigned(), dstIntType.getWidth()));
+          castOp, getLLVMIntCast(rewriter, llvmSrcVal, llvmDstType,
+                                 srcIntType.isUnsigned(), srcIntType.getWidth(),
+                                 dstIntType.getWidth()));
       break;
     }
     case mlir::cir::CastKind::floating: {
@@ -2485,7 +2515,8 @@ public:
     // Ensure shift amount is the same type as the value. Some undefined
     // behavior might occur in the casts below as per [C99 6.5.7.3].
     amt = getLLVMIntCast(rewriter, amt, mlir::cast<mlir::IntegerType>(llvmTy),
-                         !cirAmtTy.isSigned(), cirValTy.getWidth());
+                         !cirAmtTy.isSigned(), cirAmtTy.getWidth(),
+                         cirValTy.getWidth());
 
     // Lower to the proper LLVM shift operation.
     if (op.getIsShiftleft())
@@ -2617,9 +2648,9 @@ static mlir::Value createLLVMBitOp(mlir::Location loc,
                                    operand.getType(), operand);
   }
 
-  return getLLVMIntCast(rewriter, op->getResult(0),
-                        mlir::cast<mlir::IntegerType>(resultTy),
-                        /*isUnsigned=*/true, resultIntTy.getWidth());
+  return getLLVMIntCast(
+      rewriter, op->getResult(0), mlir::cast<mlir::IntegerType>(resultTy),
+      /*isUnsigned=*/true, operandIntTy.getWidth(), resultIntTy.getWidth());
 }
 
 class CIRBitClrsbOpLowering
@@ -3823,7 +3854,8 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
       CIRPrefetchLowering, CIRObjSizeOpLowering, CIRIsConstantOpLowering,
       CIRCmpThreeWayOpLowering, CIRClearCacheOpLowering, CIRUndefOpLowering,
       CIREhTypeIdOpLowering, CIRCatchParamOpLowering, CIRResumeOpLowering,
-      CIRAllocExceptionOpLowering, CIRThrowOpLowering, CIRIntrinsicCallLowering
+      CIRAllocExceptionOpLowering, CIRThrowOpLowering, CIRIntrinsicCallLowering,
+      CIRBaseClassAddrOpLowering
 #define GET_BUILTIN_LOWERING_LIST
 #include "clang/CIR/Dialect/IR/CIRBuiltinsLowering.inc"
 #undef GET_BUILTIN_LOWERING_LIST

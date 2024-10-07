@@ -1949,7 +1949,9 @@ static mlir::cir::VectorType GetNeonType(CIRGenFunction *CGF,
                                       CGF->getCIRGenModule().FloatTy,
                                       V1Ty ? 1 : (2 << IsQuad));
   case NeonTypeFlags::Float64:
-    llvm_unreachable("NYI");
+    return mlir::cir::VectorType::get(CGF->getBuilder().getContext(),
+                                      CGF->getCIRGenModule().DoubleTy,
+                                      V1Ty ? 1 : (1 << IsQuad));
   }
   llvm_unreachable("Unknown vector element type!");
 }
@@ -2218,13 +2220,31 @@ mlir::Value CIRGenFunction::buildCommonNeonBuiltinExpr(
 
   mlir::cir::VectorType vTy = GetNeonType(this, neonType, hasLegalHalfType,
                                           false, allowBFloatArgsAndRet);
-  if (!vTy)
+  mlir::Type ty = vTy;
+  if (!ty)
     return nullptr;
 
   unsigned intrinicId = llvmIntrinsic;
   if ((modifier & UnsignedAlts) && !isUnsigned)
     intrinicId = altLLVMIntrinsic;
 
+  // This first switch is for the intrinsics that cannot have a more generic
+  // codegen solution.
+  switch (builtinID) {
+  default:
+    break;
+  case NEON::BI__builtin_neon_vmovn_v: {
+    mlir::cir::VectorType qTy = builder.getExtendedElementVectorType(
+        vTy, mlir::cast<mlir::cir::IntType>(vTy.getEltType()).isSigned());
+    ops[0] = builder.createBitcast(ops[0], qTy);
+    // It really is truncation in this context.
+    // In CIR, integral cast op supports vector of int type truncating.
+    return builder.createIntCast(ops[0], ty);
+  }
+  }
+
+  // This second switch is for the intrinsics that might have a more generic
+  // codegen solution so we can use the common codegen in future.
   switch (builtinID) {
   default:
     llvm::errs() << getAArch64SIMDIntrinsicString(builtinID) << " ";
@@ -3414,8 +3434,14 @@ CIRGenFunction::buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
     llvm_unreachable("NYI");
   }
   case NEON::BI__builtin_neon_vst1_lane_v:
-  case NEON::BI__builtin_neon_vst1q_lane_v:
-    llvm_unreachable("NYI");
+  case NEON::BI__builtin_neon_vst1q_lane_v: {
+    Ops[1] = builder.createBitcast(Ops[1], Ty);
+    Ops[1] = builder.create<mlir::cir::VecExtractOp>(Ops[1].getLoc(), Ops[1],
+                                                     Ops[2]);
+    (void)builder.createAlignedStore(getLoc(E->getExprLoc()), Ops[1], Ops[0],
+                                     PtrOp0.getAlignment());
+    return Ops[1];
+  }
   case NEON::BI__builtin_neon_vstl1_lane_s64:
   case NEON::BI__builtin_neon_vstl1q_lane_s64: {
     llvm_unreachable("NYI");
