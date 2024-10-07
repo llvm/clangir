@@ -42,7 +42,7 @@ class Expr;
 namespace mlir {
 namespace func {
 class CallOp;
-}
+} // namespace func
 } // namespace mlir
 
 namespace {
@@ -56,7 +56,7 @@ struct CGCoroData;
 
 class CIRGenFunction : public CIRGenTypeCache {
 public:
-  CIRGenModule &CGM;
+  CIRGenModule &cgm;
 
 private:
   friend class ::ScalarExprEmitter;
@@ -489,8 +489,8 @@ public:
 
   CIRGenBuilderTy &getBuilder() { return builder; }
 
-  CIRGenModule &getCIRGenModule() { return CGM; }
-  const CIRGenModule &getCIRGenModule() const { return CGM; }
+  CIRGenModule &getCIRGenModule() { return cgm; }
+  const CIRGenModule &getCIRGenModule() const { return cgm; }
 
   mlir::Block *getCurFunctionEntryBlock() {
     auto Fn = dyn_cast<mlir::cir::FuncOp>(CurFn);
@@ -578,12 +578,12 @@ public:
                  bool suppressNewContext = false);
   ~CIRGenFunction();
 
-  CIRGenTypes &getTypes() const { return CGM.getTypes(); }
+  CIRGenTypes &getTypes() const { return cgm.getTypes(); }
 
-  const TargetInfo &getTarget() const { return CGM.getTarget(); }
+  const TargetInfo &getTarget() const { return cgm.getTarget(); }
 
   const TargetCIRGenInfo &getTargetHooks() const {
-    return CGM.getTargetCIRGenInfo();
+    return cgm.getTargetCIRGenInfo();
   }
 
   /// Helpers to convert Clang's SourceLocation to a MLIR Location.
@@ -593,7 +593,7 @@ public:
 
   mlir::Location getLoc(mlir::Location lhs, mlir::Location rhs);
 
-  const clang::LangOptions &getLangOpts() const { return CGM.getLangOpts(); }
+  const clang::LangOptions &getLangOpts() const { return cgm.getLangOpts(); }
 
   CIRGenDebugInfo *getDebugInfo() { return debugInfo; }
 
@@ -735,7 +735,7 @@ public:
     PrototypeWrapper(const clang::ObjCMethodDecl *MD) : P(MD) {}
   };
 
-  bool LValueIsSuitableForInlineAtomic(LValue Src);
+  bool LValueIsSuitableForInlineAtomic(LValue src);
 
   /// An abstract representation of regular/ObjC call/message targets.
   class AbstractCallee {
@@ -837,11 +837,11 @@ public:
 
   int64_t getAccessedFieldNo(unsigned idx, const mlir::ArrayAttr elts);
 
-  RValue buildLoadOfExtVectorElementLValue(LValue LV);
+  RValue buildLoadOfExtVectorElementLValue(LValue lv);
 
-  void buildStoreThroughExtVectorComponentLValue(RValue Src, LValue Dst);
+  void buildStoreThroughExtVectorComponentLValue(RValue src, LValue dst);
 
-  RValue buildLoadOfBitfieldLValue(LValue LV, SourceLocation Loc);
+  RValue buildLoadOfBitfieldLValue(LValue lv, SourceLocation clangLoc);
 
   /// Load a scalar value from an address, taking care to appropriately convert
   /// from the memory representation to CIR value representation.
@@ -850,14 +850,14 @@ public:
                                 AlignmentSource source = AlignmentSource::Type,
                                 bool isNontemporal = false) {
     return buildLoadOfScalar(addr, isVolatile, ty, loc, LValueBaseInfo(source),
-                             CGM.getTBAAAccessInfo(ty), isNontemporal);
+                             cgm.getTBAAAccessInfo(ty), isNontemporal);
   }
 
   /// Load a scalar value from an address, taking care to appropriately convert
   /// form the memory representation to the CIR value representation. The
   /// l-value must be a simple l-value.
-  mlir::Value buildLoadOfScalar(LValue lvalue, clang::SourceLocation Loc);
-  mlir::Value buildLoadOfScalar(LValue lvalue, mlir::Location Loc);
+  mlir::Value buildLoadOfScalar(LValue lvalue, clang::SourceLocation clangLoc);
+  mlir::Value buildLoadOfScalar(LValue lvalue, mlir::Location mlirLoc);
 
   /// Load a complex number from the specified l-value.
   mlir::Value buildLoadOfComplex(LValue src, SourceLocation loc);
@@ -865,23 +865,23 @@ public:
   Address buildLoadOfReference(LValue refLVal, mlir::Location loc,
                                LValueBaseInfo *pointeeBaseInfo = nullptr,
                                TBAAAccessInfo *pointeeTBAAInfo = nullptr);
-  LValue buildLoadOfReferenceLValue(LValue RefLVal, mlir::Location Loc);
+  LValue buildLoadOfReferenceLValue(LValue refLVal, mlir::Location mlirLoc);
   LValue
-  buildLoadOfReferenceLValue(Address RefAddr, mlir::Location Loc,
-                             QualType RefTy,
-                             AlignmentSource Source = AlignmentSource::Type) {
-    LValue RefLVal = makeAddrLValue(RefAddr, RefTy, LValueBaseInfo(Source));
-    return buildLoadOfReferenceLValue(RefLVal, Loc);
+  buildLoadOfReferenceLValue(Address refAddr, mlir::Location mlirLoc,
+                             QualType refTy,
+                             AlignmentSource source = AlignmentSource::Type) {
+    LValue refLVal = makeAddrLValue(refAddr, refTy, LValueBaseInfo(source));
+    return buildLoadOfReferenceLValue(refLVal, mlirLoc);
   }
-  void buildImplicitAssignmentOperatorBody(FunctionArgList &Args);
+  void buildImplicitAssignmentOperatorBody(FunctionArgList &args);
 
-  void buildAggregateStore(mlir::Value Val, Address Dest, bool DestIsVolatile);
+  void buildAggregateStore(mlir::Value val, Address dest, bool destIsVolatile);
 
   void buildCallArgs(
-      CallArgList &Args, PrototypeWrapper Prototype,
-      llvm::iterator_range<clang::CallExpr::const_arg_iterator> ArgRange,
-      AbstractCallee AC = AbstractCallee(), unsigned ParamsToSkip = 0,
-      EvaluationOrder Order = EvaluationOrder::Default);
+      CallArgList &args, PrototypeWrapper prototype,
+      llvm::iterator_range<clang::CallExpr::const_arg_iterator> argRange,
+      AbstractCallee ac = AbstractCallee(), unsigned paramsToSkip = 0,
+      EvaluationOrder order = EvaluationOrder::Default);
 
   void checkTargetFeatures(const CallExpr *E, const FunctionDecl *TargetDecl);
   void checkTargetFeatures(SourceLocation Loc, const FunctionDecl *TargetDecl);
@@ -913,9 +913,9 @@ public:
     return buildCall(CallInfo, Callee, ReturnValue, Args, callOrTryCall,
                      IsMustTail, *currSrcLoc, std::nullopt);
   }
-  RValue buildCall(clang::QualType FnType, const CIRGenCallee &Callee,
-                   const clang::CallExpr *E, ReturnValueSlot returnValue,
-                   mlir::Value Chain = nullptr);
+  RValue buildCall(clang::QualType calleeType, const CIRGenCallee &origCallee,
+                   const clang::CallExpr *callExpr, ReturnValueSlot returnValue,
+                   mlir::Value chain = nullptr);
 
   RValue buildCallExpr(const clang::CallExpr *E,
                        ReturnValueSlot ReturnValue = ReturnValueSlot());
@@ -1017,7 +1017,7 @@ public:
   mlir::LogicalResult buildSwitchStmt(const clang::SwitchStmt &S);
 
   mlir::LogicalResult buildCXXTryStmtUnderScope(const clang::CXXTryStmt &S);
-  mlir::LogicalResult buildCXXTryStmt(const clang::CXXTryStmt &S);
+  mlir::LogicalResult buildCXXTryStmt(const clang::CXXTryStmt &tryStmt);
   void enterCXXTryStmt(const CXXTryStmt &S, mlir::cir::TryOp catchOp,
                        bool IsFnTryBlock = false);
   void exitCXXTryStmt(const CXXTryStmt &S, bool IsFnTryBlock = false);
@@ -1275,7 +1275,8 @@ public:
     }
   };
 
-  LValue buildMaterializeTemporaryExpr(const MaterializeTemporaryExpr *E);
+  LValue
+  buildMaterializeTemporaryExpr(const MaterializeTemporaryExpr *tempExpr);
 
   /// Emit the alloca and debug information for a
   /// local variable.  Does not emit initialization or destruction.
@@ -1297,7 +1298,7 @@ public:
                           AlignmentSource source = AlignmentSource::Type,
                           bool isInit = false, bool isNontemporal = false) {
     buildStoreOfScalar(value, addr, isVolatile, ty, LValueBaseInfo(source),
-                       CGM.getTBAAAccessInfo(ty), isInit, isNontemporal);
+                       cgm.getTBAAAccessInfo(ty), isInit, isNontemporal);
   }
   void buildStoreOfScalar(mlir::Value value, LValue lvalue, bool isInit);
 
@@ -1349,8 +1350,9 @@ public:
   // Target specific builtin emission
   mlir::Value buildScalarOrConstFoldImmArg(unsigned ICEArguments, unsigned Idx,
                                            const CallExpr *E);
-  mlir::Value buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
-                                      ReturnValueSlot ReturnValue,
+  mlir::Value buildAArch64BuiltinExpr(unsigned builtinID,
+                                      const CallExpr *callExpr,
+                                      ReturnValueSlot returnValue,
                                       llvm::Triple::ArchType Arch);
   mlir::Value buildAArch64SVEBuiltinExpr(unsigned BuiltinID, const CallExpr *E);
   mlir::Value buildAArch64SMEBuiltinExpr(unsigned BuiltinID, const CallExpr *E);
@@ -1444,7 +1446,7 @@ public:
       return getLangOpts().Exceptions;
     case QualType::DK_objc_strong_lifetime:
       return getLangOpts().Exceptions &&
-             CGM.getCodeGenOpts().ObjCAutoRefCountExceptions;
+             cgm.getCodeGenOpts().ObjCAutoRefCountExceptions;
     }
     llvm_unreachable("bad destruction kind");
   }
@@ -1569,7 +1571,7 @@ public:
       KnownNonNull_t isKnownNonNull = NotKnownNonNull) {
     if (alignment.isZero())
       alignment =
-          CGM.getNaturalTypeAlignment(t, baseInfo, tbaaInfo, forPointeeType);
+          cgm.getNaturalTypeAlignment(t, baseInfo, tbaaInfo, forPointeeType);
     return Address(ptr, convertTypeForMem(t), alignment, isKnownNonNull);
   }
 
@@ -1617,13 +1619,13 @@ public:
   LValue makeAddrLValue(Address addr, clang::QualType ty,
                         LValueBaseInfo baseInfo) {
     return LValue::makeAddr(addr, ty, getContext(), baseInfo,
-                            CGM.getTBAAAccessInfo(ty));
+                            cgm.getTBAAAccessInfo(ty));
   }
 
   LValue makeAddrLValue(Address addr, clang::QualType ty,
                         AlignmentSource source = AlignmentSource::Type) {
     return LValue::makeAddr(addr, ty, getContext(), LValueBaseInfo(source),
-                            CGM.getTBAAAccessInfo(ty));
+                            cgm.getTBAAAccessInfo(ty));
   }
 
   void initializeVTablePointers(mlir::Location loc,
@@ -1679,7 +1681,7 @@ public:
   RValue getOrCreateOpaqueRValueMapping(const OpaqueValueExpr *e);
 
   /// Check if \p E is a C++ "this" pointer wrapped in value-preserving casts.
-  static bool isWrappedCXXThis(const clang::Expr *E);
+  static bool isWrappedCXXThis(const clang::Expr *ob);
 
   void buildDelegateCXXConstructorCall(const clang::CXXConstructorDecl *Ctor,
                                        clang::CXXCtorType CtorType,
@@ -1709,8 +1711,8 @@ public:
   bool ShouldInstrumentFunction();
 
   /// TODO(cir): add TBAAAccessInfo
-  Address buildArrayToPointerDecay(const Expr *Array,
-                                   LValueBaseInfo *BaseInfo = nullptr);
+  Address buildArrayToPointerDecay(const Expr *arrayExpr,
+                                   LValueBaseInfo *baseInfo = nullptr);
 
   /// Emits the code necessary to evaluate an arbitrary expression into the
   /// given memory location.
@@ -1880,13 +1882,13 @@ public:
   };
 
   struct ConditionalInfo {
-    std::optional<LValue> LHS{}, RHS{};
-    mlir::Value Result{};
+    std::optional<LValue> lhs{}, rhs{};
+    mlir::Value result{};
   };
 
   template <typename FuncTy>
-  ConditionalInfo buildConditionalBlocks(const AbstractConditionalOperator *E,
-                                         const FuncTy &BranchGenFunc);
+  ConditionalInfo buildConditionalBlocks(const AbstractConditionalOperator *e,
+                                         const FuncTy &branchGenFunc);
 
   // Return true if we're currently emitting one branch or the other of a
   // conditional expression.
@@ -2361,7 +2363,7 @@ DominatingCIRValue::save(CIRGenFunction &CGF, mlir::Value value) {
 
   // Otherwise, we need an alloca.
   auto align = CharUnits::fromQuantity(
-      CGF.CGM.getDataLayout().getPrefTypeAlign(value.getType()));
+      CGF.cgm.getDataLayout().getPrefTypeAlign(value.getType()));
   mlir::Location loc = value.getLoc();
   Address alloca =
       CGF.CreateTempAlloca(value.getType(), align, loc, "cond-cleanup.save");

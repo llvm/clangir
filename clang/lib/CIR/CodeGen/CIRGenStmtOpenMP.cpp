@@ -32,44 +32,44 @@ using namespace cir;
 using namespace clang;
 using namespace mlir::omp;
 
-static void buildDependences(const OMPExecutableDirective &S,
-                             OMPTaskDataTy &Data) {
+static void buildDependences(const OMPExecutableDirective &s,
+                             OMPTaskDataTy &data) {
 
   // First look for 'omp_all_memory' and add this first.
-  bool OmpAllMemory = false;
+  bool ompAllMemory = false;
   if (llvm::any_of(
-          S.getClausesOfKind<OMPDependClause>(), [](const OMPDependClause *C) {
-            return C->getDependencyKind() == OMPC_DEPEND_outallmemory ||
-                   C->getDependencyKind() == OMPC_DEPEND_inoutallmemory;
+          s.getClausesOfKind<OMPDependClause>(), [](const OMPDependClause *c) {
+            return c->getDependencyKind() == OMPC_DEPEND_outallmemory ||
+                   c->getDependencyKind() == OMPC_DEPEND_inoutallmemory;
           })) {
-    OmpAllMemory = true;
+    ompAllMemory = true;
     // Since both OMPC_DEPEND_outallmemory and OMPC_DEPEND_inoutallmemory are
     // equivalent to the runtime, always use OMPC_DEPEND_outallmemory to
     // simplify.
-    OMPTaskDataTy::DependData &DD =
-        Data.Dependences.emplace_back(OMPC_DEPEND_outallmemory,
+    OMPTaskDataTy::DependData &dd =
+        data.Dependences.emplace_back(OMPC_DEPEND_outallmemory,
                                       /*IteratorExpr=*/nullptr);
     // Add a nullptr Expr to simplify the codegen in emitDependData.
-    DD.DepExprs.push_back(nullptr);
+    dd.DepExprs.push_back(nullptr);
   }
   // Add remaining dependences skipping any 'out' or 'inout' if they are
   // overridden by 'omp_all_memory'.
-  for (const auto *C : S.getClausesOfKind<OMPDependClause>()) {
-    OpenMPDependClauseKind Kind = C->getDependencyKind();
-    if (Kind == OMPC_DEPEND_outallmemory || Kind == OMPC_DEPEND_inoutallmemory)
+  for (const auto *c : s.getClausesOfKind<OMPDependClause>()) {
+    OpenMPDependClauseKind kind = c->getDependencyKind();
+    if (kind == OMPC_DEPEND_outallmemory || kind == OMPC_DEPEND_inoutallmemory)
       continue;
-    if (OmpAllMemory && (Kind == OMPC_DEPEND_out || Kind == OMPC_DEPEND_inout))
+    if (ompAllMemory && (kind == OMPC_DEPEND_out || kind == OMPC_DEPEND_inout))
       continue;
-    OMPTaskDataTy::DependData &DD =
-        Data.Dependences.emplace_back(C->getDependencyKind(), C->getModifier());
-    DD.DepExprs.append(C->varlist_begin(), C->varlist_end());
+    OMPTaskDataTy::DependData &dd =
+        data.Dependences.emplace_back(c->getDependencyKind(), c->getModifier());
+    dd.DepExprs.append(c->varlist_begin(), c->varlist_end());
   }
 }
 
 mlir::LogicalResult
-CIRGenFunction::buildOMPParallelDirective(const OMPParallelDirective &S) {
+CIRGenFunction::buildOMPParallelDirective(const OMPParallelDirective &s) {
   mlir::LogicalResult res = mlir::success();
-  auto scopeLoc = getLoc(S.getSourceRange());
+  auto scopeLoc = getLoc(s.getSourceRange());
   // Create a `omp.parallel` op.
   auto parallelOp = builder.create<ParallelOp>(scopeLoc);
   mlir::Block &block = parallelOp.getRegion().emplaceBlock();
@@ -81,41 +81,41 @@ CIRGenFunction::buildOMPParallelDirective(const OMPParallelDirective &S) {
       [&](mlir::OpBuilder &b, mlir::Location loc) {
         LexicalScope lexScope{*this, scopeLoc, builder.getInsertionBlock()};
         // Emit the body of the region.
-        if (buildStmt(S.getCapturedStmt(OpenMPDirectiveKind::OMPD_parallel)
+        if (buildStmt(s.getCapturedStmt(OpenMPDirectiveKind::OMPD_parallel)
                           ->getCapturedStmt(),
                       /*useCurrentScope=*/true)
                 .failed())
           res = mlir::failure();
       });
   // Add the terminator for `omp.parallel`.
-  builder.create<TerminatorOp>(getLoc(S.getSourceRange().getEnd()));
+  builder.create<TerminatorOp>(getLoc(s.getSourceRange().getEnd()));
   return res;
 }
 
 mlir::LogicalResult
-CIRGenFunction::buildOMPTaskwaitDirective(const OMPTaskwaitDirective &S) {
+CIRGenFunction::buildOMPTaskwaitDirective(const OMPTaskwaitDirective &s) {
   mlir::LogicalResult res = mlir::success();
-  OMPTaskDataTy Data;
-  buildDependences(S, Data);
-  Data.HasNowaitClause = S.hasClausesOfKind<OMPNowaitClause>();
-  CGM.getOpenMPRuntime().emitTaskWaitCall(builder, *this,
-                                          getLoc(S.getSourceRange()), Data);
+  OMPTaskDataTy data;
+  buildDependences(s, data);
+  data.HasNowaitClause = s.hasClausesOfKind<OMPNowaitClause>();
+  cgm.getOpenMPRuntime().emitTaskWaitCall(builder, *this,
+                                          getLoc(s.getSourceRange()), data);
   return res;
 }
 mlir::LogicalResult
-CIRGenFunction::buildOMPTaskyieldDirective(const OMPTaskyieldDirective &S) {
+CIRGenFunction::buildOMPTaskyieldDirective(const OMPTaskyieldDirective &s) {
   mlir::LogicalResult res = mlir::success();
   // Creation of an omp.taskyield operation
-  CGM.getOpenMPRuntime().emitTaskyieldCall(builder, *this,
-                                           getLoc(S.getSourceRange()));
+  cgm.getOpenMPRuntime().emitTaskyieldCall(builder, *this,
+                                           getLoc(s.getSourceRange()));
   return res;
 }
 
 mlir::LogicalResult
-CIRGenFunction::buildOMPBarrierDirective(const OMPBarrierDirective &S) {
+CIRGenFunction::buildOMPBarrierDirective(const OMPBarrierDirective &s) {
   mlir::LogicalResult res = mlir::success();
   // Creation of an omp.barrier operation
-  CGM.getOpenMPRuntime().emitBarrierCall(builder, *this,
-                                         getLoc(S.getSourceRange()));
+  cgm.getOpenMPRuntime().emitBarrierCall(builder, *this,
+                                         getLoc(s.getSourceRange()));
   return res;
 }

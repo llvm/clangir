@@ -21,11 +21,11 @@ mlir::DenseElementsAttr
 convertStringAttrToDenseElementsAttr(mlir::cir::ConstArrayAttr attr,
                                      mlir::Type type);
 
-template <typename StorageTy> StorageTy getZeroInitFromType(mlir::Type Ty);
-template <> mlir::APInt getZeroInitFromType(mlir::Type Ty);
-template <> mlir::APFloat getZeroInitFromType(mlir::Type Ty);
+template <typename StorageTy> StorageTy getZeroInitFromType(mlir::Type ty);
+template <> mlir::APInt getZeroInitFromType(mlir::Type ty);
+template <> mlir::APFloat getZeroInitFromType(mlir::Type ty);
 
-mlir::Type getNestedTypeAndElemQuantity(mlir::Type Ty, unsigned &elemQuantity);
+mlir::Type getNestedTypeAndElemQuantity(mlir::Type ty, unsigned &elemQuantity);
 
 template <typename AttrTy, typename StorageTy>
 void convertToDenseElementsAttrImpl(mlir::cir::ConstArrayAttr attr,

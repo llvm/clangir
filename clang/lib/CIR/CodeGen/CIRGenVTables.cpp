@@ -32,19 +32,21 @@
 using namespace clang;
 using namespace cir;
 
-CIRGenVTables::CIRGenVTables(CIRGenModule &CGM)
-    : CGM(CGM), VTContext(CGM.getASTContext().getVTableContext()) {}
+CIRGenVTables::CIRGenVTables(CIRGenModule &cgm)
+    : CGM(cgm), VTContext(cgm.getASTContext().getVTableContext()) {}
 
-static bool UseRelativeLayout(const CIRGenModule &CGM) {
-  return CGM.getTarget().getCXXABI().isItaniumFamily() &&
-         CGM.getItaniumVTableContext().isRelativeLayout();
+static bool useRelativeLayout(const CIRGenModule &cgm) {
+  return cgm.getTarget().getCXXABI().isItaniumFamily() &&
+         cgm.getItaniumVTableContext().isRelativeLayout();
 }
 
-bool CIRGenVTables::useRelativeLayout() const { return UseRelativeLayout(CGM); }
+bool CIRGenVTables::useRelativeLayout() const {
+  return ::useRelativeLayout(CGM);
+}
 
 mlir::Type CIRGenModule::getVTableComponentType() {
   mlir::Type ptrTy = builder.getUInt8PtrTy();
-  if (UseRelativeLayout(*this))
+  if (useRelativeLayout(*this))
     ptrTy = builder.getUInt32PtrTy();
   return ptrTy;
 }
@@ -55,7 +57,7 @@ mlir::Type CIRGenVTables::getVTableComponentType() {
 
 mlir::Type CIRGenVTables::getVTableType(const VTableLayout &layout) {
   SmallVector<mlir::Type, 4> tys;
-  auto ctx = CGM.getBuilder().getContext();
+  auto *ctx = CGM.getBuilder().getContext();
   auto componentType = getVTableComponentType();
   for (unsigned i = 0, e = layout.getNumVTables(); i != e; ++i)
     tys.push_back(
@@ -77,8 +79,8 @@ mlir::Type CIRGenVTables::getVTableType(const VTableLayout &layout) {
 /// strongly elsewhere.  Otherwise, we'd just like to avoid emitting
 /// vtables when unnecessary.
 /// TODO(cir): this should be merged into common AST helper for codegen.
-bool CIRGenVTables::isVTableExternal(const CXXRecordDecl *RD) {
-  assert(RD->isDynamicClass() && "Non-dynamic classes have no VTable.");
+bool CIRGenVTables::isVTableExternal(const CXXRecordDecl *rd) {
+  assert(rd->isDynamicClass() && "Non-dynamic classes have no VTable.");
 
   // We always synthesize vtables if they are needed in the MS ABI. MSVC doesn't
   // emit them even if there is an explicit template instantiation.
@@ -87,20 +89,20 @@ bool CIRGenVTables::isVTableExternal(const CXXRecordDecl *RD) {
 
   // If we have an explicit instantiation declaration (and not a
   // definition), the vtable is defined elsewhere.
-  TemplateSpecializationKind TSK = RD->getTemplateSpecializationKind();
-  if (TSK == TSK_ExplicitInstantiationDeclaration)
+  TemplateSpecializationKind tsk = rd->getTemplateSpecializationKind();
+  if (tsk == TSK_ExplicitInstantiationDeclaration)
     return true;
 
   // Otherwise, if the class is an instantiated template, the
   // vtable must be defined here.
-  if (TSK == TSK_ImplicitInstantiation ||
-      TSK == TSK_ExplicitInstantiationDefinition)
+  if (tsk == TSK_ImplicitInstantiation ||
+      tsk == TSK_ExplicitInstantiationDefinition)
     return false;
 
   // Otherwise, if the class doesn't have a key function (possibly
   // anymore), the vtable must be defined here.
   const CXXMethodDecl *keyFunction =
-      CGM.getASTContext().getCurrentKeyFunction(RD);
+      CGM.getASTContext().getCurrentKeyFunction(rd);
   if (!keyFunction)
     return false;
 
@@ -109,23 +111,23 @@ bool CIRGenVTables::isVTableExternal(const CXXRecordDecl *RD) {
   return !keyFunction->hasBody();
 }
 
-static bool shouldEmitAvailableExternallyVTable(const CIRGenModule &CGM,
-                                                const CXXRecordDecl *RD) {
-  return CGM.getCodeGenOpts().OptimizationLevel > 0 &&
-         CGM.getCXXABI().canSpeculativelyEmitVTable(RD);
+static bool shouldEmitAvailableExternallyVTable(const CIRGenModule &cgm,
+                                                const CXXRecordDecl *rd) {
+  return cgm.getCodeGenOpts().OptimizationLevel > 0 &&
+         cgm.getCXXABI().canSpeculativelyEmitVTable(rd);
 }
 
 /// Given that we're currently at the end of the translation unit, and
 /// we've emitted a reference to the vtable for this class, should
 /// we define that vtable?
-static bool shouldEmitVTableAtEndOfTranslationUnit(CIRGenModule &CGM,
-                                                   const CXXRecordDecl *RD) {
+static bool shouldEmitVTableAtEndOfTranslationUnit(CIRGenModule &cgm,
+                                                   const CXXRecordDecl *rd) {
   // If vtable is internal then it has to be done.
-  if (!CGM.getVTables().isVTableExternal(RD))
+  if (!cgm.getVTables().isVTableExternal(rd))
     return true;
 
   // If it's external then maybe we will need it as available_externally.
-  return shouldEmitAvailableExternallyVTable(CGM, RD);
+  return shouldEmitAvailableExternallyVTable(cgm, rd);
 }
 
 /// Given that at some point we emitted a reference to one or more
@@ -138,9 +140,9 @@ void CIRGenModule::buildDeferredVTables() {
   size_t savedSize = DeferredVTables.size();
 #endif
 
-  for (const CXXRecordDecl *RD : DeferredVTables)
-    if (shouldEmitVTableAtEndOfTranslationUnit(*this, RD)) {
-      VTables.GenerateClassData(RD);
+  for (const CXXRecordDecl *rd : DeferredVTables)
+    if (shouldEmitVTableAtEndOfTranslationUnit(*this, rd)) {
+      VTables.GenerateClassData(rd);
     } else if (shouldOpportunisticallyEmitVTables()) {
       llvm_unreachable("NYI");
     }
@@ -150,23 +152,23 @@ void CIRGenModule::buildDeferredVTables() {
   DeferredVTables.clear();
 }
 
-void CIRGenVTables::GenerateClassData(const CXXRecordDecl *RD) {
+void CIRGenVTables::GenerateClassData(const CXXRecordDecl *rd) {
   assert(!MissingFeatures::generateDebugInfo());
 
-  if (RD->getNumVBases())
-    CGM.getCXXABI().emitVirtualInheritanceTables(RD);
+  if (rd->getNumVBases())
+    CGM.getCXXABI().emitVirtualInheritanceTables(rd);
 
-  CGM.getCXXABI().emitVTableDefinitions(*this, RD);
+  CGM.getCXXABI().emitVTableDefinitions(*this, rd);
 }
 
-static void AddPointerLayoutOffset(CIRGenModule &CGM,
+static void addPointerLayoutOffset(CIRGenModule &cgm,
                                    ConstantArrayBuilder &builder,
                                    CharUnits offset) {
-  builder.add(CGM.getBuilder().getConstPtrAttr(CGM.getBuilder().getUInt8PtrTy(),
+  builder.add(cgm.getBuilder().getConstPtrAttr(cgm.getBuilder().getUInt8PtrTy(),
                                                offset.getQuantity()));
 }
 
-static void AddRelativeLayoutOffset(CIRGenModule &CGM,
+static void addRelativeLayoutOffset(CIRGenModule &cgm,
                                     ConstantArrayBuilder &builder,
                                     CharUnits offset) {
   llvm_unreachable("NYI");
@@ -183,7 +185,7 @@ void CIRGenVTables::addVTableComponent(ConstantArrayBuilder &builder,
   auto &component = layout.vtable_components()[componentIndex];
 
   auto addOffsetConstant =
-      useRelativeLayout() ? AddRelativeLayoutOffset : AddPointerLayoutOffset;
+      useRelativeLayout() ? addRelativeLayoutOffset : addPointerLayoutOffset;
 
   switch (component.getKind()) {
   case VTableComponent::CK_VCallOffset:
@@ -211,7 +213,7 @@ void CIRGenVTables::addVTableComponent(ConstantArrayBuilder &builder,
   case VTableComponent::CK_FunctionPointer:
   case VTableComponent::CK_CompleteDtorPointer:
   case VTableComponent::CK_DeletingDtorPointer: {
-    GlobalDecl GD = component.getGlobalDecl();
+    GlobalDecl gd = component.getGlobalDecl();
 
     if (CGM.getLangOpts().CUDA) {
       llvm_unreachable("NYI");
@@ -243,14 +245,14 @@ void CIRGenVTables::addVTableComponent(ConstantArrayBuilder &builder,
     };
 
     mlir::cir::FuncOp fnPtr;
-    if (cast<CXXMethodDecl>(GD.getDecl())->isPureVirtual()) {
+    if (cast<CXXMethodDecl>(gd.getDecl())->isPureVirtual()) {
       // Pure virtual member functions.
       if (!PureVirtualFn)
         PureVirtualFn =
             getSpecialVirtualFn(CGM.getCXXABI().getPureVirtualCallName());
       fnPtr = PureVirtualFn;
 
-    } else if (cast<CXXMethodDecl>(GD.getDecl())->isDeleted()) {
+    } else if (cast<CXXMethodDecl>(gd.getDecl())->isDeleted()) {
       // Deleted virtual member functions.
       if (!DeletedVirtualFn)
         DeletedVirtualFn =
@@ -269,8 +271,8 @@ void CIRGenVTables::addVTableComponent(ConstantArrayBuilder &builder,
 
     } else {
       // Otherwise we can use the method definition directly.
-      auto fnTy = CGM.getTypes().GetFunctionTypeForVTable(GD);
-      fnPtr = CGM.GetAddrOfFunction(GD, fnTy, /*ForVTable=*/true);
+      auto fnTy = CGM.getTypes().GetFunctionTypeForVTable(gd);
+      fnPtr = CGM.GetAddrOfFunction(gd, fnTy, /*ForVTable=*/true);
     }
 
     if (useRelativeLayout()) {
@@ -322,14 +324,14 @@ void CIRGenVTables::createVTableInitializer(ConstantStructBuilder &builder,
 ///
 /// Note that we only call this at the end of the translation unit.
 mlir::cir::GlobalLinkageKind
-CIRGenModule::getVTableLinkage(const CXXRecordDecl *RD) {
-  if (!RD->isExternallyVisible())
+CIRGenModule::getVTableLinkage(const CXXRecordDecl *rd) {
+  if (!rd->isExternallyVisible())
     return mlir::cir::GlobalLinkageKind::InternalLinkage;
 
   // We're at the end of the translation unit, so the current key
   // function is fully correct.
-  const CXXMethodDecl *keyFunction = astCtx.getCurrentKeyFunction(RD);
-  if (keyFunction && !RD->hasAttr<DLLImportAttr>()) {
+  const CXXMethodDecl *keyFunction = astCtx.getCurrentKeyFunction(rd);
+  if (keyFunction && !rd->hasAttr<DLLImportAttr>()) {
     // If this class has a key function, use that to determine the
     // linkage of the vtable.
     const FunctionDecl *def = nullptr;
@@ -374,31 +376,31 @@ CIRGenModule::getVTableLinkage(const CXXRecordDecl *RD) {
   if (astCtx.getLangOpts().AppleKext)
     return mlir::cir::GlobalLinkageKind::InternalLinkage;
 
-  auto DiscardableODRLinkage = mlir::cir::GlobalLinkageKind::LinkOnceODRLinkage;
-  auto NonDiscardableODRLinkage = mlir::cir::GlobalLinkageKind::WeakODRLinkage;
-  if (RD->hasAttr<DLLExportAttr>()) {
+  auto discardableOdrLinkage = mlir::cir::GlobalLinkageKind::LinkOnceODRLinkage;
+  auto nonDiscardableOdrLinkage = mlir::cir::GlobalLinkageKind::WeakODRLinkage;
+  if (rd->hasAttr<DLLExportAttr>()) {
     // Cannot discard exported vtables.
-    DiscardableODRLinkage = NonDiscardableODRLinkage;
-  } else if (RD->hasAttr<DLLImportAttr>()) {
+    discardableOdrLinkage = nonDiscardableOdrLinkage;
+  } else if (rd->hasAttr<DLLImportAttr>()) {
     // Imported vtables are available externally.
-    DiscardableODRLinkage =
+    discardableOdrLinkage =
         mlir::cir::GlobalLinkageKind::AvailableExternallyLinkage;
-    NonDiscardableODRLinkage =
+    nonDiscardableOdrLinkage =
         mlir::cir::GlobalLinkageKind::AvailableExternallyLinkage;
   }
 
-  switch (RD->getTemplateSpecializationKind()) {
+  switch (rd->getTemplateSpecializationKind()) {
   case TSK_Undeclared:
   case TSK_ExplicitSpecialization:
   case TSK_ImplicitInstantiation:
-    return DiscardableODRLinkage;
+    return discardableOdrLinkage;
 
   case TSK_ExplicitInstantiationDeclaration: {
     // Explicit instantiations in MSVC do not provide vtables, so we must emit
     // our own.
     if (getTarget().getCXXABI().isMicrosoft())
-      return DiscardableODRLinkage;
-    auto r = shouldEmitAvailableExternallyVTable(*this, RD)
+      return discardableOdrLinkage;
+    auto r = shouldEmitAvailableExternallyVTable(*this, rd)
                  ? mlir::cir::GlobalLinkageKind::AvailableExternallyLinkage
                  : mlir::cir::GlobalLinkageKind::ExternalLinkage;
     assert(r == mlir::cir::GlobalLinkageKind::ExternalLinkage &&
@@ -407,156 +409,154 @@ CIRGenModule::getVTableLinkage(const CXXRecordDecl *RD) {
   }
 
   case TSK_ExplicitInstantiationDefinition:
-    return NonDiscardableODRLinkage;
+    return nonDiscardableOdrLinkage;
   }
 
   llvm_unreachable("Invalid TemplateSpecializationKind!");
 }
 
 mlir::cir::GlobalOp
-getAddrOfVTTVTable(CIRGenVTables &CGVT, CIRGenModule &CGM,
-                   const CXXRecordDecl *MostDerivedClass,
+getAddrOfVTTVTable(CIRGenVTables &cgvt, CIRGenModule &cgm,
+                   const CXXRecordDecl *mostDerivedClass,
                    const VTTVTable &vtable,
                    mlir::cir::GlobalLinkageKind linkage,
                    VTableLayout::AddressPointsMapTy &addressPoints) {
-  if (vtable.getBase() == MostDerivedClass) {
+  if (vtable.getBase() == mostDerivedClass) {
     assert(vtable.getBaseOffset().isZero() &&
            "Most derived class vtable must have a zero offset!");
     // This is a regular vtable.
-    return CGM.getCXXABI().getAddrOfVTable(MostDerivedClass, CharUnits());
+    return cgm.getCXXABI().getAddrOfVTable(mostDerivedClass, CharUnits());
   }
 
   llvm_unreachable("generateConstructionVTable NYI");
 }
 
-mlir::cir::GlobalOp CIRGenVTables::getAddrOfVTT(const CXXRecordDecl *RD) {
-  assert(RD->getNumVBases() && "Only classes with virtual bases need a VTT");
+mlir::cir::GlobalOp CIRGenVTables::getAddrOfVTT(const CXXRecordDecl *rd) {
+  assert(rd->getNumVBases() && "Only classes with virtual bases need a VTT");
 
-  SmallString<256> OutName;
-  llvm::raw_svector_ostream Out(OutName);
+  SmallString<256> outName;
+  llvm::raw_svector_ostream out(outName);
   cast<ItaniumMangleContext>(CGM.getCXXABI().getMangleContext())
-      .mangleCXXVTT(RD, Out);
-  StringRef Name = OutName.str();
+      .mangleCXXVTT(rd, out);
+  StringRef name = outName.str();
 
   // This will also defer the definition of the VTT.
-  (void)CGM.getCXXABI().getAddrOfVTable(RD, CharUnits());
+  (void)CGM.getCXXABI().getAddrOfVTable(rd, CharUnits());
 
-  VTTBuilder Builder(CGM.getASTContext(), RD, /*GenerateDefinition=*/false);
+  VTTBuilder builder(CGM.getASTContext(), rd, /*GenerateDefinition=*/false);
 
-  auto ArrayType = mlir::cir::ArrayType::get(CGM.getBuilder().getContext(),
+  auto arrayType = mlir::cir::ArrayType::get(CGM.getBuilder().getContext(),
                                              CGM.getBuilder().getUInt8PtrTy(),
-                                             Builder.getVTTComponents().size());
-  auto Align =
+                                             builder.getVTTComponents().size());
+  auto align =
       CGM.getDataLayout().getABITypeAlign(CGM.getBuilder().getUInt8PtrTy());
-  auto VTT = CGM.createOrReplaceCXXRuntimeVariable(
-      CGM.getLoc(RD->getSourceRange()), Name, ArrayType,
+  auto vtt = CGM.createOrReplaceCXXRuntimeVariable(
+      CGM.getLoc(rd->getSourceRange()), name, arrayType,
       mlir::cir::GlobalLinkageKind::ExternalLinkage,
-      CharUnits::fromQuantity(Align));
-  CGM.setGVProperties(VTT, RD);
-  return VTT;
+      CharUnits::fromQuantity(align));
+  CGM.setGVProperties(vtt, rd);
+  return vtt;
 }
 
 /// Emit the definition of the given vtable.
-void CIRGenVTables::buildVTTDefinition(mlir::cir::GlobalOp VTT,
-                                       mlir::cir::GlobalLinkageKind Linkage,
-                                       const CXXRecordDecl *RD) {
-  VTTBuilder Builder(CGM.getASTContext(), RD, /*GenerateDefinition=*/true);
+void CIRGenVTables::buildVTTDefinition(mlir::cir::GlobalOp vtt,
+                                       mlir::cir::GlobalLinkageKind linkage,
+                                       const CXXRecordDecl *rd) {
+  VTTBuilder Builder(CGM.getASTContext(), rd, /*GenerateDefinition=*/true);
 
-  auto ArrayType = mlir::cir::ArrayType::get(CGM.getBuilder().getContext(),
+  auto arrayType = mlir::cir::ArrayType::get(CGM.getBuilder().getContext(),
                                              CGM.getBuilder().getUInt8PtrTy(),
                                              Builder.getVTTComponents().size());
 
-  SmallVector<mlir::cir::GlobalOp, 8> VTables;
-  SmallVector<VTableAddressPointsMapTy, 8> VTableAddressPoints;
-  for (const VTTVTable *i = Builder.getVTTVTables().begin(),
-                       *e = Builder.getVTTVTables().end();
-       i != e; ++i) {
-    VTableAddressPoints.push_back(VTableAddressPointsMapTy());
-    VTables.push_back(getAddrOfVTTVTable(*this, CGM, RD, *i, Linkage,
-                                         VTableAddressPoints.back()));
+  SmallVector<mlir::cir::GlobalOp, 8> vTables;
+  SmallVector<VTableAddressPointsMapTy, 8> vTableAddressPoints;
+  for (auto i : Builder.getVTTVTables()) {
+    vTableAddressPoints.push_back(VTableAddressPointsMapTy());
+    vTables.push_back(getAddrOfVTTVTable(*this, CGM, rd, i, linkage,
+                                         vTableAddressPoints.back()));
   }
 
-  SmallVector<mlir::Attribute, 8> VTTComponents;
+  SmallVector<mlir::Attribute, 8> vttComponents;
   for (const VTTComponent *i = Builder.getVTTComponents().begin(),
                           *e = Builder.getVTTComponents().end();
        i != e; ++i) {
-    const VTTVTable &VTTVT = Builder.getVTTVTables()[i->VTableIndex];
-    mlir::cir::GlobalOp VTable = VTables[i->VTableIndex];
-    VTableLayout::AddressPointLocation AddressPoint;
-    if (VTTVT.getBase() == RD) {
+    const VTTVTable &vttvt = Builder.getVTTVTables()[i->VTableIndex];
+    mlir::cir::GlobalOp vTable = vTables[i->VTableIndex];
+    VTableLayout::AddressPointLocation addressPoint;
+    if (vttvt.getBase() == rd) {
       // Just get the address point for the regular vtable.
-      AddressPoint =
-          getItaniumVTableContext().getVTableLayout(RD).getAddressPoint(
+      addressPoint =
+          getItaniumVTableContext().getVTableLayout(rd).getAddressPoint(
               i->VTableBase);
     } else {
-      AddressPoint = VTableAddressPoints[i->VTableIndex].lookup(i->VTableBase);
-      assert(AddressPoint.AddressPointIndex != 0 &&
+      addressPoint = vTableAddressPoints[i->VTableIndex].lookup(i->VTableBase);
+      assert(addressPoint.AddressPointIndex != 0 &&
              "Did not find ctor vtable address point!");
     }
 
-    mlir::Attribute Idxs[3] = {
+    mlir::Attribute idxs[3] = {
         CGM.getBuilder().getI32IntegerAttr(0),
-        CGM.getBuilder().getI32IntegerAttr(AddressPoint.VTableIndex),
-        CGM.getBuilder().getI32IntegerAttr(AddressPoint.AddressPointIndex),
+        CGM.getBuilder().getI32IntegerAttr(addressPoint.VTableIndex),
+        CGM.getBuilder().getI32IntegerAttr(addressPoint.AddressPointIndex),
     };
 
-    auto Indices = mlir::ArrayAttr::get(CGM.getBuilder().getContext(), Idxs);
-    auto Init = CGM.getBuilder().getGlobalViewAttr(
-        CGM.getBuilder().getUInt8PtrTy(), VTable, Indices);
+    auto indices = mlir::ArrayAttr::get(CGM.getBuilder().getContext(), idxs);
+    auto init = CGM.getBuilder().getGlobalViewAttr(
+        CGM.getBuilder().getUInt8PtrTy(), vTable, indices);
 
-    VTTComponents.push_back(Init);
+    vttComponents.push_back(init);
   }
 
-  auto Init = CGM.getBuilder().getConstArray(
-      mlir::ArrayAttr::get(CGM.getBuilder().getContext(), VTTComponents),
-      ArrayType);
+  auto init = CGM.getBuilder().getConstArray(
+      mlir::ArrayAttr::get(CGM.getBuilder().getContext(), vttComponents),
+      arrayType);
 
-  VTT.setInitialValueAttr(Init);
+  vtt.setInitialValueAttr(init);
 
   // Set the correct linkage.
-  VTT.setLinkage(Linkage);
-  mlir::SymbolTable::setSymbolVisibility(VTT,
-                                         CIRGenModule::getMLIRVisibility(VTT));
+  vtt.setLinkage(linkage);
+  mlir::SymbolTable::setSymbolVisibility(vtt,
+                                         CIRGenModule::getMLIRVisibility(vtt));
 
-  if (CGM.supportsCOMDAT() && VTT.isWeakForLinker()) {
+  if (CGM.supportsCOMDAT() && vtt.isWeakForLinker()) {
     assert(!MissingFeatures::setComdat());
   }
 }
 
-void CIRGenVTables::buildThunks(GlobalDecl GD) {
-  const CXXMethodDecl *MD =
-      cast<CXXMethodDecl>(GD.getDecl())->getCanonicalDecl();
+void CIRGenVTables::buildThunks(GlobalDecl gd) {
+  const CXXMethodDecl *md =
+      cast<CXXMethodDecl>(gd.getDecl())->getCanonicalDecl();
 
   // We don't need to generate thunks for the base destructor.
-  if (isa<CXXDestructorDecl>(MD) && GD.getDtorType() == Dtor_Base)
+  if (isa<CXXDestructorDecl>(md) && gd.getDtorType() == Dtor_Base)
     return;
 
-  const VTableContextBase::ThunkInfoVectorTy *ThunkInfoVector =
-      VTContext->getThunkInfo(GD);
+  const VTableContextBase::ThunkInfoVectorTy *thunkInfoVector =
+      VTContext->getThunkInfo(gd);
 
-  if (!ThunkInfoVector)
+  if (!thunkInfoVector)
     return;
 
-  for ([[maybe_unused]] const ThunkInfo &Thunk : *ThunkInfoVector)
+  for ([[maybe_unused]] const ThunkInfo &thunk : *thunkInfoVector)
     llvm_unreachable("NYI");
 }
 
-bool CIRGenModule::AlwaysHasLTOVisibilityPublic(const CXXRecordDecl *RD) {
-  if (RD->hasAttr<LTOVisibilityPublicAttr>() || RD->hasAttr<UuidAttr>() ||
-      RD->hasAttr<DLLExportAttr>() || RD->hasAttr<DLLImportAttr>())
+bool CIRGenModule::AlwaysHasLTOVisibilityPublic(const CXXRecordDecl *rd) {
+  if (rd->hasAttr<LTOVisibilityPublicAttr>() || rd->hasAttr<UuidAttr>() ||
+      rd->hasAttr<DLLExportAttr>() || rd->hasAttr<DLLImportAttr>())
     return true;
 
   if (!getCodeGenOpts().LTOVisibilityPublicStd)
     return false;
 
-  const DeclContext *DC = RD;
+  const DeclContext *dc = rd;
   while (true) {
-    auto *D = cast<Decl>(DC);
-    DC = DC->getParent();
-    if (isa<TranslationUnitDecl>(DC->getRedeclContext())) {
-      if (auto *ND = dyn_cast<NamespaceDecl>(D))
-        if (const IdentifierInfo *II = ND->getIdentifier())
-          if (II->isStr("std") || II->isStr("stdext"))
+    auto *d = cast<Decl>(dc);
+    dc = dc->getParent();
+    if (isa<TranslationUnitDecl>(dc->getRedeclContext())) {
+      if (auto *nd = dyn_cast<NamespaceDecl>(d))
+        if (const IdentifierInfo *ii = nd->getIdentifier())
+          if (ii->isStr("std") || ii->isStr("stdext"))
             return true;
       break;
     }
@@ -565,14 +565,14 @@ bool CIRGenModule::AlwaysHasLTOVisibilityPublic(const CXXRecordDecl *RD) {
   return false;
 }
 
-bool CIRGenModule::HasHiddenLTOVisibility(const CXXRecordDecl *RD) {
-  LinkageInfo LV = RD->getLinkageAndVisibility();
-  if (!isExternallyVisible(LV.getLinkage()))
+bool CIRGenModule::HasHiddenLTOVisibility(const CXXRecordDecl *rd) {
+  LinkageInfo lv = rd->getLinkageAndVisibility();
+  if (!isExternallyVisible(lv.getLinkage()))
     return true;
 
   if (!getTriple().isOSBinFormatCOFF() &&
-      LV.getVisibility() != HiddenVisibility)
+      lv.getVisibility() != HiddenVisibility)
     return false;
 
-  return !AlwaysHasLTOVisibilityPublic(RD);
+  return !AlwaysHasLTOVisibilityPublic(rd);
 }

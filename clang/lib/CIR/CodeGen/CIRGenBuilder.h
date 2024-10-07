@@ -552,9 +552,11 @@ public:
                                          mlir::cir::IntAttr::get(uInt64Ty, C));
   }
 
-  mlir::cir::ConstantOp getConstInt(mlir::Location loc, llvm::APSInt intVal);
+  mlir::cir::ConstantOp getConstInt(mlir::Location loc,
+                                    const llvm::APSInt &intVal);
 
-  mlir::cir::ConstantOp getConstInt(mlir::Location loc, llvm::APInt intVal);
+  mlir::cir::ConstantOp getConstInt(mlir::Location loc,
+                                    const llvm::APInt &intVal);
 
   mlir::cir::ConstantOp getConstInt(mlir::Location loc, mlir::Type t,
                                     uint64_t C);
@@ -843,11 +845,11 @@ public:
   }
 
   mlir::cir::StoreOp createStore(mlir::Location loc, mlir::Value val,
-                                 Address dst, bool _volatile = false,
-                                 ::mlir::IntegerAttr align = {},
+                                 Address dst, bool isVolatile = false,
+                                 ::mlir::IntegerAttr alignment = {},
                                  ::mlir::cir::MemOrderAttr order = {}) {
-    return CIRBaseBuilderTy::createStore(loc, val, dst.getPointer(), _volatile,
-                                         align, order);
+    return CIRBaseBuilderTy::createStore(loc, val, dst.getPointer(), isVolatile,
+                                         alignment, order);
   }
 
   mlir::cir::StoreOp createFlagStore(mlir::Location loc, bool val,

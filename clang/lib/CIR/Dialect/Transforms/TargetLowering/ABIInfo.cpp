@@ -33,8 +33,8 @@ const ::cir::CIRDataLayout &ABIInfo::getDataLayout() const {
   return LT.getDataLayout();
 }
 
-bool ABIInfo::isPromotableIntegerTypeForABI(Type Ty) const {
-  if (getContext().isPromotableIntegerType(Ty))
+bool ABIInfo::isPromotableIntegerTypeForABI(Type ty) const {
+  if (getContext().isPromotableIntegerType(ty))
     return true;
 
   assert(!::cir::MissingFeatures::fixedWidthIntegers());

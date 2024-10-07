@@ -50,31 +50,31 @@ CIRGenFunctionInfo *CIRGenFunctionInfo::create(
   void *buffer = operator new(totalSizeToAlloc<ArgInfo, ExtParameterInfo>(
       argTypes.size() + 1, paramInfos.size()));
 
-  CIRGenFunctionInfo *FI = new (buffer) CIRGenFunctionInfo();
-  FI->CallingConvention = cirCC;
-  FI->EffectiveCallingConvention = cirCC;
-  FI->ASTCallingConvention = info.getCC();
-  FI->InstanceMethod = instanceMethod;
-  FI->ChainCall = chainCall;
-  FI->CmseNSCall = info.getCmseNSCall();
-  FI->NoReturn = info.getNoReturn();
-  FI->ReturnsRetained = info.getProducesResult();
-  FI->NoCallerSavedRegs = info.getNoCallerSavedRegs();
-  FI->NoCfCheck = info.getNoCfCheck();
-  FI->Required = required;
-  FI->HasRegParm = info.getHasRegParm();
-  FI->RegParm = info.getRegParm();
-  FI->ArgStruct = nullptr;
-  FI->ArgStructAlign = 0;
-  FI->NumArgs = argTypes.size();
-  FI->HasExtParameterInfos = !paramInfos.empty();
-  FI->getArgsBuffer()[0].type = resultType;
+  CIRGenFunctionInfo *fi = new (buffer) CIRGenFunctionInfo();
+  fi->CallingConvention = cirCC;
+  fi->EffectiveCallingConvention = cirCC;
+  fi->ASTCallingConvention = info.getCC();
+  fi->InstanceMethod = instanceMethod;
+  fi->ChainCall = chainCall;
+  fi->CmseNSCall = info.getCmseNSCall();
+  fi->NoReturn = info.getNoReturn();
+  fi->ReturnsRetained = info.getProducesResult();
+  fi->NoCallerSavedRegs = info.getNoCallerSavedRegs();
+  fi->NoCfCheck = info.getNoCfCheck();
+  fi->Required = required;
+  fi->HasRegParm = info.getHasRegParm();
+  fi->RegParm = info.getRegParm();
+  fi->ArgStruct = nullptr;
+  fi->ArgStructAlign = 0;
+  fi->NumArgs = argTypes.size();
+  fi->HasExtParameterInfos = !paramInfos.empty();
+  fi->getArgsBuffer()[0].type = resultType;
   for (unsigned i = 0; i < argTypes.size(); ++i)
-    FI->getArgsBuffer()[i + 1].type = argTypes[i];
+    fi->getArgsBuffer()[i + 1].type = argTypes[i];
   for (unsigned i = 0; i < paramInfos.size(); ++i)
-    FI->getExtParameterInfosBuffer()[i] = paramInfos[i];
+    fi->getExtParameterInfosBuffer()[i] = paramInfos[i];
 
-  return FI;
+  return fi;
 }
 
 namespace {
@@ -82,79 +82,77 @@ namespace {
 /// Encapsulates information about the way function arguments from
 /// CIRGenFunctionInfo should be passed to actual CIR function.
 class ClangToCIRArgMapping {
-  static const unsigned InvalidIndex = ~0U;
-  unsigned InallocaArgNo;
-  unsigned SRetArgNo;
-  unsigned TotalCIRArgs;
+  static const unsigned invalidIndex = ~0U;
+  unsigned inallocaArgNo;
+  unsigned sRetArgNo;
+  unsigned totalCIRArguments = 0;
 
   /// Arguments of CIR function corresponding to single Clang argument.
   struct CIRArgs {
-    unsigned PaddingArgIndex = 0;
+    unsigned paddingArgIndex = 0;
     // Argument is expanded to CIR arguments at positions
     // [FirstArgIndex, FirstArgIndex + NumberOfArgs).
-    unsigned FirstArgIndex = 0;
-    unsigned NumberOfArgs = 0;
+    unsigned firstArgIndex = 0;
+    unsigned numberOfArgs = 0;
 
-    CIRArgs()
-        : PaddingArgIndex(InvalidIndex), FirstArgIndex(InvalidIndex),
-          NumberOfArgs(0) {}
+    CIRArgs() : paddingArgIndex(invalidIndex), firstArgIndex(invalidIndex) {}
   };
 
-  SmallVector<CIRArgs, 8> ArgInfo;
+  SmallVector<CIRArgs, 8> argInfo;
 
 public:
-  ClangToCIRArgMapping(const ASTContext &Context, const CIRGenFunctionInfo &FI,
-                       bool OnlyRequiredArgs = false)
-      : InallocaArgNo(InvalidIndex), SRetArgNo(InvalidIndex), TotalCIRArgs(0),
-        ArgInfo(OnlyRequiredArgs ? FI.getNumRequiredArgs() : FI.arg_size()) {
-    construct(Context, FI, OnlyRequiredArgs);
+  ClangToCIRArgMapping(const ASTContext &context, const CIRGenFunctionInfo &fi,
+                       bool onlyRequiredArgs = false)
+      : inallocaArgNo(invalidIndex), sRetArgNo(invalidIndex),
+        argInfo(onlyRequiredArgs ? fi.getNumRequiredArgs() : fi.arg_size()) {
+    construct(context, fi, onlyRequiredArgs);
   }
 
-  bool hasSRetArg() const { return SRetArgNo != InvalidIndex; }
+  bool hasSRetArg() const { return sRetArgNo != invalidIndex; }
 
-  bool hasInallocaArg() const { return InallocaArgNo != InvalidIndex; }
+  bool hasInallocaArg() const { return inallocaArgNo != invalidIndex; }
 
-  unsigned totalCIRArgs() const { return TotalCIRArgs; }
+  unsigned totalCIRArgs() const { return totalCIRArguments; }
 
-  bool hasPaddingArg(unsigned ArgNo) const {
-    assert(ArgNo < ArgInfo.size());
-    return ArgInfo[ArgNo].PaddingArgIndex != InvalidIndex;
+  bool hasPaddingArg(unsigned argNo) const {
+    assert(argNo < argInfo.size());
+    return argInfo[argNo].paddingArgIndex != invalidIndex;
   }
 
   /// Returns index of first CIR argument corresponding to ArgNo, and their
   /// quantity.
-  std::pair<unsigned, unsigned> getCIRArgs(unsigned ArgNo) const {
-    assert(ArgNo < ArgInfo.size());
-    return std::make_pair(ArgInfo[ArgNo].FirstArgIndex,
-                          ArgInfo[ArgNo].NumberOfArgs);
+  std::pair<unsigned, unsigned> getCIRArgs(unsigned argNo) const {
+    assert(argNo < argInfo.size());
+    return std::make_pair(argInfo[argNo].firstArgIndex,
+                          argInfo[argNo].numberOfArgs);
   }
 
 private:
-  void construct(const ASTContext &Context, const CIRGenFunctionInfo &FI,
-                 bool OnlyRequiredArgs);
+  void construct(const ASTContext &context, const CIRGenFunctionInfo &fi,
+                 bool onlyRequiredArgs);
 };
 
-void ClangToCIRArgMapping::construct(const ASTContext &Context,
-                                     const CIRGenFunctionInfo &FI,
-                                     bool OnlyRequiredArgs) {
-  unsigned CIRArgNo = 0;
-  bool SwapThisWithSRet = false;
-  const ABIArgInfo &RetAI = FI.getReturnInfo();
+void ClangToCIRArgMapping::construct(const ASTContext &context,
+                                     const CIRGenFunctionInfo &fi,
+                                     bool onlyRequiredArgs) {
+  unsigned cirArgNo = 0;
+  bool swapThisWithSRet = false;
+  const ABIArgInfo &retAi = fi.getReturnInfo();
 
-  assert(RetAI.getKind() != ABIArgInfo::Indirect && "NYI");
+  assert(retAi.getKind() != ABIArgInfo::Indirect && "NYI");
 
-  unsigned ArgNo = 0;
-  unsigned NumArgs = OnlyRequiredArgs ? FI.getNumRequiredArgs() : FI.arg_size();
-  for (CIRGenFunctionInfo::const_arg_iterator I = FI.arg_begin();
-       ArgNo < NumArgs; ++I, ++ArgNo) {
-    assert(I != FI.arg_end());
-    const ABIArgInfo &AI = I->info;
+  unsigned argNo = 0;
+  unsigned numArgs = onlyRequiredArgs ? fi.getNumRequiredArgs() : fi.arg_size();
+  for (CIRGenFunctionInfo::const_arg_iterator i = fi.arg_begin();
+       argNo < numArgs; ++i, ++argNo) {
+    assert(i != fi.arg_end());
+    const ABIArgInfo &ai = i->info;
     // Collect data about CIR arguments corresponding to Clang argument ArgNo.
-    auto &CIRArgs = ArgInfo[ArgNo];
+    auto &cirArgs = argInfo[argNo];
 
-    assert(!AI.getPaddingType() && "NYI");
+    assert(!ai.getPaddingType() && "NYI");
 
-    switch (AI.getKind()) {
+    switch (ai.getKind()) {
     default:
       llvm_unreachable("NYI");
     case ABIArgInfo::Extend:
@@ -166,47 +164,47 @@ void ClangToCIRArgMapping::construct(const ASTContext &Context,
       // TODO(cir): a LLVM lowering prepare pass should break this down into
       // the appropriated pieces.
       assert(!MissingFeatures::constructABIArgDirectExtend());
-      CIRArgs.NumberOfArgs = 1;
+      cirArgs.numberOfArgs = 1;
       break;
     }
     }
 
-    if (CIRArgs.NumberOfArgs > 0) {
-      CIRArgs.FirstArgIndex = CIRArgNo;
-      CIRArgNo += CIRArgs.NumberOfArgs;
+    if (cirArgs.numberOfArgs > 0) {
+      cirArgs.firstArgIndex = cirArgNo;
+      cirArgNo += cirArgs.numberOfArgs;
     }
 
-    assert(!SwapThisWithSRet && "NYI");
+    assert(!swapThisWithSRet && "NYI");
   }
-  assert(ArgNo == ArgInfo.size());
+  assert(argNo == argInfo.size());
 
-  assert(!FI.usesInAlloca() && "NYI");
+  assert(!fi.usesInAlloca() && "NYI");
 
-  TotalCIRArgs = CIRArgNo;
+  totalCIRArguments = cirArgNo;
 }
 
 } // namespace
 
-static bool hasInAllocaArgs(CIRGenModule &CGM, CallingConv ExplicitCC,
-                            ArrayRef<QualType> ArgTypes) {
-  assert(ExplicitCC != CC_Swift && ExplicitCC != CC_SwiftAsync && "Swift NYI");
-  assert(!CGM.getTarget().getCXXABI().isMicrosoft() && "MSABI NYI");
+static bool hasInAllocaArgs(CIRGenModule &cgm, CallingConv explicitCc,
+                            ArrayRef<QualType> argTypes) {
+  assert(explicitCc != CC_Swift && explicitCc != CC_SwiftAsync && "Swift NYI");
+  assert(!cgm.getTarget().getCXXABI().isMicrosoft() && "MSABI NYI");
 
   return false;
 }
 
-mlir::cir::FuncType CIRGenTypes::GetFunctionType(GlobalDecl GD) {
-  const CIRGenFunctionInfo &FI = arrangeGlobalDeclaration(GD);
-  return GetFunctionType(FI);
+mlir::cir::FuncType CIRGenTypes::GetFunctionType(GlobalDecl gd) {
+  const CIRGenFunctionInfo &fi = arrangeGlobalDeclaration(gd);
+  return GetFunctionType(fi);
 }
 
-mlir::cir::FuncType CIRGenTypes::GetFunctionType(const CIRGenFunctionInfo &FI) {
-  bool Inserted = FunctionsBeingProcessed.insert(&FI).second;
-  (void)Inserted;
-  assert(Inserted && "Recursively being processed?");
+mlir::cir::FuncType CIRGenTypes::GetFunctionType(const CIRGenFunctionInfo &fi) {
+  bool inserted = FunctionsBeingProcessed.insert(&fi).second;
+  (void)inserted;
+  assert(inserted && "Recursively being processed?");
 
   mlir::Type resultType = nullptr;
-  const ABIArgInfo &retAI = FI.getReturnInfo();
+  const ABIArgInfo &retAI = fi.getReturnInfo();
   switch (retAI.getKind()) {
   case ABIArgInfo::Ignore:
     // TODO(CIR): This should probably be the None type from the builtin
@@ -223,72 +221,72 @@ mlir::cir::FuncType CIRGenTypes::GetFunctionType(const CIRGenFunctionInfo &FI) {
     assert(false && "NYI");
   }
 
-  ClangToCIRArgMapping CIRFunctionArgs(getContext(), FI, true);
-  SmallVector<mlir::Type, 8> ArgTypes(CIRFunctionArgs.totalCIRArgs());
+  ClangToCIRArgMapping cirFunctionArgs(getContext(), fi, true);
+  SmallVector<mlir::Type, 8> argTypes(cirFunctionArgs.totalCIRArgs());
 
-  assert(!CIRFunctionArgs.hasSRetArg() && "NYI");
-  assert(!CIRFunctionArgs.hasInallocaArg() && "NYI");
+  assert(!cirFunctionArgs.hasSRetArg() && "NYI");
+  assert(!cirFunctionArgs.hasInallocaArg() && "NYI");
 
   // Add in all of the required arguments.
-  unsigned ArgNo = 0;
-  CIRGenFunctionInfo::const_arg_iterator it = FI.arg_begin(),
-                                         ie = it + FI.getNumRequiredArgs();
+  unsigned argNo = 0;
+  CIRGenFunctionInfo::const_arg_iterator it = fi.arg_begin(),
+                                         ie = it + fi.getNumRequiredArgs();
 
-  for (; it != ie; ++it, ++ArgNo) {
-    const auto &ArgInfo = it->info;
+  for (; it != ie; ++it, ++argNo) {
+    const auto &argInfo = it->info;
 
-    assert(!CIRFunctionArgs.hasPaddingArg(ArgNo) && "NYI");
+    assert(!cirFunctionArgs.hasPaddingArg(argNo) && "NYI");
 
-    unsigned FirstCIRArg, NumCIRArgs;
-    std::tie(FirstCIRArg, NumCIRArgs) = CIRFunctionArgs.getCIRArgs(ArgNo);
+    unsigned firstCirArg, numCirArgs;
+    std::tie(firstCirArg, numCirArgs) = cirFunctionArgs.getCIRArgs(argNo);
 
-    switch (ArgInfo.getKind()) {
+    switch (argInfo.getKind()) {
     default:
       llvm_unreachable("NYI");
     case ABIArgInfo::Extend:
     case ABIArgInfo::Direct: {
-      mlir::Type argType = ArgInfo.getCoerceToType();
+      mlir::Type argType = argInfo.getCoerceToType();
       // TODO: handle the test against llvm::StructType from codegen
-      assert(NumCIRArgs == 1);
-      ArgTypes[FirstCIRArg] = argType;
+      assert(numCirArgs == 1);
+      argTypes[firstCirArg] = argType;
       break;
     }
     }
   }
 
-  bool Erased = FunctionsBeingProcessed.erase(&FI);
-  (void)Erased;
-  assert(Erased && "Not in set?");
+  bool erased = FunctionsBeingProcessed.erase(&fi);
+  (void)erased;
+  assert(erased && "Not in set?");
 
   return mlir::cir::FuncType::get(
-      ArgTypes, (resultType ? resultType : Builder.getVoidTy()),
-      FI.isVariadic());
+      argTypes, (resultType ? resultType : Builder.getVoidTy()),
+      fi.isVariadic());
 }
 
-mlir::cir::FuncType CIRGenTypes::GetFunctionTypeForVTable(GlobalDecl GD) {
-  const CXXMethodDecl *MD = cast<CXXMethodDecl>(GD.getDecl());
-  const FunctionProtoType *FPT = MD->getType()->getAs<FunctionProtoType>();
+mlir::cir::FuncType CIRGenTypes::GetFunctionTypeForVTable(GlobalDecl gd) {
+  const CXXMethodDecl *md = cast<CXXMethodDecl>(gd.getDecl());
+  const FunctionProtoType *fpt = md->getType()->getAs<FunctionProtoType>();
 
-  if (!isFuncTypeConvertible(FPT)) {
+  if (!isFuncTypeConvertible(fpt)) {
     llvm_unreachable("NYI");
     // return llvm::StructType::get(getLLVMContext());
   }
 
-  return GetFunctionType(GD);
+  return GetFunctionType(gd);
 }
 
-CIRGenCallee CIRGenCallee::prepareConcreteCallee(CIRGenFunction &CGF) const {
+CIRGenCallee CIRGenCallee::prepareConcreteCallee(CIRGenFunction &cgf) const {
   if (isVirtual()) {
-    const CallExpr *CE = getVirtualCallExpr();
-    return CGF.CGM.getCXXABI().getVirtualFunctionPointer(
-        CGF, getVirtualMethodDecl(), getThisAddress(), getVirtualFunctionType(),
-        CE ? CE->getBeginLoc() : SourceLocation());
+    const CallExpr *ce = getVirtualCallExpr();
+    return cgf.cgm.getCXXABI().getVirtualFunctionPointer(
+        cgf, getVirtualMethodDecl(), getThisAddress(), getVirtualFunctionType(),
+        ce ? ce->getBeginLoc() : SourceLocation());
   }
   return *this;
 }
 
-void CIRGenFunction::buildAggregateStore(mlir::Value Val, Address Dest,
-                                         bool DestIsVolatile) {
+void CIRGenFunction::buildAggregateStore(mlir::Value val, Address dest,
+                                         bool destIsVolatile) {
   // In LLVM codegen:
   // Function to store a first-class aggregate into memory. We prefer to
   // store the elements rather than the aggregate to be more friendly to
@@ -297,15 +295,15 @@ void CIRGenFunction::buildAggregateStore(mlir::Value Val, Address Dest,
   // Emit the most simple cir.store possible (e.g. a store for a whole
   // struct), which can later be broken down in other CIR levels (or prior
   // to dialect codegen).
-  (void)DestIsVolatile;
+  (void)destIsVolatile;
   // Stored result for the callers of this function expected to be in the same
   // scope as the value, don't make assumptions about current insertion point.
   mlir::OpBuilder::InsertionGuard guard(builder);
-  builder.setInsertionPointAfter(Val.getDefiningOp());
-  builder.createStore(*currSrcLoc, Val, Dest);
+  builder.setInsertionPointAfter(val.getDefiningOp());
+  builder.createStore(*currSrcLoc, val, dest);
 }
 
-static Address emitAddressAtOffset(CIRGenFunction &CGF, Address addr,
+static Address emitAddressAtOffset(CIRGenFunction &cgf, Address addr,
                                    const ABIArgInfo &info) {
   if (unsigned offset = info.getDirectOffset()) {
     llvm_unreachable("NYI");
@@ -313,17 +311,17 @@ static Address emitAddressAtOffset(CIRGenFunction &CGF, Address addr,
   return addr;
 }
 
-static void AddAttributesFromFunctionProtoType(CIRGenBuilderTy &builder,
-                                               ASTContext &Ctx,
-                                               mlir::NamedAttrList &FuncAttrs,
-                                               const FunctionProtoType *FPT) {
-  if (!FPT)
+static void addAttributesFromFunctionProtoType(CIRGenBuilderTy &builder,
+                                               ASTContext &ctx,
+                                               mlir::NamedAttrList &funcAttrs,
+                                               const FunctionProtoType *fpt) {
+  if (!fpt)
     return;
 
-  if (!isUnresolvedExceptionSpec(FPT->getExceptionSpecType()) &&
-      FPT->isNothrow()) {
+  if (!isUnresolvedExceptionSpec(fpt->getExceptionSpecType()) &&
+      fpt->isNothrow()) {
     auto nu = mlir::cir::NoThrowAttr::get(builder.getContext());
-    FuncAttrs.set(nu.getMnemonic(), nu);
+    funcAttrs.set(nu.getMnemonic(), nu);
   }
 }
 
@@ -344,12 +342,12 @@ static void AddAttributesFromFunctionProtoType(CIRGenBuilderTy &builder,
 ///     attributes that restrict how the frontend generates code must be
 ///     added here rather than getDefaultFunctionAttributes.
 ///
-void CIRGenModule::constructAttributeList(StringRef Name,
-                                          const CIRGenFunctionInfo &FI,
-                                          CIRGenCalleeInfo CalleeInfo,
+void CIRGenModule::constructAttributeList(StringRef name,
+                                          const CIRGenFunctionInfo &fi,
+                                          CIRGenCalleeInfo calleeInfo,
                                           mlir::NamedAttrList &funcAttrs,
                                           mlir::cir::CallingConv &callingConv,
-                                          bool AttrOnCallSite, bool IsThunk) {
+                                          bool attrOnCallSite, bool isThunk) {
   // Implementation Disclaimer
   //
   // UnimplementedFeature and asserts are used throughout the code to track
@@ -362,78 +360,83 @@ void CIRGenModule::constructAttributeList(StringRef Name,
   // demand.
 
   // Collect function CIR attributes from the CC lowering.
-  callingConv = FI.getEffectiveCallingConvention();
+  callingConv = fi.getEffectiveCallingConvention();
   // TODO: NoReturn, cmse_nonsecure_call
 
   // Collect function CIR attributes from the callee prototype if we have one.
-  AddAttributesFromFunctionProtoType(getBuilder(), astCtx, funcAttrs,
-                                     CalleeInfo.getCalleeFunctionProtoType());
+  addAttributesFromFunctionProtoType(getBuilder(), astCtx, funcAttrs,
+                                     calleeInfo.getCalleeFunctionProtoType());
 
-  const Decl *TargetDecl = CalleeInfo.getCalleeDecl().getDecl();
+  const Decl *targetDecl = calleeInfo.getCalleeDecl().getDecl();
 
   // TODO(cir): Attach assumption attributes to the declaration. If this is a
   // call site, attach assumptions from the caller to the call as well.
 
-  bool HasOptnone = false;
-  (void)HasOptnone;
+  bool hasOptnone = false;
+  (void)hasOptnone;
   // The NoBuiltinAttr attached to the target FunctionDecl.
-  mlir::Attribute *NBA;
+  mlir::Attribute *nba;
 
-  if (TargetDecl) {
+  if (targetDecl) {
 
-    if (TargetDecl->hasAttr<NoThrowAttr>()) {
+    if (targetDecl->hasAttr<NoThrowAttr>()) {
       auto nu = mlir::cir::NoThrowAttr::get(builder.getContext());
       funcAttrs.set(nu.getMnemonic(), nu);
     }
 
-    if (const FunctionDecl *Fn = dyn_cast<FunctionDecl>(TargetDecl)) {
-      AddAttributesFromFunctionProtoType(
+    if (const FunctionDecl *fn = dyn_cast<FunctionDecl>(targetDecl)) {
+      addAttributesFromFunctionProtoType(
           getBuilder(), astCtx, funcAttrs,
-          Fn->getType()->getAs<FunctionProtoType>());
-      if (AttrOnCallSite && Fn->isReplaceableGlobalAllocationFunction()) {
+          fn->getType()->getAs<FunctionProtoType>());
+      if (attrOnCallSite && fn->isReplaceableGlobalAllocationFunction()) {
         // A sane operator new returns a non-aliasing pointer.
-        auto Kind = Fn->getDeclName().getCXXOverloadedOperator();
+        auto kind = fn->getDeclName().getCXXOverloadedOperator();
         if (getCodeGenOpts().AssumeSaneOperatorNew &&
-            (Kind == OO_New || Kind == OO_Array_New))
+            (kind == OO_New || kind == OO_Array_New))
+          // TODO(CIR): attr
           ; // llvm::Attribute::NoAlias
       }
-      const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(Fn);
-      const bool IsVirtualCall = MD && MD->isVirtual();
+      const CXXMethodDecl *md = dyn_cast<CXXMethodDecl>(fn);
+      const bool isVirtualCall = md && md->isVirtual();
       // Don't use [[noreturn]], _Noreturn or [[no_builtin]] for a call to a
       // virtual function. These attributes are not inherited by overloads.
-      if (!(AttrOnCallSite && IsVirtualCall)) {
-        if (Fn->isNoReturn())
+      if (!(attrOnCallSite && isVirtualCall)) {
+        if (fn->isNoReturn())
           ; // NoReturn
         // NBA = Fn->getAttr<NoBuiltinAttr>();
-        (void)NBA;
+        // TODO(CIR): attr
+        (void)nba;
       }
     }
 
-    if (isa<FunctionDecl>(TargetDecl) || isa<VarDecl>(TargetDecl)) {
+    if (isa<FunctionDecl>(targetDecl) || isa<VarDecl>(targetDecl)) {
       // Only place nomerge attribute on call sites, never functions. This
       // allows it to work on indirect virtual function calls.
-      if (AttrOnCallSite && TargetDecl->hasAttr<NoMergeAttr>())
-        ;
+      if (attrOnCallSite && targetDecl->hasAttr<NoMergeAttr>())
+        ; // TODO(CIR): attr
     }
 
     // 'const', 'pure' and 'noalias' attributed functions are also nounwind.
-    if (TargetDecl->hasAttr<ConstAttr>()) {
+    if (targetDecl->hasAttr<ConstAttr>()) {
       // gcc specifies that 'const' functions have greater restrictions than
       // 'pure' functions, so they also cannot have infinite loops.
-    } else if (TargetDecl->hasAttr<PureAttr>()) {
+      // TODO(CIR): attr
+    } else if (targetDecl->hasAttr<PureAttr>()) {
       // gcc specifies that 'pure' functions cannot have infinite loops.
-    } else if (TargetDecl->hasAttr<NoAliasAttr>()) {
+      // TODO(CIR): attr
+    } else if (targetDecl->hasAttr<NoAliasAttr>()) {
+      // TODO(CIR): attr
     }
 
-    HasOptnone = TargetDecl->hasAttr<OptimizeNoneAttr>();
-    if (auto *AllocSize = TargetDecl->getAttr<AllocSizeAttr>()) {
-      std::optional<unsigned> NumElemsParam;
-      if (AllocSize->getNumElemsParam().isValid())
-        NumElemsParam = AllocSize->getNumElemsParam().getLLVMIndex();
+    hasOptnone = targetDecl->hasAttr<OptimizeNoneAttr>();
+    if (auto *allocSize = targetDecl->getAttr<AllocSizeAttr>()) {
+      std::optional<unsigned> numElemsParam;
+      if (allocSize->getNumElemsParam().isValid())
+        numElemsParam = allocSize->getNumElemsParam().getLLVMIndex();
       // TODO(cir): add alloc size attr.
     }
 
-    if (TargetDecl->hasAttr<OpenCLKernelAttr>()) {
+    if (targetDecl->hasAttr<OpenCLKernelAttr>()) {
       auto cirKernelAttr =
           mlir::cir::OpenCLKernelAttr::get(builder.getContext());
       funcAttrs.set(cirKernelAttr.getMnemonic(), cirKernelAttr);
@@ -455,36 +458,36 @@ void CIRGenModule::constructAttributeList(StringRef Name,
       }
     }
 
-    if (TargetDecl->hasAttr<CUDAGlobalAttr>() &&
+    if (targetDecl->hasAttr<CUDAGlobalAttr>() &&
         getLangOpts().OffloadUniformBlock)
-      assert(!MissingFeatures::CUDA());
+      assert(!MissingFeatures::cuda());
 
-    if (TargetDecl->hasAttr<ArmLocallyStreamingAttr>())
-      ;
+    if (targetDecl->hasAttr<ArmLocallyStreamingAttr>())
+      ; // TODO(CIR): attr
   }
 
-  getDefaultFunctionAttributes(Name, HasOptnone, AttrOnCallSite, funcAttrs);
+  getDefaultFunctionAttributes(name, hasOptnone, attrOnCallSite, funcAttrs);
 }
 
 static mlir::cir::CIRCallOpInterface
-buildCallLikeOp(CIRGenFunction &CGF, mlir::Location callLoc,
+buildCallLikeOp(CIRGenFunction &cgf, mlir::Location callLoc,
                 mlir::cir::FuncType indirectFuncTy, mlir::Value indirectFuncVal,
                 mlir::cir::FuncOp directFuncOp,
-                SmallVectorImpl<mlir::Value> &CIRCallArgs, bool isInvoke,
+                SmallVectorImpl<mlir::Value> &cirCallArgs, bool isInvoke,
                 mlir::cir::CallingConv callingConv,
                 mlir::cir::ExtraFuncAttributesAttr extraFnAttrs) {
-  auto &builder = CGF.getBuilder();
+  auto &builder = cgf.getBuilder();
   auto getOrCreateSurroundingTryOp = [&]() {
     // In OG, we build the landing pad for this scope. In CIR, we emit a
     // synthetic cir.try because this didn't come from codegenerating from a
     // try/catch in C++.
-    assert(CGF.currLexScope && "expected scope");
-    mlir::cir::TryOp op = CGF.currLexScope->getClosestTryParent();
+    assert(cgf.currLexScope && "expected scope");
+    mlir::cir::TryOp op = cgf.currLexScope->getClosestTryParent();
     if (op)
       return op;
 
     op = builder.create<mlir::cir::TryOp>(
-        *CGF.currSrcLoc, /*scopeBuilder=*/
+        *cgf.currSrcLoc, /*scopeBuilder=*/
         [&](mlir::OpBuilder &b, mlir::Location loc) {},
         // Don't emit the code right away for catch clauses, for
         // now create the regions and consume the try scope result.
@@ -523,17 +526,17 @@ buildCallLikeOp(CIRGenFunction &CGF, mlir::Location callLoc,
     assert(callingConv == mlir::cir::CallingConv::C && "NYI");
     if (indirectFuncTy) {
       callOpWithExceptions = builder.createIndirectTryCallOp(
-          callLoc, indirectFuncVal, indirectFuncTy, CIRCallArgs);
+          callLoc, indirectFuncVal, indirectFuncTy, cirCallArgs);
     } else {
       callOpWithExceptions =
-          builder.createTryCallOp(callLoc, directFuncOp, CIRCallArgs);
+          builder.createTryCallOp(callLoc, directFuncOp, cirCallArgs);
     }
     callOpWithExceptions->setAttr("extra_attrs", extraFnAttrs);
 
-    CGF.callWithExceptionCtx = callOpWithExceptions;
-    auto *invokeDest = CGF.getInvokeDest(tryOp);
+    cgf.callWithExceptionCtx = callOpWithExceptions;
+    auto *invokeDest = cgf.getInvokeDest(tryOp);
     (void)invokeDest;
-    CGF.callWithExceptionCtx = nullptr;
+    cgf.callWithExceptionCtx = nullptr;
 
     if (tryOp.getSynthetic()) {
       builder.create<mlir::cir::YieldOp>(tryOp.getLoc());
@@ -547,48 +550,48 @@ buildCallLikeOp(CIRGenFunction &CGF, mlir::Location callLoc,
     // TODO(cir): Set calling convention for indirect calls.
     assert(callingConv == mlir::cir::CallingConv::C && "NYI");
     return builder.createIndirectCallOp(
-        callLoc, indirectFuncVal, indirectFuncTy, CIRCallArgs,
+        callLoc, indirectFuncVal, indirectFuncTy, cirCallArgs,
         mlir::cir::CallingConv::C, extraFnAttrs);
   }
-  return builder.createCallOp(callLoc, directFuncOp, CIRCallArgs, callingConv,
+  return builder.createCallOp(callLoc, directFuncOp, cirCallArgs, callingConv,
                               extraFnAttrs);
 }
 
-RValue CIRGenFunction::buildCall(const CIRGenFunctionInfo &CallInfo,
-                                 const CIRGenCallee &Callee,
-                                 ReturnValueSlot ReturnValue,
-                                 const CallArgList &CallArgs,
+RValue CIRGenFunction::buildCall(const CIRGenFunctionInfo &callInfo,
+                                 const CIRGenCallee &callee,
+                                 ReturnValueSlot returnValue,
+                                 const CallArgList &callArgs,
                                  mlir::cir::CIRCallOpInterface *callOrTryCall,
-                                 bool IsMustTail, mlir::Location loc,
-                                 std::optional<const clang::CallExpr *> E) {
-  auto builder = CGM.getBuilder();
+                                 bool isMustTail, mlir::Location loc,
+                                 std::optional<const clang::CallExpr *> e) {
+  auto builder = cgm.getBuilder();
   // FIXME: We no longer need the types from CallArgs; lift up and simplify
 
-  assert(Callee.isOrdinary() || Callee.isVirtual());
+  assert(callee.isOrdinary() || callee.isVirtual());
 
   // Handle struct-return functions by passing a pointer to the location that we
   // would like to return info.
-  QualType RetTy = CallInfo.getReturnType();
-  const auto &RetAI = CallInfo.getReturnInfo();
+  QualType retTy = callInfo.getReturnType();
+  const auto &retAi = callInfo.getReturnInfo();
 
-  mlir::cir::FuncType CIRFuncTy = getTypes().GetFunctionType(CallInfo);
+  mlir::cir::FuncType cirFuncTy = getTypes().GetFunctionType(callInfo);
 
-  const Decl *TargetDecl = Callee.getAbstractInfo().getCalleeDecl().getDecl();
+  const Decl *targetDecl = callee.getAbstractInfo().getCalleeDecl().getDecl();
   // This is not always tied to a FunctionDecl (e.g. builtins that are xformed
   // into calls to other functions)
-  if (const FunctionDecl *FD = dyn_cast_or_null<FunctionDecl>(TargetDecl)) {
+  if (const FunctionDecl *fd = dyn_cast_or_null<FunctionDecl>(targetDecl)) {
     // We can only guarantee that a function is called from the correct
     // context/function based on the appropriate target attributes,
     // so only check in the case where we have both always_inline and target
     // since otherwise we could be making a conditional call after a check for
     // the proper cpu features (and it won't cause code generation issues due to
     // function based code generation).
-    if (TargetDecl->hasAttr<AlwaysInlineAttr>() &&
-        (TargetDecl->hasAttr<TargetAttr>() ||
+    if (targetDecl->hasAttr<AlwaysInlineAttr>() &&
+        (targetDecl->hasAttr<TargetAttr>() ||
          (CurFuncDecl && CurFuncDecl->hasAttr<TargetAttr>()))) {
       // FIXME(cir): somehow refactor this function to use SourceLocation?
-      SourceLocation Loc;
-      checkTargetFeatures(Loc, FD);
+      SourceLocation loc;
+      checkTargetFeatures(loc, fd);
     }
 
     // Some architectures (such as x86-64) have the ABI changed based on
@@ -602,16 +605,16 @@ RValue CIRGenFunction::buildCall(const CIRGenFunctionInfo &CallInfo,
 
   // If we're using inalloca, insert the allocation after the stack save.
   // FIXME: Do this earlier rather than hacking it in here!
-  Address ArgMemory = Address::invalid();
-  assert(!CallInfo.getArgStruct() && "NYI");
+  Address argMemory = Address::invalid();
+  assert(!callInfo.getArgStruct() && "NYI");
 
-  ClangToCIRArgMapping CIRFunctionArgs(CGM.getASTContext(), CallInfo);
-  SmallVector<mlir::Value, 16> CIRCallArgs(CIRFunctionArgs.totalCIRArgs());
+  ClangToCIRArgMapping cirFunctionArgs(cgm.getASTContext(), callInfo);
+  SmallVector<mlir::Value, 16> cirCallArgs(cirFunctionArgs.totalCIRArgs());
 
   // If the call returns a temporary with struct return, create a temporary
   // alloca to hold the result, unless one is given to us.
-  assert(!RetAI.isIndirect() && !RetAI.isInAlloca() &&
-         !RetAI.isCoerceAndExpand() && "NYI");
+  assert(!retAi.isIndirect() && !retAi.isInAlloca() &&
+         !retAi.isCoerceAndExpand() && "NYI");
 
   // When passing arguments using temporary allocas, we need to add the
   // appropriate lifetime markers. This vector keeps track of all the lifetime
@@ -619,66 +622,66 @@ RValue CIRGenFunction::buildCall(const CIRGenFunctionInfo &CallInfo,
   assert(!MissingFeatures::shouldEmitLifetimeMarkers() && "NYI");
 
   // Translate all of the arguments as necessary to match the CIR lowering.
-  assert(CallInfo.arg_size() == CallArgs.size() &&
+  assert(callInfo.arg_size() == callArgs.size() &&
          "Mismatch between function signature & arguments.");
-  unsigned ArgNo = 0;
-  CIRGenFunctionInfo::const_arg_iterator info_it = CallInfo.arg_begin();
-  for (CallArgList::const_iterator I = CallArgs.begin(), E = CallArgs.end();
-       I != E; ++I, ++info_it, ++ArgNo) {
-    const ABIArgInfo &ArgInfo = info_it->info;
+  unsigned argNo = 0;
+  CIRGenFunctionInfo::const_arg_iterator infoIt = callInfo.arg_begin();
+  for (CallArgList::const_iterator i = callArgs.begin(), e = callArgs.end();
+       i != e; ++i, ++infoIt, ++argNo) {
+    const ABIArgInfo &argInfo = infoIt->info;
 
     // Insert a padding argument to ensure proper alignment.
-    assert(!CIRFunctionArgs.hasPaddingArg(ArgNo) && "Padding args NYI");
+    assert(!cirFunctionArgs.hasPaddingArg(argNo) && "Padding args NYI");
 
-    unsigned FirstCIRArg, NumCIRArgs;
-    std::tie(FirstCIRArg, NumCIRArgs) = CIRFunctionArgs.getCIRArgs(ArgNo);
+    unsigned firstCirArg, numCirArgs;
+    std::tie(firstCirArg, numCirArgs) = cirFunctionArgs.getCIRArgs(argNo);
 
-    switch (ArgInfo.getKind()) {
+    switch (argInfo.getKind()) {
     case ABIArgInfo::Direct: {
-      if (!mlir::isa<mlir::cir::StructType>(ArgInfo.getCoerceToType()) &&
-          ArgInfo.getCoerceToType() == convertType(info_it->type) &&
-          ArgInfo.getDirectOffset() == 0) {
-        assert(NumCIRArgs == 1);
-        mlir::Value V;
-        assert(!I->isAggregate() && "Aggregate NYI");
-        V = I->getKnownRValue().getScalarVal();
+      if (!mlir::isa<mlir::cir::StructType>(argInfo.getCoerceToType()) &&
+          argInfo.getCoerceToType() == convertType(infoIt->type) &&
+          argInfo.getDirectOffset() == 0) {
+        assert(numCirArgs == 1);
+        mlir::Value v;
+        assert(!i->isAggregate() && "Aggregate NYI");
+        v = i->getKnownRValue().getScalarVal();
 
-        assert(CallInfo.getExtParameterInfo(ArgNo).getABI() !=
+        assert(callInfo.getExtParameterInfo(argNo).getABI() !=
                    ParameterABI::SwiftErrorResult &&
                "swift NYI");
 
         // We might have to widen integers, but we should never truncate.
-        if (ArgInfo.getCoerceToType() != V.getType() &&
-            mlir::isa<mlir::cir::IntType>(V.getType()))
+        if (argInfo.getCoerceToType() != v.getType() &&
+            mlir::isa<mlir::cir::IntType>(v.getType()))
           llvm_unreachable("NYI");
 
         // If the argument doesn't match, perform a bitcast to coerce it. This
         // can happen due to trivial type mismatches.
-        if (FirstCIRArg < CIRFuncTy.getNumInputs() &&
-            V.getType() != CIRFuncTy.getInput(FirstCIRArg))
-          V = builder.createBitcast(V, CIRFuncTy.getInput(FirstCIRArg));
+        if (firstCirArg < cirFuncTy.getNumInputs() &&
+            v.getType() != cirFuncTy.getInput(firstCirArg))
+          v = builder.createBitcast(v, cirFuncTy.getInput(firstCirArg));
 
-        CIRCallArgs[FirstCIRArg] = V;
+        cirCallArgs[firstCirArg] = v;
         break;
       }
 
       // FIXME: Avoid the conversion through memory if possible.
-      Address Src = Address::invalid();
-      if (!I->isAggregate()) {
+      Address src = Address::invalid();
+      if (!i->isAggregate()) {
         llvm_unreachable("NYI");
       } else {
-        Src = I->hasLValue() ? I->getKnownLValue().getAddress()
-                             : I->getKnownRValue().getAggregateAddress();
+        src = i->hasLValue() ? i->getKnownLValue().getAddress()
+                             : i->getKnownRValue().getAggregateAddress();
       }
 
       // If the value is offset in memory, apply the offset now.
-      Src = emitAddressAtOffset(*this, Src, ArgInfo);
+      src = emitAddressAtOffset(*this, src, argInfo);
 
       // Fast-isel and the optimizer generally like scalar values better than
       // FCAs, so we flatten them if this is safe to do for this argument.
-      auto STy = dyn_cast<mlir::cir::StructType>(ArgInfo.getCoerceToType());
-      if (STy && ArgInfo.isDirect() && ArgInfo.getCanBeFlattened()) {
-        auto SrcTy = Src.getElementType();
+      auto sTy = dyn_cast<mlir::cir::StructType>(argInfo.getCoerceToType());
+      if (sTy && argInfo.isDirect() && argInfo.getCanBeFlattened()) {
+        auto srcTy = src.getElementType();
         // FIXME(cir): get proper location for each argument.
         auto argLoc = loc;
 
@@ -692,13 +695,13 @@ RValue CIRGenFunction::buildCall(const CIRGenFunctionInfo &CallInfo,
         // uint64_t SrcSize = CGM.getDataLayout().getTypeAllocSize(SrcTy);
         // uint64_t DstSize = CGM.getDataLayout().getTypeAllocSize(STy);
         // if (SrcSize < DstSize) {
-        if (SrcTy != STy)
+        if (srcTy != sTy)
           llvm_unreachable("NYI");
         else {
           // FIXME(cir): this currently only runs when the types are different,
           // but should be when alloc sizes are different, fix this as soon as
           // datalayout gets introduced.
-          Src = builder.createElementBitCast(argLoc, Src, STy);
+          src = builder.createElementBitCast(argLoc, src, sTy);
         }
 
         // assert(NumCIRArgs == STy.getMembers().size());
@@ -708,8 +711,8 @@ RValue CIRGenFunction::buildCall(const CIRGenFunctionInfo &CallInfo,
         // In CIRGen: Emit a load from the "whole" struct,
         // which shall be broken later by some lowering step into multiple
         // loads.
-        assert(NumCIRArgs == 1 && "dont break up arguments here!");
-        CIRCallArgs[FirstCIRArg] = builder.createLoad(argLoc, Src);
+        assert(numCirArgs == 1 && "dont break up arguments here!");
+        cirCallArgs[firstCirArg] = builder.createLoad(argLoc, src);
       } else {
         llvm_unreachable("NYI");
       }
@@ -721,11 +724,11 @@ RValue CIRGenFunction::buildCall(const CIRGenFunctionInfo &CallInfo,
     }
   }
 
-  const CIRGenCallee &ConcreteCallee = Callee.prepareConcreteCallee(*this);
-  auto CalleePtr = ConcreteCallee.getFunctionPointer();
+  const CIRGenCallee &concreteCallee = callee.prepareConcreteCallee(*this);
+  auto *calleePtr = concreteCallee.getFunctionPointer();
 
   // If we're using inalloca, set up that argument.
-  assert(!ArgMemory.isValid() && "inalloca NYI");
+  assert(!argMemory.isValid() && "inalloca NYI");
 
   // 2. Prepare the function pointer.
 
@@ -740,13 +743,13 @@ RValue CIRGenFunction::buildCall(const CIRGenFunctionInfo &CallInfo,
   // TODO: Update the largest vector width if any arguments have vector types.
 
   // Compute the calling convention and attributes.
-  mlir::NamedAttrList Attrs;
-  StringRef FnName;
-  if (auto calleeFnOp = dyn_cast<mlir::cir::FuncOp>(CalleePtr))
-    FnName = calleeFnOp.getName();
+  mlir::NamedAttrList attrs;
+  StringRef fnName;
+  if (auto calleeFnOp = dyn_cast<mlir::cir::FuncOp>(calleePtr))
+    fnName = calleeFnOp.getName();
 
   mlir::cir::CallingConv callingConv;
-  CGM.constructAttributeList(FnName, CallInfo, Callee.getAbstractInfo(), Attrs,
+  cgm.constructAttributeList(fnName, callInfo, callee.getAbstractInfo(), attrs,
                              callingConv,
                              /*AttrOnCallSite=*/true,
                              /*IsThunk=*/false);
@@ -767,31 +770,31 @@ RValue CIRGenFunction::buildCall(const CIRGenFunctionInfo &CallInfo,
     llvm_unreachable("NYI");
 
   // Decide whether to use a call or an invoke.
-  bool CannotThrow;
+  bool cannotThrow;
   if (currentFunctionUsesSEHTry()) {
     // SEH cares about asynchronous exceptions, so everything can "throw."
-    CannotThrow = false;
+    cannotThrow = false;
   } else if (isCleanupPadScope() &&
              EHPersonality::get(*this).isMSVCXXPersonality()) {
     // The MSVC++ personality will implicitly terminate the program if an
     // exception is thrown during a cleanup outside of a try/catch.
     // We don't need to model anything in IR to get this behavior.
-    CannotThrow = true;
+    cannotThrow = true;
   } else {
     // Otherwise, nounwind call sites will never throw.
     auto noThrowAttr = mlir::cir::NoThrowAttr::get(builder.getContext());
-    CannotThrow = Attrs.getNamed(noThrowAttr.getMnemonic()).has_value();
+    cannotThrow = attrs.getNamed(noThrowAttr.getMnemonic()).has_value();
 
-    if (auto fptr = dyn_cast<mlir::cir::FuncOp>(CalleePtr))
+    if (auto fptr = dyn_cast<mlir::cir::FuncOp>(calleePtr))
       if (fptr.getExtraAttrs().getElements().contains(
               noThrowAttr.getMnemonic()))
-        CannotThrow = true;
+        cannotThrow = true;
   }
-  bool isInvoke = CannotThrow ? false : isInvokeDest();
+  bool isInvoke = cannotThrow ? false : isInvokeDest();
 
   // TODO: UnusedReturnSizePtr
-  if (const FunctionDecl *FD = dyn_cast_or_null<FunctionDecl>(CurFuncDecl))
-    assert(!FD->hasAttr<StrictFPAttr>() && "NYI");
+  if (const FunctionDecl *fd = dyn_cast_or_null<FunctionDecl>(CurFuncDecl))
+    assert(!fd->hasAttr<StrictFPAttr>() && "NYI");
 
   // TODO: alignment attributes
 
@@ -801,56 +804,56 @@ RValue CIRGenFunction::buildCall(const CIRGenFunctionInfo &CallInfo,
     mlir::Value indirectFuncVal;
     mlir::cir::FuncOp directFuncOp;
 
-    if (auto fnOp = dyn_cast<mlir::cir::FuncOp>(CalleePtr)) {
+    if (auto fnOp = dyn_cast<mlir::cir::FuncOp>(calleePtr)) {
       directFuncOp = fnOp;
-    } else if (auto getGlobalOp = dyn_cast<mlir::cir::GetGlobalOp>(CalleePtr)) {
+    } else if (auto getGlobalOp = dyn_cast<mlir::cir::GetGlobalOp>(calleePtr)) {
       // FIXME(cir): This peephole optimization to avoids indirect calls for
       // builtins. This should be fixed in the builting declaration instead by
       // not emitting an unecessary get_global in the first place.
-      auto *globalOp = mlir::SymbolTable::lookupSymbolIn(CGM.getModule(),
+      auto *globalOp = mlir::SymbolTable::lookupSymbolIn(cgm.getModule(),
                                                          getGlobalOp.getName());
       assert(getGlobalOp && "undefined global function");
       directFuncOp = llvm::dyn_cast<mlir::cir::FuncOp>(globalOp);
       assert(directFuncOp && "operation is not a function");
     } else {
-      [[maybe_unused]] auto resultTypes = CalleePtr->getResultTypes();
-      [[maybe_unused]] auto FuncPtrTy =
+      [[maybe_unused]] auto resultTypes = calleePtr->getResultTypes();
+      [[maybe_unused]] auto funcPtrTy =
           mlir::dyn_cast<mlir::cir::PointerType>(resultTypes.front());
-      assert(FuncPtrTy &&
-             mlir::isa<mlir::cir::FuncType>(FuncPtrTy.getPointee()) &&
+      assert(funcPtrTy &&
+             mlir::isa<mlir::cir::FuncType>(funcPtrTy.getPointee()) &&
              "expected pointer to function");
 
-      indirectFuncTy = CIRFuncTy;
-      indirectFuncVal = CalleePtr->getResult(0);
+      indirectFuncTy = cirFuncTy;
+      indirectFuncVal = calleePtr->getResult(0);
     }
 
     auto extraFnAttrs = mlir::cir::ExtraFuncAttributesAttr::get(
-        builder.getContext(), Attrs.getDictionary(builder.getContext()));
+        builder.getContext(), attrs.getDictionary(builder.getContext()));
 
     mlir::cir::CIRCallOpInterface callLikeOp = buildCallLikeOp(
         *this, callLoc, indirectFuncTy, indirectFuncVal, directFuncOp,
-        CIRCallArgs, isInvoke, callingConv, extraFnAttrs);
+        cirCallArgs, isInvoke, callingConv, extraFnAttrs);
 
-    if (E)
+    if (e)
       callLikeOp->setAttr(
-          "ast", mlir::cir::ASTCallExprAttr::get(builder.getContext(), *E));
+          "ast", mlir::cir::ASTCallExprAttr::get(builder.getContext(), *e));
 
     if (callOrTryCall)
       *callOrTryCall = callLikeOp;
     return callLikeOp;
   }();
 
-  if (const auto *FD = dyn_cast_or_null<FunctionDecl>(CurFuncDecl))
-    assert(!FD->getAttr<CFGuardAttr>() && "NYI");
+  if (const auto *fd = dyn_cast_or_null<FunctionDecl>(CurFuncDecl))
+    assert(!fd->getAttr<CFGuardAttr>() && "NYI");
 
   // TODO: set attributes on callop
   // assert(!theCall.getResults().getType().front().isSignlessInteger() &&
   //        "Vector NYI");
   // TODO: LLVM models indirect calls via a null callee, how should we do this?
-  assert(!CGM.getLangOpts().ObjCAutoRefCount && "Not supported");
-  assert((!TargetDecl || !TargetDecl->hasAttr<NotTailCalledAttr>()) && "NYI");
+  assert(!cgm.getLangOpts().ObjCAutoRefCount && "Not supported");
+  assert((!targetDecl || !targetDecl->hasAttr<NotTailCalledAttr>()) && "NYI");
   assert(!getDebugInfo() && "No debug info yet");
-  assert((!TargetDecl || !TargetDecl->hasAttr<ErrorAttr>()) && "NYI");
+  assert((!targetDecl || !targetDecl->hasAttr<ErrorAttr>()) && "NYI");
 
   // 4. Finish the call.
 
@@ -858,7 +861,7 @@ RValue CIRGenFunction::buildCall(const CIRGenFunctionInfo &CallInfo,
   // point; this allows the rest of CIRGen to discard unreachable code.
   // TODO: figure out how to support doesNotReturn
 
-  assert(!IsMustTail && "NYI");
+  assert(!isMustTail && "NYI");
 
   // TODO: figure out writebacks? seems like ObjC only __autorelease
 
@@ -866,34 +869,34 @@ RValue CIRGenFunction::buildCall(const CIRGenFunctionInfo &CallInfo,
 
   // Extract the return value.
   RValue ret = [&] {
-    switch (RetAI.getKind()) {
+    switch (retAi.getKind()) {
     case ABIArgInfo::Direct: {
-      mlir::Type RetCIRTy = convertType(RetTy);
-      if (RetAI.getCoerceToType() == RetCIRTy && RetAI.getDirectOffset() == 0) {
-        switch (getEvaluationKind(RetTy)) {
+      mlir::Type retCirTy = convertType(retTy);
+      if (retAi.getCoerceToType() == retCirTy && retAi.getDirectOffset() == 0) {
+        switch (getEvaluationKind(retTy)) {
         case TEK_Aggregate: {
-          Address DestPtr = ReturnValue.getValue();
-          bool DestIsVolatile = ReturnValue.isVolatile();
+          Address destPtr = returnValue.getValue();
+          bool destIsVolatile = returnValue.isVolatile();
 
-          if (!DestPtr.isValid()) {
-            DestPtr = CreateMemTemp(RetTy, callLoc, getCounterAggTmpAsString());
-            DestIsVolatile = false;
+          if (!destPtr.isValid()) {
+            destPtr = CreateMemTemp(retTy, callLoc, getCounterAggTmpAsString());
+            destIsVolatile = false;
           }
 
-          auto Results = theCall->getOpResults();
-          assert(Results.size() <= 1 && "multiple returns NYI");
+          auto results = theCall->getOpResults();
+          assert(results.size() <= 1 && "multiple returns NYI");
 
-          SourceLocRAIIObject Loc{*this, callLoc};
-          buildAggregateStore(Results[0], DestPtr, DestIsVolatile);
-          return RValue::getAggregate(DestPtr);
+          SourceLocRAIIObject loc{*this, callLoc};
+          buildAggregateStore(results[0], destPtr, destIsVolatile);
+          return RValue::getAggregate(destPtr);
         }
         case TEK_Scalar: {
           // If the argument doesn't match, perform a bitcast to coerce it. This
           // can happen due to trivial type mismatches.
-          auto Results = theCall->getOpResults();
-          assert(Results.size() <= 1 && "multiple returns NYI");
-          assert(Results[0].getType() == RetCIRTy && "Bitcast support NYI");
-          return RValue::get(Results[0]);
+          auto results = theCall->getOpResults();
+          assert(results.size() <= 1 && "multiple returns NYI");
+          assert(results[0].getType() == retCirTy && "Bitcast support NYI");
+          return RValue::get(results[0]);
         }
         default:
           llvm_unreachable("NYI");
@@ -906,7 +909,7 @@ RValue CIRGenFunction::buildCall(const CIRGenFunctionInfo &CallInfo,
     case ABIArgInfo::Ignore:
       // If we are ignoring an argument that had a result, make sure to
       // construct the appropriate return value for our caller.
-      return GetUndefRValue(RetTy);
+      return GetUndefRValue(retTy);
 
     default:
       llvm_unreachable("NYI");
@@ -920,7 +923,7 @@ RValue CIRGenFunction::buildCall(const CIRGenFunctionInfo &CallInfo,
 
   // TODO: implement lifetime extensions
 
-  assert(RetTy.isDestructedType() != QualType::DK_nontrivial_c_struct && "NYI");
+  assert(retTy.isDestructedType() != QualType::DK_nontrivial_c_struct && "NYI");
 
   return ret;
 }
@@ -941,20 +944,20 @@ mlir::Value CIRGenFunction::buildRuntimeCall(mlir::Location loc,
   return call->getResult(0);
 }
 
-void CIRGenFunction::buildCallArg(CallArgList &args, const Expr *E,
+void CIRGenFunction::buildCallArg(CallArgList &args, const Expr *e,
                                   QualType type) {
   // TODO: Add the DisableDebugLocationUpdates helper
-  assert(!dyn_cast<ObjCIndirectCopyRestoreExpr>(E) && "NYI");
+  assert(!dyn_cast<ObjCIndirectCopyRestoreExpr>(e) && "NYI");
 
-  assert(type->isReferenceType() == E->isGLValue() &&
+  assert(type->isReferenceType() == e->isGLValue() &&
          "reference binding to unmaterialized r-value!");
 
-  if (E->isGLValue()) {
-    assert(E->getObjectKind() == OK_Ordinary);
-    return args.add(buildReferenceBindingToExpr(E), type);
+  if (e->isGLValue()) {
+    assert(e->getObjectKind() == OK_Ordinary);
+    return args.add(buildReferenceBindingToExpr(e), type);
   }
 
-  bool HasAggregateEvalKind = hasAggregateEvaluationKind(type);
+  bool hasAggregateEvalKind = hasAggregateEvaluationKind(type);
 
   // In the Microsoft C++ ABI, aggregate arguments are destructed by the callee.
   // However, we still have to push an EH-only cleanup in case we unwind before
@@ -964,55 +967,55 @@ void CIRGenFunction::buildCallArg(CallArgList &args, const Expr *E,
     llvm_unreachable("Microsoft C++ ABI is NYI");
   }
 
-  if (HasAggregateEvalKind && isa<ImplicitCastExpr>(E) &&
-      cast<CastExpr>(E)->getCastKind() == CK_LValueToRValue) {
-    LValue L = buildLValue(cast<CastExpr>(E)->getSubExpr());
-    assert(L.isSimple());
-    args.addUncopiedAggregate(L, type);
+  if (hasAggregateEvalKind && isa<ImplicitCastExpr>(e) &&
+      cast<CastExpr>(e)->getCastKind() == CK_LValueToRValue) {
+    LValue l = buildLValue(cast<CastExpr>(e)->getSubExpr());
+    assert(l.isSimple());
+    args.addUncopiedAggregate(l, type);
     return;
   }
 
-  args.add(buildAnyExprToTemp(E), type);
+  args.add(buildAnyExprToTemp(e), type);
 }
 
-QualType CIRGenFunction::getVarArgType(const Expr *Arg) {
+QualType CIRGenFunction::getVarArgType(const Expr *arg) {
   // System headers on Windows define NULL to 0 instead of 0LL on Win64. MSVC
   // implicitly widens null pointer constants that are arguments to varargs
   // functions to pointer-sized ints.
   if (!getTarget().getTriple().isOSWindows())
-    return Arg->getType();
+    return arg->getType();
 
-  if (Arg->getType()->isIntegerType() &&
-      getContext().getTypeSize(Arg->getType()) <
+  if (arg->getType()->isIntegerType() &&
+      getContext().getTypeSize(arg->getType()) <
           getContext().getTargetInfo().getPointerWidth(LangAS::Default) &&
-      Arg->isNullPointerConstant(getContext(),
+      arg->isNullPointerConstant(getContext(),
                                  Expr::NPC_ValueDependentIsNotNull)) {
     return getContext().getIntPtrType();
   }
 
-  return Arg->getType();
+  return arg->getType();
 }
 
 /// Similar to buildAnyExpr(), however, the result will always be accessible
 /// even if no aggregate location is provided.
-RValue CIRGenFunction::buildAnyExprToTemp(const Expr *E) {
-  AggValueSlot AggSlot = AggValueSlot::ignored();
+RValue CIRGenFunction::buildAnyExprToTemp(const Expr *e) {
+  AggValueSlot aggSlot = AggValueSlot::ignored();
 
-  if (hasAggregateEvaluationKind(E->getType()))
-    AggSlot = CreateAggTemp(E->getType(), getLoc(E->getSourceRange()),
+  if (hasAggregateEvaluationKind(e->getType()))
+    aggSlot = CreateAggTemp(e->getType(), getLoc(e->getSourceRange()),
                             getCounterAggTmpAsString());
 
-  return buildAnyExpr(E, AggSlot);
+  return buildAnyExpr(e, aggSlot);
 }
 
 void CIRGenFunction::buildCallArgs(
-    CallArgList &Args, PrototypeWrapper Prototype,
-    llvm::iterator_range<CallExpr::const_arg_iterator> ArgRange,
-    AbstractCallee AC, unsigned ParamsToSkip, EvaluationOrder Order) {
+    CallArgList &args, PrototypeWrapper prototype,
+    llvm::iterator_range<CallExpr::const_arg_iterator> argRange,
+    AbstractCallee ac, unsigned paramsToSkip, EvaluationOrder order) {
 
-  llvm::SmallVector<QualType, 16> ArgTypes;
+  llvm::SmallVector<QualType, 16> argTypes;
 
-  assert((ParamsToSkip == 0 || Prototype.P) &&
+  assert((paramsToSkip == 0 || prototype.P) &&
          "Can't skip parameters if type info is not provided");
 
   // This variable only captures *explicitly* written conventions, not those
@@ -1020,95 +1023,95 @@ void CIRGenFunction::buildCallArgs(
   // thiscall, appcs, stdcall via -mrtd, etc. Computing that correctly would
   // require knowing if this is a C++ instance method or being able to see
   // unprotyped FunctionTypes.
-  CallingConv ExplicitCC = CC_C;
+  CallingConv explicitCc = CC_C;
 
   // First, if a prototype was provided, use those argument types.
-  bool IsVariadic = false;
-  if (Prototype.P) {
-    const auto *MD = mlir::dyn_cast<const ObjCMethodDecl *>(Prototype.P);
-    assert(!MD && "ObjCMethodDecl NYI");
+  bool isVariadic = false;
+  if (prototype.P) {
+    const auto *md = mlir::dyn_cast<const ObjCMethodDecl *>(prototype.P);
+    assert(!md && "ObjCMethodDecl NYI");
 
-    const auto *FPT = Prototype.P.get<const FunctionProtoType *>();
-    IsVariadic = FPT->isVariadic();
-    ExplicitCC = FPT->getExtInfo().getCC();
-    ArgTypes.assign(FPT->param_type_begin() + ParamsToSkip,
-                    FPT->param_type_end());
+    const auto *fpt = prototype.P.get<const FunctionProtoType *>();
+    isVariadic = fpt->isVariadic();
+    explicitCc = fpt->getExtInfo().getCC();
+    argTypes.assign(fpt->param_type_begin() + paramsToSkip,
+                    fpt->param_type_end());
   }
 
   // If we still have any arguments, emit them using the type of the argument.
-  for (auto *A : llvm::drop_begin(ArgRange, ArgTypes.size()))
-    ArgTypes.push_back(IsVariadic ? getVarArgType(A) : A->getType());
-  assert((int)ArgTypes.size() == (ArgRange.end() - ArgRange.begin()));
+  for (auto *a : llvm::drop_begin(argRange, argTypes.size()))
+    argTypes.push_back(isVariadic ? getVarArgType(a) : a->getType());
+  assert((int)argTypes.size() == (argRange.end() - argRange.begin()));
 
   // We must evaluate arguments from right to left in the MS C++ ABI, because
   // arguments are destroyed left to right in the callee. As a special case,
   // there are certain language constructs taht require left-to-right
   // evaluation, and in those cases we consider the evaluation order requirement
   // to trump the "destruction order is reverse construction order" guarantee.
-  bool LeftToRight = true;
-  assert(!CGM.getTarget().getCXXABI().areArgsDestroyedLeftToRightInCallee() &&
+  bool leftToRight = true;
+  assert(!cgm.getTarget().getCXXABI().areArgsDestroyedLeftToRightInCallee() &&
          "MSABI NYI");
-  assert(!hasInAllocaArgs(CGM, ExplicitCC, ArgTypes) && "NYI");
+  assert(!hasInAllocaArgs(cgm, explicitCc, argTypes) && "NYI");
 
-  auto MaybeEmitImplicitObjectSize = [&](unsigned I, const Expr *Arg,
-                                         RValue EmittedArg) {
-    if (!AC.hasFunctionDecl() || I >= AC.getNumParams())
+  auto maybeEmitImplicitObjectSize = [&](unsigned i, const Expr *arg,
+                                         RValue emittedArg) {
+    if (!ac.hasFunctionDecl() || i >= ac.getNumParams())
       return;
-    auto *PS = AC.getParamDecl(I)->getAttr<PassObjectSizeAttr>();
-    if (PS == nullptr)
+    auto *ps = ac.getParamDecl(i)->getAttr<PassObjectSizeAttr>();
+    if (ps == nullptr)
       return;
 
-    const auto &Context = getContext();
-    auto SizeTy = Context.getSizeType();
-    auto T = builder.getUIntNTy(Context.getTypeSize(SizeTy));
-    assert(EmittedArg.getScalarVal() && "We emitted nothing for the arg?");
-    auto V = evaluateOrEmitBuiltinObjectSize(
-        Arg, PS->getType(), T, EmittedArg.getScalarVal(), PS->isDynamic());
-    Args.add(RValue::get(V), SizeTy);
+    const auto &context = getContext();
+    auto sizeTy = context.getSizeType();
+    auto t = builder.getUIntNTy(context.getTypeSize(sizeTy));
+    assert(emittedArg.getScalarVal() && "We emitted nothing for the arg?");
+    auto v = evaluateOrEmitBuiltinObjectSize(
+        arg, ps->getType(), t, emittedArg.getScalarVal(), ps->isDynamic());
+    args.add(RValue::get(v), sizeTy);
     // If we're emitting args in reverse, be sure to do so with
     // pass_object_size, as well.
-    if (!LeftToRight)
-      std::swap(Args.back(), *(&Args.back() - 1));
+    if (!leftToRight)
+      std::swap(args.back(), *(&args.back() - 1));
   };
 
   // Evaluate each argument in the appropriate order.
-  size_t CallArgsStart = Args.size();
-  for (unsigned I = 0, E = ArgTypes.size(); I != E; ++I) {
-    unsigned Idx = LeftToRight ? I : E - I - 1;
-    CallExpr::const_arg_iterator Arg = ArgRange.begin() + Idx;
-    unsigned InitialArgSize = Args.size();
-    assert(!isa<ObjCIndirectCopyRestoreExpr>(*Arg) && "NYI");
-    assert(!isa_and_nonnull<ObjCMethodDecl>(AC.getDecl()) && "NYI");
+  size_t callArgsStart = args.size();
+  for (unsigned i = 0, e = argTypes.size(); i != e; ++i) {
+    unsigned idx = leftToRight ? i : e - i - 1;
+    CallExpr::const_arg_iterator arg = argRange.begin() + idx;
+    unsigned initialArgSize = args.size();
+    assert(!isa<ObjCIndirectCopyRestoreExpr>(*arg) && "NYI");
+    assert(!isa_and_nonnull<ObjCMethodDecl>(ac.getDecl()) && "NYI");
 
-    buildCallArg(Args, *Arg, ArgTypes[Idx]);
+    buildCallArg(args, *arg, argTypes[idx]);
     // In particular, we depend on it being the last arg in Args, and the
     // objectsize bits depend on there only being one arg if !LeftToRight.
-    assert(InitialArgSize + 1 == Args.size() &&
+    assert(initialArgSize + 1 == args.size() &&
            "The code below depends on only adding one arg per buildCallArg");
-    (void)InitialArgSize;
+    (void)initialArgSize;
     // Since pointer argument are never emitted as LValue, it is safe to emit
     // non-null argument check for r-value only.
-    if (!Args.back().hasLValue()) {
-      RValue RVArg = Args.back().getKnownRValue();
+    if (!args.back().hasLValue()) {
+      RValue rvArg = args.back().getKnownRValue();
       assert(!SanOpts.has(SanitizerKind::NonnullAttribute) && "Sanitizers NYI");
       assert(!SanOpts.has(SanitizerKind::NullabilityArg) && "Sanitizers NYI");
       // @llvm.objectsize should never have side-effects and shouldn't need
       // destruction/cleanups, so we can safely "emit" it after its arg,
       // regardless of right-to-leftness
-      MaybeEmitImplicitObjectSize(Idx, *Arg, RVArg);
+      maybeEmitImplicitObjectSize(idx, *arg, rvArg);
     }
   }
 
-  if (!LeftToRight) {
+  if (!leftToRight) {
     // Un-reverse the arguments we just evaluated so they match up with the CIR
     // function.
-    std::reverse(Args.begin() + CallArgsStart, Args.end());
+    std::reverse(args.begin() + callArgsStart, args.end());
   }
 }
 
 /// Returns the canonical formal type of the given C++ method.
-static CanQual<FunctionProtoType> GetFormalType(const CXXMethodDecl *MD) {
-  return MD->getType()
+static CanQual<FunctionProtoType> getFormalType(const CXXMethodDecl *md) {
+  return md->getType()
       ->getCanonicalTypeUnqualified()
       .getAs<FunctionProtoType>();
 }
@@ -1127,10 +1130,10 @@ static void addExtParameterInfosForCall(
   paramInfos.resize(prefixArgs);
 
   // Add infos for the prototype.
-  for (const auto &ParamInfo : proto->getExtParameterInfos()) {
-    paramInfos.push_back(ParamInfo);
+  for (const auto &paramInfo : proto->getExtParameterInfos()) {
+    paramInfos.push_back(paramInfo);
     // pass_object_size params have no parameter info.
-    if (ParamInfo.hasPassObjectSize())
+    if (paramInfo.hasPassObjectSize())
       paramInfos.emplace_back();
   }
 
@@ -1144,65 +1147,65 @@ static void addExtParameterInfosForCall(
 /// FPT has pass_object_size_attrs, then we'll add parameters for those, too.
 /// TODO(cir): this should be shared with LLVM codegen
 static void appendParameterTypes(
-    const CIRGenTypes &CGT, SmallVectorImpl<CanQualType> &prefix,
+    const CIRGenTypes &cgt, SmallVectorImpl<CanQualType> &prefix,
     SmallVectorImpl<FunctionProtoType::ExtParameterInfo> &paramInfos,
-    CanQual<FunctionProtoType> FPT) {
+    CanQual<FunctionProtoType> fpt) {
   // Fast path: don't touch param info if we don't need to.
-  if (!FPT->hasExtParameterInfos()) {
+  if (!fpt->hasExtParameterInfos()) {
     assert(paramInfos.empty() &&
            "We have paramInfos, but the prototype doesn't?");
-    prefix.append(FPT->param_type_begin(), FPT->param_type_end());
+    prefix.append(fpt->param_type_begin(), fpt->param_type_end());
     return;
   }
 
-  unsigned PrefixSize = prefix.size();
+  unsigned prefixSize = prefix.size();
   // In the vast majority of cases, we'll have precisely FPT->getNumParams()
   // parameters; the only thing that can change this is the presence of
   // pass_object_size. So, we preallocate for the common case.
-  prefix.reserve(prefix.size() + FPT->getNumParams());
+  prefix.reserve(prefix.size() + fpt->getNumParams());
 
-  auto ExtInfos = FPT->getExtParameterInfos();
-  assert(ExtInfos.size() == FPT->getNumParams());
-  for (unsigned I = 0, E = FPT->getNumParams(); I != E; ++I) {
-    prefix.push_back(FPT->getParamType(I));
-    if (ExtInfos[I].hasPassObjectSize())
-      prefix.push_back(CGT.getContext().getSizeType());
+  auto extInfos = fpt->getExtParameterInfos();
+  assert(extInfos.size() == fpt->getNumParams());
+  for (unsigned i = 0, e = fpt->getNumParams(); i != e; ++i) {
+    prefix.push_back(fpt->getParamType(i));
+    if (extInfos[i].hasPassObjectSize())
+      prefix.push_back(cgt.getContext().getSizeType());
   }
 
-  addExtParameterInfosForCall(paramInfos, FPT.getTypePtr(), PrefixSize,
+  addExtParameterInfosForCall(paramInfos, fpt.getTypePtr(), prefixSize,
                               prefix.size());
 }
 
 const CIRGenFunctionInfo &
-CIRGenTypes::arrangeCXXStructorDeclaration(GlobalDecl GD) {
-  auto *MD = cast<CXXMethodDecl>(GD.getDecl());
+CIRGenTypes::arrangeCXXStructorDeclaration(GlobalDecl gd) {
+  auto *md = cast<CXXMethodDecl>(gd.getDecl());
 
   llvm::SmallVector<CanQualType, 16> argTypes;
   SmallVector<FunctionProtoType::ExtParameterInfo, 16> paramInfos;
-  argTypes.push_back(DeriveThisType(MD->getParent(), MD));
+  argTypes.push_back(DeriveThisType(md->getParent(), md));
 
-  bool PassParams = true;
+  bool passParams = true;
 
-  if (auto *CD = dyn_cast<CXXConstructorDecl>(MD)) {
+  if (auto *cd = dyn_cast<CXXConstructorDecl>(md)) {
     // A base class inheriting constructor doesn't get forwarded arguments
     // needed to construct a virtual base (or base class thereof)
-    assert(!CD->getInheritedConstructor() && "Inheritance NYI");
+    assert(!cd->getInheritedConstructor() && "Inheritance NYI");
   }
 
-  CanQual<FunctionProtoType> FTP = GetFormalType(MD);
+  CanQual<FunctionProtoType> ftp = getFormalType(md);
 
-  if (PassParams)
-    appendParameterTypes(*this, argTypes, paramInfos, FTP);
+  if (passParams)
+    appendParameterTypes(*this, argTypes, paramInfos, ftp);
 
   assert(paramInfos.empty() && "NYI");
 
-  assert(!MD->isVariadic() && "Variadic fns NYI");
+  assert(!md->isVariadic() && "Variadic fns NYI");
   RequiredArgs required = RequiredArgs::All;
   (void)required;
 
-  FunctionType::ExtInfo extInfo = FTP->getExtInfo();
+  FunctionType::ExtInfo extInfo = ftp->getExtInfo();
 
-  assert(!TheCXXABI.HasThisReturn(GD) && "NYI");
+  assert(!TheCXXABI.HasThisReturn(gd) && "NYI");
 
   CanQualType resultType = Context.VoidTy;
   (void)resultType;
@@ -1215,53 +1218,53 @@ CIRGenTypes::arrangeCXXStructorDeclaration(GlobalDecl GD) {
 /// qualification. Either or both of RD and MD may be null. A null RD indicates
 /// that there is no meaningful 'this' type, and a null MD can occur when
 /// calling a method pointer.
-CanQualType CIRGenTypes::DeriveThisType(const CXXRecordDecl *RD,
-                                        const CXXMethodDecl *MD) {
-  QualType RecTy;
-  if (RD)
-    RecTy = getContext().getTagDeclType(RD)->getCanonicalTypeInternal();
+CanQualType CIRGenTypes::DeriveThisType(const CXXRecordDecl *rd,
+                                        const CXXMethodDecl *md) {
+  QualType recTy;
+  if (rd)
+    recTy = getContext().getTagDeclType(rd)->getCanonicalTypeInternal();
   else
     assert(false && "CXXMethodDecl NYI");
 
-  if (MD)
-    RecTy = getContext().getAddrSpaceQualType(
-        RecTy, MD->getMethodQualifiers().getAddressSpace());
-  return getContext().getPointerType(CanQualType::CreateUnsafe(RecTy));
+  if (md)
+    recTy = getContext().getAddrSpaceQualType(
+        recTy, md->getMethodQualifiers().getAddressSpace());
+  return getContext().getPointerType(CanQualType::CreateUnsafe(recTy));
 }
 
 /// Arrange the CIR function layout for a value of the given function type, on
 /// top of any implicit parameters already stored.
 static const CIRGenFunctionInfo &
-arrangeCIRFunctionInfo(CIRGenTypes &CGT, FnInfoOpts instanceMethod,
+arrangeCIRFunctionInfo(CIRGenTypes &cgt, FnInfoOpts instanceMethod,
                        SmallVectorImpl<CanQualType> &prefix,
-                       CanQual<FunctionProtoType> FTP) {
+                       CanQual<FunctionProtoType> ftp) {
   SmallVector<FunctionProtoType::ExtParameterInfo, 16> paramInfos;
-  RequiredArgs Required = RequiredArgs::forPrototypePlus(FTP, prefix.size());
+  RequiredArgs required = RequiredArgs::forPrototypePlus(ftp, prefix.size());
   // FIXME: Kill copy. -- from codegen
-  appendParameterTypes(CGT, prefix, paramInfos, FTP);
-  CanQualType resultType = FTP->getReturnType().getUnqualifiedType();
+  appendParameterTypes(cgt, prefix, paramInfos, ftp);
+  CanQualType resultType = ftp->getReturnType().getUnqualifiedType();
 
-  return CGT.arrangeCIRFunctionInfo(resultType, instanceMethod, prefix,
-                                    FTP->getExtInfo(), paramInfos, Required);
+  return cgt.arrangeCIRFunctionInfo(resultType, instanceMethod, prefix,
+                                    ftp->getExtInfo(), paramInfos, required);
 }
 
 /// Arrange the argument and result information for a value of the given
 /// freestanding function type.
 const CIRGenFunctionInfo &
-CIRGenTypes::arrangeFreeFunctionType(CanQual<FunctionProtoType> FTP) {
+CIRGenTypes::arrangeFreeFunctionType(CanQual<FunctionProtoType> ftp) {
   SmallVector<CanQualType, 16> argTypes;
-  return ::arrangeCIRFunctionInfo(*this, FnInfoOpts::None, argTypes, FTP);
+  return ::arrangeCIRFunctionInfo(*this, FnInfoOpts::None, argTypes, ftp);
 }
 
 /// Arrange the argument and result information for a value of the given
 /// unprototyped freestanding function type.
 const CIRGenFunctionInfo &
-CIRGenTypes::arrangeFreeFunctionType(CanQual<FunctionNoProtoType> FTNP) {
+CIRGenTypes::arrangeFreeFunctionType(CanQual<FunctionNoProtoType> ftnp) {
   // When translating an unprototyped function type, always use a
   // variadic type.
-  return arrangeCIRFunctionInfo(FTNP->getReturnType().getUnqualifiedType(),
+  return arrangeCIRFunctionInfo(ftnp->getReturnType().getUnqualifiedType(),
                                 FnInfoOpts::None, std::nullopt,
-                                FTNP->getExtInfo(), {}, RequiredArgs(0));
+                                ftnp->getExtInfo(), {}, RequiredArgs(0));
 }
 
 const CIRGenFunctionInfo &
@@ -1269,8 +1272,8 @@ CIRGenTypes::arrangeBuiltinFunctionCall(QualType resultType,
                                         const CallArgList &args) {
   // FIXME: Kill copy.
   SmallVector<CanQualType, 16> argTypes;
-  for (const auto &Arg : args)
-    argTypes.push_back(getContext().getCanonicalParamType(Arg.Ty));
+  for (const auto &arg : args)
+    argTypes.push_back(getContext().getCanonicalParamType(arg.Ty));
   llvm_unreachable("NYI");
 }
 
@@ -1283,64 +1286,64 @@ CIRGenTypes::arrangeBuiltinFunctionCall(QualType resultType,
 /// PassProtoArgs indicates whether `args` has args for the parameters in the
 /// given CXXConstructorDecl.
 const CIRGenFunctionInfo &CIRGenTypes::arrangeCXXConstructorCall(
-    const CallArgList &Args, const CXXConstructorDecl *D, CXXCtorType CtorKind,
-    unsigned ExtraPrefixArgs, unsigned ExtraSuffixArgs, bool PassProtoArgs) {
+    const CallArgList &args, const CXXConstructorDecl *d, CXXCtorType ctorKind,
+    unsigned extraPrefixArgs, unsigned extraSuffixArgs, bool passProtoArgs) {
 
   // FIXME: Kill copy.
-  llvm::SmallVector<CanQualType, 16> ArgTypes;
-  for (const auto &Arg : Args)
-    ArgTypes.push_back(Context.getCanonicalParamType(Arg.Ty));
+  llvm::SmallVector<CanQualType, 16> argTypes;
+  for (const auto &arg : args)
+    argTypes.push_back(Context.getCanonicalParamType(arg.Ty));
 
   // +1 for implicit this, which should always be args[0]
-  unsigned TotalPrefixArgs = 1 + ExtraPrefixArgs;
+  unsigned totalPrefixArgs = 1 + extraPrefixArgs;
 
-  CanQual<FunctionProtoType> FPT = GetFormalType(D);
-  RequiredArgs Required = PassProtoArgs
+  CanQual<FunctionProtoType> fpt = getFormalType(d);
+  RequiredArgs required = passProtoArgs
                               ? RequiredArgs::forPrototypePlus(
-                                    FPT, TotalPrefixArgs + ExtraSuffixArgs)
+                                    fpt, totalPrefixArgs + extraSuffixArgs)
                               : RequiredArgs::All;
 
-  GlobalDecl GD(D, CtorKind);
-  assert(!TheCXXABI.HasThisReturn(GD) && "ThisReturn NYI");
-  assert(!TheCXXABI.hasMostDerivedReturn(GD) && "Most derived return NYI");
-  CanQualType ResultType = Context.VoidTy;
+  GlobalDecl gd(d, ctorKind);
+  assert(!TheCXXABI.HasThisReturn(gd) && "ThisReturn NYI");
+  assert(!TheCXXABI.hasMostDerivedReturn(gd) && "Most derived return NYI");
+  CanQualType resultType = Context.VoidTy;
 
-  FunctionType::ExtInfo Info = FPT->getExtInfo();
-  llvm::SmallVector<FunctionProtoType::ExtParameterInfo, 16> ParamInfos;
+  FunctionType::ExtInfo info = fpt->getExtInfo();
+  llvm::SmallVector<FunctionProtoType::ExtParameterInfo, 16> paramInfos;
   // If the prototype args are elided, we should onlyy have ABI-specific args,
   // which never have param info.
-  assert(!FPT->hasExtParameterInfos() && "NYI");
+  assert(!fpt->hasExtParameterInfos() && "NYI");
 
-  return arrangeCIRFunctionInfo(ResultType, FnInfoOpts::IsInstanceMethod,
-                                ArgTypes, Info, ParamInfos, Required);
+  return arrangeCIRFunctionInfo(resultType, FnInfoOpts::IsInstanceMethod,
+                                argTypes, info, paramInfos, required);
 }
 
-bool CIRGenTypes::inheritingCtorHasParams(const InheritedConstructor &Inherited,
-                                          CXXCtorType Type) {
+bool CIRGenTypes::inheritingCtorHasParams(const InheritedConstructor &inherited,
+                                          CXXCtorType type) {
 
   // Parameters are unnecessary if we're constructing a base class subobject and
   // the inherited constructor lives in a virtual base.
-  return Type == Ctor_Complete ||
-         !Inherited.getShadowDecl()->constructsVirtualBase() ||
+  return type == Ctor_Complete ||
+         !inherited.getShadowDecl()->constructsVirtualBase() ||
          !Target.getCXXABI().hasConstructorVariants();
 }
 
-bool CIRGenModule::MayDropFunctionReturn(const ASTContext &Context,
-                                         QualType ReturnType) {
+bool CIRGenModule::MayDropFunctionReturn(const ASTContext &context,
+                                         QualType returnType) {
   // We can't just disard the return value for a record type with a complex
   // destructor or a non-trivially copyable type.
-  if (const RecordType *RT =
-          ReturnType.getCanonicalType()->getAs<RecordType>()) {
+  if (const RecordType *rt =
+          returnType.getCanonicalType()->getAs<RecordType>()) {
     llvm_unreachable("NYI");
   }
 
-  return ReturnType.isTriviallyCopyableType(Context);
+  return returnType.isTriviallyCopyableType(context);
 }
 
-static bool isInAllocaArgument(CIRGenCXXABI &ABI, QualType type) {
-  const auto *RD = type->getAsCXXRecordDecl();
-  return RD &&
-         ABI.getRecordArgABI(RD) == CIRGenCXXABI::RecordArgABI::DirectInMemory;
+static bool isInAllocaArgument(CIRGenCXXABI &abi, QualType type) {
+  const auto *rd = type->getAsCXXRecordDecl();
+  return rd &&
+         abi.getRecordArgABI(rd) == CIRGenCXXABI::RecordArgABI::DirectInMemory;
 }
 
 void CIRGenFunction::buildDelegateCallArg(CallArgList &args,
@@ -1352,7 +1355,7 @@ void CIRGenFunction::buildDelegateCallArg(CallArgList &args,
 
   QualType type = param->getType();
 
-  if (isInAllocaArgument(CGM.getCXXABI(), type)) {
+  if (isInAllocaArgument(cgm.getCXXABI(), type)) {
     llvm_unreachable("NYI");
   }
 
@@ -1383,14 +1386,14 @@ void CIRGenFunction::buildDelegateCallArg(CallArgList &args,
 /// little easier to be able to assume that all parameter and return types are
 /// top-level unqualified.
 /// FIXME(CIR): This should be a common helper extracted from CodeGen
-static CanQualType GetReturnType(QualType RetTy) {
-  return RetTy->getCanonicalTypeUnqualified().getUnqualifiedType();
+static CanQualType getReturnType(QualType retTy) {
+  return retTy->getCanonicalTypeUnqualified().getUnqualifiedType();
 }
 
 /// Arrange a call as unto a free function, except possibly with an additional
 /// number of formal parameters considered required.
 static const CIRGenFunctionInfo &
-arrangeFreeFunctionLikeCall(CIRGenTypes &CGT, CIRGenModule &CGM,
+arrangeFreeFunctionLikeCall(CIRGenTypes &cgt, CIRGenModule &cgm,
                             const CallArgList &args, const FunctionType *fnType,
                             unsigned numExtraRequiredArgs,
                             FnInfoOpts chainCall) {
@@ -1419,8 +1422,8 @@ arrangeFreeFunctionLikeCall(CIRGenTypes &CGT, CIRGenModule &CGM,
   // FIXME: Kill copy.
   SmallVector<CanQualType, 16> argTypes;
   for (const auto &arg : args)
-    argTypes.push_back(CGT.getContext().getCanonicalParamType(arg.Ty));
-  return CGT.arrangeCIRFunctionInfo(GetReturnType(fnType->getReturnType()),
+    argTypes.push_back(cgt.getContext().getCanonicalParamType(arg.Ty));
+  return cgt.arrangeCIRFunctionInfo(getReturnType(fnType->getReturnType()),
                                     chainCall, argTypes, fnType->getExtInfo(),
                                     paramInfos, required);
 }
@@ -1461,7 +1464,7 @@ const CIRGenFunctionInfo &CIRGenTypes::arrangeCXXMethodCall(
   auto argTypes = getArgTypesForCall(Context, args);
 
   auto info = proto->getExtInfo();
-  return arrangeCIRFunctionInfo(GetReturnType(proto->getReturnType()),
+  return arrangeCIRFunctionInfo(getReturnType(proto->getReturnType()),
                                 FnInfoOpts::IsInstanceMethod, argTypes, info,
                                 paramInfos, required);
 }
@@ -1470,17 +1473,17 @@ const CIRGenFunctionInfo &CIRGenTypes::arrangeCXXMethodCall(
 /// the given arguments. The arguments are necessary because the function might
 /// be unprototyped, in which case it's target-dependent in crazy ways.
 const CIRGenFunctionInfo &CIRGenTypes::arrangeFreeFunctionCall(
-    const CallArgList &args, const FunctionType *fnType, bool ChainCall) {
-  assert(!ChainCall && "ChainCall NYI");
+    const CallArgList &args, const FunctionType *fnType, bool chainCall) {
+  assert(!chainCall && "ChainCall NYI");
   return arrangeFreeFunctionLikeCall(
-      *this, CGM, args, fnType, ChainCall ? 1 : 0,
-      ChainCall ? FnInfoOpts::IsChainCall : FnInfoOpts::None);
+      *this, CGM, args, fnType, chainCall ? 1 : 0,
+      chainCall ? FnInfoOpts::IsChainCall : FnInfoOpts::None);
 }
 
 /// Set calling convention for CUDA/HIP kernel.
-static void setCUDAKernelCallingConvention(CanQualType &FTy, CIRGenModule &CGM,
-                                           const FunctionDecl *FD) {
-  if (FD->hasAttr<CUDAGlobalAttr>()) {
+static void setCUDAKernelCallingConvention(CanQualType &fTy, CIRGenModule &cgm,
+                                           const FunctionDecl *fd) {
+  if (fd->hasAttr<CUDAGlobalAttr>()) {
     llvm_unreachable("NYI");
   }
 }
@@ -1489,18 +1492,18 @@ static void setCUDAKernelCallingConvention(CanQualType &FTy, CIRGenModule &CGM,
 /// of the given C++ non-static member function. The member function must be an
 /// ordinary function, i.e. not a constructor or destructor.
 const CIRGenFunctionInfo &
-CIRGenTypes::arrangeCXXMethodDeclaration(const CXXMethodDecl *MD) {
-  assert(!isa<CXXConstructorDecl>(MD) && "wrong method for constructors!");
-  assert(!isa<CXXDestructorDecl>(MD) && "wrong method for destructors!");
+CIRGenTypes::arrangeCXXMethodDeclaration(const CXXMethodDecl *md) {
+  assert(!isa<CXXConstructorDecl>(md) && "wrong method for constructors!");
+  assert(!isa<CXXDestructorDecl>(md) && "wrong method for destructors!");
 
-  CanQualType FT = GetFormalType(MD).getAs<Type>();
-  setCUDAKernelCallingConvention(FT, CGM, MD);
-  auto prototype = FT.getAs<FunctionProtoType>();
+  CanQualType ft = getFormalType(md).getAs<Type>();
+  setCUDAKernelCallingConvention(ft, CGM, md);
+  auto prototype = ft.getAs<FunctionProtoType>();
 
-  if (MD->isInstance()) {
+  if (md->isInstance()) {
     // The abstarct case is perfectly fine.
-    auto *ThisType = TheCXXABI.getThisArgumentTypeForMethod(MD);
-    return arrangeCXXMethodType(ThisType, prototype.getTypePtr(), MD);
+    auto *thisType = TheCXXABI.getThisArgumentTypeForMethod(md);
+    return arrangeCXXMethodType(thisType, prototype.getTypePtr(), md);
   }
 
   return arrangeFreeFunctionType(prototype);
@@ -1512,57 +1515,57 @@ CIRGenTypes::arrangeCXXMethodDeclaration(const CXXMethodDecl *MD) {
 /// pointer type). The member fucntion must be an ordinary function, i.e. not a
 /// constructor or destructor.
 const CIRGenFunctionInfo &
-CIRGenTypes::arrangeCXXMethodType(const CXXRecordDecl *RD,
-                                  const FunctionProtoType *FTP,
-                                  const CXXMethodDecl *MD) {
+CIRGenTypes::arrangeCXXMethodType(const CXXRecordDecl *rd,
+                                  const FunctionProtoType *ftp,
+                                  const CXXMethodDecl *md) {
   llvm::SmallVector<CanQualType, 16> argTypes;
 
   // Add the 'this' pointer.
-  argTypes.push_back(DeriveThisType(RD, MD));
+  argTypes.push_back(DeriveThisType(rd, md));
 
   return ::arrangeCIRFunctionInfo(
       *this, FnInfoOpts::IsChainCall, argTypes,
-      FTP->getCanonicalTypeUnqualified().getAs<FunctionProtoType>());
+      ftp->getCanonicalTypeUnqualified().getAs<FunctionProtoType>());
 }
 
 /// Arrange the argument and result information for the declaration or
 /// definition of the given function.
 const CIRGenFunctionInfo &
-CIRGenTypes::arrangeFunctionDeclaration(const FunctionDecl *FD) {
-  if (const auto *MD = dyn_cast<CXXMethodDecl>(FD))
-    if (MD->isInstance())
-      return arrangeCXXMethodDeclaration(MD);
+CIRGenTypes::arrangeFunctionDeclaration(const FunctionDecl *fd) {
+  if (const auto *md = dyn_cast<CXXMethodDecl>(fd))
+    if (md->isInstance())
+      return arrangeCXXMethodDeclaration(md);
 
-  auto FTy = FD->getType()->getCanonicalTypeUnqualified();
+  auto fTy = fd->getType()->getCanonicalTypeUnqualified();
 
-  assert(isa<FunctionType>(FTy));
+  assert(isa<FunctionType>(fTy));
   // TODO: setCUDAKernelCallingConvention
 
   // When declaring a function without a prototype, always use a non-variadic
   // type.
-  if (CanQual<FunctionNoProtoType> noProto = FTy.getAs<FunctionNoProtoType>()) {
+  if (CanQual<FunctionNoProtoType> noProto = fTy.getAs<FunctionNoProtoType>()) {
     return arrangeCIRFunctionInfo(noProto->getReturnType(), FnInfoOpts::None,
                                   std::nullopt, noProto->getExtInfo(), {},
                                   RequiredArgs::All);
   }
 
-  return arrangeFreeFunctionType(FTy.castAs<FunctionProtoType>());
+  return arrangeFreeFunctionType(fTy.castAs<FunctionProtoType>());
 }
 
-RValue CallArg::getRValue(CIRGenFunction &CGF, mlir::Location loc) const {
+RValue CallArg::getRValue(CIRGenFunction &cgf, mlir::Location loc) const {
   if (!HasLV)
     return RV;
-  LValue Copy = CGF.makeAddrLValue(CGF.CreateMemTemp(Ty, loc), Ty);
-  CGF.buildAggregateCopy(Copy, LV, Ty, AggValueSlot::DoesNotOverlap,
+  LValue copy = cgf.makeAddrLValue(cgf.CreateMemTemp(Ty, loc), Ty);
+  cgf.buildAggregateCopy(copy, LV, Ty, AggValueSlot::DoesNotOverlap,
                          LV.isVolatile());
   IsUsed = true;
-  return RValue::getAggregate(Copy.getAddress());
+  return RValue::getAggregate(copy.getAddress());
 }
 
-void CIRGenFunction::buildNonNullArgCheck(RValue RV, QualType ArgType,
-                                          SourceLocation ArgLoc,
-                                          AbstractCallee AC, unsigned ParmNum) {
-  if (!AC.getDecl() || !(SanOpts.has(SanitizerKind::NonnullAttribute) ||
+void CIRGenFunction::buildNonNullArgCheck(RValue rv, QualType argType,
+                                          SourceLocation argLoc,
+                                          AbstractCallee ac, unsigned parmNum) {
+  if (!ac.getDecl() || !(SanOpts.has(SanitizerKind::NonnullAttribute) ||
                          SanOpts.has(SanitizerKind::NullabilityArg)))
     return;
   llvm_unreachable("non-null arg check is NYI");
@@ -1572,17 +1575,17 @@ void CIRGenFunction::buildNonNullArgCheck(RValue RV, QualType ArgType,
 
 // FIXME(cir): This completely abstracts away the ABI with a generic CIR Op. We
 // need to decide how to handle va_arg target-specific codegen.
-mlir::Value CIRGenFunction::buildVAArg(VAArgExpr *VE, Address &VAListAddr) {
-  assert(!VE->isMicrosoftABI() && "NYI");
-  auto loc = CGM.getLoc(VE->getExprLoc());
-  auto type = ConvertType(VE->getType());
-  auto vaList = buildVAListRef(VE->getSubExpr()).getPointer();
+mlir::Value CIRGenFunction::buildVAArg(VAArgExpr *ve, Address &vaListAddr) {
+  assert(!ve->isMicrosoftABI() && "NYI");
+  auto loc = cgm.getLoc(ve->getExprLoc());
+  auto type = ConvertType(ve->getType());
+  auto vaList = buildVAListRef(ve->getSubExpr()).getPointer();
   return builder.create<mlir::cir::VAArgOp>(loc, type, vaList);
 }
 
 static void getTrivialDefaultFunctionAttributes(
     StringRef name, bool hasOptnone, const CodeGenOptions &codeGenOpts,
-    const LangOptions &langOpts, bool attrOnCallSite, CIRGenModule &CGM,
+    const LangOptions &langOpts, bool attrOnCallSite, CIRGenModule &cgm,
     mlir::NamedAttrList &funcAttrs) {
 
   if (langOpts.assumeFunctionsAreConvergent()) {
@@ -1592,7 +1595,7 @@ static void getTrivialDefaultFunctionAttributes(
     // applied around them).  LLVM will remove this attribute where it safely
     // can.
 
-    auto convgt = mlir::cir::ConvergentAttr::get(CGM.getBuilder().getContext());
+    auto convgt = mlir::cir::ConvergentAttr::get(cgm.getBuilder().getContext());
     funcAttrs.set(convgt.getMnemonic(), convgt);
   }
 
@@ -1602,7 +1605,7 @@ static void getTrivialDefaultFunctionAttributes(
   if ((langOpts.CUDA && langOpts.CUDAIsDevice) || langOpts.SYCLIsDevice)
     llvm_unreachable("NYI");
   if (langOpts.OpenCL) {
-    auto noThrow = mlir::cir::NoThrowAttr::get(CGM.getBuilder().getContext());
+    auto noThrow = mlir::cir::NoThrowAttr::get(cgm.getBuilder().getContext());
     funcAttrs.set(noThrow.getMnemonic(), noThrow);
   }
 }

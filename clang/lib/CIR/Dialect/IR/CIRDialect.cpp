@@ -921,18 +921,18 @@ LogicalResult VecCreateOp::verify() {
   // Verify that the number of arguments matches the number of elements in the
   // vector, and that the type of all the arguments matches the type of the
   // elements in the vector.
-  auto VecTy = getResult().getType();
-  if (getElements().size() != VecTy.getSize()) {
+  auto vecTy = getResult().getType();
+  if (getElements().size() != vecTy.getSize()) {
     return emitOpError() << "operand count of " << getElements().size()
-                         << " doesn't match vector type " << VecTy
-                         << " element count of " << VecTy.getSize();
+                         << " doesn't match vector type " << vecTy
+                         << " element count of " << vecTy.getSize();
   }
-  auto ElementType = VecTy.getEltType();
-  for (auto Element : getElements()) {
-    if (Element.getType() != ElementType) {
-      return emitOpError() << "operand type " << Element.getType()
+  auto elementType = vecTy.getEltType();
+  for (auto element : getElements()) {
+    if (element.getType() != elementType) {
+      return emitOpError() << "operand type " << element.getType()
                            << " doesn't match vector element type "
-                           << ElementType;
+                           << elementType;
     }
   }
   return success();
@@ -1148,7 +1148,6 @@ void IfOp::getSuccessorRegions(mlir::RegionBranchPoint point,
   // If the else region does not exist, it is not a viable successor.
   if (elseRegion)
     regions.push_back(RegionSuccessor(elseRegion));
-  return;
 }
 
 void IfOp::build(OpBuilder &builder, OperationState &result, Value cond,
@@ -1320,7 +1319,7 @@ ParseResult parseCatchRegions(
   auto parseAndCheckRegion = [&]() -> ParseResult {
     // Parse region attached to catch
     regions.emplace_back(new Region);
-    Region &currRegion = *regions.back().get();
+    Region &currRegion = *regions.back();
     auto parserLoc = parser.getCurrentLocation();
     if (parser.parseRegion(currRegion, /*arguments=*/{}, /*argTypes=*/{})) {
       regions.clear();
@@ -1400,7 +1399,6 @@ void TernaryOp::getSuccessorRegions(mlir::RegionBranchPoint point,
   // If the condition isn't constant, both regions may be executed.
   regions.push_back(RegionSuccessor(&getTrueRegion()));
   regions.push_back(RegionSuccessor(&getFalseRegion()));
-  return;
 }
 
 void TernaryOp::build(OpBuilder &builder, OperationState &result, Value cond,
@@ -1487,7 +1485,7 @@ parseSwitchOp(OpAsmParser &parser,
   auto parseAndCheckRegion = [&]() -> ParseResult {
     // Parse region attached to case
     regions.emplace_back(new Region);
-    Region &currRegion = *regions.back().get();
+    Region &currRegion = *regions.back();
     auto parserLoc = parser.getCurrentLocation();
     if (parser.parseRegion(currRegion, /*arguments=*/{}, /*argTypes=*/{})) {
       regions.clear();
@@ -2071,15 +2069,15 @@ LogicalResult GlobalOp::verify() {
 }
 
 void GlobalOp::build(OpBuilder &odsBuilder, OperationState &odsState,
-                     StringRef sym_name, Type sym_type, bool isConstant,
+                     StringRef symName, Type symType, bool isConstant,
                      cir::GlobalLinkageKind linkage,
                      cir::AddressSpaceAttr addrSpace,
                      function_ref<void(OpBuilder &, Location)> ctorBuilder,
                      function_ref<void(OpBuilder &, Location)> dtorBuilder) {
   odsState.addAttribute(getSymNameAttrName(odsState.name),
-                        odsBuilder.getStringAttr(sym_name));
+                        odsBuilder.getStringAttr(symName));
   odsState.addAttribute(getSymTypeAttrName(odsState.name),
-                        ::mlir::TypeAttr::get(sym_type));
+                        ::mlir::TypeAttr::get(symType));
   if (isConstant)
     odsState.addAttribute(getConstantAttrName(odsState.name),
                           odsBuilder.getUnitAttr());
@@ -2146,7 +2144,7 @@ LogicalResult
 GetGlobalOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
   // Verify that the result type underlying pointer type matches the type of
   // the referenced cir.global or cir.func op.
-  auto op = symbolTable.lookupNearestSymbolFrom(*this, getNameAttr());
+  auto *op = symbolTable.lookupNearestSymbolFrom(*this, getNameAttr());
   if (!(isa<GlobalOp>(op) || isa<FuncOp>(op)))
     return emitOpError("'")
            << getName()
@@ -2682,10 +2680,10 @@ mlir::Value cir::CallOp::getIndirectCall() {
 }
 
 mlir::Operation::operand_iterator cir::CallOp::arg_operand_begin() {
-  auto arg_begin = operand_begin();
+  auto argBegin = operand_begin();
   if (isIndirect())
-    arg_begin++;
-  return arg_begin;
+    argBegin++;
+  return argBegin;
 }
 mlir::Operation::operand_iterator cir::CallOp::arg_operand_end() {
   return operand_end();
@@ -3063,10 +3061,10 @@ mlir::Value cir::TryCallOp::getIndirectCall() {
 }
 
 mlir::Operation::operand_iterator cir::TryCallOp::arg_operand_begin() {
-  auto arg_begin = operand_begin();
+  auto argBegin = operand_begin();
   if (isIndirect())
-    arg_begin++;
-  return arg_begin;
+    argBegin++;
+  return argBegin;
 }
 mlir::Operation::operand_iterator cir::TryCallOp::arg_operand_end() {
   return operand_end();
@@ -3682,8 +3680,8 @@ void cir::InlineAsmOp::print(OpAsmPrinter &p) {
   p.printNewline();
 
   llvm::SmallVector<std::string, 3> names{"out", "in", "in_out"};
-  auto nameIt = names.begin();
-  auto attrIt = getOperandAttrs().begin();
+  auto *nameIt = names.begin();
+  const auto *attrIt = getOperandAttrs().begin();
 
   for (auto ops : getOperands()) {
     p << *nameIt << " = ";
@@ -3727,9 +3725,9 @@ void cir::InlineAsmOp::print(OpAsmPrinter &p) {
 
 ParseResult cir::InlineAsmOp::parse(OpAsmParser &parser,
                                     OperationState &result) {
-  llvm::SmallVector<mlir::Attribute> operand_attrs;
+  llvm::SmallVector<mlir::Attribute> operandAttrs;
   llvm::SmallVector<int32_t> operandsGroupSizes;
-  std::string asm_string, constraints;
+  std::string asmString, constraints;
   Type resType;
   auto *ctxt = parser.getBuilder().getContext();
 
@@ -3792,12 +3790,12 @@ ParseResult cir::InlineAsmOp::parse(OpAsmParser &parser,
             size++;
 
             if (parser.parseOptionalLParen().failed()) {
-              operand_attrs.push_back(mlir::Attribute());
+              operandAttrs.push_back(mlir::Attribute());
               return mlir::success();
             }
 
             if (parser.parseKeyword("maybe_memory").succeeded()) {
-              operand_attrs.push_back(mlir::UnitAttr::get(ctxt));
+              operandAttrs.push_back(mlir::UnitAttr::get(ctxt));
               if (parser.parseRParen())
                 return expected(")");
               return mlir::success();
@@ -3819,7 +3817,7 @@ ParseResult cir::InlineAsmOp::parse(OpAsmParser &parser,
 
   if (parser.parseLBrace())
     return expected("{");
-  if (parser.parseString(&asm_string))
+  if (parser.parseString(&asmString))
     return error("asm string parsing failed");
   if (parser.parseString(&constraints))
     return error("constraints string parsing failed");
@@ -3841,9 +3839,9 @@ ParseResult cir::InlineAsmOp::parse(OpAsmParser &parser,
     return mlir::failure();
 
   result.attributes.set("asm_flavor", AsmFlavorAttr::get(ctxt, *flavor));
-  result.attributes.set("asm_string", StringAttr::get(ctxt, asm_string));
+  result.attributes.set("asm_string", StringAttr::get(ctxt, asmString));
   result.attributes.set("constraints", StringAttr::get(ctxt, constraints));
-  result.attributes.set("operand_attrs", ArrayAttr::get(ctxt, operand_attrs));
+  result.attributes.set("operand_attrs", ArrayAttr::get(ctxt, operandAttrs));
   result.getOrAddProperties<InlineAsmOp::Properties>().operands_segments =
       parser.getBuilder().getDenseI32ArrayAttr(operandsGroupSizes);
   if (resType)
@@ -3908,7 +3906,7 @@ LogicalResult LabelOp::verify() {
 //===----------------------------------------------------------------------===//
 
 LogicalResult EhTypeIdOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
-  auto op = symbolTable.lookupNearestSymbolFrom(*this, getTypeSymAttr());
+  auto *op = symbolTable.lookupNearestSymbolFrom(*this, getTypeSymAttr());
   if (!isa<GlobalOp>(op))
     return emitOpError("'")
            << getTypeSym() << "' does not reference a valid cir.global";

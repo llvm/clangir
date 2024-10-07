@@ -20,56 +20,56 @@
 namespace mlir {
 namespace cir {
 
-static bool isExternalLinkage(GlobalLinkageKind Linkage) {
-  return Linkage == GlobalLinkageKind::ExternalLinkage;
+static bool isExternalLinkage(GlobalLinkageKind linkage) {
+  return linkage == GlobalLinkageKind::ExternalLinkage;
 }
-static bool isAvailableExternallyLinkage(GlobalLinkageKind Linkage) {
-  return Linkage == GlobalLinkageKind::AvailableExternallyLinkage;
+static bool isAvailableExternallyLinkage(GlobalLinkageKind linkage) {
+  return linkage == GlobalLinkageKind::AvailableExternallyLinkage;
 }
-static bool isLinkOnceAnyLinkage(GlobalLinkageKind Linkage) {
-  return Linkage == GlobalLinkageKind::LinkOnceAnyLinkage;
+static bool isLinkOnceAnyLinkage(GlobalLinkageKind linkage) {
+  return linkage == GlobalLinkageKind::LinkOnceAnyLinkage;
 }
-static bool isLinkOnceODRLinkage(GlobalLinkageKind Linkage) {
-  return Linkage == GlobalLinkageKind::LinkOnceODRLinkage;
+static bool isLinkOnceODRLinkage(GlobalLinkageKind linkage) {
+  return linkage == GlobalLinkageKind::LinkOnceODRLinkage;
 }
-static bool isLinkOnceLinkage(GlobalLinkageKind Linkage) {
-  return isLinkOnceAnyLinkage(Linkage) || isLinkOnceODRLinkage(Linkage);
+static bool isLinkOnceLinkage(GlobalLinkageKind linkage) {
+  return isLinkOnceAnyLinkage(linkage) || isLinkOnceODRLinkage(linkage);
 }
-static bool isWeakAnyLinkage(GlobalLinkageKind Linkage) {
-  return Linkage == GlobalLinkageKind::WeakAnyLinkage;
+static bool isWeakAnyLinkage(GlobalLinkageKind linkage) {
+  return linkage == GlobalLinkageKind::WeakAnyLinkage;
 }
-static bool isWeakODRLinkage(GlobalLinkageKind Linkage) {
-  return Linkage == GlobalLinkageKind::WeakODRLinkage;
+static bool isWeakODRLinkage(GlobalLinkageKind linkage) {
+  return linkage == GlobalLinkageKind::WeakODRLinkage;
 }
-static bool isWeakLinkage(GlobalLinkageKind Linkage) {
-  return isWeakAnyLinkage(Linkage) || isWeakODRLinkage(Linkage);
+static bool isWeakLinkage(GlobalLinkageKind linkage) {
+  return isWeakAnyLinkage(linkage) || isWeakODRLinkage(linkage);
 }
-static bool isInternalLinkage(GlobalLinkageKind Linkage) {
-  return Linkage == GlobalLinkageKind::InternalLinkage;
+static bool isInternalLinkage(GlobalLinkageKind linkage) {
+  return linkage == GlobalLinkageKind::InternalLinkage;
 }
-static bool isPrivateLinkage(GlobalLinkageKind Linkage) {
-  return Linkage == GlobalLinkageKind::PrivateLinkage;
+static bool isPrivateLinkage(GlobalLinkageKind linkage) {
+  return linkage == GlobalLinkageKind::PrivateLinkage;
 }
-static bool isLocalLinkage(GlobalLinkageKind Linkage) {
-  return isInternalLinkage(Linkage) || isPrivateLinkage(Linkage);
+static bool isLocalLinkage(GlobalLinkageKind linkage) {
+  return isInternalLinkage(linkage) || isPrivateLinkage(linkage);
 }
-static bool isExternalWeakLinkage(GlobalLinkageKind Linkage) {
-  return Linkage == GlobalLinkageKind::ExternalWeakLinkage;
+static bool isExternalWeakLinkage(GlobalLinkageKind linkage) {
+  return linkage == GlobalLinkageKind::ExternalWeakLinkage;
 }
-LLVM_ATTRIBUTE_UNUSED static bool isCommonLinkage(GlobalLinkageKind Linkage) {
-  return Linkage == GlobalLinkageKind::CommonLinkage;
+LLVM_ATTRIBUTE_UNUSED static bool isCommonLinkage(GlobalLinkageKind linkage) {
+  return linkage == GlobalLinkageKind::CommonLinkage;
 }
 LLVM_ATTRIBUTE_UNUSED static bool
-isValidDeclarationLinkage(GlobalLinkageKind Linkage) {
-  return isExternalWeakLinkage(Linkage) || isExternalLinkage(Linkage);
+isValidDeclarationLinkage(GlobalLinkageKind linkage) {
+  return isExternalWeakLinkage(linkage) || isExternalLinkage(linkage);
 }
 
 /// Whether the definition of this global may be replaced by something
 /// non-equivalent at link time. For example, if a function has weak linkage
 /// then the code defining it may be replaced by different code.
 LLVM_ATTRIBUTE_UNUSED static bool
-isInterposableLinkage(GlobalLinkageKind Linkage) {
-  switch (Linkage) {
+isInterposableLinkage(GlobalLinkageKind linkage) {
+  switch (linkage) {
   case GlobalLinkageKind::WeakAnyLinkage:
   case GlobalLinkageKind::LinkOnceAnyLinkage:
   case GlobalLinkageKind::CommonLinkage:
@@ -92,27 +92,27 @@ isInterposableLinkage(GlobalLinkageKind Linkage) {
 /// Whether the definition of this global may be discarded if it is not used
 /// in its compilation unit.
 LLVM_ATTRIBUTE_UNUSED static bool
-isDiscardableIfUnused(GlobalLinkageKind Linkage) {
-  return isLinkOnceLinkage(Linkage) || isLocalLinkage(Linkage) ||
-         isAvailableExternallyLinkage(Linkage);
+isDiscardableIfUnused(GlobalLinkageKind linkage) {
+  return isLinkOnceLinkage(linkage) || isLocalLinkage(linkage) ||
+         isAvailableExternallyLinkage(linkage);
 }
 
 /// Whether the definition of this global may be replaced at link time.  NB:
 /// Using this method outside of the code generators is almost always a
 /// mistake: when working at the IR level use isInterposable instead as it
 /// knows about ODR semantics.
-LLVM_ATTRIBUTE_UNUSED static bool isWeakForLinker(GlobalLinkageKind Linkage) {
-  return Linkage == GlobalLinkageKind::WeakAnyLinkage ||
-         Linkage == GlobalLinkageKind::WeakODRLinkage ||
-         Linkage == GlobalLinkageKind::LinkOnceAnyLinkage ||
-         Linkage == GlobalLinkageKind::LinkOnceODRLinkage ||
-         Linkage == GlobalLinkageKind::CommonLinkage ||
-         Linkage == GlobalLinkageKind::ExternalWeakLinkage;
+LLVM_ATTRIBUTE_UNUSED static bool isWeakForLinker(GlobalLinkageKind linkage) {
+  return linkage == GlobalLinkageKind::WeakAnyLinkage ||
+         linkage == GlobalLinkageKind::WeakODRLinkage ||
+         linkage == GlobalLinkageKind::LinkOnceAnyLinkage ||
+         linkage == GlobalLinkageKind::LinkOnceODRLinkage ||
+         linkage == GlobalLinkageKind::CommonLinkage ||
+         linkage == GlobalLinkageKind::ExternalWeakLinkage;
 }
 
-LLVM_ATTRIBUTE_UNUSED static bool isValidLinkage(GlobalLinkageKind L) {
-  return isExternalLinkage(L) || isLocalLinkage(L) || isWeakLinkage(L) ||
-         isLinkOnceLinkage(L);
+LLVM_ATTRIBUTE_UNUSED static bool isValidLinkage(GlobalLinkageKind l) {
+  return isExternalLinkage(l) || isLocalLinkage(l) || isWeakLinkage(l) ||
+         isLinkOnceLinkage(l);
 }
 
 bool operator<(mlir::cir::MemOrder, mlir::cir::MemOrder) = delete;
@@ -122,9 +122,9 @@ bool operator>=(mlir::cir::MemOrder, mlir::cir::MemOrder) = delete;
 
 // Validate an integral value which isn't known to fit within the enum's range
 // is a valid AtomicOrderingCABI.
-template <typename Int> inline bool isValidCIRAtomicOrderingCABI(Int I) {
-  return (Int)mlir::cir::MemOrder::Relaxed <= I &&
-         I <= (Int)mlir::cir::MemOrder::SequentiallyConsistent;
+template <typename Int> inline bool isValidCIRAtomicOrderingCABI(Int i) {
+  return (Int)mlir::cir::MemOrder::Relaxed <= i &&
+         i <= (Int)mlir::cir::MemOrder::SequentiallyConsistent;
 }
 
 } // namespace cir

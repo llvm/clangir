@@ -31,35 +31,35 @@ namespace cir {
 namespace {
 
 class AArch64ABIInfo : public ABIInfo {
-  AArch64ABIKind Kind;
+  AArch64ABIKind kind;
 
 public:
-  AArch64ABIInfo(LowerTypes &CGT, AArch64ABIKind Kind)
-      : ABIInfo(CGT), Kind(Kind) {}
+  AArch64ABIInfo(LowerTypes &cgt, AArch64ABIKind kind)
+      : ABIInfo(cgt), kind(kind) {}
 
 private:
-  AArch64ABIKind getABIKind() const { return Kind; }
-  bool isDarwinPCS() const { return Kind == AArch64ABIKind::DarwinPCS; }
+  AArch64ABIKind getABIKind() const { return kind; }
+  bool isDarwinPCS() const { return kind == AArch64ABIKind::DarwinPCS; }
 
-  ABIArgInfo classifyReturnType(Type RetTy, bool IsVariadic) const;
-  ABIArgInfo classifyArgumentType(Type RetTy, bool IsVariadic,
-                                  unsigned CallingConvention) const;
+  ABIArgInfo classifyReturnType(Type retTy, bool isVariadic) const;
+  ABIArgInfo classifyArgumentType(Type retTy, bool isVariadic,
+                                  unsigned callingConvention) const;
 
-  void computeInfo(LowerFunctionInfo &FI) const override {
-    if (!::mlir::cir::classifyReturnType(getCXXABI(), FI, *this))
-      FI.getReturnInfo() =
-          classifyReturnType(FI.getReturnType(), FI.isVariadic());
+  void computeInfo(LowerFunctionInfo &fi) const override {
+    if (!::mlir::cir::classifyReturnType(getCXXABI(), fi, *this))
+      fi.getReturnInfo() =
+          classifyReturnType(fi.getReturnType(), fi.isVariadic());
 
-    for (auto &it : FI.arguments())
-      it.info = classifyArgumentType(it.type, FI.isVariadic(),
-                                     FI.getCallingConvention());
+    for (auto &it : fi.arguments())
+      it.info = classifyArgumentType(it.type, fi.isVariadic(),
+                                     fi.getCallingConvention());
   }
 };
 
 class AArch64TargetLoweringInfo : public TargetLoweringInfo {
 public:
-  AArch64TargetLoweringInfo(LowerTypes &LT, AArch64ABIKind Kind)
-      : TargetLoweringInfo(std::make_unique<AArch64ABIInfo>(LT, Kind)) {
+  AArch64TargetLoweringInfo(LowerTypes &lt, AArch64ABIKind kind)
+      : TargetLoweringInfo(std::make_unique<AArch64ABIInfo>(lt, kind)) {
     assert(!MissingFeature::swift());
   }
 
@@ -81,27 +81,27 @@ public:
 
 } // namespace
 
-ABIArgInfo AArch64ABIInfo::classifyReturnType(Type RetTy,
-                                              bool IsVariadic) const {
-  if (isa<VoidType>(RetTy))
+ABIArgInfo AArch64ABIInfo::classifyReturnType(Type retTy,
+                                              bool isVariadic) const {
+  if (isa<VoidType>(retTy))
     return ABIArgInfo::getIgnore();
 
-  if (const auto _ = dyn_cast<VectorType>(RetTy)) {
+  if (const auto _ = dyn_cast<VectorType>(retTy)) {
     llvm_unreachable("NYI");
   }
 
   // Large vector types should be returned via memory.
-  if (isa<VectorType>(RetTy) && getContext().getTypeSize(RetTy) > 128)
+  if (isa<VectorType>(retTy) && getContext().getTypeSize(retTy) > 128)
     llvm_unreachable("NYI");
 
-  if (!isAggregateTypeForABI(RetTy)) {
+  if (!isAggregateTypeForABI(retTy)) {
     // NOTE(cir): Skip enum handling.
 
     if (MissingFeature::fixedSizeIntType())
       llvm_unreachable("NYI");
 
-    return (isPromotableIntegerTypeForABI(RetTy) && isDarwinPCS()
-                ? ABIArgInfo::getExtend(RetTy)
+    return (isPromotableIntegerTypeForABI(retTy) && isDarwinPCS()
+                ? ABIArgInfo::getExtend(retTy)
                 : ABIArgInfo::getDirect());
   }
 
@@ -109,22 +109,22 @@ ABIArgInfo AArch64ABIInfo::classifyReturnType(Type RetTy,
 }
 
 ABIArgInfo
-AArch64ABIInfo::classifyArgumentType(Type Ty, bool IsVariadic,
-                                     unsigned CallingConvention) const {
-  Ty = useFirstFieldIfTransparentUnion(Ty);
+AArch64ABIInfo::classifyArgumentType(Type ty, bool isVariadic,
+                                     unsigned callingConvention) const {
+  ty = useFirstFieldIfTransparentUnion(ty);
 
   // TODO(cir): check for illegal vector types.
   if (MissingFeature::vectorType())
     llvm_unreachable("NYI");
 
-  if (!isAggregateTypeForABI(Ty)) {
+  if (!isAggregateTypeForABI(ty)) {
     // NOTE(cir): Enum is IntType in CIR. Skip enum handling here.
 
     if (MissingFeature::fixedSizeIntType())
       llvm_unreachable("NYI");
 
-    return (isPromotableIntegerTypeForABI(Ty) && isDarwinPCS()
-                ? ABIArgInfo::getExtend(Ty)
+    return (isPromotableIntegerTypeForABI(ty) && isDarwinPCS()
+                ? ABIArgInfo::getExtend(ty)
                 : ABIArgInfo::getDirect());
   }
 
@@ -132,8 +132,8 @@ AArch64ABIInfo::classifyArgumentType(Type Ty, bool IsVariadic,
 }
 
 std::unique_ptr<TargetLoweringInfo>
-createAArch64TargetLoweringInfo(LowerModule &CGM, AArch64ABIKind Kind) {
-  return std::make_unique<AArch64TargetLoweringInfo>(CGM.getTypes(), Kind);
+createAArch64TargetLoweringInfo(LowerModule &cgm, AArch64ABIKind kind) {
+  return std::make_unique<AArch64TargetLoweringInfo>(cgm.getTypes(), kind);
 }
 
 } // namespace cir

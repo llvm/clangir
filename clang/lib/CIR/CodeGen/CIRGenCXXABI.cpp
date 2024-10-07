@@ -21,58 +21,58 @@
 using namespace cir;
 using namespace clang;
 
-CIRGenCXXABI::~CIRGenCXXABI() {}
+CIRGenCXXABI::~CIRGenCXXABI() = default;
 
 CIRGenCXXABI::AddedStructorArgCounts CIRGenCXXABI::addImplicitConstructorArgs(
-    CIRGenFunction &CGF, const clang::CXXConstructorDecl *D,
-    clang::CXXCtorType Type, bool ForVirtualBase, bool Delegating,
-    CallArgList &Args) {
-  auto AddedArgs =
-      getImplicitConstructorArgs(CGF, D, Type, ForVirtualBase, Delegating);
-  for (size_t i = 0; i < AddedArgs.Prefix.size(); ++i)
-    Args.insert(Args.begin() + 1 + i,
-                CallArg(RValue::get(AddedArgs.Prefix[i].Value),
-                        AddedArgs.Prefix[i].Type));
-  for (const auto &arg : AddedArgs.Suffix)
-    Args.add(RValue::get(arg.Value), arg.Type);
-  return AddedStructorArgCounts(AddedArgs.Prefix.size(),
-                                AddedArgs.Suffix.size());
+    CIRGenFunction &cgf, const clang::CXXConstructorDecl *d,
+    clang::CXXCtorType type, bool forVirtualBase, bool delegating,
+    CallArgList &args) {
+  auto addedArgs =
+      getImplicitConstructorArgs(cgf, d, type, forVirtualBase, delegating);
+  for (size_t i = 0; i < addedArgs.Prefix.size(); ++i)
+    args.insert(args.begin() + 1 + i,
+                CallArg(RValue::get(addedArgs.Prefix[i].Value),
+                        addedArgs.Prefix[i].Type));
+  for (const auto &arg : addedArgs.Suffix)
+    args.add(RValue::get(arg.Value), arg.Type);
+  return AddedStructorArgCounts(addedArgs.Prefix.size(),
+                                addedArgs.Suffix.size());
 }
 
 CatchTypeInfo CIRGenCXXABI::getCatchAllTypeInfo() {
   return CatchTypeInfo{nullptr, 0};
 }
 
-bool CIRGenCXXABI::NeedsVTTParameter(GlobalDecl GD) { return false; }
+bool CIRGenCXXABI::NeedsVTTParameter(GlobalDecl gd) { return false; }
 
-void CIRGenCXXABI::buildThisParam(CIRGenFunction &CGF,
+void CIRGenCXXABI::buildThisParam(CIRGenFunction &cgf,
                                   FunctionArgList &params) {
-  const auto *MD = cast<CXXMethodDecl>(CGF.CurGD.getDecl());
+  const auto *md = cast<CXXMethodDecl>(cgf.CurGD.getDecl());
 
   // FIXME: I'm not entirely sure I like using a fake decl just for code
   // generation. Maybe we can come up with a better way?
-  auto *ThisDecl =
-      ImplicitParamDecl::Create(CGM.getASTContext(), nullptr, MD->getLocation(),
+  auto *thisDecl =
+      ImplicitParamDecl::Create(CGM.getASTContext(), nullptr, md->getLocation(),
                                 &CGM.getASTContext().Idents.get("this"),
-                                MD->getThisType(), ImplicitParamKind::CXXThis);
-  params.push_back(ThisDecl);
-  CGF.CXXABIThisDecl = ThisDecl;
+                                md->getThisType(), ImplicitParamKind::CXXThis);
+  params.push_back(thisDecl);
+  cgf.CXXABIThisDecl = thisDecl;
 
   // Compute the presumed alignment of 'this', which basically comes down to
   // whether we know it's a complete object or not.
-  auto &Layout = CGF.getContext().getASTRecordLayout(MD->getParent());
-  if (MD->getParent()->getNumVBases() == 0 ||
-      MD->getParent()->isEffectivelyFinal() ||
-      isThisCompleteObject(CGF.CurGD)) {
-    CGF.CXXABIThisAlignment = Layout.getAlignment();
+  auto &layout = cgf.getContext().getASTRecordLayout(md->getParent());
+  if (md->getParent()->getNumVBases() == 0 ||
+      md->getParent()->isEffectivelyFinal() ||
+      isThisCompleteObject(cgf.CurGD)) {
+    cgf.CXXABIThisAlignment = layout.getAlignment();
   } else {
     llvm_unreachable("NYI");
   }
 }
 
 mlir::cir::GlobalLinkageKind CIRGenCXXABI::getCXXDestructorLinkage(
-    GVALinkage Linkage, const CXXDestructorDecl *Dtor, CXXDtorType DT) const {
+    GVALinkage linkage, const CXXDestructorDecl *dtor, CXXDtorType dt) const {
   // Delegate back to CGM by default.
-  return CGM.getCIRLinkageForDeclarator(Dtor, Linkage,
+  return CGM.getCIRLinkageForDeclarator(dtor, linkage,
                                         /*IsConstantVariable=*/false);
 }

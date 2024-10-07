@@ -24,8 +24,8 @@ using namespace ::mlir::cir;
 
 using ABIArgInfo = ::cir::ABIArgInfo;
 
-unsigned LowerTypes::clangCallConvToLLVMCallConv(clang::CallingConv CC) {
-  switch (CC) {
+unsigned LowerTypes::clangCallConvToLLVMCallConv(clang::CallingConv cc) {
+  switch (cc) {
   case clang::CC_C:
     return llvm::CallingConv::C;
   default:
@@ -33,17 +33,17 @@ unsigned LowerTypes::clangCallConvToLLVMCallConv(clang::CallingConv CC) {
   }
 }
 
-LowerTypes::LowerTypes(LowerModule &LM, StringRef DLString)
-    : LM(LM), context(LM.getContext()), Target(LM.getTarget()),
-      CXXABI(LM.getCXXABI()),
-      TheABIInfo(LM.getTargetLoweringInfo().getABIInfo()),
-      mlirContext(LM.getMLIRContext()), DL(LM.getModule()) {}
+LowerTypes::LowerTypes(LowerModule &lm, StringRef dlString)
+    : LM(lm), context(lm.getContext()), Target(lm.getTarget()),
+      CXXABI(lm.getCXXABI()),
+      TheABIInfo(lm.getTargetLoweringInfo().getABIInfo()),
+      mlirContext(lm.getMLIRContext()), DL(lm.getModule()) {}
 
 /// Return the ABI-specific function type for a CIR function type.
-FuncType LowerTypes::getFunctionType(const LowerFunctionInfo &FI) {
+FuncType LowerTypes::getFunctionType(const LowerFunctionInfo &fi) {
 
   mlir::Type resultType = {};
-  const ::cir::ABIArgInfo &retAI = FI.getReturnInfo();
+  const ::cir::ABIArgInfo &retAI = fi.getReturnInfo();
   switch (retAI.getKind()) {
   case ABIArgInfo::Extend:
   case ABIArgInfo::Direct:
@@ -56,8 +56,8 @@ FuncType LowerTypes::getFunctionType(const LowerFunctionInfo &FI) {
     llvm_unreachable("Missing ABIArgInfo::Kind");
   }
 
-  CIRToCIRArgMapping IRFunctionArgs(getContext(), FI, true);
-  SmallVector<Type, 8> ArgTypes(IRFunctionArgs.totalIRArgs());
+  CIRToCIRArgMapping irFunctionArgs(getContext(), fi, true);
+  SmallVector<Type, 8> argTypes(irFunctionArgs.totalIRArgs());
 
   // Add type for sret argument.
   assert(!::cir::MissingFeatures::sretArgs());
@@ -66,31 +66,31 @@ FuncType LowerTypes::getFunctionType(const LowerFunctionInfo &FI) {
   assert(!::cir::MissingFeatures::inallocaArgs());
 
   // Add in all of the required arguments.
-  unsigned ArgNo = 0;
-  LowerFunctionInfo::const_arg_iterator it = FI.arg_begin(),
-                                        ie = it + FI.getNumRequiredArgs();
-  for (; it != ie; ++it, ++ArgNo) {
-    const ABIArgInfo &ArgInfo = it->info;
+  unsigned argNo = 0;
+  LowerFunctionInfo::const_arg_iterator it = fi.arg_begin(),
+                                        ie = it + fi.getNumRequiredArgs();
+  for (; it != ie; ++it, ++argNo) {
+    const ABIArgInfo &argInfo = it->info;
 
     assert(!::cir::MissingFeatures::argumentPadding());
 
-    unsigned FirstIRArg, NumIRArgs;
-    std::tie(FirstIRArg, NumIRArgs) = IRFunctionArgs.getIRArgs(ArgNo);
+    unsigned firstIrArg, numIrArgs;
+    std::tie(firstIrArg, numIrArgs) = irFunctionArgs.getIRArgs(argNo);
 
-    switch (ArgInfo.getKind()) {
+    switch (argInfo.getKind()) {
     case ABIArgInfo::Extend:
     case ABIArgInfo::Direct: {
       // Fast-isel and the optimizer generally like scalar values better than
       // FCAs, so we flatten them if this is safe to do for this argument.
-      Type argType = ArgInfo.getCoerceToType();
+      Type argType = argInfo.getCoerceToType();
       StructType st = dyn_cast<StructType>(argType);
-      if (st && ArgInfo.isDirect() && ArgInfo.getCanBeFlattened()) {
-        assert(NumIRArgs == st.getNumElements());
+      if (st && argInfo.isDirect() && argInfo.getCanBeFlattened()) {
+        assert(numIrArgs == st.getNumElements());
         for (unsigned i = 0, e = st.getNumElements(); i != e; ++i)
-          ArgTypes[FirstIRArg + i] = st.getMembers()[i];
+          argTypes[firstIrArg + i] = st.getMembers()[i];
       } else {
-        assert(NumIRArgs == 1);
-        ArgTypes[FirstIRArg] = argType;
+        assert(numIrArgs == 1);
+        argTypes[firstIrArg] = argType;
       }
       break;
     }
@@ -99,11 +99,11 @@ FuncType LowerTypes::getFunctionType(const LowerFunctionInfo &FI) {
     }
   }
 
-  return FuncType::get(getMLIRContext(), ArgTypes, resultType, FI.isVariadic());
+  return FuncType::get(getMLIRContext(), argTypes, resultType, fi.isVariadic());
 }
 
 /// Convert a CIR type to its ABI-specific default form.
-mlir::Type LowerTypes::convertType(Type T) {
+mlir::Type LowerTypes::convertType(Type t) {
   /// NOTE(cir): It the original codegen this method is used to get the default
   /// LLVM IR representation for a given AST type. When a the ABI-specific
   /// function info sets a nullptr for a return or argument type, the default
@@ -112,10 +112,10 @@ mlir::Type LowerTypes::convertType(Type T) {
   /// It's kept here for codegen parity's sake.
 
   // Certain CIR types are already ABI-specific, so we just return them.
-  if (isa<BoolType, IntType, SingleType, DoubleType>(T)) {
-    return T;
+  if (isa<BoolType, IntType, SingleType, DoubleType>(t)) {
+    return t;
   }
 
-  llvm::outs() << "Missing default ABI-specific type for " << T << "\n";
+  llvm::outs() << "Missing default ABI-specific type for " << t << "\n";
   llvm_unreachable("NYI");
 }

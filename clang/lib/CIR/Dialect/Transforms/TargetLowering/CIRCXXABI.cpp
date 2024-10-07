@@ -16,7 +16,7 @@
 namespace mlir {
 namespace cir {
 
-CIRCXXABI::~CIRCXXABI() {}
+CIRCXXABI::~CIRCXXABI() = default;
 
 } // namespace cir
 } // namespace mlir

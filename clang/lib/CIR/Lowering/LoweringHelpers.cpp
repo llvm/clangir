@@ -29,18 +29,18 @@ convertStringAttrToDenseElementsAttr(mlir::cir::ConstArrayAttr attr,
       llvm::ArrayRef(values));
 }
 
-template <> mlir::APInt getZeroInitFromType(mlir::Type Ty) {
-  assert(mlir::isa<mlir::cir::IntType>(Ty) && "expected int type");
-  auto IntTy = mlir::cast<mlir::cir::IntType>(Ty);
-  return mlir::APInt::getZero(IntTy.getWidth());
+template <> mlir::APInt getZeroInitFromType(mlir::Type ty) {
+  assert(mlir::isa<mlir::cir::IntType>(ty) && "expected int type");
+  auto intTy = mlir::cast<mlir::cir::IntType>(ty);
+  return mlir::APInt::getZero(intTy.getWidth());
 }
 
-template <> mlir::APFloat getZeroInitFromType(mlir::Type Ty) {
-  assert((mlir::isa<mlir::cir::SingleType, mlir::cir::DoubleType>(Ty)) &&
+template <> mlir::APFloat getZeroInitFromType(mlir::Type ty) {
+  assert((mlir::isa<mlir::cir::SingleType, mlir::cir::DoubleType>(ty)) &&
          "only float and double supported");
-  if (Ty.isF32() || mlir::isa<mlir::cir::SingleType>(Ty))
+  if (ty.isF32() || mlir::isa<mlir::cir::SingleType>(ty))
     return mlir::APFloat(0.f);
-  if (Ty.isF64() || mlir::isa<mlir::cir::DoubleType>(Ty))
+  if (ty.isF64() || mlir::isa<mlir::cir::DoubleType>(ty))
     return mlir::APFloat(0.0);
   llvm_unreachable("NYI");
 }
@@ -48,14 +48,14 @@ template <> mlir::APFloat getZeroInitFromType(mlir::Type Ty) {
 // return the nested type and quantity of elements for cir.array type.
 // e.g: for !cir.array<!cir.array<!s32i x 3> x 1>
 // it returns !s32i as return value and stores 3 to elemQuantity.
-mlir::Type getNestedTypeAndElemQuantity(mlir::Type Ty, unsigned &elemQuantity) {
-  assert(mlir::isa<mlir::cir::ArrayType>(Ty) && "expected ArrayType");
+mlir::Type getNestedTypeAndElemQuantity(mlir::Type ty, unsigned &elemQuantity) {
+  assert(mlir::isa<mlir::cir::ArrayType>(ty) && "expected ArrayType");
 
   elemQuantity = 1;
-  mlir::Type nestTy = Ty;
-  while (auto ArrTy = mlir::dyn_cast<mlir::cir::ArrayType>(nestTy)) {
-    nestTy = ArrTy.getEltType();
-    elemQuantity *= ArrTy.getSize();
+  mlir::Type nestTy = ty;
+  while (auto arrTy = mlir::dyn_cast<mlir::cir::ArrayType>(nestTy)) {
+    nestTy = arrTy.getEltType();
+    elemQuantity *= arrTy.getSize();
   }
 
   return nestTy;

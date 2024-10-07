@@ -38,7 +38,7 @@ static void process(mlir::cir::FuncOp func) {
   for (auto goTo : gotos) {
     mlir::OpBuilder::InsertionGuard guard(rewriter);
     rewriter.setInsertionPoint(goTo);
-    auto dest = labels[goTo.getLabel().str()];
+    auto *dest = labels[goTo.getLabel().str()];
     rewriter.create<mlir::cir::BrOp>(goTo.getLoc(), dest);
     goTo.erase();
   }

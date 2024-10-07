@@ -29,18 +29,18 @@ namespace {
 
 class SPIRVABIInfo : public ABIInfo {
 public:
-  SPIRVABIInfo(LowerTypes &LT) : ABIInfo(LT) {}
+  SPIRVABIInfo(LowerTypes &lt) : ABIInfo(lt) {}
 
 private:
-  void computeInfo(LowerFunctionInfo &FI) const override {
+  void computeInfo(LowerFunctionInfo &fi) const override {
     llvm_unreachable("ABI NYI");
   }
 };
 
 class SPIRVTargetLoweringInfo : public TargetLoweringInfo {
 public:
-  SPIRVTargetLoweringInfo(LowerTypes &LT)
-      : TargetLoweringInfo(std::make_unique<SPIRVABIInfo>(LT)) {}
+  SPIRVTargetLoweringInfo(LowerTypes &lt)
+      : TargetLoweringInfo(std::make_unique<SPIRVABIInfo>(lt)) {}
 
   unsigned getTargetAddrSpaceFromCIRAddrSpace(
       mlir::cir::AddressSpaceAttr addressSpaceAttr) const override {

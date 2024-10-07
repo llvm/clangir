@@ -40,7 +40,7 @@ namespace cir {
 class CIRBaseBuilderTy : public mlir::OpBuilder {
 
 public:
-  CIRBaseBuilderTy(mlir::MLIRContext &C) : mlir::OpBuilder(&C) {}
+  CIRBaseBuilderTy(mlir::MLIRContext &c) : mlir::OpBuilder(&c) {}
 
   mlir::Value getConstAPSInt(mlir::Location loc, const llvm::APSInt &val) {
     auto ty = mlir::cir::IntType::get(getContext(), val.getBitWidth(),
@@ -83,12 +83,12 @@ public:
     return ::mlir::cir::VoidType::get(getContext());
   }
 
-  mlir::cir::IntType getUIntNTy(int N) {
-    return mlir::cir::IntType::get(getContext(), N, false);
+  mlir::cir::IntType getUIntNTy(int n) {
+    return mlir::cir::IntType::get(getContext(), n, false);
   }
 
-  mlir::cir::IntType getSIntNTy(int N) {
-    return mlir::cir::IntType::get(getContext(), N, true);
+  mlir::cir::IntType getSIntNTy(int n) {
+    return mlir::cir::IntType::get(getContext(), n, true);
   }
 
   mlir::cir::AddressSpaceAttr getAddrSpaceAttr(clang::LangAS langAS) {
@@ -230,7 +230,7 @@ public:
     return getConstAPInt(loc, typ, val);
   }
 
-  mlir::Value createAnd(mlir::Value lhs, llvm::APInt rhs) {
+  mlir::Value createAnd(mlir::Value lhs, const llvm::APInt &rhs) {
     auto val = getConstAPInt(lhs.getLoc(), lhs.getType(), rhs);
     return createBinop(lhs, mlir::cir::BinOpKind::And, val);
   }
@@ -243,7 +243,7 @@ public:
     return createBinop(loc, lhs, mlir::cir::BinOpKind::And, rhs);
   }
 
-  mlir::Value createOr(mlir::Value lhs, llvm::APInt rhs) {
+  mlir::Value createOr(mlir::Value lhs, const llvm::APInt &rhs) {
     auto val = getConstAPInt(lhs.getLoc(), lhs.getType(), rhs);
     return createBinop(lhs, mlir::cir::BinOpKind::Or, val);
   }
@@ -269,7 +269,7 @@ public:
     return createMul(lhs, rhs, true, false);
   }
 
-  mlir::Value createMul(mlir::Value lhs, llvm::APInt rhs) {
+  mlir::Value createMul(mlir::Value lhs, const llvm::APInt &rhs) {
     auto val = getConstAPInt(lhs.getLoc(), lhs.getType(), rhs);
     return createBinop(lhs, mlir::cir::BinOpKind::Mul, val);
   }
@@ -650,15 +650,15 @@ public:
   }
 
   mlir::cir::CallOp createIndirectCallOp(
-      mlir::Location loc, mlir::Value ind_target, mlir::cir::FuncType fn_type,
+      mlir::Location loc, mlir::Value indTarget, mlir::cir::FuncType fnType,
       mlir::ValueRange operands = mlir::ValueRange(),
       mlir::cir::CallingConv callingConv = mlir::cir::CallingConv::C,
       mlir::cir::ExtraFuncAttributesAttr extraFnAttr = {}) {
 
-    llvm::SmallVector<mlir::Value, 4> resOperands({ind_target});
+    llvm::SmallVector<mlir::Value, 4> resOperands({indTarget});
     resOperands.append(operands.begin(), operands.end());
 
-    return createCallOp(loc, mlir::SymbolRefAttr(), fn_type.getReturnType(),
+    return createCallOp(loc, mlir::SymbolRefAttr(), fnType.getReturnType(),
                         resOperands, callingConv, extraFnAttr);
   }
 
@@ -701,12 +701,12 @@ public:
   }
 
   mlir::cir::CallOp createIndirectTryCallOp(
-      mlir::Location loc, mlir::Value ind_target, mlir::cir::FuncType fn_type,
+      mlir::Location loc, mlir::Value indTarget, mlir::cir::FuncType fnType,
       mlir::ValueRange operands,
       mlir::cir::CallingConv callingConv = mlir::cir::CallingConv::C) {
-    llvm::SmallVector<mlir::Value, 4> resOperands({ind_target});
+    llvm::SmallVector<mlir::Value, 4> resOperands({indTarget});
     resOperands.append(operands.begin(), operands.end());
-    return createTryCallOp(loc, mlir::SymbolRefAttr(), fn_type.getReturnType(),
+    return createTryCallOp(loc, mlir::SymbolRefAttr(), fnType.getReturnType(),
                            resOperands, callingConv);
   }
 

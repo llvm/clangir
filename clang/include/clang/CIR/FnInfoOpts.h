@@ -12,24 +12,24 @@ enum class FnInfoOpts {
   IsDelegateCall = 1 << 2,
 };
 
-inline FnInfoOpts operator|(FnInfoOpts A, FnInfoOpts B) {
-  return static_cast<FnInfoOpts>(llvm::to_underlying(A) |
-                                 llvm::to_underlying(B));
+inline FnInfoOpts operator|(FnInfoOpts a, FnInfoOpts b) {
+  return static_cast<FnInfoOpts>(llvm::to_underlying(a) |
+                                 llvm::to_underlying(b));
 }
 
-inline FnInfoOpts operator&(FnInfoOpts A, FnInfoOpts B) {
-  return static_cast<FnInfoOpts>(llvm::to_underlying(A) &
-                                 llvm::to_underlying(B));
+inline FnInfoOpts operator&(FnInfoOpts a, FnInfoOpts b) {
+  return static_cast<FnInfoOpts>(llvm::to_underlying(a) &
+                                 llvm::to_underlying(b));
 }
 
-inline FnInfoOpts operator|=(FnInfoOpts A, FnInfoOpts B) {
-  A = A | B;
-  return A;
+inline FnInfoOpts operator|=(FnInfoOpts a, FnInfoOpts b) {
+  a = a | b;
+  return a;
 }
 
-inline FnInfoOpts operator&=(FnInfoOpts A, FnInfoOpts B) {
-  A = A & B;
-  return A;
+inline FnInfoOpts operator&=(FnInfoOpts a, FnInfoOpts b) {
+  a = a & b;
+  return a;
 }
 
 } // namespace cir

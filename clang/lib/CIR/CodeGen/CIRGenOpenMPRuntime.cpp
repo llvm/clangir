@@ -17,51 +17,47 @@
 using namespace cir;
 using namespace clang;
 
-CIRGenOpenMPRuntime::CIRGenOpenMPRuntime(CIRGenModule &CGM) : CGM(CGM) {}
+CIRGenOpenMPRuntime::CIRGenOpenMPRuntime(CIRGenModule &cgm) : CGM(cgm) {}
 
-Address CIRGenOpenMPRuntime::getAddressOfLocalVariable(CIRGenFunction &CGF,
-                                                       const VarDecl *VD) {
+Address CIRGenOpenMPRuntime::getAddressOfLocalVariable(CIRGenFunction &cgf,
+                                                       const VarDecl *vd) {
   assert(!MissingFeatures::openMPRuntime());
   return Address::invalid();
 }
 
 void CIRGenOpenMPRuntime::checkAndEmitLastprivateConditional(
-    CIRGenFunction &CGF, const Expr *LHS) {
+    CIRGenFunction &cgf, const Expr *lhs) {
   assert(!MissingFeatures::openMPRuntime());
-  return;
 }
 
 void CIRGenOpenMPRuntime::registerTargetGlobalVariable(
-    const clang::VarDecl *VD, mlir::cir::GlobalOp globalOp) {
+    const clang::VarDecl *vd, mlir::cir::GlobalOp globalOp) {
   assert(!MissingFeatures::openMPRuntime());
-  return;
 }
 
 void CIRGenOpenMPRuntime::emitDeferredTargetDecls() const {
   assert(!MissingFeatures::openMPRuntime());
-  return;
 }
 
-void CIRGenOpenMPRuntime::emitFunctionProlog(CIRGenFunction &CGF,
-                                             const clang::Decl *D) {
+void CIRGenOpenMPRuntime::emitFunctionProlog(CIRGenFunction &cgf,
+                                             const clang::Decl *d) {
   assert(!MissingFeatures::openMPRuntime());
-  return;
 }
 
-bool CIRGenOpenMPRuntime::emitTargetGlobal(clang::GlobalDecl &GD) {
+bool CIRGenOpenMPRuntime::emitTargetGlobal(clang::GlobalDecl &gd) {
   assert(!MissingFeatures::openMPRuntime());
   return false;
 }
 
 void CIRGenOpenMPRuntime::emitTaskWaitCall(CIRGenBuilderTy &builder,
-                                           CIRGenFunction &CGF,
-                                           mlir::Location Loc,
-                                           const OMPTaskDataTy &Data) {
+                                           CIRGenFunction &cgf,
+                                           mlir::Location loc,
+                                           const OMPTaskDataTy &data) {
 
-  if (!CGF.HaveInsertPoint())
+  if (!cgf.HaveInsertPoint())
     return;
 
-  if (CGF.CGM.getLangOpts().OpenMPIRBuilder && Data.Dependences.empty()) {
+  if (cgf.cgm.getLangOpts().OpenMPIRBuilder && data.Dependences.empty()) {
     // TODO: Need to support taskwait with dependences in the OpenMPIRBuilder.
     // TODO(cir): This could change in the near future when OpenMP 5.0 gets
     // supported by MLIR
@@ -74,31 +70,31 @@ void CIRGenOpenMPRuntime::emitTaskWaitCall(CIRGenBuilderTy &builder,
 }
 
 void CIRGenOpenMPRuntime::emitBarrierCall(CIRGenBuilderTy &builder,
-                                          CIRGenFunction &CGF,
-                                          mlir::Location Loc) {
+                                          CIRGenFunction &cgf,
+                                          mlir::Location loc) {
 
   assert(!MissingFeatures::openMPRegionInfo());
 
-  if (CGF.CGM.getLangOpts().OpenMPIRBuilder) {
-    builder.create<mlir::omp::BarrierOp>(Loc);
+  if (cgf.cgm.getLangOpts().OpenMPIRBuilder) {
+    builder.create<mlir::omp::BarrierOp>(loc);
     return;
   }
 
-  if (!CGF.HaveInsertPoint())
+  if (!cgf.HaveInsertPoint())
     return;
 
   llvm_unreachable("NYI");
 }
 
 void CIRGenOpenMPRuntime::emitTaskyieldCall(CIRGenBuilderTy &builder,
-                                            CIRGenFunction &CGF,
-                                            mlir::Location Loc) {
+                                            CIRGenFunction &cgf,
+                                            mlir::Location loc) {
 
-  if (!CGF.HaveInsertPoint())
+  if (!cgf.HaveInsertPoint())
     return;
 
-  if (CGF.CGM.getLangOpts().OpenMPIRBuilder) {
-    builder.create<mlir::omp::TaskyieldOp>(Loc);
+  if (cgf.cgm.getLangOpts().OpenMPIRBuilder) {
+    builder.create<mlir::omp::TaskyieldOp>(loc);
   } else {
     llvm_unreachable("NYI");
   }

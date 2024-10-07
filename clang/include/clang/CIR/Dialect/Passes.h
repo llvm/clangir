@@ -17,14 +17,14 @@
 
 namespace clang {
 class ASTContext;
-}
+} // namespace clang
 namespace mlir {
 
 std::unique_ptr<Pass> createLifetimeCheckPass();
 std::unique_ptr<Pass> createLifetimeCheckPass(clang::ASTContext *astCtx);
 std::unique_ptr<Pass> createLifetimeCheckPass(ArrayRef<StringRef> remark,
                                               ArrayRef<StringRef> hist,
-                                              unsigned hist_limit,
+                                              unsigned histLimit,
                                               clang::ASTContext *astCtx);
 std::unique_ptr<Pass> createCIRCanonicalizePass();
 std::unique_ptr<Pass> createCIRSimplifyPass();

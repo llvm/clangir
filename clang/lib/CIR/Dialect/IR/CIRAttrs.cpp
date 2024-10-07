@@ -38,7 +38,7 @@ static void printStructMembers(mlir::AsmPrinter &p, mlir::ArrayAttr members);
 static mlir::ParseResult parseStructMembers(::mlir::AsmParser &parser,
                                             mlir::ArrayAttr &members);
 
-static void printFloatLiteral(mlir::AsmPrinter &p, llvm::APFloat value,
+static void printFloatLiteral(mlir::AsmPrinter &p, const llvm::APFloat &value,
                               mlir::Type ty);
 static mlir::ParseResult
 parseFloatLiteral(mlir::AsmParser &parser,
@@ -173,7 +173,7 @@ LogicalResult ConstStructAttr::verify(
 
 LogicalResult StructLayoutAttr::verify(
     ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError, unsigned size,
-    unsigned alignment, bool padded, mlir::Type largest_member,
+    unsigned alignment, bool padded, mlir::Type largestMember,
     mlir::ArrayAttr offsets) {
   if (not std::all_of(offsets.begin(), offsets.end(), [](mlir::Attribute attr) {
         return mlir::isa<mlir::IntegerAttr>(attr);
@@ -244,7 +244,7 @@ static void printConstPtr(AsmPrinter &p, mlir::IntegerAttr value) {
 //===----------------------------------------------------------------------===//
 
 Attribute IntAttr::parse(AsmParser &parser, Type odsType) {
-  mlir::APInt APValue;
+  mlir::APInt apValue;
 
   if (!mlir::isa<IntType>(odsType))
     return {};
@@ -259,16 +259,16 @@ Attribute IntAttr::parse(AsmParser &parser, Type odsType) {
     int64_t value;
     if (parser.parseInteger(value))
       parser.emitError(parser.getCurrentLocation(), "expected integer value");
-    APValue = mlir::APInt(type.getWidth(), value, type.isSigned());
-    if (APValue.getSExtValue() != value)
+    apValue = mlir::APInt(type.getWidth(), value, type.isSigned());
+    if (apValue.getSExtValue() != value)
       parser.emitError(parser.getCurrentLocation(),
                        "integer value too large for the given type");
   } else {
     uint64_t value;
     if (parser.parseInteger(value))
       parser.emitError(parser.getCurrentLocation(), "expected integer value");
-    APValue = mlir::APInt(type.getWidth(), value, type.isSigned());
-    if (APValue.getZExtValue() != value)
+    apValue = mlir::APInt(type.getWidth(), value, type.isSigned());
+    if (apValue.getZExtValue() != value)
       parser.emitError(parser.getCurrentLocation(),
                        "integer value too large for the given type");
   }
@@ -277,7 +277,7 @@ Attribute IntAttr::parse(AsmParser &parser, Type odsType) {
   if (parser.parseGreater())
     return {};
 
-  return IntAttr::get(type, APValue);
+  return IntAttr::get(type, apValue);
 }
 
 void IntAttr::print(AsmPrinter &printer) const {
@@ -291,7 +291,7 @@ void IntAttr::print(AsmPrinter &printer) const {
 }
 
 LogicalResult IntAttr::verify(function_ref<InFlightDiagnostic()> emitError,
-                              Type type, APInt value) {
+                              Type type, const APInt &value) {
   if (!mlir::isa<IntType>(type)) {
     emitError() << "expected 'simple.int' type";
     return failure();
@@ -311,7 +311,7 @@ LogicalResult IntAttr::verify(function_ref<InFlightDiagnostic()> emitError,
 // FPAttr definitions
 //===----------------------------------------------------------------------===//
 
-static void printFloatLiteral(mlir::AsmPrinter &p, llvm::APFloat value,
+static void printFloatLiteral(mlir::AsmPrinter &p, const llvm::APFloat &value,
                               mlir::Type ty) {
   p << value;
 }
@@ -348,7 +348,7 @@ cir::FPAttr cir::FPAttr::getZero(mlir::Type type) {
 }
 
 LogicalResult cir::FPAttr::verify(function_ref<InFlightDiagnostic()> emitError,
-                                  Type type, APFloat value) {
+                                  Type type, const APFloat &value) {
   auto fltTypeInterface = mlir::dyn_cast<cir::CIRFPTypeInterface>(type);
   if (!fltTypeInterface) {
     emitError() << "expected floating-point type";
@@ -480,8 +480,8 @@ LogicalResult
 MethodAttr::verify(function_ref<::mlir::InFlightDiagnostic()> emitError,
                    mlir::cir::MethodType type,
                    std::optional<FlatSymbolRefAttr> symbol,
-                   std::optional<uint64_t> vtable_offset) {
-  if (symbol.has_value() && vtable_offset.has_value()) {
+                   std::optional<uint64_t> vtableOffset) {
+  if (symbol.has_value() && vtableOffset.has_value()) {
     emitError() << "at most one of symbol and vtable_offset can be present "
                    "in #cir.method";
     return failure();
@@ -563,12 +563,14 @@ LogicalResult GlobalAnnotationValuesAttr::verify(
       emitError() << "Element of GlobalAnnotationValuesAttr annotations array"
                      " must be an array";
       return failure();
-    } else if (annoEntry.size() != 2) {
+    }
+    if (annoEntry.size() != 2) {
       emitError() << "Element of GlobalAnnotationValuesAttr annotations array"
                   << " must be a 2-element array and you have "
                   << annoEntry.size();
       return failure();
-    } else if (!::mlir::isa<mlir::StringAttr>(annoEntry[0])) {
+    }
+    if (!::mlir::isa<mlir::StringAttr>(annoEntry[0])) {
       emitError() << "Element of GlobalAnnotationValuesAttr annotations"
                      "array must start with a string, which is the name of "
                      "global op or func it annotates";

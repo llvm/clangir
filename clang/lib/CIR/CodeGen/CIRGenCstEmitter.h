@@ -57,7 +57,7 @@ public:
   /// Initialize this emission in the context of the given function.
   /// Use this if the expression might contain contextual references like
   /// block addresses or PredefinedExprs.
-  ConstantEmitter(CIRGenFunction &CGF) : CGM(CGF.CGM), CGF(&CGF) {}
+  ConstantEmitter(CIRGenFunction &CGF) : CGM(CGF.cgm), CGF(&CGF) {}
 
   ConstantEmitter(const ConstantEmitter &other) = delete;
   ConstantEmitter &operator=(const ConstantEmitter &other) = delete;

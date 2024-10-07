@@ -22,8 +22,8 @@ using namespace clang;
 // for example in clGetKernelArgInfo() implementation between the address
 // spaces with targets without unique mapping to the OpenCL address spaces
 // (basically all single AS CPUs).
-static unsigned ArgInfoAddressSpace(LangAS AS) {
-  switch (AS) {
+static unsigned argInfoAddressSpace(LangAS as) {
+  switch (as) {
   case LangAS::opencl_global:
     return 1;
   case LangAS::opencl_constant:
@@ -41,16 +41,16 @@ static unsigned ArgInfoAddressSpace(LangAS AS) {
   }
 }
 
-void CIRGenModule::genKernelArgMetadata(mlir::cir::FuncOp Fn,
-                                        const FunctionDecl *FD,
-                                        CIRGenFunction *CGF) {
-  assert(((FD && CGF) || (!FD && !CGF)) &&
+void CIRGenModule::genKernelArgMetadata(mlir::cir::FuncOp fn,
+                                        const FunctionDecl *fd,
+                                        CIRGenFunction *cgf) {
+  assert(((fd && cgf) || (!fd && !cgf)) &&
          "Incorrect use - FD and CGF should either be both null or not!");
   // Create MDNodes that represent the kernel arg metadata.
   // Each MDNode is a list in the form of "key", N number of values which is
   // the same number of values as their are kernel arguments.
 
-  const PrintingPolicy &Policy = getASTContext().getPrintingPolicy();
+  const PrintingPolicy &policy = getASTContext().getPrintingPolicy();
 
   // Integer values for the kernel argument address space qualifiers.
   SmallVector<int32_t, 8> addressQuals;
@@ -73,9 +73,9 @@ void CIRGenModule::genKernelArgMetadata(mlir::cir::FuncOp Fn,
   // OpenCL image and pipe types require special treatments for some metadata
   assert(!MissingFeatures::openCLBuiltinTypes());
 
-  if (FD && CGF)
-    for (unsigned i = 0, e = FD->getNumParams(); i != e; ++i) {
-      const ParmVarDecl *parm = FD->getParamDecl(i);
+  if (fd && cgf)
+    for (unsigned i = 0, e = fd->getNumParams(); i != e; ++i) {
+      const ParmVarDecl *parm = fd->getParamDecl(i);
       // Get argument name.
       argNames.push_back(builder.getStringAttr(parm->getName()));
 
@@ -90,10 +90,10 @@ void CIRGenModule::genKernelArgMetadata(mlir::cir::FuncOp Fn,
       } else
         accessQuals.push_back(builder.getStringAttr("none"));
 
-      auto getTypeSpelling = [&](QualType Ty) {
-        auto typeName = Ty.getUnqualifiedType().getAsString(Policy);
+      auto getTypeSpelling = [&](QualType ty) {
+        auto typeName = ty.getUnqualifiedType().getAsString(policy);
 
-        if (Ty.isCanonical()) {
+        if (ty.isCanonical()) {
           StringRef typeNameRef = typeName;
           // Turn "unsigned type" to "utype"
           if (typeNameRef.consume_front("unsigned "))
@@ -110,7 +110,7 @@ void CIRGenModule::genKernelArgMetadata(mlir::cir::FuncOp Fn,
 
         // Get address qualifier.
         addressQuals.push_back(
-            ArgInfoAddressSpace(pointeeTy.getAddressSpace()));
+            argInfoAddressSpace(pointeeTy.getAddressSpace()));
 
         // Get argument type name.
         std::string typeName = getTypeSpelling(pointeeTy) + "*";
@@ -128,12 +128,12 @@ void CIRGenModule::genKernelArgMetadata(mlir::cir::FuncOp Fn,
         if (pointeeTy.isVolatileQualified())
           typeQuals += typeQuals.empty() ? "volatile" : " volatile";
       } else {
-        uint32_t AddrSpc = 0;
+        uint32_t addrSpc = 0;
         bool isPipe = ty->isPipeType();
         if (ty->isImageType() || isPipe)
           llvm_unreachable("NYI");
 
-        addressQuals.push_back(AddrSpc);
+        addressQuals.push_back(addrSpc);
 
         // Get argument type name.
         ty = isPipe ? ty->castAs<PipeType>()->getElementType() : ty;
@@ -171,14 +171,14 @@ void CIRGenModule::genKernelArgMetadata(mlir::cir::FuncOp Fn,
 
     // Update the function's extra attributes with the kernel argument metadata.
     auto value = mlir::cir::OpenCLKernelArgMetadataAttr::get(
-        Fn.getContext(), builder.getI32ArrayAttr(addressQuals),
+        fn.getContext(), builder.getI32ArrayAttr(addressQuals),
         builder.getArrayAttr(accessQuals), builder.getArrayAttr(argTypeNames),
         builder.getArrayAttr(argBaseTypeNames),
         builder.getArrayAttr(argTypeQuals), resArgNames);
-    mlir::NamedAttrList items{Fn.getExtraAttrs().getElements().getValue()};
+    mlir::NamedAttrList items{fn.getExtraAttrs().getElements().getValue()};
     auto oldValue = items.set(value.getMnemonic(), value);
     if (oldValue != value) {
-      Fn.setExtraAttrsAttr(mlir::cir::ExtraFuncAttributesAttr::get(
+      fn.setExtraAttrsAttr(mlir::cir::ExtraFuncAttributesAttr::get(
           builder.getContext(), builder.getDictionaryAttr(items)));
     }
   } else {
@@ -187,12 +187,12 @@ void CIRGenModule::genKernelArgMetadata(mlir::cir::FuncOp Fn,
   }
 }
 
-void CIRGenFunction::buildKernelMetadata(const FunctionDecl *FD,
-                                         mlir::cir::FuncOp Fn) {
-  if (!FD->hasAttr<OpenCLKernelAttr>() && !FD->hasAttr<CUDAGlobalAttr>())
+void CIRGenFunction::buildKernelMetadata(const FunctionDecl *fd,
+                                         mlir::cir::FuncOp fn) {
+  if (!fd->hasAttr<OpenCLKernelAttr>() && !fd->hasAttr<CUDAGlobalAttr>())
     return;
 
-  CGM.genKernelArgMetadata(Fn, FD, this);
+  cgm.genKernelArgMetadata(fn, fd, this);
 
   if (!getLangOpts().OpenCL)
     return;
@@ -204,32 +204,32 @@ void CIRGenFunction::buildKernelMetadata(const FunctionDecl *FD,
   std::optional<bool> vecTypeHintSignedness;
   mlir::IntegerAttr intelReqdSubGroupSizeAttr;
 
-  if (const VecTypeHintAttr *A = FD->getAttr<VecTypeHintAttr>()) {
-    mlir::Type typeHintValue = getTypes().ConvertType(A->getTypeHint());
+  if (const VecTypeHintAttr *a = fd->getAttr<VecTypeHintAttr>()) {
+    mlir::Type typeHintValue = getTypes().ConvertType(a->getTypeHint());
     vecTypeHintAttr = mlir::TypeAttr::get(typeHintValue);
     vecTypeHintSignedness =
         OpenCLKernelMetadataAttr::isSignedHint(typeHintValue);
   }
 
-  if (const WorkGroupSizeHintAttr *A = FD->getAttr<WorkGroupSizeHintAttr>()) {
+  if (const WorkGroupSizeHintAttr *a = fd->getAttr<WorkGroupSizeHintAttr>()) {
     workGroupSizeHintAttr = builder.getI32ArrayAttr({
-        static_cast<int32_t>(A->getXDim()),
-        static_cast<int32_t>(A->getYDim()),
-        static_cast<int32_t>(A->getZDim()),
+        static_cast<int32_t>(a->getXDim()),
+        static_cast<int32_t>(a->getYDim()),
+        static_cast<int32_t>(a->getZDim()),
     });
   }
 
-  if (const ReqdWorkGroupSizeAttr *A = FD->getAttr<ReqdWorkGroupSizeAttr>()) {
+  if (const ReqdWorkGroupSizeAttr *a = fd->getAttr<ReqdWorkGroupSizeAttr>()) {
     reqdWorkGroupSizeAttr = builder.getI32ArrayAttr({
-        static_cast<int32_t>(A->getXDim()),
-        static_cast<int32_t>(A->getYDim()),
-        static_cast<int32_t>(A->getZDim()),
+        static_cast<int32_t>(a->getXDim()),
+        static_cast<int32_t>(a->getYDim()),
+        static_cast<int32_t>(a->getZDim()),
     });
   }
 
-  if (const OpenCLIntelReqdSubGroupSizeAttr *A =
-          FD->getAttr<OpenCLIntelReqdSubGroupSizeAttr>()) {
-    intelReqdSubGroupSizeAttr = builder.getI32IntegerAttr(A->getSubGroupSize());
+  if (const OpenCLIntelReqdSubGroupSizeAttr *a =
+          fd->getAttr<OpenCLIntelReqdSubGroupSizeAttr>()) {
+    intelReqdSubGroupSizeAttr = builder.getI32IntegerAttr(a->getSubGroupSize());
   }
 
   // Skip the metadata attr if no hints are present.
@@ -239,14 +239,14 @@ void CIRGenFunction::buildKernelMetadata(const FunctionDecl *FD,
 
   // Append the kernel metadata to the extra attributes dictionary.
   mlir::NamedAttrList attrs;
-  attrs.append(Fn.getExtraAttrs().getElements());
+  attrs.append(fn.getExtraAttrs().getElements());
 
   auto kernelMetadataAttr = OpenCLKernelMetadataAttr::get(
       builder.getContext(), workGroupSizeHintAttr, reqdWorkGroupSizeAttr,
       vecTypeHintAttr, vecTypeHintSignedness, intelReqdSubGroupSizeAttr);
   attrs.append(kernelMetadataAttr.getMnemonic(), kernelMetadataAttr);
 
-  Fn.setExtraAttrsAttr(mlir::cir::ExtraFuncAttributesAttr::get(
+  fn.setExtraAttrsAttr(mlir::cir::ExtraFuncAttributesAttr::get(
       builder.getContext(), attrs.getDictionary(builder.getContext())));
 }
 

@@ -94,7 +94,7 @@ struct MissingFeatures {
   static bool emitFunctionEpilog() { return false; }
 
   // References related stuff
-  static bool ARC() { return false; } // Automatic reference counting
+  static bool arc() { return false; } // Automatic reference counting
 
   // Clang early optimizations or things defered to LLVM lowering.
   static bool shouldUseBZeroPlusStoresToInitialize() { return false; }
@@ -150,13 +150,13 @@ struct MissingFeatures {
   static bool requiresReturnValueCheck() { return false; }
   static bool shouldEmitLifetimeMarkers() { return false; }
   static bool peepholeProtection() { return false; }
-  static bool CGCapturedStmtInfo() { return false; }
-  static bool CGFPOptionsRAII() { return false; }
+  static bool cgCapturedStmtInfo() { return false; }
+  static bool cgFPOptionsRAII() { return false; }
   static bool getFPFeaturesInEffect() { return false; }
   static bool cxxABI() { return false; }
   static bool openCLCXX() { return false; }
   static bool openCLBuiltinTypes() { return false; }
-  static bool CUDA() { return false; }
+  static bool cuda() { return false; }
   static bool openMP() { return false; }
   static bool openMPRuntime() { return false; }
   static bool openMPRegionInfo() { return false; }
@@ -214,9 +214,9 @@ struct MissingFeatures {
 
   //-- Missing AST queries
 
-  static bool CXXRecordDeclIsEmptyCXX11() { return false; }
-  static bool CXXRecordDeclIsPOD() { return false; }
-  static bool CXXRecordIsDynamicClass() { return false; }
+  static bool cxxRecordDeclIsEmptyCxX11() { return false; }
+  static bool cxxRecordDeclIsPod() { return false; }
+  static bool cxxRecordIsDynamicClass() { return false; }
   static bool astContextGetExternalSource() { return false; }
   static bool declGetMaxAlignment() { return false; }
   static bool declHasAlignMac68kAttr() { return false; }

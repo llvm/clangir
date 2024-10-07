@@ -174,8 +174,7 @@ bool cir::CastOp::canUsesBeRemoved(
     const DataLayout &dataLayout) {
   if (getKind() == cir::CastKind::bitcast)
     return forwardToUsers(*this, newBlockingUses);
-  else
-    return false;
+  return false;
 }
 
 DeletionKind cir::CastOp::removeBlockingUses(
