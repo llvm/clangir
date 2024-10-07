@@ -164,15 +164,15 @@ mlir::cir::CallOp CIRGenFunction::buildCoroIDBuiltinCall(mlir::Location loc,
                                                          mlir::Value nullPtr) {
   auto int32Ty = builder.getUInt32Ty();
 
-  auto &ti = CGM.getASTContext().getTargetInfo();
+  auto &ti = cgm.getASTContext().getTargetInfo();
   unsigned newAlign = ti.getNewAlign() / ti.getCharWidth();
 
-  mlir::Operation *builtin = CGM.getGlobalValue(CGM.builtinCoroId);
+  mlir::Operation *builtin = cgm.getGlobalValue(cgm.builtinCoroId);
 
   mlir::cir::FuncOp fnOp;
   if (!builtin) {
-    fnOp = CGM.createCIRFunction(
-        loc, CGM.builtinCoroId,
+    fnOp = cgm.createCIRFunction(
+        loc, cgm.builtinCoroId,
         mlir::cir::FuncType::get({int32Ty, VoidPtrTy, VoidPtrTy, VoidPtrTy},
                                  int32Ty),
         /*FD=*/nullptr);
@@ -191,11 +191,11 @@ CIRGenFunction::buildCoroAllocBuiltinCall(mlir::Location loc) {
   auto boolTy = builder.getBoolTy();
   auto int32Ty = builder.getUInt32Ty();
 
-  mlir::Operation *builtin = CGM.getGlobalValue(CGM.builtinCoroAlloc);
+  mlir::Operation *builtin = cgm.getGlobalValue(cgm.builtinCoroAlloc);
 
   mlir::cir::FuncOp fnOp;
   if (!builtin) {
-    fnOp = CGM.createCIRFunction(loc, CGM.builtinCoroAlloc,
+    fnOp = cgm.createCIRFunction(loc, cgm.builtinCoroAlloc,
                                  mlir::cir::FuncType::get({int32Ty}, boolTy),
                                  /*FD=*/nullptr);
     assert(fnOp && "should always succeed");
@@ -211,12 +211,12 @@ mlir::cir::CallOp
 CIRGenFunction::buildCoroBeginBuiltinCall(mlir::Location loc,
                                           mlir::Value coroframeAddr) {
   auto int32Ty = builder.getUInt32Ty();
-  mlir::Operation *builtin = CGM.getGlobalValue(CGM.builtinCoroBegin);
+  mlir::Operation *builtin = cgm.getGlobalValue(cgm.builtinCoroBegin);
 
   mlir::cir::FuncOp fnOp;
   if (!builtin) {
-    fnOp = CGM.createCIRFunction(
-        loc, CGM.builtinCoroBegin,
+    fnOp = cgm.createCIRFunction(
+        loc, cgm.builtinCoroBegin,
         mlir::cir::FuncType::get({int32Ty, VoidPtrTy}, VoidPtrTy),
         /*FD=*/nullptr);
     assert(fnOp && "should always succeed");
@@ -232,12 +232,12 @@ CIRGenFunction::buildCoroBeginBuiltinCall(mlir::Location loc,
 mlir::cir::CallOp CIRGenFunction::buildCoroEndBuiltinCall(mlir::Location loc,
                                                           mlir::Value nullPtr) {
   auto boolTy = builder.getBoolTy();
-  mlir::Operation *builtin = CGM.getGlobalValue(CGM.builtinCoroEnd);
+  mlir::Operation *builtin = cgm.getGlobalValue(cgm.builtinCoroEnd);
 
   mlir::cir::FuncOp fnOp;
   if (!builtin) {
-    fnOp = CGM.createCIRFunction(
-        loc, CGM.builtinCoroEnd,
+    fnOp = cgm.createCIRFunction(
+        loc, cgm.builtinCoroEnd,
         mlir::cir::FuncType::get({VoidPtrTy, boolTy}, boolTy),
         /*FD=*/nullptr);
     assert(fnOp && "should always succeed");
@@ -265,7 +265,7 @@ CIRGenFunction::buildCoroutineBody(const CoroutineBodyStmt &s) {
   auto coroAlloc = buildCoroAllocBuiltinCall(openCurlyLoc);
 
   // Initialize address of coroutine frame to null
-  auto astVoidPtrTy = CGM.getASTContext().VoidPtrTy;
+  auto astVoidPtrTy = cgm.getASTContext().VoidPtrTy;
   auto allocaTy = getTypes().convertTypeForMem(astVoidPtrTy);
   Address coroFrame =
       CreateTempAlloca(allocaTy, getContext().getTypeAlignInChars(astVoidPtrTy),
@@ -303,8 +303,8 @@ CIRGenFunction::buildCoroutineBody(const CoroutineBodyStmt &s) {
 
     // Create mapping between parameters and copy-params for coroutine
     // function.
-    llvm::ArrayRef<const Stmt *> ParamMoves = s.getParamMoves();
-    assert((ParamMoves.empty() || (ParamMoves.size() == FnArgs.size())) &&
+    llvm::ArrayRef<const Stmt *> paramMoves = s.getParamMoves();
+    assert((paramMoves.empty() || (paramMoves.size() == FnArgs.size())) &&
            "ParamMoves and FnArgs should be the same size for coroutine "
            "function");
     // For zipping the arg map into debug info.

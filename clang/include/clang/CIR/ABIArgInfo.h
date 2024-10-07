@@ -81,145 +81,145 @@ public:
   };
 
 private:
-  mlir::Type TypeData; // canHaveCoerceToType();
+  mlir::Type typeData; // canHaveCoerceToType();
   union {
-    mlir::Type PaddingType;                 // canHavePaddingType()
-    mlir::Type UnpaddedCoerceAndExpandType; // isCoerceAndExpand()
+    mlir::Type paddingType;                 // canHavePaddingType()
+    mlir::Type unpaddedCoerceAndExpandType; // isCoerceAndExpand()
   };
   struct DirectAttrInfo {
-    unsigned Offset;
-    unsigned Align;
+    unsigned offset;
+    unsigned align;
   };
   struct IndirectAttrInfo {
-    unsigned Align;
-    unsigned AddrSpace;
+    unsigned align;
+    unsigned addrSpace;
   };
   union {
-    DirectAttrInfo DirectAttr;     // isDirect() || isExtend()
-    IndirectAttrInfo IndirectAttr; // isIndirect()
-    unsigned AllocaFieldIndex;     // isInAlloca()
+    DirectAttrInfo directAttr;     // isDirect() || isExtend()
+    IndirectAttrInfo indirectAttr; // isIndirect()
+    unsigned allocaFieldIndex;     // isInAlloca()
   };
-  Kind TheKind;
-  bool InReg : 1;          // isDirect() || isExtend() || isIndirect()
-  bool CanBeFlattened : 1; // isDirect()
-  bool SignExt : 1;        // isExtend()
+  Kind theKind;
+  bool inReg : 1;          // isDirect() || isExtend() || isIndirect()
+  bool canBeFlattened : 1; // isDirect()
+  bool signExt : 1;        // isExtend()
 
   bool canHavePaddingType() const {
     return isDirect() || isExtend() || isIndirect() || isIndirectAliased() ||
            isExpand();
   }
 
-  void setPaddingType(mlir::Type T) {
+  void setPaddingType(mlir::Type t) {
     assert(canHavePaddingType());
-    PaddingType = T;
+    paddingType = t;
   }
 
 public:
-  ABIArgInfo(Kind K = Direct)
-      : TypeData(nullptr), PaddingType(nullptr), DirectAttr{0, 0}, TheKind(K),
-        InReg(false), CanBeFlattened(false), SignExt(false) {}
+  ABIArgInfo(Kind k = Direct)
+      : typeData(nullptr), paddingType(nullptr), directAttr{0, 0}, theKind(k),
+        inReg(false), canBeFlattened(false), signExt(false) {}
 
-  static ABIArgInfo getDirect(mlir::Type T = nullptr, unsigned Offset = 0,
-                              mlir::Type Padding = nullptr,
-                              bool CanBeFlattened = true, unsigned Align = 0) {
-    auto AI = ABIArgInfo(Direct);
-    AI.setCoerceToType(T);
-    AI.setPaddingType(Padding);
-    AI.setDirectOffset(Offset);
-    AI.setDirectAlign(Align);
-    AI.setCanBeFlattened(CanBeFlattened);
-    return AI;
+  static ABIArgInfo getDirect(mlir::Type t = nullptr, unsigned offset = 0,
+                              mlir::Type padding = nullptr,
+                              bool canBeFlattened = true, unsigned align = 0) {
+    auto ai = ABIArgInfo(Direct);
+    ai.setCoerceToType(t);
+    ai.setPaddingType(padding);
+    ai.setDirectOffset(offset);
+    ai.setDirectAlign(align);
+    ai.setCanBeFlattened(canBeFlattened);
+    return ai;
   }
 
-  static ABIArgInfo getSignExtend(clang::QualType Ty, mlir::Type T = nullptr) {
-    assert(Ty->isIntegralOrEnumerationType() && "Unexpected QualType");
-    auto AI = ABIArgInfo(Extend);
-    AI.setCoerceToType(T);
-    AI.setPaddingType(nullptr);
-    AI.setDirectOffset(0);
-    AI.setDirectAlign(0);
-    AI.setSignExt(true);
-    return AI;
+  static ABIArgInfo getSignExtend(clang::QualType ty, mlir::Type t = nullptr) {
+    assert(ty->isIntegralOrEnumerationType() && "Unexpected QualType");
+    auto ai = ABIArgInfo(Extend);
+    ai.setCoerceToType(t);
+    ai.setPaddingType(nullptr);
+    ai.setDirectOffset(0);
+    ai.setDirectAlign(0);
+    ai.setSignExt(true);
+    return ai;
   }
-  static ABIArgInfo getSignExtend(mlir::Type Ty, mlir::Type T = nullptr) {
+  static ABIArgInfo getSignExtend(mlir::Type ty, mlir::Type t = nullptr) {
     // NOTE(cir): Enumerations are IntTypes in CIR.
-    auto AI = ABIArgInfo(Extend);
-    AI.setCoerceToType(T);
-    AI.setPaddingType(nullptr);
-    AI.setDirectOffset(0);
-    AI.setDirectAlign(0);
-    AI.setSignExt(true);
-    return AI;
+    auto ai = ABIArgInfo(Extend);
+    ai.setCoerceToType(t);
+    ai.setPaddingType(nullptr);
+    ai.setDirectOffset(0);
+    ai.setDirectAlign(0);
+    ai.setSignExt(true);
+    return ai;
   }
 
-  static ABIArgInfo getZeroExtend(clang::QualType Ty, mlir::Type T = nullptr) {
-    assert(Ty->isIntegralOrEnumerationType() && "Unexpected QualType");
-    auto AI = ABIArgInfo(Extend);
-    AI.setCoerceToType(T);
-    AI.setPaddingType(nullptr);
-    AI.setDirectOffset(0);
-    AI.setDirectAlign(0);
-    AI.setSignExt(false);
-    return AI;
+  static ABIArgInfo getZeroExtend(clang::QualType ty, mlir::Type t = nullptr) {
+    assert(ty->isIntegralOrEnumerationType() && "Unexpected QualType");
+    auto ai = ABIArgInfo(Extend);
+    ai.setCoerceToType(t);
+    ai.setPaddingType(nullptr);
+    ai.setDirectOffset(0);
+    ai.setDirectAlign(0);
+    ai.setSignExt(false);
+    return ai;
   }
-  static ABIArgInfo getZeroExtend(mlir::Type Ty, mlir::Type T = nullptr) {
+  static ABIArgInfo getZeroExtend(mlir::Type ty, mlir::Type t = nullptr) {
     // NOTE(cir): Enumerations are IntTypes in CIR.
-    assert(mlir::isa<mlir::cir::IntType>(Ty) ||
-           mlir::isa<mlir::cir::BoolType>(Ty));
-    auto AI = ABIArgInfo(Extend);
-    AI.setCoerceToType(T);
-    AI.setPaddingType(nullptr);
-    AI.setDirectOffset(0);
-    AI.setDirectAlign(0);
-    AI.setSignExt(false);
-    return AI;
+    assert(mlir::isa<mlir::cir::IntType>(ty) ||
+           mlir::isa<mlir::cir::BoolType>(ty));
+    auto ai = ABIArgInfo(Extend);
+    ai.setCoerceToType(t);
+    ai.setPaddingType(nullptr);
+    ai.setDirectOffset(0);
+    ai.setDirectAlign(0);
+    ai.setSignExt(false);
+    return ai;
   }
 
   // ABIArgInfo will record the argument as being extended based on the sign of
   // it's type.
-  static ABIArgInfo getExtend(clang::QualType Ty, mlir::Type T = nullptr) {
-    assert(Ty->isIntegralOrEnumerationType() && "Unexpected QualType");
-    if (Ty->hasSignedIntegerRepresentation())
-      return getSignExtend(Ty, T);
-    return getZeroExtend(Ty, T);
+  static ABIArgInfo getExtend(clang::QualType ty, mlir::Type t = nullptr) {
+    assert(ty->isIntegralOrEnumerationType() && "Unexpected QualType");
+    if (ty->hasSignedIntegerRepresentation())
+      return getSignExtend(ty, t);
+    return getZeroExtend(ty, t);
   }
-  static ABIArgInfo getExtend(mlir::Type Ty, mlir::Type T = nullptr) {
+  static ABIArgInfo getExtend(mlir::Type ty, mlir::Type t = nullptr) {
     // NOTE(cir): The original can apply this method on both integers and
     // enumerations, but in CIR, these two types are one and the same. Booleans
     // will also fall into this category, but they have their own type.
-    if (mlir::isa<mlir::cir::IntType>(Ty) &&
-        mlir::cast<mlir::cir::IntType>(Ty).isSigned())
-      return getSignExtend(mlir::cast<mlir::cir::IntType>(Ty), T);
-    return getZeroExtend(Ty, T);
+    if (mlir::isa<mlir::cir::IntType>(ty) &&
+        mlir::cast<mlir::cir::IntType>(ty).isSigned())
+      return getSignExtend(mlir::cast<mlir::cir::IntType>(ty), t);
+    return getZeroExtend(ty, t);
   }
 
   static ABIArgInfo getIgnore() { return ABIArgInfo(Ignore); }
 
-  Kind getKind() const { return TheKind; }
-  bool isDirect() const { return TheKind == Direct; }
-  bool isInAlloca() const { return TheKind == InAlloca; }
-  bool isExtend() const { return TheKind == Extend; }
-  bool isIndirect() const { return TheKind == Indirect; }
-  bool isIndirectAliased() const { return TheKind == IndirectAliased; }
-  bool isExpand() const { return TheKind == Expand; }
-  bool isCoerceAndExpand() const { return TheKind == CoerceAndExpand; }
+  Kind getKind() const { return theKind; }
+  bool isDirect() const { return theKind == Direct; }
+  bool isInAlloca() const { return theKind == InAlloca; }
+  bool isExtend() const { return theKind == Extend; }
+  bool isIndirect() const { return theKind == Indirect; }
+  bool isIndirectAliased() const { return theKind == IndirectAliased; }
+  bool isExpand() const { return theKind == Expand; }
+  bool isCoerceAndExpand() const { return theKind == CoerceAndExpand; }
 
   bool isSignExt() const {
     assert(isExtend() && "Invalid kind!");
-    return SignExt;
+    return signExt;
   }
-  void setSignExt(bool SExt) {
+  void setSignExt(bool sExt) {
     assert(isExtend() && "Invalid kind!");
-    SignExt = SExt;
+    signExt = sExt;
   }
 
   bool getInReg() const {
     assert((isDirect() || isExtend() || isIndirect()) && "Invalid kind!");
-    return InReg;
+    return inReg;
   }
-  void setInReg(bool IR) {
+  void setInReg(bool ir) {
     assert((isDirect() || isExtend() || isIndirect()) && "Invalid kind!");
-    InReg = IR;
+    inReg = ir;
   }
 
   bool canHaveCoerceToType() const {
@@ -229,41 +229,41 @@ public:
   // Direct/Extend accessors
   unsigned getDirectOffset() const {
     assert((isDirect() || isExtend()) && "Not a direct or extend kind");
-    return DirectAttr.Offset;
+    return directAttr.offset;
   }
 
-  void setDirectOffset(unsigned Offset) {
+  void setDirectOffset(unsigned offset) {
     assert((isDirect() || isExtend()) && "Not a direct or extend kind");
-    DirectAttr.Offset = Offset;
+    directAttr.offset = offset;
   }
 
-  void setDirectAlign(unsigned Align) {
+  void setDirectAlign(unsigned align) {
     assert((isDirect() || isExtend()) && "Not a direct or extend kind");
-    DirectAttr.Align = Align;
+    directAttr.align = align;
   }
 
-  void setCanBeFlattened(bool Flatten) {
+  void setCanBeFlattened(bool flatten) {
     assert(isDirect() && "Invalid kind!");
-    CanBeFlattened = Flatten;
+    canBeFlattened = flatten;
   }
 
   bool getCanBeFlattened() const {
     assert(isDirect() && "Invalid kind!");
-    return CanBeFlattened;
+    return canBeFlattened;
   }
 
   mlir::Type getPaddingType() const {
-    return (canHavePaddingType() ? PaddingType : nullptr);
+    return (canHavePaddingType() ? paddingType : nullptr);
   }
 
   mlir::Type getCoerceToType() const {
     assert(canHaveCoerceToType() && "Invalid kind!");
-    return TypeData;
+    return typeData;
   }
 
-  void setCoerceToType(mlir::Type T) {
+  void setCoerceToType(mlir::Type t) {
     assert(canHaveCoerceToType() && "Invalid kind!");
-    TypeData = T;
+    typeData = t;
   }
 };
 

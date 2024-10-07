@@ -18,7 +18,7 @@
 
 namespace clang {
 class ASTContext;
-}
+} // namespace clang
 
 namespace mlir {
 class MLIRContext;

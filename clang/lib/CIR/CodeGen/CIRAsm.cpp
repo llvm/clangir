@@ -209,7 +209,7 @@ std::pair<mlir::Value, mlir::Type> CIRGenFunction::buildAsmInputLValue(
       return {buildLoadOfLValue(inputValue, loc).getScalarVal(), mlir::Type()};
 
     mlir::Type ty = convertType(inputType);
-    uint64_t size = CGM.getDataLayout().getTypeSizeInBits(ty);
+    uint64_t size = cgm.getDataLayout().getTypeSizeInBits(ty);
     if ((size <= 64 && llvm::isPowerOf2_64(size)) ||
         getTargetHooks().isScalarizableAsmOperand(*this, ty)) {
       ty = mlir::cir::IntType::get(builder.getContext(), size, false);
@@ -269,7 +269,7 @@ static void buildAsmStores(CIRGenFunction &cgf, const AsmStmt &s,
                            const llvm::BitVector &resultTypeRequiresCast,
                            const llvm::BitVector &resultRegIsFlagReg) {
   CIRGenBuilderTy &builder = cgf.getBuilder();
-  CIRGenModule &cgm = cgf.CGM;
+  CIRGenModule &cgm = cgf.cgm;
   auto *ctx = builder.getContext();
 
   assert(regResults.size() == resultRegTypes.size());
@@ -397,12 +397,12 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &s) {
 
     std::string gccReg;
     outputConstraint =
-        addVariableConstraints(outputConstraint, *outExpr, getTarget(), CGM, s,
+        addVariableConstraints(outputConstraint, *outExpr, getTarget(), cgm, s,
                                info.earlyClobber(), &gccReg);
 
     // Give an error on multiple outputs to same physreg.
     if (!gccReg.empty() && !physRegOutputs.insert(gccReg).second)
-      CGM.Error(s.getAsmLoc(), "multiple outputs to hard register: " + gccReg);
+      cgm.Error(s.getAsmLoc(), "multiple outputs to hard register: " + gccReg);
 
     outputConstraints.push_back(outputConstraint);
     LValue dest = buildLValue(outExpr);
@@ -462,7 +462,7 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &s) {
               *this, outputConstraint, resultRegTypes.back()))
         resultRegTypes.back() = adjTy;
       else {
-        CGM.getDiags().Report(s.getAsmLoc(),
+        cgm.getDiags().Report(s.getAsmLoc(),
                               diag::err_asm_invalid_type_in_input)
             << outExpr->getType() << outputConstraint;
       }
@@ -525,7 +525,7 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &s) {
     if (retAi.isDirect() || retAi.isExtend()) {
       // Make a fake lvalue for the return value slot.
       LValue returnSlot = makeAddrLValue(ReturnValue, FnRetTy);
-      CGM.getTargetCIRGenInfo().addReturnRegisterOutputs(
+      cgm.getTargetCIRGenInfo().addReturnRegisterOutputs(
           *this, returnSlot, constraints, resultRegTypes, resultTruncRegTypes,
           resultRegDests, asmString, s.getNumOutputs());
       SawAsmBlock = true;
@@ -550,7 +550,7 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &s) {
 
     inputConstraint = addVariableConstraints(
         inputConstraint, *inputExpr->IgnoreParenNoopCasts(getContext()),
-        getTarget(), CGM, s, false /* No EarlyClobber */);
+        getTarget(), cgm, s, false /* No EarlyClobber */);
 
     std::string replaceConstraint(inputConstraint);
     mlir::Value arg;
@@ -589,7 +589,7 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &s) {
             *this, replaceConstraint, arg.getType()))
       arg = builder.createBitcast(arg, adjTy);
     else
-      CGM.getDiags().Report(s.getAsmLoc(), diag::err_asm_invalid_type_in_input)
+      cgm.getDiags().Report(s.getAsmLoc(), diag::err_asm_invalid_type_in_input)
           << inputExpr->getType() << inputConstraint;
 
     // Update largest vector width for any vector types.
@@ -633,7 +633,7 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &s) {
 
   auto ia = builder.create<mlir::cir::InlineAsmOp>(
       getLoc(s.getAsmLoc()), resultType, operands, asmString, constraints,
-      hasSideEffect, inferFlavor(CGM, s), mlir::ArrayAttr());
+      hasSideEffect, inferFlavor(cgm, s), mlir::ArrayAttr());
 
   if (false /*IsGCCAsmGoto*/) {
     assert(!MissingFeatures::asmGoto());

@@ -66,9 +66,9 @@ static std::string sanitizePassOptions(llvm::StringRef o) {
   std::string opts{o};
   // MLIR pass options are space separated, but we use ';' in clang since
   // space aren't well supported, switch it back.
-  for (unsigned i = 0, e = opts.size(); i < e; ++i)
-    if (opts[i] == ';')
-      opts[i] = ' ';
+  for (char &opt : opts)
+    if (opt == ';')
+      opt = ' ';
   // If arguments are surrounded with '"', trim them off
   return llvm::StringRef(opts).trim('"').str();
 }
@@ -99,8 +99,7 @@ lowerFromCIRToLLVMIR(const clang::FrontendOptions &feOptions,
   if (feOptions.ClangIRDirectLowering)
     return direct::lowerDirectlyFromCIRToLLVMIR(mlirMod, llvmCtx,
                                                 disableVerifier);
-  else
-    return lowerFromCIRToMLIRToLLVMIR(mlirMod, std::move(mlirCtx), llvmCtx);
+  return lowerFromCIRToMLIRToLLVMIR(mlirMod, std::move(mlirCtx), llvmCtx);
 }
 
 class CIRGenConsumer : public clang::ASTConsumer {
@@ -119,13 +118,13 @@ class CIRGenConsumer : public clang::ASTConsumer {
   std::unique_ptr<raw_pwrite_stream> outputStream;
 
   ASTContext *astContext{nullptr};
-  IntrusiveRefCntPtr<llvm::vfs::FileSystem> FS;
+  IntrusiveRefCntPtr<llvm::vfs::FileSystem> fs;
   std::unique_ptr<CIRGenerator> gen;
 
 public:
   CIRGenConsumer(CIRGenAction::OutputType action,
                  DiagnosticsEngine &diagnosticsEngine,
-                 IntrusiveRefCntPtr<llvm::vfs::FileSystem> VFS,
+                 IntrusiveRefCntPtr<llvm::vfs::FileSystem> vfs,
                  const HeaderSearchOptions &headerSearchOptions,
                  const CodeGenOptions &codeGenOptions,
                  const TargetOptions &targetOptions,
@@ -136,8 +135,8 @@ public:
         headerSearchOptions(headerSearchOptions),
         codeGenOptions(codeGenOptions), targetOptions(targetOptions),
         langOptions(langOptions), feOptions(feOptions),
-        outputStream(std::move(os)), FS(VFS),
-        gen(std::make_unique<CIRGenerator>(diagnosticsEngine, std::move(VFS),
+        outputStream(std::move(os)), fs(vfs),
+        gen(std::make_unique<CIRGenerator>(diagnosticsEngine, std::move(vfs),
                                            codeGenOptions)) {}
 
   void Initialize(ASTContext &ctx) override {
@@ -148,33 +147,33 @@ public:
     gen->Initialize(ctx);
   }
 
-  bool HandleTopLevelDecl(DeclGroupRef D) override {
-    PrettyStackTraceDecl CrashInfo(*D.begin(), SourceLocation(),
+  bool HandleTopLevelDecl(DeclGroupRef d) override {
+    PrettyStackTraceDecl crashInfo(*d.begin(), SourceLocation(),
                                    astContext->getSourceManager(),
                                    "LLVM IR generation of declaration");
-    gen->HandleTopLevelDecl(D);
+    gen->HandleTopLevelDecl(d);
     return true;
   }
 
-  void HandleCXXStaticMemberVarInstantiation(clang::VarDecl *VD) override {
-    gen->HandleCXXStaticMemberVarInstantiation(VD);
+  void HandleCXXStaticMemberVarInstantiation(clang::VarDecl *vd) override {
+    gen->HandleCXXStaticMemberVarInstantiation(vd);
   }
 
-  void HandleInlineFunctionDefinition(FunctionDecl *D) override {
-    gen->HandleInlineFunctionDefinition(D);
+  void HandleInlineFunctionDefinition(FunctionDecl *d) override {
+    gen->HandleInlineFunctionDefinition(d);
   }
 
-  void HandleInterestingDecl(DeclGroupRef D) override {
+  void HandleInterestingDecl(DeclGroupRef d) override {
     llvm_unreachable("NYI");
   }
 
-  void HandleTranslationUnit(ASTContext &C) override {
+  void HandleTranslationUnit(ASTContext &c) override {
     llvm::TimeTraceScope scope("CIR Gen");
 
     // Note that this method is called after `HandleTopLevelDecl` has already
     // ran all over the top level decls. Here clang mostly wraps defered and
     // global codegen, followed by running CIR passes.
-    gen->HandleTranslationUnit(C);
+    gen->HandleTranslationUnit(c);
 
     if (!feOptions.ClangIRDisableCIRVerifier)
       if (!gen->verifyModule()) {
@@ -201,7 +200,7 @@ public:
       // Setup and run CIR pipeline.
       std::string passOptParsingFailure;
       if (runCIRToCIRPasses(
-              mlirMod, mlirCtx.get(), C, !feOptions.ClangIRDisableCIRVerifier,
+              mlirMod, mlirCtx.get(), c, !feOptions.ClangIRDisableCIRVerifier,
               feOptions.ClangIRLifetimeCheck, lifetimeOpts,
               feOptions.ClangIRIdiomRecognizer, idiomRecognizerOpts,
               feOptions.ClangIRLibOpt, libOptOpts, passOptParsingFailure,
@@ -224,15 +223,15 @@ public:
     if (!feOptions.ClangIRDisablePasses) {
       // Handle source manager properly given that lifetime analysis
       // might emit warnings and remarks.
-      auto &clangSourceMgr = C.getSourceManager();
-      FileID MainFileID = clangSourceMgr.getMainFileID();
+      auto &clangSourceMgr = c.getSourceManager();
+      FileID mainFileId = clangSourceMgr.getMainFileID();
 
-      std::unique_ptr<llvm::MemoryBuffer> FileBuf =
+      std::unique_ptr<llvm::MemoryBuffer> fileBuf =
           llvm::MemoryBuffer::getMemBuffer(
-              clangSourceMgr.getBufferOrFake(MainFileID));
+              clangSourceMgr.getBufferOrFake(mainFileId));
 
       llvm::SourceMgr mlirSourceMgr;
-      mlirSourceMgr.AddNewSourceBuffer(std::move(FileBuf), llvm::SMLoc());
+      mlirSourceMgr.AddNewSourceBuffer(std::move(fileBuf), llvm::SMLoc());
 
       if (feOptions.ClangIRVerifyDiags) {
         mlir::SourceMgrDiagnosticVerifierHandler sourceMgrHandler(
@@ -293,8 +292,8 @@ public:
 
       EmitBackendOutput(
           diagnosticsEngine, headerSearchOptions, codeGenOptions, targetOptions,
-          langOptions, C.getTargetInfo().getDataLayoutString(),
-          llvmModule.get(), backendAction, FS, std::move(outputStream));
+          langOptions, c.getTargetInfo().getDataLayoutString(),
+          llvmModule.get(), backendAction, fs, std::move(outputStream));
       break;
     }
     case CIRGenAction::OutputType::None:
@@ -302,37 +301,37 @@ public:
     }
   }
 
-  void HandleTagDeclDefinition(TagDecl *D) override {
-    PrettyStackTraceDecl CrashInfo(D, SourceLocation(),
+  void HandleTagDeclDefinition(TagDecl *d) override {
+    PrettyStackTraceDecl crashInfo(d, SourceLocation(),
                                    astContext->getSourceManager(),
                                    "CIR generation of declaration");
-    gen->HandleTagDeclDefinition(D);
+    gen->HandleTagDeclDefinition(d);
   }
 
-  void HandleTagDeclRequiredDefinition(const TagDecl *D) override {
-    gen->HandleTagDeclRequiredDefinition(D);
+  void HandleTagDeclRequiredDefinition(const TagDecl *d) override {
+    gen->HandleTagDeclRequiredDefinition(d);
   }
 
-  void CompleteTentativeDefinition(VarDecl *D) override {
-    gen->CompleteTentativeDefinition(D);
+  void CompleteTentativeDefinition(VarDecl *d) override {
+    gen->CompleteTentativeDefinition(d);
   }
 
-  void CompleteExternalDeclaration(DeclaratorDecl *D) override {
+  void CompleteExternalDeclaration(DeclaratorDecl *d) override {
     llvm_unreachable("NYI");
   }
 
-  void AssignInheritanceModel(CXXRecordDecl *RD) override {
+  void AssignInheritanceModel(CXXRecordDecl *rd) override {
     llvm_unreachable("NYI");
   }
 
-  void HandleVTable(CXXRecordDecl *RD) override { gen->HandleVTable(RD); }
+  void HandleVTable(CXXRecordDecl *rd) override { gen->HandleVTable(rd); }
 };
 } // namespace cir
 
 void CIRGenConsumer::anchor() {}
 
-CIRGenAction::CIRGenAction(OutputType act, mlir::MLIRContext *_MLIRContext)
-    : mlirContext(_MLIRContext ? _MLIRContext : new mlir::MLIRContext),
+CIRGenAction::CIRGenAction(OutputType act, mlir::MLIRContext *mlirContext)
+    : mlirContext(mlirContext ? mlirContext : new mlir::MLIRContext),
       action(act) {}
 
 CIRGenAction::~CIRGenAction() { mlirModule.reset(); }
@@ -377,11 +376,11 @@ CIRGenAction::CreateASTConsumer(CompilerInstance &ci, StringRef inputFile) {
   if (!out)
     out = getOutputStream(ci, inputFile, action);
 
-  auto Result = std::make_unique<cir::CIRGenConsumer>(
+  auto result = std::make_unique<cir::CIRGenConsumer>(
       action, ci.getDiagnostics(), &ci.getVirtualFileSystem(),
       ci.getHeaderSearchOpts(), ci.getCodeGenOpts(), ci.getTargetOpts(),
       ci.getLangOpts(), ci.getFrontendOpts(), std::move(out));
-  cgConsumer = Result.get();
+  cgConsumer = result.get();
 
   // Enable generating macro debug info only when debug info is not disabled and
   // also macrod ebug info is enabled
@@ -390,7 +389,7 @@ CIRGenAction::CreateASTConsumer(CompilerInstance &ci, StringRef inputFile) {
     llvm_unreachable("NYI");
   }
 
-  return std::move(Result);
+  return std::move(result);
 }
 
 mlir::OwningOpRef<mlir::ModuleOp>
@@ -445,82 +444,82 @@ void CIRGenAction::ExecuteAction() {
 
 namespace cir {
 void EmitAssemblyAction::anchor() {}
-EmitAssemblyAction::EmitAssemblyAction(mlir::MLIRContext *_MLIRContext)
-    : CIRGenAction(OutputType::EmitAssembly, _MLIRContext) {}
+EmitAssemblyAction::EmitAssemblyAction(mlir::MLIRContext *mlirContext)
+    : CIRGenAction(OutputType::EmitAssembly, mlirContext) {}
 
 void EmitCIRAction::anchor() {}
-EmitCIRAction::EmitCIRAction(mlir::MLIRContext *_MLIRContext)
-    : CIRGenAction(OutputType::EmitCIR, _MLIRContext) {}
+EmitCIRAction::EmitCIRAction(mlir::MLIRContext *mlirContext)
+    : CIRGenAction(OutputType::EmitCIR, mlirContext) {}
 
 void EmitCIRFlatAction::anchor() {}
-EmitCIRFlatAction::EmitCIRFlatAction(mlir::MLIRContext *_MLIRContext)
-    : CIRGenAction(OutputType::EmitCIRFlat, _MLIRContext) {}
+EmitCIRFlatAction::EmitCIRFlatAction(mlir::MLIRContext *mlirContext)
+    : CIRGenAction(OutputType::EmitCIRFlat, mlirContext) {}
 
 void EmitCIROnlyAction::anchor() {}
-EmitCIROnlyAction::EmitCIROnlyAction(mlir::MLIRContext *_MLIRContext)
-    : CIRGenAction(OutputType::None, _MLIRContext) {}
+EmitCIROnlyAction::EmitCIROnlyAction(mlir::MLIRContext *mlirContext)
+    : CIRGenAction(OutputType::None, mlirContext) {}
 
 void EmitMLIRAction::anchor() {}
-EmitMLIRAction::EmitMLIRAction(mlir::MLIRContext *_MLIRContext)
-    : CIRGenAction(OutputType::EmitMLIR, _MLIRContext) {}
+EmitMLIRAction::EmitMLIRAction(mlir::MLIRContext *mlirContext)
+    : CIRGenAction(OutputType::EmitMLIR, mlirContext) {}
 
 void EmitLLVMAction::anchor() {}
-EmitLLVMAction::EmitLLVMAction(mlir::MLIRContext *_MLIRContext)
-    : CIRGenAction(OutputType::EmitLLVM, _MLIRContext) {}
+EmitLLVMAction::EmitLLVMAction(mlir::MLIRContext *mlirContext)
+    : CIRGenAction(OutputType::EmitLLVM, mlirContext) {}
 
 void EmitBCAction::anchor() {}
-EmitBCAction::EmitBCAction(mlir::MLIRContext *_MLIRContext)
-    : CIRGenAction(OutputType::EmitBC, _MLIRContext) {}
+EmitBCAction::EmitBCAction(mlir::MLIRContext *mlirContext)
+    : CIRGenAction(OutputType::EmitBC, mlirContext) {}
 
 void EmitObjAction::anchor() {}
-EmitObjAction::EmitObjAction(mlir::MLIRContext *_MLIRContext)
-    : CIRGenAction(OutputType::EmitObj, _MLIRContext) {}
+EmitObjAction::EmitObjAction(mlir::MLIRContext *mlirContext)
+    : CIRGenAction(OutputType::EmitObj, mlirContext) {}
 } // namespace cir
 
 // Used for -fclangir-analysis-only: use CIR analysis but still use original LLVM codegen path
 void AnalysisOnlyActionBase::anchor() {}
-AnalysisOnlyActionBase::AnalysisOnlyActionBase(unsigned _Act,
-                                               llvm::LLVMContext *_VMContext)
-    : clang::CodeGenAction(_Act, _VMContext) {}
+AnalysisOnlyActionBase::AnalysisOnlyActionBase(unsigned act,
+                                               llvm::LLVMContext *vmContext)
+    : clang::CodeGenAction(act, vmContext) {}
 
 std::unique_ptr<ASTConsumer>
 AnalysisOnlyActionBase::CreateASTConsumer(clang::CompilerInstance &ci,
                                           llvm::StringRef inFile) {
-  std::vector<std::unique_ptr<ASTConsumer>> Consumers;
-  Consumers.push_back(clang::CodeGenAction::CreateASTConsumer(ci, inFile));
-  Consumers.push_back(std::make_unique<cir::CIRGenConsumer>(
+  std::vector<std::unique_ptr<ASTConsumer>> consumers;
+  consumers.push_back(clang::CodeGenAction::CreateASTConsumer(ci, inFile));
+  consumers.push_back(std::make_unique<cir::CIRGenConsumer>(
       CIRGenAction::OutputType::None, ci.getDiagnostics(),
       &ci.getVirtualFileSystem(), ci.getHeaderSearchOpts(), ci.getCodeGenOpts(),
       ci.getTargetOpts(), ci.getLangOpts(), ci.getFrontendOpts(), nullptr));
-  return std::make_unique<MultiplexConsumer>(std::move(Consumers));
+  return std::make_unique<MultiplexConsumer>(std::move(consumers));
 }
 
 void AnalysisOnlyAndEmitAssemblyAction::anchor() {}
 AnalysisOnlyAndEmitAssemblyAction::AnalysisOnlyAndEmitAssemblyAction(
-    llvm::LLVMContext *_VMContext)
-    : AnalysisOnlyActionBase(Backend_EmitAssembly, _VMContext) {}
+    llvm::LLVMContext *vmContext)
+    : AnalysisOnlyActionBase(Backend_EmitAssembly, vmContext) {}
 
 void AnalysisOnlyAndEmitBCAction::anchor() {}
 AnalysisOnlyAndEmitBCAction::AnalysisOnlyAndEmitBCAction(
-    llvm::LLVMContext *_VMContext)
-    : AnalysisOnlyActionBase(Backend_EmitBC, _VMContext) {}
+    llvm::LLVMContext *vmContext)
+    : AnalysisOnlyActionBase(Backend_EmitBC, vmContext) {}
 
 void AnalysisOnlyAndEmitLLVMAction::anchor() {}
 AnalysisOnlyAndEmitLLVMAction::AnalysisOnlyAndEmitLLVMAction(
-    llvm::LLVMContext *_VMContext)
-    : AnalysisOnlyActionBase(Backend_EmitLL, _VMContext) {}
+    llvm::LLVMContext *vmContext)
+    : AnalysisOnlyActionBase(Backend_EmitLL, vmContext) {}
 
 void AnalysisOnlyAndEmitLLVMOnlyAction::anchor() {}
 AnalysisOnlyAndEmitLLVMOnlyAction::AnalysisOnlyAndEmitLLVMOnlyAction(
-    llvm::LLVMContext *_VMContext)
-    : AnalysisOnlyActionBase(Backend_EmitNothing, _VMContext) {}
+    llvm::LLVMContext *vmContext)
+    : AnalysisOnlyActionBase(Backend_EmitNothing, vmContext) {}
 
 void AnalysisOnlyAndEmitCodeGenOnlyAction::anchor() {}
 AnalysisOnlyAndEmitCodeGenOnlyAction::AnalysisOnlyAndEmitCodeGenOnlyAction(
-    llvm::LLVMContext *_VMContext)
-    : AnalysisOnlyActionBase(Backend_EmitMCNull, _VMContext) {}
+    llvm::LLVMContext *vmContext)
+    : AnalysisOnlyActionBase(Backend_EmitMCNull, vmContext) {}
 
 void AnalysisOnlyAndEmitObjAction::anchor() {}
 AnalysisOnlyAndEmitObjAction::AnalysisOnlyAndEmitObjAction(
-    llvm::LLVMContext *_VMContext)
-    : AnalysisOnlyActionBase(Backend_EmitObj, _VMContext) {}
+    llvm::LLVMContext *vmContext)
+    : AnalysisOnlyActionBase(Backend_EmitObj, vmContext) {}

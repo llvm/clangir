@@ -134,7 +134,7 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
     bool isOptionsParsed = false;
 
     void parseOptions(ArrayRef<StringRef> remarks, ArrayRef<StringRef> hist,
-                      unsigned histLimit) {
+                      unsigned historyLimit) {
       if (isOptionsParsed)
         return;
 
@@ -152,7 +152,7 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
                    .Case("all", HistoryAll)
                    .Default(None);
       }
-      histLimit = histLimit;
+      this->histLimit = historyLimit;
       isOptionsParsed = true;
     }
 

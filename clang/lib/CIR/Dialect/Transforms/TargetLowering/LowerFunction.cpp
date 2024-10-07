@@ -613,7 +613,7 @@ Value LowerFunction::rewriteCallOp(FuncType calleeTy, FuncOp origCallee,
     llvm_unreachable("NYI");
   }
 
-  assert(!::cir::MissingFeatures::CUDA());
+  assert(!::cir::MissingFeatures::cuda());
 
   // TODO(cir): LLVM IR has the concept of "CallBase", which is a base class
   // for all types of calls. Perhaps we should have a CIR interface to mimic

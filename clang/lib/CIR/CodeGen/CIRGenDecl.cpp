@@ -91,7 +91,7 @@ CIRGenFunction::buildAutoVarAlloca(const VarDecl &d,
       if ((!getContext().getLangOpts().OpenCL ||
            ty.getAddressSpace() == LangAS::opencl_constant) &&
           (!nrvo && !d.isEscapingByref() &&
-           CGM.isTypeConstant(ty, /*ExcludeCtor=*/true,
+           cgm.isTypeConstant(ty, /*ExcludeCtor=*/true,
                               /*ExcludeDtor=*/false))) {
         buildStaticVarDecl(d, mlir::cir::GlobalLinkageKind::InternalLinkage);
 
@@ -148,7 +148,7 @@ CIRGenFunction::buildAutoVarAlloca(const VarDecl &d,
                                  /*ArraySize=*/nullptr, &allocaAddr, ip);
       if (failed(declare(address, &d, ty, getLoc(d.getSourceRange()), alignment,
                          addrVal))) {
-        CGM.emitError("Cannot declare variable");
+        cgm.emitError("Cannot declare variable");
         return emission;
       }
       // TODO: what about emitting lifetime markers for MSVC catch parameters?
@@ -165,7 +165,7 @@ CIRGenFunction::buildAutoVarAlloca(const VarDecl &d,
         // Save the stack.
         auto defaultTy = AllocaInt8PtrTy;
         CharUnits align = CharUnits::fromQuantity(
-            CGM.getDataLayout().getAlignment(defaultTy, false));
+            cgm.getDataLayout().getAlignment(defaultTy, false));
         Address stack = CreateTempAlloca(defaultTy, align, loc, "saved_stack");
 
         mlir::Value v = builder.createStackSave(loc, defaultTy);
@@ -345,7 +345,7 @@ void CIRGenFunction::buildAutoVarInit(const AutoVarEmission &emission) {
         RValue::get(builder.getConstant(initLoc, typedConstant)), lv);
   }
 
-  emitStoresForConstant(CGM, d, loc, type.isVolatileQualified(), builder,
+  emitStoresForConstant(cgm, d, loc, type.isVolatileQualified(), builder,
                         typedConstant, /*IsAutoInit=*/false);
 }
 
@@ -400,7 +400,7 @@ void CIRGenFunction::buildVarDecl(const VarDecl &d) {
     if (d.getType()->isSamplerT())
       return;
 
-    auto linkage = CGM.getCIRLinkageVarDefinition(&d, /*IsConstant=*/false);
+    auto linkage = cgm.getCIRLinkageVarDefinition(&d, /*IsConstant=*/false);
 
     // FIXME: We need to force the emission/use of a guard variable for
     // some variables even if we can constant-evaluate them because
@@ -410,7 +410,7 @@ void CIRGenFunction::buildVarDecl(const VarDecl &d) {
   }
 
   if (d.getType().getAddressSpace() == LangAS::opencl_local)
-    return CGM.getOpenCLRuntime().buildWorkGroupLocalVarDecl(*this, d);
+    return cgm.getOpenCLRuntime().buildWorkGroupLocalVarDecl(*this, d);
 
   assert(d.hasLocalStorage());
 
@@ -541,9 +541,9 @@ mlir::cir::GlobalOp CIRGenFunction::addInitializerToStaticVarDecl(
   // initializer.
   if (!init) {
     if (!getLangOpts().CPlusPlus)
-      CGM.ErrorUnsupported(d.getInit(), "constant l-value expression");
+      cgm.ErrorUnsupported(d.getInit(), "constant l-value expression");
     else if (d.hasFlexibleArrayInit(getContext()))
-      CGM.ErrorUnsupported(d.getInit(), "flexible array initializer");
+      cgm.ErrorUnsupported(d.getInit(), "flexible array initializer");
     else {
       // Since we have a static initializer, this global variable can't
       // be constant.
@@ -554,10 +554,10 @@ mlir::cir::GlobalOp CIRGenFunction::addInitializerToStaticVarDecl(
   }
 
 #ifndef NDEBUG
-  CharUnits varSize = CGM.getASTContext().getTypeSizeInChars(d.getType()) +
+  CharUnits varSize = cgm.getASTContext().getTypeSizeInChars(d.getType()) +
                       d.getFlexibleArrayInitChars(getContext());
   CharUnits cstSize = CharUnits::fromQuantity(
-      CGM.getDataLayout().getTypeAllocSize(init.getType()));
+      cgm.getDataLayout().getTypeAllocSize(init.getType()));
   assert(varSize == cstSize && "Emitted constant has unexpected size");
 #endif
 
@@ -567,7 +567,7 @@ mlir::cir::GlobalOp CIRGenFunction::addInitializerToStaticVarDecl(
   // in the LLVM type system.)
   if (gv.getSymType() != init.getType()) {
     mlir::cir::GlobalOp oldGv = gv;
-    gv = builder.createGlobal(CGM.getModule(), getLoc(d.getSourceRange()),
+    gv = builder.createGlobal(cgm.getModule(), getLoc(d.getSourceRange()),
                               oldGv.getName(), init.getType(),
                               oldGv.getConstant(), gv.getLinkage());
     // FIXME(cir): OG codegen inserts new GV before old one, we probably don't
@@ -594,7 +594,7 @@ mlir::cir::GlobalOp CIRGenFunction::addInitializerToStaticVarDecl(
       d.needsDestruction(getContext()) == QualType::DK_cxx_destructor;
 
   gv.setConstant(
-      CGM.isTypeConstant(d.getType(), /*ExcludeCtor=*/true, !needsDtor));
+      cgm.isTypeConstant(d.getType(), /*ExcludeCtor=*/true, !needsDtor));
   gv.setInitialValueAttr(init);
 
   emitter.finalize(gv);
@@ -614,7 +614,7 @@ void CIRGenFunction::buildStaticVarDecl(const VarDecl &d,
   // Check to see if we already have a global variable for this
   // declaration.  This can happen when double-emitting function
   // bodies, e.g. with complete and base constructors.
-  auto globalOp = CGM.getOrCreateStaticVarDecl(d, linkage);
+  auto globalOp = cgm.getOrCreateStaticVarDecl(d, linkage);
   // TODO(cir): we should have a way to represent global ops as values without
   // having to emit a get global op. Sometimes these emissions are not used.
   auto addr = getBuilder().createGetGlobal(globalOp);
@@ -678,13 +678,13 @@ void CIRGenFunction::buildStaticVarDecl(const VarDecl &d,
   // RAUW's the GV uses of this constant will be invalid.
   auto castedAddr = builder.createBitcast(getAddrOp.getAddr(), expectedType);
   LocalDeclMap.find(&d)->second = Address(castedAddr, elemTy, alignment);
-  CGM.setStaticLocalDeclAddress(&d, var);
+  cgm.setStaticLocalDeclAddress(&d, var);
 
   assert(!MissingFeatures::reportGlobalToASan());
 
   // Emit global variable debug descriptor for static vars.
   auto *di = getDebugInfo();
-  if (di && CGM.getCodeGenOpts().hasReducedDebugInfo()) {
+  if (di && cgm.getCodeGenOpts().hasReducedDebugInfo()) {
     llvm_unreachable("Debug info is NYI");
   }
 }

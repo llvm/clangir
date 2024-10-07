@@ -18,7 +18,7 @@ namespace {
 class ComplexExprEmitter : public StmtVisitor<ComplexExprEmitter, mlir::Value> {
   CIRGenFunction &CGF;
   CIRGenBuilderTy &builder;
-  bool FPHasBeenPromoted = false;
+  bool fpHasBeenPromoted = false;
 
 public:
   explicit ComplexExprEmitter(CIRGenFunction &cgf)
@@ -237,11 +237,11 @@ public:
     // doubles the exponent of SmallerType.LargestFiniteVal)
     if (llvm::APFloat::semanticsMaxExponent(elementTypeSemantics) * 2 + 1 <=
         llvm::APFloat::semanticsMaxExponent(higherElementTypeSemantics)) {
-      FPHasBeenPromoted = true;
+      fpHasBeenPromoted = true;
       return CGF.getContext().getComplexType(higherElementType);
     }
 
-    DiagnosticsEngine &diags = CGF.CGM.getDiags();
+    DiagnosticsEngine &diags = CGF.cgm.getDiags();
     diags.Report(diag::warn_next_larger_fp_type_same_size_than_fp);
     return QualType();
   }
@@ -502,7 +502,7 @@ mlir::Value ComplexExprEmitter::buildCast(CastKind ck, Expr *op,
 
   case CK_FloatingRealToComplex:
   case CK_IntegralRealToComplex: {
-    assert(!MissingFeatures::CGFPOptionsRAII());
+    assert(!MissingFeatures::cgFPOptionsRAII());
     return buildScalarToComplexCast(CGF.buildScalarExpr(op), op->getType(),
                                     destTy, op->getExprLoc());
   }
@@ -511,7 +511,7 @@ mlir::Value ComplexExprEmitter::buildCast(CastKind ck, Expr *op,
   case CK_FloatingComplexToIntegralComplex:
   case CK_IntegralComplexCast:
   case CK_IntegralComplexToFloatingComplex: {
-    assert(!MissingFeatures::CGFPOptionsRAII());
+    assert(!MissingFeatures::cgFPOptionsRAII());
     return buildComplexToComplexCast(Visit(op), op->getType(), destTy,
                                      op->getExprLoc());
   }
@@ -522,7 +522,7 @@ mlir::Value ComplexExprEmitter::buildCast(CastKind ck, Expr *op,
 
 mlir::Value ComplexExprEmitter::VisitCastExpr(CastExpr *e) {
   if (const auto *ece = dyn_cast<ExplicitCastExpr>(e))
-    CGF.CGM.buildExplicitCastExprType(ece, &CGF);
+    CGF.cgm.buildExplicitCastExprType(ece, &CGF);
   if (e->changesVolatileQualification())
     return buildLoadOfLValue(e);
   return buildCast(e->getCastKind(), e->getSubExpr(), e->getType());
@@ -670,7 +670,7 @@ LValue ComplexExprEmitter::buildCompoundAssignLValue(
   BinOpInfo opInfo{CGF.getLoc(e->getExprLoc())};
   opInfo.fpFeatures = e->getFPFeaturesInEffect(CGF.getLangOpts());
 
-  assert(!MissingFeatures::CGFPOptionsRAII());
+  assert(!MissingFeatures::cgFPOptionsRAII());
 
   // Load the RHS and LHS operands.
   // __block variables need to have the rhs evaluated first, plus this should
@@ -784,12 +784,12 @@ mlir::Value ComplexExprEmitter::buildCompoundAssign(
 }
 
 mlir::Value ComplexExprEmitter::buildBinAdd(const BinOpInfo &op) {
-  assert(!MissingFeatures::CGFPOptionsRAII());
+  assert(!MissingFeatures::cgFPOptionsRAII());
   return CGF.getBuilder().createComplexAdd(op.loc, op.lhs, op.rhs);
 }
 
 mlir::Value ComplexExprEmitter::buildBinSub(const BinOpInfo &op) {
-  assert(!MissingFeatures::CGFPOptionsRAII());
+  assert(!MissingFeatures::cgFPOptionsRAII());
   return CGF.getBuilder().createComplexSub(op.loc, op.lhs, op.rhs);
 }
 
@@ -810,17 +810,17 @@ getComplexRangeAttr(LangOptions::ComplexRangeKind range) {
 }
 
 mlir::Value ComplexExprEmitter::buildBinMul(const BinOpInfo &op) {
-  assert(!MissingFeatures::CGFPOptionsRAII());
+  assert(!MissingFeatures::cgFPOptionsRAII());
   return CGF.getBuilder().createComplexMul(
       op.loc, op.lhs, op.rhs,
-      getComplexRangeAttr(op.fpFeatures.getComplexRange()), FPHasBeenPromoted);
+      getComplexRangeAttr(op.fpFeatures.getComplexRange()), fpHasBeenPromoted);
 }
 
 mlir::Value ComplexExprEmitter::buildBinDiv(const BinOpInfo &op) {
-  assert(!MissingFeatures::CGFPOptionsRAII());
+  assert(!MissingFeatures::cgFPOptionsRAII());
   return CGF.getBuilder().createComplexDiv(
       op.loc, op.lhs, op.rhs,
-      getComplexRangeAttr(op.fpFeatures.getComplexRange()), FPHasBeenPromoted);
+      getComplexRangeAttr(op.fpFeatures.getComplexRange()), fpHasBeenPromoted);
 }
 
 LValue ComplexExprEmitter::buildBinAssignLValue(const BinaryOperator *e,

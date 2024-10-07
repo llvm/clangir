@@ -845,11 +845,11 @@ public:
   }
 
   mlir::cir::StoreOp createStore(mlir::Location loc, mlir::Value val,
-                                 Address dst, bool _volatile = false,
-                                 ::mlir::IntegerAttr align = {},
+                                 Address dst, bool isVolatile = false,
+                                 ::mlir::IntegerAttr alignment = {},
                                  ::mlir::cir::MemOrderAttr order = {}) {
-    return CIRBaseBuilderTy::createStore(loc, val, dst.getPointer(), _volatile,
-                                         align, order);
+    return CIRBaseBuilderTy::createStore(loc, val, dst.getPointer(), isVolatile,
+                                         alignment, order);
   }
 
   mlir::cir::StoreOp createFlagStore(mlir::Location loc, bool val,

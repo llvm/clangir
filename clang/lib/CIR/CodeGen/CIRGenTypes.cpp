@@ -6,8 +6,8 @@
 
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinTypes.h"
-#include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
+#include "clang/CIR/Dialect/IR/CIRTypes.h"
 
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclCXX.h"
@@ -24,8 +24,9 @@
 using namespace clang;
 using namespace cir;
 
-mlir::cir::CallingConv CIRGenTypes::ClangCallConvToCIRCallConv(clang::CallingConv CC) {
-  switch (CC) {
+mlir::cir::CallingConv
+CIRGenTypes::ClangCallConvToCIRCallConv(clang::CallingConv cc) {
+  switch (cc) {
   case CC_C:
     return mlir::cir::CallingConv::C;
   case CC_OpenCLKernel:
@@ -45,10 +46,10 @@ CIRGenTypes::CIRGenTypes(CIRGenModule &cgm)
 }
 
 CIRGenTypes::~CIRGenTypes() {
-  for (llvm::FoldingSet<CIRGenFunctionInfo>::iterator I = FunctionInfos.begin(),
-                                                      E = FunctionInfos.end();
-       I != E;)
-    delete &*I++;
+  for (llvm::FoldingSet<CIRGenFunctionInfo>::iterator i = FunctionInfos.begin(),
+                                                      e = FunctionInfos.end();
+       i != e;)
+    delete &*i++;
 }
 
 // This is CIR's version of CIRGenTypes::addRecordTypeName
@@ -95,52 +96,52 @@ std::string CIRGenTypes::getRecordTypeName(const clang::RecordDecl *recordDecl,
 }
 
 /// Return true if the specified type is already completely laid out.
-bool CIRGenTypes::isRecordLayoutComplete(const Type *Ty) const {
-  llvm::DenseMap<const Type *, mlir::cir::StructType>::const_iterator I =
-      recordDeclTypes.find(Ty);
-  return I != recordDeclTypes.end() && I->second.isComplete();
+bool CIRGenTypes::isRecordLayoutComplete(const Type *ty) const {
+  llvm::DenseMap<const Type *, mlir::cir::StructType>::const_iterator i =
+      recordDeclTypes.find(ty);
+  return i != recordDeclTypes.end() && i->second.isComplete();
 }
 
 static bool
-isSafeToConvert(QualType T, CIRGenTypes &CGT,
-                llvm::SmallPtrSet<const RecordDecl *, 16> &AlreadyChecked);
+isSafeToConvert(QualType t, CIRGenTypes &cgt,
+                llvm::SmallPtrSet<const RecordDecl *, 16> &alreadyChecked);
 
 /// Return true if it is safe to convert the specified record decl to IR and lay
 /// it out, false if doing so would cause us to get into a recursive compilation
 /// mess.
 static bool
-isSafeToConvert(const RecordDecl *RD, CIRGenTypes &CGT,
-                llvm::SmallPtrSet<const RecordDecl *, 16> &AlreadyChecked) {
+isSafeToConvert(const RecordDecl *rd, CIRGenTypes &cgt,
+                llvm::SmallPtrSet<const RecordDecl *, 16> &alreadyChecked) {
   // If we have already checked this type (maybe the same type is used by-value
   // multiple times in multiple structure fields, don't check again.
-  if (!AlreadyChecked.insert(RD).second)
+  if (!alreadyChecked.insert(rd).second)
     return true;
 
-  const Type *Key = CGT.getContext().getTagDeclType(RD).getTypePtr();
+  const Type *key = cgt.getContext().getTagDeclType(rd).getTypePtr();
 
   // If this type is already laid out, converting it is a noop.
-  if (CGT.isRecordLayoutComplete(Key))
+  if (cgt.isRecordLayoutComplete(key))
     return true;
 
   // If this type is currently being laid out, we can't recursively compile it.
-  if (CGT.isRecordBeingLaidOut(Key))
+  if (cgt.isRecordBeingLaidOut(key))
     return false;
 
   // If this type would require laying out bases that are currently being laid
   // out, don't do it.  This includes virtual base classes which get laid out
   // when a class is translated, even though they aren't embedded by-value into
   // the class.
-  if (const CXXRecordDecl *CRD = dyn_cast<CXXRecordDecl>(RD)) {
-    for (const auto &I : CRD->bases())
-      if (!isSafeToConvert(I.getType()->castAs<RecordType>()->getDecl(), CGT,
-                           AlreadyChecked))
+  if (const CXXRecordDecl *crd = dyn_cast<CXXRecordDecl>(rd)) {
+    for (const auto &i : crd->bases())
+      if (!isSafeToConvert(i.getType()->castAs<RecordType>()->getDecl(), cgt,
+                           alreadyChecked))
         return false;
   }
 
   // If this type would require laying out members that are currently being laid
   // out, don't do it.
-  for (const auto *I : RD->fields())
-    if (!isSafeToConvert(I->getType(), CGT, AlreadyChecked))
+  for (const auto *i : rd->fields())
+    if (!isSafeToConvert(i->getType(), cgt, alreadyChecked))
       return false;
 
   // If there are no problems, lets do it.
@@ -150,19 +151,19 @@ isSafeToConvert(const RecordDecl *RD, CIRGenTypes &CGT,
 /// Return true if it is safe to convert this field type, which requires the
 /// structure elements contained by-value to all be recursively safe to convert.
 static bool
-isSafeToConvert(QualType T, CIRGenTypes &CGT,
-                llvm::SmallPtrSet<const RecordDecl *, 16> &AlreadyChecked) {
+isSafeToConvert(QualType t, CIRGenTypes &cgt,
+                llvm::SmallPtrSet<const RecordDecl *, 16> &alreadyChecked) {
   // Strip off atomic type sugar.
-  if (const auto *AT = T->getAs<AtomicType>())
-    T = AT->getValueType();
+  if (const auto *at = t->getAs<AtomicType>())
+    t = at->getValueType();
 
   // If this is a record, check it.
-  if (const auto *RT = T->getAs<RecordType>())
-    return isSafeToConvert(RT->getDecl(), CGT, AlreadyChecked);
+  if (const auto *rt = t->getAs<RecordType>())
+    return isSafeToConvert(rt->getDecl(), cgt, alreadyChecked);
 
   // If this is an array, check the elements, which are embedded inline.
-  if (const auto *AT = CGT.getContext().getAsArrayType(T))
-    return isSafeToConvert(AT->getElementType(), CGT, AlreadyChecked);
+  if (const auto *at = cgt.getContext().getAsArrayType(t))
+    return isSafeToConvert(at->getElementType(), cgt, alreadyChecked);
 
   // Otherwise, there is no concern about transforming this. We only care about
   // things that are contained by-value in a structure that can have another
@@ -173,62 +174,62 @@ isSafeToConvert(QualType T, CIRGenTypes &CGT,
 // Return true if it is safe to convert the specified record decl to CIR and lay
 // it out, false if doing so would cause us to get into a recursive compilation
 // mess.
-static bool isSafeToConvert(const RecordDecl *RD, CIRGenTypes &CGT) {
+static bool isSafeToConvert(const RecordDecl *rd, CIRGenTypes &cgt) {
   // If no structs are being laid out, we can certainly do this one.
-  if (CGT.noRecordsBeingLaidOut())
+  if (cgt.noRecordsBeingLaidOut())
     return true;
 
-  llvm::SmallPtrSet<const RecordDecl *, 16> AlreadyChecked;
-  return isSafeToConvert(RD, CGT, AlreadyChecked);
+  llvm::SmallPtrSet<const RecordDecl *, 16> alreadyChecked;
+  return isSafeToConvert(rd, cgt, alreadyChecked);
 }
 
 /// Lay out a tagged decl type like struct or union.
-mlir::Type CIRGenTypes::convertRecordDeclType(const clang::RecordDecl *RD) {
+mlir::Type CIRGenTypes::convertRecordDeclType(const clang::RecordDecl *rd) {
   // TagDecl's are not necessarily unique, instead use the (clang) type
   // connected to the decl.
-  const auto *key = Context.getTagDeclType(RD).getTypePtr();
+  const auto *key = Context.getTagDeclType(rd).getTypePtr();
   mlir::cir::StructType entry = recordDeclTypes[key];
 
   // Handle forward decl / incomplete types.
   if (!entry) {
-    auto name = getRecordTypeName(RD, "");
-    entry = Builder.getIncompleteStructTy(name, RD);
+    auto name = getRecordTypeName(rd, "");
+    entry = Builder.getIncompleteStructTy(name, rd);
     recordDeclTypes[key] = entry;
   }
 
-  RD = RD->getDefinition();
-  if (!RD || !RD->isCompleteDefinition() || entry.isComplete())
+  rd = rd->getDefinition();
+  if (!rd || !rd->isCompleteDefinition() || entry.isComplete())
     return entry;
 
   // If converting this type would cause us to infinitely loop, don't do it!
-  if (!isSafeToConvert(RD, *this)) {
-    DeferredRecords.push_back(RD);
+  if (!isSafeToConvert(rd, *this)) {
+    DeferredRecords.push_back(rd);
     return entry;
   }
 
   // Okay, this is a definition of a type. Compile the implementation now.
-  bool InsertResult = RecordsBeingLaidOut.insert(key).second;
-  (void)InsertResult;
-  assert(InsertResult && "Recursively compiling a struct?");
+  bool insertResult = RecordsBeingLaidOut.insert(key).second;
+  (void)insertResult;
+  assert(insertResult && "Recursively compiling a struct?");
 
   // Force conversion of non-virtual base classes recursively.
-  if (const auto *cxxRecordDecl = dyn_cast<CXXRecordDecl>(RD)) {
-    for (const auto &I : cxxRecordDecl->bases()) {
-      if (I.isVirtual())
+  if (const auto *cxxRecordDecl = dyn_cast<CXXRecordDecl>(rd)) {
+    for (const auto &i : cxxRecordDecl->bases()) {
+      if (i.isVirtual())
         continue;
-      convertRecordDeclType(I.getType()->castAs<RecordType>()->getDecl());
+      convertRecordDeclType(i.getType()->castAs<RecordType>()->getDecl());
     }
   }
 
   // Layout fields.
-  std::unique_ptr<CIRGenRecordLayout> Layout = computeRecordLayout(RD, &entry);
+  std::unique_ptr<CIRGenRecordLayout> layout = computeRecordLayout(rd, &entry);
   recordDeclTypes[key] = entry;
-  CIRGenRecordLayouts[key] = std::move(Layout);
+  CIRGenRecordLayouts[key] = std::move(layout);
 
   // We're done laying out this struct.
-  bool EraseResult = RecordsBeingLaidOut.erase(key);
-  (void)EraseResult;
-  assert(EraseResult && "struct not in RecordsBeingLaidOut set?");
+  bool eraseResult = RecordsBeingLaidOut.erase(key);
+  (void)eraseResult;
+  assert(eraseResult && "struct not in RecordsBeingLaidOut set?");
 
   // If this struct blocked a FunctionType conversion, then recompute whatever
   // was derived from that.
@@ -265,35 +266,35 @@ mlir::MLIRContext &CIRGenTypes::getMLIRContext() const {
   return *Builder.getContext();
 }
 
-mlir::Type CIRGenTypes::ConvertFunctionTypeInternal(QualType QFT) {
-  assert(QFT.isCanonical());
-  const Type *Ty = QFT.getTypePtr();
-  const FunctionType *FT = cast<FunctionType>(QFT.getTypePtr());
+mlir::Type CIRGenTypes::ConvertFunctionTypeInternal(QualType qft) {
+  assert(qft.isCanonical());
+  const Type *ty = qft.getTypePtr();
+  const FunctionType *ft = cast<FunctionType>(qft.getTypePtr());
   // First, check whether we can build the full fucntion type. If the function
   // type depends on an incomplete type (e.g. a struct or enum), we cannot lower
   // the function type.
-  assert(isFuncTypeConvertible(FT) && "NYI");
+  assert(isFuncTypeConvertible(ft) && "NYI");
 
   // The function type can be built; call the appropriate routines to build it
-  const CIRGenFunctionInfo *FI;
-  if (const auto *FPT = dyn_cast<FunctionProtoType>(FT)) {
-    FI = &arrangeFreeFunctionType(
-        CanQual<FunctionProtoType>::CreateUnsafe(QualType(FPT, 0)));
+  const CIRGenFunctionInfo *fi;
+  if (const auto *fpt = dyn_cast<FunctionProtoType>(ft)) {
+    fi = &arrangeFreeFunctionType(
+        CanQual<FunctionProtoType>::CreateUnsafe(QualType(fpt, 0)));
   } else {
-    const FunctionNoProtoType *FNPT = cast<FunctionNoProtoType>(FT);
-    FI = &arrangeFreeFunctionType(
-        CanQual<FunctionNoProtoType>::CreateUnsafe(QualType(FNPT, 0)));
+    const FunctionNoProtoType *fnpt = cast<FunctionNoProtoType>(ft);
+    fi = &arrangeFreeFunctionType(
+        CanQual<FunctionNoProtoType>::CreateUnsafe(QualType(fnpt, 0)));
   }
 
-  mlir::Type ResultType = nullptr;
+  mlir::Type resultType = nullptr;
   // If there is something higher level prodding our CIRGenFunctionInfo, then
   // don't recurse into it again.
-  assert(!FunctionsBeingProcessed.count(FI) && "NYI");
+  assert(!FunctionsBeingProcessed.count(fi) && "NYI");
 
   // Otherwise, we're good to go, go ahead and convert it.
-  ResultType = GetFunctionType(*FI);
+  resultType = GetFunctionType(*fi);
 
-  RecordsBeingLaidOut.erase(Ty);
+  RecordsBeingLaidOut.erase(ty);
 
   assert(!SkippedLayout && "Shouldn't have skipped anything yet");
 
@@ -301,30 +302,30 @@ mlir::Type CIRGenTypes::ConvertFunctionTypeInternal(QualType QFT) {
     while (!DeferredRecords.empty())
       convertRecordDeclType(DeferredRecords.pop_back_val());
 
-  return ResultType;
+  return resultType;
 }
 
 /// Return true if the specified type in a function parameter or result position
 /// can be converted to a CIR type at this point. This boils down to being
 /// whether it is complete, as well as whether we've temporarily deferred
 /// expanding the type because we're in a recursive context.
-bool CIRGenTypes::isFuncParamTypeConvertible(clang::QualType Ty) {
+bool CIRGenTypes::isFuncParamTypeConvertible(clang::QualType ty) {
   // Some ABIs cannot have their member pointers represented in LLVM IR unless
   // certain circumstances have been reached.
-  assert(!Ty->getAs<MemberPointerType>() && "NYI");
+  assert(!ty->getAs<MemberPointerType>() && "NYI");
 
   // If this isn't a tagged type, we can convert it!
-  const TagType *TT = Ty->getAs<TagType>();
-  if (!TT)
+  const TagType *tt = ty->getAs<TagType>();
+  if (!tt)
     return true;
 
   // Incomplete types cannot be converted.
-  if (TT->isIncompleteType())
+  if (tt->isIncompleteType())
     return false;
 
   // If this is an enum, then it is always safe to convert.
-  const RecordType *RT = dyn_cast<RecordType>(TT);
-  if (!RT)
+  const RecordType *rt = dyn_cast<RecordType>(tt);
+  if (!rt)
     return true;
 
   // Otherwise, we have to be careful.  If it is a struct that we're in the
@@ -334,7 +335,7 @@ bool CIRGenTypes::isFuncParamTypeConvertible(clang::QualType Ty) {
   //
   // We decide this by checking whether ConvertRecordDeclType returns us an
   // opaque type for a struct that we know is defined.
-  return isSafeToConvert(RT->getDecl(), *this);
+  return isSafeToConvert(rt->getDecl(), *this);
 }
 
 /// Code to verify a given function type is complete, i.e. the return type and
@@ -342,39 +343,39 @@ bool CIRGenTypes::isFuncParamTypeConvertible(clang::QualType Ty) {
 /// RS_StructPointer context, and if so whether any struct types have been
 /// pended. If so, we don't want to ask the ABI lowering code to handle a type
 /// that cannot be converted to a CIR type.
-bool CIRGenTypes::isFuncTypeConvertible(const FunctionType *FT) {
-  if (!isFuncParamTypeConvertible(FT->getReturnType()))
+bool CIRGenTypes::isFuncTypeConvertible(const FunctionType *ft) {
+  if (!isFuncParamTypeConvertible(ft->getReturnType()))
     return false;
 
-  if (const auto *FPT = dyn_cast<FunctionProtoType>(FT))
-    for (unsigned i = 0, e = FPT->getNumParams(); i != e; i++)
-      if (!isFuncParamTypeConvertible(FPT->getParamType(i)))
+  if (const auto *fpt = dyn_cast<FunctionProtoType>(ft))
+    for (unsigned i = 0, e = fpt->getNumParams(); i != e; i++)
+      if (!isFuncParamTypeConvertible(fpt->getParamType(i)))
         return false;
 
   return true;
 }
 
 /// ConvertType - Convert the specified type to its MLIR form.
-mlir::Type CIRGenTypes::ConvertType(QualType T) {
-  T = Context.getCanonicalType(T);
-  const Type *Ty = T.getTypePtr();
+mlir::Type CIRGenTypes::ConvertType(QualType t) {
+  t = Context.getCanonicalType(t);
+  const Type *ty = t.getTypePtr();
 
   // For the device-side compilation, CUDA device builtin surface/texture types
   // may be represented in different types.
   assert(!Context.getLangOpts().CUDAIsDevice && "not implemented");
 
-  if (const auto *recordType = dyn_cast<RecordType>(T))
+  if (const auto *recordType = dyn_cast<RecordType>(t))
     return convertRecordDeclType(recordType->getDecl());
 
   // See if type is already cached.
-  TypeCacheTy::iterator TCI = TypeCache.find(Ty);
+  TypeCacheTy::iterator tci = TypeCache.find(ty);
   // If type is found in map then use it. Otherwise, convert type T.
-  if (TCI != TypeCache.end())
-    return TCI->second;
+  if (tci != TypeCache.end())
+    return tci->second;
 
   // If we don't have it in the cache, convert it now.
-  mlir::Type ResultType = nullptr;
-  switch (Ty->getTypeClass()) {
+  mlir::Type resultType = nullptr;
+  switch (ty->getTypeClass()) {
   case Type::Record: // Handled above.
 #define TYPE(Class, Base)
 #define ABSTRACT_TYPE(Class, Base)
@@ -388,7 +389,7 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
     llvm_unreachable("NYI");
 
   case Type::Builtin: {
-    switch (cast<BuiltinType>(Ty)->getKind()) {
+    switch (cast<BuiltinType>(ty)->getKind()) {
     case BuiltinType::HLSLResource:
       llvm_unreachable("NYI");
     case BuiltinType::SveBoolx2:
@@ -397,7 +398,7 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
       llvm_unreachable("NYI");
     case BuiltinType::Void:
       // TODO(cir): how should we model this?
-      ResultType = CGM.VoidTy;
+      resultType = CGM.VoidTy;
       break;
 
     case BuiltinType::ObjCId:
@@ -408,7 +409,7 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
       break;
 
     case BuiltinType::Bool:
-      ResultType = ::mlir::cir::BoolType::get(Builder.getContext());
+      resultType = ::mlir::cir::BoolType::get(Builder.getContext());
       break;
 
     // Signed types.
@@ -432,8 +433,8 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
     case BuiltinType::SatLongFract:
     case BuiltinType::SatShortAccum:
     case BuiltinType::SatShortFract:
-      ResultType =
-          mlir::cir::IntType::get(Builder.getContext(), Context.getTypeSize(T),
+      resultType =
+          mlir::cir::IntType::get(Builder.getContext(), Context.getTypeSize(t),
                                   /*isSigned=*/true);
       break;
     // Unsigned types.
@@ -460,29 +461,29 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
     case BuiltinType::SatULongFract:
     case BuiltinType::SatUShortAccum:
     case BuiltinType::SatUShortFract:
-      ResultType =
-          mlir::cir::IntType::get(Builder.getContext(), Context.getTypeSize(T),
+      resultType =
+          mlir::cir::IntType::get(Builder.getContext(), Context.getTypeSize(t),
                                   /*isSigned=*/false);
       break;
 
     case BuiltinType::Float16:
-      ResultType = CGM.FP16Ty;
+      resultType = CGM.FP16Ty;
       break;
     case BuiltinType::Half:
       // Should be the same as above?
       assert(0 && "not implemented");
       break;
     case BuiltinType::BFloat16:
-      ResultType = CGM.BFloat16Ty;
+      resultType = CGM.BFloat16Ty;
       break;
     case BuiltinType::Float:
-      ResultType = CGM.FloatTy;
+      resultType = CGM.FloatTy;
       break;
     case BuiltinType::Double:
-      ResultType = CGM.DoubleTy;
+      resultType = CGM.DoubleTy;
       break;
     case BuiltinType::LongDouble:
-      ResultType = Builder.getLongDoubleTy(Context.getFloatTypeSemantics(T));
+      resultType = Builder.getLongDoubleTy(Context.getFloatTypeSemantics(t));
       break;
     case BuiltinType::Float128:
     case BuiltinType::Ibm128:
@@ -496,7 +497,7 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
       // things (like for overloads accepting void), for now, given that
       // `sizeof(std::nullptr_t)` is equal to `sizeof(void *)`, model
       // std::nullptr_t as !cir.ptr<!void>
-      ResultType = Builder.getVoidPtrTy();
+      resultType = Builder.getVoidPtrTy();
       break;
 
     case BuiltinType::UInt128:
@@ -602,76 +603,76 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
   case Type::DeducedTemplateSpecialization:
     llvm_unreachable("Unexpected undeduced type!");
   case Type::Complex: {
-    const ComplexType *CT = cast<ComplexType>(Ty);
-    auto ElementTy = ConvertType(CT->getElementType());
-    ResultType = ::mlir::cir::ComplexType::get(Builder.getContext(), ElementTy);
+    const ComplexType *ct = cast<ComplexType>(ty);
+    auto elementTy = ConvertType(ct->getElementType());
+    resultType = ::mlir::cir::ComplexType::get(Builder.getContext(), elementTy);
     break;
   }
   case Type::LValueReference:
   case Type::RValueReference: {
-    const ReferenceType *RTy = cast<ReferenceType>(Ty);
-    QualType ETy = RTy->getPointeeType();
-    auto PointeeType = convertTypeForMem(ETy);
-    ResultType = Builder.getPointerTo(PointeeType, ETy.getAddressSpace());
-    assert(ResultType && "Cannot get pointer type?");
+    const ReferenceType *rTy = cast<ReferenceType>(ty);
+    QualType eTy = rTy->getPointeeType();
+    auto pointeeType = convertTypeForMem(eTy);
+    resultType = Builder.getPointerTo(pointeeType, eTy.getAddressSpace());
+    assert(resultType && "Cannot get pointer type?");
     break;
   }
   case Type::Pointer: {
-    const PointerType *PTy = cast<PointerType>(Ty);
-    QualType ETy = PTy->getPointeeType();
-    assert(!ETy->isConstantMatrixType() && "not implemented");
+    const PointerType *pTy = cast<PointerType>(ty);
+    QualType eTy = pTy->getPointeeType();
+    assert(!eTy->isConstantMatrixType() && "not implemented");
 
-    mlir::Type PointeeType = ConvertType(ETy);
+    mlir::Type pointeeType = ConvertType(eTy);
 
     // Treat effectively as a *i8.
     // if (PointeeType->isVoidTy())
     //  PointeeType = Builder.getI8Type();
 
-    ResultType = Builder.getPointerTo(PointeeType, ETy.getAddressSpace());
-    assert(ResultType && "Cannot get pointer type?");
+    resultType = Builder.getPointerTo(pointeeType, eTy.getAddressSpace());
+    assert(resultType && "Cannot get pointer type?");
     break;
   }
 
   case Type::VariableArray: {
-    const VariableArrayType *A = cast<VariableArrayType>(Ty);
-    assert(A->getIndexTypeCVRQualifiers() == 0 &&
+    const VariableArrayType *a = cast<VariableArrayType>(ty);
+    assert(a->getIndexTypeCVRQualifiers() == 0 &&
            "FIXME: We only handle trivial array types so far!");
     // VLAs resolve to the innermost element type; this matches
     // the return of alloca, and there isn't any obviously better choice.
-    ResultType = convertTypeForMem(A->getElementType());
+    resultType = convertTypeForMem(a->getElementType());
     break;
   }
   case Type::IncompleteArray: {
-    const IncompleteArrayType *A = cast<IncompleteArrayType>(Ty);
-    assert(A->getIndexTypeCVRQualifiers() == 0 &&
+    const IncompleteArrayType *a = cast<IncompleteArrayType>(ty);
+    assert(a->getIndexTypeCVRQualifiers() == 0 &&
            "FIXME: We only handle trivial array types so far!");
     // int X[] -> [0 x int], unless the element type is not sized.  If it is
     // unsized (e.g. an incomplete struct) just use [0 x i8].
-    ResultType = convertTypeForMem(A->getElementType());
-    if (!Builder.isSized(ResultType)) {
+    resultType = convertTypeForMem(a->getElementType());
+    if (!Builder.isSized(resultType)) {
       SkippedLayout = true;
-      ResultType = Builder.getUInt8Ty();
+      resultType = Builder.getUInt8Ty();
     }
-    ResultType = Builder.getArrayType(ResultType, 0);
+    resultType = Builder.getArrayType(resultType, 0);
     break;
   }
   case Type::ConstantArray: {
-    const ConstantArrayType *A = cast<ConstantArrayType>(Ty);
-    auto EltTy = convertTypeForMem(A->getElementType());
+    const ConstantArrayType *a = cast<ConstantArrayType>(ty);
+    auto eltTy = convertTypeForMem(a->getElementType());
 
     // FIXME: In LLVM, "lower arrays of undefined struct type to arrays of
     // i8 just to have a concrete type". Not sure this makes sense in CIR yet.
-    assert(Builder.isSized(EltTy) && "not implemented");
-    ResultType = ::mlir::cir::ArrayType::get(Builder.getContext(), EltTy,
-                                             A->getSize().getZExtValue());
+    assert(Builder.isSized(eltTy) && "not implemented");
+    resultType = ::mlir::cir::ArrayType::get(Builder.getContext(), eltTy,
+                                             a->getSize().getZExtValue());
     break;
   }
   case Type::ExtVector:
   case Type::Vector: {
-    const VectorType *V = cast<VectorType>(Ty);
-    auto ElementType = convertTypeForMem(V->getElementType());
-    ResultType = ::mlir::cir::VectorType::get(Builder.getContext(), ElementType,
-                                              V->getNumElements());
+    const VectorType *v = cast<VectorType>(ty);
+    auto elementType = convertTypeForMem(v->getElementType());
+    resultType = ::mlir::cir::VectorType::get(Builder.getContext(), elementType,
+                                              v->getNumElements());
     break;
   }
   case Type::ConstantMatrix: {
@@ -680,7 +681,7 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
   }
   case Type::FunctionNoProto:
   case Type::FunctionProto:
-    ResultType = ConvertFunctionTypeInternal(T);
+    resultType = ConvertFunctionTypeInternal(t);
     break;
   case Type::ObjCObject:
     assert(0 && "not implemented");
@@ -697,13 +698,13 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
   }
 
   case Type::Enum: {
-    const EnumDecl *ED = cast<EnumType>(Ty)->getDecl();
-    if (ED->isCompleteDefinition() || ED->isFixed())
-      return ConvertType(ED->getIntegerType());
+    const EnumDecl *ed = cast<EnumType>(ty)->getDecl();
+    if (ed->isCompleteDefinition() || ed->isFixed())
+      return ConvertType(ed->getIntegerType());
     // Return a placeholder 'i32' type.  This can be changed later when the
     // type is defined (see UpdateCompletedType), but is likely to be the
     // "right" answer.
-    ResultType = CGM.UInt32Ty;
+    resultType = CGM.UInt32Ty;
     break;
   }
 
@@ -713,29 +714,29 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
   }
 
   case Type::MemberPointer: {
-    const auto *MPT = cast<MemberPointerType>(Ty);
+    const auto *mpt = cast<MemberPointerType>(ty);
 
-    auto memberTy = ConvertType(MPT->getPointeeType());
+    auto memberTy = ConvertType(mpt->getPointeeType());
     auto clsTy = mlir::cast<mlir::cir::StructType>(
-        ConvertType(QualType(MPT->getClass(), 0)));
-    if (MPT->isMemberDataPointer())
-      ResultType =
+        ConvertType(QualType(mpt->getClass(), 0)));
+    if (mpt->isMemberDataPointer())
+      resultType =
           mlir::cir::DataMemberType::get(Builder.getContext(), memberTy, clsTy);
     else {
       auto memberFuncTy = mlir::cast<mlir::cir::FuncType>(memberTy);
-      ResultType =
+      resultType =
           mlir::cir::MethodType::get(Builder.getContext(), memberFuncTy, clsTy);
     }
     break;
   }
 
   case Type::Atomic: {
-    QualType valueType = cast<AtomicType>(Ty)->getValueType();
-    ResultType = convertTypeForMem(valueType);
+    QualType valueType = cast<AtomicType>(ty)->getValueType();
+    resultType = convertTypeForMem(valueType);
 
     // Pad out to the inflated size if necessary.
     uint64_t valueSize = Context.getTypeSize(valueType);
-    uint64_t atomicSize = Context.getTypeSize(Ty);
+    uint64_t atomicSize = Context.getTypeSize(ty);
     if (valueSize != atomicSize) {
       llvm_unreachable("NYI");
     }
@@ -746,17 +747,17 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
     break;
   }
   case Type::BitInt: {
-    const auto *bitIntTy = cast<BitIntType>(Ty);
-    ResultType = mlir::cir::IntType::get(
+    const auto *bitIntTy = cast<BitIntType>(ty);
+    resultType = mlir::cir::IntType::get(
         Builder.getContext(), bitIntTy->getNumBits(), bitIntTy->isSigned());
     break;
   }
   }
 
-  assert(ResultType && "Didn't convert a type?");
+  assert(resultType && "Didn't convert a type?");
 
-  TypeCache[Ty] = ResultType;
-  return ResultType;
+  TypeCache[ty] = resultType;
+  return resultType;
 }
 
 const CIRGenFunctionInfo &CIRGenTypes::arrangeCIRFunctionInfo(
@@ -770,80 +771,80 @@ const CIRGenFunctionInfo &CIRGenTypes::arrangeCIRFunctionInfo(
   bool chainCall = opts == FnInfoOpts::IsChainCall;
 
   // Lookup or create unique function info.
-  llvm::FoldingSetNodeID ID;
-  CIRGenFunctionInfo::Profile(ID, instanceMethod, chainCall, info, paramInfos,
+  llvm::FoldingSetNodeID id;
+  CIRGenFunctionInfo::Profile(id, instanceMethod, chainCall, info, paramInfos,
                               required, resultType, argTypes);
 
   void *insertPos = nullptr;
-  CIRGenFunctionInfo *FI = FunctionInfos.FindNodeOrInsertPos(ID, insertPos);
-  if (FI)
-    return *FI;
+  CIRGenFunctionInfo *fi = FunctionInfos.FindNodeOrInsertPos(id, insertPos);
+  if (fi)
+    return *fi;
 
-  mlir::cir::CallingConv CC = ClangCallConvToCIRCallConv(info.getCC());
+  mlir::cir::CallingConv cc = ClangCallConvToCIRCallConv(info.getCC());
 
   // Construction the function info. We co-allocate the ArgInfos.
-  FI = CIRGenFunctionInfo::create(CC, instanceMethod, chainCall, info,
+  fi = CIRGenFunctionInfo::create(cc, instanceMethod, chainCall, info,
                                   paramInfos, resultType, argTypes, required);
-  FunctionInfos.InsertNode(FI, insertPos);
+  FunctionInfos.InsertNode(fi, insertPos);
 
-  bool inserted = FunctionsBeingProcessed.insert(FI).second;
+  bool inserted = FunctionsBeingProcessed.insert(fi).second;
   (void)inserted;
   assert(inserted && "Recursively being processed?");
 
   // Compute ABI information.
-  if (CC == mlir::cir::CallingConv::SpirKernel) {
+  if (cc == mlir::cir::CallingConv::SpirKernel) {
     // Force target independent argument handling for the host visible
     // kernel functions.
-    computeSPIRKernelABIInfo(CGM, *FI);
+    computeSPIRKernelABIInfo(CGM, *fi);
   } else if (info.getCC() == CC_Swift || info.getCC() == CC_SwiftAsync) {
     llvm_unreachable("Swift NYI");
   } else {
-    getABIInfo().computeInfo(*FI);
+    getABIInfo().computeInfo(*fi);
   }
 
   // Loop over all of the computed argument and return value info. If any of
   // them are direct or extend without a specified coerce type, specify the
   // default now.
-  ABIArgInfo &retInfo = FI->getReturnInfo();
+  ABIArgInfo &retInfo = fi->getReturnInfo();
   if (retInfo.canHaveCoerceToType() && retInfo.getCoerceToType() == nullptr)
-    retInfo.setCoerceToType(ConvertType(FI->getReturnType()));
+    retInfo.setCoerceToType(ConvertType(fi->getReturnType()));
 
-  for (auto &I : FI->arguments())
-    if (I.info.canHaveCoerceToType() && I.info.getCoerceToType() == nullptr)
-      I.info.setCoerceToType(ConvertType(I.type));
+  for (auto &i : fi->arguments())
+    if (i.info.canHaveCoerceToType() && i.info.getCoerceToType() == nullptr)
+      i.info.setCoerceToType(ConvertType(i.type));
 
-  bool erased = FunctionsBeingProcessed.erase(FI);
+  bool erased = FunctionsBeingProcessed.erase(fi);
   (void)erased;
   assert(erased && "Not in set?");
 
-  return *FI;
+  return *fi;
 }
 
-const CIRGenFunctionInfo &CIRGenTypes::arrangeGlobalDeclaration(GlobalDecl GD) {
-  assert(!dyn_cast<ObjCMethodDecl>(GD.getDecl()) &&
+const CIRGenFunctionInfo &CIRGenTypes::arrangeGlobalDeclaration(GlobalDecl gd) {
+  assert(!dyn_cast<ObjCMethodDecl>(gd.getDecl()) &&
          "This is reported as a FIXME in LLVM codegen");
-  const auto *FD = cast<FunctionDecl>(GD.getDecl());
+  const auto *fd = cast<FunctionDecl>(gd.getDecl());
 
-  if (isa<CXXConstructorDecl>(GD.getDecl()) ||
-      isa<CXXDestructorDecl>(GD.getDecl()))
-    return arrangeCXXStructorDeclaration(GD);
+  if (isa<CXXConstructorDecl>(gd.getDecl()) ||
+      isa<CXXDestructorDecl>(gd.getDecl()))
+    return arrangeCXXStructorDeclaration(gd);
 
-  return arrangeFunctionDeclaration(FD);
+  return arrangeFunctionDeclaration(fd);
 }
 
 // When we find the full definition for a TagDecl, replace the 'opaque' type we
 // previously made for it if applicable.
-void CIRGenTypes::UpdateCompletedType(const TagDecl *TD) {
+void CIRGenTypes::UpdateCompletedType(const TagDecl *td) {
   // If this is an enum being completed, then we flush all non-struct types
   // from the cache. This allows function types and other things that may be
   // derived from the enum to be recomputed.
-  if (const auto *ED = dyn_cast<EnumDecl>(TD)) {
+  if (const auto *ed = dyn_cast<EnumDecl>(td)) {
     // Only flush the cache if we've actually already converted this type.
-    if (TypeCache.count(ED->getTypeForDecl())) {
+    if (TypeCache.count(ed->getTypeForDecl())) {
       // Okay, we formed some types based on this.  We speculated that the enum
       // would be lowered to i32, so we only need to flush the cache if this
       // didn't happen.
-      if (!ConvertType(ED->getIntegerType()).isInteger(32))
+      if (!ConvertType(ed->getIntegerType()).isInteger(32))
         TypeCache.clear();
     }
     // If necessary, provide the full definition of a type only used with a
@@ -854,14 +855,14 @@ void CIRGenTypes::UpdateCompletedType(const TagDecl *TD) {
 
   // If we completed a RecordDecl that we previously used and converted to an
   // anonymous type, then go ahead and complete it now.
-  const auto *RD = cast<RecordDecl>(TD);
-  if (RD->isDependentType())
+  const auto *rd = cast<RecordDecl>(td);
+  if (rd->isDependentType())
     return;
 
   // Only complete if we converted it already. If we haven't converted it yet,
   // we'll just do it lazily.
-  if (recordDeclTypes.count(Context.getTagDeclType(RD).getTypePtr()))
-    convertRecordDeclType(RD);
+  if (recordDeclTypes.count(Context.getTagDeclType(rd).getTypePtr()))
+    convertRecordDeclType(rd);
 
   // If necessary, provide the full definition of a type only used with a
   // declaration so far.
@@ -871,57 +872,57 @@ void CIRGenTypes::UpdateCompletedType(const TagDecl *TD) {
 
 /// Return record layout info for the given record decl.
 const CIRGenRecordLayout &
-CIRGenTypes::getCIRGenRecordLayout(const RecordDecl *RD) {
-  const auto *Key = Context.getTagDeclType(RD).getTypePtr();
+CIRGenTypes::getCIRGenRecordLayout(const RecordDecl *rd) {
+  const auto *key = Context.getTagDeclType(rd).getTypePtr();
 
-  auto I = CIRGenRecordLayouts.find(Key);
-  if (I != CIRGenRecordLayouts.end())
-    return *I->second;
+  auto i = CIRGenRecordLayouts.find(key);
+  if (i != CIRGenRecordLayouts.end())
+    return *i->second;
 
   // Compute the type information.
-  convertRecordDeclType(RD);
+  convertRecordDeclType(rd);
 
   // Now try again.
-  I = CIRGenRecordLayouts.find(Key);
+  i = CIRGenRecordLayouts.find(key);
 
-  assert(I != CIRGenRecordLayouts.end() &&
+  assert(i != CIRGenRecordLayouts.end() &&
          "Unable to find record layout information for type");
-  return *I->second;
+  return *i->second;
 }
 
-bool CIRGenTypes::isPointerZeroInitializable(clang::QualType T) {
-  assert((T->isAnyPointerType() || T->isBlockPointerType()) && "Invalid type");
-  return isZeroInitializable(T);
+bool CIRGenTypes::isPointerZeroInitializable(clang::QualType t) {
+  assert((t->isAnyPointerType() || t->isBlockPointerType()) && "Invalid type");
+  return isZeroInitializable(t);
 }
 
-bool CIRGenTypes::isZeroInitializable(QualType T) {
-  if (T->getAs<PointerType>())
-    return Context.getTargetNullPointerValue(T) == 0;
+bool CIRGenTypes::isZeroInitializable(QualType t) {
+  if (t->getAs<PointerType>())
+    return Context.getTargetNullPointerValue(t) == 0;
 
-  if (const auto *AT = Context.getAsArrayType(T)) {
-    if (isa<IncompleteArrayType>(AT))
+  if (const auto *at = Context.getAsArrayType(t)) {
+    if (isa<IncompleteArrayType>(at))
       return true;
-    if (const auto *CAT = dyn_cast<ConstantArrayType>(AT))
-      if (Context.getConstantArrayElementCount(CAT) == 0)
+    if (const auto *cat = dyn_cast<ConstantArrayType>(at))
+      if (Context.getConstantArrayElementCount(cat) == 0)
         return true;
-    T = Context.getBaseElementType(T);
+    t = Context.getBaseElementType(t);
   }
 
   // Records are non-zero-initializable if they contain any
   // non-zero-initializable subobjects.
-  if (const RecordType *RT = T->getAs<RecordType>()) {
-    const RecordDecl *RD = RT->getDecl();
-    return isZeroInitializable(RD);
+  if (const RecordType *rt = t->getAs<RecordType>()) {
+    const RecordDecl *rd = rt->getDecl();
+    return isZeroInitializable(rd);
   }
 
   // We have to ask the ABI about member pointers.
-  if (const MemberPointerType *MPT = T->getAs<MemberPointerType>())
+  if (const MemberPointerType *mpt = t->getAs<MemberPointerType>())
     llvm_unreachable("NYI");
 
   // Everything else is okay.
   return true;
 }
 
-bool CIRGenTypes::isZeroInitializable(const RecordDecl *RD) {
-  return getCIRGenRecordLayout(RD).isZeroInitializable();
+bool CIRGenTypes::isZeroInitializable(const RecordDecl *rd) {
+  return getCIRGenRecordLayout(rd).isZeroInitializable();
 }

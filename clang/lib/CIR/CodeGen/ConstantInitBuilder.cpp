@@ -18,8 +18,8 @@
 using namespace clang;
 using namespace cir;
 
-ConstantInitBuilderBase::ConstantInitBuilderBase(CIRGenModule &CGM)
-    : CGM(CGM), builder(CGM.getBuilder()) {}
+ConstantInitBuilderBase::ConstantInitBuilderBase(CIRGenModule &cgm)
+    : CGM(cgm), builder(cgm.getBuilder()) {}
 
 mlir::Type ConstantInitFuture::getType() const {
   assert(Data && "dereferencing null future");
@@ -27,23 +27,22 @@ mlir::Type ConstantInitFuture::getType() const {
     auto attr = mlir::dyn_cast<mlir::TypedAttr>(Data.get<mlir::Attribute>());
     assert(attr && "expected typed attribute");
     return attr.getType();
-  } else {
-    llvm_unreachable("Only sypport typed attributes here");
   }
+  llvm_unreachable("Only sypport typed attributes here");
 }
 
 void ConstantInitFuture::abandon() {
   assert(Data && "abandoning null future");
-  if (auto builder = mlir::dyn_cast<ConstantInitBuilderBase *>(Data)) {
+  if (auto *builder = mlir::dyn_cast<ConstantInitBuilderBase *>(Data)) {
     builder->abandon(0);
   }
   Data = nullptr;
 }
 
-void ConstantInitFuture::installInGlobal(mlir::cir::GlobalOp GV) {
+void ConstantInitFuture::installInGlobal(mlir::cir::GlobalOp gv) {
   assert(Data && "installing null future");
   if (Data.is<mlir::Attribute>()) {
-    CIRGenModule::setInitializer(GV, Data.get<mlir::Attribute>());
+    CIRGenModule::setInitializer(gv, Data.get<mlir::Attribute>());
   } else {
     llvm_unreachable("NYI");
     // auto &builder = *Data.get<ConstantInitBuilderBase *>();
@@ -86,14 +85,14 @@ mlir::cir::GlobalOp ConstantInitBuilderBase::createGlobal(
 }
 
 void ConstantInitBuilderBase::setGlobalInitializer(
-    mlir::cir::GlobalOp GV, mlir::Attribute initializer) {
-  CIRGenModule::setInitializer(GV, initializer);
+    mlir::cir::GlobalOp gv, mlir::Attribute initializer) {
+  CIRGenModule::setInitializer(gv, initializer);
 
   if (!SelfReferences.empty())
-    resolveSelfReferences(GV);
+    resolveSelfReferences(gv);
 }
 
-void ConstantInitBuilderBase::resolveSelfReferences(mlir::cir::GlobalOp GV) {
+void ConstantInitBuilderBase::resolveSelfReferences(mlir::cir::GlobalOp gv) {
   llvm_unreachable("NYI");
   // for (auto &entry : SelfReferences) {
   //   mlir::Attribute resolvedReference =

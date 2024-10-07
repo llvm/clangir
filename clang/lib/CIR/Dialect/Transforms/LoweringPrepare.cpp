@@ -35,23 +35,23 @@ using namespace mlir;
 using namespace mlir::cir;
 
 static SmallString<128> getTransformedFileName(ModuleOp theModule) {
-  SmallString<128> FileName;
+  SmallString<128> fileName;
 
   if (theModule.getSymName()) {
-    FileName = llvm::sys::path::filename(theModule.getSymName()->str());
+    fileName = llvm::sys::path::filename(theModule.getSymName()->str());
   }
 
-  if (FileName.empty())
-    FileName = "<null>";
+  if (fileName.empty())
+    fileName = "<null>";
 
-  for (char &i : FileName) {
+  for (char &i : fileName) {
     // Replace everything that's not [a-zA-Z0-9._] with a _. This set happens
     // to be the set of C preprocessing numbers.
     if (!clang::isPreprocessingNumberBody(i))
       i = '_';
   }
 
-  return FileName;
+  return fileName;
 }
 
 /// Return the FuncOp called by `callOp`.

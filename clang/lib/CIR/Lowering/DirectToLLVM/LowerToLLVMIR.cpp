@@ -35,7 +35,7 @@ public:
 
   /// Any named attribute in the CIR dialect, i.e, with name started with
   /// "cir.", will be handled here.
-  virtual mlir::LogicalResult amendOperation(
+  mlir::LogicalResult amendOperation(
       mlir::Operation *op, llvm::ArrayRef<llvm::Instruction *> instructions,
       mlir::NamedAttribute attribute,
       mlir::LLVM::ModuleTranslation &moduleTranslation) const override {

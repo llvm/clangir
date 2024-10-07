@@ -46,8 +46,8 @@
 #include "mlir/Transforms/DialectConversion.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
-#include "clang/CIR/LoweringHelpers.h"
 #include "clang/CIR/LowerToMLIR.h"
+#include "clang/CIR/LoweringHelpers.h"
 #include "clang/CIR/Passes.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Sequence.h"
@@ -86,7 +86,7 @@ struct ConvertCIRToMLIRPass
   }
   void runOnOperation() final;
 
-  virtual StringRef getArgument() const override { return "cir-to-mlir"; }
+  StringRef getArgument() const override { return "cir-to-mlir"; }
 };
 
 class CIRCallOpLowering : public mlir::OpConversionPattern<mlir::cir::CallOp> {
@@ -142,7 +142,7 @@ static bool findBaseAndIndices(mlir::Value addr, mlir::Value &base,
     eraseList.push_back(addrOp);
   }
   base = addr;
-  if (indices.size() == 0)
+  if (indices.empty())
     return false;
   std::reverse(indices.begin(), indices.end());
   return true;
@@ -161,7 +161,7 @@ static void eraseIfSafe(mlir::Value oldAddr, mlir::Value newAddr,
       ++newUsedNum;
   }
   if (oldUsedNum == newUsedNum) {
-    for (auto op : eraseList)
+    for (auto *op : eraseList)
       rewriter.eraseOp(op);
   }
 }
@@ -537,7 +537,8 @@ private:
       }
       return mlir::DenseElementsAttr::get(
           mlir::cast<mlir::ShapedType>(mlirType), mlirValues);
-    } else if (auto boolAttr = mlir::dyn_cast<mlir::cir::BoolAttr>(cirAttr)) {
+    }
+    if (auto boolAttr = mlir::dyn_cast<mlir::cir::BoolAttr>(cirAttr)) {
       return rewriter.getIntegerAttr(mlirType, boolAttr.getValue());
     } else if (auto floatAttr = mlir::dyn_cast<mlir::cir::FPAttr>(cirAttr)) {
       return rewriter.getFloatAttr(mlirType, floatAttr.getValue());
@@ -610,15 +611,15 @@ public:
 
     switch (op.getKind()) {
     case mlir::cir::UnaryOpKind::Inc: {
-      auto One = rewriter.create<mlir::arith::ConstantOp>(
+      auto one = rewriter.create<mlir::arith::ConstantOp>(
           op.getLoc(), type, mlir::IntegerAttr::get(type, 1));
-      rewriter.replaceOpWithNewOp<mlir::arith::AddIOp>(op, type, input, One);
+      rewriter.replaceOpWithNewOp<mlir::arith::AddIOp>(op, type, input, one);
       break;
     }
     case mlir::cir::UnaryOpKind::Dec: {
-      auto One = rewriter.create<mlir::arith::ConstantOp>(
+      auto one = rewriter.create<mlir::arith::ConstantOp>(
           op.getLoc(), type, mlir::IntegerAttr::get(type, 1));
-      rewriter.replaceOpWithNewOp<mlir::arith::SubIOp>(op, type, input, One);
+      rewriter.replaceOpWithNewOp<mlir::arith::SubIOp>(op, type, input, one);
       break;
     }
     case mlir::cir::UnaryOpKind::Plus: {
@@ -626,15 +627,15 @@ public:
       break;
     }
     case mlir::cir::UnaryOpKind::Minus: {
-      auto Zero = rewriter.create<mlir::arith::ConstantOp>(
+      auto zero = rewriter.create<mlir::arith::ConstantOp>(
           op.getLoc(), type, mlir::IntegerAttr::get(type, 0));
-      rewriter.replaceOpWithNewOp<mlir::arith::SubIOp>(op, type, Zero, input);
+      rewriter.replaceOpWithNewOp<mlir::arith::SubIOp>(op, type, zero, input);
       break;
     }
     case mlir::cir::UnaryOpKind::Not: {
-      auto MinusOne = rewriter.create<mlir::arith::ConstantOp>(
+      auto minusOne = rewriter.create<mlir::arith::ConstantOp>(
           op.getLoc(), type, mlir::IntegerAttr::get(type, -1));
-      rewriter.replaceOpWithNewOp<mlir::arith::XOrIOp>(op, type, MinusOne,
+      rewriter.replaceOpWithNewOp<mlir::arith::XOrIOp>(op, type, minusOne,
                                                        input);
       break;
     }
@@ -660,8 +661,8 @@ public:
            "operand type not supported yet");
 
     auto type = op.getLhs().getType();
-    if (auto VecType = mlir::dyn_cast<mlir::cir::VectorType>(type)) {
-      type = VecType.getEltType();
+    if (auto vecType = mlir::dyn_cast<mlir::cir::VectorType>(type)) {
+      type = vecType.getEltType();
     }
 
     switch (op.getKind()) {
@@ -922,8 +923,8 @@ public:
 
     mlir::OpBuilder b(moduleOp.getContext());
 
-    const auto CIRSymType = op.getSymType();
-    auto convertedType = getTypeConverter()->convertType(CIRSymType);
+    const auto cirSymType = op.getSymType();
+    auto convertedType = getTypeConverter()->convertType(cirSymType);
     if (!convertedType)
       return mlir::failure();
     auto memrefType = dyn_cast<mlir::MemRefType>(convertedType);
@@ -947,7 +948,7 @@ public:
           llvm_unreachable("GlobalOp lowering array with initial value fail");
       } else if (auto constArr =
                      mlir::dyn_cast<mlir::cir::ZeroAttr>(init.value())) {
-        if (memrefType.getShape().size()) {
+        if (!memrefType.getShape().empty()) {
           auto elementType = memrefType.getElementType();
           auto rtt =
               mlir::RankedTensorType::get(memrefType.getShape(), elementType);
@@ -988,11 +989,11 @@ public:
     }
 
     // Add symbol visibility
-    std::string sym_visibility = op.isPrivate() ? "private" : "public";
+    std::string symVisibility = op.isPrivate() ? "private" : "public";
 
     rewriter.replaceOpWithNewOp<mlir::memref::GlobalOp>(
         op, b.getStringAttr(op.getSymName()),
-        /*sym_visibility=*/b.getStringAttr(sym_visibility),
+        /*sym_visibility=*/b.getStringAttr(symVisibility),
         /*type=*/memrefType, initialValue,
         /*constant=*/op.getConstant(),
         /*alignment=*/memrefAlignment);
@@ -1236,7 +1237,7 @@ public:
   // Return true if PtrStrideOp is produced by cast with array_to_ptrdecay kind
   // and they are in the same block.
   inline bool isCastArrayToPtrConsumer(mlir::cir::PtrStrideOp op) const {
-    auto defOp = op->getOperand(0).getDefiningOp();
+    auto *defOp = op->getOperand(0).getDefiningOp();
     if (!defOp)
       return false;
     auto castOp = dyn_cast<mlir::cir::CastOp>(defOp);
@@ -1291,7 +1292,7 @@ public:
       return mlir::failure();
     if (!isLoadStoreOrCastArrayToPtrProduer(op))
       return mlir::failure();
-    auto baseOp = adaptor.getBase().getDefiningOp();
+    auto *baseOp = adaptor.getBase().getDefiningOp();
     if (!baseOp)
       return mlir::failure();
     if (!isa<mlir::memref::ReinterpretCastOp>(baseOp))

@@ -33,7 +33,7 @@ std::unique_ptr<llvm::Module>
 lowerDirectlyFromCIRToLLVMIR(mlir::ModuleOp theModule,
                              llvm::LLVMContext &llvmCtx,
                              bool disableVerifier = false);
-}
+} // namespace direct
 
 // Lower directly from pristine CIR to LLVMIR.
 std::unique_ptr<llvm::Module>

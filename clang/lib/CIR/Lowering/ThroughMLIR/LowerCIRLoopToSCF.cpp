@@ -48,13 +48,13 @@ public:
   mlir::Value findIVInitValue();
   void analysis();
 
-  mlir::Value plusConstant(mlir::Value V, mlir::Location loc, int addend);
+  mlir::Value plusConstant(mlir::Value v, mlir::Location loc, int addend);
   void transferToSCFForOp();
 
 private:
   mlir::cir::ForOp forOp;
   mlir::cir::CmpOp cmpOp;
-  mlir::Value IVAddr, lowerBound = nullptr, upperBound = nullptr;
+  mlir::Value ivAddr, lowerBound = nullptr, upperBound = nullptr;
   mlir::ConversionPatternRewriter *rewriter;
   int64_t step = 0;
 };
@@ -76,19 +76,19 @@ class SCFDoLoop {
 public:
   SCFDoLoop(mlir::cir::DoWhileOp op, mlir::cir::DoWhileOp::Adaptor adaptor,
             mlir::ConversionPatternRewriter *rewriter)
-      : DoOp(op), adaptor(adaptor), rewriter(rewriter) {}
+      : doOp(op), adaptor(adaptor), rewriter(rewriter) {}
   void transferToSCFWhileOp();
 
 private:
-  mlir::cir::DoWhileOp DoOp;
+  mlir::cir::DoWhileOp doOp;
   mlir::cir::DoWhileOp::Adaptor adaptor;
   mlir::ConversionPatternRewriter *rewriter;
 };
 
 static int64_t getConstant(mlir::cir::ConstantOp op) {
   auto attr = op->getAttrs().front().getValue();
-  const auto IntAttr = mlir::dyn_cast<mlir::cir::IntAttr>(attr);
-  return IntAttr.getValue().getSExtValue();
+  const auto intAttr = mlir::dyn_cast<mlir::cir::IntAttr>(attr);
+  return intAttr.getValue().getSExtValue();
 }
 
 int64_t SCFLoop::findStepAndIV(mlir::Value &addr) {
@@ -97,25 +97,25 @@ int64_t SCFLoop::findStepAndIV(mlir::Value &addr) {
   assert(stepBlock && "Can not find step block");
 
   int64_t step = 0;
-  mlir::Value IV = nullptr;
+  mlir::Value iv = nullptr;
   // Try to match "IV load addr; ++IV; store IV, addr" to find step.
   for (mlir::Operation &op : *stepBlock)
     if (auto loadOp = dyn_cast<mlir::cir::LoadOp>(op)) {
       addr = loadOp.getAddr();
-      IV = loadOp.getResult();
+      iv = loadOp.getResult();
     } else if (auto cop = dyn_cast<mlir::cir::ConstantOp>(op)) {
       if (step)
         llvm_unreachable(
             "Not support multiple constant in step calculation yet");
       step = getConstant(cop);
     } else if (auto bop = dyn_cast<mlir::cir::BinOp>(op)) {
-      if (bop.getLhs() != IV)
+      if (bop.getLhs() != iv)
         llvm_unreachable("Find BinOp not operate on IV");
       if (bop.getKind() != mlir::cir::BinOpKind::Add)
         llvm_unreachable(
             "Not support BinOp other than Add in step calculation yet");
     } else if (auto uop = dyn_cast<mlir::cir::UnaryOp>(op)) {
-      if (uop.getInput() != IV)
+      if (uop.getInput() != iv)
         llvm_unreachable("Find UnaryOp not operate on IV");
       if (uop.getKind() == mlir::cir::UnaryOpKind::Inc)
         step = 1;
@@ -129,13 +129,13 @@ int64_t SCFLoop::findStepAndIV(mlir::Value &addr) {
   return step;
 }
 
-static bool isIVLoad(mlir::Operation *op, mlir::Value IVAddr) {
+static bool isIVLoad(mlir::Operation *op, mlir::Value ivAddr) {
   if (!op)
     return false;
   if (isa<mlir::cir::LoadOp>(op)) {
     if (!op->getOperand(0))
       return false;
-    if (op->getOperand(0) == IVAddr)
+    if (op->getOperand(0) == ivAddr)
       return true;
   }
   return false;
@@ -143,7 +143,7 @@ static bool isIVLoad(mlir::Operation *op, mlir::Value IVAddr) {
 
 mlir::cir::CmpOp SCFLoop::findCmpOp() {
   cmpOp = nullptr;
-  for (auto *user : IVAddr.getUsers()) {
+  for (auto *user : ivAddr.getUsers()) {
     if (user->getParentRegion() != &forOp.getCond())
       continue;
     if (auto loadOp = dyn_cast<mlir::cir::LoadOp>(*user)) {
@@ -162,10 +162,10 @@ mlir::cir::CmpOp SCFLoop::findCmpOp() {
   if (!mlir::isa<mlir::cir::IntType>(type))
     llvm_unreachable("Non-integer type IV is not supported");
 
-  auto lhsDefOp = cmpOp.getLhs().getDefiningOp();
+  auto *lhsDefOp = cmpOp.getLhs().getDefiningOp();
   if (!lhsDefOp)
     llvm_unreachable("Can't find IV load");
-  if (!isIVLoad(lhsDefOp, IVAddr))
+  if (!isIVLoad(lhsDefOp, ivAddr))
     llvm_unreachable("cmpOp LHS is not IV");
 
   if (cmpOp.getKind() != mlir::cir::CmpOpKind::le &&
@@ -175,19 +175,19 @@ mlir::cir::CmpOp SCFLoop::findCmpOp() {
   return cmpOp;
 }
 
-mlir::Value SCFLoop::plusConstant(mlir::Value V, mlir::Location loc,
+mlir::Value SCFLoop::plusConstant(mlir::Value v, mlir::Location loc,
                                   int addend) {
-  auto type = V.getType();
+  auto type = v.getType();
   auto c1 = rewriter->create<mlir::arith::ConstantOp>(
       loc, type, mlir::IntegerAttr::get(type, addend));
-  return rewriter->create<mlir::arith::AddIOp>(loc, V, c1);
+  return rewriter->create<mlir::arith::AddIOp>(loc, v, c1);
 }
 
 // Return IV initial value by searching the store before the loop.
 // The operations before the loop have been transferred to MLIR.
 // So we need to go through getRemappedValue to find the value.
 mlir::Value SCFLoop::findIVInitValue() {
-  auto remapAddr = rewriter->getRemappedValue(IVAddr);
+  auto remapAddr = rewriter->getRemappedValue(ivAddr);
   if (!remapAddr)
     return nullptr;
   if (!remapAddr.hasOneUse())
@@ -199,22 +199,22 @@ mlir::Value SCFLoop::findIVInitValue() {
 }
 
 void SCFLoop::analysis() {
-  step = findStepAndIV(IVAddr);
+  step = findStepAndIV(ivAddr);
   cmpOp = findCmpOp();
-  auto IVInit = findIVInitValue();
+  auto ivInit = findIVInitValue();
   // The loop end value should be hoisted out of loop by -cir-mlir-scf-prepare.
   // So we could get the value by getRemappedValue.
-  auto IVEndBound = rewriter->getRemappedValue(cmpOp.getRhs());
+  auto ivEndBound = rewriter->getRemappedValue(cmpOp.getRhs());
   // If the loop end bound is not loop invariant and can't be hoisted.
   // The following assertion will be triggerred.
-  assert(IVEndBound && "can't find IV end boundary");
+  assert(ivEndBound && "can't find IV end boundary");
 
   if (step > 0) {
-    lowerBound = IVInit;
+    lowerBound = ivInit;
     if (cmpOp.getKind() == mlir::cir::CmpOpKind::lt)
-      upperBound = IVEndBound;
+      upperBound = ivEndBound;
     else if (cmpOp.getKind() == mlir::cir::CmpOpKind::le)
-      upperBound = plusConstant(IVEndBound, cmpOp.getLoc(), 1);
+      upperBound = plusConstant(ivEndBound, cmpOp.getLoc(), 1);
   }
   assert(lowerBound && "can't find loop lower bound");
   assert(upperBound && "can't find loop upper bound");
@@ -238,7 +238,7 @@ void SCFLoop::transferToSCFForOp() {
       llvm_unreachable(
           "Not support lowering loop with break, continue or if yet");
     // Replace the IV usage to scf loop induction variable.
-    if (isIVLoad(op, IVAddr)) {
+    if (isIVLoad(op, ivAddr)) {
       // Replace CIR IV load with arith.addi scf.IV, 0.
       // The replacement makes the SCF IV can be automatically propogated
       // by OpAdaptor for individual IV user lowering.
@@ -269,9 +269,9 @@ void SCFDoLoop::transferToSCFWhileOp() {
   auto beforeBuilder = [&](mlir::OpBuilder &builder, mlir::Location loc,
                            mlir::ValueRange args) {
     auto *newBlock = builder.getBlock();
-    rewriter->mergeBlocks(&DoOp.getBody().front(), newBlock);
+    rewriter->mergeBlocks(&doOp.getBody().front(), newBlock);
     auto *yieldOp = newBlock->getTerminator();
-    rewriter->mergeBlocks(&DoOp.getCond().front(), newBlock,
+    rewriter->mergeBlocks(&doOp.getCond().front(), newBlock,
                           yieldOp->getResults());
     rewriter->eraseOp(yieldOp);
   };
@@ -280,7 +280,7 @@ void SCFDoLoop::transferToSCFWhileOp() {
     rewriter->create<mlir::scf::YieldOp>(loc, args);
   };
 
-  rewriter->create<mlir::scf::WhileOp>(DoOp.getLoc(), DoOp->getResultTypes(),
+  rewriter->create<mlir::scf::WhileOp>(doOp.getLoc(), doOp->getResultTypes(),
                                        adaptor.getOperands(), beforeBuilder,
                                        afterBuilder);
 }

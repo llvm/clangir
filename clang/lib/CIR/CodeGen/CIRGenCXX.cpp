@@ -232,7 +232,7 @@ static void buildDeclDestroy(CIRGenFunction &cgf, const VarDecl *d) {
     return;
   }
 
-  auto &cgm = cgf.CGM;
+  auto &cgm = cgf.cgm;
   QualType type = d->getType();
 
   // Special-case non-array C++ destructors, if they have the right signature.
@@ -264,7 +264,7 @@ static void buildDeclDestroy(CIRGenFunction &cgf, const VarDecl *d) {
     cgf.getBuilder().createCallOp(
         cgf.getLoc(d->getSourceRange()),
         mlir::FlatSymbolRefAttr::get(fnOp.getSymNameAttr()),
-        mlir::ValueRange{cgf.CGM.getAddrOfGlobalVar(d)});
+        mlir::ValueRange{cgf.cgm.getAddrOfGlobalVar(d)});
   } else {
     llvm_unreachable("array destructors not yet supported!");
   }
@@ -300,7 +300,7 @@ static void buildDeclInvariant(CIRGenFunction &cgf, const VarDecl *d) {
 
 void CIRGenFunction::buildInvariantStart([[maybe_unused]] CharUnits size) {
   // Do not emit the intrinsic if we're not optimizing.
-  if (!CGM.getCodeGenOpts().OptimizationLevel)
+  if (!cgm.getCodeGenOpts().OptimizationLevel)
     return;
 
   assert(!MissingFeatures::createInvariantIntrinsic());

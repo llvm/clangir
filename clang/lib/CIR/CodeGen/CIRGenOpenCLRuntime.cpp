@@ -20,10 +20,10 @@
 using namespace clang;
 using namespace cir;
 
-CIRGenOpenCLRuntime::~CIRGenOpenCLRuntime() {}
+CIRGenOpenCLRuntime::~CIRGenOpenCLRuntime() = default;
 
-void CIRGenOpenCLRuntime::buildWorkGroupLocalVarDecl(CIRGenFunction &CGF,
-                                                     const VarDecl &D) {
-  return CGF.buildStaticVarDecl(D,
+void CIRGenOpenCLRuntime::buildWorkGroupLocalVarDecl(CIRGenFunction &cgf,
+                                                     const VarDecl &d) {
+  return cgf.buildStaticVarDecl(d,
                                 mlir::cir::GlobalLinkageKind::InternalLinkage);
 }

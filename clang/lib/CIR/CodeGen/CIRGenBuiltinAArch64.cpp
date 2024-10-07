@@ -25,9 +25,7 @@
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/IntrinsicsAArch64.h"
 
-#include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/Value.h"
-#include "clang/AST/GlobalDecl.h"
 #include "clang/Basic/Builtins.h"
 #include "clang/Basic/TargetBuiltins.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
@@ -63,17 +61,17 @@ enum {
 
 namespace {
 struct ARMVectorIntrinsicInfo {
-  const char *NameHint;
-  unsigned BuiltinID;
-  unsigned LLVMIntrinsic;
-  unsigned AltLLVMIntrinsic;
-  uint64_t TypeModifier;
+  const char *nameHint;
+  unsigned builtinId;
+  unsigned llvmIntrinsic;
+  unsigned altLlvmIntrinsic;
+  uint64_t typeModifier;
 
-  bool operator<(unsigned RHSBuiltinID) const {
-    return BuiltinID < RHSBuiltinID;
+  bool operator<(unsigned rhsBuiltinId) const {
+    return builtinId < rhsBuiltinId;
   }
-  bool operator<(const ARMVectorIntrinsicInfo &TE) const {
-    return BuiltinID < TE.BuiltinID;
+  bool operator<(const ARMVectorIntrinsicInfo &te) const {
+    return builtinId < te.builtinId;
   }
 };
 } // end anonymous namespace
@@ -89,7 +87,7 @@ struct ARMVectorIntrinsicInfo {
   {#NameBase, NEON::BI__builtin_neon_##NameBase, Intrinsic::LLVMIntrinsic,     \
    Intrinsic::AltLLVMIntrinsic, TypeModifier}
 
-static const ARMVectorIntrinsicInfo AArch64SIMDIntrinsicMap[] = {
+static const ARMVectorIntrinsicInfo aArch64SimdIntrinsicMap[] = {
     NEONMAP1(__a64_vcvtq_low_bf16_f32, aarch64_neon_bfcvtn, 0),
     NEONMAP0(splat_lane_v),
     NEONMAP0(splat_laneq_v),
@@ -401,7 +399,7 @@ static const ARMVectorIntrinsicInfo AArch64SIMDIntrinsicMap[] = {
     NEONMAP1(vxarq_u64, aarch64_crypto_xar, 0),
 };
 
-static const ARMVectorIntrinsicInfo AArch64SISDIntrinsicMap[] = {
+static const ARMVectorIntrinsicInfo aArch64SisdIntrinsicMap[] = {
     NEONMAP1(vabdd_f64, aarch64_sisd_fabd, Add1ArgType),
     NEONMAP1(vabds_f32, aarch64_sisd_fabd, Add1ArgType),
     NEONMAP1(vabsd_s64, aarch64_neon_abs, Add1ArgType),
@@ -1247,7 +1245,7 @@ static std::string getAArch64SIMDIntrinsicString(unsigned int intrinsicID) {
 }
 
 // Some intrinsics are equivalent for codegen.
-static const std::pair<unsigned, unsigned> NEONEquivalentIntrinsicMap[] = {
+static const std::pair<unsigned, unsigned> neonEquivalentIntrinsicMap[] = {
     {
         NEON::BI__builtin_neon_splat_lane_bf16,
         NEON::BI__builtin_neon_splat_lane_v,
@@ -1651,7 +1649,7 @@ static const std::pair<unsigned, unsigned> NEONEquivalentIntrinsicMap[] = {
 
 #define SVEMAP2(NameBase, TypeModifier)                                        \
   {#NameBase, SVE::BI__builtin_sve_##NameBase, 0, 0, TypeModifier}
-static const ARMVectorIntrinsicInfo AArch64SVEIntrinsicMap[] = {
+static const ARMVectorIntrinsicInfo aArch64SveIntrinsicMap[] = {
 #define GET_SVE_LLVM_INTRINSIC_MAP
 #include "clang/Basic/BuiltinsAArch64NeonSVEBridge_cg.def"
 #include "clang/Basic/arm_sve_builtin_cg.inc"
@@ -1667,7 +1665,7 @@ static const ARMVectorIntrinsicInfo AArch64SVEIntrinsicMap[] = {
 
 #define SMEMAP2(NameBase, TypeModifier)                                        \
   {#NameBase, SME::BI__builtin_sme_##NameBase, 0, 0, TypeModifier}
-static const ARMVectorIntrinsicInfo AArch64SMEIntrinsicMap[] = {
+static const ARMVectorIntrinsicInfo aArch64SmeIntrinsicMap[] = {
 #define GET_SME_LLVM_INTRINSIC_MAP
 #include "clang/Basic/arm_sme_builtin_cg.inc"
 #undef GET_SME_LLVM_INTRINSIC_MAP
@@ -1721,9 +1719,9 @@ enum class CIRGenFunction::MSVCIntrin {
 };
 
 static std::optional<CIRGenFunction::MSVCIntrin>
-translateAarch64ToMsvcIntrin(unsigned BuiltinID) {
+translateAarch64ToMsvcIntrin(unsigned builtinId) {
   using MSVCIntrin = CIRGenFunction::MSVCIntrin;
-  switch (BuiltinID) {
+  switch (builtinId) {
   default:
     return std::nullopt;
   case clang::AArch64::BI_BitScanForward:
@@ -1874,97 +1872,97 @@ translateAarch64ToMsvcIntrin(unsigned BuiltinID) {
   llvm_unreachable("must return from switch");
 }
 
-static bool AArch64SIMDIntrinsicsProvenSorted = false;
-static bool AArch64SISDIntrinsicsProvenSorted = false;
-static bool AArch64SVEIntrinsicsProvenSorted = false;
-static bool AArch64SMEIntrinsicsProvenSorted = false;
+static bool aArch64SimdIntrinsicsProvenSorted = false;
+static bool aArch64SisdIntrinsicsProvenSorted = false;
+static bool aArch64SveIntrinsicsProvenSorted = false;
+static bool aArch64SmeIntrinsicsProvenSorted = false;
 
 static const ARMVectorIntrinsicInfo *
-findARMVectorIntrinsicInMap(ArrayRef<ARMVectorIntrinsicInfo> IntrinsicMap,
-                            unsigned BuiltinID, bool &MapProvenSorted) {
+findARMVectorIntrinsicInMap(ArrayRef<ARMVectorIntrinsicInfo> intrinsicMap,
+                            unsigned builtinId, bool &mapProvenSorted) {
 
 #ifndef NDEBUG
-  if (!MapProvenSorted) {
-    assert(llvm::is_sorted(IntrinsicMap));
-    MapProvenSorted = true;
+  if (!mapProvenSorted) {
+    assert(llvm::is_sorted(intrinsicMap));
+    mapProvenSorted = true;
   }
 #endif
 
-  const ARMVectorIntrinsicInfo *Builtin =
-      llvm::lower_bound(IntrinsicMap, BuiltinID);
+  const ARMVectorIntrinsicInfo *builtin =
+      llvm::lower_bound(intrinsicMap, builtinId);
 
-  if (Builtin != IntrinsicMap.end() && Builtin->BuiltinID == BuiltinID)
-    return Builtin;
+  if (builtin != intrinsicMap.end() && builtin->builtinId == builtinId)
+    return builtin;
 
   return nullptr;
 }
 
-static mlir::cir::VectorType GetNeonType(CIRGenFunction *CGF,
-                                         NeonTypeFlags TypeFlags,
-                                         bool HasLegalHalfType = true,
-                                         bool V1Ty = false,
-                                         bool AllowBFloatArgsAndRet = true) {
-  int IsQuad = TypeFlags.isQuad();
-  switch (TypeFlags.getEltType()) {
+static mlir::cir::VectorType getNeonType(CIRGenFunction *cgf,
+                                         NeonTypeFlags typeFlags,
+                                         bool hasLegalHalfType = true,
+                                         bool v1Ty = false,
+                                         bool allowBFloatArgsAndRet = true) {
+  int isQuad = typeFlags.isQuad();
+  switch (typeFlags.getEltType()) {
   case NeonTypeFlags::Int8:
   case NeonTypeFlags::Poly8:
-    return mlir::cir::VectorType::get(CGF->getBuilder().getContext(),
-                                      TypeFlags.isUnsigned() ? CGF->UInt8Ty
-                                                             : CGF->SInt8Ty,
-                                      V1Ty ? 1 : (8 << IsQuad));
+    return mlir::cir::VectorType::get(cgf->getBuilder().getContext(),
+                                      typeFlags.isUnsigned() ? cgf->UInt8Ty
+                                                             : cgf->SInt8Ty,
+                                      v1Ty ? 1 : (8 << isQuad));
   case NeonTypeFlags::Int16:
   case NeonTypeFlags::Poly16:
-    return mlir::cir::VectorType::get(CGF->getBuilder().getContext(),
-                                      TypeFlags.isUnsigned() ? CGF->UInt16Ty
-                                                             : CGF->SInt16Ty,
-                                      V1Ty ? 1 : (4 << IsQuad));
+    return mlir::cir::VectorType::get(cgf->getBuilder().getContext(),
+                                      typeFlags.isUnsigned() ? cgf->UInt16Ty
+                                                             : cgf->SInt16Ty,
+                                      v1Ty ? 1 : (4 << isQuad));
   case NeonTypeFlags::BFloat16:
-    if (AllowBFloatArgsAndRet)
+    if (allowBFloatArgsAndRet)
       llvm_unreachable("NYI");
     else
       llvm_unreachable("NYI");
   case NeonTypeFlags::Float16:
-    if (HasLegalHalfType)
+    if (hasLegalHalfType)
       llvm_unreachable("NYI");
     else
       llvm_unreachable("NYI");
   case NeonTypeFlags::Int32:
-    return mlir::cir::VectorType::get(CGF->getBuilder().getContext(),
-                                      TypeFlags.isUnsigned() ? CGF->UInt32Ty
-                                                             : CGF->SInt32Ty,
-                                      V1Ty ? 1 : (2 << IsQuad));
+    return mlir::cir::VectorType::get(cgf->getBuilder().getContext(),
+                                      typeFlags.isUnsigned() ? cgf->UInt32Ty
+                                                             : cgf->SInt32Ty,
+                                      v1Ty ? 1 : (2 << isQuad));
   case NeonTypeFlags::Int64:
   case NeonTypeFlags::Poly64:
-    return mlir::cir::VectorType::get(CGF->getBuilder().getContext(),
-                                      TypeFlags.isUnsigned() ? CGF->UInt64Ty
-                                                             : CGF->SInt64Ty,
-                                      V1Ty ? 1 : (1 << IsQuad));
+    return mlir::cir::VectorType::get(cgf->getBuilder().getContext(),
+                                      typeFlags.isUnsigned() ? cgf->UInt64Ty
+                                                             : cgf->SInt64Ty,
+                                      v1Ty ? 1 : (1 << isQuad));
   case NeonTypeFlags::Poly128:
     // FIXME: i128 and f128 doesn't get fully support in Clang and llvm.
     // There is a lot of i128 and f128 API missing.
     // so we use v16i8 to represent poly128 and get pattern matched.
     llvm_unreachable("NYI");
   case NeonTypeFlags::Float32:
-    return mlir::cir::VectorType::get(CGF->getBuilder().getContext(),
-                                      CGF->getCIRGenModule().FloatTy,
-                                      V1Ty ? 1 : (2 << IsQuad));
+    return mlir::cir::VectorType::get(cgf->getBuilder().getContext(),
+                                      cgf->getCIRGenModule().FloatTy,
+                                      v1Ty ? 1 : (2 << isQuad));
   case NeonTypeFlags::Float64:
-    return mlir::cir::VectorType::get(CGF->getBuilder().getContext(),
-                                      CGF->getCIRGenModule().DoubleTy,
-                                      V1Ty ? 1 : (1 << IsQuad));
+    return mlir::cir::VectorType::get(cgf->getBuilder().getContext(),
+                                      cgf->getCIRGenModule().DoubleTy,
+                                      v1Ty ? 1 : (1 << isQuad));
   }
   llvm_unreachable("Unknown vector element type!");
 }
 
-static mlir::Value buildAArch64TblBuiltinExpr(CIRGenFunction &CGF,
-                                              unsigned BuiltinID,
-                                              const CallExpr *E,
-                                              SmallVectorImpl<mlir::Value> &Ops,
-                                              llvm::Triple::ArchType Arch) {
-  unsigned int Int = 0;
+static mlir::Value buildAArch64TblBuiltinExpr(CIRGenFunction &cgf,
+                                              unsigned builtinId,
+                                              const CallExpr *e,
+                                              SmallVectorImpl<mlir::Value> &ops,
+                                              llvm::Triple::ArchType arch) {
+  unsigned int intValue = 0;
   [[maybe_unused]] const char *s = nullptr;
 
-  switch (BuiltinID) {
+  switch (builtinId) {
   default:
     return {};
   case NEON::BI__builtin_neon_vtbl1_v:
@@ -1995,24 +1993,24 @@ static mlir::Value buildAArch64TblBuiltinExpr(CIRGenFunction &CGF,
     break;
   }
 
-  assert(E->getNumArgs() >= 3);
+  assert(e->getNumArgs() >= 3);
 
   // Get the last argument, which specifies the vector type.
-  const Expr *Arg = E->getArg(E->getNumArgs() - 1);
-  std::optional<llvm::APSInt> Result =
-      Arg->getIntegerConstantExpr(CGF.getContext());
-  if (!Result)
+  const Expr *arg = e->getArg(e->getNumArgs() - 1);
+  std::optional<llvm::APSInt> result =
+      arg->getIntegerConstantExpr(cgf.getContext());
+  if (!result)
     return nullptr;
 
   // Determine the type of this overloaded NEON intrinsic.
-  NeonTypeFlags Type = Result->getZExtValue();
-  mlir::cir::VectorType Ty = GetNeonType(&CGF, Type);
-  if (!Ty)
+  NeonTypeFlags type = result->getZExtValue();
+  mlir::cir::VectorType ty = getNeonType(&cgf, type);
+  if (!ty)
     return nullptr;
 
   // AArch64 scalar builtins are not overloaded, they do not have an extra
   // argument that specifies the vector type, need to handle each case.
-  switch (BuiltinID) {
+  switch (builtinId) {
   case NEON::BI__builtin_neon_vtbl1_v: {
     llvm_unreachable("NYI");
   }
@@ -2036,88 +2034,88 @@ static mlir::Value buildAArch64TblBuiltinExpr(CIRGenFunction &CGF,
   }
   case NEON::BI__builtin_neon_vqtbl1_v:
   case NEON::BI__builtin_neon_vqtbl1q_v:
-    Int = Intrinsic::aarch64_neon_tbl1;
+    intValue = Intrinsic::aarch64_neon_tbl1;
     s = "vtbl1";
     break;
   case NEON::BI__builtin_neon_vqtbl2_v:
   case NEON::BI__builtin_neon_vqtbl2q_v: {
-    Int = Intrinsic::aarch64_neon_tbl2;
+    intValue = Intrinsic::aarch64_neon_tbl2;
     s = "vtbl2";
     break;
   case NEON::BI__builtin_neon_vqtbl3_v:
   case NEON::BI__builtin_neon_vqtbl3q_v:
-    Int = Intrinsic::aarch64_neon_tbl3;
+    intValue = Intrinsic::aarch64_neon_tbl3;
     s = "vtbl3";
     break;
   case NEON::BI__builtin_neon_vqtbl4_v:
   case NEON::BI__builtin_neon_vqtbl4q_v:
-    Int = Intrinsic::aarch64_neon_tbl4;
+    intValue = Intrinsic::aarch64_neon_tbl4;
     s = "vtbl4";
     break;
   case NEON::BI__builtin_neon_vqtbx1_v:
   case NEON::BI__builtin_neon_vqtbx1q_v:
-    Int = Intrinsic::aarch64_neon_tbx1;
+    intValue = Intrinsic::aarch64_neon_tbx1;
     s = "vtbx1";
     break;
   case NEON::BI__builtin_neon_vqtbx2_v:
   case NEON::BI__builtin_neon_vqtbx2q_v:
-    Int = Intrinsic::aarch64_neon_tbx2;
+    intValue = Intrinsic::aarch64_neon_tbx2;
     s = "vtbx2";
     break;
   case NEON::BI__builtin_neon_vqtbx3_v:
   case NEON::BI__builtin_neon_vqtbx3q_v:
-    Int = Intrinsic::aarch64_neon_tbx3;
+    intValue = Intrinsic::aarch64_neon_tbx3;
     s = "vtbx3";
     break;
   case NEON::BI__builtin_neon_vqtbx4_v:
   case NEON::BI__builtin_neon_vqtbx4q_v:
-    Int = Intrinsic::aarch64_neon_tbx4;
+    intValue = Intrinsic::aarch64_neon_tbx4;
     s = "vtbx4";
     break;
   }
   }
 
-  if (!Int)
+  if (!intValue)
     return nullptr;
 
   llvm_unreachable("NYI");
 }
 
-mlir::Value CIRGenFunction::buildAArch64SMEBuiltinExpr(unsigned BuiltinID,
-                                                       const CallExpr *E) {
-  auto *Builtin = findARMVectorIntrinsicInMap(AArch64SMEIntrinsicMap, BuiltinID,
-                                              AArch64SMEIntrinsicsProvenSorted);
-  (void)Builtin;
+mlir::Value CIRGenFunction::buildAArch64SMEBuiltinExpr(unsigned builtinId,
+                                                       const CallExpr *e) {
+  auto *builtin = findARMVectorIntrinsicInMap(aArch64SmeIntrinsicMap, builtinId,
+                                              aArch64SmeIntrinsicsProvenSorted);
+  (void)builtin;
   llvm_unreachable("NYI");
 }
 
-mlir::Value CIRGenFunction::buildAArch64SVEBuiltinExpr(unsigned BuiltinID,
-                                                       const CallExpr *E) {
-  if (BuiltinID >= SVE::BI__builtin_sve_reinterpret_s8_s8 &&
-      BuiltinID <= SVE::BI__builtin_sve_reinterpret_f64_f64_x4) {
+mlir::Value CIRGenFunction::buildAArch64SVEBuiltinExpr(unsigned builtinId,
+                                                       const CallExpr *e) {
+  if (builtinId >= SVE::BI__builtin_sve_reinterpret_s8_s8 &&
+      builtinId <= SVE::BI__builtin_sve_reinterpret_f64_f64_x4) {
     llvm_unreachable("NYI");
   }
-  auto *Builtin = findARMVectorIntrinsicInMap(AArch64SVEIntrinsicMap, BuiltinID,
-                                              AArch64SVEIntrinsicsProvenSorted);
-  (void)Builtin;
+  auto *builtin = findARMVectorIntrinsicInMap(aArch64SveIntrinsicMap, builtinId,
+                                              aArch64SveIntrinsicsProvenSorted);
+  (void)builtin;
   llvm_unreachable("NYI");
 }
 
-mlir::Value CIRGenFunction::buildScalarOrConstFoldImmArg(unsigned ICEArguments,
-                                                         unsigned Idx,
-                                                         const CallExpr *E) {
-  mlir::Value Arg = {};
-  if ((ICEArguments & (1 << Idx)) == 0) {
-    Arg = buildScalarExpr(E->getArg(Idx));
+mlir::Value CIRGenFunction::buildScalarOrConstFoldImmArg(unsigned iceArguments,
+                                                         unsigned idx,
+                                                         const CallExpr *e) {
+  mlir::Value arg = {};
+  if ((iceArguments & (1 << idx)) == 0) {
+    arg = buildScalarExpr(e->getArg(idx));
   } else {
     // If this is required to be a constant, constant fold it so that we
     // know that the generated intrinsic gets a ConstantInt.
-    std::optional<llvm::APSInt> Result =
-        E->getArg(Idx)->getIntegerConstantExpr(getContext());
-    assert(Result && "Expected argument to be a constant");
-    Arg = builder.getConstInt(getLoc(E->getSourceRange()), *Result);
+    std::optional<llvm::APSInt> result =
+        e->getArg(idx)->getIntegerConstantExpr(getContext());
+    assert(result && "Expected argument to be a constant");
+    arg = builder.getConstInt(getLoc(e->getSourceRange()), *result);
   }
-  return Arg;
+  return arg;
 }
 
 static mlir::Value buildArmLdrexNon128Intrinsic(unsigned int builtinID,
@@ -2148,14 +2146,12 @@ static mlir::Value buildArmLdrexNon128Intrinsic(unsigned int builtinID,
     return builder.createIntToPtr(res, realResTy);
   }
   mlir::cir::IntType intResTy =
-      builder.getSIntNTy(cgf.CGM.getDataLayout().getTypeSizeInBits(realResTy));
+      builder.getSIntNTy(cgf.cgm.getDataLayout().getTypeSizeInBits(realResTy));
   mlir::Value intCastRes = builder.createIntCast(res, intResTy);
   if (mlir::isa<mlir::cir::IntType>(realResTy)) {
     return builder.createIntCast(intCastRes, realResTy);
-  } else {
-    // Above cases should cover most situations and we have test coverage.
-    llvm_unreachable("Unsupported return type for now");
-  }
+  } // Above cases should cover most situations and we have test coverage.
+  llvm_unreachable("Unsupported return type for now");
 }
 
 mlir::Value buildNeonCall(unsigned int builtinID, CIRGenFunction &cgf,
@@ -2189,12 +2185,11 @@ mlir::Value buildNeonCall(unsigned int builtinID, CIRGenFunction &cgf,
   if (isConstrainedFPIntrinsic) {
     assert(!MissingFeatures::buildConstrainedFPCall());
     return nullptr;
-  } else {
-    return builder
-        .create<mlir::cir::IntrinsicCallOp>(
-            loc, builder.getStringAttr(intrinsicName), funcResTy, args)
-        .getResult();
   }
+  return builder
+      .create<mlir::cir::IntrinsicCallOp>(
+          loc, builder.getStringAttr(intrinsicName), funcResTy, args)
+      .getResult();
 }
 
 mlir::Value CIRGenFunction::buildCommonNeonBuiltinExpr(
@@ -2218,7 +2213,7 @@ mlir::Value CIRGenFunction::buildCommonNeonBuiltinExpr(
   const bool allowBFloatArgsAndRet =
       getTargetHooks().getABIInfo().allowBFloatArgsAndRet();
 
-  mlir::cir::VectorType vTy = GetNeonType(this, neonType, hasLegalHalfType,
+  mlir::cir::VectorType vTy = getNeonType(this, neonType, hasLegalHalfType,
                                           false, allowBFloatArgsAndRet);
   mlir::Type ty = vTy;
   if (!ty)
@@ -2264,119 +2259,118 @@ mlir::Value CIRGenFunction::buildCommonNeonBuiltinExpr(
   return nullptr;
 }
 
-mlir::Value
-CIRGenFunction::buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
-                                        ReturnValueSlot ReturnValue,
-                                        llvm::Triple::ArchType Arch) {
-  if (BuiltinID >= clang::AArch64::FirstSVEBuiltin &&
-      BuiltinID <= clang::AArch64::LastSVEBuiltin)
-    return buildAArch64SVEBuiltinExpr(BuiltinID, E);
+mlir::Value CIRGenFunction::buildAArch64BuiltinExpr(
+    unsigned builtinId, const CallExpr *callExpr, ReturnValueSlot returnValue,
+    llvm::Triple::ArchType arch) {
+  if (builtinId >= clang::AArch64::FirstSVEBuiltin &&
+      builtinId <= clang::AArch64::LastSVEBuiltin)
+    return buildAArch64SVEBuiltinExpr(builtinId, callExpr);
 
-  if (BuiltinID >= clang::AArch64::FirstSMEBuiltin &&
-      BuiltinID <= clang::AArch64::LastSMEBuiltin)
-    return buildAArch64SMEBuiltinExpr(BuiltinID, E);
+  if (builtinId >= clang::AArch64::FirstSMEBuiltin &&
+      builtinId <= clang::AArch64::LastSMEBuiltin)
+    return buildAArch64SMEBuiltinExpr(builtinId, callExpr);
 
-  if (BuiltinID == Builtin::BI__builtin_cpu_supports)
+  if (builtinId == Builtin::BI__builtin_cpu_supports)
     llvm_unreachable("NYI");
 
-  unsigned HintID = static_cast<unsigned>(-1);
-  switch (BuiltinID) {
+  unsigned hintId = static_cast<unsigned>(-1);
+  switch (builtinId) {
   default:
     break;
   case clang::AArch64::BI__builtin_arm_nop:
-    HintID = 0;
+    hintId = 0;
     break;
   case clang::AArch64::BI__builtin_arm_yield:
   case clang::AArch64::BI__yield:
-    HintID = 1;
+    hintId = 1;
     break;
   case clang::AArch64::BI__builtin_arm_wfe:
   case clang::AArch64::BI__wfe:
-    HintID = 2;
+    hintId = 2;
     break;
   case clang::AArch64::BI__builtin_arm_wfi:
   case clang::AArch64::BI__wfi:
-    HintID = 3;
+    hintId = 3;
     break;
   case clang::AArch64::BI__builtin_arm_sev:
   case clang::AArch64::BI__sev:
-    HintID = 4;
+    hintId = 4;
     break;
   case clang::AArch64::BI__builtin_arm_sevl:
   case clang::AArch64::BI__sevl:
-    HintID = 5;
+    hintId = 5;
     break;
   }
 
-  if (HintID != static_cast<unsigned>(-1)) {
+  if (hintId != static_cast<unsigned>(-1)) {
     llvm_unreachable("NYI");
   }
 
-  if (BuiltinID == clang::AArch64::BI__builtin_arm_trap) {
+  if (builtinId == clang::AArch64::BI__builtin_arm_trap) {
     llvm_unreachable("NYI");
   }
 
-  if (BuiltinID == clang::AArch64::BI__builtin_arm_get_sme_state) {
+  if (builtinId == clang::AArch64::BI__builtin_arm_get_sme_state) {
     // Create call to __arm_sme_state and store the results to the two pointers.
     llvm_unreachable("NYI");
   }
 
-  if (BuiltinID == clang::AArch64::BI__builtin_arm_rbit) {
-    assert((getContext().getTypeSize(E->getType()) == 32) &&
+  if (builtinId == clang::AArch64::BI__builtin_arm_rbit) {
+    assert((getContext().getTypeSize(callExpr->getType()) == 32) &&
            "rbit of unusual size!");
     llvm_unreachable("NYI");
   }
-  if (BuiltinID == clang::AArch64::BI__builtin_arm_rbit64) {
-    assert((getContext().getTypeSize(E->getType()) == 64) &&
+  if (builtinId == clang::AArch64::BI__builtin_arm_rbit64) {
+    assert((getContext().getTypeSize(callExpr->getType()) == 64) &&
            "rbit of unusual size!");
     llvm_unreachable("NYI");
   }
 
-  if (BuiltinID == clang::AArch64::BI__builtin_arm_clz ||
-      BuiltinID == clang::AArch64::BI__builtin_arm_clz64) {
+  if (builtinId == clang::AArch64::BI__builtin_arm_clz ||
+      builtinId == clang::AArch64::BI__builtin_arm_clz64) {
     llvm_unreachable("NYI");
   }
 
-  if (BuiltinID == clang::AArch64::BI__builtin_arm_cls) {
+  if (builtinId == clang::AArch64::BI__builtin_arm_cls) {
     llvm_unreachable("NYI");
   }
-  if (BuiltinID == clang::AArch64::BI__builtin_arm_cls64) {
-    llvm_unreachable("NYI");
-  }
-
-  if (BuiltinID == clang::AArch64::BI__builtin_arm_rint32zf ||
-      BuiltinID == clang::AArch64::BI__builtin_arm_rint32z) {
+  if (builtinId == clang::AArch64::BI__builtin_arm_cls64) {
     llvm_unreachable("NYI");
   }
 
-  if (BuiltinID == clang::AArch64::BI__builtin_arm_rint64zf ||
-      BuiltinID == clang::AArch64::BI__builtin_arm_rint64z) {
+  if (builtinId == clang::AArch64::BI__builtin_arm_rint32zf ||
+      builtinId == clang::AArch64::BI__builtin_arm_rint32z) {
     llvm_unreachable("NYI");
   }
 
-  if (BuiltinID == clang::AArch64::BI__builtin_arm_rint32xf ||
-      BuiltinID == clang::AArch64::BI__builtin_arm_rint32x) {
+  if (builtinId == clang::AArch64::BI__builtin_arm_rint64zf ||
+      builtinId == clang::AArch64::BI__builtin_arm_rint64z) {
     llvm_unreachable("NYI");
   }
 
-  if (BuiltinID == clang::AArch64::BI__builtin_arm_rint64xf ||
-      BuiltinID == clang::AArch64::BI__builtin_arm_rint64x) {
+  if (builtinId == clang::AArch64::BI__builtin_arm_rint32xf ||
+      builtinId == clang::AArch64::BI__builtin_arm_rint32x) {
     llvm_unreachable("NYI");
   }
 
-  if (BuiltinID == clang::AArch64::BI__builtin_arm_jcvt) {
-    assert((getContext().getTypeSize(E->getType()) == 32) &&
+  if (builtinId == clang::AArch64::BI__builtin_arm_rint64xf ||
+      builtinId == clang::AArch64::BI__builtin_arm_rint64x) {
+    llvm_unreachable("NYI");
+  }
+
+  if (builtinId == clang::AArch64::BI__builtin_arm_jcvt) {
+    assert((getContext().getTypeSize(callExpr->getType()) == 32) &&
            "__jcvt of unusual size!");
     llvm_unreachable("NYI");
   }
 
-  if (BuiltinID == clang::AArch64::BI__builtin_arm_ld64b ||
-      BuiltinID == clang::AArch64::BI__builtin_arm_st64b ||
-      BuiltinID == clang::AArch64::BI__builtin_arm_st64bv ||
-      BuiltinID == clang::AArch64::BI__builtin_arm_st64bv0) {
+  if (builtinId == clang::AArch64::BI__builtin_arm_ld64b ||
+      builtinId == clang::AArch64::BI__builtin_arm_st64b ||
+      builtinId == clang::AArch64::BI__builtin_arm_st64bv ||
+      builtinId == clang::AArch64::BI__builtin_arm_st64bv0) {
     llvm_unreachable("NYI");
 
-    if (BuiltinID == clang::AArch64::BI__builtin_arm_ld64b) {
+    if (builtinId == clang::AArch64::BI__builtin_arm_ld64b) {
       // Load from the address via an LLVM intrinsic, receiving a
       // tuple of 8 i64 words, and store each one to ValPtr.
       llvm_unreachable("NYI");
@@ -2387,55 +2381,55 @@ CIRGenFunction::buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
     }
   }
 
-  if (BuiltinID == clang::AArch64::BI__builtin_arm_rndr ||
-      BuiltinID == clang::AArch64::BI__builtin_arm_rndrrs) {
+  if (builtinId == clang::AArch64::BI__builtin_arm_rndr ||
+      builtinId == clang::AArch64::BI__builtin_arm_rndrrs) {
     llvm_unreachable("NYI");
   }
 
-  if (BuiltinID == clang::AArch64::BI__clear_cache) {
-    assert(E->getNumArgs() == 2 && "__clear_cache takes 2 arguments");
+  if (builtinId == clang::AArch64::BI__clear_cache) {
+    assert(callExpr->getNumArgs() == 2 && "__clear_cache takes 2 arguments");
     llvm_unreachable("NYI");
   }
 
-  if ((BuiltinID == clang::AArch64::BI__builtin_arm_ldrex ||
-       BuiltinID == clang::AArch64::BI__builtin_arm_ldaex) &&
-      getContext().getTypeSize(E->getType()) == 128) {
+  if ((builtinId == clang::AArch64::BI__builtin_arm_ldrex ||
+       builtinId == clang::AArch64::BI__builtin_arm_ldaex) &&
+      getContext().getTypeSize(callExpr->getType()) == 128) {
     llvm_unreachable("NYI");
-  } else if (BuiltinID == clang::AArch64::BI__builtin_arm_ldrex ||
-             BuiltinID == clang::AArch64::BI__builtin_arm_ldaex) {
-    return buildArmLdrexNon128Intrinsic(BuiltinID, E, *this);
+  } else if (builtinId == clang::AArch64::BI__builtin_arm_ldrex ||
+             builtinId == clang::AArch64::BI__builtin_arm_ldaex) {
+    return buildArmLdrexNon128Intrinsic(builtinId, callExpr, *this);
   }
 
-  if ((BuiltinID == clang::AArch64::BI__builtin_arm_strex ||
-       BuiltinID == clang::AArch64::BI__builtin_arm_stlex) &&
-      getContext().getTypeSize(E->getArg(0)->getType()) == 128) {
-    llvm_unreachable("NYI");
-  }
-
-  if (BuiltinID == clang::AArch64::BI__builtin_arm_strex ||
-      BuiltinID == clang::AArch64::BI__builtin_arm_stlex) {
+  if ((builtinId == clang::AArch64::BI__builtin_arm_strex ||
+       builtinId == clang::AArch64::BI__builtin_arm_stlex) &&
+      getContext().getTypeSize(callExpr->getArg(0)->getType()) == 128) {
     llvm_unreachable("NYI");
   }
 
-  if (BuiltinID == clang::AArch64::BI__getReg) {
+  if (builtinId == clang::AArch64::BI__builtin_arm_strex ||
+      builtinId == clang::AArch64::BI__builtin_arm_stlex) {
     llvm_unreachable("NYI");
   }
 
-  if (BuiltinID == clang::AArch64::BI__break) {
+  if (builtinId == clang::AArch64::BI__getReg) {
     llvm_unreachable("NYI");
   }
 
-  if (BuiltinID == clang::AArch64::BI__builtin_arm_clrex) {
+  if (builtinId == clang::AArch64::BI__break) {
     llvm_unreachable("NYI");
   }
 
-  if (BuiltinID == clang::AArch64::BI_ReadWriteBarrier)
+  if (builtinId == clang::AArch64::BI__builtin_arm_clrex) {
+    llvm_unreachable("NYI");
+  }
+
+  if (builtinId == clang::AArch64::BI_ReadWriteBarrier)
     llvm_unreachable("NYI");
 
   // CRC32
   // FIXME(cir): get rid of LLVM when this gets implemented.
-  llvm::Intrinsic::ID CRCIntrinsicID = llvm::Intrinsic::not_intrinsic;
-  switch (BuiltinID) {
+  llvm::Intrinsic::ID crcIntrinsicId = llvm::Intrinsic::not_intrinsic;
+  switch (builtinId) {
   case clang::AArch64::BI__builtin_arm_crc32b:
   case clang::AArch64::BI__builtin_arm_crc32cb:
   case clang::AArch64::BI__builtin_arm_crc32h:
@@ -2447,19 +2441,19 @@ CIRGenFunction::buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
     llvm_unreachable("NYI");
   }
 
-  if (CRCIntrinsicID != llvm::Intrinsic::not_intrinsic) {
+  if (crcIntrinsicId != llvm::Intrinsic::not_intrinsic) {
     llvm_unreachable("NYI");
   }
 
   // Memory Operations (MOPS)
-  if (BuiltinID == AArch64::BI__builtin_arm_mops_memset_tag) {
+  if (builtinId == AArch64::BI__builtin_arm_mops_memset_tag) {
     llvm_unreachable("NYI");
   }
 
   // Memory Tagging Extensions (MTE) Intrinsics
   // FIXME(cir): get rid of LLVM when this gets implemented.
-  llvm::Intrinsic::ID MTEIntrinsicID = llvm::Intrinsic::not_intrinsic;
-  switch (BuiltinID) {
+  llvm::Intrinsic::ID mteIntrinsicId = llvm::Intrinsic::not_intrinsic;
+  switch (builtinId) {
   case clang::AArch64::BI__builtin_arm_irg:
   case clang::AArch64::BI__builtin_arm_addg:
   case clang::AArch64::BI__builtin_arm_gmi:
@@ -2469,40 +2463,40 @@ CIRGenFunction::buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
     llvm_unreachable("NYI");
   }
 
-  if (MTEIntrinsicID != llvm::Intrinsic::not_intrinsic) {
+  if (mteIntrinsicId != llvm::Intrinsic::not_intrinsic) {
     llvm_unreachable("NYI");
   }
 
-  if (BuiltinID == clang::AArch64::BI__builtin_arm_rsr ||
-      BuiltinID == clang::AArch64::BI__builtin_arm_rsr64 ||
-      BuiltinID == clang::AArch64::BI__builtin_arm_rsr128 ||
-      BuiltinID == clang::AArch64::BI__builtin_arm_rsrp ||
-      BuiltinID == clang::AArch64::BI__builtin_arm_wsr ||
-      BuiltinID == clang::AArch64::BI__builtin_arm_wsr64 ||
-      BuiltinID == clang::AArch64::BI__builtin_arm_wsr128 ||
-      BuiltinID == clang::AArch64::BI__builtin_arm_wsrp) {
+  if (builtinId == clang::AArch64::BI__builtin_arm_rsr ||
+      builtinId == clang::AArch64::BI__builtin_arm_rsr64 ||
+      builtinId == clang::AArch64::BI__builtin_arm_rsr128 ||
+      builtinId == clang::AArch64::BI__builtin_arm_rsrp ||
+      builtinId == clang::AArch64::BI__builtin_arm_wsr ||
+      builtinId == clang::AArch64::BI__builtin_arm_wsr64 ||
+      builtinId == clang::AArch64::BI__builtin_arm_wsr128 ||
+      builtinId == clang::AArch64::BI__builtin_arm_wsrp) {
 
     llvm_unreachable("NYI");
-    if (BuiltinID == clang::AArch64::BI__builtin_arm_rsr ||
-        BuiltinID == clang::AArch64::BI__builtin_arm_rsr64 ||
-        BuiltinID == clang::AArch64::BI__builtin_arm_rsr128 ||
-        BuiltinID == clang::AArch64::BI__builtin_arm_rsrp)
+    if (builtinId == clang::AArch64::BI__builtin_arm_rsr ||
+        builtinId == clang::AArch64::BI__builtin_arm_rsr64 ||
+        builtinId == clang::AArch64::BI__builtin_arm_rsr128 ||
+        builtinId == clang::AArch64::BI__builtin_arm_rsrp)
       llvm_unreachable("NYI");
 
-    bool IsPointerBuiltin = BuiltinID == clang::AArch64::BI__builtin_arm_rsrp ||
-                            BuiltinID == clang::AArch64::BI__builtin_arm_wsrp;
+    bool isPointerBuiltin = builtinId == clang::AArch64::BI__builtin_arm_rsrp ||
+                            builtinId == clang::AArch64::BI__builtin_arm_wsrp;
 
-    bool Is32Bit = BuiltinID == clang::AArch64::BI__builtin_arm_rsr ||
-                   BuiltinID == clang::AArch64::BI__builtin_arm_wsr;
+    bool is32Bit = builtinId == clang::AArch64::BI__builtin_arm_rsr ||
+                   builtinId == clang::AArch64::BI__builtin_arm_wsr;
 
-    bool Is128Bit = BuiltinID == clang::AArch64::BI__builtin_arm_rsr128 ||
-                    BuiltinID == clang::AArch64::BI__builtin_arm_wsr128;
+    bool is128Bit = builtinId == clang::AArch64::BI__builtin_arm_rsr128 ||
+                    builtinId == clang::AArch64::BI__builtin_arm_wsr128;
 
-    if (Is32Bit) {
+    if (is32Bit) {
       llvm_unreachable("NYI");
-    } else if (Is128Bit) {
+    } else if (is128Bit) {
       llvm_unreachable("NYI");
-    } else if (IsPointerBuiltin) {
+    } else if (isPointerBuiltin) {
       llvm_unreachable("NYI");
     } else {
       llvm_unreachable("NYI");
@@ -2511,98 +2505,98 @@ CIRGenFunction::buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
     llvm_unreachable("NYI");
   }
 
-  if (BuiltinID == clang::AArch64::BI__builtin_sponentry) {
+  if (builtinId == clang::AArch64::BI__builtin_sponentry) {
     llvm_unreachable("NYI");
   }
 
-  if (BuiltinID == clang::AArch64::BI_ReadStatusReg ||
-      BuiltinID == clang::AArch64::BI_WriteStatusReg) {
+  if (builtinId == clang::AArch64::BI_ReadStatusReg ||
+      builtinId == clang::AArch64::BI_WriteStatusReg) {
     llvm_unreachable("NYI");
   }
 
-  if (BuiltinID == clang::AArch64::BI_AddressOfReturnAddress) {
+  if (builtinId == clang::AArch64::BI_AddressOfReturnAddress) {
     llvm_unreachable("NYI");
   }
 
-  if (BuiltinID == clang::AArch64::BI__mulh ||
-      BuiltinID == clang::AArch64::BI__umulh) {
+  if (builtinId == clang::AArch64::BI__mulh ||
+      builtinId == clang::AArch64::BI__umulh) {
     llvm_unreachable("NYI");
   }
 
-  if (BuiltinID == AArch64::BI__writex18byte ||
-      BuiltinID == AArch64::BI__writex18word ||
-      BuiltinID == AArch64::BI__writex18dword ||
-      BuiltinID == AArch64::BI__writex18qword) {
+  if (builtinId == AArch64::BI__writex18byte ||
+      builtinId == AArch64::BI__writex18word ||
+      builtinId == AArch64::BI__writex18dword ||
+      builtinId == AArch64::BI__writex18qword) {
     // Read x18 as i8*
     llvm_unreachable("NYI");
   }
 
-  if (BuiltinID == AArch64::BI__readx18byte ||
-      BuiltinID == AArch64::BI__readx18word ||
-      BuiltinID == AArch64::BI__readx18dword ||
-      BuiltinID == AArch64::BI__readx18qword) {
+  if (builtinId == AArch64::BI__readx18byte ||
+      builtinId == AArch64::BI__readx18word ||
+      builtinId == AArch64::BI__readx18dword ||
+      builtinId == AArch64::BI__readx18qword) {
     llvm_unreachable("NYI");
   }
 
-  if (BuiltinID == AArch64::BI_CopyDoubleFromInt64 ||
-      BuiltinID == AArch64::BI_CopyFloatFromInt32 ||
-      BuiltinID == AArch64::BI_CopyInt32FromFloat ||
-      BuiltinID == AArch64::BI_CopyInt64FromDouble) {
+  if (builtinId == AArch64::BI_CopyDoubleFromInt64 ||
+      builtinId == AArch64::BI_CopyFloatFromInt32 ||
+      builtinId == AArch64::BI_CopyInt32FromFloat ||
+      builtinId == AArch64::BI_CopyInt64FromDouble) {
     llvm_unreachable("NYI");
   }
 
-  if (BuiltinID == AArch64::BI_CountLeadingOnes ||
-      BuiltinID == AArch64::BI_CountLeadingOnes64 ||
-      BuiltinID == AArch64::BI_CountLeadingZeros ||
-      BuiltinID == AArch64::BI_CountLeadingZeros64) {
+  if (builtinId == AArch64::BI_CountLeadingOnes ||
+      builtinId == AArch64::BI_CountLeadingOnes64 ||
+      builtinId == AArch64::BI_CountLeadingZeros ||
+      builtinId == AArch64::BI_CountLeadingZeros64) {
     llvm_unreachable("NYI");
 
-    if (BuiltinID == AArch64::BI_CountLeadingOnes ||
-        BuiltinID == AArch64::BI_CountLeadingOnes64)
+    if (builtinId == AArch64::BI_CountLeadingOnes ||
+        builtinId == AArch64::BI_CountLeadingOnes64)
       llvm_unreachable("NYI");
 
     llvm_unreachable("NYI");
   }
 
-  if (BuiltinID == AArch64::BI_CountLeadingSigns ||
-      BuiltinID == AArch64::BI_CountLeadingSigns64) {
+  if (builtinId == AArch64::BI_CountLeadingSigns ||
+      builtinId == AArch64::BI_CountLeadingSigns64) {
     llvm_unreachable("NYI");
   }
 
-  if (BuiltinID == AArch64::BI_CountOneBits ||
-      BuiltinID == AArch64::BI_CountOneBits64) {
+  if (builtinId == AArch64::BI_CountOneBits ||
+      builtinId == AArch64::BI_CountOneBits64) {
     llvm_unreachable("NYI");
   }
 
-  if (BuiltinID == AArch64::BI__prefetch) {
+  if (builtinId == AArch64::BI__prefetch) {
     llvm_unreachable("NYI");
   }
 
   // Handle MSVC intrinsics before argument evaluation to prevent double
   // evaluation.
-  if (std::optional<CIRGenFunction::MSVCIntrin> MsvcIntId =
-          translateAarch64ToMsvcIntrin(BuiltinID))
+  if (std::optional<CIRGenFunction::MSVCIntrin> msvcIntId =
+          translateAarch64ToMsvcIntrin(builtinId))
     llvm_unreachable("NYI");
 
   // Some intrinsics are equivalent - if they are use the base intrinsic ID.
-  auto It = llvm::find_if(NEONEquivalentIntrinsicMap, [BuiltinID](auto &P) {
-    return P.first == BuiltinID;
-  });
-  if (It != end(NEONEquivalentIntrinsicMap))
-    BuiltinID = It->second;
+  const auto *it =
+      llvm::find_if(neonEquivalentIntrinsicMap,
+                    [builtinId](auto &p) { return p.first == builtinId; });
+  if (it != end(neonEquivalentIntrinsicMap))
+    builtinId = it->second;
 
   // Find out if any arguments are required to be integer constant
   // expressions.
-  unsigned ICEArguments = 0;
-  ASTContext::GetBuiltinTypeError Error;
-  getContext().GetBuiltinType(BuiltinID, Error, &ICEArguments);
-  assert(Error == ASTContext::GE_None && "Should not codegen an error");
+  unsigned iceArguments = 0;
+  ASTContext::GetBuiltinTypeError error;
+  getContext().GetBuiltinType(builtinId, error, &iceArguments);
+  assert(error == ASTContext::GE_None && "Should not codegen an error");
 
-  llvm::SmallVector<mlir::Value, 4> Ops;
-  Address PtrOp0 = Address::invalid();
-  for (unsigned i = 0, e = E->getNumArgs() - 1; i != e; i++) {
+  llvm::SmallVector<mlir::Value, 4> ops;
+  Address ptrOp0 = Address::invalid();
+  for (unsigned i = 0, e = callExpr->getNumArgs() - 1; i != e; i++) {
     if (i == 0) {
-      switch (BuiltinID) {
+      switch (builtinId) {
       case NEON::BI__builtin_neon_vld1_v:
       case NEON::BI__builtin_neon_vld1q_v:
       case NEON::BI__builtin_neon_vld1_dup_v:
@@ -2619,33 +2613,33 @@ CIRGenFunction::buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
       case NEON::BI__builtin_neon_vstl1q_lane_s64:
         // Get the alignment for the argument in addition to the value;
         // we'll use it later.
-        PtrOp0 = buildPointerWithAlignment(E->getArg(0));
-        Ops.push_back(PtrOp0.emitRawPointer());
+        ptrOp0 = buildPointerWithAlignment(callExpr->getArg(0));
+        ops.push_back(ptrOp0.emitRawPointer());
         continue;
       }
     }
-    Ops.push_back(buildScalarOrConstFoldImmArg(ICEArguments, i, E));
+    ops.push_back(buildScalarOrConstFoldImmArg(iceArguments, i, callExpr));
   }
 
-  auto SISDMap = ArrayRef(AArch64SISDIntrinsicMap);
-  const ARMVectorIntrinsicInfo *Builtin = findARMVectorIntrinsicInMap(
-      SISDMap, BuiltinID, AArch64SISDIntrinsicsProvenSorted);
+  auto sisdMap = ArrayRef(aArch64SisdIntrinsicMap);
+  const ARMVectorIntrinsicInfo *builtin = findARMVectorIntrinsicInMap(
+      sisdMap, builtinId, aArch64SisdIntrinsicsProvenSorted);
 
-  if (Builtin) {
+  if (builtin) {
     llvm_unreachable("NYI");
   }
 
-  const Expr *Arg = E->getArg(E->getNumArgs() - 1);
-  NeonTypeFlags Type(0);
-  if (std::optional<llvm::APSInt> Result =
-          Arg->getIntegerConstantExpr(getContext()))
+  const Expr *arg = callExpr->getArg(callExpr->getNumArgs() - 1);
+  NeonTypeFlags type(0);
+  if (std::optional<llvm::APSInt> result =
+          arg->getIntegerConstantExpr(getContext()))
     // Determine the type of this overloaded NEON intrinsic.
-    Type = NeonTypeFlags(Result->getZExtValue());
+    type = NeonTypeFlags(result->getZExtValue());
 
-  bool usgn = Type.isUnsigned();
+  bool usgn = type.isUnsigned();
 
   // Handle non-overloaded intrinsics first.
-  switch (BuiltinID) {
+  switch (builtinId) {
   default:
     break;
   case NEON::BI__builtin_neon_vabsh_f16:
@@ -2792,9 +2786,9 @@ CIRGenFunction::buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   case NEON::BI__builtin_neon_vsetq_lane_i32:
   case NEON::BI__builtin_neon_vsetq_lane_i64:
   case NEON::BI__builtin_neon_vsetq_lane_f32:
-    Ops.push_back(buildScalarExpr(E->getArg(2)));
-    return builder.create<mlir::cir::VecInsertOp>(getLoc(E->getExprLoc()),
-                                                  Ops[1], Ops[0], Ops[2]);
+    ops.push_back(buildScalarExpr(callExpr->getArg(2)));
+    return builder.create<mlir::cir::VecInsertOp>(
+        getLoc(callExpr->getExprLoc()), ops[1], ops[0], ops[2]);
   case NEON::BI__builtin_neon_vset_lane_bf16:
   case NEON::BI__builtin_neon_vsetq_lane_bf16:
     // No support for now as no real/test case for them
@@ -2810,76 +2804,88 @@ CIRGenFunction::buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
 
   case NEON::BI__builtin_neon_vget_lane_i8:
   case NEON::BI__builtin_neon_vdupb_lane_i8:
-    Ops[0] = builder.createBitcast(
-        Ops[0], mlir::cir::VectorType::get(builder.getContext(), UInt8Ty, 8));
+    ops[0] = builder.createBitcast(
+        ops[0], mlir::cir::VectorType::get(builder.getContext(), UInt8Ty, 8));
     return builder.create<mlir::cir::VecExtractOp>(
-        getLoc(E->getExprLoc()), Ops[0], buildScalarExpr(E->getArg(1)));
+        getLoc(callExpr->getExprLoc()), ops[0],
+        buildScalarExpr(callExpr->getArg(1)));
   case NEON::BI__builtin_neon_vgetq_lane_i8:
   case NEON::BI__builtin_neon_vdupb_laneq_i8:
-    Ops[0] = builder.createBitcast(
-        Ops[0], mlir::cir::VectorType::get(builder.getContext(), UInt8Ty, 16));
+    ops[0] = builder.createBitcast(
+        ops[0], mlir::cir::VectorType::get(builder.getContext(), UInt8Ty, 16));
     return builder.create<mlir::cir::VecExtractOp>(
-        getLoc(E->getExprLoc()), Ops[0], buildScalarExpr(E->getArg(1)));
+        getLoc(callExpr->getExprLoc()), ops[0],
+        buildScalarExpr(callExpr->getArg(1)));
   case NEON::BI__builtin_neon_vget_lane_i16:
   case NEON::BI__builtin_neon_vduph_lane_i16:
-    Ops[0] = builder.createBitcast(
-        Ops[0], mlir::cir::VectorType::get(builder.getContext(), UInt16Ty, 4));
+    ops[0] = builder.createBitcast(
+        ops[0], mlir::cir::VectorType::get(builder.getContext(), UInt16Ty, 4));
     return builder.create<mlir::cir::VecExtractOp>(
-        getLoc(E->getExprLoc()), Ops[0], buildScalarExpr(E->getArg(1)));
+        getLoc(callExpr->getExprLoc()), ops[0],
+        buildScalarExpr(callExpr->getArg(1)));
   case NEON::BI__builtin_neon_vgetq_lane_i16:
   case NEON::BI__builtin_neon_vduph_laneq_i16:
-    Ops[0] = builder.createBitcast(
-        Ops[0], mlir::cir::VectorType::get(builder.getContext(), UInt16Ty, 8));
+    ops[0] = builder.createBitcast(
+        ops[0], mlir::cir::VectorType::get(builder.getContext(), UInt16Ty, 8));
     return builder.create<mlir::cir::VecExtractOp>(
-        getLoc(E->getExprLoc()), Ops[0], buildScalarExpr(E->getArg(1)));
+        getLoc(callExpr->getExprLoc()), ops[0],
+        buildScalarExpr(callExpr->getArg(1)));
   case NEON::BI__builtin_neon_vget_lane_i32:
   case NEON::BI__builtin_neon_vdups_lane_i32:
-    Ops[0] = builder.createBitcast(
-        Ops[0], mlir::cir::VectorType::get(builder.getContext(), UInt32Ty, 2));
+    ops[0] = builder.createBitcast(
+        ops[0], mlir::cir::VectorType::get(builder.getContext(), UInt32Ty, 2));
     return builder.create<mlir::cir::VecExtractOp>(
-        getLoc(E->getExprLoc()), Ops[0], buildScalarExpr(E->getArg(1)));
+        getLoc(callExpr->getExprLoc()), ops[0],
+        buildScalarExpr(callExpr->getArg(1)));
   case NEON::BI__builtin_neon_vget_lane_f32:
   case NEON::BI__builtin_neon_vdups_lane_f32:
-    Ops[0] = builder.createBitcast(
-        Ops[0], mlir::cir::VectorType::get(builder.getContext(), FloatTy, 2));
+    ops[0] = builder.createBitcast(
+        ops[0], mlir::cir::VectorType::get(builder.getContext(), FloatTy, 2));
     return builder.create<mlir::cir::VecExtractOp>(
-        getLoc(E->getExprLoc()), Ops[0], buildScalarExpr(E->getArg(1)));
+        getLoc(callExpr->getExprLoc()), ops[0],
+        buildScalarExpr(callExpr->getArg(1)));
   case NEON::BI__builtin_neon_vgetq_lane_i32:
   case NEON::BI__builtin_neon_vdups_laneq_i32:
-    Ops[0] = builder.createBitcast(
-        Ops[0], mlir::cir::VectorType::get(builder.getContext(), UInt32Ty, 4));
+    ops[0] = builder.createBitcast(
+        ops[0], mlir::cir::VectorType::get(builder.getContext(), UInt32Ty, 4));
     return builder.create<mlir::cir::VecExtractOp>(
-        getLoc(E->getExprLoc()), Ops[0], buildScalarExpr(E->getArg(1)));
+        getLoc(callExpr->getExprLoc()), ops[0],
+        buildScalarExpr(callExpr->getArg(1)));
   case NEON::BI__builtin_neon_vget_lane_i64:
   case NEON::BI__builtin_neon_vdupd_lane_i64:
-    Ops[0] = builder.createBitcast(
-        Ops[0], mlir::cir::VectorType::get(builder.getContext(), UInt64Ty, 1));
+    ops[0] = builder.createBitcast(
+        ops[0], mlir::cir::VectorType::get(builder.getContext(), UInt64Ty, 1));
     return builder.create<mlir::cir::VecExtractOp>(
-        getLoc(E->getExprLoc()), Ops[0], buildScalarExpr(E->getArg(1)));
+        getLoc(callExpr->getExprLoc()), ops[0],
+        buildScalarExpr(callExpr->getArg(1)));
   case NEON::BI__builtin_neon_vdupd_lane_f64:
   case NEON::BI__builtin_neon_vget_lane_f64:
-    Ops[0] = builder.createBitcast(
-        Ops[0], mlir::cir::VectorType::get(builder.getContext(), DoubleTy, 1));
+    ops[0] = builder.createBitcast(
+        ops[0], mlir::cir::VectorType::get(builder.getContext(), DoubleTy, 1));
     return builder.create<mlir::cir::VecExtractOp>(
-        getLoc(E->getExprLoc()), Ops[0], buildScalarExpr(E->getArg(1)));
+        getLoc(callExpr->getExprLoc()), ops[0],
+        buildScalarExpr(callExpr->getArg(1)));
   case NEON::BI__builtin_neon_vgetq_lane_i64:
   case NEON::BI__builtin_neon_vdupd_laneq_i64:
-    Ops[0] = builder.createBitcast(
-        Ops[0], mlir::cir::VectorType::get(builder.getContext(), UInt64Ty, 2));
+    ops[0] = builder.createBitcast(
+        ops[0], mlir::cir::VectorType::get(builder.getContext(), UInt64Ty, 2));
     return builder.create<mlir::cir::VecExtractOp>(
-        getLoc(E->getExprLoc()), Ops[0], buildScalarExpr(E->getArg(1)));
+        getLoc(callExpr->getExprLoc()), ops[0],
+        buildScalarExpr(callExpr->getArg(1)));
   case NEON::BI__builtin_neon_vgetq_lane_f32:
   case NEON::BI__builtin_neon_vdups_laneq_f32:
-    Ops[0] = builder.createBitcast(
-        Ops[0], mlir::cir::VectorType::get(builder.getContext(), FloatTy, 4));
+    ops[0] = builder.createBitcast(
+        ops[0], mlir::cir::VectorType::get(builder.getContext(), FloatTy, 4));
     return builder.create<mlir::cir::VecExtractOp>(
-        getLoc(E->getExprLoc()), Ops[0], buildScalarExpr(E->getArg(1)));
+        getLoc(callExpr->getExprLoc()), ops[0],
+        buildScalarExpr(callExpr->getArg(1)));
   case NEON::BI__builtin_neon_vgetq_lane_f64:
   case NEON::BI__builtin_neon_vdupd_laneq_f64:
-    Ops[0] = builder.createBitcast(
-        Ops[0], mlir::cir::VectorType::get(builder.getContext(), DoubleTy, 2));
+    ops[0] = builder.createBitcast(
+        ops[0], mlir::cir::VectorType::get(builder.getContext(), DoubleTy, 2));
     return builder.create<mlir::cir::VecExtractOp>(
-        getLoc(E->getExprLoc()), Ops[0], buildScalarExpr(E->getArg(1)));
+        getLoc(callExpr->getExprLoc()), ops[0],
+        buildScalarExpr(callExpr->getArg(1)));
   case NEON::BI__builtin_neon_vaddh_f16:
     llvm_unreachable("NYI");
   case NEON::BI__builtin_neon_vsubh_f16:
@@ -2968,27 +2974,27 @@ CIRGenFunction::buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   }
   }
 
-  mlir::cir::VectorType Ty = GetNeonType(this, Type);
-  if (!Ty)
+  mlir::cir::VectorType ty = getNeonType(this, type);
+  if (!ty)
     return nullptr;
 
   // Not all intrinsics handled by the common case work for AArch64 yet, so only
   // defer to common code if it's been added to our special map.
-  Builtin = findARMVectorIntrinsicInMap(AArch64SIMDIntrinsicMap, BuiltinID,
-                                        AArch64SIMDIntrinsicsProvenSorted);
-  if (Builtin)
+  builtin = findARMVectorIntrinsicInMap(aArch64SimdIntrinsicMap, builtinId,
+                                        aArch64SimdIntrinsicsProvenSorted);
+  if (builtin)
     return buildCommonNeonBuiltinExpr(
-        Builtin->BuiltinID, Builtin->LLVMIntrinsic, Builtin->AltLLVMIntrinsic,
-        Builtin->NameHint, Builtin->TypeModifier, E, Ops,
-        /*never use addresses*/ Address::invalid(), Address::invalid(), Arch);
+        builtin->builtinId, builtin->llvmIntrinsic, builtin->altLlvmIntrinsic,
+        builtin->nameHint, builtin->typeModifier, callExpr, ops,
+        /*never use addresses*/ Address::invalid(), Address::invalid(), arch);
 
-  if (mlir::Value V =
-          buildAArch64TblBuiltinExpr(*this, BuiltinID, E, Ops, Arch))
-    return V;
+  if (mlir::Value v =
+          buildAArch64TblBuiltinExpr(*this, builtinId, callExpr, ops, arch))
+    return v;
 
-  mlir::cir::VectorType VTy = Ty;
+  mlir::cir::VectorType vTy = ty;
   llvm::SmallVector<mlir::Value, 4> args;
-  switch (BuiltinID) {
+  switch (builtinId) {
   default:
     return nullptr;
   case NEON::BI__builtin_neon_vbsl_v:
@@ -3065,9 +3071,9 @@ CIRGenFunction::buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
     // The prototype of builtin_neon_vqrshrun_n can be found at
     // https://developer.arm.com/architectures/instruction-sets/intrinsics/
     return buildNeonCall(
-        BuiltinID, *this,
-        {builder.getExtendedElementVectorType(Ty, true), SInt32Ty}, Ops,
-        "llvm.aarch64.neon.sqrshrun", Ty, getLoc(E->getExprLoc()));
+        builtinId, *this,
+        {builder.getExtendedElementVectorType(ty, true), SInt32Ty}, ops,
+        "llvm.aarch64.neon.sqrshrun", ty, getLoc(callExpr->getExprLoc()));
   case NEON::BI__builtin_neon_vqshrn_n_v:
     llvm_unreachable("NYI");
   case NEON::BI__builtin_neon_vrshrn_n_v:
@@ -3080,8 +3086,8 @@ CIRGenFunction::buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   case NEON::BI__builtin_neon_vrnda_v:
   case NEON::BI__builtin_neon_vrndaq_v: {
     assert(!MissingFeatures::buildConstrainedFPCall());
-    return buildNeonCall(BuiltinID, *this, {Ty}, Ops, "llvm.round", Ty,
-                         getLoc(E->getExprLoc()));
+    return buildNeonCall(builtinId, *this, {ty}, ops, "llvm.round", ty,
+                         getLoc(callExpr->getExprLoc()));
   }
   case NEON::BI__builtin_neon_vrndih_f16: {
     llvm_unreachable("NYI");
@@ -3101,11 +3107,12 @@ CIRGenFunction::buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
     llvm_unreachable("NYI");
   }
   case NEON::BI__builtin_neon_vrndns_f32: {
-    mlir::Value arg0 = buildScalarExpr(E->getArg(0));
+    mlir::Value arg0 = buildScalarExpr(callExpr->getArg(0));
     args.push_back(arg0);
     return buildNeonCall(NEON::BI__builtin_neon_vrndns_f32, *this,
                          {arg0.getType()}, args, "llvm.roundeven.f32",
-                         getCIRGenModule().FloatTy, getLoc(E->getExprLoc()));
+                         getCIRGenModule().FloatTy,
+                         getLoc(callExpr->getExprLoc()));
   }
   case NEON::BI__builtin_neon_vrndph_f16: {
     llvm_unreachable("NYI");
@@ -3407,23 +3414,23 @@ CIRGenFunction::buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   }
   case NEON::BI__builtin_neon_vld1_v:
   case NEON::BI__builtin_neon_vld1q_v: {
-    return builder.createAlignedLoad(Ops[0].getLoc(), VTy, Ops[0],
-                                     PtrOp0.getAlignment());
+    return builder.createAlignedLoad(ops[0].getLoc(), vTy, ops[0],
+                                     ptrOp0.getAlignment());
   }
   case NEON::BI__builtin_neon_vst1_v:
   case NEON::BI__builtin_neon_vst1q_v: {
-    Ops[1] = builder.createBitcast(Ops[1], VTy);
-    (void)builder.createAlignedStore(Ops[1].getLoc(), Ops[1], Ops[0],
-                                     PtrOp0.getAlignment());
-    return Ops[1];
+    ops[1] = builder.createBitcast(ops[1], vTy);
+    (void)builder.createAlignedStore(ops[1].getLoc(), ops[1], ops[0],
+                                     ptrOp0.getAlignment());
+    return ops[1];
   }
   case NEON::BI__builtin_neon_vld1_lane_v:
   case NEON::BI__builtin_neon_vld1q_lane_v: {
-    Ops[1] = builder.createBitcast(Ops[1], VTy);
-    Ops[0] = builder.createAlignedLoad(Ops[0].getLoc(), VTy.getEltType(),
-                                       Ops[0], PtrOp0.getAlignment());
-    return builder.create<mlir::cir::VecInsertOp>(getLoc(E->getExprLoc()),
-                                                  Ops[1], Ops[0], Ops[2]);
+    ops[1] = builder.createBitcast(ops[1], vTy);
+    ops[0] = builder.createAlignedLoad(ops[0].getLoc(), vTy.getEltType(),
+                                       ops[0], ptrOp0.getAlignment());
+    return builder.create<mlir::cir::VecInsertOp>(
+        getLoc(callExpr->getExprLoc()), ops[1], ops[0], ops[2]);
   }
   case NEON::BI__builtin_neon_vldap1_lane_s64:
   case NEON::BI__builtin_neon_vldap1q_lane_s64: {
@@ -3435,12 +3442,12 @@ CIRGenFunction::buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   }
   case NEON::BI__builtin_neon_vst1_lane_v:
   case NEON::BI__builtin_neon_vst1q_lane_v: {
-    Ops[1] = builder.createBitcast(Ops[1], Ty);
-    Ops[1] = builder.create<mlir::cir::VecExtractOp>(Ops[1].getLoc(), Ops[1],
-                                                     Ops[2]);
-    (void)builder.createAlignedStore(getLoc(E->getExprLoc()), Ops[1], Ops[0],
-                                     PtrOp0.getAlignment());
-    return Ops[1];
+    ops[1] = builder.createBitcast(ops[1], ty);
+    ops[1] = builder.create<mlir::cir::VecExtractOp>(ops[1].getLoc(), ops[1],
+                                                     ops[2]);
+    (void)builder.createAlignedStore(getLoc(callExpr->getExprLoc()), ops[1],
+                                     ops[0], ptrOp0.getAlignment());
+    return ops[1];
   }
   case NEON::BI__builtin_neon_vstl1_lane_s64:
   case NEON::BI__builtin_neon_vstl1q_lane_s64: {

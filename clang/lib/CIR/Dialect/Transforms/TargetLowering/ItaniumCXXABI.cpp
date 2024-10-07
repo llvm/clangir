@@ -34,7 +34,7 @@ class ItaniumCXXABI : public CIRCXXABI {
 protected:
   bool useArmMethodPtrAbi;
   bool useArmGuardVarAbi;
-  bool Use32BitVTableOffsetABI = false;
+  bool use32BitVTableOffsetAbi = false;
 
 public:
   ItaniumCXXABI(LowerModule &lm, bool useArmMethodPtrAbi = false,

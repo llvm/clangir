@@ -145,8 +145,8 @@ convertCmpKindToFCmpPredicate(mlir::cir::CmpOpKind kind) {
 /// If the given type is a vector type, return the vector's element type.
 /// Otherwise return the given type unchanged.
 mlir::Type elementTypeIfVector(mlir::Type type) {
-  if (auto VecType = mlir::dyn_cast<mlir::cir::VectorType>(type)) {
-    return VecType.getEltType();
+  if (auto vecType = mlir::dyn_cast<mlir::cir::VectorType>(type)) {
+    return vecType.getEltType();
   }
   return type;
 }
@@ -582,10 +582,10 @@ public:
     // Zero-extend, sign-extend or trunc the pointer value.
     auto index = adaptor.getStride();
     auto width = mlir::cast<mlir::IntegerType>(index.getType()).getWidth();
-    mlir::DataLayout LLVMLayout(ptrStrideOp->getParentOfType<mlir::ModuleOp>());
+    mlir::DataLayout llvmLayout(ptrStrideOp->getParentOfType<mlir::ModuleOp>());
     auto layoutWidth =
-        LLVMLayout.getTypeIndexBitwidth(adaptor.getBase().getType());
-    auto indexOp = index.getDefiningOp();
+        llvmLayout.getTypeIndexBitwidth(adaptor.getBase().getType());
+    auto *indexOp = index.getDefiningOp();
     if (indexOp && layoutWidth && width != *layoutWidth) {
       // If the index comes from a subtraction, make sure the extension happens
       // before it. To achieve that, look at unary minus, which already got
@@ -667,10 +667,10 @@ public:
 
     auto hasOneUse = false;
 
-    if (auto defOp = brOp.getCond().getDefiningOp())
+    if (auto *defOp = brOp.getCond().getDefiningOp())
       hasOneUse = defOp->getResult(0).hasOneUse();
 
-    if (auto defOp = adaptor.getCond().getDefiningOp()) {
+    if (auto *defOp = adaptor.getCond().getDefiningOp()) {
       if (auto zext = dyn_cast<mlir::LLVM::ZExtOp>(defOp)) {
         if (zext->use_empty() &&
             zext->getOperand(0).getType() == rewriter.getI1Type()) {
@@ -917,7 +917,7 @@ struct ConvertCIRToLLVMPass
 
   void buildGlobalAnnotationsVar();
 
-  virtual StringRef getArgument() const override { return "cir-flat-to-llvm"; }
+  StringRef getArgument() const override { return "cir-flat-to-llvm"; }
   static constexpr StringRef annotationSection = "llvm.metadata";
 };
 
@@ -949,7 +949,7 @@ rewriteToCallOrInvoke(mlir::Operation *op, mlir::ValueRange callOperands,
       newOp.setCConv(cconv);
     }
   } else { // indirect call
-    assert(op->getOperands().size() &&
+    assert(!op->getOperands().empty() &&
            "operands list must no be empty for the indirect call");
     auto typ = op->getOperands().front().getType();
     assert(isa<mlir::cir::PointerType>(typ) && "expected pointer type");
@@ -1339,8 +1339,9 @@ public:
             lowerCirAttrAsValue(op, constArr, rewriter, getTypeConverter());
         rewriter.replaceOp(op, newOp);
         return mlir::success();
-      } else if (constArr &&
-                 (denseAttr = lowerConstArrayAttr(constArr, typeConverter))) {
+      }
+      if (constArr &&
+          (denseAttr = lowerConstArrayAttr(constArr, typeConverter))) {
         attr = denseAttr.value();
       } else {
         auto initVal =
@@ -1738,13 +1739,13 @@ public:
         /*isVarArg=*/fnType.isVarArg());
     // LLVMFuncOp expects a single FileLine Location instead of a fused
     // location.
-    auto Loc = op.getLoc();
-    if (mlir::isa<mlir::FusedLoc>(Loc)) {
-      auto FusedLoc = mlir::cast<mlir::FusedLoc>(Loc);
-      Loc = FusedLoc.getLocations()[0];
+    auto loc = op.getLoc();
+    if (mlir::isa<mlir::FusedLoc>(loc)) {
+      auto fusedLoc = mlir::cast<mlir::FusedLoc>(loc);
+      loc = fusedLoc.getLocations()[0];
     }
-    assert((mlir::isa<mlir::FileLineColLoc>(Loc) ||
-            mlir::isa<mlir::UnknownLoc>(Loc)) &&
+    assert((mlir::isa<mlir::FileLineColLoc>(loc) ||
+            mlir::isa<mlir::UnknownLoc>(loc)) &&
            "expected single location or unknown location here");
 
     auto linkage = convertLinkage(op.getLinkage());
@@ -1753,7 +1754,7 @@ public:
     lowerFuncAttributes(op, /*filterArgAndResAttrs=*/false, attributes);
 
     auto fn = rewriter.create<mlir::LLVM::LLVMFuncOp>(
-        Loc, op.getName(), llvmFnTy, linkage, isDsoLocal, cconv,
+        loc, op.getName(), llvmFnTy, linkage, isDsoLocal, cconv,
         mlir::SymbolRefAttr(), attributes);
 
     fn.setVisibility_Attr(mlir::LLVM::VisibilityAttr::get(
@@ -1930,7 +1931,7 @@ public:
     llvm::SmallVector<mlir::Block *, 8> caseDestinations;
     llvm::SmallVector<mlir::ValueRange, 8> caseOperands;
 
-    for (auto x : op.getCaseDestinations()) {
+    for (auto *x : op.getCaseDestinations()) {
       caseDestinations.push_back(x);
     }
 
@@ -2141,7 +2142,7 @@ public:
            "Unary operation's operand type and result type are different");
     mlir::Type type = op.getType();
     mlir::Type elementType = elementTypeIfVector(type);
-    bool IsVector = mlir::isa<mlir::cir::VectorType>(type);
+    bool isVector = mlir::isa<mlir::cir::VectorType>(type);
     auto llvmType = getTypeConverter()->convertType(type);
     auto loc = op.getLoc();
 
@@ -2149,19 +2150,19 @@ public:
     if (mlir::isa<mlir::cir::IntType>(elementType)) {
       switch (op.getKind()) {
       case mlir::cir::UnaryOpKind::Inc: {
-        assert(!IsVector && "++ not allowed on vector types");
-        auto One = rewriter.create<mlir::LLVM::ConstantOp>(
+        assert(!isVector && "++ not allowed on vector types");
+        auto one = rewriter.create<mlir::LLVM::ConstantOp>(
             loc, llvmType, mlir::IntegerAttr::get(llvmType, 1));
         rewriter.replaceOpWithNewOp<mlir::LLVM::AddOp>(op, llvmType,
-                                                       adaptor.getInput(), One);
+                                                       adaptor.getInput(), one);
         return mlir::success();
       }
       case mlir::cir::UnaryOpKind::Dec: {
-        assert(!IsVector && "-- not allowed on vector types");
-        auto One = rewriter.create<mlir::LLVM::ConstantOp>(
+        assert(!isVector && "-- not allowed on vector types");
+        auto one = rewriter.create<mlir::LLVM::ConstantOp>(
             loc, llvmType, mlir::IntegerAttr::get(llvmType, 1));
         rewriter.replaceOpWithNewOp<mlir::LLVM::SubOp>(op, llvmType,
-                                                       adaptor.getInput(), One);
+                                                       adaptor.getInput(), one);
         return mlir::success();
       }
       case mlir::cir::UnaryOpKind::Plus: {
@@ -2169,41 +2170,41 @@ public:
         return mlir::success();
       }
       case mlir::cir::UnaryOpKind::Minus: {
-        mlir::Value Zero;
-        if (IsVector)
-          Zero = rewriter.create<mlir::LLVM::ZeroOp>(loc, llvmType);
+        mlir::Value zero;
+        if (isVector)
+          zero = rewriter.create<mlir::LLVM::ZeroOp>(loc, llvmType);
         else
-          Zero = rewriter.create<mlir::LLVM::ConstantOp>(
+          zero = rewriter.create<mlir::LLVM::ConstantOp>(
               loc, llvmType, mlir::IntegerAttr::get(llvmType, 0));
-        rewriter.replaceOpWithNewOp<mlir::LLVM::SubOp>(op, llvmType, Zero,
+        rewriter.replaceOpWithNewOp<mlir::LLVM::SubOp>(op, llvmType, zero,
                                                        adaptor.getInput());
         return mlir::success();
       }
       case mlir::cir::UnaryOpKind::Not: {
         // bit-wise compliment operator, implemented as an XOR with -1.
-        mlir::Value MinusOne;
-        if (IsVector) {
+        mlir::Value minusOne;
+        if (isVector) {
           // Creating a vector object with all -1 values is easier said than
           // done. It requires a series of insertelement ops.
           mlir::Type llvmElementType =
               getTypeConverter()->convertType(elementType);
-          auto MinusOneInt = rewriter.create<mlir::LLVM::ConstantOp>(
+          auto minusOneInt = rewriter.create<mlir::LLVM::ConstantOp>(
               loc, llvmElementType,
               mlir::IntegerAttr::get(llvmElementType, -1));
-          MinusOne = rewriter.create<mlir::LLVM::UndefOp>(loc, llvmType);
-          auto NumElements =
+          minusOne = rewriter.create<mlir::LLVM::UndefOp>(loc, llvmType);
+          auto numElements =
               mlir::dyn_cast<mlir::cir::VectorType>(type).getSize();
-          for (uint64_t i = 0; i < NumElements; ++i) {
+          for (uint64_t i = 0; i < numElements; ++i) {
             mlir::Value indexValue = rewriter.create<mlir::LLVM::ConstantOp>(
                 loc, rewriter.getI64Type(), i);
-            MinusOne = rewriter.create<mlir::LLVM::InsertElementOp>(
-                loc, MinusOne, MinusOneInt, indexValue);
+            minusOne = rewriter.create<mlir::LLVM::InsertElementOp>(
+                loc, minusOne, minusOneInt, indexValue);
           }
         } else {
-          MinusOne = rewriter.create<mlir::LLVM::ConstantOp>(
+          minusOne = rewriter.create<mlir::LLVM::ConstantOp>(
               loc, llvmType, mlir::IntegerAttr::get(llvmType, -1));
         }
-        rewriter.replaceOpWithNewOp<mlir::LLVM::XOrOp>(op, llvmType, MinusOne,
+        rewriter.replaceOpWithNewOp<mlir::LLVM::XOrOp>(op, llvmType, minusOne,
                                                        adaptor.getInput());
         return mlir::success();
       }
@@ -2214,7 +2215,7 @@ public:
     if (mlir::isa<mlir::cir::CIRFPTypeInterface>(elementType)) {
       switch (op.getKind()) {
       case mlir::cir::UnaryOpKind::Inc: {
-        assert(!IsVector && "++ not allowed on vector types");
+        assert(!isVector && "++ not allowed on vector types");
         auto oneAttr = rewriter.getFloatAttr(llvmType, 1.0);
         auto oneConst =
             rewriter.create<mlir::LLVM::ConstantOp>(loc, llvmType, oneAttr);
@@ -2223,7 +2224,7 @@ public:
         return mlir::success();
       }
       case mlir::cir::UnaryOpKind::Dec: {
-        assert(!IsVector && "-- not allowed on vector types");
+        assert(!isVector && "-- not allowed on vector types");
         auto negOneAttr = rewriter.getFloatAttr(llvmType, -1.0);
         auto negOneConst =
             rewriter.create<mlir::LLVM::ConstantOp>(loc, llvmType, negOneAttr);
@@ -2250,7 +2251,7 @@ public:
     if (mlir::isa<mlir::cir::BoolType>(elementType)) {
       switch (op.getKind()) {
       case mlir::cir::UnaryOpKind::Not:
-        assert(!IsVector && "NYI: op! on vector mask");
+        assert(!isVector && "NYI: op! on vector mask");
         rewriter.replaceOpWithNewOp<mlir::LLVM::XOrOp>(
             op, llvmType, adaptor.getInput(),
             rewriter.create<mlir::LLVM::ConstantOp>(
@@ -3383,7 +3384,7 @@ class CIRInlineAsmOpLowering
     // element type attribute will be attached to the whole instruction, but not
     // to the operand
     if (!op.getNumResults())
-      opAttrs.push_back(mlir::Attribute());
+      opAttrs.emplace_back();
 
     llvm::SmallVector<mlir::Value> llvmOperands;
     llvm::SmallVector<mlir::Value> cirOperands;
@@ -3398,7 +3399,7 @@ class CIRInlineAsmOpLowering
     // CIR operand type.
     for (std::size_t i = 0; i < op.getOperandAttrs().size(); ++i) {
       if (!op.getOperandAttrs()[i]) {
-        opAttrs.push_back(mlir::Attribute());
+        opAttrs.emplace_back();
         continue;
       }
 
@@ -3453,7 +3454,7 @@ public:
     auto size = info.getSize();
     auto offset = info.getOffset();
     auto storageType = info.getStorageType();
-    auto context = storageType.getContext();
+    auto *context = storageType.getContext();
 
     unsigned storageSize = 0;
 
@@ -3530,7 +3531,7 @@ public:
     auto size = info.getSize();
     auto offset = info.getOffset();
     auto storageType = info.getStorageType();
-    auto context = storageType.getContext();
+    auto *context = storageType.getContext();
     unsigned storageSize = 0;
 
     if (auto arTy = mlir::dyn_cast<mlir::cir::ArrayType>(storageType))
@@ -3722,7 +3723,8 @@ public:
           op, mlir::TypeRange{llvmPtrTy}, fnName,
           mlir::ValueRange{adaptor.getExceptionPtr()});
       return mlir::success();
-    } else if (op.isEnd()) {
+    }
+    if (op.isEnd()) {
       StringRef fnName = "__cxa_end_catch";
       auto fnTy = mlir::LLVM::LLVMFunctionType::get(
           mlir::LLVM::LLVMVoidType::get(rewriter.getContext()), {},
@@ -4016,38 +4018,38 @@ static void buildCtorDtorList(
 
   // Create a global array llvm.global_ctors with element type of
   // struct { i32, ptr, ptr }
-  auto CtorPFTy = mlir::LLVM::LLVMPointerType::get(builder.getContext());
-  llvm::SmallVector<mlir::Type> CtorStructFields;
-  CtorStructFields.push_back(builder.getI32Type());
-  CtorStructFields.push_back(CtorPFTy);
-  CtorStructFields.push_back(CtorPFTy);
+  auto ctorPfTy = mlir::LLVM::LLVMPointerType::get(builder.getContext());
+  llvm::SmallVector<mlir::Type> ctorStructFields;
+  ctorStructFields.push_back(builder.getI32Type());
+  ctorStructFields.push_back(ctorPfTy);
+  ctorStructFields.push_back(ctorPfTy);
 
-  auto CtorStructTy = mlir::LLVM::LLVMStructType::getLiteral(
-      builder.getContext(), CtorStructFields);
-  auto CtorStructArrayTy =
-      mlir::LLVM::LLVMArrayType::get(CtorStructTy, globalXtors.size());
+  auto ctorStructTy = mlir::LLVM::LLVMStructType::getLiteral(
+      builder.getContext(), ctorStructFields);
+  auto ctorStructArrayTy =
+      mlir::LLVM::LLVMArrayType::get(ctorStructTy, globalXtors.size());
 
   auto loc = module.getLoc();
   auto newGlobalOp = builder.create<mlir::LLVM::GlobalOp>(
-      loc, CtorStructArrayTy, true, mlir::LLVM::Linkage::Appending,
+      loc, ctorStructArrayTy, true, mlir::LLVM::Linkage::Appending,
       llvmXtorName, mlir::Attribute());
 
   newGlobalOp.getRegion().push_back(new mlir::Block());
   builder.setInsertionPointToEnd(newGlobalOp.getInitializerBlock());
 
   mlir::Value result =
-      builder.create<mlir::LLVM::UndefOp>(loc, CtorStructArrayTy);
+      builder.create<mlir::LLVM::UndefOp>(loc, ctorStructArrayTy);
 
-  for (uint64_t I = 0; I < globalXtors.size(); I++) {
-    auto fn = globalXtors[I];
+  for (uint64_t i = 0; i < globalXtors.size(); i++) {
+    auto fn = globalXtors[i];
     mlir::Value structInit =
-        builder.create<mlir::LLVM::UndefOp>(loc, CtorStructTy);
+        builder.create<mlir::LLVM::UndefOp>(loc, ctorStructTy);
     mlir::Value initPriority = builder.create<mlir::LLVM::ConstantOp>(
-        loc, CtorStructFields[0], fn.second);
+        loc, ctorStructFields[0], fn.second);
     mlir::Value initFuncAddr = builder.create<mlir::LLVM::AddressOfOp>(
-        loc, CtorStructFields[1], fn.first);
+        loc, ctorStructFields[1], fn.first);
     mlir::Value initAssociate =
-        builder.create<mlir::LLVM::ZeroOp>(loc, CtorStructFields[2]);
+        builder.create<mlir::LLVM::ZeroOp>(loc, ctorStructFields[2]);
     structInit = builder.create<mlir::LLVM::InsertValueOp>(loc, structInit,
                                                            initPriority, 0);
     structInit = builder.create<mlir::LLVM::InsertValueOp>(loc, structInit,
@@ -4056,7 +4058,7 @@ static void buildCtorDtorList(
     structInit = builder.create<mlir::LLVM::InsertValueOp>(loc, structInit,
                                                            initAssociate, 2);
     result =
-        builder.create<mlir::LLVM::InsertValueOp>(loc, result, structInit, I);
+        builder.create<mlir::LLVM::InsertValueOp>(loc, result, structInit, i);
   }
 
   builder.create<mlir::LLVM::ReturnOp>(loc, result);
@@ -4088,17 +4090,17 @@ static void buildCtorDtorList(
 // In the future we may want to get rid of this function and use DCE pass or
 // something similar. But now we need to guarantee the absence of the dialect
 // verification errors.
-void collect_unreachable(mlir::Operation *parent,
-                         llvm::SmallVector<mlir::Operation *> &ops) {
+void collectUnreachable(mlir::Operation *parent,
+                        llvm::SmallVector<mlir::Operation *> &ops) {
 
-  llvm::SmallVector<mlir::Block *> unreachable_blocks;
+  llvm::SmallVector<mlir::Block *> unreachableBlocks;
   parent->walk([&](mlir::Block *blk) { // check
     if (blk->hasNoPredecessors() && !blk->isEntryBlock())
-      unreachable_blocks.push_back(blk);
+      unreachableBlocks.push_back(blk);
   });
 
   std::set<mlir::Block *> visited;
-  for (auto *root : unreachable_blocks) {
+  for (auto *root : unreachableBlocks) {
     // We create a work list for each unreachable block.
     // Thus we traverse operations in some order.
     std::deque<mlir::Block *> workList;
@@ -4186,8 +4188,8 @@ mlir::Value lowerAnnotationValue(
   // and the fourth field is the line number
   auto annotLoc = globalValue->getLoc();
   if (mlir::isa<mlir::FusedLoc>(annotLoc)) {
-    auto FusedLoc = mlir::cast<mlir::FusedLoc>(annotLoc);
-    annotLoc = FusedLoc.getLocations()[0];
+    auto fusedLoc = mlir::cast<mlir::FusedLoc>(annotLoc);
+    annotLoc = fusedLoc.getLocations()[0];
   }
   auto annotFileLoc = mlir::cast<mlir::FileLineColLoc>(annotLoc);
   assert(annotFileLoc && "annotation value has to be FileLineColLoc");
@@ -4404,7 +4406,7 @@ void ConvertCIRToLLVMPass::runOnOperation() {
 
   llvm::SmallVector<mlir::Operation *> ops;
   ops.push_back(module);
-  collect_unreachable(module, ops);
+  collectUnreachable(module, ops);
 
   if (failed(applyPartialConversion(ops, target, std::move(patterns))))
     signalPassFailure();
@@ -4477,11 +4479,11 @@ lowerDirectlyFromCIRToLLVMIR(mlir::ModuleOp theModule, LLVMContext &llvmCtx,
   mlir::registerOpenMPDialectTranslation(*mlirCtx);
   registerCIRDialectTranslation(*mlirCtx);
 
-  llvm::TimeTraceScope __scope("translateModuleToLLVMIR");
+  llvm::TimeTraceScope translateModuleToLLVMIRScope("translateModuleToLLVMIR");
 
-  auto ModuleName = theModule.getName();
+  auto moduleName = theModule.getName();
   auto llvmModule = mlir::translateModuleToLLVMIR(
-      theModule, llvmCtx, ModuleName ? *ModuleName : "CIRToLLVMModule");
+      theModule, llvmCtx, moduleName ? *moduleName : "CIRToLLVMModule");
 
   if (!llvmModule)
     report_fatal_error("Lowering from LLVMIR dialect to llvm IR failed!");

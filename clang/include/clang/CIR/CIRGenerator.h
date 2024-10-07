@@ -42,54 +42,54 @@ class CIRGenTypes;
 
 class CIRGenerator : public clang::ASTConsumer {
   virtual void anchor();
-  clang::DiagnosticsEngine &Diags;
+  clang::DiagnosticsEngine &diags;
   clang::ASTContext *astCtx;
   llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem>
       fs; // Only used for debug info.
 
   const clang::CodeGenOptions codeGenOpts; // Intentionally copied in.
 
-  unsigned HandlingTopLevelDecls;
+  unsigned handlingTopLevelDecls;
 
   /// Use this when emitting decls to block re-entrant decl emission. It will
   /// emit all deferred decls on scope exit. Set EmitDeferred to false if decl
   /// emission must be deferred longer, like at the end of a tag definition.
   struct HandlingTopLevelDeclRAII {
-    CIRGenerator &Self;
-    bool EmitDeferred;
-    HandlingTopLevelDeclRAII(CIRGenerator &Self, bool EmitDeferred = true)
-        : Self{Self}, EmitDeferred{EmitDeferred} {
-      ++Self.HandlingTopLevelDecls;
+    CIRGenerator &self;
+    bool emitDeferred;
+    HandlingTopLevelDeclRAII(CIRGenerator &self, bool emitDeferred = true)
+        : self{self}, emitDeferred{emitDeferred} {
+      ++self.handlingTopLevelDecls;
     }
     ~HandlingTopLevelDeclRAII() {
-      unsigned Level = --Self.HandlingTopLevelDecls;
-      if (Level == 0 && EmitDeferred)
-        Self.buildDeferredDecls();
+      unsigned level = --self.handlingTopLevelDecls;
+      if (level == 0 && emitDeferred)
+        self.buildDeferredDecls();
     }
   };
 
 protected:
   std::unique_ptr<mlir::MLIRContext> mlirCtx;
-  std::unique_ptr<CIRGenModule> CGM;
+  std::unique_ptr<CIRGenModule> cgm;
 
 private:
-  llvm::SmallVector<clang::FunctionDecl *, 8> DeferredInlineMemberFuncDefs;
+  llvm::SmallVector<clang::FunctionDecl *, 8> deferredInlineMemberFuncDefs;
 
 public:
   CIRGenerator(clang::DiagnosticsEngine &diags,
-               llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> FS,
-               const clang::CodeGenOptions &CGO);
-  ~CIRGenerator();
-  void Initialize(clang::ASTContext &Context) override;
-  bool EmitFunction(const clang::FunctionDecl *FD);
+               llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> fs,
+               const clang::CodeGenOptions &cgo);
+  ~CIRGenerator() override;
+  void Initialize(clang::ASTContext &astCtx) override;
+  bool emitFunction(const clang::FunctionDecl *fd);
 
-  bool HandleTopLevelDecl(clang::DeclGroupRef D) override;
-  void HandleTranslationUnit(clang::ASTContext &Ctx) override;
-  void HandleInlineFunctionDefinition(clang::FunctionDecl *D) override;
-  void HandleTagDeclDefinition(clang::TagDecl *D) override;
-  void HandleTagDeclRequiredDefinition(const clang::TagDecl *D) override;
-  void HandleCXXStaticMemberVarInstantiation(clang::VarDecl *D) override;
-  void CompleteTentativeDefinition(clang::VarDecl *D) override;
+  bool HandleTopLevelDecl(clang::DeclGroupRef d) override;
+  void HandleTranslationUnit(clang::ASTContext &ctx) override;
+  void HandleInlineFunctionDefinition(clang::FunctionDecl *d) override;
+  void HandleTagDeclDefinition(clang::TagDecl *d) override;
+  void HandleTagDeclRequiredDefinition(const clang::TagDecl *d) override;
+  void HandleCXXStaticMemberVarInstantiation(clang::VarDecl *d) override;
+  void CompleteTentativeDefinition(clang::VarDecl *d) override;
 
   mlir::ModuleOp getModule();
   std::unique_ptr<mlir::MLIRContext> takeContext() {

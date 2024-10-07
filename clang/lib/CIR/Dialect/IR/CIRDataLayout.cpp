@@ -10,13 +10,13 @@ using namespace cir;
 //===----------------------------------------------------------------------===//
 
 StructLayout::StructLayout(mlir::cir::StructType st, const CIRDataLayout &dl)
-    : StructSize(llvm::TypeSize::getFixed(0)) {
+    : structSize(llvm::TypeSize::getFixed(0)) {
   assert(!st.isIncomplete() && "Cannot get layout of opaque structs");
-  IsPadded = false;
-  NumElements = st.getNumElements();
+  isPadded = false;
+  numElements = st.getNumElements();
 
   // Loop over each of the elements, placing them in memory.
-  for (unsigned i = 0, e = NumElements; i != e; ++i) {
+  for (unsigned i = 0, e = numElements; i != e; ++i) {
     mlir::Type ty = st.getMembers()[i];
     if (i == 0 && ::cir::MissingFeatures::typeIsScalableType())
       llvm_unreachable("Scalable types are not yet supported in CIR");
@@ -33,31 +33,31 @@ StructLayout::StructLayout(mlir::cir::StructType st, const CIRDataLayout &dl)
     // assumes so and needs to be adjusted if this assumption changes (e.g. we
     // support structures with arbitrary scalable data type, or structure that
     // contains both fixed size and scalable size data type members).
-    if (!StructSize.isScalable() && !isAligned(tyAlign, StructSize)) {
-      IsPadded = true;
-      StructSize = llvm::TypeSize::getFixed(alignTo(StructSize, tyAlign));
+    if (!structSize.isScalable() && !isAligned(tyAlign, structSize)) {
+      isPadded = true;
+      structSize = llvm::TypeSize::getFixed(alignTo(structSize, tyAlign));
     }
 
     // Keep track of maximum alignment constraint.
-    StructAlignment = std::max(tyAlign, StructAlignment);
+    structAlignment = std::max(tyAlign, structAlignment);
 
-    getMemberOffsets()[i] = StructSize;
+    getMemberOffsets()[i] = structSize;
     // Consume space for this data item
-    StructSize += dl.getTypeAllocSize(ty);
+    structSize += dl.getTypeAllocSize(ty);
   }
 
   // Add padding to the end of the struct so that it could be put in an array
   // and all array elements would be aligned correctly.
-  if (!StructSize.isScalable() && !isAligned(StructAlignment, StructSize)) {
-    IsPadded = true;
-    StructSize = llvm::TypeSize::getFixed(alignTo(StructSize, StructAlignment));
+  if (!structSize.isScalable() && !isAligned(structAlignment, structSize)) {
+    isPadded = true;
+    structSize = llvm::TypeSize::getFixed(alignTo(structSize, structAlignment));
   }
 }
 
 /// getElementContainingOffset - Given a valid offset into the structure,
 /// return the structure index that contains it.
 unsigned StructLayout::getElementContainingOffset(uint64_t fixedOffset) const {
-  assert(!StructSize.isScalable() &&
+  assert(!structSize.isScalable() &&
          "Cannot get element at offset for structure containing scalable "
          "vector types");
   llvm::TypeSize offset = llvm::TypeSize::getFixed(fixedOffset);
@@ -128,11 +128,11 @@ void CIRDataLayout::reset(mlir::DataLayoutSpecInterface spec) {
         bigEndian = str == mlir::DLTIDialect::kDataLayoutEndiannessBig;
   }
 
-  LayoutMap = nullptr;
+  layoutMap = nullptr;
 
   // ManglingMode = MM_None;
   // NonIntegralAddressSpaces.clear();
-  StructAlignment =
+  structAlignment =
       llvm::DataLayout::PrimitiveSpec{0, llvm::Align(1), llvm::Align(8)};
 
   // NOTE(cir): Alignment setter functions are skipped as these should already
@@ -140,16 +140,16 @@ void CIRDataLayout::reset(mlir::DataLayoutSpecInterface spec) {
 }
 
 void CIRDataLayout::clear() {
-  delete static_cast<StructLayoutMap *>(LayoutMap);
-  LayoutMap = nullptr;
+  delete static_cast<StructLayoutMap *>(layoutMap);
+  layoutMap = nullptr;
 }
 
 const StructLayout *
 CIRDataLayout::getStructLayout(mlir::cir::StructType ty) const {
-  if (!LayoutMap)
-    LayoutMap = new StructLayoutMap();
+  if (!layoutMap)
+    layoutMap = new StructLayoutMap();
 
-  StructLayoutMap *stm = static_cast<StructLayoutMap *>(LayoutMap);
+  StructLayoutMap *stm = static_cast<StructLayoutMap *>(layoutMap);
   StructLayout *&sl = (*stm)[ty];
   if (sl)
     return sl;
@@ -191,7 +191,7 @@ llvm::Align CIRDataLayout::getAlignment(mlir::Type ty, bool abiOrPref) const {
     const StructLayout *layout =
         getStructLayout(llvm::cast<mlir::cir::StructType>(ty));
     const llvm::Align align =
-        abiOrPref ? StructAlignment.ABIAlign : StructAlignment.PrefAlign;
+        abiOrPref ? structAlignment.ABIAlign : structAlignment.PrefAlign;
     return std::max(align, layout->getAlignment());
   }
 

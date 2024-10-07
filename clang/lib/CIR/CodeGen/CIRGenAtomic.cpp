@@ -38,13 +38,13 @@ class AtomicInfo {
   CIRGenFunction &cgf;
   QualType atomicTy;
   QualType valueTy;
-  uint64_t AtomicSizeInBits = 0;
-  uint64_t ValueSizeInBits = 0;
+  uint64_t atomicSizeInBits = 0;
+  uint64_t valueSizeInBits = 0;
   CharUnits atomicAlign;
   CharUnits valueAlign;
-  TypeEvaluationKind EvaluationKind = TEK_Scalar;
-  bool UseLibcall = true;
-  LValue LVal;
+  TypeEvaluationKind evaluationKind = TEK_Scalar;
+  bool useLibcall = true;
+  LValue lVal;
   CIRGenBitFieldInfo bfi;
   mlir::Location loc;
 
@@ -59,19 +59,19 @@ public:
         valueTy = aTy->getValueType();
       else
         valueTy = atomicTy;
-      EvaluationKind = cgf.getEvaluationKind(valueTy);
+      evaluationKind = cgf.getEvaluationKind(valueTy);
 
       uint64_t valueAlignInBits;
       uint64_t atomicAlignInBits;
       TypeInfo valueTi = c.getTypeInfo(valueTy);
-      ValueSizeInBits = valueTi.Width;
+      valueSizeInBits = valueTi.Width;
       valueAlignInBits = valueTi.Align;
 
       TypeInfo atomicTi = c.getTypeInfo(atomicTy);
-      AtomicSizeInBits = atomicTi.Width;
+      atomicSizeInBits = atomicTi.Width;
       atomicAlignInBits = atomicTi.Align;
 
-      assert(ValueSizeInBits <= AtomicSizeInBits);
+      assert(valueSizeInBits <= atomicSizeInBits);
       assert(valueAlignInBits <= atomicAlignInBits);
 
       atomicAlign = c.toCharUnitsFromBits(atomicAlignInBits);
@@ -79,50 +79,50 @@ public:
       if (lvalue.getAlignment().isZero())
         lvalue.setAlignment(atomicAlign);
 
-      LVal = lvalue;
+      lVal = lvalue;
     } else if (lvalue.isBitField()) {
       llvm_unreachable("NYI");
     } else if (lvalue.isVectorElt()) {
       valueTy = lvalue.getType()->castAs<VectorType>()->getElementType();
-      ValueSizeInBits = c.getTypeSize(valueTy);
+      valueSizeInBits = c.getTypeSize(valueTy);
       atomicTy = lvalue.getType();
-      AtomicSizeInBits = c.getTypeSize(atomicTy);
+      atomicSizeInBits = c.getTypeSize(atomicTy);
       atomicAlign = valueAlign = lvalue.getAlignment();
-      LVal = lvalue;
+      lVal = lvalue;
     } else {
       llvm_unreachable("NYI");
     }
-    UseLibcall = !c.getTargetInfo().hasBuiltinAtomic(
-        AtomicSizeInBits, c.toBits(lvalue.getAlignment()));
+    useLibcall = !c.getTargetInfo().hasBuiltinAtomic(
+        atomicSizeInBits, c.toBits(lvalue.getAlignment()));
   }
 
   QualType getAtomicType() const { return atomicTy; }
   QualType getValueType() const { return valueTy; }
   CharUnits getAtomicAlignment() const { return atomicAlign; }
-  uint64_t getAtomicSizeInBits() const { return AtomicSizeInBits; }
-  uint64_t getValueSizeInBits() const { return ValueSizeInBits; }
-  TypeEvaluationKind getEvaluationKind() const { return EvaluationKind; }
-  bool shouldUseLibcall() const { return UseLibcall; }
-  const LValue &getAtomicLValue() const { return LVal; }
+  uint64_t getAtomicSizeInBits() const { return atomicSizeInBits; }
+  uint64_t getValueSizeInBits() const { return valueSizeInBits; }
+  TypeEvaluationKind getEvaluationKind() const { return evaluationKind; }
+  bool shouldUseLibcall() const { return useLibcall; }
+  const LValue &getAtomicLValue() const { return lVal; }
   mlir::Value getAtomicPointer() const {
-    if (LVal.isSimple())
-      return LVal.getPointer();
-    if (LVal.isBitField())
-      return LVal.getBitFieldPointer();
-    else if (LVal.isVectorElt())
-      return LVal.getVectorPointer();
-    assert(LVal.isExtVectorElt());
+    if (lVal.isSimple())
+      return lVal.getPointer();
+    if (lVal.isBitField())
+      return lVal.getBitFieldPointer();
+    if (lVal.isVectorElt())
+      return lVal.getVectorPointer();
+    assert(lVal.isExtVectorElt());
     // TODO(cir): return LVal.getExtVectorPointer();
     llvm_unreachable("NYI");
   }
   Address getAtomicAddress() const {
     mlir::Type elTy;
-    if (LVal.isSimple())
-      elTy = LVal.getAddress().getElementType();
-    else if (LVal.isBitField())
-      elTy = LVal.getBitFieldAddress().getElementType();
-    else if (LVal.isVectorElt())
-      elTy = LVal.getVectorAddress().getElementType();
+    if (lVal.isSimple())
+      elTy = lVal.getAddress().getElementType();
+    else if (lVal.isBitField())
+      elTy = lVal.getBitFieldAddress().getElementType();
+    else if (lVal.isVectorElt())
+      elTy = lVal.getVectorAddress().getElementType();
     else // TODO(cir): ElTy = LVal.getExtVectorAddress().getElementType();
       llvm_unreachable("NYI");
     return Address(getAtomicPointer(), elTy, getAtomicAlignment());
@@ -138,7 +138,7 @@ public:
   /// objects are completely interchangeable with non-atomic
   /// objects: we might have promoted the alignment of a type
   /// without making it bigger.
-  bool hasPadding() const { return (ValueSizeInBits != AtomicSizeInBits); }
+  bool hasPadding() const { return (valueSizeInBits != atomicSizeInBits); }
 
   bool emitMemSetZeroIfNecessary() const;
 
@@ -170,13 +170,13 @@ public:
 
   /// Project an l-value down to the value field.
   LValue projectValue() const {
-    assert(LVal.isSimple());
+    assert(lVal.isSimple());
     Address addr = getAtomicAddress();
     if (hasPadding())
       llvm_unreachable("NYI");
 
     return LValue::makeAddr(addr, getValueType(), cgf.getContext(),
-                            LVal.getBaseInfo(), LVal.getTBAAInfo());
+                            lVal.getBaseInfo(), lVal.getTBAAInfo());
   }
 
   /// Emits atomic load.
@@ -287,7 +287,7 @@ bool AtomicInfo::requiresMemSetZero(mlir::Type ty) const {
   // For scalars and complexes, check whether the store size of the
   // type uses the full size.
   case TEK_Scalar:
-    return !isFullSizeType(cgf.CGM, ty, AtomicSizeInBits);
+    return !isFullSizeType(cgf.cgm, ty, atomicSizeInBits);
   case TEK_Complex:
     llvm_unreachable("NYI");
 
@@ -301,16 +301,16 @@ bool AtomicInfo::requiresMemSetZero(mlir::Type ty) const {
 Address AtomicInfo::castToAtomicIntPointer(Address addr) const {
   auto intTy = mlir::dyn_cast<mlir::cir::IntType>(addr.getElementType());
   // Don't bother with int casts if the integer size is the same.
-  if (intTy && intTy.getWidth() == AtomicSizeInBits)
+  if (intTy && intTy.getWidth() == atomicSizeInBits)
     return addr;
-  auto ty = cgf.getBuilder().getUIntNTy(AtomicSizeInBits);
+  auto ty = cgf.getBuilder().getUIntNTy(atomicSizeInBits);
   return addr.withElementType(ty);
 }
 
 Address AtomicInfo::convertToAtomicIntPointer(Address addr) const {
   auto ty = addr.getElementType();
-  uint64_t sourceSizeInBits = cgf.CGM.getDataLayout().getTypeSizeInBits(ty);
-  if (sourceSizeInBits != AtomicSizeInBits) {
+  uint64_t sourceSizeInBits = cgf.cgm.getDataLayout().getTypeSizeInBits(ty);
+  if (sourceSizeInBits != atomicSizeInBits) {
     llvm_unreachable("NYI");
   }
 
@@ -319,11 +319,11 @@ Address AtomicInfo::convertToAtomicIntPointer(Address addr) const {
 
 Address AtomicInfo::createTempAlloca() const {
   Address tempAlloca = cgf.CreateMemTemp(
-      (LVal.isBitField() && ValueSizeInBits > AtomicSizeInBits) ? valueTy
+      (lVal.isBitField() && valueSizeInBits > atomicSizeInBits) ? valueTy
                                                                 : atomicTy,
       getAtomicAlignment(), loc, "atomic-temp");
   // Cast to pointer to value type for bitfields.
-  if (LVal.isBitField()) {
+  if (lVal.isBitField()) {
     llvm_unreachable("NYI");
   }
   return tempAlloca;
@@ -381,8 +381,8 @@ static void startRegion(mlir::OpBuilder &builder, RegionsCont &regions,
   mlir::Region *region = regions.back().get();
   mlir::Block *block = builder.createBlock(region);
   builder.setInsertionPointToEnd(block);
-  auto Break = builder.create<mlir::cir::BreakOp>(loc);
-  builder.setInsertionPoint(Break);
+  auto b = builder.create<mlir::cir::BreakOp>(loc);
+  builder.setInsertionPoint(b);
 }
 
 // Create a "default:" label and add it to the given collection of case labels.
@@ -571,7 +571,7 @@ static void buildAtomicOp(CIRGenFunction &cgf, AtomicExpr *e, Address dest,
                           uint64_t size, mlir::cir::MemOrder order,
                           uint8_t scope) {
   assert(!MissingFeatures::syncScopeID());
-  StringRef Op;
+  StringRef op;
 
   auto &builder = cgf.getBuilder();
   auto loc = cgf.getLoc(e->getSourceRange());
@@ -656,7 +656,7 @@ static void buildAtomicOp(CIRGenFunction &cgf, AtomicExpr *e, Address dest,
   case AtomicExpr::AO__atomic_exchange:
   case AtomicExpr::AO__scoped_atomic_exchange_n:
   case AtomicExpr::AO__scoped_atomic_exchange:
-    Op = mlir::cir::AtomicXchg::getOperationName();
+    op = mlir::cir::AtomicXchg::getOperationName();
     break;
 
   case AtomicExpr::AO__atomic_add_fetch:
@@ -668,7 +668,7 @@ static void buildAtomicOp(CIRGenFunction &cgf, AtomicExpr *e, Address dest,
   case AtomicExpr::AO__opencl_atomic_fetch_add:
   case AtomicExpr::AO__atomic_fetch_add:
   case AtomicExpr::AO__scoped_atomic_fetch_add:
-    Op = mlir::cir::AtomicFetch::getOperationName();
+    op = mlir::cir::AtomicFetch::getOperationName();
     fetchAttr = mlir::cir::AtomicFetchKindAttr::get(
         builder.getContext(), mlir::cir::AtomicFetchKind::Add);
     break;
@@ -682,7 +682,7 @@ static void buildAtomicOp(CIRGenFunction &cgf, AtomicExpr *e, Address dest,
   case AtomicExpr::AO__opencl_atomic_fetch_sub:
   case AtomicExpr::AO__atomic_fetch_sub:
   case AtomicExpr::AO__scoped_atomic_fetch_sub:
-    Op = mlir::cir::AtomicFetch::getOperationName();
+    op = mlir::cir::AtomicFetch::getOperationName();
     fetchAttr = mlir::cir::AtomicFetchKindAttr::get(
         builder.getContext(), mlir::cir::AtomicFetchKind::Sub);
     break;
@@ -696,7 +696,7 @@ static void buildAtomicOp(CIRGenFunction &cgf, AtomicExpr *e, Address dest,
   case AtomicExpr::AO__opencl_atomic_fetch_min:
   case AtomicExpr::AO__atomic_fetch_min:
   case AtomicExpr::AO__scoped_atomic_fetch_min:
-    Op = mlir::cir::AtomicFetch::getOperationName();
+    op = mlir::cir::AtomicFetch::getOperationName();
     fetchAttr = mlir::cir::AtomicFetchKindAttr::get(
         builder.getContext(), mlir::cir::AtomicFetchKind::Min);
     break;
@@ -710,7 +710,7 @@ static void buildAtomicOp(CIRGenFunction &cgf, AtomicExpr *e, Address dest,
   case AtomicExpr::AO__opencl_atomic_fetch_max:
   case AtomicExpr::AO__atomic_fetch_max:
   case AtomicExpr::AO__scoped_atomic_fetch_max:
-    Op = mlir::cir::AtomicFetch::getOperationName();
+    op = mlir::cir::AtomicFetch::getOperationName();
     fetchAttr = mlir::cir::AtomicFetchKindAttr::get(
         builder.getContext(), mlir::cir::AtomicFetchKind::Max);
     break;
@@ -724,7 +724,7 @@ static void buildAtomicOp(CIRGenFunction &cgf, AtomicExpr *e, Address dest,
   case AtomicExpr::AO__opencl_atomic_fetch_and:
   case AtomicExpr::AO__atomic_fetch_and:
   case AtomicExpr::AO__scoped_atomic_fetch_and:
-    Op = mlir::cir::AtomicFetch::getOperationName();
+    op = mlir::cir::AtomicFetch::getOperationName();
     fetchAttr = mlir::cir::AtomicFetchKindAttr::get(
         builder.getContext(), mlir::cir::AtomicFetchKind::And);
     break;
@@ -738,7 +738,7 @@ static void buildAtomicOp(CIRGenFunction &cgf, AtomicExpr *e, Address dest,
   case AtomicExpr::AO__opencl_atomic_fetch_or:
   case AtomicExpr::AO__atomic_fetch_or:
   case AtomicExpr::AO__scoped_atomic_fetch_or:
-    Op = mlir::cir::AtomicFetch::getOperationName();
+    op = mlir::cir::AtomicFetch::getOperationName();
     fetchAttr = mlir::cir::AtomicFetchKindAttr::get(
         builder.getContext(), mlir::cir::AtomicFetchKind::Or);
     break;
@@ -752,7 +752,7 @@ static void buildAtomicOp(CIRGenFunction &cgf, AtomicExpr *e, Address dest,
   case AtomicExpr::AO__opencl_atomic_fetch_xor:
   case AtomicExpr::AO__atomic_fetch_xor:
   case AtomicExpr::AO__scoped_atomic_fetch_xor:
-    Op = mlir::cir::AtomicFetch::getOperationName();
+    op = mlir::cir::AtomicFetch::getOperationName();
     fetchAttr = mlir::cir::AtomicFetchKindAttr::get(
         builder.getContext(), mlir::cir::AtomicFetchKind::Xor);
     break;
@@ -764,18 +764,18 @@ static void buildAtomicOp(CIRGenFunction &cgf, AtomicExpr *e, Address dest,
   case AtomicExpr::AO__c11_atomic_fetch_nand:
   case AtomicExpr::AO__atomic_fetch_nand:
   case AtomicExpr::AO__scoped_atomic_fetch_nand:
-    Op = mlir::cir::AtomicFetch::getOperationName();
+    op = mlir::cir::AtomicFetch::getOperationName();
     fetchAttr = mlir::cir::AtomicFetchKindAttr::get(
         builder.getContext(), mlir::cir::AtomicFetchKind::Nand);
     break;
   }
 
-  assert(!Op.empty() && "expected operation name to build");
+  assert(!op.empty() && "expected operation name to build");
   auto loadVal1 = builder.createLoad(loc, val1);
 
   SmallVector<mlir::Value> atomicOperands = {ptr.getPointer(), loadVal1};
   SmallVector<mlir::Type> atomicResTys = {loadVal1.getType()};
-  auto *rmwi = builder.create(loc, builder.getStringAttr(Op), atomicOperands,
+  auto *rmwi = builder.create(loc, builder.getStringAttr(op), atomicOperands,
                               atomicResTys, {});
 
   if (fetchAttr)
@@ -783,7 +783,7 @@ static void buildAtomicOp(CIRGenFunction &cgf, AtomicExpr *e, Address dest,
   rmwi->setAttr("mem_order", orderAttr);
   if (e->isVolatile())
     rmwi->setAttr("is_volatile", mlir::UnitAttr::get(builder.getContext()));
-  if (fetchFirst && Op == mlir::cir::AtomicFetch::getOperationName())
+  if (fetchFirst && op == mlir::cir::AtomicFetch::getOperationName())
     rmwi->setAttr("fetch_first", mlir::UnitAttr::get(builder.getContext()));
 
   auto result = rmwi->getResult(0);
@@ -801,8 +801,8 @@ static void buildAtomicOp(CIRGenFunction &cgf, AtomicExpr *e, Address dest,
 static RValue buildAtomicLibcall(CIRGenFunction &cgf, StringRef fnName,
                                  QualType resultType, CallArgList &args) {
   [[maybe_unused]] const CIRGenFunctionInfo &fnInfo =
-      cgf.CGM.getTypes().arrangeBuiltinFunctionCall(resultType, args);
-  [[maybe_unused]] auto fnTy = cgf.CGM.getTypes().GetFunctionType(fnInfo);
+      cgf.cgm.getTypes().arrangeBuiltinFunctionCall(resultType, args);
+  [[maybe_unused]] auto fnTy = cgf.cgm.getTypes().GetFunctionType(fnInfo);
   llvm_unreachable("NYI");
 }
 
@@ -858,7 +858,7 @@ RValue CIRGenFunction::buildAtomicExpr(AtomicExpr *e) {
 
   CharUnits maxInlineWidth =
       getContext().toCharUnitsFromBits(maxInlineWidthInBits);
-  DiagnosticsEngine &diags = CGM.getDiags();
+  DiagnosticsEngine &diags = cgm.getDiags();
   bool misaligned = (ptr.getAlignment() % tInfo.Width) != 0;
   bool oversized = getContext().toBits(tInfo.Width) > maxInlineWidthInBits;
   if (misaligned) {
@@ -1360,7 +1360,7 @@ static bool shouldCastToInt(mlir::Type valTy, bool cmpXchg) {
 }
 
 mlir::Value AtomicInfo::getScalarRValValueOrNull(RValue rVal) const {
-  if (rVal.isScalar() && (!hasPadding() || !LVal.isSimple()))
+  if (rVal.isScalar() && (!hasPadding() || !lVal.isSimple()))
     return rVal.getScalarVal();
   return nullptr;
 }
@@ -1381,8 +1381,8 @@ Address AtomicInfo::materializeRValue(RValue rvalue) const {
 }
 
 bool AtomicInfo::emitMemSetZeroIfNecessary() const {
-  assert(LVal.isSimple());
-  Address addr = LVal.getAddress();
+  assert(lVal.isSimple());
+  Address addr = lVal.getAddress();
   if (!requiresMemSetZero(addr.getElementType()))
     return false;
 
@@ -1392,7 +1392,7 @@ bool AtomicInfo::emitMemSetZeroIfNecessary() const {
 /// Copy an r-value into memory as part of storing to an atomic type.
 /// This needs to create a bit-pattern suitable for atomic operations.
 void AtomicInfo::emitCopyIntoMemory(RValue rvalue) const {
-  assert(LVal.isSimple());
+  assert(lVal.isSimple());
   // If we have an r-value, the rvalue should be of the atomic type,
   // which means that the caller is responsible for having zeroed
   // any padding.  Just do an aggregate copy of that type.

@@ -158,9 +158,9 @@ struct HoistLoopInvariantInCondBlock : public OpRewritePattern<ForOp> {
         isLoopInvariantOp(op->getOperand(1).getDefiningOp(), forOp, initOps)) {
       initOps.push_back(op);
       return true;
-    } else if (isa<mlir::cir::CastOp>(op) &&
-               isLoopInvariantOp(op->getOperand(0).getDefiningOp(), forOp,
-                                 initOps)) {
+    }
+    if (isa<mlir::cir::CastOp>(op) &&
+        isLoopInvariantOp(op->getOperand(0).getDefiningOp(), forOp, initOps)) {
       initOps.push_back(op);
       return true;
     }

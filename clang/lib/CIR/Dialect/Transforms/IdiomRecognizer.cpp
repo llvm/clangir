@@ -117,7 +117,7 @@ static bool isIteratorLikeType(mlir::Type t) {
   // in which case we could look at ASTRecordDeclInterface for more
   // information.
   auto pTy = dyn_cast<PointerType>(t);
-  return !(!pTy || !mlir::isa<mlir::cir::IntType>(pTy.getPointee()));
+  return !!pTy && mlir::isa<mlir::cir::IntType>(pTy.getPointee());
 }
 
 static bool isIteratorInStdContainter(mlir::Type t) {

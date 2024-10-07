@@ -47,7 +47,7 @@ commonBuildCXXMemberOrOperatorCall(CIRGenFunction &cgf, const CXXMethodDecl *md,
 
   // Push the this ptr.
   const CXXRecordDecl *rd =
-      cgf.CGM.getCXXABI().getThisArgumentTypeForMethod(md);
+      cgf.cgm.getCXXABI().getThisArgumentTypeForMethod(md);
   args.add(RValue::get(This), cgf.getTypes().DeriveThisType(rd, md));
 
   // If there is an implicit parameter (e.g. VTT), emit it.
@@ -88,7 +88,7 @@ RValue CIRGenFunction::buildCXXMemberOrOperatorCall(
   CallArgList args;
   MemberCallInfo callInfo = commonBuildCXXMemberOrOperatorCall(
       *this, md, This, implicitParam, implicitParamTy, ce, args, rtlArgs);
-  auto &fnInfo = CGM.getTypes().arrangeCXXMethodCall(
+  auto &fnInfo = cgm.getTypes().arrangeCXXMethodCall(
       args, fpt, callInfo.reqArgs, callInfo.prefixSize);
   assert((ce || currSrcLoc) && "expected source location");
   mlir::Location loc = ce ? getLoc(ce->getExprLoc()) : *currSrcLoc;
@@ -144,7 +144,7 @@ CIRGenFunction::buildCXXMemberPointerCallExpr(const CXXMemberCallExpr *e,
 
   // Build the call.
   CIRGenCallee callee(fpt, CalleePtr.getDefiningOp());
-  return buildCall(CGM.getTypes().arrangeCXXMethodCall(argsList, fpt, required,
+  return buildCall(cgm.getTypes().arrangeCXXMethodCall(argsList, fpt, required,
                                                        /*PrefixSize=*/0),
                    callee, returnValue, argsList, nullptr, e == MustTailCall,
                    loc);
@@ -260,9 +260,9 @@ RValue CIRGenFunction::buildCXXMemberOrOperatorMemberCallExpr(
   if (const auto *dtor = dyn_cast<CXXDestructorDecl>(calleeDecl))
     llvm_unreachable("NYI");
   else
-    fInfo = &CGM.getTypes().arrangeCXXMethodDeclaration(calleeDecl);
+    fInfo = &cgm.getTypes().arrangeCXXMethodDeclaration(calleeDecl);
 
-  auto ty = CGM.getTypes().GetFunctionType(*fInfo);
+  auto ty = cgm.getTypes().GetFunctionType(*fInfo);
 
   // C++11 [class.mfct.non-static]p2:
   //   If a non-static member function of a class X is called for an object that
@@ -313,17 +313,17 @@ RValue CIRGenFunction::buildCXXMemberOrOperatorMemberCallExpr(
       llvm_unreachable("NYI");
     else if (!devirtualizedMethod)
       // TODO(cir): shouldn't this call getAddrOfCXXStructor instead?
-      callee = CIRGenCallee::forDirect(CGM.GetAddrOfFunction(md, ty),
+      callee = CIRGenCallee::forDirect(cgm.GetAddrOfFunction(md, ty),
                                        GlobalDecl(md));
     else {
-      callee = CIRGenCallee::forDirect(CGM.GetAddrOfFunction(md, ty),
+      callee = CIRGenCallee::forDirect(cgm.GetAddrOfFunction(md, ty),
                                        GlobalDecl(md));
     }
   }
 
   if (md->isVirtual()) {
     Address newThisAddr =
-        CGM.getCXXABI().adjustThisArgumentForVirtualFunctionCall(
+        cgm.getCXXABI().adjustThisArgumentForVirtualFunctionCall(
             *this, calleeDecl, This.getAddress(), useVirtualCall);
     This.setAddress(newThisAddr);
   }
@@ -729,7 +729,7 @@ static bool emitObjectDelete(CIRGenFunction &cgf, const CXXDeleteExpr *de,
         const Expr *base = de->getArgument();
         if (auto *devirtualizedDtor = dyn_cast_or_null<const CXXDestructorDecl>(
                 dtor->getDevirtualizedMethod(
-                    base, cgf.CGM.getLangOpts().AppleKext))) {
+                    base, cgf.cgm.getLangOpts().AppleKext))) {
           useVirtualCall = false;
           const CXXRecordDecl *devirtualizedClass =
               devirtualizedDtor->getParent();
@@ -917,7 +917,7 @@ mlir::Value CIRGenFunction::buildCXXNewExpr(const CXXNewExpr *e) {
     CharUnits allocationAlign = allocAlign;
     if (!e->passAlignment() &&
         allocator->isReplaceableGlobalAllocationFunction()) {
-      auto &target = CGM.getASTContext().getTargetInfo();
+      auto &target = cgm.getASTContext().getTargetInfo();
       unsigned allocatorAlign = llvm::bit_floor(std::min<uint64_t>(
           target.getNewAlign(), getContext().getTypeSize(allocType)));
       allocationAlign = std::max(
@@ -1015,7 +1015,7 @@ mlir::Value CIRGenFunction::buildCXXNewExpr(const CXXNewExpr *e) {
   // vptrs information which may be included in previous type.
   // To not break LTO with different optimizations levels, we do it regardless
   // of optimization level.
-  if (CGM.getCodeGenOpts().StrictVTablePointers &&
+  if (cgm.getCodeGenOpts().StrictVTablePointers &&
       allocator->isReservedGlobalPlacementOperator())
     llvm_unreachable("NYI");
 
@@ -1083,7 +1083,7 @@ RValue CIRGenFunction::buildCXXDestructorCall(GlobalDecl dtor,
   commonBuildCXXMemberOrOperatorCall(*this, dtorDecl, This, implicitParam,
                                      implicitParamTy, ce, args, nullptr);
   assert((ce || dtor.getDecl()) && "expected source location provider");
-  return buildCall(CGM.getTypes().arrangeCXXStructorDeclaration(dtor), callee,
+  return buildCall(cgm.getTypes().arrangeCXXStructorDeclaration(dtor), callee,
                    ReturnValueSlot(), args, nullptr, ce && ce == MustTailCall,
                    ce ? getLoc(ce->getExprLoc())
                       : getLoc(dtor.getDecl()->getSourceRange()));
@@ -1096,10 +1096,10 @@ static RValue buildNewDeleteCall(CIRGenFunction &cgf,
                                  const FunctionProtoType *calleeType,
                                  const CallArgList &args) {
   mlir::cir::CIRCallOpInterface callOrTryCall;
-  auto calleePtr = cgf.CGM.GetAddrOfFunction(calleeDecl);
+  auto calleePtr = cgf.cgm.GetAddrOfFunction(calleeDecl);
   CIRGenCallee callee =
       CIRGenCallee::forDirect(calleePtr, GlobalDecl(calleeDecl));
-  RValue rv = cgf.buildCall(cgf.CGM.getTypes().arrangeFreeFunctionCall(
+  RValue rv = cgf.buildCall(cgf.cgm.getTypes().arrangeFreeFunctionCall(
                                 args, calleeType, /*ChainCall=*/false),
                             callee, ReturnValueSlot(), args, &callOrTryCall);
 
@@ -1195,7 +1195,7 @@ static mlir::Value buildDynamicCastToNull(CIRGenFunction &cgf,
     auto *currentRegion = cgf.getBuilder().getBlock()->getParent();
     /// C++ [expr.dynamic.cast]p9:
     ///   A failed cast to reference type throws std::bad_cast
-    cgf.CGM.getCXXABI().buildBadCastCall(cgf, loc);
+    cgf.cgm.getCXXABI().buildBadCastCall(cgf, loc);
 
     // The call to bad_cast will terminate the current block. Create a new block
     // to hold any follow up code.
@@ -1209,7 +1209,7 @@ mlir::Value CIRGenFunction::buildDynamicCast(Address thisAddr,
                                              const CXXDynamicCastExpr *dce) {
   auto loc = getLoc(dce->getSourceRange());
 
-  CGM.buildExplicitCastExprType(dce, this);
+  cgm.buildExplicitCastExprType(dce, this);
   QualType destTy = dce->getTypeAsWritten();
   QualType srcTy = dce->getSubExpr()->getType();
 
@@ -1240,6 +1240,6 @@ mlir::Value CIRGenFunction::buildDynamicCast(Address thisAddr,
     return buildDynamicCastToNull(*this, loc, destTy);
 
   auto destCirTy = mlir::cast<mlir::cir::PointerType>(ConvertType(destTy));
-  return CGM.getCXXABI().buildDynamicCast(*this, loc, srcRecordTy, destRecordTy,
+  return cgm.getCXXABI().buildDynamicCast(*this, loc, srcRecordTy, destRecordTy,
                                           destCirTy, isRefCast, thisAddr);
 }

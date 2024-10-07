@@ -33,13 +33,15 @@ using namespace cir;
 using namespace clang;
 using namespace mlir::cir;
 
-CIRGenFunction::CIRGenFunction(CIRGenModule &CGM, CIRGenBuilderTy &builder,
+CIRGenFunction::CIRGenFunction(CIRGenModule &cirGenModule,
+                               CIRGenBuilderTy &builder,
                                bool suppressNewContext)
-    : CIRGenTypeCache(CGM), CGM{CGM}, builder(builder),
-      SanOpts(CGM.getLangOpts().Sanitize), CurFPFeatures(CGM.getLangOpts()),
+    : CIRGenTypeCache(cirGenModule), cgm{cirGenModule}, builder(builder),
+      SanOpts(cirGenModule.getLangOpts().Sanitize),
+      CurFPFeatures(cirGenModule.getLangOpts()),
       ShouldEmitLifetimeMarkers(false) {
   if (!suppressNewContext)
-    CGM.getCXXABI().getMangleContext().startNewFunction();
+    cirGenModule.getCXXABI().getMangleContext().startNewFunction();
   EHStack.setCGF(this);
 
   // TODO(CIR): SetFastMathFlags(CurFPFeatures);
@@ -62,11 +64,11 @@ CIRGenFunction::~CIRGenFunction() {
 }
 
 clang::ASTContext &CIRGenFunction::getContext() const {
-  return CGM.getASTContext();
+  return cgm.getASTContext();
 }
 
-mlir::Type CIRGenFunction::ConvertType(QualType T) {
-  return CGM.getTypes().ConvertType(T);
+mlir::Type CIRGenFunction::ConvertType(QualType t) {
+  return cgm.getTypes().ConvertType(t);
 }
 
 TypeEvaluationKind CIRGenFunction::getEvaluationKind(QualType type) {
@@ -128,40 +130,39 @@ TypeEvaluationKind CIRGenFunction::getEvaluationKind(QualType type) {
   }
 }
 
-mlir::Type CIRGenFunction::convertTypeForMem(QualType T) {
-  return CGM.getTypes().convertTypeForMem(T);
+mlir::Type CIRGenFunction::convertTypeForMem(QualType t) {
+  return cgm.getTypes().convertTypeForMem(t);
 }
 
-mlir::Type CIRGenFunction::convertType(QualType T) {
-  return CGM.getTypes().ConvertType(T);
+mlir::Type CIRGenFunction::convertType(QualType t) {
+  return cgm.getTypes().ConvertType(t);
 }
 
-mlir::Location CIRGenFunction::getLoc(SourceLocation SLoc) {
+mlir::Location CIRGenFunction::getLoc(SourceLocation sLoc) {
   // Some AST nodes might contain invalid source locations (e.g.
   // CXXDefaultArgExpr), workaround that to still get something out.
-  if (SLoc.isValid()) {
-    const SourceManager &SM = getContext().getSourceManager();
-    PresumedLoc PLoc = SM.getPresumedLoc(SLoc);
-    StringRef Filename = PLoc.getFilename();
-    return mlir::FileLineColLoc::get(builder.getStringAttr(Filename),
-                                     PLoc.getLine(), PLoc.getColumn());
-  } else {
-    // Do our best...
-    assert(currSrcLoc && "expected to inherit some source location");
-    return *currSrcLoc;
-  }
+  if (sLoc.isValid()) {
+    const SourceManager &sm = getContext().getSourceManager();
+    PresumedLoc pLoc = sm.getPresumedLoc(sLoc);
+    StringRef filename = pLoc.getFilename();
+    return mlir::FileLineColLoc::get(builder.getStringAttr(filename),
+                                     pLoc.getLine(), pLoc.getColumn());
+  } // Do our best...
+  assert(currSrcLoc && "expected to inherit some source location");
+  return *currSrcLoc;
 }
 
-mlir::Location CIRGenFunction::getLoc(SourceRange SLoc) {
+mlir::Location CIRGenFunction::getLoc(SourceRange sLoc) {
   // Some AST nodes might contain invalid source locations (e.g.
   // CXXDefaultArgExpr), workaround that to still get something out.
-  if (SLoc.isValid()) {
-    mlir::Location B = getLoc(SLoc.getBegin());
-    mlir::Location E = getLoc(SLoc.getEnd());
-    SmallVector<mlir::Location, 2> locs = {B, E};
+  if (sLoc.isValid()) {
+    mlir::Location b = getLoc(sLoc.getBegin());
+    mlir::Location e = getLoc(sLoc.getEnd());
+    SmallVector<mlir::Location, 2> locs = {b, e};
     mlir::Attribute metadata;
     return mlir::FusedLoc::get(locs, metadata, builder.getContext());
-  } else if (currSrcLoc) {
+  }
+  if (currSrcLoc) {
     return *currSrcLoc;
   }
 
@@ -178,9 +179,9 @@ mlir::Location CIRGenFunction::getLoc(mlir::Location lhs, mlir::Location rhs) {
 /// Return true if the statement contains a label in it.  If
 /// this statement is not executed normally, it not containing a label means
 /// that we can just remove the code.
-bool CIRGenFunction::ContainsLabel(const Stmt *S, bool IgnoreCaseStmts) {
+bool CIRGenFunction::ContainsLabel(const Stmt *s, bool ignoreCaseStmts) {
   // Null statement, not a label!
-  if (!S)
+  if (!s)
     return false;
 
   // If this is a label, we have to emit the code, consider something like:
@@ -188,21 +189,21 @@ bool CIRGenFunction::ContainsLabel(const Stmt *S, bool IgnoreCaseStmts) {
   //
   // TODO: If anyone cared, we could track __label__'s, since we know that you
   // can't jump to one from outside their declared region.
-  if (isa<LabelStmt>(S))
+  if (isa<LabelStmt>(s))
     return true;
 
   // If this is a case/default statement, and we haven't seen a switch, we
   // have to emit the code.
-  if (isa<SwitchCase>(S) && !IgnoreCaseStmts)
+  if (isa<SwitchCase>(s) && !ignoreCaseStmts)
     return true;
 
   // If this is a switch statement, we want to ignore cases below it.
-  if (isa<SwitchStmt>(S))
-    IgnoreCaseStmts = true;
+  if (isa<SwitchStmt>(s))
+    ignoreCaseStmts = true;
 
   // Scan subexpressions for verboten labels.
-  for (const Stmt *SubStmt : S->children())
-    if (ContainsLabel(SubStmt, IgnoreCaseStmts))
+  for (const Stmt *subStmt : s->children())
+    if (ContainsLabel(subStmt, ignoreCaseStmts))
       return true;
 
   return false;
@@ -215,12 +216,12 @@ bool CIRGenFunction::sanitizePerformTypeCheck() const {
          SanOpts.has(SanitizerKind::Vptr);
 }
 
-void CIRGenFunction::buildTypeCheck(TypeCheckKind TCK,
-                                    clang::SourceLocation Loc, mlir::Value V,
-                                    clang::QualType Type,
-                                    clang::CharUnits Alignment,
-                                    clang::SanitizerSet SkippedChecks,
-                                    std::optional<mlir::Value> ArraySize) {
+void CIRGenFunction::buildTypeCheck(TypeCheckKind tck,
+                                    clang::SourceLocation loc, mlir::Value v,
+                                    clang::QualType type,
+                                    clang::CharUnits alignment,
+                                    clang::SanitizerSet skippedChecks,
+                                    std::optional<mlir::Value> arraySize) {
   if (!sanitizePerformTypeCheck())
     return;
 
@@ -230,39 +231,39 @@ void CIRGenFunction::buildTypeCheck(TypeCheckKind TCK,
 /// If the specified expression does not fold
 /// to a constant, or if it does but contains a label, return false.  If it
 /// constant folds return true and set the folded value.
-bool CIRGenFunction::ConstantFoldsToSimpleInteger(const Expr *Cond,
-                                                  llvm::APSInt &ResultInt,
-                                                  bool AllowLabels) {
+bool CIRGenFunction::ConstantFoldsToSimpleInteger(const Expr *cond,
+                                                  llvm::APSInt &resultInt,
+                                                  bool allowLabels) {
   // FIXME: Rename and handle conversion of other evaluatable things
   // to bool.
-  Expr::EvalResult Result;
-  if (!Cond->EvaluateAsInt(Result, getContext()))
+  Expr::EvalResult result;
+  if (!cond->EvaluateAsInt(result, getContext()))
     return false; // Not foldable, not integer or not fully evaluatable.
 
-  llvm::APSInt Int = Result.Val.getInt();
-  if (!AllowLabels && ContainsLabel(Cond))
+  llvm::APSInt Int = result.Val.getInt();
+  if (!allowLabels && ContainsLabel(cond))
     return false; // Contains a label.
 
-  ResultInt = Int;
+  resultInt = Int;
   return true;
 }
 
 mlir::Type CIRGenFunction::getCIRType(const QualType &type) {
-  return CGM.getCIRType(type);
+  return cgm.getCIRType(type);
 }
 
 /// Determine whether the function F ends with a return stmt.
-static bool endsWithReturn(const Decl *F) {
-  const Stmt *Body = nullptr;
-  if (auto *FD = dyn_cast_or_null<FunctionDecl>(F))
-    Body = FD->getBody();
-  else if (auto *OMD = dyn_cast_or_null<ObjCMethodDecl>(F))
+static bool endsWithReturn(const Decl *f) {
+  const Stmt *body = nullptr;
+  if (auto *fd = dyn_cast_or_null<FunctionDecl>(f))
+    body = fd->getBody();
+  else if (auto *omd = dyn_cast_or_null<ObjCMethodDecl>(f))
     llvm_unreachable("NYI");
 
-  if (auto *CS = dyn_cast_or_null<CompoundStmt>(Body)) {
-    auto LastStmt = CS->body_rbegin();
-    if (LastStmt != CS->body_rend())
-      return isa<ReturnStmt>(*LastStmt);
+  if (auto *cs = dyn_cast_or_null<CompoundStmt>(body)) {
+    auto lastStmt = cs->body_rbegin();
+    if (lastStmt != cs->body_rend())
+      return isa<ReturnStmt>(*lastStmt);
   }
   return false;
 }
@@ -359,9 +360,9 @@ void CIRGenFunction::LexicalScope::cleanup() {
     (void)buildReturn(retLoc);
   }
 
-  auto insertCleanupAndLeave = [&](mlir::Block *InsPt) {
+  auto insertCleanupAndLeave = [&](mlir::Block *insPt) {
     mlir::OpBuilder::InsertionGuard guard(builder);
-    builder.setInsertionPointToEnd(InsPt);
+    builder.setInsertionPointToEnd(insPt);
 
     // If we still don't have a cleanup block, it means that `applyCleanup`
     // below might be able to get us one.
@@ -373,7 +374,7 @@ void CIRGenFunction::LexicalScope::cleanup() {
     // If we now have one after `applyCleanup`, hook it up properly.
     if (!cleanupBlock && localScope->getCleanupBlock(builder)) {
       cleanupBlock = localScope->getCleanupBlock(builder);
-      builder.create<BrOp>(InsPt->back().getLoc(), cleanupBlock);
+      builder.create<BrOp>(insPt->back().getLoc(), cleanupBlock);
     }
 
     if (localScope->Depth == 0) {
@@ -384,7 +385,7 @@ void CIRGenFunction::LexicalScope::cleanup() {
     // End of any local scope != function
     // Ternary ops have to deal with matching arms for yielding types
     // and do return a value, it must do its own cir.yield insertion.
-    if (!localScope->isTernary() && !InsPt->mightHaveTerminator()) {
+    if (!localScope->isTernary() && !insPt->mightHaveTerminator()) {
       !retVal ? builder.create<YieldOp>(localScope->EndLoc)
               : builder.create<YieldOp>(localScope->EndLoc, retVal);
     }
@@ -439,9 +440,9 @@ CIRGenFunction::LexicalScope::buildReturn(mlir::Location loc) {
   auto &builder = CGF.getBuilder();
 
   // If we are on a coroutine, add the coro_end builtin call.
-  auto Fn = dyn_cast<mlir::cir::FuncOp>(CGF.CurFn);
-  assert(Fn && "other callables NYI");
-  if (Fn.getCoroutine())
+  auto fn = dyn_cast<mlir::cir::FuncOp>(CGF.CurFn);
+  assert(fn && "other callables NYI");
+  if (fn.getCoroutine())
     CGF.buildCoroEndBuiltinCall(
         loc, builder.getNullPtr(builder.getVoidPtrTy(), loc));
 
@@ -457,7 +458,7 @@ void CIRGenFunction::LexicalScope::buildImplicitReturn() {
   auto &builder = CGF.getBuilder();
   auto *localScope = CGF.currLexScope;
 
-  const auto *FD = cast<clang::FunctionDecl>(CGF.CurGD.getDecl());
+  const auto *fd = cast<clang::FunctionDecl>(CGF.CurGD.getDecl());
 
   // C++11 [stmt.return]p2:
   //   Flowing off the end of a function [...] results in undefined behavior
@@ -465,18 +466,18 @@ void CIRGenFunction::LexicalScope::buildImplicitReturn() {
   // C11 6.9.1p12:
   //   If the '}' that terminates a function is reached, and the value of the
   //   function call is used by the caller, the behavior is undefined.
-  if (CGF.getLangOpts().CPlusPlus && !FD->hasImplicitReturnZero() &&
-      !CGF.SawAsmBlock && !FD->getReturnType()->isVoidType() &&
+  if (CGF.getLangOpts().CPlusPlus && !fd->hasImplicitReturnZero() &&
+      !CGF.SawAsmBlock && !fd->getReturnType()->isVoidType() &&
       builder.getInsertionBlock()) {
-    bool shouldEmitUnreachable = CGF.CGM.getCodeGenOpts().StrictReturn ||
-                                 !CGF.CGM.MayDropFunctionReturn(
-                                     FD->getASTContext(), FD->getReturnType());
+    bool shouldEmitUnreachable = CGF.cgm.getCodeGenOpts().StrictReturn ||
+                                 !CGF.cgm.MayDropFunctionReturn(
+                                     fd->getASTContext(), fd->getReturnType());
 
     if (CGF.SanOpts.has(SanitizerKind::Return)) {
       assert(!MissingFeatures::sanitizerReturn());
       llvm_unreachable("NYI");
     } else if (shouldEmitUnreachable) {
-      if (CGF.CGM.getCodeGenOpts().OptimizationLevel == 0) {
+      if (CGF.cgm.getCodeGenOpts().OptimizationLevel == 0) {
         builder.create<mlir::cir::TrapOp>(localScope->EndLoc);
         builder.clearInsertionPoint();
         return;
@@ -503,7 +504,7 @@ mlir::cir::TryOp CIRGenFunction::LexicalScope::getClosestTryParent() {
   return nullptr;
 }
 
-void CIRGenFunction::finishFunction(SourceLocation EndLoc) {
+void CIRGenFunction::finishFunction(SourceLocation endLoc) {
   // CIRGen doesn't use a BreakContinueStack or evaluates OnlySimpleReturnStmts.
 
   // Usually the return expression is evaluated before the cleanup
@@ -518,18 +519,18 @@ void CIRGenFunction::finishFunction(SourceLocation EndLoc) {
   // If there are multiple branches to the return block, the branch
   // instructions will get the location of the return statements and
   // all will be fine.
-  if (auto *DI = getDebugInfo())
+  if (auto *di = getDebugInfo())
     assert(!MissingFeatures::generateDebugInfo() && "NYI");
 
   // Pop any cleanups that might have been associated with the
   // parameters.  Do this in whatever block we're currently in; it's
   // important to do this before we enter the return block or return
   // edges will be *really* confused.
-  bool HasCleanups = EHStack.stable_begin() != PrologueCleanupDepth;
-  if (HasCleanups) {
+  bool hasCleanups = EHStack.stable_begin() != PrologueCleanupDepth;
+  if (hasCleanups) {
     // Make sure the line table doesn't jump back into the body for
     // the ret after it's been at EndLoc.
-    if (auto *DI = getDebugInfo())
+    if (auto *di = getDebugInfo())
       assert(!MissingFeatures::generateDebugInfo() && "NYI");
     // FIXME(cir): vla.c test currently crashes here.
     // PopCleanupBlocks(PrologueCleanupDepth);
@@ -545,7 +546,7 @@ void CIRGenFunction::finishFunction(SourceLocation EndLoc) {
   }
 
   // Emit debug descriptor for function end.
-  if (auto *DI = getDebugInfo())
+  if (auto *di = getDebugInfo())
     assert(!MissingFeatures::generateDebugInfo() && "NYI");
 
   // Reset the debug location to that of the simple 'return' expression, if any
@@ -594,20 +595,21 @@ void CIRGenFunction::finishFunction(SourceLocation EndLoc) {
 }
 
 mlir::cir::FuncOp
-CIRGenFunction::generateCode(clang::GlobalDecl GD, mlir::cir::FuncOp Fn,
-                             const CIRGenFunctionInfo &FnInfo) {
-  assert(Fn && "generating code for a null function");
-  const auto FD = cast<FunctionDecl>(GD.getDecl());
-  CurGD = GD;
+CIRGenFunction::generateCode(clang::GlobalDecl globalDecl,
+                             mlir::cir::FuncOp funcOp,
+                             const CIRGenFunctionInfo &fnInfo) {
+  assert(funcOp && "generating code for a null function");
+  const auto *const funcDecl = cast<FunctionDecl>(globalDecl.getDecl());
+  CurGD = globalDecl;
 
-  FnRetQualTy = FD->getReturnType();
+  FnRetQualTy = funcDecl->getReturnType();
   if (!FnRetQualTy->isVoidType())
     FnRetCIRTy = getCIRType(FnRetQualTy);
 
-  FunctionArgList Args;
-  QualType ResTy = buildFunctionArgList(GD, Args);
+  FunctionArgList args;
+  QualType resTy = buildFunctionArgList(globalDecl, args);
 
-  if (FD->isInlineBuiltinDeclaration()) {
+  if (funcDecl->isInlineBuiltinDeclaration()) {
     llvm_unreachable("NYI");
   } else {
     // Detect the unusual situation where an inline version is shadowed by a
@@ -615,26 +617,26 @@ CIRGenFunction::generateCode(clang::GlobalDecl GD, mlir::cir::FuncOp Fn,
     // everywhere. That's GCC behavior too. Unfortunately, I cannot find a way
     // to detect that situation before we reach codegen, so do some late
     // replacement.
-    for (const auto *PD = FD->getPreviousDecl(); PD;
-         PD = PD->getPreviousDecl()) {
-      if (LLVM_UNLIKELY(PD->isInlineBuiltinDeclaration())) {
+    for (const auto *pd = funcDecl->getPreviousDecl(); pd;
+         pd = pd->getPreviousDecl()) {
+      if (LLVM_UNLIKELY(pd->isInlineBuiltinDeclaration())) {
         llvm_unreachable("NYI");
       }
     }
   }
 
   // Check if we should generate debug info for this function.
-  if (FD->hasAttr<NoDebugAttr>()) {
+  if (funcDecl->hasAttr<NoDebugAttr>()) {
     assert(!MissingFeatures::noDebugInfo());
   }
 
   // The function might not have a body if we're generating thunks for a
   // function declaration.
-  SourceRange BodyRange;
-  if (Stmt *Body = FD->getBody())
-    BodyRange = Body->getSourceRange();
+  SourceRange bodyRange;
+  if (Stmt *body = funcDecl->getBody())
+    bodyRange = body->getSourceRange();
   else
-    BodyRange = FD->getLocation();
+    bodyRange = funcDecl->getLocation();
   // TODO: CurEHLocation
 
   // Use the location of the start of the function to determine where the
@@ -642,22 +644,22 @@ CIRGenFunction::generateCode(clang::GlobalDecl GD, mlir::cir::FuncOp Fn,
   // declaration as the location for the subprogram. A function may lack a
   // declaration in the source code if it is created by code gen. (examples:
   // _GLOBAL__I_a, __cxx_global_array_dtor, thunk).
-  SourceLocation Loc = FD->getLocation();
+  SourceLocation loc = funcDecl->getLocation();
 
   // If this is a function specialization then use the pattern body as the
   // location for the function.
-  if (const auto *SpecDecl = FD->getTemplateInstantiationPattern())
-    if (SpecDecl->hasBody(SpecDecl))
-      Loc = SpecDecl->getLocation();
+  if (const auto *specDecl = funcDecl->getTemplateInstantiationPattern())
+    if (specDecl->hasBody(specDecl))
+      loc = specDecl->getLocation();
 
-  Stmt *Body = FD->getBody();
+  Stmt *body = funcDecl->getBody();
 
-  if (Body) {
+  if (body) {
     // LLVM codegen: Coroutines always emit lifetime markers
     // Hide this under request for lifetime emission so that we can write
     // tests when the time comes, but CIR should be intrinsically scope
     // accurate, so no need to tie coroutines to such markers.
-    if (isa<CoroutineBodyStmt>(Body))
+    if (isa<CoroutineBodyStmt>(body))
       assert(!MissingFeatures::shouldEmitLifetimeMarkers() && "NYI");
 
     // Initialize helper which will detect jumps which can cause invalid
@@ -669,55 +671,56 @@ CIRGenFunction::generateCode(clang::GlobalDecl GD, mlir::cir::FuncOp Fn,
   // Create a scope in the symbol table to hold variable declarations.
   SymTableScopeTy varScope(symbolTable);
   // Compiler synthetized functions might have invalid slocs...
-  auto bSrcLoc = FD->getBody()->getBeginLoc();
-  auto eSrcLoc = FD->getBody()->getEndLoc();
+  auto bSrcLoc = funcDecl->getBody()->getBeginLoc();
+  auto eSrcLoc = funcDecl->getBody()->getEndLoc();
   auto unknownLoc = builder.getUnknownLoc();
 
-  auto FnBeginLoc = bSrcLoc.isValid() ? getLoc(bSrcLoc) : unknownLoc;
-  auto FnEndLoc = eSrcLoc.isValid() ? getLoc(eSrcLoc) : unknownLoc;
+  auto fnBeginLoc = bSrcLoc.isValid() ? getLoc(bSrcLoc) : unknownLoc;
+  auto fnEndLoc = eSrcLoc.isValid() ? getLoc(eSrcLoc) : unknownLoc;
   const auto fusedLoc =
-      mlir::FusedLoc::get(builder.getContext(), {FnBeginLoc, FnEndLoc});
-  SourceLocRAIIObject fnLoc{*this, Loc.isValid() ? getLoc(Loc) : unknownLoc};
+      mlir::FusedLoc::get(builder.getContext(), {fnBeginLoc, fnEndLoc});
+  SourceLocRAIIObject fnLoc{*this, loc.isValid() ? getLoc(loc) : unknownLoc};
 
-  assert(Fn.isDeclaration() && "Function already has body?");
-  mlir::Block *EntryBB = Fn.addEntryBlock();
-  builder.setInsertionPointToStart(EntryBB);
+  assert(funcOp.isDeclaration() && "Function already has body?");
+  mlir::Block *entryBb = funcOp.addEntryBlock();
+  builder.setInsertionPointToStart(entryBb);
 
   {
     // Initialize lexical scope information.
-    LexicalScope lexScope{*this, fusedLoc, EntryBB};
+    LexicalScope lexScope{*this, fusedLoc, entryBb};
 
     // Emit the standard function prologue.
-    StartFunction(GD, ResTy, Fn, FnInfo, Args, Loc, BodyRange.getBegin());
+    StartFunction(globalDecl, resTy, funcOp, fnInfo, args, loc,
+                  bodyRange.getBegin());
 
     // Save parameters for coroutine function.
-    if (Body && isa_and_nonnull<CoroutineBodyStmt>(Body))
-      llvm::append_range(FnArgs, FD->parameters());
+    if (body && isa_and_nonnull<CoroutineBodyStmt>(body))
+      llvm::append_range(FnArgs, funcDecl->parameters());
 
     // Generate the body of the function.
     // TODO: PGO.assignRegionCounters
-    if (isa<CXXDestructorDecl>(FD))
-      buildDestructorBody(Args);
-    else if (isa<CXXConstructorDecl>(FD))
-      buildConstructorBody(Args);
+    if (isa<CXXDestructorDecl>(funcDecl))
+      buildDestructorBody(args);
+    else if (isa<CXXConstructorDecl>(funcDecl))
+      buildConstructorBody(args);
     else if (getLangOpts().CUDA && !getLangOpts().CUDAIsDevice &&
-             FD->hasAttr<CUDAGlobalAttr>())
+             funcDecl->hasAttr<CUDAGlobalAttr>())
       llvm_unreachable("NYI");
-    else if (isa<CXXMethodDecl>(FD) &&
-             cast<CXXMethodDecl>(FD)->isLambdaStaticInvoker()) {
+    else if (isa<CXXMethodDecl>(funcDecl) &&
+             cast<CXXMethodDecl>(funcDecl)->isLambdaStaticInvoker()) {
       // The lambda static invoker function is special, because it forwards or
       // clones the body of the function call operator (but is actually
       // static).
-      buildLambdaStaticInvokeBody(cast<CXXMethodDecl>(FD));
-    } else if (FD->isDefaulted() && isa<CXXMethodDecl>(FD) &&
-               (cast<CXXMethodDecl>(FD)->isCopyAssignmentOperator() ||
-                cast<CXXMethodDecl>(FD)->isMoveAssignmentOperator())) {
+      buildLambdaStaticInvokeBody(cast<CXXMethodDecl>(funcDecl));
+    } else if (funcDecl->isDefaulted() && isa<CXXMethodDecl>(funcDecl) &&
+               (cast<CXXMethodDecl>(funcDecl)->isCopyAssignmentOperator() ||
+                cast<CXXMethodDecl>(funcDecl)->isMoveAssignmentOperator())) {
       // Implicit copy-assignment gets the same special treatment as implicit
       // copy-constructors.
-      buildImplicitAssignmentOperatorBody(Args);
-    } else if (Body) {
-      if (mlir::failed(buildFunctionBody(Body))) {
-        Fn.erase();
+      buildImplicitAssignmentOperatorBody(args);
+    } else if (body) {
+      if (mlir::failed(buildFunctionBody(body))) {
+        funcOp.erase();
         return nullptr;
       }
     } else
@@ -726,89 +729,89 @@ CIRGenFunction::generateCode(clang::GlobalDecl GD, mlir::cir::FuncOp Fn,
     assert(builder.getInsertionBlock() && "Should be valid");
   }
 
-  if (mlir::failed(Fn.verifyBody()))
+  if (mlir::failed(funcOp.verifyBody()))
     return nullptr;
 
   // Emit the standard function epilogue.
-  finishFunction(BodyRange.getEnd());
+  finishFunction(bodyRange.getEnd());
 
   // If we haven't marked the function nothrow through other means, do a quick
   // pass now to see if we can.
   assert(!MissingFeatures::tryMarkNoThrow());
 
-  return Fn;
+  return funcOp;
 }
 
-mlir::Value CIRGenFunction::createLoad(const VarDecl *VD, const char *Name) {
-  auto addr = GetAddrOfLocalVar(VD);
-  return builder.create<LoadOp>(getLoc(VD->getLocation()),
+mlir::Value CIRGenFunction::createLoad(const VarDecl *vd, const char *name) {
+  auto addr = GetAddrOfLocalVar(vd);
+  return builder.create<LoadOp>(getLoc(vd->getLocation()),
                                 addr.getElementType(), addr.getPointer());
 }
 
-static bool isMemcpyEquivalentSpecialMember(const CXXMethodDecl *D) {
-  auto *CD = llvm::dyn_cast<CXXConstructorDecl>(D);
-  if (!(CD && CD->isCopyOrMoveConstructor()) &&
-      !D->isCopyAssignmentOperator() && !D->isMoveAssignmentOperator())
+static bool isMemcpyEquivalentSpecialMember(const CXXMethodDecl *d) {
+  auto *cd = llvm::dyn_cast<CXXConstructorDecl>(d);
+  if (!(cd && cd->isCopyOrMoveConstructor()) &&
+      !d->isCopyAssignmentOperator() && !d->isMoveAssignmentOperator())
     return false;
 
   // We can emit a memcpy for a trivial copy or move constructor/assignment
-  if (D->isTrivial() && !D->getParent()->mayInsertExtraPadding())
+  if (d->isTrivial() && !d->getParent()->mayInsertExtraPadding())
     return true;
 
-  if (D->getParent()->isUnion() && D->isDefaulted())
+  if (d->getParent()->isUnion() && d->isDefaulted())
     return true;
 
   return false;
 }
 
-void CIRGenFunction::buildCXXConstructorCall(const clang::CXXConstructorDecl *D,
-                                             clang::CXXCtorType Type,
-                                             bool ForVirtualBase,
-                                             bool Delegating,
-                                             AggValueSlot ThisAVS,
-                                             const clang::CXXConstructExpr *E) {
-  CallArgList Args;
-  Address This = ThisAVS.getAddress();
-  LangAS SlotAS = ThisAVS.getQualifiers().getAddressSpace();
-  QualType ThisType = D->getThisType();
-  LangAS ThisAS = ThisType.getTypePtr()->getPointeeType().getAddressSpace();
-  mlir::Value ThisPtr = This.getPointer();
+void CIRGenFunction::buildCXXConstructorCall(const clang::CXXConstructorDecl *d,
+                                             clang::CXXCtorType type,
+                                             bool forVirtualBase,
+                                             bool delegating,
+                                             AggValueSlot thisAvs,
+                                             const clang::CXXConstructExpr *e) {
+  CallArgList args;
+  Address This = thisAvs.getAddress();
+  LangAS slotAs = thisAvs.getQualifiers().getAddressSpace();
+  QualType thisType = d->getThisType();
+  LangAS thisAs = thisType.getTypePtr()->getPointeeType().getAddressSpace();
+  mlir::Value thisPtr = This.getPointer();
 
-  assert(SlotAS == ThisAS && "This edge case NYI");
+  assert(slotAs == thisAs && "This edge case NYI");
 
-  Args.add(RValue::get(ThisPtr), D->getThisType());
+  args.add(RValue::get(thisPtr), d->getThisType());
 
   // In LLVM Codegen: If this is a trivial constructor, just emit what's needed.
   // If this is a union copy constructor, we must emit a memcpy, because the AST
   // does not model that copy.
-  if (isMemcpyEquivalentSpecialMember(D)) {
+  if (isMemcpyEquivalentSpecialMember(d)) {
     assert(!MissingFeatures::isMemcpyEquivalentSpecialMember());
   }
 
-  const FunctionProtoType *FPT = D->getType()->castAs<FunctionProtoType>();
-  EvaluationOrder Order = E->isListInitialization()
+  const FunctionProtoType *fpt = d->getType()->castAs<FunctionProtoType>();
+  EvaluationOrder order = e->isListInitialization()
                               ? EvaluationOrder::ForceLeftToRight
                               : EvaluationOrder::Default;
 
-  buildCallArgs(Args, FPT, E->arguments(), E->getConstructor(),
-                /*ParamsToSkip*/ 0, Order);
+  buildCallArgs(args, fpt, e->arguments(), e->getConstructor(),
+                /*ParamsToSkip*/ 0, order);
 
-  buildCXXConstructorCall(D, Type, ForVirtualBase, Delegating, This, Args,
-                          ThisAVS.mayOverlap(), E->getExprLoc(),
-                          ThisAVS.isSanitizerChecked());
+  buildCXXConstructorCall(d, type, forVirtualBase, delegating, This, args,
+                          thisAvs.mayOverlap(), e->getExprLoc(),
+                          thisAvs.isSanitizerChecked());
 }
 
 void CIRGenFunction::buildCXXConstructorCall(
-    const CXXConstructorDecl *D, CXXCtorType Type, bool ForVirtualBase,
-    bool Delegating, Address This, CallArgList &Args,
-    AggValueSlot::Overlap_t Overlap, SourceLocation Loc,
-    bool NewPointerIsChecked) {
+    const CXXConstructorDecl *d, CXXCtorType type, bool forVirtualBase,
+    bool delegating, Address This, CallArgList &args,
+    AggValueSlot::Overlap_t overlap, SourceLocation loc,
+    bool newPointerIsChecked) {
 
-  const auto *ClassDecl = D->getParent();
+  const auto *classDecl = d->getParent();
 
-  if (!NewPointerIsChecked)
-    buildTypeCheck(CIRGenFunction::TCK_ConstructorCall, Loc, This.getPointer(),
-                   getContext().getRecordType(ClassDecl), CharUnits::Zero());
+  if (!newPointerIsChecked)
+    buildTypeCheck(CIRGenFunction::TCK_ConstructorCall, loc, This.getPointer(),
+                   getContext().getRecordType(classDecl), CharUnits::Zero());
 
   // If this is a call to a trivial default constructor:
   // In LLVM: do nothing.
@@ -816,58 +819,58 @@ void CIRGenFunction::buildCXXConstructorCall(
   // ctor call into trivial initialization.
   assert(!MissingFeatures::isTrivialAndisDefaultConstructor());
 
-  if (isMemcpyEquivalentSpecialMember(D)) {
+  if (isMemcpyEquivalentSpecialMember(d)) {
     assert(!MissingFeatures::isMemcpyEquivalentSpecialMember());
   }
 
-  bool PassPrototypeArgs = true;
+  bool passPrototypeArgs = true;
 
-  assert(!D->getInheritedConstructor() && "inheritance NYI");
+  assert(!d->getInheritedConstructor() && "inheritance NYI");
 
   // Insert any ABI-specific implicit constructor arguments.
-  CIRGenCXXABI::AddedStructorArgCounts ExtraArgs =
-      CGM.getCXXABI().addImplicitConstructorArgs(*this, D, Type, ForVirtualBase,
-                                                 Delegating, Args);
+  CIRGenCXXABI::AddedStructorArgCounts extraArgs =
+      cgm.getCXXABI().addImplicitConstructorArgs(*this, d, type, forVirtualBase,
+                                                 delegating, args);
 
   // Emit the call.
-  auto CalleePtr = CGM.getAddrOfCXXStructor(GlobalDecl(D, Type));
-  const CIRGenFunctionInfo &Info = CGM.getTypes().arrangeCXXConstructorCall(
-      Args, D, Type, ExtraArgs.Prefix, ExtraArgs.Suffix, PassPrototypeArgs);
-  CIRGenCallee Callee = CIRGenCallee::forDirect(CalleePtr, GlobalDecl(D, Type));
-  mlir::cir::CIRCallOpInterface C;
-  buildCall(Info, Callee, ReturnValueSlot(), Args, &C, false, getLoc(Loc));
+  auto calleePtr = cgm.getAddrOfCXXStructor(GlobalDecl(d, type));
+  const CIRGenFunctionInfo &info = cgm.getTypes().arrangeCXXConstructorCall(
+      args, d, type, extraArgs.Prefix, extraArgs.Suffix, passPrototypeArgs);
+  CIRGenCallee callee = CIRGenCallee::forDirect(calleePtr, GlobalDecl(d, type));
+  mlir::cir::CIRCallOpInterface c;
+  buildCall(info, callee, ReturnValueSlot(), args, &c, false, getLoc(loc));
 
-  assert(CGM.getCodeGenOpts().OptimizationLevel == 0 ||
-         ClassDecl->isDynamicClass() || Type == Ctor_Base ||
-         !CGM.getCodeGenOpts().StrictVTablePointers &&
+  assert(cgm.getCodeGenOpts().OptimizationLevel == 0 ||
+         classDecl->isDynamicClass() || type == Ctor_Base ||
+         !cgm.getCodeGenOpts().StrictVTablePointers &&
              "vtable assumption loads NYI");
 }
 
-void CIRGenFunction::buildConstructorBody(FunctionArgList &Args) {
+void CIRGenFunction::buildConstructorBody(FunctionArgList &args) {
   // TODO: EmitAsanPrologueOrEpilogue(true);
-  const auto *Ctor = cast<CXXConstructorDecl>(CurGD.getDecl());
-  auto CtorType = CurGD.getCtorType();
+  const auto *ctor = cast<CXXConstructorDecl>(CurGD.getDecl());
+  auto ctorType = CurGD.getCtorType();
 
-  assert((CGM.getTarget().getCXXABI().hasConstructorVariants() ||
-          CtorType == Ctor_Complete) &&
+  assert((cgm.getTarget().getCXXABI().hasConstructorVariants() ||
+          ctorType == Ctor_Complete) &&
          "can only generate complete ctor for this ABI");
 
   // Before we go any further, try the complete->base constructor delegation
   // optimization.
-  if (CtorType == Ctor_Complete && IsConstructorDelegationValid(Ctor) &&
-      CGM.getTarget().getCXXABI().hasConstructorVariants()) {
-    buildDelegateCXXConstructorCall(Ctor, Ctor_Base, Args, Ctor->getEndLoc());
+  if (ctorType == Ctor_Complete && IsConstructorDelegationValid(ctor) &&
+      cgm.getTarget().getCXXABI().hasConstructorVariants()) {
+    buildDelegateCXXConstructorCall(ctor, Ctor_Base, args, ctor->getEndLoc());
     return;
   }
 
-  const FunctionDecl *Definition = nullptr;
-  Stmt *Body = Ctor->getBody(Definition);
-  assert(Definition == Ctor && "emitting wrong constructor body");
+  const FunctionDecl *definition = nullptr;
+  Stmt *Body = ctor->getBody(definition);
+  assert(definition == ctor && "emitting wrong constructor body");
 
   // Enter the function-try-block before the constructor prologue if
   // applicable.
-  bool IsTryBody = (Body && isa<CXXTryStmt>(Body));
-  if (IsTryBody)
+  bool isTryBody = (isa_and_nonnull<CXXTryStmt>(Body));
+  if (isTryBody)
     llvm_unreachable("NYI");
 
   // TODO: incrementProfileCounter
@@ -878,10 +881,10 @@ void CIRGenFunction::buildConstructorBody(FunctionArgList &Args) {
   // complete ctor and then delegate to the base ctor.
 
   // Emit the constructor prologue, i.e. the base and member initializers.
-  buildCtorPrologue(Ctor, CtorType, Args);
+  buildCtorPrologue(ctor, ctorType, args);
 
   // Emit the body of the statement.
-  if (IsTryBody)
+  if (isTryBody)
     llvm_unreachable("NYI");
   else {
     // TODO: propagate this result via mlir::logical result. Just unreachable
@@ -895,7 +898,7 @@ void CIRGenFunction::buildConstructorBody(FunctionArgList &Args) {
   // members and bases that were fully constructed.
   /// TODO: RunCleanups.ForceCleanup();
 
-  if (IsTryBody)
+  if (isTryBody)
     llvm_unreachable("NYI");
 }
 
@@ -907,7 +910,7 @@ LValue CIRGenFunction::MakeNaturalAlignPointeeAddrLValue(mlir::Value val,
   // assert on the result type first.
   LValueBaseInfo baseInfo;
   TBAAAccessInfo tbaaInfo;
-  CharUnits align = CGM.getNaturalTypeAlignment(ty, &baseInfo, &tbaaInfo,
+  CharUnits align = cgm.getNaturalTypeAlignment(ty, &baseInfo, &tbaaInfo,
                                                 /* for PointeeType= */ true);
   return makeAddrLValue(Address(val, align), ty, baseInfo);
 }
@@ -917,7 +920,7 @@ LValue CIRGenFunction::MakeNaturalAlignAddrLValue(mlir::Value val,
   LValueBaseInfo baseInfo;
   TBAAAccessInfo tbaaInfo;
   assert(!MissingFeatures::tbaa());
-  CharUnits alignment = CGM.getNaturalTypeAlignment(ty, &baseInfo, &tbaaInfo);
+  CharUnits alignment = cgm.getNaturalTypeAlignment(ty, &baseInfo, &tbaaInfo);
   Address addr(val, getTypes().convertTypeForMem(ty), alignment);
   return LValue::makeAddr(addr, ty, getContext(), baseInfo, tbaaInfo);
 }
@@ -925,8 +928,8 @@ LValue CIRGenFunction::MakeNaturalAlignAddrLValue(mlir::Value val,
 // Map the LangOption for exception behavior into the corresponding enum in
 // the IR.
 cir::fp::ExceptionBehavior
-ToConstrainedExceptMD(LangOptions::FPExceptionModeKind Kind) {
-  switch (Kind) {
+toConstrainedExceptMd(LangOptions::FPExceptionModeKind kind) {
+  switch (kind) {
   case LangOptions::FPE_Ignore:
     return cir::fp::ebIgnore;
   case LangOptions::FPE_MayTrap:
@@ -947,49 +950,49 @@ bool CIRGenFunction::ShouldSkipSanitizerInstrumentation() {
 /// Return true if the current function should be instrumented with XRay nop
 /// sleds.
 bool CIRGenFunction::ShouldXRayInstrumentFunction() const {
-  return CGM.getCodeGenOpts().XRayInstrumentFunctions;
+  return cgm.getCodeGenOpts().XRayInstrumentFunctions;
 }
 
-static bool matchesStlAllocatorFn(const Decl *D, const ASTContext &Ctx) {
-  auto *MD = dyn_cast_or_null<CXXMethodDecl>(D);
-  if (!MD || !MD->getDeclName().getAsIdentifierInfo() ||
-      !MD->getDeclName().getAsIdentifierInfo()->isStr("allocate") ||
-      (MD->getNumParams() != 1 && MD->getNumParams() != 2))
+static bool matchesStlAllocatorFn(const Decl *d, const ASTContext &ctx) {
+  auto *md = dyn_cast_or_null<CXXMethodDecl>(d);
+  if (!md || !md->getDeclName().getAsIdentifierInfo() ||
+      !md->getDeclName().getAsIdentifierInfo()->isStr("allocate") ||
+      (md->getNumParams() != 1 && md->getNumParams() != 2))
     return false;
 
-  if (MD->parameters()[0]->getType().getCanonicalType() != Ctx.getSizeType())
+  if (md->parameters()[0]->getType().getCanonicalType() != ctx.getSizeType())
     return false;
 
-  if (MD->getNumParams() == 2) {
-    auto *PT = MD->parameters()[1]->getType()->getAs<clang::PointerType>();
-    if (!PT || !PT->isVoidPointerType() ||
-        !PT->getPointeeType().isConstQualified())
+  if (md->getNumParams() == 2) {
+    auto *pt = md->parameters()[1]->getType()->getAs<clang::PointerType>();
+    if (!pt || !pt->isVoidPointerType() ||
+        !pt->getPointeeType().isConstQualified())
       return false;
   }
 
   return true;
 }
 
-void CIRGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
-                                   mlir::cir::FuncOp Fn,
-                                   const CIRGenFunctionInfo &FnInfo,
+void CIRGenFunction::StartFunction(GlobalDecl globalDecl, QualType retTy,
+                                   mlir::cir::FuncOp func,
+                                   const CIRGenFunctionInfo &fnInfo,
                                    const FunctionArgList &Args,
                                    SourceLocation Loc,
-                                   SourceLocation StartLoc) {
+                                   SourceLocation startLoc) {
   assert(!CurFn &&
          "Do not use a CIRGenFunction object for more than one function");
 
-  const auto *D = GD.getDecl();
+  const auto *D = globalDecl.getDecl();
 
   DidCallStackSave = false;
   CurCodeDecl = D;
-  const auto *FD = dyn_cast_or_null<FunctionDecl>(D);
-  if (FD && FD->usesSEHTry())
-    CurSEHParent = GD;
+  const auto *fd = dyn_cast_or_null<FunctionDecl>(D);
+  if (fd && fd->usesSEHTry())
+    CurSEHParent = globalDecl;
   CurFuncDecl = (D ? D->getNonClosureContext() : nullptr);
-  FnRetTy = RetTy;
-  CurFn = Fn;
-  CurFnInfo = &FnInfo;
+  FnRetTy = retTy;
+  CurFn = func;
+  CurFnInfo = &fnInfo;
 
   // If this function is ignored for any of the enabled sanitizers, disable
   // the sanitizer for the function.
@@ -998,48 +1001,48 @@ void CIRGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
   if (SanOpts.empty())                                                         \
     break;                                                                     \
   if (SanOpts.has(SanitizerKind::ID))                                          \
-    if (CGM.isInNoSanitizeList(SanitizerKind::ID, Fn, Loc))                    \
+    if (cgm.isInNoSanitizeList(SanitizerKind::ID, func, Loc))                  \
       SanOpts.set(SanitizerKind::ID, false);
 
 #include "clang/Basic/Sanitizers.def"
 #undef SANITIZER
-  } while (0);
+  } while (false);
 
   if (D) {
-    const bool SanitizeBounds = SanOpts.hasOneOf(SanitizerKind::Bounds);
-    SanitizerMask no_sanitize_mask;
-    bool NoSanitizeCoverage = false;
+    const bool sanitizeBounds = SanOpts.hasOneOf(SanitizerKind::Bounds);
+    SanitizerMask noSanitizeMask;
+    bool noSanitizeCoverage = false;
 
-    for (auto *Attr : D->specific_attrs<NoSanitizeAttr>()) {
-      no_sanitize_mask |= Attr->getMask();
+    for (auto *attr : D->specific_attrs<NoSanitizeAttr>()) {
+      noSanitizeMask |= attr->getMask();
       // SanitizeCoverage is not handled by SanOpts.
-      if (Attr->hasCoverage())
-        NoSanitizeCoverage = true;
+      if (attr->hasCoverage())
+        noSanitizeCoverage = true;
     }
 
     // Apply the no_sanitize* attributes to SanOpts.
-    SanOpts.Mask &= ~no_sanitize_mask;
-    if (no_sanitize_mask & SanitizerKind::Address)
+    SanOpts.Mask &= ~noSanitizeMask;
+    if (noSanitizeMask & SanitizerKind::Address)
       SanOpts.set(SanitizerKind::KernelAddress, false);
-    if (no_sanitize_mask & SanitizerKind::KernelAddress)
+    if (noSanitizeMask & SanitizerKind::KernelAddress)
       SanOpts.set(SanitizerKind::Address, false);
-    if (no_sanitize_mask & SanitizerKind::HWAddress)
+    if (noSanitizeMask & SanitizerKind::HWAddress)
       SanOpts.set(SanitizerKind::KernelHWAddress, false);
-    if (no_sanitize_mask & SanitizerKind::KernelHWAddress)
+    if (noSanitizeMask & SanitizerKind::KernelHWAddress)
       SanOpts.set(SanitizerKind::HWAddress, false);
 
     // TODO(cir): set llvm::Attribute::NoSanitizeBounds
-    if (SanitizeBounds && !SanOpts.hasOneOf(SanitizerKind::Bounds))
+    if (sanitizeBounds && !SanOpts.hasOneOf(SanitizerKind::Bounds))
       assert(!MissingFeatures::sanitizeOther());
 
     // TODO(cir): set llvm::Attribute::NoSanitizeCoverage
-    if (NoSanitizeCoverage && CGM.getCodeGenOpts().hasSanitizeCoverage())
+    if (noSanitizeCoverage && cgm.getCodeGenOpts().hasSanitizeCoverage())
       assert(!MissingFeatures::sanitizeOther());
 
     // Some passes need the non-negated no_sanitize attribute. Pass them on.
-    if (CGM.getCodeGenOpts().hasSanitizeBinaryMetadata()) {
+    if (cgm.getCodeGenOpts().hasSanitizeBinaryMetadata()) {
       // TODO(cir): set no_sanitize_thread
-      if (no_sanitize_mask & SanitizerKind::Thread)
+      if (noSanitizeMask & SanitizerKind::Thread)
         assert(!MissingFeatures::sanitizeOther());
     }
   }
@@ -1074,7 +1077,7 @@ void CIRGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
   // Ignore TSan memory acesses from within ObjC/ObjC++ dealloc, initialize,
   // .cxx_destruct, __destroy_helper_block_ and all of their calees at run time.
   if (SanOpts.has(SanitizerKind::Thread)) {
-    if (const auto *OMD = dyn_cast_or_null<ObjCMethodDecl>(D)) {
+    if (const auto *omd = dyn_cast_or_null<ObjCMethodDecl>(D)) {
       llvm_unreachable("NYI");
     }
   }
@@ -1091,12 +1094,12 @@ void CIRGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
   // are not aware of how to move the extra UBSan instructions across the split
   // coroutine boundaries.
   if (D && SanOpts.has(SanitizerKind::Null))
-    if (FD && FD->getBody() &&
-        FD->getBody()->getStmtClass() == Stmt::CoroutineBodyStmtClass)
+    if (fd && fd->getBody() &&
+        fd->getBody()->getStmtClass() == Stmt::CoroutineBodyStmtClass)
       SanOpts.Mask &= ~SanitizerKind::Null;
 
   // Apply xray attributes to the function (as a string, for now)
-  if (const auto *XRayAttr = D ? D->getAttr<XRayInstrumentAttr>() : nullptr) {
+  if (const auto *xRayAttr = D ? D->getAttr<XRayInstrumentAttr>() : nullptr) {
     assert(!MissingFeatures::xray());
   } else {
     assert(!MissingFeatures::xray());
@@ -1106,35 +1109,35 @@ void CIRGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
     assert(!MissingFeatures::xray());
   }
 
-  if (CGM.getCodeGenOpts().getProfileInstr() != CodeGenOptions::ProfileNone) {
+  if (cgm.getCodeGenOpts().getProfileInstr() != CodeGenOptions::ProfileNone) {
     assert(!MissingFeatures::getProfileCount());
   }
 
-  unsigned Count, Offset;
-  if (const auto *Attr =
+  unsigned count, offset;
+  if (const auto *attr =
           D ? D->getAttr<PatchableFunctionEntryAttr>() : nullptr) {
     llvm_unreachable("NYI");
   } else {
-    Count = CGM.getCodeGenOpts().PatchableFunctionEntryCount;
-    Offset = CGM.getCodeGenOpts().PatchableFunctionEntryOffset;
+    count = cgm.getCodeGenOpts().PatchableFunctionEntryCount;
+    offset = cgm.getCodeGenOpts().PatchableFunctionEntryOffset;
   }
-  if (Count && Offset <= Count) {
+  if (count && offset <= count) {
     llvm_unreachable("NYI");
   }
 
   // Add no-jump-tables value.
-  if (CGM.getCodeGenOpts().NoUseJumpTables)
+  if (cgm.getCodeGenOpts().NoUseJumpTables)
     llvm_unreachable("NYI");
 
   // Add no-inline-line-tables value.
-  if (CGM.getCodeGenOpts().NoInlineLineTables)
+  if (cgm.getCodeGenOpts().NoInlineLineTables)
     llvm_unreachable("NYI");
 
   // Add profile-sample-accurate value.
-  if (CGM.getCodeGenOpts().ProfileSampleAccurate)
+  if (cgm.getCodeGenOpts().ProfileSampleAccurate)
     llvm_unreachable("NYI");
 
-  if (!CGM.getCodeGenOpts().SampleProfileFile.empty())
+  if (!cgm.getCodeGenOpts().SampleProfileFile.empty())
     llvm_unreachable("NYI");
 
   if (D && D->hasAttr<CFICanonicalJumpTableAttr>())
@@ -1143,13 +1146,13 @@ void CIRGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
   if (D && D->hasAttr<NoProfileFunctionAttr>())
     llvm_unreachable("NYI");
 
-  if (FD && getLangOpts().OpenCL) {
-    buildKernelMetadata(FD, Fn);
+  if (fd && getLangOpts().OpenCL) {
+    buildKernelMetadata(fd, func);
   }
 
   // If we are checking function types, emit a function type signature as
   // prologue data.
-  if (FD && getLangOpts().CPlusPlus && SanOpts.has(SanitizerKind::Function)) {
+  if (fd && getLangOpts().CPlusPlus && SanOpts.has(SanitizerKind::Function)) {
     llvm_unreachable("NYI");
   }
 
@@ -1171,26 +1174,26 @@ void CIRGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
   //     kernels cannot include RTTI information, exception cases, recursive
   //     code, virtual functions or make use of C++ libraries that are not
   //     compiled for the device.
-  if (FD &&
-      ((getLangOpts().CPlusPlus && FD->isMain()) || getLangOpts().OpenCL ||
+  if (fd &&
+      ((getLangOpts().CPlusPlus && fd->isMain()) || getLangOpts().OpenCL ||
        getLangOpts().SYCLIsDevice |
-           (getLangOpts().CUDA && FD->hasAttr<CUDAGlobalAttr>())))
-    ; // TODO: support norecurse attr
+           (getLangOpts().CUDA && fd->hasAttr<CUDAGlobalAttr>())))
+    ; // TODO(CIR): support norecurse attr
 
-  llvm::RoundingMode RM = getLangOpts().getDefaultRoundingMode();
-  cir::fp::ExceptionBehavior FPExceptionBehavior =
-      ToConstrainedExceptMD(getLangOpts().getDefaultExceptionMode());
-  builder.setDefaultConstrainedRounding(RM);
-  builder.setDefaultConstrainedExcept(FPExceptionBehavior);
-  if ((FD && (FD->UsesFPIntrin() || FD->hasAttr<StrictFPAttr>())) ||
-      (!FD && (FPExceptionBehavior != cir::fp::ebIgnore ||
-               RM != llvm::RoundingMode::NearestTiesToEven))) {
+  llvm::RoundingMode rm = getLangOpts().getDefaultRoundingMode();
+  cir::fp::ExceptionBehavior fpExceptionBehavior =
+      toConstrainedExceptMd(getLangOpts().getDefaultExceptionMode());
+  builder.setDefaultConstrainedRounding(rm);
+  builder.setDefaultConstrainedExcept(fpExceptionBehavior);
+  if ((fd && (fd->UsesFPIntrin() || fd->hasAttr<StrictFPAttr>())) ||
+      (!fd && (fpExceptionBehavior != cir::fp::ebIgnore ||
+               rm != llvm::RoundingMode::NearestTiesToEven))) {
     llvm_unreachable("NYI");
   }
 
   // TODO: stackrealign attr
 
-  mlir::Block *EntryBB = &Fn.getBlocks().front();
+  mlir::Block *entryBb = &func.getBlocks().front();
 
   // TODO: allocapt insertion? probably don't need for CIR
 
@@ -1208,15 +1211,15 @@ void CIRGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
   // function inlining, we just add an attribute to insert a mcount call in
   // backend. The attribute "counting-function" is set to mcount function name
   // which is architecture dependent.
-  if (CGM.getCodeGenOpts().InstrumentForProfiling) {
+  if (cgm.getCodeGenOpts().InstrumentForProfiling) {
     llvm_unreachable("NYI");
   }
 
-  if (CGM.getCodeGenOpts().PackedStack) {
+  if (cgm.getCodeGenOpts().PackedStack) {
     llvm_unreachable("NYI");
   }
 
-  if (CGM.getCodeGenOpts().WarnStackSize != UINT_MAX) {
+  if (cgm.getCodeGenOpts().WarnStackSize != UINT_MAX) {
     llvm_unreachable("NYI");
   }
 
@@ -1225,7 +1228,7 @@ void CIRGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
   // PrologueCleanupDepth = EHStack.stable_begin();
 
   if (getLangOpts().OpenMP && CurCodeDecl)
-    CGM.getOpenMPRuntime().emitFunctionProlog(*this, CurCodeDecl);
+    cgm.getOpenMPRuntime().emitFunctionProlog(*this, CurCodeDecl);
 
   // TODO: buildFunctionProlog
 
@@ -1233,11 +1236,11 @@ void CIRGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
     // Set the insertion point in the builder to the beginning of the
     // function body, it will be used throughout the codegen to create
     // operations in this function.
-    builder.setInsertionPointToStart(EntryBB);
+    builder.setInsertionPointToStart(entryBb);
 
     // TODO: this should live in `buildFunctionProlog
     // Declare all the function arguments in the symbol table.
-    for (const auto nameValue : llvm::zip(Args, EntryBB->getArguments())) {
+    for (const auto nameValue : llvm::zip(Args, entryBb->getArguments())) {
       auto *paramVar = std::get<0>(nameValue);
       auto paramVal = std::get<1>(nameValue);
       auto alignment = getContext().getDeclAlign(paramVar);
@@ -1254,38 +1257,39 @@ void CIRGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
 
       // Location of the store to the param storage tracked as beginning of
       // the function body.
-      auto fnBodyBegin = getLoc(FD->getBody()->getBeginLoc());
+      auto fnBodyBegin = getLoc(fd->getBody()->getBeginLoc());
       builder.CIRBaseBuilderTy::createStore(fnBodyBegin, paramVal, addr);
     }
     assert(builder.getInsertionBlock() && "Should be valid");
 
-    auto FnEndLoc = getLoc(FD->getBody()->getEndLoc());
+    auto fnEndLoc = getLoc(fd->getBody()->getEndLoc());
 
     // When the current function is not void, create an address to store the
     // result value.
     if (FnRetCIRTy.has_value())
-      buildAndUpdateRetAlloca(FnRetQualTy, FnEndLoc,
-                              CGM.getNaturalTypeAlignment(FnRetQualTy));
+      buildAndUpdateRetAlloca(FnRetQualTy, fnEndLoc,
+                              cgm.getNaturalTypeAlignment(FnRetQualTy));
   }
 
-  if (D && isa<CXXMethodDecl>(D) && cast<CXXMethodDecl>(D)->isInstance()) {
-    CGM.getCXXABI().buildInstanceFunctionProlog(*this);
+  if (isa_and_nonnull<CXXMethodDecl>(D) &&
+      cast<CXXMethodDecl>(D)->isInstance()) {
+    cgm.getCXXABI().buildInstanceFunctionProlog(*this);
 
-    const auto *MD = cast<CXXMethodDecl>(D);
-    if (MD->getParent()->isLambda() && MD->getOverloadedOperator() == OO_Call) {
+    const auto *md = cast<CXXMethodDecl>(D);
+    if (md->getParent()->isLambda() && md->getOverloadedOperator() == OO_Call) {
       // We're in a lambda.
-      auto Fn = dyn_cast<mlir::cir::FuncOp>(CurFn);
-      assert(Fn && "other callables NYI");
-      Fn.setLambdaAttr(mlir::UnitAttr::get(builder.getContext()));
+      auto fn = dyn_cast<mlir::cir::FuncOp>(CurFn);
+      assert(fn && "other callables NYI");
+      fn.setLambdaAttr(mlir::UnitAttr::get(builder.getContext()));
 
       // Figure out the captures.
-      MD->getParent()->getCaptureFields(LambdaCaptureFields,
+      md->getParent()->getCaptureFields(LambdaCaptureFields,
                                         LambdaThisCaptureField);
       if (LambdaThisCaptureField) {
         llvm_unreachable("NYI");
       }
-      for (auto *FD : MD->getParent()->fields()) {
-        if (FD->hasCapturedVLAType()) {
+      for (auto *fd : md->getParent()->fields()) {
+        if (fd->hasCapturedVLAType()) {
           llvm_unreachable("NYI");
         }
       }
@@ -1299,17 +1303,17 @@ void CIRGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
 
     // Check the 'this' pointer once per function, if it's available
     if (CXXABIThisValue) {
-      SanitizerSet SkippedChecks;
-      SkippedChecks.set(SanitizerKind::ObjectSize, true);
-      QualType ThisTy = MD->getThisType();
-      (void)ThisTy;
+      SanitizerSet skippedChecks;
+      skippedChecks.set(SanitizerKind::ObjectSize, true);
+      QualType thisTy = md->getThisType();
+      (void)thisTy;
 
       // If this is the call operator of a lambda with no capture-default, it
       // may have a staic invoker function, which may call this operator with
       // a null 'this' pointer.
-      if (isLambdaCallOperator(MD) &&
-          MD->getParent()->getLambdaCaptureDefault() == LCD_None)
-        SkippedChecks.set(SanitizerKind::Null, true);
+      if (isLambdaCallOperator(md) &&
+          md->getParent()->getLambdaCaptureDefault() == LCD_None)
+        skippedChecks.set(SanitizerKind::Null, true);
 
       assert(!MissingFeatures::buildTypeCheck() && "NYI");
     }
@@ -1317,21 +1321,18 @@ void CIRGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
 
   // If any of the arguments have a variably modified type, make sure to emit
   // the type size.
-  for (FunctionArgList::const_iterator i = Args.begin(), e = Args.end(); i != e;
-       ++i) {
-    const VarDecl *VD = *i;
-
+  for (auto VD : Args) {
     // Dig out the type as written from ParmVarDecls; it's unclear whether the
     // standard (C99 6.9.1p10) requires this, but we're following the
     // precedent set by gcc.
-    QualType Ty;
-    if (const auto *PVD = dyn_cast<ParmVarDecl>(VD))
-      Ty = PVD->getOriginalType();
+    QualType ty;
+    if (const auto *pvd = dyn_cast<ParmVarDecl>(VD))
+      ty = pvd->getOriginalType();
     else
-      Ty = VD->getType();
+      ty = VD->getType();
 
-    if (Ty->isVariablyModifiedType())
-      buildVariablyModifiedType(Ty);
+    if (ty->isVariablyModifiedType())
+      buildVariablyModifiedType(ty);
   }
   // Emit a location at the end of the prologue.
   if (getDebugInfo())
@@ -1340,32 +1341,32 @@ void CIRGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
   // TODO: Do we need to handle this in two places like we do with
   // target-features/target-cpu?
   if (CurFuncDecl)
-    if (const auto *VecWidth = CurFuncDecl->getAttr<MinVectorWidthAttr>())
+    if (const auto *vecWidth = CurFuncDecl->getAttr<MinVectorWidthAttr>())
       llvm_unreachable("NYI");
 }
 
 /// Return true if the current function should be instrumented with
 /// __cyg_profile_func_* calls
 bool CIRGenFunction::ShouldInstrumentFunction() {
-  if (!CGM.getCodeGenOpts().InstrumentFunctions &&
-      !CGM.getCodeGenOpts().InstrumentFunctionsAfterInlining &&
-      !CGM.getCodeGenOpts().InstrumentFunctionEntryBare)
+  if (!cgm.getCodeGenOpts().InstrumentFunctions &&
+      !cgm.getCodeGenOpts().InstrumentFunctionsAfterInlining &&
+      !cgm.getCodeGenOpts().InstrumentFunctionEntryBare)
     return false;
 
   llvm_unreachable("NYI");
 }
 
-mlir::LogicalResult CIRGenFunction::buildFunctionBody(const clang::Stmt *Body) {
+mlir::LogicalResult CIRGenFunction::buildFunctionBody(const clang::Stmt *body) {
   // TODO: incrementProfileCounter(Body);
 
   // We start with function level scope for variables.
   SymTableScopeTy varScope(symbolTable);
 
   auto result = mlir::LogicalResult::success();
-  if (const CompoundStmt *S = dyn_cast<CompoundStmt>(Body))
-    buildCompoundStmtWithoutScope(*S);
+  if (const CompoundStmt *s = dyn_cast<CompoundStmt>(body))
+    buildCompoundStmtWithoutScope(*s);
   else
-    result = buildStmt(Body, /*useCurrentScope*/ true);
+    result = buildStmt(body, /*useCurrentScope*/ true);
 
   // This is checked after emitting the function body so we know if there are
   // any permitted infinite loops.
@@ -1374,54 +1375,54 @@ mlir::LogicalResult CIRGenFunction::buildFunctionBody(const clang::Stmt *Body) {
   return result;
 }
 
-clang::QualType CIRGenFunction::buildFunctionArgList(clang::GlobalDecl GD,
-                                                     FunctionArgList &Args) {
-  const auto *FD = cast<FunctionDecl>(GD.getDecl());
-  QualType ResTy = FD->getReturnType();
+clang::QualType CIRGenFunction::buildFunctionArgList(clang::GlobalDecl gd,
+                                                     FunctionArgList &args) {
+  const auto *fd = cast<FunctionDecl>(gd.getDecl());
+  QualType resTy = fd->getReturnType();
 
-  const auto *MD = dyn_cast<CXXMethodDecl>(FD);
-  if (MD && MD->isInstance()) {
-    if (CGM.getCXXABI().HasThisReturn(GD))
+  const auto *md = dyn_cast<CXXMethodDecl>(fd);
+  if (md && md->isInstance()) {
+    if (cgm.getCXXABI().HasThisReturn(gd))
       llvm_unreachable("NYI");
-    else if (CGM.getCXXABI().hasMostDerivedReturn(GD))
+    else if (cgm.getCXXABI().hasMostDerivedReturn(gd))
       llvm_unreachable("NYI");
-    CGM.getCXXABI().buildThisParam(*this, Args);
+    cgm.getCXXABI().buildThisParam(*this, args);
   }
 
   // The base version of an inheriting constructor whose constructed base is a
   // virtual base is not passed any arguments (because it doesn't actually
   // call the inherited constructor).
-  bool PassedParams = true;
-  if (const auto *CD = dyn_cast<CXXConstructorDecl>(FD))
-    if (auto Inherited = CD->getInheritedConstructor())
-      PassedParams =
-          getTypes().inheritingCtorHasParams(Inherited, GD.getCtorType());
+  bool passedParams = true;
+  if (const auto *cd = dyn_cast<CXXConstructorDecl>(fd))
+    if (auto inherited = cd->getInheritedConstructor())
+      passedParams =
+          getTypes().inheritingCtorHasParams(inherited, gd.getCtorType());
 
-  if (PassedParams) {
-    for (auto *Param : FD->parameters()) {
-      Args.push_back(Param);
-      if (!Param->hasAttr<PassObjectSizeAttr>())
+  if (passedParams) {
+    for (auto *param : fd->parameters()) {
+      args.push_back(param);
+      if (!param->hasAttr<PassObjectSizeAttr>())
         continue;
 
-      auto *Implicit = ImplicitParamDecl::Create(
-          getContext(), Param->getDeclContext(), Param->getLocation(),
+      auto *implicit = ImplicitParamDecl::Create(
+          getContext(), param->getDeclContext(), param->getLocation(),
           /*Id=*/nullptr, getContext().getSizeType(), ImplicitParamKind::Other);
-      SizeArguments[Param] = Implicit;
-      Args.push_back(Implicit);
+      SizeArguments[param] = implicit;
+      args.push_back(implicit);
     }
   }
 
-  if (MD && (isa<CXXConstructorDecl>(MD) || isa<CXXDestructorDecl>(MD)))
-    CGM.getCXXABI().addImplicitStructorParams(*this, ResTy, Args);
+  if (md && (isa<CXXConstructorDecl>(md) || isa<CXXDestructorDecl>(md)))
+    cgm.getCXXABI().addImplicitStructorParams(*this, resTy, args);
 
-  return ResTy;
+  return resTy;
 }
 
 static std::string getVersionedTmpName(llvm::StringRef name, unsigned cnt) {
-  SmallString<256> Buffer;
-  llvm::raw_svector_ostream Out(Buffer);
-  Out << name << cnt;
-  return std::string(Out.str());
+  SmallString<256> buffer;
+  llvm::raw_svector_ostream out(buffer);
+  out << name << cnt;
+  return std::string(out.str());
 }
 
 std::string CIRGenFunction::getCounterAggTmpAsString() {
@@ -1433,43 +1434,43 @@ std::string CIRGenFunction::getCounterRefTmpAsString() {
 }
 
 void CIRGenFunction::buildNullInitialization(mlir::Location loc,
-                                             Address DestPtr, QualType Ty) {
+                                             Address destPtr, QualType ty) {
   // Ignore empty classes in C++.
   if (getLangOpts().CPlusPlus) {
-    if (const RecordType *RT = Ty->getAs<RecordType>()) {
-      if (cast<CXXRecordDecl>(RT->getDecl())->isEmpty())
+    if (const RecordType *rt = ty->getAs<RecordType>()) {
+      if (cast<CXXRecordDecl>(rt->getDecl())->isEmpty())
         return;
     }
   }
 
   // Cast the dest ptr to the appropriate i8 pointer type.
-  if (builder.isInt8Ty(DestPtr.getElementType())) {
+  if (builder.isInt8Ty(destPtr.getElementType())) {
     llvm_unreachable("NYI");
   }
 
   // Get size and alignment info for this aggregate.
-  CharUnits size = getContext().getTypeSizeInChars(Ty);
-  [[maybe_unused]] mlir::Attribute SizeVal{};
+  CharUnits size = getContext().getTypeSizeInChars(ty);
+  [[maybe_unused]] mlir::Attribute sizeVal{};
   [[maybe_unused]] const VariableArrayType *vla = nullptr;
 
   // Don't bother emitting a zero-byte memset.
   if (size.isZero()) {
     // But note that getTypeInfo returns 0 for a VLA.
     if (const VariableArrayType *vlaType = dyn_cast_or_null<VariableArrayType>(
-            getContext().getAsArrayType(Ty))) {
+            getContext().getAsArrayType(ty))) {
       llvm_unreachable("NYI");
     } else {
       return;
     }
   } else {
-    SizeVal = CGM.getSize(size);
+    sizeVal = cgm.getSize(size);
   }
 
   // If the type contains a pointer to data member we can't memset it to zero.
   // Instead, create a null constant and copy it to the destination.
   // TODO: there are other patterns besides zero that we can usefully memset,
   // like -1, which happens to be the pattern used by member-pointers.
-  if (!CGM.getTypes().isZeroInitializable(Ty)) {
+  if (!cgm.getTypes().isZeroInitializable(ty)) {
     llvm_unreachable("NYI");
   }
 
@@ -1477,41 +1478,41 @@ void CIRGenFunction::buildNullInitialization(mlir::Location loc,
   // Builder.CreateMemSet. In CIR just emit a store of #cir.zero to the
   // respective address.
   // Builder.CreateMemSet(DestPtr, Builder.getInt8(0), SizeVal, false);
-  builder.createStore(loc, builder.getZero(loc, getTypes().ConvertType(Ty)),
-                      DestPtr);
+  builder.createStore(loc, builder.getZero(loc, getTypes().ConvertType(ty)),
+                      destPtr);
 }
 
-CIRGenFunction::CIRGenFPOptionsRAII::CIRGenFPOptionsRAII(CIRGenFunction &CGF,
-                                                         const clang::Expr *E)
-    : CGF(CGF) {
-  ConstructorHelper(E->getFPFeaturesInEffect(CGF.getLangOpts()));
+CIRGenFunction::CIRGenFPOptionsRAII::CIRGenFPOptionsRAII(CIRGenFunction &cgf,
+                                                         const clang::Expr *e)
+    : CGF(cgf) {
+  ConstructorHelper(e->getFPFeaturesInEffect(cgf.getLangOpts()));
 }
 
-CIRGenFunction::CIRGenFPOptionsRAII::CIRGenFPOptionsRAII(CIRGenFunction &CGF,
-                                                         FPOptions FPFeatures)
-    : CGF(CGF) {
-  ConstructorHelper(FPFeatures);
+CIRGenFunction::CIRGenFPOptionsRAII::CIRGenFPOptionsRAII(CIRGenFunction &cgf,
+                                                         FPOptions fpFeatures)
+    : CGF(cgf) {
+  ConstructorHelper(fpFeatures);
 }
 
 void CIRGenFunction::CIRGenFPOptionsRAII::ConstructorHelper(
-    FPOptions FPFeatures) {
+    FPOptions fpFeatures) {
   OldFPFeatures = CGF.CurFPFeatures;
-  CGF.CurFPFeatures = FPFeatures;
+  CGF.CurFPFeatures = fpFeatures;
 
   OldExcept = CGF.builder.getDefaultConstrainedExcept();
   OldRounding = CGF.builder.getDefaultConstrainedRounding();
 
-  if (OldFPFeatures == FPFeatures)
+  if (OldFPFeatures == fpFeatures)
     return;
 
   // TODO(cir): create guard to restore fast math configurations.
   assert(!MissingFeatures::fastMathGuard());
 
-  llvm::RoundingMode NewRoundingBehavior = FPFeatures.getRoundingMode();
+  llvm::RoundingMode newRoundingBehavior = fpFeatures.getRoundingMode();
   // TODO(cir): override rounding behaviour once FM configs are guarded.
-  auto NewExceptionBehavior =
-      ToConstrainedExceptMD(static_cast<LangOptions::FPExceptionModeKind>(
-          FPFeatures.getExceptionMode()));
+  auto newExceptionBehavior =
+      toConstrainedExceptMd(static_cast<LangOptions::FPExceptionModeKind>(
+          fpFeatures.getExceptionMode()));
   // TODO(cir): override exception behaviour once FM configs are guarded.
 
   // TODO(cir): override FP flags once FM configs are guarded.
@@ -1520,8 +1521,8 @@ void CIRGenFunction::CIRGenFPOptionsRAII::ConstructorHelper(
   assert((CGF.CurFuncDecl == nullptr || CGF.builder.getIsFPConstrained() ||
           isa<CXXConstructorDecl>(CGF.CurFuncDecl) ||
           isa<CXXDestructorDecl>(CGF.CurFuncDecl) ||
-          (NewExceptionBehavior == fp::ebIgnore &&
-           NewRoundingBehavior == llvm::RoundingMode::NearestTiesToEven)) &&
+          (newExceptionBehavior == fp::ebIgnore &&
+           newRoundingBehavior == llvm::RoundingMode::NearestTiesToEven)) &&
          "FPConstrained should be enabled on entire function");
 
   // TODO(cir): mark CIR function with fast math attributes.
@@ -1535,119 +1536,119 @@ CIRGenFunction::CIRGenFPOptionsRAII::~CIRGenFPOptionsRAII() {
 }
 
 // TODO(cir): should be shared with LLVM codegen.
-bool CIRGenFunction::shouldNullCheckClassCastValue(const CastExpr *CE) {
-  const Expr *E = CE->getSubExpr();
+bool CIRGenFunction::shouldNullCheckClassCastValue(const CastExpr *ce) {
+  const Expr *e = ce->getSubExpr();
 
-  if (CE->getCastKind() == CK_UncheckedDerivedToBase)
+  if (ce->getCastKind() == CK_UncheckedDerivedToBase)
     return false;
 
-  if (isa<CXXThisExpr>(E->IgnoreParens())) {
+  if (isa<CXXThisExpr>(e->IgnoreParens())) {
     // We always assume that 'this' is never null.
     return false;
   }
 
-  if (const ImplicitCastExpr *ICE = dyn_cast<ImplicitCastExpr>(CE)) {
+  if (const ImplicitCastExpr *ice = dyn_cast<ImplicitCastExpr>(ce)) {
     // And that glvalue casts are never null.
-    if (ICE->isGLValue())
+    if (ice->isGLValue())
       return false;
   }
 
   return true;
 }
 
-void CIRGenFunction::buildDeclRefExprDbgValue(const DeclRefExpr *E,
-                                              const APValue &Init) {
+void CIRGenFunction::buildDeclRefExprDbgValue(const DeclRefExpr *e,
+                                              const APValue &init) {
   assert(!MissingFeatures::generateDebugInfo());
 }
 
-Address CIRGenFunction::buildVAListRef(const Expr *E) {
+Address CIRGenFunction::buildVAListRef(const Expr *e) {
   if (getContext().getBuiltinVaListType()->isArrayType())
-    return buildPointerWithAlignment(E);
-  return buildLValue(E).getAddress();
+    return buildPointerWithAlignment(e);
+  return buildLValue(e).getAddress();
 }
 
 // Emits an error if we don't have a valid set of target features for the
 // called function.
-void CIRGenFunction::checkTargetFeatures(const CallExpr *E,
-                                         const FunctionDecl *TargetDecl) {
-  return checkTargetFeatures(E->getBeginLoc(), TargetDecl);
+void CIRGenFunction::checkTargetFeatures(const CallExpr *e,
+                                         const FunctionDecl *targetDecl) {
+  return checkTargetFeatures(e->getBeginLoc(), targetDecl);
 }
 
 // Emits an error if we don't have a valid set of target features for the
 // called function.
-void CIRGenFunction::checkTargetFeatures(SourceLocation Loc,
-                                         const FunctionDecl *TargetDecl) {
+void CIRGenFunction::checkTargetFeatures(SourceLocation loc,
+                                         const FunctionDecl *targetDecl) {
   // Early exit if this is an indirect call.
-  if (!TargetDecl)
+  if (!targetDecl)
     return;
 
   // Get the current enclosing function if it exists. If it doesn't
   // we can't check the target features anyhow.
-  const FunctionDecl *FD = dyn_cast_or_null<FunctionDecl>(CurCodeDecl);
-  if (!FD)
+  const FunctionDecl *fd = dyn_cast_or_null<FunctionDecl>(CurCodeDecl);
+  if (!fd)
     return;
 
   // Grab the required features for the call. For a builtin this is listed in
   // the td file with the default cpu, for an always_inline function this is any
   // listed cpu and any listed features.
-  unsigned BuiltinID = TargetDecl->getBuiltinID();
-  std::string MissingFeature;
-  llvm::StringMap<bool> CallerFeatureMap;
-  CGM.getASTContext().getFunctionFeatureMap(CallerFeatureMap, FD);
-  if (BuiltinID) {
-    StringRef FeatureList(
-        getContext().BuiltinInfo.getRequiredFeatures(BuiltinID));
-    if (!Builtin::evaluateRequiredTargetFeatures(FeatureList,
-                                                 CallerFeatureMap)) {
-      CGM.getDiags().Report(Loc, diag::err_builtin_needs_feature)
-          << TargetDecl->getDeclName() << FeatureList;
+  unsigned builtinId = targetDecl->getBuiltinID();
+  std::string missingFeature;
+  llvm::StringMap<bool> callerFeatureMap;
+  cgm.getASTContext().getFunctionFeatureMap(callerFeatureMap, fd);
+  if (builtinId) {
+    StringRef featureList(
+        getContext().BuiltinInfo.getRequiredFeatures(builtinId));
+    if (!Builtin::evaluateRequiredTargetFeatures(featureList,
+                                                 callerFeatureMap)) {
+      cgm.getDiags().Report(loc, diag::err_builtin_needs_feature)
+          << targetDecl->getDeclName() << featureList;
     }
-  } else if (!TargetDecl->isMultiVersion() &&
-             TargetDecl->hasAttr<TargetAttr>()) {
+  } else if (!targetDecl->isMultiVersion() &&
+             targetDecl->hasAttr<TargetAttr>()) {
     // Get the required features for the callee.
 
-    const TargetAttr *TD = TargetDecl->getAttr<TargetAttr>();
-    ParsedTargetAttr ParsedAttr = getContext().filterFunctionTargetAttrs(TD);
+    const TargetAttr *td = targetDecl->getAttr<TargetAttr>();
+    ParsedTargetAttr parsedAttr = getContext().filterFunctionTargetAttrs(td);
 
-    SmallVector<StringRef, 1> ReqFeatures;
-    llvm::StringMap<bool> CalleeFeatureMap;
-    getContext().getFunctionFeatureMap(CalleeFeatureMap, TargetDecl);
+    SmallVector<StringRef, 1> reqFeatures;
+    llvm::StringMap<bool> calleeFeatureMap;
+    getContext().getFunctionFeatureMap(calleeFeatureMap, targetDecl);
 
-    for (const auto &F : ParsedAttr.Features) {
-      if (F[0] == '+' && CalleeFeatureMap.lookup(F.substr(1)))
-        ReqFeatures.push_back(StringRef(F).substr(1));
+    for (const auto &f : parsedAttr.Features) {
+      if (f[0] == '+' && calleeFeatureMap.lookup(f.substr(1)))
+        reqFeatures.push_back(StringRef(f).substr(1));
     }
 
-    for (const auto &F : CalleeFeatureMap) {
+    for (const auto &f : calleeFeatureMap) {
       // Only positive features are "required".
-      if (F.getValue())
-        ReqFeatures.push_back(F.getKey());
+      if (f.getValue())
+        reqFeatures.push_back(f.getKey());
     }
-    if (!llvm::all_of(ReqFeatures, [&](StringRef Feature) {
-          if (!CallerFeatureMap.lookup(Feature)) {
-            MissingFeature = Feature.str();
+    if (!llvm::all_of(reqFeatures, [&](StringRef feature) {
+          if (!callerFeatureMap.lookup(feature)) {
+            missingFeature = feature.str();
             return false;
           }
           return true;
         }))
-      CGM.getDiags().Report(Loc, diag::err_function_needs_feature)
-          << FD->getDeclName() << TargetDecl->getDeclName() << MissingFeature;
-  } else if (!FD->isMultiVersion() && FD->hasAttr<TargetAttr>()) {
-    llvm::StringMap<bool> CalleeFeatureMap;
-    getContext().getFunctionFeatureMap(CalleeFeatureMap, TargetDecl);
+      cgm.getDiags().Report(loc, diag::err_function_needs_feature)
+          << fd->getDeclName() << targetDecl->getDeclName() << missingFeature;
+  } else if (!fd->isMultiVersion() && fd->hasAttr<TargetAttr>()) {
+    llvm::StringMap<bool> calleeFeatureMap;
+    getContext().getFunctionFeatureMap(calleeFeatureMap, targetDecl);
 
-    for (const auto &F : CalleeFeatureMap) {
-      if (F.getValue() && (!CallerFeatureMap.lookup(F.getKey()) ||
-                           !CallerFeatureMap.find(F.getKey())->getValue()))
-        CGM.getDiags().Report(Loc, diag::err_function_needs_feature)
-            << FD->getDeclName() << TargetDecl->getDeclName() << F.getKey();
+    for (const auto &f : calleeFeatureMap) {
+      if (f.getValue() && (!callerFeatureMap.lookup(f.getKey()) ||
+                           !callerFeatureMap.find(f.getKey())->getValue()))
+        cgm.getDiags().Report(loc, diag::err_function_needs_feature)
+            << fd->getDeclName() << targetDecl->getDeclName() << f.getKey();
     }
   }
 }
 
 CIRGenFunction::VlaSizePair CIRGenFunction::getVLASize(QualType type) {
   const VariableArrayType *vla =
-      CGM.getASTContext().getAsVariableArrayType(type);
+      cgm.getASTContext().getAsVariableArrayType(type);
   assert(vla && "type was not a variable array type!");
   return getVLASize(vla);
 }

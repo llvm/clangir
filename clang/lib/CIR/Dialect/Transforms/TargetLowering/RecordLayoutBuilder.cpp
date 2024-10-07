@@ -33,7 +33,7 @@ class EmptySubobjectMap {
   uint64_t charWidth;
 
   /// The class whose empty entries we're keeping track of.
-  const StructType Class;
+  const StructType klass;
 
   /// The highest offset known to contain an empty base subobject.
   clang::CharUnits maxEmptyClassOffset;
@@ -47,8 +47,8 @@ public:
   /// any empty classes.
   clang::CharUnits sizeOfLargestEmptySubobject;
 
-  EmptySubobjectMap(const CIRLowerContext &context, const StructType Class)
-      : context(context), charWidth(context.getCharWidth()), Class(Class) {
+  EmptySubobjectMap(const CIRLowerContext &context, const StructType klass)
+      : context(context), charWidth(context.getCharWidth()), klass(klass) {
     computeEmptySubobjectSizes();
   }
 
@@ -61,7 +61,7 @@ void EmptySubobjectMap::computeEmptySubobjectSizes() {
   assert(!::cir::MissingFeatures::getCXXRecordBases());
 
   // Check the fields.
-  for (const auto ft : Class.getMembers()) {
+  for (const auto ft : klass.getMembers()) {
     assert(!::cir::MissingFeatures::qualifiedTypes());
     const auto rt = dyn_cast<StructType>(ft);
 
@@ -93,7 +93,7 @@ protected:
   EmptySubobjectMap *emptySubobjects;
 
   /// Size - The current size of the record layout.
-  uint64_t Size = 0;
+  uint64_t size = 0;
 
   /// Alignment - The current alignment of the record layout.
   clang::CharUnits alignment;
@@ -132,18 +132,18 @@ protected:
   /// this contains the number of bits in the last unit that can be used for
   /// an adjacent bitfield if necessary.  The unit in question is usually
   /// a byte, but larger units are used if IsMsStruct.
-  unsigned char UnfilledBitsInLastUnit = 0;
+  unsigned char unfilledBitsInLastUnit = 0;
 
   /// LastBitfieldStorageUnitSize - If IsMsStruct, represents the size of the
   /// storage unit of the previous field if it was a bitfield.
-  unsigned char LastBitfieldStorageUnitSize = 0;
+  unsigned char lastBitfieldStorageUnitSize = 0;
 
   /// MaxFieldAlignment - The maximum allowed field alignment. This is set by
   /// #pragma pack.
   clang::CharUnits maxFieldAlignment;
 
   /// DataSize - The data size of the record being laid out.
-  uint64_t DataSize = 0;
+  uint64_t dataSize = 0;
 
   clang::CharUnits nonVirtualSize;
   clang::CharUnits nonVirtualAlignment;
@@ -157,19 +157,19 @@ protected:
   const StructType primaryBase;
 
   /// Whether the primary base of the class we're laying out is virtual.
-  bool PrimaryBaseIsVirtual = false;
+  bool primaryBaseIsVirtual = false;
 
   /// Whether the class provides its own vtable/vftbl pointer, as opposed to
   /// inheriting one from a primary base class.
-  bool HasOwnVFPtr = false;
+  bool hasOwnVfPtr = false;
 
   /// the flag of field offset changing due to packed attribute.
-  bool HasPackedField = false;
+  bool hasPackedField = false;
 
   /// An auxiliary field used for AIX. When there are OverlappingEmptyFields
   /// existing in the aggregate, the flag shows if the following first non-empty
   /// or empty-but-non-overlapping field has been handled, if any.
-  bool HandledFirstNonOverlappingEmptyField = false;
+  bool handledFirstNonOverlappingEmptyField = false;
 
 public:
   ItaniumRecordLayoutBuilder(const CIRLowerContext &context,
@@ -188,42 +188,42 @@ public:
         preferredNvAlignment(clang::CharUnits::One()),
         paddedFieldSize(clang::CharUnits::Zero()) {}
 
-  void layout(StructType d);
+  void layout(StructType rt);
 
   void layoutFields(StructType d);
-  void layoutField(Type ty, bool insertExtraPadding);
+  void layoutField(Type d, bool insertExtraPadding);
 
   void updateAlignment(clang::CharUnits newAlignment,
                        clang::CharUnits unpackedNewAlignment,
-                       clang::CharUnits preferredAlignment);
+                       clang::CharUnits preferredNewAlignment);
 
   void checkFieldPadding(uint64_t offset, uint64_t unpaddedOffset,
                          uint64_t unpackedOffset, unsigned unpackedAlign,
                          bool isPacked, Type ty);
 
   clang::CharUnits getSize() const {
-    assert(Size % context.getCharWidth() == 0);
-    return context.toCharUnitsFromBits(Size);
+    assert(size % context.getCharWidth() == 0);
+    return context.toCharUnitsFromBits(size);
   }
-  uint64_t getSizeInBits() const { return Size; }
+  uint64_t getSizeInBits() const { return size; }
 
-  void setSize(clang::CharUnits newSize) { Size = context.toBits(newSize); }
-  void setSize(uint64_t newSize) { Size = newSize; }
+  void setSize(clang::CharUnits newSize) { size = context.toBits(newSize); }
+  void setSize(uint64_t newSize) { size = newSize; }
 
   clang::CharUnits getDataSize() const {
-    assert(DataSize % context.getCharWidth() == 0);
-    return context.toCharUnitsFromBits(DataSize);
+    assert(dataSize % context.getCharWidth() == 0);
+    return context.toCharUnitsFromBits(dataSize);
   }
 
   /// Initialize record layout for the given record decl.
   void initializeLayout(Type ty);
 
-  uint64_t getDataSizeInBits() const { return DataSize; }
+  uint64_t getDataSizeInBits() const { return dataSize; }
 
   void setDataSize(clang::CharUnits newSize) {
-    DataSize = context.toBits(newSize);
+    dataSize = context.toBits(newSize);
   }
-  void setDataSize(uint64_t newSize) { DataSize = newSize; }
+  void setDataSize(uint64_t newSize) { dataSize = newSize; }
 };
 
 void ItaniumRecordLayoutBuilder::layout(const StructType rt) {
@@ -231,7 +231,7 @@ void ItaniumRecordLayoutBuilder::layout(const StructType rt) {
 
   // Lay out the vtable and the non-virtual bases.
   assert(!::cir::MissingFeatures::isCXXRecordDecl() &&
-         !::cir::MissingFeatures::CXXRecordIsDynamicClass());
+         !::cir::MissingFeatures::cxxRecordIsDynamicClass());
 
   layoutFields(rt);
 
@@ -271,7 +271,7 @@ void ItaniumRecordLayoutBuilder::initializeLayout(const mlir::Type ty) {
       llvm_unreachable("NYI");
   }
 
-  HandledFirstNonOverlappingEmptyField =
+  handledFirstNonOverlappingEmptyField =
       !context.getTargetInfo().defaultsToAIXPowerAlignment() || isNaturalAlign;
 
   // If there is an external AST source, ask it for the various offsets.
@@ -286,7 +286,7 @@ void ItaniumRecordLayoutBuilder::layoutField(const Type d,
                                              bool insertExtraPadding) {
   // auto FieldClass = D.dyn_cast<StructType>();
   assert(!::cir::MissingFeatures::fieldDeclIsPotentiallyOverlapping() &&
-         !::cir::MissingFeatures::CXXRecordDeclIsEmptyCXX11());
+         !::cir::MissingFeatures::cxxRecordDeclIsEmptyCxX11());
   bool isOverlappingEmptyField = false; // FIXME(cir): Needs more features.
 
   clang::CharUnits fieldOffset = (isUnion || isOverlappingEmptyField)
@@ -296,16 +296,16 @@ void ItaniumRecordLayoutBuilder::layoutField(const Type d,
   const bool defaultsToAixPowerAlignment =
       context.getTargetInfo().defaultsToAIXPowerAlignment();
   bool foundFirstNonOverlappingEmptyFieldForAix = false;
-  if (defaultsToAixPowerAlignment && !HandledFirstNonOverlappingEmptyField) {
+  if (defaultsToAixPowerAlignment && !handledFirstNonOverlappingEmptyField) {
     llvm_unreachable("NYI");
   }
 
   assert(!::cir::MissingFeatures::fieldDeclIsBitfield());
 
-  uint64_t unpaddedFieldOffset = getDataSizeInBits() - UnfilledBitsInLastUnit;
+  uint64_t unpaddedFieldOffset = getDataSizeInBits() - unfilledBitsInLastUnit;
   // Reset the unfilled bits.
-  UnfilledBitsInLastUnit = 0;
-  LastBitfieldStorageUnitSize = 0;
+  unfilledBitsInLastUnit = 0;
+  lastBitfieldStorageUnitSize = 0;
 
   llvm::Triple target = context.getTargetInfo().getTriple();
 
@@ -341,7 +341,7 @@ void ItaniumRecordLayoutBuilder::layoutField(const Type d,
   }
 
   assert(!::cir::MissingFeatures::recordDeclIsPacked() &&
-         !::cir::MissingFeatures::CXXRecordDeclIsPOD());
+         !::cir::MissingFeatures::cxxRecordDeclIsPod());
   bool fieldPacked = false; // FIXME(cir): Needs more features.
 
   // When used as part of a typedef, or together with a 'packed' attribute, the
@@ -524,7 +524,7 @@ void ItaniumRecordLayoutBuilder::checkFieldPadding(
     assert(::cir::MissingFeatures::bitFieldPaddingDiagnostics());
   }
   if (isPacked && offset != unpackedOffset) {
-    HasPackedField = true;
+    hasPackedField = true;
   }
 }
 
@@ -562,7 +562,7 @@ static bool mustSkipTailPadding(clang::TargetCXXABI abi, const StructType rd) {
     //   intended.
     // FIXME(cir): This always returns true since we can't check if a CIR record
     // is a POD type.
-    assert(!::cir::MissingFeatures::CXXRecordDeclIsPOD());
+    assert(!::cir::MissingFeatures::cxxRecordDeclIsPod());
     return true;
 
   case clang::TargetCXXABI::UseTailPaddingUnlessPOD11:
@@ -613,18 +613,18 @@ const CIRRecordLayout &CIRLowerContext::getCIRRecordLayout(const Type d) const {
         skipTailPadding ? builder.getSize() : builder.getDataSize();
     clang::CharUnits nonVirtualSize =
         skipTailPadding ? dataSize : builder.nonVirtualSize;
-    assert(!::cir::MissingFeatures::CXXRecordIsDynamicClass());
+    assert(!::cir::MissingFeatures::cxxRecordIsDynamicClass());
     // FIXME(cir): Whose responsible for freeing the allocation below?
     newEntry = new CIRRecordLayout(
         *this, builder.getSize(), builder.alignment, builder.preferredAlignment,
         builder.unadjustedAlignment,
         /*RequiredAlignment : used by MS-ABI)*/
-        builder.alignment, builder.HasOwnVFPtr, /*RD->isDynamicClass()=*/false,
+        builder.alignment, builder.hasOwnVfPtr, /*RD->isDynamicClass()=*/false,
         clang::CharUnits::fromQuantity(-1), dataSize, builder.fieldOffsets,
         nonVirtualSize, builder.nonVirtualAlignment,
         builder.preferredNvAlignment,
         emptySubobjects.sizeOfLargestEmptySubobject, builder.primaryBase,
-        builder.PrimaryBaseIsVirtual, nullptr, false, false);
+        builder.primaryBaseIsVirtual, nullptr, false, false);
   }
 
   // TODO(cir): Add option to dump the layouts.

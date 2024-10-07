@@ -1,4 +1,3 @@
-#include "LowerCall.h"
 #include "CIRToCIRArgMapping.h"
 #include "LowerFunctionInfo.h"
 #include "LowerModule.h"
@@ -248,7 +247,7 @@ const LowerFunctionInfo &LowerTypes::arrangeFunctionDeclaration(FuncOp fnOp) {
   assert(!MissingFeatures::qualifiedTypes());
   FuncType fTy = fnOp.getFunctionType();
 
-  assert(!MissingFeatures::CUDA());
+  assert(!MissingFeatures::cuda());
 
   // When declaring a function without a prototype, always use a
   // non-variadic type.

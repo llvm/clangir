@@ -30,10 +30,10 @@ class CIRDataLayout {
 
   /// Primitive type alignment data. This is sorted by type and bit
   /// width during construction.
-  llvm::DataLayout::PrimitiveSpec StructAlignment;
+  llvm::DataLayout::PrimitiveSpec structAlignment;
 
   // The StructType -> StructLayout map.
-  mutable void *LayoutMap = nullptr;
+  mutable void *layoutMap = nullptr;
 
 public:
   mlir::DataLayout layout;
@@ -53,17 +53,17 @@ public:
   /// struct, its size, and the offsets of its fields.
   ///
   /// Note that this information is lazily cached.
-  const StructLayout *getStructLayout(mlir::cir::StructType Ty) const;
+  const StructLayout *getStructLayout(mlir::cir::StructType ty) const;
 
   /// Internal helper method that returns requested alignment for type.
-  llvm::Align getAlignment(mlir::Type Ty, bool abiOrPref) const;
+  llvm::Align getAlignment(mlir::Type ty, bool abiOrPref) const;
 
   llvm::Align getABITypeAlign(mlir::Type ty) const {
     return getAlignment(ty, true);
   }
 
-  llvm::Align getPrefTypeAlign(mlir::Type Ty) const {
-    return getAlignment(Ty, false);
+  llvm::Align getPrefTypeAlign(mlir::Type ty) const {
+    return getAlignment(ty, false);
   }
 
   /// Returns the maximum number of bytes that may be overwritten by
@@ -73,10 +73,10 @@ public:
   /// the runtime size will be a positive integer multiple of the base size.
   ///
   /// For example, returns 5 for i36 and 10 for x86_fp80.
-  llvm::TypeSize getTypeStoreSize(mlir::Type Ty) const {
-    llvm::TypeSize BaseSize = getTypeSizeInBits(Ty);
-    return {llvm::divideCeil(BaseSize.getKnownMinValue(), 8),
-            BaseSize.isScalable()};
+  llvm::TypeSize getTypeStoreSize(mlir::Type ty) const {
+    llvm::TypeSize baseSize = getTypeSizeInBits(ty);
+    return {llvm::divideCeil(baseSize.getKnownMinValue(), 8),
+            baseSize.isScalable()};
   }
 
   /// Returns the offset in bytes between successive objects of the
@@ -87,24 +87,24 @@ public:
   ///
   /// This is the amount that alloca reserves for this type. For example,
   /// returns 12 or 16 for x86_fp80, depending on alignment.
-  llvm::TypeSize getTypeAllocSize(mlir::Type Ty) const {
+  llvm::TypeSize getTypeAllocSize(mlir::Type ty) const {
     // Round up to the next alignment boundary.
-    return llvm::alignTo(getTypeStoreSize(Ty), getABITypeAlign(Ty).value());
+    return llvm::alignTo(getTypeStoreSize(ty), getABITypeAlign(ty).value());
   }
 
-  llvm::TypeSize getPointerTypeSizeInBits(mlir::Type Ty) const {
-    assert(mlir::isa<mlir::cir::PointerType>(Ty) &&
+  llvm::TypeSize getPointerTypeSizeInBits(mlir::Type ty) const {
+    assert(mlir::isa<mlir::cir::PointerType>(ty) &&
            "This should only be called with a pointer type");
-    return layout.getTypeSizeInBits(Ty);
+    return layout.getTypeSizeInBits(ty);
   }
 
-  llvm::TypeSize getTypeSizeInBits(mlir::Type Ty) const;
+  llvm::TypeSize getTypeSizeInBits(mlir::Type ty) const;
 
-  mlir::Type getIntPtrType(mlir::Type Ty) const {
-    assert(mlir::isa<mlir::cir::PointerType>(Ty) && "Expected pointer type");
-    auto IntTy = mlir::cir::IntType::get(Ty.getContext(),
-                                         getPointerTypeSizeInBits(Ty), false);
-    return IntTy;
+  mlir::Type getIntPtrType(mlir::Type ty) const {
+    assert(mlir::isa<mlir::cir::PointerType>(ty) && "Expected pointer type");
+    auto intTy = mlir::cir::IntType::get(ty.getContext(),
+                                         getPointerTypeSizeInBits(ty), false);
+    return intTy;
   }
 };
 
@@ -112,51 +112,51 @@ public:
 /// based on the DataLayout structure.
 class StructLayout final
     : public llvm::TrailingObjects<StructLayout, llvm::TypeSize> {
-  llvm::TypeSize StructSize;
-  llvm::Align StructAlignment;
-  unsigned IsPadded : 1;
-  unsigned NumElements : 31;
+  llvm::TypeSize structSize;
+  llvm::Align structAlignment;
+  unsigned isPadded : 1;
+  unsigned numElements : 31;
 
 public:
-  llvm::TypeSize getSizeInBytes() const { return StructSize; }
+  llvm::TypeSize getSizeInBytes() const { return structSize; }
 
-  llvm::TypeSize getSizeInBits() const { return 8 * StructSize; }
+  llvm::TypeSize getSizeInBits() const { return 8 * structSize; }
 
-  llvm::Align getAlignment() const { return StructAlignment; }
+  llvm::Align getAlignment() const { return structAlignment; }
 
   /// Returns whether the struct has padding or not between its fields.
   /// NB: Padding in nested element is not taken into account.
-  bool hasPadding() const { return IsPadded; }
+  bool hasPadding() const { return isPadded; }
 
   /// Given a valid byte offset into the structure, returns the structure
   /// index that contains it.
-  unsigned getElementContainingOffset(uint64_t FixedOffset) const;
+  unsigned getElementContainingOffset(uint64_t fixedOffset) const;
 
   llvm::MutableArrayRef<llvm::TypeSize> getMemberOffsets() {
     return llvm::MutableArrayRef(getTrailingObjects<llvm::TypeSize>(),
-                                 NumElements);
+                                 numElements);
   }
 
   llvm::ArrayRef<llvm::TypeSize> getMemberOffsets() const {
-    return llvm::ArrayRef(getTrailingObjects<llvm::TypeSize>(), NumElements);
+    return llvm::ArrayRef(getTrailingObjects<llvm::TypeSize>(), numElements);
   }
 
-  llvm::TypeSize getElementOffset(unsigned Idx) const {
-    assert(Idx < NumElements && "Invalid element idx!");
-    return getMemberOffsets()[Idx];
+  llvm::TypeSize getElementOffset(unsigned idx) const {
+    assert(idx < numElements && "Invalid element idx!");
+    return getMemberOffsets()[idx];
   }
 
-  llvm::TypeSize getElementOffsetInBits(unsigned Idx) const {
-    return getElementOffset(Idx) * 8;
+  llvm::TypeSize getElementOffsetInBits(unsigned idx) const {
+    return getElementOffset(idx) * 8;
   }
 
 private:
   friend class CIRDataLayout; // Only DataLayout can create this class
 
-  StructLayout(mlir::cir::StructType ST, const CIRDataLayout &DL);
+  StructLayout(mlir::cir::StructType st, const CIRDataLayout &dl);
 
   size_t numTrailingObjects(OverloadToken<llvm::TypeSize>) const {
-    return NumElements;
+    return numElements;
   }
 };
 
