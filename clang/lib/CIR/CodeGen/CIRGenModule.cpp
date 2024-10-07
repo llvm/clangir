@@ -74,8 +74,8 @@
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FileSystem.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/TimeProfiler.h"
+#include "llvm/Support/raw_ostream.h"
 
 #include <iterator>
 #include <numeric>
@@ -192,8 +192,7 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &context,
   theModule->setAttr("cir.sob",
                      mlir::cir::SignedOverflowBehaviorAttr::get(&context, sob));
   auto lang = SourceLanguageAttr::get(&context, getCIRSourceLanguage());
-  theModule->setAttr(
-      "cir.lang", mlir::cir::LangAttr::get(&context, lang));
+  theModule->setAttr("cir.lang", mlir::cir::LangAttr::get(&context, lang));
   theModule->setAttr("cir.triple", builder.getStringAttr(getTriple().str()));
   // Set the module name to be the name of the main file. TranslationUnitDecl
   // often contains invalid source locations and isn't a reliable source for the
@@ -449,7 +448,11 @@ static bool shouldAssumeDSOLocal(const CIRGenModule &CGM,
     return false;
 
   if (CGOpts.DirectAccessExternalData) {
-    llvm_unreachable("-fdirect-access-external-data not supported");
+    if (auto gv = dyn_cast<mlir::cir::GlobalOp>(GV.getOperation()))
+      return !gv.getTlsModel().has_value();
+    if (isa<mlir::cir::FuncOp>(GV) && !CGOpts.NoPLT &&
+        RM == llvm::Reloc::Static)
+      return true;
   }
 
   // If we can use copy relocations we can assume it is local.
