@@ -493,7 +493,8 @@ LogicalResult LowerFunction::generateCode(FuncOp oldFn, FuncOp newFn,
 
   // Ensure that old ABI-agnostic arguments uses were replaced.
   const auto hasNoUses = [](Value val) { return val.getUses().empty(); };
-  cir_tl_assert(std::all_of(Args.begin(), Args.end(), hasNoUses) && "Missing RAUW?");
+  cir_tl_assert(std::all_of(Args.begin(), Args.end(), hasNoUses) &&
+                "Missing RAUW?");
 
   // NOTE(cir): While the new function has the ABI-aware parameters, the old
   // function still has the function logic. To complete the migration, we have
@@ -527,7 +528,8 @@ void LowerFunction::buildAggregateStore(Value Val, Value Dest,
   // Function to store a first-class aggregate into memory. We prefer to
   // store the elements rather than the aggregate to be more friendly to
   // fast-isel.
-  cir_tl_assert(mlir::isa<PointerType>(Dest.getType()) && "Storing in a non-pointer!");
+  cir_tl_assert(mlir::isa<PointerType>(Dest.getType()) &&
+                "Storing in a non-pointer!");
   (void)DestIsVolatile;
 
   // Circumvent CIR's type checking.
@@ -535,8 +537,8 @@ void LowerFunction::buildAggregateStore(Value Val, Value Dest,
   if (Val.getType() != pointeeTy) {
     // NOTE(cir):  We only bitcast and store if the types have the same size.
     cir_tl_assert((LM.getDataLayout().getTypeSizeInBits(Val.getType()) ==
-            LM.getDataLayout().getTypeSizeInBits(pointeeTy)) &&
-           "Incompatible types");
+                   LM.getDataLayout().getTypeSizeInBits(pointeeTy)) &&
+                  "Incompatible types");
     auto loc = Val.getLoc();
     Val = rewriter.create<CastOp>(loc, pointeeTy, CastKind::bitcast, Val);
   }
@@ -687,7 +689,7 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
 
   // Translate all of the arguments as necessary to match the IR lowering.
   cir_tl_assert(CallInfo.arg_size() == CallArgs.size() &&
-         "Mismatch between function signature & arguments.");
+                "Mismatch between function signature & arguments.");
   unsigned ArgNo = 0;
   LowerFunctionInfo::const_arg_iterator info_it = CallInfo.arg_begin();
   for (auto I = CallArgs.begin(), E = CallArgs.end(); I != E;

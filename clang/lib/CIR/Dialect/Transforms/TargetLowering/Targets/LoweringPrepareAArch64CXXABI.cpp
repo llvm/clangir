@@ -230,7 +230,8 @@ mlir::Value LoweringPrepareAArch64CXXABI::lowerAAPCSVAArg(
 
   // TODO: isHFA, numMembers and base should be query result from query
   uint64_t numMembers = 0;
-  cir_tl_assert(!cir::MissingFeatures::supportisHomogeneousAggregateQueryForAArch64());
+  cir_tl_assert(
+      !cir::MissingFeatures::supportisHomogeneousAggregateQueryForAArch64());
   bool isHFA = false;
   // though endianess can be known from datalayout, it might need an unified
   // ABI lowering query system to answer the question.
@@ -244,7 +245,8 @@ mlir::Value LoweringPrepareAArch64CXXABI::lowerAAPCSVAArg(
     // and stored 16-bytes apart regardless of size (they're notionally in qN,
     // qN+1, ...). We reload and store into a temporary local variable
     // contiguously.
-    cir_tl_assert(!isIndirect && "Homogeneous aggregates should be passed directly");
+    cir_tl_assert(!isIndirect &&
+                  "Homogeneous aggregates should be passed directly");
     llvm_unreachable("Homogeneous aggregates NYI");
   } else {
     cir_tl_assert(!cir::MissingFeatures::supportTyAlignQueryForAArch64());
@@ -268,7 +270,8 @@ mlir::Value LoweringPrepareAArch64CXXABI::lowerAAPCSVAArg(
   // and we also need to think about other ABI lowering concerns listed below.
   cir_tl_assert(!cir::MissingFeatures::handleBigEndian());
   cir_tl_assert(!cir::MissingFeatures::handleAArch64Indirect());
-  cir_tl_assert(!cir::MissingFeatures::supportisHomogeneousAggregateQueryForAArch64());
+  cir_tl_assert(
+      !cir::MissingFeatures::supportisHomogeneousAggregateQueryForAArch64());
   cir_tl_assert(!cir::MissingFeatures::supportTySizeQueryForAArch64());
   cir_tl_assert(!cir::MissingFeatures::supportTyAlignQueryForAArch64());
 

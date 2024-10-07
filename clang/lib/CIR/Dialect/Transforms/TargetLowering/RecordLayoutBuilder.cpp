@@ -236,14 +236,15 @@ void ItaniumRecordLayoutBuilder::layout(const StructType RT) {
 
   // Lay out the vtable and the non-virtual bases.
   cir_tl_assert(!::cir::MissingFeatures::isCXXRecordDecl() &&
-         !::cir::MissingFeatures::CXXRecordIsDynamicClass());
+                !::cir::MissingFeatures::CXXRecordIsDynamicClass());
 
   layoutFields(RT);
 
   // FIXME(cir): Handle virtual-related layouts.
   cir_tl_assert(!::cir::MissingFeatures::getCXXRecordBases());
 
-  cir_tl_assert(!::cir::MissingFeatures::itaniumRecordLayoutBuilderFinishLayout());
+  cir_tl_assert(
+      !::cir::MissingFeatures::itaniumRecordLayoutBuilderFinishLayout());
 }
 
 void ItaniumRecordLayoutBuilder::initializeLayout(const mlir::Type Ty) {
@@ -291,7 +292,7 @@ void ItaniumRecordLayoutBuilder::layoutField(const Type D,
                                              bool InsertExtraPadding) {
   // auto FieldClass = D.dyn_cast<StructType>();
   cir_tl_assert(!::cir::MissingFeatures::fieldDeclIsPotentiallyOverlapping() &&
-         !::cir::MissingFeatures::CXXRecordDeclIsEmptyCXX11());
+                !::cir::MissingFeatures::CXXRecordDeclIsEmptyCXX11());
   bool IsOverlappingEmptyField = false; // FIXME(cir): Needs more features.
 
   clang::CharUnits FieldOffset = (IsUnion || IsOverlappingEmptyField)
@@ -346,7 +347,7 @@ void ItaniumRecordLayoutBuilder::layoutField(const Type D,
   }
 
   cir_tl_assert(!::cir::MissingFeatures::recordDeclIsPacked() &&
-         !::cir::MissingFeatures::CXXRecordDeclIsPOD());
+                !::cir::MissingFeatures::CXXRecordDeclIsPOD());
   bool FieldPacked = false; // FIXME(cir): Needs more features.
 
   // When used as part of a typedef, or together with a 'packed' attribute, the
@@ -467,7 +468,7 @@ void ItaniumRecordLayoutBuilder::layoutFields(const StructType D) {
   // Layout each field, for now, just sequentially, respecting alignment.  In
   // the future, this will need to be tweakable by targets.
   cir_tl_assert(!::cir::MissingFeatures::recordDeclMayInsertExtraPadding() &&
-         !Context.getLangOpts().SanitizeAddressFieldPadding);
+                !Context.getLangOpts().SanitizeAddressFieldPadding);
   bool InsertExtraPadding = false;
   cir_tl_assert(!::cir::MissingFeatures::recordDeclHasFlexibleArrayMember());
   bool HasFlexibleArrayMember = false;
@@ -487,19 +488,19 @@ void ItaniumRecordLayoutBuilder::UpdateAlignment(
 
   if (NewAlignment > Alignment) {
     cir_tl_assert(llvm::isPowerOf2_64(NewAlignment.getQuantity()) &&
-           "Alignment not a power of 2");
+                  "Alignment not a power of 2");
     Alignment = NewAlignment;
   }
 
   if (UnpackedNewAlignment > UnpackedAlignment) {
     cir_tl_assert(llvm::isPowerOf2_64(UnpackedNewAlignment.getQuantity()) &&
-           "Alignment not a power of 2");
+                  "Alignment not a power of 2");
     UnpackedAlignment = UnpackedNewAlignment;
   }
 
   if (PreferredNewAlignment > PreferredAlignment) {
     cir_tl_assert(llvm::isPowerOf2_64(PreferredNewAlignment.getQuantity()) &&
-           "Alignment not a power of 2");
+                  "Alignment not a power of 2");
     PreferredAlignment = PreferredNewAlignment;
   }
 }
@@ -592,7 +593,8 @@ const CIRRecordLayout &CIRLowerContext::getCIRRecordLayout(const Type D) const {
   cir_tl_assert(isa<StructType>(D) && "Not a record type");
   auto RT = dyn_cast<StructType>(D);
 
-  cir_tl_assert(RT.isComplete() && "Cannot get layout of forward declarations!");
+  cir_tl_assert(RT.isComplete() &&
+                "Cannot get layout of forward declarations!");
 
   // FIXME(cir): Use a more MLIR-based approach by using it's buitin data layout
   // features, such as interfaces, cacheing, and the DLTI dialect.

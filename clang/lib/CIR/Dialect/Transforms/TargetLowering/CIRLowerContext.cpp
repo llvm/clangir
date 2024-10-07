@@ -145,7 +145,7 @@ Type CIRLowerContext::initBuiltinType(clang::BuiltinType::Kind K) {
 void CIRLowerContext::initBuiltinTypes(const clang::TargetInfo &Target,
                                        const clang::TargetInfo *AuxTarget) {
   cir_tl_assert((!this->Target || this->Target == &Target) &&
-         "Incorrect target reinitialization");
+                "Incorrect target reinitialization");
   this->Target = &Target;
   this->AuxTarget = AuxTarget;
 

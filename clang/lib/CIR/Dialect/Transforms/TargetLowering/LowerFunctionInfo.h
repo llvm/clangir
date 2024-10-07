@@ -35,7 +35,9 @@ public:
   enum All_t { All };
 
   RequiredArgs(All_t _) : NumRequired(~0U) {}
-  explicit RequiredArgs(unsigned n) : NumRequired(n) { cir_tl_assert(n != ~0U); }
+  explicit RequiredArgs(unsigned n) : NumRequired(n) {
+    cir_tl_assert(n != ~0U);
+  }
 
   /// Compute the arguments required by the given formal prototype,
   /// given that there may be some additional, non-formal arguments

@@ -275,7 +275,7 @@ void X86_64ABIInfo::classify(Type Ty, uint64_t OffsetBase, Class &Lo, Class &Hi,
 
       // If this is a C++ record, classify the bases first.
       cir_tl_assert(!::cir::MissingFeatures::isCXXRecordDecl() &&
-             !::cir::MissingFeatures::getCXXRecordBases());
+                    !::cir::MissingFeatures::getCXXRecordBases());
 
       // Classify the fields one at a time, merging the results.
       bool UseClang11Compat = getContext().getLangOpts().getClangABICompat() <=
@@ -463,9 +463,9 @@ Type X86_64ABIInfo::GetINTEGERTypeAtOffset(Type DestTy, unsigned IROffset,
 
   // Check some invariants.
   cir_tl_assert((Hi != Class::Memory || Lo == Class::Memory) &&
-         "Invalid memory classification.");
+                "Invalid memory classification.");
   cir_tl_assert((Hi != Class::SSEUp || Lo == Class::SSE) &&
-         "Invalid SSEUp classification.");
+                "Invalid SSEUp classification.");
 
   Type resType = {};
   switch (Lo) {
@@ -532,9 +532,9 @@ ABIArgInfo X86_64ABIInfo::classifyArgumentType(Type Ty, unsigned freeIntRegs,
   // Check some invariants.
   // FIXME: Enforce these by construction.
   cir_tl_assert((Hi != Class::Memory || Lo == Class::Memory) &&
-         "Invalid memory classification.");
+                "Invalid memory classification.");
   cir_tl_assert((Hi != Class::SSEUp || Lo == Class::SSE) &&
-         "Invalid SSEUp classification.");
+                "Invalid SSEUp classification.");
 
   neededInt = 0;
   neededSSE = 0;
@@ -677,7 +677,7 @@ X86_64ABIInfo::Class X86_64ABIInfo::merge(Class Accum, Class Field) {
   // Accum should never be memory (we should have returned) or
   // ComplexX87 (because this cannot be passed in a structure).
   cir_tl_assert((Accum != Class::Memory && Accum != Class::ComplexX87) &&
-         "Invalid accumulated classification during merge.");
+                "Invalid accumulated classification during merge.");
   if (Accum == Field || Field == Class::NoClass)
     return Accum;
   if (Field == Class::Memory)

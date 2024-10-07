@@ -40,7 +40,8 @@ CIRRecordLayout::CIRRecordLayout(
 
   cir_tl_assert(!PrimaryBase && "Layout for class with inheritance is NYI");
   // CXXInfo->PrimaryBase.setPointer(PrimaryBase);
-  cir_tl_assert(!IsPrimaryBaseVirtual && "Layout for virtual base class is NYI");
+  cir_tl_assert(!IsPrimaryBaseVirtual &&
+                "Layout for virtual base class is NYI");
   // CXXInfo->PrimaryBase.setInt(IsPrimaryBaseVirtual);
   CXXInfo->NonVirtualSize = nonvirtualsize;
   CXXInfo->NonVirtualAlignment = nonvirtualalignment;
