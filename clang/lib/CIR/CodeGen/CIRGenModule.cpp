@@ -74,8 +74,8 @@
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FileSystem.h"
-#include "llvm/Support/TimeProfiler.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/TimeProfiler.h"
 
 #include <iterator>
 #include <numeric>
@@ -192,7 +192,8 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &context,
   theModule->setAttr("cir.sob",
                      mlir::cir::SignedOverflowBehaviorAttr::get(&context, sob));
   auto lang = SourceLanguageAttr::get(&context, getCIRSourceLanguage());
-  theModule->setAttr("cir.lang", mlir::cir::LangAttr::get(&context, lang));
+  theModule->setAttr(
+      "cir.lang", mlir::cir::LangAttr::get(&context, lang));
   theModule->setAttr("cir.triple", builder.getStringAttr(getTriple().str()));
   // Set the module name to be the name of the main file. TranslationUnitDecl
   // often contains invalid source locations and isn't a reliable source for the
