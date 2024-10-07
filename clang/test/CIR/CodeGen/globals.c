@@ -5,7 +5,6 @@
 
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -emit-cir %s -o %t.cir
 // RUN: FileCheck --input-file=%t.cir %s
-// XFAIL: *
 
 char string[] = "whatnow";
 // CHECK: cir.global external @string = #cir.const_array<"whatnow\00" : !cir.array<!s8i x 8>> : !cir.array<!s8i x 8>
