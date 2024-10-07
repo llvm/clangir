@@ -31,33 +31,33 @@ void CIRGenModule::buildCXXGlobalInitFunc() {
   assert(0 && "NYE");
 }
 
-void CIRGenModule::buildCXXGlobalVarDeclInitFunc(const VarDecl *D,
-                                                 mlir::cir::GlobalOp Addr,
-                                                 bool PerformInit) {
+void CIRGenModule::buildCXXGlobalVarDeclInitFunc(const VarDecl *d,
+                                                 mlir::cir::GlobalOp addr,
+                                                 bool performInit) {
   // According to E.2.3.1 in CUDA-7.5 Programming guide: __device__,
   // __constant__ and __shared__ variables defined in namespace scope,
   // that are of class type, cannot have a non-empty constructor. All
   // the checks have been done in Sema by now. Whatever initializers
   // are allowed are empty and we just need to ignore them here.
   if (getLangOpts().CUDAIsDevice && !getLangOpts().GPUAllowDeviceInit &&
-      (D->hasAttr<CUDADeviceAttr>() || D->hasAttr<CUDAConstantAttr>() ||
-       D->hasAttr<CUDASharedAttr>()))
+      (d->hasAttr<CUDADeviceAttr>() || d->hasAttr<CUDAConstantAttr>() ||
+       d->hasAttr<CUDASharedAttr>()))
     return;
 
   assert(!getLangOpts().OpenMP && "OpenMP global var init not implemented");
 
   // Check if we've already initialized this decl.
-  auto I = DelayedCXXInitPosition.find(D);
-  if (I != DelayedCXXInitPosition.end() && I->second == ~0U)
+  auto i = DelayedCXXInitPosition.find(d);
+  if (i != DelayedCXXInitPosition.end() && i->second == ~0U)
     return;
 
-  buildCXXGlobalVarDeclInit(D, Addr, PerformInit);
+  buildCXXGlobalVarDeclInit(d, addr, performInit);
 }
 
-void CIRGenModule::buildCXXGlobalVarDeclInit(const VarDecl *D,
-                                             mlir::cir::GlobalOp Addr,
-                                             bool PerformInit) {
-  QualType T = D->getType();
+void CIRGenModule::buildCXXGlobalVarDeclInit(const VarDecl *d,
+                                             mlir::cir::GlobalOp addr,
+                                             bool performInit) {
+  QualType t = d->getType();
 
   // TODO: handle address space
   // The address space of a static local variable (DeclPtr) may be different
@@ -77,21 +77,21 @@ void CIRGenModule::buildCXXGlobalVarDeclInit(const VarDecl *D,
   // expects "this" in the "generic" address space.
   assert(!MissingFeatures::addressSpace());
 
-  if (!T->isReferenceType()) {
+  if (!t->isReferenceType()) {
     if (getLangOpts().OpenMP && !getLangOpts().OpenMPSimd &&
-        D->hasAttr<OMPThreadPrivateDeclAttr>()) {
+        d->hasAttr<OMPThreadPrivateDeclAttr>()) {
       llvm_unreachable("NYI");
     }
-    bool NeedsDtor =
-        D->needsDestruction(getASTContext()) == QualType::DK_cxx_destructor;
+    bool needsDtor =
+        d->needsDestruction(getASTContext()) == QualType::DK_cxx_destructor;
     // PerformInit, constant store invariant / destroy handled below.
     bool isCstStorage =
-        D->getType().isConstantStorage(getASTContext(), true, !NeedsDtor);
-    codegenGlobalInitCxxStructor(D, Addr, PerformInit, NeedsDtor, isCstStorage);
+        d->getType().isConstantStorage(getASTContext(), true, !needsDtor);
+    codegenGlobalInitCxxStructor(d, addr, performInit, needsDtor, isCstStorage);
     return;
   }
 
-  assert(PerformInit && "cannot have constant initializer which needs "
+  assert(performInit && "cannot have constant initializer which needs "
                         "destruction for reference");
   // TODO(cir): buildReferenceBindingToExpr
   llvm_unreachable("NYI");

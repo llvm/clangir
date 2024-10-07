@@ -9,22 +9,22 @@ using namespace cir;
 // Support for StructLayout
 //===----------------------------------------------------------------------===//
 
-StructLayout::StructLayout(mlir::cir::StructType ST, const CIRDataLayout &DL)
+StructLayout::StructLayout(mlir::cir::StructType st, const CIRDataLayout &dl)
     : StructSize(llvm::TypeSize::getFixed(0)) {
-  assert(!ST.isIncomplete() && "Cannot get layout of opaque structs");
+  assert(!st.isIncomplete() && "Cannot get layout of opaque structs");
   IsPadded = false;
-  NumElements = ST.getNumElements();
+  NumElements = st.getNumElements();
 
   // Loop over each of the elements, placing them in memory.
   for (unsigned i = 0, e = NumElements; i != e; ++i) {
-    mlir::Type Ty = ST.getMembers()[i];
+    mlir::Type ty = st.getMembers()[i];
     if (i == 0 && ::cir::MissingFeatures::typeIsScalableType())
       llvm_unreachable("Scalable types are not yet supported in CIR");
 
     assert(!::cir::MissingFeatures::recordDeclIsPacked() &&
            "Cannot identify packed structs");
-    const llvm::Align TyAlign =
-        ST.getPacked() ? llvm::Align(1) : DL.getABITypeAlign(Ty);
+    const llvm::Align tyAlign =
+        st.getPacked() ? llvm::Align(1) : dl.getABITypeAlign(ty);
 
     // Add padding if necessary to align the data element properly.
     // Currently the only structure with scalable size will be the homogeneous
@@ -33,17 +33,17 @@ StructLayout::StructLayout(mlir::cir::StructType ST, const CIRDataLayout &DL)
     // assumes so and needs to be adjusted if this assumption changes (e.g. we
     // support structures with arbitrary scalable data type, or structure that
     // contains both fixed size and scalable size data type members).
-    if (!StructSize.isScalable() && !isAligned(TyAlign, StructSize)) {
+    if (!StructSize.isScalable() && !isAligned(tyAlign, StructSize)) {
       IsPadded = true;
-      StructSize = llvm::TypeSize::getFixed(alignTo(StructSize, TyAlign));
+      StructSize = llvm::TypeSize::getFixed(alignTo(StructSize, tyAlign));
     }
 
     // Keep track of maximum alignment constraint.
-    StructAlignment = std::max(TyAlign, StructAlignment);
+    StructAlignment = std::max(tyAlign, StructAlignment);
 
     getMemberOffsets()[i] = StructSize;
     // Consume space for this data item
-    StructSize += DL.getTypeAllocSize(Ty);
+    StructSize += dl.getTypeAllocSize(ty);
   }
 
   // Add padding to the end of the struct so that it could be put in an array
@@ -56,25 +56,25 @@ StructLayout::StructLayout(mlir::cir::StructType ST, const CIRDataLayout &DL)
 
 /// getElementContainingOffset - Given a valid offset into the structure,
 /// return the structure index that contains it.
-unsigned StructLayout::getElementContainingOffset(uint64_t FixedOffset) const {
+unsigned StructLayout::getElementContainingOffset(uint64_t fixedOffset) const {
   assert(!StructSize.isScalable() &&
          "Cannot get element at offset for structure containing scalable "
          "vector types");
-  llvm::TypeSize Offset = llvm::TypeSize::getFixed(FixedOffset);
-  llvm::ArrayRef<llvm::TypeSize> MemberOffsets = getMemberOffsets();
+  llvm::TypeSize offset = llvm::TypeSize::getFixed(fixedOffset);
+  llvm::ArrayRef<llvm::TypeSize> memberOffsets = getMemberOffsets();
 
-  const auto *SI =
-      std::upper_bound(MemberOffsets.begin(), MemberOffsets.end(), Offset,
-                       [](llvm::TypeSize LHS, llvm::TypeSize RHS) -> bool {
-                         return llvm::TypeSize::isKnownLT(LHS, RHS);
+  const auto *si =
+      std::upper_bound(memberOffsets.begin(), memberOffsets.end(), offset,
+                       [](llvm::TypeSize lhs, llvm::TypeSize rhs) -> bool {
+                         return llvm::TypeSize::isKnownLT(lhs, rhs);
                        });
-  assert(SI != MemberOffsets.begin() && "Offset not in structure type!");
-  --SI;
-  assert(llvm::TypeSize::isKnownLE(*SI, Offset) && "upper_bound didn't work");
-  assert((SI == MemberOffsets.begin() ||
-          llvm::TypeSize::isKnownLE(*(SI - 1), Offset)) &&
-         (SI + 1 == MemberOffsets.end() ||
-          llvm::TypeSize::isKnownGT(*(SI + 1), Offset)) &&
+  assert(si != memberOffsets.begin() && "Offset not in structure type!");
+  --si;
+  assert(llvm::TypeSize::isKnownLE(*si, offset) && "upper_bound didn't work");
+  assert((si == memberOffsets.begin() ||
+          llvm::TypeSize::isKnownLE(*(si - 1), offset)) &&
+         (si + 1 == memberOffsets.end() ||
+          llvm::TypeSize::isKnownGT(*(si + 1), offset)) &&
          "Upper bound didn't work!");
 
   // Multiple fields can have the same offset if any of them are zero sized.
@@ -82,7 +82,7 @@ unsigned StructLayout::getElementContainingOffset(uint64_t FixedOffset) const {
   // at the i32 element, because it is the last element at that offset.  This is
   // the right one to return, because anything after it will have a higher
   // offset, implying that this element is non-empty.
-  return SI - MemberOffsets.begin();
+  return si - memberOffsets.begin();
 }
 
 //===----------------------------------------------------------------------===//
@@ -93,20 +93,20 @@ namespace {
 
 class StructLayoutMap {
   using LayoutInfoTy = llvm::DenseMap<mlir::cir::StructType, StructLayout *>;
-  LayoutInfoTy LayoutInfo;
+  LayoutInfoTy layoutInfo;
 
 public:
   ~StructLayoutMap() {
     // Remove any layouts.
-    for (const auto &I : LayoutInfo) {
-      StructLayout *Value = I.second;
-      Value->~StructLayout();
-      free(Value);
+    for (const auto &i : layoutInfo) {
+      StructLayout *value = i.second;
+      value->~StructLayout();
+      free(value);
     }
   }
 
-  StructLayout *&operator[](mlir::cir::StructType STy) {
-    return LayoutInfo[STy];
+  StructLayout *&operator[](mlir::cir::StructType sTy) {
+    return layoutInfo[sTy];
   }
 };
 
@@ -145,27 +145,27 @@ void CIRDataLayout::clear() {
 }
 
 const StructLayout *
-CIRDataLayout::getStructLayout(mlir::cir::StructType Ty) const {
+CIRDataLayout::getStructLayout(mlir::cir::StructType ty) const {
   if (!LayoutMap)
     LayoutMap = new StructLayoutMap();
 
-  StructLayoutMap *STM = static_cast<StructLayoutMap *>(LayoutMap);
-  StructLayout *&SL = (*STM)[Ty];
-  if (SL)
-    return SL;
+  StructLayoutMap *stm = static_cast<StructLayoutMap *>(LayoutMap);
+  StructLayout *&sl = (*stm)[ty];
+  if (sl)
+    return sl;
 
   // Otherwise, create the struct layout.  Because it is variable length, we
   // malloc it, then use placement new.
-  StructLayout *L = (StructLayout *)llvm::safe_malloc(
-      StructLayout::totalSizeToAlloc<llvm::TypeSize>(Ty.getNumElements()));
+  StructLayout *l = (StructLayout *)llvm::safe_malloc(
+      StructLayout::totalSizeToAlloc<llvm::TypeSize>(ty.getNumElements()));
 
   // Set SL before calling StructLayout's ctor.  The ctor could cause other
   // entries to be added to TheMap, invalidating our reference.
-  SL = L;
+  sl = l;
 
-  new (L) StructLayout(Ty, *this);
+  new (l) StructLayout(ty, *this);
 
-  return L;
+  return l;
 }
 
 /*!
@@ -176,23 +176,23 @@ CIRDataLayout::getStructLayout(mlir::cir::StructType Ty) const {
   Get the ABI (\a abiOrPref == true) or preferred alignment (\a abiOrPref
   == false) for the requested type \a Ty.
  */
-llvm::Align CIRDataLayout::getAlignment(mlir::Type Ty, bool abiOrPref) const {
+llvm::Align CIRDataLayout::getAlignment(mlir::Type ty, bool abiOrPref) const {
 
-  if (llvm::isa<mlir::cir::StructType>(Ty)) {
+  if (llvm::isa<mlir::cir::StructType>(ty)) {
     // Packed structure types always have an ABI alignment of one.
     if (::cir::MissingFeatures::recordDeclIsPacked() && abiOrPref)
       llvm_unreachable("NYI");
 
-    auto stTy = llvm::dyn_cast<mlir::cir::StructType>(Ty);
+    auto stTy = llvm::dyn_cast<mlir::cir::StructType>(ty);
     if (stTy && stTy.getPacked() && abiOrPref)
       return llvm::Align(1);
 
     // Get the layout annotation... which is lazily created on demand.
-    const StructLayout *Layout =
-        getStructLayout(llvm::cast<mlir::cir::StructType>(Ty));
-    const llvm::Align Align =
+    const StructLayout *layout =
+        getStructLayout(llvm::cast<mlir::cir::StructType>(ty));
+    const llvm::Align align =
         abiOrPref ? StructAlignment.ABIAlign : StructAlignment.PrefAlign;
-    return std::max(Align, Layout->getAlignment());
+    return std::max(align, layout->getAlignment());
   }
 
   // FIXME(cir): This does not account for differnt address spaces, and relies
@@ -200,18 +200,18 @@ llvm::Align CIRDataLayout::getAlignment(mlir::Type Ty, bool abiOrPref) const {
   assert(!::cir::MissingFeatures::addressSpace());
 
   // Fetch type alignment from MLIR's data layout.
-  unsigned align = abiOrPref ? layout.getTypeABIAlignment(Ty)
-                             : layout.getTypePreferredAlignment(Ty);
+  unsigned align = abiOrPref ? layout.getTypeABIAlignment(ty)
+                             : layout.getTypePreferredAlignment(ty);
   return llvm::Align(align);
 }
 
 // The implementation of this method is provided inline as it is particularly
 // well suited to constant folding when called on a specific Type subclass.
-llvm::TypeSize CIRDataLayout::getTypeSizeInBits(mlir::Type Ty) const {
+llvm::TypeSize CIRDataLayout::getTypeSizeInBits(mlir::Type ty) const {
   assert(!::cir::MissingFeatures::typeIsSized() &&
          "Cannot getTypeInfo() on a type that is unsized!");
 
-  if (auto structTy = llvm::dyn_cast<mlir::cir::StructType>(Ty)) {
+  if (auto structTy = llvm::dyn_cast<mlir::cir::StructType>(ty)) {
 
     // FIXME(cir): CIR struct's data layout implementation doesn't do a good job
     // of handling unions particularities. We should have a separate union type.
@@ -231,5 +231,5 @@ llvm::TypeSize CIRDataLayout::getTypeSizeInBits(mlir::Type Ty) const {
   // on CIR's data layout to give the proper ABI-specific type width.
   assert(!::cir::MissingFeatures::addressSpace());
 
-  return llvm::TypeSize::getFixed(layout.getTypeSizeInBits(Ty));
+  return llvm::TypeSize::getFixed(layout.getTypeSizeInBits(ty));
 }

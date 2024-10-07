@@ -66,7 +66,7 @@ struct CIRIfFlattening : public OpRewritePattern<IfOp> {
     auto *remainingOpsBlock =
         rewriter.splitBlock(currentBlock, rewriter.getInsertionPoint());
     mlir::Block *continueBlock;
-    if (ifOp->getResults().size() == 0)
+    if (ifOp->getResults().empty())
       continueBlock = remainingOpsBlock;
     else
       llvm_unreachable("NYI");
@@ -332,7 +332,6 @@ public:
     }
     rewriter.create<mlir::cir::BrOp>(tryOp.getLoc(), catchDispatcher,
                                      dispatcherInitOps);
-    return;
   }
 
   mlir::Block *
@@ -651,9 +650,10 @@ public:
                                   mlir::PatternRewriter &rewriter,
                                   mlir::Block *rangeDestination,
                                   mlir::Block *defaultDestination,
-                                  APInt lowerBound, APInt upperBound) const {
+                                  const APInt &lowerBound,
+                                  const APInt &upperBound) const {
     assert(lowerBound.sle(upperBound) && "Invalid range");
-    auto resBlock = rewriter.createBlock(defaultDestination);
+    auto *resBlock = rewriter.createBlock(defaultDestination);
     auto sIntType = mlir::cir::IntType::get(op.getContext(), 32, true);
     auto uIntType = mlir::cir::IntType::get(op.getContext(), 32, false);
 

@@ -21,36 +21,36 @@
 namespace mlir {
 namespace cir {
 
-bool classifyReturnType(const CIRCXXABI &CXXABI, LowerFunctionInfo &FI,
-                        const ABIInfo &Info) {
-  Type Ty = FI.getReturnType();
+bool classifyReturnType(const CIRCXXABI &cxxabi, LowerFunctionInfo &fi,
+                        const ABIInfo &info) {
+  Type ty = fi.getReturnType();
 
-  if (const auto RT = dyn_cast<StructType>(Ty)) {
+  if (const auto rt = dyn_cast<StructType>(ty)) {
     assert(!::cir::MissingFeatures::isCXXRecordDecl());
   }
 
-  return CXXABI.classifyReturnType(FI);
+  return cxxabi.classifyReturnType(fi);
 }
 
-bool isAggregateTypeForABI(Type T) {
+bool isAggregateTypeForABI(Type t) {
   assert(!::cir::MissingFeatures::functionMemberPointerType());
-  return !LowerFunction::hasScalarEvaluationKind(T);
+  return !LowerFunction::hasScalarEvaluationKind(t);
 }
 
-Type useFirstFieldIfTransparentUnion(Type Ty) {
-  if (auto RT = dyn_cast<StructType>(Ty)) {
-    if (RT.isUnion())
+Type useFirstFieldIfTransparentUnion(Type ty) {
+  if (auto rt = dyn_cast<StructType>(ty)) {
+    if (rt.isUnion())
       llvm_unreachable("NYI");
   }
-  return Ty;
+  return ty;
 }
 
-CIRCXXABI::RecordArgABI getRecordArgABI(const StructType RT,
-                                        CIRCXXABI &CXXABI) {
+CIRCXXABI::RecordArgABI getRecordArgABI(const StructType rt,
+                                        CIRCXXABI &cxxabi) {
   if (::cir::MissingFeatures::typeIsCXXRecordDecl()) {
     llvm_unreachable("NYI");
   }
-  return CXXABI.getRecordArgABI(RT);
+  return cxxabi.getRecordArgABI(rt);
 }
 
 } // namespace cir

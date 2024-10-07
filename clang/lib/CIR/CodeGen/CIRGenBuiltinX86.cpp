@@ -31,7 +31,7 @@ using namespace cir;
 using namespace clang;
 using namespace mlir::cir;
 
-mlir::Value CIRGenFunction::buildX86BuiltinExpr(unsigned BuiltinID,
-                                                const CallExpr *E) {
+mlir::Value CIRGenFunction::buildX86BuiltinExpr(unsigned builtinId,
+                                                const CallExpr *e) {
   llvm_unreachable("NYI");
 }

@@ -552,9 +552,11 @@ public:
                                          mlir::cir::IntAttr::get(uInt64Ty, C));
   }
 
-  mlir::cir::ConstantOp getConstInt(mlir::Location loc, llvm::APSInt intVal);
+  mlir::cir::ConstantOp getConstInt(mlir::Location loc,
+                                    const llvm::APSInt &intVal);
 
-  mlir::cir::ConstantOp getConstInt(mlir::Location loc, llvm::APInt intVal);
+  mlir::cir::ConstantOp getConstInt(mlir::Location loc,
+                                    const llvm::APInt &intVal);
 
   mlir::cir::ConstantOp getConstInt(mlir::Location loc, mlir::Type t,
                                     uint64_t C);

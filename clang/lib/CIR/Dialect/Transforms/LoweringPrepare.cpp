@@ -44,11 +44,11 @@ static SmallString<128> getTransformedFileName(ModuleOp theModule) {
   if (FileName.empty())
     FileName = "<null>";
 
-  for (size_t i = 0; i < FileName.size(); ++i) {
+  for (char &i : FileName) {
     // Replace everything that's not [a-zA-Z0-9._] with a _. This set happens
     // to be the set of C preprocessing numbers.
-    if (!clang::isPreprocessingNumberBody(FileName[i]))
-      FileName[i] = '_';
+    if (!clang::isPreprocessingNumberBody(i))
+      i = '_';
   }
 
   return FileName;
@@ -107,9 +107,9 @@ struct LoweringPreparePass : public LoweringPrepareBase<LoweringPreparePass> {
                            mlir::cir::GlobalLinkageKind::ExternalLinkage);
 
   GlobalOp
-  buildRuntimeVariable(mlir::OpBuilder &Builder, llvm::StringRef Name,
-                       mlir::Location Loc, mlir::Type type,
-                       mlir::cir::GlobalLinkageKind Linkage =
+  buildRuntimeVariable(mlir::OpBuilder &builder, llvm::StringRef name,
+                       mlir::Location loc, mlir::Type type,
+                       mlir::cir::GlobalLinkageKind linkage =
                            mlir::cir::GlobalLinkageKind::ExternalLinkage);
 
   ///
@@ -196,8 +196,8 @@ FuncOp LoweringPreparePass::buildRuntimeFunction(
 FuncOp LoweringPreparePass::buildCXXGlobalVarDeclInitFunc(GlobalOp op) {
   SmallString<256> fnName;
   {
-    llvm::raw_svector_ostream Out(fnName);
-    op.getAst()->mangleDynamicInitializer(Out);
+    llvm::raw_svector_ostream out(fnName);
+    op.getAst()->mangleDynamicInitializer(out);
     // Name numbering
     uint32_t cnt = dynamicInitializerNames[fnName]++;
     if (cnt)
@@ -226,7 +226,7 @@ FuncOp LoweringPreparePass::buildCXXGlobalVarDeclInitFunc(GlobalOp op) {
            op.getAst()->getTLSKind() == clang::VarDecl::TLS_None && " TLS NYI");
     // Create a variable that binds the atexit to this shared object.
     builder.setInsertionPointToStart(&theModule.getBodyRegion().front());
-    auto Handle = buildRuntimeVariable(builder, "__dso_handle", op.getLoc(),
+    auto handle = buildRuntimeVariable(builder, "__dso_handle", op.getLoc(),
                                        builder.getI8Type());
 
     // Look for the destructor call in dtorBlock
@@ -249,10 +249,10 @@ FuncOp LoweringPreparePass::buildCXXGlobalVarDeclInitFunc(GlobalOp op) {
     auto voidFnTy = mlir::cir::FuncType::get({voidPtrTy}, voidTy);
     auto voidFnPtrTy =
         ::mlir::cir::PointerType::get(builder.getContext(), voidFnTy);
-    auto HandlePtrTy =
-        mlir::cir::PointerType::get(builder.getContext(), Handle.getSymType());
+    auto handlePtrTy =
+        mlir::cir::PointerType::get(builder.getContext(), handle.getSymType());
     auto fnAtExitType = mlir::cir::FuncType::get(
-        {voidFnPtrTy, voidPtrTy, HandlePtrTy},
+        {voidFnPtrTy, voidPtrTy, handlePtrTy},
         mlir::cir::VoidType::get(builder.getContext()));
     const char *nameAtExit = "__cxa_atexit";
     FuncOp fnAtExit =
@@ -273,7 +273,7 @@ FuncOp LoweringPreparePass::buildCXXGlobalVarDeclInitFunc(GlobalOp op) {
                                                 mlir::cir::CastKind::bitcast,
                                                 dtorCall.getArgOperand(0));
     args[2] = builder.create<mlir::cir::GetGlobalOp>(
-        Handle.getLoc(), HandlePtrTy, Handle.getSymName());
+        handle.getLoc(), handlePtrTy, handle.getSymName());
     builder.createCallOp(dtorCall.getLoc(), fnAtExit, args);
     dtorCall->erase();
     entryBB->getOperations().splice(entryBB->end(), dtorBlock.getOperations(),
@@ -344,7 +344,6 @@ void LoweringPreparePass::lowerVAArgOp(VAArgOp op) {
     op.replaceAllUsesWith(res);
     op.erase();
   }
-  return;
 }
 
 void LoweringPreparePass::lowerUnaryOp(UnaryOp op) {
@@ -922,11 +921,11 @@ void LoweringPreparePass::buildCXXGlobalInitFunc() {
   // TODO: check CXX20ModuleInits
   if (astCtx->getCurrentNamedModule() &&
       !astCtx->getCurrentNamedModule()->isModuleImplementation()) {
-    llvm::raw_svector_ostream Out(fnName);
-    std::unique_ptr<clang::MangleContext> MangleCtx(
+    llvm::raw_svector_ostream out(fnName);
+    std::unique_ptr<clang::MangleContext> mangleCtx(
         astCtx->createMangleContext());
-    cast<clang::ItaniumMangleContext>(*MangleCtx)
-        .mangleModuleInitializer(astCtx->getCurrentNamedModule(), Out);
+    cast<clang::ItaniumMangleContext>(*mangleCtx)
+        .mangleModuleInitializer(astCtx->getCurrentNamedModule(), out);
   } else {
     fnName += "_GLOBAL__sub_I_";
     fnName += getTransformedFileName(theModule);
@@ -968,7 +967,7 @@ static void lowerArrayDtorCtorIntoLoop(CIRBaseBuilderTy &builder,
   // TODO: instead of fixed integer size, create alias for PtrDiffTy and unify
   // with CIRGen stuff.
   auto ptrDiffTy =
-      mlir::cir::IntType::get(builder.getContext(), 64, /*signed=*/false);
+      mlir::cir::IntType::get(builder.getContext(), 64, /*isSigned=*/false);
   auto numArrayElementsConst = builder.create<mlir::cir::ConstantOp>(
       loc, ptrDiffTy, mlir::cir::IntAttr::get(ptrDiffTy, arrayLen));
 

@@ -23,38 +23,38 @@ using namespace cir;
 namespace {
 
 static Value findIVAddr(Block *step) {
-  Value IVAddr = nullptr;
+  Value ivAddr = nullptr;
   for (Operation &op : *step) {
     if (auto loadOp = dyn_cast<LoadOp>(op))
-      IVAddr = loadOp.getAddr();
+      ivAddr = loadOp.getAddr();
     else if (auto storeOp = dyn_cast<StoreOp>(op))
-      if (IVAddr != storeOp.getAddr())
+      if (ivAddr != storeOp.getAddr())
         return nullptr;
   }
-  return IVAddr;
+  return ivAddr;
 }
 
-static CmpOp findLoopCmpAndIV(Block *cond, Value IVAddr, Value &IV) {
-  Operation *IVLoadOp = nullptr;
+static CmpOp findLoopCmpAndIV(Block *cond, Value ivAddr, Value &iv) {
+  Operation *ivLoadOp = nullptr;
   for (Operation &op : *cond) {
     if (auto loadOp = dyn_cast<LoadOp>(op))
-      if (loadOp.getAddr() == IVAddr) {
-        IVLoadOp = &op;
+      if (loadOp.getAddr() == ivAddr) {
+        ivLoadOp = &op;
         break;
       }
   }
-  if (!IVLoadOp)
+  if (!ivLoadOp)
     return nullptr;
-  if (!IVLoadOp->hasOneUse())
+  if (!ivLoadOp->hasOneUse())
     return nullptr;
-  IV = IVLoadOp->getResult(0);
-  return dyn_cast<CmpOp>(*IVLoadOp->user_begin());
+  iv = ivLoadOp->getResult(0);
+  return dyn_cast<CmpOp>(*ivLoadOp->user_begin());
 }
 
 // Canonicalize IV to LHS of loop comparison
 // For example, transfer cir.cmp(gt, %bound, %IV) to cir.cmp(lt, %IV, %bound).
 // So we could use RHS as boundary and use lt to determine it's an upper bound.
-struct canonicalizeIVtoCmpLHS : public OpRewritePattern<ForOp> {
+struct CanonicalizeIVtoCmpLhs : public OpRewritePattern<ForOp> {
   using OpRewritePattern<ForOp>::OpRewritePattern;
 
   CmpOpKind swapCmpKind(CmpOpKind kind) const {
@@ -88,21 +88,21 @@ struct canonicalizeIVtoCmpLHS : public OpRewritePattern<ForOp> {
     auto *step = (op.maybeGetStep() ? &op.maybeGetStep()->front() : nullptr);
     if (!step)
       return failure();
-    Value IVAddr = findIVAddr(step);
-    if (!IVAddr)
+    Value ivAddr = findIVAddr(step);
+    if (!ivAddr)
       return failure();
-    Value IV = nullptr;
-    auto loopCmp = findLoopCmpAndIV(cond, IVAddr, IV);
-    if (!loopCmp || !IV)
+    Value iv = nullptr;
+    auto loopCmp = findLoopCmpAndIV(cond, ivAddr, iv);
+    if (!loopCmp || !iv)
       return failure();
 
     CmpOpKind cmpKind = loopCmp.getKind();
     Value cmpRhs = loopCmp.getRhs();
     // Canonicalize IV to LHS of loop Cmp.
-    if (loopCmp.getLhs() != IV) {
+    if (loopCmp.getLhs() != iv) {
       cmpKind = swapCmpKind(cmpKind);
       cmpRhs = loopCmp.getLhs();
-      replaceWithNewCmpOp(loopCmp, cmpKind, IV, cmpRhs, rewriter);
+      replaceWithNewCmpOp(loopCmp, cmpKind, iv, cmpRhs, rewriter);
       return success();
     }
 
@@ -123,7 +123,7 @@ struct canonicalizeIVtoCmpLHS : public OpRewritePattern<ForOp> {
 //     %7 = cir.cast(int_to_bool, %6 : !s32i), !cir.bool
 //     cir.condition(%7
 //  } body {
-struct hoistLoopInvariantInCondBlock : public OpRewritePattern<ForOp> {
+struct HoistLoopInvariantInCondBlock : public OpRewritePattern<ForOp> {
   using OpRewritePattern<ForOp>::OpRewritePattern;
 
   bool isLoopInvariantLoad(Operation *op, ForOp forOp) const {
@@ -141,10 +141,7 @@ struct hoistLoopInvariantInCondBlock : public OpRewritePattern<ForOp> {
           return mlir::WalkResult::advance();
         });
 
-    if (result.wasInterrupted())
-      return false;
-
-    return true;
+    return !result.wasInterrupted();
   }
 
   // Return true for loop invariant operation and push it to initOps.
@@ -155,11 +152,10 @@ struct hoistLoopInvariantInCondBlock : public OpRewritePattern<ForOp> {
     if (isa<ConstantOp>(op) || isLoopInvariantLoad(op, forOp)) {
       initOps.push_back(op);
       return true;
-    } else if (isa<BinOp>(op) &&
-               isLoopInvariantOp(op->getOperand(0).getDefiningOp(), forOp,
-                                 initOps) &&
-               isLoopInvariantOp(op->getOperand(1).getDefiningOp(), forOp,
-                                 initOps)) {
+    }
+    if (isa<BinOp>(op) &&
+        isLoopInvariantOp(op->getOperand(0).getDefiningOp(), forOp, initOps) &&
+        isLoopInvariantOp(op->getOperand(1).getDefiningOp(), forOp, initOps)) {
       initOps.push_back(op);
       return true;
     } else if (isa<mlir::cir::CastOp>(op) &&
@@ -179,20 +175,20 @@ struct hoistLoopInvariantInCondBlock : public OpRewritePattern<ForOp> {
         (forOp.maybeGetStep() ? &forOp.maybeGetStep()->front() : nullptr);
     if (!step)
       return failure();
-    Value IVAddr = findIVAddr(step);
-    if (!IVAddr)
+    Value ivAddr = findIVAddr(step);
+    if (!ivAddr)
       return failure();
-    Value IV = nullptr;
-    auto loopCmp = findLoopCmpAndIV(cond, IVAddr, IV);
-    if (!loopCmp || !IV)
+    Value iv = nullptr;
+    auto loopCmp = findLoopCmpAndIV(cond, ivAddr, iv);
+    if (!loopCmp || !iv)
       return failure();
 
     Value cmpRhs = loopCmp.getRhs();
-    auto defOp = cmpRhs.getDefiningOp();
+    auto *defOp = cmpRhs.getDefiningOp();
     SmallVector<Operation *> initOps;
     // Collect loop invariant operations and move them before forOp.
     if (isLoopInvariantOp(defOp, forOp, initOps)) {
-      for (auto op : initOps)
+      for (auto *op : initOps)
         op->moveBefore(forOp);
       return success();
     }
@@ -213,8 +209,8 @@ struct SCFPreparePass : public SCFPrepareBase<SCFPreparePass> {
 void populateSCFPreparePatterns(RewritePatternSet &patterns) {
   // clang-format off
   patterns.add<
-    canonicalizeIVtoCmpLHS,
-    hoistLoopInvariantInCondBlock
+    CanonicalizeIVtoCmpLhs,
+    HoistLoopInvariantInCondBlock
   >(patterns.getContext());
   // clang-format on
 }

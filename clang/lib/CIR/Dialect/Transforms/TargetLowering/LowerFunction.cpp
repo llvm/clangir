@@ -34,7 +34,7 @@ namespace cir {
 
 namespace {
 
-Value buildAddressAtOffset(LowerFunction &LF, Value addr,
+Value buildAddressAtOffset(LowerFunction &lf, Value addr,
                            const ABIArgInfo &info) {
   if (unsigned offset = info.getDirectOffset()) {
     llvm_unreachable("NYI");
@@ -46,22 +46,22 @@ Value buildAddressAtOffset(LowerFunction &LF, Value addr,
 /// try to gep into the struct to get at its inner goodness.  Dive as deep as
 /// possible without entering an element with an in-memory size smaller than
 /// DstSize.
-Value enterStructPointerForCoercedAccess(Value SrcPtr, StructType SrcSTy,
-                                         uint64_t DstSize, LowerFunction &CGF) {
+Value enterStructPointerForCoercedAccess(Value srcPtr, StructType srcSTy,
+                                         uint64_t dstSize, LowerFunction &cgf) {
   // We can't dive into a zero-element struct.
-  if (SrcSTy.getNumElements() == 0)
+  if (srcSTy.getNumElements() == 0)
     llvm_unreachable("NYI");
 
-  Type FirstElt = SrcSTy.getMembers()[0];
+  Type firstElt = srcSTy.getMembers()[0];
 
   // If the first elt is at least as large as what we're looking for, or if the
   // first element is the same size as the whole struct, we can enter it. The
   // comparison must be made on the store size and not the alloca size. Using
   // the alloca size may overstate the size of the load.
-  uint64_t FirstEltSize = CGF.LM.getDataLayout().getTypeStoreSize(FirstElt);
-  if (FirstEltSize < DstSize &&
-      FirstEltSize < CGF.LM.getDataLayout().getTypeStoreSize(SrcSTy))
-    return SrcPtr;
+  uint64_t firstEltSize = cgf.LM.getDataLayout().getTypeStoreSize(firstElt);
+  if (firstEltSize < dstSize &&
+      firstEltSize < cgf.LM.getDataLayout().getTypeStoreSize(srcSTy))
+    return srcPtr;
 
   llvm_unreachable("NYI");
 }
@@ -71,55 +71,55 @@ Value enterStructPointerForCoercedAccess(Value SrcPtr, StructType SrcSTy,
 ///
 /// This safely handles the case when the src type is larger than the
 /// destination type; the upper bits of the src will be lost.
-void createCoercedStore(Value Src, Value Dst, bool DstIsVolatile,
-                        LowerFunction &CGF) {
-  Type SrcTy = Src.getType();
-  Type DstTy = Dst.getType();
-  if (SrcTy == DstTy) {
+void createCoercedStore(Value src, Value dst, bool dstIsVolatile,
+                        LowerFunction &cgf) {
+  Type srcTy = src.getType();
+  Type dstTy = dst.getType();
+  if (srcTy == dstTy) {
     llvm_unreachable("NYI");
   }
 
   // FIXME(cir): We need a better way to handle datalayout queries.
-  assert(isa<IntType>(SrcTy));
-  llvm::TypeSize SrcSize = CGF.LM.getDataLayout().getTypeAllocSize(SrcTy);
+  assert(isa<IntType>(srcTy));
+  llvm::TypeSize srcSize = cgf.LM.getDataLayout().getTypeAllocSize(srcTy);
 
-  if (StructType DstSTy = dyn_cast<StructType>(DstTy)) {
-    Dst = enterStructPointerForCoercedAccess(Dst, DstSTy,
-                                             SrcSize.getFixedValue(), CGF);
-    assert(isa<PointerType>(Dst.getType()));
-    DstTy = cast<PointerType>(Dst.getType()).getPointee();
+  if (StructType dstSTy = dyn_cast<StructType>(dstTy)) {
+    dst = enterStructPointerForCoercedAccess(dst, dstSTy,
+                                             srcSize.getFixedValue(), cgf);
+    assert(isa<PointerType>(dst.getType()));
+    dstTy = cast<PointerType>(dst.getType()).getPointee();
   }
 
-  PointerType SrcPtrTy = dyn_cast<PointerType>(SrcTy);
-  PointerType DstPtrTy = dyn_cast<PointerType>(DstTy);
+  PointerType srcPtrTy = dyn_cast<PointerType>(srcTy);
+  PointerType dstPtrTy = dyn_cast<PointerType>(dstTy);
   // TODO(cir): Implement address space.
-  if (SrcPtrTy && DstPtrTy && !::cir::MissingFeatures::addressSpace()) {
+  if (srcPtrTy && dstPtrTy && !::cir::MissingFeatures::addressSpace()) {
     llvm_unreachable("NYI");
   }
 
   // If the source and destination are integer or pointer types, just do an
   // extension or truncation to the desired type.
-  if ((isa<IntegerType>(SrcTy) || isa<PointerType>(SrcTy)) &&
-      (isa<IntegerType>(DstTy) || isa<PointerType>(DstTy))) {
+  if ((isa<IntegerType>(srcTy) || isa<PointerType>(srcTy)) &&
+      (isa<IntegerType>(dstTy) || isa<PointerType>(dstTy))) {
     llvm_unreachable("NYI");
   }
 
-  llvm::TypeSize DstSize = CGF.LM.getDataLayout().getTypeAllocSize(DstTy);
+  llvm::TypeSize dstSize = cgf.LM.getDataLayout().getTypeAllocSize(dstTy);
 
   // If store is legal, just bitcast the src pointer.
   assert(!::cir::MissingFeatures::vectorType());
-  if (SrcSize.getFixedValue() <= DstSize.getFixedValue()) {
+  if (srcSize.getFixedValue() <= dstSize.getFixedValue()) {
     // Dst = Dst.withElementType(SrcTy);
-    CGF.buildAggregateStore(Src, Dst, DstIsVolatile);
+    cgf.buildAggregateStore(src, dst, dstIsVolatile);
   } else {
     llvm_unreachable("NYI");
   }
 }
 
 // FIXME(cir): Create a custom rewriter class to abstract this away.
-Value createBitcast(Value Src, Type Ty, LowerFunction &LF) {
-  return LF.getRewriter().create<CastOp>(Src.getLoc(), Ty, CastKind::bitcast,
-                                         Src);
+Value createBitcast(Value src, Type ty, LowerFunction &lf) {
+  return lf.getRewriter().create<CastOp>(src.getLoc(), ty, CastKind::bitcast,
+                                         src);
 }
 
 /// Coerces a \param Src value to a value of type \param Ty.
@@ -133,38 +133,38 @@ Value createBitcast(Value Src, Type Ty, LowerFunction &LF) {
 /// since CIR's type checker wouldn't allow it. Instead, it casts the existing
 /// ABI-agnostic value to it's ABI-aware counterpart. Nevertheless, we should
 /// try to follow the same logic as the original codegen for correctness.
-Value createCoercedValue(Value Src, Type Ty, LowerFunction &CGF) {
-  Type SrcTy = Src.getType();
+Value createCoercedValue(Value src, Type ty, LowerFunction &cgf) {
+  Type srcTy = src.getType();
 
   // If SrcTy and Ty are the same, just reuse the exising load.
-  if (SrcTy == Ty)
-    return Src;
+  if (srcTy == ty)
+    return src;
 
   // If it is the special boolean case, simply bitcast it.
-  if ((isa<BoolType>(SrcTy) && isa<IntType>(Ty)) ||
-      (isa<IntType>(SrcTy) && isa<BoolType>(Ty)))
-    return createBitcast(Src, Ty, CGF);
+  if ((isa<BoolType>(srcTy) && isa<IntType>(ty)) ||
+      (isa<IntType>(srcTy) && isa<BoolType>(ty)))
+    return createBitcast(src, ty, cgf);
 
-  llvm::TypeSize DstSize = CGF.LM.getDataLayout().getTypeAllocSize(Ty);
+  llvm::TypeSize dstSize = cgf.LM.getDataLayout().getTypeAllocSize(ty);
 
-  if (auto SrcSTy = dyn_cast<StructType>(SrcTy)) {
-    Src = enterStructPointerForCoercedAccess(Src, SrcSTy,
-                                             DstSize.getFixedValue(), CGF);
-    SrcTy = Src.getType();
+  if (auto srcSTy = dyn_cast<StructType>(srcTy)) {
+    src = enterStructPointerForCoercedAccess(src, srcSTy,
+                                             dstSize.getFixedValue(), cgf);
+    srcTy = src.getType();
   }
 
-  llvm::TypeSize SrcSize = CGF.LM.getDataLayout().getTypeAllocSize(SrcTy);
+  llvm::TypeSize srcSize = cgf.LM.getDataLayout().getTypeAllocSize(srcTy);
 
   // If the source and destination are integer or pointer types, just do an
   // extension or truncation to the desired type.
-  if ((isa<IntType>(Ty) || isa<PointerType>(Ty)) &&
-      (isa<IntType>(SrcTy) || isa<PointerType>(SrcTy))) {
+  if ((isa<IntType>(ty) || isa<PointerType>(ty)) &&
+      (isa<IntType>(srcTy) || isa<PointerType>(srcTy))) {
     llvm_unreachable("NYI");
   }
 
   // If load is legal, just bitcast the src pointer.
-  if (!SrcSize.isScalable() && !DstSize.isScalable() &&
-      SrcSize.getFixedValue() >= DstSize.getFixedValue()) {
+  if (!srcSize.isScalable() && !dstSize.isScalable() &&
+      srcSize.getFixedValue() >= dstSize.getFixedValue()) {
     // Generally SrcSize is never greater than DstSize, since this means we are
     // losing bits. However, this can happen in cases where the structure has
     // additional padding, for example due to a user specified alignment.
@@ -172,13 +172,13 @@ Value createCoercedValue(Value Src, Type Ty, LowerFunction &CGF) {
     // FIXME: Assert that we aren't truncating non-padding bits when have access
     // to that information.
     // Src = Src.withElementType();
-    return CGF.buildAggregateBitcast(Src, Ty);
+    return cgf.buildAggregateBitcast(src, ty);
   }
 
   llvm_unreachable("NYI");
 }
 
-Value emitAddressAtOffset(LowerFunction &LF, Value addr,
+Value emitAddressAtOffset(LowerFunction &lf, Value addr,
                           const ABIArgInfo &info) {
   if (unsigned offset = info.getDirectOffset()) {
     llvm_unreachable("NYI");
@@ -196,39 +196,39 @@ Value emitAddressAtOffset(LowerFunction &LF, Value addr,
 /// However, instead of emitting the load, it emits a cast.
 ///
 /// FIXME(cir): Improve parity with the original codegen.
-Value castReturnValue(Value Src, Type Ty, LowerFunction &LF) {
-  Type SrcTy = Src.getType();
+Value castReturnValue(Value src, Type ty, LowerFunction &lf) {
+  Type srcTy = src.getType();
 
   // If SrcTy and Ty are the same, nothing to do.
-  if (SrcTy == Ty)
-    return Src;
+  if (srcTy == ty)
+    return src;
 
   // If is the special boolean case, simply bitcast it.
-  if (isa<BoolType>(SrcTy) && isa<IntType>(Ty))
-    return createBitcast(Src, Ty, LF);
+  if (isa<BoolType>(srcTy) && isa<IntType>(ty))
+    return createBitcast(src, ty, lf);
 
-  llvm::TypeSize DstSize = LF.LM.getDataLayout().getTypeAllocSize(Ty);
+  llvm::TypeSize dstSize = lf.LM.getDataLayout().getTypeAllocSize(ty);
 
   // FIXME(cir): Do we need the EnterStructPointerForCoercedAccess routine here?
 
-  llvm::TypeSize SrcSize = LF.LM.getDataLayout().getTypeAllocSize(SrcTy);
+  llvm::TypeSize srcSize = lf.LM.getDataLayout().getTypeAllocSize(srcTy);
 
-  if ((isa<IntType>(Ty) || isa<PointerType>(Ty)) &&
-      (isa<IntType>(SrcTy) || isa<PointerType>(SrcTy))) {
+  if ((isa<IntType>(ty) || isa<PointerType>(ty)) &&
+      (isa<IntType>(srcTy) || isa<PointerType>(srcTy))) {
     llvm_unreachable("NYI");
   }
 
   // If load is legal, just bitcast the src pointer.
-  if (!SrcSize.isScalable() && !DstSize.isScalable() &&
-      SrcSize.getFixedValue() >= DstSize.getFixedValue()) {
+  if (!srcSize.isScalable() && !dstSize.isScalable() &&
+      srcSize.getFixedValue() >= dstSize.getFixedValue()) {
     // Generally SrcSize is never greater than DstSize, since this means we are
     // losing bits. However, this can happen in cases where the structure has
     // additional padding, for example due to a user specified alignment.
     //
     // FIXME: Assert that we aren't truncating non-padding bits when have access
     // to that information.
-    return LF.getRewriter().create<CastOp>(Src.getLoc(), Ty, CastKind::bitcast,
-                                           Src);
+    return lf.getRewriter().create<CastOp>(src.getLoc(), ty, CastKind::bitcast,
+                                           src);
   }
 
   llvm_unreachable("NYI");
@@ -237,27 +237,27 @@ Value castReturnValue(Value Src, Type Ty, LowerFunction &LF) {
 } // namespace
 
 // FIXME(cir): Pass SrcFn and NewFn around instead of having then as attributes.
-LowerFunction::LowerFunction(LowerModule &LM, PatternRewriter &rewriter,
+LowerFunction::LowerFunction(LowerModule &lm, PatternRewriter &rewriter,
                              FuncOp srcFn, FuncOp newFn)
-    : Target(LM.getTarget()), rewriter(rewriter), SrcFn(srcFn), NewFn(newFn),
-      LM(LM) {}
+    : Target(lm.getTarget()), rewriter(rewriter), SrcFn(srcFn), NewFn(newFn),
+      LM(lm) {}
 
-LowerFunction::LowerFunction(LowerModule &LM, PatternRewriter &rewriter,
+LowerFunction::LowerFunction(LowerModule &lm, PatternRewriter &rewriter,
                              FuncOp srcFn, CallOp callOp)
-    : Target(LM.getTarget()), rewriter(rewriter), SrcFn(srcFn), callOp(callOp),
-      LM(LM) {}
+    : Target(lm.getTarget()), rewriter(rewriter), SrcFn(srcFn), callOp(callOp),
+      LM(lm) {}
 
 /// This method has partial parity with CodeGenFunction::EmitFunctionProlog from
 /// the original codegen. However, it focuses on the ABI-specific details. On
 /// top of that, it is also responsible for rewriting the original function.
 LogicalResult
-LowerFunction::buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
-                                   MutableArrayRef<BlockArgument> Args) {
+LowerFunction::buildFunctionProlog(const LowerFunctionInfo &fi, FuncOp fn,
+                                   MutableArrayRef<BlockArgument> args) {
   // NOTE(cir): Skipping naked and implicit-return-zero functions here. These
   // are dealt with in CIRGen.
 
-  CIRToCIRArgMapping IRFunctionArgs(LM.getContext(), FI);
-  assert(Fn.getNumArguments() == IRFunctionArgs.totalIRArgs());
+  CIRToCIRArgMapping irFunctionArgs(LM.getContext(), fi);
+  assert(fn.getNumArguments() == irFunctionArgs.totalIRArgs());
 
   // If we're using inalloca, all the memory arguments are GEPs off of the last
   // parameter, which is a pointer to the complete memory area.
@@ -269,76 +269,76 @@ LowerFunction::buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
   // Track if we received the parameter as a pointer (indirect, byval, or
   // inalloca). If already have a pointer, EmitParmDecl doesn't need to copy it
   // into a local alloca for us.
-  SmallVector<Value, 8> ArgVals;
-  ArgVals.reserve(Args.size());
+  SmallVector<Value, 8> argVals;
+  argVals.reserve(args.size());
 
   // Create a pointer value for every parameter declaration. This usually
   // entails copying one or more LLVM IR arguments into an alloca. Don't push
   // any cleanups or do anything that might unwind. We do that separately, so
   // we can push the cleanups in the correct order for the ABI.
-  assert(FI.arg_size() == Args.size());
-  unsigned ArgNo = 0;
-  LowerFunctionInfo::const_arg_iterator info_it = FI.arg_begin();
-  for (MutableArrayRef<BlockArgument>::const_iterator i = Args.begin(),
-                                                      e = Args.end();
-       i != e; ++i, ++info_it, ++ArgNo) {
-    const Value Arg = *i;
-    const ABIArgInfo &ArgI = info_it->info;
+  assert(fi.arg_size() == args.size());
+  unsigned argNo = 0;
+  LowerFunctionInfo::const_arg_iterator infoIt = fi.arg_begin();
+  for (MutableArrayRef<BlockArgument>::const_iterator i = args.begin(),
+                                                      e = args.end();
+       i != e; ++i, ++infoIt, ++argNo) {
+    const Value arg = *i;
+    const ABIArgInfo &argI = infoIt->info;
 
     bool isPromoted = ::cir::MissingFeatures::varDeclIsKNRPromoted();
     // We are converting from ABIArgInfo type to VarDecl type directly, unless
     // the parameter is promoted. In this case we convert to
     // CGFunctionInfo::ArgInfo type with subsequent argument demotion.
-    Type Ty = {};
+    Type ty = {};
     if (isPromoted)
       llvm_unreachable("NYI");
     else
-      Ty = Arg.getType();
+      ty = arg.getType();
     assert(!::cir::MissingFeatures::evaluationKind());
 
-    unsigned FirstIRArg, NumIRArgs;
-    std::tie(FirstIRArg, NumIRArgs) = IRFunctionArgs.getIRArgs(ArgNo);
+    unsigned firstIrArg, numIrArgs;
+    std::tie(firstIrArg, numIrArgs) = irFunctionArgs.getIRArgs(argNo);
 
-    switch (ArgI.getKind()) {
+    switch (argI.getKind()) {
     case ABIArgInfo::Extend:
     case ABIArgInfo::Direct: {
-      auto AI = Fn.getArgument(FirstIRArg);
-      Type LTy = Arg.getType();
+      auto ai = fn.getArgument(firstIrArg);
+      Type lTy = arg.getType();
 
       // Prepare parameter attributes. So far, only attributes for pointer
       // parameters are prepared. See
       // http://llvm.org/docs/LangRef.html#paramattrs.
-      if (ArgI.getDirectOffset() == 0 && isa<PointerType>(LTy) &&
-          isa<PointerType>(ArgI.getCoerceToType())) {
+      if (argI.getDirectOffset() == 0 && isa<PointerType>(lTy) &&
+          isa<PointerType>(argI.getCoerceToType())) {
         llvm_unreachable("NYI");
       }
 
       // Prepare the argument value. If we have the trivial case, handle it
       // with no muss and fuss.
-      if (!isa<StructType>(ArgI.getCoerceToType()) &&
-          ArgI.getCoerceToType() == Ty && ArgI.getDirectOffset() == 0) {
-        assert(NumIRArgs == 1);
+      if (!isa<StructType>(argI.getCoerceToType()) &&
+          argI.getCoerceToType() == ty && argI.getDirectOffset() == 0) {
+        assert(numIrArgs == 1);
 
         // LLVM expects swifterror parameters to be used in very restricted
         // ways. Copy the value into a less-restricted temporary.
-        Value V = AI;
+        Value v = ai;
         if (::cir::MissingFeatures::extParamInfo()) {
           llvm_unreachable("NYI");
         }
 
         // Ensure the argument is the correct type.
-        if (V.getType() != ArgI.getCoerceToType())
+        if (v.getType() != argI.getCoerceToType())
           llvm_unreachable("NYI");
 
         if (isPromoted)
           llvm_unreachable("NYI");
 
-        ArgVals.push_back(V);
+        argVals.push_back(v);
 
         // NOTE(cir): Here we have a trivial case, which means we can just
         // replace all uses of the original argument with the new one.
-        Value oldArg = SrcFn.getArgument(ArgNo);
-        Value newArg = Fn.getArgument(FirstIRArg);
+        Value oldArg = SrcFn.getArgument(argNo);
+        Value newArg = fn.getArgument(firstIrArg);
         rewriter.replaceAllUsesWith(oldArg, newArg);
 
         break;
@@ -351,25 +351,25 @@ LowerFunction::buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
       // the pointer type to be explicitly passed.
       // FIXME(cir): Get the original name of the argument, as well as the
       // proper alignment for the given type being allocated.
-      auto Alloca = rewriter.create<AllocaOp>(
-          Fn.getLoc(), rewriter.getType<PointerType>(Ty), Ty,
+      auto alloca = rewriter.create<AllocaOp>(
+          fn.getLoc(), rewriter.getType<PointerType>(ty), ty,
           /*name=*/StringRef(""),
           /*alignment=*/rewriter.getI64IntegerAttr(4));
 
-      Value Ptr = buildAddressAtOffset(*this, Alloca.getResult(), ArgI);
+      Value ptr = buildAddressAtOffset(*this, alloca.getResult(), argI);
 
       // Fast-isel and the optimizer generally like scalar values better than
       // FCAs, so we flatten them if this is safe to do for this argument.
-      StructType STy = dyn_cast<StructType>(ArgI.getCoerceToType());
-      if (ArgI.isDirect() && ArgI.getCanBeFlattened() && STy &&
-          STy.getNumElements() > 1) {
+      StructType sTy = dyn_cast<StructType>(argI.getCoerceToType());
+      if (argI.isDirect() && argI.getCanBeFlattened() && sTy &&
+          sTy.getNumElements() > 1) {
         llvm_unreachable("NYI");
       } else {
         // Simple case, just do a coerced store of the argument into the alloca.
-        assert(NumIRArgs == 1);
-        Value AI = Fn.getArgument(FirstIRArg);
+        assert(numIrArgs == 1);
+        Value ai = fn.getArgument(firstIrArg);
         // TODO(cir): Set argument name in the new function.
-        createCoercedStore(AI, Ptr, /*DstIsVolatile=*/false, *this);
+        createCoercedStore(ai, ptr, /*DstIsVolatile=*/false, *this);
       }
 
       // Match to what EmitParamDecl is expecting for this type.
@@ -378,17 +378,17 @@ LowerFunction::buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
       } else {
         // FIXME(cir): Should we have an ParamValue abstraction like in the
         // original codegen?
-        ArgVals.push_back(Alloca);
+        argVals.push_back(alloca);
       }
 
       // NOTE(cir): Once we have uncoerced the argument, we should be able to
       // RAUW the original argument alloca with the new one. This assumes that
       // the argument is used only to be stored in a alloca.
-      Value arg = SrcFn.getArgument(ArgNo);
+      Value arg = SrcFn.getArgument(argNo);
       assert(arg.hasOneUse());
       auto *firstStore = *arg.user_begin();
       auto argAlloca = cast<StoreOp>(firstStore).getAddr();
-      rewriter.replaceAllUsesWith(argAlloca, Alloca);
+      rewriter.replaceAllUsesWith(argAlloca, alloca);
       rewriter.eraseOp(firstStore);
       rewriter.eraseOp(argAlloca.getDefiningOp());
       break;
@@ -409,15 +409,15 @@ LowerFunction::buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
   return success();
 }
 
-LogicalResult LowerFunction::buildFunctionEpilog(const LowerFunctionInfo &FI) {
+LogicalResult LowerFunction::buildFunctionEpilog(const LowerFunctionInfo &fi) {
   // NOTE(cir): no-return, naked, and no result functions should be handled in
   // CIRGen.
 
-  Value RV = {};
-  Type RetTy = FI.getReturnType();
-  const ABIArgInfo &RetAI = FI.getReturnInfo();
+  Value rv = {};
+  Type retTy = fi.getReturnType();
+  const ABIArgInfo &retAi = fi.getReturnInfo();
 
-  switch (RetAI.getKind()) {
+  switch (retAi.getKind()) {
 
   case ABIArgInfo::Ignore:
     break;
@@ -425,7 +425,7 @@ LogicalResult LowerFunction::buildFunctionEpilog(const LowerFunctionInfo &FI) {
   case ABIArgInfo::Extend:
   case ABIArgInfo::Direct:
     // FIXME(cir): Should we call ConvertType(RetTy) here?
-    if (RetAI.getCoerceToType() == RetTy && RetAI.getDirectOffset() == 0) {
+    if (retAi.getCoerceToType() == retTy && retAi.getDirectOffset() == 0) {
       // The internal return value temp always will have pointer-to-return-type
       // type, just do a load.
 
@@ -449,9 +449,9 @@ LogicalResult LowerFunction::buildFunctionEpilog(const LowerFunctionInfo &FI) {
       mlir::PatternRewriter::InsertionGuard guard(rewriter);
       NewFn->walk([&](ReturnOp returnOp) {
         rewriter.setInsertionPoint(returnOp);
-        RV = castReturnValue(returnOp->getOperand(0), RetAI.getCoerceToType(),
+        rv = castReturnValue(returnOp->getOperand(0), retAi.getCoerceToType(),
                              *this);
-        rewriter.replaceOpWithNewOp<ReturnOp>(returnOp, RV);
+        rewriter.replaceOpWithNewOp<ReturnOp>(returnOp, rv);
       });
     }
 
@@ -470,19 +470,19 @@ LogicalResult LowerFunction::buildFunctionEpilog(const LowerFunctionInfo &FI) {
 /// This method has partial parity with CodeGenFunction::GenerateCode, but it
 /// focuses on the ABI-specific details. So a lot of codegen stuff is removed.
 LogicalResult LowerFunction::generateCode(FuncOp oldFn, FuncOp newFn,
-                                          const LowerFunctionInfo &FnInfo) {
+                                          const LowerFunctionInfo &fnInfo) {
   assert(newFn && "generating code for null Function");
-  auto Args = oldFn.getArguments();
+  auto args = oldFn.getArguments();
 
   // Emit the ABI-specific function prologue.
   assert(newFn.empty() && "Function already has a body");
   rewriter.setInsertionPointToEnd(newFn.addEntryBlock());
-  if (buildFunctionProlog(FnInfo, newFn, oldFn.getArguments()).failed())
+  if (buildFunctionProlog(fnInfo, newFn, oldFn.getArguments()).failed())
     return failure();
 
   // Ensure that old ABI-agnostic arguments uses were replaced.
   const auto hasNoUses = [](Value val) { return val.getUses().empty(); };
-  assert(std::all_of(Args.begin(), Args.end(), hasNoUses) && "Missing RAUW?");
+  assert(std::all_of(args.begin(), args.end(), hasNoUses) && "Missing RAUW?");
 
   // Migrate function body to new ABI-aware function.
   assert(oldFn.getBody().hasOneBlock() &&
@@ -499,37 +499,37 @@ LogicalResult LowerFunction::generateCode(FuncOp oldFn, FuncOp newFn,
   // convention, we might have to handle this here.
 
   // Emit the standard function epilogue.
-  if (buildFunctionEpilog(FnInfo).failed())
+  if (buildFunctionEpilog(fnInfo).failed())
     return failure();
 
   return success();
 }
 
-void LowerFunction::buildAggregateStore(Value Val, Value Dest,
-                                        bool DestIsVolatile) {
+void LowerFunction::buildAggregateStore(Value val, Value dest,
+                                        bool destIsVolatile) {
   // In LLVM codegen:
   // Function to store a first-class aggregate into memory. We prefer to
   // store the elements rather than the aggregate to be more friendly to
   // fast-isel.
-  assert(mlir::isa<PointerType>(Dest.getType()) && "Storing in a non-pointer!");
-  (void)DestIsVolatile;
+  assert(mlir::isa<PointerType>(dest.getType()) && "Storing in a non-pointer!");
+  (void)destIsVolatile;
 
   // Circumvent CIR's type checking.
-  Type pointeeTy = mlir::cast<PointerType>(Dest.getType()).getPointee();
-  if (Val.getType() != pointeeTy) {
+  Type pointeeTy = mlir::cast<PointerType>(dest.getType()).getPointee();
+  if (val.getType() != pointeeTy) {
     // NOTE(cir):  We only bitcast and store if the types have the same size.
-    assert((LM.getDataLayout().getTypeSizeInBits(Val.getType()) ==
+    assert((LM.getDataLayout().getTypeSizeInBits(val.getType()) ==
             LM.getDataLayout().getTypeSizeInBits(pointeeTy)) &&
            "Incompatible types");
-    auto loc = Val.getLoc();
-    Val = rewriter.create<CastOp>(loc, pointeeTy, CastKind::bitcast, Val);
+    auto loc = val.getLoc();
+    val = rewriter.create<CastOp>(loc, pointeeTy, CastKind::bitcast, val);
   }
 
-  rewriter.create<StoreOp>(Val.getLoc(), Val, Dest);
+  rewriter.create<StoreOp>(val.getLoc(), val, dest);
 }
 
-Value LowerFunction::buildAggregateBitcast(Value Val, Type DestTy) {
-  return rewriter.create<CastOp>(Val.getLoc(), DestTy, CastKind::bitcast, Val);
+Value LowerFunction::buildAggregateBitcast(Value val, Type destTy) {
+  return rewriter.create<CastOp>(val.getLoc(), destTy, CastKind::bitcast, val);
 }
 
 /// Rewrite a call operation to abide to the ABI calling convention.
@@ -556,11 +556,11 @@ LogicalResult LowerFunction::rewriteCallOp(CallOp op,
   auto fnType = SrcFn.getFunctionType();
 
   // Rewrite the call operation to abide to the ABI calling convention.
-  auto Ret = rewriteCallOp(fnType, SrcFn, op, retValSlot);
+  auto ret = rewriteCallOp(fnType, SrcFn, op, retValSlot);
 
   // Replace the original call result with the new one.
-  if (Ret)
-    rewriter.replaceAllUsesWith(op.getResult(), Ret);
+  if (ret)
+    rewriter.replaceAllUsesWith(op.getResult(), ret);
 
   // Erase original ABI-agnostic call.
   rewriter.eraseOp(op);
@@ -574,19 +574,19 @@ LogicalResult LowerFunction::rewriteCallOp(CallOp op,
 /// more direct approach since most of the code here is exclusively CodeGen.
 Value LowerFunction::rewriteCallOp(FuncType calleeTy, FuncOp origCallee,
                                    CallOp callOp, ReturnValueSlot retValSlot,
-                                   Value Chain) {
+                                   Value chain) {
   // NOTE(cir): Skip a bunch of function pointer stuff and AST declaration
   // asserts. Also skip sanitizers, as these should likely be handled at
   // CIRGen.
-  CallArgList Args;
-  if (Chain)
+  CallArgList args;
+  if (chain)
     llvm_unreachable("NYI");
 
   // NOTE(cir): Call args were already emitted in CIRGen. Skip the evaluation
   // order done in CIRGen and just fetch the exiting arguments here.
-  Args = callOp.getArgOperands();
+  args = callOp.getArgOperands();
 
-  const LowerFunctionInfo &FnInfo = LM.getTypes().arrangeFreeFunctionCall(
+  const LowerFunctionInfo &fnInfo = LM.getTypes().arrangeFreeFunctionCall(
       callOp.getArgOperands(), calleeTy, /*chainCall=*/false);
 
   // C99 6.5.2.2p6:
@@ -609,7 +609,7 @@ Value LowerFunction::rewriteCallOp(FuncType calleeTy, FuncOp origCallee,
   //
   // Chain calls use this same code path to add the invisible chain parameter
   // to the function type.
-  if (origCallee.getNoProto() || Chain) {
+  if (origCallee.getNoProto() || chain) {
     llvm_unreachable("NYI");
   }
 
@@ -618,32 +618,32 @@ Value LowerFunction::rewriteCallOp(FuncType calleeTy, FuncOp origCallee,
   // TODO(cir): LLVM IR has the concept of "CallBase", which is a base class
   // for all types of calls. Perhaps we should have a CIR interface to mimic
   // this class.
-  CallOp CallOrInvoke = {};
-  Value CallResult =
-      rewriteCallOp(FnInfo, origCallee, callOp, retValSlot, Args, CallOrInvoke,
+  CallOp callOrInvoke = {};
+  Value callResult =
+      rewriteCallOp(fnInfo, origCallee, callOp, retValSlot, args, callOrInvoke,
                     /*isMustTail=*/false, callOp.getLoc());
 
   // NOTE(cir): Skipping debug stuff here.
 
-  return CallResult;
+  return callResult;
 }
 
 // NOTE(cir): This method has partial parity to CodeGenFunction's EmitCall
 // method in CGCall.cpp. When incrementing it, use the original codegen as a
 // reference: add ABI-specific stuff and skip codegen stuff.
-Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
-                                   FuncOp Callee, CallOp Caller,
-                                   ReturnValueSlot ReturnValue,
-                                   CallArgList &CallArgs, CallOp CallOrInvoke,
+Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &callInfo,
+                                   FuncOp callee, CallOp caller,
+                                   ReturnValueSlot returnValue,
+                                   CallArgList &callArgs, CallOp callOrInvoke,
                                    bool isMustTail, Location loc) {
   // FIXME: We no longer need the types from CallArgs; lift up and simplify.
 
   // Handle struct-return functions by passing a pointer to the
   // location that we would like to return into.
-  Type RetTy = CallInfo.getReturnType(); // ABI-agnostic type.
-  const ::cir::ABIArgInfo &RetAI = CallInfo.getReturnInfo();
+  Type retTy = callInfo.getReturnType(); // ABI-agnostic type.
+  const ::cir::ABIArgInfo &retAi = callInfo.getReturnInfo();
 
-  FuncType IRFuncTy = LM.getTypes().getFunctionType(CallInfo);
+  FuncType irFuncTy = LM.getTypes().getFunctionType(callInfo);
 
   // NOTE(cir): Some target/ABI related checks happen here. They are skipped
   // under the assumption that they are handled in CIRGen.
@@ -652,16 +652,16 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
 
   // If we're using inalloca, insert the allocation after the stack save.
   // FIXME: Do this earlier rather than hacking it in here!
-  if (StructType ArgStruct = CallInfo.getArgStruct()) {
+  if (StructType argStruct = callInfo.getArgStruct()) {
     llvm_unreachable("NYI");
   }
 
-  CIRToCIRArgMapping IRFunctionArgs(LM.getContext(), CallInfo);
-  SmallVector<Value, 16> IRCallArgs(IRFunctionArgs.totalIRArgs());
+  CIRToCIRArgMapping irFunctionArgs(LM.getContext(), callInfo);
+  SmallVector<Value, 16> irCallArgs(irFunctionArgs.totalIRArgs());
 
   // If the call returns a temporary with struct return, create a temporary
   // alloca to hold the result, unless one is given to us.
-  if (RetAI.isIndirect() || RetAI.isCoerceAndExpand() || RetAI.isInAlloca()) {
+  if (retAi.isIndirect() || retAi.isCoerceAndExpand() || retAi.isInAlloca()) {
     llvm_unreachable("NYI");
   }
 
@@ -670,36 +670,36 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
   // NOTE(cir): Skipping lifetime markers here.
 
   // Translate all of the arguments as necessary to match the IR lowering.
-  assert(CallInfo.arg_size() == CallArgs.size() &&
+  assert(callInfo.arg_size() == callArgs.size() &&
          "Mismatch between function signature & arguments.");
-  unsigned ArgNo = 0;
-  LowerFunctionInfo::const_arg_iterator info_it = CallInfo.arg_begin();
-  for (auto I = CallArgs.begin(), E = CallArgs.end(); I != E;
-       ++I, ++info_it, ++ArgNo) {
-    const ABIArgInfo &ArgInfo = info_it->info;
+  unsigned argNo = 0;
+  LowerFunctionInfo::const_arg_iterator infoIt = callInfo.arg_begin();
+  for (auto i = callArgs.begin(), e = callArgs.end(); i != e;
+       ++i, ++infoIt, ++argNo) {
+    const ABIArgInfo &argInfo = infoIt->info;
 
-    if (IRFunctionArgs.hasPaddingArg(ArgNo))
+    if (irFunctionArgs.hasPaddingArg(argNo))
       llvm_unreachable("NYI");
 
-    unsigned FirstIRArg, NumIRArgs;
-    std::tie(FirstIRArg, NumIRArgs) = IRFunctionArgs.getIRArgs(ArgNo);
+    unsigned firstIrArg, numIrArgs;
+    std::tie(firstIrArg, numIrArgs) = irFunctionArgs.getIRArgs(argNo);
 
-    switch (ArgInfo.getKind()) {
+    switch (argInfo.getKind()) {
     case ABIArgInfo::Extend:
     case ABIArgInfo::Direct: {
 
-      if (isa<BoolType>(info_it->type)) {
-        IRCallArgs[FirstIRArg] = *I;
+      if (isa<BoolType>(infoIt->type)) {
+        irCallArgs[firstIrArg] = *i;
         break;
       }
 
-      if (!isa<StructType>(ArgInfo.getCoerceToType()) &&
-          ArgInfo.getCoerceToType() == info_it->type &&
-          ArgInfo.getDirectOffset() == 0) {
-        assert(NumIRArgs == 1);
-        Value V;
-        if (!isa<StructType>(I->getType())) {
-          V = *I;
+      if (!isa<StructType>(argInfo.getCoerceToType()) &&
+          argInfo.getCoerceToType() == infoIt->type &&
+          argInfo.getDirectOffset() == 0) {
+        assert(numIrArgs == 1);
+        Value v;
+        if (!isa<StructType>(i->getType())) {
+          v = *i;
         } else {
           llvm_unreachable("NYI");
         }
@@ -708,42 +708,42 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
           llvm_unreachable("NYI");
         }
 
-        if (ArgInfo.getCoerceToType() != V.getType() &&
-            isa<IntType>(V.getType()))
+        if (argInfo.getCoerceToType() != v.getType() &&
+            isa<IntType>(v.getType()))
           llvm_unreachable("NYI");
 
-        if (FirstIRArg < IRFuncTy.getNumInputs() &&
-            V.getType() != IRFuncTy.getInput(FirstIRArg))
+        if (firstIrArg < irFuncTy.getNumInputs() &&
+            v.getType() != irFuncTy.getInput(firstIrArg))
           llvm_unreachable("NYI");
 
         if (::cir::MissingFeatures::undef())
           llvm_unreachable("NYI");
-        IRCallArgs[FirstIRArg] = V;
+        irCallArgs[firstIrArg] = v;
         break;
       }
 
       // FIXME: Avoid the conversion through memory if possible.
-      Value Src = {};
-      if (!isa<StructType>(I->getType())) {
+      Value src = {};
+      if (!isa<StructType>(i->getType())) {
         llvm_unreachable("NYI");
       } else {
         // NOTE(cir): L/RValue stuff are left for CIRGen to handle.
-        Src = *I;
+        src = *i;
       }
 
       // If the value is offst in memory, apply the offset now.
       // FIXME(cir): Is this offset already handled in CIRGen?
-      Src = emitAddressAtOffset(*this, Src, ArgInfo);
+      src = emitAddressAtOffset(*this, src, argInfo);
 
       // Fast-isel and the optimizer generally like scalar values better than
       // FCAs, so we flatten them if this is safe to do for this argument.
-      StructType STy = dyn_cast<StructType>(ArgInfo.getCoerceToType());
-      if (STy && ArgInfo.isDirect() && ArgInfo.getCanBeFlattened()) {
+      StructType sTy = dyn_cast<StructType>(argInfo.getCoerceToType());
+      if (sTy && argInfo.isDirect() && argInfo.getCanBeFlattened()) {
         llvm_unreachable("NYI");
       } else {
         // In the simple case, just pass the coerced loaded value.
-        assert(NumIRArgs == 1);
-        Value Load = createCoercedValue(Src, ArgInfo.getCoerceToType(), *this);
+        assert(numIrArgs == 1);
+        Value load = createCoercedValue(src, argInfo.getCoerceToType(), *this);
 
         // FIXME(cir): We should probably handle CMSE non-secure calls here
         assert(!::cir::MissingFeatures::cmseNonSecureCallAttr());
@@ -751,13 +751,13 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
         // since they are a ARM-specific feature.
         if (::cir::MissingFeatures::undef())
           llvm_unreachable("NYI");
-        IRCallArgs[FirstIRArg] = Load;
+        irCallArgs[firstIrArg] = load;
       }
 
       break;
     }
     default:
-      llvm::outs() << "Missing ABIArgInfo::Kind: " << ArgInfo.getKind() << "\n";
+      llvm::outs() << "Missing ABIArgInfo::Kind: " << argInfo.getKind() << "\n";
       llvm_unreachable("NYI");
     }
   }
@@ -792,7 +792,7 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
   // fetch the name from the callee, while the return type is fetch from the
   // lowering types manager.
   CallOp newCallOp = rewriter.create<CallOp>(
-      loc, Caller.getCalleeAttr(), IRFuncTy.getReturnType(), IRCallArgs);
+      loc, caller.getCalleeAttr(), irFuncTy.getReturnType(), irCallArgs);
   auto extraAttrs =
       rewriter.getAttr<ExtraFuncAttributesAttr>(rewriter.getDictionaryAttr({}));
   newCallOp->setAttr("extra_attrs", extraAttrs);
@@ -808,29 +808,29 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
   // writebacks here. These should be handled in CIRGen, I think.
 
   // Convert return value from ABI-agnostic to ABI-aware.
-  Value Ret = [&] {
+  Value ret = [&] {
     // NOTE(cir): CIRGen already handled the emission of the return value. We
     // need only to handle the ABI-specific to ABI-agnostic cast here.
-    switch (RetAI.getKind()) {
+    switch (retAi.getKind()) {
 
     case ::cir::ABIArgInfo::Ignore:
       // If we are ignoring an argument that had a result, make sure to
       // construct the appropriate return value for our caller.
-      return getUndefRValue(RetTy);
+      return getUndefRValue(retTy);
 
     case ABIArgInfo::Extend:
     case ABIArgInfo::Direct: {
-      Type RetIRTy = RetTy;
-      if (RetAI.getCoerceToType() == RetIRTy && RetAI.getDirectOffset() == 0) {
-        switch (getEvaluationKind(RetTy)) {
+      Type retIrTy = retTy;
+      if (retAi.getCoerceToType() == retIrTy && retAi.getDirectOffset() == 0) {
+        switch (getEvaluationKind(retTy)) {
         case ::cir::TypeEvaluationKind::TEK_Scalar: {
           // If the argument doesn't match, perform a bitcast to coerce it.
           // This can happen due to trivial type mismatches. NOTE(cir):
           // Perhaps this section should handle CIR's boolean case.
-          Value V = newCallOp.getResult();
-          if (V.getType() != RetIRTy)
+          Value v = newCallOp.getResult();
+          if (v.getType() != retIrTy)
             llvm_unreachable("NYI");
-          return V;
+          return v;
         }
         default:
           llvm_unreachable("NYI");
@@ -845,15 +845,15 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
       }
 
       // FIXME(cir): Use return value slot here.
-      Value RetVal = callOp.getResult();
+      Value retVal = callOp.getResult();
       // TODO(cir): Check for volatile return values.
       assert(!::cir::MissingFeatures::volatileTypes());
 
       // NOTE(cir): If the function returns, there should always be a valid
       // return value present. Instead of setting the return value here, we
       // should have the ReturnValueSlot object set it beforehand.
-      if (!RetVal) {
-        RetVal = callOp.getResult();
+      if (!retVal) {
+        retVal = callOp.getResult();
         // TODO(cir): Check for volatile return values.
         assert(::cir::MissingFeatures::volatileTypes());
       }
@@ -861,18 +861,18 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
       // An empty record can overlap other data (if declared with
       // no_unique_address); omit the store for such types - as there is no
       // actual data to store.
-      if (dyn_cast<StructType>(RetTy) &&
-          cast<StructType>(RetTy).getNumElements() != 0) {
-        RetVal =
-            createCoercedValue(newCallOp.getResult(), RetVal.getType(), *this);
+      if (dyn_cast<StructType>(retTy) &&
+          cast<StructType>(retTy).getNumElements() != 0) {
+        retVal =
+            createCoercedValue(newCallOp.getResult(), retVal.getType(), *this);
       }
 
       // NOTE(cir): No need to convert from a temp to an RValue. This is
       // done in CIRGen
-      return RetVal;
+      return retVal;
     }
     default:
-      llvm::errs() << "Unhandled ABIArgInfo kind: " << RetAI.getKind() << "\n";
+      llvm::errs() << "Unhandled ABIArgInfo kind: " << retAi.getKind() << "\n";
       llvm_unreachable("NYI");
     }
   }();
@@ -880,16 +880,16 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
   // NOTE(cir): Skipping Emissions, lifetime markers, and dtors here that
   // should be handled in CIRGen.
 
-  return Ret;
+  return ret;
 }
 
 // NOTE(cir): This method has partial parity to CodeGenFunction's
 // GetUndefRValue defined in CGExpr.cpp.
-Value LowerFunction::getUndefRValue(Type Ty) {
-  if (isa<VoidType>(Ty))
+Value LowerFunction::getUndefRValue(Type ty) {
+  if (isa<VoidType>(ty))
     return nullptr;
 
-  llvm::outs() << "Missing undef handler for value type: " << Ty << "\n";
+  llvm::outs() << "Missing undef handler for value type: " << ty << "\n";
   llvm_unreachable("NYI");
 }
 

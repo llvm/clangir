@@ -32,20 +32,20 @@ namespace {
 class ItaniumCXXABI : public CIRCXXABI {
 
 protected:
-  bool UseARMMethodPtrABI;
-  bool UseARMGuardVarABI;
-  bool Use32BitVTableOffsetABI;
+  bool useArmMethodPtrAbi;
+  bool useArmGuardVarAbi;
+  bool Use32BitVTableOffsetABI = false;
 
 public:
-  ItaniumCXXABI(LowerModule &LM, bool UseARMMethodPtrABI = false,
-                bool UseARMGuardVarABI = false)
-      : CIRCXXABI(LM), UseARMMethodPtrABI(UseARMMethodPtrABI),
-        UseARMGuardVarABI(UseARMGuardVarABI), Use32BitVTableOffsetABI(false) {}
+  ItaniumCXXABI(LowerModule &lm, bool useArmMethodPtrAbi = false,
+                bool useArmGuardVarAbi = false)
+      : CIRCXXABI(lm), useArmMethodPtrAbi(useArmMethodPtrAbi),
+        useArmGuardVarAbi(useArmGuardVarAbi) {}
 
-  bool classifyReturnType(LowerFunctionInfo &FI) const override;
+  bool classifyReturnType(LowerFunctionInfo &fi) const override;
 
   // FIXME(cir): This expects a CXXRecordDecl! Not any record type.
-  RecordArgABI getRecordArgABI(const StructType RD) const override {
+  RecordArgABI getRecordArgABI(const StructType rd) const override {
     assert(!::cir::MissingFeatures::recordDeclIsCXXDecl());
     // If C++ prohibits us from making a copy, pass by address.
     assert(!::cir::MissingFeatures::recordDeclCanPassInRegisters());
@@ -55,9 +55,9 @@ public:
 
 } // namespace
 
-bool ItaniumCXXABI::classifyReturnType(LowerFunctionInfo &FI) const {
-  const StructType RD = dyn_cast<StructType>(FI.getReturnType());
-  if (!RD)
+bool ItaniumCXXABI::classifyReturnType(LowerFunctionInfo &fi) const {
+  const StructType rd = dyn_cast<StructType>(fi.getReturnType());
+  if (!rd)
     return false;
 
   // If C++ prohibits us from making a copy, return by address.
@@ -67,8 +67,8 @@ bool ItaniumCXXABI::classifyReturnType(LowerFunctionInfo &FI) const {
   return false;
 }
 
-CIRCXXABI *CreateItaniumCXXABI(LowerModule &LM) {
-  switch (LM.getCXXABIKind()) {
+CIRCXXABI *CreateItaniumCXXABI(LowerModule &lm) {
+  switch (lm.getCXXABIKind()) {
   // Note that AArch64 uses the generic ItaniumCXXABI class since it doesn't
   // include the other 32-bit ARM oddities: constructor/destructor return values
   // and array cookies.
@@ -77,11 +77,11 @@ CIRCXXABI *CreateItaniumCXXABI(LowerModule &LM) {
     // TODO: this isn't quite right, clang uses AppleARM64CXXABI which inherits
     // from ARMCXXABI. We'll have to follow suit.
     assert(!::cir::MissingFeatures::appleArm64CXXABI());
-    return new ItaniumCXXABI(LM, /*UseARMMethodPtrABI=*/true,
+    return new ItaniumCXXABI(lm, /*UseARMMethodPtrABI=*/true,
                              /*UseARMGuardVarABI=*/true);
 
   case clang::TargetCXXABI::GenericItanium:
-    return new ItaniumCXXABI(LM);
+    return new ItaniumCXXABI(lm);
 
   case clang::TargetCXXABI::Microsoft:
     llvm_unreachable("Microsoft ABI is not Itanium-based");

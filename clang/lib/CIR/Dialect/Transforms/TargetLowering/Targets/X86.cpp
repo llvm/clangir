@@ -21,8 +21,8 @@ namespace cir {
 namespace {
 
 /// \p returns the size in bits of the largest (native) vector for \p AVXLevel.
-unsigned getNativeVectorSizeForAVXABI(X86AVXABILevel AVXLevel) {
-  switch (AVXLevel) {
+unsigned getNativeVectorSizeForAVXABI(X86AVXABILevel avxLevel) {
+  switch (avxLevel) {
   case X86AVXABILevel::AVX512:
     return 512;
   case X86AVXABILevel::AVX:
@@ -40,21 +40,21 @@ unsigned getNativeVectorSizeForAVXABI(X86AVXABILevel AVXLevel) {
 /// one of the two halves in the INTEGER class.
 ///
 /// It is conservatively correct to return false.
-static bool BitsContainNoUserData(Type Ty, unsigned StartBit, unsigned EndBit,
-                                  CIRLowerContext &Context) {
+static bool bitsContainNoUserData(Type ty, unsigned startBit, unsigned endBit,
+                                  CIRLowerContext &context) {
   // If the bytes being queried are off the end of the type, there is no user
   // data hiding here.  This handles analysis of builtins, vectors and other
   // types that don't contain interesting padding.
-  unsigned TySize = (unsigned)Context.getTypeSize(Ty);
-  if (TySize <= StartBit)
+  unsigned tySize = (unsigned)context.getTypeSize(ty);
+  if (tySize <= startBit)
     return true;
 
-  if (auto arrTy = llvm::dyn_cast<ArrayType>(Ty)) {
+  if (auto arrTy = llvm::dyn_cast<ArrayType>(ty)) {
     llvm_unreachable("NYI");
   }
 
-  if (auto structTy = llvm::dyn_cast<StructType>(Ty)) {
-    const CIRRecordLayout &Layout = Context.getCIRRecordLayout(Ty);
+  if (auto structTy = llvm::dyn_cast<StructType>(ty)) {
+    const CIRRecordLayout &layout = context.getCIRRecordLayout(ty);
 
     // If this is a C++ record, check the bases first.
     if (::cir::MissingFeatures::isCXXRecordDecl() ||
@@ -68,15 +68,15 @@ static bool BitsContainNoUserData(Type Ty, unsigned StartBit, unsigned EndBit,
     // much.
     unsigned idx = 0;
     for (auto type : structTy.getMembers()) {
-      unsigned FieldOffset = (unsigned)Layout.getFieldOffset(idx);
+      unsigned fieldOffset = (unsigned)layout.getFieldOffset(idx);
 
       // If we found a field after the region we care about, then we're done.
-      if (FieldOffset >= EndBit)
+      if (fieldOffset >= endBit)
         break;
 
-      unsigned FieldStart = FieldOffset < StartBit ? StartBit - FieldOffset : 0;
-      if (!BitsContainNoUserData(type, FieldStart, EndBit - FieldOffset,
-                                 Context))
+      unsigned fieldStart = fieldOffset < startBit ? startBit - fieldOffset : 0;
+      if (!bitsContainNoUserData(type, fieldStart, endBit - fieldOffset,
+                                 context))
         return false;
 
       ++idx;
@@ -90,17 +90,17 @@ static bool BitsContainNoUserData(Type Ty, unsigned StartBit, unsigned EndBit,
 }
 
 /// Return a floating point type at the specified offset.
-Type getFPTypeAtOffset(Type IRType, unsigned IROffset,
-                       const ::cir::CIRDataLayout &TD) {
-  if (IROffset == 0 && isa<SingleType, DoubleType>(IRType))
-    return IRType;
+Type getFPTypeAtOffset(Type irType, unsigned irOffset,
+                       const ::cir::CIRDataLayout &td) {
+  if (irOffset == 0 && isa<SingleType, DoubleType>(irType))
+    return irType;
 
   llvm_unreachable("NYI");
 }
 
 } // namespace
 
-class X86_64ABIInfo : public ABIInfo {
+class X8664AbiInfo : public ABIInfo {
   using Class = ::cir::X86ArgClass;
 
   /// Implement the X86_64 ABI merging algorithm.
@@ -112,7 +112,7 @@ class X86_64ABIInfo : public ABIInfo {
   /// always be either NoClass or the result of a previous merge
   /// call. In addition, this should never be Memory (the caller
   /// should just return Memory for the aggregate).
-  static Class merge(Class Accum, Class Field);
+  static Class merge(Class accum, Class field);
 
   /// Implement the X86_64 ABI post merging algorithm.
   ///
@@ -128,7 +128,7 @@ class X86_64ABIInfo : public ABIInfo {
   /// \param Hi - The classification for the parts of the type
   /// residing in the higher words of the containing object.
   ///
-  void postMerge(unsigned AggregateSize, Class &Lo, Class &Hi) const;
+  void postMerge(unsigned aggregateSize, Class &lo, Class &hi) const;
 
   /// Determine the x86_64 register classes in which the given type T should be
   /// passed.
@@ -156,43 +156,43 @@ class X86_64ABIInfo : public ABIInfo {
   ///
   /// If the \arg Lo class is ComplexX87, then the \arg Hi class will
   /// also be ComplexX87.
-  void classify(Type T, uint64_t OffsetBase, Class &Lo, Class &Hi,
-                bool isNamedArg, bool IsRegCall = false) const;
+  void classify(Type t, uint64_t offsetBase, Class &lo, Class &hi,
+                bool isNamedArg, bool isRegCall = false) const;
 
-  Type GetSSETypeAtOffset(Type IRType, unsigned IROffset, Type SourceTy,
-                          unsigned SourceOffset) const;
+  Type getSseTypeAtOffset(Type irType, unsigned irOffset, Type sourceTy,
+                          unsigned sourceOffset) const;
 
-  Type GetINTEGERTypeAtOffset(Type DestTy, unsigned IROffset, Type SourceTy,
-                              unsigned SourceOffset) const;
+  Type getIntegerTypeAtOffset(Type destTy, unsigned irOffset, Type sourceTy,
+                              unsigned sourceOffset) const;
 
   /// The 0.98 ABI revision clarified a lot of ambiguities,
   /// unfortunately in ways that were not always consistent with
   /// certain previous compilers.  In particular, platforms which
   /// required strict binary compatibility with older versions of GCC
   /// may need to exempt themselves.
-  bool honorsRevision0_98() const {
+  bool honorsRevision098() const {
     return !getTarget().getTriple().isOSDarwin();
   }
 
-  X86AVXABILevel AVXLevel;
+  X86AVXABILevel avxLevel;
 
 public:
-  X86_64ABIInfo(LowerTypes &CGT, X86AVXABILevel AVXLevel)
-      : ABIInfo(CGT), AVXLevel(AVXLevel) {}
+  X8664AbiInfo(LowerTypes &cgt, X86AVXABILevel avxLevel)
+      : ABIInfo(cgt), avxLevel(avxLevel) {}
 
-  ::cir::ABIArgInfo classifyReturnType(Type RetTy) const;
+  ::cir::ABIArgInfo classifyReturnType(Type retTy) const;
 
-  ABIArgInfo classifyArgumentType(Type Ty, unsigned freeIntRegs,
+  ABIArgInfo classifyArgumentType(Type ty, unsigned freeIntRegs,
                                   unsigned &neededInt, unsigned &neededSSE,
-                                  bool isNamedArg, bool IsRegCall) const;
+                                  bool isNamedArg, bool isRegCall) const;
 
-  void computeInfo(LowerFunctionInfo &FI) const override;
+  void computeInfo(LowerFunctionInfo &fi) const override;
 };
 
-class X86_64TargetLoweringInfo : public TargetLoweringInfo {
+class X8664TargetLoweringInfo : public TargetLoweringInfo {
 public:
-  X86_64TargetLoweringInfo(LowerTypes &LM, X86AVXABILevel AVXLevel)
-      : TargetLoweringInfo(std::make_unique<X86_64ABIInfo>(LM, AVXLevel)) {
+  X8664TargetLoweringInfo(LowerTypes &lm, X86AVXABILevel avxLevel)
+      : TargetLoweringInfo(std::make_unique<X8664AbiInfo>(lm, avxLevel)) {
     assert(!::cir::MissingFeatures::swift());
   }
 
@@ -212,8 +212,8 @@ public:
   }
 };
 
-void X86_64ABIInfo::classify(Type Ty, uint64_t OffsetBase, Class &Lo, Class &Hi,
-                             bool isNamedArg, bool IsRegCall) const {
+void X8664AbiInfo::classify(Type ty, uint64_t offsetBase, Class &lo, Class &hi,
+                            bool isNamedArg, bool isRegCall) const {
   // FIXME: This code can be simplified by introducing a simple value class
   // for Class pairs with appropriate constructor methods for the various
   // situations.
@@ -222,75 +222,75 @@ void X86_64ABIInfo::classify(Type Ty, uint64_t OffsetBase, Class &Lo, Class &Hi,
   // shouldn't be passed in registers for example, so there is no chance they
   // can straddle an eightbyte. Verify & simplify.
 
-  Lo = Hi = Class::NoClass;
+  lo = hi = Class::NoClass;
 
-  Class &Current = OffsetBase < 64 ? Lo : Hi;
-  Current = Class::Memory;
+  Class &current = offsetBase < 64 ? lo : hi;
+  current = Class::Memory;
 
   // FIXME(cir): There's currently no direct way to identify if a type is a
   // builtin.
   if (/*isBuitinType=*/true) {
-    if (isa<VoidType>(Ty)) {
-      Current = Class::NoClass;
-    } else if (isa<IntType>(Ty)) {
+    if (isa<VoidType>(ty)) {
+      current = Class::NoClass;
+    } else if (isa<IntType>(ty)) {
 
       // FIXME(cir): Clang's BuiltinType::Kind allow comparisons (GT, LT, etc).
       // We should implement this in CIR to simplify the conditions below.
       // Hence, Comparisons below might not be truly equivalent to the ones in
       // Clang.
-      if (isa<IntType>(Ty)) {
-        Current = Class::Integer;
+      if (isa<IntType>(ty)) {
+        current = Class::Integer;
       }
       return;
 
-    } else if (isa<SingleType>(Ty) || isa<DoubleType>(Ty)) {
-      Current = Class::SSE;
+    } else if (isa<SingleType>(ty) || isa<DoubleType>(ty)) {
+      current = Class::SSE;
       return;
 
-    } else if (isa<BoolType>(Ty)) {
-      Current = Class::Integer;
-    } else if (const auto RT = dyn_cast<StructType>(Ty)) {
-      uint64_t Size = getContext().getTypeSize(Ty);
+    } else if (isa<BoolType>(ty)) {
+      current = Class::Integer;
+    } else if (const auto rt = dyn_cast<StructType>(ty)) {
+      uint64_t size = getContext().getTypeSize(ty);
 
       // AMD64-ABI 3.2.3p2: Rule 1. If the size of an object is larger
       // than eight eightbytes, ..., it has class MEMORY.
-      if (Size > 512)
+      if (size > 512)
         llvm_unreachable("NYI");
 
       // AMD64-ABI 3.2.3p2: Rule 2. If a C++ object has either a non-trivial
       // copy constructor or a non-trivial destructor, it is passed by invisible
       // reference.
-      if (getRecordArgABI(RT, getCXXABI()))
+      if (getRecordArgABI(rt, getCXXABI()))
         llvm_unreachable("NYI");
 
       // Assume variable sized types are passed in memory.
       if (::cir::MissingFeatures::recordDeclHasFlexibleArrayMember())
         llvm_unreachable("NYI");
 
-      const auto &Layout = getContext().getCIRRecordLayout(Ty);
+      const auto &layout = getContext().getCIRRecordLayout(ty);
 
       // Reset Lo class, this will be recomputed.
-      Current = Class::NoClass;
+      current = Class::NoClass;
 
       // If this is a C++ record, classify the bases first.
       assert(!::cir::MissingFeatures::isCXXRecordDecl() &&
              !::cir::MissingFeatures::getCXXRecordBases());
 
       // Classify the fields one at a time, merging the results.
-      bool UseClang11Compat = getContext().getLangOpts().getClangABICompat() <=
+      bool useClang11Compat = getContext().getLangOpts().getClangABICompat() <=
                                   clang::LangOptions::ClangABI::Ver11 ||
                               getContext().getTargetInfo().getTriple().isPS();
-      bool IsUnion = RT.isUnion() && !UseClang11Compat;
+      bool isUnion = rt.isUnion() && !useClang11Compat;
 
       // FIXME(cir): An interface to handle field declaration might be needed.
       assert(!::cir::MissingFeatures::fieldDeclAbstraction());
-      for (auto [idx, FT] : llvm::enumerate(RT.getMembers())) {
-        uint64_t Offset = OffsetBase + Layout.getFieldOffset(idx);
+      for (auto [idx, FT] : llvm::enumerate(rt.getMembers())) {
+        uint64_t offset = offsetBase + layout.getFieldOffset(idx);
         assert(!::cir::MissingFeatures::fieldDeclIsBitfield());
-        bool BitField = false;
+        bool bitField = false;
 
         // Ignore padding bit-fields.
-        if (BitField && !::cir::MissingFeatures::fieldDeclisUnnamedBitField())
+        if (bitField && !::cir::MissingFeatures::fieldDeclisUnnamedBitField())
           llvm_unreachable("NYI");
 
         // AMD64-ABI 3.2.3p2: Rule 1. If the size of an object is larger than
@@ -303,12 +303,12 @@ void X86_64ABIInfo::classify(Type Ty, uint64_t OffsetBase, Class &Lo, Class &Hi,
         //
         // FIXME: Extended the Lo and Hi logic properly to work for size wider
         // than 128.
-        if (Size > 128 && ((!IsUnion && Size != getContext().getTypeSize(FT)) ||
-                           Size > getNativeVectorSizeForAVXABI(AVXLevel))) {
+        if (size > 128 && ((!isUnion && size != getContext().getTypeSize(FT)) ||
+                           size > getNativeVectorSizeForAVXABI(avxLevel))) {
           llvm_unreachable("NYI");
         }
         // Note, skip this test for bit-fields, see below.
-        if (!BitField && Offset % getContext().getTypeAlign(RT)) {
+        if (!bitField && offset % getContext().getTypeAlign(rt)) {
           llvm_unreachable("NYI");
         }
 
@@ -318,25 +318,25 @@ void X86_64ABIInfo::classify(Type Ty, uint64_t OffsetBase, Class &Lo, Class &Hi,
         // exceeds a single eightbyte, each is classified
         // separately. Each eightbyte gets initialized to class
         // NO_CLASS.
-        Class FieldLo, FieldHi;
+        Class fieldLo, fieldHi;
 
         // Bit-fields require special handling, they do not force the
         // structure to be passed in memory even if unaligned, and
         // therefore they can straddle an eightbyte.
-        if (BitField) {
+        if (bitField) {
           llvm_unreachable("NYI");
         } else {
-          classify(FT, Offset, FieldLo, FieldHi, isNamedArg);
+          classify(FT, offset, fieldLo, fieldHi, isNamedArg);
         }
-        Lo = merge(Lo, FieldLo);
-        Hi = merge(Hi, FieldHi);
-        if (Lo == Class::Memory || Hi == Class::Memory)
+        lo = merge(lo, fieldLo);
+        hi = merge(hi, fieldHi);
+        if (lo == Class::Memory || hi == Class::Memory)
           break;
       }
 
-      postMerge(Size, Lo, Hi);
+      postMerge(size, lo, hi);
     } else {
-      llvm::outs() << "Missing X86 classification for type " << Ty << "\n";
+      llvm::outs() << "Missing X86 classification for type " << ty << "\n";
       llvm_unreachable("NYI");
     }
     // FIXME: _Decimal32 and _Decimal64 are SSE.
@@ -350,30 +350,30 @@ void X86_64ABIInfo::classify(Type Ty, uint64_t OffsetBase, Class &Lo, Class &Hi,
 
 /// Return a type that will be passed by the backend in the low 8 bytes of an
 /// XMM register, corresponding to the SSE class.
-Type X86_64ABIInfo::GetSSETypeAtOffset(Type IRType, unsigned IROffset,
-                                       Type SourceTy,
-                                       unsigned SourceOffset) const {
-  const ::cir::CIRDataLayout &TD = getDataLayout();
-  unsigned SourceSize =
-      (unsigned)getContext().getTypeSize(SourceTy) / 8 - SourceOffset;
-  Type T0 = getFPTypeAtOffset(IRType, IROffset, TD);
-  if (!T0 || isa<Float64Type>(T0))
-    return T0; // NOTE(cir): Not sure if this is correct.
+Type X8664AbiInfo::getSseTypeAtOffset(Type irType, unsigned irOffset,
+                                      Type sourceTy,
+                                      unsigned sourceOffset) const {
+  const ::cir::CIRDataLayout &td = getDataLayout();
+  unsigned sourceSize =
+      (unsigned)getContext().getTypeSize(sourceTy) / 8 - sourceOffset;
+  Type t0 = getFPTypeAtOffset(irType, irOffset, td);
+  if (!t0 || isa<Float64Type>(t0))
+    return t0; // NOTE(cir): Not sure if this is correct.
 
-  Type T1 = {};
-  unsigned T0Size = TD.getTypeAllocSize(T0);
-  if (SourceSize > T0Size)
+  Type t1 = {};
+  unsigned t0Size = td.getTypeAllocSize(t0);
+  if (sourceSize > t0Size)
     llvm_unreachable("NYI");
-  if (T1 == nullptr) {
+  if (t1 == nullptr) {
     // Check if IRType is a half/bfloat + float. float type will be in
     // IROffset+4 due to its alignment.
-    if (isa<Float16Type>(T0) && SourceSize > 4)
+    if (isa<Float16Type>(t0) && sourceSize > 4)
       llvm_unreachable("NYI");
     // If we can't get a second FP type, return a simple half or float.
     // avx512fp16-abi.c:pr51813_2 shows it works to return float for
     // {float, i8} too.
-    if (T1 == nullptr)
-      return T0;
+    if (t1 == nullptr)
+      return t0;
   }
 
   llvm_unreachable("NYI");
@@ -393,14 +393,14 @@ Type X86_64ABIInfo::GetSSETypeAtOffset(Type IRType, unsigned IROffset,
 /// is an offset into this that we're processing (which is always either 0 or
 /// 8).
 ///
-Type X86_64ABIInfo::GetINTEGERTypeAtOffset(Type DestTy, unsigned IROffset,
-                                           Type SourceTy,
-                                           unsigned SourceOffset) const {
+Type X8664AbiInfo::getIntegerTypeAtOffset(Type destTy, unsigned irOffset,
+                                          Type sourceTy,
+                                          unsigned sourceOffset) const {
   // If we're dealing with an un-offset CIR type, then it means that we're
   // returning an 8-byte unit starting with it. See if we can safely use it.
-  if (IROffset == 0) {
+  if (irOffset == 0) {
     // Pointers and int64's always fill the 8-byte unit.
-    assert(!isa<PointerType>(DestTy) && "Ptrs are NYI");
+    assert(!isa<PointerType>(destTy) && "Ptrs are NYI");
 
     // If we have a 1/2/4-byte integer, we can use it only if the rest of the
     // goodness in the source type is just tail padding.  This is allowed to
@@ -408,35 +408,35 @@ Type X86_64ABIInfo::GetINTEGERTypeAtOffset(Type DestTy, unsigned IROffset,
     // struct{double,int,int} because we wouldn't return the second int.  We
     // have to do this analysis on the source type because we can't depend on
     // unions being lowered a specific way etc.
-    if (auto intTy = dyn_cast<IntType>(DestTy)) {
+    if (auto intTy = dyn_cast<IntType>(destTy)) {
       if (intTy.getWidth() == 8 || intTy.getWidth() == 16 ||
           intTy.getWidth() == 32) {
-        unsigned BitWidth = intTy.getWidth();
-        if (BitsContainNoUserData(SourceTy, SourceOffset * 8 + BitWidth,
-                                  SourceOffset * 8 + 64, getContext()))
-          return DestTy;
+        unsigned bitWidth = intTy.getWidth();
+        if (bitsContainNoUserData(sourceTy, sourceOffset * 8 + bitWidth,
+                                  sourceOffset * 8 + 64, getContext()))
+          return destTy;
       }
     }
   }
 
-  if (auto RT = dyn_cast<StructType>(DestTy)) {
+  if (auto rt = dyn_cast<StructType>(destTy)) {
     // If this is a struct, recurse into the field at the specified offset.
-    const ::cir::StructLayout *SL = getDataLayout().getStructLayout(RT);
-    if (IROffset < SL->getSizeInBytes()) {
-      unsigned FieldIdx = SL->getElementContainingOffset(IROffset);
-      IROffset -= SL->getElementOffset(FieldIdx);
+    const ::cir::StructLayout *sl = getDataLayout().getStructLayout(rt);
+    if (irOffset < sl->getSizeInBytes()) {
+      unsigned fieldIdx = sl->getElementContainingOffset(irOffset);
+      irOffset -= sl->getElementOffset(fieldIdx);
 
-      return GetINTEGERTypeAtOffset(RT.getMembers()[FieldIdx], IROffset,
-                                    SourceTy, SourceOffset);
+      return getIntegerTypeAtOffset(rt.getMembers()[fieldIdx], irOffset,
+                                    sourceTy, sourceOffset);
     }
   }
 
   // Okay, we don't have any better idea of what to pass, so we pass this in
   // an integer register that isn't too big to fit the rest of the struct.
-  unsigned TySizeInBytes =
-      (unsigned)getContext().getTypeSizeInChars(SourceTy).getQuantity();
+  unsigned tySizeInBytes =
+      (unsigned)getContext().getTypeSizeInChars(sourceTy).getQuantity();
 
-  assert(TySizeInBytes != SourceOffset && "Empty field?");
+  assert(tySizeInBytes != sourceOffset && "Empty field?");
 
   // It is always safe to classify this as an integer type up to i64 that
   // isn't larger than the structure.
@@ -445,58 +445,58 @@ Type X86_64ABIInfo::GetINTEGERTypeAtOffset(Type DestTy, unsigned IROffset,
   // this might not make a difference in practice. For now, we just preserve the
   // sign as is to avoid unecessary bitcasts.
   bool isSigned = false;
-  if (auto intTy = dyn_cast<IntType>(SourceTy))
+  if (auto intTy = dyn_cast<IntType>(sourceTy))
     isSigned = intTy.isSigned();
   return IntType::get(LT.getMLIRContext(),
-                      std::min(TySizeInBytes - SourceOffset, 8U) * 8, isSigned);
+                      std::min(tySizeInBytes - sourceOffset, 8U) * 8, isSigned);
 }
 
-::cir::ABIArgInfo X86_64ABIInfo::classifyReturnType(Type RetTy) const {
+::cir::ABIArgInfo X8664AbiInfo::classifyReturnType(Type retTy) const {
   // AMD64-ABI 3.2.3p4: Rule 1. Classify the return type with the
   // classification algorithm.
-  X86_64ABIInfo::Class Lo, Hi;
-  classify(RetTy, 0, Lo, Hi, true);
+  X8664AbiInfo::Class lo, hi;
+  classify(retTy, 0, lo, hi, true);
 
   // Check some invariants.
-  assert((Hi != Class::Memory || Lo == Class::Memory) &&
+  assert((hi != Class::Memory || lo == Class::Memory) &&
          "Invalid memory classification.");
-  assert((Hi != Class::SSEUp || Lo == Class::SSE) &&
+  assert((hi != Class::SSEUp || lo == Class::SSE) &&
          "Invalid SSEUp classification.");
 
   Type resType = {};
-  switch (Lo) {
+  switch (lo) {
   case Class::NoClass:
-    if (Hi == Class::NoClass)
+    if (hi == Class::NoClass)
       return ABIArgInfo::getIgnore();
     break;
 
   case Class::Integer:
-    resType = GetINTEGERTypeAtOffset(RetTy, 0, RetTy, 0);
+    resType = getIntegerTypeAtOffset(retTy, 0, retTy, 0);
 
     // If we have a sign or zero extended integer, make sure to return Extend
     // so that the parameter gets the right LLVM IR attributes.
-    if (Hi == Class::NoClass && isa<IntType>(resType)) {
+    if (hi == Class::NoClass && isa<IntType>(resType)) {
       // NOTE(cir): We skip enum types handling here since CIR represents
       // enums directly as their unerlying integer types. NOTE(cir): For some
       // reason, Clang does not set the coerce type here and delays it to
       // arrangeLLVMFunctionInfo. We do the same to keep parity.
-      if (isa<IntType, BoolType>(RetTy) && isPromotableIntegerTypeForABI(RetTy))
-        return ABIArgInfo::getExtend(RetTy);
+      if (isa<IntType, BoolType>(retTy) && isPromotableIntegerTypeForABI(retTy))
+        return ABIArgInfo::getExtend(retTy);
     }
     break;
 
     // AMD64-ABI 3.2.3p4: Rule 4. If the class is SSE, the next
     // available SSE register of the sequence %xmm0, %xmm1 is used.
   case Class::SSE:
-    resType = GetSSETypeAtOffset(RetTy, 0, RetTy, 0);
+    resType = getSseTypeAtOffset(retTy, 0, retTy, 0);
     break;
 
   default:
     llvm_unreachable("NYI");
   }
 
-  Type HighPart = {};
-  switch (Hi) {
+  Type highPart = {};
+  switch (hi) {
 
   case Class::NoClass:
     break;
@@ -508,33 +508,33 @@ Type X86_64ABIInfo::GetINTEGERTypeAtOffset(Type DestTy, unsigned IROffset,
   // If a high part was specified, merge it together with the low part.  It is
   // known to pass in the high eightbyte of the result.  We do this by forming
   // a first class struct aggregate with the high and low part: {low, high}
-  if (HighPart)
+  if (highPart)
     llvm_unreachable("NYI");
 
   return ABIArgInfo::getDirect(resType);
 }
 
-ABIArgInfo X86_64ABIInfo::classifyArgumentType(Type Ty, unsigned freeIntRegs,
-                                               unsigned &neededInt,
-                                               unsigned &neededSSE,
-                                               bool isNamedArg,
-                                               bool IsRegCall = false) const {
-  Ty = useFirstFieldIfTransparentUnion(Ty);
+ABIArgInfo X8664AbiInfo::classifyArgumentType(Type ty, unsigned freeIntRegs,
+                                              unsigned &neededInt,
+                                              unsigned &neededSSE,
+                                              bool isNamedArg,
+                                              bool isRegCall = false) const {
+  ty = useFirstFieldIfTransparentUnion(ty);
 
-  X86_64ABIInfo::Class Lo, Hi;
-  classify(Ty, 0, Lo, Hi, isNamedArg, IsRegCall);
+  X8664AbiInfo::Class lo, hi;
+  classify(ty, 0, lo, hi, isNamedArg, isRegCall);
 
   // Check some invariants.
   // FIXME: Enforce these by construction.
-  assert((Hi != Class::Memory || Lo == Class::Memory) &&
+  assert((hi != Class::Memory || lo == Class::Memory) &&
          "Invalid memory classification.");
-  assert((Hi != Class::SSEUp || Lo == Class::SSE) &&
+  assert((hi != Class::SSEUp || lo == Class::SSE) &&
          "Invalid SSEUp classification.");
 
   neededInt = 0;
   neededSSE = 0;
-  Type ResType = {};
-  switch (Lo) {
+  Type resType = {};
+  switch (lo) {
     // AMD64-ABI 3.2.3p3: Rule 2. If the class is INTEGER, the next
     // available register of the sequence %rdi, %rsi, %rdx, %rcx, %r8
     // and %r9 is used.
@@ -542,17 +542,17 @@ ABIArgInfo X86_64ABIInfo::classifyArgumentType(Type Ty, unsigned freeIntRegs,
     ++neededInt;
 
     // Pick an 8-byte type based on the preferred type.
-    ResType = GetINTEGERTypeAtOffset(Ty, 0, Ty, 0);
+    resType = getIntegerTypeAtOffset(ty, 0, ty, 0);
 
     // If we have a sign or zero extended integer, make sure to return Extend
     // so that the parameter gets the right LLVM IR attributes.
-    if (Hi == Class::NoClass && isa<IntType>(ResType)) {
+    if (hi == Class::NoClass && isa<IntType>(resType)) {
       // NOTE(cir): We skip enum types handling here since CIR represents
       // enums directly as their unerlying integer types. NOTE(cir): For some
       // reason, Clang does not set the coerce type here and delays it to
       // arrangeLLVMFunctionInfo. We do the same to keep parity.
-      if (isa<IntType, BoolType>(Ty) && isPromotableIntegerTypeForABI(Ty))
-        return ABIArgInfo::getExtend(Ty);
+      if (isa<IntType, BoolType>(ty) && isPromotableIntegerTypeForABI(ty))
+        return ABIArgInfo::getExtend(ty);
     }
 
     break;
@@ -561,7 +561,7 @@ ABIArgInfo X86_64ABIInfo::classifyArgumentType(Type Ty, unsigned freeIntRegs,
     // available SSE register is used, the registers are taken in the
     // order from %xmm0 to %xmm7.
   case Class::SSE: {
-    ResType = GetSSETypeAtOffset(Ty, 0, Ty, 0);
+    resType = getSseTypeAtOffset(ty, 0, ty, 0);
     ++neededSSE;
     break;
   }
@@ -569,75 +569,75 @@ ABIArgInfo X86_64ABIInfo::classifyArgumentType(Type Ty, unsigned freeIntRegs,
     llvm_unreachable("NYI");
   }
 
-  Type HighPart = {};
-  switch (Hi) {
+  Type highPart = {};
+  switch (hi) {
   case Class::NoClass:
     break;
   default:
     llvm_unreachable("NYI");
   }
 
-  if (HighPart)
+  if (highPart)
     llvm_unreachable("NYI");
 
-  return ABIArgInfo::getDirect(ResType);
+  return ABIArgInfo::getDirect(resType);
 }
 
-void X86_64ABIInfo::computeInfo(LowerFunctionInfo &FI) const {
-  const unsigned CallingConv = FI.getCallingConvention();
+void X8664AbiInfo::computeInfo(LowerFunctionInfo &fi) const {
+  const unsigned callingConv = fi.getCallingConvention();
   // It is possible to force Win64 calling convention on any x86_64 target by
   // using __attribute__((ms_abi)). In such case to correctly emit Win64
   // compatible code delegate this call to WinX86_64ABIInfo::computeInfo.
-  if (CallingConv == llvm::CallingConv::Win64) {
+  if (callingConv == llvm::CallingConv::Win64) {
     llvm_unreachable("Win64 CC is NYI");
   }
 
-  bool IsRegCall = CallingConv == llvm::CallingConv::X86_RegCall;
+  bool isRegCall = callingConv == llvm::CallingConv::X86_RegCall;
 
   // Keep track of the number of assigned registers.
-  unsigned FreeIntRegs = IsRegCall ? 11 : 6;
-  unsigned FreeSSERegs = IsRegCall ? 16 : 8;
-  unsigned NeededInt = 0, NeededSSE = 0, MaxVectorWidth = 0;
+  unsigned freeIntRegs = isRegCall ? 11 : 6;
+  unsigned freeSseRegs = isRegCall ? 16 : 8;
+  unsigned neededInt = 0, neededSse = 0, maxVectorWidth = 0;
 
-  if (!::mlir::cir::classifyReturnType(getCXXABI(), FI, *this)) {
-    if (IsRegCall || ::cir::MissingFeatures::regCall()) {
+  if (!::mlir::cir::classifyReturnType(getCXXABI(), fi, *this)) {
+    if (isRegCall || ::cir::MissingFeatures::regCall()) {
       llvm_unreachable("RegCall is NYI");
     } else
-      FI.getReturnInfo() = classifyReturnType(FI.getReturnType());
+      fi.getReturnInfo() = classifyReturnType(fi.getReturnType());
   }
 
   // If the return value is indirect, then the hidden argument is consuming
   // one integer register.
-  if (FI.getReturnInfo().isIndirect())
+  if (fi.getReturnInfo().isIndirect())
     llvm_unreachable("NYI");
-  else if (NeededSSE && MaxVectorWidth)
+  else if (neededSse && maxVectorWidth)
     llvm_unreachable("NYI");
 
   // The chain argument effectively gives us another free register.
   if (::cir::MissingFeatures::chainCall())
     llvm_unreachable("NYI");
 
-  unsigned NumRequiredArgs = FI.getNumRequiredArgs();
+  unsigned numRequiredArgs = fi.getNumRequiredArgs();
   // AMD64-ABI 3.2.3p3: Once arguments are classified, the registers
   // get assigned (in left-to-right order) for passing as follows...
-  unsigned ArgNo = 0;
-  for (LowerFunctionInfo::arg_iterator it = FI.arg_begin(), ie = FI.arg_end();
-       it != ie; ++it, ++ArgNo) {
-    bool IsNamedArg = ArgNo < NumRequiredArgs;
+  unsigned argNo = 0;
+  for (LowerFunctionInfo::arg_iterator it = fi.arg_begin(), ie = fi.arg_end();
+       it != ie; ++it, ++argNo) {
+    bool isNamedArg = argNo < numRequiredArgs;
 
-    if (IsRegCall && ::cir::MissingFeatures::regCall())
+    if (isRegCall && ::cir::MissingFeatures::regCall())
       llvm_unreachable("NYI");
     else
-      it->info = classifyArgumentType(it->type, FreeIntRegs, NeededInt,
-                                      NeededSSE, IsNamedArg);
+      it->info = classifyArgumentType(it->type, freeIntRegs, neededInt,
+                                      neededSse, isNamedArg);
 
     // AMD64-ABI 3.2.3p3: If there are no registers available for any
     // eightbyte of an argument, the whole argument is passed on the
     // stack. If registers have already been assigned for some
     // eightbytes of such an argument, the assignments get reverted.
-    if (FreeIntRegs >= NeededInt && FreeSSERegs >= NeededSSE) {
-      FreeIntRegs -= NeededInt;
-      FreeSSERegs -= NeededSSE;
+    if (freeIntRegs >= neededInt && freeSseRegs >= neededSse) {
+      freeIntRegs -= neededInt;
+      freeSseRegs -= neededSse;
       if (::cir::MissingFeatures::vectorType())
         llvm_unreachable("NYI");
     } else {
@@ -646,7 +646,7 @@ void X86_64ABIInfo::computeInfo(LowerFunctionInfo &FI) const {
   }
 }
 
-X86_64ABIInfo::Class X86_64ABIInfo::merge(Class Accum, Class Field) {
+X8664AbiInfo::Class X8664AbiInfo::merge(Class accum, Class field) {
   // AMD64-ABI 3.2.3p2: Rule 4. Each field of an object is
   // classified recursively so that always two fields are
   // considered. The resulting class is calculated according to
@@ -670,25 +670,25 @@ X86_64ABIInfo::Class X86_64ABIInfo::merge(Class Accum, Class Field) {
 
   // Accum should never be memory (we should have returned) or
   // ComplexX87 (because this cannot be passed in a structure).
-  assert((Accum != Class::Memory && Accum != Class::ComplexX87) &&
+  assert((accum != Class::Memory && accum != Class::ComplexX87) &&
          "Invalid accumulated classification during merge.");
-  if (Accum == Field || Field == Class::NoClass)
-    return Accum;
-  if (Field == Class::Memory)
+  if (accum == field || field == Class::NoClass)
+    return accum;
+  if (field == Class::Memory)
     return Class::Memory;
-  if (Accum == Class::NoClass)
-    return Field;
-  if (Accum == Class::Integer || Field == Class::Integer)
+  if (accum == Class::NoClass)
+    return field;
+  if (accum == Class::Integer || field == Class::Integer)
     return Class::Integer;
-  if (Field == Class::X87 || Field == Class::X87Up ||
-      Field == Class::ComplexX87 || Accum == Class::X87 ||
-      Accum == Class::X87Up)
+  if (field == Class::X87 || field == Class::X87Up ||
+      field == Class::ComplexX87 || accum == Class::X87 ||
+      accum == Class::X87Up)
     return Class::Memory;
   return Class::SSE;
 }
 
-void X86_64ABIInfo::postMerge(unsigned AggregateSize, Class &Lo,
-                              Class &Hi) const {
+void X8664AbiInfo::postMerge(unsigned aggregateSize, Class &lo,
+                             Class &hi) const {
   // AMD64-ABI 3.2.3p2: Rule 5. Then a post merger cleanup is done:
   //
   // (a) If one of the classes is Memory, the whole argument is passed in
@@ -710,19 +710,19 @@ void X86_64ABIInfo::postMerge(unsigned AggregateSize, Class &Lo,
   //
   // Note that clauses (b) and (c) were added in 0.98.
   //
-  if (Hi == Class::Memory)
-    Lo = Class::Memory;
-  if (Hi == Class::X87Up && Lo != Class::X87 && honorsRevision0_98())
-    Lo = Class::Memory;
-  if (AggregateSize > 128 && (Lo != Class::SSE || Hi != Class::SSEUp))
-    Lo = Class::Memory;
-  if (Hi == Class::SSEUp && Lo != Class::SSE)
-    Hi = Class::SSE;
+  if (hi == Class::Memory)
+    lo = Class::Memory;
+  if (hi == Class::X87Up && lo != Class::X87 && honorsRevision098())
+    lo = Class::Memory;
+  if (aggregateSize > 128 && (lo != Class::SSE || hi != Class::SSEUp))
+    lo = Class::Memory;
+  if (hi == Class::SSEUp && lo != Class::SSE)
+    hi = Class::SSE;
 }
 
 std::unique_ptr<TargetLoweringInfo>
-createX86_64TargetLoweringInfo(LowerModule &LM, X86AVXABILevel AVXLevel) {
-  return std::make_unique<X86_64TargetLoweringInfo>(LM.getTypes(), AVXLevel);
+createX86_64TargetLoweringInfo(LowerModule &lm, X86AVXABILevel avxLevel) {
+  return std::make_unique<X8664TargetLoweringInfo>(lm.getTypes(), avxLevel);
 }
 
 } // namespace cir

@@ -19,16 +19,16 @@ namespace cir {
 
 // Constructor for C++ records.
 CIRRecordLayout::CIRRecordLayout(
-    const CIRLowerContext &Ctx, clang::CharUnits size,
+    const CIRLowerContext &ctx, clang::CharUnits size,
     clang::CharUnits alignment, clang::CharUnits preferredAlignment,
     clang::CharUnits unadjustedAlignment, clang::CharUnits requiredAlignment,
     bool hasOwnVFPtr, bool hasExtendableVFPtr, clang::CharUnits vbptroffset,
     clang::CharUnits datasize, ArrayRef<uint64_t> fieldoffsets,
     clang::CharUnits nonvirtualsize, clang::CharUnits nonvirtualalignment,
     clang::CharUnits preferrednvalignment,
-    clang::CharUnits SizeOfLargestEmptySubobject, const Type PrimaryBase,
-    bool IsPrimaryBaseVirtual, const Type BaseSharingVBPtr,
-    bool EndsWithZeroSizedObject, bool LeadsWithZeroSizedBase)
+    clang::CharUnits sizeOfLargestEmptySubobject, const Type primaryBase,
+    bool isPrimaryBaseVirtual, const Type baseSharingVbPtr,
+    bool endsWithZeroSizedObject, bool leadsWithZeroSizedBase)
     : Size(size), DataSize(datasize), Alignment(alignment),
       PreferredAlignment(preferredAlignment),
       UnadjustedAlignment(unadjustedAlignment),
@@ -38,14 +38,14 @@ CIRRecordLayout::CIRRecordLayout(
   FieldOffsets.insert(FieldOffsets.end(), fieldoffsets.begin(),
                       fieldoffsets.end());
 
-  assert(!PrimaryBase && "Layout for class with inheritance is NYI");
+  assert(!primaryBase && "Layout for class with inheritance is NYI");
   // CXXInfo->PrimaryBase.setPointer(PrimaryBase);
-  assert(!IsPrimaryBaseVirtual && "Layout for virtual base class is NYI");
+  assert(!isPrimaryBaseVirtual && "Layout for virtual base class is NYI");
   // CXXInfo->PrimaryBase.setInt(IsPrimaryBaseVirtual);
   CXXInfo->NonVirtualSize = nonvirtualsize;
   CXXInfo->NonVirtualAlignment = nonvirtualalignment;
   CXXInfo->PreferredNVAlignment = preferrednvalignment;
-  CXXInfo->SizeOfLargestEmptySubobject = SizeOfLargestEmptySubobject;
+  CXXInfo->SizeOfLargestEmptySubobject = sizeOfLargestEmptySubobject;
   // FIXME(cir): Initialize base classes offsets.
   assert(!::cir::MissingFeatures::getCXXRecordBases());
   CXXInfo->HasOwnVFPtr = hasOwnVFPtr;
@@ -53,8 +53,8 @@ CIRRecordLayout::CIRRecordLayout(
   CXXInfo->HasExtendableVFPtr = hasExtendableVFPtr;
   // FIXME(cir): Probably not necessary for now.
   // CXXInfo->BaseSharingVBPtr = BaseSharingVBPtr;
-  CXXInfo->EndsWithZeroSizedObject = EndsWithZeroSizedObject;
-  CXXInfo->LeadsWithZeroSizedBase = LeadsWithZeroSizedBase;
+  CXXInfo->EndsWithZeroSizedObject = endsWithZeroSizedObject;
+  CXXInfo->LeadsWithZeroSizedBase = leadsWithZeroSizedBase;
 }
 
 } // namespace cir

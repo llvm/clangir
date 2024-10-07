@@ -28,9 +28,9 @@ using namespace cir;
 namespace {
 
 struct LocOrdering {
-  bool operator()(mlir::Location L1, mlir::Location L2) const {
-    return std::less<const void *>()(L1.getAsOpaquePointer(),
-                                     L2.getAsOpaquePointer());
+  bool operator()(mlir::Location l1, mlir::Location l2) const {
+    return std::less<const void *>()(l1.getAsOpaquePointer(),
+                                     l2.getAsOpaquePointer());
   }
 };
 
@@ -109,7 +109,7 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
   bool isOwnerOrPointerClassMethod(CallOp callOp, ASTCXXMethodDeclInterface m);
 
   // Diagnostic helpers.
-  void emitInvalidHistory(mlir::InFlightDiagnostic &D, mlir::Value histKey,
+  void emitInvalidHistory(mlir::InFlightDiagnostic &d, mlir::Value histKey,
                           mlir::Location warningLoc,
                           DerefStyle derefStyle = DerefStyle::Direct);
 
@@ -134,7 +134,7 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
     bool isOptionsParsed = false;
 
     void parseOptions(ArrayRef<StringRef> remarks, ArrayRef<StringRef> hist,
-                      unsigned hist_limit) {
+                      unsigned histLimit) {
       if (isOptionsParsed)
         return;
 
@@ -152,7 +152,7 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
                    .Case("all", HistoryAll)
                    .Default(None);
       }
-      histLimit = hist_limit;
+      histLimit = histLimit;
       isOptionsParsed = true;
     }
 
@@ -206,24 +206,24 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
       val.setPointerAndInt(v, d);
     }
 
-    static constexpr int KindBits = 3;
-    static_assert((1 << KindBits) > NumKindsMinusOne,
+    static constexpr int kindBits = 3;
+    static_assert((1 << kindBits) > NumKindsMinusOne,
                   "Not enough room for kind!");
-    llvm::PointerIntPair<mlir::Value, KindBits> val;
+    llvm::PointerIntPair<mlir::Value, kindBits> val;
 
     /// Provide less/equal than operator for sorting / set ops.
-    bool operator<(const State &RHS) const {
+    bool operator<(const State &rhs) const {
       // FIXME: note that this makes the ordering non-deterministic, do
       // we really care?
-      if (hasValue() && RHS.hasValue())
+      if (hasValue() && rhs.hasValue())
         return val.getPointer().getAsOpaquePointer() <
-               RHS.val.getPointer().getAsOpaquePointer();
-      return val.getInt() < RHS.val.getInt();
+               rhs.val.getPointer().getAsOpaquePointer();
+      return val.getInt() < rhs.val.getInt();
     }
-    bool operator==(const State &RHS) const {
-      if (hasValue() && RHS.hasValue())
-        return val.getPointer() == RHS.val.getPointer();
-      return val.getInt() == RHS.val.getInt();
+    bool operator==(const State &rhs) const {
+      if (hasValue() && rhs.hasValue())
+        return val.getPointer() == rhs.val.getPointer();
+      return val.getInt() == rhs.val.getInt();
     }
 
     bool isLocalValue() const { return val.getInt() == LocalValue; }
@@ -235,7 +235,7 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
       return val.getPointer();
     }
 
-    void dump(llvm::raw_ostream &OS = llvm::errs(), int ownedGen = 0);
+    void dump(llvm::raw_ostream &os = llvm::errs(), int ownedGen = 0);
 
     static State getInvalid() { return {Invalid}; }
     static State getNullPtr() { return {NullPtr}; }
@@ -346,7 +346,7 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
   }
 
   // Useful helpers for debugging
-  void printPset(PSetType &pset, llvm::raw_ostream &OS = llvm::errs());
+  void printPset(PSetType &pset, llvm::raw_ostream &os = llvm::errs());
   LLVM_DUMP_METHOD void dumpPmap(PMapType &pmap);
   LLVM_DUMP_METHOD void dumpCurrentPmap();
 
@@ -355,7 +355,7 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
   /// ------------------------------
 
   // Track types we already know to be a coroutine task (promise_type)
-  llvm::DenseMap<mlir::Type, bool> IsTaskTyCache;
+  llvm::DenseMap<mlir::Type, bool> isTaskTyCache;
   // Is the type associated with taskVal a coroutine task? Uses IsTaskTyCache
   // or compute it from associated AST node.
   bool isTaskType(mlir::Value taskVal);
@@ -367,7 +367,7 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
   /// -------
 
   // Track types we already know to be a lambda
-  llvm::DenseMap<mlir::Type, bool> IsLambdaTyCache;
+  llvm::DenseMap<mlir::Type, bool> isLambdaTyCache;
   // Check if a given cir type is a struct containing a lambda
   bool isLambdaType(mlir::Type ty);
   // Get the lambda struct from a member access to it.
@@ -381,12 +381,12 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
   // then/else regions, etc). Tracks the declaration of variables in the current
   // local scope.
   struct LexicalScopeContext {
-    unsigned Depth = 0;
+    unsigned depth = 0;
     LexicalScopeContext() = delete;
 
     llvm::PointerUnion<mlir::Region *, mlir::Operation *> parent;
-    LexicalScopeContext(mlir::Region *R) : parent(R) {}
-    LexicalScopeContext(mlir::Operation *Op) : parent(Op) {}
+    LexicalScopeContext(mlir::Region *r) : parent(r) {}
+    LexicalScopeContext(mlir::Operation *op) : parent(op) {}
     ~LexicalScopeContext() = default;
 
     // Track all local values added in this scope
@@ -407,16 +407,16 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
   };
 
   class LexicalScopeGuard {
-    LifetimeCheckPass &Pass;
-    LexicalScopeContext *OldVal = nullptr;
+    LifetimeCheckPass &pass;
+    LexicalScopeContext *oldVal = nullptr;
 
   public:
-    LexicalScopeGuard(LifetimeCheckPass &p, LexicalScopeContext *L) : Pass(p) {
-      if (Pass.currScope) {
-        OldVal = Pass.currScope;
-        L->Depth++;
+    LexicalScopeGuard(LifetimeCheckPass &p, LexicalScopeContext *l) : pass(p) {
+      if (pass.currScope) {
+        oldVal = pass.currScope;
+        l->depth++;
       }
-      Pass.currScope = L;
+      pass.currScope = l;
     }
 
     LexicalScopeGuard(const LexicalScopeGuard &) = delete;
@@ -424,7 +424,7 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
     LexicalScopeGuard &operator=(LexicalScopeGuard &&other) = delete;
 
     void cleanup();
-    void restore() { Pass.currScope = OldVal; }
+    void restore() { pass.currScope = oldVal; }
     ~LexicalScopeGuard() {
       cleanup();
       restore();
@@ -432,22 +432,22 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
   };
 
   class PmapGuard {
-    LifetimeCheckPass &Pass;
-    PMapType *OldVal = nullptr;
+    LifetimeCheckPass &pass;
+    PMapType *oldVal = nullptr;
 
   public:
-    PmapGuard(LifetimeCheckPass &lcp, PMapType *L) : Pass(lcp) {
-      if (Pass.currPmap) {
-        OldVal = Pass.currPmap;
+    PmapGuard(LifetimeCheckPass &lcp, PMapType *l) : pass(lcp) {
+      if (pass.currPmap) {
+        oldVal = pass.currPmap;
       }
-      Pass.currPmap = L;
+      pass.currPmap = l;
     }
 
     PmapGuard(const PmapGuard &) = delete;
     PmapGuard &operator=(const PmapGuard &) = delete;
     PmapGuard &operator=(PmapGuard &&other) = delete;
 
-    void restore() { Pass.currPmap = OldVal; }
+    void restore() { pass.currPmap = oldVal; }
     ~PmapGuard() { restore(); }
   };
 
@@ -464,14 +464,14 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
 
 static std::string getVarNameFromValue(mlir::Value v) {
 
-  auto srcOp = v.getDefiningOp();
+  auto *srcOp = v.getDefiningOp();
   if (!srcOp) {
     auto blockArg = cast<BlockArgument>(v);
     assert(blockArg.getOwner()->isEntryBlock() && "random block args NYI");
     llvm::SmallString<128> finalName;
-    llvm::raw_svector_ostream Out(finalName);
-    Out << "fn_arg:" << blockArg.getArgNumber();
-    return Out.str().str();
+    llvm::raw_svector_ostream out(finalName);
+    out << "fn_arg:" << blockArg.getArgNumber();
+    return out.str().str();
   }
 
   if (auto allocaOp = dyn_cast<AllocaOp>(srcOp))
@@ -480,17 +480,17 @@ static std::string getVarNameFromValue(mlir::Value v) {
     auto parent = dyn_cast<AllocaOp>(getElemOp.getAddr().getDefiningOp());
     if (parent) {
       llvm::SmallString<128> finalName;
-      llvm::raw_svector_ostream Out(finalName);
-      Out << parent.getName() << "." << getElemOp.getName();
-      return Out.str().str();
+      llvm::raw_svector_ostream out(finalName);
+      out << parent.getName() << "." << getElemOp.getName();
+      return out.str().str();
     }
   }
   if (auto callOp = dyn_cast<CallOp>(srcOp)) {
     if (callOp.getCallee()) {
       llvm::SmallString<128> finalName;
-      llvm::raw_svector_ostream Out(finalName);
-      Out << "call:" << callOp.getCallee()->str();
-      return Out.str().str();
+      llvm::raw_svector_ostream out(finalName);
+      out << "call:" << callOp.getCallee()->str();
+      return out.str().str();
     }
   }
   assert(0 && "how did it get here?");
@@ -504,21 +504,21 @@ static Location getEndLoc(Location loc, int idx = 1) {
   return fusedLoc.getLocations()[idx];
 }
 
-static Location getEndLocForHist(Operation *Op) {
-  return getEndLoc(Op->getLoc());
+static Location getEndLocForHist(Operation *op) {
+  return getEndLoc(op->getLoc());
 }
 
-static Location getEndLocIf(IfOp ifOp, Region *R) {
+static Location getEndLocIf(IfOp ifOp, Region *r) {
   assert(ifOp && "what other regions create their own scope?");
-  if (&ifOp.getThenRegion() == R)
+  if (&ifOp.getThenRegion() == r)
     return getEndLoc(ifOp.getLoc());
   return getEndLoc(ifOp.getLoc(), /*idx=*/3);
 }
 
-static Location getEndLocForHist(Region *R) {
-  auto parentOp = R->getParentOp();
+static Location getEndLocForHist(Region *r) {
+  auto *parentOp = r->getParentOp();
   if (isa<IfOp>(parentOp))
-    return getEndLocIf(cast<IfOp>(parentOp), R);
+    return getEndLocIf(cast<IfOp>(parentOp), r);
   if (isa<FuncOp>(parentOp))
     return getEndLoc(parentOp->getLoc());
   llvm_unreachable("what other regions create their own scope?");
@@ -582,14 +582,14 @@ void LifetimeCheckPass::kill(const State &s, InvalidStyle invalidStyle,
 }
 
 void LifetimeCheckPass::LexicalScopeGuard::cleanup() {
-  auto *localScope = Pass.currScope;
+  auto *localScope = pass.currScope;
   for (auto pointee : localScope->localValues)
-    Pass.kill(State::getLocalValue(pointee), InvalidStyle::EndOfScope,
+    pass.kill(State::getLocalValue(pointee), InvalidStyle::EndOfScope,
               getEndLocForHist(*localScope));
 
   // Catch interesting dangling references out of returns.
   for (auto l : localScope->localRetLambdas)
-    Pass.checkPointerDeref(l.first, l.second, DerefStyle::RetLambda);
+    pass.checkPointerDeref(l.first, l.second, DerefStyle::RetLambda);
 }
 
 void LifetimeCheckPass::checkBlock(Block &block) {
@@ -735,7 +735,7 @@ void LifetimeCheckPass::checkAwait(AwaitOp awaitOp) {
   // the necessary regions.
   SmallVector<PMapType, 4> pmapOps;
 
-  for (auto r : awaitOp.getRegions()) {
+  for (auto *r : awaitOp.getRegions()) {
     PMapType regionPmap = getPmap();
     PmapGuard pmapGuard{*this, &regionPmap};
     checkRegion(*r);
@@ -802,9 +802,7 @@ void LifetimeCheckPass::checkSwitch(SwitchOp switchOp) {
 
     // FIXME: do something special about return terminated?
     YieldOp y = dyn_cast<YieldOp>(block.back());
-    if (!y)
-      return false;
-    return true;
+    return static_cast<bool>(y);
   };
 
   auto regions = switchOp.getRegions();
@@ -1109,7 +1107,7 @@ void LifetimeCheckPass::checkCoroTaskStore(StoreOp storeOp) {
 }
 
 mlir::Value LifetimeCheckPass::getLambdaFromMemberAccess(mlir::Value addr) {
-  auto op = addr.getDefiningOp();
+  auto *op = addr.getDefiningOp();
   // FIXME: we likely want to consider more indirections here...
   if (!isa<mlir::cir::GetMemberOp>(op))
     return nullptr;
@@ -1171,7 +1169,7 @@ static mlir::Operation *ignoreBitcasts(mlir::Operation *op) {
   while (auto bitcast = dyn_cast<CastOp>(op)) {
     if (bitcast.getKind() != CastKind::bitcast)
       return op;
-    auto b = bitcast.getSrc().getDefiningOp();
+    auto *b = bitcast.getSrc().getDefiningOp();
     // Do not handle block arguments just yet.
     if (!b)
       return op;
@@ -1192,7 +1190,7 @@ void LifetimeCheckPass::updatePointsTo(mlir::Value addr, mlir::Value data,
     return castOp.getSrc();
   };
 
-  auto dataSrcOp = data.getDefiningOp();
+  auto *dataSrcOp = data.getDefiningOp();
 
   // Handle function arguments but not all block arguments just yet.
   if (!dataSrcOp) {
@@ -1284,10 +1282,10 @@ void LifetimeCheckPass::checkStore(StoreOp storeOp) {
   // Decompose store's to aggregates into multiple updates to individual fields.
   if (aggregates.count(addr)) {
     auto data = storeOp.getValue();
-    auto dataSrcOp = data.getDefiningOp();
+    auto *dataSrcOp = data.getDefiningOp();
     // Only interested in updating and tracking fields, anything besides
     // constants isn't really relevant.
-    if (dataSrcOp && isa<ConstantOp>(dataSrcOp))
+    if (isa_and_nonnull<ConstantOp>(dataSrcOp))
       updatePointsTo(addr, data, data.getLoc());
     return;
   }
@@ -1323,7 +1321,7 @@ void LifetimeCheckPass::checkLoad(LoadOp loadOp) {
   checkPointerDeref(addr, loadOp.getLoc());
 }
 
-void LifetimeCheckPass::emitInvalidHistory(mlir::InFlightDiagnostic &D,
+void LifetimeCheckPass::emitInvalidHistory(mlir::InFlightDiagnostic &d,
                                            mlir::Value histKey,
                                            mlir::Location warningLoc,
                                            DerefStyle derefStyle) {
@@ -1337,7 +1335,7 @@ void LifetimeCheckPass::emitInvalidHistory(mlir::InFlightDiagnostic &D,
 
     switch (info.style) {
     case InvalidStyle::NotInitialized: {
-      D.attachNote(info.loc) << "uninitialized here";
+      d.attachNote(info.loc) << "uninitialized here";
       break;
     }
     case InvalidStyle::EndOfScope: {
@@ -1347,24 +1345,24 @@ void LifetimeCheckPass::emitInvalidHistory(mlir::InFlightDiagnostic &D,
           if (isLambdaType(allocaOp.getAllocaType()))
             resource = "lambda";
         }
-        D.attachNote((*info.val).getLoc())
+        d.attachNote((*info.val).getLoc())
             << "coroutine bound to " << resource << " with expired lifetime";
-        D.attachNote(info.loc) << "at the end of scope or full-expression";
+        d.attachNote(info.loc) << "at the end of scope or full-expression";
       } else if (derefStyle == DerefStyle::RetLambda) {
         assert(currFunc && "expected function");
         StringRef parent = currFunc->getLambda() ? "lambda" : "function";
-        D.attachNote(info.val->getLoc())
+        d.attachNote(info.val->getLoc())
             << "declared here but invalid after enclosing " << parent
             << " ends";
       } else {
         auto outOfScopeVarName = getVarNameFromValue(*info.val);
-        D.attachNote(info.loc) << "pointee '" << outOfScopeVarName
+        d.attachNote(info.loc) << "pointee '" << outOfScopeVarName
                                << "' invalidated at end of scope";
       }
       break;
     }
     case InvalidStyle::NonConstUseOfOwner: {
-      D.attachNote(info.loc) << "invalidated by non-const use of owner type";
+      d.attachNote(info.loc) << "invalidated by non-const use of owner type";
       break;
     }
     default:
@@ -1380,9 +1378,9 @@ void LifetimeCheckPass::checkPointerDeref(mlir::Value addr, mlir::Location loc,
 
   auto emitPsetRemark = [&] {
     llvm::SmallString<128> psetStr;
-    llvm::raw_svector_ostream Out(psetStr);
-    printPset(getPmap()[addr], Out);
-    emitRemark(loc) << "pset => " << Out.str();
+    llvm::raw_svector_ostream out(psetStr);
+    printPset(getPmap()[addr], out);
+    emitRemark(loc) << "pset => " << out.str();
   };
 
   // Do not emit the same warning twice or more.
@@ -1410,34 +1408,34 @@ void LifetimeCheckPass::checkPointerDeref(mlir::Value addr, mlir::Location loc,
   // Ok, filtered out questionable warnings, take the bad path leading to this
   // deference point and diagnose it.
   auto varName = getVarNameFromValue(addr);
-  auto D = emitWarning(loc);
+  auto d = emitWarning(loc);
   emittedDiagnostics.insert(loc);
 
   if (tasks.count(addr))
-    D << "use of coroutine '" << varName << "' with dangling reference";
+    d << "use of coroutine '" << varName << "' with dangling reference";
   else if (derefStyle == DerefStyle::RetLambda)
-    D << "returned lambda captures local variable";
+    d << "returned lambda captures local variable";
   else if (derefStyle == DerefStyle::CallParam ||
            derefStyle == DerefStyle::IndirectCallParam) {
     bool isAgg = isa_and_nonnull<GetMemberOp>(addr.getDefiningOp());
-    D << "passing ";
+    d << "passing ";
     if (!isAgg)
-      D << "invalid pointer";
+      d << "invalid pointer";
     else
-      D << "aggregate containing invalid pointer member";
-    D << " '" << varName << "'";
+      d << "aggregate containing invalid pointer member";
+    d << " '" << varName << "'";
   } else
-    D << "use of invalid pointer '" << varName << "'";
+    d << "use of invalid pointer '" << varName << "'";
 
   // TODO: add accuracy levels, different combinations of invalid and null
   // could have different ratios of false positives.
   if (hasInvalid && opts.emitHistoryInvalid())
-    emitInvalidHistory(D, addr, loc, derefStyle);
+    emitInvalidHistory(d, addr, loc, derefStyle);
 
   if (hasNullptr && opts.emitHistoryNull()) {
     assert(pmapNullHist.count(addr) && "expected nullptr hist");
     auto &note = pmapNullHist[addr];
-    D.attachNote(*note) << "'nullptr' invalidated here";
+    d.attachNote(*note) << "'nullptr' invalidated here";
   }
 
   if (!psetRemarkEmitted && opts.emitRemarkPsetInvalid())
@@ -1445,12 +1443,12 @@ void LifetimeCheckPass::checkPointerDeref(mlir::Value addr, mlir::Location loc,
 }
 
 static FuncOp getCalleeFromSymbol(ModuleOp mod, StringRef name) {
-  auto global = mlir::SymbolTable::lookupSymbolIn(mod, name);
+  auto *global = mlir::SymbolTable::lookupSymbolIn(mod, name);
   assert(global && "expected to find symbol for function");
   return dyn_cast<FuncOp>(global);
 }
 
-static const ASTCXXMethodDeclInterface getMethod(ModuleOp mod, CallOp callOp) {
+static ASTCXXMethodDeclInterface getMethod(ModuleOp mod, CallOp callOp) {
   if (!callOp.getCallee())
     return nullptr;
   StringRef name = *callOp.getCallee();
@@ -1549,10 +1547,7 @@ bool LifetimeCheckPass::isCtorInitPointerFromOwner(CallOp callOp) {
   auto ptr = getThisParamPointerCategory(callOp);
   auto owner = callOp.getArgOperand(1);
 
-  if (ptr && owners.count(owner))
-    return true;
-
-  return false;
+  return ptr && owners.count(owner);
 }
 
 void LifetimeCheckPass::checkCtor(CallOp callOp,
@@ -1652,7 +1647,6 @@ void LifetimeCheckPass::checkNonConstUseOfOwner(mlir::Value ownerAddr,
   // o’s first non-const use pset(o) becomes {o__2'}, on o’s second non-const
   // use pset(o) becomes {o__3'}, and so on.
   incOwner(ownerAddr);
-  return;
 }
 
 void LifetimeCheckPass::checkForOwnerAndPointerArguments(CallOp callOp,
@@ -1728,23 +1722,23 @@ bool LifetimeCheckPass::isOwnerOrPointerClassMethod(
 }
 
 bool LifetimeCheckPass::isLambdaType(mlir::Type ty) {
-  if (IsLambdaTyCache.count(ty))
-    return IsLambdaTyCache[ty];
+  if (isLambdaTyCache.count(ty))
+    return isLambdaTyCache[ty];
 
-  IsLambdaTyCache[ty] = false;
+  isLambdaTyCache[ty] = false;
   auto taskTy = mlir::dyn_cast<mlir::cir::StructType>(ty);
   if (!taskTy)
     return false;
   if (taskTy.getAst().isLambda())
-    IsLambdaTyCache[ty] = true;
+    isLambdaTyCache[ty] = true;
 
-  return IsLambdaTyCache[ty];
+  return isLambdaTyCache[ty];
 }
 
 bool LifetimeCheckPass::isTaskType(mlir::Value taskVal) {
   auto ty = taskVal.getType();
-  if (IsTaskTyCache.count(ty))
-    return IsTaskTyCache[ty];
+  if (isTaskTyCache.count(ty))
+    return isTaskTyCache[ty];
 
   bool result = [&] {
     auto taskTy = mlir::dyn_cast<mlir::cir::StructType>(taskVal.getType());
@@ -1753,7 +1747,7 @@ bool LifetimeCheckPass::isTaskType(mlir::Value taskVal) {
     return taskTy.getAst().hasPromiseType();
   }();
 
-  IsTaskTyCache[ty] = result;
+  isTaskTyCache[ty] = result;
   return result;
 }
 
@@ -1885,11 +1879,11 @@ std::unique_ptr<Pass> mlir::createLifetimeCheckPass(clang::ASTContext *astCtx) {
 
 std::unique_ptr<Pass> mlir::createLifetimeCheckPass(ArrayRef<StringRef> remark,
                                                     ArrayRef<StringRef> hist,
-                                                    unsigned hist_limit,
+                                                    unsigned histLimit,
                                                     clang::ASTContext *astCtx) {
   auto lifetime = std::make_unique<LifetimeCheckPass>();
   lifetime->setASTContext(astCtx);
-  lifetime->opts.parseOptions(remark, hist, hist_limit);
+  lifetime->opts.parseOptions(remark, hist, histLimit);
   return std::move(lifetime);
 }
 
@@ -1906,42 +1900,42 @@ void LifetimeCheckPass::LexicalScopeContext::dumpLocalValues() {
   llvm::errs() << "}\n";
 }
 
-void LifetimeCheckPass::State::dump(llvm::raw_ostream &OS, int ownedGen) {
+void LifetimeCheckPass::State::dump(llvm::raw_ostream &os, int ownedGen) {
   switch (val.getInt()) {
   case Invalid:
-    OS << "invalid";
+    os << "invalid";
     break;
   case NullPtr:
-    OS << "nullptr";
+    os << "nullptr";
     break;
   case Global:
-    OS << "global";
+    os << "global";
     break;
   case LocalValue:
-    OS << getVarNameFromValue(val.getPointer());
+    os << getVarNameFromValue(val.getPointer());
     break;
   case OwnedBy:
     ownedGen++; // Start from 1.
-    OS << getVarNameFromValue(val.getPointer()) << "__" << ownedGen << "'";
+    os << getVarNameFromValue(val.getPointer()) << "__" << ownedGen << "'";
     break;
   default:
     llvm_unreachable("Not handled");
   }
 }
 
-void LifetimeCheckPass::printPset(PSetType &pset, llvm::raw_ostream &OS) {
-  OS << "{ ";
+void LifetimeCheckPass::printPset(PSetType &pset, llvm::raw_ostream &os) {
+  os << "{ ";
   auto size = pset.size();
   for (auto s : pset) {
     int ownerGen = 0;
     if (s.isOwnedBy())
       ownerGen = owners[s.getData()];
-    s.dump(OS, ownerGen);
+    s.dump(os, ownerGen);
     size--;
     if (size > 0)
-      OS << ", ";
+      os << ", ";
   }
-  OS << " }";
+  os << " }";
 }
 
 void LifetimeCheckPass::dumpCurrentPmap() { dumpPmap(*currPmap); }

@@ -196,25 +196,25 @@ void LibOptPass::xformStdFindIntoMemchr(StdFindOp findOp) {
         builder.create<PtrDiffOp>(findOp.getLoc(), uInt64Ty, last, first));
   }();
 
-  auto MemChrResult =
+  auto memChrResult =
       builder.createBitcast(findOp.getLoc(), memChr.getResult(), iterResTy);
 
   // if (result)
   //   return result;
   // else
   // return last;
-  auto NullPtr = builder.getNullPtr(first.getType(), findOp.getLoc());
-  auto CmpResult = builder.create<CmpOp>(
+  auto nullPtr = builder.getNullPtr(first.getType(), findOp.getLoc());
+  auto cmpResult = builder.create<CmpOp>(
       findOp.getLoc(), BoolType::get(builder.getContext()), CmpOpKind::eq,
-      NullPtr.getRes(), MemChrResult);
+      nullPtr.getRes(), memChrResult);
 
   auto result = builder.create<TernaryOp>(
-      findOp.getLoc(), CmpResult.getResult(),
-      [&](mlir::OpBuilder &ob, mlir::Location Loc) {
-        ob.create<YieldOp>(Loc, last);
+      findOp.getLoc(), cmpResult.getResult(),
+      [&](mlir::OpBuilder &ob, mlir::Location loc) {
+        ob.create<YieldOp>(loc, last);
       },
-      [&](mlir::OpBuilder &ob, mlir::Location Loc) {
-        ob.create<YieldOp>(Loc, MemChrResult);
+      [&](mlir::OpBuilder &ob, mlir::Location loc) {
+        ob.create<YieldOp>(loc, memChrResult);
       });
 
   findOp.replaceAllUsesWith(result);

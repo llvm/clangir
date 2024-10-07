@@ -20,6 +20,7 @@
 #include "CIRLowerContext.h"
 #include "LowerFunction.h"
 #include "LowerModule.h"
+
 #include "TargetInfo.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/IR/Attributes.h"
@@ -28,6 +29,7 @@
 #include "mlir/Support/LogicalResult.h"
 #include "clang/CIR/Target/AArch64.h"
 #include "llvm/Support/ErrorHandling.h"
+#include <utility>
 
 using MissingFeatures = ::cir::MissingFeatures;
 using AArch64ABIKind = ::cir::AArch64ABIKind;
@@ -36,8 +38,8 @@ using X86AVXABILevel = ::cir::X86AVXABILevel;
 namespace mlir {
 namespace cir {
 
-static CIRCXXABI *createCXXABI(LowerModule &CGM) {
-  switch (CGM.getCXXABIKind()) {
+static CIRCXXABI *createCXXABI(LowerModule &cgm) {
+  switch (cgm.getCXXABIKind()) {
   case clang::TargetCXXABI::AppleARM64:
   case clang::TargetCXXABI::Fuchsia:
   case clang::TargetCXXABI::GenericAArch64:
@@ -48,7 +50,7 @@ static CIRCXXABI *createCXXABI(LowerModule &CGM) {
   case clang::TargetCXXABI::GenericItanium:
   case clang::TargetCXXABI::WebAssembly:
   case clang::TargetCXXABI::XL:
-    return CreateItaniumCXXABI(CGM);
+    return CreateItaniumCXXABI(cgm);
   case clang::TargetCXXABI::Microsoft:
     llvm_unreachable("Windows ABI NYI");
   }
@@ -57,45 +59,45 @@ static CIRCXXABI *createCXXABI(LowerModule &CGM) {
 }
 
 static std::unique_ptr<TargetLoweringInfo>
-createTargetLoweringInfo(LowerModule &LM) {
-  const clang::TargetInfo &Target = LM.getTarget();
-  const llvm::Triple &Triple = Target.getTriple();
+createTargetLoweringInfo(LowerModule &lm) {
+  const clang::TargetInfo &target = lm.getTarget();
+  const llvm::Triple &triple = target.getTriple();
 
-  switch (Triple.getArch()) {
+  switch (triple.getArch()) {
   case llvm::Triple::aarch64_be:
   case llvm::Triple::aarch64: {
-    AArch64ABIKind Kind = AArch64ABIKind::AAPCS;
-    if (Target.getABI() == "darwinpcs")
+    AArch64ABIKind kind = AArch64ABIKind::AAPCS;
+    if (target.getABI() == "darwinpcs")
       llvm_unreachable("DarwinPCS ABI NYI");
-    else if (Triple.isOSWindows())
+    else if (triple.isOSWindows())
       llvm_unreachable("Windows ABI NYI");
-    else if (Target.getABI() == "aapcs-soft")
+    else if (target.getABI() == "aapcs-soft")
       llvm_unreachable("AAPCS-soft ABI NYI");
 
-    return createAArch64TargetLoweringInfo(LM, Kind);
+    return createAArch64TargetLoweringInfo(lm, kind);
   }
   case llvm::Triple::x86_64: {
-    switch (Triple.getOS()) {
+    switch (triple.getOS()) {
     case llvm::Triple::Win32:
       llvm_unreachable("Windows ABI NYI");
     default:
-      return createX86_64TargetLoweringInfo(LM, X86AVXABILevel::None);
+      return createX86_64TargetLoweringInfo(lm, X86AVXABILevel::None);
     }
   }
   case llvm::Triple::spirv64:
-    return createSPIRVTargetLoweringInfo(LM);
+    return createSPIRVTargetLoweringInfo(lm);
   default:
     llvm_unreachable("ABI NYI");
   }
 }
 
 LowerModule::LowerModule(clang::LangOptions opts, ModuleOp &module,
-                         StringAttr DL,
+                         StringAttr dl,
                          std::unique_ptr<clang::TargetInfo> target,
                          PatternRewriter &rewriter)
-    : context(module, opts), module(module), Target(std::move(target)),
-      ABI(createCXXABI(*this)), types(*this, DL.getValue()),
-      rewriter(rewriter) {
+    : context(module, std::move(opts)), module(module),
+      Target(std::move(target)), ABI(createCXXABI(*this)),
+      types(*this, dl.getValue()), rewriter(rewriter) {
   context.initBuiltinTypes(*Target);
 }
 
@@ -105,14 +107,14 @@ const TargetLoweringInfo &LowerModule::getTargetLoweringInfo() {
   return *TheTargetCodeGenInfo;
 }
 
-void LowerModule::setCIRFunctionAttributes(FuncOp GD,
-                                           const LowerFunctionInfo &Info,
-                                           FuncOp F, bool IsThunk) {
-  unsigned CallingConv;
+void LowerModule::setCIRFunctionAttributes(FuncOp gd,
+                                           const LowerFunctionInfo &info,
+                                           FuncOp f, bool isThunk) {
+  unsigned callingConv;
   // NOTE(cir): The method below will update the F function in-place with the
   // proper attributes.
-  constructAttributeList(GD.getName(), Info, GD, F, CallingConv,
-                         /*AttrOnCallSite=*/false, IsThunk);
+  constructAttributeList(gd.getName(), info, gd, f, callingConv,
+                         /*AttrOnCallSite=*/false, isThunk);
   // TODO(cir): Set Function's calling convention.
 }
 
@@ -121,16 +123,16 @@ void LowerModule::setCIRFunctionAttributes(FuncOp GD,
 /// This method is based on CodeGenModule::SetFunctionAttributes but it
 /// altered to consider only the ABI/Target-related bits.
 void LowerModule::setFunctionAttributes(FuncOp oldFn, FuncOp newFn,
-                                        bool IsIncompleteFunction,
-                                        bool IsThunk) {
+                                        bool isIncompleteFunction,
+                                        bool isThunk) {
 
   // TODO(cir): There's some special handling from attributes related to LLVM
   // intrinsics. Should we do that here as well?
 
   // Setup target-specific attributes.
-  if (!IsIncompleteFunction)
+  if (!isIncompleteFunction)
     setCIRFunctionAttributes(oldFn, getTypes().arrangeGlobalDeclaration(oldFn),
-                             newFn, IsThunk);
+                             newFn, isThunk);
 
   // TODO(cir): Handle attributes for returned "this" objects.
 
@@ -178,17 +180,17 @@ LogicalResult LowerModule::rewriteFunctionDefinition(FuncOp op) {
   rewriter.setInsertionPoint(op);
 
   // Get ABI/target-specific function information.
-  const LowerFunctionInfo &FI = this->getTypes().arrangeGlobalDeclaration(op);
+  const LowerFunctionInfo &fi = this->getTypes().arrangeGlobalDeclaration(op);
 
   // Get ABI/target-specific function type.
-  FuncType Ty = this->getTypes().getFunctionType(FI);
+  FuncType ty = this->getTypes().getFunctionType(fi);
 
   // NOTE(cir): Skipping getAddrOfFunction and getOrCreateCIRFunction methods
   // here, as they are mostly codegen logic.
 
   // Create a new function with the ABI-specific types.
   FuncOp newFn = cast<FuncOp>(rewriter.cloneWithoutRegions(op));
-  newFn.setType(Ty);
+  newFn.setType(ty);
 
   // NOTE(cir): The clone above will preserve any existing attributes. If there
   // are high-level attributes that ought to be dropped, do it here.
@@ -200,7 +202,7 @@ LogicalResult LowerModule::rewriteFunctionDefinition(FuncOp op) {
   }
 
   if (LowerFunction(*this, rewriter, op, newFn)
-          .generateCode(op, newFn, FI)
+          .generateCode(op, newFn, fi)
           .failed())
     return failure();
 

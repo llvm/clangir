@@ -27,16 +27,16 @@ using cir::AArch64ABIKind;
 namespace {
 class LoweringPrepareAArch64CXXABI : public LoweringPrepareItaniumCXXABI {
 public:
-  LoweringPrepareAArch64CXXABI(AArch64ABIKind k) : Kind(k) {}
+  LoweringPrepareAArch64CXXABI(AArch64ABIKind k) : kind(k) {}
   mlir::Value lowerVAArg(cir::CIRBaseBuilderTy &builder, mlir::cir::VAArgOp op,
                          const cir::CIRDataLayout &datalayout) override;
 
 private:
-  AArch64ABIKind Kind;
+  AArch64ABIKind kind;
   mlir::Value lowerAAPCSVAArg(cir::CIRBaseBuilderTy &builder,
                               mlir::cir::VAArgOp op,
                               const cir::CIRDataLayout &datalayout);
-  bool isDarwinPCS() const { return Kind == AArch64ABIKind::DarwinPCS; }
+  bool isDarwinPCS() const { return kind == AArch64ABIKind::DarwinPCS; }
   mlir::Value lowerMSVAArg(cir::CIRBaseBuilderTy &builder,
                            mlir::cir::VAArgOp op,
                            const cir::CIRDataLayout &datalayout) {
@@ -88,10 +88,10 @@ mlir::Value LoweringPrepareAArch64CXXABI::lowerAAPCSVAArg(
   // numRegs may not be 1 if ArrayType is supported.
   unsigned numRegs = 1;
 
-  if (Kind == AArch64ABIKind::AAPCSSoft) {
+  if (kind == AArch64ABIKind::AAPCSSoft) {
     llvm_unreachable("AAPCSSoft cir.var_arg lowering NYI");
   }
-  bool IsFPR = mlir::cir::isAnyFloatingPointType(baseTy);
+  bool isFpr = mlir::cir::isAnyFloatingPointType(baseTy);
 
   // The AArch64 va_list type and handling is specified in the Procedure Call
   // Standard, section B.4:
@@ -104,12 +104,12 @@ mlir::Value LoweringPrepareAArch64CXXABI::lowerAAPCSVAArg(
   //   int __vr_offs;
   // };
   auto curInsertionP = builder.saveInsertionPoint();
-  auto currentBlock = builder.getInsertionBlock();
+  auto *currentBlock = builder.getInsertionBlock();
   auto boolTy = builder.getBoolTy();
 
-  auto maybeRegBlock = builder.createBlock(builder.getBlock()->getParent());
-  auto inRegBlock = builder.createBlock(builder.getBlock()->getParent());
-  auto onStackBlock = builder.createBlock(builder.getBlock()->getParent());
+  auto *maybeRegBlock = builder.createBlock(builder.getBlock()->getParent());
+  auto *inRegBlock = builder.createBlock(builder.getBlock()->getParent());
+  auto *onStackBlock = builder.createBlock(builder.getBlock()->getParent());
 
   //=======================================
   // Find out where argument was passed
@@ -140,7 +140,7 @@ mlir::Value LoweringPrepareAArch64CXXABI::lowerAAPCSVAArg(
 
   builder.restoreInsertionPoint(curInsertionP);
   // 3 is the field number of __gr_offs, 4 is the field number of __vr_offs
-  if (!IsFPR) {
+  if (!isFpr) {
     regOffsP = builder.createGetMemberOp(loc, valist, "gr_offs", 3);
     regOffs = builder.create<mlir::cir::LoadOp>(loc, regOffsP);
     regTopIndex = 1;
@@ -167,7 +167,7 @@ mlir::Value LoweringPrepareAArch64CXXABI::lowerAAPCSVAArg(
   builder.create<mlir::cir::BrCondOp>(loc, usingStack, onStackBlock,
                                       maybeRegBlock);
 
-  auto contBlock = currentBlock->splitBlock(op);
+  auto *contBlock = currentBlock->splitBlock(op);
   // now contBlock should be the block after onStackBlock in CFG.
   // This is essential, considering the case where originally currentBlock
   // was the only block in the region. By splitting the block, and added
@@ -186,7 +186,7 @@ mlir::Value LoweringPrepareAArch64CXXABI::lowerAAPCSVAArg(
   // Integer arguments may need to correct register alignment (for example a
   // "struct { __int128 a; };" gets passed in x_2N, x_{2N+1}). In this case we
   // align __gr_offs to calculate the potential address.
-  if (!IsFPR && !isIndirect && tyAlign.getQuantity() > 8) {
+  if (!isFpr && !isIndirect && tyAlign.getQuantity() > 8) {
     assert(!cir::MissingFeatures::handleAArch64Indirect());
     assert(!cir::MissingFeatures::supportTyAlignQueryForAArch64());
     llvm_unreachable("register alignment correction NYI");
@@ -215,7 +215,7 @@ mlir::Value LoweringPrepareAArch64CXXABI::lowerAAPCSVAArg(
   // registers. First start the appropriate block:
   builder.setInsertionPointToEnd(inRegBlock);
   auto regTopP = builder.createGetMemberOp(
-      loc, valist, IsFPR ? "vr_top" : "gr_top", regTopIndex);
+      loc, valist, isFpr ? "vr_top" : "gr_top", regTopIndex);
   auto regTop = builder.create<mlir::cir::LoadOp>(loc, regTopP);
   auto i8Ty = mlir::IntegerType::get(builder.getContext(), 8);
   auto i8PtrTy = mlir::cir::PointerType::get(builder.getContext(), i8Ty);
@@ -282,7 +282,7 @@ mlir::Value LoweringPrepareAArch64CXXABI::lowerAAPCSVAArg(
 
   auto onStackPtr = builder.create<mlir::cir::LoadOp>(loc, stackP);
   auto ptrDiffTy =
-      mlir::cir::IntType::get(builder.getContext(), 64, /*signed=*/false);
+      mlir::cir::IntType::get(builder.getContext(), 64, /*isSigned=*/false);
 
   assert(!cir::MissingFeatures::handleAArch64Indirect());
   assert(!cir::MissingFeatures::supportTyAlignQueryForAArch64());
@@ -356,7 +356,7 @@ mlir::Value
 LoweringPrepareAArch64CXXABI::lowerVAArg(cir::CIRBaseBuilderTy &builder,
                                          mlir::cir::VAArgOp op,
                                          const cir::CIRDataLayout &datalayout) {
-  return Kind == AArch64ABIKind::Win64 ? lowerMSVAArg(builder, op, datalayout)
+  return kind == AArch64ABIKind::Win64 ? lowerMSVAArg(builder, op, datalayout)
          : isDarwinPCS() ? lowerDarwinVAArg(builder, op, datalayout)
                          : lowerAAPCSVAArg(builder, op, datalayout);
 }

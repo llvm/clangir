@@ -17,48 +17,48 @@
 namespace cir {
 
 std::optional<llvm::StringRef>
-convertRoundingModeToStr(llvm::RoundingMode UseRounding) {
-  std::optional<llvm::StringRef> RoundingStr;
-  switch (UseRounding) {
+convertRoundingModeToStr(llvm::RoundingMode useRounding) {
+  std::optional<llvm::StringRef> roundingStr;
+  switch (useRounding) {
   case llvm::RoundingMode::Dynamic:
-    RoundingStr = "round.dynamic";
+    roundingStr = "round.dynamic";
     break;
   case llvm::RoundingMode::NearestTiesToEven:
-    RoundingStr = "round.tonearest";
+    roundingStr = "round.tonearest";
     break;
   case llvm::RoundingMode::NearestTiesToAway:
-    RoundingStr = "round.tonearestaway";
+    roundingStr = "round.tonearestaway";
     break;
   case llvm::RoundingMode::TowardNegative:
-    RoundingStr = "round.downward";
+    roundingStr = "round.downward";
     break;
   case llvm::RoundingMode::TowardPositive:
-    RoundingStr = "round.upward";
+    roundingStr = "round.upward";
     break;
   case llvm::RoundingMode::TowardZero:
-    RoundingStr = "round.towardZero";
+    roundingStr = "round.towardZero";
     break;
   default:
     break;
   }
-  return RoundingStr;
+  return roundingStr;
 }
 
 std::optional<llvm::StringRef>
-convertExceptionBehaviorToStr(fp::ExceptionBehavior UseExcept) {
-  std::optional<llvm::StringRef> ExceptStr;
-  switch (UseExcept) {
+convertExceptionBehaviorToStr(fp::ExceptionBehavior useExcept) {
+  std::optional<llvm::StringRef> exceptStr;
+  switch (useExcept) {
   case fp::ebStrict:
-    ExceptStr = "fpexcept.strict";
+    exceptStr = "fpexcept.strict";
     break;
   case fp::ebIgnore:
-    ExceptStr = "fpexcept.ignore";
+    exceptStr = "fpexcept.ignore";
     break;
   case fp::ebMayTrap:
-    ExceptStr = "fpexcept.maytrap";
+    exceptStr = "fpexcept.maytrap";
     break;
   }
-  return ExceptStr;
+  return exceptStr;
 }
 
 } // namespace cir

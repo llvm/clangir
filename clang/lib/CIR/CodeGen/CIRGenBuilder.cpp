@@ -45,7 +45,7 @@ mlir::Value CIRGenBuilderTy::getArrayElement(mlir::Location arrayLocBegin,
 }
 
 mlir::cir::ConstantOp CIRGenBuilderTy::getConstInt(mlir::Location loc,
-                                                   llvm::APSInt intVal) {
+                                                   const llvm::APSInt &intVal) {
   bool isSigned = intVal.isSigned();
   auto width = intVal.getBitWidth();
   mlir::cir::IntType t = isSigned ? getSIntNTy(width) : getUIntNTy(width);
@@ -54,17 +54,17 @@ mlir::cir::ConstantOp CIRGenBuilderTy::getConstInt(mlir::Location loc,
 }
 
 mlir::cir::ConstantOp CIRGenBuilderTy::getConstInt(mlir::Location loc,
-                                                   llvm::APInt intVal) {
+                                                   const llvm::APInt &intVal) {
   auto width = intVal.getBitWidth();
   mlir::cir::IntType t = getUIntNTy(width);
   return getConstInt(loc, t, intVal.getZExtValue());
 }
 
 mlir::cir::ConstantOp CIRGenBuilderTy::getConstInt(mlir::Location loc,
-                                                   mlir::Type t, uint64_t C) {
+                                                   mlir::Type t, uint64_t c) {
   auto intTy = mlir::dyn_cast<mlir::cir::IntType>(t);
   assert(intTy && "expected mlir::cir::IntType");
   return create<mlir::cir::ConstantOp>(loc, intTy,
-                                       mlir::cir::IntAttr::get(t, C));
+                                       mlir::cir::IntAttr::get(t, c));
 }
 } // namespace cir
