@@ -261,12 +261,11 @@ void StructType::print(mlir::AsmPrinter &printer) const {
   printer << '>';
 }
 
-mlir::LogicalResult
-StructType::verify(llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
-                   llvm::ArrayRef<mlir::Type> members, mlir::StringAttr name,
-                   bool incomplete, bool packed,
-                   mlir::cir::StructType::RecordKind kind,
-                   ASTRecordDeclInterface ast) {
+mlir::LogicalResult StructType::verifyInvariants(
+    llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
+    llvm::ArrayRef<mlir::Type> members, mlir::StringAttr name, bool incomplete,
+    bool packed, mlir::cir::StructType::RecordKind kind,
+    ASTRecordDeclInterface ast) {
   if (name && name.getValue().empty()) {
     emitError() << "identified structs cannot have an empty name";
     return mlir::failure();
