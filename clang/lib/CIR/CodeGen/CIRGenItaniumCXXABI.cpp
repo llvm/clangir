@@ -2216,16 +2216,19 @@ void CIRGenItaniumCXXABI::buildThrow(CIRGenFunction &CGF,
   // LoweringPrepare or some other pass to skip passing the
   // trivial function.
   //
-  // TODO(cir): alternatively, dtor could be ignored here and
-  // the type used to gather the relevant dtor during
-  // LoweringPrepare.
+  // TODO(cir): However, such lowering is still NYI, and for
+  // the sake of getting cir.throw right, the same OG path is
+  // follows here.
   mlir::FlatSymbolRefAttr dtor{};
   if (const RecordType *recordTy = clangThrowType->getAs<RecordType>()) {
     CXXRecordDecl *rec = recordTy->getAsCXXRecordDecl();
-    CXXDestructorDecl *dtorD = rec->getDestructor();
-    dtor = mlir::FlatSymbolRefAttr::get(
-        CGM.getAddrOfCXXStructor(GlobalDecl(dtorD, Dtor_Complete))
-            .getSymNameAttr());
+    assert(!MissingFeatures::isTrivialCtorOrDtor());
+    if (!rec->hasTrivialDestructor()) {
+      CXXDestructorDecl *dtorD = rec->getDestructor();
+      dtor = mlir::FlatSymbolRefAttr::get(
+          CGM.getAddrOfCXXStructor(GlobalDecl(dtorD, Dtor_Complete))
+              .getSymNameAttr());
+    }
   }
 
   // FIXME: When adding support for invoking, we should wrap the throw op
