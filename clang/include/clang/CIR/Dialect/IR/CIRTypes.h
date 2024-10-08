@@ -78,7 +78,7 @@ class StructType
 public:
   using Base::Base;
   using Base::getChecked;
-  // using Base::verify;
+  using Base::verifyInvariants;
 
   static constexpr StringLiteral name = "cir.struct";
 
@@ -109,11 +109,11 @@ public:
                                ASTRecordDeclInterface ast = {});
 
   /// Validate the struct about to be constructed.
-  static LogicalResult verify(function_ref<InFlightDiagnostic()> emitError,
-                              ArrayRef<Type> members, StringAttr name,
-                              bool incomplete, bool packed,
-                              StructType::RecordKind kind,
-                              ASTRecordDeclInterface ast);
+  static LogicalResult
+  verifyInvariants(function_ref<InFlightDiagnostic()> emitError,
+                   ArrayRef<Type> members, StringAttr name, bool incomplete,
+                   bool packed, StructType::RecordKind kind,
+                   ASTRecordDeclInterface ast);
 
   // Parse/print methods.
   static constexpr StringLiteral getMnemonic() { return {"struct"}; }
