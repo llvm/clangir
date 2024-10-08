@@ -198,7 +198,7 @@ public:
         libOptOpts = sanitizePassOptions(feOptions.ClangIRLibOptOpts);
 
       bool enableCCLowering = feOptions.ClangIRCallConvLowering &&
-                              action == CIRGenAction::OutputType::EmitCIRFlat;
+                              action != CIRGenAction::OutputType::EmitCIR;
 
       // Setup and run CIR pipeline.
       std::string passOptParsingFailure;
