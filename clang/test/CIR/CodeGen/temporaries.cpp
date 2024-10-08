@@ -19,7 +19,7 @@ void f() {
 // CHECK-NEXT:   cir.scope {
 // CHECK-NEXT:     %[[ONE:[0-9]+]] = cir.alloca !ty_E, !cir.ptr<!ty_E>, ["agg.tmp.ensured"] {alignment = 1 : i64}
 // CHECK-NEXT:     %[[TWO:[0-9]+]] = cir.alloca !ty_E, !cir.ptr<!ty_E>, ["ref.tmp0"] {alignment = 1 : i64}
-// CHECK-NEXT:     cir.call @_ZN1EC1Ev(%1) : (!cir.ptr<!ty_E>) -> () extra(#fn_attr)
+// CHECK-NEXT:     cir.call @_ZN1EC1Ev(%[[TWO]]) : (!cir.ptr<!ty_E>) -> () extra(#fn_attr)
 // CHECK-NEXT:     %[[THREE:[0-9]+]] = cir.call @_ZN1EntEv(%[[TWO]]) : (!cir.ptr<!ty_E>) -> !ty_E
 // CHECK-NEXT:     cir.store %[[THREE]], %[[ONE]] : !ty_E, !cir.ptr<!ty_E>
 // CHECK-NEXT:     cir.call @_ZN1ED1Ev(%[[ONE]]) : (!cir.ptr<!ty_E>) -> () extra(#fn_attr)
@@ -36,4 +36,5 @@ const int &r = (const int&)n;
 
 //      LLVM: @_ZGR1r_ = internal constant i32 1234, align 4
 // LLVM-NEXT: @r = constant ptr @_ZGR1r_, align 8
+
 
