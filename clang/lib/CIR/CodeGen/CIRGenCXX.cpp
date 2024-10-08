@@ -306,13 +306,6 @@ void CIRGenFunction::buildInvariantStart([[maybe_unused]] CharUnits Size) {
   assert(!MissingFeatures::createInvariantIntrinsic());
 }
 
-void CIRGenModule::codegenGlobalInitCxxStructor(const VarDecl *D,
-                                                mlir::cir::GlobalOp Addr,
-                                                bool NeedsCtor, bool NeedsDtor,
-                                                bool isCstStorage) {
-  llvm_unreachable("NYI");
-}
-
 void CIRGenModule::buildCXXGlobalVarDeclInit(const VarDecl *varDecl,
                                              mlir::cir::GlobalOp addr,
                                              bool performInit) {

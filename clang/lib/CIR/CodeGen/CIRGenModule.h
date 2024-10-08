@@ -673,11 +673,6 @@ public:
   // or if they are alias to each other.
   mlir::cir::FuncOp codegenCXXStructor(clang::GlobalDecl GD);
 
-  // Produce code for this constructor/destructor for global initialzation.
-  void codegenGlobalInitCxxStructor(const clang::VarDecl *D,
-                                    mlir::cir::GlobalOp Addr, bool NeedsCtor,
-                                    bool NeedsDtor, bool isCstStorage);
-
   bool lookupRepresentativeDecl(llvm::StringRef MangledName,
                                 clang::GlobalDecl &Result) const;
 
