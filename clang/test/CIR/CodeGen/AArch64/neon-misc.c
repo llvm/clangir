@@ -25,14 +25,8 @@ uint8x8_t test_vset_lane_u8(uint8_t a, uint8x8_t b) {
 // CIR: {{%.*}} = cir.vec.insert {{%.*}}, {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!s8i x 8>
 
 // LLVM: {{.*}}test_vset_lane_u8(i8{{.*}}[[A:%.*]], <8 x i8>{{.*}}[[B:%.*]])
-// LLVM: [[A_ADR:%.*]] = alloca i8, i64 1, align 1
-// LLVM: [[B_ADR:%.*]] = alloca <8 x i8>, i64 1, align 8
-// LLVM: store i8 [[A]], ptr [[A_ADR]], align 1
-// LLVM: store <8 x i8> [[B]], ptr [[B_ADR]], align 8
-// LLVM: [[INTRN_ARG0:%.*]] = load i8, ptr [[A_ADR]], align 1
-// LLVM: [[INTRN_ARG1:%.*]] = load <8 x i8>, ptr [[B_ADR]], align 8
-// LLVM: [[INTRN_RES:%.*]] = insertelement <8 x i8> [[INTRN_ARG1]], i8 [[INTRN_ARG0]], i32 7
-// LLVM: ret <8 x i8> {{%.*}}
+// LLVM: [[INTRN_RES:%.*]] = insertelement <8 x i8> [[B]], i8 [[A]], i32 7
+// LLVM: ret <8 x i8> [[INTRN_RES]]
 
 uint16x4_t test_vset_lane_u16(uint16_t a, uint16x4_t b) {
   return vset_lane_u16(a, b, 3);
@@ -43,14 +37,8 @@ uint16x4_t test_vset_lane_u16(uint16_t a, uint16x4_t b) {
 // CIR: {{%.*}} = cir.vec.insert {{%.*}}, {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!s16i x 4>
 
 // LLVM: {{.*}}test_vset_lane_u16(i16{{.*}}[[A:%.*]], <4 x i16>{{.*}}[[B:%.*]])
-// LLVM: [[A_ADR:%.*]] = alloca i16, i64 1, align 2
-// LLVM: [[B_ADR:%.*]] = alloca <4 x i16>, i64 1, align 8
-// LLVM: store i16 [[A]], ptr [[A_ADR]], align 2
-// LLVM: store <4 x i16> [[B]], ptr [[B_ADR]], align 8
-// LLVM: [[INTRN_ARG0:%.*]] = load i16, ptr [[A_ADR]], align 2
-// LLVM: [[INTRN_ARG1:%.*]] = load <4 x i16>, ptr [[B_ADR]], align 8
-// LLVM: [[INTRN_RES:%.*]] = insertelement <4 x i16> [[INTRN_ARG1]], i16 [[INTRN_ARG0]], i32 3
-// LLVM: ret <4 x i16> {{%.*}}
+// LLVM: [[INTRN_RES:%.*]] = insertelement <4 x i16> [[B]], i16 [[A]], i32 3
+// LLVM: ret <4 x i16> [[INTRN_RES]]
 
 uint32x2_t test_vset_lane_u32(uint32_t a, uint32x2_t b) {
   return vset_lane_u32(a, b, 1);
@@ -61,15 +49,8 @@ uint32x2_t test_vset_lane_u32(uint32_t a, uint32x2_t b) {
 // CIR: {{%.*}} = cir.vec.insert {{%.*}}, {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!s32i x 2>
 
 // LLVM: {{.*}}test_vset_lane_u32(i32{{.*}}[[A:%.*]], <2 x i32>{{.*}}[[B:%.*]])
-// LLVM: [[A_ADR:%.*]] = alloca i32, i64 1, align 4
-// LLVM: [[B_ADR:%.*]] = alloca <2 x i32>, i64 1, align 8
-// LLVM: store i32 [[A]], ptr [[A_ADR]], align 4
-// LLVM: store <2 x i32> [[B]], ptr [[B_ADR]], align 8
-// LLVM: [[INTRN_ARG0:%.*]] = load i32, ptr [[A_ADR]], align 4
-// LLVM: [[INTRN_ARG1:%.*]] = load <2 x i32>, ptr [[B_ADR]], align 8
-// LLVM: [[INTRN_RES:%.*]] = insertelement <2 x i32> [[INTRN_ARG1]], i32 [[INTRN_ARG0]], i32 1
-// LLVM: ret <2 x i32> {{%.*}}
-
+// LLVM: [[INTRN_RES:%.*]] = insertelement <2 x i32> [[B]], i32 [[A]], i32 1
+// LLVM: ret <2 x i32> [[INTRN_RES]]
 
 uint64x1_t test_vset_lane_u64(uint64_t a, uint64x1_t b) {
   return vset_lane_u64(a, b, 0);
@@ -80,14 +61,8 @@ uint64x1_t test_vset_lane_u64(uint64_t a, uint64x1_t b) {
 // CIR: {{%.*}} = cir.vec.insert {{%.*}}, {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!s64i x 1>
 
 // LLVM: {{.*}}test_vset_lane_u64(i64{{.*}}[[A:%.*]], <1 x i64>{{.*}}[[B:%.*]])
-// LLVM: [[A_ADR:%.*]] = alloca i64, i64 1, align 8
-// LLVM: [[B_ADR:%.*]] = alloca <1 x i64>, i64 1, align 8
-// LLVM: store i64 [[A]], ptr [[A_ADR]], align 8
-// LLVM: store <1 x i64> [[B]], ptr [[B_ADR]], align 8
-// LLVM: [[INTRN_ARG0:%.*]] = load i64, ptr [[A_ADR]], align 8
-// LLVM: [[INTRN_ARG1:%.*]] = load <1 x i64>, ptr [[B_ADR]], align 8
-// LLVM: [[INTRN_RES:%.*]] = insertelement <1 x i64> [[INTRN_ARG1]], i64 [[INTRN_ARG0]], i32 0
-// LLVM: ret <1 x i64> {{%.*}}
+// LLVM: [[INTRN_RES:%.*]] = insertelement <1 x i64> [[B]], i64 [[A]], i32 0
+// LLVM: ret <1 x i64> [[INTRN_RES]]
 
 float32x2_t test_vset_lane_f32(float32_t a, float32x2_t b) {
   return vset_lane_f32(a, b, 1);
@@ -98,14 +73,8 @@ float32x2_t test_vset_lane_f32(float32_t a, float32x2_t b) {
 // CIR: {{%.*}} = cir.vec.insert {{%.*}}, {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!cir.float x 2>
 
 // LLVM: {{.*}}test_vset_lane_f32(float{{.*}}[[A:%.*]], <2 x float>{{.*}}[[B:%.*]])
-// LLVM: [[A_ADR:%.*]] = alloca float, i64 1, align 4
-// LLVM: [[B_ADR:%.*]] = alloca <2 x float>, i64 1, align 8
-// LLVM: store float [[A]], ptr [[A_ADR]], align 4
-// LLVM: store <2 x float> [[B]], ptr [[B_ADR]], align 8
-// LLVM: [[INTRN_ARG0:%.*]] = load float, ptr [[A_ADR]], align 4
-// LLVM: [[INTRN_ARG1:%.*]] = load <2 x float>, ptr [[B_ADR]], align 8
-// LLVM: [[INTRN_RES:%.*]] = insertelement <2 x float> [[INTRN_ARG1]], float [[INTRN_ARG0]], i32 1
-// LLVM: ret <2 x float> {{%.*}}
+// LLVM: [[INTRN_RES:%.*]] = insertelement <2 x float> [[B]], float [[A]], i32 1
+// LLVM: ret <2 x float> [[INTRN_RES]]
 
 uint8x16_t test_vsetq_lane_u8(uint8_t a, uint8x16_t b) {
   return vsetq_lane_u8(a, b, 15);
@@ -116,14 +85,8 @@ uint8x16_t test_vsetq_lane_u8(uint8_t a, uint8x16_t b) {
 // CIR: {{%.*}} = cir.vec.insert {{%.*}}, {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!s8i x 16>
 
 // LLVM: {{.*}}test_vsetq_lane_u8(i8{{.*}}[[A:%.*]], <16 x i8>{{.*}}[[B:%.*]])
-// LLVM: [[A_ADR:%.*]] = alloca i8, i64 1, align 1
-// LLVM: [[B_ADR:%.*]] = alloca <16 x i8>, i64 1, align 16
-// LLVM: store i8 [[A]], ptr [[A_ADR]], align 1
-// LLVM: store <16 x i8> [[B]], ptr [[B_ADR]], align 16
-// LLVM: [[INTRN_ARG0:%.*]] = load i8, ptr [[A_ADR]], align 1
-// LLVM: [[INTRN_ARG1:%.*]] = load <16 x i8>, ptr [[B_ADR]], align 16
-// LLVM: [[INTRN_RES:%.*]] = insertelement <16 x i8> [[INTRN_ARG1]], i8 [[INTRN_ARG0]], i32 15
-// LLVM: ret <16 x i8> {{%.*}}
+// LLVM: [[INTRN_RES:%.*]] = insertelement <16 x i8> [[B]], i8 [[A]], i32 15
+// LLVM: ret <16 x i8> [[INTRN_RES]]
 
 uint16x8_t test_vsetq_lane_u16(uint16_t a, uint16x8_t b) {
   return vsetq_lane_u16(a, b, 7);
@@ -134,14 +97,8 @@ uint16x8_t test_vsetq_lane_u16(uint16_t a, uint16x8_t b) {
 // CIR: {{%.*}} = cir.vec.insert {{%.*}}, {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!s16i x 8>
 
 // LLVM: {{.*}}test_vsetq_lane_u16(i16{{.*}}[[A:%.*]], <8 x i16>{{.*}}[[B:%.*]])
-// LLVM: [[A_ADR:%.*]] = alloca i16, i64 1, align 2
-// LLVM: [[B_ADR:%.*]] = alloca <8 x i16>, i64 1, align 16
-// LLVM: store i16 [[A]], ptr [[A_ADR]], align 2
-// LLVM: store <8 x i16> [[B]], ptr [[B_ADR]], align 16
-// LLVM: [[INTRN_ARG0:%.*]] = load i16, ptr [[A_ADR]], align 2
-// LLVM: [[INTRN_ARG1:%.*]] = load <8 x i16>, ptr [[B_ADR]], align 16
-// LLVM: [[INTRN_RES:%.*]] = insertelement <8 x i16> [[INTRN_ARG1]], i16 [[INTRN_ARG0]], i32 7
-// LLVM: ret <8 x i16> {{%.*}}
+// LLVM: [[INTRN_RES:%.*]] = insertelement <8 x i16> [[B]], i16 [[A]], i32 7
+// LLVM: ret <8 x i16> [[INTRN_RES]]
 
 uint32x4_t test_vsetq_lane_u32(uint32_t a, uint32x4_t b) {
   return vsetq_lane_u32(a, b, 3);
@@ -152,14 +109,8 @@ uint32x4_t test_vsetq_lane_u32(uint32_t a, uint32x4_t b) {
 // CIR: {{%.*}} = cir.vec.insert {{%.*}}, {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!s32i x 4>
 
 // LLVM: {{.*}}test_vsetq_lane_u32(i32{{.*}}[[A:%.*]], <4 x i32>{{.*}}[[B:%.*]])
-// LLVM: [[A_ADR:%.*]] = alloca i32, i64 1, align 4
-// LLVM: [[B_ADR:%.*]] = alloca <4 x i32>, i64 1, align 16
-// LLVM: store i32 [[A]], ptr [[A_ADR]], align 4
-// LLVM: store <4 x i32> [[B]], ptr [[B_ADR]], align 16
-// LLVM: [[INTRN_ARG0:%.*]] = load i32, ptr [[A_ADR]], align 4
-// LLVM: [[INTRN_ARG1:%.*]] = load <4 x i32>, ptr [[B_ADR]], align 16
-// LLVM: [[INTRN_RES:%.*]] = insertelement <4 x i32> [[INTRN_ARG1]], i32 [[INTRN_ARG0]], i32 3
-// LLVM: ret <4 x i32> {{%.*}}
+// LLVM: [[INTRN_RES:%.*]] = insertelement <4 x i32> [[B]], i32 [[A]], i32 3
+// LLVM: ret <4 x i32> [[INTRN_RES]]
 
 int64x2_t test_vsetq_lane_s64(int64_t a, int64x2_t b) {
   return vsetq_lane_s64(a, b, 1);
@@ -170,14 +121,8 @@ int64x2_t test_vsetq_lane_s64(int64_t a, int64x2_t b) {
 // CIR: {{%.*}} = cir.vec.insert {{%.*}}, {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!s64i x 2>
 
 // LLVM: {{.*}}test_vsetq_lane_s64(i64{{.*}}[[A:%.*]], <2 x i64>{{.*}}[[B:%.*]])
-// LLVM: [[A_ADR:%.*]] = alloca i64, i64 1, align 8
-// LLVM: [[B_ADR:%.*]] = alloca <2 x i64>, i64 1, align 16
-// LLVM: store i64 [[A]], ptr [[A_ADR]], align 8
-// LLVM: store <2 x i64> [[B]], ptr [[B_ADR]], align 16
-// LLVM: [[INTRN_ARG0:%.*]] = load i64, ptr [[A_ADR]], align 8
-// LLVM: [[INTRN_ARG1:%.*]] = load <2 x i64>, ptr [[B_ADR]], align 16
-// LLVM: [[INTRN_RES:%.*]] = insertelement <2 x i64> [[INTRN_ARG1]], i64 [[INTRN_ARG0]], i32 1
-// LLVM: ret <2 x i64> {{%.*}}
+// LLVM: [[INTRN_RES:%.*]] = insertelement <2 x i64> [[B]], i64 [[A]], i32 1
+// LLVM: ret <2 x i64> [[INTRN_RES]]
 
 float32x4_t test_vsetq_lane_f32(float32_t a, float32x4_t b) {
   return vsetq_lane_f32(a, b, 3);
@@ -188,14 +133,8 @@ float32x4_t test_vsetq_lane_f32(float32_t a, float32x4_t b) {
 // CIR: {{%.*}} = cir.vec.insert {{%.*}}, {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!cir.float x 4>
 
 // LLVM: {{.*}}test_vsetq_lane_f32(float{{.*}}[[A:%.*]], <4 x float>{{.*}}[[B:%.*]])
-// LLVM: [[A_ADR:%.*]] = alloca float, i64 1, align 4
-// LLVM: [[B_ADR:%.*]] = alloca <4 x float>, i64 1, align 16
-// LLVM: store float [[A]], ptr [[A_ADR]], align 4
-// LLVM: store <4 x float> [[B]], ptr [[B_ADR]], align 16
-// LLVM: [[INTRN_ARG0:%.*]] = load float, ptr [[A_ADR]], align 4
-// LLVM: [[INTRN_ARG1:%.*]] = load <4 x float>, ptr [[B_ADR]], align 16
-// LLVM: [[INTRN_RES:%.*]] = insertelement <4 x float> [[INTRN_ARG1]], float [[INTRN_ARG0]], i32 3
-// LLVM: ret <4 x float> {{%.*}}
+// LLVM: [[INTRN_RES:%.*]] = insertelement <4 x float> [[B]], float [[A]], i32 3
+// LLVM: ret <4 x float> [[INTRN_RES]]
 
 uint8_t test_vget_lane_u8(uint8x8_t a) {
   return vget_lane_u8(a, 7);
@@ -206,11 +145,8 @@ uint8_t test_vget_lane_u8(uint8x8_t a) {
 // CIR: {{%.*}} = cir.vec.extract {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!u8i x 8>
 
 // LLVM: {{.*}}test_vget_lane_u8(<8 x i8>{{.*}}[[ARG:%.*]])
-// LLVM: [[ARG_SAVE:%.*]] = alloca <8 x i8>, i64 1, align 8
-// LLVM: store <8 x i8> [[ARG]], ptr [[ARG_SAVE]], align 8
-// LLVM: [[INTRN_ARG:%.*]] = load <8 x i8>, ptr [[ARG_SAVE]], align 8
-// LLVM: {{%.*}} = extractelement <8 x i8> [[INTRN_ARG]], i32 7
-// LLVM: ret i8 {{%.*}}
+// LLVM: [[RES:%.*]] = extractelement <8 x i8> [[ARG]], i32 7
+// LLVM: ret i8 [[RES]]
 
 uint8_t test_vgetq_lane_u8(uint8x16_t a) {
   return vgetq_lane_u8(a, 15);
@@ -221,11 +157,8 @@ uint8_t test_vgetq_lane_u8(uint8x16_t a) {
 // CIR: {{%.*}} = cir.vec.extract {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!u8i x 16>
 
 // LLVM: {{.*}}test_vgetq_lane_u8(<16 x i8>{{.*}}[[ARG:%.*]])
-// LLVM: [[ARG_SAVE:%.*]] = alloca <16 x i8>, i64 1, align 16
-// LLVM: store <16 x i8> [[ARG]], ptr [[ARG_SAVE]], align 16
-// LLVM: [[INTRN_ARG:%.*]] = load <16 x i8>, ptr [[ARG_SAVE]], align 16
-// LLVM: {{%.*}} = extractelement <16 x i8> [[INTRN_ARG]], i32 15
-// LLVM: ret i8 {{%.*}}
+// LLVM: [[RES:%.*]] = extractelement <16 x i8> [[ARG]], i32 15
+// LLVM: ret i8 [[RES]]
 
 uint16_t test_vget_lane_u16(uint16x4_t a) {
   return vget_lane_u16(a, 3);
@@ -236,11 +169,8 @@ uint16_t test_vget_lane_u16(uint16x4_t a) {
 // CIR: {{%.*}} = cir.vec.extract {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!u16i x 4>
 
 // LLVM: {{.*}}test_vget_lane_u16(<4 x i16>{{.*}}[[ARG:%.*]])
-// LLVM: [[ARG_SAVE:%.*]] = alloca <4 x i16>, i64 1, align 8
-// LLVM: store <4 x i16> [[ARG]], ptr [[ARG_SAVE]], align 8
-// LLVM: [[INTRN_ARG:%.*]] = load <4 x i16>, ptr [[ARG_SAVE]], align 8
-// LLVM: {{%.*}} = extractelement <4 x i16> [[INTRN_ARG]], i32 3
-// LLVM: ret i16 {{%.*}}
+// LLVM: [[RES:%.*]] = extractelement <4 x i16> [[ARG]], i32 3
+// LLVM: ret i16 [[RES]]
 
 uint16_t test_vgetq_lane_u16(uint16x8_t a) {
   return vgetq_lane_u16(a, 7);
@@ -251,11 +181,8 @@ uint16_t test_vgetq_lane_u16(uint16x8_t a) {
 // CIR: {{%.*}} = cir.vec.extract {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!u16i x 8>
 
 // LLVM: {{.*}}test_vgetq_lane_u16(<8 x i16>{{.*}}[[ARG:%.*]])
-// LLVM: [[ARG_SAVE:%.*]] = alloca <8 x i16>, i64 1, align 16
-// LLVM: store <8 x i16> [[ARG]], ptr [[ARG_SAVE]], align 16
-// LLVM: [[INTRN_ARG:%.*]] = load <8 x i16>, ptr [[ARG_SAVE]], align 16
-// LLVM: {{%.*}} = extractelement <8 x i16> [[INTRN_ARG]], i32 7
-// LLVM: ret i16 {{%.*}}
+// LLVM: [[RES:%.*]] = extractelement <8 x i16> [[ARG]], i32 7
+// LLVM: ret i16 [[RES]]
 
 uint32_t test_vget_lane_u32(uint32x2_t a) {
   return vget_lane_u32(a, 1);
@@ -266,11 +193,8 @@ uint32_t test_vget_lane_u32(uint32x2_t a) {
 // CIR: {{%.*}} = cir.vec.extract {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!u32i x 2>
 
 // LLVM: {{.*}}test_vget_lane_u32(<2 x i32>{{.*}}[[ARG:%.*]])
-// LLVM: [[ARG_SAVE:%.*]] = alloca <2 x i32>, i64 1, align 8
-// LLVM: store <2 x i32> [[ARG]], ptr [[ARG_SAVE]], align 8
-// LLVM: [[INTRN_ARG:%.*]] = load <2 x i32>, ptr [[ARG_SAVE]], align 8
-// LLVM: {{%.*}} = extractelement <2 x i32> [[INTRN_ARG]], i32 1
-// LLVM: ret i32 {{%.*}}
+// LLVM: [[RES:%.*]] = extractelement <2 x i32> [[ARG]], i32 1
+// LLVM: ret i32 [[RES]]
 
 uint32_t test_vgetq_lane_u32(uint32x4_t a) {
   return vgetq_lane_u32(a, 3);
@@ -281,11 +205,8 @@ uint32_t test_vgetq_lane_u32(uint32x4_t a) {
 // CIR: {{%.*}} = cir.vec.extract {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!u32i x 4>
 
 // LLVM: {{.*}}test_vgetq_lane_u32(<4 x i32>{{.*}}[[ARG:%.*]])
-// LLVM: [[ARG_SAVE:%.*]] = alloca <4 x i32>, i64 1, align 16
-// LLVM: store <4 x i32> [[ARG]], ptr [[ARG_SAVE]], align 16
-// LLVM: [[INTRN_ARG:%.*]] = load <4 x i32>, ptr [[ARG_SAVE]], align 16
-// LLVM: {{%.*}} = extractelement <4 x i32> [[INTRN_ARG]], i32 3
-// LLVM: ret i32 {{%.*}}
+// LLVM: [[RES:%.*]] = extractelement <4 x i32> [[ARG]], i32 3
+// LLVM: ret i32 [[RES]]
 
 uint64_t test_vget_lane_u64(uint64x1_t a) {
   return vget_lane_u64(a, 0);
@@ -295,12 +216,9 @@ uint64_t test_vget_lane_u64(uint64x1_t a) {
 // CIR: [[IDX:%.*]]  = cir.const #cir.int<0> : !s32i
 // CIR: {{%.*}} = cir.vec.extract {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!u64i x 1>
 
-// LLVM: {{.*}}est_vget_lane_u64(<1 x i64>{{.*}}[[ARG:%.*]])
-// LLVM: [[ARG_SAVE:%.*]] = alloca <1 x i64>, i64 1, align 8
-// LLVM: store <1 x i64> [[ARG]], ptr [[ARG_SAVE]], align 8
-// LLVM: [[INTRN_ARG:%.*]] = load <1 x i64>, ptr [[ARG_SAVE]], align 8
-// LLVM: {{%.*}} = extractelement <1 x i64> [[INTRN_ARG]], i32 0
-// LLVM: ret i64 {{%.*}}
+// LLVM: {{.*}}test_vget_lane_u64(<1 x i64>{{.*}}[[ARG:%.*]])
+// LLVM: [[RES:%.*]] = extractelement <1 x i64> [[ARG]], i32 0
+// LLVM: ret i64 [[RES]]
 
 uint64_t test_vgetq_lane_u64(uint64x2_t a) {
   return vgetq_lane_u64(a, 1);
@@ -311,11 +229,8 @@ uint64_t test_vgetq_lane_u64(uint64x2_t a) {
 // CIR: {{%.*}} = cir.vec.extract {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!u64i x 2>
 
 // LLVM: {{.*}}test_vgetq_lane_u64(<2 x i64>{{.*}}[[ARG:%.*]])
-// LLVM: [[ARG_SAVE:%.*]] = alloca <2 x i64>, i64 1, align 16
-// LLVM: store <2 x i64> [[ARG]], ptr [[ARG_SAVE]], align 16
-// LLVM: [[INTRN_ARG:%.*]] = load <2 x i64>, ptr [[ARG_SAVE]], align 16
-// LLVM: {{%.*}} = extractelement <2 x i64> [[INTRN_ARG]], i32 1
-// LLVM: ret i64 {{%.*}}
+// LLVM: [[RES:%.*]] = extractelement <2 x i64> [[ARG]], i32 1
+// LLVM: ret i64 [[RES]]
 
 float32_t test_vget_lane_f32(float32x2_t a) {
   return vget_lane_f32(a, 1);
@@ -326,11 +241,8 @@ float32_t test_vget_lane_f32(float32x2_t a) {
 // CIR: {{%.*}} = cir.vec.extract {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!cir.float x 2>
 
 // LLVM: {{.*}}test_vget_lane_f32(<2 x float>{{.*}}[[ARG:%.*]])
-// LLVM: [[ARG_SAVE:%.*]] = alloca <2 x float>, i64 1, align 8
-// LLVM: store <2 x float> [[ARG]], ptr [[ARG_SAVE]], align 8
-// LLVM: [[INTRN_ARG:%.*]] = load <2 x float>, ptr [[ARG_SAVE]], align 8
-// LLVM: {{%.*}} = extractelement <2 x float> [[INTRN_ARG]], i32 1
-// LLVM: ret float {{%.*}}
+// LLVM: [[RES:%.*]] = extractelement <2 x float> [[ARG]], i32 1
+// LLVM: ret float [[RES]]
 
 float64_t test_vget_lane_f64(float64x1_t a) {
   return vget_lane_f64(a, 0);
@@ -341,11 +253,8 @@ float64_t test_vget_lane_f64(float64x1_t a) {
 // CIR: {{%.*}} = cir.vec.extract {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!cir.double x 1>
 
 // LLVM: {{.*}}test_vget_lane_f64(<1 x double>{{.*}}[[ARG:%.*]])
-// LLVM: [[ARG_SAVE:%.*]] = alloca <1 x double>, i64 1, align 8
-// LLVM: store <1 x double> [[ARG]], ptr [[ARG_SAVE]], align 8
-// LLVM: [[INTRN_ARG:%.*]] = load <1 x double>, ptr [[ARG_SAVE]], align 8
-// LLVM: {{%.*}} = extractelement <1 x double> [[INTRN_ARG]], i32 0
-// LLVM: ret double {{%.*}}
+// LLVM: [[RES:%.*]] = extractelement <1 x double> [[ARG]], i32 0
+// LLVM: ret double [[RES]]
 
 float32_t test_vgetq_lane_f32(float32x4_t a) {
   return vgetq_lane_f32(a, 3);
@@ -356,11 +265,8 @@ float32_t test_vgetq_lane_f32(float32x4_t a) {
 // CIR: {{%.*}} = cir.vec.extract {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!cir.float x 4>
 
 // LLVM: {{.*}}test_vgetq_lane_f32(<4 x float>{{.*}}[[ARG:%.*]])
-// LLVM: [[ARG_SAVE:%.*]] = alloca <4 x float>, i64 1, align 16
-// LLVM: store <4 x float> [[ARG]], ptr [[ARG_SAVE]], align 16
-// LLVM: [[INTRN_ARG:%.*]] = load <4 x float>, ptr [[ARG_SAVE]], align 16
-// LLVM: {{%.*}} = extractelement <4 x float> [[INTRN_ARG]], i32 3
-// LLVM: ret float {{%.*}}
+// LLVM: [[RES:%.*]] = extractelement <4 x float> [[ARG]], i32 3
+// LLVM: ret float [[RES]]
 
 float64_t test_vgetq_lane_f64(float64x2_t a) {
   return vgetq_lane_f64(a, 1);
@@ -371,11 +277,8 @@ float64_t test_vgetq_lane_f64(float64x2_t a) {
 // CIR: {{%.*}} = cir.vec.extract {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!cir.double x 2>
 
 // LLVM: {{.*}}test_vgetq_lane_f64(<2 x double>{{.*}}[[ARG:%.*]])
-// LLVM: [[ARG_SAVE:%.*]] = alloca <2 x double>, i64 1, align 16
-// LLVM: store <2 x double> [[ARG]], ptr [[ARG_SAVE]], align 16
-// LLVM: [[INTRN_ARG:%.*]] = load <2 x double>, ptr [[ARG_SAVE]], align 16
-// LLVM: {{%.*}} = extractelement <2 x double> [[INTRN_ARG]], i32 1
-// LLVM: ret double {{%.*}}
+// LLVM: [[RES:%.*]] = extractelement <2 x double> [[ARG]], i32 1
+// LLVM: ret double [[RES]]
 
 uint8x8x2_t test_vtrn_u8(uint8x8_t a, uint8x8_t b) {
   return vtrn_u8(a, b);
