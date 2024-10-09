@@ -19,6 +19,8 @@ namespace cir {
 void populateCIRLoopToSCFConversionPatterns(mlir::RewritePatternSet &patterns,
                                             mlir::TypeConverter &converter);
 
+mlir::TypeConverter prepareTypeConverter();
+
 mlir::ModuleOp
 lowerFromCIRToMLIRToLLVMDialect(mlir::ModuleOp theModule,
                                 mlir::MLIRContext *mlirCtx = nullptr);
