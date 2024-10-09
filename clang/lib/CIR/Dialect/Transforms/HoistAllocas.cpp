@@ -39,7 +39,7 @@ static void process(mlir::cir::FuncOp func) {
     if (alloca->getBlock() == &entryBlock)
       return;
     // Don't hoist allocas with dynamic alloca size.
-    if (alloca.getDynAllocSize() != mlir::Value())
+    if (alloca.getDynAllocSize())
       return;
     allocas.push_back(alloca);
   });
