@@ -570,7 +570,8 @@ void UnwrappedLineParser::calculateBraceTypes(bool ExpectClassBody) {
                                 NextTok->isOneOf(Keywords.kw_of, Keywords.kw_in,
                                                  Keywords.kw_as));
           ProbablyBracedList =
-              ProbablyBracedList || (IsCpp && NextTok->is(tok::l_paren));
+              ProbablyBracedList || (IsCpp && (PrevTok->Tok.isLiteral() ||
+                                               NextTok->is(tok::l_paren)));
 
           // If there is a comma, semicolon or right paren after the closing
           // brace, we assume this is a braced initializer list.
@@ -2130,6 +2131,11 @@ void UnwrappedLineParser::parseStructuralElement(
         return;
       }
       break;
+    case tok::greater:
+      nextToken();
+      if (FormatTok->is(tok::l_brace))
+        FormatTok->Previous->setFinalizedType(TT_TemplateCloser);
+      break;
     default:
       nextToken();
       break;
@@ -2326,7 +2332,7 @@ bool UnwrappedLineParser::tryToParseLambda() {
       // This might or might not actually be a lambda arrow (this could be an
       // ObjC method invocation followed by a dereferencing arrow). We might
       // reset this back to TT_Unknown in TokenAnnotator.
-      FormatTok->setFinalizedType(TT_TrailingReturnArrow);
+      FormatTok->setFinalizedType(TT_LambdaArrow);
       SeenArrow = true;
       nextToken();
       break;
@@ -2555,7 +2561,7 @@ bool UnwrappedLineParser::parseParens(TokenType AmpAmpTokenType) {
         parseChildBlock();
       break;
     case tok::r_paren: {
-      const auto *Prev = LeftParen->Previous;
+      auto *Prev = LeftParen->Previous;
       if (!MightBeStmtExpr && !MightBeFoldExpr && !Line->InMacroBody &&
           Style.RemoveParentheses > FormatStyle::RPS_Leave) {
         const auto *Next = Tokens->peekNextToken();
@@ -2584,9 +2590,13 @@ bool UnwrappedLineParser::parseParens(TokenType AmpAmpTokenType) {
           FormatTok->Optional = true;
         }
       }
-      if (Prev && Prev->is(TT_TypenameMacro)) {
-        LeftParen->setFinalizedType(TT_TypeDeclarationParen);
-        FormatTok->setFinalizedType(TT_TypeDeclarationParen);
+      if (Prev) {
+        if (Prev->is(TT_TypenameMacro)) {
+          LeftParen->setFinalizedType(TT_TypeDeclarationParen);
+          FormatTok->setFinalizedType(TT_TypeDeclarationParen);
+        } else if (Prev->is(tok::greater) && FormatTok->Previous == LeftParen) {
+          Prev->setFinalizedType(TT_TemplateCloser);
+        }
       }
       nextToken();
       return SeenEqual;
@@ -2682,6 +2692,7 @@ void UnwrappedLineParser::parseSquare(bool LambdaIntroducer) {
       break;
     }
     case tok::at:
+    case tok::colon:
       nextToken();
       if (FormatTok->is(tok::l_brace)) {
         nextToken();
@@ -4029,6 +4040,7 @@ void UnwrappedLineParser::parseRecord(bool ParseAsExpr) {
       }
       break;
     case tok::coloncolon:
+    case tok::hashhash:
       break;
     default:
       if (!JSPastExtendsOrImplements && !ClassName &&
@@ -4039,7 +4051,7 @@ void UnwrappedLineParser::parseRecord(bool ParseAsExpr) {
   }
 
   auto IsListInitialization = [&] {
-    if (!ClassName || IsDerived)
+    if (!ClassName || IsDerived || JSPastExtendsOrImplements)
       return false;
     assert(FormatTok->is(tok::l_brace));
     const auto *Prev = FormatTok->getPreviousNonComment();
