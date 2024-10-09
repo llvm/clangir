@@ -16,6 +16,7 @@ namespace cir {
 
 void populateCIRLoopToSCFConversionPatterns(mlir::RewritePatternSet &patterns,
                                             mlir::TypeConverter &converter);
+mlir::TypeConverter prepareTypeConverter();
 } // namespace cir
 
 #endif // CLANG_CIR_LOWERTOMLIR_H_
