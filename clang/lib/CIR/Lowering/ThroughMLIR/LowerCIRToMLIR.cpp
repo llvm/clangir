@@ -1368,7 +1368,7 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
                                                         patterns.getContext());
 }
 
-static mlir::TypeConverter prepareTypeConverter() {
+mlir::TypeConverter prepareTypeConverter() {
   mlir::TypeConverter converter;
   converter.addConversion([&](cir::PointerType type) -> mlir::Type {
     auto ty = convertTypeForMemory(converter, type.getPointee());
