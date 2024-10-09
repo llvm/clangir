@@ -98,7 +98,7 @@ static cl::opt<bool> EnableCollectLOH(
 static cl::opt<bool>
     EnableDeadRegisterElimination("aarch64-enable-dead-defs", cl::Hidden,
                                   cl::desc("Enable the pass that removes dead"
-                                           " definitons and replaces stores to"
+                                           " definitions and replaces stores to"
                                            " them with stores to the zero"
                                            " register"),
                                   cl::init(true));
@@ -588,7 +588,7 @@ void AArch64PassConfig::addIRPasses() {
 
   // Expand any SVE vector library calls that we can't code generate directly.
   if (EnableSVEIntrinsicOpts &&
-      TM->getOptLevel() == CodeGenOptLevel::Aggressive)
+      TM->getOptLevel() != CodeGenOptLevel::None)
     addPass(createSVEIntrinsicOptsPass());
 
   // Cmpxchg instructions are often used with a subsequent comparison to
