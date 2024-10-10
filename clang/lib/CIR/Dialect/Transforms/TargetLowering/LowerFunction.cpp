@@ -522,7 +522,8 @@ void LowerFunction::buildAggregateStore(Value Val, Value Dest,
             LM.getDataLayout().getTypeSizeInBits(pointeeTy)) &&
            "Incompatible types");
     auto loc = Val.getLoc();
-    Val = rewriter.create<CastOp>(loc, pointeeTy, CastKind::bitcast, Val);
+    auto valPtrTy = PointerType::get(rewriter.getContext(), Val.getType());
+    Dest = rewriter.create<CastOp>(loc, valPtrTy, CastKind::bitcast, Dest);
   }
 
   rewriter.create<StoreOp>(Val.getLoc(), Val, Dest);

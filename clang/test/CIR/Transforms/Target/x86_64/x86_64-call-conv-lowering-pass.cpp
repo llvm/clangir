@@ -101,8 +101,8 @@ struct S1 {
 /// Cast arguments to the expected type.
 // CHECK: cir.func @_Z2s12S1(%arg0: !u64i loc({{.+}})) -> !u64i
 // CHECK: %[[#V0:]] = cir.alloca !ty_S1_, !cir.ptr<!ty_S1_>
-// CHECK: %[[#V1:]] = cir.cast(bitcast, %arg0 : !u64i), !ty_S1_
-// CHECK: cir.store %[[#V1]], %[[#V0]] : !ty_S1_, !cir.ptr<!ty_S1_>
+// CHECK: %[[#V1:]] = cir.cast(bitcast, %[[#V0]] : !cir.ptr<!ty_S1_>), !cir.ptr<!u64i>
+// CHECK: cir.store %arg0, %[[#V1]] : !u64i, !cir.ptr<!u64i>
 S1 s1(S1 arg) {
 
   /// Cast argument and result of the function call to the expected types.
