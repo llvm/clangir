@@ -970,7 +970,7 @@ static bool matchesStlAllocatorFn(const Decl *D, const ASTContext &Ctx) {
   return true;
 }
 
-// TODO: this should live in `buildFunctionProlog
+/// TODO: this should live in `buildFunctionProlog`
 /// An argument came in as a promoted argument; demote it back to its
 /// declared type.
 static mlir::Value emitArgumentDemotion(CIRGenFunction &CGF, const VarDecl *var,
@@ -1275,7 +1275,7 @@ void CIRGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
       auto address = Address(addr, alignment);
       setAddrOfLocalVar(paramVar, address);
 
-      // TODO: this should live in `buildFunctionProlog
+      // TODO: this should live in `buildFunctionProlog`
       bool isPromoted = isa<ParmVarDecl>(paramVar) &&
                         cast<ParmVarDecl>(paramVar)->isKNRPromoted();
       assert(!MissingFeatures::constructABIArgDirectExtend());
