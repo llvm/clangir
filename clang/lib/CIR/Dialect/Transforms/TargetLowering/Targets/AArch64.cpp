@@ -105,12 +105,12 @@ ABIArgInfo AArch64ABIInfo::classifyReturnType(Type RetTy,
   }
 
   uint64_t Size = getContext().getTypeSize(RetTy);
-  // TODO: check Record is Empty
-  // TODO: add isHomogeneousAggregate check
+  // TODO(cir): check Record is Empty
+  // TODO(cir): add isHomogeneousAggregate check
 
   // Aggregates <= 16 bytes are returned directly in registers or on the stack.
   if (Size <= 128) {
-    // TODO: add isRenderScriptTarget()) check
+    // TODO(cir): add isRenderScriptTarget()) check
 
     if (Size <= 64 && !getDataLayout().isBigEndian()) {
       // Composite types are returned in lower bits of a 64-bit register for LE,
@@ -122,7 +122,18 @@ ABIArgInfo AArch64ABIInfo::classifyReturnType(Type RetTy,
       return ABIArgInfo::getDirect(
           mlir::cir::IntType::get(LT.getMLIRContext(), Size, false));
     }
-    
+
+    unsigned Alignment = getContext().getTypeAlign(RetTy);
+    Size = llvm::alignTo(Size, 64); // round up to multiple of 8 bytes
+
+    // We use a pair of i64 for 16-byte aggregate with 8-byte alignment.
+    // For aggregates with 16-byte alignment, we use i128.
+    if (Alignment < 128 && Size == 128) {
+      mlir::Type baseTy = mlir::cir::IntType::get(LT.getMLIRContext(), 64, false);
+      return ABIArgInfo::getDirect(mlir::cir::ArrayType::get(LT.getMLIRContext(), baseTy, Size / 64));
+    }
+
+    cir_cconv_unreachable("NYI");
   }
 
   cir_cconv_unreachable("NYI");
