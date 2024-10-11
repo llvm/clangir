@@ -442,7 +442,7 @@ public:
   unsigned ClangIRLibOpt : 1;
 
   // Enable Clang IR call conv lowering pass.
-  unsigned ClangIREnableCallConvLowering : 1;
+  unsigned ClangIRCallConvLowering : 1;
 
   // Enable Clang IR mem2reg pass on the flat CIR.
   unsigned ClangIREnableMem2Reg : 1;
@@ -588,7 +588,7 @@ public:
         ClangIRDisablePasses(false), ClangIRDisableCIRVerifier(false),
         ClangIRDisableEmitCXXDefault(false), ClangIRLifetimeCheck(false),
         ClangIRIdiomRecognizer(false), ClangIRLibOpt(false),
-        ClangIREnableCallConvLowering(false), ClangIREnableMem2Reg(false),
+        ClangIRCallConvLowering(true), ClangIREnableMem2Reg(false),
         ClangIRAnalysisOnly(false), TimeTraceGranularity(500),
         TimeTraceVerbose(false) {}
 
