@@ -306,10 +306,11 @@ mlir::LogicalResult CIRGenFunction::declare(const Decl *var, QualType ty,
   assert(!symbolTable.count(var) && "not supposed to be available just yet");
 
   addr = buildAlloca(namedVar->getName(), ty, loc, alignment);
-  if (isParam) {
-    auto allocaOp = cast<mlir::cir::AllocaOp>(addr.getDefiningOp());
+  auto allocaOp = cast<mlir::cir::AllocaOp>(addr.getDefiningOp());
+  if (isParam)
     allocaOp.setInitAttr(mlir::UnitAttr::get(builder.getContext()));
-  }
+  if (ty->isReferenceType() || ty.isConstQualified())
+    allocaOp.setConstantAttr(mlir::UnitAttr::get(builder.getContext()));
 
   symbolTable.insert(var, addr);
   return mlir::success();
@@ -325,10 +326,11 @@ mlir::LogicalResult CIRGenFunction::declare(Address addr, const Decl *var,
   assert(!symbolTable.count(var) && "not supposed to be available just yet");
 
   addrVal = addr.getPointer();
-  if (isParam) {
-    auto allocaOp = cast<mlir::cir::AllocaOp>(addrVal.getDefiningOp());
+  auto allocaOp = cast<mlir::cir::AllocaOp>(addrVal.getDefiningOp());
+  if (isParam)
     allocaOp.setInitAttr(mlir::UnitAttr::get(builder.getContext()));
-  }
+  if (ty->isReferenceType() || ty.isConstQualified())
+    allocaOp.setConstantAttr(mlir::UnitAttr::get(builder.getContext()));
 
   symbolTable.insert(var, addrVal);
   return mlir::success();
