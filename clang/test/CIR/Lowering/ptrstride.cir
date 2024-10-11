@@ -1,6 +1,5 @@
 // RUN: cir-opt %s -cir-to-llvm -o %t.mlir
 // RUN: FileCheck %s --input-file=%t.mlir -check-prefix=MLIR
-// XFAIL:* 
 
 !s32i = !cir.int<s, 32>
 module {
@@ -31,4 +30,5 @@ module {
 // MLIR:   llvm.return
 
 // MLIR-LABEL: @g
-// MLIR: llvm.getelementptr %arg0[%arg1] : (!llvm.ptr, i32) -> !llvm.ptr, i32
+// MLIR:      %0 = llvm.sext %arg1 : i32 to i64
+// MLIR-NEXT: llvm.getelementptr %arg0[%0] : (!llvm.ptr, i64) -> !llvm.ptr, i32

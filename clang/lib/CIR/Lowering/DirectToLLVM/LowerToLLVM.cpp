@@ -761,8 +761,8 @@ public:
       // before it. To achieve that, look at unary minus, which already got
       // lowered to "sub 0, x".
       auto sub = dyn_cast<mlir::LLVM::SubOp>(indexOp);
-      auto unary =
-          dyn_cast<mlir::cir::UnaryOp>(ptrStrideOp.getStride().getDefiningOp());
+      auto unary = dyn_cast_if_present<mlir::cir::UnaryOp>(
+          ptrStrideOp.getStride().getDefiningOp());
       bool rewriteSub =
           unary && unary.getKind() == mlir::cir::UnaryOpKind::Minus && sub;
       if (rewriteSub)
