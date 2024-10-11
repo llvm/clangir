@@ -2198,11 +2198,11 @@ mlir::Value buildNeonCall(unsigned int builtinID, CIRGenFunction &cgf,
 }
 
 /// Get integer from a mlir::Value that is an int constant or a constant op.
-static int getIntFromMLIRValue(mlir::Value val) {
+static int64_t getIntValueFromConstOp(mlir::Value val) {
   auto constOp = mlir::cast<mlir::cir::ConstantOp>(val.getDefiningOp());
-  return (int)((mlir::cast<mlir::cir::IntAttr>(constOp.getValue()))
-                   .getValue()
-                   .getSExtValue());
+  return (mlir::cast<mlir::cir::IntAttr>(constOp.getValue()))
+      .getValue()
+      .getSExtValue();
 }
 
 mlir::Value CIRGenFunction::buildCommonNeonBuiltinExpr(
@@ -2251,7 +2251,7 @@ mlir::Value CIRGenFunction::buildCommonNeonBuiltinExpr(
   }
   case NEON::BI__builtin_neon_vext_v:
   case NEON::BI__builtin_neon_vextq_v: {
-    int cv = getIntFromMLIRValue(ops[2]);
+    int cv = getIntValueFromConstOp(ops[2]);
     llvm::SmallVector<int64_t, 16> indices;
     for (unsigned i = 0, e = vTy.getSize(); i != e; ++i)
       indices.push_back(i + cv);
