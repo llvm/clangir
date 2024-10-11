@@ -1,11 +1,13 @@
 // RUN: %clang_cc1 -triple aarch64-none-linux-android24 -target-feature +neon \
-// RUN:    -fclangir -disable-O0-optnone  -fno-clangir-call-conv-lowering \
-// RUN:  -flax-vector-conversions=none -emit-cir -o %t.cir %s
+// RUN:    -fclangir -disable-O0-optnone \
+// RUN:  -flax-vector-conversions=none -fno-clangir-call-conv-lowering \
+// RUN:   -emit-cir -o %t.cir %s
 // RUN: FileCheck --check-prefix=CIR --input-file=%t.cir %s
 
 // RUN: %clang_cc1 -triple aarch64-none-linux-android24 -target-feature +neon \
-// RUN:    -fclangir -disable-O0-optnone -fno-clangir-call-conv-lowering \
-// RUN:  -flax-vector-conversions=none -emit-llvm -o - %s \
+// RUN:    -fclangir -disable-O0-optnone \
+// RUN:  -flax-vector-conversions=none -fno-clangir-call-conv-lowering \
+// RUN:  -emit-llvm -o - %s \
 // RUN: | opt -S -passes=instcombine,mem2reg,simplifycfg -o %t.ll
 // RUN: FileCheck --check-prefix=LLVM --input-file=%t.ll %s
 
