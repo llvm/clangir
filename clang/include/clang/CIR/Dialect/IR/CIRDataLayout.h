@@ -28,6 +28,8 @@ class StructLayout;
 class CIRDataLayout {
   bool bigEndian = false;
 
+  unsigned defaultGlobalsAddrSpace = 0;
+
   /// Primitive type alignment data. This is sorted by type and bit
   /// width during construction.
   llvm::DataLayout::PrimitiveSpec StructAlignment;
@@ -105,6 +107,10 @@ public:
     auto IntTy = mlir::cir::IntType::get(Ty.getContext(),
                                          getPointerTypeSizeInBits(Ty), false);
     return IntTy;
+  }
+
+  unsigned getDefaultGlobalsAddressSpace() const {
+    return defaultGlobalsAddrSpace;
   }
 };
 

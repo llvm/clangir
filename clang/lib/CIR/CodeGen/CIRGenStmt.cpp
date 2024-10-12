@@ -1138,3 +1138,38 @@ void CIRGenFunction::buildReturnOfRValue(mlir::Location loc, RValue RV,
   }
   buildBranchThroughCleanup(loc, ReturnBlock());
 }
+
+void CIRGenFunction::buildBlock(mlir::Block *bb, bool isFinished) {
+  mlir::Block *curBB = getBuilder().getInsertionBlock();
+
+  // Fall out of the current block (if necessary).
+  buildBranch(bb);
+
+  if (isFinished && bb->use_empty()) {
+    llvm_unreachable("NYI");
+  }
+
+  // Place the block after the current block, if possible, or else at the end of
+  // the function.
+  if (curBB && curBB->getParent())
+    llvm_unreachable("NYI");
+  else
+    cast<FuncOp>(CurFn).push_back(bb);
+
+  getBuilder().setInsertionPoint(bb, bb->end());
+}
+
+void CIRGenFunction::buildBranch(mlir::Block *block) {
+  // Emit a branch from the current block to the target one if this was a real
+  // block. If this was just a fall-through block after a terminator, don't emit
+  // it.
+  mlir::Block *curBB = getBuilder().getInsertionBlock();
+
+  if (!curBB || curBB->getTerminator()) {
+    llvm_unreachable("NYI");
+  } else {
+    llvm_unreachable("NYI");
+  }
+
+  getBuilder().clearInsertionPoint();
+}

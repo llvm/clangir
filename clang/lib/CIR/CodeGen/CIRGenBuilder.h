@@ -37,6 +37,7 @@
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringSet.h"
 #include "llvm/Support/ErrorHandling.h"
+#include <MacTypes.h>
 #include <cassert>
 #include <optional>
 #include <string>
@@ -792,6 +793,15 @@ public:
 
   Address createImagPtr(mlir::Location loc, Address addr) {
     return Address{createImagPtr(loc, addr.getPointer()), addr.getAlignment()};
+  }
+
+  mlir::Value createIsNull(Address addr, const llvm::Twine &name = "") {
+    if (!addr.hasOffset())
+      llvm_unreachable("NYI");;
+    // The pointer isn't null if addr has an offset since offsets can always be
+    // applied inbound.
+    return mlir::cir::IntAttr::get(getSInt64Ty(), 0);
+
   }
 
   /// Cast the element type of the given address to a different type,
