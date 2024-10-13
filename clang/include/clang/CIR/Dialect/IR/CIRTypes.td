@@ -537,6 +537,9 @@ def IntegerVector : Type<
     ]>, "!cir.vector of !cir.int"> {
 }
 
+// Constraints
+def CIR_AnyIntOrVecofInt: AnyTypeOf<[CIR_IntType, IntegerVector]>;
+
 // Pointer to Arrays
 def ArrayPtr : Type<
     And<[
