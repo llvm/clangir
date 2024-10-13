@@ -1181,15 +1181,17 @@ def ShiftOp : CIR_Op<"shift", [Pure]> {
   let summary = "Shift";
   let description = [{
     Shift `left` or `right`, according to the first operand. Second operand is
-    the shift target and the third the amount.
+    the shift target and the third the amount. Second and the thrid operand can
+    be vector of integer type. However, if one of them is vector of integer
+    type, the other must be vector of integer type as well.
 
     ```mlir
     %7 = cir.shift(left, %1 : !u64i, %4 : !s32i) -> !u64i
     ```
   }];
 
-  let results = (outs CIR_IntType:$result);
-  let arguments = (ins CIR_IntType:$value, CIR_IntType:$amount,
+  let results = (outs CIR_AnyIntOrVecofInt:$result);
+  let arguments = (ins CIR_AnyIntOrVecofInt:$value, CIR_AnyIntOrVecofInt:$amount,
                        UnitAttr:$isShiftleft);
 
   let assemblyFormat = [{
@@ -1200,8 +1202,7 @@ def ShiftOp : CIR_Op<"shift", [Pure]> {
     `)` `->` type($result) attr-dict
   }];
 
-  // Already covered by the traits
-  let hasVerifier = 0;
+  let hasVerifier = 1;
 }
 
 //===----------------------------------------------------------------------===//
