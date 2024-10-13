@@ -403,7 +403,6 @@ public:
       return mlir::cir::LongDoubleType::get(getContext(), typeCache.FP80Ty);
     if (&format == &llvm::APFloat::IEEEquad())
       return mlir::cir::LongDoubleType::get(getContext(), typeCache.FP128Ty);
-    // llvm_unreachable("NYI");
     if (&format == &llvm::APFloat::PPCDoubleDouble())
       llvm_unreachable("NYI");
 
