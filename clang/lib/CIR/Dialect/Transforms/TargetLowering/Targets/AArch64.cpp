@@ -5,7 +5,6 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
-
 #include "clang/CIR/Target/AArch64.h"
 #include "ABIInfoImpl.h"
 #include "LowerFunctionInfo.h"
@@ -103,6 +102,27 @@ ABIArgInfo AArch64ABIInfo::classifyReturnType(Type RetTy,
     return (isPromotableIntegerTypeForABI(RetTy) && isDarwinPCS()
                 ? ABIArgInfo::getExtend(RetTy)
                 : ABIArgInfo::getDirect());
+  }
+
+  uint64_t Size = getContext().getTypeSize(RetTy);
+  // TODO: check Record is Empty
+  // TODO: add isHomogeneousAggregate check
+
+  // Aggregates <= 16 bytes are returned directly in registers or on the stack.
+  if (Size <= 128) {
+    // TODO: add isRenderScriptTarget()) check
+
+    if (Size <= 64 && !getDataLayout().isBigEndian()) {
+      // Composite types are returned in lower bits of a 64-bit register for LE,
+      // and in higher bits for BE. However, integer types are always returned
+      // in lower bits for both LE and BE, and they are not rounded up to
+      // 64-bits. We can skip rounding up of composite types for LE, but not for
+      // BE, otherwise composite types will be indistinguishable from integer
+      // types.
+      return ABIArgInfo::getDirect(
+          mlir::cir::IntType::get(LT.getMLIRContext(), Size, false));
+    }
+    
   }
 
   cir_cconv_unreachable("NYI");
