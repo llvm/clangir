@@ -34,7 +34,6 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
 #include <optional>
-#include <stdexcept>
 
 using cir::MissingFeatures;
 
