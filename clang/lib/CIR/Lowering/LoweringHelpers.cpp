@@ -92,8 +92,10 @@ void convertToDenseElementsAttrImpl(
       continue;
     }
 
-    if (mlir::isa<mlir::cir::ZeroAttr>(eltAttr))
+    if (mlir::isa<mlir::cir::ZeroAttr>(eltAttr)) {
+      currentIndex += elementsSizeInCurrentDim;
       continue;
+    }
 
     llvm_unreachable("unknown element in ConstArrayAttr");
   }
