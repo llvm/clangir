@@ -1187,7 +1187,7 @@ def ShiftOp : CIR_Op<"shift", [Pure]> {
 
     ```mlir
     %7 = cir.shift(left, %1 : !u64i, %4 : !s32i) -> !u64i
-    %8 = cir.shift(left, %1 : !cir.vector<!s32i x 2>, %2 : !cir.vector<!s32i x 2>) -> !cir.vector<!s32i x 2>
+    %8 = cir.shift(left, %2 : !cir.vector<!s32i x 2>, %3 : !cir.vector<!s32i x 2>) -> !cir.vector<!s32i x 2>
     ```
   }];
 
