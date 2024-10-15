@@ -1183,7 +1183,7 @@ def ShiftOp : CIR_Op<"shift", [Pure]> {
     Shift `left` or `right`, according to the first operand. Second operand is
     the shift target and the third the amount. Second and the thrid operand can
     be either integer type or vector of integer type. However, they must be
-    either vector of integer type, or all integer type.  
+    either all vector of integer type, or all integer type.  
 
     ```mlir
     %7 = cir.shift(left, %1 : !u64i, %4 : !s32i) -> !u64i
