@@ -1182,11 +1182,12 @@ def ShiftOp : CIR_Op<"shift", [Pure]> {
   let description = [{
     Shift `left` or `right`, according to the first operand. Second operand is
     the shift target and the third the amount. Second and the thrid operand can
-    be vector of integer type. However, if one of them is vector of integer
-    type, the other must be vector of integer type as well.
+    be either integer type or vector of integer type. However, they must be
+    either vector of integer type, or all integer type.  
 
     ```mlir
     %7 = cir.shift(left, %1 : !u64i, %4 : !s32i) -> !u64i
+    %8 = cir.shift(left, %1 : !cir.vector<!s32i x 2>, %2 : !cir.vector<!s32i x 2>) -> !cir.vector<!s32i x 2>
     ```
   }];
 
