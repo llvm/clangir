@@ -46,9 +46,9 @@ public:
 
   // FIXME(cir): This expects a CXXRecordDecl! Not any record type.
   RecordArgABI getRecordArgABI(const StructType RD) const override {
-    assert(!::cir::MissingFeatures::recordDeclIsCXXDecl());
+    cir_cconv_assert(!::cir::MissingFeatures::recordDeclIsCXXDecl());
     // If C++ prohibits us from making a copy, pass by address.
-    assert(!::cir::MissingFeatures::recordDeclCanPassInRegisters());
+    cir_cconv_assert(!::cir::MissingFeatures::recordDeclCanPassInRegisters());
     return RAA_Default;
   }
 };
@@ -62,7 +62,7 @@ bool ItaniumCXXABI::classifyReturnType(LowerFunctionInfo &FI) const {
 
   // If C++ prohibits us from making a copy, return by address.
   if (::cir::MissingFeatures::recordDeclCanPassInRegisters())
-    llvm_unreachable("NYI");
+    cir_cconv_unreachable("NYI");
 
   return false;
 }
@@ -76,7 +76,7 @@ CIRCXXABI *CreateItaniumCXXABI(LowerModule &LM) {
   case clang::TargetCXXABI::AppleARM64:
     // TODO: this isn't quite right, clang uses AppleARM64CXXABI which inherits
     // from ARMCXXABI. We'll have to follow suit.
-    assert(!::cir::MissingFeatures::appleArm64CXXABI());
+    cir_cconv_assert(!::cir::MissingFeatures::appleArm64CXXABI());
     return new ItaniumCXXABI(LM, /*UseARMMethodPtrABI=*/true,
                              /*UseARMGuardVarABI=*/true);
 
@@ -84,12 +84,12 @@ CIRCXXABI *CreateItaniumCXXABI(LowerModule &LM) {
     return new ItaniumCXXABI(LM);
 
   case clang::TargetCXXABI::Microsoft:
-    llvm_unreachable("Microsoft ABI is not Itanium-based");
+    cir_cconv_unreachable("Microsoft ABI is not Itanium-based");
   default:
-    llvm_unreachable("NYI");
+    cir_cconv_unreachable("NYI");
   }
 
-  llvm_unreachable("bad ABI kind");
+  cir_cconv_unreachable("bad ABI kind");
 }
 
 } // namespace cir

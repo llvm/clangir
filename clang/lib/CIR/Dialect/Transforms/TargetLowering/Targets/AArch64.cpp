@@ -60,7 +60,7 @@ class AArch64TargetLoweringInfo : public TargetLoweringInfo {
 public:
   AArch64TargetLoweringInfo(LowerTypes &LT, AArch64ABIKind Kind)
       : TargetLoweringInfo(std::make_unique<AArch64ABIInfo>(LT, Kind)) {
-    assert(!MissingFeature::swift());
+    cir_cconv_assert(!MissingFeature::swift());
   }
 
   unsigned getTargetAddrSpaceFromCIRAddrSpace(
@@ -74,7 +74,7 @@ public:
     case Kind::offload_generic:
       return 0;
     default:
-      llvm_unreachable("Unknown CIR address space for this target");
+      cir_cconv_unreachable("Unknown CIR address space for this target");
     }
   }
 };
@@ -87,25 +87,25 @@ ABIArgInfo AArch64ABIInfo::classifyReturnType(Type RetTy,
     return ABIArgInfo::getIgnore();
 
   if (const auto _ = dyn_cast<VectorType>(RetTy)) {
-    llvm_unreachable("NYI");
+    cir_cconv_assert_or_abort(!::cir::MissingFeatures::vectorType(), "NYI");
   }
 
   // Large vector types should be returned via memory.
   if (isa<VectorType>(RetTy) && getContext().getTypeSize(RetTy) > 128)
-    llvm_unreachable("NYI");
+    cir_cconv_unreachable("NYI");
 
   if (!isAggregateTypeForABI(RetTy)) {
     // NOTE(cir): Skip enum handling.
 
     if (MissingFeature::fixedSizeIntType())
-      llvm_unreachable("NYI");
+      cir_cconv_unreachable("NYI");
 
     return (isPromotableIntegerTypeForABI(RetTy) && isDarwinPCS()
                 ? ABIArgInfo::getExtend(RetTy)
                 : ABIArgInfo::getDirect());
   }
 
-  llvm_unreachable("NYI");
+  cir_cconv_unreachable("NYI");
 }
 
 ABIArgInfo
@@ -115,20 +115,22 @@ AArch64ABIInfo::classifyArgumentType(Type Ty, bool IsVariadic,
 
   // TODO(cir): check for illegal vector types.
   if (MissingFeature::vectorType())
-    llvm_unreachable("NYI");
+    cir_cconv_unreachable("NYI");
 
   if (!isAggregateTypeForABI(Ty)) {
     // NOTE(cir): Enum is IntType in CIR. Skip enum handling here.
 
     if (MissingFeature::fixedSizeIntType())
-      llvm_unreachable("NYI");
+      cir_cconv_unreachable("NYI");
 
     return (isPromotableIntegerTypeForABI(Ty) && isDarwinPCS()
                 ? ABIArgInfo::getExtend(Ty)
                 : ABIArgInfo::getDirect());
   }
 
-  llvm_unreachable("NYI");
+  cir_cconv_assert_or_abort(
+      !::cir::MissingFeatures::AArch64TypeClassification(), "NYI");
+  return {};
 }
 
 std::unique_ptr<TargetLoweringInfo>

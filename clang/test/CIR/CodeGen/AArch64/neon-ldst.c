@@ -5,7 +5,7 @@
 
 // RUN: %clang_cc1 -triple aarch64-none-linux-android24 -target-feature +neon \
 // RUN:    -fclangir -disable-O0-optnone \
-// RUN:  -flax-vector-conversions=none -emit-llvm -o - %s \
+// RUN:  -flax-vector-conversions=none -emit-llvm -fno-clangir-call-conv-lowering -o - %s \
 // RUN: | opt -S -passes=mem2reg,simplifycfg -o %t.ll
 // RUN: FileCheck --check-prefix=LLVM --input-file=%t.ll %s
 

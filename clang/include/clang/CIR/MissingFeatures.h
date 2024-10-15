@@ -15,6 +15,42 @@
 #ifndef CLANG_CIR_MISSINGFEATURES_H
 #define CLANG_CIR_MISSINGFEATURES_H
 
+#include <llvm/Support/raw_ostream.h>
+
+constexpr bool cirCConvAssertionMode =
+    true; // Change to `false` to use llvm_unreachable
+
+#define CIR_CCONV_NOTE                                                         \
+  " Target lowering is now required. To workaround use "                       \
+  "-fno-clangir-call-conv-lowering. This flag is going to be removed at some"  \
+  " point."
+
+// Special assertion to be used in the target lowering library.
+#define cir_cconv_assert(cond)                                                 \
+  do {                                                                         \
+    if (!(cond))                                                               \
+      llvm::errs() << CIR_CCONV_NOTE << "\n";                                  \
+    assert((cond));                                                            \
+  } while (0)
+
+// Special version of cir_cconv_unreachable to give more info to the user on how
+// to temporaruly disable target lowering.
+#define cir_cconv_unreachable(msg)                                             \
+  do {                                                                         \
+    llvm_unreachable(msg CIR_CCONV_NOTE);                                      \
+  } while (0)
+
+// Some assertions knowingly generate incorrect code. This macro allows us to
+// switch between using `assert` and `llvm_unreachable` for these cases.
+#define cir_cconv_assert_or_abort(cond, msg)                                   \
+  do {                                                                         \
+    if (cirCConvAssertionMode) {                                               \
+      assert((cond) && msg CIR_CCONV_NOTE);                                    \
+    } else {                                                                   \
+      llvm_unreachable(msg CIR_CCONV_NOTE);                                    \
+    }                                                                          \
+  } while (0)
+
 namespace cir {
 
 struct MissingFeatures {
@@ -211,6 +247,26 @@ struct MissingFeatures {
   static bool supportisAggregateTypeForABIAArch64() { return false; }
 
   //===--- ABI lowering --===//
+
+  static bool SPIRVABI() { return false; }
+
+  static bool AArch64TypeClassification() { return false; }
+
+  static bool X86ArgTypeClassification() { return false; }
+  static bool X86DefaultABITypeConvertion() { return false; }
+  static bool X86GetFPTypeAtOffset() { return false; }
+  static bool X86RetTypeClassification() { return false; }
+  static bool X86TypeClassification() { return false; }
+
+  static bool ABIClangTypeKind() { return false; }
+  static bool ABIEnterStructForCoercedAccess() { return false; }
+  static bool ABIFuncPtr() { return false; }
+  static bool ABIInRegAttribute() { return false; }
+  static bool ABINestedRecordLayout() { return false; }
+  static bool ABINoProtoFunctions() { return false; }
+  static bool ABIParameterCoercion() { return false; }
+  static bool ABIPointerParameterAttrs() { return false; }
+  static bool ABITransparentUnionHandling() { return false; }
 
   //-- Missing AST queries
 

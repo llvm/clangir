@@ -305,10 +305,11 @@ mlir::LogicalResult CIRGenFunction::declare(const Decl *var, QualType ty,
   assert(!symbolTable.count(var) && "not supposed to be available just yet");
 
   addr = buildAlloca(namedVar->getName(), ty, loc, alignment);
-  if (isParam) {
-    auto allocaOp = cast<mlir::cir::AllocaOp>(addr.getDefiningOp());
+  auto allocaOp = cast<mlir::cir::AllocaOp>(addr.getDefiningOp());
+  if (isParam)
     allocaOp.setInitAttr(mlir::UnitAttr::get(builder.getContext()));
-  }
+  if (ty->isReferenceType() || ty.isConstQualified())
+    allocaOp.setConstantAttr(mlir::UnitAttr::get(builder.getContext()));
 
   symbolTable.insert(var, addr);
   return mlir::success();
@@ -324,10 +325,11 @@ mlir::LogicalResult CIRGenFunction::declare(Address addr, const Decl *var,
   assert(!symbolTable.count(var) && "not supposed to be available just yet");
 
   addrVal = addr.getPointer();
-  if (isParam) {
-    auto allocaOp = cast<mlir::cir::AllocaOp>(addrVal.getDefiningOp());
+  auto allocaOp = cast<mlir::cir::AllocaOp>(addrVal.getDefiningOp());
+  if (isParam)
     allocaOp.setInitAttr(mlir::UnitAttr::get(builder.getContext()));
-  }
+  if (ty->isReferenceType() || ty.isConstQualified())
+    allocaOp.setConstantAttr(mlir::UnitAttr::get(builder.getContext()));
 
   symbolTable.insert(var, addrVal);
   return mlir::success();
@@ -970,6 +972,29 @@ static bool matchesStlAllocatorFn(const Decl *D, const ASTContext &Ctx) {
   return true;
 }
 
+/// TODO: this should live in `buildFunctionProlog`
+/// An argument came in as a promoted argument; demote it back to its
+/// declared type.
+static mlir::Value emitArgumentDemotion(CIRGenFunction &CGF, const VarDecl *var,
+                                        mlir::Value value) {
+  mlir::Type ty = CGF.ConvertType(var->getType());
+
+  // This can happen with promotions that actually don't change the
+  // underlying type, like the enum promotions.
+  if (value.getType() == ty)
+    return value;
+
+  assert(
+      (isa<mlir::cir::IntType>(ty) || mlir::cir::isAnyFloatingPointType(ty)) &&
+      "unexpected promotion type");
+
+  if (isa<mlir::cir::IntType>(ty))
+    return CGF.getBuilder().CIRBaseBuilderTy::createIntCast(value, ty);
+
+  return CGF.getBuilder().CIRBaseBuilderTy::createCast(
+      mlir::cir::CastKind::floating, value, ty);
+}
+
 void CIRGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
                                    mlir::cir::FuncOp Fn,
                                    const CIRGenFunctionInfo &FnInfo,
@@ -1239,7 +1264,7 @@ void CIRGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
     // Declare all the function arguments in the symbol table.
     for (const auto nameValue : llvm::zip(Args, EntryBB->getArguments())) {
       auto *paramVar = std::get<0>(nameValue);
-      auto paramVal = std::get<1>(nameValue);
+      mlir::Value paramVal = std::get<1>(nameValue);
       auto alignment = getContext().getDeclAlign(paramVar);
       auto paramLoc = getLoc(paramVar->getSourceRange());
       paramVal.setLoc(paramLoc);
@@ -1251,6 +1276,13 @@ void CIRGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
 
       auto address = Address(addr, alignment);
       setAddrOfLocalVar(paramVar, address);
+
+      // TODO: this should live in `buildFunctionProlog`
+      bool isPromoted = isa<ParmVarDecl>(paramVar) &&
+                        cast<ParmVarDecl>(paramVar)->isKNRPromoted();
+      assert(!MissingFeatures::constructABIArgDirectExtend());
+      if (isPromoted)
+        paramVal = emitArgumentDemotion(*this, paramVar, paramVal);
 
       // Location of the store to the param storage tracked as beginning of
       // the function body.
@@ -1269,7 +1301,7 @@ void CIRGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
   }
 
   if (D && isa<CXXMethodDecl>(D) && cast<CXXMethodDecl>(D)->isInstance()) {
-    CGM.getCXXABI().buildInstanceFunctionProlog(*this);
+    CGM.getCXXABI().buildInstanceFunctionProlog(Loc, *this);
 
     const auto *MD = cast<CXXMethodDecl>(D);
     if (MD->getParent()->isLambda() && MD->getOverloadedOperator() == OO_Call) {
