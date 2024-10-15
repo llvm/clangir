@@ -107,9 +107,10 @@ struct S1 {
 S1 s1(S1 arg) {
 
   /// Cast argument and result of the function call to the expected types.
-  // CHECK: %[[#V9:]] = cir.cast(bitcast, %{{.+}} : !ty_S1_), !u64i
-  // CHECK: %[[#V10:]] = cir.call @_Z2s12S1(%[[#V9]]) : (!u64i) -> !u64i
-  // CHECK: %[[#V11:]] = cir.cast(bitcast, %[[#V10]] : !u64i), !ty_S1_
+  // CHECK: %[[#V10:]] = cir.cast(bitcast, %{{.+}} : !cir.ptr<!ty_S1_>), !cir.ptr<!u64i>
+  // CHECK: %[[#V11:]] = cir.load %[[#V10]] : !cir.ptr<!u64i>, !u64i
+  // CHECK: %[[#V12:]] = cir.call @_Z2s12S1(%[[#V11]]) : (!u64i) -> !u64i
+  // CHECK: %[[#V13:]] = cir.cast(bitcast, %[[#V12]] : !u64i), !ty_S1_
   s1({1, 2});
 
   // CHECK: %[[#V13:]] = cir.get_member %[[#V2]][0] {name = "a"} : !cir.ptr<!ty_S1_> -> !cir.ptr<!s32i>
