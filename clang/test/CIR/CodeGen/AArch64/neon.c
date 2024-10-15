@@ -5942,11 +5942,6 @@ uint16x4_t test_vrshrn_n_u32(uint32x4_t a) {
   // LLVM:   ret <4 x i16> [[VRSHRN_N1]]
 }
 
-// NYI-LABEL: @test_vrshrn_n_u64(
-// NYI:   [[TMP0:%.*]] = bitcast <2 x i64> %a to <16 x i8>
-// NYI:   [[VRSHRN_N:%.*]] = bitcast <16 x i8> [[TMP0]] to <2 x i64>
-// NYI:   [[VRSHRN_N1:%.*]] = call <2 x i32> @llvm.aarch64.neon.rshrn.v2i32(<2 x i64> [[VRSHRN_N]], i32 19)
-// NYI:   ret <2 x i32> [[VRSHRN_N1]]
 uint32x2_t test_vrshrn_n_u64(uint64x2_t a) {
   return vrshrn_n_u64(a, 19);
 
