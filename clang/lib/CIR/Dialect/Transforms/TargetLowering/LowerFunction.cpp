@@ -564,8 +564,10 @@ Value LowerFunction::buildAggregateBitcast(Value Val, Type DestTy) {
     auto ret = rewriter.create<CastOp>(
         Val.getLoc(), PointerType::get(rewriter.getContext(), DestTy),
         CastKind::bitcast, load.getAddr());
+
     return rewriter.create<LoadOp>(load.getLoc(), ret.getResult());
   }
+
   return rewriter.create<CastOp>(Val.getLoc(), DestTy, CastKind::bitcast, Val);
 }
 
