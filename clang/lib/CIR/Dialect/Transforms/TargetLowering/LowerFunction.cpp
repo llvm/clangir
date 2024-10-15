@@ -233,6 +233,15 @@ Value castReturnValue(Value Src, Type Ty, LowerFunction &LF) {
     //
     // FIXME: Assert that we aren't truncating non-padding bits when have access
     // to that information.
+
+    if (auto load = dyn_cast<LoadOp>(Src.getDefiningOp())) {
+      auto ret = LF.getRewriter().create<CastOp>(
+          Src.getLoc(), PointerType::get(LF.getRewriter().getContext(), Ty),
+          CastKind::bitcast, load.getAddr());
+
+      return LF.getRewriter().replaceOpWithNewOp<LoadOp>(load, ret.getResult());
+    }
+
     return LF.getRewriter().create<CastOp>(Src.getLoc(), Ty, CastKind::bitcast,
                                            Src);
   }

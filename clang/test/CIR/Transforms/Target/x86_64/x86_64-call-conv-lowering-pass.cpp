@@ -103,6 +103,7 @@ struct S1 {
 // CHECK: %[[#V0:]] = cir.alloca !ty_S1_, !cir.ptr<!ty_S1_>
 // CHECK: %[[#V1:]] = cir.cast(bitcast, %[[#V0]] : !cir.ptr<!ty_S1_>), !cir.ptr<!u64i>
 // CHECK: cir.store %arg0, %[[#V1]] : !u64i, !cir.ptr<!u64i>
+// CHECK: %[[#V2:]] = cir.alloca !ty_S1_, !cir.ptr<!ty_S1_>, ["__retval"]
 S1 s1(S1 arg) {
 
   /// Cast argument and result of the function call to the expected types.
@@ -111,8 +112,14 @@ S1 s1(S1 arg) {
   // CHECK: %[[#V11:]] = cir.cast(bitcast, %[[#V10]] : !u64i), !ty_S1_
   s1({1, 2});
 
-  // CHECK: %[[#V12:]] = cir.load %{{.+}} : !cir.ptr<!ty_S1_>, !ty_S1_
-  // CHECK: %[[#V13:]] = cir.cast(bitcast, %[[#V12]] : !ty_S1_), !u64i
-  // CHECK: cir.return %[[#V13]] : !u64i
+  // CHECK: %[[#V13:]] = cir.get_member %[[#V2]][0] {name = "a"} : !cir.ptr<!ty_S1_> -> !cir.ptr<!s32i>
+  // CHECK: %[[#V14:]] = cir.const #cir.int<1> : !s32i
+  // CHECK: cir.store %[[#V14]], %[[#V13]] : !s32i, !cir.ptr<!s32i>
+  // CHECK: %[[#V15:]] = cir.get_member %[[#V2]][1] {name = "b"} : !cir.ptr<!ty_S1_> -> !cir.ptr<!s32i>
+  // CHECK: %[[#V16:]] = cir.const #cir.int<2> : !s32i
+  // CHECK: cir.store %[[#V16]], %[[#V15]] : !s32i, !cir.ptr<!s32i>
+  // CHECK: %[[#V17:]] = cir.cast(bitcast, %[[#V2]] : !cir.ptr<!ty_S1_>), !cir.ptr<!u64i>
+  // CHECK: %[[#V18:]] = cir.load %[[#V17]] : !cir.ptr<!u64i>, !u64i
+  // CHECK: cir.return %[[#V18]] : !u64i
   return {1, 2};
 }
