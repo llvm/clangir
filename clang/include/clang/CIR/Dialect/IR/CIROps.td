@@ -1183,7 +1183,9 @@ def ShiftOp : CIR_Op<"shift", [Pure]> {
     Shift `left` or `right`, according to the first operand. Second operand is
     the shift target and the third the amount. Second and the thrid operand can
     be either integer type or vector of integer type. However, they must be
-    either all vector of integer type, or all integer type.  
+    either all vector of integer type, or all integer type. If they are vectors,
+    each vector element of the shift target is shifted by the corresponding
+    shift amount in the shift amount vector. 
 
     ```mlir
     %7 = cir.shift(left, %1 : !u64i, %4 : !s32i) -> !u64i
@@ -1191,8 +1193,8 @@ def ShiftOp : CIR_Op<"shift", [Pure]> {
     ```
   }];
 
-  let results = (outs CIR_AnyIntOrVecofInt:$result);
-  let arguments = (ins CIR_AnyIntOrVecofInt:$value, CIR_AnyIntOrVecofInt:$amount,
+  let results = (outs CIR_AnyIntOrVecOfInt:$result);
+  let arguments = (ins CIR_AnyIntOrVecOfInt:$value, CIR_AnyIntOrVecOfInt:$amount,
                        UnitAttr:$isShiftleft);
 
   let assemblyFormat = [{
