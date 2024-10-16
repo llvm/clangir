@@ -29,9 +29,9 @@ public:
 };
 
 
-int main() {
-    B *b = new D ();
-    return 0;
+int f() {
+  B *b = new D ();
+  return 0;
 }
 
 // Vtable of Class A
