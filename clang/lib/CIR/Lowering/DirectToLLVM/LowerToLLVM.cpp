@@ -2331,8 +2331,12 @@ public:
     // Initializer is a constant array: convert it to a compatible llvm init.
     if (auto constArr = mlir::dyn_cast<mlir::cir::ConstArrayAttr>(init.value())) {
       if (auto attr = mlir::dyn_cast<mlir::StringAttr>(constArr.getElts())) {
-        init = rewriter.getStringAttr(attr.getValue());
-      } else if (auto attr = mlir::dyn_cast<mlir::ArrayAttr>(constArr.getElts())) {
+        llvm::SmallString<256> literal(attr.getValue());
+        if (constArr.getTrailingZerosNum())
+          literal.append(constArr.getTrailingZerosNum(), '\0');
+        init = rewriter.getStringAttr(literal);
+      } else if (auto attr =
+                     mlir::dyn_cast<mlir::ArrayAttr>(constArr.getElts())) {
         // Failed to use a compact attribute as an initializer:
         // initialize elements individually.
         if (!(init = lowerConstArrayAttr(constArr, getTypeConverter()))) {
