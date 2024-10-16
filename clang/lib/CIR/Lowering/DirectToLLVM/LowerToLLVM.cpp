@@ -4208,6 +4208,9 @@ void prepareTypeConverter(mlir::LLVMTypeConverter &converter,
   converter.addConversion([&](mlir::cir::FP80Type type) -> mlir::Type {
     return mlir::FloatType::getF80(type.getContext());
   });
+  converter.addConversion([&](mlir::cir::FP128Type type) -> mlir::Type {
+    return mlir::FloatType::getF128(type.getContext());
+  });
   converter.addConversion([&](mlir::cir::LongDoubleType type) -> mlir::Type {
     return converter.convertType(type.getUnderlying());
   });
