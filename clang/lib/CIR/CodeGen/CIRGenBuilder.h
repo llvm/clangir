@@ -386,8 +386,33 @@ public:
     llvm_unreachable("NYI");
   }
 
-  mlir::cir::VectorType getExtendedElementVectorType(mlir::cir::VectorType vt,
-                                                     bool isSigned = false) {
+  mlir::cir::IntType getTruncatedIntTy(mlir::cir::IntType ty, bool isSigned) {
+    if (isInt16Ty(ty)) {
+      return isSigned ? getSInt8Ty() : getUInt8Ty();
+    }
+    if (isInt32Ty(ty)) {
+      return isSigned ? getSInt16Ty() : getUInt16Ty();
+    }
+    if (isInt64Ty(ty)) {
+      return isSigned ? getSInt32Ty() : getUInt32Ty();
+    }
+    llvm_unreachable("NYI");
+  }
+
+  mlir::cir::VectorType getExtendedOrTruncatedElementVectorType(
+      mlir::cir::VectorType vt, bool isExtended, bool isSigned = false) {
+    auto elementTy =
+        mlir::dyn_cast_or_null<mlir::cir::IntType>(vt.getEltType());
+    assert(elementTy && "expected int vector");
+    return mlir::cir::VectorType::get(
+        getContext(),
+        isExtended ? getExtendedIntTy(elementTy, isSigned)
+                   : getTruncatedIntTy(elementTy, isSigned),
+        vt.getSize());
+  }
+
+  mlir::cir::VectorType getTruncatedElementVectorType(mlir::cir::VectorType vt,
+                                                      bool isSigned = false) {
     auto elementTy =
         mlir::dyn_cast_or_null<mlir::cir::IntType>(vt.getEltType());
     assert(elementTy && "expected int vector");
