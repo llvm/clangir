@@ -7,35 +7,35 @@ int finite(double);
 void test_is_finite(__fp16 *H, float F, double D, long double LD) {
     volatile int res;
     res = __builtin_isinf(*H);
-    // CHECK: cir.is_fp_class(%{{.*}}, 516) : (!cir.f16) -> !cir.bool
+    // CHECK: cir.is_fp_class %{{.*}}, 516 : (!cir.f16) -> !cir.bool
 
     res = __builtin_isinf(F);
-    // CHECK: cir.is_fp_class(%{{.*}}, 516) : (!cir.float) -> !cir.bool
+    // CHECK: cir.is_fp_class %{{.*}}, 516 : (!cir.float) -> !cir.bool
 
     res = __builtin_isinf(D);
-    // CHECK: cir.is_fp_class(%{{.*}}, 516) : (!cir.double) -> !cir.bool
+    // CHECK: cir.is_fp_class %{{.*}}, 516 : (!cir.double) -> !cir.bool
 
     res = __builtin_isinf(LD);
-    // CHECK: cir.is_fp_class(%{{.*}}, 516) : (!cir.long_double<!cir.f80>) -> !cir.bool
+    // CHECK: cir.is_fp_class %{{.*}}, 516 : (!cir.long_double<!cir.f80>) -> !cir.bool
 
     res = __builtin_isfinite(*H);
-    // CHECK: cir.is_fp_class(%{{.*}}, 504) : (!cir.f16) -> !cir.bool
+    // CHECK: cir.is_fp_class %{{.*}}, 504 : (!cir.f16) -> !cir.bool
     res = __builtin_isfinite(F);
-    // CHECK: cir.is_fp_class(%{{.*}}, 504) : (!cir.float) -> !cir.bool
+    // CHECK: cir.is_fp_class %{{.*}}, 504 : (!cir.float) -> !cir.bool
     res = finite(D);
-    // CHECK: cir.is_fp_class(%{{.*}}, 504) : (!cir.double) -> !cir.bool
+    // CHECK: cir.is_fp_class %{{.*}}, 504 : (!cir.double) -> !cir.bool
 
     res = __builtin_isnormal(*H);
-    // CHECK: cir.is_fp_class(%{{.*}}, 264) : (!cir.f16) -> !cir.bool
+    // CHECK: cir.is_fp_class %{{.*}}, 264 : (!cir.f16) -> !cir.bool
     res = __builtin_isnormal(F);
-    // CHECK: cir.is_fp_class(%{{.*}}, 264) : (!cir.float) -> !cir.bool
+    // CHECK: cir.is_fp_class %{{.*}}, 264 : (!cir.float) -> !cir.bool
 
     res = __builtin_issubnormal(F);
-    // CHECK: cir.is_fp_class(%{{.*}}, 144) : (!cir.float) -> !cir.bool
+    // CHECK: cir.is_fp_class %{{.*}}, 144 : (!cir.float) -> !cir.bool
     res = __builtin_iszero(F);
-    // CHECK: cir.is_fp_class(%{{.*}}, 96) : (!cir.float) -> !cir.bool
+    // CHECK: cir.is_fp_class %{{.*}}, 96 : (!cir.float) -> !cir.bool
     res = __builtin_issignaling(F);
-    // CHECK: cir.is_fp_class(%{{.*}}, 1) : (!cir.float) -> !cir.bool
+    // CHECK: cir.is_fp_class %{{.*}}, 1 : (!cir.float) -> !cir.bool
 }
 
 _Bool check_isfpclass_finite(float x) {
@@ -43,14 +43,14 @@ _Bool check_isfpclass_finite(float x) {
 }
 
 // CHECK: cir.func {{.*}}@check_isfpclass_finite
-// CHECK: cir.is_fp_class(%{{.*}}, 504) : (!cir.float)
+// CHECK: cir.is_fp_class %{{.*}}, 504 : (!cir.float)
 
 _Bool check_isfpclass_nan_f32(float x) {
   return __builtin_isfpclass(x, 3 /*NaN*/);
 }
 
 // CHECK: cir.func {{.*}}@check_isfpclass_nan_f32
-// CHECK: cir.is_fp_class(%{{.*}}, 3) : (!cir.float)
+// CHECK: cir.is_fp_class %{{.*}}, 3 : (!cir.float)
 
 
 _Bool check_isfpclass_snan_f64(double x) {
@@ -58,7 +58,7 @@ _Bool check_isfpclass_snan_f64(double x) {
 }
 
 // CHECK: cir.func {{.*}}@check_isfpclass_snan_f64
-// CHECK: cir.is_fp_class(%{{.*}}, 1) : (!cir.double)
+// CHECK: cir.is_fp_class %{{.*}}, 1 : (!cir.double)
 
 
 _Bool check_isfpclass_zero_f16(_Float16 x) {
@@ -66,7 +66,7 @@ _Bool check_isfpclass_zero_f16(_Float16 x) {
 }
 
 // CHECK: cir.func {{.*}}@check_isfpclass_zero_f16
-// CHECK: cir.is_fp_class(%{{.*}}, 96) : (!cir.f16)
+// CHECK: cir.is_fp_class %{{.*}}, 96 : (!cir.f16)
 
 // Update when we support FP pragma in functions and can convert BoolType in prvalue to i1.
 
