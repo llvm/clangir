@@ -2212,7 +2212,7 @@ static int64_t getIntValueFromConstOp(mlir::Value val) {
 //     expression type.
 //  2. Function arg types are given, not deduced from actual arg types.
 static mlir::Value
-buildCommonNeonCallPattern0(CIRGenFunction &cgf, std::string &intrincsName,
+buildCommonNeonCallPattern0(CIRGenFunction &cgf, llvm::StringRef intrincsName,
                             llvm::SmallVector<mlir::Type> argTypes,
                             llvm::SmallVectorImpl<mlir::Value> &ops,
                             mlir::Type funcResTy, const clang::CallExpr *e) {
