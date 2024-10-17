@@ -38,9 +38,11 @@ def CIR_IntType : CIR_Type<"Int", "int",
     [DeclareTypeInterfaceMethods<DataLayoutTypeInterface>]> {
   let summary = "Integer type with arbitrary precision up to a fixed limit";
   let description = [{
-    CIR type that represents C/C++ primitive integer types.
-    Said types are: `char`, `short`, `int`, `long`, `long long`, and their \
-    unsigned variations.
+    CIR type that represents integer types with arbitrary precision.
+
+    Those integer types that are directly available in C/C++ standard are called
+    primitive integer types. Said types are: `signed char`, `short`, `int`,
+    `long`, `long long`, and their unsigned variations.
   }];
   let parameters = (ins "unsigned":$width, "bool":$isSigned);
   let hasCustomAssemblyFormat = 1;
@@ -62,7 +64,7 @@ def CIR_IntType : CIR_Type<"Int", "int",
     /// Returns a minimum bitwidth of cir::IntType
     static unsigned minBitwidth() { return 1; }
     /// Returns a maximum bitwidth of cir::IntType
-    static unsigned maxBitwidth() { return 64; }
+    static unsigned maxBitwidth() { return 128; }
 
     /// Returns true if cir::IntType that represents a primitive integer type
     /// can be constructed from the provided bitwidth.
@@ -171,6 +173,13 @@ def CIR_FP80 : CIR_FloatType<"FP80", "f80"> {
   }];
 }
 
+def CIR_FP128 : CIR_FloatType<"FP128", "f128"> {
+  let summary = "CIR type that represents IEEEquad 128-bit floating-point format";
+  let description = [{
+    Floating-point type that represents the IEEEquad 128-bit floating-point format.
+  }];
+}
+
 def CIR_LongDouble : CIR_FloatType<"LongDouble", "long_double"> {
   let summary = "CIR extended-precision float type";
   let description = [{
@@ -193,7 +202,7 @@ def CIR_LongDouble : CIR_FloatType<"LongDouble", "long_double"> {
 
 // Constraints
 
-def CIR_AnyFloat: AnyTypeOf<[CIR_Single, CIR_Double, CIR_FP80, CIR_LongDouble]>;
+def CIR_AnyFloat: AnyTypeOf<[CIR_Single, CIR_Double, CIR_FP80, CIR_FP128, CIR_LongDouble]>;
 def CIR_AnyIntOrFloat: AnyTypeOf<[CIR_AnyFloat, CIR_IntType]>;
 
 //===----------------------------------------------------------------------===//

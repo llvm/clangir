@@ -2280,6 +2280,26 @@ mlir::Value CIRGenFunction::buildCommonNeonBuiltinExpr(
     return builder.createVecShuffle(getLoc(e->getExprLoc()), ops[0], ops[1],
                                     indices);
   }
+  case NEON::BI__builtin_neon_vqdmulhq_lane_v:
+  case NEON::BI__builtin_neon_vqdmulh_lane_v:
+  case NEON::BI__builtin_neon_vqrdmulhq_lane_v:
+  case NEON::BI__builtin_neon_vqrdmulh_lane_v: {
+    mlir::cir::VectorType resTy =
+        (builtinID == NEON::BI__builtin_neon_vqdmulhq_lane_v ||
+         builtinID == NEON::BI__builtin_neon_vqrdmulhq_lane_v)
+            ? mlir::cir::VectorType::get(builder.getContext(), vTy.getEltType(),
+                                         vTy.getSize() * 2)
+            : vTy;
+    mlir::cir::VectorType mulVecT =
+        GetNeonType(this, NeonTypeFlags(neonType.getEltType(), false,
+                                        /*isQuad*/ false));
+    return buildNeonCall(builder, {resTy, mulVecT, SInt32Ty}, ops,
+                         (builtinID == NEON::BI__builtin_neon_vqdmulhq_lane_v ||
+                          builtinID == NEON::BI__builtin_neon_vqdmulh_lane_v)
+                             ? "llvm.aarch64.neon.sqdmulh.lane"
+                             : "llvm.aarch64.neon.sqrdmulh.lane",
+                         resTy, getLoc(e->getExprLoc()));
+  }
   }
 
   // This second switch is for the intrinsics that might have a more generic
@@ -3116,7 +3136,12 @@ CIRGenFunction::buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   case NEON::BI__builtin_neon_vqshrn_n_v:
     llvm_unreachable("NYI");
   case NEON::BI__builtin_neon_vrshrn_n_v:
-    llvm_unreachable("NYI");
+    return buildNeonCall(
+        builder,
+        {builder.getExtendedElementVectorType(
+             vTy, mlir::cast<mlir::cir::IntType>(vTy.getEltType()).isSigned()),
+         SInt32Ty},
+        Ops, "llvm.aarch64.neon.rshrn", ty, getLoc(E->getExprLoc()));
   case NEON::BI__builtin_neon_vqrshrn_n_v:
     llvm_unreachable("NYI");
   case NEON::BI__builtin_neon_vrndah_f16: {

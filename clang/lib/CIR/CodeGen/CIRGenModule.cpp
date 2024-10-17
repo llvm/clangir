@@ -35,6 +35,7 @@
 #include "mlir/IR/Verifier.h"
 #include "clang/AST/Expr.h"
 #include "clang/Basic/Cuda.h"
+#include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/MissingFeatures.h"
 
 #include "clang/AST/ASTConsumer.h"
@@ -74,8 +75,8 @@
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FileSystem.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/TimeProfiler.h"
+#include "llvm/Support/raw_ostream.h"
 
 #include <iterator>
 #include <numeric>
@@ -120,6 +121,8 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &context,
       ::mlir::cir::IntType::get(builder.getContext(), 32, /*isSigned=*/true);
   SInt64Ty =
       ::mlir::cir::IntType::get(builder.getContext(), 64, /*isSigned=*/true);
+  SInt128Ty =
+      ::mlir::cir::IntType::get(builder.getContext(), 128, /*isSigned=*/true);
 
   // Initialize CIR unsigned integer types cache.
   UInt8Ty =
@@ -130,6 +133,8 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &context,
       ::mlir::cir::IntType::get(builder.getContext(), 32, /*isSigned=*/false);
   UInt64Ty =
       ::mlir::cir::IntType::get(builder.getContext(), 64, /*isSigned=*/false);
+  UInt128Ty =
+      ::mlir::cir::IntType::get(builder.getContext(), 128, /*isSigned=*/false);
 
   VoidTy = ::mlir::cir::VoidType::get(builder.getContext());
 
@@ -141,6 +146,7 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &context,
   FloatTy = ::mlir::cir::SingleType::get(builder.getContext());
   DoubleTy = ::mlir::cir::DoubleType::get(builder.getContext());
   FP80Ty = ::mlir::cir::FP80Type::get(builder.getContext());
+  FP128Ty = ::mlir::cir::FP128Type::get(builder.getContext());
 
   // TODO: PointerWidthInBits
   PointerAlignInBytes =
@@ -192,8 +198,7 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &context,
   theModule->setAttr("cir.sob",
                      mlir::cir::SignedOverflowBehaviorAttr::get(&context, sob));
   auto lang = SourceLanguageAttr::get(&context, getCIRSourceLanguage());
-  theModule->setAttr(
-      "cir.lang", mlir::cir::LangAttr::get(&context, lang));
+  theModule->setAttr("cir.lang", mlir::cir::LangAttr::get(&context, lang));
   theModule->setAttr("cir.triple", builder.getStringAttr(getTriple().str()));
   // Set the module name to be the name of the main file. TranslationUnitDecl
   // often contains invalid source locations and isn't a reliable source for the
@@ -2130,16 +2135,6 @@ mlir::cir::GlobalLinkageKind CIRGenModule::getFunctionLinkage(GlobalDecl GD) {
   if (const auto *Dtor = dyn_cast<CXXDestructorDecl>(D))
     return getCXXABI().getCXXDestructorLinkage(Linkage, Dtor, GD.getDtorType());
 
-  if (isa<CXXConstructorDecl>(D) &&
-      cast<CXXConstructorDecl>(D)->isInheritingConstructor() &&
-      astCtx.getTargetInfo().getCXXABI().isMicrosoft()) {
-    // Just like in LLVM codegen:
-    // Our approach to inheriting constructors is fundamentally different from
-    // that used by the MS ABI, so keep our inheriting constructor thunks
-    // internal rather than trying to pick an unambiguous mangling for them.
-    return mlir::cir::GlobalLinkageKind::InternalLinkage;
-  }
-
   return getCIRLinkageForDeclarator(D, Linkage, /*IsConstantVariable=*/false);
 }
 
@@ -3031,9 +3026,110 @@ void CIRGenModule::Release() {
   // TODO: FINISH THE REST OF THIS
 }
 
-bool CIRGenModule::shouldEmitFunction(GlobalDecl GD) {
-  // TODO: implement this -- requires defining linkage for CIR
-  return true;
+namespace {
+// TODO(cir): This should be a common helper shared with CodeGen.
+struct FunctionIsDirectlyRecursive
+    : public ConstStmtVisitor<FunctionIsDirectlyRecursive, bool> {
+  const StringRef name;
+  const Builtin::Context &builtinCtx;
+  FunctionIsDirectlyRecursive(StringRef name,
+                              const Builtin::Context &builtinCtx)
+      : name(name), builtinCtx(builtinCtx) {}
+
+  bool VisitCallExpr(const CallExpr *expr) {
+    const FunctionDecl *func = expr->getDirectCallee();
+    if (!func)
+      return false;
+    AsmLabelAttr *attr = func->getAttr<AsmLabelAttr>();
+    if (attr && name == attr->getLabel())
+      return true;
+    unsigned builtinId = func->getBuiltinID();
+    if (!builtinId || !builtinCtx.isLibFunction(builtinId))
+      return false;
+    StringRef builtinName = builtinCtx.getName(builtinId);
+    if (builtinName.starts_with("__builtin_") &&
+        name == builtinName.slice(strlen("__builtin_"), StringRef::npos)) {
+      return true;
+    }
+    return false;
+  }
+
+  bool VisitStmt(const Stmt *stmt) {
+    for (const Stmt *child : stmt->children())
+      if (child && this->Visit(child))
+        return true;
+    return false;
+  }
+};
+} // namespace
+
+// isTriviallyRecursive - Check if this function calls another
+// decl that, because of the asm attribute or the other decl being a builtin,
+// ends up pointing to itself.
+// TODO(cir): This should be a common helper shared with CodeGen.
+bool CIRGenModule::isTriviallyRecursive(const FunctionDecl *func) {
+  StringRef name;
+  if (getCXXABI().getMangleContext().shouldMangleDeclName(func)) {
+    // asm labels are a special kind of mangling we have to support.
+    AsmLabelAttr *attr = func->getAttr<AsmLabelAttr>();
+    if (!attr)
+      return false;
+    name = attr->getLabel();
+  } else {
+    name = func->getName();
+  }
+
+  FunctionIsDirectlyRecursive walker(name, astCtx.BuiltinInfo);
+  const Stmt *body = func->getBody();
+  return body ? walker.Visit(body) : false;
+}
+
+// TODO(cir): This should be a common helper shared with CodeGen.
+bool CIRGenModule::shouldEmitFunction(GlobalDecl globalDecl) {
+  if (getFunctionLinkage(globalDecl) !=
+      GlobalLinkageKind::AvailableExternallyLinkage)
+    return true;
+
+  const auto *func = cast<FunctionDecl>(globalDecl.getDecl());
+  // Inline builtins declaration must be emitted. They often are fortified
+  // functions.
+  if (func->isInlineBuiltinDeclaration())
+    return true;
+
+  if (codeGenOpts.OptimizationLevel == 0 && !func->hasAttr<AlwaysInlineAttr>())
+    return false;
+
+  // We don't import function bodies from other named module units since that
+  // behavior may break ABI compatibility of the current unit.
+  if (const Module *mod = func->getOwningModule();
+      mod && mod->getTopLevelModule()->isNamedModule() &&
+      astCtx.getCurrentNamedModule() != mod->getTopLevelModule()) {
+    // There are practices to mark template member function as always-inline
+    // and mark the template as extern explicit instantiation but not give
+    // the definition for member function. So we have to emit the function
+    // from explicitly instantiation with always-inline.
+    //
+    // See https://github.com/llvm/llvm-project/issues/86893 for details.
+    //
+    // TODO: Maybe it is better to give it a warning if we call a non-inline
+    // function from other module units which is marked as always-inline.
+    if (!func->isTemplateInstantiation() || !func->hasAttr<AlwaysInlineAttr>())
+      return false;
+  }
+
+  if (func->hasAttr<NoInlineAttr>())
+    return false;
+
+  if (func->hasAttr<DLLImportAttr>() && !func->hasAttr<AlwaysInlineAttr>())
+    assert(!MissingFeatures::setDLLImportDLLExport() &&
+           "shouldEmitFunction for dllimport is NYI");
+
+  // PR9614. Avoid cases where the source code is lying to us. An available
+  // externally function should have an equivalent function somewhere else,
+  // but a function that calls itself through asm label/`__builtin_` trickery is
+  // clearly not equivalent to the real implementation.
+  // This happens in glibc's btowc and in some configure checks.
+  return !isTriviallyRecursive(func);
 }
 
 bool CIRGenModule::supportsCOMDAT() const {

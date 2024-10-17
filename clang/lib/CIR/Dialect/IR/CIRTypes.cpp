@@ -604,8 +604,9 @@ Type IntType::parse(mlir::AsmParser &parser) {
   // Fetch integer size.
   if (parser.parseInteger(width))
     return {};
-  if (width < 1 || width > 64) {
-    parser.emitError(loc, "expected integer width to be from 1 up to 64");
+  if (width < IntType::minBitwidth() || width > IntType::maxBitwidth()) {
+    parser.emitError(loc, "expected integer width to be from ")
+        << IntType::minBitwidth() << " up to " << IntType::maxBitwidth();
     return {};
   }
 
@@ -643,7 +644,8 @@ IntType::verify(llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
 
   if (width < IntType::minBitwidth() || width > IntType::maxBitwidth()) {
     emitError() << "IntType only supports widths from "
-                << IntType::minBitwidth() << "up to " << IntType::maxBitwidth();
+                << IntType::minBitwidth() << " up to "
+                << IntType::maxBitwidth();
     return mlir::failure();
   }
 
@@ -761,6 +763,27 @@ FP80Type::getPreferredAlignment(const ::mlir::DataLayout &dataLayout,
   return 16;
 }
 
+const llvm::fltSemantics &FP128Type::getFloatSemantics() const {
+  return llvm::APFloat::IEEEquad();
+}
+
+llvm::TypeSize
+FP128Type::getTypeSizeInBits(const mlir::DataLayout &dataLayout,
+                             mlir::DataLayoutEntryListRef params) const {
+  return llvm::TypeSize::getFixed(16);
+}
+
+uint64_t FP128Type::getABIAlignment(const mlir::DataLayout &dataLayout,
+                                    mlir::DataLayoutEntryListRef params) const {
+  return 16;
+}
+
+uint64_t
+FP128Type::getPreferredAlignment(const ::mlir::DataLayout &dataLayout,
+                                 ::mlir::DataLayoutEntryListRef params) const {
+  return 16;
+}
+
 const llvm::fltSemantics &LongDoubleType::getFloatSemantics() const {
   return mlir::cast<mlir::cir::CIRFPTypeInterface>(getUnderlying())
       .getFloatSemantics();
@@ -790,7 +813,7 @@ uint64_t LongDoubleType::getPreferredAlignment(
 LogicalResult
 LongDoubleType::verify(function_ref<InFlightDiagnostic()> emitError,
                        mlir::Type underlying) {
-  if (!mlir::isa<DoubleType, FP80Type>(underlying)) {
+  if (!mlir::isa<DoubleType, FP80Type, FP128Type>(underlying)) {
     emitError() << "invalid underlying type for long double";
     return failure();
   }

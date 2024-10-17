@@ -1205,7 +1205,8 @@ void CIRGenFunction::buildDestructorBody(FunctionArgList &Args) {
       if (CGM.getCodeGenOpts().StrictVTablePointers &&
           CGM.getCodeGenOpts().OptimizationLevel > 0)
         llvm_unreachable("NYI");
-      llvm_unreachable("NYI");
+      initializeVTablePointers(getLoc(Dtor->getSourceRange()),
+                               Dtor->getParent());
     }
 
     if (isTryBody)
@@ -1466,7 +1467,12 @@ mlir::Value CIRGenFunction::GetVTTParameter(GlobalDecl GD, bool ForVirtualBase,
   if (Delegating) {
     llvm_unreachable("NYI");
   } else if (RD == Base) {
-    llvm_unreachable("NYI");
+    // If the record matches the base, this is the complete ctor/dtor
+    // variant calling the base variant in a class with virtual bases.
+    assert(!CGM.getCXXABI().NeedsVTTParameter(CurGD) &&
+           "doing no-op VTT offset in base dtor/ctor?");
+    assert(!ForVirtualBase && "Can't have same class as virtual base!");
+    SubVTTIndex = 0;
   } else {
     const ASTRecordLayout &Layout = getContext().getASTRecordLayout(RD);
     CharUnits BaseOffset = ForVirtualBase ? Layout.getVBaseClassOffset(Base)
@@ -1803,4 +1809,86 @@ void CIRGenFunction::buildCXXAggrConstructorCall(
 
   if (constantCount.use_empty())
     constantCount.erase();
+}
+
+void CIRGenFunction::buildCXXConstructorCall(const clang::CXXConstructorDecl *D,
+                                             clang::CXXCtorType Type,
+                                             bool ForVirtualBase,
+                                             bool Delegating,
+                                             AggValueSlot ThisAVS,
+                                             const clang::CXXConstructExpr *E) {
+  CallArgList Args;
+  Address This = ThisAVS.getAddress();
+  LangAS SlotAS = ThisAVS.getQualifiers().getAddressSpace();
+  QualType ThisType = D->getThisType();
+  LangAS ThisAS = ThisType.getTypePtr()->getPointeeType().getAddressSpace();
+  mlir::Value ThisPtr = This.getPointer();
+
+  assert(SlotAS == ThisAS && "This edge case NYI");
+
+  Args.add(RValue::get(ThisPtr), D->getThisType());
+
+  // In LLVM Codegen: If this is a trivial constructor, just emit what's needed.
+  // If this is a union copy constructor, we must emit a memcpy, because the AST
+  // does not model that copy.
+  if (isMemcpyEquivalentSpecialMember(D)) {
+    assert(!MissingFeatures::isMemcpyEquivalentSpecialMember());
+  }
+
+  const FunctionProtoType *FPT = D->getType()->castAs<FunctionProtoType>();
+  EvaluationOrder Order = E->isListInitialization()
+                              ? EvaluationOrder::ForceLeftToRight
+                              : EvaluationOrder::Default;
+
+  buildCallArgs(Args, FPT, E->arguments(), E->getConstructor(),
+                /*ParamsToSkip*/ 0, Order);
+
+  buildCXXConstructorCall(D, Type, ForVirtualBase, Delegating, This, Args,
+                          ThisAVS.mayOverlap(), E->getExprLoc(),
+                          ThisAVS.isSanitizerChecked());
+}
+
+void CIRGenFunction::buildCXXConstructorCall(
+    const CXXConstructorDecl *D, CXXCtorType Type, bool ForVirtualBase,
+    bool Delegating, Address This, CallArgList &Args,
+    AggValueSlot::Overlap_t Overlap, SourceLocation Loc,
+    bool NewPointerIsChecked) {
+
+  const auto *ClassDecl = D->getParent();
+
+  if (!NewPointerIsChecked)
+    buildTypeCheck(CIRGenFunction::TCK_ConstructorCall, Loc, This.getPointer(),
+                   getContext().getRecordType(ClassDecl), CharUnits::Zero());
+
+  // If this is a call to a trivial default constructor:
+  // In LLVM: do nothing.
+  // In CIR: emit as a regular call, other later passes should lower the
+  // ctor call into trivial initialization.
+  assert(!MissingFeatures::isTrivialCtorOrDtor());
+
+  if (isMemcpyEquivalentSpecialMember(D)) {
+    assert(!MissingFeatures::isMemcpyEquivalentSpecialMember());
+  }
+
+  bool PassPrototypeArgs = true;
+
+  assert(!D->getInheritedConstructor() && "inheritance NYI");
+
+  // Insert any ABI-specific implicit constructor arguments.
+  CIRGenCXXABI::AddedStructorArgCounts ExtraArgs =
+      CGM.getCXXABI().addImplicitConstructorArgs(*this, D, Type, ForVirtualBase,
+                                                 Delegating, Args);
+
+  // Emit the call.
+  auto CalleePtr = CGM.getAddrOfCXXStructor(GlobalDecl(D, Type));
+  const CIRGenFunctionInfo &Info = CGM.getTypes().arrangeCXXConstructorCall(
+      Args, D, Type, ExtraArgs.Prefix, ExtraArgs.Suffix, PassPrototypeArgs);
+  CIRGenCallee Callee = CIRGenCallee::forDirect(CalleePtr, GlobalDecl(D, Type));
+  mlir::cir::CIRCallOpInterface C;
+  buildCall(Info, Callee, ReturnValueSlot(), Args, &C, false, getLoc(Loc));
+
+  assert(CGM.getCodeGenOpts().OptimizationLevel == 0 ||
+         ClassDecl->isDynamicClass() || Type == Ctor_Base ||
+         !CGM.getCodeGenOpts().StrictVTablePointers &&
+             "vtable assumption loads NYI");
 }
