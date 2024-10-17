@@ -4049,7 +4049,7 @@ def IsFPClassOp : CIR_Op<"is_fp_class"> {
                        I32Attr:$flags);
   let results = (outs CIR_BoolType:$result);
   let assemblyFormat = [{
-    `(` $src`,` $flags `)` `:` functional-type($src, $result) attr-dict
+    $src `,` $flags `:` functional-type($src, $result) attr-dict
   }];
 }
 
