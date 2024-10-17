@@ -2304,7 +2304,7 @@ mlir::Value CIRGenFunction::buildCommonNeonBuiltinExpr(
 
   // This second switch is for the intrinsics that might have a more generic
   // codegen solution so we can use the common codegen in future.
-  std::string intrincsName;
+  llvm::StringRef intrincsName;
   switch (builtinID) {
   default:
     llvm::errs() << getAArch64SIMDIntrinsicString(builtinID) << " ";
