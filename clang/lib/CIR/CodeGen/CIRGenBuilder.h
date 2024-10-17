@@ -411,15 +411,6 @@ public:
         vt.getSize());
   }
 
-  mlir::cir::VectorType getTruncatedElementVectorType(mlir::cir::VectorType vt,
-                                                      bool isSigned = false) {
-    auto elementTy =
-        mlir::dyn_cast_or_null<mlir::cir::IntType>(vt.getEltType());
-    assert(elementTy && "expected int vector");
-    return mlir::cir::VectorType::get(
-        getContext(), getExtendedIntTy(elementTy, isSigned), vt.getSize());
-  }
-
   mlir::cir::LongDoubleType
   getLongDoubleTy(const llvm::fltSemantics &format) const {
     if (&format == &llvm::APFloat::IEEEdouble())
