@@ -2304,6 +2304,7 @@ mlir::Value CIRGenFunction::buildCommonNeonBuiltinExpr(
 
   // This second switch is for the intrinsics that might have a more generic
   // codegen solution so we can use the common codegen in future.
+  std::string intrincsName;
   switch (builtinID) {
   default:
     llvm::errs() << getAArch64SIMDIntrinsicString(builtinID) << " ";
@@ -2311,22 +2312,27 @@ mlir::Value CIRGenFunction::buildCommonNeonBuiltinExpr(
 
   case NEON::BI__builtin_neon_vpadd_v:
   case NEON::BI__builtin_neon_vpaddq_v: {
-    std::string intrincsName = mlir::isa<mlir::FloatType>(vTy.getEltType())
-                                   ? "llvm.aarch64.neon.faddp"
-                                   : "llvm.aarch64.neon.addp";
-    return buildCommonNeonCallPattern0(*this, intrincsName, {vTy, vTy}, ops,
-                                       vTy, e);
+    intrincsName = mlir::isa<mlir::FloatType>(vTy.getEltType())
+                       ? "llvm.aarch64.neon.faddp"
+                       : "llvm.aarch64.neon.addp";
     break;
   }
-  case NEON::BI__builtin_neon_vqadd_v: {
-    std::string intrincsName = (intrinicId != altLLVMIntrinsic)
-                                   ? "llvm.aarch64.neon.uqadd"
-                                   : "llvm.aarch64.neon.sqadd";
-    return buildCommonNeonCallPattern0(*this, intrincsName, {vTy, vTy}, ops,
-                                       vTy, e);
+  case NEON::BI__builtin_neon_vqadd_v:
+  case NEON::BI__builtin_neon_vqaddq_v: {
+    intrincsName = (intrinicId != altLLVMIntrinsic) ? "llvm.aarch64.neon.uqadd"
+                                                    : "llvm.aarch64.neon.sqadd";
+    break;
+  }
+  case NEON::BI__builtin_neon_vqsub_v:
+  case NEON::BI__builtin_neon_vqsubq_v: {
+    intrincsName = (intrinicId != altLLVMIntrinsic) ? "llvm.aarch64.neon.uqsub"
+                                                    : "llvm.aarch64.neon.sqsub";
     break;
   }
   }
+  if (!intrincsName.empty())
+    return buildCommonNeonCallPattern0(*this, intrincsName, {vTy, vTy}, ops,
+                                       vTy, e);
   return nullptr;
 }
 
