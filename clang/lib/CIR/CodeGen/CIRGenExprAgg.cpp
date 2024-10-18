@@ -311,9 +311,7 @@ public:
   }
   void VisitCXXBindTemporaryExpr(CXXBindTemporaryExpr *E);
   void VisitCXXConstructExpr(const CXXConstructExpr *E);
-  void VisitCXXInheritedCtorInitExpr(const CXXInheritedCtorInitExpr *E) {
-    llvm_unreachable("NYI");
-  }
+  void VisitCXXInheritedCtorInitExpr(const CXXInheritedCtorInitExpr *E);
   void VisitLambdaExpr(LambdaExpr *E);
   void VisitCXXStdInitializerListExpr(CXXStdInitializerListExpr *E) {
     ASTContext &Ctx = CGF.getContext();
@@ -1469,6 +1467,14 @@ void AggExprEmitter::VisitAbstractConditionalOperator(
 void AggExprEmitter::VisitBinComma(const BinaryOperator *E) {
   CGF.buildIgnoredExpr(E->getLHS());
   Visit(E->getRHS());
+}
+
+void AggExprEmitter::VisitCXXInheritedCtorInitExpr(
+    const CXXInheritedCtorInitExpr *E) {
+  AggValueSlot Slot = EnsureSlot(CGF.getLoc(E->getSourceRange()), E->getType());
+  CGF.buildInheritedCXXConstructorCall(E->getConstructor(),
+                                       E->constructsVBase(), Slot.getAddress(),
+                                       E->inheritedFromVBase(), E);
 }
 
 //===----------------------------------------------------------------------===//
