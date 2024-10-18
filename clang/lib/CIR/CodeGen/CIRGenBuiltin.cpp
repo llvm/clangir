@@ -1966,7 +1966,7 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   case Builtin::BI__builtin_coro_end:
   case Builtin::BI__builtin_coro_suspend:
   case Builtin::BI__builtin_coro_align:
-    llvm_unreachable("NYI");
+    llvm_unreachable("BI__builtin_coro_id like NYI");
 
   case Builtin::BI__builtin_coro_frame: {
     return buildCoroutineFrame();
