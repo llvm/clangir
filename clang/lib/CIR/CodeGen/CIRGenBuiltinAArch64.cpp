@@ -2368,6 +2368,14 @@ mlir::Value CIRGenFunction::buildCommonNeonBuiltinExpr(
   return nullptr;
 }
 
+static bool isTypeCIRFPOrCIRFPVectorTy(mlir::Type ty) {
+  if (mlir::isa<mlir::cir::CIRFPTypeInterface>(ty))
+    return true;
+  if (auto vecTy = mlir::dyn_cast<mlir::cir::VectorType>(ty))
+    return mlir::isa<mlir::cir::CIRFPTypeInterface>(vecTy.getEltType());
+  return false;
+}
+
 mlir::Value
 CIRGenFunction::buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
                                         ReturnValueSlot ReturnValue,
@@ -3134,8 +3142,14 @@ CIRGenFunction::buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
     llvm_unreachable("NYI");
   }
   case NEON::BI__builtin_neon_vabd_v:
-  case NEON::BI__builtin_neon_vabdq_v:
-    llvm_unreachable("NYI");
+  case NEON::BI__builtin_neon_vabdq_v: {
+    llvm::StringRef name =
+        usgn ? "llvm.aarch64.neon.uabd" : "llvm.aarch64.neon.sabd";
+    if (isTypeCIRFPOrCIRFPVectorTy(ty))
+      name = "llvm.aarch64.neon.fabd";
+    return buildNeonCall(builder, {ty, ty}, Ops, name, ty,
+                         getLoc(E->getExprLoc()));
+  }
   case NEON::BI__builtin_neon_vpadal_v:
   case NEON::BI__builtin_neon_vpadalq_v: {
     llvm_unreachable("NYI");
