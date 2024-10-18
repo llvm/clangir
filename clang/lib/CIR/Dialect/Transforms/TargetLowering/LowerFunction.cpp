@@ -43,12 +43,12 @@ Value buildAddressAtOffset(LowerFunction &LF, Value addr,
 }
 
 Value emitPointerBitcast(Value Src, Type DestTy, LowerFunction &CGF) {
-  auto destPtrTy = PointerType::get(Src.getContext(), DestTy);
+  auto destPtrTy = PointerType::get(CGF.getRewriter().getContext(), DestTy);
 
   if (Src.getDefiningOp())
     if (auto load = dyn_cast<LoadOp>(Src.getDefiningOp()))
-      return CGF.getRewriter().replaceOpWithNewOp<CastOp>(
-          load, destPtrTy, CastKind::bitcast, load.getAddr());
+      return CGF.getRewriter().create<CastOp>(
+          Src.getLoc(), destPtrTy, CastKind::bitcast, load.getAddr());
 
   return CGF.getRewriter().create<CastOp>(Src.getLoc(), destPtrTy,
                                           CastKind::bitcast, Src);
