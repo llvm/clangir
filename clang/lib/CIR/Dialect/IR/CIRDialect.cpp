@@ -388,6 +388,14 @@ static LogicalResult checkConstantTypes(mlir::Operation *op, mlir::Type opType,
     return op->emitOpError("zero expects struct or array type");
   }
 
+  if (isa<UndefAttr>(attrType)) {
+    // Per the LLVM LangRef, "Undefined values may be of any type (other than
+    // 'label' or 'void')". We don't have label types so we just check for void.
+    if (!::mlir::isa<::mlir::cir::VoidType>(opType))
+      return success();
+    return op->emitOpError("undef expects non-void type");
+  }
+
   if (mlir::isa<mlir::cir::BoolAttr>(attrType)) {
     if (!mlir::isa<mlir::cir::BoolType>(opType))
       return op->emitOpError("result type (")
