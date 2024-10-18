@@ -2802,7 +2802,11 @@ public:
     if (op.getIsShiftleft())
       rewriter.replaceOpWithNewOp<mlir::LLVM::ShlOp>(op, llvmTy, val, amt);
     else {
-      if (cirValTy.isUnsigned())
+      bool isUnSigned =
+          cirValTy ? !cirValTy.isSigned()
+                   : !mlir::cast<mlir::cir::IntType>(cirValVTy.getEltType())
+                          .isSigned();
+      if (isUnSigned)
         rewriter.replaceOpWithNewOp<mlir::LLVM::LShrOp>(op, llvmTy, val, amt);
       else
         rewriter.replaceOpWithNewOp<mlir::LLVM::AShrOp>(op, llvmTy, val, amt);
