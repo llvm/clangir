@@ -45,9 +45,10 @@ Value buildAddressAtOffset(LowerFunction &LF, Value addr,
 Value emitPointerBitcast(Value Src, Type DestTy, LowerFunction &CGF) {
   auto destPtrTy = PointerType::get(Src.getContext(), DestTy);
 
-  if (auto load = dyn_cast<LoadOp>(Src.getDefiningOp()))
-    return CGF.getRewriter().replaceOpWithNewOp<CastOp>(
-        load, destPtrTy, CastKind::bitcast, load.getAddr());
+  if (Src.getDefiningOp())
+    if (auto load = dyn_cast<LoadOp>(Src.getDefiningOp()))
+      return CGF.getRewriter().replaceOpWithNewOp<CastOp>(
+          load, destPtrTy, CastKind::bitcast, load.getAddr());
 
   return CGF.getRewriter().create<CastOp>(Src.getLoc(), destPtrTy,
                                           CastKind::bitcast, Src);
@@ -897,7 +898,6 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
       if (dyn_cast<StructType>(RetTy) &&
           cast<StructType>(RetTy).getNumElements() != 0) {
         RetVal = newCallOp.getResult();
-        // createCoercedValue(newCallOp.getResult(), RetVal.getType(), *this);
       }
 
       // NOTE(cir): No need to convert from a temp to an RValue. This is
