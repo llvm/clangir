@@ -8040,8 +8040,8 @@ int16x8_t test_vmull_s8(int8x8_t a, int8x8_t b) {
   // CIR-SAME: (!cir.vector<!s8i x 8>, !cir.vector<!s8i x 8>) -> !cir.vector<!s16i x 8>
 
   // LLVM: {{.*}}test_vmull_s8(<8 x i8>{{.*}}[[A:%.*]], <8 x i8>{{.*}}[[B:%.*]])
-  // LLVM: [[RES:%.*]] = call <8 x i16> @llvm.aarch64.neon.smull.v8i16(<8 x i8> [[A]], <8 x i8> [[B]])
-  // LLVM: ret <8 x i16> [[RES]]
+  // LLVM: [[VMULL_I:%.*]] = call <8 x i16> @llvm.aarch64.neon.smull.v8i16(<8 x i8> [[A]], <8 x i8> [[B]])
+  // LLVM: ret <8 x i16> [[VMULL_I]]
 }
 
 int32x4_t test_vmull_s16(int16x4_t a, int16x4_t b) {
@@ -8052,8 +8052,10 @@ int32x4_t test_vmull_s16(int16x4_t a, int16x4_t b) {
   // CIR-SAME: (!cir.vector<!s16i x 4>, !cir.vector<!s16i x 4>) -> !cir.vector<!s32i x 4>
 
   // LLVM: {{.*}}test_vmull_s16(<4 x i16>{{.*}}[[A:%.*]], <4 x i16>{{.*}}[[B:%.*]])
-  // LLVM: [[RES:%.*]] = call <4 x i32> @llvm.aarch64.neon.smull.v4i32(<4 x i16> [[A]], <4 x i16> [[B]])
-  // LLVM: ret <4 x i32> [[RES]]
+  // LLVM: [[TMP0:%.*]] = bitcast <4 x i16> [[A]] to <8 x i8>
+  // LLVM: [[TMP1:%.*]] = bitcast <4 x i16> [[B]] to <8 x i8>
+  // LLVM: [[VMULL2_I:%.*]] = call <4 x i32> @llvm.aarch64.neon.smull.v4i32(<4 x i16> [[A]], <4 x i16> [[B]])
+  // LLVM: ret <4 x i32> [[VMULL2_I]]
 }
 
 int64x2_t test_vmull_s32(int32x2_t a, int32x2_t b) {
@@ -8064,8 +8066,22 @@ int64x2_t test_vmull_s32(int32x2_t a, int32x2_t b) {
   // CIR-SAME: (!cir.vector<!s32i x 2>, !cir.vector<!s32i x 2>) -> !cir.vector<!s64i x 2>
 
   // LLVM: {{.*}}test_vmull_s32(<2 x i32>{{.*}}[[A:%.*]], <2 x i32>{{.*}}[[B:%.*]])
-  // LLVM: [[RES:%.*]] = call <2 x i64> @llvm.aarch64.neon.smull.v2i64(<2 x i32> [[A]], <2 x i32> [[B]])
-  // LLVM: ret <2 x i64> [[RES]]
+  // LLVM: [[TMP0:%.*]] = bitcast <2 x i32> [[A]] to <8 x i8>
+  // LLVM: [[TMP1:%.*]] = bitcast <2 x i32> [[B]] to <8 x i8>
+  // LLVM: [[VMULL2_I:%.*]] = call <2 x i64> @llvm.aarch64.neon.smull.v2i64(<2 x i32> [[A]], <2 x i32> [[B]])
+  // LLVM: ret <2 x i64> [[VMULL2_I]]
+}
+
+uint16x8_t test_vmull_u8(uint8x8_t a, uint8x8_t b) {
+  return vmull_u8(a, b);
+
+  // CIR-LABEL: vmull_u8
+  // CIR: {{%.*}} = cir.llvm.intrinsic "llvm.aarch64.neon.umull" {{%.*}}, {{%.*}} : 
+  // CIR-SAME: (!cir.vector<!u8i x 8>, !cir.vector<!u8i x 8>) -> !cir.vector<!u16i x 8>
+
+  // LLVM: {{.*}}test_vmull_u8(<8 x i8>{{.*}}[[A:%.*]], <8 x i8>{{.*}}[[B:%.*]])
+  // LLVM: [[VMULL_I:%.*]] = call <8 x i16> @llvm.aarch64.neon.umull.v8i16(<8 x i8> [[A]], <8 x i8> [[B]])
+  // LLVM: ret <8 x i16> [[VMULL_I]]
 }
 
 uint32x4_t test_vmull_u16(uint16x4_t a, uint16x4_t b) {
@@ -8076,8 +8092,10 @@ uint32x4_t test_vmull_u16(uint16x4_t a, uint16x4_t b) {
   // CIR-SAME: (!cir.vector<!u16i x 4>, !cir.vector<!u16i x 4>) -> !cir.vector<!u32i x 4>
 
   // LLVM: {{.*}}test_vmull_u16(<4 x i16>{{.*}}[[A:%.*]], <4 x i16>{{.*}}[[B:%.*]])
-  // LLVM: [[RES:%.*]] = call <4 x i32> @llvm.aarch64.neon.umull.v4i32(<4 x i16> [[A]], <4 x i16> [[B]])
-  // LLVM: ret <4 x i32> [[RES]]
+  // LLVM: [[TMP0:%.*]] = bitcast <4 x i16> [[A]] to <8 x i8>
+  // LLVM: [[TMP1:%.*]] = bitcast <4 x i16> [[B]] to <8 x i8>
+  // LLVM: [[VMULL2_I:%.*]] = call <4 x i32> @llvm.aarch64.neon.umull.v4i32(<4 x i16> [[A]], <4 x i16> [[B]])
+  // LLVM: ret <4 x i32> [[VMULL2_I]]
 }
 
 uint64x2_t test_vmull_u32(uint32x2_t a, uint32x2_t b) {
@@ -8088,8 +8106,10 @@ uint64x2_t test_vmull_u32(uint32x2_t a, uint32x2_t b) {
   // CIR-SAME: (!cir.vector<!u32i x 2>, !cir.vector<!u32i x 2>) -> !cir.vector<!u64i x 2>
 
   // LLVM: {{.*}}test_vmull_u32(<2 x i32>{{.*}}[[A:%.*]], <2 x i32>{{.*}}[[B:%.*]])
-  // LLVM: [[RES:%.*]] = call <2 x i64> @llvm.aarch64.neon.umull.v2i64(<2 x i32> [[A]], <2 x i32> [[B]])
-  // LLVM: ret <2 x i64> [[RES]]
+  // LLVM: [[TMP0:%.*]] = bitcast <2 x i32> [[A]] to <8 x i8>
+  // LLVM: [[TMP1:%.*]] = bitcast <2 x i32> [[B]] to <8 x i8>
+  // LLVM: [[VMULL2_I:%.*]] = call <2 x i64> @llvm.aarch64.neon.umull.v2i64(<2 x i32> [[A]], <2 x i32> [[B]])
+  // LLVM: ret <2 x i64> [[VMULL2_I]]
 }
 
 // NYI-LABEL: @test_vmull_high_s8(
@@ -8550,8 +8570,8 @@ poly16x8_t test_vmull_p8(poly8x8_t a, poly8x8_t b) {
   // CIR-SAME: (!cir.vector<!s8i x 8>, !cir.vector<!s8i x 8>) -> !cir.vector<!s16i x 8>
 
   // LLVM: {{.*}}test_vmull_p8(<8 x i8>{{.*}}[[A:%.*]], <8 x i8>{{.*}}[[B:%.*]])
-  // LLVM: [[RES:%.*]] = call <8 x i16> @llvm.aarch64.neon.pmull.v8i16(<8 x i8> [[A]], <8 x i8> [[B]])
-  // LLVM: ret <8 x i16> [[RES]]
+  // LLVM: [[VMULL_I:%.*]] = call <8 x i16> @llvm.aarch64.neon.pmull.v8i16(<8 x i8> [[A]], <8 x i8> [[B]])
+  // LLVM: ret <8 x i16> [[VMULL_I]]
 }
 
 // NYI-LABEL: @test_vmull_high_p8(
