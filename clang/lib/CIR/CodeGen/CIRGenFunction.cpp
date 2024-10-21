@@ -1331,7 +1331,8 @@ void CIRGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
   // TODO: Do we need to handle this in two places like we do with
   // target-features/target-cpu?
   if (CurFuncDecl)
-    if ([[maybe_unused]] const auto *vecWidth = CurFuncDecl->getAttr<MinVectorWidthAttr>())
+    if ([[maybe_unused]] const auto *vecWidth =
+            CurFuncDecl->getAttr<MinVectorWidthAttr>())
       llvm_unreachable("NYI");
 
   if (CGM.shouldEmitConvergenceTokens())
