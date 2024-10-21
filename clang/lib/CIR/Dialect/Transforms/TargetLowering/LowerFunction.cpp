@@ -42,12 +42,12 @@ Value buildAddressAtOffset(LowerFunction &LF, Value addr,
   return addr;
 }
 
-Value emitPointerBitcast(Value Src, Type DestTy, LowerFunction &CGF) {
+Value createCoercedBitcast(Value Src, Type DestTy, LowerFunction &CGF) {
   auto destPtrTy = PointerType::get(CGF.getRewriter().getContext(), DestTy);
 
   if (auto load = dyn_cast<LoadOp>(Src.getDefiningOp()))
-    return CGF.getRewriter().create<CastOp>(Src.getLoc(), destPtrTy,
-                                            CastKind::bitcast, load.getAddr());
+    return CGF.getRewriter().replaceOpWithNewOp<CastOp>(
+        load, destPtrTy, CastKind::bitcast, load.getAddr());
 
   return CGF.getRewriter().create<CastOp>(Src.getLoc(), destPtrTy,
                                           CastKind::bitcast, Src);
@@ -123,7 +123,7 @@ void createCoercedStore(Value Src, Value Dst, bool DstIsVolatile,
   // If store is legal, just bitcast the src pointer.
   cir_cconv_assert(!::cir::MissingFeatures::vectorType());
   if (SrcSize.getFixedValue() <= DstSize.getFixedValue()) {
-    Dst = emitPointerBitcast(Dst, SrcTy, CGF);
+    Dst = createCoercedBitcast(Dst, SrcTy, CGF);
     CGF.buildAggregateStore(Src, Dst, DstIsVolatile);
   } else {
     cir_cconv_unreachable("NYI");
@@ -185,7 +185,6 @@ Value createCoercedValue(Value Src, Type Ty, LowerFunction &CGF) {
     //
     // FIXME: Assert that we aren't truncating non-padding bits when have access
     // to that information.
-    Src = emitPointerBitcast(Src, Ty, CGF);
     return CGF.buildAggregateBitcast(Src, Ty);
   }
 
@@ -244,7 +243,7 @@ Value castReturnValue(Value Src, Type Ty, LowerFunction &LF) {
     //
     // FIXME: Assert that we aren't truncating non-padding bits when have access
     // to that information.
-    auto Cast = emitPointerBitcast(Src, Ty, LF);
+    auto Cast = createCoercedBitcast(Src, Ty, LF);
     return LF.getRewriter().create<LoadOp>(Src.getLoc(), Cast);
   }
 
@@ -561,7 +560,7 @@ void LowerFunction::buildAggregateStore(Value Val, Value Dest,
 }
 
 Value LowerFunction::buildAggregateBitcast(Value Val, Type DestTy) {
-  auto Cast = emitPointerBitcast(Val, DestTy, *this);
+  auto Cast = createCoercedBitcast(Val, DestTy, *this);
   return rewriter.create<LoadOp>(Val.getLoc(), Cast);
 }
 
@@ -897,8 +896,15 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
       // actual data to store.
       if (dyn_cast<StructType>(RetTy) &&
           cast<StructType>(RetTy).getNumElements() != 0) {
-        RetVal =
-            createCoercedValue(newCallOp.getResult(), RetVal.getType(), *this);
+        RetVal = newCallOp.getResult();
+
+        for (auto user : Caller.getOperation()->getUsers()) {
+          if (auto storeOp = dyn_cast<StoreOp>(user)) {
+            auto DestPtr = createCoercedBitcast(storeOp.getAddr(),
+                                                RetVal.getType(), *this);
+            rewriter.replaceOpWithNewOp<StoreOp>(storeOp, RetVal, DestPtr);
+          }
+        }
       }
 
       // NOTE(cir): No need to convert from a temp to an RValue. This is
@@ -910,15 +916,6 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
       cir_cconv_unreachable("NYI");
     }
   }();
-
-  for (auto user : Caller.getOperation()->getUsers()) {
-    if (auto storeOp = dyn_cast<StoreOp>(user)) {
-      auto SrcTy = Ret.getType();
-      auto Dest = storeOp.getAddr();
-      auto DestPtr = emitPointerBitcast(Dest, SrcTy, *this);
-      rewriter.replaceOpWithNewOp<StoreOp>(storeOp, Ret, DestPtr);
-    }
-  }
 
   // NOTE(cir): Skipping Emissions, lifetime markers, and dtors here that
   // should be handled in CIRGen.
