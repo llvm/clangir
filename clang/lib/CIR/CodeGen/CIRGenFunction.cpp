@@ -1167,7 +1167,7 @@ void CIRGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
 
   mlir::Block *EntryBB = &Fn.getBlocks().front();
 
-  // TODO: allocapt insertion? probaly don't need for CIR
+  // TODO: allocapt insertion? probably don't need for CIR
 
   if (MissingFeatures::requiresReturnValueCheck())
     llvm_unreachable("NYI");
