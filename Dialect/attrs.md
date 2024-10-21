@@ -231,6 +231,39 @@ which encodes target AS as offset to the last language AS.
 | :-------: | :-------: | ----------- |
 | value | `int32_t` |  |
 
+### AnnotationAttr
+
+Annotation attribute for global variables and functions
+
+Syntax:
+
+```
+#cir.annotation<
+  StringAttr,   # name
+  ArrayAttr   # args
+>
+```
+
+Represent C/C++ attribute of annotate in CIR.
+Example C code:
+```
+ int *a __attribute__((annotate("testptr", "21", 12 )));
+```
+In this example code, the `AnnotationAttr` has annotation name "testptr",
+and arguments "21" and 12 constitutes an `ArrayAttr` type parameter `args`
+for global variable `a`.
+In CIR, the attribute for above annotation looks like:
+```
+[#cir.annotation<name = "withargs", args = ["21", 12 : i32]>]
+```
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| name | `StringAttr` |  |
+| args | `ArrayAttr` |  |
+
 ### BitfieldInfoAttr
 
 Represents a bit field info
@@ -431,6 +464,13 @@ types.
 | type | `::mlir::Type` |  |
 | elts | `ArrayAttr` |  |
 
+### ConvergentAttr
+
+
+
+Syntax: `#cir.convergent`
+
+
 ### DataMemberAttr
 
 Holds a constant data member pointer value
@@ -546,6 +586,45 @@ value of the specified floating-point type.
 | :-------: | :-------: | ----------- |
 | type | `::mlir::Type` |  |
 | value | `APFloat` |  |
+
+### GlobalAnnotationValuesAttr
+
+Array of annotations, each element consists of name ofa global var or func and one of its annotations
+
+Syntax:
+
+```
+#cir.global_annotations<
+  ArrayAttr   # annotations
+>
+```
+
+This is annotation value array, which holds the annotation
+values for all global variables and functions in a module.
+This array is used to create the initial value of a global annotation
+metadata variable in LLVM IR.
+Example C code:
+```
+double *a __attribute__((annotate("withargs", "21", 12 )));
+int *b __attribute__((annotate("withargs", "21", 12 )));
+void *c __attribute__((annotate("noargvar")));
+void foo(int i) __attribute__((annotate("noargfunc"))) {}
+```
+After CIR lowering prepare pass, compiler generates a 
+`GlobalAnnotationValuesAttr` like the following:
+```
+#cir<global_annotations [
+  ["a", #cir.annotation<name = "withargs", args = ["21", 12 : i32]>],
+  ["b", #cir.annotation<name = "withargs", args = ["21", 12 : i32]>],
+  ["c", #cir.annotation<name = "noargvar", args = []>],
+  ["foo", #cir.annotation<name = "noargfunc", args = []>]]>
+```
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| annotations | `ArrayAttr` |  |
 
 ### GlobalCtorAttr
 
@@ -688,7 +767,7 @@ module attributes {cir.lang = cir.lang<cxx>} {}
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
-| lang | `::mlir::cir::SourceLanguage` | Source language |
+| lang | `SourceLanguageAttr` |  |
 
 ### MethodAttr
 
@@ -782,6 +861,14 @@ cir.func @kernel(%arg0: !s32i) extra(#fn_attr) {
 | type_qual | `ArrayAttr` |  |
 | name | `ArrayAttr` |  |
 
+### OpenCLKernelAttr
+
+OpenCL kernel
+
+Syntax: `#cir.cl.kernel`
+
+Indicate the function is a OpenCL kernel.
+
 ### OpenCLKernelMetadataAttr
 
 OpenCL kernel metadata
@@ -841,6 +928,21 @@ cir.func @kernel(%arg0: !s32i) extra(#fn_attr) {
 | vec_type_hint_signedness | `std::optional<bool>` |  |
 | intel_reqd_sub_group_size | `IntegerAttr` |  |
 
+### OpenCLKernelUniformWorkGroupSizeAttr
+
+OpenCL kernel work-group uniformity
+
+Syntax: `#cir.cl.uniform_work_group_size`
+
+In OpenCL v2.0, work groups can either be uniform or non-uniform.
+This attribute is associated with kernels to represent the work group type.
+Non-kernel entities should not interact with this attribute.
+
+Clang's `-cl-uniform-work-group-size` compilation option provides a hint to
+the compiler, indicating that the global work size should be a multiple of
+the work-group size specified in the `clEnqueueNDRangeKernel` function,
+thereby ensuring that the work groups are uniform.
+
 ### OpenCLVersionAttr
 
 OpenCL version
@@ -849,8 +951,8 @@ Syntax:
 
 ```
 #cir.cl.version<
-  int32_t,   # major
-  int32_t   # minor
+  int32_t,   # major_version
+  int32_t   # minor_version
 >
 ```
 
@@ -868,8 +970,8 @@ module attributes {cir.cl.version = cir.cl.version<3, 0>} {}
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
-| major | `int32_t` |  |
-| minor | `int32_t` |  |
+| major_version | `int32_t` |  |
+| minor_version | `int32_t` |  |
 
 ### OptNoneAttr
 

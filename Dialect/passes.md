@@ -17,6 +17,19 @@ _Handle calling conventions for CIR functions_
 This pass lowers CIR function definitions and calls according to the
 calling conventions for the target architecture. This pass is necessary
 to properly lower CIR functions to LLVM IR.
+### `-cir-canonicalize`
+
+_Performs CIR canonicalization_
+
+Perform canonicalizations on CIR and removes some redundant operations.
+
+This pass performs basic cleanup and canonicalization transformations that
+hopefully do not affect CIR-to-source fidelity and high-level code analysis
+passes too much. Example transformations performed in this pass include
+empty scope cleanup, trivial try cleanup, redundant branch cleanup, etc.
+Those more "heavyweight" transformations and those transformations that
+could significantly affect CIR-to-source fidelity are performed in the
+`cir-simplify` pass.
 ### `-cir-drop-ast`
 
 _Remove clang AST nodes attached to CIR operations_
@@ -46,6 +59,12 @@ _Replaces goto operatations with branches_
 
 This pass transforms CIR and replaces goto-s with branch
 operations to the proper blocks.
+### `-cir-hoist-allocas`
+
+_Hoist allocas to the entry of the function_
+
+This pass hoist all non-dynamic allocas to the entry of the function.
+This is helpful for later code generation.
 ### `-cir-idiom-recognizer`
 
 _Raise calls to C/C++ libraries to CIR operations_
@@ -108,18 +127,11 @@ hoist the loop invariant or canonicalize the loop comparison. Currently,
 the pass only be enabled for through MLIR pipeline.
 ### `-cir-simplify`
 
-_Performs CIR simplification_
+_Performs CIR simplification and code optimization_
 
-The pass rewrites CIR and removes some redundant operations.
+The pass performs code simplification and optimization on CIR.
 
-For example, due to canonicalize pass is too aggressive for CIR when
-the pipeline is used for C/C++ analysis, this pass runs some rewrites
-for scopes, merging some blocks and eliminating unnecessary control-flow.
-
-Also, the pass removes redundant and/or unneccessary cast and unary not
-operation e.g.
-```mlir
-  %1 = cir.cast(bool_to_int, %0 : !cir.bool), !s32i
-  %2 = cir.cast(int_to_bool, %1 : !s32i), !cir.bool
-```
-
+Unlike the `cir-canonicalize` pass, this pass contains more aggresive code
+transformations that could significantly affect CIR-to-source fidelity.
+Example transformations performed in this pass include ternary folding,
+code hoisting, etc.

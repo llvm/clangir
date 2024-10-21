@@ -131,6 +131,14 @@ Syntax: `!cir.f80`
 
 Floating-point type that represents the x87 80-bit floating-point format.
 
+### FP128Type
+
+CIR type that represents IEEEquad 128-bit floating-point format
+
+Syntax: `!cir.f128`
+
+Floating-point type that represents the IEEEquad 128-bit floating-point format.
+
 ### FuncType
 
 CIR function type
@@ -168,9 +176,11 @@ Example:
 
 Integer type with arbitrary precision up to a fixed limit
 
-CIR type that represents C/C++ primitive integer types.
-Said types are: `char`, `short`, `int`, `long`, `long long`, and their \
-unsigned variations.
+CIR type that represents integer types with arbitrary precision.
+
+Those integer types that are directly available in C/C++ standard are called
+primitive integer types. Said types are: `signed char`, `short`, `int`,
+`long`, `long long`, and their unsigned variations.
 
 #### Parameters:
 

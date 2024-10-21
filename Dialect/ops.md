@@ -64,7 +64,9 @@ operation ::= `cir.alloca` $allocaType `,` qualified(type($addr)) `,`
               ($dynAllocSize^ `:` type($dynAllocSize) `,`)?
               `[` $name
               (`,` `init` $init^)?
+              (`,` `const` $constant^)?
               `]`
+              ($annotations^)?
               (`ast` $ast^)? attr-dict
 ```
 
@@ -74,6 +76,9 @@ The presence `init` attribute indicates that the local variable represented
 by this alloca was originally initialized in C/C++ source code. In such
 cases, the first use contains the initialization (a cir.store, a cir.call
 to a ctor, etc).
+
+The presence of the `const` attribute indicates that the local variable is
+declared with C/C++ `const` keyword.
 
 The `dynAllocSize` specifies the size to dynamically allocate on the stack
 and ignores the allocation size based on the original type. This is useful
@@ -101,7 +106,9 @@ Interfaces: `PromotableAllocationOpInterface`
 <tr><td><code>allocaType</code></td><td>::mlir::TypeAttr</td><td>any type attribute</td></tr>
 <tr><td><code>name</code></td><td>::mlir::StringAttr</td><td>string attribute</td></tr>
 <tr><td><code>init</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
+<tr><td><code>constant</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
 <tr><td><code>alignment</code></td><td>::mlir::IntegerAttr</td><td>64-bit signless integer attribute whose minimum value is 0</td></tr>
+<tr><td><code>annotations</code></td><td>::mlir::ArrayAttr</td><td>array attribute</td></tr>
 <tr><td><code>ast</code></td><td>::mlir::cir::ASTVarDeclInterface</td><td>ASTVarDeclInterface instance</td></tr>
 </table>
 
@@ -159,6 +166,117 @@ incoming argument for the current array index to initialize.
 | :-----: | ----------- |
 | `addr` | !cir.ptr<!cir.eh_info>
 
+### `cir.assume.aligned` (cir::AssumeAlignedOp)
+
+_Tell the optimizer that a pointer is aligned_
+
+
+Syntax:
+
+```
+operation ::= `cir.assume.aligned` $pointer `:` qualified(type($pointer))
+              `[` `alignment` $alignment (`,` `offset` $offset^ `:` type($offset))? `]`
+              attr-dict
+```
+
+The `cir.assume.aligned` operation takes two or three arguments.
+
+When the 3rd argument `offset` is absent, this operation tells the optimizer
+that the pointer given by the `pointer` argument is aligned to the alignment
+given by the `align` argument.
+
+When the `offset` argument is given, it represents an offset from the
+alignment. This operation then tells the optimizer that the pointer given by
+the `pointer` argument is always misaligned by the alignment given by the
+`align` argument by `offset` bytes, a.k.a. the pointer yielded by
+`(char *)pointer - offset` is aligned to the specified alignment.
+
+The `align` argument is a constant integer represented as an integer
+attribute instead of an SSA value. It must be a positive integer.
+
+The result of this operation has the same value as the `pointer` argument,
+but the optimizer has additional knowledge about its alignment.
+
+This operation corresponds to the `__builtin_assume_aligned` builtin
+function.
+
+Traits: `AlwaysSpeculatableImplTrait`
+
+Interfaces: `ConditionallySpeculatable`, `InferTypeOpInterface`, `NoMemoryEffect (MemoryEffectOpInterface)`
+
+Effects: `MemoryEffects::Effect{}`
+
+#### Attributes:
+
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>alignment</code></td><td>::mlir::IntegerAttr</td><td>64-bit signless integer attribute</td></tr>
+</table>
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `pointer` | CIR pointer type
+| `offset` | Integer type with arbitrary precision up to a fixed limit
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | CIR pointer type
+
+### `cir.assume` (cir::AssumeOp)
+
+_Tell the optimizer that a boolean value is true_
+
+
+Syntax:
+
+```
+operation ::= `cir.assume` $predicate `:` type($predicate) attr-dict
+```
+
+The `cir.assume` operation takes a single boolean prediate as its only
+argument and does not have any results. The operation tells the optimizer
+that the predicate's value is true.
+
+This operation corresponds to the `__assume` and the `__builtin_assume`
+builtin function.
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `predicate` | CIR bool type
+
+### `cir.assume.separate_storage` (cir::AssumeSepStorageOp)
+
+_Tell the optimizer that two pointers point to different allocations_
+
+
+Syntax:
+
+```
+operation ::= `cir.assume.separate_storage` $ptr1 `,` $ptr2 `:` qualified(type($ptr1)) attr-dict
+```
+
+The `cir.assume.separate_storage` operation takes two pointers as arguments,
+and the operation tells the optimizer that these two pointers point to
+different allocations.
+
+This operation corresponds to the `__builtin_assume_separate_storage`
+builtin function.
+
+Traits: `SameTypeOperands`
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `ptr1` | void*
+| `ptr2` | void*
+
 ### `cir.atomic.cmp_xchg` (cir::AtomicCmpXchg)
 
 _Atomic compare exchange_
@@ -208,14 +326,14 @@ Interfaces: `InferTypeOpInterface`
 | Operand | Description |
 | :-----: | ----------- |
 | `ptr` | CIR pointer type
-| `expected` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
-| `desired` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `expected` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `desired` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `old` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `old` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 | `cmp` | CIR bool type
 
 ### `cir.atomic.fetch` (cir::AtomicFetch)
@@ -270,13 +388,13 @@ Interfaces: `InferTypeOpInterface`
 | Operand | Description |
 | :-----: | ----------- |
 | `ptr` | {int,void}*
-| `val` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or Integer type with arbitrary precision up to a fixed limit
+| `val` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or Integer type with arbitrary precision up to a fixed limit
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or Integer type with arbitrary precision up to a fixed limit
+| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or Integer type with arbitrary precision up to a fixed limit
 
 ### `cir.atomic.xchg` (cir::AtomicXchg)
 
@@ -316,13 +434,13 @@ Interfaces: `InferTypeOpInterface`
 | Operand | Description |
 | :-----: | ----------- |
 | `ptr` | CIR pointer type
-| `val` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `val` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 
 ### `cir.await` (cir::AwaitOp)
 
@@ -410,16 +528,37 @@ Syntax:
 ```
 operation ::= `cir.base_class_addr` `(`
               $derived_addr `:` qualified(type($derived_addr))
-              `)` `->` qualified(type($base_addr)) attr-dict
+              (`nonnull` $assume_not_null^)?
+              `)` `[` $offset `]` `->` qualified(type($base_addr)) attr-dict
 ```
 
 The `cir.base_class_addr` operaration gets the address of a particular
-base class given a derived class pointer.
+non-virtual base class given a derived class pointer. The offset in bytes
+of the base class must be passed in, since it is easier for the front end
+to calculate that than the MLIR passes. The operation contains a flag for
+whether or not the operand may be nullptr. That depends on the context and
+cannot be known by the operation, and that information affects how the
+operation is lowered.
 
 Example:
-```mlir
-TBD
+```c++
+struct Base { };
+struct Derived : Base { };
+Derived d;
+Base& b = d;
 ```
+will generate
+```mlir
+%3 = cir.base_class_addr (%1 : !cir.ptr<!ty_Derived> nonnull) [0] -> !cir.ptr<!ty_Base>
+```
+
+#### Attributes:
+
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>offset</code></td><td>::mlir::IntegerAttr</td><td>index attribute</td></tr>
+<tr><td><code>assume_not_null</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
+</table>
 
 #### Operands:
 
@@ -478,14 +617,14 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `lhs` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
-| `rhs` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `lhs` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `rhs` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 
 ### `cir.binop.overflow` (cir::BinOpOverflowOp)
 
@@ -880,8 +1019,8 @@ Effects: `MemoryEffects::Effect{}`
 | Operand | Description |
 | :-----: | ----------- |
 | `cond` | CIR bool type
-| `destOperandsTrue` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
-| `destOperandsFalse` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `destOperandsTrue` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `destOperandsFalse` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 
 #### Successors:
 
@@ -904,6 +1043,9 @@ operation ::= `cir.br` $dest (`(` $destOperands^ `:` type($destOperands) `)`)? a
 The `cir.br` branches unconditionally to a block. Used to represent C/C++
 goto's and general block branching.
 
+Note that for source level `goto`'s crossing scope boundaries, those are
+usually represented with the "symbolic" `cir.goto` operation.
+
 Example:
 
 ```mlir
@@ -923,7 +1065,7 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `destOperands` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `destOperands` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 
 #### Successors:
 
@@ -1074,7 +1216,7 @@ Traits: `RecursiveMemoryEffects`
 
 | Result | Description |
 | :----: | ----------- |
-| `res` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `res` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 
 ### `cir.call` (cir::CallOp)
 
@@ -1092,7 +1234,9 @@ For indirect calls, the first `mlir::Operation` operand is the call target.
 Given the way indirect calls are encoded, avoid using `mlir::Operation`
 methods to walk the operands for this operation, instead use the methods
 provided by `CIRCallOpInterface`.
-``
+
+If the `cir.call` has the `exception` keyword, the call can throw. In this
+case, cleanups can be added in the `cleanup` region.
 
 Example:
 
@@ -1102,7 +1246,14 @@ Example:
  ...
 // Indirect call
 %20 = cir.call %18(%17)
+ ...
+// Call that might throw
+cir.call exception @my_div() -> () cleanup {
+  // call dtor...
+}
 ```
+
+Traits: `NoRegionArguments`
 
 Interfaces: `CIRCallOpInterface`, `CallOpInterface`, `SymbolUserOpInterface`
 
@@ -1112,6 +1263,7 @@ Interfaces: `CIRCallOpInterface`, `CallOpInterface`, `SymbolUserOpInterface`
 <tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
 <tr><td><code>exception</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
 <tr><td><code>callee</code></td><td>::mlir::FlatSymbolRefAttr</td><td>flat symbol reference attribute</td></tr>
+<tr><td><code>calling_conv</code></td><td>::mlir::cir::CallingConvAttr</td><td>calling convention</td></tr>
 <tr><td><code>extra_attrs</code></td><td>::mlir::cir::ExtraFuncAttributesAttr</td><td>Represents aggregated attributes for a function</td></tr>
 <tr><td><code>ast</code></td><td>::mlir::cir::ASTCallExprInterface</td><td>ASTCallExprInterface instance</td></tr>
 </table>
@@ -1120,13 +1272,13 @@ Interfaces: `CIRCallOpInterface`, `CallOpInterface`, `SymbolUserOpInterface`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `arg_ops` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `arg_ops` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 
 ### `cir.cast` (cir::CastOp)
 
@@ -1194,13 +1346,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `src` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 
 ### `cir.catch_param` (cir::CatchParamOp)
 
@@ -1242,7 +1394,7 @@ Example:
 
 | Result | Description |
 | :----: | ----------- |
-| `param` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `param` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 
 ### `cir.ceil` (cir::CeilOp)
 
@@ -1266,13 +1418,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 ### `cir.clear_cache` (cir::ClearCacheOp)
 
@@ -1332,14 +1484,14 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `lhs` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
-| `rhs` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `lhs` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `rhs` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 
 ### `cir.cmp3way` (cir::CmpThreeWayOp)
 
@@ -1399,8 +1551,8 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `lhs` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
-| `rhs` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `lhs` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `rhs` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 
 #### Results:
 
@@ -1500,8 +1652,8 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `real` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or Integer type with arbitrary precision up to a fixed limit
-| `imag` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or Integer type with arbitrary precision up to a fixed limit
+| `real` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or Integer type with arbitrary precision up to a fixed limit
+| `imag` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or Integer type with arbitrary precision up to a fixed limit
 
 #### Results:
 
@@ -1546,7 +1698,7 @@ Effects: `MemoryEffects::Effect{}`
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or Integer type with arbitrary precision up to a fixed limit
+| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or Integer type with arbitrary precision up to a fixed limit
 
 ### `cir.complex.imag_ptr` (cir::ComplexImagPtrOp)
 
@@ -1625,7 +1777,7 @@ Effects: `MemoryEffects::Effect{}`
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or Integer type with arbitrary precision up to a fixed limit
+| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or Integer type with arbitrary precision up to a fixed limit
 
 ### `cir.complex.real_ptr` (cir::ComplexRealPtrOp)
 
@@ -1754,7 +1906,7 @@ Effects: `MemoryEffects::Effect{}`
 
 | Result | Description |
 | :----: | ----------- |
-| `res` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `res` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 
 ### `cir.continue` (cir::ContinueOp)
 
@@ -1838,14 +1990,14 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `lhs` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
-| `rhs` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `lhs` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
+| `rhs` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 ### `cir.cos` (cir::CosOp)
 
@@ -1869,13 +2021,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 ### `cir.do` (cir::DoWhileOp)
 
@@ -2072,13 +2224,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 ### `cir.exp` (cir::ExpOp)
 
@@ -2102,13 +2254,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 ### `cir.expect` (cir::ExpectOp)
 
@@ -2175,13 +2327,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 ### `cir.fmax` (cir::FMaxOp)
 
@@ -2205,14 +2357,14 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `lhs` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
-| `rhs` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `lhs` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
+| `rhs` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 ### `cir.fmin` (cir::FMinOp)
 
@@ -2236,14 +2388,14 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `lhs` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
-| `rhs` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `lhs` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
+| `rhs` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 ### `cir.fmod` (cir::FModOp)
 
@@ -2267,14 +2419,14 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `lhs` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
-| `rhs` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `lhs` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
+| `rhs` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 ### `cir.floor` (cir::FloorOp)
 
@@ -2298,13 +2450,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 ### `cir.for` (cir::ForOp)
 
@@ -2344,6 +2496,41 @@ cir.for cond {
 Traits: `NoRegionArguments`
 
 Interfaces: `LoopLikeOpInterface`, `LoopOpInterface`, `RegionBranchOpInterface`
+
+### `cir.free.exception` (cir::FreeExceptionOp)
+
+_Frees an exception according to Itanium ABI_
+
+
+Syntax:
+
+```
+operation ::= `cir.free.exception` $ptr attr-dict
+```
+
+Implements a slightly higher level version of:
+`void __cxa_free_exception(void *thrown_exception);`
+
+Example:
+
+```mlir
+%0 = cir.alloc.exception 16 -> !cir.ptr<!some_struct>
+%1 = cir.get_global @d2 : !cir.ptr<!some_struct>
+cir.try synthetic cleanup {
+  cir.call exception @_ZN7test2_DC1ERKS_(%0, %1) : (!cir.ptr<!some_struct>, !cir.ptr<!some_struct>) -> () cleanup {
+    %2 = cir.cast(bitcast, %0 : !cir.ptr<!some_struct>), !cir.ptr<!void>
+    cir.free.exception %2
+    cir.yield
+  }
+  ...
+}
+```
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `ptr` | void*
 
 ### `cir.func` (cir::FuncOp)
 
@@ -2447,6 +2634,7 @@ Interfaces: `CIRGlobalValueInterface`, `CallableOpInterface`, `FunctionOpInterfa
 <tr><td><code>aliasee</code></td><td>::mlir::FlatSymbolRefAttr</td><td>flat symbol reference attribute</td></tr>
 <tr><td><code>global_ctor</code></td><td>::mlir::cir::GlobalCtorAttr</td><td>Marks a function as a global constructor</td></tr>
 <tr><td><code>global_dtor</code></td><td>::mlir::cir::GlobalDtorAttr</td><td>Marks a function as a global destructor</td></tr>
+<tr><td><code>annotations</code></td><td>::mlir::ArrayAttr</td><td>array attribute</td></tr>
 <tr><td><code>ast</code></td><td>::mlir::Attribute</td><td>AST Function attribute</td></tr>
 </table>
 
@@ -2759,6 +2947,7 @@ operation ::= `cir.global` ($sym_visibility^)?
               (`addrspace` `(` custom<GlobalOpAddrSpace>($addr_space)^ `)`)?
               $sym_name
               custom<GlobalOpTypeAndInitialValue>($sym_type, $initial_value, $ctorRegion, $dtorRegion)
+              ($annotations^)?
               attr-dict
 ```
 
@@ -2809,6 +2998,7 @@ Interfaces: `CIRGlobalValueInterface`, `RegionBranchOpInterface`, `Symbol`
 <tr><td><code>alignment</code></td><td>::mlir::IntegerAttr</td><td>64-bit signless integer attribute</td></tr>
 <tr><td><code>ast</code></td><td>::mlir::cir::ASTVarDeclInterface</td><td>ASTVarDeclInterface instance</td></tr>
 <tr><td><code>section</code></td><td>::mlir::StringAttr</td><td>string attribute</td></tr>
+<tr><td><code>annotations</code></td><td>::mlir::ArrayAttr</td><td>array attribute</td></tr>
 </table>
 
 ### `cir.goto` (cir::GotoOp)
@@ -2819,26 +3009,50 @@ Syntax:
 operation ::= `cir.goto` $label attr-dict
 ```
 
-Transfers control to the specified label.
+Transfers control to the specified `label`. This requires a corresponding
+`cir.label` to exist and is used by to represent source level `goto`s
+that jump across region boundaries. Alternatively, `cir.br` is used to
+construct goto's that don't violate such boundaries.
 
- Example:
- ```C++
-   void foo() {
-     goto exit;
+`cir.goto` is completely symbolic (i.e. it "jumps" on a label that isn't
+yet materialized) and should be taken into account by passes and analysis
+when deciding if it's safe to make some assumptions about a given region
+or basic block.
 
-   exit:
-     return;
-   }
-   ```
+Example:
+```C++
+  int test(int x) {
+    if (x)
+      goto label;
+    {
+      x = 10;
+  label:
+      return x;
+    }
+  }
+```
 
-   ```mlir
-   cir.func @foo() {
-     cir.goto "exit"
-   ^bb1:
-     cir.label "exit"
-     cir.return
-   }
-   ```
+```mlir
+  cir.scope {  // REGION #1
+    %2 = cir.load %0 : !cir.ptr<!s32i>, !s32i
+    %3 = cir.cast(int_to_bool, %2 : !s32i), !cir.bool
+    cir.if %3 {
+      cir.goto "label"
+    }
+    }
+    cir.scope {  // REGION #2
+      %2 = cir.const #cir.int<10> : !s32i
+      cir.store %2, %0 : !s32i, !cir.ptr<!s32i>
+      cir.br ^bb1
+    ^bb1:  // pred: ^bb0
+      cir.label "label"
+      %3 = cir.load %0 : !cir.ptr<!s32i>, !s32i
+      cir.store %3, %1 : !s32i, !cir.ptr<!s32i>
+      %4 = cir.load %1 : !cir.ptr<!s32i>, !s32i
+      cir.return %4 : !s32i
+    }
+    cir.unreachable
+```
 
 Traits: `Terminator`
 
@@ -2891,6 +3105,40 @@ Interfaces: `ConditionallySpeculatable`, `RegionBranchOpInterface`
 | :-----: | ----------- |
 | `condition` | CIR bool type
 
+### `cir.llvm.intrinsic` (cir::IntrinsicCallOp)
+
+_Call to intrinsic functions that is not defined in CIR_
+
+
+Syntax:
+
+```
+operation ::= `cir.llvm.intrinsic` $intrinsic_name $arg_ops `:` functional-type($arg_ops, $result) attr-dict
+```
+
+`cir.llvm.intrinsic` operation represents a call-like expression which has
+return type and arguments that maps directly to a llvm intrinsic.
+It only records intrinsic `intrinsic_name`.
+
+#### Attributes:
+
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>intrinsic_name</code></td><td>::mlir::StringAttr</td><td>string attribute</td></tr>
+</table>
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `arg_ops` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+
 ### `cir.is_constant` (cir::IsConstantOp)
 
 Syntax:
@@ -2912,7 +3160,59 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `val` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `val` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `result` | CIR bool type
+
+### `cir.is_fp_class` (cir::IsFPClassOp)
+
+_Corresponding to the `__builtin_fpclassify` builtin function in clang_
+
+
+Syntax:
+
+```
+operation ::= `cir.is_fp_class` $src `,` $flags `:` functional-type($src, $result) attr-dict
+```
+
+The `cir.is_fp_class` operation takes a floating-point value as its first
+argument and a bitfield of flags as its second argument. The operation
+returns a boolean value indicating whether the floating-point value
+satisfies the given flags.
+
+The flags must be a compile time constant and the values are:
+
+| Bit # | floating-point class |
+| -------- | ------- |
+| 0 | Signaling NaN      |
+| 1 | Quiet NaN          |
+| 2 | Negative infinity  |
+| 3 | Negative normal    |
+| 4 | Negative subnormal |
+| 5 | Negative zero      |
+| 6 | Positive zero      |
+| 7 | Positive subnormal |
+| 8 | Positive normal    |
+| 9 | Positive infinity  |
+
+Interfaces: `InferTypeOpInterface`
+
+#### Attributes:
+
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>flags</code></td><td>::mlir::IntegerAttr</td><td>32-bit signless integer attribute</td></tr>
+</table>
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 #### Results:
 
@@ -2945,13 +3245,13 @@ operation ::= `cir.iterator_begin` `(`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `container` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `container` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 
 ### `cir.iterator_end` (cir::IterEndOp)
 
@@ -2978,13 +3278,13 @@ operation ::= `cir.iterator_end` `(`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `container` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `container` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 
 ### `cir.llrint` (cir::LLrintOp)
 
@@ -3009,7 +3309,7 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 #### Results:
 
@@ -3040,7 +3340,7 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 #### Results:
 
@@ -3132,7 +3432,7 @@ Interfaces: `InferTypeOpInterface`, `PromotableMemOpInterface`
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 
 ### `cir.log10` (cir::Log10Op)
 
@@ -3156,13 +3456,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 ### `cir.log2` (cir::Log2Op)
 
@@ -3186,13 +3486,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 ### `cir.log` (cir::LogOp)
 
@@ -3216,13 +3516,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 ### `cir.lrint` (cir::LrintOp)
 
@@ -3247,7 +3547,7 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 #### Results:
 
@@ -3278,7 +3578,7 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 #### Results:
 
@@ -3381,13 +3681,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 ### `cir.objsize` (cir::ObjSizeOp)
 
@@ -3454,14 +3754,14 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `lhs` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
-| `rhs` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `lhs` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
+| `rhs` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 ### `cir.prefetch` (cir::PrefetchOp)
 
@@ -3658,7 +3958,7 @@ Traits: `HasParent<FuncOp, ScopeOp, IfOp, SwitchOp, DoWhileOp, WhileOp, ForOp>`,
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `input` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 
 ### `cir.rint` (cir::RintOp)
 
@@ -3682,13 +3982,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 ### `cir.rotate` (cir::RotateOp)
 
@@ -3766,13 +4066,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 ### `cir.scope` (cir::ScopeOp)
 
@@ -3811,7 +4111,7 @@ Interfaces: `ConditionallySpeculatable`, `RegionBranchOpInterface`
 
 | Result | Description |
 | :----: | ----------- |
-| `results` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `results` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 
 ### `cir.select` (cir::SelectOp)
 
@@ -3855,14 +4155,14 @@ Effects: `MemoryEffects::Effect{}`
 | Operand | Description |
 | :-----: | ----------- |
 | `condition` | CIR bool type
-| `true_value` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
-| `false_value` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `true_value` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `false_value` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 
 ### `cir.set_bitfield` (cir::SetBitfieldOp)
 
@@ -3929,7 +4229,7 @@ void store_bitfield(S& s) {
 | Operand | Description |
 | :-----: | ----------- |
 | `addr` | CIR pointer type
-| `src` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `src` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 
 #### Results:
 
@@ -3953,10 +4253,15 @@ operation ::= `cir.shift` `(`
 ```
 
 Shift `left` or `right`, according to the first operand. Second operand is
-the shift target and the third the amount.
+the shift target and the third the amount. Second and the thrid operand can
+be either integer type or vector of integer type. However, they must be
+either all vector of integer type, or all integer type. If they are vectors,
+each vector element of the shift target is shifted by the corresponding
+shift amount in the shift amount vector. 
 
 ```mlir
 %7 = cir.shift(left, %1 : !u64i, %4 : !s32i) -> !u64i
+%8 = cir.shift(left, %2 : !cir.vector<!s32i x 2>, %3 : !cir.vector<!s32i x 2>) -> !cir.vector<!s32i x 2>
 ```
 
 Traits: `AlwaysSpeculatableImplTrait`
@@ -3976,14 +4281,14 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `value` | Integer type with arbitrary precision up to a fixed limit
-| `amount` | Integer type with arbitrary precision up to a fixed limit
+| `value` | Integer type with arbitrary precision up to a fixed limit or !cir.vector of !cir.int
+| `amount` | Integer type with arbitrary precision up to a fixed limit or !cir.vector of !cir.int
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit
+| `result` | Integer type with arbitrary precision up to a fixed limit or !cir.vector of !cir.int
 
 ### `cir.sin` (cir::SinOp)
 
@@ -4007,13 +4312,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 ### `cir.sqrt` (cir::SqrtOp)
 
@@ -4037,13 +4342,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 ### `cir.stack_restore` (cir::StackRestoreOp)
 
@@ -4141,15 +4446,15 @@ Traits: `SameFirstSecondOperandAndResultType`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `first` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
-| `last` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
-| `pattern` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `first` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `last` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `pattern` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 
 ### `cir.store` (cir::StoreOp)
 
@@ -4201,7 +4506,7 @@ Interfaces: `PromotableMemOpInterface`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `value` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `value` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 | `addr` | CIR pointer type
 
 ### `cir.switch.flat` (cir::SwitchFlatOp)
@@ -4361,7 +4666,7 @@ Interfaces: `ConditionallySpeculatable`, `RegionBranchOpInterface`
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 
 ### `cir.throw` (cir::ThrowOp)
 
@@ -4456,13 +4761,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `src` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type
+| `result` | CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents
 
 ### `cir.try_call` (cir::TryCallOp)
 
@@ -4488,6 +4793,7 @@ Interfaces: `BranchOpInterface`, `CIRCallOpInterface`, `CallOpInterface`, `Symbo
 <table>
 <tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
 <tr><td><code>callee</code></td><td>::mlir::FlatSymbolRefAttr</td><td>flat symbol reference attribute</td></tr>
+<tr><td><code>calling_conv</code></td><td>::mlir::cir::CallingConvAttr</td><td>calling convention</td></tr>
 <tr><td><code>extra_attrs</code></td><td>::mlir::cir::ExtraFuncAttributesAttr</td><td>Represents aggregated attributes for a function</td></tr>
 <tr><td><code>ast</code></td><td>::mlir::cir::ASTCallExprInterface</td><td>ASTCallExprInterface instance</td></tr>
 </table>
@@ -4496,15 +4802,15 @@ Interfaces: `BranchOpInterface`, `CIRCallOpInterface`, `CallOpInterface`, `Symbo
 
 | Operand | Description |
 | :-----: | ----------- |
-| `contOperands` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
-| `landingPadOperands` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
-| `arg_ops` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `contOperands` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `landingPadOperands` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `arg_ops` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 
 #### Successors:
 
@@ -4521,8 +4827,9 @@ _C++ try block_
 Syntax:
 
 ```
-operation ::= `cir.try` (`synthetic` $synthetic^)? $try_region
-              `cleanup` $cleanup_region
+operation ::= `cir.try` (`synthetic` $synthetic^)?
+              (`cleanup` $cleanup^)?
+              $try_region
               custom<CatchRegions>($catch_regions, $catch_types)
               attr-dict
 ```
@@ -4534,6 +4841,9 @@ clauses are usually allocated in the same parent as `cir.try`.
 
 `synthetic`: use `cir.try` to represent try/catches not originally
 present in the source code (e.g. `g = new Class` under `-fexceptions`).
+
+`cleanup`: signal to targets (LLVM for now) that this try/catch, needs
+to specially tag their landing pads as needing "cleanup".
 
 Example: TBD
 ```
@@ -4547,6 +4857,7 @@ Interfaces: `ConditionallySpeculatable`, `RegionBranchOpInterface`
 <table>
 <tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
 <tr><td><code>synthetic</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
+<tr><td><code>cleanup</code></td><td>::mlir::UnitAttr</td><td>unit attribute</td></tr>
 <tr><td><code>catch_types</code></td><td>::mlir::ArrayAttr</td><td>array attribute</td></tr>
 </table>
 
@@ -4589,13 +4900,13 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `input` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 
 ### `cir.undef` (cir::UndefOp)
 
@@ -4661,7 +4972,7 @@ operation ::= `cir.va.arg` $arg_list attr-dict `:` functional-type(operands, $re
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 
 ### `cir.va.copy` (cir::VACopyOp)
 
@@ -4718,6 +5029,81 @@ operation ::= `cir.va.start` $arg_list attr-dict `:` type(operands)
 | :-----: | ----------- |
 | `arg_list` | CIR pointer type
 
+### `cir.vtt.address_point` (cir::VTTAddrPointOp)
+
+_Get the VTT address point_
+
+
+Syntax:
+
+```
+operation ::= `cir.vtt.address_point` ($name^)?
+              ($sym_addr^ `:` type($sym_addr))?
+              `,`
+              `offset` `=` $offset
+              `->` qualified(type($addr)) attr-dict
+```
+
+The `vtt.address_point` operation retrieves an element from the VTT,
+which is the address point of a C++ vtable. In virtual inheritance,
+A set of internal `__vptr` for an object are initialized by this operation,
+which assigns an element from the VTT. The initialization order is as follows:
+
+The complete object constructors and destructors find the VTT,
+via the mangled name of VTT global variable. They pass the address of
+the subobject's sub-VTT entry in the VTT as a second parameter
+when calling the base object constructors and destructors.
+The base object constructors and destructors use the addresses passed to
+initialize the primary virtual pointer and virtual pointers that point to
+the classes which either have virtual bases or override virtual functions
+with a virtual step.
+
+The first parameter is either the mangled name of VTT global variable
+or the address of the subobject's sub-VTT entry in the VTT.
+The second parameter `offset` provides a virtual step to adjust to
+the actual address point of the vtable.
+
+The return type is always a `!cir.ptr<!cir.ptr<void>>`.
+
+Example:
+```mlir
+cir.global linkonce_odr @_ZTV1B = ...
+...
+%3 = cir.base_class_addr(%1 : !cir.ptr<!ty_D> nonnull) [0] -> !cir.ptr<!ty_B>
+%4 = cir.vtt.address_point @_ZTT1D, offset = 1 -> !cir.ptr<!cir.ptr<!void>>
+cir.call @_ZN1BC2Ev(%3, %4)
+```
+Or:
+```mlir
+%7 = cir.vtt.address_point %3 : !cir.ptr<!cir.ptr<!void>>, offset = 1 -> !cir.ptr<!cir.ptr<!void>>
+```
+
+Traits: `AlwaysSpeculatableImplTrait`
+
+Interfaces: `ConditionallySpeculatable`, `NoMemoryEffect (MemoryEffectOpInterface)`, `SymbolUserOpInterface`
+
+Effects: `MemoryEffects::Effect{}`
+
+#### Attributes:
+
+<table>
+<tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr>
+<tr><td><code>name</code></td><td>::mlir::FlatSymbolRefAttr</td><td>flat symbol reference attribute</td></tr>
+<tr><td><code>offset</code></td><td>::mlir::IntegerAttr</td><td>32-bit signless integer attribute</td></tr>
+</table>
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `sym_addr` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `addr` | CIR pointer type
+
 ### `cir.vtable.address_point` (cir::VTableAddrPointOp)
 
 _Get the vtable (global variable) address point_
@@ -4772,7 +5158,7 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `sym_addr` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `sym_addr` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 
 #### Results:
 
@@ -4849,7 +5235,7 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `elements` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `elements` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 
 #### Results:
 
@@ -4888,7 +5274,7 @@ Effects: `MemoryEffects::Effect{}`
 
 | Result | Description |
 | :----: | ----------- |
-| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `result` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 
 ### `cir.vec.insert` (cir::VecInsertOp)
 
@@ -5043,7 +5429,7 @@ Effects: `MemoryEffects::Effect{}`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `value` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `value` | Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 
 #### Results:
 
@@ -5185,7 +5571,7 @@ cir.scope {
 } : i32
 ```
 
-Traits: `HasParent<IfOp, ScopeOp, SwitchOp, WhileOp, ForOp, AwaitOp, TernaryOp, GlobalOp, DoWhileOp, TryOp, ArrayCtor, ArrayDtor>`, `ReturnLike`, `Terminator`
+Traits: `HasParent<IfOp, ScopeOp, SwitchOp, WhileOp, ForOp, AwaitOp, TernaryOp, GlobalOp, DoWhileOp, TryOp, ArrayCtor, ArrayDtor, CallOp>`, `ReturnLike`, `Terminator`
 
 Interfaces: `RegionBranchTerminatorOpInterface`
 
@@ -5193,5 +5579,5 @@ Interfaces: `RegionBranchTerminatorOpInterface`
 
 | Operand | Description |
 | :-----: | ----------- |
-| `args` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
+| `args` | variadic of Integer type with arbitrary precision up to a fixed limit or CIR pointer type or CIR type that represents pointer-to-data-member type in C++ or CIR type that represents C++ pointer-to-member-function type or CIR bool type or CIR array type or CIR vector type or CIR function type or CIR void type or CIR struct type or CIR exception info or CIR single-precision float type or CIR double-precision float type or CIR type that represents x87 80-bit floating-point format or CIR type that represents IEEEquad 128-bit floating-point format or CIR extended-precision float type or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR type that represents IEEE-754 binary16 format or CIR type that represents or CIR complex type
 
