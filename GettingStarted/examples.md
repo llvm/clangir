@@ -31,7 +31,7 @@ One particularly useful pass to introspect is `cir-lowering-prepare`
 lower-level ones. Godbolt's [pipeline viewer](https://godbolt.org/z/1Ke8TKe7G)
 is convenient for this.
 
-![](/Images/godbolt-pipeline-viewer.png)
+![](../Images/godbolt-pipeline-viewer.png)
 
 ## Emitting flat CIR
 
@@ -41,7 +41,7 @@ block control flow. You can pass `-Xclang -emit-cir-flat` to see this
 flattened representation. [Godbolt](https://godbolt.org/z/Gj336Yvos)
 shows the difference in the representations.
 
-![](/Images/godbolt-flat-cir.png)
+![](../Images/godbolt-flat-cir.png)
 
 ## Generating LLVM IR
 
