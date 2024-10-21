@@ -42,6 +42,17 @@ Value buildAddressAtOffset(LowerFunction &LF, Value addr,
   return addr;
 }
 
+Value emitPointerBitcast(Value Src, Type DestTy, LowerFunction &CGF) {
+  auto destPtrTy = PointerType::get(CGF.getRewriter().getContext(), DestTy);
+
+  if (auto load = dyn_cast<LoadOp>(Src.getDefiningOp()))
+    return CGF.getRewriter().create<CastOp>(Src.getLoc(), destPtrTy,
+                                            CastKind::bitcast, load.getAddr());
+
+  return CGF.getRewriter().create<CastOp>(Src.getLoc(), destPtrTy,
+                                          CastKind::bitcast, Src);
+}
+
 /// Given a struct pointer that we are accessing some number of bytes out of it,
 /// try to gep into the struct to get at its inner goodness.  Dive as deep as
 /// possible without entering an element with an in-memory size smaller than
@@ -112,7 +123,7 @@ void createCoercedStore(Value Src, Value Dst, bool DstIsVolatile,
   // If store is legal, just bitcast the src pointer.
   cir_cconv_assert(!::cir::MissingFeatures::vectorType());
   if (SrcSize.getFixedValue() <= DstSize.getFixedValue()) {
-    // Dst = Dst.withElementType(SrcTy);
+    Dst = emitPointerBitcast(Dst, SrcTy, CGF);
     CGF.buildAggregateStore(Src, Dst, DstIsVolatile);
   } else {
     cir_cconv_unreachable("NYI");
@@ -174,7 +185,7 @@ Value createCoercedValue(Value Src, Type Ty, LowerFunction &CGF) {
     //
     // FIXME: Assert that we aren't truncating non-padding bits when have access
     // to that information.
-    // Src = Src.withElementType();
+    Src = emitPointerBitcast(Src, Ty, CGF);
     return CGF.buildAggregateBitcast(Src, Ty);
   }
 
@@ -233,8 +244,8 @@ Value castReturnValue(Value Src, Type Ty, LowerFunction &LF) {
     //
     // FIXME: Assert that we aren't truncating non-padding bits when have access
     // to that information.
-    return LF.getRewriter().create<CastOp>(Src.getLoc(), Ty, CastKind::bitcast,
-                                           Src);
+    auto Cast = emitPointerBitcast(Src, Ty, LF);
+    return LF.getRewriter().create<LoadOp>(Src.getLoc(), Cast);
   }
 
   cir_cconv_unreachable("NYI");
@@ -550,7 +561,8 @@ void LowerFunction::buildAggregateStore(Value Val, Value Dest,
 }
 
 Value LowerFunction::buildAggregateBitcast(Value Val, Type DestTy) {
-  return rewriter.create<CastOp>(Val.getLoc(), DestTy, CastKind::bitcast, Val);
+  auto Cast = emitPointerBitcast(Val, DestTy, *this);
+  return rewriter.create<LoadOp>(Val.getLoc(), Cast);
 }
 
 /// Rewrite a call operation to abide to the ABI calling convention.
@@ -898,6 +910,15 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
       cir_cconv_unreachable("NYI");
     }
   }();
+
+  for (auto user : Caller.getOperation()->getUsers()) {
+    if (auto storeOp = dyn_cast<StoreOp>(user)) {
+      auto SrcTy = Ret.getType();
+      auto Dest = storeOp.getAddr();
+      auto DestPtr = emitPointerBitcast(Dest, SrcTy, *this);
+      rewriter.replaceOpWithNewOp<StoreOp>(storeOp, Ret, DestPtr);
+    }
+  }
 
   // NOTE(cir): Skipping Emissions, lifetime markers, and dtors here that
   // should be handled in CIRGen.
