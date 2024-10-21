@@ -1324,13 +1324,26 @@ public:
 class CIRAllocaLowering
     : public mlir::OpConversionPattern<mlir::cir::AllocaOp> {
   mlir::DataLayout const &dataLayout;
+  // Track globals created for annotation related strings
+  llvm::StringMap<mlir::LLVM::GlobalOp> &stringGlobalsMap;
+  // Track globals created for annotation arg related strings.
+  // They are different from annotation strings, as strings used in args
+  // are not in llvmMetadataSectionName, and also has aligment 1.
+  llvm::StringMap<mlir::LLVM::GlobalOp> &argStringGlobalsMap;
+  // Track globals created for annotation args.
+  llvm::MapVector<mlir::ArrayAttr, mlir::LLVM::GlobalOp> &argsVarMap;
 
 public:
-  CIRAllocaLowering(mlir::TypeConverter const &typeConverter,
-                    mlir::DataLayout const &dataLayout,
-                    mlir::MLIRContext *context)
+  CIRAllocaLowering(
+      mlir::TypeConverter const &typeConverter,
+      mlir::DataLayout const &dataLayout,
+      llvm::StringMap<mlir::LLVM::GlobalOp> &stringGlobalsMap,
+      llvm::StringMap<mlir::LLVM::GlobalOp> &argStringGlobalsMap,
+      llvm::MapVector<mlir::ArrayAttr, mlir::LLVM::GlobalOp> &argsVarMap,
+      mlir::MLIRContext *context)
       : OpConversionPattern<mlir::cir::AllocaOp>(typeConverter, context),
-        dataLayout(dataLayout) {}
+        dataLayout(dataLayout), stringGlobalsMap(stringGlobalsMap),
+        argStringGlobalsMap(argStringGlobalsMap), argsVarMap(argsVarMap) {}
 
   void buildAllocaAnnotations(mlir::LLVM::AllocaOp op, OpAdaptor adaptor,
                               mlir::ConversionPatternRewriter &rewriter,
@@ -1344,15 +1357,6 @@ public:
     mlir::Location loc = op.getLoc();
     mlir::OpBuilder varInitBuilder(module.getContext());
     varInitBuilder.restoreInsertionPoint(afterAlloca);
-
-    // Track globals created for annotation related strings
-    llvm::StringMap<mlir::LLVM::GlobalOp> stringGlobalsMap;
-    // Track globals created for annotation arg related strings.
-    // They are different from annotation strings, as strings used in args
-    // are not in llvmMetadataSectionName, and also has aligment 1.
-    llvm::StringMap<mlir::LLVM::GlobalOp> argStringGlobalsMap;
-    // Track globals created for annotation args.
-    llvm::MapVector<mlir::ArrayAttr, mlir::LLVM::GlobalOp> argsVarMap;
 
     auto intrinRetTy = mlir::LLVM::LLVMVoidType::get(getContext());
     constexpr const char *intrinNameAttr = "llvm.var.annotation.p0.p0";
@@ -4149,11 +4153,16 @@ public:
   }
 };
 
-void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
-                                         mlir::TypeConverter &converter,
-                                         mlir::DataLayout &dataLayout) {
+void populateCIRToLLVMConversionPatterns(
+    mlir::RewritePatternSet &patterns, mlir::TypeConverter &converter,
+    mlir::DataLayout &dataLayout,
+    llvm::StringMap<mlir::LLVM::GlobalOp> &stringGlobalsMap,
+    llvm::StringMap<mlir::LLVM::GlobalOp> &argStringGlobalsMap,
+    llvm::MapVector<mlir::ArrayAttr, mlir::LLVM::GlobalOp> &argsVarMap) {
   patterns.add<CIRReturnLowering>(patterns.getContext());
-  patterns.add<CIRAllocaLowering>(converter, dataLayout, patterns.getContext());
+  patterns.add<CIRAllocaLowering>(converter, dataLayout, stringGlobalsMap,
+                                  argStringGlobalsMap, argsVarMap,
+                                  patterns.getContext());
   patterns.add<
       CIRCmpOpLowering, CIRSelectOpLowering, CIRBitClrsbOpLowering,
       CIRBitClzOpLowering, CIRBitCtzOpLowering, CIRBitFfsOpLowering,
@@ -4553,7 +4562,9 @@ void ConvertCIRToLLVMPass::runOnOperation() {
   // Track globals created for annotation args.
   llvm::MapVector<mlir::ArrayAttr, mlir::LLVM::GlobalOp> argsVarMap;
 
-  populateCIRToLLVMConversionPatterns(patterns, converter, dataLayout);
+  populateCIRToLLVMConversionPatterns(patterns, converter, dataLayout,
+                                      stringGlobalsMap, argStringGlobalsMap,
+                                      argsVarMap);
   mlir::populateFuncToLLVMConversionPatterns(converter, patterns);
 
   mlir::ConversionTarget target(getContext());
