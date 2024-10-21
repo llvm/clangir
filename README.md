@@ -1,8 +1,8 @@
-# Clang IR (CIR)
+# ClangIR (CIR)
 
-Clang IR (CIR) is a new IR for Clang. ClangIR (CIR) is built on top of MLIR and
-it's basically a mlir dialect for C/C++ based languages in Clang.  It's
-representation level sits somewhere between Clang AST and LLVM IR.
+ClangIR is a new IR for Clang, which is an MLIR dialect for C/C++ based
+languages in Clang. Its representation level sits somewhere between
+Clang's AST and LLVM IR.
 
 ClangIR [upstreaming
 RFC](https://discourse.llvm.org/t/rfc-upstreaming-clangir/76587) was
@@ -20,25 +20,24 @@ Other resources:
 # Motivation
 
 In a gist, an IR that can cover C/C++ higher level semantics enables a class of
-idiomatic diagnostics and performance optimizations that could be currently hard to
+idiomatic diagnostics and performance optimizations that are hard to
 explore on Clang AST or LLVM IR level.
 
-By using MLIR, ClangIR leverages on a compiler framework to write passes, IR and quickly
+By using MLIR, ClangIR leverages a compiler framework to write passes, IR and quickly
 iterate design, while re-using community provided analysis and transformations that can
 be easily adapted for CIR.
 
 # What's ClangIR in practice?
 
-ClangIR is a MLIR dialect that is also bound to Clang, meaning it lives inside
-the clang project and not as a mlir in-tree dialect. Some CIR operations
+ClangIR is an MLIR dialect that is also bound to Clang, meaning it lives inside
+the clang project and not as an MLIR in-tree dialect. Some CIR operations
 optionally contain backreferences to the Clang AST, enabling analysis and
 transformation passes to optionally use AST information, while also allowing
 progressive lowering through late use of AST nodes.
 
 By passing `-fclangir` to the clang driver, the compilation pipeline is
-modified and CIR gets emitted from ClangAST and then lowered to LLVM IR,
-backend, etc. Since our LLVM emission support is WIP, functionality is
-currently limited. To get CIR printed out of a compiler invocation, the flag
+modified and CIR gets emitted from Clang's AST and then lowered to LLVM IR,
+backend, etc. To get CIR printed out of a compiler invocation, the flag
 `-emit-cir` can be used, which will force the compiler to stop right after CIR
 is produced. The picture below depicts how the compiler pipeline works:
 
