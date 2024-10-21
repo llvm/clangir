@@ -110,6 +110,17 @@ Install LLDB (`sudo apt install lldb`) and the CodeLLDB VS Code plugin, then cop
 
 ClangIR Docs (this website) is provided by [Github Pages](https://pages.github.com/). You can find its files in [ClangIR's repo `gh-pages` branch](https://github.com/llvm/clangir/tree/gh-pages).
 
+If you're able to install packages globally on your machine and don't
+mind doing so, the [GitHub Pages Jekyll instructions](https://docs.github.com/en/pages/setting-up-a-github-pages-site-with-jekyll/testing-your-github-pages-site-locally-with-jekyll)
+should get you started. If you get a warning from Jekyll about a GitHub
+token and have the `gh` cli set up, the following should resolve that:
+
+```shell
+JEKYLL_GITHUB_TOKEN=$(gh auth token) bundle exec jekyll serve --incremental --livereload
+```
+
+Otherwise, follow these steps to set up an isolated website development
+environment:
 * First, set up [VS Code's Dev Containers feature](https://code.visualstudio.com/docs/devcontainers/containers).
 * Clone ClangIR and check out the `gh-pages` branch:
   ```base
