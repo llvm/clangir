@@ -46,8 +46,8 @@ Value createCoercedBitcast(Value Src, Type DestTy, LowerFunction &CGF) {
   auto destPtrTy = PointerType::get(CGF.getRewriter().getContext(), DestTy);
 
   if (auto load = dyn_cast<LoadOp>(Src.getDefiningOp()))
-    return CGF.getRewriter().replaceOpWithNewOp<CastOp>(
-        load, destPtrTy, CastKind::bitcast, load.getAddr());
+    return CGF.getRewriter().create<CastOp>(Src.getLoc(), destPtrTy,
+                                            CastKind::bitcast, load.getAddr());
 
   return CGF.getRewriter().create<CastOp>(Src.getLoc(), destPtrTy,
                                           CastKind::bitcast, Src);
