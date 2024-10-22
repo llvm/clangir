@@ -129,8 +129,10 @@ ABIArgInfo AArch64ABIInfo::classifyReturnType(Type RetTy,
     // We use a pair of i64 for 16-byte aggregate with 8-byte alignment.
     // For aggregates with 16-byte alignment, we use i128.
     if (Alignment < 128 && Size == 128) {
-      mlir::Type baseTy = mlir::cir::IntType::get(LT.getMLIRContext(), 64, false);
-      return ABIArgInfo::getDirect(mlir::cir::ArrayType::get(LT.getMLIRContext(), baseTy, Size / 64));
+      mlir::Type baseTy =
+          mlir::cir::IntType::get(LT.getMLIRContext(), 64, false);
+      return ABIArgInfo::getDirect(
+          mlir::cir::ArrayType::get(LT.getMLIRContext(), baseTy, Size / 64));
     }
 
     cir_cconv_unreachable("NYI");
