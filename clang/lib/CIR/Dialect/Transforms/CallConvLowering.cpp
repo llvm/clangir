@@ -60,10 +60,10 @@ public:
           continue;
         }
 
-        auto callOp = dyn_cast_or_null<CallOp>(call.getUser());
-        if (auto callOp = dyn_cast_or_null<CallOp>(call.getUser()))
+        if (auto callOp = dyn_cast_or_null<CallOp>(call.getUser())) {
           if (lowerModule.rewriteFunctionCall(callOp, op).failed())
             return failure();
+        }
       }
     }
 
