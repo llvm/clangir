@@ -53,16 +53,14 @@ public:
     auto calls = op.getSymbolUses(module);
     if (calls.has_value()) {
       for (auto call : calls.value()) {
-        // // FIXME(cir): Function pointers are ignored.
-        // if (isa<GetGlobalOp>(call.getUser())) {
-        //   cir_cconv_assert_or_abort(!::cir::MissingFeatures::ABIFuncPtr(),
-        //                             "NYI");
-        //   continue;
-        // }
+        // FIXME(cir): Function pointers are ignored except the next cases
+        if (!isa<GetGlobalOp, CallOp>(call.getUser())) {
+          cir_cconv_assert_or_abort(!::cir::MissingFeatures::ABIFuncPtr(),
+                                    "NYI");
+          continue;
+        }
 
         auto callOp = dyn_cast_or_null<CallOp>(call.getUser());
-        // if (!callOp)
-        //   cir_cconv_unreachable("NYI empty callOp");
         if (auto callOp = dyn_cast_or_null<CallOp>(call.getUser()))
           if (lowerModule.rewriteFunctionCall(callOp, op).failed())
             return failure();
