@@ -8,10 +8,10 @@
 
 #include "TargetLowering/LowerModule.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
-#include "mlir/Transforms/DialectConversion.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/Pass/Pass.h"
+#include "mlir/Transforms/DialectConversion.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/MissingFeatures.h"
@@ -24,9 +24,9 @@
 namespace mlir {
 namespace cir {
 
-FuncType lowerFuncType(LowerModule& mod, FuncType ftyp) {
-  auto& typs = mod.getTypes();
-  auto& info = typs.arrangeFreeFunctionType(ftyp);
+FuncType lowerFuncType(LowerModule &mod, FuncType ftyp) {
+  auto &typs = mod.getTypes();
+  auto &info = typs.arrangeFreeFunctionType(ftyp);
   return typs.getFunctionType(info);
 }
 
@@ -34,18 +34,18 @@ FuncType lowerFuncType(LowerModule& mod, FuncType ftyp) {
 // Rewrite Patterns
 //===----------------------------------------------------------------------===//
 
-class CCFuncOpLowering : public mlir::OpRewritePattern<FuncOp> { 
+class CCFuncOpLowering : public mlir::OpRewritePattern<FuncOp> {
   using OpRewritePattern<FuncOp>::OpRewritePattern;
-  LowerModule& lowerModule;
+  LowerModule &lowerModule;
 
 public:
-  CCFuncOpLowering(LowerModule& mod, mlir::MLIRContext *context)      
-      : OpRewritePattern(context)
-      , lowerModule(mod) {}
+  CCFuncOpLowering(LowerModule &mod, mlir::MLIRContext *context)
+      : OpRewritePattern(context), lowerModule(mod) {}
 
-  LogicalResult matchAndRewrite(FuncOp op,  
-                                PatternRewriter &rewriter) const final {    
-    llvm::TimeTraceScope scope("Call Conv Lowering Pass", op.getSymName().str());
+  LogicalResult matchAndRewrite(FuncOp op,
+                                PatternRewriter &rewriter) const final {
+    llvm::TimeTraceScope scope("Call Conv Lowering Pass",
+                               op.getSymName().str());
     const auto module = op->getParentOfType<mlir::ModuleOp>();
 
     // Rewrite function calls before definitions. This should be done before
@@ -69,38 +69,37 @@ public:
 
     // TODO(cir): Instead of re-emmiting every load and store, bitcast arguments
     // and return values to their ABI-specific counterparts when possible.
-    return lowerModule.rewriteFunctionDefinition(op);      
+    return lowerModule.rewriteFunctionDefinition(op);
   }
 };
 
-class CCGetGlobalOpLowering 
+class CCGetGlobalOpLowering
     : public mlir::OpConversionPattern<mlir::cir::GetGlobalOp> {
 
 public:
   CCGetGlobalOpLowering(const mlir::TypeConverter &typeConverter,
                         mlir::MLIRContext *context)
-      : OpConversionPattern<mlir::cir::GetGlobalOp>(typeConverter, context) 
-      {}
-  
+      : OpConversionPattern<mlir::cir::GetGlobalOp>(typeConverter, context) {}
+
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::GetGlobalOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto resTy = op.getResult().getType();
     if (auto ptrTy = dyn_cast<PointerType>(resTy)) {
       if (isa<FuncType>(ptrTy.getPointee())) {
-        rewriter.replaceOpWithNewOp<GetGlobalOp>(op,
-            getTypeConverter()->convertType(resTy),
-            op.getName());
+        rewriter.replaceOpWithNewOp<GetGlobalOp>(
+            op, getTypeConverter()->convertType(resTy), op.getName());
 
         return success();
       }
     }
-  
+
     return failure();
   }
 };
 
-class CCAllocaOpLowering : public mlir::OpConversionPattern<mlir::cir::AllocaOp> {
+class CCAllocaOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::AllocaOp> {
 
 public:
   CCAllocaOpLowering(const mlir::TypeConverter &typeConverter,
@@ -112,12 +111,9 @@ public:
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto eltTy = getTypeConverter()->convertType(op.getAllocaType());
     if (op.getAllocaType() != eltTy) {
-      rewriter.replaceOpWithNewOp<AllocaOp>(op,
-          getTypeConverter()->convertType(op.getResult().getType()),
-          eltTy,
-          op.getName(),
-          op.getAlignmentAttr(),
-          op.getDynAllocSize());
+      rewriter.replaceOpWithNewOp<AllocaOp>(
+          op, getTypeConverter()->convertType(op.getResult().getType()), eltTy,
+          op.getName(), op.getAlignmentAttr(), op.getDynAllocSize());
       return success();
     }
 
@@ -129,9 +125,9 @@ public:
 // Pass
 //===----------------------------------------------------------------------===//
 
-void initTypeConverter(mlir::TypeConverter& converter,
-                       mlir::cir::LowerModule& module) {
-   
+void initTypeConverter(mlir::TypeConverter &converter,
+                       mlir::cir::LowerModule &module) {
+
   converter.addConversion([](mlir::Type typ) -> mlir::Type { return typ; });
 
   converter.addConversion([&](mlir::cir::FuncType funTy) -> mlir::Type {
@@ -157,19 +153,20 @@ struct CallConvLoweringPass
   StringRef getArgument() const override { return "cir-call-conv-lowering"; };
 };
 
-void populateCallConvLoweringPassPatterns(const mlir::TypeConverter& converter,
-                                          LowerModule& mod, 
-                                          RewritePatternSet &patterns) {  
-  patterns.add<CCFuncOpLowering>(mod, patterns.getContext());  
-  patterns.add<CCGetGlobalOpLowering, CCAllocaOpLowering>(converter, patterns.getContext());   
+void populateCallConvLoweringPassPatterns(const mlir::TypeConverter &converter,
+                                          LowerModule &mod,
+                                          RewritePatternSet &patterns) {
+  patterns.add<CCFuncOpLowering>(mod, patterns.getContext());
+  patterns.add<CCGetGlobalOpLowering, CCAllocaOpLowering>(
+      converter, patterns.getContext());
 }
 
 void CallConvLoweringPass::runOnOperation() {
   auto module = dyn_cast<ModuleOp>(getOperation());
   mlir::PatternRewriter rewriter(module.getContext());
-  std::unique_ptr<LowerModule> lowerModule = 
+  std::unique_ptr<LowerModule> lowerModule =
       createLowerModule(module, rewriter);
-  
+
   mlir::TypeConverter converter;
   initTypeConverter(converter, *lowerModule.get());
 
@@ -179,7 +176,7 @@ void CallConvLoweringPass::runOnOperation() {
 
   // Collect operations to be considered by the pass.
   SmallVector<Operation *, 16> ops;
-  getOperation()->walk([&](Operation*op) {
+  getOperation()->walk([&](Operation *op) {
     if (isa<AllocaOp, FuncOp, GetGlobalOp>(op))
       ops.push_back(op);
   });
