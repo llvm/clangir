@@ -2361,6 +2361,13 @@ mlir::Value CIRGenFunction::buildCommonNeonBuiltinExpr(
                                                     : "llvm.aarch64.neon.sqsub";
     break;
   }
+  case NEON::BI__builtin_neon_vrhadd_v:
+  case NEON::BI__builtin_neon_vrhaddq_v: {
+    intrincsName = (intrinicId != altLLVMIntrinsic)
+                       ? "llvm.aarch64.neon.urhadd"
+                       : "llvm.aarch64.neon.srhadd";
+    break;
+  }
   }
   if (!intrincsName.empty())
     return buildCommonNeonCallPattern0(*this, intrincsName, {vTy, vTy}, ops,
@@ -3119,8 +3126,17 @@ CIRGenFunction::buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   case NEON::BI__builtin_neon_vfmad_laneq_f64: {
     llvm_unreachable("NYI");
   }
-  case NEON::BI__builtin_neon_vmull_v:
-    llvm_unreachable("NYI");
+  case NEON::BI__builtin_neon_vmull_v: {
+    llvm::StringRef name =
+        usgn ? "llvm.aarch64.neon.umull" : "llvm.aarch64.neon.smull";
+    if (Type.isPoly())
+      name = "llvm.aarch64.neon.pmull";
+    mlir::cir::VectorType argTy =
+        builder.getExtendedOrTruncatedElementVectorType(
+            ty, false /* truncated */, !usgn);
+    return buildNeonCall(builder, {argTy, argTy}, Ops, name, ty,
+                         getLoc(E->getExprLoc()));
+  }
   case NEON::BI__builtin_neon_vmax_v:
   case NEON::BI__builtin_neon_vmaxq_v:
     llvm_unreachable("NYI");
@@ -3128,14 +3144,26 @@ CIRGenFunction::buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
     llvm_unreachable("NYI");
   }
   case NEON::BI__builtin_neon_vmin_v:
-  case NEON::BI__builtin_neon_vminq_v:
-    llvm_unreachable("NYI");
+  case NEON::BI__builtin_neon_vminq_v: {
+    llvm::StringRef name =
+        usgn ? "llvm.aarch64.neon.umin" : "llvm.aarch64.neon.smin";
+    if (mlir::cir::isFPOrFPVectorTy(ty))
+      name = "llvm.aarch64.neon.fmin";
+    return buildNeonCall(builder, {ty, ty}, Ops, name, ty,
+                         getLoc(E->getExprLoc()));
+  }
   case NEON::BI__builtin_neon_vminh_f16: {
     llvm_unreachable("NYI");
   }
   case NEON::BI__builtin_neon_vabd_v:
-  case NEON::BI__builtin_neon_vabdq_v:
-    llvm_unreachable("NYI");
+  case NEON::BI__builtin_neon_vabdq_v: {
+    llvm::StringRef name =
+        usgn ? "llvm.aarch64.neon.uabd" : "llvm.aarch64.neon.sabd";
+    if (mlir::cir::isFPOrFPVectorTy(ty))
+      name = "llvm.aarch64.neon.fabd";
+    return buildNeonCall(builder, {ty, ty}, Ops, name, ty,
+                         getLoc(E->getExprLoc()));
+  }
   case NEON::BI__builtin_neon_vpadal_v:
   case NEON::BI__builtin_neon_vpadalq_v: {
     llvm_unreachable("NYI");
