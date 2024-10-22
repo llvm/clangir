@@ -73,30 +73,6 @@ public:
   }
 };
 
-//===----------------------------------------------------------------------===//
-// Pass
-//===----------------------------------------------------------------------===//
-
-void initTypeConverter(mlir::TypeConverter& converter,
-                       mlir::cir::LowerModule& module) {
-   
-  converter.addConversion([](mlir::Type typ) -> mlir::Type { return typ; });
-
-  converter.addConversion([&](mlir::cir::FuncType funTy) -> mlir::Type {
-    return lowerFuncType(module, funTy);
-  });
-
-  converter.addConversion([&](mlir::cir::PointerType ptrTy) -> mlir::Type {
-    auto pointee = converter.convertType(ptrTy.getPointee());
-    return PointerType::get(module.getMLIRContext(), pointee);
-  });
-
-  converter.addConversion([&](mlir::cir::ArrayType arTy) -> mlir::Type {
-    auto eltType = converter.convertType(arTy.getEltType());
-    return ArrayType::get(module.getMLIRContext(), eltType, arTy.getSize());
-  });
-}
-
 class CCGetGlobalOpLowering 
     : public mlir::OpConversionPattern<mlir::cir::GetGlobalOp> {
 
@@ -122,7 +98,6 @@ public:
   
     return failure();
   }
-
 };
 
 class CCAllocaOpLowering : public mlir::OpConversionPattern<mlir::cir::AllocaOp> {
@@ -149,6 +124,30 @@ public:
     return failure();
   }
 };
+
+//===----------------------------------------------------------------------===//
+// Pass
+//===----------------------------------------------------------------------===//
+
+void initTypeConverter(mlir::TypeConverter& converter,
+                       mlir::cir::LowerModule& module) {
+   
+  converter.addConversion([](mlir::Type typ) -> mlir::Type { return typ; });
+
+  converter.addConversion([&](mlir::cir::FuncType funTy) -> mlir::Type {
+    return lowerFuncType(module, funTy);
+  });
+
+  converter.addConversion([&](mlir::cir::PointerType ptrTy) -> mlir::Type {
+    auto pointee = converter.convertType(ptrTy.getPointee());
+    return PointerType::get(module.getMLIRContext(), pointee);
+  });
+
+  converter.addConversion([&](mlir::cir::ArrayType arTy) -> mlir::Type {
+    auto eltType = converter.convertType(arTy.getEltType());
+    return ArrayType::get(module.getMLIRContext(), eltType, arTy.getSize());
+  });
+}
 
 struct CallConvLoweringPass
     : ::impl::CallConvLoweringBase<CallConvLoweringPass> {
