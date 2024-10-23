@@ -47,7 +47,7 @@ struct CallConvLowering {
 
   CallConvLowering(LowerModule &mod, mlir::PatternRewriter &rw,
                    mlir::TypeConverter &converter)
-    : lowerModule(mod), rewriter(rw), typeConverter(converter) {}
+      : lowerModule(mod), rewriter(rw), typeConverter(converter) {}
 
   void lower(Operation *op) {
     rewriter.setInsertionPoint(op);
@@ -62,8 +62,7 @@ struct CallConvLowering {
   }
 
 private:
-
-  // don't create new operations once there is no special 
+  // don't create new operations once there is no special
   // conversion for the given type
   mlir::Type convertType(mlir::Type typ) {
     auto newTy = typeConverter.convertType(typ);
@@ -79,17 +78,16 @@ private:
     auto calls = op.getSymbolUses(module);
     if (calls.has_value()) {
       for (auto call : calls.value()) {
-        if (isa<GetGlobalOp, CallOp>(call.getUser()))          
+        if (isa<GetGlobalOp, CallOp>(call.getUser()))
           continue;
-      
-        cir_cconv_assert_or_abort(!::cir::MissingFeatures::ABIFuncPtr(),
-                                    "NYI"); 
+
+        cir_cconv_assert_or_abort(!::cir::MissingFeatures::ABIFuncPtr(), "NYI");
       }
     }
     lowerModule.rewriteFunctionDefinition(op);
   }
 
-  void lowerAllocaOp(AllocaOp op) {   
+  void lowerAllocaOp(AllocaOp op) {
     if (auto newEltTy = convertType(op.getAllocaType()))
       rewriter.replaceOpWithNewOp<AllocaOp>(
           op, typeConverter.convertType(op.getResult().getType()), newEltTy,
@@ -128,8 +126,8 @@ void initTypeConverter(mlir::TypeConverter &converter,
 
   converter.addConversion([](mlir::Type typ) -> mlir::Type { return typ; });
 
-  converter.addConversion([&](mlir::cir::FuncType funTy) -> mlir::Type {    
-    auto &typs = module.getTypes();  
+  converter.addConversion([&](mlir::cir::FuncType funTy) -> mlir::Type {
+    auto &typs = module.getTypes();
     return typs.getFunctionType(typs.arrangeFreeFunctionType(funTy));
   });
 
