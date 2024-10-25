@@ -52,13 +52,13 @@ struct CallConvLowering {
   void lower(Operation *op) {
     rewriter.setInsertionPoint(op);
     if (auto fun = dyn_cast<FuncOp>(op))
-      lowerFuncOp(fun);
+      lower(fun);
     else if (auto al = dyn_cast<AllocaOp>(op))
-      lowerAllocaOp(al);
+      lower(al);
     else if (auto glob = dyn_cast<GetGlobalOp>(op))
-      lowerGetGlobalOp(glob);
+      lower(glob);
     else if (auto call = dyn_cast<CallOp>(op))
-      lowerCallOp(call);
+      lower(call);
   }
 
 private:
@@ -71,8 +71,7 @@ private:
     return {};
   }
 
-  void lowerFuncOp(FuncOp op) {
-
+  void lower(FuncOp op) {
     // Fail the pass on unimplemented function users
     const auto module = op->getParentOfType<mlir::ModuleOp>();
     auto calls = op.getSymbolUses(module);
@@ -87,21 +86,21 @@ private:
     lowerModule.rewriteFunctionDefinition(op);
   }
 
-  void lowerAllocaOp(AllocaOp op) {
+  void lower(AllocaOp op) {
     if (auto newEltTy = convertType(op.getAllocaType()))
       rewriter.replaceOpWithNewOp<AllocaOp>(
           op, typeConverter.convertType(op.getResult().getType()), newEltTy,
           op.getName(), op.getAlignmentAttr(), op.getDynAllocSize());
   }
 
-  void lowerGetGlobalOp(GetGlobalOp op) {
+  void lower(GetGlobalOp op) {
     auto resTy = op.getResult().getType();
     if (isFuncPointerTy(resTy))
       if (auto newResTy = convertType(resTy))
         rewriter.replaceOpWithNewOp<GetGlobalOp>(op, newResTy, op.getName());
   }
 
-  void lowerCallOp(CallOp op) {
+  void lower(CallOp op) {
     auto mod = op->getParentOfType<ModuleOp>();
     if (auto callee = op.getCallee()) {
       if (auto fun = findFun(mod, *callee))
