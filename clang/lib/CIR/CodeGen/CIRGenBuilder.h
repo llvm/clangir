@@ -300,6 +300,9 @@ public:
       return true;
     }
 
+    if (isa<mlir::cir::PlaceholderAttr>(attr))
+      return true;
+
     llvm_unreachable("NYI");
   }
 

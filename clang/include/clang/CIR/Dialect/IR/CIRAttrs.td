@@ -93,6 +93,20 @@ def CIR_BoolAttr : CIR_Attr<"Bool", "bool", [TypedAttrInterface]> {
 }
 
 //===----------------------------------------------------------------------===//
+// PlaceholderAttr
+//===----------------------------------------------------------------------===//
+
+def PlaceholderAttr : CIR_Attr<"Placeholder", "placeholder", [TypedAttrInterface]> {
+  let summary = "Attribute to represent a placeholder";
+  let description = [{
+    The PlaceholderAttr is used to represent a placeholder.
+  }];
+
+  let parameters = (ins AttributeSelfTypeParameter<"">:$type);
+  let assemblyFormat = [{}];
+}
+
+//===----------------------------------------------------------------------===//
 // ZeroAttr
 //===----------------------------------------------------------------------===//
 
