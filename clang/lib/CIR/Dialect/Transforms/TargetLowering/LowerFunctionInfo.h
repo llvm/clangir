@@ -152,9 +152,7 @@ public:
 
   unsigned arg_size() const { return NumArgs; }
 
-  bool isVariadic() const {
-    return Required.allowsOptionalArgs();
-  }
+  bool isVariadic() const { return Required.allowsOptionalArgs(); }
   unsigned getNumRequiredArgs() const {
     return isVariadic() ? Required.getNumRequiredArgs() : arg_size();
   }
