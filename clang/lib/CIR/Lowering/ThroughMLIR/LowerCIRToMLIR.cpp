@@ -46,8 +46,8 @@
 #include "mlir/Transforms/DialectConversion.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
-#include "clang/CIR/LoweringHelpers.h"
 #include "clang/CIR/LowerToMLIR.h"
+#include "clang/CIR/LoweringHelpers.h"
 #include "clang/CIR/Passes.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Sequence.h"
@@ -241,6 +241,17 @@ public:
   matchAndRewrite(mlir::cir::FAbsOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     rewriter.replaceOpWithNewOp<mlir::math::AbsFOp>(op, adaptor.getSrc());
+    return mlir::LogicalResult::success();
+  }
+};
+class CIRAbsOpLowering : public mlir::OpConversionPattern<mlir::cir::AbsOp> {
+public:
+  using mlir::OpConversionPattern<mlir::cir::AbsOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::AbsOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOpWithNewOp<mlir::math::AbsIOp>(op, adaptor.getSrc());
     return mlir::LogicalResult::success();
   }
 };

@@ -4005,6 +4005,13 @@ def SinOp : UnaryFPToFPBuiltinOp<"sin", "SinOp">;
 def SqrtOp : UnaryFPToFPBuiltinOp<"sqrt", "SqrtOp">;
 def TruncOp : UnaryFPToFPBuiltinOp<"trunc", "FTruncOp">;
 
+def AbsOp : CIR_Op<"abs", [Pure, SameOperandsAndResultType]> {
+  let arguments = (ins CIR_IntType:$src, I1Attr:$is_int_min_poison);
+  let results = (outs CIR_IntType:$result);
+  let summary = "libc builtin equivalent abs, labs, llabs";
+  let assemblyFormat = "$src `:` type($src) attr-dict";
+}
+
 class BinaryFPToFPBuiltinOp<string mnemonic, string llvmOpName>
     : CIR_Op<mnemonic, [Pure, SameOperandsAndResultType]> {
   let summary = [{

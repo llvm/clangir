@@ -19,3 +19,21 @@ float testFabsf(float x) {
   return fabsf(x);
   // CHECK: cir.fabs %{{.+}} : !cir.float
 }
+
+int abs(int);
+int testAbs(int x) {
+  return abs(x);
+  // CHECK: cir.abs %{{.+}} : !s32i
+}
+
+long labs(long);
+long testLabs(long x) {
+  return labs(x);
+  // CHECK: cir.abs %{{.+}} : !s64i
+}
+
+long long llabs(long long);
+long long testLlabs(long long x) {
+  return llabs(x);
+  // CHECK: cir.abs %{{.+}} : !s64i
+}
