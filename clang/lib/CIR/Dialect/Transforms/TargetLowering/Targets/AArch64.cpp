@@ -105,7 +105,7 @@ ABIArgInfo AArch64ABIInfo::classifyReturnType(Type RetTy,
   }
 
   uint64_t Size = getContext().getTypeSize(RetTy);
-  cir_cconv_assert(!::cir::MissingFeatures::emitEmptyRecordCheck);
+  cir_cconv_assert(!::cir::MissingFeatures::emitEmptyRecordCheck());
   cir_cconv_assert(
       !::cir::MissingFeatures::supportisHomogeneousAggregateQueryForAArch64());
 
