@@ -2359,6 +2359,7 @@ mlir::Value CIRGenFunction::buildCommonNeonBuiltinExpr(
   // This second switch is for the intrinsics that might have a more generic
   // codegen solution so we can use the common codegen in future.
   llvm::StringRef intrincsName;
+  llvm::SmallVector<mlir::Type> argTypes;
   switch (builtinID) {
   default:
     llvm::errs() << getAArch64SIMDIntrinsicString(builtinID) << " ";
@@ -2390,10 +2391,20 @@ mlir::Value CIRGenFunction::buildCommonNeonBuiltinExpr(
                        : "llvm.aarch64.neon.srhadd";
     break;
   }
+  case NEON::BI__builtin_neon_vqmovun_v: {
+    intrincsName = "llvm.aarch64.neon.sqxtun";
+    argTypes.push_back(builder.getExtendedOrTruncatedElementVectorType(
+        vTy, true /* extended */, true /* signed */));
+    break;
   }
-  if (!intrincsName.empty())
-    return buildCommonNeonCallPattern0(*this, intrincsName, {vTy, vTy}, ops,
-                                       vTy, e);
+  }
+
+  if (!intrincsName.empty()) {
+    if (argTypes.empty())
+      argTypes = {vTy, vTy};
+    return buildCommonNeonCallPattern0(*this, intrincsName, argTypes, ops, vTy,
+                                       e);
+  }
   return nullptr;
 }
 
