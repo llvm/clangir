@@ -1205,7 +1205,7 @@ def ShiftOp : CIR_Op<"shift", [Pure]> {
 
   let assemblyFormat = [{
     `(`
-      (`left` $isShiftleft^) : (`right`)?
+      (`left` $isShiftleft^) : (```right`)?
       `,` $value `:` type($value)
       `,` $amount `:` type($amount)
     `)` `->` type($result) attr-dict
