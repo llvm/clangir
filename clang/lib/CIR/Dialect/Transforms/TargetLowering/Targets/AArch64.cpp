@@ -105,12 +105,13 @@ ABIArgInfo AArch64ABIInfo::classifyReturnType(Type RetTy,
   }
 
   uint64_t Size = getContext().getTypeSize(RetTy);
-  // TODO(cir): check Record is Empty
-  // TODO(cir): add isHomogeneousAggregate check
+  cir_cconv_assert(!::cir::MissingFeatures::emitEmptyRecordCheck);
+  cir_cconv_assert(
+      !::cir::MissingFeatures::supportisHomogeneousAggregateQueryForAArch64());
 
   // Aggregates <= 16 bytes are returned directly in registers or on the stack.
   if (Size <= 128) {
-    // TODO(cir): add isRenderScriptTarget()) check
+    cir_cconv_assert(!::cir::MissingFeatures::renderScriptTarget());
 
     if (Size <= 64 && !getDataLayout().isBigEndian()) {
       // Composite types are returned in lower bits of a 64-bit register for LE,
