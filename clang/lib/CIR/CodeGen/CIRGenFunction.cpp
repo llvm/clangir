@@ -701,7 +701,7 @@ CIRGenFunction::generateCode(clang::GlobalDecl GD, mlir::cir::FuncOp Fn,
 
     // Ensure that the function adheres to the forward progress guarantee, which
     // is required by certain optimizations.
-    // In C++11 and up, the attribute will be removed if hte body contains a
+    // In C++11 and up, the attribute will be removed if the body contains a
     // trivial empty loop.
     if (MissingFeatures::mustProgress())
       llvm_unreachable("NYI");
