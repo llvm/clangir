@@ -29,17 +29,15 @@ FuncType getFuncPointerTy(mlir::Type typ) {
   return {};
 }
 
-bool isFuncPointerTy(mlir::Type typ) {
-  return (bool)getFuncPointerTy(typ);  
-}
+bool isFuncPointerTy(mlir::Type typ) { return (bool)getFuncPointerTy(typ); }
 
 struct CallConvLowering {
 
-  CallConvLowering(ModuleOp module) 
-    : rewriter(module.getContext())
-    , lowerModule(createLowerModule(module, rewriter)) {}
-   
-  void lower(FuncOp op) {  
+  CallConvLowering(ModuleOp module)
+      : rewriter(module.getContext()),
+        lowerModule(createLowerModule(module, rewriter)) {}
+
+  void lower(FuncOp op) {
     // Fail the pass on unimplemented function users
     const auto module = op->getParentOfType<mlir::ModuleOp>();
     auto calls = op.getSymbolUses(module);
@@ -50,7 +48,8 @@ struct CallConvLowering {
         else if (auto c = dyn_cast<CallOp>(call.getUser()))
           lowerDirectCallOp(c, op);
         else {
-          cir_cconv_assert_or_abort(!::cir::MissingFeatures::ABIFuncPtr(), "NYI");
+          cir_cconv_assert_or_abort(!::cir::MissingFeatures::ABIFuncPtr(),
+                                    "NYI");
         }
       }
     }
@@ -63,23 +62,22 @@ struct CallConvLowering {
     lowerModule->rewriteFunctionDefinition(op);
   }
 
-
 private:
-
   FuncType convert(FuncType t) {
     auto &typs = lowerModule->getTypes();
     return typs.getFunctionType(typs.arrangeFreeFunctionType(t));
   }
 
   mlir::Type convert(mlir::Type t) {
-    if (auto fTy = getFuncPointerTy(t)) 
+    if (auto fTy = getFuncPointerTy(t))
       return PointerType::get(rewriter.getContext(), convert(fTy));
     return t;
   }
 
   CastOp bitcast(Value src, Type newTy) {
     if (src.getType() != newTy) {
-      auto cast = rewriter.create<CastOp>(src.getLoc(), newTy, CastKind::bitcast, src);
+      auto cast =
+          rewriter.create<CastOp>(src.getLoc(), newTy, CastKind::bitcast, src);
       rewriter.replaceAllUsesExcept(src, cast, {cast});
     }
     return {};
@@ -89,9 +87,10 @@ private:
     auto resTy = op.getResult().getType();
     if (isFuncPointerTy(resTy)) {
       rewriter.setInsertionPoint(op);
-      auto newOp = rewriter.replaceOpWithNewOp<GetGlobalOp>(op, convert(resTy), op.getName());     
+      auto newOp = rewriter.replaceOpWithNewOp<GetGlobalOp>(op, convert(resTy),
+                                                            op.getName());
       rewriter.setInsertionPointAfter(newOp);
-      bitcast(newOp, resTy); 
+      bitcast(newOp, resTy);
     }
   }
 
@@ -99,12 +98,12 @@ private:
     lowerModule->rewriteFunctionCall(op, callee);
   }
 
-  void lowerIndirectCallOp(CallOp op) {    
+  void lowerIndirectCallOp(CallOp op) {
     cir_cconv_assert(op.isIndirect());
-    
+
     rewriter.setInsertionPoint(op);
     auto typ = op.getIndirectCall().getType();
-    if (isFuncPointerTy(typ)) {        
+    if (isFuncPointerTy(typ)) {
       bitcast(op.getIndirectCall(), convert(typ));
       cir_cconv_unreachable("Indirect calls NYI");
     }
@@ -112,7 +111,7 @@ private:
 
 private:
   mlir::PatternRewriter rewriter;
-  std::unique_ptr<LowerModule> lowerModule;  
+  std::unique_ptr<LowerModule> lowerModule;
 };
 
 //===----------------------------------------------------------------------===//
@@ -129,7 +128,7 @@ struct CallConvLoweringPass
 
 void CallConvLoweringPass::runOnOperation() {
   auto module = dyn_cast<ModuleOp>(getOperation());
-  CallConvLowering cc(module);  
+  CallConvLowering cc(module);
   module.walk([&](FuncOp op) { cc.lower(op); });
 }
 
