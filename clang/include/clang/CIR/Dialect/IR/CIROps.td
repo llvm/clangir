@@ -599,6 +599,10 @@ def LoadOp : CIR_Op<"load", [
     $addr `:` qualified(type($addr)) `,` type($result) attr-dict
   }];
 
+  let extraClassDeclaration = [{
+    void setAtomic(mlir::cir::MemOrder order);
+  }];
+
   // FIXME: add verifier.
 }
 
@@ -2295,8 +2299,12 @@ def GlobalOp : CIR_Op<"global",
     bool hasAvailableExternallyLinkage() {
       return mlir::cir::isAvailableExternallyLinkage(getLinkage());
     }
+    bool hasInternalLinkage() {
+      return mlir::cir::isInternalLinkage(getLinkage());
+    }
     /// Whether the definition of this global may be replaced at link time.
     bool isWeakForLinker() { return cir::isWeakForLinker(getLinkage()); }
+    bool isDSOLocal() { return getDsolocal(); }
   }];
 
   let skipDefaultBuilders = 1;
