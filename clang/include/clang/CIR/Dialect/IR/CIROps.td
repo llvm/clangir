@@ -4006,8 +4006,8 @@ def SqrtOp : UnaryFPToFPBuiltinOp<"sqrt", "SqrtOp">;
 def TruncOp : UnaryFPToFPBuiltinOp<"trunc", "FTruncOp">;
 
 def AbsOp : CIR_Op<"abs", [Pure, SameOperandsAndResultType]> {
-  let arguments = (ins CIR_IntType:$src, UnitAttr:$poison);
-  let results = (outs CIR_IntType:$result);
+  let arguments = (ins PrimitiveSInt:$src, UnitAttr:$poison);
+  let results = (outs PrimitiveSInt:$result);
   let summary = [{
     libc builtin equivalent abs, labs, llabs
 
@@ -4018,8 +4018,8 @@ def AbsOp : CIR_Op<"abs", [Pure, SameOperandsAndResultType]> {
     Example:
 
     ```mlir
-      %0 = cir.const #cir.int<-42> : i32
-      %1 = cir.abs %0 poison : i32
+      %0 = cir.const #cir.int<-42> : s32i
+      %1 = cir.abs %0 poison : s32i
     ```
   }];
   let assemblyFormat = "$src ( `poison` $poison^ )? `:` type($src) attr-dict";
