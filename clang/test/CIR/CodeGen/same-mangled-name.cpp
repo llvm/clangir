@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fclangir -emit-cir %s -o %t.cir
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-cir %s -o %t.cir
 // RUN: FileCheck --input-file=%t.cir %s
 
 // This would previously emit a "definition with same mangled name as another
