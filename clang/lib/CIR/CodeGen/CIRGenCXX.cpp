@@ -337,6 +337,7 @@ void CIRGenModule::buildCXXGlobalVarDeclInit(const VarDecl *varDecl,
 
   assert(varDecl && " Expected a global declaration!");
   CIRGenFunction cgf{*this, builder, true};
+  auto oldCGF = CurCGF;
   CurCGF = &cgf;
   CurCGF->CurFn = addr;
 
@@ -422,5 +423,7 @@ void CIRGenModule::buildCXXGlobalVarDeclInit(const VarDecl *varDecl,
     }
   }
 
-  CurCGF = nullptr;
+  // TODO(CIR): This is a hack since we do `buildCXXGlobalVarDeclInit`
+  // differently than CodeGen.
+  CurCGF = oldCGF;
 }

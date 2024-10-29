@@ -269,6 +269,8 @@ public:
 
   bool isChainCall() const { return ChainCall; }
 
+  bool isNoReturn() const { return NoReturn; }
+
   bool isVariadic() const { return Required.allowsOptionalArgs(); }
   RequiredArgs getRequiredArgs() const { return Required; }
   unsigned getNumRequiredArgs() const {

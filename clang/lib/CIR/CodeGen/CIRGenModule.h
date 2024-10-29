@@ -246,7 +246,7 @@ public:
   }
 
   mlir::cir::GlobalOp getOrCreateCIRGlobal(const VarDecl *D, mlir::Type Ty,
-                                  ForDefinition_t IsForDefinition);
+                                           ForDefinition_t IsForDefinition);
 
   /// TODO(cir): once we have cir.module, add this as a convenience method
   /// there instead of here.

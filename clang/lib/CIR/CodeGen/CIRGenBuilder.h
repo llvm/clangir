@@ -25,6 +25,7 @@
 #include "clang/CIR/Dialect/IR/FPEnv.h"
 
 #include "mlir/IR/Attributes.h"
+#include "mlir/IR/Block.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -38,7 +39,6 @@
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringSet.h"
 #include "llvm/Support/ErrorHandling.h"
-#include <MacTypes.h>
 #include <cassert>
 #include <optional>
 #include <string>
@@ -73,6 +73,12 @@ public:
     }
 
     return baseName + "." + std::to_string(RecordNames[baseName]++);
+  }
+
+  /// Create a 'ret void' instruction.
+  mlir::cir::ReturnOp createRetVoid(mlir::Location loc) {
+    assert(!MissingFeatures::metaDataNode());
+    return create<mlir::cir::ReturnOp>(loc);
   }
 
   //
@@ -1093,6 +1099,12 @@ public:
   mlir::Value maybeBuildArrayDecay(mlir::Location loc, mlir::Value arrayPtr,
                                    mlir::Type eltTy);
 
+  /// Create an unconditional branch op.
+  mlir::cir::BrOp createBr(mlir::Location loc, mlir::Block *dest) {
+    assert(!MissingFeatures::metaDataNode());
+    return create<mlir::cir::BrOp>(loc, dest);
+  }
+
   /// Create a conditional branch operation
   mlir::cir::BrCondOp createCondBr(mlir::Location loc, mlir::Value condition,
                                    mlir::Block *trueBlock,
@@ -1100,6 +1112,22 @@ public:
     if (MissingFeatures::metaDataNode())
       llvm_unreachable("NYI");
     return create<mlir::cir::BrCondOp>(loc, condition, trueBlock, falseBlock);
+  }
+
+  /// createBasicBlock - Create an MLIR block
+  mlir::Block *createBasicBlock(mlir::cir::FuncOp parent = nullptr,
+                                mlir::Block *before = nullptr) {
+    auto *b = new mlir::Block();
+    if (parent) {
+
+      if (before == nullptr)
+        before = &*parent.end();
+
+      parent.getFunctionBody().getBlocks().insert(
+          mlir::Region::iterator(before), b);
+    }
+
+    return b;
   }
 };
 

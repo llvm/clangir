@@ -28,6 +28,7 @@
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/Type.h"
 #include "clang/Basic/ABI.h"
+#include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/CIR/TypeEvaluationKind.h"
 
@@ -626,7 +627,7 @@ public:
   /// This function clears the current insertion point. The caller should follow
   /// calls to this function with calls to Emit*Block prior to generation new
   /// code.
-  void buildBranch(mlir::Block *block);
+  void buildBranch(mlir::Location loc, mlir::Block *block);
 
   /// True if an insertion point is defined. If not, this indicates that the
   /// current code being emitted is unreachable.
@@ -1294,6 +1295,11 @@ public:
                    SmallVector<mlir::Attribute, 4> &caseAttrs);
 
   mlir::LogicalResult buildSwitchCase(const clang::SwitchCase &S);
+
+  /// emitFunctionEpilog - Emit the target specific cir code to return the given
+  /// temporary.
+  void emitFunctionEpilog(const CIRGenFunctionInfo &fi, bool emitRetDbgLoc,
+                          SourceLocation endLoc);
 
   mlir::LogicalResult buildSwitchBody(const clang::Stmt *S);
 

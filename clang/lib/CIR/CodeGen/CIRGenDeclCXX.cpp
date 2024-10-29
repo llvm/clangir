@@ -70,6 +70,6 @@ void CIRGenFunction::buildCXXGlobalVarDeclInit(const VarDecl &varDecl,
                                                bool performInit) {
   // TODO(CIR): We diverge from CodeGen here via having this in CIRGenModule
   // instead. This is necessary due to the way we are constructing global inits
-  // at the moment. We should investigate if we could transfer this over.
+  // at the moment. Investigate what we're missing from this function body.
   llvm_unreachable("NYI");
 }

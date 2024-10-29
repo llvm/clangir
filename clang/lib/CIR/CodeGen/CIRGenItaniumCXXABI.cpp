@@ -20,6 +20,7 @@
 #include "CIRGenBuilder.h"
 #include "CIRGenCXXABI.h"
 #include "CIRGenCleanup.h"
+#include "CIRGenFunction.h"
 #include "CIRGenFunctionInfo.h"
 #include "CIRGenModule.h"
 #include "ConstantInitBuilder.h"
@@ -2356,7 +2357,7 @@ static mlir::cir::FuncOp getGuardAcquireFn(CIRGenModule &cgm,
                                            mlir::cir::PointerType guardPtrTy) {
   // int __cxa_guard_acquire(__guard *guard_object);
   mlir::cir::FuncType fTy = cgm.getBuilder().getFuncType(
-      {cgm.getTypes().ConvertType(cgm.getASTContext().IntTy)}, guardPtrTy,
+      guardPtrTy, {cgm.getTypes().ConvertType(cgm.getASTContext().IntTy)},
       /*isVarArg=*/false);
   assert(!MissingFeatures::functionIndexAttribute());
   assert(!MissingFeatures::noUnwindAttribute());
@@ -2367,12 +2368,38 @@ static mlir::cir::FuncOp getGuardReleaseFn(CIRGenModule &cgm,
                                            mlir::cir::PointerType guardPtrTy) {
   // void __cxa_guard_release(__guard *guard_object);
   mlir::cir::FuncType fTy =
-      cgm.getBuilder().getFuncType({cgm.VoidTy}, guardPtrTy,
+      cgm.getBuilder().getFuncType(guardPtrTy, {cgm.VoidTy},
                                    /*isVarArg=*/false);
   assert(!MissingFeatures::functionIndexAttribute());
   assert(!MissingFeatures::noUnwindAttribute());
   return cgm.createRuntimeFunction(fTy, "__cxa_guard_release");
 }
+
+static mlir::cir::FuncOp getGuardAbortFn(CIRGenModule &cgm,
+                                         mlir::cir::PointerType guardPtrTy) {
+  // void __cxa_guard_abort(__guard *guard_object);
+  mlir::cir::FuncType fTy =
+      cgm.getBuilder().getFuncType(guardPtrTy, {cgm.VoidTy},
+                                   /*isVarArg=*/false);
+  assert(!MissingFeatures::functionIndexAttribute());
+  assert(!MissingFeatures::noUnwindAttribute());
+  return cgm.createRuntimeFunction(fTy, "__cxa_guard_abort");
+}
+
+namespace {
+struct CallGuardAbort final : EHScopeStack::Cleanup {
+  mlir::cir::GlobalOp guard;
+  CallGuardAbort(mlir::cir::GlobalOp guard) : guard{guard} {}
+
+  void Emit(CIRGenFunction &cgf, Flags flags) override {
+    auto guardPtrTy = mlir::cir::PointerType::get(guard.getSymType());
+    mlir::Value getGuard =
+        cgf.CGM.getBuilder().createGetGlobal(guard, /*threadLocal*/ false);
+    cgf.buildNounwindRuntimeCall(
+        guard->getLoc(), getGuardAbortFn(cgf.CGM, guardPtrTy), getGuard);
+  }
+};
+} // namespace
 
 static void buildCallToBadCast(CIRGenFunction &CGF, mlir::Location loc) {
   // TODO(cir): set the calling convention to the runtime function.
@@ -2709,7 +2736,7 @@ void CIRGenItaniumCXXABI::buildGuardedInit(CIRGenFunction &cgf,
           CharUnits::fromQuantity(CGM.getDataLayout().getABITypeAlign(guardTy));
     }
   }
-  mlir::cir::PointerType guardPtrTy = mlir::cir::PointerType::get(guardTy);
+  auto guardPtrTy = mlir::cir::PointerType::get(guardTy);
 
   // Create the guard variable if we don't already have it (as we might if we're
   // double-emitting this function body).
@@ -2725,11 +2752,11 @@ void CIRGenItaniumCXXABI::buildGuardedInit(CIRGenFunction &cgf,
     // Create the guard variable with a zero-initializer.
     // Just absorb linkage, visibility and dll storage class from the guarded
     // variable.
-    guard =
-        CGM.createGlobalOp(CGM, CGM.getLoc(varDecl.getLocation()), guardName,
-                           guardTy, false, {}, nullptr, globalOp.getLinkage());
-
-    // TODO(CIR): this needs the init
+    mlir::Location loc = CGM.getLoc(varDecl.getLocation());
+    guard = CGM.createGlobalOp(CGM, loc, guardName, guardTy,
+                               /*isConstant=*/false, /*addrSpace=*/{},
+                               /*insertPoint=*/nullptr, globalOp.getLinkage());
+    guard.setInitialValueAttr(mlir::cir::IntAttr::get(guardTy, 0));
     guard.setDSOLocal(globalOp.isDSOLocal());
     guard.setVisibility(globalOp.getVisibility());
     assert(!MissingFeatures::setDLLStorageClass());
@@ -2774,7 +2801,11 @@ void CIRGenItaniumCXXABI::buildGuardedInit(CIRGenFunction &cgf,
 
   unsigned maxInlineWidthInbits = cgf.getTarget().getMaxAtomicInlineWidth();
   // "init.end" block
-  mlir::Block *endBlock = builder.createBlock(builder.getBlock()->getParent());
+  mlir::Block *endBlock = nullptr;
+  {
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    endBlock = builder.createBlock(builder.getBlock()->getParent());
+  }
   if (!threadsafe || maxInlineWidthInbits) {
     // Load the first byte of the guard variable.
     mlir::Value load =
@@ -2816,9 +2847,13 @@ void CIRGenItaniumCXXABI::buildGuardedInit(CIRGenFunction &cgf,
     mlir::Value value = load;
     mlir::Value needsInit = builder.createIsNull(
         cgf.getLoc(varDecl.getLocation()), value, "guard.uninitialized");
-    // "init.check" block
-    mlir::Block *initCheckBlock =
-        builder.createBlock(builder.getBlock()->getParent());
+
+    mlir::Block *initCheckBlock = nullptr;
+    {
+      mlir::OpBuilder::InsertionGuard guard(builder);
+      // "init.check" block
+      initCheckBlock = builder.createBlock(builder.getBlock()->getParent());
+    }
 
     // Check if the first byte of the guard variable is zero.
     cgf.buildCXXGuardedInitBranch(needsInit, initCheckBlock, endBlock,
@@ -2847,21 +2882,21 @@ void CIRGenItaniumCXXABI::buildGuardedInit(CIRGenFunction &cgf,
   if (threadsafe) {
     auto loc = cgf.getLoc(varDecl.getLocation());
     // Call __cxa_guard_acquire.
-    mlir::Value guardGet = builder.createGetGlobal(guard);
-    mlir::Value loadGetGuard = builder.create<mlir::cir::LoadOp>(loc, guardGet);
-
     mlir::Value value = cgf.buildNounwindRuntimeCall(
         cgf.getLoc(varDecl.getLocation()), getGuardAcquireFn(CGM, guardPtrTy),
-        {loadGetGuard});
+        guardAddr.emitRawPointer());
 
-    mlir::Block *initBlock =
-        builder.createBlock(builder.getBlock()->getParent());
+    mlir::Block *initBlock = nullptr;
+    {
+      mlir::OpBuilder::InsertionGuard guard(builder);
+      initBlock = builder.createBlock(builder.getBlock()->getParent());
+    }
 
     builder.createCondBr(loc, builder.createIsNotNull(loc, value), initBlock,
                          endBlock);
 
     // Call __cxa_guard_abort along the exceptional edge.
-    assert(!MissingFeatures::exceptions());
+    cgf.EHStack.pushCleanup<CallGuardAbort>(EHCleanup, guard);
 
     cgf.buildBlock(initBlock);
   } else if (!varDecl.isLocalVarDecl()) {

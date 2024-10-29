@@ -20,8 +20,10 @@
 #include "TargetInfo.h"
 
 #include "clang/AST/Attr.h"
+#include "clang/AST/Attrs.inc"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/GlobalDecl.h"
+#include "clang/CIR/ABIArgInfo.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/FnInfoOpts.h"
@@ -32,6 +34,7 @@
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/Location.h"
 #include "mlir/IR/SymbolTable.h"
 #include "mlir/IR/Types.h"
 #include "clang/CIR/MissingFeatures.h"
@@ -1637,4 +1640,54 @@ void CIRGenModule::getDefaultFunctionAttributes(
   if (!attrOnCallSite) {
     // TODO(cir): addMergableDefaultFunctionAttributes(codeGenOpts, funcAttrs);
   }
+}
+void CIRGenFunction::emitFunctionEpilog(const CIRGenFunctionInfo &fi,
+                                        bool emitRetDbgLoc,
+                                        SourceLocation endLoc) {
+
+  if (fi.isNoReturn()) {
+    llvm_unreachable("NYI");
+  }
+
+  if (CurCodeDecl && CurCodeDecl->hasAttr<NakedAttr>()) {
+    llvm_unreachable("NYI");
+  }
+
+  // Functions with no result always return void.
+  if (!ReturnValue.isValid()) {
+    builder.createRetVoid(mlir::UnknownLoc::get(&CGM.getMLIRContext()));
+    return;
+  }
+
+  mlir::Value rv = nullptr;
+  QualType RetTy = fi.getReturnType();
+  const ABIArgInfo &retAI = fi.getReturnInfo();
+
+  switch (retAI.getKind()) {
+  case ABIArgInfo::InAlloca:
+    llvm_unreachable("NYI");
+  case ABIArgInfo::Indirect:
+    llvm_unreachable("NYI");
+  case ABIArgInfo::Extend:
+    llvm_unreachable("NYI");
+  case ABIArgInfo::Direct:
+    llvm_unreachable("NYI");
+  case ABIArgInfo::Ignore:
+    llvm_unreachable("NYI");
+  case ABIArgInfo::CoerceAndExpand:
+    llvm_unreachable("NYI");
+  case ABIArgInfo::Expand:
+    llvm_unreachable("NYI");
+  case ABIArgInfo::IndirectAliased:
+    llvm_unreachable("NYI");
+  }
+
+  mlir::Operation *ret = nullptr;
+  if (rv) {
+    llvm_unreachable("NYI");
+  } else {
+    llvm_unreachable("NYI");
+  }
+
+  assert(!MissingFeatures::generateDebugInfo());
 }

@@ -1143,39 +1143,39 @@ void CIRGenFunction::buildBlock(mlir::Block *bb, bool isFinished) {
   mlir::Block *curBB = getBuilder().getInsertionBlock();
 
   // Fall out of the current block (if necessary).
-  buildBranch(bb);
+  buildBranch(mlir::UnknownLoc::get(&CGM.getMLIRContext()), bb);
 
   if (isFinished && bb->use_empty()) {
     llvm_unreachable("NYI");
   }
 
-  // MLIR blocks are always added to a Region, remove it here
+  // MLIR blocks are always added to a Region by default, but based on the use
+  // case here it might have been the wrong region.
   auto curFn = cast<mlir::cir::FuncOp>(CurFn);
   curFn.getBlocks().remove(bb);
 
   // Place the block after the current block, if possible, or else at the end of
   // the function.
   if (curBB && curBB->getParent())
-    cast<mlir::cir::FuncOp>(CurFn).getBlocks().insert(
-        std::next(curBB->getIterator()), bb);
+    curFn.getBlocks().insert(std::next(curBB->getIterator()), bb);
   else
-    cast<FuncOp>(CurFn).push_back(bb);
+    curFn.push_back(bb);
 
   getBuilder().setInsertionPoint(bb, bb->end());
 }
 
-void CIRGenFunction::buildBranch(mlir::Block *block) {
+void CIRGenFunction::buildBranch(mlir::Location loc, mlir::Block *target) {
   // Emit a branch from the current block to the target one if this was a real
   // block. If this was just a fall-through block after a terminator, don't emit
   // it.
   mlir::Block *curBB = getBuilder().getInsertionBlock();
   assert(curBB && "ClangIR should always have an insert block");
 
-  if (!curBB || curBB->getTerminator()) {
+  if (!curBB || (curBB->mightHaveTerminator() && curBB->getTerminator())) {
     // If there is no insert point or the previous block is already terminated,
     // don't touch it.
   } else {
-    llvm_unreachable("NYI");
+    builder.createBr(loc, target);
   }
 
   getBuilder().clearInsertionPoint();

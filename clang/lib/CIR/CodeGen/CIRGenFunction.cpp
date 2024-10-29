@@ -531,6 +531,9 @@ void CIRGenFunction::finishFunction(SourceLocation EndLoc) {
   // important to do this before we enter the return block or return
   // edges will be *really* confused.
   bool HasCleanups = EHStack.stable_begin() != PrologueCleanupDepth;
+  bool hasOnlyLifetimeMarkers =
+      HasCleanups && EHStack.containsOnlyLifetimeMarkers(PrologueCleanupDepth);
+  bool emitRetDbgLoc = !HasCleanups || hasOnlyLifetimeMarkers;
   if (HasCleanups) {
     // Make sure the line table doesn't jump back into the body for
     // the ret after it's been at EndLoc.
@@ -557,7 +560,7 @@ void CIRGenFunction::finishFunction(SourceLocation EndLoc) {
   // rather than that of the end of the function's scope '}'.
   assert(!MissingFeatures::generateDebugInfo() && "NYI");
 
-  assert(!MissingFeatures::emitFunctionEpilog() && "NYI");
+  emitFunctionEpilog(*CurFnInfo, emitRetDbgLoc, EndLoc);
   assert(!MissingFeatures::emitEndEHSpec() && "NYI");
 
   // FIXME(cir): vla.c test currently crashes here.
@@ -699,8 +702,16 @@ CIRGenFunction::generateCode(clang::GlobalDecl GD, mlir::cir::FuncOp Fn,
     if (Body && isa_and_nonnull<CoroutineBodyStmt>(Body))
       llvm::append_range(FnArgs, FD->parameters());
 
+    // Ensure that the function adheres to the forward progress guarantee, which
+    // is required by certain optimizations.
+    // In C++11 and up, the attribute will be removed if hte body contains a
+    // trivial empty loop.
+    if (MissingFeatures::mustProgress())
+      llvm_unreachable("NYI");
+
     // Generate the body of the function.
     // TODO: PGO.assignRegionCounters
+    assert(!MissingFeatures::shouldInstrumentFunction());
     if (isa<CXXDestructorDecl>(FD))
       buildDestructorBody(Args);
     else if (isa<CXXConstructorDecl>(FD))
@@ -729,17 +740,17 @@ CIRGenFunction::generateCode(clang::GlobalDecl GD, mlir::cir::FuncOp Fn,
       llvm_unreachable("no definition for emitted function");
 
     assert(builder.getInsertionBlock() && "Should be valid");
+
+    if (mlir::failed(Fn.verifyBody()))
+      return nullptr;
+
+    // Emit the standard function epilogue.
+    finishFunction(BodyRange.getEnd());
+
+    // If we haven't marked the function nothrow through other means, do a quick
+    // pass now to see if we can.
+    assert(!MissingFeatures::tryMarkNoThrow());
   }
-
-  if (mlir::failed(Fn.verifyBody()))
-    return nullptr;
-
-  // Emit the standard function epilogue.
-  finishFunction(BodyRange.getEnd());
-
-  // If we haven't marked the function nothrow through other means, do a quick
-  // pass now to see if we can.
-  assert(!MissingFeatures::tryMarkNoThrow());
 
   return Fn;
 }
