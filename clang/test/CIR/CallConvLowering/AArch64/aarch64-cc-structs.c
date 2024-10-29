@@ -22,7 +22,7 @@ typedef struct {
 } EQ_128;
 
 // CHECK: cir.func {{.*@ret_lt_64}}() -> !u16i
-// CHECK:   %[[#V0:]] = cir.alloca !ty_LT_64_, !cir.ptr<!ty_LT_64_>, ["__retval"] 
+// CHECK:   %[[#V0:]] = cir.alloca !ty_LT_64_, !cir.ptr<!ty_LT_64_>, ["__retval"]
 // CHECK:   %[[#V1:]] = cir.cast(bitcast, %[[#V0]] : !cir.ptr<!ty_LT_64_>), !cir.ptr<!u16i>
 // CHECK:   %[[#V2:]] = cir.load %[[#V1]] : !cir.ptr<!u16i>, !u16i
 // CHECK:   cir.return %[[#V2]] : !u16i
@@ -45,7 +45,7 @@ EQ_64 ret_eq_64() {
 // CHECK:   %[[#V0:]] = cir.alloca !ty_LT_128_, !cir.ptr<!ty_LT_128_>, ["__retval"]
 // CHECK:   %[[#V1:]] = cir.cast(bitcast, %[[#V0]] : !cir.ptr<!ty_LT_128_>), !cir.ptr<!cir.array<!u64i x 2>>
 // CHECK:   %[[#V2:]] = cir.load %[[#V1]] : !cir.ptr<!cir.array<!u64i x 2>>, !cir.array<!u64i x 2>
-// CHECK:   cir.return %[[#V2]] : !cir.array<!u64i x 2> 
+// CHECK:   cir.return %[[#V2]] : !cir.array<!u64i x 2>
 LT_128 ret_lt_128() {
   LT_128 x;
   return x;
@@ -55,7 +55,7 @@ LT_128 ret_lt_128() {
 // CHECK:   %[[#V0:]] = cir.alloca !ty_EQ_128_, !cir.ptr<!ty_EQ_128_>, ["__retval"]
 // CHECK:   %[[#V1:]] = cir.cast(bitcast, %[[#V0]] : !cir.ptr<!ty_EQ_128_>), !cir.ptr<!cir.array<!u64i x 2>>
 // CHECK:   %[[#V2:]] = cir.load %[[#V1]] : !cir.ptr<!cir.array<!u64i x 2>>, !cir.array<!u64i x 2>
-// CHECK:   cir.return %[[#V2]] : !cir.array<!u64i x 2> 
+// CHECK:   cir.return %[[#V2]] : !cir.array<!u64i x 2>
 EQ_128 ret_eq_128() {
   EQ_128 x;
   return x;
