@@ -1,5 +1,7 @@
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-cir %s -o %t.cir
 // RUN: FileCheck --input-file=%t.cir %s
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm %s -o %t.ll
+// RUN: FileCheck --check-prefix=LLVM --input-file=%t.ll %s
 
 // Should generate CIR's builtin memcpy op.
 void *memcpy(void *, const void *, unsigned long);
@@ -24,16 +26,19 @@ int abs(int);
 int testAbs(int x) {
   return abs(x);
   // CHECK: cir.abs %{{.+}} : !s32i
+  // LLVM: %{{.+}} = call i32 @llvm.abs.i32(i32 %{{.+}}, i1 true)
 }
 
 long labs(long);
 long testLabs(long x) {
   return labs(x);
   // CHECK: cir.abs %{{.+}} : !s64i
+  // LLVM: %{{.+}} = call i64 @llvm.abs.i64(i64 %{{.+}}, i1 true)
 }
 
 long long llabs(long long);
 long long testLlabs(long long x) {
   return llabs(x);
   // CHECK: cir.abs %{{.+}} : !s64i
+  // LLVM: %{{.+}} = call i64 @llvm.abs.i64(i64 %{{.+}}, i1 true)
 }
