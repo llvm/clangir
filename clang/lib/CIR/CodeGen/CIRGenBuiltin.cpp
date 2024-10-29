@@ -862,14 +862,14 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     switch (getLangOpts().getSignedOverflowBehavior()) {
     case LangOptions::SOB_Defined: {
       auto Call = getBuilder().create<mlir::cir::AbsOp>(
-          Arg.getLoc(), Arg.getType(), Arg, false);
+          getLoc(E->getExprLoc()), Arg.getType(), Arg, false);
       Result = Call->getResult(0);
       break;
     }
     case LangOptions::SOB_Undefined: {
       if (!SanitizeOverflow) {
         auto Call = getBuilder().create<mlir::cir::AbsOp>(
-            Arg.getLoc(), Arg.getType(), Arg, true);
+            getLoc(E->getExprLoc()), Arg.getType(), Arg, true);
         Result = Call->getResult(0);
         break;
       }
