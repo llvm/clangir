@@ -11,6 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "CIRGenCall.h"
 #include "CIRGenBuilder.h"
 #include "CIRGenCXXABI.h"
 #include "CIRGenFunction.h"
@@ -939,6 +940,13 @@ mlir::Value CIRGenFunction::buildRuntimeCall(mlir::Location loc,
     return nullptr;
 
   return call->getResult(0);
+}
+
+mlir::Value CIRGenFunction::buildNounwindRuntimeCall(
+    mlir::Location loc, mlir::cir::FuncOp callee, ArrayRef<mlir::Value> args) {
+  mlir::Value call = buildRuntimeCall(loc, callee, args);
+  assert(!MissingFeatures::noUnwindAttribute());
+  return call;
 }
 
 void CIRGenFunction::buildCallArg(CallArgList &args, const Expr *E,

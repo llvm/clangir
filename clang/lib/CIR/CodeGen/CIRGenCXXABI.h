@@ -173,6 +173,20 @@ public:
                                    bool Delegating, Address This,
                                    QualType ThisTy) = 0;
 
+  /*************************** Static local guards ****************************/
+
+  /// Emits the guarded initializer and destructor setup for the given
+  /// variable, given that it couldn't be emitted as a constant.
+  /// If \p PerformInit is false, the initialization has been folded to a
+  /// constant and should not be performed.
+  ///
+  /// The variable may be:
+  ///   - a static local variable
+  ///   - a static data member of a class template instantiation
+  virtual void buildGuardedInit(CIRGenFunction &cgf, const VarDecl &varDecl,
+                                mlir::cir::GlobalOp globalOp,
+                                bool performInit) = 0;
+
   /// Emit code to force the execution of a destructor during global
   /// teardown.  The default implementation of this uses atexit.
   ///

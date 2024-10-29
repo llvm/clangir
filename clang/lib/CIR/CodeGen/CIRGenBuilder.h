@@ -38,6 +38,7 @@
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringSet.h"
 #include "llvm/Support/ErrorHandling.h"
+#include <MacTypes.h>
 #include <cassert>
 #include <optional>
 #include <string>
@@ -828,6 +829,35 @@ public:
     return Address{createImagPtr(loc, addr.getPointer()), addr.getAlignment()};
   }
 
+  /// Return a boolean value testing if \p arg == 0.
+  mlir::Value createIsNull(mlir::Location loc, mlir::Value arg,
+                           const llvm::Twine &name = "") {
+    return createICmpEQ(loc, arg, getNullValue(arg.getType(), loc), name);
+  }
+
+  /// Return a boolean value testing if \p arg != 0.
+  mlir::Value createIsNotNull(mlir::Location loc, mlir::Value arg,
+                              const llvm::Twine &name = "") {
+    return createICmpNE(loc, arg, getNullValue(arg.getType(), loc), name);
+  }
+
+  mlir::Value createICmpEQ(mlir::Location loc, mlir::Value lhs, mlir::Value rhs,
+                           const llvm::Twine &name = "") {
+    return createICmp(loc, mlir::cir::CmpOpKind::eq, lhs, rhs, name);
+  }
+  mlir::Value createICmpNE(mlir::Location loc, mlir::Value lhs, mlir::Value rhs,
+                           const llvm::Twine &name = "") {
+    return createICmp(loc, mlir::cir::CmpOpKind::ne, lhs, rhs, name);
+  }
+
+  mlir::Value createICmp(mlir::Location loc, mlir::cir::CmpOpKind kind,
+                         mlir::Value lhs, mlir::Value rhs,
+                         const llvm::Twine &name = "") {
+    if (MissingFeatures::folder())
+      llvm_unreachable("NYI");
+    return createCompare(loc, kind, lhs, rhs);
+  }
+
   /// Cast the element type of the given address to a different type,
   /// preserving information like the alignment.
   cir::Address createElementBitCast(mlir::Location loc, cir::Address addr,
@@ -1062,6 +1092,15 @@ public:
   /// pointed to by arrayPtr.
   mlir::Value maybeBuildArrayDecay(mlir::Location loc, mlir::Value arrayPtr,
                                    mlir::Type eltTy);
+
+  /// Create a conditional branch operation
+  mlir::cir::BrCondOp createCondBr(mlir::Location loc, mlir::Value condition,
+                                   mlir::Block *trueBlock,
+                                   mlir::Block *falseBlock) {
+    if (MissingFeatures::metaDataNode())
+      llvm_unreachable("NYI");
+    return create<mlir::cir::BrCondOp>(loc, condition, trueBlock, falseBlock);
+  }
 };
 
 } // namespace cir

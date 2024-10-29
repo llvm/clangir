@@ -609,6 +609,25 @@ public:
     symbolTable.insert(VD, Addr.getPointer());
   }
 
+  // buildBlock - Emit the given block \arg bb and set it as the insert point,
+  // adding a fall-through branch from the current insert block if necessary. It
+  // is legal to call this function even if there is no current insertion point.
+  //
+  // isFinished - If true, indicates that the caller has finished emitting
+  // branches to the given block and does not expect to emit code into it. This
+  // means the block can be ignored if it is unreachable.
+  void buildBlock(mlir::Block *bb, bool isFinished = false);
+
+  /// buildBranch - Emit a branch to the specified basic block from the current
+  /// insert block, taking care to avoid creation of branches from dummy
+  /// blocks. It is legal to call this function even if there is no current
+  /// insertion point.
+  ///
+  /// This function clears the current insertion point. The caller should follow
+  /// calls to this function with calls to Emit*Block prior to generation new
+  /// code.
+  void buildBranch(mlir::Block *block);
+
   /// True if an insertion point is defined. If not, this indicates that the
   /// current code being emitted is unreachable.
   /// FIXME(cir): we need to inspect this and perhaps use a cleaner mechanism
@@ -908,6 +927,20 @@ public:
 
   LValue buildPointerToDataMemberBinaryExpr(const BinaryOperator *E);
 
+  /// Emit code in this function to perform a guarded variable initialization.
+  /// Guarded initializations are used when it's not possible to prove that
+  /// initialization will be done exactly once, e.g. with a static local
+  /// variable or a static data member of a class template.
+  void buildCXXGuardedInit(const VarDecl &varDecl, mlir::cir::GlobalOp globalOp,
+                           bool performInit);
+
+  enum class GuardKind { variableGuard, tlsGuard };
+
+  /// Emit a branch to select whether or not to perform guarded initialization.
+  void buildCXXGuardedInitBranch(mlir::Value needsInit, mlir::Block *initBlock,
+                                 mlir::Block *noInitBlock, GuardKind kind,
+                                 const VarDecl *varDecl);
+
   /// TODO: Add TBAAAccessInfo
   Address buildCXXMemberDataPointerAddress(
       const Expr *E, Address base, mlir::Value memberPtr,
@@ -947,7 +980,18 @@ public:
   mlir::Value buildRuntimeCall(mlir::Location loc, mlir::cir::FuncOp callee,
                                ArrayRef<mlir::Value> args = {});
 
+  mlir::Value buildNounwindRuntimeCall(mlir::Location loc,
+                                       mlir::cir::FuncOp callee,
+                                       ArrayRef<mlir::Value> args);
+
+  // Emit an invariant.start call for the given memory region.
   void buildInvariantStart(CharUnits Size);
+
+  /// buildCXXGlobalVarDeclInit - Create the initializer for a C++ variable with
+  /// global storage.
+  void buildCXXGlobalVarDeclInit(const VarDecl &varDecl,
+                                 mlir::cir::GlobalOp globalOp,
+                                 bool performInit);
 
   /// Create a check for a function parameter that may potentially be
   /// declared as non-null.
@@ -1431,8 +1475,9 @@ public:
   void buildVarDecl(const clang::VarDecl &D);
 
   mlir::cir::GlobalOp
-  addInitializerToStaticVarDecl(const VarDecl &D, mlir::cir::GlobalOp GV,
-                                mlir::cir::GetGlobalOp GVAddr);
+  addInitializerToStaticVarDecl(const VarDecl &varDecl,
+                                mlir::cir::GlobalOp globalOp,
+                                mlir::cir::GetGlobalOp getGlobalOp);
 
   void buildStaticVarDecl(const VarDecl &D,
                           mlir::cir::GlobalLinkageKind Linkage);

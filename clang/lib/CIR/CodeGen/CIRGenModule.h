@@ -167,6 +167,7 @@ public:
   }
 
   CIRGenCXXABI &getCXXABI() const { return *ABI; }
+  mlir::MLIRContext &getMLIRContext() { return *builder.getContext(); }
 
   /// -------
   /// Handling globals
@@ -211,6 +212,7 @@ public:
   void HandleCXXStaticMemberVarInstantiation(VarDecl *VD);
 
   llvm::DenseMap<const Decl *, mlir::cir::GlobalOp> StaticLocalDeclMap;
+  llvm::DenseMap<const Decl *, mlir::cir::GlobalOp> staticLocalDeclGuardMap;
   llvm::DenseMap<StringRef, mlir::Value> Globals;
   mlir::Operation *getGlobalValue(StringRef Ref);
   mlir::Value getGlobalValue(const clang::Decl *D);
@@ -233,6 +235,15 @@ public:
   mlir::cir::GlobalOp
   getOrCreateStaticVarDecl(const VarDecl &D,
                            mlir::cir::GlobalLinkageKind Linkage);
+
+  mlir::cir::GlobalOp getStaticLocalDeclGuardAddress(const VarDecl *varDecl) {
+    return staticLocalDeclGuardMap[varDecl];
+  }
+
+  void setStaticLocalDeclGuardAddress(const VarDecl *varDecl,
+                                      mlir::cir::GlobalOp globalOp) {
+    staticLocalDeclGuardMap[varDecl] = globalOp;
+  }
 
   mlir::cir::GlobalOp getOrCreateCIRGlobal(const VarDecl *D, mlir::Type Ty,
                                   ForDefinition_t IsForDefinition);

@@ -540,51 +540,54 @@ CIRGenModule::getOrCreateStaticVarDecl(const VarDecl &D,
 /// created for it. If the initializer has a different type than GV does, this
 /// may free GV and return a different one. Otherwise it just returns GV.
 mlir::cir::GlobalOp CIRGenFunction::addInitializerToStaticVarDecl(
-    const VarDecl &D, mlir::cir::GlobalOp GV, mlir::cir::GetGlobalOp GVAddr) {
+    const VarDecl &varDecl, mlir::cir::GlobalOp globalOp,
+    mlir::cir::GetGlobalOp getGlobalOp) {
   ConstantEmitter emitter(*this);
-  mlir::TypedAttr Init =
-      mlir::dyn_cast<mlir::TypedAttr>(emitter.tryEmitForInitializer(D));
-  assert(Init && "Expected typed attribute");
+  mlir::Attribute init = emitter.tryEmitForInitializer(varDecl);
 
   // If constant emission failed, then this should be a C++ static
   // initializer.
-  if (!Init) {
+  if (!init) {
     if (!getLangOpts().CPlusPlus)
-      CGM.ErrorUnsupported(D.getInit(), "constant l-value expression");
-    else if (D.hasFlexibleArrayInit(getContext()))
-      CGM.ErrorUnsupported(D.getInit(), "flexible array initializer");
+      CGM.ErrorUnsupported(varDecl.getInit(), "constant l-value expression");
+    else if (varDecl.hasFlexibleArrayInit(getContext()))
+      CGM.ErrorUnsupported(varDecl.getInit(), "flexible array initializer");
     else {
       // Since we have a static initializer, this global variable can't
       // be constant.
-      GV.setConstant(false);
-      llvm_unreachable("C++ guarded init it NYI");
+      globalOp.setConstant(false);
+
+      buildCXXGuardedInit(varDecl, globalOp, /*performInit*/true);
     }
-    return GV;
+    return globalOp;
   }
 
+  auto typedInit = mlir::cast<mlir::TypedAttr>(init);
+
 #ifndef NDEBUG
-  CharUnits VarSize = CGM.getASTContext().getTypeSizeInChars(D.getType()) +
-                      D.getFlexibleArrayInitChars(getContext());
-  CharUnits CstSize = CharUnits::fromQuantity(
-      CGM.getDataLayout().getTypeAllocSize(Init.getType()));
-  assert(VarSize == CstSize && "Emitted constant has unexpected size");
+  CharUnits varSize =
+      CGM.getASTContext().getTypeSizeInChars(varDecl.getType()) +
+      varDecl.getFlexibleArrayInitChars(getContext());
+  CharUnits cstSize = CharUnits::fromQuantity(
+      CGM.getDataLayout().getTypeAllocSize(typedInit.getType()));
+  assert(varSize == cstSize && "Emitted constant has unexpected size");
 #endif
 
   // The initializer may differ in type from the global. Rewrite
   // the global to match the initializer.  (We have to do this
   // because some types, like unions, can't be completely represented
   // in the LLVM type system.)
-  if (GV.getSymType() != Init.getType()) {
-    mlir::cir::GlobalOp OldGV = GV;
-    GV = builder.createGlobal(CGM.getModule(), getLoc(D.getSourceRange()),
-                              OldGV.getName(), Init.getType(),
-                              OldGV.getConstant(), GV.getLinkage());
+  if (globalOp.getSymType() != typedInit.getType()) {
+    mlir::cir::GlobalOp oldGV = globalOp;
+    globalOp = builder.createGlobal(
+        CGM.getModule(), getLoc(varDecl.getSourceRange()), oldGV.getName(),
+        typedInit.getType(), oldGV.getConstant(), globalOp.getLinkage());
     // FIXME(cir): OG codegen inserts new GV before old one, we probably don't
     // need that?
-    GV.setVisibility(OldGV.getVisibility());
-    GV.setGlobalVisibilityAttr(OldGV.getGlobalVisibilityAttr());
-    GV.setInitialValueAttr(Init);
-    GV.setTlsModelAttr(OldGV.getTlsModelAttr());
+    globalOp.setVisibility(oldGV.getVisibility());
+    globalOp.setGlobalVisibilityAttr(oldGV.getGlobalVisibilityAttr());
+    globalOp.setInitialValueAttr(init);
+    globalOp.setTlsModelAttr(oldGV.getTlsModelAttr());
     assert(!MissingFeatures::setDSOLocal());
     assert(!MissingFeatures::setComdat());
     assert(!MissingFeatures::addressSpaceInGlobalVar());
@@ -594,28 +597,28 @@ mlir::cir::GlobalOp CIRGenFunction::addInitializerToStaticVarDecl(
     // there's no visibility into the GetGlobalOp corresponding to this Global.
     // Given those constraints, thread in the GetGlobalOp and update it
     // directly.
-    GVAddr.getAddr().setType(
-        mlir::cir::PointerType::get(builder.getContext(), Init.getType()));
-    OldGV->erase();
+    getGlobalOp.getAddr().setType(
+        mlir::cir::PointerType::get(builder.getContext(), typedInit.getType()));
+    oldGV->erase();
   }
 
-  bool NeedsDtor =
-      D.needsDestruction(getContext()) == QualType::DK_cxx_destructor;
+  bool needsDtor =
+      varDecl.needsDestruction(getContext()) == QualType::DK_cxx_destructor;
 
-  GV.setConstant(
-      CGM.isTypeConstant(D.getType(), /*ExcludeCtor=*/true, !NeedsDtor));
-  GV.setInitialValueAttr(Init);
+  globalOp.setConstant(
+      CGM.isTypeConstant(varDecl.getType(), /*ExcludeCtor=*/true, !needsDtor));
+  globalOp.setInitialValueAttr(init);
 
-  emitter.finalize(GV);
+  emitter.finalize(globalOp);
 
-  if (NeedsDtor) {
+  if (needsDtor) {
     // We have a constant initializer, but a nontrivial destructor. We still
     // need to perform a guarded "initialization" in order to register the
     // destructor.
     llvm_unreachable("C++ guarded init is NYI");
   }
 
-  return GV;
+  return globalOp;
 }
 
 void CIRGenFunction::buildStaticVarDecl(const VarDecl &D,

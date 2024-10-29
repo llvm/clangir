@@ -117,6 +117,8 @@ struct MissingFeatures {
   static bool setFunctionAttributes() { return false; }
   static bool attributeBuiltin() { return false; }
   static bool attributeNoBuiltin() { return false; }
+  static bool functionIndexAttribute() { return false; }
+  static bool noUnwindAttribute() { return false; }
   static bool parameterAttributes() { return false; }
   static bool minLegalVectorWidthAttr() { return false; }
   static bool vscaleRangeAttr() { return false; }
@@ -151,6 +153,7 @@ struct MissingFeatures {
 
   // Folding methods.
   static bool foldBinOpFMF() { return false; }
+  static bool folder() { return false; }
 
   // Fast math.
   static bool fastMathGuard() { return false; }

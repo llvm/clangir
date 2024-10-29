@@ -33,6 +33,10 @@ class Address {
   mlir::Type ElementType;
   clang::CharUnits Alignment;
 
+  /// Offset from the base pointer. This is non-null only when the base pointer
+  /// is signed.
+  mlir::Attribute offset = nullptr;
+
 protected:
   Address(std::nullptr_t) : ElementType(nullptr) {}
 
@@ -134,6 +138,8 @@ public:
     PointerAndKnownNonNull.setInt(true);
     return *this;
   }
+
+  bool hasOffset() const { return bool(offset); }
 
   /// Get the operation which defines this address.
   mlir::Operation *getDefiningOp() const {
