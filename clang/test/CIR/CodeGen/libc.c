@@ -25,20 +25,20 @@ float testFabsf(float x) {
 int abs(int);
 int testAbs(int x) {
   return abs(x);
-  // CHECK: cir.abs %{{.+}} : !s32i
+  // CHECK: cir.abs %{{.+}} poison : !s32i
   // LLVM: %{{.+}} = call i32 @llvm.abs.i32(i32 %{{.+}}, i1 true)
 }
 
 long labs(long);
 long testLabs(long x) {
   return labs(x);
-  // CHECK: cir.abs %{{.+}} : !s64i
+  // CHECK: cir.abs %{{.+}} poison : !s64i
   // LLVM: %{{.+}} = call i64 @llvm.abs.i64(i64 %{{.+}}, i1 true)
 }
 
 long long llabs(long long);
 long long testLlabs(long long x) {
   return llabs(x);
-  // CHECK: cir.abs %{{.+}} : !s64i
+  // CHECK: cir.abs %{{.+}} poison : !s64i
   // LLVM: %{{.+}} = call i64 @llvm.abs.i64(i64 %{{.+}}, i1 true)
 }
