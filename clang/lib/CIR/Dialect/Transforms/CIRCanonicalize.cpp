@@ -76,8 +76,9 @@ struct RemoveEmptySwitch : public OpRewritePattern<SwitchOp> {
 
   LogicalResult matchAndRewrite(SwitchOp op,
                                 PatternRewriter &rewriter) const final {
-    if (!op.getRegions().empty())
+    if (!(op.getBody().empty() || isa<YieldOp>(op.getBody().front().front())))
       return failure();
+
     rewriter.eraseOp(op);
     return success();
   }
@@ -122,7 +123,7 @@ struct SimplifyCallOp : public OpRewritePattern<CallOp> {
     if (&b->back() != &b->front())
       return failure();
 
-    if (!isa<YieldOp>(&b->getOperations().back()))
+    if (!(isa<YieldOp>(&b->getOperations().back())))
       return failure();
 
     b = &op.getCleanup().back();
