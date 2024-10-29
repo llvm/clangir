@@ -65,9 +65,9 @@ void CIRGenFunction::buildCXXGuardedInit(const VarDecl &varDecl,
   CGM.getCXXABI().buildGuardedInit(*this, varDecl, globalOp, performInit);
 }
 
-
 void CIRGenFunction::buildCXXGlobalVarDeclInit(const VarDecl &varDecl,
-                                mlir::cir::GlobalOp globalOp, bool performInit) {
+                                               mlir::cir::GlobalOp globalOp,
+                                               bool performInit) {
   // TODO(CIR): We diverge from CodeGen here via having this in CIRGenModule
   // instead. This is necessary due to the way we are constructing global inits
   // at the moment. We should investigate if we could transfer this over.

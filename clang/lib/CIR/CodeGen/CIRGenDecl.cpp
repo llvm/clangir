@@ -557,7 +557,7 @@ mlir::cir::GlobalOp CIRGenFunction::addInitializerToStaticVarDecl(
       // be constant.
       globalOp.setConstant(false);
 
-      buildCXXGuardedInit(varDecl, globalOp, /*performInit*/true);
+      buildCXXGuardedInit(varDecl, globalOp, /*performInit*/ true);
     }
     return globalOp;
   }
