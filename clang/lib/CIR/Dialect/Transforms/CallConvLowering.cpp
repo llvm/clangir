@@ -6,6 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 #include <map>
+#include <iostream>
 #include "TargetLowering/LowerModule.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -39,15 +40,33 @@ struct CallConvLowering {
   CallConvLowering(ModuleOp module) 
     : rewriter(module.getContext())
     , lowerModule(createLowerModule(module, rewriter)) {}
-  
+   
   void lower(Operation *op) {
    if (auto glob = dyn_cast<GetGlobalOp>(op))
       rewriteGetGlobalOp(glob);
-    else if (auto fun = dyn_cast<FuncOp>(op))
-      lowerFuncOp(fun);    
+    // else if (auto fun = dyn_cast<FuncOp>(op))
+    //   lowerFuncOp(fun);    
     else if (auto call = dyn_cast<CallOp>(op))
       lowerCallOp(call);
   }
+
+  void lowerFuncOp(FuncOp op) {  
+    // Fail the pass on unimplemented function users
+    const auto module = op->getParentOfType<mlir::ModuleOp>();
+    auto calls = op.getSymbolUses(module);
+    if (calls.has_value()) {
+      for (auto call : calls.value()) {
+        if (isa<GetGlobalOp, CallOp>(call.getUser())) {
+        //  lower(call.getUser());
+          continue;
+        }
+
+        cir_cconv_assert_or_abort(!::cir::MissingFeatures::ABIFuncPtr(), "NYI");
+      }
+    }
+    lowerModule->rewriteFunctionDefinition(op);
+  }
+
 
 private:
 
@@ -88,20 +107,6 @@ private:
     return {};
   }
 
-  void lowerFuncOp(FuncOp op) {
-    // Fail the pass on unimplemented function users
-    const auto module = op->getParentOfType<mlir::ModuleOp>();
-    auto calls = op.getSymbolUses(module);
-    if (calls.has_value()) {
-      for (auto call : calls.value()) {
-        if (isa<GetGlobalOp, CallOp>(call.getUser()))
-          continue;
-
-        cir_cconv_assert_or_abort(!::cir::MissingFeatures::ABIFuncPtr(), "NYI");
-      }
-    }
-    lowerModule->rewriteFunctionDefinition(op);
-  }
 
   void rewriteGetGlobalOp(GetGlobalOp op) {
     auto resTy = op.getResult().getType();
@@ -116,7 +121,7 @@ private:
   void lowerCallOp(CallOp op) {
     auto mod = op->getParentOfType<ModuleOp>();
     if (auto callee = op.getCallee()) {
-      if (auto fun = getFuncOp(mod, *callee))
+      if (auto fun = getFuncOp(mod, *callee)) 
         lowerModule->rewriteFunctionCall(op, fun);
     } else if (op.isIndirect()) {
       rewriter.setInsertionPoint(op);
@@ -150,8 +155,10 @@ struct CallConvLoweringPass
 
 void CallConvLoweringPass::runOnOperation() {
   auto module = dyn_cast<ModuleOp>(getOperation());
-  CallConvLowering cc(module);
-  module.walk([&](Operation *op) { cc.lower(op); });  
+  CallConvLowering cc(module);  
+  module.walk([&](Operation *op) { cc.lower(op); });
+  module.dump();
+  //module.walk([&](FuncOp op) { cc.lowerFuncOp(op); });
 }
 
 } // namespace cir
