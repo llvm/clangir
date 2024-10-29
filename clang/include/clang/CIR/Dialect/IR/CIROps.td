@@ -4018,7 +4018,7 @@ def AbsOp : CIR_Op<"abs", [Pure, SameOperandsAndResultType]> {
     Example:
 
     ```mlir
-      %0 = cir.const -42 : i32
+      %0 = cir.const #cir.int<-42> : i32
       %1 = cir.abs %0 poison : i32
     ```
   }];
