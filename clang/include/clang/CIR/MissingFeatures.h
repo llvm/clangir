@@ -230,7 +230,6 @@ struct MissingFeatures {
   static bool shouldInstrumentFunction() { return false; }
   static bool xray() { return false; }
   static bool buildConstrainedFPCall() { return false; }
-  static bool renderScriptTarget() { return false; }
   static bool emitEmptyRecordCheck() { return false; }
 
   // Inline assembly

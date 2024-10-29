@@ -111,8 +111,6 @@ ABIArgInfo AArch64ABIInfo::classifyReturnType(Type RetTy,
 
   // Aggregates <= 16 bytes are returned directly in registers or on the stack.
   if (Size <= 128) {
-    cir_cconv_assert(!::cir::MissingFeatures::renderScriptTarget());
-
     if (Size <= 64 && !getDataLayout().isBigEndian()) {
       // Composite types are returned in lower bits of a 64-bit register for LE,
       // and in higher bits for BE. However, integer types are always returned
