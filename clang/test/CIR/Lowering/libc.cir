@@ -18,7 +18,7 @@ module {
   }
 
   cir.func @shouldLowerLibcAbsBuiltin(%arg0: !s32i) -> !s32i {
-    %0 = cir.abs %arg0 : !s32i {is_int_min_poison = true}
+    %0 = cir.abs %arg0 poison : !s32i
     // CHECK: %0 = "llvm.intr.abs"(%arg0) <{is_int_min_poison = true}> : (i32) -> i32
     cir.return %0 : !s32i
   }

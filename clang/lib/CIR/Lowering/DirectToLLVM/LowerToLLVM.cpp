@@ -4164,8 +4164,7 @@ public:
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto resTy = this->getTypeConverter()->convertType(op.getType());
     auto absOp = rewriter.create<mlir::LLVM::AbsOp>(
-        op.getLoc(), resTy, adaptor.getOperands()[0],
-        adaptor.getIsIntMinPoison());
+        op.getLoc(), resTy, adaptor.getOperands()[0], adaptor.getPoison());
     rewriter.replaceOp(op, absOp);
     return mlir::success();
   }
