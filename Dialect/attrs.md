@@ -555,7 +555,7 @@ Syntax:
 >
 ```
 
-This is a wrapper of dictionary attrbiute that contains extra attributes of
+This is a wrapper of attribute dictionary that contains extra attributes of
 a function.
 
 #### Parameters:
