@@ -1567,9 +1567,7 @@ void mlir::cir::SwitchOp::getSuccessorRegions(
   regions.push_back(RegionSuccessor(&getBody()));
 }
 
-LogicalResult mlir::cir::SwitchOp::verify() {
-  return success();
-}
+LogicalResult mlir::cir::SwitchOp::verify() { return success(); }
 
 void mlir::cir::SwitchOp::build(
     OpBuilder &builder, OperationState &result, Value cond,
