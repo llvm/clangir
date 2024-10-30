@@ -2440,6 +2440,8 @@ mlir::cir::FuncOp CIRGenModule::createRuntimeFunction(
   if (AssumeConvergent) {
     llvm_unreachable("NYI");
   }
+  if (Local)
+    llvm_unreachable("NYI");
 
   auto entry = GetOrCreateCIRFunction(Name, Ty, GlobalDecl(),
                                       /*ForVtable=*/false);
