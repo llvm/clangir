@@ -588,9 +588,12 @@ mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
   if (globalAttr.getIndices()) {
     llvm::SmallVector<mlir::LLVM::GEPArg> indices;
 
-    if (auto stTy = dyn_cast<mlir::LLVM::LLVMStructType>(sourceType))
+    if (auto stTy = dyn_cast<mlir::LLVM::LLVMStructType>(sourceType)) {
       if (stTy.isIdentified())
         indices.push_back(0);
+    } else if (isa<mlir::LLVM::LLVMArrayType>(sourceType)) {
+      indices.push_back(0);
+    }
 
     for (auto idx : globalAttr.getIndices()) {
       auto intAttr = dyn_cast<mlir::IntegerAttr>(idx);
@@ -1151,7 +1154,10 @@ struct ConvertCIRToLLVMPass
   }
   void runOnOperation() final;
 
-  void buildGlobalAnnotationsVar();
+  void buildGlobalAnnotationsVar(
+      llvm::StringMap<mlir::LLVM::GlobalOp> &stringGlobalsMap,
+      llvm::StringMap<mlir::LLVM::GlobalOp> &argStringGlobalsMap,
+      llvm::MapVector<mlir::ArrayAttr, mlir::LLVM::GlobalOp> &argsVarMap);
 
   virtual StringRef getArgument() const override { return "cir-flat-to-llvm"; }
 };
@@ -1333,13 +1339,26 @@ public:
 class CIRAllocaLowering
     : public mlir::OpConversionPattern<mlir::cir::AllocaOp> {
   mlir::DataLayout const &dataLayout;
+  // Track globals created for annotation related strings
+  llvm::StringMap<mlir::LLVM::GlobalOp> &stringGlobalsMap;
+  // Track globals created for annotation arg related strings.
+  // They are different from annotation strings, as strings used in args
+  // are not in llvmMetadataSectionName, and also has aligment 1.
+  llvm::StringMap<mlir::LLVM::GlobalOp> &argStringGlobalsMap;
+  // Track globals created for annotation args.
+  llvm::MapVector<mlir::ArrayAttr, mlir::LLVM::GlobalOp> &argsVarMap;
 
 public:
-  CIRAllocaLowering(mlir::TypeConverter const &typeConverter,
-                    mlir::DataLayout const &dataLayout,
-                    mlir::MLIRContext *context)
+  CIRAllocaLowering(
+      mlir::TypeConverter const &typeConverter,
+      mlir::DataLayout const &dataLayout,
+      llvm::StringMap<mlir::LLVM::GlobalOp> &stringGlobalsMap,
+      llvm::StringMap<mlir::LLVM::GlobalOp> &argStringGlobalsMap,
+      llvm::MapVector<mlir::ArrayAttr, mlir::LLVM::GlobalOp> &argsVarMap,
+      mlir::MLIRContext *context)
       : OpConversionPattern<mlir::cir::AllocaOp>(typeConverter, context),
-        dataLayout(dataLayout) {}
+        dataLayout(dataLayout), stringGlobalsMap(stringGlobalsMap),
+        argStringGlobalsMap(argStringGlobalsMap), argsVarMap(argsVarMap) {}
 
   void buildAllocaAnnotations(mlir::LLVM::AllocaOp op, OpAdaptor adaptor,
                               mlir::ConversionPatternRewriter &rewriter,
@@ -1353,15 +1372,6 @@ public:
     mlir::Location loc = op.getLoc();
     mlir::OpBuilder varInitBuilder(module.getContext());
     varInitBuilder.restoreInsertionPoint(afterAlloca);
-
-    // Track globals created for annotation related strings
-    llvm::StringMap<mlir::LLVM::GlobalOp> stringGlobalsMap;
-    // Track globals created for annotation arg related strings.
-    // They are different from annotation strings, as strings used in args
-    // are not in llvmMetadataSectionName, and also has aligment 1.
-    llvm::StringMap<mlir::LLVM::GlobalOp> argStringGlobalsMap;
-    // Track globals created for annotation args.
-    llvm::MapVector<mlir::ArrayAttr, mlir::LLVM::GlobalOp> argsVarMap;
 
     auto intrinRetTy = mlir::LLVM::LLVMVoidType::get(getContext());
     constexpr const char *intrinNameAttr = "llvm.var.annotation.p0.p0";
@@ -2787,24 +2797,40 @@ public:
     auto cirAmtTy =
         mlir::dyn_cast<mlir::cir::IntType>(op.getAmount().getType());
     auto cirValTy = mlir::dyn_cast<mlir::cir::IntType>(op.getValue().getType());
+
+    // Operands could also be vector type
+    auto cirAmtVTy =
+        mlir::dyn_cast<mlir::cir::VectorType>(op.getAmount().getType());
+    auto cirValVTy =
+        mlir::dyn_cast<mlir::cir::VectorType>(op.getValue().getType());
     auto llvmTy = getTypeConverter()->convertType(op.getType());
     mlir::Value amt = adaptor.getAmount();
     mlir::Value val = adaptor.getValue();
 
-    assert(cirValTy && cirAmtTy && "non-integer shift is NYI");
-    assert(cirValTy == op.getType() && "inconsistent operands' types NYI");
+    assert(((cirValTy && cirAmtTy) || (cirAmtVTy && cirValVTy)) &&
+           "shift input type must be integer or vector type, otherwise NYI");
+
+    assert((cirValTy == op.getType() || cirValVTy == op.getType()) &&
+           "inconsistent operands' types NYI");
 
     // Ensure shift amount is the same type as the value. Some undefined
     // behavior might occur in the casts below as per [C99 6.5.7.3].
-    amt = getLLVMIntCast(rewriter, amt, mlir::cast<mlir::IntegerType>(llvmTy),
-                         !cirAmtTy.isSigned(), cirAmtTy.getWidth(),
-                         cirValTy.getWidth());
+    // Vector type shift amount needs no cast as type consistency is expected to
+    // be already be enforced at CIRGen.
+    if (cirAmtTy)
+      amt = getLLVMIntCast(rewriter, amt, mlir::cast<mlir::IntegerType>(llvmTy),
+                           !cirAmtTy.isSigned(), cirAmtTy.getWidth(),
+                           cirValTy.getWidth());
 
     // Lower to the proper LLVM shift operation.
     if (op.getIsShiftleft())
       rewriter.replaceOpWithNewOp<mlir::LLVM::ShlOp>(op, llvmTy, val, amt);
     else {
-      if (cirValTy.isUnsigned())
+      bool isUnSigned =
+          cirValTy ? !cirValTy.isSigned()
+                   : !mlir::cast<mlir::cir::IntType>(cirValVTy.getEltType())
+                          .isSigned();
+      if (isUnSigned)
         rewriter.replaceOpWithNewOp<mlir::LLVM::LShrOp>(op, llvmTy, val, amt);
       else
         rewriter.replaceOpWithNewOp<mlir::LLVM::AShrOp>(op, llvmTy, val, amt);
@@ -3941,21 +3967,6 @@ public:
   }
 };
 
-class CIRUndefOpLowering
-    : public mlir::OpConversionPattern<mlir::cir::UndefOp> {
-
-  using mlir::OpConversionPattern<mlir::cir::UndefOp>::OpConversionPattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(mlir::cir::UndefOp op, OpAdaptor adaptor,
-                  mlir::ConversionPatternRewriter &rewriter) const override {
-    auto typ = getTypeConverter()->convertType(op.getRes().getType());
-
-    rewriter.replaceOpWithNewOp<mlir::LLVM::UndefOp>(op, typ);
-    return mlir::success();
-  }
-};
-
 class CIREhTypeIdOpLowering
     : public mlir::OpConversionPattern<mlir::cir::EhTypeIdOp> {
 public:
@@ -4117,11 +4128,43 @@ public:
   }
 };
 
-void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
-                                         mlir::TypeConverter &converter,
-                                         mlir::DataLayout &dataLayout) {
+class CIRIsFPClassOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::IsFPClassOp> {
+public:
+  using OpConversionPattern<mlir::cir::IsFPClassOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::IsFPClassOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto src = adaptor.getSrc();
+    auto flags = adaptor.getFlags();
+    auto retTy = rewriter.getI1Type();
+
+    auto loc = op->getLoc();
+
+    auto intrinsic =
+        rewriter.create<mlir::LLVM::IsFPClass>(loc, retTy, src, flags);
+    // FIMXE: CIR now will convert cir::BoolType to i8 type unconditionally.
+    // Remove this conversion after we fix
+    // https://github.com/llvm/clangir/issues/480
+    auto converted = rewriter.create<mlir::LLVM::ZExtOp>(
+        loc, rewriter.getI8Type(), intrinsic->getResult(0));
+
+    rewriter.replaceOp(op, converted);
+    return mlir::success();
+  }
+};
+
+void populateCIRToLLVMConversionPatterns(
+    mlir::RewritePatternSet &patterns, mlir::TypeConverter &converter,
+    mlir::DataLayout &dataLayout,
+    llvm::StringMap<mlir::LLVM::GlobalOp> &stringGlobalsMap,
+    llvm::StringMap<mlir::LLVM::GlobalOp> &argStringGlobalsMap,
+    llvm::MapVector<mlir::ArrayAttr, mlir::LLVM::GlobalOp> &argsVarMap) {
   patterns.add<CIRReturnLowering>(patterns.getContext());
-  patterns.add<CIRAllocaLowering>(converter, dataLayout, patterns.getContext());
+  patterns.add<CIRAllocaLowering>(converter, dataLayout, stringGlobalsMap,
+                                  argStringGlobalsMap, argsVarMap,
+                                  patterns.getContext());
   patterns.add<
       CIRCmpOpLowering, CIRSelectOpLowering, CIRBitClrsbOpLowering,
       CIRBitClzOpLowering, CIRBitCtzOpLowering, CIRBitFfsOpLowering,
@@ -4145,11 +4188,11 @@ void populateCIRToLLVMConversionPatterns(mlir::RewritePatternSet &patterns,
       CIRStackSaveLowering, CIRUnreachableLowering, CIRTrapLowering,
       CIRInlineAsmOpLowering, CIRSetBitfieldLowering, CIRGetBitfieldLowering,
       CIRPrefetchLowering, CIRObjSizeOpLowering, CIRIsConstantOpLowering,
-      CIRCmpThreeWayOpLowering, CIRClearCacheOpLowering, CIRUndefOpLowering,
-      CIREhTypeIdOpLowering, CIRCatchParamOpLowering, CIRResumeOpLowering,
-      CIRAllocExceptionOpLowering, CIRFreeExceptionOpLowering,
-      CIRThrowOpLowering, CIRIntrinsicCallLowering, CIRBaseClassAddrOpLowering,
-      CIRVTTAddrPointOpLowering
+      CIRCmpThreeWayOpLowering, CIRClearCacheOpLowering, CIREhTypeIdOpLowering,
+      CIRCatchParamOpLowering, CIRResumeOpLowering, CIRAllocExceptionOpLowering,
+      CIRFreeExceptionOpLowering, CIRThrowOpLowering, CIRIntrinsicCallLowering,
+      CIRBaseClassAddrOpLowering, CIRVTTAddrPointOpLowering,
+      CIRIsFPClassOpLowering
 #define GET_BUILTIN_LOWERING_LIST
 #include "clang/CIR/Dialect/IR/CIRBuiltinsLowering.inc"
 #undef GET_BUILTIN_LOWERING_LIST
@@ -4417,7 +4460,10 @@ void collect_unreachable(mlir::Operation *parent,
   }
 }
 
-void ConvertCIRToLLVMPass::buildGlobalAnnotationsVar() {
+void ConvertCIRToLLVMPass::buildGlobalAnnotationsVar(
+    llvm::StringMap<mlir::LLVM::GlobalOp> &stringGlobalsMap,
+    llvm::StringMap<mlir::LLVM::GlobalOp> &argStringGlobalsMap,
+    llvm::MapVector<mlir::ArrayAttr, mlir::LLVM::GlobalOp> &argsVarMap) {
   mlir::ModuleOp module = getOperation();
   mlir::Attribute attr = module->getAttr("cir.global_annotations");
   if (!attr)
@@ -4464,14 +4510,6 @@ void ConvertCIRToLLVMPass::buildGlobalAnnotationsVar() {
 
     mlir::Value result = varInitBuilder.create<mlir::LLVM::UndefOp>(
         moduleLoc, annoStructArrayTy);
-    // Track globals created for annotation related strings
-    llvm::StringMap<mlir::LLVM::GlobalOp> stringGlobalsMap;
-    // Track globals created for annotation arg related strings.
-    // They are different from annotation strings, as strings used in args
-    // are not in llvmMetadataSectionName, and also has aligment 1.
-    llvm::StringMap<mlir::LLVM::GlobalOp> argStringGlobalsMap;
-    // Track globals created for annotation args.
-    llvm::MapVector<mlir::ArrayAttr, mlir::LLVM::GlobalOp> argsVarMap;
 
     int idx = 0;
     for (mlir::Attribute entry : annotationValuesArray) {
@@ -4517,7 +4555,18 @@ void ConvertCIRToLLVMPass::runOnOperation() {
 
   mlir::RewritePatternSet patterns(&getContext());
 
-  populateCIRToLLVMConversionPatterns(patterns, converter, dataLayout);
+  // Track globals created for annotation related strings
+  llvm::StringMap<mlir::LLVM::GlobalOp> stringGlobalsMap;
+  // Track globals created for annotation arg related strings.
+  // They are different from annotation strings, as strings used in args
+  // are not in llvmMetadataSectionName, and also has aligment 1.
+  llvm::StringMap<mlir::LLVM::GlobalOp> argStringGlobalsMap;
+  // Track globals created for annotation args.
+  llvm::MapVector<mlir::ArrayAttr, mlir::LLVM::GlobalOp> argsVarMap;
+
+  populateCIRToLLVMConversionPatterns(patterns, converter, dataLayout,
+                                      stringGlobalsMap, argStringGlobalsMap,
+                                      argsVarMap);
   mlir::populateFuncToLLVMConversionPatterns(converter, patterns);
 
   mlir::ConversionTarget target(getContext());
@@ -4573,7 +4622,7 @@ void ConvertCIRToLLVMPass::runOnOperation() {
         auto dtorAttr = mlir::cast<mlir::cir::GlobalDtorAttr>(attr);
         return std::make_pair(dtorAttr.getName(), dtorAttr.getPriority());
       });
-  buildGlobalAnnotationsVar();
+  buildGlobalAnnotationsVar(stringGlobalsMap, argStringGlobalsMap, argsVarMap);
 }
 
 std::unique_ptr<mlir::Pass> createConvertCIRToLLVMPass() {
