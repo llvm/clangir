@@ -50,6 +50,7 @@ FuncType LowerTypes::getFunctionType(const LowerFunctionInfo &FI) {
     resultType = retAI.getCoerceToType();
     break;
   case ::cir::ABIArgInfo::Ignore:
+  case ::cir::ABIArgInfo::Indirect:
     resultType = VoidType::get(getMLIRContext());
     break;
   default:
@@ -59,8 +60,12 @@ FuncType LowerTypes::getFunctionType(const LowerFunctionInfo &FI) {
   CIRToCIRArgMapping IRFunctionArgs(getContext(), FI, true);
   SmallVector<Type, 8> ArgTypes(IRFunctionArgs.totalIRArgs());
 
-  // Add type for sret argument.
-  cir_cconv_assert(!::cir::MissingFeatures::sretArgs());
+  // Add type for sret argument.  
+  if (IRFunctionArgs.hasSRetArg()) {
+    mlir::Type ret = FI.getReturnType();
+    ArgTypes[IRFunctionArgs.getSRetArgNo()] =
+      mlir::cir::PointerType::get(getMLIRContext(), ret);
+  }
 
   // Add type for inalloca argument.
   cir_cconv_assert(!::cir::MissingFeatures::inallocaArgs());
