@@ -18,6 +18,7 @@
 
 #include "clang/AST/GlobalDecl.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/SaveAndRestore.h"
 #include <cassert>
 
 using namespace clang;
@@ -337,8 +338,7 @@ void CIRGenModule::buildCXXGlobalVarDeclInit(const VarDecl *varDecl,
 
   assert(varDecl && " Expected a global declaration!");
   CIRGenFunction cgf{*this, builder, true};
-  CIRGenFunction* oldCGF = CurCGF;
-  CurCGF = &cgf;
+  llvm::SaveAndRestore<CIRGenFunction*> save(CurCGF, &cgf);
   CurCGF->CurFn = addr;
 
   CIRGenFunction::SourceLocRAIIObject fnLoc{cgf,
@@ -422,6 +422,4 @@ void CIRGenModule::buildCXXGlobalVarDeclInit(const VarDecl *varDecl,
         builder.create<mlir::cir::YieldOp>(addr->getLoc());
     }
   }
-
-  CurCGF = oldCGF;
 }
