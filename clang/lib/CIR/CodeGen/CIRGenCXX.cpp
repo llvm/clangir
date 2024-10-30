@@ -338,7 +338,7 @@ void CIRGenModule::buildCXXGlobalVarDeclInit(const VarDecl *varDecl,
 
   assert(varDecl && " Expected a global declaration!");
   CIRGenFunction cgf{*this, builder, true};
-  llvm::SaveAndRestore<CIRGenFunction*> save(CurCGF, &cgf);
+  llvm::SaveAndRestore<CIRGenFunction*> savedCGF(CurCGF, &cgf);
   CurCGF->CurFn = addr;
 
   CIRGenFunction::SourceLocRAIIObject fnLoc{cgf,
