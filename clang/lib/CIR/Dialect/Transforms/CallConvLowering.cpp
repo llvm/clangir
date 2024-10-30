@@ -74,13 +74,12 @@ private:
     return t;
   }
 
-  CastOp bitcast(Value src, Type newTy) {
+  void bitcast(Value src, Type newTy) {
     if (src.getType() != newTy) {
       auto cast =
           rewriter.create<CastOp>(src.getLoc(), newTy, CastKind::bitcast, src);
-      rewriter.replaceAllUsesExcept(src, cast, {cast});
+      rewriter.replaceAllUsesExcept(src, cast, cast);
     }
-    return {};
   }
 
   void rewriteGetGlobalOp(GetGlobalOp op) {
@@ -104,7 +103,6 @@ private:
     rewriter.setInsertionPoint(op);
     auto typ = op.getIndirectCall().getType();
     if (isFuncPointerTy(typ)) {
-      bitcast(op.getIndirectCall(), convert(typ));
       cir_cconv_unreachable("Indirect calls NYI");
     }
   }
