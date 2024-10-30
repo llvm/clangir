@@ -230,6 +230,7 @@ struct MissingFeatures {
   static bool shouldInstrumentFunction() { return false; }
   static bool xray() { return false; }
   static bool buildConstrainedFPCall() { return false; }
+  static bool emitEmptyRecordCheck() { return false; }
 
   // Inline assembly
   static bool asmGoto() { return false; }
@@ -400,6 +401,8 @@ struct MissingFeatures {
 
   // This Itanium bit is currently being skipped in cir.
   static bool itaniumRecordLayoutBuilderFinishLayout() { return false; }
+
+  static bool mustProgress() { return false; }
 };
 
 } // namespace cir
