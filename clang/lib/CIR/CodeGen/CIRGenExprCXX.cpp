@@ -344,6 +344,68 @@ CIRGenFunction::buildCXXOperatorMemberCallExpr(const CXXOperatorCallExpr *E,
       /*IsArrow=*/false, E->getArg(0));
 }
 
+static void buildNullBaseClassInitialization(CIRGenFunction &CGF,
+                                             Address DestPtr,
+                                             const CXXRecordDecl *Base) {
+  if (Base->isEmpty())
+    return;
+
+  DestPtr = DestPtr.withElementType(CGF.UInt8Ty);
+
+  const ASTRecordLayout &Layout = CGF.getContext().getASTRecordLayout(Base);
+  CharUnits NVSize = Layout.getNonVirtualSize();
+
+  // We cannot simply zero-initialize the entire base sub-object if vbptrs are
+  // present, they are initialized by the most derived class before calling the
+  // constructor.
+  SmallVector<std::pair<CharUnits, CharUnits>, 1> Stores;
+  Stores.emplace_back(CharUnits::Zero(), NVSize);
+
+  // Each store is split by the existence of a vbptr.
+  CharUnits VBPtrWidth = CGF.getPointerSize();
+  std::vector<CharUnits> VBPtrOffsets =
+      CGF.CGM.getCXXABI().getVBPtrOffsets(Base);
+  for (CharUnits VBPtrOffset : VBPtrOffsets) {
+    // Stop before we hit any virtual base pointers located in virtual bases.
+    if (VBPtrOffset >= NVSize)
+      break;
+    std::pair<CharUnits, CharUnits> LastStore = Stores.pop_back_val();
+    CharUnits LastStoreOffset = LastStore.first;
+    CharUnits LastStoreSize = LastStore.second;
+
+    CharUnits SplitBeforeOffset = LastStoreOffset;
+    CharUnits SplitBeforeSize = VBPtrOffset - SplitBeforeOffset;
+    assert(!SplitBeforeSize.isNegative() && "negative store size!");
+    if (!SplitBeforeSize.isZero())
+      Stores.emplace_back(SplitBeforeOffset, SplitBeforeSize);
+
+    CharUnits SplitAfterOffset = VBPtrOffset + VBPtrWidth;
+    CharUnits SplitAfterSize = LastStoreSize - SplitAfterOffset;
+    assert(!SplitAfterSize.isNegative() && "negative store size!");
+    if (!SplitAfterSize.isZero())
+      Stores.emplace_back(SplitAfterOffset, SplitAfterSize);
+  }
+
+  // If the type contains a pointer to data member we can't memset it to zero.
+  // Instead, create a null constant and copy it to the destination.
+  // TODO: there are other patterns besides zero that we can usefully memset,
+  // like -1, which happens to be the pattern used by member-pointers.
+  // TODO: isZeroInitializable can be over-conservative in the case where a
+  // virtual base contains a member pointer.
+  // TODO(cir): `nullConstantForBase` might be better off as a value instead
+  // of an mlir::TypedAttr? Once this moves out of skeleton, make sure to double
+  // check on what's better.
+  mlir::Attribute nullConstantForBase = CGF.CGM.buildNullConstantForBase(Base);
+  if (!CGF.getBuilder().isNullValue(nullConstantForBase)) {
+    llvm_unreachable("NYI");
+    // Otherwise, just memset the whole thing to zero.  This is legal
+    // because in LLVM, all default initializers (other than the ones we just
+    // handled above) are guaranteed to have a bit pattern of all zeros.
+  } else {
+    llvm_unreachable("NYI");
+  }
+}
+
 void CIRGenFunction::buildCXXConstructExpr(const CXXConstructExpr *E,
                                            AggValueSlot Dest) {
   assert(!Dest.isIgnored() && "Must have a destination!");
@@ -362,7 +424,8 @@ void CIRGenFunction::buildCXXConstructExpr(const CXXConstructExpr *E,
       break;
     case CXXConstructionKind::VirtualBase:
     case CXXConstructionKind::NonVirtualBase:
-      llvm_unreachable("NYI");
+      buildNullBaseClassInitialization(*this, Dest.getAddress(),
+                                       CD->getParent());
       break;
     }
   }

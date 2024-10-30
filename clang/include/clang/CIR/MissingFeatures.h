@@ -120,6 +120,8 @@ struct MissingFeatures {
   static bool parameterAttributes() { return false; }
   static bool minLegalVectorWidthAttr() { return false; }
   static bool vscaleRangeAttr() { return false; }
+  static bool stackrealign() { return false; }
+  static bool zerocallusedregs() { return false; }
 
   // Coroutines
   static bool unhandledException() { return false; }
@@ -228,6 +230,7 @@ struct MissingFeatures {
   static bool shouldInstrumentFunction() { return false; }
   static bool xray() { return false; }
   static bool buildConstrainedFPCall() { return false; }
+  static bool emitEmptyRecordCheck() { return false; }
 
   // Inline assembly
   static bool asmGoto() { return false; }

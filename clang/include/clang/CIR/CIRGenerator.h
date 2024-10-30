@@ -104,4 +104,4 @@ public:
 
 } // namespace cir
 
-#endif // CLANG_CIRGENERATOR_H_
+#endif // LLVM_CLANG_CIR_CIRGENERATOR_H
