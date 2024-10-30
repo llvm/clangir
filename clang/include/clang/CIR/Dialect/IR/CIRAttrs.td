@@ -93,13 +93,13 @@ def CIR_BoolAttr : CIR_Attr<"Bool", "bool", [TypedAttrInterface]> {
 }
 
 //===----------------------------------------------------------------------===//
-// PlaceholderAttr
+// UninitializedUnionFieldAttr
 //===----------------------------------------------------------------------===//
 
-def PlaceholderAttr : CIR_Attr<"Placeholder", "placeholder", [TypedAttrInterface]> {
-  let summary = "Attribute to represent a placeholder";
+def UninitializedUnionFieldAttr : CIR_Attr<"UninitializedUnionField", "uninitialized_union_field", [TypedAttrInterface]> {
+  let summary = "Attribute to represent an uninitialized field for a union.";
   let description = [{
-    The PlaceholderAttr is used to represent a placeholder.
+    The UninitializedUnionFieldAttr is used to represent an uninitialized field for a union.
   }];
 
   let parameters = (ins AttributeSelfTypeParameter<"">:$type);

@@ -396,7 +396,7 @@ mlir::Attribute ConstantAggregateBuilder::buildFrom(
           Ty && Ty.getType() == elemTy)
         UnionElemsStorage.push_back(Elems.back());
       else
-        UnionElemsStorage.push_back(mlir::cir::PlaceholderAttr::get(
+        UnionElemsStorage.push_back(mlir::cir::UninitializedUnionFieldAttr::get(
             CGM.getBuilder().getContext(), elemTy));
     }
 

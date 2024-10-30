@@ -300,7 +300,7 @@ public:
       return true;
     }
 
-    if (mlir::isa<mlir::cir::PlaceholderAttr>(attr))
+    if (mlir::isa<mlir::cir::UninitializedUnionFieldAttr>(attr))
       return true;
 
     llvm_unreachable("NYI");
