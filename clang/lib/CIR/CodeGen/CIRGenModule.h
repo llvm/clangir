@@ -267,6 +267,14 @@ public:
   void AddGlobalDtor(mlir::cir::FuncOp Dtor, int Priority = 65535,
                      bool IsDtorAttrFunc = false);
 
+  // Return whether structured convergence intrinsics should be generated for
+  // this target.
+  bool shouldEmitConvergenceTokens() const {
+    // TODO: this shuld probably become unconditional once the controlled
+    // convergence becomes the norm.
+    return getTriple().isSPIRVLogical();
+  }
+
   /// Return the mlir::Value for the address of the given global variable.
   /// If Ty is non-null and if the global doesn't exist, then it will be created
   /// with the specified type instead of whatever the normal requested type
@@ -605,6 +613,10 @@ public:
   /// expression of the given type.  This is usually, but not always, an LLVM
   /// null constant.
   mlir::Value buildNullConstant(QualType T, mlir::Location loc);
+
+  /// Return a null constant appropriate for zero-initializing a base class with
+  /// the given type. This is usually, but not always, an LLVM null constant.
+  mlir::TypedAttr buildNullConstantForBase(const CXXRecordDecl *Record);
 
   mlir::Value buildMemberPointerConstant(const UnaryOperator *E);
 
