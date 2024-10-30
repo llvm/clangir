@@ -49,7 +49,6 @@ using namespace mlir;
 #include "clang/CIR/Dialect/IR/CIROpsDialect.cpp.inc"
 #include "clang/CIR/Interfaces/ASTAttrInterfaces.h"
 #include "clang/CIR/Interfaces/CIROpInterfaces.h"
-#include <clang/CIR/MissingFeatures.h>
 
 //===----------------------------------------------------------------------===//
 // CIR Dialect
@@ -471,28 +470,28 @@ LogicalResult mlir::cir::CastOp::verify() {
   }
 
   switch (getKind()) {
-  case mlir::cir::CastKind::int_to_bool: {
+  case cir::CastKind::int_to_bool: {
     if (!mlir::isa<mlir::cir::BoolType>(resType))
       return emitOpError() << "requires !cir.bool type for result";
     if (!mlir::isa<mlir::cir::IntType>(srcType))
       return emitOpError() << "requires !cir.int type for source";
     return success();
   }
-  case mlir::cir::CastKind::ptr_to_bool: {
+  case cir::CastKind::ptr_to_bool: {
     if (!mlir::isa<mlir::cir::BoolType>(resType))
       return emitOpError() << "requires !cir.bool type for result";
     if (!mlir::isa<mlir::cir::PointerType>(srcType))
       return emitOpError() << "requires !cir.ptr type for source";
     return success();
   }
-  case mlir::cir::CastKind::integral: {
+  case cir::CastKind::integral: {
     if (!mlir::isa<mlir::cir::IntType>(resType))
       return emitOpError() << "requires !cir.int type for result";
     if (!mlir::isa<mlir::cir::IntType>(srcType))
       return emitOpError() << "requires !cir.int type for source";
     return success();
   }
-  case mlir::cir::CastKind::array_to_ptrdecay: {
+  case cir::CastKind::array_to_ptrdecay: {
     auto arrayPtrTy = mlir::dyn_cast<mlir::cir::PointerType>(srcType);
     auto flatPtrTy = mlir::dyn_cast<mlir::cir::PointerType>(resType);
     if (!arrayPtrTy || !flatPtrTy)
@@ -513,7 +512,7 @@ LogicalResult mlir::cir::CastOp::verify() {
              << "requires same type for array element and pointee result";
     return success();
   }
-  case mlir::cir::CastKind::bitcast: {
+  case cir::CastKind::bitcast: {
     // Allow bitcast of structs for calling conventions.
     if (isa<StructType>(srcType) || isa<StructType>(resType))
       return success();
@@ -538,62 +537,62 @@ LogicalResult mlir::cir::CastOp::verify() {
              << "requires !cir.ptr or !cir.vector type for source and result";
     return success();
   }
-  case mlir::cir::CastKind::floating: {
+  case cir::CastKind::floating: {
     if (!mlir::isa<mlir::cir::CIRFPTypeInterface>(srcType) ||
         !mlir::isa<mlir::cir::CIRFPTypeInterface>(resType))
       return emitOpError() << "requires !cir.float type for source and result";
     return success();
   }
-  case mlir::cir::CastKind::float_to_int: {
+  case cir::CastKind::float_to_int: {
     if (!mlir::isa<mlir::cir::CIRFPTypeInterface>(srcType))
       return emitOpError() << "requires !cir.float type for source";
     if (!mlir::dyn_cast<mlir::cir::IntType>(resType))
       return emitOpError() << "requires !cir.int type for result";
     return success();
   }
-  case mlir::cir::CastKind::int_to_ptr: {
+  case cir::CastKind::int_to_ptr: {
     if (!mlir::dyn_cast<mlir::cir::IntType>(srcType))
       return emitOpError() << "requires !cir.int type for source";
     if (!mlir::dyn_cast<mlir::cir::PointerType>(resType))
       return emitOpError() << "requires !cir.ptr type for result";
     return success();
   }
-  case mlir::cir::CastKind::ptr_to_int: {
+  case cir::CastKind::ptr_to_int: {
     if (!mlir::dyn_cast<mlir::cir::PointerType>(srcType))
       return emitOpError() << "requires !cir.ptr type for source";
     if (!mlir::dyn_cast<mlir::cir::IntType>(resType))
       return emitOpError() << "requires !cir.int type for result";
     return success();
   }
-  case mlir::cir::CastKind::float_to_bool: {
+  case cir::CastKind::float_to_bool: {
     if (!mlir::isa<mlir::cir::CIRFPTypeInterface>(srcType))
       return emitOpError() << "requires !cir.float type for source";
     if (!mlir::isa<mlir::cir::BoolType>(resType))
       return emitOpError() << "requires !cir.bool type for result";
     return success();
   }
-  case mlir::cir::CastKind::bool_to_int: {
+  case cir::CastKind::bool_to_int: {
     if (!mlir::isa<mlir::cir::BoolType>(srcType))
       return emitOpError() << "requires !cir.bool type for source";
     if (!mlir::isa<mlir::cir::IntType>(resType))
       return emitOpError() << "requires !cir.int type for result";
     return success();
   }
-  case mlir::cir::CastKind::int_to_float: {
+  case cir::CastKind::int_to_float: {
     if (!mlir::isa<mlir::cir::IntType>(srcType))
       return emitOpError() << "requires !cir.int type for source";
     if (!mlir::isa<mlir::cir::CIRFPTypeInterface>(resType))
       return emitOpError() << "requires !cir.float type for result";
     return success();
   }
-  case mlir::cir::CastKind::bool_to_float: {
+  case cir::CastKind::bool_to_float: {
     if (!mlir::isa<mlir::cir::BoolType>(srcType))
       return emitOpError() << "requires !cir.bool type for source";
     if (!mlir::isa<mlir::cir::CIRFPTypeInterface>(resType))
       return emitOpError() << "requires !cir.float type for result";
     return success();
   }
-  case mlir::cir::CastKind::address_space: {
+  case cir::CastKind::address_space: {
     auto srcPtrTy = mlir::dyn_cast<mlir::cir::PointerType>(srcType);
     auto resPtrTy = mlir::dyn_cast<mlir::cir::PointerType>(resType);
     if (!srcPtrTy || !resPtrTy)
@@ -602,7 +601,7 @@ LogicalResult mlir::cir::CastOp::verify() {
       return emitOpError() << "requires two types differ in addrspace only";
     return success();
   }
-  case mlir::cir::CastKind::float_to_complex: {
+  case cir::CastKind::float_to_complex: {
     if (!mlir::isa<mlir::cir::CIRFPTypeInterface>(srcType))
       return emitOpError() << "requires !cir.float type for source";
     auto resComplexTy = mlir::dyn_cast<mlir::cir::ComplexType>(resType);
@@ -612,7 +611,7 @@ LogicalResult mlir::cir::CastOp::verify() {
       return emitOpError() << "requires source type match result element type";
     return success();
   }
-  case mlir::cir::CastKind::int_to_complex: {
+  case cir::CastKind::int_to_complex: {
     if (!mlir::isa<mlir::cir::IntType>(srcType))
       return emitOpError() << "requires !cir.int type for source";
     auto resComplexTy = mlir::dyn_cast<mlir::cir::ComplexType>(resType);
@@ -622,7 +621,7 @@ LogicalResult mlir::cir::CastOp::verify() {
       return emitOpError() << "requires source type match result element type";
     return success();
   }
-  case mlir::cir::CastKind::float_complex_to_real: {
+  case cir::CastKind::float_complex_to_real: {
     auto srcComplexTy = mlir::dyn_cast<mlir::cir::ComplexType>(srcType);
     if (!srcComplexTy)
       return emitOpError() << "requires !cir.complex type for source";
@@ -632,7 +631,7 @@ LogicalResult mlir::cir::CastOp::verify() {
       return emitOpError() << "requires source element type match result type";
     return success();
   }
-  case mlir::cir::CastKind::int_complex_to_real: {
+  case cir::CastKind::int_complex_to_real: {
     auto srcComplexTy = mlir::dyn_cast<mlir::cir::ComplexType>(srcType);
     if (!srcComplexTy)
       return emitOpError() << "requires !cir.complex type for source";
@@ -642,7 +641,7 @@ LogicalResult mlir::cir::CastOp::verify() {
       return emitOpError() << "requires source element type match result type";
     return success();
   }
-  case mlir::cir::CastKind::float_complex_to_bool: {
+  case cir::CastKind::float_complex_to_bool: {
     auto srcComplexTy = mlir::dyn_cast<mlir::cir::ComplexType>(srcType);
     if (!srcComplexTy ||
         !mlir::isa<mlir::cir::CIRFPTypeInterface>(srcComplexTy.getElementTy()))
@@ -652,7 +651,7 @@ LogicalResult mlir::cir::CastOp::verify() {
       return emitOpError() << "requires !cir.bool type for result";
     return success();
   }
-  case mlir::cir::CastKind::int_complex_to_bool: {
+  case cir::CastKind::int_complex_to_bool: {
     auto srcComplexTy = mlir::dyn_cast<mlir::cir::ComplexType>(srcType);
     if (!srcComplexTy ||
         !mlir::isa<mlir::cir::IntType>(srcComplexTy.getElementTy()))
@@ -662,7 +661,7 @@ LogicalResult mlir::cir::CastOp::verify() {
       return emitOpError() << "requires !cir.bool type for result";
     return success();
   }
-  case mlir::cir::CastKind::float_complex: {
+  case cir::CastKind::float_complex: {
     auto srcComplexTy = mlir::dyn_cast<mlir::cir::ComplexType>(srcType);
     if (!srcComplexTy ||
         !mlir::isa<mlir::cir::CIRFPTypeInterface>(srcComplexTy.getElementTy()))
@@ -675,7 +674,7 @@ LogicalResult mlir::cir::CastOp::verify() {
              << "requires !cir.complex<!cir.float> type for result";
     return success();
   }
-  case mlir::cir::CastKind::float_complex_to_int_complex: {
+  case cir::CastKind::float_complex_to_int_complex: {
     auto srcComplexTy = mlir::dyn_cast<mlir::cir::ComplexType>(srcType);
     if (!srcComplexTy ||
         !mlir::isa<mlir::cir::CIRFPTypeInterface>(srcComplexTy.getElementTy()))
@@ -687,7 +686,7 @@ LogicalResult mlir::cir::CastOp::verify() {
       return emitOpError() << "requires !cir.complex<!cir.int> type for result";
     return success();
   }
-  case mlir::cir::CastKind::int_complex: {
+  case cir::CastKind::int_complex: {
     auto srcComplexTy = mlir::dyn_cast<mlir::cir::ComplexType>(srcType);
     if (!srcComplexTy ||
         !mlir::isa<mlir::cir::IntType>(srcComplexTy.getElementTy()))
@@ -698,7 +697,7 @@ LogicalResult mlir::cir::CastOp::verify() {
       return emitOpError() << "requires !cir.complex<!cir.int> type for result";
     return success();
   }
-  case mlir::cir::CastKind::int_complex_to_float_complex: {
+  case cir::CastKind::int_complex_to_float_complex: {
     auto srcComplexTy = mlir::dyn_cast<mlir::cir::ComplexType>(srcType);
     if (!srcComplexTy ||
         !mlir::isa<mlir::cir::IntType>(srcComplexTy.getElementTy()))
@@ -922,18 +921,6 @@ LogicalResult mlir::cir::ComplexImagPtrOp::verify() {
 }
 
 //===----------------------------------------------------------------------===//
-// LoadOp
-//===----------------------------------------------------------------------===//
-
-// TODO(CIR): The final interface here should include an argument for the
-// SyncScope::ID.
-void mlir::cir::LoadOp::setAtomic(mlir::cir::MemOrder order) {
-  setMemOrder(order);
-  if (::cir::MissingFeatures::syncScopeID())
-    llvm_unreachable("NYI");
-}
-
-//===----------------------------------------------------------------------===//
 // VecCreateOp
 //===----------------------------------------------------------------------===//
 
@@ -1043,11 +1030,11 @@ mlir::LogicalResult mlir::cir::ReturnOp::verify() {
   // Returns can be present in multiple different scopes, get the
   // wrapping function and start from there.
   auto *fnOp = getOperation()->getParentOp();
-  while (!isa<mlir::cir::FuncOp>(fnOp))
+  while (!isa<cir::FuncOp>(fnOp))
     fnOp = fnOp->getParentOp();
 
   // Make sure return types match function return type.
-  if (checkReturnAndFunction(*this, cast<mlir::cir::FuncOp>(fnOp)).failed())
+  if (checkReturnAndFunction(*this, cast<cir::FuncOp>(fnOp)).failed())
     return failure();
 
   return success();
@@ -1953,8 +1940,8 @@ LogicalResult mlir::cir::GlobalOp::verify() {
 
 void mlir::cir::GlobalOp::build(
     OpBuilder &odsBuilder, OperationState &odsState, StringRef sym_name,
-    Type sym_type, bool isConstant, mlir::cir::GlobalLinkageKind linkage,
-    mlir::cir::AddressSpaceAttr addrSpace,
+    Type sym_type, bool isConstant, cir::GlobalLinkageKind linkage,
+    cir::AddressSpaceAttr addrSpace,
     function_ref<void(OpBuilder &, Location)> ctorBuilder,
     function_ref<void(OpBuilder &, Location)> dtorBuilder) {
   odsState.addAttribute(getSymNameAttrName(odsState.name),
@@ -1966,7 +1953,7 @@ void mlir::cir::GlobalOp::build(
                           odsBuilder.getUnitAttr());
 
   ::mlir::cir::GlobalLinkageKindAttr linkageAttr =
-      mlir::cir::GlobalLinkageKindAttr::get(odsBuilder.getContext(), linkage);
+      cir::GlobalLinkageKindAttr::get(odsBuilder.getContext(), linkage);
   odsState.addAttribute(getLinkageAttrName(odsState.name), linkageAttr);
 
   if (addrSpace)
@@ -2539,7 +2526,7 @@ void mlir::cir::FuncOp::print(OpAsmPrinter &p) {
 // getNumArguments hook not failing.
 LogicalResult mlir::cir::FuncOp::verifyType() {
   auto type = getFunctionType();
-  if (!isa<mlir::cir::FuncType>(type))
+  if (!isa<cir::FuncType>(type))
     return emitOpError("requires '" + getFunctionTypeAttrName().str() +
                        "' attribute of function type");
   if (!getNoProto() && type.isVarArg() && type.getNumInputs() == 0)
@@ -2562,20 +2549,19 @@ LogicalResult mlir::cir::FuncOp::verify() {
   if (getLinkage() == cir::GlobalLinkageKind::CommonLinkage)
     return emitOpError() << "functions cannot have '"
                          << stringifyGlobalLinkageKind(
-                                mlir::cir::GlobalLinkageKind::CommonLinkage)
+                                cir::GlobalLinkageKind::CommonLinkage)
                          << "' linkage";
 
   if (isExternal()) {
-    if (getLinkage() != mlir::cir::GlobalLinkageKind::ExternalLinkage &&
-        getLinkage() != mlir::cir::GlobalLinkageKind::ExternalWeakLinkage)
-      return emitOpError()
-             << "external functions must have '"
-             << stringifyGlobalLinkageKind(
-                    mlir::cir::GlobalLinkageKind::ExternalLinkage)
-             << "' or '"
-             << stringifyGlobalLinkageKind(
-                    mlir::cir::GlobalLinkageKind::ExternalWeakLinkage)
-             << "' linkage";
+    if (getLinkage() != cir::GlobalLinkageKind::ExternalLinkage &&
+        getLinkage() != cir::GlobalLinkageKind::ExternalWeakLinkage)
+      return emitOpError() << "external functions must have '"
+                           << stringifyGlobalLinkageKind(
+                                  cir::GlobalLinkageKind::ExternalLinkage)
+                           << "' or '"
+                           << stringifyGlobalLinkageKind(
+                                  cir::GlobalLinkageKind::ExternalWeakLinkage)
+                           << "' linkage";
     return success();
   }
 
@@ -3071,11 +3057,11 @@ mlir::cir::TryCallOp::getSuccessorOperands(unsigned index) {
 
 LogicalResult mlir::cir::UnaryOp::verify() {
   switch (getKind()) {
-  case mlir::cir::UnaryOpKind::Inc:
-  case mlir::cir::UnaryOpKind::Dec:
-  case mlir::cir::UnaryOpKind::Plus:
-  case mlir::cir::UnaryOpKind::Minus:
-  case mlir::cir::UnaryOpKind::Not:
+  case cir::UnaryOpKind::Inc:
+  case cir::UnaryOpKind::Dec:
+  case cir::UnaryOpKind::Plus:
+  case cir::UnaryOpKind::Minus:
+  case cir::UnaryOpKind::Not:
     // Nothing to verify.
     return success();
   }
@@ -3092,9 +3078,8 @@ void mlir::cir::AwaitOp::build(
     function_ref<void(OpBuilder &, Location)> readyBuilder,
     function_ref<void(OpBuilder &, Location)> suspendBuilder,
     function_ref<void(OpBuilder &, Location)> resumeBuilder) {
-  result.addAttribute(
-      getKindAttrName(result.name),
-      mlir::cir::AwaitKindAttr::get(builder.getContext(), kind));
+  result.addAttribute(getKindAttrName(result.name),
+                      cir::AwaitKindAttr::get(builder.getContext(), kind));
   {
     OpBuilder::InsertionGuard guard(builder);
     Region *readyRegion = result.addRegion();
@@ -3206,7 +3191,7 @@ LogicalResult mlir::cir::ConstArrayAttr::verify(
 
   if (auto strAttr = mlir::dyn_cast<mlir::StringAttr>(attr)) {
     mlir::cir::ArrayType at = mlir::cast<mlir::cir::ArrayType>(type);
-    auto intTy = mlir::dyn_cast<mlir::cir::IntType>(at.getEltType());
+    auto intTy = mlir::dyn_cast<cir::IntType>(at.getEltType());
 
     // TODO: add CIR type for char.
     if (!intTy || intTy.getWidth() != 8) {
@@ -3323,9 +3308,8 @@ LogicalResult mlir::cir::ConstVectorAttr::verify(
     ::mlir::Type type, mlir::ArrayAttr arrayAttr) {
 
   if (!mlir::isa<mlir::cir::VectorType>(type)) {
-    return emitError() << "type of mlir::cir::ConstVectorAttr is not a "
-                          "mlir::cir::VectorType: "
-                       << type;
+    return emitError()
+           << "type of cir::ConstVectorAttr is not a cir::VectorType: " << type;
   }
   auto vecType = mlir::cast<mlir::cir::VectorType>(type);
 
@@ -3515,8 +3499,8 @@ LogicalResult mlir::cir::CopyOp::verify() {
 //===----------------------------------------------------------------------===//
 
 LogicalResult mlir::cir::MemCpyOp::verify() {
-  auto voidPtr = mlir::cir::PointerType::get(
-      getContext(), mlir::cir::VoidType::get(getContext()));
+  auto voidPtr =
+      cir::PointerType::get(getContext(), cir::VoidType::get(getContext()));
 
   if (!getLenTy().isUnsigned())
     return emitError() << "memcpy length must be an unsigned integer";
