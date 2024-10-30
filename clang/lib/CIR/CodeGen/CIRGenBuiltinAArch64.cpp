@@ -2207,12 +2207,12 @@ static int64_t getIntValueFromConstOp(mlir::Value val) {
 }
 
 /// This function `buildCommonNeonCallPattern0` implements a common way
-//  to generate neon intrinsic call that has following pattern:
-//  1. There is a need to cast result of the intrinsic call back to
-//     expression type.
-//  2. Function arg types are given, not deduced from actual arg types.
+///  to generate neon intrinsic call that has following pattern:
+///  1. There is a need to cast result of the intrinsic call back to
+///     expression type.
+///  2. Function arg types are given, not deduced from actual arg types.
 static mlir::Value
-buildCommonNeonCallPattern0(CIRGenFunction &cgf, std::string &intrincsName,
+buildCommonNeonCallPattern0(CIRGenFunction &cgf, llvm::StringRef intrincsName,
                             llvm::SmallVector<mlir::Type> argTypes,
                             llvm::SmallVectorImpl<mlir::Value> &ops,
                             mlir::Type funcResTy, const clang::CallExpr *e) {
@@ -2222,6 +2222,36 @@ buildCommonNeonCallPattern0(CIRGenFunction &cgf, std::string &intrincsName,
                     cgf.getLoc(e->getExprLoc()));
   mlir::Type resultType = cgf.ConvertType(e->getType());
   return builder.createBitcast(res, resultType);
+}
+
+/// Build a constant shift amount vector of `vecTy` to shift a vector
+/// Here `shitfVal` is a constant integer that will be splated into a
+/// a const vector of `vecTy` which is the return of this function
+static mlir::Value buildNeonShiftVector(CIRGenBuilderTy &builder,
+                                        mlir::Value shiftVal,
+                                        mlir::cir::VectorType vecTy,
+                                        mlir::Location loc, bool neg) {
+  int shiftAmt = getIntValueFromConstOp(shiftVal);
+  llvm::SmallVector<mlir::Attribute> vecAttr{
+      vecTy.getSize(),
+      // ConstVectorAttr requires cir::IntAttr
+      mlir::cir::IntAttr::get(vecTy.getEltType(), shiftAmt)};
+  mlir::cir::ConstVectorAttr constVecAttr = mlir::cir::ConstVectorAttr::get(
+      vecTy, mlir::ArrayAttr::get(builder.getContext(), vecAttr));
+  return builder.create<mlir::cir::ConstantOp>(loc, vecTy, constVecAttr);
+}
+
+/// Build ShiftOp of vector type whose shift amount is a vector built
+/// from a constant integer using `buildNeonShiftVector` function
+static mlir::Value buildCommonNeonShift(CIRGenBuilderTy &builder,
+                                        mlir::Location loc,
+                                        mlir::cir::VectorType resTy,
+                                        mlir::Value shifTgt,
+                                        mlir::Value shiftAmt, bool shiftLeft,
+                                        bool negAmt = false) {
+  shiftAmt = buildNeonShiftVector(builder, shiftAmt, resTy, loc, negAmt);
+  return builder.create<mlir::cir::ShiftOp>(
+      loc, resTy, builder.createBitcast(shifTgt, resTy), shiftAmt, shiftLeft);
 }
 
 mlir::Value CIRGenFunction::buildCommonNeonBuiltinExpr(
@@ -2260,9 +2290,17 @@ mlir::Value CIRGenFunction::buildCommonNeonBuiltinExpr(
   switch (builtinID) {
   default:
     break;
+  case NEON::BI__builtin_neon_vmovl_v: {
+    mlir::cir::VectorType dTy = builder.getExtendedOrTruncatedElementVectorType(
+        vTy, false /* truncate */,
+        mlir::cast<mlir::cir::IntType>(vTy.getEltType()).isSigned());
+    // This cast makes sure arg type conforms intrinsic expected arg type.
+    ops[0] = builder.createBitcast(ops[0], dTy);
+    return builder.createIntCast(ops[0], ty);
+  }
   case NEON::BI__builtin_neon_vmovn_v: {
-    mlir::cir::VectorType qTy = builder.getExtendedElementVectorType(
-        vTy, mlir::cast<mlir::cir::IntType>(vTy.getEltType()).isSigned());
+    mlir::cir::VectorType qTy = builder.getExtendedOrTruncatedElementVectorType(
+        vTy, true, mlir::cast<mlir::cir::IntType>(vTy.getEltType()).isSigned());
     ops[0] = builder.createBitcast(ops[0], qTy);
     // It really is truncation in this context.
     // In CIR, integral cast op supports vector of int type truncating.
@@ -2300,10 +2338,27 @@ mlir::Value CIRGenFunction::buildCommonNeonBuiltinExpr(
                              : "llvm.aarch64.neon.sqrdmulh.lane",
                          resTy, getLoc(e->getExprLoc()));
   }
+  case NEON::BI__builtin_neon_vshl_n_v:
+  case NEON::BI__builtin_neon_vshlq_n_v: {
+    mlir::Location loc = getLoc(e->getExprLoc());
+    return buildCommonNeonShift(builder, loc, vTy, ops[0], ops[1], true);
+  }
+  case NEON::BI__builtin_neon_vshll_n_v: {
+    mlir::Location loc = getLoc(e->getExprLoc());
+    mlir::cir::VectorType srcTy =
+        builder.getExtendedOrTruncatedElementVectorType(
+            vTy, false /* truncate */,
+            mlir::cast<mlir::cir::IntType>(vTy.getEltType()).isSigned());
+    ops[0] = builder.createBitcast(ops[0], srcTy);
+    // The following cast will be lowered to SExt or ZExt in LLVM.
+    ops[0] = builder.createIntCast(ops[0], vTy);
+    return buildCommonNeonShift(builder, loc, vTy, ops[0], ops[1], true);
+  }
   }
 
   // This second switch is for the intrinsics that might have a more generic
   // codegen solution so we can use the common codegen in future.
+  llvm::StringRef intrincsName;
   switch (builtinID) {
   default:
     llvm::errs() << getAArch64SIMDIntrinsicString(builtinID) << " ";
@@ -2311,22 +2366,34 @@ mlir::Value CIRGenFunction::buildCommonNeonBuiltinExpr(
 
   case NEON::BI__builtin_neon_vpadd_v:
   case NEON::BI__builtin_neon_vpaddq_v: {
-    std::string intrincsName = mlir::isa<mlir::FloatType>(vTy.getEltType())
-                                   ? "llvm.aarch64.neon.faddp"
-                                   : "llvm.aarch64.neon.addp";
-    return buildCommonNeonCallPattern0(*this, intrincsName, {vTy, vTy}, ops,
-                                       vTy, e);
+    intrincsName = mlir::isa<mlir::FloatType>(vTy.getEltType())
+                       ? "llvm.aarch64.neon.faddp"
+                       : "llvm.aarch64.neon.addp";
     break;
   }
-  case NEON::BI__builtin_neon_vqadd_v: {
-    std::string intrincsName = (intrinicId != altLLVMIntrinsic)
-                                   ? "llvm.aarch64.neon.uqadd"
-                                   : "llvm.aarch64.neon.sqadd";
-    return buildCommonNeonCallPattern0(*this, intrincsName, {vTy, vTy}, ops,
-                                       vTy, e);
+  case NEON::BI__builtin_neon_vqadd_v:
+  case NEON::BI__builtin_neon_vqaddq_v: {
+    intrincsName = (intrinicId != altLLVMIntrinsic) ? "llvm.aarch64.neon.uqadd"
+                                                    : "llvm.aarch64.neon.sqadd";
+    break;
+  }
+  case NEON::BI__builtin_neon_vqsub_v:
+  case NEON::BI__builtin_neon_vqsubq_v: {
+    intrincsName = (intrinicId != altLLVMIntrinsic) ? "llvm.aarch64.neon.uqsub"
+                                                    : "llvm.aarch64.neon.sqsub";
+    break;
+  }
+  case NEON::BI__builtin_neon_vrhadd_v:
+  case NEON::BI__builtin_neon_vrhaddq_v: {
+    intrincsName = (intrinicId != altLLVMIntrinsic)
+                       ? "llvm.aarch64.neon.urhadd"
+                       : "llvm.aarch64.neon.srhadd";
     break;
   }
   }
+  if (!intrincsName.empty())
+    return buildCommonNeonCallPattern0(*this, intrincsName, {vTy, vTy}, ops,
+                                       vTy, e);
   return nullptr;
 }
 
@@ -3081,8 +3148,17 @@ CIRGenFunction::buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   case NEON::BI__builtin_neon_vfmad_laneq_f64: {
     llvm_unreachable("NYI");
   }
-  case NEON::BI__builtin_neon_vmull_v:
-    llvm_unreachable("NYI");
+  case NEON::BI__builtin_neon_vmull_v: {
+    llvm::StringRef name =
+        usgn ? "llvm.aarch64.neon.umull" : "llvm.aarch64.neon.smull";
+    if (Type.isPoly())
+      name = "llvm.aarch64.neon.pmull";
+    mlir::cir::VectorType argTy =
+        builder.getExtendedOrTruncatedElementVectorType(
+            ty, false /* truncated */, !usgn);
+    return buildNeonCall(builder, {argTy, argTy}, Ops, name, ty,
+                         getLoc(E->getExprLoc()));
+  }
   case NEON::BI__builtin_neon_vmax_v:
   case NEON::BI__builtin_neon_vmaxq_v:
     llvm_unreachable("NYI");
@@ -3090,14 +3166,26 @@ CIRGenFunction::buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
     llvm_unreachable("NYI");
   }
   case NEON::BI__builtin_neon_vmin_v:
-  case NEON::BI__builtin_neon_vminq_v:
-    llvm_unreachable("NYI");
+  case NEON::BI__builtin_neon_vminq_v: {
+    llvm::StringRef name =
+        usgn ? "llvm.aarch64.neon.umin" : "llvm.aarch64.neon.smin";
+    if (mlir::cir::isFPOrFPVectorTy(ty))
+      name = "llvm.aarch64.neon.fmin";
+    return buildNeonCall(builder, {ty, ty}, Ops, name, ty,
+                         getLoc(E->getExprLoc()));
+  }
   case NEON::BI__builtin_neon_vminh_f16: {
     llvm_unreachable("NYI");
   }
   case NEON::BI__builtin_neon_vabd_v:
-  case NEON::BI__builtin_neon_vabdq_v:
-    llvm_unreachable("NYI");
+  case NEON::BI__builtin_neon_vabdq_v: {
+    llvm::StringRef name =
+        usgn ? "llvm.aarch64.neon.uabd" : "llvm.aarch64.neon.sabd";
+    if (mlir::cir::isFPOrFPVectorTy(ty))
+      name = "llvm.aarch64.neon.fabd";
+    return buildNeonCall(builder, {ty, ty}, Ops, name, ty,
+                         getLoc(E->getExprLoc()));
+  }
   case NEON::BI__builtin_neon_vpadal_v:
   case NEON::BI__builtin_neon_vpadalq_v: {
     llvm_unreachable("NYI");
@@ -3131,15 +3219,18 @@ CIRGenFunction::buildAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
     // The prototype of builtin_neon_vqrshrun_n can be found at
     // https://developer.arm.com/architectures/instruction-sets/intrinsics/
     return buildNeonCall(
-        builder, {builder.getExtendedElementVectorType(ty, true), SInt32Ty},
+        builder,
+        {builder.getExtendedOrTruncatedElementVectorType(ty, true, true),
+         SInt32Ty},
         Ops, "llvm.aarch64.neon.sqrshrun", ty, getLoc(E->getExprLoc()));
   case NEON::BI__builtin_neon_vqshrn_n_v:
     llvm_unreachable("NYI");
   case NEON::BI__builtin_neon_vrshrn_n_v:
     return buildNeonCall(
         builder,
-        {builder.getExtendedElementVectorType(
-             vTy, mlir::cast<mlir::cir::IntType>(vTy.getEltType()).isSigned()),
+        {builder.getExtendedOrTruncatedElementVectorType(
+             vTy, true /* extend */,
+             mlir::cast<mlir::cir::IntType>(vTy.getEltType()).isSigned()),
          SInt32Ty},
         Ops, "llvm.aarch64.neon.rshrn", ty, getLoc(E->getExprLoc()));
   case NEON::BI__builtin_neon_vqrshrn_n_v:
