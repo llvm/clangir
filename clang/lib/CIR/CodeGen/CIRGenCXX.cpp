@@ -337,6 +337,7 @@ void CIRGenModule::buildCXXGlobalVarDeclInit(const VarDecl *varDecl,
 
   assert(varDecl && " Expected a global declaration!");
   CIRGenFunction cgf{*this, builder, true};
+  CIRGenFunction* oldCGF = CurCGF;
   CurCGF = &cgf;
   CurCGF->CurFn = addr;
 
@@ -422,5 +423,5 @@ void CIRGenModule::buildCXXGlobalVarDeclInit(const VarDecl *varDecl,
     }
   }
 
-  CurCGF = nullptr;
+  CurCGF = oldCGF;
 }
