@@ -2160,6 +2160,43 @@ static mlir::Value buildArmLdrexNon128Intrinsic(unsigned int builtinID,
   }
 }
 
+/// Given a vector of unsigned int type `vecTy`, return a vector type of
+/// signed int type with the same element type width and vector size.
+static mlir::cir::VectorType getSignedVectorType(CIRGenBuilderTy &builder,
+                                                 mlir::cir::VectorType vecTy) {
+  auto elemTy = mlir::cast<mlir::cir::IntType>(vecTy.getEltType());
+  elemTy = builder.getSIntNTy(elemTy.getWidth());
+  return mlir::cir::VectorType::get(builder.getContext(), elemTy,
+                                    vecTy.getSize());
+}
+
+/// Get integer from a mlir::Value that is an int constant or a constant op.
+static int64_t getIntValueFromConstOp(mlir::Value val) {
+  auto constOp = mlir::cast<mlir::cir::ConstantOp>(val.getDefiningOp());
+  return (mlir::cast<mlir::cir::IntAttr>(constOp.getValue()))
+      .getValue()
+      .getSExtValue();
+}
+
+/// Build a constant shift amount vector of `vecTy` to shift a vector
+/// Here `shitfVal` is a constant integer that will be splated into a
+/// a const vector of `vecTy` which is the return of this function
+static mlir::Value buildNeonShiftVector(CIRGenBuilderTy &builder,
+                                        mlir::Value shiftVal,
+                                        mlir::cir::VectorType vecTy,
+                                        mlir::Location loc, bool neg) {
+  int shiftAmt = getIntValueFromConstOp(shiftVal);
+  if (neg)
+    shiftAmt = -shiftAmt;
+  llvm::SmallVector<mlir::Attribute> vecAttr{
+      vecTy.getSize(),
+      // ConstVectorAttr requires cir::IntAttr
+      mlir::cir::IntAttr::get(vecTy.getEltType(), shiftAmt)};
+  mlir::cir::ConstVectorAttr constVecAttr = mlir::cir::ConstVectorAttr::get(
+      vecTy, mlir::ArrayAttr::get(builder.getContext(), vecAttr));
+  return builder.create<mlir::cir::ConstantOp>(loc, vecTy, constVecAttr);
+}
+
 mlir::Value buildNeonCall(CIRGenBuilderTy &builder,
                           llvm::SmallVector<mlir::Type> argTypes,
                           llvm::SmallVectorImpl<mlir::Value> &args,
@@ -2172,17 +2209,15 @@ mlir::Value buildNeonCall(CIRGenBuilderTy &builder,
   assert(!MissingFeatures::buildConstrainedFPCall());
   if (isConstrainedFPIntrinsic)
     llvm_unreachable("isConstrainedFPIntrinsic NYI");
-  // TODO: Remove the following unreachable and call it in the loop once
-  // there is an implementation of buildNeonShiftVector
-  if (shift > 0)
-    llvm_unreachable("Argument shift NYI");
 
   for (unsigned j = 0; j < argTypes.size(); ++j) {
     if (isConstrainedFPIntrinsic) {
       assert(!MissingFeatures::buildConstrainedFPCall());
     }
     if (shift > 0 && shift == j) {
-      assert(!MissingFeatures::buildNeonShiftVector());
+      args[j] = buildNeonShiftVector(
+          builder, args[j], mlir::cast<mlir::cir::VectorType>(argTypes[j]), loc,
+          rightshift);
     } else {
       args[j] = builder.createBitcast(args[j], argTypes[j]);
     }
@@ -2190,20 +2225,11 @@ mlir::Value buildNeonCall(CIRGenBuilderTy &builder,
   if (isConstrainedFPIntrinsic) {
     assert(!MissingFeatures::buildConstrainedFPCall());
     return nullptr;
-  } else {
-    return builder
-        .create<mlir::cir::IntrinsicCallOp>(
-            loc, builder.getStringAttr(intrinsicName), funcResTy, args)
-        .getResult();
   }
-}
-
-/// Get integer from a mlir::Value that is an int constant or a constant op.
-static int64_t getIntValueFromConstOp(mlir::Value val) {
-  auto constOp = mlir::cast<mlir::cir::ConstantOp>(val.getDefiningOp());
-  return (mlir::cast<mlir::cir::IntAttr>(constOp.getValue()))
-      .getValue()
-      .getSExtValue();
+  return builder
+      .create<mlir::cir::IntrinsicCallOp>(
+          loc, builder.getStringAttr(intrinsicName), funcResTy, args)
+      .getResult();
 }
 
 /// This function `buildCommonNeonCallPattern0` implements a common way
@@ -2217,28 +2243,18 @@ buildCommonNeonCallPattern0(CIRGenFunction &cgf, llvm::StringRef intrincsName,
                             llvm::SmallVectorImpl<mlir::Value> &ops,
                             mlir::Type funcResTy, const clang::CallExpr *e) {
   CIRGenBuilderTy &builder = cgf.getBuilder();
+  if (argTypes.empty()) {
+    // The most common arg types is {funcResTy, funcResTy} for neon intrinsic
+    // functions. Thus, it is as default so call site does not need to
+    // provide it. Every neon intrinsic function has at least one argument,
+    // Thus empty argTypes really just means {funcResTy, funcResTy}.
+    argTypes = {funcResTy, funcResTy};
+  }
   mlir::Value res =
       buildNeonCall(builder, std::move(argTypes), ops, intrincsName, funcResTy,
                     cgf.getLoc(e->getExprLoc()));
   mlir::Type resultType = cgf.ConvertType(e->getType());
   return builder.createBitcast(res, resultType);
-}
-
-/// Build a constant shift amount vector of `vecTy` to shift a vector
-/// Here `shitfVal` is a constant integer that will be splated into a
-/// a const vector of `vecTy` which is the return of this function
-static mlir::Value buildNeonShiftVector(CIRGenBuilderTy &builder,
-                                        mlir::Value shiftVal,
-                                        mlir::cir::VectorType vecTy,
-                                        mlir::Location loc, bool neg) {
-  int shiftAmt = getIntValueFromConstOp(shiftVal);
-  llvm::SmallVector<mlir::Attribute> vecAttr{
-      vecTy.getSize(),
-      // ConstVectorAttr requires cir::IntAttr
-      mlir::cir::IntAttr::get(vecTy.getEltType(), shiftAmt)};
-  mlir::cir::ConstVectorAttr constVecAttr = mlir::cir::ConstVectorAttr::get(
-      vecTy, mlir::ArrayAttr::get(builder.getContext(), vecAttr));
-  return builder.create<mlir::cir::ConstantOp>(loc, vecTy, constVecAttr);
 }
 
 /// Build ShiftOp of vector type whose shift amount is a vector built
@@ -2338,6 +2354,15 @@ mlir::Value CIRGenFunction::buildCommonNeonBuiltinExpr(
                              : "llvm.aarch64.neon.sqrdmulh.lane",
                          resTy, getLoc(e->getExprLoc()));
   }
+  case NEON::BI__builtin_neon_vrshr_n_v:
+  case NEON::BI__builtin_neon_vrshrq_n_v: {
+    return buildNeonCall(
+        builder, {vTy, isUnsigned ? getSignedVectorType(builder, vTy) : vTy},
+        ops, isUnsigned ? "llvm.aarch64.neon.urshl" : "llvm.aarch64.neon.srshl",
+        vTy, getLoc(e->getExprLoc()), false, /* not fp constrained op*/
+        1,                                   /* second arg is shift amount */
+        true /* rightshift */);
+  }
   case NEON::BI__builtin_neon_vshl_n_v:
   case NEON::BI__builtin_neon_vshlq_n_v: {
     mlir::Location loc = getLoc(e->getExprLoc());
@@ -2359,6 +2384,7 @@ mlir::Value CIRGenFunction::buildCommonNeonBuiltinExpr(
   // This second switch is for the intrinsics that might have a more generic
   // codegen solution so we can use the common codegen in future.
   llvm::StringRef intrincsName;
+  llvm::SmallVector<mlir::Type> argTypes;
   switch (builtinID) {
   default:
     llvm::errs() << getAArch64SIMDIntrinsicString(builtinID) << " ";
@@ -2390,11 +2416,18 @@ mlir::Value CIRGenFunction::buildCommonNeonBuiltinExpr(
                        : "llvm.aarch64.neon.srhadd";
     break;
   }
+  case NEON::BI__builtin_neon_vqmovun_v: {
+    intrincsName = "llvm.aarch64.neon.sqxtun";
+    argTypes.push_back(builder.getExtendedOrTruncatedElementVectorType(
+        vTy, true /* extended */, true /* signed */));
+    break;
   }
-  if (!intrincsName.empty())
-    return buildCommonNeonCallPattern0(*this, intrincsName, {vTy, vTy}, ops,
-                                       vTy, e);
-  return nullptr;
+  }
+
+  if (intrincsName.empty())
+    return nullptr;
+  return buildCommonNeonCallPattern0(*this, intrincsName, argTypes, ops, vTy,
+                                     e);
 }
 
 mlir::Value
