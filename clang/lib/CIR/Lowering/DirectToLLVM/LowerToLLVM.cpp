@@ -4155,6 +4155,20 @@ public:
     return mlir::success();
   }
 };
+class CIRAbsOpLowering : public mlir::OpConversionPattern<mlir::cir::AbsOp> {
+public:
+  using OpConversionPattern<mlir::cir::AbsOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::AbsOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto resTy = this->getTypeConverter()->convertType(op.getType());
+    auto absOp = rewriter.create<mlir::LLVM::AbsOp>(
+        op.getLoc(), resTy, adaptor.getOperands()[0], adaptor.getPoison());
+    rewriter.replaceOp(op, absOp);
+    return mlir::success();
+  }
+};
 
 void populateCIRToLLVMConversionPatterns(
     mlir::RewritePatternSet &patterns, mlir::TypeConverter &converter,
@@ -4193,7 +4207,7 @@ void populateCIRToLLVMConversionPatterns(
       CIREhTypeIdOpLowering, CIRCatchParamOpLowering, CIRResumeOpLowering,
       CIRAllocExceptionOpLowering, CIRFreeExceptionOpLowering,
       CIRThrowOpLowering, CIRIntrinsicCallLowering, CIRBaseClassAddrOpLowering,
-      CIRVTTAddrPointOpLowering, CIRIsFPClassOpLowering
+      CIRVTTAddrPointOpLowering, CIRIsFPClassOpLowering, CIRAbsOpLowering
 #define GET_BUILTIN_LOWERING_LIST
 #include "clang/CIR/Dialect/IR/CIRBuiltinsLowering.inc"
 #undef GET_BUILTIN_LOWERING_LIST
