@@ -3933,7 +3933,7 @@ def CopyOp : CIR_Op<"copy",
 class CIR_MemCpyOp<string mnemonic>: CIR_Op<mnemonic, [AllTypesMatch<["dst", "src"]>]> {
   let arguments = (ins Arg<VoidPtr, "", [MemWrite]>:$dst,
                        Arg<VoidPtr, "", [MemRead]>:$src,
-                       PrimitiveUInt:$len, UnitAttr:$memory_overlap);
+                       PrimitiveUInt:$len);
   let hasVerifier = 0;
 
   let extraClassDeclaration = [{
@@ -3973,7 +3973,7 @@ def MemMoveOp : CIR_MemCpyOp<"libc.memmove"> {
     Given two CIR pointers, `src` and `dst`, `cir.libc.memmove` will copy `len`
     bytes from the memory pointed by `src` to the memory pointed by `dst`.
 
-    The `memory_overlap` argument indicate whether accounts for overlapping memory.
+    similiar to `cir.libc.memcpy` but accounts for overlapping memory.
 
     Examples:
 
