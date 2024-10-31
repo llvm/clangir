@@ -2385,8 +2385,8 @@ mlir::Value CIRGenFunction::buildCommonNeonBuiltinExpr(
     ops[0] = builder.createBitcast(ops[0], ty);
     ops[1] = builder.createBitcast(ops[1], ty);
     ops[0] = builder.createAnd(ops[0], ops[1]);
-    // CIR VecCmpO LLVM Lowering always creates SExt for vector of int type
-    // return type regardless of signedness of the input vector type.
+    // Note that during LLVM Lowering, result of `VecCmpOp` is sign extended,
+    // matching traditional codegen behavior.
     return builder.create<mlir::cir::VecCmpOp>(
         loc, ty, mlir::cir::CmpOpKind::ne, ops[0], builder.getZero(loc, ty));
   }
