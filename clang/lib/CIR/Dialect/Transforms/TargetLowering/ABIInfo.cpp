@@ -45,8 +45,8 @@ bool ABIInfo::isPromotableIntegerTypeForABI(Type Ty) const {
 ::cir::ABIArgInfo ABIInfo::getNaturalAlignIndirect(mlir::Type Ty, bool ByVal,
                                                    bool Realign,
                                                    mlir::Type Padding) const {
-  return ::cir::ABIArgInfo::getIndirect(getContext().getTypeAlign(Ty),
-                                        ByVal, Realign, Padding);
+  return ::cir::ABIArgInfo::getIndirect(getContext().getTypeAlign(Ty), ByVal,
+                                        Realign, Padding);
 }
 
 } // namespace cir

@@ -432,7 +432,7 @@ LowerFunction::buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
   return success();
 }
 
-mlir::cir::AllocaOp findAlloca(Operation* op) {
+mlir::cir::AllocaOp findAlloca(Operation *op) {
   if (!op)
     return {};
 
@@ -467,7 +467,7 @@ LogicalResult LowerFunction::buildFunctionEpilog(const LowerFunctionInfo &FI) {
     Value RV_addr = {};
     CIRToCIRArgMapping IRFunctionArgs(LM.getContext(), FI, true);
     if (IRFunctionArgs.hasSRetArg()) {
-      auto& entry = NewFn.getBody().front();
+      auto &entry = NewFn.getBody().front();
       RV_addr = entry.getArgument(IRFunctionArgs.getSRetArgNo());
     }
 

@@ -60,11 +60,11 @@ FuncType LowerTypes::getFunctionType(const LowerFunctionInfo &FI) {
   CIRToCIRArgMapping IRFunctionArgs(getContext(), FI, true);
   SmallVector<Type, 8> ArgTypes(IRFunctionArgs.totalIRArgs());
 
-  // Add type for sret argument.  
+  // Add type for sret argument.
   if (IRFunctionArgs.hasSRetArg()) {
     mlir::Type ret = FI.getReturnType();
     ArgTypes[IRFunctionArgs.getSRetArgNo()] =
-      mlir::cir::PointerType::get(getMLIRContext(), ret);
+        mlir::cir::PointerType::get(getMLIRContext(), ret);
   }
 
   // Add type for inalloca argument.

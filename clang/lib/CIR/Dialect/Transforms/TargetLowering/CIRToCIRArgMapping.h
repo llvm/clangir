@@ -52,8 +52,8 @@ class CIRToCIRArgMapping {
 public:
   CIRToCIRArgMapping(const CIRLowerContext &context,
                      const LowerFunctionInfo &FI, bool onlyRequiredArgs = false)
-      : SRetArgNo(InvalidIndex)
-      , ArgInfo(onlyRequiredArgs ? FI.getNumRequiredArgs() : FI.arg_size()) {
+      : SRetArgNo(InvalidIndex),
+        ArgInfo(onlyRequiredArgs ? FI.getNumRequiredArgs() : FI.arg_size()) {
     construct(context, FI, onlyRequiredArgs);
   };
 
@@ -145,7 +145,6 @@ public:
     assert(hasSRetArg());
     return SRetArgNo;
   }
-
 };
 
 } // namespace cir
