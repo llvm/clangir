@@ -96,10 +96,11 @@ def CIR_BoolAttr : CIR_Attr<"Bool", "bool", [TypedAttrInterface]> {
 // UninitializedUnionFieldAttr
 //===----------------------------------------------------------------------===//
 
-def UninitializedUnionFieldAttr : CIR_Attr<"UninitializedUnionField", "uninitialized_union_field", [TypedAttrInterface]> {
+def InactiveUnionFieldAttr : CIR_Attr<"InactiveUnionField", "inactive_field", [TypedAttrInterface]> {
   let summary = "Attribute to represent an uninitialized field for a union.";
   let description = [{
-    The UninitializedUnionFieldAttr is used to represent an uninitialized field for a union.
+    The InactiveUnionFieldAttr is used to represent an uninitialized field
+    for a union.
   }];
 
   let parameters = (ins AttributeSelfTypeParameter<"">:$type);

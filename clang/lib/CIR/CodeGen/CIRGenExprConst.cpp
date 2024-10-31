@@ -380,7 +380,7 @@ mlir::Attribute ConstantAggregateBuilder::buildFrom(
   bool Packed = false;
   ArrayRef<mlir::Attribute> UnpackedElems;
 
-  // Fullill the init elements for union. This comes from a fundamental
+  // Fill the init elements for union. This comes from a fundamental
   // difference between CIR and LLVM IR. In LLVM IR, the union is simply a
   // struct with the largest member. So it is fine to have only one init
   // element. But in CIR, the union has the information for all members. So if
