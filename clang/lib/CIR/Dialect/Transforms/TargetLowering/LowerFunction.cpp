@@ -832,16 +832,21 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
   // NOTE(cir): We don't know if the callee was already lowered, so we only
   // fetch the name from the callee, while the return type is fetch from the
   // lowering types manager.
+  
+  CallOp newCallOp;
+
   if (Caller.isIndirect()) {
     rewriter.setInsertionPoint(Caller);
     auto val = Caller.getIndirectCall();
     auto ptrTy = PointerType::get(val.getContext(), IRFuncTy);
-    auto callee = rewriter.create<CastOp>(val.getLoc(), ptrTy, CastKind::bitcast, val);
-    IRCallArgs.insert(IRCallArgs.begin(), callee);
+    auto callee = rewriter.create<CastOp>(
+      val.getLoc(), ptrTy, CastKind::bitcast, val);
+    newCallOp = rewriter.create<CallOp>(loc, callee, IRFuncTy, IRCallArgs);
+  } else {
+    newCallOp = rewriter.create<CallOp>(
+      loc, Caller.getCalleeAttr(), IRFuncTy.getReturnType(), IRCallArgs);
   }
 
-  CallOp newCallOp = rewriter.create<CallOp>(
-      loc, Caller.getCalleeAttr(), IRFuncTy.getReturnType(), IRCallArgs);
   auto extraAttrs =
       rewriter.getAttr<ExtraFuncAttributesAttr>(rewriter.getDictionaryAttr({}));
   newCallOp->setAttr("extra_attrs", extraAttrs);
