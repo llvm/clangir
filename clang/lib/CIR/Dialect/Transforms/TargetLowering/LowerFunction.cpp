@@ -444,7 +444,6 @@ mlir::cir::AllocaOp findAlloca(Operation *op) {
       return findAlloca(vals[0].getDefiningOp());
   } else if (auto load = dyn_cast<mlir::cir::LoadOp>(op)) {
     return findAlloca(load.getAddr().getDefiningOp());
-  } else if (auto load = dyn_cast<mlir::cir::CastOp>(op)) {
   }
 
   return {};
@@ -464,18 +463,18 @@ LogicalResult LowerFunction::buildFunctionEpilog(const LowerFunctionInfo &FI) {
     break;
 
   case ABIArgInfo::Indirect: {
-    Value RV_addr = {};
+    Value RVAddr = {};
     CIRToCIRArgMapping IRFunctionArgs(LM.getContext(), FI, true);
     if (IRFunctionArgs.hasSRetArg()) {
       auto &entry = NewFn.getBody().front();
-      RV_addr = entry.getArgument(IRFunctionArgs.getSRetArgNo());
+      RVAddr = entry.getArgument(IRFunctionArgs.getSRetArgNo());
     }
 
-    if (RV_addr) {
+    if (RVAddr) {
       mlir::PatternRewriter::InsertionGuard guard(rewriter);
       NewFn->walk([&](ReturnOp ret) {
         if (auto al = findAlloca(ret)) {
-          rewriter.replaceAllUsesWith(al.getResult(), RV_addr);
+          rewriter.replaceAllUsesWith(al.getResult(), RVAddr);
           rewriter.eraseOp(al);
           rewriter.replaceOpWithNewOp<ReturnOp>(ret);
         }
@@ -556,12 +555,12 @@ LogicalResult LowerFunction::generateCode(FuncOp oldFn, FuncOp newFn,
   Block *dstBlock = &newFn.getBody().front();
 
   // Ensure both blocks have the same number of arguments in order to
-  // safely merge them
+  // safely merge them.
   CIRToCIRArgMapping IRFunctionArgs(LM.getContext(), FnInfo, true);
   if (IRFunctionArgs.hasSRetArg()) {
-    auto dst_index = IRFunctionArgs.getSRetArgNo();
-    auto ret_arg = dstBlock->getArguments()[dst_index];
-    srcBlock->insertArgument(dst_index, ret_arg.getType(), ret_arg.getLoc());
+    auto dstIndex = IRFunctionArgs.getSRetArgNo();
+    auto retArg = dstBlock->getArguments()[dstIndex];
+    srcBlock->insertArgument(dstIndex, retArg.getType(), retArg.getLoc());
   }
 
   // Migrate function body to new ABI-aware function.
