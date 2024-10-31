@@ -3927,13 +3927,22 @@ def CopyOp : CIR_Op<"copy",
 }
 
 //===----------------------------------------------------------------------===//
-// MemCpyOp
+// MemCpyOp && MemMoveOp
 //===----------------------------------------------------------------------===//
 
-def MemCpyOp : CIR_Op<"libc.memcpy"> {
-  let arguments = (ins Arg<CIR_PointerType, "", [MemWrite]>:$dst,
-                       Arg<CIR_PointerType, "", [MemRead]>:$src,
-                       PrimitiveInt:$len);
+class CIR_MemCpyOp<string mnemonic>: CIR_Op<mnemonic, [AllTypesMatch<["dst", "src"]>]> {
+  let arguments = (ins Arg<VoidPtr, "", [MemWrite]>:$dst,
+                       Arg<VoidPtr, "", [MemRead]>:$src,
+                       PrimitiveUInt:$len, UnitAttr:$memory_overlap);
+  let hasVerifier = 0;
+
+  let extraClassDeclaration = [{
+    /// Returns the byte length type.
+    mlir::cir::IntType getLenTy() { return getLen().getType(); }
+  }];
+}
+
+def MemCpyOp : CIR_MemCpyOp<"libc.memcpy"> {
   let summary = "Equivalent to libc's `memcpy`";
   let description = [{
     Given two CIR pointers, `src` and `dst`, `cir.libc.memcpy` will copy `len`
@@ -3956,34 +3965,15 @@ def MemCpyOp : CIR_Op<"libc.memcpy"> {
     $len `bytes` `from` $src `to` $dst attr-dict
     `:` type($len) `` `,` qualified(type($src)) `->` qualified(type($dst))
   }];
-  let hasVerifier = 1;
-
-  let extraClassDeclaration = [{
-    /// Returns the data source pointer type.
-    mlir::cir::PointerType getSrcTy() { return getSrc().getType(); }
-
-    /// Returns the data destination pointer type.
-    mlir::cir::PointerType getDstTy() { return getDst().getType(); }
-
-    /// Returns the byte length type.
-    mlir::cir::IntType getLenTy() { return getLen().getType(); }
-  }];
 }
 
-//===----------------------------------------------------------------------===//
-// MemMoveOp
-//===----------------------------------------------------------------------===//
-
-def MemMoveOp : CIR_Op<"libc.memmove", [AllTypesMatch<["dst", "src"]>]> {
-  let arguments = (ins Arg<VoidPtr, "", [MemWrite]>:$dst,
-                       Arg<VoidPtr, "", [MemRead]>:$src,
-                       PrimitiveUInt:$len);
+def MemMoveOp : CIR_MemCpyOp<"libc.memmove"> {
   let summary = "Equivalent to libc's `memmove`";
   let description = [{
     Given two CIR pointers, `src` and `dst`, `cir.libc.memmove` will copy `len`
     bytes from the memory pointed by `src` to the memory pointed by `dst`.
 
-    similiar to `cir.libc.memcpy` but accounts for overlapping memory.
+    The `memory_overlap` argument indicate whether accounts for overlapping memory.
 
     Examples:
 
@@ -3994,15 +3984,10 @@ def MemMoveOp : CIR_Op<"libc.memmove", [AllTypesMatch<["dst", "src"]>]> {
     ```
   }];
 
+
   let assemblyFormat = [{
     $len `bytes` `from` $src `to` $dst attr-dict
     `:` qualified(type($dst)) `,` type($len)
-  }];
-  let hasVerifier = 0;
-
-  let extraClassDeclaration = [{
-    /// Returns the byte length type.
-    mlir::cir::IntType getLenTy() { return getLen().getType(); }
   }];
 }
 
