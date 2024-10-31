@@ -122,6 +122,7 @@ public:
   }
 
   bool classifyReturnType(CIRGenFunctionInfo &FI) const override;
+  bool isZeroInitializable(const MemberPointerType *MPT) override;
 
   AddedStructorArgCounts
   buildStructorSignature(GlobalDecl GD,
@@ -2653,4 +2654,10 @@ CIRGenItaniumCXXABI::buildVirtualMethodAttr(mlir::cir::MethodType MethodTy,
   }
 
   return mlir::cir::MethodAttr::get(MethodTy, VTableOffset);
+}
+
+/// The Itanium ABI requires non-zero initialization only for data
+/// member pointers, for which '0' is a valid offset.
+bool CIRGenItaniumCXXABI::isZeroInitializable(const MemberPointerType *MPT) {
+  return MPT->isMemberFunctionPointer();
 }
