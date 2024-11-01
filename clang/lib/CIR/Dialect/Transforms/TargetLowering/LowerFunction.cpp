@@ -104,7 +104,7 @@ static Value coerceIntOrPtrToIntOrPtr(Value val, Type typ, LowerFunction& CGF) {
 
   auto dstIntTy = typ;
   if (isa<PointerType>(dstIntTy))
-    llvm_unreachable("NYI");
+    cir_cconv_unreachable("NYI");
 
   if (val.getType() != dstIntTy) {
     const auto& layout = CGF.LM.getDataLayout();
@@ -184,8 +184,8 @@ void createCoercedStore(Value Src, Value Dst, bool DstIsVolatile,
     auto addr = bld.create<CastOp>(Dst.getLoc(), ptrTy, CastKind::bitcast, Dst);
     bld.create<StoreOp>(Dst.getLoc(), Src, addr);
   } else {
-     llvm_unreachable("NYI");
-  }                           
+    cir_cconv_unreachable("NYI");
+  }
 }
 
 // FIXME(cir): Create a custom rewriter class to abstract this away.
