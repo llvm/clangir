@@ -165,7 +165,6 @@ AArch64ABIInfo::classifyArgumentType(Type Ty, bool IsVariadic,
 
   // Aggregates <= 16 bytes are passed directly in registers or on the stack.
   if (Size <= 128) {
-
     unsigned Alignment;
     if (Kind == AArch64ABIKind::AAPCS) {
       Alignment = getContext().getTypeAlign(Ty);
@@ -186,7 +185,7 @@ AArch64ABIInfo::classifyArgumentType(Type Ty, bool IsVariadic,
     return ABIArgInfo::getDirect(argTy);
   }
 
-  return getNaturalAlignIndirect(Ty, /*ByVal=*/false);
+  cir_cconv_unreachable("NYI");
  }
   
 std::unique_ptr<TargetLoweringInfo>
