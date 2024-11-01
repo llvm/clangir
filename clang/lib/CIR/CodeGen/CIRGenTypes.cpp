@@ -409,7 +409,7 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
       break;
 
     case BuiltinType::Bool:
-      ResultType = ::mlir::cir::BoolType::get(Builder.getContext());
+      ResultType = ::mlir::cir::BoolType::get(&getMLIRContext());
       break;
 
     // Signed types.
@@ -434,7 +434,7 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
     case BuiltinType::SatShortAccum:
     case BuiltinType::SatShortFract:
       ResultType =
-          mlir::cir::IntType::get(Builder.getContext(), Context.getTypeSize(T),
+          mlir::cir::IntType::get(&getMLIRContext(), Context.getTypeSize(T),
                                   /*isSigned=*/true);
       break;
     // Unsigned types.
