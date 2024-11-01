@@ -2160,12 +2160,15 @@ static mlir::Value buildArmLdrexNon128Intrinsic(unsigned int builtinID,
   }
 }
 
-/// Given a vector of unsigned int type `vecTy`, return a vector type of
-/// signed int type with the same element type width and vector size.
-static mlir::cir::VectorType getSignedVectorType(CIRGenBuilderTy &builder,
-                                                 mlir::cir::VectorType vecTy) {
+/// Given a vector of int type `vecTy`, return a vector type of
+/// int type with the same element type width, different signedness,
+/// and the same vector size.
+static mlir::cir::VectorType
+getSignChangedVectorType(CIRGenBuilderTy &builder,
+                         mlir::cir::VectorType vecTy) {
   auto elemTy = mlir::cast<mlir::cir::IntType>(vecTy.getEltType());
-  elemTy = builder.getSIntNTy(elemTy.getWidth());
+  elemTy = elemTy.isSigned() ? builder.getUIntNTy(elemTy.getWidth())
+                             : builder.getSIntNTy(elemTy.getWidth());
   return mlir::cir::VectorType::get(builder.getContext(), elemTy,
                                     vecTy.getSize());
 }
@@ -2354,13 +2357,25 @@ mlir::Value CIRGenFunction::buildCommonNeonBuiltinExpr(
                              : "llvm.aarch64.neon.sqrdmulh.lane",
                          resTy, getLoc(e->getExprLoc()));
   }
+  case NEON::BI__builtin_neon_vqshlu_n_v:
+  case NEON::BI__builtin_neon_vqshluq_n_v: {
+    // These intrinsics expect signed vector type as input, but
+    // return unsigned vector type.
+    mlir::cir::VectorType srcTy = getSignChangedVectorType(builder, vTy);
+    return buildNeonCall(
+        builder, {srcTy, srcTy}, ops, "llvm.aarch64.neon.sqshlu", vTy,
+        getLoc(e->getExprLoc()), false, /* not fp constrained op */
+        1,                              /* second arg is shift amount */
+        false /* leftshift */);
+  }
   case NEON::BI__builtin_neon_vrshr_n_v:
   case NEON::BI__builtin_neon_vrshrq_n_v: {
     return buildNeonCall(
-        builder, {vTy, isUnsigned ? getSignedVectorType(builder, vTy) : vTy},
-        ops, isUnsigned ? "llvm.aarch64.neon.urshl" : "llvm.aarch64.neon.srshl",
-        vTy, getLoc(e->getExprLoc()), false, /* not fp constrained op*/
-        1,                                   /* second arg is shift amount */
+        builder,
+        {vTy, isUnsigned ? getSignChangedVectorType(builder, vTy) : vTy}, ops,
+        isUnsigned ? "llvm.aarch64.neon.urshl" : "llvm.aarch64.neon.srshl", vTy,
+        getLoc(e->getExprLoc()), false, /* not fp constrained op*/
+        1,                              /* second arg is shift amount */
         true /* rightshift */);
   }
   case NEON::BI__builtin_neon_vshl_n_v:
@@ -2378,6 +2393,17 @@ mlir::Value CIRGenFunction::buildCommonNeonBuiltinExpr(
     // The following cast will be lowered to SExt or ZExt in LLVM.
     ops[0] = builder.createIntCast(ops[0], vTy);
     return buildCommonNeonShift(builder, loc, vTy, ops[0], ops[1], true);
+  }
+  case NEON::BI__builtin_neon_vtst_v:
+  case NEON::BI__builtin_neon_vtstq_v: {
+    mlir::Location loc = getLoc(e->getExprLoc());
+    ops[0] = builder.createBitcast(ops[0], ty);
+    ops[1] = builder.createBitcast(ops[1], ty);
+    ops[0] = builder.createAnd(ops[0], ops[1]);
+    // Note that during LLVM Lowering, result of `VecCmpOp` is sign extended,
+    // matching traditional codegen behavior.
+    return builder.create<mlir::cir::VecCmpOp>(
+        loc, ty, mlir::cir::CmpOpKind::ne, ops[0], builder.getZero(loc, ty));
   }
   }
 

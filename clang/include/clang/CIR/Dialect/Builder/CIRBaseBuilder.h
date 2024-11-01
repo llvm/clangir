@@ -115,6 +115,16 @@ public:
     return getPointerTo(::mlir::cir::VoidType::get(getContext()), cirAS);
   }
 
+  mlir::cir::MethodAttr getMethodAttr(mlir::cir::MethodType ty,
+                                      mlir::cir::FuncOp methodFuncOp) {
+    auto methodFuncSymbolRef = mlir::FlatSymbolRefAttr::get(methodFuncOp);
+    return mlir::cir::MethodAttr::get(ty, methodFuncSymbolRef);
+  }
+
+  mlir::cir::MethodAttr getNullMethodAttr(mlir::cir::MethodType ty) {
+    return mlir::cir::MethodAttr::get(ty);
+  }
+
   mlir::cir::BoolAttr getCIRBoolAttr(bool state) {
     return mlir::cir::BoolAttr::get(getContext(), getBoolTy(), state);
   }
@@ -142,6 +152,8 @@ public:
       return getConstNullPtrAttr(ptrTy);
     if (auto structTy = mlir::dyn_cast<mlir::cir::StructType>(ty))
       return getZeroAttr(structTy);
+    if (auto methodTy = mlir::dyn_cast<mlir::cir::MethodType>(ty))
+      return getNullMethodAttr(methodTy);
     if (mlir::isa<mlir::cir::BoolType>(ty)) {
       return getCIRBoolAttr(false);
     }
@@ -384,6 +396,25 @@ public:
                            clang::CharUnits alignment) {
     auto alignmentIntAttr = getSizeFromCharUnits(getContext(), alignment);
     return createAlloca(loc, addrType, type, name, alignmentIntAttr);
+  }
+
+  mlir::Value createGetGlobal(mlir::cir::GlobalOp global,
+                              bool threadLocal = false) {
+    return create<mlir::cir::GetGlobalOp>(
+        global.getLoc(),
+        getPointerTo(global.getSymType(), global.getAddrSpaceAttr()),
+        global.getName(), threadLocal);
+  }
+
+  /// Create a copy with inferred length.
+  mlir::cir::CopyOp createCopy(mlir::Value dst, mlir::Value src,
+                               bool isVolatile = false) {
+    return create<mlir::cir::CopyOp>(dst.getLoc(), dst, src, isVolatile);
+  }
+
+  mlir::cir::MemCpyOp createMemCpy(mlir::Location loc, mlir::Value dst,
+                                   mlir::Value src, mlir::Value len) {
+    return create<mlir::cir::MemCpyOp>(loc, dst, src, len);
   }
 
   mlir::Value createSub(mlir::Value lhs, mlir::Value rhs, bool hasNUW = false,

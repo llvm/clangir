@@ -251,16 +251,6 @@ public:
     return mlir::cir::DataMemberAttr::get(getContext(), ty, std::nullopt);
   }
 
-  mlir::cir::MethodAttr getMethodAttr(mlir::cir::MethodType ty,
-                                      mlir::cir::FuncOp methodFuncOp) {
-    auto methodFuncSymbolRef = mlir::FlatSymbolRefAttr::get(methodFuncOp);
-    return mlir::cir::MethodAttr::get(ty, methodFuncSymbolRef);
-  }
-
-  mlir::cir::MethodAttr getNullMethodAttr(mlir::cir::MethodType ty) {
-    return mlir::cir::MethodAttr::get(ty);
-  }
-
   // TODO(cir): Once we have CIR float types, replace this by something like a
   // NullableValueInterface to allow for type-independent queries.
   bool isNullValue(mlir::Attribute attr) const {
@@ -603,7 +593,8 @@ public:
   mlir::cir::ConstantOp getZero(mlir::Location loc, mlir::Type ty) {
     // TODO: dispatch creation for primitive types.
     assert((mlir::isa<mlir::cir::StructType>(ty) ||
-            mlir::isa<mlir::cir::ArrayType>(ty)) &&
+            mlir::isa<mlir::cir::ArrayType>(ty) ||
+            mlir::isa<mlir::cir::VectorType>(ty)) &&
            "NYI for other types");
     return create<mlir::cir::ConstantOp>(loc, ty, getZeroAttr(ty));
   }
@@ -612,12 +603,6 @@ public:
   // Operation creation helpers
   // --------------------------
   //
-
-  /// Create a copy with inferred length.
-  mlir::cir::CopyOp createCopy(mlir::Value dst, mlir::Value src,
-                               bool isVolatile = false) {
-    return create<mlir::cir::CopyOp>(dst.getLoc(), dst, src, isVolatile);
-  }
 
   /// Create a break operation.
   mlir::cir::BreakOp createBreak(mlir::Location loc) {
@@ -632,6 +617,11 @@ public:
   mlir::cir::MemCpyOp createMemCpy(mlir::Location loc, mlir::Value dst,
                                    mlir::Value src, mlir::Value len) {
     return create<mlir::cir::MemCpyOp>(loc, dst, src, len);
+  }
+
+  mlir::cir::MemMoveOp createMemMove(mlir::Location loc, mlir::Value dst,
+                                     mlir::Value src, mlir::Value len) {
+    return create<mlir::cir::MemMoveOp>(loc, dst, src, len);
   }
 
   mlir::Value createNeg(mlir::Value value) {
@@ -762,14 +752,6 @@ public:
 
     return createGlobal(module, loc, uniqueName, type, isConst, linkage,
                         addrSpace);
-  }
-
-  mlir::Value createGetGlobal(mlir::cir::GlobalOp global,
-                              bool threadLocal = false) {
-    return create<mlir::cir::GetGlobalOp>(
-        global.getLoc(),
-        getPointerTo(global.getSymType(), global.getAddrSpaceAttr()),
-        global.getName(), threadLocal);
   }
 
   mlir::Value createGetBitfield(mlir::Location loc, mlir::Type resultType,
