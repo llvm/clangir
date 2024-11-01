@@ -25,7 +25,6 @@
 #include "clang/CIR/MissingFeatures.h"
 #include "clang/CIR/TypeEvaluationKind.h"
 #include "llvm/Support/ErrorHandling.h"
-#include <iostream>
 
 using ABIArgInfo = ::cir::ABIArgInfo;
 
