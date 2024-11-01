@@ -388,7 +388,7 @@ static LogicalResult checkConstantTypes(mlir::Operation *op, mlir::Type opType,
 
   if (isa<mlir::cir::ZeroAttr>(attrType)) {
     if (::mlir::isa<::mlir::cir::StructType, ::mlir::cir::ArrayType,
-                    ::mlir::cir::ComplexType>(opType))
+                    ::mlir::cir::ComplexType, ::mlir::cir::VectorType>(opType))
       return success();
     return op->emitOpError("zero expects struct or array type");
   }
@@ -3485,23 +3485,6 @@ LogicalResult mlir::cir::CopyOp::verify() {
 
   if (getSrc() == getDst())
     return emitError() << "source and destination are the same";
-
-  return mlir::success();
-}
-
-//===----------------------------------------------------------------------===//
-// MemCpyOp Definitions
-//===----------------------------------------------------------------------===//
-
-LogicalResult mlir::cir::MemCpyOp::verify() {
-  auto voidPtr =
-      cir::PointerType::get(getContext(), cir::VoidType::get(getContext()));
-
-  if (!getLenTy().isUnsigned())
-    return emitError() << "memcpy length must be an unsigned integer";
-
-  if (getSrcTy() != voidPtr || getDstTy() != voidPtr)
-    return emitError() << "memcpy src and dst must be void pointers";
 
   return mlir::success();
 }
