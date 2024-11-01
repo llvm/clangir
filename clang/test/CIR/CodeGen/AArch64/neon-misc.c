@@ -451,3 +451,340 @@ uint32x4x2_t test_vtrnq_u32(uint32x4_t a, uint32x4_t b) {
   // CIR:  cir.store [[RES1]], [[ADDR1]] : !cir.vector<!u32i x 4>, !cir.ptr<!cir.vector<!u32i x 4>>
   // LLVM: ret %struct.uint32x4x2_t {{.*}}
 }
+
+uint8x8_t test_vqmovun_s16(int16x8_t a) {
+  return vqmovun_s16(a);
+
+  // CIR-LABEL: vqmovun_s16
+  // CIR: {{%.*}} = cir.llvm.intrinsic "llvm.aarch64.neon.sqxtun" {{%.*}} :
+  // CIR-SAME: (!cir.vector<!s16i x 8>) -> !cir.vector<!u8i x 8>
+  
+  // LLVM: {{.*}}test_vqmovun_s16(<8 x i16>{{.*}}[[A:%.*]])
+  // LLVM: [[TMP0:%.*]] = bitcast <8 x i16> [[A]] to <16 x i8>
+  // LLVM: [[VQMOVUN_V1_I:%.*]] = call <8 x i8> @llvm.aarch64.neon.sqxtun.v8i8(<8 x i16> [[A]])
+  // LLVM: ret <8 x i8> [[VQMOVUN_V1_I]]
+}
+
+uint16x4_t test_vqmovun_s32(int32x4_t a) {
+  return vqmovun_s32(a);
+
+  // CIR-LABEL: vqmovun_s32
+  // CIR: {{%.*}} = cir.llvm.intrinsic "llvm.aarch64.neon.sqxtun" {{%.*}} :
+  // CIR-SAME: (!cir.vector<!s32i x 4>) -> !cir.vector<!u16i x 4>
+
+  // LLVM: {{.*}}test_vqmovun_s32(<4 x i32>{{.*}}[[A:%.*]])
+  // LLVM: [[TMP0:%.*]] = bitcast <4 x i32> [[A]] to <16 x i8>
+  // LLVM: [[VQMOVUN_V1_I:%.*]] = call <4 x i16> @llvm.aarch64.neon.sqxtun.v4i16(<4 x i32> [[A]])
+  // LLVM: [[VQMOVUN_V2_I:%.*]] = bitcast <4 x i16> [[VQMOVUN_V1_I]] to <8 x i8>
+  // LLVM: ret <4 x i16> [[VQMOVUN_V1_I]]
+}
+
+uint32x2_t test_vqmovun_s64(int64x2_t a) {
+  return vqmovun_s64(a);
+
+  // CIR-LABEL: vqmovun_s64
+  // CIR: {{%.*}} = cir.llvm.intrinsic "llvm.aarch64.neon.sqxtun" {{%.*}} :
+  // CIR-SAME: (!cir.vector<!s64i x 2>) -> !cir.vector<!u32i x 2>
+
+  // LLVM: {{.*}}test_vqmovun_s64(<2 x i64>{{.*}}[[A:%.*]])
+  // LLVM: [[TMP0:%.*]] = bitcast <2 x i64> [[A]] to <16 x i8>
+  // LLVM: [[VQMOVUN_V1_I:%.*]] = call <2 x i32> @llvm.aarch64.neon.sqxtun.v2i32(<2 x i64> [[A]])
+  // LLVM: [[VQMOVUN_V2_I:%.*]] = bitcast <2 x i32> [[VQMOVUN_V1_I]] to <8 x i8>
+  // LLVM: ret <2 x i32> [[VQMOVUN_V1_I]]
+}
+
+uint8x8_t test_vtst_s8(int8x8_t v1, int8x8_t v2) {
+  return vtst_s8(v1, v2);
+
+  // CIR-LABEL: vtst_s8
+  // CIR: [[V1:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u8i x 8> 
+  // CIR: [[V2:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u8i x 8>
+  // CIR: [[AND:%.*]] = cir.binop(and, [[V1]], [[V2]]) : !cir.vector<!u8i x 8>
+  // CIR: [[ZERO_VEC:%.*]] = cir.const #cir.zero : !cir.vector<!u8i x 8>
+  // CIR: {{%.*}} = cir.vec.cmp(ne, [[AND]], [[ZERO_VEC]]) : !cir.vector<!u8i x 8>, !cir.vector<!u8i x 8>
+  
+  // LLVM: {{.*}}test_vtst_s8(<8 x i8>{{.*}}[[V1:%.*]], <8 x i8>{{.*}}[[V2:%.*]])
+  // LLVM: [[TMP0:%.*]] = and <8 x i8> [[V1]], [[V2]]
+  // LLVM: [[TMP1:%.*]] = icmp ne <8 x i8> [[TMP0]], zeroinitializer
+  // LLVM: [[VTST_I:%.*]] = sext <8 x i1> [[TMP1]] to <8 x i8>
+  // LLVM: ret <8 x i8> [[VTST_I]]
+}
+
+uint8x8_t test_vtst_u8(uint8x8_t v1, uint8x8_t v2) {
+  return vtst_u8(v1, v2);
+
+  // CIR-LABEL: vtst_u8
+  // CIR: [[V1:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u8i x 8> 
+  // CIR: [[V2:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u8i x 8>
+  // CIR: [[AND:%.*]] = cir.binop(and, [[V1]], [[V2]]) : !cir.vector<!u8i x 8>
+  // CIR: [[ZERO_VEC:%.*]] = cir.const #cir.zero : !cir.vector<!u8i x 8>
+  // CIR: {{%.*}} = cir.vec.cmp(ne, [[AND]], [[ZERO_VEC]]) : !cir.vector<!u8i x 8>, !cir.vector<!u8i x 8>
+
+  // LLVM: {{.*}}test_vtst_u8(<8 x i8>{{.*}}[[V1:%.*]], <8 x i8>{{.*}}[[V2:%.*]])
+  // LLVM: [[TMP0:%.*]] = and <8 x i8> [[V1]], [[V2]]
+  // LLVM: [[TMP1:%.*]] = icmp ne <8 x i8> [[TMP0]], zeroinitializer
+  // LLVM: [[VTST_I:%.*]] = sext <8 x i1> [[TMP1]] to <8 x i8>
+  // LLVM: ret <8 x i8> [[VTST_I]]
+}
+
+uint16x4_t test_vtst_s16(int16x4_t v1, int16x4_t v2) {
+  return vtst_s16(v1, v2);
+
+  // CIR-LABEL: vtst_s16
+  // CIR: [[V1:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u16i x 4> 
+  // CIR: [[V2:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u16i x 4>
+  // CIR: [[AND:%.*]] = cir.binop(and, [[V1]], [[V2]]) : !cir.vector<!u16i x 4>
+  // CIR: [[ZERO_VEC:%.*]] = cir.const #cir.zero : !cir.vector<!u16i x 4>
+  // CIR: {{%.*}} = cir.vec.cmp(ne, [[AND]], [[ZERO_VEC]]) : !cir.vector<!u16i x 4>, !cir.vector<!u16i x 4>
+
+  // LLVM: {{.*}}test_vtst_s16(<4 x i16>{{.*}}[[V1:%.*]], <4 x i16>{{.*}}[[V2:%.*]])
+  // LLVM:   [[TMP0:%.*]] = bitcast <4 x i16> [[V1]] to <8 x i8>
+  // LLVM:   [[TMP1:%.*]] = bitcast <4 x i16> [[V2]] to <8 x i8>
+  // LLVM:   [[TMP2:%.*]] = and <4 x i16> [[V1]], [[V2]]
+  // LLVM:   [[TMP3:%.*]] = icmp ne <4 x i16> [[TMP2]], zeroinitializer
+  // LLVM:   [[VTST_I:%.*]] = sext <4 x i1> [[TMP3]] to <4 x i16>
+  // LLVM:   ret <4 x i16> [[VTST_I]]
+}
+
+uint16x4_t test_vtst_u16(uint16x4_t v1, uint16x4_t v2) {
+  return vtst_u16(v1, v2);
+
+  // CIR-LABEL: vtst_u16
+  // CIR: [[V1:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u16i x 4> 
+  // CIR: [[V2:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u16i x 4>
+  // CIR: [[AND:%.*]] = cir.binop(and, [[V1]], [[V2]]) : !cir.vector<!u16i x 4>
+  // CIR: [[ZERO_VEC:%.*]] = cir.const #cir.zero : !cir.vector<!u16i x 4>
+  // CIR: {{%.*}} = cir.vec.cmp(ne, [[AND]], [[ZERO_VEC]]) : !cir.vector<!u16i x 4>, !cir.vector<!u16i x 4>
+
+  // LLVM: {{.*}}test_vtst_u16(<4 x i16>{{.*}}[[V1:%.*]], <4 x i16>{{.*}}[[V2:%.*]])
+  // LLVM:   [[TMP0:%.*]] = bitcast <4 x i16> [[V1]] to <8 x i8>
+  // LLVM:   [[TMP1:%.*]] = bitcast <4 x i16> [[V2]] to <8 x i8>
+  // LLVM:   [[TMP2:%.*]] = and <4 x i16> [[V1]], [[V2]]
+  // LLVM:   [[TMP3:%.*]] = icmp ne <4 x i16> [[TMP2]], zeroinitializer
+  // LLVM:   [[VTST_I:%.*]] = sext <4 x i1> [[TMP3]] to <4 x i16>
+  // LLVM:   ret <4 x i16> [[VTST_I]]  
+}
+
+uint32x2_t test_vtst_s32(int32x2_t v1, int32x2_t v2) {
+  return vtst_s32(v1, v2);
+
+  // CIR-LABEL: vtst_s32
+  // CIR: [[V1:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u32i x 2> 
+  // CIR: [[V2:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u32i x 2>
+  // CIR: [[AND:%.*]] = cir.binop(and, [[V1]], [[V2]]) : !cir.vector<!u32i x 2>
+  // CIR: [[ZERO_VEC:%.*]] = cir.const #cir.zero : !cir.vector<!u32i x 2>
+  // CIR: {{%.*}} = cir.vec.cmp(ne, [[AND]], [[ZERO_VEC]]) : !cir.vector<!u32i x 2>, !cir.vector<!u32i x 2>
+
+  // LLVM: {{.*}}test_vtst_s32(<2 x i32>{{.*}}[[V1:%.*]], <2 x i32>{{.*}}[[V2:%.*]])
+  // LLVM:   [[TMP0:%.*]] = bitcast <2 x i32> [[V1]] to <8 x i8>
+  // LLVM:   [[TMP1:%.*]] = bitcast <2 x i32> [[V2]] to <8 x i8>
+  // LLVM:   [[TMP2:%.*]] = and <2 x i32> [[V1]], [[V2]]
+  // LLVM:   [[TMP3:%.*]] = icmp ne <2 x i32> [[TMP2]], zeroinitializer
+  // LLVM:   [[VTST_I:%.*]] = sext <2 x i1> [[TMP3]] to <2 x i32>
+  // LLVM:   ret <2 x i32> [[VTST_I]]
+}
+
+uint32x2_t test_vtst_u32(uint32x2_t v1, uint32x2_t v2) {
+  return vtst_u32(v1, v2);
+
+  // CIR-LABEL: vtst_u32
+  // CIR: [[V1:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u32i x 2> 
+  // CIR: [[V2:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u32i x 2>
+  // CIR: [[AND:%.*]] = cir.binop(and, [[V1]], [[V2]]) : !cir.vector<!u32i x 2>
+  // CIR: [[ZERO_VEC:%.*]] = cir.const #cir.zero : !cir.vector<!u32i x 2>
+  // CIR: {{%.*}} = cir.vec.cmp(ne, [[AND]], [[ZERO_VEC]]) : !cir.vector<!u32i x 2>, !cir.vector<!u32i x 2>
+
+  // LLVM: {{.*}}test_vtst_u32(<2 x i32>{{.*}}[[V1:%.*]], <2 x i32>{{.*}}[[V2:%.*]])
+  // LLVM:   [[TMP0:%.*]] = bitcast <2 x i32> [[V1]] to <8 x i8>
+  // LLVM:   [[TMP1:%.*]] = bitcast <2 x i32> [[V2]] to <8 x i8>
+  // LLVM:   [[TMP2:%.*]] = and <2 x i32> [[V1]], [[V2]]
+  // LLVM:   [[TMP3:%.*]] = icmp ne <2 x i32> [[TMP2]], zeroinitializer
+  // LLVM:   [[VTST_I:%.*]] = sext <2 x i1> [[TMP3]] to <2 x i32>
+  // LLVM:   ret <2 x i32> [[VTST_I]] 
+}
+
+uint64x1_t test_vtst_s64(int64x1_t a, int64x1_t b) {
+  return vtst_s64(a, b);
+
+  // CIR-LABEL: vtst_s64
+  // CIR: [[A:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u64i x 1> 
+  // CIR: [[B:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u64i x 1>
+  // CIR: [[AND:%.*]] = cir.binop(and, [[A]], [[B]]) : !cir.vector<!u64i x 1>
+  // CIR: [[ZERO_VEC:%.*]] = cir.const #cir.zero : !cir.vector<!u64i x 1>
+  // CIR: {{%.*}} = cir.vec.cmp(ne, [[AND]], [[ZERO_VEC]]) : !cir.vector<!u64i x 1>, !cir.vector<!u64i x 1>
+
+  // LLVM: {{.*}}test_vtst_s64(<1 x i64>{{.*}}[[A:%.*]], <1 x i64>{{.*}}[[B:%.*]])
+  // LLVM:   [[TMP0:%.*]] = bitcast <1 x i64> [[A]] to <8 x i8>
+  // LLVM:   [[TMP1:%.*]] = bitcast <1 x i64> [[B]] to <8 x i8>
+  // LLVM:   [[TMP2:%.*]] = and <1 x i64> [[A]], [[B]]
+  // LLVM:   [[TMP3:%.*]] = icmp ne <1 x i64> [[TMP2]], zeroinitializer
+  // LLVM:   [[VTST_I:%.*]] = sext <1 x i1> [[TMP3]] to <1 x i64>
+  // LLVM:   ret <1 x i64> [[VTST_I]]
+}
+
+uint64x1_t test_vtst_u64(uint64x1_t a, uint64x1_t b) {
+  return vtst_u64(a, b);
+
+  // CIR-LABEL: vtst_u64
+  // CIR: [[A:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u64i x 1> 
+  // CIR: [[B:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 8>), !cir.vector<!u64i x 1>
+  // CIR: [[AND:%.*]] = cir.binop(and, [[A]], [[B]]) : !cir.vector<!u64i x 1>
+  // CIR: [[ZERO_VEC:%.*]] = cir.const #cir.zero : !cir.vector<!u64i x 1>
+  // CIR: {{%.*}} = cir.vec.cmp(ne, [[AND]], [[ZERO_VEC]]) : !cir.vector<!u64i x 1>, !cir.vector<!u64i x 1>
+
+  // LLVM: {{.*}}test_vtst_u64(<1 x i64>{{.*}}[[A:%.*]], <1 x i64>{{.*}}[[B:%.*]])
+  // LLVM:   [[TMP0:%.*]] = bitcast <1 x i64> [[A]] to <8 x i8>
+  // LLVM:   [[TMP1:%.*]] = bitcast <1 x i64> [[B]] to <8 x i8>
+  // LLVM:   [[TMP2:%.*]] = and <1 x i64> [[A]], [[B]]
+  // LLVM:   [[TMP3:%.*]] = icmp ne <1 x i64> [[TMP2]], zeroinitializer
+  // LLVM:   [[VTST_I:%.*]] = sext <1 x i1> [[TMP3]] to <1 x i64>
+  // LLVM:   ret <1 x i64> [[VTST_I]]
+}
+
+uint8x16_t test_vtstq_s8(int8x16_t v1, int8x16_t v2) {
+  return vtstq_s8(v1, v2);
+
+  // CIR-LABEL: vtstq_s8
+  // CIR: [[V1:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u8i x 16> 
+  // CIR: [[V2:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u8i x 16>
+  // CIR: [[AND:%.*]] = cir.binop(and, [[V1]], [[V2]]) : !cir.vector<!u8i x 16>
+  // CIR: [[ZERO_VEC:%.*]] = cir.const #cir.zero : !cir.vector<!u8i x 16>
+  // CIR: {{%.*}} = cir.vec.cmp(ne, [[AND]], [[ZERO_VEC]]) : !cir.vector<!u8i x 16>, !cir.vector<!u8i x 16>
+
+  // LLVM: {{.*}}test_vtstq_s8(<16 x i8>{{.*}}[[V1:%.*]], <16 x i8>{{.*}}[[V2:%.*]])
+  // LLVM: [[TMP0:%.*]] = and <16 x i8> [[V1]], [[V2]]
+  // LLVM: [[TMP1:%.*]] = icmp ne <16 x i8> [[TMP0]], zeroinitializer
+  // LLVM: [[VTST_I:%.*]] = sext <16 x i1> [[TMP1]] to <16 x i8>
+  // LLVM: ret <16 x i8> [[VTST_I]]
+}
+
+uint8x16_t test_vtstq_u8(uint8x16_t v1, uint8x16_t v2) {
+  return vtstq_u8(v1, v2);
+
+  // CIR-LABEL: vtstq_u8
+  // CIR: [[V1:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u8i x 16> 
+  // CIR: [[V2:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u8i x 16>
+  // CIR: [[AND:%.*]] = cir.binop(and, [[V1]], [[V2]]) : !cir.vector<!u8i x 16>
+  // CIR: [[ZERO_VEC:%.*]] = cir.const #cir.zero : !cir.vector<!u8i x 16>
+  // CIR: {{%.*}} = cir.vec.cmp(ne, [[AND]], [[ZERO_VEC]]) : !cir.vector<!u8i x 16>, !cir.vector<!u8i x 16>
+
+  // LLVM: {{.*}}test_vtstq_u8(<16 x i8>{{.*}}[[V1:%.*]], <16 x i8>{{.*}}[[V2:%.*]])
+  // LLVM: [[TMP0:%.*]] = and <16 x i8> [[V1]], [[V2]]
+  // LLVM: [[TMP1:%.*]] = icmp ne <16 x i8> [[TMP0]], zeroinitializer
+  // LLVM: [[VTST_I:%.*]] = sext <16 x i1> [[TMP1]] to <16 x i8>
+  // LLVM: ret <16 x i8> [[VTST_I]]
+}
+
+uint16x8_t test_vtstq_s16(int16x8_t v1, int16x8_t v2) {
+  return vtstq_s16(v1, v2);
+
+  // CIR-LABEL: vtstq_s16
+  // CIR: [[V1:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u16i x 8>
+  // CIR: [[V2:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u16i x 8>
+  // CIR: [[AND:%.*]] = cir.binop(and, [[V1]], [[V2]])
+  // CIR: [[ZERO_VEC:%.*]] = cir.const #cir.zero : !cir.vector<!u16i x 8>
+  // CIR: {{%.*}} = cir.vec.cmp(ne, [[AND]], [[ZERO_VEC]]) : !cir.vector<!u16i x 8>, !cir.vector<!u16i x 8>
+
+  // LLVM: {{.*}}test_vtstq_s16(<8 x i16>{{.*}}[[V1:%.*]], <8 x i16>{{.*}}[[V2:%.*]])
+  // LLVM:   [[TMP0:%.*]] = bitcast <8 x i16> [[V1]] to <16 x i8>
+  // LLVM:   [[TMP1:%.*]] = bitcast <8 x i16> [[V2]] to <16 x i8>
+  // LLVM:   [[TMP2:%.*]] = and <8 x i16> [[V1]], [[V2]]
+  // LLVM:   [[TMP3:%.*]] = icmp ne <8 x i16> [[TMP2]], zeroinitializer
+  // LLVM:   [[VTST_I:%.*]] = sext <8 x i1> [[TMP3]] to <8 x i16>
+  // LLVM:   ret <8 x i16> [[VTST_I]]
+}
+
+uint16x8_t test_vtstq_u16(uint16x8_t v1, uint16x8_t v2) {
+  return vtstq_u16(v1, v2);
+
+  // CIR-LABEL: vtstq_u16
+  // CIR: [[V1:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u16i x 8>
+  // CIR: [[V2:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u16i x 8>
+  // CIR: [[AND:%.*]] = cir.binop(and, [[V1]], [[V2]])
+  // CIR: [[ZERO_VEC:%.*]] = cir.const #cir.zero : !cir.vector<!u16i x 8>
+  // CIR: {{%.*}} = cir.vec.cmp(ne, [[AND]], [[ZERO_VEC]]) : !cir.vector<!u16i x 8>, !cir.vector<!u16i x 8>
+
+  // LLVM: {{.*}}test_vtstq_u16(<8 x i16>{{.*}}[[V1:%.*]], <8 x i16>{{.*}}[[V2:%.*]])
+  // LLVM:   [[TMP0:%.*]] = bitcast <8 x i16> [[V1]] to <16 x i8>
+  // LLVM:   [[TMP1:%.*]] = bitcast <8 x i16> [[V2]] to <16 x i8>
+  // LLVM:   [[TMP2:%.*]] = and <8 x i16> [[V1]], [[V2]]
+  // LLVM:   [[TMP3:%.*]] = icmp ne <8 x i16> [[TMP2]], zeroinitializer
+  // LLVM:   [[VTST_I:%.*]] = sext <8 x i1> [[TMP3]] to <8 x i16>
+  // LLVM:   ret <8 x i16> [[VTST_I]]  
+}
+
+uint32x4_t test_vtstq_s32(int32x4_t v1, int32x4_t v2) {
+  return vtstq_s32(v1, v2);
+
+  // CIR-LABEL: vtstq_s32
+  // CIR: [[V1:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u32i x 4>
+  // CIR: [[V2:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u32i x 4>
+  // CIR: [[AND:%.*]] = cir.binop(and, [[V1]], [[V2]])
+  // CIR: [[ZERO_VEC:%.*]] = cir.const #cir.zero : !cir.vector<!u32i x 4>
+  // CIR: {{%.*}} = cir.vec.cmp(ne, [[AND]], [[ZERO_VEC]]) : !cir.vector<!u32i x 4>, !cir.vector<!u32i x 4>
+
+  // LLVM: {{.*}}test_vtstq_s32(<4 x i32>{{.*}}[[V1:%.*]], <4 x i32>{{.*}}[[V2:%.*]])
+  // LLVM:   [[TMP0:%.*]] = bitcast <4 x i32> [[V1]] to <16 x i8>
+  // LLVM:   [[TMP1:%.*]] = bitcast <4 x i32> [[V2]] to <16 x i8>
+  // LLVM:   [[TMP2:%.*]] = and <4 x i32> [[V1]], [[V2]]
+  // LLVM:   [[TMP3:%.*]] = icmp ne <4 x i32> [[TMP2]], zeroinitializer
+  // LLVM:   [[VTST_I:%.*]] = sext <4 x i1> [[TMP3]] to <4 x i32>
+  // LLVM:   ret <4 x i32> [[VTST_I]]
+}
+
+uint32x4_t test_vtstq_u32(uint32x4_t v1, uint32x4_t v2) {
+  return vtstq_u32(v1, v2);
+
+  // CIR-LABEL: vtstq_u32
+  // CIR: [[V1:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u32i x 4>
+  // CIR: [[V2:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u32i x 4>
+  // CIR: [[AND:%.*]] = cir.binop(and, [[V1]], [[V2]])
+  // CIR: [[ZERO_VEC:%.*]] = cir.const #cir.zero : !cir.vector<!u32i x 4>
+  // CIR: {{%.*}} = cir.vec.cmp(ne, [[AND]], [[ZERO_VEC]]) : !cir.vector<!u32i x 4>, !cir.vector<!u32i x 4>
+
+  // LLVM: {{.*}}test_vtstq_u32(<4 x i32>{{.*}}[[V1:%.*]], <4 x i32>{{.*}}[[V2:%.*]])
+  // LLVM:   [[TMP0:%.*]] = bitcast <4 x i32> [[V1]] to <16 x i8>
+  // LLVM:   [[TMP1:%.*]] = bitcast <4 x i32> [[V2]] to <16 x i8>
+  // LLVM:   [[TMP2:%.*]] = and <4 x i32> [[V1]], [[V2]]
+  // LLVM:   [[TMP3:%.*]] = icmp ne <4 x i32> [[TMP2]], zeroinitializer
+  // LLVM:   [[VTST_I:%.*]] = sext <4 x i1> [[TMP3]] to <4 x i32>
+  // LLVM:   ret <4 x i32> [[VTST_I]]
+}
+
+uint64x2_t test_vtstq_s64(int64x2_t v1, int64x2_t v2) {
+  return vtstq_s64(v1, v2);
+
+  // CIR-LABEL: vtstq_s64
+  // CIR: [[V1:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u64i x 2>
+  // CIR: [[V2:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u64i x 2>
+  // CIR: [[AND:%.*]] = cir.binop(and, [[V1]], [[V2]])
+  // CIR: [[ZERO_VEC:%.*]] = cir.const #cir.zero : !cir.vector<!u64i x 2>
+  // CIR: {{%.*}} = cir.vec.cmp(ne, [[AND]], [[ZERO_VEC]]) : !cir.vector<!u64i x 2>, !cir.vector<!u64i x 2>
+
+  // LLVM: {{.*}}test_vtstq_s64(<2 x i64>{{.*}}[[V1:%.*]], <2 x i64>{{.*}}[[V2:%.*]])
+  // LLVM:   [[TMP0:%.*]] = bitcast <2 x i64> [[V1]] to <16 x i8>
+  // LLVM:   [[TMP1:%.*]] = bitcast <2 x i64> [[V2]] to <16 x i8>
+  // LLVM:   [[TMP2:%.*]] = and <2 x i64> [[V1]], [[V2]]
+  // LLVM:   [[TMP3:%.*]] = icmp ne <2 x i64> [[TMP2]], zeroinitializer
+  // LLVM:   [[VTST_I:%.*]] = sext <2 x i1> [[TMP3]] to <2 x i64>
+  // LLVM:   ret <2 x i64> [[VTST_I]]
+}
+
+uint64x2_t test_vtstq_u64(uint64x2_t v1, uint64x2_t v2) {
+  return vtstq_u64(v1, v2);
+
+  // CIR-LABEL: vtstq_u64
+  // CIR: [[V1:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u64i x 2>
+  // CIR: [[V2:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.vector<!s8i x 16>), !cir.vector<!u64i x 2>
+  // CIR: [[AND:%.*]] = cir.binop(and, [[V1]], [[V2]])
+  // CIR: [[ZERO_VEC:%.*]] = cir.const #cir.zero : !cir.vector<!u64i x 2>
+  // CIR: {{%.*}} = cir.vec.cmp(ne, [[AND]], [[ZERO_VEC]]) : !cir.vector<!u64i x 2>, !cir.vector<!u64i x 2>
+
+  // LLVM: {{.*}}test_vtstq_u64(<2 x i64>{{.*}}[[V1:%.*]], <2 x i64>{{.*}}[[V2:%.*]])
+  // LLVM:   [[TMP0:%.*]] = bitcast <2 x i64> [[V1]] to <16 x i8>
+  // LLVM:   [[TMP1:%.*]] = bitcast <2 x i64> [[V2]] to <16 x i8>
+  // LLVM:   [[TMP2:%.*]] = and <2 x i64> [[V1]], [[V2]]
+  // LLVM:   [[TMP3:%.*]] = icmp ne <2 x i64> [[TMP2]], zeroinitializer
+  // LLVM:   [[VTST_I:%.*]] = sext <2 x i1> [[TMP3]] to <2 x i64>
+  // LLVM:   ret <2 x i64> [[VTST_I]]
+}

@@ -389,7 +389,7 @@ static LogicalResult checkConstantTypes(mlir::Operation *op, mlir::Type opType,
 
   if (isa<mlir::cir::ZeroAttr>(attrType)) {
     if (::mlir::isa<::mlir::cir::StructType, ::mlir::cir::ArrayType,
-                    ::mlir::cir::ComplexType>(opType))
+                    ::mlir::cir::ComplexType, ::mlir::cir::VectorType>(opType))
       return success();
     return op->emitOpError("zero expects struct or array type");
   }
@@ -928,6 +928,18 @@ LogicalResult mlir::cir::ComplexImagPtrOp::verify() {
 // TODO(CIR): The final interface here should include an argument for the
 // SyncScope::ID.
 void mlir::cir::LoadOp::setAtomic(mlir::cir::MemOrder order) {
+  setMemOrder(order);
+  if (::cir::MissingFeatures::syncScopeID())
+    llvm_unreachable("NYI");
+}
+
+//===----------------------------------------------------------------------===//
+// StoreOp
+//===----------------------------------------------------------------------===//
+
+// TODO(CIR): The final interface here should include an argument for the
+// SyncScope::ID.
+void mlir::cir::StoreOp::setAtomic(mlir::cir::MemOrder order) {
   setMemOrder(order);
   if (::cir::MissingFeatures::syncScopeID())
     llvm_unreachable("NYI");
@@ -2429,44 +2441,39 @@ bool mlir::cir::FuncOp::isDeclaration() {
 }
 
 void mlir::cir::FuncOp::print(OpAsmPrinter &p) {
-  p << ' ';
-
   // When adding a specific keyword here, do not forget to omit it in
   // printFunctionAttributes below or there will be a syntax error when
   // parsing
   if (getBuiltin())
-    p << "builtin ";
+    p << " builtin";
 
   if (getCoroutine())
-    p << "coroutine ";
+    p << " coroutine";
 
   if (getLambda())
-    p << "lambda ";
+    p << " lambda";
 
   if (getNoProto())
-    p << "no_proto ";
+    p << " no_proto";
 
   if (getComdat())
-    p << "comdat ";
+    p << " comdat";
 
   if (getLinkage() != GlobalLinkageKind::ExternalLinkage)
-    p << stringifyGlobalLinkageKind(getLinkage()) << ' ';
+    p << ' ' << stringifyGlobalLinkageKind(getLinkage());
 
   auto vis = getVisibility();
   if (vis != mlir::SymbolTable::Visibility::Public)
-    p << vis << " ";
+    p << ' ' << vis;
 
   auto cirVisibilityAttr = getGlobalVisibilityAttr();
-  printVisibilityAttr(p, cirVisibilityAttr);
-  // TODO: This is a problematic space to be handled conditionally by
-  // printVisibilityAttr which leads often to a double space in the output. But
-  // it looks like from here we have also switched from adding a conditional
-  // trailing space to inserting a leading space, to avoid trailing space at
-  // EOL.
-  // TODO: Only use the "insert leading space everywhere".
-  p << " ";
+  if (!cirVisibilityAttr.isDefault()) {
+    p << ' ';
+    printVisibilityAttr(p, cirVisibilityAttr);
+  }
 
   // Print function name, signature, and control.
+  p << ' ';
   p.printSymbolName(getSymName());
   auto fnType = getFunctionType();
   SmallVector<Type, 1> resultTypes;
@@ -2479,7 +2486,7 @@ void mlir::cir::FuncOp::print(OpAsmPrinter &p) {
         p, *this, fnType.getInputs(), fnType.isVarArg(), {});
 
   if (mlir::ArrayAttr annotations = getAnnotationsAttr()) {
-    p << " ";
+    p << ' ';
     p.printAttribute(annotations);
   }
 
@@ -3506,23 +3513,6 @@ LogicalResult mlir::cir::CopyOp::verify() {
 
   if (getSrc() == getDst())
     return emitError() << "source and destination are the same";
-
-  return mlir::success();
-}
-
-//===----------------------------------------------------------------------===//
-// MemCpyOp Definitions
-//===----------------------------------------------------------------------===//
-
-LogicalResult mlir::cir::MemCpyOp::verify() {
-  auto voidPtr = mlir::cir::PointerType::get(
-      getContext(), mlir::cir::VoidType::get(getContext()));
-
-  if (!getLenTy().isUnsigned())
-    return emitError() << "memcpy length must be an unsigned integer";
-
-  if (getSrcTy() != voidPtr || getDstTy() != voidPtr)
-    return emitError() << "memcpy src and dst must be void pointers";
 
   return mlir::success();
 }

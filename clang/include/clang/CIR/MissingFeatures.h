@@ -172,9 +172,6 @@ struct MissingFeatures {
   static bool volatileTypes() { return false; }
   static bool syncScopeID() { return false; }
 
-  // AArch64 Neon builtin related.
-  static bool buildNeonShiftVector() { return false; }
-
   // ABIInfo queries.
   static bool useTargetLoweringABIInfo() { return false; }
 
@@ -271,6 +268,7 @@ struct MissingFeatures {
   static bool ABIParameterCoercion() { return false; }
   static bool ABIPointerParameterAttrs() { return false; }
   static bool ABITransparentUnionHandling() { return false; }
+  static bool ABIPotentialArgAccess() { return false; }
 
   //-- Missing AST queries
 
@@ -401,6 +399,8 @@ struct MissingFeatures {
 
   // This Itanium bit is currently being skipped in cir.
   static bool itaniumRecordLayoutBuilderFinishLayout() { return false; }
+
+  static bool mustProgress() { return false; }
 };
 
 } // namespace cir

@@ -492,7 +492,7 @@ CIRGenModule::getOrCreateStaticVarDecl(const VarDecl &D,
   GV.setAlignment(getASTContext().getDeclAlign(&D).getAsAlign().value());
 
   if (supportsCOMDAT() && GV.isWeakForLinker())
-    llvm_unreachable("COMDAT globals are NYI");
+    GV.setComdat(true);
 
   if (D.getTLSKind())
     llvm_unreachable("TLS mode is NYI");
@@ -678,6 +678,9 @@ void CIRGenFunction::buildStaticVarDecl(const VarDecl &D,
     llvm_unreachable("llvm.used metadata is NYI");
   else if (D.hasAttr<UsedAttr>())
     llvm_unreachable("llvm.compiler.used metadata is NYI");
+
+  if (CGM.getCodeGenOpts().KeepPersistentStorageVariables)
+    llvm_unreachable("NYI");
 
   // From traditional codegen:
   // We may have to cast the constant because of the initializer
