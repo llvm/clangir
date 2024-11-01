@@ -1510,8 +1510,19 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     llvm_unreachable("BI__builtin_wmemcmp NYI");
   case Builtin::BI__builtin_dwarf_cfa:
     llvm_unreachable("BI__builtin_dwarf_cfa NYI");
-  case Builtin::BI__builtin_return_address:
-    llvm_unreachable("BI__builtin_return_address NYI");
+  case Builtin::BI__builtin_return_address: {
+    mlir::Location loc = getLoc(E->getExprLoc());
+    mlir::Attribute frameAttr = ConstantEmitter(*this).emitAbstract(
+        E->getArg(0), E->getArg(0)->getType());
+    int64_t frame = mlir::cast<mlir::cir::IntAttr>(frameAttr).getSInt();
+    // The intrinsic call is expecting unsigned int arg type, void* return type
+    return RValue::get(builder
+                           .create<mlir::cir::IntrinsicCallOp>(
+                               loc, builder.getStringAttr("llvm.returnaddress"),
+                               VoidPtrTy,
+                               builder.getUInt32(frame, loc).getRes())
+                           .getResult());
+  }
   case Builtin::BI_ReturnAddress:
     llvm_unreachable("BI_ReturnAddress NYI");
   case Builtin::BI__builtin_frame_address:
