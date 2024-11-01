@@ -170,24 +170,26 @@ AArch64ABIInfo::classifyArgumentType(Type Ty, bool IsVariadic,
       Alignment = getContext().getTypeAlign(Ty);
       Alignment = Alignment < 128 ? 64 : 128;
     } else {
-      Alignment =
-          std::max(getContext().getTypeAlign(Ty),
-                   (unsigned)getTarget().getPointerWidth(clang::LangAS::Default));
+      Alignment = std::max(
+          getContext().getTypeAlign(Ty),
+          (unsigned)getTarget().getPointerWidth(clang::LangAS::Default));
     }
     Size = llvm::alignTo(Size, Alignment);
 
     // We use a pair of i64 for 16-byte aggregate with 8-byte alignment.
     // For aggregates with 16-byte alignment, we use i128.
-    Type baseTy = mlir::cir::IntType::get(LT.getMLIRContext(), Alignment, false);
-    auto argTy = Size == Alignment 
-                 ? baseTy
-                 : mlir::cir::ArrayType::get(LT.getMLIRContext(), baseTy, Size/Alignment);
+    Type baseTy =
+        mlir::cir::IntType::get(LT.getMLIRContext(), Alignment, false);
+    auto argTy = Size == Alignment
+                     ? baseTy
+                     : mlir::cir::ArrayType::get(LT.getMLIRContext(), baseTy,
+                                                 Size / Alignment);
     return ABIArgInfo::getDirect(argTy);
   }
 
   cir_cconv_unreachable("NYI");
- }
-  
+}
+
 std::unique_ptr<TargetLoweringInfo>
 createAArch64TargetLoweringInfo(LowerModule &CGM, AArch64ABIKind Kind) {
   return std::make_unique<AArch64TargetLoweringInfo>(CGM.getTypes(), Kind);

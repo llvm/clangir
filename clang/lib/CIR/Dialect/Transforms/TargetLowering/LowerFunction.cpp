@@ -10,7 +10,6 @@
 // are adapted to operate on the CIR dialect, however.
 //
 //===----------------------------------------------------------------------===//
-#include <iostream>
 #include "LowerFunction.h"
 #include "CIRToCIRArgMapping.h"
 #include "LowerCall.h"
@@ -26,6 +25,7 @@
 #include "clang/CIR/MissingFeatures.h"
 #include "clang/CIR/TypeEvaluationKind.h"
 #include "llvm/Support/ErrorHandling.h"
+#include <iostream>
 
 using ABIArgInfo = ::cir::ABIArgInfo;
 
@@ -87,17 +87,17 @@ Value enterStructPointerForCoercedAccess(Value SrcPtr, StructType SrcSTy,
 /// This behaves as if the value were coerced through memory, so on big-endian
 /// targets the high bits are preserved in a truncation, while little-endian
 // targets preserve the low bits.
-static Value coerceIntOrPtrToIntOrPtr(Value val, Type typ, LowerFunction& CGF) {
+static Value coerceIntOrPtrToIntOrPtr(Value val, Type typ, LowerFunction &CGF) {
   if (val.getType() == typ)
     return val;
 
-  auto& bld = CGF.getRewriter();
+  auto &bld = CGF.getRewriter();
 
   if (isa<PointerType>(val.getType())) {
     // If this is Pointer->Pointer avoid conversion to and from int.
-    if (isa<PointerType>(typ)) 
+    if (isa<PointerType>(typ))
       return bld.create<CastOp>(val.getLoc(), typ, CastKind::bitcast, val);
-   
+
     // Convert the pointer to an integer so we can play with its width.
     val = bld.create<CastOp>(val.getLoc(), typ, CastKind::ptr_to_int, val);
   }
@@ -107,7 +107,7 @@ static Value coerceIntOrPtrToIntOrPtr(Value val, Type typ, LowerFunction& CGF) {
     cir_cconv_unreachable("NYI");
 
   if (val.getType() != dstIntTy) {
-    const auto& layout = CGF.LM.getDataLayout();
+    const auto &layout = CGF.LM.getDataLayout();
     if (layout.isBigEndian()) {
       // Preserve the high bits on big-endian targets.
       // That is what memory coercion does.
@@ -115,7 +115,7 @@ static Value coerceIntOrPtrToIntOrPtr(Value val, Type typ, LowerFunction& CGF) {
       uint64_t dstSize = layout.getTypeSizeInBits(dstIntTy);
       uint64_t diff = srcSize > dstSize ? srcSize - dstSize : dstSize - srcSize;
       auto loc = val.getLoc();
-     if (srcSize > dstSize) {
+      if (srcSize > dstSize) {
         auto intAttr = IntAttr::get(val.getType(), diff);
         auto amount = bld.create<ConstantOp>(loc, intAttr);
         val = bld.create<ShiftOp>(loc, val.getType(), val, amount, false);
@@ -160,24 +160,25 @@ void createCoercedStore(Value Src, Value Dst, bool DstIsVolatile,
         Dst = enterStructPointerForCoercedAccess(Dst, dstSTy,
                                                  SrcSize.getFixedValue(), CGF);
 
-  auto& layout = CGF.LM.getDataLayout();
+  auto &layout = CGF.LM.getDataLayout();
   llvm::TypeSize DstSize = dstPtrTy
-                           ? layout.getTypeAllocSize(dstPtrTy.getPointee())
-                           : layout.getTypeAllocSize(DstTy);
+                               ? layout.getTypeAllocSize(dstPtrTy.getPointee())
+                               : layout.getTypeAllocSize(DstTy);
 
   if (SrcSize.isScalable() || SrcSize <= DstSize) {
-    if (isa<IntType>(SrcTy) && dstPtrTy && isa<PointerType>(dstPtrTy.getPointee())
-      && SrcSize == layout.getTypeAllocSize(dstPtrTy.getPointee())) {
+    if (isa<IntType>(SrcTy) && dstPtrTy &&
+        isa<PointerType>(dstPtrTy.getPointee()) &&
+        SrcSize == layout.getTypeAllocSize(dstPtrTy.getPointee())) {
       cir_cconv_unreachable("NYI");
     } else if (auto STy = dyn_cast<StructType>(SrcTy)) {
       cir_cconv_unreachable("NYI");
     } else {
       Dst = createCoercedBitcast(Dst, SrcTy, CGF);
-      CGF.buildAggregateStore(Src, Dst, DstIsVolatile);      
+      CGF.buildAggregateStore(Src, Dst, DstIsVolatile);
     }
   } else if (isa<IntType>(SrcTy)) {
-    auto& bld = CGF.getRewriter();
-    auto* ctxt = CGF.LM.getMLIRContext();
+    auto &bld = CGF.getRewriter();
+    auto *ctxt = CGF.LM.getMLIRContext();
     auto dstIntTy = IntType::get(ctxt, DstSize.getFixedValue() * 8, false);
     Src = coerceIntOrPtrToIntOrPtr(Src, dstIntTy, CGF);
     auto ptrTy = PointerType::get(ctxt, dstIntTy);
