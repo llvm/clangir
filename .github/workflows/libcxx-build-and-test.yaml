@@ -63,13 +63,13 @@ jobs:
             cc: 'gcc-14'
             cxx: 'g++-14'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.2.2
       - name: ${{ matrix.config }}.${{ matrix.cxx }}
         run: libcxx/utils/ci/run-buildbot ${{ matrix.config }}
         env:
           CC: ${{ matrix.cc }}
           CXX: ${{ matrix.cxx }}
-      - uses: actions/upload-artifact@26f96dfa697d77e81fd5907df203aa23a56210a8 # v4.3.0
+      - uses: actions/upload-artifact@184d73b71b93c222403b2e7f1ffebe4508014249 # v4.3.0
         if: always()
         with:
           name: ${{ matrix.config }}-${{ matrix.cxx }}-results
@@ -107,13 +107,13 @@ jobs:
             cc: 'clang-18'
             cxx: 'clang++-18'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.2.2
       - name: ${{ matrix.config }}
         run: libcxx/utils/ci/run-buildbot ${{ matrix.config }}
         env:
           CC: ${{ matrix.cc }}
           CXX: ${{ matrix.cxx }}
-      - uses: actions/upload-artifact@26f96dfa697d77e81fd5907df203aa23a56210a8 # v4.3.0
+      - uses: actions/upload-artifact@184d73b71b93c222403b2e7f1ffebe4508014249 # v4.3.0
         if: always()  # Upload artifacts even if the build or test suite fails
         with:
           name: ${{ matrix.config }}-${{ matrix.cxx }}-results
@@ -172,13 +172,13 @@ jobs:
           machine: libcxx-runners-8-set
     runs-on: ${{ matrix.machine }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.2.2
       - name: ${{ matrix.config }}
         run: libcxx/utils/ci/run-buildbot ${{ matrix.config }}
         env:
           CC: clang-19
           CXX: clang++-19
-      - uses: actions/upload-artifact@26f96dfa697d77e81fd5907df203aa23a56210a8 # v4.3.0
+      - uses: actions/upload-artifact@184d73b71b93c222403b2e7f1ffebe4508014249 # v4.3.0
         if: always()
         with:
           name: ${{ matrix.config }}-results
@@ -209,7 +209,7 @@ jobs:
           os: macos-13
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.2.2
       - uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: 'latest'
@@ -220,7 +220,7 @@ jobs:
           source .venv/bin/activate
           python -m pip install psutil
           bash libcxx/utils/ci/run-buildbot ${{ matrix.config }}
-      - uses: actions/upload-artifact@26f96dfa697d77e81fd5907df203aa23a56210a8 # v4.3.0
+      - uses: actions/upload-artifact@184d73b71b93c222403b2e7f1ffebe4508014249 # v4.3.0
         if: always()  # Upload artifacts even if the build or test suite fails
         with:
           name: macos-${{ matrix.config }}-results
@@ -248,7 +248,7 @@ jobs:
         - { config: mingw-dll-i686, mingw: true }
         - { config: mingw-incomplete-sysroot, mingw: true }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.2.2
       - name: Install dependencies
         run: |
           choco install -y ninja
