@@ -10,7 +10,6 @@
 // are adapted to operate on the CIR dialect, however.
 //
 //===----------------------------------------------------------------------===//
-
 #include "LowerFunction.h"
 #include "CIRToCIRArgMapping.h"
 #include "LowerCall.h"
@@ -370,6 +369,12 @@ LowerFunction::buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
 
       cir_cconv_assert(!::cir::MissingFeatures::vectorType());
 
+      StructType STy = dyn_cast<StructType>(ArgI.getCoerceToType());
+      if (ArgI.isDirect() && !ArgI.getCanBeFlattened() && STy &&
+          STy.getNumElements() > 1) {
+        cir_cconv_unreachable("NYI");
+      }
+
       // Allocate original argument to be "uncoerced".
       // FIXME(cir): We should have a alloca op builder that does not required
       // the pointer type to be explicitly passed.
@@ -384,10 +389,45 @@ LowerFunction::buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
 
       // Fast-isel and the optimizer generally like scalar values better than
       // FCAs, so we flatten them if this is safe to do for this argument.
-      StructType STy = dyn_cast<StructType>(ArgI.getCoerceToType());
       if (ArgI.isDirect() && ArgI.getCanBeFlattened() && STy &&
           STy.getNumElements() > 1) {
-        cir_cconv_unreachable("NYI");
+        auto ptrType = cast<PointerType>(Ptr.getType());
+        llvm::TypeSize structSize =
+            LM.getTypes().getDataLayout().getTypeAllocSize(STy);
+        llvm::TypeSize ptrElementSize =
+            LM.getTypes().getDataLayout().getTypeAllocSize(
+                ptrType.getPointee());
+        if (structSize.isScalable()) {
+          cir_cconv_unreachable("NYI");
+        } else {
+          uint64_t srcSize = structSize.getFixedValue();
+          uint64_t dstSize = ptrElementSize.getFixedValue();
+
+          Value addrToStoreInto;
+          if (srcSize <= dstSize) {
+            addrToStoreInto = rewriter.create<CastOp>(
+                Ptr.getLoc(), PointerType::get(STy, ptrType.getAddrSpace()),
+                CastKind::bitcast, Ptr);
+          } else {
+            cir_cconv_unreachable("NYI");
+          }
+
+          assert(STy.getNumElements() == NumIRArgs);
+          for (unsigned i = 0, e = STy.getNumElements(); i != e; ++i) {
+            Value ai = Fn.getArgument(FirstIRArg + i);
+            Type elementTy = STy.getMembers()[i];
+            Value eltPtr = rewriter.create<GetMemberOp>(
+                ai.getLoc(),
+                PointerType::get(elementTy, ptrType.getAddrSpace()),
+                addrToStoreInto,
+                /*name=*/"", /*index=*/i);
+            rewriter.create<StoreOp>(ai.getLoc(), ai, eltPtr);
+          }
+
+          if (srcSize > dstSize) {
+            cir_cconv_unreachable("NYI");
+          }
+        }
       } else {
         // Simple case, just do a coerced store of the argument into the alloca.
         cir_cconv_assert(NumIRArgs == 1);
@@ -433,6 +473,23 @@ LowerFunction::buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
   return success();
 }
 
+mlir::cir::AllocaOp findAlloca(Operation *op) {
+  if (!op)
+    return {};
+
+  if (auto al = dyn_cast<mlir::cir::AllocaOp>(op)) {
+    return al;
+  } else if (auto ret = dyn_cast<mlir::cir::ReturnOp>(op)) {
+    auto vals = ret.getInput();
+    if (vals.size() == 1)
+      return findAlloca(vals[0].getDefiningOp());
+  } else if (auto load = dyn_cast<mlir::cir::LoadOp>(op)) {
+    return findAlloca(load.getAddr().getDefiningOp());
+  }
+
+  return {};
+}
+
 LogicalResult LowerFunction::buildFunctionEpilog(const LowerFunctionInfo &FI) {
   // NOTE(cir): no-return, naked, and no result functions should be handled in
   // CIRGen.
@@ -445,6 +502,27 @@ LogicalResult LowerFunction::buildFunctionEpilog(const LowerFunctionInfo &FI) {
 
   case ABIArgInfo::Ignore:
     break;
+
+  case ABIArgInfo::Indirect: {
+    Value RVAddr = {};
+    CIRToCIRArgMapping IRFunctionArgs(LM.getContext(), FI, true);
+    if (IRFunctionArgs.hasSRetArg()) {
+      auto &entry = NewFn.getBody().front();
+      RVAddr = entry.getArgument(IRFunctionArgs.getSRetArgNo());
+    }
+
+    if (RVAddr) {
+      mlir::PatternRewriter::InsertionGuard guard(rewriter);
+      NewFn->walk([&](ReturnOp ret) {
+        if (auto al = findAlloca(ret)) {
+          rewriter.replaceAllUsesWith(al.getResult(), RVAddr);
+          rewriter.eraseOp(al);
+          rewriter.replaceOpWithNewOp<ReturnOp>(ret);
+        }
+      });
+    }
+    break;
+  }
 
   case ABIArgInfo::Extend:
   case ABIArgInfo::Direct:
@@ -517,12 +595,26 @@ LogicalResult LowerFunction::generateCode(FuncOp oldFn, FuncOp newFn,
   Block *srcBlock = &oldFn.getBody().front();
   Block *dstBlock = &newFn.getBody().front();
 
+  // Ensure both blocks have the same number of arguments in order to
+  // safely merge them.
+  CIRToCIRArgMapping IRFunctionArgs(LM.getContext(), FnInfo, true);
+  if (IRFunctionArgs.hasSRetArg()) {
+    auto dstIndex = IRFunctionArgs.getSRetArgNo();
+    auto retArg = dstBlock->getArguments()[dstIndex];
+    srcBlock->insertArgument(dstIndex, retArg.getType(), retArg.getLoc());
+  }
+
   // Migrate function body to new ABI-aware function.
   rewriter.inlineRegionBefore(oldFn.getBody(), newFn.getBody(),
                               newFn.getBody().end());
 
+  // The block arguments of srcBlock are the old function's arguments. At this
+  // point, all old arguments should be replaced with the lowered values.
+  // Thus we could safely remove all the block arguments on srcBlock here.
+  srcBlock->eraseArguments(0, srcBlock->getNumArguments());
+
   // Merge entry blocks to ensure correct branching.
-  rewriter.mergeBlocks(srcBlock, dstBlock, newFn.getArguments());
+  rewriter.mergeBlocks(srcBlock, dstBlock);
 
   // FIXME(cir): What about saving parameters for corotines? Should we do
   // something about it in this pass? If the change with the calling
@@ -584,8 +676,16 @@ LogicalResult LowerFunction::rewriteCallOp(CallOp op,
   // NOTE(cir): There is no direct way to fetch the function type from the
   // CallOp, so we fetch it from the source function. This assumes the
   // function definition has not yet been lowered.
-  cir_cconv_assert(SrcFn && "No source function");
-  auto fnType = SrcFn.getFunctionType();
+
+  FuncType fnType;
+  if (SrcFn) {
+    fnType = SrcFn.getFunctionType();
+  } else if (op.isIndirect()) {
+    if (auto ptrTy = dyn_cast<PointerType>(op.getIndirectCall().getType()))
+      fnType = dyn_cast<FuncType>(ptrTy.getPointee());
+  }
+
+  cir_cconv_assert(fnType && "No callee function type");
 
   // Rewrite the call operation to abide to the ABI calling convention.
   auto Ret = rewriteCallOp(fnType, SrcFn, op, retValSlot);
@@ -641,7 +741,7 @@ Value LowerFunction::rewriteCallOp(FuncType calleeTy, FuncOp origCallee,
   //
   // Chain calls use this same code path to add the invisible chain parameter
   // to the function type.
-  if (origCallee.getNoProto() || Chain) {
+  if ((origCallee && origCallee.getNoProto()) || Chain) {
     cir_cconv_assert_or_abort(::cir::MissingFeatures::ABINoProtoFunctions(),
                               "NYI");
   }
@@ -824,8 +924,21 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
   // NOTE(cir): We don't know if the callee was already lowered, so we only
   // fetch the name from the callee, while the return type is fetch from the
   // lowering types manager.
-  CallOp newCallOp = rewriter.create<CallOp>(
-      loc, Caller.getCalleeAttr(), IRFuncTy.getReturnType(), IRCallArgs);
+
+  CallOp newCallOp;
+
+  if (Caller.isIndirect()) {
+    rewriter.setInsertionPoint(Caller);
+    auto val = Caller.getIndirectCall();
+    auto ptrTy = PointerType::get(val.getContext(), IRFuncTy);
+    auto callee =
+        rewriter.create<CastOp>(val.getLoc(), ptrTy, CastKind::bitcast, val);
+    newCallOp = rewriter.create<CallOp>(loc, callee, IRFuncTy, IRCallArgs);
+  } else {
+    newCallOp = rewriter.create<CallOp>(loc, Caller.getCalleeAttr(),
+                                        IRFuncTy.getReturnType(), IRCallArgs);
+  }
+
   auto extraAttrs =
       rewriter.getAttr<ExtraFuncAttributesAttr>(rewriter.getDictionaryAttr({}));
   newCallOp->setAttr("extra_attrs", extraAttrs);
