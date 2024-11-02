@@ -79,13 +79,13 @@ Value enterStructPointerForCoercedAccess(Value SrcPtr, StructType SrcSTy,
                  // above.
 }
 
-// CoerceIntOrPtrToIntOrPtr - Convert a value Val to the specific Ty where both
+/// Convert a value Val to the specific Ty where both
 /// are either integers or pointers.  This does a truncation of the value if it
-// is too large or a zero extension if it is too small.
+/// is too large or a zero extension if it is too small.
 ///
 /// This behaves as if the value were coerced through memory, so on big-endian
 /// targets the high bits are preserved in a truncation, while little-endian
-// targets preserve the low bits.
+/// targets preserve the low bits.
 static Value coerceIntOrPtrToIntOrPtr(Value val, Type typ, LowerFunction &CGF) {
   if (val.getType() == typ)
     return val;
