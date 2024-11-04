@@ -2141,8 +2141,9 @@ static mlir::Value buildArmLdrexNon128Intrinsic(unsigned int builtinID,
   // which can be found under LLVM IR directory.
   mlir::Type funcResTy = builder.getSInt64Ty();
   mlir::Location loc = cgf.getLoc(clangCallExpr->getExprLoc());
-  mlir::cir::IntrinsicCallOp op = builder.create<mlir::cir::IntrinsicCallOp>(
-      loc, builder.getStringAttr(intrinsicName), funcResTy, loadAddr);
+  mlir::cir::LLVMIntrinsicCallOp op =
+      builder.create<mlir::cir::LLVMIntrinsicCallOp>(
+          loc, builder.getStringAttr(intrinsicName), funcResTy, loadAddr);
   mlir::Value res = op.getResult();
 
   // Convert result type to the expected type.
@@ -2269,7 +2270,7 @@ mlir::Value buildNeonCall(CIRGenBuilderTy &builder,
     return nullptr;
   }
   return builder
-      .create<mlir::cir::IntrinsicCallOp>(
+      .create<mlir::cir::LLVMIntrinsicCallOp>(
           loc, builder.getStringAttr(intrinsicName), funcResTy, args)
       .getResult();
 }
@@ -2440,7 +2441,7 @@ mlir::Value CIRGenFunction::buildCommonNeonBuiltinExpr(
     ops[0] = builder.createBitcast(ops[0], ty);
     ops[1] = builder.createBitcast(ops[1], ty);
     ops[0] = builder.createAnd(ops[0], ops[1]);
-    // Note that during LLVM Lowering, result of `VecCmpOp` is sign extended,
+    // Note that during vmVM Lowering, result of `VecCmpOp` is sign extended,
     // matching traditional codegen behavior.
     return builder.create<mlir::cir::VecCmpOp>(
         loc, ty, mlir::cir::CmpOpKind::ne, ops[0], builder.getZero(loc, ty));

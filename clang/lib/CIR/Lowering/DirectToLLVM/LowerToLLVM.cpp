@@ -2981,12 +2981,13 @@ static mlir::LLVM::CallIntrinsicOp replaceOpWithCallLLVMIntrinsicOp(
 }
 
 class CIRIntrinsicCallLowering
-    : public mlir::OpConversionPattern<mlir::cir::IntrinsicCallOp> {
+    : public mlir::OpConversionPattern<mlir::cir::LLVMIntrinsicCallOp> {
 public:
-  using OpConversionPattern<mlir::cir::IntrinsicCallOp>::OpConversionPattern;
+  using OpConversionPattern<
+      mlir::cir::LLVMIntrinsicCallOp>::OpConversionPattern;
 
   mlir::LogicalResult
-  matchAndRewrite(mlir::cir::IntrinsicCallOp op, OpAdaptor adaptor,
+  matchAndRewrite(mlir::cir::LLVMIntrinsicCallOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     mlir::Type llvmResTy =
         getTypeConverter()->convertType(op->getResultTypes()[0]);
