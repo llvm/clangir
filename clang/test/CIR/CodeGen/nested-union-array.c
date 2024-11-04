@@ -27,7 +27,7 @@ const struct nested data[] =
     },
 };
 
-// CIR: ![[ANON_TY:.+]] = !cir.struct<union "anon.0" {!cir.ptr<!s8i>, !cir.ptr<!cir.ptr<!s8i>>}
-// CIR: ![[NESTED_TY:.+]] = !cir.struct<struct "nested" {![[ANON_TY]]}
-// CIR: cir.global  constant external @data = #cir.const_array<[#cir.const_struct<{#cir.const_struct<{#cir.uninitialized_union_field : !cir.ptr<!s8i>, #cir.global_view<@test> : !cir.ptr<!cir.ptr<!s8i>>}> : ![[ANON_TY]]}> : ![[NESTED_TY:.+]], #cir.const_struct<{#cir.const_struct<{#cir.global_view<@".str"> : !cir.ptr<!s8i>, #cir.uninitialized_union_field : !cir.ptr<!cir.ptr<!s8i>>}> : ![[ANON_TY]]}> : ![[NESTED_TY:.+]]]> : !cir.array<![[NESTED_TY:.+]] x 2>
+// CIR: ![[ANON_TY:.+]] = !cir.struct<union "anon.0" {!cir.ptr<!s8i>, !cir.ptr<!cir.ptr<!s8i>>
+// CIR: ![[NESTED_TY:.+]] = !cir.struct<struct "nested" {![[ANON_TY]]
+// CIR: cir.global constant external @data = #cir.const_array<[#cir.const_struct<{#cir.const_struct<{#cir.inactive_field : !cir.ptr<!s8i>, #cir.global_view<@test> : !cir.ptr<!cir.ptr<!s8i>>}> : ![[ANON_TY]]}> : ![[NESTED_TY:.+]], #cir.const_struct<{#cir.const_struct<{#cir.global_view<@".str"> : !cir.ptr<!s8i>, #cir.inactive_field : !cir.ptr<!cir.ptr<!s8i>>}> : ![[ANON_TY]]}> : ![[NESTED_TY:.+]]]> : !cir.array<![[NESTED_TY:.+]] x 2>
 // LLVM: @data = constant [2 x {{.*}}]

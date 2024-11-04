@@ -93,7 +93,7 @@ def CIR_BoolAttr : CIR_Attr<"Bool", "bool", [TypedAttrInterface]> {
 }
 
 //===----------------------------------------------------------------------===//
-// UninitializedUnionFieldAttr
+// InactiveUnionFieldAttr
 //===----------------------------------------------------------------------===//
 
 def InactiveUnionFieldAttr : CIR_Attr<"InactiveUnionField", "inactive_field", [TypedAttrInterface]> {

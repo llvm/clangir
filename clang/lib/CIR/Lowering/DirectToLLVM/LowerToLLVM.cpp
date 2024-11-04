@@ -442,7 +442,7 @@ mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
     if (auto constStructType =
             dyn_cast<mlir::cir::StructType>(constStruct.getType());
         constStructType && constStructType.isUnion()) {
-      if (isa<mlir::cir::UninitializedUnionFieldAttr>(elt))
+      if (isa<mlir::cir::InactiveUnionFieldAttr>(elt))
         continue;
 
       idx = 0;
