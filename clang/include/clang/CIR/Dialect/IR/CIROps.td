@@ -604,6 +604,13 @@ def LoadOp : CIR_Op<"load", [
     $addr `:` qualified(type($addr)) `,` type($result) attr-dict
   }];
 
+  let extraClassDeclaration = [{
+    // TODO(CIR): The final interface here should include an argument for the
+    // SyncScope::ID.
+    // This should be used over the ODS generated setMemOrder.
+    void setAtomic(mlir::cir::MemOrder order);
+  }];
+
   // FIXME: add verifier.
 }
 
@@ -659,6 +666,13 @@ def StoreOp : CIR_Op<"store", [
     (`align` `(` $alignment^ `)`)?
     (`atomic` `(` $mem_order^ `)`)?
     $value `,` $addr attr-dict `:` type($value) `,` qualified(type($addr))
+  }];
+
+  let extraClassDeclaration = [{
+    // TODO(CIR): The final interface here should include an argument for the
+    // SyncScope::ID.
+    // This should be used over the ODS generated setMemOrder.
+    void setAtomic(mlir::cir::MemOrder order);
   }];
 
   // FIXME: add verifier.
@@ -2417,8 +2431,12 @@ def GlobalOp : CIR_Op<"global",
     bool hasAvailableExternallyLinkage() {
       return mlir::cir::isAvailableExternallyLinkage(getLinkage());
     }
+    bool hasInternalLinkage() {
+      return mlir::cir::isInternalLinkage(getLinkage());
+    }
     /// Whether the definition of this global may be replaced at link time.
     bool isWeakForLinker() { return cir::isWeakForLinker(getLinkage()); }
+    bool isDSOLocal() { return getDsolocal(); }
   }];
 
   let skipDefaultBuilders = 1;
