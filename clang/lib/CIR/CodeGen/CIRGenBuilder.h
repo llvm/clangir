@@ -300,6 +300,9 @@ public:
       return true;
     }
 
+    if (mlir::isa<mlir::cir::InactiveUnionFieldAttr>(attr))
+      return true;
+
     llvm_unreachable("NYI");
   }
 
@@ -624,6 +627,12 @@ public:
     return create<mlir::cir::MemMoveOp>(loc, dst, src, len);
   }
 
+  mlir::cir::MemSetOp createMemSet(mlir::Location loc, mlir::Value dst,
+                                   mlir::Value val, mlir::Value len) {
+    val = createIntCast(val, mlir::cir::IntType::get(getContext(), 32, true));
+    return create<mlir::cir::MemSetOp>(loc, dst, val, len);
+  }
+
   mlir::Value createNeg(mlir::Value value) {
 
     if (auto intTy = mlir::dyn_cast<mlir::cir::IntType>(value.getType())) {
@@ -705,6 +714,18 @@ public:
     auto baseAddr = create<mlir::cir::BaseClassAddrOp>(
         loc, ptrTy, addr.getPointer(), mlir::APInt(64, offset), assumeNotNull);
     return Address(baseAddr, ptrTy, addr.getAlignment());
+  }
+
+  cir::Address createDerivedClassAddr(mlir::Location loc, cir::Address addr,
+                                      mlir::Type destType, unsigned offset,
+                                      bool assumeNotNull) {
+    if (destType == addr.getElementType())
+      return addr;
+
+    auto ptrTy = getPointerTo(destType);
+    auto derivedAddr = create<mlir::cir::DerivedClassAddrOp>(
+        loc, ptrTy, addr.getPointer(), mlir::APInt(64, offset), assumeNotNull);
+    return Address(derivedAddr, ptrTy, addr.getAlignment());
   }
 
   mlir::Value createVTTAddrPoint(mlir::Location loc, mlir::Type retTy,
