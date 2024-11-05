@@ -3004,7 +3004,7 @@ public:
     // TODO(cir): MLIR LLVM dialect should handle this part as CIR has no way
     // to set LLVM IR attribute.
     assert(!::cir::MissingFeatures::llvmIntrinsicElementTypeSupport());
-    replaceOpWithCallLLVMIntrinsicOp(rewriter, op, name, llvmResTy,
+    replaceOpWithCallLLVMIntrinsicOp(rewriter, op, "llvm." + name, llvmResTy,
                                      adaptor.getOperands());
     return mlir::success();
   }
