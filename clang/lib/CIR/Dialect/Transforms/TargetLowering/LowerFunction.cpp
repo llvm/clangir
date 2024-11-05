@@ -265,24 +265,25 @@ Value castReturnValue(Value Src, Type Ty, LowerFunction &LF) {
 
   // Otherwise do coercion through memory. This is stupid, but simple.
   if (auto addr = findAlloca(Src.getDefiningOp())) {
-    auto& rewriter = LF.getRewriter();
-    auto* ctxt = LF.LM.getMLIRContext();
+    auto &rewriter = LF.getRewriter();
+    auto *ctxt = LF.LM.getMLIRContext();
     auto ptrTy = PointerType::get(ctxt, Ty);
     auto voidPtr = PointerType::get(ctxt, mlir::cir::VoidType::get(ctxt));
 
-    AllocaOp tmp; 
+    AllocaOp tmp;
     {
       mlir::PatternRewriter::InsertionGuard guard(rewriter);
       auto align = LF.LM.getDataLayout().getABITypeAlign(Ty);
-      auto alignAttr = rewriter.getI64IntegerAttr(align.value());    
-      tmp = rewriter.create<AllocaOp>(Src.getLoc(), ptrTy, Ty, "tmp", alignAttr);
+      auto alignAttr = rewriter.getI64IntegerAttr(align.value());
+      tmp =
+          rewriter.create<AllocaOp>(Src.getLoc(), ptrTy, Ty, "tmp", alignAttr);
     }
 
     auto srcVoidPtr = createBitcast(addr, voidPtr, LF);
-    auto dstVoidPtr = createBitcast(tmp,  voidPtr, LF);
+    auto dstVoidPtr = createBitcast(tmp, voidPtr, LF);
     auto i64Ty = IntType::get(ctxt, 64, false);
-    auto len = rewriter.create<ConstantOp>(Src.getLoc(),
-        IntAttr::get(i64Ty, SrcSize.getFixedValue()));
+    auto len = rewriter.create<ConstantOp>(
+        Src.getLoc(), IntAttr::get(i64Ty, SrcSize.getFixedValue()));
     rewriter.create<MemCpyOp>(Src.getLoc(), dstVoidPtr, srcVoidPtr, len);
     return rewriter.create<LoadOp>(Src.getLoc(), tmp.getResult());
   }
