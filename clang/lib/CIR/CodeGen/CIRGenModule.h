@@ -167,6 +167,7 @@ public:
   }
 
   CIRGenCXXABI &getCXXABI() const { return *ABI; }
+  mlir::MLIRContext &getMLIRContext() { return *builder.getContext(); }
 
   /// -------
   /// Handling globals
@@ -298,6 +299,13 @@ public:
                                    CastExpr::path_const_iterator Start,
                                    CastExpr::path_const_iterator End);
 
+  /// Returns the offset from a derived class to a class. Returns null if the
+  /// offset is 0.
+  CharUnits
+  getNonVirtualBaseClassOffset(const CXXRecordDecl *classDecl,
+                               CastExpr::path_const_iterator pathBegin,
+                               CastExpr::path_const_iterator pathEnd);
+
   /// Get the CIR attributes and calling convention to use for a particular
   /// function type.
   ///
@@ -337,6 +345,8 @@ public:
   /// Emit any vtables which we deferred and still have a use for.
   void buildDeferredVTables();
   bool shouldOpportunisticallyEmitVTables();
+
+  void buildVTable(CXXRecordDecl *rd);
 
   void setDSOLocal(mlir::cir::CIRGlobalValueInterface GV) const;
 
@@ -719,7 +729,7 @@ public:
   void setFunctionLinkage(GlobalDecl GD, mlir::cir::FuncOp f) {
     auto L = getFunctionLinkage(GD);
     f.setLinkageAttr(
-        mlir::cir::GlobalLinkageKindAttr::get(builder.getContext(), L));
+        mlir::cir::GlobalLinkageKindAttr::get(&getMLIRContext(), L));
     mlir::SymbolTable::setSymbolVisibility(f,
                                            getMLIRVisibilityFromCIRLinkage(L));
   }

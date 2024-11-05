@@ -1001,7 +1001,7 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
       Probability.convert(llvm::APFloat::IEEEdouble(),
                           llvm::RoundingMode::Dynamic, &LoseInfo);
       ProbAttr = mlir::FloatAttr::get(
-          mlir::FloatType::getF64(builder.getContext()), Probability);
+          mlir::FloatType::getF64(&getMLIRContext()), Probability);
     }
 
     auto result = builder.create<mlir::cir::ExpectOp>(
@@ -1176,7 +1176,7 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     llvm_unreachable("BI__builtin_readsteadycounter NYI");
 
   case Builtin::BI__builtin___clear_cache: {
-    mlir::Type voidTy = mlir::cir::VoidType::get(builder.getContext());
+    mlir::Type voidTy = mlir::cir::VoidType::get(&getMLIRContext());
     mlir::Value begin =
         builder.createPtrBitcast(buildScalarExpr(E->getArg(0)), voidTy);
     mlir::Value end =
@@ -1425,8 +1425,23 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   case Builtin::BI__builtin_char_memchr:
     llvm_unreachable("BI__builtin_char_memchr NYI");
 
-  case Builtin::BI__builtin___memcpy_chk:
-    llvm_unreachable("BI__builtin___memcpy_chk NYI");
+  case Builtin::BI__builtin___memcpy_chk: {
+    // fold __builtin_memcpy_chk(x, y, cst1, cst2) to memcpy iff cst1<=cst2.
+    Expr::EvalResult sizeResult, dstSizeResult;
+    if (!E->getArg(2)->EvaluateAsInt(sizeResult, CGM.getASTContext()) ||
+        !E->getArg(3)->EvaluateAsInt(dstSizeResult, CGM.getASTContext()))
+      break;
+    llvm::APSInt size = sizeResult.Val.getInt();
+    llvm::APSInt dstSize = dstSizeResult.Val.getInt();
+    if (size.ugt(dstSize))
+      break;
+    Address dest = buildPointerWithAlignment(E->getArg(0));
+    Address src = buildPointerWithAlignment(E->getArg(1));
+    auto loc = getLoc(E->getSourceRange());
+    ConstantOp sizeOp = builder.getConstInt(loc, size);
+    builder.createMemCpy(loc, dest.getPointer(), src.getPointer(), sizeOp);
+    return RValue::get(dest.getPointer());
+  }
 
   case Builtin::BI__builtin_objc_memmove_collectable:
     llvm_unreachable("BI__builtin_objc_memmove_collectable NYI");
@@ -1449,13 +1464,37 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     return RValue::get(Dest.getPointer());
   }
   case Builtin::BImemset:
-  case Builtin::BI__builtin_memset:
-    llvm_unreachable("BImemset like NYI");
+  case Builtin::BI__builtin_memset: {
+    Address Dest = buildPointerWithAlignment(E->getArg(0));
+    mlir::Value ByteVal = buildScalarExpr(E->getArg(1));
+    mlir::Value SizeVal = buildScalarExpr(E->getArg(2));
+    buildNonNullArgCheck(RValue::get(Dest.getPointer()),
+                         E->getArg(0)->getType(), E->getArg(0)->getExprLoc(),
+                         FD, 0);
+    builder.createMemSet(getLoc(E->getSourceRange()), Dest.getPointer(),
+                         ByteVal, SizeVal);
+    return RValue::get(Dest.getPointer());
+  }
 
   case Builtin::BI__builtin_memset_inline:
     llvm_unreachable("BI__builtin_memset_inline NYI");
-  case Builtin::BI__builtin___memset_chk:
-    llvm_unreachable("BI__builtin___memset_chk NYI");
+  case Builtin::BI__builtin___memset_chk: {
+    // fold __builtin_memset_chk(x, y, cst1, cst2) to memset iff cst1<=cst2.
+    Expr::EvalResult sizeResult, dstSizeResult;
+    if (!E->getArg(2)->EvaluateAsInt(sizeResult, CGM.getASTContext()) ||
+        !E->getArg(3)->EvaluateAsInt(dstSizeResult, CGM.getASTContext()))
+      break;
+    llvm::APSInt size = sizeResult.Val.getInt();
+    llvm::APSInt dstSize = dstSizeResult.Val.getInt();
+    if (size.ugt(dstSize))
+      break;
+    Address dest = buildPointerWithAlignment(E->getArg(0));
+    mlir::Value byteVal = buildScalarExpr(E->getArg(1));
+    auto loc = getLoc(E->getSourceRange());
+    ConstantOp sizeOp = builder.getConstInt(loc, size);
+    builder.createMemSet(loc, dest.getPointer(), byteVal, sizeOp);
+    return RValue::get(dest.getPointer());
+  }
   case Builtin::BI__builtin_wmemchr:
     llvm_unreachable("BI__builtin_wmemchr NYI");
   case Builtin::BI__builtin_wmemcmp:
@@ -1704,7 +1743,7 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
         EncompassingIntegerType({LeftInfo, RightInfo, ResultInfo});
 
     auto EncompassingCIRTy = mlir::cir::IntType::get(
-        builder.getContext(), EncompassingInfo.Width, EncompassingInfo.Signed);
+        &getMLIRContext(), EncompassingInfo.Width, EncompassingInfo.Signed);
     auto ResultCIRTy =
         mlir::cast<mlir::cir::IntType>(CGM.getTypes().ConvertType(ResultQTy));
 
@@ -1995,7 +2034,7 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     auto fnOp =
         CGM.GetOrCreateCIRFunction(ND->getName(), ty, gd, /*ForVTable=*/false,
                                    /*DontDefer=*/false);
-    fnOp.setBuiltinAttr(mlir::UnitAttr::get(builder.getContext()));
+    fnOp.setBuiltinAttr(mlir::UnitAttr::get(&getMLIRContext()));
     return buildCall(E->getCallee()->getType(), CIRGenCallee::forDirect(fnOp),
                      E, ReturnValue);
   }

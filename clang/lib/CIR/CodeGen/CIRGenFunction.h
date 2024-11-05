@@ -31,6 +31,7 @@
 #include "clang/Basic/TargetInfo.h"
 #include "clang/CIR/TypeEvaluationKind.h"
 
+#include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/TypeRange.h"
 #include "mlir/IR/Value.h"
 #include "mlir/Support/LogicalResult.h"
@@ -577,6 +578,7 @@ public:
   CIRGenTypes &getTypes() const { return CGM.getTypes(); }
 
   const TargetInfo &getTarget() const { return CGM.getTarget(); }
+  mlir::MLIRContext &getMLIRContext() { return CGM.getMLIRContext(); }
 
   const TargetCIRGenInfo &getTargetHooks() const {
     return CGM.getTargetCIRGenInfo();
@@ -1630,6 +1632,12 @@ public:
                                 CastExpr::path_const_iterator PathBegin,
                                 CastExpr::path_const_iterator PathEnd,
                                 bool NullCheckValue, SourceLocation Loc);
+
+  Address getAddressOfDerivedClass(Address baseAddr,
+                                   const CXXRecordDecl *derived,
+                                   CastExpr::path_const_iterator pathBegin,
+                                   CastExpr::path_const_iterator pathEnd,
+                                   bool nullCheckValue);
 
   /// Emit code for the start of a function.
   /// \param Loc       The location to be associated with the function.
