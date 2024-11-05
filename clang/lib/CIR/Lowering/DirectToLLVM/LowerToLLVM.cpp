@@ -4115,6 +4115,21 @@ private:
   }
 };
 
+class CIRReturnAddrOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::ReturnAddrOp> {
+public:
+  using OpConversionPattern<mlir::cir::ReturnAddrOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::ReturnAddrOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto llvmPtrTy = mlir::LLVM::LLVMPointerType::get(rewriter.getContext());
+    replaceOpWithCallLLVMIntrinsicOp(rewriter, op, "llvm.returnaddress",
+                                     llvmPtrTy, adaptor.getOperands());
+    return mlir::success();
+  }
+};
+
 class CIRClearCacheOpLowering
     : public mlir::OpConversionPattern<mlir::cir::ClearCacheOp> {
 public:
@@ -4371,6 +4386,14 @@ void populateCIRToLLVMConversionPatterns(
       CIRTrapLowering, CIRInlineAsmOpLowering, CIRSetBitfieldLowering,
       CIRGetBitfieldLowering, CIRPrefetchLowering, CIRObjSizeOpLowering,
       CIRIsConstantOpLowering, CIRCmpThreeWayOpLowering,
+      CIRMemCpyOpLowering, CIRFAbsOpLowering, CIRExpectOpLowering,
+      CIRVTableAddrPointOpLowering, CIRVectorCreateLowering,
+      CIRVectorCmpOpLowering, CIRVectorSplatLowering, CIRVectorTernaryLowering,
+      CIRVectorShuffleIntsLowering, CIRVectorShuffleVecLowering,
+      CIRStackSaveLowering, CIRUnreachableLowering, CIRTrapLowering,
+      CIRInlineAsmOpLowering, CIRSetBitfieldLowering, CIRGetBitfieldLowering,
+      CIRPrefetchLowering, CIRObjSizeOpLowering, CIRIsConstantOpLowering,
+      CIRCmpThreeWayOpLowering, CIRReturnAddrOpLowering,
       CIRClearCacheOpLowering, CIREhTypeIdOpLowering, CIRCatchParamOpLowering,
       CIRResumeOpLowering, CIRAllocExceptionOpLowering,
       CIRFreeExceptionOpLowering, CIRThrowOpLowering, CIRIntrinsicCallLowering,

@@ -81,7 +81,7 @@ extern "C" void *test_return_address(void) {
 
   // CIR-LABEL: test_return_address
   // [[ARG:%.*]] = cir.const #cir.int<1> : !u32i
-  // {{%.*}} = cir.llvm.intrinsic "llvm.returnaddress" [[ARG]] : (!u32i) -> !cir.ptr<!void>
+  // {{%.*}} = cir.return_address([[ARG]])
 
   // LLVM-LABEL: @test_return_address
   // LLVM: {{%.*}} = call ptr @llvm.returnaddress(i32 1)
