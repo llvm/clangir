@@ -418,6 +418,16 @@ lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::cir::ZeroAttr zeroAttr,
       loc, converter->convertType(zeroAttr.getType()));
 }
 
+/// UndefAttr visitor.
+inline mlir::Value
+lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::cir::UndefAttr undefAttr,
+                    mlir::ConversionPatternRewriter &rewriter,
+                    const mlir::TypeConverter *converter) {
+  auto loc = parentOp->getLoc();
+  return rewriter.create<mlir::LLVM::UndefOp>(
+      loc, converter->convertType(undefAttr.getType()));
+}
+
 /// ConstStruct visitor.
 mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
                                 mlir::cir::ConstStructAttr constStruct,
@@ -429,6 +439,15 @@ mlir::Value lowerCirAttrAsValue(mlir::Operation *parentOp,
 
   // Iteratively lower each constant element of the struct.
   for (auto [idx, elt] : llvm::enumerate(constStruct.getMembers())) {
+    if (auto constStructType =
+            dyn_cast<mlir::cir::StructType>(constStruct.getType());
+        constStructType && constStructType.isUnion()) {
+      if (isa<mlir::cir::InactiveUnionFieldAttr>(elt))
+        continue;
+
+      idx = 0;
+    }
+
     mlir::Value init = lowerCirAttrAsValue(parentOp, elt, rewriter, converter);
     result = rewriter.create<mlir::LLVM::InsertValueOp>(loc, result, init, idx);
   }
@@ -629,6 +648,8 @@ lowerCirAttrAsValue(mlir::Operation *parentOp, mlir::Attribute attr,
     return lowerCirAttrAsValue(parentOp, boolAttr, rewriter, converter);
   if (const auto zeroAttr = mlir::dyn_cast<mlir::cir::ZeroAttr>(attr))
     return lowerCirAttrAsValue(parentOp, zeroAttr, rewriter, converter);
+  if (const auto undefAttr = mlir::dyn_cast<mlir::cir::UndefAttr>(attr))
+    return lowerCirAttrAsValue(parentOp, undefAttr, rewriter, converter);
   if (const auto globalAttr = mlir::dyn_cast<mlir::cir::GlobalViewAttr>(attr))
     return lowerCirAttrAsValue(parentOp, globalAttr, rewriter, converter);
   if (const auto vtableAttr = mlir::dyn_cast<mlir::cir::VTableAttr>(attr))
@@ -723,6 +744,23 @@ public:
                   mlir::ConversionPatternRewriter &rewriter) const override {
     rewriter.replaceOpWithNewOp<mlir::LLVM::MemmoveOp>(
         op, adaptor.getDst(), adaptor.getSrc(), adaptor.getLen(),
+        /*isVolatile=*/false);
+    return mlir::success();
+  }
+};
+
+class CIRMemsetOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::MemSetOp> {
+public:
+  using mlir::OpConversionPattern<mlir::cir::MemSetOp>::OpConversionPattern;
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::MemSetOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto converted = rewriter.create<mlir::LLVM::TruncOp>(
+        op.getLoc(), mlir::IntegerType::get(op.getContext(), 8),
+        adaptor.getVal());
+    rewriter.replaceOpWithNewOp<mlir::LLVM::MemsetOp>(
+        op, adaptor.getDst(), converted, adaptor.getLen(),
         /*isVolatile=*/false);
     return mlir::success();
   }
@@ -825,6 +863,12 @@ public:
         adaptor.getOffset().getZExtValue()};
     mlir::Type byteType = mlir::IntegerType::get(resultType.getContext(), 8,
                                                  mlir::IntegerType::Signless);
+    if (adaptor.getOffset().getZExtValue() == 0) {
+      rewriter.replaceOpWithNewOp<mlir::LLVM::BitcastOp>(
+          baseClassOp, resultType, adaptor.getDerivedAddr());
+      return mlir::success();
+    }
+
     if (baseClassOp.getAssumeNotNull()) {
       rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(
           baseClassOp, resultType, byteType, derivedAddr, offset);
@@ -837,6 +881,40 @@ public:
           loc, resultType, byteType, derivedAddr, offset);
       rewriter.replaceOpWithNewOp<mlir::LLVM::SelectOp>(baseClassOp, isNull,
                                                         derivedAddr, adjusted);
+    }
+    return mlir::success();
+  }
+};
+
+class CIRDerivedClassAddrOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::DerivedClassAddrOp> {
+public:
+  using mlir::OpConversionPattern<
+      mlir::cir::DerivedClassAddrOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::DerivedClassAddrOp derivedClassOp,
+                  OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    const auto resultType =
+        getTypeConverter()->convertType(derivedClassOp.getType());
+    mlir::Value baseAddr = adaptor.getBaseAddr();
+    int64_t offsetVal = adaptor.getOffset().getZExtValue() * -1;
+    llvm::SmallVector<mlir::LLVM::GEPArg, 1> offset = {offsetVal};
+    mlir::Type byteType = mlir::IntegerType::get(resultType.getContext(), 8,
+                                                 mlir::IntegerType::Signless);
+    if (derivedClassOp.getAssumeNotNull()) {
+      rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(
+          derivedClassOp, resultType, byteType, baseAddr, offset);
+    } else {
+      auto loc = derivedClassOp.getLoc();
+      mlir::Value isNull = rewriter.create<mlir::LLVM::ICmpOp>(
+          loc, mlir::LLVM::ICmpPredicate::eq, baseAddr,
+          rewriter.create<mlir::LLVM::ZeroOp>(loc, baseAddr.getType()));
+      mlir::Value adjusted = rewriter.create<mlir::LLVM::GEPOp>(
+          loc, resultType, byteType, baseAddr, offset);
+      rewriter.replaceOpWithNewOp<mlir::LLVM::SelectOp>(derivedClassOp, isNull,
+                                                        baseAddr, adjusted);
     }
     return mlir::success();
   }
@@ -1385,8 +1463,8 @@ public:
                            globalVarBuilder, stringGlobalsMap,
                            argStringGlobalsMap, argsVarMap, intrinsicArgs);
       rewriter.create<mlir::LLVM::CallIntrinsicOp>(
-          loc, intrinRetTy, intrinNameAttr, intrinsicArgs,
-          mlir::LLVM::FastmathFlags::none, llvm::ArrayRef<mlir::ValueRange>{});
+          loc, intrinRetTy, mlir::StringAttr::get(getContext(), intrinNameAttr),
+          intrinsicArgs);
     }
   }
 
@@ -1619,7 +1697,8 @@ public:
       // Fetch operation constant array initializer.
 
       auto constArr = mlir::dyn_cast<mlir::cir::ConstArrayAttr>(op.getValue());
-      if (!constArr && !isa<mlir::cir::ZeroAttr>(op.getValue()))
+      if (!constArr &&
+          !isa<mlir::cir::ZeroAttr, mlir::cir::UndefAttr>(op.getValue()))
         return op.emitError() << "array does not have a constant initializer";
 
       std::optional<mlir::Attribute> denseAttr;
@@ -1651,8 +1730,9 @@ public:
       return mlir::success();
     } else if (auto strTy =
                    mlir::dyn_cast<mlir::cir::StructType>(op.getType())) {
-      if (auto zero = mlir::dyn_cast<mlir::cir::ZeroAttr>(op.getValue())) {
-        auto initVal = lowerCirAttrAsValue(op, zero, rewriter, typeConverter);
+      auto attr = op.getValue();
+      if (mlir::isa<mlir::cir::ZeroAttr, mlir::cir::UndefAttr>(attr)) {
+        auto initVal = lowerCirAttrAsValue(op, attr, rewriter, typeConverter);
         rewriter.replaceAllUsesWith(op, initVal);
         rewriter.eraseOp(op);
         return mlir::success();
@@ -2340,11 +2420,11 @@ public:
     } else if (auto boolAttr =
                    mlir::dyn_cast<mlir::cir::BoolAttr>(init.value())) {
       init = rewriter.getBoolAttr(boolAttr.getValue());
-    } else if (isa<mlir::cir::ZeroAttr, mlir::cir::ConstPtrAttr>(
-                   init.value())) {
-      // TODO(cir): once LLVM's dialect has a proper zeroinitializer attribute
-      // this should be updated. For now, we use a custom op to initialize
-      // globals to zero.
+    } else if (isa<mlir::cir::ZeroAttr, mlir::cir::ConstPtrAttr,
+                   mlir::cir::UndefAttr>(init.value())) {
+      // TODO(cir): once LLVM's dialect has proper equivalent attributes this
+      // should be updated. For now, we use a custom op to initialize globals
+      // to the appropriate value.
       setupRegionInitializedLLVMGlobalOp(op, rewriter);
       auto value =
           lowerCirAttrAsValue(op, init.value(), rewriter, typeConverter);
@@ -2382,7 +2462,7 @@ public:
           lowerCirAttrAsValue(op, typeinfoAttr, rewriter, typeConverter));
       return mlir::success();
     } else {
-      op.emitError() << "usupported initializer '" << init.value() << "'";
+      op.emitError() << "unsupported initializer '" << init.value() << "'";
       return mlir::failure();
     }
 
@@ -2696,8 +2776,7 @@ public:
         rewriter.getContext(), {encompassedLLVMTy, overflowLLVMTy});
 
     auto callLLVMIntrinOp = rewriter.create<mlir::LLVM::CallIntrinsicOp>(
-        loc, intrinRetTy, intrinNameAttr, mlir::ValueRange{lhs, rhs},
-        mlir::LLVM::FastmathFlags::none, llvm::ArrayRef<mlir::ValueRange>{});
+        loc, intrinRetTy, intrinNameAttr, mlir::ValueRange{lhs, rhs});
     auto intrinRet = callLLVMIntrinOp.getResult(0);
 
     auto result = rewriter
@@ -2888,8 +2967,7 @@ createCallLLVMIntrinsicOp(mlir::ConversionPatternRewriter &rewriter,
   auto intrinsicNameAttr =
       mlir::StringAttr::get(rewriter.getContext(), intrinsicName);
   return rewriter.create<mlir::LLVM::CallIntrinsicOp>(
-      loc, resultTy, intrinsicNameAttr, operands,
-      mlir::LLVM::FastmathFlags::none, llvm::ArrayRef<mlir::ValueRange>{});
+      loc, resultTy, intrinsicNameAttr, operands);
 }
 
 static mlir::LLVM::CallIntrinsicOp replaceOpWithCallLLVMIntrinsicOp(
@@ -3961,24 +4039,8 @@ public:
     auto intrinNameAttr =
         mlir::StringAttr::get(op.getContext(), "llvm.clear_cache");
     rewriter.replaceOpWithNewOp<mlir::LLVM::CallIntrinsicOp>(
-        op, mlir::Type{}, intrinNameAttr, mlir::ValueRange{begin, end},
-        mlir::LLVM::FastmathFlags::none, llvm::ArrayRef<mlir::ValueRange>{});
+        op, mlir::Type{}, intrinNameAttr, mlir::ValueRange{begin, end});
 
-    return mlir::success();
-  }
-};
-
-class CIRUndefOpLowering
-    : public mlir::OpConversionPattern<mlir::cir::UndefOp> {
-
-  using mlir::OpConversionPattern<mlir::cir::UndefOp>::OpConversionPattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(mlir::cir::UndefOp op, OpAdaptor adaptor,
-                  mlir::ConversionPatternRewriter &rewriter) const override {
-    auto typ = getTypeConverter()->convertType(op.getRes().getType());
-
-    rewriter.replaceOpWithNewOp<mlir::LLVM::UndefOp>(op, typ);
     return mlir::success();
   }
 };
@@ -4218,12 +4280,12 @@ void populateCIRToLLVMConversionPatterns(
       CIRStackSaveLowering, CIRUnreachableLowering, CIRTrapLowering,
       CIRInlineAsmOpLowering, CIRSetBitfieldLowering, CIRGetBitfieldLowering,
       CIRPrefetchLowering, CIRObjSizeOpLowering, CIRIsConstantOpLowering,
-      CIRCmpThreeWayOpLowering, CIRClearCacheOpLowering, CIRUndefOpLowering,
-      CIREhTypeIdOpLowering, CIRCatchParamOpLowering, CIRResumeOpLowering,
-      CIRAllocExceptionOpLowering, CIRFreeExceptionOpLowering,
-      CIRThrowOpLowering, CIRIntrinsicCallLowering, CIRBaseClassAddrOpLowering,
+      CIRCmpThreeWayOpLowering, CIRClearCacheOpLowering, CIREhTypeIdOpLowering,
+      CIRCatchParamOpLowering, CIRResumeOpLowering, CIRAllocExceptionOpLowering,
+      CIRFreeExceptionOpLowering, CIRThrowOpLowering, CIRIntrinsicCallLowering,
+      CIRBaseClassAddrOpLowering, CIRDerivedClassAddrOpLowering,
       CIRVTTAddrPointOpLowering, CIRIsFPClassOpLowering, CIRAbsOpLowering,
-      CIRMemMoveOpLowering
+      CIRMemMoveOpLowering, CIRMemsetOpLowering
 #define GET_BUILTIN_LOWERING_LIST
 #include "clang/CIR/Dialect/IR/CIRBuiltinsLowering.inc"
 #undef GET_BUILTIN_LOWERING_LIST

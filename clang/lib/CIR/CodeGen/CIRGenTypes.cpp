@@ -7,8 +7,8 @@
 
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinTypes.h"
-#include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
+#include "clang/CIR/Dialect/IR/CIRTypes.h"
 
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclCXX.h"
@@ -25,7 +25,8 @@
 using namespace clang;
 using namespace cir;
 
-mlir::cir::CallingConv CIRGenTypes::ClangCallConvToCIRCallConv(clang::CallingConv CC) {
+mlir::cir::CallingConv
+CIRGenTypes::ClangCallConvToCIRCallConv(clang::CallingConv CC) {
   switch (CC) {
   case CC_C:
     return mlir::cir::CallingConv::C;
@@ -386,12 +387,20 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
     llvm_unreachable("Non-canonical or dependent types aren't possible.");
 
   case Type::ArrayParameter:
+  case Type::HLSLAttributedResource:
     llvm_unreachable("NYI");
 
   case Type::Builtin: {
     switch (cast<BuiltinType>(Ty)->getKind()) {
     case BuiltinType::HLSLResource:
       llvm_unreachable("NYI");
+    case BuiltinType::SveMFloat8:
+    case BuiltinType::SveMFloat8x2:
+    case BuiltinType::SveMFloat8x3:
+    case BuiltinType::SveMFloat8x4:
+    case BuiltinType::MFloat8:
+    case BuiltinType::MFloat8x8:
+    case BuiltinType::MFloat8x16:
     case BuiltinType::SveBoolx2:
     case BuiltinType::SveBoolx4:
     case BuiltinType::SveCount:
@@ -590,7 +599,7 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
     llvm_unreachable("NYI");                                                   \
   } break;
 #include "clang/Basic/WebAssemblyReferenceTypes.def"
-#define AMDGPU_OPAQUE_PTR_TYPE(Name, Id, SingletonId, Width, Align, AS)        \
+#define AMDGPU_TYPE(Name, Id, SingletonId, Width, Align)                       \
   case BuiltinType::Id:                                                        \
     llvm_unreachable("NYI");
 #include "clang/Basic/AMDGPUTypes.def"
