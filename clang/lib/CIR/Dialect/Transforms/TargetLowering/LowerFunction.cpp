@@ -10,6 +10,7 @@
 // are adapted to operate on the CIR dialect, however.
 //
 //===----------------------------------------------------------------------===//
+#include <iostream>
 #include "LowerFunction.h"
 #include "CIRToCIRArgMapping.h"
 #include "LowerCall.h"
@@ -518,27 +519,44 @@ LowerFunction::buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
     }
     case ABIArgInfo::Indirect: {
       auto AI = Fn.getArgument(FirstIRArg);
-      auto ptrTy = rewriter.getType<PointerType>(Arg.getType());
-      ArgVals.push_back(AI);
+      if (!hasScalarEvaluationKind(Ty)) {
+        // Aggregates and complex variables are accessed by reference. All we
+        // need to do is realign the value, if requested. Also, if the address
+        // may be aliased, copy it to ensure that the parameter variable is
+        // mutable and has a unique adress, as C requires.
+        if (ArgI.getIndirectRealign() || ArgI.isIndirectAliased()) {
+          cir_cconv_unreachable("NYI");
+        } else {
+          // Inspired by EmitParamDecl, which is called in the end of
+          // EmitFunctionProlog in the original codegen
+          cir_cconv_assert(!ArgI.getIndirectByVal() && "For truly ABI indirect arguments");
+       
+          auto ptrTy = rewriter.getType<PointerType>(Arg.getType());
+          Value arg = SrcFn.getArgument(ArgNo);
+          cir_cconv_assert(arg.hasOneUse());
+          auto *firstStore = *arg.user_begin();
+          auto argAlloca = cast<StoreOp>(firstStore).getAddr();
 
-      Value arg = SrcFn.getArgument(ArgNo);
-      cir_cconv_assert(arg.hasOneUse());
-      auto *firstStore = *arg.user_begin();
-      auto argAlloca = cast<StoreOp>(firstStore).getAddr();
+          rewriter.setInsertionPoint(argAlloca.getDefiningOp());          
+          auto align = LM.getDataLayout().getABITypeAlign(ptrTy);
+          auto alignAttr = rewriter.getI64IntegerAttr(align.value());
+          auto newAlloca = rewriter.create<AllocaOp>(
+              Fn.getLoc(), rewriter.getType<PointerType>(ptrTy), ptrTy,
+              /*name=*/StringRef(""),
+              /*alignment=*/alignAttr);
 
-      rewriter.setInsertionPoint(argAlloca.getDefiningOp());
-      auto newAlloca = rewriter.create<AllocaOp>(
-          Fn.getLoc(), rewriter.getType<PointerType>(ptrTy), ptrTy,
-          /*name=*/StringRef(""),
-          /*alignment=*/rewriter.getI64IntegerAttr(8));
+          rewriter.create<StoreOp>(newAlloca.getLoc(), AI, newAlloca.getResult());
+          auto load = rewriter.create<LoadOp>(newAlloca.getLoc(), newAlloca.getResult());
 
-      rewriter.create<StoreOp>(newAlloca.getLoc(), AI, newAlloca.getResult());
-      auto load = rewriter.create<LoadOp>(newAlloca.getLoc(), newAlloca.getResult());
+          rewriter.replaceAllUsesWith(argAlloca, load);
+          rewriter.eraseOp(firstStore);
+          rewriter.eraseOp(argAlloca.getDefiningOp());
 
-      rewriter.replaceAllUsesWith(argAlloca, load);
-      rewriter.eraseOp(firstStore);
-      rewriter.eraseOp(argAlloca.getDefiningOp());
-
+          ArgVals.push_back(AI);
+        }
+      } else {
+        cir_cconv_unreachable("NYI");
+      }
       break;
     }
     default:
