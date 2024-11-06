@@ -4131,7 +4131,7 @@ def MemChrOp : CIR_Op<"libc.memchr"> {
 
 def ReturnAddrOp : CIR_Op<"return_address"> {
   let arguments = (ins UInt32:$level);
-  let summary = "call to `__builtin_return_address`";
+  let summary = "The return address of the current function, or of one of its callers";
   let results = (outs Res<VoidPtr, "">:$result);
 
   let description = [{
