@@ -322,7 +322,7 @@ Value castReturnValue(Value Src, Type Ty, LowerFunction &LF) {
     return LF.getRewriter().create<LoadOp>(Src.getLoc(), Cast);
   }
 
-  // Otherwise do coercion through memory. This is stupid, but simple.
+  // Otherwise do coercion through memory.
   if (auto addr = findAlloca(Src.getDefiningOp())) {
     auto &rewriter = LF.getRewriter();
     auto *ctxt = LF.LM.getMLIRContext();
