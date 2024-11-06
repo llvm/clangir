@@ -1556,7 +1556,7 @@ CIRGenModule::getAddrOfConstantStringFromLiteral(const StringLiteral *S,
         !getLangOpts().WritableStrings) {
       assert(0 && "not implemented");
     } else {
-      LT = mlir::cir::GlobalLinkageKind::InternalLinkage;
+      LT = mlir::cir::GlobalLinkageKind::PrivateLinkage;
       GlobalVariableName = Name;
     }
 
