@@ -773,6 +773,34 @@ public:
     return mlir::success();
   }
 };
+
+class CIRMemChrOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::MemChrOp> {
+public:
+  using mlir::OpConversionPattern<mlir::cir::MemChrOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::MemChrOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto llvmPtrTy = mlir::LLVM::LLVMPointerType::get(rewriter.getContext());
+    llvm::SmallVector<mlir::Type> arguments;
+    const mlir::TypeConverter *converter = getTypeConverter();
+    mlir::Type srcTy = converter->convertType(op.getSrc().getType());
+    mlir::Type patternTy = converter->convertType(op.getPattern().getType());
+    mlir::Type lenTy = converter->convertType(op.getLen().getType());
+    auto fnTy =
+        mlir::LLVM::LLVMFunctionType::get(llvmPtrTy, {srcTy, patternTy, lenTy},
+                                          /*isVarArg=*/false);
+    llvm::StringRef fnName = "memchr";
+    getOrCreateLLVMFuncOp(rewriter, op, fnName, fnTy);
+    rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(
+        op, mlir::TypeRange{llvmPtrTy}, fnName,
+        mlir::ValueRange{adaptor.getSrc(), adaptor.getPattern(),
+                         adaptor.getLen()});
+    return mlir::success();
+  }
+};
+
 class CIRMemMoveOpLowering
     : public mlir::OpConversionPattern<mlir::cir::MemMoveOp> {
 public:
@@ -4282,6 +4310,7 @@ public:
     return mlir::success();
   }
 };
+
 class CIRAbsOpLowering : public mlir::OpConversionPattern<mlir::cir::AbsOp> {
 public:
   using OpConversionPattern<mlir::cir::AbsOp>::OpConversionPattern;
@@ -4323,15 +4352,16 @@ void populateCIRToLLVMConversionPatterns(
       CIRVAStartLowering, CIRVAEndLowering, CIRVACopyLowering, CIRVAArgLowering,
       CIRBrOpLowering, CIRGetMemberOpLowering, CIRGetRuntimeMemberOpLowering,
       CIRSwitchFlatOpLowering, CIRPtrDiffOpLowering, CIRCopyOpLowering,
-      CIRMemCpyOpLowering, CIRFAbsOpLowering, CIRExpectOpLowering,
-      CIRVTableAddrPointOpLowering, CIRVectorCreateLowering,
-      CIRVectorCmpOpLowering, CIRVectorSplatLowering, CIRVectorTernaryLowering,
-      CIRVectorShuffleIntsLowering, CIRVectorShuffleVecLowering,
-      CIRStackSaveLowering, CIRUnreachableLowering, CIRTrapLowering,
-      CIRInlineAsmOpLowering, CIRSetBitfieldLowering, CIRGetBitfieldLowering,
-      CIRPrefetchLowering, CIRObjSizeOpLowering, CIRIsConstantOpLowering,
-      CIRCmpThreeWayOpLowering, CIRClearCacheOpLowering, CIREhTypeIdOpLowering,
-      CIRCatchParamOpLowering, CIRResumeOpLowering, CIRAllocExceptionOpLowering,
+      CIRMemCpyOpLowering, CIRMemChrOpLowering, CIRFAbsOpLowering,
+      CIRExpectOpLowering, CIRVTableAddrPointOpLowering,
+      CIRVectorCreateLowering, CIRVectorCmpOpLowering, CIRVectorSplatLowering,
+      CIRVectorTernaryLowering, CIRVectorShuffleIntsLowering,
+      CIRVectorShuffleVecLowering, CIRStackSaveLowering, CIRUnreachableLowering,
+      CIRTrapLowering, CIRInlineAsmOpLowering, CIRSetBitfieldLowering,
+      CIRGetBitfieldLowering, CIRPrefetchLowering, CIRObjSizeOpLowering,
+      CIRIsConstantOpLowering, CIRCmpThreeWayOpLowering,
+      CIRClearCacheOpLowering, CIREhTypeIdOpLowering, CIRCatchParamOpLowering,
+      CIRResumeOpLowering, CIRAllocExceptionOpLowering,
       CIRFreeExceptionOpLowering, CIRThrowOpLowering, CIRIntrinsicCallLowering,
       CIRBaseClassAddrOpLowering, CIRDerivedClassAddrOpLowering,
       CIRVTTAddrPointOpLowering, CIRIsFPClassOpLowering, CIRAbsOpLowering,
