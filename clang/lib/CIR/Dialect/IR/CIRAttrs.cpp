@@ -95,7 +95,7 @@ mlir::Attribute makeFuncDeclAttr(const clang::Decl *decl,
 Attribute CIRDialect::parseAttribute(DialectAsmParser &parser,
                                      Type type) const {
   llvm::SMLoc typeLoc = parser.getCurrentLocation();
-  StringRef mnemonic;
+  llvm::StringRef mnemonic;
   Attribute genAttr;
   OptionalParseResult parseResult =
       generatedAttributeParser(parser, &mnemonic, type, genAttr);
@@ -119,7 +119,7 @@ static void printStructMembers(mlir::AsmPrinter &printer,
 
 static ParseResult parseStructMembers(mlir::AsmParser &parser,
                                       mlir::ArrayAttr &members) {
-  SmallVector<mlir::Attribute, 4> elts;
+  llvm::SmallVector<mlir::Attribute, 4> elts;
 
   auto delimiter = AsmParser::Delimiter::Braces;
   auto result = parser.parseCommaSeparatedList(delimiter, [&]() {

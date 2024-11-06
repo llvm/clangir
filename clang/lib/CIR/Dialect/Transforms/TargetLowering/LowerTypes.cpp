@@ -33,7 +33,7 @@ unsigned LowerTypes::clangCallConvToLLVMCallConv(clang::CallingConv CC) {
   }
 }
 
-LowerTypes::LowerTypes(LowerModule &LM, StringRef DLString)
+LowerTypes::LowerTypes(LowerModule &LM, llvm::StringRef DLString)
     : LM(LM), context(LM.getContext()), Target(LM.getTarget()),
       CXXABI(LM.getCXXABI()),
       TheABIInfo(LM.getTargetLoweringInfo().getABIInfo()),
@@ -58,7 +58,7 @@ FuncType LowerTypes::getFunctionType(const LowerFunctionInfo &FI) {
   }
 
   CIRToCIRArgMapping IRFunctionArgs(getContext(), FI, true);
-  SmallVector<Type, 8> ArgTypes(IRFunctionArgs.totalIRArgs());
+  llvm::SmallVector<mlir::Type, 8> ArgTypes(IRFunctionArgs.totalIRArgs());
 
   // Add type for sret argument.
   if (IRFunctionArgs.hasSRetArg()) {
@@ -87,8 +87,8 @@ FuncType LowerTypes::getFunctionType(const LowerFunctionInfo &FI) {
     case ABIArgInfo::Direct: {
       // Fast-isel and the optimizer generally like scalar values better than
       // FCAs, so we flatten them if this is safe to do for this argument.
-      Type argType = ArgInfo.getCoerceToType();
-      StructType st = dyn_cast<StructType>(argType);
+      mlir::Type argType = ArgInfo.getCoerceToType();
+      StructType st = mlir::dyn_cast<StructType>(argType);
       if (st && ArgInfo.isDirect() && ArgInfo.getCanBeFlattened()) {
         cir_cconv_assert(NumIRArgs == st.getNumElements());
         for (unsigned i = 0, e = st.getNumElements(); i != e; ++i)
@@ -114,7 +114,7 @@ FuncType LowerTypes::getFunctionType(const LowerFunctionInfo &FI) {
 }
 
 /// Convert a CIR type to its ABI-specific default form.
-mlir::Type LowerTypes::convertType(Type T) {
+mlir::Type LowerTypes::convertType(mlir::Type T) {
   /// NOTE(cir): It the original codegen this method is used to get the default
   /// LLVM IR representation for a given AST type. When a the ABI-specific
   /// function info sets a nullptr for a return or argument type, the default
@@ -123,7 +123,7 @@ mlir::Type LowerTypes::convertType(Type T) {
   /// It's kept here for codegen parity's sake.
 
   // Certain CIR types are already ABI-specific, so we just return them.
-  if (isa<BoolType, IntType, SingleType, DoubleType>(T)) {
+  if (mlir::isa<BoolType, IntType, SingleType, DoubleType>(T)) {
     return T;
   }
 

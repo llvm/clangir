@@ -71,11 +71,11 @@ def LoopOpInterface : OpInterface<"LoopOpInterface", [
       }],
       /*retTy=*/"mlir::WalkResult",
       /*methodName=*/"walkBodySkippingNestedLoops",
-      /*args=*/(ins "::llvm::function_ref<mlir::WalkResult (Operation *)>":$callback),
+      /*args=*/(ins "::llvm::function_ref<mlir::WalkResult (mlir::Operation *)>":$callback),
       /*methodBody=*/"",
       /*defaultImplementation=*/[{
-        return $_op.getBody().template walk<WalkOrder::PreOrder>([&](Operation *op) {
-          if (isa<LoopOpInterface>(op))
+        return $_op.getBody().template walk<mlir::WalkOrder::PreOrder>([&](mlir::Operation *op) {
+          if (mlir::isa<LoopOpInterface>(op))
             return mlir::WalkResult::skip();
           return callback(op);
         });

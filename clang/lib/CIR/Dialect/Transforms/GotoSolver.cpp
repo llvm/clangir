@@ -46,7 +46,7 @@ static void process(cir::FuncOp func) {
 
 void GotoSolverPass::runOnOperation() {
   llvm::TimeTraceScope scope("Goto Solver");
-  SmallVector<Operation *, 16> ops;
+  llvm::SmallVector<Operation *, 16> ops;
   getOperation()->walk([&](cir::FuncOp op) { process(op); });
 }
 

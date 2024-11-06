@@ -68,7 +68,7 @@ using namespace cir;
 
 Type CIRDialect::parseType(DialectAsmParser &parser) const {
   llvm::SMLoc typeLoc = parser.getCurrentLocation();
-  StringRef mnemonic;
+  llvm::StringRef mnemonic;
   Type genType;
 
   // Try to parse as a tablegen'd type.
@@ -512,7 +512,7 @@ void StructType::computeSizeAndAlignment(
   auto members = getMembers();
   mlir::Type largestMember;
   unsigned largestMemberSize = 0;
-  SmallVector<mlir::Attribute, 4> memberOffsets;
+  llvm::SmallVector<mlir::Attribute, 4> memberOffsets;
 
   // Loop over each of the elements, placing them in memory.
   memberOffsets.reserve(numElements);

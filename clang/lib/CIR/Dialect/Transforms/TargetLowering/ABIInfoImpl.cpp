@@ -22,22 +22,22 @@ namespace cir {
 
 bool classifyReturnType(const CIRCXXABI &CXXABI, LowerFunctionInfo &FI,
                         const ABIInfo &Info) {
-  Type Ty = FI.getReturnType();
+  mlir::Type Ty = FI.getReturnType();
 
-  if (const auto RT = dyn_cast<StructType>(Ty)) {
+  if (const auto RT = mlir::dyn_cast<StructType>(Ty)) {
     cir_cconv_assert(!cir::MissingFeatures::isCXXRecordDecl());
   }
 
   return CXXABI.classifyReturnType(FI);
 }
 
-bool isAggregateTypeForABI(Type T) {
+bool isAggregateTypeForABI(mlir::Type T) {
   cir_cconv_assert(!cir::MissingFeatures::functionMemberPointerType());
   return !LowerFunction::hasScalarEvaluationKind(T);
 }
 
-Type useFirstFieldIfTransparentUnion(Type Ty) {
-  if (auto RT = dyn_cast<StructType>(Ty)) {
+mlir::Type useFirstFieldIfTransparentUnion(mlir::Type Ty) {
+  if (auto RT = mlir::dyn_cast<StructType>(Ty)) {
     if (RT.isUnion())
       cir_cconv_assert_or_abort(
           !cir::MissingFeatures::ABITransparentUnionHandling(), "NYI");

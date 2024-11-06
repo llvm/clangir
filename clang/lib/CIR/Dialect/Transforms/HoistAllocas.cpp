@@ -54,7 +54,7 @@ static void process(cir::FuncOp func) {
 
 void HoistAllocasPass::runOnOperation() {
   llvm::TimeTraceScope scope("Hoist Allocas");
-  SmallVector<Operation *, 16> ops;
+  llvm::SmallVector<Operation *, 16> ops;
   getOperation()->walk([&](cir::FuncOp op) { process(op); });
 }
 

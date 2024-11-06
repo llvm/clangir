@@ -167,7 +167,7 @@ void CIRSimplifyPass::runOnOperation() {
   populateMergeCleanupPatterns(patterns);
 
   // Collect operations to apply patterns.
-  SmallVector<Operation *, 16> ops;
+  llvm::SmallVector<Operation *, 16> ops;
   getOperation()->walk([&](Operation *op) {
     if (isa<TernaryOp, SelectOp>(op))
       ops.push_back(op);

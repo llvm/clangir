@@ -141,7 +141,7 @@ Operation *cir::CIRDialect::materializeConstant(mlir::OpBuilder &builder,
 // position of the parsed keyword in the list. If none of the keywords from the
 // list is parsed, returns -1.
 static int parseOptionalKeywordAlternative(AsmParser &parser,
-                                           ArrayRef<StringRef> keywords) {
+                                           ArrayRef<llvm::StringRef> keywords) {
   for (auto en : llvm::enumerate(keywords)) {
     if (succeeded(parser.parseOptionalKeyword(en.value())))
       return en.index();
@@ -154,7 +154,7 @@ template <typename Ty> struct EnumTraits {};
 
 #define REGISTER_ENUM_TYPE(Ty)                                                 \
   template <> struct EnumTraits<cir::Ty> {                               \
-    static StringRef stringify(cir::Ty value) {                          \
+    static llvm::StringRef stringify(cir::Ty value) {                          \
       return stringify##Ty(value);                                             \
     }                                                                          \
     static unsigned getMaxEnumVal() {                                          \
@@ -163,7 +163,7 @@ template <typename Ty> struct EnumTraits {};
   }
 #define REGISTER_ENUM_TYPE_WITH_NS(NS, Ty)                                     \
   template <> struct EnumTraits<NS::Ty> {                                      \
-    static StringRef stringify(NS::Ty value) {                                 \
+    static llvm::StringRef stringify(NS::Ty value) {                                 \
       return NS::stringify##Ty(value);                                         \
     }                                                                          \
     static unsigned getMaxEnumVal() { return NS::getMaxEnumValFor##Ty(); }     \
@@ -180,7 +180,7 @@ REGISTER_ENUM_TYPE_WITH_NS(cir::sob, SignedOverflowBehavior);
 /// TODO: teach other places in this file to use this function.
 template <typename EnumTy, typename RetTy = EnumTy>
 static RetTy parseOptionalCIRKeyword(AsmParser &parser, EnumTy defaultValue) {
-  SmallVector<StringRef, 10> names;
+  llvm::SmallVector<llvm::StringRef, 10> names;
   for (unsigned i = 0, e = EnumTraits<EnumTy>::getMaxEnumVal(); i <= e; ++i)
     names.push_back(EnumTraits<EnumTy>::stringify(static_cast<EnumTy>(i)));
 
@@ -193,7 +193,7 @@ static RetTy parseOptionalCIRKeyword(AsmParser &parser, EnumTy defaultValue) {
 /// Parse an enum from the keyword, return failure if the keyword is not found.
 template <typename EnumTy, typename RetTy = EnumTy>
 static ParseResult parseCIRKeyword(AsmParser &parser, RetTy &result) {
-  SmallVector<StringRef, 10> names;
+  llvm::SmallVector<llvm::StringRef, 10> names;
   for (unsigned i = 0, e = EnumTraits<EnumTy>::getMaxEnumVal(); i <= e; ++i)
     names.push_back(EnumTraits<EnumTy>::stringify(static_cast<EnumTy>(i)));
 
@@ -763,7 +763,7 @@ OpFoldResult cir::CastOp::fold(FoldAdaptor adaptor) {
     case cir::CastKind::integral: {
       // TODO: for sign differences, it's possible in certain conditions to
       // create a new attribute that's capable of representing the source.
-      SmallVector<mlir::OpFoldResult, 1> foldResults;
+      llvm::SmallVector<mlir::OpFoldResult, 1> foldResults;
       auto foldOrder = getSrc().getDefiningOp()->fold(foldResults);
       if (foldOrder.succeeded() && foldResults[0].is<mlir::Attribute>())
         return foldResults[0].get<mlir::Attribute>();
@@ -1355,7 +1355,7 @@ ParseResult parseCatchRegions(
     OpAsmParser &parser,
     llvm::SmallVectorImpl<std::unique_ptr<::mlir::Region>> &regions,
     ::mlir::ArrayAttr &catchersAttr) {
-  SmallVector<mlir::Attribute, 4> catchList;
+  llvm::SmallVector<mlir::Attribute, 4> catchList;
 
   auto parseAndCheckRegion = [&]() -> ParseResult {
     // Parse region attached to catch
@@ -1668,13 +1668,13 @@ void cir::SwitchFlatOp::build(OpBuilder &builder, OperationState &result,
 static ParseResult parseSwitchFlatOpCases(
     OpAsmParser &parser, Type flagType, mlir::ArrayAttr &caseValues,
     SmallVectorImpl<Block *> &caseDestinations,
-    SmallVectorImpl<SmallVector<OpAsmParser::UnresolvedOperand>> &caseOperands,
-    SmallVectorImpl<SmallVector<Type>> &caseOperandTypes) {
+    SmallVectorImpl<llvm::SmallVector<OpAsmParser::UnresolvedOperand>> &caseOperands,
+    SmallVectorImpl<llvm::SmallVector<Type>> &caseOperandTypes) {
   if (failed(parser.parseLSquare()))
     return failure();
   if (succeeded(parser.parseOptionalRSquare()))
     return success();
-  SmallVector<mlir::Attribute> values;
+  llvm::SmallVector<mlir::Attribute> values;
 
   auto parseCase = [&]() {
     int64_t value = 0;
@@ -1684,8 +1684,8 @@ static ParseResult parseSwitchFlatOpCases(
     values.push_back(cir::IntAttr::get(flagType, value));
 
     Block *destination;
-    SmallVector<OpAsmParser::UnresolvedOperand> operands;
-    SmallVector<Type> operandTypes;
+    llvm::SmallVector<OpAsmParser::UnresolvedOperand> operands;
+    llvm::SmallVector<Type> operandTypes;
     if (parser.parseColon() || parser.parseSuccessor(destination))
       return failure();
     if (!parser.parseOptionalLParen()) {
@@ -1970,7 +1970,7 @@ LogicalResult cir::GlobalOp::verify() {
 }
 
 void cir::GlobalOp::build(
-    OpBuilder &odsBuilder, OperationState &odsState, StringRef sym_name,
+    OpBuilder &odsBuilder, OperationState &odsState, llvm::StringRef sym_name,
     Type sym_type, bool isConstant, cir::GlobalLinkageKind linkage,
     cir::AddressSpaceAttr addrSpace,
     function_ref<void(OpBuilder &, Location)> ctorBuilder,
@@ -2184,10 +2184,10 @@ LogicalResult cir::VTTAddrPointOp::verify() {
 
 /// Returns the name used for the linkage attribute. This *must* correspond to
 /// the name of the attribute in ODS.
-static StringRef getLinkageAttrNameString() { return "linkage"; }
+static llvm::StringRef getLinkageAttrNameString() { return "linkage"; }
 
 void cir::FuncOp::build(OpBuilder &builder, OperationState &result,
-                              StringRef name, cir::FuncType type,
+                              llvm::StringRef name, cir::FuncType type,
                               GlobalLinkageKind linkage,
                               CallingConv callingConv,
                               ArrayRef<NamedAttribute> attrs,
@@ -2263,10 +2263,10 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser,
     state.addAttribute(dsolocalNameAttr, parser.getBuilder().getUnitAttr());
 
   StringAttr nameAttr;
-  SmallVector<OpAsmParser::Argument, 8> arguments;
-  SmallVector<DictionaryAttr, 1> resultAttrs;
-  SmallVector<Type, 8> argTypes;
-  SmallVector<Type, 4> resultTypes;
+  llvm::SmallVector<OpAsmParser::Argument, 8> arguments;
+  llvm::SmallVector<DictionaryAttr, 1> resultAttrs;
+  llvm::SmallVector<Type, 8> argTypes;
+  llvm::SmallVector<Type, 4> resultTypes;
   auto &builder = parser.getBuilder();
 
   // Parse the name as a symbol.
@@ -2347,7 +2347,7 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser,
                      CallingConvAttr::get(parser.getContext(), callConv));
 
   auto parseGlobalDtorCtor =
-      [&](StringRef keyword,
+      [&](llvm::StringRef keyword,
           llvm::function_ref<void(std::optional<int> prio)> createAttr)
       -> mlir::LogicalResult {
     if (::mlir::succeeded(parser.parseOptionalKeyword(keyword))) {
@@ -2482,7 +2482,7 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
   p << ' ';
   p.printSymbolName(getSymName());
   auto fnType = getFunctionType();
-  SmallVector<Type, 1> resultTypes;
+  llvm::SmallVector<Type, 1> resultTypes;
   if (!fnType.isVoid())
     function_interface_impl::printFunctionSignature(
         p, *this, fnType.getInputs(), fnType.isVarArg(),

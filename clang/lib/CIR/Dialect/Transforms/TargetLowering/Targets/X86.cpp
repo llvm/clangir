@@ -39,7 +39,7 @@ unsigned getNativeVectorSizeForAVXABI(X86AVXABILevel AVXLevel) {
 /// one of the two halves in the INTEGER class.
 ///
 /// It is conservatively correct to return false.
-static bool BitsContainNoUserData(Type Ty, unsigned StartBit, unsigned EndBit,
+static bool BitsContainNoUserData(mlir::Type Ty, unsigned StartBit, unsigned EndBit,
                                   CIRLowerContext &Context) {
   // If the bytes being queried are off the end of the type, there is no user
   // data hiding here.  This handles analysis of builtins, vectors and other
@@ -89,9 +89,9 @@ static bool BitsContainNoUserData(Type Ty, unsigned StartBit, unsigned EndBit,
 }
 
 /// Return a floating point type at the specified offset.
-Type getFPTypeAtOffset(Type IRType, unsigned IROffset,
+mlir::Type getFPTypeAtOffset(mlir::Type IRType, unsigned IROffset,
                        const cir::CIRDataLayout &TD) {
-  if (IROffset == 0 && isa<SingleType, DoubleType>(IRType))
+  if (IROffset == 0 && mlir::isa<SingleType, DoubleType>(IRType))
     return IRType;
 
   cir_cconv_assert_or_abort(!cir::MissingFeatures::X86GetFPTypeAtOffset(),
@@ -157,13 +157,13 @@ class X86_64ABIInfo : public ABIInfo {
   ///
   /// If the \arg Lo class is ComplexX87, then the \arg Hi class will
   /// also be ComplexX87.
-  void classify(Type T, uint64_t OffsetBase, Class &Lo, Class &Hi,
+  void classify(mlir::Type T, uint64_t OffsetBase, Class &Lo, Class &Hi,
                 bool isNamedArg, bool IsRegCall = false) const;
 
-  Type GetSSETypeAtOffset(Type IRType, unsigned IROffset, Type SourceTy,
+  mlir::Type GetSSETypeAtOffset(mlir::Type IRType, unsigned IROffset, mlir::Type SourceTy,
                           unsigned SourceOffset) const;
 
-  Type GetINTEGERTypeAtOffset(Type DestTy, unsigned IROffset, Type SourceTy,
+  mlir::Type GetINTEGERTypeAtOffset(mlir::Type DestTy, unsigned IROffset, mlir::Type SourceTy,
                               unsigned SourceOffset) const;
 
   /// The 0.98 ABI revision clarified a lot of ambiguities,
@@ -181,9 +181,9 @@ public:
   X86_64ABIInfo(LowerTypes &CGT, X86AVXABILevel AVXLevel)
       : ABIInfo(CGT), AVXLevel(AVXLevel) {}
 
-  cir::ABIArgInfo classifyReturnType(Type RetTy) const;
+  cir::ABIArgInfo classifyReturnType(mlir::Type RetTy) const;
 
-  ABIArgInfo classifyArgumentType(Type Ty, unsigned freeIntRegs,
+  ABIArgInfo classifyArgumentType(mlir::Type Ty, unsigned freeIntRegs,
                                   unsigned &neededInt, unsigned &neededSSE,
                                   bool isNamedArg, bool IsRegCall) const;
 
@@ -213,7 +213,7 @@ public:
   }
 };
 
-void X86_64ABIInfo::classify(Type Ty, uint64_t OffsetBase, Class &Lo, Class &Hi,
+void X86_64ABIInfo::classify(mlir::Type Ty, uint64_t OffsetBase, Class &Lo, Class &Hi,
                              bool isNamedArg, bool IsRegCall) const {
   // FIXME: This code can be simplified by introducing a simple value class
   // for Class pairs with appropriate constructor methods for the various
@@ -231,9 +231,9 @@ void X86_64ABIInfo::classify(Type Ty, uint64_t OffsetBase, Class &Lo, Class &Hi,
   // FIXME(cir): There's currently no direct way to identify if a type is a
   // builtin.
   if (/*isBuitinType=*/true) {
-    if (isa<VoidType>(Ty)) {
+    if (mlir::isa<VoidType>(Ty)) {
       Current = Class::NoClass;
-    } else if (auto IntTy = dyn_cast<IntType>(Ty)) {
+    } else if (auto IntTy = mlir::dyn_cast<IntType>(Ty)) {
       if (IntTy.getWidth() == 128) {
         Lo = Class::Integer;
         Hi = Class::Integer;
@@ -244,18 +244,18 @@ void X86_64ABIInfo::classify(Type Ty, uint64_t OffsetBase, Class &Lo, Class &Hi,
       // We should implement this in CIR to simplify the conditions below.
       // Hence, Comparisons below might not be truly equivalent to the ones in
       // Clang.
-      if (isa<IntType>(Ty)) {
+      if (mlir::isa<IntType>(Ty)) {
         Current = Class::Integer;
       }
       return;
 
-    } else if (isa<SingleType>(Ty) || isa<DoubleType>(Ty)) {
+    } else if (mlir::isa<SingleType>(Ty) || mlir::isa<DoubleType>(Ty)) {
       Current = Class::SSE;
       return;
 
-    } else if (isa<BoolType>(Ty)) {
+    } else if (mlir::isa<BoolType>(Ty)) {
       Current = Class::Integer;
-    } else if (const auto RT = dyn_cast<StructType>(Ty)) {
+    } else if (const auto RT = mlir::dyn_cast<StructType>(Ty)) {
       uint64_t Size = getContext().getTypeSize(Ty);
 
       // AMD64-ABI 3.2.3p2: Rule 1. If the size of an object is larger
@@ -357,24 +357,24 @@ void X86_64ABIInfo::classify(Type Ty, uint64_t OffsetBase, Class &Lo, Class &Hi,
 
 /// Return a type that will be passed by the backend in the low 8 bytes of an
 /// XMM register, corresponding to the SSE class.
-Type X86_64ABIInfo::GetSSETypeAtOffset(Type IRType, unsigned IROffset,
-                                       Type SourceTy,
+mlir::Type X86_64ABIInfo::GetSSETypeAtOffset(mlir::Type IRType, unsigned IROffset,
+                                       mlir::Type SourceTy,
                                        unsigned SourceOffset) const {
   const cir::CIRDataLayout &TD = getDataLayout();
   unsigned SourceSize =
       (unsigned)getContext().getTypeSize(SourceTy) / 8 - SourceOffset;
-  Type T0 = getFPTypeAtOffset(IRType, IROffset, TD);
-  if (!T0 || isa<Float64Type>(T0))
+  mlir::Type T0 = getFPTypeAtOffset(IRType, IROffset, TD);
+  if (!T0 || mlir::isa<mlir::Float64Type>(T0))
     return T0; // NOTE(cir): Not sure if this is correct.
 
-  Type T1 = {};
+  mlir::Type T1 = {};
   unsigned T0Size = TD.getTypeAllocSize(T0);
   if (SourceSize > T0Size)
     cir_cconv_unreachable("NYI");
   if (T1 == nullptr) {
     // Check if IRType is a half/bfloat + float. float type will be in
     // IROffset+4 due to its alignment.
-    if (isa<Float16Type>(T0) && SourceSize > 4)
+    if (mlir::isa<mlir::Float16Type>(T0) && SourceSize > 4)
       cir_cconv_unreachable("NYI");
     // If we can't get a second FP type, return a simple half or float.
     // avx512fp16-abi.c:pr51813_2 shows it works to return float for
@@ -400,14 +400,14 @@ Type X86_64ABIInfo::GetSSETypeAtOffset(Type IRType, unsigned IROffset,
 /// is an offset into this that we're processing (which is always either 0 or
 /// 8).
 ///
-Type X86_64ABIInfo::GetINTEGERTypeAtOffset(Type DestTy, unsigned IROffset,
-                                           Type SourceTy,
+mlir::Type X86_64ABIInfo::GetINTEGERTypeAtOffset(mlir::Type DestTy, unsigned IROffset,
+                                           mlir::Type SourceTy,
                                            unsigned SourceOffset) const {
   // If we're dealing with an un-offset CIR type, then it means that we're
   // returning an 8-byte unit starting with it. See if we can safely use it.
   if (IROffset == 0) {
     // Pointers and int64's always fill the 8-byte unit.
-    cir_cconv_assert(!isa<PointerType>(DestTy) && "Ptrs are NYI");
+    cir_cconv_assert(!mlir::isa<PointerType>(DestTy) && "Ptrs are NYI");
 
     // If we have a 1/2/4-byte integer, we can use it only if the rest of the
     // goodness in the source type is just tail padding.  This is allowed to
@@ -415,7 +415,7 @@ Type X86_64ABIInfo::GetINTEGERTypeAtOffset(Type DestTy, unsigned IROffset,
     // struct{double,int,int} because we wouldn't return the second int.  We
     // have to do this analysis on the source type because we can't depend on
     // unions being lowered a specific way etc.
-    if (auto intTy = dyn_cast<IntType>(DestTy)) {
+    if (auto intTy = mlir::dyn_cast<IntType>(DestTy)) {
       if (intTy.getWidth() == 8 || intTy.getWidth() == 16 ||
           intTy.getWidth() == 32) {
         unsigned BitWidth = intTy.getWidth();
@@ -426,7 +426,7 @@ Type X86_64ABIInfo::GetINTEGERTypeAtOffset(Type DestTy, unsigned IROffset,
     }
   }
 
-  if (auto RT = dyn_cast<StructType>(DestTy)) {
+  if (auto RT = mlir::dyn_cast<StructType>(DestTy)) {
     // If this is a struct, recurse into the field at the specified offset.
     const cir::StructLayout *SL = getDataLayout().getStructLayout(RT);
     if (IROffset < SL->getSizeInBytes()) {
@@ -454,7 +454,7 @@ Type X86_64ABIInfo::GetINTEGERTypeAtOffset(Type DestTy, unsigned IROffset,
   // this might not make a difference in practice. For now, we just preserve the
   // sign as is to avoid unecessary bitcasts.
   bool isSigned = false;
-  if (auto intTy = dyn_cast<IntType>(SourceTy))
+  if (auto intTy = mlir::dyn_cast<IntType>(SourceTy))
     isSigned = intTy.isSigned();
   return IntType::get(LT.getMLIRContext(),
                       std::min(TySizeInBytes - SourceOffset, 8U) * 8, isSigned);
@@ -486,10 +486,10 @@ static mlir::Type GetX86_64ByValArgumentPair(mlir::Type lo, mlir::Type hi,
     // i8/i16/i32.  This can also include pointers when they are 32-bit (X32 and
     // NaCl).
     // Promote these to a larger type.
-    if (isa<FP16Type, SingleType>(lo))
+    if (mlir::isa<FP16Type, SingleType>(lo))
       lo = DoubleType::get(lo.getContext());
     else {
-      assert((isa<IntType, PointerType>(lo)) && "Invalid/unknown lo type");
+      assert((mlir::isa<IntType, PointerType>(lo)) && "Invalid/unknown lo type");
       // TODO(cir): does the sign of the int64 type matter here?
       lo = IntType::get(lo.getContext(), 64, true);
     }
@@ -504,7 +504,7 @@ static mlir::Type GetX86_64ByValArgumentPair(mlir::Type lo, mlir::Type hi,
   return result;
 }
 
-cir::ABIArgInfo X86_64ABIInfo::classifyReturnType(Type RetTy) const {
+cir::ABIArgInfo X86_64ABIInfo::classifyReturnType(mlir::Type RetTy) const {
   // AMD64-ABI 3.2.3p4: Rule 1. Classify the return type with the
   // classification algorithm.
   X86_64ABIInfo::Class Lo, Hi;
@@ -516,7 +516,7 @@ cir::ABIArgInfo X86_64ABIInfo::classifyReturnType(Type RetTy) const {
   cir_cconv_assert((Hi != Class::SSEUp || Lo == Class::SSE) &&
                    "Invalid SSEUp classification.");
 
-  Type resType = {};
+  mlir::Type resType = {};
   switch (Lo) {
   case Class::NoClass:
     if (Hi == Class::NoClass)
@@ -528,12 +528,12 @@ cir::ABIArgInfo X86_64ABIInfo::classifyReturnType(Type RetTy) const {
 
     // If we have a sign or zero extended integer, make sure to return Extend
     // so that the parameter gets the right LLVM IR attributes.
-    if (Hi == Class::NoClass && isa<IntType>(resType)) {
+    if (Hi == Class::NoClass && mlir::isa<IntType>(resType)) {
       // NOTE(cir): We skip enum types handling here since CIR represents
       // enums directly as their unerlying integer types. NOTE(cir): For some
       // reason, Clang does not set the coerce type here and delays it to
       // arrangeLLVMFunctionInfo. We do the same to keep parity.
-      if (isa<IntType, BoolType>(RetTy) && isPromotableIntegerTypeForABI(RetTy))
+      if (mlir::isa<IntType, BoolType>(RetTy) && isPromotableIntegerTypeForABI(RetTy))
         return ABIArgInfo::getExtend(RetTy);
     }
     break;
@@ -549,7 +549,7 @@ cir::ABIArgInfo X86_64ABIInfo::classifyReturnType(Type RetTy) const {
         !cir::MissingFeatures::X86RetTypeClassification(), "NYI");
   }
 
-  Type HighPart = {};
+  mlir::Type HighPart = {};
   switch (Hi) {
 
   case Class::NoClass:
@@ -574,7 +574,7 @@ cir::ABIArgInfo X86_64ABIInfo::classifyReturnType(Type RetTy) const {
   return ABIArgInfo::getDirect(resType);
 }
 
-ABIArgInfo X86_64ABIInfo::classifyArgumentType(Type Ty, unsigned freeIntRegs,
+ABIArgInfo X86_64ABIInfo::classifyArgumentType(mlir::Type Ty, unsigned freeIntRegs,
                                                unsigned &neededInt,
                                                unsigned &neededSSE,
                                                bool isNamedArg,
@@ -593,7 +593,7 @@ ABIArgInfo X86_64ABIInfo::classifyArgumentType(Type Ty, unsigned freeIntRegs,
 
   neededInt = 0;
   neededSSE = 0;
-  Type ResType = {};
+  mlir::Type ResType = {};
   switch (Lo) {
     // AMD64-ABI 3.2.3p3: Rule 2. If the class is INTEGER, the next
     // available register of the sequence %rdi, %rsi, %rdx, %rcx, %r8
@@ -606,12 +606,12 @@ ABIArgInfo X86_64ABIInfo::classifyArgumentType(Type Ty, unsigned freeIntRegs,
 
     // If we have a sign or zero extended integer, make sure to return Extend
     // so that the parameter gets the right LLVM IR attributes.
-    if (Hi == Class::NoClass && isa<IntType>(ResType)) {
+    if (Hi == Class::NoClass && mlir::isa<IntType>(ResType)) {
       // NOTE(cir): We skip enum types handling here since CIR represents
       // enums directly as their unerlying integer types. NOTE(cir): For some
       // reason, Clang does not set the coerce type here and delays it to
       // arrangeLLVMFunctionInfo. We do the same to keep parity.
-      if (isa<IntType, BoolType>(Ty) && isPromotableIntegerTypeForABI(Ty))
+      if (mlir::isa<IntType, BoolType>(Ty) && isPromotableIntegerTypeForABI(Ty))
         return ABIArgInfo::getExtend(Ty);
     }
 
@@ -630,7 +630,7 @@ ABIArgInfo X86_64ABIInfo::classifyArgumentType(Type Ty, unsigned freeIntRegs,
         !cir::MissingFeatures::X86ArgTypeClassification(), "NYI");
   }
 
-  Type HighPart = {};
+  mlir::Type HighPart = {};
   switch (Hi) {
   case Class::NoClass:
     break;

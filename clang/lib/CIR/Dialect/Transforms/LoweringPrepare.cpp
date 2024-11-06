@@ -157,11 +157,11 @@ struct LoweringPreparePass : public LoweringPrepareBase<LoweringPreparePass> {
   llvm::SmallVector<FuncOp, 4> dynamicInitializers;
 
   /// List of ctors to be called before main()
-  SmallVector<mlir::Attribute, 4> globalCtorList;
+  llvm::SmallVector<mlir::Attribute, 4> globalCtorList;
   /// List of dtors to be called when unloading module.
-  SmallVector<mlir::Attribute, 4> globalDtorList;
+  llvm::SmallVector<mlir::Attribute, 4> globalDtorList;
   /// List of annotations in the module
-  SmallVector<mlir::Attribute, 4> globalAnnotations;
+  llvm::SmallVector<mlir::Attribute, 4> globalAnnotations;
 };
 } // namespace
 
@@ -1139,7 +1139,7 @@ void LoweringPreparePass::addGlobalAnnotations(mlir::Operation *op,
   auto globalValue = cast<mlir::SymbolOpInterface>(op);
   mlir::StringAttr globalValueName = globalValue.getNameAttr();
   for (auto &annot : annotations) {
-    SmallVector<mlir::Attribute, 2> entryArray = {globalValueName, annot};
+    llvm::SmallVector<mlir::Attribute, 2> entryArray = {globalValueName, annot};
     globalAnnotations.push_back(
         mlir::ArrayAttr::get(theModule.getContext(), entryArray));
   }
@@ -1204,7 +1204,7 @@ void LoweringPreparePass::runOnOperation() {
     theModule = cast<::mlir::ModuleOp>(op);
   }
 
-  SmallVector<Operation *> opsToTransform;
+  llvm::SmallVector<Operation *> opsToTransform;
 
   op->walk([&](Operation *op) {
     if (isa<UnaryOp, BinOp, CastOp, ComplexBinOp, CmpThreeWayOp, VAArgOp,

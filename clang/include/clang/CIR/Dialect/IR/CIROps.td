@@ -506,15 +506,15 @@ def AllocaOp : CIR_Op<"alloca", [
 
   let skipDefaultBuilders = 1;
   let builders = [
-    OpBuilder<(ins "Type":$addr, "Type":$allocaType,
-                   "StringRef":$name,
-                   "IntegerAttr":$alignment)>,
+    OpBuilder<(ins "mlir::Type":$addr, "mlir::Type":$allocaType,
+                   "llvm::StringRef":$name,
+                   "mlir::IntegerAttr":$alignment)>,
 
-    OpBuilder<(ins "Type":$addr,
-                   "Type":$allocaType,
-                   "StringRef":$name,
-                   "IntegerAttr":$alignment,
-                   "Value":$dynAllocSize),
+    OpBuilder<(ins "mlir::Type":$addr,
+                   "mlir::Type":$allocaType,
+                   "llvm::StringRef":$name,
+                   "mlir::IntegerAttr":$alignment,
+                   "mlir::Value":$dynAllocSize),
     [{
       if (dynAllocSize)
         $_state.addOperands(dynAllocSize);
@@ -644,7 +644,7 @@ def StoreOp : CIR_Op<"store", [
   }];
 
   let builders = [
-    OpBuilder<(ins "Value":$value, "Value":$addr), [{
+    OpBuilder<(ins "mlir::Value":$value, "mlir::Value":$addr), [{
       $_state.addOperands({value, addr});
     }]>
   ];
@@ -761,10 +761,10 @@ def IfOp : CIR_Op<"if",
 
   let skipDefaultBuilders = 1;
   let builders = [
-    OpBuilder<(ins "Value":$cond, "bool":$withElseRegion,
-      CArg<"function_ref<void(OpBuilder &, Location)>",
+    OpBuilder<(ins "mlir::Value":$cond, "bool":$withElseRegion,
+      CArg<"llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>",
            "buildTerminatedBody">:$thenBuilder,
-      CArg<"function_ref<void(OpBuilder &, Location)>",
+      CArg<"llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>",
            "nullptr">:$elseBuilder)>
   ];
 }
@@ -805,9 +805,9 @@ def TernaryOp : CIR_Op<"ternary",
 
   let skipDefaultBuilders = 1;
   let builders = [
-    OpBuilder<(ins "Value":$cond,
-      "function_ref<void(OpBuilder &, Location)>":$trueBuilder,
-      "function_ref<void(OpBuilder &, Location)>":$falseBuilder)
+    OpBuilder<(ins "mlir::Value":$cond,
+      "llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>":$trueBuilder,
+      "llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>":$falseBuilder)
       >
   ];
 
@@ -1072,9 +1072,9 @@ def ScopeOp : CIR_Op<"scope", [
   let builders = [
     // Scopes for yielding values.
     OpBuilder<(ins
-              "function_ref<void(OpBuilder &, Type &, Location)>":$scopeBuilder)>,
+              "llvm::function_ref<void(mlir::OpBuilder &, mlir::Type &, mlir::Location)>":$scopeBuilder)>,
     // Scopes without yielding values.
-    OpBuilder<(ins "function_ref<void(OpBuilder &, Location)>":$scopeBuilder)>
+    OpBuilder<(ins "llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>":$scopeBuilder)>
   ];
 }
 
@@ -1861,9 +1861,9 @@ def CaseOp : CIR_Op<"case", [
 
   let skipDefaultBuilders = 1;
   let builders = [
-    OpBuilder<(ins "ArrayAttr":$value,
+    OpBuilder<(ins "mlir::ArrayAttr":$value,
                    "CaseOpKind":$kind,
-                   "OpBuilder::InsertPoint &":$insertPoint)>
+                   "mlir::OpBuilder::InsertPoint &":$insertPoint)>
   ];
 }
 
@@ -2012,8 +2012,8 @@ def SwitchOp : CIR_Op<"switch",
 
   let skipDefaultBuilders = 1;
   let builders = [
-    OpBuilder<(ins "Value":$condition,
-               "function_ref<void(OpBuilder &, Location, OperationState &)>":$switchBuilder)>
+    OpBuilder<(ins "mlir::Value":$condition,
+               "llvm::function_ref<void(mlir::OpBuilder &, mlir::Location, mlir::OperationState &)>":$switchBuilder)>
   ];
 
   let assemblyFormat = [{
@@ -2059,8 +2059,8 @@ def BrOp : CIR_Op<"br",
   }];
 
   let builders = [
-    OpBuilder<(ins "Block *":$dest,
-              CArg<"ValueRange", "{}">:$destOperands), [{
+    OpBuilder<(ins "mlir::Block *":$dest,
+              CArg<"mlir::ValueRange", "{}">:$destOperands), [{
       $_state.addSuccessors(dest);
       $_state.addOperands(destOperands);
     }]>
@@ -2099,9 +2099,9 @@ def BrCondOp : CIR_Op<"brcond",
   }];
 
   let builders = [
-    OpBuilder<(ins "Value":$cond, "Block *":$destTrue, "Block *":$destFalse,
-               CArg<"ValueRange", "{}">:$destOperandsTrue,
-               CArg<"ValueRange", "{}">:$destOperandsFalse), [{
+    OpBuilder<(ins "mlir::Value":$cond, "mlir::Block *":$destTrue, "mlir::Block *":$destFalse,
+               CArg<"mlir::ValueRange", "{}">:$destOperandsTrue,
+               CArg<"mlir::ValueRange", "{}">:$destOperandsFalse), [{
       build($_builder, $_state, cond, destOperandsTrue,
             destOperandsFalse, destTrue, destFalse);
     }]>
@@ -2131,9 +2131,9 @@ class WhileOpBase<string mnemonic> : CIR_Op<mnemonic, [
   defvar isWhile = !eq(mnemonic, "while");
   let summary = "C/C++ " # !if(isWhile, "while", "do-while") # " loop";
   let builders = [
-    OpBuilder<(ins "function_ref<void(OpBuilder &, Location)>":$condBuilder,
-                   "function_ref<void(OpBuilder &, Location)>":$bodyBuilder), [{
-        OpBuilder::InsertionGuard guard($_builder);
+    OpBuilder<(ins "llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>":$condBuilder,
+                   "llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>":$bodyBuilder), [{
+        mlir::OpBuilder::InsertionGuard guard($_builder);
         $_builder.createBlock($_state.addRegion());
       }] # !if(isWhile, [{
         condBuilder($_builder, $_state.location);
@@ -2177,7 +2177,7 @@ def DoWhileOp : WhileOpBase<"do"> {
   let assemblyFormat = " $body `while` $cond attr-dict";
 
   let extraClassDeclaration = [{
-    Region &getEntry() { return getBody(); }
+    mlir::Region &getEntry() { return getBody(); }
   }];
 
   let description = [{
@@ -2238,10 +2238,10 @@ def ForOp : CIR_Op<"for", [LoopOpInterface, NoRegionArguments]> {
   }];
 
   let builders = [
-    OpBuilder<(ins "function_ref<void(OpBuilder &, Location)>":$condBuilder,
-                   "function_ref<void(OpBuilder &, Location)>":$bodyBuilder,
-                   "function_ref<void(OpBuilder &, Location)>":$stepBuilder), [{
-        OpBuilder::InsertionGuard guard($_builder);
+    OpBuilder<(ins "llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>":$condBuilder,
+                   "llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>":$bodyBuilder,
+                   "llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>":$stepBuilder), [{
+        mlir::OpBuilder::InsertionGuard guard($_builder);
 
         // Build condition region.
         $_builder.createBlock($_state.addRegion());
@@ -2258,9 +2258,9 @@ def ForOp : CIR_Op<"for", [LoopOpInterface, NoRegionArguments]> {
   ];
 
   let extraClassDeclaration = [{
-    Region *maybeGetStep() { return &getStep(); }
-    llvm::SmallVector<Region *> getRegionsInExecutionOrder() {
-      return llvm::SmallVector<Region *, 3>{&getCond(), &getBody(), &getStep()};
+    mlir::Region *maybeGetStep() { return &getStep(); }
+    llvm::SmallVector<mlir::Region *> getRegionsInExecutionOrder() {
+      return llvm::SmallVector<mlir::Region *, 3>{&getCond(), &getBody(), &getStep()};
     }
   }];
 }
@@ -2437,16 +2437,16 @@ def GlobalOp : CIR_Op<"global",
   let builders = [
     OpBuilder<(ins
       // MLIR's default visibility is public.
-      "StringRef":$sym_name,
-      "Type":$sym_type,
+      "llvm::StringRef":$sym_name,
+      "mlir::Type":$sym_type,
       CArg<"bool", "false">:$isConstant,
       // CIR defaults to external linkage.
       CArg<"cir::GlobalLinkageKind",
             "cir::GlobalLinkageKind::ExternalLinkage">:$linkage,
       CArg<"cir::AddressSpaceAttr", "{}">:$addrSpace,
-      CArg<"function_ref<void(OpBuilder &, Location)>",
+      CArg<"llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>",
            "nullptr">:$ctorBuilder,
-      CArg<"function_ref<void(OpBuilder &, Location)>",
+      CArg<"llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>",
            "nullptr">:$dtorBuilder)
     >
   ];
@@ -2660,11 +2660,11 @@ def SetBitfieldOp : CIR_Op<"set_bitfield"> {
     $src`:`type($src) `)`  attr-dict `->` type($result) }];
 
   let builders = [
-    OpBuilder<(ins "Type":$type,
-                   "Value":$addr,
-                   "Type":$storage_type,
-                   "Value":$src,
-                   "StringRef":$name,
+    OpBuilder<(ins "mlir::Type":$type,
+                   "mlir::Value":$addr,
+                   "mlir::Type":$storage_type,
+                   "mlir::Value":$src,
+                   "llvm::StringRef":$name,
                    "unsigned":$size,
                    "unsigned":$offset,
                    "bool":$is_signed,
@@ -2738,10 +2738,10 @@ def GetBitfieldOp : CIR_Op<"get_bitfield"> {
    qualified(type($addr)) `)` `->` type($result) }];
 
   let builders = [
-    OpBuilder<(ins "Type":$type,
-                   "Value":$addr,
-                   "Type":$storage_type,
-                   "StringRef":$name,
+    OpBuilder<(ins "mlir::Type":$type,
+                   "mlir::Value":$addr,
+                   "mlir::Type":$storage_type,
+                   "llvm::StringRef":$name,
                    "unsigned":$size,
                    "unsigned":$offset,
                    "bool":$is_signed,
@@ -2795,8 +2795,8 @@ def GetMemberOp : CIR_Op<"get_member"> {
   }];
 
   let builders = [
-    OpBuilder<(ins "Type":$type,
-                   "Value":$value,
+    OpBuilder<(ins "mlir::Type":$type,
+                   "mlir::Value":$value,
                    "llvm::StringRef":$name,
                    "unsigned":$index),
     [{
@@ -3384,11 +3384,11 @@ def FuncOp : CIR_Op<"func", [
   let skipDefaultBuilders = 1;
 
   let builders = [OpBuilder<(ins
-    "StringRef":$name, "FuncType":$type,
+    "llvm::StringRef":$name, "FuncType":$type,
     CArg<"GlobalLinkageKind", "GlobalLinkageKind::ExternalLinkage">:$linkage,
     CArg<"CallingConv", "CallingConv::C">:$callingConv,
-    CArg<"ArrayRef<NamedAttribute>", "{}">:$attrs,
-    CArg<"ArrayRef<DictionaryAttr>", "{}">:$argAttrs)
+    CArg<"llvm::ArrayRef<mlir::NamedAttribute>", "{}">:$attrs,
+    CArg<"llvm::ArrayRef<mlir::DictionaryAttr>", "{}">:$argAttrs)
   >];
 
   let extraClassDeclaration = [{
@@ -3399,7 +3399,7 @@ def FuncOp : CIR_Op<"func", [
 
     /// Returns the results types that the callable region produces when
     /// executed.
-    ArrayRef<Type> getCallableResults() {
+    llvm::ArrayRef<mlir::Type> getCallableResults() {
       if (::llvm::isa<cir::VoidType>(getFunctionType().getReturnType()))
         return {};
       return getFunctionType().getReturnTypes();
@@ -3418,16 +3418,16 @@ def FuncOp : CIR_Op<"func", [
     }
 
     /// Returns the argument types of this function.
-    ArrayRef<Type> getArgumentTypes() { return getFunctionType().getInputs(); }
+    llvm::ArrayRef<mlir::Type> getArgumentTypes() { return getFunctionType().getInputs(); }
 
     /// Returns the result types of this function.
-    ArrayRef<Type> getResultTypes() { return getFunctionType().getReturnTypes(); }
+    llvm::ArrayRef<mlir::Type> getResultTypes() { return getFunctionType().getReturnTypes(); }
 
     /// Hook for OpTrait::FunctionOpInterfaceTrait, called after verifying that
     /// the 'type' attribute is present and checks if it holds a function type.
     /// Ensures getType, getNumFuncArguments, and getNumFuncResults can be
     /// called safely.
-    LogicalResult verifyType();
+    llvm::LogicalResult verifyType();
 
     //===------------------------------------------------------------------===//
     // SymbolOpInterface Methods
@@ -3468,7 +3468,7 @@ def LLVMIntrinsicCallOp : CIR_Op<"llvm.intrinsic"> {
 
   let builders = [
     OpBuilder<(ins "mlir::StringAttr":$intrinsic_name, "mlir::Type":$resType,
-              CArg<"ValueRange", "{}">:$operands), [{
+              CArg<"mlir::ValueRange", "{}">:$operands), [{
       $_state.addAttribute("intrinsic_name", intrinsic_name);
       $_state.addOperands(operands);
       if (resType)
@@ -3489,17 +3489,17 @@ class CIR_CallOp<string mnemonic, list<Trait> extra_traits = []> :
                     DeclareOpInterfaceMethods<SymbolUserOpInterface>])> {
   let extraClassDeclaration = [{
     /// Get the argument operands to the called function.
-    OperandRange getArgOperands() {
+    mlir::OperandRange getArgOperands() {
       return {arg_operand_begin(), arg_operand_end()};
     }
 
-    MutableOperandRange getArgOperandsMutable() {
+    mlir::MutableOperandRange getArgOperandsMutable() {
       llvm_unreachable("NYI");
     }
 
     /// Return the callee of this operation
-    CallInterfaceCallable getCallableForCallee() {
-      return (*this)->getAttrOfType<SymbolRefAttr>("callee");
+    mlir::CallInterfaceCallable getCallableForCallee() {
+      return (*this)->getAttrOfType<mlir::SymbolRefAttr>("callee");
     }
 
     /// Set the callee for this operation.
@@ -3571,10 +3571,10 @@ def CallOp : CIR_CallOp<"call", [NoRegionArguments]> {
   let skipDefaultBuilders = 1;
 
   let builders = [
-    OpBuilder<(ins "SymbolRefAttr":$callee, "mlir::Type":$resType,
-              CArg<"ValueRange", "{}">:$operands,
+    OpBuilder<(ins "mlir::SymbolRefAttr":$callee, "mlir::Type":$resType,
+              CArg<"mlir::ValueRange", "{}">:$operands,
               CArg<"CallingConv", "CallingConv::C">:$callingConv,
-              CArg<"UnitAttr", "{}">:$exception), [{
+              CArg<"mlir::UnitAttr", "{}">:$exception), [{
       $_state.addOperands(operands);
       if (callee)
         $_state.addAttribute("callee", callee);
@@ -3587,11 +3587,11 @@ def CallOp : CIR_CallOp<"call", [NoRegionArguments]> {
       // Create region placeholder for potential cleanups.
       $_state.addRegion();
     }]>,
-    OpBuilder<(ins "Value":$ind_target,
+    OpBuilder<(ins "mlir::Value":$ind_target,
                "FuncType":$fn_type,
-               CArg<"ValueRange", "{}">:$operands,
+               CArg<"mlir::ValueRange", "{}">:$operands,
                CArg<"CallingConv", "CallingConv::C">:$callingConv,
-               CArg<"UnitAttr", "{}">:$exception), [{
+               CArg<"mlir::UnitAttr", "{}">:$exception), [{
       $_state.addOperands(ValueRange{ind_target});
       $_state.addOperands(operands);
       if (!fn_type.isVoid())
@@ -3635,11 +3635,11 @@ def TryCallOp : CIR_CallOp<"try_call",
   let skipDefaultBuilders = 1;
 
   let builders = [
-    OpBuilder<(ins "SymbolRefAttr":$callee, "mlir::Type":$resType,
-               "Block *":$cont, "Block *":$landing_pad,
-               CArg<"ValueRange", "{}">:$operands,
-               CArg<"ValueRange", "{}">:$contOperands,
-               CArg<"ValueRange", "{}">:$landingPadOperands,
+    OpBuilder<(ins "mlir::SymbolRefAttr":$callee, "mlir::Type":$resType,
+               "mlir::Block *":$cont, "mlir::Block *":$landing_pad,
+               CArg<"mlir::ValueRange", "{}">:$operands,
+               CArg<"mlir::ValueRange", "{}">:$contOperands,
+               CArg<"mlir::ValueRange", "{}">:$landingPadOperands,
                CArg<"CallingConv", "CallingConv::C">:$callingConv), [{
       $_state.addOperands(operands);
       if (callee)
@@ -3663,12 +3663,12 @@ def TryCallOp : CIR_CallOp<"try_call",
       $_state.addSuccessors(cont);
       $_state.addSuccessors(landing_pad);
     }]>,
-    OpBuilder<(ins "Value":$ind_target,
+    OpBuilder<(ins "mlir::Value":$ind_target,
                "FuncType":$fn_type,
-               "Block *":$cont, "Block *":$landing_pad,
-               CArg<"ValueRange", "{}">:$operands,
-               CArg<"ValueRange", "{}">:$contOperands,
-               CArg<"ValueRange", "{}">:$landingPadOperands,
+               "mlir::Block *":$cont, "mlir::Block *":$landing_pad,
+               CArg<"mlir::ValueRange", "{}">:$operands,
+               CArg<"mlir::ValueRange", "{}">:$contOperands,
+               CArg<"mlir::ValueRange", "{}">:$landingPadOperands,
                CArg<"CallingConv", "CallingConv::C">:$callingConv), [{
       ::llvm::SmallVector<mlir::Value, 4> finalCallOperands({ind_target});
       finalCallOperands.append(operands.begin(), operands.end());
@@ -3784,11 +3784,11 @@ def AwaitOp : CIR_Op<"await",
   let builders = [
     OpBuilder<(ins
       "cir::AwaitKind":$kind,
-      CArg<"function_ref<void(OpBuilder &, Location)>",
+      CArg<"llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>",
            "nullptr">:$readyBuilder,
-      CArg<"function_ref<void(OpBuilder &, Location)>",
+      CArg<"llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>",
            "nullptr">:$suspendBuilder,
-      CArg<"function_ref<void(OpBuilder &, Location)>",
+      CArg<"llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>",
            "nullptr">:$resumeBuilder
       )>
   ];
@@ -3858,8 +3858,8 @@ def TryOp : CIR_Op<"try",
   let hasVerifier = 0;
   let builders = [
     OpBuilder<(ins
-              "function_ref<void(OpBuilder &, Location)>":$tryBuilder,
-              "function_ref<void(OpBuilder &, Location, OperationState &)>"
+              "llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>":$tryBuilder,
+              "llvm::function_ref<void(mlir::OpBuilder &, mlir::Location, mlir::OperationState &)>"
               :$catchBuilder)>,
   ];
 }
@@ -3993,7 +3993,7 @@ def CopyOp : CIR_Op<"copy",
 
     /// Returns the number of bytes to be copied.
     unsigned getLength() {
-      return DataLayout::closest(*this).getTypeSize(getType().getPointee());
+      return mlir::DataLayout::closest(*this).getTypeSize(getType().getPointee());
     }
   }];
 }
@@ -4727,12 +4727,12 @@ def CIR_InlineAsmOp : CIR_Op<"asm", [RecursiveMemoryEffects]> {
         );
 
   let builders = [OpBuilder<(ins
-    "ArrayRef<ValueRange>":$operands,
-    "StringRef":$asm_string,
-    "StringRef":$constraints,
+    "llvm::ArrayRef<mlir::ValueRange>":$operands,
+    "llvm::StringRef":$asm_string,
+    "llvm::StringRef":$constraints,
     "bool":$side_effects,
     "AsmFlavor":$asm_flavor,
-    "ArrayRef<Attribute>":$operand_attrs
+    "llvm::ArrayRef<mlir::Attribute>":$operand_attrs
   )>
   ];
 
@@ -4839,10 +4839,10 @@ class CIR_ArrayInitDestroy<string mnemonic> : CIR_Op<mnemonic, []> {
 
   let builders = [
     OpBuilder<(ins "mlir::Value":$addr,
-      "function_ref<void(OpBuilder &, Location)>":$regionBuilder), [{
+      "llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>":$regionBuilder), [{
         assert(regionBuilder && "builder callback expected");
-        OpBuilder::InsertionGuard guard($_builder);
-        Region *r = $_state.addRegion();
+        mlir::OpBuilder::InsertionGuard guard($_builder);
+        mlir::Region *r = $_state.addRegion();
         $_state.addOperands(ValueRange{addr});
         $_builder.createBlock(r);
         regionBuilder($_builder, $_state.location);
@@ -4915,12 +4915,12 @@ def SwitchFlatOp : CIR_Op<"switch.flat", [AttrSizedOperandSegments, Terminator]>
   }];
 
   let builders = [
-    OpBuilder<(ins "Value":$condition,
-      "Block *":$defaultDestination,
-      "ValueRange":$defaultOperands,
-      CArg<"ArrayRef<APInt>", "{}">:$caseValues,
-      CArg<"BlockRange", "{}">:$caseDestinations,
-      CArg<"ArrayRef<ValueRange>", "{}">:$caseOperands)>
+    OpBuilder<(ins "mlir::Value":$condition,
+      "mlir::Block *":$defaultDestination,
+      "mlir::ValueRange":$defaultOperands,
+      CArg<"llvm::ArrayRef<llvm::APInt>", "{}">:$caseValues,
+      CArg<"mlir::BlockRange", "{}">:$caseDestinations,
+      CArg<"llvm::ArrayRef<mlir::ValueRange>", "{}">:$caseOperands)>
   ];
 }
 

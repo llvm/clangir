@@ -324,7 +324,7 @@ public:
     // Branch out to the catch clauses dispatcher.
     assert(catchDispatcher->getNumArguments() >= 1 &&
            "expected at least one argument in place");
-    SmallVector<mlir::Value> dispatcherInitOps = {exceptionPtr};
+    llvm::SmallVector<mlir::Value> dispatcherInitOps = {exceptionPtr};
     if (!tryOnlyHasCatchAll) {
       assert(catchDispatcher->getNumArguments() == 2 &&
              "expected two arguments in place");
@@ -398,7 +398,7 @@ public:
       // Next dispatcher gets by default both exception ptr and selector info,
       // but on a catch all we don't need selector info.
       nextDispatcher->addArgument(ehPtr.getType(), loc);
-      SmallVector<mlir::Value> nextDispatchOps = {ehPtr};
+      llvm::SmallVector<mlir::Value> nextDispatchOps = {ehPtr};
       if (!isa<cir::CatchAllAttr>(nextCatchAttr)) {
         nextDispatcher->addArgument(ehSel.getType(), loc);
         nextDispatchOps.push_back(ehSel);
@@ -496,7 +496,7 @@ public:
 
     // Grab the collection of `cir.call exception`s to rewrite to
     // `cir.try_call`.
-    SmallVector<cir::CallOp, 4> callsToRewrite;
+    llvm::SmallVector<cir::CallOp, 4> callsToRewrite;
     tryOp.getTryRegion().walk([&](CallOp op) {
       // Only grab calls within immediate closest TryOp scope.
       if (op->getParentOfType<cir::TryOp>() != tryOp)
@@ -510,7 +510,7 @@ public:
     mlir::Block *afterTry = buildTryBody(tryOp, rewriter);
 
     // Build catchers.
-    SmallVector<mlir::Block *, 4> landingPads;
+    llvm::SmallVector<mlir::Block *, 4> landingPads;
     buildCatchers(tryOp, rewriter, afterBody, afterTry, callsToRewrite,
                   landingPads);
     rewriter.eraseOp(tryOp);
@@ -872,7 +872,7 @@ public:
     auto *condBlock = rewriter.getInsertionBlock();
     auto opPosition = rewriter.getInsertionPoint();
     auto *remainingOpsBlock = rewriter.splitBlock(condBlock, opPosition);
-    SmallVector<mlir::Location, 2> locs;
+    llvm::SmallVector<mlir::Location, 2> locs;
     // Ternary result is optional, make sure to populate the location only
     // when relevant.
     if (op->getResultTypes().size())
@@ -925,7 +925,7 @@ void FlattenCFGPass::runOnOperation() {
   populateFlattenCFGPatterns(patterns);
 
   // Collect operations to apply patterns.
-  SmallVector<Operation *, 16> ops;
+  llvm::SmallVector<Operation *, 16> ops;
   getOperation()->walk<mlir::WalkOrder::PostOrder>([&](Operation *op) {
     if (isa<IfOp, ScopeOp, SwitchOp, LoopOpInterface, TernaryOp, TryOp>(op))
       ops.push_back(op);

@@ -55,7 +55,7 @@ template <typename ConcreteType>
 class SameFirstOperandAndResultType
     : public TraitBase<ConcreteType, SameFirstOperandAndResultType> {
 public:
-  static LogicalResult verifyTrait(Operation *op) {
+  static llvm::LogicalResult verifyTrait(Operation *op) {
     return impl::verifySameFirstOperandAndResultType(op);
   }
 };
@@ -67,7 +67,7 @@ template <typename ConcreteType>
 class SameSecondOperandAndResultType
     : public TraitBase<ConcreteType, SameSecondOperandAndResultType> {
 public:
-  static LogicalResult verifyTrait(Operation *op) {
+  static llvm::LogicalResult verifyTrait(Operation *op) {
     return impl::verifySameSecondOperandAndResultType(op);
   }
 };
@@ -79,7 +79,7 @@ template <typename ConcreteType>
 class SameFirstSecondOperandAndResultType
     : public TraitBase<ConcreteType, SameFirstSecondOperandAndResultType> {
 public:
-  static LogicalResult verifyTrait(Operation *op) {
+  static llvm::LogicalResult verifyTrait(Operation *op) {
     return impl::verifySameFirstSecondOperandAndResultType(op);
   }
 };
@@ -89,7 +89,7 @@ public:
 } // namespace mlir
 
 namespace cir {
-void buildTerminatedBody(OpBuilder &builder, Location loc);
+void buildTerminatedBody(mlir::OpBuilder &builder, mlir::Location loc);
 } // namespace cir
 
 #define GET_OP_CLASSES

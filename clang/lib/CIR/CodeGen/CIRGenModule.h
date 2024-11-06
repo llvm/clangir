@@ -144,7 +144,7 @@ private:
 
   /// Store deferred function annotations so they can be emitted at the end with
   /// most up to date ValueDecl that will have all the inherited annotations.
-  llvm::DenseMap<StringRef, const ValueDecl *> deferredAnnotations;
+  llvm::DenseMap<llvm::StringRef, const ValueDecl *> deferredAnnotations;
 
   llvm::DenseMap<const Expr *, mlir::Operation *>
       materializedGlobalTemporaryMap;
@@ -211,14 +211,14 @@ public:
   void HandleCXXStaticMemberVarInstantiation(VarDecl *VD);
 
   llvm::DenseMap<const Decl *, cir::GlobalOp> StaticLocalDeclMap;
-  llvm::DenseMap<StringRef, mlir::Value> Globals;
-  mlir::Operation *getGlobalValue(StringRef Ref);
+  llvm::DenseMap<llvm::StringRef, mlir::Value> Globals;
+  mlir::Operation *getGlobalValue(llvm::StringRef Ref);
   mlir::Value getGlobalValue(const clang::Decl *D);
 
   /// If the specified mangled name is not in the module, create and return an
   /// mlir::GlobalOp value
   cir::GlobalOp
-  getOrCreateCIRGlobal(StringRef MangledName, mlir::Type Ty, LangAS AddrSpace,
+  getOrCreateCIRGlobal(llvm::StringRef MangledName, mlir::Type Ty, LangAS AddrSpace,
                        const VarDecl *D,
                        ForDefinition_t IsForDefinition = NotForDefinition);
 
@@ -247,15 +247,15 @@ public:
   ///   3. Finally, if the existing global is the correct declaration, return
   ///      the existing global.
   cir::GlobalOp getOrInsertGlobal(
-      mlir::Location loc, StringRef Name, mlir::Type Ty,
+      mlir::Location loc, llvm::StringRef Name, mlir::Type Ty,
       llvm::function_ref<cir::GlobalOp()> CreateGlobalCallback);
 
   // Overload to construct a global variable using its constructor's defaults.
-  cir::GlobalOp getOrInsertGlobal(mlir::Location loc, StringRef Name,
+  cir::GlobalOp getOrInsertGlobal(mlir::Location loc, llvm::StringRef Name,
                                         mlir::Type Ty);
 
   static cir::GlobalOp
-  createGlobalOp(CIRGenModule &cgm, mlir::Location loc, StringRef name,
+  createGlobalOp(CIRGenModule &cgm, mlir::Location loc, llvm::StringRef name,
                  mlir::Type t, bool isConstant = false,
                  cir::AddressSpaceAttr addrSpace = {},
                  mlir::Operation *insertPoint = nullptr,
@@ -314,7 +314,7 @@ public:
   /// constructed for. If valid, the attributes applied to this decl may
   /// contribute to the function attributes and calling convention.
   /// \param Attrs [out] - On return, the attribute list to use.
-  void constructAttributeList(StringRef Name, const CIRGenFunctionInfo &Info,
+  void constructAttributeList(llvm::StringRef Name, const CIRGenFunctionInfo &Info,
                               CIRGenCalleeInfo CalleeInfo,
                               mlir::NamedAttrList &Attrs,
                               cir::CallingConv &callingConv,
@@ -322,14 +322,14 @@ public:
 
   /// Helper function for getDefaultFunctionAttributes. Builds a set of function
   /// attributes which can be simply added to a function.
-  void getTrivialDefaultFunctionAttributes(StringRef name, bool hasOptnone,
+  void getTrivialDefaultFunctionAttributes(llvm::StringRef name, bool hasOptnone,
                                            bool attrOnCallSite,
                                            mlir::NamedAttrList &funcAttrs);
 
   /// Helper function for constructAttributeList and
   /// addDefaultFunctionDefinitionAttributes.  Builds a set of function
   /// attributes to add to a function with the given properties.
-  void getDefaultFunctionAttributes(StringRef name, bool hasOptnone,
+  void getDefaultFunctionAttributes(llvm::StringRef name, bool hasOptnone,
                                     bool attrOnCallSite,
                                     mlir::NamedAttrList &funcAttrs);
 
@@ -338,7 +338,7 @@ public:
   /// will be created and all uses of the old variable will be replaced with a
   /// bitcast to the new variable.
   cir::GlobalOp createOrReplaceCXXRuntimeVariable(
-      mlir::Location loc, StringRef Name, mlir::Type Ty,
+      mlir::Location loc, llvm::StringRef Name, mlir::Type Ty,
       cir::GlobalLinkageKind Linkage, clang::CharUnits Alignment);
 
   /// Emit any vtables which we deferred and still have a use for.
@@ -384,7 +384,7 @@ public:
   /// literal.
   cir::GlobalViewAttr
   getAddrOfConstantStringFromLiteral(const StringLiteral *S,
-                                     StringRef Name = ".str");
+                                     llvm::StringRef Name = ".str");
   unsigned StringLiteralCnt = 0;
 
   unsigned CompoundLitaralCnt = 0;
@@ -547,7 +547,7 @@ public:
 
   bool tryEmitBaseDestructorAsAlias(const CXXDestructorDecl *D);
 
-  void buildAliasForGlobal(StringRef mangledName, mlir::Operation *op,
+  void buildAliasForGlobal(llvm::StringRef mangledName, mlir::Operation *op,
                            GlobalDecl aliasGD, cir::FuncOp aliasee,
                            cir::GlobalLinkageKind linkage);
 
@@ -736,7 +736,7 @@ public:
   cir::GlobalLinkageKind getCIRLinkageVarDefinition(const VarDecl *VD,
                                                           bool IsConstant);
 
-  void addReplacement(StringRef Name, mlir::Operation *Op);
+  void addReplacement(llvm::StringRef Name, mlir::Operation *Op);
 
   mlir::Location getLocForFunction(const clang::FunctionDecl *FD);
 
@@ -753,12 +753,12 @@ public:
                          mlir::ArrayAttr ExtraAttrs = {});
   // Effectively create the CIR instruction, properly handling insertion
   // points.
-  cir::FuncOp createCIRFunction(mlir::Location loc, StringRef name,
+  cir::FuncOp createCIRFunction(mlir::Location loc, llvm::StringRef name,
                                       cir::FuncType Ty,
                                       const clang::FunctionDecl *FD);
 
   cir::FuncOp createRuntimeFunction(cir::FuncType Ty,
-                                          StringRef Name, mlir::ArrayAttr = {},
+                                          llvm::StringRef Name, mlir::ArrayAttr = {},
                                           bool Local = false,
                                           bool AssumeConvergent = false);
 
@@ -778,7 +778,7 @@ public:
                                           unsigned BuiltinID);
 
   /// Emit a general error that something can't be done.
-  void Error(SourceLocation loc, StringRef error);
+  void Error(SourceLocation loc, llvm::StringRef error);
 
   /// Print out an error that codegen doesn't support the specified stmt yet.
   void ErrorUnsupported(const Stmt *S, const char *Type);

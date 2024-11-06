@@ -133,7 +133,7 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
     unsigned histLimit = 1;
     bool isOptionsParsed = false;
 
-    void parseOptions(ArrayRef<StringRef> remarks, ArrayRef<StringRef> hist,
+    void parseOptions(ArrayRef<llvm::StringRef> remarks, ArrayRef<llvm::StringRef> hist,
                       unsigned hist_limit) {
       if (isOptionsParsed)
         return;
@@ -157,8 +157,8 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
     }
 
     void parseOptions(LifetimeCheckPass &pass) {
-      SmallVector<llvm::StringRef, 4> remarks;
-      SmallVector<llvm::StringRef, 4> hists;
+      llvm::SmallVector<llvm::StringRef, 4> remarks;
+      llvm::SmallVector<llvm::StringRef, 4> hists;
 
       for (auto &r : pass.remarksList)
         remarks.push_back(r);
@@ -671,8 +671,8 @@ void LifetimeCheckPass::checkLoop(LoopOpInterface loopOp) {
   //   { /*body*/ }
   //
   // See checkIf for additional explanations.
-  SmallVector<PMapType, 4> pmapOps;
-  SmallVector<Region *, 4> regionsToCheck;
+  llvm::SmallVector<PMapType, 4> pmapOps;
+  llvm::SmallVector<Region *, 4> regionsToCheck;
 
   auto setupLoopRegionsToCheck = [&](bool isSubsequentTaken = false) {
     regionsToCheck = loopOp.getRegionsInExecutionOrder();
@@ -733,7 +733,7 @@ void LifetimeCheckPass::checkAwait(AwaitOp awaitOp) {
   //
   // FIXME: use branch interface here and only tackle
   // the necessary regions.
-  SmallVector<PMapType, 4> pmapOps;
+  llvm::SmallVector<PMapType, 4> pmapOps;
 
   for (auto r : awaitOp.getRegions()) {
     PMapType regionPmap = getPmap();
@@ -789,7 +789,7 @@ void LifetimeCheckPass::checkSwitch(SwitchOp switchOp) {
   //    else {/*3*/}.
   //
   // See checkIf for additional explanations.
-  SmallVector<PMapType, 2> pmapOps;
+  llvm::SmallVector<PMapType, 2> pmapOps;
 
   // If there are no regions, return early pmap is the same.
   // TODO: if the switch is not in a simple form, return early now and try to
@@ -845,7 +845,7 @@ void LifetimeCheckPass::checkIf(IfOp ifOp) {
   //
   // To that intent the pmap is copied out before checking each region and
   // pmap(ifOp) computed after analysing both paths.
-  SmallVector<PMapType, 2> pmapOps;
+  llvm::SmallVector<PMapType, 2> pmapOps;
 
   {
     PMapType localThenPmap = getPmap();
@@ -1020,7 +1020,7 @@ void LifetimeCheckPass::classifyAndInitTypeCategories(mlir::Value addr,
 
     // Map values for members to it's index in the aggregate.
     auto members = mlir::cast<cir::StructType>(t).getMembers();
-    SmallVector<mlir::Value, 4> fieldVals;
+    llvm::SmallVector<mlir::Value, 4> fieldVals;
     fieldVals.assign(members.size(), {});
 
     // Go through uses of the alloca via `cir.struct_element_addr`, and
@@ -1344,7 +1344,7 @@ void LifetimeCheckPass::emitInvalidHistory(mlir::InFlightDiagnostic &D,
     }
     case InvalidStyle::EndOfScope: {
       if (tasks.count(histKey)) {
-        StringRef resource = "resource";
+        llvm::StringRef resource = "resource";
         if (auto allocaOp = dyn_cast<AllocaOp>(info.val->getDefiningOp())) {
           if (isLambdaType(allocaOp.getAllocaType()))
             resource = "lambda";
@@ -1354,7 +1354,7 @@ void LifetimeCheckPass::emitInvalidHistory(mlir::InFlightDiagnostic &D,
         D.attachNote(info.loc) << "at the end of scope or full-expression";
       } else if (derefStyle == DerefStyle::RetLambda) {
         assert(currFunc && "expected function");
-        StringRef parent = currFunc->getLambda() ? "lambda" : "function";
+        llvm::StringRef parent = currFunc->getLambda() ? "lambda" : "function";
         D.attachNote(info.val->getLoc())
             << "declared here but invalid after enclosing " << parent
             << " ends";
@@ -1446,7 +1446,7 @@ void LifetimeCheckPass::checkPointerDeref(mlir::Value addr, mlir::Location loc,
     emitPsetRemark();
 }
 
-static FuncOp getCalleeFromSymbol(ModuleOp mod, StringRef name) {
+static FuncOp getCalleeFromSymbol(ModuleOp mod, llvm::StringRef name) {
   auto global = mlir::SymbolTable::lookupSymbolIn(mod, name);
   assert(global && "expected to find symbol for function");
   return dyn_cast<FuncOp>(global);
@@ -1455,7 +1455,7 @@ static FuncOp getCalleeFromSymbol(ModuleOp mod, StringRef name) {
 static const ASTCXXMethodDeclInterface getMethod(ModuleOp mod, CallOp callOp) {
   if (!callOp.getCallee())
     return nullptr;
-  StringRef name = *callOp.getCallee();
+  llvm::StringRef name = *callOp.getCallee();
   auto method = getCalleeFromSymbol(mod, name);
   if (!method || method.getBuiltin())
     return nullptr;
@@ -1885,8 +1885,8 @@ std::unique_ptr<Pass> mlir::createLifetimeCheckPass(clang::ASTContext *astCtx) {
   return std::move(lifetime);
 }
 
-std::unique_ptr<Pass> mlir::createLifetimeCheckPass(ArrayRef<StringRef> remark,
-                                                    ArrayRef<StringRef> hist,
+std::unique_ptr<Pass> mlir::createLifetimeCheckPass(ArrayRef<llvm::StringRef> remark,
+                                                    ArrayRef<llvm::StringRef> hist,
                                                     unsigned hist_limit,
                                                     clang::ASTContext *astCtx) {
   auto lifetime = std::make_unique<LifetimeCheckPass>();

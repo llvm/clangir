@@ -48,7 +48,7 @@ arrangeFreeFunctionLikeCall(LowerTypes &LT, LowerModule &LM,
   cir_cconv_assert(!cir::MissingFeatures::chainCall() && !chainCall && "NYI");
   FnInfoOpts opts = chainCall ? FnInfoOpts::IsChainCall : FnInfoOpts::None;
 
-  SmallVector<Type> argTypes;
+  llvm::SmallVector<Type> argTypes;
   for (const auto &a : args)
     argTypes.push_back(a.getType());
 
@@ -97,7 +97,7 @@ arrangeCIRFunctionInfo(LowerTypes &CGT, bool instanceMethod,
 ///
 /// NOTE(cir): Partially copies CodeGenModule::ConstructAttributeList, but
 /// focuses on ABI/Target-related attributes.
-void LowerModule::constructAttributeList(StringRef Name,
+void LowerModule::constructAttributeList(llvm::StringRef Name,
                                          const LowerFunctionInfo &FI,
                                          FuncOp CalleeInfo, FuncOp newFn,
                                          unsigned &CallingConv,
@@ -194,7 +194,7 @@ void LowerModule::constructAttributeList(StringRef Name,
        I != E; ++I, ++ArgNo) {
     // Type ParamType = I->type;
     const ABIArgInfo &AI = I->info;
-    SmallVector<NamedAttribute> Attrs;
+    llvm::SmallVector<NamedAttribute> Attrs;
 
     // Add attribute for padding argument, if necessary.
     if (IRFunctionArgs.hasPaddingArg(ArgNo)) {
@@ -290,7 +290,7 @@ LowerTypes::arrangeFreeFunctionCall(const OperandRange args,
 /// Arrange the argument and result information for the declaration or
 /// definition of the given function.
 const LowerFunctionInfo &LowerTypes::arrangeFreeFunctionType(FuncType FTy) {
-  SmallVector<mlir::Type, 16> argTypes;
+  llvm::SmallVector<mlir::Type, 16> argTypes;
   return ::arrangeCIRFunctionInfo(*this, /*instanceMethod=*/false, argTypes,
                                   FTy);
 }

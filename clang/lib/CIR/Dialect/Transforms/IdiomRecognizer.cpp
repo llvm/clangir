@@ -49,7 +49,7 @@ struct IdiomRecognizerPass : public IdiomRecognizerBase<IdiomRecognizerPass> {
     unsigned val = None;
     bool isOptionsParsed = false;
 
-    void parseOptions(ArrayRef<StringRef> remarks) {
+    void parseOptions(ArrayRef<llvm::StringRef> remarks) {
       if (isOptionsParsed)
         return;
 
@@ -63,7 +63,7 @@ struct IdiomRecognizerPass : public IdiomRecognizerBase<IdiomRecognizerPass> {
     }
 
     void parseOptions(IdiomRecognizerPass &pass) {
-      SmallVector<llvm::StringRef, 4> remarks;
+      llvm::SmallVector<llvm::StringRef, 4> remarks;
 
       for (auto &r : pass.remarksList)
         remarks.push_back(r);
@@ -186,7 +186,7 @@ void IdiomRecognizerPass::runOnOperation() {
   if (isa<::mlir::ModuleOp>(op))
     theModule = cast<::mlir::ModuleOp>(op);
 
-  SmallVector<CallOp> callsToTransform;
+  llvm::SmallVector<CallOp> callsToTransform;
   op->walk([&](CallOp callOp) {
     // Process call operations
 

@@ -22,12 +22,12 @@
 
 namespace cir {
 
-CIRLowerContext::CIRLowerContext(ModuleOp module, clang::LangOptions LOpts)
+CIRLowerContext::CIRLowerContext(mlir::ModuleOp module, clang::LangOptions LOpts)
     : MLIRCtx(module.getContext()), LangOpts(LOpts) {}
 
 CIRLowerContext::~CIRLowerContext() {}
 
-clang::TypeInfo CIRLowerContext::getTypeInfo(Type T) const {
+clang::TypeInfo CIRLowerContext::getTypeInfo(mlir::Type T) const {
   // TODO(cir): Memoize type info.
 
   clang::TypeInfo TI = getTypeInfoImpl(T);
@@ -40,7 +40,7 @@ clang::TypeInfo CIRLowerContext::getTypeInfo(Type T) const {
 /// FIXME: Pointers into different addr spaces could have different sizes and
 /// alignment requirements: getPointerInfo should take an AddrSpace, this
 /// should take a QualType, &c.
-clang::TypeInfo CIRLowerContext::getTypeInfoImpl(const Type T) const {
+clang::TypeInfo CIRLowerContext::getTypeInfoImpl(const mlir::Type T) const {
   uint64_t Width = 0;
   unsigned Align = 8;
   clang::AlignRequirementKind AlignRequirement =
@@ -49,9 +49,9 @@ clang::TypeInfo CIRLowerContext::getTypeInfoImpl(const Type T) const {
   // TODO(cir): We should implement a better way to identify type kinds and use
   // builting data layout interface for this.
   auto typeKind = clang::Type::Builtin;
-  if (isa<IntType, SingleType, DoubleType, BoolType>(T)) {
+  if (mlir::isa<IntType, SingleType, DoubleType, BoolType>(T)) {
     typeKind = clang::Type::Builtin;
-  } else if (isa<StructType>(T)) {
+  } else if (mlir::isa<StructType>(T)) {
     typeKind = clang::Type::Record;
   } else {
     cir_cconv_assert_or_abort(!cir::MissingFeatures::ABIClangTypeKind(),
@@ -70,7 +70,7 @@ clang::TypeInfo CIRLowerContext::getTypeInfoImpl(const Type T) const {
   // current level of CIR.
   switch (typeKind) {
   case clang::Type::Builtin: {
-    if (auto intTy = dyn_cast<IntType>(T)) {
+    if (auto intTy = mlir::dyn_cast<IntType>(T)) {
       // NOTE(cir): This assumes int types are already ABI-specific.
       // FIXME(cir): Use data layout interface here instead.
       Width = intTy.getWidth();
@@ -78,17 +78,17 @@ clang::TypeInfo CIRLowerContext::getTypeInfoImpl(const Type T) const {
       Align = std::ceil((float)Width / 8) * 8;
       break;
     }
-    if (auto boolTy = dyn_cast<BoolType>(T)) {
+    if (auto boolTy = mlir::dyn_cast<BoolType>(T)) {
       Width = Target->getFloatWidth();
       Align = Target->getFloatAlign();
       break;
     }
-    if (auto floatTy = dyn_cast<SingleType>(T)) {
+    if (auto floatTy = mlir::dyn_cast<SingleType>(T)) {
       Width = Target->getFloatWidth();
       Align = Target->getFloatAlign();
       break;
     }
-    if (auto doubleTy = dyn_cast<DoubleType>(T)) {
+    if (auto doubleTy = mlir::dyn_cast<DoubleType>(T)) {
       Width = Target->getDoubleWidth();
       Align = Target->getDoubleAlign();
       break;
@@ -97,7 +97,7 @@ clang::TypeInfo CIRLowerContext::getTypeInfoImpl(const Type T) const {
     break;
   }
   case clang::Type::Record: {
-    const auto RT = dyn_cast<StructType>(T);
+    const auto RT = mlir::dyn_cast<StructType>(T);
     cir_cconv_assert(!cir::MissingFeatures::tagTypeClassAbstraction());
 
     // Only handle TagTypes (names types) for now.
@@ -125,8 +125,8 @@ clang::TypeInfo CIRLowerContext::getTypeInfoImpl(const Type T) const {
   return clang::TypeInfo(Width, Align, AlignRequirement);
 }
 
-Type CIRLowerContext::initBuiltinType(clang::BuiltinType::Kind K) {
-  Type Ty;
+mlir::Type CIRLowerContext::initBuiltinType(clang::BuiltinType::Kind K) {
+  mlir::Type Ty;
 
   // NOTE(cir): Clang does more stuff here. Not sure if we need to do the same.
   cir_cconv_assert(!cir::MissingFeatures::qualifiedTypes());
@@ -166,8 +166,8 @@ int64_t CIRLowerContext::toBits(clang::CharUnits CharSize) const {
   return CharSize.getQuantity() * getCharWidth();
 }
 
-clang::TypeInfoChars CIRLowerContext::getTypeInfoInChars(Type T) const {
-  if (auto arrTy = dyn_cast<ArrayType>(T))
+clang::TypeInfoChars CIRLowerContext::getTypeInfoInChars(mlir::Type T) const {
+  if (auto arrTy = mlir::dyn_cast<ArrayType>(T))
     cir_cconv_unreachable("NYI");
   clang::TypeInfo Info = getTypeInfo(T);
   return clang::TypeInfoChars(toCharUnitsFromBits(Info.Width),
@@ -175,7 +175,7 @@ clang::TypeInfoChars CIRLowerContext::getTypeInfoInChars(Type T) const {
                               Info.AlignRequirement);
 }
 
-bool CIRLowerContext::isPromotableIntegerType(Type T) const {
+bool CIRLowerContext::isPromotableIntegerType(mlir::Type T) const {
   // HLSL doesn't promote all small integer types to int, it
   // just uses the rank-based promotion rules for all types.
   if (cir::MissingFeatures::langOpts())
@@ -184,12 +184,12 @@ bool CIRLowerContext::isPromotableIntegerType(Type T) const {
   // FIXME(cir): CIR does not distinguish between char, short, etc. So we just
   // assume it is promotable if smaller than 32 bits. This is wrong since, for
   // example, Char32 is promotable. Improve CIR or add an AST query here.
-  if (auto intTy = dyn_cast<IntType>(T)) {
-    return cast<IntType>(T).getWidth() < 32;
+  if (auto intTy = mlir::dyn_cast<IntType>(T)) {
+    return mlir::cast<IntType>(T).getWidth() < 32;
   }
 
   // Bool are also handled here for codegen parity.
-  if (auto boolTy = dyn_cast<BoolType>(T)) {
+  if (auto boolTy = mlir::dyn_cast<BoolType>(T)) {
     return true;
   }
 

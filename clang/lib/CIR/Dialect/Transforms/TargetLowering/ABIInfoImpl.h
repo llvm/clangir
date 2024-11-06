@@ -23,11 +23,11 @@ namespace cir {
 bool classifyReturnType(const CIRCXXABI &CXXABI, LowerFunctionInfo &FI,
                         const ABIInfo &Info);
 
-bool isAggregateTypeForABI(Type T);
+bool isAggregateTypeForABI(mlir::Type T);
 
 /// Pass transparent unions as if they were the type of the first element. Sema
 /// should ensure that all elements of the union have the same "machine type".
-Type useFirstFieldIfTransparentUnion(Type Ty);
+mlir::Type useFirstFieldIfTransparentUnion(mlir::Type Ty);
 
 CIRCXXABI::RecordArgABI getRecordArgABI(const StructType RT, CIRCXXABI &CXXABI);
 

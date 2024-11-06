@@ -26,29 +26,29 @@ namespace detail {
 //===----------------------------------------------------------------------===//
 
 /// Type storage for CIR record types.
-struct StructTypeStorage : public TypeStorage {
+struct StructTypeStorage : public mlir::TypeStorage {
   struct KeyTy {
-    ArrayRef<Type> members;
-    StringAttr name;
+    llvm::ArrayRef<mlir::Type> members;
+    mlir::StringAttr name;
     bool incomplete;
     bool packed;
     StructType::RecordKind kind;
     ASTRecordDeclInterface ast;
 
-    KeyTy(ArrayRef<Type> members, StringAttr name, bool incomplete, bool packed,
+    KeyTy(llvm::ArrayRef<mlir::Type> members, mlir::StringAttr name, bool incomplete, bool packed,
           StructType::RecordKind kind, ASTRecordDeclInterface ast)
         : members(members), name(name), incomplete(incomplete), packed(packed),
           kind(kind), ast(ast) {}
   };
 
-  ArrayRef<Type> members;
-  StringAttr name;
+  llvm::ArrayRef<mlir::Type> members;
+  mlir::StringAttr name;
   bool incomplete;
   bool packed;
   StructType::RecordKind kind;
   ASTRecordDeclInterface ast;
 
-  StructTypeStorage(ArrayRef<Type> members, StringAttr name, bool incomplete,
+  StructTypeStorage(llvm::ArrayRef<mlir::Type> members, mlir::StringAttr name, bool incomplete,
                     bool packed, StructType::RecordKind kind,
                     ASTRecordDeclInterface ast)
       : members(members), name(name), incomplete(incomplete), packed(packed),
@@ -73,7 +73,7 @@ struct StructTypeStorage : public TypeStorage {
                               key.ast);
   }
 
-  static StructTypeStorage *construct(TypeStorageAllocator &allocator,
+  static StructTypeStorage *construct(mlir::TypeStorageAllocator &allocator,
                                       const KeyTy &key) {
     return new (allocator.allocate<StructTypeStorage>())
         StructTypeStorage(allocator.copyInto(key.members), key.name,
@@ -86,11 +86,11 @@ struct StructTypeStorage : public TypeStorage {
   /// mutations. Anonymous structs are always complete and cannot be mutated.
   /// This method does not fail if a mutation of a complete struct does not
   /// change the struct.
-  LogicalResult mutate(TypeStorageAllocator &allocator, ArrayRef<Type> members,
+  llvm::LogicalResult mutate(mlir::TypeStorageAllocator &allocator, llvm::ArrayRef<mlir::Type> members,
                        bool packed, ASTRecordDeclInterface ast) {
     // Anonymous structs cannot mutate.
     if (!name)
-      return failure();
+      return llvm::failure();
 
     // Mutation of complete structs are allowed if they change nothing.
     if (!incomplete)
@@ -103,7 +103,7 @@ struct StructTypeStorage : public TypeStorage {
     this->ast = ast;
 
     incomplete = false;
-    return success();
+    return llvm::success();
   }
 };
 

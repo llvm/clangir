@@ -107,8 +107,8 @@ class LowerFunctionInfo final
 public:
   static LowerFunctionInfo *create(unsigned llvmCC, bool instanceMethod,
                                    bool chainCall, bool delegateCall,
-                                   Type resultType,
-                                   ArrayRef<mlir::Type> argTypes,
+                                   mlir::Type resultType,
+                                   llvm::ArrayRef<mlir::Type> argTypes,
                                    RequiredArgs required) {
     // TODO(cir): Add assertions?
     cir_cconv_assert(!cir::MissingFeatures::extParamInfo());
@@ -140,8 +140,8 @@ public:
   typedef const ArgInfo *const_arg_iterator;
   typedef ArgInfo *arg_iterator;
 
-  MutableArrayRef<ArgInfo> arguments() {
-    return MutableArrayRef<ArgInfo>(arg_begin(), NumArgs);
+  llvm::MutableArrayRef<ArgInfo> arguments() {
+    return llvm::MutableArrayRef<ArgInfo>(arg_begin(), NumArgs);
   }
 
   const_arg_iterator arg_begin() const { return getArgsBuffer() + 1; }
@@ -156,7 +156,7 @@ public:
     return isVariadic() ? Required.getNumRequiredArgs() : arg_size();
   }
 
-  Type getReturnType() const { return getArgsBuffer()[0].type; }
+  mlir::Type getReturnType() const { return getArgsBuffer()[0].type; }
 
   cir::ABIArgInfo &getReturnInfo() { return getArgsBuffer()[0].info; }
   const cir::ABIArgInfo &getReturnInfo() const {

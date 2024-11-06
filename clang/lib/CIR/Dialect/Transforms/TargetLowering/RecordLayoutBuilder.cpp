@@ -108,7 +108,7 @@ protected:
   /// \brief The maximum of the alignments of top-level members.
   clang::CharUnits UnadjustedAlignment;
 
-  SmallVector<uint64_t, 16> FieldOffsets;
+  llvm::SmallVector<uint64_t, 16> FieldOffsets;
 
   /// Whether the external AST source has provided a layout for this
   /// record.

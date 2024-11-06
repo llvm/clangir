@@ -195,11 +195,11 @@ public:
     OpaqueValueMapping(CIRGenFunction &CGF,
                        const AbstractConditionalOperator *op)
         : CGF(CGF) {
-      if (isa<ConditionalOperator>(op))
+      if (mlir::isa<ConditionalOperator>(op))
         // Leave Data empty.
         return;
 
-      const BinaryConditionalOperator *e = cast<BinaryConditionalOperator>(op);
+      const BinaryConditionalOperator *e = mlir::cast<BinaryConditionalOperator>(op);
       Data = OpaqueValueMappingData::bind(CGF, e->getOpaqueValue(),
                                           e->getCommon());
     }
@@ -490,7 +490,7 @@ public:
   const CIRGenModule &getCIRGenModule() const { return CGM; }
 
   mlir::Block *getCurFunctionEntryBlock() {
-    auto Fn = dyn_cast<cir::FuncOp>(CurFn);
+    auto Fn = mlir::dyn_cast<cir::FuncOp>(CurFn);
     assert(Fn && "other callables NYI");
     return &Fn.getRegion().front();
   }
@@ -946,7 +946,7 @@ public:
   }
 
   mlir::Value buildRuntimeCall(mlir::Location loc, cir::FuncOp callee,
-                               ArrayRef<mlir::Value> args = {});
+                               llvm::ArrayRef<mlir::Value> args = {});
 
   void buildInvariantStart(CharUnits Size);
 
@@ -1028,7 +1028,7 @@ public:
   // Build CIR for a statement. useCurrentScope should be true if no
   // new scopes need be created when finding a compound statement.
   mlir::LogicalResult buildStmt(const clang::Stmt *S, bool useCurrentScope,
-                                ArrayRef<const Attr *> Attrs = std::nullopt);
+                                llvm::ArrayRef<const Attr *> Attrs = std::nullopt);
 
   mlir::LogicalResult buildSimpleStmt(const clang::Stmt *S,
                                       bool useCurrentScope);
@@ -1038,7 +1038,7 @@ public:
   mlir::LogicalResult buildDoStmt(const clang::DoStmt &S);
   mlir::LogicalResult
   buildCXXForRangeStmt(const CXXForRangeStmt &S,
-                       ArrayRef<const Attr *> Attrs = std::nullopt);
+                       llvm::ArrayRef<const Attr *> Attrs = std::nullopt);
   mlir::LogicalResult buildSwitchStmt(const clang::SwitchStmt &S);
 
   mlir::LogicalResult buildCXXTryStmtUnderScope(const clang::CXXTryStmt &S);
@@ -1356,7 +1356,7 @@ public:
   /// \p IsSubtraction indicates whether the expression used to form the GEP
   /// is a subtraction.
   mlir::Value buildCheckedInBoundsGEP(mlir::Type ElemTy, mlir::Value Ptr,
-                                      ArrayRef<mlir::Value> IdxList,
+                                      llvm::ArrayRef<mlir::Value> IdxList,
                                       bool SignedIndices, bool IsSubtraction,
                                       SourceLocation Loc);
 
@@ -1782,7 +1782,7 @@ public:
   /// TODO(cir): this could be a common AST helper between LLVM / CIR.
   bool hasVolatileMember(QualType T) {
     if (const RecordType *RT = T->getAs<RecordType>()) {
-      const RecordDecl *RD = cast<RecordDecl>(RT->getDecl());
+      const RecordDecl *RD = mlir::cast<RecordDecl>(RT->getDecl());
       return RD->hasVolatileMember();
     }
     return false;
@@ -2261,7 +2261,7 @@ public:
     }
 
     mlir::Block *getOrCreateRetBlock(CIRGenFunction &CGF, mlir::Location loc) {
-      if (auto caseOp = dyn_cast_if_present<cir::CaseOp>(
+      if (auto caseOp = mlir::dyn_cast_if_present<cir::CaseOp>(
               CGF.builder.getBlock()->getParentOp())) {
         auto iter = RetBlockInCaseIndex.find(caseOp);
         if (iter != RetBlockInCaseIndex.end())
@@ -2302,7 +2302,7 @@ public:
               std::move(CGF.CXXInheritedCtorInitExprArgs)) {
       CGF.CurGD = GD;
       CGF.CurFuncDecl = CGF.CurCodeDecl =
-          cast<CXXConstructorDecl>(GD.getDecl());
+          mlir::cast<CXXConstructorDecl>(GD.getDecl());
       CGF.CXXABIThisDecl = nullptr;
       CGF.CXXABIThisValue = nullptr;
       CGF.CXXThisValue = nullptr;
@@ -2495,10 +2495,10 @@ inline mlir::Value DominatingCIRValue::restore(CIRGenFunction &CGF,
     return value.getPointer();
 
   // Otherwise, it should be an alloca instruction, as set up in save().
-  auto alloca = cast<cir::AllocaOp>(value.getPointer().getDefiningOp());
+  auto alloca = mlir::cast<cir::AllocaOp>(value.getPointer().getDefiningOp());
   mlir::Value val = CGF.getBuilder().createAlignedLoad(
       alloca.getLoc(), alloca.getType(), alloca);
-  cir::LoadOp loadOp = cast<cir::LoadOp>(val.getDefiningOp());
+  cir::LoadOp loadOp = mlir::cast<cir::LoadOp>(val.getDefiningOp());
   loadOp.setAlignment(alloca.getAlignment());
   return val;
 }

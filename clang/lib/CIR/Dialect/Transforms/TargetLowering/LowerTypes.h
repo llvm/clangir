@@ -45,14 +45,14 @@ private:
   const ABIInfo &TheABIInfo;
 
   // Used to build types and other MLIR operations.
-  MLIRContext *mlirContext;
+  mlir::MLIRContext *mlirContext;
 
   cir::CIRDataLayout DL;
 
   const ABIInfo &getABIInfo() const { return TheABIInfo; }
 
 public:
-  LowerTypes(LowerModule &LM, StringRef DLString);
+  LowerTypes(LowerModule &LM, llvm::StringRef DLString);
   ~LowerTypes() = default;
 
   const cir::CIRDataLayout &getDataLayout() const { return DL; }
@@ -60,7 +60,7 @@ public:
   CIRCXXABI &getCXXABI() const { return CXXABI; }
   CIRLowerContext &getContext() { return context; }
   const clang::TargetInfo &getTarget() const { return Target; }
-  MLIRContext *getMLIRContext() { return mlirContext; }
+  mlir::MLIRContext *getMLIRContext() { return mlirContext; }
 
   /// Convert clang calling convention to LLVM callilng convention.
   unsigned clangCallConvToLLVMCallConv(clang::CallingConv CC);
@@ -69,7 +69,7 @@ public:
   /// C function pointer type.
   /// FIXME(cir): Does the "free function" concept makes sense here?
   const LowerFunctionInfo &arrangeFunctionDeclaration(FuncOp fnOp);
-  const LowerFunctionInfo &arrangeFreeFunctionCall(const OperandRange args,
+  const LowerFunctionInfo &arrangeFreeFunctionCall(const mlir::OperandRange args,
                                                    const FuncType fnType,
                                                    bool chainCall);
   const LowerFunctionInfo &arrangeFreeFunctionType(FuncType FTy);
@@ -84,16 +84,16 @@ public:
   /// \param opts - Options to control the arrangement.
   /// \param argTypes - ABI-agnostic CIR argument types.
   /// \param required - Information about required/optional arguments.
-  const LowerFunctionInfo &arrangeLLVMFunctionInfo(Type resultType,
+  const LowerFunctionInfo &arrangeLLVMFunctionInfo(mlir::Type resultType,
                                                    cir::FnInfoOpts opts,
-                                                   ArrayRef<Type> argTypes,
+                                                   llvm::ArrayRef<mlir::Type> argTypes,
                                                    RequiredArgs required);
 
   /// Return the ABI-specific function type for a CIR function type.
   FuncType getFunctionType(const LowerFunctionInfo &FI);
 
   /// Convert a CIR type to its ABI-specific default form.
-  Type convertType(Type T);
+  mlir::Type convertType(mlir::Type T);
 };
 
 } // namespace cir

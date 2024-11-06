@@ -39,8 +39,8 @@ private:
   AArch64ABIKind getABIKind() const { return Kind; }
   bool isDarwinPCS() const { return Kind == AArch64ABIKind::DarwinPCS; }
 
-  ABIArgInfo classifyReturnType(Type RetTy, bool IsVariadic) const;
-  ABIArgInfo classifyArgumentType(Type RetTy, bool IsVariadic,
+  ABIArgInfo classifyReturnType(mlir::Type RetTy, bool IsVariadic) const;
+  ABIArgInfo classifyArgumentType(mlir::Type RetTy, bool IsVariadic,
                                   unsigned CallingConvention) const;
 
   void computeInfo(LowerFunctionInfo &FI) const override {
@@ -79,17 +79,17 @@ public:
 
 } // namespace
 
-ABIArgInfo AArch64ABIInfo::classifyReturnType(Type RetTy,
+ABIArgInfo AArch64ABIInfo::classifyReturnType(mlir::Type RetTy,
                                               bool IsVariadic) const {
-  if (isa<VoidType>(RetTy))
+  if (mlir::isa<VoidType>(RetTy))
     return ABIArgInfo::getIgnore();
 
-  if (const auto _ = dyn_cast<VectorType>(RetTy)) {
+  if (const auto _ = mlir::dyn_cast<VectorType>(RetTy)) {
     cir_cconv_assert_or_abort(!cir::MissingFeatures::vectorType(), "NYI");
   }
 
   // Large vector types should be returned via memory.
-  if (isa<VectorType>(RetTy) && getContext().getTypeSize(RetTy) > 128)
+  if (mlir::isa<VectorType>(RetTy) && getContext().getTypeSize(RetTy) > 128)
     cir_cconv_unreachable("NYI");
 
   if (!isAggregateTypeForABI(RetTy)) {
@@ -141,7 +141,7 @@ ABIArgInfo AArch64ABIInfo::classifyReturnType(Type RetTy,
 }
 
 ABIArgInfo
-AArch64ABIInfo::classifyArgumentType(Type Ty, bool IsVariadic,
+AArch64ABIInfo::classifyArgumentType(mlir::Type Ty, bool IsVariadic,
                                      unsigned CallingConvention) const {
   Ty = useFirstFieldIfTransparentUnion(Ty);
 
@@ -177,7 +177,7 @@ AArch64ABIInfo::classifyArgumentType(Type Ty, bool IsVariadic,
 
     // We use a pair of i64 for 16-byte aggregate with 8-byte alignment.
     // For aggregates with 16-byte alignment, we use i128.
-    Type baseTy =
+    mlir::Type baseTy =
         cir::IntType::get(LT.getMLIRContext(), Alignment, false);
     auto argTy = Size == Alignment
                      ? baseTy

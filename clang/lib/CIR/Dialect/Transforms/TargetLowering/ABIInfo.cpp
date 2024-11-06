@@ -32,7 +32,7 @@ const cir::CIRDataLayout &ABIInfo::getDataLayout() const {
   return LT.getDataLayout();
 }
 
-bool ABIInfo::isPromotableIntegerTypeForABI(Type Ty) const {
+bool ABIInfo::isPromotableIntegerTypeForABI(mlir::Type Ty) const {
   if (getContext().isPromotableIntegerType(Ty))
     return true;
 
