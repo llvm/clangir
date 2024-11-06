@@ -226,6 +226,8 @@ void LowerModule::constructAttributeList(StringRef Name,
       // Attrs.addStackAlignmentAttr(llvm::MaybeAlign(AI.getDirectAlign()));
       cir_cconv_assert(!::cir::MissingFeatures::noFPClass());
       break;
+    case ABIArgInfo::Indirect:
+      break;
     default:
       cir_cconv_unreachable("Missing ABIArgInfo::Kind");
     }

@@ -516,6 +516,31 @@ LowerFunction::buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
       rewriter.eraseOp(argAlloca.getDefiningOp());
       break;
     }
+    case ABIArgInfo::Indirect: {
+      auto AI = Fn.getArgument(FirstIRArg);
+      auto ptrTy = rewriter.getType<PointerType>(Arg.getType());
+      ArgVals.push_back(AI);
+
+      Value arg = SrcFn.getArgument(ArgNo);
+      cir_cconv_assert(arg.hasOneUse());
+      auto *firstStore = *arg.user_begin();
+      auto argAlloca = cast<StoreOp>(firstStore).getAddr();
+
+      rewriter.setInsertionPoint(argAlloca.getDefiningOp());
+      auto newAlloca = rewriter.create<AllocaOp>(
+          Fn.getLoc(), rewriter.getType<PointerType>(ptrTy), ptrTy,
+          /*name=*/StringRef(""),
+          /*alignment=*/rewriter.getI64IntegerAttr(8));
+
+      rewriter.create<StoreOp>(newAlloca.getLoc(), AI, newAlloca.getResult());
+      auto load = rewriter.create<LoadOp>(newAlloca.getLoc(), newAlloca.getResult());
+
+      rewriter.replaceAllUsesWith(argAlloca, load);
+      rewriter.eraseOp(firstStore);
+      rewriter.eraseOp(argAlloca.getDefiningOp());
+
+      break;
+    }
     default:
       cir_cconv_unreachable("Unhandled ABIArgInfo::Kind");
     }
