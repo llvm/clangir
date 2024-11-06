@@ -778,7 +778,28 @@ public:
   }
 };
 
-class CIRMemMoveOpLowering : public mlir::OpConversionPattern<cir::MemMoveOp> {
+class CIRMemCpyInlineOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::MemCpyInlineOp> {
+public:
+  using mlir::OpConversionPattern<
+      mlir::cir::MemCpyInlineOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::MemCpyInlineOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto lenOp = mlir::cast<mlir::cir::ConstantOp>(op.getLen().getDefiningOp());
+    rewriter.replaceOpWithNewOp<mlir::LLVM::MemcpyInlineOp>(
+        op, adaptor.getDst(), adaptor.getSrc(),
+        rewriter.getIntegerAttr(
+            getTypeConverter()->convertType(lenOp.getType()),
+            mlir::cast<mlir::cir::IntAttr>(lenOp.getValue()).getValue()),
+        /*isVolatile=*/false);
+    return mlir::success();
+  }
+};
+
+class CIRMemMoveOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::MemMoveOp> {
 public:
   using mlir::OpConversionPattern<cir::MemMoveOp>::OpConversionPattern;
 
@@ -4331,8 +4352,8 @@ void populateCIRToLLVMConversionPatterns(
       CIRVAStartLowering, CIRVAEndLowering, CIRVACopyLowering, CIRVAArgLowering,
       CIRBrOpLowering, CIRGetMemberOpLowering, CIRGetRuntimeMemberOpLowering,
       CIRSwitchFlatOpLowering, CIRPtrDiffOpLowering, CIRCopyOpLowering,
-      CIRMemCpyOpLowering, CIRMemChrOpLowering, CIRFAbsOpLowering,
-      CIRExpectOpLowering, CIRVTableAddrPointOpLowering,
+      CIRMemCpyOpLowering, CIRMemChrOpLowering, CIRMemCpyInlineOpLowering,
+      CIRFAbsOpLowering, CIRExpectOpLowering, CIRVTableAddrPointOpLowering,
       CIRVectorCreateLowering, CIRVectorCmpOpLowering, CIRVectorSplatLowering,
       CIRVectorTernaryLowering, CIRVectorShuffleIntsLowering,
       CIRVectorShuffleVecLowering, CIRStackSaveLowering, CIRUnreachableLowering,
