@@ -335,7 +335,7 @@ Value castReturnValue(Value Src, Type Ty, LowerFunction &LF) {
     auto align = LF.LM.getDataLayout().getABITypeAlign(Ty);
     auto alignAttr = rewriter.getI64IntegerAttr(align.value());
     auto tmp =
-          rewriter.create<AllocaOp>(Src.getLoc(), ptrTy, Ty, "tmp", alignAttr);
+        rewriter.create<AllocaOp>(Src.getLoc(), ptrTy, Ty, "tmp", alignAttr);
     rewriter.restoreInsertionPoint(point);
 
     auto srcVoidPtr = createBitcast(addr, voidPtr, LF);
