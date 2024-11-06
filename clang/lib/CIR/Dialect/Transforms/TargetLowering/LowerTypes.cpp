@@ -100,9 +100,9 @@ FuncType LowerTypes::getFunctionType(const LowerFunctionInfo &FI) {
       break;
     }
     case ABIArgInfo::Indirect: {
-      mlir::Type argType = (FI.arg_begin()  + ArgNo)->type;
+      mlir::Type argType = (FI.arg_begin() + ArgNo)->type;
       ArgTypes[FirstIRArg] =
-        mlir::cir::PointerType::get(getMLIRContext(), argType);
+          mlir::cir::PointerType::get(getMLIRContext(), argType);
       break;
     }
     default:

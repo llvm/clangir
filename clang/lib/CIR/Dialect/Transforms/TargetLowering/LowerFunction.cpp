@@ -10,7 +10,6 @@
 // are adapted to operate on the CIR dialect, however.
 //
 //===----------------------------------------------------------------------===//
-#include <iostream>
 #include "LowerFunction.h"
 #include "CIRToCIRArgMapping.h"
 #include "LowerCall.h"
@@ -529,15 +528,16 @@ LowerFunction::buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
         } else {
           // Inspired by EmitParamDecl, which is called in the end of
           // EmitFunctionProlog in the original codegen
-          cir_cconv_assert(!ArgI.getIndirectByVal() && "For truly ABI indirect arguments");
-       
+          cir_cconv_assert(!ArgI.getIndirectByVal() &&
+                           "For truly ABI indirect arguments");
+
           auto ptrTy = rewriter.getType<PointerType>(Arg.getType());
           Value arg = SrcFn.getArgument(ArgNo);
           cir_cconv_assert(arg.hasOneUse());
           auto *firstStore = *arg.user_begin();
           auto argAlloca = cast<StoreOp>(firstStore).getAddr();
 
-          rewriter.setInsertionPoint(argAlloca.getDefiningOp());          
+          rewriter.setInsertionPoint(argAlloca.getDefiningOp());
           auto align = LM.getDataLayout().getABITypeAlign(ptrTy);
           auto alignAttr = rewriter.getI64IntegerAttr(align.value());
           auto newAlloca = rewriter.create<AllocaOp>(
@@ -545,8 +545,10 @@ LowerFunction::buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
               /*name=*/StringRef(""),
               /*alignment=*/alignAttr);
 
-          rewriter.create<StoreOp>(newAlloca.getLoc(), AI, newAlloca.getResult());
-          auto load = rewriter.create<LoadOp>(newAlloca.getLoc(), newAlloca.getResult());
+          rewriter.create<StoreOp>(newAlloca.getLoc(), AI,
+                                   newAlloca.getResult());
+          auto load = rewriter.create<LoadOp>(newAlloca.getLoc(),
+                                              newAlloca.getResult());
 
           rewriter.replaceAllUsesWith(argAlloca, load);
           rewriter.eraseOp(firstStore);
