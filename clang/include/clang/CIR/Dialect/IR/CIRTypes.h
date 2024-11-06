@@ -28,7 +28,6 @@
 // The base type for all RecordDecls.
 //===----------------------------------------------------------------------===//
 
-namespace mlir {
 namespace cir {
 
 namespace detail {
@@ -181,7 +180,6 @@ private:
 bool isAnyFloatingPointType(mlir::Type t);
 bool isFPOrFPVectorTy(mlir::Type);
 } // namespace cir
-} // namespace mlir
 
 mlir::ParseResult parseAddrSpaceAttribute(mlir::AsmParser &p,
                                           mlir::Attribute &addrSpaceAttr);

@@ -20,9 +20,9 @@
 #include "clang/CIR/MissingFeatures.h"
 #include "llvm/Support/ErrorHandling.h"
 
-using namespace ::mlir::cir;
+using namespace cir;
 
-using ABIArgInfo = ::cir::ABIArgInfo;
+using ABIArgInfo = cir::ABIArgInfo;
 
 unsigned LowerTypes::clangCallConvToLLVMCallConv(clang::CallingConv CC) {
   switch (CC) {
@@ -43,14 +43,14 @@ LowerTypes::LowerTypes(LowerModule &LM, StringRef DLString)
 FuncType LowerTypes::getFunctionType(const LowerFunctionInfo &FI) {
 
   mlir::Type resultType = {};
-  const ::cir::ABIArgInfo &retAI = FI.getReturnInfo();
+  const cir::ABIArgInfo &retAI = FI.getReturnInfo();
   switch (retAI.getKind()) {
   case ABIArgInfo::Extend:
   case ABIArgInfo::Direct:
     resultType = retAI.getCoerceToType();
     break;
-  case ::cir::ABIArgInfo::Ignore:
-  case ::cir::ABIArgInfo::Indirect:
+  case cir::ABIArgInfo::Ignore:
+  case cir::ABIArgInfo::Indirect:
     resultType = VoidType::get(getMLIRContext());
     break;
   default:
@@ -64,11 +64,11 @@ FuncType LowerTypes::getFunctionType(const LowerFunctionInfo &FI) {
   if (IRFunctionArgs.hasSRetArg()) {
     mlir::Type ret = FI.getReturnType();
     ArgTypes[IRFunctionArgs.getSRetArgNo()] =
-        mlir::cir::PointerType::get(getMLIRContext(), ret);
+        cir::PointerType::get(getMLIRContext(), ret);
   }
 
   // Add type for inalloca argument.
-  cir_cconv_assert(!::cir::MissingFeatures::inallocaArgs());
+  cir_cconv_assert(!cir::MissingFeatures::inallocaArgs());
 
   // Add in all of the required arguments.
   unsigned ArgNo = 0;
@@ -77,7 +77,7 @@ FuncType LowerTypes::getFunctionType(const LowerFunctionInfo &FI) {
   for (; it != ie; ++it, ++ArgNo) {
     const ABIArgInfo &ArgInfo = it->info;
 
-    cir_cconv_assert(!::cir::MissingFeatures::argumentPadding());
+    cir_cconv_assert(!cir::MissingFeatures::argumentPadding());
 
     unsigned FirstIRArg, NumIRArgs;
     std::tie(FirstIRArg, NumIRArgs) = IRFunctionArgs.getIRArgs(ArgNo);
@@ -102,7 +102,7 @@ FuncType LowerTypes::getFunctionType(const LowerFunctionInfo &FI) {
     case ABIArgInfo::Indirect: {
       mlir::Type argType = (FI.arg_begin() + ArgNo)->type;
       ArgTypes[FirstIRArg] =
-          mlir::cir::PointerType::get(getMLIRContext(), argType);
+          cir::PointerType::get(getMLIRContext(), argType);
       break;
     }
     default:
@@ -129,6 +129,6 @@ mlir::Type LowerTypes::convertType(Type T) {
 
   llvm::outs() << "Missing default ABI-specific type for " << T << "\n";
   cir_cconv_assert_or_abort(
-      !::cir::MissingFeatures::X86DefaultABITypeConvertion(), "NYI");
+      !cir::MissingFeatures::X86DefaultABITypeConvertion(), "NYI");
   return T;
 }

@@ -18,7 +18,6 @@
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "llvm/ADT/Hashing.h"
 
-namespace mlir {
 namespace cir {
 namespace detail {
 
@@ -110,6 +109,5 @@ struct StructTypeStorage : public TypeStorage {
 
 } // namespace detail
 } // namespace cir
-} // namespace mlir
 
 #endif // CIR_DIALECT_IR_CIRTYPESDETAILS_H

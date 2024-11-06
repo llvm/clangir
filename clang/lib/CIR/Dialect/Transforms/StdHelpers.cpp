@@ -8,7 +8,6 @@
 
 #include "StdHelpers.h"
 
-namespace mlir {
 namespace cir {
 
 bool isStdArrayType(mlir::Type t) {
@@ -29,4 +28,3 @@ bool isStdArrayType(mlir::Type t) {
 }
 
 } // namespace cir
-} // namespace mlir

@@ -9,11 +9,11 @@
 #include "llvm/Support/ErrorHandling.h"
 
 using namespace mlir;
-using namespace mlir::cir;
+using namespace cir;
 
-using ABIArgInfo = ::cir::ABIArgInfo;
-using FnInfoOpts = ::cir::FnInfoOpts;
-using MissingFeatures = ::cir::MissingFeatures;
+using ABIArgInfo = cir::ABIArgInfo;
+using FnInfoOpts = cir::FnInfoOpts;
+using MissingFeatures = cir::MissingFeatures;
 
 namespace {
 
@@ -25,7 +25,7 @@ arrangeFreeFunctionLikeCall(LowerTypes &LT, LowerModule &LM,
                             unsigned numExtraRequiredArgs, bool chainCall) {
   cir_cconv_assert(args.size() >= numExtraRequiredArgs);
 
-  cir_cconv_assert(!::cir::MissingFeatures::extParamInfo());
+  cir_cconv_assert(!cir::MissingFeatures::extParamInfo());
 
   // In most cases, there are no optional arguments.
   RequiredArgs required = RequiredArgs::All;
@@ -35,9 +35,9 @@ arrangeFreeFunctionLikeCall(LowerTypes &LT, LowerModule &LM,
   // FIXME(cir): Properly check if function is no-proto.
   if (/*IsPrototypedFunction=*/true) {
     if (fnType.isVarArg())
-      cir_cconv_assert_or_abort(!::cir::MissingFeatures::isVarArg(), "NYI");
+      cir_cconv_assert_or_abort(!cir::MissingFeatures::isVarArg(), "NYI");
 
-    if (::cir::MissingFeatures::extParamInfo())
+    if (cir::MissingFeatures::extParamInfo())
       cir_cconv_unreachable("NYI");
   }
 
@@ -45,7 +45,7 @@ arrangeFreeFunctionLikeCall(LowerTypes &LT, LowerModule &LM,
   // its skipped here since it requires CodeGen info. Maybe this information
   // could be embbed  in the FuncOp during CIRGen.
 
-  cir_cconv_assert(!::cir::MissingFeatures::chainCall() && !chainCall && "NYI");
+  cir_cconv_assert(!cir::MissingFeatures::chainCall() && !chainCall && "NYI");
   FnInfoOpts opts = chainCall ? FnInfoOpts::IsChainCall : FnInfoOpts::None;
 
   SmallVector<Type> argTypes;
@@ -152,13 +152,13 @@ void LowerModule::constructAttributeList(StringRef Name,
     [[fallthrough]];
   case ABIArgInfo::Direct:
     if (RetAI.getInReg())
-      cir_cconv_assert_or_abort(!::cir::MissingFeatures::ABIInRegAttribute(),
+      cir_cconv_assert_or_abort(!cir::MissingFeatures::ABIInRegAttribute(),
                                 "NYI");
-    cir_cconv_assert(!::cir::MissingFeatures::noFPClass());
+    cir_cconv_assert(!cir::MissingFeatures::noFPClass());
     break;
   case ABIArgInfo::Ignore:
   case ABIArgInfo::Indirect:
-    cir_cconv_assert(!::cir::MissingFeatures::ABIPotentialArgAccess());
+    cir_cconv_assert(!cir::MissingFeatures::ABIPotentialArgAccess());
     break;
   default:
     cir_cconv_unreachable("Missing ABIArgInfo::Kind");
@@ -219,31 +219,31 @@ void LowerModule::constructAttributeList(StringRef Name,
             rewriter.getNamedAttr("cir.zeroext", rewriter.getUnitAttr()));
       [[fallthrough]];
     case ABIArgInfo::Direct:
-      if (ArgNo == 0 && ::cir::MissingFeatures::chainCall())
+      if (ArgNo == 0 && cir::MissingFeatures::chainCall())
         cir_cconv_unreachable("ChainCall is NYI");
       else if (AI.getInReg())
         cir_cconv_unreachable("InReg attribute is NYI");
       // Attrs.addStackAlignmentAttr(llvm::MaybeAlign(AI.getDirectAlign()));
-      cir_cconv_assert(!::cir::MissingFeatures::noFPClass());
+      cir_cconv_assert(!cir::MissingFeatures::noFPClass());
       break;
     case ABIArgInfo::Indirect: {
-      cir_cconv_assert(!::cir::MissingFeatures::ABIInRegAttribute());
-      cir_cconv_assert(!::cir::MissingFeatures::ABIByValAttribute());
-      cir_cconv_assert(!::cir::MissingFeatures::ABINoAliasAttribute());
-      cir_cconv_assert(!::cir::MissingFeatures::ABIAlignmentAttribute());
-      cir_cconv_assert(!::cir::MissingFeatures::ABIPotentialArgAccess());
+      cir_cconv_assert(!cir::MissingFeatures::ABIInRegAttribute());
+      cir_cconv_assert(!cir::MissingFeatures::ABIByValAttribute());
+      cir_cconv_assert(!cir::MissingFeatures::ABINoAliasAttribute());
+      cir_cconv_assert(!cir::MissingFeatures::ABIAlignmentAttribute());
+      cir_cconv_assert(!cir::MissingFeatures::ABIPotentialArgAccess());
       break;
     }
     default:
       cir_cconv_unreachable("Missing ABIArgInfo::Kind");
     }
 
-    if (::cir::MissingFeatures::qualTypeIsReferenceType()) {
+    if (cir::MissingFeatures::qualTypeIsReferenceType()) {
       cir_cconv_unreachable("Reference handling is NYI");
     }
 
     // TODO(cir): Missing some swift and nocapture stuff here.
-    cir_cconv_assert(!::cir::MissingFeatures::extParamInfo());
+    cir_cconv_assert(!cir::MissingFeatures::extParamInfo());
 
     if (!Attrs.empty()) {
       unsigned FirstIRArg, NumIRArgs;
@@ -269,7 +269,7 @@ const LowerFunctionInfo &LowerTypes::arrangeFunctionDeclaration(FuncOp fnOp) {
   // When declaring a function without a prototype, always use a
   // non-variadic type.
   if (fnOp.getNoProto()) {
-    cir_cconv_assert_or_abort(!::cir::MissingFeatures::ABINoProtoFunctions(),
+    cir_cconv_assert_or_abort(!cir::MissingFeatures::ABINoProtoFunctions(),
                               "NYI");
   }
 
@@ -317,12 +317,12 @@ const LowerFunctionInfo &
 LowerTypes::arrangeLLVMFunctionInfo(Type resultType, FnInfoOpts opts,
                                     ArrayRef<Type> argTypes,
                                     RequiredArgs required) {
-  cir_cconv_assert(!::cir::MissingFeatures::qualifiedTypes());
+  cir_cconv_assert(!cir::MissingFeatures::qualifiedTypes());
 
   LowerFunctionInfo *FI = nullptr;
 
   // FIXME(cir): Allow user-defined CCs (e.g. __attribute__((vectorcall))).
-  cir_cconv_assert(!::cir::MissingFeatures::extParamInfo());
+  cir_cconv_assert(!cir::MissingFeatures::extParamInfo());
   unsigned CC = clangCallConvToLLVMCallConv(clang::CallingConv::CC_C);
 
   // Construct the function info. We co-allocate the ArgInfos.
@@ -334,7 +334,7 @@ LowerTypes::arrangeLLVMFunctionInfo(Type resultType, FnInfoOpts opts,
   // Compute ABI information.
   if (CC == llvm::CallingConv::SPIR_KERNEL) {
     cir_cconv_unreachable("NYI");
-  } else if (::cir::MissingFeatures::extParamInfo()) {
+  } else if (cir::MissingFeatures::extParamInfo()) {
     cir_cconv_unreachable("NYI");
   } else {
     // NOTE(cir): This corects the initial function info data.
@@ -344,7 +344,7 @@ LowerTypes::arrangeLLVMFunctionInfo(Type resultType, FnInfoOpts opts,
   // Loop over all of the computed argument and return value info. If any of
   // them are direct or extend without a specified coerce type, specify the
   // default now.
-  ::cir::ABIArgInfo &retInfo = FI->getReturnInfo();
+  cir::ABIArgInfo &retInfo = FI->getReturnInfo();
   if (retInfo.canHaveCoerceToType() && retInfo.getCoerceToType() == nullptr)
     retInfo.setCoerceToType(convertType(FI->getReturnType()));
 

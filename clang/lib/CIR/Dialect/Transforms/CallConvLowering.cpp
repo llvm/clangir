@@ -20,7 +20,6 @@
 
 #include "llvm/Support/TimeProfiler.h"
 
-namespace mlir {
 namespace cir {
 
 FuncType getFuncPointerTy(mlir::Type typ) {
@@ -48,7 +47,7 @@ struct CallConvLowering {
         else if (auto c = dyn_cast<CallOp>(call.getUser()))
           lowerDirectCallOp(c, op);
         else {
-          cir_cconv_assert_or_abort(!::cir::MissingFeatures::ABIFuncPtr(),
+          cir_cconv_assert_or_abort(!cir::MissingFeatures::ABIFuncPtr(),
                                     "NYI");
         }
       }
@@ -135,6 +134,8 @@ void CallConvLoweringPass::runOnOperation() {
 }
 
 } // namespace cir
+
+namespace mlir {
 
 std::unique_ptr<Pass> createCallConvLoweringPass() {
   return std::make_unique<cir::CallConvLoweringPass>();

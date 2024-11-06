@@ -12,10 +12,9 @@
 #include "llvm/Support/ErrorHandling.h"
 #include <memory>
 
-using X86AVXABILevel = ::cir::X86AVXABILevel;
-using ABIArgInfo = ::cir::ABIArgInfo;
+using X86AVXABILevel = cir::X86AVXABILevel;
+using ABIArgInfo = cir::ABIArgInfo;
 
-namespace mlir {
 namespace cir {
 
 namespace {
@@ -57,8 +56,8 @@ static bool BitsContainNoUserData(Type Ty, unsigned StartBit, unsigned EndBit,
     const CIRRecordLayout &Layout = Context.getCIRRecordLayout(Ty);
 
     // If this is a C++ record, check the bases first.
-    if (::cir::MissingFeatures::isCXXRecordDecl() ||
-        ::cir::MissingFeatures::getCXXRecordBases()) {
+    if (cir::MissingFeatures::isCXXRecordDecl() ||
+        cir::MissingFeatures::getCXXRecordBases()) {
       cir_cconv_unreachable("NYI");
     }
 
@@ -91,11 +90,11 @@ static bool BitsContainNoUserData(Type Ty, unsigned StartBit, unsigned EndBit,
 
 /// Return a floating point type at the specified offset.
 Type getFPTypeAtOffset(Type IRType, unsigned IROffset,
-                       const ::cir::CIRDataLayout &TD) {
+                       const cir::CIRDataLayout &TD) {
   if (IROffset == 0 && isa<SingleType, DoubleType>(IRType))
     return IRType;
 
-  cir_cconv_assert_or_abort(!::cir::MissingFeatures::X86GetFPTypeAtOffset(),
+  cir_cconv_assert_or_abort(!cir::MissingFeatures::X86GetFPTypeAtOffset(),
                             "NYI");
   return IRType; // FIXME(cir): Temporary workaround for the assertion above.
 }
@@ -103,7 +102,7 @@ Type getFPTypeAtOffset(Type IRType, unsigned IROffset,
 } // namespace
 
 class X86_64ABIInfo : public ABIInfo {
-  using Class = ::cir::X86ArgClass;
+  using Class = cir::X86ArgClass;
 
   /// Implement the X86_64 ABI merging algorithm.
   ///
@@ -182,7 +181,7 @@ public:
   X86_64ABIInfo(LowerTypes &CGT, X86AVXABILevel AVXLevel)
       : ABIInfo(CGT), AVXLevel(AVXLevel) {}
 
-  ::cir::ABIArgInfo classifyReturnType(Type RetTy) const;
+  cir::ABIArgInfo classifyReturnType(Type RetTy) const;
 
   ABIArgInfo classifyArgumentType(Type Ty, unsigned freeIntRegs,
                                   unsigned &neededInt, unsigned &neededSSE,
@@ -195,12 +194,12 @@ class X86_64TargetLoweringInfo : public TargetLoweringInfo {
 public:
   X86_64TargetLoweringInfo(LowerTypes &LM, X86AVXABILevel AVXLevel)
       : TargetLoweringInfo(std::make_unique<X86_64ABIInfo>(LM, AVXLevel)) {
-    cir_cconv_assert(!::cir::MissingFeatures::swift());
+    cir_cconv_assert(!cir::MissingFeatures::swift());
   }
 
   unsigned getTargetAddrSpaceFromCIRAddrSpace(
-      mlir::cir::AddressSpaceAttr addressSpaceAttr) const override {
-    using Kind = mlir::cir::AddressSpaceAttr::Kind;
+      cir::AddressSpaceAttr addressSpaceAttr) const override {
+    using Kind = cir::AddressSpaceAttr::Kind;
     switch (addressSpaceAttr.getValue()) {
     case Kind::offload_private:
     case Kind::offload_local:
@@ -271,7 +270,7 @@ void X86_64ABIInfo::classify(Type Ty, uint64_t OffsetBase, Class &Lo, Class &Hi,
         cir_cconv_unreachable("NYI");
 
       // Assume variable sized types are passed in memory.
-      if (::cir::MissingFeatures::recordDeclHasFlexibleArrayMember())
+      if (cir::MissingFeatures::recordDeclHasFlexibleArrayMember())
         cir_cconv_unreachable("NYI");
 
       const auto &Layout = getContext().getCIRRecordLayout(Ty);
@@ -280,8 +279,8 @@ void X86_64ABIInfo::classify(Type Ty, uint64_t OffsetBase, Class &Lo, Class &Hi,
       Current = Class::NoClass;
 
       // If this is a C++ record, classify the bases first.
-      cir_cconv_assert(!::cir::MissingFeatures::isCXXRecordDecl() &&
-                       !::cir::MissingFeatures::getCXXRecordBases());
+      cir_cconv_assert(!cir::MissingFeatures::isCXXRecordDecl() &&
+                       !cir::MissingFeatures::getCXXRecordBases());
 
       // Classify the fields one at a time, merging the results.
       bool UseClang11Compat = getContext().getLangOpts().getClangABICompat() <=
@@ -290,14 +289,14 @@ void X86_64ABIInfo::classify(Type Ty, uint64_t OffsetBase, Class &Lo, Class &Hi,
       bool IsUnion = RT.isUnion() && !UseClang11Compat;
 
       // FIXME(cir): An interface to handle field declaration might be needed.
-      cir_cconv_assert(!::cir::MissingFeatures::fieldDeclAbstraction());
+      cir_cconv_assert(!cir::MissingFeatures::fieldDeclAbstraction());
       for (auto [idx, FT] : llvm::enumerate(RT.getMembers())) {
         uint64_t Offset = OffsetBase + Layout.getFieldOffset(idx);
-        cir_cconv_assert(!::cir::MissingFeatures::fieldDeclIsBitfield());
+        cir_cconv_assert(!cir::MissingFeatures::fieldDeclIsBitfield());
         bool BitField = false;
 
         // Ignore padding bit-fields.
-        if (BitField && !::cir::MissingFeatures::fieldDeclisUnnamedBitField())
+        if (BitField && !cir::MissingFeatures::fieldDeclisUnnamedBitField())
           cir_cconv_unreachable("NYI");
 
         // AMD64-ABI 3.2.3p2: Rule 1. If the size of an object is larger than
@@ -345,7 +344,7 @@ void X86_64ABIInfo::classify(Type Ty, uint64_t OffsetBase, Class &Lo, Class &Hi,
     } else {
       llvm::outs() << "Missing X86 classification for type " << Ty << "\n";
       cir_cconv_assert_or_abort(
-          !::cir::MissingFeatures::X86TypeClassification(), "NYI");
+          !cir::MissingFeatures::X86TypeClassification(), "NYI");
     }
     // FIXME: _Decimal32 and _Decimal64 are SSE.
     // FIXME: _float128 and _Decimal128 are (SSE, SSEUp).
@@ -361,7 +360,7 @@ void X86_64ABIInfo::classify(Type Ty, uint64_t OffsetBase, Class &Lo, Class &Hi,
 Type X86_64ABIInfo::GetSSETypeAtOffset(Type IRType, unsigned IROffset,
                                        Type SourceTy,
                                        unsigned SourceOffset) const {
-  const ::cir::CIRDataLayout &TD = getDataLayout();
+  const cir::CIRDataLayout &TD = getDataLayout();
   unsigned SourceSize =
       (unsigned)getContext().getTypeSize(SourceTy) / 8 - SourceOffset;
   Type T0 = getFPTypeAtOffset(IRType, IROffset, TD);
@@ -429,7 +428,7 @@ Type X86_64ABIInfo::GetINTEGERTypeAtOffset(Type DestTy, unsigned IROffset,
 
   if (auto RT = dyn_cast<StructType>(DestTy)) {
     // If this is a struct, recurse into the field at the specified offset.
-    const ::cir::StructLayout *SL = getDataLayout().getStructLayout(RT);
+    const cir::StructLayout *SL = getDataLayout().getStructLayout(RT);
     if (IROffset < SL->getSizeInBytes()) {
       unsigned FieldIdx = SL->getElementContainingOffset(IROffset);
       IROffset -= SL->getElementOffset(FieldIdx);
@@ -467,7 +466,7 @@ Type X86_64ABIInfo::GetINTEGERTypeAtOffset(Type DestTy, unsigned IROffset,
 /// a by-value argument should be passed as i32* and the high part as float,
 /// return {i32*, float}.
 static mlir::Type GetX86_64ByValArgumentPair(mlir::Type lo, mlir::Type hi,
-                                             const ::cir::CIRDataLayout &td) {
+                                             const cir::CIRDataLayout &td) {
   // In order to correctly satisfy the ABI, we need to the high part to start
   // at offset 8.  If the high and low parts we inferred are both 4-byte types
   // (e.g. i32 and i32) then the resultant struct type ({i32,i32}) won't have
@@ -505,7 +504,7 @@ static mlir::Type GetX86_64ByValArgumentPair(mlir::Type lo, mlir::Type hi,
   return result;
 }
 
-::cir::ABIArgInfo X86_64ABIInfo::classifyReturnType(Type RetTy) const {
+cir::ABIArgInfo X86_64ABIInfo::classifyReturnType(Type RetTy) const {
   // AMD64-ABI 3.2.3p4: Rule 1. Classify the return type with the
   // classification algorithm.
   X86_64ABIInfo::Class Lo, Hi;
@@ -547,7 +546,7 @@ static mlir::Type GetX86_64ByValArgumentPair(mlir::Type lo, mlir::Type hi,
 
   default:
     cir_cconv_assert_or_abort(
-        !::cir::MissingFeatures::X86RetTypeClassification(), "NYI");
+        !cir::MissingFeatures::X86RetTypeClassification(), "NYI");
   }
 
   Type HighPart = {};
@@ -628,7 +627,7 @@ ABIArgInfo X86_64ABIInfo::classifyArgumentType(Type Ty, unsigned freeIntRegs,
   }
   default:
     cir_cconv_assert_or_abort(
-        !::cir::MissingFeatures::X86ArgTypeClassification(), "NYI");
+        !cir::MissingFeatures::X86ArgTypeClassification(), "NYI");
   }
 
   Type HighPart = {};
@@ -674,8 +673,8 @@ void X86_64ABIInfo::computeInfo(LowerFunctionInfo &FI) const {
   unsigned FreeSSERegs = IsRegCall ? 16 : 8;
   unsigned NeededInt = 0, NeededSSE = 0, MaxVectorWidth = 0;
 
-  if (!::mlir::cir::classifyReturnType(getCXXABI(), FI, *this)) {
-    if (IsRegCall || ::cir::MissingFeatures::regCall()) {
+  if (!cir::classifyReturnType(getCXXABI(), FI, *this)) {
+    if (IsRegCall || cir::MissingFeatures::regCall()) {
       cir_cconv_unreachable("RegCall is NYI");
     } else
       FI.getReturnInfo() = classifyReturnType(FI.getReturnType());
@@ -689,7 +688,7 @@ void X86_64ABIInfo::computeInfo(LowerFunctionInfo &FI) const {
     cir_cconv_unreachable("NYI");
 
   // The chain argument effectively gives us another free register.
-  if (::cir::MissingFeatures::chainCall())
+  if (cir::MissingFeatures::chainCall())
     cir_cconv_unreachable("NYI");
 
   unsigned NumRequiredArgs = FI.getNumRequiredArgs();
@@ -700,7 +699,7 @@ void X86_64ABIInfo::computeInfo(LowerFunctionInfo &FI) const {
        it != ie; ++it, ++ArgNo) {
     bool IsNamedArg = ArgNo < NumRequiredArgs;
 
-    if (IsRegCall && ::cir::MissingFeatures::regCall())
+    if (IsRegCall && cir::MissingFeatures::regCall())
       cir_cconv_unreachable("NYI");
     else
       it->info = classifyArgumentType(it->type, FreeIntRegs, NeededInt,
@@ -713,7 +712,7 @@ void X86_64ABIInfo::computeInfo(LowerFunctionInfo &FI) const {
     if (FreeIntRegs >= NeededInt && FreeSSERegs >= NeededSSE) {
       FreeIntRegs -= NeededInt;
       FreeSSERegs -= NeededSSE;
-      if (::cir::MissingFeatures::vectorType())
+      if (cir::MissingFeatures::vectorType())
         cir_cconv_unreachable("NYI");
     } else {
       cir_cconv_unreachable("Indirect results are NYI");
@@ -801,4 +800,3 @@ createX86_64TargetLoweringInfo(LowerModule &LM, X86AVXABILevel AVXLevel) {
 }
 
 } // namespace cir
-} // namespace mlir

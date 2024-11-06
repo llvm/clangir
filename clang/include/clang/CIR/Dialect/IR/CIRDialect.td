@@ -22,7 +22,7 @@ def CIR_Dialect : Dialect {
   let summary = "A high-level dialect for analyzing and optimizing Clang "
                 "supported languages";
 
-  let cppNamespace = "::mlir::cir";
+  let cppNamespace = "::cir";
 
   let useDefaultAttributePrinterParser = 0;
   let useDefaultTypePrinterParser = 0;

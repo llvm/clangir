@@ -20,7 +20,6 @@
 #include "llvm/Support/ErrorHandling.h"
 #include <cmath>
 
-namespace mlir {
 namespace cir {
 
 CIRLowerContext::CIRLowerContext(ModuleOp module, clang::LangOptions LOpts)
@@ -55,7 +54,7 @@ clang::TypeInfo CIRLowerContext::getTypeInfoImpl(const Type T) const {
   } else if (isa<StructType>(T)) {
     typeKind = clang::Type::Record;
   } else {
-    cir_cconv_assert_or_abort(!::cir::MissingFeatures::ABIClangTypeKind(),
+    cir_cconv_assert_or_abort(!cir::MissingFeatures::ABIClangTypeKind(),
                               "Unhandled type class");
     // FIXME(cir): Completely wrong. Just here to make it non-blocking.
     typeKind = clang::Type::Builtin;
@@ -99,7 +98,7 @@ clang::TypeInfo CIRLowerContext::getTypeInfoImpl(const Type T) const {
   }
   case clang::Type::Record: {
     const auto RT = dyn_cast<StructType>(T);
-    cir_cconv_assert(!::cir::MissingFeatures::tagTypeClassAbstraction());
+    cir_cconv_assert(!cir::MissingFeatures::tagTypeClassAbstraction());
 
     // Only handle TagTypes (names types) for now.
     cir_cconv_assert(RT.getName() && "Anonymous record is NYI");
@@ -107,14 +106,14 @@ clang::TypeInfo CIRLowerContext::getTypeInfoImpl(const Type T) const {
     // NOTE(cir): Clang does some hanlding of invalid tagged declarations here.
     // Not sure if this is necessary in CIR.
 
-    if (::cir::MissingFeatures::typeGetAsEnumType()) {
+    if (cir::MissingFeatures::typeGetAsEnumType()) {
       cir_cconv_unreachable("NYI");
     }
 
     const CIRRecordLayout &Layout = getCIRRecordLayout(RT);
     Width = toBits(Layout.getSize());
     Align = toBits(Layout.getAlignment());
-    cir_cconv_assert(!::cir::MissingFeatures::recordDeclHasAlignmentAttr());
+    cir_cconv_assert(!cir::MissingFeatures::recordDeclHasAlignmentAttr());
     break;
   }
   default:
@@ -130,7 +129,7 @@ Type CIRLowerContext::initBuiltinType(clang::BuiltinType::Kind K) {
   Type Ty;
 
   // NOTE(cir): Clang does more stuff here. Not sure if we need to do the same.
-  cir_cconv_assert(!::cir::MissingFeatures::qualifiedTypes());
+  cir_cconv_assert(!cir::MissingFeatures::qualifiedTypes());
   switch (K) {
   case clang::BuiltinType::Char_S:
     Ty = IntType::get(getMLIRContext(), 8, true);
@@ -179,7 +178,7 @@ clang::TypeInfoChars CIRLowerContext::getTypeInfoInChars(Type T) const {
 bool CIRLowerContext::isPromotableIntegerType(Type T) const {
   // HLSL doesn't promote all small integer types to int, it
   // just uses the rank-based promotion rules for all types.
-  if (::cir::MissingFeatures::langOpts())
+  if (cir::MissingFeatures::langOpts())
     cir_cconv_unreachable("NYI");
 
   // FIXME(cir): CIR does not distinguish between char, short, etc. So we just
@@ -198,7 +197,7 @@ bool CIRLowerContext::isPromotableIntegerType(Type T) const {
   // (C99 6.3.1.1) a.k.a. its underlying type (C++ [conv.prom]p2).
   // TODO(cir): CIR doesn't know if a integer originated from an enum. Improve
   // CIR or add an AST query here.
-  if (::cir::MissingFeatures::typeGetAsEnumType()) {
+  if (cir::MissingFeatures::typeGetAsEnumType()) {
     cir_cconv_unreachable("NYI");
   }
 
@@ -206,4 +205,3 @@ bool CIRLowerContext::isPromotableIntegerType(Type T) const {
 }
 
 } // namespace cir
-} // namespace mlir

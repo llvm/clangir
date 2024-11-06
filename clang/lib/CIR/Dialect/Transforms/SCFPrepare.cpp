@@ -76,7 +76,7 @@ struct canonicalizeIVtoCmpLHS : public OpRewritePattern<ForOp> {
   void replaceWithNewCmpOp(CmpOp oldCmp, CmpOpKind newKind, Value lhs,
                            Value rhs, PatternRewriter &rewriter) const {
     rewriter.setInsertionPointAfter(oldCmp.getOperation());
-    auto newCmp = rewriter.create<mlir::cir::CmpOp>(
+    auto newCmp = rewriter.create<cir::CmpOp>(
         oldCmp.getLoc(), oldCmp.getType(), newKind, lhs, rhs);
     oldCmp->replaceAllUsesWith(newCmp);
     oldCmp->erase();
@@ -162,7 +162,7 @@ struct hoistLoopInvariantInCondBlock : public OpRewritePattern<ForOp> {
                                  initOps)) {
       initOps.push_back(op);
       return true;
-    } else if (isa<mlir::cir::CastOp>(op) &&
+    } else if (isa<cir::CastOp>(op) &&
                isLoopInvariantOp(op->getOperand(0).getDefiningOp(), forOp,
                                  initOps)) {
       initOps.push_back(op);

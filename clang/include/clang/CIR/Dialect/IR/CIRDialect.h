@@ -86,11 +86,11 @@ public:
 
 } // namespace OpTrait
 
+} // namespace mlir
+
 namespace cir {
 void buildTerminatedBody(OpBuilder &builder, Location loc);
 } // namespace cir
-
-} // namespace mlir
 
 #define GET_OP_CLASSES
 #include "clang/CIR/Dialect/IR/CIROps.h.inc"

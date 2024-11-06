@@ -76,14 +76,14 @@ def OpenCLKernelMetadataAttr
   let extraClassDefinition = [{
     std::optional<bool> $cppClass::isSignedHint(mlir::Type hintQTy) {
       // Only types in CIR carry signedness
-      if (!mlir::isa<mlir::cir::CIRDialect>(hintQTy.getDialect()))
+      if (!mlir::isa<cir::CIRDialect>(hintQTy.getDialect()))
         return std::nullopt;
       
       // See also clang::CodeGen::CodeGenFunction::EmitKernelMetadata
-      auto hintEltQTy = mlir::dyn_cast<mlir::cir::VectorType>(hintQTy);
+      auto hintEltQTy = mlir::dyn_cast<cir::VectorType>(hintQTy);
       auto isCIRSignedIntType = [](mlir::Type t) {
-        return mlir::isa<mlir::cir::IntType>(t) &&
-               mlir::cast<mlir::cir::IntType>(t).isSigned();
+        return mlir::isa<cir::IntType>(t) &&
+               mlir::cast<cir::IntType>(t).isSigned();
       };
       return isCIRSignedIntType(hintQTy) ||
               (hintEltQTy && isCIRSignedIntType(hintEltQTy.getEltType()));

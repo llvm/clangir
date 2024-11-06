@@ -11,7 +11,7 @@
 
 include "mlir/IR/OpBase.td"
 
-let cppNamespace = "::mlir::cir" in {
+let cppNamespace = "::cir" in {
   def ASTDeclInterface : AttrInterface<"ASTDeclInterface"> {
     let methods = [
       InterfaceMethod<"", "bool", "hasOwnerAttr", (ins), [{}],
@@ -190,7 +190,7 @@ let cppNamespace = "::mlir::cir" in {
   }
 
   def AnyASTFunctionDeclAttr : Attr<
-      CPred<"::mlir::isa<::mlir::cir::ASTFunctionDeclInterface>($_self)">,
+      CPred<"::mlir::isa<::cir::ASTFunctionDeclInterface>($_self)">,
             "AST Function attribute"> {
     let storageType = "::mlir::Attribute";
     let returnType = "::mlir::Attribute";
@@ -277,6 +277,6 @@ let cppNamespace = "::mlir::cir" in {
   }
 
 
-} // namespace mlir::cir
+} // namespace cir
 
 #endif // MLIR_CIR_INTERFACES_AST_ATTR_INTERFACES

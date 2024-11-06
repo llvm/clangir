@@ -134,16 +134,16 @@ struct CIRRecordLowering final {
   }
 
   mlir::Type getCharType() {
-    return mlir::cir::IntType::get(&cirGenTypes.getMLIRContext(),
+    return cir::IntType::get(&cirGenTypes.getMLIRContext(),
                                    astContext.getCharWidth(),
                                    /*isSigned=*/false);
   }
 
-  /// Wraps mlir::cir::IntType with some implicit arguments.
+  /// Wraps cir::IntType with some implicit arguments.
   mlir::Type getUIntNType(uint64_t NumBits) {
     unsigned AlignedBits = llvm::PowerOf2Ceil(NumBits);
     AlignedBits = std::max(8u, AlignedBits);
-    return mlir::cir::IntType::get(&cirGenTypes.getMLIRContext(), AlignedBits,
+    return cir::IntType::get(&cirGenTypes.getMLIRContext(), AlignedBits,
                                    /*isSigned=*/false);
   }
 
@@ -152,7 +152,7 @@ struct CIRRecordLowering final {
     mlir::Type type = getCharType();
     return numberOfChars == CharUnits::One()
                ? type
-               : mlir::cir::ArrayType::get(type.getContext(), type,
+               : cir::ArrayType::get(type.getContext(), type,
                                            numberOfChars.getQuantity());
   }
 
@@ -161,11 +161,11 @@ struct CIRRecordLowering final {
   // structures support.
   mlir::Type getBitfieldStorageType(unsigned numBits) {
     unsigned alignedBits = llvm::alignTo(numBits, astContext.getCharWidth());
-    if (mlir::cir::IntType::isValidPrimitiveIntBitwidth(alignedBits)) {
+    if (cir::IntType::isValidPrimitiveIntBitwidth(alignedBits)) {
       return builder.getUIntNTy(alignedBits);
     } else {
       mlir::Type type = getCharType();
-      return mlir::cir::ArrayType::get(type.getContext(), type,
+      return cir::ArrayType::get(type.getContext(), type,
                                        alignedBits / astContext.getCharWidth());
     }
   }
@@ -691,13 +691,13 @@ void CIRRecordLowering::insertPadding() {
 
 std::unique_ptr<CIRGenRecordLayout>
 CIRGenTypes::computeRecordLayout(const RecordDecl *D,
-                                 mlir::cir::StructType *Ty) {
+                                 cir::StructType *Ty) {
   CIRRecordLowering builder(*this, D, /*packed=*/false);
   assert(Ty->isIncomplete() && "recomputing record layout?");
   builder.lower(/*nonVirtualBaseType=*/false);
 
   // If we're in C++, compute the base subobject type.
-  mlir::cir::StructType BaseTy;
+  cir::StructType BaseTy;
   if (llvm::isa<CXXRecordDecl>(D) && !D->isUnion() &&
       !D->hasAttr<FinalAttr>()) {
     BaseTy = *Ty;
@@ -720,12 +720,12 @@ CIRGenTypes::computeRecordLayout(const RecordDecl *D,
   // Fill in the struct *after* computing the base type.  Filling in the body
   // signifies that the type is no longer opaque and record layout is complete,
   // but we may need to recursively layout D while laying D out as a base type.
-  auto astAttr = mlir::cir::ASTRecordDeclAttr::get(Ty->getContext(), D);
+  auto astAttr = cir::ASTRecordDeclAttr::get(Ty->getContext(), D);
   Ty->complete(builder.fieldTypes, builder.isPacked, astAttr);
 
   auto RL = std::make_unique<CIRGenRecordLayout>(
-      Ty ? *Ty : mlir::cir::StructType{},
-      BaseTy ? BaseTy : mlir::cir::StructType{},
+      Ty ? *Ty : cir::StructType{},
+      BaseTy ? BaseTy : cir::StructType{},
       (bool)builder.IsZeroInitializable,
       (bool)builder.IsZeroInitializableAsBase);
 

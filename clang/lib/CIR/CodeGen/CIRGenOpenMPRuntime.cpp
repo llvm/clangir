@@ -32,7 +32,7 @@ void CIRGenOpenMPRuntime::checkAndEmitLastprivateConditional(
 }
 
 void CIRGenOpenMPRuntime::registerTargetGlobalVariable(
-    const clang::VarDecl *VD, mlir::cir::GlobalOp globalOp) {
+    const clang::VarDecl *VD, cir::GlobalOp globalOp) {
   assert(!cir::MissingFeatures::openMPRuntime());
   return;
 }

@@ -17,7 +17,6 @@
 #include "LowerTypes.h"
 #include "clang/CIR/Dialect/IR/CIRDataLayout.h"
 
-namespace mlir {
 namespace cir {
 
 // Pin the vtable to this file.
@@ -29,7 +28,7 @@ CIRLowerContext &ABIInfo::getContext() const { return LT.getContext(); }
 
 const clang::TargetInfo &ABIInfo::getTarget() const { return LT.getTarget(); }
 
-const ::cir::CIRDataLayout &ABIInfo::getDataLayout() const {
+const cir::CIRDataLayout &ABIInfo::getDataLayout() const {
   return LT.getDataLayout();
 }
 
@@ -37,17 +36,16 @@ bool ABIInfo::isPromotableIntegerTypeForABI(Type Ty) const {
   if (getContext().isPromotableIntegerType(Ty))
     return true;
 
-  cir_cconv_assert(!::cir::MissingFeatures::fixedWidthIntegers());
+  cir_cconv_assert(!cir::MissingFeatures::fixedWidthIntegers());
 
   return false;
 }
 
-::cir::ABIArgInfo ABIInfo::getNaturalAlignIndirect(mlir::Type Ty, bool ByVal,
+cir::ABIArgInfo ABIInfo::getNaturalAlignIndirect(mlir::Type Ty, bool ByVal,
                                                    bool Realign,
                                                    mlir::Type Padding) const {
-  return ::cir::ABIArgInfo::getIndirect(getContext().getTypeAlign(Ty), ByVal,
+  return cir::ABIArgInfo::getIndirect(getContext().getTypeAlign(Ty), ByVal,
                                         Realign, Padding);
 }
 
 } // namespace cir
-} // namespace mlir

@@ -48,7 +48,7 @@ def OpenCLC : I32EnumAttrCase<"OpenCLC", 3, "opencl_c">;
 def SourceLanguage : I32EnumAttr<"SourceLanguage", "Source language", [
   C, CXX, OpenCLC
 ]> {
-  let cppNamespace = "::mlir::cir";
+  let cppNamespace = "::cir";
 }
 
 def LangAttr : CIR_Attr<"Lang", "lang"> {
@@ -84,7 +84,7 @@ def CIR_BoolAttr : CIR_Attr<"Bool", "bool", [TypedAttrInterface]> {
   }];
 
   let parameters = (ins AttributeSelfTypeParameter<
-                        "", "mlir::cir::BoolType">:$type,
+                        "", "cir::BoolType">:$type,
                     "bool":$value);
 
   let assemblyFormat = [{
@@ -153,10 +153,10 @@ def ConstArrayAttr : CIR_Attr<"ConstArray", "const_array", [TypedAttrInterface]>
   // Define a custom builder for the type; that removes the need to pass
   // in an MLIRContext instance, as it can be infered from the `type`.
   let builders = [
-    AttrBuilderWithInferredContext<(ins "mlir::cir::ArrayType":$type,
+    AttrBuilderWithInferredContext<(ins "cir::ArrayType":$type,
                                         "Attribute":$elts), [{
       int zeros = 0;
-      auto typeSize = mlir::cast<mlir::cir::ArrayType>(type).getSize();
+      auto typeSize = mlir::cast<cir::ArrayType>(type).getSize();
       if (auto str = mlir::dyn_cast<mlir::StringAttr>(elts))
         zeros = typeSize - str.size();
       else
@@ -195,7 +195,7 @@ def ConstVectorAttr : CIR_Attr<"ConstVector", "const_vector",
   // Define a custom builder for the type; that removes the need to pass in an
   // MLIRContext instance, as it can be inferred from the `type`.
   let builders = [
-    AttrBuilderWithInferredContext<(ins "mlir::cir::VectorType":$type,
+    AttrBuilderWithInferredContext<(ins "cir::VectorType":$type,
 		                        "ArrayAttr":$elts), [{
       return $_get(type.getContext(), type, elts);
     }]>
@@ -232,7 +232,7 @@ def ConstStructAttr : CIR_Attr<"ConstStruct", "const_struct",
                         "ArrayAttr":$members);
 
   let builders = [
-    AttrBuilderWithInferredContext<(ins "mlir::cir::StructType":$type,
+    AttrBuilderWithInferredContext<(ins "cir::StructType":$type,
                                         "ArrayAttr":$members), [{
       return $_get(type.getContext(), type, members);
     }]>
@@ -326,12 +326,12 @@ def ComplexAttr : CIR_Attr<"Complex", "complex", [TypedAttrInterface]> {
     contains values of the same CIR type.
   }];
 
-  let parameters = (ins
-    AttributeSelfTypeParameter<"", "mlir::cir::ComplexType">:$type,
+  let parameters = (ins 
+    AttributeSelfTypeParameter<"", "cir::ComplexType">:$type,
     "mlir::TypedAttr":$real, "mlir::TypedAttr":$imag);
 
   let builders = [
-    AttrBuilderWithInferredContext<(ins "mlir::cir::ComplexType":$type,
+    AttrBuilderWithInferredContext<(ins "cir::ComplexType":$type,
                                         "mlir::TypedAttr":$real,
                                         "mlir::TypedAttr":$imag), [{
       return $_get(type.getContext(), type, real, imag);
@@ -352,7 +352,7 @@ def ComplexAttr : CIR_Attr<"Complex", "complex", [TypedAttrInterface]> {
 def ConstPtrAttr : CIR_Attr<"ConstPtr", "ptr", [TypedAttrInterface]> {
   let summary = "Holds a constant pointer value";
   let parameters = (ins
-    AttributeSelfTypeParameter<"", "::mlir::cir::PointerType">:$type,
+    AttributeSelfTypeParameter<"", "::cir::PointerType">:$type,
     "mlir::IntegerAttr":$value);
   let description = [{
     A pointer attribute is a literal attribute that represents an integral
@@ -360,11 +360,11 @@ def ConstPtrAttr : CIR_Attr<"ConstPtr", "ptr", [TypedAttrInterface]> {
   }];
   let builders = [
     AttrBuilderWithInferredContext<(ins "Type":$type, "mlir::IntegerAttr":$value), [{
-      return $_get(type.getContext(), mlir::cast<mlir::cir::PointerType>(type), value);
+      return $_get(type.getContext(), mlir::cast<cir::PointerType>(type), value);
     }]>,
     AttrBuilder<(ins "Type":$type,
                      "mlir::IntegerAttr":$value), [{
-      return $_get($_ctxt, mlir::cast<mlir::cir::PointerType>(type), value);
+      return $_get($_ctxt, mlir::cast<cir::PointerType>(type), value);
     }]>,
   ];
   let extraClassDeclaration = [{
@@ -387,7 +387,7 @@ def CmpOrdering : I32EnumAttr<
   "CmpOrdering", "three-way comparison ordering kind",
   [CmpOrdering_Strong, CmpOrdering_Partial]
 > {
-  let cppNamespace = "::mlir::cir";
+  let cppNamespace = "::cir";
 }
 
 def CmpThreeWayInfoAttr : CIR_Attr<"CmpThreeWayInfo", "cmp3way_info"> {
@@ -446,7 +446,7 @@ def DataMemberAttr : CIR_Attr<"DataMember", "data_member",
                               [TypedAttrInterface]> {
   let summary = "Holds a constant data member pointer value";
   let parameters = (ins AttributeSelfTypeParameter<
-                            "", "mlir::cir::DataMemberType">:$type,
+                            "", "cir::DataMemberType">:$type,
                         OptionalParameter<
                             "std::optional<unsigned>">:$member_index);
   let description = [{
@@ -501,21 +501,21 @@ def MethodAttr : CIR_Attr<"Method", "method", [TypedAttrInterface]> {
   }];
 
   let parameters = (ins AttributeSelfTypeParameter<
-                            "", "mlir::cir::MethodType">:$type,
+                            "", "cir::MethodType">:$type,
                         OptionalParameter<
                             "std::optional<FlatSymbolRefAttr>">:$symbol,
                         OptionalParameter<
                             "std::optional<uint64_t>">:$vtable_offset);
 
   let builders = [
-    AttrBuilderWithInferredContext<(ins "mlir::cir::MethodType":$type), [{
+    AttrBuilderWithInferredContext<(ins "cir::MethodType":$type), [{
       return $_get(type.getContext(), type, std::nullopt, std::nullopt);
     }]>,
-    AttrBuilderWithInferredContext<(ins "mlir::cir::MethodType":$type,
+    AttrBuilderWithInferredContext<(ins "cir::MethodType":$type,
                                         "FlatSymbolRefAttr":$symbol), [{
       return $_get(type.getContext(), type, symbol, std::nullopt);
     }]>,
-    AttrBuilderWithInferredContext<(ins "mlir::cir::MethodType":$type,
+    AttrBuilderWithInferredContext<(ins "cir::MethodType":$type,
                                         "uint64_t":$vtable_offset), [{
       return $_get(type.getContext(), type, std::nullopt, vtable_offset);
     }]>,
@@ -809,7 +809,7 @@ def AddressSpaceAttr : CIR_Attr<"AddressSpace", "addrspace"> {
     }]>
   ];
 
-  let cppNamespace = "::mlir::cir";
+  let cppNamespace = "::cir";
 
   // The following codes implement these conversions:
   // clang::LangAS -> int32_t <-> text-form CIR
@@ -994,7 +994,7 @@ def VK_Protected : I32EnumAttrCase<"Protected", 3, "protected">;
 def VisibilityKind : I32EnumAttr<"VisibilityKind", "C/C++ visibility", [
   VK_Default, VK_Hidden, VK_Protected
 ]> {
-  let cppNamespace = "::mlir::cir";
+  let cppNamespace = "::cir";
 }
 
 def VisibilityAttr : CIR_Attr<"Visibility", "visibility"> {
@@ -1049,7 +1049,7 @@ def InlineHint : I32EnumAttrCase<"InlineHint", 3, "hint">;
 def InlineKind : I32EnumAttr<"InlineKind", "inlineKind", [
   NoInline, AlwaysInline, InlineHint
 ]> {
-  let cppNamespace = "::mlir::cir";
+  let cppNamespace = "::cir";
 }
 
 def InlineAttr : CIR_Attr<"Inline", "inline"> {

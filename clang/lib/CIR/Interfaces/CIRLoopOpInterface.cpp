@@ -12,7 +12,6 @@
 #include "clang/CIR/Interfaces/CIRLoopOpInterface.cpp.inc"
 #include "llvm/Support/ErrorHandling.h"
 
-namespace mlir {
 namespace cir {
 
 void LoopOpInterface::getLoopOpSuccessorRegions(
@@ -54,4 +53,3 @@ LogicalResult detail::verifyLoopOpInterface(Operation *op) {
 }
 
 } // namespace cir
-} // namespace mlir

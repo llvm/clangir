@@ -29,11 +29,10 @@
 #include "clang/CIR/Target/AArch64.h"
 #include "llvm/Support/ErrorHandling.h"
 
-using MissingFeatures = ::cir::MissingFeatures;
-using AArch64ABIKind = ::cir::AArch64ABIKind;
-using X86AVXABILevel = ::cir::X86AVXABILevel;
+using MissingFeatures = cir::MissingFeatures;
+using AArch64ABIKind = cir::AArch64ABIKind;
+using X86AVXABILevel = cir::X86AVXABILevel;
 
-namespace mlir {
 namespace cir {
 
 static CIRCXXABI *createCXXABI(LowerModule &CGM) {
@@ -245,7 +244,7 @@ std::unique_ptr<LowerModule> createLowerModule(ModuleOp module,
   // FIXME(cir): This just uses the default language options. We need to account
   // for custom options.
   // Create context.
-  cir_cconv_assert(!::cir::MissingFeatures::langOpts());
+  cir_cconv_assert(!cir::MissingFeatures::langOpts());
   clang::LangOptions langOpts;
 
   return std::make_unique<LowerModule>(langOpts, module, dataLayoutStr,
@@ -253,4 +252,3 @@ std::unique_ptr<LowerModule> createLowerModule(ModuleOp module,
 }
 
 } // namespace cir
-} // namespace mlir

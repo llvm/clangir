@@ -18,7 +18,6 @@
 #include "CIRCXXABI.h"
 #include "LowerFunctionInfo.h"
 
-namespace mlir {
 namespace cir {
 
 bool classifyReturnType(const CIRCXXABI &CXXABI, LowerFunctionInfo &FI,
@@ -33,6 +32,5 @@ Type useFirstFieldIfTransparentUnion(Type Ty);
 CIRCXXABI::RecordArgABI getRecordArgABI(const StructType RT, CIRCXXABI &CXXABI);
 
 } // namespace cir
-} // namespace mlir
 
 #endif // LLVM_CLANG_LIB_CIR_DIALECT_TRANSFORMS_TARGETLOWERING_ABIINFOIMPL_H

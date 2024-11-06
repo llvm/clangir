@@ -14,7 +14,6 @@
 #include "CIRRecordLayout.h"
 #include "clang/CIR/MissingFeatures.h"
 
-namespace mlir {
 namespace cir {
 
 // Constructor for C++ records.
@@ -48,7 +47,7 @@ CIRRecordLayout::CIRRecordLayout(
   CXXInfo->PreferredNVAlignment = preferrednvalignment;
   CXXInfo->SizeOfLargestEmptySubobject = SizeOfLargestEmptySubobject;
   // FIXME(cir): Initialize base classes offsets.
-  cir_cconv_assert(!::cir::MissingFeatures::getCXXRecordBases());
+  cir_cconv_assert(!cir::MissingFeatures::getCXXRecordBases());
   CXXInfo->HasOwnVFPtr = hasOwnVFPtr;
   CXXInfo->VBPtrOffset = vbptroffset;
   CXXInfo->HasExtendableVFPtr = hasExtendableVFPtr;
@@ -59,4 +58,3 @@ CIRRecordLayout::CIRRecordLayout(
 }
 
 } // namespace cir
-} // namespace mlir

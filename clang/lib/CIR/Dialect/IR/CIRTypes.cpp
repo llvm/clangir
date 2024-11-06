@@ -60,7 +60,7 @@ static void printPointerAddrSpace(mlir::AsmPrinter &p,
 #include "clang/CIR/Dialect/IR/CIROpsTypes.cpp.inc"
 
 using namespace mlir;
-using namespace mlir::cir;
+using namespace cir;
 
 //===----------------------------------------------------------------------===//
 // General CIR parsing / printing
@@ -118,7 +118,7 @@ void BoolType::print(mlir::AsmPrinter &printer) const {}
 Type StructType::getLargestMember(const ::mlir::DataLayout &dataLayout) const {
   if (!layoutInfo)
     computeSizeAndAlignment(dataLayout);
-  return mlir::cast<mlir::cir::StructLayoutAttr>(layoutInfo).getLargestMember();
+  return mlir::cast<cir::StructLayoutAttr>(layoutInfo).getLargestMember();
 }
 
 Type StructType::parse(mlir::AsmParser &parser) {
@@ -186,7 +186,7 @@ Type StructType::parse(mlir::AsmParser &parser) {
 
   // Parse optional AST attribute. This is just a formality for now, since CIR
   // cannot yet read serialized AST.
-  mlir::cir::ASTRecordDeclAttr ast = nullptr;
+  cir::ASTRecordDeclAttr ast = nullptr;
   parser.parseOptionalAttribute(ast);
 
   if (parser.parseGreater())
@@ -264,7 +264,7 @@ void StructType::print(mlir::AsmPrinter &printer) const {
 mlir::LogicalResult StructType::verifyInvariants(
     llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
     llvm::ArrayRef<mlir::Type> members, mlir::StringAttr name, bool incomplete,
-    bool packed, mlir::cir::StructType::RecordKind kind,
+    bool packed, cir::StructType::RecordKind kind,
     ASTRecordDeclInterface ast) {
   if (name && name.getValue().empty()) {
     emitError() << "identified structs cannot have an empty name";
@@ -331,7 +331,7 @@ bool StructType::getIncomplete() const { return getImpl()->incomplete; }
 
 bool StructType::getPacked() const { return getImpl()->packed; }
 
-mlir::cir::StructType::RecordKind StructType::getKind() const {
+cir::StructType::RecordKind StructType::getKind() const {
   return getImpl()->kind;
 }
 
@@ -438,20 +438,20 @@ ArrayType::getPreferredAlignment(const ::mlir::DataLayout &dataLayout,
   return dataLayout.getTypePreferredAlignment(getEltType());
 }
 
-llvm::TypeSize mlir::cir::VectorType::getTypeSizeInBits(
+llvm::TypeSize cir::VectorType::getTypeSizeInBits(
     const ::mlir::DataLayout &dataLayout,
     ::mlir::DataLayoutEntryListRef params) const {
   return llvm::TypeSize::getFixed(getSize() *
                                   dataLayout.getTypeSizeInBits(getEltType()));
 }
 
-uint64_t mlir::cir::VectorType::getABIAlignment(
+uint64_t cir::VectorType::getABIAlignment(
     const ::mlir::DataLayout &dataLayout,
     ::mlir::DataLayoutEntryListRef params) const {
   return llvm::NextPowerOf2(dataLayout.getTypeSizeInBits(*this));
 }
 
-uint64_t mlir::cir::VectorType::getPreferredAlignment(
+uint64_t cir::VectorType::getPreferredAlignment(
     const ::mlir::DataLayout &dataLayout,
     ::mlir::DataLayoutEntryListRef params) const {
   return llvm::NextPowerOf2(dataLayout.getTypeSizeInBits(*this));
@@ -463,7 +463,7 @@ StructType::getTypeSizeInBits(const ::mlir::DataLayout &dataLayout,
   if (!layoutInfo)
     computeSizeAndAlignment(dataLayout);
   return llvm::TypeSize::getFixed(
-      mlir::cast<mlir::cir::StructLayoutAttr>(layoutInfo).getSize() * 8);
+      mlir::cast<cir::StructLayoutAttr>(layoutInfo).getSize() * 8);
 }
 
 uint64_t
@@ -471,7 +471,7 @@ StructType::getABIAlignment(const ::mlir::DataLayout &dataLayout,
                             ::mlir::DataLayoutEntryListRef params) const {
   if (!layoutInfo)
     computeSizeAndAlignment(dataLayout);
-  return mlir::cast<mlir::cir::StructLayoutAttr>(layoutInfo).getAlignment();
+  return mlir::cast<cir::StructLayoutAttr>(layoutInfo).getAlignment();
 }
 
 uint64_t
@@ -483,7 +483,7 @@ StructType::getPreferredAlignment(const ::mlir::DataLayout &dataLayout,
 bool StructType::isPadded(const ::mlir::DataLayout &dataLayout) const {
   if (!layoutInfo)
     computeSizeAndAlignment(dataLayout);
-  return mlir::cast<mlir::cir::StructLayoutAttr>(layoutInfo).getPadded();
+  return mlir::cast<cir::StructLayoutAttr>(layoutInfo).getPadded();
 }
 
 uint64_t StructType::getElementOffset(const ::mlir::DataLayout &dataLayout,
@@ -492,7 +492,7 @@ uint64_t StructType::getElementOffset(const ::mlir::DataLayout &dataLayout,
   if (!layoutInfo)
     computeSizeAndAlignment(dataLayout);
   auto offsets =
-      mlir::cast<mlir::cir::StructLayoutAttr>(layoutInfo).getOffsets();
+      mlir::cast<cir::StructLayoutAttr>(layoutInfo).getOffsets();
   auto intAttr = mlir::cast<mlir::IntegerAttr>(offsets[idx]);
   return intAttr.getInt();
 }
@@ -567,7 +567,7 @@ void StructType::computeSizeAndAlignment(
   }
 
   auto offsets = mlir::ArrayAttr::get(getContext(), memberOffsets);
-  layoutInfo = mlir::cir::StructLayoutAttr::get(
+  layoutInfo = cir::StructLayoutAttr::get(
       getContext(), structSize, structAlignment.value(), isPadded,
       largestMember, offsets);
 }
@@ -785,7 +785,7 @@ FP128Type::getPreferredAlignment(const ::mlir::DataLayout &dataLayout,
 }
 
 const llvm::fltSemantics &LongDoubleType::getFloatSemantics() const {
-  return mlir::cast<mlir::cir::CIRFPTypeInterface>(getUnderlying())
+  return mlir::cast<cir::CIRFPTypeInterface>(getUnderlying())
       .getFloatSemantics();
 }
 
@@ -825,20 +825,20 @@ LongDoubleType::verify(function_ref<InFlightDiagnostic()> emitError,
 // Floating-point type helpers
 //===----------------------------------------------------------------------===//
 
-bool mlir::cir::isAnyFloatingPointType(mlir::Type t) {
-  return isa<mlir::cir::SingleType, mlir::cir::DoubleType,
-             mlir::cir::LongDoubleType, mlir::cir::FP80Type>(t);
+bool cir::isAnyFloatingPointType(mlir::Type t) {
+  return isa<cir::SingleType, cir::DoubleType,
+             cir::LongDoubleType, cir::FP80Type>(t);
 }
 
 //===----------------------------------------------------------------------===//
 // Floating-point and Float-point Vecotr type helpers
 //===----------------------------------------------------------------------===//
 
-bool mlir::cir::isFPOrFPVectorTy(mlir::Type t) {
+bool cir::isFPOrFPVectorTy(mlir::Type t) {
 
-  if (isa<mlir::cir::VectorType>(t)) {
+  if (isa<cir::VectorType>(t)) {
     return isAnyFloatingPointType(
-        mlir::dyn_cast<mlir::cir::VectorType>(t).getEltType());
+        mlir::dyn_cast<cir::VectorType>(t).getEltType());
   }
   return isAnyFloatingPointType(t);
 }
@@ -847,10 +847,10 @@ bool mlir::cir::isFPOrFPVectorTy(mlir::Type t) {
 // ComplexType Definitions
 //===----------------------------------------------------------------------===//
 
-mlir::LogicalResult mlir::cir::ComplexType::verify(
+mlir::LogicalResult cir::ComplexType::verify(
     llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
     mlir::Type elementTy) {
-  if (!mlir::isa<mlir::cir::IntType, mlir::cir::CIRFPTypeInterface>(
+  if (!mlir::isa<cir::IntType, cir::CIRFPTypeInterface>(
           elementTy)) {
     emitError() << "element type of !cir.complex must be either a "
                    "floating-point type or an integer type";
@@ -860,7 +860,7 @@ mlir::LogicalResult mlir::cir::ComplexType::verify(
   return success();
 }
 
-llvm::TypeSize mlir::cir::ComplexType::getTypeSizeInBits(
+llvm::TypeSize cir::ComplexType::getTypeSizeInBits(
     const mlir::DataLayout &dataLayout,
     mlir::DataLayoutEntryListRef params) const {
   // C17 6.2.5p13:
@@ -872,7 +872,7 @@ llvm::TypeSize mlir::cir::ComplexType::getTypeSizeInBits(
   return dataLayout.getTypeSizeInBits(elementTy) * 2;
 }
 
-uint64_t mlir::cir::ComplexType::getABIAlignment(
+uint64_t cir::ComplexType::getABIAlignment(
     const mlir::DataLayout &dataLayout,
     mlir::DataLayoutEntryListRef params) const {
   // C17 6.2.5p13:
@@ -884,7 +884,7 @@ uint64_t mlir::cir::ComplexType::getABIAlignment(
   return dataLayout.getTypeABIAlignment(elementTy);
 }
 
-uint64_t mlir::cir::ComplexType::getPreferredAlignment(
+uint64_t cir::ComplexType::getPreferredAlignment(
     const ::mlir::DataLayout &dataLayout,
     ::mlir::DataLayoutEntryListRef params) const {
   // C17 6.2.5p13:
@@ -964,10 +964,10 @@ static mlir::Type getMethodLayoutType(mlir::MLIRContext *ctx) {
   // following struct: struct { fnptr_t, ptrdiff_t }, where fnptr_t is a
   // function pointer type.
   // TODO: consider member function pointer layout in other ABIs
-  auto voidPtrTy = mlir::cir::PointerType::get(mlir::cir::VoidType::get(ctx));
+  auto voidPtrTy = cir::PointerType::get(cir::VoidType::get(ctx));
   mlir::Type fields[2]{voidPtrTy, voidPtrTy};
-  return mlir::cir::StructType::get(ctx, fields, /*packed=*/false,
-                                    mlir::cir::StructType::Struct);
+  return cir::StructType::get(ctx, fields, /*packed=*/false,
+                                    cir::StructType::Struct);
 }
 
 llvm::TypeSize
@@ -995,7 +995,7 @@ MethodType::getPreferredAlignment(const ::mlir::DataLayout &dataLayout,
 mlir::LogicalResult
 PointerType::verify(llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
                     mlir::Type pointee, mlir::Attribute addrSpace) {
-  if (addrSpace && !mlir::isa<mlir::cir::AddressSpaceAttr>(addrSpace)) {
+  if (addrSpace && !mlir::isa<cir::AddressSpaceAttr>(addrSpace)) {
     emitError() << "unexpected addrspace attribute type";
     return mlir::failure();
   }
@@ -1004,7 +1004,7 @@ PointerType::verify(llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
 
 mlir::ParseResult parseAddrSpaceAttribute(mlir::AsmParser &p,
                                           mlir::Attribute &addrSpaceAttr) {
-  using mlir::cir::AddressSpaceAttr;
+  using cir::AddressSpaceAttr;
   auto attrLoc = p.getCurrentLocation();
 
   llvm::StringRef addrSpaceKind;
@@ -1037,7 +1037,7 @@ mlir::ParseResult parseAddrSpaceAttribute(mlir::AsmParser &p,
 
 void printAddrSpaceAttribute(mlir::AsmPrinter &p,
                              mlir::Attribute rawAddrSpaceAttr) {
-  using mlir::cir::AddressSpaceAttr;
+  using cir::AddressSpaceAttr;
   auto addrSpaceAttr = mlir::cast<AddressSpaceAttr>(rawAddrSpaceAttr);
   if (addrSpaceAttr.isTarget()) {
     p << AddressSpaceAttr::kTargetKeyword << "<"

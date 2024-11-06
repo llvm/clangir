@@ -28,7 +28,7 @@
 
 using cir::CIRBaseBuilderTy;
 using namespace mlir;
-using namespace mlir::cir;
+using namespace cir;
 
 namespace {
 
@@ -103,7 +103,7 @@ bool IdiomRecognizerPass::raiseStdFind(CallOp call) {
 
   CIRBaseBuilderTy builder(getContext());
   builder.setInsertionPointAfter(call.getOperation());
-  auto findOp = builder.create<mlir::cir::StdFindOp>(
+  auto findOp = builder.create<cir::StdFindOp>(
       call.getLoc(), call.getResult().getType(), call.getCalleeAttr(),
       call.getOperand(0), call.getOperand(1), call.getOperand(2));
 
@@ -117,7 +117,7 @@ static bool isIteratorLikeType(mlir::Type t) {
   // in which case we could look at ASTRecordDeclInterface for more
   // information.
   auto pTy = dyn_cast<PointerType>(t);
-  if (!pTy || !mlir::isa<mlir::cir::IntType>(pTy.getPointee()))
+  if (!pTy || !mlir::isa<cir::IntType>(pTy.getPointee()))
     return false;
   return true;
 }
@@ -153,13 +153,13 @@ bool IdiomRecognizerPass::raiseIteratorBeginEnd(CallOp call) {
   if (callExprAttr.isIteratorBeginCall()) {
     if (opts.emitRemarkFoundCalls())
       emitRemark(call.getLoc()) << "found call to begin() iterator";
-    iterOp = builder.create<mlir::cir::IterBeginOp>(
+    iterOp = builder.create<cir::IterBeginOp>(
         call.getLoc(), call.getResult().getType(), call.getCalleeAttr(),
         call.getOperand(0));
   } else if (callExprAttr.isIteratorEndCall()) {
     if (opts.emitRemarkFoundCalls())
       emitRemark(call.getLoc()) << "found call to end() iterator";
-    iterOp = builder.create<mlir::cir::IterEndOp>(
+    iterOp = builder.create<cir::IterEndOp>(
         call.getLoc(), call.getResult().getType(), call.getCalleeAttr(),
         call.getOperand(0));
   } else {

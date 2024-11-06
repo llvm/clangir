@@ -28,7 +28,6 @@
 #include "clang/CIR/MissingFeatures.h"
 #include <memory>
 
-namespace mlir {
 namespace cir {
 
 class LowerModule {
@@ -56,7 +55,7 @@ public:
   MLIRContext *getMLIRContext() { return module.getContext(); }
   ModuleOp &getModule() { return module; }
 
-  const ::cir::CIRDataLayout &getDataLayout() const {
+  const cir::CIRDataLayout &getDataLayout() const {
     return types.getDataLayout();
   }
 
@@ -68,7 +67,7 @@ public:
   // FIXME(cir): This would be in ASTContext, not CodeGenModule.
   clang::TargetCXXABI::Kind getCXXABIKind() const {
     auto kind = getTarget().getCXXABI().getKind();
-    cir_cconv_assert(!::cir::MissingFeatures::langOpts());
+    cir_cconv_assert(!cir::MissingFeatures::langOpts());
     return kind;
   }
 
@@ -103,6 +102,5 @@ std::unique_ptr<LowerModule> createLowerModule(ModuleOp module,
                                                PatternRewriter &rewriter);
 
 } // namespace cir
-} // namespace mlir
 
 #endif // LLVM_CLANG_LIB_CIR_DIALECT_TRANSFORMS_TARGETLOWERING_LOWERMODULE_H

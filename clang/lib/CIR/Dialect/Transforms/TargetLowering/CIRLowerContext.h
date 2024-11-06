@@ -23,7 +23,6 @@
 #include "clang/Basic/TargetInfo.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 
-namespace mlir {
 namespace cir {
 
 // FIXME(cir): Most of this is type-related information that should already be
@@ -118,6 +117,5 @@ public:
 };
 
 } // namespace cir
-} // namespace mlir
 
 #endif // LLVM_CLANG_LIB_CIR_DIALECT_TRANSFORMS_TARGETLOWERING_CIRLowerContext_H

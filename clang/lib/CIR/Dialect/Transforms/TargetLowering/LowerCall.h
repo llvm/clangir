@@ -16,7 +16,6 @@
 
 #include "mlir/IR/Value.h"
 
-namespace mlir {
 namespace cir {
 
 /// Contains the address where the return value of a function can be stored, and
@@ -47,6 +46,5 @@ public:
 };
 
 } // namespace cir
-} // namespace mlir
 
 #endif // LLVM_CLANG_LIB_CIR_DIALECT_TRANSFORMS_TARGETLOWERING_LOWERCALL_H

@@ -28,7 +28,7 @@
 
 using cir::CIRBaseBuilderTy;
 using namespace mlir;
-using namespace mlir::cir;
+using namespace cir;
 
 namespace {
 
@@ -188,7 +188,7 @@ void LibOptPass::xformStdFindIntoMemchr(StdFindOp findOp) {
             findOp.getLoc(), memchrOp0, memchrOp1,
             builder.create<ConstantOp>(
                 findOp.getLoc(), uInt64Ty,
-                mlir::cir::IntAttr::get(uInt64Ty, staticSize)));
+                cir::IntAttr::get(uInt64Ty, staticSize)));
       }
     }
     return builder.create<MemChrOp>(

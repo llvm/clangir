@@ -54,13 +54,12 @@ static void printConstPtr(mlir::AsmPrinter &p, mlir::IntegerAttr value);
 #include "clang/CIR/Dialect/IR/CIROpsAttributes.cpp.inc"
 
 using namespace mlir;
-using namespace mlir::cir;
+using namespace cir;
 
 //===----------------------------------------------------------------------===//
 // CIR AST Attr helpers
 //===----------------------------------------------------------------------===//
 
-namespace mlir {
 namespace cir {
 
 mlir::Attribute makeFuncDeclAttr(const clang::Decl *decl,
@@ -88,7 +87,6 @@ mlir::Attribute makeFuncDeclAttr(const clang::Decl *decl,
 }
 
 } // namespace cir
-} // namespace mlir
 
 //===----------------------------------------------------------------------===//
 // General CIR parsing / printing
@@ -142,7 +140,7 @@ static ParseResult parseStructMembers(mlir::AsmParser &parser,
 LogicalResult ConstStructAttr::verify(
     ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
     mlir::Type type, ArrayAttr members) {
-  auto sTy = mlir::dyn_cast_if_present<mlir::cir::StructType>(type);
+  auto sTy = mlir::dyn_cast_if_present<cir::StructType>(type);
   if (!sTy) {
     emitError() << "expected !cir.struct type";
     return failure();
@@ -350,7 +348,7 @@ LogicalResult FPAttr::verify(function_ref<InFlightDiagnostic()> emitError,
 //===----------------------------------------------------------------------===//
 
 LogicalResult ComplexAttr::verify(function_ref<InFlightDiagnostic()> emitError,
-                                  mlir::cir::ComplexType type,
+                                  cir::ComplexType type,
                                   mlir::TypedAttr real, mlir::TypedAttr imag) {
   auto elemTy = type.getElementTy();
   if (real.getType() != elemTy) {
@@ -423,7 +421,7 @@ CmpThreeWayInfoAttr::verify(function_ref<InFlightDiagnostic()> emitError,
 
 LogicalResult
 DataMemberAttr::verify(function_ref<InFlightDiagnostic()> emitError,
-                       mlir::cir::DataMemberType ty,
+                       cir::DataMemberType ty,
                        std::optional<unsigned> memberIndex) {
   if (!memberIndex.has_value()) {
     // DataMemberAttr without a given index represents a null value.
@@ -460,7 +458,7 @@ DataMemberAttr::verify(function_ref<InFlightDiagnostic()> emitError,
 
 LogicalResult
 MethodAttr::verify(function_ref<::mlir::InFlightDiagnostic()> emitError,
-                   mlir::cir::MethodType type,
+                   cir::MethodType type,
                    std::optional<FlatSymbolRefAttr> symbol,
                    std::optional<uint64_t> vtable_offset) {
   if (symbol.has_value() && vtable_offset.has_value()) {
@@ -473,7 +471,7 @@ MethodAttr::verify(function_ref<::mlir::InFlightDiagnostic()> emitError,
 }
 
 Attribute MethodAttr::parse(AsmParser &parser, Type odsType) {
-  auto ty = mlir::cast<mlir::cir::MethodType>(odsType);
+  auto ty = mlir::cast<cir::MethodType>(odsType);
 
   if (parser.parseLess())
     return {};
@@ -556,7 +554,7 @@ LogicalResult GlobalAnnotationValuesAttr::verify(
                      "global op or func it annotates";
       return failure();
     }
-    auto annoPart = ::mlir::dyn_cast<mlir::cir::AnnotationAttr>(annoEntry[1]);
+    auto annoPart = ::mlir::dyn_cast<cir::AnnotationAttr>(annoEntry[1]);
     if (!annoPart) {
       emitError() << "The second element of GlobalAnnotationValuesAttr"
                      "annotations array element must be of "
@@ -585,17 +583,17 @@ std::string DynamicCastInfoAttr::getAlias() const {
 
 LogicalResult DynamicCastInfoAttr::verify(
     function_ref<InFlightDiagnostic()> emitError,
-    mlir::cir::GlobalViewAttr srcRtti, mlir::cir::GlobalViewAttr destRtti,
+    cir::GlobalViewAttr srcRtti, cir::GlobalViewAttr destRtti,
     mlir::FlatSymbolRefAttr runtimeFunc, mlir::FlatSymbolRefAttr badCastFunc,
-    mlir::cir::IntAttr offsetHint) {
+    cir::IntAttr offsetHint) {
   auto isRttiPtr = [](mlir::Type ty) {
     // RTTI pointers are !cir.ptr<!u8i>.
 
-    auto ptrTy = mlir::dyn_cast<mlir::cir::PointerType>(ty);
+    auto ptrTy = mlir::dyn_cast<cir::PointerType>(ty);
     if (!ptrTy)
       return false;
 
-    auto pointeeIntTy = mlir::dyn_cast<mlir::cir::IntType>(ptrTy.getPointee());
+    auto pointeeIntTy = mlir::dyn_cast<cir::IntType>(ptrTy.getPointee());
     if (!pointeeIntTy)
       return false;
 

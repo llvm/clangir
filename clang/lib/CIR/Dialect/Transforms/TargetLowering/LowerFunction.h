@@ -23,7 +23,6 @@
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/TypeEvaluationKind.h"
 
-namespace mlir {
 namespace cir {
 
 using CallArgList = SmallVector<Value, 8>;
@@ -94,14 +93,13 @@ public:
   Value getUndefRValue(Type Ty);
 
   /// Return the TypeEvaluationKind of Type \c T.
-  static ::cir::TypeEvaluationKind getEvaluationKind(Type T);
+  static cir::TypeEvaluationKind getEvaluationKind(Type T);
 
   static bool hasScalarEvaluationKind(Type T) {
-    return getEvaluationKind(T) == ::cir::TypeEvaluationKind::TEK_Scalar;
+    return getEvaluationKind(T) == cir::TypeEvaluationKind::TEK_Scalar;
   }
 };
 
 } // namespace cir
-} // namespace mlir
 
 #endif // LLVM_CLANG_LIB_CIR_DIALECT_TRANSFORMS_TARGETLOWERING_LOWERFUNCTION_H

@@ -26,9 +26,8 @@
 #include "clang/CIR/TypeEvaluationKind.h"
 #include "llvm/Support/ErrorHandling.h"
 
-using ABIArgInfo = ::cir::ABIArgInfo;
+using ABIArgInfo = cir::ABIArgInfo;
 
-namespace mlir {
 namespace cir {
 
 namespace {
@@ -74,7 +73,7 @@ Value enterStructPointerForCoercedAccess(Value SrcPtr, StructType SrcSTy,
     return SrcPtr;
 
   cir_cconv_assert_or_abort(
-      !::cir::MissingFeatures::ABIEnterStructForCoercedAccess(), "NYI");
+      !cir::MissingFeatures::ABIEnterStructForCoercedAccess(), "NYI");
   return SrcPtr; // FIXME: This is a temporary workaround for the assertion
                  // above.
 }
@@ -257,7 +256,7 @@ Value emitAddressAtOffset(LowerFunction &LF, Value addr,
   return addr;
 }
 
-mlir::cir::AllocaOp findAlloca(Operation *op) {
+cir::AllocaOp findAlloca(Operation *op) {
   if (!op)
     return {};
 
@@ -327,7 +326,7 @@ Value castReturnValue(Value Src, Type Ty, LowerFunction &LF) {
     auto &rewriter = LF.getRewriter();
     auto *ctxt = LF.LM.getMLIRContext();
     auto ptrTy = PointerType::get(ctxt, Ty);
-    auto voidPtr = PointerType::get(ctxt, mlir::cir::VoidType::get(ctxt));
+    auto voidPtr = PointerType::get(ctxt, cir::VoidType::get(ctxt));
 
     // insert alloca near the previuos one
     auto point = rewriter.saveInsertionPoint();
@@ -377,10 +376,10 @@ LowerFunction::buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
 
   // If we're using inalloca, all the memory arguments are GEPs off of the last
   // parameter, which is a pointer to the complete memory area.
-  cir_cconv_assert(!::cir::MissingFeatures::inallocaArgs());
+  cir_cconv_assert(!cir::MissingFeatures::inallocaArgs());
 
   // Name the struct return parameter.
-  cir_cconv_assert(!::cir::MissingFeatures::sretArgs());
+  cir_cconv_assert(!cir::MissingFeatures::sretArgs());
 
   // Track if we received the parameter as a pointer (indirect, byval, or
   // inalloca). If already have a pointer, EmitParmDecl doesn't need to copy it
@@ -391,7 +390,7 @@ LowerFunction::buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
   // FIXME(cir): non-blocking workaround for argument types that are not yet
   // properly handled by the ABI.
   if (cirCConvAssertionMode && FI.arg_size() != Args.size()) {
-    cir_cconv_assert(::cir::MissingFeatures::ABIParameterCoercion());
+    cir_cconv_assert(cir::MissingFeatures::ABIParameterCoercion());
     return success();
   }
 
@@ -408,7 +407,7 @@ LowerFunction::buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
     const Value Arg = *i;
     const ABIArgInfo &ArgI = info_it->info;
 
-    bool isPromoted = ::cir::MissingFeatures::varDeclIsKNRPromoted();
+    bool isPromoted = cir::MissingFeatures::varDeclIsKNRPromoted();
     // We are converting from ABIArgInfo type to VarDecl type directly, unless
     // the parameter is promoted. In this case we convert to
     // CGFunctionInfo::ArgInfo type with subsequent argument demotion.
@@ -417,7 +416,7 @@ LowerFunction::buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
       cir_cconv_unreachable("NYI");
     else
       Ty = Arg.getType();
-    cir_cconv_assert(!::cir::MissingFeatures::evaluationKind());
+    cir_cconv_assert(!cir::MissingFeatures::evaluationKind());
 
     unsigned FirstIRArg, NumIRArgs;
     std::tie(FirstIRArg, NumIRArgs) = IRFunctionArgs.getIRArgs(ArgNo);
@@ -434,7 +433,7 @@ LowerFunction::buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
       if (ArgI.getDirectOffset() == 0 && isa<PointerType>(LTy) &&
           isa<PointerType>(ArgI.getCoerceToType())) {
         cir_cconv_assert_or_abort(
-            !::cir::MissingFeatures::ABIPointerParameterAttrs(), "NYI");
+            !cir::MissingFeatures::ABIPointerParameterAttrs(), "NYI");
       }
 
       // Prepare the argument value. If we have the trivial case, handle it
@@ -446,7 +445,7 @@ LowerFunction::buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
         // LLVM expects swifterror parameters to be used in very restricted
         // ways. Copy the value into a less-restricted temporary.
         Value V = AI;
-        if (::cir::MissingFeatures::extParamInfo()) {
+        if (cir::MissingFeatures::extParamInfo()) {
           cir_cconv_unreachable("NYI");
         }
 
@@ -468,7 +467,7 @@ LowerFunction::buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
         break;
       }
 
-      cir_cconv_assert(!::cir::MissingFeatures::vectorType());
+      cir_cconv_assert(!cir::MissingFeatures::vectorType());
 
       StructType STy = dyn_cast<StructType>(ArgI.getCoerceToType());
       if (ArgI.isDirect() && !ArgI.getCanBeFlattened() && STy &&
@@ -538,7 +537,7 @@ LowerFunction::buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
       }
 
       // Match to what EmitParamDecl is expecting for this type.
-      if (::cir::MissingFeatures::evaluationKind()) {
+      if (cir::MissingFeatures::evaluationKind()) {
         cir_cconv_unreachable("NYI");
       } else {
         // FIXME(cir): Should we have an ParamValue abstraction like in the
@@ -663,7 +662,7 @@ LogicalResult LowerFunction::buildFunctionEpilog(const LowerFunctionInfo &FI) {
       // If there is a dominating store to ReturnValue, we can elide
       // the load, zap the store, and usually zap the alloca.
       // NOTE(cir): This seems like a premature optimization case. Skipping it.
-      if (::cir::MissingFeatures::returnValueDominatingStoreOptmiization()) {
+      if (cir::MissingFeatures::returnValueDominatingStoreOptmiization()) {
         cir_cconv_unreachable("NYI");
       }
       // Otherwise, we have to do a simple load.
@@ -871,11 +870,11 @@ Value LowerFunction::rewriteCallOp(FuncType calleeTy, FuncOp origCallee,
   // Chain calls use this same code path to add the invisible chain parameter
   // to the function type.
   if ((origCallee && origCallee.getNoProto()) || Chain) {
-    cir_cconv_assert_or_abort(::cir::MissingFeatures::ABINoProtoFunctions(),
+    cir_cconv_assert_or_abort(cir::MissingFeatures::ABINoProtoFunctions(),
                               "NYI");
   }
 
-  cir_cconv_assert(!::cir::MissingFeatures::CUDA());
+  cir_cconv_assert(!cir::MissingFeatures::CUDA());
 
   // TODO(cir): LLVM IR has the concept of "CallBase", which is a base class
   // for all types of calls. Perhaps we should have a CIR interface to mimic
@@ -903,7 +902,7 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
   // Handle struct-return functions by passing a pointer to the
   // location that we would like to return into.
   Type RetTy = CallInfo.getReturnType(); // ABI-agnostic type.
-  const ::cir::ABIArgInfo &RetAI = CallInfo.getReturnInfo();
+  const cir::ABIArgInfo &RetAI = CallInfo.getReturnInfo();
 
   FuncType IRFuncTy = LM.getTypes().getFunctionType(CallInfo);
 
@@ -927,7 +926,7 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
     cir_cconv_unreachable("NYI");
   }
 
-  cir_cconv_assert(!::cir::MissingFeatures::swift());
+  cir_cconv_assert(!cir::MissingFeatures::swift());
 
   // NOTE(cir): Skipping lifetime markers here.
 
@@ -966,7 +965,7 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
           cir_cconv_unreachable("NYI");
         }
 
-        if (::cir::MissingFeatures::extParamInfo()) {
+        if (cir::MissingFeatures::extParamInfo()) {
           cir_cconv_unreachable("NYI");
         }
 
@@ -978,7 +977,7 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
             V.getType() != IRFuncTy.getInput(FirstIRArg))
           cir_cconv_unreachable("NYI");
 
-        if (::cir::MissingFeatures::undef())
+        if (cir::MissingFeatures::undef())
           cir_cconv_unreachable("NYI");
         IRCallArgs[FirstIRArg] = V;
         break;
@@ -1008,10 +1007,10 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
         Value Load = createCoercedValue(Src, ArgInfo.getCoerceToType(), *this);
 
         // FIXME(cir): We should probably handle CMSE non-secure calls here
-        cir_cconv_assert(!::cir::MissingFeatures::cmseNonSecureCallAttr());
+        cir_cconv_assert(!cir::MissingFeatures::cmseNonSecureCallAttr());
 
         // since they are a ARM-specific feature.
-        if (::cir::MissingFeatures::undef())
+        if (cir::MissingFeatures::undef())
           cir_cconv_unreachable("NYI");
         IRCallArgs[FirstIRArg] = Load;
       }
@@ -1033,7 +1032,7 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
   // debugging stuff here.
 
   // Update the largest vector width if any arguments have vector types.
-  cir_cconv_assert(!::cir::MissingFeatures::vectorType());
+  cir_cconv_assert(!cir::MissingFeatures::vectorType());
 
   // Compute the calling convention and attributes.
 
@@ -1072,7 +1071,7 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
       rewriter.getAttr<ExtraFuncAttributesAttr>(rewriter.getDictionaryAttr({}));
   newCallOp->setAttr("extra_attrs", extraAttrs);
 
-  cir_cconv_assert(!::cir::MissingFeatures::vectorType());
+  cir_cconv_assert(!cir::MissingFeatures::vectorType());
 
   // NOTE(cir): Skipping some ObjC, tail-call, debug, and attribute stuff
   // here.
@@ -1088,7 +1087,7 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
     // need only to handle the ABI-specific to ABI-agnostic cast here.
     switch (RetAI.getKind()) {
 
-    case ::cir::ABIArgInfo::Ignore:
+    case cir::ABIArgInfo::Ignore:
       // If we are ignoring an argument that had a result, make sure to
       // construct the appropriate return value for our caller.
       return getUndefRValue(RetTy);
@@ -1098,7 +1097,7 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
       Type RetIRTy = RetTy;
       if (RetAI.getCoerceToType() == RetIRTy && RetAI.getDirectOffset() == 0) {
         switch (getEvaluationKind(RetTy)) {
-        case ::cir::TypeEvaluationKind::TEK_Scalar: {
+        case cir::TypeEvaluationKind::TEK_Scalar: {
           // If the argument doesn't match, perform a bitcast to coerce it.
           // This can happen due to trivial type mismatches. NOTE(cir):
           // Perhaps this section should handle CIR's boolean case.
@@ -1115,14 +1114,14 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
       // If coercing a fixed vector from a scalable vector for ABI
       // compatibility, and the types match, use the llvm.vector.extract
       // intrinsic to perform the conversion.
-      if (::cir::MissingFeatures::vectorType()) {
+      if (cir::MissingFeatures::vectorType()) {
         cir_cconv_unreachable("NYI");
       }
 
       // FIXME(cir): Use return value slot here.
       Value RetVal = callOp.getResult();
       // TODO(cir): Check for volatile return values.
-      cir_cconv_assert(!::cir::MissingFeatures::volatileTypes());
+      cir_cconv_assert(!cir::MissingFeatures::volatileTypes());
 
       // NOTE(cir): If the function returns, there should always be a valid
       // return value present. Instead of setting the return value here, we
@@ -1130,7 +1129,7 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
       if (!RetVal) {
         RetVal = callOp.getResult();
         // TODO(cir): Check for volatile return values.
-        cir_cconv_assert(::cir::MissingFeatures::volatileTypes());
+        cir_cconv_assert(cir::MissingFeatures::volatileTypes());
       }
 
       // An empty record can overlap other data (if declared with
@@ -1175,15 +1174,14 @@ Value LowerFunction::getUndefRValue(Type Ty) {
   cir_cconv_unreachable("NYI");
 }
 
-::cir::TypeEvaluationKind LowerFunction::getEvaluationKind(Type type) {
+cir::TypeEvaluationKind LowerFunction::getEvaluationKind(Type type) {
   // FIXME(cir): Implement type classes for CIR types.
   if (isa<StructType>(type))
-    return ::cir::TypeEvaluationKind::TEK_Aggregate;
+    return cir::TypeEvaluationKind::TEK_Aggregate;
   if (isa<BoolType, IntType, SingleType, DoubleType, LongDoubleType, VectorType,
           PointerType>(type))
-    return ::cir::TypeEvaluationKind::TEK_Scalar;
+    return cir::TypeEvaluationKind::TEK_Scalar;
   cir_cconv_unreachable("NYI");
 }
 
 } // namespace cir
-} // namespace mlir

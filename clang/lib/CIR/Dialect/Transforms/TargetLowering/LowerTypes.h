@@ -24,7 +24,6 @@
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/FnInfoOpts.h"
 
-namespace mlir {
 namespace cir {
 
 // Forward declarations.
@@ -48,7 +47,7 @@ private:
   // Used to build types and other MLIR operations.
   MLIRContext *mlirContext;
 
-  ::cir::CIRDataLayout DL;
+  cir::CIRDataLayout DL;
 
   const ABIInfo &getABIInfo() const { return TheABIInfo; }
 
@@ -56,7 +55,7 @@ public:
   LowerTypes(LowerModule &LM, StringRef DLString);
   ~LowerTypes() = default;
 
-  const ::cir::CIRDataLayout &getDataLayout() const { return DL; }
+  const cir::CIRDataLayout &getDataLayout() const { return DL; }
   LowerModule &getLM() const { return LM; }
   CIRCXXABI &getCXXABI() const { return CXXABI; }
   CIRLowerContext &getContext() { return context; }
@@ -86,7 +85,7 @@ public:
   /// \param argTypes - ABI-agnostic CIR argument types.
   /// \param required - Information about required/optional arguments.
   const LowerFunctionInfo &arrangeLLVMFunctionInfo(Type resultType,
-                                                   ::cir::FnInfoOpts opts,
+                                                   cir::FnInfoOpts opts,
                                                    ArrayRef<Type> argTypes,
                                                    RequiredArgs required);
 
@@ -98,6 +97,5 @@ public:
 };
 
 } // namespace cir
-} // namespace mlir
 
 #endif // LLVM_CLANG_LIB_CIR_DIALECT_TRANSFORMS_TARGETLOWERING_LOWERTYPES_H

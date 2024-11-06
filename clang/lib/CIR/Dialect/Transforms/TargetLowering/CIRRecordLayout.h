@@ -20,7 +20,6 @@
 #include <cstdint>
 #include <vector>
 
-namespace mlir {
 namespace cir {
 
 class CIRLowerContext;
@@ -133,6 +132,5 @@ public:
 };
 
 } // namespace cir
-} // namespace mlir
 
 #endif // LLVM_CLANG_LIB_CIR_DIALECT_TRANSFORMS_TARGETLOWERING_CIRRECORDLAYOUT_H
