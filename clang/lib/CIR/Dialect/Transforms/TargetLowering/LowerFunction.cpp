@@ -329,14 +329,14 @@ Value castReturnValue(Value Src, Type Ty, LowerFunction &LF) {
     auto ptrTy = PointerType::get(ctxt, Ty);
     auto voidPtr = PointerType::get(ctxt, mlir::cir::VoidType::get(ctxt));
 
-    AllocaOp tmp;
-    {
-      mlir::PatternRewriter::InsertionGuard guard(rewriter);
-      auto align = LF.LM.getDataLayout().getABITypeAlign(Ty);
-      auto alignAttr = rewriter.getI64IntegerAttr(align.value());
-      tmp =
+    // insert alloca near the previuos one
+    auto point = rewriter.saveInsertionPoint();
+    rewriter.setInsertionPointAfter(addr);
+    auto align = LF.LM.getDataLayout().getABITypeAlign(Ty);
+    auto alignAttr = rewriter.getI64IntegerAttr(align.value());
+    auto tmp =
           rewriter.create<AllocaOp>(Src.getLoc(), ptrTy, Ty, "tmp", alignAttr);
-    }
+    rewriter.restoreInsertionPoint(point);
 
     auto srcVoidPtr = createBitcast(addr, voidPtr, LF);
     auto dstVoidPtr = createBitcast(tmp, voidPtr, LF);
