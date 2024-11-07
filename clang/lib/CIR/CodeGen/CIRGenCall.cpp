@@ -35,8 +35,8 @@
 #include "mlir/IR/Types.h"
 #include "clang/CIR/MissingFeatures.h"
 
-using namespace cir;
 using namespace clang;
+using namespace clang::CIRGen;
 
 CIRGenFunctionInfo *CIRGenFunctionInfo::create(
     mlir::cir::CallingConv cirCC, bool instanceMethod, bool chainCall,

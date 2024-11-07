@@ -29,8 +29,8 @@
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Value.h"
 
-using namespace cir;
 using namespace clang;
+using namespace clang::CIRGen;
 
 namespace {
 

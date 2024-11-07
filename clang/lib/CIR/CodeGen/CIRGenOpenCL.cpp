@@ -13,8 +13,8 @@
 #include "CIRGenFunction.h"
 #include "CIRGenModule.h"
 
-using namespace cir;
 using namespace clang;
+using namespace clang::CIRGen;
 
 // Returns the address space id that should be produced to the
 // kernel_arg_addr_space metadata. This is always fixed to the ids

@@ -19,8 +19,8 @@
 
 #include <clang/AST/DeclCXX.h>
 
-using namespace cir;
 using namespace clang;
+using namespace clang::CIRGen;
 
 namespace {
 struct MemberCallInfo {

@@ -29,8 +29,8 @@
 #include "mlir/IR/Value.h"
 #include "llvm/Support/SaveAndRestore.h"
 
-using namespace cir;
 using namespace clang;
+using namespace clang::CIRGen;
 
 const EHPersonality EHPersonality::GNU_C = {"__gcc_personality_v0", nullptr};
 const EHPersonality EHPersonality::GNU_C_SJLJ = {"__gcc_personality_sj0",

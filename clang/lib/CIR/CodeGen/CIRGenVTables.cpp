@@ -30,7 +30,7 @@
 #include <cstdio>
 
 using namespace clang;
-using namespace cir;
+using namespace clang::CIRGen;
 
 CIRGenVTables::CIRGenVTables(CIRGenModule &CGM)
     : CGM(CGM), VTContext(CGM.getASTContext().getVTableContext()) {}

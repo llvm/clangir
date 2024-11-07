@@ -30,8 +30,8 @@
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "llvm/Support/ErrorHandling.h"
 
-using namespace cir;
 using namespace clang;
+using namespace clang::CIRGen;
 
 namespace {
 class CIRGenItaniumCXXABI : public cir::CIRGenCXXABI {

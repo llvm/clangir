@@ -14,7 +14,7 @@
 #include "CIRGenFunction.h"
 
 using namespace clang;
-using namespace cir;
+using namespace clang::CIRGen;
 
 Address CIRGenFunction::getAsNaturalAddressOf(Address Addr,
                                               QualType PointeeTy) {

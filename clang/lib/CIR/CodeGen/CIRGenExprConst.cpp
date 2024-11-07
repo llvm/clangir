@@ -34,7 +34,7 @@
 #include <algorithm>
 
 using namespace clang;
-using namespace cir;
+using namespace clang::CIRGen;
 
 //===----------------------------------------------------------------------===//
 //                            ConstantAggregateBuilder

@@ -34,8 +34,8 @@
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "llvm/Support/ErrorHandling.h"
 
-using namespace cir;
 using namespace clang;
+using namespace clang::CIRGen;
 using namespace mlir::cir;
 using namespace llvm;
 

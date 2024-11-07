@@ -17,9 +17,9 @@
 #include "llvm/ADT/ScopeExit.h"
 
 using namespace clang;
-using namespace cir;
+using namespace clang::CIRGen;
 
-struct cir::CGCoroData {
+struct clang::CIRGen::CGCoroData {
   // What is the current await expression kind and how many
   // await/yield expressions were encountered so far.
   // These are used to generate pretty labels for await expressions in LLVM IR.

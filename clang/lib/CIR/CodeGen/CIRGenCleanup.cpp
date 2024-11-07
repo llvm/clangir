@@ -21,8 +21,8 @@
 #include "CIRGenCleanup.h"
 #include "CIRGenFunction.h"
 
-using namespace cir;
 using namespace clang;
+using namespace clang::CIRGen;
 using namespace mlir::cir;
 
 //===----------------------------------------------------------------------===//

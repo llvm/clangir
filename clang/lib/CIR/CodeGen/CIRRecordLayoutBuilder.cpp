@@ -18,7 +18,7 @@
 
 using namespace llvm;
 using namespace clang;
-using namespace cir;
+using namespace clang::CIRGen;
 
 namespace {
 /// The CIRRecordLowering is responsible for lowering an ASTRecordLayout to a

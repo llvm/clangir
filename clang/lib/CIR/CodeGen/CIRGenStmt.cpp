@@ -20,8 +20,8 @@
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "llvm/Support/ErrorHandling.h"
 
-using namespace cir;
 using namespace clang;
+using namespace clang::CIRGen;
 using namespace mlir::cir;
 
 Address CIRGenFunction::buildCompoundStmtWithoutScope(const CompoundStmt &S,

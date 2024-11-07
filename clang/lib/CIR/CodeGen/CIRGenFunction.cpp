@@ -32,8 +32,8 @@
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Support/LogicalResult.h"
 
-using namespace cir;
 using namespace clang;
+using namespace clang::CIRGen;
 using namespace mlir::cir;
 
 CIRGenFunction::CIRGenFunction(CIRGenModule &CGM, CIRGenBuilderTy &builder,

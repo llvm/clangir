@@ -67,7 +67,7 @@ class StructType;
 } // namespace cir
 } // namespace mlir
 
-namespace cir {
+namespace clang::CIRGen {
 class CallArgList;
 class CIRGenCXXABI;
 class CIRGenModule;
@@ -276,6 +276,6 @@ public:
       llvm::ArrayRef<clang::FunctionProtoType::ExtParameterInfo> paramInfos,
       RequiredArgs args);
 };
-} // namespace cir
+} // namespace clang::CIRGen
 
 #endif

@@ -29,8 +29,8 @@
 #include "llvm/Support/ErrorHandling.h"
 #include <cassert>
 
-using namespace cir;
 using namespace clang;
+using namespace clang::CIRGen;
 
 CIRGenFunction::AutoVarEmission
 CIRGenFunction::buildAutoVarAlloca(const VarDecl &D,

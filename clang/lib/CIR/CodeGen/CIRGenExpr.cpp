@@ -39,8 +39,8 @@
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/Value.h"
 
-using namespace cir;
 using namespace clang;
+using namespace clang::CIRGen;
 using namespace mlir::cir;
 
 static mlir::cir::FuncOp buildFunctionDeclPointer(CIRGenModule &CGM,

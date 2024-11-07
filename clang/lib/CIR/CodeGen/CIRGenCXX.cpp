@@ -22,7 +22,7 @@
 #include <cassert>
 
 using namespace clang;
-using namespace cir;
+using namespace clang::CIRGen;
 
 /// Try to emit a base destructor as an alias to its primary
 /// base-class destructor.

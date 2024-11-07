@@ -26,8 +26,8 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 
-using namespace cir;
 using namespace clang;
+using namespace clang::CIRGen;
 
 namespace {
 

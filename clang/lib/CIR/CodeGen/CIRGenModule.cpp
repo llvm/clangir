@@ -82,8 +82,8 @@
 #include <numeric>
 
 using namespace mlir::cir;
-using namespace cir;
 using namespace clang;
+using namespace clang::CIRGen;
 
 using llvm::cast;
 using llvm::dyn_cast;

@@ -20,7 +20,7 @@
 #include "clang/CIR/MissingFeatures.h"
 
 using namespace clang;
-using namespace cir;
+using namespace clang::CIRGen;
 
 /// Checks whether the given constructor is a valid subject for the
 /// complete-to-base constructor delgation optimization, i.e. emitting the

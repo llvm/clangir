@@ -34,12 +34,15 @@ namespace clang {
 class ASTContext;
 class DeclGroupRef;
 class FunctionDecl;
-} // namespace clang
 
-namespace cir {
+namespace CIRGen {
 class CIRGenModule;
 class CIRGenTypes;
+} // namespace CIRGen
+} // namespace clang
 
+
+namespace cir {
 class CIRGenerator : public clang::ASTConsumer {
   virtual void anchor();
   clang::DiagnosticsEngine &Diags;
@@ -70,7 +73,7 @@ class CIRGenerator : public clang::ASTConsumer {
 
 protected:
   std::unique_ptr<mlir::MLIRContext> mlirCtx;
-  std::unique_ptr<CIRGenModule> CGM;
+  std::unique_ptr<clang::CIRGen::CIRGenModule> CGM;
 
 private:
   llvm::SmallVector<clang::FunctionDecl *, 8> DeferredInlineMemberFuncDefs;

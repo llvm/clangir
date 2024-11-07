@@ -14,8 +14,8 @@
 #include "CIRGenFunction.h"
 #include "CIRGenModule.h"
 
-using namespace cir;
 using namespace clang;
+using namespace clang::CIRGen;
 
 CIRGenOpenMPRuntime::CIRGenOpenMPRuntime(CIRGenModule &CGM) : CGM(CGM) {}
 

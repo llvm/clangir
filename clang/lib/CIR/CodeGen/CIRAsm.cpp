@@ -5,8 +5,8 @@
 #include "TargetInfo.h"
 #include "clang/CIR/MissingFeatures.h"
 
-using namespace cir;
 using namespace clang;
+using namespace clang::CIRGen;
 using namespace mlir::cir;
 
 static bool isAggregateType(mlir::Type typ) {

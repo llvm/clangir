@@ -10,8 +10,8 @@
 #include "clang/AST/StmtVisitor.h"
 #include "llvm/Support/ErrorHandling.h"
 
-using namespace cir;
 using namespace clang;
+using namespace clang::CIRGen;
 
 namespace {
 

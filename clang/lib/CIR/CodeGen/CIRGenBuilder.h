@@ -43,7 +43,7 @@
 #include <string>
 #include <utility>
 
-namespace cir {
+namespace clang::CIRGen {
 
 class CIRGenFunction;
 
@@ -1067,5 +1067,5 @@ public:
                                    mlir::Type eltTy);
 };
 
-} // namespace cir
+} // namespace clang::CIRGen
 #endif

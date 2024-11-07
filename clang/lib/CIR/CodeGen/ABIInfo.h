@@ -11,7 +11,7 @@
 
 #include "clang/AST/Type.h"
 
-namespace cir {
+namespace clang::CIRGen {
 
 class ABIArgInfo;
 class CIRGenCXXABI;
@@ -42,6 +42,6 @@ public:
   bool isPromotableIntegerTypeForABI(clang::QualType Ty) const;
 };
 
-} // namespace cir
+} // namespace clang::CIRGen
 
 #endif

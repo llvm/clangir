@@ -23,7 +23,7 @@
 #include "llvm/Support/ErrorHandling.h"
 
 using namespace clang;
-using namespace cir;
+using namespace clang::CIRGen;
 
 mlir::cir::CallingConv
 CIRGenTypes::ClangCallConvToCIRCallConv(clang::CallingConv CC) {

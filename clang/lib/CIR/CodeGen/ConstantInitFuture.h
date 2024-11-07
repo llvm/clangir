@@ -24,9 +24,9 @@
 // Forward-declare ConstantInitBuilderBase and give it a
 // PointerLikeTypeTraits specialization so that we can safely use it
 // in a PointerUnion below.
-namespace cir {
+namespace clang::CIRGen {
 class ConstantInitBuilderBase;
-} // namespace cir
+} // namespace clang::CIRGen
 
 namespace llvm {
 template <> struct PointerLikeTypeTraits<::cir::ConstantInitBuilderBase *> {
@@ -38,7 +38,7 @@ template <> struct PointerLikeTypeTraits<::cir::ConstantInitBuilderBase *> {
 };
 } // namespace llvm
 
-namespace cir {
+namespace clang::CIRGen {
 
 /// A "future" for a completed constant initializer, which can be passed
 /// around independently of any sub-builders (but not the original parent).
@@ -81,7 +81,7 @@ public:
       llvm::PointerLikeTypeTraits<PairTy>::NumLowBitsAvailable;
 };
 
-} // namespace cir
+} // namespace clang::CIRGen
 
 namespace llvm {
 

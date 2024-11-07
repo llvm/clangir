@@ -44,8 +44,7 @@
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/Value.h"
 
-using namespace clang;
-namespace cir {
+namespace clang::CIRGen {
 
 class CIRGenFunction;
 class CIRGenCXXABI;
@@ -853,6 +852,6 @@ private:
   /// Those annotations are emitted during lowering to the LLVM code.
   void addGlobalAnnotations(const ValueDecl *d, mlir::Operation *gv);
 };
-} // namespace cir
+} // namespace clang::CIRGen
 
 #endif // LLVM_CLANG_LIB_CODEGEN_CIRGENMODULE_H

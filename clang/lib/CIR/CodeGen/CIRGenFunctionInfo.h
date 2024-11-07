@@ -22,7 +22,7 @@
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/Support/TrailingObjects.h"
 
-namespace cir {
+namespace clang::CIRGen {
 
 struct CIRGenFunctionInfoArgInfo {
   clang::CanQualType type;
@@ -281,6 +281,6 @@ public:
   bool usesInAlloca() const { return ArgStruct; }
 };
 
-} // namespace cir
+} // namespace clang::CIRGen
 
 #endif

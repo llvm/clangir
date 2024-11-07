@@ -8,8 +8,8 @@
 #include "clang/CIR/MissingFeatures.h"
 #include "clang/CIR/Target/x86.h"
 
-using namespace cir;
 using namespace clang;
+using namespace clang::CIRGen;
 
 static bool testIfIsVoidTy(QualType Ty) {
   const auto *BT = Ty->getAs<BuiltinType>();
@@ -270,14 +270,12 @@ private:
 };
 } // namespace
 
-namespace cir {
-void computeSPIRKernelABIInfo(CIRGenModule &CGM, CIRGenFunctionInfo &FI) {
+void clang::CIRGen::computeSPIRKernelABIInfo(CIRGenModule &CGM, CIRGenFunctionInfo &FI) {
   if (CGM.getTarget().getTriple().isSPIRV())
     SPIRVABIInfo(CGM.getTypes()).computeInfo(FI);
   else
     CommonSPIRABIInfo(CGM.getTypes()).computeInfo(FI);
 }
-} // namespace cir
 
 namespace {
 

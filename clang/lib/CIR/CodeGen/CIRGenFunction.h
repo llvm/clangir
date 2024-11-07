@@ -51,7 +51,7 @@ class ScalarExprEmitter;
 class AggExprEmitter;
 } // namespace
 
-namespace cir {
+namespace clang::CIRGen {
 
 struct CGCoroData;
 
@@ -2548,6 +2548,6 @@ template <> struct DominatingValue<RValue> {
   }
 };
 
-} // namespace cir
+} // namespace clang::CIRGen
 
 #endif // LLVM_CLANG_LIB_CIR_CIRGENFUNCTION_H
