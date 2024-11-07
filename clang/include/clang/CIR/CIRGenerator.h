@@ -41,7 +41,6 @@ class CIRGenTypes;
 } // namespace CIRGen
 } // namespace clang
 
-
 namespace cir {
 class CIRGenerator : public clang::ASTConsumer {
   virtual void anchor();

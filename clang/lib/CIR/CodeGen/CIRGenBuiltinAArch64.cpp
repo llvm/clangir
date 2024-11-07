@@ -2313,8 +2313,8 @@ buildCommonNeonCallPattern0(CIRGenFunction &cgf, llvm::StringRef intrincsName,
 mlir::Value CIRGenFunction::buildCommonNeonBuiltinExpr(
     unsigned builtinID, unsigned llvmIntrinsic, unsigned altLLVMIntrinsic,
     const char *nameHint, unsigned modifier, const CallExpr *e,
-    llvm::SmallVectorImpl<mlir::Value> &ops, Address ptrOp0,
-    Address ptrOp1, llvm::Triple::ArchType arch) {
+    llvm::SmallVectorImpl<mlir::Value> &ops, Address ptrOp0, Address ptrOp1,
+    llvm::Triple::ArchType arch) {
   // Get the last argument, which specifies the vector type.
   const clang::Expr *arg = e->getArg(e->getNumArgs() - 1);
   std::optional<llvm::APSInt> neonTypeConst =

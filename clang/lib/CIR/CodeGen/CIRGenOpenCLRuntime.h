@@ -41,6 +41,6 @@ public:
                                           const clang::VarDecl &D);
 };
 
-} // clang::CIRGen cir
+} // namespace clang::CIRGen
 
 #endif // LLVM_CLANG_LIB_CIR_CIRGENOPENCLRUNTIME_H

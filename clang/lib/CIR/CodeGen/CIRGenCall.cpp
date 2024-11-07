@@ -1465,8 +1465,8 @@ const CIRGenFunctionInfo &CIRGenTypes::arrangeCXXMethodCall(
 
   auto info = proto->getExtInfo();
   return arrangeCIRFunctionInfo(GetReturnType(proto->getReturnType()),
-                                cir::FnInfoOpts::IsInstanceMethod, argTypes, info,
-                                paramInfos, required);
+                                cir::FnInfoOpts::IsInstanceMethod, argTypes,
+                                info, paramInfos, required);
 }
 
 /// Figure out the rules for calling a function with the given formal type using
@@ -1544,9 +1544,9 @@ CIRGenTypes::arrangeFunctionDeclaration(const FunctionDecl *FD) {
   // When declaring a function without a prototype, always use a non-variadic
   // type.
   if (CanQual<FunctionNoProtoType> noProto = FTy.getAs<FunctionNoProtoType>()) {
-    return arrangeCIRFunctionInfo(noProto->getReturnType(), cir::FnInfoOpts::None,
-                                  std::nullopt, noProto->getExtInfo(), {},
-                                  RequiredArgs::All);
+    return arrangeCIRFunctionInfo(noProto->getReturnType(),
+                                  cir::FnInfoOpts::None, std::nullopt,
+                                  noProto->getExtInfo(), {}, RequiredArgs::All);
   }
 
   return arrangeFreeFunctionType(FTy.castAs<FunctionProtoType>());

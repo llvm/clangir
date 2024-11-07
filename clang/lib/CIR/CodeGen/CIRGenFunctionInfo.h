@@ -265,7 +265,9 @@ public:
   clang::CanQualType getReturnType() const { return getArgsBuffer()[0].type; }
 
   cir::ABIArgInfo &getReturnInfo() { return getArgsBuffer()[0].info; }
-  const cir::ABIArgInfo &getReturnInfo() const { return getArgsBuffer()[0].info; }
+  const cir::ABIArgInfo &getReturnInfo() const {
+    return getArgsBuffer()[0].info;
+  }
 
   bool isChainCall() const { return ChainCall; }
 

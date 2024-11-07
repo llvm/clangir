@@ -29,7 +29,8 @@ class ConstantInitBuilderBase;
 } // namespace clang::CIRGen
 
 namespace llvm {
-template <> struct PointerLikeTypeTraits<clang::CIRGen::ConstantInitBuilderBase *> {
+template <>
+struct PointerLikeTypeTraits<clang::CIRGen::ConstantInitBuilderBase *> {
   using T = clang::CIRGen::ConstantInitBuilderBase *;
 
   static inline void *getAsVoidPointer(T p) { return p; }

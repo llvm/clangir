@@ -1008,8 +1008,8 @@ public:
   mlir::Value buildCommonNeonBuiltinExpr(
       unsigned builtinID, unsigned llvmIntrinsic, unsigned altLLVMIntrinsic,
       const char *nameHint, unsigned modifier, const CallExpr *e,
-      llvm::SmallVectorImpl<mlir::Value> &ops, Address ptrOp0,
-      Address ptrOp1, llvm::Triple::ArchType arch);
+      llvm::SmallVectorImpl<mlir::Value> &ops, Address ptrOp0, Address ptrOp1,
+      llvm::Triple::ArchType arch);
 
   mlir::Value buildAlignmentAssumption(mlir::Value ptrValue, QualType ty,
                                        SourceLocation loc,

@@ -705,8 +705,8 @@ public:
   }
 
   Address createBaseClassAddr(mlir::Location loc, Address addr,
-                                   mlir::Type destType, unsigned offset,
-                                   bool assumeNotNull) {
+                              mlir::Type destType, unsigned offset,
+                              bool assumeNotNull) {
     if (destType == addr.getElementType())
       return addr;
 
@@ -717,8 +717,8 @@ public:
   }
 
   Address createDerivedClassAddr(mlir::Location loc, Address addr,
-                                      mlir::Type destType, unsigned offset,
-                                      bool assumeNotNull) {
+                                 mlir::Type destType, unsigned offset,
+                                 bool assumeNotNull) {
     if (destType == addr.getElementType())
       return addr;
 
@@ -834,7 +834,7 @@ public:
   /// Cast the element type of the given address to a different type,
   /// preserving information like the alignment.
   Address createElementBitCast(mlir::Location loc, Address addr,
-                                    mlir::Type destType) {
+                               mlir::Type destType) {
     if (destType == addr.getElementType())
       return addr;
 

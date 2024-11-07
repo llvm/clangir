@@ -2455,7 +2455,8 @@ CIRGenFunction::buildConditionalBlocks(const AbstractConditionalOperator *E,
                               *this, loc, b.getInsertionBlock()};
                           CGF.currLexScope->setAsTernary();
 
-                          assert(!cir::MissingFeatures::incrementProfileCounter());
+                          assert(
+                              !cir::MissingFeatures::incrementProfileCounter());
                           eval.begin(CGF);
                           Info.LHS = BranchGenFunc(CGF, trueExpr);
                           auto lhs = Info.LHS->getPointer();
@@ -2476,7 +2477,8 @@ CIRGenFunction::buildConditionalBlocks(const AbstractConditionalOperator *E,
                               *this, loc, b.getInsertionBlock()};
                           CGF.currLexScope->setAsTernary();
 
-                          assert(!cir::MissingFeatures::incrementProfileCounter());
+                          assert(
+                              !cir::MissingFeatures::incrementProfileCounter());
                           eval.begin(CGF);
                           Info.RHS = BranchGenFunc(CGF, falseExpr);
                           auto rhs = Info.RHS->getPointer();

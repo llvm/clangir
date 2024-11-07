@@ -1971,7 +1971,8 @@ mlir::Value ScalarExprEmitter::VisitInitListExpr(InitListExpr *E) {
     llvm_unreachable("NYI");
 
   if (E->getType()->isVectorType()) {
-    assert(!cir::MissingFeatures::scalableVectors() && "NYI: scalable vector init");
+    assert(!cir::MissingFeatures::scalableVectors() &&
+           "NYI: scalable vector init");
     assert(!cir::MissingFeatures::vectorConstants() && "NYI: vector constants");
     auto VectorType =
         mlir::dyn_cast<mlir::cir::VectorType>(CGF.getCIRType(E->getType()));
