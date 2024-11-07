@@ -533,11 +533,10 @@ mlir::LogicalResult CIRGenFunction::buildReturnStmt(const ReturnStmt &S) {
     // dispatched by `handleReturnVal()` might needs to manipulate blocks and
     // look into parents, which are all unlinked.
     mlir::OpBuilder::InsertPoint scopeBody;
-    builder.create<cir::ScopeOp>(
-        scopeLoc, /*scopeBuilder=*/
-        [&](mlir::OpBuilder &b, mlir::Location loc) {
-          scopeBody = b.saveInsertionPoint();
-        });
+    builder.create<cir::ScopeOp>(scopeLoc, /*scopeBuilder=*/
+                                 [&](mlir::OpBuilder &b, mlir::Location loc) {
+                                   scopeBody = b.saveInsertionPoint();
+                                 });
     {
       mlir::OpBuilder::InsertionGuard guard(builder);
       builder.restoreInsertionPoint(scopeBody);
@@ -568,7 +567,7 @@ mlir::LogicalResult CIRGenFunction::buildGotoStmt(const GotoStmt &S) {
   assert(builder.getInsertionBlock() && "not yet implemented");
 
   builder.create<cir::GotoOp>(getLoc(S.getSourceRange()),
-                                    S.getLabel()->getName());
+                              S.getLabel()->getName());
 
   // A goto marks the end of a block, create a new one for codegen after
   // buildGotoStmt can resume building in that block.
@@ -842,15 +841,16 @@ CIRGenFunction::buildCXXForRangeStmt(const CXXForRangeStmt &S,
 
   auto res = mlir::success();
   auto scopeLoc = getLoc(S.getSourceRange());
-  builder.create<cir::ScopeOp>(
-      scopeLoc, /*scopeBuilder=*/
-      [&](mlir::OpBuilder &b, mlir::Location loc) {
-        // Create a cleanup scope for the condition variable cleanups.
-        // Logical equivalent from LLVM codegn for
-        // LexicalScope ConditionScope(*this, S.getSourceRange())...
-        LexicalScope lexScope{*this, loc, builder.getInsertionBlock()};
-        res = forStmtBuilder();
-      });
+  builder.create<cir::ScopeOp>(scopeLoc, /*scopeBuilder=*/
+                               [&](mlir::OpBuilder &b, mlir::Location loc) {
+                                 // Create a cleanup scope for the condition
+                                 // variable cleanups. Logical equivalent from
+                                 // LLVM codegn for LexicalScope
+                                 // ConditionScope(*this, S.getSourceRange())...
+                                 LexicalScope lexScope{
+                                     *this, loc, builder.getInsertionBlock()};
+                                 res = forStmtBuilder();
+                               });
 
   if (res.failed())
     return res;
@@ -895,8 +895,7 @@ mlir::LogicalResult CIRGenFunction::buildForStmt(const ForStmt &S) {
           } else {
             auto boolTy = cir::BoolType::get(b.getContext());
             condVal = b.create<cir::ConstantOp>(
-                loc, boolTy,
-                cir::BoolAttr::get(b.getContext(), boolTy, true));
+                loc, boolTy, cir::BoolAttr::get(b.getContext(), boolTy, true));
           }
           builder.createCondition(condVal);
         },
@@ -924,12 +923,12 @@ mlir::LogicalResult CIRGenFunction::buildForStmt(const ForStmt &S) {
 
   auto res = mlir::success();
   auto scopeLoc = getLoc(S.getSourceRange());
-  builder.create<cir::ScopeOp>(
-      scopeLoc, /*scopeBuilder=*/
-      [&](mlir::OpBuilder &b, mlir::Location loc) {
-        LexicalScope lexScope{*this, loc, builder.getInsertionBlock()};
-        res = forStmtBuilder();
-      });
+  builder.create<cir::ScopeOp>(scopeLoc, /*scopeBuilder=*/
+                               [&](mlir::OpBuilder &b, mlir::Location loc) {
+                                 LexicalScope lexScope{
+                                     *this, loc, builder.getInsertionBlock()};
+                                 res = forStmtBuilder();
+                               });
 
   if (res.failed())
     return res;
@@ -974,12 +973,12 @@ mlir::LogicalResult CIRGenFunction::buildDoStmt(const DoStmt &S) {
 
   auto res = mlir::success();
   auto scopeLoc = getLoc(S.getSourceRange());
-  builder.create<cir::ScopeOp>(
-      scopeLoc, /*scopeBuilder=*/
-      [&](mlir::OpBuilder &b, mlir::Location loc) {
-        LexicalScope lexScope{*this, loc, builder.getInsertionBlock()};
-        res = doStmtBuilder();
-      });
+  builder.create<cir::ScopeOp>(scopeLoc, /*scopeBuilder=*/
+                               [&](mlir::OpBuilder &b, mlir::Location loc) {
+                                 LexicalScope lexScope{
+                                     *this, loc, builder.getInsertionBlock()};
+                                 res = doStmtBuilder();
+                               });
 
   if (res.failed())
     return res;
@@ -1029,12 +1028,12 @@ mlir::LogicalResult CIRGenFunction::buildWhileStmt(const WhileStmt &S) {
 
   auto res = mlir::success();
   auto scopeLoc = getLoc(S.getSourceRange());
-  builder.create<cir::ScopeOp>(
-      scopeLoc, /*scopeBuilder=*/
-      [&](mlir::OpBuilder &b, mlir::Location loc) {
-        LexicalScope lexScope{*this, loc, builder.getInsertionBlock()};
-        res = whileStmtBuilder();
-      });
+  builder.create<cir::ScopeOp>(scopeLoc, /*scopeBuilder=*/
+                               [&](mlir::OpBuilder &b, mlir::Location loc) {
+                                 LexicalScope lexScope{
+                                     *this, loc, builder.getInsertionBlock()};
+                                 res = whileStmtBuilder();
+                               });
 
   if (res.failed())
     return res;
@@ -1120,12 +1119,12 @@ mlir::LogicalResult CIRGenFunction::buildSwitchStmt(const SwitchStmt &S) {
   // The switch scope contains the full source range for SwitchStmt.
   auto scopeLoc = getLoc(S.getSourceRange());
   auto res = mlir::success();
-  builder.create<cir::ScopeOp>(
-      scopeLoc, /*scopeBuilder=*/
-      [&](mlir::OpBuilder &b, mlir::Location loc) {
-        LexicalScope lexScope{*this, loc, builder.getInsertionBlock()};
-        res = switchStmtBuilder();
-      });
+  builder.create<cir::ScopeOp>(scopeLoc, /*scopeBuilder=*/
+                               [&](mlir::OpBuilder &b, mlir::Location loc) {
+                                 LexicalScope lexScope{
+                                     *this, loc, builder.getInsertionBlock()};
+                                 res = switchStmtBuilder();
+                               });
 
   llvm::SmallVector<CaseOp> cases;
   swop.collectCases(cases);

@@ -179,9 +179,7 @@ public:
 
   /// Return the "base subobject" LLVM type associated with
   /// this record.
-  cir::StructType getBaseSubobjectCIRType() const {
-    return BaseSubobjectType;
-  }
+  cir::StructType getBaseSubobjectCIRType() const { return BaseSubobjectType; }
 
   /// Return cir::StructType element number that corresponds to the field FD.
   unsigned getCIRFieldNo(const clang::FieldDecl *FD) const {

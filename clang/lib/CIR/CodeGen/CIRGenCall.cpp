@@ -260,9 +260,9 @@ cir::FuncType CIRGenTypes::GetFunctionType(const CIRGenFunctionInfo &FI) {
   (void)Erased;
   assert(Erased && "Not in set?");
 
-  return cir::FuncType::get(
-      ArgTypes, (resultType ? resultType : Builder.getVoidTy()),
-      FI.isVariadic());
+  return cir::FuncType::get(ArgTypes,
+                            (resultType ? resultType : Builder.getVoidTy()),
+                            FI.isVariadic());
 }
 
 cir::FuncType CIRGenTypes::GetFunctionTypeForVTable(GlobalDecl GD) {
@@ -437,8 +437,8 @@ void CIRGenModule::constructAttributeList(StringRef Name,
       auto cirKernelAttr = cir::OpenCLKernelAttr::get(&getMLIRContext());
       funcAttrs.set(cirKernelAttr.getMnemonic(), cirKernelAttr);
 
-      auto uniformAttr = cir::OpenCLKernelUniformWorkGroupSizeAttr::get(
-          &getMLIRContext());
+      auto uniformAttr =
+          cir::OpenCLKernelUniformWorkGroupSizeAttr::get(&getMLIRContext());
       if (getLangOpts().OpenCLVersion <= 120) {
         // OpenCL v1.2 Work groups are always uniform
         funcAttrs.set(uniformAttr.getMnemonic(), uniformAttr);
@@ -465,13 +465,11 @@ void CIRGenModule::constructAttributeList(StringRef Name,
   getDefaultFunctionAttributes(Name, HasOptnone, AttrOnCallSite, funcAttrs);
 }
 
-static cir::CIRCallOpInterface
-buildCallLikeOp(CIRGenFunction &CGF, mlir::Location callLoc,
-                cir::FuncType indirectFuncTy, mlir::Value indirectFuncVal,
-                cir::FuncOp directFuncOp,
-                SmallVectorImpl<mlir::Value> &CIRCallArgs, bool isInvoke,
-                cir::CallingConv callingConv,
-                cir::ExtraFuncAttributesAttr extraFnAttrs) {
+static cir::CIRCallOpInterface buildCallLikeOp(
+    CIRGenFunction &CGF, mlir::Location callLoc, cir::FuncType indirectFuncTy,
+    mlir::Value indirectFuncVal, cir::FuncOp directFuncOp,
+    SmallVectorImpl<mlir::Value> &CIRCallArgs, bool isInvoke,
+    cir::CallingConv callingConv, cir::ExtraFuncAttributesAttr extraFnAttrs) {
   auto &builder = CGF.getBuilder();
   auto getOrCreateSurroundingTryOp = [&]() {
     // In OG, we build the landing pad for this scope. In CIR, we emit a
@@ -545,9 +543,9 @@ buildCallLikeOp(CIRGenFunction &CGF, mlir::Location callLoc,
   if (indirectFuncTy) {
     // TODO(cir): Set calling convention for indirect calls.
     assert(callingConv == cir::CallingConv::C && "NYI");
-    return builder.createIndirectCallOp(
-        callLoc, indirectFuncVal, indirectFuncTy, CIRCallArgs,
-        cir::CallingConv::C, extraFnAttrs);
+    return builder.createIndirectCallOp(callLoc, indirectFuncVal,
+                                        indirectFuncTy, CIRCallArgs,
+                                        cir::CallingConv::C, extraFnAttrs);
   }
   return builder.createCallOp(callLoc, directFuncOp, CIRCallArgs, callingConv,
                               extraFnAttrs);
@@ -815,8 +813,7 @@ RValue CIRGenFunction::buildCall(const CIRGenFunctionInfo &CallInfo,
       [[maybe_unused]] auto resultTypes = CalleePtr->getResultTypes();
       [[maybe_unused]] auto FuncPtrTy =
           mlir::dyn_cast<cir::PointerType>(resultTypes.front());
-      assert(FuncPtrTy &&
-             mlir::isa<cir::FuncType>(FuncPtrTy.getPointee()) &&
+      assert(FuncPtrTy && mlir::isa<cir::FuncType>(FuncPtrTy.getPointee()) &&
              "expected pointer to function");
 
       indirectFuncTy = CIRFuncTy;
@@ -831,8 +828,8 @@ RValue CIRGenFunction::buildCall(const CIRGenFunctionInfo &CallInfo,
         CIRCallArgs, isInvoke, callingConv, extraFnAttrs);
 
     if (E)
-      callLikeOp->setAttr(
-          "ast", cir::ASTCallExprAttr::get(&getMLIRContext(), *E));
+      callLikeOp->setAttr("ast",
+                          cir::ASTCallExprAttr::get(&getMLIRContext(), *E));
 
     if (callOrTryCall)
       *callOrTryCall = callLikeOp;

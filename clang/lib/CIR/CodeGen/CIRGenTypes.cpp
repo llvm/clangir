@@ -442,9 +442,8 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
     case BuiltinType::SatLongFract:
     case BuiltinType::SatShortAccum:
     case BuiltinType::SatShortFract:
-      ResultType =
-          cir::IntType::get(&getMLIRContext(), Context.getTypeSize(T),
-                                  /*isSigned=*/true);
+      ResultType = cir::IntType::get(&getMLIRContext(), Context.getTypeSize(T),
+                                     /*isSigned=*/true);
       break;
     // Unsigned types.
     case BuiltinType::Char16:
@@ -472,7 +471,7 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
     case BuiltinType::SatUShortFract:
       ResultType =
           cir::IntType::get(Builder.getContext(), Context.getTypeSize(T),
-                                  /*isSigned=*/false);
+                            /*isSigned=*/false);
       break;
 
     case BuiltinType::Float16:
@@ -676,7 +675,7 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
     // i8 just to have a concrete type". Not sure this makes sense in CIR yet.
     assert(Builder.isSized(EltTy) && "not implemented");
     ResultType = cir::ArrayType::get(Builder.getContext(), EltTy,
-                                             A->getSize().getZExtValue());
+                                     A->getSize().getZExtValue());
     break;
   }
   case Type::ExtVector:
@@ -684,7 +683,7 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
     const VectorType *V = cast<VectorType>(Ty);
     auto ElementType = convertTypeForMem(V->getElementType());
     ResultType = cir::VectorType::get(Builder.getContext(), ElementType,
-                                              V->getNumElements());
+                                      V->getNumElements());
     break;
   }
   case Type::ConstantMatrix: {
@@ -729,8 +728,8 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
     const auto *MPT = cast<MemberPointerType>(Ty);
 
     auto memberTy = ConvertType(MPT->getPointeeType());
-    auto clsTy = mlir::cast<cir::StructType>(
-        ConvertType(QualType(MPT->getClass(), 0)));
+    auto clsTy =
+        mlir::cast<cir::StructType>(ConvertType(QualType(MPT->getClass(), 0)));
     if (MPT->isMemberDataPointer())
       ResultType =
           cir::DataMemberType::get(Builder.getContext(), memberTy, clsTy);
@@ -760,8 +759,8 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
   }
   case Type::BitInt: {
     const auto *bitIntTy = cast<BitIntType>(Ty);
-    ResultType = cir::IntType::get(
-        Builder.getContext(), bitIntTy->getNumBits(), bitIntTy->isSigned());
+    ResultType = cir::IntType::get(Builder.getContext(), bitIntTy->getNumBits(),
+                                   bitIntTy->isSigned());
     break;
   }
   }

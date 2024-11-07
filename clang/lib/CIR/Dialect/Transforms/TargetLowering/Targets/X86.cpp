@@ -39,8 +39,8 @@ unsigned getNativeVectorSizeForAVXABI(X86AVXABILevel AVXLevel) {
 /// one of the two halves in the INTEGER class.
 ///
 /// It is conservatively correct to return false.
-static bool BitsContainNoUserData(mlir::Type Ty, unsigned StartBit, unsigned EndBit,
-                                  CIRLowerContext &Context) {
+static bool BitsContainNoUserData(mlir::Type Ty, unsigned StartBit,
+                                  unsigned EndBit, CIRLowerContext &Context) {
   // If the bytes being queried are off the end of the type, there is no user
   // data hiding here.  This handles analysis of builtins, vectors and other
   // types that don't contain interesting padding.
@@ -90,7 +90,7 @@ static bool BitsContainNoUserData(mlir::Type Ty, unsigned StartBit, unsigned End
 
 /// Return a floating point type at the specified offset.
 mlir::Type getFPTypeAtOffset(mlir::Type IRType, unsigned IROffset,
-                       const cir::CIRDataLayout &TD) {
+                             const cir::CIRDataLayout &TD) {
   if (IROffset == 0 && mlir::isa<SingleType, DoubleType>(IRType))
     return IRType;
 
@@ -160,11 +160,13 @@ class X86_64ABIInfo : public ABIInfo {
   void classify(mlir::Type T, uint64_t OffsetBase, Class &Lo, Class &Hi,
                 bool isNamedArg, bool IsRegCall = false) const;
 
-  mlir::Type GetSSETypeAtOffset(mlir::Type IRType, unsigned IROffset, mlir::Type SourceTy,
-                          unsigned SourceOffset) const;
+  mlir::Type GetSSETypeAtOffset(mlir::Type IRType, unsigned IROffset,
+                                mlir::Type SourceTy,
+                                unsigned SourceOffset) const;
 
-  mlir::Type GetINTEGERTypeAtOffset(mlir::Type DestTy, unsigned IROffset, mlir::Type SourceTy,
-                              unsigned SourceOffset) const;
+  mlir::Type GetINTEGERTypeAtOffset(mlir::Type DestTy, unsigned IROffset,
+                                    mlir::Type SourceTy,
+                                    unsigned SourceOffset) const;
 
   /// The 0.98 ABI revision clarified a lot of ambiguities,
   /// unfortunately in ways that were not always consistent with
@@ -213,8 +215,8 @@ public:
   }
 };
 
-void X86_64ABIInfo::classify(mlir::Type Ty, uint64_t OffsetBase, Class &Lo, Class &Hi,
-                             bool isNamedArg, bool IsRegCall) const {
+void X86_64ABIInfo::classify(mlir::Type Ty, uint64_t OffsetBase, Class &Lo,
+                             Class &Hi, bool isNamedArg, bool IsRegCall) const {
   // FIXME: This code can be simplified by introducing a simple value class
   // for Class pairs with appropriate constructor methods for the various
   // situations.
@@ -343,8 +345,8 @@ void X86_64ABIInfo::classify(mlir::Type Ty, uint64_t OffsetBase, Class &Lo, Clas
       postMerge(Size, Lo, Hi);
     } else {
       llvm::outs() << "Missing X86 classification for type " << Ty << "\n";
-      cir_cconv_assert_or_abort(
-          !cir::MissingFeatures::X86TypeClassification(), "NYI");
+      cir_cconv_assert_or_abort(!cir::MissingFeatures::X86TypeClassification(),
+                                "NYI");
     }
     // FIXME: _Decimal32 and _Decimal64 are SSE.
     // FIXME: _float128 and _Decimal128 are (SSE, SSEUp).
@@ -357,9 +359,10 @@ void X86_64ABIInfo::classify(mlir::Type Ty, uint64_t OffsetBase, Class &Lo, Clas
 
 /// Return a type that will be passed by the backend in the low 8 bytes of an
 /// XMM register, corresponding to the SSE class.
-mlir::Type X86_64ABIInfo::GetSSETypeAtOffset(mlir::Type IRType, unsigned IROffset,
-                                       mlir::Type SourceTy,
-                                       unsigned SourceOffset) const {
+mlir::Type X86_64ABIInfo::GetSSETypeAtOffset(mlir::Type IRType,
+                                             unsigned IROffset,
+                                             mlir::Type SourceTy,
+                                             unsigned SourceOffset) const {
   const cir::CIRDataLayout &TD = getDataLayout();
   unsigned SourceSize =
       (unsigned)getContext().getTypeSize(SourceTy) / 8 - SourceOffset;
@@ -400,9 +403,10 @@ mlir::Type X86_64ABIInfo::GetSSETypeAtOffset(mlir::Type IRType, unsigned IROffse
 /// is an offset into this that we're processing (which is always either 0 or
 /// 8).
 ///
-mlir::Type X86_64ABIInfo::GetINTEGERTypeAtOffset(mlir::Type DestTy, unsigned IROffset,
-                                           mlir::Type SourceTy,
-                                           unsigned SourceOffset) const {
+mlir::Type X86_64ABIInfo::GetINTEGERTypeAtOffset(mlir::Type DestTy,
+                                                 unsigned IROffset,
+                                                 mlir::Type SourceTy,
+                                                 unsigned SourceOffset) const {
   // If we're dealing with an un-offset CIR type, then it means that we're
   // returning an 8-byte unit starting with it. See if we can safely use it.
   if (IROffset == 0) {
@@ -489,7 +493,8 @@ static mlir::Type GetX86_64ByValArgumentPair(mlir::Type lo, mlir::Type hi,
     if (mlir::isa<FP16Type, SingleType>(lo))
       lo = DoubleType::get(lo.getContext());
     else {
-      assert((mlir::isa<IntType, PointerType>(lo)) && "Invalid/unknown lo type");
+      assert((mlir::isa<IntType, PointerType>(lo)) &&
+             "Invalid/unknown lo type");
       // TODO(cir): does the sign of the int64 type matter here?
       lo = IntType::get(lo.getContext(), 64, true);
     }
@@ -533,7 +538,8 @@ cir::ABIArgInfo X86_64ABIInfo::classifyReturnType(mlir::Type RetTy) const {
       // enums directly as their unerlying integer types. NOTE(cir): For some
       // reason, Clang does not set the coerce type here and delays it to
       // arrangeLLVMFunctionInfo. We do the same to keep parity.
-      if (mlir::isa<IntType, BoolType>(RetTy) && isPromotableIntegerTypeForABI(RetTy))
+      if (mlir::isa<IntType, BoolType>(RetTy) &&
+          isPromotableIntegerTypeForABI(RetTy))
         return ABIArgInfo::getExtend(RetTy);
     }
     break;
@@ -545,8 +551,8 @@ cir::ABIArgInfo X86_64ABIInfo::classifyReturnType(mlir::Type RetTy) const {
     break;
 
   default:
-    cir_cconv_assert_or_abort(
-        !cir::MissingFeatures::X86RetTypeClassification(), "NYI");
+    cir_cconv_assert_or_abort(!cir::MissingFeatures::X86RetTypeClassification(),
+                              "NYI");
   }
 
   mlir::Type HighPart = {};
@@ -574,11 +580,9 @@ cir::ABIArgInfo X86_64ABIInfo::classifyReturnType(mlir::Type RetTy) const {
   return ABIArgInfo::getDirect(resType);
 }
 
-ABIArgInfo X86_64ABIInfo::classifyArgumentType(mlir::Type Ty, unsigned freeIntRegs,
-                                               unsigned &neededInt,
-                                               unsigned &neededSSE,
-                                               bool isNamedArg,
-                                               bool IsRegCall = false) const {
+ABIArgInfo X86_64ABIInfo::classifyArgumentType(
+    mlir::Type Ty, unsigned freeIntRegs, unsigned &neededInt,
+    unsigned &neededSSE, bool isNamedArg, bool IsRegCall = false) const {
   Ty = useFirstFieldIfTransparentUnion(Ty);
 
   X86_64ABIInfo::Class Lo, Hi;
@@ -626,8 +630,8 @@ ABIArgInfo X86_64ABIInfo::classifyArgumentType(mlir::Type Ty, unsigned freeIntRe
     break;
   }
   default:
-    cir_cconv_assert_or_abort(
-        !cir::MissingFeatures::X86ArgTypeClassification(), "NYI");
+    cir_cconv_assert_or_abort(!cir::MissingFeatures::X86ArgTypeClassification(),
+                              "NYI");
   }
 
   mlir::Type HighPart = {};

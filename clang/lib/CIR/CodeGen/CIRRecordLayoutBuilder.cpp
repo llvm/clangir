@@ -135,8 +135,8 @@ struct CIRRecordLowering final {
 
   mlir::Type getCharType() {
     return cir::IntType::get(&cirGenTypes.getMLIRContext(),
-                                   astContext.getCharWidth(),
-                                   /*isSigned=*/false);
+                             astContext.getCharWidth(),
+                             /*isSigned=*/false);
   }
 
   /// Wraps cir::IntType with some implicit arguments.
@@ -144,7 +144,7 @@ struct CIRRecordLowering final {
     unsigned AlignedBits = llvm::PowerOf2Ceil(NumBits);
     AlignedBits = std::max(8u, AlignedBits);
     return cir::IntType::get(&cirGenTypes.getMLIRContext(), AlignedBits,
-                                   /*isSigned=*/false);
+                             /*isSigned=*/false);
   }
 
   mlir::Type getByteArrayType(CharUnits numberOfChars) {
@@ -153,7 +153,7 @@ struct CIRRecordLowering final {
     return numberOfChars == CharUnits::One()
                ? type
                : cir::ArrayType::get(type.getContext(), type,
-                                           numberOfChars.getQuantity());
+                                     numberOfChars.getQuantity());
   }
 
   // This is different from LLVM traditional codegen because CIRGen uses arrays
@@ -166,7 +166,7 @@ struct CIRRecordLowering final {
     } else {
       mlir::Type type = getCharType();
       return cir::ArrayType::get(type.getContext(), type,
-                                       alignedBits / astContext.getCharWidth());
+                                 alignedBits / astContext.getCharWidth());
     }
   }
 
@@ -690,8 +690,7 @@ void CIRRecordLowering::insertPadding() {
 }
 
 std::unique_ptr<CIRGenRecordLayout>
-CIRGenTypes::computeRecordLayout(const RecordDecl *D,
-                                 cir::StructType *Ty) {
+CIRGenTypes::computeRecordLayout(const RecordDecl *D, cir::StructType *Ty) {
   CIRRecordLowering builder(*this, D, /*packed=*/false);
   assert(Ty->isIncomplete() && "recomputing record layout?");
   builder.lower(/*nonVirtualBaseType=*/false);
@@ -724,8 +723,7 @@ CIRGenTypes::computeRecordLayout(const RecordDecl *D,
   Ty->complete(builder.fieldTypes, builder.isPacked, astAttr);
 
   auto RL = std::make_unique<CIRGenRecordLayout>(
-      Ty ? *Ty : cir::StructType{},
-      BaseTy ? BaseTy : cir::StructType{},
+      Ty ? *Ty : cir::StructType{}, BaseTy ? BaseTy : cir::StructType{},
       (bool)builder.IsZeroInitializable,
       (bool)builder.IsZeroInitializableAsBase);
 

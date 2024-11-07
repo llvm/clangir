@@ -112,9 +112,10 @@ private:
       clang::CharUnits datasize, llvm::ArrayRef<uint64_t> fieldoffsets,
       clang::CharUnits nonvirtualsize, clang::CharUnits nonvirtualalignment,
       clang::CharUnits preferrednvalignment,
-      clang::CharUnits SizeOfLargestEmptySubobject, const mlir::Type PrimaryBase,
-      bool IsPrimaryBaseVirtual, const mlir::Type BaseSharingVBPtr,
-      bool EndsWithZeroSizedObject, bool LeadsWithZeroSizedBase);
+      clang::CharUnits SizeOfLargestEmptySubobject,
+      const mlir::Type PrimaryBase, bool IsPrimaryBaseVirtual,
+      const mlir::Type BaseSharingVBPtr, bool EndsWithZeroSizedObject,
+      bool LeadsWithZeroSizedBase);
 
   ~CIRRecordLayout() = default;
 

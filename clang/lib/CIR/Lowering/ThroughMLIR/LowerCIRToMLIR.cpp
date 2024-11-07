@@ -60,8 +60,7 @@ using namespace llvm;
 
 namespace cir {
 
-class CIRReturnLowering
-    : public mlir::OpConversionPattern<cir::ReturnOp> {
+class CIRReturnLowering : public mlir::OpConversionPattern<cir::ReturnOp> {
 public:
   using OpConversionPattern<cir::ReturnOp>::OpConversionPattern;
 
@@ -106,8 +105,7 @@ public:
   }
 };
 
-class CIRAllocaOpLowering
-    : public mlir::OpConversionPattern<cir::AllocaOp> {
+class CIRAllocaOpLowering : public mlir::OpConversionPattern<cir::AllocaOp> {
 public:
   using OpConversionPattern<cir::AllocaOp>::OpConversionPattern;
 
@@ -186,8 +184,7 @@ public:
   }
 };
 
-class CIRStoreOpLowering
-    : public mlir::OpConversionPattern<cir::StoreOp> {
+class CIRStoreOpLowering : public mlir::OpConversionPattern<cir::StoreOp> {
 public:
   using OpConversionPattern<cir::StoreOp>::OpConversionPattern;
 
@@ -256,8 +253,7 @@ public:
   }
 };
 
-class CIRFloorOpLowering
-    : public mlir::OpConversionPattern<cir::FloorOp> {
+class CIRFloorOpLowering : public mlir::OpConversionPattern<cir::FloorOp> {
 public:
   using mlir::OpConversionPattern<cir::FloorOp>::OpConversionPattern;
 
@@ -281,8 +277,7 @@ public:
   }
 };
 
-class CIRLog10OpLowering
-    : public mlir::OpConversionPattern<cir::Log10Op> {
+class CIRLog10OpLowering : public mlir::OpConversionPattern<cir::Log10Op> {
 public:
   using mlir::OpConversionPattern<cir::Log10Op>::OpConversionPattern;
 
@@ -318,8 +313,7 @@ public:
   }
 };
 
-class CIRRoundOpLowering
-    : public mlir::OpConversionPattern<cir::RoundOp> {
+class CIRRoundOpLowering : public mlir::OpConversionPattern<cir::RoundOp> {
 public:
   using mlir::OpConversionPattern<cir::RoundOp>::OpConversionPattern;
 
@@ -343,15 +337,13 @@ public:
   }
 };
 
-class CIRShiftOpLowering
-    : public mlir::OpConversionPattern<cir::ShiftOp> {
+class CIRShiftOpLowering : public mlir::OpConversionPattern<cir::ShiftOp> {
 public:
   using mlir::OpConversionPattern<cir::ShiftOp>::OpConversionPattern;
   mlir::LogicalResult
   matchAndRewrite(cir::ShiftOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    auto cirAmtTy =
-        mlir::dyn_cast<cir::IntType>(op.getAmount().getType());
+    auto cirAmtTy = mlir::dyn_cast<cir::IntType>(op.getAmount().getType());
     auto cirValTy = mlir::dyn_cast<cir::IntType>(op.getValue().getType());
     auto mlirTy = getTypeConverter()->convertType(op.getType());
     mlir::Value amt = adaptor.getAmount();
@@ -465,8 +457,7 @@ public:
   }
 };
 
-class CIRBitFfsOpLowering
-    : public mlir::OpConversionPattern<cir::BitFfsOp> {
+class CIRBitFfsOpLowering : public mlir::OpConversionPattern<cir::BitFfsOp> {
 public:
   using OpConversionPattern<cir::BitFfsOp>::OpConversionPattern;
 
@@ -608,8 +599,7 @@ public:
   }
 };
 
-class CIRUnaryOpLowering
-    : public mlir::OpConversionPattern<cir::UnaryOp> {
+class CIRUnaryOpLowering : public mlir::OpConversionPattern<cir::UnaryOp> {
 public:
   using OpConversionPattern<cir::UnaryOp>::OpConversionPattern;
 
@@ -790,8 +780,7 @@ public:
   }
 };
 
-class CIRScopeOpLowering
-    : public mlir::OpConversionPattern<cir::ScopeOp> {
+class CIRScopeOpLowering : public mlir::OpConversionPattern<cir::ScopeOp> {
   using mlir::OpConversionPattern<cir::ScopeOp>::OpConversionPattern;
 
   mlir::LogicalResult
@@ -826,8 +815,7 @@ class CIRScopeOpLowering
   }
 };
 
-struct CIRBrCondOpLowering
-    : public mlir::OpConversionPattern<cir::BrCondOp> {
+struct CIRBrCondOpLowering : public mlir::OpConversionPattern<cir::BrCondOp> {
   using mlir::OpConversionPattern<cir::BrCondOp>::OpConversionPattern;
 
   mlir::LogicalResult
@@ -846,8 +834,7 @@ struct CIRBrCondOpLowering
   }
 };
 
-class CIRTernaryOpLowering
-    : public mlir::OpConversionPattern<cir::TernaryOp> {
+class CIRTernaryOpLowering : public mlir::OpConversionPattern<cir::TernaryOp> {
 public:
   using OpConversionPattern<cir::TernaryOp>::OpConversionPattern;
 
@@ -877,8 +864,7 @@ public:
   }
 };
 
-class CIRYieldOpLowering
-    : public mlir::OpConversionPattern<cir::YieldOp> {
+class CIRYieldOpLowering : public mlir::OpConversionPattern<cir::YieldOp> {
 public:
   using OpConversionPattern<cir::YieldOp>::OpConversionPattern;
   mlir::LogicalResult
@@ -920,8 +906,7 @@ public:
   }
 };
 
-class CIRGlobalOpLowering
-    : public mlir::OpConversionPattern<cir::GlobalOp> {
+class CIRGlobalOpLowering : public mlir::OpConversionPattern<cir::GlobalOp> {
 public:
   using OpConversionPattern<cir::GlobalOp>::OpConversionPattern;
   mlir::LogicalResult
@@ -949,15 +934,13 @@ public:
     mlir::Attribute initialValue = mlir::Attribute();
     std::optional<mlir::Attribute> init = op.getInitialValue();
     if (init.has_value()) {
-      if (auto constArr =
-              mlir::dyn_cast<cir::ConstArrayAttr>(init.value())) {
+      if (auto constArr = mlir::dyn_cast<cir::ConstArrayAttr>(init.value())) {
         init = lowerConstArrayAttr(constArr, getTypeConverter());
         if (init.has_value())
           initialValue = init.value();
         else
           llvm_unreachable("GlobalOp lowering array with initial value fail");
-      } else if (auto constArr =
-                     mlir::dyn_cast<cir::ZeroAttr>(init.value())) {
+      } else if (auto constArr = mlir::dyn_cast<cir::ZeroAttr>(init.value())) {
         if (memrefType.getShape().size()) {
           auto elementType = memrefType.getElementType();
           auto rtt =
@@ -980,16 +963,13 @@ public:
           } else
             llvm_unreachable("GlobalOp lowering unsuppored type");
         }
-      } else if (auto intAttr =
-                     mlir::dyn_cast<cir::IntAttr>(init.value())) {
+      } else if (auto intAttr = mlir::dyn_cast<cir::IntAttr>(init.value())) {
         auto rtt = mlir::RankedTensorType::get({}, convertedType);
         initialValue = mlir::DenseIntElementsAttr::get(rtt, intAttr.getValue());
-      } else if (auto fltAttr =
-                     mlir::dyn_cast<cir::FPAttr>(init.value())) {
+      } else if (auto fltAttr = mlir::dyn_cast<cir::FPAttr>(init.value())) {
         auto rtt = mlir::RankedTensorType::get({}, convertedType);
         initialValue = mlir::DenseFPElementsAttr::get(rtt, fltAttr.getValue());
-      } else if (auto boolAttr =
-                     mlir::dyn_cast<cir::BoolAttr>(init.value())) {
+      } else if (auto boolAttr = mlir::dyn_cast<cir::BoolAttr>(init.value())) {
         auto rtt = mlir::RankedTensorType::get({}, convertedType);
         initialValue =
             mlir::DenseIntElementsAttr::get(rtt, (char)boolAttr.getValue());
@@ -1092,8 +1072,7 @@ public:
   }
 };
 
-class CIRVectorCmpOpLowering
-    : public mlir::OpConversionPattern<cir::VecCmpOp> {
+class CIRVectorCmpOpLowering : public mlir::OpConversionPattern<cir::VecCmpOp> {
 public:
   using OpConversionPattern<cir::VecCmpOp>::OpConversionPattern;
 
@@ -1153,8 +1132,8 @@ public:
           src.getLoc(), op.getSrc().getType(),
           cir::IntAttr::get(op.getSrc().getType(), 0));
       rewriter.replaceOpWithNewOp<cir::CmpOp>(
-          op, cir::BoolType::get(getContext()), cir::CmpOpKind::ne,
-          op.getSrc(), zero);
+          op, cir::BoolType::get(getContext()), cir::CmpOpKind::ne, op.getSrc(),
+          zero);
       return mlir::success();
     }
     case CIR::integral: {
@@ -1264,8 +1243,7 @@ public:
 
   // Return true if all the PtrStrideOp users are load, store or cast
   // with array_to_ptrdecay kind and they are in the same block.
-  inline bool
-  isLoadStoreOrCastArrayToPtrProduer(cir::PtrStrideOp op) const {
+  inline bool isLoadStoreOrCastArrayToPtrProduer(cir::PtrStrideOp op) const {
     if (op.use_empty())
       return false;
     for (auto *user : op->getUsers()) {
@@ -1274,8 +1252,7 @@ public:
       if (isa<cir::LoadOp>(*user) || isa<cir::StoreOp>(*user))
         continue;
       auto castOp = dyn_cast<cir::CastOp>(*user);
-      if (castOp &&
-          (castOp.getKind() == cir::CastKind::array_to_ptrdecay))
+      if (castOp && (castOp.getKind() == cir::CastKind::array_to_ptrdecay))
         continue;
       return false;
     }
@@ -1360,8 +1337,7 @@ static mlir::TypeConverter prepareTypeConverter() {
       [&](mlir::IntegerType type) -> mlir::Type { return type; });
   converter.addConversion(
       [&](mlir::FloatType type) -> mlir::Type { return type; });
-  converter.addConversion(
-      [&](cir::VoidType type) -> mlir::Type { return {}; });
+  converter.addConversion([&](cir::VoidType type) -> mlir::Type { return {}; });
   converter.addConversion([&](cir::IntType type) -> mlir::Type {
     // arith dialect ops doesn't take signed integer -- drop cir sign here
     return mlir::IntegerType::get(

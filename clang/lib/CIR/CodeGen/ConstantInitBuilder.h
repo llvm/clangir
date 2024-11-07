@@ -75,17 +75,15 @@ protected:
   }
 
 private:
-  cir::GlobalOp
-  createGlobal(mlir::Attribute initializer, const llvm::Twine &name,
-               CharUnits alignment, bool constant = false,
-               cir::GlobalLinkageKind linkage =
-                   cir::GlobalLinkageKind::InternalLinkage,
-               unsigned addressSpace = 0);
+  cir::GlobalOp createGlobal(
+      mlir::Attribute initializer, const llvm::Twine &name, CharUnits alignment,
+      bool constant = false,
+      cir::GlobalLinkageKind linkage = cir::GlobalLinkageKind::InternalLinkage,
+      unsigned addressSpace = 0);
 
   ConstantInitFuture createFuture(mlir::Attribute initializer);
 
-  void setGlobalInitializer(cir::GlobalOp GV,
-                            mlir::Attribute initializer);
+  void setGlobalInitializer(cir::GlobalOp GV, mlir::Attribute initializer);
 
   void resolveSelfReferences(cir::GlobalOp GV);
 
@@ -226,8 +224,8 @@ public:
 
   /// Same as addRelativeOffset(), but instead relative to an element in this
   /// aggregate, identified by its index.
-  void addRelativeOffsetToPosition(cir::IntType type,
-                                   mlir::Attribute target, size_t position) {
+  void addRelativeOffsetToPosition(cir::IntType type, mlir::Attribute target,
+                                   size_t position) {
     llvm_unreachable("NYI");
     // add(getRelativeOffsetToPosition(type, target, position));
   }
@@ -287,9 +285,8 @@ public:
   PlaceholderPosition addPlaceholderWithSize(mlir::Type expectedType);
 
   /// Fill a previously-added placeholder.
-  void fillPlaceholderWithInt(PlaceholderPosition position,
-                              cir::IntType type, uint64_t value,
-                              bool isSigned = false) {
+  void fillPlaceholderWithInt(PlaceholderPosition position, cir::IntType type,
+                              uint64_t value, bool isSigned = false) {
     llvm_unreachable("NYI");
     // fillPlaceholder(position, llvm::ConstantInt::get(type, value, isSigned));
   }
@@ -389,8 +386,7 @@ public:
   /// directly on a ConstantInitBuilder, finish the array/struct and
   /// create a global variable with it as the initializer.
   template <class... As>
-  cir::GlobalOp finishAndCreateGlobal(mlir::MLIRContext *ctx,
-                                            As &&...args) {
+  cir::GlobalOp finishAndCreateGlobal(mlir::MLIRContext *ctx, As &&...args) {
     assert(!this->Parent && "finishing non-root builder");
     return this->Builder.createGlobal(asImpl().finishImpl(ctx),
                                       std::forward<As>(args)...);
@@ -399,8 +395,7 @@ public:
   /// Given that this builder was created by beginning an array or struct
   /// directly on a ConstantInitBuilder, finish the array/struct and
   /// set it as the initializer of the given global variable.
-  void finishAndSetAsInitializer(cir::GlobalOp global,
-                                 bool forVTable = false) {
+  void finishAndSetAsInitializer(cir::GlobalOp global, bool forVTable = false) {
     assert(!this->Parent && "finishing non-root builder");
     mlir::Attribute init = asImpl().finishImpl(global.getContext());
     auto initCSA = mlir::dyn_cast<cir::ConstStructAttr>(init);
@@ -408,7 +403,7 @@ public:
            "expected #cir.const_struct attribute to represent vtable data");
     return this->Builder.setGlobalInitializer(
         global, forVTable ? cir::VTableAttr::get(initCSA.getType(),
-                                                       initCSA.getMembers())
+                                                 initCSA.getMembers())
                           : init);
   }
 

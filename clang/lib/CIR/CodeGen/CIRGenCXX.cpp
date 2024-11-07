@@ -123,8 +123,7 @@ bool CIRGenModule::tryEmitBaseDestructorAsAlias(const CXXDestructorDecl *D) {
   // Check if we have it already.
   StringRef MangledName = getMangledName(AliasDecl);
   auto Entry = getGlobalValue(MangledName);
-  auto globalValue =
-      dyn_cast_or_null<cir::CIRGlobalValueInterface>(Entry);
+  auto globalValue = dyn_cast_or_null<cir::CIRGlobalValueInterface>(Entry);
   if (Entry && globalValue && !globalValue.isDeclaration())
     return false;
   if (Replacements.count(MangledName))
@@ -139,8 +138,7 @@ bool CIRGenModule::tryEmitBaseDestructorAsAlias(const CXXDestructorDecl *D) {
   // Instead of creating as alias to a linkonce_odr, replace all of the uses
   // of the aliasee.
   if (cir::isDiscardableIfUnused(Linkage) &&
-      !(TargetLinkage ==
-            cir::GlobalLinkageKind::AvailableExternallyLinkage &&
+      !(TargetLinkage == cir::GlobalLinkageKind::AvailableExternallyLinkage &&
         TargetDecl.getDecl()->hasAttr<AlwaysInlineAttr>())) {
     // FIXME: An extern template instantiation will create functions with
     // linkage "AvailableExternally". In libc++, some classes also define
@@ -365,8 +363,7 @@ void CIRGenModule::buildCXXGlobalVarDeclInit(const VarDecl *varDecl,
       mlir::Operation *rvalueDefOp = rv.getScalarVal().getDefiningOp();
       if (rvalueDefOp && rvalueDefOp->getBlock()) {
         mlir::Block *rvalSrcBlock = rvalueDefOp->getBlock();
-        if (!rvalSrcBlock->empty() &&
-            isa<cir::YieldOp>(rvalSrcBlock->back())) {
+        if (!rvalSrcBlock->empty() && isa<cir::YieldOp>(rvalSrcBlock->back())) {
           auto &front = rvalSrcBlock->front();
           getGlobal.getDefiningOp()->moveBefore(&front);
           auto yield = cast<cir::YieldOp>(rvalSrcBlock->back());

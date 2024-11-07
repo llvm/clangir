@@ -41,8 +41,7 @@ static unsigned ArgInfoAddressSpace(LangAS AS) {
   }
 }
 
-void CIRGenModule::genKernelArgMetadata(cir::FuncOp Fn,
-                                        const FunctionDecl *FD,
+void CIRGenModule::genKernelArgMetadata(cir::FuncOp Fn, const FunctionDecl *FD,
                                         CIRGenFunction *CGF) {
   assert(((FD && CGF) || (!FD && !CGF)) &&
          "Incorrect use - FD and CGF should either be both null or not!");

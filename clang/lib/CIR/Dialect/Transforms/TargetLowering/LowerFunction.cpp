@@ -33,14 +33,15 @@ namespace cir {
 namespace {
 
 mlir::Value buildAddressAtOffset(LowerFunction &LF, mlir::Value addr,
-                           const ABIArgInfo &info) {
+                                 const ABIArgInfo &info) {
   if (unsigned offset = info.getDirectOffset()) {
     cir_cconv_unreachable("NYI");
   }
   return addr;
 }
 
-mlir::Value createCoercedBitcast(mlir::Value Src, mlir::Type DestTy, LowerFunction &CGF) {
+mlir::Value createCoercedBitcast(mlir::Value Src, mlir::Type DestTy,
+                                 LowerFunction &CGF) {
   auto destPtrTy = PointerType::get(CGF.getRewriter().getContext(), DestTy);
 
   if (auto load = mlir::dyn_cast<LoadOp>(Src.getDefiningOp()))
@@ -55,8 +56,10 @@ mlir::Value createCoercedBitcast(mlir::Value Src, mlir::Type DestTy, LowerFuncti
 /// try to gep into the struct to get at its inner goodness.  Dive as deep as
 /// possible without entering an element with an in-memory size smaller than
 /// DstSize.
-mlir::Value enterStructPointerForCoercedAccess(mlir::Value SrcPtr, StructType SrcSTy,
-                                         uint64_t DstSize, LowerFunction &CGF) {
+mlir::Value enterStructPointerForCoercedAccess(mlir::Value SrcPtr,
+                                               StructType SrcSTy,
+                                               uint64_t DstSize,
+                                               LowerFunction &CGF) {
   // We can't dive into a zero-element struct.
   if (SrcSTy.getNumElements() == 0)
     cir_cconv_unreachable("NYI");
@@ -85,7 +88,8 @@ mlir::Value enterStructPointerForCoercedAccess(mlir::Value SrcPtr, StructType Sr
 /// This behaves as if the value were coerced through memory, so on big-endian
 /// targets the high bits are preserved in a truncation, while little-endian
 /// targets preserve the low bits.
-static mlir::Value coerceIntOrPtrToIntOrPtr(mlir::Value val, mlir::Type typ, LowerFunction &CGF) {
+static mlir::Value coerceIntOrPtrToIntOrPtr(mlir::Value val, mlir::Type typ,
+                                            LowerFunction &CGF) {
   if (val.getType() == typ)
     return val;
 
@@ -204,7 +208,8 @@ mlir::Value createBitcast(mlir::Value Src, mlir::Type Ty, LowerFunction &LF) {
 /// since CIR's type checker wouldn't allow it. Instead, it casts the existing
 /// ABI-agnostic value to it's ABI-aware counterpart. Nevertheless, we should
 /// try to follow the same logic as the original codegen for correctness.
-mlir::Value createCoercedValue(mlir::Value Src, mlir::Type Ty, LowerFunction &CGF) {
+mlir::Value createCoercedValue(mlir::Value Src, mlir::Type Ty,
+                               LowerFunction &CGF) {
   mlir::Type SrcTy = Src.getType();
 
   // If SrcTy and Ty are the same, just reuse the exising load.
@@ -249,7 +254,7 @@ mlir::Value createCoercedValue(mlir::Value Src, mlir::Type Ty, LowerFunction &CG
 }
 
 mlir::Value emitAddressAtOffset(LowerFunction &LF, mlir::Value addr,
-                          const ABIArgInfo &info) {
+                                const ABIArgInfo &info) {
   if (unsigned offset = info.getDirectOffset()) {
     cir_cconv_unreachable("NYI");
   }
@@ -365,9 +370,9 @@ LowerFunction::LowerFunction(LowerModule &LM, mlir::PatternRewriter &rewriter,
 /// This method has partial parity with CodeGenFunction::EmitFunctionProlog from
 /// the original codegen. However, it focuses on the ABI-specific details. On
 /// top of that, it is also responsible for rewriting the original function.
-llvm::LogicalResult
-LowerFunction::buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
-                                   llvm::MutableArrayRef<mlir::BlockArgument> Args) {
+llvm::LogicalResult LowerFunction::buildFunctionProlog(
+    const LowerFunctionInfo &FI, FuncOp Fn,
+    llvm::MutableArrayRef<mlir::BlockArgument> Args) {
   // NOTE(cir): Skipping naked and implicit-return-zero functions here. These
   // are dealt with in CIRGen.
 
@@ -401,8 +406,9 @@ LowerFunction::buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
   cir_cconv_assert(FI.arg_size() == Args.size());
   unsigned ArgNo = 0;
   LowerFunctionInfo::const_arg_iterator info_it = FI.arg_begin();
-  for (llvm::MutableArrayRef<mlir::BlockArgument>::const_iterator i = Args.begin(),
-                                                      e = Args.end();
+  for (llvm::MutableArrayRef<mlir::BlockArgument>::const_iterator
+           i = Args.begin(),
+           e = Args.end();
        i != e; ++i, ++info_it, ++ArgNo) {
     const mlir::Value Arg = *i;
     const ABIArgInfo &ArgI = info_it->info;
@@ -618,7 +624,8 @@ LowerFunction::buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
   return llvm::success();
 }
 
-llvm::LogicalResult LowerFunction::buildFunctionEpilog(const LowerFunctionInfo &FI) {
+llvm::LogicalResult
+LowerFunction::buildFunctionEpilog(const LowerFunctionInfo &FI) {
   // NOTE(cir): no-return, naked, and no result functions should be handled in
   // CIRGen.
 
@@ -699,8 +706,9 @@ llvm::LogicalResult LowerFunction::buildFunctionEpilog(const LowerFunctionInfo &
 ///
 /// This method has partial parity with CodeGenFunction::GenerateCode, but it
 /// focuses on the ABI-specific details. So a lot of codegen stuff is removed.
-llvm::LogicalResult LowerFunction::generateCode(FuncOp oldFn, FuncOp newFn,
-                                          const LowerFunctionInfo &FnInfo) {
+llvm::LogicalResult
+LowerFunction::generateCode(FuncOp oldFn, FuncOp newFn,
+                            const LowerFunctionInfo &FnInfo) {
   cir_cconv_assert(newFn && "generating code for null Function");
   auto Args = oldFn.getArguments();
 
@@ -779,7 +787,8 @@ void LowerFunction::buildAggregateStore(mlir::Value Val, mlir::Value Dest,
   rewriter.create<StoreOp>(Val.getLoc(), Val, Dest);
 }
 
-mlir::Value LowerFunction::buildAggregateBitcast(mlir::Value Val, mlir::Type DestTy) {
+mlir::Value LowerFunction::buildAggregateBitcast(mlir::Value Val,
+                                                 mlir::Type DestTy) {
   auto Cast = createCoercedBitcast(Val, DestTy, *this);
   return rewriter.create<LoadOp>(Val.getLoc(), Cast);
 }
@@ -790,7 +799,7 @@ mlir::Value LowerFunction::buildAggregateBitcast(mlir::Value Val, mlir::Type Des
 /// EmitCallEpxr method defined in CGExpr.cpp. This could likely be
 /// removed in favor of a more direct approach.
 llvm::LogicalResult LowerFunction::rewriteCallOp(CallOp op,
-                                           ReturnValueSlot retValSlot) {
+                                                 ReturnValueSlot retValSlot) {
 
   // TODO(cir): Check if BlockCall, CXXMemberCall, CUDAKernelCall, or
   // CXXOperatorMember require special handling here. These should be handled
@@ -809,7 +818,8 @@ llvm::LogicalResult LowerFunction::rewriteCallOp(CallOp op,
   if (SrcFn) {
     fnType = SrcFn.getFunctionType();
   } else if (op.isIndirect()) {
-    if (auto ptrTy = mlir::dyn_cast<PointerType>(op.getIndirectCall().getType()))
+    if (auto ptrTy =
+            mlir::dyn_cast<PointerType>(op.getIndirectCall().getType()))
       fnType = mlir::dyn_cast<FuncType>(ptrTy.getPointee());
   }
 
@@ -833,8 +843,9 @@ llvm::LogicalResult LowerFunction::rewriteCallOp(CallOp op,
 /// method defined in CGExpr.cpp. This could likely be removed in favor of a
 /// more direct approach since most of the code here is exclusively CodeGen.
 mlir::Value LowerFunction::rewriteCallOp(FuncType calleeTy, FuncOp origCallee,
-                                   CallOp callOp, ReturnValueSlot retValSlot,
-                                   mlir::Value Chain) {
+                                         CallOp callOp,
+                                         ReturnValueSlot retValSlot,
+                                         mlir::Value Chain) {
   // NOTE(cir): Skip a bunch of function pointer stuff and AST declaration
   // asserts. Also skip sanitizers, as these should likely be handled at
   // CIRGen.
@@ -893,10 +904,11 @@ mlir::Value LowerFunction::rewriteCallOp(FuncType calleeTy, FuncOp origCallee,
 // method in CGCall.cpp. When incrementing it, use the original codegen as a
 // reference: add ABI-specific stuff and skip codegen stuff.
 mlir::Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
-                                   FuncOp Callee, CallOp Caller,
-                                   ReturnValueSlot ReturnValue,
-                                   CallArgList &CallArgs, CallOp CallOrInvoke,
-                                   bool isMustTail, mlir::Location loc) {
+                                         FuncOp Callee, CallOp Caller,
+                                         ReturnValueSlot ReturnValue,
+                                         CallArgList &CallArgs,
+                                         CallOp CallOrInvoke, bool isMustTail,
+                                         mlir::Location loc) {
   // FIXME: We no longer need the types from CallArgs; lift up and simplify.
 
   // Handle struct-return functions by passing a pointer to the
@@ -1004,7 +1016,8 @@ mlir::Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
       } else {
         // In the simple case, just pass the coerced loaded value.
         cir_cconv_assert(NumIRArgs == 1);
-        mlir::Value Load = createCoercedValue(Src, ArgInfo.getCoerceToType(), *this);
+        mlir::Value Load =
+            createCoercedValue(Src, ArgInfo.getCoerceToType(), *this);
 
         // FIXME(cir): We should probably handle CMSE non-secure calls here
         cir_cconv_assert(!cir::MissingFeatures::cmseNonSecureCallAttr());
@@ -1178,8 +1191,8 @@ cir::TypeEvaluationKind LowerFunction::getEvaluationKind(mlir::Type type) {
   // FIXME(cir): Implement type classes for CIR types.
   if (mlir::isa<StructType>(type))
     return cir::TypeEvaluationKind::TEK_Aggregate;
-  if (mlir::isa<BoolType, IntType, SingleType, DoubleType, LongDoubleType, VectorType,
-          PointerType>(type))
+  if (mlir::isa<BoolType, IntType, SingleType, DoubleType, LongDoubleType,
+                VectorType, PointerType>(type))
     return cir::TypeEvaluationKind::TEK_Scalar;
   cir_cconv_unreachable("NYI");
 }

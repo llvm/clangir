@@ -105,9 +105,7 @@ public:
     }
   }
 
-  StructLayout *&operator[](cir::StructType STy) {
-    return LayoutInfo[STy];
-  }
+  StructLayout *&operator[](cir::StructType STy) { return LayoutInfo[STy]; }
 };
 
 } // namespace
@@ -144,8 +142,7 @@ void CIRDataLayout::clear() {
   LayoutMap = nullptr;
 }
 
-const StructLayout *
-CIRDataLayout::getStructLayout(cir::StructType Ty) const {
+const StructLayout *CIRDataLayout::getStructLayout(cir::StructType Ty) const {
   if (!LayoutMap)
     LayoutMap = new StructLayoutMap();
 

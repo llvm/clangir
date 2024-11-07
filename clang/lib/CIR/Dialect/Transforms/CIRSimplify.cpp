@@ -60,10 +60,10 @@ struct SimplifyTernary final : public OpRewritePattern<TernaryOp> {
         !isSimpleTernaryBranch(op.getFalseRegion()))
       return mlir::failure();
 
-    cir::YieldOp trueBranchYieldOp = mlir::cast<cir::YieldOp>(
-        op.getTrueRegion().front().getTerminator());
-    cir::YieldOp falseBranchYieldOp = mlir::cast<cir::YieldOp>(
-        op.getFalseRegion().front().getTerminator());
+    cir::YieldOp trueBranchYieldOp =
+        mlir::cast<cir::YieldOp>(op.getTrueRegion().front().getTerminator());
+    cir::YieldOp falseBranchYieldOp =
+        mlir::cast<cir::YieldOp>(op.getFalseRegion().front().getTerminator());
     auto trueValue = trueBranchYieldOp.getArgs()[0];
     auto falseValue = falseBranchYieldOp.getArgs()[0];
 
@@ -71,8 +71,8 @@ struct SimplifyTernary final : public OpRewritePattern<TernaryOp> {
     rewriter.inlineBlockBefore(&op.getFalseRegion().front(), op);
     rewriter.eraseOp(trueBranchYieldOp);
     rewriter.eraseOp(falseBranchYieldOp);
-    rewriter.replaceOpWithNewOp<cir::SelectOp>(op, op.getCond(),
-                                                     trueValue, falseValue);
+    rewriter.replaceOpWithNewOp<cir::SelectOp>(op, op.getCond(), trueValue,
+                                               falseValue);
 
     return mlir::success();
   }
@@ -117,8 +117,7 @@ struct SimplifySelect : public OpRewritePattern<SelectOp> {
     if (!trueValueConstOp || !falseValueConstOp)
       return mlir::failure();
 
-    auto trueValue =
-        mlir::dyn_cast<cir::BoolAttr>(trueValueConstOp.getValue());
+    auto trueValue = mlir::dyn_cast<cir::BoolAttr>(trueValueConstOp.getValue());
     auto falseValue =
         mlir::dyn_cast<cir::BoolAttr>(falseValueConstOp.getValue());
     if (!trueValue || !falseValue)
@@ -133,8 +132,8 @@ struct SimplifySelect : public OpRewritePattern<SelectOp> {
 
     // cir.select if %0 then #false else #true -> cir.unary not %0
     if (!trueValue.getValue() && falseValue.getValue()) {
-      rewriter.replaceOpWithNewOp<cir::UnaryOp>(
-          op, cir::UnaryOpKind::Not, op.getCondition());
+      rewriter.replaceOpWithNewOp<cir::UnaryOp>(op, cir::UnaryOpKind::Not,
+                                                op.getCondition());
       return mlir::success();
     }
 

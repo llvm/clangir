@@ -77,8 +77,7 @@ void convertToDenseElementsAttrImpl(
       continue;
     }
 
-    if (auto subArrayAttr =
-            mlir::dyn_cast<cir::ConstArrayAttr>(eltAttr)) {
+    if (auto subArrayAttr = mlir::dyn_cast<cir::ConstArrayAttr>(eltAttr)) {
       convertToDenseElementsAttrImpl<AttrTy>(subArrayAttr, values, currentDims,
                                              dimIndex, currentIndex);
       currentIndex += elementsSizeInCurrentDim;
@@ -119,8 +118,7 @@ lowerConstArrayAttr(cir::ConstArrayAttr constArr,
   assert(typedConstArr && "cir::ConstArrayAttr is not a mlir::TypedAttr");
 
   // Ensure ConstArrayAttr type is a ArrayType.
-  auto cirArrayType =
-      mlir::dyn_cast<cir::ArrayType>(typedConstArr.getType());
+  auto cirArrayType = mlir::dyn_cast<cir::ArrayType>(typedConstArr.getType());
   assert(cirArrayType && "cir::ConstArrayAttr is not a cir::ArrayType");
 
   // Is a ConstArrayAttr with an cir::ArrayType: fetch element type.

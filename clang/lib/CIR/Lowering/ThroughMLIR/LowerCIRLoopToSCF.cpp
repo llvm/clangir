@@ -233,8 +233,7 @@ void SCFLoop::transferToSCFForOp() {
   rewriter->inlineBlockBefore(&forOp.getBody().front(), scfForOp.getBody(),
                               scfForOp.getBody()->end(), bbArg);
   scfForOp->walk<mlir::WalkOrder::PreOrder>([&](mlir::Operation *op) {
-    if (isa<cir::BreakOp>(op) || isa<cir::ContinueOp>(op) ||
-        isa<cir::IfOp>(op))
+    if (isa<cir::BreakOp>(op) || isa<cir::ContinueOp>(op) || isa<cir::IfOp>(op))
       llvm_unreachable(
           "Not support lowering loop with break, continue or if yet");
     // Replace the IV usage to scf loop induction variable.
@@ -300,8 +299,7 @@ public:
   }
 };
 
-class CIRWhileOpLowering
-    : public mlir::OpConversionPattern<cir::WhileOp> {
+class CIRWhileOpLowering : public mlir::OpConversionPattern<cir::WhileOp> {
 public:
   using OpConversionPattern<cir::WhileOp>::OpConversionPattern;
 

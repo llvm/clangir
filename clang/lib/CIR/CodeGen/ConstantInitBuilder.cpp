@@ -71,8 +71,7 @@ inline ConstantInitFuture::ConstantInitFuture(ConstantInitBuilderBase *builder)
 
 cir::GlobalOp ConstantInitBuilderBase::createGlobal(
     mlir::Attribute initializer, const llvm::Twine &name, CharUnits alignment,
-    bool constant, cir::GlobalLinkageKind linkage,
-    unsigned addressSpace) {
+    bool constant, cir::GlobalLinkageKind linkage, unsigned addressSpace) {
   llvm_unreachable("NYI");
   // auto GV =
   //     new llvm::GlobalVariable(CGM.getModule(), initializer->getType(),
@@ -274,7 +273,7 @@ ConstantAggregateBuilderBase::getOffsetFromGlobalTo(size_t end) const {
 // bellow by threading ConstantAggregateBuilderBase through
 // ConstantAggregateBuilderBase.
 static cir::ConstArrayAttr getConstArray(mlir::Attribute attrs,
-                                               cir::ArrayType arrayTy) {
+                                         cir::ArrayType arrayTy) {
   return cir::ConstArrayAttr::get(arrayTy, attrs);
 }
 

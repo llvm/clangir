@@ -189,7 +189,7 @@ public:
   /// Get the address of the vtable for the given record decl which should be
   /// used for the vptr at the given offset in RD.
   virtual cir::GlobalOp getAddrOfVTable(const CXXRecordDecl *RD,
-                                              CharUnits VPtrOffset) = 0;
+                                        CharUnits VPtrOffset) = 0;
 
   /// Build a virtual function pointer in the ABI-specific way.
   virtual CIRGenCallee getVirtualFunctionPointer(CIRGenFunction &CGF,
@@ -346,9 +346,8 @@ public:
                                        cir::PointerType DestCIRTy,
                                        bool isRefCast, Address Src) = 0;
 
-  virtual cir::MethodAttr
-  buildVirtualMethodAttr(cir::MethodType MethodTy,
-                         const CXXMethodDecl *MD) = 0;
+  virtual cir::MethodAttr buildVirtualMethodAttr(cir::MethodType MethodTy,
+                                                 const CXXMethodDecl *MD) = 0;
 };
 
 /// Creates and Itanium-family ABI

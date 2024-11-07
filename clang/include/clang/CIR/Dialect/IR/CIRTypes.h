@@ -70,9 +70,9 @@ struct StructTypeStorage;
 ///     "Node">>}>
 /// ```
 class StructType
-    : public mlir::Type::TypeBase<StructType, mlir::Type, detail::StructTypeStorage,
-                            mlir::DataLayoutTypeInterface::Trait,
-                            mlir::TypeTrait::IsMutable> {
+    : public mlir::Type::TypeBase<
+          StructType, mlir::Type, detail::StructTypeStorage,
+          mlir::DataLayoutTypeInterface::Trait, mlir::TypeTrait::IsMutable> {
   // FIXME(cir): migrate this type to Tablegen once mutable types are supported.
 public:
   using Base::Base;
@@ -84,34 +84,38 @@ public:
   enum RecordKind : uint32_t { Class, Union, Struct };
 
   /// Create a identified and complete struct type.
-  static StructType get(mlir::MLIRContext *context, llvm::ArrayRef<mlir::Type> members,
+  static StructType get(mlir::MLIRContext *context,
+                        llvm::ArrayRef<mlir::Type> members,
                         mlir::StringAttr name, bool packed, RecordKind kind,
                         ASTRecordDeclInterface ast = {});
-  static StructType getChecked(llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
-                               mlir::MLIRContext *context, llvm::ArrayRef<mlir::Type> members,
-                               mlir::StringAttr name, bool packed, RecordKind kind,
-                               ASTRecordDeclInterface ast = {});
+  static StructType
+  getChecked(llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
+             mlir::MLIRContext *context, llvm::ArrayRef<mlir::Type> members,
+             mlir::StringAttr name, bool packed, RecordKind kind,
+             ASTRecordDeclInterface ast = {});
 
   /// Create a identified and incomplete struct type.
-  static StructType get(mlir::MLIRContext *context, mlir::StringAttr name, RecordKind kind);
-  static StructType getChecked(llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
-                               mlir::MLIRContext *context, mlir::StringAttr name,
-                               RecordKind kind);
+  static StructType get(mlir::MLIRContext *context, mlir::StringAttr name,
+                        RecordKind kind);
+  static StructType
+  getChecked(llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
+             mlir::MLIRContext *context, mlir::StringAttr name,
+             RecordKind kind);
 
   /// Create a anonymous struct type (always complete).
-  static StructType get(mlir::MLIRContext *context, llvm::ArrayRef<mlir::Type> members,
-                        bool packed, RecordKind kind,
-                        ASTRecordDeclInterface ast = {});
-  static StructType getChecked(llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
-                               mlir::MLIRContext *context, llvm::ArrayRef<mlir::Type> members,
-                               bool packed, RecordKind kind,
-                               ASTRecordDeclInterface ast = {});
+  static StructType get(mlir::MLIRContext *context,
+                        llvm::ArrayRef<mlir::Type> members, bool packed,
+                        RecordKind kind, ASTRecordDeclInterface ast = {});
+  static StructType
+  getChecked(llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
+             mlir::MLIRContext *context, llvm::ArrayRef<mlir::Type> members,
+             bool packed, RecordKind kind, ASTRecordDeclInterface ast = {});
 
   /// Validate the struct about to be constructed.
   static llvm::LogicalResult
   verifyInvariants(llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
-                   llvm::ArrayRef<mlir::Type> members, mlir::StringAttr name, bool incomplete,
-                   bool packed, StructType::RecordKind kind,
+                   llvm::ArrayRef<mlir::Type> members, mlir::StringAttr name,
+                   bool incomplete, bool packed, StructType::RecordKind kind,
                    ASTRecordDeclInterface ast);
 
   // Parse/print methods.
@@ -163,7 +167,8 @@ public:
                            mlir::DataLayoutEntryListRef params) const;
   uint64_t getPreferredAlignment(const mlir::DataLayout &dataLayout,
                                  mlir::DataLayoutEntryListRef params) const;
-  uint64_t getElementOffset(const mlir::DataLayout &dataLayout, unsigned idx) const;
+  uint64_t getElementOffset(const mlir::DataLayout &dataLayout,
+                            unsigned idx) const;
 
   bool isLayoutIdentical(const StructType &other);
 

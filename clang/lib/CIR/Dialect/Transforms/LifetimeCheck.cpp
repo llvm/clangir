@@ -133,8 +133,8 @@ struct LifetimeCheckPass : public LifetimeCheckBase<LifetimeCheckPass> {
     unsigned histLimit = 1;
     bool isOptionsParsed = false;
 
-    void parseOptions(ArrayRef<llvm::StringRef> remarks, ArrayRef<llvm::StringRef> hist,
-                      unsigned hist_limit) {
+    void parseOptions(ArrayRef<llvm::StringRef> remarks,
+                      ArrayRef<llvm::StringRef> hist, unsigned hist_limit) {
       if (isOptionsParsed)
         return;
 
@@ -1036,8 +1036,7 @@ void LifetimeCheckPass::classifyAndInitTypeCategories(mlir::Value addr,
       if (eltAddr.use_empty())
         return;
 
-      auto eltTy =
-          mlir::cast<cir::PointerType>(eltAddr.getType()).getPointee();
+      auto eltTy = mlir::cast<cir::PointerType>(eltAddr.getType()).getPointee();
 
       // Classify exploded types. Keep alloca original location.
       classifyAndInitTypeCategories(eltAddr, eltTy, loc, ++nestLevel);
@@ -1115,8 +1114,7 @@ mlir::Value LifetimeCheckPass::getLambdaFromMemberAccess(mlir::Value addr) {
   // FIXME: we likely want to consider more indirections here...
   if (!isa<cir::GetMemberOp>(op))
     return nullptr;
-  auto allocaOp =
-      dyn_cast<cir::AllocaOp>(op->getOperand(0).getDefiningOp());
+  auto allocaOp = dyn_cast<cir::AllocaOp>(op->getOperand(0).getDefiningOp());
   if (!allocaOp || !isLambdaType(allocaOp.getAllocaType()))
     return nullptr;
   return allocaOp;
@@ -1136,8 +1134,9 @@ void LifetimeCheckPass::checkLambdaCaptureStore(StoreOp storeOp) {
     getPmap()[lambdaAddr].insert(State::getLocalValue(localByRefAddr));
 }
 
-void LifetimeCheckPass::updatePointsToForConstStruct(
-    mlir::Value addr, cir::ConstStructAttr value, mlir::Location loc) {
+void LifetimeCheckPass::updatePointsToForConstStruct(mlir::Value addr,
+                                                     cir::ConstStructAttr value,
+                                                     mlir::Location loc) {
   assert(aggregates.count(addr) && "expected association with aggregate");
   int memberIdx = 0;
   for (auto &attr : value.getMembers()) {
@@ -1885,10 +1884,10 @@ std::unique_ptr<Pass> mlir::createLifetimeCheckPass(clang::ASTContext *astCtx) {
   return std::move(lifetime);
 }
 
-std::unique_ptr<Pass> mlir::createLifetimeCheckPass(ArrayRef<llvm::StringRef> remark,
-                                                    ArrayRef<llvm::StringRef> hist,
-                                                    unsigned hist_limit,
-                                                    clang::ASTContext *astCtx) {
+std::unique_ptr<Pass>
+mlir::createLifetimeCheckPass(ArrayRef<llvm::StringRef> remark,
+                              ArrayRef<llvm::StringRef> hist,
+                              unsigned hist_limit, clang::ASTContext *astCtx) {
   auto lifetime = std::make_unique<LifetimeCheckPass>();
   lifetime->setASTContext(astCtx);
   lifetime->opts.parseOptions(remark, hist, hist_limit);

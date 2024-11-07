@@ -50,10 +50,9 @@ public:
     assert(!alignment.isZero() && "Alignment cannot be zero");
   }
   Address(mlir::Value pointer, clang::CharUnits alignment)
-      : Address(
-            pointer,
-            mlir::cast<cir::PointerType>(pointer.getType()).getPointee(),
-            alignment) {
+      : Address(pointer,
+                mlir::cast<cir::PointerType>(pointer.getType()).getPointee(),
+                alignment) {
 
     assert((!alignment.isZero() || pointer == nullptr) &&
            "creating valid address with invalid alignment");

@@ -159,7 +159,7 @@ buildBodyAndFallthrough(CIRGenFunction &CGF, const CoroutineBodyStmt &S,
 }
 
 cir::CallOp CIRGenFunction::buildCoroIDBuiltinCall(mlir::Location loc,
-                                                         mlir::Value nullPtr) {
+                                                   mlir::Value nullPtr) {
   auto int32Ty = builder.getUInt32Ty();
 
   auto &TI = CGM.getASTContext().getTargetInfo();
@@ -171,8 +171,7 @@ cir::CallOp CIRGenFunction::buildCoroIDBuiltinCall(mlir::Location loc,
   if (!builtin) {
     fnOp = CGM.createCIRFunction(
         loc, CGM.builtinCoroId,
-        cir::FuncType::get({int32Ty, VoidPtrTy, VoidPtrTy, VoidPtrTy},
-                                 int32Ty),
+        cir::FuncType::get({int32Ty, VoidPtrTy, VoidPtrTy, VoidPtrTy}, int32Ty),
         /*FD=*/nullptr);
     assert(fnOp && "should always succeed");
     fnOp.setBuiltinAttr(mlir::UnitAttr::get(&getMLIRContext()));
@@ -184,8 +183,7 @@ cir::CallOp CIRGenFunction::buildCoroIDBuiltinCall(mlir::Location loc,
                                                nullPtr, nullPtr, nullPtr});
 }
 
-cir::CallOp
-CIRGenFunction::buildCoroAllocBuiltinCall(mlir::Location loc) {
+cir::CallOp CIRGenFunction::buildCoroAllocBuiltinCall(mlir::Location loc) {
   auto boolTy = builder.getBoolTy();
   auto int32Ty = builder.getUInt32Ty();
 
@@ -228,16 +226,16 @@ CIRGenFunction::buildCoroBeginBuiltinCall(mlir::Location loc,
 }
 
 cir::CallOp CIRGenFunction::buildCoroEndBuiltinCall(mlir::Location loc,
-                                                          mlir::Value nullPtr) {
+                                                    mlir::Value nullPtr) {
   auto boolTy = builder.getBoolTy();
   mlir::Operation *builtin = CGM.getGlobalValue(CGM.builtinCoroEnd);
 
   cir::FuncOp fnOp;
   if (!builtin) {
-    fnOp = CGM.createCIRFunction(
-        loc, CGM.builtinCoroEnd,
-        cir::FuncType::get({VoidPtrTy, boolTy}, boolTy),
-        /*FD=*/nullptr);
+    fnOp =
+        CGM.createCIRFunction(loc, CGM.builtinCoroEnd,
+                              cir::FuncType::get({VoidPtrTy, boolTy}, boolTy),
+                              /*FD=*/nullptr);
     assert(fnOp && "should always succeed");
     fnOp.setBuiltinAttr(mlir::UnitAttr::get(&getMLIRContext()));
   } else
@@ -273,14 +271,14 @@ CIRGenFunction::buildCoroutineBody(const CoroutineBodyStmt &S) {
   auto storeAddr = coroFrame.getPointer();
   builder.CIRBaseBuilderTy::createStore(openCurlyLoc, nullPtrCst, storeAddr);
   builder.create<cir::IfOp>(openCurlyLoc, coroAlloc.getResult(),
-                                  /*withElseRegion=*/false,
-                                  /*thenBuilder=*/
-                                  [&](mlir::OpBuilder &b, mlir::Location loc) {
-                                    builder.CIRBaseBuilderTy::createStore(
-                                        loc, buildScalarExpr(S.getAllocate()),
-                                        storeAddr);
-                                    builder.create<cir::YieldOp>(loc);
-                                  });
+                            /*withElseRegion=*/false,
+                            /*thenBuilder=*/
+                            [&](mlir::OpBuilder &b, mlir::Location loc) {
+                              builder.CIRBaseBuilderTy::createStore(
+                                  loc, buildScalarExpr(S.getAllocate()),
+                                  storeAddr);
+                              builder.create<cir::YieldOp>(loc);
+                            });
 
   CurCoro.Data->CoroBegin =
       buildCoroBeginBuiltinCall(
@@ -564,8 +562,7 @@ mlir::LogicalResult CIRGenFunction::buildCoreturnStmt(CoreturnStmt const &S) {
   // scope cleanup handling.
   auto loc = getLoc(S.getSourceRange());
   auto *retBlock = currLexScope->getOrCreateRetBlock(*this, loc);
-  CurCoro.Data->FinalSuspendInsPoint =
-      builder.create<cir::BrOp>(loc, retBlock);
+  CurCoro.Data->FinalSuspendInsPoint = builder.create<cir::BrOp>(loc, retBlock);
 
   // Insert the new block to continue codegen after branch to ret block,
   // this will likely be an empty block.

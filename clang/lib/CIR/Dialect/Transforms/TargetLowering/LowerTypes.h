@@ -69,9 +69,9 @@ public:
   /// C function pointer type.
   /// FIXME(cir): Does the "free function" concept makes sense here?
   const LowerFunctionInfo &arrangeFunctionDeclaration(FuncOp fnOp);
-  const LowerFunctionInfo &arrangeFreeFunctionCall(const mlir::OperandRange args,
-                                                   const FuncType fnType,
-                                                   bool chainCall);
+  const LowerFunctionInfo &
+  arrangeFreeFunctionCall(const mlir::OperandRange args, const FuncType fnType,
+                          bool chainCall);
   const LowerFunctionInfo &arrangeFreeFunctionType(FuncType FTy);
 
   const LowerFunctionInfo &arrangeGlobalDeclaration(FuncOp fnOp);
@@ -84,10 +84,10 @@ public:
   /// \param opts - Options to control the arrangement.
   /// \param argTypes - ABI-agnostic CIR argument types.
   /// \param required - Information about required/optional arguments.
-  const LowerFunctionInfo &arrangeLLVMFunctionInfo(mlir::Type resultType,
-                                                   cir::FnInfoOpts opts,
-                                                   llvm::ArrayRef<mlir::Type> argTypes,
-                                                   RequiredArgs required);
+  const LowerFunctionInfo &
+  arrangeLLVMFunctionInfo(mlir::Type resultType, cir::FnInfoOpts opts,
+                          llvm::ArrayRef<mlir::Type> argTypes,
+                          RequiredArgs required);
 
   /// Return the ABI-specific function type for a CIR function type.
   FuncType getFunctionType(const LowerFunctionInfo &FI);

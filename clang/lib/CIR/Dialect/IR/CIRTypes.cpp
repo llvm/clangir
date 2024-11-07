@@ -264,8 +264,7 @@ void StructType::print(mlir::AsmPrinter &printer) const {
 mlir::LogicalResult StructType::verifyInvariants(
     llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
     llvm::ArrayRef<mlir::Type> members, mlir::StringAttr name, bool incomplete,
-    bool packed, cir::StructType::RecordKind kind,
-    ASTRecordDeclInterface ast) {
+    bool packed, cir::StructType::RecordKind kind, ASTRecordDeclInterface ast) {
   if (name && name.getValue().empty()) {
     emitError() << "identified structs cannot have an empty name";
     return mlir::failure();
@@ -445,9 +444,9 @@ llvm::TypeSize cir::VectorType::getTypeSizeInBits(
                                   dataLayout.getTypeSizeInBits(getEltType()));
 }
 
-uint64_t cir::VectorType::getABIAlignment(
-    const ::mlir::DataLayout &dataLayout,
-    ::mlir::DataLayoutEntryListRef params) const {
+uint64_t
+cir::VectorType::getABIAlignment(const ::mlir::DataLayout &dataLayout,
+                                 ::mlir::DataLayoutEntryListRef params) const {
   return llvm::NextPowerOf2(dataLayout.getTypeSizeInBits(*this));
 }
 
@@ -491,8 +490,7 @@ uint64_t StructType::getElementOffset(const ::mlir::DataLayout &dataLayout,
   assert(idx < getMembers().size() && "access not valid");
   if (!layoutInfo)
     computeSizeAndAlignment(dataLayout);
-  auto offsets =
-      mlir::cast<cir::StructLayoutAttr>(layoutInfo).getOffsets();
+  auto offsets = mlir::cast<cir::StructLayoutAttr>(layoutInfo).getOffsets();
   auto intAttr = mlir::cast<mlir::IntegerAttr>(offsets[idx]);
   return intAttr.getInt();
 }
@@ -567,9 +565,9 @@ void StructType::computeSizeAndAlignment(
   }
 
   auto offsets = mlir::ArrayAttr::get(getContext(), memberOffsets);
-  layoutInfo = cir::StructLayoutAttr::get(
-      getContext(), structSize, structAlignment.value(), isPadded,
-      largestMember, offsets);
+  layoutInfo = cir::StructLayoutAttr::get(getContext(), structSize,
+                                          structAlignment.value(), isPadded,
+                                          largestMember, offsets);
 }
 
 //===----------------------------------------------------------------------===//
@@ -826,8 +824,8 @@ LongDoubleType::verify(function_ref<InFlightDiagnostic()> emitError,
 //===----------------------------------------------------------------------===//
 
 bool cir::isAnyFloatingPointType(mlir::Type t) {
-  return isa<cir::SingleType, cir::DoubleType,
-             cir::LongDoubleType, cir::FP80Type>(t);
+  return isa<cir::SingleType, cir::DoubleType, cir::LongDoubleType,
+             cir::FP80Type>(t);
 }
 
 //===----------------------------------------------------------------------===//
@@ -850,8 +848,7 @@ bool cir::isFPOrFPVectorTy(mlir::Type t) {
 mlir::LogicalResult cir::ComplexType::verify(
     llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
     mlir::Type elementTy) {
-  if (!mlir::isa<cir::IntType, cir::CIRFPTypeInterface>(
-          elementTy)) {
+  if (!mlir::isa<cir::IntType, cir::CIRFPTypeInterface>(elementTy)) {
     emitError() << "element type of !cir.complex must be either a "
                    "floating-point type or an integer type";
     return failure();
@@ -860,9 +857,9 @@ mlir::LogicalResult cir::ComplexType::verify(
   return success();
 }
 
-llvm::TypeSize cir::ComplexType::getTypeSizeInBits(
-    const mlir::DataLayout &dataLayout,
-    mlir::DataLayoutEntryListRef params) const {
+llvm::TypeSize
+cir::ComplexType::getTypeSizeInBits(const mlir::DataLayout &dataLayout,
+                                    mlir::DataLayoutEntryListRef params) const {
   // C17 6.2.5p13:
   //   Each complex type has the same representation and alignment requirements
   //   as an array type containing exactly two elements of the corresponding
@@ -872,9 +869,9 @@ llvm::TypeSize cir::ComplexType::getTypeSizeInBits(
   return dataLayout.getTypeSizeInBits(elementTy) * 2;
 }
 
-uint64_t cir::ComplexType::getABIAlignment(
-    const mlir::DataLayout &dataLayout,
-    mlir::DataLayoutEntryListRef params) const {
+uint64_t
+cir::ComplexType::getABIAlignment(const mlir::DataLayout &dataLayout,
+                                  mlir::DataLayoutEntryListRef params) const {
   // C17 6.2.5p13:
   //   Each complex type has the same representation and alignment requirements
   //   as an array type containing exactly two elements of the corresponding
@@ -967,7 +964,7 @@ static mlir::Type getMethodLayoutType(mlir::MLIRContext *ctx) {
   auto voidPtrTy = cir::PointerType::get(cir::VoidType::get(ctx));
   mlir::Type fields[2]{voidPtrTy, voidPtrTy};
   return cir::StructType::get(ctx, fields, /*packed=*/false,
-                                    cir::StructType::Struct);
+                              cir::StructType::Struct);
 }
 
 llvm::TypeSize

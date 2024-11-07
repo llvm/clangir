@@ -58,8 +58,9 @@ public:
   const clang::TargetInfo &getTarget() const { return Target; }
 
   // Build ABI/Target-specific function prologue.
-  llvm::LogicalResult buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
-                                    llvm::MutableArrayRef<mlir::BlockArgument> Args);
+  llvm::LogicalResult
+  buildFunctionProlog(const LowerFunctionInfo &FI, FuncOp Fn,
+                      llvm::MutableArrayRef<mlir::BlockArgument> Args);
 
   // Build ABI/Target-specific function epilogue.
   llvm::LogicalResult buildFunctionEpilog(const LowerFunctionInfo &FI);
@@ -68,26 +69,28 @@ public:
   // sections in the original function are focused on codegen unrelated to the
   // ABI. Such sections are handled in CIR's codegen, not here.
   llvm::LogicalResult generateCode(FuncOp oldFn, FuncOp newFn,
-                             const LowerFunctionInfo &FnInfo);
+                                   const LowerFunctionInfo &FnInfo);
 
   // Emit the most simple cir.store possible (e.g. a store for a whole
   // struct), which can later be broken down in other CIR levels (or prior
   // to dialect codegen).
-  void buildAggregateStore(mlir::Value Val, mlir::Value Dest, bool DestIsVolatile);
+  void buildAggregateStore(mlir::Value Val, mlir::Value Dest,
+                           bool DestIsVolatile);
 
   // Emit a simple bitcast for a coerced aggregate type to convert it from an
   // ABI-agnostic to an ABI-aware type.
   mlir::Value buildAggregateBitcast(mlir::Value Val, mlir::Type DestTy);
 
   /// Rewrite a call operation to abide to the ABI calling convention.
-  llvm::LogicalResult rewriteCallOp(CallOp op,
-                              ReturnValueSlot retValSlot = ReturnValueSlot());
+  llvm::LogicalResult
+  rewriteCallOp(CallOp op, ReturnValueSlot retValSlot = ReturnValueSlot());
   mlir::Value rewriteCallOp(FuncType calleeTy, FuncOp origCallee, CallOp callOp,
-                      ReturnValueSlot retValSlot, mlir::Value Chain = nullptr);
+                            ReturnValueSlot retValSlot,
+                            mlir::Value Chain = nullptr);
   mlir::Value rewriteCallOp(const LowerFunctionInfo &CallInfo, FuncOp Callee,
-                      CallOp Caller, ReturnValueSlot ReturnValue,
-                      CallArgList &CallArgs, CallOp CallOrInvoke,
-                      bool isMustTail, mlir::Location loc);
+                            CallOp Caller, ReturnValueSlot ReturnValue,
+                            CallArgList &CallArgs, CallOp CallOrInvoke,
+                            bool isMustTail, mlir::Location loc);
 
   /// Get an appropriate 'undef' value for the given type.
   mlir::Value getUndefRValue(mlir::Type Ty);

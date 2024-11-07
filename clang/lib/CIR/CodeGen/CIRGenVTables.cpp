@@ -330,8 +330,7 @@ void CIRGenVTables::createVTableInitializer(ConstantStructBuilder &builder,
 
 cir::GlobalOp CIRGenVTables::generateConstructionVTable(
     const CXXRecordDecl *RD, const BaseSubobject &Base, bool BaseIsVirtual,
-    cir::GlobalLinkageKind Linkage,
-    VTableAddressPointsMapTy &AddressPoints) {
+    cir::GlobalLinkageKind Linkage, VTableAddressPointsMapTy &AddressPoints) {
   if (CGM.getModuleDebugInfo())
     llvm_unreachable("NYI");
 
@@ -400,8 +399,7 @@ cir::GlobalOp CIRGenVTables::generateConstructionVTable(
 /// Compute the required linkage of the vtable for the given class.
 ///
 /// Note that we only call this at the end of the translation unit.
-cir::GlobalLinkageKind
-CIRGenModule::getVTableLinkage(const CXXRecordDecl *RD) {
+cir::GlobalLinkageKind CIRGenModule::getVTableLinkage(const CXXRecordDecl *RD) {
   if (!RD->isExternallyVisible())
     return cir::GlobalLinkageKind::InternalLinkage;
 
@@ -460,8 +458,7 @@ CIRGenModule::getVTableLinkage(const CXXRecordDecl *RD) {
     DiscardableODRLinkage = NonDiscardableODRLinkage;
   } else if (RD->hasAttr<DLLImportAttr>()) {
     // Imported vtables are available externally.
-    DiscardableODRLinkage =
-        cir::GlobalLinkageKind::AvailableExternallyLinkage;
+    DiscardableODRLinkage = cir::GlobalLinkageKind::AvailableExternallyLinkage;
     NonDiscardableODRLinkage =
         cir::GlobalLinkageKind::AvailableExternallyLinkage;
   }
@@ -495,8 +492,7 @@ CIRGenModule::getVTableLinkage(const CXXRecordDecl *RD) {
 cir::GlobalOp
 getAddrOfVTTVTable(CIRGenVTables &CGVT, CIRGenModule &CGM,
                    const CXXRecordDecl *MostDerivedClass,
-                   const VTTVTable &vtable,
-                   cir::GlobalLinkageKind linkage,
+                   const VTTVTable &vtable, cir::GlobalLinkageKind linkage,
                    VTableLayout::AddressPointsMapTy &addressPoints) {
   if (vtable.getBase() == MostDerivedClass) {
     assert(vtable.getBaseOffset().isZero() &&
@@ -524,14 +520,13 @@ cir::GlobalOp CIRGenVTables::getAddrOfVTT(const CXXRecordDecl *RD) {
   VTTBuilder Builder(CGM.getASTContext(), RD, /*GenerateDefinition=*/false);
 
   auto ArrayType = cir::ArrayType::get(CGM.getBuilder().getContext(),
-                                             CGM.getBuilder().getUInt8PtrTy(),
-                                             Builder.getVTTComponents().size());
+                                       CGM.getBuilder().getUInt8PtrTy(),
+                                       Builder.getVTTComponents().size());
   auto Align =
       CGM.getDataLayout().getABITypeAlign(CGM.getBuilder().getUInt8PtrTy());
   auto VTT = CGM.createOrReplaceCXXRuntimeVariable(
       CGM.getLoc(RD->getSourceRange()), Name, ArrayType,
-      cir::GlobalLinkageKind::ExternalLinkage,
-      CharUnits::fromQuantity(Align));
+      cir::GlobalLinkageKind::ExternalLinkage, CharUnits::fromQuantity(Align));
   CGM.setGVProperties(VTT, RD);
   return VTT;
 }
@@ -596,8 +591,8 @@ void CIRGenVTables::buildVTTDefinition(cir::GlobalOp VTT,
   VTTBuilder Builder(CGM.getASTContext(), RD, /*GenerateDefinition=*/true);
 
   auto ArrayType = cir::ArrayType::get(CGM.getBuilder().getContext(),
-                                             CGM.getBuilder().getUInt8PtrTy(),
-                                             Builder.getVTTComponents().size());
+                                       CGM.getBuilder().getUInt8PtrTy(),
+                                       Builder.getVTTComponents().size());
 
   SmallVector<cir::GlobalOp, 8> VTables;
   SmallVector<VTableAddressPointsMapTy, 8> VTableAddressPoints;

@@ -35,8 +35,9 @@ struct StructTypeStorage : public mlir::TypeStorage {
     StructType::RecordKind kind;
     ASTRecordDeclInterface ast;
 
-    KeyTy(llvm::ArrayRef<mlir::Type> members, mlir::StringAttr name, bool incomplete, bool packed,
-          StructType::RecordKind kind, ASTRecordDeclInterface ast)
+    KeyTy(llvm::ArrayRef<mlir::Type> members, mlir::StringAttr name,
+          bool incomplete, bool packed, StructType::RecordKind kind,
+          ASTRecordDeclInterface ast)
         : members(members), name(name), incomplete(incomplete), packed(packed),
           kind(kind), ast(ast) {}
   };
@@ -48,8 +49,8 @@ struct StructTypeStorage : public mlir::TypeStorage {
   StructType::RecordKind kind;
   ASTRecordDeclInterface ast;
 
-  StructTypeStorage(llvm::ArrayRef<mlir::Type> members, mlir::StringAttr name, bool incomplete,
-                    bool packed, StructType::RecordKind kind,
+  StructTypeStorage(llvm::ArrayRef<mlir::Type> members, mlir::StringAttr name,
+                    bool incomplete, bool packed, StructType::RecordKind kind,
                     ASTRecordDeclInterface ast)
       : members(members), name(name), incomplete(incomplete), packed(packed),
         kind(kind), ast(ast) {}
@@ -86,8 +87,9 @@ struct StructTypeStorage : public mlir::TypeStorage {
   /// mutations. Anonymous structs are always complete and cannot be mutated.
   /// This method does not fail if a mutation of a complete struct does not
   /// change the struct.
-  llvm::LogicalResult mutate(mlir::TypeStorageAllocator &allocator, llvm::ArrayRef<mlir::Type> members,
-                       bool packed, ASTRecordDeclInterface ast) {
+  llvm::LogicalResult mutate(mlir::TypeStorageAllocator &allocator,
+                             llvm::ArrayRef<mlir::Type> members, bool packed,
+                             ASTRecordDeclInterface ast) {
     // Anonymous structs cannot mutate.
     if (!name)
       return llvm::failure();

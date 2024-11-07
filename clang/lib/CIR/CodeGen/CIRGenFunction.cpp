@@ -442,8 +442,7 @@ void CIRGenFunction::LexicalScope::cleanup() {
   insertCleanupAndLeave(currBlock);
 }
 
-cir::ReturnOp
-CIRGenFunction::LexicalScope::buildReturn(mlir::Location loc) {
+cir::ReturnOp CIRGenFunction::LexicalScope::buildReturn(mlir::Location loc) {
   auto &builder = CGF.getBuilder();
 
   // If we are on a coroutine, add the coro_end builtin call.
@@ -601,9 +600,8 @@ void CIRGenFunction::finishFunction(SourceLocation EndLoc) {
   // block, it'd be deleted now. Same for unused ret allocas from ReturnValue
 }
 
-cir::FuncOp
-CIRGenFunction::generateCode(clang::GlobalDecl GD, cir::FuncOp Fn,
-                             const CIRGenFunctionInfo &FnInfo) {
+cir::FuncOp CIRGenFunction::generateCode(clang::GlobalDecl GD, cir::FuncOp Fn,
+                                         const CIRGenFunctionInfo &FnInfo) {
   assert(Fn && "generating code for a null function");
   const auto FD = cast<FunctionDecl>(GD.getDecl());
   CurGD = GD;
@@ -900,15 +898,14 @@ static mlir::Value emitArgumentDemotion(CIRGenFunction &CGF, const VarDecl *var,
   if (value.getType() == ty)
     return value;
 
-  assert(
-      (isa<cir::IntType>(ty) || cir::isAnyFloatingPointType(ty)) &&
-      "unexpected promotion type");
+  assert((isa<cir::IntType>(ty) || cir::isAnyFloatingPointType(ty)) &&
+         "unexpected promotion type");
 
   if (isa<cir::IntType>(ty))
     return CGF.getBuilder().CIRBaseBuilderTy::createIntCast(value, ty);
 
-  return CGF.getBuilder().CIRBaseBuilderTy::createCast(
-      cir::CastKind::floating, value, ty);
+  return CGF.getBuilder().CIRBaseBuilderTy::createCast(cir::CastKind::floating,
+                                                       value, ty);
 }
 
 void CIRGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
@@ -1845,16 +1842,14 @@ CIRGenFunction::buildArrayLength(const clang::ArrayType *origArrayType,
 
   // llvm::ArrayType *llvmArrayType =
   //     dyn_cast<llvm::ArrayType>(addr.getElementType());
-  auto cirArrayType =
-      mlir::dyn_cast<cir::ArrayType>(addr.getElementType());
+  auto cirArrayType = mlir::dyn_cast<cir::ArrayType>(addr.getElementType());
 
   while (cirArrayType) {
     assert(isa<ConstantArrayType>(arrayType));
     countFromCLAs *= cirArrayType.getSize();
     eltType = arrayType->getElementType();
 
-    cirArrayType =
-        mlir::dyn_cast<cir::ArrayType>(cirArrayType.getEltType());
+    cirArrayType = mlir::dyn_cast<cir::ArrayType>(cirArrayType.getEltType());
 
     arrayType = getContext().getAsArrayType(arrayType->getElementType());
     assert((!cirArrayType || arrayType) &&
@@ -1884,8 +1879,8 @@ mlir::Value CIRGenFunction::buildAlignmentAssumption(
     mlir::Value offsetValue) {
   if (SanOpts.has(SanitizerKind::Alignment))
     llvm_unreachable("NYI");
-  return builder.create<cir::AssumeAlignedOp>(
-      getLoc(assumptionLoc), ptrValue, alignment, offsetValue);
+  return builder.create<cir::AssumeAlignedOp>(getLoc(assumptionLoc), ptrValue,
+                                              alignment, offsetValue);
 }
 
 mlir::Value CIRGenFunction::buildAlignmentAssumption(

@@ -266,8 +266,7 @@ bool ConstantAggregateBuilder::addBits(llvm::APInt Bits, uint64_t OffsetInBits,
         add(CGM.getBuilder().getAttr<cir::IntAttr>(charTy, BitsThisChar),
             OffsetInChars, /*AllowOverwrite*/ true);
       } else {
-        cir::IntAttr CI =
-            dyn_cast<cir::IntAttr>(Elems[*FirstElemToUpdate]);
+        cir::IntAttr CI = dyn_cast<cir::IntAttr>(Elems[*FirstElemToUpdate]);
         // In order to perform a partial update, we need the existing bitwise
         // value, which we can only extract for a constant int.
         // auto *CI = dyn_cast<llvm::ConstantInt>(ToUpdate);
@@ -554,8 +553,7 @@ bool ConstStructBuilder::AppendBytes(CharUnits FieldOffsetInChars,
 }
 
 bool ConstStructBuilder::AppendBitField(const FieldDecl *Field,
-                                        uint64_t FieldOffset,
-                                        cir::IntAttr CI,
+                                        uint64_t FieldOffset, cir::IntAttr CI,
                                         bool AllowOverwrite) {
   const auto &RL = CGM.getTypes().getCIRGenRecordLayout(Field->getParent());
   const auto &Info = RL.getBitFieldInfo(Field);
@@ -1198,7 +1196,7 @@ buildArrayConstant(CIRGenModule &CGM, mlir::Type DesiredType,
     return builder.getConstArray(
         mlir::ArrayAttr::get(builder.getContext(), Eles),
         cir::ArrayType::get(builder.getContext(), CommonElementType,
-                                  ArrayBound));
+                            ArrayBound));
     // TODO(cir): If all the elements had the same type up to the trailing
     // zeroes, emit a struct of two arrays (the nonzero data and the
     // zeroinitializer). Use DesiredType to get the element type.
@@ -1219,7 +1217,7 @@ buildArrayConstant(CIRGenModule &CGM, mlir::Type DesiredType,
     return builder.getConstArray(
         mlir::ArrayAttr::get(builder.getContext(), Eles),
         cir::ArrayType::get(builder.getContext(), CommonElementType,
-                                  ArrayBound));
+                            ArrayBound));
   }
 
   SmallVector<mlir::Attribute, 4> Eles;
@@ -1319,12 +1317,11 @@ private:
     // Handle attribute constant LValues.
     if (auto Attr = mlir::dyn_cast<mlir::Attribute>(C.Value)) {
       if (auto GV = mlir::dyn_cast<cir::GlobalViewAttr>(Attr)) {
-        auto baseTy =
-            mlir::cast<cir::PointerType>(GV.getType()).getPointee();
+        auto baseTy = mlir::cast<cir::PointerType>(GV.getType()).getPointee();
         auto destTy = CGM.getTypes().convertTypeForMem(DestType);
         assert(!GV.getIndices() && "Global view is already indexed");
         return cir::GlobalViewAttr::get(destTy, GV.getSymbol(),
-                                              getOffset(baseTy));
+                                        getOffset(baseTy));
       }
       llvm_unreachable("Unsupported attribute type to offset");
     }
@@ -1623,9 +1620,8 @@ mlir::Attribute ConstantEmitter::tryEmitPrivateForVarInit(const VarDecl &D) {
         // assignments and whatnots). Since this is for globals shouldn't
         // be a problem for the near future.
         if (CD->isTrivial() && CD->isDefaultConstructor())
-          return cir::ZeroAttr::get(
-              CGM.getBuilder().getContext(),
-              CGM.getTypes().ConvertType(D.getType()));
+          return cir::ZeroAttr::get(CGM.getBuilder().getContext(),
+                                    CGM.getTypes().ConvertType(D.getType()));
       }
   }
   InConstantContext = D.hasConstantInitialization();
@@ -1728,7 +1724,7 @@ mlir::Attribute ConstantEmitter::emitForMemory(CIRGenModule &CGM,
     auto &builder = CGM.getBuilder();
     auto zeroArray = builder.getZeroInitAttr(
         cir::ArrayType::get(builder.getContext(), builder.getUInt8Ty(),
-                                  (outerSize - innerSize) / 8));
+                            (outerSize - innerSize) / 8));
     SmallVector<mlir::Attribute, 4> anonElts = {C, zeroArray};
     auto arrAttr = mlir::ArrayAttr::get(builder.getContext(), anonElts);
     return builder.getAnonConstStruct(arrAttr, false);
@@ -1880,8 +1876,8 @@ mlir::Attribute ConstantEmitter::tryEmitPrivate(const APValue &Value,
     if (const auto *memberFuncDecl = dyn_cast<CXXMethodDecl>(memberDecl))
       assert(0 && "not implemented");
 
-    auto cirTy = mlir::cast<cir::DataMemberType>(
-        CGM.getTypes().ConvertType(DestType));
+    auto cirTy =
+        mlir::cast<cir::DataMemberType>(CGM.getTypes().ConvertType(DestType));
 
     const auto *fieldDecl = cast<FieldDecl>(memberDecl);
     return builder.getDataMemberAttr(cirTy, fieldDecl->getFieldIndex());
@@ -1978,8 +1974,8 @@ mlir::Attribute ConstantEmitter::emitAbstract(SourceLocation loc,
 mlir::Attribute ConstantEmitter::emitNullForMemory(mlir::Location loc,
                                                    CIRGenModule &CGM,
                                                    QualType T) {
-  auto cstOp = dyn_cast<cir::ConstantOp>(
-      CGM.buildNullConstant(T, loc).getDefiningOp());
+  auto cstOp =
+      dyn_cast<cir::ConstantOp>(CGM.buildNullConstant(T, loc).getDefiningOp());
   assert(cstOp && "expected cir.const op");
   return emitForMemory(CGM, cstOp.getValue(), T);
 }
@@ -2044,8 +2040,8 @@ static mlir::TypedAttr buildNullConstant(CIRGenModule &CGM,
   }
 
   mlir::MLIRContext *mlirCtx = structure.getContext();
-  return cir::ConstStructAttr::get(
-      mlirCtx, structure, mlir::ArrayAttr::get(mlirCtx, elements));
+  return cir::ConstStructAttr::get(mlirCtx, structure,
+                                   mlir::ArrayAttr::get(mlirCtx, elements));
 }
 
 mlir::TypedAttr

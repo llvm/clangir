@@ -192,8 +192,7 @@ public:
   CatchTypeInfo
   getAddrOfCXXCatchHandlerType(mlir::Location loc, QualType Ty,
                                QualType CatchHandlerType) override {
-    auto rtti =
-        dyn_cast<cir::GlobalViewAttr>(getAddrOfRTTIDescriptor(loc, Ty));
+    auto rtti = dyn_cast<cir::GlobalViewAttr>(getAddrOfRTTIDescriptor(loc, Ty));
     assert(rtti && "expected GlobalViewAttr");
     return CatchTypeInfo{rtti, 0};
   }
@@ -202,7 +201,7 @@ public:
 
   bool canSpeculativelyEmitVTable(const CXXRecordDecl *RD) const override;
   cir::GlobalOp getAddrOfVTable(const CXXRecordDecl *RD,
-                                      CharUnits VPtrOffset) override;
+                                CharUnits VPtrOffset) override;
   CIRGenCallee getVirtualFunctionPointer(CIRGenFunction &CGF, GlobalDecl GD,
                                          Address This, mlir::Type Ty,
                                          SourceLocation Loc) override;
@@ -322,9 +321,8 @@ public:
                                cir::PointerType DestCIRTy, bool isRefCast,
                                Address Src) override;
 
-  cir::MethodAttr
-  buildVirtualMethodAttr(cir::MethodType MethodTy,
-                         const CXXMethodDecl *MD) override;
+  cir::MethodAttr buildVirtualMethodAttr(cir::MethodType MethodTy,
+                                         const CXXMethodDecl *MD) override;
 
   /**************************** RTTI Uniqueness ******************************/
 protected:
@@ -352,8 +350,7 @@ public:
   /// Return the required visibility status for the given type and linkage in
   /// the current ABI.
   RTTIUniquenessKind
-  classifyRTTIUniqueness(QualType CanTy,
-                         cir::GlobalLinkageKind Linkage) const;
+  classifyRTTIUniqueness(QualType CanTy, cir::GlobalLinkageKind Linkage) const;
   friend class CIRGenItaniumRTTIBuilder;
 };
 } // namespace
@@ -495,12 +492,10 @@ static void emitConstructorDestructorAlias(CIRGenModule &CGM,
     return;
   }
 
-  auto Entry =
-      dyn_cast_or_null<cir::FuncOp>(CGM.getGlobalValue(MangledName));
+  auto Entry = dyn_cast_or_null<cir::FuncOp>(CGM.getGlobalValue(MangledName));
 
   // Retrieve aliasee info.
-  auto Aliasee =
-      dyn_cast_or_null<cir::FuncOp>(CGM.GetAddrOfGlobal(TargetDecl));
+  auto Aliasee = dyn_cast_or_null<cir::FuncOp>(CGM.GetAddrOfGlobal(TargetDecl));
   assert(Aliasee && "expected cir.func");
 
   // Populate actual alias.
@@ -831,8 +826,7 @@ void CIRGenItaniumCXXABI::emitBeginCatch(CIRGenFunction &CGF,
   auto getCatchParamAllocaIP = [&]() {
     auto currIns = CGF.getBuilder().saveInsertionPoint();
     auto currParent = currIns.getBlock()->getParentOp();
-    mlir::Operation *scopeLikeOp =
-        currParent->getParentOfType<cir::ScopeOp>();
+    mlir::Operation *scopeLikeOp = currParent->getParentOfType<cir::ScopeOp>();
     if (!scopeLikeOp)
       scopeLikeOp = currParent->getParentOfType<cir::FuncOp>();
     assert(scopeLikeOp && "unknown outermost scope-like parent");
@@ -851,9 +845,8 @@ void CIRGenItaniumCXXABI::emitBeginCatch(CIRGenFunction &CGF,
   CGF.buildAutoVarCleanups(var);
 }
 
-cir::GlobalOp
-CIRGenItaniumCXXABI::getAddrOfVTable(const CXXRecordDecl *RD,
-                                     CharUnits VPtrOffset) {
+cir::GlobalOp CIRGenItaniumCXXABI::getAddrOfVTable(const CXXRecordDecl *RD,
+                                                   CharUnits VPtrOffset) {
   assert(VPtrOffset.isZero() && "Itanium ABI only supports zero vptr offsets");
   cir::GlobalOp &vtable = VTables[RD];
   if (vtable)
@@ -920,11 +913,10 @@ CIRGenCallee CIRGenItaniumCXXABI::getVirtualFunctionPointer(
     } else {
       VTable = CGF.getBuilder().createBitcast(
           loc, VTable, CGF.getBuilder().getPointerTo(TyPtr));
-      auto VTableSlotPtr =
-          CGF.getBuilder().create<cir::VTableAddrPointOp>(
-              loc, CGF.getBuilder().getPointerTo(TyPtr),
-              ::mlir::FlatSymbolRefAttr{}, VTable,
-              /*vtable_index=*/0, VTableIndex);
+      auto VTableSlotPtr = CGF.getBuilder().create<cir::VTableAddrPointOp>(
+          loc, CGF.getBuilder().getPointerTo(TyPtr),
+          ::mlir::FlatSymbolRefAttr{}, VTable,
+          /*vtable_index=*/0, VTableIndex);
       VFuncLoad = CGF.getBuilder().createAlignedLoad(loc, TyPtr, VTableSlotPtr,
                                                      CGF.getPointerAlign());
     }
@@ -1076,7 +1068,7 @@ class CIRGenItaniumRTTIBuilder {
 
   // Returns the mangled type name of the given type.
   cir::GlobalOp GetAddrOfTypeName(mlir::Location loc, QualType Ty,
-                                        cir::GlobalLinkageKind Linkage);
+                                  cir::GlobalLinkageKind Linkage);
 
   // /// Returns the constant for the RTTI
   // /// descriptor of the given type.
@@ -1430,7 +1422,7 @@ static bool CanUseSingleInheritance(const CXXRecordDecl *RD) {
 /// Return the linkage that the type info and type info name constants
 /// should have for the given type.
 static cir::GlobalLinkageKind getTypeInfoLinkage(CIRGenModule &CGM,
-                                                       QualType Ty) {
+                                                 QualType Ty) {
   // Itanium C++ ABI 2.9.5p7:
   //   In addition, it and all of the intermediate abi::__pointer_type_info
   //   structs in the chain down to the abi::__class_type_info for the
@@ -1675,8 +1667,9 @@ void CIRGenItaniumRTTIBuilder::BuildVTablePointer(mlir::Location loc,
   Fields.push_back(field);
 }
 
-cir::GlobalOp CIRGenItaniumRTTIBuilder::GetAddrOfTypeName(
-    mlir::Location loc, QualType Ty, cir::GlobalLinkageKind Linkage) {
+cir::GlobalOp
+CIRGenItaniumRTTIBuilder::GetAddrOfTypeName(mlir::Location loc, QualType Ty,
+                                            cir::GlobalLinkageKind Linkage) {
   auto &builder = CGM.getBuilder();
   SmallString<256> Name;
   llvm::raw_svector_ostream Out(Name);
@@ -2132,8 +2125,7 @@ void CIRGenItaniumCXXABI::emitVTableDefinitions(CIRGenVTables &CGVT,
     // EmitFundamentalRTTIDescriptors(RD);
   }
 
-  auto VTableAsGlobalValue =
-      dyn_cast<cir::CIRGlobalValueInterface>(*VTable);
+  auto VTableAsGlobalValue = dyn_cast<cir::CIRGlobalValueInterface>(*VTable);
   assert(VTableAsGlobalValue && "VTable must support CIRGlobalValueInterface");
   bool isDeclarationForLinker = VTableAsGlobalValue.isDeclarationForLinker();
   // Always emit type metadata on non-available_externally definitions, and on
@@ -2212,8 +2204,7 @@ void CIRGenItaniumCXXABI::buildDestructorCall(
 }
 
 void CIRGenItaniumCXXABI::registerGlobalDtor(CIRGenFunction &CGF,
-                                             const VarDecl *D,
-                                             cir::FuncOp dtor,
+                                             const VarDecl *D, cir::FuncOp dtor,
                                              mlir::Value Addr) {
   if (D->isNoDestroy(CGM.getASTContext()))
     return;
@@ -2257,8 +2248,8 @@ void CIRGenItaniumCXXABI::buildThrow(CIRGenFunction &CGF,
   // Defer computing allocation size to some later lowering pass.
   auto exceptionPtr =
       builder
-          .create<cir::AllocExceptionOp>(
-              subExprLoc, throwTy, builder.getI64IntegerAttr(typeSize))
+          .create<cir::AllocExceptionOp>(subExprLoc, throwTy,
+                                         builder.getI64IntegerAttr(typeSize))
           .getAddr();
 
   // Build expression and store its result into exceptionPtr.
@@ -2301,8 +2292,7 @@ void CIRGenItaniumCXXABI::buildThrow(CIRGenFunction &CGF,
 
   // Now throw the exception.
   mlir::Location loc = CGF.getLoc(E->getSourceRange());
-  builder.create<cir::ThrowOp>(loc, exceptionPtr, typeInfo.getSymbol(),
-                                     dtor);
+  builder.create<cir::ThrowOp>(loc, exceptionPtr, typeInfo.getSymbol(), dtor);
   builder.create<cir::UnreachableOp>(loc);
 }
 
@@ -2524,8 +2514,8 @@ buildExactDynamicCast(CIRGenItaniumCXXABI &ABI, CIRGenFunction &CGF,
   // TODO(cir): decorate SrcVPtr with TBAA info.
   assert(!cir::MissingFeatures::tbaa());
 
-  mlir::Value Success = CGF.getBuilder().createCompare(
-      Loc, cir::CmpOpKind::eq, SrcVPtr, ExpectedVPtr);
+  mlir::Value Success = CGF.getBuilder().createCompare(Loc, cir::CmpOpKind::eq,
+                                                       SrcVPtr, ExpectedVPtr);
 
   auto buildCastResult = [&] {
     if (Offset->isZero())
@@ -2547,11 +2537,10 @@ buildExactDynamicCast(CIRGenItaniumCXXABI &ABI, CIRGenFunction &CGF,
 
   if (IsRefCast) {
     mlir::Value Failed = CGF.getBuilder().createNot(Success);
-    CGF.getBuilder().create<cir::IfOp>(
-        Loc, Failed, /*withElseRegion=*/false,
-        [&](mlir::OpBuilder &, mlir::Location) {
-          buildCallToBadCast(CGF, Loc);
-        });
+    CGF.getBuilder().create<cir::IfOp>(Loc, Failed, /*withElseRegion=*/false,
+                                       [&](mlir::OpBuilder &, mlir::Location) {
+                                         buildCallToBadCast(CGF, Loc);
+                                       });
     return buildCastResult();
   }
 
@@ -2570,9 +2559,10 @@ buildExactDynamicCast(CIRGenItaniumCXXABI &ABI, CIRGenFunction &CGF,
       .getResult();
 }
 
-static cir::DynamicCastInfoAttr
-buildDynamicCastInfo(CIRGenFunction &CGF, mlir::Location Loc,
-                     QualType SrcRecordTy, QualType DestRecordTy) {
+static cir::DynamicCastInfoAttr buildDynamicCastInfo(CIRGenFunction &CGF,
+                                                     mlir::Location Loc,
+                                                     QualType SrcRecordTy,
+                                                     QualType DestRecordTy) {
   auto srcRtti = mlir::cast<cir::GlobalViewAttr>(
       CGF.CGM.getAddrOfRTTIDescriptor(Loc, SrcRecordTy));
   auto destRtti = mlir::cast<cir::GlobalViewAttr>(
@@ -2588,17 +2578,18 @@ buildDynamicCastInfo(CIRGenFunction &CGF, mlir::Location Loc,
   auto offsetHint = computeOffsetHint(CGF.getContext(), srcDecl, destDecl);
 
   mlir::Type ptrdiffTy = CGF.ConvertType(CGF.getContext().getPointerDiffType());
-  auto offsetHintAttr =
-      cir::IntAttr::get(ptrdiffTy, offsetHint.getQuantity());
+  auto offsetHintAttr = cir::IntAttr::get(ptrdiffTy, offsetHint.getQuantity());
 
   return cir::DynamicCastInfoAttr::get(srcRtti, destRtti, runtimeFuncRef,
-                                             badCastFuncRef, offsetHintAttr);
+                                       badCastFuncRef, offsetHintAttr);
 }
 
-mlir::Value CIRGenItaniumCXXABI::buildDynamicCast(
-    CIRGenFunction &CGF, mlir::Location Loc, QualType SrcRecordTy,
-    QualType DestRecordTy, cir::PointerType DestCIRTy, bool isRefCast,
-    Address Src) {
+mlir::Value CIRGenItaniumCXXABI::buildDynamicCast(CIRGenFunction &CGF,
+                                                  mlir::Location Loc,
+                                                  QualType SrcRecordTy,
+                                                  QualType DestRecordTy,
+                                                  cir::PointerType DestCIRTy,
+                                                  bool isRefCast, Address Src) {
   bool isCastToVoid = DestRecordTy.isNull();
   assert((!isCastToVoid || !isRefCast) && "cannot cast to void reference");
 

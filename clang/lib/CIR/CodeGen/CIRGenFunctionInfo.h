@@ -252,9 +252,7 @@ public:
 
   /// getCallingConvention - Return the user specified calling convention, which
   /// has been translated into a CIR CC.
-  cir::CallingConv getCallingConvention() const {
-    return CallingConvention;
-  }
+  cir::CallingConv getCallingConvention() const { return CallingConvention; }
 
   /// getEffectiveCallingConvention - Return the actual calling convention to
   /// use, which may depend on the ABI.

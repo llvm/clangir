@@ -291,9 +291,8 @@ void ItaniumRecordLayoutBuilder::initializeLayout(const mlir::Type Ty) {
 void ItaniumRecordLayoutBuilder::layoutField(const Type D,
                                              bool InsertExtraPadding) {
   // auto FieldClass = D.dyn_cast<StructType>();
-  cir_cconv_assert(
-      !cir::MissingFeatures::fieldDeclIsPotentiallyOverlapping() &&
-      !cir::MissingFeatures::CXXRecordDeclIsEmptyCXX11());
+  cir_cconv_assert(!cir::MissingFeatures::fieldDeclIsPotentiallyOverlapping() &&
+                   !cir::MissingFeatures::CXXRecordDeclIsEmptyCXX11());
   bool IsOverlappingEmptyField = false; // FIXME(cir): Needs more features.
 
   clang::CharUnits FieldOffset = (IsUnion || IsOverlappingEmptyField)

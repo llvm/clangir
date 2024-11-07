@@ -1038,10 +1038,10 @@ mlir::Value CIRGenFunction::buildCXXNewExpr(const CXXNewExpr *E) {
                                           allocation.getPointer(), nullPtr);
     preIfBody = builder.saveInsertionPoint();
     builder.create<cir::IfOp>(loc, nullCmpResult,
-                                    /*withElseRegion=*/false,
-                                    [&](mlir::OpBuilder &, mlir::Location) {
-                                      ifBody = builder.saveInsertionPoint();
-                                    });
+                              /*withElseRegion=*/false,
+                              [&](mlir::OpBuilder &, mlir::Location) {
+                                ifBody = builder.saveInsertionPoint();
+                              });
     postIfBody = builder.saveInsertionPoint();
   }
 

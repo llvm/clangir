@@ -199,7 +199,8 @@ public:
         // Leave Data empty.
         return;
 
-      const BinaryConditionalOperator *e = mlir::cast<BinaryConditionalOperator>(op);
+      const BinaryConditionalOperator *e =
+          mlir::cast<BinaryConditionalOperator>(op);
       Data = OpaqueValueMappingData::bind(CGF, e->getOpaqueValue(),
                                           e->getCommon());
     }
@@ -832,8 +833,8 @@ public:
   VlaSizePair getVLASize(QualType vla);
 
   mlir::Value emitBuiltinObjectSize(const Expr *E, unsigned Type,
-                                    cir::IntType ResType,
-                                    mlir::Value EmittedE, bool IsDynamic);
+                                    cir::IntType ResType, mlir::Value EmittedE,
+                                    bool IsDynamic);
   mlir::Value evaluateOrEmitBuiltinObjectSize(const Expr *E, unsigned Type,
                                               cir::IntType ResType,
                                               mlir::Value EmittedE,
@@ -920,8 +921,8 @@ public:
   RValue buildCall(const CIRGenFunctionInfo &CallInfo,
                    const CIRGenCallee &Callee, ReturnValueSlot ReturnValue,
                    const CallArgList &Args,
-                   cir::CIRCallOpInterface *callOrTryCall,
-                   bool IsMustTail, mlir::Location loc,
+                   cir::CIRCallOpInterface *callOrTryCall, bool IsMustTail,
+                   mlir::Location loc,
                    std::optional<const clang::CallExpr *> E = std::nullopt);
   RValue buildCall(const CIRGenFunctionInfo &CallInfo,
                    const CIRGenCallee &Callee, ReturnValueSlot ReturnValue,
@@ -980,13 +981,11 @@ public:
   mlir::LogicalResult buildCoroutineBody(const CoroutineBodyStmt &S);
   mlir::LogicalResult buildCoreturnStmt(const CoreturnStmt &S);
 
-  cir::CallOp buildCoroIDBuiltinCall(mlir::Location loc,
-                                           mlir::Value nullPtr);
+  cir::CallOp buildCoroIDBuiltinCall(mlir::Location loc, mlir::Value nullPtr);
   cir::CallOp buildCoroAllocBuiltinCall(mlir::Location loc);
   cir::CallOp buildCoroBeginBuiltinCall(mlir::Location loc,
-                                              mlir::Value coroframeAddr);
-  cir::CallOp buildCoroEndBuiltinCall(mlir::Location loc,
-                                            mlir::Value nullPtr);
+                                        mlir::Value coroframeAddr);
+  cir::CallOp buildCoroEndBuiltinCall(mlir::Location loc, mlir::Value nullPtr);
 
   RValue buildCoawaitExpr(const CoawaitExpr &E,
                           AggValueSlot aggSlot = AggValueSlot::ignored(),
@@ -1027,8 +1026,9 @@ public:
 
   // Build CIR for a statement. useCurrentScope should be true if no
   // new scopes need be created when finding a compound statement.
-  mlir::LogicalResult buildStmt(const clang::Stmt *S, bool useCurrentScope,
-                                llvm::ArrayRef<const Attr *> Attrs = std::nullopt);
+  mlir::LogicalResult
+  buildStmt(const clang::Stmt *S, bool useCurrentScope,
+            llvm::ArrayRef<const Attr *> Attrs = std::nullopt);
 
   mlir::LogicalResult buildSimpleStmt(const clang::Stmt *S,
                                       bool useCurrentScope);
@@ -1235,8 +1235,7 @@ public:
   mlir::Type getCIRType(const clang::QualType &type);
 
   const CaseStmt *foldCaseStmt(const clang::CaseStmt &S, mlir::Type condType,
-                               mlir::ArrayAttr &value,
-                               cir::CaseOpKind &kind);
+                               mlir::ArrayAttr &value, cir::CaseOpKind &kind);
 
   template <typename T>
   mlir::LogicalResult
@@ -1258,7 +1257,7 @@ public:
   mlir::LogicalResult buildSwitchBody(const clang::Stmt *S);
 
   cir::FuncOp generateCode(clang::GlobalDecl GD, cir::FuncOp Fn,
-                                 const CIRGenFunctionInfo &FnInfo);
+                           const CIRGenFunctionInfo &FnInfo);
 
   clang::QualType buildFunctionArgList(clang::GlobalDecl GD,
                                        FunctionArgList &Args);
@@ -1434,12 +1433,11 @@ public:
   /// inside a function, including static vars etc.
   void buildVarDecl(const clang::VarDecl &D);
 
-  cir::GlobalOp
-  addInitializerToStaticVarDecl(const VarDecl &D, cir::GlobalOp GV,
-                                cir::GetGlobalOp GVAddr);
+  cir::GlobalOp addInitializerToStaticVarDecl(const VarDecl &D,
+                                              cir::GlobalOp GV,
+                                              cir::GetGlobalOp GVAddr);
 
-  void buildStaticVarDecl(const VarDecl &D,
-                          cir::GlobalLinkageKind Linkage);
+  void buildStaticVarDecl(const VarDecl &D, cir::GlobalLinkageKind Linkage);
 
   /// Perform the usual unary conversions on the specified
   /// expression and compare the result against zero, returning an Int1Ty value.
@@ -2374,17 +2372,17 @@ public:
   /// The cast is not performaed in CreateTempAllocaWithoutCast. This is
   /// more efficient if the caller knows that the address will not be exposed.
   cir::AllocaOp CreateTempAlloca(mlir::Type Ty, mlir::Location Loc,
-                                       const Twine &Name = "tmp",
-                                       mlir::Value ArraySize = nullptr,
-                                       bool insertIntoFnEntryBlock = false);
-  cir::AllocaOp
-  CreateTempAllocaInFnEntryBlock(mlir::Type Ty, mlir::Location Loc,
                                  const Twine &Name = "tmp",
-                                 mlir::Value ArraySize = nullptr);
+                                 mlir::Value ArraySize = nullptr,
+                                 bool insertIntoFnEntryBlock = false);
+  cir::AllocaOp CreateTempAllocaInFnEntryBlock(mlir::Type Ty,
+                                               mlir::Location Loc,
+                                               const Twine &Name = "tmp",
+                                               mlir::Value ArraySize = nullptr);
   cir::AllocaOp CreateTempAlloca(mlir::Type Ty, mlir::Location Loc,
-                                       const Twine &Name = "tmp",
-                                       mlir::OpBuilder::InsertPoint ip = {},
-                                       mlir::Value ArraySize = nullptr);
+                                 const Twine &Name = "tmp",
+                                 mlir::OpBuilder::InsertPoint ip = {},
+                                 mlir::Value ArraySize = nullptr);
   Address CreateTempAlloca(mlir::Type Ty, CharUnits align, mlir::Location Loc,
                            const Twine &Name = "tmp",
                            mlir::Value ArraySize = nullptr,

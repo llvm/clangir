@@ -149,9 +149,9 @@ public:
   void buildCopy(QualType type, const AggValueSlot &dest,
                  const AggValueSlot &src);
 
-  void buildArrayInit(Address DestPtr, cir::ArrayType AType,
-                      QualType ArrayQTy, Expr *ExprToVisit,
-                      ArrayRef<Expr *> Args, Expr *ArrayFiller);
+  void buildArrayInit(Address DestPtr, cir::ArrayType AType, QualType ArrayQTy,
+                      Expr *ExprToVisit, ArrayRef<Expr *> Args,
+                      Expr *ArrayFiller);
 
   AggValueSlot::NeedsGCBarriers_t needsGC(QualType T) {
     if (CGF.getLangOpts().getGC() && TypeRequiresGCollection(T))
@@ -559,10 +559,10 @@ void AggExprEmitter::buildArrayInit(Address DestPtr, cir::ArrayType AType,
 
     // Advance to the start of the rest of the array.
     if (NumInitElements) {
-      auto one = builder.getConstInt(
-          loc, mlir::cast<cir::IntType>(CGF.PtrDiffTy), 1);
+      auto one =
+          builder.getConstInt(loc, mlir::cast<cir::IntType>(CGF.PtrDiffTy), 1);
       element = builder.create<cir::PtrStrideOp>(loc, cirElementPtrType,
-                                                       element, one);
+                                                 element, one);
 
       assert(!endOfInit.isValid() && "destructed types NIY");
     }
@@ -586,8 +586,8 @@ void AggExprEmitter::buildArrayInit(Address DestPtr, cir::ArrayType AType,
         [&](mlir::OpBuilder &b, mlir::Location loc) {
           auto currentElement = builder.createLoad(loc, tmpAddr);
           mlir::Type boolTy = CGF.getCIRType(CGF.getContext().BoolTy);
-          auto cmp = builder.create<cir::CmpOp>(
-              loc, boolTy, cir::CmpOpKind::ne, currentElement, end);
+          auto cmp = builder.create<cir::CmpOp>(loc, boolTy, cir::CmpOpKind::ne,
+                                                currentElement, end);
           builder.createCondition(cmp);
         },
         /*bodyBuilder=*/
@@ -893,11 +893,10 @@ void AggExprEmitter::VisitExprWithCleanups(ExprWithCleanups *E) {
   auto &builder = CGF.getBuilder();
   auto scopeLoc = CGF.getLoc(E->getSourceRange());
   mlir::OpBuilder::InsertPoint scopeBegin;
-  builder.create<cir::ScopeOp>(
-      scopeLoc, /*scopeBuilder=*/
-      [&](mlir::OpBuilder &b, mlir::Location loc) {
-        scopeBegin = b.saveInsertionPoint();
-      });
+  builder.create<cir::ScopeOp>(scopeLoc, /*scopeBuilder=*/
+                               [&](mlir::OpBuilder &b, mlir::Location loc) {
+                                 scopeBegin = b.saveInsertionPoint();
+                               });
 
   {
     mlir::OpBuilder::InsertionGuard guard(builder);

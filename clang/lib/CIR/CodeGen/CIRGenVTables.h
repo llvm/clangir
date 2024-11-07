@@ -95,16 +95,14 @@ public:
   /// Generate a construction vtable for the given base subobject.
   cir::GlobalOp
   generateConstructionVTable(const CXXRecordDecl *RD, const BaseSubobject &Base,
-                             bool BaseIsVirtual,
-                             cir::GlobalLinkageKind Linkage,
+                             bool BaseIsVirtual, cir::GlobalLinkageKind Linkage,
                              VTableAddressPointsMapTy &AddressPoints);
 
   /// Get the address of the VTT for the given record decl.
   cir::GlobalOp getAddrOfVTT(const CXXRecordDecl *RD);
 
   /// Emit the definition of the given vtable.
-  void buildVTTDefinition(cir::GlobalOp VTT,
-                          cir::GlobalLinkageKind Linkage,
+  void buildVTTDefinition(cir::GlobalOp VTT, cir::GlobalLinkageKind Linkage,
                           const CXXRecordDecl *RD);
 
   /// Emit the associated thunks for the given global decl.

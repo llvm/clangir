@@ -42,8 +42,8 @@ class LowerModule {
   mlir::PatternRewriter &rewriter;
 
 public:
-  LowerModule(clang::LangOptions opts, mlir::ModuleOp &module, mlir::StringAttr DL,
-              std::unique_ptr<clang::TargetInfo> target,
+  LowerModule(clang::LangOptions opts, mlir::ModuleOp &module,
+              mlir::StringAttr DL, std::unique_ptr<clang::TargetInfo> target,
               mlir::PatternRewriter &rewriter);
   ~LowerModule() = default;
 
@@ -85,11 +85,12 @@ public:
                              bool IsIncompleteFunction, bool IsThunk);
 
   // Create a CIR FuncOp with with the given signature.
-  FuncOp createCIRFunction(
-      llvm::StringRef MangledName, FuncType Ty, FuncOp D, bool ForVTable,
-      bool DontDefer = false, bool IsThunk = false,
-      llvm::ArrayRef<mlir::Attribute> = {}, // TODO(cir): __attribute__(()) stuff.
-      bool IsForDefinition = false);
+  FuncOp createCIRFunction(llvm::StringRef MangledName, FuncType Ty, FuncOp D,
+                           bool ForVTable, bool DontDefer = false,
+                           bool IsThunk = false,
+                           llvm::ArrayRef<mlir::Attribute> =
+                               {}, // TODO(cir): __attribute__(()) stuff.
+                           bool IsForDefinition = false);
 
   // Rewrite CIR FuncOp to match the target ABI.
   llvm::LogicalResult rewriteFunctionDefinition(FuncOp op);

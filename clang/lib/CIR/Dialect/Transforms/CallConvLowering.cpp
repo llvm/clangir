@@ -47,8 +47,7 @@ struct CallConvLowering {
         else if (auto c = mlir::dyn_cast<CallOp>(call.getUser()))
           lowerDirectCallOp(c, op);
         else {
-          cir_cconv_assert_or_abort(!cir::MissingFeatures::ABIFuncPtr(),
-                                    "NYI");
+          cir_cconv_assert_or_abort(!cir::MissingFeatures::ABIFuncPtr(), "NYI");
         }
       }
     }
@@ -124,7 +123,9 @@ struct CallConvLoweringPass
   using CallConvLoweringBase::CallConvLoweringBase;
 
   void runOnOperation() override;
-  llvm::StringRef getArgument() const override { return "cir-call-conv-lowering"; };
+  llvm::StringRef getArgument() const override {
+    return "cir-call-conv-lowering";
+  };
 };
 
 void CallConvLoweringPass::runOnOperation() {

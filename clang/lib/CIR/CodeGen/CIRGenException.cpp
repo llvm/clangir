@@ -302,11 +302,12 @@ mlir::LogicalResult CIRGenFunction::buildCXXTryStmt(const CXXTryStmt &S) {
   mlir::OpBuilder::InsertPoint scopeIP;
 
   // Create a scope to hold try local storage for catch params.
-  [[maybe_unused]] auto s = builder.create<cir::ScopeOp>(
-      loc, /*scopeBuilder=*/
-      [&](mlir::OpBuilder &b, mlir::Location loc) {
-        scopeIP = getBuilder().saveInsertionPoint();
-      });
+  [[maybe_unused]] auto s =
+      builder.create<cir::ScopeOp>(loc, /*scopeBuilder=*/
+                                   [&](mlir::OpBuilder &b, mlir::Location loc) {
+                                     scopeIP =
+                                         getBuilder().saveInsertionPoint();
+                                   });
 
   auto r = mlir::success();
   {
@@ -459,8 +460,7 @@ static void buildCatchDispatchBlock(CIRGenFunction &CGF,
   }
 }
 
-void CIRGenFunction::enterCXXTryStmt(const CXXTryStmt &S,
-                                     cir::TryOp tryOp,
+void CIRGenFunction::enterCXXTryStmt(const CXXTryStmt &S, cir::TryOp tryOp,
                                      bool IsFnTryBlock) {
   unsigned NumHandlers = S.getNumHandlers();
   EHCatchScope *CatchScope = EHStack.pushCatch(NumHandlers);

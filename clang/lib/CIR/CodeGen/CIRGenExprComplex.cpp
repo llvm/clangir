@@ -877,8 +877,7 @@ mlir::Value CIRGenFunction::buildPromotedComplexExpr(const Expr *E,
 mlir::Value CIRGenFunction::buildPromotedValue(mlir::Value result,
                                                QualType PromotionType) {
   assert(mlir::isa<cir::CIRFPTypeInterface>(
-             mlir::cast<cir::ComplexType>(result.getType())
-                 .getElementTy()) &&
+             mlir::cast<cir::ComplexType>(result.getType()).getElementTy()) &&
          "integral complex will never be promoted");
   return builder.createCast(cir::CastKind::float_complex, result,
                             ConvertType(PromotionType));
@@ -887,8 +886,7 @@ mlir::Value CIRGenFunction::buildPromotedValue(mlir::Value result,
 mlir::Value CIRGenFunction::buildUnPromotedValue(mlir::Value result,
                                                  QualType UnPromotionType) {
   assert(mlir::isa<cir::CIRFPTypeInterface>(
-             mlir::cast<cir::ComplexType>(result.getType())
-                 .getElementTy()) &&
+             mlir::cast<cir::ComplexType>(result.getType()).getElementTy()) &&
          "integral complex will never be promoted");
   return builder.createCast(cir::CastKind::float_complex, result,
                             ConvertType(UnPromotionType));
@@ -967,8 +965,7 @@ mlir::Value CIRGenFunction::buildComplexPrePostIncDec(const UnaryOperator *E,
   mlir::Value InVal = buildLoadOfComplex(LV, E->getExprLoc());
 
   auto Loc = getLoc(E->getExprLoc());
-  auto OpKind =
-      isInc ? cir::UnaryOpKind::Inc : cir::UnaryOpKind::Dec;
+  auto OpKind = isInc ? cir::UnaryOpKind::Inc : cir::UnaryOpKind::Dec;
   mlir::Value IncVal = builder.createUnaryOp(Loc, OpKind, InVal);
 
   // Store the updated result through the lvalue.

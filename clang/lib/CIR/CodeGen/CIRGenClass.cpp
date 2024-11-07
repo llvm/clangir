@@ -682,8 +682,8 @@ static Address ApplyNonVirtualAndVirtualOffset(
 
   mlir::Value ptr = addr.getPointer();
   mlir::Type charPtrType = CGF.CGM.UInt8PtrTy;
-  mlir::Value charPtr = CGF.getBuilder().createCast(
-      cir::CastKind::bitcast, ptr, charPtrType);
+  mlir::Value charPtr =
+      CGF.getBuilder().createCast(cir::CastKind::bitcast, ptr, charPtrType);
   mlir::Value adjusted = CGF.getBuilder().create<cir::PtrStrideOp>(
       loc, charPtrType, charPtr, baseOffset);
   ptr = CGF.getBuilder().createCast(cir::CastKind::bitcast, adjusted,
@@ -1774,11 +1774,9 @@ void CIRGenFunction::buildCXXAggrConstructorCall(
   // llvm::BranchInst *zeroCheckBranch = nullptr;
 
   // Optimize for a constant count.
-  auto constantCount =
-      dyn_cast<cir::ConstantOp>(numElements.getDefiningOp());
+  auto constantCount = dyn_cast<cir::ConstantOp>(numElements.getDefiningOp());
   if (constantCount) {
-    auto constIntAttr =
-        mlir::dyn_cast<cir::IntAttr>(constantCount.getValue());
+    auto constIntAttr = mlir::dyn_cast<cir::IntAttr>(constantCount.getValue());
     // Just skip out if the constant count is zero.
     if (constIntAttr && constIntAttr.getUInt() == 0)
       return;
@@ -1787,8 +1785,7 @@ void CIRGenFunction::buildCXXAggrConstructorCall(
     llvm_unreachable("NYI");
   }
 
-  auto arrayTy =
-      mlir::dyn_cast<cir::ArrayType>(arrayBase.getElementType());
+  auto arrayTy = mlir::dyn_cast<cir::ArrayType>(arrayBase.getElementType());
   assert(arrayTy && "expected array type");
   auto elementType = arrayTy.getEltType();
   auto ptrToElmType = builder.getPointerTo(elementType);

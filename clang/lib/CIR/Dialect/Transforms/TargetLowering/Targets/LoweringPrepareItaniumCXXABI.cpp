@@ -107,7 +107,7 @@ buildDynamicCastToVoidAfterNullCheck(CIRBaseBuilderTy &builder,
     auto ptrdiffTyWidth = targetInfo.getTypeWidth(ptrdiffTy);
 
     vtableElemTy = cir::IntType::get(builder.getContext(), ptrdiffTyWidth,
-                                           ptrdiffTyIsSigned);
+                                     ptrdiffTyIsSigned);
     vtableElemAlign =
         llvm::divideCeil(targetInfo.getPointerAlign(clang::LangAS::Default), 8);
   }
@@ -128,8 +128,8 @@ buildDynamicCastToVoidAfterNullCheck(CIRBaseBuilderTy &builder,
   // Cast the input pointer to a uint8_t* to allow pointer arithmetic.
   auto u8PtrTy = builder.getPointerTo(builder.getUIntNTy(8));
   auto srcBytePtr = builder.createBitcast(op.getSrc(), u8PtrTy);
-  auto dstBytePtr = builder.create<cir::PtrStrideOp>(
-      loc, u8PtrTy, srcBytePtr, offsetToTop);
+  auto dstBytePtr =
+      builder.create<cir::PtrStrideOp>(loc, u8PtrTy, srcBytePtr, offsetToTop);
   // Cast the result to a void*.
   return builder.createBitcast(dstBytePtr, builder.getVoidPtrTy());
 }
@@ -164,9 +164,10 @@ LoweringPrepareItaniumCXXABI::lowerDynamicCast(CIRBaseBuilderTy &builder,
       .getResult();
 }
 
-mlir::Value LoweringPrepareItaniumCXXABI::lowerVAArg(
-    CIRBaseBuilderTy &builder, cir::VAArgOp op,
-    const cir::CIRDataLayout &datalayout) {
+mlir::Value
+LoweringPrepareItaniumCXXABI::lowerVAArg(CIRBaseBuilderTy &builder,
+                                         cir::VAArgOp op,
+                                         const cir::CIRDataLayout &datalayout) {
   // There is no generic cir lowering for var_arg, here we fail
   // so to prevent attempt of calling lowerVAArg for ItaniumCXXABI
   cir_cconv_unreachable("NYI");

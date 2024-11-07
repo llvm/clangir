@@ -18,8 +18,7 @@
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 
 mlir::DenseElementsAttr
-convertStringAttrToDenseElementsAttr(cir::ConstArrayAttr attr,
-                                     mlir::Type type);
+convertStringAttrToDenseElementsAttr(cir::ConstArrayAttr attr, mlir::Type type);
 
 template <typename StorageTy> StorageTy getZeroInitFromType(mlir::Type Ty);
 template <> mlir::APInt getZeroInitFromType(mlir::Type Ty);

@@ -42,10 +42,10 @@ bool ABIInfo::isPromotableIntegerTypeForABI(mlir::Type Ty) const {
 }
 
 cir::ABIArgInfo ABIInfo::getNaturalAlignIndirect(mlir::Type Ty, bool ByVal,
-                                                   bool Realign,
-                                                   mlir::Type Padding) const {
+                                                 bool Realign,
+                                                 mlir::Type Padding) const {
   return cir::ABIArgInfo::getIndirect(getContext().getTypeAlign(Ty), ByVal,
-                                        Realign, Padding);
+                                      Realign, Padding);
 }
 
 } // namespace cir

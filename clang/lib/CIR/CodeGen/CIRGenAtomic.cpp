@@ -375,8 +375,8 @@ static bool isCstWeak(mlir::Value weakVal, bool &val) {
 static void buildDefaultCase(CIRGenBuilderTy &builder, mlir::Location loc) {
   auto EmptyArrayAttr = builder.getArrayAttr({});
   mlir::OpBuilder::InsertPoint insertPoint;
-  builder.create<cir::CaseOp>(
-      loc, EmptyArrayAttr, cir::CaseOpKind::Default, insertPoint);
+  builder.create<cir::CaseOp>(loc, EmptyArrayAttr, cir::CaseOpKind::Default,
+                              insertPoint);
   builder.restoreInsertionPoint(insertPoint);
 }
 
@@ -390,8 +390,8 @@ static void buildSingleMemOrderCase(CIRGenBuilderTy &builder,
       cir::IntAttr::get(Type, static_cast<int>(Order))};
   auto OneAttribute = builder.getArrayAttr(OneOrder);
   mlir::OpBuilder::InsertPoint insertPoint;
-  builder.create<cir::CaseOp>(loc, OneAttribute,
-                                    cir::CaseOpKind::Equal, insertPoint);
+  builder.create<cir::CaseOp>(loc, OneAttribute, cir::CaseOpKind::Equal,
+                              insertPoint);
   builder.restoreInsertionPoint(insertPoint);
 }
 
@@ -407,8 +407,8 @@ static void buildDoubleMemOrderCase(CIRGenBuilderTy &builder,
       cir::IntAttr::get(Type, static_cast<int>(Order2))};
   auto TwoAttributes = builder.getArrayAttr(TwoOrders);
   mlir::OpBuilder::InsertPoint insertPoint;
-  builder.create<cir::CaseOp>(loc, TwoAttributes,
-                                    cir::CaseOpKind::Anyof, insertPoint);
+  builder.create<cir::CaseOp>(loc, TwoAttributes, cir::CaseOpKind::Anyof,
+                              insertPoint);
   builder.restoreInsertionPoint(insertPoint);
 }
 
@@ -432,8 +432,7 @@ static void buildAtomicCmpXchg(CIRGenFunction &CGF, AtomicExpr *E, bool IsWeak,
   auto cmp = builder.createNot(cmpxchg.getCmp());
   builder.create<cir::IfOp>(
       loc, cmp, false, [&](mlir::OpBuilder &, mlir::Location) {
-        auto ptrTy =
-            mlir::cast<cir::PointerType>(Val1.getPointer().getType());
+        auto ptrTy = mlir::cast<cir::PointerType>(Val1.getPointer().getType());
         if (Val1.getElementType() != ptrTy.getPointee()) {
           Val1 = Val1.withPointer(builder.createPtrBitcast(
               Val1.getPointer(), Val1.getElementType()));
@@ -515,8 +514,7 @@ static void buildAtomicCmpXchgFailureSet(
         // memory_order_consume is not implemented and always falls back to
         // memory_order_acquire
         buildDoubleMemOrderCase(builder, loc, FailureOrderVal.getType(),
-                                cir::MemOrder::Consume,
-                                cir::MemOrder::Acquire);
+                                cir::MemOrder::Consume, cir::MemOrder::Acquire);
         buildAtomicCmpXchg(CGF, E, IsWeak, Dest, Ptr, Val1, Val2, Size,
                            SuccessOrder, cir::MemOrder::Acquire, Scope);
         builder.createBreak(loc);
@@ -531,8 +529,8 @@ static void buildAtomicCmpXchgFailureSet(
         buildSingleMemOrderCase(builder, loc, FailureOrderVal.getType(),
                                 cir::MemOrder::SequentiallyConsistent);
         buildAtomicCmpXchg(CGF, E, IsWeak, Dest, Ptr, Val1, Val2, Size,
-                           SuccessOrder,
-                           cir::MemOrder::SequentiallyConsistent, Scope);
+                           SuccessOrder, cir::MemOrder::SequentiallyConsistent,
+                           Scope);
         builder.createBreak(loc);
 
         builder.setInsertionPointToEnd(switchBlock);
@@ -543,8 +541,7 @@ static void buildAtomicCmpXchgFailureSet(
 static void buildAtomicOp(CIRGenFunction &CGF, AtomicExpr *E, Address Dest,
                           Address Ptr, Address Val1, Address Val2,
                           mlir::Value IsWeak, mlir::Value FailureOrder,
-                          uint64_t Size, cir::MemOrder Order,
-                          uint8_t Scope) {
+                          uint64_t Size, cir::MemOrder Order, uint8_t Scope) {
   assert(!cir::MissingFeatures::syncScopeID());
   StringRef Op;
 
@@ -599,8 +596,7 @@ static void buildAtomicOp(CIRGenFunction &CGF, AtomicExpr *E, Address Dest,
 
     // TODO(cir): this logic should be part of createStore, but doing so
     // currently breaks CodeGen/union.cpp and CodeGen/union.cpp.
-    auto ptrTy =
-        mlir::cast<cir::PointerType>(Dest.getPointer().getType());
+    auto ptrTy = mlir::cast<cir::PointerType>(Dest.getPointer().getType());
     if (Dest.getElementType() != ptrTy.getPointee()) {
       Dest = Dest.withPointer(
           builder.createPtrBitcast(Dest.getPointer(), Dest.getElementType()));
@@ -644,8 +640,8 @@ static void buildAtomicOp(CIRGenFunction &CGF, AtomicExpr *E, Address Dest,
   case AtomicExpr::AO__atomic_fetch_add:
   case AtomicExpr::AO__scoped_atomic_fetch_add:
     Op = cir::AtomicFetch::getOperationName();
-    fetchAttr = cir::AtomicFetchKindAttr::get(
-        builder.getContext(), cir::AtomicFetchKind::Add);
+    fetchAttr = cir::AtomicFetchKindAttr::get(builder.getContext(),
+                                              cir::AtomicFetchKind::Add);
     break;
 
   case AtomicExpr::AO__atomic_sub_fetch:
@@ -658,8 +654,8 @@ static void buildAtomicOp(CIRGenFunction &CGF, AtomicExpr *E, Address Dest,
   case AtomicExpr::AO__atomic_fetch_sub:
   case AtomicExpr::AO__scoped_atomic_fetch_sub:
     Op = cir::AtomicFetch::getOperationName();
-    fetchAttr = cir::AtomicFetchKindAttr::get(
-        builder.getContext(), cir::AtomicFetchKind::Sub);
+    fetchAttr = cir::AtomicFetchKindAttr::get(builder.getContext(),
+                                              cir::AtomicFetchKind::Sub);
     break;
 
   case AtomicExpr::AO__atomic_min_fetch:
@@ -672,8 +668,8 @@ static void buildAtomicOp(CIRGenFunction &CGF, AtomicExpr *E, Address Dest,
   case AtomicExpr::AO__atomic_fetch_min:
   case AtomicExpr::AO__scoped_atomic_fetch_min:
     Op = cir::AtomicFetch::getOperationName();
-    fetchAttr = cir::AtomicFetchKindAttr::get(
-        builder.getContext(), cir::AtomicFetchKind::Min);
+    fetchAttr = cir::AtomicFetchKindAttr::get(builder.getContext(),
+                                              cir::AtomicFetchKind::Min);
     break;
 
   case AtomicExpr::AO__atomic_max_fetch:
@@ -686,8 +682,8 @@ static void buildAtomicOp(CIRGenFunction &CGF, AtomicExpr *E, Address Dest,
   case AtomicExpr::AO__atomic_fetch_max:
   case AtomicExpr::AO__scoped_atomic_fetch_max:
     Op = cir::AtomicFetch::getOperationName();
-    fetchAttr = cir::AtomicFetchKindAttr::get(
-        builder.getContext(), cir::AtomicFetchKind::Max);
+    fetchAttr = cir::AtomicFetchKindAttr::get(builder.getContext(),
+                                              cir::AtomicFetchKind::Max);
     break;
 
   case AtomicExpr::AO__atomic_and_fetch:
@@ -700,8 +696,8 @@ static void buildAtomicOp(CIRGenFunction &CGF, AtomicExpr *E, Address Dest,
   case AtomicExpr::AO__atomic_fetch_and:
   case AtomicExpr::AO__scoped_atomic_fetch_and:
     Op = cir::AtomicFetch::getOperationName();
-    fetchAttr = cir::AtomicFetchKindAttr::get(
-        builder.getContext(), cir::AtomicFetchKind::And);
+    fetchAttr = cir::AtomicFetchKindAttr::get(builder.getContext(),
+                                              cir::AtomicFetchKind::And);
     break;
 
   case AtomicExpr::AO__atomic_or_fetch:
@@ -714,8 +710,8 @@ static void buildAtomicOp(CIRGenFunction &CGF, AtomicExpr *E, Address Dest,
   case AtomicExpr::AO__atomic_fetch_or:
   case AtomicExpr::AO__scoped_atomic_fetch_or:
     Op = cir::AtomicFetch::getOperationName();
-    fetchAttr = cir::AtomicFetchKindAttr::get(
-        builder.getContext(), cir::AtomicFetchKind::Or);
+    fetchAttr = cir::AtomicFetchKindAttr::get(builder.getContext(),
+                                              cir::AtomicFetchKind::Or);
     break;
 
   case AtomicExpr::AO__atomic_xor_fetch:
@@ -728,8 +724,8 @@ static void buildAtomicOp(CIRGenFunction &CGF, AtomicExpr *E, Address Dest,
   case AtomicExpr::AO__atomic_fetch_xor:
   case AtomicExpr::AO__scoped_atomic_fetch_xor:
     Op = cir::AtomicFetch::getOperationName();
-    fetchAttr = cir::AtomicFetchKindAttr::get(
-        builder.getContext(), cir::AtomicFetchKind::Xor);
+    fetchAttr = cir::AtomicFetchKindAttr::get(builder.getContext(),
+                                              cir::AtomicFetchKind::Xor);
     break;
 
   case AtomicExpr::AO__atomic_nand_fetch:
@@ -740,8 +736,8 @@ static void buildAtomicOp(CIRGenFunction &CGF, AtomicExpr *E, Address Dest,
   case AtomicExpr::AO__atomic_fetch_nand:
   case AtomicExpr::AO__scoped_atomic_fetch_nand:
     Op = cir::AtomicFetch::getOperationName();
-    fetchAttr = cir::AtomicFetchKindAttr::get(
-        builder.getContext(), cir::AtomicFetchKind::Nand);
+    fetchAttr = cir::AtomicFetchKindAttr::get(builder.getContext(),
+                                              cir::AtomicFetchKind::Nand);
     break;
   }
 

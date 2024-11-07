@@ -1159,8 +1159,7 @@ void CIRGenFunction::emitDestroy(Address addr, QualType type,
   // But if the array length is constant, we can suppress that.
   auto constantCount = dyn_cast<cir::ConstantOp>(length.getDefiningOp());
   if (constantCount) {
-    auto constIntAttr =
-        mlir::dyn_cast<cir::IntAttr>(constantCount.getValue());
+    auto constIntAttr = mlir::dyn_cast<cir::IntAttr>(constantCount.getValue());
     // ...and if it's constant zero, we can just skip the entire thing.
     if (constIntAttr && constIntAttr.getUInt() == 0)
       return;

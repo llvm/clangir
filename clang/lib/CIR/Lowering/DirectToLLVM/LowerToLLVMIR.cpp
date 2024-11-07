@@ -68,8 +68,8 @@ private:
     llvm::Module *llvmModule = moduleTranslation.getLLVMModule();
     llvm::LLVMContext &llvmContext = llvmModule->getContext();
 
-    if (auto openclVersionAttr = mlir::dyn_cast<cir::OpenCLVersionAttr>(
-            attribute.getValue())) {
+    if (auto openclVersionAttr =
+            mlir::dyn_cast<cir::OpenCLVersionAttr>(attribute.getValue())) {
       auto *int32Ty = llvm::IntegerType::get(llvmContext, 32);
       llvm::Metadata *oclVerElts[] = {
           llvm::ConstantAsMetadata::get(
@@ -111,8 +111,7 @@ private:
           llvmFunc->addFnAttr(llvm::Attribute::NoUnwind);
         } else if (mlir::dyn_cast<cir::ConvergentAttr>(attr.getValue())) {
           llvmFunc->addFnAttr(llvm::Attribute::Convergent);
-        } else if (mlir::dyn_cast<cir::OpenCLKernelAttr>(
-                       attr.getValue())) {
+        } else if (mlir::dyn_cast<cir::OpenCLKernelAttr>(attr.getValue())) {
           const auto uniformAttrName =
               cir::OpenCLKernelUniformWorkGroupSizeAttr::getMnemonic();
           const bool isUniform =
@@ -139,8 +138,7 @@ private:
   }
 
   void emitOpenCLKernelMetadata(
-      cir::OpenCLKernelMetadataAttr clKernelMetadata,
-      llvm::Function *llvmFunc,
+      cir::OpenCLKernelMetadataAttr clKernelMetadata, llvm::Function *llvmFunc,
       mlir::LLVM::ModuleTranslation &moduleTranslation) const {
     auto &vmCtx = moduleTranslation.getLLVMContext();
 
@@ -267,10 +265,9 @@ private:
 
 void registerCIRDialectTranslation(mlir::DialectRegistry &registry) {
   registry.insert<cir::CIRDialect>();
-  registry.addExtension(
-      +[](mlir::MLIRContext *ctx, cir::CIRDialect *dialect) {
-        dialect->addInterfaces<CIRDialectLLVMIRTranslationInterface>();
-      });
+  registry.addExtension(+[](mlir::MLIRContext *ctx, cir::CIRDialect *dialect) {
+    dialect->addInterfaces<CIRDialectLLVMIRTranslationInterface>();
+  });
 }
 
 void registerCIRDialectTranslation(mlir::MLIRContext &context) {

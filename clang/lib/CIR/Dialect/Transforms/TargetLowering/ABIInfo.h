@@ -51,8 +51,8 @@ public:
   bool isPromotableIntegerTypeForABI(mlir::Type Ty) const;
 
   cir::ABIArgInfo getNaturalAlignIndirect(mlir::Type Ty, bool ByVal = true,
-                                            bool Realign = false,
-                                            mlir::Type Padding = {}) const;
+                                          bool Realign = false,
+                                          mlir::Type Padding = {}) const;
 };
 
 } // namespace cir

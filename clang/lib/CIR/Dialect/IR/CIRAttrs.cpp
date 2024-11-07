@@ -348,8 +348,8 @@ LogicalResult FPAttr::verify(function_ref<InFlightDiagnostic()> emitError,
 //===----------------------------------------------------------------------===//
 
 LogicalResult ComplexAttr::verify(function_ref<InFlightDiagnostic()> emitError,
-                                  cir::ComplexType type,
-                                  mlir::TypedAttr real, mlir::TypedAttr imag) {
+                                  cir::ComplexType type, mlir::TypedAttr real,
+                                  mlir::TypedAttr imag) {
   auto elemTy = type.getElementTy();
   if (real.getType() != elemTy) {
     emitError() << "type of the real part does not match the complex type";
@@ -582,10 +582,9 @@ std::string DynamicCastInfoAttr::getAlias() const {
 }
 
 LogicalResult DynamicCastInfoAttr::verify(
-    function_ref<InFlightDiagnostic()> emitError,
-    cir::GlobalViewAttr srcRtti, cir::GlobalViewAttr destRtti,
-    mlir::FlatSymbolRefAttr runtimeFunc, mlir::FlatSymbolRefAttr badCastFunc,
-    cir::IntAttr offsetHint) {
+    function_ref<InFlightDiagnostic()> emitError, cir::GlobalViewAttr srcRtti,
+    cir::GlobalViewAttr destRtti, mlir::FlatSymbolRefAttr runtimeFunc,
+    mlir::FlatSymbolRefAttr badCastFunc, cir::IntAttr offsetHint) {
   auto isRttiPtr = [](mlir::Type ty) {
     // RTTI pointers are !cir.ptr<!u8i>.
 

@@ -114,25 +114,17 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &context,
 
   // Initialize CIR signed integer types cache.
   SInt8Ty = cir::IntType::get(&getMLIRContext(), 8, /*isSigned=*/true);
-  SInt16Ty =
-      cir::IntType::get(&getMLIRContext(), 16, /*isSigned=*/true);
-  SInt32Ty =
-      cir::IntType::get(&getMLIRContext(), 32, /*isSigned=*/true);
-  SInt64Ty =
-      cir::IntType::get(&getMLIRContext(), 64, /*isSigned=*/true);
-  SInt128Ty =
-      cir::IntType::get(&getMLIRContext(), 128, /*isSigned=*/true);
+  SInt16Ty = cir::IntType::get(&getMLIRContext(), 16, /*isSigned=*/true);
+  SInt32Ty = cir::IntType::get(&getMLIRContext(), 32, /*isSigned=*/true);
+  SInt64Ty = cir::IntType::get(&getMLIRContext(), 64, /*isSigned=*/true);
+  SInt128Ty = cir::IntType::get(&getMLIRContext(), 128, /*isSigned=*/true);
 
   // Initialize CIR unsigned integer types cache.
   UInt8Ty = cir::IntType::get(&getMLIRContext(), 8, /*isSigned=*/false);
-  UInt16Ty =
-      cir::IntType::get(&getMLIRContext(), 16, /*isSigned=*/false);
-  UInt32Ty =
-      cir::IntType::get(&getMLIRContext(), 32, /*isSigned=*/false);
-  UInt64Ty =
-      cir::IntType::get(&getMLIRContext(), 64, /*isSigned=*/false);
-  UInt128Ty =
-      cir::IntType::get(&getMLIRContext(), 128, /*isSigned=*/false);
+  UInt16Ty = cir::IntType::get(&getMLIRContext(), 16, /*isSigned=*/false);
+  UInt32Ty = cir::IntType::get(&getMLIRContext(), 32, /*isSigned=*/false);
+  UInt64Ty = cir::IntType::get(&getMLIRContext(), 64, /*isSigned=*/false);
+  UInt128Ty = cir::IntType::get(&getMLIRContext(), 128, /*isSigned=*/false);
 
   VoidTy = cir::VoidType::get(&getMLIRContext());
 
@@ -155,14 +147,14 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &context,
   // TODO: SizeSizeInBytes
   // TODO: IntAlignInBytes
   UCharTy = cir::IntType::get(&getMLIRContext(),
-                                      astCtx.getTargetInfo().getCharWidth(),
-                                      /*isSigned=*/false);
-  UIntTy = cir::IntType::get(&getMLIRContext(),
-                                     astCtx.getTargetInfo().getIntWidth(),
-                                     /*isSigned=*/false);
-  UIntPtrTy = cir::IntType::get(
-      &getMLIRContext(), astCtx.getTargetInfo().getMaxPointerWidth(),
-      /*isSigned=*/false);
+                              astCtx.getTargetInfo().getCharWidth(),
+                              /*isSigned=*/false);
+  UIntTy =
+      cir::IntType::get(&getMLIRContext(), astCtx.getTargetInfo().getIntWidth(),
+                        /*isSigned=*/false);
+  UIntPtrTy = cir::IntType::get(&getMLIRContext(),
+                                astCtx.getTargetInfo().getMaxPointerWidth(),
+                                /*isSigned=*/false);
   UInt8PtrTy = builder.getPointerTo(UInt8Ty);
   UInt8PtrPtrTy = builder.getPointerTo(UInt8PtrTy);
   AllocaInt8PtrTy = UInt8PtrTy;
@@ -170,9 +162,9 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &context,
   // TODO: ConstGlobalsPtrTy
   CIRAllocaAddressSpace = getTargetCIRGenInfo().getCIRAllocaAddressSpace();
 
-  PtrDiffTy = cir::IntType::get(
-      &getMLIRContext(), astCtx.getTargetInfo().getMaxPointerWidth(),
-      /*isSigned=*/true);
+  PtrDiffTy = cir::IntType::get(&getMLIRContext(),
+                                astCtx.getTargetInfo().getMaxPointerWidth(),
+                                /*isSigned=*/true);
 
   if (langOpts.OpenCL) {
     createOpenCLRuntime();
@@ -467,8 +459,7 @@ static bool shouldAssumeDSOLocal(const CIRGenModule &CGM,
     // needed at link time. -fno-direct-access-external-data can avoid the
     // canonical PLT entry. We don't generalize this condition to -fpie/-fpic as
     // it could just cause trouble without providing perceptible benefits.
-    if (isa<cir::FuncOp>(GV) && !CGOpts.NoPLT &&
-        RM == llvm::Reloc::Static)
+    if (isa<cir::FuncOp>(GV) && !CGOpts.NoPLT && RM == llvm::Reloc::Static)
       return true;
   }
 
@@ -649,9 +640,9 @@ void CIRGenModule::AddGlobalCtor(cir::FuncOp Ctor, int Priority) {
   // global list is created in LoweringPrepare.
   //
   // FIXME(from traditional LLVM): Type coercion of void()* types.
-  Ctor->setAttr(Ctor.getGlobalCtorAttrName(),
-                cir::GlobalCtorAttr::get(&getMLIRContext(),
-                                               Ctor.getName(), Priority));
+  Ctor->setAttr(
+      Ctor.getGlobalCtorAttrName(),
+      cir::GlobalCtorAttr::get(&getMLIRContext(), Ctor.getName(), Priority));
 }
 
 /// Add a function to the list that will be called when the module is unloaded.
@@ -665,9 +656,9 @@ void CIRGenModule::AddGlobalDtor(cir::FuncOp Dtor, int Priority,
   }
 
   // FIXME(from traditional LLVM): Type coercion of void()* types.
-  Dtor->setAttr(Dtor.getGlobalDtorAttrName(),
-                cir::GlobalDtorAttr::get(&getMLIRContext(),
-                                               Dtor.getName(), Priority));
+  Dtor->setAttr(
+      Dtor.getGlobalDtorAttrName(),
+      cir::GlobalDtorAttr::get(&getMLIRContext(), Dtor.getName(), Priority));
 }
 
 mlir::Operation *CIRGenModule::getGlobalValue(StringRef Name) {
@@ -682,10 +673,12 @@ mlir::Value CIRGenModule::getGlobalValue(const Decl *D) {
   return CurCGF->symbolTable.lookup(D);
 }
 
-cir::GlobalOp CIRGenModule::createGlobalOp(
-    CIRGenModule &cgm, mlir::Location loc, StringRef name, mlir::Type t,
-    bool isConstant, cir::AddressSpaceAttr addrSpace,
-    mlir::Operation *insertPoint, cir::GlobalLinkageKind linkage) {
+cir::GlobalOp CIRGenModule::createGlobalOp(CIRGenModule &cgm,
+                                           mlir::Location loc, StringRef name,
+                                           mlir::Type t, bool isConstant,
+                                           cir::AddressSpaceAttr addrSpace,
+                                           mlir::Operation *insertPoint,
+                                           cir::GlobalLinkageKind linkage) {
   cir::GlobalOp g;
   auto &builder = cgm.getBuilder();
   {
@@ -700,7 +693,7 @@ cir::GlobalOp CIRGenModule::createGlobalOp(
       builder.setInsertionPoint(curCGF->CurFn);
 
     g = builder.create<cir::GlobalOp>(loc, name, t, isConstant, linkage,
-                                            addrSpace);
+                                      addrSpace);
     if (!curCGF) {
       if (insertPoint)
         cgm.getModule().insert(insertPoint, g);
@@ -780,8 +773,7 @@ void CIRGenModule::setNonAliasAttributes(GlobalDecl GD, mlir::Operation *GO) {
   assert(!cir::MissingFeatures::setTargetAttributes());
 }
 
-void CIRGenModule::replaceGlobal(cir::GlobalOp Old,
-                                 cir::GlobalOp New) {
+void CIRGenModule::replaceGlobal(cir::GlobalOp Old, cir::GlobalOp New) {
   assert(Old.getSymName() == New.getSymName() && "symbol names must match");
 
   // If the types does not match, update all references to Old to the new type.
@@ -798,8 +790,7 @@ void CIRGenModule::replaceGlobal(cir::GlobalOp Old,
     if (OldSymUses.has_value()) {
       for (auto Use : *OldSymUses) {
         auto *UserOp = Use.getUser();
-        assert((isa<cir::GetGlobalOp>(UserOp) ||
-                isa<cir::GlobalOp>(UserOp)) &&
+        assert((isa<cir::GetGlobalOp>(UserOp) || isa<cir::GlobalOp>(UserOp)) &&
                "GlobalOp symbol user is neither a GetGlobalOp nor a GlobalOp");
 
         if (auto GGO = dyn_cast<cir::GetGlobalOp>(Use.getUser())) {
@@ -1048,8 +1039,8 @@ mlir::Value CIRGenModule::getAddrOfGlobalVar(const VarDecl *D, mlir::Type Ty,
   bool tlsAccess = D->getTLSKind() != VarDecl::TLS_None;
   auto g = getOrCreateCIRGlobal(D, Ty, IsForDefinition);
   auto ptrTy = builder.getPointerTo(g.getSymType(), g.getAddrSpaceAttr());
-  return builder.create<cir::GetGlobalOp>(
-      getLoc(D->getSourceRange()), ptrTy, g.getSymName(), tlsAccess);
+  return builder.create<cir::GetGlobalOp>(getLoc(D->getSourceRange()), ptrTy,
+                                          g.getSymName(), tlsAccess);
 }
 
 cir::GlobalViewAttr
@@ -1240,8 +1231,7 @@ void CIRGenModule::buildGlobalVarDefinition(const clang::VarDecl *D,
     // TODO(cir): pointer to array decay. Should this be modeled explicitly in
     // CIR?
     if (arrayTy)
-      InitType =
-          cir::PointerType::get(&getMLIRContext(), arrayTy.getEltType());
+      InitType = cir::PointerType::get(&getMLIRContext(), arrayTy.getEltType());
   } else {
     assert(mlir::isa<mlir::TypedAttr>(Init) && "This should have a type");
     auto TypedInitAttr = mlir::cast<mlir::TypedAttr>(Init);
@@ -1431,8 +1421,8 @@ CIRGenModule::getConstantArrayFromStringLiteral(const StringLiteral *E) {
     return builder.getString(Str, eltTy, finalSize);
   }
 
-  auto arrayTy = mlir::dyn_cast<cir::ArrayType>(
-      getTypes().ConvertType(E->getType()));
+  auto arrayTy =
+      mlir::dyn_cast<cir::ArrayType>(getTypes().ConvertType(E->getType()));
   assert(arrayTy && "string literals must be emitted as an array type");
 
   auto arrayEltTy = mlir::dyn_cast<cir::IntType>(arrayTy.getEltType());
@@ -1569,8 +1559,7 @@ CIRGenModule::getAddrOfConstantStringFromLiteral(const StringLiteral *S,
 
   auto ArrayTy = mlir::dyn_cast<cir::ArrayType>(GV.getSymType());
   assert(ArrayTy && "String literal must be array");
-  auto PtrTy =
-      cir::PointerType::get(&getMLIRContext(), ArrayTy.getEltType());
+  auto PtrTy = cir::PointerType::get(&getMLIRContext(), ArrayTy.getEltType());
 
   return builder.getGlobalViewAttr(PtrTy, GV);
 }
@@ -1666,8 +1655,7 @@ CIRGenModule::getAddrOfGlobalTemporary(const MaterializeTemporaryExpr *expr,
   }
 
   // Create a global variable for this lifetime-extended temporary.
-  cir::GlobalLinkageKind linkage =
-      getCIRLinkageVarDefinition(varDecl, false);
+  cir::GlobalLinkageKind linkage = getCIRLinkageVarDefinition(varDecl, false);
   if (linkage == cir::GlobalLinkageKind::ExternalLinkage) {
     const VarDecl *initVD;
     if (varDecl->isStaticDataMember() && varDecl->getAnyInitializer(initVD) &&
@@ -1938,8 +1926,8 @@ CIRGenModule::getMLIRVisibility(cir::GlobalOp op) {
   return getMLIRVisibilityFromCIRLinkage(op.getLinkage());
 }
 
-mlir::SymbolTable::Visibility CIRGenModule::getMLIRVisibilityFromCIRLinkage(
-    cir::GlobalLinkageKind GLK) {
+mlir::SymbolTable::Visibility
+CIRGenModule::getMLIRVisibilityFromCIRLinkage(cir::GlobalLinkageKind GLK) {
   switch (GLK) {
   case cir::GlobalLinkageKind::InternalLinkage:
   case cir::GlobalLinkageKind::PrivateLinkage:
@@ -1961,8 +1949,7 @@ mlir::SymbolTable::Visibility CIRGenModule::getMLIRVisibilityFromCIRLinkage(
   llvm_unreachable("linkage should be handled above!");
 }
 
-cir::VisibilityKind
-CIRGenModule::getGlobalVisibilityKindFromClangVisibility(
+cir::VisibilityKind CIRGenModule::getGlobalVisibilityKindFromClangVisibility(
     clang::VisibilityAttr::VisibilityType visibility) {
   switch (visibility) {
   case clang::VisibilityAttr::VisibilityType::Default:
@@ -2104,11 +2091,10 @@ void CIRGenModule::ReplaceUsesOfNonProtoTypeWithRealFunction(
       // Replace old no proto call with fixed call.
       noProtoCallOp.replaceAllUsesWith(realCallOp);
       noProtoCallOp.erase();
-    } else if (auto getGlobalOp =
-                   dyn_cast<cir::GetGlobalOp>(Use.getUser())) {
+    } else if (auto getGlobalOp = dyn_cast<cir::GetGlobalOp>(Use.getUser())) {
       // Replace type
-      getGlobalOp.getAddr().setType(cir::PointerType::get(
-          &getMLIRContext(), NewFn.getFunctionType()));
+      getGlobalOp.getAddr().setType(
+          cir::PointerType::get(&getMLIRContext(), NewFn.getFunctionType()));
     } else {
       llvm_unreachable("NIY");
     }
@@ -2181,12 +2167,9 @@ bool CIRGenModule::verifyModule() {
   return mlir::verify(theModule).succeeded();
 }
 
-std::pair<cir::FuncType, cir::FuncOp>
-CIRGenModule::getAddrAndTypeOfCXXStructor(GlobalDecl GD,
-                                          const CIRGenFunctionInfo *FnInfo,
-                                          cir::FuncType FnType,
-                                          bool Dontdefer,
-                                          ForDefinition_t IsForDefinition) {
+std::pair<cir::FuncType, cir::FuncOp> CIRGenModule::getAddrAndTypeOfCXXStructor(
+    GlobalDecl GD, const CIRGenFunctionInfo *FnInfo, cir::FuncType FnType,
+    bool Dontdefer, ForDefinition_t IsForDefinition) {
   auto *MD = cast<CXXMethodDecl>(GD.getDecl());
 
   if (isa<CXXDestructorDecl>(MD)) {
@@ -2211,10 +2194,9 @@ CIRGenModule::getAddrAndTypeOfCXXStructor(GlobalDecl GD,
   return {FnType, Fn};
 }
 
-cir::FuncOp
-CIRGenModule::GetAddrOfFunction(clang::GlobalDecl GD, mlir::Type Ty,
-                                bool ForVTable, bool DontDefer,
-                                ForDefinition_t IsForDefinition) {
+cir::FuncOp CIRGenModule::GetAddrOfFunction(clang::GlobalDecl GD, mlir::Type Ty,
+                                            bool ForVTable, bool DontDefer,
+                                            ForDefinition_t IsForDefinition) {
   assert(!cast<FunctionDecl>(GD.getDecl())->isConsteval() &&
          "consteval function should never be emitted");
 
@@ -2386,10 +2368,9 @@ bool CIRGenModule::lookupRepresentativeDecl(StringRef MangledName,
   return true;
 }
 
-cir::FuncOp
-CIRGenModule::createCIRFunction(mlir::Location loc, StringRef name,
-                                cir::FuncType Ty,
-                                const clang::FunctionDecl *FD) {
+cir::FuncOp CIRGenModule::createCIRFunction(mlir::Location loc, StringRef name,
+                                            cir::FuncType Ty,
+                                            const clang::FunctionDecl *FD) {
   // At the point we need to create the function, the insertion point
   // could be anywhere (e.g. callsite). Do not rely on whatever it might
   // be, properly save, find the appropriate place and restore.
@@ -2432,9 +2413,10 @@ CIRGenModule::createCIRFunction(mlir::Location loc, StringRef name,
   return f;
 }
 
-cir::FuncOp CIRGenModule::createRuntimeFunction(
-    cir::FuncType Ty, StringRef Name, mlir::ArrayAttr,
-    [[maybe_unused]] bool Local, bool AssumeConvergent) {
+cir::FuncOp CIRGenModule::createRuntimeFunction(cir::FuncType Ty,
+                                                StringRef Name, mlir::ArrayAttr,
+                                                [[maybe_unused]] bool Local,
+                                                bool AssumeConvergent) {
   if (AssumeConvergent) {
     llvm_unreachable("NYI");
   }
@@ -2509,25 +2491,25 @@ void CIRGenModule::setCIRFunctionAttributesForDefinition(const Decl *decl,
     // explicitly marked as alwaysinline for semantic reasons, and inlining is
     // disabled, mark the function as noinline.
     if (codeGenOpts.getInlining() == CodeGenOptions::OnlyAlwaysInlining) {
-      auto attr = cir::InlineAttr::get(
-          &getMLIRContext(), cir::InlineKind::AlwaysInline);
+      auto attr = cir::InlineAttr::get(&getMLIRContext(),
+                                       cir::InlineKind::AlwaysInline);
       attrs.set(attr.getMnemonic(), attr);
     }
   } else if (decl->hasAttr<NoInlineAttr>()) {
     // Add noinline if the function isn't always_inline.
-    auto attr = cir::InlineAttr::get(&getMLIRContext(),
-                                           cir::InlineKind::NoInline);
+    auto attr =
+        cir::InlineAttr::get(&getMLIRContext(), cir::InlineKind::NoInline);
     attrs.set(attr.getMnemonic(), attr);
   } else if (decl->hasAttr<AlwaysInlineAttr>()) {
     // (noinline wins over always_inline, and we can't specify both in IR)
-    auto attr = cir::InlineAttr::get(&getMLIRContext(),
-                                           cir::InlineKind::AlwaysInline);
+    auto attr =
+        cir::InlineAttr::get(&getMLIRContext(), cir::InlineKind::AlwaysInline);
     attrs.set(attr.getMnemonic(), attr);
   } else if (codeGenOpts.getInlining() == CodeGenOptions::OnlyAlwaysInlining) {
     // If we're not inlining, then force everything that isn't always_inline
     // to carry an explicit noinline attribute.
-    auto attr = cir::InlineAttr::get(&getMLIRContext(),
-                                           cir::InlineKind::NoInline);
+    auto attr =
+        cir::InlineAttr::get(&getMLIRContext(), cir::InlineKind::NoInline);
     attrs.set(attr.getMnemonic(), attr);
   } else {
     // Otherwise, propagate the inline hint attribute and potentially use its
@@ -2545,12 +2527,12 @@ void CIRGenModule::setCIRFunctionAttributesForDefinition(const Decl *decl,
       return any_of(Pattern->redecls(), CheckRedeclForInline);
     };
     if (CheckForInline(cast<FunctionDecl>(decl))) {
-      auto attr = cir::InlineAttr::get(&getMLIRContext(),
-                                             cir::InlineKind::InlineHint);
+      auto attr =
+          cir::InlineAttr::get(&getMLIRContext(), cir::InlineKind::InlineHint);
       attrs.set(attr.getMnemonic(), attr);
     } else if (codeGenOpts.getInlining() == CodeGenOptions::OnlyHintInlining) {
-      auto attr = cir::InlineAttr::get(&getMLIRContext(),
-                                             cir::InlineKind::NoInline);
+      auto attr =
+          cir::InlineAttr::get(&getMLIRContext(), cir::InlineKind::NoInline);
       attrs.set(attr.getMnemonic(), attr);
     }
   }
@@ -2570,8 +2552,8 @@ void CIRGenModule::setCIRFunctionAttributesForDefinition(const Decl *decl,
     attrs.set(optNoneAttr.getMnemonic(), optNoneAttr);
 
     // OptimizeNone implies noinline; we should not be inlining such functions.
-    auto noInlineAttr = cir::InlineAttr::get(
-        &getMLIRContext(), cir::InlineKind::NoInline);
+    auto noInlineAttr =
+        cir::InlineAttr::get(&getMLIRContext(), cir::InlineKind::NoInline);
     attrs.set(noInlineAttr.getMnemonic(), noInlineAttr);
   }
 
@@ -2581,8 +2563,7 @@ void CIRGenModule::setCIRFunctionAttributesForDefinition(const Decl *decl,
 
 void CIRGenModule::setCIRFunctionAttributes(GlobalDecl GD,
                                             const CIRGenFunctionInfo &info,
-                                            cir::FuncOp func,
-                                            bool isThunk) {
+                                            cir::FuncOp func, bool isThunk) {
   // TODO(cir): More logic of constructAttributeList is needed.
   cir::CallingConv callingConv;
 
@@ -3359,8 +3340,7 @@ cir::GlobalOp CIRGenModule::getOrInsertGlobal(
 
 // Overload to construct a global variable using its constructor's defaults.
 cir::GlobalOp CIRGenModule::getOrInsertGlobal(mlir::Location loc,
-                                                    StringRef Name,
-                                                    mlir::Type Ty) {
+                                              StringRef Name, mlir::Type Ty) {
   return getOrInsertGlobal(loc, Name, Ty, [&] {
     return CIRGenModule::createGlobalOp(*this, loc, Name,
                                         builder.getPointerTo(Ty));

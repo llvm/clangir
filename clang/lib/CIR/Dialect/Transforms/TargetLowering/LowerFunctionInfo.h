@@ -63,7 +63,7 @@ public:
 // named in the TrailingObjects base class of CGFunctionInfo.
 struct LowerFunctionInfoArgInfo {
   mlir::Type type;        // Original ABI-agnostic type.
-  cir::ABIArgInfo info; // ABI-specific information.
+  cir::ABIArgInfo info;   // ABI-specific information.
 };
 
 // FIXME(cir): We could likely encode this information within CIR/MLIR, allowing

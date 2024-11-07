@@ -211,7 +211,8 @@ llvm::LogicalResult LowerModule::rewriteFunctionDefinition(FuncOp op) {
   return llvm::success();
 }
 
-llvm::LogicalResult LowerModule::rewriteFunctionCall(CallOp callOp, FuncOp funcOp) {
+llvm::LogicalResult LowerModule::rewriteFunctionCall(CallOp callOp,
+                                                     FuncOp funcOp) {
   mlir::OpBuilder::InsertionGuard guard(rewriter);
   rewriter.setInsertionPoint(callOp);
 
@@ -225,8 +226,8 @@ llvm::LogicalResult LowerModule::rewriteFunctionCall(CallOp callOp, FuncOp funcO
 }
 
 // TODO: not to create it every time
-std::unique_ptr<LowerModule> createLowerModule(mlir::ModuleOp module,
-                                               mlir::PatternRewriter &rewriter) {
+std::unique_ptr<LowerModule>
+createLowerModule(mlir::ModuleOp module, mlir::PatternRewriter &rewriter) {
   assert(module->getAttr(mlir::LLVM::LLVMDialect::getDataLayoutAttrName()) &&
          "Missing data layout attribute");
 
