@@ -905,14 +905,6 @@ Value createAlloca(Location loc, Type type, LowerFunction &CGF) {
       /*name=*/StringRef(""), alignAttr);
 }
 
-Value getAllocaVal(Value Src, LowerFunction &CGF) {
-  if (auto load = dyn_cast<LoadOp>(Src.getDefiningOp()))
-    if (auto alloca = dyn_cast<AllocaOp>(load.getAddr().getDefiningOp()))
-      return alloca;
-
-  return {};
-}
-
 // NOTE(cir): This method has partial parity to CodeGenFunction's EmitCall
 // method in CGCall.cpp. When incrementing it, use the original codegen as a
 // reference: add ABI-specific stuff and skip codegen stuff.
@@ -1059,7 +1051,7 @@ Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
       // TODO(cir): Skipping check for temporary copy. We should check if
       // creating the copy is necessary.
 
-      Value Alloca = getAllocaVal(*I, *this);
+      Value Alloca = findAlloca(I->getDefiningOp());
 
       // since they are a ARM-specific feature.
       if (::cir::MissingFeatures::undef())
