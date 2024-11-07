@@ -38,3 +38,31 @@ double f1(int n, ...) {
 // CHECK: [[CONT_BB]]:
 // CHECK: [[VA_LIST3:%.+]] = getelementptr {{.*}} [[VA_LIST_ALLOCA]], i32 0
 // CHECK: call {{.*}}@llvm.va_end.p0(ptr [[VA_LIST3]])
+
+long double f2(int n, ...) {
+  va_list valist;
+  va_start(valist, n);
+  long double res = va_arg(valist, long double);
+  va_end(valist);
+  return res;
+}
+
+// CHECK: define {{.*}}@f2
+// CHECK: [[RESULT:%.+]] = alloca x86_fp80
+// CHECK: [[VA_LIST_ALLOCA:%.+]] = alloca {{.*}}[[VA_LIST_TYPE]]
+// CHECK: [[RES:%.+]] = alloca x86_fp80
+// CHECK: [[VA_LIST:%.+]] = getelementptr {{.*}} [[VA_LIST_ALLOCA]], i32 0
+// CHECK: call {{.*}}@llvm.va_start.p0(ptr [[VA_LIST]])
+// CHECK: [[VA_LIST2:%.+]] = getelementptr {{.*}} [[VA_LIST_ALLOCA]], i32 0
+// CHECK: [[OVERFLOW_AREA_P:%.+]] = getelementptr {{.*}} [[VA_LIST2]], i32 0, i32 2
+// CHECK: [[OVERFLOW_AREA:%.+]] = load {{.*}}, ptr [[OVERFLOW_AREA_P]]
+// CHECK: [[OVERFLOW_AREA_NEXT:%.+]] = getelementptr i8, ptr [[OVERFLOW_AREA]], i64 16
+// CHECK: store ptr [[OVERFLOW_AREA_NEXT]], ptr [[OVERFLOW_AREA_P]]
+// CHECK: [[VALUE:%.+]] = load x86_fp80, ptr [[OVERFLOW_AREA]]
+// CHECK: store x86_fp80 [[VALUE]], ptr [[RES]]
+// CHECK: [[VA_LIST2:%.+]] = getelementptr {{.*}} [[VA_LIST_ALLOCA]], i32 0
+// CHECK: call {{.*}}@llvm.va_end.p0(ptr [[VA_LIST2]])
+// CHECK: [[VALUE2:%.+]] = load x86_fp80, ptr [[RES]]
+// CHECK: store x86_fp80 [[VALUE2]], ptr [[RESULT]]
+// CHECK: [[RETURN_VALUE:%.+]] = load x86_fp80, ptr [[RESULT]]
+// CHECK: ret x86_fp80 [[RETURN_VALUE]]
