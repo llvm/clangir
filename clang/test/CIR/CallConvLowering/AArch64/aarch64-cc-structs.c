@@ -187,6 +187,6 @@ GT_128 get_gt_128(GT_128 s) {
 // LLVM: ret void
 GT_128 call_and_get_gt_128() {
   GT_128 s;
-  get_gt_128(s);
+  s = get_gt_128(s);
   return s;
 }
