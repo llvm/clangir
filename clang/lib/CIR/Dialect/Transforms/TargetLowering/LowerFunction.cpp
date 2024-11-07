@@ -906,13 +906,9 @@ Value createAlloca(Location loc, Type type, LowerFunction &CGF) {
 }
 
 Value getAllocaVal(Value Src, LowerFunction &CGF) {
-  if (auto load = dyn_cast<LoadOp>(Src.getDefiningOp())) {
-    if (auto alloca = dyn_cast<AllocaOp>(load.getAddr().getDefiningOp())) {
-      CGF.getRewriter().replaceAllOpUsesWith(load, alloca);
-      CGF.getRewriter().eraseOp(load);
+  if (auto load = dyn_cast<LoadOp>(Src.getDefiningOp()))
+    if (auto alloca = dyn_cast<AllocaOp>(load.getAddr().getDefiningOp()))
       return alloca;
-    }
-  }
 
   return {};
 }
