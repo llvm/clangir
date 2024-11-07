@@ -29,8 +29,8 @@ class ConstantInitBuilderBase;
 } // namespace clang::CIRGen
 
 namespace llvm {
-template <> struct PointerLikeTypeTraits<::cir::ConstantInitBuilderBase *> {
-  using T = ::cir::ConstantInitBuilderBase *;
+template <> struct PointerLikeTypeTraits<clang::CIRGen::ConstantInitBuilderBase *> {
+  using T = clang::CIRGen::ConstantInitBuilderBase *;
 
   static inline void *getAsVoidPointer(T p) { return p; }
   static inline T getFromVoidPointer(void *p) { return static_cast<T>(p); }
@@ -85,8 +85,8 @@ public:
 
 namespace llvm {
 
-template <> struct PointerLikeTypeTraits<::cir::ConstantInitFuture> {
-  using T = ::cir::ConstantInitFuture;
+template <> struct PointerLikeTypeTraits<clang::CIRGen::ConstantInitFuture> {
+  using T = clang::CIRGen::ConstantInitFuture;
 
   static inline void *getAsVoidPointer(T future) {
     return future.getOpaqueValue();

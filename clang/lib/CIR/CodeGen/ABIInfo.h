@@ -13,7 +13,6 @@
 
 namespace clang::CIRGen {
 
-class ABIArgInfo;
 class CIRGenCXXABI;
 class CIRGenFunctionInfo;
 class CIRGenTypes;
