@@ -94,6 +94,18 @@ clang::TypeInfo CIRLowerContext::getTypeInfoImpl(const mlir::Type T) const {
       Align = Target->getDoubleAlign();
       break;
     }
+    if (auto longDoubleTy = mlir::dyn_cast<LongDoubleType>(T)) {
+      if (getLangOpts().OpenMP && getLangOpts().OpenMPIsTargetDevice &&
+          (Target->getLongDoubleWidth() != AuxTarget->getLongDoubleWidth() ||
+           Target->getLongDoubleAlign() != AuxTarget->getLongDoubleAlign())) {
+        Width = AuxTarget->getLongDoubleWidth();
+        Align = AuxTarget->getLongDoubleAlign();
+      } else {
+        Width = Target->getLongDoubleWidth();
+        Align = Target->getLongDoubleAlign();
+      }
+      break;
+    }
     cir_cconv_unreachable("Unknown builtin type!");
     break;
   }
