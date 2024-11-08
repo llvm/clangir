@@ -253,21 +253,21 @@ private:
 public:
   // FIXME(cir): move this to CIRGenBuider.h
   mlir::Value emitAlloca(llvm::StringRef name, clang::QualType ty,
-                          mlir::Location loc, clang::CharUnits alignment,
-                          bool insertIntoFnEntryBlock = false,
-                          mlir::Value arraySize = nullptr);
+                         mlir::Location loc, clang::CharUnits alignment,
+                         bool insertIntoFnEntryBlock = false,
+                         mlir::Value arraySize = nullptr);
   mlir::Value emitAlloca(llvm::StringRef name, mlir::Type ty,
-                          mlir::Location loc, clang::CharUnits alignment,
-                          bool insertIntoFnEntryBlock = false,
-                          mlir::Value arraySize = nullptr);
+                         mlir::Location loc, clang::CharUnits alignment,
+                         bool insertIntoFnEntryBlock = false,
+                         mlir::Value arraySize = nullptr);
   mlir::Value emitAlloca(llvm::StringRef name, mlir::Type ty,
-                          mlir::Location loc, clang::CharUnits alignment,
-                          mlir::OpBuilder::InsertPoint ip,
-                          mlir::Value arraySize = nullptr);
+                         mlir::Location loc, clang::CharUnits alignment,
+                         mlir::OpBuilder::InsertPoint ip,
+                         mlir::Value arraySize = nullptr);
 
 private:
   void emitAndUpdateRetAlloca(clang::QualType ty, mlir::Location loc,
-                               clang::CharUnits alignment);
+                              clang::CharUnits alignment);
 
   // Track current variable initialization (if there's one)
   const clang::VarDecl *currVarDecl = nullptr;
@@ -439,7 +439,7 @@ public:
   clang::FieldDecl *LambdaThisCaptureField = nullptr;
 
   void emitForwardingCallToLambda(const CXXMethodDecl *LambdaCallOperator,
-                                   CallArgList &CallArgs);
+                                  CallArgList &CallArgs);
   void emitLambdaDelegatingInvokeBody(const CXXMethodDecl *MD);
   void emitLambdaStaticInvokeBody(const CXXMethodDecl *MD);
 
@@ -622,10 +622,10 @@ public:
   bool sanitizePerformTypeCheck() const;
 
   void emitTypeCheck(TypeCheckKind TCK, clang::SourceLocation Loc,
-                      mlir::Value V, clang::QualType Type,
-                      clang::CharUnits Alignment = clang::CharUnits::Zero(),
-                      clang::SanitizerSet SkippedChecks = clang::SanitizerSet(),
-                      std::optional<mlir::Value> ArraySize = std::nullopt);
+                     mlir::Value V, clang::QualType Type,
+                     clang::CharUnits Alignment = clang::CharUnits::Zero(),
+                     clang::SanitizerSet SkippedChecks = clang::SanitizerSet(),
+                     std::optional<mlir::Value> ArraySize = std::nullopt);
 
   void emitAggExpr(const clang::Expr *E, AggValueSlot Slot);
 
@@ -636,12 +636,12 @@ public:
   void emitComplexExprIntoLValue(const Expr *E, LValue dest, bool isInit);
 
   void emitStoreOfComplex(mlir::Location Loc, mlir::Value V, LValue dest,
-                           bool isInit);
+                          bool isInit);
 
   Address emitAddrOfRealComponent(mlir::Location loc, Address complex,
-                                   QualType complexType);
+                                  QualType complexType);
   Address emitAddrOfImagComponent(mlir::Location loc, Address complex,
-                                   QualType complexType);
+                                  QualType complexType);
 
   LValue emitComplexAssignmentLValue(const BinaryOperator *E);
   LValue emitComplexCompoundAssignmentLValue(const CompoundAssignOperator *E);
@@ -652,37 +652,37 @@ public:
   LValue emitCastLValue(const CastExpr *E);
 
   void emitCXXConstructExpr(const clang::CXXConstructExpr *E,
-                             AggValueSlot Dest);
+                            AggValueSlot Dest);
 
   /// Emit a call to an inheriting constructor (that is, one that invokes a
   /// constructor inherited from a base class) by inlining its definition. This
   /// is necessary if the ABI does not support forwarding the arguments to the
   /// base class constructor (because they're variadic or similar).
   void emitInlinedInheritingCXXConstructorCall(const CXXConstructorDecl *Ctor,
-                                                CXXCtorType CtorType,
-                                                bool ForVirtualBase,
-                                                bool Delegating,
-                                                CallArgList &Args);
+                                               CXXCtorType CtorType,
+                                               bool ForVirtualBase,
+                                               bool Delegating,
+                                               CallArgList &Args);
 
   /// Emit a call to a constructor inherited from a base class, passing the
   /// current constructor's arguments along unmodified (without even making
   /// a copy).
   void emitInheritedCXXConstructorCall(const CXXConstructorDecl *D,
-                                        bool ForVirtualBase, Address This,
-                                        bool InheritedFromVBase,
-                                        const CXXInheritedCtorInitExpr *E);
+                                       bool ForVirtualBase, Address This,
+                                       bool InheritedFromVBase,
+                                       const CXXInheritedCtorInitExpr *E);
 
   void emitCXXConstructorCall(const clang::CXXConstructorDecl *D,
-                               clang::CXXCtorType Type, bool ForVirtualBase,
-                               bool Delegating, AggValueSlot ThisAVS,
-                               const clang::CXXConstructExpr *E);
+                              clang::CXXCtorType Type, bool ForVirtualBase,
+                              bool Delegating, AggValueSlot ThisAVS,
+                              const clang::CXXConstructExpr *E);
 
   void emitCXXConstructorCall(const clang::CXXConstructorDecl *D,
-                               clang::CXXCtorType Type, bool ForVirtualBase,
-                               bool Delegating, Address This, CallArgList &Args,
-                               AggValueSlot::Overlap_t Overlap,
-                               clang::SourceLocation Loc,
-                               bool NewPointerIsChecked);
+                              clang::CXXCtorType Type, bool ForVirtualBase,
+                              bool Delegating, Address This, CallArgList &Args,
+                              AggValueSlot::Overlap_t Overlap,
+                              clang::SourceLocation Loc,
+                              bool NewPointerIsChecked);
 
   RValue emitCXXMemberOrOperatorCall(
       const clang::CXXMethodDecl *Method, const CIRGenCallee &Callee,
@@ -691,58 +691,57 @@ public:
       CallArgList *RtlArgs);
 
   RValue emitCXXMemberCallExpr(const clang::CXXMemberCallExpr *E,
-                                ReturnValueSlot ReturnValue);
+                               ReturnValueSlot ReturnValue);
   RValue emitCXXMemberPointerCallExpr(const CXXMemberCallExpr *E,
-                                       ReturnValueSlot ReturnValue);
+                                      ReturnValueSlot ReturnValue);
   RValue emitCXXMemberOrOperatorMemberCallExpr(
       const clang::CallExpr *CE, const clang::CXXMethodDecl *MD,
       ReturnValueSlot ReturnValue, bool HasQualifier,
       clang::NestedNameSpecifier *Qualifier, bool IsArrow,
       const clang::Expr *Base);
   RValue emitCXXOperatorMemberCallExpr(const CXXOperatorCallExpr *E,
-                                        const CXXMethodDecl *MD,
-                                        ReturnValueSlot ReturnValue);
-  void emitNullInitialization(mlir::Location loc, Address DestPtr,
-                               QualType Ty);
+                                       const CXXMethodDecl *MD,
+                                       ReturnValueSlot ReturnValue);
+  void emitNullInitialization(mlir::Location loc, Address DestPtr, QualType Ty);
   bool shouldNullCheckClassCastValue(const CastExpr *CE);
 
   void emitCXXTemporary(const CXXTemporary *Temporary, QualType TempType,
-                         Address Ptr);
+                        Address Ptr);
   mlir::Value emitCXXNewExpr(const CXXNewExpr *E);
   void emitCXXDeleteExpr(const CXXDeleteExpr *E);
 
   void emitCXXAggrConstructorCall(const CXXConstructorDecl *D,
-                                   const clang::ArrayType *ArrayTy,
-                                   Address ArrayPtr, const CXXConstructExpr *E,
-                                   bool NewPointerIsChecked,
-                                   bool ZeroInitialization = false);
+                                  const clang::ArrayType *ArrayTy,
+                                  Address ArrayPtr, const CXXConstructExpr *E,
+                                  bool NewPointerIsChecked,
+                                  bool ZeroInitialization = false);
 
   void emitCXXAggrConstructorCall(const CXXConstructorDecl *ctor,
-                                   mlir::Value numElements, Address arrayBase,
-                                   const CXXConstructExpr *E,
-                                   bool NewPointerIsChecked,
-                                   bool zeroInitialize);
+                                  mlir::Value numElements, Address arrayBase,
+                                  const CXXConstructExpr *E,
+                                  bool NewPointerIsChecked,
+                                  bool zeroInitialize);
 
   /// Compute the length of an array, even if it's a VLA, and drill down to the
   /// base element type.
   mlir::Value emitArrayLength(const clang::ArrayType *arrayType,
-                               QualType &baseType, Address &addr);
+                              QualType &baseType, Address &addr);
 
   void emitDeleteCall(const FunctionDecl *DeleteFD, mlir::Value Ptr,
-                       QualType DeleteTy, mlir::Value NumElements = nullptr,
-                       CharUnits CookieSize = CharUnits());
+                      QualType DeleteTy, mlir::Value NumElements = nullptr,
+                      CharUnits CookieSize = CharUnits());
 
   RValue emitBuiltinNewDeleteCall(const FunctionProtoType *type,
-                                   const CallExpr *theCallExpr, bool isDelete);
+                                  const CallExpr *theCallExpr, bool isDelete);
 
   mlir::Value emitDynamicCast(Address ThisAddr, const CXXDynamicCastExpr *DCE);
 
   mlir::Value createLoad(const clang::VarDecl *VD, const char *Name);
 
   mlir::Value emitScalarPrePostIncDec(const UnaryOperator *E, LValue LV,
-                                       bool isInc, bool isPre);
+                                      bool isInc, bool isPre);
   mlir::Value emitComplexPrePostIncDec(const UnaryOperator *E, LValue LV,
-                                        bool isInc, bool isPre);
+                                       bool isInc, bool isPre);
 
   // Wrapper for function prototype sources. Wraps either a FunctionProtoType or
   // an ObjCMethodDecl.
@@ -845,15 +844,13 @@ public:
   /// returning the rvalue.
   RValue emitLoadOfLValue(LValue LV, SourceLocation Loc);
   mlir::Value emitLoadOfScalar(Address addr, bool isVolatile,
-                                clang::QualType ty, clang::SourceLocation loc,
-                                LValueBaseInfo baseInfo,
-                                TBAAAccessInfo tbaaInfo,
-                                bool isNontemporal = false);
+                               clang::QualType ty, clang::SourceLocation loc,
+                               LValueBaseInfo baseInfo, TBAAAccessInfo tbaaInfo,
+                               bool isNontemporal = false);
   mlir::Value emitLoadOfScalar(Address addr, bool isVolatile,
-                                clang::QualType ty, mlir::Location loc,
-                                LValueBaseInfo baseInfo,
-                                TBAAAccessInfo tbaaInfo,
-                                bool isNontemporal = false);
+                               clang::QualType ty, mlir::Location loc,
+                               LValueBaseInfo baseInfo, TBAAAccessInfo tbaaInfo,
+                               bool isNontemporal = false);
 
   int64_t getAccessedFieldNo(unsigned idx, const mlir::ArrayAttr elts);
 
@@ -866,11 +863,11 @@ public:
   /// Load a scalar value from an address, taking care to appropriately convert
   /// from the memory representation to CIR value representation.
   mlir::Value emitLoadOfScalar(Address addr, bool isVolatile,
-                                clang::QualType ty, clang::SourceLocation loc,
-                                AlignmentSource source = AlignmentSource::Type,
-                                bool isNontemporal = false) {
+                               clang::QualType ty, clang::SourceLocation loc,
+                               AlignmentSource source = AlignmentSource::Type,
+                               bool isNontemporal = false) {
     return emitLoadOfScalar(addr, isVolatile, ty, loc, LValueBaseInfo(source),
-                             CGM.getTBAAAccessInfo(ty), isNontemporal);
+                            CGM.getTBAAAccessInfo(ty), isNontemporal);
   }
 
   /// Load a scalar value from an address, taking care to appropriately convert
@@ -883,13 +880,12 @@ public:
   mlir::Value emitLoadOfComplex(LValue src, SourceLocation loc);
 
   Address emitLoadOfReference(LValue refLVal, mlir::Location loc,
-                               LValueBaseInfo *pointeeBaseInfo = nullptr,
-                               TBAAAccessInfo *pointeeTBAAInfo = nullptr);
+                              LValueBaseInfo *pointeeBaseInfo = nullptr,
+                              TBAAAccessInfo *pointeeTBAAInfo = nullptr);
   LValue emitLoadOfReferenceLValue(LValue RefLVal, mlir::Location Loc);
   LValue
-  emitLoadOfReferenceLValue(Address RefAddr, mlir::Location Loc,
-                             QualType RefTy,
-                             AlignmentSource Source = AlignmentSource::Type) {
+  emitLoadOfReferenceLValue(Address RefAddr, mlir::Location Loc, QualType RefTy,
+                            AlignmentSource Source = AlignmentSource::Type) {
     LValue RefLVal = makeAddrLValue(RefAddr, RefTy, LValueBaseInfo(Source));
     return emitLoadOfReferenceLValue(RefLVal, Loc);
   }
@@ -919,26 +915,26 @@ public:
   /// result type, and using the given argument list which specifies both the
   /// LLVM arguments and the types they were derived from.
   RValue emitCall(const CIRGenFunctionInfo &CallInfo,
-                   const CIRGenCallee &Callee, ReturnValueSlot ReturnValue,
-                   const CallArgList &Args,
-                   cir::CIRCallOpInterface *callOrTryCall, bool IsMustTail,
-                   mlir::Location loc,
-                   std::optional<const clang::CallExpr *> E = std::nullopt);
+                  const CIRGenCallee &Callee, ReturnValueSlot ReturnValue,
+                  const CallArgList &Args,
+                  cir::CIRCallOpInterface *callOrTryCall, bool IsMustTail,
+                  mlir::Location loc,
+                  std::optional<const clang::CallExpr *> E = std::nullopt);
   RValue emitCall(const CIRGenFunctionInfo &CallInfo,
-                   const CIRGenCallee &Callee, ReturnValueSlot ReturnValue,
-                   const CallArgList &Args,
-                   cir::CIRCallOpInterface *callOrTryCall = nullptr,
-                   bool IsMustTail = false) {
+                  const CIRGenCallee &Callee, ReturnValueSlot ReturnValue,
+                  const CallArgList &Args,
+                  cir::CIRCallOpInterface *callOrTryCall = nullptr,
+                  bool IsMustTail = false) {
     assert(currSrcLoc && "source location must have been set");
     return emitCall(CallInfo, Callee, ReturnValue, Args, callOrTryCall,
-                     IsMustTail, *currSrcLoc, std::nullopt);
+                    IsMustTail, *currSrcLoc, std::nullopt);
   }
   RValue emitCall(clang::QualType FnType, const CIRGenCallee &Callee,
-                   const clang::CallExpr *E, ReturnValueSlot returnValue,
-                   mlir::Value Chain = nullptr);
+                  const clang::CallExpr *E, ReturnValueSlot returnValue,
+                  mlir::Value Chain = nullptr);
 
   RValue emitCallExpr(const clang::CallExpr *E,
-                       ReturnValueSlot ReturnValue = ReturnValueSlot());
+                      ReturnValueSlot ReturnValue = ReturnValueSlot());
 
   Address getAsNaturalAddressOf(Address Addr, QualType PointeeTy);
 
@@ -947,17 +943,17 @@ public:
   }
 
   mlir::Value emitRuntimeCall(mlir::Location loc, cir::FuncOp callee,
-                               llvm::ArrayRef<mlir::Value> args = {});
+                              llvm::ArrayRef<mlir::Value> args = {});
 
   void emitInvariantStart(CharUnits Size);
 
   /// Create a check for a function parameter that may potentially be
   /// declared as non-null.
   void emitNonNullArgCheck(RValue RV, QualType ArgType, SourceLocation ArgLoc,
-                            AbstractCallee AC, unsigned ParmNum);
+                           AbstractCallee AC, unsigned ParmNum);
 
   void emitCallArg(CallArgList &args, const clang::Expr *E,
-                    clang::QualType ArgType);
+                   clang::QualType ArgType);
 
   LValue emitCallExprLValue(const CallExpr *E);
 
@@ -974,8 +970,8 @@ public:
   /// expression, the aggloc/agglocvolatile arguments indicate where the result
   /// should be returned.
   RValue emitAnyExpr(const clang::Expr *E,
-                      AggValueSlot aggSlot = AggValueSlot::ignored(),
-                      bool ignoreResult = false);
+                     AggValueSlot aggSlot = AggValueSlot::ignored(),
+                     bool ignoreResult = false);
 
   mlir::LogicalResult emitFunctionBody(const clang::Stmt *Body);
   mlir::LogicalResult emitCoroutineBody(const CoroutineBodyStmt &S);
@@ -984,26 +980,26 @@ public:
   cir::CallOp emitCoroIDBuiltinCall(mlir::Location loc, mlir::Value nullPtr);
   cir::CallOp emitCoroAllocBuiltinCall(mlir::Location loc);
   cir::CallOp emitCoroBeginBuiltinCall(mlir::Location loc,
-                                        mlir::Value coroframeAddr);
+                                       mlir::Value coroframeAddr);
   cir::CallOp emitCoroEndBuiltinCall(mlir::Location loc, mlir::Value nullPtr);
 
   RValue emitCoawaitExpr(const CoawaitExpr &E,
-                          AggValueSlot aggSlot = AggValueSlot::ignored(),
-                          bool ignoreResult = false);
+                         AggValueSlot aggSlot = AggValueSlot::ignored(),
+                         bool ignoreResult = false);
   RValue emitCoyieldExpr(const CoyieldExpr &E,
-                          AggValueSlot aggSlot = AggValueSlot::ignored(),
-                          bool ignoreResult = false);
+                         AggValueSlot aggSlot = AggValueSlot::ignored(),
+                         bool ignoreResult = false);
   RValue emitCoroutineIntrinsic(const CallExpr *E, unsigned int IID);
   RValue emitCoroutineFrame();
 
   enum class MSVCIntrin;
 
   mlir::Value emitARMMVEBuiltinExpr(unsigned BuiltinID, const CallExpr *E,
-                                     ReturnValueSlot ReturnValue,
-                                     llvm::Triple::ArchType Arch);
+                                    ReturnValueSlot ReturnValue,
+                                    llvm::Triple::ArchType Arch);
   mlir::Value emitARMCDEBuiltinExpr(unsigned BuiltinID, const CallExpr *E,
-                                     ReturnValueSlot ReturnValue,
-                                     llvm::Triple::ArchType Arch);
+                                    ReturnValueSlot ReturnValue,
+                                    llvm::Triple::ArchType Arch);
   mlir::Value emitCommonNeonBuiltinExpr(
       unsigned builtinID, unsigned llvmIntrinsic, unsigned altLLVMIntrinsic,
       const char *nameHint, unsigned modifier, const CallExpr *e,
@@ -1011,15 +1007,15 @@ public:
       llvm::Triple::ArchType arch);
 
   mlir::Value emitAlignmentAssumption(mlir::Value ptrValue, QualType ty,
-                                       SourceLocation loc,
-                                       SourceLocation assumptionLoc,
-                                       mlir::IntegerAttr alignment,
-                                       mlir::Value offsetValue = nullptr);
+                                      SourceLocation loc,
+                                      SourceLocation assumptionLoc,
+                                      mlir::IntegerAttr alignment,
+                                      mlir::Value offsetValue = nullptr);
 
   mlir::Value emitAlignmentAssumption(mlir::Value ptrValue, const Expr *expr,
-                                       SourceLocation assumptionLoc,
-                                       mlir::IntegerAttr alignment,
-                                       mlir::Value offsetValue = nullptr);
+                                      SourceLocation assumptionLoc,
+                                      mlir::IntegerAttr alignment,
+                                      mlir::Value offsetValue = nullptr);
 
   /// Build a debug stoppoint if we are emitting debug info.
   void emitStopPoint(const Stmt *S);
@@ -1028,17 +1024,17 @@ public:
   // new scopes need be created when finding a compound statement.
   mlir::LogicalResult
   emitStmt(const clang::Stmt *S, bool useCurrentScope,
-            llvm::ArrayRef<const Attr *> Attrs = std::nullopt);
+           llvm::ArrayRef<const Attr *> Attrs = std::nullopt);
 
   mlir::LogicalResult emitSimpleStmt(const clang::Stmt *S,
-                                      bool useCurrentScope);
+                                     bool useCurrentScope);
 
   mlir::LogicalResult emitForStmt(const clang::ForStmt &S);
   mlir::LogicalResult emitWhileStmt(const clang::WhileStmt &S);
   mlir::LogicalResult emitDoStmt(const clang::DoStmt &S);
   mlir::LogicalResult
   emitCXXForRangeStmt(const CXXForRangeStmt &S,
-                       llvm::ArrayRef<const Attr *> Attrs = std::nullopt);
+                      llvm::ArrayRef<const Attr *> Attrs = std::nullopt);
   mlir::LogicalResult emitSwitchStmt(const clang::SwitchStmt &S);
 
   mlir::LogicalResult emitCXXTryStmtUnderScope(const clang::CXXTryStmt &S);
@@ -1048,12 +1044,12 @@ public:
   void exitCXXTryStmt(const CXXTryStmt &S, bool IsFnTryBlock = false);
 
   Address emitCompoundStmt(const clang::CompoundStmt &S, bool getLast = false,
-                            AggValueSlot slot = AggValueSlot::ignored());
+                           AggValueSlot slot = AggValueSlot::ignored());
 
   Address
   emitCompoundStmtWithoutScope(const clang::CompoundStmt &S,
-                                bool getLast = false,
-                                AggValueSlot slot = AggValueSlot::ignored());
+                               bool getLast = false,
+                               AggValueSlot slot = AggValueSlot::ignored());
   GlobalDecl CurSEHParent;
   bool currentFunctionUsesSEHTry() const { return !!CurSEHParent; }
 
@@ -1076,7 +1072,7 @@ public:
   void emitIgnoredExpr(const clang::Expr *E);
 
   LValue emitArraySubscriptExpr(const clang::ArraySubscriptExpr *E,
-                                 bool Accessed = false);
+                                bool Accessed = false);
 
   mlir::LogicalResult emitDeclStmt(const clang::DeclStmt &S);
 
@@ -1108,12 +1104,12 @@ public:
 
   std::pair<mlir::Value, mlir::Type>
   emitAsmInputLValue(const TargetInfo::ConstraintInfo &Info, LValue InputValue,
-                      QualType InputType, std::string &ConstraintStr,
-                      SourceLocation Loc);
+                     QualType InputType, std::string &ConstraintStr,
+                     SourceLocation Loc);
 
   std::pair<mlir::Value, mlir::Type>
   emitAsmInput(const TargetInfo::ConstraintInfo &Info, const Expr *InputExpr,
-                std::string &ConstraintStr);
+               std::string &ConstraintStr);
 
   mlir::LogicalResult emitIfStmt(const clang::IfStmt &S);
 
@@ -1132,8 +1128,7 @@ public:
   // OpenMP gen functions:
   mlir::LogicalResult emitOMPParallelDirective(const OMPParallelDirective &S);
   mlir::LogicalResult emitOMPTaskwaitDirective(const OMPTaskwaitDirective &S);
-  mlir::LogicalResult
-  emitOMPTaskyieldDirective(const OMPTaskyieldDirective &S);
+  mlir::LogicalResult emitOMPTaskyieldDirective(const OMPTaskyieldDirective &S);
   mlir::LogicalResult emitOMPBarrierDirective(const OMPBarrierDirective &S);
 
   LValue emitOpaqueValueLValue(const OpaqueValueExpr *e);
@@ -1169,18 +1164,17 @@ public:
   /// might decide to leave this as a separate pass (see EmitBranchOnBoolExpr
   /// for extra ideas).
   mlir::LogicalResult emitIfOnBoolExpr(const clang::Expr *cond,
-                                        const clang::Stmt *thenS,
-                                        const clang::Stmt *elseS);
+                                       const clang::Stmt *thenS,
+                                       const clang::Stmt *elseS);
   cir::IfOp emitIfOnBoolExpr(
       const clang::Expr *cond,
       llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)> thenBuilder,
       mlir::Location thenLoc,
       llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)> elseBuilder,
       std::optional<mlir::Location> elseLoc = {});
-  mlir::Value emitTernaryOnBoolExpr(const clang::Expr *cond,
-                                     mlir::Location loc,
-                                     const clang::Stmt *thenS,
-                                     const clang::Stmt *elseS);
+  mlir::Value emitTernaryOnBoolExpr(const clang::Expr *cond, mlir::Location loc,
+                                    const clang::Stmt *thenS,
+                                    const clang::Stmt *elseS);
   mlir::Value emitOpOnBoolExpr(mlir::Location loc, const clang::Expr *cond);
 
   class ConstantEmission {
@@ -1228,7 +1222,7 @@ public:
 
   mlir::Value emitPromotedComplexExpr(const Expr *E, QualType PromotionType);
   mlir::Value emitPromotedScalarExpr(const clang::Expr *E,
-                                      QualType PromotionType);
+                                     QualType PromotionType);
   mlir::Value emitPromotedValue(mlir::Value result, QualType PromotionType);
   mlir::Value emitUnPromotedValue(mlir::Value result, QualType PromotionType);
 
@@ -1238,21 +1232,21 @@ public:
                                mlir::ArrayAttr &value, cir::CaseOpKind &kind);
 
   template <typename T>
-  mlir::LogicalResult
-  emitCaseDefaultCascade(const T *stmt, mlir::Type condType,
-                          mlir::ArrayAttr value, cir::CaseOpKind kind,
-                          bool buildingTopLevelCase);
+  mlir::LogicalResult emitCaseDefaultCascade(const T *stmt, mlir::Type condType,
+                                             mlir::ArrayAttr value,
+                                             cir::CaseOpKind kind,
+                                             bool buildingTopLevelCase);
 
   mlir::LogicalResult emitCaseStmt(const clang::CaseStmt &S,
-                                    mlir::Type condType,
-                                    bool buildingTopLevelCase);
+                                   mlir::Type condType,
+                                   bool buildingTopLevelCase);
 
   mlir::LogicalResult emitDefaultStmt(const clang::DefaultStmt &S,
-                                       mlir::Type condType,
-                                       bool buildingTopLevelCase);
+                                      mlir::Type condType,
+                                      bool buildingTopLevelCase);
 
   mlir::LogicalResult emitSwitchCase(const clang::SwitchCase &S,
-                                      bool buildingTopLevelCase);
+                                     bool buildingTopLevelCase);
 
   mlir::LogicalResult emitSwitchBody(const clang::Stmt *S);
 
@@ -1310,24 +1304,24 @@ public:
   /// Emit the alloca and debug information for a
   /// local variable.  Does not emit initialization or destruction.
   AutoVarEmission emitAutoVarAlloca(const clang::VarDecl &D,
-                                     mlir::OpBuilder::InsertPoint = {});
+                                    mlir::OpBuilder::InsertPoint = {});
 
   void emitAutoVarInit(const AutoVarEmission &emission);
   void emitAutoVarCleanups(const AutoVarEmission &emission);
   void emitAutoVarTypeCleanup(const AutoVarEmission &emission,
-                               clang::QualType::DestructionKind dtorKind);
+                              clang::QualType::DestructionKind dtorKind);
 
   void emitStoreOfScalar(mlir::Value value, LValue lvalue);
   void emitStoreOfScalar(mlir::Value value, Address addr, bool isVolatile,
-                          clang::QualType ty, LValueBaseInfo baseInfo,
-                          TBAAAccessInfo tbaaInfo, bool isInit = false,
-                          bool isNontemporal = false);
+                         clang::QualType ty, LValueBaseInfo baseInfo,
+                         TBAAAccessInfo tbaaInfo, bool isInit = false,
+                         bool isNontemporal = false);
   void emitStoreOfScalar(mlir::Value value, Address addr, bool isVolatile,
-                          QualType ty,
-                          AlignmentSource source = AlignmentSource::Type,
-                          bool isInit = false, bool isNontemporal = false) {
+                         QualType ty,
+                         AlignmentSource source = AlignmentSource::Type,
+                         bool isInit = false, bool isNontemporal = false) {
     emitStoreOfScalar(value, addr, isVolatile, ty, LValueBaseInfo(source),
-                       CGM.getTBAAAccessInfo(ty), isInit, isNontemporal);
+                      CGM.getTBAAAccessInfo(ty), isInit, isNontemporal);
   }
   void emitStoreOfScalar(mlir::Value value, LValue lvalue, bool isInit);
 
@@ -1340,14 +1334,14 @@ public:
   void emitStoreThroughLValue(RValue Src, LValue Dst, bool isInit = false);
 
   void emitStoreThroughBitfieldLValue(RValue Src, LValue Dst,
-                                       mlir::Value &Result);
+                                      mlir::Value &Result);
 
   cir::BrOp emitBranchThroughCleanup(mlir::Location Loc, JumpDest Dest);
 
   /// Given an assignment `*LHS = RHS`, emit a test that checks if \p RHS is
   /// nonnull, if 1\p LHS is marked _Nonnull.
   void emitNullabilityCheck(LValue LHS, mlir::Value RHS,
-                             clang::SourceLocation Loc);
+                            clang::SourceLocation Loc);
 
   /// Same as IRBuilder::CreateInBoundsGEP, but additionally emits a check to
   /// detect undefined behavior when the pointer overflow sanitizer is enabled.
@@ -1355,12 +1349,12 @@ public:
   /// \p IsSubtraction indicates whether the expression used to form the GEP
   /// is a subtraction.
   mlir::Value emitCheckedInBoundsGEP(mlir::Type ElemTy, mlir::Value Ptr,
-                                      llvm::ArrayRef<mlir::Value> IdxList,
-                                      bool SignedIndices, bool IsSubtraction,
-                                      SourceLocation Loc);
+                                     llvm::ArrayRef<mlir::Value> IdxList,
+                                     bool SignedIndices, bool IsSubtraction,
+                                     SourceLocation Loc);
 
   void emitScalarInit(const clang::Expr *init, mlir::Location loc,
-                       LValue lvalue, bool capturedByInit = false);
+                      LValue lvalue, bool capturedByInit = false);
 
   LValue emitDeclRefLValue(const clang::DeclRefExpr *E);
   LValue emitExtVectorElementExpr(const ExtVectorElementExpr *E);
@@ -1369,19 +1363,18 @@ public:
   LValue emitUnaryOpLValue(const clang::UnaryOperator *E);
   LValue emitStringLiteralLValue(const StringLiteral *E);
   RValue emitBuiltinExpr(const clang::GlobalDecl GD, unsigned BuiltinID,
-                          const clang::CallExpr *E,
-                          ReturnValueSlot ReturnValue);
+                         const clang::CallExpr *E, ReturnValueSlot ReturnValue);
   RValue emitRotate(const CallExpr *E, bool IsRotateRight);
   mlir::Value emitTargetBuiltinExpr(unsigned BuiltinID,
-                                     const clang::CallExpr *E,
-                                     ReturnValueSlot ReturnValue);
+                                    const clang::CallExpr *E,
+                                    ReturnValueSlot ReturnValue);
 
   // Target specific builtin emission
   mlir::Value emitScalarOrConstFoldImmArg(unsigned ICEArguments, unsigned Idx,
-                                           const CallExpr *E);
+                                          const CallExpr *E);
   mlir::Value emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
-                                      ReturnValueSlot ReturnValue,
-                                      llvm::Triple::ArchType Arch);
+                                     ReturnValueSlot ReturnValue,
+                                     llvm::Triple::ArchType Arch);
   mlir::Value emitAArch64SVEBuiltinExpr(unsigned BuiltinID, const CallExpr *E);
   mlir::Value emitAArch64SMEBuiltinExpr(unsigned BuiltinID, const CallExpr *E);
   mlir::Value emitX86BuiltinExpr(unsigned BuiltinID, const CallExpr *E);
@@ -1404,12 +1397,11 @@ public:
   /// explicit source.
   Address
   emitPointerWithAlignment(const clang::Expr *expr,
-                            LValueBaseInfo *baseInfo = nullptr,
-                            TBAAAccessInfo *tbaaInfo = nullptr,
-                            KnownNonNull_t isKnownNonNull = NotKnownNonNull);
+                           LValueBaseInfo *baseInfo = nullptr,
+                           TBAAAccessInfo *tbaaInfo = nullptr,
+                           KnownNonNull_t isKnownNonNull = NotKnownNonNull);
 
-  LValue
-  emitConditionalOperatorLValue(const AbstractConditionalOperator *expr);
+  LValue emitConditionalOperatorLValue(const AbstractConditionalOperator *expr);
 
   /// Emit an expression as an initializer for an object (variable, field, etc.)
   /// at the given location.  The expression is not necessarily the normal
@@ -1422,7 +1414,7 @@ public:
   /// \param capturedByInit true if \p D is a __block variable whose address is
   /// potentially changed by the initializer
   void emitExprAsInit(const clang::Expr *init, const clang::ValueDecl *D,
-                       LValue lvalue, bool capturedByInit = false);
+                      LValue lvalue, bool capturedByInit = false);
 
   /// Emit code and set up symbol table for a variable declaration with auto,
   /// register, or no storage class specifier. These turn into simple stack
@@ -1444,16 +1436,16 @@ public:
   mlir::Value evaluateExprAsBool(const clang::Expr *E);
 
   void emitCtorPrologue(const clang::CXXConstructorDecl *CD,
-                         clang::CXXCtorType Type, FunctionArgList &Args);
+                        clang::CXXCtorType Type, FunctionArgList &Args);
   void emitConstructorBody(FunctionArgList &Args);
   void emitDestructorBody(FunctionArgList &Args);
   void emitCXXDestructorCall(const CXXDestructorDecl *D, CXXDtorType Type,
-                              bool ForVirtualBase, bool Delegating,
-                              Address This, QualType ThisTy);
+                             bool ForVirtualBase, bool Delegating, Address This,
+                             QualType ThisTy);
   RValue emitCXXDestructorCall(GlobalDecl Dtor, const CIRGenCallee &Callee,
-                                mlir::Value This, QualType ThisTy,
-                                mlir::Value ImplicitParam,
-                                QualType ImplicitParamTy, const CallExpr *E);
+                               mlir::Value This, QualType ThisTy,
+                               mlir::Value ImplicitParam,
+                               QualType ImplicitParamTy, const CallExpr *E);
 
   /// Enter the cleanups necessary to complete the given phase of destruction
   /// for a destructor. The end result should call destructors on members and
@@ -1521,8 +1513,8 @@ public:
   /// If whole-program virtual table optimization is enabled, emit an assumption
   /// that VTable is a member of RD's type identifier. Or, if vptr CFI is
   /// enabled, emit a check that VTable is a member of RD's type identifier.
-  void emitTypeMetadataCodeForVCall(const CXXRecordDecl *RD,
-                                     mlir::Value VTable, SourceLocation Loc);
+  void emitTypeMetadataCodeForVCall(const CXXRecordDecl *RD, mlir::Value VTable,
+                                    SourceLocation Loc);
 
   /// Return the VTT parameter that should be passed to a base
   /// constructor/destructor with virtual bases.
@@ -1648,14 +1640,13 @@ public:
   /// Emit a conversion from the specified type to the specified destination
   /// type, both of which are CIR scalar types.
   mlir::Value emitScalarConversion(mlir::Value Src, clang::QualType SrcTy,
-                                    clang::QualType DstTy,
-                                    clang::SourceLocation Loc);
+                                   clang::QualType DstTy,
+                                   clang::SourceLocation Loc);
 
   /// Emit a conversion from the specified complex type to the specified
   /// destination type, where the destination type is an LLVM scalar type.
   mlir::Value emitComplexToScalarConversion(mlir::Value Src, QualType SrcTy,
-                                             QualType DstTy,
-                                             SourceLocation Loc);
+                                            QualType DstTy, SourceLocation Loc);
 
   LValue makeAddrLValue(Address addr, clang::QualType ty,
                         LValueBaseInfo baseInfo) {
@@ -1681,11 +1672,11 @@ public:
   /// will return the address of the reference and not the address of the value
   /// stored in the reference.
   LValue emitLValueForFieldInitialization(LValue Base,
-                                           const clang::FieldDecl *Field,
-                                           llvm::StringRef FieldName);
+                                          const clang::FieldDecl *Field,
+                                          llvm::StringRef FieldName);
 
   void emitInitializerForField(clang::FieldDecl *Field, LValue LHS,
-                                clang::Expr *Init);
+                               clang::Expr *Init);
 
   /// Determine whether the given initializer is trivial in the sense
   /// that it requires no code to be generated.
@@ -1699,7 +1690,7 @@ public:
   RValue emitAtomicExpr(AtomicExpr *E);
   void emitAtomicStore(RValue rvalue, LValue lvalue, bool isInit);
   void emitAtomicStore(RValue rvalue, LValue lvalue, cir::MemOrder MO,
-                        bool IsVolatile, bool isInit);
+                       bool IsVolatile, bool isInit);
   void emitAtomicInit(Expr *init, LValue dest);
 
   /// Return the address of a local variable.
@@ -1725,22 +1716,22 @@ public:
   static bool isWrappedCXXThis(const clang::Expr *E);
 
   void emitDelegateCXXConstructorCall(const clang::CXXConstructorDecl *Ctor,
-                                       clang::CXXCtorType CtorType,
-                                       const FunctionArgList &Args,
-                                       clang::SourceLocation Loc);
+                                      clang::CXXCtorType CtorType,
+                                      const FunctionArgList &Args,
+                                      clang::SourceLocation Loc);
 
   // It's important not to confuse this and the previous function. Delegating
   // constructors are the C++11 feature. The constructor delegate optimization
   // is used to reduce duplication in the base and complete constructors where
   // they are substantially the same.
   void emitDelegatingCXXConstructorCall(const CXXConstructorDecl *Ctor,
-                                         const FunctionArgList &Args);
+                                        const FunctionArgList &Args);
 
   /// We are performing a delegate call; that is, the current function is
   /// delegating to another one. Produce a r-value suitable for passing the
   /// given parameter.
   void emitDelegateCallArg(CallArgList &args, const clang::VarDecl *param,
-                            clang::SourceLocation loc);
+                           clang::SourceLocation loc);
 
   /// Return true if the current function should not be instrumented with
   /// sanitizers.
@@ -1753,12 +1744,12 @@ public:
 
   /// TODO(cir): add TBAAAccessInfo
   Address emitArrayToPointerDecay(const Expr *Array,
-                                   LValueBaseInfo *BaseInfo = nullptr);
+                                  LValueBaseInfo *BaseInfo = nullptr);
 
   /// Emits the code necessary to evaluate an arbitrary expression into the
   /// given memory location.
   void emitAnyExprToMem(const Expr *E, Address Location, Qualifiers Quals,
-                         bool IsInitializer);
+                        bool IsInitializer);
   void emitAnyExprToExn(const Expr *E, Address Addr);
 
   LValue emitCheckedLValue(const Expr *E, TypeCheckKind TCK);
@@ -1802,8 +1793,8 @@ public:
   ///        occupied by some other object. More efficient code can often be
   ///        generated if not.
   void emitAggregateCopy(LValue Dest, LValue Src, QualType EltTy,
-                          AggValueSlot::Overlap_t MayOverlap,
-                          bool isVolatile = false);
+                         AggValueSlot::Overlap_t MayOverlap,
+                         bool isVolatile = false);
 
   /// Emit a reached-unreachable diagnostic if \p Loc is valid and runtime
   /// checking is enabled. Otherwise, just emit an unreachable instruction.
@@ -1831,7 +1822,7 @@ public:
   cir::CallOp callWithExceptionCtx = nullptr;
   mlir::Operation *emitLandingPad(cir::TryOp tryOp);
   void emitEHResumeBlock(bool isCleanup, mlir::Block *ehResumeBlock,
-                          mlir::Location loc);
+                         mlir::Location loc);
   mlir::Block *getEHResumeBlock(bool isCleanup, cir::TryOp tryOp);
   mlir::Block *getEHDispatchBlock(EHScopeStack::stable_iterator scope,
                                   cir::TryOp tryOp);
@@ -1929,7 +1920,7 @@ public:
 
   template <typename FuncTy>
   ConditionalInfo emitConditionalBlocks(const AbstractConditionalOperator *E,
-                                         const FuncTy &BranchGenFunc);
+                                        const FuncTy &BranchGenFunc);
 
   // Return true if we're currently emitting one branch or the other of a
   // conditional expression.
@@ -1965,9 +1956,9 @@ public:
                                        QualType type, Destroyer *destroyer,
                                        bool useEHCleanupForArray);
   void emitArrayDestroy(mlir::Value begin, mlir::Value end,
-                         QualType elementType, CharUnits elementAlign,
-                         Destroyer *destroyer, bool checkZeroLength,
-                         bool useEHCleanup);
+                        QualType elementType, CharUnits elementAlign,
+                        Destroyer *destroyer, bool checkZeroLength,
+                        bool useEHCleanup);
 
   /// The values of function arguments to use when evaluating
   /// CXXInheritedCtorInitExprs within this context.

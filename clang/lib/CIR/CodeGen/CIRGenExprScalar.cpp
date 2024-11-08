@@ -114,7 +114,7 @@ public:
   }
 
   mlir::Value emitComplexToScalarConversion(mlir::Location Loc, mlir::Value V,
-                                             CastKind Kind, QualType DestTy);
+                                            CastKind Kind, QualType DestTy);
 
   /// Emit a value that corresponds to null for the given type.
   mlir::Value emitNullValue(QualType Ty, mlir::Location loc);
@@ -331,13 +331,11 @@ public:
     // __builtin_convertvector is an element-wise cast, and is implemented as a
     // regular cast. The back end handles casts of vectors correctly.
     return emitScalarConversion(Visit(E->getSrcExpr()),
-                                 E->getSrcExpr()->getType(), E->getType(),
-                                 E->getSourceRange().getBegin());
+                                E->getSrcExpr()->getType(), E->getType(),
+                                E->getSourceRange().getBegin());
   }
 
-  mlir::Value VisitExtVectorElementExpr(Expr *E) {
-    return emitLoadOfLValue(E);
-  }
+  mlir::Value VisitExtVectorElementExpr(Expr *E) { return emitLoadOfLValue(E); }
 
   mlir::Value VisitMemberExpr(MemberExpr *E);
   mlir::Value VisitCompoundLiteralExpr(CompoundLiteralExpr *E) {
@@ -374,7 +372,7 @@ public:
         cast<cir::AllocaOp>(retAlloca.getDefiningOp()));
 
     return CGF.emitLoadOfScalar(CGF.makeAddrLValue(retAlloca, E->getType()),
-                                 E->getExprLoc());
+                                E->getExprLoc());
   }
 
   // Unary Operators.
@@ -395,7 +393,7 @@ public:
     return emitScalarPrePostIncDec(E, LV, true, true);
   }
   mlir::Value emitScalarPrePostIncDec(const UnaryOperator *E, LValue LV,
-                                       bool isInc, bool isPre) {
+                                      bool isInc, bool isPre) {
     assert(!CGF.getLangOpts().OpenMP && "Not implemented");
     QualType type = E->getSubExpr()->getType();
 
@@ -580,8 +578,8 @@ public:
   }
 
   mlir::Value emitIncDecConsiderOverflowBehavior(const UnaryOperator *E,
-                                                  mlir::Value InVal,
-                                                  bool IsInc) {
+                                                 mlir::Value InVal,
+                                                 bool IsInc) {
     // NOTE(CIR): The SignedOverflowBehavior is attached to the global ModuleOp
     // and the nsw behavior is handled during lowering.
     auto Kind =
@@ -686,7 +684,7 @@ public:
   }
 
   mlir::Value emitUnaryOp(const UnaryOperator *E, cir::UnaryOpKind kind,
-                           mlir::Value input) {
+                          mlir::Value input) {
     return Builder.create<cir::UnaryOp>(
         CGF.getLoc(E->getSourceRange().getBegin()), input.getType(), kind,
         input);
@@ -826,11 +824,11 @@ public:
               SanOpts.has(SanitizerKind::ImplicitIntegerSignChange)) {}
   };
   mlir::Value emitScalarCast(mlir::Value Src, QualType SrcType,
-                              QualType DstType, mlir::Type SrcTy,
-                              mlir::Type DstTy, ScalarConversionOpts Opts);
+                             QualType DstType, mlir::Type SrcTy,
+                             mlir::Type DstTy, ScalarConversionOpts Opts);
 
   BinOpInfo emitBinOps(const BinaryOperator *E,
-                        QualType PromotionType = QualType()) {
+                       QualType PromotionType = QualType()) {
     BinOpInfo Result;
     Result.LHS = CGF.emitPromotedScalarExpr(E->getLHS(), PromotionType);
     Result.RHS = CGF.emitPromotedScalarExpr(E->getRHS(), PromotionType);
@@ -867,7 +865,7 @@ public:
       mlir::Value &Result);
   mlir::Value
   emitCompoundAssign(const CompoundAssignOperator *E,
-                      mlir::Value (ScalarExprEmitter::*F)(const BinOpInfo &));
+                     mlir::Value (ScalarExprEmitter::*F)(const BinOpInfo &));
 
   // TODO(cir): Candidate to be in a common AST helper between CIR and LLVM
   // codegen.
@@ -887,13 +885,13 @@ public:
 #define HANDLEBINOP(OP)                                                        \
   mlir::Value VisitBin##OP(const BinaryOperator *E) {                          \
     QualType promotionTy = getPromotionType(E->getType());                     \
-    auto result = emit##OP(emitBinOps(E, promotionTy));                      \
+    auto result = emit##OP(emitBinOps(E, promotionTy));                        \
     if (result && !promotionTy.isNull())                                       \
-      result = emitUnPromotedValue(result, E->getType());                     \
+      result = emitUnPromotedValue(result, E->getType());                      \
     return result;                                                             \
   }                                                                            \
   mlir::Value VisitBin##OP##Assign(const CompoundAssignOperator *E) {          \
-    return emitCompoundAssign(E, &ScalarExprEmitter::emit##OP);              \
+    return emitCompoundAssign(E, &ScalarExprEmitter::emit##OP);                \
   }
 
   HANDLEBINOP(Mul)
@@ -977,7 +975,7 @@ public:
     }
 
     return emitScalarConversion(Result, CGF.getContext().BoolTy, E->getType(),
-                                 E->getExprLoc());
+                                E->getExprLoc());
   }
 
   mlir::Value emitFloatToBoolConversion(mlir::Value src, mlir::Location loc) {
@@ -1000,7 +998,7 @@ public:
   /// Convert the specified expression value to a boolean (!cir.bool) truth
   /// value. This is equivalent to "Val != 0".
   mlir::Value emitConversionToBool(mlir::Value Src, QualType SrcType,
-                                    mlir::Location loc) {
+                                   mlir::Location loc) {
     assert(SrcType.isCanonical() && "EmitScalarConversion strips typedefs");
 
     if (SrcType->isRealFloatingType())
@@ -1022,8 +1020,8 @@ public:
   /// pass.
   mlir::Value
   emitScalarConversion(mlir::Value Src, QualType SrcType, QualType DstType,
-                        SourceLocation Loc,
-                        ScalarConversionOpts Opts = ScalarConversionOpts()) {
+                       SourceLocation Loc,
+                       ScalarConversionOpts Opts = ScalarConversionOpts()) {
     // All conversions involving fixed point types should be handled by the
     // emitFixedPoint family functions. This is done to prevent bloating up
     // this function more, and although fixed point numbers are represented by
@@ -1174,7 +1172,7 @@ mlir::Value CIRGenFunction::emitScalarExpr(const Expr *E) {
 }
 
 mlir::Value CIRGenFunction::emitPromotedScalarExpr(const Expr *E,
-                                                    QualType PromotionType) {
+                                                   QualType PromotionType) {
   if (!PromotionType.isNull())
     return ScalarExprEmitter(*this, builder).emitPromoted(E, PromotionType);
   return ScalarExprEmitter(*this, builder).Visit(const_cast<Expr *>(E));
@@ -1252,8 +1250,8 @@ static std::optional<QualType> getUnwidenedIntegerType(const ASTContext &Ctx,
 
 /// Emit pointer + index arithmetic.
 static mlir::Value emitPointerArithmetic(CIRGenFunction &CGF,
-                                          const BinOpInfo &op,
-                                          bool isSubtraction) {
+                                         const BinOpInfo &op,
+                                         bool isSubtraction) {
   // Must have binary (not unary) expr here.  Unary pointer
   // increment/decrement doesn't use this path.
   const BinaryOperator *expr = cast<BinaryOperator>(op.E);
@@ -1328,7 +1326,7 @@ static mlir::Value emitPointerArithmetic(CIRGenFunction &CGF,
           CGF.getLoc(op.E->getExprLoc()), pointer.getType(), pointer, index);
     } else {
       pointer = CGF.emitCheckedInBoundsGEP(elemTy, pointer, index, isSigned,
-                                            isSubtraction, op.E->getExprLoc());
+                                           isSubtraction, op.E->getExprLoc());
     }
     return pointer;
   }
@@ -1346,7 +1344,7 @@ static mlir::Value emitPointerArithmetic(CIRGenFunction &CGF,
         CGF.getLoc(op.E->getExprLoc()), pointer.getType(), pointer, index);
 
   return CGF.emitCheckedInBoundsGEP(elemTy, pointer, index, isSigned,
-                                     isSubtraction, op.E->getExprLoc());
+                                    isSubtraction, op.E->getExprLoc());
 }
 
 mlir::Value ScalarExprEmitter::emitMul(const BinOpInfo &Ops) {
@@ -1837,7 +1835,7 @@ mlir::Value ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
         Opts = ScalarConversionOpts(CGF.SanOpts);
     }
     return emitScalarConversion(Visit(E), E->getType(), DestTy,
-                                 CE->getExprLoc(), Opts);
+                                CE->getExprLoc(), Opts);
   }
 
   case CK_IntegralToFloating:
@@ -1849,7 +1847,7 @@ mlir::Value ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
       llvm_unreachable("Fixed point casts are NYI.");
     CIRGenFunction::CIRGenFPOptionsRAII FPOptsRAII(CGF, CE);
     return emitScalarConversion(Visit(E), E->getType(), DestTy,
-                                 CE->getExprLoc());
+                                CE->getExprLoc());
   }
   case CK_BooleanToSignedIntegral:
     llvm_unreachable("NYI");
@@ -1870,7 +1868,7 @@ mlir::Value ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
   case CK_IntegralComplexToBoolean: {
     mlir::Value V = CGF.emitComplexExpr(E);
     return emitComplexToScalarConversion(CGF.getLoc(CE->getExprLoc()), V, Kind,
-                                          DestTy);
+                                         DestTy);
   }
   case CK_ZeroToOCLOpaqueType:
     llvm_unreachable("NYI");
@@ -1911,9 +1909,8 @@ mlir::Value ScalarExprEmitter::VisitMemberExpr(MemberExpr *E) {
 /// Emit a conversion from the specified type to the specified destination
 /// type, both of which are CIR scalar types.
 mlir::Value CIRGenFunction::emitScalarConversion(mlir::Value Src,
-                                                  QualType SrcTy,
-                                                  QualType DstTy,
-                                                  SourceLocation Loc) {
+                                                 QualType SrcTy, QualType DstTy,
+                                                 SourceLocation Loc) {
   assert(CIRGenFunction::hasScalarEvaluationKind(SrcTy) &&
          CIRGenFunction::hasScalarEvaluationKind(DstTy) &&
          "Invalid scalar expression to emit");
@@ -1922,9 +1919,9 @@ mlir::Value CIRGenFunction::emitScalarConversion(mlir::Value Src,
 }
 
 mlir::Value CIRGenFunction::emitComplexToScalarConversion(mlir::Value Src,
-                                                           QualType SrcTy,
-                                                           QualType DstTy,
-                                                           SourceLocation Loc) {
+                                                          QualType SrcTy,
+                                                          QualType DstTy,
+                                                          SourceLocation Loc) {
   assert(SrcTy->isAnyComplexType() && hasScalarEvaluationKind(DstTy) &&
          "Invalid complex -> scalar conversion");
 
@@ -2062,9 +2059,11 @@ mlir::Value ScalarExprEmitter::VisitImag(const UnaryOperator *E) {
 // floating-point. Conversions involving other types are handled elsewhere.
 // Conversion to bool is handled elsewhere because that's a comparison against
 // zero, not a simple cast. This handles both individual scalars and vectors.
-mlir::Value ScalarExprEmitter::emitScalarCast(
-    mlir::Value Src, QualType SrcType, QualType DstType, mlir::Type SrcTy,
-    mlir::Type DstTy, ScalarConversionOpts Opts) {
+mlir::Value ScalarExprEmitter::emitScalarCast(mlir::Value Src, QualType SrcType,
+                                              QualType DstType,
+                                              mlir::Type SrcTy,
+                                              mlir::Type DstTy,
+                                              ScalarConversionOpts Opts) {
   assert(!SrcType->isMatrixType() && !DstType->isMatrixType() &&
          "Internal error: matrix types not handled by this function.");
   if (mlir::isa<mlir::IntegerType>(SrcTy) ||
@@ -2132,8 +2131,8 @@ CIRGenFunction::emitCompoundAssignmentLValue(const CompoundAssignOperator *E) {
   switch (E->getOpcode()) {
 #define COMPOUND_OP(Op)                                                        \
   case BO_##Op##Assign:                                                        \
-    return Scalar.emitCompoundAssignLValue(E, &ScalarExprEmitter::emit##Op,  \
-                                            Result)
+    return Scalar.emitCompoundAssignLValue(E, &ScalarExprEmitter::emit##Op,    \
+                                           Result)
     COMPOUND_OP(Mul);
     COMPOUND_OP(Div);
     COMPOUND_OP(Rem);
@@ -2223,10 +2222,10 @@ LValue ScalarExprEmitter::emitCompoundAssignLValue(
   SourceLocation Loc = E->getExprLoc();
   if (!PromotionTypeLHS.isNull())
     OpInfo.LHS = emitScalarConversion(OpInfo.LHS, LHSTy, PromotionTypeLHS,
-                                       E->getExprLoc());
+                                      E->getExprLoc());
   else
     OpInfo.LHS = emitScalarConversion(OpInfo.LHS, LHSTy,
-                                       E->getComputationLHSType(), Loc);
+                                      E->getComputationLHSType(), Loc);
 
   // Expand the binary operator.
   Result = (this->*Func)(OpInfo);
@@ -2234,7 +2233,7 @@ LValue ScalarExprEmitter::emitCompoundAssignLValue(
   // Convert the result back to the LHS type,
   // potentially with Implicit Conversion sanitizer check.
   Result = emitScalarConversion(Result, PromotionTypeCR, LHSTy, Loc,
-                                 ScalarConversionOpts(CGF.SanOpts));
+                                ScalarConversionOpts(CGF.SanOpts));
 
   // Store the result value into the LHS lvalue. Bit-fields are handled
   // specially because the result is altered by the store, i.e., [C99 6.5.16p1]
@@ -2251,8 +2250,10 @@ LValue ScalarExprEmitter::emitCompoundAssignLValue(
   return LHSLV;
 }
 
-mlir::Value ScalarExprEmitter::emitComplexToScalarConversion(
-    mlir::Location Loc, mlir::Value V, CastKind Kind, QualType DestTy) {
+mlir::Value ScalarExprEmitter::emitComplexToScalarConversion(mlir::Location Loc,
+                                                             mlir::Value V,
+                                                             CastKind Kind,
+                                                             QualType DestTy) {
   cir::CastKind CastOpKind;
   switch (Kind) {
   case CK_FloatingComplexToReal:
@@ -2279,7 +2280,7 @@ mlir::Value ScalarExprEmitter::emitNullValue(QualType Ty, mlir::Location loc) {
 }
 
 mlir::Value ScalarExprEmitter::emitPromoted(const Expr *E,
-                                             QualType PromotionType) {
+                                            QualType PromotionType) {
   E = E->IgnoreParens();
   if (const auto *BO = dyn_cast<BinaryOperator>(E)) {
     switch (BO->getOpcode()) {
@@ -2592,8 +2593,8 @@ mlir::Value ScalarExprEmitter::VisitAbstractConditionalOperator(
 }
 
 mlir::Value CIRGenFunction::emitScalarPrePostIncDec(const UnaryOperator *E,
-                                                     LValue LV, bool isInc,
-                                                     bool isPre) {
+                                                    LValue LV, bool isInc,
+                                                    bool isPre) {
   return ScalarExprEmitter(*this, builder)
       .emitScalarPrePostIncDec(E, LV, isInc, isPre);
 }

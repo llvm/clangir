@@ -31,9 +31,9 @@ struct MemberCallInfo {
 } // namespace
 
 static RValue emitNewDeleteCall(CIRGenFunction &CGF,
-                                 const FunctionDecl *CalleeDecl,
-                                 const FunctionProtoType *CalleeType,
-                                 const CallArgList &Args);
+                                const FunctionDecl *CalleeDecl,
+                                const FunctionProtoType *CalleeType,
+                                const CallArgList &Args);
 
 static MemberCallInfo
 commonBuildCXXMemberOrOperatorCall(CIRGenFunction &CGF, const CXXMethodDecl *MD,
@@ -69,7 +69,7 @@ commonBuildCXXMemberOrOperatorCall(CIRGenFunction &CGF, const CXXMethodDecl *MD,
     // Special case: skip first argument of CXXOperatorCall (it is "this").
     unsigned ArgsToSkip = isa<CXXOperatorCallExpr>(CE) ? 1 : 0;
     CGF.emitCallArgs(Args, FPT, drop_begin(CE->arguments(), ArgsToSkip),
-                      CE->getDirectCallee());
+                     CE->getDirectCallee());
   } else {
     assert(
         FPT->getNumParams() == 0 &&
@@ -93,7 +93,7 @@ RValue CIRGenFunction::emitCXXMemberOrOperatorCall(
   assert((CE || currSrcLoc) && "expected source location");
   mlir::Location loc = CE ? getLoc(CE->getExprLoc()) : *currSrcLoc;
   return emitCall(FnInfo, Callee, ReturnValue, Args, nullptr,
-                   CE && CE == MustTailCall, loc, CE);
+                  CE && CE == MustTailCall, loc, CE);
 }
 
 // TODO(cir): this can be shared with LLVM codegen
@@ -107,7 +107,7 @@ static CXXRecordDecl *getCXXRecord(const Expr *E) {
 
 RValue
 CIRGenFunction::emitCXXMemberPointerCallExpr(const CXXMemberCallExpr *E,
-                                              ReturnValueSlot ReturnValue) {
+                                             ReturnValueSlot ReturnValue) {
   const BinaryOperator *BO =
       cast<BinaryOperator>(E->getCallee()->IgnoreParens());
   const Expr *BaseExpr = BO->getLHS();
@@ -124,7 +124,7 @@ CIRGenFunction::emitCXXMemberPointerCallExpr(const CXXMemberCallExpr *E,
     This = emitLValue(BaseExpr).getAddress();
 
   emitTypeCheck(TCK_MemberCall, E->getExprLoc(), This.emitRawPointer(),
-                 QualType(MPT->getClass(), 0));
+                QualType(MPT->getClass(), 0));
 
   // Get the member function pointer.
   mlir::Value MemFnPtr = emitScalarExpr(MemFnExpr);
@@ -145,9 +145,9 @@ CIRGenFunction::emitCXXMemberPointerCallExpr(const CXXMemberCallExpr *E,
   // Build the call.
   CIRGenCallee Callee(FPT, CalleePtr.getDefiningOp());
   return emitCall(CGM.getTypes().arrangeCXXMethodCall(ArgsList, FPT, required,
-                                                       /*PrefixSize=*/0),
-                   Callee, ReturnValue, ArgsList, nullptr, E == MustTailCall,
-                   Loc);
+                                                      /*PrefixSize=*/0),
+                  Callee, ReturnValue, ArgsList, nullptr, E == MustTailCall,
+                  Loc);
 }
 
 RValue CIRGenFunction::emitCXXMemberOrOperatorMemberCallExpr(
@@ -210,8 +210,8 @@ RValue CIRGenFunction::emitCXXMemberOrOperatorMemberCallExpr(
       //  } else {
       RtlArgs = &RtlArgStorage;
       emitCallArgs(*RtlArgs, MD->getType()->castAs<FunctionProtoType>(),
-                    drop_begin(CE->arguments(), 1), CE->getDirectCallee(),
-                    /*ParamsToSkip*/ 0, EvaluationOrder::ForceRightToLeft);
+                   drop_begin(CE->arguments(), 1), CE->getDirectCallee(),
+                   /*ParamsToSkip*/ 0, EvaluationOrder::ForceRightToLeft);
     }
   }
 
@@ -319,8 +319,8 @@ RValue CIRGenFunction::emitCXXMemberOrOperatorMemberCallExpr(
       // CIRGen does not pass CallOrInvoke here (different from OG LLVM codegen)
       // because in practice it always null even in OG.
       emitCXXDestructorCall(globalDecl, Callee, This.getPointer(), thisTy,
-                             /*ImplicitParam=*/nullptr,
-                             /*ImplicitParamTy=*/QualType(), CE);
+                            /*ImplicitParam=*/nullptr,
+                            /*ImplicitParamTy=*/QualType(), CE);
     }
     return RValue::get(nullptr);
   }
@@ -362,8 +362,8 @@ RValue CIRGenFunction::emitCXXMemberOrOperatorMemberCallExpr(
 
 RValue
 CIRGenFunction::emitCXXOperatorMemberCallExpr(const CXXOperatorCallExpr *E,
-                                               const CXXMethodDecl *MD,
-                                               ReturnValueSlot ReturnValue) {
+                                              const CXXMethodDecl *MD,
+                                              ReturnValueSlot ReturnValue) {
   assert(MD->isInstance() &&
          "Trying to emit a member call expr on a static method!");
   return emitCXXMemberOrOperatorMemberCallExpr(
@@ -372,8 +372,8 @@ CIRGenFunction::emitCXXOperatorMemberCallExpr(const CXXOperatorCallExpr *E,
 }
 
 static void emitNullBaseClassInitialization(CIRGenFunction &CGF,
-                                             Address DestPtr,
-                                             const CXXRecordDecl *Base) {
+                                            Address DestPtr,
+                                            const CXXRecordDecl *Base) {
   if (Base->isEmpty())
     return;
 
@@ -434,7 +434,7 @@ static void emitNullBaseClassInitialization(CIRGenFunction &CGF,
 }
 
 void CIRGenFunction::emitCXXConstructExpr(const CXXConstructExpr *E,
-                                           AggValueSlot Dest) {
+                                          AggValueSlot Dest) {
   assert(!Dest.isIgnored() && "Must have a destination!");
   const auto *CD = E->getConstructor();
 
@@ -447,12 +447,12 @@ void CIRGenFunction::emitCXXConstructExpr(const CXXConstructExpr *E,
     case CXXConstructionKind::Delegating:
     case CXXConstructionKind::Complete:
       emitNullInitialization(getLoc(E->getSourceRange()), Dest.getAddress(),
-                              E->getType());
+                             E->getType());
       break;
     case CXXConstructionKind::VirtualBase:
     case CXXConstructionKind::NonVirtualBase:
       emitNullBaseClassInitialization(*this, Dest.getAddress(),
-                                       CD->getParent());
+                                      CD->getParent());
       break;
     }
   }
@@ -481,7 +481,7 @@ void CIRGenFunction::emitCXXConstructExpr(const CXXConstructExpr *E,
 
   if (const ArrayType *arrayType = getContext().getAsArrayType(E->getType())) {
     emitCXXAggrConstructorCall(CD, arrayType, Dest.getAddress(), E,
-                                Dest.isSanitizerChecked());
+                               Dest.isSanitizerChecked());
   } else {
     clang::CXXCtorType Type = Ctor_Complete;
     bool ForVirtualBase = false;
@@ -549,11 +549,10 @@ static UsualDeleteParams getUsualDeleteParams(const FunctionDecl *FD) {
   return Params;
 }
 
-static mlir::Value emitCXXNewAllocSize(CIRGenFunction &CGF,
-                                        const CXXNewExpr *e,
-                                        unsigned minElements,
-                                        mlir::Value &numElements,
-                                        mlir::Value &sizeWithoutCookie) {
+static mlir::Value emitCXXNewAllocSize(CIRGenFunction &CGF, const CXXNewExpr *e,
+                                       unsigned minElements,
+                                       mlir::Value &numElements,
+                                       mlir::Value &sizeWithoutCookie) {
   QualType type = e->getAllocatedType();
 
   if (!e->isArray()) {
@@ -728,7 +727,7 @@ static void StoreAnyExprIntoOneUnit(CIRGenFunction &CGF, const Expr *Init,
   switch (CGF.getEvaluationKind(AllocType)) {
   case cir::TEK_Scalar:
     CGF.emitScalarInit(Init, CGF.getLoc(Init->getSourceRange()),
-                        CGF.makeAddrLValue(NewPtr, AllocType), false);
+                       CGF.makeAddrLValue(NewPtr, AllocType), false);
     return;
   case cir::TEK_Complex:
     llvm_unreachable("NYI");
@@ -747,9 +746,9 @@ static void StoreAnyExprIntoOneUnit(CIRGenFunction &CGF, const Expr *Init,
 }
 
 static void emitNewInitializer(CIRGenFunction &CGF, const CXXNewExpr *E,
-                                QualType ElementType, mlir::Type ElementTy,
-                                Address NewPtr, mlir::Value NumElements,
-                                mlir::Value AllocSizeWithoutCookie) {
+                               QualType ElementType, mlir::Type ElementTy,
+                               Address NewPtr, mlir::Value NumElements,
+                               mlir::Value AllocSizeWithoutCookie) {
   assert(!cir::MissingFeatures::generateDebugInfo());
   if (E->isArray()) {
     llvm_unreachable("NYI");
@@ -801,7 +800,7 @@ static bool EmitObjectDelete(CIRGenFunction &CGF, const CXXDeleteExpr *DE,
   //   of the object to be deleted and the static type shall have a virtual
   //   destructor or the behavior is undefined.
   CGF.emitTypeCheck(CIRGenFunction::TCK_MemberCall, DE->getExprLoc(),
-                     Ptr.getPointer(), ElementType);
+                    Ptr.getPointer(), ElementType);
 
   const FunctionDecl *OperatorDelete = DE->getOperatorDelete();
   assert(!OperatorDelete->isDestroyingOperatorDelete());
@@ -990,10 +989,10 @@ mlir::Value CIRGenFunction::emitCXXNewExpr(const CXXNewExpr *E) {
 
     // FIXME: Why do we not pass a CalleeDecl here?
     emitCallArgs(allocatorArgs, allocatorType, E->placement_arguments(),
-                  /*AC*/
-                  AbstractCallee(),
-                  /*ParamsToSkip*/
-                  ParamsToSkip);
+                 /*AC*/
+                 AbstractCallee(),
+                 /*ParamsToSkip*/
+                 ParamsToSkip);
     RValue RV =
         emitNewDeleteCall(*this, allocator, allocatorType, allocatorArgs);
 
@@ -1117,12 +1116,12 @@ mlir::Value CIRGenFunction::emitCXXNewExpr(const CXXNewExpr *E) {
   SanitizerSet SkippedChecks;
   SkippedChecks.set(SanitizerKind::Null, nullCheck);
   emitTypeCheck(CIRGenFunction::TCK_ConstructorCall,
-                 E->getAllocatedTypeSourceInfo()->getTypeLoc().getBeginLoc(),
-                 result.getPointer(), allocType, result.getAlignment(),
-                 SkippedChecks, numElements);
+                E->getAllocatedTypeSourceInfo()->getTypeLoc().getBeginLoc(),
+                result.getPointer(), allocType, result.getAlignment(),
+                SkippedChecks, numElements);
 
   emitNewInitializer(*this, E, allocType, elementTy, result, numElements,
-                      allocSizeWithoutCookie);
+                     allocSizeWithoutCookie);
   auto resultPtr = result.getPointer();
   if (E->isArray()) {
     llvm_unreachable("NYI");
@@ -1152,11 +1151,11 @@ mlir::Value CIRGenFunction::emitCXXNewExpr(const CXXNewExpr *E) {
 }
 
 RValue CIRGenFunction::emitCXXDestructorCall(GlobalDecl Dtor,
-                                              const CIRGenCallee &Callee,
-                                              mlir::Value This, QualType ThisTy,
-                                              mlir::Value ImplicitParam,
-                                              QualType ImplicitParamTy,
-                                              const CallExpr *CE) {
+                                             const CIRGenCallee &Callee,
+                                             mlir::Value This, QualType ThisTy,
+                                             mlir::Value ImplicitParam,
+                                             QualType ImplicitParamTy,
+                                             const CallExpr *CE) {
   const CXXMethodDecl *DtorDecl = cast<CXXMethodDecl>(Dtor.getDecl());
 
   assert(!ThisTy.isNull());
@@ -1174,24 +1173,24 @@ RValue CIRGenFunction::emitCXXDestructorCall(GlobalDecl Dtor,
                                      ImplicitParamTy, CE, Args, nullptr);
   assert((CE || Dtor.getDecl()) && "expected source location provider");
   return emitCall(CGM.getTypes().arrangeCXXStructorDeclaration(Dtor), Callee,
-                   ReturnValueSlot(), Args, nullptr, CE && CE == MustTailCall,
-                   CE ? getLoc(CE->getExprLoc())
-                      : getLoc(Dtor.getDecl()->getSourceRange()));
+                  ReturnValueSlot(), Args, nullptr, CE && CE == MustTailCall,
+                  CE ? getLoc(CE->getExprLoc())
+                     : getLoc(Dtor.getDecl()->getSourceRange()));
 }
 
 /// Emit a call to an operator new or operator delete function, as implicitly
 /// created by new-expressions and delete-expressions.
 static RValue emitNewDeleteCall(CIRGenFunction &CGF,
-                                 const FunctionDecl *CalleeDecl,
-                                 const FunctionProtoType *CalleeType,
-                                 const CallArgList &Args) {
+                                const FunctionDecl *CalleeDecl,
+                                const FunctionProtoType *CalleeType,
+                                const CallArgList &Args) {
   cir::CIRCallOpInterface CallOrTryCall;
   auto CalleePtr = CGF.CGM.GetAddrOfFunction(CalleeDecl);
   CIRGenCallee Callee =
       CIRGenCallee::forDirect(CalleePtr, GlobalDecl(CalleeDecl));
   RValue RV = CGF.emitCall(CGF.CGM.getTypes().arrangeFreeFunctionCall(
-                                Args, CalleeType, /*ChainCall=*/false),
-                            Callee, ReturnValueSlot(), Args, &CallOrTryCall);
+                               Args, CalleeType, /*ChainCall=*/false),
+                           Callee, ReturnValueSlot(), Args, &CallOrTryCall);
 
   /// C++1y [expr.new]p10:
   ///   [In a new-expression,] an implementation is allowed to omit a call
@@ -1203,8 +1202,8 @@ static RValue emitNewDeleteCall(CIRGenFunction &CGF,
 }
 
 RValue CIRGenFunction::emitBuiltinNewDeleteCall(const FunctionProtoType *type,
-                                                 const CallExpr *theCall,
-                                                 bool isDelete) {
+                                                const CallExpr *theCall,
+                                                bool isDelete) {
   CallArgList args;
   emitCallArgs(args, type, theCall->arguments());
   // Find the allocation or deallocation function that we're calling.
@@ -1220,9 +1219,9 @@ RValue CIRGenFunction::emitBuiltinNewDeleteCall(const FunctionProtoType *type,
 }
 
 void CIRGenFunction::emitDeleteCall(const FunctionDecl *DeleteFD,
-                                     mlir::Value Ptr, QualType DeleteTy,
-                                     mlir::Value NumElements,
-                                     CharUnits CookieSize) {
+                                    mlir::Value Ptr, QualType DeleteTy,
+                                    mlir::Value NumElements,
+                                    CharUnits CookieSize) {
   assert((!NumElements && CookieSize.isZero()) ||
          DeleteFD->getOverloadedOperator() == OO_Array_Delete);
 
@@ -1291,7 +1290,7 @@ void CIRGenFunction::emitDeleteCall(const FunctionDecl *DeleteFD,
 }
 
 static mlir::Value emitDynamicCastToNull(CIRGenFunction &CGF,
-                                          mlir::Location Loc, QualType DestTy) {
+                                         mlir::Location Loc, QualType DestTy) {
   mlir::Type DestCIRTy = CGF.ConvertType(DestTy);
   assert(mlir::isa<cir::PointerType>(DestCIRTy) &&
          "result of dynamic_cast should be a ptr");
@@ -1313,7 +1312,7 @@ static mlir::Value emitDynamicCastToNull(CIRGenFunction &CGF,
 }
 
 mlir::Value CIRGenFunction::emitDynamicCast(Address ThisAddr,
-                                             const CXXDynamicCastExpr *DCE) {
+                                            const CXXDynamicCastExpr *DCE) {
   auto loc = getLoc(DCE->getSourceRange());
 
   CGM.emitExplicitCastExprType(DCE, this);
@@ -1341,12 +1340,12 @@ mlir::Value CIRGenFunction::emitDynamicCast(Address ThisAddr,
 
   assert(srcRecordTy->isRecordType() && "source type must be a record type!");
   emitTypeCheck(TCK_DynamicOperation, DCE->getExprLoc(), ThisAddr.getPointer(),
-                 srcRecordTy);
+                srcRecordTy);
 
   if (DCE->isAlwaysNull())
     return emitDynamicCastToNull(*this, loc, destTy);
 
   auto destCirTy = mlir::cast<cir::PointerType>(ConvertType(destTy));
   return CGM.getCXXABI().emitDynamicCast(*this, loc, srcRecordTy, destRecordTy,
-                                          destCirTy, isRefCast, ThisAddr);
+                                         destCirTy, isRefCast, ThisAddr);
 }

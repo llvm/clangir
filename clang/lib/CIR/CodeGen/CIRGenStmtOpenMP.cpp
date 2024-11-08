@@ -82,8 +82,8 @@ CIRGenFunction::emitOMPParallelDirective(const OMPParallelDirective &S) {
         LexicalScope lexScope{*this, scopeLoc, builder.getInsertionBlock()};
         // Emit the body of the region.
         if (emitStmt(S.getCapturedStmt(OpenMPDirectiveKind::OMPD_parallel)
-                          ->getCapturedStmt(),
-                      /*useCurrentScope=*/true)
+                         ->getCapturedStmt(),
+                     /*useCurrentScope=*/true)
                 .failed())
           res = mlir::failure();
       });

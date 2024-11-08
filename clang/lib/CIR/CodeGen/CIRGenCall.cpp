@@ -288,7 +288,7 @@ CIRGenCallee CIRGenCallee::prepareConcreteCallee(CIRGenFunction &CGF) const {
 }
 
 void CIRGenFunction::emitAggregateStore(mlir::Value Val, Address Dest,
-                                         bool DestIsVolatile) {
+                                        bool DestIsVolatile) {
   // In LLVM codegen:
   // Function to store a first-class aggregate into memory. We prefer to
   // store the elements rather than the aggregate to be more friendly to
@@ -552,12 +552,12 @@ static cir::CIRCallOpInterface emitCallLikeOp(
 }
 
 RValue CIRGenFunction::emitCall(const CIRGenFunctionInfo &CallInfo,
-                                 const CIRGenCallee &Callee,
-                                 ReturnValueSlot ReturnValue,
-                                 const CallArgList &CallArgs,
-                                 cir::CIRCallOpInterface *callOrTryCall,
-                                 bool IsMustTail, mlir::Location loc,
-                                 std::optional<const clang::CallExpr *> E) {
+                                const CIRGenCallee &Callee,
+                                ReturnValueSlot ReturnValue,
+                                const CallArgList &CallArgs,
+                                cir::CIRCallOpInterface *callOrTryCall,
+                                bool IsMustTail, mlir::Location loc,
+                                std::optional<const clang::CallExpr *> E) {
   auto builder = CGM.getBuilder();
   // FIXME: We no longer need the types from CallArgs; lift up and simplify
 
@@ -922,8 +922,8 @@ RValue CIRGenFunction::emitCall(const CIRGenFunctionInfo &CallInfo,
 }
 
 mlir::Value CIRGenFunction::emitRuntimeCall(mlir::Location loc,
-                                             cir::FuncOp callee,
-                                             ArrayRef<mlir::Value> args) {
+                                            cir::FuncOp callee,
+                                            ArrayRef<mlir::Value> args) {
   // TODO(cir): set the calling convention to this runtime call.
   assert(!cir::MissingFeatures::setCallingConv());
 
@@ -938,7 +938,7 @@ mlir::Value CIRGenFunction::emitRuntimeCall(mlir::Location loc,
 }
 
 void CIRGenFunction::emitCallArg(CallArgList &args, const Expr *E,
-                                  QualType type) {
+                                 QualType type) {
   // TODO: Add the DisableDebugLocationUpdates helper
   assert(!dyn_cast<ObjCIndirectCopyRestoreExpr>(E) && "NYI");
 
@@ -1344,8 +1344,8 @@ static bool isInAllocaArgument(CIRGenCXXABI &ABI, QualType type) {
 }
 
 void CIRGenFunction::emitDelegateCallArg(CallArgList &args,
-                                          const VarDecl *param,
-                                          SourceLocation loc) {
+                                         const VarDecl *param,
+                                         SourceLocation loc) {
   // StartFunction converted the ABI-lowered parameter(s) into a local alloca.
   // We need to turn that into an r-value suitable for emitCall
   Address local = GetAddrOfLocalVar(param);
@@ -1554,14 +1554,14 @@ RValue CallArg::getRValue(CIRGenFunction &CGF, mlir::Location loc) const {
     return RV;
   LValue Copy = CGF.makeAddrLValue(CGF.CreateMemTemp(Ty, loc), Ty);
   CGF.emitAggregateCopy(Copy, LV, Ty, AggValueSlot::DoesNotOverlap,
-                         LV.isVolatile());
+                        LV.isVolatile());
   IsUsed = true;
   return RValue::getAggregate(Copy.getAddress());
 }
 
 void CIRGenFunction::emitNonNullArgCheck(RValue RV, QualType ArgType,
-                                          SourceLocation ArgLoc,
-                                          AbstractCallee AC, unsigned ParmNum) {
+                                         SourceLocation ArgLoc,
+                                         AbstractCallee AC, unsigned ParmNum) {
   if (!AC.getDecl() || !(SanOpts.has(SanitizerKind::NonnullAttribute) ||
                          SanOpts.has(SanitizerKind::NullabilityArg)))
     return;

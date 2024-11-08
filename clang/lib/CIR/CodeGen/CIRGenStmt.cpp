@@ -25,8 +25,8 @@ using namespace clang::CIRGen;
 using namespace cir;
 
 Address CIRGenFunction::emitCompoundStmtWithoutScope(const CompoundStmt &S,
-                                                      bool getLast,
-                                                      AggValueSlot slot) {
+                                                     bool getLast,
+                                                     AggValueSlot slot) {
   const Stmt *ExprResult = S.getStmtExprResult();
   assert((!getLast || (getLast && ExprResult)) &&
          "If getLast is true then the CompoundStmt must have a StmtExprResult");
@@ -54,7 +54,7 @@ Address CIRGenFunction::emitCompoundStmtWithoutScope(const CompoundStmt &S,
         // here into a temporary alloca.
         retAlloca = CreateMemTemp(exprTy, getLoc(E->getSourceRange()));
         emitAnyExprToMem(E, retAlloca, Qualifiers(),
-                          /*IsInit*/ false);
+                         /*IsInit*/ false);
       }
     } else {
       if (emitStmt(CurStmt, /*useCurrentScope=*/false).failed())
@@ -66,7 +66,7 @@ Address CIRGenFunction::emitCompoundStmtWithoutScope(const CompoundStmt &S,
 }
 
 Address CIRGenFunction::emitCompoundStmt(const CompoundStmt &S, bool getLast,
-                                          AggValueSlot slot) {
+                                         AggValueSlot slot) {
   Address retAlloca = Address::invalid();
 
   // Add local scope to track new declared variables.
@@ -89,8 +89,8 @@ void CIRGenFunction::emitStopPoint(const Stmt *S) {
 // Build CIR for a statement. useCurrentScope should be true if no
 // new scopes need be created when finding a compound statement.
 mlir::LogicalResult CIRGenFunction::emitStmt(const Stmt *S,
-                                              bool useCurrentScope,
-                                              ArrayRef<const Attr *> Attrs) {
+                                             bool useCurrentScope,
+                                             ArrayRef<const Attr *> Attrs) {
   if (mlir::succeeded(emitSimpleStmt(S, useCurrentScope)))
     return mlir::success();
 
@@ -282,7 +282,7 @@ mlir::LogicalResult CIRGenFunction::emitStmt(const Stmt *S,
 }
 
 mlir::LogicalResult CIRGenFunction::emitSimpleStmt(const Stmt *S,
-                                                    bool useCurrentScope) {
+                                                   bool useCurrentScope) {
   switch (S->getStmtClass()) {
   default:
     return mlir::failure();
@@ -308,7 +308,7 @@ mlir::LogicalResult CIRGenFunction::emitSimpleStmt(const Stmt *S,
   case Stmt::DefaultStmtClass:
     // If we reached here, we must not handling a switch case in the top level.
     return emitSwitchCase(cast<SwitchCase>(*S),
-                           /*buildingTopLevelCase=*/false);
+                          /*buildingTopLevelCase=*/false);
     break;
 
   case Stmt::BreakStmtClass:
@@ -510,8 +510,8 @@ mlir::LogicalResult CIRGenFunction::emitReturnStmt(const ReturnStmt &S) {
         break;
       case cir::TEK_Complex:
         emitComplexExprIntoLValue(RV,
-                                   makeAddrLValue(ReturnValue, RV->getType()),
-                                   /*isInit*/ true);
+                                  makeAddrLValue(ReturnValue, RV->getType()),
+                                  /*isInit*/ true);
         break;
       case cir::TEK_Aggregate:
         emitAggExpr(
@@ -668,8 +668,8 @@ const CaseStmt *CIRGenFunction::foldCaseStmt(const clang::CaseStmt &S,
 template <typename T>
 mlir::LogicalResult
 CIRGenFunction::emitCaseDefaultCascade(const T *stmt, mlir::Type condType,
-                                        mlir::ArrayAttr value, CaseOpKind kind,
-                                        bool buildingTopLevelCase) {
+                                       mlir::ArrayAttr value, CaseOpKind kind,
+                                       bool buildingTopLevelCase) {
 
   assert((isa<CaseStmt, DefaultStmt>(stmt)) &&
          "only case or default stmt go here");
@@ -734,11 +734,10 @@ CIRGenFunction::emitCaseDefaultCascade(const T *stmt, mlir::Type condType,
   // We don't need to revert this if we find the current switch can't be in
   // simple form later since the conversion itself should be harmless.
   if (subStmtKind == SubStmtKind::Case)
-    result =
-        emitCaseStmt(*cast<CaseStmt>(sub), condType, buildingTopLevelCase);
+    result = emitCaseStmt(*cast<CaseStmt>(sub), condType, buildingTopLevelCase);
   else if (subStmtKind == SubStmtKind::Default)
     result = emitDefaultStmt(*cast<DefaultStmt>(sub), condType,
-                              buildingTopLevelCase);
+                             buildingTopLevelCase);
   else if (buildingTopLevelCase)
     // If we're building a top level case, try to restore the insert point to
     // the case we're building, then we can attach more random stmts to the
@@ -749,42 +748,41 @@ CIRGenFunction::emitCaseDefaultCascade(const T *stmt, mlir::Type condType,
 }
 
 mlir::LogicalResult CIRGenFunction::emitCaseStmt(const CaseStmt &S,
-                                                  mlir::Type condType,
-                                                  bool buildingTopLevelCase) {
+                                                 mlir::Type condType,
+                                                 bool buildingTopLevelCase) {
   mlir::ArrayAttr value;
   CaseOpKind kind;
   auto *caseStmt = foldCaseStmt(S, condType, value, kind);
   return emitCaseDefaultCascade(caseStmt, condType, value, kind,
-                                 buildingTopLevelCase);
+                                buildingTopLevelCase);
 }
 
-mlir::LogicalResult
-CIRGenFunction::emitDefaultStmt(const DefaultStmt &S, mlir::Type condType,
-                                 bool buildingTopLevelCase) {
+mlir::LogicalResult CIRGenFunction::emitDefaultStmt(const DefaultStmt &S,
+                                                    mlir::Type condType,
+                                                    bool buildingTopLevelCase) {
   return emitCaseDefaultCascade(&S, condType, builder.getArrayAttr({}),
-                                 cir::CaseOpKind::Default,
-                                 buildingTopLevelCase);
+                                cir::CaseOpKind::Default, buildingTopLevelCase);
 }
 
 mlir::LogicalResult CIRGenFunction::emitSwitchCase(const SwitchCase &S,
-                                                    bool buildingTopLevelCase) {
+                                                   bool buildingTopLevelCase) {
   assert(!condTypeStack.empty() &&
          "build switch case without specifying the type of the condition");
 
   if (S.getStmtClass() == Stmt::CaseStmtClass)
     return emitCaseStmt(cast<CaseStmt>(S), condTypeStack.back(),
-                         buildingTopLevelCase);
+                        buildingTopLevelCase);
 
   if (S.getStmtClass() == Stmt::DefaultStmtClass)
     return emitDefaultStmt(cast<DefaultStmt>(S), condTypeStack.back(),
-                            buildingTopLevelCase);
+                           buildingTopLevelCase);
 
   llvm_unreachable("expect case or default stmt");
 }
 
 mlir::LogicalResult
 CIRGenFunction::emitCXXForRangeStmt(const CXXForRangeStmt &S,
-                                     ArrayRef<const Attr *> ForAttrs) {
+                                    ArrayRef<const Attr *> ForAttrs) {
   cir::ForOp forOp;
 
   // TODO(cir): pass in array of attributes.
@@ -1136,7 +1134,7 @@ mlir::LogicalResult CIRGenFunction::emitSwitchStmt(const SwitchStmt &S) {
 }
 
 void CIRGenFunction::emitReturnOfRValue(mlir::Location loc, RValue RV,
-                                         QualType Ty) {
+                                        QualType Ty) {
   if (RV.isScalar()) {
     builder.createStore(loc, RV.getScalarVal(), ReturnValue);
   } else if (RV.isAggregate()) {

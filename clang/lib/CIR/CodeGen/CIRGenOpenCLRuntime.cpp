@@ -23,6 +23,6 @@ using namespace clang::CIRGen;
 CIRGenOpenCLRuntime::~CIRGenOpenCLRuntime() {}
 
 void CIRGenOpenCLRuntime::emitWorkGroupLocalVarDecl(CIRGenFunction &CGF,
-                                                     const VarDecl &D) {
+                                                    const VarDecl &D) {
   return CGF.emitStaticVarDecl(D, cir::GlobalLinkageKind::InternalLinkage);
 }

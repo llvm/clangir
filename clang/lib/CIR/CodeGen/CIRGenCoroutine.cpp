@@ -124,7 +124,7 @@ struct ParamReferenceReplacerRAII {
 
 // Emit coroutine intrinsic and patch up arguments of the token type.
 RValue CIRGenFunction::emitCoroutineIntrinsic(const CallExpr *E,
-                                               unsigned int IID) {
+                                              unsigned int IID) {
   llvm_unreachable("NYI");
 }
 
@@ -137,8 +137,8 @@ RValue CIRGenFunction::emitCoroutineFrame() {
 
 static mlir::LogicalResult
 emitBodyAndFallthrough(CIRGenFunction &CGF, const CoroutineBodyStmt &S,
-                        Stmt *Body,
-                        const CIRGenFunction::LexicalScope *currLexScope) {
+                       Stmt *Body,
+                       const CIRGenFunction::LexicalScope *currLexScope) {
   if (CGF.emitStmt(Body, /*useCurrentScope=*/true).failed())
     return mlir::failure();
   // Note that LLVM checks CanFallthrough by looking into the availability
@@ -159,7 +159,7 @@ emitBodyAndFallthrough(CIRGenFunction &CGF, const CoroutineBodyStmt &S,
 }
 
 cir::CallOp CIRGenFunction::emitCoroIDBuiltinCall(mlir::Location loc,
-                                                   mlir::Value nullPtr) {
+                                                  mlir::Value nullPtr) {
   auto int32Ty = builder.getUInt32Ty();
 
   auto &TI = CGM.getASTContext().getTargetInfo();
@@ -205,7 +205,7 @@ cir::CallOp CIRGenFunction::emitCoroAllocBuiltinCall(mlir::Location loc) {
 
 cir::CallOp
 CIRGenFunction::emitCoroBeginBuiltinCall(mlir::Location loc,
-                                          mlir::Value coroframeAddr) {
+                                         mlir::Value coroframeAddr) {
   auto int32Ty = builder.getUInt32Ty();
   mlir::Operation *builtin = CGM.getGlobalValue(CGM.builtinCoroBegin);
 
@@ -226,7 +226,7 @@ CIRGenFunction::emitCoroBeginBuiltinCall(mlir::Location loc,
 }
 
 cir::CallOp CIRGenFunction::emitCoroEndBuiltinCall(mlir::Location loc,
-                                                    mlir::Value nullPtr) {
+                                                   mlir::Value nullPtr) {
   auto boolTy = builder.getBoolTy();
   mlir::Operation *builtin = CGM.getGlobalValue(CGM.builtinCoroEnd);
 
@@ -332,8 +332,8 @@ CIRGenFunction::emitCoroutineBody(const CoroutineBodyStmt &S) {
     // of initial_suspend.
     if (ReturnValue.isValid()) {
       emitAnyExprToMem(S.getReturnValue(), ReturnValue,
-                        S.getReturnValue()->getType().getQualifiers(),
-                        /*IsInit*/ true);
+                       S.getReturnValue()->getType().getQualifiers(),
+                       /*IsInit*/ true);
     }
 
     // FIXME(cir): EHStack.pushCleanup<CallCoroEnd>(EHCleanup);
@@ -407,10 +407,10 @@ struct LValueOrRValue {
 } // namespace
 static LValueOrRValue
 emitSuspendExpression(CIRGenFunction &CGF, CGCoroData &Coro,
-                       CoroutineSuspendExpr const &S, cir::AwaitKind Kind,
-                       AggValueSlot aggSlot, bool ignoreResult,
-                       mlir::Block *scopeParentBlock,
-                       mlir::Value &tmpResumeRValAddr, bool forLValue) {
+                      CoroutineSuspendExpr const &S, cir::AwaitKind Kind,
+                      AggValueSlot aggSlot, bool ignoreResult,
+                      mlir::Block *scopeParentBlock,
+                      mlir::Value &tmpResumeRValAddr, bool forLValue) {
   auto *E = S.getCommonExpr();
 
   auto awaitBuild = mlir::success();
@@ -491,9 +491,9 @@ emitSuspendExpression(CIRGenFunction &CGF, CGCoroData &Coro,
 }
 
 static RValue emitSuspendExpr(CIRGenFunction &CGF,
-                               const CoroutineSuspendExpr &E,
-                               cir::AwaitKind kind, AggValueSlot aggSlot,
-                               bool ignoreResult) {
+                              const CoroutineSuspendExpr &E,
+                              cir::AwaitKind kind, AggValueSlot aggSlot,
+                              bool ignoreResult) {
   RValue rval;
   auto scopeLoc = CGF.getLoc(E.getSourceRange());
 
@@ -509,8 +509,8 @@ static RValue emitSuspendExpr(CIRGenFunction &CGF,
   // No need to explicitly wrap this into a scope since the AST already uses a
   // ExprWithCleanups, which will wrap this into a cir.scope anyways.
   rval = emitSuspendExpression(CGF, *CGF.CurCoro.Data, E, kind, aggSlot,
-                                ignoreResult, currEntryBlock, tmpResumeRValAddr,
-                                /*forLValue*/ false)
+                               ignoreResult, currEntryBlock, tmpResumeRValAddr,
+                               /*forLValue*/ false)
              .RV;
 
   if (ignoreResult || rval.isIgnored())
@@ -530,17 +530,17 @@ static RValue emitSuspendExpr(CIRGenFunction &CGF,
 }
 
 RValue CIRGenFunction::emitCoawaitExpr(const CoawaitExpr &E,
-                                        AggValueSlot aggSlot,
-                                        bool ignoreResult) {
+                                       AggValueSlot aggSlot,
+                                       bool ignoreResult) {
   return emitSuspendExpr(*this, E, CurCoro.Data->CurrentAwaitKind, aggSlot,
-                          ignoreResult);
+                         ignoreResult);
 }
 
 RValue CIRGenFunction::emitCoyieldExpr(const CoyieldExpr &E,
-                                        AggValueSlot aggSlot,
-                                        bool ignoreResult) {
+                                       AggValueSlot aggSlot,
+                                       bool ignoreResult) {
   return emitSuspendExpr(*this, E, cir::AwaitKind::yield, aggSlot,
-                          ignoreResult);
+                         ignoreResult);
 }
 
 mlir::LogicalResult CIRGenFunction::emitCoreturnStmt(CoreturnStmt const &S) {

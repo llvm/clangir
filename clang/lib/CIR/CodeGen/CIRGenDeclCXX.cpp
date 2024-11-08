@@ -32,8 +32,8 @@ void CIRGenModule::emitCXXGlobalInitFunc() {
 }
 
 void CIRGenModule::emitCXXGlobalVarDeclInitFunc(const VarDecl *D,
-                                                 cir::GlobalOp Addr,
-                                                 bool PerformInit) {
+                                                cir::GlobalOp Addr,
+                                                bool PerformInit) {
   // According to E.2.3.1 in CUDA-7.5 Programming guide: __device__,
   // __constant__ and __shared__ variables defined in namespace scope,
   // that are of class type, cannot have a non-empty constructor. All

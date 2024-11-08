@@ -145,13 +145,13 @@ public:
   /// Perform the final copy to DestPtr, if desired. SrcIsRValue is true if
   /// source comes from an RValue.
   void emitFinalDestCopy(QualType type, const LValue &src,
-                          ExprValueKind SrcValueKind = EVK_NonRValue);
+                         ExprValueKind SrcValueKind = EVK_NonRValue);
   void emitCopy(QualType type, const AggValueSlot &dest,
-                 const AggValueSlot &src);
+                const AggValueSlot &src);
 
   void emitArrayInit(Address DestPtr, cir::ArrayType AType, QualType ArrayQTy,
-                      Expr *ExprToVisit, ArrayRef<Expr *> Args,
-                      Expr *ArrayFiller);
+                     Expr *ExprToVisit, ArrayRef<Expr *> Args,
+                     Expr *ArrayFiller);
 
   AggValueSlot::NeedsGCBarriers_t needsGC(QualType T) {
     if (CGF.getLangOpts().getGC() && TypeRequiresGCollection(T))
@@ -401,7 +401,7 @@ void AggExprEmitter::emitFinalDestCopy(QualType type, RValue src) {
 
 /// Perform the final copy to DestPtr, if desired.
 void AggExprEmitter::emitFinalDestCopy(QualType type, const LValue &src,
-                                        ExprValueKind SrcValueKind) {
+                                       ExprValueKind SrcValueKind) {
   // If Dest is ignored, then we're evaluating an aggregate expression
   // in a context that doesn't care about the result.  Note that loads
   // from volatile l-values force the existence of a non-ignored
@@ -433,7 +433,7 @@ void AggExprEmitter::emitFinalDestCopy(QualType type, const LValue &src,
 /// \param type - the type of the aggregate being copied; qualifiers are
 ///   ignored
 void AggExprEmitter::emitCopy(QualType type, const AggValueSlot &dest,
-                               const AggValueSlot &src) {
+                              const AggValueSlot &src) {
   if (dest.requiresGCollection())
     llvm_unreachable("garbage collection is NYI");
 
@@ -443,7 +443,7 @@ void AggExprEmitter::emitCopy(QualType type, const AggValueSlot &dest,
   LValue DestLV = CGF.makeAddrLValue(dest.getAddress(), type);
   LValue SrcLV = CGF.makeAddrLValue(src.getAddress(), type);
   CGF.emitAggregateCopy(DestLV, SrcLV, type, dest.mayOverlap(),
-                         dest.isVolatile() || src.isVolatile());
+                        dest.isVolatile() || src.isVolatile());
 }
 
 // FIXME(cir): This function could be shared with traditional LLVM codegen
@@ -471,8 +471,8 @@ static bool isTrivialFiller(Expr *E) {
 }
 
 void AggExprEmitter::emitArrayInit(Address DestPtr, cir::ArrayType AType,
-                                    QualType ArrayQTy, Expr *ExprToVisit,
-                                    ArrayRef<Expr *> Args, Expr *ArrayFiller) {
+                                   QualType ArrayQTy, Expr *ExprToVisit,
+                                   ArrayRef<Expr *> Args, Expr *ArrayFiller) {
   uint64_t NumInitElements = Args.size();
 
   uint64_t NumArrayElements = AType.getSize();
@@ -778,7 +778,7 @@ static bool isSimpleZero(const Expr *E, CIRGenFunction &CGF) {
 }
 
 void AggExprEmitter::emitNullInitializationToLValue(mlir::Location loc,
-                                                     LValue lv) {
+                                                    LValue lv) {
   QualType type = lv.getType();
 
   // If the destination slot is already zeroed out before the aggregate is
@@ -959,7 +959,7 @@ void AggExprEmitter::VisitCastExpr(CastExpr *E) {
   case CK_LValueToRValueBitCast: {
     if (Dest.isIgnored()) {
       CGF.emitAnyExpr(E->getSubExpr(), AggValueSlot::ignored(),
-                       /*ignoreResult=*/true);
+                      /*ignoreResult=*/true);
       break;
     }
 
@@ -985,7 +985,7 @@ void AggExprEmitter::VisitCastExpr(CastExpr *E) {
     // Evaluate even if the destination is ignored.
     if (Dest.isIgnored()) {
       CGF.emitAnyExpr(E->getSubExpr(), AggValueSlot::ignored(),
-                       /*ignoreResult=*/true);
+                      /*ignoreResult=*/true);
       break;
     }
 
@@ -993,7 +993,7 @@ void AggExprEmitter::VisitCastExpr(CastExpr *E) {
     QualType Ty = E->getSubExpr()->getType();
     Address CastPtr = Dest.getAddress().withElementType(CGF.ConvertType(Ty));
     emitInitializationToLValue(E->getSubExpr(),
-                                CGF.makeAddrLValue(CastPtr, Ty));
+                               CGF.makeAddrLValue(CastPtr, Ty));
     break;
   }
 
@@ -1196,8 +1196,8 @@ void AggExprEmitter::VisitBinCmp(const BinaryOperator *E) {
   // Emit the address of the first (and only) field in the comparison category
   // type, and initialize it from the constant integer value produced above.
   const FieldDecl *ResultField = *CmpInfo.Record->field_begin();
-  LValue FieldLV = CGF.emitLValueForFieldInitialization(
-      DestLV, ResultField, ResultField->getName());
+  LValue FieldLV = CGF.emitLValueForFieldInitialization(DestLV, ResultField,
+                                                        ResultField->getName());
   CGF.emitStoreThroughLValue(RValue::get(ResultScalar), FieldLV);
 
   // All done! The result is in the Dest slot.
@@ -1249,8 +1249,8 @@ void AggExprEmitter::VisitCXXParenListOrInitListExpr(
   // Handle initialization of an array.
   if (ExprToVisit->getType()->isConstantArrayType()) {
     auto AType = cast<cir::ArrayType>(Dest.getAddress().getElementType());
-    emitArrayInit(Dest.getAddress(), AType, ExprToVisit->getType(),
-                   ExprToVisit, InitExprs, ArrayFiller);
+    emitArrayInit(Dest.getAddress(), AType, ExprToVisit->getType(), ExprToVisit,
+                  InitExprs, ArrayFiller);
     return;
   } else if (ExprToVisit->getType()->isVariableArrayType()) {
     llvm_unreachable("variable arrays NYI");
@@ -1318,7 +1318,7 @@ void AggExprEmitter::VisitCXXParenListOrInitListExpr(
     } else {
       // Default-initialize to null.
       emitNullInitializationToLValue(CGF.getLoc(ExprToVisit->getSourceRange()),
-                                      FieldLoc);
+                                     FieldLoc);
     }
 
     return;
@@ -1354,7 +1354,7 @@ void AggExprEmitter::VisitCXXParenListOrInitListExpr(
     } else {
       // We're out of initializers; default-initialize to null
       emitNullInitializationToLValue(CGF.getLoc(ExprToVisit->getSourceRange()),
-                                      LV);
+                                     LV);
     }
 
     // Push a destructor if necessary.
@@ -1454,17 +1454,16 @@ void AggExprEmitter::VisitBinComma(const BinaryOperator *E) {
 void AggExprEmitter::VisitCXXInheritedCtorInitExpr(
     const CXXInheritedCtorInitExpr *E) {
   AggValueSlot Slot = EnsureSlot(CGF.getLoc(E->getSourceRange()), E->getType());
-  CGF.emitInheritedCXXConstructorCall(E->getConstructor(),
-                                       E->constructsVBase(), Slot.getAddress(),
-                                       E->inheritedFromVBase(), E);
+  CGF.emitInheritedCXXConstructorCall(E->getConstructor(), E->constructsVBase(),
+                                      Slot.getAddress(),
+                                      E->inheritedFromVBase(), E);
 }
 
 void AggExprEmitter::VisitImplicitValueInitExpr(ImplicitValueInitExpr *E) {
   QualType T = E->getType();
   mlir::Location loc = CGF.getLoc(E->getSourceRange());
   AggValueSlot Slot = EnsureSlot(loc, T);
-  emitNullInitializationToLValue(loc,
-                                  CGF.makeAddrLValue(Slot.getAddress(), T));
+  emitNullInitializationToLValue(loc, CGF.makeAddrLValue(Slot.getAddress(), T));
 }
 
 //===----------------------------------------------------------------------===//
@@ -1612,8 +1611,8 @@ void CIRGenFunction::emitAggExpr(const Expr *E, AggValueSlot Slot) {
 }
 
 void CIRGenFunction::emitAggregateCopy(LValue Dest, LValue Src, QualType Ty,
-                                        AggValueSlot::Overlap_t MayOverlap,
-                                        bool isVolatile) {
+                                       AggValueSlot::Overlap_t MayOverlap,
+                                       bool isVolatile) {
   // TODO(cir): this function needs improvements, commented code for now since
   // this will be touched again soon.
   assert(!Ty->isAnyComplexType() && "Shouldn't happen for complex");
@@ -1742,8 +1741,8 @@ LValue CIRGenFunction::emitAggExprToLValue(const Expr *E) {
   Address Temp = CreateMemTemp(E->getType(), getLoc(E->getSourceRange()));
   LValue LV = makeAddrLValue(Temp, E->getType());
   emitAggExpr(E, AggValueSlot::forLValue(LV, AggValueSlot::IsNotDestructed,
-                                          AggValueSlot::DoesNotNeedGCBarriers,
-                                          AggValueSlot::IsNotAliased,
-                                          AggValueSlot::DoesNotOverlap));
+                                         AggValueSlot::DoesNotNeedGCBarriers,
+                                         AggValueSlot::IsNotAliased,
+                                         AggValueSlot::DoesNotOverlap));
   return LV;
 }

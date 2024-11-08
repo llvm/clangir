@@ -248,7 +248,7 @@ void CIRGenFunction::emitAnyExprToExn(const Expr *e, Address addr) {
   // to handle that is to teach EmitAggExpr to do the final copy
   // differently if it can't be elided.
   emitAnyExprToMem(e, typedAddr, e->getType().getQualifiers(),
-                    /*IsInit*/ true);
+                   /*IsInit*/ true);
 
   // Deactivate the cleanup block.
   auto op = typedAddr.getPointer().getDefiningOp();
@@ -258,8 +258,8 @@ void CIRGenFunction::emitAnyExprToExn(const Expr *e, Address addr) {
 }
 
 void CIRGenFunction::emitEHResumeBlock(bool isCleanup,
-                                        mlir::Block *ehResumeBlock,
-                                        mlir::Location loc) {
+                                       mlir::Block *ehResumeBlock,
+                                       mlir::Location loc) {
   auto ip = getBuilder().saveInsertionPoint();
   getBuilder().setInsertionPointToStart(ehResumeBlock);
 
@@ -403,8 +403,7 @@ CIRGenFunction::emitCXXTryStmtUnderScope(const CXXTryStmt &S) {
 /// Emit the structure of the dispatch block for the given catch scope.
 /// It is an invariant that the dispatch block already exists.
 static void emitCatchDispatchBlock(CIRGenFunction &CGF,
-                                    EHCatchScope &catchScope,
-                                    cir::TryOp tryOp) {
+                                   EHCatchScope &catchScope, cir::TryOp tryOp) {
   if (EHPersonality::get(CGF).isWasmPersonality())
     llvm_unreachable("NYI");
   if (EHPersonality::get(CGF).usesFuncletPads())

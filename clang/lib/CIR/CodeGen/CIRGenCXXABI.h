@@ -96,7 +96,7 @@ public:
 
   /// Emit the ABI-specific prolog for the function
   virtual void emitInstanceFunctionProlog(SourceLocation Loc,
-                                           CIRGenFunction &CGF) = 0;
+                                          CIRGenFunction &CGF) = 0;
 
   /// Get the type of the implicit "this" parameter used by a method. May return
   /// zero if no specific type is applicable, e.g. if the ABI expects the "this"
@@ -168,10 +168,9 @@ public:
 
   /// Emit the destructor call.
   virtual void emitDestructorCall(CIRGenFunction &CGF,
-                                   const CXXDestructorDecl *DD,
-                                   CXXDtorType Type, bool ForVirtualBase,
-                                   bool Delegating, Address This,
-                                   QualType ThisTy) = 0;
+                                  const CXXDestructorDecl *DD, CXXDtorType Type,
+                                  bool ForVirtualBase, bool Delegating,
+                                  Address This, QualType ThisTy) = 0;
 
   /// Emit code to force the execution of a destructor during global
   /// teardown.  The default implementation of this uses atexit.
@@ -341,10 +340,10 @@ public:
                             const CXXRecordDecl *BaseClassDecl) = 0;
 
   virtual mlir::Value emitDynamicCast(CIRGenFunction &CGF, mlir::Location Loc,
-                                       QualType SrcRecordTy,
-                                       QualType DestRecordTy,
-                                       cir::PointerType DestCIRTy,
-                                       bool isRefCast, Address Src) = 0;
+                                      QualType SrcRecordTy,
+                                      QualType DestRecordTy,
+                                      cir::PointerType DestCIRTy,
+                                      bool isRefCast, Address Src) = 0;
 
   virtual cir::MethodAttr buildVirtualMethodAttr(cir::MethodType MethodTy,
                                                  const CXXMethodDecl *MD) = 0;

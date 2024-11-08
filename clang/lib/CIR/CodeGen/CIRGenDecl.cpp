@@ -34,7 +34,7 @@ using namespace clang::CIRGen;
 
 CIRGenFunction::AutoVarEmission
 CIRGenFunction::emitAutoVarAlloca(const VarDecl &D,
-                                   mlir::OpBuilder::InsertPoint ip) {
+                                  mlir::OpBuilder::InsertPoint ip) {
   QualType Ty = D.getType();
   assert(
       Ty.getAddressSpace() == LangAS::Default ||
@@ -619,7 +619,7 @@ cir::GlobalOp CIRGenFunction::addInitializerToStaticVarDecl(
 }
 
 void CIRGenFunction::emitStaticVarDecl(const VarDecl &D,
-                                        cir::GlobalLinkageKind Linkage) {
+                                       cir::GlobalLinkageKind Linkage) {
   // Check to see if we already have a global variable for this
   // declaration.  This can happen when double-emitting function
   // bodies, e.g. with complete and base constructors.
@@ -702,7 +702,7 @@ void CIRGenFunction::emitStaticVarDecl(const VarDecl &D,
 }
 
 void CIRGenFunction::emitNullabilityCheck(LValue LHS, mlir::Value RHS,
-                                           SourceLocation Loc) {
+                                          SourceLocation Loc) {
   if (!SanOpts.has(SanitizerKind::NullabilityAssign))
     return;
 
@@ -710,7 +710,7 @@ void CIRGenFunction::emitNullabilityCheck(LValue LHS, mlir::Value RHS,
 }
 
 void CIRGenFunction::emitScalarInit(const Expr *init, mlir::Location loc,
-                                     LValue lvalue, bool capturedByInit) {
+                                    LValue lvalue, bool capturedByInit) {
   Qualifiers::ObjCLifetime lifetime = Qualifiers::ObjCLifetime::OCL_None;
   assert(!cir::MissingFeatures::objCLifetime());
 
@@ -728,7 +728,7 @@ void CIRGenFunction::emitScalarInit(const Expr *init, mlir::Location loc,
 }
 
 void CIRGenFunction::emitExprAsInit(const Expr *init, const ValueDecl *D,
-                                     LValue lvalue, bool capturedByInit) {
+                                    LValue lvalue, bool capturedByInit) {
   SourceLocRAIIObject Loc{*this, getLoc(init->getSourceRange())};
   if (capturedByInit)
     llvm_unreachable("NYI");
@@ -751,7 +751,7 @@ void CIRGenFunction::emitExprAsInit(const Expr *init, const ValueDecl *D,
     if (capturedByInit)
       llvm_unreachable("NYI");
     emitStoreOfComplex(getLoc(init->getExprLoc()), complex, lvalue,
-                        /*init*/ true);
+                       /*init*/ true);
     return;
   }
   case cir::TEK_Aggregate:
@@ -765,9 +765,9 @@ void CIRGenFunction::emitExprAsInit(const Expr *init, const ValueDecl *D,
       assert(false && "Only VarDecl implemented so far");
     // TODO: how can we delay here if D is captured by its initializer?
     emitAggExpr(init,
-                 AggValueSlot::forLValue(lvalue, AggValueSlot::IsDestructed,
-                                         AggValueSlot::DoesNotNeedGCBarriers,
-                                         AggValueSlot::IsNotAliased, Overlap));
+                AggValueSlot::forLValue(lvalue, AggValueSlot::IsDestructed,
+                                        AggValueSlot::DoesNotNeedGCBarriers,
+                                        AggValueSlot::IsNotAliased, Overlap));
     return;
   }
   llvm_unreachable("bad evaluation kind");
@@ -1096,11 +1096,10 @@ void CIRGenFunction::pushRegularPartialArrayCleanup(mlir::Value arrayBegin,
 ///   the remaining elements in case the destruction of a single
 ///   element throws
 void CIRGenFunction::emitArrayDestroy(mlir::Value begin, mlir::Value end,
-                                       QualType elementType,
-                                       CharUnits elementAlign,
-                                       Destroyer *destroyer,
-                                       bool checkZeroLength,
-                                       bool useEHCleanup) {
+                                      QualType elementType,
+                                      CharUnits elementAlign,
+                                      Destroyer *destroyer,
+                                      bool checkZeroLength, bool useEHCleanup) {
   assert(!elementType->isArrayType());
   if (checkZeroLength) {
     llvm_unreachable("NYI");
@@ -1171,7 +1170,7 @@ void CIRGenFunction::emitDestroy(Address addr, QualType type,
   auto begin = addr.getPointer();
   mlir::Value end; // Use this for future non-constant counts.
   emitArrayDestroy(begin, end, type, elementAlign, destroyer, checkZeroLength,
-                    useEHCleanupForArray);
+                   useEHCleanupForArray);
   if (constantCount.use_empty())
     constantCount.erase();
 }

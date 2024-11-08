@@ -177,7 +177,7 @@ bool CIRGenModule::tryEmitBaseDestructorAsAlias(const CXXDestructorDecl *D) {
 }
 
 static void emitDeclInit(CIRGenFunction &CGF, const VarDecl *D,
-                          Address DeclPtr) {
+                         Address DeclPtr) {
   assert((D->hasGlobalStorage() ||
           (D->hasLocalStorage() &&
            CGF.getContext().getLangOpts().OpenCLCPlusPlus)) &&
@@ -191,11 +191,11 @@ static void emitDeclInit(CIRGenFunction &CGF, const VarDecl *D,
   const Expr *Init = D->getInit();
   switch (CIRGenFunction::getEvaluationKind(type)) {
   case cir::TEK_Aggregate:
-    CGF.emitAggExpr(
-        Init, AggValueSlot::forLValue(lv, AggValueSlot::IsDestructed,
-                                      AggValueSlot::DoesNotNeedGCBarriers,
-                                      AggValueSlot::IsNotAliased,
-                                      AggValueSlot::DoesNotOverlap));
+    CGF.emitAggExpr(Init,
+                    AggValueSlot::forLValue(lv, AggValueSlot::IsDestructed,
+                                            AggValueSlot::DoesNotNeedGCBarriers,
+                                            AggValueSlot::IsNotAliased,
+                                            AggValueSlot::DoesNotOverlap));
     return;
   case cir::TEK_Scalar:
     CGF.emitScalarInit(Init, CGF.getLoc(D->getLocation()), lv, false);
@@ -306,8 +306,8 @@ void CIRGenFunction::emitInvariantStart([[maybe_unused]] CharUnits Size) {
 }
 
 void CIRGenModule::emitCXXGlobalVarDeclInit(const VarDecl *varDecl,
-                                             cir::GlobalOp addr,
-                                             bool performInit) {
+                                            cir::GlobalOp addr,
+                                            bool performInit) {
   const Expr *init = varDecl->getInit();
   QualType ty = varDecl->getType();
 

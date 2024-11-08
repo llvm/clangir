@@ -219,12 +219,11 @@ bool CIRGenFunction::sanitizePerformTypeCheck() const {
          SanOpts.has(SanitizerKind::Vptr);
 }
 
-void CIRGenFunction::emitTypeCheck(TypeCheckKind TCK,
-                                    clang::SourceLocation Loc, mlir::Value V,
-                                    clang::QualType Type,
-                                    clang::CharUnits Alignment,
-                                    clang::SanitizerSet SkippedChecks,
-                                    std::optional<mlir::Value> ArraySize) {
+void CIRGenFunction::emitTypeCheck(TypeCheckKind TCK, clang::SourceLocation Loc,
+                                   mlir::Value V, clang::QualType Type,
+                                   clang::CharUnits Alignment,
+                                   clang::SanitizerSet SkippedChecks,
+                                   std::optional<mlir::Value> ArraySize) {
   if (!sanitizePerformTypeCheck())
     return;
 
@@ -272,7 +271,7 @@ static bool endsWithReturn(const Decl *F) {
 }
 
 void CIRGenFunction::emitAndUpdateRetAlloca(QualType ty, mlir::Location loc,
-                                             CharUnits alignment) {
+                                            CharUnits alignment) {
 
   if (ty->isVoidType()) {
     // Void type; nothing to return.
@@ -449,8 +448,8 @@ cir::ReturnOp CIRGenFunction::LexicalScope::emitReturn(mlir::Location loc) {
   auto Fn = dyn_cast<cir::FuncOp>(CGF.CurFn);
   assert(Fn && "other callables NYI");
   if (Fn.getCoroutine())
-    CGF.emitCoroEndBuiltinCall(
-        loc, builder.getNullPtr(builder.getVoidPtrTy(), loc));
+    CGF.emitCoroEndBuiltinCall(loc,
+                               builder.getNullPtr(builder.getVoidPtrTy(), loc));
 
   if (CGF.FnRetCIRTy.has_value()) {
     // If there's anything to return, load it first.
@@ -1265,7 +1264,7 @@ void CIRGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
     // result value.
     if (FnRetCIRTy.has_value())
       emitAndUpdateRetAlloca(FnRetQualTy, FnEndLoc,
-                              CGM.getNaturalTypeAlignment(FnRetQualTy));
+                             CGM.getNaturalTypeAlignment(FnRetQualTy));
   }
 
   if (D && isa<CXXMethodDecl>(D) && cast<CXXMethodDecl>(D)->isInstance()) {
@@ -1435,8 +1434,8 @@ std::string CIRGenFunction::getCounterRefTmpAsString() {
   return getVersionedTmpName("ref.tmp", CounterRefTmp++);
 }
 
-void CIRGenFunction::emitNullInitialization(mlir::Location loc,
-                                             Address DestPtr, QualType Ty) {
+void CIRGenFunction::emitNullInitialization(mlir::Location loc, Address DestPtr,
+                                            QualType Ty) {
   // Ignore empty classes in C++.
   if (getLangOpts().CPlusPlus) {
     if (const RecordType *RT = Ty->getAs<RecordType>()) {
@@ -1559,7 +1558,7 @@ bool CIRGenFunction::shouldNullCheckClassCastValue(const CastExpr *CE) {
 }
 
 void CIRGenFunction::emitDeclRefExprDbgValue(const DeclRefExpr *E,
-                                              const APValue &Init) {
+                                             const APValue &Init) {
   assert(!cir::MissingFeatures::generateDebugInfo());
 }
 
@@ -1827,7 +1826,7 @@ void CIRGenFunction::emitVariablyModifiedType(QualType type) {
 /// element type and a properly-typed first element pointer.
 mlir::Value
 CIRGenFunction::emitArrayLength(const clang::ArrayType *origArrayType,
-                                 QualType &baseType, Address &addr) {
+                                QualType &baseType, Address &addr) {
   const auto *arrayType = origArrayType;
 
   // If it's a VLA, we have to load the stored size.  Note that
@@ -1889,7 +1888,7 @@ mlir::Value CIRGenFunction::emitAlignmentAssumption(
   QualType ty = expr->getType();
   SourceLocation loc = expr->getExprLoc();
   return emitAlignmentAssumption(ptrValue, ty, loc, assumptionLoc, alignment,
-                                  offsetValue);
+                                 offsetValue);
 }
 
 void CIRGenFunction::emitVarAnnotations(const VarDecl *decl, mlir::Value val) {

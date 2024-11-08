@@ -40,8 +40,7 @@ using namespace cir;
 using namespace llvm;
 
 static RValue emitLibraryCall(CIRGenFunction &CGF, const FunctionDecl *FD,
-                               const CallExpr *E,
-                               mlir::Operation *calleeValue) {
+                              const CallExpr *E, mlir::Operation *calleeValue) {
   auto callee = CIRGenCallee::forDirect(calleeValue, GlobalDecl(FD));
   return CGF.emitCall(E->getCallee()->getType(), callee, E, ReturnValueSlot());
 }
@@ -72,7 +71,7 @@ static RValue emitUnaryFPBuiltin(CIRGenFunction &CGF, const CallExpr &E) {
 
 template <typename Op>
 static RValue emitUnaryMaybeConstrainedFPToIntBuiltin(CIRGenFunction &CGF,
-                                                       const CallExpr &E) {
+                                                      const CallExpr &E) {
   auto ResultType = CGF.ConvertType(E.getType());
   auto Src = CGF.emitScalarExpr(E.getArg(0));
 
@@ -97,7 +96,7 @@ static RValue emitBinaryFPBuiltin(CIRGenFunction &CGF, const CallExpr &E) {
 
 template <typename Op>
 static mlir::Value emitBinaryMaybeConstrainedFPBuiltin(CIRGenFunction &CGF,
-                                                        const CallExpr &E) {
+                                                       const CallExpr &E) {
   auto Arg0 = CGF.emitScalarExpr(E.getArg(0));
   auto Arg1 = CGF.emitScalarExpr(E.getArg(1));
 
@@ -116,7 +115,7 @@ static mlir::Value emitBinaryMaybeConstrainedFPBuiltin(CIRGenFunction &CGF,
 template <typename Op>
 static RValue
 emitBuiltinBitOp(CIRGenFunction &CGF, const CallExpr *E,
-                  std::optional<CIRGenFunction::BuiltinCheckKind> CK) {
+                 std::optional<CIRGenFunction::BuiltinCheckKind> CK) {
   mlir::Value arg;
   if (CK.has_value())
     arg = CGF.emitCheckedArgForBuiltin(E->getArg(0), *CK);
@@ -196,7 +195,7 @@ EncompassingIntegerType(ArrayRef<struct WidthAndSignedness> Types) {
 /// Emit the conversions required to turn the given value into an
 /// integer of the given size.
 static mlir::Value emitToInt(CIRGenFunction &CGF, mlir::Value v, QualType t,
-                              cir::IntType intType) {
+                             cir::IntType intType) {
   v = CGF.emitToMemory(v, t);
 
   if (isa<cir::PointerType>(v.getType()))
@@ -207,7 +206,7 @@ static mlir::Value emitToInt(CIRGenFunction &CGF, mlir::Value v, QualType t,
 }
 
 static mlir::Value emitFromInt(CIRGenFunction &CGF, mlir::Value v, QualType t,
-                                mlir::Type resultType) {
+                               mlir::Type resultType) {
   v = CGF.emitFromMemory(v, t);
 
   if (isa<cir::PointerType>(resultType))
@@ -266,7 +265,7 @@ static mlir::Value makeBinaryAtomicValue(
 }
 
 static RValue emitBinaryAtomic(CIRGenFunction &CGF, cir::AtomicFetchKind kind,
-                                const CallExpr *E) {
+                               const CallExpr *E) {
   return RValue::get(makeBinaryAtomicValue(CGF, kind, E));
 }
 
@@ -311,8 +310,8 @@ RValue CIRGenFunction::emitRotate(const CallExpr *E, bool IsRotateRight) {
 }
 
 RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
-                                        const CallExpr *E,
-                                        ReturnValueSlot ReturnValue) {
+                                       const CallExpr *E,
+                                       ReturnValueSlot ReturnValue) {
   const FunctionDecl *FD = GD.getDecl()->getAsFunction();
 
   // See if we can constant fold this builtin.  If so, don't emit it at all.
@@ -778,8 +777,7 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     case Builtin::BI__builtin_llround:
     case Builtin::BI__builtin_llroundf:
     case Builtin::BI__builtin_llroundl:
-      return emitUnaryMaybeConstrainedFPToIntBuiltin<cir::LLroundOp>(*this,
-                                                                      *E);
+      return emitUnaryMaybeConstrainedFPToIntBuiltin<cir::LLroundOp>(*this, *E);
 
     case Builtin::BI__builtin_llroundf128:
       llvm_unreachable("BI__builtin_llroundf128 NYI");
@@ -832,9 +830,9 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   case Builtin::BI__va_start:
   case Builtin::BI__builtin_va_end: {
     emitVAStartEnd(BuiltinID == Builtin::BI__va_start
-                        ? emitScalarExpr(E->getArg(0))
-                        : emitVAListRef(E->getArg(0)).getPointer(),
-                    BuiltinID != Builtin::BI__builtin_va_end);
+                       ? emitScalarExpr(E->getArg(0))
+                       : emitVAListRef(E->getArg(0)).getPointer(),
+                   BuiltinID != Builtin::BI__builtin_va_end);
     return {};
   }
   case Builtin::BI__builtin_va_copy: {
@@ -1016,8 +1014,8 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     std::int64_t alignment = cast<cir::IntAttr>(alignmentAttr).getSInt();
 
     ptrValue = emitAlignmentAssumption(ptrValue, ptr, ptr->getExprLoc(),
-                                        builder.getI64IntegerAttr(alignment),
-                                        offsetValue);
+                                       builder.getI64IntegerAttr(alignment),
+                                       offsetValue);
     return RValue::get(ptrValue);
   }
 
@@ -1397,11 +1395,10 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     Address Dest = emitPointerWithAlignment(E->getArg(0));
     Address Src = emitPointerWithAlignment(E->getArg(1));
     mlir::Value SizeVal = emitScalarExpr(E->getArg(2));
-    emitNonNullArgCheck(RValue::get(Dest.getPointer()),
-                         E->getArg(0)->getType(), E->getArg(0)->getExprLoc(),
-                         FD, 0);
+    emitNonNullArgCheck(RValue::get(Dest.getPointer()), E->getArg(0)->getType(),
+                        E->getArg(0)->getExprLoc(), FD, 0);
     emitNonNullArgCheck(RValue::get(Src.getPointer()), E->getArg(1)->getType(),
-                         E->getArg(1)->getExprLoc(), FD, 1);
+                        E->getArg(1)->getExprLoc(), FD, 1);
     builder.createMemCpy(getLoc(E->getSourceRange()), Dest.getPointer(),
                          Src.getPointer(), SizeVal);
     if (BuiltinID == Builtin::BImempcpy ||
@@ -1455,11 +1452,10 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     Address Dest = emitPointerWithAlignment(E->getArg(0));
     Address Src = emitPointerWithAlignment(E->getArg(1));
     mlir::Value SizeVal = emitScalarExpr(E->getArg(2));
-    emitNonNullArgCheck(RValue::get(Dest.getPointer()),
-                         E->getArg(0)->getType(), E->getArg(0)->getExprLoc(),
-                         FD, 0);
+    emitNonNullArgCheck(RValue::get(Dest.getPointer()), E->getArg(0)->getType(),
+                        E->getArg(0)->getExprLoc(), FD, 0);
     emitNonNullArgCheck(RValue::get(Src.getPointer()), E->getArg(1)->getType(),
-                         E->getArg(1)->getExprLoc(), FD, 1);
+                        E->getArg(1)->getExprLoc(), FD, 1);
     builder.createMemMove(getLoc(E->getSourceRange()), Dest.getPointer(),
                           Src.getPointer(), SizeVal);
     return RValue::get(Dest.getPointer());
@@ -1469,9 +1465,8 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     Address Dest = emitPointerWithAlignment(E->getArg(0));
     mlir::Value ByteVal = emitScalarExpr(E->getArg(1));
     mlir::Value SizeVal = emitScalarExpr(E->getArg(2));
-    emitNonNullArgCheck(RValue::get(Dest.getPointer()),
-                         E->getArg(0)->getType(), E->getArg(0)->getExprLoc(),
-                         FD, 0);
+    emitNonNullArgCheck(RValue::get(Dest.getPointer()), E->getArg(0)->getType(),
+                        E->getArg(0)->getExprLoc(), FD, 0);
     builder.createMemSet(getLoc(E->getSourceRange()), Dest.getPointer(),
                          ByteVal, SizeVal);
     return RValue::get(Dest.getPointer());
@@ -2042,8 +2037,8 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
         CGM.GetOrCreateCIRFunction(ND->getName(), ty, gd, /*ForVTable=*/false,
                                    /*DontDefer=*/false);
     fnOp.setBuiltinAttr(mlir::UnitAttr::get(&getMLIRContext()));
-    return emitCall(E->getCallee()->getType(), CIRGenCallee::forDirect(fnOp),
-                     E, ReturnValue);
+    return emitCall(E->getCallee()->getType(), CIRGenCallee::forDirect(fnOp), E,
+                    ReturnValue);
   }
 
   case Builtin::BIread_pipe:
@@ -2252,13 +2247,13 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   // version of the function name.
   if (getContext().BuiltinInfo.isLibFunction(BuiltinID))
     return emitLibraryCall(*this, FD, E,
-                            CGM.getBuiltinLibFunction(FD, BuiltinID));
+                           CGM.getBuiltinLibFunction(FD, BuiltinID));
 
   // If this is a predefined lib function (e.g. malloc), emit the call
   // using exactly the normal call path.
   if (getContext().BuiltinInfo.isPredefinedLibFunction(BuiltinID))
     return emitLibraryCall(*this, FD, E,
-                            emitScalarExpr(E->getCallee()).getDefiningOp());
+                           emitScalarExpr(E->getCallee()).getDefiningOp());
 
   // Check that a call to a target specific builtin has the correct target
   // features.
@@ -2320,7 +2315,7 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
 }
 
 mlir::Value CIRGenFunction::emitCheckedArgForBuiltin(const Expr *E,
-                                                      BuiltinCheckKind Kind) {
+                                                     BuiltinCheckKind Kind) {
   assert((Kind == BCK_CLZPassedZero || Kind == BCK_CTZPassedZero) &&
          "Unsupported builtin check kind");
 
@@ -2333,10 +2328,10 @@ mlir::Value CIRGenFunction::emitCheckedArgForBuiltin(const Expr *E,
 }
 
 static mlir::Value emitTargetArchBuiltinExpr(CIRGenFunction *CGF,
-                                              unsigned BuiltinID,
-                                              const CallExpr *E,
-                                              ReturnValueSlot ReturnValue,
-                                              llvm::Triple::ArchType Arch) {
+                                             unsigned BuiltinID,
+                                             const CallExpr *E,
+                                             ReturnValueSlot ReturnValue,
+                                             llvm::Triple::ArchType Arch) {
   // When compiling in HipStdPar mode we have to be conservative in rejecting
   // target specific features in the FE, and defer the possible error to the
   // AcceleratorCodeSelection pass, wherein iff an unsupported target builtin is
@@ -2389,9 +2384,9 @@ static mlir::Value emitTargetArchBuiltinExpr(CIRGenFunction *CGF,
   }
 }
 
-mlir::Value
-CIRGenFunction::emitTargetBuiltinExpr(unsigned BuiltinID, const CallExpr *E,
-                                       ReturnValueSlot ReturnValue) {
+mlir::Value CIRGenFunction::emitTargetBuiltinExpr(unsigned BuiltinID,
+                                                  const CallExpr *E,
+                                                  ReturnValueSlot ReturnValue) {
   if (getContext().BuiltinInfo.isAuxBuiltinID(BuiltinID)) {
     assert(getContext().getAuxTargetInfo() && "Missing aux target info");
     return emitTargetArchBuiltinExpr(
@@ -2400,7 +2395,7 @@ CIRGenFunction::emitTargetBuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   }
 
   return emitTargetArchBuiltinExpr(this, BuiltinID, E, ReturnValue,
-                                    getTarget().getTriple().getArch());
+                                   getTarget().getTriple().getArch());
 }
 
 void CIRGenFunction::emitVAStartEnd(mlir::Value ArgValue, bool IsStart) {
@@ -2449,7 +2444,7 @@ mlir::Value CIRGenFunction::emitBuiltinObjectSize(const Expr *E, unsigned Type,
       assert(DIter != LocalDeclMap.end());
 
       return emitLoadOfScalar(DIter->second, /*Volatile=*/false,
-                               getContext().getSizeType(), E->getBeginLoc());
+                              getContext().getSizeType(), E->getBeginLoc());
     }
   }
 

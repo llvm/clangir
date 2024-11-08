@@ -34,7 +34,7 @@ using namespace cir;
 ///
 /// Track on scope basis, goto's we need to fix later.
 cir::BrOp CIRGenFunction::emitBranchThroughCleanup(mlir::Location Loc,
-                                                    JumpDest Dest) {
+                                                   JumpDest Dest) {
   // Remove this once we go for making sure unreachable code is
   // well modeled (or not).
   assert(builder.getInsertionBlock() && "not yet implemented");
@@ -48,7 +48,7 @@ cir::BrOp CIRGenFunction::emitBranchThroughCleanup(mlir::Location Loc,
 
 /// Emits all the code to cause the given temporary to be cleaned up.
 void CIRGenFunction::emitCXXTemporary(const CXXTemporary *Temporary,
-                                       QualType TempType, Address Ptr) {
+                                      QualType TempType, Address Ptr) {
   pushDestroy(NormalAndEHCleanup, Ptr, TempType, destroyCXXObject,
               /*useEHCleanup*/ true);
 }
@@ -249,8 +249,8 @@ static void destroyOptimisticNormalEntry(CIRGenFunction &CGF,
 }
 
 static void emitCleanup(CIRGenFunction &CGF, EHScopeStack::Cleanup *Fn,
-                         EHScopeStack::Cleanup::Flags flags,
-                         Address ActiveFlag) {
+                        EHScopeStack::Cleanup::Flags flags,
+                        Address ActiveFlag) {
   auto emitCleanup = [&]() {
     // Ask the cleanup to emit itself.
     assert(CGF.HaveInsertPoint() && "expected insertion point");
@@ -479,7 +479,7 @@ void CIRGenFunction::PopCleanupBlock(bool FallthroughIsBranchThrough) {
             mlir::Block *resumeBlockToPatch =
                 tryToPatch.getCatchUnwindEntryBlock();
             emitEHResumeBlock(/*isCleanup=*/true, resumeBlockToPatch,
-                               tryToPatch.getLoc());
+                              tryToPatch.getLoc());
           }
         }
 

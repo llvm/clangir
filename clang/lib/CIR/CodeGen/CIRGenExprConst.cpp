@@ -45,9 +45,9 @@ class ConstExprEmitter;
 
 static mlir::Attribute
 emitArrayConstant(CIRGenModule &CGM, mlir::Type DesiredType,
-                   mlir::Type CommonElementType, unsigned ArrayBound,
-                   SmallVectorImpl<mlir::TypedAttr> &Elements,
-                   mlir::TypedAttr Filler);
+                  mlir::Type CommonElementType, unsigned ArrayBound,
+                  SmallVectorImpl<mlir::TypedAttr> &Elements,
+                  mlir::TypedAttr Filler);
 
 struct ConstantAggregateBuilderUtils {
   CIRGenModule &CGM;
@@ -1058,7 +1058,7 @@ public:
     if (Filler && !typedFiller)
       llvm_unreachable("We shouldn't be receiving untyped attrs here");
     return emitArrayConstant(CGM, desiredType, CommonElementType, NumElements,
-                              Elts, typedFiller);
+                             Elts, typedFiller);
   }
 
   mlir::Attribute EmitRecordInitialization(InitListExpr *ILE, QualType T) {
@@ -1164,9 +1164,9 @@ public:
 
 static mlir::Attribute
 emitArrayConstant(CIRGenModule &CGM, mlir::Type DesiredType,
-                   mlir::Type CommonElementType, unsigned ArrayBound,
-                   SmallVectorImpl<mlir::TypedAttr> &Elements,
-                   mlir::TypedAttr Filler) {
+                  mlir::Type CommonElementType, unsigned ArrayBound,
+                  SmallVectorImpl<mlir::TypedAttr> &Elements,
+                  mlir::TypedAttr Filler) {
   auto &builder = CGM.getBuilder();
 
   // Figure out how long the initial prefix of non-zero elements is.
@@ -1847,8 +1847,8 @@ mlir::Attribute ConstantEmitter::tryEmitPrivate(const APValue &Value,
     if (Filler && !typedFiller)
       llvm_unreachable("this should always be typed");
 
-    return emitArrayConstant(CGM, Desired, CommonElementType, NumElements,
-                              Elts, typedFiller);
+    return emitArrayConstant(CGM, Desired, CommonElementType, NumElements, Elts,
+                             typedFiller);
   }
   case APValue::Vector: {
     const QualType ElementType =
@@ -1981,8 +1981,8 @@ mlir::Attribute ConstantEmitter::emitNullForMemory(mlir::Location loc,
 }
 
 static mlir::TypedAttr emitNullConstant(CIRGenModule &CGM,
-                                         const RecordDecl *record,
-                                         bool asCompleteObject) {
+                                        const RecordDecl *record,
+                                        bool asCompleteObject) {
   const CIRGenRecordLayout &layout =
       CGM.getTypes().getCIRGenRecordLayout(record);
   mlir::Type ty = (asCompleteObject ? layout.getCIRType()

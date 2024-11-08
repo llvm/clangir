@@ -103,7 +103,7 @@ public:
 
   /// Emit the definition of the given vtable.
   void emitVTTDefinition(cir::GlobalOp VTT, cir::GlobalLinkageKind Linkage,
-                          const CXXRecordDecl *RD);
+                         const CXXRecordDecl *RD);
 
   /// Emit the associated thunks for the given global decl.
   void emitThunks(GlobalDecl GD);

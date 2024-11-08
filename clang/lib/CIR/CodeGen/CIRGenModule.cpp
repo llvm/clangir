@@ -588,7 +588,7 @@ void CIRGenModule::emitGlobal(GlobalDecl GD) {
 }
 
 void CIRGenModule::emitGlobalFunctionDefinition(GlobalDecl GD,
-                                                 mlir::Operation *Op) {
+                                                mlir::Operation *Op) {
   auto const *D = cast<FunctionDecl>(GD.getDecl());
 
   // Compute the function info and CIR type.
@@ -1114,7 +1114,7 @@ void CIRGenModule::maybeHandleStaticInExternC(const SomeDecl *D,
 }
 
 void CIRGenModule::emitGlobalVarDefinition(const clang::VarDecl *D,
-                                            bool IsTentative) {
+                                           bool IsTentative) {
   // TODO(cir):
   // OpenCL global variables of sampler type are translated to function calls,
   // therefore no need to be translated.
@@ -2120,9 +2120,9 @@ cir::GlobalLinkageKind CIRGenModule::getFunctionLinkage(GlobalDecl GD) {
 }
 
 void CIRGenModule::emitAliasForGlobal(StringRef mangledName,
-                                       mlir::Operation *op, GlobalDecl aliasGD,
-                                       cir::FuncOp aliasee,
-                                       cir::GlobalLinkageKind linkage) {
+                                      mlir::Operation *op, GlobalDecl aliasGD,
+                                      cir::FuncOp aliasee,
+                                      cir::GlobalLinkageKind linkage) {
   auto *aliasFD = dyn_cast<FunctionDecl>(aliasGD.getDecl());
   assert(aliasFD && "expected FunctionDecl");
 
@@ -3206,7 +3206,7 @@ void CIRGenModule::applyReplacements() {
 }
 
 void CIRGenModule::emitExplicitCastExprType(const ExplicitCastExpr *E,
-                                             CIRGenFunction *CGF) {
+                                            CIRGenFunction *CGF) {
   // Bind VLAs in the cast type.
   if (CGF && E->getType()->isVariablyModifiedType())
     llvm_unreachable("NYI");
@@ -3284,8 +3284,8 @@ bool CIRGenModule::shouldOpportunisticallyEmitVTables() {
 }
 
 void CIRGenModule::emitVTableTypeMetadata(const CXXRecordDecl *RD,
-                                           cir::GlobalOp VTable,
-                                           const VTableLayout &VTLayout) {
+                                          cir::GlobalOp VTable,
+                                          const VTableLayout &VTLayout) {
   if (!getCodeGenOpts().LTOUnit)
     return;
   llvm_unreachable("NYI");

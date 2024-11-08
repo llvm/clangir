@@ -586,8 +586,8 @@ uint64_t CIRGenVTables::getSecondaryVirtualPointerIndex(const CXXRecordDecl *RD,
 
 /// Emit the definition of the given vtable.
 void CIRGenVTables::emitVTTDefinition(cir::GlobalOp VTT,
-                                       cir::GlobalLinkageKind Linkage,
-                                       const CXXRecordDecl *RD) {
+                                      cir::GlobalLinkageKind Linkage,
+                                      const CXXRecordDecl *RD) {
   VTTBuilder Builder(CGM.getASTContext(), RD, /*GenerateDefinition=*/true);
 
   auto ArrayType = cir::ArrayType::get(CGM.getBuilder().getContext(),

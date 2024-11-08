@@ -201,8 +201,8 @@ private:
 };
 
 static void emitLValueForAnyFieldInitialization(CIRGenFunction &CGF,
-                                                 CXXCtorInitializer *MemberInit,
-                                                 LValue &LHS) {
+                                                CXXCtorInitializer *MemberInit,
+                                                LValue &LHS) {
   FieldDecl *Field = MemberInit->getAnyMember();
   if (MemberInit->isIndirectMemberInitializer()) {
     // If we are initializing an anonymous union field, drill down to the field.
@@ -217,10 +217,10 @@ static void emitLValueForAnyFieldInitialization(CIRGenFunction &CGF,
 }
 
 static void emitMemberInitializer(CIRGenFunction &CGF,
-                                   const CXXRecordDecl *ClassDecl,
-                                   CXXCtorInitializer *MemberInit,
-                                   const CXXConstructorDecl *Constructor,
-                                   FunctionArgList &Args) {
+                                  const CXXRecordDecl *ClassDecl,
+                                  CXXCtorInitializer *MemberInit,
+                                  const CXXConstructorDecl *Constructor,
+                                  FunctionArgList &Args) {
   // TODO: ApplyDebugLocation
   assert(MemberInit->isAnyMemberInitializer() &&
          "Mush have member initializer!");
@@ -298,7 +298,7 @@ public:
     } else {
       emitAggregatedInits();
       emitMemberInitializer(CGF, ConstructorDecl->getParent(), MemberInit,
-                             ConstructorDecl, Args);
+                            ConstructorDecl, Args);
     }
   }
 
@@ -444,8 +444,7 @@ public:
     if (AggregatedStmts.size() <= 1) {
       if (!AggregatedStmts.empty()) {
         CopyingValueRepresentation CVR(CGF);
-        if (CGF.emitStmt(AggregatedStmts[0], /*useCurrentScope=*/true)
-                .failed())
+        if (CGF.emitStmt(AggregatedStmts[0], /*useCurrentScope=*/true).failed())
           llvm_unreachable("Should not get here!");
       }
       reset();
@@ -487,7 +486,7 @@ struct CallBaseDtor final : EHScopeStack::Cleanup {
         *CGF.currSrcLoc, CGF.LoadCXXThisAddress(), DerivedClass, BaseClass,
         BaseIsVirtual);
     CGF.emitCXXDestructorCall(D, Dtor_Base, BaseIsVirtual,
-                               /*Delegating=*/false, Addr, ThisTy);
+                              /*Delegating=*/false, Addr, ThisTy);
   }
 };
 
@@ -541,8 +540,8 @@ Address CIRGenFunction::getAddressOfDirectBaseInCompleteClass(
 }
 
 static void emitBaseInitializer(mlir::Location loc, CIRGenFunction &CGF,
-                                 const CXXRecordDecl *ClassDecl,
-                                 CXXCtorInitializer *BaseInit) {
+                                const CXXRecordDecl *ClassDecl,
+                                CXXCtorInitializer *BaseInit) {
   assert(BaseInit->isBaseInitializer() && "Must have base initializer!");
 
   Address ThisPtr = CGF.LoadCXXThisAddress();
@@ -579,8 +578,8 @@ static void emitBaseInitializer(mlir::Location loc, CIRGenFunction &CGF,
 /// This routine generates necessary code to initialize base classes and
 /// non-static data members belonging to this constructor.
 void CIRGenFunction::emitCtorPrologue(const CXXConstructorDecl *CD,
-                                       CXXCtorType CtorType,
-                                       FunctionArgList &Args) {
+                                      CXXCtorType CtorType,
+                                      FunctionArgList &Args) {
   if (CD->isDelegatingConstructor())
     return emitDelegatingCXXConstructorCall(CD, Args);
 
@@ -848,7 +847,7 @@ Address CIRGenFunction::LoadCXXThisAddress() {
 }
 
 void CIRGenFunction::emitInitializerForField(FieldDecl *Field, LValue LHS,
-                                              Expr *Init) {
+                                             Expr *Init) {
   QualType FieldType = Field->getType();
   switch (getEvaluationKind(FieldType)) {
   case cir::TEK_Scalar:
@@ -908,13 +907,12 @@ void CIRGenFunction::emitDelegateCXXConstructorCall(
   }
 
   emitCXXConstructorCall(Ctor, CtorType, /*ForVirtualBase=*/false,
-                          /*Delegating=*/true, This, DelegateArgs,
-                          AggValueSlot::MayOverlap, Loc,
-                          /*NewPointerIsChecked=*/true);
+                         /*Delegating=*/true, This, DelegateArgs,
+                         AggValueSlot::MayOverlap, Loc,
+                         /*NewPointerIsChecked=*/true);
 }
 
-void CIRGenFunction::emitImplicitAssignmentOperatorBody(
-    FunctionArgList &Args) {
+void CIRGenFunction::emitImplicitAssignmentOperatorBody(FunctionArgList &Args) {
   const CXXMethodDecl *AssignOp = cast<CXXMethodDecl>(CurGD.getDecl());
   const Stmt *RootS = AssignOp->getBody();
   assert(isa<CompoundStmt>(RootS) &&
@@ -1023,7 +1021,7 @@ void CIRGenFunction::destroyCXXObject(CIRGenFunction &CGF, Address addr,
   // assertion once we get a testcase to exercise this path.
   assert(!dtor->isTrivial());
   CGF.emitCXXDestructorCall(dtor, Dtor_Complete, /*for vbase*/ false,
-                             /*Delegating=*/false, addr, type);
+                            /*Delegating=*/false, addr, type);
 }
 
 static bool FieldHasTrivialDestructorBody(ASTContext &Context,
@@ -1149,8 +1147,7 @@ void CIRGenFunction::emitDestructorBody(FunctionArgList &Args) {
     if (HaveInsertPoint()) {
       QualType ThisTy = Dtor->getFunctionObjectParameterType();
       emitCXXDestructorCall(Dtor, Dtor_Complete, /*ForVirtualBase=*/false,
-                             /*Delegating=*/false, LoadCXXThisAddress(),
-                             ThisTy);
+                            /*Delegating=*/false, LoadCXXThisAddress(), ThisTy);
     }
     return;
   }
@@ -1189,8 +1186,7 @@ void CIRGenFunction::emitDestructorBody(FunctionArgList &Args) {
     if (!isTryBody) {
       QualType ThisTy = Dtor->getFunctionObjectParameterType();
       emitCXXDestructorCall(Dtor, Dtor_Base, /*ForVirtualBase=*/false,
-                             /*Delegating=*/false, LoadCXXThisAddress(),
-                             ThisTy);
+                            /*Delegating=*/false, LoadCXXThisAddress(), ThisTy);
       break;
     }
 
@@ -1254,8 +1250,8 @@ struct CallDtorDelete final : EHScopeStack::Cleanup {
     const CXXDestructorDecl *Dtor = cast<CXXDestructorDecl>(CGF.CurCodeDecl);
     const CXXRecordDecl *ClassDecl = Dtor->getParent();
     CGF.emitDeleteCall(Dtor->getOperatorDelete(),
-                        LoadThisForDtorDelete(CGF, Dtor),
-                        CGF.getContext().getTagDeclType(ClassDecl));
+                       LoadThisForDtorDelete(CGF, Dtor),
+                       CGF.getContext().getTagDeclType(ClassDecl));
   }
 };
 } // namespace
@@ -1418,7 +1414,7 @@ struct CallDelegatingCtorDtor final : EHScopeStack::Cleanup {
     // Therefore, "this" should have the expected type.
     QualType ThisTy = Dtor->getFunctionObjectParameterType();
     CGF.emitCXXDestructorCall(Dtor, Type, /*ForVirtualBase=*/false,
-                               /*Delegating=*/true, Addr, ThisTy);
+                              /*Delegating=*/true, Addr, ThisTy);
   }
 };
 } // end anonymous namespace
@@ -1449,12 +1445,11 @@ void CIRGenFunction::emitDelegatingCXXConstructorCall(
 }
 
 void CIRGenFunction::emitCXXDestructorCall(const CXXDestructorDecl *DD,
-                                            CXXDtorType Type,
-                                            bool ForVirtualBase,
-                                            bool Delegating, Address This,
-                                            QualType ThisTy) {
+                                           CXXDtorType Type,
+                                           bool ForVirtualBase, bool Delegating,
+                                           Address This, QualType ThisTy) {
   CGM.getCXXABI().emitDestructorCall(*this, DD, Type, ForVirtualBase,
-                                      Delegating, This, ThisTy);
+                                     Delegating, This, ThisTy);
 }
 
 mlir::Value CIRGenFunction::GetVTTParameter(GlobalDecl GD, bool ForVirtualBase,
@@ -1634,8 +1629,8 @@ bool CIRGenFunction::shouldEmitVTableTypeCheckedLoad(const CXXRecordDecl *RD) {
 }
 
 void CIRGenFunction::emitTypeMetadataCodeForVCall(const CXXRecordDecl *RD,
-                                                   mlir::Value VTable,
-                                                   SourceLocation Loc) {
+                                                  mlir::Value VTable,
+                                                  SourceLocation Loc) {
   if (SanOpts.has(SanitizerKind::CFIVCall)) {
     llvm_unreachable("NYI");
   } else if (CGM.getCodeGenOpts().WholeProgramVTables &&
@@ -1751,7 +1746,7 @@ void CIRGenFunction::emitCXXAggrConstructorCall(
   QualType elementType;
   auto numElements = emitArrayLength(arrayType, elementType, arrayBegin);
   emitCXXAggrConstructorCall(ctor, numElements, arrayBegin, E,
-                              NewPointerIsChecked, zeroInitialize);
+                             NewPointerIsChecked, zeroInitialize);
 }
 
 /// Emit a loop to call a particular constructor for each of several members
@@ -1838,8 +1833,8 @@ void CIRGenFunction::emitCXXAggrConstructorCall(
               NewPointerIsChecked ? AggValueSlot::IsSanitizerChecked
                                   : AggValueSlot::IsNotSanitizerChecked);
           emitCXXConstructorCall(ctor, Ctor_Complete,
-                                  /*ForVirtualBase=*/false,
-                                  /*Delegating=*/false, currAVS, E);
+                                 /*ForVirtualBase=*/false,
+                                 /*Delegating=*/false, currAVS, E);
           builder.create<cir::YieldOp>(loc);
         });
   }
@@ -1873,11 +1868,11 @@ static bool canEmitDelegateCallArgs(CIRGenFunction &CGF,
 }
 
 void CIRGenFunction::emitCXXConstructorCall(const clang::CXXConstructorDecl *D,
-                                             clang::CXXCtorType Type,
-                                             bool ForVirtualBase,
-                                             bool Delegating,
-                                             AggValueSlot ThisAVS,
-                                             const clang::CXXConstructExpr *E) {
+                                            clang::CXXCtorType Type,
+                                            bool ForVirtualBase,
+                                            bool Delegating,
+                                            AggValueSlot ThisAVS,
+                                            const clang::CXXConstructExpr *E) {
   CallArgList Args;
   Address This = ThisAVS.getAddress();
   LangAS SlotAS = ThisAVS.getQualifiers().getAddressSpace();
@@ -1902,11 +1897,11 @@ void CIRGenFunction::emitCXXConstructorCall(const clang::CXXConstructorDecl *D,
                               : EvaluationOrder::Default;
 
   emitCallArgs(Args, FPT, E->arguments(), E->getConstructor(),
-                /*ParamsToSkip*/ 0, Order);
+               /*ParamsToSkip*/ 0, Order);
 
   emitCXXConstructorCall(D, Type, ForVirtualBase, Delegating, This, Args,
-                          ThisAVS.mayOverlap(), E->getExprLoc(),
-                          ThisAVS.isSanitizerChecked());
+                         ThisAVS.mayOverlap(), E->getExprLoc(),
+                         ThisAVS.isSanitizerChecked());
 }
 
 void CIRGenFunction::emitCXXConstructorCall(
@@ -1919,7 +1914,7 @@ void CIRGenFunction::emitCXXConstructorCall(
 
   if (!NewPointerIsChecked)
     emitTypeCheck(CIRGenFunction::TCK_ConstructorCall, Loc, This.getPointer(),
-                   getContext().getRecordType(ClassDecl), CharUnits::Zero());
+                  getContext().getRecordType(ClassDecl), CharUnits::Zero());
 
   // If this is a call to a trivial default constructor:
   // In LLVM: do nothing.
@@ -1998,9 +1993,8 @@ void CIRGenFunction::emitInheritedCXXConstructorCall(
   }
 
   emitCXXConstructorCall(D, Ctor_Base, ForVirtualBase, /*Delegating*/ false,
-                          This, Args, AggValueSlot::MayOverlap,
-                          E->getLocation(),
-                          /*NewPointerIsChecked*/ true);
+                         This, Args, AggValueSlot::MayOverlap, E->getLocation(),
+                         /*NewPointerIsChecked*/ true);
 }
 
 void CIRGenFunction::emitInlinedInheritingCXXConstructorCall(

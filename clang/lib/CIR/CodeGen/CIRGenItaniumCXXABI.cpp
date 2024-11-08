@@ -168,7 +168,7 @@ public:
   }
 
   void emitInstanceFunctionProlog(SourceLocation Loc,
-                                   CIRGenFunction &CGF) override;
+                                  CIRGenFunction &CGF) override;
 
   void addImplicitStructorParams(CIRGenFunction &CGF, QualType &ResTy,
                                  FunctionArgList &Params) override;
@@ -182,9 +182,9 @@ public:
   void emitCXXDestructors(const clang::CXXDestructorDecl *D) override;
   void emitCXXStructor(clang::GlobalDecl GD) override;
   void emitDestructorCall(CIRGenFunction &CGF, const CXXDestructorDecl *DD,
-                           CXXDtorType Type, bool ForVirtualBase,
-                           bool Delegating, Address This,
-                           QualType ThisTy) override;
+                          CXXDtorType Type, bool ForVirtualBase,
+                          bool Delegating, Address This,
+                          QualType ThisTy) override;
   void registerGlobalDtor(CIRGenFunction &CGF, const VarDecl *D,
                           cir::FuncOp dtor, mlir::Value Addr) override;
   virtual void emitRethrow(CIRGenFunction &CGF, bool isNoReturn) override;
@@ -317,9 +317,9 @@ public:
   // functions. So during CIRGen we don't need the `emitDynamicCastCall`
   // function that clang CodeGen has.
   mlir::Value emitDynamicCast(CIRGenFunction &CGF, mlir::Location Loc,
-                               QualType SrcRecordTy, QualType DestRecordTy,
-                               cir::PointerType DestCIRTy, bool isRefCast,
-                               Address Src) override;
+                              QualType SrcRecordTy, QualType DestRecordTy,
+                              cir::PointerType DestCIRTy, bool isRefCast,
+                              Address Src) override;
 
   cir::MethodAttr buildVirtualMethodAttr(cir::MethodType MethodTy,
                                          const CXXMethodDecl *MD) override;
@@ -595,7 +595,7 @@ void CIRGenCXXABI::setCXXABIThisValue(CIRGenFunction &CGF,
 }
 
 void CIRGenItaniumCXXABI::emitInstanceFunctionProlog(SourceLocation Loc,
-                                                      CIRGenFunction &CGF) {
+                                                     CIRGenFunction &CGF) {
   // Naked functions have no prolog.
   if (CGF.CurFuncDecl && CGF.CurFuncDecl->hasAttr<NakedAttr>())
     llvm_unreachable("NYI");
@@ -2200,7 +2200,7 @@ void CIRGenItaniumCXXABI::emitDestructorCall(
     Callee = CIRGenCallee::forDirect(CGM.getAddrOfCXXStructor(GD), GD);
 
   CGF.emitCXXDestructorCall(GD, Callee, This.getPointer(), ThisTy, VTT, VTTTy,
-                             nullptr);
+                            nullptr);
 }
 
 void CIRGenItaniumCXXABI::registerGlobalDtor(CIRGenFunction &CGF,
@@ -2233,7 +2233,7 @@ void CIRGenItaniumCXXABI::emitRethrow(CIRGenFunction &CGF, bool isNoReturn) {
 }
 
 void CIRGenItaniumCXXABI::emitThrow(CIRGenFunction &CGF,
-                                     const CXXThrowExpr *E) {
+                                    const CXXThrowExpr *E) {
   // This differs a bit from LLVM codegen, CIR has native operations for some
   // cxa functions, and defers allocation size computation, always pass the dtor
   // symbol, etc. CIRGen also does not use getAllocateExceptionFn / getThrowFn.
@@ -2343,7 +2343,7 @@ static void emitCallToBadCast(CIRGenFunction &CGF, mlir::Location loc) {
 }
 
 void CIRGenItaniumCXXABI::emitBadCastCall(CIRGenFunction &CGF,
-                                           mlir::Location loc) {
+                                          mlir::Location loc) {
   emitCallToBadCast(CGF, loc);
 }
 
@@ -2419,7 +2419,7 @@ static cir::FuncOp getItaniumDynamicCastFn(CIRGenFunction &CGF) {
 }
 
 static Address emitDynamicCastToVoid(CIRGenFunction &CGF, mlir::Location Loc,
-                                      QualType SrcRecordTy, Address Src) {
+                                     QualType SrcRecordTy, Address Src) {
   auto vtableUsesRelativeLayout =
       CGF.CGM.getItaniumVTableContext().isRelativeLayout();
   auto ptr = CGF.getBuilder().createDynCastToVoid(Loc, Src.getPointer(),
@@ -2427,11 +2427,12 @@ static Address emitDynamicCastToVoid(CIRGenFunction &CGF, mlir::Location Loc,
   return Address{ptr, Src.getAlignment()};
 }
 
-static mlir::Value
-emitExactDynamicCast(CIRGenItaniumCXXABI &ABI, CIRGenFunction &CGF,
-                      mlir::Location Loc, QualType SrcRecordTy,
-                      QualType DestRecordTy, cir::PointerType DestCIRTy,
-                      bool IsRefCast, Address Src) {
+static mlir::Value emitExactDynamicCast(CIRGenItaniumCXXABI &ABI,
+                                        CIRGenFunction &CGF, mlir::Location Loc,
+                                        QualType SrcRecordTy,
+                                        QualType DestRecordTy,
+                                        cir::PointerType DestCIRTy,
+                                        bool IsRefCast, Address Src) {
   // Find all the inheritance paths from SrcRecordTy to DestRecordTy.
   const CXXRecordDecl *SrcDecl = SrcRecordTy->getAsCXXRecordDecl();
   const CXXRecordDecl *DestDecl = DestRecordTy->getAsCXXRecordDecl();
@@ -2560,9 +2561,9 @@ emitExactDynamicCast(CIRGenItaniumCXXABI &ABI, CIRGenFunction &CGF,
 }
 
 static cir::DynamicCastInfoAttr emitDynamicCastInfo(CIRGenFunction &CGF,
-                                                     mlir::Location Loc,
-                                                     QualType SrcRecordTy,
-                                                     QualType DestRecordTy) {
+                                                    mlir::Location Loc,
+                                                    QualType SrcRecordTy,
+                                                    QualType DestRecordTy) {
   auto srcRtti = mlir::cast<cir::GlobalViewAttr>(
       CGF.CGM.getAddrOfRTTIDescriptor(Loc, SrcRecordTy));
   auto destRtti = mlir::cast<cir::GlobalViewAttr>(
@@ -2585,11 +2586,11 @@ static cir::DynamicCastInfoAttr emitDynamicCastInfo(CIRGenFunction &CGF,
 }
 
 mlir::Value CIRGenItaniumCXXABI::emitDynamicCast(CIRGenFunction &CGF,
-                                                  mlir::Location Loc,
-                                                  QualType SrcRecordTy,
-                                                  QualType DestRecordTy,
-                                                  cir::PointerType DestCIRTy,
-                                                  bool isRefCast, Address Src) {
+                                                 mlir::Location Loc,
+                                                 QualType SrcRecordTy,
+                                                 QualType DestRecordTy,
+                                                 cir::PointerType DestCIRTy,
+                                                 bool isRefCast, Address Src) {
   bool isCastToVoid = DestRecordTy.isNull();
   assert((!isCastToVoid || !isRefCast) && "cannot cast to void reference");
 
@@ -2601,7 +2602,7 @@ mlir::Value CIRGenItaniumCXXABI::emitDynamicCast(CIRGenFunction &CGF,
   if (DestRecordTy->getAsCXXRecordDecl()->isEffectivelyFinal() &&
       CGF.CGM.getCodeGenOpts().OptimizationLevel > 0)
     return emitExactDynamicCast(*this, CGF, Loc, SrcRecordTy, DestRecordTy,
-                                 DestCIRTy, isRefCast, Src);
+                                DestCIRTy, isRefCast, Src);
 
   auto castInfo = emitDynamicCastInfo(CGF, Loc, SrcRecordTy, DestRecordTy);
   return CGF.getBuilder().createDynCast(Loc, Src.getPointer(), DestCIRTy,

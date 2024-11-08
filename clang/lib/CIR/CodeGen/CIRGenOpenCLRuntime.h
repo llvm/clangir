@@ -38,7 +38,7 @@ public:
   /// an entry to CGF's LocalDeclMap for D.  The base class does this using
   /// CIRGenFunction::EmitStaticVarDecl to emit an internal global for D.
   virtual void emitWorkGroupLocalVarDecl(CIRGenFunction &CGF,
-                                          const clang::VarDecl &D);
+                                         const clang::VarDecl &D);
 };
 
 } // namespace clang::CIRGen

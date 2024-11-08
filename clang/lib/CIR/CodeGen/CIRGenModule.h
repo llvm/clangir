@@ -353,7 +353,7 @@ public:
 
   /// Emit type metadata for the given vtable using the given layout.
   void emitVTableTypeMetadata(const CXXRecordDecl *RD, cir::GlobalOp VTable,
-                               const VTableLayout &VTLayout);
+                              const VTableLayout &VTLayout);
 
   /// Get the address of the RTTI descriptor for the given type.
   mlir::Attribute getAddrOfRTTIDescriptor(mlir::Location loc, QualType Ty,
@@ -546,8 +546,8 @@ public:
   bool tryEmitBaseDestructorAsAlias(const CXXDestructorDecl *D);
 
   void emitAliasForGlobal(llvm::StringRef mangledName, mlir::Operation *op,
-                           GlobalDecl aliasGD, cir::FuncOp aliasee,
-                           cir::GlobalLinkageKind linkage);
+                          GlobalDecl aliasGD, cir::FuncOp aliasee,
+                          cir::GlobalLinkageKind linkage);
 
   mlir::Type getCIRType(const clang::QualType &type);
 
@@ -647,18 +647,17 @@ public:
   void setCIRFunctionAttributesForDefinition(const Decl *decl,
                                              cir::FuncOp func);
 
-  void emitGlobalDefinition(clang::GlobalDecl D,
-                             mlir::Operation *Op = nullptr);
+  void emitGlobalDefinition(clang::GlobalDecl D, mlir::Operation *Op = nullptr);
   void emitGlobalFunctionDefinition(clang::GlobalDecl D, mlir::Operation *Op);
   void emitGlobalVarDefinition(const clang::VarDecl *D,
-                                bool IsTentative = false);
+                               bool IsTentative = false);
 
   /// Emit the function that initializes the specified global
   void emitCXXGlobalVarDeclInit(const VarDecl *varDecl, cir::GlobalOp addr,
-                                 bool performInit);
+                                bool performInit);
 
   void emitCXXGlobalVarDeclInitFunc(const VarDecl *D, cir::GlobalOp Addr,
-                                     bool PerformInit);
+                                    bool PerformInit);
 
   void addDeferredVTable(const CXXRecordDecl *RD) {
     DeferredVTables.push_back(RD);
@@ -760,7 +759,7 @@ public:
   /// Emit type info if type of an expression is a variably modified
   /// type. Also emit proper debug info for cast types.
   void emitExplicitCastExprType(const ExplicitCastExpr *E,
-                                 CIRGenFunction *CGF = nullptr);
+                                CIRGenFunction *CGF = nullptr);
 
   static constexpr const char *builtinCoroId = "__builtin_coro_id";
   static constexpr const char *builtinCoroAlloc = "__builtin_coro_alloc";

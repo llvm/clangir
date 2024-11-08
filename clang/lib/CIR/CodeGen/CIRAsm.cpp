@@ -227,8 +227,8 @@ std::pair<mlir::Value, mlir::Type> CIRGenFunction::emitAsmInputLValue(
 
 std::pair<mlir::Value, mlir::Type>
 CIRGenFunction::emitAsmInput(const TargetInfo::ConstraintInfo &Info,
-                              const Expr *InputExpr,
-                              std::string &ConstraintStr) {
+                             const Expr *InputExpr,
+                             std::string &ConstraintStr) {
   auto loc = getLoc(InputExpr->getExprLoc());
 
   // If this can't be a register or memory, i.e., has to be a constant
@@ -257,17 +257,17 @@ CIRGenFunction::emitAsmInput(const TargetInfo::ConstraintInfo &Info,
   InputExpr = InputExpr->IgnoreParenNoopCasts(getContext());
   LValue Dest = emitLValue(InputExpr);
   return emitAsmInputLValue(Info, Dest, InputExpr->getType(), ConstraintStr,
-                             InputExpr->getExprLoc());
+                            InputExpr->getExprLoc());
 }
 
 static void emitAsmStores(CIRGenFunction &CGF, const AsmStmt &S,
-                           const llvm::ArrayRef<mlir::Value> RegResults,
-                           const llvm::ArrayRef<mlir::Type> ResultRegTypes,
-                           const llvm::ArrayRef<mlir::Type> ResultTruncRegTypes,
-                           const llvm::ArrayRef<LValue> ResultRegDests,
-                           const llvm::ArrayRef<QualType> ResultRegQualTys,
-                           const llvm::BitVector &ResultTypeRequiresCast,
-                           const llvm::BitVector &ResultRegIsFlagReg) {
+                          const llvm::ArrayRef<mlir::Value> RegResults,
+                          const llvm::ArrayRef<mlir::Type> ResultRegTypes,
+                          const llvm::ArrayRef<mlir::Type> ResultTruncRegTypes,
+                          const llvm::ArrayRef<LValue> ResultRegDests,
+                          const llvm::ArrayRef<QualType> ResultRegQualTys,
+                          const llvm::BitVector &ResultTypeRequiresCast,
+                          const llvm::BitVector &ResultRegIsFlagReg) {
   CIRGenBuilderTy &Builder = CGF.getBuilder();
   CIRGenModule &CGM = CGF.CGM;
   auto CTX = Builder.getContext();
@@ -496,8 +496,8 @@ mlir::LogicalResult CIRGenFunction::emitAsmStmt(const AsmStmt &S) {
       mlir::Value Arg;
       mlir::Type ArgElemType;
       std::tie(Arg, ArgElemType) =
-          emitAsmInputLValue(Info, Dest, InputExpr->getType(),
-                              InOutConstraints, InputExpr->getExprLoc());
+          emitAsmInputLValue(Info, Dest, InputExpr->getType(), InOutConstraints,
+                             InputExpr->getExprLoc());
 
       if (mlir::Type AdjTy = getTargetHooks().adjustInlineAsmType(
               *this, OutputConstraint, Arg.getType()))
@@ -677,7 +677,7 @@ mlir::LogicalResult CIRGenFunction::emitAsmStmt(const AsmStmt &S) {
       auto alignment = CharUnits::One();
       auto sname = cast<cir::StructType>(ResultType).getName();
       auto dest = emitAlloca(sname, ResultType, getLoc(S.getAsmLoc()),
-                              alignment, false);
+                             alignment, false);
       auto addr = Address(dest, alignment);
       builder.createStore(getLoc(S.getAsmLoc()), result, addr);
 
@@ -693,8 +693,8 @@ mlir::LogicalResult CIRGenFunction::emitAsmStmt(const AsmStmt &S) {
   }
 
   emitAsmStores(*this, S, RegResults, ResultRegTypes, ResultTruncRegTypes,
-                 ResultRegDests, ResultRegQualTys, ResultTypeRequiresCast,
-                 ResultRegIsFlagReg);
+                ResultRegDests, ResultRegQualTys, ResultTypeRequiresCast,
+                ResultRegIsFlagReg);
 
   return mlir::success();
 }

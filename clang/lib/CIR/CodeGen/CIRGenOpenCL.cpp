@@ -187,7 +187,7 @@ void CIRGenModule::genKernelArgMetadata(cir::FuncOp Fn, const FunctionDecl *FD,
 }
 
 void CIRGenFunction::emitKernelMetadata(const FunctionDecl *FD,
-                                         cir::FuncOp Fn) {
+                                        cir::FuncOp Fn) {
   if (!FD->hasAttr<OpenCLKernelAttr>() && !FD->hasAttr<CUDAGlobalAttr>())
     return;
 
