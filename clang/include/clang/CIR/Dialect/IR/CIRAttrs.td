@@ -292,12 +292,12 @@ def FPAttr : CIR_Attr<"FP", "fp", [TypedAttrInterface]> {
     APFloatParameter<"">:$value
   );
   let builders = [
-    AttrBuilderWithInferredContext<(ins "Type":$type,
-                                        "const APFloat &":$value), [{
+    AttrBuilderWithInferredContext<(ins "mlir::Type":$type,
+                                        "const llvm::APFloat &":$value), [{
       return $_get(type.getContext(), mlir::cast<CIRFPTypeInterface>(type), value);
     }]>,
-    AttrBuilder<(ins "Type":$type,
-                     "const APFloat &":$value), [{
+    AttrBuilder<(ins "mlir::Type":$type,
+                     "const llvm::APFloat &":$value), [{
       return $_get($_ctxt, mlir::cast<CIRFPTypeInterface>(type), value);
     }]>,
   ];

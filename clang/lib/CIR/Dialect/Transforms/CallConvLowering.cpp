@@ -138,7 +138,7 @@ void CallConvLoweringPass::runOnOperation() {
 
 namespace mlir {
 
-std::unique_ptr<Pass> createCallConvLoweringPass() {
+std::unique_ptr<mlir::Pass> createCallConvLoweringPass() {
   return std::make_unique<cir::CallConvLoweringPass>();
 }
 

@@ -4061,12 +4061,12 @@ private:
 };
 
 class CIRReturnAddrOpLowering
-    : public mlir::OpConversionPattern<mlir::cir::ReturnAddrOp> {
+    : public mlir::OpConversionPattern<cir::ReturnAddrOp> {
 public:
-  using OpConversionPattern<mlir::cir::ReturnAddrOp>::OpConversionPattern;
+  using OpConversionPattern<cir::ReturnAddrOp>::OpConversionPattern;
 
   mlir::LogicalResult
-  matchAndRewrite(mlir::cir::ReturnAddrOp op, OpAdaptor adaptor,
+  matchAndRewrite(cir::ReturnAddrOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto llvmPtrTy = mlir::LLVM::LLVMPointerType::get(rewriter.getContext());
     replaceOpWithCallLLVMIntrinsicOp(rewriter, op, "llvm.returnaddress",

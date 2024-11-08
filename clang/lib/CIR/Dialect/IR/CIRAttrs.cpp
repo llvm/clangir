@@ -43,7 +43,7 @@ static void printFloatLiteral(mlir::AsmPrinter &p, llvm::APFloat value,
 static mlir::ParseResult
 parseFloatLiteral(mlir::AsmParser &parser,
                   mlir::FailureOr<llvm::APFloat> &value,
-                  mlir::cir::CIRFPTypeInterface fpType);
+                  cir::CIRFPTypeInterface fpType);
 
 static mlir::ParseResult parseConstPtr(mlir::AsmParser &parser,
                                        mlir::IntegerAttr &value);

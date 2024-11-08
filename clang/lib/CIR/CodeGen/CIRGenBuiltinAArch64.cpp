@@ -2521,7 +2521,7 @@ mlir::Value CIRGenFunction::buildCommonNeonBuiltinExpr(
                                                     : "aarch64.neon.sqxtn";
     argTypes.push_back(builder.getExtendedOrTruncatedElementVectorType(
         vTy, true /* extended */,
-        mlir::cast<mlir::cir::IntType>(vTy.getEltType()).isSigned()));
+        mlir::cast<cir::IntType>(vTy.getEltType()).isSigned()));
     break;
   }
 
