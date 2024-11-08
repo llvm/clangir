@@ -887,13 +887,13 @@ public:
 #define HANDLEBINOP(OP)                                                        \
   mlir::Value VisitBin##OP(const BinaryOperator *E) {                          \
     QualType promotionTy = getPromotionType(E->getType());                     \
-    auto result = build##OP(emitBinOps(E, promotionTy));                      \
+    auto result = emit##OP(emitBinOps(E, promotionTy));                      \
     if (result && !promotionTy.isNull())                                       \
       result = emitUnPromotedValue(result, E->getType());                     \
     return result;                                                             \
   }                                                                            \
   mlir::Value VisitBin##OP##Assign(const CompoundAssignOperator *E) {          \
-    return emitCompoundAssign(E, &ScalarExprEmitter::build##OP);              \
+    return emitCompoundAssign(E, &ScalarExprEmitter::emit##OP);              \
   }
 
   HANDLEBINOP(Mul)
@@ -2132,7 +2132,7 @@ CIRGenFunction::emitCompoundAssignmentLValue(const CompoundAssignOperator *E) {
   switch (E->getOpcode()) {
 #define COMPOUND_OP(Op)                                                        \
   case BO_##Op##Assign:                                                        \
-    return Scalar.emitCompoundAssignLValue(E, &ScalarExprEmitter::build##Op,  \
+    return Scalar.emitCompoundAssignLValue(E, &ScalarExprEmitter::emit##Op,  \
                                             Result)
     COMPOUND_OP(Mul);
     COMPOUND_OP(Div);
@@ -2285,7 +2285,7 @@ mlir::Value ScalarExprEmitter::emitPromoted(const Expr *E,
     switch (BO->getOpcode()) {
 #define HANDLE_BINOP(OP)                                                       \
   case BO_##OP:                                                                \
-    return build##OP(emitBinOps(BO, PromotionType));
+    return emit##OP(emitBinOps(BO, PromotionType));
       HANDLE_BINOP(Add)
       HANDLE_BINOP(Sub)
       HANDLE_BINOP(Mul)
