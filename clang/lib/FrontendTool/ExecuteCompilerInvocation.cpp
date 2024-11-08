@@ -35,7 +35,7 @@
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/Pass/PassManager.h"
 #include "clang/CIR/Dialect/Passes.h"
-#include "clang/CIRFrontendAction/CIRGenAction.h"
+#include "clang/CIR/FrontendAction/CIRGenAction.h"
 #endif
 
 using namespace clang;
