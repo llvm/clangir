@@ -82,8 +82,8 @@
 #include <numeric>
 
 using namespace mlir::cir;
-using namespace cir;
 using namespace clang;
+using namespace clang::CIRGen;
 
 using llvm::cast;
 using llvm::dyn_cast;
@@ -388,7 +388,7 @@ static bool shouldAssumeDSOLocal(const CIRGenModule &CGM,
   // DLLImport explicitly marks the GV as external.
   // so it shouldn't be dso_local
   // But we don't have the info set now
-  assert(!MissingFeatures::setDLLImportDLLExport());
+  assert(!cir::MissingFeatures::setDLLImportDLLExport());
 
   const llvm::Triple &TT = CGM.getTriple();
   const auto &CGOpts = CGM.getCodeGenOpts();
@@ -506,15 +506,15 @@ void CIRGenModule::buildGlobal(GlobalDecl GD) {
   if (langOpts.OpenMP) {
     // If this is OpenMP, check if it is legal to emit this global normally.
     if (openMPRuntime && openMPRuntime->emitTargetGlobal(GD)) {
-      assert(!MissingFeatures::openMPRuntime());
+      assert(!cir::MissingFeatures::openMPRuntime());
       return;
     }
     if (auto *DRD = dyn_cast<OMPDeclareReductionDecl>(Global)) {
-      assert(!MissingFeatures::openMP());
+      assert(!cir::MissingFeatures::openMP());
       return;
     }
     if (auto *DMD = dyn_cast<OMPDeclareMapperDecl>(Global)) {
-      assert(!MissingFeatures::openMP());
+      assert(!cir::MissingFeatures::openMP());
       return;
     }
   }
@@ -727,10 +727,10 @@ void CIRGenModule::setCommonAttributes(GlobalDecl GD, mlir::Operation *GV) {
   if (isa_and_nonnull<NamedDecl>(D))
     setGVProperties(GV, dyn_cast<NamedDecl>(D));
   else
-    assert(!MissingFeatures::setDefaultVisibility());
+    assert(!cir::MissingFeatures::setDefaultVisibility());
 
   if (D && D->hasAttr<UsedAttr>())
-    assert(!MissingFeatures::addUsedOrCompilerUsedGlobal());
+    assert(!cir::MissingFeatures::addUsedOrCompilerUsedGlobal());
 
   if (const auto *VD = dyn_cast_if_present<VarDecl>(D);
       VD &&
@@ -739,7 +739,7 @@ void CIRGenModule::setCommonAttributes(GlobalDecl GD, mlir::Operation *GV) {
          VD->getStorageDuration() == SD_Thread)) ||
        (codeGenOpts.KeepStaticConsts && VD->getStorageDuration() == SD_Static &&
         VD->getType().isConstQualified())))
-    assert(!MissingFeatures::addUsedOrCompilerUsedGlobal());
+    assert(!cir::MissingFeatures::addUsedOrCompilerUsedGlobal());
 }
 
 void CIRGenModule::setNonAliasAttributes(GlobalDecl GD, mlir::Operation *GO) {
@@ -750,40 +750,40 @@ void CIRGenModule::setNonAliasAttributes(GlobalDecl GD, mlir::Operation *GO) {
     auto GV = llvm::dyn_cast_or_null<mlir::cir::GlobalOp>(GO);
     if (GV) {
       if (D->hasAttr<RetainAttr>())
-        assert(!MissingFeatures::addUsedGlobal());
+        assert(!cir::MissingFeatures::addUsedGlobal());
       if (auto *SA = D->getAttr<PragmaClangBSSSectionAttr>())
-        assert(!MissingFeatures::addSectionAttributes());
+        assert(!cir::MissingFeatures::addSectionAttributes());
       if (auto *SA = D->getAttr<PragmaClangDataSectionAttr>())
-        assert(!MissingFeatures::addSectionAttributes());
+        assert(!cir::MissingFeatures::addSectionAttributes());
       if (auto *SA = D->getAttr<PragmaClangRodataSectionAttr>())
-        assert(!MissingFeatures::addSectionAttributes());
+        assert(!cir::MissingFeatures::addSectionAttributes());
       if (auto *SA = D->getAttr<PragmaClangRelroSectionAttr>())
-        assert(!MissingFeatures::addSectionAttributes());
+        assert(!cir::MissingFeatures::addSectionAttributes());
     }
     auto F = llvm::dyn_cast_or_null<mlir::cir::FuncOp>(GO);
     if (F) {
       if (D->hasAttr<RetainAttr>())
-        assert(!MissingFeatures::addUsedGlobal());
+        assert(!cir::MissingFeatures::addUsedGlobal());
       if (auto *SA = D->getAttr<PragmaClangTextSectionAttr>())
         if (!D->getAttr<SectionAttr>())
-          assert(!MissingFeatures::setSectionForFuncOp());
+          assert(!cir::MissingFeatures::setSectionForFuncOp());
 
-      assert(!MissingFeatures::updateCPUAndFeaturesAttributes());
+      assert(!cir::MissingFeatures::updateCPUAndFeaturesAttributes());
     }
 
     if (const auto *CSA = D->getAttr<CodeSegAttr>()) {
-      assert(!MissingFeatures::setSectionForFuncOp());
+      assert(!cir::MissingFeatures::setSectionForFuncOp());
       if (GV)
         GV.setSection(CSA->getName());
       if (F)
-        assert(!MissingFeatures::setSectionForFuncOp());
+        assert(!cir::MissingFeatures::setSectionForFuncOp());
     } else if (const auto *SA = D->getAttr<SectionAttr>())
       if (GV)
         GV.setSection(SA->getName());
     if (F)
-      assert(!MissingFeatures::setSectionForFuncOp());
+      assert(!cir::MissingFeatures::setSectionForFuncOp());
   }
-  assert(!MissingFeatures::setTargetAttributes());
+  assert(!cir::MissingFeatures::setTargetAttributes());
 }
 
 void CIRGenModule::replaceGlobal(mlir::cir::GlobalOp Old,
@@ -890,7 +890,7 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef MangledName, mlir::Type Ty,
     // Handle dropped DLL attributes.
     if (D && !D->hasAttr<clang::DLLImportAttr>() &&
         !D->hasAttr<clang::DLLExportAttr>())
-      assert(!MissingFeatures::setDLLStorageClass() && "NYI");
+      assert(!cir::MissingFeatures::setDLLStorageClass() && "NYI");
 
     if (langOpts.OpenMP && !langOpts.OpenMPSimd && D)
       getOpenMPRuntime().registerTargetGlobalVariable(D, Entry);
@@ -1339,11 +1339,11 @@ void CIRGenModule::buildGlobalVarDefinition(const clang::VarDecl *D,
   GV.setVisibility(getMLIRVisibilityFromCIRLinkage(Linkage));
   // TODO(cir): handle DLL storage classes in CIR?
   if (D->hasAttr<DLLImportAttr>())
-    assert(!MissingFeatures::setDLLStorageClass());
+    assert(!cir::MissingFeatures::setDLLStorageClass());
   else if (D->hasAttr<DLLExportAttr>())
-    assert(!MissingFeatures::setDLLStorageClass());
+    assert(!cir::MissingFeatures::setDLLStorageClass());
   else
-    assert(!MissingFeatures::setDLLStorageClass());
+    assert(!cir::MissingFeatures::setDLLStorageClass());
 
   if (Linkage == mlir::cir::GlobalLinkageKind::CommonLinkage) {
     // common vars aren't constant even if declared const.
@@ -1377,8 +1377,8 @@ void CIRGenModule::buildGlobalVarDefinition(const clang::VarDecl *D,
 
   // TODO(cir): sanitizers (reportGlobalToASan) and global variable debug
   // information.
-  assert(!MissingFeatures::sanitizeOther());
-  assert(!MissingFeatures::generateDebugInfo());
+  assert(!cir::MissingFeatures::sanitizeOther());
+  assert(!cir::MissingFeatures::generateDebugInfo());
 }
 
 void CIRGenModule::buildGlobalDefinition(GlobalDecl GD, mlir::Operation *Op) {
@@ -1770,7 +1770,7 @@ void CIRGenModule::buildTopLevelDecl(Decl *decl) {
     break;
   case Decl::ClassTemplateSpecialization: {
     // const auto *Spec = cast<ClassTemplateSpecializationDecl>(decl);
-    assert(!MissingFeatures::generateDebugInfo() && "NYI");
+    assert(!cir::MissingFeatures::generateDebugInfo() && "NYI");
   }
     [[fallthrough]];
   case Decl::CXXRecord: {
@@ -1797,7 +1797,7 @@ void CIRGenModule::buildTopLevelDecl(Decl *decl) {
   case Decl::UsingEnum: // using enum X; [C++]
   case Decl::NamespaceAlias:
   case Decl::UsingDirective: // using namespace X; [C++]
-    assert(!MissingFeatures::generateDebugInfo() && "NYI");
+    assert(!cir::MissingFeatures::generateDebugInfo() && "NYI");
     break;
   case Decl::CXXConstructor:
     getCXXABI().buildCXXConstructors(cast<CXXConstructorDecl>(decl));
@@ -1818,7 +1818,7 @@ void CIRGenModule::buildTopLevelDecl(Decl *decl) {
   case Decl::TypeAlias: // using foo = bar; [C++11]
   case Decl::Record:
   case Decl::Enum:
-    assert(!MissingFeatures::generateDebugInfo() && "NYI");
+    assert(!cir::MissingFeatures::generateDebugInfo() && "NYI");
     break;
   }
 }
@@ -2087,9 +2087,9 @@ void CIRGenModule::ReplaceUsesOfNonProtoTypeWithRealFunction(
     return;
 
   // TODO(cir): this RAUW ignores the features below.
-  assert(!MissingFeatures::exceptions() && "Call vs Invoke NYI");
-  assert(!MissingFeatures::parameterAttributes());
-  assert(!MissingFeatures::operandBundles());
+  assert(!cir::MissingFeatures::exceptions() && "Call vs Invoke NYI");
+  assert(!cir::MissingFeatures::parameterAttributes());
+  assert(!cir::MissingFeatures::operandBundles());
   assert(OldFn->getAttrs().size() > 1 && "Attribute forwarding NYI");
 
   // Mark new function as originated from a no-proto declaration.
@@ -2163,7 +2163,7 @@ void CIRGenModule::buildAliasForGlobal(StringRef mangledName,
       alias, mlir::SymbolTable::Visibility::Private);
 
   // Alias constructors and destructors are always unnamed_addr.
-  assert(!MissingFeatures::unnamedAddr());
+  assert(!cir::MissingFeatures::unnamedAddr());
 
   // Switch any previous uses to the alias.
   if (op) {
@@ -2360,11 +2360,11 @@ void CIRGenModule::buildTentativeDefinition(const VarDecl *D) {
 
 void CIRGenModule::setGlobalVisibility(mlir::Operation *GV,
                                        const NamedDecl *D) const {
-  assert(!MissingFeatures::setGlobalVisibility());
+  assert(!cir::MissingFeatures::setGlobalVisibility());
 }
 
 void CIRGenModule::setDSOLocal(mlir::Operation *Op) const {
-  assert(!MissingFeatures::setDSOLocal());
+  assert(!cir::MissingFeatures::setDSOLocal());
   if (auto globalValue = dyn_cast<mlir::cir::CIRGlobalValueInterface>(Op)) {
     setDSOLocal(globalValue);
   }
@@ -2372,7 +2372,7 @@ void CIRGenModule::setDSOLocal(mlir::Operation *Op) const {
 
 void CIRGenModule::setGVProperties(mlir::Operation *Op,
                                    const NamedDecl *D) const {
-  assert(!MissingFeatures::setDLLImportDLLExport());
+  assert(!cir::MissingFeatures::setDLLImportDLLExport());
   setGVPropertiesAux(Op, D);
 }
 
@@ -2380,7 +2380,7 @@ void CIRGenModule::setGVPropertiesAux(mlir::Operation *Op,
                                       const NamedDecl *D) const {
   setGlobalVisibility(Op, D);
   setDSOLocal(Op);
-  assert(!MissingFeatures::setPartition());
+  assert(!cir::MissingFeatures::setPartition());
 }
 
 bool CIRGenModule::lookupRepresentativeDecl(StringRef MangledName,
@@ -2619,7 +2619,7 @@ void CIRGenModule::setFunctionAttributes(GlobalDecl globalDecl,
   }
 
   // TODO(cir): Complete the remaining part of the function.
-  assert(!MissingFeatures::setFunctionAttributes());
+  assert(!cir::MissingFeatures::setFunctionAttributes());
 
   // TODO(cir): This needs a lot of work to better match CodeGen. That
   // ultimately ends up in setGlobalVisibility, which already has the linkage of
@@ -2814,7 +2814,7 @@ mlir::cir::FuncOp CIRGenModule::GetOrCreateCIRFunction(
   }
 
   // TODO(cir): Might need bitcast to different address space.
-  assert(!MissingFeatures::addressSpace());
+  assert(!cir::MissingFeatures::addressSpace());
   return F;
 }
 
@@ -3141,7 +3141,7 @@ bool CIRGenModule::shouldEmitFunction(GlobalDecl globalDecl) {
     return false;
 
   if (func->hasAttr<DLLImportAttr>() && !func->hasAttr<AlwaysInlineAttr>())
-    assert(!MissingFeatures::setDLLImportDLLExport() &&
+    assert(!cir::MissingFeatures::setDLLImportDLLExport() &&
            "shouldEmitFunction for dllimport is NYI");
 
   // PR9614. Avoid cases where the source code is lying to us. An available
@@ -3164,7 +3164,7 @@ void CIRGenModule::maybeSetTrivialComdat(const Decl &d, mlir::Operation *op) {
     globalOp.setComdat(true);
   // Keep it as missing feature as we need to implement comdat for FuncOp.
   // in the future.
-  assert(!MissingFeatures::setComdat() && "NYI");
+  assert(!cir::MissingFeatures::setComdat() && "NYI");
 }
 
 bool CIRGenModule::isInNoSanitizeList(SanitizerMask Kind, mlir::cir::FuncOp Fn,
@@ -3236,7 +3236,7 @@ void CIRGenModule::buildExplicitCastExprType(const ExplicitCastExpr *E,
   if (CGF && E->getType()->isVariablyModifiedType())
     llvm_unreachable("NYI");
 
-  assert(!MissingFeatures::generateDebugInfo() && "NYI");
+  assert(!cir::MissingFeatures::generateDebugInfo() && "NYI");
 }
 
 void CIRGenModule::HandleCXXStaticMemberVarInstantiation(VarDecl *VD) {
@@ -3353,7 +3353,7 @@ mlir::cir::GlobalOp CIRGenModule::getOrInsertGlobal(
   // If the variable exists but has the wrong type, return a bitcast to the
   // right type.
   auto GVTy = GV.getSymType();
-  assert(!MissingFeatures::addressSpace());
+  assert(!cir::MissingFeatures::addressSpace());
   auto PTy = builder.getPointerTo(Ty);
 
   if (GVTy != PTy)
