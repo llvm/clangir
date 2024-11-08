@@ -1507,8 +1507,8 @@ RValue CIRGenFunction::buildBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     mlir::Attribute levelAttr = ConstantEmitter(*this).emitAbstract(
         E->getArg(0), E->getArg(0)->getType());
     int64_t level = mlir::cast<cir::IntAttr>(levelAttr).getSInt();
-    return RValue::get(builder.create<cir::ReturnAddrOp>(
-        loc, builder.getUInt32(level, loc)));
+    return RValue::get(
+        builder.create<cir::ReturnAddrOp>(loc, builder.getUInt32(level, loc)));
   }
   case Builtin::BI_ReturnAddress:
     llvm_unreachable("BI_ReturnAddress NYI");
