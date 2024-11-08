@@ -20,5 +20,8 @@ public:
                                clang::ASTContext &astCtx,
                                mlir::cir::DynamicCastOp op) override;
   mlir::Value lowerVAArg(cir::CIRBaseBuilderTy &builder, mlir::cir::VAArgOp op,
-                         const cir::CIRDataLayout &datalayout) override;
+                         const cir::CIRDataLayout &datalayout) override {
+    // Itanium C++ ABI has nothing to do with VAArg.
+    return {};
+  }
 };
