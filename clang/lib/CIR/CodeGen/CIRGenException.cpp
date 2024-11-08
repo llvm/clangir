@@ -29,8 +29,8 @@
 #include "mlir/IR/Value.h"
 #include "llvm/Support/SaveAndRestore.h"
 
-using namespace cir;
 using namespace clang;
+using namespace clang::CIRGen;
 
 const EHPersonality EHPersonality::GNU_C = {"__gcc_personality_v0", nullptr};
 const EHPersonality EHPersonality::GNU_C_SJLJ = {"__gcc_personality_sj0",
@@ -218,7 +218,7 @@ struct FreeException final : EHScopeStack::Cleanup {
   FreeException(mlir::Value exn) : exn(exn) {}
   void Emit(CIRGenFunction &CGF, Flags flags) override {
     // OG LLVM codegen emits a no unwind call, CIR emits an operation.
-    cir::CIRGenBuilderTy &builder = CGF.getBuilder();
+    CIRGenBuilderTy &builder = CGF.getBuilder();
     mlir::Location loc =
         CGF.currSrcLoc ? *CGF.currSrcLoc : builder.getUnknownLoc();
     builder.create<mlir::cir::FreeExceptionOp>(
@@ -438,7 +438,7 @@ static void buildCatchDispatchBlock(CIRGenFunction &CGF,
     assert(typeValue && "fell into catch-all case!");
     // Check for address space mismatch: if (typeValue->getType() !=
     // argTy)
-    assert(!MissingFeatures::addressSpace());
+    assert(!cir::MissingFeatures::addressSpace());
 
     bool nextIsEnd = false;
     // If this is the last handler, we're at the end, and the next
@@ -569,7 +569,7 @@ void CIRGenFunction::exitCXXTryStmt(const CXXTryStmt &S, bool IsFnTryBlock) {
     CGM.getCXXABI().emitBeginCatch(*this, C);
 
     // Emit the PGO counter increment.
-    assert(!MissingFeatures::incrementProfileCounter());
+    assert(!cir::MissingFeatures::incrementProfileCounter());
 
     // Perform the body of the catch.
     (void)buildStmt(C->getHandlerBlock(), /*useCurrentScope=*/true);
@@ -604,7 +604,7 @@ void CIRGenFunction::exitCXXTryStmt(const CXXTryStmt &S, bool IsFnTryBlock) {
     llvm_unreachable("NYI");
   }
 
-  assert(!MissingFeatures::incrementProfileCounter());
+  assert(!cir::MissingFeatures::incrementProfileCounter());
 }
 
 /// Check whether this is a non-EH scope, i.e. a scope which doesn't
@@ -648,7 +648,7 @@ mlir::Operation *CIRGenFunction::buildLandingPad(mlir::cir::TryOp tryOp) {
   if (!catches || catches.empty()) {
     // Save the current CIR generation state.
     mlir::OpBuilder::InsertionGuard guard(builder);
-    assert(!MissingFeatures::generateDebugInfo() && "NYI");
+    assert(!cir::MissingFeatures::generateDebugInfo() && "NYI");
 
     // Traditional LLVM codegen creates the lpad basic block, extract
     // values, landing pad instructions, etc.
