@@ -281,13 +281,20 @@ def FPAttr : CIR_Attr<"FP", "fp", [TypedAttrInterface]> {
   let summary = "An attribute containing a floating-point value";
   let description = [{
     An fp attribute is a literal attribute that represents a floating-point
-    value of the specified floating-point type.
+    value of the specified floating-point type. Supporting only CIR FP types.
   }];
-  let parameters = (ins AttributeSelfTypeParameter<"">:$type, "APFloat":$value);
+  let parameters = (ins
+    AttributeSelfTypeParameter<"", "::mlir::cir::CIRFPTypeInterface">:$type,
+    APFloatParameter<"">:$value
+  );
   let builders = [
     AttrBuilderWithInferredContext<(ins "Type":$type,
                                         "const APFloat &":$value), [{
-      return $_get(type.getContext(), type, value);
+      return $_get(type.getContext(), mlir::cast<CIRFPTypeInterface>(type), value);
+    }]>,
+    AttrBuilder<(ins "Type":$type,
+                     "const APFloat &":$value), [{
+      return $_get($_ctxt, mlir::cast<CIRFPTypeInterface>(type), value);
     }]>,
   ];
   let extraClassDeclaration = [{
@@ -315,7 +322,7 @@ def ComplexAttr : CIR_Attr<"Complex", "complex", [TypedAttrInterface]> {
     contains values of the same CIR type.
   }];
 
-  let parameters = (ins 
+  let parameters = (ins
     AttributeSelfTypeParameter<"", "mlir::cir::ComplexType">:$type,
     "mlir::TypedAttr":$real, "mlir::TypedAttr":$imag);
 
@@ -816,7 +823,7 @@ def AddressSpaceAttr : CIR_Attr<"AddressSpace", "addrspace"> {
   let extraClassDeclaration = [{
     static constexpr char kTargetKeyword[] = "}]#targetASCase.symbol#[{";
     static constexpr int32_t kFirstTargetASValue = }]#targetASCase.value#[{;
-  
+
     bool isLang() const;
     bool isTarget() const;
     unsigned getTargetValue() const;
@@ -976,7 +983,7 @@ def ASTCallExprAttr : AST<"CallExpr", "call.expr",
 // VisibilityAttr
 //===----------------------------------------------------------------------===//
 
-def VK_Default : I32EnumAttrCase<"Default", 1, "default">; 
+def VK_Default : I32EnumAttrCase<"Default", 1, "default">;
 def VK_Hidden : I32EnumAttrCase<"Hidden", 2, "hidden">;
 def VK_Protected : I32EnumAttrCase<"Protected", 3, "protected">;
 
@@ -1009,7 +1016,7 @@ def VisibilityAttr : CIR_Attr<"Visibility", "visibility"> {
     bool isDefault() const { return getValue() == VisibilityKind::Default; };
     bool isHidden() const { return getValue() == VisibilityKind::Hidden; };
     bool isProtected() const { return getValue() == VisibilityKind::Protected; };
-  }]; 
+  }];
 }
 
 
@@ -1156,7 +1163,7 @@ def AnnotationAttr : CIR_Attr<"Annotation", "annotation"> {
   let parameters = (ins "StringAttr":$name,
                         "ArrayAttr":$args);
 
-  let assemblyFormat = "`<` struct($name, $args) `>`";                  
+  let assemblyFormat = "`<` struct($name, $args) `>`";
 
   let extraClassDeclaration = [{
     bool isNoArgs() const { return getArgs().empty(); };
@@ -1183,7 +1190,7 @@ def GlobalAnnotationValuesAttr : CIR_Attr<"GlobalAnnotationValues",
     void *c __attribute__((annotate("noargvar")));
     void foo(int i) __attribute__((annotate("noargfunc"))) {}
     ```
-    After CIR lowering prepare pass, compiler generates a 
+    After CIR lowering prepare pass, compiler generates a
     `GlobalAnnotationValuesAttr` like the following:
     ```
     #cir<global_annotations [
