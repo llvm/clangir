@@ -49,6 +49,17 @@ public:
                                          getAttr<mlir::cir::IntAttr>(ty, val));
   }
 
+  mlir::Value getSignedInt(mlir::Location loc, int64_t val, unsigned numBits) {
+    return getConstAPSInt(
+        loc, llvm::APSInt(llvm::APInt(numBits, val), /*isUnsigned=*/false));
+  }
+
+  mlir::Value getUnsignedInt(mlir::Location loc, uint64_t val,
+                             unsigned numBits) {
+    return getConstAPSInt(
+        loc, llvm::APSInt(llvm::APInt(numBits, val), /*isUnsigned=*/true));
+  }
+
   mlir::Value getConstAPInt(mlir::Location loc, mlir::Type typ,
                             const llvm::APInt &val) {
     return create<mlir::cir::ConstantOp>(loc, typ,

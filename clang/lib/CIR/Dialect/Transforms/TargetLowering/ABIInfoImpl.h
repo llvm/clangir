@@ -31,6 +31,7 @@ bool isAggregateTypeForABI(Type T);
 Type useFirstFieldIfTransparentUnion(Type Ty);
 
 CIRCXXABI::RecordArgABI getRecordArgABI(const StructType RT, CIRCXXABI &CXXABI);
+CIRCXXABI::RecordArgABI getRecordArgABI(mlir::Type ty, CIRCXXABI &CXXABI);
 
 } // namespace cir
 } // namespace mlir
