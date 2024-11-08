@@ -149,9 +149,9 @@ public:
   void buildCopy(QualType type, const AggValueSlot &dest,
                  const AggValueSlot &src);
 
-  void buildArrayInit(Address DestPtr, mlir::cir::ArrayType AType,
-                      QualType ArrayQTy, Expr *ExprToVisit,
-                      ArrayRef<Expr *> Args, Expr *ArrayFiller);
+  void buildArrayInit(Address DestPtr, cir::ArrayType AType, QualType ArrayQTy,
+                      Expr *ExprToVisit, ArrayRef<Expr *> Args,
+                      Expr *ArrayFiller);
 
   AggValueSlot::NeedsGCBarriers_t needsGC(QualType T) {
     if (CGF.getLangOpts().getGC() && TypeRequiresGCollection(T))
@@ -485,7 +485,7 @@ static bool isTrivialFiller(Expr *E) {
   return false;
 }
 
-void AggExprEmitter::buildArrayInit(Address DestPtr, mlir::cir::ArrayType AType,
+void AggExprEmitter::buildArrayInit(Address DestPtr, cir::ArrayType AType,
                                     QualType ArrayQTy, Expr *ExprToVisit,
                                     ArrayRef<Expr *> Args, Expr *ArrayFiller) {
   uint64_t NumInitElements = Args.size();
@@ -498,15 +498,15 @@ void AggExprEmitter::buildArrayInit(Address DestPtr, mlir::cir::ArrayType AType,
   QualType elementPtrType = CGF.getContext().getPointerType(elementType);
 
   auto cirElementType = CGF.convertType(elementType);
-  auto cirAddrSpace = mlir::cast_if_present<mlir::cir::AddressSpaceAttr>(
+  auto cirAddrSpace = mlir::cast_if_present<cir::AddressSpaceAttr>(
       DestPtr.getType().getAddrSpace());
   auto cirElementPtrType =
       CGF.getBuilder().getPointerTo(cirElementType, cirAddrSpace);
   auto loc = CGF.getLoc(ExprToVisit->getSourceRange());
 
   // Cast from cir.ptr<cir.array<elementType> to cir.ptr<elementType>
-  auto begin = CGF.getBuilder().create<mlir::cir::CastOp>(
-      loc, cirElementPtrType, mlir::cir::CastKind::array_to_ptrdecay,
+  auto begin = CGF.getBuilder().create<cir::CastOp>(
+      loc, cirElementPtrType, cir::CastKind::array_to_ptrdecay,
       DestPtr.getPointer());
 
   CharUnits elementSize = CGF.getContext().getTypeSizeInChars(elementType);
@@ -539,11 +539,11 @@ void AggExprEmitter::buildArrayInit(Address DestPtr, mlir::cir::ArrayType AType,
   for (uint64_t i = 0; i != NumInitElements; ++i) {
     if (i == 1)
       one = CGF.getBuilder().getConstInt(
-          loc, mlir::cast<mlir::cir::IntType>(CGF.PtrDiffTy), 1);
+          loc, mlir::cast<cir::IntType>(CGF.PtrDiffTy), 1);
 
     // Advance to the next element.
     if (i > 0) {
-      element = CGF.getBuilder().create<mlir::cir::PtrStrideOp>(
+      element = CGF.getBuilder().create<cir::PtrStrideOp>(
           loc, cirElementPtrType, element, one);
 
       // Tell the cleanup that it needs to destroy up to this
@@ -575,9 +575,9 @@ void AggExprEmitter::buildArrayInit(Address DestPtr, mlir::cir::ArrayType AType,
     // Advance to the start of the rest of the array.
     if (NumInitElements) {
       auto one =
-          builder.getConstInt(loc, mlir::cast<mlir::cir::IntType>(CGF.PtrDiffTy), 1);
-      element = builder.create<mlir::cir::PtrStrideOp>(loc, cirElementPtrType,
-                                                       element, one);
+          builder.getConstInt(loc, mlir::cast<cir::IntType>(CGF.PtrDiffTy), 1);
+      element = builder.create<cir::PtrStrideOp>(loc, cirElementPtrType,
+                                                 element, one);
 
       assert(!endOfInit.isValid() && "destructed types NIY");
     }
@@ -591,8 +591,8 @@ void AggExprEmitter::buildArrayInit(Address DestPtr, mlir::cir::ArrayType AType,
 
     // Compute the end of array
     auto numArrayElementsConst = builder.getConstInt(
-        loc, mlir::cast<mlir::cir::IntType>(CGF.PtrDiffTy), NumArrayElements);
-    mlir::Value end = builder.create<mlir::cir::PtrStrideOp>(
+        loc, mlir::cast<cir::IntType>(CGF.PtrDiffTy), NumArrayElements);
+    mlir::Value end = builder.create<cir::PtrStrideOp>(
         loc, cirElementPtrType, begin, numArrayElementsConst);
 
     builder.createDoWhile(
@@ -601,8 +601,8 @@ void AggExprEmitter::buildArrayInit(Address DestPtr, mlir::cir::ArrayType AType,
         [&](mlir::OpBuilder &b, mlir::Location loc) {
           auto currentElement = builder.createLoad(loc, tmpAddr);
           mlir::Type boolTy = CGF.getCIRType(CGF.getContext().BoolTy);
-          auto cmp = builder.create<mlir::cir::CmpOp>(
-              loc, boolTy, mlir::cir::CmpOpKind::ne, currentElement, end);
+          auto cmp = builder.create<cir::CmpOp>(loc, boolTy, cir::CmpOpKind::ne,
+                                                currentElement, end);
           builder.createCondition(cmp);
         },
         /*bodyBuilder=*/
@@ -626,8 +626,8 @@ void AggExprEmitter::buildArrayInit(Address DestPtr, mlir::cir::ArrayType AType,
 
           // Advance pointer and store them to temporary variable
           auto one = builder.getConstInt(
-              loc, mlir::cast<mlir::cir::IntType>(CGF.PtrDiffTy), 1);
-          auto nextElement = builder.create<mlir::cir::PtrStrideOp>(
+              loc, mlir::cast<cir::IntType>(CGF.PtrDiffTy), 1);
+          auto nextElement = builder.create<cir::PtrStrideOp>(
               loc, cirElementPtrType, currentElement, one);
           CGF.buildStoreThroughLValue(RValue::get(nextElement), tmpLV);
 
@@ -908,11 +908,10 @@ void AggExprEmitter::VisitExprWithCleanups(ExprWithCleanups *E) {
   auto &builder = CGF.getBuilder();
   auto scopeLoc = CGF.getLoc(E->getSourceRange());
   mlir::OpBuilder::InsertPoint scopeBegin;
-  builder.create<mlir::cir::ScopeOp>(
-      scopeLoc, /*scopeBuilder=*/
-      [&](mlir::OpBuilder &b, mlir::Location loc) {
-        scopeBegin = b.saveInsertionPoint();
-      });
+  builder.create<cir::ScopeOp>(scopeLoc, /*scopeBuilder=*/
+                               [&](mlir::OpBuilder &b, mlir::Location loc) {
+                                 scopeBegin = b.saveInsertionPoint();
+                               });
 
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
@@ -1264,7 +1263,7 @@ void AggExprEmitter::VisitCXXParenListOrInitListExpr(
 
   // Handle initialization of an array.
   if (ExprToVisit->getType()->isConstantArrayType()) {
-    auto AType = cast<mlir::cir::ArrayType>(Dest.getAddress().getElementType());
+    auto AType = cast<cir::ArrayType>(Dest.getAddress().getElementType());
     buildArrayInit(Dest.getAddress(), AType, ExprToVisit->getType(),
                    ExprToVisit, InitExprs, ArrayFiller);
     return;

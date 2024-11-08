@@ -35,7 +35,7 @@
 
 using namespace clang;
 using namespace clang::CIRGen;
-using namespace mlir::cir;
+using namespace cir;
 
 CIRGenFunction::CIRGenFunction(CIRGenModule &CGM, CIRGenBuilderTy &builder,
                                bool suppressNewContext)
@@ -312,7 +312,7 @@ mlir::LogicalResult CIRGenFunction::declare(const Decl *var, QualType ty,
   assert(!symbolTable.count(var) && "not supposed to be available just yet");
 
   addr = buildAlloca(namedVar->getName(), ty, loc, alignment);
-  auto allocaOp = cast<mlir::cir::AllocaOp>(addr.getDefiningOp());
+  auto allocaOp = cast<cir::AllocaOp>(addr.getDefiningOp());
   if (isParam)
     allocaOp.setInitAttr(mlir::UnitAttr::get(&getMLIRContext()));
   if (ty->isReferenceType() || ty.isConstQualified())
@@ -332,7 +332,7 @@ mlir::LogicalResult CIRGenFunction::declare(Address addr, const Decl *var,
   assert(!symbolTable.count(var) && "not supposed to be available just yet");
 
   addrVal = addr.getPointer();
-  auto allocaOp = cast<mlir::cir::AllocaOp>(addrVal.getDefiningOp());
+  auto allocaOp = cast<cir::AllocaOp>(addrVal.getDefiningOp());
   if (isParam)
     allocaOp.setInitAttr(mlir::UnitAttr::get(&getMLIRContext()));
   if (ty->isReferenceType() || ty.isConstQualified())
@@ -443,12 +443,11 @@ void CIRGenFunction::LexicalScope::cleanup() {
   insertCleanupAndLeave(currBlock);
 }
 
-mlir::cir::ReturnOp
-CIRGenFunction::LexicalScope::buildReturn(mlir::Location loc) {
+cir::ReturnOp CIRGenFunction::LexicalScope::buildReturn(mlir::Location loc) {
   auto &builder = CGF.getBuilder();
 
   // If we are on a coroutine, add the coro_end builtin call.
-  auto Fn = dyn_cast<mlir::cir::FuncOp>(CGF.CurFn);
+  auto Fn = dyn_cast<cir::FuncOp>(CGF.CurFn);
   assert(Fn && "other callables NYI");
   if (Fn.getCoroutine())
     CGF.buildCoroEndBuiltinCall(
@@ -486,14 +485,14 @@ void CIRGenFunction::LexicalScope::buildImplicitReturn() {
       llvm_unreachable("NYI");
     } else if (shouldEmitUnreachable) {
       if (CGF.CGM.getCodeGenOpts().OptimizationLevel == 0) {
-        builder.create<mlir::cir::TrapOp>(localScope->EndLoc);
+        builder.create<cir::TrapOp>(localScope->EndLoc);
         builder.clearInsertionPoint();
         return;
       }
     }
 
     if (CGF.SanOpts.has(SanitizerKind::Return) || shouldEmitUnreachable) {
-      builder.create<mlir::cir::UnreachableOp>(localScope->EndLoc);
+      builder.create<cir::UnreachableOp>(localScope->EndLoc);
       builder.clearInsertionPoint();
       return;
     }
@@ -502,7 +501,7 @@ void CIRGenFunction::LexicalScope::buildImplicitReturn() {
   (void)buildReturn(localScope->EndLoc);
 }
 
-mlir::cir::TryOp CIRGenFunction::LexicalScope::getClosestTryParent() {
+cir::TryOp CIRGenFunction::LexicalScope::getClosestTryParent() {
   auto *scope = this;
   while (scope) {
     if (scope->isTry())
@@ -602,9 +601,8 @@ void CIRGenFunction::finishFunction(SourceLocation EndLoc) {
   // block, it'd be deleted now. Same for unused ret allocas from ReturnValue
 }
 
-mlir::cir::FuncOp
-CIRGenFunction::generateCode(clang::GlobalDecl GD, mlir::cir::FuncOp Fn,
-                             const CIRGenFunctionInfo &FnInfo) {
+cir::FuncOp CIRGenFunction::generateCode(clang::GlobalDecl GD, cir::FuncOp Fn,
+                                         const CIRGenFunctionInfo &FnInfo) {
   assert(Fn && "generating code for a null function");
   const auto FD = cast<FunctionDecl>(GD.getDecl());
   CurGD = GD;
@@ -901,19 +899,18 @@ static mlir::Value emitArgumentDemotion(CIRGenFunction &CGF, const VarDecl *var,
   if (value.getType() == ty)
     return value;
 
-  assert(
-      (isa<mlir::cir::IntType>(ty) || mlir::cir::isAnyFloatingPointType(ty)) &&
-      "unexpected promotion type");
+  assert((isa<cir::IntType>(ty) || cir::isAnyFloatingPointType(ty)) &&
+         "unexpected promotion type");
 
-  if (isa<mlir::cir::IntType>(ty))
+  if (isa<cir::IntType>(ty))
     return CGF.getBuilder().CIRBaseBuilderTy::createIntCast(value, ty);
 
-  return CGF.getBuilder().CIRBaseBuilderTy::createCast(
-      mlir::cir::CastKind::floating, value, ty);
+  return CGF.getBuilder().CIRBaseBuilderTy::createCast(cir::CastKind::floating,
+                                                       value, ty);
 }
 
 void CIRGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
-                                   mlir::cir::FuncOp Fn,
+                                   cir::FuncOp Fn,
                                    const CIRGenFunctionInfo &FnInfo,
                                    const FunctionArgList &Args,
                                    SourceLocation Loc,
@@ -1278,7 +1275,7 @@ void CIRGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
     const auto *MD = cast<CXXMethodDecl>(D);
     if (MD->getParent()->isLambda() && MD->getOverloadedOperator() == OO_Call) {
       // We're in a lambda.
-      auto Fn = dyn_cast<mlir::cir::FuncOp>(CurFn);
+      auto Fn = dyn_cast<cir::FuncOp>(CurFn);
       assert(Fn && "other callables NYI");
       Fn.setLambdaAttr(mlir::UnitAttr::get(&getMLIRContext()));
 
@@ -1842,14 +1839,14 @@ CIRGenFunction::buildArrayLength(const clang::ArrayType *origArrayType,
 
   // llvm::ArrayType *llvmArrayType =
   //     dyn_cast<llvm::ArrayType>(addr.getElementType());
-  auto cirArrayType = mlir::dyn_cast<mlir::cir::ArrayType>(addr.getElementType());
+  auto cirArrayType = mlir::dyn_cast<cir::ArrayType>(addr.getElementType());
 
   while (cirArrayType) {
     assert(isa<ConstantArrayType>(arrayType));
     countFromCLAs *= cirArrayType.getSize();
     eltType = arrayType->getElementType();
 
-    cirArrayType = mlir::dyn_cast<mlir::cir::ArrayType>(cirArrayType.getEltType());
+    cirArrayType = mlir::dyn_cast<cir::ArrayType>(cirArrayType.getEltType());
 
     arrayType = getContext().getAsArrayType(arrayType->getElementType());
     assert((!cirArrayType || arrayType) &&
@@ -1879,8 +1876,8 @@ mlir::Value CIRGenFunction::buildAlignmentAssumption(
     mlir::Value offsetValue) {
   if (SanOpts.has(SanitizerKind::Alignment))
     llvm_unreachable("NYI");
-  return builder.create<mlir::cir::AssumeAlignedOp>(
-      getLoc(assumptionLoc), ptrValue, alignment, offsetValue);
+  return builder.create<cir::AssumeAlignedOp>(getLoc(assumptionLoc), ptrValue,
+                                              alignment, offsetValue);
 }
 
 mlir::Value CIRGenFunction::buildAlignmentAssumption(
@@ -1898,7 +1895,7 @@ void CIRGenFunction::buildVarAnnotations(const VarDecl *decl, mlir::Value val) {
   for (const auto *annot : decl->specific_attrs<AnnotateAttr>()) {
     annotations.push_back(CGM.buildAnnotateAttr(annot));
   }
-  auto allocaOp = dyn_cast_or_null<mlir::cir::AllocaOp>(val.getDefiningOp());
+  auto allocaOp = dyn_cast_or_null<cir::AllocaOp>(val.getDefiningOp());
   assert(allocaOp && "expects available alloca");
   allocaOp.setAnnotationsAttr(builder.getArrayAttr(annotations));
 }

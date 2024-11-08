@@ -221,7 +221,7 @@ struct FreeException final : EHScopeStack::Cleanup {
     CIRGenBuilderTy &builder = CGF.getBuilder();
     mlir::Location loc =
         CGF.currSrcLoc ? *CGF.currSrcLoc : builder.getUnknownLoc();
-    builder.create<mlir::cir::FreeExceptionOp>(
+    builder.create<cir::FreeExceptionOp>(
         loc, builder.createBitcast(exn, builder.getVoidPtrTy()));
   }
 };
@@ -277,16 +277,16 @@ void CIRGenFunction::buildEHResumeBlock(bool isCleanup,
     // FIXME(cir): upon testcase
     // this should just add the
     // 'rethrow' attribute to
-    // mlir::cir::ResumeOp below.
+    // cir::ResumeOp below.
     llvm_unreachable("NYI");
   }
 
-  getBuilder().create<mlir::cir::ResumeOp>(loc, mlir::Value{}, mlir::Value{});
+  getBuilder().create<cir::ResumeOp>(loc, mlir::Value{}, mlir::Value{});
   getBuilder().restoreInsertionPoint(ip);
 }
 
 mlir::Block *CIRGenFunction::getEHResumeBlock(bool isCleanup,
-                                              mlir::cir::TryOp tryOp) {
+                                              cir::TryOp tryOp) {
 
   if (ehResumeBlock)
     return ehResumeBlock;
@@ -305,18 +305,19 @@ mlir::LogicalResult CIRGenFunction::buildCXXTryStmt(const CXXTryStmt &S) {
   mlir::OpBuilder::InsertPoint scopeIP;
 
   // Create a scope to hold try local storage for catch params.
-  [[maybe_unused]] auto s = builder.create<mlir::cir::ScopeOp>(
-      loc, /*scopeBuilder=*/
-      [&](mlir::OpBuilder &b, mlir::Location loc) {
-        scopeIP = getBuilder().saveInsertionPoint();
-      });
+  [[maybe_unused]] auto s =
+      builder.create<cir::ScopeOp>(loc, /*scopeBuilder=*/
+                                   [&](mlir::OpBuilder &b, mlir::Location loc) {
+                                     scopeIP =
+                                         getBuilder().saveInsertionPoint();
+                                   });
 
   auto r = mlir::success();
   {
     mlir::OpBuilder::InsertionGuard guard(getBuilder());
     getBuilder().restoreInsertionPoint(scopeIP);
     r = buildCXXTryStmtUnderScope(S);
-    getBuilder().create<mlir::cir::YieldOp>(loc);
+    getBuilder().create<cir::YieldOp>(loc);
   }
   return r;
 }
@@ -348,7 +349,7 @@ CIRGenFunction::buildCXXTryStmtUnderScope(const CXXTryStmt &S) {
   // don't populate right away. Reserve some space to store the exception
   // info but don't emit the bulk right away, for now only make sure the
   // scope returns the exception information.
-  auto tryOp = builder.create<mlir::cir::TryOp>(
+  auto tryOp = builder.create<cir::TryOp>(
       tryLoc, /*scopeBuilder=*/
       [&](mlir::OpBuilder &b, mlir::Location loc) {
         beginInsertTryBody = getBuilder().saveInsertionPoint();
@@ -406,7 +407,7 @@ CIRGenFunction::buildCXXTryStmtUnderScope(const CXXTryStmt &S) {
 /// It is an invariant that the dispatch block already exists.
 static void buildCatchDispatchBlock(CIRGenFunction &CGF,
                                     EHCatchScope &catchScope,
-                                    mlir::cir::TryOp tryOp) {
+                                    cir::TryOp tryOp) {
   if (EHPersonality::get(CGF).isWasmPersonality())
     llvm_unreachable("NYI");
   if (EHPersonality::get(CGF).usesFuncletPads())
@@ -462,8 +463,7 @@ static void buildCatchDispatchBlock(CIRGenFunction &CGF,
   }
 }
 
-void CIRGenFunction::enterCXXTryStmt(const CXXTryStmt &S,
-                                     mlir::cir::TryOp tryOp,
+void CIRGenFunction::enterCXXTryStmt(const CXXTryStmt &S, cir::TryOp tryOp,
                                      bool IsFnTryBlock) {
   unsigned NumHandlers = S.getNumHandlers();
   EHCatchScope *CatchScope = EHStack.pushCatch(NumHandlers);
@@ -504,7 +504,7 @@ void CIRGenFunction::exitCXXTryStmt(const CXXTryStmt &S, bool IsFnTryBlock) {
   unsigned NumHandlers = S.getNumHandlers();
   EHCatchScope &CatchScope = cast<EHCatchScope>(*EHStack.begin());
   assert(CatchScope.getNumHandlers() == NumHandlers);
-  mlir::cir::TryOp tryOp = currLexScope->getTry();
+  cir::TryOp tryOp = currLexScope->getTry();
 
   // If the catch was not required, bail out now.
   if (!CatchScope.hasEHBranches()) {
@@ -623,7 +623,7 @@ void CIRGenFunction::exitCXXTryStmt(const CXXTryStmt &S, bool IsFnTryBlock) {
   llvm_unreachable("Invalid EHScope Kind!");
 }
 
-mlir::Operation *CIRGenFunction::buildLandingPad(mlir::cir::TryOp tryOp) {
+mlir::Operation *CIRGenFunction::buildLandingPad(cir::TryOp tryOp) {
   assert(EHStack.requiresLandingPad());
   assert(!CGM.getLangOpts().IgnoreExceptions &&
          "LandingPad should not be emitted when -fignore-exceptions are in "
@@ -711,7 +711,7 @@ mlir::Operation *CIRGenFunction::buildLandingPad(mlir::cir::TryOp tryOp) {
     assert(!(hasCatchAll && hasFilter));
     if (hasCatchAll) {
       // Attach the catch_all region. Can't coexist with an unwind one.
-      auto catchAll = mlir::cir::CatchAllAttr::get(&getMLIRContext());
+      auto catchAll = cir::CatchAllAttr::get(&getMLIRContext());
       clauses.push_back(catchAll);
 
       // If we have an EH filter, we need to add those handlers in the
@@ -732,7 +732,7 @@ mlir::Operation *CIRGenFunction::buildLandingPad(mlir::cir::TryOp tryOp) {
     // If there's no catch_all, attach the unwind region. This needs to be the
     // last region in the TryOp operation catch list.
     if (!hasCatchAll) {
-      auto catchUnwind = mlir::cir::CatchUnwindAttr::get(&getMLIRContext());
+      auto catchUnwind = cir::CatchUnwindAttr::get(&getMLIRContext());
       clauses.push_back(catchUnwind);
     }
 
@@ -757,7 +757,7 @@ mlir::Operation *CIRGenFunction::buildLandingPad(mlir::cir::TryOp tryOp) {
 // getCachedEHDispatchBlock to infer state.
 mlir::Block *
 CIRGenFunction::getEHDispatchBlock(EHScopeStack::stable_iterator si,
-                                   mlir::cir::TryOp tryOp) {
+                                   cir::TryOp tryOp) {
   if (EHPersonality::get(*this).usesFuncletPads())
     llvm_unreachable("NYI");
 
@@ -777,7 +777,7 @@ CIRGenFunction::getEHDispatchBlock(EHScopeStack::stable_iterator si,
     // - Update the map to enqueue new dispatchBlock to also get a cleanup. See
     // code at the end of the function.
     mlir::Operation *parentOp = dispatchBlock->getParentOp();
-    if (tryOp != parentOp->getParentOfType<mlir::cir::TryOp>()) {
+    if (tryOp != parentOp->getParentOfType<cir::TryOp>()) {
       originalBlock = dispatchBlock;
       dispatchBlock = nullptr;
     }
@@ -867,7 +867,7 @@ bool CIRGenFunction::isInvokeDest() {
   return true;
 }
 
-mlir::Operation *CIRGenFunction::getInvokeDestImpl(mlir::cir::TryOp tryOp) {
+mlir::Operation *CIRGenFunction::getInvokeDestImpl(cir::TryOp tryOp) {
   assert(EHStack.requiresLandingPad());
   assert(!EHStack.empty());
   assert(isInvokeDest());

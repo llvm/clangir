@@ -187,13 +187,13 @@ private:
     if (isGlobalReg())
       assert(ElementType == nullptr && "Global reg does not store elem type");
     else {
-      auto pointerPointee = llvm::cast<mlir::cir::PointerType>(V.getType()).getPointee();
+      auto pointerPointee = llvm::cast<cir::PointerType>(V.getType()).getPointee();
       if (pointerPointee != ElementType) {
         // Update ElementType to match actual pointer type
         // This can happen when static variable initializers cause type mismatches
         ElementType = pointerPointee;
       }
-      assert(llvm::cast<mlir::cir::PointerType>(V.getType()).getPointee() ==
+      assert(llvm::cast<cir::PointerType>(V.getType()).getPointee() ==
                  ElementType &&
              "Pointer element type mismatch");
     }
@@ -310,7 +310,7 @@ public:
 
     LValue R;
     R.LVType = Simple;
-    assert(llvm::cast<mlir::cir::PointerType>(address.getPointer().getType()));
+    assert(mlir::cast<cir::PointerType>(address.getPointer().getType()));
     R.V = address.getPointer();
     R.ElementType = address.getElementType();
     R.Initialize(type, qs, address.getAlignment(), baseInfo, tbaaInfo);
