@@ -33,7 +33,7 @@ using namespace cir;
 /// or with the labeled blocked if already solved.
 ///
 /// Track on scope basis, goto's we need to fix later.
-cir::BrOp CIRGenFunction::buildBranchThroughCleanup(mlir::Location Loc,
+cir::BrOp CIRGenFunction::emitBranchThroughCleanup(mlir::Location Loc,
                                                     JumpDest Dest) {
   // Remove this once we go for making sure unreachable code is
   // well modeled (or not).
@@ -47,7 +47,7 @@ cir::BrOp CIRGenFunction::buildBranchThroughCleanup(mlir::Location Loc,
 }
 
 /// Emits all the code to cause the given temporary to be cleaned up.
-void CIRGenFunction::buildCXXTemporary(const CXXTemporary *Temporary,
+void CIRGenFunction::emitCXXTemporary(const CXXTemporary *Temporary,
                                        QualType TempType, Address Ptr) {
   pushDestroy(NormalAndEHCleanup, Ptr, TempType, destroyCXXObject,
               /*useEHCleanup*/ true);
@@ -248,7 +248,7 @@ static void destroyOptimisticNormalEntry(CIRGenFunction &CGF,
   llvm_unreachable("NYI");
 }
 
-static void buildCleanup(CIRGenFunction &CGF, EHScopeStack::Cleanup *Fn,
+static void emitCleanup(CIRGenFunction &CGF, EHScopeStack::Cleanup *Fn,
                          EHScopeStack::Cleanup::Flags flags,
                          Address ActiveFlag) {
   auto emitCleanup = [&]() {
@@ -409,7 +409,7 @@ void CIRGenFunction::PopCleanupBlock(bool FallthroughIsBranchThrough) {
       destroyOptimisticNormalEntry(*this, Scope);
       EHStack.popCleanup();
       Scope.markEmitted();
-      buildCleanup(*this, Fn, cleanupFlags, NormalActiveFlag);
+      emitCleanup(*this, Fn, cleanupFlags, NormalActiveFlag);
 
       // Otherwise, the best approach is to thread everything through
       // the cleanup block and then try to clean up after ourselves.
@@ -454,7 +454,7 @@ void CIRGenFunction::PopCleanupBlock(bool FallthroughIsBranchThrough) {
 
       auto yield = cast<YieldOp>(ehEntry->getTerminator());
       builder.setInsertionPoint(yield);
-      buildCleanup(*this, Fn, cleanupFlags, EHActiveFlag);
+      emitCleanup(*this, Fn, cleanupFlags, EHActiveFlag);
     }
 
     if (CPI)
@@ -478,12 +478,12 @@ void CIRGenFunction::PopCleanupBlock(bool FallthroughIsBranchThrough) {
                   currYield->getParentOp()->getParentOfType<cir::TryOp>()) {
             mlir::Block *resumeBlockToPatch =
                 tryToPatch.getCatchUnwindEntryBlock();
-            buildEHResumeBlock(/*isCleanup=*/true, resumeBlockToPatch,
+            emitEHResumeBlock(/*isCleanup=*/true, resumeBlockToPatch,
                                tryToPatch.getLoc());
           }
         }
 
-        buildCleanup(*this, Fn, cleanupFlags, EHActiveFlag);
+        emitCleanup(*this, Fn, cleanupFlags, EHActiveFlag);
         currBlock = blockToPatch;
       }
 

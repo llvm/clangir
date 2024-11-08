@@ -200,13 +200,13 @@ static void collectInOutConstrainsInfos(const CIRGenFunction &cgf,
   }
 }
 
-std::pair<mlir::Value, mlir::Type> CIRGenFunction::buildAsmInputLValue(
+std::pair<mlir::Value, mlir::Type> CIRGenFunction::emitAsmInputLValue(
     const TargetInfo::ConstraintInfo &Info, LValue InputValue,
     QualType InputType, std::string &ConstraintStr, SourceLocation Loc) {
 
   if (Info.allowsRegister() || !Info.allowsMemory()) {
     if (hasScalarEvaluationKind(InputType))
-      return {buildLoadOfLValue(InputValue, Loc).getScalarVal(), mlir::Type()};
+      return {emitLoadOfLValue(InputValue, Loc).getScalarVal(), mlir::Type()};
 
     mlir::Type Ty = convertType(InputType);
     uint64_t Size = CGM.getDataLayout().getTypeSizeInBits(Ty);
@@ -226,7 +226,7 @@ std::pair<mlir::Value, mlir::Type> CIRGenFunction::buildAsmInputLValue(
 }
 
 std::pair<mlir::Value, mlir::Type>
-CIRGenFunction::buildAsmInput(const TargetInfo::ConstraintInfo &Info,
+CIRGenFunction::emitAsmInput(const TargetInfo::ConstraintInfo &Info,
                               const Expr *InputExpr,
                               std::string &ConstraintStr) {
   auto loc = getLoc(InputExpr->getExprLoc());
@@ -251,16 +251,16 @@ CIRGenFunction::buildAsmInput(const TargetInfo::ConstraintInfo &Info,
 
   if (Info.allowsRegister() || !Info.allowsMemory())
     if (CIRGenFunction::hasScalarEvaluationKind(InputExpr->getType()))
-      return {buildScalarExpr(InputExpr), mlir::Type()};
+      return {emitScalarExpr(InputExpr), mlir::Type()};
   if (InputExpr->getStmtClass() == Expr::CXXThisExprClass)
-    return {buildScalarExpr(InputExpr), mlir::Type()};
+    return {emitScalarExpr(InputExpr), mlir::Type()};
   InputExpr = InputExpr->IgnoreParenNoopCasts(getContext());
-  LValue Dest = buildLValue(InputExpr);
-  return buildAsmInputLValue(Info, Dest, InputExpr->getType(), ConstraintStr,
+  LValue Dest = emitLValue(InputExpr);
+  return emitAsmInputLValue(Info, Dest, InputExpr->getType(), ConstraintStr,
                              InputExpr->getExprLoc());
 }
 
-static void buildAsmStores(CIRGenFunction &CGF, const AsmStmt &S,
+static void emitAsmStores(CIRGenFunction &CGF, const AsmStmt &S,
                            const llvm::ArrayRef<mlir::Value> RegResults,
                            const llvm::ArrayRef<mlir::Type> ResultRegTypes,
                            const llvm::ArrayRef<mlir::Type> ResultTruncRegTypes,
@@ -337,11 +337,11 @@ static void buildAsmStores(CIRGenFunction &CGF, const AsmStmt &S,
       Dest = CGF.makeAddrLValue(A, Ty);
     }
 
-    CGF.buildStoreThroughLValue(RValue::get(Tmp), Dest);
+    CGF.emitStoreThroughLValue(RValue::get(Tmp), Dest);
   }
 }
 
-mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
+mlir::LogicalResult CIRGenFunction::emitAsmStmt(const AsmStmt &S) {
   // Assemble the final asm string.
   std::string AsmString = S.generateAsmString(getContext());
 
@@ -405,7 +405,7 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
       CGM.Error(S.getAsmLoc(), "multiple outputs to hard register: " + GCCReg);
 
     OutputConstraints.push_back(OutputConstraint);
-    LValue Dest = buildLValue(OutExpr);
+    LValue Dest = emitLValue(OutExpr);
 
     if (!Constraints.empty())
       Constraints += ',';
@@ -496,7 +496,7 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
       mlir::Value Arg;
       mlir::Type ArgElemType;
       std::tie(Arg, ArgElemType) =
-          buildAsmInputLValue(Info, Dest, InputExpr->getType(),
+          emitAsmInputLValue(Info, Dest, InputExpr->getType(),
                               InOutConstraints, InputExpr->getExprLoc());
 
       if (mlir::Type AdjTy = getTargetHooks().adjustInlineAsmType(
@@ -555,7 +555,7 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
     std::string ReplaceConstraint(InputConstraint);
     mlir::Value Arg;
     mlir::Type ArgElemType;
-    std::tie(Arg, ArgElemType) = buildAsmInput(Info, InputExpr, Constraints);
+    std::tie(Arg, ArgElemType) = emitAsmInput(Info, InputExpr, Constraints);
 
     // If this input argument is tied to a larger output result, extend the
     // input to be the same size as the output.  The LLVM backend wants to see
@@ -676,7 +676,7 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
     } else if (ResultRegTypes.size() > 1) {
       auto alignment = CharUnits::One();
       auto sname = cast<cir::StructType>(ResultType).getName();
-      auto dest = buildAlloca(sname, ResultType, getLoc(S.getAsmLoc()),
+      auto dest = emitAlloca(sname, ResultType, getLoc(S.getAsmLoc()),
                               alignment, false);
       auto addr = Address(dest, alignment);
       builder.createStore(getLoc(S.getAsmLoc()), result, addr);
@@ -692,7 +692,7 @@ mlir::LogicalResult CIRGenFunction::buildAsmStmt(const AsmStmt &S) {
     }
   }
 
-  buildAsmStores(*this, S, RegResults, ResultRegTypes, ResultTruncRegTypes,
+  emitAsmStores(*this, S, RegResults, ResultRegTypes, ResultTruncRegTypes,
                  ResultRegDests, ResultRegQualTys, ResultTypeRequiresCast,
                  ResultRegIsFlagReg);
 
