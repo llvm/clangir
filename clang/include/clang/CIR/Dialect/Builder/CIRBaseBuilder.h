@@ -382,8 +382,7 @@ public:
         global.getName(), threadLocal);
   }
 
-  mlir::Value createGetGlobal(cir::GlobalOp global,
-                              bool threadLocal = false) {
+  mlir::Value createGetGlobal(cir::GlobalOp global, bool threadLocal = false) {
     return createGetGlobal(global.getLoc(), global, threadLocal);
   }
 
@@ -552,8 +551,7 @@ public:
         });
 
     if (last != block->rend())
-      return OpBuilder::InsertPoint(block,
-                                    ++mlir::Block::iterator(&*last));
+      return OpBuilder::InsertPoint(block, ++mlir::Block::iterator(&*last));
     return OpBuilder::InsertPoint(block, block->begin());
   };
 
