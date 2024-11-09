@@ -285,10 +285,10 @@ static RValue emitBinaryAtomic(CIRGenFunction &CGF, cir::AtomicFetchKind kind,
   return RValue::get(makeBinaryAtomicValue(CGF, kind, E));
 }
 
-static RValue buildBinaryAtomicPost(CIRGenFunction &cgf,
-                                    cir::AtomicFetchKind atomicOpkind,
-                                    const CallExpr *e,
-                                    cir::BinOpKind binopKind) {
+static RValue emitBinaryAtomicPost(CIRGenFunction &cgf,
+                                   cir::AtomicFetchKind atomicOpkind,
+                                   const CallExpr *e,
+                                   cir::BinOpKind binopKind) {
   mlir::Value val;
   mlir::Type valueType;
   clang::QualType typ = e->getType();
@@ -1650,8 +1650,8 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   case Builtin::BI__sync_add_and_fetch_4:
   case Builtin::BI__sync_add_and_fetch_8:
   case Builtin::BI__sync_add_and_fetch_16:
-    return buildBinaryAtomicPost(*this, cir::AtomicFetchKind::Add, E,
-                                 cir::BinOpKind::Add);
+    return emitBinaryAtomicPost(*this, cir::AtomicFetchKind::Add, E,
+                                cir::BinOpKind::Add);
 
   case Builtin::BI__sync_sub_and_fetch_1:
   case Builtin::BI__sync_sub_and_fetch_2:
