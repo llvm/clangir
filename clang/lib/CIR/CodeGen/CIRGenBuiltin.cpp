@@ -244,8 +244,7 @@ static Address checkAtomicAlignment(CIRGenFunction &CGF, const CallExpr *E) {
 /// and the expression node.
 static mlir::Value makeBinaryAtomicValue(
     CIRGenFunction &cgf, cir::AtomicFetchKind kind, const CallExpr *expr,
-    mlir::Value *neededValP = nullptr,
-                      mlir::Type *neededValT = nullptr,
+    mlir::Value *neededValP = nullptr, mlir::Type *neededValT = nullptr,
     cir::MemOrder ordering = cir::MemOrder::SequentiallyConsistent) {
 
   QualType typ = expr->getType();
@@ -267,7 +266,7 @@ static mlir::Value makeBinaryAtomicValue(
   val = emitToInt(cgf, val, typ, intType);
   // These output arguments are needed for post atomic fetch operations
   // that calculate the result of the operation as return value of
-  // <binop>_and_fetch builtins. The `AtomicFetch` operation ony updates the
+  // <binop>_and_fetch builtins. The `AtomicFetch` operation only updates the
   // memory location and returns the old value.
   if (neededValP) {
     assert(neededValT);
@@ -296,8 +295,7 @@ static RValue buildBinaryAtomicPost(CIRGenFunction &cgf,
   mlir::Value result =
       makeBinaryAtomicValue(cgf, atomicOpkind, e, &val, &valueType);
   clang::CIRGen::CIRGenBuilderTy &builder = cgf.getBuilder();
-  result =
-      builder.create<cir::BinOp>(result.getLoc(), binopKind, result, val);
+  result = builder.create<cir::BinOp>(result.getLoc(), binopKind, result, val);
   result = emitFromInt(cgf, result, typ, valueType);
   return RValue::get(result);
 }
