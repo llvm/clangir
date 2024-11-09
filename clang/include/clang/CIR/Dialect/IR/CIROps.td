@@ -4040,30 +4040,6 @@ def MemCpyOp : CIR_MemCpyOp<"libc.memcpy"> {
   }];
 }
 
-def MemCpyInlineOp : CIR_MemCpyOp<"memcpy_inline"> {
-  let summary = "Represent builtin function `__builtin_memcpy_inline`";
-  let description = [{
-    Given two CIR pointers, `src` and `dst`, `memcpy_inline` will copy `len`
-    bytes from the memory pointed by `src` to the memory pointed by `dst`.
-
-    Unlike `cir.libc.memcpy`,  this Op guarantees that no external functions 
-    are called. 
-
-    Examples:
-
-    ```mlir
-      // Copying 2 bytes from one array to a struct:
-      %2 = cir.const #cir.int<2> : !u32i
-      cir.memcpy_inline %2 bytes from %arr to %struct : !cir.ptr<!arr> -> !cir.ptr<!struct>
-    ```
-  }];
-
-  let assemblyFormat = [{
-    $len `bytes` `from` $src `to` $dst attr-dict
-    `:` type($len) `` `,` qualified(type($src)) `->` qualified(type($dst))
-  }];
-}
-
 def MemMoveOp : CIR_MemCpyOp<"libc.memmove"> {
   let summary = "Equivalent to libc's `memmove`";
   let description = [{
@@ -4085,6 +4061,36 @@ def MemMoveOp : CIR_MemCpyOp<"libc.memmove"> {
   let assemblyFormat = [{
     $len `bytes` `from` $src `to` $dst attr-dict
     `:` qualified(type($dst)) `,` type($len)
+  }];
+}
+
+//===----------------------------------------------------------------------===//
+// MemCpyInlineOp
+//===----------------------------------------------------------------------===//
+def MemCpyInlineOp : CIR_Op<"memcpy_inline"> {
+  let arguments = (ins Arg<VoidPtr, "", [MemWrite]>:$dst,
+                       Arg<VoidPtr, "", [MemRead]>:$src,
+                       I64Attr:$len);
+  let summary = "Memory copy with constant length without calling" 
+                "any external function";
+  let description = [{
+    Given two CIR pointers, `src` and `dst`, `memcpy_inline` will copy `len`
+    bytes from the memory pointed by `src` to the memory pointed by `dst`.
+
+    Unlike `cir.libc.memcpy`,  this Op guarantees that no external functions 
+    are called, and length of copied bytes is a constant.
+
+    Examples:
+
+    ```mlir
+      // Copying 2 bytes from one array to a struct:
+      cir.memcpy_inline 2 bytes from %arr to %struct : !cir.ptr<!arr> -> !cir.ptr<!struct>
+    ```
+  }];
+
+  let assemblyFormat = [{
+    $len `bytes` `from` $src `to` $dst attr-dict
+    `:` qualified(type($src)) `->` qualified(type($dst))
   }];
 }
 

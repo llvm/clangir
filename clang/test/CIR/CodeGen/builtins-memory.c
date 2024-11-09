@@ -111,33 +111,30 @@ void test_memset_chk(void *dest, int ch, size_t n) {
   __builtin___memset_chk(dest, ch, n, n);
 }
 
-// TODO: The test should test intrinsic argument alignment, however, 
+// FIXME: The test should test intrinsic argument alignment, however, 
 // currently we lack support for argument attributes. 
-// Thus, added COM lines as a marker to remind us to change the test 
+// Thus, added `COM: LLVM:` lines so we can easily flip the test 
 // when the support of argument attributes is in.
 void test_memcpy_inline(void *dst, const void *src, size_t n) {
 
   // CIR-LABEL: test_memcpy_inline
-  // CIR: [[SIZE0:%.*]] = cir.const #cir.int<0> : !u64i
-  // CIR: cir.memcpy_inline [[SIZE0]] bytes from {{%.*}} to {{%.*}} : !u64i, !cir.ptr<!void> -> !cir.ptr<!void>
+  // CIR: cir.memcpy_inline 0 bytes from {{%.*}} to {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!void>
 
   // LLVM-LABEL: test_memcpy_inline
   // LLVM: call void @llvm.memcpy.inline.p0.p0.i64(ptr {{%.*}}, ptr {{%.*}}, i64 0, i1 false)
-  // COM: call void @llvm.memcpy.inline.p0.p0.i64(ptr align 1 {{%.*}}, ptr align 1 {{%.*}}, i64 0, i1 false)
+  // COM: LLVM: call void @llvm.memcpy.inline.p0.p0.i64(ptr align 1 {{%.*}}, ptr align 1 {{%.*}}, i64 0, i1 false)
   __builtin_memcpy_inline(dst, src, 0);
 
-  // CIR: [[SIZE1:%.*]] = cir.const #cir.int<1> : !u64i
-  // CIR: cir.memcpy_inline [[SIZE1]] bytes from {{%.*}} to {{%.*}} : !u64i, !cir.ptr<!void> -> !cir.ptr<!void>
+  // CIR: cir.memcpy_inline 1 bytes from {{%.*}} to {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!void>
 
   // LLVM: call void @llvm.memcpy.inline.p0.p0.i64(ptr {{%.*}}, ptr {{%.*}}, i64 1, i1 false)
-  // COM: call void @llvm.memcpy.inline.p0.p0.i64(ptr align 1 {{%.*}}, ptr align 1 {{%.*}}, i64 1, i1 false)
+  // COM: LLVM: call void @llvm.memcpy.inline.p0.p0.i64(ptr align 1 {{%.*}}, ptr align 1 {{%.*}}, i64 1, i1 false)
   __builtin_memcpy_inline(dst, src, 1);
 
-  // CIR: [[SIZE4:%.*]] = cir.const #cir.int<4> : !u64i
-  // CIR: cir.memcpy_inline [[SIZE4]] bytes from {{%.*}} to {{%.*}} : !u64i, !cir.ptr<!void> -> !cir.ptr<!void>
+  // CIR: cir.memcpy_inline 4 bytes from {{%.*}} to {{%.*}} : !cir.ptr<!void> -> !cir.ptr<!void>
 
   // LLVM: call void @llvm.memcpy.inline.p0.p0.i64(ptr {{%.*}}, ptr {{%.*}}, i64 4, i1 false)
-  // COM: call void @llvm.memcpy.inline.p0.p0.i64(ptr align 1 {{%.*}}, ptr align 1 {{%.*}}, i64 4, i1 false)
+  // COM: LLVM: call void @llvm.memcpy.inline.p0.p0.i64(ptr align 1 {{%.*}}, ptr align 1 {{%.*}}, i64 4, i1 false)
   __builtin_memcpy_inline(dst, src, 4);
 }
  
@@ -145,6 +142,6 @@ void test_memcpy_inline_aligned_buffers(unsigned long long *dst, const unsigned 
 
   // LLVM-LABEL: test_memcpy_inline_aligned_buffers
   // LLVM: call void @llvm.memcpy.inline.p0.p0.i64(ptr {{%.*}}, ptr {{%.*}}, i64 4, i1 false)
-  // COM: call void @llvm.memcpy.inline.p0.p0.i64(ptr align 8 {{%.*}}, ptr align 8 {{%.*}}, i64 4, i1 false)
+  // COM: LLVM: call void @llvm.memcpy.inline.p0.p0.i64(ptr align 8 {{%.*}}, ptr align 8 {{%.*}}, i64 4, i1 false)
   __builtin_memcpy_inline(dst, src, 4);
 }

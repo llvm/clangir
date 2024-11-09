@@ -1418,11 +1418,10 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
                          E->getArg(1)->getExprLoc(), FD, 1);
     uint64_t size =
         E->getArg(2)->EvaluateKnownConstInt(getContext()).getZExtValue();
-    auto lenOp =
-        builder.getConstInt(getLoc(E->getSourceRange()), UInt64Ty, size);
-    builder.create<mlir::cir::MemCpyInlineOp>(getLoc(E->getSourceRange()),
-                                              dest.getPointer(),
-                                              src.getPointer(), lenOp);
+    builder.create<mlir::cir::MemCpyInlineOp>(
+        getLoc(E->getSourceRange()), dest.getPointer(), src.getPointer(),
+        mlir::IntegerAttr::get(mlir::IntegerType::get(builder.getContext(), 64),
+                               size));
     // __builtin_memcpy_inline has no return value
     return RValue::get(nullptr);
   }

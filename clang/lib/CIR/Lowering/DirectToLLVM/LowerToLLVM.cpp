@@ -787,12 +787,8 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::MemCpyInlineOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    auto lenOp = mlir::cast<mlir::cir::ConstantOp>(op.getLen().getDefiningOp());
     rewriter.replaceOpWithNewOp<mlir::LLVM::MemcpyInlineOp>(
-        op, adaptor.getDst(), adaptor.getSrc(),
-        rewriter.getIntegerAttr(
-            getTypeConverter()->convertType(lenOp.getType()),
-            mlir::cast<mlir::cir::IntAttr>(lenOp.getValue()).getValue()),
+        op, adaptor.getDst(), adaptor.getSrc(), adaptor.getLenAttr(),
         /*isVolatile=*/false);
     return mlir::success();
   }
