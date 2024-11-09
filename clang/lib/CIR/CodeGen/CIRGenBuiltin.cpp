@@ -1411,11 +1411,10 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   case Builtin::BI__builtin_memcpy_inline: {
     Address dest = emitPointerWithAlignment(E->getArg(0));
     Address src = emitPointerWithAlignment(E->getArg(1));
-    emitNonNullArgCheck(RValue::get(dest.getPointer()),
-                         E->getArg(0)->getType(), E->getArg(0)->getExprLoc(),
-                         FD, 0);
+    emitNonNullArgCheck(RValue::get(dest.getPointer()), E->getArg(0)->getType(),
+                        E->getArg(0)->getExprLoc(), FD, 0);
     emitNonNullArgCheck(RValue::get(src.getPointer()), E->getArg(1)->getType(),
-                         E->getArg(1)->getExprLoc(), FD, 1);
+                        E->getArg(1)->getExprLoc(), FD, 1);
     uint64_t size =
         E->getArg(2)->EvaluateKnownConstInt(getContext()).getZExtValue();
     builder.create<cir::MemCpyInlineOp>(
