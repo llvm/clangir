@@ -779,13 +779,13 @@ public:
 };
 
 class CIRMemCpyInlineOpLowering
-    : public mlir::OpConversionPattern<mlir::cir::MemCpyInlineOp> {
+    : public mlir::OpConversionPattern<cir::MemCpyInlineOp> {
 public:
   using mlir::OpConversionPattern<
-      mlir::cir::MemCpyInlineOp>::OpConversionPattern;
+      cir::MemCpyInlineOp>::OpConversionPattern;
 
   mlir::LogicalResult
-  matchAndRewrite(mlir::cir::MemCpyInlineOp op, OpAdaptor adaptor,
+  matchAndRewrite(cir::MemCpyInlineOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     rewriter.replaceOpWithNewOp<mlir::LLVM::MemcpyInlineOp>(
         op, adaptor.getDst(), adaptor.getSrc(), adaptor.getLenAttr(),
@@ -795,7 +795,7 @@ public:
 };
 
 class CIRMemMoveOpLowering
-    : public mlir::OpConversionPattern<mlir::cir::MemMoveOp> {
+    : public mlir::OpConversionPattern<cir::MemMoveOp> {
 public:
   using mlir::OpConversionPattern<cir::MemMoveOp>::OpConversionPattern;
 
