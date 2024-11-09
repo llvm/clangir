@@ -83,7 +83,7 @@ bool CIRGenerator::HandleTopLevelDecl(DeclGroupRef D) {
   HandlingTopLevelDeclRAII HandlingDecl(*this);
 
   for (DeclGroupRef::iterator I = D.begin(), E = D.end(); I != E; ++I) {
-    CGM->buildTopLevelDecl(*I);
+    CGM->emitTopLevelDecl(*I);
   }
 
   return true;
@@ -126,9 +126,9 @@ void CIRGenerator::HandleInlineFunctionDefinition(FunctionDecl *D) {
     CGM->AddDeferredUnusedCoverageMapping(D);
 }
 
-void CIRGenerator::buildDefaultMethods() { CGM->buildDefaultMethods(); }
+void CIRGenerator::emitDefaultMethods() { CGM->emitDefaultMethods(); }
 
-void CIRGenerator::buildDeferredDecls() {
+void CIRGenerator::emitDeferredDecls() {
   if (DeferredInlineMemberFuncDefs.empty())
     return;
 
@@ -137,7 +137,7 @@ void CIRGenerator::buildDeferredDecls() {
   // invoked if AST inspection results in declarations being added.
   HandlingTopLevelDeclRAII HandlingDecls(*this);
   for (unsigned I = 0; I != DeferredInlineMemberFuncDefs.size(); ++I)
-    CGM->buildTopLevelDecl(DeferredInlineMemberFuncDefs[I]);
+    CGM->emitTopLevelDecl(DeferredInlineMemberFuncDefs[I]);
   DeferredInlineMemberFuncDefs.clear();
 }
 
@@ -189,12 +189,12 @@ void CIRGenerator::CompleteTentativeDefinition(VarDecl *D) {
   if (Diags.hasErrorOccurred())
     return;
 
-  CGM->buildTentativeDefinition(D);
+  CGM->emitTentativeDefinition(D);
 }
 
 void CIRGenerator::HandleVTable(CXXRecordDecl *rd) {
   if (Diags.hasErrorOccurred())
     return;
 
-  CGM->buildVTable(rd);
+  CGM->emitVTable(rd);
 }
