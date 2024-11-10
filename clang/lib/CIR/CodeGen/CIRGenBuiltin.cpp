@@ -297,6 +297,11 @@ static RValue emitBinaryAtomicPost(CIRGenFunction &cgf,
   clang::CIRGen::CIRGenBuilderTy &builder = cgf.getBuilder();
   result = builder.create<cir::BinOp>(result.getLoc(), binopKind, result, val);
   result = emitFromInt(cgf, result, typ, valueType);
+  // FIXME: Some callers of this function expect the result to be inverted,
+  // which would need invert flag passed in and do the inversion here like
+  // traditional clang code gen does. When we implment those caller builtins
+  // we should implement the inversion here.
+  assert(!MissingFeatures::emitBinaryAtomicPostHasInvert());
   return RValue::get(result);
 }
 
