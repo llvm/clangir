@@ -184,6 +184,7 @@ private:
 
 bool isAnyFloatingPointType(mlir::Type t);
 bool isFPOrFPVectorTy(mlir::Type);
+bool isCIRIntOrIntVectorTy(mlir::Type);
 } // namespace cir
 
 mlir::ParseResult parseAddrSpaceAttribute(mlir::AsmParser &p,
