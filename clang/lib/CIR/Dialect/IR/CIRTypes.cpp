@@ -845,7 +845,7 @@ bool cir::isFPOrFPVectorTy(mlir::Type t) {
 // CIR Integer and Integer Vector type helpers
 //===----------------------------------------------------------------------===//
 
-bool cir::isCIRIntOrIntVectorTy(mlir::Type t) {
+bool cir::isIntOrIntVectorTy(mlir::Type t) {
 
   if (isa<cir::VectorType>(t)) {
     return isa<cir::IntType>(mlir::dyn_cast<cir::VectorType>(t).getEltType());
