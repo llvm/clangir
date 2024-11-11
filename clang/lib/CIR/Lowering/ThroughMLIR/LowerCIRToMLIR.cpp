@@ -844,6 +844,14 @@ public:
   mlir::LogicalResult
   matchAndRewrite(cir::ScopeOp scopeOp, [[maybe_unused]] OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
+    // Empty scope: just remove it.
+    // TODO: Remove this logic once CIR uses MLIR infrastructure to remove
+    // trivially dead operations
+    if (scopeOp.isEmpty()) {
+      rewriter.eraseOp(scopeOp);
+      return mlir::success();
+    }
+
     // Check if the scope is empty (no operations)
     auto &scopeRegion = scopeOp.getScopeRegion();
     if (scopeRegion.empty() ||

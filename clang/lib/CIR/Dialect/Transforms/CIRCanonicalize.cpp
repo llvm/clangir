@@ -16,6 +16,7 @@
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/Passes.h"
+#include "llvm/Support/LogicalResult.h"
 
 using namespace mlir;
 using namespace cir;
@@ -59,12 +60,11 @@ struct RemoveRedundantBranches : public OpRewritePattern<BrOp> {
 struct RemoveEmptyScope : public OpRewritePattern<ScopeOp> {
   using OpRewritePattern<ScopeOp>::OpRewritePattern;
 
-  LogicalResult matchAndRewrite(ScopeOp op,
-                                PatternRewriter &rewriter) const final {
-    if (!(op.getRegion().empty() || (op.getRegion().getBlocks().size() == 1 &&
-                                     op.getRegion().front().empty())))
+  LogicalResult matchAndRewrite(ScopeOp op, PatternRewriter &rewriter) const final {
+    // TODO: Remove this logic once CIR uses MLIR infrastructure to remove
+    // trivially dead operations
+    if (!op.isEmpty())
       return failure();
-
     rewriter.eraseOp(op);
     return success();
   }
@@ -73,9 +73,9 @@ struct RemoveEmptyScope : public OpRewritePattern<ScopeOp> {
 struct RemoveEmptySwitch : public OpRewritePattern<SwitchOp> {
   using OpRewritePattern<SwitchOp>::OpRewritePattern;
 
-  LogicalResult matchAndRewrite(SwitchOp op,
-                                PatternRewriter &rewriter) const final {
-    if (!(op.getBody().empty() || isa<YieldOp>(op.getBody().front().front())))
+  LogicalResult matchAndRewrite(SwitchOp op, PatternRewriter &rewriter) const final {
+    if (!(op.getBody().empty() ||
+                   isa<YieldOp>(op.getBody().front().front())))
       return failure();
 
     rewriter.eraseOp(op);
@@ -86,8 +86,7 @@ struct RemoveEmptySwitch : public OpRewritePattern<SwitchOp> {
 struct RemoveTrivialTry : public OpRewritePattern<TryOp> {
   using OpRewritePattern<TryOp>::OpRewritePattern;
 
-  LogicalResult matchAndRewrite(TryOp op,
-                                PatternRewriter &rewriter) const final {
+  LogicalResult matchAndRewrite(TryOp op, PatternRewriter &rewriter) const final {
     // FIXME: also check all catch regions are empty
     // return success(op.getTryRegion().hasOneBlock());
     return mlir::failure();
@@ -111,8 +110,7 @@ struct RemoveTrivialTry : public OpRewritePattern<TryOp> {
 struct SimplifyCallOp : public OpRewritePattern<CallOp> {
   using OpRewritePattern<CallOp>::OpRewritePattern;
 
-  LogicalResult matchAndRewrite(CallOp op,
-                                PatternRewriter &rewriter) const final {
+  LogicalResult matchAndRewrite(CallOp op, PatternRewriter &rewriter) const final {
     // Applicable to cir.call exception ... clean { cir.yield }
     mlir::Region *r = &op.getCleanup();
     if (r->empty() || !r->hasOneBlock())
@@ -122,13 +120,13 @@ struct SimplifyCallOp : public OpRewritePattern<CallOp> {
     if (&b->back() != &b->front())
       return failure();
 
-    if (!isa<YieldOp>(&b->getOperations().back()))
+    if (!(isa<YieldOp>(&b->getOperations().back())))
       return failure();
 
     b = &op.getCleanup().back();
     rewriter.eraseOp(&b->back());
     rewriter.eraseBlock(b);
-    return success();
+    return llvm::success();
   }
 };
 
