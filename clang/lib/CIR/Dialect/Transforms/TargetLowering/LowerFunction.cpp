@@ -19,6 +19,7 @@
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/Support/LogicalResult.h"
 #include "clang/CIR/ABIArgInfo.h"
+#include "clang/CIR/Dialect/Builder/CIRBaseBuilder.h"
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
@@ -140,6 +141,79 @@ static mlir::Value coerceIntOrPtrToIntOrPtr(mlir::Value val, mlir::Type typ,
   return val;
 }
 
+// FIXME(cir): Create a custom rewriter class to abstract this away.
+mlir::Value createBitcast(mlir::Value Src, mlir::Type Ty, LowerFunction &LF) {
+  return LF.getRewriter().create<CastOp>(Src.getLoc(), Ty, CastKind::bitcast,
+                                         Src);
+}
+
+ConstantOp createUInt64(LowerFunction& LF, mlir::Location loc, uint64_t val) {
+  auto& rw = LF.getRewriter();
+  auto* ctxt = rw.getContext();
+  auto i64Ty = IntType::get(ctxt, 64, false);
+  return rw.create<ConstantOp>(loc, IntAttr::get(i64Ty, val));
+}
+
+bool isVoidPtr(mlir::Value v) {
+  if (auto p = mlir::dyn_cast<PointerType>(v.getType()))
+    return mlir::isa<VoidType>(p.getPointee());
+  return false;
+}
+
+AllocaOp createTmpAlloca(LowerFunction& LF, mlir::Location loc, mlir::Type ty) {  
+  auto& rw = LF.getRewriter();
+  auto* ctxt = rw.getContext();
+  mlir::PatternRewriter::InsertionGuard guard(rw);
+
+  // find function's entry block and use it to find a best place for alloca
+  auto* blk = rw.getBlock();  
+  auto* op = blk->getParentOp();  
+  FuncOp fun = mlir::dyn_cast<FuncOp>(op);
+  if (!fun)
+    fun = op->getParentOfType<FuncOp>();
+  auto& entry = fun.getBody().front();
+  
+  auto ip = CIRBaseBuilderTy::getBestAllocaInsertPoint(&entry);
+  rw.restoreInsertionPoint(ip);
+
+  auto align = LF.LM.getDataLayout().getABITypeAlign(ty);
+  auto alignAttr = rw.getI64IntegerAttr(align.value());
+  auto ptrTy = PointerType::get(ctxt, ty);
+  return rw.create<AllocaOp>(loc, ptrTy, ty, "tmp", alignAttr);
+}
+
+MemCpyOp createMemCpy(LowerFunction &LF, mlir::Value src, mlir::Value dst, mlir::Value len) {
+  assert(mlir::isa<PointerType>(src.getType()));
+  assert(mlir::isa<PointerType>(dst.getType()));  
+  
+  auto* ctxt = LF.getRewriter().getContext();
+  auto voidPtr = PointerType::get(ctxt, cir::VoidType::get(ctxt));
+  
+  if (!isVoidPtr(src))
+    src = createBitcast(src, voidPtr, LF);
+  if (!isVoidPtr(dst))
+    dst = createBitcast(dst, voidPtr, LF);
+  
+  return LF.getRewriter().create<MemCpyOp>(src.getLoc(), dst, src, len);  
+}
+
+cir::AllocaOp findAlloca(mlir::Operation *op) {
+  if (!op)
+    return {};
+
+  if (auto al = mlir::dyn_cast<cir::AllocaOp>(op)) {
+    return al;
+  } else if (auto ret = mlir::dyn_cast<cir::ReturnOp>(op)) {
+    auto vals = ret.getInput();
+    if (vals.size() == 1)
+      return findAlloca(vals[0].getDefiningOp());
+  } else if (auto load = mlir::dyn_cast<cir::LoadOp>(op)) {
+    return findAlloca(load.getAddr().getDefiningOp());
+  }
+
+  return {};
+}
+
 /// Create a store to \param Dst from \param Src where the source and
 /// destination may have different types.
 ///
@@ -187,14 +261,11 @@ void createCoercedStore(mlir::Value Src, mlir::Value Dst, bool DstIsVolatile,
     auto addr = bld.create<CastOp>(Dst.getLoc(), ptrTy, CastKind::bitcast, Dst);
     bld.create<StoreOp>(Dst.getLoc(), Src, addr);
   } else {
-    cir_cconv_unreachable("NYI");
+    auto tmp = createTmpAlloca(CGF, Src.getLoc(), SrcTy);
+    CGF.getRewriter().create<StoreOp>(Src.getLoc(), Src, tmp);
+    auto len = createUInt64(CGF, Src.getLoc(), DstSize.getFixedValue());
+    createMemCpy(CGF, tmp, Dst, len);
   }
-}
-
-// FIXME(cir): Create a custom rewriter class to abstract this away.
-mlir::Value createBitcast(mlir::Value Src, mlir::Type Ty, LowerFunction &LF) {
-  return LF.getRewriter().create<CastOp>(Src.getLoc(), Ty, CastKind::bitcast,
-                                         Src);
 }
 
 /// Coerces a \param Src value to a value of type \param Ty.
@@ -223,7 +294,7 @@ mlir::Value createCoercedValue(mlir::Value Src, mlir::Type Ty,
 
   llvm::TypeSize DstSize = CGF.LM.getDataLayout().getTypeAllocSize(Ty);
 
-  if (auto SrcSTy = mlir::dyn_cast<StructType>(SrcTy)) {
+  if (auto SrcSTy = mlir::dyn_cast<StructType>(SrcTy)) {    
     Src = enterStructPointerForCoercedAccess(Src, SrcSTy,
                                              DstSize.getFixedValue(), CGF);
     SrcTy = Src.getType();
@@ -259,23 +330,6 @@ mlir::Value emitAddressAtOffset(LowerFunction &LF, mlir::Value addr,
     cir_cconv_unreachable("NYI");
   }
   return addr;
-}
-
-cir::AllocaOp findAlloca(mlir::Operation *op) {
-  if (!op)
-    return {};
-
-  if (auto al = mlir::dyn_cast<cir::AllocaOp>(op)) {
-    return al;
-  } else if (auto ret = mlir::dyn_cast<cir::ReturnOp>(op)) {
-    auto vals = ret.getInput();
-    if (vals.size() == 1)
-      return findAlloca(vals[0].getDefiningOp());
-  } else if (auto load = mlir::dyn_cast<cir::LoadOp>(op)) {
-    return findAlloca(load.getAddr().getDefiningOp());
-  }
-
-  return {};
 }
 
 /// After the calling convention is lowered, an ABI-agnostic type might have to
@@ -329,25 +383,9 @@ mlir::Value castReturnValue(mlir::Value Src, mlir::Type Ty, LowerFunction &LF) {
   // Otherwise do coercion through memory.
   if (auto addr = findAlloca(Src.getDefiningOp())) {
     auto &rewriter = LF.getRewriter();
-    auto *ctxt = LF.LM.getMLIRContext();
-    auto ptrTy = PointerType::get(ctxt, Ty);
-    auto voidPtr = PointerType::get(ctxt, cir::VoidType::get(ctxt));
-
-    // insert alloca near the previuos one
-    auto point = rewriter.saveInsertionPoint();
-    rewriter.setInsertionPointAfter(addr);
-    auto align = LF.LM.getDataLayout().getABITypeAlign(Ty);
-    auto alignAttr = rewriter.getI64IntegerAttr(align.value());
-    auto tmp =
-        rewriter.create<AllocaOp>(Src.getLoc(), ptrTy, Ty, "tmp", alignAttr);
-    rewriter.restoreInsertionPoint(point);
-
-    auto srcVoidPtr = createBitcast(addr, voidPtr, LF);
-    auto dstVoidPtr = createBitcast(tmp, voidPtr, LF);
-    auto i64Ty = IntType::get(ctxt, 64, false);
-    auto len = rewriter.create<ConstantOp>(
-        Src.getLoc(), IntAttr::get(i64Ty, SrcSize.getFixedValue()));
-    rewriter.create<MemCpyOp>(Src.getLoc(), dstVoidPtr, srcVoidPtr, len);
+    auto tmp = createTmpAlloca(LF, Src.getLoc(), Ty);
+    auto len = createUInt64(LF, Src.getLoc(), SrcSize.getFixedValue());
+    createMemCpy(LF, addr, tmp, len);
     return rewriter.create<LoadOp>(Src.getLoc(), tmp.getResult());
   }
 
