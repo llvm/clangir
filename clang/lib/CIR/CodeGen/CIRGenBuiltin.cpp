@@ -1516,9 +1516,18 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   case Builtin::BI__builtin_objc_memmove_collectable:
     llvm_unreachable("BI__builtin_objc_memmove_collectable NYI");
 
-  case Builtin::BI__builtin___memmove_chk:
-    llvm_unreachable("BI__builtin___memmove_chk NYI");
-
+  case Builtin::BI__builtin___memmove_chk: {
+    // fold __builtin_memcpy_chk(x, y, cst1, cst2) to memcpy iff cst1<=cst2.
+    llvm::APSInt size;
+    if (isMemBuiltinOutOfBound(E, CGM, size))
+      break;
+    Address Dest = emitPointerWithAlignment(E->getArg(0));
+    Address Src = emitPointerWithAlignment(E->getArg(1));
+    auto loc = getLoc(E->getSourceRange());
+    ConstantOp sizeOp = builder.getConstInt(loc, size);
+    builder.createMemMove(loc, Dest.getPointer(), Src.getPointer(), sizeOp);
+    return RValue::get(Dest.getPointer());
+  }
   case Builtin::BImemmove:
   case Builtin::BI__builtin_memmove: {
     Address Dest = emitPointerWithAlignment(E->getArg(0));
