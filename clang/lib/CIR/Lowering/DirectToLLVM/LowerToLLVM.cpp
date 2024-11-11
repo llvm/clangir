@@ -778,6 +778,21 @@ public:
   }
 };
 
+class CIRMemCpyInlineOpLowering
+    : public mlir::OpConversionPattern<cir::MemCpyInlineOp> {
+public:
+  using mlir::OpConversionPattern<cir::MemCpyInlineOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::MemCpyInlineOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOpWithNewOp<mlir::LLVM::MemcpyInlineOp>(
+        op, adaptor.getDst(), adaptor.getSrc(), adaptor.getLenAttr(),
+        /*isVolatile=*/false);
+    return mlir::success();
+  }
+};
+
 class CIRMemMoveOpLowering : public mlir::OpConversionPattern<cir::MemMoveOp> {
 public:
   using mlir::OpConversionPattern<cir::MemMoveOp>::OpConversionPattern;
@@ -4363,8 +4378,8 @@ void populateCIRToLLVMConversionPatterns(
       CIRVAStartLowering, CIRVAEndLowering, CIRVACopyLowering, CIRVAArgLowering,
       CIRBrOpLowering, CIRGetMemberOpLowering, CIRGetRuntimeMemberOpLowering,
       CIRSwitchFlatOpLowering, CIRPtrDiffOpLowering, CIRCopyOpLowering,
-      CIRMemCpyOpLowering, CIRMemChrOpLowering, CIRFAbsOpLowering,
-      CIRExpectOpLowering, CIRVTableAddrPointOpLowering,
+      CIRMemCpyOpLowering, CIRMemChrOpLowering, CIRMemCpyInlineOpLowering,
+      CIRFAbsOpLowering, CIRExpectOpLowering, CIRVTableAddrPointOpLowering,
       CIRVectorCreateLowering, CIRVectorCmpOpLowering, CIRVectorSplatLowering,
       CIRVectorTernaryLowering, CIRVectorShuffleIntsLowering,
       CIRVectorShuffleVecLowering, CIRStackSaveLowering, CIRUnreachableLowering,
@@ -4408,27 +4423,27 @@ std::unique_ptr<cir::LowerModule> prepareLowerModule(mlir::ModuleOp module) {
 void prepareTypeConverter(mlir::LLVMTypeConverter &converter,
                           mlir::DataLayout &dataLayout,
                           cir::LowerModule *lowerModule) {
-  converter.addConversion([&,
-                           lowerModule](cir::PointerType type) -> mlir::Type {
-    // Drop pointee type since LLVM dialect only allows opaque pointers.
+  converter.addConversion(
+      [&, lowerModule](cir::PointerType type) -> mlir::Type {
+        // Drop pointee type since LLVM dialect only allows opaque pointers.
 
-    auto addrSpace =
-        mlir::cast_if_present<cir::AddressSpaceAttr>(type.getAddrSpace());
-    // Null addrspace attribute indicates the default addrspace.
-    if (!addrSpace)
-      return mlir::LLVM::LLVMPointerType::get(type.getContext());
+        auto addrSpace =
+            mlir::cast_if_present<cir::AddressSpaceAttr>(type.getAddrSpace());
+        // Null addrspace attribute indicates the default addrspace.
+        if (!addrSpace)
+          return mlir::LLVM::LLVMPointerType::get(type.getContext());
 
-    assert(lowerModule && "CIR AS map is not available");
-    // Pass through target addrspace and map CIR addrspace to LLVM addrspace by
-    // querying the target info.
-    unsigned targetAS =
-        addrSpace.isTarget()
-            ? addrSpace.getTargetValue()
-            : lowerModule->getTargetLoweringInfo()
-                  .getTargetAddrSpaceFromCIRAddrSpace(addrSpace);
+        assert(lowerModule && "CIR AS map is not available");
+        // Pass through target addrspace and map CIR addrspace to LLVM addrspace
+        // by querying the target info.
+        unsigned targetAS =
+            addrSpace.isTarget()
+                ? addrSpace.getTargetValue()
+                : lowerModule->getTargetLoweringInfo()
+                      .getTargetAddrSpaceFromCIRAddrSpace(addrSpace);
 
-    return mlir::LLVM::LLVMPointerType::get(type.getContext(), targetAS);
-  });
+        return mlir::LLVM::LLVMPointerType::get(type.getContext(), targetAS);
+      });
   converter.addConversion([&](cir::DataMemberType type) -> mlir::Type {
     return mlir::IntegerType::get(type.getContext(),
                                   dataLayout.getTypeSizeInBits(type));
