@@ -2472,6 +2472,10 @@ mlir::Value CIRGenFunction::emitCommonNeonBuiltinExpr(
     argTypes.push_back(vTy);
     break;
   }
+  case NEON::BI__builtin_neon_vaeseq_u8: {
+    intrincsName = "aarch64.crypto.aese";
+    break;
+  }
   case NEON::BI__builtin_neon_vpadd_v:
   case NEON::BI__builtin_neon_vpaddq_v: {
     intrincsName = mlir::isa<mlir::FloatType>(vTy.getEltType())
