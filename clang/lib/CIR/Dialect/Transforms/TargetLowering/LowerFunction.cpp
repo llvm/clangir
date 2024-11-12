@@ -147,9 +147,9 @@ mlir::Value createBitcast(mlir::Value Src, mlir::Type Ty, LowerFunction &LF) {
                                          Src);
 }
 
-ConstantOp createUInt64(LowerFunction& LF, mlir::Location loc, uint64_t val) {
-  auto& rw = LF.getRewriter();
-  auto* ctxt = rw.getContext();
+ConstantOp createUInt64(LowerFunction &LF, mlir::Location loc, uint64_t val) {
+  auto &rw = LF.getRewriter();
+  auto *ctxt = rw.getContext();
   auto i64Ty = IntType::get(ctxt, 64, false);
   return rw.create<ConstantOp>(loc, IntAttr::get(i64Ty, val));
 }
@@ -160,19 +160,19 @@ bool isVoidPtr(mlir::Value v) {
   return false;
 }
 
-AllocaOp createTmpAlloca(LowerFunction& LF, mlir::Location loc, mlir::Type ty) {  
-  auto& rw = LF.getRewriter();
-  auto* ctxt = rw.getContext();
+AllocaOp createTmpAlloca(LowerFunction &LF, mlir::Location loc, mlir::Type ty) {
+  auto &rw = LF.getRewriter();
+  auto *ctxt = rw.getContext();
   mlir::PatternRewriter::InsertionGuard guard(rw);
 
   // find function's entry block and use it to find a best place for alloca
-  auto* blk = rw.getBlock();  
-  auto* op = blk->getParentOp();  
+  auto *blk = rw.getBlock();
+  auto *op = blk->getParentOp();
   FuncOp fun = mlir::dyn_cast<FuncOp>(op);
   if (!fun)
     fun = op->getParentOfType<FuncOp>();
-  auto& entry = fun.getBody().front();
-  
+  auto &entry = fun.getBody().front();
+
   auto ip = CIRBaseBuilderTy::getBestAllocaInsertPoint(&entry);
   rw.restoreInsertionPoint(ip);
 
@@ -182,19 +182,20 @@ AllocaOp createTmpAlloca(LowerFunction& LF, mlir::Location loc, mlir::Type ty) {
   return rw.create<AllocaOp>(loc, ptrTy, ty, "tmp", alignAttr);
 }
 
-MemCpyOp createMemCpy(LowerFunction &LF, mlir::Value src, mlir::Value dst, mlir::Value len) {
+MemCpyOp createMemCpy(LowerFunction &LF, mlir::Value src, mlir::Value dst,
+                      mlir::Value len) {
   assert(mlir::isa<PointerType>(src.getType()));
-  assert(mlir::isa<PointerType>(dst.getType()));  
-  
-  auto* ctxt = LF.getRewriter().getContext();
+  assert(mlir::isa<PointerType>(dst.getType()));
+
+  auto *ctxt = LF.getRewriter().getContext();
   auto voidPtr = PointerType::get(ctxt, cir::VoidType::get(ctxt));
-  
+
   if (!isVoidPtr(src))
     src = createBitcast(src, voidPtr, LF);
   if (!isVoidPtr(dst))
     dst = createBitcast(dst, voidPtr, LF);
-  
-  return LF.getRewriter().create<MemCpyOp>(src.getLoc(), dst, src, len);  
+
+  return LF.getRewriter().create<MemCpyOp>(src.getLoc(), dst, src, len);
 }
 
 cir::AllocaOp findAlloca(mlir::Operation *op) {
@@ -294,7 +295,7 @@ mlir::Value createCoercedValue(mlir::Value Src, mlir::Type Ty,
 
   llvm::TypeSize DstSize = CGF.LM.getDataLayout().getTypeAllocSize(Ty);
 
-  if (auto SrcSTy = mlir::dyn_cast<StructType>(SrcTy)) {    
+  if (auto SrcSTy = mlir::dyn_cast<StructType>(SrcTy)) {
     Src = enterStructPointerForCoercedAccess(Src, SrcSTy,
                                              DstSize.getFixedValue(), CGF);
     SrcTy = Src.getType();
