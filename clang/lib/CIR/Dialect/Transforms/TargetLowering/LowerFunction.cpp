@@ -52,6 +52,25 @@ mlir::Value createCoercedBitcast(mlir::Value Src, mlir::Type DestTy,
                                           CastKind::bitcast, Src);
 }
 
+
+// FIXME(cir): Create a custom rewriter class to abstract this away.
+mlir::Value createBitcast(mlir::Value Src, mlir::Type Ty, LowerFunction &LF) {
+  return LF.getRewriter().create<CastOp>(Src.getLoc(), Ty, CastKind::bitcast,
+                                         Src);
+}
+
+mlir::Type getLargestMember(const CIRDataLayout& dataLayout, StructType s) {
+  mlir::Type typ;
+  for (auto t : s.getMembers()) {
+    if (!typ ||
+        dataLayout.getABITypeAlign(t) > dataLayout.getABITypeAlign(typ) ||
+        (dataLayout.getABITypeAlign(t) == dataLayout.getABITypeAlign(typ) &&
+          dataLayout.getTypeSizeInBits(t) > dataLayout.getTypeSizeInBits(typ)))
+      typ = t;
+  }
+  return typ;
+}
+
 /// Given a struct pointer that we are accessing some number of bytes out of it,
 /// try to gep into the struct to get at its inner goodness.  Dive as deep as
 /// possible without entering an element with an in-memory size smaller than
@@ -66,6 +85,9 @@ mlir::Value enterStructPointerForCoercedAccess(mlir::Value SrcPtr,
 
   mlir::Type FirstElt = SrcSTy.getMembers()[0];
 
+  if (SrcSTy.isUnion())
+    FirstElt = getLargestMember(CGF.LM.getDataLayout(), SrcSTy);
+
   // If the first elt is at least as large as what we're looking for, or if the
   // first element is the same size as the whole struct, we can enter it. The
   // comparison must be made on the store size and not the alloca size. Using
@@ -75,10 +97,26 @@ mlir::Value enterStructPointerForCoercedAccess(mlir::Value SrcPtr,
       FirstEltSize < CGF.LM.getDataLayout().getTypeStoreSize(SrcSTy))
     return SrcPtr;
 
-  cir_cconv_assert_or_abort(
-      !cir::MissingFeatures::ABIEnterStructForCoercedAccess(), "NYI");
-  return SrcPtr; // FIXME: This is a temporary workaround for the assertion
-                 // above.
+  auto& rw = CGF.getRewriter();
+  auto* ctxt = rw.getContext();
+  auto ptrTy = PointerType::get(ctxt, FirstElt);
+  if (mlir::isa<StructType>(SrcPtr.getType())) {
+    auto addr = SrcPtr;
+    if (auto load = mlir::dyn_cast<LoadOp>(SrcPtr.getDefiningOp()))
+      addr = load.getAddr();
+    cir_cconv_assert(mlir::isa<PointerType>(addr.getType()));
+    // we can not use getMemberOp here since we need a pointer to the first 
+    // element. And in the case of unions we pick a type of the largest elt,
+    // that may or may not be the first one. Thus, getMemberOp verification 
+    // may fail.
+    auto cast = createBitcast(addr, ptrTy, CGF);
+    SrcPtr = rw.create<LoadOp>(SrcPtr.getLoc(), cast);
+  }
+
+  if (auto sty = mlir::dyn_cast<StructType>(SrcPtr.getType()))
+    return enterStructPointerForCoercedAccess(SrcPtr, sty, DstSize, CGF);
+
+  return SrcPtr;
 }
 
 /// Convert a value Val to the specific Ty where both
@@ -191,12 +229,6 @@ void createCoercedStore(mlir::Value Src, mlir::Value Dst, bool DstIsVolatile,
   }
 }
 
-// FIXME(cir): Create a custom rewriter class to abstract this away.
-mlir::Value createBitcast(mlir::Value Src, mlir::Type Ty, LowerFunction &LF) {
-  return LF.getRewriter().create<CastOp>(Src.getLoc(), Ty, CastKind::bitcast,
-                                         Src);
-}
-
 /// Coerces a \param Src value to a value of type \param Ty.
 ///
 /// This safely handles the case when the src type is smaller than the
@@ -235,7 +267,7 @@ mlir::Value createCoercedValue(mlir::Value Src, mlir::Type Ty,
   // extension or truncation to the desired type.
   if ((mlir::isa<IntType>(Ty) || mlir::isa<PointerType>(Ty)) &&
       (mlir::isa<IntType>(SrcTy) || mlir::isa<PointerType>(SrcTy))) {
-    cir_cconv_unreachable("NYI");
+    return coerceIntOrPtrToIntOrPtr(Src, Ty, CGF);
   }
 
   // If load is legal, just bitcast the src pointer.
