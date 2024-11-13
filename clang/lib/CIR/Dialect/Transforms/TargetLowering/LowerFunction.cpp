@@ -278,6 +278,40 @@ cir::AllocaOp findAlloca(mlir::Operation *op) {
   return {};
 }
 
+mlir::Value createNonPrimitiveValue(mlir::Value Src, mlir::Type Ty,
+                                    LowerFunction &LF) {
+  if (auto Load = mlir::dyn_cast<LoadOp>(Src.getDefiningOp())) {
+    auto &bld = LF.getRewriter();
+    auto Addr = Load.getAddr();
+
+    auto oldAlloca = mlir::dyn_cast<AllocaOp>(Addr.getDefiningOp());
+    auto Alloca = bld.create<AllocaOp>(
+        Src.getLoc(), bld.getType<PointerType>(Ty), Ty,
+        /*name=*/llvm::StringRef(""), oldAlloca.getAlignmentAttr());
+
+    auto Size = LF.LM.getDataLayout().getTypeStoreSize(Ty);
+    auto uInt64Ty = IntType::get(bld.getContext(), 64, false);
+    auto SizeVal = bld.create<ConstantOp>(Src.getLoc(), uInt64Ty,
+                                          IntAttr::get(uInt64Ty, Size));
+
+    auto VoidTy = VoidType::get(bld.getContext());
+    auto VoidPtrTy = PointerType::get(bld.getContext(), VoidTy);
+
+    auto SrcVoidPtr =
+        bld.create<CastOp>(Src.getLoc(), VoidPtrTy, CastKind::bitcast, Addr);
+    auto DestVoidPtr =
+        bld.create<CastOp>(Src.getLoc(), VoidPtrTy, CastKind::bitcast, Alloca);
+
+    bld.create<MemCpyOp>(Src.getLoc(), DestVoidPtr, SrcVoidPtr, SizeVal);
+
+    auto newLoad = bld.create<LoadOp>(Src.getLoc(), Alloca.getResult());
+    bld.replaceAllOpUsesWith(Load, newLoad);
+
+    return newLoad;
+  }
+  return {};
+}
+
 /// After the calling convention is lowered, an ABI-agnostic type might have to
 /// be loaded back to its ABI-aware couterpart so it may be returned. If they
 /// differ, we have to do a coerced load. A coerced load, which means to load a
@@ -301,7 +335,8 @@ mlir::Value castReturnValue(mlir::Value Src, mlir::Type Ty, LowerFunction &LF) {
 
   auto intTy = mlir::dyn_cast<IntType>(Ty);
   if (intTy && !intTy.isPrimitive())
-    cir_cconv_unreachable("non-primitive types NYI");
+    return createNonPrimitiveValue(Src, Ty, LF);
+
   llvm::TypeSize DstSize = LF.LM.getDataLayout().getTypeAllocSize(Ty);
 
   // FIXME(cir): Do we need the EnterStructPointerForCoercedAccess routine here?
