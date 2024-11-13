@@ -881,11 +881,11 @@ void LoweringPreparePass::lowerGlobalOp(GlobalOp op) {
 
 void LoweringPreparePass::buildGlobalCtorDtorList() {
   if (!globalCtorList.empty()) {
-    theModule->setAttr("cir.global_ctors",
+    theModule->setAttr(cir::CIRDialect::getGlobalCtorsAttrName(),
                        mlir::ArrayAttr::get(&getContext(), globalCtorList));
   }
   if (!globalDtorList.empty()) {
-    theModule->setAttr("cir.global_dtors",
+    theModule->setAttr(cir::CIRDialect::getGlobalDtorsAttrName(),
                        mlir::ArrayAttr::get(&getContext(), globalDtorList));
   }
 }
@@ -1129,7 +1129,7 @@ void LoweringPreparePass::buildGlobalAnnotationValues() {
     return;
   mlir::ArrayAttr annotationValueArray =
       mlir::ArrayAttr::get(theModule.getContext(), globalAnnotations);
-  theModule->setAttr("cir.global_annotations",
+  theModule->setAttr(cir::CIRDialect::getGlobalAnnotationsAttrName(),
                      cir::GlobalAnnotationValuesAttr::get(
                          theModule.getContext(), annotationValueArray));
 }
