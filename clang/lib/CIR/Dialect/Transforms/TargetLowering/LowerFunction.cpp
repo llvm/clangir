@@ -147,19 +147,6 @@ mlir::Value createBitcast(mlir::Value Src, mlir::Type Ty, LowerFunction &LF) {
                                          Src);
 }
 
-ConstantOp createUInt64(LowerFunction &LF, mlir::Location loc, uint64_t val) {
-  auto &rw = LF.getRewriter();
-  auto *ctxt = rw.getContext();
-  auto i64Ty = IntType::get(ctxt, 64, false);
-  return rw.create<ConstantOp>(loc, IntAttr::get(i64Ty, val));
-}
-
-bool isVoidPtr(mlir::Value v) {
-  if (auto p = mlir::dyn_cast<PointerType>(v.getType()))
-    return mlir::isa<VoidType>(p.getPointee());
-  return false;
-}
-
 AllocaOp createTmpAlloca(LowerFunction &LF, mlir::Location loc, mlir::Type ty) {
   auto &rw = LF.getRewriter();
   auto *ctxt = rw.getContext();
@@ -182,12 +169,19 @@ AllocaOp createTmpAlloca(LowerFunction &LF, mlir::Location loc, mlir::Type ty) {
   return rw.create<AllocaOp>(loc, ptrTy, ty, "tmp", alignAttr);
 }
 
-MemCpyOp createMemCpy(LowerFunction &LF, mlir::Value src, mlir::Value dst,
-                      mlir::Value len) {
+bool isVoidPtr(mlir::Value v) {
+  if (auto p = mlir::dyn_cast<PointerType>(v.getType()))
+    return mlir::isa<VoidType>(p.getPointee());
+  return false;
+}
+
+MemCpyOp createMemCpy(LowerFunction &LF, mlir::Value dst, mlir::Value src,
+                      uint64_t len) {
   assert(mlir::isa<PointerType>(src.getType()));
   assert(mlir::isa<PointerType>(dst.getType()));
 
   auto *ctxt = LF.getRewriter().getContext();
+  auto &rw = LF.getRewriter();
   auto voidPtr = PointerType::get(ctxt, cir::VoidType::get(ctxt));
 
   if (!isVoidPtr(src))
@@ -195,7 +189,9 @@ MemCpyOp createMemCpy(LowerFunction &LF, mlir::Value src, mlir::Value dst,
   if (!isVoidPtr(dst))
     dst = createBitcast(dst, voidPtr, LF);
 
-  return LF.getRewriter().create<MemCpyOp>(src.getLoc(), dst, src, len);
+  auto i64Ty = IntType::get(ctxt, 64, false);
+  auto length = rw.create<ConstantOp>(src.getLoc(), IntAttr::get(i64Ty, len));
+  return rw.create<MemCpyOp>(src.getLoc(), dst, src, length);
 }
 
 cir::AllocaOp findAlloca(mlir::Operation *op) {
@@ -264,8 +260,7 @@ void createCoercedStore(mlir::Value Src, mlir::Value Dst, bool DstIsVolatile,
   } else {
     auto tmp = createTmpAlloca(CGF, Src.getLoc(), SrcTy);
     CGF.getRewriter().create<StoreOp>(Src.getLoc(), Src, tmp);
-    auto len = createUInt64(CGF, Src.getLoc(), DstSize.getFixedValue());
-    createMemCpy(CGF, tmp, Dst, len);
+    createMemCpy(CGF, Dst, tmp, DstSize.getFixedValue());
   }
 }
 
@@ -385,8 +380,7 @@ mlir::Value castReturnValue(mlir::Value Src, mlir::Type Ty, LowerFunction &LF) {
   if (auto addr = findAlloca(Src.getDefiningOp())) {
     auto &rewriter = LF.getRewriter();
     auto tmp = createTmpAlloca(LF, Src.getLoc(), Ty);
-    auto len = createUInt64(LF, Src.getLoc(), SrcSize.getFixedValue());
-    createMemCpy(LF, addr, tmp, len);
+    createMemCpy(LF, tmp, addr, SrcSize.getFixedValue());
     return rewriter.create<LoadOp>(Src.getLoc(), tmp.getResult());
   }
 
