@@ -656,11 +656,9 @@ LowerFunction::buildFunctionEpilog(const LowerFunctionInfo &FI) {
 
           auto retInputs = ret.getInput();
           assert(retInputs.size() == 1 && "current number of support inputs");
-          if (retInputs.size() == 1)
-            if (auto load =
-                    mlir::dyn_cast<LoadOp>(retInputs[0].getDefiningOp()))
-              if (load.getResult().use_empty())
-                rewriter.eraseOp(load);
+          if (auto load = mlir::dyn_cast<LoadOp>(retInputs[0].getDefiningOp()))
+            if (load.getResult().use_empty())
+              rewriter.eraseOp(load);
 
           rewriter.replaceOpWithNewOp<ReturnOp>(ret);
         }
