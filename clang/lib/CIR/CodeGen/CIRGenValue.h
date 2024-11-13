@@ -27,7 +27,7 @@
 
 #include "mlir/IR/Value.h"
 
-namespace cir {
+namespace clang::CIRGen {
 
 /// This trivial value class is used to represent the result of an
 /// expression that is evaluated. It can be one of three things: either a
@@ -299,7 +299,7 @@ public:
 
     LValue R;
     R.LVType = Simple;
-    assert(mlir::cast<mlir::cir::PointerType>(address.getPointer().getType()));
+    assert(mlir::cast<cir::PointerType>(address.getPointer().getType()));
     R.V = address.getPointer();
     R.ElementType = address.getElementType();
     R.Initialize(type, qs, address.getAlignment(), baseInfo, tbaaInfo);
@@ -551,6 +551,6 @@ public:
   }
 };
 
-} // namespace cir
+} // namespace clang::CIRGen
 
 #endif

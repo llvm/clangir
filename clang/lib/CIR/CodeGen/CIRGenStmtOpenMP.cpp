@@ -28,8 +28,8 @@
 #include "mlir/IR/Value.h"
 #include "mlir/Support/LogicalResult.h"
 
-using namespace cir;
 using namespace clang;
+using namespace clang::CIRGen;
 using namespace mlir::omp;
 
 static void buildDependences(const OMPExecutableDirective &S,
@@ -67,7 +67,7 @@ static void buildDependences(const OMPExecutableDirective &S,
 }
 
 mlir::LogicalResult
-CIRGenFunction::buildOMPParallelDirective(const OMPParallelDirective &S) {
+CIRGenFunction::emitOMPParallelDirective(const OMPParallelDirective &S) {
   mlir::LogicalResult res = mlir::success();
   auto scopeLoc = getLoc(S.getSourceRange());
   // Create a `omp.parallel` op.
@@ -76,14 +76,14 @@ CIRGenFunction::buildOMPParallelDirective(const OMPParallelDirective &S) {
   mlir::OpBuilder::InsertionGuard guardCase(builder);
   builder.setInsertionPointToEnd(&block);
   // Create a scope for the OpenMP region.
-  builder.create<mlir::cir::ScopeOp>(
+  builder.create<cir::ScopeOp>(
       scopeLoc, /*scopeBuilder=*/
       [&](mlir::OpBuilder &b, mlir::Location loc) {
         LexicalScope lexScope{*this, scopeLoc, builder.getInsertionBlock()};
         // Emit the body of the region.
-        if (buildStmt(S.getCapturedStmt(OpenMPDirectiveKind::OMPD_parallel)
-                          ->getCapturedStmt(),
-                      /*useCurrentScope=*/true)
+        if (emitStmt(S.getCapturedStmt(OpenMPDirectiveKind::OMPD_parallel)
+                         ->getCapturedStmt(),
+                     /*useCurrentScope=*/true)
                 .failed())
           res = mlir::failure();
       });
@@ -93,7 +93,7 @@ CIRGenFunction::buildOMPParallelDirective(const OMPParallelDirective &S) {
 }
 
 mlir::LogicalResult
-CIRGenFunction::buildOMPTaskwaitDirective(const OMPTaskwaitDirective &S) {
+CIRGenFunction::emitOMPTaskwaitDirective(const OMPTaskwaitDirective &S) {
   mlir::LogicalResult res = mlir::success();
   OMPTaskDataTy Data;
   buildDependences(S, Data);
@@ -103,7 +103,7 @@ CIRGenFunction::buildOMPTaskwaitDirective(const OMPTaskwaitDirective &S) {
   return res;
 }
 mlir::LogicalResult
-CIRGenFunction::buildOMPTaskyieldDirective(const OMPTaskyieldDirective &S) {
+CIRGenFunction::emitOMPTaskyieldDirective(const OMPTaskyieldDirective &S) {
   mlir::LogicalResult res = mlir::success();
   // Creation of an omp.taskyield operation
   CGM.getOpenMPRuntime().emitTaskyieldCall(builder, *this,
@@ -112,7 +112,7 @@ CIRGenFunction::buildOMPTaskyieldDirective(const OMPTaskyieldDirective &S) {
 }
 
 mlir::LogicalResult
-CIRGenFunction::buildOMPBarrierDirective(const OMPBarrierDirective &S) {
+CIRGenFunction::emitOMPBarrierDirective(const OMPBarrierDirective &S) {
   mlir::LogicalResult res = mlir::success();
   // Creation of an omp.barrier operation
   CGM.getOpenMPRuntime().emitBarrierCall(builder, *this,

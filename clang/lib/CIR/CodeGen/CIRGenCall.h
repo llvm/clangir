@@ -25,7 +25,7 @@
 
 #include "mlir/IR/BuiltinOps.h"
 
-namespace cir {
+namespace clang::CIRGen {
 class CIRGenFunction;
 
 /// Abstract information about a function or function prototype.
@@ -71,7 +71,7 @@ class CIRGenCallee {
     const clang::CallExpr *CE;
     clang::GlobalDecl MD;
     Address Addr;
-    mlir::cir::FuncType FTy;
+    cir::FuncType FTy;
   };
 
   SpecialKind KindOrFunctionPointer;
@@ -158,7 +158,7 @@ public:
 
   static CIRGenCallee forVirtual(const clang::CallExpr *CE,
                                  clang::GlobalDecl MD, Address Addr,
-                                 mlir::cir::FuncType FTy) {
+                                 cir::FuncType FTy) {
     CIRGenCallee result(SpecialKind::Virtual);
     result.VirtualInfo.CE = CE;
     result.VirtualInfo.MD = MD;
@@ -180,7 +180,7 @@ public:
     assert(isVirtual());
     return VirtualInfo.Addr;
   }
-  mlir::cir::FuncType getVirtualFunctionType() const {
+  cir::FuncType getVirtualFunctionType() const {
     assert(isVirtual());
     return VirtualInfo.FTy;
   }
@@ -290,6 +290,6 @@ public:
   Address getAddress() const { return Addr; }
 };
 
-} // namespace cir
+} // namespace clang::CIRGen
 
 #endif

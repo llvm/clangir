@@ -56,12 +56,12 @@ void CIRGenerator::Initialize(ASTContext &astCtx) {
   mlirCtx = std::make_unique<mlir::MLIRContext>();
   mlirCtx->getOrLoadDialect<mlir::DLTIDialect>();
   mlirCtx->getOrLoadDialect<mlir::func::FuncDialect>();
-  mlirCtx->getOrLoadDialect<mlir::cir::CIRDialect>();
+  mlirCtx->getOrLoadDialect<cir::CIRDialect>();
   mlirCtx->getOrLoadDialect<mlir::LLVM::LLVMDialect>();
   mlirCtx->getOrLoadDialect<mlir::memref::MemRefDialect>();
   mlirCtx->getOrLoadDialect<mlir::omp::OpenMPDialect>();
-  CGM = std::make_unique<CIRGenModule>(*mlirCtx.get(), astCtx, codeGenOpts,
-                                       Diags);
+  CGM = std::make_unique<clang::CIRGen::CIRGenModule>(*mlirCtx.get(), astCtx,
+                                                      codeGenOpts, Diags);
   auto mod = CGM->getModule();
   auto layout = llvm::DataLayout(astCtx.getTargetInfo().getDataLayoutString());
   setMLIRDataLayout(mod, layout);
@@ -82,7 +82,7 @@ bool CIRGenerator::HandleTopLevelDecl(DeclGroupRef D) {
   HandlingTopLevelDeclRAII HandlingDecl(*this);
 
   for (DeclGroupRef::iterator I = D.begin(), E = D.end(); I != E; ++I) {
-    CGM->buildTopLevelDecl(*I);
+    CGM->emitTopLevelDecl(*I);
   }
 
   return true;
@@ -125,9 +125,9 @@ void CIRGenerator::HandleInlineFunctionDefinition(FunctionDecl *D) {
     CGM->AddDeferredUnusedCoverageMapping(D);
 }
 
-void CIRGenerator::buildDefaultMethods() { CGM->buildDefaultMethods(); }
+void CIRGenerator::emitDefaultMethods() { CGM->emitDefaultMethods(); }
 
-void CIRGenerator::buildDeferredDecls() {
+void CIRGenerator::emitDeferredDecls() {
   if (DeferredInlineMemberFuncDefs.empty())
     return;
 
@@ -136,7 +136,7 @@ void CIRGenerator::buildDeferredDecls() {
   // invoked if AST inspection results in declarations being added.
   HandlingTopLevelDeclRAII HandlingDecls(*this);
   for (unsigned I = 0; I != DeferredInlineMemberFuncDefs.size(); ++I)
-    CGM->buildTopLevelDecl(DeferredInlineMemberFuncDefs[I]);
+    CGM->emitTopLevelDecl(DeferredInlineMemberFuncDefs[I]);
   DeferredInlineMemberFuncDefs.clear();
 }
 
@@ -188,12 +188,12 @@ void CIRGenerator::CompleteTentativeDefinition(VarDecl *D) {
   if (Diags.hasErrorOccurred())
     return;
 
-  CGM->buildTentativeDefinition(D);
+  CGM->emitTentativeDefinition(D);
 }
 
 void CIRGenerator::HandleVTable(CXXRecordDecl *rd) {
   if (Diags.hasErrorOccurred())
     return;
 
-  CGM->buildVTable(rd);
+  CGM->emitVTable(rd);
 }

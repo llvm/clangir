@@ -8,8 +8,8 @@
 #include "clang/CIR/MissingFeatures.h"
 #include "clang/CIR/Target/x86.h"
 
-using namespace cir;
 using namespace clang;
+using namespace clang::CIRGen;
 
 static bool testIfIsVoidTy(QualType Ty) {
   const auto *BT = Ty->getAs<BuiltinType>();
@@ -44,9 +44,9 @@ public:
 
   virtual ~DefaultABIInfo() = default;
 
-  ABIArgInfo classifyReturnType(QualType RetTy) const {
+  cir::ABIArgInfo classifyReturnType(QualType RetTy) const {
     if (RetTy->isVoidType())
-      return ABIArgInfo::getIgnore();
+      return cir::ABIArgInfo::getIgnore();
 
     if (isAggregateTypeForABI(RetTy))
       llvm_unreachable("NYI");
@@ -58,11 +58,12 @@ public:
     if (const auto *EIT = RetTy->getAs<BitIntType>())
       llvm_unreachable("NYI");
 
-    return (isPromotableIntegerTypeForABI(RetTy) ? ABIArgInfo::getExtend(RetTy)
-                                                 : ABIArgInfo::getDirect());
+    return (isPromotableIntegerTypeForABI(RetTy)
+                ? cir::ABIArgInfo::getExtend(RetTy)
+                : cir::ABIArgInfo::getDirect());
   }
 
-  ABIArgInfo classifyArgumentType(QualType Ty) const {
+  cir::ABIArgInfo classifyArgumentType(QualType Ty) const {
     Ty = useFirstFieldIfTransparentUnion(Ty);
 
     if (isAggregateTypeForABI(Ty)) {
@@ -76,8 +77,8 @@ public:
     if (const auto *EIT = Ty->getAs<BitIntType>())
       llvm_unreachable("NYI");
 
-    return (isPromotableIntegerTypeForABI(Ty) ? ABIArgInfo::getExtend(Ty)
-                                              : ABIArgInfo::getDirect());
+    return (isPromotableIntegerTypeForABI(Ty) ? cir::ABIArgInfo::getExtend(Ty)
+                                              : cir::ABIArgInfo::getDirect());
   }
 
   void computeInfo(CIRGenFunctionInfo &FI) const override {
@@ -114,9 +115,9 @@ private:
   ABIKind getABIKind() const { return Kind; }
   bool isDarwinPCS() const { return Kind == DarwinPCS; }
 
-  ABIArgInfo classifyReturnType(QualType RetTy, bool IsVariadic) const;
-  ABIArgInfo classifyArgumentType(QualType RetTy, bool IsVariadic,
-                                  unsigned CallingConvention) const;
+  cir::ABIArgInfo classifyReturnType(QualType RetTy, bool IsVariadic) const;
+  cir::ABIArgInfo classifyArgumentType(QualType RetTy, bool IsVariadic,
+                                       unsigned CallingConvention) const;
 
   void computeInfo(CIRGenFunctionInfo &FI) const override {
     // Top leevl CIR has unlimited arguments and return types. Lowering for ABI
@@ -126,15 +127,15 @@ private:
                                           ie = FI.arg_end();
          it != ie; ++it) {
       if (testIfIsVoidTy(it->type))
-        it->info = ABIArgInfo::getIgnore();
+        it->info = cir::ABIArgInfo::getIgnore();
       else
-        it->info = ABIArgInfo::getDirect(CGT.ConvertType(it->type));
+        it->info = cir::ABIArgInfo::getDirect(CGT.ConvertType(it->type));
     }
     auto RetTy = FI.getReturnType();
     if (testIfIsVoidTy(RetTy))
-      FI.getReturnInfo() = ABIArgInfo::getIgnore();
+      FI.getReturnInfo() = cir::ABIArgInfo::getIgnore();
     else
-      FI.getReturnInfo() = ABIArgInfo::getDirect(CGT.ConvertType(RetTy));
+      FI.getReturnInfo() = cir::ABIArgInfo::getDirect(CGT.ConvertType(RetTy));
 
     return;
   }
@@ -155,10 +156,10 @@ public:
 namespace {
 
 /// The AVX ABI leel for X86 targets.
-using X86AVXABILevel = ::cir::X86AVXABILevel;
+using X86AVXABILevel = cir::X86AVXABILevel;
 
 class X86_64ABIInfo : public ABIInfo {
-  using Class = X86ArgClass;
+  using Class = cir::X86ArgClass;
 
   // X86AVXABILevel AVXLevel;
   // Some ABIs (e.g. X32 ABI and Native Client OS) use 32 bit pointers on 64-bit
@@ -204,11 +205,11 @@ public:
                                 clang::QualType SourceTy,
                                 unsigned SourceOffset) const;
 
-  ABIArgInfo classifyReturnType(QualType RetTy) const;
+  cir::ABIArgInfo classifyReturnType(QualType RetTy) const;
 
-  ABIArgInfo classifyArgumentType(clang::QualType Ty, unsigned freeIntRegs,
-                                  unsigned &neededInt, unsigned &neededSSE,
-                                  bool isNamedArg) const;
+  cir::ABIArgInfo classifyArgumentType(clang::QualType Ty, unsigned freeIntRegs,
+                                       unsigned &neededInt, unsigned &neededSSE,
+                                       bool isNamedArg) const;
 
   mlir::Type GetINTEGERTypeAtOffset(mlir::Type CIRType, unsigned CIROffset,
                                     QualType SourceTy,
@@ -219,7 +220,7 @@ public:
   ///
   /// \param freeIntRegs - The number of free integer registers remaining
   /// available.
-  ABIArgInfo getIndirectResult(QualType Ty, unsigned freeIntRegs) const;
+  cir::ABIArgInfo getIndirectResult(QualType Ty, unsigned freeIntRegs) const;
 };
 
 class X86_64TargetCIRGenInfo : public TargetCIRGenInfo {
@@ -246,7 +247,7 @@ public:
   void computeInfo(CIRGenFunctionInfo &FI) const override {
     // The logic is same as in DefaultABIInfo with an exception on the kernel
     // arguments handling.
-    mlir::cir::CallingConv CC = FI.getCallingConvention();
+    cir::CallingConv CC = FI.getCallingConvention();
 
     bool cxxabiHit = getCXXABI().classifyReturnType(FI);
     assert(!cxxabiHit && "C++ ABI not considered");
@@ -254,7 +255,7 @@ public:
     FI.getReturnInfo() = classifyReturnType(FI.getReturnType());
 
     for (auto &I : FI.arguments()) {
-      if (CC == mlir::cir::CallingConv::SpirKernel) {
+      if (CC == cir::CallingConv::SpirKernel) {
         I.info = classifyKernelArgumentType(I.type);
       } else {
         I.info = classifyArgumentType(I.type);
@@ -263,21 +264,20 @@ public:
   }
 
 private:
-  ABIArgInfo classifyKernelArgumentType(QualType Ty) const {
+  cir::ABIArgInfo classifyKernelArgumentType(QualType Ty) const {
     assert(!getContext().getLangOpts().CUDAIsDevice && "NYI");
     return classifyArgumentType(Ty);
   }
 };
 } // namespace
 
-namespace cir {
-void computeSPIRKernelABIInfo(CIRGenModule &CGM, CIRGenFunctionInfo &FI) {
+void clang::CIRGen::computeSPIRKernelABIInfo(CIRGenModule &CGM,
+                                             CIRGenFunctionInfo &FI) {
   if (CGM.getTarget().getTriple().isSPIRV())
     SPIRVABIInfo(CGM.getTypes()).computeInfo(FI);
   else
     CommonSPIRABIInfo(CGM.getTypes()).computeInfo(FI);
 }
-} // namespace cir
 
 namespace {
 
@@ -286,14 +286,14 @@ public:
   CommonSPIRTargetCIRGenInfo(std::unique_ptr<ABIInfo> ABIInfo)
       : TargetCIRGenInfo(std::move(ABIInfo)) {}
 
-  mlir::cir::AddressSpaceAttr getCIRAllocaAddressSpace() const override {
-    return mlir::cir::AddressSpaceAttr::get(
+  cir::AddressSpaceAttr getCIRAllocaAddressSpace() const override {
+    return cir::AddressSpaceAttr::get(
         &getABIInfo().CGT.getMLIRContext(),
-        mlir::cir::AddressSpaceAttr::Kind::offload_private);
+        cir::AddressSpaceAttr::Kind::offload_private);
   }
 
-  mlir::cir::CallingConv getOpenCLKernelCallingConv() const override {
-    return mlir::cir::CallingConv::SpirKernel;
+  cir::CallingConv getOpenCLKernelCallingConv() const override {
+    return cir::CallingConv::SpirKernel;
   }
 };
 
@@ -320,8 +320,8 @@ CIRGenCXXABI &ABIInfo::getCXXABI() const { return CGT.getCXXABI(); }
 
 clang::ASTContext &ABIInfo::getContext() const { return CGT.getContext(); }
 
-ABIArgInfo X86_64ABIInfo::getIndirectResult(QualType Ty,
-                                            unsigned freeIntRegs) const {
+cir::ABIArgInfo X86_64ABIInfo::getIndirectResult(QualType Ty,
+                                                 unsigned freeIntRegs) const {
   assert(false && "NYI");
 }
 
@@ -332,15 +332,15 @@ void X86_64ABIInfo::computeInfo(CIRGenFunctionInfo &FI) const {
   for (CIRGenFunctionInfo::arg_iterator it = FI.arg_begin(), ie = FI.arg_end();
        it != ie; ++it) {
     if (testIfIsVoidTy(it->type))
-      it->info = ABIArgInfo::getIgnore();
+      it->info = cir::ABIArgInfo::getIgnore();
     else
-      it->info = ABIArgInfo::getDirect(CGT.ConvertType(it->type));
+      it->info = cir::ABIArgInfo::getDirect(CGT.ConvertType(it->type));
   }
   auto RetTy = FI.getReturnType();
   if (testIfIsVoidTy(RetTy))
-    FI.getReturnInfo() = ABIArgInfo::getIgnore();
+    FI.getReturnInfo() = cir::ABIArgInfo::getIgnore();
   else
-    FI.getReturnInfo() = ABIArgInfo::getDirect(CGT.ConvertType(RetTy));
+    FI.getReturnInfo() = cir::ABIArgInfo::getDirect(CGT.ConvertType(RetTy));
 }
 
 /// GetINTEGERTypeAtOffset - The ABI specifies that a value should be passed in
@@ -367,11 +367,11 @@ mlir::Type X86_64ABIInfo::GetINTEGERTypeAtOffset(mlir::Type CIRType,
   return CIRType;
 }
 
-ABIArgInfo X86_64ABIInfo::classifyArgumentType(QualType Ty,
-                                               unsigned int freeIntRegs,
-                                               unsigned int &neededInt,
-                                               unsigned int &neededSSE,
-                                               bool isNamedArg) const {
+cir::ABIArgInfo X86_64ABIInfo::classifyArgumentType(QualType Ty,
+                                                    unsigned int freeIntRegs,
+                                                    unsigned int &neededInt,
+                                                    unsigned int &neededSSE,
+                                                    bool isNamedArg) const {
   Ty = useFirstFieldIfTransparentUnion(Ty);
 
   X86_64ABIInfo::Class Lo, Hi;
@@ -379,8 +379,10 @@ ABIArgInfo X86_64ABIInfo::classifyArgumentType(QualType Ty,
 
   // Check some invariants
   // FIXME: Enforce these by construction.
-  assert((Hi != Memory || Lo == Memory) && "Invalid memory classification.");
-  assert((Hi != SSEUp || Lo == SSE) && "Invalid SSEUp classification.");
+  assert((Hi != Class::Memory || Lo == Class::Memory) &&
+         "Invalid memory classification.");
+  assert((Hi != Class::SSEUp || Lo == Class::SSE) &&
+         "Invalid SSEUp classification.");
 
   neededInt = 0;
   neededSSE = 0;
@@ -391,7 +393,7 @@ ABIArgInfo X86_64ABIInfo::classifyArgumentType(QualType Ty,
 
   // AMD64-ABI 3.2.3p3: Rule 2. If the class is INTEGER, the next available
   // register of the sequence %rdi, %rsi, %rdx, %rcx, %r8 and %r9 is used.
-  case Integer:
+  case Class::Integer:
     ++neededInt;
 
     // Pick an 8-byte type based on the preferred type.
@@ -399,11 +401,11 @@ ABIArgInfo X86_64ABIInfo::classifyArgumentType(QualType Ty,
 
     // If we have a sign or zero extended integer, make sure to return Extend so
     // that the parameter gets the right LLVM IR attributes.
-    if (Hi == NoClass && mlir::isa<mlir::cir::IntType>(ResType)) {
+    if (Hi == Class::NoClass && mlir::isa<cir::IntType>(ResType)) {
       assert(!Ty->getAs<EnumType>() && "NYI");
       if (Ty->isSignedIntegerOrEnumerationType() &&
           isPromotableIntegerTypeForABI(Ty))
-        return ABIArgInfo::getExtend(Ty);
+        return cir::ABIArgInfo::getExtend(Ty);
     }
 
     break;
@@ -411,7 +413,7 @@ ABIArgInfo X86_64ABIInfo::classifyArgumentType(QualType Ty,
     // AMD64-ABI 3.2.3p3: Rule 3. If the class is SSE, the next available SSE
     // register is used, the registers are taken in the order from %xmm0 to
     // %xmm7.
-  case SSE: {
+  case Class::SSE: {
     mlir::Type CIRType = CGT.ConvertType(Ty);
     ResType = GetSSETypeAtOffset(CIRType, 0, Ty, 0);
     ++neededSSE;
@@ -423,13 +425,13 @@ ABIArgInfo X86_64ABIInfo::classifyArgumentType(QualType Ty,
   switch (Hi) {
   default:
     assert(false && "NYI");
-  case NoClass:
+  case Class::NoClass:
     break;
   }
 
   assert(!HighPart && "NYI");
 
-  return ABIArgInfo::getDirect(ResType);
+  return cir::ABIArgInfo::getDirect(ResType);
 }
 
 ABIInfo::~ABIInfo() {}
@@ -453,23 +455,23 @@ void X86_64ABIInfo::classify(QualType Ty, uint64_t OffsetBase, Class &Lo,
   // shouldn't be passed in registers for example, so there is no chance they
   // can straddle an eightbyte. Verify & simplify.
 
-  Lo = Hi = NoClass;
+  Lo = Hi = Class::NoClass;
   Class &Current = OffsetBase < 64 ? Lo : Hi;
-  Current = Memory;
+  Current = Class::Memory;
 
   if (const auto *BT = Ty->getAs<BuiltinType>()) {
     BuiltinType::Kind k = BT->getKind();
     if (k == BuiltinType::Void) {
-      Current = NoClass;
+      Current = Class::NoClass;
     } else if (k == BuiltinType::Int128 || k == BuiltinType::UInt128) {
       assert(false && "NYI");
-      Lo = Integer;
-      Hi = Integer;
+      Lo = Class::Integer;
+      Hi = Class::Integer;
     } else if (k >= BuiltinType::Bool && k <= BuiltinType::LongLong) {
-      Current = Integer;
+      Current = Class::Integer;
     } else if (k == BuiltinType::Float || k == BuiltinType::Double ||
                k == BuiltinType::Float16) {
-      Current = SSE;
+      Current = Class::SSE;
     } else if (k == BuiltinType::LongDouble) {
       assert(false && "NYI");
     } else
@@ -482,7 +484,7 @@ void X86_64ABIInfo::classify(QualType Ty, uint64_t OffsetBase, Class &Lo,
 
   assert(!Ty->getAs<EnumType>() && "Enums NYI");
   if (Ty->hasPointerRepresentation()) {
-    Current = Integer;
+    Current = Class::Integer;
     return;
   }
 
@@ -501,48 +503,50 @@ mlir::Type X86_64ABIInfo::GetSSETypeAtOffset(mlir::Type CIRType,
   return CIRType;
 }
 
-ABIArgInfo X86_64ABIInfo::classifyReturnType(QualType RetTy) const {
+cir::ABIArgInfo X86_64ABIInfo::classifyReturnType(QualType RetTy) const {
   // AMD64-ABI 3.2.3p4: Rule 1. Classify the return type with the classification
   // algorithm.
   X86_64ABIInfo::Class Lo, Hi;
   classify(RetTy, 0, Lo, Hi, /*isNamedArg*/ true);
 
   // Check some invariants.
-  assert((Hi != Memory || Lo == Memory) && "Invalid memory classification.");
-  assert((Hi != SSEUp || Lo == SSE) && "Invalid SSEUp classification.");
+  assert((Hi != Class::Memory || Lo == Class::Memory) &&
+         "Invalid memory classification.");
+  assert((Hi != Class::SSEUp || Lo == Class::SSE) &&
+         "Invalid SSEUp classification.");
 
   mlir::Type ResType = nullptr;
-  assert(Lo == NoClass || Lo == Integer ||
-         Lo == SSE && "Only NoClass and Integer supported so far");
+  assert(Lo == Class::NoClass || Lo == Class::Integer ||
+         Lo == Class::SSE && "Only NoClass and Integer supported so far");
 
   switch (Lo) {
-  case NoClass:
-    assert(Hi == NoClass && "Only NoClass supported so far for Hi");
-    return ABIArgInfo::getIgnore();
+  case Class::NoClass:
+    assert(Hi == Class::NoClass && "Only NoClass supported so far for Hi");
+    return cir::ABIArgInfo::getIgnore();
 
   // AMD64-ABI 3.2.3p4: Rule 3. If the class is INTEGER, the next available
   // register of the sequence %rax, %rdx is used.
-  case Integer:
+  case Class::Integer:
     ResType = GetINTEGERTypeAtOffset(CGT.ConvertType(RetTy), 0, RetTy, 0);
 
     // If we have a sign or zero extended integer, make sure to return Extend so
     // that the parameter gets the right LLVM IR attributes.
     // TODO: extend the above consideration to MLIR
-    if (Hi == NoClass && mlir::isa<mlir::cir::IntType>(ResType)) {
+    if (Hi == Class::NoClass && mlir::isa<cir::IntType>(ResType)) {
       // Treat an enum type as its underlying type.
       if (const auto *EnumTy = RetTy->getAs<EnumType>())
         RetTy = EnumTy->getDecl()->getIntegerType();
 
       if (RetTy->isIntegralOrEnumerationType() &&
           isPromotableIntegerTypeForABI(RetTy)) {
-        return ABIArgInfo::getExtend(RetTy);
+        return cir::ABIArgInfo::getExtend(RetTy);
       }
     }
     break;
 
     // AMD64-ABI 3.2.3p4: Rule 4. If the class is SSE, the next available SSE
     // register of the sequence %xmm0, %xmm1 is used.
-  case SSE:
+  case Class::SSE:
     ResType = GetSSETypeAtOffset(CGT.ConvertType(RetTy), 0, RetTy, 0);
     break;
 
@@ -555,11 +559,11 @@ ABIArgInfo X86_64ABIInfo::classifyReturnType(QualType RetTy) const {
   if (HighPart)
     assert(false && "NYI");
 
-  return ABIArgInfo::getDirect(ResType);
+  return cir::ABIArgInfo::getDirect(ResType);
 }
 
 clang::LangAS
-TargetCIRGenInfo::getGlobalVarAddressSpace(cir::CIRGenModule &CGM,
+TargetCIRGenInfo::getGlobalVarAddressSpace(CIRGenModule &CGM,
                                            const clang::VarDecl *D) const {
   assert(!CGM.getLangOpts().OpenCL &&
          !(CGM.getLangOpts().CUDA && CGM.getLangOpts().CUDAIsDevice) &&
@@ -568,12 +572,11 @@ TargetCIRGenInfo::getGlobalVarAddressSpace(cir::CIRGenModule &CGM,
 }
 
 mlir::Value TargetCIRGenInfo::performAddrSpaceCast(
-    CIRGenFunction &CGF, mlir::Value Src, mlir::cir::AddressSpaceAttr SrcAddr,
-    mlir::cir::AddressSpaceAttr DestAddr, mlir::Type DestTy,
-    bool IsNonNull) const {
+    CIRGenFunction &CGF, mlir::Value Src, cir::AddressSpaceAttr SrcAddr,
+    cir::AddressSpaceAttr DestAddr, mlir::Type DestTy, bool IsNonNull) const {
   // Since target may map different address spaces in AST to the same address
   // space, an address space conversion may end up as a bitcast.
-  if (auto globalOp = Src.getDefiningOp<mlir::cir::GlobalOp>())
+  if (auto globalOp = Src.getDefiningOp<cir::GlobalOp>())
     llvm_unreachable("Global ops addrspace cast NYI");
   // Try to preserve the source's name to make IR more readable.
   return CGF.getBuilder().createAddrSpaceCast(Src, DestTy);

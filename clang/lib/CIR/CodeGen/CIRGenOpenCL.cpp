@@ -13,8 +13,8 @@
 #include "CIRGenFunction.h"
 #include "CIRGenModule.h"
 
-using namespace cir;
 using namespace clang;
+using namespace clang::CIRGen;
 
 // Returns the address space id that should be produced to the
 // kernel_arg_addr_space metadata. This is always fixed to the ids
@@ -41,8 +41,7 @@ static unsigned ArgInfoAddressSpace(LangAS AS) {
   }
 }
 
-void CIRGenModule::genKernelArgMetadata(mlir::cir::FuncOp Fn,
-                                        const FunctionDecl *FD,
+void CIRGenModule::genKernelArgMetadata(cir::FuncOp Fn, const FunctionDecl *FD,
                                         CIRGenFunction *CGF) {
   assert(((FD && CGF) || (!FD && !CGF)) &&
          "Incorrect use - FD and CGF should either be both null or not!");
@@ -71,7 +70,7 @@ void CIRGenModule::genKernelArgMetadata(mlir::cir::FuncOp Fn,
   SmallVector<mlir::Attribute, 8> argNames;
 
   // OpenCL image and pipe types require special treatments for some metadata
-  assert(!MissingFeatures::openCLBuiltinTypes());
+  assert(!cir::MissingFeatures::openCLBuiltinTypes());
 
   if (FD && CGF)
     for (unsigned i = 0, e = FD->getNumParams(); i != e; ++i) {
@@ -170,7 +169,7 @@ void CIRGenModule::genKernelArgMetadata(mlir::cir::FuncOp Fn,
       resArgNames = builder.getArrayAttr(argNames);
 
     // Update the function's extra attributes with the kernel argument metadata.
-    auto value = mlir::cir::OpenCLKernelArgMetadataAttr::get(
+    auto value = cir::OpenCLKernelArgMetadataAttr::get(
         Fn.getContext(), builder.getI32ArrayAttr(addressQuals),
         builder.getArrayAttr(accessQuals), builder.getArrayAttr(argTypeNames),
         builder.getArrayAttr(argBaseTypeNames),
@@ -178,7 +177,7 @@ void CIRGenModule::genKernelArgMetadata(mlir::cir::FuncOp Fn,
     mlir::NamedAttrList items{Fn.getExtraAttrs().getElements().getValue()};
     auto oldValue = items.set(value.getMnemonic(), value);
     if (oldValue != value) {
-      Fn.setExtraAttrsAttr(mlir::cir::ExtraFuncAttributesAttr::get(
+      Fn.setExtraAttrsAttr(cir::ExtraFuncAttributesAttr::get(
           &getMLIRContext(), builder.getDictionaryAttr(items)));
     }
   } else {
@@ -187,8 +186,8 @@ void CIRGenModule::genKernelArgMetadata(mlir::cir::FuncOp Fn,
   }
 }
 
-void CIRGenFunction::buildKernelMetadata(const FunctionDecl *FD,
-                                         mlir::cir::FuncOp Fn) {
+void CIRGenFunction::emitKernelMetadata(const FunctionDecl *FD,
+                                        cir::FuncOp Fn) {
   if (!FD->hasAttr<OpenCLKernelAttr>() && !FD->hasAttr<CUDAGlobalAttr>())
     return;
 
@@ -197,7 +196,7 @@ void CIRGenFunction::buildKernelMetadata(const FunctionDecl *FD,
   if (!getLangOpts().OpenCL)
     return;
 
-  using mlir::cir::OpenCLKernelMetadataAttr;
+  using cir::OpenCLKernelMetadataAttr;
 
   mlir::ArrayAttr workGroupSizeHintAttr, reqdWorkGroupSizeAttr;
   mlir::TypeAttr vecTypeHintAttr;
@@ -246,11 +245,11 @@ void CIRGenFunction::buildKernelMetadata(const FunctionDecl *FD,
       vecTypeHintAttr, vecTypeHintSignedness, intelReqdSubGroupSizeAttr);
   attrs.append(kernelMetadataAttr.getMnemonic(), kernelMetadataAttr);
 
-  Fn.setExtraAttrsAttr(mlir::cir::ExtraFuncAttributesAttr::get(
+  Fn.setExtraAttrsAttr(cir::ExtraFuncAttributesAttr::get(
       &getMLIRContext(), attrs.getDictionary(&getMLIRContext())));
 }
 
-void CIRGenModule::buildOpenCLMetadata() {
+void CIRGenModule::emitOpenCLMetadata() {
   // SPIR v2.0 s2.13 - The OpenCL version used by the module is stored in the
   // opencl.ocl.version named metadata node.
   // C++ for OpenCL has a distinct mapping for versions compatibile with OpenCL.
@@ -259,7 +258,7 @@ void CIRGenModule::buildOpenCLMetadata() {
   unsigned minor = (version % 100) / 10;
 
   auto clVersionAttr =
-      mlir::cir::OpenCLVersionAttr::get(&getMLIRContext(), major, minor);
+      cir::OpenCLVersionAttr::get(&getMLIRContext(), major, minor);
 
   theModule->setAttr("cir.cl.version", clVersionAttr);
 }

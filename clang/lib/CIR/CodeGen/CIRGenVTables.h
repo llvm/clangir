@@ -26,7 +26,7 @@ namespace clang {
 class CXXRecordDecl;
 }
 
-namespace cir {
+namespace clang::CIRGen {
 class CIRGenModule;
 
 class CIRGenVTables {
@@ -52,10 +52,10 @@ class CIRGenVTables {
   SecondaryVirtualPointerIndicesMapTy SecondaryVirtualPointerIndices;
 
   /// Cache for the pure virtual member call function.
-  mlir::cir::FuncOp PureVirtualFn = nullptr;
+  cir::FuncOp PureVirtualFn = nullptr;
 
   /// Cache for the deleted virtual member call function.
-  mlir::cir::FuncOp DeletedVirtualFn = nullptr;
+  cir::FuncOp DeletedVirtualFn = nullptr;
 
   void addVTableComponent(ConstantArrayBuilder &builder,
                           const VTableLayout &layout, unsigned componentIndex,
@@ -93,22 +93,20 @@ public:
                                            BaseSubobject Base);
 
   /// Generate a construction vtable for the given base subobject.
-  mlir::cir::GlobalOp
+  cir::GlobalOp
   generateConstructionVTable(const CXXRecordDecl *RD, const BaseSubobject &Base,
-                             bool BaseIsVirtual,
-                             mlir::cir::GlobalLinkageKind Linkage,
+                             bool BaseIsVirtual, cir::GlobalLinkageKind Linkage,
                              VTableAddressPointsMapTy &AddressPoints);
 
   /// Get the address of the VTT for the given record decl.
-  mlir::cir::GlobalOp getAddrOfVTT(const CXXRecordDecl *RD);
+  cir::GlobalOp getAddrOfVTT(const CXXRecordDecl *RD);
 
   /// Emit the definition of the given vtable.
-  void buildVTTDefinition(mlir::cir::GlobalOp VTT,
-                          mlir::cir::GlobalLinkageKind Linkage,
-                          const CXXRecordDecl *RD);
+  void emitVTTDefinition(cir::GlobalOp VTT, cir::GlobalLinkageKind Linkage,
+                         const CXXRecordDecl *RD);
 
   /// Emit the associated thunks for the given global decl.
-  void buildThunks(GlobalDecl GD);
+  void emitThunks(GlobalDecl GD);
 
   /// Generate all the class data required to be generated upon definition of a
   /// KeyFunction. This includes the vtable, the RTTI data structure (if RTTI
@@ -123,5 +121,5 @@ public:
   mlir::Type getVTableType(const clang::VTableLayout &layout);
 };
 
-} // end namespace cir
+} // namespace clang::CIRGen
 #endif

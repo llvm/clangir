@@ -18,12 +18,11 @@
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 
 using namespace clang;
-using namespace cir;
+using namespace clang::CIRGen;
 
 CIRGenOpenCLRuntime::~CIRGenOpenCLRuntime() {}
 
-void CIRGenOpenCLRuntime::buildWorkGroupLocalVarDecl(CIRGenFunction &CGF,
-                                                     const VarDecl &D) {
-  return CGF.buildStaticVarDecl(D,
-                                mlir::cir::GlobalLinkageKind::InternalLinkage);
+void CIRGenOpenCLRuntime::emitWorkGroupLocalVarDecl(CIRGenFunction &CGF,
+                                                    const VarDecl &D) {
+  return CGF.emitStaticVarDecl(D, cir::GlobalLinkageKind::InternalLinkage);
 }

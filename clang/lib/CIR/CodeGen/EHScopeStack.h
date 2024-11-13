@@ -23,7 +23,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 
-namespace cir {
+namespace clang::CIRGen {
 
 class CIRGenFunction;
 
@@ -67,7 +67,7 @@ template <class T> struct DominatingValue : InvariantValue<T> {};
 template <class T, bool mightBeInstruction =
                        (std::is_base_of<mlir::Value, T>::value ||
                         std::is_base_of<mlir::Operation, T>::value) &&
-                       !std::is_base_of<mlir::cir::ConstantOp, T>::value &&
+                       !std::is_base_of<cir::ConstantOp, T>::value &&
                        !std::is_base_of<mlir::Block, T>::value>
 struct DominatingPointer;
 template <class T> struct DominatingPointer<T, false> : InvariantValue<T *> {};
@@ -416,6 +416,6 @@ public:
   void clearFixups() { BranchFixups.clear(); }
 };
 
-} // namespace cir
+} // namespace clang::CIRGen
 
 #endif

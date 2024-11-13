@@ -24,13 +24,14 @@
 // Forward-declare ConstantInitBuilderBase and give it a
 // PointerLikeTypeTraits specialization so that we can safely use it
 // in a PointerUnion below.
-namespace cir {
+namespace clang::CIRGen {
 class ConstantInitBuilderBase;
-} // namespace cir
+} // namespace clang::CIRGen
 
 namespace llvm {
-template <> struct PointerLikeTypeTraits<::cir::ConstantInitBuilderBase *> {
-  using T = ::cir::ConstantInitBuilderBase *;
+template <>
+struct PointerLikeTypeTraits<clang::CIRGen::ConstantInitBuilderBase *> {
+  using T = clang::CIRGen::ConstantInitBuilderBase *;
 
   static inline void *getAsVoidPointer(T p) { return p; }
   static inline T getFromVoidPointer(void *p) { return static_cast<T>(p); }
@@ -38,7 +39,7 @@ template <> struct PointerLikeTypeTraits<::cir::ConstantInitBuilderBase *> {
 };
 } // namespace llvm
 
-namespace cir {
+namespace clang::CIRGen {
 
 /// A "future" for a completed constant initializer, which can be passed
 /// around independently of any sub-builders (but not the original parent).
@@ -69,7 +70,7 @@ public:
 
   /// Install the initializer into a global variable.  This cannot
   /// be called multiple times.
-  void installInGlobal(mlir::cir::GlobalOp global);
+  void installInGlobal(cir::GlobalOp global);
 
   void *getOpaqueValue() const { return Data.getOpaqueValue(); }
   static ConstantInitFuture getFromOpaqueValue(void *value) {
@@ -81,12 +82,12 @@ public:
       llvm::PointerLikeTypeTraits<PairTy>::NumLowBitsAvailable;
 };
 
-} // namespace cir
+} // namespace clang::CIRGen
 
 namespace llvm {
 
-template <> struct PointerLikeTypeTraits<::cir::ConstantInitFuture> {
-  using T = ::cir::ConstantInitFuture;
+template <> struct PointerLikeTypeTraits<clang::CIRGen::ConstantInitFuture> {
+  using T = clang::CIRGen::ConstantInitFuture;
 
   static inline void *getAsVoidPointer(T future) {
     return future.getOpaqueValue();

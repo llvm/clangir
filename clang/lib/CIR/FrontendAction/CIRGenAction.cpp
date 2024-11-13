@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/CIRFrontendAction/CIRGenAction.h"
+#include "clang/CIR/FrontendAction/CIRGenAction.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -262,7 +262,7 @@ public:
       if (outputStream && mlirMod) {
         // Emit remaining defaulted C++ methods
         if (!feOptions.ClangIRDisableEmitCXXDefault)
-          gen->buildDefaultMethods();
+          gen->emitDefaultMethods();
 
         // FIXME: we cannot roundtrip prettyForm=true right now.
         mlir::OpPrintingFlags flags;
@@ -425,7 +425,7 @@ void CIRGenAction::ExecuteAction() {
   if (!mainFile)
     return;
 
-  mlirContext->getOrLoadDialect<mlir::cir::CIRDialect>();
+  mlirContext->getOrLoadDialect<cir::CIRDialect>();
   mlirContext->getOrLoadDialect<mlir::func::FuncDialect>();
   mlirContext->getOrLoadDialect<mlir::memref::MemRefDialect>();
 

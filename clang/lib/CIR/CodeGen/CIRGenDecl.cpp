@@ -29,12 +29,12 @@
 #include "llvm/Support/ErrorHandling.h"
 #include <cassert>
 
-using namespace cir;
 using namespace clang;
+using namespace clang::CIRGen;
 
 CIRGenFunction::AutoVarEmission
-CIRGenFunction::buildAutoVarAlloca(const VarDecl &D,
-                                   mlir::OpBuilder::InsertPoint ip) {
+CIRGenFunction::emitAutoVarAlloca(const VarDecl &D,
+                                  mlir::OpBuilder::InsertPoint ip) {
   QualType Ty = D.getType();
   assert(
       Ty.getAddressSpace() == LangAS::Default ||
@@ -51,10 +51,10 @@ CIRGenFunction::buildAutoVarAlloca(const VarDecl &D,
 
   // If the type is variably-modified, emit all the VLA sizes for it.
   if (Ty->isVariablyModifiedType())
-    buildVariablyModifiedType(Ty);
+    emitVariablyModifiedType(Ty);
 
-  assert(!MissingFeatures::generateDebugInfo());
-  assert(!MissingFeatures::cxxABI());
+  assert(!cir::MissingFeatures::generateDebugInfo());
+  assert(!cir::MissingFeatures::cxxABI());
 
   Address address = Address::invalid();
   Address allocaAddr = Address::invalid();
@@ -92,7 +92,7 @@ CIRGenFunction::buildAutoVarAlloca(const VarDecl &D,
           (!NRVO && !D.isEscapingByref() &&
            CGM.isTypeConstant(Ty, /*ExcludeCtor=*/true,
                               /*ExcludeDtor=*/false))) {
-        buildStaticVarDecl(D, mlir::cir::GlobalLinkageKind::InternalLinkage);
+        emitStaticVarDecl(D, cir::GlobalLinkageKind::InternalLinkage);
 
         // Signal this condition to later callbacks.
         emission.Addr = Address::invalid();
@@ -152,7 +152,7 @@ CIRGenFunction::buildAutoVarAlloca(const VarDecl &D,
       }
       // TODO: what about emitting lifetime markers for MSVC catch parameters?
       // TODO: something like @llvm.lifetime.start/end here? revisit this later.
-      assert(!MissingFeatures::shouldEmitLifetimeMarkers());
+      assert(!cir::MissingFeatures::shouldEmitLifetimeMarkers());
     }
   } else { // not openmp nor constant sized type
     bool VarAllocated = false;
@@ -189,20 +189,20 @@ CIRGenFunction::buildAutoVarAlloca(const VarDecl &D,
     // If we have debug info enabled, properly describe the VLA dimensions for
     // this type by registering the vla size expression for each of the
     // dimensions.
-    assert(!MissingFeatures::generateDebugInfo());
+    assert(!cir::MissingFeatures::generateDebugInfo());
   }
 
   emission.Addr = address;
   setAddrOfLocalVar(&D, emission.Addr);
 
   // Emit debug info for local var declaration.
-  assert(!MissingFeatures::generateDebugInfo());
+  assert(!cir::MissingFeatures::generateDebugInfo());
 
   if (D.hasAttr<AnnotateAttr>())
-    buildVarAnnotations(&D, address.emitRawPointer());
+    emitVarAnnotations(&D, address.emitRawPointer());
 
   // TODO(cir): in LLVM this calls @llvm.lifetime.end.
-  assert(!MissingFeatures::shouldEmitLifetimeMarkers());
+  assert(!cir::MissingFeatures::shouldEmitLifetimeMarkers());
 
   return emission;
 }
@@ -231,12 +231,12 @@ static void emitStoresForConstant(CIRGenModule &CGM, const VarDecl &D,
   uint64_t ConstantSize = layout.getTypeAllocSize(Ty);
   if (!ConstantSize)
     return;
-  assert(!MissingFeatures::addAutoInitAnnotation());
-  assert(!MissingFeatures::vectorConstants());
-  assert(!MissingFeatures::shouldUseBZeroPlusStoresToInitialize());
-  assert(!MissingFeatures::shouldUseMemSetToInitialize());
-  assert(!MissingFeatures::shouldSplitConstantStore());
-  assert(!MissingFeatures::shouldCreateMemCpyFromGlobal());
+  assert(!cir::MissingFeatures::addAutoInitAnnotation());
+  assert(!cir::MissingFeatures::vectorConstants());
+  assert(!cir::MissingFeatures::shouldUseBZeroPlusStoresToInitialize());
+  assert(!cir::MissingFeatures::shouldUseMemSetToInitialize());
+  assert(!cir::MissingFeatures::shouldSplitConstantStore());
+  assert(!cir::MissingFeatures::shouldCreateMemCpyFromGlobal());
   // In CIR we want to emit a store for the whole thing, later lowering
   // prepare to LLVM should unwrap this into the best policy (see asserts
   // above).
@@ -254,7 +254,7 @@ static void emitStoresForConstant(CIRGenModule &CGM, const VarDecl &D,
   builder.createStore(loc, builder.getConstant(loc, constant), addr);
 }
 
-void CIRGenFunction::buildAutoVarInit(const AutoVarEmission &emission) {
+void CIRGenFunction::emitAutoVarInit(const AutoVarEmission &emission) {
   assert(emission.Variable && "emission was not valid!");
 
   // If this was emitted as a global constant, we're done.
@@ -284,7 +284,7 @@ void CIRGenFunction::buildAutoVarInit(const AutoVarEmission &emission) {
   // Check whether this is a byref variable that's potentially
   // captured and moved by its own initializer.  If so, we'll need to
   // emit the initializer first, then copy into the variable.
-  assert(!MissingFeatures::capturedByInit() && "NYI");
+  assert(!cir::MissingFeatures::capturedByInit() && "NYI");
 
   // Note: constexpr already initializes everything correctly.
   LangOptions::TrivialAutoVarInitKind trivialAutoVarInit =
@@ -314,7 +314,7 @@ void CIRGenFunction::buildAutoVarInit(const AutoVarEmission &emission) {
     // frequently return an empty Attribute, to signal we want to codegen
     // some trivial ctor calls and whatnots.
     constant = ConstantEmitter(*this).tryEmitAbstractForInitializer(D);
-    if (constant && !mlir::isa<mlir::cir::ZeroAttr>(constant) &&
+    if (constant && !mlir::isa<cir::ZeroAttr>(constant) &&
         (trivialAutoVarInit !=
          LangOptions::TrivialAutoVarInitKind::Uninitialized)) {
       llvm_unreachable("NYI");
@@ -328,12 +328,12 @@ void CIRGenFunction::buildAutoVarInit(const AutoVarEmission &emission) {
   if (!constant || isa<CXXTemporaryObjectExpr>(Init)) {
     initializeWhatIsTechnicallyUninitialized(Loc);
     LValue lv = LValue::makeAddr(Loc, type, AlignmentSource::Decl);
-    buildExprAsInit(Init, &D, lv);
+    emitExprAsInit(Init, &D, lv);
     // In case lv has uses it means we indeed initialized something
     // out of it while trying to build the expression, mark it as such.
     auto addr = lv.getAddress().getPointer();
     assert(addr && "Should have an address");
-    auto allocaOp = dyn_cast_or_null<mlir::cir::AllocaOp>(addr.getDefiningOp());
+    auto allocaOp = dyn_cast_or_null<cir::AllocaOp>(addr.getDefiningOp());
     assert(allocaOp && "Address should come straight out of the alloca");
 
     if (!allocaOp.use_empty())
@@ -350,7 +350,7 @@ void CIRGenFunction::buildAutoVarInit(const AutoVarEmission &emission) {
     assert(Init && "expected initializer");
     auto initLoc = getLoc(Init->getSourceRange());
     lv.setNonGC(true);
-    return buildStoreThroughLValue(
+    return emitStoreThroughLValue(
         RValue::get(builder.getConstant(initLoc, typedConstant)), lv);
   }
 
@@ -358,7 +358,7 @@ void CIRGenFunction::buildAutoVarInit(const AutoVarEmission &emission) {
                         typedConstant, /*IsAutoInit=*/false);
 }
 
-void CIRGenFunction::buildAutoVarCleanups(const AutoVarEmission &emission) {
+void CIRGenFunction::emitAutoVarCleanups(const AutoVarEmission &emission) {
   assert(emission.Variable && "emission was not valid!");
 
   // If this was emitted as a global constant, we're done.
@@ -372,7 +372,7 @@ void CIRGenFunction::buildAutoVarCleanups(const AutoVarEmission &emission) {
 
   // Check the type for a cleanup.
   if (QualType::DestructionKind dtorKind = D.needsDestruction(getContext()))
-    buildAutoVarTypeCleanup(emission, dtorKind);
+    emitAutoVarTypeCleanup(emission, dtorKind);
 
   // In GC mode, honor objc_precise_lifetime.
   if (getContext().getLangOpts().getGC() != LangOptions::NonGC &&
@@ -389,13 +389,13 @@ void CIRGenFunction::buildAutoVarCleanups(const AutoVarEmission &emission) {
 /// Emit code and set up symbol table for a variable declaration with auto,
 /// register, or no storage class specifier. These turn into simple stack
 /// objects, globals depending on target.
-void CIRGenFunction::buildAutoVarDecl(const VarDecl &D) {
-  AutoVarEmission emission = buildAutoVarAlloca(D);
-  buildAutoVarInit(emission);
-  buildAutoVarCleanups(emission);
+void CIRGenFunction::emitAutoVarDecl(const VarDecl &D) {
+  AutoVarEmission emission = emitAutoVarAlloca(D);
+  emitAutoVarInit(emission);
+  emitAutoVarCleanups(emission);
 }
 
-void CIRGenFunction::buildVarDecl(const VarDecl &D) {
+void CIRGenFunction::emitVarDecl(const VarDecl &D) {
   if (D.hasExternalStorage()) {
     // Don't emit it now, allow it to be emitted lazily on its first use.
     return;
@@ -415,16 +415,16 @@ void CIRGenFunction::buildVarDecl(const VarDecl &D) {
     // some variables even if we can constant-evaluate them because
     // we can't guarantee every translation unit will constant-evaluate them.
 
-    return buildStaticVarDecl(D, Linkage);
+    return emitStaticVarDecl(D, Linkage);
   }
 
   if (D.getType().getAddressSpace() == LangAS::opencl_local)
-    return CGM.getOpenCLRuntime().buildWorkGroupLocalVarDecl(*this, D);
+    return CGM.getOpenCLRuntime().emitWorkGroupLocalVarDecl(*this, D);
 
   assert(D.hasLocalStorage());
 
   CIRGenFunction::VarDeclContext varDeclCtx{*this, &D};
-  return buildAutoVarDecl(D);
+  return emitAutoVarDecl(D);
 }
 
 static std::string getStaticDeclName(CIRGenModule &CGM, const VarDecl &D) {
@@ -452,14 +452,14 @@ static std::string getStaticDeclName(CIRGenModule &CGM, const VarDecl &D) {
 
 // TODO(cir): LLVM uses a Constant base class. Maybe CIR could leverage an
 // interface for all constants?
-mlir::cir::GlobalOp
+cir::GlobalOp
 CIRGenModule::getOrCreateStaticVarDecl(const VarDecl &D,
-                                       mlir::cir::GlobalLinkageKind Linkage) {
+                                       cir::GlobalLinkageKind Linkage) {
   // In general, we don't always emit static var decls once before we reference
   // them. It is possible to reference them before emitting the function that
   // contains them, and it is possible to emit the containing function multiple
   // times.
-  if (mlir::cir::GlobalOp ExistingGV = StaticLocalDeclMap[&D])
+  if (cir::GlobalOp ExistingGV = StaticLocalDeclMap[&D])
     return ExistingGV;
 
   QualType Ty = D.getType();
@@ -473,7 +473,7 @@ CIRGenModule::getOrCreateStaticVarDecl(const VarDecl &D,
     Name = getStaticDeclName(*this, D);
 
   mlir::Type LTy = getTypes().convertTypeForMem(Ty);
-  mlir::cir::AddressSpaceAttr AS =
+  cir::AddressSpaceAttr AS =
       builder.getAddrSpaceAttr(getGlobalVarAddressSpace(&D));
 
   // OpenCL variables in local address space and CUDA shared
@@ -484,7 +484,7 @@ CIRGenModule::getOrCreateStaticVarDecl(const VarDecl &D,
   else if (Ty.getAddressSpace() != LangAS::opencl_local)
     Init = builder.getZeroInitAttr(getTypes().ConvertType(Ty));
 
-  mlir::cir::GlobalOp GV = builder.createVersionedGlobal(
+  cir::GlobalOp GV = builder.createVersionedGlobal(
       getModule(), getLoc(D.getLocation()), Name, LTy, false, Linkage, AS);
   // TODO(cir): infer visibility from linkage in global op builder.
   GV.setVisibility(getMLIRVisibilityFromCIRLinkage(Linkage));
@@ -528,7 +528,7 @@ CIRGenModule::getOrCreateStaticVarDecl(const VarDecl &D,
     // never defer them.
     assert(isa<ObjCMethodDecl>(DC) && "unexpected parent code decl");
   }
-  if (GD.getDecl() && MissingFeatures::openMP()) {
+  if (GD.getDecl() && cir::MissingFeatures::openMP()) {
     // Disable emission of the parent function for the OpenMP device codegen.
     llvm_unreachable("OpenMP is NYI");
   }
@@ -539,8 +539,8 @@ CIRGenModule::getOrCreateStaticVarDecl(const VarDecl &D,
 /// Add the initializer for 'D' to the global variable that has already been
 /// created for it. If the initializer has a different type than GV does, this
 /// may free GV and return a different one. Otherwise it just returns GV.
-mlir::cir::GlobalOp CIRGenFunction::addInitializerToStaticVarDecl(
-    const VarDecl &D, mlir::cir::GlobalOp GV, mlir::cir::GetGlobalOp GVAddr) {
+cir::GlobalOp CIRGenFunction::addInitializerToStaticVarDecl(
+    const VarDecl &D, cir::GlobalOp GV, cir::GetGlobalOp GVAddr) {
   ConstantEmitter emitter(*this);
   mlir::TypedAttr Init =
       mlir::dyn_cast<mlir::TypedAttr>(emitter.tryEmitForInitializer(D));
@@ -575,19 +575,7 @@ mlir::cir::GlobalOp CIRGenFunction::addInitializerToStaticVarDecl(
   // because some types, like unions, can't be completely represented
   // in the LLVM type system.)
   if (GV.getSymType() != Init.getType()) {
-    mlir::cir::GlobalOp OldGV = GV;
-    GV = builder.createGlobal(CGM.getModule(), getLoc(D.getSourceRange()),
-                              OldGV.getName(), Init.getType(),
-                              OldGV.getConstant(), GV.getLinkage());
-    // FIXME(cir): OG codegen inserts new GV before old one, we probably don't
-    // need that?
-    GV.setVisibility(OldGV.getVisibility());
-    GV.setGlobalVisibilityAttr(OldGV.getGlobalVisibilityAttr());
-    GV.setInitialValueAttr(Init);
-    GV.setTlsModelAttr(OldGV.getTlsModelAttr());
-    assert(!MissingFeatures::setDSOLocal());
-    assert(!MissingFeatures::setComdat());
-    assert(!MissingFeatures::addressSpaceInGlobalVar());
+    GV.setSymType(Init.getType());
 
     // Normally this should be done with a call to CGM.replaceGlobal(OldGV, GV),
     // but since at this point the current block hasn't been really attached,
@@ -595,8 +583,7 @@ mlir::cir::GlobalOp CIRGenFunction::addInitializerToStaticVarDecl(
     // Given those constraints, thread in the GetGlobalOp and update it
     // directly.
     GVAddr.getAddr().setType(
-        mlir::cir::PointerType::get(&getMLIRContext(), Init.getType()));
-    OldGV->erase();
+        getBuilder().getPointerTo(Init.getType(), GV.getAddrSpaceAttr()));
   }
 
   bool NeedsDtor =
@@ -618,8 +605,8 @@ mlir::cir::GlobalOp CIRGenFunction::addInitializerToStaticVarDecl(
   return GV;
 }
 
-void CIRGenFunction::buildStaticVarDecl(const VarDecl &D,
-                                        mlir::cir::GlobalLinkageKind Linkage) {
+void CIRGenFunction::emitStaticVarDecl(const VarDecl &D,
+                                       cir::GlobalLinkageKind Linkage) {
   // Check to see if we already have a global variable for this
   // declaration.  This can happen when double-emitting function
   // bodies, e.g. with complete and base constructors.
@@ -627,7 +614,7 @@ void CIRGenFunction::buildStaticVarDecl(const VarDecl &D,
   // TODO(cir): we should have a way to represent global ops as values without
   // having to emit a get global op. Sometimes these emissions are not used.
   auto addr = getBuilder().createGetGlobal(globalOp);
-  auto getAddrOp = mlir::cast<mlir::cir::GetGlobalOp>(addr.getDefiningOp());
+  auto getAddrOp = mlir::cast<cir::GetGlobalOp>(addr.getDefiningOp());
 
   CharUnits alignment = getContext().getDeclAlign(&D);
 
@@ -692,7 +679,7 @@ void CIRGenFunction::buildStaticVarDecl(const VarDecl &D,
   LocalDeclMap.find(&D)->second = Address(castedAddr, elemTy, alignment);
   CGM.setStaticLocalDeclAddress(&D, var);
 
-  assert(!MissingFeatures::reportGlobalToASan());
+  assert(!cir::MissingFeatures::reportGlobalToASan());
 
   // Emit global variable debug descriptor for static vars.
   auto *DI = getDebugInfo();
@@ -701,34 +688,34 @@ void CIRGenFunction::buildStaticVarDecl(const VarDecl &D,
   }
 }
 
-void CIRGenFunction::buildNullabilityCheck(LValue LHS, mlir::Value RHS,
-                                           SourceLocation Loc) {
+void CIRGenFunction::emitNullabilityCheck(LValue LHS, mlir::Value RHS,
+                                          SourceLocation Loc) {
   if (!SanOpts.has(SanitizerKind::NullabilityAssign))
     return;
 
   llvm_unreachable("NYI");
 }
 
-void CIRGenFunction::buildScalarInit(const Expr *init, mlir::Location loc,
-                                     LValue lvalue, bool capturedByInit) {
+void CIRGenFunction::emitScalarInit(const Expr *init, mlir::Location loc,
+                                    LValue lvalue, bool capturedByInit) {
   Qualifiers::ObjCLifetime lifetime = Qualifiers::ObjCLifetime::OCL_None;
-  assert(!MissingFeatures::objCLifetime());
+  assert(!cir::MissingFeatures::objCLifetime());
 
   if (!lifetime) {
     SourceLocRAIIObject Loc{*this, loc};
-    mlir::Value value = buildScalarExpr(init);
+    mlir::Value value = emitScalarExpr(init);
     if (capturedByInit)
       llvm_unreachable("NYI");
-    assert(!MissingFeatures::emitNullabilityCheck());
-    buildStoreThroughLValue(RValue::get(value), lvalue, true);
+    assert(!cir::MissingFeatures::emitNullabilityCheck());
+    emitStoreThroughLValue(RValue::get(value), lvalue, true);
     return;
   }
 
   llvm_unreachable("NYI");
 }
 
-void CIRGenFunction::buildExprAsInit(const Expr *init, const ValueDecl *D,
-                                     LValue lvalue, bool capturedByInit) {
+void CIRGenFunction::emitExprAsInit(const Expr *init, const ValueDecl *D,
+                                    LValue lvalue, bool capturedByInit) {
   SourceLocRAIIObject Loc{*this, getLoc(init->getSourceRange())};
   if (capturedByInit)
     llvm_unreachable("NYI");
@@ -736,25 +723,25 @@ void CIRGenFunction::buildExprAsInit(const Expr *init, const ValueDecl *D,
   QualType type = D->getType();
 
   if (type->isReferenceType()) {
-    RValue rvalue = buildReferenceBindingToExpr(init);
+    RValue rvalue = emitReferenceBindingToExpr(init);
     if (capturedByInit)
       llvm_unreachable("NYI");
-    buildStoreThroughLValue(rvalue, lvalue);
+    emitStoreThroughLValue(rvalue, lvalue);
     return;
   }
   switch (CIRGenFunction::getEvaluationKind(type)) {
-  case TEK_Scalar:
-    buildScalarInit(init, getLoc(D->getSourceRange()), lvalue);
+  case cir::TEK_Scalar:
+    emitScalarInit(init, getLoc(D->getSourceRange()), lvalue);
     return;
-  case TEK_Complex: {
-    mlir::Value complex = buildComplexExpr(init);
+  case cir::TEK_Complex: {
+    mlir::Value complex = emitComplexExpr(init);
     if (capturedByInit)
       llvm_unreachable("NYI");
-    buildStoreOfComplex(getLoc(init->getExprLoc()), complex, lvalue,
-                        /*init*/ true);
+    emitStoreOfComplex(getLoc(init->getExprLoc()), complex, lvalue,
+                       /*init*/ true);
     return;
   }
-  case TEK_Aggregate:
+  case cir::TEK_Aggregate:
     assert(!type->isAtomicType() && "NYI");
     AggValueSlot::Overlap_t Overlap = AggValueSlot::MayOverlap;
     if (isa<VarDecl>(D))
@@ -764,16 +751,16 @@ void CIRGenFunction::buildExprAsInit(const Expr *init, const ValueDecl *D,
     else
       assert(false && "Only VarDecl implemented so far");
     // TODO: how can we delay here if D is captured by its initializer?
-    buildAggExpr(init,
-                 AggValueSlot::forLValue(lvalue, AggValueSlot::IsDestructed,
-                                         AggValueSlot::DoesNotNeedGCBarriers,
-                                         AggValueSlot::IsNotAliased, Overlap));
+    emitAggExpr(init,
+                AggValueSlot::forLValue(lvalue, AggValueSlot::IsDestructed,
+                                        AggValueSlot::DoesNotNeedGCBarriers,
+                                        AggValueSlot::IsNotAliased, Overlap));
     return;
   }
   llvm_unreachable("bad evaluation kind");
 }
 
-void CIRGenFunction::buildDecl(const Decl &D) {
+void CIRGenFunction::emitDecl(const Decl &D) {
   switch (D.getKind()) {
   case Decl::ImplicitConceptSpecialization:
   case Decl::HLSLBuffer:
@@ -865,7 +852,7 @@ void CIRGenFunction::buildDecl(const Decl &D) {
   case Decl::Using:          // using X; [C++]
   case Decl::UsingEnum:      // using enum X; [C++]
   case Decl::UsingDirective: // using namespace X; [C++]
-    assert(!MissingFeatures::generateDebugInfo());
+    assert(!cir::MissingFeatures::generateDebugInfo());
     return;
   case Decl::UsingPack:
     assert(0 && "Not implemented");
@@ -875,11 +862,11 @@ void CIRGenFunction::buildDecl(const Decl &D) {
     const VarDecl &VD = cast<VarDecl>(D);
     assert(VD.isLocalVarDecl() &&
            "Should not see file-scope variables inside a function!");
-    buildVarDecl(VD);
+    emitVarDecl(VD);
     if (auto *DD = dyn_cast<DecompositionDecl>(&VD))
       for (auto *B : DD->bindings())
         if (auto *HD = B->getHoldingVar())
-          buildVarDecl(*HD);
+          emitVarDecl(*HD);
     return;
   }
 
@@ -891,9 +878,9 @@ void CIRGenFunction::buildDecl(const Decl &D) {
   case Decl::TypeAlias: { // using X = int; [C++0x]
     QualType Ty = cast<TypedefNameDecl>(D).getUnderlyingType();
     if (auto *DI = getDebugInfo())
-      assert(!MissingFeatures::generateDebugInfo());
+      assert(!cir::MissingFeatures::generateDebugInfo());
     if (Ty->isVariablyModifiedType())
-      buildVariablyModifiedType(Ty);
+      emitVariablyModifiedType(Ty);
     return;
   }
   }
@@ -1095,12 +1082,11 @@ void CIRGenFunction::pushRegularPartialArrayCleanup(mlir::Value arrayBegin,
 /// \param useEHCleanup - whether to push an EH cleanup to destroy
 ///   the remaining elements in case the destruction of a single
 ///   element throws
-void CIRGenFunction::buildArrayDestroy(mlir::Value begin, mlir::Value end,
-                                       QualType elementType,
-                                       CharUnits elementAlign,
-                                       Destroyer *destroyer,
-                                       bool checkZeroLength,
-                                       bool useEHCleanup) {
+void CIRGenFunction::emitArrayDestroy(mlir::Value begin, mlir::Value end,
+                                      QualType elementType,
+                                      CharUnits elementAlign,
+                                      Destroyer *destroyer,
+                                      bool checkZeroLength, bool useEHCleanup) {
   assert(!elementType->isArrayType());
   if (checkZeroLength) {
     llvm_unreachable("NYI");
@@ -1112,7 +1098,7 @@ void CIRGenFunction::buildArrayDestroy(mlir::Value begin, mlir::Value end,
   auto ptrToElmType = builder.getPointerTo(cirElementType);
 
   // Emit the dtor call that will execute for every array element.
-  builder.create<mlir::cir::ArrayDtor>(
+  builder.create<cir::ArrayDtor>(
       *currSrcLoc, begin, [&](mlir::OpBuilder &b, mlir::Location loc) {
         auto arg = b.getInsertionBlock()->addArgument(ptrToElmType, loc);
         Address curAddr = Address(arg, ptrToElmType, elementAlign);
@@ -1127,7 +1113,7 @@ void CIRGenFunction::buildArrayDestroy(mlir::Value begin, mlir::Value end,
         if (useEHCleanup)
           PopCleanupBlock();
 
-        builder.create<mlir::cir::YieldOp>(loc);
+        builder.create<cir::YieldOp>(loc);
       });
 }
 
@@ -1148,7 +1134,7 @@ void CIRGenFunction::emitDestroy(Address addr, QualType type,
   if (!arrayType)
     return destroyer(*this, addr, type);
 
-  auto length = buildArrayLength(arrayType, type, addr);
+  auto length = emitArrayLength(arrayType, type, addr);
 
   CharUnits elementAlign = addr.getAlignment().alignmentOfArrayElement(
       getContext().getTypeSizeInChars(type));
@@ -1157,10 +1143,9 @@ void CIRGenFunction::emitDestroy(Address addr, QualType type,
   bool checkZeroLength = true;
 
   // But if the array length is constant, we can suppress that.
-  auto constantCount = dyn_cast<mlir::cir::ConstantOp>(length.getDefiningOp());
+  auto constantCount = dyn_cast<cir::ConstantOp>(length.getDefiningOp());
   if (constantCount) {
-    auto constIntAttr =
-        mlir::dyn_cast<mlir::cir::IntAttr>(constantCount.getValue());
+    auto constIntAttr = mlir::dyn_cast<cir::IntAttr>(constantCount.getValue());
     // ...and if it's constant zero, we can just skip the entire thing.
     if (constIntAttr && constIntAttr.getUInt() == 0)
       return;
@@ -1171,8 +1156,8 @@ void CIRGenFunction::emitDestroy(Address addr, QualType type,
 
   auto begin = addr.getPointer();
   mlir::Value end; // Use this for future non-constant counts.
-  buildArrayDestroy(begin, end, type, elementAlign, destroyer, checkZeroLength,
-                    useEHCleanupForArray);
+  emitArrayDestroy(begin, end, type, elementAlign, destroyer, checkZeroLength,
+                   useEHCleanupForArray);
   if (constantCount.use_empty())
     constantCount.erase();
 }
@@ -1197,7 +1182,7 @@ void CIRGenFunction::pushStackRestore(CleanupKind Kind, Address SPMem) {
 }
 
 /// Enter a destroy cleanup for the given local variable.
-void CIRGenFunction::buildAutoVarTypeCleanup(
+void CIRGenFunction::emitAutoVarTypeCleanup(
     const CIRGenFunction::AutoVarEmission &emission,
     QualType::DestructionKind dtorKind) {
   assert(dtorKind != QualType::DK_none);
@@ -1274,7 +1259,7 @@ void CIRGenFunction::pushDestroyAndDeferDeactivation(
     CleanupKind cleanupKind, Address addr, QualType type, Destroyer *destroyer,
     bool useEHCleanupForArray) {
   mlir::Operation *flag =
-      builder.create<mlir::cir::UnreachableOp>(builder.getUnknownLoc());
+      builder.create<cir::UnreachableOp>(builder.getUnknownLoc());
   pushDestroy(cleanupKind, addr, type, destroyer, useEHCleanupForArray);
   DeferredDeactivationCleanupStack.push_back({EHStack.stable_begin(), flag});
 }

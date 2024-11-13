@@ -22,7 +22,7 @@
 #include <cassert>
 
 using namespace clang;
-using namespace cir;
+using namespace clang::CIRGen;
 
 /// Try to emit a base destructor as an alias to its primary
 /// base-class destructor.
@@ -39,7 +39,7 @@ bool CIRGenModule::tryEmitBaseDestructorAsAlias(const CXXDestructorDecl *D) {
   //  an alias, unless this class owns no members.
   if (getCodeGenOpts().SanitizeMemoryUseAfterDtor &&
       !D->getParent()->field_empty())
-    assert(!MissingFeatures::sanitizeDtor());
+    assert(!cir::MissingFeatures::sanitizeDtor());
 
   // If the destructor doesn't have a trivial body, we have to emit it
   // separately.
@@ -115,7 +115,7 @@ bool CIRGenModule::tryEmitBaseDestructorAsAlias(const CXXDestructorDecl *D) {
   auto Linkage = getFunctionLinkage(AliasDecl);
 
   // We can't use an alias if the linkage is not valid for one.
-  if (!mlir::cir::isValidLinkage(Linkage))
+  if (!cir::isValidLinkage(Linkage))
     return true;
 
   auto TargetLinkage = getFunctionLinkage(TargetDecl);
@@ -123,8 +123,7 @@ bool CIRGenModule::tryEmitBaseDestructorAsAlias(const CXXDestructorDecl *D) {
   // Check if we have it already.
   StringRef MangledName = getMangledName(AliasDecl);
   auto Entry = getGlobalValue(MangledName);
-  auto globalValue =
-      dyn_cast_or_null<mlir::cir::CIRGlobalValueInterface>(Entry);
+  auto globalValue = dyn_cast_or_null<cir::CIRGlobalValueInterface>(Entry);
   if (Entry && globalValue && !globalValue.isDeclaration())
     return false;
   if (Replacements.count(MangledName))
@@ -133,14 +132,13 @@ bool CIRGenModule::tryEmitBaseDestructorAsAlias(const CXXDestructorDecl *D) {
   [[maybe_unused]] auto AliasValueType = getTypes().GetFunctionType(AliasDecl);
 
   // Find the referent.
-  auto Aliasee = cast<mlir::cir::FuncOp>(GetAddrOfGlobal(TargetDecl));
-  auto AliaseeGV = dyn_cast_or_null<mlir::cir::CIRGlobalValueInterface>(
+  auto Aliasee = cast<cir::FuncOp>(GetAddrOfGlobal(TargetDecl));
+  auto AliaseeGV = dyn_cast_or_null<cir::CIRGlobalValueInterface>(
       GetAddrOfGlobal(TargetDecl));
   // Instead of creating as alias to a linkonce_odr, replace all of the uses
   // of the aliasee.
-  if (mlir::cir::isDiscardableIfUnused(Linkage) &&
-      !(TargetLinkage ==
-            mlir::cir::GlobalLinkageKind::AvailableExternallyLinkage &&
+  if (cir::isDiscardableIfUnused(Linkage) &&
+      !(TargetLinkage == cir::GlobalLinkageKind::AvailableExternallyLinkage &&
         TargetDecl.getDecl()->hasAttr<AlwaysInlineAttr>())) {
     // FIXME: An extern template instantiation will create functions with
     // linkage "AvailableExternally". In libc++, some classes also define
@@ -155,7 +153,7 @@ bool CIRGenModule::tryEmitBaseDestructorAsAlias(const CXXDestructorDecl *D) {
   // COFF. A COFF weak external alias cannot satisfy a normal undefined
   // symbol reference from another TU. The other TU must also mark the
   // referenced symbol as weak, which we cannot rely on.
-  if (mlir::cir::isWeakForLinker(Linkage) && getTriple().isOSBinFormatCOFF()) {
+  if (cir::isWeakForLinker(Linkage) && getTriple().isOSBinFormatCOFF()) {
     llvm_unreachable("NYI");
   }
 
@@ -170,44 +168,44 @@ bool CIRGenModule::tryEmitBaseDestructorAsAlias(const CXXDestructorDecl *D) {
   // different COMDATs in different TUs. Another option would be to
   // output the alias both for weak_odr and linkonce_odr, but that
   // requires explicit comdat support in the IL.
-  if (mlir::cir::isWeakForLinker(TargetLinkage))
+  if (cir::isWeakForLinker(TargetLinkage))
     llvm_unreachable("NYI");
 
   // Create the alias with no name.
-  buildAliasForGlobal("", Entry, AliasDecl, Aliasee, Linkage);
+  emitAliasForGlobal(MangledName, Entry, AliasDecl, Aliasee, Linkage);
   return false;
 }
 
-static void buildDeclInit(CIRGenFunction &CGF, const VarDecl *D,
-                          Address DeclPtr) {
+static void emitDeclInit(CIRGenFunction &CGF, const VarDecl *D,
+                         Address DeclPtr) {
   assert((D->hasGlobalStorage() ||
           (D->hasLocalStorage() &&
            CGF.getContext().getLangOpts().OpenCLCPlusPlus)) &&
          "VarDecl must have global or local (in the case of OpenCL) storage!");
   assert(!D->getType()->isReferenceType() &&
-         "Should not call buildDeclInit on a reference!");
+         "Should not call emitDeclInit on a reference!");
 
   QualType type = D->getType();
   LValue lv = CGF.makeAddrLValue(DeclPtr, type);
 
   const Expr *Init = D->getInit();
   switch (CIRGenFunction::getEvaluationKind(type)) {
-  case TEK_Aggregate:
-    CGF.buildAggExpr(
-        Init, AggValueSlot::forLValue(lv, AggValueSlot::IsDestructed,
-                                      AggValueSlot::DoesNotNeedGCBarriers,
-                                      AggValueSlot::IsNotAliased,
-                                      AggValueSlot::DoesNotOverlap));
+  case cir::TEK_Aggregate:
+    CGF.emitAggExpr(Init,
+                    AggValueSlot::forLValue(lv, AggValueSlot::IsDestructed,
+                                            AggValueSlot::DoesNotNeedGCBarriers,
+                                            AggValueSlot::IsNotAliased,
+                                            AggValueSlot::DoesNotOverlap));
     return;
-  case TEK_Scalar:
-    CGF.buildScalarInit(Init, CGF.getLoc(D->getLocation()), lv, false);
+  case cir::TEK_Scalar:
+    CGF.emitScalarInit(Init, CGF.getLoc(D->getLocation()), lv, false);
     return;
-  case TEK_Complex:
+  case cir::TEK_Complex:
     llvm_unreachable("complext evaluation NYI");
   }
 }
 
-static void buildDeclDestroy(CIRGenFunction &CGF, const VarDecl *D) {
+static void emitDeclDestroy(CIRGenFunction &CGF, const VarDecl *D) {
   // Honor __attribute__((no_destroy)) and bail instead of attempting
   // to emit a reference to a possibly nonexistent destructor, which
   // in turn can cause a crash. This will result in a global constructor
@@ -250,11 +248,11 @@ static void buildDeclDestroy(CIRGenFunction &CGF, const VarDecl *D) {
   // generated elsewhere which uses atexit instead, and it takes the destructor
   // directly.
   auto UsingExternalHelper = CGM.getCodeGenOpts().CXAAtExit;
-  mlir::cir::FuncOp fnOp;
+  cir::FuncOp fnOp;
   if (Record && (CanRegisterDestructor || UsingExternalHelper)) {
     assert(!D->getTLSKind() && "TLS NYI");
     assert(!Record->hasTrivialDestructor());
-    assert(!MissingFeatures::openCLCXX());
+    assert(!cir::MissingFeatures::openCLCXX());
     CXXDestructorDecl *Dtor = Record->getDestructor();
     // In LLVM OG codegen this is done in registerGlobalDtor, but CIRGen
     // relies on LoweringPrepare for further decoupling, so build the
@@ -273,7 +271,7 @@ static void buildDeclDestroy(CIRGenFunction &CGF, const VarDecl *D) {
   CGM.getCXXABI().registerGlobalDtor(CGF, D, fnOp, nullptr);
 }
 
-mlir::cir::FuncOp CIRGenModule::codegenCXXStructor(GlobalDecl GD) {
+cir::FuncOp CIRGenModule::codegenCXXStructor(GlobalDecl GD) {
   const auto &FnInfo = getTypes().arrangeCXXStructorDeclaration(GD);
   auto Fn = getAddrOfCXXStructor(GD, &FnInfo, /*FnType=*/nullptr,
                                  /*DontDefer=*/true, ForDefinition);
@@ -294,22 +292,22 @@ mlir::cir::FuncOp CIRGenModule::codegenCXXStructor(GlobalDecl GD) {
 
 /// Emit code to cause the variable at the given address to be considered as
 /// constant from this point onwards.
-static void buildDeclInvariant(CIRGenFunction &CGF, const VarDecl *D) {
-  return CGF.buildInvariantStart(
+static void emitDeclInvariant(CIRGenFunction &CGF, const VarDecl *D) {
+  return CGF.emitInvariantStart(
       CGF.getContext().getTypeSizeInChars(D->getType()));
 }
 
-void CIRGenFunction::buildInvariantStart([[maybe_unused]] CharUnits Size) {
+void CIRGenFunction::emitInvariantStart([[maybe_unused]] CharUnits Size) {
   // Do not emit the intrinsic if we're not optimizing.
   if (!CGM.getCodeGenOpts().OptimizationLevel)
     return;
 
-  assert(!MissingFeatures::createInvariantIntrinsic());
+  assert(!cir::MissingFeatures::createInvariantIntrinsic());
 }
 
-void CIRGenModule::buildCXXGlobalVarDeclInit(const VarDecl *varDecl,
-                                             mlir::cir::GlobalOp addr,
-                                             bool performInit) {
+void CIRGenModule::emitCXXGlobalVarDeclInit(const VarDecl *varDecl,
+                                            cir::GlobalOp addr,
+                                            bool performInit) {
   const Expr *init = varDecl->getInit();
   QualType ty = varDecl->getType();
 
@@ -329,7 +327,7 @@ void CIRGenModule::buildCXXGlobalVarDeclInit(const VarDecl *varDecl,
   // For example, in the above CUDA code, the static local variable s has a
   // "shared" address space qualifier, but the constructor of StructWithCtor
   // expects "this" in the "generic" address space.
-  assert(!MissingFeatures::addressSpace());
+  assert(!cir::MissingFeatures::addressSpace());
 
   if (getLangOpts().OpenMP && !getLangOpts().OpenMPSimd &&
       varDecl->hasAttr<OMPThreadPrivateDeclAttr>()) {
@@ -344,7 +342,7 @@ void CIRGenModule::buildCXXGlobalVarDeclInit(const VarDecl *varDecl,
   CIRGenFunction::SourceLocRAIIObject fnLoc{cgf,
                                             getLoc(varDecl->getLocation())};
 
-  addr.setAstAttr(mlir::cir::ASTVarDeclAttr::get(&getMLIRContext(), varDecl));
+  addr.setAstAttr(cir::ASTVarDeclAttr::get(&getMLIRContext(), varDecl));
 
   if (ty->isReferenceType()) {
     mlir::OpBuilder::InsertionGuard guard(builder);
@@ -359,24 +357,23 @@ void CIRGenModule::buildCXXGlobalVarDeclInit(const VarDecl *varDecl,
                      getASTContext().getDeclAlign(varDecl));
     assert(performInit && "cannot have constant initializer which needs "
                           "destruction for reference");
-    RValue rv = cgf.buildReferenceBindingToExpr(init);
+    RValue rv = cgf.emitReferenceBindingToExpr(init);
     {
       mlir::OpBuilder::InsertionGuard guard(builder);
       mlir::Operation *rvalueDefOp = rv.getScalarVal().getDefiningOp();
       if (rvalueDefOp && rvalueDefOp->getBlock()) {
         mlir::Block *rvalSrcBlock = rvalueDefOp->getBlock();
-        if (!rvalSrcBlock->empty() &&
-            isa<mlir::cir::YieldOp>(rvalSrcBlock->back())) {
+        if (!rvalSrcBlock->empty() && isa<cir::YieldOp>(rvalSrcBlock->back())) {
           auto &front = rvalSrcBlock->front();
           getGlobal.getDefiningOp()->moveBefore(&front);
-          auto yield = cast<mlir::cir::YieldOp>(rvalSrcBlock->back());
+          auto yield = cast<cir::YieldOp>(rvalSrcBlock->back());
           builder.setInsertionPoint(yield);
         }
       }
-      cgf.buildStoreOfScalar(rv.getScalarVal(), declAddr, false, ty);
+      cgf.emitStoreOfScalar(rv.getScalarVal(), declAddr, false, ty);
     }
     builder.setInsertionPointToEnd(block);
-    builder.create<mlir::cir::YieldOp>(addr->getLoc());
+    builder.create<cir::YieldOp>(addr->getLoc());
   } else {
     bool needsDtor = varDecl->needsDestruction(getASTContext()) ==
                      QualType::DK_cxx_destructor;
@@ -393,15 +390,15 @@ void CIRGenModule::buildCXXGlobalVarDeclInit(const VarDecl *varDecl,
       builder.setInsertionPointToStart(block);
       Address declAddr(getAddrOfGlobalVar(varDecl),
                        getASTContext().getDeclAlign(varDecl));
-      buildDeclInit(cgf, varDecl, declAddr);
+      emitDeclInit(cgf, varDecl, declAddr);
       builder.setInsertionPointToEnd(block);
-      builder.create<mlir::cir::YieldOp>(addr->getLoc());
+      builder.create<cir::YieldOp>(addr->getLoc());
     }
 
     if (isConstantStorage) {
       // TODO: this leads to a missing feature in the moment, probably also need
       // a LexicalScope to be inserted here.
-      buildDeclInvariant(cgf, varDecl);
+      emitDeclInvariant(cgf, varDecl);
     } else {
       // If not constant storage we'll emit this regardless of NeedsDtor value.
       mlir::OpBuilder::InsertionGuard guard(builder);
@@ -411,14 +408,14 @@ void CIRGenModule::buildCXXGlobalVarDeclInit(const VarDecl *varDecl,
       lexScope.setAsGlobalInit();
 
       builder.setInsertionPointToStart(block);
-      buildDeclDestroy(cgf, varDecl);
+      emitDeclDestroy(cgf, varDecl);
       builder.setInsertionPointToEnd(block);
       if (block->empty()) {
         block->erase();
         // Don't confuse lexical cleanup.
         builder.clearInsertionPoint();
       } else
-        builder.create<mlir::cir::YieldOp>(addr->getLoc());
+        builder.create<cir::YieldOp>(addr->getLoc());
     }
   }
 }

@@ -21,7 +21,7 @@ class VarDecl;
 
 } // namespace clang
 
-namespace cir {
+namespace clang::CIRGen {
 
 class CIRGenFunction;
 class CIRGenModule;
@@ -37,10 +37,10 @@ public:
   /// Emit the IR required for a work-group-local variable declaration, and add
   /// an entry to CGF's LocalDeclMap for D.  The base class does this using
   /// CIRGenFunction::EmitStaticVarDecl to emit an internal global for D.
-  virtual void buildWorkGroupLocalVarDecl(CIRGenFunction &CGF,
-                                          const clang::VarDecl &D);
+  virtual void emitWorkGroupLocalVarDecl(CIRGenFunction &CGF,
+                                         const clang::VarDecl &D);
 };
 
-} // namespace cir
+} // namespace clang::CIRGen
 
 #endif // LLVM_CLANG_LIB_CIR_CIRGENOPENCLRUNTIME_H

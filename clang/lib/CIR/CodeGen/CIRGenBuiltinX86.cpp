@@ -27,11 +27,11 @@
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "llvm/Support/ErrorHandling.h"
 
-using namespace cir;
 using namespace clang;
-using namespace mlir::cir;
+using namespace clang::CIRGen;
+using namespace cir;
 
-mlir::Value CIRGenFunction::buildX86BuiltinExpr(unsigned BuiltinID,
-                                                const CallExpr *E) {
+mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
+                                               const CallExpr *E) {
   llvm_unreachable("NYI");
 }

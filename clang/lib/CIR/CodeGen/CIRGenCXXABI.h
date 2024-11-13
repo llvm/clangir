@@ -22,7 +22,7 @@
 #include "mlir/IR/Attributes.h"
 #include "clang/AST/Mangle.h"
 
-namespace cir {
+namespace clang::CIRGen {
 
 class CIRGenFunction;
 class CIRGenFunctionInfo;
@@ -30,7 +30,7 @@ class CIRGenFunctionInfo;
 /// Implements C++ ABI-specific code generation functions.
 class CIRGenCXXABI {
 protected:
-  cir::CIRGenModule &CGM;
+  CIRGenModule &CGM;
   std::unique_ptr<clang::MangleContext> MangleCtx;
 
   CIRGenCXXABI(CIRGenModule &CGM)
@@ -95,8 +95,8 @@ public:
       clang::CXXCtorType Type, bool ForVirtualBase, bool Delegating) = 0;
 
   /// Emit the ABI-specific prolog for the function
-  virtual void buildInstanceFunctionProlog(SourceLocation Loc,
-                                           CIRGenFunction &CGF) = 0;
+  virtual void emitInstanceFunctionProlog(SourceLocation Loc,
+                                          CIRGenFunction &CGF) = 0;
 
   /// Get the type of the implicit "this" parameter used by a method. May return
   /// zero if no specific type is applicable, e.g. if the ABI expects the "this"
@@ -162,16 +162,15 @@ public:
                                                     bool Delegating) = 0;
 
   /// Emit constructor variants required by this ABI.
-  virtual void buildCXXConstructors(const clang::CXXConstructorDecl *D) = 0;
+  virtual void emitCXXConstructors(const clang::CXXConstructorDecl *D) = 0;
   /// Emit dtor variants required by this ABI.
-  virtual void buildCXXDestructors(const clang::CXXDestructorDecl *D) = 0;
+  virtual void emitCXXDestructors(const clang::CXXDestructorDecl *D) = 0;
 
   /// Emit the destructor call.
-  virtual void buildDestructorCall(CIRGenFunction &CGF,
-                                   const CXXDestructorDecl *DD,
-                                   CXXDtorType Type, bool ForVirtualBase,
-                                   bool Delegating, Address This,
-                                   QualType ThisTy) = 0;
+  virtual void emitDestructorCall(CIRGenFunction &CGF,
+                                  const CXXDestructorDecl *DD, CXXDtorType Type,
+                                  bool ForVirtualBase, bool Delegating,
+                                  Address This, QualType ThisTy) = 0;
 
   /// Emit code to force the execution of a destructor during global
   /// teardown.  The default implementation of this uses atexit.
@@ -179,7 +178,7 @@ public:
   /// \param Dtor - a function taking a single pointer argument
   /// \param Addr - a pointer to pass to the destructor function.
   virtual void registerGlobalDtor(CIRGenFunction &CGF, const VarDecl *D,
-                                  mlir::cir::FuncOp dtor, mlir::Value Addr) = 0;
+                                  cir::FuncOp dtor, mlir::Value Addr) = 0;
 
   virtual size_t getSrcArgforCopyCtor(const CXXConstructorDecl *,
                                       FunctionArgList &Args) const = 0;
@@ -188,8 +187,8 @@ public:
 
   /// Get the address of the vtable for the given record decl which should be
   /// used for the vptr at the given offset in RD.
-  virtual mlir::cir::GlobalOp getAddrOfVTable(const CXXRecordDecl *RD,
-                                              CharUnits VPtrOffset) = 0;
+  virtual cir::GlobalOp getAddrOfVTable(const CXXRecordDecl *RD,
+                                        CharUnits VPtrOffset) = 0;
 
   /// Build a virtual function pointer in the ABI-specific way.
   virtual CIRGenCallee getVirtualFunctionPointer(CIRGenFunction &CGF,
@@ -227,7 +226,7 @@ public:
   virtual bool useThunkForDtorVariant(const CXXDestructorDecl *Dtor,
                                       CXXDtorType DT) const = 0;
 
-  virtual mlir::cir::GlobalLinkageKind
+  virtual cir::GlobalLinkageKind
   getCXXDestructorLinkage(GVALinkage Linkage, const CXXDestructorDecl *Dtor,
                           CXXDtorType DT) const;
 
@@ -244,10 +243,10 @@ public:
                                   const CXXRecordDecl *NearestVBase) = 0;
 
   /// Gets the pure virtual member call function.
-  virtual StringRef getPureVirtualCallName() = 0;
+  virtual llvm::StringRef getPureVirtualCallName() = 0;
 
   /// Gets the deleted virtual member call name.
-  virtual StringRef getDeletedVirtualCallName() = 0;
+  virtual llvm::StringRef getDeletedVirtualCallName() = 0;
 
   /// Specify how one should pass an argument of a record type.
   enum class RecordArgABI {
@@ -328,32 +327,31 @@ public:
 
   /// Emit a single constructor/destructor with the gien type from a C++
   /// constructor Decl.
-  virtual void buildCXXStructor(clang::GlobalDecl GD) = 0;
+  virtual void emitCXXStructor(clang::GlobalDecl GD) = 0;
 
-  virtual void buildRethrow(CIRGenFunction &CGF, bool isNoReturn) = 0;
-  virtual void buildThrow(CIRGenFunction &CGF, const CXXThrowExpr *E) = 0;
+  virtual void emitRethrow(CIRGenFunction &CGF, bool isNoReturn) = 0;
+  virtual void emitThrow(CIRGenFunction &CGF, const CXXThrowExpr *E) = 0;
 
-  virtual void buildBadCastCall(CIRGenFunction &CGF, mlir::Location loc) = 0;
+  virtual void emitBadCastCall(CIRGenFunction &CGF, mlir::Location loc) = 0;
 
   virtual mlir::Value
   getVirtualBaseClassOffset(mlir::Location loc, CIRGenFunction &CGF,
                             Address This, const CXXRecordDecl *ClassDecl,
                             const CXXRecordDecl *BaseClassDecl) = 0;
 
-  virtual mlir::Value buildDynamicCast(CIRGenFunction &CGF, mlir::Location Loc,
-                                       QualType SrcRecordTy,
-                                       QualType DestRecordTy,
-                                       mlir::cir::PointerType DestCIRTy,
-                                       bool isRefCast, Address Src) = 0;
+  virtual mlir::Value emitDynamicCast(CIRGenFunction &CGF, mlir::Location Loc,
+                                      QualType SrcRecordTy,
+                                      QualType DestRecordTy,
+                                      cir::PointerType DestCIRTy,
+                                      bool isRefCast, Address Src) = 0;
 
-  virtual mlir::cir::MethodAttr
-  buildVirtualMethodAttr(mlir::cir::MethodType MethodTy,
-                         const CXXMethodDecl *MD) = 0;
+  virtual cir::MethodAttr buildVirtualMethodAttr(cir::MethodType MethodTy,
+                                                 const CXXMethodDecl *MD) = 0;
 };
 
 /// Creates and Itanium-family ABI
 CIRGenCXXABI *CreateCIRGenItaniumCXXABI(CIRGenModule &CGM);
 
-} // namespace cir
+} // namespace clang::CIRGen
 
 #endif
