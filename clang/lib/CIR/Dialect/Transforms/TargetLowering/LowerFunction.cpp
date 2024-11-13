@@ -653,13 +653,16 @@ LowerFunction::buildFunctionEpilog(const LowerFunctionInfo &FI) {
           rewriter.replaceAllUsesWith(al.getResult(), RVAddr);
           rewriter.eraseOp(al);
           rewriter.setInsertionPoint(ret);
-          rewriter.replaceOpWithNewOp<ReturnOp>(ret);
 
           auto retInputs = ret.getInput();
+          assert(retInputs.size() == 1 && "current number of support inputs");
           if (retInputs.size() == 1)
-            if (auto load = dyn_cast<LoadOp>(retInputs[0].getDefiningOp()))
+            if (auto load =
+                    mlir::dyn_cast<LoadOp>(retInputs[0].getDefiningOp()))
               if (load.getResult().use_empty())
                 rewriter.eraseOp(load);
+
+          rewriter.replaceOpWithNewOp<ReturnOp>(ret);
         }
       });
     }
@@ -907,12 +910,13 @@ mlir::Value LowerFunction::rewriteCallOp(FuncType calleeTy, FuncOp origCallee,
   return CallResult;
 }
 
-Value createAlloca(Location loc, Type type, LowerFunction &CGF) {
+mlir::Value createAlloca(mlir::Location loc, mlir::Type type,
+                         LowerFunction &CGF) {
   auto align = CGF.LM.getDataLayout().getABITypeAlign(type);
   auto alignAttr = CGF.getRewriter().getI64IntegerAttr(align.value());
   return CGF.getRewriter().create<AllocaOp>(
       loc, CGF.getRewriter().getType<PointerType>(type), type,
-      /*name=*/StringRef(""), alignAttr);
+      /*name=*/llvm::StringRef(""), alignAttr);
 }
 
 // NOTE(cir): This method has partial parity to CodeGenFunction's EmitCall
@@ -947,7 +951,7 @@ mlir::Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
   CIRToCIRArgMapping IRFunctionArgs(LM.getContext(), CallInfo);
   llvm::SmallVector<mlir::Value, 16> IRCallArgs(IRFunctionArgs.totalIRArgs());
 
-  Value SRetPtr;
+  mlir::Value SRetPtr;
   // If the call returns a temporary with struct return, create a temporary
   // alloca to hold the result, unless one is given to us.
   if (RetAI.isIndirect() || RetAI.isCoerceAndExpand() || RetAI.isInAlloca()) {
@@ -1059,11 +1063,9 @@ mlir::Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
       //    we cannot force it to be sufficiently aligned.
       // 3. If the argument is byval, but RV is not located in default
       //    or alloca address space.
+      cir_cconv_assert(!::cir::MissingFeatures::skipTempCopy());
 
-      // TODO(cir): Skipping check for temporary copy. We should check if
-      // creating the copy is necessary.
-
-      Value Alloca = findAlloca(I->getDefiningOp());
+      mlir::Value Alloca = findAlloca(I->getDefiningOp());
 
       // since they are a ARM-specific feature.
       if (::cir::MissingFeatures::undef())
