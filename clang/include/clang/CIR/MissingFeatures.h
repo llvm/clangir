@@ -231,6 +231,7 @@ struct MissingFeatures {
   static bool isPPC_FP128Ty() { return false; }
   static bool emitBinaryAtomicPostHasInvert() { return false; }
   static bool createLaunderInvariantGroup() { return false; }
+  static bool supportNonLinuxOSTriples() { return false; }
 
   // Inline assembly
   static bool asmGoto() { return false; }
