@@ -177,8 +177,8 @@ bool isVoidPtr(mlir::Value v) {
 
 MemCpyOp createMemCpy(LowerFunction &LF, mlir::Value dst, mlir::Value src,
                       uint64_t len) {
-  assert(mlir::isa<PointerType>(src.getType()));
-  assert(mlir::isa<PointerType>(dst.getType()));
+  cir_cconv_assert(mlir::isa<PointerType>(src.getType()));
+  cir_cconv_assert(mlir::isa<PointerType>(dst.getType()));
 
   auto *ctxt = LF.getRewriter().getContext();
   auto &rw = LF.getRewriter();
