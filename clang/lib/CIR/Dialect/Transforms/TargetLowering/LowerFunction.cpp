@@ -278,8 +278,10 @@ cir::AllocaOp findAlloca(mlir::Operation *op) {
   return {};
 }
 
-mlir::Value createNonPrimitiveValue(mlir::Value Src, mlir::Type Ty,
-                                    LowerFunction &LF) {
+/// Creates a coerced value from \param Src having a type of \param Ty which is
+/// a non primitive type
+mlir::Value createCoercedNonPrimitive(mlir::Value Src, mlir::Type Ty,
+                                      LowerFunction &LF) {
   if (auto Load = mlir::dyn_cast<LoadOp>(Src.getDefiningOp())) {
     auto &bld = LF.getRewriter();
     auto Addr = Load.getAddr();
@@ -309,7 +311,8 @@ mlir::Value createNonPrimitiveValue(mlir::Value Src, mlir::Type Ty,
 
     return newLoad;
   }
-  return {};
+
+  cir_cconv_unreachable("NYI");
 }
 
 /// After the calling convention is lowered, an ABI-agnostic type might have to
@@ -335,7 +338,7 @@ mlir::Value castReturnValue(mlir::Value Src, mlir::Type Ty, LowerFunction &LF) {
 
   auto intTy = mlir::dyn_cast<IntType>(Ty);
   if (intTy && !intTy.isPrimitive())
-    return createNonPrimitiveValue(Src, Ty, LF);
+    return createCoercedNonPrimitive(Src, Ty, LF);
 
   llvm::TypeSize DstSize = LF.LM.getDataLayout().getTypeAllocSize(Ty);
 
