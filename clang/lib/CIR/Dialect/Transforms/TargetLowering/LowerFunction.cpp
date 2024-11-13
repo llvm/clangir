@@ -52,20 +52,19 @@ mlir::Value createCoercedBitcast(mlir::Value Src, mlir::Type DestTy,
                                           CastKind::bitcast, Src);
 }
 
-
 // FIXME(cir): Create a custom rewriter class to abstract this away.
 mlir::Value createBitcast(mlir::Value Src, mlir::Type Ty, LowerFunction &LF) {
   return LF.getRewriter().create<CastOp>(Src.getLoc(), Ty, CastKind::bitcast,
                                          Src);
 }
 
-mlir::Type getLargestMember(const CIRDataLayout& dataLayout, StructType s) {
+mlir::Type getLargestMember(const CIRDataLayout &dataLayout, StructType s) {
   mlir::Type typ;
   for (auto t : s.getMembers()) {
     if (!typ ||
         dataLayout.getABITypeAlign(t) > dataLayout.getABITypeAlign(typ) ||
         (dataLayout.getABITypeAlign(t) == dataLayout.getABITypeAlign(typ) &&
-          dataLayout.getTypeSizeInBits(t) > dataLayout.getTypeSizeInBits(typ)))
+         dataLayout.getTypeSizeInBits(t) > dataLayout.getTypeSizeInBits(typ)))
       typ = t;
   }
   return typ;
@@ -97,17 +96,17 @@ mlir::Value enterStructPointerForCoercedAccess(mlir::Value SrcPtr,
       FirstEltSize < CGF.LM.getDataLayout().getTypeStoreSize(SrcSTy))
     return SrcPtr;
 
-  auto& rw = CGF.getRewriter();
-  auto* ctxt = rw.getContext();
+  auto &rw = CGF.getRewriter();
+  auto *ctxt = rw.getContext();
   auto ptrTy = PointerType::get(ctxt, FirstElt);
   if (mlir::isa<StructType>(SrcPtr.getType())) {
     auto addr = SrcPtr;
     if (auto load = mlir::dyn_cast<LoadOp>(SrcPtr.getDefiningOp()))
       addr = load.getAddr();
     cir_cconv_assert(mlir::isa<PointerType>(addr.getType()));
-    // we can not use getMemberOp here since we need a pointer to the first 
+    // we can not use getMemberOp here since we need a pointer to the first
     // element. And in the case of unions we pick a type of the largest elt,
-    // that may or may not be the first one. Thus, getMemberOp verification 
+    // that may or may not be the first one. Thus, getMemberOp verification
     // may fail.
     auto cast = createBitcast(addr, ptrTy, CGF);
     SrcPtr = rw.create<LoadOp>(SrcPtr.getLoc(), cast);
