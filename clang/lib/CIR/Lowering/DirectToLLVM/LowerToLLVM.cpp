@@ -4305,6 +4305,37 @@ public:
   }
 };
 
+class CIRPtrMaskOpLowering : public mlir::OpConversionPattern<cir::PtrMaskOp> {
+public:
+  using OpConversionPattern<cir::PtrMaskOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::PtrMaskOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    // FIXME: We'd better to lower to mlir::LLVM::PtrMaskOp if it exists.
+    // So we have to make it manually here by following:
+    // https://llvm.org/docs/LangRef.html#llvm-ptrmask-intrinsic
+    auto loc = op.getLoc();
+    auto mask = op.getMask();
+
+    auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
+    mlir::DataLayout layout(moduleOp);
+    auto iPtrIdxValue = layout.getTypeSizeInBits(mask.getType());
+    auto iPtrIdx = mlir::IntegerType::get(moduleOp->getContext(), iPtrIdxValue);
+
+    auto intPtr = rewriter.create<mlir::LLVM::PtrToIntOp>(
+        loc, iPtrIdx, adaptor.getPtr()); // this may truncate
+    mlir::Value masked =
+        rewriter.create<mlir::LLVM::AndOp>(loc, intPtr, adaptor.getMask());
+    mlir::Value diff = rewriter.create<mlir::LLVM::SubOp>(loc, intPtr, masked);
+    rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(
+        op, getTypeConverter()->convertType(op.getType()),
+        mlir::IntegerType::get(moduleOp->getContext(), 8), adaptor.getPtr(),
+        diff);
+    return mlir::success();
+  }
+};
+
 class CIRAbsOpLowering : public mlir::OpConversionPattern<cir::AbsOp> {
 public:
   using OpConversionPattern<cir::AbsOp>::OpConversionPattern;
@@ -4333,8 +4364,11 @@ public:
     if (auto longDoubleType =
             mlir::dyn_cast<cir::LongDoubleType>(op.getInput().getType())) {
       if (mlir::isa<cir::FP80Type>(longDoubleType.getUnderlying())) {
-        // see https://github.com/llvm/clangir/issues/1057
-        llvm_unreachable("NYI");
+        // If the underlying type of LongDouble is FP80Type,
+        // DataLayout::getTypeSizeInBits returns 128.
+        // See https://github.com/llvm/clangir/issues/1057.
+        // Set the width to 80 manually.
+        width = 80;
       }
     }
     auto intTy = mlir::IntegerType::get(rewriter.getContext(), width);
@@ -4398,7 +4432,8 @@ void populateCIRToLLVMConversionPatterns(
       CIRAssumeLowering, CIRAssumeAlignedLowering, CIRAssumeSepStorageLowering,
       CIRBaseClassAddrOpLowering, CIRDerivedClassAddrOpLowering,
       CIRVTTAddrPointOpLowering, CIRIsFPClassOpLowering, CIRAbsOpLowering,
-      CIRMemMoveOpLowering, CIRMemsetOpLowering, CIRSignBitOpLowering
+      CIRMemMoveOpLowering, CIRMemsetOpLowering, CIRSignBitOpLowering,
+      CIRPtrMaskOpLowering
 #define GET_BUILTIN_LOWERING_LIST
 #include "clang/CIR/Dialect/IR/CIRBuiltinsLowering.inc"
 #undef GET_BUILTIN_LOWERING_LIST
@@ -4412,7 +4447,7 @@ std::unique_ptr<cir::LowerModule> prepareLowerModule(mlir::ModuleOp module) {
   // If the triple is not present, e.g. CIR modules parsed from text, we
   // cannot init LowerModule properly.
   assert(!cir::MissingFeatures::makeTripleAlwaysPresent());
-  if (!module->hasAttr("cir.triple"))
+  if (!module->hasAttr(cir::CIRDialect::getTripleAttrName()))
     return {};
   return cir::createLowerModule(module, rewriter);
 }
@@ -4670,7 +4705,8 @@ void ConvertCIRToLLVMPass::buildGlobalAnnotationsVar(
     llvm::StringMap<mlir::LLVM::GlobalOp> &argStringGlobalsMap,
     llvm::MapVector<mlir::ArrayAttr, mlir::LLVM::GlobalOp> &argsVarMap) {
   mlir::ModuleOp module = getOperation();
-  mlir::Attribute attr = module->getAttr("cir.global_annotations");
+  mlir::Attribute attr =
+      module->getAttr(cir::CIRDialect::getGlobalAnnotationsAttrName());
   if (!attr)
     return;
   if (auto globalAnnotValues =
@@ -4798,8 +4834,8 @@ void ConvertCIRToLLVMPass::runOnOperation() {
   // Allow operations that will be lowered directly to LLVM IR.
   target.addLegalOp<mlir::LLVM::ZeroOp>();
 
-  getOperation()->removeAttr("cir.sob");
-  getOperation()->removeAttr("cir.lang");
+  getOperation()->removeAttr(cir::CIRDialect::getSOBAttrName());
+  getOperation()->removeAttr(cir::CIRDialect::getLangAttrName());
 
   llvm::SmallVector<mlir::Operation *> ops;
   ops.push_back(module);
@@ -4809,8 +4845,8 @@ void ConvertCIRToLLVMPass::runOnOperation() {
     signalPassFailure();
 
   // Emit the llvm.global_ctors array.
-  buildCtorDtorList(module, "cir.global_ctors", "llvm.global_ctors",
-                    [](mlir::Attribute attr) {
+  buildCtorDtorList(module, cir::CIRDialect::getGlobalCtorsAttrName(),
+                    "llvm.global_ctors", [](mlir::Attribute attr) {
                       assert(mlir::isa<cir::GlobalCtorAttr>(attr) &&
                              "must be a GlobalCtorAttr");
                       auto ctorAttr = mlir::cast<cir::GlobalCtorAttr>(attr);
@@ -4818,8 +4854,8 @@ void ConvertCIRToLLVMPass::runOnOperation() {
                                             ctorAttr.getPriority());
                     });
   // Emit the llvm.global_dtors array.
-  buildCtorDtorList(module, "cir.global_dtors", "llvm.global_dtors",
-                    [](mlir::Attribute attr) {
+  buildCtorDtorList(module, cir::CIRDialect::getGlobalDtorsAttrName(),
+                    "llvm.global_dtors", [](mlir::Attribute attr) {
                       assert(mlir::isa<cir::GlobalDtorAttr>(attr) &&
                              "must be a GlobalDtorAttr");
                       auto dtorAttr = mlir::cast<cir::GlobalDtorAttr>(attr);

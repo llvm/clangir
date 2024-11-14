@@ -163,10 +163,10 @@ typedef struct {
 // CHECK: %[[#V0:]] = cir.alloca !ty_S_PAD, !cir.ptr<!ty_S_PAD>, ["__retval"] {alignment = 2 : i64}
 // CHECK: %[[#V1:]] = cir.load %[[#V0]] : !cir.ptr<!ty_S_PAD>, !ty_S_PAD
 // CHECK: %[[#V2:]] = cir.alloca !u48i, !cir.ptr<!u48i>, [""] {alignment = 2 : i64}
-// CHECK: %[[#V3:]] = cir.const #cir.int<6> : !u64i
-// CHECK: %[[#V4:]] = cir.cast(bitcast, %[[#V0]] : !cir.ptr<!ty_S_PAD>)
-// CHECK: %[[#V5:]] = cir.cast(bitcast, %[[#V2:]] : !cir.ptr<!u48i>), !cir.ptr<!void>
-// CHECK: cir.libc.memcpy %[[#V3]] bytes from %[[#V4]] to %[[#V5]] : !u64i, !cir.ptr<!void>
+// CHECK: %[[#V3:]] = cir.cast(bitcast, %[[#V0]] : !cir.ptr<!ty_S_PAD>)
+// CHECK: %[[#V4:]] = cir.cast(bitcast, %[[#V2:]] : !cir.ptr<!u48i>), !cir.ptr<!void>
+// CHECK: %[[#V5:]] = cir.const #cir.int<6> : !u64i
+// CHECK: cir.libc.memcpy %[[#V5]] bytes from %[[#V3]] to %[[#V4]] : !u64i, !cir.ptr<!void>
 // CHECK: %[[#V6:]] = cir.load %[[#V2]] : !cir.ptr<!u48i>
 // CHECK: cir.return %[[#V6]]
 
@@ -181,3 +181,18 @@ S_PAD ret_s_pad() {
   S_PAD s;
   return s;
 }
+// CHECK: cir.func @passS(%arg0: !cir.array<!u64i x 2> 
+// CHECK:   %[[#V0:]] = cir.alloca !ty_S, !cir.ptr<!ty_S>, [""] {alignment = 4 : i64}
+// CHECK:   %[[#V1:]] = cir.alloca !cir.array<!u64i x 2>, !cir.ptr<!cir.array<!u64i x 2>>, ["tmp"] {alignment = 8 : i64}
+// CHECK:   cir.store %arg0, %[[#V1]] : !cir.array<!u64i x 2>, !cir.ptr<!cir.array<!u64i x 2>>
+// CHECK:   %[[#V2:]] = cir.cast(bitcast, %[[#V1]] : !cir.ptr<!cir.array<!u64i x 2>>), !cir.ptr<!void>
+// CHECK:   %[[#V3:]] = cir.cast(bitcast, %[[#V0]] : !cir.ptr<!ty_S>), !cir.ptr<!void>
+// CHECK:   %[[#V4:]] = cir.const #cir.int<12> : !u64i
+// CHECK:   cir.libc.memcpy %[[#V4]] bytes from %[[#V2]] to %[[#V3]] : !u64i, !cir.ptr<!void> -> !cir.ptr<!void>
+
+// LLVM: void @passS([2 x i64] %[[#ARG:]])
+// LLVM:   %[[#V1:]] = alloca %struct.S, i64 1, align 4
+// LLVM:   %[[#V2:]] = alloca [2 x i64], i64 1, align 8
+// LLVM:   store [2 x i64] %[[#ARG]], ptr %[[#V2]], align 8
+// LLVM:   call void @llvm.memcpy.p0.p0.i64(ptr %[[#V1]], ptr %[[#V2]], i64 12, i1 false)
+void passS(S s) {}

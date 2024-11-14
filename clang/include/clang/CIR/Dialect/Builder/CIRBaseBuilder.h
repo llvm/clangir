@@ -48,6 +48,17 @@ public:
     return create<cir::ConstantOp>(loc, ty, getAttr<cir::IntAttr>(ty, val));
   }
 
+  mlir::Value getSignedInt(mlir::Location loc, int64_t val, unsigned numBits) {
+    return getConstAPSInt(
+        loc, llvm::APSInt(llvm::APInt(numBits, val), /*isUnsigned=*/false));
+  }
+
+  mlir::Value getUnsignedInt(mlir::Location loc, uint64_t val,
+                             unsigned numBits) {
+    return getConstAPSInt(
+        loc, llvm::APSInt(llvm::APInt(numBits, val), /*isUnsigned=*/true));
+  }
+
   mlir::Value getConstAPInt(mlir::Location loc, mlir::Type typ,
                             const llvm::APInt &val) {
     return create<cir::ConstantOp>(loc, typ, getAttr<cir::IntAttr>(typ, val));
@@ -549,7 +560,7 @@ public:
   // Block handling helpers
   // ----------------------
   //
-  OpBuilder::InsertPoint getBestAllocaInsertPoint(mlir::Block *block) {
+  static OpBuilder::InsertPoint getBestAllocaInsertPoint(mlir::Block *block) {
     auto last =
         std::find_if(block->rbegin(), block->rend(), [](mlir::Operation &op) {
           return mlir::isa<cir::AllocaOp, cir::LabelOp>(&op);

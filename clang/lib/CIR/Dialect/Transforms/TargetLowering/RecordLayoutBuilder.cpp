@@ -223,8 +223,7 @@ public:
   /// Initialize record layout for the given record decl.
   void initializeLayout(const Type Ty);
 
-  /// FinishLayout - Finalize record layout. Adjust record size based on the
-  /// alignment.
+  /// Finalize record layout. Adjust record size based on the alignment.
   void finishLayout(const StructType D);
 
   uint64_t getDataSizeInBits() const { return DataSize; }
