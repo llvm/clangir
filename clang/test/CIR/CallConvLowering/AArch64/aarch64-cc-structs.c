@@ -153,6 +153,43 @@ void pass_eq_128(EQ_128 s) {}
 // LLVM:   %[[#V2:]] = load ptr, ptr %[[#V1]], align 8
 void pass_gt_128(GT_128 s) {}
 
+// CHECK: cir.func @get_gt_128(%arg0: !cir.ptr<!ty_GT_128> {{.*}}, %arg1: !cir.ptr<!ty_GT_128>
+// CHECK: %[[#V0:]] = cir.alloca !cir.ptr<!ty_GT_128>, !cir.ptr<!cir.ptr<!ty_GT_128>>, [""] {alignment = 8 : i64}
+// CHECK: cir.store %arg1, %[[#V0]] : !cir.ptr<!ty_GT_128>, !cir.ptr<!cir.ptr<!ty_GT_128>>
+// CHECK: %[[#V1:]] = cir.load %[[#V0]] : !cir.ptr<!cir.ptr<!ty_GT_128>>, !cir.ptr<!ty_GT_128>
+// CHECK: cir.copy %[[#V1]] to %arg0 : !cir.ptr<!ty_GT_128>
+// CHECK: cir.return
+
+// LLVM: void @get_gt_128(ptr %[[#V0:]], ptr %[[#V1:]])
+// LLVM: %[[#V3:]] = alloca ptr, i64 1, align 8
+// LLVM: store ptr %[[#V1]], ptr %[[#V3]], align 8
+// LLVM: %[[#V4:]] = load ptr, ptr %[[#V3]], align 8
+// LLVM: call void @llvm.memcpy.p0.p0.i32(ptr %[[#V0]], ptr %[[#V4]], i32 24, i1 false)
+// LLVM: ret void
+GT_128 get_gt_128(GT_128 s) {
+  return s;
+}
+
+// CHECK: cir.func no_proto @call_and_get_gt_128(%arg0: !cir.ptr<!ty_GT_128>
+// CHECK: %[[#V0:]] = cir.alloca !ty_GT_128, !cir.ptr<!ty_GT_128>, {{.*}} {alignment = 8 : i64}
+// CHECK: %[[#V1:]] = cir.alloca !ty_GT_128, !cir.ptr<!ty_GT_128>, {{.*}} {alignment = 8 : i64}
+// CHECK: cir.call @get_gt_128(%[[#V1]], %arg0) : (!cir.ptr<!ty_GT_128>, !cir.ptr<!ty_GT_128>) -> ()
+// CHECK: %[[#V2:]] = cir.load %[[#V1]] : !cir.ptr<!ty_GT_128>, !ty_GT_128
+// CHECK: cir.store %[[#V2]], %[[#V0]] : !ty_GT_128, !cir.ptr<!ty_GT_128>
+// CHECK: cir.return
+
+// LLVM: void @call_and_get_gt_128(ptr %[[#V0:]])
+// LLVM: %[[#V2:]] = alloca %struct.GT_128, i64 1, align 8
+// LLVM: %[[#V3:]] = alloca %struct.GT_128, i64 1, align 8
+// LLVM: call void @get_gt_128(ptr %[[#V3]], ptr %[[#V0]])
+// LLVM: %[[#V4:]] = load %struct.GT_128, ptr %[[#V3]], align 8
+// LLVM: store %struct.GT_128 %[[#V4]], ptr %[[#V2]], align 8
+// LLVM: ret void
+GT_128 call_and_get_gt_128() {
+  GT_128 s;
+  s = get_gt_128(s);
+  return s;
+}
 // CHECK: cir.func @passS(%arg0: !cir.array<!u64i x 2> 
 // CHECK:   %[[#V0:]] = cir.alloca !ty_S, !cir.ptr<!ty_S>, [""] {alignment = 4 : i64}
 // CHECK:   %[[#V1:]] = cir.alloca !cir.array<!u64i x 2>, !cir.ptr<!cir.array<!u64i x 2>>, ["tmp"] {alignment = 8 : i64}
