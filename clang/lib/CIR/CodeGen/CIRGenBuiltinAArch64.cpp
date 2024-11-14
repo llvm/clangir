@@ -1900,7 +1900,7 @@ findARMVectorIntrinsicInMap(ArrayRef<ARMVectorIntrinsicInfo> IntrinsicMap,
 }
 
 static cir::VectorType GetNeonType(CIRGenFunction *CGF, NeonTypeFlags TypeFlags,
-                                   bool HasFastHalfType = true,
+                                   bool HasLegalHalfType = true,
                                    bool V1Ty = false,
                                    bool AllowBFloatArgsAndRet = true) {
   int IsQuad = TypeFlags.isQuad();
@@ -1923,7 +1923,7 @@ static cir::VectorType GetNeonType(CIRGenFunction *CGF, NeonTypeFlags TypeFlags,
     else
       llvm_unreachable("NeonTypeFlags::BFloat16 NYI");
   case NeonTypeFlags::Float16:
-    if (HasFastHalfType)
+    if (HasLegalHalfType)
       llvm_unreachable("NeonTypeFlags::Float16 NYI");
     else
       llvm_unreachable("NeonTypeFlags::Float16 NYI");
@@ -2319,14 +2319,15 @@ mlir::Value CIRGenFunction::emitCommonNeonBuiltinExpr(
   // Determine the type of this overloaded NEON intrinsic.
   NeonTypeFlags neonType(neonTypeConst->getZExtValue());
   bool isUnsigned = neonType.isUnsigned();
-  const bool hasFastHalfType = getTarget().hasFastHalfType();
+  bool isQuad = neonType.isQuad();
+  const bool hasLegalHalfType = getTarget().hasFastHalfType();
   // The value of allowBFloatArgsAndRet is true for AArch64, but it should
   // come from ABI info.
   const bool allowBFloatArgsAndRet =
       getTargetHooks().getABIInfo().allowBFloatArgsAndRet();
 
-  cir::VectorType vTy =
-      GetNeonType(this, neonType, hasFastHalfType, false, allowBFloatArgsAndRet);
+  cir::VectorType vTy = GetNeonType(this, neonType, hasLegalHalfType, false,
+                                    allowBFloatArgsAndRet);
   mlir::Type ty = vTy;
   if (!ty)
     return nullptr;
@@ -2379,6 +2380,13 @@ mlir::Value CIRGenFunction::emitCommonNeonBuiltinExpr(
                             ? "aarch64.neon.sqadd"
                             : "aarch64.neon.sqsub",
                         vTy, getLoc(e->getExprLoc()));
+  }
+  case NEON::BI__builtin_neon_vcvt_f32_v:
+  case NEON::BI__builtin_neon_vcvtq_f32_v: {
+    ops[0] = builder.createBitcast(ops[0], ty);
+    ty = GetNeonType(this, NeonTypeFlags(NeonTypeFlags::Float32, false, isQuad),
+                     hasLegalHalfType);
+    return builder.createCast(cir::CastKind::int_to_float, ops[0], ty);
   }
   case NEON::BI__builtin_neon_vext_v:
   case NEON::BI__builtin_neon_vextq_v: {
