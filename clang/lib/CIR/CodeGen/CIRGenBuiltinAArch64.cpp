@@ -2365,6 +2365,21 @@ mlir::Value CIRGenFunction::emitCommonNeonBuiltinExpr(
                                    : "aarch64.neon.saddlp",
                         vTy, getLoc(e->getExprLoc()));
   }
+  case NEON::BI__builtin_neon_vqdmlal_v:
+  case NEON::BI__builtin_neon_vqdmlsl_v: {
+    llvm::SmallVector<mlir::Value, 2> mulOps(ops.begin() + 1, ops.end());
+    cir::VectorType srcVty = builder.getExtendedOrTruncatedElementVectorType(
+        vTy, false, /* truncate */
+        mlir::cast<cir::IntType>(vTy.getEltType()).isSigned());
+    ops[1] = emitNeonCall(builder, {srcVty, srcVty}, mulOps,
+                          "aarch64.neon.sqdmull", vTy, getLoc(e->getExprLoc()));
+    ops.resize(2);
+    return emitNeonCall(builder, {vTy, vTy}, ops,
+                        builtinID == NEON::BI__builtin_neon_vqdmlal_v
+                            ? "aarch64.neon.sqadd"
+                            : "aarch64.neon.sqsub",
+                        vTy, getLoc(e->getExprLoc()));
+  }
   case NEON::BI__builtin_neon_vext_v:
   case NEON::BI__builtin_neon_vextq_v: {
     int cv = getIntValueFromConstOp(ops[2]);
@@ -2470,6 +2485,10 @@ mlir::Value CIRGenFunction::emitCommonNeonBuiltinExpr(
   case NEON::BI__builtin_neon_vaesmcq_u8: {
     intrincsName = "aarch64.crypto.aesmc";
     argTypes.push_back(vTy);
+    break;
+  }
+  case NEON::BI__builtin_neon_vaeseq_u8: {
+    intrincsName = "aarch64.crypto.aese";
     break;
   }
   case NEON::BI__builtin_neon_vpadd_v:
