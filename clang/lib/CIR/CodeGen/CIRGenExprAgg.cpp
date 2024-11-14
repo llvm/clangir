@@ -928,7 +928,7 @@ void AggExprEmitter::VisitLambdaExpr(LambdaExpr *E) {
       ValueDecl *v = capture.getCapturedVar();
       fieldName = v->getName();
       CGF.getCIRGenModule().LambdaFieldToName[*CurField] = fieldName;
-    } else {
+    } else if (!capture.capturesThis()) {
       llvm_unreachable("NYI");
     }
 
