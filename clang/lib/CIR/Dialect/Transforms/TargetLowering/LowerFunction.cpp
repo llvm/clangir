@@ -59,18 +59,6 @@ mlir::Value createBitcast(mlir::Value Src, mlir::Type Ty, LowerFunction &LF) {
                                          Src);
 }
 
-mlir::Type getLargestMember(const CIRDataLayout &dataLayout, StructType s) {
-  mlir::Type typ;
-  for (auto t : s.getMembers()) {
-    if (!typ ||
-        dataLayout.getABITypeAlign(t) > dataLayout.getABITypeAlign(typ) ||
-        (dataLayout.getABITypeAlign(t) == dataLayout.getABITypeAlign(typ) &&
-         dataLayout.getTypeSizeInBits(t) > dataLayout.getTypeSizeInBits(typ)))
-      typ = t;
-  }
-  return typ;
-}
-
 /// Given a struct pointer that we are accessing some number of bytes out of it,
 /// try to gep into the struct to get at its inner goodness.  Dive as deep as
 /// possible without entering an element with an in-memory size smaller than
@@ -86,7 +74,7 @@ mlir::Value enterStructPointerForCoercedAccess(mlir::Value SrcPtr,
   mlir::Type FirstElt = SrcSTy.getMembers()[0];
 
   if (SrcSTy.isUnion())
-    FirstElt = getLargestMember(CGF.LM.getDataLayout(), SrcSTy);
+    FirstElt = SrcSTy.getLargestMember(CGF.LM.getDataLayout().layout);
 
   // If the first elt is at least as large as what we're looking for, or if the
   // first element is the same size as the whole struct, we can enter it. The
@@ -176,12 +164,6 @@ static mlir::Value coerceIntOrPtrToIntOrPtr(mlir::Value val, mlir::Type typ,
     val = bld.create<CastOp>(val.getLoc(), typ, CastKind::int_to_ptr, val);
 
   return val;
-}
-
-// FIXME(cir): Create a custom rewriter class to abstract this away.
-mlir::Value createBitcast(mlir::Value Src, mlir::Type Ty, LowerFunction &LF) {
-  return LF.getRewriter().create<CastOp>(Src.getLoc(), Ty, CastKind::bitcast,
-                                         Src);
 }
 
 AllocaOp createTmpAlloca(LowerFunction &LF, mlir::Location loc, mlir::Type ty) {
