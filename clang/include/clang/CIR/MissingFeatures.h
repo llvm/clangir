@@ -261,7 +261,6 @@ struct MissingFeatures {
   static bool X86TypeClassification() { return false; }
 
   static bool ABIClangTypeKind() { return false; }
-  static bool ABIEnterStructForCoercedAccess() { return false; }
   static bool ABIFuncPtr() { return false; }
   static bool ABIInRegAttribute() { return false; }
   static bool ABINestedRecordLayout() { return false; }
@@ -328,6 +327,9 @@ struct MissingFeatures {
   static bool llvmIntrinsicElementTypeSupport() { return false; }
 
   //-- Other missing features
+
+  // We need to extend fpUnaryOPs to support vector types.
+  static bool fpUnaryOPsSupportVectorType() { return false; }
 
   // We need to track the parent record types that represent a field
   // declaration. This is necessary to determine the layout of a class.
@@ -402,6 +404,8 @@ struct MissingFeatures {
   static bool makeTripleAlwaysPresent() { return false; }
 
   static bool mustProgress() { return false; }
+
+  static bool skipTempCopy() { return false; }
 };
 
 } // namespace cir

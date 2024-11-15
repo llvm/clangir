@@ -53,6 +53,12 @@ mlir::Value createCoercedBitcast(mlir::Value Src, mlir::Type DestTy,
                                           CastKind::bitcast, Src);
 }
 
+// FIXME(cir): Create a custom rewriter class to abstract this away.
+mlir::Value createBitcast(mlir::Value Src, mlir::Type Ty, LowerFunction &LF) {
+  return LF.getRewriter().create<CastOp>(Src.getLoc(), Ty, CastKind::bitcast,
+                                         Src);
+}
+
 /// Given a struct pointer that we are accessing some number of bytes out of it,
 /// try to gep into the struct to get at its inner goodness.  Dive as deep as
 /// possible without entering an element with an in-memory size smaller than
@@ -67,6 +73,9 @@ mlir::Value enterStructPointerForCoercedAccess(mlir::Value SrcPtr,
 
   mlir::Type FirstElt = SrcSTy.getMembers()[0];
 
+  if (SrcSTy.isUnion())
+    FirstElt = SrcSTy.getLargestMember(CGF.LM.getDataLayout().layout);
+
   // If the first elt is at least as large as what we're looking for, or if the
   // first element is the same size as the whole struct, we can enter it. The
   // comparison must be made on the store size and not the alloca size. Using
@@ -76,10 +85,26 @@ mlir::Value enterStructPointerForCoercedAccess(mlir::Value SrcPtr,
       FirstEltSize < CGF.LM.getDataLayout().getTypeStoreSize(SrcSTy))
     return SrcPtr;
 
-  cir_cconv_assert_or_abort(
-      !cir::MissingFeatures::ABIEnterStructForCoercedAccess(), "NYI");
-  return SrcPtr; // FIXME: This is a temporary workaround for the assertion
-                 // above.
+  auto &rw = CGF.getRewriter();
+  auto *ctxt = rw.getContext();
+  auto ptrTy = PointerType::get(ctxt, FirstElt);
+  if (mlir::isa<StructType>(SrcPtr.getType())) {
+    auto addr = SrcPtr;
+    if (auto load = mlir::dyn_cast<LoadOp>(SrcPtr.getDefiningOp()))
+      addr = load.getAddr();
+    cir_cconv_assert(mlir::isa<PointerType>(addr.getType()));
+    // we can not use getMemberOp here since we need a pointer to the first
+    // element. And in the case of unions we pick a type of the largest elt,
+    // that may or may not be the first one. Thus, getMemberOp verification
+    // may fail.
+    auto cast = createBitcast(addr, ptrTy, CGF);
+    SrcPtr = rw.create<LoadOp>(SrcPtr.getLoc(), cast);
+  }
+
+  if (auto sty = mlir::dyn_cast<StructType>(SrcPtr.getType()))
+    return enterStructPointerForCoercedAccess(SrcPtr, sty, DstSize, CGF);
+
+  return SrcPtr;
 }
 
 /// Convert a value Val to the specific Ty where both
@@ -139,12 +164,6 @@ static mlir::Value coerceIntOrPtrToIntOrPtr(mlir::Value val, mlir::Type typ,
     val = bld.create<CastOp>(val.getLoc(), typ, CastKind::int_to_ptr, val);
 
   return val;
-}
-
-// FIXME(cir): Create a custom rewriter class to abstract this away.
-mlir::Value createBitcast(mlir::Value Src, mlir::Type Ty, LowerFunction &LF) {
-  return LF.getRewriter().create<CastOp>(Src.getLoc(), Ty, CastKind::bitcast,
-                                         Src);
 }
 
 AllocaOp createTmpAlloca(LowerFunction &LF, mlir::Location loc, mlir::Type ty) {
@@ -302,7 +321,7 @@ mlir::Value createCoercedValue(mlir::Value Src, mlir::Type Ty,
   // extension or truncation to the desired type.
   if ((mlir::isa<IntType>(Ty) || mlir::isa<PointerType>(Ty)) &&
       (mlir::isa<IntType>(SrcTy) || mlir::isa<PointerType>(SrcTy))) {
-    cir_cconv_unreachable("NYI");
+    return coerceIntOrPtrToIntOrPtr(Src, Ty, CGF);
   }
 
   // If load is legal, just bitcast the src pointer.
@@ -711,6 +730,14 @@ LowerFunction::buildFunctionEpilog(const LowerFunctionInfo &FI) {
         if (auto al = findAlloca(ret)) {
           rewriter.replaceAllUsesWith(al.getResult(), RVAddr);
           rewriter.eraseOp(al);
+          rewriter.setInsertionPoint(ret);
+
+          auto retInputs = ret.getInput();
+          assert(retInputs.size() == 1 && "return should only have one input");
+          if (auto load = mlir::dyn_cast<LoadOp>(retInputs[0].getDefiningOp()))
+            if (load.getResult().use_empty())
+              rewriter.eraseOp(load);
+
           rewriter.replaceOpWithNewOp<ReturnOp>(ret);
         }
       });
@@ -959,6 +986,15 @@ mlir::Value LowerFunction::rewriteCallOp(FuncType calleeTy, FuncOp origCallee,
   return CallResult;
 }
 
+mlir::Value createAlloca(mlir::Location loc, mlir::Type type,
+                         LowerFunction &CGF) {
+  auto align = CGF.LM.getDataLayout().getABITypeAlign(type);
+  auto alignAttr = CGF.getRewriter().getI64IntegerAttr(align.value());
+  return CGF.getRewriter().create<AllocaOp>(
+      loc, CGF.getRewriter().getType<PointerType>(type), type,
+      /*name=*/llvm::StringRef(""), alignAttr);
+}
+
 // NOTE(cir): This method has partial parity to CodeGenFunction's EmitCall
 // method in CGCall.cpp. When incrementing it, use the original codegen as a
 // reference: add ABI-specific stuff and skip codegen stuff.
@@ -991,10 +1027,12 @@ mlir::Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
   CIRToCIRArgMapping IRFunctionArgs(LM.getContext(), CallInfo);
   llvm::SmallVector<mlir::Value, 16> IRCallArgs(IRFunctionArgs.totalIRArgs());
 
+  mlir::Value sRetPtr;
   // If the call returns a temporary with struct return, create a temporary
   // alloca to hold the result, unless one is given to us.
   if (RetAI.isIndirect() || RetAI.isCoerceAndExpand() || RetAI.isInAlloca()) {
-    cir_cconv_unreachable("NYI");
+    sRetPtr = createAlloca(loc, RetTy, *this);
+    IRCallArgs[IRFunctionArgs.getSRetArgNo()] = sRetPtr;
   }
 
   cir_cconv_assert(!cir::MissingFeatures::swift());
@@ -1086,6 +1124,32 @@ mlir::Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
           cir_cconv_unreachable("NYI");
         IRCallArgs[FirstIRArg] = Load;
       }
+
+      break;
+    }
+    case ABIArgInfo::Indirect:
+    case ABIArgInfo::IndirectAliased: {
+      assert(NumIRArgs == 1);
+      // TODO(cir): For aggregate types
+      // We want to avoid creating an unnecessary temporary+copy here;
+      // however, we need one in three cases:
+      // 1. If the argument is not byval, and we are required to copy the
+      // 2. If the argument is byval, RV is not sufficiently aligned, and
+      //    source.  (This case doesn't occur on any common architecture.)
+      //    we cannot force it to be sufficiently aligned.
+      // 3. If the argument is byval, but RV is not located in default
+      //    or alloca address space.
+      cir_cconv_assert(!::cir::MissingFeatures::skipTempCopy());
+
+      mlir::Value alloca = findAlloca(I->getDefiningOp());
+
+      // since they are a ARM-specific feature.
+      if (::cir::MissingFeatures::undef())
+        cir_cconv_unreachable("NYI");
+
+      IRCallArgs[FirstIRArg] = alloca;
+
+      // NOTE(cir): Skipping Emissions, lifetime markers.
 
       break;
     }
@@ -1223,6 +1287,10 @@ mlir::Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
       // NOTE(cir): No need to convert from a temp to an RValue. This is
       // done in CIRGen
       return RetVal;
+    }
+    case ABIArgInfo::Indirect: {
+      auto load = rewriter.create<LoadOp>(loc, sRetPtr);
+      return load.getResult();
     }
     default:
       llvm::errs() << "Unhandled ABIArgInfo kind: " << RetAI.getKind() << "\n";
