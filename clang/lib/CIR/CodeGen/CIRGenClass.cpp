@@ -654,23 +654,30 @@ void CIRGenFunction::emitCtorPrologue(const CXXConstructorDecl *CD,
 static Address ApplyNonVirtualAndVirtualOffset(
     mlir::Location loc, CIRGenFunction &CGF, Address addr,
     CharUnits nonVirtualOffset, mlir::Value virtualOffset,
-    const CXXRecordDecl *derivedClass, const CXXRecordDecl *nearestVBase) {
+    const CXXRecordDecl *derivedClass, const CXXRecordDecl *nearestVBase,
+    mlir::Type baseValueTy = {}, bool assumeNotNull = true) {
   // Assert that we have something to do.
   assert(!nonVirtualOffset.isZero() || virtualOffset != nullptr);
 
   // Compute the offset from the static and dynamic components.
   mlir::Value baseOffset;
   if (!nonVirtualOffset.isZero()) {
-    mlir::Type OffsetType =
-        (CGF.CGM.getTarget().getCXXABI().isItaniumFamily() &&
-         CGF.CGM.getItaniumVTableContext().isRelativeLayout())
-            ? CGF.SInt32Ty
-            : CGF.PtrDiffTy;
-    baseOffset = CGF.getBuilder().getConstInt(loc, OffsetType,
-                                              nonVirtualOffset.getQuantity());
     if (virtualOffset) {
+      mlir::Type OffsetType =
+          (CGF.CGM.getTarget().getCXXABI().isItaniumFamily() &&
+           CGF.CGM.getItaniumVTableContext().isRelativeLayout())
+              ? CGF.SInt32Ty
+              : CGF.PtrDiffTy;
+      baseOffset = CGF.getBuilder().getConstInt(loc, OffsetType,
+                                                nonVirtualOffset.getQuantity());
       baseOffset = CGF.getBuilder().createBinop(
           virtualOffset, cir::BinOpKind::Add, baseOffset);
+    } else {
+      assert(baseValueTy && "expected base type");
+      // If no virtualOffset is present this is the final stop.
+      return CGF.getBuilder().createBaseClassAddr(
+          loc, addr, baseValueTy, nonVirtualOffset.getQuantity(),
+          assumeNotNull);
     }
   } else {
     baseOffset = virtualOffset;
@@ -716,6 +723,7 @@ void CIRGenFunction::initializeVTablePointer(mlir::Location loc,
   mlir::Value VirtualOffset{};
   CharUnits NonVirtualOffset = CharUnits::Zero();
 
+  mlir::Type BaseValueTy;
   if (CGM.getCXXABI().isVirtualOffsetNeededForVTableField(*this, Vptr)) {
     // We need to use the virtual base offset offset because the virtual base
     // might have a different offset in the most derived class.
@@ -725,6 +733,7 @@ void CIRGenFunction::initializeVTablePointer(mlir::Location loc,
   } else {
     // We can just use the base offset in the complete class.
     NonVirtualOffset = Vptr.Base.getBaseOffset();
+    BaseValueTy = convertType(getContext().getTagDeclType(Vptr.Base.getBase()));
   }
 
   // Apply the offsets.
@@ -732,7 +741,7 @@ void CIRGenFunction::initializeVTablePointer(mlir::Location loc,
   if (!NonVirtualOffset.isZero() || VirtualOffset) {
     VTableField = ApplyNonVirtualAndVirtualOffset(
         loc, *this, VTableField, NonVirtualOffset, VirtualOffset,
-        Vptr.VTableClass, Vptr.NearestVBase);
+        Vptr.VTableClass, Vptr.NearestVBase, BaseValueTy);
   }
 
   // Finally, store the address point. Use the same CIR types as the field.
@@ -1545,7 +1554,9 @@ CIRGenFunction::getAddressOfBaseClass(Address Value,
   // *start* with a step down to the correct virtual base subobject,
   // and hence will not require any further steps.
   if ((*Start)->isVirtual()) {
-    llvm_unreachable("NYI: Cast to virtual base class");
+    VBase = cast<CXXRecordDecl>(
+        (*Start)->getType()->castAs<RecordType>()->getDecl());
+    ++Start;
   }
 
   // Compute the static offset of the ultimate destination within its
@@ -1570,42 +1581,32 @@ CIRGenFunction::getAddressOfBaseClass(Address Value,
 
   // If there is no virtual base, use cir.base_class_addr.  It takes care of
   // the adjustment and the null pointer check.
-  if (!VBase) {
+  if (NonVirtualOffset.isZero() && !VBase) {
     if (sanitizePerformTypeCheck()) {
       llvm_unreachable("NYI: sanitizePerformTypeCheck");
     }
-    return builder.createBaseClassAddr(getLoc(Loc), Value, BaseValueTy,
-                                       NonVirtualOffset.getQuantity(),
-                                       /*assumeNotNull=*/not NullCheckValue);
+    return builder.createBaseClassAddr(getLoc(Loc), Value, BaseValueTy, 0,
+                                       /*assumeNotNull=*/true);
   }
 
   if (sanitizePerformTypeCheck()) {
     assert(!cir::MissingFeatures::sanitizeOther());
   }
 
-  // Conversion to a virtual base. cir.base_class_addr can't handle this.
-  // Generate the code to look up the address in the virtual table.
-
-  llvm_unreachable("NYI: Cast to virtual base class");
-
-  // This is just an outline of what the code might look like, since I can't
-  // actually test it.
-#if 0
-  mlir::Value VirtualOffset = ...; // This is a dynamic expression.  Creating
-                                   // it requires calling an ABI-specific
-                                   // function.
-  Value = ApplyNonVirtualAndVirtualOffset(getLoc(Loc), *this, Value,
-                                          NonVirtualOffset, VirtualOffset,
-                                          Derived, VBase);
-  Value = builder.createElementBitCast(Value.getPointer().getLoc(), Value,
-                                       BaseValueTy);
-  if (sanitizePerformTypeCheck()) {
-    // Do something here
+  // Compute the virtual offset.
+  mlir::Value VirtualOffset = nullptr;
+  if (VBase) {
+    VirtualOffset = CGM.getCXXABI().getVirtualBaseClassOffset(
+        getLoc(Loc), *this, Value, Derived, VBase);
   }
-  if (NullCheckValue) {
-    // Convert to 'derivedPtr == nullptr ? nullptr : basePtr'
-  }
-#endif
+
+  // Apply both offsets.
+  Value = ApplyNonVirtualAndVirtualOffset(
+      getLoc(Loc), *this, Value, NonVirtualOffset, VirtualOffset, Derived,
+      VBase, BaseValueTy, not NullCheckValue);
+
+  // Cast to the destination type.
+  Value = Value.withElementType(BaseValueTy);
 
   return Value;
 }

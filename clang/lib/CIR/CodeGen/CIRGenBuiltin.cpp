@@ -345,6 +345,19 @@ RValue CIRGenFunction::emitRotate(const CallExpr *E, bool IsRotateRight) {
   return RValue::get(r);
 }
 
+static bool isMemBuiltinOutOfBoundPossible(const clang::Expr *sizeArg,
+                                           const clang::Expr *dstSizeArg,
+                                           clang::ASTContext &astContext,
+                                           llvm::APSInt &size) {
+  clang::Expr::EvalResult sizeResult, dstSizeResult;
+  if (!sizeArg->EvaluateAsInt(sizeResult, astContext) ||
+      !dstSizeArg->EvaluateAsInt(dstSizeResult, astContext))
+    return true;
+  size = sizeResult.Val.getInt();
+  llvm::APSInt dstSize = dstSizeResult.Val.getInt();
+  return size.ugt(dstSize);
+}
+
 RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
                                        const CallExpr *E,
                                        ReturnValueSlot ReturnValue) {
@@ -1255,9 +1268,22 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   case Builtin::BI__builtin_nondeterministic_value:
     llvm_unreachable("BI__builtin_nondeterministic_value NYI");
 
-  case Builtin::BI__builtin_elementwise_abs:
-    llvm_unreachable("BI__builtin_elementwise_abs NYI");
-
+  case Builtin::BI__builtin_elementwise_abs: {
+    mlir::Type cirTy = ConvertType(E->getArg(0)->getType());
+    bool isIntTy = cir::isIntOrIntVectorTy(cirTy);
+    if (!isIntTy) {
+      if (cir::isAnyFloatingPointType(cirTy)) {
+        return emitUnaryFPBuiltin<cir::FAbsOp>(*this, *E);
+      }
+      assert(!MissingFeatures::fpUnaryOPsSupportVectorType());
+      llvm_unreachable("unsupported type for BI__builtin_elementwise_abs");
+    }
+    mlir::Value arg = emitScalarExpr(E->getArg(0));
+    auto call = getBuilder().create<cir::AbsOp>(getLoc(E->getExprLoc()),
+                                                arg.getType(), arg, false);
+    mlir::Value result = call->getResult(0);
+    return RValue::get(result);
+  }
   case Builtin::BI__builtin_elementwise_acos:
     llvm_unreachable("BI__builtin_elementwise_acos NYI");
   case Builtin::BI__builtin_elementwise_asin:
@@ -1475,13 +1501,9 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
 
   case Builtin::BI__builtin___memcpy_chk: {
     // fold __builtin_memcpy_chk(x, y, cst1, cst2) to memcpy iff cst1<=cst2.
-    Expr::EvalResult sizeResult, dstSizeResult;
-    if (!E->getArg(2)->EvaluateAsInt(sizeResult, CGM.getASTContext()) ||
-        !E->getArg(3)->EvaluateAsInt(dstSizeResult, CGM.getASTContext()))
-      break;
-    llvm::APSInt size = sizeResult.Val.getInt();
-    llvm::APSInt dstSize = dstSizeResult.Val.getInt();
-    if (size.ugt(dstSize))
+    llvm::APSInt size;
+    if (isMemBuiltinOutOfBoundPossible(E->getArg(2), E->getArg(3),
+                                       CGM.getASTContext(), size))
       break;
     Address dest = emitPointerWithAlignment(E->getArg(0));
     Address src = emitPointerWithAlignment(E->getArg(1));
@@ -1494,9 +1516,19 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   case Builtin::BI__builtin_objc_memmove_collectable:
     llvm_unreachable("BI__builtin_objc_memmove_collectable NYI");
 
-  case Builtin::BI__builtin___memmove_chk:
-    llvm_unreachable("BI__builtin___memmove_chk NYI");
-
+  case Builtin::BI__builtin___memmove_chk: {
+    // fold __builtin_memcpy_chk(x, y, cst1, cst2) to memcpy iff cst1<=cst2.
+    llvm::APSInt size;
+    if (isMemBuiltinOutOfBoundPossible(E->getArg(2), E->getArg(3),
+                                       CGM.getASTContext(), size))
+      break;
+    Address Dest = emitPointerWithAlignment(E->getArg(0));
+    Address Src = emitPointerWithAlignment(E->getArg(1));
+    auto loc = getLoc(E->getSourceRange());
+    ConstantOp sizeOp = builder.getConstInt(loc, size);
+    builder.createMemMove(loc, Dest.getPointer(), Src.getPointer(), sizeOp);
+    return RValue::get(Dest.getPointer());
+  }
   case Builtin::BImemmove:
   case Builtin::BI__builtin_memmove: {
     Address Dest = emitPointerWithAlignment(E->getArg(0));
@@ -1526,13 +1558,9 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     llvm_unreachable("BI__builtin_memset_inline NYI");
   case Builtin::BI__builtin___memset_chk: {
     // fold __builtin_memset_chk(x, y, cst1, cst2) to memset iff cst1<=cst2.
-    Expr::EvalResult sizeResult, dstSizeResult;
-    if (!E->getArg(2)->EvaluateAsInt(sizeResult, CGM.getASTContext()) ||
-        !E->getArg(3)->EvaluateAsInt(dstSizeResult, CGM.getASTContext()))
-      break;
-    llvm::APSInt size = sizeResult.Val.getInt();
-    llvm::APSInt dstSize = dstSizeResult.Val.getInt();
-    if (size.ugt(dstSize))
+    llvm::APSInt size;
+    if (isMemBuiltinOutOfBoundPossible(E->getArg(2), E->getArg(3),
+                                       CGM.getASTContext(), size))
       break;
     Address dest = emitPointerWithAlignment(E->getArg(0));
     mlir::Value byteVal = emitScalarExpr(E->getArg(1));
