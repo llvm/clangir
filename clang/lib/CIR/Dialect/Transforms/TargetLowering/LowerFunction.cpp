@@ -347,23 +347,23 @@ mlir::Value emitAddressAtOffset(LowerFunction &LF, mlir::Value addr,
   return addr;
 }
 
-/// Creates a coerced value from \param Src having a type of \param Ty which is
+/// Creates a coerced value from \param src having a type of \param ty which is
 /// a non primitive type
-mlir::Value createCoercedNonPrimitive(mlir::Value Src, mlir::Type Ty,
+mlir::Value createCoercedNonPrimitive(mlir::Value src, mlir::Type ty,
                                       LowerFunction &LF) {
-  if (auto load = mlir::dyn_cast<LoadOp>(Src.getDefiningOp())) {
+  if (auto load = mlir::dyn_cast<LoadOp>(src.getDefiningOp())) {
     auto &bld = LF.getRewriter();
     auto addr = load.getAddr();
 
     auto oldAlloca = mlir::dyn_cast<AllocaOp>(addr.getDefiningOp());
     auto alloca = bld.create<AllocaOp>(
-        Src.getLoc(), bld.getType<PointerType>(Ty), Ty,
+        src.getLoc(), bld.getType<PointerType>(ty), ty,
         /*name=*/llvm::StringRef(""), oldAlloca.getAlignmentAttr());
 
-    auto tySize = LF.LM.getDataLayout().getTypeStoreSize(Ty);
+    auto tySize = LF.LM.getDataLayout().getTypeStoreSize(ty);
     createMemCpy(LF, alloca, addr, tySize.getFixedValue());
 
-    auto newLoad = bld.create<LoadOp>(Src.getLoc(), alloca.getResult());
+    auto newLoad = bld.create<LoadOp>(src.getLoc(), alloca.getResult());
     bld.replaceAllOpUsesWith(load, newLoad);
 
     return newLoad;
