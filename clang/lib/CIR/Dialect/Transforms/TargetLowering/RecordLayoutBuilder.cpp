@@ -487,11 +487,11 @@ void ItaniumRecordLayoutBuilder::finishLayout(const StructType D) {
 
   // Finally, round the size of the record up to the alignment of the
   // record itself.
-  uint64_t UnpaddedSize = getSizeInBits() - UnfilledBitsInLastUnit;
-  uint64_t UnpackedSizeInBits =
+  uint64_t unpaddedSize = getSizeInBits() - UnfilledBitsInLastUnit;
+  uint64_t unpackedSizeInBits =
       llvm::alignTo(getSizeInBits(), Context.toBits(UnpackedAlignment));
 
-  uint64_t RoundedSize = llvm::alignTo(
+  uint64_t roundedSize = llvm::alignTo(
       getSizeInBits(),
       Context.toBits(!Context.getTargetInfo().defaultsToAIXPowerAlignment()
                          ? Alignment
@@ -502,7 +502,7 @@ void ItaniumRecordLayoutBuilder::finishLayout(const StructType D) {
   }
 
   // Set the size to the final size.
-  setSize(RoundedSize);
+  setSize(roundedSize);
 }
 
 void ItaniumRecordLayoutBuilder::UpdateAlignment(
