@@ -345,12 +345,13 @@ RValue CIRGenFunction::emitRotate(const CallExpr *E, bool IsRotateRight) {
   return RValue::get(r);
 }
 
-static bool isMemBuiltinOutOfBoundPossible(const CallExpr *expr,
-                                           clang::CIRGen::CIRGenModule &cgm,
+static bool isMemBuiltinOutOfBoundPossible(const clang::Expr *sizeArg,
+                                           const clang::Expr *dstSizeArg,
+                                           clang::ASTContext &astContext,
                                            llvm::APSInt &size) {
   clang::Expr::EvalResult sizeResult, dstSizeResult;
-  if (!expr->getArg(2)->EvaluateAsInt(sizeResult, cgm.getASTContext()) ||
-      !expr->getArg(3)->EvaluateAsInt(dstSizeResult, cgm.getASTContext()))
+  if (!sizeArg->EvaluateAsInt(sizeResult, astContext) ||
+      !dstSizeArg->EvaluateAsInt(dstSizeResult, astContext))
     return true;
   size = sizeResult.Val.getInt();
   llvm::APSInt dstSize = dstSizeResult.Val.getInt();
@@ -1501,7 +1502,8 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   case Builtin::BI__builtin___memcpy_chk: {
     // fold __builtin_memcpy_chk(x, y, cst1, cst2) to memcpy iff cst1<=cst2.
     llvm::APSInt size;
-    if (isMemBuiltinOutOfBoundPossible(E, CGM, size))
+    if (isMemBuiltinOutOfBoundPossible(E->getArg(2), E->getArg(3),
+                                       CGM.getASTContext(), size))
       break;
     Address dest = emitPointerWithAlignment(E->getArg(0));
     Address src = emitPointerWithAlignment(E->getArg(1));
@@ -1517,7 +1519,8 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   case Builtin::BI__builtin___memmove_chk: {
     // fold __builtin_memcpy_chk(x, y, cst1, cst2) to memcpy iff cst1<=cst2.
     llvm::APSInt size;
-    if (isMemBuiltinOutOfBoundPossible(E, CGM, size))
+    if (isMemBuiltinOutOfBoundPossible(E->getArg(2), E->getArg(3),
+                                       CGM.getASTContext(), size))
       break;
     Address Dest = emitPointerWithAlignment(E->getArg(0));
     Address Src = emitPointerWithAlignment(E->getArg(1));
@@ -1556,7 +1559,8 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   case Builtin::BI__builtin___memset_chk: {
     // fold __builtin_memset_chk(x, y, cst1, cst2) to memset iff cst1<=cst2.
     llvm::APSInt size;
-    if (isMemBuiltinOutOfBoundPossible(E, CGM, size))
+    if (isMemBuiltinOutOfBoundPossible(E->getArg(2), E->getArg(3),
+                                       CGM.getASTContext(), size))
       break;
     Address dest = emitPointerWithAlignment(E->getArg(0));
     mlir::Value byteVal = emitScalarExpr(E->getArg(1));
