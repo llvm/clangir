@@ -3614,12 +3614,15 @@ std::string CIRToLLVMCmpThreeWayOpLowering::getLLVMIntrinsicName(
   return result;
 }
 
-mlir::LogicalResult CIRToLLVMReturnAddrOpLowering::matchAndRewrite(
-    cir::ReturnAddrOp op, OpAdaptor adaptor,
+mlir::LogicalResult CIRToLLVMFuncAddrBuiltinOpLowering::matchAndRewrite(
+    cir::FuncAddrBuiltinOp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
   auto llvmPtrTy = mlir::LLVM::LLVMPointerType::get(rewriter.getContext());
-  replaceOpWithCallLLVMIntrinsicOp(rewriter, op, "llvm.returnaddress",
-                                   llvmPtrTy, adaptor.getOperands());
+  replaceOpWithCallLLVMIntrinsicOp(
+      rewriter, op,
+      op.getKind() == cir::FuncAddrKind::return_address ? "llvm.returnaddress"
+                                                        : "llvm.frameaddress",
+      llvmPtrTy, adaptor.getOperands());
   return mlir::success();
 }
 
@@ -3921,7 +3924,7 @@ void populateCIRToLLVMConversionPatterns(
       CIRToLLVMPtrMaskOpLowering,
       CIRToLLVMPtrStrideOpLowering,
       CIRToLLVMResumeOpLowering,
-      CIRToLLVMReturnAddrOpLowering,
+      CIRToLLVMFuncAddrBuiltinOpLowering,
       CIRToLLVMRotateOpLowering,
       CIRToLLVMSelectOpLowering,
       CIRToLLVMSetBitfieldOpLowering,

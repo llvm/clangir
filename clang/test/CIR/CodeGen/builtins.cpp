@@ -99,8 +99,8 @@ extern "C" void *test_return_address(void) {
   return __builtin_return_address(1);
 
   // CIR-LABEL: test_return_address
-  // [[ARG:%.*]] = cir.const #cir.int<1> : !u32i
-  // {{%.*}} = cir.return_address([[ARG]])
+  // CIR: [[ARG:%.*]] = cir.const #cir.int<1> : !u32i
+  // CIR: {{%.*}} = cir.func_addr_builtin(return_address, [[ARG]])
 
   // LLVM-LABEL: @test_return_address
   // LLVM: {{%.*}} = call ptr @llvm.returnaddress(i32 1)

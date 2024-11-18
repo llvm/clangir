@@ -907,13 +907,13 @@ private:
                                           unsigned resultWidth);
 };
 
-class CIRToLLVMReturnAddrOpLowering
-    : public mlir::OpConversionPattern<cir::ReturnAddrOp> {
+class CIRToLLVMFuncAddrBuiltinOpLowering
+    : public mlir::OpConversionPattern<cir::FuncAddrBuiltinOp> {
 public:
-  using mlir::OpConversionPattern<cir::ReturnAddrOp>::OpConversionPattern;
+  using mlir::OpConversionPattern<cir::FuncAddrBuiltinOp>::OpConversionPattern;
 
   mlir::LogicalResult
-  matchAndRewrite(cir::ReturnAddrOp op, OpAdaptor,
+  matchAndRewrite(cir::FuncAddrBuiltinOp op, OpAdaptor,
                   mlir::ConversionPatternRewriter &) const override;
 };
 
