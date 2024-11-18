@@ -1597,7 +1597,7 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     mlir::Location loc = getLoc(E->getExprLoc());
     mlir::Attribute levelAttr = ConstantEmitter(*this).emitAbstract(
         E->getArg(0), E->getArg(0)->getType());
-    int64_t level = mlir::cast<cir::IntAttr>(levelAttr).getSInt();
+    uint64_t level = mlir::cast<cir::IntAttr>(levelAttr).getUInt();
     return RValue::get(builder.create<cir::FuncAddrBuiltinOp>(
         loc,
         BuiltinID == Builtin::BI__builtin_return_address

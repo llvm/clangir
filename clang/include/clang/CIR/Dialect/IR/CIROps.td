@@ -74,21 +74,23 @@ include "mlir/IR/CommonAttrConstraints.td"
 //
 // If you want fully customized LLVM IR lowering logic, simply exclude the
 // `llvmOp` field from your CIR operation definition.
-class LLVMLoweringInfo { string llvmOp = ""; }
+class LLVMLoweringInfo {
+  string llvmOp = "";
+}
 
-class CIR_Op<string mnemonic, list<Trait> traits = []>
-    : Op<CIR_Dialect, mnemonic, traits>, LLVMLoweringInfo;
+class CIR_Op<string mnemonic, list<Trait> traits = []> :
+    Op<CIR_Dialect, mnemonic, traits>, LLVMLoweringInfo;
 
 //===----------------------------------------------------------------------===//
 // CIR Op Traits
 //===----------------------------------------------------------------------===//
 
-def SameFirstOperandAndResultType
-    : NativeOpTrait<"SameFirstOperandAndResultType">;
-def SameSecondOperandAndResultType
-    : NativeOpTrait<"SameSecondOperandAndResultType">;
-def SameFirstSecondOperandAndResultType
-    : NativeOpTrait<"SameFirstSecondOperandAndResultType">;
+def SameFirstOperandAndResultType :
+  NativeOpTrait<"SameFirstOperandAndResultType">;
+def SameSecondOperandAndResultType :
+  NativeOpTrait<"SameSecondOperandAndResultType">;
+def SameFirstSecondOperandAndResultType :
+  NativeOpTrait<"SameFirstSecondOperandAndResultType">;
 
 //===----------------------------------------------------------------------===//
 // CastOp
@@ -122,23 +124,24 @@ def CK_IntegralComplexCast : I32EnumAttrCase<"int_complex", 23>;
 def CK_IntegralComplexToFloatComplex
     : I32EnumAttrCase<"int_complex_to_float_complex", 24>;
 
-def CastKind
-    : I32EnumAttr<
-          "CastKind", "cast kind",
-          [CK_IntegralToBoolean, CK_ArrayToPointerDecay, CK_IntegralCast,
-           CK_BitCast, CK_FloatingCast, CK_PtrToBoolean, CK_FloatToIntegral,
-           CK_IntegralToPointer, CK_PointerToIntegral, CK_FloatToBoolean,
-           CK_BooleanToIntegral, CK_IntegralToFloat, CK_BooleanToFloat,
-           CK_AddressSpaceConversion, CK_FloatToComplex, CK_IntegralToComplex,
-           CK_FloatComplexToReal, CK_IntegralComplexToReal,
-           CK_FloatComplexToBoolean, CK_IntegralComplexToBoolean,
-           CK_FloatComplexCast, CK_FloatComplexToIntegralComplex,
-           CK_IntegralComplexCast, CK_IntegralComplexToFloatComplex]> {
+def CastKind : I32EnumAttr<
+    "CastKind",
+    "cast kind",
+    [CK_IntegralToBoolean, CK_ArrayToPointerDecay, CK_IntegralCast,
+     CK_BitCast, CK_FloatingCast, CK_PtrToBoolean, CK_FloatToIntegral,
+     CK_IntegralToPointer, CK_PointerToIntegral, CK_FloatToBoolean,
+     CK_BooleanToIntegral, CK_IntegralToFloat, CK_BooleanToFloat,
+     CK_AddressSpaceConversion, CK_FloatToComplex, CK_IntegralToComplex,
+     CK_FloatComplexToReal, CK_IntegralComplexToReal, CK_FloatComplexToBoolean,
+     CK_IntegralComplexToBoolean, CK_FloatComplexCast,
+     CK_FloatComplexToIntegralComplex, CK_IntegralComplexCast,
+     CK_IntegralComplexToFloatComplex]> {
   let cppNamespace = "::cir";
 }
 
-def CastOp
-    : CIR_Op<"cast", [Pure, DeclareOpInterfaceMethods<PromotableOpInterface>]> {
+def CastOp : CIR_Op<"cast",
+             [Pure,
+              DeclareOpInterfaceMethods<PromotableOpInterface>]> {
   // FIXME: not all conversions are free of side effects.
   let summary = "Conversion between values of different types";
   let description = [{
@@ -200,9 +203,8 @@ def CastOp
 def DCK_PtrCast : I32EnumAttrCase<"ptr", 1>;
 def DCK_RefCast : I32EnumAttrCase<"ref", 2>;
 
-def DynamicCastKind
-    : I32EnumAttr<"DynamicCastKind",
-                  "dynamic cast kind", [DCK_PtrCast, DCK_RefCast]> {
+def DynamicCastKind : I32EnumAttr<
+    "DynamicCastKind", "dynamic cast kind", [DCK_PtrCast, DCK_RefCast]> {
   let cppNamespace = "::cir";
 }
 
@@ -242,8 +244,10 @@ def DynamicCastOp : CIR_Op<"dyn_cast"> {
     cast-to-complete operation.
   }];
 
-  let arguments = (ins DynamicCastKind:$kind, StructPtr:$src,
-      OptionalAttr<DynamicCastInfoAttr>:$info, UnitAttr:$relative_layout);
+  let arguments = (ins DynamicCastKind:$kind,
+                       StructPtr:$src,
+                       OptionalAttr<DynamicCastInfoAttr>:$info,
+                       UnitAttr:$relative_layout);
   let results = (outs CIR_PointerType:$result);
 
   let assemblyFormat = [{
@@ -278,9 +282,10 @@ def DynamicCastOp : CIR_Op<"dyn_cast"> {
 def SizeInfoTypeMin : I32EnumAttrCase<"min", 0>;
 def SizeInfoTypeMax : I32EnumAttrCase<"max", 1>;
 
-def SizeInfoType
-    : I32EnumAttr<"SizeInfoType",
-                  "size info type", [SizeInfoTypeMin, SizeInfoTypeMax]> {
+def SizeInfoType : I32EnumAttr<
+    "SizeInfoType",
+    "size info type",
+    [SizeInfoTypeMin, SizeInfoTypeMax]> {
   let cppNamespace = "::cir";
 }
 
@@ -290,7 +295,7 @@ def ObjSizeOp : CIR_Op<"objsize", [Pure]> {
   }];
 
   let arguments = (ins CIR_PointerType:$ptr, SizeInfoType:$kind,
-      UnitAttr:$dynamic);
+                   UnitAttr:$dynamic);
   let results = (outs PrimitiveInt:$result);
 
   let assemblyFormat = [{
@@ -342,7 +347,8 @@ def PtrDiffOp : CIR_Op<"ptr_diff", [Pure, SameTypeOperands]> {
 // PtrStrideOp
 //===----------------------------------------------------------------------===//
 
-def PtrStrideOp : CIR_Op<"ptr_stride", [Pure, SameFirstOperandAndResultType]> {
+def PtrStrideOp : CIR_Op<"ptr_stride",
+                         [Pure, SameFirstOperandAndResultType]> {
   let summary = "Pointer access with stride";
   let description = [{
     Given a base pointer as first operand, provides a new pointer after applying
@@ -377,8 +383,8 @@ def PtrStrideOp : CIR_Op<"ptr_stride", [Pure, SameFirstOperandAndResultType]> {
 // ConstantOp
 //===----------------------------------------------------------------------===//
 
-def ConstantOp
-    : CIR_Op<"const", [ConstantLike, Pure, AllTypesMatch<["value", "res"]>]> {
+def ConstantOp : CIR_Op<"const",
+    [ConstantLike, Pure, AllTypesMatch<["value", "res"]>]> {
   // FIXME: Use SameOperandsAndResultType or similar and prevent eye bleeding
   // type repetition in the assembly form.
 
@@ -426,10 +432,11 @@ def MemOrderRelease : I32EnumAttrCase<"Release", 3, "release">;
 def MemOrderAcqRel : I32EnumAttrCase<"AcquireRelease", 4, "acq_rel">;
 def MemOrderSeqCst : I32EnumAttrCase<"SequentiallyConsistent", 5, "seq_cst">;
 
-def MemOrder
-    : I32EnumAttr<"MemOrder", "Memory order according to C++11 memory model",
-                  [MemOrderRelaxed, MemOrderConsume, MemOrderAcquire,
-                   MemOrderRelease, MemOrderAcqRel, MemOrderSeqCst]> {
+def MemOrder : I32EnumAttr<
+    "MemOrder",
+    "Memory order according to C++11 memory model",
+    [MemOrderRelaxed, MemOrderConsume, MemOrderAcquire,
+     MemOrderRelease, MemOrderAcqRel, MemOrderSeqCst]> {
   let cppNamespace = "::cir";
 }
 
@@ -438,22 +445,21 @@ def MemOrder
 //===----------------------------------------------------------------------===//
 
 class AllocaTypesMatchWith<string summary, string lhsArg, string rhsArg,
-                           string transform,
-                           string comparator = "std::equal_to<>()">
-    : PredOpTrait<summary,
-                  CPred<comparator#"("#!subst("$_self", "$"#lhsArg#".getType()",
-                                              transform)#", $"#rhsArg#")">> {
+                     string transform, string comparator = "std::equal_to<>()">
+  : PredOpTrait<summary, CPred<
+      comparator # "(" #
+      !subst("$_self", "$" # lhsArg # ".getType()", transform) #
+             ", $" # rhsArg # ")">> {
   string lhs = lhsArg;
   string rhs = rhsArg;
   string transformer = transform;
 }
 
-def AllocaOp
-    : CIR_Op<"alloca",
-             [AllocaTypesMatchWith<
-                  "'allocaType' matches pointee type of 'addr'", "addr",
-                  "allocaType", "cast<PointerType>($_self).getPointee()">,
-              DeclareOpInterfaceMethods<PromotableAllocationOpInterface>]> {
+def AllocaOp : CIR_Op<"alloca", [
+  AllocaTypesMatchWith<"'allocaType' matches pointee type of 'addr'",
+                 "addr", "allocaType",
+                 "cast<PointerType>($_self).getPointee()">,
+                 DeclareOpInterfaceMethods<PromotableAllocationOpInterface>]> {
   let summary = "Defines a scope-local variable";
   let description = [{
     The `cir.alloca` operation defines a scope-local variable.
@@ -484,29 +490,37 @@ def AllocaOp
     ```
   }];
 
-  let arguments = (ins Optional<PrimitiveInt>:$dynAllocSize,
-      TypeAttr:$allocaType, StrAttr:$name, UnitAttr:$init, UnitAttr:$constant,
-      ConfinedAttr<OptionalAttr<I64Attr>, [IntMinValue<0>]>:$alignment,
-      OptionalAttr<ArrayAttr>:$annotations,
-      OptionalAttr<ASTVarDeclInterface>:$ast);
+  let arguments = (ins
+    Optional<PrimitiveInt>:$dynAllocSize,
+    TypeAttr:$allocaType,
+    StrAttr:$name,
+    UnitAttr:$init,
+    UnitAttr:$constant,
+    ConfinedAttr<OptionalAttr<I64Attr>, [IntMinValue<0>]>:$alignment,
+    OptionalAttr<ArrayAttr>:$annotations,
+    OptionalAttr<ASTVarDeclInterface>:$ast
+  );
 
-  let results =
-      (outs Res<CIR_PointerType,
-                "", [MemAlloc<AutomaticAllocationScopeResource>]>:$addr);
+  let results = (outs Res<CIR_PointerType, "",
+                      [MemAlloc<AutomaticAllocationScopeResource>]>:$addr);
 
   let skipDefaultBuilders = 1;
-  let builders = [OpBuilder<(ins "mlir::Type":$addr, "mlir::Type":$allocaType,
-                      "llvm::StringRef":$name, "mlir::IntegerAttr":$alignment)>,
+  let builders = [
+    OpBuilder<(ins "mlir::Type":$addr, "mlir::Type":$allocaType,
+                   "llvm::StringRef":$name,
+                   "mlir::IntegerAttr":$alignment)>,
 
-                  OpBuilder<(ins "mlir::Type":$addr, "mlir::Type":$allocaType,
-                                "llvm::StringRef":$name,
-                                "mlir::IntegerAttr":$alignment,
-                                "mlir::Value":$dynAllocSize),
-                            [{
+    OpBuilder<(ins "mlir::Type":$addr,
+                   "mlir::Type":$allocaType,
+                   "llvm::StringRef":$name,
+                   "mlir::IntegerAttr":$alignment,
+                   "mlir::Value":$dynAllocSize),
+    [{
       if (dynAllocSize)
         $_state.addOperands(dynAllocSize);
       build($_builder, $_state, addr, allocaType, name, alignment);
-    }]>];
+    }]>
+  ];
 
   let extraClassDeclaration = [{
     // Whether the alloca input type is a pointer.
@@ -533,12 +547,11 @@ def AllocaOp
 // LoadOp
 //===----------------------------------------------------------------------===//
 
-def LoadOp
-    : CIR_Op<"load", [TypesMatchWith<
-                          "type of 'result' matches pointee type of 'addr'",
-                          "addr", "result",
-                          "cast<PointerType>($_self).getPointee()">,
-                      DeclareOpInterfaceMethods<PromotableMemOpInterface>]> {
+def LoadOp : CIR_Op<"load", [
+  TypesMatchWith<"type of 'result' matches pointee type of 'addr'",
+                 "addr", "result",
+                 "cast<PointerType>($_self).getPointee()">,
+                 DeclareOpInterfaceMethods<PromotableMemOpInterface>]> {
 
   let summary = "Load value from memory adddress";
   let description = [{
@@ -570,7 +583,6 @@ def LoadOp
     ```
   }];
 
-<<<<<<< HEAD
   let arguments = (ins Arg<CIR_PointerType, "the address to load from",
                            [MemRead]>:$addr, UnitAttr:$isDeref,
                        UnitAttr:$is_volatile,
@@ -578,12 +590,6 @@ def LoadOp
                        OptionalAttr<MemOrder>:$mem_order,
                        OptionalAttr<ArrayAttr>:$tbaa
                        );
-=======
-  let arguments =
-      (ins Arg<CIR_PointerType, "the address to load from", [MemRead]>:$addr,
-          UnitAttr:$isDeref, UnitAttr:$is_volatile,
-          OptionalAttr<I64Attr>:$alignment, OptionalAttr<MemOrder>:$mem_order);
->>>>>>> c890ce87bc6d (Refactor ReturnAddrOp into FuncAddrBuiltinOp)
   let results = (outs CIR_AnyType:$result);
 
   let assemblyFormat = [{
@@ -609,12 +615,11 @@ def LoadOp
 // StoreOp
 //===----------------------------------------------------------------------===//
 
-def StoreOp
-    : CIR_Op<"store", [TypesMatchWith<
-                           "type of 'value' matches pointee type of 'addr'",
-                           "addr", "value",
-                           "cast<PointerType>($_self).getPointee()">,
-                       DeclareOpInterfaceMethods<PromotableMemOpInterface>]> {
+def StoreOp : CIR_Op<"store", [
+  TypesMatchWith<"type of 'value' matches pointee type of 'addr'",
+                 "addr", "value",
+                 "cast<PointerType>($_self).getPointee()">,
+                 DeclareOpInterfaceMethods<PromotableMemOpInterface>]> {
 
   let summary = "Store value to memory address";
   let description = [{
@@ -640,23 +645,19 @@ def StoreOp
     ```
   }];
 
-  let builders = [OpBuilder<(ins "mlir::Value":$value, "mlir::Value":$addr), [{
+  let builders = [
+    OpBuilder<(ins "mlir::Value":$value, "mlir::Value":$addr), [{
       $_state.addOperands({value, addr});
-    }]>];
+    }]>
+  ];
 
   let arguments = (ins CIR_AnyType:$value,
-<<<<<<< HEAD
                        Arg<CIR_PointerType, "the address to store the value",
                            [MemWrite]>:$addr,
                        UnitAttr:$is_volatile,
                        OptionalAttr<I64Attr>:$alignment,
                        OptionalAttr<MemOrder>:$mem_order,
                        OptionalAttr<ArrayAttr>:$tbaa);
-=======
-      Arg<CIR_PointerType, "the address to store the value", [MemWrite]>:$addr,
-      UnitAttr:$is_volatile, OptionalAttr<I64Attr>:$alignment,
-      OptionalAttr<MemOrder>:$mem_order);
->>>>>>> c890ce87bc6d (Refactor ReturnAddrOp into FuncAddrBuiltinOp)
 
   let assemblyFormat = [{
     (`volatile` $is_volatile^)?
@@ -680,11 +681,10 @@ def StoreOp
 // ReturnOp
 //===----------------------------------------------------------------------===//
 
-def ReturnOp
-    : CIR_Op<
-          "return", [ParentOneOf<["FuncOp", "ScopeOp", "IfOp", "SwitchOp",
-                                  "DoWhileOp", "WhileOp", "ForOp", "CaseOp"]>,
-                     Terminator]> {
+def ReturnOp : CIR_Op<"return", [ParentOneOf<["FuncOp", "ScopeOp", "IfOp",
+                                              "SwitchOp", "DoWhileOp",
+                                              "WhileOp", "ForOp", "CaseOp"]>,
+                                 Terminator]> {
   let summary = "Return from function";
   let description = [{
     The "return" operation represents a return operation within a function.
@@ -708,8 +708,9 @@ def ReturnOp
   let assemblyFormat = "($input^ `:` type($input))? attr-dict ";
 
   // Allow building a ReturnOp with no return operand.
-  let builders = [OpBuilder<(ins),
-                            [{ build($_builder, $_state, std::nullopt); }]>];
+  let builders = [
+    OpBuilder<(ins), [{ build($_builder, $_state, std::nullopt); }]>
+  ];
 
   // Provide extra utility definitions on the c++ operation class definition.
   let extraClassDeclaration = [{
@@ -723,9 +724,9 @@ def ReturnOp
 // IfOp
 //===----------------------------------------------------------------------===//
 
-def IfOp : CIR_Op<"if", [DeclareOpInterfaceMethods<RegionBranchOpInterface>,
-                         RecursivelySpeculatable, AutomaticAllocationScope,
-                         NoRegionArguments]> {
+def IfOp : CIR_Op<"if",
+      [DeclareOpInterfaceMethods<RegionBranchOpInterface>,
+       RecursivelySpeculatable, AutomaticAllocationScope, NoRegionArguments]> {
   let summary = "The if-then-else operation";
   let description = [{
     The `cir.if` operation represents an if-then-else construct for
@@ -765,21 +766,22 @@ def IfOp : CIR_Op<"if", [DeclareOpInterfaceMethods<RegionBranchOpInterface>,
   let hasVerifier = 1;
 
   let skipDefaultBuilders = 1;
-  let builders = [OpBuilder<(ins "mlir::Value":$cond, "bool":$withElseRegion,
+  let builders = [
+    OpBuilder<(ins "mlir::Value":$cond, "bool":$withElseRegion,
       CArg<"llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>",
            "buildTerminatedBody">:$thenBuilder,
       CArg<"llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>",
-           "nullptr">:$elseBuilder)>];
+           "nullptr">:$elseBuilder)>
+  ];
 }
 
 //===----------------------------------------------------------------------===//
 // TernaryOp
 //===----------------------------------------------------------------------===//
 
-def TernaryOp
-    : CIR_Op<"ternary", [DeclareOpInterfaceMethods<RegionBranchOpInterface>,
-                         RecursivelySpeculatable, AutomaticAllocationScope,
-                         NoRegionArguments]> {
+def TernaryOp : CIR_Op<"ternary",
+      [DeclareOpInterfaceMethods<RegionBranchOpInterface>,
+       RecursivelySpeculatable, AutomaticAllocationScope, NoRegionArguments]> {
   let summary = "The `cond ? a : b` C/C++ ternary operation";
   let description = [{
     The `cir.ternary` operation represents C/C++ ternary, much like a `select`
@@ -804,15 +806,16 @@ def TernaryOp
   }];
   let arguments = (ins CIR_BoolType:$cond);
   let regions = (region SizedRegion<1>:$trueRegion,
-      SizedRegion<1>:$falseRegion);
+                        SizedRegion<1>:$falseRegion);
   let results = (outs Optional<CIR_AnyType>:$result);
 
   let skipDefaultBuilders = 1;
-  let builders = [OpBuilder<(ins "mlir::Value":$cond,
-      "llvm::function_ref<void(mlir::OpBuilder &, "
-      "mlir::Location)>":$trueBuilder,
-      "llvm::function_ref<void(mlir::OpBuilder &, "
-      "mlir::Location)>":$falseBuilder)>];
+  let builders = [
+    OpBuilder<(ins "mlir::Value":$cond,
+      "llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>":$trueBuilder,
+      "llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>":$falseBuilder)
+      >
+  ];
 
   // All constraints already verified elsewhere.
   let hasVerifier = 0;
@@ -829,9 +832,8 @@ def TernaryOp
 // SelectOp
 //===----------------------------------------------------------------------===//
 
-def SelectOp
-    : CIR_Op<"select", [Pure, AllTypesMatch<["true_value", "false_value",
-                                             "result"]>]> {
+def SelectOp : CIR_Op<"select", [Pure,
+    AllTypesMatch<["true_value", "false_value", "result"]>]> {
   let summary = "Yield one of two values based on a boolean value";
   let description = [{
     The `cir.select` operation takes three operands. The first operand
@@ -851,7 +853,7 @@ def SelectOp
   }];
 
   let arguments = (ins CIR_BoolType:$condition, CIR_AnyType:$true_value,
-      CIR_AnyType:$false_value);
+                       CIR_AnyType:$false_value);
   let results = (outs CIR_AnyType:$result);
 
   let assemblyFormat = [{
@@ -870,10 +872,11 @@ def SelectOp
 // ConditionOp
 //===----------------------------------------------------------------------===//
 
-def ConditionOp
-    : CIR_Op<"condition", [Terminator, DeclareOpInterfaceMethods<
-                                           RegionBranchTerminatorOpInterface,
-                                           ["getSuccessorRegions"]>]> {
+def ConditionOp : CIR_Op<"condition", [
+  Terminator,
+  DeclareOpInterfaceMethods<RegionBranchTerminatorOpInterface,
+                            ["getSuccessorRegions"]>
+]> {
   let summary = "Loop continuation condition.";
   let description = [{
     The `cir.condition` terminates conditional regions. It takes a single
@@ -914,12 +917,10 @@ def ConditionOp
 // YieldOp
 //===----------------------------------------------------------------------===//
 
-def YieldOp
-    : CIR_Op<"yield", [ReturnLike, Terminator,
-                       ParentOneOf<["IfOp", "ScopeOp", "SwitchOp", "WhileOp",
-                                    "ForOp", "AwaitOp", "TernaryOp", "GlobalOp",
-                                    "DoWhileOp", "TryOp", "ArrayCtor",
-                                    "ArrayDtor", "CallOp", "CaseOp"]>]> {
+def YieldOp : CIR_Op<"yield", [ReturnLike, Terminator,
+    ParentOneOf<["IfOp", "ScopeOp", "SwitchOp", "WhileOp", "ForOp", "AwaitOp",
+                 "TernaryOp", "GlobalOp", "DoWhileOp", "TryOp", "ArrayCtor",
+                 "ArrayDtor", "CallOp", "CaseOp"]>]> {
   let summary = "Represents the default branching behaviour of a region";
   let description = [{
     The `cir.yield` operation terminates regions on different CIR operations,
@@ -970,7 +971,9 @@ def YieldOp
 
   let arguments = (ins Variadic<CIR_AnyType>:$args);
   let assemblyFormat = "($args^ `:` type($args))? attr-dict";
-  let builders = [OpBuilder<(ins), [{ /* nothing to do */ }]>, ];
+  let builders = [
+    OpBuilder<(ins), [{ /* nothing to do */ }]>,
+  ];
 }
 
 //===----------------------------------------------------------------------===//
@@ -1006,8 +1009,8 @@ def ContinueOp : CIR_Op<"continue", [Terminator]> {
 // Resume
 //===----------------------------------------------------------------------===//
 
-def ResumeOp
-    : CIR_Op<"resume", [ReturnLike, Terminator, AttrSizedOperandSegments]> {
+def ResumeOp : CIR_Op<"resume", [ReturnLike, Terminator,
+                                 AttrSizedOperandSegments]> {
   let summary = "Resumes execution after not catching exceptions";
   let description = [{
     The `cir.resume` operation handles an uncaught exception scenario and
@@ -1024,7 +1027,8 @@ def ResumeOp
   }];
 
   let arguments = (ins Optional<VoidPtr>:$exception_ptr,
-      Optional<UInt32>:$type_id, UnitAttr:$rethrow);
+                       Optional<UInt32>:$type_id,
+                       UnitAttr:$rethrow);
   let assemblyFormat = [{
     ($rethrow^)?
     ($exception_ptr^)?
@@ -1037,10 +1041,10 @@ def ResumeOp
 // ScopeOp
 //===----------------------------------------------------------------------===//
 
-def ScopeOp
-    : CIR_Op<"scope", [DeclareOpInterfaceMethods<RegionBranchOpInterface>,
-                       RecursivelySpeculatable, AutomaticAllocationScope,
-                       NoRegionArguments]> {
+def ScopeOp : CIR_Op<"scope", [
+       DeclareOpInterfaceMethods<RegionBranchOpInterface>,
+       RecursivelySpeculatable, AutomaticAllocationScope,
+       NoRegionArguments]> {
   let summary = "Represents a C/C++ scope";
   let description = [{
     `cir.scope` contains one region and defines a strict "scope" for all new
@@ -1083,29 +1087,33 @@ def ScopeOp
     }];
 
   let builders = [
-      // Scopes for yielding values.
-      OpBuilder<(ins "llvm::function_ref<void(mlir::OpBuilder &, mlir::Type &, "
-                     "mlir::Location)>":$scopeBuilder)>,
-      // Scopes without yielding values.
-      OpBuilder<(ins "llvm::function_ref<void(mlir::OpBuilder &, "
-                     "mlir::Location)>":$scopeBuilder)>];
+    // Scopes for yielding values.
+    OpBuilder<(ins
+              "llvm::function_ref<void(mlir::OpBuilder &, mlir::Type &, mlir::Location)>":$scopeBuilder)>,
+    // Scopes without yielding values.
+    OpBuilder<(ins "llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>":$scopeBuilder)>
+  ];
 }
 
 //===----------------------------------------------------------------------===//
 // UnaryOp
 //===----------------------------------------------------------------------===//
 
-def UnaryOpKind_Inc : I32EnumAttrCase<"Inc", 1, "inc">;
-def UnaryOpKind_Dec : I32EnumAttrCase<"Dec", 2, "dec">;
-def UnaryOpKind_Plus : I32EnumAttrCase<"Plus", 3, "plus">;
+def UnaryOpKind_Inc   : I32EnumAttrCase<"Inc",   1, "inc">;
+def UnaryOpKind_Dec   : I32EnumAttrCase<"Dec",   2, "dec">;
+def UnaryOpKind_Plus  : I32EnumAttrCase<"Plus",  3, "plus">;
 def UnaryOpKind_Minus : I32EnumAttrCase<"Minus", 4, "minus">;
-def UnaryOpKind_Not : I32EnumAttrCase<"Not", 5, "not">;
+def UnaryOpKind_Not   : I32EnumAttrCase<"Not",   5, "not">;
 
-def UnaryOpKind
-    : I32EnumAttr<"UnaryOpKind", "unary operation kind",
-                  [UnaryOpKind_Inc, UnaryOpKind_Dec, UnaryOpKind_Plus,
-                   UnaryOpKind_Minus, UnaryOpKind_Not,
-]> {
+def UnaryOpKind : I32EnumAttr<
+    "UnaryOpKind",
+    "unary operation kind",
+    [UnaryOpKind_Inc,
+     UnaryOpKind_Dec,
+     UnaryOpKind_Plus,
+     UnaryOpKind_Minus,
+     UnaryOpKind_Not,
+     ]> {
   let cppNamespace = "::cir";
 }
 
@@ -1126,8 +1134,7 @@ def UnaryOp : CIR_Op<"unary", [Pure, SameOperandsAndResultType]> {
   }];
 
   let results = (outs CIR_AnyType:$result);
-  let arguments = (ins Arg<UnaryOpKind, "unary op kind">:$kind,
-      Arg<CIR_AnyType>:$input);
+  let arguments = (ins Arg<UnaryOpKind, "unary op kind">:$kind, Arg<CIR_AnyType>:$input);
 
   let assemblyFormat = [{
       `(` $kind `,` $input `)` `:` type($input) `,` type($result) attr-dict
@@ -1149,18 +1156,21 @@ def BinOpKind_Add : I32EnumAttrCase<"Add", 4, "add">;
 def BinOpKind_Sub : I32EnumAttrCase<"Sub", 5, "sub">;
 def BinOpKind_And : I32EnumAttrCase<"And", 8, "and">;
 def BinOpKind_Xor : I32EnumAttrCase<"Xor", 9, "xor">;
-def BinOpKind_Or : I32EnumAttrCase<"Or", 10, "or">;
+def BinOpKind_Or  : I32EnumAttrCase<"Or", 10, "or">;
 
-def BinOpKind
-    : I32EnumAttr<"BinOpKind", "binary operation (arith and logic) kind",
-                  [BinOpKind_Mul, BinOpKind_Div, BinOpKind_Rem, BinOpKind_Add,
-                   BinOpKind_Sub, BinOpKind_And, BinOpKind_Xor, BinOpKind_Or]> {
+def BinOpKind : I32EnumAttr<
+    "BinOpKind",
+    "binary operation (arith and logic) kind",
+    [BinOpKind_Mul, BinOpKind_Div, BinOpKind_Rem,
+     BinOpKind_Add, BinOpKind_Sub,
+     BinOpKind_And, BinOpKind_Xor,
+     BinOpKind_Or]> {
   let cppNamespace = "::cir";
 }
 
 // FIXME: Pure won't work when we add overloading.
-def BinOp
-    : CIR_Op<"binop", [Pure, SameTypeOperands, SameOperandsAndResultType]> {
+def BinOp : CIR_Op<"binop", [Pure,
+  SameTypeOperands, SameOperandsAndResultType]> {
 
   let summary = "Binary operations (arith and logic)";
   let description = [{
@@ -1179,8 +1189,10 @@ def BinOp
 
   // TODO: get more accurate than CIR_AnyType
   let results = (outs CIR_AnyType:$result);
-  let arguments = (ins Arg<BinOpKind, "binop kind">:$kind, CIR_AnyType:$lhs,
-      CIR_AnyType:$rhs, UnitAttr:$no_unsigned_wrap, UnitAttr:$no_signed_wrap);
+  let arguments = (ins Arg<BinOpKind, "binop kind">:$kind,
+                       CIR_AnyType:$lhs, CIR_AnyType:$rhs,
+                       UnitAttr:$no_unsigned_wrap,
+                       UnitAttr:$no_signed_wrap);
 
   let assemblyFormat = [{
     `(` $kind `,` $lhs `,` $rhs  `)`
@@ -1213,8 +1225,8 @@ def ShiftOp : CIR_Op<"shift", [Pure]> {
   }];
 
   let results = (outs CIR_AnyIntOrVecOfInt:$result);
-  let arguments = (ins CIR_AnyIntOrVecOfInt:$value,
-      CIR_AnyIntOrVecOfInt:$amount, UnitAttr:$isShiftleft);
+  let arguments = (ins CIR_AnyIntOrVecOfInt:$value, CIR_AnyIntOrVecOfInt:$amount,
+                       UnitAttr:$isShiftleft);
 
   let assemblyFormat = [{
     `(`
@@ -1238,9 +1250,11 @@ def CmpOpKind_GE : I32EnumAttrCase<"ge", 4>;
 def CmpOpKind_EQ : I32EnumAttrCase<"eq", 5>;
 def CmpOpKind_NE : I32EnumAttrCase<"ne", 6>;
 
-def CmpOpKind : I32EnumAttr<"CmpOpKind", "compare operation kind",
-                            [CmpOpKind_LT, CmpOpKind_LE, CmpOpKind_GT,
-                             CmpOpKind_GE, CmpOpKind_EQ, CmpOpKind_NE]> {
+def CmpOpKind : I32EnumAttr<
+    "CmpOpKind",
+    "compare operation kind",
+    [CmpOpKind_LT, CmpOpKind_LE, CmpOpKind_GT,
+     CmpOpKind_GE, CmpOpKind_EQ, CmpOpKind_NE]> {
   let cppNamespace = "::cir";
 }
 
@@ -1258,16 +1272,9 @@ def CmpOp : CIR_Op<"cmp", [Pure, SameTypeOperands]> {
     ```
   }];
 
-<<<<<<< HEAD
   let results = (outs CIR_BoolType:$result);
   let arguments = (ins Arg<CmpOpKind, "cmp kind">:$kind,
                        CIR_AnyType:$lhs, CIR_AnyType:$rhs);
-=======
-  // TODO: get more accurate than CIR_AnyType
-  let results = (outs CIR_AnyType:$result);
-  let arguments = (ins Arg<CmpOpKind, "cmp kind">:$kind, CIR_AnyType:$lhs,
-      CIR_AnyType:$rhs);
->>>>>>> c890ce87bc6d (Refactor ReturnAddrOp into FuncAddrBuiltinOp)
 
   let assemblyFormat = [{
     `(` $kind `,` $lhs `,` $rhs  `)` `:` type($lhs) `,` type($result) attr-dict
@@ -1281,10 +1288,10 @@ def CmpOp : CIR_Op<"cmp", [Pure, SameTypeOperands]> {
 // BinOpOverflowOp
 //===----------------------------------------------------------------------===//
 
-def BinOpOverflowKind
-    : I32EnumAttr<"BinOpOverflowKind",
-                  "checked binary arithmetic operation kind",
-                  [BinOpKind_Add, BinOpKind_Sub, BinOpKind_Mul]> {
+def BinOpOverflowKind : I32EnumAttr<
+    "BinOpOverflowKind",
+    "checked binary arithmetic operation kind",
+    [BinOpKind_Add, BinOpKind_Sub, BinOpKind_Mul]> {
   let cppNamespace = "::cir";
 }
 
@@ -1315,7 +1322,7 @@ def BinOpOverflowOp : CIR_Op<"binop.overflow", [Pure, SameTypeOperands]> {
   }];
 
   let arguments = (ins Arg<BinOpOverflowKind, "arithmetic kind">:$kind,
-      CIR_IntType:$lhs, CIR_IntType:$rhs);
+                       CIR_IntType:$lhs, CIR_IntType:$rhs);
   let results = (outs CIR_IntType:$result, CIR_BoolType:$overflow);
 
   let assemblyFormat = [{
@@ -1324,13 +1331,15 @@ def BinOpOverflowOp : CIR_Op<"binop.overflow", [Pure, SameTypeOperands]> {
     attr-dict
   }];
 
-  let builders = [OpBuilder<(ins "cir::IntType":$resultTy,
-                                "cir::BinOpOverflowKind":$kind,
-                                "mlir::Value":$lhs, "mlir::Value":$rhs),
-                            [{
+  let builders = [
+    OpBuilder<(ins "cir::IntType":$resultTy,
+                   "cir::BinOpOverflowKind":$kind,
+                   "mlir::Value":$lhs,
+                   "mlir::Value":$rhs), [{
       auto overflowTy = cir::BoolType::get($_builder.getContext());
       build($_builder, $_state, resultTy, overflowTy, kind, lhs, rhs);
-    }]>];
+    }]>
+  ];
 }
 
 //===----------------------------------------------------------------------===//
@@ -1476,9 +1485,10 @@ def ComplexImagPtrOp : CIR_Op<"complex.imag_ptr", [Pure]> {
 // ComplexBinOp
 //===----------------------------------------------------------------------===//
 
-def ComplexBinOpKind
-    : I32EnumAttr<"ComplexBinOpKind", "complex number binary operation kind",
-                  [BinOpKind_Mul, BinOpKind_Div]> {
+def ComplexBinOpKind : I32EnumAttr<
+    "ComplexBinOpKind",
+    "complex number binary operation kind",
+    [BinOpKind_Mul, BinOpKind_Div]> {
   let cppNamespace = "::cir";
 }
 
@@ -1488,17 +1498,17 @@ def ComplexRangeKind_Promoted : I32EnumAttrCase<"Promoted", 3, "promoted">;
 def ComplexRangeKind_Basic : I32EnumAttrCase<"Basic", 4, "basic">;
 def ComplexRangeKind_None : I32EnumAttrCase<"None", 5, "none">;
 
-def ComplexRangeKind
-    : I32EnumAttr<"ComplexRangeKind",
-                  "complex multiplication and division implementation",
-                  [ComplexRangeKind_Full, ComplexRangeKind_Improved,
-                   ComplexRangeKind_Promoted, ComplexRangeKind_Basic,
-                   ComplexRangeKind_None]> {
+def ComplexRangeKind : I32EnumAttr<
+    "ComplexRangeKind",
+    "complex multiplication and division implementation",
+    [ComplexRangeKind_Full, ComplexRangeKind_Improved,
+     ComplexRangeKind_Promoted, ComplexRangeKind_Basic,
+     ComplexRangeKind_None]> {
   let cppNamespace = "::cir";
 }
 
-def ComplexBinOp : CIR_Op<"complex.binop", [Pure, SameTypeOperands,
-                                            SameOperandsAndResultType]> {
+def ComplexBinOp : CIR_Op<"complex.binop",
+    [Pure, SameTypeOperands, SameOperandsAndResultType]> {
   let summary = "Binary operations on operands of complex type";
   let description = [{
     The `cir.complex.binop` operation represents a binary operation on operands
@@ -1523,8 +1533,9 @@ def ComplexBinOp : CIR_Op<"complex.binop", [Pure, SameTypeOperands,
 
   let results = (outs CIR_ComplexType:$result);
   let arguments = (ins Arg<ComplexBinOpKind, "operation kind">:$kind,
-      CIR_ComplexType:$lhs, CIR_ComplexType:$rhs,
-      Arg<ComplexRangeKind, "complex range kind">:$range, UnitAttr:$promoted);
+                       CIR_ComplexType:$lhs, CIR_ComplexType:$rhs,
+                       Arg<ComplexRangeKind, "complex range kind">:$range,
+                       UnitAttr:$promoted);
 
   let assemblyFormat = [{
     $kind $lhs `,` $rhs `range` `(` $range `)` (`promoted` $promoted^)?
@@ -1752,7 +1763,8 @@ def RotateOp : CIR_Op<"rotate", [Pure, SameOperandsAndResultType]> {
   }];
 
   let results = (outs CIR_IntType:$result);
-  let arguments = (ins PrimitiveInt:$src, PrimitiveInt:$amt, UnitAttr:$left);
+  let arguments = (ins PrimitiveInt:$src, PrimitiveInt:$amt,
+                       UnitAttr:$left);
 
   let assemblyFormat = [{
     (`left` $left^) : (`right`)?
@@ -1799,7 +1811,7 @@ def CmpThreeWayOp : CIR_Op<"cmp3way", [Pure, SameTypeOperands]> {
 
   let results = (outs PrimitiveSInt:$result);
   let arguments = (ins CIR_AnyType:$lhs, CIR_AnyType:$rhs,
-      CmpThreeWayInfoAttr:$info);
+                       CmpThreeWayInfoAttr:$info);
 
   let assemblyFormat = [{
     `(` $lhs `:` type($lhs) `,` $rhs `,` qualified($info) `)`
@@ -1830,15 +1842,16 @@ def CaseOpKind_EQ : I32EnumAttrCase<"Equal", 2, "equal">;
 def CaseOpKind_AO : I32EnumAttrCase<"Anyof", 3, "anyof">;
 def CaseOpKind_RG : I32EnumAttrCase<"Range", 4, "range">;
 
-def CaseOpKind : I32EnumAttr<"CaseOpKind", "case kind",
-                             [CaseOpKind_DT, CaseOpKind_EQ, CaseOpKind_AO,
-                              CaseOpKind_RG]> {
+def CaseOpKind : I32EnumAttr<
+    "CaseOpKind",
+    "case kind",
+    [CaseOpKind_DT, CaseOpKind_EQ, CaseOpKind_AO, CaseOpKind_RG]> {
   let cppNamespace = "::cir";
 }
 
-def CaseOp
-    : CIR_Op<"case", [DeclareOpInterfaceMethods<RegionBranchOpInterface>,
-                      RecursivelySpeculatable, AutomaticAllocationScope]> {
+def CaseOp : CIR_Op<"case", [
+       DeclareOpInterfaceMethods<RegionBranchOpInterface>,
+       RecursivelySpeculatable, AutomaticAllocationScope]> {
   let summary = "Case operation";
   let description = [{
     The `cir.case` operation represents a case within a C/C++ switch.
@@ -1863,15 +1876,17 @@ def CaseOp
   let hasVerifier = 1;
 
   let skipDefaultBuilders = 1;
-  let builders = [OpBuilder<(ins "mlir::ArrayAttr":$value, "CaseOpKind":$kind,
-      "mlir::OpBuilder::InsertPoint &":$insertPoint)>];
+  let builders = [
+    OpBuilder<(ins "mlir::ArrayAttr":$value,
+                   "CaseOpKind":$kind,
+                   "mlir::OpBuilder::InsertPoint &":$insertPoint)>
+  ];
 }
 
-def SwitchOp
-    : CIR_Op<"switch", [SameVariadicOperandSize,
-                        DeclareOpInterfaceMethods<RegionBranchOpInterface>,
-                        RecursivelySpeculatable, AutomaticAllocationScope,
-                        NoRegionArguments]> {
+def SwitchOp : CIR_Op<"switch",
+      [SameVariadicOperandSize,
+       DeclareOpInterfaceMethods<RegionBranchOpInterface>,
+       RecursivelySpeculatable, AutomaticAllocationScope, NoRegionArguments]> {
   let summary = "Switch operation";
   let description = [{
     The `cir.switch` operation represents C/C++ switch functionality for
@@ -2012,9 +2027,10 @@ def SwitchOp
   let hasVerifier = 1;
 
   let skipDefaultBuilders = 1;
-  let builders = [OpBuilder<(ins "mlir::Value":$condition,
-      "llvm::function_ref<void(mlir::OpBuilder &, mlir::Location, "
-      "mlir::OperationState &)>":$switchBuilder)>];
+  let builders = [
+    OpBuilder<(ins "mlir::Value":$condition,
+               "llvm::function_ref<void(mlir::OpBuilder &, mlir::Location, mlir::OperationState &)>":$switchBuilder)>
+  ];
 
   let assemblyFormat = [{
     custom<SwitchOp>(
@@ -2037,9 +2053,9 @@ def SwitchOp
 // BrOp
 //===----------------------------------------------------------------------===//
 
-def BrOp : CIR_Op<"br", [DeclareOpInterfaceMethods<
-                             BranchOpInterface, ["getSuccessorForOperands"]>,
-                         Pure, Terminator]> {
+def BrOp : CIR_Op<"br",
+      [DeclareOpInterfaceMethods<BranchOpInterface, ["getSuccessorForOperands"]>,
+     Pure, Terminator]> {
   let summary = "Unconditional branch";
   let description = [{
     The `cir.br` branches unconditionally to a block. Used to represent C/C++
@@ -2058,12 +2074,13 @@ def BrOp : CIR_Op<"br", [DeclareOpInterfaceMethods<
     ```
   }];
 
-  let builders = [OpBuilder<(ins "mlir::Block *":$dest,
-                                CArg<"mlir::ValueRange", "{}">:$destOperands),
-                            [{
+  let builders = [
+    OpBuilder<(ins "mlir::Block *":$dest,
+              CArg<"mlir::ValueRange", "{}">:$destOperands), [{
       $_state.addSuccessors(dest);
       $_state.addOperands(destOperands);
-    }]>];
+    }]>
+  ];
 
   let arguments = (ins Variadic<CIR_AnyType>:$destOperands);
   let successors = (successor AnySuccessor:$dest);
@@ -2076,10 +2093,9 @@ def BrOp : CIR_Op<"br", [DeclareOpInterfaceMethods<
 // BrCondOp
 //===----------------------------------------------------------------------===//
 
-def BrCondOp
-    : CIR_Op<"brcond", [DeclareOpInterfaceMethods<
-                            BranchOpInterface, ["getSuccessorForOperands"]>,
-                        Pure, Terminator, AttrSizedOperandSegments]> {
+def BrCondOp : CIR_Op<"brcond",
+      [DeclareOpInterfaceMethods<BranchOpInterface, ["getSuccessorForOperands"]>,
+       Pure, Terminator, AttrSizedOperandSegments]> {
   let summary = "Conditional branch";
   let description = [{
     The `cir.brcond %cond, ^bb0, ^bb1` branches to 'bb0' block in case
@@ -2098,19 +2114,18 @@ def BrCondOp
     ```
   }];
 
-  let builders = [OpBuilder<
-      (ins "mlir::Value":$cond, "mlir::Block *":$destTrue,
-          "mlir::Block *":$destFalse,
-          CArg<"mlir::ValueRange", "{}">:$destOperandsTrue,
-          CArg<"mlir::ValueRange", "{}">:$destOperandsFalse),
-      [{
+  let builders = [
+    OpBuilder<(ins "mlir::Value":$cond, "mlir::Block *":$destTrue, "mlir::Block *":$destFalse,
+               CArg<"mlir::ValueRange", "{}">:$destOperandsTrue,
+               CArg<"mlir::ValueRange", "{}">:$destOperandsFalse), [{
       build($_builder, $_state, cond, destOperandsTrue,
             destOperandsFalse, destTrue, destFalse);
-    }]>];
+    }]>
+  ];
 
   let arguments = (ins CIR_BoolType:$cond,
-      Variadic<CIR_AnyType>:$destOperandsTrue,
-      Variadic<CIR_AnyType>:$destOperandsFalse);
+                       Variadic<CIR_AnyType>:$destOperandsTrue,
+                       Variadic<CIR_AnyType>:$destOperandsFalse);
   let successors = (successor AnySuccessor:$destTrue, AnySuccessor:$destFalse);
   let assemblyFormat = [{
     $cond
@@ -2125,27 +2140,27 @@ def BrCondOp
 // While & DoWhileOp
 //===----------------------------------------------------------------------===//
 
-class WhileOpBase<string mnemonic>
-    : CIR_Op<mnemonic, [LoopOpInterface, NoRegionArguments, ]> {
+class WhileOpBase<string mnemonic> : CIR_Op<mnemonic, [
+  LoopOpInterface,
+  NoRegionArguments,
+]> {
   defvar isWhile = !eq(mnemonic, "while");
-  let summary = "C/C++ "#!if(isWhile, "while", "do-while")#" loop";
-  let builders = [OpBuilder<(ins "llvm::function_ref<void(mlir::OpBuilder &, "
-                                 "mlir::Location)>":$condBuilder,
-                                "llvm::function_ref<void(mlir::OpBuilder &, "
-                                "mlir::Location)>":$bodyBuilder),
-                            [{
+  let summary = "C/C++ " # !if(isWhile, "while", "do-while") # " loop";
+  let builders = [
+    OpBuilder<(ins "llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>":$condBuilder,
+                   "llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>":$bodyBuilder), [{
         mlir::OpBuilder::InsertionGuard guard($_builder);
         $_builder.createBlock($_state.addRegion());
-      }]#!if(isWhile, [{
+      }] # !if(isWhile, [{
         condBuilder($_builder, $_state.location);
         $_builder.createBlock($_state.addRegion());
         bodyBuilder($_builder, $_state.location);
-      }],
-             [{
+      }], [{
         bodyBuilder($_builder, $_state.location);
         $_builder.createBlock($_state.addRegion());
         condBuilder($_builder, $_state.location);
-      }])>];
+      }])>
+  ];
 }
 
 def WhileOp : WhileOpBase<"while"> {
@@ -2228,8 +2243,9 @@ def ForOp : CIR_Op<"for", [LoopOpInterface, NoRegionArguments]> {
     ```
   }];
 
-  let regions = (region SizedRegion<1>:$cond, MinSizedRegion<1>:$body,
-      SizedRegion<1>:$step);
+  let regions = (region SizedRegion<1>:$cond,
+                        MinSizedRegion<1>:$body,
+                        SizedRegion<1>:$step);
   let assemblyFormat = [{
     `:` `cond` $cond
     `body` $body
@@ -2237,13 +2253,10 @@ def ForOp : CIR_Op<"for", [LoopOpInterface, NoRegionArguments]> {
     attr-dict
   }];
 
-  let builders = [OpBuilder<(ins "llvm::function_ref<void(mlir::OpBuilder &, "
-                                 "mlir::Location)>":$condBuilder,
-                                "llvm::function_ref<void(mlir::OpBuilder &, "
-                                "mlir::Location)>":$bodyBuilder,
-                                "llvm::function_ref<void(mlir::OpBuilder &, "
-                                "mlir::Location)>":$stepBuilder),
-                            [{
+  let builders = [
+    OpBuilder<(ins "llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>":$condBuilder,
+                   "llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>":$bodyBuilder,
+                   "llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>":$stepBuilder), [{
         mlir::OpBuilder::InsertionGuard guard($_builder);
 
         // Build condition region.
@@ -2257,7 +2270,8 @@ def ForOp : CIR_Op<"for", [LoopOpInterface, NoRegionArguments]> {
         // Build step region.
         $_builder.createBlock($_state.addRegion());
         stepBuilder($_builder, $_state.location);
-      }]>];
+      }]>
+  ];
 
   let extraClassDeclaration = [{
     mlir::Region *maybeGetStep() { return &getStep(); }
@@ -2276,43 +2290,51 @@ def ForOp : CIR_Op<"for", [LoopOpInterface, NoRegionArguments]> {
 // lowering, specially useful for C++ support.
 
 // Externally visible function
-def Global_ExternalLinkage : I32EnumAttrCase<"ExternalLinkage", 0, "external">;
+def Global_ExternalLinkage :
+  I32EnumAttrCase<"ExternalLinkage", 0, "external">;
 // Available for inspection, not emission.
-def Global_AvailableExternallyLinkage
-    : I32EnumAttrCase<"AvailableExternallyLinkage", 1, "available_externally">;
+def Global_AvailableExternallyLinkage :
+  I32EnumAttrCase<"AvailableExternallyLinkage", 1, "available_externally">;
 // Keep one copy of function when linking (inline)
-def Global_LinkOnceAnyLinkage
-    : I32EnumAttrCase<"LinkOnceAnyLinkage", 2, "linkonce">;
+def Global_LinkOnceAnyLinkage :
+  I32EnumAttrCase<"LinkOnceAnyLinkage", 2, "linkonce">;
 // Same, but only replaced by something equivalent.
-def Global_LinkOnceODRLinkage
-    : I32EnumAttrCase<"LinkOnceODRLinkage", 3, "linkonce_odr">;
+def Global_LinkOnceODRLinkage :
+  I32EnumAttrCase<"LinkOnceODRLinkage", 3, "linkonce_odr">;
 // Keep one copy of named function when linking (weak)
-def Global_WeakAnyLinkage : I32EnumAttrCase<"WeakAnyLinkage", 4, "weak">;
+def Global_WeakAnyLinkage :
+  I32EnumAttrCase<"WeakAnyLinkage", 4, "weak">;
 // Same, but only replaced by something equivalent.
-def Global_WeakODRLinkage : I32EnumAttrCase<"WeakODRLinkage", 5, "weak_odr">;
+def Global_WeakODRLinkage :
+  I32EnumAttrCase<"WeakODRLinkage", 5, "weak_odr">;
 // TODO: should we add something like appending linkage too?
 // Special purpose, only applies to global arrays
 // def Global_AppendingLinkage :
 //   I32EnumAttrCase<"AppendingLinkage", 6, "appending">;
 // Rename collisions when linking (static functions).
-def Global_InternalLinkage : I32EnumAttrCase<"InternalLinkage", 7, "internal">;
+def Global_InternalLinkage :
+  I32EnumAttrCase<"InternalLinkage", 7, "internal">;
 // Like Internal, but omit from symbol table, prefix it with
 // "cir_" to prevent clash with MLIR's symbol "private".
-def Global_PrivateLinkage : I32EnumAttrCase<"PrivateLinkage", 8, "cir_private">;
+def Global_PrivateLinkage :
+  I32EnumAttrCase<"PrivateLinkage", 8, "cir_private">;
 // ExternalWeak linkage description.
-def Global_ExternalWeakLinkage
-    : I32EnumAttrCase<"ExternalWeakLinkage", 9, "extern_weak">;
+def Global_ExternalWeakLinkage :
+  I32EnumAttrCase<"ExternalWeakLinkage", 9, "extern_weak">;
 // Tentative definitions.
-def Global_CommonLinkage : I32EnumAttrCase<"CommonLinkage", 10, "common">;
+def Global_CommonLinkage :
+  I32EnumAttrCase<"CommonLinkage", 10, "common">;
 
 /// An enumeration for the kinds of linkage for global values.
-def GlobalLinkageKind
-    : I32EnumAttr<"GlobalLinkageKind", "Linkage type/kind",
-                  [Global_ExternalLinkage, Global_AvailableExternallyLinkage,
-                   Global_LinkOnceAnyLinkage, Global_LinkOnceODRLinkage,
-                   Global_WeakAnyLinkage, Global_WeakODRLinkage,
-                   Global_InternalLinkage, Global_PrivateLinkage,
-                   Global_ExternalWeakLinkage, Global_CommonLinkage]> {
+def GlobalLinkageKind : I32EnumAttr<
+    "GlobalLinkageKind",
+    "Linkage type/kind",
+    [Global_ExternalLinkage, Global_AvailableExternallyLinkage,
+     Global_LinkOnceAnyLinkage, Global_LinkOnceODRLinkage,
+     Global_WeakAnyLinkage, Global_WeakODRLinkage,
+     Global_InternalLinkage, Global_PrivateLinkage,
+     Global_ExternalWeakLinkage, Global_CommonLinkage
+     ]> {
   let cppNamespace = "::cir";
 }
 
@@ -2320,28 +2342,34 @@ def SOB_Undefined : I32EnumAttrCase<"undefined", 1>;
 def SOB_Defined : I32EnumAttrCase<"defined", 2>;
 def SOB_Trapping : I32EnumAttrCase<"trapping", 3>;
 
-def SignedOverflowBehaviorEnum
-    : I32EnumAttr<"SignedOverflowBehavior", "the behavior for signed overflow",
-                  [SOB_Undefined, SOB_Defined, SOB_Trapping]> {
+def SignedOverflowBehaviorEnum : I32EnumAttr<
+    "SignedOverflowBehavior",
+    "the behavior for signed overflow",
+    [SOB_Undefined, SOB_Defined, SOB_Trapping]> {
   let cppNamespace = "::cir::sob";
 }
 
 /// Definition of TLS related kinds.
-def TLS_GeneralDynamic : I32EnumAttrCase<"GeneralDynamic", 0, "tls_dyn">;
-def TLS_LocalDynamic : I32EnumAttrCase<"LocalDynamic", 1, "tls_local_dyn">;
-def TLS_InitialExec : I32EnumAttrCase<"InitialExec", 2, "tls_init_exec">;
-def TLS_LocalExec : I32EnumAttrCase<"LocalExec", 3, "tls_local_exec">;
+def TLS_GeneralDynamic :
+  I32EnumAttrCase<"GeneralDynamic", 0, "tls_dyn">;
+def TLS_LocalDynamic :
+  I32EnumAttrCase<"LocalDynamic", 1, "tls_local_dyn">;
+def TLS_InitialExec :
+  I32EnumAttrCase<"InitialExec", 2, "tls_init_exec">;
+def TLS_LocalExec :
+  I32EnumAttrCase<"LocalExec", 3, "tls_local_exec">;
 
-def TLSModel : I32EnumAttr<"TLS_Model", "TLS model",
-                           [TLS_GeneralDynamic, TLS_LocalDynamic,
-                            TLS_InitialExec, TLS_LocalExec]> {
+def TLSModel : I32EnumAttr<
+    "TLS_Model",
+    "TLS model",
+    [TLS_GeneralDynamic, TLS_LocalDynamic, TLS_InitialExec, TLS_LocalExec]> {
   let cppNamespace = "::cir";
 }
 
-def GlobalOp
-    : CIR_Op<"global", [DeclareOpInterfaceMethods<RegionBranchOpInterface>,
-                        DeclareOpInterfaceMethods<CIRGlobalValueInterface>,
-                        NoRegionArguments]> {
+def GlobalOp : CIR_Op<"global",
+                      [DeclareOpInterfaceMethods<RegionBranchOpInterface>,
+                       DeclareOpInterfaceMethods<CIRGlobalValueInterface>,
+                       NoRegionArguments]> {
   let summary = "Declares or defines a global variable";
   let description = [{
     The `cir.global` operation declares or defines a named global variable.
@@ -2374,17 +2402,24 @@ def GlobalOp
   // TODO: sym_visibility can possibly be represented by implementing the
   // necessary Symbol's interface in terms of linkage instead.
   let arguments = (ins SymbolNameAttr:$sym_name,
-      DefaultValuedAttr<VisibilityAttr,
-                        "VisibilityKind::Default">:$global_visibility,
-      OptionalAttr<StrAttr>:$sym_visibility, TypeAttr:$sym_type,
-      Arg<GlobalLinkageKind, "linkage type">:$linkage,
-      OptionalAttr<AddressSpaceAttr>:$addr_space,
-      OptionalAttr<TLSModel>:$tls_model,
-      // Note this can also be a FlatSymbolRefAttr
-      OptionalAttr<AnyAttr>:$initial_value, UnitAttr:$comdat,
-      UnitAttr:$constant, UnitAttr:$dsolocal, OptionalAttr<I64Attr>:$alignment,
-      OptionalAttr<ASTVarDeclInterface>:$ast, OptionalAttr<StrAttr>:$section,
-      OptionalAttr<ArrayAttr>:$annotations);
+                       DefaultValuedAttr<
+                        VisibilityAttr,
+                        "VisibilityKind::Default"
+                       >:$global_visibility,
+                       OptionalAttr<StrAttr>:$sym_visibility,
+                       TypeAttr:$sym_type,
+                       Arg<GlobalLinkageKind, "linkage type">:$linkage,
+                       OptionalAttr<AddressSpaceAttr>:$addr_space,
+                       OptionalAttr<TLSModel>:$tls_model,
+                       // Note this can also be a FlatSymbolRefAttr
+                       OptionalAttr<AnyAttr>:$initial_value,
+                       UnitAttr:$comdat,
+                       UnitAttr:$constant,
+                       UnitAttr:$dsolocal,
+                       OptionalAttr<I64Attr>:$alignment,
+                       OptionalAttr<ASTVarDeclInterface>:$ast,
+                       OptionalAttr<StrAttr>:$section,
+                       OptionalAttr<ArrayAttr>:$annotations);
   let regions = (region AnyRegion:$ctorRegion, AnyRegion:$dtorRegion);
   let assemblyFormat = [{
        ($sym_visibility^)?
@@ -2418,18 +2453,22 @@ def GlobalOp
   }];
 
   let skipDefaultBuilders = 1;
-  let builders = [OpBuilder<(ins
+  let builders = [
+    OpBuilder<(ins
       // MLIR's default visibility is public.
       "llvm::StringRef":$sym_name,
-      "mlir::Type":$sym_type, CArg<"bool", "false">:$isConstant,
+      "mlir::Type":$sym_type,
+      CArg<"bool", "false">:$isConstant,
       // CIR defaults to external linkage.
       CArg<"cir::GlobalLinkageKind",
-           "cir::GlobalLinkageKind::ExternalLinkage">:$linkage,
+            "cir::GlobalLinkageKind::ExternalLinkage">:$linkage,
       CArg<"cir::AddressSpaceAttr", "{}">:$addrSpace,
       CArg<"llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>",
            "nullptr">:$ctorBuilder,
       CArg<"llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>",
-           "nullptr">:$dtorBuilder)>];
+           "nullptr">:$dtorBuilder)
+    >
+  ];
 
   let hasVerifier = 1;
 }
@@ -2438,9 +2477,8 @@ def GlobalOp
 // GetGlobalOp
 //===----------------------------------------------------------------------===//
 
-def GetGlobalOp
-    : CIR_Op<"get_global", [Pure,
-                            DeclareOpInterfaceMethods<SymbolUserOpInterface>]> {
+def GetGlobalOp : CIR_Op<"get_global",
+    [Pure, DeclareOpInterfaceMethods<SymbolUserOpInterface>]> {
   let summary = "Get the address of a global variable";
   let description = [{
     The `cir.get_global` operation retrieves the address pointing to a
@@ -2479,9 +2517,8 @@ def GetGlobalOp
 // VTableAddrPointOp
 //===----------------------------------------------------------------------===//
 
-def VTableAddrPointOp
-    : CIR_Op<"vtable.address_point", [Pure, DeclareOpInterfaceMethods<
-                                                SymbolUserOpInterface>]> {
+def VTableAddrPointOp : CIR_Op<"vtable.address_point",
+    [Pure, DeclareOpInterfaceMethods<SymbolUserOpInterface>]> {
   let summary = "Get the vtable (global variable) address point";
   let description = [{
     The `vtable.address_point` operation retrieves the "effective" address
@@ -2503,8 +2540,9 @@ def VTableAddrPointOp
   }];
 
   let arguments = (ins OptionalAttr<FlatSymbolRefAttr>:$name,
-      Optional<CIR_AnyType>:$sym_addr, I32Attr:$vtable_index,
-      I32Attr:$address_point_index);
+                       Optional<CIR_AnyType>:$sym_addr,
+                       I32Attr:$vtable_index,
+                       I32Attr:$address_point_index);
   let results = (outs Res<CIR_PointerType, "", []>:$addr);
 
   let assemblyFormat = [{
@@ -2525,9 +2563,8 @@ def VTableAddrPointOp
 // VTTAddrPointOp
 //===----------------------------------------------------------------------===//
 
-def VTTAddrPointOp
-    : CIR_Op<"vtt.address_point", [Pure, DeclareOpInterfaceMethods<
-                                             SymbolUserOpInterface>]> {
+def VTTAddrPointOp : CIR_Op<"vtt.address_point",
+    [Pure, DeclareOpInterfaceMethods<SymbolUserOpInterface>]> {
   let summary = "Get the VTT address point";
   let description = [{
     The `vtt.address_point` operation retrieves an element from the VTT,
@@ -2566,7 +2603,8 @@ def VTTAddrPointOp
   }];
 
   let arguments = (ins OptionalAttr<FlatSymbolRefAttr>:$name,
-      Optional<CIR_AnyType>:$sym_addr, I32Attr:$offset);
+                       Optional<CIR_AnyType>:$sym_addr,
+                       I32Attr:$offset);
   let results = (outs Res<CIR_PointerType, "", []>:$addr);
 
   let assemblyFormat = [{
@@ -2628,27 +2666,37 @@ def SetBitfieldOp : CIR_Op<"set_bitfield"> {
     ```
    }];
 
-  let arguments = (ins Arg<CIR_PointerType,
-                           "the address to store the value", [MemWrite]>:$addr,
-      CIR_AnyType:$src, BitfieldInfoAttr:$bitfield_info, UnitAttr:$is_volatile);
+  let arguments = (ins
+    Arg<CIR_PointerType, "the address to store the value", [MemWrite]>:$addr,
+    CIR_AnyType:$src,
+    BitfieldInfoAttr:$bitfield_info,
+    UnitAttr:$is_volatile
+  );
 
   let results = (outs CIR_IntType:$result);
 
-  let assemblyFormat =
-      [{ `(`$bitfield_info`,` $addr`:`qualified(type($addr))`,`
+  let assemblyFormat = [{ `(`$bitfield_info`,` $addr`:`qualified(type($addr))`,`
     $src`:`type($src) `)`  attr-dict `->` type($result) }];
 
-  let builders = [OpBuilder<
-      (ins "mlir::Type":$type, "mlir::Value":$addr, "mlir::Type":$storage_type,
-          "mlir::Value":$src, "llvm::StringRef":$name, "unsigned":$size,
-          "unsigned":$offset, "bool":$is_signed, "bool":$is_volatile),
-      [{
+  let builders = [
+    OpBuilder<(ins "mlir::Type":$type,
+                   "mlir::Value":$addr,
+                   "mlir::Type":$storage_type,
+                   "mlir::Value":$src,
+                   "llvm::StringRef":$name,
+                   "unsigned":$size,
+                   "unsigned":$offset,
+                   "bool":$is_signed,
+                   "bool":$is_volatile
+                   ),
+   [{
       BitfieldInfoAttr info =
         BitfieldInfoAttr::get($_builder.getContext(),
                               name, storage_type,
                               size, offset, is_signed);
       build($_builder, $_state, type, addr, src, info, is_volatile);
-    }]>];
+    }]>
+  ];
 }
 
 //===----------------------------------------------------------------------===//
@@ -2697,26 +2745,35 @@ def GetBitfieldOp : CIR_Op<"get_bitfield"> {
     ```
     }];
 
-  let arguments =
-      (ins Arg<CIR_PointerType, "the address to load from", [MemRead]>:$addr,
-          BitfieldInfoAttr:$bitfield_info, UnitAttr:$is_volatile);
+  let arguments = (ins
+    Arg<CIR_PointerType, "the address to load from", [MemRead]>:$addr,
+    BitfieldInfoAttr:$bitfield_info,
+    UnitAttr:$is_volatile
+    );
 
   let results = (outs CIR_IntType:$result);
 
   let assemblyFormat = [{ `(`$bitfield_info `,` $addr attr-dict `:`
    qualified(type($addr)) `)` `->` type($result) }];
 
-  let builders = [OpBuilder<
-      (ins "mlir::Type":$type, "mlir::Value":$addr, "mlir::Type":$storage_type,
-          "llvm::StringRef":$name, "unsigned":$size, "unsigned":$offset,
-          "bool":$is_signed, "bool":$is_volatile),
-      [{
+  let builders = [
+    OpBuilder<(ins "mlir::Type":$type,
+                   "mlir::Value":$addr,
+                   "mlir::Type":$storage_type,
+                   "llvm::StringRef":$name,
+                   "unsigned":$size,
+                   "unsigned":$offset,
+                   "bool":$is_signed,
+                   "bool":$is_volatile
+                   ),
+   [{
       BitfieldInfoAttr info =
         BitfieldInfoAttr::get($_builder.getContext(),
                               name, storage_type,
                               size, offset, is_signed);
       build($_builder, $_state, type, addr, info, is_volatile);
-    }]>];
+    }]>
+  ];
 }
 
 //===----------------------------------------------------------------------===//
@@ -2744,9 +2801,10 @@ def GetMemberOp : CIR_Op<"get_member"> {
     ```
   }];
 
-  let arguments =
-      (ins Arg<CIR_PointerType, "the address to load from", [MemRead]>:$addr,
-          StrAttr:$name, IndexAttr:$index_attr);
+  let arguments = (ins
+    Arg<CIR_PointerType, "the address to load from", [MemRead]>:$addr,
+    StrAttr:$name,
+    IndexAttr:$index_attr);
 
   let results = (outs Res<CIR_PointerType, "">:$result);
 
@@ -2755,12 +2813,16 @@ def GetMemberOp : CIR_Op<"get_member"> {
     `:` qualified(type($addr)) `->` qualified(type($result))
   }];
 
-  let builders = [OpBuilder<(ins "mlir::Type":$type, "mlir::Value":$value,
-                                "llvm::StringRef":$name, "unsigned":$index),
-                            [{
+  let builders = [
+    OpBuilder<(ins "mlir::Type":$type,
+                   "mlir::Value":$value,
+                   "llvm::StringRef":$name,
+                   "unsigned":$index),
+    [{
       mlir::APInt fieldIdx(64, index);
       build($_builder, $_state, type, value, name, fieldIdx);
-    }]>];
+    }]>
+  ];
 
   let extraClassDeclaration = [{
     /// Return the index of the struct member being accessed.
@@ -2821,9 +2883,9 @@ def GetRuntimeMemberOp : CIR_Op<"get_runtime_member"> {
     to the target member.
   }];
 
-  let arguments =
-      (ins Arg<StructPtr, "address of the struct object", [MemRead]>:$addr,
-          Arg<CIR_DataMemberType, "pointer to the target member">:$member);
+  let arguments = (ins
+    Arg<StructPtr, "address of the struct object", [MemRead]>:$addr,
+    Arg<CIR_DataMemberType, "pointer to the target member">:$member);
 
   let results = (outs Res<CIR_PointerType, "">:$result);
 
@@ -2893,12 +2955,10 @@ def GetMethodOp : CIR_Op<"get_method"> {
 // VecInsertOp
 //===----------------------------------------------------------------------===//
 
-def VecInsertOp
-    : CIR_Op<"vec.insert",
-             [Pure,
-              TypesMatchWith<"argument type matches vector element type", "vec",
-                             "value", "cast<VectorType>($_self).getEltType()">,
-              AllTypesMatch<["result", "vec"]>]> {
+def VecInsertOp : CIR_Op<"vec.insert", [Pure,
+  TypesMatchWith<"argument type matches vector element type", "vec", "value",
+                 "cast<VectorType>($_self).getEltType()">,
+  AllTypesMatch<["result", "vec"]>]> {
 
   let summary = "Insert one element into a vector object";
   let description = [{
@@ -2907,8 +2967,7 @@ def VecInsertOp
     element is returned.
   }];
 
-  let arguments = (ins CIR_VectorType:$vec, AnyType:$value,
-      PrimitiveInt:$index);
+  let arguments = (ins CIR_VectorType:$vec, AnyType:$value, PrimitiveInt:$index);
   let results = (outs CIR_VectorType:$result);
 
   let assemblyFormat = [{
@@ -2925,11 +2984,9 @@ def VecInsertOp
 // VecExtractOp
 //===----------------------------------------------------------------------===//
 
-def VecExtractOp
-    : CIR_Op<"vec.extract",
-             [Pure, TypesMatchWith<
-                        "type of 'result' matches element type of 'vec'", "vec",
-                        "result", "cast<VectorType>($_self).getEltType()">]> {
+def VecExtractOp : CIR_Op<"vec.extract", [Pure,
+  TypesMatchWith<"type of 'result' matches element type of 'vec'", "vec",
+                 "result", "cast<VectorType>($_self).getEltType()">]> {
 
   let summary = "Extract one element from a vector object";
   let description = [{
@@ -2982,12 +3039,9 @@ def VecCreateOp : CIR_Op<"vec.create", [Pure]> {
 // analysis passes can benefit from knowing that all elements of the vector
 // have the same value.
 
-def VecSplatOp
-    : CIR_Op<"vec.splat",
-             [Pure,
-              TypesMatchWith<"type of 'value' matches element type of 'result'",
-                             "result", "value",
-                             "cast<VectorType>($_self).getEltType()">]> {
+def VecSplatOp : CIR_Op<"vec.splat", [Pure,
+  TypesMatchWith<"type of 'value' matches element type of 'result'", "result",
+                 "value", "cast<VectorType>($_self).getEltType()">]> {
 
   let summary = "Convert a scalar into a vector";
   let description = [{
@@ -3019,7 +3073,7 @@ def VecCmpOp : CIR_Op<"vec.cmp", [Pure, SameTypeOperands]> {
   }];
 
   let arguments = (ins Arg<CmpOpKind, "cmp kind">:$kind, CIR_VectorType:$lhs,
-      CIR_VectorType:$rhs);
+                       CIR_VectorType:$rhs);
   let results = (outs CIR_VectorType:$result);
 
   let assemblyFormat = [{
@@ -3034,8 +3088,8 @@ def VecCmpOp : CIR_Op<"vec.cmp", [Pure, SameTypeOperands]> {
 // VecTernary
 //===----------------------------------------------------------------------===//
 
-def VecTernaryOp
-    : CIR_Op<"vec.ternary", [Pure, AllTypesMatch<["result", "vec1", "vec2"]>]> {
+def VecTernaryOp : CIR_Op<"vec.ternary",
+                   [Pure, AllTypesMatch<["result", "vec1", "vec2"]>]> {
   let summary = "The `cond ? a : b` ternary operator for vector types";
   let description = [{
     The `cir.vec.ternary` operation represents the C/C++ ternary operator,
@@ -3052,7 +3106,7 @@ def VecTernaryOp
     Each element of the result is `(bool)a[n] ? b[n] : c[n]`.
   }];
   let arguments = (ins IntegerVector:$cond, CIR_VectorType:$vec1,
-      CIR_VectorType:$vec2);
+		       CIR_VectorType:$vec2);
   let results = (outs CIR_VectorType:$result);
   let assemblyFormat = [{
     `(` $cond `,` $vec1 `,` $vec2 `)` `:` qualified(type($cond)) `,`
@@ -3069,8 +3123,8 @@ def VecTernaryOp
 // implement.  This could be useful for passes that don't care how the vector
 // shuffle was specified.
 
-def VecShuffleOp
-    : CIR_Op<"vec.shuffle", [Pure, AllTypesMatch<["vec1", "vec2"]>]> {
+def VecShuffleOp : CIR_Op<"vec.shuffle",
+                   [Pure, AllTypesMatch<["vec1", "vec2"]>]> {
   let summary = "Combine two vectors using indices passed as constant integers";
   let description = [{
     The `cir.vec.shuffle` operation implements the documented form of Clang's
@@ -3088,7 +3142,7 @@ def VecShuffleOp
     concatenated vector.
   }];
   let arguments = (ins CIR_VectorType:$vec1, CIR_VectorType:$vec2,
-      ArrayAttr:$indices);
+		       ArrayAttr:$indices);
   let results = (outs CIR_VectorType:$result);
   let assemblyFormat = [{
     `(` $vec1 `,` $vec2 `:` qualified(type($vec1)) `)` $indices `:`
@@ -3101,8 +3155,8 @@ def VecShuffleOp
 // VecShuffleDynamic
 //===----------------------------------------------------------------------===//
 
-def VecShuffleDynamicOp
-    : CIR_Op<"vec.shuffle.dynamic", [Pure, AllTypesMatch<["vec", "result"]>]> {
+def VecShuffleDynamicOp : CIR_Op<"vec.shuffle.dynamic",
+                          [Pure, AllTypesMatch<["vec", "result"]>]> {
   let summary = "Shuffle a vector using indices in another vector";
   let description = [{
     The `cir.vec.shuffle.dynamic` operation implements the undocumented form of
@@ -3152,9 +3206,9 @@ def BaseClassAddrOp : CIR_Op<"base_class_addr"> {
     ```
   }];
 
-  let arguments = (ins Arg<CIR_PointerType,
-                           "derived class pointer", [MemRead]>:$derived_addr,
-      IndexAttr:$offset, UnitAttr:$assume_not_null);
+  let arguments = (ins
+    Arg<CIR_PointerType, "derived class pointer", [MemRead]>:$derived_addr,
+    IndexAttr:$offset, UnitAttr:$assume_not_null);
 
   let results = (outs Res<CIR_PointerType, "">:$base_addr);
 
@@ -3206,9 +3260,9 @@ def DerivedClassAddrOp : CIR_Op<"derived_class_addr"> {
     ```
   }];
 
-  let arguments =
-      (ins Arg<CIR_PointerType, "derived class pointer", [MemRead]>:$base_addr,
-          IndexAttr:$offset, UnitAttr:$assume_not_null);
+  let arguments = (ins
+    Arg<CIR_PointerType, "derived class pointer", [MemRead]>:$base_addr,
+    IndexAttr:$offset, UnitAttr:$assume_not_null);
 
   let results = (outs Res<CIR_PointerType, "">:$derived_addr);
 
@@ -3235,17 +3289,18 @@ def CC_C : I32EnumAttrCase<"C", 1, "c">;
 def CC_SpirKernel : I32EnumAttrCase<"SpirKernel", 2, "spir_kernel">;
 def CC_SpirFunction : I32EnumAttrCase<"SpirFunction", 3, "spir_function">;
 
-def CallingConv
-    : I32EnumAttr<
-          "CallingConv",
-          "calling convention", [CC_C, CC_SpirKernel, CC_SpirFunction]> {
+def CallingConv : I32EnumAttr<
+    "CallingConv",
+    "calling convention",
+    [CC_C, CC_SpirKernel, CC_SpirFunction]> {
   let cppNamespace = "::cir";
 }
 
-def FuncOp : CIR_Op<"func", [AutomaticAllocationScope, CallableOpInterface,
-                             FunctionOpInterface,
-                             DeclareOpInterfaceMethods<CIRGlobalValueInterface>,
-                             IsolatedFromAbove]> {
+def FuncOp : CIR_Op<"func", [
+  AutomaticAllocationScope, CallableOpInterface, FunctionOpInterface,
+  DeclareOpInterfaceMethods<CIRGlobalValueInterface>,
+  IsolatedFromAbove
+]> {
   let summary = "Declare or define a function";
   let description = [{
 
@@ -3323,29 +3378,37 @@ def FuncOp : CIR_Op<"func", [AutomaticAllocationScope, CallableOpInterface,
   }];
 
   let arguments = (ins SymbolNameAttr:$sym_name,
-      VisibilityAttr:$global_visibility,
-      TypeAttrOf<CIR_FuncType>:$function_type, UnitAttr:$builtin,
-      UnitAttr:$coroutine, UnitAttr:$lambda, UnitAttr:$no_proto,
-      UnitAttr:$dsolocal,
-      DefaultValuedAttr<GlobalLinkageKind,
-                        "GlobalLinkageKind::ExternalLinkage">:$linkage,
-      DefaultValuedAttr<CallingConv, "CallingConv::C">:$calling_conv,
-      ExtraFuncAttr:$extra_attrs, OptionalAttr<StrAttr>:$sym_visibility,
-      UnitAttr:$comdat, OptionalAttr<DictArrayAttr>:$arg_attrs,
-      OptionalAttr<DictArrayAttr>:$res_attrs,
-      OptionalAttr<FlatSymbolRefAttr>:$aliasee,
-      OptionalAttr<GlobalCtorAttr>:$global_ctor,
-      OptionalAttr<GlobalDtorAttr>:$global_dtor,
-      OptionalAttr<ArrayAttr>:$annotations,
-      OptionalAttr<AnyASTFunctionDeclAttr>:$ast);
+                       VisibilityAttr:$global_visibility,
+                       TypeAttrOf<CIR_FuncType>:$function_type,
+                       UnitAttr:$builtin,
+                       UnitAttr:$coroutine,
+                       UnitAttr:$lambda,
+                       UnitAttr:$no_proto,
+                       UnitAttr:$dsolocal,
+                       DefaultValuedAttr<GlobalLinkageKind,
+                                         "GlobalLinkageKind::ExternalLinkage">:$linkage,
+                       DefaultValuedAttr<CallingConv,
+                                         "CallingConv::C">:$calling_conv,
+                       ExtraFuncAttr:$extra_attrs,
+                       OptionalAttr<StrAttr>:$sym_visibility,
+                       UnitAttr:$comdat,
+                       OptionalAttr<DictArrayAttr>:$arg_attrs,
+                       OptionalAttr<DictArrayAttr>:$res_attrs,
+                       OptionalAttr<FlatSymbolRefAttr>:$aliasee,
+                       OptionalAttr<GlobalCtorAttr>:$global_ctor,
+                       OptionalAttr<GlobalDtorAttr>:$global_dtor,
+                       OptionalAttr<ArrayAttr>:$annotations,
+                       OptionalAttr<AnyASTFunctionDeclAttr>:$ast);
   let regions = (region AnyRegion:$body);
   let skipDefaultBuilders = 1;
 
-  let builders = [OpBuilder<(ins "llvm::StringRef":$name, "FuncType":$type,
-      CArg<"GlobalLinkageKind", "GlobalLinkageKind::ExternalLinkage">:$linkage,
-      CArg<"CallingConv", "CallingConv::C">:$callingConv,
-      CArg<"llvm::ArrayRef<mlir::NamedAttribute>", "{}">:$attrs,
-      CArg<"llvm::ArrayRef<mlir::DictionaryAttr>", "{}">:$argAttrs)>];
+  let builders = [OpBuilder<(ins
+    "llvm::StringRef":$name, "FuncType":$type,
+    CArg<"GlobalLinkageKind", "GlobalLinkageKind::ExternalLinkage">:$linkage,
+    CArg<"CallingConv", "CallingConv::C">:$callingConv,
+    CArg<"llvm::ArrayRef<mlir::NamedAttribute>", "{}">:$attrs,
+    CArg<"llvm::ArrayRef<mlir::DictionaryAttr>", "{}">:$argAttrs)
+  >];
 
   let extraClassDeclaration = [{
     /// Returns the region on the current operation that is callable. This may
@@ -3413,7 +3476,8 @@ def LLVMIntrinsicCallOp : CIR_Op<"llvm.intrinsic"> {
   }];
 
   let results = (outs Optional<CIR_AnyType>:$result);
-  let arguments = (ins StrAttr:$intrinsic_name, Variadic<CIR_AnyType>:$arg_ops);
+  let arguments = (ins
+                   StrAttr:$intrinsic_name, Variadic<CIR_AnyType>:$arg_ops);
 
   let skipDefaultBuilders = 1;
 
@@ -3421,27 +3485,27 @@ def LLVMIntrinsicCallOp : CIR_Op<"llvm.intrinsic"> {
     $intrinsic_name $arg_ops `:` functional-type($arg_ops, $result) attr-dict
   }];
 
-  let builders = [OpBuilder<(ins "mlir::StringAttr":$intrinsic_name,
-                                "mlir::Type":$resType,
-                                CArg<"mlir::ValueRange", "{}">:$operands),
-                            [{
+  let builders = [
+    OpBuilder<(ins "mlir::StringAttr":$intrinsic_name, "mlir::Type":$resType,
+              CArg<"mlir::ValueRange", "{}">:$operands), [{
       $_state.addAttribute("intrinsic_name", intrinsic_name);
       $_state.addOperands(operands);
       if (resType)
         $_state.addTypes(resType);
     }]>,
   ];
+
 }
 
 //===----------------------------------------------------------------------===//
 // CallOp and TryCallOp
 //===----------------------------------------------------------------------===//
 
-class CIR_CallOp<string mnemonic, list<Trait> extra_traits = []>
-    : Op<CIR_Dialect, mnemonic,
-         !listconcat(extra_traits,
-                     [DeclareOpInterfaceMethods<CIRCallOpInterface>,
-                      DeclareOpInterfaceMethods<SymbolUserOpInterface>])> {
+class CIR_CallOp<string mnemonic, list<Trait> extra_traits = []> :
+    Op<CIR_Dialect, mnemonic,
+       !listconcat(extra_traits,
+                   [DeclareOpInterfaceMethods<CIRCallOpInterface>,
+                    DeclareOpInterfaceMethods<SymbolUserOpInterface>])> {
   let extraClassDeclaration = [{
     /// Get the argument operands to the called function.
     mlir::OperandRange getArgOperands() {
@@ -3473,10 +3537,13 @@ class CIR_CallOp<string mnemonic, list<Trait> extra_traits = []>
   let skipDefaultBuilders = 1;
   let hasVerifier = 0;
 
-  dag commonArgs = (ins OptionalAttr<FlatSymbolRefAttr>:$callee,
-      Variadic<CIR_AnyType>:$arg_ops,
-      DefaultValuedAttr<CallingConv, "CallingConv::C">:$calling_conv,
-      ExtraFuncAttr:$extra_attrs, OptionalAttr<ASTCallExprInterface>:$ast);
+  dag commonArgs = (ins
+    OptionalAttr<FlatSymbolRefAttr>:$callee,
+    Variadic<CIR_AnyType>:$arg_ops,
+    DefaultValuedAttr<CallingConv, "CallingConv::C">:$calling_conv,
+    ExtraFuncAttr:$extra_attrs,
+    OptionalAttr<ASTCallExprInterface>:$ast
+  );
 }
 
 def CallOp : CIR_CallOp<"call", [NoRegionArguments]> {
@@ -3515,17 +3582,18 @@ def CallOp : CIR_CallOp<"call", [NoRegionArguments]> {
   }];
 
   let results = (outs Optional<CIR_AnyType>:$result);
-  let arguments = !con((ins UnitAttr:$exception), commonArgs);
+  let arguments = !con((ins
+    UnitAttr:$exception
+  ), commonArgs);
   let regions = (region AnyRegion:$cleanup);
 
   let skipDefaultBuilders = 1;
 
-  let builders =
-      [OpBuilder<(ins "mlir::SymbolRefAttr":$callee, "mlir::Type":$resType,
-                     CArg<"mlir::ValueRange", "{}">:$operands,
-                     CArg<"CallingConv", "CallingConv::C">:$callingConv,
-                     CArg<"mlir::UnitAttr", "{}">:$exception),
-                 [{
+  let builders = [
+    OpBuilder<(ins "mlir::SymbolRefAttr":$callee, "mlir::Type":$resType,
+              CArg<"mlir::ValueRange", "{}">:$operands,
+              CArg<"CallingConv", "CallingConv::C">:$callingConv,
+              CArg<"mlir::UnitAttr", "{}">:$exception), [{
       $_state.addOperands(operands);
       if (callee)
         $_state.addAttribute("callee", callee);
@@ -3538,11 +3606,11 @@ def CallOp : CIR_CallOp<"call", [NoRegionArguments]> {
       // Create region placeholder for potential cleanups.
       $_state.addRegion();
     }]>,
-       OpBuilder<(ins "mlir::Value":$ind_target, "FuncType":$fn_type,
-                     CArg<"mlir::ValueRange", "{}">:$operands,
-                     CArg<"CallingConv", "CallingConv::C">:$callingConv,
-                     CArg<"mlir::UnitAttr", "{}">:$exception),
-                 [{
+    OpBuilder<(ins "mlir::Value":$ind_target,
+               "FuncType":$fn_type,
+               CArg<"mlir::ValueRange", "{}">:$operands,
+               CArg<"CallingConv", "CallingConv::C">:$callingConv,
+               CArg<"mlir::UnitAttr", "{}">:$exception), [{
       $_state.addOperands(ValueRange{ind_target});
       $_state.addOperands(operands);
       if (!fn_type.isVoid())
@@ -3553,12 +3621,13 @@ def CallOp : CIR_CallOp<"call", [NoRegionArguments]> {
         $_state.addAttribute("exception", exception);
       // Create region placeholder for potential cleanups.
       $_state.addRegion();
-    }]>];
+    }]>
+  ];
 }
 
-def TryCallOp
-    : CIR_CallOp<"try_call", [DeclareOpInterfaceMethods<BranchOpInterface>,
-                              Terminator, AttrSizedOperandSegments]> {
+def TryCallOp : CIR_CallOp<"try_call",
+      [DeclareOpInterfaceMethods<BranchOpInterface>, Terminator,
+       AttrSizedOperandSegments]> {
   let summary = "try_call operation";
   let description = [{
     Mostly similar to cir.call but requires two destination
@@ -3573,23 +3642,24 @@ def TryCallOp
     ```
   }];
 
-  let arguments = !con((ins Variadic<CIR_AnyType>:$contOperands,
-                           Variadic<CIR_AnyType>:$landingPadOperands),
-                       commonArgs);
+  let arguments = !con((ins
+    Variadic<CIR_AnyType>:$contOperands,
+    Variadic<CIR_AnyType>:$landingPadOperands
+  ), commonArgs);
 
   let results = (outs Optional<CIR_AnyType>:$result);
-  let successors = (successor AnySuccessor:$cont, AnySuccessor:$landing_pad);
+  let successors = (successor AnySuccessor:$cont,
+                              AnySuccessor:$landing_pad);
 
   let skipDefaultBuilders = 1;
 
-  let builders =
-      [OpBuilder<(ins "mlir::SymbolRefAttr":$callee, "mlir::Type":$resType,
-                     "mlir::Block *":$cont, "mlir::Block *":$landing_pad,
-                     CArg<"mlir::ValueRange", "{}">:$operands,
-                     CArg<"mlir::ValueRange", "{}">:$contOperands,
-                     CArg<"mlir::ValueRange", "{}">:$landingPadOperands,
-                     CArg<"CallingConv", "CallingConv::C">:$callingConv),
-                 [{
+  let builders = [
+    OpBuilder<(ins "mlir::SymbolRefAttr":$callee, "mlir::Type":$resType,
+               "mlir::Block *":$cont, "mlir::Block *":$landing_pad,
+               CArg<"mlir::ValueRange", "{}">:$operands,
+               CArg<"mlir::ValueRange", "{}">:$contOperands,
+               CArg<"mlir::ValueRange", "{}">:$landingPadOperands,
+               CArg<"CallingConv", "CallingConv::C">:$callingConv), [{
       $_state.addOperands(operands);
       if (callee)
         $_state.addAttribute("callee", callee);
@@ -3612,13 +3682,13 @@ def TryCallOp
       $_state.addSuccessors(cont);
       $_state.addSuccessors(landing_pad);
     }]>,
-       OpBuilder<(ins "mlir::Value":$ind_target, "FuncType":$fn_type,
-                     "mlir::Block *":$cont, "mlir::Block *":$landing_pad,
-                     CArg<"mlir::ValueRange", "{}">:$operands,
-                     CArg<"mlir::ValueRange", "{}">:$contOperands,
-                     CArg<"mlir::ValueRange", "{}">:$landingPadOperands,
-                     CArg<"CallingConv", "CallingConv::C">:$callingConv),
-                 [{
+    OpBuilder<(ins "mlir::Value":$ind_target,
+               "FuncType":$fn_type,
+               "mlir::Block *":$cont, "mlir::Block *":$landing_pad,
+               CArg<"mlir::ValueRange", "{}">:$operands,
+               CArg<"mlir::ValueRange", "{}">:$contOperands,
+               CArg<"mlir::ValueRange", "{}">:$landingPadOperands,
+               CArg<"CallingConv", "CallingConv::C">:$callingConv), [{
       ::llvm::SmallVector<mlir::Value, 4> finalCallOperands({ind_target});
       finalCallOperands.append(operands.begin(), operands.end());
       $_state.addOperands(finalCallOperands);
@@ -3641,7 +3711,8 @@ def TryCallOp
         odsState.getOrAddProperties<Properties>().operandSegmentSizes.begin());
       $_state.addSuccessors(cont);
       $_state.addSuccessors(landing_pad);
-    }]>];
+    }]>
+  ];
 }
 
 //===----------------------------------------------------------------------===//
@@ -3649,19 +3720,20 @@ def TryCallOp
 //===----------------------------------------------------------------------===//
 
 def AK_Initial : I32EnumAttrCase<"init", 1>;
-def AK_User : I32EnumAttrCase<"user", 2>;
-def AK_Yield : I32EnumAttrCase<"yield", 3>;
-def AK_Final : I32EnumAttrCase<"final", 4>;
+def AK_User    : I32EnumAttrCase<"user", 2>;
+def AK_Yield   : I32EnumAttrCase<"yield", 3>;
+def AK_Final   : I32EnumAttrCase<"final", 4>;
 
-def AwaitKind
-    : I32EnumAttr<"AwaitKind",
-                  "await kind", [AK_Initial, AK_User, AK_Yield, AK_Final]> {
+def AwaitKind : I32EnumAttr<
+    "AwaitKind",
+    "await kind",
+    [AK_Initial, AK_User, AK_Yield, AK_Final]> {
   let cppNamespace = "::cir";
 }
 
-def AwaitOp
-    : CIR_Op<"await", [DeclareOpInterfaceMethods<RegionBranchOpInterface>,
-                       RecursivelySpeculatable, NoRegionArguments]> {
+def AwaitOp : CIR_Op<"await",
+       [DeclareOpInterfaceMethods<RegionBranchOpInterface>,
+        RecursivelySpeculatable, NoRegionArguments]> {
   let summary = "Wraps C++ co_await implicit logic";
   let description = [{
     The under the hood effect of using C++ `co_await expr` roughly
@@ -3715,8 +3787,9 @@ def AwaitOp
   }];
 
   let arguments = (ins AwaitKind:$kind);
-  let regions = (region SizedRegion<1>:$ready, SizedRegion<1>:$suspend,
-      SizedRegion<1>:$resume);
+  let regions = (region SizedRegion<1>:$ready,
+                        SizedRegion<1>:$suspend,
+                        SizedRegion<1>:$resume);
   let assemblyFormat = [{
     `(` $kind `,`
     `ready` `:` $ready `,`
@@ -3727,13 +3800,17 @@ def AwaitOp
   }];
 
   let skipDefaultBuilders = 1;
-  let builders = [OpBuilder<(ins "cir::AwaitKind":$kind,
+  let builders = [
+    OpBuilder<(ins
+      "cir::AwaitKind":$kind,
       CArg<"llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>",
            "nullptr">:$readyBuilder,
       CArg<"llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>",
            "nullptr">:$suspendBuilder,
       CArg<"llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>",
-           "nullptr">:$resumeBuilder)>];
+           "nullptr">:$resumeBuilder
+      )>
+  ];
 
   let hasVerifier = 1;
 }
@@ -3753,9 +3830,10 @@ def CatchAllAttr : CIRUnitAttr<"CatchAll", "all"> {
   let storageType = [{ CatchAllAttr }];
 }
 
-def TryOp : CIR_Op<"try", [DeclareOpInterfaceMethods<RegionBranchOpInterface>,
-                           RecursivelySpeculatable, AutomaticAllocationScope,
-                           NoRegionArguments]> {
+def TryOp : CIR_Op<"try",
+       [DeclareOpInterfaceMethods<RegionBranchOpInterface>,
+        RecursivelySpeculatable, AutomaticAllocationScope,
+        NoRegionArguments]> {
   let summary = "C++ try block";
   let description = [{
     ```mlir
@@ -3774,9 +3852,9 @@ def TryOp : CIR_Op<"try", [DeclareOpInterfaceMethods<RegionBranchOpInterface>,
   }];
 
   let arguments = (ins UnitAttr:$synthetic, UnitAttr:$cleanup,
-      OptionalAttr<ArrayAttr>:$catch_types);
+                       OptionalAttr<ArrayAttr>:$catch_types);
   let regions = (region AnyRegion:$try_region,
-      VariadicRegion<AnyRegion>:$catch_regions);
+                        VariadicRegion<AnyRegion>:$catch_regions);
 
   let assemblyFormat = [{
     (`synthetic` $synthetic^)?
@@ -3797,11 +3875,11 @@ def TryOp : CIR_Op<"try", [DeclareOpInterfaceMethods<RegionBranchOpInterface>,
 
   // Everything already covered elsewhere.
   let hasVerifier = 0;
-  let builders =
-      [OpBuilder<(ins "llvm::function_ref<void(mlir::OpBuilder &, "
-                      "mlir::Location)>":$tryBuilder,
-           "llvm::function_ref<void(mlir::OpBuilder &, mlir::Location, "
-           "mlir::OperationState &)>":$catchBuilder)>,
+  let builders = [
+    OpBuilder<(ins
+              "llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>":$tryBuilder,
+              "llvm::function_ref<void(mlir::OpBuilder &, mlir::Location, mlir::OperationState &)>"
+              :$catchBuilder)>,
   ];
 }
 
@@ -3809,12 +3887,12 @@ def TryOp : CIR_Op<"try", [DeclareOpInterfaceMethods<RegionBranchOpInterface>,
 // CatchParamOp
 //===----------------------------------------------------------------------===//
 
-def CatchParamBegin : I32EnumAttrCase<"begin", 0>;
-def CatchParamEnd : I32EnumAttrCase<"end", 1>;
-def CatchParamKind
-    : I32EnumAttr<"CatchParamKind",
-                  "Designate limits for begin/end of catch param handling",
-                  [CatchParamBegin, CatchParamEnd]> {
+def CatchParamBegin : I32EnumAttrCase<"begin",  0>;
+def CatchParamEnd   : I32EnumAttrCase<"end",  1>;
+def CatchParamKind  : I32EnumAttr<
+    "CatchParamKind",
+    "Designate limits for begin/end of catch param handling",
+    [CatchParamBegin, CatchParamEnd]> {
   let cppNamespace = "::cir";
 }
 
@@ -3832,7 +3910,7 @@ def CatchParamOp : CIR_Op<"catch_param"> {
   }];
 
   let arguments = (ins Optional<VoidPtr>:$exception_ptr,
-      OptionalAttr<CatchParamKind>:$kind);
+                       OptionalAttr<CatchParamKind>:$kind);
   let results = (outs Optional<CIR_AnyType>:$param);
   let assemblyFormat = [{
     ($kind^)?
@@ -3869,7 +3947,7 @@ def EhInflightOp : CIR_Op<"eh.inflight_exception"> {
   }];
 
   let arguments = (ins UnitAttr:$cleanup,
-      OptionalAttr<FlatSymbolRefArrayAttr>:$sym_type_list);
+                       OptionalAttr<FlatSymbolRefArrayAttr>:$sym_type_list);
   let results = (outs VoidPtr:$exception_ptr, UInt32:$type_id);
   let assemblyFormat = [{
     (`cleanup` $cleanup^)?
@@ -3880,9 +3958,8 @@ def EhInflightOp : CIR_Op<"eh.inflight_exception"> {
   let hasVerifier = 0;
 }
 
-def EhTypeIdOp
-    : CIR_Op<"eh.typeid", [Pure,
-                           DeclareOpInterfaceMethods<SymbolUserOpInterface>]> {
+def EhTypeIdOp : CIR_Op<"eh.typeid",
+  [Pure, DeclareOpInterfaceMethods<SymbolUserOpInterface>]> {
   let summary = "Compute exception type id from it's global type symbol";
   let description = [{
     Returns the exception type id for a given global symbol representing
@@ -3902,17 +3979,13 @@ def EhTypeIdOp
 // CopyOp
 //===----------------------------------------------------------------------===//
 
-def CopyOp
-    : CIR_Op<"copy", [SameTypeOperands,
-                      DeclareOpInterfaceMethods<PromotableMemOpInterface>]> {
+def CopyOp : CIR_Op<"copy",
+             [SameTypeOperands,
+              DeclareOpInterfaceMethods<PromotableMemOpInterface>]> {
   let arguments = (ins Arg<CIR_PointerType, "", [MemWrite]>:$dst,
-<<<<<<< HEAD
                        Arg<CIR_PointerType, "", [MemRead]>:$src,
                        UnitAttr:$is_volatile,
                        OptionalAttr<ArrayAttr>:$tbaa);
-=======
-      Arg<CIR_PointerType, "", [MemRead]>:$src, UnitAttr:$is_volatile);
->>>>>>> c890ce87bc6d (Refactor ReturnAddrOp into FuncAddrBuiltinOp)
   let summary = "Copies contents from a CIR pointer to another";
   let description = [{
     Given two CIR pointers, `src` and `dst`, `cir.copy` will copy the memory
@@ -4055,8 +4128,9 @@ def MemCpyInlineOp : CIR_MemOp<"memcpy_inline"> {
 //===----------------------------------------------------------------------===//
 
 def MemSetOp : CIR_Op<"libc.memset"> {
-  let arguments = (ins Arg<VoidPtr, "", [MemWrite]>:$dst, SInt32:$val,
-      PrimitiveUInt:$len);
+  let arguments = (ins Arg<VoidPtr, "", [MemWrite]>:$dst,
+                       SInt32:$val,
+                       PrimitiveUInt:$len);
   let summary = "Equivalent to libc's `memset`";
   let description = [{
     Given the CIR pointer, `dst`, `cir.libc.memset` will set the first `len`
@@ -4118,8 +4192,9 @@ def MemSetInlineOp : CIR_Op<"memset_inline"> {
 def MemChrOp : CIR_Op<"libc.memchr"> {
   // TODO: instead of using UInt64 for len, we could make it constrained on
   // size_t (64 or 32) and have a builder that does the right job.
-  let arguments = (ins Arg<VoidPtr, "", [MemRead]>:$src, SInt32:$pattern,
-      UInt64:$len);
+  let arguments = (ins Arg<VoidPtr, "", [MemRead]>:$src,
+                       SInt32:$pattern,
+                       UInt64:$len);
   let summary = "libc's `memchr`";
   let results = (outs Res<VoidPtr, "">:$result);
 
@@ -4146,41 +4221,29 @@ def MemChrOp : CIR_Op<"libc.memchr"> {
 // ReturnAddrOp
 //===----------------------------------------------------------------------===//
 
-def ReturnAddr : I32EnumAttrCase<"return_address", 1>;
-def FrameAddr : I32EnumAttrCase<"frame_address", 2>;
-def FuncAddrKind
-    : I32EnumAttr<"FuncAddrKind",
-                  "address kind returned from builtin for function",
-                  [ReturnAddr, FrameAddr]> {
-  let cppNamespace = "::cir";
-}
-
-def FuncAddrBuiltinOp : CIR_Op<"func_addr_builtin"> {
-  let arguments = (ins Arg<FuncAddrKind, "address kind">:$kind, UInt32:$level);
-  let summary = "Builtin that return function return or frame address";
+def ReturnAddrOp : CIR_Op<"return_address"> {
+  let arguments = (ins UInt32:$level);
+  let summary = "The return address of the current function, or of one of its callers";
   let results = (outs Res<VoidPtr, "">:$result);
 
   let description = [{
-    Represents call to builtin function such as `__builtin_return_address` 
-    or `__builtin_frame_address` in CIR.
-    This builtin function returns the return or frame address of 
-    the current function, or of one of its callers.
+    Represents call to builtin function ` __builtin_return_address` in CIR.
+    This builtin function returns the return address of the current function,
+    or of one of its callers.
     The `level` argument is number of frames to scan up the call stack.
-    For instance, 
-    value of 0 yields the return or frame address of the current function,
-    value of 1 yields the return or frame address of the caller of 
-    the current function, and so forth.
+    For instance, value of 0 yields the return address of the current function,
+    value of 1 yields the return address of the caller of the current function,
+    and so forth.
 
     Examples:
 
     ```mlir
     %p = return_address(%level) -> !cir.ptr<!void>
-    %p = frame_address(%level) -> !cir.ptr<!void>
     ```
   }];
 
   let assemblyFormat = [{
-    `(` $kind `,` $level `)`  attr-dict
+    `(` $level `)` attr-dict
   }];
   let hasVerifier = 0;
 }
@@ -4190,8 +4253,10 @@ def FuncAddrBuiltinOp : CIR_Op<"func_addr_builtin"> {
 //===----------------------------------------------------------------------===//
 
 def StdFindOp : CIR_Op<"std.find", [SameFirstSecondOperandAndResultType]> {
-  let arguments = (ins FlatSymbolRefAttr:$original_fn, CIR_AnyType:$first,
-      CIR_AnyType:$last, CIR_AnyType:$pattern);
+  let arguments = (ins FlatSymbolRefAttr:$original_fn,
+                       CIR_AnyType:$first,
+                       CIR_AnyType:$last,
+                       CIR_AnyType:$pattern);
   let summary = "std:find()";
   let results = (outs CIR_AnyType:$result);
 
@@ -4346,8 +4411,7 @@ def FModOp : BinaryFPToFPBuiltinOp<"fmod", "FRemOp">;
 def PowOp : BinaryFPToFPBuiltinOp<"pow", "PowOp">;
 
 def IsFPClassOp : CIR_Op<"is_fp_class"> {
-  let summary =
-      "Corresponding to the `__builtin_fpclassify` builtin function in clang";
+  let summary = "Corresponding to the `__builtin_fpclassify` builtin function in clang";
 
   let description = [{
     The `cir.is_fp_class` operation takes a floating-point value as its first
@@ -4371,7 +4435,8 @@ def IsFPClassOp : CIR_Op<"is_fp_class"> {
     | 9 | Positive infinity  |
   }];
 
-  let arguments = (ins CIR_AnyFloat:$src, I32Attr:$flags);
+  let arguments = (ins CIR_AnyFloat:$src,
+                       I32Attr:$flags);
   let results = (outs CIR_BoolType:$result);
   let assemblyFormat = [{
     $src `,` $flags `:` functional-type($src, $result) attr-dict
@@ -4427,8 +4492,9 @@ def AssumeAlignedOp
     function.
   }];
 
-  let arguments = (ins CIR_PointerType:$pointer, I64Attr:$alignment,
-      Optional<CIR_IntType>:$offset);
+  let arguments = (ins CIR_PointerType:$pointer,
+                       I64Attr:$alignment,
+                       Optional<CIR_IntType>:$offset);
   let results = (outs CIR_PointerType:$result);
 
   let assemblyFormat = [{
@@ -4468,7 +4534,8 @@ def PtrMaskOp : CIR_Op<"ptr_mask", [AllTypesMatch<["ptr", "result"]>]> {
     argument and return the masked pointer type according to the `mask`.
   }];
 
-  let arguments = (ins CIR_PointerType:$ptr, CIR_IntType:$mask);
+  let arguments = (ins CIR_PointerType:$ptr,
+                       CIR_IntType:$mask);
   let results = (outs CIR_PointerType:$result);
 
   let assemblyFormat = [{
@@ -4480,10 +4547,10 @@ def PtrMaskOp : CIR_Op<"ptr_mask", [AllTypesMatch<["ptr", "result"]>]> {
 // Branch Probability Operations
 //===----------------------------------------------------------------------===//
 
-def ExpectOp
-    : CIR_Op<"expect", [Pure, AllTypesMatch<["result", "val", "expected"]>]> {
+def ExpectOp : CIR_Op<"expect",
+  [Pure, AllTypesMatch<["result", "val", "expected"]>]> {
   let summary =
-      "Compute whether expression is likely to evaluate to a specified value";
+    "Compute whether expression is likely to evaluate to a specified value";
   let description = [{
     Provides __builtin_expect functionality in Clang IR.
 
@@ -4492,8 +4559,9 @@ def ExpectOp
     where probability = $prob.
   }];
 
-  let arguments = (ins PrimitiveInt:$val, PrimitiveInt:$expected,
-      OptionalAttr<F64Attr>:$prob);
+  let arguments = (ins PrimitiveInt:$val,
+                       PrimitiveInt:$expected,
+                       OptionalAttr<F64Attr>:$prob);
   let results = (outs PrimitiveInt:$result);
   let assemblyFormat = [{
     `(` $val`,` $expected (`,` $prob^)? `)` `:` type($val) attr-dict
@@ -4516,9 +4584,9 @@ def VAEndOp : CIR_Op<"va.end">, Arguments<(ins CIR_PointerType:$arg_list)> {
   let hasVerifier = 0;
 }
 
-def VACopyOp
-    : CIR_Op<"va.copy">,
-      Arguments<(ins CIR_PointerType:$dst_list, CIR_PointerType:$src_list)> {
+def VACopyOp : CIR_Op<"va.copy">,
+               Arguments<(ins CIR_PointerType:$dst_list,
+                              CIR_PointerType:$src_list)> {
   let summary = "Copies a variable argument list";
   let assemblyFormat = "$src_list `to` $dst_list attr-dict `:` type(operands)";
   let hasVerifier = 0;
@@ -4528,8 +4596,7 @@ def VAArgOp : CIR_Op<"va.arg">,
               Results<(outs CIR_AnyType:$result)>,
               Arguments<(ins CIR_PointerType:$arg_list)> {
   let summary = "Fetches next variadic element as a given type";
-  let assemblyFormat =
-      "$arg_list attr-dict `:` functional-type(operands, $result)";
+  let assemblyFormat = "$arg_list attr-dict `:` functional-type(operands, $result)";
   let hasVerifier = 0;
 }
 
@@ -4560,8 +4627,8 @@ def AllocExceptionOp : CIR_Op<"alloc.exception"> {
   }];
 
   let arguments = (ins I64Attr:$size);
-  let results =
-      (outs Res<CIR_PointerType, "", [MemAlloc<DefaultResource>]>:$addr);
+  let results = (outs Res<CIR_PointerType, "",
+                      [MemAlloc<DefaultResource>]>:$addr);
 
   let assemblyFormat = [{
     $size `->` qualified(type($addr)) attr-dict
@@ -4637,8 +4704,8 @@ def ThrowOp : CIR_Op<"throw"> {
   }];
 
   let arguments = (ins Optional<CIR_PointerType>:$exception_ptr,
-      OptionalAttr<FlatSymbolRefAttr>:$type_info,
-      OptionalAttr<FlatSymbolRefAttr>:$dtor);
+                       OptionalAttr<FlatSymbolRefAttr>:$type_info,
+                       OptionalAttr<FlatSymbolRefAttr>:$dtor);
 
   let assemblyFormat = [{
     ($exception_ptr^ `:` type($exception_ptr))?
@@ -4696,7 +4763,10 @@ def StackRestoreOp : CIR_Op<"stack_restore"> {
 def AsmATT : I32EnumAttrCase<"x86_att", 0>;
 def AsmIntel : I32EnumAttrCase<"x86_intel", 1>;
 
-def AsmFlavor : I32EnumAttr<"AsmFlavor", "ATT or Intel", [AsmATT, AsmIntel]> {
+def AsmFlavor : I32EnumAttr<
+  "AsmFlavor",
+  "ATT or Intel",
+  [AsmATT, AsmIntel]> {
   let cppNamespace = "::cir";
 }
 
@@ -4759,16 +4829,25 @@ def CIR_InlineAsmOp : CIR_Op<"asm", [RecursiveMemoryEffects]> {
 
   let results = (outs Optional<CIR_AnyType>:$res);
 
-  let arguments =
-      (ins VariadicOfVariadic<AnyType, "operands_segments">:$operands,
-          StrAttr:$asm_string, StrAttr:$constraints, UnitAttr:$side_effects,
-          AsmFlavor:$asm_flavor, ArrayAttr:$operand_attrs,
-          DenseI32ArrayAttr:$operands_segments);
+  let arguments = (
+    ins VariadicOfVariadic<AnyType, "operands_segments">:$operands,
+        StrAttr:$asm_string,
+        StrAttr:$constraints,
+        UnitAttr:$side_effects,
+        AsmFlavor:$asm_flavor,
+        ArrayAttr:$operand_attrs,
+        DenseI32ArrayAttr:$operands_segments
+        );
 
-  let builders = [OpBuilder<(ins "llvm::ArrayRef<mlir::ValueRange>":$operands,
-      "llvm::StringRef":$asm_string, "llvm::StringRef":$constraints,
-      "bool":$side_effects, "AsmFlavor":$asm_flavor,
-      "llvm::ArrayRef<mlir::Attribute>":$operand_attrs)>];
+  let builders = [OpBuilder<(ins
+    "llvm::ArrayRef<mlir::ValueRange>":$operands,
+    "llvm::StringRef":$asm_string,
+    "llvm::StringRef":$constraints,
+    "bool":$side_effects,
+    "AsmFlavor":$asm_flavor,
+    "llvm::ArrayRef<mlir::Attribute>":$operand_attrs
+  )>
+  ];
 
   let hasCustomAssemblyFormat = 1;
 }
@@ -4827,9 +4906,11 @@ def PrefetchOp : CIR_Op<"prefetch"> {
     If $isWrite doesn't specified it means that prefetch is prepared for 'read'.
   }];
 
-  let arguments = (ins VoidPtr:$addr,
-      ConfinedAttr<I32Attr, [IntMinValue<0>, IntMaxValue<3>]>:$locality,
-      UnitAttr:$isWrite);
+  let arguments = (
+    ins VoidPtr:$addr,
+        ConfinedAttr<I32Attr, [IntMinValue<0>,
+          IntMaxValue<3>]>:$locality,
+        UnitAttr:$isWrite);
 
   let assemblyFormat = [{
     `(` $addr `:` qualified(type($addr)) `)`
@@ -4862,24 +4943,24 @@ def ClearCacheOp : CIR_Op<"clear_cache", [AllTypesMatch<["begin", "end"]>]> {
 //===----------------------------------------------------------------------===//
 
 class CIR_ArrayInitDestroy<string mnemonic> : CIR_Op<mnemonic, []> {
-  let arguments =
-      (ins Arg<ArrayPtr, "array address", [MemWrite, MemRead]>:$addr);
+  let arguments = (ins Arg<ArrayPtr, "array address",
+                           [MemWrite, MemRead]>:$addr);
   let regions = (region SizedRegion<1>:$body);
   let assemblyFormat = [{
     `(` $addr `:` qualified(type($addr)) `)` $body attr-dict
   }];
 
-  let builders = [OpBuilder<(ins "mlir::Value":$addr,
-                                "llvm::function_ref<void(mlir::OpBuilder &, "
-                                "mlir::Location)>":$regionBuilder),
-                            [{
+  let builders = [
+    OpBuilder<(ins "mlir::Value":$addr,
+      "llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>":$regionBuilder), [{
         assert(regionBuilder && "builder callback expected");
         mlir::OpBuilder::InsertionGuard guard($_builder);
         mlir::Region *r = $_state.addRegion();
         $_state.addOperands(ValueRange{addr});
         $_builder.createBlock(r);
         regionBuilder($_builder, $_state.location);
-    }]>];
+    }]>
+  ];
 }
 
 def ArrayCtor : CIR_ArrayInitDestroy<"array.ctor"> {
@@ -4917,21 +4998,26 @@ def IsConstantOp : CIR_Op<"is_constant", [Pure]> {
   }];
 }
 
-def SwitchFlatOp
-    : CIR_Op<"switch.flat", [AttrSizedOperandSegments, Terminator]> {
+
+def SwitchFlatOp : CIR_Op<"switch.flat", [AttrSizedOperandSegments, Terminator]> {
 
   let description = [{
     The `cir.switch.flat` operation is a region-less and simplified version of the `cir.switch`.
     It's representation is closer to LLVM IR dialect than the C/C++ language feature.
   }];
 
-  let arguments = (ins CIR_IntType:$condition,
-      Variadic<AnyType>:$defaultOperands,
-      VariadicOfVariadic<AnyType, "case_operand_segments">:$caseOperands,
-      ArrayAttr:$case_values, DenseI32ArrayAttr:$case_operand_segments);
+  let arguments = (ins
+    CIR_IntType:$condition,
+    Variadic<AnyType>:$defaultOperands,
+    VariadicOfVariadic<AnyType, "case_operand_segments">:$caseOperands,
+    ArrayAttr:$case_values,
+    DenseI32ArrayAttr:$case_operand_segments
+  );
 
-  let successors = (successor AnySuccessor:$defaultDestination,
-      VariadicSuccessor<AnySuccessor>:$caseDestinations);
+  let successors = (successor
+    AnySuccessor:$defaultDestination,
+    VariadicSuccessor<AnySuccessor>:$caseDestinations
+  );
 
   let assemblyFormat = [{
     $condition `:` type($condition) `,`
@@ -4941,11 +5027,14 @@ def SwitchFlatOp
     attr-dict
   }];
 
-  let builders = [OpBuilder<(ins "mlir::Value":$condition,
-      "mlir::Block *":$defaultDestination, "mlir::ValueRange":$defaultOperands,
+  let builders = [
+    OpBuilder<(ins "mlir::Value":$condition,
+      "mlir::Block *":$defaultDestination,
+      "mlir::ValueRange":$defaultOperands,
       CArg<"llvm::ArrayRef<llvm::APInt>", "{}">:$caseValues,
       CArg<"mlir::BlockRange", "{}">:$caseDestinations,
-      CArg<"llvm::ArrayRef<mlir::ValueRange>", "{}">:$caseOperands)>];
+      CArg<"llvm::ArrayRef<mlir::ValueRange>", "{}">:$caseOperands)>
+  ];
 }
 
 //===----------------------------------------------------------------------===//
@@ -5008,11 +5097,9 @@ def GotoOp : CIR_Op<"goto", [Terminator]> {
 // LabelOp
 //===----------------------------------------------------------------------===//
 
-// The LabelOp has AlwaysSpeculatable trait in order to not to be swept by
-// canonicalizer
+// The LabelOp has AlwaysSpeculatable trait in order to not to be swept by canonicalizer
 def LabelOp : CIR_Op<"label", [AlwaysSpeculatable]> {
-  let description =
-      [{ An identifier which may be referred by cir.goto operation }];
+  let description = [{ An identifier which may be referred by cir.goto operation }];
   let arguments = (ins StrAttr:$label);
   let assemblyFormat = [{ $label attr-dict }];
   let hasVerifier = 1;
@@ -5023,24 +5110,25 @@ def LabelOp : CIR_Op<"label", [AlwaysSpeculatable]> {
 //===----------------------------------------------------------------------===//
 
 // Binary opcodes for atomic fetch.
-def Atomic_Add : I32EnumAttrCase<"Add", 0, "add">;
-def Atomic_Sub : I32EnumAttrCase<"Sub", 1, "sub">;
-def Atomic_And : I32EnumAttrCase<"And", 2, "and">;
-def Atomic_Xor : I32EnumAttrCase<"Xor", 3, "xor">;
-def Atomic_Or : I32EnumAttrCase<"Or", 4, "or">;
+def Atomic_Add  : I32EnumAttrCase<"Add",  0, "add">;
+def Atomic_Sub  : I32EnumAttrCase<"Sub",  1, "sub">;
+def Atomic_And  : I32EnumAttrCase<"And",  2, "and">;
+def Atomic_Xor  : I32EnumAttrCase<"Xor",  3, "xor">;
+def Atomic_Or   : I32EnumAttrCase<"Or",   4, "or">;
 def Atomic_Nand : I32EnumAttrCase<"Nand", 5, "nand">;
-def Atomic_Max : I32EnumAttrCase<"Max", 6, "max">;
-def Atomic_Min : I32EnumAttrCase<"Min", 7, "min">;
+def Atomic_Max  : I32EnumAttrCase<"Max",  6, "max">;
+def Atomic_Min  : I32EnumAttrCase<"Min",  7, "min">;
 
-def AtomicFetchKind
-    : I32EnumAttr<"AtomicFetchKind",
-                  "Binary opcode for atomic fetch operations",
-                  [Atomic_Add, Atomic_Sub, Atomic_And, Atomic_Xor, Atomic_Or,
-                   Atomic_Nand, Atomic_Max, Atomic_Min]> {
+def AtomicFetchKind : I32EnumAttr<
+    "AtomicFetchKind",
+    "Binary opcode for atomic fetch operations",
+    [Atomic_Add, Atomic_Sub, Atomic_And, Atomic_Xor, Atomic_Or, Atomic_Nand,
+     Atomic_Max, Atomic_Min]> {
   let cppNamespace = "::cir";
 }
 
-def AtomicFetch : CIR_Op<"atomic.fetch", [AllTypesMatch<["result", "val"]>]> {
+def AtomicFetch : CIR_Op<"atomic.fetch",
+                         [AllTypesMatch<["result", "val"]>]> {
   let summary = "Atomic fetch with unary and binary operations";
   let description = [{
     Represents `__atomic_<binop>_fetch` and `__atomic_fetch_<binop>` builtins,
@@ -5062,9 +5150,11 @@ def AtomicFetch : CIR_Op<"atomic.fetch", [AllTypesMatch<["result", "val"]>]> {
   }];
   let results = (outs CIR_AnyIntOrFloat:$result);
   let arguments = (ins Arg<PrimitiveIntOrFPPtr, "", [MemRead, MemWrite]>:$ptr,
-      CIR_AnyIntOrFloat:$val, AtomicFetchKind:$binop,
-      Arg<MemOrder, "memory order">:$mem_order, UnitAttr:$is_volatile,
-      UnitAttr:$fetch_first);
+                       CIR_AnyIntOrFloat:$val,
+                       AtomicFetchKind:$binop,
+                       Arg<MemOrder, "memory order">:$mem_order,
+                       UnitAttr:$is_volatile,
+                       UnitAttr:$fetch_first);
 
   let assemblyFormat = [{
     `(`
@@ -5092,8 +5182,9 @@ def AtomicXchg : CIR_Op<"atomic.xchg", [AllTypesMatch<["result", "val"]>]> {
   }];
   let results = (outs CIR_AnyType:$result);
   let arguments = (ins Arg<CIR_PointerType, "", [MemRead, MemWrite]>:$ptr,
-      CIR_AnyType:$val, Arg<MemOrder, "memory order">:$mem_order,
-      UnitAttr:$is_volatile);
+                       CIR_AnyType:$val,
+                       Arg<MemOrder, "memory order">:$mem_order,
+                       UnitAttr:$is_volatile);
 
   let assemblyFormat = [{
     `(`
@@ -5107,9 +5198,8 @@ def AtomicXchg : CIR_Op<"atomic.xchg", [AllTypesMatch<["result", "val"]>]> {
   let hasVerifier = 0;
 }
 
-def AtomicCmpXchg
-    : CIR_Op<
-          "atomic.cmp_xchg", [AllTypesMatch<["old", "expected", "desired"]>]> {
+def AtomicCmpXchg : CIR_Op<"atomic.cmp_xchg",
+                           [AllTypesMatch<["old", "expected", "desired"]>]> {
   let summary = "Atomic compare exchange";
   let description = [{
     C/C++ Atomic compare and exchange operation. Implements builtins like
@@ -5126,10 +5216,12 @@ def AtomicCmpXchg
   }];
   let results = (outs CIR_AnyType:$old, CIR_BoolType:$cmp);
   let arguments = (ins Arg<CIR_PointerType, "", [MemRead, MemWrite]>:$ptr,
-      CIR_AnyType:$expected, CIR_AnyType:$desired,
-      Arg<MemOrder, "success memory order">:$succ_order,
-      Arg<MemOrder, "failure memory order">:$fail_order, UnitAttr:$weak,
-      UnitAttr:$is_volatile);
+                       CIR_AnyType:$expected,
+                       CIR_AnyType:$desired,
+                       Arg<MemOrder, "success memory order">:$succ_order,
+                       Arg<MemOrder, "failure memory order">:$fail_order,
+                       UnitAttr:$weak,
+                       UnitAttr:$is_volatile);
 
   let assemblyFormat = [{
     `(`
