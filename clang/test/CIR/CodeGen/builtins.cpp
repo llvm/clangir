@@ -105,3 +105,14 @@ extern "C" void *test_return_address(void) {
   // LLVM-LABEL: @test_return_address
   // LLVM: {{%.*}} = call ptr @llvm.returnaddress(i32 1)
 }
+
+extern "C" void *test_frame_address(void) {
+  return __builtin_frame_address(1);
+
+  // CIR-LABEL: test_frame_address
+  // CIR: [[ARG:%.*]] = cir.const #cir.int<1> : !u32i
+  // CIR: {{%.*}} = cir.func_addr_builtin(frame_address, [[ARG]])
+
+  // LLVM-LABEL: @test_frame_address
+  // LLVM: {{%.*}} = call ptr @llvm.frameaddress.p0(i32 1)
+}
