@@ -336,11 +336,10 @@ mlir::Value createCoercedValue(mlir::Value Src, mlir::Type Ty,
     return CGF.buildAggregateBitcast(Src, Ty);
   }
 
-  auto &bld = CGF.getRewriter();
   auto alloca = createTmpAlloca(CGF, Src.getLoc(), Ty);
   Src = findAlloca(Src.getDefiningOp());
   createMemCpy(CGF, alloca, Src, SrcSize.getFixedValue());
-  return bld.create<LoadOp>(Src.getLoc(), alloca.getResult());
+  return CGF.getRewriter().create<LoadOp>(Src.getLoc(), alloca.getResult());
 }
 
 mlir::Value emitAddressAtOffset(LowerFunction &LF, mlir::Value addr,
