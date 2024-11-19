@@ -337,9 +337,7 @@ mlir::Value createCoercedValue(mlir::Value Src, mlir::Type Ty,
   }
 
   auto &bld = CGF.getRewriter();
-  auto alloca = bld.create<AllocaOp>(
-      Src.getLoc(), bld.getType<PointerType>(Ty), Ty,
-      /*name=*/llvm::StringRef(""), /*alignment=*/bld.getI64IntegerAttr(4));
+  auto alloca = createTmpAlloca(CGF, Src.getLoc(), Ty);
   Src = findAlloca(Src.getDefiningOp());
   createMemCpy(CGF, alloca, Src, SrcSize.getFixedValue());
   return bld.create<LoadOp>(Src.getLoc(), alloca.getResult());
