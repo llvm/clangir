@@ -336,10 +336,15 @@ mlir::Value createCoercedValue(mlir::Value Src, mlir::Type Ty,
     return CGF.buildAggregateBitcast(Src, Ty);
   }
 
-  auto alloca = createTmpAlloca(CGF, Src.getLoc(), Ty);
   Src = findAlloca(Src.getDefiningOp());
-  createMemCpy(CGF, alloca, Src, SrcSize.getFixedValue());
-  return CGF.getRewriter().create<LoadOp>(Src.getLoc(), alloca.getResult());
+  if (Src) {
+    auto tmpAlloca = createTmpAlloca(CGF, Src.getLoc(), Ty);
+    createMemCpy(CGF, tmpAlloca, Src, SrcSize.getFixedValue());
+    return CGF.getRewriter().create<LoadOp>(Src.getLoc(),
+                                            tmpAlloca.getResult());
+  }
+
+  cir_cconv_unreachable("NYI");
 }
 
 mlir::Value emitAddressAtOffset(LowerFunction &LF, mlir::Value addr,
