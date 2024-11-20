@@ -41,6 +41,7 @@
 #include "mlir/Interfaces/InferTypeOpInterface.h"
 #include "mlir/Support/LLVM.h"
 #include "mlir/Support/LogicalResult.h"
+#include "mlir/Transforms/InliningUtils.h"
 
 using namespace mlir;
 
@@ -117,6 +118,40 @@ struct CIROpAsmDialectInterface : public OpAsmDialectInterface {
         .Default([](Attribute) { return AliasResult::NoAlias; });
   }
 };
+
+// Minimal interface to inline region with only one block for now (not handling
+// the terminator remapping), assuming everything is inlinable.
+struct CIRInlinerInterface : DialectInlinerInterface {
+  using DialectInlinerInterface::DialectInlinerInterface;
+  // Always allows inlining.
+  bool isLegalToInline(Operation *call, Operation *callable,
+                       bool wouldBeCloned) const final override {
+    return true;
+  }
+
+  // Always allows inlining.
+  bool isLegalToInline(Region *dest, Region *src, bool wouldBeCloned,
+                       IRMapping &valueMapping) const final override {
+    return true;
+  }
+
+  // Always allows inlining.
+  bool isLegalToInline(Operation *op, Region *, bool wouldBeCloned,
+                       IRMapping &) const final override {
+    return true;
+  }
+
+  // Handle the terminator in the case of a single block
+  void handleTerminator(Operation *op,
+                        ValueRange valuesToReplace) const final override {
+    // Only handle cir.return for now
+    if (auto returnOp = dyn_cast<cir::ReturnOp>(op))
+      for (auto &&[value, operand] :
+           llvm::zip(valuesToReplace, returnOp.getOperands()))
+        value.replaceAllUsesWith(operand);
+  }
+};
+
 } // namespace
 
 /// Dialect initialization, the instance will be owned by the context. This is
@@ -128,7 +163,7 @@ void cir::CIRDialect::initialize() {
 #define GET_OP_LIST
 #include "clang/CIR/Dialect/IR/CIROps.cpp.inc"
       >();
-  addInterfaces<CIROpAsmDialectInterface>();
+  addInterfaces<CIRInlinerInterface, CIROpAsmDialectInterface>();
 }
 
 Operation *cir::CIRDialect::materializeConstant(mlir::OpBuilder &builder,
