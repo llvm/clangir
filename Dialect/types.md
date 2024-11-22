@@ -80,7 +80,7 @@ Syntax:
 ```
 !cir.data_member<
   mlir::Type,   # memberTy
-  mlir::cir::StructType   # clsTy
+  cir::StructType   # clsTy
 >
 ```
 
@@ -93,7 +93,7 @@ its containing struct.
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
 | memberTy | `mlir::Type` |  |
-| clsTy | `mlir::cir::StructType` |  |
+| clsTy | `cir::StructType` |  |
 
 ### DoubleType
 
@@ -147,8 +147,8 @@ Syntax:
 
 ```
 !cir.func<
-  ::llvm::ArrayRef<Type>,   # inputs
-  Type,   # returnType
+  ::llvm::ArrayRef<mlir::Type>,   # inputs
+  mlir::Type,   # returnType
   bool   # varArg
 >
 ```
@@ -168,8 +168,8 @@ Example:
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
-| inputs | `::llvm::ArrayRef<Type>` |  |
-| returnType | `Type` |  |
+| inputs | `::llvm::ArrayRef<mlir::Type>` |  |
+| returnType | `mlir::Type` |  |
 | varArg | `bool` |  |
 
 ### IntType
@@ -222,8 +222,8 @@ Syntax:
 
 ```
 !cir.method<
-  mlir::cir::FuncType,   # memberFuncTy
-  mlir::cir::StructType   # clsTy
+  cir::FuncType,   # memberFuncTy
+  cir::StructType   # clsTy
 >
 ```
 
@@ -234,8 +234,8 @@ of this type is ABI-dependent.
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
-| memberFuncTy | `mlir::cir::FuncType` |  |
-| clsTy | `mlir::cir::StructType` |  |
+| memberFuncTy | `cir::FuncType` |  |
+| clsTy | `cir::StructType` |  |
 
 ### PointerType
 

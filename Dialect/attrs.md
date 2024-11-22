@@ -239,8 +239,8 @@ Syntax:
 
 ```
 #cir.annotation<
-  StringAttr,   # name
-  ArrayAttr   # args
+  mlir::StringAttr,   # name
+  mlir::ArrayAttr   # args
 >
 ```
 
@@ -261,8 +261,8 @@ In CIR, the attribute for above annotation looks like:
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
-| name | `StringAttr` |  |
-| args | `ArrayAttr` |  |
+| name | `mlir::StringAttr` |  |
+| args | `mlir::ArrayAttr` |  |
 
 ### BitfieldInfoAttr
 
@@ -272,8 +272,8 @@ Syntax:
 
 ```
 #cir.bitfield_info<
-  StringAttr,   # name
-  Type,   # storage_type
+  mlir::StringAttr,   # name
+  mlir::Type,   # storage_type
   uint64_t,   # size
   uint64_t,   # offset
   bool   # is_signed
@@ -287,8 +287,8 @@ and position in the storage, if the bitfield is signed or not.
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
-| name | `StringAttr` |  |
-| storage_type | `Type` |  |
+| name | `mlir::StringAttr` |  |
+| storage_type | `mlir::Type` |  |
 | size | `uint64_t` |  |
 | offset | `uint64_t` |  |
 | is_signed | `bool` |  |
@@ -301,7 +301,7 @@ Syntax:
 
 ```
 #cir.bool<
-  mlir::cir::BoolType,   # type
+  cir::BoolType,   # type
   bool   # value
 >
 ```
@@ -312,8 +312,16 @@ The BoolAttr represents a 'true' or 'false' value.
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
-| type | `mlir::cir::BoolType` |  |
+| type | `cir::BoolType` |  |
 | value | `bool` |  |
+
+### TBAAAttr
+
+
+
+Syntax: `#cir.tbaa`
+
+
 
 ### CmpThreeWayInfoAttr
 
@@ -361,7 +369,7 @@ Syntax:
 
 ```
 #cir.complex<
-  mlir::cir::ComplexType,   # type
+  cir::ComplexType,   # type
   mlir::TypedAttr,   # real
   mlir::TypedAttr   # imag
 >
@@ -378,7 +386,7 @@ contains values of the same CIR type.
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
-| type | `mlir::cir::ComplexType` |  |
+| type | `cir::ComplexType` |  |
 | real | `mlir::TypedAttr` |  |
 | imag | `mlir::TypedAttr` |  |
 
@@ -393,7 +401,7 @@ An CIR array attribute is an array of literals of the specified attr types.
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
 | type | `::mlir::Type` |  |
-| elts | `Attribute` |  |
+| elts | `mlir::Attribute` |  |
 | trailingZerosNum | `int` |  |
 
 ### ConstPtrAttr
@@ -404,7 +412,7 @@ Syntax:
 
 ```
 #cir.ptr<
-  ::mlir::cir::PointerType,   # type
+  ::cir::PointerType,   # type
   mlir::IntegerAttr   # value
 >
 ```
@@ -416,7 +424,7 @@ value of a pointer type.
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
-| type | `::mlir::cir::PointerType` |  |
+| type | `::cir::PointerType` |  |
 | value | `mlir::IntegerAttr` |  |
 
 ### ConstStructAttr
@@ -428,7 +436,7 @@ Syntax:
 ```
 #cir.const_struct<
   ::mlir::Type,   # type
-  ArrayAttr   # members
+  mlir::ArrayAttr   # members
 >
 ```
 
@@ -448,7 +456,7 @@ cir.global external @rgb2 = #cir.const_struct<{0 : i8,
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
 | type | `::mlir::Type` |  |
-| members | `ArrayAttr` |  |
+| members | `mlir::ArrayAttr` |  |
 
 ### ConstVectorAttr
 
@@ -462,13 +470,14 @@ types.
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
 | type | `::mlir::Type` |  |
-| elts | `ArrayAttr` |  |
+| elts | `mlir::ArrayAttr` |  |
 
 ### ConvergentAttr
 
 
 
 Syntax: `#cir.convergent`
+
 
 
 ### DataMemberAttr
@@ -479,7 +488,7 @@ Syntax:
 
 ```
 #cir.data_member<
-  mlir::cir::DataMemberType,   # type
+  cir::DataMemberType,   # type
   std::optional<unsigned>   # member_index
 >
 ```
@@ -502,7 +511,7 @@ Example:
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
-| type | `mlir::cir::DataMemberType` |  |
+| type | `cir::DataMemberType` |  |
 | member_index | `std::optional<unsigned>` |  |
 
 ### DynamicCastInfoAttr
@@ -513,11 +522,11 @@ Syntax:
 
 ```
 #cir.dyn_cast_info<
-  ::mlir::cir::GlobalViewAttr,   # srcRtti
-  ::mlir::cir::GlobalViewAttr,   # destRtti
-  FlatSymbolRefAttr,   # runtimeFunc
-  FlatSymbolRefAttr,   # badCastFunc
-  ::mlir::cir::IntAttr   # offsetHint
+  ::cir::GlobalViewAttr,   # srcRtti
+  ::cir::GlobalViewAttr,   # destRtti
+  mlir::FlatSymbolRefAttr,   # runtimeFunc
+  mlir::FlatSymbolRefAttr,   # badCastFunc
+  ::cir::IntAttr   # offsetHint
 >
 ```
 
@@ -537,11 +546,11 @@ The `offsetHint` parameter gives the hint value that should be passed to the
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
-| srcRtti | `::mlir::cir::GlobalViewAttr` | Provides constant access to a global address |
-| destRtti | `::mlir::cir::GlobalViewAttr` | Provides constant access to a global address |
-| runtimeFunc | `FlatSymbolRefAttr` |  |
-| badCastFunc | `FlatSymbolRefAttr` |  |
-| offsetHint | `::mlir::cir::IntAttr` | An Attribute containing a integer value |
+| srcRtti | `::cir::GlobalViewAttr` | Provides constant access to a global address |
+| destRtti | `::cir::GlobalViewAttr` | Provides constant access to a global address |
+| runtimeFunc | `mlir::FlatSymbolRefAttr` |  |
+| badCastFunc | `mlir::FlatSymbolRefAttr` |  |
+| offsetHint | `::cir::IntAttr` | An Attribute containing a integer value |
 
 ### ExtraFuncAttributesAttr
 
@@ -551,7 +560,7 @@ Syntax:
 
 ```
 #cir.extra<
-  DictionaryAttr   # elements
+  mlir::DictionaryAttr   # elements
 >
 ```
 
@@ -562,7 +571,7 @@ a function.
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
-| elements | `DictionaryAttr` |  |
+| elements | `mlir::DictionaryAttr` |  |
 
 ### FPAttr
 
@@ -572,20 +581,20 @@ Syntax:
 
 ```
 #cir.fp<
-  ::mlir::Type,   # type
-  APFloat   # value
+  ::cir::CIRFPTypeInterface,   # type
+  ::llvm::APFloat   # value
 >
 ```
 
 An fp attribute is a literal attribute that represents a floating-point
-value of the specified floating-point type.
+value of the specified floating-point type. Supporting only CIR FP types.
 
 #### Parameters:
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
-| type | `::mlir::Type` |  |
-| value | `APFloat` |  |
+| type | `::cir::CIRFPTypeInterface` |  |
+| value | `::llvm::APFloat` |  |
 
 ### GlobalAnnotationValuesAttr
 
@@ -595,7 +604,7 @@ Syntax:
 
 ```
 #cir.global_annotations<
-  ArrayAttr   # annotations
+  mlir::ArrayAttr   # annotations
 >
 ```
 
@@ -610,7 +619,7 @@ int *b __attribute__((annotate("withargs", "21", 12 )));
 void *c __attribute__((annotate("noargvar")));
 void foo(int i) __attribute__((annotate("noargfunc"))) {}
 ```
-After CIR lowering prepare pass, compiler generates a 
+After CIR lowering prepare pass, compiler generates a
 `GlobalAnnotationValuesAttr` like the following:
 ```
 #cir<global_annotations [
@@ -624,7 +633,7 @@ After CIR lowering prepare pass, compiler generates a
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
-| annotations | `ArrayAttr` |  |
+| annotations | `mlir::ArrayAttr` |  |
 
 ### GlobalCtorAttr
 
@@ -634,17 +643,18 @@ Syntax:
 
 ```
 #cir.global_ctor<
-  StringAttr,   # name
+  mlir::StringAttr,   # name
   int   # priority
 >
 ```
 
 A function with this attribute executes before main()
+
 #### Parameters:
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
-| name | `StringAttr` |  |
+| name | `mlir::StringAttr` |  |
 | priority | `int` |  |
 
 ### GlobalDtorAttr
@@ -655,17 +665,18 @@ Syntax:
 
 ```
 #cir.global_dtor<
-  StringAttr,   # name
+  mlir::StringAttr,   # name
   int   # priority
 >
 ```
 
 A function with this attribute excutes before module unloading
+
 #### Parameters:
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
-| name | `StringAttr` |  |
+| name | `mlir::StringAttr` |  |
 | priority | `int` |  |
 
 ### GlobalViewAttr
@@ -677,8 +688,8 @@ Syntax:
 ```
 #cir.global_view<
   ::mlir::Type,   # type
-  FlatSymbolRefAttr,   # symbol
-  ArrayAttr   # indices
+  mlir::FlatSymbolRefAttr,   # symbol
+  mlir::ArrayAttr   # indices
 >
 ```
 
@@ -712,8 +723,29 @@ Example:
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
 | type | `::mlir::Type` |  |
-| symbol | `FlatSymbolRefAttr` |  |
-| indices | `ArrayAttr` |  |
+| symbol | `mlir::FlatSymbolRefAttr` |  |
+| indices | `mlir::ArrayAttr` |  |
+
+### InactiveUnionFieldAttr
+
+Attribute to represent an uninitialized field for a union.
+
+Syntax:
+
+```
+#cir.inactive_field<
+  ::mlir::Type   # type
+>
+```
+
+The InactiveUnionFieldAttr is used to represent an uninitialized field
+for a union.
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| type | `::mlir::Type` |  |
 
 ### InlineAttr
 
@@ -747,7 +779,7 @@ value of the specified integer type.
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
 | type | `::mlir::Type` |  |
-| value | `APInt` |  |
+| value | `llvm::APInt` |  |
 
 ### LangAttr
 
@@ -791,8 +823,8 @@ null pointer constant.
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
-| type | `mlir::cir::MethodType` |  |
-| symbol | `std::optional<FlatSymbolRefAttr>` |  |
+| type | `cir::MethodType` |  |
+| symbol | `std::optional<mlir::FlatSymbolRefAttr>` |  |
 | vtable_offset | `std::optional<uint64_t>` |  |
 
 ### NoThrowAttr
@@ -800,6 +832,7 @@ null pointer constant.
 
 
 Syntax: `#cir.nothrow`
+
 
 
 ### OpenCLKernelArgMetadataAttr
@@ -810,12 +843,12 @@ Syntax:
 
 ```
 #cir.cl.kernel_arg_metadata<
-  ArrayAttr,   # addr_space
-  ArrayAttr,   # access_qual
-  ArrayAttr,   # type
-  ArrayAttr,   # base_type
-  ArrayAttr,   # type_qual
-  ArrayAttr   # name
+  mlir::ArrayAttr,   # addr_space
+  mlir::ArrayAttr,   # access_qual
+  mlir::ArrayAttr,   # type
+  mlir::ArrayAttr,   # base_type
+  mlir::ArrayAttr,   # type_qual
+  mlir::ArrayAttr   # name
 >
 ```
 
@@ -854,12 +887,12 @@ cir.func @kernel(%arg0: !s32i) extra(#fn_attr) {
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
-| addr_space | `ArrayAttr` |  |
-| access_qual | `ArrayAttr` |  |
-| type | `ArrayAttr` |  |
-| base_type | `ArrayAttr` |  |
-| type_qual | `ArrayAttr` |  |
-| name | `ArrayAttr` |  |
+| addr_space | `mlir::ArrayAttr` |  |
+| access_qual | `mlir::ArrayAttr` |  |
+| type | `mlir::ArrayAttr` |  |
+| base_type | `mlir::ArrayAttr` |  |
+| type_qual | `mlir::ArrayAttr` |  |
+| name | `mlir::ArrayAttr` |  |
 
 ### OpenCLKernelAttr
 
@@ -877,11 +910,11 @@ Syntax:
 
 ```
 #cir.cl.kernel_metadata<
-  ArrayAttr,   # work_group_size_hint
-  ArrayAttr,   # reqd_work_group_size
-  TypeAttr,   # vec_type_hint
+  mlir::ArrayAttr,   # work_group_size_hint
+  mlir::ArrayAttr,   # reqd_work_group_size
+  mlir::TypeAttr,   # vec_type_hint
   std::optional<bool>,   # vec_type_hint_signedness
-  IntegerAttr   # intel_reqd_sub_group_size
+  mlir::IntegerAttr   # intel_reqd_sub_group_size
 >
 ```
 
@@ -922,11 +955,11 @@ cir.func @kernel(%arg0: !s32i) extra(#fn_attr) {
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
-| work_group_size_hint | `ArrayAttr` |  |
-| reqd_work_group_size | `ArrayAttr` |  |
-| vec_type_hint | `TypeAttr` |  |
+| work_group_size_hint | `mlir::ArrayAttr` |  |
+| reqd_work_group_size | `mlir::ArrayAttr` |  |
+| vec_type_hint | `mlir::TypeAttr` |  |
 | vec_type_hint_signedness | `std::optional<bool>` |  |
-| intel_reqd_sub_group_size | `IntegerAttr` |  |
+| intel_reqd_sub_group_size | `mlir::IntegerAttr` |  |
 
 ### OpenCLKernelUniformWorkGroupSizeAttr
 
@@ -980,7 +1013,9 @@ module attributes {cir.cl.version = cir.cl.version<3, 0>} {}
 Syntax: `#cir.optnone`
 
 
+
 ### SignedOverflowBehaviorAttr
+
 
 
 
@@ -1059,6 +1094,27 @@ cir.global external @type_info_B = #cir.typeinfo<<
 | type | `::mlir::Type` |  |
 | data | `mlir::ArrayAttr` |  |
 
+### UndefAttr
+
+Represent an undef constant
+
+Syntax:
+
+```
+#cir.undef<
+  ::mlir::Type   # type
+>
+```
+
+The UndefAttr represents an undef constant, corresponding to LLVM's notion
+of undef.
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| type | `::mlir::Type` |  |
+
 ### VTableAttr
 
 Represents a C++ vtable
@@ -1068,7 +1124,7 @@ Syntax:
 ```
 #cir.vtable<
   ::mlir::Type,   # type
-  ArrayAttr   # vtable_data
+  mlir::ArrayAttr   # vtable_data
 >
 ```
 
@@ -1091,7 +1147,7 @@ cir.global linkonce_odr @_ZTV1B = #cir.vtable<<
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
 | type | `::mlir::Type` |  |
-| vtable_data | `ArrayAttr` |  |
+| vtable_data | `mlir::ArrayAttr` |  |
 
 ### VisibilityAttr
 
