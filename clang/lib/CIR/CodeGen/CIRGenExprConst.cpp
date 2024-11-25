@@ -377,7 +377,14 @@ mlir::Attribute ConstantAggregateBuilder::buildFrom(
   CharUnits AlignedSize = Size.alignTo(Align);
 
   bool Packed = false;
-  ArrayRef<mlir::Attribute> UnpackedElems;
+  ArrayRef<mlir::Attribute> UnpackedElems = Elems;
+
+  if (DesiredSize < AlignedSize || DesiredSize.alignTo(Align) != DesiredSize) {
+    NaturalLayout = false;
+    Packed = true;
+  }
+
+  llvm::SmallVector<mlir::Attribute, 32> UnpackedElemStorage;
 
   // Fill the init elements for union. This comes from a fundamental
   // difference between CIR and LLVM IR. In LLVM IR, the union is simply a
@@ -385,11 +392,17 @@ mlir::Attribute ConstantAggregateBuilder::buildFrom(
   // element. But in CIR, the union has the information for all members. So if
   // we only pass a single init element, we may be in trouble. We solve the
   // problem by appending placeholder attribute for the uninitialized fields.
+  //
+  // FIXME: Currently, we can't use InactiveUnionFieldAttr for elems which is
+  // not the biggest member since we may failed to get the padding bits then.
+  // However, adding these padding bits will have problems for identifying
+  // the unions as the same type in the array of unions. See
+  // https://github.com/llvm/clangir/pull/1007 for example.
+  llvm::SmallVector<mlir::Attribute, 32> UnionElemsStorage;
   if (auto desired = dyn_cast<cir::StructType>(DesiredTy);
       desired && desired.isUnion() &&
-      Elems.size() != desired.getNumElements()) {
-    llvm::SmallVector<mlir::Attribute, 32> UnionElemsStorage;
-
+      Elems.size() != desired.getNumElements() && Elems.size() == 1 &&
+      DesiredSize == AlignedSize) {
     for (auto elemTy : desired.getMembers()) {
       if (auto Ty = mlir::dyn_cast<mlir::TypedAttr>(Elems.back());
           Ty && Ty.getType() == elemTy)
@@ -400,13 +413,6 @@ mlir::Attribute ConstantAggregateBuilder::buildFrom(
     }
 
     UnpackedElems = UnionElemsStorage;
-  } else
-    UnpackedElems = Elems;
-
-  llvm::SmallVector<mlir::Attribute, 32> UnpackedElemStorage;
-  if (DesiredSize < AlignedSize || DesiredSize.alignTo(Align) != DesiredSize) {
-    NaturalLayout = false;
-    Packed = true;
   } else if (DesiredSize > AlignedSize) {
     // The natural layout would be too small. Add padding to fix it. (This
     // is ignored if we choose a packed layout.)
