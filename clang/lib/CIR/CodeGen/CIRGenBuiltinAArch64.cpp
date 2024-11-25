@@ -28,6 +28,7 @@
 #include "llvm/IR/IntrinsicsAArch64.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/IR/Location.h"
 #include "mlir/IR/Value.h"
 #include "clang/AST/GlobalDecl.h"
 #include "clang/Basic/Builtins.h"
@@ -2361,6 +2362,15 @@ mlir::Value CIRGenFunction::emitCommonNeonBuiltinExpr(
     ops[0] = builder.createBitcast(ops[0], vTy);
     return emitNeonSplat(builder, getLoc(e->getExprLoc()), ops[0], ops[1],
                          numElements);
+  }
+  case NEON::BI__builtin_neon_vabs_v:
+  case NEON::BI__builtin_neon_vabsq_v: {
+    mlir::Location loc = getLoc(e->getExprLoc());
+    ops[0] = builder.createBitcast(ops[0], vTy);
+    if (mlir::isa<cir::SingleType, cir::DoubleType>(vTy.getEltType())) {
+      return builder.create<cir::FAbsOp>(loc, ops[0]);
+    }
+    return builder.create<cir::AbsOp>(loc, ops[0]);
   }
   case NEON::BI__builtin_neon_vmovl_v: {
     cir::VectorType dTy = builder.getExtendedOrTruncatedElementVectorType(
