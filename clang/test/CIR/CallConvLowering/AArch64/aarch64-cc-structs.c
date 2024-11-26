@@ -138,7 +138,7 @@ void pass_lt_128(LT_128 s) {}
 // CHECK:   cir.store %arg0, %[[#V1]] : !cir.array<!u64i x 2>, !cir.ptr<!cir.array<!u64i x 2>>
 
 // LLVM: void @pass_eq_128([2 x i64] %0)
-// LLVM:   %[[#V1:]] = alloca %struct.EQ_128, i64 1, align 4
+// LLVM:   %[[#V1]] = alloca %struct.EQ_128, i64 1, align 4
 // LLVM:   store [2 x i64] %0, ptr %[[#V1]], align 8
 void pass_eq_128(EQ_128 s) {}
 
