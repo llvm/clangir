@@ -538,8 +538,8 @@ void CIRGenFunction::finishFunction(SourceLocation EndLoc) {
     // the ret after it's been at EndLoc.
     if (auto *DI = getDebugInfo())
       assert(!cir::MissingFeatures::generateDebugInfo() && "NYI");
-    // FIXME(cir): vla.c test currently crashes here.
-    // PopCleanupBlocks(PrologueCleanupDepth);
+    builder.clearInsertionPoint();
+    PopCleanupBlocks(PrologueCleanupDepth);
   }
 
   // Emit function epilog (to return).
@@ -562,8 +562,7 @@ void CIRGenFunction::finishFunction(SourceLocation EndLoc) {
   assert(!cir::MissingFeatures::emitFunctionEpilog() && "NYI");
   assert(!cir::MissingFeatures::emitEndEHSpec() && "NYI");
 
-  // FIXME(cir): vla.c test currently crashes here.
-  // assert(EHStack.empty() && "did not remove all scopes from cleanup stack!");
+  assert(EHStack.empty() && "did not remove all scopes from cleanup stack!");
 
   // If someone did an indirect goto, emit the indirect goto block at the end of
   // the function.
@@ -1204,8 +1203,7 @@ void CIRGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
   }
 
   assert(!cir::MissingFeatures::emitStartEHSpec() && "NYI");
-  // FIXME(cir): vla.c test currently crashes here.
-  // PrologueCleanupDepth = EHStack.stable_begin();
+  PrologueCleanupDepth = EHStack.stable_begin();
 
   // Emit OpenMP specific initialization of the device functions.
   if (getLangOpts().OpenMP && CurCodeDecl)
