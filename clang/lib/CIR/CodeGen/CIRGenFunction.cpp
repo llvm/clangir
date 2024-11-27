@@ -358,14 +358,22 @@ void CIRGenFunction::LexicalScope::cleanup() {
 
   // Cleanup are done right before codegen resume a scope. This is where
   // objects are destroyed.
-  unsigned curLoc = 0;
+  SmallVector<mlir::Block *> retBlocks;
   for (auto *retBlock : localScope->getRetBlocks()) {
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPointToEnd(retBlock);
-    mlir::Location retLoc = *localScope->getRetLocs()[curLoc];
-    curLoc++;
+    retBlocks.push_back(retBlock);
+    mlir::Location retLoc = localScope->getRetLoc(retBlock);
     (void)emitReturn(retLoc);
   }
+
+  auto removeUnusedRetBlocks = [&]() {
+    for (mlir::Block *retBlock : retBlocks) {
+      if (!retBlock->getUses().empty())
+        continue;
+      retBlock->erase();
+    }
+  };
 
   auto insertCleanupAndLeave = [&](mlir::Block *InsPt) {
     mlir::OpBuilder::InsertionGuard guard(builder);
@@ -382,9 +390,34 @@ void CIRGenFunction::LexicalScope::cleanup() {
     if (!cleanupBlock && localScope->getCleanupBlock(builder)) {
       cleanupBlock = localScope->getCleanupBlock(builder);
       builder.create<BrOp>(InsPt->back().getLoc(), cleanupBlock);
+      if (!cleanupBlock->mightHaveTerminator()) {
+        mlir::OpBuilder::InsertionGuard guard(builder);
+        builder.setInsertionPointToEnd(cleanupBlock);
+        builder.create<YieldOp>(localScope->EndLoc);
+      }
     }
 
     if (localScope->Depth == 0) {
+      // TODO(cir): get rid of all this special cases once cleanups are properly
+      // implemented.
+      // TODO(cir): most of this code should move into emitBranchThroughCleanup
+      if (localScope->getRetBlocks().size() == 1) {
+        mlir::Block *retBlock = localScope->getRetBlocks()[0];
+        mlir::Location loc = localScope->getRetLoc(retBlock);
+        if (retBlock->getUses().empty())
+          retBlock->erase();
+        else {
+          // Thread return block via cleanup block.
+          if (cleanupBlock) {
+            for (auto &blockUse : retBlock->getUses()) {
+              auto brOp = dyn_cast<cir::BrOp>(blockUse.getOwner());
+              brOp.setSuccessor(cleanupBlock);
+            }
+          }
+          builder.create<BrOp>(loc, retBlock);
+          return;
+        }
+      }
       emitImplicitReturn();
       return;
     }
@@ -429,6 +462,7 @@ void CIRGenFunction::LexicalScope::cleanup() {
     // get into this condition and emit the proper cleanup. This is
     // needed to get nrvo to interop with dtor logic.
     PerformCleanup = false;
+    removeUnusedRetBlocks();
     return;
   }
 
@@ -538,7 +572,7 @@ void CIRGenFunction::finishFunction(SourceLocation EndLoc) {
     // the ret after it's been at EndLoc.
     if (auto *DI = getDebugInfo())
       assert(!cir::MissingFeatures::generateDebugInfo() && "NYI");
-    builder.clearInsertionPoint();
+    // FIXME(cir): should we clearInsertionPoint? breaks many testcases
     PopCleanupBlocks(PrologueCleanupDepth);
   }
 
@@ -687,7 +721,7 @@ cir::FuncOp CIRGenFunction::generateCode(clang::GlobalDecl GD, cir::FuncOp Fn,
   assert(Fn.isDeclaration() && "Function already has body?");
   mlir::Block *EntryBB = Fn.addEntryBlock();
   builder.setInsertionPointToStart(EntryBB);
-
+  mlir::Block *maybeEmptyLastBlock = nullptr;
   {
     // Initialize lexical scope information.
     LexicalScope lexScope{*this, fusedLoc, EntryBB};
@@ -737,18 +771,22 @@ cir::FuncOp CIRGenFunction::generateCode(clang::GlobalDecl GD, cir::FuncOp Fn,
       llvm_unreachable("no definition for emitted function");
 
     assert(builder.getInsertionBlock() && "Should be valid");
+    maybeEmptyLastBlock = builder.getInsertionBlock();
+
+    if (mlir::failed(Fn.verifyBody()))
+      return nullptr;
+
+    // Emit the standard function epilogue.
+    finishFunction(BodyRange.getEnd());
+
+    // If we haven't marked the function nothrow through other means, do a quick
+    // pass now to see if we can.
+    assert(!cir::MissingFeatures::tryMarkNoThrow());
   }
 
-  if (mlir::failed(Fn.verifyBody()))
-    return nullptr;
-
-  // Emit the standard function epilogue.
-  finishFunction(BodyRange.getEnd());
-
-  // If we haven't marked the function nothrow through other means, do a quick
-  // pass now to see if we can.
-  assert(!cir::MissingFeatures::tryMarkNoThrow());
-
+  if (maybeEmptyLastBlock && maybeEmptyLastBlock->getUses().empty() &&
+      maybeEmptyLastBlock->empty())
+    maybeEmptyLastBlock->erase();
   return Fn;
 }
 
@@ -1172,9 +1210,13 @@ void CIRGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
   if (FD && FD->isMain() && cir::MissingFeatures::zerocallusedregs())
     llvm_unreachable("NYI");
 
-  mlir::Block *EntryBB = &Fn.getBlocks().front();
+  // CIRGen has its own logic for entry blocks, usually per operation region.
+  mlir::Block *retBlock = currLexScope->getOrCreateRetBlock(*this, getLoc(Loc));
+  // returnBlock handles per region getJumpDestInCurrentScope LLVM traditional
+  // codegen logic.
+  (void)returnBlock(retBlock);
 
-  // TODO: allocapt insertion? probably don't need for CIR
+  mlir::Block *EntryBB = &Fn.getBlocks().front();
 
   if (cir::MissingFeatures::requiresReturnValueCheck())
     llvm_unreachable("NYI");
