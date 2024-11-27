@@ -145,7 +145,8 @@ bool CIRGenModule::tryEmitBaseDestructorAsAlias(const CXXDestructorDecl *D) {
     // members with attribute "AlwaysInline" and expect no reference to
     // be generated. It is desirable to reenable this optimisation after
     // corresponding LLVM changes.
-    llvm_unreachable("NYI");
+    addReplacement(MangledName, Aliasee);
+    return false;
   }
 
   // If we have a weak, non-discardable alias (weak, weak_odr), like an
@@ -154,7 +155,8 @@ bool CIRGenModule::tryEmitBaseDestructorAsAlias(const CXXDestructorDecl *D) {
   // symbol reference from another TU. The other TU must also mark the
   // referenced symbol as weak, which we cannot rely on.
   if (cir::isWeakForLinker(Linkage) && getTriple().isOSBinFormatCOFF()) {
-    llvm_unreachable("NYI");
+    assert(false && "please sent a PR with a test and remove this.\n");
+    return true;
   }
 
   // If we don't have a definition for the destructor yet or the definition
@@ -168,8 +170,10 @@ bool CIRGenModule::tryEmitBaseDestructorAsAlias(const CXXDestructorDecl *D) {
   // different COMDATs in different TUs. Another option would be to
   // output the alias both for weak_odr and linkonce_odr, but that
   // requires explicit comdat support in the IL.
-  if (cir::isWeakForLinker(TargetLinkage))
-    llvm_unreachable("NYI");
+  if (cir::isWeakForLinker(TargetLinkage)) {
+    assert(false && "please sent a PR with a test and remove this.\n");
+    return true;
+  }
 
   // Create the alias with no name.
   emitAliasForGlobal(MangledName, Entry, AliasDecl, Aliasee, Linkage);
