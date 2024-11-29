@@ -3854,9 +3854,10 @@ LogicalResult cir::StdInitializerListOp::verify() {
     return emitOpError("first member type of std::initializer_list must be "
                        "'!cir.ptr', but provided ")
            << resultType.getMembers()[0];
-  mlir::Type expectedType = memberPtr.getPointee();
-  if (mlir::dyn_cast<cir::StructType>(expectedType))
-    expectedType = memberPtr;
+  const mlir::Type templateType = memberPtr.getPointee();
+  const mlir::Type expectedType =
+      mlir::isa<cir::StructType, cir::ArrayType>(templateType) ? memberPtr
+                                                               : templateType;
   for (const mlir::Value &arg : getArgs())
     if (expectedType != arg.getType())
       return emitOpError("arg type must be ")
