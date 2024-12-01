@@ -69,7 +69,7 @@ jobs:
         python-version: '3.12'
 
     - name: Checkout LLVM
-      uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+      uses: actions/checkout@cbb722410c2e876e24abbe8de2cc27693e501dcb # v4.1.1
 
     - name: Install Dependencies
       shell: bash
@@ -153,7 +153,7 @@ jobs:
     steps:
 
     - name: Checkout Actions
-      uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+      uses: actions/checkout@cbb722410c2e876e24abbe8de2cc27693e501dcb # v4.1.1
       with:
         ref: ${{ (github.event_name == 'pull_request' && github.sha) || 'main' }}
         sparse-checkout: |
@@ -174,7 +174,7 @@ jobs:
       run: mv workflows  ../workflows-main
 
     - name: Checkout LLVM
-      uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+      uses: actions/checkout@cbb722410c2e876e24abbe8de2cc27693e501dcb # v4.1.1
       with:
         ref: ${{ needs.prepare.outputs.ref }}
 
@@ -227,7 +227,7 @@ jobs:
     runs-on: ${{ inputs.runs-on }}
     steps:
     - name: Checkout Actions
-      uses: actions/checkout@v4
+      uses: actions/checkout@v4.2.2
       with:
         ref: ${{ (github.event_name == 'pull_request' && github.sha) || 'main' }}
         sparse-checkout: |
@@ -261,7 +261,7 @@ jobs:
     runs-on: ${{ inputs.runs-on }}
     steps:
     - name: Checkout Actions
-      uses: actions/checkout@v4
+      uses: actions/checkout@v4.2.2
       with:
         ref: ${{ (github.event_name == 'pull_request' && github.sha) || 'main' }}
         sparse-checkout: |
@@ -310,7 +310,7 @@ jobs:
     runs-on: ${{ inputs.runs-on }}
     steps:
     - name: Checkout Actions
-      uses: actions/checkout@v4
+      uses: actions/checkout@v4.2.2
       with:
         ref: ${{ (github.event_name == 'pull_request' && github.sha) || 'main' }}
         sparse-checkout: |
@@ -360,7 +360,7 @@ jobs:
     runs-on: ${{ inputs.runs-on }}
     steps:
     - name: Checkout Actions
-      uses: actions/checkout@v4
+      uses: actions/checkout@v4.2.2
       with:
         ref: ${{ (github.event_name == 'pull_request' && github.sha) || 'main' }}
         sparse-checkout: |
@@ -384,7 +384,7 @@ jobs:
         # and other steps expect D:\files.
         mv ${{ steps.setup-stage.outputs.build-prefix  }}/build/tools/clang/stage2-bins/${{ needs.prepare.outputs.release-binary-filename }} .
 
-    - uses: actions/upload-artifact@26f96dfa697d77e81fd5907df203aa23a56210a8 #v4.3.0
+    - uses: actions/upload-artifact@184d73b71b93c222403b2e7f1ffebe4508014249 #v4.3.0
       with:
         name: ${{ runner.os }}-${{ runner.arch }}-release-binary
         # Due to path differences on Windows when running in bash vs running on node,
@@ -421,7 +421,7 @@ jobs:
 
     steps:
     - name: Checkout Release Scripts
-      uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+      uses: actions/checkout@cbb722410c2e876e24abbe8de2cc27693e501dcb # v4.1.1
       with:
         sparse-checkout: |
           llvm/utils/release/github-upload-release.py
@@ -429,14 +429,14 @@ jobs:
         sparse-checkout-cone-mode: false
 
     - name: 'Download artifact'
-      uses: actions/download-artifact@6b208ae046db98c579e8a3aa621ab581ff575935 # v4.1.1
+      uses: actions/download-artifact@d0ce8fd1167ed839810201de977912a090ab10a7 # v4.1.1
       with:
         pattern: '*-release-binary'
         merge-multiple: true
 
     - name: Attest Build Provenance
       id: provenance
-      uses: actions/attest-build-provenance@897ed5eab6ed058a474202017ada7f40bfa52940 # v1.0.0
+      uses: actions/attest-build-provenance@ef244123eb79f2f7a7e75d99086184180e6d0018 # v1.4.4
       with:
         subject-path: ${{ needs.prepare.outputs.release-binary-filename }}
 
@@ -445,7 +445,7 @@ jobs:
         mv ${{ steps.provenance.outputs.bundle-path }} ${{ needs.prepare.outputs.release-binary-filename }}.jsonl
 
     - name: Upload Build Provenance
-      uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 #v4.3.3
+      uses: actions/upload-artifact@184d73b71b93c222403b2e7f1ffebe4508014249 #v4.3.3
       with:
         name: ${{ needs.prepare.outputs.release-binary-filename }}-attestation
         path: ${{ needs.prepare.outputs.release-binary-filename }}.jsonl
@@ -473,7 +473,7 @@ jobs:
     runs-on: ${{ inputs.runs-on }}
     steps:
     - name: Checkout Actions
-      uses: actions/checkout@v4
+      uses: actions/checkout@v4.2.2
       with:
         ref: ${{ (github.event_name == 'pull_request' && github.sha) || 'main' }}
         sparse-checkout: |
