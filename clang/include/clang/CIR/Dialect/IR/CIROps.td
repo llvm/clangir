@@ -5274,8 +5274,8 @@ def AtomicCmpXchg : CIR_Op<"atomic.cmp_xchg",
 def SignBitOp : CIR_Op<"signbit", [Pure]> {
   let summary = "Checks the sign of a floating-point number";
   let description = [{
-    It returns true if the number is negative
-    and false if the number is positive or zero.
+    It returns whether the sign bit (i.e. the highest bit) of the input operand
+    is set.
   }];
   let arguments = (ins CIR_AnyFloat:$input);
   let results = (outs CIR_BoolType:$res);
