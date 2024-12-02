@@ -14,14 +14,13 @@
                 "-nostdsysteminc",
                 "-triple",
                 "x86_64-unknown-linux-gnu",
-                "-fclangir-enable",
-                "-clangir-disable-emit-cxx-default",
+                "-fclangir",
                 "-Wno-unused-value",
                 "-emit-cir",
                 "/tmp/test.raw",
                 "-std=c89",
                 "-o",
-                "/tmp/test.cir",
+                "/tmp/test.cir"
             ],
             "cwd": "${workspaceFolder}"
         },
@@ -41,14 +40,13 @@
                 "c++",
                 "-triple",
                 "x86_64-unknown-linux-gnu",
-                "-fclangir-enable",
+                "-fclangir",
                 "-mconstructor-aliases",
-                "-clangir-disable-emit-cxx-default",
                 "-Wno-unused-value",
                 "-emit-cir",
                 "/tmp/test.raw",
                 "-o",
-                "/tmp/test.cir",
+                "/tmp/test.cir"
             ],
             "cwd": "${workspaceFolder}"
         },
