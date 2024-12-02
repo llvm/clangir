@@ -45,13 +45,13 @@ module @test attributes {
   }
   //      MLIR: llvm.func @get_runtime_member(%[[ARG0:.+]]: !llvm.ptr, %[[ARG1:.+]]: i64) -> !llvm.ptr
   // MLIR-NEXT:   %[[#PTR:]] = llvm.bitcast %[[ARG0]] : !llvm.ptr to !llvm.ptr
-  // MLIR-NEXT:   %[[#VAL:]] = llvm.getelementptr %[[#PTR]][%[[ARG1]]] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+  // MLIR-NEXT:   %[[#VAL:]] = llvm.getelementptr inbounds %[[#PTR]][%[[ARG1]]] : (!llvm.ptr, i64) -> !llvm.ptr, i8
   // MLIR-NEXT:   %[[#RET:]] = llvm.bitcast %[[#VAL]] : !llvm.ptr to !llvm.ptr
   // MLIR-NEXT:   llvm.return %[[#RET]] : !llvm.ptr
   // MLIR-NEXT: }
 
   //      LLVM: define ptr @get_runtime_member(ptr %[[ARG0:.+]], i64 %[[ARG1:.+]])
-  // LLVM-NEXT:   %[[#VAL:]] = getelementptr i8, ptr %[[ARG0]], i64 %[[ARG1]]
+  // LLVM-NEXT:   %[[#VAL:]] = getelementptr inbounds i8, ptr %[[ARG0]], i64 %[[ARG1]]
   // LLVM-NEXT:   ret ptr %[[#VAL]]
   // LLVM-NEXT: }
 }

@@ -851,8 +851,9 @@ mlir::LogicalResult CIRToLLVMPtrStrideOpLowering::matchAndRewrite(
     }
   }
 
-  rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(
-      ptrStrideOp, resultTy, elementTy, adaptor.getBase(), index);
+  rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(ptrStrideOp, resultTy,
+                                                 elementTy, adaptor.getBase(),
+                                                 index, /*inbounds=*/true);
   return mlir::success();
 }
 

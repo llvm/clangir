@@ -83,12 +83,12 @@ module {
 // MLIR:           %[[VAL_23:.*]] = llvm.load %[[VAL_4]] {alignment = 8 : i64} : !llvm.ptr -> !llvm.ptr
 // MLIR:           %[[VAL_24:.*]] = llvm.load %[[VAL_2]] {alignment = 4 : i64} : !llvm.ptr -> i32
 // MLIR:           %[[VAL_25:.*]] = llvm.sext %[[VAL_24]] : i32 to i64
-// MLIR:           %[[VAL_26:.*]] = llvm.getelementptr %[[VAL_23]]{{\[}}%[[VAL_25]]] : (!llvm.ptr, i64) -> !llvm.ptr, f64
+// MLIR:           %[[VAL_26:.*]] = llvm.getelementptr inbounds %[[VAL_23]]{{\[}}%[[VAL_25]]] : (!llvm.ptr, i64) -> !llvm.ptr, f64
 // MLIR:           %[[VAL_27:.*]] = llvm.load %[[VAL_26]] {alignment = 8 : i64} : !llvm.ptr -> f64
 // MLIR:           %[[VAL_28:.*]] = llvm.load %[[VAL_6]] {alignment = 8 : i64} : !llvm.ptr -> !llvm.ptr
 // MLIR:           %[[VAL_29:.*]] = llvm.load %[[VAL_2]] {alignment = 4 : i64} : !llvm.ptr -> i32
 // MLIR:           %[[VAL_30:.*]] = llvm.sext %[[VAL_29]] : i32 to i64
-// MLIR:           %[[VAL_31:.*]] = llvm.getelementptr %[[VAL_28]]{{\[}}%[[VAL_30]]] : (!llvm.ptr, i64) -> !llvm.ptr, f64
+// MLIR:           %[[VAL_31:.*]] = llvm.getelementptr inbounds %[[VAL_28]]{{\[}}%[[VAL_30]]] : (!llvm.ptr, i64) -> !llvm.ptr, f64
 // MLIR:           %[[VAL_32:.*]] = llvm.load %[[VAL_31]] {alignment = 8 : i64} : !llvm.ptr -> f64
 // MLIR:           %[[VAL_33:.*]] = llvm.fmul %[[VAL_27]], %[[VAL_32]]  : f64
 // MLIR:           %[[VAL_34:.*]] = llvm.load %[[VAL_12]] {alignment = 8 : i64} : !llvm.ptr -> f64

@@ -97,13 +97,13 @@ double f1(int n, ...) {
 // LLVM-NEXT: [[VR_TOP_P:%.*]] = getelementptr %struct.__va_list, ptr [[VARLIST]], i32 0, i32 2
 // LLVM-NEXT: [[VR_TOP:%.*]] = load ptr, ptr [[VR_TOP_P]], align 8
 // LLVM-NEXT: [[EXT64_VR_OFFS:%.*]] = sext i32 [[VR_OFFS]] to i64
-// LLVM-NEXT: [[IN_REG_OUTPUT:%.*]] = getelementptr i8, ptr [[VR_TOP]], i64 [[EXT64_VR_OFFS]]
+// LLVM-NEXT: [[IN_REG_OUTPUT:%.*]] = getelementptr inbounds i8, ptr [[VR_TOP]], i64 [[EXT64_VR_OFFS]]
 // LLVM-NEXT: br label %[[BB_END:.*]]
 
 // LLVM:  [[BB_ON_STACK]]: ;
 // LLVM-NEXT: [[STACK_P:%.*]] = getelementptr %struct.__va_list, ptr [[VARLIST]], i32 0, i32 0
 // LLVM-NEXT: [[STACK_V:%.*]] = load ptr, ptr [[STACK_P]], align 8
-// LLVM-NEXT: [[NEW_STACK_V:%.*]] = getelementptr i8, ptr [[STACK_V]], i64 8
+// LLVM-NEXT: [[NEW_STACK_V:%.*]] = getelementptr inbounds i8, ptr [[STACK_V]], i64 8
 // LLVM-NEXT: store ptr [[NEW_STACK_V]], ptr [[STACK_P]], align 8
 // LLVM-NEXT: br label %[[BB_END]]
 
