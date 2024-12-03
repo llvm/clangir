@@ -14616,9 +14616,9 @@ int16_t test_vqmovns_s32(int32_t a) {
 
   // CIR-LABEL: vqmovns_s32
   // CIR: [[A:%.*]] = cir.load {{.*}} : !cir.ptr<!s32i>, !s32i
-  // CIR-NEXT: [[POISON:%.*]] = cir.poison : !cir.vector<!s32i x 4>
-  // CIR-NEXT: [[VQMOVNS_S32_ZERO1:%.*]] = cir.const #cir.int<0> : !u64i
-  // CIR-NEXT: [[TMP0:%.*]] = cir.vec.insert [[A]], [[POISON]][[[VQMOVNS_S32_ZERO1]] : !u64i] : !cir.vector<!s32i x 4>
+  // CIR: [[VQMOVNS_S32_ZERO1:%.*]] = cir.const #cir.int<0> : !u64i
+  // CIR: [[POISON:%.*]] = cir.poison : !cir.vector<!s32i x 4>
+  // CIR: [[TMP0:%.*]] = cir.vec.insert [[A]], [[POISON]][[[VQMOVNS_S32_ZERO1]] : !u64i] : !cir.vector<!s32i x 4>
   // CIR: [[VQMOVNS_S32_I:%.*]] = cir.llvm.intrinsic "aarch64.neon.sqxtn" [[TMP0]] : (!cir.vector<!s32i x 4>) -> !cir.vector<!s16i x 4>
   // CIR: [[VQMOVNS_S32_ZERO2:%.*]] = cir.const #cir.int<0> : !u64i
   // CIR: [[TMP1:%.*]] = cir.vec.extract [[VQMOVNS_S32_I]][[[VQMOVNS_S32_ZERO2]] : !u64i] : !cir.vector<!s16i x 4> loc(#loc4503)

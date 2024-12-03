@@ -2274,9 +2274,9 @@ static void vecExtendIntValue(CIRGenFunction &cgf, cir::VectorType argVTy,
   // The constant argument to an _n_ intrinsic always has Int32Ty, so truncate
   // it before inserting.
   arg = builder.createIntCast(arg, eltTy);
+  mlir::Value zero = builder.getConstInt(loc, cgf.SizeTy, 0);
   arg = builder.create<cir::VecInsertOp>(
-      loc, builder.create<cir::PoisonOp>(loc, argVTy), arg,
-      builder.getConstInt(loc, cgf.SizeTy, 0));
+      loc, builder.create<cir::PoisonOp>(loc, argVTy), arg, zero);
 }
 
 /// Reduce vector type value to scalar, usually for result of a
