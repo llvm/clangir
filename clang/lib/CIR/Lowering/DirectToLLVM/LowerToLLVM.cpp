@@ -2547,6 +2547,15 @@ mlir::LogicalResult CIRToLLVMBinOpLowering::matchAndRewrite(
   case cir::BinOpKind::Xor:
     rewriter.replaceOpWithNewOp<mlir::LLVM::XOrOp>(op, lhs, rhs);
     break;
+  case cir::BinOpKind::Max:
+    if (mlir::isa<mlir::IntegerType>(llvmEltTy)) {
+      auto isUnsigned = isIntTypeUnsigned(type);
+      if (isUnsigned)
+        rewriter.replaceOpWithNewOp<mlir::LLVM::UMaxOp>(op, llvmTy, lhs, rhs);
+      else
+        rewriter.replaceOpWithNewOp<mlir::LLVM::SMaxOp>(op, llvmTy, lhs, rhs);
+    }
+    break;
   }
 
   return mlir::LogicalResult::success();
