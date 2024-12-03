@@ -65,6 +65,11 @@ module  {
     %3 = cir.shift(left, %1 : !cir.vector<!s32i x 2>, %2 : !cir.vector<!s32i x 2>) -> !cir.vector<!s32i x 2>
     cir.return
   }
+
+  cir.func @poisonvalue() {
+    %0 = cir.poison : !cir.vector<!s32i x 2>
+    cir.return
+  }
 }
 
 // CHECK: module  {
@@ -116,6 +121,11 @@ module  {
 // CHECK-NEXT:    %2 = cir.const #cir.const_vector<[#cir.int<12> : !s32i, #cir.int<12> : !s32i]> : !cir.vector<!s32i x 2>
 // CHECK-NEXT:    %3 = cir.shift(left, %1 : !cir.vector<!s32i x 2>, %2 : !cir.vector<!s32i x 2>) -> !cir.vector<!s32i x 2>
 // CHECK-NEXT:    cir.return
+// CHECK-NEXT:  }
+
+// CHECK: cir.func @poisonvalue() {
+// CHECK-NEXT:   %0 = cir.poison : !cir.vector<!s32i x 2>
+// CHECK-NEXT:   cir.return
 // CHECK-NEXT:  }
 
 // CHECK: }
