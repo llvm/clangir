@@ -80,7 +80,6 @@
                 "-x",
                 "c++",
                 "-mconstructor-aliases",
-                "-clangir-disable-emit-cxx-default",
                 "-std=c++20",
                 "/tmp/test.raw",
                 "-o",
