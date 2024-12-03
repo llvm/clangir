@@ -3471,8 +3471,6 @@ def FuncOp : CIR_Op<"func", [
     /// Returns the results types that the callable region produces when
     /// executed.
     llvm::ArrayRef<mlir::Type> getCallableResults() {
-      if (::llvm::isa<cir::VoidType>(getFunctionType().getReturnType()))
-        return {};
       return getFunctionType().getReturnTypes();
     }
 
@@ -3489,10 +3487,15 @@ def FuncOp : CIR_Op<"func", [
     }
 
     /// Returns the argument types of this function.
-    llvm::ArrayRef<mlir::Type> getArgumentTypes() { return getFunctionType().getInputs(); }
+    llvm::ArrayRef<mlir::Type> getArgumentTypes() {
+       return getFunctionType().getInputs();
+    }
 
-    /// Returns the result types of this function.
-    llvm::ArrayRef<mlir::Type> getResultTypes() { return getFunctionType().getReturnTypes(); }
+    /// Returns 0 or 1 result type of this function (0 in the case of a function
+    /// returing void)
+    llvm::ArrayRef<mlir::Type> getResultTypes() {
+       return getFunctionType().getReturnTypes();
+    }
 
     /// Hook for OpTrait::FunctionOpInterfaceTrait, called after verifying that
     /// the 'type' attribute is present and checks if it holds a function type.
