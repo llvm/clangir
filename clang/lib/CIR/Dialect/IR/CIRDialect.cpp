@@ -3785,6 +3785,7 @@ LogicalResult cir::AtomicFetch::verify() {
 
 LogicalResult cir::BinOp::verify() {
   bool noWrap = getNoUnsignedWrap() || getNoSignedWrap();
+  bool saturated = getSaturated();
 
   if (!isa<cir::IntType>(getType()) && noWrap)
     return emitError()
@@ -3794,9 +3795,15 @@ LogicalResult cir::BinOp::verify() {
                    getKind() == cir::BinOpKind::Sub ||
                    getKind() == cir::BinOpKind::Mul;
 
+  bool saturatedOps =
+      getKind() == cir::BinOpKind::Add || getKind() == cir::BinOpKind::Sub;
+
   if (noWrap && !noWrapOps)
     return emitError() << "The nsw/nuw flags are applicable to opcodes: 'add', "
                           "'sub' and 'mul'";
+  if (saturated && !saturatedOps)
+    return emitError() << "The saturated flag is applicable to opcodes: 'add' "
+                          "and 'sub'";
 
   bool complexOps =
       getKind() == cir::BinOpKind::Add || getKind() == cir::BinOpKind::Sub;

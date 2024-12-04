@@ -1091,6 +1091,15 @@ cir.func @bad_binop_for_nowrap(%x: !u32i, %y: !u32i) {
 
 // -----
 
+!u32i = !cir.int<u, 32>
+
+cir.func @bad_binop_for_saturated(%x: !u32i, %y: !u32i) {
+  // expected-error@+1 {{The saturated flag is applicable to opcodes: 'add' and 'sub'}}
+  %0 = cir.binop(div, %x, %y) sat : !u32i
+}
+
+// -----
+
 !s32i = !cir.int<s, 32>
 
 module {
