@@ -933,11 +933,10 @@ parseFuncTypeReturn(mlir::AsmParser &p,
   auto result = p.parseOptionalType(type);
   if (!result.has_value())
     return mlir::failure();
-  if (failed(*result))
+  if (failed(*result) || isa<cir::VoidType>(type))
     // No return type specified.
     return p.parseLParen();
-  // Otherwise use the actual type. Note that !cir.void is still allowed here
-  // and is removed later.
+  // Otherwise use the actual type.
   returnTypes.push_back(type);
   return p.parseLParen();
 }
