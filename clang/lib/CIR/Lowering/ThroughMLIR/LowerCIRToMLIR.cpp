@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <functional>
+
 #include "LowerToMLIRHelpers.h"
 #include "mlir/Conversion/AffineToStandard/AffineToStandard.h"
 #include "mlir/Conversion/ArithToLLVM/ArithToLLVM.h"
@@ -92,6 +94,8 @@ struct ConvertCIRToMLIRPass
   }
 
   StringRef getArgument() const override { return "cir-to-mlir"; }
+
+  inline static std::function<void(mlir::ConversionTarget)> runAtStartHook;
 };
 
 class CIRCallOpLowering : public mlir::OpConversionPattern<cir::CallOp> {
@@ -1460,8 +1464,18 @@ void ConvertCIRToMLIRPass::runOnOperation() {
                        mlir::math::MathDialect, mlir::vector::VectorDialect>();
   target.addIllegalDialect<cir::CIRDialect>();
 
+  if (runAtStartHook)
+    runAtStartHook(target);
+
   if (failed(applyPartialConversion(module, target, std::move(patterns))))
     signalPassFailure();
+}
+
+/// Set a hook to be called just before applying the dialect conversion so other
+/// dialects or patterns can be added
+void runAtStartOfConvertCIRToMLIRPass(
+    std::function<void(mlir::ConversionTarget)> hook) {
+  ConvertCIRToMLIRPass::runAtStartHook = std::move(hook);
 }
 
 mlir::ModuleOp lowerFromCIRToMLIRToLLVMDialect(mlir::ModuleOp theModule,

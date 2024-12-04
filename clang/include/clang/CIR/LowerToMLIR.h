@@ -13,6 +13,7 @@
 #define CLANG_CIR_LOWERTOMLIR_H
 
 #include "mlir/Transforms/DialectConversion.h"
+#include <functional>
 
 namespace cir {
 
@@ -20,6 +21,8 @@ void populateCIRLoopToSCFConversionPatterns(mlir::RewritePatternSet &patterns,
                                             mlir::TypeConverter &converter);
 
 mlir::TypeConverter prepareTypeConverter();
+
+void runAtStartOfConvertCIRToMLIRPass(std::function<void(mlir::ConversionTarget)>);
 
 mlir::ModuleOp
 lowerFromCIRToMLIRToLLVMDialect(mlir::ModuleOp theModule,
