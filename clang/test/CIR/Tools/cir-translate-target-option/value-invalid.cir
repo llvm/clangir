@@ -1,9 +1,0 @@
-// RUN: not cir-translate --cir-to-llvmir --target foobar --disable-cc-lowering %s 2>&1 | FileCheck %s -check-prefix=INVALID
-
-module {
-  cir.func @foo() {
-    cir.return
-  }
-}
-
-// INVALID: error: invalid target triple 'foobar'

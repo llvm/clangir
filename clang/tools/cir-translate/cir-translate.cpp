@@ -41,22 +41,6 @@ extern std::unique_ptr<llvm::Module> lowerDirectlyFromCIRToLLVMIR(
 
 namespace {
 
-std::string determineDataLayoutByTriple(llvm::StringRef rawTriple) {
-  llvm::Triple triple(rawTriple);
-  // Data layout is fully determined by the target triple. Here we only pass the
-  // triple to get the data layout.
-  clang::TargetOptions targetOptions;
-  targetOptions.Triple = rawTriple;
-  // FIXME: AllocateTarget is a big deal. Better make it a global state.
-  auto targetInfo =
-      clang::targets::AllocateTarget(llvm::Triple(rawTriple), targetOptions);
-  if (!targetInfo) {
-    llvm::errs() << "error: invalid target triple '" << rawTriple << "'\n";
-    exit(1);
-  }
-  return targetInfo->getDataLayoutString();
-}
-
 /// The goal of this option is to ensure that the triple and data layout specs
 /// are always available in the ClangIR module. With this requirement met, the
 /// behavior of this option is designed to be as intuitive as possible, as shown
@@ -97,11 +81,23 @@ std::string prepareCIRModuleTriple(mlir::ModuleOp mod) {
   return triple;
 }
 
-void prepareCIRModuleDataLayout(mlir::ModuleOp mod, llvm::StringRef triple) {
+llvm::LogicalResult prepareCIRModuleDataLayout(mlir::ModuleOp mod,
+                                               llvm::StringRef rawTriple) {
   auto *context = mod.getContext();
 
-  // Set up DLTI spec depending on the target triple.
-  std::string layoutString = determineDataLayoutByTriple(triple);
+  // Data layout is fully determined by the target triple. Here we only pass the
+  // triple to get the data layout.
+  llvm::Triple triple(rawTriple);
+  clang::TargetOptions targetOptions;
+  targetOptions.Triple = rawTriple;
+  // FIXME: AllocateTarget is a big deal. Better make it a global state.
+  auto targetInfo =
+      clang::targets::AllocateTarget(llvm::Triple(rawTriple), targetOptions);
+  if (!targetInfo) {
+    mod.emitError() << "error: invalid target triple '" << rawTriple << "'\n";
+    return llvm::failure();
+  }
+  std::string layoutString = targetInfo->getDataLayoutString();
 
   // Registered dialects may not be loaded yet, ensure they are.
   context->loadDialect<mlir::DLTIDialect, mlir::LLVM::LLVMDialect>();
@@ -109,10 +105,12 @@ void prepareCIRModuleDataLayout(mlir::ModuleOp mod, llvm::StringRef triple) {
   mlir::DataLayoutSpecInterface dlSpec =
       mlir::translateDataLayout(llvm::DataLayout(layoutString), context);
   mod->setAttr(mlir::DLTIDialect::kDataLayoutAttrName, dlSpec);
+
+  return llvm::success();
 }
 
 /// Prepare requirements like cir.triple and data layout.
-void prepareCIRModuleForTranslation(mlir::ModuleOp mod) {
+llvm::LogicalResult prepareCIRModuleForTranslation(mlir::ModuleOp mod) {
   auto modTriple = mod->getAttrOfType<mlir::StringAttr>(
       cir::CIRDialect::getTripleAttrName());
   auto modDataLayout = mod->getAttr(mlir::DLTIDialect::kDataLayoutAttrName);
@@ -120,7 +118,7 @@ void prepareCIRModuleForTranslation(mlir::ModuleOp mod) {
 
   // Skip the situation where nothing should be done.
   if (!hasTargetOption && modTriple && modDataLayout)
-    return;
+    return llvm::success();
 
   std::string triple;
 
@@ -133,7 +131,7 @@ void prepareCIRModuleForTranslation(mlir::ModuleOp mod) {
   }
 
   // If the data layout is not set, derive it from the triple.
-  prepareCIRModuleDataLayout(mod, triple);
+  return prepareCIRModuleDataLayout(mod, triple);
 }
 } // namespace
 } // namespace cir
@@ -148,7 +146,10 @@ void registerToLLVMTranslation() {
       "cir-to-llvmir", "Translate CIR to LLVMIR",
       [](mlir::Operation *op, mlir::raw_ostream &output) {
         auto cirModule = llvm::dyn_cast<mlir::ModuleOp>(op);
-        cir::prepareCIRModuleForTranslation(cirModule);
+
+        if (mlir::failed(cir::prepareCIRModuleForTranslation(cirModule)))
+          return mlir::failure();
+
         llvm::LLVMContext llvmContext;
         auto llvmModule = cir::direct::lowerDirectlyFromCIRToLLVMIR(
             cirModule, llvmContext,
