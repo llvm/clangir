@@ -12,11 +12,15 @@
 #ifndef CLANG_CIR_LOWERTOMLIR_H
 #define CLANG_CIR_LOWERTOMLIR_H
 
+#include "mlir/Transforms/DialectConversion.h"
+#include <functional>
+
 namespace cir {
 
 void populateCIRLoopToSCFConversionPatterns(mlir::RewritePatternSet &patterns,
                                             mlir::TypeConverter &converter);
 mlir::TypeConverter prepareTypeConverter();
+void runAtStartOfConvertCIRToMLIRPass(std::function<void(mlir::ConversionTarget)>);
 } // namespace cir
 
 #endif // CLANG_CIR_LOWERTOMLIR_H_
