@@ -25,10 +25,10 @@ module {
 // MLIR:   %[[VAL_3:.*]] = llvm.load %[[VAL_2]] {alignment = 8 : i64} : !llvm.ptr -> !llvm.ptr
 // MLIR:   %[[VAL_4:.*]] = llvm.mlir.constant(1 : i32) : i32
 // MLIR:   %[[VAL_5:.*]] = llvm.sext %[[VAL_4]] : i32 to i64
-// MLIR:   %[[VAL_6:.*]] = llvm.getelementptr %[[VAL_3]]{{\[}}%[[VAL_5]]] : (!llvm.ptr, i64) -> !llvm.ptr, i32
+// MLIR:   %[[VAL_6:.*]] = llvm.getelementptr inbounds %[[VAL_3]]{{\[}}%[[VAL_5]]] : (!llvm.ptr, i64) -> !llvm.ptr, i32
 // MLIR:   %[[VAL_7:.*]] = llvm.load %[[VAL_6]] {alignment = 4 : i64} : !llvm.ptr -> i32
 // MLIR:   llvm.return
 
 // MLIR-LABEL: @g
 // MLIR:      %0 = llvm.sext %arg1 : i32 to i64
-// MLIR-NEXT: llvm.getelementptr %arg0[%0] : (!llvm.ptr, i64) -> !llvm.ptr, i32
+// MLIR-NEXT: llvm.getelementptr inbounds %arg0[%0] : (!llvm.ptr, i64) -> !llvm.ptr, i32

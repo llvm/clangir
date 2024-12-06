@@ -25,9 +25,9 @@ A* a() { return x; }
 
 // FIXME: this version should include null check.
 // LLVM-LABEL: @_Z1av()
-// LLVM:  %[[OFFSET_OFFSET:.*]] = getelementptr i8, ptr {{.*}}, i64 -32
+// LLVM:  %[[OFFSET_OFFSET:.*]] = getelementptr inbounds i8, ptr {{.*}}, i64 -32
 // LLVM:  %[[OFFSET_PTR:.*]] = load i64, ptr %[[OFFSET_OFFSET]], align 8
-// LLVM:  %[[VBASE_ADDR:.*]] = getelementptr i8, ptr {{.*}}, i64 %[[OFFSET_PTR]]
+// LLVM:  %[[VBASE_ADDR:.*]] = getelementptr inbounds i8, ptr {{.*}}, i64 %[[OFFSET_PTR]]
 // LLVM:  store ptr %[[VBASE_ADDR]], ptr {{.*}}, align 8
 
 B* b() { return x; }
@@ -46,8 +46,8 @@ BB* d() { return y; }
 // CIR: cir.binop(add, %[[OFFSET]], %[[ADJUST]]) : !s64i
 
 // LLVM-LABEL: @_Z1dv
-// LLVM: %[[OFFSET_OFFSET:.*]] = getelementptr i8, ptr {{.*}}, i64 -48
+// LLVM: %[[OFFSET_OFFSET:.*]] = getelementptr inbounds i8, ptr {{.*}}, i64 -48
 // LLVM: %[[OFFSET_PTR:.*]] = load i64, ptr %[[OFFSET_OFFSET]], align 8
 // LLVM: %[[ADJUST:.*]] = add i64 %[[OFFSET_PTR]], 16
-// LLVM: %[[VBASE_ADDR:.*]] = getelementptr i8, ptr {{.*}}, i64 %[[ADJUST]]
+// LLVM: %[[VBASE_ADDR:.*]] = getelementptr inbounds i8, ptr {{.*}}, i64 %[[ADJUST]]
 // LLVM: store ptr %[[VBASE_ADDR]],

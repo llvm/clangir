@@ -15,7 +15,7 @@ void *f2(void *a, int b) { return a + b; }
 // LLVM: %[[PTR:.*]] = load ptr, ptr {{.*}}, align 8
 // LLVM: %[[TOEXT:.*]] = load i32, ptr {{.*}}, align 4
 // LLVM: %[[STRIDE:.*]] = sext i32 %[[TOEXT]] to i64
-// LLVM: getelementptr i8, ptr %[[PTR]], i64 %[[STRIDE]]
+// LLVM: getelementptr inbounds i8, ptr %[[PTR]], i64 %[[STRIDE]]
 
 // These test the same paths above, just make sure it does not crash.
 void *f2_0(void *a, int b) { return &a[b]; }
@@ -28,7 +28,7 @@ void *f3_1(int a, void *b) { return (a += b); }
 // CIR: cir.cast(ptr_to_int, %[[NEW_PTR]] : !cir.ptr<!void>), !s32i
 
 // LLVM-LABEL: @f3_1
-// LLVM: %[[NEW_PTR:.*]] = getelementptr
+// LLVM: %[[NEW_PTR:.*]] = getelementptr inbounds
 // LLVM: ptrtoint ptr %[[NEW_PTR]] to i32
 
 void *f4(void *a, int b) { return a - b; }
@@ -43,7 +43,7 @@ void *f4(void *a, int b) { return a - b; }
 // LLVM: %[[TOEXT:.*]] = load i32, ptr {{.*}}, align 4
 // LLVM: %[[STRIDE:.*]] = sext i32 %[[TOEXT]] to i64
 // LLVM: %[[SUB:.*]] = sub i64 0, %[[STRIDE]]
-// LLVM: getelementptr i8, ptr %[[PTR]], i64 %[[SUB]]
+// LLVM: getelementptr inbounds i8, ptr %[[PTR]], i64 %[[SUB]]
 
 // Similar to f4, just make sure it does not crash.
 void *f4_1(void *a, int b) { return (a -= b); }
@@ -58,7 +58,7 @@ FP f5(FP a, int b) { return a + b; }
 // LLVM: %[[PTR:.*]] = load ptr, ptr {{.*}}, align 8
 // LLVM: %[[TOEXT:.*]] = load i32, ptr {{.*}}, align 4
 // LLVM: %[[STRIDE:.*]] = sext i32 %[[TOEXT]] to i64
-// LLVM: getelementptr i8, ptr %[[PTR]], i64 %[[STRIDE]]
+// LLVM: getelementptr inbounds i8, ptr %[[PTR]], i64 %[[STRIDE]]
 
 // These test the same paths above, just make sure it does not crash.
 FP f5_1(FP a, int b) { return (a += b); }
@@ -77,7 +77,7 @@ FP f7(FP a, int b) { return a - b; }
 // LLVM: %[[TOEXT:.*]] = load i32, ptr {{.*}}, align 4
 // LLVM: %[[STRIDE:.*]] = sext i32 %[[TOEXT]] to i64
 // LLVM: %[[SUB:.*]] = sub i64 0, %[[STRIDE]]
-// LLVM: getelementptr i8, ptr %[[PTR]], i64 %[[SUB]]
+// LLVM: getelementptr inbounds i8, ptr %[[PTR]], i64 %[[SUB]]
 
 // Similar to f7, just make sure it does not crash.
 FP f7_1(FP a, int b) { return (a -= b); }
@@ -93,7 +93,7 @@ void f8(void *a, int b) { return *(a + b); }
 // LLVM: %[[PTR:.*]] = load ptr, ptr {{.*}}, align 8
 // LLVM: %[[TOEXT:.*]] = load i32, ptr {{.*}}, align 4
 // LLVM: %[[STRIDE:.*]] = sext i32 %[[TOEXT]] to i64
-// LLVM: getelementptr i8, ptr %[[PTR]], i64 %[[STRIDE]]
+// LLVM: getelementptr inbounds i8, ptr %[[PTR]], i64 %[[STRIDE]]
 // LLVM: ret void
 
 void f8_1(void *a, int b) { return a[b]; }
@@ -107,7 +107,7 @@ void f8_1(void *a, int b) { return a[b]; }
 // LLVM: %[[PTR:.*]] = load ptr, ptr {{.*}}, align 8
 // LLVM: %[[TOEXT:.*]] = load i32, ptr {{.*}}, align 4
 // LLVM: %[[STRIDE:.*]] = sext i32 %[[TOEXT]] to i64
-// LLVM: getelementptr i8, ptr %[[PTR]], i64 %[[STRIDE]]
+// LLVM: getelementptr inbounds i8, ptr %[[PTR]], i64 %[[STRIDE]]
 // LLVM: ret void
 
 unsigned char *p(unsigned int x) {
@@ -121,4 +121,4 @@ unsigned char *p(unsigned int x) {
 // CIR: cir.ptr_stride({{.*}} : !cir.ptr<!u8i>, %[[SUB]] : !u32i), !cir.ptr<!u8i>
 
 // LLVM-LABEL: @p
-// LLVM: getelementptr i8, ptr {{.*}}
+// LLVM: getelementptr inbounds i8, ptr {{.*}}

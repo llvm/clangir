@@ -79,11 +79,11 @@ void test() {
 // LLVM: [[SCOPE_START]]: ; preds = %0
 // LLVM:  [[PTR_FIRST_ELEM:%.*]] = getelementptr ptr, ptr [[ELEM_ARRAY_PTR]], i32 0
 // LLVM:  store ptr @.str, ptr [[PTR_FIRST_ELEM]], align 8
-// LLVM:  [[PTR_SECOND_ELEM:%.*]] = getelementptr ptr, ptr [[PTR_FIRST_ELEM]], i64 1
+// LLVM:  [[PTR_SECOND_ELEM:%.*]] = getelementptr inbounds ptr, ptr [[PTR_FIRST_ELEM]], i64 1
 // LLVM:  store ptr @.str.1, ptr [[PTR_SECOND_ELEM]], align 8
 // LLVM:  [[INIT_START_FLD_PTR:%.*]] = getelementptr %"class.std::initializer_list<const char *>", ptr [[INIT_STRUCT]], i32 0, i32 0
 // LLVM:  store ptr [[PTR_FIRST_ELEM]], ptr [[INIT_START_FLD_PTR]], align 8
-// LLVM:  [[ELEM_ARRAY_END:%.*]] = getelementptr ptr, ptr [[PTR_FIRST_ELEM]], i64 2
+// LLVM:  [[ELEM_ARRAY_END:%.*]] = getelementptr inbounds ptr, ptr [[PTR_FIRST_ELEM]], i64 2
 // LLVM:  [[INIT_END_FLD_PTR:%.*]] = getelementptr %"class.std::initializer_list<const char *>", ptr [[INIT_STRUCT]], i32 0, i32 1
 // LLVM:  store ptr [[ELEM_ARRAY_END]], ptr [[INIT_END_FLD_PTR]], align 8
 // LLVM:  [[ARG2PASS:%.*]] = load %"class.std::initializer_list<const char *>", ptr [[INIT_STRUCT]], align 8

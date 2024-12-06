@@ -62,7 +62,7 @@ void test_side_effect(pi1_t b) {
   // CIR:      %[[#CAST:]] = cir.const #cir.ptr<null> : !cir.ptr<!s32i, addrspace(target<2>)>
   // CIR-NEXT: cir.store %[[#CAST]], %{{[0-9]+}} : !cir.ptr<!s32i, addrspace(target<2>)>, !cir.ptr<!cir.ptr<!s32i, addrspace(target<2>)>>
 
-  // LLVM:      %{{[0-9]+}} = getelementptr i32, ptr addrspace(1) %{{[0-9]+}}, i64 1
+  // LLVM:      %{{[0-9]+}} = getelementptr inbounds i32, ptr addrspace(1) %{{[0-9]+}}, i64 1
   // LLVM:      store ptr addrspace(2) null, ptr %{{[0-9]+}}, align 8
 
 }
