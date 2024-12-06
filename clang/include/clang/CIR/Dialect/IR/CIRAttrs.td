@@ -24,8 +24,9 @@ include "clang/CIR/Interfaces/ASTAttrInterfaces.td"
 // CIR Attrs
 //===----------------------------------------------------------------------===//
 
-class CIR_Attr<string name, string attrMnemonic, list<Trait> traits = []>
-    : AttrDef<CIR_Dialect, name, traits> {
+class CIR_Attr<string name, string attrMnemonic, list<Trait> traits = [],
+               string baseCppClass = "::mlir::Attribute">
+    : AttrDef<CIR_Dialect, name, traits, baseCppClass> {
   let mnemonic = attrMnemonic;
 }
 
@@ -1249,7 +1250,150 @@ def GlobalAnnotationValuesAttr : CIR_Attr<"GlobalAnnotationValues",
   let genVerifyDecl = 1;
 }
 
+
+//===----------------------------------------------------------------------===//
+// TBAAAttr
+//===----------------------------------------------------------------------===//
+
 def CIR_TBAAAttr : CIR_Attr<"TBAA", "tbaa", []> {
+  let summary = "CIR dialect TBAA base attribute";
+}
+
+//===----------------------------------------------------------------------===//
+// TBAATypeDescriptorAttr
+//===----------------------------------------------------------------------===//
+
+def CIR_TBAAMemberAttr : CIR_Attr<"TBAAMember", "tbaa_member", []> {
+  let summary = "Attribute representing a member of a TBAA structured type.";
+
+  let parameters = (ins "TBAAAttr":$typeDesc,
+                        "int64_t":$offset,
+                        "int64_t":$size);
+
+  let builders = [
+    AttrBuilderWithInferredContext<(ins "TBAAAttr":$typeDesc,
+                                        "int64_t":$offset,
+                                        "int64_t":$size), [{
+      return $_get(typeDesc.getContext(), typeDesc, offset, size);
+    }]>
+  ];
+  let assemblyFormat = "`<` params `>`";
+}
+
+def CIR_TBAAMemberAttrArray : ArrayRefParameter<"TBAAMemberAttr"> {
+  let summary = "Array of TBAAMemberAttr attributes.";
+
+  let printer = [{
+    $_printer << '{';
+    llvm::interleaveComma($_self, $_printer, [&](TBAAMemberAttr attr) {
+        $_printer.printStrippedAttrOrType(attr);
+    });
+    $_printer << '}';
+  }];
+
+  let parser = [{
+    [&]() -> llvm::FailureOr<llvm::SmallVector<TBAAMemberAttr>> {
+        using Result = llvm::SmallVector<TBAAMemberAttr>;
+        if ($_parser.parseLBrace())
+            return mlir::failure();
+        llvm::FailureOr<Result> result = mlir::FieldParser<Result>::parse($_parser);
+        if (failed(result))
+            return mlir::failure();
+        if ($_parser.parseRBrace())
+            return mlir::failure();
+        return result;
+    }()
+  }];
+}
+
+class CIR_TBAATypeDescriptorAttr<string name, string attrMnemonic>: CIR_Attr<name, attrMnemonic, [], "TBAAAttr"> {
+  let summary = "Base class for TBAA type descriptor attributes.";
+}
+
+def CIR_TBAAScalarTypeDescriptorAttr : CIR_TBAATypeDescriptorAttr<"TBAAScalarTypeDescriptor",
+                                                 "tbaa_scalar_type_desc"> {
+  let summary = "Describes a scalar type in TBAA with an identifier.";
+
+  let parameters = (ins StringRefParameter<>:$id);
+
+  let description = [{
+    Define a TBAA attribute.
+
+    Example:
+    ```mlir
+    // CIR_TBAAScalarTypeDescriptorAttr
+    #tbaa_scalar_type_desc = #cir.tbaa_scalar_type_desc<id = "any pointer">
+    #tbaa_scalar_type_desc1 = #cir.tbaa_scalar_type_desc<id = "int">
+    ```
+    
+    See the following link for more details:
+    https://llvm.org/docs/LangRef.html#tbaa-metadata
+  }];
+
+  let assemblyFormat = "`<` struct(params) `>`";
+}
+
+def CIR_TBAAStructTypeDescriptorAttr : CIR_TBAATypeDescriptorAttr<"TBAAStructTypeDescriptor",
+                                                     "tbaa_struct_type_desc"> {
+  let summary = "Describes a structure type in TBAA with an identifier and member attributes.";
+
+  let parameters = (ins StringRefParameter<>:$id, CIR_TBAAMemberAttrArray:$members);
+
+  let description = [{
+    Define a TBAA attribute.
+
+    Example:
+    ```mlir
+    // CIR_TBAAScalarTypeDescriptorAttr
+    #tbaa_scalar_type_desc = #cir.tbaa_scalar_type_desc<id = "any pointer">
+    #tbaa_scalar_type_desc1 = #cir.tbaa_scalar_type_desc<id = "int">
+    // CIR_TBAAStructTypeDescriptorAttr
+    #tbaa_struct_type_desc = #cir.tbaa_struct_type_desc<id = "StructDemo", 
+      members = {<#tbaa_scalar_type_desc2, 0, 2>, 
+                 <#tbaa_scalar_type_desc1, 4, 4>}>
+    ```
+    
+    See the following link for more details:
+    https://llvm.org/docs/LangRef.html#tbaa-metadata
+  }];
+
+  let assemblyFormat = "`<` struct(params) `>`";              
+}
+
+//===----------------------------------------------------------------------===//
+// TBAATagAttr
+//===----------------------------------------------------------------------===//
+
+def CIR_TBAATagAttr : CIR_Attr<"TBAATag", "tbaa_tag", []> {
+  let summary = "Tag attribute for TBAA, connecting base type and access type with metadata.";
+  
+  let parameters = (ins "TBAAAttr":$base_type,
+                        "TBAAAttr":$access_type,
+                        "int64_t":$offset,
+                        "int64_t":$size);
+
+  let description = [{
+    Define a TBAA attribute.
+
+    Example:
+    ```mlir
+    // CIR_TBAAScalarTypeDescriptorAttr
+    #tbaa_scalar_type_desc = #cir.tbaa_scalar_type_desc<id = "any pointer">
+    #tbaa_scalar_type_desc1 = #cir.tbaa_scalar_type_desc<id = "int">
+    // CIR_TBAAStructTypeDescriptorAttr
+    #tbaa_struct_type_desc = #cir.tbaa_struct_type_desc<id = "StructDemo", 
+      members = {<#tbaa_scalar_type_desc2, 0, 2>, 
+                 <#tbaa_scalar_type_desc1, 4, 4>}>
+    // CIR_TBAATagAttr
+    #tbaa_tag = #cir.tbaa_tag<base_type = #tbaa_struct_type_desc, 
+      access_type = #tbaa_scalar_type_desc1, offset = 4, size = 4>
+    ```
+    
+    See the following link for more details:
+    https://llvm.org/docs/LangRef.html#tbaa-metadata
+  }];
+
+  let assemblyFormat = "`<` struct(params) `>`";
 }
 
 include "clang/CIR/Dialect/IR/CIROpenCLAttrs.td"
