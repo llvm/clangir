@@ -18,6 +18,7 @@
 #include "mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"
 #include "mlir/Dialect/DLTI/DLTI.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/LLVMIR/LLVMAttrs.h"
 #include "mlir/Dialect/LLVMIR/Transforms/Passes.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/Builders.h"
@@ -41,12 +42,15 @@
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Dialect/OpenMP/OpenMPToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Export.h"
+#include "clang/CIR/Dialect/IR/CIRAttrs.h"
+#include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/Passes.h"
 #include "clang/CIR/LoweringHelpers.h"
 #include "clang/CIR/MissingFeatures.h"
 #include "clang/CIR/Passes.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
@@ -1491,10 +1495,12 @@ mlir::LogicalResult CIRToLLVMLoadOpLowering::matchAndRewrite(
   }
 
   // TODO: nontemporal, invariant, syncscope.
-  rewriter.replaceOpWithNewOp<mlir::LLVM::LoadOp>(
-      op, llvmTy, adaptor.getAddr(), /* alignment */ alignment,
+  auto loadOp = rewriter.create<mlir::LLVM::LoadOp>(
+      op->getLoc(), llvmTy, adaptor.getAddr(), /* alignment */ alignment,
       op.getIsVolatile(), /* nontemporal */ false,
       /* invariant */ false, /* invariantGroup */ false, ordering);
+  rewriter.replaceOp(op, loadOp);
+  loadOp.setTBAATags(op.getTbaaAttr());
   return mlir::LogicalResult::success();
 }
 
@@ -1516,9 +1522,12 @@ mlir::LogicalResult CIRToLLVMStoreOpLowering::matchAndRewrite(
   }
 
   // TODO: nontemporal, syncscope.
-  rewriter.replaceOpWithNewOp<mlir::LLVM::StoreOp>(
-      op, adaptor.getValue(), adaptor.getAddr(), alignment, op.getIsVolatile(),
+  auto storeOp = rewriter.create<mlir::LLVM::StoreOp>(
+      op->getLoc(), adaptor.getValue(), adaptor.getAddr(), alignment,
+      op.getIsVolatile(),
       /* nontemporal */ false, /* invariantGroup */ false, ordering);
+  rewriter.replaceOp(op, storeOp);
+  storeOp.setTBAATags(op.getTbaaAttr());
   return mlir::LogicalResult::success();
 }
 
@@ -4424,8 +4433,134 @@ std::unique_ptr<mlir::Pass> createConvertCIRToLLVMPass() {
   return std::make_unique<ConvertCIRToLLVMPass>();
 }
 
+struct TBAAPass
+    : public mlir::PassWrapper<TBAAPass, mlir::OperationPass<mlir::ModuleOp>> {
+  void runOnOperation() override {
+    llvm::TimeTraceScope scope("TBAA Pass");
+    auto moduleOp = getOperation();
+    moduleOp->walk([&](cir::LoadOp loadOp) { lowerTBAAAttr(loadOp); });
+    moduleOp->walk([&](cir::StoreOp storeOp) { lowerTBAAAttr(storeOp); });
+  }
+
+private:
+  template <typename Op> void lowerTBAAAttr(Op op) {
+    auto tbaa = lowerTBAAToArrayAttr(op.getContext(), op.getTbaa());
+    op.setTbaaAttr(tbaa);
+  }
+
+  mlir::LLVM::TBAATagAttr lowerTBAAAttr(mlir::MLIRContext *ctx,
+                                        mlir::Attribute attr) {
+    if (auto scalarType =
+            mlir::dyn_cast<cir::TBAAScalarTypeDescriptorAttr>(attr)) {
+      auto accessType = lowerScalarType(ctx, scalarType);
+      return mlir::LLVM::TBAATagAttr::get(accessType, accessType, 0);
+    }
+    if (auto tbaaTagAttr = mlir::dyn_cast<cir::TBAATagAttr>(attr)) {
+      assert(mlir::isa<cir::TBAAStructTypeDescriptorAttr>(
+          tbaaTagAttr.getBaseType()));
+      auto baseType = lowerStructType(
+          ctx, mlir::dyn_cast<cir::TBAAStructTypeDescriptorAttr>(
+                   tbaaTagAttr.getBaseType()));
+      assert(mlir::isa<cir::TBAAScalarTypeDescriptorAttr>(
+          tbaaTagAttr.getAccessType()));
+      auto accessType = lowerScalarType(
+          ctx, mlir::dyn_cast<cir::TBAAScalarTypeDescriptorAttr>(
+                   tbaaTagAttr.getAccessType()));
+      return mlir::LLVM::TBAATagAttr::get(baseType, accessType,
+                                          tbaaTagAttr.getOffset());
+    }
+    llvm_unreachable("unknown tbaa type");
+  }
+
+  mlir::ArrayAttr lowerTBAAToArrayAttr(mlir::MLIRContext *ctx,
+                                       std::optional<mlir::ArrayAttr> tbaa) {
+    if (!tbaa) {
+      return mlir::ArrayAttr();
+    }
+    auto tbaaTagArray = *tbaa;
+    if (tbaaTagArray.empty()) {
+      return mlir::ArrayAttr();
+    }
+    llvm::SmallVector<mlir::Attribute, 2> tags;
+    for (auto attr : tbaaTagArray) {
+      auto tag = lowerTBAAAttr(ctx, attr);
+      tags.push_back(tag);
+    }
+    return mlir::ArrayAttr::get(ctx, tags);
+  }
+
+  mlir::LLVM::TBAATypeDescriptorAttr
+  createScalarTypeNode(mlir::MLIRContext *ctx, llvm::StringRef typeName,
+                       mlir::LLVM::TBAANodeAttr parent,
+                       std::size_t offset) const {
+    llvm::SmallVector<mlir::LLVM::TBAAMemberAttr, 2> intMember;
+    intMember.push_back(mlir::LLVM::TBAAMemberAttr::get(ctx, parent, 0));
+
+    return mlir::LLVM::TBAATypeDescriptorAttr::get(
+        ctx, typeName, llvm::ArrayRef<mlir::LLVM::TBAAMemberAttr>(intMember));
+  }
+
+  mlir::LLVM::TBAARootAttr getRoot(mlir::MLIRContext *ctx) const {
+    return mlir::LLVM::TBAARootAttr::get(
+        ctx, mlir::StringAttr::get(ctx, "Simple C/C++ TBAA"));
+  }
+
+  mlir::LLVM::TBAATypeDescriptorAttr getChar(mlir::MLIRContext *ctx) const {
+    return createScalarTypeNode(ctx, "omnipotent char", getRoot(ctx),
+                                /* Size= */ 1);
+  }
+
+  mlir::LLVM::TBAATypeDescriptorAttr
+  lowerScalarType(mlir::MLIRContext *ctx,
+                  cir::TBAAScalarTypeDescriptorAttr scalarType) const {
+    // special handle for omnipotent char
+    if (scalarType.getId() == "omnipotent char") {
+      return getChar(ctx);
+    }
+    return createScalarTypeNode(ctx, scalarType.getId(), getChar(ctx), 0);
+  }
+  mlir::LLVM::TBAATypeDescriptorAttr
+  lowerStructType(mlir::MLIRContext *ctx,
+                  cir::TBAAStructTypeDescriptorAttr structType) const {
+    auto ret = structCache[structType];
+    if (ret) {
+      return ret;
+    }
+    llvm::SmallVector<mlir::LLVM::TBAAMemberAttr, 2> members;
+    for (auto &member : structType.getMembers()) {
+      auto desc = member.getTypeDesc();
+      if (auto scalarType =
+              mlir::dyn_cast<cir::TBAAScalarTypeDescriptorAttr>(desc)) {
+        members.push_back(mlir::LLVM::TBAAMemberAttr::get(
+            lowerScalarType(ctx, scalarType), member.getOffset()));
+      } else if (auto subStructType =
+                     mlir::dyn_cast<cir::TBAAStructTypeDescriptorAttr>(desc)) {
+        auto subStructDesc = lowerStructType(ctx, subStructType);
+        members.push_back(
+            mlir::LLVM::TBAAMemberAttr::get(subStructDesc, member.getOffset()));
+      } else {
+        llvm::errs() << "decs: " << desc << "\n";
+        llvm_unreachable("NYI");
+      }
+    }
+    ret = mlir::LLVM::TBAATypeDescriptorAttr::get(
+        ctx, structType.getId(),
+        llvm::ArrayRef<mlir::LLVM::TBAAMemberAttr>(members));
+    return structCache[structType] = ret;
+  }
+
+  mutable llvm::DenseMap<cir::TBAAStructTypeDescriptorAttr,
+                         mlir::LLVM::TBAATypeDescriptorAttr>
+      structCache;
+};
+
+std::unique_ptr<mlir::Pass> createTBAAPass() {
+  return std::make_unique<TBAAPass>();
+}
+
 void populateCIRToLLVMPasses(mlir::OpPassManager &pm, bool useCCLowering) {
   populateCIRPreLoweringPasses(pm, useCCLowering);
+  pm.addPass(createTBAAPass());
   pm.addPass(createConvertCIRToLLVMPass());
 }
 

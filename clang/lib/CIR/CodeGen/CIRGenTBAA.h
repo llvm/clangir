@@ -104,6 +104,20 @@ class CIRGenTBAA {
   [[maybe_unused]] const clang::CodeGenOptions &codeGenOpts;
   [[maybe_unused]] const clang::LangOptions &features;
 
+  llvm::DenseMap<const Type *, cir::TBAAAttr> metadataCache;
+  llvm::DenseMap<const Type *, cir::TBAAAttr> baseTypeMetadataCache;
+
+  cir::TBAAAttr getChar();
+
+  cir::TBAAAttr createScalarTypeNode(llvm::StringRef typeName,
+                                     cir::TBAAAttr parent, std::size_t offset);
+
+  cir::TBAAAttr getTypeInfoHelper(const clang::Type *ty);
+
+  cir::TBAAAttr getBaseTypeInfoHelper(const clang::Type *ty);
+
+  cir::TBAAAttr getValidBaseTypeInfo(QualType qty);
+
 public:
   CIRGenTBAA(mlir::MLIRContext *ctx, clang::ASTContext &context,
              CIRGenTypes &types, mlir::ModuleOp moduleOp,
