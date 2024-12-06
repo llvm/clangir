@@ -889,6 +889,22 @@ RValue CIRGenFunction::emitCall(const CIRGenFunctionInfo &CallInfo,
           auto Results = theCall->getOpResults();
           assert(Results.size() <= 1 && "multiple returns NYI");
           assert(Results[0].getType() == RetCIRTy && "Bitcast support NYI");
+
+          auto reg = builder.getBlock()->getParent();
+          if (reg != theCall->getParentRegion()) {
+            Address DestPtr = ReturnValue.getValue();
+
+            if (!DestPtr.isValid())
+              DestPtr = CreateMemTemp(RetTy, callLoc, "tmp");
+
+            auto ip = builder.saveInsertionPoint();
+            builder.setInsertionPointAfter(theCall);
+            builder.createStore(callLoc, Results[0], DestPtr);
+            builder.restoreInsertionPoint(ip);
+            auto load = builder.createLoad(callLoc, DestPtr);
+            return RValue::get(load);
+          }
+
           return RValue::get(Results[0]);
         }
         default:
