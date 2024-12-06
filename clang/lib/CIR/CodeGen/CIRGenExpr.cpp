@@ -962,7 +962,6 @@ LValue CIRGenFunction::emitLValueForLambdaField(const FieldDecl *field,
   }
   LValue lambdaLV;
   if (hasExplicitObjectParameter) {
-    assert(!MissingFeatures::supportExplicitObjectMemberFunction());
     llvm_unreachable("ExplicitObjectMemberFunction NYI");
   }
   QualType lambdaTagType = getContext().getTagDeclType(field->getParent());
