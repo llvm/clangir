@@ -1535,11 +1535,21 @@ mlir::LogicalResult CIRToLLVMLoadOpLowering::matchAndRewrite(
     alignment = *alignOpt;
   }
 
-  // TODO: nontemporal, invariant, syncscope.
+  auto invariant = false;
+  // Under -O1 or higher optimization levels, add the invariant metadata if the
+  // load operation loads from a constant object.
+  if (lowerMod &&
+      lowerMod->getContext().getCodeGenOpts().OptimizationLevel > 0) {
+    auto addrAllocaOp =
+        mlir::dyn_cast_if_present<cir::AllocaOp>(op.getAddr().getDefiningOp());
+    invariant = addrAllocaOp && addrAllocaOp.getConstant();
+  }
+
+  // TODO: nontemporal, syncscope.
   rewriter.replaceOpWithNewOp<mlir::LLVM::LoadOp>(
       op, llvmTy, adaptor.getAddr(), /* alignment */ alignment,
       op.getIsVolatile(), /* nontemporal */ false,
-      /* invariant */ false, /* invariantGroup */ false, ordering);
+      /* invariant */ false, /* invariantGroup */ invariant, ordering);
   return mlir::LogicalResult::success();
 }
 
@@ -1560,10 +1570,20 @@ mlir::LogicalResult CIRToLLVMStoreOpLowering::matchAndRewrite(
     alignment = *alignOpt;
   }
 
+  auto invariant = false;
+  // Under -O1 or higher optimization levels, add the invariant metadata if the
+  // store operation stores to a constant object.
+  if (lowerMod &&
+      lowerMod->getContext().getCodeGenOpts().OptimizationLevel > 0) {
+    auto addrAllocaOp =
+        mlir::dyn_cast_if_present<cir::AllocaOp>(op.getAddr().getDefiningOp());
+    invariant = addrAllocaOp && addrAllocaOp.getConstant();
+  }
+
   // TODO: nontemporal, syncscope.
   rewriter.replaceOpWithNewOp<mlir::LLVM::StoreOp>(
       op, adaptor.getValue(), adaptor.getAddr(), alignment, op.getIsVolatile(),
-      /* nontemporal */ false, /* invariantGroup */ false, ordering);
+      /* nontemporal */ false, /* invariantGroup */ invariant, ordering);
   return mlir::LogicalResult::success();
 }
 
@@ -3937,7 +3957,9 @@ void populateCIRToLLVMConversionPatterns(
       CIRToLLVMConstantOpLowering,
       CIRToLLVMDerivedDataMemberOpLowering,
       CIRToLLVMGetRuntimeMemberOpLowering,
-      CIRToLLVMGlobalOpLowering
+      CIRToLLVMGlobalOpLowering,
+      CIRToLLVMLoadOpLowering,
+      CIRToLLVMStoreOpLowering
       // clang-format on
       >(converter, patterns.getContext(), lowerModule);
   patterns.add<
@@ -3988,7 +4010,6 @@ void populateCIRToLLVMConversionPatterns(
       CIRToLLVMIsConstantOpLowering,
       CIRToLLVMIsFPClassOpLowering,
       CIRToLLVMLLVMIntrinsicCallOpLowering,
-      CIRToLLVMLoadOpLowering,
       CIRToLLVMMemChrOpLowering,
       CIRToLLVMMemCpyInlineOpLowering,
       CIRToLLVMMemCpyOpLowering,
@@ -4008,7 +4029,6 @@ void populateCIRToLLVMConversionPatterns(
       CIRToLLVMShiftOpLowering,
       CIRToLLVMSignBitOpLowering,
       CIRToLLVMStackSaveOpLowering,
-      CIRToLLVMStoreOpLowering,
       CIRToLLVMSwitchFlatOpLowering,
       CIRToLLVMThrowOpLowering,
       CIRToLLVMTrapOpLowering,
