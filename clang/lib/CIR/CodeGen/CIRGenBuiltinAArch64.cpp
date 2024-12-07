@@ -2180,6 +2180,19 @@ getHalfEltSizeTwiceNumElemsVecType(CIRGenBuilderTy &builder,
                               vecTy.getSize() * 2);
 }
 
+static cir::VectorType
+castVecOfFPTypeToVecOfIntWithSameWidth(CIRGenBuilderTy &builder,
+                                       cir::VectorType vecTy) {
+  if (mlir::isa<cir::SingleType>(vecTy.getEltType()))
+    return cir::VectorType::get(builder.getContext(), builder.getSInt32Ty(),
+                                vecTy.getSize());
+  if (mlir::isa<cir::DoubleType>(vecTy.getEltType()))
+    return cir::VectorType::get(builder.getContext(), builder.getSInt64Ty(),
+                                vecTy.getSize());
+  llvm_unreachable(
+      "Unsupported element type in getVecOfIntTypeWithSameEltWidth");
+}
+
 /// Get integer from a mlir::Value that is an int constant or a constant op.
 static int64_t getIntValueFromConstOp(mlir::Value val) {
   auto constOp = mlir::cast<cir::ConstantOp>(val.getDefiningOp());
@@ -2635,8 +2648,11 @@ static mlir::Value emitCommonNeonSISDBuiltinExpr(
     llvm_unreachable(" neon_vaddlv_u32 NYI ");
   case NEON::BI__builtin_neon_vaddlvq_s32:
     llvm_unreachable(" neon_vaddlvq_s32 NYI ");
-  case NEON::BI__builtin_neon_vaddlvq_u32:
-    llvm_unreachable(" neon_vaddlvq_u32 NYI ");
+  case NEON::BI__builtin_neon_vaddlvq_u32: {
+    mlir::Type argTy = cgf.convertType(expr->getArg(0)->getType());
+    return emitNeonCall(builder, {argTy}, ops, "aarch64.neon.uaddlv", resultTy,
+                        loc);
+  }
   case NEON::BI__builtin_neon_vaddv_f32:
     llvm_unreachable(" neon_vaddv_f32 NYI ");
   case NEON::BI__builtin_neon_vaddv_s32:
@@ -3832,7 +3848,17 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
     return nullptr;
   case NEON::BI__builtin_neon_vbsl_v:
   case NEON::BI__builtin_neon_vbslq_v: {
-    llvm_unreachable("NEON::BI__builtin_neon_vbslq_v NYI");
+    cir::VectorType bitTy = vTy;
+    if (cir::isAnyFloatingPointType(bitTy.getEltType()))
+      bitTy = castVecOfFPTypeToVecOfIntWithSameWidth(builder, vTy);
+    Ops[0] = builder.createBitcast(Ops[0], bitTy);
+    Ops[1] = builder.createBitcast(Ops[1], bitTy);
+    Ops[2] = builder.createBitcast(Ops[2], bitTy);
+
+    Ops[1] = builder.createAnd(Ops[0], Ops[1]);
+    Ops[2] = builder.createAnd(builder.createNot(Ops[0]), Ops[2]);
+    Ops[0] = builder.createOr(Ops[1], Ops[2]);
+    return builder.createBitcast(Ops[0], ty);
   }
   case NEON::BI__builtin_neon_vfma_lane_v:
   case NEON::BI__builtin_neon_vfmaq_lane_v: { // Only used for FP types
@@ -4157,10 +4183,17 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
     llvm_unreachable("NEON::BI__builtin_neon_vaddv_s8 NYI");
   }
   case NEON::BI__builtin_neon_vaddv_u16:
-    llvm_unreachable("NEON::BI__builtin_neon_vaddv_u16 NYI");
+    usgn = true;
     [[fallthrough]];
   case NEON::BI__builtin_neon_vaddv_s16: {
-    llvm_unreachable("NEON::BI__builtin_neon_vaddv_s16 NYI");
+    cir::IntType eltTy = usgn ? UInt16Ty : SInt16Ty;
+    cir::VectorType vTy = cir::VectorType::get(builder.getContext(), eltTy, 4);
+    Ops.push_back(emitScalarExpr(E->getArg(0)));
+    // This is to add across the vector elements, so wider result type needed.
+    Ops[0] = emitNeonCall(builder, {vTy}, Ops,
+                          usgn ? "aarch64.neon.uaddv" : "aarch64.neon.saddv",
+                          SInt32Ty, getLoc(E->getExprLoc()));
+    return builder.createIntCast(Ops[0], eltTy);
   }
   case NEON::BI__builtin_neon_vaddvq_u8:
     llvm_unreachable("NEON::BI__builtin_neon_vaddvq_u8 NYI");
