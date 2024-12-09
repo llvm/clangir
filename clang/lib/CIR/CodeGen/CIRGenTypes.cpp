@@ -40,7 +40,7 @@ CIRGenTypes::ClangCallConvToCIRCallConv(clang::CallingConv CC) {
 }
 
 CIRGenTypes::CIRGenTypes(CIRGenModule &cgm)
-    : Context(cgm.getASTContext()), Builder(cgm.getBuilder()), CGM{cgm},
+    : astContext(cgm.getASTContext()), Builder(cgm.getBuilder()), CGM{cgm},
       Target(cgm.getTarget()), TheCXXABI(cgm.getCXXABI()),
       TheABIInfo(cgm.getTargetCIRGenInfo().getABIInfo()) {
   SkippedLayout = false;
@@ -188,7 +188,7 @@ static bool isSafeToConvert(const RecordDecl *RD, CIRGenTypes &CGT) {
 mlir::Type CIRGenTypes::convertRecordDeclType(const clang::RecordDecl *RD) {
   // TagDecl's are not necessarily unique, instead use the (clang) type
   // connected to the decl.
-  const auto *key = Context.getTagDeclType(RD).getTypePtr();
+  const auto *key = astContext.getTagDeclType(RD).getTypePtr();
   cir::StructType entry = recordDeclTypes[key];
 
   // Handle forward decl / incomplete types.
@@ -358,12 +358,12 @@ bool CIRGenTypes::isFuncTypeConvertible(const FunctionType *FT) {
 
 /// ConvertType - Convert the specified type to its MLIR form.
 mlir::Type CIRGenTypes::ConvertType(QualType T) {
-  T = Context.getCanonicalType(T);
+  T = astContext.getCanonicalType(T);
   const Type *Ty = T.getTypePtr();
 
   // For the device-side compilation, CUDA device builtin surface/texture types
   // may be represented in different types.
-  assert(!Context.getLangOpts().CUDAIsDevice && "not implemented");
+  assert(!astContext.getLangOpts().CUDAIsDevice && "not implemented");
 
   if (const auto *recordType = dyn_cast<RecordType>(T))
     return convertRecordDeclType(recordType->getDecl());
@@ -440,8 +440,9 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
     case BuiltinType::SatLongFract:
     case BuiltinType::SatShortAccum:
     case BuiltinType::SatShortFract:
-      ResultType = cir::IntType::get(&getMLIRContext(), Context.getTypeSize(T),
-                                     /*isSigned=*/true);
+      ResultType =
+          cir::IntType::get(&getMLIRContext(), astContext.getTypeSize(T),
+                            /*isSigned=*/true);
       break;
     // Unsigned types.
     case BuiltinType::Char16:
@@ -468,7 +469,7 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
     case BuiltinType::SatUShortAccum:
     case BuiltinType::SatUShortFract:
       ResultType =
-          cir::IntType::get(Builder.getContext(), Context.getTypeSize(T),
+          cir::IntType::get(Builder.getContext(), astContext.getTypeSize(T),
                             /*isSigned=*/false);
       break;
 
@@ -476,8 +477,8 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
       ResultType = CGM.FP16Ty;
       break;
     case BuiltinType::Half:
-      if (Context.getLangOpts().NativeHalfType ||
-          !Context.getTargetInfo().useFP16ConversionIntrinsics())
+      if (astContext.getLangOpts().NativeHalfType ||
+          !astContext.getTargetInfo().useFP16ConversionIntrinsics())
         ResultType = CGM.FP16Ty;
       else
         llvm_unreachable("NYI");
@@ -492,11 +493,11 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
       ResultType = CGM.DoubleTy;
       break;
     case BuiltinType::LongDouble:
-      ResultType = Builder.getLongDoubleTy(Context.getFloatTypeSemantics(T));
+      ResultType = Builder.getLongDoubleTy(astContext.getFloatTypeSemantics(T));
       break;
     case BuiltinType::Float128:
     case BuiltinType::Ibm128:
-      // FIXME: look at Context.getFloatTypeSemantics(T) and getTypeForFormat
+      // FIXME: look at astContext.getFloatTypeSemantics(T) and getTypeForFormat
       // on LLVM codegen.
       assert(0 && "not implemented");
       break;
@@ -744,8 +745,8 @@ mlir::Type CIRGenTypes::ConvertType(QualType T) {
     ResultType = convertTypeForMem(valueType);
 
     // Pad out to the inflated size if necessary.
-    uint64_t valueSize = Context.getTypeSize(valueType);
-    uint64_t atomicSize = Context.getTypeSize(Ty);
+    uint64_t valueSize = astContext.getTypeSize(valueType);
+    uint64_t atomicSize = astContext.getTypeSize(Ty);
     if (valueSize != atomicSize) {
       llvm_unreachable("NYI");
     }
@@ -870,7 +871,7 @@ void CIRGenTypes::UpdateCompletedType(const TagDecl *TD) {
 
   // Only complete if we converted it already. If we haven't converted it yet,
   // we'll just do it lazily.
-  if (recordDeclTypes.count(Context.getTagDeclType(RD).getTypePtr()))
+  if (recordDeclTypes.count(astContext.getTagDeclType(RD).getTypePtr()))
     convertRecordDeclType(RD);
 
   // If necessary, provide the full definition of a type only used with a
@@ -882,7 +883,7 @@ void CIRGenTypes::UpdateCompletedType(const TagDecl *TD) {
 /// Return record layout info for the given record decl.
 const CIRGenRecordLayout &
 CIRGenTypes::getCIRGenRecordLayout(const RecordDecl *RD) {
-  const auto *Key = Context.getTagDeclType(RD).getTypePtr();
+  const auto *Key = astContext.getTagDeclType(RD).getTypePtr();
 
   auto I = CIRGenRecordLayouts.find(Key);
   if (I != CIRGenRecordLayouts.end())
@@ -906,15 +907,15 @@ bool CIRGenTypes::isPointerZeroInitializable(clang::QualType T) {
 
 bool CIRGenTypes::isZeroInitializable(QualType T) {
   if (T->getAs<PointerType>())
-    return Context.getTargetNullPointerValue(T) == 0;
+    return astContext.getTargetNullPointerValue(T) == 0;
 
-  if (const auto *AT = Context.getAsArrayType(T)) {
+  if (const auto *AT = astContext.getAsArrayType(T)) {
     if (isa<IncompleteArrayType>(AT))
       return true;
     if (const auto *CAT = dyn_cast<ConstantArrayType>(AT))
-      if (Context.getConstantArrayElementCount(CAT) == 0)
+      if (astContext.getConstantArrayElementCount(CAT) == 0)
         return true;
-    T = Context.getBaseElementType(T);
+    T = astContext.getBaseElementType(T);
   }
 
   // Records are non-zero-initializable if they contain any
