@@ -9754,7 +9754,7 @@ int32_t test_vqadds_s32(int32_t a, int32_t b) {
   return vqadds_s32(a, b);
 
   // CIR: vqadds_s32
-  // CIR: cir.binop(add, {{%.*}}, {{%.*}}) nsw nuw sat : !s32i
+  // CIR: cir.binop(add, {{%.*}}, {{%.*}}) sat : !s32i
 
   // LLVM:{{.*}}test_vqadds_s32(i32{{.*}}[[a:%.*]], i32{{.*}}[[b:%.*]])
   // LLVM:   [[VQADDS_S32_I:%.*]] = call i32 @llvm.sadd.sat.i32(i32 [[a]], i32 [[b]])
@@ -9825,9 +9825,16 @@ int32_t test_vqadds_s32(int32_t a, int32_t b) {
 // NYI-LABEL: @test_vqsubs_s32(
 // NYI:   [[VQSUBS_S32_I:%.*]] = call i32 @llvm.aarch64.neon.sqsub.i32(i32 %a, i32 %b)
 // NYI:   ret i32 [[VQSUBS_S32_I]]
-// int32_t test_vqsubs_s32(int32_t a, int32_t b) {
-//   return vqsubs_s32(a, b);
-// }
+int32_t test_vqsubs_s32(int32_t a, int32_t b) {
+  return vqsubs_s32(a, b);
+
+  // CIR: vqsubs_s32
+  // CIR: cir.binop(sub, {{%.*}}, {{%.*}}) sat : !s32i
+
+  // LLVM:{{.*}}test_vqsubs_s32(i32{{.*}}[[a:%.*]], i32{{.*}}[[b:%.*]])
+  // LLVM:   [[VQSUBS_S32_I:%.*]] = call i32 @llvm.ssub.sat.i32(i32 [[a]], i32 [[b]])
+  // LLVM:   ret i32 [[VQSUBS_S32_I]]
+}
 
 // NYI-LABEL: @test_vqsubd_s64(
 // NYI:   [[VQSUBD_S64_I:%.*]] = call i64 @llvm.aarch64.neon.sqsub.i64(i64 %a, i64 %b)

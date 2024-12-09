@@ -2452,7 +2452,8 @@ CIRToLLVMBinOpLowering::getIntOverflowFlag(cir::BinOp op) const {
   return mlir::LLVM::IntegerOverflowFlags::none;
 }
 
-static bool isIntTypeUnSigned(mlir::Type type) {
+static bool isIntTypeUnsigned(mlir::Type type) {
+  // TODO: Ideally, we should only need to check cir::IntType here.
   return mlir::isa<cir::IntType>(type)
              ? mlir::cast<cir::IntType>(type).isUnsigned()
              : mlir::cast<mlir::IntegerType>(type).isUnsigned();
@@ -2470,6 +2471,10 @@ mlir::LogicalResult CIRToLLVMBinOpLowering::matchAndRewrite(
          "operand type not supported yet");
 
   auto llvmTy = getTypeConverter()->convertType(op.getType());
+  mlir::Type llvmEltTy =
+      mlir::isa<mlir::VectorType>(llvmTy)
+          ? mlir::cast<mlir::VectorType>(llvmTy).getElementType()
+          : llvmTy;
   auto rhs = adaptor.getRhs();
   auto lhs = adaptor.getLhs();
 
@@ -2477,9 +2482,9 @@ mlir::LogicalResult CIRToLLVMBinOpLowering::matchAndRewrite(
 
   switch (op.getKind()) {
   case cir::BinOpKind::Add:
-    if (mlir::isa<cir::IntType, mlir::IntegerType>(type)) {
+    if (mlir::isa<mlir::IntegerType>(llvmEltTy)) {
       if (op.getSaturated()) {
-        if (isIntTypeUnSigned(type)) {
+        if (isIntTypeUnsigned(type)) {
           rewriter.replaceOpWithNewOp<mlir::LLVM::UAddSat>(op, lhs, rhs);
           break;
         }
@@ -2492,9 +2497,9 @@ mlir::LogicalResult CIRToLLVMBinOpLowering::matchAndRewrite(
       rewriter.replaceOpWithNewOp<mlir::LLVM::FAddOp>(op, lhs, rhs);
     break;
   case cir::BinOpKind::Sub:
-    if (mlir::isa<cir::IntType, mlir::IntegerType>(type)) {
+    if (mlir::isa<mlir::IntegerType>(llvmEltTy)) {
       if (op.getSaturated()) {
-        if (isIntTypeUnSigned(type)) {
+        if (isIntTypeUnsigned(type)) {
           rewriter.replaceOpWithNewOp<mlir::LLVM::USubSat>(op, lhs, rhs);
           break;
         }
@@ -2507,15 +2512,15 @@ mlir::LogicalResult CIRToLLVMBinOpLowering::matchAndRewrite(
       rewriter.replaceOpWithNewOp<mlir::LLVM::FSubOp>(op, lhs, rhs);
     break;
   case cir::BinOpKind::Mul:
-    if (mlir::isa<cir::IntType, mlir::IntegerType>(type))
+    if (mlir::isa<mlir::IntegerType>(llvmEltTy))
       rewriter.replaceOpWithNewOp<mlir::LLVM::MulOp>(op, llvmTy, lhs, rhs,
                                                      getIntOverflowFlag(op));
     else
       rewriter.replaceOpWithNewOp<mlir::LLVM::FMulOp>(op, lhs, rhs);
     break;
   case cir::BinOpKind::Div:
-    if (mlir::isa<cir::IntType, mlir::IntegerType>(type)) {
-      auto isUnsigned = isIntTypeUnSigned(type);
+    if (mlir::isa<mlir::IntegerType>(llvmEltTy)) {
+      auto isUnsigned = isIntTypeUnsigned(type);
       if (isUnsigned)
         rewriter.replaceOpWithNewOp<mlir::LLVM::UDivOp>(op, lhs, rhs);
       else
@@ -2524,8 +2529,8 @@ mlir::LogicalResult CIRToLLVMBinOpLowering::matchAndRewrite(
       rewriter.replaceOpWithNewOp<mlir::LLVM::FDivOp>(op, lhs, rhs);
     break;
   case cir::BinOpKind::Rem:
-    if (mlir::isa<cir::IntType, mlir::IntegerType>(type)) {
-      auto isUnsigned = isIntTypeUnSigned(type);
+    if (mlir::isa<mlir::IntegerType>(llvmEltTy)) {
+      auto isUnsigned = isIntTypeUnsigned(type);
       if (isUnsigned)
         rewriter.replaceOpWithNewOp<mlir::LLVM::URemOp>(op, lhs, rhs);
       else

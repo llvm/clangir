@@ -3804,6 +3804,9 @@ LogicalResult cir::BinOp::verify() {
   if (saturated && !saturatedOps)
     return emitError() << "The saturated flag is applicable to opcodes: 'add' "
                           "and 'sub'";
+  if (noWrap && saturated)
+    return emitError() << "The nsw/nuw flags and the saturated flag are "
+                          "mutually exclusive";
 
   bool complexOps =
       getKind() == cir::BinOpKind::Add || getKind() == cir::BinOpKind::Sub;

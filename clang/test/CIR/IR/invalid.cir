@@ -1102,6 +1102,24 @@ cir.func @bad_binop_for_saturated(%x: !u32i, %y: !u32i) {
 
 !s32i = !cir.int<s, 32>
 
+cir.func @no_nsw_for_saturated(%x: !s32i, %y: !s32i) {
+  // expected-error@+1 {{The nsw/nuw flags and the saturated flag are mutually exclusive}}
+  %0 = cir.binop(add, %x, %y) nsw sat : !s32i
+}
+
+// -----
+
+!s32i = !cir.int<s, 32>
+
+cir.func @no_nuw_for_saturated(%x: !s32i, %y: !s32i) {
+  // expected-error@+1 {{The nsw/nuw flags and the saturated flag are mutually exclusive}}
+  %0 = cir.binop(add, %x, %y) nuw sat : !s32i
+}
+
+// -----
+
+!s32i = !cir.int<s, 32>
+
 module {
   cir.global "private" external @batata : !s32i
   cir.func @f35() {
