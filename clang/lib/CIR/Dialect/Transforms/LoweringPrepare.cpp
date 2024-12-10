@@ -1167,6 +1167,8 @@ void LoweringPreparePass::runOnOp(Operation *op) {
     lowerThreeWayCmpOp(threeWayCmp);
   } else if (auto vaArgOp = dyn_cast<VAArgOp>(op)) {
     lowerVAArgOp(vaArgOp);
+  } else if (auto deleteArrayOp = dyn_cast<DeleteArrayOp>(op)) {
+    lowerDeleteArrayOp(deleteArrayOp);
   } else if (auto getGlobal = dyn_cast<GlobalOp>(op)) {
     lowerGlobalOp(getGlobal);
   } else if (auto dynamicCast = dyn_cast<DynamicCastOp>(op)) {
