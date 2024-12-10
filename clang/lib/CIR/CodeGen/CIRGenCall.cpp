@@ -551,6 +551,18 @@ static cir::CIRCallOpInterface emitCallLikeOp(
                               extraFnAttrs);
 }
 
+static RValue getRValueThroughMemory(mlir::Location loc,
+                                     CIRGenBuilderTy &builder,
+                                     mlir::Value val,
+                                     Address addr) {
+  auto ip = builder.saveInsertionPoint();
+  builder.setInsertionPointAfterValue(val);
+  builder.createStore(loc, val, addr);
+  builder.restoreInsertionPoint(ip);
+  auto load = builder.createLoad(loc, addr);
+  return RValue::get(load);
+}
+
 RValue CIRGenFunction::emitCall(const CIRGenFunctionInfo &CallInfo,
                                 const CIRGenCallee &Callee,
                                 ReturnValueSlot ReturnValue,
@@ -890,19 +902,15 @@ RValue CIRGenFunction::emitCall(const CIRGenFunctionInfo &CallInfo,
           assert(Results.size() <= 1 && "multiple returns NYI");
           assert(Results[0].getType() == RetCIRTy && "Bitcast support NYI");
 
-          auto reg = builder.getBlock()->getParent();
-          if (reg != theCall->getParentRegion()) {
+          auto region = builder.getBlock()->getParent();
+          if (region != theCall->getParentRegion()) {
             Address DestPtr = ReturnValue.getValue();
 
             if (!DestPtr.isValid())
               DestPtr = CreateMemTemp(RetTy, callLoc, "tmp");
 
-            auto ip = builder.saveInsertionPoint();
-            builder.setInsertionPointAfter(theCall);
-            builder.createStore(callLoc, Results[0], DestPtr);
-            builder.restoreInsertionPoint(ip);
-            auto load = builder.createLoad(callLoc, DestPtr);
-            return RValue::get(load);
+            return getRValueThroughMemory(callLoc, builder, Results[0],
+                                          DestPtr);
           }
 
           return RValue::get(Results[0]);
