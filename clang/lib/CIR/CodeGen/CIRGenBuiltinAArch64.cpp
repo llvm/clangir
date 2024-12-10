@@ -2275,8 +2275,10 @@ static void vecExtendIntValue(CIRGenFunction &cgf, cir::VectorType argVTy,
   // it before inserting.
   arg = builder.createIntCast(arg, eltTy);
   mlir::Value zero = builder.getConstInt(loc, cgf.SizeTy, 0);
+  mlir::Value poison = builder.create<cir::ConstantOp>(
+      loc, eltTy, builder.getAttr<cir::PoisonAttr>(eltTy));
   arg = builder.create<cir::VecInsertOp>(
-      loc, builder.create<cir::PoisonOp>(loc, argVTy), arg, zero);
+      loc, builder.create<cir::VecSplatOp>(loc, argVTy, poison), arg, zero);
 }
 
 /// Reduce vector type value to scalar, usually for result of a

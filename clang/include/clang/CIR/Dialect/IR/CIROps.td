@@ -380,30 +380,6 @@ def PtrStrideOp : CIR_Op<"ptr_stride",
 }
 
 //===----------------------------------------------------------------------===//
-// PoisonOp
-//===----------------------------------------------------------------------===//
-def PoisonOp : CIR_Op<"poison", [Pure]> {
-  let summary = "Creates a poison value of CIR type";
-
-  let description = [{
-    Unlike LLVM IR, MLIR does not have first-class poison values. Such values
-    must be created as SSA values using a dialect operation. This operation
-    has no operands or attributes. It creates a poison value of the specified
-    CIR type.
-
-    Example:
-
-    ```mlir
-    %0 = cir.poison : !cir.vector<!s32i x 2>
-    ```
-  }];
-
-  let results = (outs CIR_AnyType:$res);
-  let assemblyFormat = "attr-dict `:` type($res)";
-  let llvmOp = "PoisonOp";
-}
-
-//===----------------------------------------------------------------------===//
 // ConstantOp
 //===----------------------------------------------------------------------===//
 
