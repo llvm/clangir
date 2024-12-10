@@ -3199,7 +3199,7 @@ void CIRGenModule::replacePointerTypeArgs(cir::FuncOp OldF, cir::FuncOp NewF) {
     return;
 
   for (auto U : *optionalUseRange) {
-    // FIXME: Handling TryCallOp here once they have the same base op.
+    // CallTryOp only shows up after FlattenCFG.
     auto Call = mlir::dyn_cast<cir::CallOp>(U.getUser());
     if (!Call)
       continue;

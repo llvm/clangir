@@ -155,7 +155,7 @@ bool CIRGenModule::tryEmitBaseDestructorAsAlias(const CXXDestructorDecl *D) {
   // symbol reference from another TU. The other TU must also mark the
   // referenced symbol as weak, which we cannot rely on.
   if (cir::isWeakForLinker(Linkage) && getTriple().isOSBinFormatCOFF()) {
-    assert(false && "please sent a PR with a test and remove this.\n");
+    llvm_unreachable("please sent a PR with a test and remove this.\n");
     return true;
   }
 
@@ -171,7 +171,7 @@ bool CIRGenModule::tryEmitBaseDestructorAsAlias(const CXXDestructorDecl *D) {
   // output the alias both for weak_odr and linkonce_odr, but that
   // requires explicit comdat support in the IL.
   if (cir::isWeakForLinker(TargetLinkage)) {
-    assert(false && "please sent a PR with a test and remove this.\n");
+    llvm_unreachable("please sent a PR with a test and remove this.\n");
     return true;
   }
 
