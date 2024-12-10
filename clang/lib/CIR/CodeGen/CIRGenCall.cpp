@@ -552,8 +552,7 @@ static cir::CIRCallOpInterface emitCallLikeOp(
 }
 
 static RValue getRValueThroughMemory(mlir::Location loc,
-                                     CIRGenBuilderTy &builder,
-                                     mlir::Value val,
+                                     CIRGenBuilderTy &builder, mlir::Value val,
                                      Address addr) {
   auto ip = builder.saveInsertionPoint();
   builder.setInsertionPointAfterValue(val);
