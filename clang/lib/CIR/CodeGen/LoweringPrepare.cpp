@@ -1140,7 +1140,7 @@ void LoweringPreparePass::handleStaticLocal(GlobalOp globalOp,
     }
 
     // Check if the first byte of the guard variable is zero.
-    cgf.buildCXXGuardedInitBranch(
+    cgf.emitCXXGuardedInitBranch(
         needsInit, initCheckBlock, endBlock,
         clang::CIRGen::CIRGenFunction::GuardKind::variableGuard,
         varDecl.getRawDecl());

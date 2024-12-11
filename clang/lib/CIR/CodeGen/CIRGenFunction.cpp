@@ -757,7 +757,7 @@ mlir::Value CIRGenFunction::createLoad(const VarDecl *VD, const char *Name) {
                                 addr.getElementType(), addr.getPointer());
 }
 
-void CIRGenFunction::buildCXXGuardedInitBranch(mlir::Value needsInit,
+void CIRGenFunction::emitCXXGuardedInitBranch(mlir::Value needsInit,
                                                mlir::Block *initBlock,
                                                mlir::Block *noInitBlock,
                                                GuardKind kind,

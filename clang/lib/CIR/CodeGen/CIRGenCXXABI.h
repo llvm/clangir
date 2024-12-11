@@ -182,7 +182,7 @@ public:
   /// The variable may be:
   ///   - a static local variable
   ///   - a static data member of a class template instantiation
-  virtual void buildGuardedInit(CIRGenFunction &cgf, const VarDecl &varDecl,
+  virtual void emitGuardedInit(CIRGenFunction &cgf, const VarDecl &varDecl,
                                 cir::GlobalOp globalOp, bool performInit) = 0;
 
   /// Emit code to force the execution of a destructor during global

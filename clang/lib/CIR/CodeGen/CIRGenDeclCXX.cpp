@@ -53,7 +53,7 @@ void CIRGenModule::emitCXXGlobalVarDeclInitFunc(const VarDecl *D,
   emitCXXGlobalVarDeclInit(D, Addr, PerformInit);
 }
 
-void CIRGenFunction::buildCXXGuardedInit(const VarDecl &varDecl,
+void CIRGenFunction::emitCXXGuardedInit(const VarDecl &varDecl,
                                          cir::GlobalOp globalOp,
                                          bool performInit) {
   // If we've been asked to forbid guard variables, emit an error now. This
@@ -62,7 +62,7 @@ void CIRGenFunction::buildCXXGuardedInit(const VarDecl &varDecl,
   if (CGM.getCodeGenOpts().ForbidGuardVariables)
     llvm_unreachable("NYI");
 
-  CGM.getCXXABI().buildGuardedInit(*this, varDecl, globalOp, performInit);
+  CGM.getCXXABI().emitGuardedInit(*this, varDecl, globalOp, performInit);
 }
 
 void CIRGenFunction::buildCXXGlobalVarDeclInit(const VarDecl &varDecl,

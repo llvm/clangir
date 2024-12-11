@@ -944,13 +944,13 @@ public:
   /// Guarded initializations are used when it's not possible to prove that
   /// initialization will be done exactly once, e.g. with a static local
   /// variable or a static data member of a class template.
-  void buildCXXGuardedInit(const VarDecl &varDecl, cir::GlobalOp globalOp,
+  void emitCXXGuardedInit(const VarDecl &varDecl, cir::GlobalOp globalOp,
                            bool performInit);
 
   enum class GuardKind { variableGuard, tlsGuard };
 
   /// Emit a branch to select whether or not to perform guarded initialization.
-  void buildCXXGuardedInitBranch(mlir::Value needsInit, mlir::Block *initBlock,
+  void emitCXXGuardedInitBranch(mlir::Value needsInit, mlir::Block *initBlock,
                                  mlir::Block *noInitBlock, GuardKind kind,
                                  const VarDecl *varDecl);
 

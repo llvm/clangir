@@ -558,7 +558,7 @@ CIRGenFunction::addInitializerToStaticVarDecl(const VarDecl &varDecl,
       // be constant.
       globalOp.setConstant(false);
 
-      buildCXXGuardedInit(varDecl, globalOp, /*performInit*/ true);
+      emitCXXGuardedInit(varDecl, globalOp, /*performInit*/ true);
       getGlobalOp.setStaticLocal(true);
     }
     return globalOp;
