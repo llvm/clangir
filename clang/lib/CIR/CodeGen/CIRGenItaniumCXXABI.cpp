@@ -2345,52 +2345,6 @@ static cir::FuncOp getBadCastFn(CIRGenFunction &CGF) {
   return CGF.CGM.createRuntimeFunction(FTy, "__cxa_bad_cast");
 }
 
-static cir::FuncOp getGuardAcquireFn(CIRGenModule &cgm,
-                                     cir::PointerType guardPtrTy) {
-  // int __cxa_guard_acquire(__guard *guard_object);
-  cir::FuncType fTy = cgm.getBuilder().getFuncType(
-      guardPtrTy, {cgm.getTypes().ConvertType(cgm.getASTContext().IntTy)},
-      /*isVarArg=*/false);
-  assert(!cir::MissingFeatures::functionIndexAttribute());
-  assert(!cir::MissingFeatures::noUnwindAttribute());
-  return cgm.createRuntimeFunction(fTy, "__cxa_guard_acquire");
-}
-
-static cir::FuncOp getGuardReleaseFn(CIRGenModule &cgm,
-                                     cir::PointerType guardPtrTy) {
-  // void __cxa_guard_release(__guard *guard_object);
-  cir::FuncType fTy = cgm.getBuilder().getFuncType(guardPtrTy, {cgm.VoidTy},
-                                                   /*isVarArg=*/false);
-  assert(!cir::MissingFeatures::functionIndexAttribute());
-  assert(!cir::MissingFeatures::noUnwindAttribute());
-  return cgm.createRuntimeFunction(fTy, "__cxa_guard_release");
-}
-
-static cir::FuncOp getGuardAbortFn(CIRGenModule &cgm,
-                                   cir::PointerType guardPtrTy) {
-  // void __cxa_guard_abort(__guard *guard_object);
-  cir::FuncType fTy = cgm.getBuilder().getFuncType(guardPtrTy, {cgm.VoidTy},
-                                                   /*isVarArg=*/false);
-  assert(!cir::MissingFeatures::functionIndexAttribute());
-  assert(!cir::MissingFeatures::noUnwindAttribute());
-  return cgm.createRuntimeFunction(fTy, "__cxa_guard_abort");
-}
-
-namespace {
-struct CallGuardAbort final : EHScopeStack::Cleanup {
-  cir::GlobalOp guard;
-  CallGuardAbort(cir::GlobalOp guard) : guard{guard} {}
-
-  void Emit(CIRGenFunction &cgf, Flags flags) override {
-    auto guardPtrTy = cir::PointerType::get(guard.getSymType());
-    mlir::Value getGuard =
-        cgf.CGM.getBuilder().createGetGlobal(guard, /*threadLocal*/ false);
-    cgf.emitNounwindRuntimeCall(guard->getLoc(),
-                                getGuardAbortFn(cgf.CGM, guardPtrTy), getGuard);
-  }
-};
-} // namespace
-
 static void emitCallToBadCast(CIRGenFunction &CGF, mlir::Location loc) {
   // TODO(cir): set the calling convention to the runtime function.
   assert(!cir::MissingFeatures::setCallingConv());

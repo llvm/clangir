@@ -1001,9 +1001,9 @@ public:
   // Emit an invariant.start call for the given memory region.
   void emitInvariantStart(CharUnits Size);
 
-  /// buildCXXGlobalVarDeclInit - Create the initializer for a C++ variable with
+  /// emitCXXGlobalVarDeclInit - Create the initializer for a C++ variable with
   /// global storage.
-  void buildCXXGlobalVarDeclInit(const VarDecl &varDecl,
+  void emitCXXGlobalVarDeclInit(const VarDecl &varDecl,
                                  cir::GlobalOp globalOp,
                                  bool performInit);
 
