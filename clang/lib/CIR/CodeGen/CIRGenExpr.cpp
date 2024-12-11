@@ -960,14 +960,12 @@ LValue CIRGenFunction::emitLValueForLambdaField(const FieldDecl *field,
     assert(methD->getParent()->isLambda());
     assert(methD->getParent() == field->getParent());
   }
-  LValue lambdaLV;
-  if (hasExplicitObjectParameter) {
-    llvm_unreachable("ExplicitObjectMemberFunction NYI");
+  if (!hasExplicitObjectParameter) {
+    QualType lambdaTagType = getContext().getTagDeclType(field->getParent());
+    LValue lambdaLV = MakeNaturalAlignAddrLValue(thisValue, lambdaTagType);
+    return emitLValueForField(lambdaLV, field);
   }
-  QualType lambdaTagType = getContext().getTagDeclType(field->getParent());
-  lambdaLV = MakeNaturalAlignAddrLValue(thisValue, lambdaTagType);
-
-  return emitLValueForField(lambdaLV, field);
+  llvm_unreachable("ExplicitObjectMemberFunction NYI");
 }
 
 LValue CIRGenFunction::emitLValueForLambdaField(const FieldDecl *field) {
