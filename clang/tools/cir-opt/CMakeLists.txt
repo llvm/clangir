@@ -6,7 +6,6 @@ include_directories(${CMAKE_BINARY_DIR}/tools/mlir/include)
 
 add_clang_tool(cir-opt
   cir-opt.cpp
-  ${LIBS}
 )
 
 clang_target_link_libraries(cir-opt
