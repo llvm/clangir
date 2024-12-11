@@ -893,6 +893,45 @@ void LoweringPreparePass::lowerThreeWayCmpOp(CmpThreeWayOp op) {
   op.erase();
 }
 
+void LoweringPreparePass::handleGlobalOpCtorDtor(GlobalOp globalOp) {
+  auto &ctorRegion = globalOp.getCtorRegion();
+  auto &dtorRegion = globalOp.getDtorRegion();
+
+  if (!ctorRegion.empty() || !dtorRegion.empty()) {
+    // Build a variable initialization function and move the initialzation code
+    // in the ctor region over.
+    auto f = buildCXXGlobalVarDeclInitFunc(globalOp);
+
+    // Clear the ctor and dtor region
+    ctorRegion.getBlocks().clear();
+    dtorRegion.getBlocks().clear();
+
+    // Add a function call to the variable initialization function.
+    assert(!hasAttr<clang::InitPriorityAttr>(
+               mlir::cast<ASTDeclInterface>(*globalOp.getAst())) &&
+           "custom initialization priority NYI");
+    dynamicInitializers.push_back(f);
+  }
+
+  std::optional<mlir::ArrayAttr> annotations = globalOp.getAnnotations();
+  if (annotations)
+    addGlobalAnnotations(globalOp, annotations.value());
+}
+
+void LoweringPreparePass::lowerGetGlobalOp(GetGlobalOp getGlobalOp) {
+  if (!getGlobalOp.getStaticLocal())
+    return;
+
+  namesToStaticLocalGetGlobalOps.insert({getGlobalOp.getName(), getGlobalOp});
+}
+
+void LoweringPreparePass::lowerGlobalOp(GlobalOp globalOp) {
+  if (!globalOp.getStaticLocal())
+    handleGlobalOpCtorDtor(globalOp);
+
+  namesToStaticLocalGlobalOps.insert({globalOp.getName(), globalOp});
+}
+
 static cir::GlobalOp createGuardGlobalOp(::cir::CIRBaseBuilderTy &builder,
                                          mlir::Location loc, StringRef name,
                                          mlir::Type type, bool isConstant,
@@ -1190,7 +1229,6 @@ void LoweringPreparePass::handleStaticLocal(GlobalOp globalOp,
   }
 
   // Emit the initializer and add a global destructor if appropriate.
-  bool performInit = true;
   auto &ctorRegion = globalOp.getCtorRegion();
   assert(!ctorRegion.empty() && "This should never be empty here.");
   if (!ctorRegion.hasOneBlock())
@@ -1218,45 +1256,6 @@ void LoweringPreparePass::handleStaticLocal(GlobalOp globalOp,
   cgf.buildBlock(endBlock);
   builder.insert(ret);
   cgm.setCurrentCIRGenFn(nullptr);
-}
-
-void LoweringPreparePass::handleGlobalOpCtorDtor(GlobalOp globalOp) {
-  auto &ctorRegion = globalOp.getCtorRegion();
-  auto &dtorRegion = globalOp.getDtorRegion();
-
-  if (!ctorRegion.empty() || !dtorRegion.empty()) {
-    // Build a variable initialization function and move the initialzation code
-    // in the ctor region over.
-    auto f = buildCXXGlobalVarDeclInitFunc(globalOp);
-
-    // Clear the ctor and dtor region
-    ctorRegion.getBlocks().clear();
-    dtorRegion.getBlocks().clear();
-
-    // Add a function call to the variable initialization function.
-    assert(!hasAttr<clang::InitPriorityAttr>(
-               mlir::cast<ASTDeclInterface>(*globalOp.getAst())) &&
-           "custom initialization priority NYI");
-    dynamicInitializers.push_back(f);
-  }
-
-  std::optional<mlir::ArrayAttr> annotations = globalOp.getAnnotations();
-  if (annotations)
-    addGlobalAnnotations(globalOp, annotations.value());
-}
-
-void LoweringPreparePass::lowerGetGlobalOp(GetGlobalOp getGlobalOp) {
-  if (!getGlobalOp.getStaticLocal())
-    return;
-
-  namesToStaticLocalGetGlobalOps.insert({getGlobalOp.getName(), getGlobalOp});
-}
-
-void LoweringPreparePass::lowerGlobalOp(GlobalOp globalOp) {
-  if (!globalOp.getStaticLocal())
-    handleGlobalOpCtorDtor(globalOp);
-
-  namesToStaticLocalGlobalOps.insert({globalOp.getName(), globalOp});
 }
 
 void LoweringPreparePass::buildGlobalCtorDtorList() {

@@ -1,8 +1,9 @@
-// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm %s -o %t.cir
-// RUN: FileCheck --input-file=%t.cir %s
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-cir %s -o %t.cir
 // RUN: FileCheck --input-file=%t.cir %s --check-prefix=CIR
-// RUN: %clang_cc1 -triple aarch64-none-linux-android21 -fclangir -emit-cir -mmlir --mlir-print-ir-before=cir-lowering-prepare %s -o %t.cir 2>&1 | FileCheck %s -check-prefix=CIRGEN
+// RUN: %clang_cc1 -triple aarch64-none-linux-android21 -fclangir -emit-cir -clangir-disable-passes %s -o %t.cir
+// RUN: FileCheck --input-file=%t.cir %s --check-prefix=CIRGEN
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm %s -o %t.cir
+// RUN: FileCheck --input-file=%t.cir %s --check-prefix=LLVM
 
 int fnA();
 
@@ -56,19 +57,19 @@ void foo() {
 //      CHECK: declare i32 @__cxa_guard_acquire(ptr)
 //      CHECK: declare void @__cxa_guard_release(ptr)
 
-//      CHECK: define dso_local void @_Z3foov()
-// CHECK-NEXT:   %1 = load atomic i8, ptr @_ZGVZ3foovE3val acquire, align 1
-// CHECK-NEXT:   %2 = icmp eq i8 %1, 0
-// CHECK-NEXT:   br i1 %2, label %3, label %8
-//  CHECK-DAG: 3:
-// CHECK-NEXT:   %4 = call i32 @__cxa_guard_acquire(ptr @_ZGVZ3foovE3val)
-// CHECK-NEXT:   %5 = icmp ne i32 %4, 0
-// CHECK-NEXT:   br i1 %5, label %6, label %8
-//  CHECK-DAG: 6:
-// CHECK-NEXT:   %7 = call i32 @_Z3fnAv()
-// CHECK-NEXT:   store i32 %7, ptr @_ZZ3foovE3val, align 4
-// CHECK-NEXT:   call void @__cxa_guard_release(ptr @_ZGVZ3foovE3val)
-// CHECK-NEXT:   br label %8
-//  CHECK-DAG: 8:
-// CHECK-NEXT:   ret void
-// CHECK-NEXT: }
+//      LLVM: define dso_local void @_Z3foov()
+// LLVM-NEXT:   %1 = load atomic i8, ptr @_ZGVZ3foovE3val acquire, align 1
+// LLVM-NEXT:   %2 = icmp eq i8 %1, 0
+// LLVM-NEXT:   br i1 %2, label %3, label %8
+//  LLVM-DAG: 3:
+// LLVM-NEXT:   %4 = call i32 @__cxa_guard_acquire(ptr @_ZGVZ3foovE3val)
+// LLVM-NEXT:   %5 = icmp ne i32 %4, 0
+// LLVM-NEXT:   br i1 %5, label %6, label %8
+//  LLVM-DAG: 6:
+// LLVM-NEXT:   %7 = call i32 @_Z3fnAv()
+// LLVM-NEXT:   store i32 %7, ptr @_ZZ3foovE3val, align 4
+// LLVM-NEXT:   call void @__cxa_guard_release(ptr @_ZGVZ3foovE3val)
+// LLVM-NEXT:   br label %8
+//  LLVM-DAG: 8:
+// LLVM-NEXT:   ret void
+// LLVM-NEXT: }
