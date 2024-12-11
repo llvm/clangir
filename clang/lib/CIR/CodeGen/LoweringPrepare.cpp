@@ -1013,11 +1013,17 @@ void LoweringPreparePass::handleStaticLocal(GlobalOp globalOp,
   clang::CIRGen::CIRGenModule &cgm = *this->cgm;
   clang::CIRGen::CIRGenCXXABI &cxxABI = cgm.getCXXABI();
   clang::CIRGen::CIRGenBuilderTy &builder = cgm.getBuilder();
+
   builder.setInsertionPointAfter(getGlobalOp);
   Block *getGlobalOpBlock = builder.getInsertionBlock();
+  // TODO(CIR): This is too simple at the moment. This is only tested on a
+  // simple test case with only the static local var decl and thus we only have
+  // the return. For less trivial examples we'll have to handle shuffling the
+  // contents of this block more carefully.
   Operation *ret = getGlobalOpBlock->getTerminator();
   ret->remove();
   builder.setInsertionPointAfter(getGlobalOp);
+
   clang::CIRGen::CIRGenFunction cgf{cgm, builder, true};
   cgf.CurFn = getGlobalOp->getParentOfType<cir::FuncOp>();
   cgm.setCurrentCIRGenFn(&cgf);
@@ -1228,7 +1234,10 @@ void LoweringPreparePass::handleStaticLocal(GlobalOp globalOp,
     llvm_unreachable("NYI");
   }
 
-  // Emit the initializer and add a global destructor if appropriate.
+  // CIR: Move the initializer from the globalOp's ctor region into the current
+  // block.
+  // TODO(CIR): Once we support exceptions we'll need to walk the ctor region to
+  // change calls to invokes.
   auto &ctorRegion = globalOp.getCtorRegion();
   assert(!ctorRegion.empty() && "This should never be empty here.");
   if (!ctorRegion.hasOneBlock())
@@ -1255,6 +1264,7 @@ void LoweringPreparePass::handleStaticLocal(GlobalOp globalOp,
 
   cgf.buildBlock(endBlock);
   builder.insert(ret);
+
   cgm.setCurrentCIRGenFn(nullptr);
 }
 
