@@ -131,6 +131,11 @@ private:
   /// for the same decl.
   llvm::DenseSet<clang::GlobalDecl> DiagnosedConflictingDefinitions;
 
+  CIRGenModule *createMinimalCGM() {
+    auto cgm = new CIRGenModule(getMLIRContext(), getASTContext(),
+                                getCodeGenOpts(), getDiags());
+  }
+
   /// -------
   /// Annotations
   /// -------
@@ -160,6 +165,7 @@ public:
   CIRGenTypes &getTypes() { return genTypes; }
   const clang::LangOptions &getLangOpts() const { return langOpts; }
   CIRGenFunction *getCurrCIRGenFun() const { return CurCGF; }
+  void setCurrentCIRGenFn(CIRGenFunction* cgf) { CurCGF = cgf; }
   const cir::CIRDataLayout getDataLayout() const {
     // FIXME(cir): instead of creating a CIRDataLayout every time, set it as an
     // attribute for the CIRModule class.
@@ -212,8 +218,9 @@ public:
   void HandleCXXStaticMemberVarInstantiation(VarDecl *VD);
 
   llvm::DenseMap<const Decl *, cir::GlobalOp> StaticLocalDeclMap;
-  llvm::DenseMap<llvm::StringRef, mlir::Value> Globals;
-  mlir::Operation *getGlobalValue(llvm::StringRef Ref);
+  llvm::DenseMap<const Decl *, cir::GlobalOp> staticLocalDeclGuardMap;
+  llvm::DenseMap<StringRef, mlir::Value> Globals;
+  mlir::Operation *getGlobalValue(StringRef Ref);
   mlir::Value getGlobalValue(const clang::Decl *D);
 
   /// If the specified mangled name is not in the module, create and return an
@@ -233,6 +240,15 @@ public:
 
   cir::GlobalOp getOrCreateStaticVarDecl(const VarDecl &D,
                                          cir::GlobalLinkageKind Linkage);
+
+  cir::GlobalOp getStaticLocalDeclGuardAddress(const VarDecl *varDecl) {
+    return staticLocalDeclGuardMap[varDecl];
+  }
+
+  void setStaticLocalDeclGuardAddress(const VarDecl *varDecl,
+                                      cir::GlobalOp globalOp) {
+    staticLocalDeclGuardMap[varDecl] = globalOp;
+  }
 
   cir::GlobalOp getOrCreateCIRGlobal(const VarDecl *D, mlir::Type Ty,
                                      ForDefinition_t IsForDefinition);

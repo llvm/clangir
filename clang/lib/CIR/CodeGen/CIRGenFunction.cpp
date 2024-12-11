@@ -419,7 +419,7 @@ void CIRGenFunction::LexicalScope::cleanup() {
   // An empty non-entry block has nothing to offer, and since this is
   // synthetic, losing information does not affect anything.
   bool entryBlock = builder.getInsertionBlock()->isEntryBlock();
-  if (!entryBlock && currBlock->empty()) {
+  if (!entryBlock && currBlock->empty() && currBlock->hasNoPredecessors()) {
     currBlock->erase();
     // Remove unused cleanup blocks.
     if (cleanupBlock && cleanupBlock->hasNoPredecessors())
@@ -755,6 +755,20 @@ mlir::Value CIRGenFunction::createLoad(const VarDecl *VD, const char *Name) {
   auto addr = GetAddrOfLocalVar(VD);
   return builder.create<LoadOp>(getLoc(VD->getLocation()),
                                 addr.getElementType(), addr.getPointer());
+}
+
+void CIRGenFunction::buildCXXGuardedInitBranch(mlir::Value needsInit,
+                                               mlir::Block *initBlock,
+                                               mlir::Block *noInitBlock,
+                                               GuardKind kind,
+                                               const VarDecl *varDecl) {
+  assert((kind == GuardKind::tlsGuard || varDecl) && "no guarded variable");
+
+  if (MissingFeatures::metaDataNode())
+    llvm_unreachable("NYI");
+
+  builder.createCondBr(getLoc(varDecl->getLocation()), needsInit, initBlock,
+                       noInitBlock);
 }
 
 void CIRGenFunction::emitConstructorBody(FunctionArgList &Args) {

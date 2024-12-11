@@ -11,6 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "CIRGenCall.h"
 #include "CIRGenBuilder.h"
 #include "CIRGenCXXABI.h"
 #include "CIRGenFunction.h"
@@ -19,8 +20,10 @@
 #include "TargetInfo.h"
 
 #include "clang/AST/Attr.h"
+#include "clang/AST/Attrs.inc"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/GlobalDecl.h"
+#include "clang/CIR/ABIArgInfo.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/FnInfoOpts.h"
@@ -31,6 +34,7 @@
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/Location.h"
 #include "mlir/IR/SymbolTable.h"
 #include "mlir/IR/Types.h"
 #include "clang/CIR/MissingFeatures.h"
@@ -936,6 +940,13 @@ mlir::Value CIRGenFunction::emitRuntimeCall(mlir::Location loc,
     return nullptr;
 
   return call->getResult(0);
+}
+
+mlir::Value CIRGenFunction::emitNounwindRuntimeCall(
+    mlir::Location loc, cir::FuncOp callee, ArrayRef<mlir::Value> args) {
+  mlir::Value call = emitRuntimeCall(loc, callee, args);
+  assert(!cir::MissingFeatures::noUnwindAttribute());
+  return call;
 }
 
 void CIRGenFunction::emitCallArg(CallArgList &args, const Expr *E,

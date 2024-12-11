@@ -25,6 +25,7 @@
 #include "clang/CIR/Dialect/IR/FPEnv.h"
 
 #include "mlir/IR/Attributes.h"
+#include "mlir/IR/Block.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -817,6 +818,35 @@ public:
     return Address{createImagPtr(loc, addr.getPointer()), addr.getAlignment()};
   }
 
+  /// Return a boolean value testing if \p arg == 0.
+  mlir::Value createIsNull(mlir::Location loc, mlir::Value arg,
+                           const llvm::Twine &name = "") {
+    return createICmpEQ(loc, arg, getNullValue(arg.getType(), loc), name);
+  }
+
+  /// Return a boolean value testing if \p arg != 0.
+  mlir::Value createIsNotNull(mlir::Location loc, mlir::Value arg,
+                              const llvm::Twine &name = "") {
+    return createICmpNE(loc, arg, getNullValue(arg.getType(), loc), name);
+  }
+
+  mlir::Value createICmpEQ(mlir::Location loc, mlir::Value lhs, mlir::Value rhs,
+                           const llvm::Twine &name = "") {
+    return createICmp(loc, cir::CmpOpKind::eq, lhs, rhs, name);
+  }
+  mlir::Value createICmpNE(mlir::Location loc, mlir::Value lhs, mlir::Value rhs,
+                           const llvm::Twine &name = "") {
+    return createICmp(loc, cir::CmpOpKind::ne, lhs, rhs, name);
+  }
+
+  mlir::Value createICmp(mlir::Location loc, cir::CmpOpKind kind,
+                         mlir::Value lhs, mlir::Value rhs,
+                         const llvm::Twine &name = "") {
+    if (cir::MissingFeatures::folder())
+      llvm_unreachable("NYI");
+    return createCompare(loc, kind, lhs, rhs);
+  }
+
   /// Cast the element type of the given address to a different type,
   /// preserving information like the alignment.
   Address createElementBitCast(mlir::Location loc, Address addr,
@@ -1044,6 +1074,36 @@ public:
   /// pointed to by arrayPtr.
   mlir::Value maybeBuildArrayDecay(mlir::Location loc, mlir::Value arrayPtr,
                                    mlir::Type eltTy);
+
+  /// Create an unconditional branch op.
+  cir::BrOp createBr(mlir::Location loc, mlir::Block *dest) {
+    assert(!cir::MissingFeatures::metaDataNode());
+    return create<cir::BrOp>(loc, dest);
+  }
+
+  /// Create a conditional branch operation
+  cir::BrCondOp createCondBr(mlir::Location loc, mlir::Value condition,
+                             mlir::Block *trueBlock, mlir::Block *falseBlock) {
+    if (cir::MissingFeatures::metaDataNode())
+      llvm_unreachable("NYI");
+    return create<cir::BrCondOp>(loc, condition, trueBlock, falseBlock);
+  }
+
+  /// createBasicBlock - Create an MLIR block
+  mlir::Block *createBasicBlock(cir::FuncOp parent = nullptr,
+                                mlir::Block *before = nullptr) {
+    auto *b = new mlir::Block();
+    if (parent) {
+
+      if (before == nullptr)
+        before = &*parent.end();
+
+      parent.getFunctionBody().getBlocks().insert(
+          mlir::Region::iterator(before), b);
+    }
+
+    return b;
+  }
 };
 
 } // namespace clang::CIRGen

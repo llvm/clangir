@@ -10,6 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "CIRGenCXXABI.h"
 #include "CIRGenFunction.h"
 #include "CIRGenModule.h"
 #include "TargetInfo.h"
@@ -50,4 +51,25 @@ void CIRGenModule::emitCXXGlobalVarDeclInitFunc(const VarDecl *D,
     return;
 
   emitCXXGlobalVarDeclInit(D, Addr, PerformInit);
+}
+
+void CIRGenFunction::buildCXXGuardedInit(const VarDecl &varDecl,
+                                         cir::GlobalOp globalOp,
+                                         bool performInit) {
+  // If we've been asked to forbid guard variables, emit an error now. This
+  // diagnostic is hard-coded for Darwin's use case; we can find better phrasing
+  // if someone else needs it.
+  if (CGM.getCodeGenOpts().ForbidGuardVariables)
+    llvm_unreachable("NYI");
+
+  CGM.getCXXABI().buildGuardedInit(*this, varDecl, globalOp, performInit);
+}
+
+void CIRGenFunction::buildCXXGlobalVarDeclInit(const VarDecl &varDecl,
+                                               cir::GlobalOp globalOp,
+                                               bool performInit) {
+  // TODO(CIR): We diverge from CodeGen here via having this in CIRGenModule
+  // instead. This is necessary due to the way we are constructing global inits
+  // at the moment. Investigate what we're missing from this function body.
+  llvm_unreachable("NYI");
 }

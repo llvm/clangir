@@ -20,10 +20,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "../LoweringPrepareCXXABI.h"
 #include "CIRCXXABI.h"
 #include "LowerModule.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
+#include "clang/CIR/Dialect/Transforms/LoweringPrepareCXXABI.h"
 #include "llvm/Support/ErrorHandling.h"
 
 namespace cir {
