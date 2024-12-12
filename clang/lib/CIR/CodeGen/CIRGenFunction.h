@@ -970,9 +970,6 @@ public:
   mlir::Value emitRuntimeCall(mlir::Location loc, cir::FuncOp callee,
                               llvm::ArrayRef<mlir::Value> args = {});
 
-  mlir::Value emitNounwindRuntimeCall(mlir::Location loc, cir::FuncOp callee,
-                                      ArrayRef<mlir::Value> args);
-
   // Emit an invariant.start call for the given memory region.
   void emitInvariantStart(CharUnits Size);
 

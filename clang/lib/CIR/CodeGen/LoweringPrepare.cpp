@@ -8,9 +8,7 @@
 
 #include "Address.h"
 #include "CIRGenBuilder.h"
-#include "CIRGenCXXABI.h"
 #include "CIRGenModule.h"
-#include "EHScopeStack.h"
 
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/Region.h"
@@ -1008,20 +1006,10 @@ static cir::FuncOp createCIRFunction(clang::CIRGen::CIRGenBuilderTy &builder,
 ///
 /// If D is non-null, it specifies a decl that corresponded to this. This is
 /// used to set the attributes on the function when it is first created.
-static cir::FuncOp
-getOrCreateCIRFunction(clang::ASTContext &astContext,
-                       mlir::MLIRContext &mlirContext, mlir::ModuleOp theModule,
-                       clang::CIRGen::CIRGenBuilderTy &builder,
-                       StringRef mangledName, mlir::Type type) {
-  mlir::ArrayAttr extraAttrs = {};
-  clang::CIRGen::ForDefinition_t isForDefinition =
-      clang::CIRGen::NotForDefinition;
-  clang::GlobalDecl globalDecl = clang::GlobalDecl();
-  bool dontDefer = false;
-  bool forVTable = false;
-
-  const auto *decl = globalDecl.getDecl();
-
+static cir::FuncOp getOrCreateCIRFunctionForRuntimeFunction(
+    clang::ASTContext &astContext, mlir::MLIRContext &mlirContext,
+    mlir::ModuleOp theModule, clang::CIRGen::CIRGenBuilderTy &builder,
+    StringRef mangledName, mlir::Type type) {
   // Lookup the entry, lazily creating it if necessary.
   mlir::Operation *entry = getGlobalValue(theModule, mangledName);
   if (entry) {
@@ -1035,13 +1023,6 @@ getOrCreateCIRFunction(clang::ASTContext &astContext,
     if (fn && fn.getFunctionType() == type) {
       return fn;
     }
-
-    if (!isForDefinition) {
-      return fn;
-    }
-
-    // TODO: clang checks here if this is a llvm::GlobalAlias... how will we
-    // support this?
   }
 
   // This function doesn't have a complete type (for example, the return type is
@@ -1103,8 +1084,8 @@ static cir::FuncOp createRuntimeFunction(
   if (local)
     llvm_unreachable("NYI");
 
-  auto entry = getOrCreateCIRFunction(astContext, mlirContext, theModule,
-                                      builder, name, type);
+  auto entry = getOrCreateCIRFunctionForRuntimeFunction(
+      astContext, mlirContext, theModule, builder, name, type);
 
   // Traditional codegen checks for a valid dyn_cast llvm::Function for `entry`,
   // no testcase that cover this path just yet though.
@@ -1302,7 +1283,6 @@ void LoweringPreparePass::handleStaticLocal(GlobalOp globalOp,
   // libcalls.
   unsigned maxInlineWidthInbits =
       astCtx->getTargetInfo().getMaxAtomicInlineWidth();
-  // "init.end" block
 
   auto initBlock = [&]() {
     // CIR: Move the initializer from the globalOp's ctor region into the
@@ -1323,7 +1303,9 @@ void LoweringPreparePass::handleStaticLocal(GlobalOp globalOp,
     ctorRegion.getBlocks().clear();
 
     if (threadsafe) {
-      // NOTE(CIR): CodeGen clears the above pushed CallGuardAbort here.
+      // NOTE(CIR): CodeGen clears the above pushed CallGuardAbort here and thus
+      // the __guard_abort gets inserted. We'll have to figure out how to
+      // properly handle this when supporting static locals with exceptions.
 
       // Call __cxa_guard_release. This cannot throw.
       emitNounwindRuntimeCall(*builder, globalOp->getLoc(),
@@ -1353,7 +1335,7 @@ void LoweringPreparePass::handleStaticLocal(GlobalOp globalOp,
   // restart initialization.
 
   // Variables used when coping with thread-safe statics and exceptions.
-  auto thenStmt = [&]() {
+  auto guardAcquireBlock = [&]() {
     if (threadsafe) {
       auto loc = globalOp->getLoc();
       // Call __cxa_guard_acquire.
@@ -1426,7 +1408,7 @@ void LoweringPreparePass::handleStaticLocal(GlobalOp globalOp,
                                [&](mlir::OpBuilder &, mlir::Location) {
                                  if (MissingFeatures::metaDataNode())
                                    llvm_unreachable("NYI");
-                                 thenStmt();
+                                 guardAcquireBlock();
                                  builder->createYield(getGlobalOp->getLoc());
                                });
   }
