@@ -145,7 +145,7 @@ struct LoweringPreparePass : public LoweringPrepareBase<LoweringPreparePass> {
 
   clang::ASTContext *astCtx;
   std::shared_ptr<cir::LoweringPrepareCXXABI> cxxABI;
-  clang::CIRGen::CIRGenModule *cgm;
+  clang::CIRGen::CIRGenBuilderTy *builder;
 
   void setASTContext(clang::ASTContext *c) {
     astCtx = c;
@@ -179,7 +179,9 @@ struct LoweringPreparePass : public LoweringPrepareBase<LoweringPreparePass> {
     }
   }
 
-  void setCGM(clang::CIRGen::CIRGenModule &cgm) { this->cgm = &cgm; }
+  void setBuilder(clang::CIRGen::CIRGenBuilderTy &builder) {
+    this->builder = &builder;
+  }
 
   /// Tracks current module.
   ModuleOp theModule;
@@ -1190,18 +1192,15 @@ void LoweringPreparePass::handleStaticLocal(GlobalOp globalOp,
   assert(astOption.has_value());
   cir::ASTVarDeclInterface varDecl = astOption.value();
 
-  clang::CIRGen::CIRGenModule &cgm = *this->cgm;
-  clang::CIRGen::CIRGenBuilderTy &builder = cgm.getBuilder();
-
-  builder.setInsertionPointAfter(getGlobalOp);
-  Block *getGlobalOpBlock = builder.getInsertionBlock();
+  builder->setInsertionPointAfter(getGlobalOp);
+  Block *getGlobalOpBlock = builder->getInsertionBlock();
   // TODO(CIR): This is too simple at the moment. This is only tested on a
   // simple test case with only the static local var decl and thus we only have
   // the return. For less trivial examples we'll have to handle shuffling the
   // contents of this block more carefully.
   Operation *ret = getGlobalOpBlock->getTerminator();
   ret->remove();
-  builder.setInsertionPointAfter(getGlobalOp);
+  builder->setInsertionPointAfter(getGlobalOp);
 
   // Inline variables that weren't instantiated from variable templates have
   // partially-ordered initialization within their translation unit.
@@ -1253,10 +1252,10 @@ void LoweringPreparePass::handleStaticLocal(GlobalOp globalOp,
     // Create the guard variable with a zero-initializer.
     // Just absorb linkage, visibility and dll storage class from the guarded
     // variable.
-    guard = createGuardGlobalOp(builder, globalOp->getLoc(), guardName, guardTy,
-                                /*isConstant=*/false, /*addrSpace=*/{},
-                                globalOp.getLinkage(),
-                                getGlobalOp->getParentOfType<cir::FuncOp>());
+    guard = createGuardGlobalOp(
+        *builder, globalOp->getLoc(), guardName, guardTy,
+        /*isConstant=*/false, /*addrSpace=*/{}, globalOp.getLinkage(),
+        getGlobalOp->getParentOfType<cir::FuncOp>());
     guard.setInitialValueAttr(cir::IntAttr::get(guardTy, 0));
     guard.setDSOLocal(globalOp.isDSOLocal());
     guard.setVisibility(globalOp.getVisibility());
@@ -1276,7 +1275,7 @@ void LoweringPreparePass::handleStaticLocal(GlobalOp globalOp,
     setStaticLocalDeclGuardAddress(varDecl, guard);
   }
 
-  mlir::Value getGuard = builder.createGetGlobal(guard, /*threadLocal*/ false);
+  mlir::Value getGuard = builder->createGetGlobal(guard, /*threadLocal*/ false);
   clang::CIRGen::Address guardAddr =
       clang::CIRGen::Address(getGuard, guard.getSymType(), guardAlignment);
 
@@ -1315,11 +1314,11 @@ void LoweringPreparePass::handleStaticLocal(GlobalOp globalOp,
     if (!ctorRegion.hasOneBlock())
       llvm_unreachable("Multiple blocks NYI");
     Block &block = ctorRegion.front();
-    Block *insertBlock = builder.getInsertionBlock();
+    Block *insertBlock = builder->getInsertionBlock();
     insertBlock->getOperations().splice(insertBlock->end(),
                                         block.getOperations(), block.begin(),
                                         std::prev(block.end()));
-    builder.setInsertionPointToEnd(insertBlock);
+    builder->setInsertionPointToEnd(insertBlock);
 
     ctorRegion.getBlocks().clear();
 
@@ -1327,9 +1326,10 @@ void LoweringPreparePass::handleStaticLocal(GlobalOp globalOp,
       // NOTE(CIR): CodeGen clears the above pushed CallGuardAbort here.
 
       // Call __cxa_guard_release. This cannot throw.
-      emitNounwindRuntimeCall(builder, globalOp->getLoc(),
+      emitNounwindRuntimeCall(*builder, globalOp->getLoc(),
                               getGuardReleaseFn(*astCtx, getContext(),
-                                                theModule, builder, guardPtrTy),
+                                                theModule, *builder,
+                                                guardPtrTy),
                               guardAddr.emitRawPointer());
     } else if (varDecl.isLocalVarDecl()) {
       llvm_unreachable("NYI");
@@ -1358,18 +1358,18 @@ void LoweringPreparePass::handleStaticLocal(GlobalOp globalOp,
       auto loc = globalOp->getLoc();
       // Call __cxa_guard_acquire.
       mlir::Value value = emitNounwindRuntimeCall(
-          builder, loc,
-          getGuardAcquireFn(*astCtx, getContext(), theModule, builder,
+          *builder, loc,
+          getGuardAcquireFn(*astCtx, getContext(), theModule, *builder,
                             guardPtrTy),
           guardAddr.emitRawPointer());
 
-      auto isNotNull = builder.createIsNotNull(loc, value);
-      builder.create<cir::IfOp>(globalOp.getLoc(), isNotNull,
-                                /*=withElseRegion*/ false,
-                                [&](mlir::OpBuilder &, mlir::Location) {
-                                  initBlock();
-                                  builder.createYield(getGlobalOp->getLoc());
-                                });
+      auto isNotNull = builder->createIsNotNull(loc, value);
+      builder->create<cir::IfOp>(globalOp.getLoc(), isNotNull,
+                                 /*=withElseRegion*/ false,
+                                 [&](mlir::OpBuilder &, mlir::Location) {
+                                   initBlock();
+                                   builder->createYield(getGlobalOp->getLoc());
+                                 });
 
       // NOTE(CIR): CodeGen pushes a CallGuardAbort cleanup here, but we are
       // synthesizing the outcome via walking the CIR in the ctor region and
@@ -1382,8 +1382,8 @@ void LoweringPreparePass::handleStaticLocal(GlobalOp globalOp,
 
   if (!threadsafe || maxInlineWidthInbits) {
     // Load the first byte of the guard variable.
-    mlir::Value load = builder.createLoad(
-        globalOp.getLoc(), guardAddr.withElementType(builder.getSInt8Ty()));
+    mlir::Value load = builder->createLoad(
+        globalOp.getLoc(), guardAddr.withElementType(builder->getSInt8Ty()));
 
     // Itanium ABI:
     //   An implementation supporting thread-safety on multiprocesor systems
@@ -1419,19 +1419,19 @@ void LoweringPreparePass::handleStaticLocal(GlobalOp globalOp,
       llvm_unreachable("NYI");
     mlir::Value value = load;
     mlir::Value needsInit =
-        builder.createIsNull(globalOp.getLoc(), value, "guard.uninitialized");
+        builder->createIsNull(globalOp.getLoc(), value, "guard.uninitialized");
 
-    builder.create<cir::IfOp>(globalOp.getLoc(), needsInit,
-                              /*=withElseRegion*/ false,
-                              [&](mlir::OpBuilder &, mlir::Location) {
-                                if (MissingFeatures::metaDataNode())
-                                  llvm_unreachable("NYI");
-                                thenStmt();
-                                builder.createYield(getGlobalOp->getLoc());
-                              });
+    builder->create<cir::IfOp>(globalOp.getLoc(), needsInit,
+                               /*=withElseRegion*/ false,
+                               [&](mlir::OpBuilder &, mlir::Location) {
+                                 if (MissingFeatures::metaDataNode())
+                                   llvm_unreachable("NYI");
+                                 thenStmt();
+                                 builder->createYield(getGlobalOp->getLoc());
+                               });
   }
 
-  builder.insert(ret);
+  builder->insert(ret);
 }
 
 void LoweringPreparePass::buildGlobalCtorDtorList() {
@@ -1769,12 +1769,11 @@ void LoweringPreparePass::runOnOperation() {
 std::unique_ptr<Pass> mlir::createLoweringPreparePass() {
   return std::make_unique<LoweringPreparePass>();
 }
-
 std::unique_ptr<Pass>
 mlir::createLoweringPreparePass(clang::ASTContext *astCtx,
-                                clang::CIRGen::CIRGenModule &cgm) {
+                                clang::CIRGen::CIRGenBuilderTy &builder) {
   auto pass = std::make_unique<LoweringPreparePass>();
+  pass->setBuilder(builder);
   pass->setASTContext(astCtx);
-  pass->setCGM(cgm);
   return std::move(pass);
 }

@@ -131,11 +131,6 @@ private:
   /// for the same decl.
   llvm::DenseSet<clang::GlobalDecl> DiagnosedConflictingDefinitions;
 
-  CIRGenModule *createMinimalCGM() {
-    auto *cgm = new CIRGenModule(getMLIRContext(), getASTContext(),
-                                 getCodeGenOpts(), getDiags());
-  }
-
   /// -------
   /// Annotations
   /// -------

@@ -18,7 +18,7 @@
 namespace clang {
 class ASTContext;
 namespace CIRGen {
-class CIRGenModule;
+class CIRGenBuilderTy;
 } // namespace CIRGen
 } // namespace clang
 
@@ -37,7 +37,7 @@ std::unique_ptr<Pass> createSCFPreparePass();
 std::unique_ptr<Pass> createLoweringPreparePass();
 std::unique_ptr<Pass>
 createLoweringPreparePass(clang::ASTContext *astCtx,
-                          clang::CIRGen::CIRGenModule &cgm);
+                          clang::CIRGen::CIRGenBuilderTy &builder);
 std::unique_ptr<Pass> createIdiomRecognizerPass();
 std::unique_ptr<Pass> createIdiomRecognizerPass(clang::ASTContext *astCtx);
 std::unique_ptr<Pass> createLibOptPass();
