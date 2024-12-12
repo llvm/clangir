@@ -838,7 +838,9 @@ public:
 
     return create<cir::LoadOp>(
         loc, addr.getElementType(), addr.getPointer(), /*isDeref=*/false,
-        /*is_volatile=*/isVolatile, /*alignment=*/mlir::IntegerAttr{},
+        /*is_volatile=*/isVolatile,
+        /*alignment=*/
+        getI64IntegerAttr(addr.getAlignment().getAsAlign().value()),
         /*mem_order=*/cir::MemOrderAttr{}, /*tbaa=*/mlir::ArrayAttr{});
   }
 
