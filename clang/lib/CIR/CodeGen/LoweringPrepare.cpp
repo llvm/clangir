@@ -123,7 +123,7 @@ struct LoweringPreparePass : public LoweringPrepareBase<LoweringPreparePass> {
 
   clang::ASTContext *astCtx;
   std::shared_ptr<cir::LoweringPrepareCXXABI> cxxABI;
-  clang::CIRGen::CIRGenModule *cgm;
+  clang::CIRGen::CIRGenBuilderTy *builder;
 
   void setASTContext(clang::ASTContext *c) {
     astCtx = c;
@@ -157,7 +157,9 @@ struct LoweringPreparePass : public LoweringPrepareBase<LoweringPreparePass> {
     }
   }
 
-  void setCGM(clang::CIRGen::CIRGenModule &cgm) { this->cgm = &cgm; }
+  void setBuilder(clang::CIRGen::CIRGenBuilderTy &builder) {
+    this->builder = &builder;
+  }
 
   /// Tracks current module.
   ModuleOp theModule;
@@ -1215,12 +1217,11 @@ void LoweringPreparePass::runOnOperation() {
 std::unique_ptr<Pass> mlir::createLoweringPreparePass() {
   return std::make_unique<LoweringPreparePass>();
 }
-
 std::unique_ptr<Pass>
 mlir::createLoweringPreparePass(clang::ASTContext *astCtx,
-                                clang::CIRGen::CIRGenModule &cgm) {
+                                clang::CIRGen::CIRGenBuilderTy &builder) {
   auto pass = std::make_unique<LoweringPreparePass>();
+  pass->setBuilder(builder);
   pass->setASTContext(astCtx);
-  pass->setCGM(cgm);
   return std::move(pass);
 }
