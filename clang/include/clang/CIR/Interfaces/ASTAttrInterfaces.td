@@ -68,7 +68,7 @@ let cppNamespace = "::cir" in {
         /*defaultImplementation=*/ [{
           std::unique_ptr<clang::MangleContext> mangleCtx(
             $_attr.getAst()->getASTContext().createMangleContext());
-            mangleCtx->mangleDynamicInitializer($_attr.getAst(), Out);
+            mangleCtx->mangleStaticGuardVariable($_attr.getAst(), Out);
           }]
       >,
       InterfaceMethod<"", "clang::VarDecl::TLSKind", "getTLSKind", (ins), [{}],
