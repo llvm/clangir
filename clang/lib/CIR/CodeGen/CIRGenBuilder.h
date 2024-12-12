@@ -25,6 +25,7 @@
 #include "clang/CIR/Dialect/IR/FPEnv.h"
 
 #include "mlir/IR/Attributes.h"
+#include "mlir/IR/Block.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -815,6 +816,35 @@ public:
 
   Address createImagPtr(mlir::Location loc, Address addr) {
     return Address{createImagPtr(loc, addr.getPointer()), addr.getAlignment()};
+  }
+
+  /// Return a boolean value testing if \p arg == 0.
+  mlir::Value createIsNull(mlir::Location loc, mlir::Value arg,
+                           const llvm::Twine &name = "") {
+    return createICmpEQ(loc, arg, getNullValue(arg.getType(), loc), name);
+  }
+
+  /// Return a boolean value testing if \p arg != 0.
+  mlir::Value createIsNotNull(mlir::Location loc, mlir::Value arg,
+                              const llvm::Twine &name = "") {
+    return createICmpNE(loc, arg, getNullValue(arg.getType(), loc), name);
+  }
+
+  mlir::Value createICmpEQ(mlir::Location loc, mlir::Value lhs, mlir::Value rhs,
+                           const llvm::Twine &name = "") {
+    return createICmp(loc, cir::CmpOpKind::eq, lhs, rhs, name);
+  }
+  mlir::Value createICmpNE(mlir::Location loc, mlir::Value lhs, mlir::Value rhs,
+                           const llvm::Twine &name = "") {
+    return createICmp(loc, cir::CmpOpKind::ne, lhs, rhs, name);
+  }
+
+  mlir::Value createICmp(mlir::Location loc, cir::CmpOpKind kind,
+                         mlir::Value lhs, mlir::Value rhs,
+                         const llvm::Twine &name = "") {
+    if (cir::MissingFeatures::folder())
+      llvm_unreachable("NYI");
+    return createCompare(loc, kind, lhs, rhs);
   }
 
   /// Cast the element type of the given address to a different type,

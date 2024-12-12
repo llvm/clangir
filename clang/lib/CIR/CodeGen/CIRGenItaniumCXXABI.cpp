@@ -17,17 +17,27 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "CIRGenBuilder.h"
 #include "CIRGenCXXABI.h"
 #include "CIRGenCleanup.h"
+#include "CIRGenFunction.h"
 #include "CIRGenFunctionInfo.h"
+#include "CIRGenModule.h"
 #include "ConstantInitBuilder.h"
+#include "mlir/IR/Block.h"
+#include "mlir/IR/BuiltinAttributes.h"
 
 #include "clang/AST/GlobalDecl.h"
 #include "clang/AST/Mangle.h"
 #include "clang/AST/VTableBuilder.h"
 #include "clang/Basic/Linkage.h"
+#include "clang/Basic/Specifiers.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
+#include "clang/CIR/Dialect/IR/CIRDialect.h"
+#include "clang/CIR/Dialect/IR/CIROpsEnums.h"
+#include "clang/CIR/Dialect/IR/CIRTypes.h"
+#include "clang/CIR/MissingFeatures.h"
 #include "llvm/Support/ErrorHandling.h"
 
 using namespace clang;
@@ -185,6 +195,8 @@ public:
                           CXXDtorType Type, bool ForVirtualBase,
                           bool Delegating, Address This,
                           QualType ThisTy) override;
+  void emitGuardedInit(CIRGenFunction &cgf, const VarDecl &varDecl,
+                       cir::GlobalOp globalOp, bool performInit) override;
   void registerGlobalDtor(CIRGenFunction &CGF, const VarDecl *D,
                           cir::FuncOp dtor, mlir::Value Addr) override;
   virtual void emitRethrow(CIRGenFunction &CGF, bool isNoReturn) override;
@@ -2634,4 +2646,20 @@ CIRGenItaniumCXXABI::buildVirtualMethodAttr(cir::MethodType MethodTy,
 /// member pointers, for which '0' is a valid offset.
 bool CIRGenItaniumCXXABI::isZeroInitializable(const MemberPointerType *MPT) {
   return MPT->isMemberFunctionPointer();
+}
+
+/// The ARM code here follows the Itanium code closely enough that we just
+/// special-case it at particular places.
+void CIRGenItaniumCXXABI::emitGuardedInit(CIRGenFunction &cgf,
+                                          const VarDecl &varDecl,
+                                          cir::GlobalOp globalOp,
+                                          bool performInit) {
+
+  // Emit the initializer and add a global destructor if appropriate.
+  cgf.CGM.emitCXXGlobalVarDeclInit(&varDecl, globalOp, performInit);
+
+  // CIR diverges from IRGen here by emitting the init into the ctor region and
+  // marking the global as static local. The emission of the guard/acquire walk
+  // is done during LoweringPrepare.
+  globalOp.setStaticLocal(true);
 }
