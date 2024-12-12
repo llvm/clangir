@@ -74,7 +74,7 @@ mlir::LogicalResult runCIRToCIRPasses(
   if (enableCIRSimplify)
     pm.addPass(mlir::createCIRSimplifyPass());
 
-  pm.addPass(mlir::createLoweringPreparePass(&astContext, cgm));
+  pm.addPass(mlir::createLoweringPreparePass(&astContext, cgm.getBuilder()));
 
   if (flattenCIR || enableMem2Reg)
     mlir::populateCIRPreLoweringPasses(pm, enableCallConvLowering);
