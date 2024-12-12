@@ -8,7 +8,6 @@
 
 #include "Address.h"
 #include "CIRGenBuilder.h"
-#include "CIRGenModule.h"
 
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/Region.h"
@@ -109,9 +108,6 @@ struct LoweringPreparePass : public LoweringPrepareBase<LoweringPreparePass> {
 
   /// Build attribute of global annotation values
   void buildGlobalAnnotationValues();
-
-  /// fix this
-  void buildStaticLocals();
 
   cir::GlobalOp
   getStaticLocalDeclGuardAddress(cir::ASTVarDeclInterface varDecl) {
@@ -1362,8 +1358,9 @@ void LoweringPreparePass::handleStaticLocal(GlobalOp globalOp,
 
   if (!threadsafe || maxInlineWidthInbits) {
     // Load the first byte of the guard variable.
-    mlir::Value load = builder->createLoad(
-        globalOp.getLoc(), guardAddr.withElementType(builder->getSInt8Ty()));
+    mlir::Value load = builder->createAlignedLoad(
+        getGlobalOp.getLoc(), builder->getSInt8Ty(), guardAddr.getPointer(),
+        guardAddr.getAlignment());
 
     // Itanium ABI:
     //   An implementation supporting thread-safety on multiprocesor systems
@@ -1397,7 +1394,13 @@ void LoweringPreparePass::handleStaticLocal(GlobalOp globalOp,
     //   the variable is not initialized and 1 when it is.
     if (MissingFeatures::useARMGuardVarABI() && !useInt8GuardVariable)
       llvm_unreachable("NYI");
-    mlir::Value value = load;
+    mlir::Value constOne = builder->getConstInt(
+        getGlobalOp->getLoc(), llvm::APSInt(llvm::APInt(8, 1),
+                                            /*isUnsigned=*/false));
+    mlir::Value value =
+        (!cir::MissingFeatures::useARMGuardVarABI() && !useInt8GuardVariable)
+            ? builder->createAnd(load, constOne)
+            : load;
     mlir::Value needsInit =
         builder->createIsNull(globalOp.getLoc(), value, "guard.uninitialized");
 

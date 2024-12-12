@@ -32,17 +32,19 @@ void foo() {
 // CIR-NEXT:   %0 = cir.get_global @_ZZ3foovE3val : !cir.ptr<!s32i> {static_local}
 // CIR-NEXT:   %1 = cir.get_global @_ZGVZ3foovE3val : !cir.ptr<!s64i>
 // CIR-NEXT:   %2 = cir.cast(bitcast, %1 : !cir.ptr<!s64i>), !cir.ptr<!s8i>
-// CIR-NEXT:   %3 = cir.load atomic(acquire) %2 : !cir.ptr<!s8i>, !s8i
-// CIR-NEXT:   %4 = cir.const #cir.int<0> : !s8i
-// CIR-NEXT:   %5 = cir.cmp(eq, %3, %4) : !s8i, !cir.bool
-// CIR-NEXT:   cir.if %5 {
-// CIR-NEXT:     %6 = cir.call @__cxa_guard_acquire(%1) : (!cir.ptr<!s64i>) -> !s32i
-// CIR-NEXT:     %7 = cir.const #cir.int<0> : !s32i
-// CIR-NEXT:     %8 = cir.cmp(ne, %6, %7) : !s32i, !cir.bool
-// CIR-NEXT:     cir.if %8 {
-// CIR-NEXT:       %9 = cir.get_global @_ZZ3foovE3val : !cir.ptr<!s32i>
-// CIR-NEXT:       %10 = cir.call @_Z3fnAv() : () -> !s32i
-// CIR-NEXT:       cir.store %10, %9 : !s32i, !cir.ptr<!s32i>
+// CIR-NEXT:   %3 = cir.load align(8) atomic(acquire) %2 : !cir.ptr<!s8i>, !s8i
+// CIR-NEXT:   %4 = cir.const #cir.int<1> : !s8i
+// CIR-NEXT:   %5 = cir.binop(and, %3, %4) : !s8i
+// CIR-NEXT:   %6 = cir.const #cir.int<0> : !s8i
+// CIR-NEXT:   %7 = cir.cmp(eq, %5, %6) : !s8i, !cir.bool
+// CIR-NEXT:   cir.if %7 {
+// CIR-NEXT:     %8 = cir.call @__cxa_guard_acquire(%1) : (!cir.ptr<!s64i>) -> !s32i
+// CIR-NEXT:     %9 = cir.const #cir.int<0> : !s32i
+// CIR-NEXT:     %10 = cir.cmp(ne, %8, %9) : !s32i, !cir.bool
+// CIR-NEXT:     cir.if %10 {
+// CIR-NEXT:       %11 = cir.get_global @_ZZ3foovE3val : !cir.ptr<!s32i>
+// CIR-NEXT:       %12 = cir.call @_Z3fnAv() : () -> !s32i
+// CIR-NEXT:       cir.store %12, %11 : !s32i, !cir.ptr<!s32i>
 // CIR-NEXT:       cir.call @__cxa_guard_release(%1) : (!cir.ptr<!s64i>) -> ()
 // CIR-NEXT:     }
 // CIR-NEXT:   }
@@ -56,20 +58,21 @@ void foo() {
 //      LLVM: declare i32 @_Z3fnAv()
 
 //      LLVM: define dso_local void @_Z3foov()
-// LLVM-NEXT:   %1 = load atomic i8, ptr @_ZGVZ3foovE3val acquire, align 1
-// LLVM-NEXT:   %2 = icmp eq i8 %1, 0
-// LLVM-NEXT:   br i1 %2, label %3, label %9
-//  LLVM-DAG: 3:
-// LLVM-NEXT:   %4 = call i32 @__cxa_guard_acquire(ptr @_ZGVZ3foovE3val)
-// LLVM-NEXT:   %5 = icmp ne i32 %4, 0
-// LLVM-NEXT:   br i1 %5, label %6, label %8
-//  LLVM-DAG: 6:
-// LLVM-NEXT:   %7 = call i32 @_Z3fnAv()
-// LLVM-NEXT:   store i32 %7, ptr @_ZZ3foovE3val, align 4
+// LLVM-NEXT:   %1 = load atomic i8, ptr @_ZGVZ3foovE3val acquire, align 8
+// LLVM-NEXT:   %2 = and i8 %1, 1
+// LLVM-NEXT:   %3 = icmp eq i8 %2, 0
+// LLVM-NEXT:   br i1 %3, label %4, label %10
+//  LLVM-DAG: 4:
+// LLVM-NEXT:   %5 = call i32 @__cxa_guard_acquire(ptr @_ZGVZ3foovE3val)
+// LLVM-NEXT:   %6 = icmp ne i32 %5, 0
+// LLVM-NEXT:   br i1 %6, label %7, label %9
+//  LLVM-DAG: 7:
+// LLVM-NEXT:   %8 = call i32 @_Z3fnAv()
+// LLVM-NEXT:   store i32 %8, ptr @_ZZ3foovE3val, align 4
 // LLVM-NEXT:   call void @__cxa_guard_release(ptr @_ZGVZ3foovE3val)
-// LLVM-NEXT:   br label %8
-//  LLVM-DAG: 8:
 // LLVM-NEXT:   br label %9
 //  LLVM-DAG: 9:
+// LLVM-NEXT:   br label %10
+//  LLVM-DAG: 10:
 // LLVM-NEXT:   ret void
 // LLVM-NEXT: }
