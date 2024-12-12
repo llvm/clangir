@@ -160,6 +160,7 @@ public:
   CIRGenTypes &getTypes() { return genTypes; }
   const clang::LangOptions &getLangOpts() const { return langOpts; }
   CIRGenFunction *getCurrCIRGenFun() const { return CurCGF; }
+  void setCurrentCIRGenFn(CIRGenFunction *cgf) { CurCGF = cgf; }
   const cir::CIRDataLayout getDataLayout() const {
     // FIXME(cir): instead of creating a CIRDataLayout every time, set it as an
     // attribute for the CIRModule class.

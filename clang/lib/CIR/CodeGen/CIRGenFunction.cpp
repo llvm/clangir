@@ -419,7 +419,7 @@ void CIRGenFunction::LexicalScope::cleanup() {
   // An empty non-entry block has nothing to offer, and since this is
   // synthetic, losing information does not affect anything.
   bool entryBlock = builder.getInsertionBlock()->isEntryBlock();
-  if (!entryBlock && currBlock->empty()) {
+  if (!entryBlock && currBlock->empty() && currBlock->hasNoPredecessors()) {
     currBlock->erase();
     // Remove unused cleanup blocks.
     if (cleanupBlock && cleanupBlock->hasNoPredecessors())

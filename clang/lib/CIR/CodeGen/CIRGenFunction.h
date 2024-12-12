@@ -28,6 +28,7 @@
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/Type.h"
 #include "clang/Basic/ABI.h"
+#include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/CIR/TypeEvaluationKind.h"
 
@@ -920,6 +921,15 @@ public:
 
   LValue emitPointerToDataMemberBinaryExpr(const BinaryOperator *E);
 
+  /// Emit code in this function to perform a guarded variable initialization.
+  /// Guarded initializations are used when it's not possible to prove that
+  /// initialization will be done exactly once, e.g. with a static local
+  /// variable or a static data member of a class template.
+  void emitCXXGuardedInit(const VarDecl &varDecl, cir::GlobalOp globalOp,
+                          bool performInit);
+
+  enum class GuardKind { variableGuard, tlsGuard };
+
   /// TODO: Add TBAAAccessInfo
   Address emitCXXMemberDataPointerAddress(
       const Expr *E, Address base, mlir::Value memberPtr,
@@ -960,7 +970,13 @@ public:
   mlir::Value emitRuntimeCall(mlir::Location loc, cir::FuncOp callee,
                               llvm::ArrayRef<mlir::Value> args = {});
 
+  // Emit an invariant.start call for the given memory region.
   void emitInvariantStart(CharUnits Size);
+
+  /// emitCXXGlobalVarDeclInit - Create the initializer for a C++ variable with
+  /// global storage.
+  void emitCXXGlobalVarDeclInit(const VarDecl &varDecl, cir::GlobalOp globalOp,
+                                bool performInit);
 
   /// Create a check for a function parameter that may potentially be
   /// declared as non-null.
@@ -1440,9 +1456,9 @@ public:
   /// inside a function, including static vars etc.
   void emitVarDecl(const clang::VarDecl &D);
 
-  cir::GlobalOp addInitializerToStaticVarDecl(const VarDecl &D,
-                                              cir::GlobalOp GV,
-                                              cir::GetGlobalOp GVAddr);
+  cir::GlobalOp addInitializerToStaticVarDecl(const VarDecl &varDecl,
+                                              cir::GlobalOp globalOp,
+                                              cir::GetGlobalOp getGlobalOp);
 
   void emitStaticVarDecl(const VarDecl &D, cir::GlobalLinkageKind Linkage);
 

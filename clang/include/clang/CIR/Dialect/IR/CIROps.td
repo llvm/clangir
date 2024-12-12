@@ -2418,6 +2418,7 @@ def GlobalOp : CIR_Op<"global",
                        UnitAttr:$comdat,
                        UnitAttr:$constant,
                        UnitAttr:$dsolocal,
+                       UnitAttr:$static_local,
                        OptionalAttr<I64Attr>:$alignment,
                        OptionalAttr<ASTVarDeclInterface>:$ast,
                        OptionalAttr<StrAttr>:$section,
@@ -2503,7 +2504,9 @@ def GetGlobalOp : CIR_Op<"get_global",
     ```
   }];
 
-  let arguments = (ins FlatSymbolRefAttr:$name, UnitAttr:$tls);
+  let arguments = (ins FlatSymbolRefAttr:$name,
+                                UnitAttr:$tls,
+                                UnitAttr:$static_local);
   let results = (outs Res<CIR_PointerType, "", []>:$addr);
 
   let assemblyFormat = [{
