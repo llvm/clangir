@@ -757,20 +757,6 @@ mlir::Value CIRGenFunction::createLoad(const VarDecl *VD, const char *Name) {
                                 addr.getElementType(), addr.getPointer());
 }
 
-void CIRGenFunction::emitCXXGuardedInitBranch(mlir::Value needsInit,
-                                               mlir::Block *initBlock,
-                                               mlir::Block *noInitBlock,
-                                               GuardKind kind,
-                                               const VarDecl *varDecl) {
-  assert((kind == GuardKind::tlsGuard || varDecl) && "no guarded variable");
-
-  if (MissingFeatures::metaDataNode())
-    llvm_unreachable("NYI");
-
-  builder.createCondBr(getLoc(varDecl->getLocation()), needsInit, initBlock,
-                       noInitBlock);
-}
-
 void CIRGenFunction::emitConstructorBody(FunctionArgList &Args) {
   assert(!cir::MissingFeatures::emitAsanPrologueOrEpilogue());
   const auto *Ctor = cast<CXXConstructorDecl>(CurGD.getDecl());

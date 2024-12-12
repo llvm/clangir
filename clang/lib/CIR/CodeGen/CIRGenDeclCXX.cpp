@@ -54,8 +54,8 @@ void CIRGenModule::emitCXXGlobalVarDeclInitFunc(const VarDecl *D,
 }
 
 void CIRGenFunction::emitCXXGuardedInit(const VarDecl &varDecl,
-                                         cir::GlobalOp globalOp,
-                                         bool performInit) {
+                                        cir::GlobalOp globalOp,
+                                        bool performInit) {
   // If we've been asked to forbid guard variables, emit an error now. This
   // diagnostic is hard-coded for Darwin's use case; we can find better phrasing
   // if someone else needs it.
@@ -66,8 +66,8 @@ void CIRGenFunction::emitCXXGuardedInit(const VarDecl &varDecl,
 }
 
 void CIRGenFunction::emitCXXGlobalVarDeclInit(const VarDecl &varDecl,
-                                               cir::GlobalOp globalOp,
-                                               bool performInit) {
+                                              cir::GlobalOp globalOp,
+                                              bool performInit) {
   // TODO(CIR): We diverge from CodeGen here via having this in CIRGenModule
   // instead. This is necessary due to the way we are constructing global inits
   // at the moment. With LoweringPrepare being moved to CIRGen we should

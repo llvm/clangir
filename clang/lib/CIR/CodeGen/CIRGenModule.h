@@ -133,7 +133,7 @@ private:
 
   CIRGenModule *createMinimalCGM() {
     auto *cgm = new CIRGenModule(getMLIRContext(), getASTContext(),
-                                getCodeGenOpts(), getDiags());
+                                 getCodeGenOpts(), getDiags());
   }
 
   /// -------

@@ -196,7 +196,7 @@ public:
                           bool Delegating, Address This,
                           QualType ThisTy) override;
   void emitGuardedInit(CIRGenFunction &cgf, const VarDecl &varDecl,
-                        cir::GlobalOp globalOp, bool performInit) override;
+                       cir::GlobalOp globalOp, bool performInit) override;
   void registerGlobalDtor(CIRGenFunction &CGF, const VarDecl *D,
                           cir::FuncOp dtor, mlir::Value Addr) override;
   virtual void emitRethrow(CIRGenFunction &CGF, bool isNoReturn) override;
@@ -2651,9 +2651,9 @@ bool CIRGenItaniumCXXABI::isZeroInitializable(const MemberPointerType *MPT) {
 /// The ARM code here follows the Itanium code closely enough that we just
 /// special-case it at particular places.
 void CIRGenItaniumCXXABI::emitGuardedInit(CIRGenFunction &cgf,
-                                           const VarDecl &varDecl,
-                                           cir::GlobalOp globalOp,
-                                           bool performInit) {
+                                          const VarDecl &varDecl,
+                                          cir::GlobalOp globalOp,
+                                          bool performInit) {
 
   // Emit the initializer and add a global destructor if appropriate.
   cgf.CGM.emitCXXGlobalVarDeclInit(&varDecl, globalOp, performInit);

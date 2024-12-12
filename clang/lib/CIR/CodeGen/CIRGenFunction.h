@@ -622,25 +622,6 @@ public:
     symbolTable.insert(VD, Addr.getPointer());
   }
 
-  // buildBlock - Emit the given block \arg bb and set it as the insert point,
-  // adding a fall-through branch from the current insert block if necessary. It
-  // is legal to call this function even if there is no current insertion point.
-  //
-  // isFinished - If true, indicates that the caller has finished emitting
-  // branches to the given block and does not expect to emit code into it. This
-  // means the block can be ignored if it is unreachable.
-  void buildBlock(mlir::Block *bb, bool isFinished = false);
-
-  /// buildBranch - Emit a branch to the specified basic block from the current
-  /// insert block, taking care to avoid creation of branches from dummy
-  /// blocks. It is legal to call this function even if there is no current
-  /// insertion point.
-  ///
-  /// This function clears the current insertion point. The caller should follow
-  /// calls to this function with calls to Emit*Block prior to generation new
-  /// code.
-  void buildBranch(mlir::Location loc, mlir::Block *block);
-
   /// True if an insertion point is defined. If not, this indicates that the
   /// current code being emitted is unreachable.
   /// FIXME(cir): we need to inspect this and perhaps use a cleaner mechanism
@@ -945,14 +926,9 @@ public:
   /// initialization will be done exactly once, e.g. with a static local
   /// variable or a static data member of a class template.
   void emitCXXGuardedInit(const VarDecl &varDecl, cir::GlobalOp globalOp,
-                           bool performInit);
+                          bool performInit);
 
   enum class GuardKind { variableGuard, tlsGuard };
-
-  /// Emit a branch to select whether or not to perform guarded initialization.
-  void emitCXXGuardedInitBranch(mlir::Value needsInit, mlir::Block *initBlock,
-                                 mlir::Block *noInitBlock, GuardKind kind,
-                                 const VarDecl *varDecl);
 
   /// TODO: Add TBAAAccessInfo
   Address emitCXXMemberDataPointerAddress(
@@ -994,18 +970,16 @@ public:
   mlir::Value emitRuntimeCall(mlir::Location loc, cir::FuncOp callee,
                               llvm::ArrayRef<mlir::Value> args = {});
 
-  mlir::Value emitNounwindRuntimeCall(mlir::Location loc,
-                                       cir::FuncOp callee,
-                                       ArrayRef<mlir::Value> args);
+  mlir::Value emitNounwindRuntimeCall(mlir::Location loc, cir::FuncOp callee,
+                                      ArrayRef<mlir::Value> args);
 
   // Emit an invariant.start call for the given memory region.
   void emitInvariantStart(CharUnits Size);
 
   /// emitCXXGlobalVarDeclInit - Create the initializer for a C++ variable with
   /// global storage.
-  void emitCXXGlobalVarDeclInit(const VarDecl &varDecl,
-                                 cir::GlobalOp globalOp,
-                                 bool performInit);
+  void emitCXXGlobalVarDeclInit(const VarDecl &varDecl, cir::GlobalOp globalOp,
+                                bool performInit);
 
   /// Create a check for a function parameter that may potentially be
   /// declared as non-null.

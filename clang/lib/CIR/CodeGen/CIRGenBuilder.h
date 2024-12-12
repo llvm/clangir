@@ -1074,36 +1074,6 @@ public:
   /// pointed to by arrayPtr.
   mlir::Value maybeBuildArrayDecay(mlir::Location loc, mlir::Value arrayPtr,
                                    mlir::Type eltTy);
-
-  /// Create an unconditional branch op.
-  cir::BrOp createBr(mlir::Location loc, mlir::Block *dest) {
-    assert(!cir::MissingFeatures::metaDataNode());
-    return create<cir::BrOp>(loc, dest);
-  }
-
-  /// Create a conditional branch operation
-  cir::BrCondOp createCondBr(mlir::Location loc, mlir::Value condition,
-                             mlir::Block *trueBlock, mlir::Block *falseBlock) {
-    if (cir::MissingFeatures::metaDataNode())
-      llvm_unreachable("NYI");
-    return create<cir::BrCondOp>(loc, condition, trueBlock, falseBlock);
-  }
-
-  /// createBasicBlock - Create an MLIR block
-  mlir::Block *createBasicBlock(cir::FuncOp parent = nullptr,
-                                mlir::Block *before = nullptr) {
-    auto *b = new mlir::Block();
-    if (parent) {
-
-      if (before == nullptr)
-        before = &*parent.end();
-
-      parent.getFunctionBody().getBlocks().insert(
-          mlir::Region::iterator(before), b);
-    }
-
-    return b;
-  }
 };
 
 } // namespace clang::CIRGen

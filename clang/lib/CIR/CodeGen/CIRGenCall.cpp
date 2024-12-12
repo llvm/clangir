@@ -942,8 +942,9 @@ mlir::Value CIRGenFunction::emitRuntimeCall(mlir::Location loc,
   return call->getResult(0);
 }
 
-mlir::Value CIRGenFunction::emitNounwindRuntimeCall(
-    mlir::Location loc, cir::FuncOp callee, ArrayRef<mlir::Value> args) {
+mlir::Value
+CIRGenFunction::emitNounwindRuntimeCall(mlir::Location loc, cir::FuncOp callee,
+                                        ArrayRef<mlir::Value> args) {
   mlir::Value call = emitRuntimeCall(loc, callee, args);
   assert(!cir::MissingFeatures::noUnwindAttribute());
   return call;
