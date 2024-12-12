@@ -35,6 +35,7 @@
 #include "mlir/IR/OpImplementation.h"
 #include "mlir/IR/StorageUniquerSupport.h"
 #include "mlir/IR/TypeUtilities.h"
+#include "mlir/Interfaces/CallInterfaces.h"
 #include "mlir/Interfaces/DataLayoutInterfaces.h"
 #include "mlir/Interfaces/FunctionImplementation.h"
 #include "mlir/Interfaces/InferTypeOpInterface.h"
@@ -2224,6 +2225,26 @@ void cir::FuncOp::build(OpBuilder &builder, OperationState &result,
                                             getResAttrsAttrName(result.name));
 }
 
+// A specific version of function_interface_impl::parseFunctionSignature able to
+// handle the "-> !void" special fake return type.
+static ParseResult
+parseFunctionSignature(OpAsmParser &parser, bool allowVariadic,
+  SmallVectorImpl<OpAsmParser::Argument> &arguments,
+                       bool &isVariadic, SmallVectorImpl<Type> &resultTypes,
+                       SmallVectorImpl<DictionaryAttr> &resultAttrs) {
+  if (function_interface_impl::parseFunctionArgumentList(parser, allowVariadic,
+                                                         arguments, isVariadic))
+    return failure();
+  if (succeeded(parser.parseOptionalArrow())) {
+    if (parser.parseOptionalExclamationKeyword("!void").succeeded())
+      // This is just an empty return type and attribute.
+      return success();
+    return call_interface_impl::parseFunctionResultList(parser, resultTypes,
+                                                            resultAttrs);
+  }
+  return success();
+}
+
 ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
   llvm::SMLoc loc = parser.getCurrentLocation();
 
@@ -2284,9 +2305,8 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
 
   // Parse the function signature.
   bool isVariadic = false;
-  if (function_interface_impl::parseFunctionSignatureWithArguments(
-          parser, /*allowVariadic=*/false, arguments, isVariadic, resultTypes,
-          resultAttrs))
+  if (parseFunctionSignature(parser, /*allowVariadic=*/true, arguments,
+                             isVariadic, resultTypes, resultAttrs))
     return failure();
 
   for (auto &arg : arguments)
@@ -2489,13 +2509,8 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
   p.printSymbolName(getSymName());
   auto fnType = getFunctionType();
   llvm::SmallVector<Type, 1> resultTypes;
-  if (!fnType.isVoid())
-    function_interface_impl::printFunctionSignature(
-        p, *this, fnType.getInputs(), fnType.isVarArg(),
-        fnType.getReturnTypes());
-  else
-    function_interface_impl::printFunctionSignature(
-        p, *this, fnType.getInputs(), fnType.isVarArg(), {});
+  function_interface_impl::printFunctionSignature(
+      p, *this, fnType.getInputs(), fnType.isVarArg(), fnType.getReturnTypes());
 
   if (mlir::ArrayAttr annotations = getAnnotationsAttr()) {
     p << ' ';
@@ -2564,6 +2579,11 @@ LogicalResult cir::FuncOp::verifyType() {
   if (!getNoProto() && type.isVarArg() && type.getNumInputs() == 0)
     return emitError()
            << "prototyped function must have at least one non-variadic input";
+  if (auto rt = type.getReturnTypes();
+      !rt.empty() && mlir::isa<cir::VoidType>(rt.front()))
+    return emitOpError("The return type for a function returning void should "
+                       "be empty instead of an explicit !cir.void");
+
   return success();
 }
 

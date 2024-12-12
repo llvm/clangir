@@ -1,5 +1,4 @@
 // RUN: cir-opt %s | FileCheck %s
-// XFAIL: * 
 
 !s32i = !cir.int<s, 32>
 !u8i = !cir.int<u, 8>

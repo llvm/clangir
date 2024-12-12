@@ -13,10 +13,9 @@
 
 using namespace mlir;
 
-static ParseResult
-parseFunctionArgumentList(OpAsmParser &parser, bool allowVariadic,
-                          SmallVectorImpl<OpAsmParser::Argument> &arguments,
-                          bool &isVariadic) {
+ParseResult function_interface_impl::parseFunctionArgumentList(
+    OpAsmParser &parser, bool allowVariadic,
+    SmallVectorImpl<OpAsmParser::Argument> &arguments, bool &isVariadic) {
 
   // Parse the function arguments.  The argument list either has to consistently
   // have ssa-id's followed by types, or just be a type list.  It isn't ok to
