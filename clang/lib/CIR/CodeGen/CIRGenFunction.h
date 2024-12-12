@@ -976,10 +976,10 @@ public:
   void emitInvariantStart(CharUnits Size);
 
 
-  /// buildFunctionProlog - Emit the target specific CIR code to load the
+  /// emitFunctionProlog - Emit the target specific CIR code to load the
   /// arguments for the given function. This is also responsible for naming the
   /// MLIR function arguments.
-  void buildFunctionProlog(const CIRGenFunctionInfo &functionInfo,
+  void emitFunctionProlog(const CIRGenFunctionInfo &functionInfo,
                            cir::FuncOp fn, const FunctionArgList &args);
 
   /// Create a check for a function parameter that may potentially be
@@ -1503,8 +1503,8 @@ public:
     }
   };
 
-  // buildParmDecl - Emit a ParmVarDecl or an ImplicitParmDecl.
-  void buildParmDecl(const VarDecl &varDecl, ParamValue arg, unsigned argNo);
+  // emitParmDecl - Emit a ParmVarDecl or an ImplicitParmDecl.
+  void emitParmDecl(const VarDecl &varDecl, ParamValue arg, unsigned argNo);
 
   /// Perform the usual unary conversions on the specified
   /// expression and compare the result against zero, returning an Int1Ty value.

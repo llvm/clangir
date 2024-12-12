@@ -1266,7 +1266,7 @@ void CIRGenFunction::pushDestroyAndDeferDeactivation(
 
 /// Emit an alloca (or GlobalValue depending on target)
 /// for the specified parameter and set up LocalDeclMap.
-void CIRGenFunction::buildParmDecl(const VarDecl &varDecl, ParamValue arg,
+void CIRGenFunction::emitParmDecl(const VarDecl &varDecl, ParamValue arg,
                                    unsigned argNo) {
   bool noDebugInfo = false;
   // FIXME: Why isn't ImplicitParamDecl a ParmVarDecl?

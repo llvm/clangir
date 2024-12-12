@@ -1115,9 +1115,10 @@ static CanQual<FunctionProtoType> GetFormalType(const CXXMethodDecl *MD) {
       .getAs<FunctionProtoType>();
 }
 
-void CIRGenFunction::buildFunctionProlog(const CIRGenFunctionInfo &functionInfo,
-                                         cir::FuncOp fn,
-                                         const FunctionArgList &args) {
+void CIRGenFunction::emitFunctionProlog(const CIRGenFunctionInfo &functionInfo,
+                                        cir::FuncOp fn,
+                                        const FunctionArgList &args) {
+  return;
   if (CurCodeDecl && CurCodeDecl->hasAttr<NakedAttr>())
     // Naked functions don't have prologues.
     return;
@@ -1292,10 +1293,10 @@ void CIRGenFunction::buildFunctionProlog(const CIRGenFunctionInfo &functionInfo,
 
   if (getTarget().getCXXABI().areArgsDestroyedLeftToRightInCallee()) {
     for (int i = args.size() - 1; i >= 0; --i)
-      buildParmDecl(*args[i], argVals[i], i + 1);
+      emitParmDecl(*args[i], argVals[i], i + 1);
   } else {
     for (unsigned i = 0, e = args.size(); i != e; ++i)
-      buildParmDecl(*args[i], argVals[i], i + 1);
+      emitParmDecl(*args[i], argVals[i], i + 1);
   }
 }
 
@@ -1413,9 +1414,9 @@ CIRGenTypes::arrangeCXXStructorDeclaration(GlobalDecl GD) {
 }
 
 /// Derives the 'this' type for CIRGen purposes, i.e. ignoring method CVR
-/// qualification. Either or both of RD and MD may be null. A null RD
-/// indicates that there is no meaningful 'this' type, and a null MD can occur
-/// when calling a method pointer.
+/// qualification. Either or both of RD and MD may be null. A null RD indicates
+/// that there is no meaningful 'this' type, and a null MD can occur when
+/// calling a method pointer.
 CanQualType CIRGenTypes::DeriveThisType(const CXXRecordDecl *RD,
                                         const CXXMethodDecl *MD) {
   QualType RecTy;
@@ -1519,8 +1520,8 @@ const CIRGenFunctionInfo &CIRGenTypes::arrangeCXXConstructorCall(
 bool CIRGenTypes::inheritingCtorHasParams(const InheritedConstructor &Inherited,
                                           CXXCtorType Type) {
 
-  // Parameters are unnecessary if we're constructing a base class subobject
-  // and the inherited constructor lives in a virtual base.
+  // Parameters are unnecessary if we're constructing a base class subobject and
+  // the inherited constructor lives in a virtual base.
   return Type == Ctor_Complete ||
          !Inherited.getShadowDecl()->constructsVirtualBase() ||
          !Target.getCXXABI().hasConstructorVariants();
@@ -1565,8 +1566,8 @@ void CIRGenFunction::emitDelegateCallArg(CallArgList &args,
         type);
   } else if (getLangOpts().ObjCAutoRefCount) {
     llvm_unreachable("NYI");
-    // For the most part, we just need to load the alloca, except that
-    // aggregate r-values are actually pointers to temporaries.
+    // For the most part, we just need to load the alloca, except that aggregate
+    // r-values are actually pointers to temporaries.
   } else {
     args.add(convertTempToRValue(local, type, loc), type);
   }
@@ -1579,10 +1580,10 @@ void CIRGenFunction::emitDelegateCallArg(CallArgList &args,
   }
 }
 
-/// Returns the "extra-canonicalized" return type, which discards qualifiers
-/// on the return type. Codegen doesn't care about them, and it makes ABI code
-/// a little easier to be able to assume that all parameter and return types
-/// are top-level unqualified.
+/// Returns the "extra-canonicalized" return type, which discards qualifiers on
+/// the return type. Codegen doesn't care about them, and it makes ABI code a
+/// little easier to be able to assume that all parameter and return types are
+/// top-level unqualified.
 /// FIXME(CIR): This should be a common helper extracted from CodeGen
 static CanQualType GetReturnType(QualType RetTy) {
   return RetTy->getCanonicalTypeUnqualified().getUnqualifiedType();
@@ -1646,15 +1647,15 @@ getExtParameterInfosForCall(const FunctionProtoType *proto, unsigned prefixArgs,
 
 /// Arrange a call to a C++ method, passing the given arguments.
 ///
-/// numPrefixArgs is the number of the ABI-specific prefix arguments we have.
-/// It does not count `this`.
+/// numPrefixArgs is the number of the ABI-specific prefix arguments we have. It
+/// does not count `this`.
 const CIRGenFunctionInfo &CIRGenTypes::arrangeCXXMethodCall(
     const CallArgList &args, const FunctionProtoType *proto,
     RequiredArgs required, unsigned numPrefixArgs) {
   assert(numPrefixArgs + 1 <= args.size() &&
          "Emitting a call with less args than the required prefix?");
-  // Add one to account for `this`. It is a bit awkard here, but we don't
-  // count `this` in similar places elsewhere.
+  // Add one to account for `this`. It is a bit awkard here, but we don't count
+  // `this` in similar places elsewhere.
   auto paramInfos =
       getExtParameterInfosForCall(proto, numPrefixArgs + 1, args.size());
 
@@ -1667,10 +1668,9 @@ const CIRGenFunctionInfo &CIRGenTypes::arrangeCXXMethodCall(
                                 info, paramInfos, required);
 }
 
-/// Figure out the rules for calling a function with the given formal type
-/// using the given arguments. The arguments are necessary because the
-/// function might be unprototyped, in which case it's target-dependent in
-/// crazy ways.
+/// Figure out the rules for calling a function with the given formal type using
+/// the given arguments. The arguments are necessary because the function might
+/// be unprototyped, in which case it's target-dependent in crazy ways.
 const CIRGenFunctionInfo &CIRGenTypes::arrangeFreeFunctionCall(
     const CallArgList &args, const FunctionType *fnType, bool ChainCall) {
   assert(!ChainCall && "ChainCall NYI");
@@ -1687,10 +1687,9 @@ static void setCUDAKernelCallingConvention(CanQualType &FTy, CIRGenModule &CGM,
   }
 }
 
-/// Arrange the argument and result information for a declaration or
-/// definition of the given C++ non-static member function. The member
-/// function must be an ordinary function, i.e. not a constructor or
-/// destructor.
+/// Arrange the argument and result information for a declaration or definition
+/// of the given C++ non-static member function. The member function must be an
+/// ordinary function, i.e. not a constructor or destructor.
 const CIRGenFunctionInfo &
 CIRGenTypes::arrangeCXXMethodDeclaration(const CXXMethodDecl *MD) {
   assert(!isa<CXXConstructorDecl>(MD) && "wrong method for constructors!");
@@ -1712,8 +1711,8 @@ CIRGenTypes::arrangeCXXMethodDeclaration(const CXXMethodDecl *MD) {
 /// Arrange the argument and result information for a call to an unknown C++
 /// non-static member function of the given abstract type. (A null RD means we
 /// don't have any meaningful "this" argument type, so fall back to a generic
-/// pointer type). The member fucntion must be an ordinary function, i.e. not
-/// a constructor or destructor.
+/// pointer type). The member fucntion must be an ordinary function, i.e. not a
+/// constructor or destructor.
 const CIRGenFunctionInfo &
 CIRGenTypes::arrangeCXXMethodType(const CXXRecordDecl *RD,
                                   const FunctionProtoType *FTP,
@@ -1826,8 +1825,7 @@ void CIRGenModule::getDefaultFunctionAttributes(
   // If we're just getting the default, get the default values for mergeable
   // attributes.
   if (!attrOnCallSite) {
-    // TODO(cir): addMergableDefaultFunctionAttributes(codeGenOpts,
-    // funcAttrs);
+    // TODO(cir): addMergableDefaultFunctionAttributes(codeGenOpts, funcAttrs);
   }
 }
 
