@@ -197,9 +197,6 @@ struct LoweringPreparePass : public LoweringPrepareBase<LoweringPreparePass> {
 
   llvm::DenseMap<cir::ASTVarDeclInterface, cir::GlobalOp>
       staticLocalDeclGuardMap;
-  llvm::DenseMap<llvm::StringRef, cir::GetGlobalOp>
-      namesToStaticLocalGetGlobalOps;
-  llvm::DenseMap<llvm::StringRef, cir::GlobalOp> namesToStaticLocalGlobalOps;
 };
 } // namespace
 
@@ -921,14 +918,15 @@ void LoweringPreparePass::lowerGetGlobalOp(GetGlobalOp getGlobalOp) {
   if (!getGlobalOp.getStaticLocal())
     return;
 
-  namesToStaticLocalGetGlobalOps.insert({getGlobalOp.getName(), getGlobalOp});
+  auto globalOp = mlir::cast<cir::GlobalOp>(
+      mlir::SymbolTable::lookupSymbolIn(theModule, getGlobalOp.getName()));
+
+  handleStaticLocal(globalOp, getGlobalOp);
 }
 
 void LoweringPreparePass::lowerGlobalOp(GlobalOp globalOp) {
   if (!globalOp.getStaticLocal())
     handleGlobalOpCtorDtor(globalOp);
-
-  namesToStaticLocalGlobalOps.insert({globalOp.getName(), globalOp});
 }
 
 static cir::GlobalOp createGuardGlobalOp(::cir::CIRBaseBuilderTy &builder,
@@ -1671,14 +1669,6 @@ void LoweringPreparePass::buildGlobalAnnotationValues() {
                          theModule.getContext(), annotationValueArray));
 }
 
-void LoweringPreparePass::buildStaticLocals() {
-  for (auto &[name, getGlobalOp] : namesToStaticLocalGetGlobalOps) {
-    cir::GlobalOp globalOp = namesToStaticLocalGlobalOps[name];
-
-    handleStaticLocal(globalOp, getGlobalOp);
-  }
-}
-
 void LoweringPreparePass::runOnOp(Operation *op) {
   if (auto unary = dyn_cast<UnaryOp>(op)) {
     lowerUnaryOp(unary);
@@ -1742,7 +1732,6 @@ void LoweringPreparePass::runOnOperation() {
   for (auto *o : opsToTransform)
     runOnOp(o);
 
-  buildStaticLocals();
   buildCXXGlobalInitFunc();
   buildGlobalCtorDtorList();
   buildGlobalAnnotationValues();
