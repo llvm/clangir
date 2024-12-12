@@ -1414,6 +1414,7 @@ void LoweringPreparePass::handleStaticLocal(GlobalOp globalOp,
                                });
   }
 
+  builder->setInsertionPointToEnd(getGlobalOpBlock);
   builder->insert(ret);
 }
 
