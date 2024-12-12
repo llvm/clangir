@@ -28,6 +28,7 @@
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/Type.h"
 #include "clang/Basic/ABI.h"
+#include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/CIR/TypeEvaluationKind.h"
 
@@ -436,6 +437,16 @@ public:
     }
   };
 
+  /// Used by -fsanitize=nullability-return to determine whether the return
+  /// value can be checked.
+  mlir::Value retValNullabilityPrecondition = nullptr;
+
+  /// Check if -fsanitize=nullability-return instrumentation is required for
+  /// this function.
+  bool requiresReturnValueNullabilityCheck() const {
+    return bool(retValNullabilityPrecondition);
+  }
+
   /// A mapping from NRVO variables to the flags used to indicate
   /// when the NRVO has been applied to this variable.
   llvm::DenseMap<const VarDecl *, mlir::Value> NRVOFlags;
@@ -560,6 +571,9 @@ public:
   /// In C++, whether we are code generating a thunk. This controls whether we
   /// should emit cleanups.
   bool CurFuncIsThunk = false;
+
+  /// In ARC, whether we should autorelease the return value.
+  bool autoreleaseResult = false;
 
   /// Hold counters for incrementally naming temporaries
   unsigned CounterRefTmp = 0;
@@ -920,6 +934,15 @@ public:
 
   LValue emitPointerToDataMemberBinaryExpr(const BinaryOperator *E);
 
+  /// Emit code in this function to perform a guarded variable initialization.
+  /// Guarded initializations are used when it's not possible to prove that
+  /// initialization will be done exactly once, e.g. with a static local
+  /// variable or a static data member of a class template.
+  void emitCXXGuardedInit(const VarDecl &varDecl, cir::GlobalOp globalOp,
+                          bool performInit);
+
+  enum class GuardKind { variableGuard, tlsGuard };
+
   /// TODO: Add TBAAAccessInfo
   Address emitCXXMemberDataPointerAddress(
       const Expr *E, Address base, mlir::Value memberPtr,
@@ -960,7 +983,19 @@ public:
   mlir::Value emitRuntimeCall(mlir::Location loc, cir::FuncOp callee,
                               llvm::ArrayRef<mlir::Value> args = {});
 
+  // Emit an invariant.start call for the given memory region.
   void emitInvariantStart(CharUnits Size);
+
+  /// emitCXXGlobalVarDeclInit - Create the initializer for a C++ variable with
+  /// global storage.
+  void emitCXXGlobalVarDeclInit(const VarDecl &varDecl, cir::GlobalOp globalOp,
+                                bool performInit);
+
+  /// buildFunctionProlog - Emit the target specific CIR code to load the
+  /// arguments for the given function. This is also responsible for naming the
+  /// MLIR function arguments.
+  void buildFunctionProlog(const CIRGenFunctionInfo &functionInfo,
+                           mlir::cir::FuncOp fn, const FunctionArgList &args);
 
   /// Create a check for a function parameter that may potentially be
   /// declared as non-null.
@@ -1440,11 +1475,51 @@ public:
   /// inside a function, including static vars etc.
   void emitVarDecl(const clang::VarDecl &D);
 
-  cir::GlobalOp addInitializerToStaticVarDecl(const VarDecl &D,
-                                              cir::GlobalOp GV,
-                                              cir::GetGlobalOp GVAddr);
+  cir::GlobalOp addInitializerToStaticVarDecl(const VarDecl &varDecl,
+                                              cir::GlobalOp globalOp,
+                                              cir::GetGlobalOp getGlobalOp);
 
   void emitStaticVarDecl(const VarDecl &D, cir::GlobalLinkageKind Linkage);
+
+  class ParamValue {
+    union {
+      Address addr;
+      mlir::Value value;
+    };
+
+    bool isIndirectV;
+
+    ParamValue(mlir::Value v) : value(v), isIndirectV(false) {}
+    ParamValue(Address a) : addr(a), isIndirectV(true) {}
+
+  public:
+    static ParamValue forDirect(mlir::Value value) { return ParamValue(value); }
+    static ParamValue forIndirect(Address addr) {
+      assert(!addr.getAlignment().isZero());
+      return ParamValue(addr);
+    }
+
+    bool isIndirect() const { return isIndirectV; }
+    mlir::Value getAnyValue() const {
+      if (!isIndirect())
+        return value;
+      assert(!addr.hasOffset() && "unexpected offset");
+      return addr.getBasePointer();
+    }
+
+    mlir::Value getDirectValue() const {
+      assert(!isIndirect());
+      return value;
+    }
+
+    Address getIndirectAddress() const {
+      assert(isIndirect());
+      return addr;
+    }
+  };
+
+  // buildParmDecl - Emit a ParmVarDecl or an ImplicitParmDecl.
+  void buildParmDecl(const VarDecl &varDecl, ParamValue arg, unsigned argNo);
 
   /// Perform the usual unary conversions on the specified
   /// expression and compare the result against zero, returning an Int1Ty value.
@@ -1803,6 +1878,11 @@ public:
   }
 
   LValue emitAggExprToLValue(const Expr *E);
+
+  /// Create a store to \arg dstPtr from \arg src, truncating the stored value
+  /// to at most \arg dstSize bytes.
+  void createCoercedStore(mlir::Value src, Address dst, llvm::TypeSize dstSize,
+                          bool dstIsVolatile);
 
   /// Emit an aggregate copy.
   ///

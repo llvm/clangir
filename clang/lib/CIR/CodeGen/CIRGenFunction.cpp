@@ -419,7 +419,7 @@ void CIRGenFunction::LexicalScope::cleanup() {
   // An empty non-entry block has nothing to offer, and since this is
   // synthetic, losing information does not affect anything.
   bool entryBlock = builder.getInsertionBlock()->isEntryBlock();
-  if (!entryBlock && currBlock->empty()) {
+  if (!entryBlock && currBlock->empty() && currBlock->hasNoPredecessors()) {
     currBlock->erase();
     // Remove unused cleanup blocks.
     if (cleanupBlock && cleanupBlock->hasNoPredecessors())
@@ -1217,7 +1217,7 @@ void CIRGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
     llvm_unreachable("NYI");
   }
 
-  // TODO: emitFunctionProlog
+  buildFunctionProlog(*CurFnInfo, cast<mlir::cir::FuncOp>(CurFn), Args);
 
   {
     // Set the insertion point in the builder to the beginning of the

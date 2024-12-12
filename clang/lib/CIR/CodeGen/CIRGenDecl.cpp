@@ -539,70 +539,98 @@ CIRGenModule::getOrCreateStaticVarDecl(const VarDecl &D,
 /// Add the initializer for 'D' to the global variable that has already been
 /// created for it. If the initializer has a different type than GV does, this
 /// may free GV and return a different one. Otherwise it just returns GV.
-cir::GlobalOp CIRGenFunction::addInitializerToStaticVarDecl(
-    const VarDecl &D, cir::GlobalOp GV, cir::GetGlobalOp GVAddr) {
+cir::GlobalOp
+CIRGenFunction::addInitializerToStaticVarDecl(const VarDecl &varDecl,
+                                              cir::GlobalOp globalOp,
+                                              cir::GetGlobalOp getGlobalOp) {
   ConstantEmitter emitter(*this);
-  mlir::TypedAttr Init =
-      mlir::dyn_cast<mlir::TypedAttr>(emitter.tryEmitForInitializer(D));
-  assert(Init && "Expected typed attribute");
+  mlir::Attribute init = emitter.tryEmitForInitializer(varDecl);
 
   // If constant emission failed, then this should be a C++ static
   // initializer.
-  if (!Init) {
+  if (!init) {
     if (!getLangOpts().CPlusPlus)
-      CGM.ErrorUnsupported(D.getInit(), "constant l-value expression");
-    else if (D.hasFlexibleArrayInit(getContext()))
-      CGM.ErrorUnsupported(D.getInit(), "flexible array initializer");
+      CGM.ErrorUnsupported(varDecl.getInit(), "constant l-value expression");
+    else if (varDecl.hasFlexibleArrayInit(getContext()))
+      CGM.ErrorUnsupported(varDecl.getInit(), "flexible array initializer");
     else {
       // Since we have a static initializer, this global variable can't
       // be constant.
-      GV.setConstant(false);
-      llvm_unreachable("C++ guarded init it NYI");
+      globalOp.setConstant(false);
+
+      emitCXXGuardedInit(varDecl, globalOp, /*performInit*/ true);
+      getGlobalOp.setStaticLocal(true);
     }
-    return GV;
+    return globalOp;
   }
 
+  auto typedInit = mlir::cast<mlir::TypedAttr>(init);
+
 #ifndef NDEBUG
-  CharUnits VarSize = CGM.getASTContext().getTypeSizeInChars(D.getType()) +
-                      D.getFlexibleArrayInitChars(getContext());
-  CharUnits CstSize = CharUnits::fromQuantity(
-      CGM.getDataLayout().getTypeAllocSize(Init.getType()));
-  assert(VarSize == CstSize && "Emitted constant has unexpected size");
+  CharUnits varSize =
+      CGM.getASTContext().getTypeSizeInChars(varDecl.getType()) +
+      varDecl.getFlexibleArrayInitChars(getContext());
+  CharUnits cstSize = CharUnits::fromQuantity(
+      CGM.getDataLayout().getTypeAllocSize(typedInit.getType()));
+  assert(varSize == cstSize && "Emitted constant has unexpected size");
 #endif
 
   // The initializer may differ in type from the global. Rewrite
   // the global to match the initializer.  (We have to do this
   // because some types, like unions, can't be completely represented
   // in the LLVM type system.)
-  if (GV.getSymType() != Init.getType()) {
-    GV.setSymType(Init.getType());
+  // NOTE(CIR): This was removed in OG since opaque pointers made it trivial. We
+  // need it since we still have typed pointers.
+  if (globalOp.getSymType() != typedInit.getType()) {
+    globalOp.setSymType(typedInit.getType());
+
+    cir::GlobalOp oldGlobalOp = globalOp;
+    globalOp =
+        builder.createGlobal(CGM.getModule(), getLoc(varDecl.getSourceRange()),
+                             oldGlobalOp.getName(), typedInit.getType(),
+                             oldGlobalOp.getConstant(), globalOp.getLinkage());
+    // FIXME(cir): OG codegen inserts new GV before old one, we probably don't
+    // need that?
+    globalOp.setVisibility(oldGlobalOp.getVisibility());
+    globalOp.setGlobalVisibilityAttr(oldGlobalOp.getGlobalVisibilityAttr());
+    globalOp.setInitialValueAttr(init);
+    globalOp.setTlsModelAttr(oldGlobalOp.getTlsModelAttr());
+    globalOp.setDSOLocal(oldGlobalOp.getDsolocal());
+    assert(!cir::MissingFeatures::setComdat());
+    assert(!cir::MissingFeatures::addressSpaceInGlobalVar());
 
     // Normally this should be done with a call to CGM.replaceGlobal(OldGV, GV),
     // but since at this point the current block hasn't been really attached,
     // there's no visibility into the GetGlobalOp corresponding to this Global.
     // Given those constraints, thread in the GetGlobalOp and update it
     // directly.
-    GVAddr.getAddr().setType(
-        getBuilder().getPointerTo(Init.getType(), GV.getAddrSpaceAttr()));
+    getGlobalOp.getAddr().setType(getBuilder().getPointerTo(
+        typedInit.getType(), globalOp.getAddrSpaceAttr()));
+
+    // Replace all uses of the old global with the new global
+    oldGlobalOp->replaceAllUsesWith(globalOp);
+
+    // Erase the old global, since it is no longer used.
+    oldGlobalOp->erase();
   }
 
-  bool NeedsDtor =
-      D.needsDestruction(getContext()) == QualType::DK_cxx_destructor;
+  bool needsDtor =
+      varDecl.needsDestruction(getContext()) == QualType::DK_cxx_destructor;
 
-  GV.setConstant(
-      CGM.isTypeConstant(D.getType(), /*ExcludeCtor=*/true, !NeedsDtor));
-  GV.setInitialValueAttr(Init);
+  globalOp.setConstant(
+      CGM.isTypeConstant(varDecl.getType(), /*ExcludeCtor=*/true, !needsDtor));
+  globalOp.setInitialValueAttr(init);
 
-  emitter.finalize(GV);
+  emitter.finalize(globalOp);
 
-  if (NeedsDtor) {
+  if (needsDtor) {
     // We have a constant initializer, but a nontrivial destructor. We still
     // need to perform a guarded "initialization" in order to register the
     // destructor.
     llvm_unreachable("C++ guarded init is NYI");
   }
 
-  return GV;
+  return globalOp;
 }
 
 void CIRGenFunction::emitStaticVarDecl(const VarDecl &D,
@@ -1262,4 +1290,85 @@ void CIRGenFunction::pushDestroyAndDeferDeactivation(
       builder.create<cir::UnreachableOp>(builder.getUnknownLoc());
   pushDestroy(cleanupKind, addr, type, destroyer, useEHCleanupForArray);
   DeferredDeactivationCleanupStack.push_back({EHStack.stable_begin(), flag});
+}
+
+/// Emit an alloca (or GlobalValue depending on target)
+/// for the specified parameter and set up LocalDeclMap.
+void CIRGenFunction::buildParmDecl(const VarDecl &varDecl, ParamValue arg,
+                                   unsigned argNo) {
+  bool noDebugInfo = false;
+  // FIXME: Why isn't ImplicitParamDecl a ParmVarDecl?
+  assert((isa<ParmVarDecl>(varDecl) || isa<ImplicitParamDecl>(varDecl)) &&
+         "Invalid argument to buildParmDecl");
+
+  // Set the name of the parameter's initial value to make IR easier to read.
+  // Don't modify the names of globals.
+  if (MissingFeatures::namedValues())
+    llvm_unreachable("NYI");
+
+  QualType ty = varDecl.getType();
+
+  // Use better CIR generation for certain implicit parameters.
+  if ([[maybe_unused]] auto const *ipd =
+          dyn_cast<ImplicitParamDecl>(&varDecl)) {
+    llvm_unreachable("NYI");
+  }
+
+  Address declPtr = Address::invalid();
+  assert(!MissingFeatures::rawAddress());
+  Address allocaPtr = Address::invalid();
+  bool doStore = false;
+  bool isScalar = hasScalarEvaluationKind(ty);
+  bool useIndirectDebugAddress = false;
+
+  // If we already have a pointer to the argument, reuse the input pointer.
+  if (arg.isIndirect()) {
+    llvm_unreachable("NYI");
+  } else {
+    // Check if the parameter address is controlled by OpenMP runtime.
+    Address openMPLocalAddr =
+        getLangOpts().OpenMP
+            ? CGM.getOpenMPRuntime().getAddressOfLocalVariable(*this, &varDecl)
+            : Address::invalid();
+    if (getLangOpts().OpenMP && openMPLocalAddr.isValid()) {
+      llvm_unreachable("NYI");
+    } else {
+      // Otherwise, create a temporary to hold the value.
+      declPtr = CreateMemTemp(ty, getContext().getDeclAlign(&varDecl),
+                              getLoc(varDecl.getLocation()),
+                              varDecl.getName() + ".addr", &allocaPtr);
+    }
+    doStore = true;
+  }
+
+  mlir::Value argVal = (doStore ? arg.getDirectValue() : nullptr);
+
+  LValue lv = makeAddrLValue(declPtr, ty);
+  if (isScalar) {
+    Qualifiers qs  = ty.getQualifiers();
+    if ([[maybe_unused]] Qualifiers::ObjCLifetime lt = qs.getObjCLifetime()) {
+      llvm_unreachable("NYI");
+    }
+  }
+
+  // Store the initial value into the alloca.
+  if (doStore)
+    buildStoreOfScalar(argVal, lv, /*isInit=*/true);
+
+  setAddrOfLocalVar(&varDecl, declPtr);
+
+  // Emit debug info for param declarations in non-thunk functions.
+  if (CIRGenDebugInfo *di = getDebugInfo()) {
+    llvm_unreachable("NYI");
+  }
+
+  if (varDecl.hasAttr<AnnotateAttr>())
+    llvm_unreachable("NYI");
+
+  // We can only check return value nullability if all arguments to the function
+  // staisfy their nullability preconditions. This makes it necessary to emit
+  // null checks for args in the function body itself.
+  if (requiresReturnValueNullabilityCheck()) {
+    llvm_unreachable("NYI");
+  }
 }
