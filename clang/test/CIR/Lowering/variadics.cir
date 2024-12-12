@@ -1,6 +1,5 @@
 // RUN: cir-opt %s -cir-to-llvm -o %t.cir
 // RUN: FileCheck --input-file=%t.cir %s -check-prefix=MLIR
-// XFAIL: *
 
 !s32i = !cir.int<s, 32>
 !u32i = !cir.int<u, 32>
