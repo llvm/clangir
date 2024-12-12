@@ -1263,3 +1263,84 @@ void CIRGenFunction::pushDestroyAndDeferDeactivation(
   pushDestroy(cleanupKind, addr, type, destroyer, useEHCleanupForArray);
   DeferredDeactivationCleanupStack.push_back({EHStack.stable_begin(), flag});
 }
+
+/// Emit an alloca (or GlobalValue depending on target)
+/// for the specified parameter and set up LocalDeclMap.
+void CIRGenFunction::buildParmDecl(const VarDecl &varDecl, ParamValue arg,
+                                   unsigned argNo) {
+  bool noDebugInfo = false;
+  // FIXME: Why isn't ImplicitParamDecl a ParmVarDecl?
+  assert((isa<ParmVarDecl>(varDecl) || isa<ImplicitParamDecl>(varDecl)) &&
+         "Invalid argument to buildParmDecl");
+
+  // Set the name of the parameter's initial value to make IR easier to read.
+  // Don't modify the names of globals.
+  if (cir::MissingFeatures::namedValues())
+    llvm_unreachable("NYI");
+
+  QualType ty = varDecl.getType();
+
+  // Use better CIR generation for certain implicit parameters.
+  if ([[maybe_unused]] auto const *ipd =
+          dyn_cast<ImplicitParamDecl>(&varDecl)) {
+    llvm_unreachable("NYI");
+  }
+
+  Address declPtr = Address::invalid();
+  assert(!cir::MissingFeatures::rawAddress());
+  Address allocaPtr = Address::invalid();
+  bool doStore = false;
+  bool isScalar = hasScalarEvaluationKind(ty);
+  bool useIndirectDebugAddress = false;
+
+  // If we already have a pointer to the argument, reuse the input pointer.
+  if (arg.isIndirect()) {
+    llvm_unreachable("NYI");
+  } else {
+    // Check if the parameter address is controlled by OpenMP runtime.
+    Address openMPLocalAddr =
+        getLangOpts().OpenMP
+            ? CGM.getOpenMPRuntime().getAddressOfLocalVariable(*this, &varDecl)
+            : Address::invalid();
+    if (getLangOpts().OpenMP && openMPLocalAddr.isValid()) {
+      llvm_unreachable("NYI");
+    } else {
+      // Otherwise, create a temporary to hold the value.
+      declPtr = CreateMemTemp(ty, getContext().getDeclAlign(&varDecl),
+                              getLoc(varDecl.getLocation()),
+                              varDecl.getName() + ".addr", &allocaPtr);
+    }
+    doStore = true;
+  }
+
+  mlir::Value argVal = (doStore ? arg.getDirectValue() : nullptr);
+
+  LValue lv = makeAddrLValue(declPtr, ty);
+  if (isScalar) {
+    Qualifiers qs = ty.getQualifiers();
+    if ([[maybe_unused]] Qualifiers::ObjCLifetime lt = qs.getObjCLifetime()) {
+      llvm_unreachable("NYI");
+    }
+  }
+
+  // Store the initial value into the alloca.
+  if (doStore)
+    emitStoreOfScalar(argVal, lv, /*isInit=*/true);
+
+  setAddrOfLocalVar(&varDecl, declPtr);
+
+  // Emit debug info for param declarations in non-thunk functions.
+  if (CIRGenDebugInfo *di = getDebugInfo()) {
+    llvm_unreachable("NYI");
+  }
+
+  if (varDecl.hasAttr<AnnotateAttr>())
+    llvm_unreachable("NYI");
+
+  // We can only check return value nullability if all arguments to the function
+  // staisfy their nullability preconditions. This makes it necessary to emit
+  // null checks for args in the function body itself.
+  if (requiresReturnValueNullabilityCheck()) {
+    llvm_unreachable("NYI");
+  }
+}

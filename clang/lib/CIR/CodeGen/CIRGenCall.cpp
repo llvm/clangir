@@ -19,8 +19,13 @@
 #include "TargetInfo.h"
 
 #include "clang/AST/Attr.h"
+#include "clang/AST/Attrs.inc"
+#include "clang/AST/Decl.h"
+#include "clang/AST/DeclBase.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/GlobalDecl.h"
+#include "clang/Basic/Specifiers.h"
+#include "clang/CIR/ABIArgInfo.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/FnInfoOpts.h"
@@ -1110,6 +1115,190 @@ static CanQual<FunctionProtoType> GetFormalType(const CXXMethodDecl *MD) {
       .getAs<FunctionProtoType>();
 }
 
+void CIRGenFunction::buildFunctionProlog(const CIRGenFunctionInfo &functionInfo,
+                                         cir::FuncOp fn,
+                                         const FunctionArgList &args) {
+  if (CurCodeDecl && CurCodeDecl->hasAttr<NakedAttr>())
+    // Naked functions don't have prologues.
+    return;
+
+  // If this is an implicit-return-zero function, go ahead and initialize the
+  // return value. TODO: it might be nice to have a more general mechanism for
+  // this that didn't require synthesized return statements.
+  if (const FunctionDecl *fd = dyn_cast_or_null<FunctionDecl>(CurCodeDecl)) {
+    if (fd->hasImplicitReturnZero())
+      llvm_unreachable("NYI");
+  }
+
+  // FIXME: We no longer need the types from FunctionArgList; lift up and
+  // simplify.
+
+  ClangToCIRArgMapping cirFunctionArgs(CGM.getASTContext(), functionInfo);
+  assert(fn.getArguments().size() == cirFunctionArgs.totalCIRArgs());
+
+  // If we're using inalloca, all the memory arguments are GEPs off of the last
+  // parameter, which is a pointer to the complete memory area.
+  Address argStruct = Address::invalid();
+  if (cirFunctionArgs.hasInallocaArg())
+    llvm_unreachable("NYI");
+
+  // Name the struct return parameter.
+  if (cirFunctionArgs.hasSRetArg()) {
+    llvm_unreachable("NYI");
+  }
+
+  // Track if we received the parameter as a pointer (indirect, byval, or
+  // inalloca). If already have a pointer, buildParmDecl doesn't need to copy it
+  // into a local alloca for us.
+  llvm::SmallVector<ParamValue, 16> argVals;
+  argVals.reserve(args.size());
+
+  // Create a pointer value for every parameter declaration. This usually
+  // entails copying one or more CIR arguments into an alloca. Don't push any
+  // cleanups or do anything that might unwind. We do that separately, so we can
+  // push the cleanups in the correct order for the ABI.
+  assert(functionInfo.arg_size() == args.size() &&
+         "Mismatch between function signature & arguments.");
+  unsigned argNo = 0;
+  CIRGenFunctionInfo::const_arg_iterator info_it = functionInfo.arg_begin();
+  for (FunctionArgList::const_iterator i = args.begin(), e = args.end(); i != e;
+       ++i, ++info_it, ++argNo) {
+    const VarDecl *arg = *i;
+    const cir::ABIArgInfo &argI = info_it->info;
+
+    bool isPromoted =
+        isa<ParmVarDecl>(arg) && cast<ParmVarDecl>(arg)->isKNRPromoted();
+    // We are converting from ABIArgInfo type to VarDecl type directly, unless
+    // the parameter is promoted. In this case we convert to
+    // CIRGenFunctionInfo::ArgInfo type with subsequent argument demotion.
+    QualType ty = isPromoted ? info_it->type : arg->getType();
+    assert(hasScalarEvaluationKind(ty) ==
+           hasScalarEvaluationKind(arg->getType()));
+
+    unsigned firstCIRArg, numCIRArgs;
+    std::tie(firstCIRArg, numCIRArgs) = cirFunctionArgs.getCIRArgs(argNo);
+
+    switch (argI.getKind()) {
+    case cir::ABIArgInfo::InAlloca:
+      llvm_unreachable("NYI");
+    case cir::ABIArgInfo::Indirect:
+      llvm_unreachable("NYI");
+    case cir::ABIArgInfo::IndirectAliased:
+      llvm_unreachable("NYI");
+    case cir::ABIArgInfo::Extend:
+      llvm_unreachable("NYI");
+    case cir::ABIArgInfo::Direct: {
+      auto ai = fn.getArgument(firstCIRArg);
+      mlir::Type lTy = convertType(arg->getType());
+
+      // Prepare parameter attributes. So far, only attributes for pointer
+      // parameters are prepared.
+      if (argI.getDirectOffset() == 0 && isa<cir::PointerType>(lTy) &&
+          isa<cir::PointerType>(argI.getCoerceToType())) {
+        llvm_unreachable("NYI");
+      }
+
+      // Prepare the argument value. If we have the trivial case, handle it with
+      // no muss and fuss.
+      if (!isa<cir::StructType>(argI.getCoerceToType()) &&
+          argI.getCoerceToType() == convertType(ty) &&
+          argI.getDirectOffset() == 0) {
+        assert(numCIRArgs == 1);
+
+        // LLVM expects swifterror parameters to be used in very restricted
+        // ways. Copy the value into a less-restricted temporary.
+        mlir::Value v = ai;
+        if (functionInfo.getExtParameterInfo(argNo).getABI() ==
+            ParameterABI::SwiftErrorResult) {
+          llvm_unreachable("NYI");
+        }
+
+        // Ensure the argument is the correct type.
+        if (v.getType() != argI.getCoerceToType())
+          llvm_unreachable("NYI");
+
+        if (isPromoted)
+          llvm_unreachable("NYI");
+
+        // Because of merging of function types from multiple decls it is
+        // possible for the type of an argument to not match the corresponding
+        // type in the function type. Since we are codegenning the callee in
+        // here, and a cast to the argument type.
+        mlir::Type lTy = convertType(arg->getType());
+        if (v.getType() != lTy)
+          llvm_unreachable("NYI");
+
+        argVals.push_back(ParamValue::forDirect(v));
+      }
+
+      // VLST arguments are coerced to VLATs at the function boundary for ABI
+      // consistency. If this is a VLST that was coerced to a VLAT at the
+      // function boundary and hte types match up, use the CIR equivalent of
+      // llvm.vector.extract to convert back to the original VLST.
+      if (cir::MissingFeatures::vectorType())
+        llvm_unreachable("NYI");
+
+      cir::StructType sTy = dyn_cast<cir::StructType>(argI.getCoerceToType());
+      if (argI.isDirect() && !argI.getCanBeFlattened() && sTy &&
+          sTy.getNumElements() > 1) {
+        llvm_unreachable("NYI");
+      }
+
+      Address alloca =
+          CreateMemTemp(ty, getContext().getDeclAlign(arg),
+                        getLoc(arg->getLocation()), arg->getName());
+
+      // Pointer to store info.
+      Address ptr = emitAddressAtOffset(*this, alloca, argI);
+
+      // Fast-isel and the LLVM optimizer generally like scalar values better
+      // than FCAs, so we flatten them if this is safe to do for this argument.
+      if (argI.isDirect() && argI.getCanBeFlattened() && sTy &&
+          sTy.getNumElements() > 1) {
+        llvm_unreachable("NYI");
+      } else {
+        // Simple cast, just do a coerced store of the argument into the alloca.
+        assert(numCIRArgs == 1);
+        auto ai = fn.getArgument(firstCIRArg);
+        // ai.setName(arg->getName() + ".coerce");
+        createCoercedStore(
+            ai, ptr,
+            llvm::TypeSize::getFixed(
+                getContext().getTypeSizeInChars(ty).getQuantity() -
+                argI.getDirectOffset()),
+            /*dstIsVolatile=*/false);
+      }
+
+      // Match to what buildParmDecl is expecting for this type.
+      if (CIRGenFunction::hasScalarEvaluationKind(ty)) {
+        mlir::Value v = emitLoadOfScalar(alloca, false, ty, arg->getBeginLoc());
+        if (isPromoted)
+          llvm_unreachable("NYI");
+        argVals.push_back(ParamValue::forDirect(v));
+      } else {
+        llvm_unreachable("NYI");
+      }
+      break;
+    }
+
+    case cir::ABIArgInfo::CoerceAndExpand:
+      llvm_unreachable("NYI");
+    case cir::ABIArgInfo::Expand:
+      llvm_unreachable("NYI");
+    case cir::ABIArgInfo::Ignore:
+      llvm_unreachable("NYI");
+    }
+  }
+
+  if (getTarget().getCXXABI().areArgsDestroyedLeftToRightInCallee()) {
+    for (int i = args.size() - 1; i >= 0; --i)
+      buildParmDecl(*args[i], argVals[i], i + 1);
+  } else {
+    for (unsigned i = 0, e = args.size(); i != e; ++i)
+      buildParmDecl(*args[i], argVals[i], i + 1);
+  }
+}
+
 /// TODO(cir): this should be shared with LLVM codegen
 static void addExtParameterInfosForCall(
     llvm::SmallVectorImpl<FunctionProtoType::ExtParameterInfo> &paramInfos,
@@ -1224,9 +1413,9 @@ CIRGenTypes::arrangeCXXStructorDeclaration(GlobalDecl GD) {
 }
 
 /// Derives the 'this' type for CIRGen purposes, i.e. ignoring method CVR
-/// qualification. Either or both of RD and MD may be null. A null RD indicates
-/// that there is no meaningful 'this' type, and a null MD can occur when
-/// calling a method pointer.
+/// qualification. Either or both of RD and MD may be null. A null RD
+/// indicates that there is no meaningful 'this' type, and a null MD can occur
+/// when calling a method pointer.
 CanQualType CIRGenTypes::DeriveThisType(const CXXRecordDecl *RD,
                                         const CXXMethodDecl *MD) {
   QualType RecTy;
@@ -1330,8 +1519,8 @@ const CIRGenFunctionInfo &CIRGenTypes::arrangeCXXConstructorCall(
 bool CIRGenTypes::inheritingCtorHasParams(const InheritedConstructor &Inherited,
                                           CXXCtorType Type) {
 
-  // Parameters are unnecessary if we're constructing a base class subobject and
-  // the inherited constructor lives in a virtual base.
+  // Parameters are unnecessary if we're constructing a base class subobject
+  // and the inherited constructor lives in a virtual base.
   return Type == Ctor_Complete ||
          !Inherited.getShadowDecl()->constructsVirtualBase() ||
          !Target.getCXXABI().hasConstructorVariants();
@@ -1376,8 +1565,8 @@ void CIRGenFunction::emitDelegateCallArg(CallArgList &args,
         type);
   } else if (getLangOpts().ObjCAutoRefCount) {
     llvm_unreachable("NYI");
-    // For the most part, we just need to load the alloca, except that aggregate
-    // r-values are actually pointers to temporaries.
+    // For the most part, we just need to load the alloca, except that
+    // aggregate r-values are actually pointers to temporaries.
   } else {
     args.add(convertTempToRValue(local, type, loc), type);
   }
@@ -1390,10 +1579,10 @@ void CIRGenFunction::emitDelegateCallArg(CallArgList &args,
   }
 }
 
-/// Returns the "extra-canonicalized" return type, which discards qualifiers on
-/// the return type. Codegen doesn't care about them, and it makes ABI code a
-/// little easier to be able to assume that all parameter and return types are
-/// top-level unqualified.
+/// Returns the "extra-canonicalized" return type, which discards qualifiers
+/// on the return type. Codegen doesn't care about them, and it makes ABI code
+/// a little easier to be able to assume that all parameter and return types
+/// are top-level unqualified.
 /// FIXME(CIR): This should be a common helper extracted from CodeGen
 static CanQualType GetReturnType(QualType RetTy) {
   return RetTy->getCanonicalTypeUnqualified().getUnqualifiedType();
@@ -1457,15 +1646,15 @@ getExtParameterInfosForCall(const FunctionProtoType *proto, unsigned prefixArgs,
 
 /// Arrange a call to a C++ method, passing the given arguments.
 ///
-/// numPrefixArgs is the number of the ABI-specific prefix arguments we have. It
-/// does not count `this`.
+/// numPrefixArgs is the number of the ABI-specific prefix arguments we have.
+/// It does not count `this`.
 const CIRGenFunctionInfo &CIRGenTypes::arrangeCXXMethodCall(
     const CallArgList &args, const FunctionProtoType *proto,
     RequiredArgs required, unsigned numPrefixArgs) {
   assert(numPrefixArgs + 1 <= args.size() &&
          "Emitting a call with less args than the required prefix?");
-  // Add one to account for `this`. It is a bit awkard here, but we don't count
-  // `this` in similar places elsewhere.
+  // Add one to account for `this`. It is a bit awkard here, but we don't
+  // count `this` in similar places elsewhere.
   auto paramInfos =
       getExtParameterInfosForCall(proto, numPrefixArgs + 1, args.size());
 
@@ -1478,9 +1667,10 @@ const CIRGenFunctionInfo &CIRGenTypes::arrangeCXXMethodCall(
                                 info, paramInfos, required);
 }
 
-/// Figure out the rules for calling a function with the given formal type using
-/// the given arguments. The arguments are necessary because the function might
-/// be unprototyped, in which case it's target-dependent in crazy ways.
+/// Figure out the rules for calling a function with the given formal type
+/// using the given arguments. The arguments are necessary because the
+/// function might be unprototyped, in which case it's target-dependent in
+/// crazy ways.
 const CIRGenFunctionInfo &CIRGenTypes::arrangeFreeFunctionCall(
     const CallArgList &args, const FunctionType *fnType, bool ChainCall) {
   assert(!ChainCall && "ChainCall NYI");
@@ -1497,9 +1687,10 @@ static void setCUDAKernelCallingConvention(CanQualType &FTy, CIRGenModule &CGM,
   }
 }
 
-/// Arrange the argument and result information for a declaration or definition
-/// of the given C++ non-static member function. The member function must be an
-/// ordinary function, i.e. not a constructor or destructor.
+/// Arrange the argument and result information for a declaration or
+/// definition of the given C++ non-static member function. The member
+/// function must be an ordinary function, i.e. not a constructor or
+/// destructor.
 const CIRGenFunctionInfo &
 CIRGenTypes::arrangeCXXMethodDeclaration(const CXXMethodDecl *MD) {
   assert(!isa<CXXConstructorDecl>(MD) && "wrong method for constructors!");
@@ -1521,8 +1712,8 @@ CIRGenTypes::arrangeCXXMethodDeclaration(const CXXMethodDecl *MD) {
 /// Arrange the argument and result information for a call to an unknown C++
 /// non-static member function of the given abstract type. (A null RD means we
 /// don't have any meaningful "this" argument type, so fall back to a generic
-/// pointer type). The member fucntion must be an ordinary function, i.e. not a
-/// constructor or destructor.
+/// pointer type). The member fucntion must be an ordinary function, i.e. not
+/// a constructor or destructor.
 const CIRGenFunctionInfo &
 CIRGenTypes::arrangeCXXMethodType(const CXXRecordDecl *RD,
                                   const FunctionProtoType *FTP,
@@ -1635,6 +1826,41 @@ void CIRGenModule::getDefaultFunctionAttributes(
   // If we're just getting the default, get the default values for mergeable
   // attributes.
   if (!attrOnCallSite) {
-    // TODO(cir): addMergableDefaultFunctionAttributes(codeGenOpts, funcAttrs);
+    // TODO(cir): addMergableDefaultFunctionAttributes(codeGenOpts,
+    // funcAttrs);
+  }
+}
+
+void CIRGenFunction::createCoercedStore(mlir::Value src, Address dst,
+                                        llvm::TypeSize dstSize,
+                                        bool dstIsVolatile) {
+  if (!dstSize)
+    return;
+
+  mlir::Type srcTy = src.getType();
+  llvm::TypeSize srcSize = CGM.getDataLayout().getTypeAllocSize(srcTy);
+
+  // GEP into structs to try to make typesm match.
+  // FIXME: This isn't really that useful with opaque types, but it impacts a
+  // lot of regressiont ests.
+  if (srcTy != dst.getElementType()) {
+    llvm_unreachable("NYI");
+  }
+
+  if (srcSize.isScalable() || srcSize <= dstSize) {
+    if (isa<cir::IntType>(srcTy) &&
+        isa<cir::PointerType>(dst.getElementType()) &&
+        srcSize == CGM.getDataLayout().getTypeAllocSize(dst.getElementType())) {
+      llvm_unreachable("NYI");
+    } else if (cir::StructType sTy = dyn_cast<cir::StructType>(src.getType())) {
+      llvm_unreachable("NYI");
+    } else {
+      getBuilder().createStore(src.getLoc(), src, dst.withElementType(srcTy),
+                               dstIsVolatile);
+    }
+  } else if (isa<cir::IntType>(srcTy)) {
+    llvm_unreachable("NYI");
+  } else {
+    llvm_unreachable("NYI");
   }
 }

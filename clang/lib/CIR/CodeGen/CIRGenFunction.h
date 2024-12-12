@@ -436,6 +436,16 @@ public:
     }
   };
 
+  /// Used by -fsanitize=nullability-return to determine whether the return
+  /// value can be checked.
+  mlir::Value retValNullabilityPrecondition = nullptr;
+
+  /// Check if -fsanitize=nullability-return instrumentation is required for
+  /// this function.
+  bool requiresReturnValueNullabilityCheck() const {
+    return bool(retValNullabilityPrecondition);
+  }
+
   /// A mapping from NRVO variables to the flags used to indicate
   /// when the NRVO has been applied to this variable.
   llvm::DenseMap<const VarDecl *, mlir::Value> NRVOFlags;
@@ -560,6 +570,9 @@ public:
   /// In C++, whether we are code generating a thunk. This controls whether we
   /// should emit cleanups.
   bool CurFuncIsThunk = false;
+
+  /// In ARC, whether we should autorelease the return value.
+  bool autoreleaseResult = false;
 
   /// Hold counters for incrementally naming temporaries
   unsigned CounterRefTmp = 0;
@@ -961,6 +974,13 @@ public:
                               llvm::ArrayRef<mlir::Value> args = {});
 
   void emitInvariantStart(CharUnits Size);
+
+
+  /// buildFunctionProlog - Emit the target specific CIR code to load the
+  /// arguments for the given function. This is also responsible for naming the
+  /// MLIR function arguments.
+  void buildFunctionProlog(const CIRGenFunctionInfo &functionInfo,
+                           cir::FuncOp fn, const FunctionArgList &args);
 
   /// Create a check for a function parameter that may potentially be
   /// declared as non-null.
@@ -1446,6 +1466,46 @@ public:
 
   void emitStaticVarDecl(const VarDecl &D, cir::GlobalLinkageKind Linkage);
 
+  class ParamValue {
+    union {
+      Address addr;
+      mlir::Value value;
+    };
+
+    bool isIndirectV;
+
+    ParamValue(mlir::Value v) : value(v), isIndirectV(false) {}
+    ParamValue(Address a) : addr(a), isIndirectV(true) {}
+
+  public:
+    static ParamValue forDirect(mlir::Value value) { return ParamValue(value); }
+    static ParamValue forIndirect(Address addr) {
+      assert(!addr.getAlignment().isZero());
+      return ParamValue(addr);
+    }
+
+    bool isIndirect() const { return isIndirectV; }
+    mlir::Value getAnyValue() const {
+      if (!isIndirect())
+        return value;
+      assert(!addr.hasOffset() && "unexpected offset");
+      return addr.getBasePointer();
+    }
+
+    mlir::Value getDirectValue() const {
+      assert(!isIndirect());
+      return value;
+    }
+
+    Address getIndirectAddress() const {
+      assert(isIndirect());
+      return addr;
+    }
+  };
+
+  // buildParmDecl - Emit a ParmVarDecl or an ImplicitParmDecl.
+  void buildParmDecl(const VarDecl &varDecl, ParamValue arg, unsigned argNo);
+
   /// Perform the usual unary conversions on the specified
   /// expression and compare the result against zero, returning an Int1Ty value.
   mlir::Value evaluateExprAsBool(const clang::Expr *E);
@@ -1803,6 +1863,11 @@ public:
   }
 
   LValue emitAggExprToLValue(const Expr *E);
+
+  /// Create a store to \arg dstPtr from \arg src, truncating the stored value
+  /// to at most \arg dstSize bytes.
+  void createCoercedStore(mlir::Value src, Address dst, llvm::TypeSize dstSize,
+                          bool dstIsVolatile);
 
   /// Emit an aggregate copy.
   ///

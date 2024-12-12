@@ -3902,6 +3902,7 @@ void CodeGenFunction::EmitFunctionEpilog(const CGFunctionInfo &FI,
       // The internal return value temp always will have pointer-to-return-type
       // type, just do a load.
 
+      llvm_unreachable("NYI");
       // If there is a dominating store to ReturnValue, we can elide
       // the load, zap the store, and usually zap the alloca.
       if (llvm::StoreInst *SI =

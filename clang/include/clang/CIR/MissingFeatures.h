@@ -454,6 +454,17 @@ struct MissingFeatures {
   static bool mustProgress() { return false; }
 
   static bool skipTempCopy() { return false; }
+
+  static bool addressSpaceInGlobalVar() { return false; }
+
+  static bool useARMGuardVarABI() { return false; }
+
+  // PtrAuth added a RawAddress type subclassing from Address.
+  static bool rawAddress() { return false; }
+
+  // LLVM has values that can be named (e.g. %x) and MLIR doens't, add this when
+  // we have a solution
+  static bool namedValues() { return false; }
 };
 
 } // namespace cir
