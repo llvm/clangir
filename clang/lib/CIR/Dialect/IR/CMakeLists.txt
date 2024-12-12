@@ -19,8 +19,10 @@ add_clang_library(MLIRCIR
   LINK_LIBS PUBLIC
   MLIRIR
   MLIRCIRInterfaces
+  MLIRCallInterfaces
   MLIRDLTIDialect
   MLIRDataLayoutInterfaces
+  MLIRFunctionInterfaces
   MLIRFuncDialect
   MLIRLoopLikeInterface
   MLIRLLVMDialect

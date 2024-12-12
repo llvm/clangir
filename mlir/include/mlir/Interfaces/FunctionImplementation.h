@@ -88,6 +88,11 @@ inline void printFunctionSignature(OpAsmPrinter &p, FunctionOpInterface op,
 void printFunctionAttributes(OpAsmPrinter &p, Operation *op,
                              ArrayRef<StringRef> elided = {});
 
+ParseResult
+parseFunctionArgumentList(OpAsmParser &parser, bool allowVariadic,
+                          SmallVectorImpl<OpAsmParser::Argument> &arguments,
+                          bool &isVariadic);
+
 } // namespace function_interface_impl
 
 } // namespace mlir
