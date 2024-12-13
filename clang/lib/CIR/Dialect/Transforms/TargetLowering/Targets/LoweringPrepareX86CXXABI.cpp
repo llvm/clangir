@@ -13,9 +13,10 @@
 //===------------------------------------------------------------------===//
 
 #include "../LowerModule.h"
-#include "../LoweringPrepareItaniumCXXABI.h"
 #include "ABIInfoImpl.h"
 #include "X86_64ABIInfo.h"
+#include "clang/CIR/Dialect/Transforms/LoweringPrepareCXXABI.h"
+#include "clang/CIR/Dialect/Transforms/LoweringPrepareItaniumCXXABI.h"
 
 using namespace clang;
 using namespace cir;
