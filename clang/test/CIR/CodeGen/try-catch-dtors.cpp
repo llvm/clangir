@@ -324,7 +324,7 @@ void bar() {
 // CIR-LABEL: @_Z3barv
 // CIR:  %[[V0:.*]] = cir.alloca !ty_A, !cir.ptr<!ty_A>, ["a"] {alignment = 1 : i64}
 // CIR:  %[[V1:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["b", init] {alignment = 4 : i64}
-// CIR:  %[[V2:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["tmp"] {alignment = 4 : i64}
+// CIR:  %[[V2:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["tmp.try.call.res"] {alignment = 4 : i64}
 // CIR:  cir.try synthetic cleanup {
 // CIR:    %[[V4:.*]] = cir.call exception @_Z3foov() : () -> !s32i cleanup {
 // CIR:      cir.call @_ZN1AD2Ev(%[[V0]]) : (!cir.ptr<!ty_A>) -> () extra(#fn_attr)
