@@ -901,7 +901,7 @@ RValue CIRGenFunction::emitCall(const CIRGenFunctionInfo &CallInfo,
           assert(Results.size() <= 1 && "multiple returns NYI");
           assert(Results[0].getType() == RetCIRTy && "Bitcast support NYI");
 
-          mlir::Region *region region = builder.getBlock()->getParent();
+          mlir::Region *region = builder.getBlock()->getParent();
           if (region != theCall->getParentRegion()) {
             Address DestPtr = ReturnValue.getValue();
 
