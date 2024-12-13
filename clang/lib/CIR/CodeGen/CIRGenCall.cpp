@@ -901,12 +901,12 @@ RValue CIRGenFunction::emitCall(const CIRGenFunctionInfo &CallInfo,
           assert(Results.size() <= 1 && "multiple returns NYI");
           assert(Results[0].getType() == RetCIRTy && "Bitcast support NYI");
 
-          auto region = builder.getBlock()->getParent();
+          mlir::Region *region region = builder.getBlock()->getParent();
           if (region != theCall->getParentRegion()) {
             Address DestPtr = ReturnValue.getValue();
 
             if (!DestPtr.isValid())
-              DestPtr = CreateMemTemp(RetTy, callLoc, "tmp");
+              DestPtr = CreateMemTemp(RetTy, callLoc, "tmp.try.call.res");
 
             return getRValueThroughMemory(callLoc, builder, Results[0],
                                           DestPtr);
