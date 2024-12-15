@@ -8,7 +8,7 @@ void loop_basic_for() {
     *p = 42;
   }        // expected-note {{pointee 'x' invalidated at end of scope}}
   *p = 42; // expected-warning {{use of invalid pointer 'p'}}
-           // expected-remark@-1 {{pset => { nullptr, invalid, x }}}
+           // expected-remark@-1 {{pset => { nullptr, invalid }}}
 }
 
 void loop_basic_while() {
@@ -21,7 +21,7 @@ void loop_basic_while() {
     i = i + 1;
   }        // expected-note {{pointee 'x' invalidated at end of scope}}
   *p = 42; // expected-warning {{use of invalid pointer 'p'}}
-           // expected-remark@-1 {{pset => { nullptr, invalid, x }}}
+           // expected-remark@-1 {{pset => { nullptr, invalid }}}
 }
 
 void loop_basic_dowhile() {
@@ -34,7 +34,7 @@ void loop_basic_dowhile() {
     i = i + 1;
   } while (i < 10); // expected-note {{pointee 'x' invalidated at end of scope}}
   *p = 42;          // expected-warning {{use of invalid pointer 'p'}}
-                    // expected-remark@-1 {{pset => { nullptr, invalid, x }}}
+                    // expected-remark@-1 {{pset => { nullptr, invalid }}}
 }
 
 // p1179r1: 2.4.9.3
