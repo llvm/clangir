@@ -1015,6 +1015,20 @@ public:
         return {};
     }
 
+    auto desiredType = CGM.getTypes().ConvertType(T);
+    bool isDesiredArrayOfUnionDirectly = [&]() {
+      auto desiredArrayType = dyn_cast<cir::ArrayType>(desiredType);
+      if (!desiredArrayType)
+        return false;
+
+      auto elementStructType =
+          dyn_cast<cir::StructType>(desiredArrayType.getEltType());
+      if (!elementStructType)
+        return false;
+
+      return elementStructType.isUnion();
+    }();
+
     // Emit initializer elements as MLIR attributes and check for common type.
     mlir::Type CommonElementType;
     for (unsigned i = 0; i != NumInitableElts; ++i) {
@@ -1024,10 +1038,12 @@ public:
         return {};
       if (i == 0)
         CommonElementType = C.getType();
+      else if (isDesiredArrayOfUnionDirectly &&
+               C.getType() != CommonElementType)
+        CommonElementType = nullptr;
       Elts.push_back(std::move(C));
     }
 
-    auto desiredType = CGM.getTypes().ConvertType(T);
     auto typedFiller = llvm::dyn_cast_or_null<mlir::TypedAttr>(Filler);
     if (Filler && !typedFiller)
       llvm_unreachable("We shouldn't be receiving untyped attrs here");
