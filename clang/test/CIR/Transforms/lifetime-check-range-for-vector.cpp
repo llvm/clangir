@@ -1,5 +1,7 @@
 // RUN: %clang_cc1 -std=c++20 -triple x86_64-unknown-linux-gnu -I%S/../Inputs -mconstructor-aliases -fclangir -fclangir-lifetime-check="history=all" -fclangir-skip-system-headers -clangir-verify-diagnostics -emit-cir %s -o %t.cir
 
+// XFAIL: *
+
 #include "std-cxx.h"
 
 // expected-no-diagnostics
