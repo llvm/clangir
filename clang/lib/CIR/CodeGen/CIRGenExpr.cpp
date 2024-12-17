@@ -955,17 +955,19 @@ LValue CIRGenFunction::emitLValueForLambdaField(const FieldDecl *field,
                                                 mlir::Value thisValue) {
   bool hasExplicitObjectParameter = false;
   const auto *methD = dyn_cast_if_present<CXXMethodDecl>(CurCodeDecl);
+  LValue lambdaLV;
   if (methD) {
     hasExplicitObjectParameter = methD->isExplicitObjectMemberFunction();
     assert(methD->getParent()->isLambda());
     assert(methD->getParent() == field->getParent());
   }
-  if (!hasExplicitObjectParameter) {
+  if (hasExplicitObjectParameter) {
+    llvm_unreachable("ExplicitObjectMemberFunction NYI");
+  } else {
     QualType lambdaTagType = getContext().getTagDeclType(field->getParent());
-    LValue lambdaLV = MakeNaturalAlignAddrLValue(thisValue, lambdaTagType);
-    return emitLValueForField(lambdaLV, field);
+    lambdaLV = MakeNaturalAlignAddrLValue(thisValue, lambdaTagType);
   }
-  llvm_unreachable("ExplicitObjectMemberFunction NYI");
+  return emitLValueForField(lambdaLV, field);
 }
 
 LValue CIRGenFunction::emitLValueForLambdaField(const FieldDecl *field) {
