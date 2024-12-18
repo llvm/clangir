@@ -1381,6 +1381,8 @@ struct ConvertCIRToLLVMPass
 
   void processCIRAttrs(mlir::ModuleOp moduleOp);
 
+  inline static std::function<void(mlir::ConversionTarget)> runAtStartHook;
+
   StringRef getDescription() const override {
     return "Convert the prepared CIR dialect module to LLVM dialect";
   }
@@ -4781,6 +4783,9 @@ void ConvertCIRToLLVMPass::runOnOperation() {
                     // ,YieldOp
                     >();
   // clang-format on
+  if (runAtStartHook)
+    runAtStartHook(target);
+
   target.addLegalDialect<mlir::LLVM::LLVMDialect>();
   target.addIllegalDialect<mlir::BuiltinDialect, cir::CIRDialect,
                            mlir::func::FuncDialect>();
@@ -4816,6 +4821,13 @@ void ConvertCIRToLLVMPass::runOnOperation() {
   buildGlobalAnnotationsVar(stringGlobalsMap, argStringGlobalsMap, argsVarMap);
 
   processCIRAttrs(module);
+}
+
+/// Set a hook to be called just before applying the dialect conversion so other
+/// dialects or patterns can be added
+void runAtStartOfConvertCIRToLLVMPass(
+    std::function<void(mlir::ConversionTarget)> hook) {
+  ConvertCIRToLLVMPass::runAtStartHook = std::move(hook);
 }
 
 std::unique_ptr<mlir::Pass> createConvertCIRToLLVMPass() {
