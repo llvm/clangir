@@ -1,5 +1,7 @@
-// RUN: %clang_cc1 -triple aarch64-none-linux-android21 -fclangir -emit-cir %s
-// -o %t.cir XFAIL: *
+// RUN: %clang_cc1 -triple aarch64-none-linux-android21 -fclangir -emit-cir %s -o %t.cir -fcxx-exceptions -fexceptions | FileCheck %s
+// XFAIL: *
+
+// CHECK: cir.func
 
 struct E {};
 E e;
