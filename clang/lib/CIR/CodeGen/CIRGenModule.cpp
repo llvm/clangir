@@ -814,6 +814,13 @@ void CIRGenModule::replaceGlobal(cir::GlobalOp Old, cir::GlobalOp New) {
           auto UseOpResultValue = GGO.getAddr();
           UseOpResultValue.setType(
               cir::PointerType::get(&getMLIRContext(), NewTy));
+
+          mlir::OpBuilder::InsertionGuard guard(builder);
+          builder.setInsertionPointAfter(UserOp);
+          mlir::Type ptrTy = builder.getPointerTo(OldTy);
+          mlir::Value cast =
+              builder.createBitcast(GGO->getLoc(), UseOpResultValue, ptrTy);
+          UseOpResultValue.replaceAllUsesExcept(cast, {cast.getDefiningOp()});
         }
       }
     }
@@ -3988,7 +3995,7 @@ cir::TBAAAttr CIRGenModule::getTBAABaseTypeInfo(QualType QTy) {
   return tbaa->getBaseTypeInfo(QTy);
 }
 
-mlir::ArrayAttr CIRGenModule::getTBAAAccessTagInfo(TBAAAccessInfo tbaaInfo) {
+cir::TBAAAttr CIRGenModule::getTBAAAccessTagInfo(TBAAAccessInfo tbaaInfo) {
   if (!tbaa) {
     return nullptr;
   }

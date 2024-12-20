@@ -2679,19 +2679,16 @@ static mlir::Value emitCommonNeonSISDBuiltinExpr(
     return emitNeonCall(builder, {argTy}, ops, "aarch64.neon.uaddlv", resultTy,
                         loc);
   case NEON::BI__builtin_neon_vaddv_f32:
-    llvm_unreachable(" neon_vaddv_f32 NYI ");
-  case NEON::BI__builtin_neon_vaddv_s32:
-    llvm_unreachable(" neon_vaddv_s32 NYI ");
-  case NEON::BI__builtin_neon_vaddv_u32:
-    llvm_unreachable(" neon_vaddv_u32 NYI ");
   case NEON::BI__builtin_neon_vaddvq_f32:
-    llvm_unreachable(" neon_vaddvq_f32 NYI ");
   case NEON::BI__builtin_neon_vaddvq_f64:
-    llvm_unreachable(" neon_vaddvq_f64 NYI ");
+    return emitNeonCall(builder, {argTy}, ops, "aarch64.neon.faddv", resultTy,
+                        loc);
+  case NEON::BI__builtin_neon_vaddv_s32:
   case NEON::BI__builtin_neon_vaddvq_s32:
-    llvm_unreachable(" neon_vaddvq_s32 NYI ");
   case NEON::BI__builtin_neon_vaddvq_s64:
-    llvm_unreachable(" neon_vaddvq_s64 NYI ");
+    return emitNeonCall(builder, {argTy}, ops, "aarch64.neon.saddv", resultTy,
+                        loc);
+  case NEON::BI__builtin_neon_vaddv_u32:
   case NEON::BI__builtin_neon_vaddvq_u32:
   case NEON::BI__builtin_neon_vaddvq_u64:
     return emitNeonCall(builder, {argTy}, ops, "aarch64.neon.uaddv", resultTy,
@@ -3924,8 +3921,15 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
                         getLoc(E->getExprLoc()));
   }
   case NEON::BI__builtin_neon_vmax_v:
-  case NEON::BI__builtin_neon_vmaxq_v:
-    llvm_unreachable("NEON::BI__builtin_neon_vmaxq_v NYI");
+  case NEON::BI__builtin_neon_vmaxq_v: {
+    mlir::Location loc = getLoc(E->getExprLoc());
+    Ops[0] = builder.createBitcast(Ops[0], ty);
+    Ops[1] = builder.createBitcast(Ops[1], ty);
+    if (cir::isFPOrFPVectorTy(ty)) {
+      return builder.create<cir::FMaximumOp>(loc, Ops[0], Ops[1]);
+    }
+    return builder.create<cir::BinOp>(loc, cir::BinOpKind::Max, Ops[0], Ops[1]);
+  }
   case NEON::BI__builtin_neon_vmaxh_f16: {
     llvm_unreachable("NEON::BI__builtin_neon_vmaxh_f16 NYI");
   }
