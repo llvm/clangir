@@ -5,6 +5,7 @@
 #include "mlir/Interfaces/DataLayoutInterfaces.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/RecordLayout.h"
+#include "clang/AST/Type.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/MissingFeatures.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -61,6 +62,58 @@ static bool isValidBaseType(clang::QualType qty) {
   return false;
 }
 
+cir::TBAAAttr CIRGenTBAA::getTypeInfoHelper(clang::QualType qty) {
+  const clang::Type *ty = astContext.getCanonicalType(qty).getTypePtr();
+  // Handle builtin types.
+  if (mlir::isa<BuiltinType>(ty)) {
+    return cir::TBAAScalarAttr::get(mlirContext, types.ConvertType(qty));
+  }
+  // C++1z [basic.lval]p10: "If a program attempts to access the stored value of
+  // an object through a glvalue of other than one of the following types the
+  // behavior is undefined: [...] a char, unsigned char, or std::byte type."
+  if (ty->isStdByteType())
+    return getChar();
+
+  // Handle pointers and references.
+  //
+  // C has a very strict rule for pointer aliasing. C23 6.7.6.1p2:
+  //     For two pointer types to be compatible, both shall be identically
+  //     qualified and both shall be pointers to compatible types.
+  //
+  // This rule is impractically strict; we want to at least ignore CVR
+  // qualifiers. Distinguishing by CVR qualifiers would make it UB to
+  // e.g. cast a `char **` to `const char * const *` and dereference it,
+  // which is too common and useful to invalidate. C++'s similar types
+  // rule permits qualifier differences in these nested positions; in fact,
+  // C++ even allows that cast as an implicit conversion.
+  //
+  // Other qualifiers could theoretically be distinguished, especially if
+  // they involve a significant representation difference.  We don't
+  // currently do so, however.
+  if (ty->isPointerType() || ty->isReferenceType()) {
+    if (!codeGenOpts.PointerTBAA) {
+      return cir::TBAAScalarAttr::get(mlirContext, types.ConvertType(qty));
+    }
+    llvm_unreachable("NYI");
+  }
+  // Accesses to arrays are accesses to objects of their element types.
+  if (codeGenOpts.NewStructPathTBAA && ty->isArrayType()) {
+    llvm_unreachable("NYI");
+  }
+  // Enum types are distinct types. In C++ they have "underlying types",
+  // however they aren't related for TBAA.
+  if (const EnumType *ety = dyn_cast<EnumType>(ty)) {
+    assert(!cir::MissingFeatures::tbaaTagForEnum());
+    return tbaa_NYI(mlirContext);
+  }
+  if (const auto *eit = dyn_cast<BitIntType>(ty)) {
+    assert(!cir::MissingFeatures::tbaaTagForBitInt());
+    return tbaa_NYI(mlirContext);
+  }
+  // For now, handle any other kind of type conservatively.
+  return getChar();
+}
+
 cir::TBAAAttr CIRGenTBAA::getTypeInfo(clang::QualType qty) {
   // At -O0 or relaxed aliasing, TBAA is not emitted for regular types.
   if (codeGenOpts.OptimizationLevel == 0 || codeGenOpts.RelaxedAliasing) {
@@ -93,7 +146,7 @@ cir::TBAAAttr CIRGenTBAA::getTypeInfo(clang::QualType qty) {
   // cache, which invalidates all its previously obtained iterators. So we
   // first generate the node for the type and then add that node to the
   // cache.
-  auto typeNode = cir::TBAAScalarAttr::get(mlirContext, types.ConvertType(qty));
+  auto typeNode = getTypeInfoHelper(qty);
   return metadataCache[ty] = typeNode;
 }
 

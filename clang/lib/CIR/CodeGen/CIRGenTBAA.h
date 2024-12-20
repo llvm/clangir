@@ -108,6 +108,10 @@ class CIRGenTBAA {
 
   cir::TBAAAttr getChar();
 
+  // An internal helper function to generate metadata used
+  // to describe accesses to objects of the given type.
+  cir::TBAAAttr getTypeInfoHelper(clang::QualType qty);
+
 public:
   CIRGenTBAA(mlir::MLIRContext *mlirContext, clang::ASTContext &astContext,
              CIRGenTypes &types, mlir::ModuleOp moduleOp,
