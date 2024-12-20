@@ -26,7 +26,6 @@ enum ActionType {
   PrintRecords,
   DumpJSON,
   GenCIRBuiltinsLowering,
-  GenCIRTBAANameLowering,
   GenClangAttrClasses,
   GenClangAttrParserStringSwitches,
   GenClangAttrSubjectMatchRulesParserStringSwitches,
@@ -127,8 +126,6 @@ cl::opt<ActionType> Action(
         clEnumValN(GenCIRBuiltinsLowering, "gen-cir-builtins-lowering",
                    "Generate lowering of ClangIR builtins to equivalent LLVM "
                    "IR builtins"),
-        clEnumValN(GenCIRTBAANameLowering, "gen-cir-tbaa-name-lowering",
-                   "Generate lowering of ClangIR TBAA Name"),
         clEnumValN(GenClangAttrClasses, "gen-clang-attr-classes",
                    "Generate clang attribute clases"),
         clEnumValN(GenClangAttrParserStringSwitches,
@@ -342,9 +339,6 @@ bool ClangTableGenMain(raw_ostream &OS, const RecordKeeper &Records) {
     break;
   case GenCIRBuiltinsLowering:
     EmitCIRBuiltinsLowering(Records, OS);
-    break;
-  case GenCIRTBAANameLowering:
-    EmitCIRTBAANameLowering(Records, OS);
     break;
   case GenClangAttrClasses:
     EmitClangAttrClass(Records, OS);
