@@ -4000,7 +4000,7 @@ cir::TBAAAttr CIRGenModule::getTBAABaseTypeInfo(QualType QTy) {
   return tbaa->getBaseTypeInfo(QTy);
 }
 
-cir::TBAAAttr CIRGenModule::getTBAAAccessTagInfo(TBAAAccessInfo tbaaInfo) {
+mlir::ArrayAttr CIRGenModule::getTBAAAccessTagInfo(TBAAAccessInfo tbaaInfo) {
   if (!tbaa) {
     return nullptr;
   }
