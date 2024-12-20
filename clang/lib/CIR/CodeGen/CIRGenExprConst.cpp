@@ -1016,6 +1016,36 @@ public:
     }
 
     auto desiredType = CGM.getTypes().ConvertType(T);
+    // FIXME: A hack to handle the emission of arrays of unions directly.
+    // See clang/test/CIR/CodeGen/union-array.c and
+    // clang/test/CIR/Lowering/nested-union-array.c for example. The root
+    // cause of these problems is CIR handles union differently than LLVM IR.
+    // So we can't fix the problem fundamentally by mocking LLVM's handling for
+    // unions. In LLVM, the union is basically a struct with the largest member
+    // of the union and consumers cast the union arbitrarily according to their
+    // needs. But in CIR, we tried to express union semantics properly. This is
+    // a fundamental difference.
+    //
+    // Concrely, for the problem here, if we're constructing the initializer for
+    // the array of unions, we can't even assume the type of the elements in the
+    // initializer are the same! It is odd that we can have an array with
+    // different element types. Here we just pretend it is fine by checking if
+    // we're constructing an array for an array of unions. If we didn't do so,
+    // we may meet problems during lowering to LLVM. To solve the problem, we
+    // may need to introduce 2 type systems for CIR: one for the CIR itself and
+    // one for lowering. e.g., we can compare the type of CIR during CIRGen,
+    // analysis and transformations without worrying the concerns here. And
+    // lower to LLVM IR (or anyother dialects) with the proper type.
+    //
+    // (Although the idea to make CIR's type system self contained and generate
+    // LLVM's
+    //  types in later passes look fine, it has engineering level concern that
+    //  it will make the skeleton of CIRGen to be diverged from the traditional
+    //  CodeGen.)
+    //
+    // Besides union, there are other differences between CIR and LLVM's type
+    // system. e.g., LLVM's pointer types are opaque while CIR has concrete
+    // pointer types.
     bool isDesiredArrayOfUnionDirectly = [&]() {
       auto desiredArrayType = dyn_cast<cir::ArrayType>(desiredType);
       if (!desiredArrayType)
