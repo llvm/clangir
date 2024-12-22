@@ -28,9 +28,12 @@ add_clang_library(TargetLowering
   LINK_LIBS PUBLIC
 
   clangBasic
+  MLIRCIR
+  MLIRCIRInterfaces
+)
+
+mlir_target_link_libraries(TargetLowering PUBLIC
   MLIRIR
   MLIRPass
   MLIRDLTIDialect
-  MLIRCIR
-  MLIRCIRInterfaces
 )

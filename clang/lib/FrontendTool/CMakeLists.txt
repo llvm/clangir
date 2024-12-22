@@ -17,14 +17,13 @@ set(deps)
 if(CLANG_ENABLE_CIR)
   list(APPEND link_libs
     clangCIRFrontendAction
-    MLIRCIRTransforms
-    MLIRIR
-    MLIRPass
     )
-  list(APPEND deps
-    MLIRBuiltinLocationAttributesIncGen
-    MLIRBuiltinTypeInterfacesIncGen
-    )
+  if(NOT CLANG_BUILT_STANDALONE)
+    list(APPEND deps
+      MLIRBuiltinLocationAttributesIncGen
+      MLIRBuiltinTypeInterfacesIncGen
+      )
+  endif()
 
   include_directories(${LLVM_MAIN_SRC_DIR}/../mlir/include)
   include_directories(${CMAKE_BINARY_DIR}/tools/mlir/include)
@@ -52,3 +51,11 @@ add_clang_library(clangFrontendTool
   LINK_LIBS
   ${link_libs}
   )
+
+if(CLANG_ENABLE_CIR)
+  mlir_target_link_libraries(clangFrontendTool PUBLIC
+    MLIRCIRTransforms
+    MLIRIR
+    MLIRPass
+    )
+endif()

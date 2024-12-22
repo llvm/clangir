@@ -17,7 +17,7 @@ clang_target_link_libraries(cir-translate
   MLIRCIRTransforms
 )
 
-target_link_libraries(cir-translate
+mlir_target_link_libraries(cir-translate
   PRIVATE
   ${dialect_libs}
   ${conversion_libs}

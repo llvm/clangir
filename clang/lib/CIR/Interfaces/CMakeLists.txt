@@ -13,8 +13,9 @@ add_clang_library(MLIRCIRInterfaces
   MLIRCIRFPTypeInterfaceIncGen
   MLIRCIRLoopOpInterfaceIncGen
   MLIRCIROpInterfacesIncGen
+ )
 
-  LINK_LIBS
+mlir_target_link_libraries(clangCIRFrontendAction PUBLIC
   ${dialect_libs}
   MLIRIR
   MLIRSupport

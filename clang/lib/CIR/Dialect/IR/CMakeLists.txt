@@ -1,3 +1,11 @@
+set(deps)
+if (NOT CLANG_BUILT_STANDALONE)
+  set(deps
+    MLIRBuiltinLocationAttributesIncGen
+    MLIRSymbolInterfacesIncGen
+    )
+endif()
+
 add_clang_library(MLIRCIR
   CIRAttrs.cpp
   CIROpenCLAttrs.cpp
@@ -8,15 +16,18 @@ add_clang_library(MLIRCIR
   FPEnv.cpp
 
   DEPENDS
-  MLIRBuiltinLocationAttributesIncGen
+  ${deps}
   MLIRCIROpsIncGen
   MLIRCIREnumsGen
-  MLIRSymbolInterfacesIncGen
   MLIRCIRASTAttrInterfacesIncGen
   MLIRCIROpInterfacesIncGen
   MLIRCIRLoopOpInterfaceIncGen
 
   LINK_LIBS PUBLIC
+  clangAST
+  )
+
+mlir_target_link_libraries(MLIRCIR PUBLIC
   MLIRIR
   MLIRCIRInterfaces
   MLIRDLTIDialect
@@ -24,6 +35,4 @@ add_clang_library(MLIRCIR
   MLIRFuncDialect
   MLIRLoopLikeInterface
   MLIRLLVMDialect
-  MLIRSideEffectInterfaces
-  clangAST
-  )
+  MLIRSideEffectInterfaces)
