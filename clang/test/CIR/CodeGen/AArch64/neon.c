@@ -9881,19 +9881,27 @@ poly16x8_t test_vmull_p8(poly8x8_t a, poly8x8_t b) {
 //   return vmull_high_p8(a, b);
 // }
 
-// NYI-LABEL: @test_vaddd_s64(
-// NYI:   [[VADDD_I:%.*]] = add i64 %a, %b
-// NYI:   ret i64 [[VADDD_I]]
-// int64_t test_vaddd_s64(int64_t a, int64_t b) {
-//   return vaddd_s64(a, b);
-// }
+int64_t test_vaddd_s64(int64_t a, int64_t b) {
+  return vaddd_s64(a, b);
 
-// NYI-LABEL: @test_vaddd_u64(
-// NYI:   [[VADDD_I:%.*]] = add i64 %a, %b
-// NYI:   ret i64 [[VADDD_I]]
-// uint64_t test_vaddd_u64(uint64_t a, uint64_t b) {
-//   return vaddd_u64(a, b);
-// }
+  // CIR-LABEL: vaddd_s64
+  // CIR: [[v3:%.*]] = cir.binop(add, [[v1:%.*]], [[v2:%.*]]) : !s64i
+
+  // LLVM-LABEL: @test_vaddd_s64(
+  // LLVM:   [[VADDD_I:%.*]]  = add i64 [[a:%.*]], [[b:%.*]]
+  // LLVM:   ret i64 [[VADDD_I]]
+}
+
+uint64_t test_vaddd_u64(uint64_t a, uint64_t b) {
+   return vaddd_u64(a, b);
+
+  // CIR-LABEL: vaddd_u64
+  // CIR: [[v3:%.*]] = cir.binop(add, [[v1:%.*]], [[v2:%.*]]) : !u64i
+
+  // LLVM-LABEL: @test_vaddd_u64(
+  // LLVM:   [[VADDD_I:%.*]]  = add i64 [[a:%.*]], [[b:%.*]]
+  // LLVM:   ret i64 [[VADDD_I]]
+}
 
 // NYI-LABEL: @test_vsubd_s64(
 // NYI:   [[VSUBD_I:%.*]] = sub i64 %a, %b
