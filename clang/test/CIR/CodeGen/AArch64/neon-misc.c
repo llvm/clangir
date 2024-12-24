@@ -146,7 +146,7 @@ float64x2_t test_vsetq_land_f64(float64_t a, float64x2_t b) {
 // CIR: {{%.*}} = cir.vec.insert {{%.*}}, {{%.*}}[[[IDX]] : !s32i] : !cir.vector<!cir.double x 2>
 
 // LLVM: {{.*}}test_vsetq_land_f64(double{{.*}}[[A:%.*]], <2 x double>{{.*}}[[B:%.*]])
-// : [[INTRN_RES:%.*]] = insertelement <2 x double> [[B]], double [[A]], i32 1
+// LLVM: [[INTRN_RES:%.*]] = insertelement <2 x double> [[B]], double [[A]], i32 0
 // LLVM: ret <2 x double> [[INTRN_RES]]
 
 uint8_t test_vget_lane_u8(uint8x8_t a) {
