@@ -3785,7 +3785,7 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
     llvm_unreachable("NEON::BI__builtin_neon_vaddd_u64 NYI");
   case NEON::BI__builtin_neon_vsubd_s64:
   case NEON::BI__builtin_neon_vsubd_u64:
-    llvm_unreachable("NEON::BI__builtin_neon_vsubd_u64 NYI");
+    return builder.createSub(Ops[0], emitScalarExpr(E->getArg(1)));
   case NEON::BI__builtin_neon_vqdmlalh_s16:
   case NEON::BI__builtin_neon_vqdmlslh_s16: {
     llvm_unreachable("NEON::BI__builtin_neon_vqdmlslh_s16 NYI");
