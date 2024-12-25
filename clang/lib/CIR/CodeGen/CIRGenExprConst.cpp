@@ -9,6 +9,8 @@
 // This contains code to emit Constant Expr nodes as LLVM code.
 //
 //===----------------------------------------------------------------------===//
+#include <iostream>
+
 #include "Address.h"
 #include "CIRGenCXXABI.h"
 #include "CIRGenCstEmitter.h"
@@ -159,7 +161,7 @@ static void replace(Container &C, size_t BeginOff, size_t EndOff, Range Vals) {
 }
 
 bool ConstantAggregateBuilder::add(mlir::Attribute A, CharUnits Offset,
-                                   bool AllowOverwrite) {
+                                   bool AllowOverwrite) {  
   // FIXME(cir): migrate most of this file to use mlir::TypedAttr directly.
   mlir::TypedAttr C = mlir::dyn_cast<mlir::TypedAttr>(A);
   assert(C && "expected typed attribute");
@@ -385,7 +387,7 @@ mlir::Attribute ConstantAggregateBuilder::buildFrom(
   CharUnits AlignedSize = Size.alignTo(Align);
 
   bool Packed = false;
-  ArrayRef<mlir::Attribute> UnpackedElems = Elems;
+  ArrayRef<mlir::Attribute> UnpackedElems = Elems;  
 
   llvm::SmallVector<mlir::Attribute, 32> UnpackedElemStorage;
   if (DesiredSize < AlignedSize || DesiredSize.alignTo(Align) != DesiredSize) {
@@ -396,7 +398,7 @@ mlir::Attribute ConstantAggregateBuilder::buildFrom(
     // is ignored if we choose a packed layout.)
     UnpackedElemStorage.assign(UnpackedElems.begin(), UnpackedElems.end());
     UnpackedElemStorage.push_back(Utils.getPadding(DesiredSize - Size));
-    UnpackedElems = UnpackedElemStorage;
+    UnpackedElems = UnpackedElemStorage;    
   }
 
   // If we don't have a natural layout, insert padding as necessary.
@@ -648,8 +650,15 @@ bool ConstStructBuilder::Build(InitListExpr *ILE, bool AllowOverwrite) {
     Expr *Init = nullptr;
     if (ElementNo < ILE->getNumInits())
       Init = ILE->getInit(ElementNo++);
-    if (Init && isa<NoInitExpr>(Init))
+
+    if (Init && isa<NoInitExpr>(Init)) {      
+      if (ZeroInitPadding &&
+          !DoZeroInitPadding(Layout, FieldNo, *Field, AllowOverwrite, SizeSoFar,
+                             ZeroFieldSize))
+        return false;
+
       continue;
+    }
 
     // Zero-sized fields are not emitted, but their initializers may still
     // prevent emission of this struct as a constant.
@@ -658,6 +667,11 @@ bool ConstStructBuilder::Build(InitListExpr *ILE, bool AllowOverwrite) {
         return false;
       continue;
     }
+    
+    if (ZeroInitPadding &&
+        !DoZeroInitPadding(Layout, FieldNo, *Field, AllowOverwrite, SizeSoFar,
+                           ZeroFieldSize))
+      return false;
 
     if (ZeroInitPadding &&
         !ApplyZeroInitPadding(Layout, FieldNo, *Field, AllowOverwrite,
