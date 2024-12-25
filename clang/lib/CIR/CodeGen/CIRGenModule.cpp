@@ -849,19 +849,19 @@ void CIRGenModule::replaceGlobal(cir::GlobalOp Old, cir::GlobalOp New) {
                   builder.computeGlobalViewIndicesFromFlatOffset(offset, NewTy, layout, newIndx);
 
                   llvm::SmallVector<mlir::Attribute> attrs;
-                  for (auto ind : newIndx) {                  
+                  for (auto ind : newIndx) {
                     auto a = mlir::IntegerAttr::get(mlir::IntegerType::get(builder.getContext(), 32), ind);
                     attrs.push_back(a);
                   }
                   auto arAttr = mlir::ArrayAttr::get(builder.getContext(), attrs);
-                  auto typ = cir::PointerType::get(builder.getContext(), UCharTy);                  
+                  auto typ = cir::PointerType::get(builder.getContext(), NewTy);
                   auto newView = builder.getGlobalViewAttr(typ, New, arAttr);
                   glob.setInitialValueAttr(newView);
-                }              
+                }
               }
-            }            
-          }           
-        } 
+            }
+          }
+        }
       }
     }
   }

@@ -653,8 +653,7 @@ lowerCirAttrAsValue(mlir::Operation *parentOp, cir::GlobalViewAttr globalAttr,
   auto *sourceSymbol =
       mlir::SymbolTable::lookupSymbolIn(module, globalAttr.getSymbol());
   if (auto llvmSymbol = dyn_cast<mlir::LLVM::GlobalOp>(sourceSymbol)) {
-    auto typ = dyn_cast<PointerType>(globalAttr.getType()).getPointee();
-    sourceType = converter->convertType(typ);
+    sourceType = llvmSymbol.getType();
     symName = llvmSymbol.getSymName();
     sourceAddrSpace = llvmSymbol.getAddrSpace();
   } else if (auto cirSymbol = dyn_cast<cir::GlobalOp>(sourceSymbol)) {
@@ -684,9 +683,8 @@ lowerCirAttrAsValue(mlir::Operation *parentOp, cir::GlobalViewAttr globalAttr,
   if (globalAttr.getIndices()) {
     llvm::SmallVector<mlir::LLVM::GEPArg> indices;
 
-    if (auto stTy = dyn_cast<mlir::LLVM::LLVMStructType>(sourceType)) {
-      if (stTy.isIdentified())
-        indices.push_back(0);
+    if (auto stTy = dyn_cast<mlir::LLVM::LLVMStructType>(sourceType)) {      
+      indices.push_back(0);      
     } else if (isa<mlir::LLVM::LLVMArrayType>(sourceType)) {
       indices.push_back(0);
     }
