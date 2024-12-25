@@ -9,6 +9,8 @@
 // This contains code to emit Constant Expr nodes as LLVM code.
 //
 //===----------------------------------------------------------------------===//
+#include <iostream>
+
 #include "Address.h"
 #include "CIRGenCXXABI.h"
 #include "CIRGenCstEmitter.h"
@@ -43,6 +45,19 @@ using namespace clang::CIRGen;
 namespace {
 class ConstExprEmitter;
 
+mlir::TypedAttr getPadding(CIRGenModule &CGM, CharUnits size) {
+  auto eltTy = CGM.UCharTy;
+  auto arSize = size.getQuantity();
+  auto &bld = CGM.getBuilder();
+  if (size > CharUnits::One()) {
+    SmallVector<mlir::Attribute, 4> elts(arSize, bld.getZeroAttr(eltTy));  
+    return bld.getConstArray(mlir::ArrayAttr::get(bld.getContext(), elts),
+                            bld.getArrayType(eltTy, arSize));
+  } else {
+    return cir::ZeroAttr::get(bld.getContext(), eltTy); 
+  }
+}
+
 static mlir::Attribute
 emitArrayConstant(CIRGenModule &CGM, mlir::Type DesiredType,
                   mlir::Type CommonElementType, unsigned ArrayBound,
@@ -70,12 +85,7 @@ struct ConstantAggregateBuilderUtils {
   }
 
   mlir::TypedAttr getPadding(CharUnits size) const {
-    auto eltTy = CGM.UCharTy;
-    auto arSize = size.getQuantity();
-    auto &bld = CGM.getBuilder();
-    SmallVector<mlir::Attribute, 4> elts(arSize, bld.getZeroAttr(eltTy));
-    return bld.getConstArray(mlir::ArrayAttr::get(bld.getContext(), elts),
-                             bld.getArrayType(eltTy, arSize));
+    return ::getPadding(CGM, size);
   }
 
   mlir::Attribute getZeroes(CharUnits ZeroSize) const {
@@ -151,7 +161,7 @@ static void replace(Container &C, size_t BeginOff, size_t EndOff, Range Vals) {
 }
 
 bool ConstantAggregateBuilder::add(mlir::Attribute A, CharUnits Offset,
-                                   bool AllowOverwrite) {
+                                   bool AllowOverwrite) {  
   // FIXME(cir): migrate most of this file to use mlir::TypedAttr directly.
   mlir::TypedAttr C = mlir::dyn_cast<mlir::TypedAttr>(A);
   assert(C && "expected typed attribute");
@@ -377,7 +387,7 @@ mlir::Attribute ConstantAggregateBuilder::buildFrom(
   CharUnits AlignedSize = Size.alignTo(Align);
 
   bool Packed = false;
-  ArrayRef<mlir::Attribute> UnpackedElems = Elems;
+  ArrayRef<mlir::Attribute> UnpackedElems = Elems;  
 
   llvm::SmallVector<mlir::Attribute, 32> UnpackedElemStorage;
   if (DesiredSize < AlignedSize || DesiredSize.alignTo(Align) != DesiredSize) {
@@ -388,7 +398,7 @@ mlir::Attribute ConstantAggregateBuilder::buildFrom(
     // is ignored if we choose a packed layout.)
     UnpackedElemStorage.assign(UnpackedElems.begin(), UnpackedElems.end());
     UnpackedElemStorage.push_back(Utils.getPadding(DesiredSize - Size));
-    UnpackedElems = UnpackedElemStorage;
+    UnpackedElems = UnpackedElemStorage;    
   }
 
   // If we don't have a natural layout, insert padding as necessary.
@@ -508,6 +518,11 @@ private:
   bool Build(InitListExpr *ILE, bool AllowOverwrite);
   bool Build(const APValue &Val, const RecordDecl *RD, bool IsPrimaryBase,
              const CXXRecordDecl *VTableClass, CharUnits BaseOffset);
+
+  bool DoZeroInitPadding(
+    const ASTRecordLayout &Layout, unsigned FieldNo, const FieldDecl &Field,
+    bool AllowOverwrite, CharUnits &SizeSoFar, bool &ZeroFieldSize);
+
   mlir::Attribute Finalize(QualType Ty);
 };
 
@@ -614,6 +629,10 @@ bool ConstStructBuilder::Build(InitListExpr *ILE, bool AllowOverwrite) {
     if (CXXRD->getNumBases())
       return false;
 
+  const bool ZeroInitPadding = CGM.shouldZeroInitPadding();
+  bool ZeroFieldSize = false;
+  CharUnits SizeSoFar = CharUnits::Zero();
+
   for (FieldDecl *Field : RD->fields()) {
     ++FieldNo;
 
@@ -631,8 +650,15 @@ bool ConstStructBuilder::Build(InitListExpr *ILE, bool AllowOverwrite) {
     Expr *Init = nullptr;
     if (ElementNo < ILE->getNumInits())
       Init = ILE->getInit(ElementNo++);
-    if (Init && isa<NoInitExpr>(Init))
+
+    if (Init && isa<NoInitExpr>(Init)) {      
+      if (ZeroInitPadding &&
+          !DoZeroInitPadding(Layout, FieldNo, *Field, AllowOverwrite, SizeSoFar,
+                             ZeroFieldSize))
+        return false;
+
       continue;
+    }
 
     // Zero-sized fields are not emitted, but their initializers may still
     // prevent emission of this struct as a constant.
@@ -641,6 +667,11 @@ bool ConstStructBuilder::Build(InitListExpr *ILE, bool AllowOverwrite) {
         return false;
       continue;
     }
+    
+    if (ZeroInitPadding &&
+        !DoZeroInitPadding(Layout, FieldNo, *Field, AllowOverwrite, SizeSoFar,
+                           ZeroFieldSize))
+      return false;
 
     // When emitting a DesignatedInitUpdateExpr, a nested InitListExpr
     // represents additional overwriting of our current constant value, and not
@@ -781,6 +812,37 @@ bool ConstStructBuilder::Build(const APValue &Val, const RecordDecl *RD,
     }
   }
 
+  return true;
+}
+
+
+bool ConstStructBuilder::DoZeroInitPadding(
+    const ASTRecordLayout &Layout, unsigned FieldNo, const FieldDecl &Field,
+    bool AllowOverwrite, CharUnits &SizeSoFar, bool &ZeroFieldSize) {
+  
+  uint64_t StartBitOffset = Layout.getFieldOffset(FieldNo);
+  CharUnits StartOffset = CGM.getASTContext().toCharUnitsFromBits(StartBitOffset);
+  if (SizeSoFar < StartOffset) {
+    if (!AppendBytes(SizeSoFar, getPadding(CGM, StartOffset - SizeSoFar),
+                     AllowOverwrite))
+      return false;
+  }
+  
+  if (!Field.isBitField()) {
+    CharUnits FieldSize = CGM.getASTContext().getTypeSizeInChars(Field.getType());
+    SizeSoFar = StartOffset + FieldSize;
+    ZeroFieldSize = FieldSize.isZero();
+  } else {
+    const CIRGenRecordLayout &RL =
+        CGM.getTypes().getCIRGenRecordLayout(Field.getParent());
+    const CIRGenBitFieldInfo &Info = RL.getBitFieldInfo(&Field);
+    uint64_t EndBitOffset = StartBitOffset + Info.Size;
+    SizeSoFar = CGM.getASTContext().toCharUnitsFromBits(EndBitOffset);
+    if (EndBitOffset % CGM.getASTContext().getCharWidth() != 0) {
+      SizeSoFar++;
+    }
+    ZeroFieldSize = Info.Size == 0;
+  }
   return true;
 }
 
