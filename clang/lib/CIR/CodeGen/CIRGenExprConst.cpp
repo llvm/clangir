@@ -50,7 +50,7 @@ mlir::TypedAttr getPadding(CIRGenModule &CGM, CharUnits size) {
   if (size > CharUnits::One()) {
     SmallVector<mlir::Attribute, 4> elts(arSize, bld.getZeroAttr(eltTy));
     return bld.getConstArray(mlir::ArrayAttr::get(bld.getContext(), elts),
-                            bld.getArrayType(eltTy, arSize));
+                             bld.getArrayType(eltTy, arSize));
   } else {
     return cir::ZeroAttr::get(bld.getContext(), eltTy);
   }
@@ -517,9 +517,9 @@ private:
   bool Build(const APValue &Val, const RecordDecl *RD, bool IsPrimaryBase,
              const CXXRecordDecl *VTableClass, CharUnits BaseOffset);
 
-  bool DoZeroInitPadding(
-    const ASTRecordLayout &Layout, unsigned FieldNo, const FieldDecl &Field,
-    bool AllowOverwrite, CharUnits &SizeSoFar, bool &ZeroFieldSize);
+  bool DoZeroInitPadding(const ASTRecordLayout &Layout, unsigned FieldNo,
+                         const FieldDecl &Field, bool AllowOverwrite,
+                         CharUnits &SizeSoFar, bool &ZeroFieldSize);
 
   mlir::Attribute Finalize(QualType Ty);
 };
@@ -806,13 +806,13 @@ bool ConstStructBuilder::Build(const APValue &Val, const RecordDecl *RD,
   return true;
 }
 
-
 bool ConstStructBuilder::DoZeroInitPadding(
     const ASTRecordLayout &Layout, unsigned FieldNo, const FieldDecl &Field,
     bool AllowOverwrite, CharUnits &SizeSoFar, bool &ZeroFieldSize) {
 
   uint64_t StartBitOffset = Layout.getFieldOffset(FieldNo);
-  CharUnits StartOffset = CGM.getASTContext().toCharUnitsFromBits(StartBitOffset);
+  CharUnits StartOffset =
+      CGM.getASTContext().toCharUnitsFromBits(StartBitOffset);
   if (SizeSoFar < StartOffset) {
     if (!AppendBytes(SizeSoFar, getPadding(CGM, StartOffset - SizeSoFar),
                      AllowOverwrite))
@@ -820,7 +820,8 @@ bool ConstStructBuilder::DoZeroInitPadding(
   }
 
   if (!Field.isBitField()) {
-    CharUnits FieldSize = CGM.getASTContext().getTypeSizeInChars(Field.getType());
+    CharUnits FieldSize =
+        CGM.getASTContext().getTypeSizeInChars(Field.getType());
     SizeSoFar = StartOffset + FieldSize;
     ZeroFieldSize = FieldSize.isZero();
   } else {
