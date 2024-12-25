@@ -797,6 +797,40 @@ void CIRGenModule::setNonAliasAttributes(GlobalDecl GD, mlir::Operation *GO) {
   assert(!cir::MissingFeatures::setTargetAttributes());
 }
 
+static GlobalViewAttr createNewGlobalView(CIRGenModule &CGM,
+                                          GlobalViewAttr attr,
+                                          mlir::Type oldTy,
+                                          GlobalOp newGlob) {
+
+  mlir::ArrayAttr indexes = attr.getIndices();
+  StructType oldSTy = dyn_cast<StructType>(oldTy);
+
+  if (!oldSTy || indexes.size() != 1) 
+    llvm_unreachable("NYI");
+
+  CIRGenBuilderTy &bld = CGM.getBuilder();
+  const CIRDataLayout& layout = CGM.getDataLayout();
+  mlir::MLIRContext* ctxt = bld.getContext();
+
+  mlir::IntegerAttr intAttr = dyn_cast<mlir::IntegerAttr>(indexes[0]);
+  int64_t oldInd = intAttr.getValue().getSExtValue();  
+  mlir::Type newTy = newGlob.getSymType();
+
+  llvm::SmallVector<int64_t> newInds;
+  uint64_t offset = oldSTy.getElementOffset(layout.layout, oldInd);
+  bld.computeGlobalViewIndicesFromFlatOffset(offset, newTy, layout, newInds);
+
+  llvm::SmallVector<mlir::Attribute> attrs;
+  for (auto ind : newInds) {
+    auto a = mlir::IntegerAttr::get(mlir::IntegerType::get(ctxt, 32), ind);
+    attrs.push_back(a);
+  }
+
+  mlir::ArrayAttr arAttr = mlir::ArrayAttr::get(ctxt, attrs);
+  cir::PointerType typ = cir::PointerType::get(ctxt, newTy);
+  return bld.getGlobalViewAttr(typ, newGlob, arAttr);
+}
+
 void CIRGenModule::replaceGlobal(cir::GlobalOp Old, cir::GlobalOp New) {
   assert(Old.getSymName() == New.getSymName() && "symbol names must match");
   // If the types does not match, update all references to Old to the new type.
@@ -836,29 +870,9 @@ void CIRGenModule::replaceGlobal(cir::GlobalOp Old, cir::GlobalOp New) {
         } else if (auto glob = dyn_cast<cir::GlobalOp>(UserOp)) {          
           if (auto init = glob.getInitialValue()) {                        
             if (auto attr = mlir::dyn_cast<cir::GlobalViewAttr>(init.value())) {              
-              if (auto ari = attr.getIndices()) {                
-                auto oldSTy = dyn_cast<cir::StructType>(OldTy);
-                if (oldSTy && ari.size() == 1) {
-                  auto intAttr = dyn_cast<mlir::IntegerAttr>(ari[0]);
-                  auto oldInd = intAttr.getValue().getSExtValue();
-                  auto oldSTy = cast<cir::StructType>(OldTy);
-                  auto& layout = getDataLayout();
-                  
-                  llvm::SmallVector<int64_t> newIndx;
-                  auto offset = oldSTy.getElementOffset(layout.layout, oldInd);
-                  builder.computeGlobalViewIndicesFromFlatOffset(offset, NewTy, layout, newIndx);
-
-                  llvm::SmallVector<mlir::Attribute> attrs;
-                  for (auto ind : newIndx) {
-                    auto a = mlir::IntegerAttr::get(mlir::IntegerType::get(builder.getContext(), 32), ind);
-                    attrs.push_back(a);
-                  }
-                  auto arAttr = mlir::ArrayAttr::get(builder.getContext(), attrs);
-                  auto typ = cir::PointerType::get(builder.getContext(), NewTy);
-                  auto newView = builder.getGlobalViewAttr(typ, New, arAttr);
-                  glob.setInitialValueAttr(newView);
-                }
-              }
+              
+                auto view = createNewGlobalView(*this, attr, OldTy, New);
+                glob.setInitialValueAttr(view);
             }
           }
         }
