@@ -9,6 +9,9 @@
 // This file implements lowering of CIR operations to LLVMIR.
 //
 //===----------------------------------------------------------------------===//
+
+#include <iostream>
+
 #include "LowerToLLVM.h"
 #include "LoweringHelpers.h"
 #include "mlir/Conversion/AffineToStandard/AffineToStandard.h"
@@ -650,7 +653,8 @@ lowerCirAttrAsValue(mlir::Operation *parentOp, cir::GlobalViewAttr globalAttr,
   auto *sourceSymbol =
       mlir::SymbolTable::lookupSymbolIn(module, globalAttr.getSymbol());
   if (auto llvmSymbol = dyn_cast<mlir::LLVM::GlobalOp>(sourceSymbol)) {
-    sourceType = llvmSymbol.getType();
+    auto typ = dyn_cast<PointerType>(globalAttr.getType()).getPointee();
+    sourceType = converter->convertType(typ);
     symName = llvmSymbol.getSymName();
     sourceAddrSpace = llvmSymbol.getAddrSpace();
   } else if (auto cirSymbol = dyn_cast<cir::GlobalOp>(sourceSymbol)) {
@@ -695,7 +699,7 @@ lowerCirAttrAsValue(mlir::Operation *parentOp, cir::GlobalViewAttr globalAttr,
     auto resTy = addrOp.getType();
     auto eltTy = converter->convertType(sourceType);
     addrOp = rewriter.create<mlir::LLVM::GEPOp>(loc, resTy, eltTy, addrOp,
-                                                indices, true);
+                                                indices, true);    
   }
 
   if (auto intTy = mlir::dyn_cast<cir::IntType>(globalAttr.getType())) {
