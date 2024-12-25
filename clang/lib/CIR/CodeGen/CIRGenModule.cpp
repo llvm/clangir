@@ -869,10 +869,22 @@ void CIRGenModule::replaceGlobal(cir::GlobalOp Old, cir::GlobalOp New) {
           changeType(GGO);
         } else if (auto glob = dyn_cast<cir::GlobalOp>(UserOp)) {          
           if (auto init = glob.getInitialValue()) {                        
-            if (auto attr = mlir::dyn_cast<cir::GlobalViewAttr>(init.value())) {              
+            if (auto attr = mlir::dyn_cast<cir::GlobalViewAttr>(init.value())) {
               
                 auto view = createNewGlobalView(*this, attr, OldTy, New);
                 glob.setInitialValueAttr(view);
+            } else if (auto attr = mlir::dyn_cast<ConstArrayAttr>(init.value())) {
+            
+              llvm::SmallVector<mlir::Attribute> newArray;
+              auto eltsAttr = dyn_cast<mlir::ArrayAttr>(attr.getElts());
+              for (auto elt : eltsAttr) {
+                if (auto view = dyn_cast<GlobalViewAttr>(elt)) {
+                  newArray.push_back(createNewGlobalView(*this, view, OldTy, New));
+                }
+              }
+              mlir::Attribute ar = mlir::ArrayAttr::get(builder.getContext(), newArray);
+              auto newAr = builder.getConstArray(ar, cast<cir::ArrayType>(attr.getType()));
+              glob.setInitialValueAttr(newAr);
             }
           }
         }
