@@ -977,6 +977,9 @@ public:
         unsigned AlignMask = Layout.getABITypeAlign(Elts[I]).value() - 1;
         Pos = (Pos + AlignMask) & ~AlignMask;
         assert(Offset >= 0);
+        if (StructTy.isUnion())
+          Pos = 0;
+
         if (Offset < Pos + EltSize) {
           Indices.push_back(I);
           SubType = Elts[I];
