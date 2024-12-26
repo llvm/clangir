@@ -146,6 +146,19 @@ public:
     return cir::GlobalViewAttr::get(type, symbol, indices);
   }
 
+  cir::GlobalViewAttr getGlobalViewAttr(cir::PointerType type,
+                                        cir::GlobalOp globalOp,
+                                        llvm::ArrayRef<int64_t> indices) {
+    llvm::SmallVector<mlir::Attribute> attrs;
+    for (auto ind : indices) {
+      auto a = mlir::IntegerAttr::get(mlir::IntegerType::get(getContext(), 64), ind);
+      attrs.push_back(a);
+    }
+
+    mlir::ArrayAttr arAttr = mlir::ArrayAttr::get(getContext(), attrs);
+    return getGlobalViewAttr(type, globalOp, arAttr);
+  }
+
   mlir::Attribute getString(llvm::StringRef str, mlir::Type eltTy,
                             unsigned size = 0) {
     unsigned finalSize = size ? size : str.size();
