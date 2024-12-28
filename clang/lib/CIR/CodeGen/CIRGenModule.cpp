@@ -798,7 +798,7 @@ void CIRGenModule::setNonAliasAttributes(GlobalDecl GD, mlir::Operation *GO) {
 }
 
 // TODO: move it to CIRGenBuilder
-static uint64_t offsetOfIndex(const CIRDataLayout& layout, 
+static uint64_t offsetOfIndex(const CIRDataLayout& layout,
                               mlir::Type t,
                               llvm::ArrayRef<uint64_t> indexes) {
   if (indexes.empty())
@@ -827,20 +827,19 @@ static uint64_t offsetOfIndex(const CIRDataLayout& layout,
 }
 
 
-// handle view on a struct type
+// handle view on the struct type
 static GlobalViewAttr createNewGlobalView(CIRGenModule &CGM,
                                           GlobalOp newGlob,
                                           cir::StructType oldSTy,
-                                          unsigned oldInd) {  
+                                          unsigned oldInd) {
   CIRGenBuilderTy &bld = CGM.getBuilder();
   const CIRDataLayout& layout = CGM.getDataLayout();
   mlir::MLIRContext* ctxt = bld.getContext();
   mlir::Type newTy = newGlob.getSymType();
   cir::PointerType newPtrTy = cir::PointerType::get(ctxt, newTy);  
 
-  llvm::SmallVector<int64_t> newInds;
-  // TODO: use the offsetOfIndex function
-  uint64_t offset = oldSTy.getElementOffset(layout.layout, oldInd); 
+  llvm::SmallVector<int64_t> newInds;  
+  uint64_t offset = oldSTy.getElementOffset(layout.layout, oldInd);
   bld.computeGlobalViewIndicesFromFlatOffset(offset, newTy, layout, newInds);
 
   return bld.getGlobalViewAttr(newPtrTy, newGlob, newInds);  
@@ -858,7 +857,8 @@ static llvm::SmallVector<uint64_t> indexesOfArrayAttr(mlir::ArrayAttr indexes) {
   return inds;
 }
 
-static GlobalViewAttr createNewGlobalView(CIRGenModule &CGM,                                          
+// handle view on the array type
+static GlobalViewAttr createNewGlobalView(CIRGenModule &CGM,
                                           GlobalOp newGlob,
                                           GlobalViewAttr attr,
                                           cir::ArrayType oldTy,
@@ -870,7 +870,7 @@ static GlobalViewAttr createNewGlobalView(CIRGenModule &CGM,
   
   assert(newArTy);
 
-  auto offset = offsetOfIndex(layout, oldTy, indexes);
+  auto offset = offsetOfIndex(layout, oldTy, indexes);  
   llvm::SmallVector<int64_t> newInds;
   bld.computeGlobalViewIndicesFromFlatOffset(offset, newTy, layout, newInds);
 
@@ -884,13 +884,7 @@ static GlobalViewAttr createNewGlobalView(CIRGenModule &CGM,
                                           GlobalOp newGlob,
                                           GlobalViewAttr attr,
                                           mlir::Type oldTy) {
-std::cout << ">> createNewGlobalView " << '\n';
-oldTy.dump();
-  attr.dump();
-  newGlob.dump();   
-                                                
   CIRGenBuilderTy &bld = CGM.getBuilder();
-  const CIRDataLayout& layout = CGM.getDataLayout();
   mlir::MLIRContext* ctxt = bld.getContext();
   mlir::Type newTy = newGlob.getSymType();  
   
@@ -911,13 +905,10 @@ oldTy.dump();
 }
 
 static void setNewInitValue(CIRGenModule &CGM, 
-                            GlobalOp newGlob, 
+                            GlobalOp newGlob,
                             mlir::Type oldTy,
                             GlobalOp user, 
-                            mlir::Attribute oldInit) {
-  std::cout << "old user\n";
-  user.dump();
-
+                            mlir::Attribute oldInit) {  
   auto& builder = CGM.getBuilder();
 
   if (auto oldView = mlir::dyn_cast<cir::GlobalViewAttr>(oldInit)) {
@@ -951,20 +942,7 @@ void CIRGenModule::replaceGlobal(cir::GlobalOp Old, cir::GlobalOp New) {
     llvm_unreachable("NYI");
   }
 
-  if (OldTy != NewTy) {    
-    auto changeType = [&](GetGlobalOp op) {
-      auto UseOpResultValue = op.getAddr();
-      UseOpResultValue.setType(
-          cir::PointerType::get(&getMLIRContext(), NewTy));
-
-      mlir::OpBuilder::InsertionGuard guard(builder);
-      builder.setInsertionPointAfter(op);
-      mlir::Type ptrTy = builder.getPointerTo(OldTy);
-      mlir::Value cast =
-          builder.createBitcast(op->getLoc(), UseOpResultValue, ptrTy);
-      UseOpResultValue.replaceAllUsesExcept(cast, {cast.getDefiningOp()});
-    };
-
+  if (OldTy != NewTy) {
     auto OldSymUses = Old.getSymbolUses(theModule.getOperation());
     if (OldSymUses.has_value()) {
       for (auto Use : *OldSymUses) {
@@ -972,11 +950,22 @@ void CIRGenModule::replaceGlobal(cir::GlobalOp Old, cir::GlobalOp New) {
         assert((isa<cir::GetGlobalOp>(UserOp) || isa<cir::GlobalOp>(UserOp)) &&
                "GlobalOp symbol user is neither a GetGlobalOp nor a GlobalOp");
 
-        if (auto GGO = dyn_cast<cir::GetGlobalOp>(Use.getUser()))
-          changeType(GGO);
-        else if (auto glob = dyn_cast<cir::GlobalOp>(UserOp))
+        if (auto GGO = dyn_cast<cir::GetGlobalOp>(Use.getUser())) {
+          auto UseOpResultValue = GGO.getAddr();
+          UseOpResultValue.setType(
+              cir::PointerType::get(&getMLIRContext(), NewTy));
+
+          mlir::OpBuilder::InsertionGuard guard(builder);
+          builder.setInsertionPointAfter(GGO);
+          mlir::Type ptrTy = builder.getPointerTo(OldTy);
+          mlir::Value cast =
+              builder.createBitcast(GGO->getLoc(), UseOpResultValue, ptrTy);
+          UseOpResultValue.replaceAllUsesExcept(cast, {cast.getDefiningOp()});
+        }
+        else if (auto glob = dyn_cast<cir::GlobalOp>(UserOp)) {
           if (auto init = glob.getInitialValue()) 
-            setNewInitValue(*this, New, OldTy, glob, init.value());        
+            setNewInitValue(*this, New, OldTy, glob, init.value());
+        }
       }
     }
   }

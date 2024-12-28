@@ -1386,24 +1386,11 @@ private:
 
   /// Return GEP-like value offset
   mlir::ArrayAttr getOffset(mlir::Type Ty) {
-    std::cout << "Check get offset for \n";
-    Ty.dump();
-
     auto Offset = Value.getLValueOffset().getQuantity();
-    std::cout << "initial offset is " << Offset << std::endl;
-    Value.dump();
-    
     cir::CIRDataLayout Layout(CGM.getModule());
     SmallVector<int64_t, 3> Idx;
     CGM.getBuilder().computeGlobalViewIndicesFromFlatOffset(Offset, Ty, Layout,
                                                             Idx);
-
-    std::cout << "got indexes ";
-    for (auto i : Idx) 
-      std::cout << i << " " ;
-    std::cout << "\n\n";
-
-
     llvm::SmallVector<mlir::Attribute, 3> Indices;
     for (auto I : Idx) {
       auto Attr = CGM.getBuilder().getI32IntegerAttr(I);
@@ -1426,11 +1413,8 @@ private:
         auto baseTy = mlir::cast<cir::PointerType>(GV.getType()).getPointee();
         auto destTy = CGM.getTypes().convertTypeForMem(DestType);
         assert(!GV.getIndices() && "Global view is already indexed");
-        std::cout << "Create globalview 1\n";
-        auto x = cir::GlobalViewAttr::get(destTy, GV.getSymbol(),
+        return cir::GlobalViewAttr::get(destTy, GV.getSymbol(),
                                         getOffset(baseTy));
-        x.dump();
-        return x;
       }
       llvm_unreachable("Unsupported attribute type to offset");
     }
