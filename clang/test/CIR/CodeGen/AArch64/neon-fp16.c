@@ -413,10 +413,11 @@
 // }
 
 // CIR-LABEL: vaddh_f16
-// CIR: [[v3:%.*]] = cir.binop(add, [[v1:%.*]], [[v2:%.*]]) : !cir.f16
+// CIR: {{%.*}} = cir.binop(add, {{%.*}}, {{%.*}}) : !cir.f16
 //
-// LLVM-LABEL: test_vaddh_f16
-// LLVM:  [[ADD:%.*]] = fadd half [[A:%.*]], [[B:%.*]]
+// LLVM-LABEL: test_vaddh_f16 
+// LLVM-SAME: (half [[a:%.]], half [[b:%.]])
+// LLVM:  [[ADD:%.*]] = fadd half [[a]], [[b]]
 // LLVM:  ret half [[ADD]]
 float16_t test_vaddh_f16(float16_t a, float16_t b) {
   return vaddh_f16(a, b);
@@ -590,10 +591,11 @@ float16_t test_vaddh_f16(float16_t a, float16_t b) {
 // }
 
 // CIR-LABEL: vdivh_f16
-// CIR: [[v3:%.*]] = cir.binop(div, [[v1:%.*]], [[v2:%.*]]) : !cir.f16
+// CIR: {{%.*}} = cir.binop(div, {{%.*}}, {{%.*}}) : !cir.f16
 //
 // LLVM-LABEL: test_vdivh_f16
-// LLVM:  [[DIV:%.*]] = fdiv half [[A:%.*]], [[B:%.*]]
+// LLVM-SAME: (half [[a:%.]], half [[b:%.]])
+// LLVM:  [[DIV:%.*]] = fdiv half [[a]], [[b]]
 // LLVM:  ret half [[DIV]]
 float16_t test_vdivh_f16(float16_t a, float16_t b) {
   return vdivh_f16(a, b);
@@ -628,10 +630,11 @@ float16_t test_vdivh_f16(float16_t a, float16_t b) {
 // }
 
 // CIR-LABEL: vmulh_f16
-// CIR: [[v3:%.*]] = cir.binop(mul, [[v1:%.*]], [[v2:%.*]]) : !cir.f16
+// CIR: {{%.*}} = cir.binop(mul, {{%.*}}, {{%.*}}) : !cir.f16
 //
 // LLVM-LABEL: test_vmulh_f16
-// LLVM:  [[MUL:%.*]] = fmul half [[A:%.*]], [[B:%.*]]
+// LLVM-SAME: (half [[a:%.]], half [[b:%.]])
+// LLVM:  [[MUL:%.*]] = fmul half [[a]], [[b]]
 // LLVM:  ret half [[MUL]]
 float16_t test_vmulh_f16(float16_t a, float16_t b) {
   return vmulh_f16(a, b);
@@ -659,10 +662,11 @@ float16_t test_vmulh_f16(float16_t a, float16_t b) {
 // }
 
 // CIR-LABEL: vsubh_f16
-// CIR: [[v3:%.*]] = cir.binop(sub, [[v1:%.*]], [[v2:%.*]]) : !cir.f16
+// CIR: {{%.*}} = cir.binop(sub, {{%.*}}, {{%.*}}) : !cir.f16
 //
 // LLVM-LABEL: test_vsubh_f16
-// LLVM:  [[SUB:%.*]] = fsub half [[A:%.*]], [[B:%.*]]
+// LLVM-SAME: (half [[a:%.]], half [[b:%.]])
+// LLVM:  [[SUB:%.*]] = fsub half [[a]], [[b]]
 // LLVM:  ret half [[SUB]]
 float16_t test_vsubh_f16(float16_t a, float16_t b) {
   return vsubh_f16(a, b);
