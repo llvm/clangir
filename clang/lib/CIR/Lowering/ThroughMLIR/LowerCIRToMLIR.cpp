@@ -1364,6 +1364,15 @@ static mlir::TypeConverter prepareTypeConverter() {
   converter.addConversion([&](cir::LongDoubleType type) -> mlir::Type {
     return converter.convertType(type.getUnderlying());
   });
+  converter.addConversion([&](cir::FP128Type type) -> mlir::Type {
+    return mlir::FloatType::getF128(type.getContext());
+  });
+  converter.addConversion([&](cir::FP16Type type) -> mlir::Type {
+    return mlir::FloatType::getF16(type.getContext());
+  });
+  converter.addConversion([&](cir::BF16Type type) -> mlir::Type {
+    return mlir::FloatType::getBF16(type.getContext());
+  });
   converter.addConversion([&](cir::ArrayType type) -> mlir::Type {
     SmallVector<int64_t> shape;
     mlir::Type curType = type;
