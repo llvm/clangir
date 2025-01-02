@@ -9899,10 +9899,11 @@ int64_t test_vsubd_s64(int64_t a, int64_t b) {
   return vsubd_s64(a, b);
 
   // CIR-LABEL: vsubd_s64
-  // CIR: [[v3:%.*]] = cir.binop(sub, [[v1:%.*]], [[v2:%.*]]) : !s64i
+  // CIR: {{%.*}} = cir.binop(sub, {{%.*}}, {{%.*}}) : !s64i
 
-  // LLVM-LABEL: @test_vsubd_s64(
-  // LLVM:   [[VSUBD_I:%.*]]  = sub i64 [[a:%.*]], [[b:%.*]]
+  // LLVM-LABEL: @test_vsubd_s64
+  // LLVM-SAME: (i64 [[a:%.]], i64 [[b:%.]])
+  // LLVM:   [[VSUBD_I:%.*]]  = sub i64 [[a]], [[b]]
   // LLVM:   ret i64 [[VSUBD_I]]
 }
 
@@ -9910,10 +9911,11 @@ uint64_t test_vsubd_u64(uint64_t a, uint64_t b) {
   return vsubd_u64(a, b);
 
   // CIR-LABEL: vsubd_u64
-  // CIR: [[v3:%.*]] = cir.binop(sub, [[v1:%.*]], [[v2:%.*]]) : !u64i
+  // CIR: {{%.*}} = cir.binop(sub, {{%.*}}, {{%.*}}) : !u64i
 
-  // LLVM-LABEL: @test_vsubd_u64(
-  // LLVM:   [[VSUBD_I:%.*]]  = sub i64 [[a:%.*]], [[b:%.*]]
+  // LLVM-LABEL: @test_vsubd_u64
+  // LLVM-SAME: (i64 [[a:%.]], i64 [[b:%.]])
+  // LLVM:   [[VSUBD_I:%.*]]  = sub i64 [[a]], [[b]]
   // LLVM:   ret i64 [[VSUBD_I]]
 }
 
