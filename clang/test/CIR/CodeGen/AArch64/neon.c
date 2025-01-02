@@ -9885,10 +9885,11 @@ int64_t test_vaddd_s64(int64_t a, int64_t b) {
   return vaddd_s64(a, b);
 
   // CIR-LABEL: vaddd_s64
-  // CIR: [[v3:%.*]] = cir.binop(add, [[v1:%.*]], [[v2:%.*]]) : !s64i
+  // CIR: {{%.*}} = cir.binop(add, {{%.*}}, {{%.*}}) : !s64i
 
-  // LLVM-LABEL: @test_vaddd_s64(
-  // LLVM:   [[VADDD_I:%.*]]  = add i64 [[a:%.*]], [[b:%.*]]
+  // LLVM-LABEL: @test_vaddd_s64
+  // LLVM-SAME: (i64 [[a:%.]], i64 [[b:%.]])
+  // LLVM:   [[VADDD_I:%.*]]  = add i64 [[a]], [[b]]
   // LLVM:   ret i64 [[VADDD_I]]
 }
 
@@ -9896,10 +9897,11 @@ uint64_t test_vaddd_u64(uint64_t a, uint64_t b) {
    return vaddd_u64(a, b);
 
   // CIR-LABEL: vaddd_u64
-  // CIR: [[v3:%.*]] = cir.binop(add, [[v1:%.*]], [[v2:%.*]]) : !u64i
+  // CIR: {{%.*}} = cir.binop(add, {{%.*}}, {{%.*}}) : !u64i
 
-  // LLVM-LABEL: @test_vaddd_u64(
-  // LLVM:   [[VADDD_I:%.*]]  = add i64 [[a:%.*]], [[b:%.*]]
+  // LLVM-LABEL: @test_vaddd_u64
+  // LLVM-SAME: (i64 [[a:%.]], i64 [[b:%.]])
+  // LLVM:   [[VADDD_I:%.*]]  = add i64 [[a]], [[b]]
   // LLVM:   ret i64 [[VADDD_I]]
 }
 
