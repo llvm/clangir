@@ -33,6 +33,7 @@
 #include "llvm/ADT/TypeSwitch.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
+#include <cassert>
 #include <optional>
 
 using cir::MissingFeatures;
@@ -957,11 +958,22 @@ void printFuncTypeArgs(mlir::AsmPrinter &p, mlir::ArrayRef<mlir::Type> params,
   p << ')';
 }
 
-llvm::ArrayRef<mlir::Type> FuncType::getReturnTypes() const {
-  return static_cast<detail::FuncTypeStorage *>(getImpl())->returnType;
+// Return the actual return type or an explicit !cir.void if the function does
+// not return anything
+mlir::Type FuncType::getReturnType() const {
+  if (isVoid())
+    return cir::VoidType::get(getContext());
+  return static_cast<detail::FuncTypeStorage *>(getImpl())->returnTypes.front();
 }
 
-bool FuncType::isVoid() const { return mlir::isa<VoidType>(getReturnType()); }
+bool FuncType::isVoid() const {
+  auto rt = static_cast<detail::FuncTypeStorage *>(getImpl())->returnTypes;
+  assert(rt.empty() ||
+         !mlir::isa<cir::VoidType>(rt.front()) &&
+             "The return type for a function returning void should be empty "
+             "instead of a real !cir.void");
+  return rt.empty();
+}
 
 //===----------------------------------------------------------------------===//
 // MethodType Definitions

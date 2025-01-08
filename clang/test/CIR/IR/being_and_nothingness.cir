@@ -1,0 +1,14 @@
+// RUN: cir-opt %s | FileCheck %s
+// Exercise different ways to encode a function returning void
+!s32i = !cir.int<s, 32>
+!fnptr3 = !cir.ptr<!cir.func<(!s32i)>>
+module {
+  cir.func @ind3(%fnptr: !fnptr3, %a : !s32i) {
+    // CHECK:  cir.func @ind3(%arg0: !cir.ptr<!cir.func<(!s32i)>>, %arg1: !s32i) {
+    cir.return
+  }
+  cir.func @f3() {
+    // CHECK:  cir.func @f3() {
+    cir.return
+  }
+}
