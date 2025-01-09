@@ -661,11 +661,6 @@ bool ConstStructBuilder::Build(InitListExpr *ILE, bool AllowOverwrite) {
     }
 
     if (ZeroInitPadding &&
-        !DoZeroInitPadding(Layout, FieldNo, *Field, AllowOverwrite, SizeSoFar,
-                           ZeroFieldSize))
-      return false;
-
-    if (ZeroInitPadding &&
         !ApplyZeroInitPadding(Layout, FieldNo, *Field, AllowOverwrite,
                               SizeSoFar, ZeroFieldSize))
       return false;
