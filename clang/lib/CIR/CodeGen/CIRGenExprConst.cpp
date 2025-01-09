@@ -43,7 +43,7 @@ using namespace clang::CIRGen;
 namespace {
 class ConstExprEmitter;
 
-mlir::TypedAttr getPadding(CIRGenModule &CGM, CharUnits size) {
+static mlir::TypedAttr computePadding(CIRGenModule &CGM, CharUnits size) {
   auto eltTy = CGM.UCharTy;
   auto arSize = size.getQuantity();
   auto &bld = CGM.getBuilder();
@@ -83,7 +83,7 @@ struct ConstantAggregateBuilderUtils {
   }
 
   mlir::TypedAttr getPadding(CharUnits size) const {
-    return ::getPadding(CGM, size);
+    return computePadding(CGM, size);
   }
 
   mlir::Attribute getZeroes(CharUnits ZeroSize) const {
@@ -517,7 +517,7 @@ private:
   bool Build(const APValue &Val, const RecordDecl *RD, bool IsPrimaryBase,
              const CXXRecordDecl *VTableClass, CharUnits BaseOffset);
 
-  bool DoZeroInitPadding(const ASTRecordLayout &Layout, unsigned FieldNo,
+  bool ApplyZeroInitPadding(const ASTRecordLayout &Layout, unsigned FieldNo,
                          const FieldDecl &Field, bool AllowOverwrite,
                          CharUnits &SizeSoFar, bool &ZeroFieldSize);
 
@@ -660,7 +660,7 @@ bool ConstStructBuilder::Build(InitListExpr *ILE, bool AllowOverwrite) {
     }
 
     if (ZeroInitPadding &&
-        !DoZeroInitPadding(Layout, FieldNo, *Field, AllowOverwrite, SizeSoFar,
+        !ApplyZeroInitPadding(Layout, FieldNo, *Field, AllowOverwrite, SizeSoFar,
                            ZeroFieldSize))
       return false;
 
@@ -806,7 +806,7 @@ bool ConstStructBuilder::Build(const APValue &Val, const RecordDecl *RD,
   return true;
 }
 
-bool ConstStructBuilder::DoZeroInitPadding(
+bool ConstStructBuilder::ApplyZeroInitPadding(
     const ASTRecordLayout &Layout, unsigned FieldNo, const FieldDecl &Field,
     bool AllowOverwrite, CharUnits &SizeSoFar, bool &ZeroFieldSize) {
 
@@ -814,7 +814,7 @@ bool ConstStructBuilder::DoZeroInitPadding(
   CharUnits StartOffset =
       CGM.getASTContext().toCharUnitsFromBits(StartBitOffset);
   if (SizeSoFar < StartOffset) {
-    if (!AppendBytes(SizeSoFar, getPadding(CGM, StartOffset - SizeSoFar),
+    if (!AppendBytes(SizeSoFar, computePadding(CGM, StartOffset - SizeSoFar),
                      AllowOverwrite))
       return false;
   }
