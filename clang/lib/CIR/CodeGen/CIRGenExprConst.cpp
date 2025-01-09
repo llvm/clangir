@@ -518,8 +518,8 @@ private:
              const CXXRecordDecl *VTableClass, CharUnits BaseOffset);
 
   bool ApplyZeroInitPadding(const ASTRecordLayout &Layout, unsigned FieldNo,
-                         const FieldDecl &Field, bool AllowOverwrite,
-                         CharUnits &SizeSoFar, bool &ZeroFieldSize);
+                            const FieldDecl &Field, bool AllowOverwrite,
+                            CharUnits &SizeSoFar, bool &ZeroFieldSize);
 
   mlir::Attribute Finalize(QualType Ty);
 };
@@ -660,8 +660,8 @@ bool ConstStructBuilder::Build(InitListExpr *ILE, bool AllowOverwrite) {
     }
 
     if (ZeroInitPadding &&
-        !ApplyZeroInitPadding(Layout, FieldNo, *Field, AllowOverwrite, SizeSoFar,
-                           ZeroFieldSize))
+        !ApplyZeroInitPadding(Layout, FieldNo, *Field, AllowOverwrite,
+                              SizeSoFar, ZeroFieldSize))
       return false;
 
     // When emitting a DesignatedInitUpdateExpr, a nested InitListExpr
