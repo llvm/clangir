@@ -645,7 +645,7 @@ static mlir::Value
 lowerCirAttrAsValue(mlir::Operation *parentOp, cir::GlobalViewAttr globalAttr,
                     mlir::ConversionPatternRewriter &rewriter,
                     const mlir::TypeConverter *converter,
-                    mlir::DataLayout const &dataLayout) {
+                    mlir::DataLayout const &dataLayout) {  
   auto module = parentOp->getParentOfType<mlir::ModuleOp>();
   mlir::Type sourceType;
   unsigned sourceAddrSpace = 0;
@@ -683,13 +683,9 @@ lowerCirAttrAsValue(mlir::Operation *parentOp, cir::GlobalViewAttr globalAttr,
   if (globalAttr.getIndices()) {
     llvm::SmallVector<mlir::LLVM::GEPArg> indices;
 
-    if (auto stTy = dyn_cast<mlir::LLVM::LLVMStructType>(sourceType)) {            
-      //if (stTy.isIdentified())
-        indices.push_back(0);      
-    } else if (isa<mlir::LLVM::LLVMArrayType>(sourceType)) {
-      indices.push_back(0);
-    }
-
+    if (isa<mlir::LLVM::LLVMArrayType, mlir::LLVM::LLVMStructType>(sourceType))
+      indices.push_back(0);    
+      
     for (auto idx : globalAttr.getIndices()) {
       auto intAttr = dyn_cast<mlir::IntegerAttr>(idx);
       assert(intAttr && "index must be integers");
@@ -698,7 +694,7 @@ lowerCirAttrAsValue(mlir::Operation *parentOp, cir::GlobalViewAttr globalAttr,
     auto resTy = addrOp.getType();
     auto eltTy = converter->convertType(sourceType);
     addrOp = rewriter.create<mlir::LLVM::GEPOp>(loc, resTy, eltTy, addrOp,
-                                                indices, true);    
+                                                indices, true);
   }
 
   if (auto intTy = mlir::dyn_cast<cir::IntType>(globalAttr.getType())) {

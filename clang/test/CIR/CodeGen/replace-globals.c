@@ -1,6 +1,8 @@
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-cir %s -o %t.cir
 // RUN: FileCheck --input-file=%t.cir %s
 
+//#include <stdio.h>
+
 typedef struct {
    int f0 : 24;
    int f1;
@@ -13,21 +15,26 @@ static int **g3 = &g2[1];
 static int ***g4 = &g3;
 static int ****g5 = &g4;
 
-static S g6[2] = {{2799, 9, 123}, {2799, 9, 123}};
-static int *g7[2] = {&g6[0].f2, &g6[1].f2};
-static int **g8 = &g7[1];
+ static S g6[2] = {{2799, 9, 123}, {2799, 9, 123}};
+ static int *g7[2] = {&g6[0].f2, &g6[1].f2};
+ static int **g8 = &g7[1];
 
-#include <stdio.h>
+
+// void check() {
+//   printf("check: %d\n",****g5);
+// }
+
 
 int use() {
     int a = **g3;
     int b = ***g4; 
     int c = ****g5; 
-    int d = **g8;
+    int d = **g8;    
 
-    printf("%d %d %d %d\n", a, b, c, d);
+    // printf("a: %d, b: %d, c: %d, d: %d\n", a,b,c,d);
+    //check();
 
-    return 0;
+    return a + b + c + d;
 }
 
 
