@@ -820,7 +820,7 @@ void CIRGenModule::replaceGlobal(cir::GlobalOp Old, cir::GlobalOp New) {
           mlir::Type ptrTy = builder.getPointerTo(OldTy);
           mlir::Value cast =
               builder.createBitcast(GGO->getLoc(), UseOpResultValue, ptrTy);
-          UseOpResultValue.replaceAllUsesExcept(cast, {cast.getDefiningOp()});
+          UseOpResultValue.replaceAllUsesExcept(cast, cast.getDefiningOp());
         }
       }
     }
@@ -3995,7 +3995,7 @@ cir::TBAAAttr CIRGenModule::getTBAABaseTypeInfo(QualType QTy) {
   return tbaa->getBaseTypeInfo(QTy);
 }
 
-cir::TBAAAttr CIRGenModule::getTBAAAccessTagInfo(TBAAAccessInfo tbaaInfo) {
+mlir::ArrayAttr CIRGenModule::getTBAAAccessTagInfo(TBAAAccessInfo tbaaInfo) {
   if (!tbaa) {
     return nullptr;
   }

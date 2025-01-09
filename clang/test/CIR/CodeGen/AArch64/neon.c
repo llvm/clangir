@@ -9881,33 +9881,53 @@ poly16x8_t test_vmull_p8(poly8x8_t a, poly8x8_t b) {
 //   return vmull_high_p8(a, b);
 // }
 
-// NYI-LABEL: @test_vaddd_s64(
-// NYI:   [[VADDD_I:%.*]] = add i64 %a, %b
-// NYI:   ret i64 [[VADDD_I]]
-// int64_t test_vaddd_s64(int64_t a, int64_t b) {
-//   return vaddd_s64(a, b);
-// }
+int64_t test_vaddd_s64(int64_t a, int64_t b) {
+  return vaddd_s64(a, b);
 
-// NYI-LABEL: @test_vaddd_u64(
-// NYI:   [[VADDD_I:%.*]] = add i64 %a, %b
-// NYI:   ret i64 [[VADDD_I]]
-// uint64_t test_vaddd_u64(uint64_t a, uint64_t b) {
-//   return vaddd_u64(a, b);
-// }
+  // CIR-LABEL: vaddd_s64
+  // CIR: {{%.*}} = cir.binop(add, {{%.*}}, {{%.*}}) : !s64i
 
-// NYI-LABEL: @test_vsubd_s64(
-// NYI:   [[VSUBD_I:%.*]] = sub i64 %a, %b
-// NYI:   ret i64 [[VSUBD_I]]
-// int64_t test_vsubd_s64(int64_t a, int64_t b) {
-//   return vsubd_s64(a, b);
-// }
+  // LLVM-LABEL: @test_vaddd_s64
+  // LLVM-SAME: (i64 [[a:%.]], i64 [[b:%.]])
+  // LLVM:   [[VADDD_I:%.*]]  = add i64 [[a]], [[b]]
+  // LLVM:   ret i64 [[VADDD_I]]
+}
 
-// NYI-LABEL: @test_vsubd_u64(
-// NYI:   [[VSUBD_I:%.*]] = sub i64 %a, %b
-// NYI:   ret i64 [[VSUBD_I]]
-// uint64_t test_vsubd_u64(uint64_t a, uint64_t b) {
-//   return vsubd_u64(a, b);
-// }
+uint64_t test_vaddd_u64(uint64_t a, uint64_t b) {
+   return vaddd_u64(a, b);
+
+  // CIR-LABEL: vaddd_u64
+  // CIR: {{%.*}} = cir.binop(add, {{%.*}}, {{%.*}}) : !u64i
+
+  // LLVM-LABEL: @test_vaddd_u64
+  // LLVM-SAME: (i64 [[a:%.]], i64 [[b:%.]])
+  // LLVM:   [[VADDD_I:%.*]]  = add i64 [[a]], [[b]]
+  // LLVM:   ret i64 [[VADDD_I]]
+}
+
+int64_t test_vsubd_s64(int64_t a, int64_t b) {
+  return vsubd_s64(a, b);
+
+  // CIR-LABEL: vsubd_s64
+  // CIR: {{%.*}} = cir.binop(sub, {{%.*}}, {{%.*}}) : !s64i
+
+  // LLVM-LABEL: @test_vsubd_s64
+  // LLVM-SAME: (i64 [[a:%.]], i64 [[b:%.]])
+  // LLVM:   [[VSUBD_I:%.*]]  = sub i64 [[a]], [[b]]
+  // LLVM:   ret i64 [[VSUBD_I]]
+}
+
+uint64_t test_vsubd_u64(uint64_t a, uint64_t b) {
+  return vsubd_u64(a, b);
+
+  // CIR-LABEL: vsubd_u64
+  // CIR: {{%.*}} = cir.binop(sub, {{%.*}}, {{%.*}}) : !u64i
+
+  // LLVM-LABEL: @test_vsubd_u64
+  // LLVM-SAME: (i64 [[a:%.]], i64 [[b:%.]])
+  // LLVM:   [[VSUBD_I:%.*]]  = sub i64 [[a]], [[b]]
+  // LLVM:   ret i64 [[VSUBD_I]]
+}
 
 // NYI-LABEL: @test_vqaddb_s8(
 // NYI:   [[TMP0:%.*]] = insertelement <8 x i8> poison, i8 %a, i64 0
@@ -15058,12 +15078,16 @@ int16_t test_vqmovns_s32(int32_t a) {
 //   return (uint64_t)vcaltd_f64(a, b);
 // }
 
-// NYI-LABEL: @test_vshrd_n_s64(
-// NYI:   [[SHRD_N:%.*]] = ashr i64 %a, 1
-// NYI:   ret i64 [[SHRD_N]]
-// int64_t test_vshrd_n_s64(int64_t a) {
-//   return (int64_t)vshrd_n_s64(a, 1);
-// }
+int64_t test_vshrd_n_s64(int64_t a) {
+  return (int64_t)vshrd_n_s64(a, 1);
+
+  // CIR-LABEL: vshrd_n_s64
+  // CIR: {{%.*}} = cir.shift(right, {{%.*}} : !s64i, {{%.*}} : !s64i) -> !s64i
+
+  // LLVM-LABEL: @test_vshrd_n_s64(
+  // LLVM:   [[SHRD_N:%.*]] = ashr i64 %0, 1
+  // LLVM:   ret i64 [[SHRD_N]]
+}
 
 // NYI-LABEL: @test_vshrd_n_u64(
 // NYI:   ret i64 0
@@ -15212,12 +15236,16 @@ uint64x1_t test_vrsra_n_u64(uint64x1_t a, uint64x1_t b) {
   // LLVM:   ret <1 x i64> [[TMP3]]
 }
 
-// NYI-LABEL: @test_vshld_n_s64(
-// NYI:   [[SHLD_N:%.*]] = shl i64 %a, 1
-// NYI:   ret i64 [[SHLD_N]]
-// int64_t test_vshld_n_s64(int64_t a) {
-//   return (int64_t)vshld_n_s64(a, 1);
-// }
+int64_t test_vshld_n_s64(int64_t a) {
+  return (int64_t)vshld_n_s64(a, 1);
+
+  // CIR-LABEL: vshld_n_s64
+  // CIR: {{%.*}} = cir.shift(left, {{%.*}} : !s64i, {{%.*}} : !s64i) -> !s64i
+
+  // LLVM-LABEL: @test_vshld_n_s64(
+  // LLVM:   [[SHLD_N:%.*]] = shl i64 %0, 1
+  // LLVM:   ret i64 [[SHLD_N]]
+}
 
 // NYI-LABEL: @test_vshl_n_s64(
 // NYI:   [[TMP0:%.*]] = bitcast <1 x i64> %a to <8 x i8>
@@ -15228,12 +15256,16 @@ uint64x1_t test_vrsra_n_u64(uint64x1_t a, uint64x1_t b) {
 //   return vshl_n_s64(a, 1);
 // }
 
-// NYI-LABEL: @test_vshld_n_u64(
-// NYI:   [[SHLD_N:%.*]] = shl i64 %a, 63
-// NYI:   ret i64 [[SHLD_N]]
-// uint64_t test_vshld_n_u64(uint64_t a) {
-//   return (uint64_t)vshld_n_u64(a, 63);
-// }
+uint64_t test_vshld_n_u64(uint64_t a) {
+  return (uint64_t)vshld_n_u64(a, 63);
+
+  // CIR-LABEL: vshld_n_u64
+  // CIR: {{%.*}} = cir.shift(left, {{%.*}} : !u64i, {{%.*}} : !u64i) -> !u64i
+
+  // LLVM-LABEL: @test_vshld_n_u64(
+  // LLVM:   [[SHLD_N:%.*]] = shl i64 %0, 63
+  // LLVM:   ret i64 [[SHLD_N]]
+}
 
 // NYI-LABEL: @test_vshl_n_u64(
 // NYI:   [[TMP0:%.*]] = bitcast <1 x i64> %a to <8 x i8>

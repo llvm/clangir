@@ -675,6 +675,14 @@ public:
     assert(!cir::MissingFeatures::foldBinOpFMF());
     return create<cir::BinOp>(lhs.getLoc(), cir::BinOpKind::Mul, lhs, rhs);
   }
+  mlir::Value createFDiv(mlir::Value lhs, mlir::Value rhs) {
+    assert(!cir::MissingFeatures::metaDataNode());
+    if (IsFPConstrained)
+      llvm_unreachable("Constrained FP NYI");
+
+    assert(!cir::MissingFeatures::foldBinOpFMF());
+    return create<cir::BinOp>(lhs.getLoc(), cir::BinOpKind::Div, lhs, rhs);
+  }
 
   mlir::Value createDynCast(mlir::Location loc, mlir::Value src,
                             cir::PointerType destType, bool isRefCast,
@@ -839,7 +847,7 @@ public:
     return create<cir::LoadOp>(
         loc, addr.getElementType(), addr.getPointer(), /*isDeref=*/false,
         /*is_volatile=*/isVolatile, /*alignment=*/mlir::IntegerAttr{},
-        /*mem_order=*/cir::MemOrderAttr{}, /*tbaa=*/cir::TBAAAttr{});
+        /*mem_order=*/cir::MemOrderAttr{}, /*tbaa=*/mlir::ArrayAttr{});
   }
 
   mlir::Value createAlignedLoad(mlir::Location loc, mlir::Type ty,

@@ -2351,6 +2351,26 @@ emitCommonNeonCallPattern0(CIRGenFunction &cgf, llvm::StringRef intrincsName,
   return builder.createBitcast(res, resultType);
 }
 
+/// The function `emitCommonNeonVecAcrossCall` implements a common way
+/// to implement neon intrinsic which has the following pattern:
+///  1. There is only one argument which is of vector type
+///  2. The result of the neon intrinsic is the element type of the input.
+/// This type of intrinsic usually is for across operations of the input vector.
+
+static mlir::Value emitCommonNeonVecAcrossCall(CIRGenFunction &cgf,
+                                               llvm::StringRef intrincsName,
+                                               mlir::Type eltTy,
+                                               unsigned vecLen,
+                                               const clang::CallExpr *e) {
+  CIRGenBuilderTy &builder = cgf.getBuilder();
+  mlir::Value op = cgf.emitScalarExpr(e->getArg(0));
+  cir::VectorType vTy =
+      cir::VectorType::get(&cgf.getMLIRContext(), eltTy, vecLen);
+  llvm::SmallVector<mlir::Value, 1> args{op};
+  return emitNeonCall(builder, {vTy}, args, intrincsName, eltTy,
+                      cgf.getLoc(e->getExprLoc()));
+}
+
 mlir::Value CIRGenFunction::emitCommonNeonBuiltinExpr(
     unsigned builtinID, unsigned llvmIntrinsic, unsigned altLLVMIntrinsic,
     const char *nameHint, unsigned modifier, const CallExpr *e,
@@ -3687,13 +3707,21 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
     // at the moment, the implementation should be the same as above
     // vset_lane or vsetq_lane intrinsics
     llvm_unreachable("NEON::BI__builtin_neon_vsetq_lane_bf16 NYI");
-  case NEON::BI__builtin_neon_vset_lane_f64:
-    // The vector type needs a cast for the v1f64 variant.
-    llvm_unreachable("NEON::BI__builtin_neon_vset_lane_f64 NYI");
-  case NEON::BI__builtin_neon_vsetq_lane_f64:
-    // The vector type needs a cast for the v2f64 variant.
-    llvm_unreachable("NEON::BI__builtin_neon_vsetq_lane_f64 NYI");
 
+  case NEON::BI__builtin_neon_vset_lane_f64: {
+    Ops.push_back(emitScalarExpr(E->getArg(2)));
+    Ops[1] = builder.createBitcast(
+        Ops[1], cir::VectorType::get(&getMLIRContext(), DoubleTy, 1));
+    return builder.create<cir::VecInsertOp>(getLoc(E->getExprLoc()), Ops[1],
+                                            Ops[0], Ops[2]);
+  }
+  case NEON::BI__builtin_neon_vsetq_lane_f64: {
+    Ops.push_back(emitScalarExpr(E->getArg(2)));
+    Ops[1] = builder.createBitcast(
+        Ops[1], cir::VectorType::get(&getMLIRContext(), DoubleTy, 2));
+    return builder.create<cir::VecInsertOp>(getLoc(E->getExprLoc()), Ops[1],
+                                            Ops[0], Ops[2]);
+  }
   case NEON::BI__builtin_neon_vget_lane_i8:
   case NEON::BI__builtin_neon_vdupb_lane_i8:
     Ops[0] = builder.createBitcast(
@@ -3766,14 +3794,22 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
         Ops[0], cir::VectorType::get(&getMLIRContext(), DoubleTy, 2));
     return builder.create<cir::VecExtractOp>(getLoc(E->getExprLoc()), Ops[0],
                                              emitScalarExpr(E->getArg(1)));
-  case NEON::BI__builtin_neon_vaddh_f16:
-    llvm_unreachable("NEON::BI__builtin_neon_vaddh_f16 NYI");
-  case NEON::BI__builtin_neon_vsubh_f16:
-    llvm_unreachable("NEON::BI__builtin_neon_vsubh_f16 NYI");
-  case NEON::BI__builtin_neon_vmulh_f16:
-    llvm_unreachable("NEON::BI__builtin_neon_vmulh_f16 NYI");
-  case NEON::BI__builtin_neon_vdivh_f16:
-    llvm_unreachable("NEON::BI__builtin_neon_vdivh_f16 NYI");
+  case NEON::BI__builtin_neon_vaddh_f16: {
+    Ops.push_back(emitScalarExpr(E->getArg(1)));
+    return builder.createFAdd(Ops[0], Ops[1]);
+  }
+  case NEON::BI__builtin_neon_vsubh_f16: {
+    Ops.push_back(emitScalarExpr(E->getArg(1)));
+    return builder.createFSub(Ops[0], Ops[1]);
+  }
+  case NEON::BI__builtin_neon_vmulh_f16: {
+    Ops.push_back(emitScalarExpr(E->getArg(1)));
+    return builder.createFMul(Ops[0], Ops[1]);
+  }
+  case NEON::BI__builtin_neon_vdivh_f16: {
+    Ops.push_back(emitScalarExpr(E->getArg(1)));
+    return builder.createFDiv(Ops[0], Ops[1]);
+  }
   case NEON::BI__builtin_neon_vfmah_f16:
     // NEON intrinsic puts accumulator first, unlike the LLVM fma.
     llvm_unreachable("NEON::BI__builtin_neon_vfmah_f16 NYI");
@@ -3782,10 +3818,10 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   }
   case NEON::BI__builtin_neon_vaddd_s64:
   case NEON::BI__builtin_neon_vaddd_u64:
-    llvm_unreachable("NEON::BI__builtin_neon_vaddd_u64 NYI");
+    return builder.createAdd(Ops[0], emitScalarExpr(E->getArg(1)));
   case NEON::BI__builtin_neon_vsubd_s64:
   case NEON::BI__builtin_neon_vsubd_u64:
-    llvm_unreachable("NEON::BI__builtin_neon_vsubd_u64 NYI");
+    return builder.createSub(Ops[0], emitScalarExpr(E->getArg(1)));
   case NEON::BI__builtin_neon_vqdmlalh_s16:
   case NEON::BI__builtin_neon_vqdmlslh_s16: {
     llvm_unreachable("NEON::BI__builtin_neon_vqdmlslh_s16 NYI");
@@ -3807,10 +3843,17 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   }
   case NEON::BI__builtin_neon_vshld_n_s64:
   case NEON::BI__builtin_neon_vshld_n_u64: {
-    llvm_unreachable("NEON::BI__builtin_neon_vshld_n_u64 NYI");
+    std::optional<llvm::APSInt> amt =
+        E->getArg(1)->getIntegerConstantExpr(getContext());
+    assert(amt && "Expected argument to be a constant");
+    return builder.createShiftLeft(Ops[0], amt->getZExtValue());
   }
   case NEON::BI__builtin_neon_vshrd_n_s64: {
-    llvm_unreachable("NEON::BI__builtin_neon_vshrd_n_s64 NYI");
+    std::optional<llvm::APSInt> amt =
+        E->getArg(1)->getIntegerConstantExpr(getContext());
+    assert(amt && "Expected argument to be a constant");
+    uint64_t bits = std::min(static_cast<uint64_t>(63), amt->getZExtValue());
+    return builder.createShiftRight(Ops[0], bits);
   }
   case NEON::BI__builtin_neon_vshrd_n_u64: {
     llvm_unreachable("NEON::BI__builtin_neon_vshrd_n_u64 NYI");
@@ -4246,25 +4289,29 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
     llvm_unreachable("NEON::BI__builtin_neon_vaddvq_s16 NYI");
   }
   case NEON::BI__builtin_neon_vmaxv_u8: {
-    llvm_unreachable("NEON::BI__builtin_neon_vmaxv_u8 NYI");
+    return emitCommonNeonVecAcrossCall(*this, "aarch64.neon.umaxv", UInt8Ty, 8,
+                                       E);
   }
   case NEON::BI__builtin_neon_vmaxv_u16: {
     llvm_unreachable("NEON::BI__builtin_neon_vmaxv_u16 NYI");
   }
   case NEON::BI__builtin_neon_vmaxvq_u8: {
-    llvm_unreachable("NEON::BI__builtin_neon_vmaxvq_u8 NYI");
+    return emitCommonNeonVecAcrossCall(*this, "aarch64.neon.umaxv", UInt8Ty, 16,
+                                       E);
   }
   case NEON::BI__builtin_neon_vmaxvq_u16: {
     llvm_unreachable("NEON::BI__builtin_neon_vmaxvq_u16 NYI");
   }
   case NEON::BI__builtin_neon_vmaxv_s8: {
-    llvm_unreachable("NEON::BI__builtin_neon_vmaxv_s8 NYI");
+    return emitCommonNeonVecAcrossCall(*this, "aarch64.neon.smaxv", SInt8Ty, 8,
+                                       E);
   }
   case NEON::BI__builtin_neon_vmaxv_s16: {
     llvm_unreachable("NEON::BI__builtin_neon_vmaxv_s16 NYI");
   }
   case NEON::BI__builtin_neon_vmaxvq_s8: {
-    llvm_unreachable("NEON::BI__builtin_neon_vmaxvq_s8 NYI");
+    return emitCommonNeonVecAcrossCall(*this, "aarch64.neon.smaxv", SInt8Ty, 16,
+                                       E);
   }
   case NEON::BI__builtin_neon_vmaxvq_s16: {
     llvm_unreachable("NEON::BI__builtin_neon_vmaxvq_s16 NYI");
