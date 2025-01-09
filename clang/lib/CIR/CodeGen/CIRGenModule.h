@@ -276,7 +276,7 @@ public:
   bool shouldZeroInitPadding() const {
     // In C23 (N3096) $6.7.10:
     // """
-    // If any object is initialized with an empty iniitializer, then it is
+    // If any object is initialized with an empty initializer, then it is
     // subject to default initialization:
     //  - if it is an aggregate, every member is initialized (recursively)
     //  according to these rules, and any padding is initialized to zero bits;
@@ -294,8 +294,7 @@ public:
     // initialization.
     // """
     //
-    // From my understanding, the standard is ambiguous in the following two
-    // areas:
+    // The standard seems ambiguous in the following two areas:
     // 1. For a union type with empty initializer, if the first named member is
     // not the largest member, then the bytes comes after the first named member
     // but before padding are left unspecified. An example is:
@@ -306,7 +305,7 @@ public:
     // 2. It only mentions padding for empty initializer, but doesn't mention
     // padding for a non empty initialization list. And if the aggregation or
     // union contains elements or members that are aggregates or unions, and
-    // some are non empty initializers, while others are empty initiailizers,
+    // some are non empty initializers, while others are empty initializers,
     // the padding initialization is unclear. An example is:
     //    struct S1 { int a; long long b; };
     //    struct S2 { char c; struct S1 s1; };
@@ -314,10 +313,10 @@ public:
     //    and s2.s1.b are unclear.
     //    struct S2 s2 = { 'c' };
     //
-    // Here we choose to zero initiailize left bytes of a union type. Because
+    // Here we choose to zero initiailize left bytes of a union type because
     // projects like the Linux kernel are relying on this behavior. If we don't
     // explicitly zero initialize them, the undef values can be optimized to
-    // return gabage data. We also choose to zero initialize paddings for
+    // return garbage data. We also choose to zero initialize paddings for
     // aggregates and unions, no matter they are initialized by empty
     // initializers or non empty initializers. This can provide a consistent
     // behavior. So projects like the Linux kernel can rely on it.
