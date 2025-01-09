@@ -543,7 +543,7 @@ void AggExprEmitter::emitArrayInit(Address DestPtr, cir::ArrayType AType,
         /*condBuilder=*/
         [&](mlir::OpBuilder &b, mlir::Location loc) {
           auto currentElement = builder.createLoad(loc, tmpAddr);
-          mlir::Type boolTy = CGF.getCIRType(CGF.getContext().BoolTy);
+          mlir::Type boolTy = CGF.convertType(CGF.getContext().BoolTy);
           auto cmp = builder.create<cir::CmpOp>(loc, boolTy, cir::CmpOpKind::ne,
                                                 currentElement, end);
           builder.createCondition(cmp);
@@ -1014,7 +1014,7 @@ void AggExprEmitter::VisitCastExpr(CastExpr *E) {
 
     // GCC union extension
     QualType Ty = E->getSubExpr()->getType();
-    Address CastPtr = Dest.getAddress().withElementType(CGF.ConvertType(Ty));
+    Address CastPtr = Dest.getAddress().withElementType(CGF.convertType(Ty));
     emitInitializationToLValue(E->getSubExpr(),
                                CGF.makeAddrLValue(CastPtr, Ty));
     break;
