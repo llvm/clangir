@@ -173,6 +173,7 @@ template <typename Ty> struct EnumTraits {};
 
 REGISTER_ENUM_TYPE(GlobalLinkageKind);
 REGISTER_ENUM_TYPE(CallingConv);
+REGISTER_ENUM_TYPE(SideEffect);
 REGISTER_ENUM_TYPE_WITH_NS(cir::sob, SignedOverflowBehavior);
 } // namespace
 
@@ -2900,6 +2901,18 @@ static ::mlir::ParseResult parseCallCommon(::mlir::OpAsmParser &parser,
                                             builder.getContext(), callingConv));
   }
 
+  if (parser.parseOptionalKeyword("side_effect").succeeded()) {
+    if (parser.parseLParen().failed())
+      return failure();
+    cir::SideEffect sideEffect;
+    if (parseCIRKeyword<cir::SideEffect>(parser, sideEffect).failed())
+      return failure();
+    if (parser.parseRParen().failed())
+      return failure();
+    result.addAttribute("side_effect", cir::SideEffectAttr::get(
+                                           builder.getContext(), sideEffect));
+  }
+
   Attribute extraAttrs;
   if (::mlir::succeeded(parser.parseOptionalKeyword("extra"))) {
     if (parser.parseLParen().failed())
@@ -2930,11 +2943,14 @@ static ::mlir::ParseResult parseCallCommon(::mlir::OpAsmParser &parser,
   return ::mlir::success();
 }
 
-void printCallCommon(
-    Operation *op, mlir::Value indirectCallee, mlir::FlatSymbolRefAttr flatSym,
-    ::mlir::OpAsmPrinter &state, cir::ExtraFuncAttributesAttr extraAttrs,
-    cir::CallingConv callingConv, ::mlir::UnitAttr exception = {},
-    mlir::Block *cont = nullptr, mlir::Block *landingPad = nullptr) {
+void printCallCommon(Operation *op, mlir::Value indirectCallee,
+                     mlir::FlatSymbolRefAttr flatSym,
+                     ::mlir::OpAsmPrinter &state,
+                     cir::ExtraFuncAttributesAttr extraAttrs,
+                     cir::CallingConv callingConv, cir::SideEffect sideEffect,
+                     ::mlir::UnitAttr exception = {},
+                     mlir::Block *cont = nullptr,
+                     mlir::Block *landingPad = nullptr) {
   state << ' ';
 
   auto callLikeOp = mlir::cast<cir::CIRCallOpInterface>(op);
@@ -2984,6 +3000,7 @@ void printCallCommon(
   elidedAttrs.push_back("ast");
   elidedAttrs.push_back("extra_attrs");
   elidedAttrs.push_back("calling_conv");
+  elidedAttrs.push_back("side_effect");
   elidedAttrs.push_back("exception");
   elidedAttrs.push_back("operandSegmentSizes");
 
@@ -2995,6 +3012,12 @@ void printCallCommon(
   if (callingConv != cir::CallingConv::C) {
     state << " cc(";
     state << stringifyCallingConv(callingConv);
+    state << ")";
+  }
+
+  if (sideEffect != cir::SideEffect::All) {
+    state << " side_effect(";
+    state << stringifySideEffect(sideEffect);
     state << ")";
   }
 
@@ -3030,9 +3053,10 @@ cir::CallOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
 void cir::CallOp::print(::mlir::OpAsmPrinter &state) {
   mlir::Value indirectCallee = isIndirect() ? getIndirectCall() : nullptr;
   cir::CallingConv callingConv = getCallingConv();
+  cir::SideEffect sideEffect = getSideEffect();
   mlir::UnitAttr exception = getExceptionAttr();
   printCallCommon(*this, indirectCallee, getCalleeAttr(), state,
-                  getExtraAttrs(), callingConv, exception);
+                  getExtraAttrs(), callingConv, sideEffect, exception);
 }
 
 //===----------------------------------------------------------------------===//
@@ -3089,8 +3113,10 @@ cir::TryCallOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
 void cir::TryCallOp::print(::mlir::OpAsmPrinter &state) {
   mlir::Value indirectCallee = isIndirect() ? getIndirectCall() : nullptr;
   cir::CallingConv callingConv = getCallingConv();
+  cir::SideEffect sideEffect = getSideEffect();
   printCallCommon(*this, indirectCallee, getCalleeAttr(), state,
-                  getExtraAttrs(), callingConv, {}, getCont(), getLandingPad());
+                  getExtraAttrs(), callingConv, sideEffect, {}, getCont(),
+                  getLandingPad());
 }
 
 mlir::SuccessorOperands cir::TryCallOp::getSuccessorOperands(unsigned index) {
