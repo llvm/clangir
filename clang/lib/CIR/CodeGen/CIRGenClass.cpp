@@ -585,7 +585,7 @@ Address CIRGenFunction::getAddressOfDirectBaseInCompleteClass(
     mlir::Location loc, Address This, const CXXRecordDecl *Derived,
     const CXXRecordDecl *Base, bool BaseIsVirtual) {
   // 'this' must be a pointer (in some address space) to Derived.
-  assert(This.getElementType() == ConvertType(Derived));
+  assert(This.getElementType() == convertType(Derived));
 
   // Compute the offset of the virtual base.
   CharUnits Offset;
@@ -595,7 +595,7 @@ Address CIRGenFunction::getAddressOfDirectBaseInCompleteClass(
   else
     Offset = Layout.getBaseClassOffset(Base);
 
-  return builder.createBaseClassAddr(loc, This, ConvertType(Base),
+  return builder.createBaseClassAddr(loc, This, convertType(Base),
                                      Offset.getQuantity(),
                                      /*assume_not_null=*/true);
 }
@@ -1597,8 +1597,9 @@ Address CIRGenFunction::getAddressOfDerivedClass(
     CastExpr::path_const_iterator pathEnd, bool nullCheckValue) {
   assert(pathBegin != pathEnd && "Base path should not be empty!");
 
-  QualType derivedTy = getContext().getCanonicalTagType(derived);
-  mlir::Type derivedValueTy = ConvertType(derivedTy);
+  QualType derivedTy =
+      getContext().getCanonicalTagType(derived);
+  mlir::Type derivedValueTy = convertType(derivedTy);
   CharUnits nonVirtualOffset =
       CGM.getNonVirtualBaseClassOffset(derived, pathBegin, pathEnd);
 
