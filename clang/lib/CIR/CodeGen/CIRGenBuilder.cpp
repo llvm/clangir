@@ -65,8 +65,8 @@ cir::ConstantOp CIRGenBuilderTy::getConstInt(mlir::Location loc, mlir::Type t,
 }
 
 void CIRGenBuilderTy::computeGlobalViewIndicesFromFlatOffset(
-      int64_t Offset, mlir::Type Ty, cir::CIRDataLayout Layout,
-      llvm::SmallVectorImpl<int64_t> &Indices) {
+    int64_t Offset, mlir::Type Ty, cir::CIRDataLayout Layout,
+    llvm::SmallVectorImpl<int64_t> &Indices) {
   if (!Offset)
     return;
 
@@ -113,9 +113,8 @@ void CIRGenBuilderTy::computeGlobalViewIndicesFromFlatOffset(
 }
 
 uint64_t CIRGenBuilderTy::computeOffsetFromGlobalViewIndices(
-    const cir::CIRDataLayout& layout,
-    mlir::Type typ,
-    llvm::ArrayRef<uint64_t> indexes) {   
+    const cir::CIRDataLayout &layout, mlir::Type typ,
+    llvm::ArrayRef<uint64_t> indexes) {
 
   uint64_t offset = 0;
   for (auto idx : indexes) {

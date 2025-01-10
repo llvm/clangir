@@ -151,7 +151,8 @@ public:
                                         llvm::ArrayRef<int64_t> indices) {
     llvm::SmallVector<mlir::Attribute> attrs;
     for (auto ind : indices) {
-      auto a = mlir::IntegerAttr::get(mlir::IntegerType::get(getContext(), 64), ind);
+      auto a =
+          mlir::IntegerAttr::get(mlir::IntegerType::get(getContext(), 64), ind);
       attrs.push_back(a);
     }
 
@@ -950,10 +951,9 @@ public:
       llvm::SmallVectorImpl<int64_t> &Indices);
 
   // Convert high-level indices (e.g. from GlobalViewAttr) to byte offset
-  uint64_t computeOffsetFromGlobalViewIndices(
-      const cir::CIRDataLayout& layout,
-      mlir::Type t,
-      llvm::ArrayRef<uint64_t> indexes);
+  uint64_t computeOffsetFromGlobalViewIndices(const cir::CIRDataLayout &layout,
+                                              mlir::Type t,
+                                              llvm::ArrayRef<uint64_t> indexes);
 
   cir::StackSaveOp createStackSave(mlir::Location loc, mlir::Type ty) {
     return create<cir::StackSaveOp>(loc, ty);

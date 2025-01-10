@@ -681,8 +681,8 @@ lowerCirAttrAsValue(mlir::Operation *parentOp, cir::GlobalViewAttr globalAttr,
     llvm::SmallVector<mlir::LLVM::GEPArg> indices;
 
     if (isa<mlir::LLVM::LLVMArrayType, mlir::LLVM::LLVMStructType>(sourceType))
-      indices.push_back(0);    
-      
+      indices.push_back(0);
+
     for (auto idx : globalAttr.getIndices()) {
       auto intAttr = dyn_cast<mlir::IntegerAttr>(idx);
       assert(intAttr && "index must be integers");
