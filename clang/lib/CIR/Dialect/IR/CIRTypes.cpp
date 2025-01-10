@@ -42,12 +42,13 @@ using cir::MissingFeatures;
 // CIR Custom Parser/Printer Signatures
 //===----------------------------------------------------------------------===//
 
-static mlir::ParseResult
-parseFuncTypeArgs(mlir::AsmParser &p, llvm::SmallVector<mlir::Type> &params,
-                  bool &isVarArg);
-static void printFuncTypeArgs(mlir::AsmPrinter &p,
-                              mlir::ArrayRef<mlir::Type> params, bool isVarArg);
+static mlir::ParseResult parseFuncType(mlir::AsmParser &p,
+                                       mlir::Type &optionalReturnTypes,
+                                       llvm::SmallVector<mlir::Type> &params,
+                                       bool &isVarArg);
 
+static void printFuncType(mlir::AsmPrinter &p, mlir::Type optionalReturnTypes,
+                          mlir::ArrayRef<mlir::Type> params, bool isVarArg);
 static mlir::ParseResult parsePointerAddrSpace(mlir::AsmParser &p,
                                                mlir::Attribute &addrSpaceAttr);
 static void printPointerAddrSpace(mlir::AsmPrinter &p,
@@ -914,9 +915,38 @@ FuncType FuncType::clone(TypeRange inputs, TypeRange results) const {
   return get(llvm::to_vector(inputs), results[0], isVarArg());
 }
 
-mlir::ParseResult parseFuncTypeArgs(mlir::AsmParser &p,
-                                    llvm::SmallVector<mlir::Type> &params,
-                                    bool &isVarArg) {
+// A special parser is needed for function returning void to handle the missing
+// type.
+static mlir::ParseResult parseFuncTypeReturn(mlir::AsmParser &p,
+                                             mlir::Type &optionalReturnType) {
+  if (succeeded(p.parseOptionalLParen())) {
+    // If we have already a '(', the function has no return type
+    optionalReturnType = {};
+    return mlir::success();
+  }
+  mlir::Type type;
+  if (p.parseType(type))
+    return mlir::failure();
+  if (isa<cir::VoidType>(type))
+    // An explicit !cir.void means also no return type.
+    optionalReturnType = {};
+  else
+    // Otherwise use the actual type.
+    optionalReturnType = type;
+  return p.parseLParen();
+}
+
+// A special pretty-printer for function returning or not a result.
+static void printFuncTypeReturn(mlir::AsmPrinter &p,
+                                mlir::Type optionalReturnType) {
+  if (optionalReturnType)
+    p << optionalReturnType << ' ';
+  p << '(';
+}
+
+static mlir::ParseResult
+parseFuncTypeArgs(mlir::AsmParser &p, llvm::SmallVector<mlir::Type> &params,
+                  bool &isVarArg) {
   isVarArg = false;
   // `(` `)`
   if (succeeded(p.parseOptionalRParen()))
@@ -946,8 +976,9 @@ mlir::ParseResult parseFuncTypeArgs(mlir::AsmParser &p,
   return p.parseRParen();
 }
 
-void printFuncTypeArgs(mlir::AsmPrinter &p, mlir::ArrayRef<mlir::Type> params,
-                       bool isVarArg) {
+static void printFuncTypeArgs(mlir::AsmPrinter &p,
+                              mlir::ArrayRef<mlir::Type> params,
+                              bool isVarArg) {
   llvm::interleaveComma(params, p,
                         [&p](mlir::Type type) { p.printType(type); });
   if (isVarArg) {
@@ -956,6 +987,23 @@ void printFuncTypeArgs(mlir::AsmPrinter &p, mlir::ArrayRef<mlir::Type> params,
     p << "...";
   }
   p << ')';
+}
+
+// Use a custom parser to handle the optional return and argument types without
+// an optional anchor.
+static mlir::ParseResult parseFuncType(mlir::AsmParser &p,
+                                       mlir::Type &optionalReturnTypes,
+                                       llvm::SmallVector<mlir::Type> &params,
+                                       bool &isVarArg) {
+  if (failed(parseFuncTypeReturn(p, optionalReturnTypes)))
+    return failure();
+  return parseFuncTypeArgs(p, params, isVarArg);
+}
+
+static void printFuncType(mlir::AsmPrinter &p, mlir::Type optionalReturnTypes,
+                          mlir::ArrayRef<mlir::Type> params, bool isVarArg) {
+  printFuncTypeReturn(p, optionalReturnTypes);
+  printFuncTypeArgs(p, params, isVarArg);
 }
 
 // Return the actual return type or an explicit !cir.void if the function does

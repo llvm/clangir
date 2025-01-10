@@ -387,10 +387,12 @@ def CIR_FuncType : CIR_Type<"Func", "func"> {
   }];
 
   let parameters = (ins ArrayRefParameter<"mlir::Type">:$inputs,
-                        OptionalParameter<"mlir::Type">:$optionalReturnType,
+                        "mlir::Type":$optionalReturnType,
                         "bool":$varArg);
+  // Use a custom parser to handle the optional return and argument types
+  // without an optional anchor.
   let assemblyFormat = [{
-    `<` ($optionalReturnType^ ` `)? `(` custom<FuncTypeArgs>($inputs, $varArg) `>`
+    `<` custom<FuncType>($optionalReturnType, $inputs, $varArg) `>`
   }];
 
   let builders = [
