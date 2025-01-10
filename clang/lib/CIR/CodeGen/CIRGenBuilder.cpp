@@ -114,19 +114,18 @@ void CIRGenBuilderTy::computeGlobalViewIndicesFromFlatOffset(
 
 uint64_t CIRGenBuilderTy::computeOffsetFromGlobalViewIndices(
     const cir::CIRDataLayout& layout,
-    mlir::Type t,
-    llvm::ArrayRef<uint64_t> indexes) {
+    mlir::Type typ,
+    llvm::ArrayRef<uint64_t> indexes) {   
 
-  mlir::Type elt;
   uint64_t offset = 0;
   for (auto idx : indexes) {
-    if (auto sTy = dyn_cast<cir::StructType>(t)) {
-      offset = sTy.getElementOffset(layout.layout, idx);
+    if (auto sTy = dyn_cast<cir::StructType>(typ)) {
+      offset += sTy.getElementOffset(layout.layout, idx);
       assert(idx < sTy.getMembers().size());
-      elt = sTy.getMembers()[idx];
-    } else if (auto arTy = dyn_cast<cir::ArrayType>(t)) {
-      elt = arTy.getEltType();    
-      offset = layout.getTypeAllocSize(elt) * idx;
+      typ = sTy.getMembers()[idx];
+    } else if (auto arTy = dyn_cast<cir::ArrayType>(typ)) {
+      typ = arTy.getEltType();
+      offset += layout.getTypeAllocSize(typ) * idx;
     } else {
       llvm_unreachable("NYI");
     }
