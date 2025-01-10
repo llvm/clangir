@@ -9,7 +9,6 @@
 // This contains code to emit Constant Expr nodes as LLVM code.
 //
 //===----------------------------------------------------------------------===//
-#include <iostream>
 #include "Address.h"
 #include "CIRGenCXXABI.h"
 #include "CIRGenCstEmitter.h"

@@ -9,9 +9,6 @@
 // This file implements lowering of CIR operations to LLVMIR.
 //
 //===----------------------------------------------------------------------===//
-
-#include <iostream>
-
 #include "LowerToLLVM.h"
 #include "LoweringHelpers.h"
 #include "mlir/Conversion/AffineToStandard/AffineToStandard.h"
@@ -645,7 +642,7 @@ static mlir::Value
 lowerCirAttrAsValue(mlir::Operation *parentOp, cir::GlobalViewAttr globalAttr,
                     mlir::ConversionPatternRewriter &rewriter,
                     const mlir::TypeConverter *converter,
-                    mlir::DataLayout const &dataLayout) {  
+                    mlir::DataLayout const &dataLayout) {
   auto module = parentOp->getParentOfType<mlir::ModuleOp>();
   mlir::Type sourceType;
   unsigned sourceAddrSpace = 0;
