@@ -372,12 +372,13 @@ def CIR_VectorType : CIR_Type<"Vector", "vector",
 def CIR_FuncType : CIR_Type<"Func", "func"> {
   let summary = "CIR function type";
   let description = [{
-    The `!cir.func` is a function type. It consists of a single return type, a
-    list of parameter types and can optionally be variadic.
+    The `!cir.func` is a function type. It consists of an optional return type,
+    a list of parameter types and can optionally be variadic.
 
     Example:
 
     ```mlir
+    !cir.func<()>
     !cir.func<!bool ()>
     !cir.func<(!s8i, !s8i)>
     !cir.func<!s32i (!s8i, !s8i)>
@@ -385,10 +386,11 @@ def CIR_FuncType : CIR_Type<"Func", "func"> {
     ```
   }];
 
-  let parameters = (ins ArrayRefParameter<"mlir::Type">:$inputs, ArrayRefParameter<"mlir::Type">:$returnTypes,
+  let parameters = (ins ArrayRefParameter<"mlir::Type">:$inputs,
+                        OptionalParameter<"mlir::Type">:$optionalReturnType,
                         "bool":$varArg);
   let assemblyFormat = [{
-    `<` $returnTypes ` ` `(` custom<FuncTypeArgs>($inputs, $varArg) `>`
+    `<` ($optionalReturnType^ ` `)? `(` custom<FuncTypeArgs>($inputs, $varArg) `>`
   }];
 
   let builders = [
@@ -397,8 +399,8 @@ def CIR_FuncType : CIR_Type<"Func", "func"> {
       "llvm::ArrayRef<mlir::Type>":$inputs, "mlir::Type":$returnType,
       CArg<"bool", "false">:$isVarArg), [{
       return $_get(returnType.getContext(), inputs,
-                       ::mlir::isa<::cir::VoidType>(returnType) ? llvm::ArrayRef<mlir::Type>{}
-                                                                : llvm::ArrayRef{returnType},
+                       mlir::isa<cir::VoidType>(returnType) ? nullptr
+                                                            : returnType,
                        isVarArg);
     }]>
   ];
@@ -416,6 +418,10 @@ def CIR_FuncType : CIR_Type<"Func", "func"> {
     /// Returns the result type of the function as an actual return type or
     /// explicit !cir.void
     mlir::Type getReturnType() const;
+
+    /// Returns the result type of the function as an ArrayRef, enabling better
+    /// integration with generic MLIR utilities.
+    llvm::ArrayRef<mlir::Type> getReturnTypes() const;
 
     /// Returns whether the function returns void.
     bool isVoid() const;

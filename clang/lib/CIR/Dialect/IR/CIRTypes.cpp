@@ -963,16 +963,26 @@ void printFuncTypeArgs(mlir::AsmPrinter &p, mlir::ArrayRef<mlir::Type> params,
 mlir::Type FuncType::getReturnType() const {
   if (isVoid())
     return cir::VoidType::get(getContext());
-  return static_cast<detail::FuncTypeStorage *>(getImpl())->returnTypes.front();
+  return static_cast<detail::FuncTypeStorage *>(getImpl())->optionalReturnType;
 }
 
+/// Returns the result type of the function as an ArrayRef, enabling better
+/// integration with generic MLIR utilities.
+llvm::ArrayRef<mlir::Type> FuncType::getReturnTypes() const {
+  if (isVoid())
+    return {};
+  return static_cast<detail::FuncTypeStorage *>(getImpl())->optionalReturnType;
+}
+
+// Whether the function returns void
 bool FuncType::isVoid() const {
-  auto rt = static_cast<detail::FuncTypeStorage *>(getImpl())->returnTypes;
-  assert(rt.empty() ||
-         !mlir::isa<cir::VoidType>(rt.front()) &&
+  auto rt =
+      static_cast<detail::FuncTypeStorage *>(getImpl())->optionalReturnType;
+  assert(!rt ||
+         !mlir::isa<cir::VoidType>(rt) &&
              "The return type for a function returning void should be empty "
              "instead of a real !cir.void");
-  return rt.empty();
+  return !rt;
 }
 
 //===----------------------------------------------------------------------===//
