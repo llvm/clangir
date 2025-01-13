@@ -18,7 +18,6 @@
 #include "CIRGenTypes.h"
 #include "CIRGenValue.h"
 #include "TargetInfo.h"
-#include <iostream>
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
