@@ -4,7 +4,7 @@ extern int table[];
 // CHECK: cir.global external @table = #cir.const_array<[#cir.int<1> : !s32i, #cir.int<2> : !s32i, #cir.int<3> : !s32i]> : !cir.array<!s32i x 3>
 
 int *table_ptr = table;
-// CHECK: cir.global external @table_ptr = #cir.global_view<@table> : !cir.ptr<!cir.array<!s32i x 3>>
+// CHECK: cir.global external @table_ptr = #cir.global_view<@table> : !cir.ptr<!s32i>
 
 int test() { return table[1]; }
 //      CHECK: cir.func @_Z4testv()

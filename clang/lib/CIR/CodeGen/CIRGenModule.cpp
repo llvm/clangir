@@ -10,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 #include "CIRGenModule.h"
-
+#include <iostream>
 #include "CIRGenCXXABI.h"
 #include "CIRGenCstEmitter.h"
 #include "CIRGenFunction.h"
@@ -796,77 +796,46 @@ void CIRGenModule::setNonAliasAttributes(GlobalDecl GD, mlir::Operation *GO) {
   assert(!cir::MissingFeatures::setTargetAttributes());
 }
 
-static llvm::SmallVector<uint64_t> indexesOfArrayAttr(mlir::ArrayAttr indexes) {
-  llvm::SmallVector<uint64_t> inds;
+static llvm::SmallVector<int64_t> indexesOfArrayAttr(mlir::ArrayAttr indexes) {
+  llvm::SmallVector<int64_t> inds;
 
-  for (auto i : indexes) {
+  for (mlir::Attribute i : indexes) {
     auto ind = dyn_cast<mlir::IntegerAttr>(i);
-    assert(ind);
+    assert(ind && "expect MLIR integer attribute");
     inds.push_back(ind.getValue().getSExtValue());
   }
 
   return inds;
 }
 
-// handle global view on the struct type
-static GlobalViewAttr createNewGlobalView(CIRGenModule &CGM, GlobalOp newGlob,
-                                          cir::StructType oldSTy,
-                                          unsigned oldInd) {
-
-  CIRGenBuilderTy &bld = CGM.getBuilder();
-  const CIRDataLayout &layout = CGM.getDataLayout();
-  mlir::MLIRContext *ctxt = bld.getContext();
-  mlir::Type newTy = newGlob.getSymType();
-  auto newPtrTy = cir::PointerType::get(ctxt, newTy);
-
-  llvm::SmallVector<int64_t> newInds;
-  uint64_t offset = oldSTy.getElementOffset(layout.layout, oldInd);
-  bld.computeGlobalViewIndicesFromFlatOffset(offset, newTy, layout, newInds);
-
-  return bld.getGlobalViewAttr(newPtrTy, newGlob, newInds);
-}
-
-// handle view on the array type
-static GlobalViewAttr
-createNewGlobalView(CIRGenModule &CGM, GlobalOp newGlob, GlobalViewAttr attr,
-                    cir::ArrayType oldTy,
-                    const llvm::SmallVector<uint64_t> &indexes) {
-
-  CIRGenBuilderTy &bld = CGM.getBuilder();
-  const CIRDataLayout &layout = CGM.getDataLayout();
-  mlir::Type newTy = newGlob.getSymType();
-  auto newArTy = dyn_cast<cir::ArrayType>(newTy);
-  assert(newArTy);
-
-  auto offset = bld.computeOffsetFromGlobalViewIndices(layout, oldTy, indexes);
-  llvm::SmallVector<int64_t> newInds;
-  bld.computeGlobalViewIndicesFromFlatOffset(offset, newTy, layout, newInds);
-  auto ptrTy = dyn_cast<cir::PointerType>(attr.getType());
-  assert(ptrTy);
-
-  return bld.getGlobalViewAttr(ptrTy, newGlob, newInds);
-}
-
 static GlobalViewAttr createNewGlobalView(CIRGenModule &CGM, GlobalOp newGlob,
                                           GlobalViewAttr attr,
                                           mlir::Type oldTy) {
-
+  if (!attr.getIndices())
+    return attr;
+  
+  llvm::SmallVector<int64_t> oldInds = indexesOfArrayAttr(attr.getIndices());
+  llvm::SmallVector<int64_t> newInds;
+  cir::PointerType newPtrTy;
   CIRGenBuilderTy &bld = CGM.getBuilder();
+  const CIRDataLayout &layout = CGM.getDataLayout();
   mlir::MLIRContext *ctxt = bld.getContext();
-  mlir::Type newTy = newGlob.getSymType();
-
-  if (!attr.getIndices()) {
-    cir::PointerType newPtrTy = cir::PointerType::get(ctxt, newTy);
-    return bld.getGlobalViewAttr(newPtrTy, newGlob);
+  auto newTy = newGlob.getSymType();
+ 
+  if (oldInds.size() == 1 && isa<cir::StructType>(oldTy)) {
+    newPtrTy = cir::PointerType::get(ctxt, newTy);
+    auto oldSTy = cast<cir::StructType>(oldTy);
+    uint64_t offset = oldSTy.getElementOffset(layout.layout, oldInds[0]);
+    bld.computeGlobalViewIndicesFromFlatOffset(offset, newTy, layout, newInds);
+  }
+  else if (cir::ArrayType oldArTy = dyn_cast<cir::ArrayType>(oldTy)) {
+    auto offset = bld.computeOffsetFromGlobalViewIndices(layout, oldTy, oldInds);
+    bld.computeGlobalViewIndicesFromFlatOffset(offset, newTy, layout, newInds);
+    newPtrTy = dyn_cast<cir::PointerType>(attr.getType());
   }
 
-  auto indexes = indexesOfArrayAttr(attr.getIndices());
-
-  if (indexes.size() == 1 && isa<cir::StructType>(oldTy))
-    return createNewGlobalView(CGM, newGlob, cast<cir::StructType>(oldTy),
-                               indexes[0]);
-  else if (cir::ArrayType oldArTy = dyn_cast<cir::ArrayType>(oldTy))
-    return createNewGlobalView(CGM, newGlob, attr, oldArTy, indexes);
+  if (newPtrTy)
+    return bld.getGlobalViewAttr(newPtrTy, newGlob, newInds);
 
   llvm_unreachable("NYI");
 }
@@ -879,7 +848,6 @@ static void setNewInitValue(CIRGenModule &CGM, GlobalOp newGlob,
     auto view = createNewGlobalView(CGM, newGlob, oldView, oldTy);
     user.setInitialValueAttr(view);
   } else if (auto oldArray = mlir::dyn_cast<ConstArrayAttr>(oldInit)) {
-
     llvm::SmallVector<mlir::Attribute> newArray;
     auto eltsAttr = dyn_cast<mlir::ArrayAttr>(oldArray.getElts());
     for (auto elt : eltsAttr)

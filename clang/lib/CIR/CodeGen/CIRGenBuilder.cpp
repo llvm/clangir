@@ -114,7 +114,7 @@ void CIRGenBuilderTy::computeGlobalViewIndicesFromFlatOffset(
 
 uint64_t CIRGenBuilderTy::computeOffsetFromGlobalViewIndices(
     const cir::CIRDataLayout &layout, mlir::Type typ,
-    llvm::ArrayRef<uint64_t> indexes) {
+    llvm::ArrayRef<int64_t> indexes) {
 
   uint64_t offset = 0;
   for (auto idx : indexes) {

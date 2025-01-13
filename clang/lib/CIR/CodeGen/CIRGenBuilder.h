@@ -953,7 +953,7 @@ public:
   // Convert high-level indices (e.g. from GlobalViewAttr) to byte offset
   uint64_t computeOffsetFromGlobalViewIndices(const cir::CIRDataLayout &layout,
                                               mlir::Type t,
-                                              llvm::ArrayRef<uint64_t> indexes);
+                                              llvm::ArrayRef<int64_t> indexes);
 
   cir::StackSaveOp createStackSave(mlir::Location loc, mlir::Type ty) {
     return create<cir::StackSaveOp>(loc, ty);
