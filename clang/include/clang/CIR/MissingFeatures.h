@@ -468,9 +468,6 @@ struct MissingFeatures {
   static bool mustProgress() { return false; }
 
   static bool skipTempCopy() { return false; }
-
-  // https://clang.llvm.org/docs/PointerAuthentication.html
-  static bool pointerAuthentication() { return false; }
 };
 
 } // namespace cir

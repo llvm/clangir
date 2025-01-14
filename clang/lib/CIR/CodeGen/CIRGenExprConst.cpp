@@ -746,7 +746,7 @@ bool ConstStructBuilder::Build(const APValue &Val, const RecordDecl *RD,
           CGM.getItaniumVTableContext()
               .getVTableLayout(VTableClass)
               .getAddressPoint(BaseSubobject(CD, Offset));
-      assert(!cir::MissingFeatures::pointerAuthentication());
+      assert(!cir::MissingFeatures::ptrAuth());
       mlir::ArrayAttr indices = builder.getArrayAttr({
           builder.getI32IntegerAttr(0),
           builder.getI32IntegerAttr(addressPoint.VTableIndex),
