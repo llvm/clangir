@@ -1298,7 +1298,7 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
            CIRTrapOpLowering>(converter, patterns.getContext());
 }
 
-mlir::TypeConverter prepareTypeConverter() {
+mlir::TypeConverter prepareTypeConverter(mlir::DataLayout &dataLayout) {
   mlir::TypeConverter converter;
   converter.addConversion([&](cir::PointerType type) -> mlir::Type {
     auto ty = convertTypeForMemory(converter, type.getPointee());
@@ -1361,14 +1361,41 @@ mlir::TypeConverter prepareTypeConverter() {
     auto ty = converter.convertType(type.getEltType());
     return mlir::VectorType::get(type.getSize(), ty);
   });
+  converter.addConversion([&](cir::StructType type) -> mlir::Type {
+    // FIXME(cir): create separate unions, struct, and classes types.
+    // Convert struct members.
+    llvm::SmallVector<mlir::Type> mlirMembers;
+    switch (type.getKind()) {
+    case cir::StructType::Class:
+      // TODO(cir): This should be properly validated.
+    case cir::StructType::Struct:
+      for (auto ty : type.getMembers())
+        mlirMembers.push_back(converter.convertType(ty));
+      break;
+    // Unions are lowered as only the largest member.
+    case cir::StructType::Union: {
+      auto largestMember = type.getLargestMember(dataLayout);
+      if (largestMember)
+        mlirMembers.push_back(converter.convertType(largestMember));
+      break;
+    }
+    }
+
+    // Struct has a name: lower as an identified struct.
+    mlir::TupleType tuple;
+    // FIXME(cir): all the following has to be somehow kept. With some
+    // attributes?
+    tuple = mlir::TupleType::get(type.getContext(), mlirMembers);
+    return tuple;
+  });
 
   return converter;
 }
 
 void ConvertCIRToMLIRPass::runOnOperation() {
   auto module = getOperation();
-
-  auto converter = prepareTypeConverter();
+  mlir::DataLayout dataLayout{module};
+  auto converter = prepareTypeConverter(dataLayout);
 
   mlir::RewritePatternSet patterns(&getContext());
 

@@ -584,7 +584,7 @@ mlir::Value CirAttrToValue::visitCirAttr(cir::ConstArrayAttr constArr) {
   auto loc = parentOp->getLoc();
   mlir::Value result;
 
-  if (auto zeros = constArr.getTrailingZerosNum()) {
+  if (constArr.getTrailingZerosNum()) {
     auto arrayTy = constArr.getType();
     result = rewriter.create<mlir::LLVM::ZeroOp>(
         loc, converter->convertType(arrayTy));
