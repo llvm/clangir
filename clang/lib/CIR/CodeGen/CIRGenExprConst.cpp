@@ -1385,6 +1385,7 @@ private:
     SmallVector<int64_t, 3> Idx;
     CGM.getBuilder().computeGlobalViewIndicesFromFlatOffset(Offset, Ty, Layout,
                                                             Idx);
+
     llvm::SmallVector<mlir::Attribute, 3> Indices;
     for (auto I : Idx) {
       auto Attr = CGM.getBuilder().getI32IntegerAttr(I);
