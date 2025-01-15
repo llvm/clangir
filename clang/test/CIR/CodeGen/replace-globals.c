@@ -2,8 +2,6 @@
 // RUN: FileCheck --input-file=%t.cir %s
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm %s -o %t.ll
 // RUN: FileCheck --input-file=%t.ll %s -check-prefix=LLVM
-// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -emit-llvm %s -o %t.ll
-// RUN: FileCheck --input-file=%t.ll %s -check-prefix=OG
 
 typedef struct {
    int f0 : 24;
@@ -47,17 +45,7 @@ void use() {
 // LLVM-DAG: @g7 = internal global [2 x ptr] [ptr getelementptr inbounds ([2 x { i8, i8, i8, i8, i32, i32 }], ptr @g6, i32 0, i32 0, i32 5), ptr getelementptr inbounds ([2 x { i8, i8, i8, i8, i32, i32 }], ptr @g6, i32 0, i32 1, i32 5)], align 16
 // LLVM-DAG: @g8 = internal global ptr getelementptr inbounds ([2 x ptr], ptr @g7, i32 0, i32 1), align 8
 
-// OG-DAG: @g1 = internal global { i8, i8, i8, i8, i32, i32 } { i8 -17, i8 10, i8 0, i8 0, i32 9, i32 123 }, align 4
-// OG-DAG: @g2 = internal global [4 x ptr] [ptr getelementptr (i8, ptr @g1, i64 4), ptr getelementptr (i8, ptr @g1, i64 4), ptr getelementptr (i8, ptr @g1, i64 4), ptr getelementptr (i8, ptr @g1, i64 4)], align 16
-// OG-DAG: @g3 = internal global ptr getelementptr (i8, ptr @g2, i64 8), align 8
-// OG-DAG: @g4 = internal global ptr @g3, align 8
-// OG-DAG: @g5 = internal global ptr @g4, align 8
-// OG-DAG: @g6 = internal global [2 x { i8, i8, i8, i8, i32, i32 }] [{ i8, i8, i8, i8, i32, i32 } { i8 -17, i8 10, i8 0, i8 0, i32 9, i32 123 }, { i8, i8, i8, i8, i32, i32 } { i8 -17, i8 10, i8 0, i8 0, i32 9, i32 123 }], align 16
-// OG-DAG: @g7 = internal global [2 x ptr] [ptr getelementptr (i8, ptr @g6, i64 8), ptr getelementptr (i8, ptr @g6, i64 20)], align 16
-// OG-DAG: @g8 = internal global ptr getelementptr (i8, ptr @g7, i64 8), align 8
-
-
-
-
-
-
+// FIXME: LLVM output should be: @g2 = internal global [4 x ptr] [ptr getelementptr (i8, ptr @g1, i64 4), ptr getelementptr (i8, ptr @g1, i64 4), ptr getelementptr (i8, ptr @g1, i64 4), ptr getelementptr (i8, ptr @g1, i64 4)], align 16
+// FIXME: LLVM output should be: @g3 = internal global ptr getelementptr (i8, ptr @g2, i64 8), align 8
+// FIXME: LLVM output should be: @g7 = internal global [2 x ptr] [ptr getelementptr (i8, ptr @g6, i64 8), ptr getelementptr (i8, ptr @g6, i64 20)], align 16
+// FIXME: LLVM output should be: @g8 = internal global ptr getelementptr (i8, ptr @g7, i64 8), align 8

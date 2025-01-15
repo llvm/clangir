@@ -622,11 +622,12 @@ def GlobalViewAttr : CIR_Attr<"GlobalView", "global_view", [TypedAttrInterface]>
       cir.global external @elt_ptr = #cir.global_view<@rgb, [1]> : !cir.ptr<i8>
       cir.global external @table_of_ptrs = #cir.const_array<[#cir.global_view<@rgb, [1]> : !cir.ptr<i8>] : !cir.array<!cir.ptr<i8> x 1>>
     ```
-  
-    Note, that CIR computes indices for vtt slightly different from the LLVM and 
-    doesn't add the leading index since it's always equal to zero. The index is added
-    later in the lowering.
     
+    Note, that unlike LLVM IR's gep instruction, CIR doesn't add the leading zero index
+    when it's known to be constant zero, e.g. for pointers, i.e. we use indexes exactly
+    to access sub elements or for the offset. The leading zero index is added later in
+    the lowering.
+        
     Example:
     ```
     struct A {
