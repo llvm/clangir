@@ -871,15 +871,91 @@ static void StoreAnyExprIntoOneUnit(CIRGenFunction &CGF, const Expr *Init,
   llvm_unreachable("bad evaluation kind");
 }
 
+void CIRGenFunction::emitNewArrayInitializer(
+    const CXXNewExpr *E, QualType ElementType, mlir::Type ElementTy,
+    Address BeginPtr, mlir::Value NumElements,
+    mlir::Value AllocSizeWithoutCookie) {
+  // If we have a type with trivial initialization and no initializer,
+  // there's nothing to do.
+  if (!E->hasInitializer())
+    return;
+
+  Address CurPtr = BeginPtr;
+
+  unsigned InitListElements = 0;
+
+  const Expr *Init = E->getInitializer();
+  Address EndOfInit = Address::invalid();
+  QualType::DestructionKind DtorKind = ElementType.isDestructedType();
+  CleanupDeactivationScope deactivation(*this);
+  bool pushedCleanup = false;
+
+  CharUnits ElementSize = getContext().getTypeSizeInChars(ElementType);
+  CharUnits ElementAlign =
+    BeginPtr.getAlignment().alignmentOfArrayElement(ElementSize);
+
+  // Attempt to perform zero-initialization using memset.
+  auto TryMemsetInitialization = [&]() -> bool {
+    llvm_unreachable("NYI");
+    return false;
+  };
+
+  const InitListExpr *ILE = dyn_cast<InitListExpr>(Init);
+  const CXXParenListInitExpr *CPLIE = nullptr;
+  const StringLiteral *SL = nullptr;
+  const ObjCEncodeExpr *OCEE = nullptr;
+  const Expr *IgnoreParen = nullptr;
+  if (!ILE) {
+    IgnoreParen = Init->IgnoreParenImpCasts();
+    CPLIE = dyn_cast<CXXParenListInitExpr>(IgnoreParen);
+    SL = dyn_cast<StringLiteral>(IgnoreParen);
+    OCEE = dyn_cast<ObjCEncodeExpr>(IgnoreParen);
+  }
+
+  // If the initializer is an initializer list, first do the explicit elements.
+  if (ILE || CPLIE || SL || OCEE) {
+    llvm_unreachable("NYI");
+  }
+
+  // If all elements have already been initialized, skip any further
+  // initialization.
+  auto ConstOp = dyn_cast<cir::ConstantOp>(NumElements.getDefiningOp());
+  if (ConstOp) {
+    auto ConstIntAttr = mlir::dyn_cast<cir::IntAttr>(ConstOp.getValue());
+    // Just skip out if the constant count is zero.
+    if (ConstIntAttr && ConstIntAttr.getUInt() <= InitListElements)
+      return;
+  }
+
+  assert(Init && "have trailing elements to initialize but no initializer");
+
+  // If this is a constructor call, try to optimize it out, and failing that
+  // emit a single loop to initialize all remaining elements.
+  if (const CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(Init)) {
+    CXXConstructorDecl *Ctor = CCE->getConstructor();
+    if (Ctor->isTrivial()) {
+      // If new expression did not specify value-initialization, then there
+      // is no initialization.
+      if (!CCE->requiresZeroInitialization() || Ctor->getParent()->isEmpty())
+        return;
+
+      llvm_unreachable("NYI");
+    }
+
+    llvm_unreachable("NYI");
+  }
+
+  llvm_unreachable("NYI");
+}
+
 static void emitNewInitializer(CIRGenFunction &CGF, const CXXNewExpr *E,
                                QualType ElementType, mlir::Type ElementTy,
                                Address NewPtr, mlir::Value NumElements,
                                mlir::Value AllocSizeWithoutCookie) {
   assert(!cir::MissingFeatures::generateDebugInfo());
   if (E->isArray()) {
-    if (!E->hasInitializer())
-      return;
-    llvm_unreachable("NYI");
+    CGF.emitNewArrayInitializer(E, ElementType, ElementTy, NewPtr, NumElements,
+                                AllocSizeWithoutCookie);
   } else if (const Expr *Init = E->getInitializer()) {
     StoreAnyExprIntoOneUnit(CGF, Init, E->getAllocatedType(), NewPtr,
                             AggValueSlot::DoesNotOverlap);
@@ -1099,7 +1175,8 @@ mlir::Value CIRGenFunction::emitCXXNewExpr(const CXXNewExpr *E) {
     ++ParamsToSkip;
 
     if (allocSize != allocSizeWithoutCookie) {
-      llvm_unreachable("NYI");
+      CharUnits cookieAlign = getSizeAlign(); // FIXME: Ask the ABI.
+      allocAlign = std::max(allocAlign, cookieAlign);
     }
 
     // The allocation alignment may be passed as the second argument.
