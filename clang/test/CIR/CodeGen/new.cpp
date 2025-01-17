@@ -56,3 +56,26 @@ void t() {
   B b;
   b.construct(&b);
 }
+
+
+void t_constant_size() {
+  auto p = new double[16];
+  auto p2 = new double[2][3][4];
+}
+
+// CHECK:   cir.func @_Z15t_constant_sizev()
+// CHECK:    %0 = cir.alloca !cir.ptr<!cir.double>, !cir.ptr<!cir.ptr<!cir.double>>, ["p", init] {alignment = 8 : i64}
+// CHECK:    %1 = cir.alloca !cir.ptr<!cir.array<!cir.array<!cir.double x 4> x 3>>, !cir.ptr<!cir.ptr<!cir.array<!cir.array<!cir.double x 4> x 3>>>, ["p2", init] {alignment = 8 : i64}
+// CHECK:    %2 = cir.const #cir.int<16> : !u64i
+// CHECK:    %3 = cir.const #cir.int<128> : !u64i
+// CHECK:    %4 = cir.call @_Znam(%3) : (!u64i) -> !cir.ptr<!void>
+// CHECK:    %5 = cir.cast(bitcast, %4 : !cir.ptr<!void>), !cir.ptr<!cir.double>
+// CHECK:    cir.store %5, %0 : !cir.ptr<!cir.double>, !cir.ptr<!cir.ptr<!cir.double>>
+// CHECK:    %6 = cir.const #cir.int<24> : !u64i
+// CHECK:    %7 = cir.const #cir.int<192> : !u64i
+// CHECK:    %8 = cir.call @_Znam(%7) : (!u64i) -> !cir.ptr<!void>
+// CHECK:    %9 = cir.cast(bitcast, %8 : !cir.ptr<!void>), !cir.ptr<!cir.double>
+// CHECK:    %10 = cir.cast(bitcast, %1 : !cir.ptr<!cir.ptr<!cir.array<!cir.array<!cir.double x 4> x 3>>>), !cir.ptr<!cir.ptr<!cir.double>>
+// CHECK:    cir.store %9, %10 : !cir.ptr<!cir.double>, !cir.ptr<!cir.ptr<!cir.double>>
+// CHECK:    cir.return
+// CHECK:  }

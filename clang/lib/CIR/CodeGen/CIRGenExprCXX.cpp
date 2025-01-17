@@ -13,6 +13,7 @@
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "clang/CIR/MissingFeatures.h"
 #include <CIRGenCXXABI.h>
+#include <CIRGenCstEmitter.h>
 #include <CIRGenFunction.h>
 #include <CIRGenModule.h>
 #include <CIRGenValue.h>
@@ -549,11 +550,25 @@ static UsualDeleteParams getUsualDeleteParams(const FunctionDecl *FD) {
   return Params;
 }
 
+static CharUnits CalculateCookiePadding(CIRGenFunction &CGF,
+                                        const CXXNewExpr *E) {
+  if (!E->isArray())
+    return CharUnits::Zero();
+
+  // No cookie is required if the operator new[] being used is the
+  // reserved placement operator new[].
+  if (E->getOperatorNew()->isReservedGlobalPlacementOperator())
+    return CharUnits::Zero();
+
+  return CGF.CGM.getCXXABI().getArrayCookieSize(E);
+}
+
 static mlir::Value emitCXXNewAllocSize(CIRGenFunction &CGF, const CXXNewExpr *e,
                                        unsigned minElements,
                                        mlir::Value &numElements,
                                        mlir::Value &sizeWithoutCookie) {
   QualType type = e->getAllocatedType();
+  mlir::Location Loc = CGF.getLoc(e->getSourceRange());
 
   if (!e->isArray()) {
     CharUnits typeSize = CGF.getContext().getTypeSizeInChars(type);
@@ -563,7 +578,118 @@ static mlir::Value emitCXXNewAllocSize(CIRGenFunction &CGF, const CXXNewExpr *e,
     return sizeWithoutCookie;
   }
 
-  llvm_unreachable("NYI");
+  // The width of size_t.
+  unsigned sizeWidth = CGF.CGM.getDataLayout().getTypeSizeInBits(CGF.SizeTy);
+
+  // The number of elements can be have an arbitrary integer type;
+  // essentially, we need to multiply it by a constant factor, add a
+  // cookie size, and verify that the result is representable as a
+  // size_t.  That's just a gloss, though, and it's wrong in one
+  // important way: if the count is negative, it's an error even if
+  // the cookie size would bring the total size >= 0.
+  // Compute the constant factor.
+  llvm::APInt arraySizeMultiplier(sizeWidth, 1);
+  while (const ConstantArrayType *CAT =
+             CGF.getContext().getAsConstantArrayType(type)) {
+    type = CAT->getElementType();
+    arraySizeMultiplier *= CAT->getSize();
+  }
+
+  CharUnits typeSize = CGF.getContext().getTypeSizeInChars(type);
+  llvm::APInt typeSizeMultiplier(sizeWidth, typeSize.getQuantity());
+  typeSizeMultiplier *= arraySizeMultiplier;
+
+  // Figure out the cookie size.
+  llvm::APInt cookieSize(sizeWidth,
+                         CalculateCookiePadding(CGF, e).getQuantity());
+
+  // This will be a size_t.
+  mlir::Value size;
+
+  // Emit the array size expression.
+  // We multiply the size of all dimensions for NumElements.
+  // e.g for 'int[2][3]', ElemType is 'int' and NumElements is 6.
+  const Expr *arraySize = *e->getArraySize();
+  mlir::Attribute constNumElements =
+      ConstantEmitter(CGF.CGM, &CGF)
+          .tryEmitAbstract(arraySize, arraySize->getType());
+  if (constNumElements) {
+    // Get an APInt from the constant
+    const llvm::APInt &count =
+        mlir::cast<cir::IntAttr>(constNumElements).getValue();
+
+    unsigned numElementsWidth = count.getBitWidth();
+
+    bool hasAnyOverflow = false;
+
+    // If 'count' was a negative number, it's an overflow.
+    if (count.isNegative())
+      hasAnyOverflow = true;
+
+    // We want to do all this arithmetic in size_t.  If numElements is
+    // wider than that, check whether it's already too big, and if so,
+    // overflow.
+    else if (numElementsWidth > sizeWidth &&
+             numElementsWidth - sizeWidth > count.countl_zero())
+      hasAnyOverflow = true;
+
+    // Okay, compute a count at the right width.
+    llvm::APInt adjustedCount = count.zextOrTrunc(sizeWidth);
+
+    // Scale numElements by that.  This might overflow, but we don't
+    // care because it only overflows if allocationSize does, too, and
+    // if that overflows then we shouldn't use this.
+    // This emits a constant that may not be used, but we can't tell here
+    // whether it will be needed or not.
+    numElements =
+        CGF.getBuilder().getConstInt(Loc, adjustedCount * arraySizeMultiplier);
+
+    // Compute the size before cookie, and track whether it overflowed.
+    bool overflow;
+    llvm::APInt allocationSize =
+        adjustedCount.umul_ov(typeSizeMultiplier, overflow);
+    hasAnyOverflow |= overflow;
+
+    // Add in the cookie, and check whether it's overflowed.
+    if (cookieSize != 0) {
+      // Save the current size without a cookie.  This shouldn't be
+      // used if there was overflow.
+      sizeWithoutCookie = CGF.getBuilder().getConstInt(
+          Loc, allocationSize.zextOrTrunc(sizeWidth));
+
+      allocationSize = allocationSize.uadd_ov(cookieSize, overflow);
+      hasAnyOverflow |= overflow;
+    }
+
+    // On overflow, produce a -1 so operator new will fail.
+    if (hasAnyOverflow) {
+      size =
+          CGF.getBuilder().getConstInt(Loc, llvm::APInt::getAllOnes(sizeWidth));
+    } else {
+      size = CGF.getBuilder().getConstInt(Loc, allocationSize);
+    }
+
+  } else {
+    // If numElements isn't a constant, emit the scalar expression
+    numElements = CGF.emitScalarExpr(*e->getArraySize());
+
+    assert(mlir::isa<cir::IntType>(numElements.getType()));
+    auto numElementsType = mlir::cast<cir::IntType>(numElements.getType());
+    bool isSigned = numElementsType.isSigned();
+    unsigned numElementsWidth = numElementsType.getWidth();
+
+    // In this case, we might need to use the overflow intrinsics.
+
+    // TODO: Handle the variable size case
+    llvm_unreachable("NYI");
+  }
+
+  if (cookieSize == 0)
+    sizeWithoutCookie = size;
+  else
+    assert(sizeWithoutCookie && "didn't set sizeWithoutCookie?");
+
+  return size;
 }
 
 namespace {
@@ -751,25 +877,13 @@ static void emitNewInitializer(CIRGenFunction &CGF, const CXXNewExpr *E,
                                mlir::Value AllocSizeWithoutCookie) {
   assert(!cir::MissingFeatures::generateDebugInfo());
   if (E->isArray()) {
+    if (!E->hasInitializer())
+      return;
     llvm_unreachable("NYI");
   } else if (const Expr *Init = E->getInitializer()) {
     StoreAnyExprIntoOneUnit(CGF, Init, E->getAllocatedType(), NewPtr,
                             AggValueSlot::DoesNotOverlap);
   }
-}
-
-static CharUnits CalculateCookiePadding(CIRGenFunction &CGF,
-                                        const CXXNewExpr *E) {
-  if (!E->isArray())
-    return CharUnits::Zero();
-
-  // No cookie is required if the operator new[] being used is the
-  // reserved placement operator new[].
-  if (E->getOperatorNew()->isReservedGlobalPlacementOperator())
-    return CharUnits::Zero();
-
-  llvm_unreachable("NYI");
-  // return CGF.CGM.getCXXABI().GetArrayCookieSize(E);
 }
 
 namespace {
@@ -1083,7 +1197,9 @@ mlir::Value CIRGenFunction::emitCXXNewExpr(const CXXNewExpr *E) {
   assert((allocSize == allocSizeWithoutCookie) ==
          CalculateCookiePadding(*this, E).isZero());
   if (allocSize != allocSizeWithoutCookie) {
-    llvm_unreachable("NYI");
+    assert(E->isArray());
+    allocation = CGM.getCXXABI().initializeArrayCookie(
+        *this, allocation, numElements, E, allocType);
   }
 
   mlir::Type elementTy;
@@ -1129,9 +1245,6 @@ mlir::Value CIRGenFunction::emitCXXNewExpr(const CXXNewExpr *E) {
   emitNewInitializer(*this, E, allocType, elementTy, result, numElements,
                      allocSizeWithoutCookie);
   auto resultPtr = result.getPointer();
-  if (E->isArray()) {
-    llvm_unreachable("NYI");
-  }
 
   // Deactivate the 'operator delete' cleanup if we finished
   // initialization.

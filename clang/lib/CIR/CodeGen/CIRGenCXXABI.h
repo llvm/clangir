@@ -38,6 +38,13 @@ protected:
 
   clang::ASTContext &getContext() const { return CGM.getASTContext(); }
 
+  virtual bool requiresArrayCookie(const CXXDeleteExpr *E,
+                                   QualType ElementType);
+  virtual bool requiresArrayCookie(const CXXNewExpr *E);
+
+  /// Issue a diagnostic about unsupported features in the ABI.
+  void errorUnsupportedABI(CIRGenFunction &CGF, StringRef S);
+
 public:
   /// Similar to AddedStructorArgs, but only notes the number of additional
   /// arguments.
@@ -347,6 +354,69 @@ public:
 
   virtual cir::MethodAttr buildVirtualMethodAttr(cir::MethodType MethodTy,
                                                  const CXXMethodDecl *MD) = 0;
+
+  /**************************** Array cookies ******************************/
+
+  /// Returns the extra size required in order to store the array
+  /// cookie for the given new-expression.  May return 0 to indicate that no
+  /// array cookie is required.
+  ///
+  /// Several cases are filtered out before this method is called:
+  ///   - non-array allocations never need a cookie
+  ///   - calls to \::operator new(size_t, void*) never need a cookie
+  ///
+  /// \param E - the new-expression being allocated.
+  virtual CharUnits getArrayCookieSize(const CXXNewExpr *E);
+
+  /// Initialize the array cookie for the given allocation.
+  ///
+  /// \param NewPtr - a char* which is the presumed-non-null
+  ///   return value of the allocation function
+  /// \param NumElements - the computed number of elements,
+  ///   potentially collapsed from the multidimensional array case;
+  ///   always a size_t
+  /// \param ElementType - the base element allocated type,
+  ///   i.e. the allocated type after stripping all array types
+  virtual Address initializeArrayCookie(CIRGenFunction &CGF, Address NewPtr,
+                                        mlir::Value NumElements,
+                                        const CXXNewExpr *E,
+                                        QualType ElementType);
+
+  /// Reads the array cookie associated with the given pointer,
+  /// if it has one.
+  ///
+  /// \param Ptr - a pointer to the first element in the array
+  /// \param ElementType - the base element type of elements of the array
+  /// \param NumElements - an out parameter which will be initialized
+  ///   with the number of elements allocated, or zero if there is no
+  ///   cookie
+  /// \param AllocPtr - an out parameter which will be initialized
+  ///   with a char* pointing to the address returned by the allocation
+  ///   function
+  /// \param CookieSize - an out parameter which will be initialized
+  ///   with the size of the cookie, or zero if there is no cookie
+  virtual void readArrayCookie(CIRGenFunction &CGF, Address Ptr,
+                               const CXXDeleteExpr *E, QualType ElementType,
+                               mlir::Value &NumElements, mlir::Value &AllocPtr,
+                               CharUnits &CookieSize);
+
+protected:
+  /// Returns the extra size required in order to store the array
+  /// cookie for the given type.  Assumes that an array cookie is
+  /// required.
+  virtual CharUnits getArrayCookieSizeImpl(QualType ElementType);
+
+  /// Reads the array cookie for an allocation which is known to have one.
+  /// This is called by the standard implementation of ReadArrayCookie.
+  ///
+  /// \param Ptr - a pointer to the allocation made for an array, as a char*
+  /// \param CookieSize - the computed cookie size of an array
+  ///
+  /// Other parameters are as above.
+  ///
+  /// \return a size_t
+  virtual mlir::Value readArrayCookieImpl(CIRGenFunction &IGF, Address Ptr,
+                                          CharUnits CookieSize);
 };
 
 /// Creates and Itanium-family ABI

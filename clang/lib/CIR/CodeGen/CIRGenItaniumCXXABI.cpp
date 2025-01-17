@@ -324,6 +324,13 @@ public:
   cir::MethodAttr buildVirtualMethodAttr(cir::MethodType MethodTy,
                                          const CXXMethodDecl *MD) override;
 
+  CharUnits getArrayCookieSizeImpl(QualType ElementType) override;
+  Address initializeArrayCookie(CIRGenFunction &CGF, Address NewPtr,
+                                mlir::Value NumElements, const CXXNewExpr *E,
+                                QualType ElementType) override;
+  mlir::Value readArrayCookieImpl(CIRGenFunction &CGF, Address AllocPtr,
+                                  CharUnits CookieSize) override;
+
   /**************************** RTTI Uniqueness ******************************/
 protected:
   /// Returns true if the ABI requires RTTI type_info objects to be unique
@@ -2633,4 +2640,124 @@ CIRGenItaniumCXXABI::buildVirtualMethodAttr(cir::MethodType MethodTy,
 /// member pointers, for which '0' is a valid offset.
 bool CIRGenItaniumCXXABI::isZeroInitializable(const MemberPointerType *MPT) {
   return MPT->isMemberFunctionPointer();
+}
+
+/************************** Array allocation cookies **************************/
+
+CharUnits CIRGenItaniumCXXABI::getArrayCookieSizeImpl(QualType ElementType) {
+  // The array cookie is a size_t; pad that up to the element alignment.
+  // The cookie is actually right-justified in that space.
+  return std::max(
+      CharUnits::fromQuantity(CGM.SizeSizeInBytes),
+      CGM.getASTContext().getPreferredTypeAlignInChars(ElementType));
+}
+
+Address CIRGenItaniumCXXABI::initializeArrayCookie(CIRGenFunction &CGF,
+                                                   Address NewPtr,
+                                                   mlir::Value NumElements,
+                                                   const CXXNewExpr *E,
+                                                   QualType ElementType) {
+  assert(requiresArrayCookie(E));
+
+  // TODO: Get the address space when sanitizer support is implemented
+  // unsigned AS = NewPtr.getAddressSpace();
+
+  ASTContext &Ctx = getContext();
+  CharUnits SizeSize = CGF.getSizeSize();
+  mlir::Location Loc = CGF.getLoc(E->getSourceRange());
+
+  // The size of the cookie.
+  CharUnits CookieSize =
+      std::max(SizeSize, Ctx.getPreferredTypeAlignInChars(ElementType));
+  assert(CookieSize == getArrayCookieSizeImpl(ElementType));
+
+  // Compute an offset to the cookie.
+  Address CookiePtr = NewPtr;
+  CharUnits CookieOffset = CookieSize - SizeSize;
+  if (!CookieOffset.isZero()) {
+    auto DataPtr = CGF.getBuilder().createPtrStride(
+        Loc,
+        CGF.getBuilder().createPtrBitcast(CookiePtr.getPointer(),
+                                          CGF.getBuilder().getUIntNTy(8)),
+        CGF.getBuilder().getSignedInt(Loc, CookieOffset.getQuantity(),
+                                      /*width=*/32));
+    CookiePtr = Address(DataPtr, NewPtr.getType(), NewPtr.getAlignment());
+  }
+
+  // Write the number of elements into the appropriate slot.
+  Address NumElementsPtr = CookiePtr.withElementType(CGF.SizeTy);
+  auto StoreOp = CGF.getBuilder().createStore(Loc, NumElements, NumElementsPtr);
+
+  if (CGF.SanOpts.has(SanitizerKind::Address))
+    llvm_unreachable("NYI");
+
+  // TODO: Handle the array cookie specially in ASan.
+  // if (CGF.SanOpts.has(SanitizerKind::Address) && AS == 0 &&
+  //     (E->getOperatorNew()->isReplaceableGlobalAllocationFunction() ||
+  //      CGF.CGM.getCodeGenOpts().SanitizeAddressPoisonCustomArrayCookie)) {
+  //   // TODO: The store to the CookiePtr does not need to be instrumented.
+  //   // SI->setNoSanitizeMetadata();
+  //   cir::FuncType FnTy =
+  //       CGF.getBuilder().getFuncType({}, CGF.getBuilder().getVoidTy());
+  //   cir::FuncOp FnPtr =
+  //       CGF.CGM.createRuntimeFunction(FnTy,
+  //       "__asan_poison_cxx_array_cookie");
+  //
+  //   CGF.getBuilder().createCallOp(Loc, FnPtr,
+  //                                 NumElementsPtr.emitRawPointer());
+  // }
+
+  // Finally, compute a pointer to the actual data buffer by skipping
+  // over the cookie completely.
+  int64_t Offset = (CookieSize.getQuantity());
+  auto DataPtr = CGF.getBuilder().createPtrStride(
+      Loc,
+      CGF.getBuilder().createPtrBitcast(NewPtr.getPointer(),
+                                        CGF.getBuilder().getUIntNTy(8)),
+      CGF.getBuilder().getSignedInt(Loc, Offset, /*width=*/32));
+  return Address(DataPtr, NewPtr.getType(), NewPtr.getAlignment());
+}
+
+mlir::Value CIRGenItaniumCXXABI::readArrayCookieImpl(CIRGenFunction &CGF,
+                                                     Address AllocPtr,
+                                                     CharUnits CookieSize) {
+  // The element size is right-justified in the cookie.
+  Address NumElementsPtr = AllocPtr;
+  assert(CGF.currSrcLoc && "expected to inherit some source location");
+  mlir::Location Loc = *CGF.currSrcLoc;
+  CharUnits NumElementsOffset = CookieSize - CGF.getSizeSize();
+  if (!NumElementsOffset.isZero()) {
+    int64_t Offset = NumElementsOffset.getQuantity();
+    auto DataPtr = CGF.getBuilder().createPtrStride(
+        Loc,
+        CGF.getBuilder().createPtrBitcast(AllocPtr.getPointer(),
+                                          CGF.getBuilder().getUIntNTy(8)),
+        CGF.getBuilder().getSignedInt(Loc, Offset, /*width=*/32));
+    NumElementsPtr =
+        Address(DataPtr, AllocPtr.getType(), AllocPtr.getAlignment());
+  }
+
+  NumElementsPtr = NumElementsPtr.withElementType(CGF.SizeTy);
+
+  // TODO: Get the address space when sanitizer support is added
+  // unsigned AS = AllocPtr.getAddressSpace();
+  if (CGF.SanOpts.has(SanitizerKind::Address))
+    llvm_unreachable("NYI");
+
+  // if (CGF.SanOpts.has(SanitizerKind::Address) && AS == 0) {
+  //   // In asan mode emit a function call instead of a regular load and let
+  //   // the run-time deal with it: if the shadow is properly poisoned return
+  //   // the cookie, otherwise return 0 to avoid an infinite loop calling
+  //   // DTORs. We can't simply ignore this load using nosanitize metadata
+  //   // because the metadata may be lost.
+  //   cir::FuncType FnTy = CGF.getBuilder().getFuncType({CGF.VoidPtrTy},
+  //                                                     CGF.SizeTy, false);
+  //   cir::FuncOp FnPtr =
+  //         CGF.CGM.createRuntimeFunction(FnTy,
+  //         "__asan_load_cxx_array_cookie");
+  //   return CGF.getBuilder().createCallOp(Loc, FnPtr,
+  //                                        NumElementsPtr.emitRawPointer(CGF));
+  // }
+
+  return CGF.getBuilder().createLoad(Loc, NumElementsPtr);
 }
