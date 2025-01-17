@@ -153,11 +153,10 @@ void CIRGenCXXABI::readArrayCookie(CIRGenFunction &CGF, Address Ptr,
   CookieSize = getArrayCookieSizeImpl(ElementType);
   mlir::Location Loc = CGF.getLoc(E->getSourceRange());
   int64_t Offset = -(CookieSize.getQuantity());
-  AllocPtr = CGF.getBuilder().createPtrStride(
-      Loc,
-      CGF.getBuilder().createPtrBitcast(Ptr.getPointer(),
-                                        CGF.getBuilder().getUIntNTy(8)),
-      CGF.getBuilder().getSignedInt(Loc, Offset, /*width=*/32));
+  auto CastOp = CGF.getBuilder().createPtrBitcast(
+      Ptr.getPointer(), CGF.getBuilder().getUIntNTy(8));
+  auto AlignOp = CGF.getBuilder().getSignedInt(Loc, Offset, /*width=*/32);
+  AllocPtr = CGF.getBuilder().createPtrStride(Loc, CastOp, AlignOp);
   Address AllocAddr = Address(AllocPtr, Ptr.getType(), Ptr.getAlignment());
   NumElements = readArrayCookieImpl(CGF, AllocAddr, CookieSize);
 }

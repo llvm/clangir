@@ -97,9 +97,9 @@ void t_constant_size_nontrivial() {
 // CHECK:    %4 = cir.call @_Znam(%3) : (!u64i) -> !cir.ptr<!void>
 // CHECK:    %5 = cir.cast(bitcast, %4 : !cir.ptr<!void>), !cir.ptr<!u64i>
 // CHECK:    cir.store %1, %5 : !u64i, !cir.ptr<!u64i>
-// CHECK:    %6 = cir.const #cir.int<8> : !s32i
-// CHECK:    %7 = cir.cast(bitcast, %4 : !cir.ptr<!void>), !cir.ptr<!u8i>
-// CHECK:    %8 = cir.ptr_stride(%7 : !cir.ptr<!u8i>, %6 : !s32i), !cir.ptr<!u8i>
+// CHECK:    %6 = cir.cast(bitcast, %4 : !cir.ptr<!void>), !cir.ptr<!u8i>
+// CHECK:    %7 = cir.const #cir.int<8> : !s32i
+// CHECK:    %8 = cir.ptr_stride(%6 : !cir.ptr<!u8i>, %7 : !s32i), !cir.ptr<!u8i>
 // CHECK:    %9 = cir.cast(bitcast, %8 : !cir.ptr<!u8i>), !cir.ptr<!ty_C>
 // CHECK:    cir.store %9, %0 : !cir.ptr<!ty_C>, !cir.ptr<!cir.ptr<!ty_C>>
 // CHECK:    cir.return

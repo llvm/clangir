@@ -2675,18 +2675,17 @@ Address CIRGenItaniumCXXABI::initializeArrayCookie(CIRGenFunction &CGF,
   Address CookiePtr = NewPtr;
   CharUnits CookieOffset = CookieSize - SizeSize;
   if (!CookieOffset.isZero()) {
-    auto DataPtr = CGF.getBuilder().createPtrStride(
-        Loc,
-        CGF.getBuilder().createPtrBitcast(CookiePtr.getPointer(),
-                                          CGF.getBuilder().getUIntNTy(8)),
-        CGF.getBuilder().getSignedInt(Loc, CookieOffset.getQuantity(),
-                                      /*width=*/32));
+    auto CastOp = CGF.getBuilder().createPtrBitcast(
+        CookiePtr.getPointer(), CGF.getBuilder().getUIntNTy(8));
+    auto OffsetOp = CGF.getBuilder().getSignedInt(
+        Loc, CookieOffset.getQuantity(), /*width=*/32);
+    auto DataPtr = CGF.getBuilder().createPtrStride(Loc, CastOp, OffsetOp);
     CookiePtr = Address(DataPtr, NewPtr.getType(), NewPtr.getAlignment());
   }
 
   // Write the number of elements into the appropriate slot.
   Address NumElementsPtr = CookiePtr.withElementType(CGF.SizeTy);
-  auto StoreOp = CGF.getBuilder().createStore(Loc, NumElements, NumElementsPtr);
+  CGF.getBuilder().createStore(Loc, NumElements, NumElementsPtr);
 
   if (CGF.SanOpts.has(SanitizerKind::Address))
     llvm_unreachable("NYI");
@@ -2710,11 +2709,10 @@ Address CIRGenItaniumCXXABI::initializeArrayCookie(CIRGenFunction &CGF,
   // Finally, compute a pointer to the actual data buffer by skipping
   // over the cookie completely.
   int64_t Offset = (CookieSize.getQuantity());
-  auto DataPtr = CGF.getBuilder().createPtrStride(
-      Loc,
-      CGF.getBuilder().createPtrBitcast(NewPtr.getPointer(),
-                                        CGF.getBuilder().getUIntNTy(8)),
-      CGF.getBuilder().getSignedInt(Loc, Offset, /*width=*/32));
+  auto CastOp = CGF.getBuilder().createPtrBitcast(
+      NewPtr.getPointer(), CGF.getBuilder().getUIntNTy(8));
+  auto OffsetOp = CGF.getBuilder().getSignedInt(Loc, Offset, /*width=*/32);
+  auto DataPtr = CGF.getBuilder().createPtrStride(Loc, CastOp, OffsetOp);
   return Address(DataPtr, NewPtr.getType(), NewPtr.getAlignment());
 }
 
@@ -2728,11 +2726,10 @@ mlir::Value CIRGenItaniumCXXABI::readArrayCookieImpl(CIRGenFunction &CGF,
   CharUnits NumElementsOffset = CookieSize - CGF.getSizeSize();
   if (!NumElementsOffset.isZero()) {
     int64_t Offset = NumElementsOffset.getQuantity();
-    auto DataPtr = CGF.getBuilder().createPtrStride(
-        Loc,
-        CGF.getBuilder().createPtrBitcast(AllocPtr.getPointer(),
-                                          CGF.getBuilder().getUIntNTy(8)),
-        CGF.getBuilder().getSignedInt(Loc, Offset, /*width=*/32));
+    auto CastOp = CGF.getBuilder().createPtrBitcast(
+        AllocPtr.getPointer(), CGF.getBuilder().getUIntNTy(8));
+    auto OffsetOp = CGF.getBuilder().getSignedInt(Loc, Offset, /*width=*/32);
+    auto DataPtr = CGF.getBuilder().createPtrStride(Loc, CastOp, OffsetOp);
     NumElementsPtr =
         Address(DataPtr, AllocPtr.getType(), AllocPtr.getAlignment());
   }
