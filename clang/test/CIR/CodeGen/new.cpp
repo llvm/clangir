@@ -63,12 +63,15 @@ void t_constant_size() {
   auto p2 = new double[2][3][4];
 }
 
+// In this test, NUM_ELEMENTS isn't used because no cookie is needed and there
+//   are no constructor calls needed.
+
 // CHECK:   cir.func @_Z15t_constant_sizev()
 // CHECK:    %0 = cir.alloca !cir.ptr<!cir.double>, !cir.ptr<!cir.ptr<!cir.double>>, ["p", init] {alignment = 8 : i64}
 // CHECK:    %1 = cir.alloca !cir.ptr<!cir.array<!cir.array<!cir.double x 4> x 3>>, !cir.ptr<!cir.ptr<!cir.array<!cir.array<!cir.double x 4> x 3>>>, ["p2", init] {alignment = 8 : i64}
-// CHECK:    %2 = cir.const #cir.int<16> : !u64i
-// CHECK:    %3 = cir.const #cir.int<128> : !u64i
-// CHECK:    %4 = cir.call @_Znam(%3) : (!u64i) -> !cir.ptr<!void>
+// CHECK:    %[[#NUM_ELEMENTS:]] = cir.const #cir.int<16> : !u64i
+// CHECK:    %[[#ALLOCATION_SIZE:]] = cir.const #cir.int<128> : !u64i
+// CHECK:    %4 = cir.call @_Znam(%[[#ALLOCATION_SIZE]]) : (!u64i) -> !cir.ptr<!void>
 // CHECK:    %5 = cir.cast(bitcast, %4 : !cir.ptr<!void>), !cir.ptr<!cir.double>
 // CHECK:    cir.store %5, %0 : !cir.ptr<!cir.double>, !cir.ptr<!cir.ptr<!cir.double>>
 // CHECK:    %6 = cir.const #cir.int<24> : !u64i
@@ -89,18 +92,50 @@ void t_constant_size_nontrivial() {
   auto p = new C[3];
 }
 
+// In this test SIZE_WITHOUT_COOKIE isn't used, but it would be if there were
+// an initializer.
+
 // CHECK:  cir.func @_Z26t_constant_size_nontrivialv()
 // CHECK:    %0 = cir.alloca !cir.ptr<!ty_C>, !cir.ptr<!cir.ptr<!ty_C>>, ["p", init] {alignment = 8 : i64}
-// CHECK:    %1 = cir.const #cir.int<3> : !u64i
-// CHECK:    %2 = cir.const #cir.int<3> : !u64i
-// CHECK:    %3 = cir.const #cir.int<11> : !u64i
-// CHECK:    %4 = cir.call @_Znam(%3) : (!u64i) -> !cir.ptr<!void>
+// CHECK:    %[[#NUM_ELEMENTS:]] = cir.const #cir.int<3> : !u64i
+// CHECK:    %[[#SIZE_WITHOUT_COOKIE:]] = cir.const #cir.int<3> : !u64i
+// CHECK:    %[[#ALLOCATION_SIZE:]] = cir.const #cir.int<11> : !u64i
+// CHECK:    %4 = cir.call @_Znam(%[[#ALLOCATION_SIZE]]) : (!u64i) -> !cir.ptr<!void>
 // CHECK:    %5 = cir.cast(bitcast, %4 : !cir.ptr<!void>), !cir.ptr<!u64i>
-// CHECK:    cir.store %1, %5 : !u64i, !cir.ptr<!u64i>
+// CHECK:    cir.store %[[#NUM_ELEMENTS]], %5 : !u64i, !cir.ptr<!u64i>
 // CHECK:    %6 = cir.cast(bitcast, %4 : !cir.ptr<!void>), !cir.ptr<!u8i>
 // CHECK:    %7 = cir.const #cir.int<8> : !s32i
 // CHECK:    %8 = cir.ptr_stride(%6 : !cir.ptr<!u8i>, %7 : !s32i), !cir.ptr<!u8i>
 // CHECK:    %9 = cir.cast(bitcast, %8 : !cir.ptr<!u8i>), !cir.ptr<!ty_C>
 // CHECK:    cir.store %9, %0 : !cir.ptr<!ty_C>, !cir.ptr<!cir.ptr<!ty_C>>
+// CHECK:    cir.return
+// CHECK:  }
+
+class D {
+  public:
+    int x;
+    ~D();
+};
+
+void t_constant_size_nontrivial2() {
+  auto p = new D[3];
+}
+
+// In this test SIZE_WITHOUT_COOKIE isn't used, but it would be if there were
+// an initializer.
+
+// CHECK:  cir.func @_Z27t_constant_size_nontrivial2v()
+// CHECK:    %0 = cir.alloca !cir.ptr<!ty_D>, !cir.ptr<!cir.ptr<!ty_D>>, ["p", init] {alignment = 8 : i64}
+// CHECK:    %[[#NUM_ELEMENTS:]] = cir.const #cir.int<3> : !u64i
+// CHECK:    %[[#SIZE_WITHOUT_COOKIE:]] = cir.const #cir.int<12> : !u64i
+// CHECK:    %[[#ALLOCATION_SIZE:]] = cir.const #cir.int<20> : !u64i
+// CHECK:    %4 = cir.call @_Znam(%[[#ALLOCATION_SIZE]]) : (!u64i) -> !cir.ptr<!void>
+// CHECK:    %5 = cir.cast(bitcast, %4 : !cir.ptr<!void>), !cir.ptr<!u64i>
+// CHECK:    cir.store %[[#NUM_ELEMENTS]], %5 : !u64i, !cir.ptr<!u64i>
+// CHECK:    %6 = cir.cast(bitcast, %4 : !cir.ptr<!void>), !cir.ptr<!u8i>
+// CHECK:    %7 = cir.const #cir.int<8> : !s32i
+// CHECK:    %8 = cir.ptr_stride(%6 : !cir.ptr<!u8i>, %7 : !s32i), !cir.ptr<!u8i>
+// CHECK:    %9 = cir.cast(bitcast, %8 : !cir.ptr<!u8i>), !cir.ptr<!ty_D>
+// CHECK:    cir.store %9, %0 : !cir.ptr<!ty_D>, !cir.ptr<!cir.ptr<!ty_D>>
 // CHECK:    cir.return
 // CHECK:  }
