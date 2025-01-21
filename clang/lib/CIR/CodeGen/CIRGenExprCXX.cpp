@@ -612,7 +612,7 @@ static mlir::Value emitCXXNewAllocSize(CIRGenFunction &CGF, const CXXNewExpr *e,
   const Expr *arraySize = *e->getArraySize();
   mlir::Attribute constNumElements =
       ConstantEmitter(CGF.CGM, &CGF)
-          .tryEmitAbstract(arraySize, CGF.getContext().getSizeType());
+          .tryEmitAbstract(arraySize, arraySize->getType());
   if (constNumElements) {
     // Get an APInt from the constant
     const llvm::APInt &count =
