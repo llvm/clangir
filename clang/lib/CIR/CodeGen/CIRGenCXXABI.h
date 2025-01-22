@@ -38,8 +38,6 @@ protected:
 
   clang::ASTContext &getContext() const { return CGM.getASTContext(); }
 
-  virtual bool requiresArrayCookie(const CXXDeleteExpr *E,
-                                   QualType ElementType);
   virtual bool requiresArrayCookie(const CXXNewExpr *E);
 
 public:

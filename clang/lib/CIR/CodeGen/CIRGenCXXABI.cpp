@@ -92,16 +92,6 @@ CharUnits CIRGenCXXABI::getArrayCookieSize(const CXXNewExpr *E) {
   llvm_unreachable("NYI");
 }
 
-bool CIRGenCXXABI::requiresArrayCookie(const CXXDeleteExpr *E,
-                                       QualType ElementType) {
-  // If the class's usual deallocation function takes two arguments,
-  // it needs a cookie.
-  if (E->doesUsualArrayDeleteWantSize())
-    return true;
-
-  return ElementType.isDestructedType();
-}
-
 bool CIRGenCXXABI::requiresArrayCookie(const CXXNewExpr *E) {
   // If the class's usual deallocation function takes two arguments,
   // it needs a cookie.
