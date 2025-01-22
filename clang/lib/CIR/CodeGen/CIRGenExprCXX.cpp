@@ -587,6 +587,10 @@ static mlir::Value emitCXXNewAllocSize(CIRGenFunction &CGF, const CXXNewExpr *e,
   // size_t.  That's just a gloss, though, and it's wrong in one
   // important way: if the count is negative, it's an error even if
   // the cookie size would bring the total size >= 0.
+  //
+  // If the array size is constant, Sema will have prevented negative
+  // values and size overflow.
+
   // Compute the constant factor.
   llvm::APInt arraySizeMultiplier(sizeWidth, 1);
   while (const ConstantArrayType *CAT =
@@ -644,7 +648,7 @@ static mlir::Value emitCXXNewAllocSize(CIRGenFunction &CGF, const CXXNewExpr *e,
     llvm::APInt allocationSize =
         adjustedCount.umul_ov(typeSizeMultiplier, overflow);
 
-    // It looks like Sema prevents us from hitting this case
+    // Sema prevents us from hitting this case
     assert(!overflow && "Overflow in array allocation size");
 
     // Add in the cookie, and check whether it's overflowed.
