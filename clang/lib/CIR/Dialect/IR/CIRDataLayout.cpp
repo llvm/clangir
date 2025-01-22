@@ -212,16 +212,18 @@ llvm::TypeSize CIRDataLayout::getTypeSizeInBits(mlir::Type Ty) const {
 
     // FIXME(cir): CIR struct's data layout implementation doesn't do a good job
     // of handling unions particularities. We should have a separate union type.
-    if (structTy.isUnion()) {
-      auto largestMember = structTy.getLargestMember(layout);
-      return llvm::TypeSize::getFixed(layout.getTypeSizeInBits(largestMember));
-    }
+    // if (structTy.isUnion()) {
+    //   auto largestMember = structTy.getLargestMember(layout);
+    //   return llvm::TypeSize::getFixed(layout.getTypeSizeInBits(largestMember));
+    // }
 
     // FIXME(cir): We should be able to query the size of a struct directly to
     // its data layout implementation instead of requiring a separate
     // StructLayout object.
     // Get the layout annotation... which is lazily created on demand.
-    return getStructLayout(structTy)->getSizeInBits();
+    return structTy.getTypeSizeInBits(layout, {});
+    
+    //return getStructLayout(structTy)->getSizeInBits();
   }
 
   // FIXME(cir): This does not account for different address spaces, and relies

@@ -4343,16 +4343,20 @@ void prepareTypeConverter(mlir::LLVMTypeConverter &converter,
     switch (type.getKind()) {
     case cir::StructType::Class:
       // TODO(cir): This should be properly validated.
-    case cir::StructType::Struct:
+    case cir::StructType::Struct:    
       for (auto ty : type.getMembers())
         llvmMembers.push_back(convertTypeForMemory(converter, dataLayout, ty));
       break;
     // Unions are lowered as only the largest member.
-    case cir::StructType::Union: {
+    case cir::StructType::Union: {      
       auto largestMember = type.getLargestMember(dataLayout);
       if (largestMember)
         llvmMembers.push_back(
             convertTypeForMemory(converter, dataLayout, largestMember));
+      if (type.getPadded()) {
+        auto last = *type.getMembers().rbegin();
+        llvmMembers.push_back(convertTypeForMemory(converter, dataLayout, last));
+      }
       break;
     }
     }

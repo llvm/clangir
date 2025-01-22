@@ -86,12 +86,12 @@ public:
   /// Create a identified and complete struct type.
   static StructType get(mlir::MLIRContext *context,
                         llvm::ArrayRef<mlir::Type> members,
-                        mlir::StringAttr name, bool packed, RecordKind kind,
+                        mlir::StringAttr name, bool packed, bool padded, RecordKind kind,
                         ASTRecordDeclInterface ast = {});
   static StructType
   getChecked(llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
              mlir::MLIRContext *context, llvm::ArrayRef<mlir::Type> members,
-             mlir::StringAttr name, bool packed, RecordKind kind,
+             mlir::StringAttr name, bool packed, bool padded, RecordKind kind,
              ASTRecordDeclInterface ast = {});
 
   /// Create a identified and incomplete struct type.
@@ -104,18 +104,18 @@ public:
 
   /// Create a anonymous struct type (always complete).
   static StructType get(mlir::MLIRContext *context,
-                        llvm::ArrayRef<mlir::Type> members, bool packed,
-                        RecordKind kind, ASTRecordDeclInterface ast = {});
+                        llvm::ArrayRef<mlir::Type> members, bool packed, 
+                        bool padded, RecordKind kind, ASTRecordDeclInterface ast = {});
   static StructType
   getChecked(llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
              mlir::MLIRContext *context, llvm::ArrayRef<mlir::Type> members,
-             bool packed, RecordKind kind, ASTRecordDeclInterface ast = {});
+             bool packed, bool padded, RecordKind kind, ASTRecordDeclInterface ast = {});
 
   /// Validate the struct about to be constructed.
   static llvm::LogicalResult
   verifyInvariants(llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
                    llvm::ArrayRef<mlir::Type> members, mlir::StringAttr name,
-                   bool incomplete, bool packed, StructType::RecordKind kind,
+                   bool incomplete, bool packed, bool padded,  StructType::RecordKind kind,
                    ASTRecordDeclInterface ast);
 
   // Parse/print methods.
@@ -130,6 +130,7 @@ public:
   StructType::RecordKind getKind() const;
   bool getIncomplete() const;
   bool getPacked() const;
+  bool getPadded() const;
   void dropAst();
 
   // Predicates
@@ -157,7 +158,7 @@ public:
   }
 
   /// Complete the struct type by mutating its members and attributes.
-  void complete(llvm::ArrayRef<mlir::Type> members, bool packed,
+  void complete(llvm::ArrayRef<mlir::Type> members, bool packed, bool isPadded,
                 ASTRecordDeclInterface ast = {});
 
   /// DataLayoutTypeInterface methods.
@@ -177,8 +178,7 @@ private:
   // FIXME: currently opaque because there's a cycle if CIRTypes.types include
   // from CIRAttrs.h. The implementation operates in terms of StructLayoutAttr
   // instead.
-  mutable mlir::Attribute layoutInfo;
-  bool isPadded(const mlir::DataLayout &dataLayout) const;
+  mutable mlir::Attribute layoutInfo;  
   void computeSizeAndAlignment(const mlir::DataLayout &dataLayout) const;
 };
 
