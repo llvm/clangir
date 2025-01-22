@@ -86,15 +86,6 @@ bool CIRGenCXXABI::isZeroInitializable(const MemberPointerType *MPT) {
   return true;
 }
 
-void CIRGenCXXABI::errorUnsupportedABI(CIRGenFunction &CGF, StringRef S) {
-  DiagnosticsEngine &Diags = CGF.CGM.getDiags();
-  unsigned DiagID = Diags.getCustomDiagID(DiagnosticsEngine::Error,
-                                          "cannot yet compile %0 in this ABI");
-  Diags.Report(CGF.getContext().getFullLoc(CGF.CurCodeDecl->getLocation()),
-               DiagID)
-      << S;
-}
-
 CharUnits CIRGenCXXABI::getArrayCookieSize(const CXXNewExpr *E) {
   if (!requiresArrayCookie(E))
     return CharUnits::Zero();

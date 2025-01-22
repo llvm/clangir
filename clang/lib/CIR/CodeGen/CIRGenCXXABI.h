@@ -42,9 +42,6 @@ protected:
                                    QualType ElementType);
   virtual bool requiresArrayCookie(const CXXNewExpr *E);
 
-  /// Issue a diagnostic about unsupported features in the ABI.
-  void errorUnsupportedABI(CIRGenFunction &CGF, StringRef S);
-
 public:
   /// Similar to AddedStructorArgs, but only notes the number of additional
   /// arguments.

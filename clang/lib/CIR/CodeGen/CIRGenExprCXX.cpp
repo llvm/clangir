@@ -625,7 +625,8 @@ static mlir::Value emitCXXNewAllocSize(CIRGenFunction &CGF, const CXXNewExpr *e,
     // cast to a size_t, so it can never be negative and numElementsWidth will
     // always equal sizeWidth.
     assert(!count.isNegative() && "Expected non-negative array size");
-    assert(numElementsWidth == sizeWidth && "Expected a size_t array size constant");
+    assert(numElementsWidth == sizeWidth &&
+           "Expected a size_t array size constant");
 
     // Okay, compute a count at the right width.
     llvm::APInt adjustedCount = count.zextOrTrunc(sizeWidth);
@@ -853,7 +854,7 @@ void CIRGenFunction::emitNewArrayInitializer(
   if (!E->hasInitializer())
     return;
 
-  llvm_unreachable("NYI");    
+  llvm_unreachable("NYI");
 }
 
 static void emitNewInitializer(CIRGenFunction &CGF, const CXXNewExpr *E,
