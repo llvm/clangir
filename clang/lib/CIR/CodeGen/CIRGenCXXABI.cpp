@@ -98,21 +98,7 @@ void CIRGenCXXABI::errorUnsupportedABI(CIRGenFunction &CGF, StringRef S) {
 CharUnits CIRGenCXXABI::getArrayCookieSize(const CXXNewExpr *E) {
   if (!requiresArrayCookie(E))
     return CharUnits::Zero();
-  return getArrayCookieSizeImpl(E->getAllocatedType());
-}
-
-CharUnits CIRGenCXXABI::getArrayCookieSizeImpl(QualType ElementType) {
-  // BOGUS
-  return CharUnits::Zero();
-}
-
-Address CIRGenCXXABI::initializeArrayCookie(CIRGenFunction &CGF, Address NewPtr,
-                                            mlir::Value NumElements,
-                                            const CXXNewExpr *E,
-                                            QualType ElementType) {
-  // Should never be called.
-  errorUnsupportedABI(CGF, "array cookie initialization");
-  return Address::invalid();
+  llvm_unreachable("NYI");
 }
 
 bool CIRGenCXXABI::requiresArrayCookie(const CXXDeleteExpr *E,
@@ -132,39 +118,4 @@ bool CIRGenCXXABI::requiresArrayCookie(const CXXNewExpr *E) {
     return true;
 
   return E->getAllocatedType().isDestructedType();
-}
-
-void CIRGenCXXABI::readArrayCookie(CIRGenFunction &CGF, Address Ptr,
-                                   const CXXDeleteExpr *E, QualType ElementType,
-                                   mlir::Value &NumElements,
-                                   mlir::Value &AllocPtr,
-                                   CharUnits &CookieSize) {
-  // Derive a char* in the same address space as the pointer.
-  Ptr = Ptr.withElementType(CGF.UInt8Ty);
-
-  // If we don't need an array cookie, bail out early.
-  if (!requiresArrayCookie(E, ElementType)) {
-    AllocPtr = Ptr.emitRawPointer();
-    NumElements = nullptr;
-    CookieSize = CharUnits::Zero();
-    return;
-  }
-
-  CookieSize = getArrayCookieSizeImpl(ElementType);
-  mlir::Location Loc = CGF.getLoc(E->getSourceRange());
-  int64_t Offset = -(CookieSize.getQuantity());
-  auto CastOp = CGF.getBuilder().createPtrBitcast(
-      Ptr.getPointer(), CGF.getBuilder().getUIntNTy(8));
-  auto AlignOp = CGF.getBuilder().getSignedInt(Loc, Offset, /*width=*/32);
-  AllocPtr = CGF.getBuilder().createPtrStride(Loc, CastOp, AlignOp);
-  Address AllocAddr = Address(AllocPtr, Ptr.getType(), Ptr.getAlignment());
-  NumElements = readArrayCookieImpl(CGF, AllocAddr, CookieSize);
-}
-
-mlir::Value CIRGenCXXABI::readArrayCookieImpl(CIRGenFunction &CGF, Address Ptr,
-                                              CharUnits CookieSize) {
-  errorUnsupportedABI(CGF, "reading a new[] cookie");
-  assert(CGF.currSrcLoc && "expected to inherit some source location");
-  mlir::Location Loc = *CGF.currSrcLoc;
-  return CGF.getBuilder().getSignedInt(Loc, 0, CGF.getSizeSize().getQuantity());
 }
