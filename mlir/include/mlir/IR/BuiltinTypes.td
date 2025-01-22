@@ -1044,7 +1044,7 @@ def Builtin_RankedTensor : Builtin_Type<"RankedTensor", "tensor", [
 // TupleType
 //===----------------------------------------------------------------------===//
 
-def Builtin_Tuple : Builtin_Type<"Tuple", "tuple"> {
+def Builtin_Tuple : Builtin_Type<"Tuple", "tuple", [MemRefElementTypeInterface]> {
   let summary = "Fixed-sized collection of other types";
   let description = [{
     Syntax:
@@ -1134,10 +1134,10 @@ def Builtin_UnrankedMemRef : Builtin_Type<"UnrankedMemRef", "unranked_memref", [
     #### Examples:
 
     ```mlir
-    memref<*f32>
+    memref<*xf32>
 
     // An unranked memref with a memory space of 10.
-    memref<*f32, 10>
+    memref<*xf32, 10>
     ```
   }];
   let parameters = (ins "Type":$elementType, "Attribute":$memorySpace);
