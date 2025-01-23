@@ -199,7 +199,7 @@ struct CIRRecordLowering final {
   void appendPaddingBytes(CharUnits Size) {
     if (!Size.isZero()) {
       fieldTypes.push_back(getByteArrayType(Size));
-      isPadded = 1;    
+      isPadded = 1;
     }
   }
 
@@ -709,9 +709,9 @@ CIRGenTypes::computeRecordLayout(const RecordDecl *D, cir::StructType *Ty) {
       CIRRecordLowering baseBuilder(*this, D, /*Packed=*/builder.isPacked);
       baseBuilder.lower(/*NonVirtualBaseType=*/true);
       auto baseIdentifier = getRecordTypeName(D, ".base");
-      BaseTy = Builder.getCompleteStructTy(
-          baseBuilder.fieldTypes, baseIdentifier, baseBuilder.isPacked, baseBuilder.isPadded, 
-          D);
+      BaseTy = Builder.getCompleteStructTy(baseBuilder.fieldTypes,
+                                           baseIdentifier, baseBuilder.isPacked,
+                                           baseBuilder.isPadded, D);
       // TODO(cir): add something like addRecordTypeName
 
       // BaseTy and Ty must agree on their packedness for getCIRFieldNo to work

@@ -436,7 +436,7 @@ mlir::Attribute ConstantAggregateBuilder::buildFrom(
   auto &builder = CGM.getBuilder();
   auto arrAttr = mlir::ArrayAttr::get(builder.getContext(),
                                       Packed ? PackedElems : UnpackedElems);
-  
+
   auto strType = builder.getCompleteStructType(arrAttr, Packed);
   if (auto desired = dyn_cast<cir::StructType>(DesiredTy))
     if (desired.isLayoutIdentical(strType))
@@ -446,7 +446,7 @@ mlir::Attribute ConstantAggregateBuilder::buildFrom(
 }
 
 void ConstantAggregateBuilder::condense(CharUnits Offset,
-                                        mlir::Type DesiredTy) {  
+                                        mlir::Type DesiredTy) {
   CharUnits Size = getSize(DesiredTy);
 
   std::optional<size_t> FirstElemToReplace = splitAt(Offset);
@@ -719,9 +719,9 @@ bool ConstStructBuilder::Build(InitListExpr *ILE, bool AllowOverwrite) {
     }
   }
 
-  if (ZeroInitPadding && !ApplyZeroInitPadding(Layout, AllowOverwrite, SizeSoFar))
+  if (ZeroInitPadding &&
+      !ApplyZeroInitPadding(Layout, AllowOverwrite, SizeSoFar))
     return false;
-
 
   return true;
 }
@@ -862,11 +862,11 @@ bool ConstStructBuilder::ApplyZeroInitPadding(
 }
 
 bool ConstStructBuilder::ApplyZeroInitPadding(const ASTRecordLayout &Layout,
-                                           bool AllowOverwrite,
-                                           CharUnits SizeSoFar) {
+                                              bool AllowOverwrite,
+                                              CharUnits SizeSoFar) {
   CharUnits TotalSize = Layout.getSize();
   if (SizeSoFar < TotalSize) {
-      if (!AppendBytes(SizeSoFar, computePadding(CGM, TotalSize - SizeSoFar),
+    if (!AppendBytes(SizeSoFar, computePadding(CGM, TotalSize - SizeSoFar),
                      AllowOverwrite))
       return false;
   }

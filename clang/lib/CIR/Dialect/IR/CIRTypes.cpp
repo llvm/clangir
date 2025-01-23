@@ -173,7 +173,7 @@ Type StructType::parse(mlir::AsmParser &parser) {
 
   if (parser.parseOptionalKeyword("packed").succeeded())
     packed = true;
-  
+
   if (parser.parseOptionalKeyword("padded").succeeded())
     padded = true;
 
@@ -273,7 +273,8 @@ void StructType::print(mlir::AsmPrinter &printer) const {
 mlir::LogicalResult StructType::verifyInvariants(
     llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
     llvm::ArrayRef<mlir::Type> members, mlir::StringAttr name, bool incomplete,
-    bool packed, bool padded, cir::StructType::RecordKind kind, ASTRecordDeclInterface ast) {
+    bool packed, bool padded, cir::StructType::RecordKind kind,
+    ASTRecordDeclInterface ast) {
   if (name && name.getValue().empty()) {
     emitError() << "identified structs cannot have an empty name";
     return mlir::failure();
@@ -283,10 +284,10 @@ mlir::LogicalResult StructType::verifyInvariants(
 
 void StructType::dropAst() { getImpl()->ast = nullptr; }
 StructType StructType::get(::mlir::MLIRContext *context, ArrayRef<Type> members,
-                           StringAttr name, bool packed, bool padded, RecordKind kind,
-                           ASTRecordDeclInterface ast) {
-  return Base::get(context, members, name, /*incomplete=*/false, packed, padded, kind,
-                   ast);
+                           StringAttr name, bool packed, bool padded,
+                           RecordKind kind, ASTRecordDeclInterface ast) {
+  return Base::get(context, members, name, /*incomplete=*/false, packed, padded,
+                   kind, ast);
 }
 
 StructType StructType::getChecked(
@@ -300,7 +301,8 @@ StructType StructType::getChecked(
 StructType StructType::get(::mlir::MLIRContext *context, StringAttr name,
                            RecordKind kind) {
   return Base::get(context, /*members=*/ArrayRef<Type>{}, name,
-                   /*incomplete=*/true, /*packed=*/false, /*padded=*/false, kind,
+                   /*incomplete=*/true, /*packed=*/false, /*padded=*/false,
+                   kind,
                    /*ast=*/ASTRecordDeclInterface{});
 }
 
@@ -308,8 +310,8 @@ StructType StructType::getChecked(
     ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
     ::mlir::MLIRContext *context, StringAttr name, RecordKind kind) {
   return Base::getChecked(emitError, context, ArrayRef<Type>{}, name,
-                          /*incomplete=*/true, /*packed=*/false, /*padded=*/false, kind,
-                          ASTRecordDeclInterface{});
+                          /*incomplete=*/true, /*packed=*/false,
+                          /*padded=*/false, kind, ASTRecordDeclInterface{});
 }
 
 StructType StructType::get(::mlir::MLIRContext *context, ArrayRef<Type> members,
@@ -324,8 +326,7 @@ StructType StructType::getChecked(
     ::mlir::MLIRContext *context, ArrayRef<Type> members, bool packed,
     bool padded, RecordKind kind, ASTRecordDeclInterface ast) {
   return Base::getChecked(emitError, context, members, StringAttr{},
-                          /*incomplete=*/false, packed, padded,
-                           kind, ast);
+                          /*incomplete=*/false, packed, padded, kind, ast);
 }
 
 ::llvm::ArrayRef<mlir::Type> StructType::getMembers() const {
@@ -527,10 +528,10 @@ void StructType::computeSizeAndAlignment(
   bool dontCountLastElt = isUnion() && getPadded();
   if (dontCountLastElt)
     numElements--;
-  
+
   // Loop over each of the elements, placing them in memory.
   memberOffsets.reserve(numElements);
-  
+
   for (unsigned i = 0, e = numElements; i != e; ++i) {
     auto ty = members[i];
 
@@ -571,7 +572,7 @@ void StructType::computeSizeAndAlignment(
     structSize = largestMemberSize;
     if (getPadded()) {
       memberOffsets.push_back(mlir::IntegerAttr::get(
-        mlir::IntegerType::get(getContext(), 32), structSize));
+          mlir::IntegerType::get(getContext(), 32), structSize));
       auto ty = getMembers()[numElements];
       structSize += dataLayout.getTypeSize(ty);
       isPadded = true;
@@ -1067,9 +1068,8 @@ static mlir::Type getMethodLayoutType(mlir::MLIRContext *ctx) {
   // TODO: consider member function pointer layout in other ABIs
   auto voidPtrTy = cir::PointerType::get(cir::VoidType::get(ctx));
   mlir::Type fields[2]{voidPtrTy, voidPtrTy};
-  return cir::StructType::get(ctx, fields, /*packed=*/false, 
-                              /*padded=*/false, 
-                              cir::StructType::Struct);
+  return cir::StructType::get(ctx, fields, /*packed=*/false,
+                              /*padded=*/false, cir::StructType::Struct);
 }
 
 llvm::TypeSize

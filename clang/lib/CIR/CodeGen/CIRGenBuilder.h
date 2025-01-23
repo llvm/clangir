@@ -194,9 +194,9 @@ public:
 
     // Struct type not specified: create anon struct type from members.
     if (!structTy)
-      structTy =
-          getType<cir::StructType>(members, packed, padded, cir::StructType::Struct,
-                                   /*ast=*/nullptr);
+      structTy = getType<cir::StructType>(members, packed, padded,
+                                          cir::StructType::Struct,
+                                          /*ast=*/nullptr);
 
     // Return zero or anonymous constant struct.
     if (isZero)
@@ -436,8 +436,7 @@ public:
 
   /// Get a CIR anonymous struct type.
   cir::StructType getAnonStructTy(llvm::ArrayRef<mlir::Type> members,
-                                  bool packed = false,
-                                  bool padded = false,
+                                  bool packed = false, bool padded = false,
                                   const clang::RecordDecl *ast = nullptr) {
     cir::ASTRecordDeclAttr astAttr = nullptr;
     auto kind = cir::StructType::RecordKind::Struct;
@@ -491,8 +490,8 @@ public:
     }
 
     // Create or get the struct.
-    auto type =
-        getType<cir::StructType>(members, nameAttr, packed, padded, kind, astAttr);
+    auto type = getType<cir::StructType>(members, nameAttr, packed, padded,
+                                         kind, astAttr);
 
     // Complete an incomplete struct or ensure the existing complete struct
     // matches the requested attributes.
@@ -503,8 +502,7 @@ public:
 
   cir::StructType
   getCompleteStructType(mlir::ArrayAttr fields, bool packed = false,
-                        bool padded = false,
-                        llvm::StringRef name = "",
+                        bool padded = false, llvm::StringRef name = "",
                         const clang::RecordDecl *ast = nullptr) {
     llvm::SmallVector<mlir::Type, 8> members;
     for (auto &attr : fields) {

@@ -52,7 +52,7 @@ struct StructTypeStorage : public mlir::TypeStorage {
   ASTRecordDeclInterface ast;
 
   StructTypeStorage(llvm::ArrayRef<mlir::Type> members, mlir::StringAttr name,
-                    bool incomplete, bool packed, bool padded, 
+                    bool incomplete, bool packed, bool padded,
                     StructType::RecordKind kind, ASTRecordDeclInterface ast)
       : members(members), name(name), incomplete(incomplete), packed(packed),
         padded(padded), kind(kind), ast(ast) {}
@@ -72,16 +72,15 @@ struct StructTypeStorage : public mlir::TypeStorage {
   static llvm::hash_code hashKey(const KeyTy &key) {
     if (key.name)
       return llvm::hash_combine(key.name, key.kind);
-    return llvm::hash_combine(key.members, key.incomplete, key.packed, 
+    return llvm::hash_combine(key.members, key.incomplete, key.packed,
                               key.padded, key.kind, key.ast);
   }
 
   static StructTypeStorage *construct(mlir::TypeStorageAllocator &allocator,
                                       const KeyTy &key) {
-    return new (allocator.allocate<StructTypeStorage>())
-        StructTypeStorage(allocator.copyInto(key.members), key.name,
-                          key.incomplete, key.packed, key.padded, 
-                          key.kind, key.ast);
+    return new (allocator.allocate<StructTypeStorage>()) StructTypeStorage(
+        allocator.copyInto(key.members), key.name, key.incomplete, key.packed,
+        key.padded, key.kind, key.ast);
   }
 
   /// Mutates the members and attributes an identified struct.
@@ -100,8 +99,8 @@ struct StructTypeStorage : public mlir::TypeStorage {
     // Mutation of complete structs are allowed if they change nothing.
     if (!incomplete)
       return mlir::success((this->members == members) &&
-                           (this->packed == packed) && (this->padded == padded) &&
-                           (this->ast == ast));
+                           (this->packed == packed) &&
+                           (this->padded == padded) && (this->ast == ast));
 
     // Mutate incomplete struct.
     this->members = allocator.copyInto(members);
