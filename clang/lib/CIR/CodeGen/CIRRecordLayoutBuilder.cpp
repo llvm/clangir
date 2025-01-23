@@ -238,7 +238,7 @@ CIRRecordLowering::CIRRecordLowering(CIRGenTypes &cirGenTypes,
       astRecordLayout{cirGenTypes.getContext().getASTRecordLayout(recordDecl)},
       dataLayout{cirGenTypes.getModule().getModule()},
       IsZeroInitializable(true), IsZeroInitializableAsBase(true),
-      isPacked{isPacked} {}
+      isPacked{isPacked}, isPadded{false} {}
 
 void CIRRecordLowering::setBitFieldInfo(const FieldDecl *FD,
                                         CharUnits StartOffset,
