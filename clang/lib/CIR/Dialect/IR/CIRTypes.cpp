@@ -35,7 +35,6 @@
 #include "llvm/Support/MathExtras.h"
 #include <cassert>
 #include <optional>
-#include <iostream>
 
 using cir::MissingFeatures;
 
@@ -517,7 +516,6 @@ void StructType::computeSizeAndAlignment(
 
   // This is a similar algorithm to LLVM's StructLayout.
   unsigned structSize = 0;
-  unsigned lastMemberSize = 0;
   llvm::Align structAlignment{1};
   bool isPadded = false;
   unsigned numElements = getNumElements();
@@ -526,8 +524,13 @@ void StructType::computeSizeAndAlignment(
   unsigned largestMemberSize = 0;
   llvm::SmallVector<mlir::Attribute, 4> memberOffsets;
 
+  bool dontCountLastElt = isUnion() && getPadded();
+  if (dontCountLastElt)
+    numElements--;
+  
   // Loop over each of the elements, placing them in memory.
   memberOffsets.reserve(numElements);
+  
   for (unsigned i = 0, e = numElements; i != e; ++i) {
     auto ty = members[i];
 
@@ -557,19 +560,24 @@ void StructType::computeSizeAndAlignment(
 
     // Struct size up to each element is the element offset.
     memberOffsets.push_back(mlir::IntegerAttr::get(
-        mlir::IntegerType::get(getContext(), 32), structSize));
+        mlir::IntegerType::get(getContext(), 32), isUnion() ? 0 : structSize));
 
-    lastMemberSize = dataLayout.getTypeSize(ty);
     // Consume space for this data item
-    structSize += lastMemberSize;    
+    structSize += dataLayout.getTypeSize(ty);
   }
 
   // For unions, the size and aligment is that of the largest element.
   if (isUnion()) {
     structSize = largestMemberSize;
-    if (getPadded())
-      structSize += lastMemberSize;    
-    isPadded = false;
+    if (getPadded()) {
+      memberOffsets.push_back(mlir::IntegerAttr::get(
+        mlir::IntegerType::get(getContext(), 32), structSize));
+      auto ty = getMembers()[numElements];
+      structSize += dataLayout.getTypeSize(ty);
+      isPadded = true;
+    } else {
+      isPadded = false;
+    }
   } else {
     // Add padding to the end of the struct so that it could be put in an array
     // and all array elements would be aligned correctly.

@@ -179,6 +179,7 @@ private:
   // from CIRAttrs.h. The implementation operates in terms of StructLayoutAttr
   // instead.
   mutable mlir::Attribute layoutInfo;  
+  //bool isPadded(const mlir::DataLayout &dataLayout) const;
   void computeSizeAndAlignment(const mlir::DataLayout &dataLayout) const;
 };
 
