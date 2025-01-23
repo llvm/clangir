@@ -2261,7 +2261,30 @@ mlir::Value CIRGenItaniumCXXABI::getCXXDestructorImplicitParam(
 
 void CIRGenItaniumCXXABI::emitRethrow(CIRGenFunction &CGF, bool isNoReturn) {
   // void __cxa_rethrow();
-  llvm_unreachable("NYI");
+
+  cir::FuncType FTy =
+      CGF.getBuilder().getFuncType({}, CGF.getBuilder().getVoidTy());
+
+  auto Fn = CGF.CGM.createRuntimeFunction(FTy, "__cxa_rethrow");
+
+  if (isNoReturn) {
+    auto &builder = CGF.getBuilder();
+
+    auto callOp = builder.createTryCallOp(Fn.getLoc(), Fn, {});
+
+    // The idea here is to create
+    // an unreachable continue block for the rethrow, but
+    // there is a YieldOp that terminates the TryOp already, so creating an
+    // UnreachableOp in-place causes us to have two terminators which isn't
+    // valid CIR. So, to make this valid CIR the UnreachableOp is created in a
+    // separate scope.
+    builder.create<cir::ScopeOp>(Fn.getLoc(), /*scopeBuilder=*/
+                                 [&](mlir::OpBuilder &b, mlir::Location loc) {
+                                   b.create<cir::UnreachableOp>(loc);
+                                 });
+  } else {
+    llvm_unreachable("NYI");
+  }
 }
 
 void CIRGenItaniumCXXABI::emitThrow(CIRGenFunction &CGF,
