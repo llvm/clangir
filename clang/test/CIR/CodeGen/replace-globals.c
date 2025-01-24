@@ -23,7 +23,7 @@ void use() {
     int a = **g3;
     int b = ***g4; 
     int c = ****g5; 
-    int d = **g8;    
+    int d = **g8;
 }
 
 // CHECK-DAG: !ty_anon_struct = !cir.struct<struct  {!u8i, !u8i, !u8i, !u8i, !s32i, !s32i}>
@@ -49,3 +49,35 @@ void use() {
 // FIXME: LLVM output should be: @g3 = internal global ptr getelementptr (i8, ptr @g2, i64 8), align 8
 // FIXME: LLVM output should be: @g7 = internal global [2 x ptr] [ptr getelementptr (i8, ptr @g6, i64 8), ptr getelementptr (i8, ptr @g6, i64 20)], align 16
 // FIXME: LLVM output should be: @g8 = internal global ptr getelementptr (i8, ptr @g7, i64 8), align 8
+
+typedef struct {
+   char f1;
+   int  f6;
+} S1;
+
+S1 g9 = {1, 42};
+int* g10 = &g9.f6;
+
+#pragma pack(push)
+#pragma pack(1)
+typedef struct {
+   char f1;
+   int  f6;
+} S2;
+#pragma pack(pop)
+
+S2 g11 = {1, 42};
+int* g12 = &g11.f6;
+
+// CHECK-DAG: g9 = #cir.const_struct<{#cir.int<1> : !s8i, #cir.const_array<[#cir.zero : !u8i, #cir.zero : !u8i, #cir.zero : !u8i]> : !cir.array<!u8i x 3>, #cir.int<42> : !s32i}> : !ty_anon_struct1 {alignment = 4 : i64}
+// CHECK-DAG: g10 = #cir.global_view<@g9, [2 : i32]> : !cir.ptr<!s32i> {alignment = 8 : i64}
+// CHECK-DAG: g11 = #cir.const_struct<{#cir.int<1> : !s8i, #cir.int<42> : !s32i}> : !ty_S2_ {alignment = 1 : i64}
+// CHECK-DAG: g12 = #cir.global_view<@g11, [1 : i32]> : !cir.ptr<!s32i> {alignment = 8 : i64} 
+
+// LLVM-DAG: @g9 = global { i8, [3 x i8], i32 } { i8 1, [3 x i8] zeroinitializer, i32 42 }, align 4
+// LLVM-DAG: @g10 = global ptr getelementptr inbounds ({ i8, [3 x i8], i32 }, ptr @g9, i32 0, i32 2), align 8
+// LLVM-DAG: @g11 = global %struct.S2 <{ i8 1, i32 42 }>, align 1
+// LLVM-DAG: @g12 = global ptr getelementptr inbounds (%struct.S2, ptr @g11, i32 0, i32 1), align 8
+
+// FIXME: LLVM output should be: @g10 = dso_local global ptr getelementptr (i8, ptr @g9, i64 4), align 8
+// FIXME: LLVM output should be: @g12 = dso_local global ptr getelementptr (i8, ptr @g11, i64 1), align 8

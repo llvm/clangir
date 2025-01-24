@@ -94,6 +94,8 @@ void CIRGenBuilderTy::computeGlobalViewIndicesFromFlatOffset(
       int64_t EltSize =
           (int64_t)Layout.getTypeAllocSize(Elts[I]).getFixedValue();
       unsigned AlignMask = Layout.getABITypeAlign(Elts[I]).value() - 1;
+      if (StructTy.getPacked())
+        AlignMask = 0;
       Pos = (Pos + AlignMask) & ~AlignMask;
       assert(Offset >= 0);
       if (Offset < Pos + EltSize) {

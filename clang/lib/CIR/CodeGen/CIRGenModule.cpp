@@ -1152,7 +1152,8 @@ CIRGenModule::getAddrOfGlobalVarAttr(const VarDecl *D, mlir::Type Ty,
     Ty = getTypes().convertTypeForMem(ASTTy);
 
   auto globalOp = getOrCreateCIRGlobal(D, Ty, IsForDefinition);
-  return builder.getGlobalViewAttr(builder.getPointerTo(Ty), globalOp);
+  auto ptrTy = builder.getPointerTo(globalOp.getSymType());
+  return builder.getGlobalViewAttr(ptrTy, globalOp);
 }
 
 mlir::Operation *CIRGenModule::getWeakRefReference(const ValueDecl *VD) {
