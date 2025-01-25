@@ -6,15 +6,15 @@ void t_new_constant_size() {
 }
 
 // LLVM: @_Z19t_new_constant_sizev()
-// LLVM:   %1 = alloca ptr, i64 1, align 8
-// LLVM:   %2 = call ptr @_Znam(i64 128)
-// LLVM:   store ptr %2, ptr %1, align 8
+// LLVM:   %[[ALLOCA:.*]] = alloca ptr, i64 1, align 8
+// LLVM:   %[[ADDR:.*]] = call ptr @_Znam(i64 128)
+// LLVM:   store ptr %[[ADDR]], ptr %[[ALLOCA]], align 8
 
 void t_new_multidim_constant_size() {
   auto p = new double[2][3][4];
 }
 
 // LLVM: @_Z28t_new_multidim_constant_sizev()
-// LLVM:   %1 = alloca ptr, i64 1, align 8
-// LLVM:   %2 = call ptr @_Znam(i64 192)
-// LLVM:   store ptr %2, ptr %1, align 8
+// LLVM:   %[[ALLOCA:.*]] = alloca ptr, i64 1, align 8
+// LLVM:   %[[ADDR:.*]] = call ptr @_Znam(i64 192)
+// LLVM:   store ptr %[[ADDR]], ptr %[[ALLOCA]], align 8
