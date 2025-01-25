@@ -5,6 +5,15 @@ set(LLVM_LINK_COMPONENTS
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
 
+set(deps)
+if (NOT CLANG_BUILT_STANDALONE)
+  set(deps
+    MLIRBuiltinLocationAttributesIncGen
+    MLIRBuiltinTypeInterfacesIncGen
+    MLIRFunctionInterfacesIncGen
+    )
+endif()
+
 add_clang_library(clangCIRLoweringHelpers
   LoweringHelpers.cpp
 
@@ -14,9 +23,7 @@ add_clang_library(clangCIRLoweringHelpers
   MLIRCIRASTAttrInterfacesIncGen
   MLIRCIROpInterfacesIncGen
   MLIRCIRLoopOpInterfaceIncGen
-  MLIRBuiltinLocationAttributesIncGen
-  MLIRBuiltinTypeInterfacesIncGen
-  MLIRFunctionInterfacesIncGen
+  ${deps}
 
   LINK_LIBS
   clangAST
@@ -25,8 +32,11 @@ add_clang_library(clangCIRLoweringHelpers
   clangLex
   clangFrontend
   clangCIR
-  ${dialect_libs}
   MLIRCIR
+  )
+
+mlir_target_link_libraries(clangCIRLoweringHelpers PUBLIC
+  ${dialect_libs}
   MLIRAnalysis
   MLIRBuiltinToLLVMIRTranslation
   MLIRLLVMToLLVMIRTranslation

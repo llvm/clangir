@@ -23,11 +23,13 @@ add_clang_library(MLIRCIRTransforms
   clangBasic
   TargetLowering
 
+  MLIRCIR
+  MLIRCIRInterfaces
+)
+
+mlir_target_link_libraries(MLIRCIRTransforms PUBLIC
   MLIRAnalysis
   MLIRIR
   MLIRPass
   MLIRTransformUtils
-
-  MLIRCIR
-  MLIRCIRInterfaces
 )

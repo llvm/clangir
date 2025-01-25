@@ -6,6 +6,11 @@ set(
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
 
+set(deps)
+if (NOT CLANG_BUILT_STANDALONE)
+  set(deps ${dialect_libs})
+endif()
+
 add_clang_library(clangCIR
   CIRAsm.cpp
   CIRGenAtomic.cpp
@@ -52,16 +57,19 @@ add_clang_library(clangCIR
   MLIRCIRASTAttrInterfacesIncGen
   MLIRCIROpInterfacesIncGen
   MLIRCIRLoopOpInterfaceIncGen
-  ${dialect_libs}
+  ${deps}
 
   LINK_LIBS
   clangAST
   clangBasic
   clangLex
-  ${dialect_libs}
   MLIRCIR
   MLIRCIRTransforms
   MLIRCIRInterfaces
+)
+
+mlir_target_link_libraries(clangCIR PUBLIC
+  ${dialect_libs}
   MLIRAffineToStandard
   MLIRAnalysis
   MLIRDLTIDialect

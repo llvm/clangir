@@ -89,8 +89,12 @@ if(CLANG_ENABLE_CIR)
   list(APPEND CLANG_TEST_DEPS
     cir-opt
     cir-translate
-    mlir-translate
     )
+  if(NOT CLANG_BUILT_STANDALONE)
+    list(APPEND CLANG_TEST_DEPS
+      mlir-translate
+      )
+  endif()
 endif()
 
 if(CLANG_ENABLE_STATIC_ANALYZER)
