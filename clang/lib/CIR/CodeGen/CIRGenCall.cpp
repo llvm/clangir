@@ -19,8 +19,13 @@
 #include "TargetInfo.h"
 
 #include "clang/AST/Attr.h"
+#include "clang/AST/Attrs.inc"
+#include "clang/AST/Decl.h"
+#include "clang/AST/DeclBase.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/GlobalDecl.h"
+#include "clang/Basic/Specifiers.h"
+#include "clang/CIR/ABIArgInfo.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/FnInfoOpts.h"
@@ -1138,6 +1143,191 @@ static CanQual<FunctionProtoType> GetFormalType(const CXXMethodDecl *MD) {
       .getAs<FunctionProtoType>();
 }
 
+void CIRGenFunction::emitFunctionProlog(const CIRGenFunctionInfo &functionInfo,
+                                        cir::FuncOp fn,
+                                        const FunctionArgList &args) {
+  return;
+  if (CurCodeDecl && CurCodeDecl->hasAttr<NakedAttr>())
+    // Naked functions don't have prologues.
+    return;
+
+  // If this is an implicit-return-zero function, go ahead and initialize the
+  // return value. TODO: it might be nice to have a more general mechanism for
+  // this that didn't require synthesized return statements.
+  if (const FunctionDecl *fd = dyn_cast_or_null<FunctionDecl>(CurCodeDecl)) {
+    if (fd->hasImplicitReturnZero())
+      llvm_unreachable("NYI");
+  }
+
+  // FIXME: We no longer need the types from FunctionArgList; lift up and
+  // simplify.
+
+  ClangToCIRArgMapping cirFunctionArgs(CGM.getASTContext(), functionInfo);
+  assert(fn.getArguments().size() == cirFunctionArgs.totalCIRArgs());
+
+  // If we're using inalloca, all the memory arguments are GEPs off of the last
+  // parameter, which is a pointer to the complete memory area.
+  Address argStruct = Address::invalid();
+  if (cirFunctionArgs.hasInallocaArg())
+    llvm_unreachable("NYI");
+
+  // Name the struct return parameter.
+  if (cirFunctionArgs.hasSRetArg()) {
+    llvm_unreachable("NYI");
+  }
+
+  // Track if we received the parameter as a pointer (indirect, byval, or
+  // inalloca). If already have a pointer, buildParmDecl doesn't need to copy it
+  // into a local alloca for us.
+  llvm::SmallVector<ParamValue, 16> argVals;
+  argVals.reserve(args.size());
+
+  // Create a pointer value for every parameter declaration. This usually
+  // entails copying one or more CIR arguments into an alloca. Don't push any
+  // cleanups or do anything that might unwind. We do that separately, so we can
+  // push the cleanups in the correct order for the ABI.
+  assert(functionInfo.arg_size() == args.size() &&
+         "Mismatch between function signature & arguments.");
+  unsigned argNo = 0;
+  CIRGenFunctionInfo::const_arg_iterator info_it = functionInfo.arg_begin();
+  for (FunctionArgList::const_iterator i = args.begin(), e = args.end(); i != e;
+       ++i, ++info_it, ++argNo) {
+    const VarDecl *arg = *i;
+    const cir::ABIArgInfo &argI = info_it->info;
+
+    bool isPromoted =
+        isa<ParmVarDecl>(arg) && cast<ParmVarDecl>(arg)->isKNRPromoted();
+    // We are converting from ABIArgInfo type to VarDecl type directly, unless
+    // the parameter is promoted. In this case we convert to
+    // CIRGenFunctionInfo::ArgInfo type with subsequent argument demotion.
+    QualType ty = isPromoted ? info_it->type : arg->getType();
+    assert(hasScalarEvaluationKind(ty) ==
+           hasScalarEvaluationKind(arg->getType()));
+
+    unsigned firstCIRArg, numCIRArgs;
+    std::tie(firstCIRArg, numCIRArgs) = cirFunctionArgs.getCIRArgs(argNo);
+
+    switch (argI.getKind()) {
+    case cir::ABIArgInfo::InAlloca:
+      llvm_unreachable("NYI");
+    case cir::ABIArgInfo::Indirect:
+      llvm_unreachable("NYI");
+    case cir::ABIArgInfo::IndirectAliased:
+      llvm_unreachable("NYI");
+    case cir::ABIArgInfo::Extend:
+      llvm_unreachable("NYI");
+    case cir::ABIArgInfo::Direct: {
+      auto ai = fn.getArgument(firstCIRArg);
+      mlir::Type lTy = convertType(arg->getType());
+
+      // Prepare parameter attributes. So far, only attributes for pointer
+      // parameters are prepared.
+      if (argI.getDirectOffset() == 0 && isa<cir::PointerType>(lTy) &&
+          isa<cir::PointerType>(argI.getCoerceToType())) {
+        llvm_unreachable("NYI");
+      }
+
+      // Prepare the argument value. If we have the trivial case, handle it with
+      // no muss and fuss.
+      if (!isa<cir::StructType>(argI.getCoerceToType()) &&
+          argI.getCoerceToType() == convertType(ty) &&
+          argI.getDirectOffset() == 0) {
+        assert(numCIRArgs == 1);
+
+        // LLVM expects swifterror parameters to be used in very restricted
+        // ways. Copy the value into a less-restricted temporary.
+        mlir::Value v = ai;
+        if (functionInfo.getExtParameterInfo(argNo).getABI() ==
+            ParameterABI::SwiftErrorResult) {
+          llvm_unreachable("NYI");
+        }
+
+        // Ensure the argument is the correct type.
+        if (v.getType() != argI.getCoerceToType())
+          llvm_unreachable("NYI");
+
+        if (isPromoted)
+          llvm_unreachable("NYI");
+
+        // Because of merging of function types from multiple decls it is
+        // possible for the type of an argument to not match the corresponding
+        // type in the function type. Since we are codegenning the callee in
+        // here, and a cast to the argument type.
+        mlir::Type lTy = convertType(arg->getType());
+        if (v.getType() != lTy)
+          llvm_unreachable("NYI");
+
+        argVals.push_back(ParamValue::forDirect(v));
+      }
+
+      // VLST arguments are coerced to VLATs at the function boundary for ABI
+      // consistency. If this is a VLST that was coerced to a VLAT at the
+      // function boundary and hte types match up, use the CIR equivalent of
+      // llvm.vector.extract to convert back to the original VLST.
+      if (cir::MissingFeatures::vectorType())
+        llvm_unreachable("NYI");
+
+      cir::StructType sTy = dyn_cast<cir::StructType>(argI.getCoerceToType());
+      if (argI.isDirect() && !argI.getCanBeFlattened() && sTy &&
+          sTy.getNumElements() > 1) {
+        llvm_unreachable("NYI");
+      }
+
+      Address alloca =
+          CreateMemTemp(ty, getContext().getDeclAlign(arg),
+                        getLoc(arg->getLocation()), arg->getName());
+
+      // Pointer to store info.
+      Address ptr = emitAddressAtOffset(*this, alloca, argI);
+
+      // Fast-isel and the LLVM optimizer generally like scalar values better
+      // than FCAs, so we flatten them if this is safe to do for this argument.
+      if (argI.isDirect() && argI.getCanBeFlattened() && sTy &&
+          sTy.getNumElements() > 1) {
+        llvm_unreachable("NYI");
+      } else {
+        // Simple cast, just do a coerced store of the argument into the alloca.
+        assert(numCIRArgs == 1);
+        auto ai = fn.getArgument(firstCIRArg);
+        // ai.setName(arg->getName() + ".coerce");
+        createCoercedStore(
+            ai, ptr,
+            llvm::TypeSize::getFixed(
+                getContext().getTypeSizeInChars(ty).getQuantity() -
+                argI.getDirectOffset()),
+            /*dstIsVolatile=*/false);
+      }
+
+      // Match to what buildParmDecl is expecting for this type.
+      if (CIRGenFunction::hasScalarEvaluationKind(ty)) {
+        mlir::Value v = emitLoadOfScalar(alloca, false, ty, arg->getBeginLoc());
+        if (isPromoted)
+          llvm_unreachable("NYI");
+        argVals.push_back(ParamValue::forDirect(v));
+      } else {
+        llvm_unreachable("NYI");
+      }
+      break;
+    }
+
+    case cir::ABIArgInfo::CoerceAndExpand:
+      llvm_unreachable("NYI");
+    case cir::ABIArgInfo::Expand:
+      llvm_unreachable("NYI");
+    case cir::ABIArgInfo::Ignore:
+      llvm_unreachable("NYI");
+    }
+  }
+
+  if (getTarget().getCXXABI().areArgsDestroyedLeftToRightInCallee()) {
+    for (int i = args.size() - 1; i >= 0; --i)
+      emitParmDecl(*args[i], argVals[i], i + 1);
+  } else {
+    for (unsigned i = 0, e = args.size(); i != e; ++i)
+      emitParmDecl(*args[i], argVals[i], i + 1);
+  }
+}
+
 /// TODO(cir): this should be shared with LLVM codegen
 static void addExtParameterInfosForCall(
     llvm::SmallVectorImpl<FunctionProtoType::ExtParameterInfo> &paramInfos,
@@ -1664,5 +1854,39 @@ void CIRGenModule::getDefaultFunctionAttributes(
   // attributes.
   if (!attrOnCallSite) {
     // TODO(cir): addMergableDefaultFunctionAttributes(codeGenOpts, funcAttrs);
+  }
+}
+
+void CIRGenFunction::createCoercedStore(mlir::Value src, Address dst,
+                                        llvm::TypeSize dstSize,
+                                        bool dstIsVolatile) {
+  if (!dstSize)
+    return;
+
+  mlir::Type srcTy = src.getType();
+  llvm::TypeSize srcSize = CGM.getDataLayout().getTypeAllocSize(srcTy);
+
+  // GEP into structs to try to make typesm match.
+  // FIXME: This isn't really that useful with opaque types, but it impacts a
+  // lot of regressiont ests.
+  if (srcTy != dst.getElementType()) {
+    llvm_unreachable("NYI");
+  }
+
+  if (srcSize.isScalable() || srcSize <= dstSize) {
+    if (isa<cir::IntType>(srcTy) &&
+        isa<cir::PointerType>(dst.getElementType()) &&
+        srcSize == CGM.getDataLayout().getTypeAllocSize(dst.getElementType())) {
+      llvm_unreachable("NYI");
+    } else if (cir::StructType sTy = dyn_cast<cir::StructType>(src.getType())) {
+      llvm_unreachable("NYI");
+    } else {
+      getBuilder().createStore(src.getLoc(), src, dst.withElementType(srcTy),
+                               dstIsVolatile);
+    }
+  } else if (isa<cir::IntType>(srcTy)) {
+    llvm_unreachable("NYI");
+  } else {
+    llvm_unreachable("NYI");
   }
 }
