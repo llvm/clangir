@@ -76,6 +76,7 @@
 #include "llvm/Support/TimeProfiler.h"
 #include "llvm/Support/raw_ostream.h"
 
+#include <iostream>
 #include <iterator>
 #include <numeric>
 
@@ -839,25 +840,25 @@ static GlobalViewAttr createNewGlobalView(CIRGenModule &CGM, GlobalOp newGlob,
   llvm_unreachable("NYI");
 }
 
-static void setNewInitValue(CIRGenModule &CGM, GlobalOp newGlob,
+static mlir::Attribute getNewInitValue(CIRGenModule &CGM, GlobalOp newGlob,
                             mlir::Type oldTy, GlobalOp user,
                             mlir::Attribute oldInit) {
-
   if (auto oldView = mlir::dyn_cast<cir::GlobalViewAttr>(oldInit)) {
-    auto view = createNewGlobalView(CGM, newGlob, oldView, oldTy);
-    user.setInitialValueAttr(view);
+    return createNewGlobalView(CGM, newGlob, oldView, oldTy);
   } else if (auto oldArray = mlir::dyn_cast<ConstArrayAttr>(oldInit)) {
     llvm::SmallVector<mlir::Attribute> newArray;
     auto eltsAttr = dyn_cast<mlir::ArrayAttr>(oldArray.getElts());
-    for (auto elt : eltsAttr)
+    for (auto elt : eltsAttr) {
       if (auto view = dyn_cast<GlobalViewAttr>(elt))
         newArray.push_back(createNewGlobalView(CGM, newGlob, view, oldTy));
+      else if (auto view = dyn_cast<ConstArrayAttr>(elt))
+        newArray.push_back(getNewInitValue(CGM, newGlob, oldTy, user, elt));
+    }
 
     auto &builder = CGM.getBuilder();
     mlir::Attribute ar = mlir::ArrayAttr::get(builder.getContext(), newArray);
-    auto newAr =
+    return
         builder.getConstArray(ar, cast<cir::ArrayType>(oldArray.getType()));
-    user.setInitialValueAttr(newAr);
   } else {
     llvm_unreachable("NYI");
   }
@@ -895,8 +896,10 @@ void CIRGenModule::replaceGlobal(cir::GlobalOp Old, cir::GlobalOp New) {
               builder.createBitcast(GGO->getLoc(), UseOpResultValue, ptrTy);
           UseOpResultValue.replaceAllUsesExcept(cast, cast.getDefiningOp());
         } else if (auto glob = dyn_cast<cir::GlobalOp>(UserOp)) {
-          if (auto init = glob.getInitialValue())
-            setNewInitValue(*this, New, OldTy, glob, init.value());
+          if (auto init = glob.getInitialValue()) {
+            auto nw = getNewInitValue(*this, New, OldTy, glob, init.value());
+            glob.setInitialValueAttr(nw);
+          }
         }
       }
     }
