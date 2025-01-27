@@ -808,10 +808,14 @@ static llvm::SmallVector<int64_t> indexesOfArrayAttr(mlir::ArrayAttr indexes) {
   return inds;
 }
 
+static bool isViewOnGlobal(GlobalOp glob, GlobalViewAttr view) {
+  return view.getSymbol().getValue() == glob.getSymName();
+}
+
 static GlobalViewAttr createNewGlobalView(CIRGenModule &CGM, GlobalOp newGlob,
                                           GlobalViewAttr attr,
                                           mlir::Type oldTy) {
-  if (!attr.getIndices())
+  if (!attr.getIndices() || !isViewOnGlobal(newGlob, attr))
     return attr;
 
   llvm::SmallVector<int64_t> oldInds = indexesOfArrayAttr(attr.getIndices());
@@ -822,7 +826,7 @@ static GlobalViewAttr createNewGlobalView(CIRGenModule &CGM, GlobalOp newGlob,
   mlir::MLIRContext *ctxt = bld.getContext();
   auto newTy = newGlob.getSymType();
 
-  if (oldInds.size() == 1 && isa<cir::StructType>(oldTy)) {
+  if ( isa<cir::StructType>(oldTy)) {
     newPtrTy = cir::PointerType::get(ctxt, newTy);
     auto oldSTy = cast<cir::StructType>(oldTy);
     uint64_t offset = oldSTy.getElementOffset(layout.layout, oldInds[0]);
