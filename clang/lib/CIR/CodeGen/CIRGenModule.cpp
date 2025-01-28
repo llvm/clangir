@@ -820,23 +820,19 @@ static GlobalViewAttr createNewGlobalView(CIRGenModule &CGM, GlobalOp newGlob,
 
   llvm::SmallVector<int64_t> oldInds = indexesOfArrayAttr(attr.getIndices());
   llvm::SmallVector<int64_t> newInds;
-  cir::PointerType newPtrTy;
   CIRGenBuilderTy &bld = CGM.getBuilder();
   const CIRDataLayout &layout = CGM.getDataLayout();
   mlir::MLIRContext *ctxt = bld.getContext();
   auto newTy = newGlob.getSymType();
 
-  if ( isa<cir::StructType>(oldTy)) {
+  auto offset = bld.computeOffsetFromGlobalViewIndices(layout, oldTy, oldInds);
+  bld.computeGlobalViewIndicesFromFlatOffset(offset, newTy, layout, newInds);
+  cir::PointerType newPtrTy;
+
+  if ( isa<cir::StructType>(oldTy))
     newPtrTy = cir::PointerType::get(ctxt, newTy);
-    auto oldSTy = cast<cir::StructType>(oldTy);
-    uint64_t offset = oldSTy.getElementOffset(layout.layout, oldInds[0]);
-    bld.computeGlobalViewIndicesFromFlatOffset(offset, newTy, layout, newInds);
-  } else if (cir::ArrayType oldArTy = dyn_cast<cir::ArrayType>(oldTy)) {
-    auto offset =
-        bld.computeOffsetFromGlobalViewIndices(layout, oldTy, oldInds);
-    bld.computeGlobalViewIndicesFromFlatOffset(offset, newTy, layout, newInds);
+  else if (cir::ArrayType oldArTy = dyn_cast<cir::ArrayType>(oldTy))
     newPtrTy = dyn_cast<cir::PointerType>(attr.getType());
-  }
 
   if (newPtrTy)
     return bld.getGlobalViewAttr(newPtrTy, newGlob, newInds);
