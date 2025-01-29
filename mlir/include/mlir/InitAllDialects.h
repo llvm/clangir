@@ -60,6 +60,7 @@
 #include "mlir/Dialect/MemRef/Transforms/BufferViewFlowOpInterfaceImpl.h"
 #include "mlir/Dialect/MemRef/Transforms/RuntimeOpVerification.h"
 #include "mlir/Dialect/Mesh/IR/MeshDialect.h"
+#include "mlir/Dialect/NamedTuple/IR/NamedTuple.h"
 #include "mlir/Dialect/NVGPU/IR/NVGPUDialect.h"
 #include "mlir/Dialect/OpenACC/OpenACC.h"
 #include "mlir/Dialect/OpenMP/OpenMPDialect.h"
@@ -132,6 +133,7 @@ inline void registerAllDialects(DialectRegistry &registry) {
                   mesh::MeshDialect,
                   ml_program::MLProgramDialect,
                   mpi::MPIDialect,
+                  named_tuple::NamedTupleDialect,
                   nvgpu::NVGPUDialect,
                   NVVM::NVVMDialect,
                   omp::OpenMPDialect,

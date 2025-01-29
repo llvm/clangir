@@ -27,6 +27,7 @@
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/NamedTuple/IR/NamedTuple.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/Vector/IR/VectorOps.h"
 #include "mlir/IR/BuiltinDialect.h"
@@ -81,6 +82,7 @@ struct ConvertCIRToMLIRPass
                     mlir::affine::AffineDialect, mlir::memref::MemRefDialect,
                     mlir::arith::ArithDialect, mlir::cf::ControlFlowDialect,
                     mlir::scf::SCFDialect, mlir::math::MathDialect,
+                    mlir::named_tuple::NamedTupleDialect,
                     mlir::vector::VectorDialect, mlir::LLVM::LLVMDialect>();
   }
   void runOnOperation() final;
@@ -1381,12 +1383,11 @@ mlir::TypeConverter prepareTypeConverter(mlir::DataLayout &dataLayout) {
     }
     }
 
-    // Struct has a name: lower as an identified struct.
-    mlir::TupleType tuple;
     // FIXME(cir): all the following has to be somehow kept. With some
     // attributes?
-    tuple = mlir::TupleType::get(type.getContext(), mlirMembers);
-    return tuple;
+    // Struct has a name: lower as an identified struct.
+    return mlir::named_tuple::NamedTupleType::get(
+        type.getContext(), type.getName().strref(), mlirMembers);
   });
 
   return converter;
