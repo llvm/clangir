@@ -2,7 +2,6 @@
 // RUN:   -target-feature +sha2 -target-feature +aes \
 // RUN:   -disable-O0-optnone -fclangir -emit-cir -o %t.cir %s 
 // RUN: FileCheck --check-prefix=CIR --input-file=%t.cir %s
-// XFAIL: *
 
 // RUN: %clang_cc1 -triple arm64-none-linux-gnu -target-feature +neon \
 // RUN:  -fclangir -target-feature +sha2 -target-feature +aes \

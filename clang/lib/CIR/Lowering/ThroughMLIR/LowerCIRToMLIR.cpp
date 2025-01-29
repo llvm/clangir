@@ -1160,19 +1160,20 @@ public:
     auto elementTy = typeConverter->convertType(vecTy.getEltType());
     auto loc = op.getLoc();
     auto zeroElement = rewriter.getZeroAttr(elementTy);
-    mlir::Value result = rewriter.create<mlir::arith::ConstantOp>(
+    mlir::Value vectorVal = rewriter.create<mlir::arith::ConstantOp>(
         loc,
         mlir::DenseElementsAttr::get(
             mlir::VectorType::get(vecTy.getSize(), elementTy), zeroElement));
     assert(vecTy.getSize() == op.getElements().size() &&
            "cir.vec.create op count doesn't match vector type elements count");
     for (uint64_t i = 0; i < vecTy.getSize(); ++i) {
-      mlir::Value indexValue =
-          getConst(rewriter, loc, rewriter.getI64Type(), i);
-      result = rewriter.create<mlir::LLVM::InsertElementOp>(
-          loc, adaptor.getElements()[i], result, indexValue);
+      SmallVector<int64_t, 1> position{static_cast<int64_t>(i)};
+      vectorVal = rewriter
+                      .create<mlir::vector::InsertOp>(loc, adaptor.getElements()[i],
+                                                      vectorVal, position)
+                      .getResult();
     }
-    rewriter.replaceOp(op, result);
+    rewriter.replaceOp(op, vectorVal);
     return mlir::success();
   }
 };
@@ -1185,8 +1186,14 @@ public:
   mlir::LogicalResult
   matchAndRewrite(cir::VecInsertOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<mlir::LLVM::InsertElementOp>(
-        op, adaptor.getValue(), adaptor.getVec(), adaptor.getIndex());
+    mlir::Value index = adaptor.getIndex();
+    if (!mlir::isa<mlir::IndexType>(index.getType()))
+      index = rewriter.create<mlir::arith::IndexCastOp>(
+          op.getLoc(), rewriter.getIndexType(), index);
+    SmallVector<mlir::OpFoldResult, 1> position{index};
+    auto newVec = rewriter.create<mlir::vector::InsertOp>(
+        op.getLoc(), adaptor.getValue(), adaptor.getVec(), position);
+    rewriter.replaceOp(op, newVec.getResult());
     return mlir::success();
   }
 };
@@ -1199,8 +1206,14 @@ public:
   mlir::LogicalResult
   matchAndRewrite(cir::VecExtractOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<mlir::LLVM::ExtractElementOp>(
-        op, adaptor.getVec(), adaptor.getIndex());
+    mlir::Value index = adaptor.getIndex();
+    if (!mlir::isa<mlir::IndexType>(index.getType()))
+      index = rewriter.create<mlir::arith::IndexCastOp>(
+          op.getLoc(), rewriter.getIndexType(), index);
+    SmallVector<mlir::OpFoldResult, 1> position{index};
+    auto extracted = rewriter.create<mlir::vector::ExtractOp>(
+        op.getLoc(), adaptor.getVec(), position);
+    rewriter.replaceOp(op, extracted.getResult());
     return mlir::success();
   }
 };
