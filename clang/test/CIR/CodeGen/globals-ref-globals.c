@@ -19,14 +19,11 @@ static S g6[2] = {{2799, 9, 123}, {2799, 9, 123}};
 static int *g7[2] = {&g6[0].f2, &g6[1].f2};
 static int **g8 = &g7[1];
 
-void use() {
-    int a = **g3;
-    int b = ***g4; 
-    int c = ****g5; 
-    int d = **g8;
-}
-
 // CHECK-DAG: !ty_anon_struct = !cir.struct<struct  {!u8i, !u8i, !u8i, !u8i, !s32i, !s32i}>
+// CHECK-DAG: !ty_anon_struct1 = !cir.struct<struct  {!s8i, !cir.array<!u8i x 3>, !s32i}>
+// CHECK-DAG: !ty_anon_struct2 = !cir.struct<struct  {!u8i, !u8i, !u8i, !u8i, !u8i, !u8i, !u8i, !u8i, !ty_S4_}>
+// CHECK-DAG: !ty_anon_struct3 = !cir.struct<struct  {!s16i, !cir.array<!u8i x 2>, !s32i, !s8i}>
+
 // CHECK-DAG: g1 = #cir.const_struct<{#cir.int<239> : !u8i, #cir.int<10> : !u8i, #cir.int<0> : !u8i, #cir.zero : !u8i, #cir.int<9> : !s32i, #cir.int<123> : !s32i}> : !ty_anon_struct
 // CHECK-DAG: g2 = #cir.const_array<[#cir.global_view<@g1, [4]> : !cir.ptr<!ty_anon_struct>, #cir.global_view<@g1, [4]> : !cir.ptr<!ty_anon_struct>, #cir.global_view<@g1, [4]> : !cir.ptr<!ty_anon_struct>, #cir.global_view<@g1, [4]> : !cir.ptr<!ty_anon_struct>]> : !cir.array<!cir.ptr<!s32i> x 4>
 // CHECK-DAG: g3 = #cir.global_view<@g2, [1 : i32]> : !cir.ptr<!cir.ptr<!s32i>>
@@ -81,3 +78,49 @@ int* g12 = &g11.f6;
 
 // FIXME: LLVM output should be: @g10 = dso_local global ptr getelementptr (i8, ptr @g9, i64 4), align 8
 // FIXME: LLVM output should be: @g12 = dso_local global ptr getelementptr (i8, ptr @g11, i64 1), align 8
+
+
+typedef struct {
+   short f0;
+   int   f1;
+   char  f2;
+} S3;
+
+static S3 g13 = {-1L,0L,1L};
+static S3* g14[2][2] = {{&g13, &g13}, {&g13, &g13}};
+
+// CHECK-DAG: g13 = #cir.const_struct<{#cir.int<-1> : !s16i, #cir.const_array<[#cir.zero : !u8i, #cir.zero : !u8i]> : !cir.array<!u8i x 2>, #cir.int<0> : !s32i, #cir.int<1> : !s8i}> : !ty_anon_struct3 
+// CHECK-DAG: g14 = #cir.const_array<[#cir.const_array<[#cir.global_view<@g13> : !cir.ptr<!ty_S3_>, #cir.global_view<@g13> : !cir.ptr<!ty_S3_>]> : !cir.array<!cir.ptr<!ty_S3_> x 2>, #cir.const_array<[#cir.global_view<@g13> : !cir.ptr<!ty_S3_>, #cir.global_view<@g13> : !cir.ptr<!ty_S3_>]> : !cir.array<!cir.ptr<!ty_S3_> x 2>]> : !cir.array<!cir.array<!cir.ptr<!ty_S3_> x 2> x 2>
+
+typedef struct {
+   int  f0;
+   int  f1;
+} S4;
+
+typedef struct {
+   int f0 : 17;
+   int f1 : 5;
+   int f2 : 19;
+   S4 f3;   
+} S5;
+
+static S5 g15 = {187,1,442,{123,321}};
+
+int* g16 = &g15.f3.f1;
+
+// CHECK-DAG: g15 = #cir.const_struct<{#cir.int<187> : !u8i, #cir.int<0> : !u8i, #cir.int<2> : !u8i, #cir.zero : !u8i, #cir.int<186> : !u8i, #cir.int<1> : !u8i, #cir.int<0> : !u8i, #cir.zero : !u8i, #cir.const_struct<{#cir.int<123> : !s32i, #cir.int<321> : !s32i}> : !ty_S4_}> : !ty_anon_struct2 {alignment = 4 : i64}
+// CHECK-DAG: g16 = #cir.global_view<@g15, [8, 1]> : !cir.ptr<!ty_anon_struct2> {alignment = 8 : i64}
+
+// LLVM-DAG: @g15 = internal global { i8, i8, i8, i8, i8, i8, i8, i8, %struct.S4 } { i8 -69, i8 0, i8 2, i8 0, i8 -70, i8 1, i8 0, i8 0, %struct.S4 { i32 123, i32 321 } }, align 4
+// LLVM-DAG: @g16 = global ptr getelementptr inbounds ({ i8, i8, i8, i8, i8, i8, i8, i8, %struct.S4 }, ptr @g15, i32 0, i32 8, i32 1), align 8
+
+// FIXME: LLVM output should be: @g16 = dso_local global ptr getelementptr (i8, ptr @g15, i64 12), align 8
+
+void use() {
+    int a = **g3;
+    int b = ***g4; 
+    int c = ****g5; 
+    int d = **g8;
+    S3 s = *g14[1][1];
+    int f = *g16;
+}
