@@ -829,7 +829,7 @@ static GlobalViewAttr createNewGlobalView(CIRGenModule &CGM, GlobalOp newGlob,
   bld.computeGlobalViewIndicesFromFlatOffset(offset, newTy, layout, newInds);
   cir::PointerType newPtrTy;
 
-  if ( isa<cir::StructType>(oldTy))
+  if (isa<cir::StructType>(oldTy))
     newPtrTy = cir::PointerType::get(ctxt, newTy);
   else if (cir::ArrayType oldArTy = dyn_cast<cir::ArrayType>(oldTy))
     newPtrTy = dyn_cast<cir::PointerType>(attr.getType());
@@ -841,8 +841,8 @@ static GlobalViewAttr createNewGlobalView(CIRGenModule &CGM, GlobalOp newGlob,
 }
 
 static mlir::Attribute getNewInitValue(CIRGenModule &CGM, GlobalOp newGlob,
-                            mlir::Type oldTy, GlobalOp user,
-                            mlir::Attribute oldInit) {
+                                       mlir::Type oldTy, GlobalOp user,
+                                       mlir::Attribute oldInit) {
   if (auto oldView = mlir::dyn_cast<cir::GlobalViewAttr>(oldInit)) {
     return createNewGlobalView(CGM, newGlob, oldView, oldTy);
   } else if (auto oldArray = mlir::dyn_cast<ConstArrayAttr>(oldInit)) {
@@ -857,8 +857,7 @@ static mlir::Attribute getNewInitValue(CIRGenModule &CGM, GlobalOp newGlob,
 
     auto &builder = CGM.getBuilder();
     mlir::Attribute ar = mlir::ArrayAttr::get(builder.getContext(), newArray);
-    return
-        builder.getConstArray(ar, cast<cir::ArrayType>(oldArray.getType()));
+    return builder.getConstArray(ar, cast<cir::ArrayType>(oldArray.getType()));
   } else {
     llvm_unreachable("NYI");
   }
