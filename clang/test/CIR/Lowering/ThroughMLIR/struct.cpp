@@ -6,4 +6,4 @@ struct s {
   float b;
 };
 int main() { s v; }
-// CHECK: memref<tuple<i32, f32>>
+// CHECK: memref<!named_tuple.named_tuple<"s", [i32, f32]>>
