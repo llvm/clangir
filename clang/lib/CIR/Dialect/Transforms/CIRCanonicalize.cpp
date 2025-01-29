@@ -16,7 +16,6 @@
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/Passes.h"
-#include "llvm/Support/LogicalResult.h"
 
 using namespace mlir;
 using namespace cir;
@@ -60,11 +59,18 @@ struct RemoveRedundantBranches : public OpRewritePattern<BrOp> {
 struct RemoveEmptyScope : public OpRewritePattern<ScopeOp> {
   using OpRewritePattern<ScopeOp>::OpRewritePattern;
 
-  LogicalResult matchAndRewrite(ScopeOp op, PatternRewriter &rewriter) const final {
+  LogicalResult matchAndRewrite(ScopeOp op,
+                                PatternRewriter &rewriter) const final {
     // TODO: Remove this logic once CIR uses MLIR infrastructure to remove
     // trivially dead operations
     if (!op.isEmpty())
       return failure();
+
+    Region *region = op.getRegions().front();
+    if ((region && region->getBlocks().front().getOperations().size() == 1) &&
+        !isa<YieldOp>(region->getBlocks().front().front()))
+      return failure();
+
     rewriter.eraseOp(op);
     return success();
   }
@@ -126,7 +132,7 @@ struct SimplifyCallOp : public OpRewritePattern<CallOp> {
     b = &op.getCleanup().back();
     rewriter.eraseOp(&b->back());
     rewriter.eraseBlock(b);
-    return llvm::success();
+    return success();
   }
 };
 
