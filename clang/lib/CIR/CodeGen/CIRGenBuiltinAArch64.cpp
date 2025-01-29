@@ -2124,7 +2124,7 @@ static mlir::Value emitArmLdrexNon128Intrinsic(unsigned int builtinID,
                                                CIRGenFunction &cgf) {
   StringRef intrinsicName = builtinID == clang::AArch64::BI__builtin_arm_ldrex
                                 ? "aarch64.ldxr"
-                                : "aarch64.ldaex";
+                                : "aarch64.ldaxr";
 
   // Argument
   mlir::Value loadAddr = cgf.emitScalarExpr(clangCallExpr->getArg(0));
