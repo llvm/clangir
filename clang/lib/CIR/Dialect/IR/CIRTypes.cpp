@@ -492,12 +492,6 @@ StructType::getPreferredAlignment(const ::mlir::DataLayout &dataLayout,
   llvm_unreachable("NYI");
 }
 
-// bool StructType::isPadded(const ::mlir::DataLayout &dataLayout) const {
-//   if (!layoutInfo)
-//     computeSizeAndAlignment(dataLayout);
-//   return mlir::cast<cir::StructLayoutAttr>(layoutInfo).getPadded();
-// }
-
 uint64_t StructType::getElementOffset(const ::mlir::DataLayout &dataLayout,
                                       unsigned idx) const {
   assert(idx < getMembers().size() && "access not valid");
