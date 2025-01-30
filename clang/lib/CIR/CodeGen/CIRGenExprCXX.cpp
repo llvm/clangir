@@ -991,25 +991,18 @@ void CIRGenFunction::emitNewArrayInitializer(
       if (!CCE->requiresZeroInitialization() || Ctor->getParent()->isEmpty())
         return;
 
-      if (TryMemsetInitialization())
-        return;
+      llvm_unreachable("NYI");
     }
 
     llvm_unreachable("NYI");
   }
 
   // If this is value-initialization, we can usually use memset.
-  ImplicitValueInitExpr IVIE(ElementType);
   if (isa<ImplicitValueInitExpr>(Init)) {
     if (TryMemsetInitialization())
       return;
-
-    // Switch to an ImplicitValueInitExpr for the element type. This handles
-    // only one case: multidimensional array new of pointers to members. In
-    // all other cases, we already have an initializer for the array element.
-    Init = &IVIE;
+    llvm_unreachable("NYI");
   }
-
   llvm_unreachable("NYI");
 }
 
