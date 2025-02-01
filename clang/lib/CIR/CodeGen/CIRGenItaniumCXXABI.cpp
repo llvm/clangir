@@ -364,9 +364,9 @@ public:
 class CIRGenARMCXXABI : public CIRGenItaniumCXXABI {
 public:
   CIRGenARMCXXABI(CIRGenModule &CGM) : CIRGenItaniumCXXABI(CGM) {
-      // TODO(cir): When implemented, /*UseARMMethodPtrABI=*/true,
-      //                              /*UseARMGuardVarABI=*/true) {}
-      assert(!cir::MissingFeatures::appleArm64CXXABI());
+    // TODO(cir): When implemented, /*UseARMMethodPtrABI=*/true,
+    //                              /*UseARMGuardVarABI=*/true) {}
+    assert(!cir::MissingFeatures::appleArm64CXXABI());
   }
   CharUnits getArrayCookieSizeImpl(QualType elementType) override;
   Address initializeArrayCookie(CIRGenFunction &CGF, Address NewPtr,
