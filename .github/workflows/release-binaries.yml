@@ -70,7 +70,7 @@ jobs:
         python-version: '3.12'
 
     - name: Checkout LLVM
-      uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+      uses: actions/checkout@85e6279cec87321a52edac9c87bce653a07cf6c2 # v4.1.1
 
     - name: Install Dependencies
       shell: bash
@@ -182,7 +182,7 @@ jobs:
     steps:
 
     - name: Checkout Actions
-      uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+      uses: actions/checkout@85e6279cec87321a52edac9c87bce653a07cf6c2 # v4.1.1
       with:
         ref: ${{ (github.event_name == 'pull_request' && github.sha) || 'main' }}
         sparse-checkout: |
@@ -203,7 +203,7 @@ jobs:
       run: mv workflows  ../workflows-main
 
     - name: Checkout LLVM
-      uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+      uses: actions/checkout@85e6279cec87321a52edac9c87bce653a07cf6c2 # v4.1.1
       with:
         ref: ${{ needs.prepare.outputs.ref }}
 
@@ -243,7 +243,7 @@ jobs:
         ninja -v -C ${{ steps.setup-stage.outputs.build-prefix }}/build stage2-package
         mv ${{ steps.setup-stage.outputs.build-prefix  }}/build/tools/clang/stage2-bins/${{ needs.prepare.outputs.release-binary-filename }} .
     
-    - uses: actions/upload-artifact@26f96dfa697d77e81fd5907df203aa23a56210a8 #v4.3.0
+    - uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 #v4.6.0
       with:
         name: ${{ runner.os }}-${{ runner.arch }}-release-binary
         # Due to path differences on Windows when running in bash vs running on node,
@@ -279,7 +279,7 @@ jobs:
 
     steps:
     - name: Checkout Release Scripts
-      uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+      uses: actions/checkout@85e6279cec87321a52edac9c87bce653a07cf6c2 # v4.1.1
       with:
         sparse-checkout: |
           llvm/utils/release/github-upload-release.py
@@ -294,7 +294,7 @@ jobs:
 
     - name: Attest Build Provenance
       id: provenance
-      uses: actions/attest-build-provenance@897ed5eab6ed058a474202017ada7f40bfa52940 # v1.0.0
+      uses: actions/attest-build-provenance@520d128f165991a6c774bcb264f323e3d70747f4 # v2.2.0
       with:
         subject-path: ${{ needs.prepare.outputs.release-binary-filename }}
 
@@ -303,7 +303,7 @@ jobs:
         mv ${{ steps.provenance.outputs.bundle-path }} ${{ needs.prepare.outputs.release-binary-filename }}.jsonl
 
     - name: Upload Build Provenance
-      uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 #v4.3.3
+      uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 #v4.6.0
       with:
         name: ${{ needs.prepare.outputs.release-binary-filename }}-attestation
         path: ${{ needs.prepare.outputs.release-binary-filename }}.jsonl
@@ -331,7 +331,7 @@ jobs:
     runs-on: ${{ needs.prepare.outputs.test-runs-on }}
     steps:
     - name: Checkout Actions
-      uses: actions/checkout@v4
+      uses: actions/checkout@v4.2.2
       with:
         ref: ${{ (github.event_name == 'pull_request' && github.sha) || 'main' }}
         sparse-checkout: |

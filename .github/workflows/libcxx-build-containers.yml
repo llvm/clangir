@@ -33,7 +33,7 @@ jobs:
       packages: write
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v4.2.2
 
     - name: Build the Linux builder image
       working-directory: libcxx/utils/ci

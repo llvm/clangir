@@ -41,7 +41,7 @@ jobs:
       LLVM_VERSION: 18
     steps:
       - name: Checkout Source
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        uses: actions/checkout@85e6279cec87321a52edac9c87bce653a07cf6c2 # v4.1.1
 
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1
@@ -87,7 +87,7 @@ jobs:
           scan-build --generate-index-only build/analyzer-results
 
       - name: Upload Results
-        uses: actions/upload-artifact@26f96dfa697d77e81fd5907df203aa23a56210a8 #v4.3.0
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 #v4.6.0
         if: always()
         with:
           name: analyzer-results

@@ -32,7 +32,7 @@ jobs:
               cpp_compiler: clang++
     
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v4.2.2
     
     # Libc's build is relatively small comparing with other components of LLVM.
     # A fresh linux overlay takes about 180MiB of uncompressed disk space, which can
