@@ -878,7 +878,6 @@ void CIRGenFunction::emitNewArrayInitializer(
   const Expr *Init = E->getInitializer();
   QualType::DestructionKind DtorKind = ElementType.isDestructedType();
   CleanupDeactivationScope deactivation(*this);
-  bool pushedCleanup = false;
 
   CharUnits ElementSize = getContext().getTypeSizeInChars(ElementType);
   CharUnits ElementAlign =
