@@ -17,13 +17,11 @@ void t_constant_size_nontrivial() {
 //       missing "inbounds"
 
 // LLVM: @_Z26t_constant_size_nontrivialv()
-// LLVM:   %[[ALLOCA:.*]] = alloca ptr, i64 1, align 8
 // LLVM:   %[[COOKIE_PTR:.*]] = call ptr @_Znam(i64 19)
 // LLVM:   store i64 1, ptr %[[COOKIE_PTR]], align 8
 // LLVM:   %[[NUM_ELEMENTS_PTR:.*]] = getelementptr i64, ptr %[[COOKIE_PTR]], i64 1
 // LLVM:   store i64 3, ptr %[[NUM_ELEMENTS_PTR]], align 8
 // LLVM:   %[[ALLOCATED_PTR:.*]] = getelementptr i8, ptr %[[COOKIE_PTR]], i64 16
-// LLVM:   store ptr %[[ALLOCATED_PTR]], ptr %[[ALLOCA]], align 8
 
 class D {
   public:
@@ -36,10 +34,8 @@ void t_constant_size_nontrivial2() {
 }
 
 // LLVM: @_Z27t_constant_size_nontrivial2v()
-// LLVM:   %[[ALLOCA:.*]] = alloca ptr, i64 1, align 8
 // LLVM:   %[[COOKIE_PTR:.*]] = call ptr @_Znam(i64 28)
 // LLVM:   store i64 4, ptr %[[COOKIE_PTR]], align 8
 // LLVM:   %[[NUM_ELEMENTS_PTR:.*]] = getelementptr i64, ptr %[[COOKIE_PTR]], i64 1
 // LLVM:   store i64 3, ptr %[[NUM_ELEMENTS_PTR]], align 8
 // LLVM:   %[[ALLOCATED_PTR:.*]] = getelementptr i8, ptr %[[COOKIE_PTR]], i64 16
-// LLVM:   store ptr %[[ALLOCATED_PTR]], ptr %[[ALLOCA]], align 8

@@ -363,10 +363,11 @@ public:
 
 class CIRGenARMCXXABI : public CIRGenItaniumCXXABI {
 public:
-  CIRGenARMCXXABI(CIRGenModule &CGM) : CIRGenItaniumCXXABI(CGM) {}
-  // TODO: When implemented, /*UseARMMethodPtrABI=*/true,
-  //                         /*UseARMGuardVarABI=*/true) {}
-
+  CIRGenARMCXXABI(CIRGenModule &CGM) : CIRGenItaniumCXXABI(CGM) {
+      // TODO(cir): When implemented, /*UseARMMethodPtrABI=*/true,
+      //                              /*UseARMGuardVarABI=*/true) {}
+      assert(!cir::MissingFeatures::appleArm64CXXABI());
+  }
   CharUnits getArrayCookieSizeImpl(QualType elementType) override;
   Address initializeArrayCookie(CIRGenFunction &CGF, Address NewPtr,
                                 mlir::Value NumElements, const CXXNewExpr *E,
@@ -2737,41 +2738,41 @@ CharUnits CIRGenARMCXXABI::getArrayCookieSizeImpl(QualType elementType) {
                   getContext().getTypeAlignInChars(elementType));
 }
 
-Address CIRGenARMCXXABI::initializeArrayCookie(CIRGenFunction &CGF,
-                                               Address NewPtr,
-                                               mlir::Value NumElements,
-                                               const CXXNewExpr *E,
-                                               QualType ElementType) {
-  assert(requiresArrayCookie(E));
+Address CIRGenARMCXXABI::initializeArrayCookie(CIRGenFunction &cgf,
+                                               Address newPtr,
+                                               mlir::Value numElements,
+                                               const CXXNewExpr *expr,
+                                               QualType elementType) {
+  assert(requiresArrayCookie(expr));
 
   // The cookie is always at the start of the buffer.
-  auto CookiePtr =
-      CGF.getBuilder().createPtrBitcast(NewPtr.getPointer(), CGF.SizeTy);
-  Address Cookie = Address(CookiePtr, CGF.SizeTy, NewPtr.getAlignment());
+  auto cookiePtr =
+      cgf.getBuilder().createPtrBitcast(newPtr.getPointer(), cgf.SizeTy);
+  Address cookie = Address(cookiePtr, cgf.SizeTy, newPtr.getAlignment());
 
-  ASTContext &Ctx = getContext();
-  CharUnits SizeSize = CGF.getSizeSize();
-  mlir::Location Loc = CGF.getLoc(E->getSourceRange());
+  ASTContext &ctx = getContext();
+  CharUnits sizeSize = cgf.getSizeSize();
+  mlir::Location loc = cgf.getLoc(expr->getSourceRange());
 
   // The first element is the element size.
-  mlir::Value ElementSize = CGF.getBuilder().getConstInt(
-      Loc, CGF.SizeTy, Ctx.getTypeSizeInChars(ElementType).getQuantity());
-  CGF.getBuilder().createStore(Loc, ElementSize, Cookie);
+  mlir::Value elementSize = cgf.getBuilder().getConstInt(
+      loc, cgf.SizeTy, ctx.getTypeSizeInChars(elementType).getQuantity());
+  cgf.getBuilder().createStore(loc, elementSize, cookie);
 
   // The second element is the element count.
-  auto OffsetOp = CGF.getBuilder().getSignedInt(Loc, 1, /*width=*/32);
-  auto DataPtr =
-      CGF.getBuilder().createPtrStride(Loc, Cookie.getPointer(), OffsetOp);
-  Cookie = Address(DataPtr, CGF.SizeTy, NewPtr.getAlignment());
-  CGF.getBuilder().createStore(Loc, NumElements, Cookie);
+  auto offsetOp = cgf.getBuilder().getSignedInt(loc, 1, /*width=*/32);
+  auto dataPtr =
+      cgf.getBuilder().createPtrStride(loc, cookie.getPointer(), offsetOp);
+  cookie = Address(dataPtr, cgf.SizeTy, newPtr.getAlignment());
+  cgf.getBuilder().createStore(loc, numElements, cookie);
 
   // Finally, compute a pointer to the actual data buffer by skipping
   // over the cookie completely.
-  CharUnits CookieSize = CIRGenARMCXXABI::getArrayCookieSizeImpl(ElementType);
-  OffsetOp = CGF.getBuilder().getSignedInt(Loc, CookieSize.getQuantity(),
+  CharUnits cookieSize = CIRGenARMCXXABI::getArrayCookieSizeImpl(elementType);
+  offsetOp = cgf.getBuilder().getSignedInt(loc, cookieSize.getQuantity(),
                                            /*width=*/32);
-  auto CastOp = CGF.getBuilder().createPtrBitcast(
-      NewPtr.getPointer(), CGF.getBuilder().getUIntNTy(8));
-  DataPtr = CGF.getBuilder().createPtrStride(Loc, CastOp, OffsetOp);
-  return Address(DataPtr, NewPtr.getType(), NewPtr.getAlignment());
+  auto castOp = cgf.getBuilder().createPtrBitcast(
+      newPtr.getPointer(), cgf.getBuilder().getUIntNTy(8));
+  dataPtr = cgf.getBuilder().createPtrStride(loc, castOp, offsetOp);
+  return Address(dataPtr, newPtr.getType(), newPtr.getAlignment());
 }
