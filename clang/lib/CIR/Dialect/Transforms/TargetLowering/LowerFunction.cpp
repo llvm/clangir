@@ -1277,10 +1277,10 @@ mlir::Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
       mlir::Value RetVal = callOp.getResult();
       mlir::Value dstPtr;
       for (auto *user : Caller->getUsers()) {
-          if (auto storeOp = mlir::dyn_cast<StoreOp>(user)) {
-            assert(!dstPtr && "multiple destinations for the return value");
-            dstPtr = storeOp.getAddr();
-          }
+        if (auto storeOp = mlir::dyn_cast<StoreOp>(user)) {
+          assert(!dstPtr && "multiple destinations for the return value");
+          dstPtr = storeOp.getAddr();
+        }
       }
 
       // TODO(cir): Check for volatile return values.
