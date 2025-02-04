@@ -330,3 +330,41 @@ void call_nested_u() {
   NESTED_U a;
   pass_nested_u(a);
 }
+
+
+#pragma pack(push)
+#pragma pack(1)
+typedef struct {
+   int f0 : 18;
+   int f1 : 31;
+   int f2 : 5;
+   int f3 : 29;
+   int f4 : 24;
+} PackedS1;
+#pragma pack(pop)
+
+PackedS1 foo(void) {
+  PackedS1 s;
+  return s;
+}
+
+void bar(void) {
+  PackedS1 y = foo();
+}
+
+// CHECK: cir.func @bar
+// CHECK: %[[#V0:]] = cir.alloca !ty_PackedS1_, !cir.ptr<!ty_PackedS1_>, ["y", init]
+// CHECK: %[[#V1:]] = cir.alloca !cir.array<!u64i x 2>, !cir.ptr<!cir.array<!u64i x 2>>, ["tmp"]
+// CHECK: %[[#V2:]] = cir.call @foo() : () -> !cir.array<!u64i x 2>
+// CHECK: cir.store %[[#V2]], %[[#V1]] : !cir.array<!u64i x 2>, !cir.ptr<!cir.array<!u64i x 2>>
+// CHECK: %[[#V3:]] = cir.cast(bitcast, %[[#V1]] : !cir.ptr<!cir.array<!u64i x 2>>), !cir.ptr<!void>
+// CHECK: %[[#V4:]] = cir.cast(bitcast, %[[#V0]] : !cir.ptr<!ty_PackedS1_>), !cir.ptr<!void>
+// CHECK: %[[#V5:]] = cir.const #cir.int<14> : !u64i
+// CHECK: cir.libc.memcpy %[[#V5]] bytes from %[[#V3]] to %[[#V4]] : !u64i, !cir.ptr<!void> -> !cir.ptr<!void>
+
+// LLVML: void @bar
+// LLVM:  %[[#V1:]] = alloca %struct.PackedS1, i64 1, align 1
+// LLVM:  %[[#V2:]] = alloca [2 x i64], i64 1, align 8
+// LLVM:  %[[#V3:]] = call [2 x i64] @foo()
+// LLVM:  store [2 x i64] %[[#V3]], ptr %[[#V2]], align 8
+// LLVM:  call void @llvm.memcpy.p0.p0.i64(ptr %[[#V1]], ptr %[[#V2]], i64 14, i1 false)

@@ -1265,6 +1265,14 @@ mlir::Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
 
       // FIXME(cir): Use return value slot here.
       mlir::Value RetVal = callOp.getResult();
+      mlir::Value dstPtr;
+      for (auto *user : Caller->getUsers()) {
+          if (auto storeOp = mlir::dyn_cast<StoreOp>(user)) {
+            assert(!dstPtr && "multiple destinations for the return value");
+            dstPtr = storeOp.getAddr();
+          }
+      }
+
       // TODO(cir): Check for volatile return values.
       cir_cconv_assert(!cir::MissingFeatures::volatileTypes());
 
@@ -1283,16 +1291,11 @@ mlir::Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
       if (mlir::dyn_cast<StructType>(RetTy) &&
           mlir::cast<StructType>(RetTy).getNumElements() != 0) {
         RetVal = newCallOp.getResult();
+        createCoercedStore(RetVal, dstPtr, false, *this);
 
-        llvm::SmallVector<StoreOp, 8> workList;
         for (auto *user : Caller->getUsers())
           if (auto storeOp = mlir::dyn_cast<StoreOp>(user))
-            workList.push_back(storeOp);
-        for (StoreOp storeOp : workList) {
-          auto destPtr =
-              createCoercedBitcast(storeOp.getAddr(), RetVal.getType(), *this);
-          rewriter.replaceOpWithNewOp<StoreOp>(storeOp, RetVal, destPtr);
-        }
+            rewriter.eraseOp(storeOp);
       }
 
       // NOTE(cir): No need to convert from a temp to an RValue. This is
