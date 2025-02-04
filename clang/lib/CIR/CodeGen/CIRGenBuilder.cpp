@@ -84,7 +84,7 @@ void CIRGenBuilderTy::computeGlobalViewIndicesFromFlatOffset(
   if (auto ArrayTy = mlir::dyn_cast<cir::ArrayType>(Ty)) {
     int64_t EltSize = Layout.getTypeAllocSize(ArrayTy.getEltType());
     SubType = ArrayTy.getEltType();
-    auto const [Index, NewOffset] = getIndexAndNewOffset(Offset, EltSize);
+    const auto [Index, NewOffset] = getIndexAndNewOffset(Offset, EltSize);
     Indices.push_back(Index);
     Offset = NewOffset;
   } else if (auto StructTy = mlir::dyn_cast<cir::StructType>(Ty)) {
