@@ -304,16 +304,16 @@ void pass_nested_u(NESTED_U a) {}
 // CHECK: %[[#V0:]] = cir.alloca !ty_NESTED_U, !cir.ptr<!ty_NESTED_U>
 // CHECK: %[[#V1:]] = cir.alloca !u64i, !cir.ptr<!u64i>, ["tmp"]
 // CHECK: %[[#V2:]] = cir.load %[[#V0]] : !cir.ptr<!ty_NESTED_U>, !ty_NESTED_U
-// CHECK: %[[#V3:]] = cir.cast(bitcast, %0 : !cir.ptr<!ty_NESTED_U>), !cir.ptr<!ty_anon2E0_>
-// CHECK: %[[#V4:]] = cir.load %3 : !cir.ptr<!ty_anon2E0_>, !ty_anon2E0_
-// CHECK: %[[#V5:]] = cir.cast(bitcast, %3 : !cir.ptr<!ty_anon2E0_>), !cir.ptr<!ty_anon2E1_>
-// CHECK: %[[#V6:]] = cir.load %5 : !cir.ptr<!ty_anon2E1_>, !ty_anon2E1_
-// CHECK: %[[#V7:]] = cir.cast(bitcast, %5 : !cir.ptr<!ty_anon2E1_>), !cir.ptr<!void>
-// CHECK: %[[#V8:]] = cir.cast(bitcast, %1 : !cir.ptr<!u64i>), !cir.ptr<!void>
+// CHECK: %[[#V3:]] = cir.cast(bitcast, %[[#V0]] : !cir.ptr<!ty_NESTED_U>), !cir.ptr<!ty_anon2E0_>
+// CHECK: %[[#V4:]] = cir.load %[[#V3]] : !cir.ptr<!ty_anon2E0_>, !ty_anon2E0_
+// CHECK: %[[#V5:]] = cir.cast(bitcast, %[[#V3]] : !cir.ptr<!ty_anon2E0_>), !cir.ptr<!ty_anon2E1_>
+// CHECK: %[[#V6:]] = cir.load %[[#V5]] : !cir.ptr<!ty_anon2E1_>, !ty_anon2E1_
+// CHECK: %[[#V7:]] = cir.cast(bitcast, %[[#V5]] : !cir.ptr<!ty_anon2E1_>), !cir.ptr<!void>
+// CHECK: %[[#V8:]] = cir.cast(bitcast, %[[#V1]] : !cir.ptr<!u64i>), !cir.ptr<!void>
 // CHECK: %[[#V9:]] = cir.const #cir.int<2> : !u64i
-// CHECK: cir.libc.memcpy %9 bytes from %7 to %8 : !u64i, !cir.ptr<!void> -> !cir.ptr<!void>
-// CHECK: %[[#V10:]] = cir.load %1 : !cir.ptr<!u64i>, !u64i
-// CHECK: cir.call @pass_nested_u(%10) : (!u64i) -> ()
+// CHECK: cir.libc.memcpy %[[#V9]] bytes from %[[#V7]] to %[[#V8]] : !u64i, !cir.ptr<!void> -> !cir.ptr<!void>
+// CHECK: %[[#V10:]] = cir.load %[[#V1]] : !cir.ptr<!u64i>, !u64i
+// CHECK: cir.call @pass_nested_u(%[[#V10]]) : (!u64i) -> ()
 
 // LLVM: void @call_nested_u()
 // LLVM: %[[#V1:]] = alloca %struct.NESTED_U, i64 1, align 1
