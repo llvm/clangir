@@ -22,7 +22,7 @@ static int **g8 = &g7[1];
 // CHECK-DAG: !ty_anon_struct = !cir.struct<struct  {!u8i, !u8i, !u8i, !u8i, !s32i, !s32i}>
 // CHECK-DAG: !ty_anon_struct1 = !cir.struct<struct  {!s8i, !cir.array<!u8i x 3>, !s32i}>
 // CHECK-DAG: !ty_anon_struct2 = !cir.struct<struct  {!u8i, !u8i, !u8i, !u8i, !u8i, !u8i, !u8i, !u8i, !ty_S4_}>
-// CHECK-DAG: !ty_anon_struct3 = !cir.struct<struct  {!s16i, !cir.array<!u8i x 2>, !s32i, !s8i}>
+// CHECK-DAG: !ty_anon_struct3 = !cir.struct<struct  {!s16i, !cir.array<!u8i x 2>, !s32i, !s8i, !cir.array<!u8i x 3>}>
 
 // CHECK-DAG: g1 = #cir.const_struct<{#cir.int<239> : !u8i, #cir.int<10> : !u8i, #cir.int<0> : !u8i, #cir.zero : !u8i, #cir.int<9> : !s32i, #cir.int<123> : !s32i}> : !ty_anon_struct
 // CHECK-DAG: g2 = #cir.const_array<[#cir.global_view<@g1, [4]> : !cir.ptr<!ty_anon_struct>, #cir.global_view<@g1, [4]> : !cir.ptr<!ty_anon_struct>, #cir.global_view<@g1, [4]> : !cir.ptr<!ty_anon_struct>, #cir.global_view<@g1, [4]> : !cir.ptr<!ty_anon_struct>]> : !cir.array<!cir.ptr<!s32i> x 4>
@@ -89,7 +89,7 @@ typedef struct {
 static S3 g13 = {-1L,0L,1L};
 static S3* g14[2][2] = {{&g13, &g13}, {&g13, &g13}};
 
-// CHECK-DAG: g13 = #cir.const_struct<{#cir.int<-1> : !s16i, #cir.const_array<[#cir.zero : !u8i, #cir.zero : !u8i]> : !cir.array<!u8i x 2>, #cir.int<0> : !s32i, #cir.int<1> : !s8i}> : !ty_anon_struct3 
+// CHECK-DAG: g13 = #cir.const_struct<{#cir.int<-1> : !s16i, #cir.const_array<[#cir.zero : !u8i, #cir.zero : !u8i]> : !cir.array<!u8i x 2>, #cir.int<0> : !s32i, #cir.int<1> : !s8i, #cir.const_array<[#cir.zero : !u8i, #cir.zero : !u8i, #cir.zero : !u8i]> : !cir.array<!u8i x 3>}> : !ty_anon_struct3
 // CHECK-DAG: g14 = #cir.const_array<[#cir.const_array<[#cir.global_view<@g13> : !cir.ptr<!ty_S3_>, #cir.global_view<@g13> : !cir.ptr<!ty_S3_>]> : !cir.array<!cir.ptr<!ty_S3_> x 2>, #cir.const_array<[#cir.global_view<@g13> : !cir.ptr<!ty_S3_>, #cir.global_view<@g13> : !cir.ptr<!ty_S3_>]> : !cir.array<!cir.ptr<!ty_S3_> x 2>]> : !cir.array<!cir.array<!cir.ptr<!ty_S3_> x 2> x 2>
 
 typedef struct {
