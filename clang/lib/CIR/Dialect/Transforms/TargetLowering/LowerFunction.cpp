@@ -232,6 +232,17 @@ cir::AllocaOp findAlloca(mlir::Operation *op) {
   return {};
 }
 
+mlir::Value findAddr(mlir::Value v) {
+  if (mlir::isa<cir::PointerType>(v.getType()))
+    return v;
+
+  auto op = v.getDefiningOp();
+  if (!op || !mlir::isa<cir::CastOp, cir::LoadOp, cir::ReturnOp>(op))
+    return {};
+
+  return findAddr(op->getOperand(0));
+}
+
 /// Create a store to \param Dst from \param Src where the source and
 /// destination may have different types.
 ///
@@ -338,10 +349,10 @@ mlir::Value createCoercedValue(mlir::Value Src, mlir::Type Ty,
     return CGF.buildAggregateBitcast(Src, Ty);
   }
 
-  if (auto alloca = findAlloca(Src.getDefiningOp())) {
-    auto tmpAlloca = createTmpAlloca(CGF, alloca.getLoc(), Ty);
-    createMemCpy(CGF, tmpAlloca, alloca, SrcSize.getFixedValue());
-    return CGF.getRewriter().create<LoadOp>(alloca.getLoc(),
+  if (mlir::Value addr = findAddr(Src)) {
+    auto tmpAlloca = createTmpAlloca(CGF, addr.getLoc(), Ty);
+    createMemCpy(CGF, tmpAlloca, addr, SrcSize.getFixedValue());
+    return CGF.getRewriter().create<LoadOp>(addr.getLoc(),
                                             tmpAlloca.getResult());
   }
 
@@ -371,7 +382,6 @@ mlir::Value createCoercedNonPrimitive(mlir::Value src, mlir::Type ty,
 
     auto tySize = LF.LM.getDataLayout().getTypeStoreSize(ty);
     createMemCpy(LF, alloca, addr, tySize.getFixedValue());
-
     auto newLoad = bld.create<LoadOp>(src.getLoc(), alloca.getResult());
     bld.replaceAllOpUsesWith(load, newLoad);
 
