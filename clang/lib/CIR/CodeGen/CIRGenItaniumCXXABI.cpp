@@ -2266,21 +2266,41 @@ void CIRGenItaniumCXXABI::emitRethrow(CIRGenFunction &CGF, bool isNoReturn) {
       CGF.getBuilder().getFuncType({}, CGF.getBuilder().getVoidTy());
 
   auto Fn = CGF.CGM.createRuntimeFunction(FTy, "__cxa_rethrow");
+  auto loc = Fn.getLoc();
 
   if (isNoReturn) {
     auto &builder = CGF.getBuilder();
 
-    auto callOp = builder.createTryCallOp(Fn.getLoc(), Fn, {});
+    // The idea here is creating a separate block for the rethrow with an
+    // `UnreachableOp` as the terminator. So, we branch from the current block
+    // to the rethrow block and create a block for the remaining operations.
 
-    // The idea here is to create
-    // an unreachable continue block for the rethrow, but
-    // there is a YieldOp that terminates the TryOp already, so creating an
-    // UnreachableOp in-place causes us to have two terminators which isn't
-    // valid CIR. So, to make this valid CIR the UnreachableOp is created in a
-    // separate scope.
+    auto currentBlock = builder.getInsertionBlock();
+    auto reg = currentBlock->getParent();
+
+    bool branch = false;
+    if (currentBlock->empty())
+      currentBlock->erase();
+    else
+      branch = true;
+
+    auto rethrowBlock = builder.createBlock(reg);
+    builder.setInsertionPointToStart(rethrowBlock);
+    builder.createTryCallOp(Fn.getLoc(), Fn, {});
+    builder.create<cir::UnreachableOp>(loc);
+
+    if (branch) {
+      builder.setInsertionPointToEnd(currentBlock);
+      builder.create<cir::BrOp>(loc, rethrowBlock);
+    }
+
+    auto remBlock = builder.createBlock(reg);
+    builder.setInsertionPointToEnd(remBlock);
+    // This will be erased during codegen, it acts as a placeholder for the
+    // operations to be inserted (if any)
     builder.create<cir::ScopeOp>(Fn.getLoc(), /*scopeBuilder=*/
                                  [&](mlir::OpBuilder &b, mlir::Location loc) {
-                                   b.create<cir::UnreachableOp>(loc);
+                                   b.create<cir::YieldOp>(loc);
                                  });
   } else {
     llvm_unreachable("NYI");
