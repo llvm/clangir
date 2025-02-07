@@ -515,7 +515,8 @@ void CIRGenModule::emitGlobal(GlobalDecl GD) {
   assert(!Global->hasAttr<IFuncAttr>() && "NYI");
   assert(!Global->hasAttr<CPUDispatchAttr>() && "NYI");
 
-  if (langOpts.CUDA) {
+  if (langOpts.CUDA || langOpts.HIP) {
+    // clang uses the same flag when building HIP code
     if (langOpts.CUDAIsDevice) {
       // This will implicitly mark templates and their
       // specializations as __host__ __device__.
@@ -3222,8 +3223,7 @@ void CIRGenModule::Release() {
   if (astContext.getTargetInfo().getTriple().isWasm())
     llvm_unreachable("NYI");
 
-  if (getTriple().isAMDGPU() ||
-      (getTriple().isSPIRV() && getTriple().getVendor() == llvm::Triple::AMD)) {
+  if (getTriple().isSPIRV() && getTriple().getVendor() == llvm::Triple::AMD) {
     llvm_unreachable("NYI");
   }
 
@@ -3234,9 +3234,7 @@ void CIRGenModule::Release() {
   if (!astContext.CUDAExternalDeviceDeclODRUsedByHost.empty()) {
     llvm_unreachable("NYI");
   }
-  if (langOpts.HIP && !getLangOpts().OffloadingNewDriver) {
-    llvm_unreachable("NYI");
-  }
+
   assert(!MissingFeatures::emitLLVMUsed());
   assert(!MissingFeatures::sanStats());
 
