@@ -430,6 +430,8 @@ public:
     mlir::Block *beforeCatch = rewriter.getInsertionBlock();
     rewriter.setInsertionPointToEnd(beforeCatch);
 
+    // Check if the terminator is a YieldOp because there could be another
+    // terminator, e.g. unreachable
     if (auto tryBodyYield = dyn_cast<cir::YieldOp>(afterBody->getTerminator()))
       rewriter.replaceOpWithNewOp<cir::BrOp>(tryBodyYield, afterTry);
 
