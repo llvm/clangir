@@ -822,15 +822,15 @@ public:
                   mlir::ConversionPatternRewriter &) const override;
 };
 
-// class CIRToLLVMAtomicFenceLowering
-//     : public mlir::OpConversionPattern<cir::AtomicFence> {
-// public:
-//   using mlir::OpConversionPattern<cir::AtomicFence>::OpConversionPattern;
-//
-//   mlir::LogicalResult
-//   matchAndRewrite(cir::AtomicFence op, OpAdaptor,
-//                   mlir::ConversionPatternRewriter &) const override;
-// };
+class CIRToLLVMAtomicFenceLowering
+    : public mlir::OpConversionPattern<cir::AtomicFence> {
+public:
+  using mlir::OpConversionPattern<cir::AtomicFence>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::AtomicFence op, OpAdaptor,
+                  mlir::ConversionPatternRewriter &) const override;
+};
 
 class CIRToLLVMByteswapOpLowering
     : public mlir::OpConversionPattern<cir::ByteswapOp> {

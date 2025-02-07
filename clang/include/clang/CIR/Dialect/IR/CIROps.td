@@ -5437,7 +5437,10 @@ def AtomicFence : CIR_Op<"atomic.fence"> {
       - `__c11_atomic_signal_fence`
 
     Example:
-
+    ```mlir
+      cir.atomic.fence system seq_cst
+      cir.atomic.fence single_thread seq_cst
+    ```
 
   }];
   let results = (outs);
@@ -5445,8 +5448,7 @@ def AtomicFence : CIR_Op<"atomic.fence"> {
                        Arg<MemOrder, "memory order">:$ordering);
 
   let assemblyFormat = [{
-    `(` `sync_scope` `=` $sync_scope `,`
-        `ordering` `=` $ordering `)` attr-dict
+    $sync_scope $ordering attr-dict
   }];
 
   let hasVerifier = 0;

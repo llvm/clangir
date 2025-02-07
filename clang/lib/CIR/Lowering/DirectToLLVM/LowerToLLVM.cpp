@@ -19,6 +19,7 @@
 #include "mlir/Dialect/DLTI/DLTI.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMAttrs.h"
+#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/LLVMIR/Transforms/Passes.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/Builders.h"
@@ -42,7 +43,6 @@
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Dialect/OpenMP/OpenMPToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Export.h"
-#include "clang/CIR/Dialect/IR/CIRAttrVisitor.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 #include "clang/CIR/Dialect/Passes.h"
@@ -3202,9 +3202,10 @@ mlir::LLVM::AtomicOrdering getLLVMAtomicOrder(cir::MemOrder memo) {
   llvm_unreachable("shouldn't get here");
 }
 
-// mlir::LLVM::AtomicSyncScope getLLVMSyncScope(cir::MemScopeKind syncScope) {
-//
-// }
+llvm::StringRef getLLVMSyncScope(cir::MemScopeKind syncScope) {
+  return syncScope == cir::MemScopeKind::MemScope_SingleThread ? "singlethread"
+                                                               : "";
+}
 
 mlir::LogicalResult CIRToLLVMAtomicCmpXchgLowering::matchAndRewrite(
     cir::AtomicCmpXchg op, OpAdaptor adaptor,
@@ -3374,11 +3375,17 @@ mlir::LogicalResult CIRToLLVMAtomicFetchLowering::matchAndRewrite(
   return mlir::success();
 }
 
-// mlir::LogicalResult CIRToLLVMAtomicFenceLowering::matchAndRewrite(
-//     cir::AtomicFence op, OpAdaptor adaptor,
-//     mlir::ConversionPatternRewriter &rewriter) const {
-//   return mlir::success();
-// }
+mlir::LogicalResult CIRToLLVMAtomicFenceLowering::matchAndRewrite(
+    cir::AtomicFence op, OpAdaptor adaptor,
+    mlir::ConversionPatternRewriter &rewriter) const {
+  auto llvmOrder = getLLVMAtomicOrder(adaptor.getOrdering());
+  auto llvmSyncScope = getLLVMSyncScope(adaptor.getSyncScope());
+
+  rewriter.replaceOpWithNewOp<mlir::LLVM::FenceOp>(op, llvmOrder,
+                                                   llvmSyncScope);
+
+  return mlir::success();
+}
 
 mlir::LogicalResult CIRToLLVMByteswapOpLowering::matchAndRewrite(
     cir::ByteswapOp op, OpAdaptor adaptor,
@@ -4141,6 +4148,7 @@ void populateCIRToLLVMConversionPatterns(
       CIRToLLVMAtomicCmpXchgLowering,
       CIRToLLVMAtomicFetchLowering,
       CIRToLLVMAtomicXchgLowering,
+      CIRToLLVMAtomicFenceLowering,
       CIRToLLVMBaseClassAddrOpLowering,
       CIRToLLVMBinOpLowering,
       CIRToLLVMBinOpOverflowOpLowering,

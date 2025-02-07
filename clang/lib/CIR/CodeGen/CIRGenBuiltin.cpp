@@ -339,7 +339,7 @@ static mlir::Value MakeAtomicCmpXchgValue(CIRGenFunction &cgf,
   return returnBool ? op.getResult(1) : op.getResult(0);
 }
 
-static mlir::Value MakeAtomicFenceValue(CIRGenFunction &cgf,
+static mlir::Value makeAtomicFenceValue(CIRGenFunction &cgf,
                                         const CallExpr *expr,
                                         cir::MemScopeKind syncScope) {
   auto &builder = cgf.getBuilder();
@@ -1894,9 +1894,9 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
 
   case Builtin::BI__atomic_thread_fence:
     return RValue::get(
-        MakeAtomicFenceValue(*this, E, cir::MemScopeKind::MemScope_System));
+        makeAtomicFenceValue(*this, E, cir::MemScopeKind::MemScope_System));
   case Builtin::BI__atomic_signal_fence:
-    return RValue::get(MakeAtomicFenceValue(
+    return RValue::get(makeAtomicFenceValue(
         *this, E, cir::MemScopeKind::MemScope_SingleThread));
   case Builtin::BI__c11_atomic_thread_fence:
   case Builtin::BI__c11_atomic_signal_fence:
