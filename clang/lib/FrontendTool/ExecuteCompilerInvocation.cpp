@@ -99,6 +99,8 @@ CreateFrontendBaseAction(CompilerInstance &CI) {
     return std::make_unique<cir::EmitCIROnlyAction>();
   case EmitMLIR:
     return std::make_unique<cir::EmitMLIRAction>();
+  case EmitMLIRLLVM:
+    return std::make_unique<cir::EmitMLIRLLVMAction>();
 #else
   case EmitCIR:
   case EmitCIRFlat:

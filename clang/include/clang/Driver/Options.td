@@ -3121,6 +3121,8 @@ def emit_cir_flat : Flag<["-"], "emit-cir-flat">, Visibility<[ClangOption, CC1Op
   Group<Action_Group>, HelpText<"Similar to -emit-cir but also lowers structured CFG into basic blocks.">;
 def emit_mlir : Flag<["-"], "emit-mlir">, Visibility<[CC1Option]>, Group<Action_Group>,
   HelpText<"Build ASTs and then lower through ClangIR to MLIR, emit the .milr file">;
+def emit_mlir_llvm : Flag<["-"], "emit-mlir-llvm">, Visibility<[CC1Option]>, Group<Action_Group>,
+  HelpText<"Build ASTs and then lower through ClangIR to MLIR LLVM Dialect, emit the .mlir file">;
 /// ClangIR-specific options - END
 
 def flto : Flag<["-"], "flto">,

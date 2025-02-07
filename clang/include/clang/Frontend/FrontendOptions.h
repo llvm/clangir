@@ -77,6 +77,9 @@ enum ActionKind {
   /// Emit a .mlir file
   EmitMLIR,
 
+  /// Emit an .mlir file with LLVM dialect
+  EmitMLIRLLVM,
+
   /// Emit a .ll file.
   EmitLLVM,
 

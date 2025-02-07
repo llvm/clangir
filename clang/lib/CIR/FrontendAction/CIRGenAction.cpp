@@ -26,6 +26,7 @@
 #include "clang/CIR/CIRToCIRPasses.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/LowerToLLVM.h"
+#include "clang/CIR/LowerToMLIR.h"
 #include "clang/CIR/Passes.h"
 #include "clang/CodeGen/BackendUtil.h"
 #include "clang/CodeGen/ModuleBuilder.h"
@@ -260,6 +261,14 @@ public:
       }
     }
 
+    auto printMlirModule = [&](mlir::ModuleOp root) {
+      assert(outputStream && "Why are we here without an output stream?");
+      // FIXME: we cannot roundtrip prettyForm=true right now.
+      mlir::OpPrintingFlags flags;
+      flags.enableDebugInfo(/*enable=*/true, /*prettyForm=*/false);
+      root->print(*outputStream, flags);
+    };
+
     switch (action) {
     case CIRGenAction::OutputType::EmitCIR:
     case CIRGenAction::OutputType::EmitCIRFlat:
@@ -274,11 +283,15 @@ public:
       break;
     case CIRGenAction::OutputType::EmitMLIR: {
       auto loweredMlirModule = lowerFromCIRToMLIR(mlirMod, mlirCtx.get());
-      assert(outputStream && "Why are we here without an output stream?");
-      // FIXME: we cannot roundtrip prettyForm=true right now.
-      mlir::OpPrintingFlags flags;
-      flags.enableDebugInfo(/*enable=*/true, /*prettyForm=*/false);
-      loweredMlirModule->print(*outputStream, flags);
+      printMlirModule(loweredMlirModule);
+      break;
+    }
+    case CIRGenAction::OutputType::EmitMLIRLLVM: {
+      auto loweredMlirModule =
+          feOptions.ClangIRDirectLowering
+              ? direct::lowerDirectlyFromCIRToLLVMDialect(mlirMod)
+              : lowerFromCIRToMLIRToLLVMDialect(mlirMod);
+      printMlirModule(loweredMlirModule);
       break;
     }
     case CIRGenAction::OutputType::EmitLLVM:
@@ -361,6 +374,8 @@ getOutputStream(CompilerInstance &ci, StringRef inFile,
   case CIRGenAction::OutputType::EmitCIRFlat:
     return ci.createDefaultOutputFile(false, inFile, "cir");
   case CIRGenAction::OutputType::EmitMLIR:
+    return ci.createDefaultOutputFile(false, inFile, "mlir");
+  case CIRGenAction::OutputType::EmitMLIRLLVM:
     return ci.createDefaultOutputFile(false, inFile, "mlir");
   case CIRGenAction::OutputType::EmitLLVM:
     return ci.createDefaultOutputFile(false, inFile, "ll");
@@ -471,6 +486,10 @@ EmitCIROnlyAction::EmitCIROnlyAction(mlir::MLIRContext *_MLIRContext)
 void EmitMLIRAction::anchor() {}
 EmitMLIRAction::EmitMLIRAction(mlir::MLIRContext *_MLIRContext)
     : CIRGenAction(OutputType::EmitMLIR, _MLIRContext) {}
+
+void EmitMLIRLLVMAction::anchor() {}
+EmitMLIRLLVMAction::EmitMLIRLLVMAction(mlir::MLIRContext *_MLIRContext)
+    : CIRGenAction(OutputType::EmitMLIRLLVM, _MLIRContext) {}
 
 void EmitLLVMAction::anchor() {}
 EmitLLVMAction::EmitLLVMAction(mlir::MLIRContext *_MLIRContext)

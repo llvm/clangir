@@ -2738,6 +2738,7 @@ static const auto &getFrontendActionTable() {
       {frontend::EmitCIRFlat, OPT_emit_cir_flat},
       {frontend::EmitCIROnly, OPT_emit_cir_only},
       {frontend::EmitMLIR, OPT_emit_mlir},
+      {frontend::EmitMLIRLLVM, OPT_emit_mlir_llvm},
       {frontend::EmitHTML, OPT_emit_html},
       {frontend::EmitLLVM, OPT_emit_llvm},
       {frontend::EmitLLVMOnly, OPT_emit_llvm_only},
@@ -4669,6 +4670,7 @@ static bool isStrictlyPreprocessorAction(frontend::ActionKind Action) {
   case frontend::EmitCIRFlat:
   case frontend::EmitCIROnly:
   case frontend::EmitMLIR:
+  case frontend::EmitMLIRLLVM:
   case frontend::EmitHTML:
   case frontend::EmitLLVM:
   case frontend::EmitLLVMOnly:
