@@ -1,7 +1,7 @@
 #include "../Inputs/cuda.h"
 
-// RUN: %clang_cc1 -triple=amdgcn-amd-amdhsa -fcuda-is-device \
-// RUN:            -x hip -fclangir -emit-cir -o - %s | FileCheck %s
+// RUN: %clang_cc1 -triple=amdgcn-amd-amdhsa -x hip -fcuda-is-device \
+// RUN:            -fclangir -emit-cir -o - %s | FileCheck %s
 
 // This shouldn't emit.
 __host__ void host_fn(int *a, int *b, int *c) {}
