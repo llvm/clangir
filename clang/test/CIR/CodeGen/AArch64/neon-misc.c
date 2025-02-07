@@ -562,6 +562,34 @@ int32x2x2_t test_vuzp_s32(int32x2_t a, int32x2_t b) {
   // LLVM: ret %struct.int32x2x2_t {{.*}}
 }
 
+float32x2x2_t test_vuzp_f32(float32x2_t a, float32x2_t b) {
+  return vuzp_f32(a, b);
+
+  // CIR-LABEL: vuzp_f32
+  // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!cir.float x 2>>
+  // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
+  // CIR: [[ADDR:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!cir.float x 2>>, [[ZERO]] : !s32i), !cir.ptr<!cir.vector<!cir.float x 2>>
+  // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!cir.float x 2>)
+  // CIR-SAME: [#cir.int<0> : !s32i, #cir.int<2> : !s32i] : !cir.vector<!cir.float x 2>
+  // CIR:  cir.store [[RES]], [[ADDR]] : !cir.vector<!cir.float x 2>, !cir.ptr<!cir.vector<!cir.float x 2>>
+  // CIR: [[ONE:%.*]] = cir.const #cir.int<1> : !s32i
+  // CIR: [[ADDR1:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!cir.float x 2>>, [[ONE]] : !s32i), !cir.ptr<!cir.vector<!cir.float x 2>>
+  // CIR: [[RES1:%.*]] = cir.vec.shuffle([[INP1]], [[INP2]] : !cir.vector<!cir.float x 2>)
+  // CIR-SAME: [#cir.int<1> : !s32i, #cir.int<3> : !s32i] :
+  // CIR-SAME: !cir.vector<!cir.float x 2>
+  // CIR:  cir.store [[RES1]], [[ADDR1]] : !cir.vector<!cir.float x 2>, !cir.ptr<!cir.vector<!cir.float x 2>>
+
+  // LLVM: {{.*}}test_vuzp_f32(<2 x float>{{.*}}[[A:%.*]], <2 x float>{{.*}}[[B:%.*]])
+  // LLVM: [[vuzp:%.*]] = shufflevector <2 x float> [[A]], <2 x float> [[B]],
+  // LLVM-SAME: <2 x i32> <i32 0, i32 2>
+  // LLVM: store <2 x float> [[vuzp]], ptr [[RES:%.*]], align 8
+  // LLVM: [[RES1:%.*]] = getelementptr {{.*}}<2 x float>, ptr [[RES]], i64 1
+  // LLVM: [[vuzp1:%.*]] = shufflevector <2 x float> [[A]], <2 x float> [[B]],
+  // LLVM-SAME: <2 x i32> <i32 1, i32 3>
+  // LLVM: store <2 x float> [[vuzp1]], ptr [[RES1]], align 8
+  // LLVM: ret %struct.float32x2x2_t {{.*}}
+}
+
 uint8x16x2_t test_vuzpq_u8(uint8x16_t a, uint8x16_t b) {
   return vuzpq_u8(a, b);
 
@@ -645,6 +673,26 @@ uint32x4x2_t test_vuzpq_u32(uint32x4_t a, uint32x4_t b) {
   // CIR-SAME: !cir.vector<!u32i x 4>
   // CIR:  cir.store [[RES1]], [[ADDR1]] : !cir.vector<!u32i x 4>, !cir.ptr<!cir.vector<!u32i x 4>>
   // LLVM: ret %struct.uint32x4x2_t {{.*}}
+}
+
+float32x4x2_t test_vuzpq_f32(float32x4_t a, float32x4_t b) {
+  return vuzpq_f32(a, b);
+
+  // CIR-LABEL: vuzpq_f32
+  // CIR: [[PTR:%.*]] = cir.cast(bitcast, {{%.*}} : !cir.ptr<!void>), !cir.ptr<!cir.vector<!cir.float x 4>>
+  // CIR: [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
+  // CIR: [[ADDR:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!cir.float x 4>>, [[ZERO]] : !s32i), !cir.ptr<!cir.vector<!cir.float x 4>>
+  // CIR: [[RES:%.*]] = cir.vec.shuffle([[INP1:%.*]], [[INP2:%.*]] : !cir.vector<!cir.float x 4>)
+  // CIR-SAME: [#cir.int<0> : !s32i, #cir.int<2> : !s32i, #cir.int<4> : !s32i, #cir.int<6> : !s32i] :
+  // CIR-SAME: !cir.vector<!cir.float x 4>
+  // CIR:  cir.store [[RES]], [[ADDR]] : !cir.vector<!cir.float x 4>, !cir.ptr<!cir.vector<!cir.float x 4>>
+  // CIR: [[ONE:%.*]] = cir.const #cir.int<1> : !s32i
+  // CIR: [[ADDR1:%.*]] = cir.ptr_stride([[PTR]] : !cir.ptr<!cir.vector<!cir.float x 4>>, [[ONE]] : !s32i), !cir.ptr<!cir.vector<!cir.float x 4>>
+  // CIR: [[RES1:%.*]] = cir.vec.shuffle([[INP1]], [[INP2]] : !cir.vector<!cir.float x 4>)
+  // CIR-SAME: [#cir.int<1> : !s32i, #cir.int<3> : !s32i, #cir.int<5> : !s32i, #cir.int<7> : !s32i] :
+  // CIR-SAME: !cir.vector<!cir.float x 4>
+  // CIR:  cir.store [[RES1]], [[ADDR1]] : !cir.vector<!cir.float x 4>, !cir.ptr<!cir.vector<!cir.float x 4>>
+  // LLVM: ret %struct.float32x4x2_t {{.*}}
 }
 
 uint8x8_t test_vqmovun_s16(int16x8_t a) {
