@@ -424,6 +424,7 @@ static void emitAtomicCmpXchg(CIRGenFunction &CGF, AtomicExpr *E, bool IsWeak,
   auto cmpxchg = builder.create<cir::AtomicCmpXchg>(
       loc, Expected.getType(), boolTy, Ptr.getPointer(), Expected, Desired,
       SuccessOrder, FailureOrder);
+  cmpxchg.setAlignment(Ptr.getAlignment().getAsAlign().value());
   cmpxchg.setIsVolatile(E->isVolatile());
   cmpxchg.setWeak(IsWeak);
 

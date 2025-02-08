@@ -326,6 +326,7 @@ static mlir::Value MakeAtomicCmpXchgValue(CIRGenFunction &cgf,
       destAddr.getPointer(), cmpVal, newVal,
       cir::MemOrder::SequentiallyConsistent,
       cir::MemOrder::SequentiallyConsistent);
+  op.setAlignment(destAddr.getAlignment().getAsAlign().value());
 
   return returnBool ? op.getResult(1) : op.getResult(0);
 }
