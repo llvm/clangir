@@ -503,7 +503,8 @@ uint8x8x2_t test_vuzp_u8(uint8x8_t a, uint8x8_t b) {
   // LLVM: [[RES1:%.*]] = getelementptr {{.*}}<8 x i8>, ptr [[RES]], i64 1
   // LLVM: [[VTRN1:%.*]] = shufflevector <8 x i8> [[A]], <8 x i8> [[B]], <8 x i32> <i32 1, i32 3, i32 5, i32 7, i32 9, i32 11, i32 13, i32 15>
   // LLVM: store <8 x i8> [[VTRN1]], ptr [[RES1]], align 8
-  // LLVM: ret %struct.uint8x8x2_t {{.*}}
+  // LLVM-NEXT: [[RET:%.*]] = load %struct.uint8x8x2_t, ptr {{.*}}
+  // LLVM-NEXT: ret %struct.uint8x8x2_t [[RET]]
 }
 
 uint16x4x2_t test_vuzp_u16(uint16x4_t a, uint16x4_t b) {
@@ -531,7 +532,8 @@ uint16x4x2_t test_vuzp_u16(uint16x4_t a, uint16x4_t b) {
   // LLVM: [[vuzp1:%.*]] = shufflevector <4 x i16> [[A]], <4 x i16> [[B]],
   // LLVM-SAME: <4 x i32> <i32 1, i32 3, i32 5, i32 7>
   // LLVM: store <4 x i16> [[vuzp1]], ptr [[RES1]], align 8
-  // LLVM: ret %struct.uint16x4x2_t {{.*}}
+  // LLVM-NEXT: [[RET:%.*]] = load %struct.uint16x4x2_t, ptr {{.*}}
+  // LLVM-NEXT: ret %struct.uint16x4x2_t [[RET]]
 }
 
 int32x2x2_t test_vuzp_s32(int32x2_t a, int32x2_t b) {
@@ -559,7 +561,8 @@ int32x2x2_t test_vuzp_s32(int32x2_t a, int32x2_t b) {
   // LLVM: [[vuzp1:%.*]] = shufflevector <2 x i32> [[A]], <2 x i32> [[B]],
   // LLVM-SAME: <2 x i32> <i32 1, i32 3>
   // LLVM: store <2 x i32> [[vuzp1]], ptr [[RES1]], align 8
-  // LLVM: ret %struct.int32x2x2_t {{.*}}
+  // LLVM-NEXT: [[RET:%.*]] = load %struct.int32x2x2_t, ptr {{.*}}
+  // LLVM-NEXT: ret %struct.int32x2x2_t [[RET]]
 }
 
 float32x2x2_t test_vuzp_f32(float32x2_t a, float32x2_t b) {
@@ -587,7 +590,8 @@ float32x2x2_t test_vuzp_f32(float32x2_t a, float32x2_t b) {
   // LLVM: [[vuzp1:%.*]] = shufflevector <2 x float> [[A]], <2 x float> [[B]],
   // LLVM-SAME: <2 x i32> <i32 1, i32 3>
   // LLVM: store <2 x float> [[vuzp1]], ptr [[RES1]], align 8
-  // LLVM: ret %struct.float32x2x2_t {{.*}}
+  // LLVM-NEXT: [[RET:%.*]] = load %struct.float32x2x2_t, ptr {{.*}}
+  // LLVM-NEXT: ret %struct.float32x2x2_t [[RET]]
 }
 
 uint8x16x2_t test_vuzpq_u8(uint8x16_t a, uint8x16_t b) {
@@ -622,7 +626,8 @@ uint8x16x2_t test_vuzpq_u8(uint8x16_t a, uint8x16_t b) {
   // LLVM-SAME: <16 x i32> <i32 1, i32 3, i32 5, i32 7, i32 9, i32 11, i32 13, i32 15,
   // LLVM-SAME: i32 17, i32 19, i32 21, i32 23, i32 25, i32 27, i32 29, i32 31>
   // LLVM: store <16 x i8> [[vuzp1]], ptr [[RES1]], align 16
-  // LLVM: ret %struct.uint8x16x2_t {{.*}}
+  // LLVM-NEXT: [[RET:%.*]] = load %struct.uint8x16x2_t, ptr {{.*}}
+  // LLVM-NEXT: ret %struct.uint8x16x2_t [[RET]]
 }
 
 int16x8x2_t test_vuzpq_s16(int16x8_t a, int16x8_t b) {
@@ -652,7 +657,8 @@ int16x8x2_t test_vuzpq_s16(int16x8_t a, int16x8_t b) {
   // LLVM: [[RES1:%.*]] = getelementptr {{.*}}<8 x i16>, ptr [[RES]], i64 1
   // LLVM: [[vuzp1:%.*]] = shufflevector <8 x i16> [[A]], <8 x i16> [[B]], <8 x i32> <i32 1, i32 3, i32 5, i32 7, i32 9, i32 11, i32 13, i32 15>
   // LLVM: store <8 x i16> [[vuzp1]], ptr [[RES1]], align 16
-  // LLVM: ret %struct.int16x8x2_t {{.*}}
+  // LLVM: [[RET:%.*]] = load %struct.int16x8x2_t, ptr {{.*}}
+  // LLVM-NEXT: ret %struct.int16x8x2_t [[RET]]
 }
 
 uint32x4x2_t test_vuzpq_u32(uint32x4_t a, uint32x4_t b) {
@@ -672,7 +678,8 @@ uint32x4x2_t test_vuzpq_u32(uint32x4_t a, uint32x4_t b) {
   // CIR-SAME: [#cir.int<1> : !s32i, #cir.int<3> : !s32i, #cir.int<5> : !s32i, #cir.int<7> : !s32i] :
   // CIR-SAME: !cir.vector<!u32i x 4>
   // CIR:  cir.store [[RES1]], [[ADDR1]] : !cir.vector<!u32i x 4>, !cir.ptr<!cir.vector<!u32i x 4>>
-  // LLVM: ret %struct.uint32x4x2_t {{.*}}
+  // LLVM: [[RET:%.*]] = load %struct.uint32x4x2_t, ptr {{.*}}
+  // LLVM-NEXT: ret %struct.uint32x4x2_t [[RET]]
 }
 
 float32x4x2_t test_vuzpq_f32(float32x4_t a, float32x4_t b) {
@@ -692,7 +699,8 @@ float32x4x2_t test_vuzpq_f32(float32x4_t a, float32x4_t b) {
   // CIR-SAME: [#cir.int<1> : !s32i, #cir.int<3> : !s32i, #cir.int<5> : !s32i, #cir.int<7> : !s32i] :
   // CIR-SAME: !cir.vector<!cir.float x 4>
   // CIR:  cir.store [[RES1]], [[ADDR1]] : !cir.vector<!cir.float x 4>, !cir.ptr<!cir.vector<!cir.float x 4>>
-  // LLVM: ret %struct.float32x4x2_t {{.*}}
+  // LLVM: [[RET:%.*]] = load %struct.float32x4x2_t, ptr {{.*}}
+  // LLVM-NEXT: ret %struct.float32x4x2_t [[RET]]
 }
 
 uint8x8_t test_vqmovun_s16(int16x8_t a) {
