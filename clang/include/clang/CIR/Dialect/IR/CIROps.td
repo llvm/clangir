@@ -5402,6 +5402,7 @@ def AtomicCmpXchg : CIR_Op<"atomic.cmp_xchg",
     `success` `=`  $succ_order `,`
     `failure` `=`  $fail_order
     `)`
+    (`align` `(` $alignment^ `)`)?
     (`weak` $weak^)?
     (`volatile` $is_volatile^)?
     `:` `(` type($old) `,` type($cmp) `)` attr-dict
