@@ -13,9 +13,11 @@
 #ifndef MLIR_DIALECT_NAMED_TUPLE_IR_NAMED_TUPLE_H
 #define MLIR_DIALECT_NAMED_TUPLE_IR_NAMED_TUPLE_H
 
+//#include "mlir/IR/Dialect.h"
 #include "mlir/Dialect/NamedTuple/IR/NamedTupleDialect.h"
 #include "mlir/Dialect/NamedTuple/IR/NamedTupleTypes.h"
 
+#define GET_OP_CLASSES
 #include "mlir/Dialect/NamedTuple/IR/NamedTuple.h.inc"
 
 #endif // MLIR_DIALECT_NAMED_TUPLE_IR_NAMED_TUPLE_H
