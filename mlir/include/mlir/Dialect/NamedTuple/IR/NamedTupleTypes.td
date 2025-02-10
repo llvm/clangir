@@ -27,12 +27,10 @@ class NamedTuple_Type<string name, string typeMnemonic, list<Trait> traits = []>
 }
 
 def NamedTuple_NamedTupleType : NamedTuple_Type<"NamedTuple", "named_tuple", [
-    MemRefElementTypeInterface//,
-    //DeclareTypeInterfaceMethods<DataLayoutTypeInterface, [
-    //  "areCompatible", "getIndexBitwidth", "verifyEntries"]>
+    MemRefElementTypeInterface,
+    DeclareTypeInterfaceMethods<DataLayoutTypeInterface>
   ]> {
-  let summary = "Fixed-sized collection of other types with a name for each"
-      " type";
+  let summary = "Fixed-sized collection of other types with a name";
   let description = [{
   }];
   let parameters = (ins "StringAttr":$name, Builtin_ArrayAttr:$member_types);
@@ -41,9 +39,9 @@ def NamedTuple_NamedTupleType : NamedTuple_Type<"NamedTuple", "named_tuple", [
     TypeBuilder<(ins "StringRef":$name, "ArrayRef<Type>":$types), [{
       llvm::SmallVector<mlir::Attribute> typeAttrs;
       for (auto &t : types)
-      typeAttrs.push_back(mlir::TypeAttr::get(t));
-       return $_get($_ctxt, mlir::StringAttr::get($_ctxt, name),
-                    mlir::ArrayAttr::get($_ctxt, typeAttrs));
+        typeAttrs.push_back(mlir::TypeAttr::get(t));
+      return $_get($_ctxt, mlir::StringAttr::get($_ctxt, name),
+                   mlir::ArrayAttr::get($_ctxt, typeAttrs));
     }]>,
     // Empty tuple
     TypeBuilder<(ins "StringRef":$name), [{
@@ -53,6 +51,7 @@ def NamedTuple_NamedTupleType : NamedTuple_Type<"NamedTuple", "named_tuple", [
     }]>
   ];
 
+  // \todo
   // let extraClassDeclaration = [{
   //   /// Return the number of held types.
   //   size_t size() const;
