@@ -13,9 +13,8 @@
 #ifndef MLIR_DIALECT_NAMED_TUPLE_IR_NAMED_TUPLE_TYPES_H
 #define MLIR_DIALECT_NAMED_TUPLE_IR_NAMED_TUPLE_TYPES_H
 
-//#include "mlir/Bytecode/BytecodeOpInterface.h"
 #include "mlir/Dialect/NamedTuple/IR/NamedTupleDialect.h"
-//#include "mlir/IR/OpDefinition.h"
+#include "mlir/Interfaces/DataLayoutInterfaces.h"
 
 #define GET_TYPEDEF_CLASSES
 #include "mlir/Dialect/NamedTuple/IR/NamedTupleTypes.h.inc"
