@@ -5390,7 +5390,7 @@ def AtomicCmpXchg : CIR_Op<"atomic.cmp_xchg",
                        CIR_AnyType:$desired,
                        Arg<MemOrder, "success memory order">:$succ_order,
                        Arg<MemOrder, "failure memory order">:$fail_order,
-                       DefaultValuedAttr<I64Attr, "0">:$alignment,
+                       OptionalAttr<I64Attr>:$alignment,
                        UnitAttr:$weak,
                        UnitAttr:$is_volatile);
 
