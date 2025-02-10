@@ -4412,7 +4412,8 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   case NEON::BI__builtin_neon_vsra_n_v:
   case NEON::BI__builtin_neon_vsraq_n_v: {
     Ops[0] = builder.createBitcast(Ops[0], vTy);
-    Ops[1] = emitNeonRShiftImm(*this, Ops[1], Ops[2], vTy, usgn, getLoc(E->getExprLoc()));
+    Ops[1] = emitNeonRShiftImm(*this, Ops[1], Ops[2], vTy, usgn,
+                               getLoc(E->getExprLoc()));
     return builder.createAdd(Ops[0], Ops[1]);
   }
   case NEON::BI__builtin_neon_vrsra_n_v:
