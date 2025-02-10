@@ -58,7 +58,6 @@ void refoo1() {
 // CIR:   cir.return
 // CIR: }
 
-// LLVM: @__cxa_rethrow()
 // LLVM: define dso_local void @_Z6refoo1v()
 // LLVM:   %[[V1:.*]] = alloca %struct.S, i64 1, align 1
 // LLVM:   %[[V2:.*]] = alloca i32, i64 1, align 4

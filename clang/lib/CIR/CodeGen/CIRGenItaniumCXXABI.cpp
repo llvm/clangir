@@ -2262,15 +2262,12 @@ mlir::Value CIRGenItaniumCXXABI::getCXXDestructorImplicitParam(
 void CIRGenItaniumCXXABI::emitRethrow(CIRGenFunction &CGF, bool isNoReturn) {
   // void __cxa_rethrow();
 
-  cir::FuncType FTy =
-      CGF.getBuilder().getFuncType({}, CGF.getBuilder().getVoidTy());
-
-  auto Fn = CGF.CGM.createRuntimeFunction(FTy, "__cxa_rethrow");
-  auto loc = Fn.getLoc();
-
   if (isNoReturn) {
     auto &builder = CGF.getBuilder();
-    builder.createTryCallOp(loc, Fn, {});
+    assert(CGF.currSrcLoc && "expected source location");
+    auto loc = *CGF.currSrcLoc;
+    builder.create<cir::ThrowOp>(loc, mlir::Value{}, mlir::FlatSymbolRefAttr{},
+                                 mlir::FlatSymbolRefAttr{});
     builder.create<cir::UnreachableOp>(loc);
   } else {
     llvm_unreachable("NYI");
