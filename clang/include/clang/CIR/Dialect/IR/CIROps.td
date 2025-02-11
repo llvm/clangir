@@ -5398,6 +5398,7 @@ def AtomicCmpXchg : CIR_Op<"atomic.cmp_xchg",
                        CIR_AnyType:$desired,
                        Arg<MemOrder, "success memory order">:$succ_order,
                        Arg<MemOrder, "failure memory order">:$fail_order,
+                       OptionalAttr<I64Attr>:$alignment,
                        UnitAttr:$weak,
                        UnitAttr:$is_volatile);
 
@@ -5409,6 +5410,7 @@ def AtomicCmpXchg : CIR_Op<"atomic.cmp_xchg",
     `success` `=`  $succ_order `,`
     `failure` `=`  $fail_order
     `)`
+    (`align` `(` $alignment^ `)`)?
     (`weak` $weak^)?
     (`volatile` $is_volatile^)?
     `:` `(` type($old) `,` type($cmp) `)` attr-dict
