@@ -41,7 +41,6 @@
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Dialect/OpenMP/OpenMPToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Export.h"
-#include "clang/CIR/Dialect/IR/CIRAttrVisitor.h"
 #include "clang/CIR/Dialect/Passes.h"
 #include "clang/CIR/LoweringHelpers.h"
 #include "clang/CIR/MissingFeatures.h"
@@ -52,6 +51,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
+#include "llvm/ADT/TypeSwitch.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/LLVMContext.h"
@@ -429,7 +429,7 @@ emitCirAttrToMemory(mlir::Operation *parentOp, mlir::Attribute attr,
 }
 
 /// Switches on the type of attribute and calls the appropriate conversion.
-class CirAttrToValue : public CirAttrVisitor<CirAttrToValue, mlir::Value> {
+class CirAttrToValue {
 public:
   CirAttrToValue(mlir::Operation *parentOp,
                  mlir::ConversionPatternRewriter &rewriter,
@@ -438,19 +438,29 @@ public:
       : parentOp(parentOp), rewriter(rewriter), converter(converter),
         dataLayout(dataLayout) {}
 
-  mlir::Value visitCirIntAttr(cir::IntAttr attr);
-  mlir::Value visitCirFPAttr(cir::FPAttr attr);
-  mlir::Value visitCirConstPtrAttr(cir::ConstPtrAttr attr);
-  mlir::Value visitCirConstStructAttr(cir::ConstStructAttr attr);
-  mlir::Value visitCirConstArrayAttr(cir::ConstArrayAttr attr);
-  mlir::Value visitCirConstVectorAttr(cir::ConstVectorAttr attr);
-  mlir::Value visitCirBoolAttr(cir::BoolAttr attr);
-  mlir::Value visitCirZeroAttr(cir::ZeroAttr attr);
-  mlir::Value visitCirUndefAttr(cir::UndefAttr attr);
-  mlir::Value visitCirPoisonAttr(cir::PoisonAttr attr);
-  mlir::Value visitCirGlobalViewAttr(cir::GlobalViewAttr attr);
-  mlir::Value visitCirVTableAttr(cir::VTableAttr attr);
-  mlir::Value visitCirTypeInfoAttr(cir::TypeInfoAttr attr);
+  mlir::Value visit(mlir::Attribute attr) {
+    return llvm::TypeSwitch<mlir::Attribute, mlir::Value>(attr)
+        .Case<cir::IntAttr, cir::FPAttr, cir::ConstPtrAttr,
+              cir::ConstStructAttr, cir::ConstArrayAttr, cir::ConstVectorAttr,
+              cir::BoolAttr, cir::ZeroAttr, cir::UndefAttr, cir::PoisonAttr,
+              cir::GlobalViewAttr, cir::VTableAttr, cir::TypeInfoAttr>(
+            [&](auto attrT) { return visitCirAttr(attrT); })
+        .Default([&](auto attrT) { return mlir::Value(); });
+  }
+
+  mlir::Value visitCirAttr(cir::IntAttr attr);
+  mlir::Value visitCirAttr(cir::FPAttr attr);
+  mlir::Value visitCirAttr(cir::ConstPtrAttr attr);
+  mlir::Value visitCirAttr(cir::ConstStructAttr attr);
+  mlir::Value visitCirAttr(cir::ConstArrayAttr attr);
+  mlir::Value visitCirAttr(cir::ConstVectorAttr attr);
+  mlir::Value visitCirAttr(cir::BoolAttr attr);
+  mlir::Value visitCirAttr(cir::ZeroAttr attr);
+  mlir::Value visitCirAttr(cir::UndefAttr attr);
+  mlir::Value visitCirAttr(cir::PoisonAttr attr);
+  mlir::Value visitCirAttr(cir::GlobalViewAttr attr);
+  mlir::Value visitCirAttr(cir::VTableAttr attr);
+  mlir::Value visitCirAttr(cir::TypeInfoAttr attr);
 
 private:
   mlir::Operation *parentOp;
@@ -460,21 +470,21 @@ private:
 };
 
 /// IntAttr visitor.
-mlir::Value CirAttrToValue::visitCirIntAttr(cir::IntAttr intAttr) {
+mlir::Value CirAttrToValue::visitCirAttr(cir::IntAttr intAttr) {
   auto loc = parentOp->getLoc();
   return rewriter.create<mlir::LLVM::ConstantOp>(
       loc, converter->convertType(intAttr.getType()), intAttr.getValue());
 }
 
 /// BoolAttr visitor.
-mlir::Value CirAttrToValue::visitCirBoolAttr(cir::BoolAttr boolAttr) {
+mlir::Value CirAttrToValue::visitCirAttr(cir::BoolAttr boolAttr) {
   auto loc = parentOp->getLoc();
   return rewriter.create<mlir::LLVM::ConstantOp>(
       loc, converter->convertType(boolAttr.getType()), boolAttr.getValue());
 }
 
 /// ConstPtrAttr visitor.
-mlir::Value CirAttrToValue::visitCirConstPtrAttr(cir::ConstPtrAttr ptrAttr) {
+mlir::Value CirAttrToValue::visitCirAttr(cir::ConstPtrAttr ptrAttr) {
   auto loc = parentOp->getLoc();
   if (ptrAttr.isNullValue()) {
     return rewriter.create<mlir::LLVM::ZeroOp>(
@@ -489,36 +499,35 @@ mlir::Value CirAttrToValue::visitCirConstPtrAttr(cir::ConstPtrAttr ptrAttr) {
 }
 
 /// FPAttr visitor.
-mlir::Value CirAttrToValue::visitCirFPAttr(cir::FPAttr fltAttr) {
+mlir::Value CirAttrToValue::visitCirAttr(cir::FPAttr fltAttr) {
   auto loc = parentOp->getLoc();
   return rewriter.create<mlir::LLVM::ConstantOp>(
       loc, converter->convertType(fltAttr.getType()), fltAttr.getValue());
 }
 
 /// ZeroAttr visitor.
-mlir::Value CirAttrToValue::visitCirZeroAttr(cir::ZeroAttr zeroAttr) {
+mlir::Value CirAttrToValue::visitCirAttr(cir::ZeroAttr zeroAttr) {
   auto loc = parentOp->getLoc();
   return rewriter.create<mlir::LLVM::ZeroOp>(
       loc, converter->convertType(zeroAttr.getType()));
 }
 
 /// UndefAttr visitor.
-mlir::Value CirAttrToValue::visitCirUndefAttr(cir::UndefAttr undefAttr) {
+mlir::Value CirAttrToValue::visitCirAttr(cir::UndefAttr undefAttr) {
   auto loc = parentOp->getLoc();
   return rewriter.create<mlir::LLVM::UndefOp>(
       loc, converter->convertType(undefAttr.getType()));
 }
 
 /// PoisonAttr visitor.
-mlir::Value CirAttrToValue::visitCirPoisonAttr(cir::PoisonAttr poisonAttr) {
+mlir::Value CirAttrToValue::visitCirAttr(cir::PoisonAttr poisonAttr) {
   auto loc = parentOp->getLoc();
   return rewriter.create<mlir::LLVM::PoisonOp>(
       loc, converter->convertType(poisonAttr.getType()));
 }
 
 /// ConstStruct visitor.
-mlir::Value
-CirAttrToValue::visitCirConstStructAttr(cir::ConstStructAttr constStruct) {
+mlir::Value CirAttrToValue::visitCirAttr(cir::ConstStructAttr constStruct) {
   auto llvmTy = converter->convertType(constStruct.getType());
   auto loc = parentOp->getLoc();
   mlir::Value result = rewriter.create<mlir::LLVM::UndefOp>(loc, llvmTy);
@@ -534,7 +543,7 @@ CirAttrToValue::visitCirConstStructAttr(cir::ConstStructAttr constStruct) {
 }
 
 // VTableAttr visitor.
-mlir::Value CirAttrToValue::visitCirVTableAttr(cir::VTableAttr vtableArr) {
+mlir::Value CirAttrToValue::visitCirAttr(cir::VTableAttr vtableArr) {
   auto llvmTy = converter->convertType(vtableArr.getType());
   auto loc = parentOp->getLoc();
   mlir::Value result = rewriter.create<mlir::LLVM::UndefOp>(loc, llvmTy);
@@ -548,8 +557,7 @@ mlir::Value CirAttrToValue::visitCirVTableAttr(cir::VTableAttr vtableArr) {
 }
 
 // TypeInfoAttr visitor.
-mlir::Value
-CirAttrToValue::visitCirTypeInfoAttr(cir::TypeInfoAttr typeinfoArr) {
+mlir::Value CirAttrToValue::visitCirAttr(cir::TypeInfoAttr typeinfoArr) {
   auto llvmTy = converter->convertType(typeinfoArr.getType());
   auto loc = parentOp->getLoc();
   mlir::Value result = rewriter.create<mlir::LLVM::UndefOp>(loc, llvmTy);
@@ -563,8 +571,7 @@ CirAttrToValue::visitCirTypeInfoAttr(cir::TypeInfoAttr typeinfoArr) {
 }
 
 // ConstArrayAttr visitor
-mlir::Value
-CirAttrToValue::visitCirConstArrayAttr(cir::ConstArrayAttr constArr) {
+mlir::Value CirAttrToValue::visitCirAttr(cir::ConstArrayAttr constArr) {
   auto llvmTy = converter->convertType(constArr.getType());
   auto loc = parentOp->getLoc();
   mlir::Value result;
@@ -607,8 +614,7 @@ CirAttrToValue::visitCirConstArrayAttr(cir::ConstArrayAttr constArr) {
 }
 
 // ConstVectorAttr visitor.
-mlir::Value
-CirAttrToValue::visitCirConstVectorAttr(cir::ConstVectorAttr constVec) {
+mlir::Value CirAttrToValue::visitCirAttr(cir::ConstVectorAttr constVec) {
   auto llvmTy = converter->convertType(constVec.getType());
   auto loc = parentOp->getLoc();
   SmallVector<mlir::Attribute> mlirValues;
@@ -633,8 +639,7 @@ CirAttrToValue::visitCirConstVectorAttr(cir::ConstVectorAttr constVec) {
 }
 
 // GlobalViewAttr visitor.
-mlir::Value
-CirAttrToValue::visitCirGlobalViewAttr(cir::GlobalViewAttr globalAttr) {
+mlir::Value CirAttrToValue::visitCirAttr(cir::GlobalViewAttr globalAttr) {
   auto module = parentOp->getParentOfType<mlir::ModuleOp>();
   mlir::Type sourceType;
   unsigned sourceAddrSpace = 0;
