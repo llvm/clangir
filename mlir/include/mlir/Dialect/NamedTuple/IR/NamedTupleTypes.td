@@ -51,22 +51,25 @@ def NamedTuple_NamedTupleType : NamedTuple_Type<"NamedTuple", "named_tuple", [
     }]>
   ];
 
-  // \todo
-  // let extraClassDeclaration = [{
-  //   /// Return the number of held types.
-  //   size_t size() const;
+  let extraClassDeclaration = [{
+    /// Return the number of held types.
+    size_t size() const {
+      return getMemberTypes().size();
+    }
 
-  //   /// Iterate over the held elements.
-  //   using iterator = ArrayRef<Type>::iterator;
-  //   iterator begin() const { return getTypes().begin(); }
-  //   iterator end() const { return getTypes().end(); }
+    // TODO: needs a more complex iterator since the storage is not an
+    // ArrayRef<Type>.
+    /// Iterate over the held elements.
+    // using iterator = ArrayRef<Type>::iterator;
+    // iterator begin() const { return getTypes().begin(); }
+    // iterator end() const { return getTypes().end(); }
 
-  //   /// Return the element type at index 'index'.
-  //   Type getType(size_t index) const {
-  //     assert(index < size() && "invalid index for tuple type");
-  //     return getTypes()[index];
-  //   }
-  // }];
+    /// Return the element type at index 'index'.
+    Type getType(size_t index) const {
+      assert(index < size() && "invalid index for named_tuple type");
+      return mlir::cast<mlir::TypeAttr>(getMemberTypes()[index]).getValue();
+    }
+  }];
 }
 
 #endif // NAMED_TUPLE_TYPES
