@@ -22,7 +22,8 @@ void populateCIRLoopToSCFConversionPatterns(mlir::RewritePatternSet &patterns,
 
 mlir::TypeConverter prepareTypeConverter(mlir::DataLayout &dataLayout);
 
-void runAtStartOfConvertCIRToMLIRPass(std::function<void(mlir::ConversionTarget)>);
+void runAtStartOfConvertCIRToMLIRPass(
+    std::function<void(mlir::ConversionTarget)>);
 
 mlir::ModuleOp
 lowerFromCIRToMLIRToLLVMDialect(mlir::ModuleOp theModule,

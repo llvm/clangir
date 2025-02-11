@@ -27,10 +27,16 @@
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/MemRef/Utils/MemRefUtils.h"
 #include "mlir/Dialect/NamedTuple/IR/NamedTuple.h"
+#include "mlir/Dialect/NamedTuple/IR/NamedTupleDialect.h"
+#include "mlir/Dialect/NamedTuple/IR/NamedTupleTypes.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/Vector/IR/VectorOps.h"
+#include "mlir/IR/Attributes.h"
+#include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinDialect.h"
+#include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/Region.h"
@@ -45,12 +51,14 @@
 #include "mlir/Target/LLVMIR/Dialect/OpenMP/OpenMPToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Export.h"
 #include "mlir/Transforms/DialectConversion.h"
+#include "clang/CIR/Dialect/IR/CIRDataLayout.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/LowerToLLVM.h"
 #include "clang/CIR/LowerToMLIR.h"
 #include "clang/CIR/LoweringHelpers.h"
 #include "clang/CIR/Passes.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/TypeSwitch.h"
@@ -172,7 +180,7 @@ public:
     mlir::Type mlirType =
         convertTypeForMemory(*getTypeConverter(), adaptor.getAllocaType());
 
-    // FIXME: Some types can not be converted yet (e.g. struct)
+    // FIXME: Some types can not be converted yet
     if (!mlirType)
       return mlir::LogicalResult::failure();
 
@@ -277,6 +285,71 @@ public:
     } else
       rewriter.replaceOpWithNewOp<mlir::memref::StoreOp>(op, value,
                                                          adaptor.getAddr());
+    return mlir::LogicalResult::success();
+  }
+};
+
+// Lower cir.get_member
+//
+// clang-format off
+//
+//     %5 = cir.get_member %1[1] {name = "b"} : !cir.ptr<!named_tuple.named_tuple<"s", [i32, f64, i8]>> -> !cir.ptr<!cir.double>
+//
+// to something like
+//
+// %1 = named_tuple.cast %alloca_0 : memref<!named_tuple.named_tuple<"s", [i32, f64, i8]>> to memref<24xi8>
+// %c8 = arith.constant 8 : index
+// %view_1 = memref.view %1[%c8][] : memref<24xi8> to memref<f64>
+// clang-format on
+class CIRGetMemberOpLowering
+    : public mlir::OpConversionPattern<cir::GetMemberOp> {
+  cir::CIRDataLayout const &dataLayout;
+
+public:
+  using mlir::OpConversionPattern<cir::GetMemberOp>::OpConversionPattern;
+
+  CIRGetMemberOpLowering(const mlir::TypeConverter &typeConverter,
+                         mlir::MLIRContext *context,
+                         cir::CIRDataLayout const &dataLayout)
+      : OpConversionPattern{typeConverter, context}, dataLayout{dataLayout} {}
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::GetMemberOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto pointeeType = op.getAddrTy().getPointee();
+    if (!mlir::isa<cir::StructType>(pointeeType))
+      op.emitError("GetMemberOp only works on pointer to cir::StructType");
+    auto structType = mlir::cast<cir::StructType>(pointeeType);
+    // For now, just rely on the datalayout of the high-level type since the
+    // datalayout of low-level type is not implemented yet. But since C++ is a
+    // concrete datalayout, both datalayouts are the same.
+    auto *structLayout = dataLayout.getStructLayout(structType);
+
+    // Get the lowered type: memref<!named_tuple.named_tuple<>>
+    auto memref = mlir::cast<mlir::MemRefType>(adaptor.getAddr().getType());
+    // Alias the memref of struct to a memref of an i8 array of the same size.
+    const std::array linearizedSize{
+        static_cast<std::int64_t>(dataLayout.getTypeStoreSize(structType))};
+    auto flattenMemRef = mlir::MemRefType::get(
+        linearizedSize, mlir::IntegerType::get(memref.getContext(), 8));
+    // Use a special cast because normal memref cast cannot do such an extreme
+    // cast.
+    auto bytesMemRef = rewriter.create<mlir::named_tuple::CastOp>(
+        op.getLoc(), mlir::TypeRange{flattenMemRef},
+        mlir::ValueRange{adaptor.getAddr()});
+
+    auto memberIndex = op.getIndex();
+    auto namedTupleType =
+        mlir::cast<mlir::named_tuple::NamedTupleType>(memref.getElementType());
+    // The lowered type of the element to access in the named_tuple.
+    auto loweredMemberType = namedTupleType.getType(memberIndex);
+    auto elementMemRefTy = mlir::MemRefType::get({}, loweredMemberType);
+    auto offset = structLayout->getElementOffset(memberIndex);
+    // Synthesize the byte access to right lowered type.
+    auto byteShift =
+        rewriter.create<mlir::arith::ConstantIndexOp>(op.getLoc(), offset);
+    rewriter.replaceOpWithNewOp<mlir::memref::ViewOp>(
+        op, elementMemRefTy, bytesMemRef, byteShift, mlir::ValueRange{});
     return mlir::LogicalResult::success();
   }
 };
@@ -1277,7 +1350,8 @@ public:
 };
 
 void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
-                                         mlir::TypeConverter &converter) {
+                                         mlir::TypeConverter &converter,
+                                         cir::CIRDataLayout &cirDataLayout) {
   patterns.add<CIRReturnLowering, CIRBrOpLowering>(patterns.getContext());
 
   patterns
@@ -1298,6 +1372,8 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
            CIRVectorExtractLowering, CIRVectorCmpOpLowering, CIRACosOpLowering,
            CIRASinOpLowering, CIRUnreachableOpLowering, CIRTanOpLowering,
            CIRTrapOpLowering>(converter, patterns.getContext());
+  patterns.add<CIRGetMemberOpLowering>(converter, patterns.getContext(),
+                                       cirDataLayout);
 }
 
 mlir::TypeConverter prepareTypeConverter(mlir::DataLayout &dataLayout) {
@@ -1354,7 +1430,7 @@ mlir::TypeConverter prepareTypeConverter(mlir::DataLayout &dataLayout) {
       curType = arrayType.getEltType();
     }
     auto elementType = converter.convertType(curType);
-    // FIXME: The element type might not be converted (e.g. struct)
+    // FIXME: The element type might not be converted
     if (!elementType)
       return nullptr;
     return mlir::MemRefType::get(shape, elementType);
@@ -1396,12 +1472,13 @@ mlir::TypeConverter prepareTypeConverter(mlir::DataLayout &dataLayout) {
 void ConvertCIRToMLIRPass::runOnOperation() {
   auto module = getOperation();
   mlir::DataLayout dataLayout{module};
+  cir::CIRDataLayout cirDataLayout{module};
   auto converter = prepareTypeConverter(dataLayout);
 
   mlir::RewritePatternSet patterns(&getContext());
 
   populateCIRLoopToSCFConversionPatterns(patterns, converter);
-  populateCIRToMLIRConversionPatterns(patterns, converter);
+  populateCIRToMLIRConversionPatterns(patterns, converter, cirDataLayout);
 
   mlir::ConversionTarget target(getContext());
   target.addLegalOp<mlir::ModuleOp>();
@@ -1409,6 +1486,7 @@ void ConvertCIRToMLIRPass::runOnOperation() {
                          mlir::memref::MemRefDialect, mlir::func::FuncDialect,
                          mlir::scf::SCFDialect, mlir::cf::ControlFlowDialect,
                          mlir::math::MathDialect, mlir::vector::VectorDialect,
+                         mlir::named_tuple::NamedTupleDialect,
                          mlir::LLVM::LLVMDialect>();
   target.addIllegalDialect<cir::CIRDialect>();
 
