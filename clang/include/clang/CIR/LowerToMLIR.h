@@ -20,7 +20,8 @@ namespace cir {
 void populateCIRLoopToSCFConversionPatterns(mlir::RewritePatternSet &patterns,
                                             mlir::TypeConverter &converter);
 mlir::TypeConverter prepareTypeConverter(mlir::DataLayout &dataLayout);
-void runAtStartOfConvertCIRToMLIRPass(std::function<void(mlir::ConversionTarget)>);
+void runAtStartOfConvertCIRToMLIRPass(
+    std::function<void(mlir::ConversionTarget)>);
 } // namespace cir
 
 #endif // CLANG_CIR_LOWERTOMLIR_H_
