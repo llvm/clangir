@@ -50,9 +50,35 @@ def CIR_TBAATagAttr : CIR_Attr<"TBAATag", "tbaa_tag", [], "TBAAAttr"> {
   let assemblyFormat = "`<` struct(params) `>`";
 }
 
+def CIR_TBAAStructAttr : CIR_Attr<"TBAAStruct", 
+                                  "tbaa_struct", [], "TBAAAttr"> {
+  let summary = "Describes a struct type in TBAA";
+
+  let parameters = (ins CIR_StructType : $type);
+
+  let description = [{
+    Define a TBAA struct attribute.
+
+    Example:
+    ```mlir
+    // CIR_TBAAStructAttr
+    !ty_StructA = !cir.struct<struct "StructA" {!u16i, !u32i, !u16i, !u32i} #cir.record.decl.ast>
+    !ty_StructS = !cir.struct<struct "StructS" {!u16i, !u32i} #cir.record.decl.ast>
+    #tbaa_struct = #cir.tbaa_struct<type = !ty_StructA>
+    #tbaa_struct1 = #cir.tbaa_struct<type = !ty_StructS>
+    ```
+    
+    See the following link for more details:
+    https://llvm.org/docs/LangRef.html#tbaa-metadata
+  }];
+
+  let assemblyFormat = "`<` struct(params) `>`";
+}
+
 def CIR_AnyTBAAAttr : AnyAttrOf<[
   CIR_TBAAAttr, 
   CIR_TBAAOmnipotentChar, 
-  CIR_TBAAScalarAttr, 
+  CIR_TBAAScalarAttr,
+  CIR_TBAAStructAttr,
   CIR_TBAATagAttr
 ]>;

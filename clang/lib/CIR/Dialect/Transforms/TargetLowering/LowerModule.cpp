@@ -23,6 +23,7 @@
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/PatternMatch.h"
+#include "mlir/Support/LLVM.h"
 #include "mlir/Support/LogicalResult.h"
 #include "clang/CIR/Target/AArch64.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -240,6 +241,12 @@ createLowerModule(mlir::ModuleOp module, mlir::PatternRewriter &rewriter) {
   // Create context.
   cir_cconv_assert(!cir::MissingFeatures::langOpts());
   clang::LangOptions langOpts;
+  if (auto langAttr = mlir::cast_if_present<cir::LangAttr>(
+          module->getAttr(cir::CIRDialect::getLangAttrName()))) {
+    if (langAttr.isCXX()) {
+      langOpts.CPlusPlus = true;
+    }
+  }
 
   // FIXME(cir): This just uses the default code generation options. We need to
   // account for custom options.

@@ -203,8 +203,8 @@ cir::TBAAAttr CIRGenTBAA::getTypeInfo(clang::QualType qty) {
   // be considered may-alias too.
   // function.
   if (isValidBaseType(qty)) {
-    assert(!cir::MissingFeatures::tbaaTagForStruct());
-    return tbaa_NYI(mlirContext);
+    assert(cir::MissingFeatures::tbaaTagForStruct());
+    return cir::TBAAStructAttr::get(mlirContext, types.convertType(qty));
   }
 
   const clang::Type *ty = astContext.getCanonicalType(qty).getTypePtr();
@@ -248,7 +248,7 @@ mlir::ArrayAttr CIRGenTBAA::getTBAAStructInfo(clang::QualType qty) {
 }
 
 cir::TBAAAttr CIRGenTBAA::getBaseTypeInfo(clang::QualType qty) {
-  return tbaa_NYI(mlirContext);
+  return cir::TBAAStructAttr::get(mlirContext, types.convertType(qty));
 }
 
 cir::TBAAAttr CIRGenTBAA::getAccessTagInfo(TBAAAccessInfo tbaaInfo) {
