@@ -4,6 +4,7 @@
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/Interfaces/DataLayoutInterfaces.h"
+#include "clang/AST/RecordLayout.h"
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -14,11 +15,15 @@ namespace direct {
 
 class CIRToLLVMTBAAAttrLowering {
 public:
-  CIRToLLVMTBAAAttrLowering(mlir::MLIRContext *mlirContext)
-      : mlirContext(mlirContext) {}
+  CIRToLLVMTBAAAttrLowering(mlir::MLIRContext *mlirContext,
+                            const clang::LangOptions &features)
+      : mlirContext(mlirContext), features(features) {}
   mlir::LLVM::TBAARootAttr getRoot() {
-    return mlir::LLVM::TBAARootAttr::get(
-        mlirContext, mlir::StringAttr::get(mlirContext, "Simple C/C++ TBAA"));
+    if (features.CPlusPlus) {
+      return createTBAARoot("Simple C++ TBAA");
+    } else {
+      return createTBAARoot("Simple C/C++ TBAA");
+    }
   }
 
   mlir::LLVM::TBAATypeDescriptorAttr getChar() {
@@ -35,14 +40,22 @@ public:
         llvm::ArrayRef<mlir::LLVM::TBAAMemberAttr>(members));
   }
 
+private:
+  mlir::LLVM::TBAARootAttr createTBAARoot(llvm::StringRef name) {
+    return mlir::LLVM::TBAARootAttr::get(
+        mlirContext, mlir::StringAttr::get(mlirContext, name));
+  }
+
 protected:
   mlir::MLIRContext *mlirContext;
+  const clang::LangOptions &features;
 };
 
 class CIRToLLVMTBAAScalarAttrLowering : public CIRToLLVMTBAAAttrLowering {
 public:
-  CIRToLLVMTBAAScalarAttrLowering(mlir::MLIRContext *mlirContext)
-      : CIRToLLVMTBAAAttrLowering(mlirContext) {}
+  CIRToLLVMTBAAScalarAttrLowering(mlir::MLIRContext *mlirContext,
+                                  const clang::LangOptions &features)
+      : CIRToLLVMTBAAAttrLowering(mlirContext, features) {}
   mlir::LLVM::TBAATypeDescriptorAttr
   lowerScalarType(cir::TBAAScalarAttr scalarAttr) {
     mlir::DataLayout layout;
@@ -50,21 +63,52 @@ public:
     return createScalarTypeNode(scalarAttr.getId(), getChar(), size);
   }
 };
-
+mlir::LLVM::TBAATypeDescriptorAttr
+lowerCIRTBAAAttrToLLVMTBAAAttr(mlir::MLIRContext *ctx, mlir::Attribute tbaa,
+                               cir::LowerModule *lowerMod) {
+  CIRToLLVMTBAAScalarAttrLowering scalarLower(
+      ctx, lowerMod->getContext().getLangOpts());
+  if (auto charAttr = mlir::dyn_cast<cir::TBAAOmnipotentCharAttr>(tbaa)) {
+    return scalarLower.getChar();
+  }
+  if (auto scalarAttr = mlir::dyn_cast<cir::TBAAScalarAttr>(tbaa)) {
+    return scalarLower.lowerScalarType(
+        mlir::dyn_cast<cir::TBAAScalarAttr>(tbaa));
+  }
+  if (auto structAttr = mlir::dyn_cast<cir::TBAAStructAttr>(tbaa)) {
+    llvm::SmallVector<mlir::LLVM::TBAAMemberAttr, 4> members;
+    for (const auto &member : structAttr.getMembers()) {
+      auto memberTypeDesc =
+          lowerCIRTBAAAttrToLLVMTBAAAttr(ctx, member.getTypeDesc(), lowerMod);
+      auto memberAttr = mlir::LLVM::TBAAMemberAttr::get(ctx, memberTypeDesc,
+                                                        member.getOffset());
+      members.push_back(memberAttr);
+    }
+    return mlir::LLVM::TBAATypeDescriptorAttr::get(ctx, structAttr.getId(),
+                                                   members);
+  }
+  return nullptr;
+}
 mlir::ArrayAttr lowerCIRTBAAAttr(mlir::Attribute tbaa,
                                  mlir::ConversionPatternRewriter &rewriter,
                                  cir::LowerModule *lowerMod) {
   auto *ctx = rewriter.getContext();
-  CIRToLLVMTBAAScalarAttrLowering scalarLower(ctx);
-  if (auto charAttr = mlir::dyn_cast<cir::TBAAOmnipotentCharAttr>(tbaa)) {
-    auto accessType = scalarLower.getChar();
-    auto tag = mlir::LLVM::TBAATagAttr::get(accessType, accessType, 0);
-    return mlir::ArrayAttr::get(ctx, {tag});
-  }
-  if (auto scalarAttr = mlir::dyn_cast<cir::TBAAScalarAttr>(tbaa)) {
-    auto accessType = scalarLower.lowerScalarType(scalarAttr);
-    auto tag = mlir::LLVM::TBAATagAttr::get(accessType, accessType, 0);
-    return mlir::ArrayAttr::get(ctx, {tag});
+  if (auto tbaaTag = mlir::dyn_cast<cir::TBAATagAttr>(tbaa)) {
+    mlir::LLVM::TBAATypeDescriptorAttr accessType =
+        lowerCIRTBAAAttrToLLVMTBAAAttr(ctx, tbaaTag.getAccess(), lowerMod);
+    if (auto structAttr =
+            mlir::dyn_cast<cir::TBAAStructAttr>(tbaaTag.getBase())) {
+      auto baseType = lowerCIRTBAAAttrToLLVMTBAAAttr(ctx, structAttr, lowerMod);
+      auto tag = mlir::LLVM::TBAATagAttr::get(baseType, accessType,
+                                              tbaaTag.getOffset());
+      return mlir::ArrayAttr::get(ctx, {tag});
+    }
+  } else {
+    auto accessType = lowerCIRTBAAAttrToLLVMTBAAAttr(ctx, tbaa, lowerMod);
+    if (accessType) {
+      auto tag = mlir::LLVM::TBAATagAttr::get(accessType, accessType, 0);
+      return mlir::ArrayAttr::get(ctx, {tag});
+    }
   }
   return mlir::ArrayAttr();
 }
