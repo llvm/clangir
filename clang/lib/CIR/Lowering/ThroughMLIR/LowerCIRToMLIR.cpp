@@ -1554,9 +1554,15 @@ mlir::ModuleOp lowerFromCIRToMLIR(mlir::ModuleOp theModule,
   mlir::PassManager pm(mlirCtx);
   pm.addPass(createConvertCIRToMLIRPass());
 
-  if (mlir::failed(pm.run(theModule))) {
-    return nullptr;
-  }
+  auto result = !mlir::failed(pm.run(theModule));
+  if (!result)
+    report_fatal_error(
+        "The pass manager failed to lower CIR to MLIR standard dialects!");
+
+  // Now that we ran all the lowering passes, verify the final output.
+  if (theModule.verify().failed())
+    report_fatal_error(
+        "Verification of the final MLIR in standard dialects failed!");
 
   return theModule;
 }
