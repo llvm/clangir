@@ -10,8 +10,6 @@
 // RUN:            %s -o %t.cir
 // RUN: FileCheck --check-prefix=CIR-DEVICE --input-file=%t.cir %s
 
-// XFAIL: *
-
 // Attribute for global_fn
 // CIR-HOST: [[Kernel:#[a-zA-Z_0-9]+]] = {{.*}}#cir.cuda_kernel_name<_Z9global_fni>{{.*}}
 
