@@ -17,5 +17,4 @@
 
 #include "mlir/Dialect/NamedTuple/IR/NamedTupleDialect.h.inc"
 
-
 #endif // MLIR_DIALECT_NAMED_TUPLE_IR_NAMED_TUPLE_DIALECT_H
