@@ -343,7 +343,13 @@ public:
         mlir::cast<mlir::named_tuple::NamedTupleType>(memref.getElementType());
     // The lowered type of the element to access in the named_tuple.
     auto loweredMemberType = namedTupleType.getType(memberIndex);
-    auto elementMemRefTy = mlir::MemRefType::get({}, loweredMemberType);
+    // memref.view can only cast to another memref. Wrap the target type if it
+    // is not already a memref (like with a struct with an array member)
+    mlir::MemRefType elementMemRefTy;
+    if (mlir::isa<mlir::MemRefType>(loweredMemberType))
+      elementMemRefTy = mlir::cast<mlir::MemRefType>(loweredMemberType);
+    else
+      elementMemRefTy = mlir::MemRefType::get({}, loweredMemberType);
     auto offset = structLayout->getElementOffset(memberIndex);
     // Synthesize the byte access to right lowered type.
     auto byteShift =
@@ -1262,7 +1268,7 @@ public:
 
   // Return true if all the PtrStrideOp users are load, store or cast
   // with array_to_ptrdecay kind and they are in the same block.
-  inline bool isLoadStoreOrCastArrayToPtrProduer(cir::PtrStrideOp op) const {
+  inline bool isLoadStoreOrCastArrayToPtrProducer(cir::PtrStrideOp op) const {
     if (op.use_empty())
       return false;
     for (auto *user : op->getUsers()) {
