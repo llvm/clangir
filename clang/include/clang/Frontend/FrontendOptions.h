@@ -77,9 +77,6 @@ enum ActionKind {
   /// Emit a .mlir file
   EmitMLIR,
 
-  /// Emit an .mlir file with LLVM dialect
-  EmitMLIRLLVM,
-
   /// Emit a .ll file.
   EmitLLVM,
 
@@ -532,6 +529,13 @@ public:
   std::string ClangIRLifetimeCheckOpts;
   std::string ClangIRIdiomRecognizerOpts;
   std::string ClangIRLibOptOpts;
+
+  enum {
+    MLIR_Default,
+    MLIR_STD,
+    MLIR_LLVM,
+    MLIR_CIR
+  } MLIRTargetDialect = MLIR_Default;
 
   /// The input kind, either specified via -x argument or deduced from the input
   /// file name.
