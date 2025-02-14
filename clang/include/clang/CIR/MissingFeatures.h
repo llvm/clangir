@@ -59,7 +59,7 @@ struct MissingFeatures {
   static bool emitTypeCheck() { return false; }
   static bool tbaa() { return false; }
   static bool tbaaStruct() { return false; }
-  static bool tbaaTagForStruct() { return false; }
+  static bool tbaaTagForStruct() { return true; }
   static bool tbaaTagForEnum() { return false; }
   static bool tbaaTagForBitInt() { return false; }
   static bool tbaaVTablePtr() { return false; }
