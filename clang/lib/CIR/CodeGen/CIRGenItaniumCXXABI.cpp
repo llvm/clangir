@@ -2266,9 +2266,39 @@ void CIRGenItaniumCXXABI::emitRethrow(CIRGenFunction &CGF, bool isNoReturn) {
     auto &builder = CGF.getBuilder();
     assert(CGF.currSrcLoc && "expected source location");
     auto loc = *CGF.currSrcLoc;
-    builder.create<cir::ThrowOp>(loc, mlir::Value{}, mlir::FlatSymbolRefAttr{},
-                                 mlir::FlatSymbolRefAttr{});
-    builder.create<cir::UnreachableOp>(loc);
+
+    // The idea here is creating a separate block for the rethrow with an
+    // `UnreachableOp` as the terminator. So, we branch from the current block
+    // to the rethrow block and create a block for the remaining operations.
+
+    auto currentBlock = builder.getInsertionBlock();
+    auto reg = currentBlock->getParent();
+
+    if (currentBlock->empty()) {
+      builder.create<cir::ThrowOp>(loc, mlir::Value{},
+                                   mlir::FlatSymbolRefAttr{},
+                                   mlir::FlatSymbolRefAttr{});
+      builder.create<cir::UnreachableOp>(loc);
+    } else {
+      auto rethrowBlock = builder.createBlock(reg);
+      builder.setInsertionPointToStart(rethrowBlock);
+      builder.create<cir::ThrowOp>(loc, mlir::Value{},
+                                   mlir::FlatSymbolRefAttr{},
+                                   mlir::FlatSymbolRefAttr{});
+      builder.create<cir::UnreachableOp>(loc);
+
+      builder.setInsertionPointToEnd(currentBlock);
+      builder.create<cir::BrOp>(loc, rethrowBlock);
+    }
+
+    auto remBlock = builder.createBlock(reg);
+    builder.setInsertionPointToEnd(remBlock);
+    // This will be erased during codegen, it acts as a placeholder for the
+    // operations to be inserted (if any)
+    builder.create<cir::ScopeOp>(loc, /*scopeBuilder=*/
+                                 [&](mlir::OpBuilder &b, mlir::Location loc) {
+                                   b.create<cir::YieldOp>(loc);
+                                 });
   } else {
     llvm_unreachable("NYI");
   }
