@@ -289,13 +289,13 @@ public:
   }
 };
 
-// Lower cir.get_member
+// Lower cir.get_member by aliasing the result memref to the member inside the
+// flattened structure as a byte array. For example
 //
 // clang-format off
-//
 //     %5 = cir.get_member %1[1] {name = "b"} : !cir.ptr<!named_tuple.named_tuple<"s", [i32, f64, i8]>> -> !cir.ptr<!cir.double>
 //
-// to something like
+// is lowered to something like
 //
 // %1 = named_tuple.cast %alloca_0 : memref<!named_tuple.named_tuple<"s", [i32, f64, i8]>> to memref<24xi8>
 // %c8 = arith.constant 8 : index
@@ -325,37 +325,30 @@ public:
     // concrete datalayout, both datalayouts are the same.
     auto *structLayout = dataLayout.getStructLayout(structType);
 
-    // Get the lowered type: memref<!named_tuple.named_tuple<>>
-    auto memref = mlir::cast<mlir::MemRefType>(adaptor.getAddr().getType());
     // Alias the memref of struct to a memref of an i8 array of the same size.
     const std::array linearizedSize{
         static_cast<std::int64_t>(dataLayout.getTypeStoreSize(structType))};
-    auto flattenMemRef = mlir::MemRefType::get(
-        linearizedSize, mlir::IntegerType::get(memref.getContext(), 8));
+    auto flattenedMemRef = mlir::MemRefType::get(
+        linearizedSize, mlir::IntegerType::get(getContext(), 8));
     // Use a special cast because normal memref cast cannot do such an extreme
     // cast.
     auto bytesMemRef = rewriter.create<mlir::named_tuple::CastOp>(
-        op.getLoc(), mlir::TypeRange{flattenMemRef},
+        op.getLoc(), mlir::TypeRange{flattenedMemRef},
         mlir::ValueRange{adaptor.getAddr()});
 
-    auto memberIndex = op.getIndex();
-    auto namedTupleType =
-        mlir::cast<mlir::named_tuple::NamedTupleType>(memref.getElementType());
-    // The lowered type of the element to access in the named_tuple.
-    auto loweredMemberType = namedTupleType.getType(memberIndex);
-    // memref.view can only cast to another memref. Wrap the target type if it
-    // is not already a memref (like with a struct with an array member)
-    mlir::MemRefType elementMemRefTy;
-    if (mlir::isa<mlir::MemRefType>(loweredMemberType))
-      elementMemRefTy = mlir::cast<mlir::MemRefType>(loweredMemberType);
-    else
-      elementMemRefTy = mlir::MemRefType::get({}, loweredMemberType);
-    auto offset = structLayout->getElementOffset(memberIndex);
+    auto pointerToMemberTypeToLower = op.getResultTy();
+    // The lowered type of the cir.ptr to the cir.struct member.
+    auto memrefToLoweredMemberType =
+        typeConverter->convertType(pointerToMemberTypeToLower);
     // Synthesize the byte access to right lowered type.
+    auto memberIndex = op.getIndex();
+    auto offset = structLayout->getElementOffset(memberIndex);
     auto byteShift =
         rewriter.create<mlir::arith::ConstantIndexOp>(op.getLoc(), offset);
+    // Create the memref pointing to the flattened member location.
     rewriter.replaceOpWithNewOp<mlir::memref::ViewOp>(
-        op, elementMemRefTy, bytesMemRef, byteShift, mlir::ValueRange{});
+        op, memrefToLoweredMemberType, bytesMemRef, byteShift,
+        mlir::ValueRange{});
     return mlir::LogicalResult::success();
   }
 };
@@ -1382,6 +1375,29 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
                                        cirDataLayout);
 }
 
+namespace {
+// Lower a cir.array either as a memref when it has a reference semantics or as
+// a tensor when it has a value semantics (like inside a struct or union)
+mlir::Type lowerArrayType(cir::ArrayType type, bool hasValueSemantics,
+                          mlir::TypeConverter &converter) {
+  SmallVector<int64_t> shape;
+  mlir::Type curType = type;
+  while (auto arrayType = dyn_cast<cir::ArrayType>(curType)) {
+    shape.push_back(arrayType.getSize());
+    curType = arrayType.getEltType();
+  }
+  auto elementType = converter.convertType(curType);
+  // FIXME: The element type might not be converted
+  if (!elementType)
+    return nullptr;
+  // Arrays in C/C++ have a reference semantics when not in a struct, so use
+  // a memref
+  if (hasValueSemantics)
+    return mlir::RankedTensorType::get(shape, elementType);
+  return mlir::MemRefType::get(shape, elementType);
+}
+} // namespace
+
 mlir::TypeConverter prepareTypeConverter(mlir::DataLayout &dataLayout) {
   mlir::TypeConverter converter;
   converter.addConversion([&](cir::PointerType type) -> mlir::Type {
@@ -1390,6 +1406,7 @@ mlir::TypeConverter prepareTypeConverter(mlir::DataLayout &dataLayout) {
     if (!ty)
       return nullptr;
     if (isa<cir::ArrayType>(type.getPointee()))
+      // An array is already lowered as a memref with reference semantics
       return ty;
     return mlir::MemRefType::get({}, ty);
   });
@@ -1429,23 +1446,23 @@ mlir::TypeConverter prepareTypeConverter(mlir::DataLayout &dataLayout) {
     return mlir::BFloat16Type::get(type.getContext());
   });
   converter.addConversion([&](cir::ArrayType type) -> mlir::Type {
-    SmallVector<int64_t> shape;
-    mlir::Type curType = type;
-    while (auto arrayType = dyn_cast<cir::ArrayType>(curType)) {
-      shape.push_back(arrayType.getSize());
-      curType = arrayType.getEltType();
-    }
-    auto elementType = converter.convertType(curType);
-    // FIXME: The element type might not be converted
-    if (!elementType)
-      return nullptr;
-    return mlir::MemRefType::get(shape, elementType);
+    // Arrays in C/C++ have a reference semantics when not in a
+    // class/struct/union, so use a memref.
+    return lowerArrayType(type, /* hasValueSemantics */ false, converter);
   });
   converter.addConversion([&](cir::VectorType type) -> mlir::Type {
     auto ty = converter.convertType(type.getEltType());
     return mlir::VectorType::get(type.getSize(), ty);
   });
   converter.addConversion([&](cir::StructType type) -> mlir::Type {
+    auto convertWithValueSemanticsArray = [&](mlir::Type t) {
+      if (mlir::isa<cir::ArrayType>(t))
+        // Inside a class/struct/union, an array has value semantics and is
+        // lowered as a tensor.
+        return lowerArrayType(mlir::cast<cir::ArrayType>(t),
+                              /* hasValueSemantics */ true, converter);
+      return converter.convertType(t);
+    };
     // FIXME(cir): create separate unions, struct, and classes types.
     // Convert struct members.
     llvm::SmallVector<mlir::Type> mlirMembers;
@@ -1454,13 +1471,13 @@ mlir::TypeConverter prepareTypeConverter(mlir::DataLayout &dataLayout) {
       // TODO(cir): This should be properly validated.
     case cir::StructType::Struct:
       for (auto ty : type.getMembers())
-        mlirMembers.push_back(converter.convertType(ty));
+        mlirMembers.push_back(convertWithValueSemanticsArray(ty));
       break;
     // Unions are lowered as only the largest member.
     case cir::StructType::Union: {
       auto largestMember = type.getLargestMember(dataLayout);
       if (largestMember)
-        mlirMembers.push_back(converter.convertType(largestMember));
+        mlirMembers.push_back(convertWithValueSemanticsArray(largestMember));
       break;
     }
     }
