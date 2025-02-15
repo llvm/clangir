@@ -3863,7 +3863,13 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
     llvm_unreachable("NEON::BI__builtin_neon_vsrad_n_s64 NYI");
   }
   case NEON::BI__builtin_neon_vsrad_n_u64: {
-    llvm_unreachable("NEON::BI__builtin_neon_vsrad_n_u64 NYI");
+    std::optional<llvm::APSInt> amt =
+        E->getArg(2)->getIntegerConstantExpr(getContext());
+    uint64_t shiftAmt = amt->getZExtValue();
+    if (shiftAmt == 64) {
+      return Ops[0];
+    }
+    return builder.createAdd(Ops[0], builder.createShiftLeft(Ops[1], shiftAmt));
   }
   case NEON::BI__builtin_neon_vqdmlalh_lane_s16:
   case NEON::BI__builtin_neon_vqdmlalh_laneq_s16:
