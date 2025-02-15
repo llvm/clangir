@@ -2738,6 +2738,7 @@ static const auto &getFrontendActionTable() {
       {frontend::EmitCIRFlat, OPT_emit_cir_flat},
       {frontend::EmitCIROnly, OPT_emit_cir_only},
       {frontend::EmitMLIR, OPT_emit_mlir},
+      {frontend::EmitMLIR, OPT_emit_mlir_EQ},
       {frontend::EmitHTML, OPT_emit_html},
       {frontend::EmitLLVM, OPT_emit_llvm},
       {frontend::EmitLLVMOnly, OPT_emit_llvm_only},
@@ -2846,6 +2847,13 @@ static void GenerateFrontendArgs(const FrontendOptions &Opts,
         if (Opts.ASTDumpDecls)
           GenerateArg(Consumer, OPT_ast_dump);
       }
+    };
+  }
+
+  if (Opts.ProgramAction == frontend::EmitMLIR) {
+    GenerateProgramAction = [&]() {
+      if (Opts.MLIRTargetDialect == FrontendOptions::MLIR_Default)
+        GenerateArg(Consumer, OPT_emit_mlir);
     };
   }
 

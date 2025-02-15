@@ -60,9 +60,10 @@ CreateFrontendBaseAction(CompilerInstance &CI) {
     llvm::report_fatal_error(
         "-emit-cir and -emit-cir-only only valid when using -fclangir");
 
-  if (CI.getFrontendOpts().ClangIRDirectLowering && Act == EmitMLIR)
-    llvm::report_fatal_error(
-        "ClangIR direct lowering is incompatible with -emit-mlir");
+  if (Act == EmitMLIR && CI.getFrontendOpts().ClangIRDirectLowering &&
+      CI.getFrontendOpts().MLIRTargetDialect == FrontendOptions::MLIR_STD)
+    llvm::report_fatal_error("ClangIR direct lowering is incompatible with "
+                             "emitting of MLIR standard dialects");
 
   switch (CI.getFrontendOpts().ProgramAction) {
   case ASTDeclList:            return std::make_unique<ASTDeclListAction>();

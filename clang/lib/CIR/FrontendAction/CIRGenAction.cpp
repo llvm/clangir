@@ -26,6 +26,7 @@
 #include "clang/CIR/CIRToCIRPasses.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/LowerToLLVM.h"
+#include "clang/CIR/LowerToMLIR.h"
 #include "clang/CIR/Passes.h"
 #include "clang/CodeGen/BackendUtil.h"
 #include "clang/CodeGen/ModuleBuilder.h"
@@ -260,9 +261,7 @@ public:
       }
     }
 
-    switch (action) {
-    case CIRGenAction::OutputType::EmitCIR:
-    case CIRGenAction::OutputType::EmitCIRFlat:
+    auto emitCIR = [&]() {
       if (outputStream && mlirMod) {
         // FIXME: we cannot roundtrip prettyForm=true right now.
         mlir::OpPrintingFlags flags;
@@ -271,14 +270,45 @@ public:
           flags.assumeVerified();
         mlirMod->print(*outputStream, flags);
       }
+    };
+
+    switch (action) {
+    case CIRGenAction::OutputType::EmitCIR:
+    case CIRGenAction::OutputType::EmitCIRFlat:
+      emitCIR();
       break;
     case CIRGenAction::OutputType::EmitMLIR: {
-      auto loweredMlirModule = lowerFromCIRToMLIR(mlirMod, mlirCtx.get());
-      assert(outputStream && "Why are we here without an output stream?");
-      // FIXME: we cannot roundtrip prettyForm=true right now.
-      mlir::OpPrintingFlags flags;
-      flags.enableDebugInfo(/*enable=*/true, /*prettyForm=*/false);
-      loweredMlirModule->print(*outputStream, flags);
+      mlir::ModuleOp loweredMlirModule;
+      switch (feOptions.MLIRTargetDialect) {
+      case clang::FrontendOptions::MLIR_Default:
+        loweredMlirModule =
+            feOptions.ClangIRDirectLowering
+                ? direct::lowerDirectlyFromCIRToLLVMDialect(mlirMod)
+                : lowerFromCIRToMLIR(mlirMod, mlirCtx.get());
+
+        break;
+      case clang::FrontendOptions::MLIR_STD:
+        // Attempting to emit std with direct lowering is already checked by
+        // Compiler Invocation
+        loweredMlirModule = lowerFromCIRToMLIR(mlirMod, mlirCtx.get());
+        break;
+      case clang::FrontendOptions::MLIR_LLVM:
+        loweredMlirModule =
+            feOptions.ClangIRDirectLowering
+                ? direct::lowerDirectlyFromCIRToLLVMDialect(mlirMod)
+                : lowerFromCIRToMLIRToLLVMDialect(mlirMod, mlirCtx.get());
+        break;
+      case clang::FrontendOptions::MLIR_CIR:
+        emitCIR();
+        break;
+      }
+      if (loweredMlirModule) {
+        assert(outputStream && "Why are we here without an output stream?");
+        // FIXME: we cannot roundtrip prettyForm=true right now.
+        mlir::OpPrintingFlags flags;
+        flags.enableDebugInfo(/*enable=*/true, /*prettyForm=*/false);
+        loweredMlirModule->print(*outputStream, flags);
+      }
       break;
     }
     case CIRGenAction::OutputType::EmitLLVM:

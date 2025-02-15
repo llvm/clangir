@@ -530,6 +530,13 @@ public:
   std::string ClangIRIdiomRecognizerOpts;
   std::string ClangIRLibOptOpts;
 
+  enum {
+    MLIR_Default,
+    MLIR_STD,
+    MLIR_LLVM,
+    MLIR_CIR
+  } MLIRTargetDialect = MLIR_Default;
+
   /// The input kind, either specified via -x argument or deduced from the input
   /// file name.
   InputKind DashX;
