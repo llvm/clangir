@@ -1403,6 +1403,9 @@ public:
   RValue emitBuiltinExpr(const clang::GlobalDecl GD, unsigned BuiltinID,
                          const clang::CallExpr *E, ReturnValueSlot ReturnValue);
   RValue emitRotate(const CallExpr *E, bool IsRotateRight);
+  template <unsigned N>
+  RValue emitBuiltinWithOneOverloadedType(const CallExpr *E,
+                                          llvm::StringRef Name);
   mlir::Value emitTargetBuiltinExpr(unsigned BuiltinID,
                                     const clang::CallExpr *E,
                                     ReturnValueSlot ReturnValue);
