@@ -1658,6 +1658,15 @@ getLLVMMemOrder(std::optional<cir::MemOrder> &memorder) {
   llvm_unreachable("unknown memory order");
 }
 
+static bool isLoadOrStoreInvariant(mlir::Value addr) {
+  if (auto addrAllocaOp =
+          mlir::dyn_cast_if_present<cir::AllocaOp>(addr.getDefiningOp()))
+    return addrAllocaOp.getConstant();
+  if (mlir::isa_and_present<cir::InvariantGroupOp>(addr.getDefiningOp()))
+    return true;
+  return false;
+}
+
 mlir::LogicalResult CIRToLLVMLoadOpLowering::matchAndRewrite(
     cir::LoadOp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
@@ -1677,12 +1686,8 @@ mlir::LogicalResult CIRToLLVMLoadOpLowering::matchAndRewrite(
   auto invariant = false;
   // Under -O1 or higher optimization levels, add the invariant metadata if the
   // load operation loads from a constant object.
-  if (lowerMod &&
-      lowerMod->getContext().getCodeGenOpts().OptimizationLevel > 0) {
-    auto addrAllocaOp =
-        mlir::dyn_cast_if_present<cir::AllocaOp>(op.getAddr().getDefiningOp());
-    invariant = addrAllocaOp && addrAllocaOp.getConstant();
-  }
+  if (lowerMod && lowerMod->getContext().getCodeGenOpts().OptimizationLevel > 0)
+    invariant = isLoadOrStoreInvariant(op.getAddr());
 
   // TODO: nontemporal, syncscope.
   auto newLoad = rewriter.create<mlir::LLVM::LoadOp>(
@@ -1720,12 +1725,8 @@ mlir::LogicalResult CIRToLLVMStoreOpLowering::matchAndRewrite(
   auto invariant = false;
   // Under -O1 or higher optimization levels, add the invariant metadata if the
   // store operation stores to a constant object.
-  if (lowerMod &&
-      lowerMod->getContext().getCodeGenOpts().OptimizationLevel > 0) {
-    auto addrAllocaOp =
-        mlir::dyn_cast_if_present<cir::AllocaOp>(op.getAddr().getDefiningOp());
-    invariant = addrAllocaOp && addrAllocaOp.getConstant();
-  }
+  if (lowerMod && lowerMod->getContext().getCodeGenOpts().OptimizationLevel > 0)
+    invariant = isLoadOrStoreInvariant(op.getAddr());
 
   // Convert adapted value to its memory type if needed.
   mlir::Value value = emitToMemory(rewriter, dataLayout,
@@ -3714,6 +3715,20 @@ mlir::LogicalResult CIRToLLVMInlineAsmOpLowering::matchAndRewrite(
   return mlir::success();
 }
 
+mlir::LogicalResult CIRToLLVMInvariantGroupOpLowering::matchAndRewrite(
+    cir::InvariantGroupOp op, OpAdaptor adaptor,
+    mlir::ConversionPatternRewriter &rewriter) const {
+  if (!lowerMod ||
+      lowerMod->getContext().getCodeGenOpts().OptimizationLevel == 0) {
+    rewriter.replaceOp(op, adaptor.getPtr());
+    return mlir::success();
+  }
+
+  rewriter.replaceOpWithNewOp<mlir::LLVM::LaunderInvariantGroupOp>(
+      op, adaptor.getPtr());
+  return mlir::success();
+}
+
 mlir::LogicalResult CIRToLLVMPrefetchOpLowering::matchAndRewrite(
     cir::PrefetchOp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
@@ -4155,7 +4170,8 @@ void populateCIRToLLVMConversionPatterns(
       CIRToLLVMBaseDataMemberOpLowering,
       CIRToLLVMCmpOpLowering,
       CIRToLLVMDerivedDataMemberOpLowering,
-      CIRToLLVMGetRuntimeMemberOpLowering
+      CIRToLLVMGetRuntimeMemberOpLowering,
+      CIRToLLVMInvariantGroupOpLowering
       // clang-format on
       >(converter, patterns.getContext(), lowerModule);
   patterns.add<
