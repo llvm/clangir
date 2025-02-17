@@ -1405,7 +1405,17 @@ public:
   RValue emitRotate(const CallExpr *E, bool IsRotateRight);
   template <unsigned N>
   RValue emitBuiltinWithOneOverloadedType(const CallExpr *E,
-                                          llvm::StringRef Name);
+                                          llvm::StringRef Name) {
+    static_assert(N, "expect non-empty argument");
+    mlir::Type cirTy = convertType(E->getArg(0)->getType());
+    SmallVector<mlir::Value, N> Args;
+    for (unsigned I = 0; I < N; ++I) {
+      Args.push_back(emitScalarExpr(E->getArg(I)));
+    }
+    const auto call = builder.create<cir::LLVMIntrinsicCallOp>(
+        getLoc(E->getExprLoc()), builder.getStringAttr(Name), cirTy, Args);
+    return RValue::get(call->getResult(0));
+  }
   mlir::Value emitTargetBuiltinExpr(unsigned BuiltinID,
                                     const clang::CallExpr *E,
                                     ReturnValueSlot ReturnValue);
