@@ -283,9 +283,9 @@ void refoo4() {
 
 // CIR-LABEL: @_Z6refoo4v
 // CIR: cir.call exception @__cxa_rethrow() : () -> ()
-// CIR: unreachable
+// CIR-NEXT: unreachable
 // CIR: cir.call exception @__cxa_rethrow() : () -> ()
-// CIR: unreachable
+// CIR-NEXT: unreachable
 // CIR: cir.call exception @_ZN1SC2Ev
 
 // LLVM: invoke void @__cxa_rethrow

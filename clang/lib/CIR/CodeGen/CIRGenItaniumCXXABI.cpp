@@ -2272,7 +2272,7 @@ void CIRGenItaniumCXXABI::emitRethrow(CIRGenFunction &CGF, bool isNoReturn) {
     // to the rethrow block and create a block for the remaining operations.
 
     auto currentBlock = builder.getInsertionBlock();
-    auto reg = currentBlock->getParent();
+    auto region = currentBlock->getParent();
 
     if (currentBlock->empty()) {
       builder.create<cir::ThrowOp>(loc, mlir::Value{},
@@ -2280,7 +2280,7 @@ void CIRGenItaniumCXXABI::emitRethrow(CIRGenFunction &CGF, bool isNoReturn) {
                                    mlir::FlatSymbolRefAttr{});
       builder.create<cir::UnreachableOp>(loc);
     } else {
-      auto rethrowBlock = builder.createBlock(reg);
+      auto rethrowBlock = builder.createBlock(region);
       builder.setInsertionPointToStart(rethrowBlock);
       builder.create<cir::ThrowOp>(loc, mlir::Value{},
                                    mlir::FlatSymbolRefAttr{},
@@ -2291,7 +2291,7 @@ void CIRGenItaniumCXXABI::emitRethrow(CIRGenFunction &CGF, bool isNoReturn) {
       builder.create<cir::BrOp>(loc, rethrowBlock);
     }
 
-    auto remBlock = builder.createBlock(reg);
+    auto remBlock = builder.createBlock(region);
     builder.setInsertionPointToEnd(remBlock);
     // This will be erased during codegen, it acts as a placeholder for the
     // operations to be inserted (if any)
