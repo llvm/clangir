@@ -1295,7 +1295,7 @@ public:
                   mlir::ConversionPatternRewriter &rewriter) const override {
     if (!isCastArrayToPtrConsumer(op))
       return mlir::failure();
-    if (!isLoadStoreOrCastArrayToPtrProduer(op))
+    if (!isLoadStoreOrCastArrayToPtrProducer(op))
       return mlir::failure();
     auto baseOp = adaptor.getBase().getDefiningOp();
     if (!baseOp)
@@ -1375,7 +1375,6 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
                                        cirDataLayout);
 }
 
-namespace {
 // Lower a cir.array either as a memref when it has a reference semantics or as
 // a tensor when it has a value semantics (like inside a struct or union)
 mlir::Type lowerArrayType(cir::ArrayType type, bool hasValueSemantics,
@@ -1396,7 +1395,6 @@ mlir::Type lowerArrayType(cir::ArrayType type, bool hasValueSemantics,
     return mlir::RankedTensorType::get(shape, elementType);
   return mlir::MemRefType::get(shape, elementType);
 }
-} // namespace
 
 mlir::TypeConverter prepareTypeConverter(mlir::DataLayout &dataLayout) {
   mlir::TypeConverter converter;

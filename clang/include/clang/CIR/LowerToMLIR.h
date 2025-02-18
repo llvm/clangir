@@ -12,6 +12,8 @@
 #ifndef CLANG_CIR_LOWERTOMLIR_H
 #define CLANG_CIR_LOWERTOMLIR_H
 
+#include "clang/CIR/Dialect/IR/CIRTypes.h"
+#include "mlir/Interfaces/DataLayoutInterfaces.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include <functional>
 
@@ -19,6 +21,9 @@ namespace cir {
 
 void populateCIRLoopToSCFConversionPatterns(mlir::RewritePatternSet &patterns,
                                             mlir::TypeConverter &converter);
+
+mlir::Type lowerArrayType(cir::ArrayType type, bool hasValueSemantics,
+                          mlir::TypeConverter &converter);
 
 mlir::TypeConverter prepareTypeConverter(mlir::DataLayout &dataLayout);
 
