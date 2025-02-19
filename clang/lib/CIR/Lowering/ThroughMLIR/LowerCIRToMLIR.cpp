@@ -1399,16 +1399,15 @@ mlir::Type lowerArrayType(cir::ArrayType type, bool hasValueSemantics,
 mlir::TypeConverter prepareTypeConverter(mlir::DataLayout &dataLayout) {
   mlir::TypeConverter converter;
   converter.addConversion([&](cir::PointerType type) -> mlir::Type {
-    auto pointeeType = type.getPointee();
-    if (mlir::isa<cir::ArrayType>(pointeeType))
-      // A pointer to an array gives the array a reference semantics, lower to a
-      // memref.
-      return lowerArrayType(mlir::cast<cir::ArrayType>(pointeeType),
-                            /* hasValueSemantics */ false, converter);
-    auto ty = convertTypeForMemory(converter, pointeeType);
-    // FIXME: The pointee type might not be converted (e.g. struct)
+    auto ty = convertTypeForMemory(
+        converter, type.getPointee()); // FIXME: The pointee type might not be
+                                       // converted (e.g. struct)
     if (!ty)
       return nullptr;
+    if (isa<cir::ArrayType>(type.getPointee()))
+      // An array is already lowered as a memref with reference semantics by
+      // default
+      return ty;
     // Each level of pointer becomes a level of memref
     return mlir::MemRefType::get({}, ty);
   });
@@ -1448,15 +1447,23 @@ mlir::TypeConverter prepareTypeConverter(mlir::DataLayout &dataLayout) {
     return mlir::BFloat16Type::get(type.getContext());
   });
   converter.addConversion([&](cir::ArrayType type) -> mlir::Type {
-    // Assume we are in a class/struct/union context with value semantics, so
-    // lower as a tensor.
-    return lowerArrayType(type, /* hasValueSemantics */ true, converter);
+    // Assume we are not in a class/struct/union context with value semantics,
+    // so lower it as a memref to provide reference semantics.
+    return lowerArrayType(type, /* hasValueSemantics */ false, converter);
   });
   converter.addConversion([&](cir::VectorType type) -> mlir::Type {
     auto ty = converter.convertType(type.getEltType());
     return mlir::VectorType::get(type.getSize(), ty);
   });
   converter.addConversion([&](cir::StructType type) -> mlir::Type {
+    auto convertWithValueSemanticsArray = [&](mlir::Type t) {
+      if (mlir::isa<cir::ArrayType>(t))
+        // Inside a class/struct/union, an array has value semantics and is
+        // lowered as a tensor.
+        return lowerArrayType(mlir::cast<cir::ArrayType>(t),
+                              /* hasValueSemantics */ true, converter);
+      return converter.convertType(t);
+    };
     // FIXME(cir): create separate unions, struct, and classes types.
     // Convert struct members.
     llvm::SmallVector<mlir::Type> mlirMembers;
@@ -1465,13 +1472,13 @@ mlir::TypeConverter prepareTypeConverter(mlir::DataLayout &dataLayout) {
       // TODO(cir): This should be properly validated.
     case cir::StructType::Struct:
       for (auto ty : type.getMembers())
-        mlirMembers.push_back(converter.convertType(ty));
+        mlirMembers.push_back(convertWithValueSemanticsArray(ty));
       break;
     // Unions are lowered as only the largest member.
     case cir::StructType::Union: {
       auto largestMember = type.getLargestMember(dataLayout);
       if (largestMember)
-        mlirMembers.push_back(converter.convertType(largestMember));
+        mlirMembers.push_back(convertWithValueSemanticsArray(largestMember));
       break;
     }
     }

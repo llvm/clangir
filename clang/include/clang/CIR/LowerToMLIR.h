@@ -12,9 +12,9 @@
 #ifndef CLANG_CIR_LOWERTOMLIR_H
 #define CLANG_CIR_LOWERTOMLIR_H
 
-#include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "mlir/Interfaces/DataLayoutInterfaces.h"
 #include "mlir/Transforms/DialectConversion.h"
+#include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include <functional>
 
 namespace cir {
