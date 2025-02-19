@@ -105,3 +105,26 @@ unsigned long long tc4() {
 
   return z;
 }
+
+struct S {
+  S() {};
+  int a;
+};
+
+// CHECK: cir.func @_Z3tc5v()
+void tc5() {
+  try {
+    S s;
+  } catch (...) {
+    tc5();
+  }
+}
+
+// CHECK: cir.try {
+// CHECK: cir.call exception @_ZN1SC2Ev({{.*}}) : (!cir.ptr<!ty_S>) -> ()
+// CHECK: cir.yield
+// CHECK: } catch [type #cir.all {
+// CHECK:  {{.*}} = cir.catch_param -> !cir.ptr<!void>
+// CHECK:  cir.call exception @_Z3tc5v() : () -> ()
+// CHECK:  cir.yield
+// CHECK: }]
