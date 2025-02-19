@@ -3121,14 +3121,14 @@ def emit_cir_flat : Flag<["-"], "emit-cir-flat">, Visibility<[ClangOption, CC1Op
   Group<Action_Group>, HelpText<"Similar to -emit-cir but also lowers structured CFG into basic blocks.">;
 def emit_mlir : Flag<["-"], "emit-mlir">, Visibility<[CC1Option]>, Group<Action_Group>,
   HelpText<"Build ASTs and then lower through ClangIR to MLIR (standard dialects "
-  "or the LLVM dialect), emit the .mlir file.">;
+  "when `-fno-clangir-direct-lowering` is used or the LLVM dialect when "
+  "`-fclangir-direct-lowering` is used), emit the .mlir file.">;
 def emit_mlir_EQ : Joined<["-"], "emit-mlir=">, Visibility<[CC1Option]>, Group<Action_Group>,
   HelpText<"Build ASTs and then lower through ClangIR to the selected MLIR dialect, emit the .mlir file. "
-  "Allowed values are `std` for MLIR standard dialects "
-  "`llvm` for the LLVM dialect and `cir` for the ClangIR dialect.">,
-  Values<"std,llvm,cir">,
+  "Allowed values are `std` for MLIR standard dialects and `llvm` for the LLVM dialect.">,
+  Values<"std,llvm">,
   NormalizedValuesScope<"FrontendOptions">,
-  NormalizedValues<["MLIR_STD", "MLIR_LLVM", "MLIR_CIR"]>,
+  NormalizedValues<["MLIR_STD", "MLIR_LLVM"]>,
   MarshallingInfoEnum<FrontendOpts<"MLIRTargetDialect">, "MLIR_Default">;
 /// ClangIR-specific options - END
 
