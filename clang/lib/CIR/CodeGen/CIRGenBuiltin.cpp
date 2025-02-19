@@ -302,10 +302,9 @@ static RValue emitBinaryAtomicPost(CIRGenFunction &cgf,
       makeBinaryAtomicValue(cgf, atomicOpkind, e, &val, &valueType);
   clang::CIRGen::CIRGenBuilderTy &builder = cgf.getBuilder();
   result = builder.create<cir::BinOp>(result.getLoc(), binopKind, result, val);
-  if (invert) {
+  if (invert)
     result = builder.create<cir::UnaryOp>(result.getLoc(),
                                           cir::UnaryOpKind::Not, result);
-  }
   result = emitFromInt(cgf, result, typ, valueType);
   return RValue::get(result);
 }
