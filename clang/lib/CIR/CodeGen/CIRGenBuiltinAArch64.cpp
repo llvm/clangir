@@ -3861,10 +3861,10 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
         E->getArg(1)->getIntegerConstantExpr(getContext());
     assert(amt && "Expected argument to be a constant");
     uint64_t shiftAmt = amt->getZExtValue();
-    if (shiftAmt == 64) {
+    if (shiftAmt == 64)
       return builder.getConstInt(getLoc(E->getExprLoc()), builder.getUInt64Ty(),
                                  0);
-    }
+
     return builder.createShiftRight(Ops[0], shiftAmt);
   }
   case NEON::BI__builtin_neon_vsrad_n_s64: {
