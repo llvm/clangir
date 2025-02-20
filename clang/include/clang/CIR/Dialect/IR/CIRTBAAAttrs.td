@@ -72,6 +72,7 @@ def CIR_TBAAMemberAttr : CIR_Attr<"TBAAMember", "tbaa_member", []> {
 
   let assemblyFormat = "`<` params `>`";
 }
+
 def CIR_TBAAMemberAttrArray : ArrayRefParameter<"TBAAMemberAttr"> {
   let summary = "Array of TBAAMemberAttr attributes.";
   let printer = [{
