@@ -2938,7 +2938,8 @@ mlir::Value CIRGenFunction::emitLoadOfScalar(Address addr, bool isVolatile,
         CGM.getABIInfo().getOptimalVectorMemoryType(vTy, getLangOpts());
 
     if (vTy != newVecTy) {
-      const Address cast = addr.withElementType(newVecTy);
+      const Address cast = builder.createElementBitCast(
+          addr.getPointer().getLoc(), addr, newVecTy);
       mlir::Value v = builder.createLoad(loc, cast, isVolatile);
       const uint64_t oldNumElements = vTy.getSize();
       SmallVector<int64_t, 16> mask(oldNumElements);

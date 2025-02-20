@@ -999,7 +999,9 @@ void AggExprEmitter::VisitCastExpr(CastExpr *E) {
 
     // GCC union extension
     QualType Ty = E->getSubExpr()->getType();
-    Address CastPtr = Dest.getAddress().withElementType(CGF.convertType(Ty));
+    Address CastPtr = CGF.getBuilder().createElementBitCast(
+        CGF.getLoc(E->getExprLoc()), Dest.getAddress(), CGF.convertType(Ty));
+
     emitInitializationToLValue(E->getSubExpr(),
                                CGF.makeAddrLValue(CastPtr, Ty));
     break;

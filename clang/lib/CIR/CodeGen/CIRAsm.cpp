@@ -214,9 +214,9 @@ std::pair<mlir::Value, mlir::Type> CIRGenFunction::emitAsmInputLValue(
         getTargetHooks().isScalarizableAsmOperand(*this, Ty)) {
       Ty = cir::IntType::get(&getMLIRContext(), Size, false);
 
-      return {builder.createLoad(getLoc(Loc),
-                                 InputValue.getAddress().withElementType(Ty)),
-              mlir::Type()};
+      auto InputAddr = builder.createElementBitCast(
+          getLoc(Loc), InputValue.getAddress(), Ty);
+      return {builder.createLoad(getLoc(Loc), InputAddr), mlir::Type()};
     }
   }
 
@@ -320,7 +320,8 @@ static void emitAsmStores(CIRGenFunction &CGF, const AsmStmt &S,
     // ResultTypeRequiresCast.size() elements of RegResults.
     if ((i < ResultTypeRequiresCast.size()) && ResultTypeRequiresCast[i]) {
       unsigned Size = CGF.getContext().getTypeSize(ResultRegQualTys[i]);
-      Address A = Dest.getAddress().withElementType(ResultRegTypes[i]);
+      Address A = Builder.createElementBitCast(
+          Dest.getPointer().getLoc(), Dest.getAddress(), ResultRegTypes[i]);
       if (CGF.getTargetHooks().isScalarizableAsmOperand(CGF, TruncTy)) {
         Builder.createStore(CGF.getLoc(S.getAsmLoc()), Tmp, A);
         continue;
@@ -478,7 +479,9 @@ mlir::LogicalResult CIRGenFunction::emitAsmStmt(const AsmStmt &S) {
       // Otherwise there will be a mis-match if the matrix is also an
       // input-argument which is represented as vector.
       if (isa<MatrixType>(OutExpr->getType().getCanonicalType()))
-        DestAddr = DestAddr.withElementType(convertType(OutExpr->getType()));
+        DestAddr = builder.createElementBitCast(
+            DestAddr.getPointer().getLoc(), DestAddr,
+            convertType(OutExpr->getType()));
 
       ArgTypes.push_back(DestAddr.getType());
       ArgElemTypes.push_back(DestAddr.getElementType());
