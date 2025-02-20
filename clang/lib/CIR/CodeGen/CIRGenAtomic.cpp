@@ -305,8 +305,7 @@ Address AtomicInfo::castToAtomicIntPointer(Address addr) const {
   if (intTy && intTy.getWidth() == AtomicSizeInBits)
     return addr;
   auto ty = CGF.getBuilder().getUIntNTy(AtomicSizeInBits);
-  return CGF.getBuilder().createElementBitCast(addr.getPointer().getLoc(), addr,
-                                               ty);
+  return addr.withElementType(CGF.getBuilder(), ty);
 }
 
 Address AtomicInfo::convertToAtomicIntPointer(Address Addr) const {
@@ -1244,9 +1243,9 @@ RValue CIRGenFunction::emitAtomicExpr(AtomicExpr *E) {
     if (RValTy->isVoidType())
       return RValue::get(nullptr);
 
-    Address A = builder.createElementBitCast(Dest.getPointer().getLoc(), Dest,
-                                             convertTypeForMem(RValTy));
-    return convertTempToRValue(A, RValTy, E->getExprLoc());
+    return convertTempToRValue(
+        Dest.withElementType(builder, convertTypeForMem(RValTy)), RValTy,
+        E->getExprLoc());
   }
 
   // The memory order is not known at compile-time.  The atomic operations
@@ -1323,9 +1322,10 @@ RValue CIRGenFunction::emitAtomicExpr(AtomicExpr *E) {
 
   if (RValTy->isVoidType())
     return RValue::get(nullptr);
-  Address A = builder.createElementBitCast(Dest.getPointer().getLoc(), Dest,
-                                           convertTypeForMem(RValTy));
-  return convertTempToRValue(A, RValTy, E->getExprLoc());
+
+  return convertTempToRValue(
+      Dest.withElementType(builder, convertTypeForMem(RValTy)), RValTy,
+      E->getExprLoc());
 }
 
 void CIRGenFunction::emitAtomicStore(RValue rvalue, LValue lvalue,

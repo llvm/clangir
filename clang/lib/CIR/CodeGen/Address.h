@@ -25,6 +25,9 @@
 
 namespace clang::CIRGen {
 
+// Forward declaration to avoid a circular dependency
+class CIRGenBuilderTy;
+
 // Indicates whether a pointer is known not to be null.
 enum KnownNonNull_t { NotKnownNonNull, KnownNonNull };
 
@@ -106,6 +109,10 @@ public:
   }
 
   bool hasOffset() const { return bool(offset); }
+
+  /// Return address with different element type, a bitcast pointer, and
+  /// the same alignment.
+  Address withElementType(CIRGenBuilderTy &builder, mlir::Type ElemTy) const;
 
   mlir::Value getPointer() const {
     assert(isValid());

@@ -1672,7 +1672,7 @@ CIRGenFunction::getAddressOfBaseClass(Address Value,
       VBase, BaseValueTy, not NullCheckValue);
 
   // Cast to the destination type.
-  Value = builder.createElementBitCast(getLoc(Loc), Value, BaseValueTy);
+  Value = Value.withElementType(builder, BaseValueTy);
 
   return Value;
 }

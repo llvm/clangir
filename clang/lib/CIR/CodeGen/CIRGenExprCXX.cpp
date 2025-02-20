@@ -379,8 +379,7 @@ static void emitNullBaseClassInitialization(CIRGenFunction &CGF,
   if (Base->isEmpty())
     return;
 
-  DestPtr = CGF.getBuilder().createElementBitCast(DestPtr.getPointer().getLoc(),
-                                                  DestPtr, CGF.UInt8Ty);
+  DestPtr = DestPtr.withElementType(CGF.getBuilder(), CGF.UInt8Ty);
 
   const ASTRecordLayout &Layout = CGF.getContext().getASTRecordLayout(Base);
   CharUnits NVSize = Layout.getNonVirtualSize();
@@ -1050,8 +1049,7 @@ void CIRGenFunction::emitNewArrayInitializer(
     if (const ConstantArrayType *CAT = dyn_cast_or_null<ConstantArrayType>(
             AllocType->getAsArrayTypeUnsafe())) {
       ElementTy = convertTypeForMem(AllocType);
-      auto CastOp = builder.createPtrBitcast(CurPtr.getPointer(), ElementTy);
-      CurPtr = Address(CastOp, ElementTy, CurPtr.getAlignment());
+      CurPtr = CurPtr.withElementType(builder, ElementTy);
       InitListElements *= getContext().getConstantArrayElementCount(CAT);
     }
 
@@ -1096,8 +1094,7 @@ void CIRGenFunction::emitNewArrayInitializer(
     }
 
     // Switch back to initializing one base element at a time.
-    CurPtr = builder.createElementBitCast(getLoc(E->getExprLoc()), CurPtr,
-                                          BeginPtr.getElementType());
+    CurPtr = CurPtr.withElementType(builder, BeginPtr.getElementType());
   }
 
   // If all elements have already been initialized, skip any further
@@ -1136,8 +1133,7 @@ void CIRGenFunction::emitNewArrayInitializer(
     if (InitListElements)
       llvm_unreachable("NYI");
     auto arrayType = convertType(CCE->getType());
-    CurPtr = builder.createElementBitCast(getLoc(CCE->getLocation()), CurPtr,
-                                          arrayType);
+    CurPtr = CurPtr.withElementType(builder, arrayType);
     emitCXXAggrConstructorCall(Ctor, NumElements, CurPtr, CCE,
                                /*NewPointerIsChecked*/ true,
                                CCE->requiresZeroInitialization());

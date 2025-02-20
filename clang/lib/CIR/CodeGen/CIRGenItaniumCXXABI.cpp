@@ -2723,7 +2723,7 @@ Address CIRGenItaniumCXXABI::initializeArrayCookie(CIRGenFunction &CGF,
 
   // Write the number of elements into the appropriate slot.
   Address NumElementsPtr =
-      CGF.getBuilder().createElementBitCast(Loc, CookiePtr, CGF.SizeTy);
+      CookiePtr.withElementType(CGF.getBuilder(), CGF.SizeTy);
   CGF.getBuilder().createStore(Loc, NumElements, NumElementsPtr);
 
   if (CGF.SanOpts.has(SanitizerKind::Address))
