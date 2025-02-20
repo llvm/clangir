@@ -82,22 +82,22 @@ unsigned long long tc3() {
   return z;
 }
 
-// CIR: cir.func @_Z3tc4v()
+// CHECK: cir.func @_Z3tc4v()
 unsigned long long tc4() {
   int x = 50, y = 3;
   unsigned long long z;
 
-  // CIR-NOT: cir.try
+  // CHECK-NOT: cir.try
   try {
     int a = 4;
     a++;
 
-    // CIR: cir.scope {
-    // CIR: cir.alloca !s32i, !cir.ptr<!s32i>, ["a", init]
-    // CIR-NOT: cir.alloca !cir.ptr<!cir.eh.info>
-    // CIR: cir.const #cir.int<4> : !s32i
-    // CIR: cir.unary(inc,
-    // CIR: cir.store %11, %8 : !s32i, !cir.ptr<!s32i>
+    // CHECK: cir.scope {
+    // CHECK: cir.alloca !s32i, !cir.ptr<!s32i>, ["a", init]
+    // CHECK-NOT: cir.alloca !cir.ptr<!cir.eh.info>
+    // CHECK: cir.const #cir.int<4> : !s32i
+    // CHECK: cir.unary(inc,
+    // CHECK: cir.store %11, %8 : !s32i, !cir.ptr<!s32i>
   } catch (int idx) {
     z = 98;
     idx++;
