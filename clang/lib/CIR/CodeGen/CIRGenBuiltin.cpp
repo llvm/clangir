@@ -63,7 +63,8 @@ static mlir::Value tryUseTestFPKind(CIRGenFunction &CGF, unsigned BuiltinID,
 }
 
 template <class Operation>
-static RValue emitUnaryMaybeConstrainedFPBuiltin(CIRGenFunction &CGF, const CallExpr &E) {
+static RValue emitUnaryMaybeConstrainedFPBuiltin(CIRGenFunction &CGF,
+                                                 const CallExpr &E) {
   auto Arg = CGF.emitScalarExpr(E.getArg(0));
 
   CIRGenFunction::CIRGenFPOptionsRAII FPOptsRAII(CGF, &E);
