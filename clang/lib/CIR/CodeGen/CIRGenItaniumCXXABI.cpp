@@ -2271,8 +2271,8 @@ void CIRGenItaniumCXXABI::emitRethrow(CIRGenFunction &CGF, bool isNoReturn) {
     // `UnreachableOp` as the terminator. So, we branch from the current block
     // to the rethrow block and create a block for the remaining operations.
 
-    auto currentBlock = builder.getInsertionBlock();
-    auto region = currentBlock->getParent();
+    mlir::Block *currentBlock = builder.getInsertionBlock();
+    mlir::Region *region = currentBlock->getParent();
 
     if (currentBlock->empty()) {
       builder.create<cir::ThrowOp>(loc, mlir::Value{},
@@ -2280,7 +2280,7 @@ void CIRGenItaniumCXXABI::emitRethrow(CIRGenFunction &CGF, bool isNoReturn) {
                                    mlir::FlatSymbolRefAttr{});
       builder.create<cir::UnreachableOp>(loc);
     } else {
-      auto rethrowBlock = builder.createBlock(region);
+      mlir::Block *rethrowBlock = builder.createBlock(region);
       builder.create<cir::ThrowOp>(loc, mlir::Value{},
                                    mlir::FlatSymbolRefAttr{},
                                    mlir::FlatSymbolRefAttr{});
@@ -2290,7 +2290,7 @@ void CIRGenItaniumCXXABI::emitRethrow(CIRGenFunction &CGF, bool isNoReturn) {
       builder.create<cir::BrOp>(loc, rethrowBlock);
     }
 
-    auto remBlock = builder.createBlock(region);
+    mlir::Block *remBlock = builder.createBlock(region);
     // This will be erased during codegen, it acts as a placeholder for the
     // operations to be inserted (if any)
     builder.create<cir::ScopeOp>(loc, /*scopeBuilder=*/
