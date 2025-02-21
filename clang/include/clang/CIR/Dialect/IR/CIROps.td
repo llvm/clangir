@@ -1558,7 +1558,7 @@ def ComplexBinOp : CIR_Op<"complex.binop",
 //===----------------------------------------------------------------------===//
 
 class CIR_BitOp<string mnemonic, TypeConstraint inputTy>
-    : CIR_Op<mnemonic, [Pure]> {
+    : CIR_Op<mnemonic, [Pure, SameOperandsAndResultType]> {
   let arguments = (ins inputTy:$input);
   let results = (outs inputTy:$result);
 
