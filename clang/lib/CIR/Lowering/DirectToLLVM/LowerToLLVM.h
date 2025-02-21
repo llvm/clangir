@@ -780,6 +780,16 @@ public:
                   mlir::ConversionPatternRewriter &) const override;
 };
 
+class CIRToLLVMBitLzcntOpLowering
+    : public mlir::OpConversionPattern<cir::BitLzcntOp> {
+public:
+  using mlir::OpConversionPattern<cir::BitLzcntOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::BitLzcntOp op, OpAdaptor,
+                  mlir::ConversionPatternRewriter &) const override;
+};
+
 class CIRToLLVMAtomicCmpXchgLowering
     : public mlir::OpConversionPattern<cir::AtomicCmpXchg> {
 public:

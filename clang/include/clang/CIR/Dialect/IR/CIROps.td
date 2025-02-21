@@ -1561,7 +1561,7 @@ def ComplexBinOp : CIR_Op<"complex.binop",
 class CIR_BitOp<string mnemonic, TypeConstraint inputTy>
     : CIR_Op<mnemonic, [Pure]> {
   let arguments = (ins inputTy:$input);
-  let results = (outs SInt32:$result);
+  let results = (outs inputTy:$result);
 
   let assemblyFormat = [{
     `(` $input `:` type($input) `)` `:` type($result) attr-dict
@@ -1711,6 +1711,30 @@ def BitPopcountOp
     %0 = cir.const #cir.int<104> : !u32i
     // %1 will be 3 since there are 3 1-bits in %0
     %1 = cir.bit.popcount(%0 : !u32i) : !u32i
+    ```
+  }];
+}
+
+def BitLzcntOp : CIR_BitOp<"bit.lzcnt", AnyTypeOf<[UInt16, UInt32, UInt64]>> {
+  let summary = "Get the number of leading 0-bits in the input";
+  let description = [{
+    Compute the number of leading 0-bits in the input.
+
+    The input integer must be an unsigned integer. The `cir.bit.lzcnt` operation
+    returns the number of consecutive 0-bits at the most significant bit
+    position in the input.
+
+    If the input value is 0, the return value is the size of the input value.
+
+    Example:
+
+    ```mlir
+    !u32i = !cir.int<u, 32>
+
+    // %0 = 0b0000_0000_0000_0000_0000_0000_0000_1000
+    %0 = cir.const #cir.int<8> : !u32i
+    // %1 will be 28
+    %1 = cir.bit.lzcnt(%0 : !u32i) : !u32i
     ```
   }];
 }
