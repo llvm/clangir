@@ -137,10 +137,14 @@ emitBuiltinBitOp(CIRGenFunction &CGF, const CallExpr *E,
   else
     arg = CGF.emitScalarExpr(E->getArg(0));
 
-  auto resultTy = CGF.convertType(E->getType());
   auto op =
-      CGF.getBuilder().create<Op>(CGF.getLoc(E->getExprLoc()), resultTy, arg);
-  return RValue::get(op);
+      CGF.getBuilder().create<Op>(CGF.getLoc(E->getExprLoc()), arg.getType(), arg);
+
+  if constexpr (std::is_same_v<Op, cir::BitLzcntOp>) {
+    return RValue::get(op);
+  } else {
+    return RValue::get(CGF.getBuilder().createIntCast(op->getResult(0), CGF.convertType(E->getCallReturnType(CGF.getContext()))));
+  }
 }
 
 // Initialize the alloca with the given size and alignment according to the lang
@@ -1081,8 +1085,9 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
 
   case Builtin::BI__lzcnt16:
   case Builtin::BI__lzcnt:
-  case Builtin::BI__lzcnt64:
-    llvm_unreachable("BI__lzcnt16 like NYI");
+  case Builtin::BI__lzcnt64: {
+    return emitBuiltinBitOp<cir::BitLzcntOp>(*this, E, std::nullopt);
+  }
 
   case Builtin::BI__popcnt16:
   case Builtin::BI__popcnt:
