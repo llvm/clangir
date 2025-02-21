@@ -111,7 +111,7 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &mlirContext,
       target(astContext.getTargetInfo()), ABI(createCXXABI(*this)),
       genTypes{*this}, VTables{*this},
       openMPRuntime(new CIRGenOpenMPRuntime(*this)),
-      cudaRuntime(new CIRGenCUDARuntime(*this)) {
+      cudaRuntime(clang::CIRGen::CreateNVCUDARuntime(*this)) {
 
   unsigned charSize = astContext.getTargetInfo().getCharWidth();
   unsigned intSize = astContext.getTargetInfo().getIntWidth();

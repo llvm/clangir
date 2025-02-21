@@ -1,4 +1,4 @@
-//===--- CIRGenCUDARuntime.cpp - Interface to CUDA Runtimes ----*- C++ -*--===//
+//===- CIRGenCUDANV.cpp - Interface to NVIDIA CUDA Runtime -----===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -15,6 +15,7 @@
 #include "CIRGenCUDARuntime.h"
 #include "CIRGenCXXABI.h"
 #include "CIRGenFunction.h"
+#include "CIRGenModule.h"
 #include "mlir/IR/Operation.h"
 #include "clang/Basic/Cuda.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
@@ -40,10 +41,57 @@ static std::unique_ptr<MangleContext> initDeviceMC(CIRGenModule &cgm) {
       cgm.getASTContext().getAuxTargetInfo()));
 }
 
-CIRGenCUDARuntime::~CIRGenCUDARuntime() {}
+namespace {
 
-CIRGenCUDARuntime::CIRGenCUDARuntime(CIRGenModule &cgm)
-    : cgm(cgm), deviceMC(initDeviceMC(cgm)) {
+class CIRGenNVCUDARuntime : public CIRGenCUDARuntime {
+protected:
+  StringRef Prefix;
+
+  // Map a device stub function to a symbol for identifying kernel in host
+  // code. For CUDA, the symbol for identifying the kernel is the same as the
+  // device stub function. For HIP, they are different.
+  llvm::DenseMap<StringRef, mlir::Operation *> KernelHandles;
+
+  // Map a kernel handle to the kernel stub.
+  llvm::DenseMap<mlir::Operation *, mlir::Operation *> KernelStubs;
+
+  // Mangle context for device.
+  std::unique_ptr<MangleContext> deviceMC;
+
+private:
+  void emitDeviceStubBodyLegacy(CIRGenFunction &cgf, cir::FuncOp fn,
+                                FunctionArgList &args);
+  void emitDeviceStubBodyNew(CIRGenFunction &cgf, cir::FuncOp fn,
+                             FunctionArgList &args);
+  std::string addPrefixToName(StringRef FuncName) const;
+  std::string addUnderscoredPrefixToName(StringRef FuncName) const;
+
+public:
+  CIRGenNVCUDARuntime(CIRGenModule &cgm);
+  ~CIRGenNVCUDARuntime();
+
+  void emitDeviceStub(CIRGenFunction &cgf, cir::FuncOp fn,
+                      FunctionArgList &args) override;
+
+  mlir::Operation *getKernelHandle(cir::FuncOp fn, GlobalDecl GD) override;
+
+  void internalizeDeviceSideVar(const VarDecl *d,
+                                cir::GlobalLinkageKind &linkage) override;
+  /// Returns function or variable name on device side even if the current
+  /// compilation is for host.
+  std::string getDeviceSideName(const NamedDecl *nd) override;
+};
+
+} // namespace
+
+CIRGenCUDARuntime *clang::CIRGen::CreateNVCUDARuntime(CIRGenModule &cgm) {
+  return new CIRGenNVCUDARuntime(cgm);
+}
+
+CIRGenNVCUDARuntime::~CIRGenNVCUDARuntime() {}
+
+CIRGenNVCUDARuntime::CIRGenNVCUDARuntime(CIRGenModule &cgm)
+    : CIRGenCUDARuntime(cgm), deviceMC(initDeviceMC(cgm)) {
   if (cgm.getLangOpts().OffloadViaLLVM)
     llvm_unreachable("NYI");
   else if (cgm.getLangOpts().HIP)
@@ -52,23 +100,23 @@ CIRGenCUDARuntime::CIRGenCUDARuntime(CIRGenModule &cgm)
     Prefix = "cuda";
 }
 
-std::string CIRGenCUDARuntime::addPrefixToName(StringRef FuncName) const {
+std::string CIRGenNVCUDARuntime::addPrefixToName(StringRef FuncName) const {
   return (Prefix + FuncName).str();
 }
 std::string
-CIRGenCUDARuntime::addUnderscoredPrefixToName(StringRef FuncName) const {
+CIRGenNVCUDARuntime::addUnderscoredPrefixToName(StringRef FuncName) const {
   return ("__" + Prefix + FuncName).str();
 }
 
-void CIRGenCUDARuntime::emitDeviceStubBodyLegacy(CIRGenFunction &cgf,
-                                                 cir::FuncOp fn,
-                                                 FunctionArgList &args) {
+void CIRGenNVCUDARuntime::emitDeviceStubBodyLegacy(CIRGenFunction &cgf,
+                                                   cir::FuncOp fn,
+                                                   FunctionArgList &args) {
   llvm_unreachable("NYI");
 }
 
-void CIRGenCUDARuntime::emitDeviceStubBodyNew(CIRGenFunction &cgf,
-                                              cir::FuncOp fn,
-                                              FunctionArgList &args) {
+void CIRGenNVCUDARuntime::emitDeviceStubBodyNew(CIRGenFunction &cgf,
+                                                cir::FuncOp fn,
+                                                FunctionArgList &args) {
 
   // This requires arguments to be sent to kernels in a different way.
   if (cgm.getLangOpts().OffloadViaLLVM)
@@ -212,8 +260,8 @@ void CIRGenCUDARuntime::emitDeviceStubBodyNew(CIRGenFunction &cgf,
                launchArgs);
 }
 
-void CIRGenCUDARuntime::emitDeviceStub(CIRGenFunction &cgf, cir::FuncOp fn,
-                                       FunctionArgList &args) {
+void CIRGenNVCUDARuntime::emitDeviceStub(CIRGenFunction &cgf, cir::FuncOp fn,
+                                         FunctionArgList &args) {
   if (auto globalOp =
           llvm::dyn_cast<cir::GlobalOp>(KernelHandles[fn.getSymName()])) {
     auto symbol = mlir::FlatSymbolRefAttr::get(fn.getSymNameAttr());
@@ -230,31 +278,8 @@ void CIRGenCUDARuntime::emitDeviceStub(CIRGenFunction &cgf, cir::FuncOp fn,
     emitDeviceStubBodyLegacy(cgf, fn, args);
 }
 
-RValue CIRGenCUDARuntime::emitCUDAKernelCallExpr(CIRGenFunction &cgf,
-                                                 const CUDAKernelCallExpr *expr,
-                                                 ReturnValueSlot retValue) {
-  auto builder = cgm.getBuilder();
-  mlir::Location loc =
-      cgf.currSrcLoc ? cgf.currSrcLoc.value() : builder.getUnknownLoc();
-
-  cgf.emitIfOnBoolExpr(
-      expr->getConfig(),
-      [&](mlir::OpBuilder &b, mlir::Location l) {
-        b.create<cir::YieldOp>(loc);
-      },
-      loc,
-      [&](mlir::OpBuilder &b, mlir::Location l) {
-        CIRGenCallee callee = cgf.emitCallee(expr->getCallee());
-        cgf.emitCall(expr->getCallee()->getType(), callee, expr, retValue);
-        b.create<cir::YieldOp>(loc);
-      },
-      loc);
-
-  return RValue::get(nullptr);
-}
-
-mlir::Operation *CIRGenCUDARuntime::getKernelHandle(cir::FuncOp fn,
-                                                    GlobalDecl GD) {
+mlir::Operation *CIRGenNVCUDARuntime::getKernelHandle(cir::FuncOp fn,
+                                                      GlobalDecl GD) {
 
   // Check if we already have a kernel handle for this function
   auto Loc = KernelHandles.find(fn.getSymName());
@@ -307,7 +332,7 @@ mlir::Operation *CIRGenCUDARuntime::getKernelHandle(cir::FuncOp fn,
   return globalOp;
 }
 
-std::string CIRGenCUDARuntime::getDeviceSideName(const NamedDecl *nd) {
+std::string CIRGenNVCUDARuntime::getDeviceSideName(const NamedDecl *nd) {
   GlobalDecl gd;
   // nd could be either a kernel or a variable.
   if (auto *fd = dyn_cast<FunctionDecl>(nd))
@@ -340,7 +365,7 @@ std::string CIRGenCUDARuntime::getDeviceSideName(const NamedDecl *nd) {
   return deviceSideName;
 }
 
-void CIRGenCUDARuntime::internalizeDeviceSideVar(
+void CIRGenNVCUDARuntime::internalizeDeviceSideVar(
     const VarDecl *d, cir::GlobalLinkageKind &linkage) {
   if (cgm.getLangOpts().GPURelocatableDeviceCode)
     llvm_unreachable("NYI");
