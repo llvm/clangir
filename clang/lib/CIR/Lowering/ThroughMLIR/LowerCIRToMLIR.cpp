@@ -207,9 +207,11 @@ static bool findBaseAndIndices(mlir::Value addr, mlir::Value &base,
   while (mlir::Operation *addrOp = addr.getDefiningOp()) {
     if (!isa<mlir::memref::ReinterpretCastOp>(addrOp))
       break;
-    indices.push_back(addrOp->getOperand(1));
     addr = addrOp->getOperand(0);
     eraseList.push_back(addrOp);
+    // If there is another operand, assume it is the lowered index
+    if (addrOp->getNumOperands() == 2)
+      indices.push_back(addrOp->getOperand(1));
   }
   base = addr;
   if (indices.size() == 0)
@@ -1148,6 +1150,23 @@ public:
       auto newDstType = mlir::cast<mlir::MemRefType>(convertTy(dstType));
       rewriter.replaceOpWithNewOp<mlir::memref::ReinterpretCastOp>(
           op, newDstType, src, 0, std::nullopt, std::nullopt);
+      return mlir::success();
+    }
+    case CIR::bitcast: {
+      // clang-format off
+      // %7 = cir.cast(bitcast, %6 : !cir.ptr<!s32i>), !cir.ptr<!cir.array<!s32i x 8192>>
+      // Is lowered as
+      // memref<i32> → memref.reinterpret_cast → memref<8192xi32>
+      // clang-format on
+      auto newDstType = convertTy(dstType);
+      if (!(mlir::isa<mlir::MemRefType>(adaptor.getSrc().getType()) &&
+            mlir::isa<mlir::MemRefType>(newDstType)))
+        return op.emitError() << "NYI bitcast from " << op.getSrc().getType()
+                              << " to " << dstType;
+      auto dstMR = mlir::cast<mlir::MemRefType>(newDstType);
+      auto [strides, offset] = dstMR.getStridesAndOffset();
+      rewriter.replaceOpWithNewOp<mlir::memref::ReinterpretCastOp>(
+          op, dstMR, src, offset, dstMR.getShape(), strides);
       return mlir::success();
     }
     case CIR::int_to_bool: {
