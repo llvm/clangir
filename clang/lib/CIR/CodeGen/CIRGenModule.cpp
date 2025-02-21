@@ -110,7 +110,7 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &mlirContext,
       target(astContext.getTargetInfo()), ABI(createCXXABI(*this)),
       genTypes{*this}, VTables{*this},
       openMPRuntime(new CIRGenOpenMPRuntime(*this)),
-      cudaRuntime(new CIRGenCUDARuntime(*this)) {
+      cudaRuntime(clang::CIRGen::CreateNVCUDARuntime(*this)) {
 
   // Initialize CIR signed integer types cache.
   SInt8Ty = cir::IntType::get(&getMLIRContext(), 8, /*isSigned=*/true);
