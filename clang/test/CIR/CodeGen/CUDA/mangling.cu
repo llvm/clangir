@@ -10,6 +10,33 @@
 // RUN:            %s -o %t.cir
 // RUN: FileCheck --check-prefix=CIR-DEVICE --input-file=%t.cir %s
 
+namespace ns {
+    __global__ void cpp_global_function_1(int a, int* b, float c) {}
+    // CIR-HOST: cir.func @_ZN2ns36__device_stub__cpp_global_function_1EiPif
+    // CIR-DEVICE: cir.func @_ZN2ns21cpp_global_function_1EiPif
+
+    __global__ void cpp_global_function_2(int a, int* b, float c) {}
+
+    // CIR-HOST: cir.func @_ZN2ns36__device_stub__cpp_global_function_2EiPif
+    // CIR-DEVICE: cir.func @_ZN2ns21cpp_global_function_2EiPif
+
+    __host__ void cpp_host_function_1(int a, int* b, float c) {}
+
+    // CIR-HOST: cir.func @_ZN2ns19cpp_host_function_1EiPif
+
+    __host__ void cpp_host_function_2(int a, int* b, float c) {}
+
+    // CIR-HOST: cir.func @_ZN2ns19cpp_host_function_2EiPif
+
+    __device__ void cpp_device_function_1(int a, int* b, float c) {}
+
+    // CIR-DEVICE: cir.func @_ZN2ns21cpp_device_function_1EiPif
+
+    __device__ void cpp_device_function_2(int a, int* b, float c) {}
+
+    // CIR-DEVICE: cir.func @_ZN2ns21cpp_device_function_2EiPif
+}
+
 __global__ void cpp_global_function_1(int a, int* b, float c) {}
 
 // CIR-HOST: cir.func @_Z36__device_stub__cpp_global_function_1iPif
