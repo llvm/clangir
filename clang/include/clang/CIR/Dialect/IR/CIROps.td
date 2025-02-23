@@ -3857,7 +3857,7 @@ def CallOp : CIR_CallOp<"call", [NoRegionArguments]> {
                CArg<"mlir::UnitAttr", "{}">:$exception), [{
       $_state.addOperands(ValueRange{ind_target});
       $_state.addOperands(operands);
-      if (!fn_type.isVoid())
+      if (!fn_type.hasVoidReturn())
         $_state.addTypes(fn_type.getReturnType());
       $_state.addAttribute("calling_conv",
         CallingConvAttr::get($_builder.getContext(), callingConv));
@@ -3943,7 +3943,7 @@ def TryCallOp : CIR_CallOp<"try_call",
       finalCallOperands.append(operands.begin(), operands.end());
       $_state.addOperands(finalCallOperands);
 
-      if (!fn_type.isVoid())
+      if (!fn_type.hasVoidReturn())
         $_state.addTypes(fn_type.getReturnType());
 
       $_state.addAttribute("calling_conv",
