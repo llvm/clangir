@@ -79,7 +79,6 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
   if (std::optional<MSVCIntrin> MsvcIntId = translateX86ToMsvcIntrin(BuiltinID))
     llvm_unreachable("translateX86ToMsvcIntrin NYI");
 
-
   llvm::SmallVector<mlir::Value, 4> Ops;
 
   // Find out if any arguments are required to be integer constant expressions.
@@ -93,14 +92,18 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
   }
 
   switch (BuiltinID) {
-    default: return nullptr;
-    case X86::BI_mm_prefetch: {
-      llvm_unreachable("_mm_prefetch NYI");
-    }
-    case X86::BI_mm_clflush: {
-      mlir::Type voidTy = cir::VoidType::get(&getMLIRContext());
-      return builder.create<cir::LLVMIntrinsicCallOp>(getLoc(E->getExprLoc()),
-        builder.getStringAttr("x86.sse2.clflush"), voidTy,Ops[0]).getResult();
-    }
+  default:
+    return nullptr;
+  case X86::BI_mm_prefetch: {
+    llvm_unreachable("_mm_prefetch NYI");
+  }
+  case X86::BI_mm_clflush: {
+    mlir::Type voidTy = cir::VoidType::get(&getMLIRContext());
+    return builder
+        .create<cir::LLVMIntrinsicCallOp>(
+            getLoc(E->getExprLoc()), builder.getStringAttr("x86.sse2.clflush"),
+            voidTy, Ops[0])
+        .getResult();
+  }
   }
 }

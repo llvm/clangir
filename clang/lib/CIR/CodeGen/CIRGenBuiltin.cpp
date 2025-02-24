@@ -2623,7 +2623,6 @@ mlir::Value CIRGenFunction::emitTargetBuiltinExpr(unsigned BuiltinID,
                                    getTarget().getTriple().getArch());
 }
 
-
 mlir::Value CIRGenFunction::emitScalarOrConstFoldImmArg(unsigned ICEArguments,
                                                         unsigned Idx,
                                                         const CallExpr *E) {
