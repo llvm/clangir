@@ -1490,3 +1490,13 @@ cir.func @cast0(%arg0: !s32i, %arg1: !s32i) {
   %1 = cir.cmp(eq, %arg0, %arg1): !s32i, !s32i
   cir.return
 }
+
+// -----
+
+// Verify that void-returning functions have no return type listed in
+// MLIR assembly.
+
+!s32i = !cir.int<s, 32>
+// expected-error @below {{!cir.func cannot have an explicit 'void' return type}}
+// expected-error @below {{failed to parse CIR_PointerType parameter}}
+cir.global external dsolocal @vfp = #cir.ptr<null> : !cir.ptr<!cir.func<(!s32i) -> !cir.void>>
