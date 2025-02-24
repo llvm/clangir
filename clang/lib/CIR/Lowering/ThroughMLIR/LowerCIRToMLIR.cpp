@@ -653,7 +653,7 @@ public:
 
     SmallVector<mlir::Type> resultTypes;
     // Only convert return type if the function is not void
-    if (!fnType.isVoid()) {
+    if (!mlir::isa<cir::VoidType>(fnType.getReturnType())) {
       auto resultType = getTypeConverter()->convertType(fnType.getReturnType());
       if (!resultType)
         return mlir::failure();
