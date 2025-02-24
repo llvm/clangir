@@ -4149,12 +4149,6 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   case NEON::BI__builtin_neon_vrndh_f16: {
     llvm_unreachable("NEON::BI__builtin_neon_vrndh_f16 NYI");
   }
-  case NEON::BI__builtin_neon_vrnd64x_f32:
-  case NEON::BI__builtin_neon_vrnd64xq_f32:
-  case NEON::BI__builtin_neon_vrnd64x_f64:
-  case NEON::BI__builtin_neon_vrnd64xq_f64: {
-    llvm_unreachable("NEON::BI__builtin_neon_vrnd64xq_f64 NYI");
-  }
   case NEON::BI__builtin_neon_vrnd64z_f32:
   case NEON::BI__builtin_neon_vrnd64zq_f32:
   case NEON::BI__builtin_neon_vrnd64z_f64:
