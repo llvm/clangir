@@ -61,7 +61,7 @@ CreateFrontendBaseAction(CompilerInstance &CI) {
         "-emit-cir and -emit-cir-only only valid when using -fclangir");
 
   if (Act == EmitMLIR && CI.getFrontendOpts().ClangIRDirectLowering &&
-      CI.getFrontendOpts().MLIRTargetDialect == FrontendOptions::MLIR_STD)
+      CI.getFrontendOpts().MLIRTargetDialect == frontend::MLIR_CORE)
     llvm::report_fatal_error("ClangIR direct lowering is incompatible with "
                              "emitting of MLIR standard dialects");
 

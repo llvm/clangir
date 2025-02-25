@@ -160,6 +160,8 @@ enum ActionKind {
   PrintDependencyDirectivesSourceMinimizerOutput
 };
 
+enum MLIRDialectKind { MLIR_CORE, MLIR_LLVM, MLIR_CIR, MLIR_CIR_FLAT };
+
 } // namespace frontend
 
 /// The kind of a file that we've been handed as an input.
@@ -530,7 +532,7 @@ public:
   std::string ClangIRIdiomRecognizerOpts;
   std::string ClangIRLibOptOpts;
 
-  enum { MLIR_Default, MLIR_STD, MLIR_LLVM } MLIRTargetDialect = MLIR_Default;
+  frontend::MLIRDialectKind MLIRTargetDialect;
 
   /// The input kind, either specified via -x argument or deduced from the input
   /// file name.

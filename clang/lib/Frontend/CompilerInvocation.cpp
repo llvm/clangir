@@ -2852,8 +2852,8 @@ static void GenerateFrontendArgs(const FrontendOptions &Opts,
 
   if (Opts.ProgramAction == frontend::EmitMLIR) {
     GenerateProgramAction = [&]() {
-      if (Opts.MLIRTargetDialect == FrontendOptions::MLIR_Default)
-        GenerateArg(Consumer, OPT_emit_mlir);
+      if (Opts.MLIRTargetDialect == clang::frontend::MLIR_CORE)
+        GenerateArg(Consumer, OPT_emit_mlir_EQ, "core");
     };
   }
 
@@ -3118,7 +3118,8 @@ static bool ParseFrontendArgs(FrontendOptions &Opts, ArgList &Args,
     Diags.Report(diag::err_drv_argument_only_allowed_with) << "-fsystem-module"
                                                            << "-emit-module";
   if (Args.hasArg(OPT_fclangir) || Args.hasArg(OPT_emit_cir) ||
-      Args.hasArg(OPT_emit_cir_flat))
+      Args.hasArg(OPT_emit_cir_flat) || Args.hasArg(OPT_emit_mlir) ||
+      Args.hasArg(OPT_emit_mlir_EQ))
     Opts.UseClangIRPipeline = true;
 
   if (Args.hasArg(OPT_fclangir_direct_lowering))
