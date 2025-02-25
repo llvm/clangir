@@ -169,7 +169,7 @@ cir::TBAAAttr CIRGenTBAA::getTypeInfoHelper(clang::QualType qty) {
   // Accesses to arrays are accesses to objects of their element types.
   if (codeGenOpts.NewStructPathTBAA && ty->isArrayType()) {
     assert(!cir::MissingFeatures::tbaaNewStructPath());
-    return tbaa_NYI(mlirContext);
+    return getTypeInfo(cast<clang::ArrayType>(ty)->getElementType());
   }
   // Enum types are distinct types. In C++ they have "underlying types",
   // however they aren't related for TBAA.
@@ -336,11 +336,8 @@ cir::TBAAAttr CIRGenTBAA::getBaseTypeInfoHelper(const clang::Type *ty) {
       outName = rd->getName();
     }
 
-    if (codeGenOpts.NewStructPathTBAA) {
-      assert(!cir::MissingFeatures::tbaaNewStructPath());
-      return nullptr;
-    }
-    return cir::TBAAStructAttr::get(mlirContext, outName, fields);
+    return cir::TBAAStructAttr::get(mlirContext, outName,
+                                    types.convertRecordDeclType(rd), fields);
   }
   return nullptr;
 }
@@ -363,10 +360,6 @@ cir::TBAAAttr CIRGenTBAA::getAccessTagInfo(TBAAAccessInfo tbaaInfo) {
     tbaaInfo.baseType = tbaaInfo.accessType;
     assert(!tbaaInfo.offset &&
            "Nonzero offset for an access with no base type!");
-  }
-  if (codeGenOpts.NewStructPathTBAA) {
-    assert(!cir::MissingFeatures::tbaaNewStructPath());
-    return tbaa_NYI(mlirContext);
   }
   if (tbaaInfo.baseType == tbaaInfo.accessType) {
     return tbaaInfo.accessType;

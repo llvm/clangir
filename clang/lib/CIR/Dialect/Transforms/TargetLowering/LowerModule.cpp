@@ -24,6 +24,7 @@
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/Support/LogicalResult.h"
+#include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Target/AArch64.h"
 #include "llvm/Support/ErrorHandling.h"
 
@@ -252,6 +253,11 @@ createLowerModule(mlir::ModuleOp module, mlir::PatternRewriter &rewriter) {
           module->getAttr(cir::CIRDialect::getOptInfoAttrName()))) {
     codeGenOpts.OptimizationLevel = optInfo.getLevel();
     codeGenOpts.OptimizeSize = optInfo.getSize();
+  }
+
+  if (auto newStructPathTbaaAttr = mlir::cast_if_present<cir::BoolAttr>(
+          module->getAttr(cir::CIRDialect::getNewStructPathTBAAAttrName()))) {
+    codeGenOpts.NewStructPathTBAA = newStructPathTbaaAttr.getValue();
   }
 
   return std::make_unique<LowerModule>(std::move(langOpts),
