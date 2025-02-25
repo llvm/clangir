@@ -517,15 +517,11 @@ bool CIRGenModule::shouldEmitCUDAGlobalVar(const VarDecl *global) const {
   // device-side variables because the CUDA runtime needs their
   // size and host-side address in order to provide access to
   // their device-side incarnations.
-
-  if (global->hasAttr<CUDAConstantAttr>() ||
-      global->hasAttr<CUDASharedAttr>() ||
-      global->getType()->isCUDADeviceBuiltinSurfaceType() ||
-      global->getType()->isCUDADeviceBuiltinTextureType()) {
-    llvm_unreachable("NYI");
-  }
-
-  return !langOpts.CUDAIsDevice || global->hasAttr<CUDADeviceAttr>();
+  return !langOpts.CUDAIsDevice || global->hasAttr<CUDADeviceAttr>() ||
+          global->hasAttr<CUDAConstantAttr>() ||
+          global->hasAttr<CUDASharedAttr>() ||
+          global->getType()->isCUDADeviceBuiltinSurfaceType() ||
+          global->getType()->isCUDADeviceBuiltinTextureType();
 }
 
 void CIRGenModule::emitGlobal(GlobalDecl gd) {
@@ -1452,8 +1448,9 @@ void CIRGenModule::emitGlobalVarDefinition(const clang::VarDecl *d,
     emitter->finalize(gv);
 
   // TODO(cir): If it is safe to mark the global 'constant', do so now.
-  gv.setConstant(!needsGlobalCtor && !needsGlobalDtor &&
-                 isTypeConstant(d->getType(), true, true));
+  gv.setConstant((d->hasAttr<CUDAConstantAttr>() && langOpts.CUDAIsDevice) ||
+                 (!needsGlobalCtor && !needsGlobalDtor &&
+                 isTypeConstant(d->getType(), true, true)));
 
   // If it is in a read-only section, mark it 'constant'.
   if (const SectionAttr *sa = d->getAttr<SectionAttr>())
