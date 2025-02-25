@@ -4029,14 +4029,19 @@ LangAS CIRGenModule::getGlobalVarAddressSpace(const VarDecl *D) {
       (!D || D->getType().getAddressSpace() == LangAS::Default))
     llvm_unreachable("NYI");
 
-  if (langOpts.CUDA && langOpts.CUDAIsDevice) {
-    if (D) {
-      if (D->hasAttr<CUDADeviceAttr>())
-        return LangAS::cuda_device;
-      llvm_unreachable("NYI");
+    if (langOpts.CUDA && langOpts.CUDAIsDevice) {
+      if (D) {
+        if (D->hasAttr<CUDAConstantAttr>())
+          return LangAS::cuda_constant;
+        if (D->hasAttr<CUDASharedAttr>())
+          return LangAS::cuda_shared;
+        if (D->hasAttr<CUDADeviceAttr>())
+          return LangAS::cuda_device;
+        if (D->getType().isConstQualified())
+          return LangAS::cuda_constant;
+      }
+      return LangAS::cuda_device;
     }
-    return LangAS::cuda_device;
-  }
 
   if (langOpts.OpenMP)
     llvm_unreachable("NYI");
