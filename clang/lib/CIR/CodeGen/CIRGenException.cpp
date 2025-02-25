@@ -284,9 +284,6 @@ void CIRGenFunction::emitEHResumeBlock(bool isCleanup,
 
 mlir::Block *CIRGenFunction::getEHResumeBlock(bool isCleanup,
                                               cir::TryOp tryOp) {
-
-  if (ehResumeBlock)
-    return ehResumeBlock;
   // Setup unwind.
   assert(tryOp && "expected available cir.try");
   ehResumeBlock = tryOp.getCatchUnwindEntryBlock();
