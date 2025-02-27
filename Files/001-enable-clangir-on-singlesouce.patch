@@ -18,8 +18,8 @@ index 21cae5c2..6c8e4641 100644
 +if (TEST_SUITE_CLANGIR_ENABLE)
 +  message(STATUS "Enabling ClangIR for SingleSource tests")
 +  add_compile_options(
-+    $<$<COMPILE_LANGUAGE:C>:-fclangir-enable>
-+    $<$<COMPILE_LANGUAGE:CXX>:-fclangir-enable>
++    $<$<COMPILE_LANGUAGE:C>:-fclangir>
++    $<$<COMPILE_LANGUAGE:CXX>:-fclangir>
 +  )
 +endif()
 +
