@@ -179,8 +179,13 @@ public:
     if (!mlirType)
       return mlir::LogicalResult::failure();
 
-    auto memreftype = mlir::MemRefType::get({}, mlirType);
-
+    auto memreftype = mlir::dyn_cast<mlir::MemRefType>(mlirType);
+    if (mlir::isa<cir::ArrayType>(adaptor.getAllocaType())) {
+      if (!memreftype)
+        return mlir::LogicalResult::failure();
+    } else {
+      memreftype = mlir::MemRefType::get({}, mlirType);
+    }
     rewriter.replaceOpWithNewOp<mlir::memref::AllocaOp>(op, memreftype,
                                                         op.getAlignmentAttr());
     return mlir::LogicalResult::success();
