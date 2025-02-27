@@ -13,7 +13,9 @@
 #define CLANG_CIR_LOWERTOLLVM_H
 
 #include "mlir/Pass/Pass.h"
+#include "mlir/Transforms/DialectConversion.h"
 
+#include <functional>
 #include <memory>
 
 namespace llvm {
@@ -33,7 +35,9 @@ std::unique_ptr<llvm::Module> lowerDirectlyFromCIRToLLVMIR(
     mlir::ModuleOp theModule, llvm::LLVMContext &llvmCtx,
     bool disableVerifier = false, bool disableCCLowering = false,
     bool disableDebugInfo = false);
-}
+void runAtStartOfConvertCIRToLLVMPass(
+    std::function<void(mlir::ConversionTarget)>);
+} // namespace direct
 
 // Lower directly from pristine CIR to LLVMIR.
 std::unique_ptr<llvm::Module>

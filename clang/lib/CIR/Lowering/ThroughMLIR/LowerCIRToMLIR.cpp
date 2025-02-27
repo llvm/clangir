@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <functional>
+
 #include "LowerToMLIRHelpers.h"
 #include "mlir/Conversion/AffineToStandard/AffineToStandard.h"
 #include "mlir/Conversion/ArithToLLVM/ArithToLLVM.h"
@@ -27,10 +29,17 @@
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/MemRef/Utils/MemRefUtils.h"
+#include "mlir/Dialect/NamedTuple/IR/NamedTuple.h"
+#include "mlir/Dialect/NamedTuple/IR/NamedTupleDialect.h"
+#include "mlir/Dialect/NamedTuple/IR/NamedTupleTypes.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/SCF/Transforms/Passes.h"
 #include "mlir/Dialect/Vector/IR/VectorOps.h"
+#include "mlir/IR/Attributes.h"
+#include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinDialect.h"
+#include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/Region.h"
@@ -45,11 +54,13 @@
 #include "mlir/Target/LLVMIR/Dialect/OpenMP/OpenMPToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Export.h"
 #include "mlir/Transforms/DialectConversion.h"
+#include "clang/CIR/Dialect/IR/CIRDataLayout.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/LowerToMLIR.h"
 #include "clang/CIR/LoweringHelpers.h"
 #include "clang/CIR/Passes.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Sequence.h"
 #include "llvm/ADT/SmallVector.h"
@@ -60,6 +71,55 @@ using namespace cir;
 using namespace llvm;
 
 namespace cir {
+
+/// Given a type convertor and a data layout, convert the given type to a type
+/// that is suitable for memory operations. For example, this can be used to
+/// lower cir.bool accesses to i8.
+static mlir::Type convertTypeForMemory(const mlir::TypeConverter &converter,
+                                       mlir::Type type) {
+  // TODO(cir): Handle other types similarly to clang's codegen
+  // convertTypeForMemory
+  if (isa<cir::BoolType>(type)) {
+    // TODO: Use datalayout to get the size of bool
+    return mlir::IntegerType::get(type.getContext(), 8);
+  }
+
+  return converter.convertType(type);
+}
+
+// Create a reference to an MLIR type. This creates a memref of the element type
+// with the requested shape except when it is a tensor because it represents a
+// !cir.array which has to be blessed as a memref of the tensor element type
+// instead.
+static mlir::MemRefType convertToReferenceType(ArrayRef<int64_t> shape,
+                                               mlir::Type elementType) {
+  if (auto t = mlir::dyn_cast<mlir::TensorType>(elementType))
+    return mlir::MemRefType::get(t.getShape(), t.getElementType());
+  return mlir::MemRefType::get(shape, elementType);
+}
+
+// Lower a cir.array either as a memref when it has a reference semantics or as
+// a tensor when it has a value semantics (like inside a struct or union).
+mlir::Type lowerArrayType(cir::ArrayType type, bool hasValueSemantics,
+                          mlir::TypeConverter &converter) {
+  SmallVector<int64_t> shape;
+  mlir::Type curType = type;
+  while (auto arrayType = dyn_cast<cir::ArrayType>(curType)) {
+    shape.push_back(arrayType.getSize());
+    curType = arrayType.getEltType();
+  }
+  auto elementType = convertTypeForMemory(converter, curType);
+  // FIXME: The element type might not be converted.
+  if (!elementType)
+    return nullptr;
+  // Arrays in C/C++ have a value  semantics when in a struct, so use
+  // a tensor.
+  // TODO: tensors cannot contain most built-in types like memref.
+  if (hasValueSemantics)
+    return mlir::RankedTensorType::get(shape, elementType);
+  // Otherwise, go to a memref.
+  return convertToReferenceType(shape, elementType);
+}
 
 class CIRReturnLowering : public mlir::OpConversionPattern<cir::ReturnOp> {
 public:
@@ -82,6 +142,7 @@ struct ConvertCIRToMLIRPass
                     mlir::affine::AffineDialect, mlir::memref::MemRefDialect,
                     mlir::arith::ArithDialect, mlir::cf::ControlFlowDialect,
                     mlir::scf::SCFDialect, mlir::math::MathDialect,
+                    mlir::named_tuple::NamedTupleDialect,
                     mlir::vector::VectorDialect>();
   }
   void runOnOperation() final;
@@ -91,6 +152,8 @@ struct ConvertCIRToMLIRPass
   }
 
   StringRef getArgument() const override { return "cir-to-mlir"; }
+
+  inline static std::function<void(mlir::ConversionTarget)> runAtStartHook;
 };
 
 class CIRCallOpLowering : public mlir::OpConversionPattern<cir::CallOp> {
@@ -109,21 +172,6 @@ public:
     return mlir::LogicalResult::success();
   }
 };
-
-/// Given a type convertor and a data layout, convert the given type to a type
-/// that is suitable for memory operations. For example, this can be used to
-/// lower cir.bool accesses to i8.
-static mlir::Type convertTypeForMemory(const mlir::TypeConverter &converter,
-                                       mlir::Type type) {
-  // TODO(cir): Handle other types similarly to clang's codegen
-  // convertTypeForMemory
-  if (isa<cir::BoolType>(type)) {
-    // TODO: Use datalayout to get the size of bool
-    return mlir::IntegerType::get(type.getContext(), 8);
-  }
-
-  return converter.convertType(type);
-}
 
 /// Emits the value from memory as expected by its users. Should be called when
 /// the memory represetnation of a CIR type is not equal to its scalar
@@ -169,11 +217,11 @@ public:
     mlir::Type mlirType =
         convertTypeForMemory(*getTypeConverter(), adaptor.getAllocaType());
 
-    // FIXME: Some types can not be converted yet (e.g. struct)
+    // FIXME: Some types can not be converted yet
     if (!mlirType)
       return mlir::LogicalResult::failure();
 
-    auto memreftype = mlir::MemRefType::get({}, mlirType);
+    auto memreftype = convertToReferenceType({}, mlirType);
     rewriter.replaceOpWithNewOp<mlir::memref::AllocaOp>(op, memreftype,
                                                         op.getAlignmentAttr());
     return mlir::LogicalResult::success();
@@ -189,9 +237,11 @@ static bool findBaseAndIndices(mlir::Value addr, mlir::Value &base,
   while (mlir::Operation *addrOp = addr.getDefiningOp()) {
     if (!isa<mlir::memref::ReinterpretCastOp>(addrOp))
       break;
-    indices.push_back(addrOp->getOperand(1));
     addr = addrOp->getOperand(0);
     eraseList.push_back(addrOp);
+    // If there is another operand, assume it is the lowered index
+    if (addrOp->getNumOperands() == 2)
+      indices.push_back(addrOp->getOperand(1));
   }
   base = addr;
   if (indices.size() == 0)
@@ -267,6 +317,70 @@ public:
     } else
       rewriter.replaceOpWithNewOp<mlir::memref::StoreOp>(op, value,
                                                          adaptor.getAddr());
+    return mlir::LogicalResult::success();
+  }
+};
+
+// Lower cir.get_member by aliasing the result memref to the member inside the
+// flattened structure as a byte array. For example
+//
+// clang-format off
+//     %5 = cir.get_member %1[1] {name = "b"} : !cir.ptr<!named_tuple.named_tuple<"s", [i32, f64, i8]>> -> !cir.ptr<!cir.double>
+//
+// is lowered to something like
+//
+// %1 = named_tuple.cast %alloca_0 : memref<!named_tuple.named_tuple<"s", [i32, f64, i8]>> to memref<24xi8>
+// %c8 = arith.constant 8 : index
+// %view_1 = memref.view %1[%c8][] : memref<24xi8> to memref<f64>
+// clang-format on
+class CIRGetMemberOpLowering
+    : public mlir::OpConversionPattern<cir::GetMemberOp> {
+  cir::CIRDataLayout const &dataLayout;
+
+public:
+  using mlir::OpConversionPattern<cir::GetMemberOp>::OpConversionPattern;
+
+  CIRGetMemberOpLowering(const mlir::TypeConverter &typeConverter,
+                         mlir::MLIRContext *context,
+                         cir::CIRDataLayout const &dataLayout)
+      : OpConversionPattern{typeConverter, context}, dataLayout{dataLayout} {}
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::GetMemberOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto pointeeType = op.getAddrTy().getPointee();
+    if (!mlir::isa<cir::StructType>(pointeeType))
+      op.emitError("GetMemberOp only works on pointer to cir::StructType");
+    auto structType = mlir::cast<cir::StructType>(pointeeType);
+    // For now, just rely on the datalayout of the high-level type since the
+    // datalayout of low-level type is not implemented yet. But since C++ is a
+    // concrete datalayout, both datalayouts are the same.
+    auto *structLayout = dataLayout.getStructLayout(structType);
+
+    // Alias the memref of struct to a memref of an i8 array of the same size.
+    const std::array linearizedSize{
+        static_cast<std::int64_t>(dataLayout.getTypeStoreSize(structType))};
+    auto flattenedMemRef = mlir::MemRefType::get(
+        linearizedSize, mlir::IntegerType::get(getContext(), 8));
+    // Use a special cast because normal memref cast cannot do such an extreme
+    // cast. Could be an UnrealizedCastOp instead?
+    auto bytesMemRef = rewriter.create<mlir::named_tuple::CastOp>(
+        op.getLoc(), mlir::TypeRange{flattenedMemRef},
+        mlir::ValueRange{adaptor.getAddr()});
+
+    auto pointerToMemberTypeToLower = op.getResultTy();
+    // The lowered type of the cir.ptr to the cir.struct member.
+    auto memrefToLoweredMemberType =
+        typeConverter->convertType(pointerToMemberTypeToLower);
+    // Synthesize the byte access to right lowered type.
+    auto memberIndex = op.getIndex();
+    auto offset = structLayout->getElementOffset(memberIndex);
+    auto byteShift =
+        rewriter.create<mlir::arith::ConstantIndexOp>(op.getLoc(), offset);
+    // Create the memref pointing to the flattened member location.
+    rewriter.replaceOpWithNewOp<mlir::memref::ViewOp>(
+        op, memrefToLoweredMemberType, bytesMemRef, byteShift,
+        mlir::ValueRange{});
     return mlir::LogicalResult::success();
   }
 };
@@ -975,7 +1089,7 @@ public:
       return mlir::failure();
     auto memrefType = dyn_cast<mlir::MemRefType>(convertedType);
     if (!memrefType)
-      memrefType = mlir::MemRefType::get({}, convertedType);
+      memrefType = convertToReferenceType({}, convertedType);
     // Add an optional alignment to the global memref.
     mlir::IntegerAttr memrefAlignment =
         op.getAlignment()
@@ -1178,6 +1292,23 @@ public:
           op, newDstType, src, 0, std::nullopt, std::nullopt);
       return mlir::success();
     }
+    case CIR::bitcast: {
+      // clang-format off
+      // %7 = cir.cast(bitcast, %6 : !cir.ptr<!s32i>), !cir.ptr<!cir.array<!s32i x 8192>>
+      // Is lowered as
+      // memref<i32> → memref.reinterpret_cast → memref<8192xi32>
+      // clang-format on
+      auto newDstType = convertTy(dstType);
+      if (!(mlir::isa<mlir::MemRefType>(adaptor.getSrc().getType()) &&
+            mlir::isa<mlir::MemRefType>(newDstType)))
+        return op.emitError() << "NYI bitcast from " << op.getSrc().getType()
+                              << " to " << dstType;
+      auto dstMR = mlir::cast<mlir::MemRefType>(newDstType);
+      auto [strides, offset] = dstMR.getStridesAndOffset();
+      rewriter.replaceOpWithNewOp<mlir::memref::ReinterpretCastOp>(
+          op, dstMR, src, offset, dstMR.getShape(), strides);
+      return mlir::success();
+    }
     case CIR::int_to_bool: {
       auto zero = rewriter.create<cir::ConstantOp>(
           src.getLoc(), op.getSrc().getType(),
@@ -1289,7 +1420,7 @@ public:
 
   // Return true if all the PtrStrideOp users are load, store or cast
   // with array_to_ptrdecay kind and they are in the same block.
-  inline bool isLoadStoreOrCastArrayToPtrProduer(cir::PtrStrideOp op) const {
+  inline bool isLoadStoreOrCastArrayToPtrProducer(cir::PtrStrideOp op) const {
     if (op.use_empty())
       return false;
     for (auto *user : op->getUsers()) {
@@ -1323,7 +1454,7 @@ public:
                   mlir::ConversionPatternRewriter &rewriter) const override {
     if (!isCastArrayToPtrConsumer(op))
       return mlir::failure();
-    if (!isLoadStoreOrCastArrayToPtrProduer(op))
+    if (!isLoadStoreOrCastArrayToPtrProducer(op))
       return mlir::failure();
     auto baseOp = adaptor.getBase().getDefiningOp();
     if (!baseOp)
@@ -1347,7 +1478,8 @@ public:
 };
 
 void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
-                                         mlir::TypeConverter &converter) {
+                                         mlir::TypeConverter &converter,
+                                         cir::CIRDataLayout &cirDataLayout) {
   patterns.add<CIRReturnLowering, CIRBrOpLowering>(patterns.getContext());
 
   patterns.add<
@@ -1366,18 +1498,20 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
       CIRIfOpLowering, CIRVectorCreateLowering, CIRVectorInsertLowering,
       CIRVectorExtractLowering, CIRVectorCmpOpLowering>(converter,
                                                         patterns.getContext());
+  patterns.add<CIRGetMemberOpLowering>(converter, patterns.getContext(),
+                                       cirDataLayout);
 }
 
-static mlir::TypeConverter prepareTypeConverter() {
+mlir::TypeConverter prepareTypeConverter(mlir::DataLayout &dataLayout) {
   mlir::TypeConverter converter;
   converter.addConversion([&](cir::PointerType type) -> mlir::Type {
-    auto ty = convertTypeForMemory(converter, type.getPointee());
-    // FIXME: The pointee type might not be converted (e.g. struct)
+    auto ty = convertTypeForMemory(
+        converter, type.getPointee()); // FIXME: The pointee type might not be
+                                       // converted (e.g. struct)
     if (!ty)
       return nullptr;
-    if (isa<cir::ArrayType>(type.getPointee()))
-      return ty;
-    return mlir::MemRefType::get({}, ty);
+    // Each level of pointer becomes a level of memref
+    return convertToReferenceType({}, ty);
   });
   converter.addConversion(
       [&](mlir::IntegerType type) -> mlir::Type { return type; });
@@ -1415,21 +1549,39 @@ static mlir::TypeConverter prepareTypeConverter() {
     return mlir::BFloat16Type::get(type.getContext());
   });
   converter.addConversion([&](cir::ArrayType type) -> mlir::Type {
-    SmallVector<int64_t> shape;
-    mlir::Type curType = type;
-    while (auto arrayType = dyn_cast<cir::ArrayType>(curType)) {
-      shape.push_back(arrayType.getSize());
-      curType = arrayType.getEltType();
-    }
-    auto elementType = converter.convertType(curType);
-    // FIXME: The element type might not be converted (e.g. struct)
-    if (!elementType)
-      return nullptr;
-    return mlir::MemRefType::get(shape, elementType);
+    // Assume we are in a class/struct/union context with value semantics,
+    // so lower it as a tensor to provide value semantics.
+    return lowerArrayType(type, /* hasValueSemantics */ true, converter);
   });
   converter.addConversion([&](cir::VectorType type) -> mlir::Type {
     auto ty = converter.convertType(type.getEltType());
     return mlir::VectorType::get(type.getSize(), ty);
+  });
+  converter.addConversion([&](cir::StructType type) -> mlir::Type {
+    // FIXME(cir): create separate unions, struct, and classes types.
+    // Convert struct members.
+    llvm::SmallVector<mlir::Type> mlirMembers;
+    switch (type.getKind()) {
+    case cir::StructType::Class:
+      // TODO(cir): This should be properly validated.
+    case cir::StructType::Struct:
+      for (auto ty : type.getMembers())
+        mlirMembers.push_back(converter.convertType(ty));
+      break;
+    // Unions are lowered as only the largest member.
+    case cir::StructType::Union: {
+      auto largestMember = type.getLargestMember(dataLayout);
+      if (largestMember)
+        mlirMembers.push_back(converter.convertType(largestMember));
+      break;
+    }
+    }
+
+    // FIXME(cir): all the following has to be somehow kept. With some
+    // attributes?
+    // Struct has a name: lower as an identified struct.
+    return mlir::named_tuple::NamedTupleType::get(
+        type.getContext(), type.getName().strref(), mlirMembers);
   });
 
   return converter;
@@ -1437,25 +1589,36 @@ static mlir::TypeConverter prepareTypeConverter() {
 
 void ConvertCIRToMLIRPass::runOnOperation() {
   auto module = getOperation();
-
-  auto converter = prepareTypeConverter();
+  mlir::DataLayout dataLayout{module};
+  cir::CIRDataLayout cirDataLayout{module};
+  auto converter = prepareTypeConverter(dataLayout);
 
   mlir::RewritePatternSet patterns(&getContext());
 
   populateCIRLoopToSCFConversionPatterns(patterns, converter);
-  populateCIRToMLIRConversionPatterns(patterns, converter);
+  populateCIRToMLIRConversionPatterns(patterns, converter, cirDataLayout);
 
   mlir::ConversionTarget target(getContext());
   target.addLegalOp<mlir::ModuleOp>();
-  target
-      .addLegalDialect<mlir::affine::AffineDialect, mlir::arith::ArithDialect,
-                       mlir::memref::MemRefDialect, mlir::func::FuncDialect,
-                       mlir::scf::SCFDialect, mlir::cf::ControlFlowDialect,
-                       mlir::math::MathDialect, mlir::vector::VectorDialect>();
+  target.addLegalDialect<mlir::affine::AffineDialect, mlir::arith::ArithDialect,
+                         mlir::memref::MemRefDialect, mlir::func::FuncDialect,
+                         mlir::scf::SCFDialect, mlir::cf::ControlFlowDialect,
+                         mlir::math::MathDialect, mlir::vector::VectorDialect,
+                         mlir::named_tuple::NamedTupleDialect>();
   target.addIllegalDialect<cir::CIRDialect>();
+
+  if (runAtStartHook)
+    runAtStartHook(target);
 
   if (failed(applyPartialConversion(module, target, std::move(patterns))))
     signalPassFailure();
+}
+
+/// Set a hook to be called just before applying the dialect conversion so other
+/// dialects or patterns can be added
+void runAtStartOfConvertCIRToMLIRPass(
+    std::function<void(mlir::ConversionTarget)> hook) {
+  ConvertCIRToMLIRPass::runAtStartHook = std::move(hook);
 }
 
 std::unique_ptr<llvm::Module>
