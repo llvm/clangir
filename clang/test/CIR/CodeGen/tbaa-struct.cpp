@@ -8,6 +8,8 @@
 // RUN: FileCheck --check-prefix=CHECK --input-file=%t.ll %s
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm %s -o %t.ll -O1 -disable-llvm-passes
 // RUN: FileCheck --check-prefixes=PATH,OLD-PATH --input-file=%t.ll %s
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm %s -o %t.ll -O1 -disable-llvm-passes -new-struct-path-tbaa
+// RUN: FileCheck --check-prefixes=PATH,NEW-PATH --input-file=%t.ll %s
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm %s -o %t.ll -O1 -disable-llvm-passes -relaxed-aliasing
 // RUN: FileCheck --check-prefix=NO-TBAA --input-file=%t.ll %s
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm %s -o %t.ll -O0 -disable-llvm-passes
@@ -18,24 +20,24 @@
 // CIR: #tbaa[[CHAR:.*]] = #cir.tbaa_omnipotent_char
 // CIR: #tbaa[[INT:.*]] = #cir.tbaa_scalar<id = "int", type = !s32i>
 // CIR: #tbaa[[SHORT:.*]] = #cir.tbaa_scalar<id = "short", type = !s16i>
-// CIR: #tbaa[[STRUCT_six:.*]] = #cir.tbaa_struct<id = "_ZTS3six", members = {<#tbaa[[CHAR]], 0>, <#tbaa[[CHAR]], 4>, <#tbaa[[CHAR]], 5>}>
-// CIR: #tbaa[[STRUCT_StructA:.*]] = #cir.tbaa_struct<id = "_ZTS7StructA", members = {<#tbaa[[SHORT]], 0>, <#tbaa[[INT]], 4>, <#tbaa[[SHORT]], 8>, <#tbaa[[INT]], 12>}>
-// CIR: #tbaa[[STRUCT_StructS:.*]] = #cir.tbaa_struct<id = "_ZTS7StructS", members = {<#tbaa[[SHORT]], 0>, <#tbaa[[INT]], 4>}>
-// CIR: #tbaa[[STRUCT_StructS2:.*]] = #cir.tbaa_struct<id = "_ZTS8StructS2", members = {<#tbaa[[SHORT]], 0>, <#tbaa[[INT]], 4>}>
-// CIR: #tbaa[[TAG_six_b:.*]] = #cir.tbaa_tag<base = #tbaa[[STRUCT_six]], access = #tbaa[[CHAR]], offset = 4>
+// CIR: #tbaa[[STRUCT_StructA:.*]] = #cir.tbaa_struct<id = "_ZTS7StructA", type = !ty_StructA, members = {<#tbaa[[SHORT]], 0>, <#tbaa[[INT]], 4>, <#tbaa[[SHORT]], 8>, <#tbaa[[INT]], 12>}>
+// CIR: #tbaa[[STRUCT_StructS:.*]] = #cir.tbaa_struct<id = "_ZTS7StructS", type = !ty_StructS, members = {<#tbaa[[SHORT]], 0>, <#tbaa[[INT]], 4>}>
+// CIR: #tbaa[[STRUCT_StructS2:.*]] = #cir.tbaa_struct<id = "_ZTS8StructS2", type = !ty_StructS2_, members = {<#tbaa[[SHORT]], 0>, <#tbaa[[INT]], 4>}>
+// CIR: #tbaa[[STRUCT_six:.*]] = #cir.tbaa_struct<id = "_ZTS3six", type = !ty_six, members = {<#tbaa[[CHAR]], 0>, <#tbaa[[CHAR]], 4>, <#tbaa[[CHAR]], 5>}>
 // CIR: #tbaa[[TAG_StructA_f32:.*]] = #cir.tbaa_tag<base = #tbaa[[STRUCT_StructA]], access = #tbaa[[INT]], offset = 4>
 // CIR: #tbaa[[TAG_StructA_f16:.*]] = #cir.tbaa_tag<base = #tbaa[[STRUCT_StructA]], access = #tbaa[[SHORT]], offset = 0>
 // CIR: #tbaa[[TAG_StructS_f32:.*]] = #cir.tbaa_tag<base = #tbaa[[STRUCT_StructS]], access = #tbaa[[INT]], offset = 4>
 // CIR: #tbaa[[TAG_StructS_f16:.*]] = #cir.tbaa_tag<base = #tbaa[[STRUCT_StructS]], access = #tbaa[[SHORT]], offset = 0>
 // CIR: #tbaa[[TAG_StructS2_f32:.*]] = #cir.tbaa_tag<base = #tbaa[[STRUCT_StructS2]], access = #tbaa[[INT]], offset = 4>
 // CIR: #tbaa[[TAG_StructS2_f16:.*]] = #cir.tbaa_tag<base = #tbaa[[STRUCT_StructS2]], access = #tbaa[[SHORT]], offset = 0>
-// CIR: #tbaa[[STRUCT_StructB:.*]] = #cir.tbaa_struct<id = "_ZTS7StructB", members = {<#tbaa[[SHORT]], 0>, <#tbaa[[STRUCT_StructA]], 4>, <#tbaa[[INT]], 20>}>
+// CIR: #tbaa[[TAG_six_b:.*]] = #cir.tbaa_tag<base = #tbaa[[STRUCT_six]], access = #tbaa[[CHAR]], offset = 4>
+// CIR: #tbaa[[STRUCT_StructB:.*]] = #cir.tbaa_struct<id = "_ZTS7StructB", type = !ty_StructB, members = {<#tbaa[[SHORT]], 0>, <#tbaa[[STRUCT_StructA]], 4>, <#tbaa[[INT]], 20>}>
 // CIR: #tbaa[[TAG_StructB_a_f32:.*]] = #cir.tbaa_tag<base = #tbaa[[STRUCT_StructB]], access = #tbaa[[INT]], offset = 8>
 // CIR: #tbaa[[TAG_StructB_a_f16:.*]] = #cir.tbaa_tag<base = #tbaa[[STRUCT_StructB]], access = #tbaa[[SHORT]], offset = 4>
 // CIR: #tbaa[[TAG_StructB_f32:.*]] = #cir.tbaa_tag<base = #tbaa[[STRUCT_StructB]], access = #tbaa[[INT]], offset = 20>
 // CIR: #tbaa[[TAG_StructB_a_f32_2:.*]] = #cir.tbaa_tag<base = #tbaa[[STRUCT_StructB]], access = #tbaa[[INT]], offset = 16>
-// CIR: #tbaa[[STRUCT_StructC:.*]] = #cir.tbaa_struct<id = "_ZTS7StructC", members = {<#tbaa[[SHORT]], 0>, <#tbaa[[STRUCT_StructB]], 4>, <#tbaa[[INT]], 28>}>
-// CIR: #tbaa[[STRUCT_StructD:.*]] = #cir.tbaa_struct<id = "_ZTS7StructD", members = {<#tbaa[[SHORT]], 0>, <#tbaa[[STRUCT_StructB]], 4>, <#tbaa[[INT]], 28>, <#tbaa[[CHAR]], 32>}>
+// CIR: #tbaa[[STRUCT_StructC:.*]] = #cir.tbaa_struct<id = "_ZTS7StructC", type = !ty_StructC, members = {<#tbaa[[SHORT]], 0>, <#tbaa[[STRUCT_StructB]], 4>, <#tbaa[[INT]], 28>}>
+// CIR: #tbaa[[STRUCT_StructD:.*]] = #cir.tbaa_struct<id = "_ZTS7StructD", type = !ty_StructD, members = {<#tbaa[[SHORT]], 0>, <#tbaa[[STRUCT_StructB]], 4>, <#tbaa[[INT]], 28>, <#tbaa[[CHAR]], 32>}>
 // CIR: #tbaa[[TAG_StructC_b_a_f32:.*]] = #cir.tbaa_tag<base = #tbaa[[STRUCT_StructC]], access = #tbaa[[INT]], offset = 12>
 // CIR: #tbaa[[TAG_StructD_b_a_f32:.*]] = #cir.tbaa_tag<base = #tbaa[[STRUCT_StructD]], access = #tbaa[[INT]], offset = 12>
 
@@ -402,3 +404,29 @@ uint32_t g15(StructS *S, StructS3 *S3, uint64_t count) {
 // OLD-PATH: [[TYPE_D]] = !{!"_ZTS7StructD", [[TYPE_SHORT]], i64 0, [[TYPE_B]], i64 4, [[TYPE_INT]], i64 28, [[TYPE_CHAR]], i64 32}
 // OLD-PATH: [[TAG_six_b]] = !{[[TYPE_six:!.*]], [[TYPE_CHAR]], i64 4}
 // OLD-PATH: [[TYPE_six]] = !{!"_ZTS3six", [[TYPE_CHAR]], i64 0, [[TYPE_CHAR]], i64 4, [[TYPE_CHAR]], i64 5}
+
+// NEW-PATH-DAG: [[ROOT:!.*]] = !{!"Simple C/C++ TBAA"}
+// NEW-PATH-DAG: [[TYPE_char:!.*]] = !{[[ROOT]], i64 1, !"omnipotent char"}
+// NEW-PATH-DAG: [[TYPE_short:!.*]] = !{[[TYPE_char]], i64 2, !"short"}
+// NEW-PATH-DAG: [[TYPE_int:!.*]] = !{[[TYPE_char]], i64 4, !"int"}
+// NEW-PATH-DAG: [[TAG_i32:!.*]] = !{[[TYPE_int]], [[TYPE_int]], i64 0, i64 4}
+// NEW-PATH-DAG: [[TYPE_A:!.*]] = !{[[TYPE_char]], i64 16, !"_ZTS7StructA", [[TYPE_short]], i64 0, i64 2, [[TYPE_int]], i64 4, i64 4, [[TYPE_short]], i64 8, i64 2, [[TYPE_int]], i64 12, i64 4}
+// NEW-PATH-DAG: [[TAG_A_f16]] = !{[[TYPE_A]], [[TYPE_short]], i64 0, i64 2}
+// NEW-PATH-DAG: [[TAG_A_f32]] = !{[[TYPE_A]], [[TYPE_int]], i64 4, i64 4}
+// NEW-PATH-DAG: [[TYPE_B:!.*]] = !{[[TYPE_char]], i64 24, !"_ZTS7StructB", [[TYPE_short]], i64 0, i64 2, [[TYPE_A]], i64 4, i64 16, [[TYPE_int]], i64 20, i64 4}
+// NEW-PATH-DAG: [[TAG_B_a_f16]] = !{[[TYPE_B]], [[TYPE_short]], i64 4, i64 2}
+// NEW-PATH-DAG: [[TAG_B_a_f32]] = !{[[TYPE_B]], [[TYPE_int]], i64 8, i64 4}
+// NEW-PATH-DAG: [[TAG_B_f32]] = !{[[TYPE_B]], [[TYPE_int]], i64 20, i64 4}
+// NEW-PATH-DAG: [[TAG_B_a_f32_2]] = !{[[TYPE_B]], [[TYPE_int]], i64 16, i64 4}
+// NEW-PATH-DAG: [[TYPE_S:!.*]] = !{[[TYPE_char]], i64 8, !"_ZTS7StructS", [[TYPE_short]], i64 0, i64 2, [[TYPE_int]], i64 4, i64 4}
+// NEW-PATH-DAG: [[TAG_S_f16]] = !{[[TYPE_S]], [[TYPE_short]], i64 0, i64 2}
+// NEW-PATH-DAG: [[TAG_S_f32]] = !{[[TYPE_S]], [[TYPE_int]], i64 4, i64 4}
+// NEW-PATH-DAG: [[TYPE_S2:!.*]] = !{[[TYPE_char]], i64 8, !"_ZTS8StructS2", [[TYPE_short]], i64 0, i64 2, [[TYPE_int]], i64 4, i64 4}
+// NEW-PATH-DAG: [[TAG_S2_f16]] = !{[[TYPE_S2]], [[TYPE_short]], i64 0, i64 2}
+// NEW-PATH-DAG: [[TAG_S2_f32]] = !{[[TYPE_S2]], [[TYPE_int]], i64 4, i64 4}
+// NEW-PATH-DAG: [[TYPE_C:!.*]] = !{[[TYPE_char]], i64 32, !"_ZTS7StructC", [[TYPE_short]], i64 0, i64 2, [[TYPE_B]], i64 4, i64 24, [[TYPE_int]], i64 28, i64 4}
+// NEW-PATH-DAG: [[TAG_C_b_a_f32]] = !{[[TYPE_C]], [[TYPE_int]], i64 12, i64 4}
+// NEW-PATH-DAG: [[TYPE_D:!.*]] = !{[[TYPE_char]], i64 36, !"_ZTS7StructD", [[TYPE_short]], i64 0, i64 2, [[TYPE_B]], i64 4, i64 24, [[TYPE_int]], i64 28, i64 4, [[TYPE_char]], i64 32, i64 1}
+// NEW-PATH-DAG: [[TAG_D_b_a_f32]] = !{[[TYPE_D]], [[TYPE_int]], i64 12, i64 4}
+// NEW-PATH-DAG: [[TYPE_six:!.*]] = !{[[TYPE_char]], i64 6, !"_ZTS3six", [[TYPE_char]], i64 0, i64 1, [[TYPE_char]], i64 4, i64 1, [[TYPE_char]], i64 5, i64 1}
+// NEW-PATH-DAG: [[TAG_six_b]] = !{[[TYPE_six]], [[TYPE_char]], i64 4, i64 1}
