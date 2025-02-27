@@ -35,7 +35,7 @@ So far, we have tested ClangIR **only against the SingleSource** tests from this
 
 A table detailing ClangIR's status for each tests can be found [here](../Standalone/single-source-tests-table.md).
 
-Currently, 51% (935/1824) of the SingleSource tests are passing. A good way to start contributing to ClangIR is to pick one of the `NOEXE` of `FAIL` tests and try to patch it!
+Currently, 88% (1613/1832) of the SingleSource tests are passing. A good way to start contributing to ClangIR is to pick one of the `NOEXE` of `FAIL` tests and try to patch it!
 
 #### How to Run
 
