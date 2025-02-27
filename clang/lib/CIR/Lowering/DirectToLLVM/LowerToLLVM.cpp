@@ -3049,9 +3049,7 @@ mlir::Value createLLVMBitOp(mlir::Location loc,
                                    operand.getType(), operand);
   }
 
-  return getLLVMIntCast(
-      rewriter, op->getResult(0), mlir::cast<mlir::IntegerType>(resultTy),
-      /*isUnsigned=*/true, operandIntTy.getWidth(), resultIntTy.getWidth());
+  return op->getResult(0);
 }
 
 mlir::LogicalResult CIRToLLVMBitClrsbOpLowering::matchAndRewrite(
@@ -3178,6 +3176,17 @@ mlir::LogicalResult CIRToLLVMBitPopcountOpLowering::matchAndRewrite(
   auto llvmOp =
       createLLVMBitOp(op.getLoc(), "llvm.ctpop", resTy, adaptor.getInput(),
                       /*poisonZeroInputFlag=*/std::nullopt, rewriter);
+  rewriter.replaceOp(op, llvmOp);
+  return mlir::LogicalResult::success();
+}
+
+mlir::LogicalResult CIRToLLVMBitLzcntOpLowering::matchAndRewrite(
+    cir::BitLzcntOp op, OpAdaptor adaptor,
+    mlir::ConversionPatternRewriter &rewriter) const {
+  auto resTy = getTypeConverter()->convertType(op.getType());
+  auto llvmOp =
+      createLLVMBitOp(op.getLoc(), "llvm.ctlz", resTy, adaptor.getInput(),
+                      /*poisonZeroInputFlag=*/false, rewriter);
   rewriter.replaceOp(op, llvmOp);
   return mlir::LogicalResult::success();
 }
@@ -4211,6 +4220,7 @@ void populateCIRToLLVMConversionPatterns(
       CIRToLLVMBitFfsOpLowering,
       CIRToLLVMBitParityOpLowering,
       CIRToLLVMBitPopcountOpLowering,
+      CIRToLLVMBitLzcntOpLowering,
       CIRToLLVMBrCondOpLowering,
       CIRToLLVMBrOpLowering,
       CIRToLLVMByteswapOpLowering,
