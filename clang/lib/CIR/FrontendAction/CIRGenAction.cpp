@@ -202,11 +202,16 @@ public:
       if (feOptions.ClangIRLibOpt)
         libOptOpts = sanitizePassOptions(feOptions.ClangIRLibOptOpts);
 
-      bool enableCCLowering = feOptions.ClangIRCallConvLowering &&
-                              action != CIRGenAction::OutputType::EmitCIR;
+      bool enableCCLowering =
+          feOptions.ClangIRCallConvLowering &&
+          !(action == CIRGenAction::OutputType::EmitMLIR &&
+            feOptions.MLIRTargetDialect == frontend::MLIR_CIR);
       bool flattenCIR =
-          action == CIRGenAction::OutputType::EmitCIRFlat ||
+          action == CIRGenAction::OutputType::EmitMLIR &&
           feOptions.MLIRTargetDialect == clang::frontend::MLIR_CIR_FLAT;
+
+      bool emitCore = action == CIRGenAction::OutputType::EmitMLIR &&
+                      feOptions.MLIRTargetDialect == clang::frontend::MLIR_CORE;
 
       // Setup and run CIR pipeline.
       std::string passOptParsingFailure;
@@ -215,9 +220,8 @@ public:
               feOptions.ClangIRLifetimeCheck, lifetimeOpts,
               feOptions.ClangIRIdiomRecognizer, idiomRecognizerOpts,
               feOptions.ClangIRLibOpt, libOptOpts, passOptParsingFailure,
-              codeGenOptions.OptimizationLevel > 0, flattenCIR,
-              action == CIRGenAction::OutputType::EmitMLIR, enableCCLowering,
-              feOptions.ClangIREnableMem2Reg)
+              codeGenOptions.OptimizationLevel > 0, flattenCIR, emitCore,
+              enableCCLowering, feOptions.ClangIREnableMem2Reg)
               .failed()) {
         if (!passOptParsingFailure.empty())
           diagnosticsEngine.Report(diag::err_drv_cir_pass_opt_parsing)
@@ -276,10 +280,6 @@ public:
     };
 
     switch (action) {
-    case CIRGenAction::OutputType::EmitCIR:
-    case CIRGenAction::OutputType::EmitCIRFlat:
-      emitMLIR(mlirMod, feOptions.ClangIRDisableCIRVerifier);
-      break;
     case CIRGenAction::OutputType::EmitMLIR: {
       switch (feOptions.MLIRTargetDialect) {
       case clang::frontend::MLIR_CORE:
@@ -377,10 +377,6 @@ getOutputStream(CompilerInstance &ci, StringRef inFile,
   switch (action) {
   case CIRGenAction::OutputType::EmitAssembly:
     return ci.createDefaultOutputFile(false, inFile, "s");
-  case CIRGenAction::OutputType::EmitCIR:
-    return ci.createDefaultOutputFile(false, inFile, "cir");
-  case CIRGenAction::OutputType::EmitCIRFlat:
-    return ci.createDefaultOutputFile(false, inFile, "cir");
   case CIRGenAction::OutputType::EmitMLIR:
     return ci.createDefaultOutputFile(false, inFile, "mlir");
   case CIRGenAction::OutputType::EmitLLVM:
@@ -476,14 +472,6 @@ namespace cir {
 void EmitAssemblyAction::anchor() {}
 EmitAssemblyAction::EmitAssemblyAction(mlir::MLIRContext *_MLIRContext)
     : CIRGenAction(OutputType::EmitAssembly, _MLIRContext) {}
-
-void EmitCIRAction::anchor() {}
-EmitCIRAction::EmitCIRAction(mlir::MLIRContext *_MLIRContext)
-    : CIRGenAction(OutputType::EmitCIR, _MLIRContext) {}
-
-void EmitCIRFlatAction::anchor() {}
-EmitCIRFlatAction::EmitCIRFlatAction(mlir::MLIRContext *_MLIRContext)
-    : CIRGenAction(OutputType::EmitCIRFlat, _MLIRContext) {}
 
 void EmitCIROnlyAction::anchor() {}
 EmitCIROnlyAction::EmitCIROnlyAction(mlir::MLIRContext *_MLIRContext)

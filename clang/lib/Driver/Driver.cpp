@@ -413,15 +413,14 @@ phases::ID Driver::getFinalPhase(const DerivedArgList &DAL,
     // -{fsyntax-only,-analyze,emit-ast} only run up to the compiler.
   } else if ((PhaseArg = DAL.getLastArg(options::OPT_fsyntax_only)) ||
              (PhaseArg = DAL.getLastArg(options::OPT_print_supported_cpus)) ||
-             (PhaseArg = DAL.getLastArg(options::OPT_print_enabled_extensions)) ||
+             (PhaseArg =
+                  DAL.getLastArg(options::OPT_print_enabled_extensions)) ||
              (PhaseArg = DAL.getLastArg(options::OPT_module_file_info)) ||
              (PhaseArg = DAL.getLastArg(options::OPT_verify_pch)) ||
              (PhaseArg = DAL.getLastArg(options::OPT_rewrite_objc)) ||
              (PhaseArg = DAL.getLastArg(options::OPT_rewrite_legacy_objc)) ||
              (PhaseArg = DAL.getLastArg(options::OPT__migrate)) ||
              (PhaseArg = DAL.getLastArg(options::OPT__analyze)) ||
-             (PhaseArg = DAL.getLastArg(options::OPT_emit_cir)) ||
-             (PhaseArg = DAL.getLastArg(options::OPT_emit_cir_flat)) ||
              (PhaseArg = DAL.getLastArg(options::OPT_emit_mlir)) ||
              (PhaseArg = DAL.getLastArg(options::OPT_emit_mlir_EQ)) ||
              (PhaseArg = DAL.getLastArg(options::OPT_emit_ast))) {
@@ -5085,10 +5084,6 @@ Action *Driver::ConstructPhaseAction(
       return C.MakeAction<MigrateJobAction>(Input, types::TY_Remap);
     if (Args.hasArg(options::OPT_emit_ast))
       return C.MakeAction<CompileJobAction>(Input, types::TY_AST);
-    if (Args.hasArg(options::OPT_emit_cir))
-      return C.MakeAction<CompileJobAction>(Input, types::TY_CIR);
-    if (Args.hasArg(options::OPT_emit_cir_flat))
-      return C.MakeAction<CompileJobAction>(Input, types::TY_CIR_FLAT);
     if (Args.hasArg(options::OPT_emit_mlir))
       return C.MakeAction<CompileJobAction>(Input, types::TY_MLIR);
     if (Args.hasArg(options::OPT_emit_mlir_EQ))

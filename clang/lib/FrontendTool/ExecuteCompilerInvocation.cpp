@@ -54,11 +54,14 @@ CreateFrontendBaseAction(CompilerInstance &CI) {
   auto UseCIR = CI.getFrontendOpts().UseClangIRPipeline;
   auto Act = CI.getFrontendOpts().ProgramAction;
   auto CIRAnalysisOnly = CI.getFrontendOpts().ClangIRAnalysisOnly;
-  auto EmitsCIR = Act == EmitCIR || Act == EmitCIRFlat || Act == EmitCIROnly;
+  auto EmitsCIR =
+      Act == EmitCIROnly ||
+      (Act == EmitMLIR &&
+       (CI.getFrontendOpts().MLIRTargetDialect == frontend::MLIR_CIR ||
+        CI.getFrontendOpts().MLIRTargetDialect == frontend::MLIR_CIR_FLAT));
 
   if (!UseCIR && EmitsCIR)
-    llvm::report_fatal_error(
-        "-emit-cir and -emit-cir-only only valid when using -fclangir");
+    llvm::report_fatal_error("emitting mlir only valid when using -fclangir");
 
   if (Act == EmitMLIR && CI.getFrontendOpts().ClangIRDirectLowering &&
       CI.getFrontendOpts().MLIRTargetDialect == frontend::MLIR_CORE)
@@ -92,18 +95,13 @@ CreateFrontendBaseAction(CompilerInstance &CI) {
     return std::make_unique<EmitBCAction>();
   }
 #if CLANG_ENABLE_CIR
-  case EmitCIR:
-    return std::make_unique<cir::EmitCIRAction>();
-  case EmitCIRFlat:
-    return std::make_unique<cir::EmitCIRFlatAction>();
   case EmitCIROnly:
     return std::make_unique<cir::EmitCIROnlyAction>();
   case EmitMLIR:
     return std::make_unique<cir::EmitMLIRAction>();
 #else
-  case EmitCIR:
-  case EmitCIRFlat:
   case EmitCIROnly:
+  case EmitMLIR:
     llvm_unreachable("CIR suppport not built into clang");
 #endif
   case EmitHTML:               return std::make_unique<HTMLPrintAction>();
