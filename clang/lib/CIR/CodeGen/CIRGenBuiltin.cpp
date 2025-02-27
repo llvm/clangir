@@ -341,7 +341,8 @@ static mlir::Value makeAtomicCmpXchgValue(CIRGenFunction &cgf,
                         cir::MemOrder::SequentiallyConsistent),
       MemOrderAttr::get(&cgf.getMLIRContext(),
                         cir::MemOrder::SequentiallyConsistent),
-                        MemScopeKindAttr::get(&cgf.getMLIRContext(), cir::MemScopeKind::MemScope_System),
+      MemScopeKindAttr::get(&cgf.getMLIRContext(),
+                            cir::MemScopeKind::MemScope_System),
       builder.getI64IntegerAttr(destAddr.getAlignment().getAsAlign().value()));
 
   return returnBool ? op.getResult(1) : op.getResult(0);

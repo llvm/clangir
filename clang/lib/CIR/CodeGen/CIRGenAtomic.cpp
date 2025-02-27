@@ -542,7 +542,8 @@ static void emitAtomicCmpXchgFailureSet(
 static void emitAtomicOp(CIRGenFunction &CGF, AtomicExpr *E, Address Dest,
                          Address Ptr, Address Val1, Address Val2,
                          mlir::Value IsWeak, mlir::Value FailureOrder,
-                         uint64_t Size, cir::MemOrder Order, cir::MemScopeKind Scope) {
+                         uint64_t Size, cir::MemOrder Order,
+                         cir::MemScopeKind Scope) {
   assert(!cir::MissingFeatures::syncScopeID());
   StringRef Op;
 
