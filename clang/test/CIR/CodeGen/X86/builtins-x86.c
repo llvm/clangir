@@ -3,7 +3,7 @@
 // RUN: FileCheck --check-prefix=CIR --input-file=%t.cir %s
 // RUN: %clang_cc1 -triple x86_64-unknown-linux -Wno-implicit-function-declaration -fclangir -emit-llvm -o %t.ll %s
 // RUN: FileCheck --check-prefix=LLVM --input-file=%t.ll %s
-# include <emmintrin.h> 
+#
 void test_mm_clflush(const void* tmp_vCp) {
   // CIR-LABEL: test_mm_clflush
   // LLVM-LABEL: test_mm_clflush
