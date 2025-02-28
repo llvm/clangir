@@ -231,6 +231,10 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &mlirContext,
     tbaa.reset(new CIRGenTBAA(&mlirContext, astContext, genTypes, theModule,
                               codeGenOpts, langOpts));
   }
+  if (codeGenOpts.NewStructPathTBAA) {
+    theModule->setAttr(cir::CIRDialect::getNewStructPathTBAAAttrName(),
+                       cir::BoolAttr::get(&mlirContext, cir::BoolType{}, true));
+  }
 }
 
 CIRGenModule::~CIRGenModule() {}
