@@ -1,4 +1,4 @@
-// Global variables of scalar typees with initial values
+// Global variables of intergal types
 // RUN: %clang_cc1 -std=c++20 -triple x86_64-unknown-linux-gnu -fclangir -emit-cir %s -o -  | FileCheck %s
 
 char c;
