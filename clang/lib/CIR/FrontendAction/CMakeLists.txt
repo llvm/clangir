@@ -13,7 +13,6 @@ add_clang_library(clangCIRFrontendAction
   clangFrontend
   clangCIR
   clangCIRLoweringDirectToLLVM
-  clangCodeGen
   MLIRCIR
   MLIRIR
   )
