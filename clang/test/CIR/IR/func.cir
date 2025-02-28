@@ -2,18 +2,18 @@
 
 module {
 // void empty() { }
-cir.func @empty() {
+cir.func @empty() -> !cir.void {
   cir.return
 }
-// CHECK: cir.func @empty() {
+// CHECK: cir.func @empty() -> !cir.void {
 // CHECK:   cir.return
 // CHECK: }
 
 // void voidret() { return; }
-cir.func @voidret() {
+cir.func @voidret() -> !cir.void {
   cir.return
 }
-// CHECK: cir.func @voidret() {
+// CHECK: cir.func @voidret() -> !cir.void {
 // CHECK:   cir.return
 // CHECK: }
 
