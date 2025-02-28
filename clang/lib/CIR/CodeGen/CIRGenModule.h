@@ -17,7 +17,6 @@
 #include "CIRGenTypeCache.h"
 #include "CIRGenTypes.h"
 
-#include "clang/AST/CharUnits.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 
 #include "mlir/IR/Builders.h"
@@ -116,10 +115,6 @@ public:
   cir::FuncOp createCIRFunction(mlir::Location loc, llvm::StringRef name,
                                 cir::FuncType funcType,
                                 const clang::FunctionDecl *funcDecl);
-
-  mlir::IntegerAttr getSize(CharUnits size) {
-    return builder.getSizeFromCharUnits(&getMLIRContext(), size);
-  }
 
   const llvm::Triple &getTriple() const { return target.getTriple(); }
 
