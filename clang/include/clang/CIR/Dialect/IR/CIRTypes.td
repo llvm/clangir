@@ -267,20 +267,6 @@ def CIR_PointerType : CIR_Type<"Pointer", "ptr",
 }
 
 //===----------------------------------------------------------------------===//
-// BoolType
-//===----------------------------------------------------------------------===//
-
-def CIR_BoolType :
-    CIR_Type<"Bool", "bool",
-             [DeclareTypeInterfaceMethods<DataLayoutTypeInterface>]> {
-
-  let summary = "CIR bool type";
-  let description = [{
-    `cir.bool` represents C++ bool type.
-  }];
-}
-
-//===----------------------------------------------------------------------===//
 // FuncType
 //===----------------------------------------------------------------------===//
 
@@ -369,8 +355,7 @@ def VoidPtr : Type<
 //===----------------------------------------------------------------------===//
 
 def CIR_AnyType : AnyTypeOf<[
-  CIR_VoidType, CIR_BoolType, CIR_IntType, CIR_AnyFloat, CIR_PointerType,
-  CIR_FuncType
+  CIR_VoidType, CIR_IntType, CIR_AnyFloat, CIR_PointerType, CIR_FuncType
 ]>;
 
 #endif // MLIR_CIR_DIALECT_CIR_TYPES

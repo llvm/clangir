@@ -25,23 +25,6 @@ using namespace cir;
 //===----------------------------------------------------------------------===//
 // CIR Dialect
 //===----------------------------------------------------------------------===//
-namespace {
-struct CIROpAsmDialectInterface : public OpAsmDialectInterface {
-  using OpAsmDialectInterface::OpAsmDialectInterface;
-
-  AliasResult getAlias(Type type, raw_ostream &os) const final {
-    return AliasResult::NoAlias;
-  }
-
-  AliasResult getAlias(Attribute attr, raw_ostream &os) const final {
-    if (auto boolAttr = mlir::dyn_cast<cir::BoolAttr>(attr)) {
-      os << (boolAttr.getValue() ? "true" : "false");
-      return AliasResult::FinalAlias;
-    }
-    return AliasResult::NoAlias;
-  }
-};
-} // namespace
 
 void cir::CIRDialect::initialize() {
   registerTypes();
@@ -50,7 +33,6 @@ void cir::CIRDialect::initialize() {
 #define GET_OP_LIST
 #include "clang/CIR/Dialect/IR/CIROps.cpp.inc"
       >();
-  addInterfaces<CIROpAsmDialectInterface>();
 }
 
 //===----------------------------------------------------------------------===//
@@ -127,13 +109,6 @@ static LogicalResult checkConstantTypes(mlir::Operation *op, mlir::Type opType,
     if (!mlir::isa<cir::PointerType>(opType))
       return op->emitOpError(
           "pointer constant initializing a non-pointer type");
-    return success();
-  }
-
-  if (mlir::isa<cir::BoolAttr>(attrType)) {
-    if (!mlir::isa<cir::BoolType>(opType))
-      return op->emitOpError("result type (")
-             << opType << ") must be '!cir.bool' for '" << attrType << "'";
     return success();
   }
 

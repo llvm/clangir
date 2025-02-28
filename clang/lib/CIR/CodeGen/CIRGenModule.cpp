@@ -141,11 +141,7 @@ void CIRGenModule::emitGlobalVarDefinition(const clang::VarDecl *vd,
       if (APValue *value = initDecl->evaluateValue()) {
         switch (value->getKind()) {
         case APValue::Int: {
-          if (mlir::isa<cir::BoolType>(type))
-            initializer =
-                builder.getCIRBoolAttr(value->getInt().getZExtValue());
-          else
-            initializer = builder.getAttr<cir::IntAttr>(type, value->getInt());
+          initializer = builder.getAttr<cir::IntAttr>(type, value->getInt());
           break;
         }
         case APValue::Float: {
