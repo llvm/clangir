@@ -45,6 +45,7 @@
 #include "mlir/IR/ValueRange.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Pass/PassManager.h"
+#include "mlir/Support/LLVM.h"
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Target/LLVMIR/Dialect/Builtin/BuiltinToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
@@ -118,6 +119,17 @@ mlir::Type lowerArrayType(cir::ArrayType type, bool hasValueSemantics,
   return convertToReferenceType(shape, elementType);
 }
 
+// Compute the identity stride for the default layout of a memref
+static llvm::SmallVector<std::int64_t> identityStrides(mlir::MemRefType t) {
+  llvm::SmallVector<std::int64_t> strides(t.getShape().size());
+  if (!strides.empty())
+    strides.back() = 1;
+  // To replace by range algorithms with an exclusive scan...
+  for (auto i = strides.size(); i > 1; --i)
+    strides[i - 2] = t.getShape()[i - 1] * strides[i - 1];
+  return strides;
+}
+
 class CIRReturnLowering : public mlir::OpConversionPattern<cir::ReturnOp> {
 public:
   using OpConversionPattern<cir::ReturnOp>::OpConversionPattern;
@@ -171,7 +183,7 @@ public:
 };
 
 /// Emits the value from memory as expected by its users. Should be called when
-/// the memory represetnation of a CIR type is not equal to its scalar
+/// the memory representation of a CIR type is not equal to its scalar
 /// representation.
 static mlir::Value emitFromMemory(mlir::ConversionPatternRewriter &rewriter,
                                   cir::LoadOp op, mlir::Value value) {
@@ -1176,7 +1188,8 @@ public:
     case CIR::array_to_ptrdecay: {
       auto newDstType = mlir::cast<mlir::MemRefType>(convertTy(dstType));
       rewriter.replaceOpWithNewOp<mlir::memref::ReinterpretCastOp>(
-          op, newDstType, src, 0, std::nullopt, std::nullopt);
+          op, newDstType, src, 0, newDstType.getShape(),
+          identityStrides(newDstType));
       return mlir::success();
     }
     case CIR::bitcast: {
@@ -1334,7 +1347,7 @@ public:
   //        memref.reinterpret_cast (%base, %stride)
   //
   // MemRef Dialect doesn't have GEP-like operation. memref.reinterpret_cast
-  // only been used to propogate %base and %stride to memref.load/store and
+  // only been used to propagate %base and %stride to memref.load/store and
   // should be erased after the conversion.
   mlir::LogicalResult
   matchAndRewrite(cir::PtrStrideOp op, OpAdaptor adaptor,
