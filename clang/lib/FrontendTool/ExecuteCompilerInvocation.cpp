@@ -62,18 +62,8 @@ CreateFrontendBaseAction(CompilerInstance &CI) {
     return std::make_unique<DumpCompilerOptionsAction>();
   case DumpRawTokens:          return std::make_unique<DumpRawTokensAction>();
   case DumpTokens:             return std::make_unique<DumpTokensAction>();
-  case EmitAssembly:
-#if CLANG_ENABLE_CIR
-    if (UseCIR)
-      return std::make_unique<cir::EmitAssemblyAction>();
-#endif
-    return std::make_unique<EmitAssemblyAction>();
-  case EmitBC:
-#if CLANG_ENABLE_CIR
-    if (UseCIR)
-      return std::make_unique<cir::EmitBCAction>();
-#endif
-    return std::make_unique<EmitBCAction>();
+  case EmitAssembly:           return std::make_unique<EmitAssemblyAction>();
+  case EmitBC:                 return std::make_unique<EmitBCAction>();
   case EmitCIR:
 #if CLANG_ENABLE_CIR
     return std::make_unique<cir::EmitCIRAction>();
@@ -90,12 +80,7 @@ CreateFrontendBaseAction(CompilerInstance &CI) {
   }
   case EmitLLVMOnly:           return std::make_unique<EmitLLVMOnlyAction>();
   case EmitCodeGenOnly:        return std::make_unique<EmitCodeGenOnlyAction>();
-  case EmitObj:
-#if CLANG_ENABLE_CIR
-    if (UseCIR)
-      return std::make_unique<cir::EmitObjAction>();
-#endif
-    return std::make_unique<EmitObjAction>();
+  case EmitObj:                return std::make_unique<EmitObjAction>();
   case ExtractAPI:
     return std::make_unique<ExtractAPIAction>();
   case FixIt:                  return std::make_unique<FixItAction>();
