@@ -545,7 +545,10 @@ void CIRGenModule::emitGlobal(GlobalDecl gd) {
 
   if (langOpts.CUDA || langOpts.HIP) {
     // clang uses the same flag when building HIP code
-    if (langOpts.CUDAIsDevice) {
+    if (const auto *vd = dyn_cast<VarDecl>(global)) {
+      if (!shouldEmitCUDAGlobalVar(vd))
+        return;
+    } else if (langOpts.CUDAIsDevice) {
       // This will implicitly mark templates and their
       // specializations as __host__ __device__.
       if (langOpts.OffloadImplicitHostDeviceTemplates)
@@ -566,11 +569,6 @@ void CIRGenModule::emitGlobal(GlobalDecl gd) {
           global->hasAttr<CUDADeviceAttr>()) {
         return;
       }
-    }
-
-    if (const auto *vd = dyn_cast<VarDecl>(global)) {
-      if (!shouldEmitCUDAGlobalVar(vd))
-        return;
     }
   }
 
