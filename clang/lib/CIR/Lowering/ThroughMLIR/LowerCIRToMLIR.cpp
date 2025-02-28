@@ -1340,39 +1340,51 @@ public:
     return getTypeConverter()->convertType(ty);
   }
 
-  // Rewrite
-  //        %0 = cir.cast(array_to_ptrdecay, %base)
-  //        cir.ptr_stride(%0, %stride)
-  // to
-  //        memref.reinterpret_cast (%base, %stride)
-  //
   // MemRef Dialect doesn't have GEP-like operation. memref.reinterpret_cast
   // only been used to propagate %base and %stride to memref.load/store and
   // should be erased after the conversion.
   mlir::LogicalResult
   matchAndRewrite(cir::PtrStrideOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    if (!isCastArrayToPtrConsumer(op))
-      return mlir::failure();
-    if (!isLoadStoreOrCastArrayToPtrProducer(op))
-      return mlir::failure();
-    auto baseOp = adaptor.getBase().getDefiningOp();
-    if (!baseOp)
-      return mlir::failure();
-    if (!isa<mlir::memref::ReinterpretCastOp>(baseOp))
-      return mlir::failure();
-    auto base = baseOp->getOperand(0);
+    // Most of the complexity here is to insure type-safety between the
+    // different memref and cast operations to avoid triggering the verifier.
+    auto base = adaptor.getBase();
+    // The lowered result type is a memref with a static 0 offset.
     auto dstType = op.getResult().getType();
     auto newDstType = mlir::cast<mlir::MemRefType>(convertTy(dstType));
+    // Construct a new memref with an identity layout which is the same as the
+    // output type but with an offset in the last dimension to take into account
+    // the offset introduced by the memref.reinterpret_cast.
+    auto elementType = newDstType.getElementType();
+    auto strides = identityStrides(newDstType);
+    auto layoutAttr = mlir::StridedLayoutAttr::get(
+        getContext(), mlir::ShapedType::kDynamic, strides);
+    auto as = newDstType.getMemorySpace();
+    auto sm = mlir::MemRefType::get(newDstType.getShape(), elementType,
+                                    layoutAttr, as);
+
+    // The lowered cir::PtrStrideOp offset. The use of the words offset and
+    // stride according to the context is confusing.
     auto stride = adaptor.getStride();
     auto indexType = rewriter.getIndexType();
     // Generate casting if the stride is not index type.
     if (stride.getType() != indexType)
       stride = rewriter.create<mlir::arith::IndexCastOp>(op.getLoc(), indexType,
                                                          stride);
-    rewriter.replaceOpWithNewOp<mlir::memref::ReinterpretCastOp>(
-        op, newDstType, base, stride, std::nullopt, std::nullopt);
-    rewriter.eraseOp(baseOp);
+    // TODO: check that the real address computation is correct when lowering
+    // later to LLVM.
+    // Generate something like: %reinterpret_cast_25 =
+    // memref.reinterpret_cast %reinterpret_cast_24 to offset: [%7], sizes: [7],
+    // strides: [1] : memref<7xi32> to memref<7xi32, strided<[1], offset: ?>>
+    auto rc = rewriter.create<mlir::memref::ReinterpretCastOp>(
+        op.getLoc(), sm, base, /* offsets */ stride,
+        mlir::ValueRange{/* sizes */}, mlir::ValueRange{/* strides */},
+        /* static_offsets */ mlir::ShapedType::kDynamic,
+        /* static_sizes */ newDstType.getShape(), /* static_strides */ strides);
+    // Then remove the offset from the type with something like:
+    // %cast_26 = memref.cast %reinterpret_cast_25 : memref<7xi32, strided<[1],
+    // offset: ?>> to memref<7xi32>
+    rewriter.replaceOpWithNewOp<mlir::memref::CastOp>(op, newDstType, rc);
     return mlir::success();
   }
 };
