@@ -125,6 +125,12 @@ uint64_t IntType::getABIAlignment(const mlir::DataLayout &dataLayout,
   return (uint64_t)(getWidth() / 8);
 }
 
+uint64_t
+IntType::getPreferredAlignment(const ::mlir::DataLayout &dataLayout,
+                               ::mlir::DataLayoutEntryListRef params) const {
+  return (uint64_t)(getWidth() / 8);
+}
+
 mlir::LogicalResult
 IntType::verify(llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
                 unsigned width, bool isSigned) {
@@ -157,6 +163,12 @@ SingleType::getABIAlignment(const mlir::DataLayout &dataLayout,
   return (uint64_t)(getWidth() / 8);
 }
 
+uint64_t
+SingleType::getPreferredAlignment(const ::mlir::DataLayout &dataLayout,
+                                  ::mlir::DataLayoutEntryListRef params) const {
+  return (uint64_t)(getWidth() / 8);
+}
+
 const llvm::fltSemantics &DoubleType::getFloatSemantics() const {
   return llvm::APFloat::IEEEdouble();
 }
@@ -170,6 +182,12 @@ DoubleType::getTypeSizeInBits(const mlir::DataLayout &dataLayout,
 uint64_t
 DoubleType::getABIAlignment(const mlir::DataLayout &dataLayout,
                             mlir::DataLayoutEntryListRef params) const {
+  return (uint64_t)(getWidth() / 8);
+}
+
+uint64_t
+DoubleType::getPreferredAlignment(const ::mlir::DataLayout &dataLayout,
+                                  ::mlir::DataLayoutEntryListRef params) const {
   return (uint64_t)(getWidth() / 8);
 }
 
@@ -188,6 +206,12 @@ uint64_t FP16Type::getABIAlignment(const mlir::DataLayout &dataLayout,
   return (uint64_t)(getWidth() / 8);
 }
 
+uint64_t
+FP16Type::getPreferredAlignment(const ::mlir::DataLayout &dataLayout,
+                                ::mlir::DataLayoutEntryListRef params) const {
+  return (uint64_t)(getWidth() / 8);
+}
+
 const llvm::fltSemantics &BF16Type::getFloatSemantics() const {
   return llvm::APFloat::BFloat();
 }
@@ -200,6 +224,12 @@ BF16Type::getTypeSizeInBits(const mlir::DataLayout &dataLayout,
 
 uint64_t BF16Type::getABIAlignment(const mlir::DataLayout &dataLayout,
                                    mlir::DataLayoutEntryListRef params) const {
+  return (uint64_t)(getWidth() / 8);
+}
+
+uint64_t
+BF16Type::getPreferredAlignment(const ::mlir::DataLayout &dataLayout,
+                                ::mlir::DataLayoutEntryListRef params) const {
   return (uint64_t)(getWidth() / 8);
 }
 
@@ -219,6 +249,12 @@ uint64_t FP80Type::getABIAlignment(const mlir::DataLayout &dataLayout,
   return 16;
 }
 
+uint64_t
+FP80Type::getPreferredAlignment(const ::mlir::DataLayout &dataLayout,
+                                ::mlir::DataLayoutEntryListRef params) const {
+  return 16;
+}
+
 const llvm::fltSemantics &FP128Type::getFloatSemantics() const {
   return llvm::APFloat::IEEEquad();
 }
@@ -231,6 +267,12 @@ FP128Type::getTypeSizeInBits(const mlir::DataLayout &dataLayout,
 
 uint64_t FP128Type::getABIAlignment(const mlir::DataLayout &dataLayout,
                                     mlir::DataLayoutEntryListRef params) const {
+  return 16;
+}
+
+uint64_t
+FP128Type::getPreferredAlignment(const ::mlir::DataLayout &dataLayout,
+                                 ::mlir::DataLayoutEntryListRef params) const {
   return 16;
 }
 
@@ -251,6 +293,13 @@ LongDoubleType::getABIAlignment(const mlir::DataLayout &dataLayout,
                                 mlir::DataLayoutEntryListRef params) const {
   return mlir::cast<mlir::DataLayoutTypeInterface>(getUnderlying())
       .getABIAlignment(dataLayout, params);
+}
+
+uint64_t LongDoubleType::getPreferredAlignment(
+    const ::mlir::DataLayout &dataLayout,
+    mlir::DataLayoutEntryListRef params) const {
+  return mlir::cast<mlir::DataLayoutTypeInterface>(getUnderlying())
+      .getPreferredAlignment(dataLayout, params);
 }
 
 LogicalResult
@@ -348,6 +397,12 @@ BoolType::getABIAlignment(const ::mlir::DataLayout &dataLayout,
   return 1;
 }
 
+uint64_t
+BoolType::getPreferredAlignment(const ::mlir::DataLayout &dataLayout,
+                                ::mlir::DataLayoutEntryListRef params) const {
+  return 1;
+}
+
 //===----------------------------------------------------------------------===//
 // PointerType Definitions
 //===----------------------------------------------------------------------===//
@@ -362,6 +417,13 @@ PointerType::getTypeSizeInBits(const ::mlir::DataLayout &dataLayout,
 uint64_t
 PointerType::getABIAlignment(const ::mlir::DataLayout &dataLayout,
                              ::mlir::DataLayoutEntryListRef params) const {
+  // FIXME: improve this in face of address spaces
+  return 8;
+}
+
+uint64_t PointerType::getPreferredAlignment(
+    const ::mlir::DataLayout &dataLayout,
+    ::mlir::DataLayoutEntryListRef params) const {
   // FIXME: improve this in face of address spaces
   return 8;
 }
