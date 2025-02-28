@@ -114,8 +114,6 @@ struct ConvertCIRToLLVMPass
   }
   void runOnOperation() final;
 
-  void processCIRAttrs(mlir::ModuleOp module);
-
   StringRef getDescription() const override {
     return "Convert the prepared CIR dialect module to LLVM dialect";
   }
@@ -273,13 +271,6 @@ static void prepareTypeConverter(mlir::LLVMTypeConverter &converter,
   });
 }
 
-void ConvertCIRToLLVMPass::processCIRAttrs(mlir::ModuleOp module) {
-  // Lower the module attributes to LLVM equivalents.
-  if (auto tripleAttr = module->getAttr(cir::CIRDialect::getTripleAttrName()))
-    module->setAttr(mlir::LLVM::LLVMDialect::getTargetTripleAttrName(),
-                    tripleAttr);
-}
-
 void ConvertCIRToLLVMPass::runOnOperation() {
   llvm::TimeTraceScope scope("Convert CIR to LLVM Pass");
 
@@ -291,8 +282,6 @@ void ConvertCIRToLLVMPass::runOnOperation() {
   mlir::RewritePatternSet patterns(&getContext());
 
   patterns.add<CIRToLLVMGlobalOpLowering>(converter, patterns.getContext(), dl);
-
-  processCIRAttrs(module);
 
   mlir::ConversionTarget target(getContext());
   target.addLegalOp<mlir::ModuleOp>();
