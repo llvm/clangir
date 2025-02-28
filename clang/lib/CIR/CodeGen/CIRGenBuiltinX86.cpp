@@ -95,7 +95,12 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
   default:
     return nullptr;
   case X86::BI_mm_prefetch: {
-    llvm_unreachable("_mm_prefetch NYI");
+    mlir::Type voidTy = cir::VoidType::get(&getMLIRContext());
+    return builder
+    .create<cir::LLVMIntrinsicCallOp>(
+      getLoc(E->getExprLoc()),builder.getStringAttr("llvm.prefetch.p0"),
+      voidTy,Ops[0], builder.getInt32(0), builder.getInt32(0), builder.getInt32(1))
+    .getResult();
   }
   case X86::BI_mm_clflush: {
     mlir::Type voidTy = cir::VoidType::get(&getMLIRContext());
