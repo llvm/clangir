@@ -3214,9 +3214,8 @@ mlir::LogicalResult CIRToLLVMAtomicCmpXchgLowering::matchAndRewrite(
       op.getLoc(), adaptor.getPtr(), expected, desired,
       getLLVMAtomicOrder(adaptor.getSuccOrder()),
       getLLVMAtomicOrder(adaptor.getFailOrder()));
-  if (const auto ss = adaptor.getSyncscope(); ss.has_value()) {
+  if (const auto ss = adaptor.getSyncscope(); ss.has_value())
     cmpxchg.setSyncscope(getLLVMSyncScope(ss.value()));
-  }
   cmpxchg.setAlignment(adaptor.getAlignment());
   cmpxchg.setWeak(adaptor.getWeak());
   cmpxchg.setVolatile_(adaptor.getIsVolatile());
