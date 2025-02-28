@@ -5,7 +5,4 @@ set(LLVM_LINK_COMPONENTS
 
 add_clang_library(clangCIRLoweringDirectToLLVM
   LowerToLLVM.cpp
-
-  LINK_LIBS
-  MLIRIR
   )
