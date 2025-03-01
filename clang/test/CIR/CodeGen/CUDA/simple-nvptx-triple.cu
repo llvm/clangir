@@ -5,7 +5,7 @@
 // RUN:            %s -o %t.cir
 // RUN: FileCheck --check-prefix=CIR-HOST --input-file=%t.cir %s
 
-// RUN: %clang_cc1 -triple nvptx-fclangir \
+// RUN: %clang_cc1 -triple nvptx -fclangir \
 // RUN:            -fcuda-is-device -emit-cir -target-sdk-version=12.3 \
 // RUN:            %s -o %t.cir
 // RUN: FileCheck --check-prefix=CIR-DEVICE --input-file=%t.cir %s
