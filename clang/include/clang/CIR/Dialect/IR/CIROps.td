@@ -1715,6 +1715,37 @@ def BitPopcountOp
   }];
 }
 
+def BitLzcntOp : CIR_Op<"bit.lzcnt", [Pure, SameOperandsAndResultType]> {
+  let summary = "Get the number of leading 0-bits in the input";
+  let description = [{
+    Compute the number of leading 0-bits in the input.
+
+    The input integer must be an unsigned integer. The `cir.bit.lzcnt` operation
+    returns the number of consecutive 0-bits at the most significant bit
+    position in the input.
+
+    If the input value is 0, the return value is the size of the input value.
+
+    Example:
+
+    ```mlir
+    !u32i = !cir.int<u, 32>
+
+    // %0 = 0b0000_0000_0000_0000_0000_0000_0000_1000
+    %0 = cir.const #cir.int<8> : !u32i
+    // %1 will be 28
+    %1 = cir.bit.lzcnt(%0 : !u32i) : !u32i
+    ```
+  }];
+
+  let arguments = (ins AnyTypeOf<[UInt16, UInt32, UInt64]>:$input);
+  let results = (outs AnyTypeOf<[UInt16, UInt32, UInt64]>:$result);
+
+  let assemblyFormat = [{
+    `(` $input `:` type($input) `)` `:` type($result) attr-dict
+  }];
+}
+
 //===----------------------------------------------------------------------===//
 // ByteswapOp
 //===----------------------------------------------------------------------===//

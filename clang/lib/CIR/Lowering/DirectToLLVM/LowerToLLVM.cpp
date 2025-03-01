@@ -3200,6 +3200,17 @@ mlir::LogicalResult CIRToLLVMBitPopcountOpLowering::matchAndRewrite(
   return mlir::LogicalResult::success();
 }
 
+mlir::LogicalResult CIRToLLVMBitLzcntOpLowering::matchAndRewrite(
+    cir::BitLzcntOp op, OpAdaptor adaptor,
+    mlir::ConversionPatternRewriter &rewriter) const {
+  auto resTy = getTypeConverter()->convertType(op.getType());
+  auto llvmOp = rewriter.create<mlir::LLVM::CountLeadingZerosOp>(
+      op.getLoc(), resTy, adaptor.getInput(), false);
+
+  rewriter.replaceOp(op, llvmOp);
+  return mlir::LogicalResult::success();
+}
+
 mlir::LLVM::AtomicOrdering getLLVMAtomicOrder(cir::MemOrder memo) {
   switch (memo) {
   case cir::MemOrder::Relaxed:
@@ -4250,6 +4261,7 @@ void populateCIRToLLVMConversionPatterns(
       CIRToLLVMBitFfsOpLowering,
       CIRToLLVMBitParityOpLowering,
       CIRToLLVMBitPopcountOpLowering,
+      CIRToLLVMBitLzcntOpLowering,
       CIRToLLVMBrCondOpLowering,
       CIRToLLVMBrOpLowering,
       CIRToLLVMByteswapOpLowering,
