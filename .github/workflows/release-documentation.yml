@@ -34,7 +34,7 @@ jobs:
       upload: ${{ inputs.upload && !contains(inputs.release-version, 'rc') }}
     steps:
       - name: Checkout LLVM
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        uses: actions/checkout@85e6279cec87321a52edac9c87bce653a07cf6c2 # v4.1.1
 
       - name: Setup Python env
         uses: actions/setup-python@v5
@@ -59,14 +59,14 @@ jobs:
           ./llvm/utils/release/build-docs.sh -release "${{ inputs.release-version }}" -no-doxygen
 
       - name: Create Release Notes Artifact
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # 4.6.0
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # 4.6.1
         with:
           name: release-notes
           path: docs-build/html-export/
 
       - name: Clone www-releases
         if: env.upload
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        uses: actions/checkout@85e6279cec87321a52edac9c87bce653a07cf6c2 # v4.1.1
         with:
           repository: ${{ github.repository_owner }}/www-releases
           ref: main
