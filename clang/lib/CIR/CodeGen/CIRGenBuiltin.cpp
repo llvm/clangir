@@ -366,7 +366,7 @@ static mlir::Value makeAtomicFenceValue(CIRGenFunction &cgf,
         static_cast<cir::MemOrder>(constOrderingAttr.getUInt());
 
     builder.create<cir::AtomicFence>(cgf.getLoc(expr->getSourceRange()),
-                                     syncScope, ordering);
+                                     ordering, MemScopeKindAttr::get(&cgf.getMLIRContext(), syncScope));
   }
 
   return mlir::Value();
