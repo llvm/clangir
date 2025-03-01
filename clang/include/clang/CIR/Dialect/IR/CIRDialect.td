@@ -47,6 +47,8 @@ def CIR_Dialect : Dialect {
 
     static llvm::StringRef getOpenCLVersionAttrName() { return "cir.cl.version"; }
     static llvm::StringRef getCUDABinaryHandleAttrName() { return "cir.cu.binary_handle"; }
+    
+    static llvm::StringRef getNewStructPathTBAAAttrName() { return "cir.new_struct_path_tbaa"; }
 
     void registerAttributes();
     void registerTypes();

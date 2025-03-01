@@ -232,6 +232,10 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &mlirContext,
     tbaa = std::make_unique<CIRGenTBAA>(&mlirContext, astContext, genTypes,
                                         theModule, codeGenOpts, langOpts);
   }
+  if (codeGenOpts.NewStructPathTBAA) {
+    theModule->setAttr(cir::CIRDialect::getNewStructPathTBAAAttrName(),
+                       cir::BoolAttr::get(&mlirContext, cir::BoolType{}, true));
+  }
 }
 
 CIRGenModule::~CIRGenModule() = default;
