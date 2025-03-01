@@ -3223,7 +3223,8 @@ mlir::LogicalResult CIRToLLVMBitLzcntOpLowering::matchAndRewrite(
     cir::BitLzcntOp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
   auto resTy = getTypeConverter()->convertType(op.getType());
-  auto llvmOp = rewriter.create<mlir::LLVM::CountLeadingZerosOp>(op.getLoc(), resTy, adaptor.getInput(), false);
+  auto llvmOp = rewriter.create<mlir::LLVM::CountLeadingZerosOp>(
+      op.getLoc(), resTy, adaptor.getInput(), false);
 
   rewriter.replaceOp(op, llvmOp);
   return mlir::LogicalResult::success();
