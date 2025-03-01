@@ -5518,6 +5518,18 @@ def AtomicXchg : CIR_Op<"atomic.xchg", [AllTypesMatch<["result", "val"]>]> {
   let hasVerifier = 0;
 }
 
+def MemScope_SingleThread : I32EnumAttrCase<"MemScope_SingleThread",
+                                            0, "single_thread">;
+def MemScope_System       : I32EnumAttrCase<"MemScope_System",
+                                            1, "system">;
+
+def MemScopeKind : I32EnumAttr<
+    "MemScopeKind",
+    "Memory Scope Enumeration",
+    [MemScope_SingleThread, MemScope_System]> {
+  let cppNamespace = "::cir";
+}
+
 def AtomicCmpXchg : CIR_Op<"atomic.cmp_xchg",
                            [AllTypesMatch<["old", "expected", "desired"]>]> {
   let summary = "Atomic compare exchange";
@@ -5540,6 +5552,7 @@ def AtomicCmpXchg : CIR_Op<"atomic.cmp_xchg",
                        CIR_AnyType:$desired,
                        Arg<MemOrder, "success memory order">:$succ_order,
                        Arg<MemOrder, "failure memory order">:$fail_order,
+                       OptionalAttr<MemScopeKind>:$syncscope,
                        OptionalAttr<I64Attr>:$alignment,
                        UnitAttr:$weak,
                        UnitAttr:$is_volatile);
@@ -5552,6 +5565,7 @@ def AtomicCmpXchg : CIR_Op<"atomic.cmp_xchg",
     `success` `=`  $succ_order `,`
     `failure` `=`  $fail_order
     `)`
+    (`syncscope` `(` $syncscope^ `)`)?
     (`align` `(` $alignment^ `)`)?
     (`weak` $weak^)?
     (`volatile` $is_volatile^)?
@@ -5559,18 +5573,6 @@ def AtomicCmpXchg : CIR_Op<"atomic.cmp_xchg",
   }];
 
   let hasVerifier = 0;
-}
-
-def MemScope_SingleThread : I32EnumAttrCase<"MemScope_SingleThread",
-                                            0, "single_thread">;
-def MemScope_System       : I32EnumAttrCase<"MemScope_System",
-                                            1, "system">;
-
-def MemScopeKind : I32EnumAttr<
-    "MemScopeKind",
-    "Memory Scope Enumeration",
-    [MemScope_SingleThread, MemScope_System]> {
-  let cppNamespace = "::cir";
 }
 
 def AtomicFence : CIR_Op<"atomic.fence"> {
