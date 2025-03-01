@@ -11,3 +11,11 @@ void test_mm_clflush(const void* tmp_vCp) {
   // CIR: {{%.*}} = cir.llvm.intrinsic "x86.sse2.clflush" {{%.*}} : (!cir.ptr<!void>) -> !void
   // LLVM: call void @llvm.x86.sse2.clflush(ptr {{%.*}})
 }
+
+void test_mm_prefetch(char const* p) {
+  // CIR-LABEL: test_mm_prefetch
+   // LLVM-LABEL: test_mm_prefetch
+   _mm_prefetch(p, 0);
+   // CIR: {{%.}} = cir.llvm.intrinsic "llvm.prefetch.p0" {{%.}}, {{%.}} : (!cir.ptr<!char>, !cir.i32) -> !void
+   // LLVM: call void @llvm.prefetch.p0(ptr {{.}}, i32 0, i32 0, i32 1)
+ }
