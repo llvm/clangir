@@ -2488,15 +2488,6 @@ def GlobalOp : CIR_Op<"global",
       return !getInitialValue() && getCtorRegion().empty() && getDtorRegion().empty();
     }
     bool hasInitializer() { return !isDeclaration(); }
-    bool hasAvailableExternallyLinkage() {
-      return cir::isAvailableExternallyLinkage(getLinkage());
-    }
-    bool hasInternalLinkage() {
-      return cir::isInternalLinkage(getLinkage());
-    }
-    /// Whether the definition of this global may be replaced at link time.
-    bool isWeakForLinker() { return cir::isWeakForLinker(getLinkage()); }
-    bool isDSOLocal() { return getDsolocal(); }
   }];
 
   let skipDefaultBuilders = 1;
@@ -3608,10 +3599,6 @@ def FuncOp : CIR_Op<"func", [
     //===------------------------------------------------------------------===//
 
     bool isDeclaration();
-
-    bool hasAvailableExternallyLinkage() {
-      return cir::isAvailableExternallyLinkage(getLinkage());
-    }
   }];
 
   let hasCustomAssemblyFormat = 1;
