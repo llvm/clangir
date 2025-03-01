@@ -1559,9 +1559,9 @@ def ComplexBinOp : CIR_Op<"complex.binop",
 //===----------------------------------------------------------------------===//
 
 class CIR_BitOp<string mnemonic, TypeConstraint inputTy>
-    : CIR_Op<mnemonic, [Pure, SameOperandsAndResultType]> {
+    : CIR_Op<mnemonic, [Pure]> {
   let arguments = (ins inputTy:$input);
-  let results = (outs inputTy:$result);
+  let results = (outs SInt32:$result);
 
   let assemblyFormat = [{
     `(` $input `:` type($input) `)` `:` type($result) attr-dict
@@ -1715,7 +1715,7 @@ def BitPopcountOp
   }];
 }
 
-def BitLzcntOp : CIR_BitOp<"bit.lzcnt", AnyTypeOf<[UInt16, UInt32, UInt64]>> {
+def BitLzcntOp : CIR_Op<"bit.lzcnt", [Pure, SameOperandsAndResultType]> {
   let summary = "Get the number of leading 0-bits in the input";
   let description = [{
     Compute the number of leading 0-bits in the input.
@@ -1736,6 +1736,13 @@ def BitLzcntOp : CIR_BitOp<"bit.lzcnt", AnyTypeOf<[UInt16, UInt32, UInt64]>> {
     // %1 will be 28
     %1 = cir.bit.lzcnt(%0 : !u32i) : !u32i
     ```
+  }];
+
+  let arguments = (ins AnyTypeOf<[UInt16, UInt32, UInt64]>:$input);
+  let results = (outs AnyTypeOf<[UInt16, UInt32, UInt64]>:$result);
+
+  let assemblyFormat = [{
+    `(` $input `:` type($input) `)` `:` type($result) attr-dict
   }];
 }
 
