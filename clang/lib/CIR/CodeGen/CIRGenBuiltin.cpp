@@ -1363,7 +1363,7 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     return RValue::get(result);
   }
   case Builtin::BI__builtin_elementwise_acos: {
-    return emitBuiltinWithOneOverloadedType<1>(E, "acos");
+    return emitUnaryFPBuiltin<cir::ACosOp>(*this, *E);
   }
   case Builtin::BI__builtin_elementwise_asin:
     llvm_unreachable("BI__builtin_elementwise_asin NYI");
