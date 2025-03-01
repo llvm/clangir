@@ -405,10 +405,12 @@ static mlir::Value emitToMemory(mlir::ConversionPatternRewriter &rewriter,
   return value;
 }
 
-std::optional<llvm::StringRef> getLLVMSyncScope(std::optional<cir::MemScopeKind> syncScope) {
+std::optional<llvm::StringRef>
+getLLVMSyncScope(std::optional<cir::MemScopeKind> syncScope) {
   if (syncScope.has_value())
-    return syncScope.value() == cir::MemScopeKind::MemScope_SingleThread ? "singlethread"
-                                                               : "";
+    return syncScope.value() == cir::MemScopeKind::MemScope_SingleThread
+               ? "singlethread"
+               : "";
   return std::nullopt;
 }
 } // namespace
