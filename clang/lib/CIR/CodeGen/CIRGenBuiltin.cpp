@@ -137,7 +137,7 @@ emitBuiltinBitOp(CIRGenFunction &CGF, const CallExpr *E,
   else
     arg = CGF.emitScalarExpr(E->getArg(0));
 
-  auto op = CGF.getBuilder().create<Op>(CGF.getLoc(E->getExprLoc()),arg);
+  auto op = CGF.getBuilder().create<Op>(CGF.getLoc(E->getExprLoc()), arg);
   return RValue::get(op);
 }
 
