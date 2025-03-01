@@ -5481,7 +5481,7 @@ def AtomicXchg : CIR_Op<"atomic.xchg", [AllTypesMatch<["result", "val"]>]> {
     `:` type($result) attr-dict
   }];
 
-  let hasVerifier = 0;
+  let hasVerifier = 1;
 }
 
 def AtomicCmpXchg : CIR_Op<"atomic.cmp_xchg",
@@ -5524,7 +5524,7 @@ def AtomicCmpXchg : CIR_Op<"atomic.cmp_xchg",
     `:` `(` type($old) `,` type($cmp) `)` attr-dict
   }];
 
-  let hasVerifier = 0;
+  let hasVerifier = 1;
 }
 
 def MemScope_SingleThread : I32EnumAttrCase<"MemScope_SingleThread",
