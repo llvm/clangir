@@ -2226,7 +2226,7 @@ static mlir::Value vecReduceIntValue(CIRGenFunction &cgf, mlir::Value val,
       loc, val, builder.getConstInt(loc, cgf.SizeTy, 0));
 }
 
-mlir::Value emitNeonCall(CIRGenBuilderTy &builder,
+static mlir::Value emitNeonCall(CIRGenBuilderTy &builder,
                          llvm::SmallVector<mlir::Type> argTypes,
                          llvm::SmallVectorImpl<mlir::Value> &args,
                          llvm::StringRef intrinsicName, mlir::Type funcResTy,
@@ -2258,6 +2258,41 @@ mlir::Value emitNeonCall(CIRGenBuilderTy &builder,
   return builder
       .create<cir::LLVMIntrinsicCallOp>(
           loc, builder.getStringAttr(intrinsicName), funcResTy, args)
+      .getResult();
+}
+
+template <typename Operation>
+static mlir::Value emitNeonCall(CIRGenBuilderTy &builder,
+                         llvm::SmallVector<mlir::Type> argTypes,
+                         llvm::SmallVectorImpl<mlir::Value> &args,
+                         mlir::Type funcResTy,
+                         mlir::Location loc,
+                         bool isConstrainedFPIntrinsic = false,
+                         unsigned shift = 0, bool rightshift = false) {
+  // TODO: Consider removing the following unreachable when we have
+  // emitConstrainedFPCall feature implemented
+  assert(!cir::MissingFeatures::emitConstrainedFPCall());
+  if (isConstrainedFPIntrinsic)
+    llvm_unreachable("isConstrainedFPIntrinsic NYI");
+
+  for (unsigned j = 0; j < argTypes.size(); ++j) {
+    if (isConstrainedFPIntrinsic) {
+      assert(!cir::MissingFeatures::emitConstrainedFPCall());
+    }
+    if (shift > 0 && shift == j) {
+      args[j] = emitNeonShiftVector(builder, args[j],
+                                    mlir::cast<cir::VectorType>(argTypes[j]),
+                                    loc, rightshift);
+    } else {
+      args[j] = builder.createBitcast(args[j], argTypes[j]);
+    }
+  }
+  if (isConstrainedFPIntrinsic) {
+    assert(!cir::MissingFeatures::emitConstrainedFPCall());
+    return nullptr;
+  }
+  return builder
+      .create<Operation>(loc, funcResTy, args)
       .getResult();
 }
 
@@ -4139,7 +4174,7 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   case NEON::BI__builtin_neon_vrndns_f32: {
     mlir::Value arg0 = emitScalarExpr(E->getArg(0));
     args.push_back(arg0);
-    return emitNeonCall(builder, {arg0.getType()}, args, "roundeven.f32",
+    return emitNeonCall<cir::RoundEvenOp>(builder, {arg0.getType()}, args,
                         getCIRGenModule().FloatTy, getLoc(E->getExprLoc()));
   }
   case NEON::BI__builtin_neon_vrndph_f16: {
