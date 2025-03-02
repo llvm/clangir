@@ -508,57 +508,51 @@ void CIRGenModule::setDSOLocal(CIRGlobalValueInterface gv) const {
 }
 
 const TargetCIRGenInfo &CIRGenModule::getTargetCIRGenInfo() {
-  if (TheTargetCIRGenInfo)
-    return *TheTargetCIRGenInfo;
+  if (theTargetCIRGenInfo)
+    return *theTargetCIRGenInfo;
 
-  // Helper to set the unique_ptr while still keeping the return value.
-  auto SetCIRGenInfo = [&](TargetCIRGenInfo *P) -> const TargetCIRGenInfo & {
-    this->TheTargetCIRGenInfo.reset(P);
-    return *P;
-  };
+  const llvm::Triple &triple = getTarget().getTriple();
 
-  const llvm::Triple &Triple = getTarget().getTriple();
-
-  switch (Triple.getArch()) {
+  switch (triple.getArch()) {
   default:
     assert(false && "Target not yet supported!");
 
   case llvm::Triple::aarch64_be:
   case llvm::Triple::aarch64: {
-    AArch64ABIKind Kind = AArch64ABIKind::AAPCS;
+    AArch64ABIKind kind = AArch64ABIKind::AAPCS;
     assert(getTarget().getABI() == "aapcs" ||
            getTarget().getABI() == "darwinpcs" &&
                "Only Darwin supported for aarch64");
-    Kind = AArch64ABIKind::DarwinPCS;
-    return *(TheTargetCIRGenInfo =
-                 createAArch64TargetCIRGenInfo(genTypes, Kind));
+    kind = AArch64ABIKind::DarwinPCS;
+    return *(theTargetCIRGenInfo =
+                 createAArch64TargetCIRGenInfo(genTypes, kind));
   }
 
   case llvm::Triple::x86_64: {
-    StringRef ABI = getTarget().getABI();
-    X86AVXABILevel AVXLevel = (ABI == "avx512" ? X86AVXABILevel::AVX512
-                               : ABI == "avx"  ? X86AVXABILevel::AVX
+    StringRef abi = getTarget().getABI();
+    X86AVXABILevel avxLevel = (abi == "avx512" ? X86AVXABILevel::AVX512
+                               : abi == "avx"  ? X86AVXABILevel::AVX
                                                : X86AVXABILevel::None);
 
-    switch (Triple.getOS()) {
+    switch (triple.getOS()) {
     default:
       assert(false && "OSType NYI");
     case llvm::Triple::Linux:
-      return *(TheTargetCIRGenInfo =
-                   createX86_64TargetCIRGenInfo(genTypes, AVXLevel));
+      return *(theTargetCIRGenInfo =
+                   createX86_64TargetCIRGenInfo(genTypes, avxLevel));
     }
   }
 
   case llvm::Triple::spirv64: {
-    return *(TheTargetCIRGenInfo = createSPIRVTargetCIRGenInfo(genTypes));
+    return *(theTargetCIRGenInfo = createSPIRVTargetCIRGenInfo(genTypes));
   }
 
   case llvm::Triple::nvptx64: {
-    return *(TheTargetCIRGenInfo = createNVPTXTargetCIRGenInfo(genTypes));
+    return *(theTargetCIRGenInfo = createNVPTXTargetCIRGenInfo(genTypes));
   }
 
   case llvm::Triple::amdgcn: {
-    return *(TheTargetCIRGenInfo = createAMDGPUTargetCIRGenInfo(genTypes));
+    return *(theTargetCIRGenInfo = createAMDGPUTargetCIRGenInfo(genTypes));
   }
   }
 }
