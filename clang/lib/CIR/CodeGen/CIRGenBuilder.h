@@ -895,10 +895,19 @@ public:
 
   cir::StoreOp createStore(mlir::Location loc, mlir::Value val, Address dst,
                            bool _volatile = false,
-                           ::mlir::IntegerAttr align = {},
                            cir::MemOrderAttr order = {}) {
-    return CIRBaseBuilderTy::createStore(loc, val, dst.getPointer(), _volatile,
-                                         align, order);
+    return createAlignedStore(loc, val, dst.getPointer(), dst.getAlignment(),
+      _volatile, order);
+  }
+
+  cir::StoreOp
+  createAlignedStore(mlir::Location loc, mlir::Value val, mlir::Value dst,
+                     clang::CharUnits align,
+                     bool _volatile = false, cir::MemOrderAttr order = {}) {
+    llvm::MaybeAlign mayAlign = align.getAsAlign();
+    uint64_t alignment = mayAlign ? mayAlign->value() : 0;
+    return CIRBaseBuilderTy::createStore(loc, val, dst, _volatile, alignment,
+                                         order);
   }
 
   cir::StoreOp createFlagStore(mlir::Location loc, bool val, mlir::Value dst) {
@@ -932,21 +941,6 @@ public:
     // FIXME(cir): Support use cir.vec.shuffle with single vec
     // Workaround: pass Vec as both vec1 and vec2
     return createVecShuffle(loc, vec1, vec1, mask);
-  }
-
-  cir::StoreOp
-  createAlignedStore(mlir::Location loc, mlir::Value val, mlir::Value dst,
-                     clang::CharUnits align = clang::CharUnits::One(),
-                     bool _volatile = false, cir::MemOrderAttr order = {}) {
-    llvm::MaybeAlign mayAlign = align.getAsAlign();
-    mlir::IntegerAttr alignAttr;
-    if (mayAlign) {
-      uint64_t alignment = mayAlign ? mayAlign->value() : 0;
-      alignAttr = mlir::IntegerAttr::get(
-          mlir::IntegerType::get(dst.getContext(), 64), alignment);
-    }
-    return CIRBaseBuilderTy::createStore(loc, val, dst, _volatile, alignAttr,
-                                         order);
   }
 
   // Convert byte offset to sequence of high-level indices suitable for
