@@ -2227,12 +2227,12 @@ static mlir::Value vecReduceIntValue(CIRGenFunction &cgf, mlir::Value val,
 }
 
 static mlir::Value emitNeonCall(CIRGenBuilderTy &builder,
-                         llvm::SmallVector<mlir::Type> argTypes,
-                         llvm::SmallVectorImpl<mlir::Value> &args,
-                         llvm::StringRef intrinsicName, mlir::Type funcResTy,
-                         mlir::Location loc,
-                         bool isConstrainedFPIntrinsic = false,
-                         unsigned shift = 0, bool rightshift = false) {
+                                llvm::SmallVector<mlir::Type> argTypes,
+                                llvm::SmallVectorImpl<mlir::Value> &args,
+                                llvm::StringRef intrinsicName,
+                                mlir::Type funcResTy, mlir::Location loc,
+                                bool isConstrainedFPIntrinsic = false,
+                                unsigned shift = 0, bool rightshift = false) {
   // TODO: Consider removing the following unreachable when we have
   // emitConstrainedFPCall feature implemented
   assert(!cir::MissingFeatures::emitConstrainedFPCall());
@@ -2262,13 +2262,11 @@ static mlir::Value emitNeonCall(CIRGenBuilderTy &builder,
 }
 
 template <typename Operation>
-static mlir::Value emitNeonCall(CIRGenBuilderTy &builder,
-                         llvm::SmallVector<mlir::Type> argTypes,
-                         llvm::SmallVectorImpl<mlir::Value> &args,
-                         mlir::Type funcResTy,
-                         mlir::Location loc,
-                         bool isConstrainedFPIntrinsic = false,
-                         unsigned shift = 0, bool rightshift = false) {
+static mlir::Value
+emitNeonCall(CIRGenBuilderTy &builder, llvm::SmallVector<mlir::Type> argTypes,
+             llvm::SmallVectorImpl<mlir::Value> &args, mlir::Type funcResTy,
+             mlir::Location loc, bool isConstrainedFPIntrinsic = false,
+             unsigned shift = 0, bool rightshift = false) {
   // TODO: Consider removing the following unreachable when we have
   // emitConstrainedFPCall feature implemented
   assert(!cir::MissingFeatures::emitConstrainedFPCall());
@@ -2291,9 +2289,7 @@ static mlir::Value emitNeonCall(CIRGenBuilderTy &builder,
     assert(!cir::MissingFeatures::emitConstrainedFPCall());
     return nullptr;
   }
-  return builder
-      .create<Operation>(loc, funcResTy, args)
-      .getResult();
+  return builder.create<Operation>(loc, funcResTy, args).getResult();
 }
 
 /// This function `emitCommonNeonCallPattern0` implements a common way
@@ -4175,7 +4171,8 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
     mlir::Value arg0 = emitScalarExpr(E->getArg(0));
     args.push_back(arg0);
     return emitNeonCall<cir::RoundEvenOp>(builder, {arg0.getType()}, args,
-                        getCIRGenModule().FloatTy, getLoc(E->getExprLoc()));
+                                          getCIRGenModule().FloatTy,
+                                          getLoc(E->getExprLoc()));
   }
   case NEON::BI__builtin_neon_vrndph_f16: {
     llvm_unreachable("NEON::BI__builtin_neon_vrndph_f16 NYI");
