@@ -1296,7 +1296,7 @@ void CIRGenFunction::StartFunction(GlobalDecl gd, QualType retTy,
       // Location of the store to the param storage tracked as beginning of
       // the function body.
       auto fnBodyBegin = getLoc(fd->getBody()->getBeginLoc());
-      builder.CIRBaseBuilderTy::createStore(fnBodyBegin, paramVal, addr);
+      builder.createStore(fnBodyBegin, paramVal, address);
     }
     assert(builder.getInsertionBlock() && "Should be valid");
 
