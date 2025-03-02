@@ -897,13 +897,13 @@ public:
                            bool _volatile = false,
                            cir::MemOrderAttr order = {}) {
     return createAlignedStore(loc, val, dst.getPointer(), dst.getAlignment(),
-      _volatile, order);
+                              _volatile, order);
   }
 
-  cir::StoreOp
-  createAlignedStore(mlir::Location loc, mlir::Value val, mlir::Value dst,
-                     clang::CharUnits align,
-                     bool _volatile = false, cir::MemOrderAttr order = {}) {
+  cir::StoreOp createAlignedStore(mlir::Location loc, mlir::Value val,
+                                  mlir::Value dst, clang::CharUnits align,
+                                  bool _volatile = false,
+                                  cir::MemOrderAttr order = {}) {
     llvm::MaybeAlign mayAlign = align.getAsAlign();
     uint64_t alignment = mayAlign ? mayAlign->value() : 0;
     return CIRBaseBuilderTy::createStore(loc, val, dst, _volatile, alignment,
