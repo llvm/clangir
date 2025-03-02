@@ -23,7 +23,7 @@ float32_t test_vrndns_f32(float32_t a) {
 // CIR: cir.func internal private @vrndns_f32(%arg0: !cir.float {{.*}}) -> !cir.float
 // CIR: cir.store %arg0, [[ARG_SAVE:%.*]] : !cir.float, !cir.ptr<!cir.float> 
 // CIR: [[INTRIN_ARG:%.*]] = cir.load [[ARG_SAVE]] : !cir.ptr<!cir.float>, !cir.float 
-// CIR: {{%.*}} = cir.llvm.intrinsic "roundeven.f32" [[INTRIN_ARG]] : (!cir.float)
+// CIR: {{%.*}} = cir.roundeven [[INTRIN_ARG]] : !cir.float
 // CIR: cir.return {{%.*}} : !cir.float
 
 // CIR-LABEL: test_vrndns_f32
