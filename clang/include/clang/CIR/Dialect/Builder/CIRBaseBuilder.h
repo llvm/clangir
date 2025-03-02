@@ -350,14 +350,13 @@ public:
   }
 
   cir::StoreOp createStore(mlir::Location loc, mlir::Value val, mlir::Value dst,
-                           bool _volatile = false,
-                           uint64_t alignment = {},
+                           bool _volatile = false, uint64_t alignment = {},
                            cir::MemOrderAttr order = {}) {
     if (mlir::cast<cir::PointerType>(dst.getType()).getPointee() !=
         val.getType())
       dst = createPtrBitcast(dst, val.getType());
     const mlir::IntegerAttr alignmentAttr = mlir::IntegerAttr::get(
-          mlir::IntegerType::get(dst.getContext(), 64), alignment);
+        mlir::IntegerType::get(dst.getContext(), 64), alignment);
     return create<cir::StoreOp>(loc, val, dst, _volatile, alignmentAttr, order,
                                 /*tbaa=*/cir::TBAAAttr{});
   }
