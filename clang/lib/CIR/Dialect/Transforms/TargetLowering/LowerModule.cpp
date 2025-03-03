@@ -245,9 +245,8 @@ createLowerModule(mlir::ModuleOp module, mlir::PatternRewriter &rewriter) {
   clang::LangOptions langOpts;
   if (auto langAttr = mlir::cast_if_present<cir::LangAttr>(
           module->getAttr(cir::CIRDialect::getLangAttrName()))) {
-    if (langAttr.isCXX()) {
+    if (langAttr.isCXX())
       langOpts.CPlusPlus = true;
-    }
   }
 
   // FIXME(cir): This just uses the default code generation options. We need to
