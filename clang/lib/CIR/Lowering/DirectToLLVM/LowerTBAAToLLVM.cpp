@@ -44,11 +44,10 @@ public:
 
 private:
   mlir::LLVM::TBAARootAttr getRoot() {
-    if (isCPlusPlus) {
+    if (isCPlusPlus)
       return createTBAARoot("Simple C++ TBAA");
-    } else {
-      return createTBAARoot("Simple C/C++ TBAA");
-    }
+
+    return createTBAARoot("Simple C/C++ TBAA");
   }
 
   mlir::LLVM::TBAATypeDescriptorAttr getChar() {
