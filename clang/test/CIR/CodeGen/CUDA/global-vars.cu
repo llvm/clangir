@@ -8,4 +8,8 @@
 
 __device__ int a;
 
-// CIR-DEVICE: cir.global external addrspace(offload_global) @a = #cir.int<0> : !s32i {alignment = 4 : i64} loc(#loc3)
+// CIR-DEVICE: cir.global external addrspace(offload_global) @a ={{.*}}
+
+__constant__ int b;
+
+// CIR-DEVICE: cir.global constant external addrspace(offload_constant) @b ={{.*}}
