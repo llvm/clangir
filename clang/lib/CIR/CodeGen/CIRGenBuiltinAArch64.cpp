@@ -1654,7 +1654,9 @@ static const std::pair<unsigned, unsigned> NEONEquivalentIntrinsicMap[] = {
 static const ARMVectorIntrinsicInfo AArch64SVEIntrinsicMap[] = {
 #define GET_SVE_LLVM_INTRINSIC_MAP
 #include "clang/Basic/BuiltinsAArch64NeonSVEBridge_cg.def"
+
 #include "clang/Basic/arm_sve_builtin_cg.inc"
+
 #undef GET_SVE_LLVM_INTRINSIC_MAP
 };
 
@@ -1670,6 +1672,7 @@ static const ARMVectorIntrinsicInfo AArch64SVEIntrinsicMap[] = {
 static const ARMVectorIntrinsicInfo AArch64SMEIntrinsicMap[] = {
 #define GET_SME_LLVM_INTRINSIC_MAP
 #include "clang/Basic/arm_sme_builtin_cg.inc"
+
 #undef GET_SME_LLVM_INTRINSIC_MAP
 };
 
@@ -2226,6 +2229,26 @@ static mlir::Value vecReduceIntValue(CIRGenFunction &cgf, mlir::Value val,
       loc, val, builder.getConstInt(loc, cgf.SizeTy, 0));
 }
 
+static void prepareNeonCallArgs(CIRGenBuilderTy &builder,
+                                llvm::SmallVector<mlir::Type> argTypes,
+                                llvm::SmallVectorImpl<mlir::Value> &args,
+                                mlir::Location loc,
+                                bool isConstrainedFPIntrinsic, unsigned shift,
+                                bool rightshift) {
+  for (unsigned j = 0; j < argTypes.size(); ++j) {
+    if (isConstrainedFPIntrinsic) {
+      assert(!cir::MissingFeatures::emitConstrainedFPCall());
+    }
+    if (shift > 0 && shift == j) {
+      args[j] = emitNeonShiftVector(builder, args[j],
+                                    mlir::cast<cir::VectorType>(argTypes[j]),
+                                    loc, rightshift);
+    } else {
+      args[j] = builder.createBitcast(args[j], argTypes[j]);
+    }
+  }
+}
+
 static mlir::Value emitNeonCall(CIRGenBuilderTy &builder,
                                 llvm::SmallVector<mlir::Type> argTypes,
                                 llvm::SmallVectorImpl<mlir::Value> &args,
@@ -2239,18 +2262,9 @@ static mlir::Value emitNeonCall(CIRGenBuilderTy &builder,
   if (isConstrainedFPIntrinsic)
     llvm_unreachable("isConstrainedFPIntrinsic NYI");
 
-  for (unsigned j = 0; j < argTypes.size(); ++j) {
-    if (isConstrainedFPIntrinsic) {
-      assert(!cir::MissingFeatures::emitConstrainedFPCall());
-    }
-    if (shift > 0 && shift == j) {
-      args[j] = emitNeonShiftVector(builder, args[j],
-                                    mlir::cast<cir::VectorType>(argTypes[j]),
-                                    loc, rightshift);
-    } else {
-      args[j] = builder.createBitcast(args[j], argTypes[j]);
-    }
-  }
+  prepareNeonCallArgs(builder, std::move(argTypes), args, loc,
+                      isConstrainedFPIntrinsic, shift, rightshift);
+
   if (isConstrainedFPIntrinsic) {
     assert(!cir::MissingFeatures::emitConstrainedFPCall());
     return nullptr;
@@ -2261,6 +2275,8 @@ static mlir::Value emitNeonCall(CIRGenBuilderTy &builder,
       .getResult();
 }
 
+// This one is similar to the function above, except for creating an operation
+// from template instead of creating a LLVMIntrinsicCallOp
 template <typename Operation>
 static mlir::Value
 emitNeonCall(CIRGenBuilderTy &builder, llvm::SmallVector<mlir::Type> argTypes,
@@ -2273,18 +2289,9 @@ emitNeonCall(CIRGenBuilderTy &builder, llvm::SmallVector<mlir::Type> argTypes,
   if (isConstrainedFPIntrinsic)
     llvm_unreachable("isConstrainedFPIntrinsic NYI");
 
-  for (unsigned j = 0; j < argTypes.size(); ++j) {
-    if (isConstrainedFPIntrinsic) {
-      assert(!cir::MissingFeatures::emitConstrainedFPCall());
-    }
-    if (shift > 0 && shift == j) {
-      args[j] = emitNeonShiftVector(builder, args[j],
-                                    mlir::cast<cir::VectorType>(argTypes[j]),
-                                    loc, rightshift);
-    } else {
-      args[j] = builder.createBitcast(args[j], argTypes[j]);
-    }
-  }
+  prepareNeonCallArgs(builder, std::move(argTypes), args, loc,
+                      isConstrainedFPIntrinsic, shift, rightshift);
+
   if (isConstrainedFPIntrinsic) {
     assert(!cir::MissingFeatures::emitConstrainedFPCall());
     return nullptr;
