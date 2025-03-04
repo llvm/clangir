@@ -607,7 +607,7 @@ protected:
   /// An optional type converter for use by this pattern.
   const TypeConverter *typeConverter = nullptr;
 
-private:
+protected:
   using RewritePattern::rewrite;
 };
 
@@ -688,8 +688,9 @@ public:
     return matchAndRewrite(op, OpAdaptor(oneToOneOperands, adaptor), rewriter);
   }
 
-private:
+protected:
   using ConversionPattern::matchAndRewrite;
+  using ConversionPattern::rewrite;
 };
 
 /// OpInterfaceConversionPattern is a wrapper around ConversionPattern that
@@ -751,7 +752,7 @@ public:
     return matchAndRewrite(op, getOneToOneAdaptorOperands(operands), rewriter);
   }
 
-private:
+protected:
   using ConversionPattern::matchAndRewrite;
 };
 

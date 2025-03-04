@@ -28,6 +28,8 @@ void GenerateLowering(const Record *Operation) {
   public:
     using OpConversionPattern<cir::)C++" +
       Name + R"C++(>::OpConversionPattern;
+    using OpConversionPattern<cir::)C++" +
+      Name + R"C++(>::matchAndRewrite;
 
   mlir::LogicalResult
   matchAndRewrite(cir::)C++" +

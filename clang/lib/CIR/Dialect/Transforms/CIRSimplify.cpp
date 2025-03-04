@@ -77,6 +77,8 @@ struct SimplifyTernary final : public OpRewritePattern<TernaryOp> {
     return mlir::success();
   }
 
+  using mlir::OpRewritePattern<TernaryOp>::matchAndRewrite;
+
 private:
   bool isSimpleTernaryBranch(mlir::Region &region) const {
     if (!region.hasOneBlock())
@@ -139,6 +141,8 @@ struct SimplifySelect : public OpRewritePattern<SelectOp> {
 
     return mlir::failure();
   }
+
+  using mlir::OpRewritePattern<SelectOp>::matchAndRewrite;
 };
 
 //===----------------------------------------------------------------------===//

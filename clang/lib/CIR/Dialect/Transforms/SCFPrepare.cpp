@@ -108,6 +108,8 @@ struct canonicalizeIVtoCmpLHS : public OpRewritePattern<ForOp> {
 
     return failure();
   }
+
+  using mlir::OpRewritePattern<ForOp>::matchAndRewrite;
 };
 
 // Hoist loop invariant operations in condition block out of loop
@@ -199,6 +201,8 @@ struct hoistLoopInvariantInCondBlock : public OpRewritePattern<ForOp> {
 
     return failure();
   }
+
+  using mlir::OpRewritePattern<ForOp>::matchAndRewrite;
 };
 
 //===----------------------------------------------------------------------===//

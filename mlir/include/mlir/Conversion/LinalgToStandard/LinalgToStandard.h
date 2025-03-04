@@ -40,6 +40,8 @@ public:
 
   LogicalResult matchAndRewrite(LinalgOp op,
                                 PatternRewriter &rewriter) const override;
+
+  using OpInterfaceRewritePattern<LinalgOp>::matchAndRewrite;
 };
 
 /// Populate the given list with patterns that convert from Linalg to Standard.

@@ -54,6 +54,8 @@ struct RemoveRedundantBranches : public OpRewritePattern<BrOp> {
 
     return failure();
   }
+
+  using mlir::OpRewritePattern<BrOp>::matchAndRewrite;
 };
 
 struct RemoveEmptyScope : public OpRewritePattern<ScopeOp> {
@@ -77,6 +79,9 @@ struct RemoveEmptyScope : public OpRewritePattern<ScopeOp> {
   void rewrite(ScopeOp op, PatternRewriter &rewriter) const final {
     rewriter.eraseOp(op);
   }
+
+  using mlir::OpRewritePattern<ScopeOp>::match;
+  using mlir::OpRewritePattern<ScopeOp>::rewrite;
 };
 
 struct RemoveEmptySwitch : public OpRewritePattern<SwitchOp> {
@@ -90,6 +95,9 @@ struct RemoveEmptySwitch : public OpRewritePattern<SwitchOp> {
   void rewrite(SwitchOp op, PatternRewriter &rewriter) const final {
     rewriter.eraseOp(op);
   }
+
+  using mlir::OpRewritePattern<SwitchOp>::match;
+  using mlir::OpRewritePattern<SwitchOp>::rewrite;
 };
 
 struct RemoveTrivialTry : public OpRewritePattern<TryOp> {
@@ -114,6 +122,9 @@ struct RemoveTrivialTry : public OpRewritePattern<TryOp> {
     rewriter.inlineBlockBefore(tryBody, parentBlock, Block::iterator(op));
     rewriter.eraseOp(op);
   }
+
+  using mlir::OpRewritePattern<TryOp>::match;
+  using mlir::OpRewritePattern<TryOp>::rewrite;
 };
 
 // Remove call exception with empty cleanups
@@ -138,6 +149,9 @@ struct SimplifyCallOp : public OpRewritePattern<CallOp> {
     rewriter.eraseOp(&b->back());
     rewriter.eraseBlock(b);
   }
+
+  using mlir::OpRewritePattern<CallOp>::match;
+  using mlir::OpRewritePattern<CallOp>::rewrite;
 };
 
 //===----------------------------------------------------------------------===//

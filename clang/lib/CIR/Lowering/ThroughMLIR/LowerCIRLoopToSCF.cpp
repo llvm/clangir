@@ -297,6 +297,8 @@ public:
     rewriter.eraseOp(op);
     return mlir::success();
   }
+
+  using mlir::OpConversionPattern<cir::ForOp>::matchAndRewrite;
 };
 
 class CIRWhileOpLowering : public mlir::OpConversionPattern<cir::WhileOp> {
@@ -311,6 +313,8 @@ public:
     rewriter.eraseOp(op);
     return mlir::success();
   }
+
+  using mlir::OpConversionPattern<cir::WhileOp>::matchAndRewrite;
 };
 
 class CIRDoOpLowering : public mlir::OpConversionPattern<cir::DoWhileOp> {
@@ -325,6 +329,8 @@ public:
     rewriter.eraseOp(op);
     return mlir::success();
   }
+
+  using mlir::OpConversionPattern<cir::DoWhileOp>::matchAndRewrite;
 };
 
 class CIRConditionOpLowering
@@ -343,6 +349,8 @@ public:
         })
         .Default([](auto) { return mlir::failure(); });
   }
+
+  using mlir::OpConversionPattern<cir::ConditionOp>::matchAndRewrite;
 };
 
 void populateCIRLoopToSCFConversionPatterns(mlir::RewritePatternSet &patterns,

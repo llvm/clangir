@@ -245,6 +245,8 @@ public:
         extensionFn(context, dialects...);
       }
       ExtensionFnT extensionFn;
+
+      using DialectExtension<Extension, DialectsT...>::apply;
     };
     return addExtension(TypeID::getFromOpaquePointer(
                             reinterpret_cast<const void *>(extensionFn)),

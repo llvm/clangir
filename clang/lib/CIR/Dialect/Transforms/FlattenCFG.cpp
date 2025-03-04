@@ -112,6 +112,8 @@ struct CIRIfFlattening : public OpRewritePattern<IfOp> {
     rewriter.replaceOp(ifOp, continueBlock->getArguments());
     return mlir::success();
   }
+
+  using mlir::OpRewritePattern<IfOp>::matchAndRewrite;
 };
 
 class CIRScopeOpFlattening : public mlir::OpRewritePattern<cir::ScopeOp> {
@@ -168,6 +170,8 @@ public:
 
     return mlir::success();
   }
+
+  using mlir::OpRewritePattern<cir::ScopeOp>::matchAndRewrite;
 };
 
 class CIRTryOpFlattening : public mlir::OpRewritePattern<cir::TryOp> {
@@ -548,6 +552,8 @@ public:
     }
     return mlir::success();
   }
+
+  using mlir::OpRewritePattern<TryOp>::matchAndRewrite;
 };
 
 class CIRLoopOpInterfaceFlattening
@@ -628,6 +634,8 @@ public:
     rewriter.eraseOp(op);
     return mlir::success();
   }
+
+  using mlir::OpInterfaceRewritePattern<cir::LoopOpInterface>::matchAndRewrite;
 };
 
 class CIRSwitchOpFlattening : public mlir::OpRewritePattern<cir::SwitchOp> {
@@ -854,6 +862,8 @@ public:
 
     return mlir::success();
   }
+
+  using mlir::OpRewritePattern<cir::SwitchOp>::matchAndRewrite;
 };
 class CIRTernaryOpFlattening : public mlir::OpRewritePattern<cir::TernaryOp> {
 public:
@@ -904,6 +914,8 @@ public:
     // Ok, we're done!
     return mlir::success();
   }
+
+  using mlir::OpRewritePattern<cir::TernaryOp>::matchAndRewrite;
 };
 
 void populateFlattenCFGPatterns(RewritePatternSet &patterns) {

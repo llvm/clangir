@@ -72,6 +72,8 @@ public:
                                                       adaptor.getOperands());
     return mlir::LogicalResult::success();
   }
+
+  using mlir::OpConversionPattern<cir::ReturnOp>::matchAndRewrite;
 };
 
 struct ConvertCIRToMLIRPass
@@ -108,6 +110,8 @@ public:
         op, op.getCalleeAttr(), types, adaptor.getOperands());
     return mlir::LogicalResult::success();
   }
+
+  using mlir::OpConversionPattern<cir::CallOp>::matchAndRewrite;
 };
 
 /// Given a type convertor and a data layout, convert the given type to a type
@@ -185,6 +189,8 @@ public:
                                                         op.getAlignmentAttr());
     return mlir::LogicalResult::success();
   }
+
+  using mlir::OpConversionPattern<cir::AllocaOp>::matchAndRewrite;
 };
 
 // Find base and indices from memref.reinterpret_cast
@@ -251,6 +257,8 @@ public:
     rewriter.replaceOp(op, result);
     return mlir::LogicalResult::success();
   }
+
+  using mlir::OpConversionPattern<cir::LoadOp>::matchAndRewrite;
 };
 
 class CIRStoreOpLowering : public mlir::OpConversionPattern<cir::StoreOp> {
@@ -276,6 +284,8 @@ public:
                                                          adaptor.getAddr());
     return mlir::LogicalResult::success();
   }
+
+  using mlir::OpConversionPattern<cir::StoreOp>::matchAndRewrite;
 };
 
 class CIRCosOpLowering : public mlir::OpConversionPattern<cir::CosOp> {
@@ -288,6 +298,8 @@ public:
     rewriter.replaceOpWithNewOp<mlir::math::CosOp>(op, adaptor.getSrc());
     return mlir::LogicalResult::success();
   }
+
+  using mlir::OpConversionPattern<cir::CosOp>::matchAndRewrite;
 };
 
 class CIRSqrtOpLowering : public mlir::OpConversionPattern<cir::SqrtOp> {
@@ -300,6 +312,8 @@ public:
     rewriter.replaceOpWithNewOp<mlir::math::SqrtOp>(op, adaptor.getSrc());
     return mlir::LogicalResult::success();
   }
+
+  using mlir::OpConversionPattern<cir::SqrtOp>::matchAndRewrite;
 };
 
 class CIRFAbsOpLowering : public mlir::OpConversionPattern<cir::FAbsOp> {
@@ -312,7 +326,10 @@ public:
     rewriter.replaceOpWithNewOp<mlir::math::AbsFOp>(op, adaptor.getSrc());
     return mlir::LogicalResult::success();
   }
+
+  using mlir::OpConversionPattern<cir::FAbsOp>::matchAndRewrite;
 };
+
 class CIRAbsOpLowering : public mlir::OpConversionPattern<cir::AbsOp> {
 public:
   using mlir::OpConversionPattern<cir::AbsOp>::OpConversionPattern;
@@ -323,6 +340,8 @@ public:
     rewriter.replaceOpWithNewOp<mlir::math::AbsIOp>(op, adaptor.getSrc());
     return mlir::LogicalResult::success();
   }
+
+  using mlir::OpConversionPattern<cir::AbsOp>::matchAndRewrite;
 };
 
 class CIRFloorOpLowering : public mlir::OpConversionPattern<cir::FloorOp> {
@@ -335,6 +354,8 @@ public:
     rewriter.replaceOpWithNewOp<mlir::math::FloorOp>(op, adaptor.getSrc());
     return mlir::LogicalResult::success();
   }
+
+  using mlir::OpConversionPattern<cir::FloorOp>::matchAndRewrite;
 };
 
 class CIRCeilOpLowering : public mlir::OpConversionPattern<cir::CeilOp> {
@@ -347,6 +368,8 @@ public:
     rewriter.replaceOpWithNewOp<mlir::math::CeilOp>(op, adaptor.getSrc());
     return mlir::LogicalResult::success();
   }
+
+  using mlir::OpConversionPattern<cir::CeilOp>::matchAndRewrite;
 };
 
 class CIRLog10OpLowering : public mlir::OpConversionPattern<cir::Log10Op> {
@@ -359,6 +382,8 @@ public:
     rewriter.replaceOpWithNewOp<mlir::math::Log10Op>(op, adaptor.getSrc());
     return mlir::LogicalResult::success();
   }
+
+  using mlir::OpConversionPattern<cir::Log10Op>::matchAndRewrite;
 };
 
 class CIRLogOpLowering : public mlir::OpConversionPattern<cir::LogOp> {
@@ -371,6 +396,8 @@ public:
     rewriter.replaceOpWithNewOp<mlir::math::LogOp>(op, adaptor.getSrc());
     return mlir::LogicalResult::success();
   }
+
+  using mlir::OpConversionPattern<cir::LogOp>::matchAndRewrite;
 };
 
 class CIRLog2OpLowering : public mlir::OpConversionPattern<cir::Log2Op> {
@@ -383,6 +410,8 @@ public:
     rewriter.replaceOpWithNewOp<mlir::math::Log2Op>(op, adaptor.getSrc());
     return mlir::LogicalResult::success();
   }
+
+  using mlir::OpConversionPattern<cir::Log2Op>::matchAndRewrite;
 };
 
 class CIRRoundOpLowering : public mlir::OpConversionPattern<cir::RoundOp> {
@@ -395,6 +424,8 @@ public:
     rewriter.replaceOpWithNewOp<mlir::math::RoundOp>(op, adaptor.getSrc());
     return mlir::LogicalResult::success();
   }
+
+  using mlir::OpConversionPattern<cir::RoundOp>::matchAndRewrite;
 };
 
 class CIRExpOpLowering : public mlir::OpConversionPattern<cir::ExpOp> {
@@ -407,6 +438,8 @@ public:
     rewriter.replaceOpWithNewOp<mlir::math::ExpOp>(op, adaptor.getSrc());
     return mlir::LogicalResult::success();
   }
+
+  using mlir::OpConversionPattern<cir::ExpOp>::matchAndRewrite;
 };
 
 class CIRShiftOpLowering : public mlir::OpConversionPattern<cir::ShiftOp> {
@@ -440,6 +473,8 @@ public:
 
     return mlir::success();
   }
+
+  using mlir::OpConversionPattern<cir::ShiftOp>::matchAndRewrite;
 };
 
 class CIRExp2OpLowering : public mlir::OpConversionPattern<cir::Exp2Op> {
@@ -452,6 +487,8 @@ public:
     rewriter.replaceOpWithNewOp<mlir::math::Exp2Op>(op, adaptor.getSrc());
     return mlir::LogicalResult::success();
   }
+
+  using mlir::OpConversionPattern<cir::Exp2Op>::matchAndRewrite;
 };
 
 class CIRSinOpLowering : public mlir::OpConversionPattern<cir::SinOp> {
@@ -464,6 +501,8 @@ public:
     rewriter.replaceOpWithNewOp<mlir::math::SinOp>(op, adaptor.getSrc());
     return mlir::LogicalResult::success();
   }
+
+  using mlir::OpConversionPattern<cir::SinOp>::matchAndRewrite;
 };
 
 template <typename CIROp, typename MLIROp>
@@ -483,6 +522,8 @@ public:
     rewriter.replaceOp(op, newOp);
     return mlir::LogicalResult::success();
   }
+
+  using mlir::OpConversionPattern<CIROp>::matchAndRewrite;
 };
 
 using CIRBitClzOpLowering =
@@ -527,6 +568,8 @@ public:
 
     return mlir::LogicalResult::success();
   }
+
+  using mlir::OpConversionPattern<cir::BitClrsbOp>::matchAndRewrite;
 };
 
 class CIRBitFfsOpLowering : public mlir::OpConversionPattern<cir::BitFfsOp> {
@@ -560,6 +603,8 @@ public:
 
     return mlir::LogicalResult::success();
   }
+
+  using mlir::OpConversionPattern<cir::BitFfsOp>::matchAndRewrite;
 };
 
 class CIRBitParityOpLowering
@@ -580,6 +625,8 @@ public:
     rewriter.replaceOp(op, res);
     return mlir::LogicalResult::success();
   }
+
+  using mlir::OpConversionPattern<cir::BitParityOp>::matchAndRewrite;
 };
 
 class CIRConstantOpLowering
@@ -632,6 +679,8 @@ public:
         this->lowerCirAttrToMlirAttr(op.getValue(), rewriter));
     return mlir::LogicalResult::success();
   }
+
+  using mlir::OpConversionPattern<cir::ConstantOp>::matchAndRewrite;
 };
 
 class CIRFuncOpLowering : public mlir::OpConversionPattern<cir::FuncOp> {
@@ -669,6 +718,8 @@ public:
     rewriter.eraseOp(op);
     return mlir::LogicalResult::success();
   }
+
+  using mlir::OpConversionPattern<cir::FuncOp>::matchAndRewrite;
 };
 
 class CIRUnaryOpLowering : public mlir::OpConversionPattern<cir::UnaryOp> {
@@ -715,6 +766,8 @@ public:
 
     return mlir::LogicalResult::success();
   }
+
+  using mlir::OpConversionPattern<cir::UnaryOp>::matchAndRewrite;
 };
 
 class CIRBinOpLowering : public mlir::OpConversionPattern<cir::BinOp> {
@@ -805,6 +858,8 @@ public:
 
     return mlir::LogicalResult::success();
   }
+
+  using mlir::OpConversionPattern<cir::BinOp>::matchAndRewrite;
 };
 
 class CIRCmpOpLowering : public mlir::OpConversionPattern<cir::CmpOp> {
@@ -832,6 +887,8 @@ public:
 
     return mlir::LogicalResult::success();
   }
+
+  using mlir::OpConversionPattern<cir::CmpOp>::matchAndRewrite;
 };
 
 class CIRBrOpLowering : public mlir::OpRewritePattern<cir::BrOp> {
@@ -844,6 +901,8 @@ public:
     rewriter.replaceOpWithNewOp<mlir::cf::BranchOp>(op, op.getDest());
     return mlir::LogicalResult::success();
   }
+
+  using mlir::OpRewritePattern<cir::BrOp>::matchAndRewrite;
 };
 
 class CIRScopeOpLowering : public mlir::OpConversionPattern<cir::ScopeOp> {
@@ -881,6 +940,8 @@ class CIRScopeOpLowering : public mlir::OpConversionPattern<cir::ScopeOp> {
 
     return mlir::LogicalResult::success();
   }
+
+  using mlir::OpConversionPattern<cir::ScopeOp>::matchAndRewrite;
 };
 
 struct CIRBrCondOpLowering : public mlir::OpConversionPattern<cir::BrCondOp> {
@@ -896,6 +957,8 @@ struct CIRBrCondOpLowering : public mlir::OpConversionPattern<cir::BrCondOp> {
 
     return mlir::success();
   }
+
+  using mlir::OpConversionPattern<cir::BrCondOp>::matchAndRewrite;
 };
 
 class CIRTernaryOpLowering : public mlir::OpConversionPattern<cir::TernaryOp> {
@@ -923,6 +986,8 @@ public:
     rewriter.replaceOp(op, ifOp);
     return mlir::success();
   }
+
+  using mlir::OpConversionPattern<cir::TernaryOp>::matchAndRewrite;
 };
 
 class CIRYieldOpLowering : public mlir::OpConversionPattern<cir::YieldOp> {
@@ -940,6 +1005,8 @@ public:
         })
         .Default([](auto) { return mlir::failure(); });
   }
+
+  using mlir::OpConversionPattern<cir::YieldOp>::matchAndRewrite;
 };
 
 class CIRIfOpLowering : public mlir::OpConversionPattern<cir::IfOp> {
@@ -962,6 +1029,8 @@ public:
     rewriter.replaceOp(ifop, newIfOp);
     return mlir::success();
   }
+
+  using mlir::OpConversionPattern<cir::IfOp>::matchAndRewrite;
 };
 
 class CIRGlobalOpLowering : public mlir::OpConversionPattern<cir::GlobalOp> {
@@ -1048,6 +1117,8 @@ public:
 
     return mlir::success();
   }
+
+  using mlir::OpConversionPattern<cir::GlobalOp>::matchAndRewrite;
 };
 
 class CIRGetGlobalOpLowering
@@ -1070,6 +1141,8 @@ public:
     rewriter.replaceOpWithNewOp<mlir::memref::GetGlobalOp>(op, type, symbol);
     return mlir::success();
   }
+
+  using mlir::OpConversionPattern<cir::GetGlobalOp>::matchAndRewrite;
 };
 
 class CIRVectorCreateLowering
@@ -1100,6 +1173,8 @@ public:
     rewriter.replaceOp(op, result);
     return mlir::success();
   }
+
+  using mlir::OpConversionPattern<cir::VecCreateOp>::matchAndRewrite;
 };
 
 class CIRVectorInsertLowering
@@ -1114,6 +1189,8 @@ public:
         op, adaptor.getValue(), adaptor.getVec(), adaptor.getIndex());
     return mlir::success();
   }
+
+  using mlir::OpConversionPattern<cir::VecInsertOp>::matchAndRewrite;
 };
 
 class CIRVectorExtractLowering
@@ -1128,6 +1205,8 @@ public:
         op, adaptor.getVec(), adaptor.getIndex());
     return mlir::success();
   }
+
+  using mlir::OpConversionPattern<cir::VecExtractOp>::matchAndRewrite;
 };
 
 class CIRVectorCmpOpLowering : public mlir::OpConversionPattern<cir::VecCmpOp> {
@@ -1160,6 +1239,8 @@ public:
         op, typeConverter->convertType(op.getType()), bitResult);
     return mlir::success();
   }
+
+  using mlir::OpConversionPattern<cir::VecCmpOp>::matchAndRewrite;
 };
 
 class CIRCastOpLowering : public mlir::OpConversionPattern<cir::CastOp> {
@@ -1269,6 +1350,8 @@ public:
     }
     return mlir::failure();
   }
+
+  using mlir::OpConversionPattern<cir::CastOp>::matchAndRewrite;
 };
 
 class CIRPtrStrideOpLowering
@@ -1351,6 +1434,8 @@ public:
     rewriter.eraseOp(baseOp);
     return mlir::success();
   }
+
+  using mlir::OpConversionPattern<cir::PtrStrideOp>::matchAndRewrite;
 };
 
 void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,

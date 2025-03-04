@@ -13,6 +13,7 @@
 
 #include "mlir/Conversion/VectorToSCF/VectorToSCF.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
+#include "mlir/Dialect/Linalg/TransformOps/LinalgTransformOps.h"
 #include "mlir/Dialect/Linalg/Utils/Utils.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/Utils/Utils.h"
@@ -1415,6 +1416,7 @@ struct DownscaleSizeOneWindowed2DConvolution final
                                 PatternRewriter &rewriter) const override {
     return returningMatchAndRewrite(convOp, rewriter);
   }
+  using OpRewritePattern<Conv2DOp>::matchAndRewrite;
 };
 
 extern template struct DownscaleSizeOneWindowed2DConvolution<Conv2DNhwcHwcfOp,
@@ -1438,6 +1440,7 @@ struct DownscaleDepthwiseConv2DNhwcHwcOp final
                                 PatternRewriter &rewriter) const override {
     return returningMatchAndRewrite(convOp, rewriter);
   }
+  using OpRewritePattern<DepthwiseConv2DNhwcHwcOp>::matchAndRewrite;
 };
 
 struct DownscaleConv2DOp final : public OpRewritePattern<Conv2DOp> {
@@ -1451,6 +1454,7 @@ struct DownscaleConv2DOp final : public OpRewritePattern<Conv2DOp> {
                                 PatternRewriter &rewriter) const override {
     return returningMatchAndRewrite(convOp, rewriter);
   }
+  using OpRewritePattern<Conv2DOp>::matchAndRewrite;
 };
 
 ///
@@ -1476,6 +1480,7 @@ struct LinalgGeneralizationPattern
                                 PatternRewriter &rewriter) const override {
     return returningMatchAndRewrite(op, rewriter);
   }
+  using OpInterfaceRewritePattern<LinalgOp>::matchAndRewrite;
 };
 
 struct LinalgSpecializationPattern : public OpRewritePattern<GenericOp> {
@@ -1490,6 +1495,7 @@ struct LinalgSpecializationPattern : public OpRewritePattern<GenericOp> {
                                 PatternRewriter &rewriter) const override {
     return returningMatchAndRewrite(op, rewriter);
   }
+  using OpRewritePattern<GenericOp>::matchAndRewrite;
 };
 
 /// Vectorization pattern for memref::CopyOp.
@@ -1498,6 +1504,7 @@ struct CopyVectorizationPattern : public OpRewritePattern<memref::CopyOp> {
 
   LogicalResult matchAndRewrite(memref::CopyOp copyOp,
                                 PatternRewriter &rewriter) const override;
+  using OpRewritePattern<memref::CopyOp>::matchAndRewrite;
 };
 
 using OptimizeCopyFn =
@@ -1510,6 +1517,7 @@ struct DecomposePadOpPattern : public OpRewritePattern<tensor::PadOp> {
       : OpRewritePattern<tensor::PadOp>(context, benefit) {}
   LogicalResult matchAndRewrite(tensor::PadOp padOp,
                                 PatternRewriter &rewriter) const override;
+  using OpRewritePattern<tensor::PadOp>::matchAndRewrite;
 
 protected:
   Value createFillOrGenerateOp(RewriterBase &rewriter, tensor::PadOp padOp,
@@ -1555,6 +1563,7 @@ struct DecomposeOuterUnitDimsPackOpPattern
   using OpRewritePattern<tensor::PackOp>::OpRewritePattern;
   LogicalResult matchAndRewrite(tensor::PackOp packOp,
                                 PatternRewriter &rewriter) const override;
+  using OpRewritePattern<tensor::PackOp>::matchAndRewrite;
 };
 
 /// Rewrites a tensor::UnPackOp into a sequence of rank-reduced
@@ -1589,6 +1598,7 @@ struct DecomposeOuterUnitDimsUnPackOpPattern
   using OpRewritePattern<tensor::UnPackOp>::OpRewritePattern;
   LogicalResult matchAndRewrite(tensor::UnPackOp unpackOp,
                                 PatternRewriter &rewriter) const override;
+  using OpRewritePattern<tensor::UnPackOp>::matchAndRewrite;
 };
 
 /// Match and rewrite for the pattern:
@@ -1620,6 +1630,7 @@ struct LinalgCopyVTRForwardingPattern
 
   LogicalResult matchAndRewrite(vector::TransferReadOp xferOp,
                                 PatternRewriter &rewriter) const override;
+  using OpRewritePattern<vector::TransferReadOp>::matchAndRewrite;
 };
 
 /// Match and rewrite for the pattern:
@@ -1648,6 +1659,7 @@ struct LinalgCopyVTWForwardingPattern
 
   LogicalResult matchAndRewrite(vector::TransferWriteOp xferOp,
                                 PatternRewriter &rewriter) const override;
+  using OpRewritePattern<vector::TransferWriteOp>::matchAndRewrite;
 };
 
 /// Rewrite extract_slice(tensor.pad(x)) into tensor.pad(extract_slice(x)).
@@ -1671,6 +1683,8 @@ struct ExtractSliceOfPadTensorSwapPattern
 
   LogicalResult matchAndRewrite(tensor::ExtractSliceOp sliceOp,
                                 PatternRewriter &rewriter) const override;
+
+  using OpRewritePattern<tensor::ExtractSliceOp>::matchAndRewrite;
 
 private:
   ControlFn controlFn;
