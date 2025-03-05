@@ -174,7 +174,6 @@ cir::TBAAAttr CIRGenTBAA::getTypeInfoHelper(clang::QualType qty) {
   // Enum types are distinct types. In C++ they have "underlying types",
   // however they aren't related for TBAA.
   if (const EnumType *ety = dyn_cast<EnumType>(ty)) {
-    assert(cir::MissingFeatures::tbaaTagForEnum());
     if (!features.CPlusPlus)
       return getTypeInfo(ety->getDecl()->getIntegerType());
 
