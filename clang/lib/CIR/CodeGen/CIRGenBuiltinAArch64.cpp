@@ -1672,7 +1672,6 @@ static const ARMVectorIntrinsicInfo AArch64SVEIntrinsicMap[] = {
 static const ARMVectorIntrinsicInfo AArch64SMEIntrinsicMap[] = {
 #define GET_SME_LLVM_INTRINSIC_MAP
 #include "clang/Basic/arm_sme_builtin_cg.inc"
-
 #undef GET_SME_LLVM_INTRINSIC_MAP
 };
 
