@@ -65,12 +65,6 @@ enum ActionKind {
   /// Translate input source into HTML.
   EmitHTML,
 
-  /// Emit a .cir file
-  EmitCIR,
-
-  /// Emit a .cir file with flat ClangIR
-  EmitCIRFlat,
-
   /// Generate CIR, bud don't emit anything.
   EmitCIROnly,
 
@@ -156,6 +150,8 @@ enum ActionKind {
   /// Print the output of the dependency directives source minimizer.
   PrintDependencyDirectivesSourceMinimizerOutput
 };
+
+enum MLIRDialectKind { MLIR_CORE, MLIR_LLVM, MLIR_CIR, MLIR_CIR_FLAT };
 
 } // namespace frontend
 
@@ -456,6 +452,8 @@ public:
   std::string ClangIRLifetimeCheckOpts;
   std::string ClangIRIdiomRecognizerOpts;
   std::string ClangIRLibOptOpts;
+
+  frontend::MLIRDialectKind MLIRTargetDialect;
 
   /// The input kind, either specified via -x argument or deduced from the input
   /// file name.
