@@ -4789,11 +4789,11 @@ void populateCIRToLLVMPasses(mlir::OpPassManager &pm, bool useCCLowering) {
 
 extern void registerCIRDialectTranslation(mlir::MLIRContext &context);
 
-std::unique_ptr<llvm::Module>
-lowerDirectlyFromCIRToLLVMIR(mlir::ModuleOp theModule, LLVMContext &llvmCtx,
-                             bool disableVerifier, bool disableCCLowering,
-                             bool disableDebugInfo) {
-  llvm::TimeTraceScope scope("lower from CIR to LLVM directly");
+mlir::ModuleOp lowerDirectlyFromCIRToLLVMDialect(mlir::ModuleOp theModule,
+                                                 bool disableVerifier,
+                                                 bool disableCCLowering,
+                                                 bool disableDebugInfo) {
+  llvm::TimeTraceScope scope("lower from CIR to LLVM Dialect");
 
   mlir::MLIRContext *mlirCtx = theModule.getContext();
   mlir::PassManager pm(mlirCtx);
@@ -4821,6 +4821,20 @@ lowerDirectlyFromCIRToLLVMIR(mlir::ModuleOp theModule, LLVMContext &llvmCtx,
   // Now that we ran all the lowering passes, verify the final output.
   if (theModule.verify().failed())
     report_fatal_error("Verification of the final LLVMIR dialect failed!");
+
+  return theModule;
+}
+
+std::unique_ptr<llvm::Module>
+lowerDirectlyFromCIRToLLVMIR(mlir::ModuleOp theModule, LLVMContext &llvmCtx,
+                             bool disableVerifier, bool disableCCLowering,
+                             bool disableDebugInfo) {
+  llvm::TimeTraceScope scope("lower from CIR to LLVM directly");
+
+  lowerDirectlyFromCIRToLLVMDialect(theModule, disableVerifier,
+                                    disableCCLowering, disableDebugInfo);
+
+  mlir::MLIRContext *mlirCtx = theModule.getContext();
 
   mlir::registerBuiltinDialectTranslation(*mlirCtx);
   mlir::registerLLVMDialectTranslation(*mlirCtx);
