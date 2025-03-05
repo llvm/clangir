@@ -142,7 +142,7 @@ uint8_t g3(Enum8 *E, uint8_t *val) {
 // LLVM: [[TAG_i32]] = !{[[TYPE_i32:!.*]], [[TYPE_i32]], i64 0}
 // LLVM: [[TYPE_i32]] = !{!"int", [[TYPE_char:!.*]],
 // LLVM: [[TYPE_char]] = !{!"omnipotent char", [[TAG_c_tbaa:!.*]],
-// LLVM: [[TAG_c_tbaa]] = !{!"Simple C/C++ TBAA"}
+// LLVM: [[TAG_c_tbaa]] = !{!"Simple C++ TBAA"}
 // LLVM: [[TAG_EnumAuto32]] = !{[[TYPE_EnumAuto32:!.*]], [[TYPE_EnumAuto32]], i64 0}
 // LLVM: [[TYPE_EnumAuto32]] = !{!"_ZTS10EnumAuto32", [[TYPE_char]],
 // LLVM: [[TAG_i64]] = !{[[TYPE_i64:!.*]], [[TYPE_i64]], i64 0}
