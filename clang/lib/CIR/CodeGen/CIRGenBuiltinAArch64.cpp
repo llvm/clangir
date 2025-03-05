@@ -2251,7 +2251,6 @@ static mlir::Value emitNeonCallToOp(
       args[j] = builder.createBitcast(args[j], argTypes[j]);
     }
   }
-
   if (isConstrainedFPIntrinsic) {
     assert(!cir::MissingFeatures::emitConstrainedFPCall());
     return nullptr;
