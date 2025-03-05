@@ -174,8 +174,22 @@ cir::TBAAAttr CIRGenTBAA::getTypeInfoHelper(clang::QualType qty) {
   // Enum types are distinct types. In C++ they have "underlying types",
   // however they aren't related for TBAA.
   if (const EnumType *ety = dyn_cast<EnumType>(ty)) {
-    assert(!cir::MissingFeatures::tbaaTagForEnum());
-    return tbaa_NYI(mlirContext);
+    if (!features.CPlusPlus)
+      return getTypeInfo(ety->getDecl()->getIntegerType());
+
+    // In C++ mode, types have linkage, so we can rely on the ODR and
+    // on their mangled names, if they're external.
+    // TODO: Is there a way to get a program-wide unique name for a
+    // decl with local linkage or no linkage?
+    if (!ety->getDecl()->isExternallyVisible())
+      return getChar();
+
+    SmallString<256> outName;
+    llvm::raw_svector_ostream out(outName);
+    types.getCXXABI().getMangleContext().mangleCanonicalTypeName(
+        QualType(ety, 0), out);
+    return cir::TBAAScalarAttr::get(mlirContext, outName,
+                                    types.convertType(qty));
   }
   if (const auto *eit = dyn_cast<BitIntType>(ty)) {
     assert(!cir::MissingFeatures::tbaaTagForBitInt());

@@ -47,6 +47,7 @@
 #include "mlir/Transforms/DialectConversion.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
+#include "clang/CIR/LowerToLLVM.h"
 #include "clang/CIR/LowerToMLIR.h"
 #include "clang/CIR/LoweringHelpers.h"
 #include "clang/CIR/Passes.h"
@@ -1495,12 +1496,14 @@ void ConvertCIRToMLIRPass::runOnOperation() {
   }
 }
 
-std::unique_ptr<llvm::Module>
-lowerFromCIRToMLIRToLLVMIR(mlir::ModuleOp theModule,
-                           std::unique_ptr<mlir::MLIRContext> mlirCtx,
-                           llvm::LLVMContext &llvmCtx) {
-  llvm::TimeTraceScope scope("Lower from CIR to MLIR To LLVM");
-  mlir::PassManager pm(mlirCtx.get());
+mlir::ModuleOp lowerFromCIRToMLIRToLLVMDialect(mlir::ModuleOp theModule,
+                                               mlir::MLIRContext *mlirCtx) {
+  llvm::TimeTraceScope scope("Lower from CIR to MLIR To LLVM Dialect");
+  if (!mlirCtx) {
+    mlirCtx = theModule.getContext();
+  }
+
+  mlir::PassManager pm(mlirCtx);
 
   pm.addPass(createConvertCIRToMLIRPass());
   pm.addPass(createConvertMLIRToLLVMPass());
@@ -1513,6 +1516,17 @@ lowerFromCIRToMLIRToLLVMIR(mlir::ModuleOp theModule,
   // Now that we ran all the lowering passes, verify the final output.
   if (theModule.verify().failed())
     report_fatal_error("Verification of the final LLVMIR dialect failed!");
+
+  return theModule;
+}
+
+std::unique_ptr<llvm::Module>
+lowerFromCIRToMLIRToLLVMIR(mlir::ModuleOp theModule,
+                           std::unique_ptr<mlir::MLIRContext> mlirCtx,
+                           llvm::LLVMContext &llvmCtx) {
+  llvm::TimeTraceScope scope("Lower from CIR to MLIR To LLVM");
+
+  lowerFromCIRToMLIRToLLVMDialect(theModule, mlirCtx.get());
 
   mlir::registerBuiltinDialectTranslation(*mlirCtx);
   mlir::registerLLVMDialectTranslation(*mlirCtx);
@@ -1529,7 +1543,7 @@ lowerFromCIRToMLIRToLLVMIR(mlir::ModuleOp theModule,
 mlir::ModuleOp lowerDirectlyFromCIRToLLVMIR(mlir::ModuleOp theModule,
                                             mlir::MLIRContext *mlirCtx) {
   auto llvmModule = lowerFromCIRToMLIR(theModule, mlirCtx);
-  if (!llvmModule)
+  if (!llvmModule.getOperation())
     return {};
 
   mlir::PassManager pm(mlirCtx);

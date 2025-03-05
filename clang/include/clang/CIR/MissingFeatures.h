@@ -60,7 +60,6 @@ struct MissingFeatures {
   static bool tbaa() { return false; }
   static bool tbaaStruct() { return false; }
   static bool tbaaTagForStruct() { return false; }
-  static bool tbaaTagForEnum() { return false; }
   static bool tbaaTagForBitInt() { return false; }
   static bool tbaaVTablePtr() { return false; }
   static bool tbaaIncompleteType() { return false; }
