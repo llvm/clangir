@@ -15125,12 +15125,16 @@ uint64_t test_vcaged_f64(float64_t a, float64_t b) {
   // LLVM:   ret i64 [[VCAGED_F64_I]]
 }
 
-// NYI-LABEL: @test_vcagts_f32(
-// NYI:   [[VCAGTS_F32_I:%.*]] = call i32 @llvm.aarch64.neon.facgt.i32.f32(float %a, float %b)
-// NYI:   ret i32 [[VCAGTS_F32_I]]
-// uint32_t test_vcagts_f32(float32_t a, float32_t b) {
-//   return (uint32_t)vcagts_f32(a, b);
-// }
+uint32_t test_vcagts_f32(float32_t a, float32_t b) {
+  return (uint32_t)vcagts_f32(a, b);
+
+  // CIR-LABEL: vcagts_f32
+  // CIR: [[TMP0:%.*]] = cir.llvm.intrinsic "aarch64.neon.facgt" {{.*}}, {{.*}} : (!cir.float, !cir.float) -> !u32i
+
+  // LLVM-LABEL: @test_vcagts_f32(
+  // LLVM:   [[VCAGED_F32_I:%.*]] = call i32 @llvm.aarch64.neon.facgt.i32.f32(float %0, float %1)
+  // LLVM:   ret i32 [[VCAGED_F32_I]]
+}
 
 uint64_t test_vcagtd_f64(float64_t a, float64_t b) {
   return (uint64_t)vcagtd_f64(a, b);
