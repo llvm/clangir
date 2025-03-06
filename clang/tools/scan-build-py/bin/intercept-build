@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
@@ -15,3 +16,22 @@ from libscanbuild.intercept import intercept_build
 if __name__ == '__main__':
     multiprocessing.freeze_support()
     sys.exit(intercept_build())
+=======
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+# See https://llvm.org/LICENSE.txt for license information.
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+
+import multiprocessing
+import sys
+import os.path
+this_dir = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(os.path.join(os.path.dirname(this_dir), 'lib'))
+
+from libscanbuild.intercept import intercept_build
+
+if __name__ == '__main__':
+    multiprocessing.freeze_support()
+    sys.exit(intercept_build())
+>>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)

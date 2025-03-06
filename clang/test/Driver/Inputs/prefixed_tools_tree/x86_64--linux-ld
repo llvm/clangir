@@ -1,2 +1,7 @@
+<<<<<<< HEAD
 #!/bin/sh
 # This file must be executable to be picked up by GetProgramPath
+=======
+#!/bin/sh
+# This file must be executable to be picked up by GetProgramPath
+>>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)

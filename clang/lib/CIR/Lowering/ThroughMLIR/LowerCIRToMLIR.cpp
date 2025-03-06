@@ -47,7 +47,10 @@
 #include "mlir/Transforms/DialectConversion.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
+<<<<<<< HEAD
 #include "clang/CIR/LowerToLLVM.h"
+=======
+>>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
 #include "clang/CIR/LowerToMLIR.h"
 #include "clang/CIR/LoweringHelpers.h"
 #include "clang/CIR/Passes.h"
@@ -1466,6 +1469,7 @@ void ConvertCIRToMLIRPass::runOnOperation() {
     signalPassFailure();
 }
 
+<<<<<<< HEAD
 mlir::ModuleOp lowerFromCIRToMLIRToLLVMDialect(mlir::ModuleOp theModule,
                                                mlir::MLIRContext *mlirCtx) {
   llvm::TimeTraceScope scope("Lower from CIR to MLIR To LLVM Dialect");
@@ -1474,6 +1478,15 @@ mlir::ModuleOp lowerFromCIRToMLIRToLLVMDialect(mlir::ModuleOp theModule,
   }
 
   mlir::PassManager pm(mlirCtx);
+=======
+std::unique_ptr<llvm::Module>
+lowerFromCIRToMLIRToLLVMIR(mlir::ModuleOp theModule,
+                           std::unique_ptr<mlir::MLIRContext> mlirCtx,
+                           LLVMContext &llvmCtx) {
+  llvm::TimeTraceScope scope("Lower from CIR to MLIR To LLVM");
+
+  mlir::PassManager pm(mlirCtx.get());
+>>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
 
   pm.addPass(createConvertCIRToMLIRPass());
   pm.addPass(createConvertMLIRToLLVMPass());
@@ -1487,6 +1500,7 @@ mlir::ModuleOp lowerFromCIRToMLIRToLLVMDialect(mlir::ModuleOp theModule,
   if (theModule.verify().failed())
     report_fatal_error("Verification of the final LLVMIR dialect failed!");
 
+<<<<<<< HEAD
   return theModule;
 }
 
@@ -1498,6 +1512,8 @@ lowerFromCIRToMLIRToLLVMIR(mlir::ModuleOp theModule,
 
   lowerFromCIRToMLIRToLLVMDialect(theModule, mlirCtx.get());
 
+=======
+>>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
   mlir::registerBuiltinDialectTranslation(*mlirCtx);
   mlir::registerLLVMDialectTranslation(*mlirCtx);
   mlir::registerOpenMPDialectTranslation(*mlirCtx);

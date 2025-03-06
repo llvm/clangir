@@ -1109,7 +1109,11 @@ void LoweringPreparePass::buildCUDAModuleCtor() {
   // Corresponding code:
   //     gpuBinaryHandle = __cudaRegisterFatBinary(&fatbinWrapper);
   auto fatbinVoidPtr = builder.createBitcast(wrapper, voidPtrTy);
+<<<<<<< HEAD
   builder.createCallOp(loc, regFunc, fatbinVoidPtr);
+=======
+  auto gpuBinaryHandle = builder.createCallOp(loc, regFunc, fatbinVoidPtr);
+>>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
 
   // This is currently incomplete.
   // TODO(cir): create __cuda_register_globals(), and call it here.

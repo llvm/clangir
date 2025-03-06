@@ -115,11 +115,20 @@ public:
     return cir::CallingConv::SpirKernel;
   }
 
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
   // Set calling convention for CUDA Kernels.
   // Some targets, such as AMD GPU or SPIRV, treat CUDA kernels as OpenCL
   // kernels. They should reset the calling convention to OpenCLKernel,
   // which will be further resolved by getOpenCLKernelCallingConv().
   virtual void setCUDAKernelCallingConvention(const FunctionType *&ft) const {}
+<<<<<<< HEAD
+=======
+  virtual mlir::Type getCUDADeviceBuiltinSurfaceDeviceType() const { return nullptr; }
+>>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
 
   virtual ~TargetCIRGenInfo() {}
 };

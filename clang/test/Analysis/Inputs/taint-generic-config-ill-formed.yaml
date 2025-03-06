@@ -1,4 +1,11 @@
+<<<<<<< HEAD
 Propagations:
   - Name:     mySource1
     DstArgs:  [-1]
     NotExist: 1
+=======
+Propagations:
+  - Name:     mySource1
+    DstArgs:  [-1]
+    NotExist: 1
+>>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)

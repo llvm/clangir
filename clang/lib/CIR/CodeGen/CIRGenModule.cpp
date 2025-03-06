@@ -569,6 +569,7 @@ bool CIRGenModule::shouldEmitCUDAGlobalVar(const VarDecl *global) const {
   // size and host-side address in order to provide access to
   // their device-side incarnations.
 
+<<<<<<< HEAD
   if (global->hasAttr<CUDAConstantAttr>() ||
       global->getType()->isCUDADeviceBuiltinSurfaceType() ||
       global->getType()->isCUDADeviceBuiltinTextureType()) {
@@ -577,6 +578,13 @@ bool CIRGenModule::shouldEmitCUDAGlobalVar(const VarDecl *global) const {
 
   return !langOpts.CUDAIsDevice || global->hasAttr<CUDADeviceAttr>() ||
          global->hasAttr<CUDASharedAttr>();
+=======
+  return !langOpts.CUDAIsDevice || global->hasAttr<CUDADeviceAttr>() ||
+         global->hasAttr<CUDAConstantAttr>() ||
+         global->hasAttr<CUDASharedAttr>() ||
+         global->getType()->isCUDADeviceBuiltinSurfaceType() ||
+         global->getType()->isCUDADeviceBuiltinTextureType();
+>>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
 }
 
 void CIRGenModule::emitGlobal(GlobalDecl gd) {
@@ -1122,10 +1130,14 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef mangledName, mlir::Type ty,
       }
     }
 
+<<<<<<< HEAD
     // TODO(cir): LLVM codegen makes sure the result is of the correct type
     // by issuing a address space cast.
     if (entryCIRAS != cirAS)
       llvm_unreachable("NYI");
+=======
+    // Address space check removed because it is unnecessary because CIR records address space info in types.
+>>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
 
     // (If global is requested for a definition, we always need to create a new
     // global, not just return a bitcast.)
@@ -1496,7 +1508,11 @@ void CIRGenModule::emitGlobalVarDefinition(const clang::VarDecl *d,
     // __shared__ variables is not marked as externally initialized,
     // because they must not be initialized.
     if (linkage != cir::GlobalLinkageKind::InternalLinkage &&
+<<<<<<< HEAD
         (d->hasAttr<CUDADeviceAttr>())) {
+=======
+        (d->hasAttr<CUDADeviceAttr>() || d->getType()->isCUDADeviceBuiltinSurfaceType())) {
+>>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
       gv->setAttr(CUDAExternallyInitializedAttr::getMnemonic(),
                   CUDAExternallyInitializedAttr::get(&getMLIRContext()));
     }
@@ -2457,7 +2473,11 @@ cir::FuncOp CIRGenModule::GetAddrOfFunction(clang::GlobalDecl gd, mlir::Type ty,
   // stub. For HIP, it's something different.
   if ((langOpts.HIP || langOpts.CUDA) && !langOpts.CUDAIsDevice &&
       cast<FunctionDecl>(gd.getDecl())->hasAttr<CUDAGlobalAttr>()) {
+<<<<<<< HEAD
     (void)getCUDARuntime().getKernelHandle(f, gd);
+=======
+    auto *stubHandle = getCUDARuntime().getKernelHandle(f, gd);
+>>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
     if (isForDefinition)
       return f;
 
@@ -2678,6 +2698,15 @@ cir::FuncOp CIRGenModule::createRuntimeFunction(cir::FuncType ty,
   return entry;
 }
 
+<<<<<<< HEAD
+=======
+static bool isDefaultedMethod(const clang::FunctionDecl *fd) {
+  return fd->isDefaulted() && isa<CXXMethodDecl>(fd) &&
+         (cast<CXXMethodDecl>(fd)->isCopyAssignmentOperator() ||
+          cast<CXXMethodDecl>(fd)->isMoveAssignmentOperator());
+}
+
+>>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
 mlir::Location CIRGenModule::getLocForFunction(const clang::FunctionDecl *fd) {
   bool invalidLoc = !fd || (fd->getSourceRange().getBegin().isInvalid() ||
                             fd->getSourceRange().getEnd().isInvalid());

@@ -775,8 +775,11 @@ mlir::LLVM::CConv convertCallingConv(cir::CallingConv callinvConv) {
     return LLVM::SPIR_KERNEL;
   case CIR::SpirFunction:
     return LLVM::SPIR_FUNC;
+<<<<<<< HEAD
   case CIR::OpenCLKernel:
     llvm_unreachable("NYI");
+=======
+>>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
   }
   llvm_unreachable("Unknown calling convention");
 }
@@ -2385,6 +2388,10 @@ mlir::LogicalResult CIRToLLVMGlobalOpLowering::matchAndRewrite(
   const auto isDsoLocal = op.getDsolocal();
   const auto linkage = convertLinkage(op.getLinkage());
   const auto symbol = op.getSymName();
+<<<<<<< HEAD
+=======
+  const auto loc = op.getLoc();
+>>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
   std::optional<mlir::StringRef> section = op.getSection();
   std::optional<mlir::Attribute> init = op.getInitialValue();
   mlir::LLVM::VisibilityAttr visibility = mlir::LLVM::VisibilityAttr::get(
@@ -4790,11 +4797,19 @@ void populateCIRToLLVMPasses(mlir::OpPassManager &pm, bool useCCLowering) {
 
 extern void registerCIRDialectTranslation(mlir::MLIRContext &context);
 
+<<<<<<< HEAD
 mlir::ModuleOp lowerDirectlyFromCIRToLLVMDialect(mlir::ModuleOp theModule,
                                                  bool disableVerifier,
                                                  bool disableCCLowering,
                                                  bool disableDebugInfo) {
   llvm::TimeTraceScope scope("lower from CIR to LLVM Dialect");
+=======
+std::unique_ptr<llvm::Module>
+lowerDirectlyFromCIRToLLVMIR(mlir::ModuleOp theModule, LLVMContext &llvmCtx,
+                             bool disableVerifier, bool disableCCLowering,
+                             bool disableDebugInfo) {
+  llvm::TimeTraceScope scope("lower from CIR to LLVM directly");
+>>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
 
   mlir::MLIRContext *mlirCtx = theModule.getContext();
   mlir::PassManager pm(mlirCtx);
@@ -4823,6 +4838,7 @@ mlir::ModuleOp lowerDirectlyFromCIRToLLVMDialect(mlir::ModuleOp theModule,
   if (theModule.verify().failed())
     report_fatal_error("Verification of the final LLVMIR dialect failed!");
 
+<<<<<<< HEAD
   return theModule;
 }
 
@@ -4837,6 +4853,8 @@ lowerDirectlyFromCIRToLLVMIR(mlir::ModuleOp theModule, LLVMContext &llvmCtx,
 
   mlir::MLIRContext *mlirCtx = theModule.getContext();
 
+=======
+>>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
   mlir::registerBuiltinDialectTranslation(*mlirCtx);
   mlir::registerLLVMDialectTranslation(*mlirCtx);
   mlir::registerOpenMPDialectTranslation(*mlirCtx);

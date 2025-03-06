@@ -1,1 +1,5 @@
+<<<<<<< HEAD
 #!/bin/true
+=======
+#!/bin/true
+>>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)

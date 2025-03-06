@@ -32,9 +32,17 @@ class CIRGenAction : public clang::ASTFrontendAction {
 public:
   enum class OutputType {
     EmitAssembly,
+<<<<<<< HEAD
     EmitMLIR,
     EmitLLVM,
     EmitBC,
+=======
+    EmitCIR,
+    EmitCIRFlat,
+    EmitLLVM,
+    EmitBC,
+    EmitMLIR,
+>>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
     EmitObj,
     None
   };
@@ -71,6 +79,23 @@ public:
   OutputType action;
 };
 
+<<<<<<< HEAD
+=======
+class EmitCIRAction : public CIRGenAction {
+  virtual void anchor();
+
+public:
+  EmitCIRAction(mlir::MLIRContext *mlirCtx = nullptr);
+};
+
+class EmitCIRFlatAction : public CIRGenAction {
+  virtual void anchor();
+
+public:
+  EmitCIRFlatAction(mlir::MLIRContext *mlirCtx = nullptr);
+};
+
+>>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
 class EmitCIROnlyAction : public CIRGenAction {
   virtual void anchor();
 

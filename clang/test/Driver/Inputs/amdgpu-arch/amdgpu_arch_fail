@@ -1,2 +1,7 @@
+<<<<<<< HEAD
 #!/bin/sh
 exit 1
+=======
+#!/bin/sh
+exit 1
+>>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)

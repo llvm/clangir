@@ -2291,7 +2291,11 @@ void CIRGenItaniumCXXABI::emitRethrow(CIRGenFunction &CGF, bool isNoReturn) {
       builder.create<cir::BrOp>(loc, rethrowBlock);
     }
 
+<<<<<<< HEAD
     (void)builder.createBlock(region);
+=======
+    mlir::Block *remBlock = builder.createBlock(region);
+>>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
     // This will be erased during codegen, it acts as a placeholder for the
     // operations to be inserted (if any)
     builder.create<cir::ScopeOp>(loc, /*scopeBuilder=*/

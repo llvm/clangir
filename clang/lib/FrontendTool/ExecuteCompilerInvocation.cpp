@@ -54,6 +54,7 @@ CreateFrontendBaseAction(CompilerInstance &CI) {
   auto UseCIR = CI.getFrontendOpts().UseClangIRPipeline;
   auto Act = CI.getFrontendOpts().ProgramAction;
   auto CIRAnalysisOnly = CI.getFrontendOpts().ClangIRAnalysisOnly;
+<<<<<<< HEAD
   auto EmitsCIR =
       Act == EmitCIROnly ||
       (Act == EmitMLIR &&
@@ -67,6 +68,17 @@ CreateFrontendBaseAction(CompilerInstance &CI) {
       CI.getFrontendOpts().MLIRTargetDialect == frontend::MLIR_CORE)
     llvm::report_fatal_error("ClangIR direct lowering is incompatible with "
                              "emitting of MLIR standard dialects");
+=======
+  auto EmitsCIR = Act == EmitCIR || Act == EmitCIRFlat || Act == EmitCIROnly;
+
+  if (!UseCIR && EmitsCIR)
+    llvm::report_fatal_error(
+        "-emit-cir and -emit-cir-only only valid when using -fclangir");
+
+  if (CI.getFrontendOpts().ClangIRDirectLowering && Act == EmitMLIR)
+    llvm::report_fatal_error(
+        "ClangIR direct lowering is incompatible with -emit-mlir");
+>>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
 
   switch (CI.getFrontendOpts().ProgramAction) {
   case ASTDeclList:            return std::make_unique<ASTDeclListAction>();
@@ -95,13 +107,26 @@ CreateFrontendBaseAction(CompilerInstance &CI) {
     return std::make_unique<EmitBCAction>();
   }
 #if CLANG_ENABLE_CIR
+<<<<<<< HEAD
+=======
+  case EmitCIR:
+    return std::make_unique<cir::EmitCIRAction>();
+  case EmitCIRFlat:
+    return std::make_unique<cir::EmitCIRFlatAction>();
+>>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
   case EmitCIROnly:
     return std::make_unique<cir::EmitCIROnlyAction>();
   case EmitMLIR:
     return std::make_unique<cir::EmitMLIRAction>();
 #else
+<<<<<<< HEAD
   case EmitCIROnly:
   case EmitMLIR:
+=======
+  case EmitCIR:
+  case EmitCIRFlat:
+  case EmitCIROnly:
+>>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
     llvm_unreachable("CIR suppport not built into clang");
 #endif
   case EmitHTML:               return std::make_unique<HTMLPrintAction>();
