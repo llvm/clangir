@@ -2457,7 +2457,7 @@ cir::FuncOp CIRGenModule::GetAddrOfFunction(clang::GlobalDecl gd, mlir::Type ty,
   // stub. For HIP, it's something different.
   if ((langOpts.HIP || langOpts.CUDA) && !langOpts.CUDAIsDevice &&
       cast<FunctionDecl>(gd.getDecl())->hasAttr<CUDAGlobalAttr>()) {
-    auto *stubHandle = getCUDARuntime().getKernelHandle(f, gd);
+    (void)getCUDARuntime().getKernelHandle(f, gd);
     if (isForDefinition)
       return f;
 
@@ -2676,12 +2676,6 @@ cir::FuncOp CIRGenModule::createRuntimeFunction(cir::FuncType ty,
   }
 
   return entry;
-}
-
-static bool isDefaultedMethod(const clang::FunctionDecl *fd) {
-  return fd->isDefaulted() && isa<CXXMethodDecl>(fd) &&
-         (cast<CXXMethodDecl>(fd)->isCopyAssignmentOperator() ||
-          cast<CXXMethodDecl>(fd)->isMoveAssignmentOperator());
 }
 
 mlir::Location CIRGenModule::getLocForFunction(const clang::FunctionDecl *fd) {
