@@ -373,9 +373,9 @@ bool CIRGenModule::MayBeEmittedEagerly(const ValueDecl *global) {
   if (fd) {
     // Implicit template instantiations may change linkage if they are later
     // explicitly instantiated, so they should not be emitted eagerly.
-    // TODO(cir): do we care?
-    assert(fd->getTemplateSpecializationKind() != TSK_ImplicitInstantiation &&
-           "not implemented");
+    if (fd->getTemplateSpecializationKind() == TSK_ImplicitInstantiation)
+      return false;
+
     assert(!fd->isTemplated() && "Templates NYI");
   }
   const auto *vd = dyn_cast<VarDecl>(global);
@@ -507,6 +507,57 @@ void CIRGenModule::setDSOLocal(CIRGlobalValueInterface gv) const {
   gv.setDSOLocal(shouldAssumeDSOLocal(*this, gv));
 }
 
+const TargetCIRGenInfo &CIRGenModule::getTargetCIRGenInfo() {
+  if (theTargetCIRGenInfo)
+    return *theTargetCIRGenInfo;
+
+  const llvm::Triple &triple = getTarget().getTriple();
+
+  switch (triple.getArch()) {
+  default:
+    assert(false && "Target not yet supported!");
+
+  case llvm::Triple::aarch64_be:
+  case llvm::Triple::aarch64: {
+    AArch64ABIKind kind = AArch64ABIKind::AAPCS;
+    assert(getTarget().getABI() == "aapcs" ||
+           getTarget().getABI() == "darwinpcs" &&
+               "Only Darwin supported for aarch64");
+    kind = AArch64ABIKind::DarwinPCS;
+    return *(theTargetCIRGenInfo =
+                 createAArch64TargetCIRGenInfo(genTypes, kind));
+  }
+
+  case llvm::Triple::x86_64: {
+    StringRef abi = getTarget().getABI();
+    X86AVXABILevel avxLevel = (abi == "avx512" ? X86AVXABILevel::AVX512
+                               : abi == "avx"  ? X86AVXABILevel::AVX
+                                               : X86AVXABILevel::None);
+
+    switch (triple.getOS()) {
+    default:
+      assert(false && "OSType NYI");
+    case llvm::Triple::Linux:
+      return *(theTargetCIRGenInfo =
+                   createX86_64TargetCIRGenInfo(genTypes, avxLevel));
+    }
+  }
+
+  case llvm::Triple::spirv64: {
+    return *(theTargetCIRGenInfo = createSPIRVTargetCIRGenInfo(genTypes));
+  }
+
+  case llvm::Triple::nvptx:
+  case llvm::Triple::nvptx64: {
+    return *(theTargetCIRGenInfo = createNVPTXTargetCIRGenInfo(genTypes));
+  }
+
+  case llvm::Triple::amdgcn: {
+    return *(theTargetCIRGenInfo = createAMDGPUTargetCIRGenInfo(genTypes));
+  }
+  }
+}
+
 const ABIInfo &CIRGenModule::getABIInfo() {
   return getTargetCIRGenInfo().getABIInfo();
 }
@@ -517,11 +568,16 @@ bool CIRGenModule::shouldEmitCUDAGlobalVar(const VarDecl *global) const {
   // device-side variables because the CUDA runtime needs their
   // size and host-side address in order to provide access to
   // their device-side incarnations.
+
+  if (
+      global->getType()->isCUDADeviceBuiltinSurfaceType() ||
+      global->getType()->isCUDADeviceBuiltinTextureType()) {
+    llvm_unreachable("NYI");
+  }
+
   return !langOpts.CUDAIsDevice || global->hasAttr<CUDADeviceAttr>() ||
           global->hasAttr<CUDAConstantAttr>() ||
-          global->hasAttr<CUDASharedAttr>() ||
-          global->getType()->isCUDADeviceBuiltinSurfaceType() ||
-          global->getType()->isCUDADeviceBuiltinTextureType();
+          global->hasAttr<CUDASharedAttr>();
 }
 
 void CIRGenModule::emitGlobal(GlobalDecl gd) {
@@ -544,7 +600,6 @@ void CIRGenModule::emitGlobal(GlobalDecl gd) {
   assert(!global->hasAttr<CPUDispatchAttr>() && "NYI");
 
   if (langOpts.CUDA || langOpts.HIP) {
-    // clang uses the same flag when building HIP code
     if (const auto *vd = dyn_cast<VarDecl>(global)) {
       if (!shouldEmitCUDAGlobalVar(vd))
         return;
@@ -1338,7 +1393,7 @@ void CIRGenModule::emitGlobalVarDefinition(const clang::VarDecl *d,
        d->getType()->isCUDADeviceBuiltinTextureType());
   if (getLangOpts().CUDA &&
       (isCudaSharedVar || isCudaShadowVar || isCudaDeviceShadowVar))
-    assert(0 && "not implemented");
+    init = UndefAttr::get(&getMLIRContext(), convertType(d->getType()));
   else if (d->hasAttr<LoaderUninitializedAttr>())
     assert(0 && "not implemented");
   else if (!initExpr) {
@@ -1434,11 +1489,19 @@ void CIRGenModule::emitGlobalVarDefinition(const clang::VarDecl *d,
   cir::GlobalLinkageKind linkage =
       getCIRLinkageVarDefinition(d, /*IsConstant=*/false);
 
-  // TODO(cir):
   // CUDA B.2.1 "The __device__ qualifier declares a variable that resides on
   // the device. [...]"
   // CUDA B.2.2 "The __constant__ qualifier, optionally used together with
   // __device__, declares a variable that: [...]
+  if (langOpts.CUDA && langOpts.CUDAIsDevice) {
+    // __shared__ variables is not marked as externally initialized,
+    // because they must not be initialized.
+    if (linkage != cir::GlobalLinkageKind::InternalLinkage &&
+        (d->hasAttr<CUDADeviceAttr>())) {
+      gv->setAttr(CUDAExternallyInitializedAttr::getMnemonic(),
+                  CUDAExternallyInitializedAttr::get(&getMLIRContext()));
+    }
+  }
 
   // Set initializer and finalize emission
   CIRGenModule::setInitializer(gv, init);
@@ -2396,7 +2459,7 @@ cir::FuncOp CIRGenModule::GetAddrOfFunction(clang::GlobalDecl gd, mlir::Type ty,
   // stub. For HIP, it's something different.
   if ((langOpts.HIP || langOpts.CUDA) && !langOpts.CUDAIsDevice &&
       cast<FunctionDecl>(gd.getDecl())->hasAttr<CUDAGlobalAttr>()) {
-    auto *stubHandle = getCUDARuntime().getKernelHandle(f, gd);
+    (void)getCUDARuntime().getKernelHandle(f, gd);
     if (isForDefinition)
       return f;
 
@@ -2615,12 +2678,6 @@ cir::FuncOp CIRGenModule::createRuntimeFunction(cir::FuncType ty,
   }
 
   return entry;
-}
-
-static bool isDefaultedMethod(const clang::FunctionDecl *fd) {
-  return fd->isDefaulted() && isa<CXXMethodDecl>(fd) &&
-         (cast<CXXMethodDecl>(fd)->isCopyAssignmentOperator() ||
-          cast<CXXMethodDecl>(fd)->isMoveAssignmentOperator());
 }
 
 mlir::Location CIRGenModule::getLocForFunction(const clang::FunctionDecl *fd) {

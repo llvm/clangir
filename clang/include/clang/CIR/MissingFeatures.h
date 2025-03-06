@@ -60,7 +60,6 @@ struct MissingFeatures {
   static bool tbaa() { return false; }
   static bool tbaaStruct() { return false; }
   static bool tbaaTagForStruct() { return false; }
-  static bool tbaaTagForEnum() { return false; }
   static bool tbaaTagForBitInt() { return false; }
   static bool tbaaVTablePtr() { return false; }
   static bool tbaaIncompleteType() { return false; }
@@ -252,6 +251,8 @@ struct MissingFeatures {
   static bool emitEmptyRecordCheck() { return false; }
   static bool isPPC_FP128Ty() { return false; }
   static bool createLaunderInvariantGroup() { return false; }
+  static bool hipModuleCtor() { return false; }
+  static bool checkMacOSXTriple() { return false; }
 
   // Inline assembly
   static bool asmGoto() { return false; }

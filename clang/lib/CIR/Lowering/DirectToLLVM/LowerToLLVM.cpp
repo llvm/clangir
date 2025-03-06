@@ -405,6 +405,14 @@ static mlir::Value emitToMemory(mlir::ConversionPatternRewriter &rewriter,
   return value;
 }
 
+std::optional<llvm::StringRef>
+getLLVMSyncScope(std::optional<cir::MemScopeKind> syncScope) {
+  if (syncScope.has_value())
+    return syncScope.value() == cir::MemScopeKind::MemScope_SingleThread
+               ? "singlethread"
+               : "";
+  return std::nullopt;
+}
 } // namespace
 
 //===----------------------------------------------------------------------===//
@@ -767,6 +775,8 @@ mlir::LLVM::CConv convertCallingConv(cir::CallingConv callinvConv) {
     return LLVM::SPIR_KERNEL;
   case CIR::SpirFunction:
     return LLVM::SPIR_FUNC;
+  case CIR::OpenCLKernel:
+    llvm_unreachable("NYI");
   }
   llvm_unreachable("Unknown calling convention");
 }
@@ -2375,7 +2385,6 @@ mlir::LogicalResult CIRToLLVMGlobalOpLowering::matchAndRewrite(
   const auto isDsoLocal = op.getDsolocal();
   const auto linkage = convertLinkage(op.getLinkage());
   const auto symbol = op.getSymName();
-  const auto loc = op.getLoc();
   std::optional<mlir::StringRef> section = op.getSection();
   std::optional<mlir::Attribute> init = op.getInitialValue();
   mlir::LLVM::VisibilityAttr visibility = mlir::LLVM::VisibilityAttr::get(
@@ -2388,6 +2397,12 @@ mlir::LogicalResult CIRToLLVMGlobalOpLowering::matchAndRewrite(
         "section", rewriter.getStringAttr(section.value())));
 
   attributes.push_back(rewriter.getNamedAttr("visibility_", visibility));
+
+  if (auto extInit =
+          op->getAttr(CUDAExternallyInitializedAttr::getMnemonic())) {
+    attributes.push_back(rewriter.getNamedAttr("externally_initialized",
+                                               rewriter.getUnitAttr()));
+  }
 
   if (init.has_value()) {
     if (mlir::isa<cir::FPAttr, cir::IntAttr, cir::BoolAttr>(init.value())) {
@@ -3217,11 +3232,6 @@ mlir::LLVM::AtomicOrdering getLLVMAtomicOrder(cir::MemOrder memo) {
   llvm_unreachable("shouldn't get here");
 }
 
-llvm::StringRef getLLVMSyncScope(cir::MemScopeKind syncScope) {
-  return syncScope == cir::MemScopeKind::MemScope_SingleThread ? "singlethread"
-                                                               : "";
-}
-
 mlir::LogicalResult CIRToLLVMAtomicCmpXchgLowering::matchAndRewrite(
     cir::AtomicCmpXchg op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
@@ -3232,8 +3242,7 @@ mlir::LogicalResult CIRToLLVMAtomicCmpXchgLowering::matchAndRewrite(
       op.getLoc(), adaptor.getPtr(), expected, desired,
       getLLVMAtomicOrder(adaptor.getSuccOrder()),
       getLLVMAtomicOrder(adaptor.getFailOrder()));
-  if (const auto ss = adaptor.getSyncscope(); ss.has_value())
-    cmpxchg.setSyncscope(getLLVMSyncScope(ss.value()));
+  cmpxchg.setSyncscope(getLLVMSyncScope(adaptor.getSyncscope()));
   cmpxchg.setAlignment(adaptor.getAlignment());
   cmpxchg.setWeak(adaptor.getWeak());
   cmpxchg.setVolatile_(adaptor.getIsVolatile());
@@ -3395,10 +3404,11 @@ mlir::LogicalResult CIRToLLVMAtomicFenceLowering::matchAndRewrite(
     cir::AtomicFence op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
   auto llvmOrder = getLLVMAtomicOrder(adaptor.getOrdering());
-  auto llvmSyncScope = getLLVMSyncScope(adaptor.getSyncScope());
 
-  rewriter.replaceOpWithNewOp<mlir::LLVM::FenceOp>(op, llvmOrder,
-                                                   llvmSyncScope);
+  auto fence = rewriter.create<mlir::LLVM::FenceOp>(op.getLoc(), llvmOrder);
+  fence.setSyncscope(getLLVMSyncScope(adaptor.getSyncscope()));
+
+  rewriter.replaceOp(op, fence);
 
   return mlir::success();
 }
@@ -4739,8 +4749,6 @@ void ConvertCIRToLLVMPass::runOnOperation() {
   // Allow operations that will be lowered directly to LLVM IR.
   target.addLegalOp<mlir::LLVM::ZeroOp>();
 
-  processCIRAttrs(module);
-
   llvm::SmallVector<mlir::Operation *> ops;
   ops.push_back(module);
   collect_unreachable(module, ops);
@@ -4767,6 +4775,8 @@ void ConvertCIRToLLVMPass::runOnOperation() {
                                             dtorAttr.getPriority());
                     });
   buildGlobalAnnotationsVar(stringGlobalsMap, argStringGlobalsMap, argsVarMap);
+
+  processCIRAttrs(module);
 }
 
 std::unique_ptr<mlir::Pass> createConvertCIRToLLVMPass() {
@@ -4780,11 +4790,11 @@ void populateCIRToLLVMPasses(mlir::OpPassManager &pm, bool useCCLowering) {
 
 extern void registerCIRDialectTranslation(mlir::MLIRContext &context);
 
-std::unique_ptr<llvm::Module>
-lowerDirectlyFromCIRToLLVMIR(mlir::ModuleOp theModule, LLVMContext &llvmCtx,
-                             bool disableVerifier, bool disableCCLowering,
-                             bool disableDebugInfo) {
-  llvm::TimeTraceScope scope("lower from CIR to LLVM directly");
+mlir::ModuleOp lowerDirectlyFromCIRToLLVMDialect(mlir::ModuleOp theModule,
+                                                 bool disableVerifier,
+                                                 bool disableCCLowering,
+                                                 bool disableDebugInfo) {
+  llvm::TimeTraceScope scope("lower from CIR to LLVM Dialect");
 
   mlir::MLIRContext *mlirCtx = theModule.getContext();
   mlir::PassManager pm(mlirCtx);
@@ -4812,6 +4822,20 @@ lowerDirectlyFromCIRToLLVMIR(mlir::ModuleOp theModule, LLVMContext &llvmCtx,
   // Now that we ran all the lowering passes, verify the final output.
   if (theModule.verify().failed())
     report_fatal_error("Verification of the final LLVMIR dialect failed!");
+
+  return theModule;
+}
+
+std::unique_ptr<llvm::Module>
+lowerDirectlyFromCIRToLLVMIR(mlir::ModuleOp theModule, LLVMContext &llvmCtx,
+                             bool disableVerifier, bool disableCCLowering,
+                             bool disableDebugInfo) {
+  llvm::TimeTraceScope scope("lower from CIR to LLVM directly");
+
+  lowerDirectlyFromCIRToLLVMDialect(theModule, disableVerifier,
+                                    disableCCLowering, disableDebugInfo);
+
+  mlir::MLIRContext *mlirCtx = theModule.getContext();
 
   mlir::registerBuiltinDialectTranslation(*mlirCtx);
   mlir::registerLLVMDialectTranslation(*mlirCtx);
