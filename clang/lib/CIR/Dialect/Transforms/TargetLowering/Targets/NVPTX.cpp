@@ -52,7 +52,7 @@ public:
     case Kind::offload_global:
       return 1;
     case Kind::offload_constant:
-      return 2;
+      return 4;
     case Kind::offload_generic:
       return 4;
     default:
