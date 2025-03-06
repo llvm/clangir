@@ -20,3 +20,4 @@ __shared__ int shared;
 
 __constant__ int b;
 // CIR-DEVICE: cir.global constant external addrspace(offload_constant) @b = #cir.int<0> : !s32i {alignment = 4 : i64, cu.externally_initialized = #cir.cu.externally_initialized}
+// LLVM-DEVICE: @b = addrspace(4) externally_initialized constant i32 0, align 4
