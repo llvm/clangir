@@ -2226,13 +2226,13 @@ static mlir::Value vecReduceIntValue(CIRGenFunction &cgf, mlir::Value val,
       loc, val, builder.getConstInt(loc, cgf.SizeTy, 0));
 }
 
-mlir::Value emitNeonCall(CIRGenBuilderTy &builder,
-                         llvm::SmallVector<mlir::Type> argTypes,
-                         llvm::SmallVectorImpl<mlir::Value> &args,
-                         llvm::StringRef intrinsicName, mlir::Type funcResTy,
-                         mlir::Location loc,
-                         bool isConstrainedFPIntrinsic = false,
-                         unsigned shift = 0, bool rightshift = false) {
+template <typename Operation>
+static mlir::Value emitNeonCallToOp(
+    CIRGenBuilderTy &builder, llvm::SmallVector<mlir::Type> argTypes,
+    llvm::SmallVectorImpl<mlir::Value> &args,
+    std::optional<llvm::StringRef> intrinsicName, mlir::Type funcResTy,
+    mlir::Location loc, bool isConstrainedFPIntrinsic = false,
+    unsigned shift = 0, bool rightshift = false) {
   // TODO: Consider removing the following unreachable when we have
   // emitConstrainedFPCall feature implemented
   assert(!cir::MissingFeatures::emitConstrainedFPCall());
@@ -2255,10 +2255,26 @@ mlir::Value emitNeonCall(CIRGenBuilderTy &builder,
     assert(!cir::MissingFeatures::emitConstrainedFPCall());
     return nullptr;
   }
-  return builder
-      .create<cir::LLVMIntrinsicCallOp>(
-          loc, builder.getStringAttr(intrinsicName), funcResTy, args)
-      .getResult();
+  if constexpr (std::is_same_v<Operation, cir::LLVMIntrinsicCallOp>) {
+    return builder
+        .create<Operation>(loc, builder.getStringAttr(intrinsicName.value()),
+                           funcResTy, args)
+        .getResult();
+  } else {
+    return builder.create<Operation>(loc, funcResTy, args).getResult();
+  }
+}
+
+static mlir::Value emitNeonCall(CIRGenBuilderTy &builder,
+                                llvm::SmallVector<mlir::Type> argTypes,
+                                llvm::SmallVectorImpl<mlir::Value> &args,
+                                llvm::StringRef intrinsicName,
+                                mlir::Type funcResTy, mlir::Location loc,
+                                bool isConstrainedFPIntrinsic = false,
+                                unsigned shift = 0, bool rightshift = false) {
+  return emitNeonCallToOp<cir::LLVMIntrinsicCallOp>(
+      builder, std::move(argTypes), args, intrinsicName, funcResTy, loc,
+      isConstrainedFPIntrinsic, shift, rightshift);
 }
 
 /// This function `emitCommonNeonCallPattern0` implements a common way
@@ -4139,8 +4155,9 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   case NEON::BI__builtin_neon_vrndns_f32: {
     mlir::Value arg0 = emitScalarExpr(E->getArg(0));
     args.push_back(arg0);
-    return emitNeonCall(builder, {arg0.getType()}, args, "roundeven.f32",
-                        getCIRGenModule().FloatTy, getLoc(E->getExprLoc()));
+    return emitNeonCallToOp<cir::RoundEvenOp>(
+        builder, {arg0.getType()}, args, std::nullopt,
+        getCIRGenModule().FloatTy, getLoc(E->getExprLoc()));
   }
   case NEON::BI__builtin_neon_vrndph_f16: {
     llvm_unreachable("NEON::BI__builtin_neon_vrndph_f16 NYI");
