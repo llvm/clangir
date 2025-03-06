@@ -1109,7 +1109,7 @@ void LoweringPreparePass::buildCUDAModuleCtor() {
   // Corresponding code:
   //     gpuBinaryHandle = __cudaRegisterFatBinary(&fatbinWrapper);
   auto fatbinVoidPtr = builder.createBitcast(wrapper, voidPtrTy);
-  auto gpuBinaryHandle = builder.createCallOp(loc, regFunc, fatbinVoidPtr);
+  builder.createCallOp(loc, regFunc, fatbinVoidPtr);
 
   // This is currently incomplete.
   // TODO(cir): create __cuda_register_globals(), and call it here.

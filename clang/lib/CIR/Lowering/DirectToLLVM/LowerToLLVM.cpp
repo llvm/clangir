@@ -775,6 +775,8 @@ mlir::LLVM::CConv convertCallingConv(cir::CallingConv callinvConv) {
     return LLVM::SPIR_KERNEL;
   case CIR::SpirFunction:
     return LLVM::SPIR_FUNC;
+  case CIR::OpenCLKernel:
+    llvm_unreachable("NYI");
   }
   llvm_unreachable("Unknown calling convention");
 }
@@ -2383,7 +2385,6 @@ mlir::LogicalResult CIRToLLVMGlobalOpLowering::matchAndRewrite(
   const auto isDsoLocal = op.getDsolocal();
   const auto linkage = convertLinkage(op.getLinkage());
   const auto symbol = op.getSymName();
-  const auto loc = op.getLoc();
   std::optional<mlir::StringRef> section = op.getSection();
   std::optional<mlir::Attribute> init = op.getInitialValue();
   mlir::LLVM::VisibilityAttr visibility = mlir::LLVM::VisibilityAttr::get(
