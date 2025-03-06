@@ -4796,6 +4796,7 @@ def Log2Op : UnaryFPToFPBuiltinOp<"log2", "Log2Op">;
 def NearbyintOp : UnaryFPToFPBuiltinOp<"nearbyint", "NearbyintOp">;
 def RintOp : UnaryFPToFPBuiltinOp<"rint", "RintOp">;
 def RoundOp : UnaryFPToFPBuiltinOp<"round", "RoundOp">;
+def RoundEvenOp : UnaryFPToFPBuiltinOp<"roundeven", "RoundEvenOp">;
 def SinOp : UnaryFPToFPBuiltinOp<"sin", "SinOp">;
 def SqrtOp : UnaryFPToFPBuiltinOp<"sqrt", "SqrtOp">;
 def TruncOp : UnaryFPToFPBuiltinOp<"trunc", "FTruncOp">;
