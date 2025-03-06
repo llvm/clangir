@@ -119,10 +119,10 @@ uint64_t CIRGenBuilderTy::computeOffsetFromGlobalViewIndices(
     llvm::ArrayRef<int64_t> indexes) {
 
   int64_t offset = 0;
-  for (auto idx : indexes) {
+  for (int64_t idx : indexes) {
     if (auto sTy = dyn_cast<cir::StructType>(typ)) {
       offset += sTy.getElementOffset(layout.layout, idx);
-      assert(idx < sTy.getMembers().size());
+      assert(idx < (int64_t)sTy.getMembers().size());
       typ = sTy.getMembers()[idx];
     } else if (auto arTy = dyn_cast<cir::ArrayType>(typ)) {
       typ = arTy.getEltType();
