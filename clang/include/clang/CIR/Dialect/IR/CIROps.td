@@ -1559,12 +1559,21 @@ def ComplexBinOp : CIR_Op<"complex.binop",
 //===----------------------------------------------------------------------===//
 
 class CIR_BitOp<string mnemonic, TypeConstraint inputTy>
-    : CIR_Op<mnemonic, [Pure]> {
+    : CIR_Op<mnemonic, [Pure, SameOperandsAndResultType]> {
   let arguments = (ins inputTy:$input);
-  let results = (outs SInt32:$result);
+  let results = (outs inputTy:$result);
 
   let assemblyFormat = [{
     `(` $input `:` type($input) `)` `:` type($result) attr-dict
+  }];
+}
+
+class CIR_CountZerosBitOp<string mnemonic, TypeConstraint inputTy>
+    : CIR_BitOp<mnemonic, inputTy> {
+  let arguments = (ins inputTy:$input, I1Attr:$is_zero_poison);
+  let assemblyFormat = [{
+    `(` $input `:` type($input) `)` `is_zero_poison` `(` $is_zero_poison `)`
+    `:` type($result) attr-dict
   }];
 }
 
@@ -1599,7 +1608,7 @@ def BitClrsbOp : CIR_BitOp<"bit.clrsb", AnyTypeOf<[SInt32, SInt64]>> {
   }];
 }
 
-def BitClzOp : CIR_BitOp<"bit.clz", AnyTypeOf<[UInt16, UInt32, UInt64]>> {
+def BitClzOp : CIR_CountZerosBitOp<"bit.clz", AnyTypeOf<[UInt16, UInt32, UInt64]>> {
   let summary = "Get the number of leading 0-bits in the input";
   let description = [{
     Compute the number of leading 0-bits in the input.
@@ -1613,18 +1622,17 @@ def BitClzOp : CIR_BitOp<"bit.clz", AnyTypeOf<[UInt16, UInt32, UInt64]>> {
     Example:
 
     ```mlir
-    !s32i = !cir.int<s, 32>
     !u32i = !cir.int<u, 32>
 
     // %0 = 0b0000_0000_0000_0000_0000_0000_0000_1000
     %0 = cir.const #cir.int<8> : !u32i
     // %1 will be 28
-    %1 = cir.bit.clz(%0 : !u32i) : !s32i
+    %1 = cir.bit.clz(%0 : !u32i) : !u32i
     ```
   }];
 }
 
-def BitCtzOp : CIR_BitOp<"bit.ctz", AnyTypeOf<[UInt16, UInt32, UInt64]>> {
+def BitCtzOp : CIR_CountZerosBitOp<"bit.ctz", AnyTypeOf<[UInt16, UInt32, UInt64]>> {
   let summary = "Get the number of trailing 0-bits in the input";
   let description = [{
     Compute the number of trailing 0-bits in the input.
@@ -1644,7 +1652,7 @@ def BitCtzOp : CIR_BitOp<"bit.ctz", AnyTypeOf<[UInt16, UInt32, UInt64]>> {
     // %0 = 0b1000
     %0 = cir.const #cir.int<8> : !u32i
     // %1 will be 3
-    %1 = cir.bit.ctz(%0 : !u32i) : !s32i
+    %1 = cir.bit.ctz(%0 : !u32i) : !u32i
     ```
   }];
 }
@@ -1712,37 +1720,6 @@ def BitPopcountOp
     // %1 will be 3 since there are 3 1-bits in %0
     %1 = cir.bit.popcount(%0 : !u32i) : !u32i
     ```
-  }];
-}
-
-def BitLzcntOp : CIR_Op<"bit.lzcnt", [Pure, SameOperandsAndResultType]> {
-  let summary = "Get the number of leading 0-bits in the input";
-  let description = [{
-    Compute the number of leading 0-bits in the input.
-
-    The input integer must be an unsigned integer. The `cir.bit.lzcnt` operation
-    returns the number of consecutive 0-bits at the most significant bit
-    position in the input.
-
-    If the input value is 0, the return value is the size of the input value.
-
-    Example:
-
-    ```mlir
-    !u32i = !cir.int<u, 32>
-
-    // %0 = 0b0000_0000_0000_0000_0000_0000_0000_1000
-    %0 = cir.const #cir.int<8> : !u32i
-    // %1 will be 28
-    %1 = cir.bit.lzcnt(%0 : !u32i) : !u32i
-    ```
-  }];
-
-  let arguments = (ins AnyTypeOf<[UInt16, UInt32, UInt64]>:$input);
-  let results = (outs AnyTypeOf<[UInt16, UInt32, UInt64]>:$result);
-
-  let assemblyFormat = [{
-    `(` $input `:` type($input) `)` `:` type($result) attr-dict
   }];
 }
 

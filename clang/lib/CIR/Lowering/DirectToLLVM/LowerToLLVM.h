@@ -73,12 +73,6 @@ mlir::LLVM::CallIntrinsicOp replaceOpWithCallLLVMIntrinsicOp(
     const llvm::Twine &intrinsicName, mlir::Type resultTy,
     mlir::ValueRange operands);
 
-mlir::Value createLLVMBitOp(mlir::Location loc,
-                            const llvm::Twine &llvmIntrinBaseName,
-                            mlir::Type resultTy, mlir::Value operand,
-                            std::optional<bool> poisonZeroInputFlag,
-                            mlir::ConversionPatternRewriter &rewriter);
-
 class CIRToLLVMCopyOpLowering : public mlir::OpConversionPattern<cir::CopyOp> {
 public:
   using mlir::OpConversionPattern<cir::CopyOp>::OpConversionPattern;
@@ -809,16 +803,6 @@ public:
 
   mlir::LogicalResult
   matchAndRewrite(cir::BitPopcountOp op, OpAdaptor,
-                  mlir::ConversionPatternRewriter &) const override;
-};
-
-class CIRToLLVMBitLzcntOpLowering
-    : public mlir::OpConversionPattern<cir::BitLzcntOp> {
-public:
-  using mlir::OpConversionPattern<cir::BitLzcntOp>::OpConversionPattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(cir::BitLzcntOp op, OpAdaptor,
                   mlir::ConversionPatternRewriter &) const override;
 };
 
