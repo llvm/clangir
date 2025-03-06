@@ -13,6 +13,7 @@ add_clang_library(clangCIR
   CIRGenBuiltin.cpp
   CIRGenBuiltinAArch64.cpp
   CIRGenBuiltinX86.cpp
+  CIRGenBuiltinNVPTX.cpp
   CIRGenCXX.cpp
   CIRGenCXXABI.cpp
   CIRGenCall.cpp
