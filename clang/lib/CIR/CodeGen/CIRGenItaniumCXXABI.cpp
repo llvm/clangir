@@ -2291,7 +2291,7 @@ void CIRGenItaniumCXXABI::emitRethrow(CIRGenFunction &CGF, bool isNoReturn) {
       builder.create<cir::BrOp>(loc, rethrowBlock);
     }
 
-    mlir::Block *remBlock = builder.createBlock(region);
+    (void)builder.createBlock(region);
     // This will be erased during codegen, it acts as a placeholder for the
     // operations to be inserted (if any)
     builder.create<cir::ScopeOp>(loc, /*scopeBuilder=*/
