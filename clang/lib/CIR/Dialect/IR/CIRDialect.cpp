@@ -472,13 +472,8 @@ LogicalResult cir::ContinueOp::verify() {
 // AtomicXchg
 //===----------------------------------------------------------------------===//
 LogicalResult cir::AtomicXchg::verify() {
-    const auto& tps = this->getOperation()->getOperandTypes();
-
-    const auto& tp0 = mlir::dyn_cast<cir::PointerType>(tps[0]);
-    const auto& tp1 = tps[1];
-
-    if(tp0.getPointee() != tp1)
-        return emitOpError("atomic ptr type and xchg val must match");
+    if(getPtr().getType().getPointee() != getVal().getType())
+        return emitOpError("atomic_xchg ptr type and val type must match");
 
     return success();
 }
@@ -488,14 +483,10 @@ LogicalResult cir::AtomicXchg::verify() {
 // AtomicCmpXchg
 //===----------------------------------------------------------------------===//
 LogicalResult cir::AtomicCmpXchg::verify() {
-    const auto& tps = this->getOperation()->getOperandTypes();
+    auto pointeeType = getPtr().getType().getPointee();
 
-    const auto& tp0 = mlir::dyn_cast<cir::PointerType>(tps[0]);
-    const auto& tp1 = tps[1];
-    const auto& tp2 = tps[2];
-
-    if(tp0.getPointee() != tp1 or tp0.getPointee() != tp2)
-        return emitOpError("atomic ptr type and cmp_xchg expected and desired types must match");
+    if(pointeeType != getExpected().getType() or pointeeType != getDesired().getType())
+        return emitOpError("atomic_cmp_xchg ptr, expected and desired types must match");
 
     return success();
 }
