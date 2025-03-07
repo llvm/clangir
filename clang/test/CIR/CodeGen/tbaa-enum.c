@@ -1,16 +1,15 @@
 // This is inspired from clang/test/CodeGen/tbaa.c, with both CIR and LLVM checks.
-// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-cir %s -o %t.cir -O1
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-cir %s -o %t.cir -O1 -no-pointer-tbaa
 // RUN: FileCheck --check-prefix=CIR --input-file=%t.cir %s
-// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm %s -o %t.ll -O1 -disable-llvm-passes
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm %s -o %t.ll -O1 -disable-llvm-passes -no-pointer-tbaa
 // RUN: FileCheck --check-prefix=LLVM --input-file=%t.ll %s
-// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm %s -o %t.ll -O1 -disable-llvm-passes -relaxed-aliasing
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm %s -o %t.ll -O1 -disable-llvm-passes -relaxed-aliasing -no-pointer-tbaa
 // RUN: FileCheck --check-prefix=NO-TBAA --input-file=%t.ll %s
-// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm %s -o %t.ll -O0 -disable-llvm-passes
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm %s -o %t.ll -O0 -disable-llvm-passes -no-pointer-tbaa
 // RUN: FileCheck --check-prefix=NO-TBAA --input-file=%t.ll %s
 
 // NO-TBAA-NOT: !tbaa
 
-// CIR: #tbaa[[NYI:.*]] = #cir.tbaa
 // CIR: #tbaa[[CHAR:.*]] = #cir.tbaa_omnipotent_char
 // CIR: #tbaa[[INT:.*]] = #cir.tbaa_scalar<id = "int", type = !s32i>
 // CIR: #tbaa[[LONG_LONG:.*]] = #cir.tbaa_scalar<id = "long long", type = !s64i>
@@ -136,10 +135,10 @@ uint8_t g3(Enum8 *E, uint8_t *val) {
   return *val;
 }
 
-// LLVM: [[TAG_i32]] = !{[[TYPE_i32:!.*]], [[TYPE_i32]], i64 0}
-// LLVM: [[TYPE_i32]] = !{!"int", [[TYPE_char:!.*]],
-// LLVM: [[TYPE_char]] = !{!"omnipotent char", [[TAG_c_tbaa:!.*]],
+// LLVM: [[TYPE_char:!.*]] = !{!"omnipotent char", [[TAG_c_tbaa:!.*]],
 // LLVM: [[TAG_c_tbaa]] = !{!"Simple C/C++ TBAA"}
+// LLVM: [[TAG_i32]] = !{[[TYPE_i32:!.*]], [[TYPE_i32]], i64 0}
+// LLVM: [[TYPE_i32]] = !{!"int", [[TYPE_char]],
 // LLVM: [[TAG_i64]] = !{[[TYPE_i64:!.*]], [[TYPE_i64]], i64 0}
 // LLVM: [[TYPE_i64]] = !{!"long long", [[TYPE_char]],
 // LLVM: [[TAG_long]] = !{[[TYPE_long:!.*]], [[TYPE_long]], i64 0}
