@@ -19225,12 +19225,17 @@ uint32_t test_vaddv_u32(uint32x2_t a) {
 //   return vaddlv_s32(a);
 // }
 
-// NYI-LABEL: @test_vaddlv_u32(
-// NYI:   [[VADDLV_U32_I:%.*]] = call i64 @llvm.aarch64.neon.uaddlv.i64.v2i32(<2 x i32> %a)
-// NYI:   ret i64 [[VADDLV_U32_I]]
-// uint64_t test_vaddlv_u32(uint32x2_t a) {
-//   return vaddlv_u32(a);
-// }
+uint64_t test_vaddlv_u32(uint32x2_t a) {
+  return vaddlv_u32(a);
+
+  // CIR-LABEL: vaddlv_u32
+  // CIR: cir.llvm.intrinsic "aarch64.neon.uaddlv" {{%.*}} : (!cir.vector<!u32i x 2>) -> !u64i
+
+  // LLVM-LABEL: test_vaddlv_u32
+  // LLVM-SAME: (<2 x i32> [[a:%.*]])
+  // LLVM:   [[VADDLV_U32_I:%.*]] = call i64 @llvm.aarch64.neon.uaddlv.i64.v2i32(<2 x i32> [[a]])
+  // LLVM:   ret i64 [[VADDLV_U32_I]]
+}
 
 uint8x8_t test_vmovn_u16(uint16x8_t a) {
   return vmovn_u16(a);
