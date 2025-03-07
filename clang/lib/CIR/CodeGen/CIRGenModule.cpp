@@ -1494,8 +1494,8 @@ void CIRGenModule::emitGlobalVarDefinition(const clang::VarDecl *d,
     // __shared__ variables is not marked as externally initialized,
     // because they must not be initialized.
     if (linkage != cir::GlobalLinkageKind::InternalLinkage &&
-      (d->hasAttr<CUDADeviceAttr>() ||
-       d->getType()->isCUDADeviceBuiltinSurfaceType())) {
+        (d->hasAttr<CUDADeviceAttr>() ||
+         d->getType()->isCUDADeviceBuiltinSurfaceType())) {
       gv->setAttr(CUDAExternallyInitializedAttr::getMnemonic(),
                   CUDAExternallyInitializedAttr::get(&getMLIRContext()));
     }
