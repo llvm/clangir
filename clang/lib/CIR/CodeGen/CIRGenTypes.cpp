@@ -352,12 +352,6 @@ mlir::Type CIRGenTypes::convertType(QualType T) {
   //  1. There is no SurfaceType on HIP,
   //  2. There is Texture memory on HIP but accessing the memory goes through
   //  calls to the runtime. e.g. for a 2D: `tex2D<float>(tex, x, y);`
-<<<<<<< HEAD
-  if (astContext.getLangOpts().CUDA && astContext.getLangOpts().CUDAIsDevice) {
-    if (Ty->isCUDADeviceBuiltinSurfaceType() ||
-        Ty->isCUDADeviceBuiltinTextureType())
-      llvm_unreachable("NYI");
-=======
   if (astContext.getLangOpts().CUDAIsDevice) {
     if (T->isCUDADeviceBuiltinSurfaceType()) {
       if (mlir::Type Ty = CGM.getTargetCIRGenInfo()
@@ -366,7 +360,6 @@ mlir::Type CIRGenTypes::convertType(QualType T) {
     } else if (T->isCUDADeviceBuiltinTextureType()) {
       llvm_unreachable("NYI");
     }
->>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
   }
 
   if (const auto *recordType = dyn_cast<RecordType>(T))
