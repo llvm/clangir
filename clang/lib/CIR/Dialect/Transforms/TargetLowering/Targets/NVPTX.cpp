@@ -54,7 +54,7 @@ public:
     case Kind::offload_constant:
       return 4;
     case Kind::offload_generic:
-      return 4;
+      return 0;
     default:
       cir_cconv_unreachable("Unknown CIR address space for this target");
     }
