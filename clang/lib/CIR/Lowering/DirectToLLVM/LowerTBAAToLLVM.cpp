@@ -25,7 +25,11 @@ public:
     if (auto scalarAttr = mlir::dyn_cast<cir::TBAAScalarAttr>(tbaa)) {
       mlir::DataLayout layout;
       auto size = layout.getTypeSize(scalarAttr.getType());
-      return createScalarTypeNode(scalarAttr.getId(), getChar(), size);
+      mlir::LLVM::TBAANodeAttr parent =
+          scalarAttr.getParent()
+              ? lowerCIRTBAAAttrToLLVMTBAAAttr(scalarAttr.getParent())
+              : getChar();
+      return createScalarTypeNode(scalarAttr.getId(), parent, size);
     }
     if (auto structAttr = mlir::dyn_cast<cir::TBAAStructAttr>(tbaa)) {
       llvm::SmallVector<mlir::LLVM::TBAAMemberAttr, 4> members;

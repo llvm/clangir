@@ -22,21 +22,37 @@ def CIR_TBAAOmnipotentChar
 def CIR_TBAAScalarAttr : CIR_Attr<"TBAAScalar", "tbaa_scalar", [], "TBAAAttr"> {
   let summary = "Describes a scalar type in TBAA with an identifier.";
 
-  let parameters = (ins StringRefParameter<> : $id, CIR_AnyType : $type);
+  let parameters = (ins StringRefParameter<>:$id, 
+                        CIR_AnyType:$type, 
+                        OptionalParameter<"cir::TBAAScalarAttr">:$parent);
 
   let description = [{
     Define a TBAA scalar attribute.
+    The optional `parent` attribute is used to describe the parent type of the 
+    scalar type. If the `parent` is null or omitted, the parent type is the 
+    `omnipotent char` type.
 
     Example:
     ```mlir
     // CIR_TBAAScalarAttr
     #tbaa_scalar = #cir.tbaa_scalar<id = "int", type = !s32i>
     #tbaa_scalar1 = #cir.tbaa_scalar<id = "long long", type = !s64i>
+
+    #tbaa_scalar2 = #cir.tbaa_scalar<id = "any pointer", type = !cir.ptr<!s32i>>
+    #tbaa_scalar3 = #cir.tbaa_scalar<id = "p1 int", type = !cir.ptr<!s32i>, 
+                                     parent = #tbaa_scalar2>
     ```
     
     See the following link for more details:
     https://llvm.org/docs/LangRef.html#tbaa-metadata
   }];
+
+  let builders = [
+    AttrBuilder<(ins "llvm::StringRef":$id, 
+                     "mlir::Type":$type), [{
+      return $_get($_ctxt, id, type, /*parent =*/ nullptr);
+    }]>
+  ];
 
   let assemblyFormat = "`<` struct(params) `>`";
 }
