@@ -71,7 +71,7 @@ float32x4_t test_vrndaq_f32(float32x4_t a) {
 // CIR: [[INTRIN_ARG:%.*]] = cir.load [[ARG_SAVE]] : !cir.ptr<!cir.vector<!cir.float x 4>>, !cir.vector<!cir.float x 4>
 // CIR: [[INTRIN_ARG_CAST:%.*]] = cir.cast(bitcast, [[INTRIN_ARG]] : !cir.vector<!cir.float x 4>), !cir.vector<!s8i x 16>
 // CIR: [[INTRIN_ARG_BACK:%.*]] = cir.cast(bitcast, [[INTRIN_ARG_CAST]] : !cir.vector<!s8i x 16>), !cir.vector<!cir.float x 4>
-// CIR: {{%.*}} = cir.round [[INTRIN_ARG_BACK]] : !cir.vector<!cir.float x 4>q
+// CIR: {{%.*}} = cir.round [[INTRIN_ARG_BACK]] : !cir.vector<!cir.float x 4>
 // CIR: cir.return {{%.*}} : !cir.vector<!cir.float x 4>
 
 // LLVM: {{.*}}test_vrndaq_f32(<4 x float>{{.*}}[[ARG:%.*]])
