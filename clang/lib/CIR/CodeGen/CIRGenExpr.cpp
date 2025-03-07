@@ -3315,24 +3315,23 @@ LValue CIRGenFunction::emitPredefinedLValue(const PredefinedExpr *E) {
 }
 
 namespace {
-  struct LValueOrRValue {
-    LValue LV;
-    RValue RV;
-  };
-}
+struct LValueOrRValue {
+  LValue LV;
+  RValue RV;
+};
 
-static LValueOrRValue emitPseudoObjectExpr(CIRGenFunction &CGF,
-                                           const PseudoObjectExpr *E,
-                                           bool forLValue,
-                                           AggValueSlot slot) {
+LValueOrRValue emitPseudoObjectExpr(CIRGenFunction &CGF,
+                                    const PseudoObjectExpr *E, bool forLValue,
+                                    AggValueSlot slot) {
   SmallVector<CIRGenFunction::OpaqueValueMappingData, 4> opaques;
 
   // Find the result expression, if any.
   const Expr *resultExpr = E->getResultExpr();
   LValueOrRValue result;
 
-  for (PseudoObjectExpr::const_semantics_iterator
-         i = E->semantics_begin(), e = E->semantics_end(); i != e; ++i) {
+  for (PseudoObjectExpr::const_semantics_iterator i = E->semantics_begin(),
+                                                  e = E->semantics_end();
+       i != e; ++i) {
     const Expr *semantic = *i;
 
     // If this semantic expression is an opaque value, bind it
@@ -3357,7 +3356,7 @@ static LValueOrRValue emitPseudoObjectExpr(CIRGenFunction &CGF,
         opaqueData = OVMA::bind(CGF, ov, LV);
         result.RV = slot.asRValue();
 
-      // Otherwise, emit as normal.
+        // Otherwise, emit as normal.
       } else {
         opaqueData = OVMA::bind(CGF, ov, ov->getSourceExpr());
 
@@ -3372,15 +3371,15 @@ static LValueOrRValue emitPseudoObjectExpr(CIRGenFunction &CGF,
 
       opaques.push_back(opaqueData);
 
-    // Otherwise, if the expression is the result, evaluate it
-    // and remember the result.
+      // Otherwise, if the expression is the result, evaluate it
+      // and remember the result.
     } else if (semantic == resultExpr) {
       if (forLValue)
         result.LV = CGF.emitLValue(semantic);
       else
         result.RV = CGF.emitAnyExpr(semantic, slot);
 
-    // Otherwise, evaluate the expression in an ignored context.
+      // Otherwise, evaluate the expression in an ignored context.
     } else {
       CGF.emitIgnoredExpr(semantic);
     }
@@ -3393,8 +3392,10 @@ static LValueOrRValue emitPseudoObjectExpr(CIRGenFunction &CGF,
   return result;
 }
 
+} // namespace
+
 RValue CIRGenFunction::emitPseudoObjectRValue(const PseudoObjectExpr *E,
-                                               AggValueSlot slot) {
+                                              AggValueSlot slot) {
   return emitPseudoObjectExpr(*this, E, false, slot).RV;
 }
 

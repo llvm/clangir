@@ -31,53 +31,52 @@ using namespace clang::CIRGen;
 using namespace cir;
 
 mlir::Value CIRGenFunction::emitNVPTXBuiltinExpr(unsigned BuiltinID,
-                                             const CallExpr *E) {
-  auto GetIntrinsic = [&](const char *name){
-        mlir::Type intTy = cir::IntType::get(&getMLIRContext(), 32, false);
-        return builder
-          .create<cir::LLVMIntrinsicCallOp>(
-              getLoc(E->getExprLoc()), builder.getStringAttr(name),
-              intTy)
-          .getResult();
+                                                 const CallExpr *E) {
+  auto GetIntrinsic = [&](const char *name) {
+    mlir::Type intTy = cir::IntType::get(&getMLIRContext(), 32, false);
+    return builder
+        .create<cir::LLVMIntrinsicCallOp>(getLoc(E->getExprLoc()),
+                                          builder.getStringAttr(name), intTy)
+        .getResult();
   };
   switch (BuiltinID) {
-    case NVPTX::BI__nvvm_read_ptx_sreg_tid_x:
-      return GetIntrinsic("nvvm.read.ptx.sreg.tid.x");
-    case NVPTX::BI__nvvm_read_ptx_sreg_tid_y:
-      return GetIntrinsic("nvvm.read.ptx.sreg.tid.y");
-    case NVPTX::BI__nvvm_read_ptx_sreg_tid_z:
-      return GetIntrinsic("nvvm.read.ptx.sreg.tid.z");
-    case NVPTX::BI__nvvm_read_ptx_sreg_tid_w:
-      return GetIntrinsic("nvvm.read.ptx.sreg.tid.w");
+  case NVPTX::BI__nvvm_read_ptx_sreg_tid_x:
+    return GetIntrinsic("nvvm.read.ptx.sreg.tid.x");
+  case NVPTX::BI__nvvm_read_ptx_sreg_tid_y:
+    return GetIntrinsic("nvvm.read.ptx.sreg.tid.y");
+  case NVPTX::BI__nvvm_read_ptx_sreg_tid_z:
+    return GetIntrinsic("nvvm.read.ptx.sreg.tid.z");
+  case NVPTX::BI__nvvm_read_ptx_sreg_tid_w:
+    return GetIntrinsic("nvvm.read.ptx.sreg.tid.w");
 
-    case NVPTX::BI__nvvm_read_ptx_sreg_ntid_x:
-      return GetIntrinsic("nvvm.read.ptx.sreg.ntid.x");
-    case NVPTX::BI__nvvm_read_ptx_sreg_ntid_y:
-      return GetIntrinsic("nvvm.read.ptx.sreg.ntid.y");
-    case NVPTX::BI__nvvm_read_ptx_sreg_ntid_z:
-      return GetIntrinsic("nvvm.read.ptx.sreg.ntid.z");
-    case NVPTX::BI__nvvm_read_ptx_sreg_ntid_w:
-      return GetIntrinsic("nvvm.read.ptx.sreg.ntid.w");
+  case NVPTX::BI__nvvm_read_ptx_sreg_ntid_x:
+    return GetIntrinsic("nvvm.read.ptx.sreg.ntid.x");
+  case NVPTX::BI__nvvm_read_ptx_sreg_ntid_y:
+    return GetIntrinsic("nvvm.read.ptx.sreg.ntid.y");
+  case NVPTX::BI__nvvm_read_ptx_sreg_ntid_z:
+    return GetIntrinsic("nvvm.read.ptx.sreg.ntid.z");
+  case NVPTX::BI__nvvm_read_ptx_sreg_ntid_w:
+    return GetIntrinsic("nvvm.read.ptx.sreg.ntid.w");
 
-    case NVPTX::BI__nvvm_read_ptx_sreg_ctaid_x:
-      return GetIntrinsic("nvvm.read.ptx.sreg.ctaid.x");
-    case NVPTX::BI__nvvm_read_ptx_sreg_ctaid_y:
-      return GetIntrinsic("nvvm.read.ptx.sreg.ctaid.y");
-    case NVPTX::BI__nvvm_read_ptx_sreg_ctaid_z:
-      return GetIntrinsic("nvvm.read.ptx.sreg.ctaid.z");
-    case NVPTX::BI__nvvm_read_ptx_sreg_ctaid_w:
-      return GetIntrinsic("nvvm.read.ptx.sreg.ctaid.w");
+  case NVPTX::BI__nvvm_read_ptx_sreg_ctaid_x:
+    return GetIntrinsic("nvvm.read.ptx.sreg.ctaid.x");
+  case NVPTX::BI__nvvm_read_ptx_sreg_ctaid_y:
+    return GetIntrinsic("nvvm.read.ptx.sreg.ctaid.y");
+  case NVPTX::BI__nvvm_read_ptx_sreg_ctaid_z:
+    return GetIntrinsic("nvvm.read.ptx.sreg.ctaid.z");
+  case NVPTX::BI__nvvm_read_ptx_sreg_ctaid_w:
+    return GetIntrinsic("nvvm.read.ptx.sreg.ctaid.w");
 
-    case NVPTX::BI__nvvm_read_ptx_sreg_nctaid_x:
-      return GetIntrinsic("nvvm.read.ptx.sreg.nctaid.x");
-    case NVPTX::BI__nvvm_read_ptx_sreg_nctaid_y:
-      return GetIntrinsic("nvvm.read.ptx.sreg.nctaid.y");
-    case NVPTX::BI__nvvm_read_ptx_sreg_nctaid_z:
-      return GetIntrinsic("nvvm.read.ptx.sreg.nctaid.z");
-    case NVPTX::BI__nvvm_read_ptx_sreg_nctaid_w:
-      return GetIntrinsic("nvvm.read.ptx.sreg.nctaid.w");
+  case NVPTX::BI__nvvm_read_ptx_sreg_nctaid_x:
+    return GetIntrinsic("nvvm.read.ptx.sreg.nctaid.x");
+  case NVPTX::BI__nvvm_read_ptx_sreg_nctaid_y:
+    return GetIntrinsic("nvvm.read.ptx.sreg.nctaid.y");
+  case NVPTX::BI__nvvm_read_ptx_sreg_nctaid_z:
+    return GetIntrinsic("nvvm.read.ptx.sreg.nctaid.z");
+  case NVPTX::BI__nvvm_read_ptx_sreg_nctaid_w:
+    return GetIntrinsic("nvvm.read.ptx.sreg.nctaid.w");
 
-    default:
-      llvm_unreachable("NYI");
+  default:
+    llvm_unreachable("NYI");
   }
 }
