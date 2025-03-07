@@ -192,8 +192,13 @@ cir::TBAAAttr CIRGenTBAA::getTypeInfoHelper(clang::QualType qty) {
                                     types.convertType(qty));
   }
   if (const auto *eit = dyn_cast<BitIntType>(ty)) {
-    assert(!cir::MissingFeatures::tbaaTagForBitInt());
-    return tbaa_NYI(mlirContext);
+    SmallString<256> outName;
+    llvm::raw_svector_ostream out(outName);
+    // Don't specify signed/unsigned since integer types can alias despite sign
+    // differences.
+    out << "_BitInt(" << eit->getNumBits() << ')';
+    return cir::TBAAScalarAttr::get(mlirContext, outName,
+                                    types.convertType(qty));
   }
   // For now, handle any other kind of type conservatively.
   return getChar();
