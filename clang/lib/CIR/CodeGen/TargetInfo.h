@@ -120,7 +120,7 @@ public:
   // kernels. They should reset the calling convention to OpenCLKernel,
   // which will be further resolved by getOpenCLKernelCallingConv().
   virtual void setCUDAKernelCallingConvention(const FunctionType *&ft) const {}
-
+  virtual mlir::Type getCUDADeviceBuiltinSurfaceDeviceType() const { return nullptr; }
   virtual ~TargetCIRGenInfo() {}
 };
 
