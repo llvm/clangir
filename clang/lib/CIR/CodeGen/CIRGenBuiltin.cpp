@@ -147,7 +147,7 @@ static RValue emitBuiltinBitOp(
   } else {
     op = CGF.getBuilder().create<Op>(CGF.getLoc(E->getExprLoc()), arg);
   }
-  const auto bitResult = op.getResult();
+  const mlir::Value bitResult = op.getResult();
   if (const auto si32Ty = CGF.getBuilder().getSInt32Ty();
       convert_to_int && arg.getType() != si32Ty) {
     return RValue::get(CGF.getBuilder().createIntCast(bitResult, si32Ty));
