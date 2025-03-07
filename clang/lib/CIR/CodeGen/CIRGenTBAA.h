@@ -112,7 +112,7 @@ class CIRGenTBAA {
   // An internal helper function to generate metadata used
   // to describe accesses to objects of the given type.
   cir::TBAAAttr getTypeInfoHelper(clang::QualType qty);
-  cir::TBAAAttr getScalarTypeInfo(clang::QualType qty);
+  cir::TBAAScalarAttr getScalarTypeInfo(clang::QualType qty);
 
   cir::TBAAAttr getValidBaseTypeInfo(clang::QualType qty);
   cir::TBAAAttr getBaseTypeInfoHelper(const clang::Type *ty);

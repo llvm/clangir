@@ -65,7 +65,7 @@ static bool isValidBaseType(clang::QualType qty) {
   return false;
 }
 
-cir::TBAAAttr CIRGenTBAA::getScalarTypeInfo(clang::QualType qty) {
+cir::TBAAScalarAttr CIRGenTBAA::getScalarTypeInfo(clang::QualType qty) {
   const clang::Type *ty = astContext.getCanonicalType(qty).getTypePtr();
   assert(mlir::isa<clang::BuiltinType>(ty));
   const clang::BuiltinType *bty = mlir::dyn_cast<BuiltinType>(ty);
@@ -159,12 +159,78 @@ cir::TBAAAttr CIRGenTBAA::getTypeInfoHelper(clang::QualType qty) {
   // they involve a significant representation difference.  We don't
   // currently do so, however.
   if (ty->isPointerType() || ty->isReferenceType()) {
-    if (!codeGenOpts.PointerTBAA) {
-      return cir::TBAAScalarAttr::get(mlirContext, "any pointer",
-                                      types.convertType(qty));
+    auto anyPtr = cir::TBAAScalarAttr::get(mlirContext, "any pointer",
+                                           types.convertType(qty));
+    if (!codeGenOpts.PointerTBAA)
+      return anyPtr;
+    // C++ [basic.lval]p11 permits objects to accessed through an l-value of
+    // similar type. Two types are similar under C++ [conv.qual]p2 if the
+    // decomposition of the types into pointers, member pointers, and arrays has
+    // the same structure when ignoring cv-qualifiers at each level of the
+    // decomposition. Meanwhile, C makes T(*)[] and T(*)[N] compatible, which
+    // would really complicate any attempt to distinguish pointers to arrays by
+    // their bounds. It's simpler, and much easier to explain to users, to
+    // simply treat all pointers to arrays as pointers to their element type for
+    // aliasing purposes. So when creating a TBAA tag for a pointer type, we
+    // recursively ignore both qualifiers and array types when decomposing the
+    // pointee type. The only meaningful remaining structure is the number of
+    // pointer types we encountered along the way, so we just produce the tag
+    // "p<depth> <base type tag>". If we do find a member pointer type, for now
+    // we just conservatively bail out with AnyPtr (below) rather than trying to
+    // create a tag that honors the similar-type rules while still
+    // distinguishing different kinds of member pointer.
+    unsigned ptrDepth = 0;
+    do {
+      ptrDepth++;
+      ty = ty->getPointeeType()->getBaseElementTypeUnsafe();
+    } while (ty->isPointerType());
+    assert(!isa<VariableArrayType>(ty));
+    // When the underlying type is a builtin type, we compute the pointee type
+    // string recursively, which is implicitly more forgiving than the standards
+    // require.  Effectively, we are turning the question "are these types
+    // compatible/similar" into "are accesses to these types allowed to alias".
+    // In both C and C++, the latter question has special carve-outs for
+    // signedness mismatches that only apply at the top level.  As a result, we
+    // are allowing e.g. `int *` l-values to access `unsigned *` objects.
+    SmallString<256> tyName;
+
+    if (isa<BuiltinType>(ty)) {
+      auto scalarAttr = getScalarTypeInfo(ty->getCanonicalTypeInternal());
+      tyName = scalarAttr.getId();
+    } else {
+      // Be conservative if the type isn't a RecordType. We are specifically
+      // required to do this for member pointers until we implement the
+      // similar-types rule.
+      const auto *rt = ty->getAs<RecordType>();
+      if (!rt)
+        return anyPtr;
+
+      // For unnamed structs or unions C's compatible types rule applies. Two
+      // compatible types in different compilation units can have different
+      // mangled names, meaning the metadata emitted below would incorrectly
+      // mark them as no-alias. Use AnyPtr for such types in both C and C++, as
+      // C and C++ types may be visible when doing LTO.
+      //
+      // Note that using AnyPtr is overly conservative. We could summarize the
+      // members of the type, as per the C compatibility rule in the future.
+      // This also covers anonymous structs and unions, which have a different
+      // compatibility rule, but it doesn't matter because you can never have a
+      // pointer to an anonymous struct or union.
+      if (!rt->getDecl()->getDeclName())
+        return anyPtr;
+
+      // For non-builtin types use the mangled name of the canonical type.
+      llvm::raw_svector_ostream tyOut(tyName);
+      types.getCXXABI().getMangleContext().mangleCanonicalTypeName(
+          QualType(ty, 0), tyOut);
     }
-    assert(!cir::MissingFeatures::tbaaPointer());
-    return tbaa_NYI(mlirContext);
+
+    SmallString<256> outName("p");
+    outName += std::to_string(ptrDepth);
+    outName += " ";
+    outName += tyName;
+    return cir::TBAAScalarAttr::get(mlirContext, outName,
+                                    types.convertType(qty), anyPtr);
   }
   // Accesses to arrays are accesses to objects of their element types.
   if (codeGenOpts.NewStructPathTBAA && ty->isArrayType()) {
