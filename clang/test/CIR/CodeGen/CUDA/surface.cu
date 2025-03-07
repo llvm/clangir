@@ -21,6 +21,5 @@ struct __attribute__((device_builtin_surface_type)) surface<void, dim> : public 
 
 surface<void, 2> surf;
 
-// DEVICE-LLVM: @surf = addrspace(1) global i64 undef, align 4
+// DEVICE-LLVM: @surf = addrspace(1) externally_initialized global i64 undef, align 4
 // DEVICE-CIR: cir.global external addrspace(offload_global) @surf = #cir.undef : !s64i {alignment = 4 : i64, cu.externally_initialized = #cir.cu.externally_initialized}
-// HOST: @surf = global %"struct.surface<void, 2>" zeroinitializer, align 4
