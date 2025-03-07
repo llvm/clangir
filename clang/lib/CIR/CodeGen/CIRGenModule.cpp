@@ -1495,7 +1495,7 @@ void CIRGenModule::emitGlobalVarDefinition(const clang::VarDecl *d,
     // because they must not be initialized.
     if (linkage != cir::GlobalLinkageKind::InternalLinkage &&
       (d->hasAttr<CUDADeviceAttr>() ||
-      d->getType()->isCUDADeviceBuiltinSurfaceType())) {
+       d->getType()->isCUDADeviceBuiltinSurfaceType())) {
       gv->setAttr(CUDAExternallyInitializedAttr::getMnemonic(),
                   CUDAExternallyInitializedAttr::get(&getMLIRContext()));
     }
