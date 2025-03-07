@@ -65,7 +65,6 @@ struct MissingFeatures {
   static bool tbaaMergeTBAAInfo() { return false; }
   static bool tbaaMayAlias() { return false; }
   static bool tbaaNewStructPath() { return false; }
-  static bool tbaaPointer() { return false; }
   static bool emitNullabilityCheck() { return false; }
   static bool ptrAuth() { return false; }
   static bool memberFuncPtrAuthInfo() { return false; }
