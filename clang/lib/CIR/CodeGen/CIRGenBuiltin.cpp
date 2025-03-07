@@ -131,8 +131,7 @@ template <typename Op>
 static RValue emitBuiltinBitOp(
     CIRGenFunction &CGF, const CallExpr *E,
     std::optional<CIRGenFunction::BuiltinCheckKind> CK = std::nullopt,
-    std::optional<bool> is_zero_poison = std::nullopt,
-    bool convert_to_int = true) {
+    bool isZeroPoison = false, bool convertToInt = true) {
   mlir::Value arg;
   if (CK.has_value())
     arg = CGF.emitCheckedArgForBuiltin(E->getArg(0), *CK);
@@ -143,13 +142,13 @@ static RValue emitBuiltinBitOp(
   if constexpr (std::is_same_v<Op, cir::BitClzOp> ||
                 std::is_same_v<Op, cir::BitCtzOp>) {
     op = CGF.getBuilder().create<Op>(CGF.getLoc(E->getExprLoc()), arg,
-                                     is_zero_poison.value());
+                                     isZeroPoison);
   } else {
     op = CGF.getBuilder().create<Op>(CGF.getLoc(E->getExprLoc()), arg);
   }
   const mlir::Value bitResult = op.getResult();
   if (const auto si32Ty = CGF.getBuilder().getSInt32Ty();
-      convert_to_int && arg.getType() != si32Ty) {
+      convertToInt && arg.getType() != si32Ty) {
     return RValue::get(CGF.getBuilder().createIntCast(bitResult, si32Ty));
   }
   return RValue::get(bitResult);
