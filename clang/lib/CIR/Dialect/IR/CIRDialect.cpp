@@ -472,23 +472,23 @@ LogicalResult cir::ContinueOp::verify() {
 // AtomicXchg
 //===----------------------------------------------------------------------===//
 LogicalResult cir::AtomicXchg::verify() {
-    if(getPtr().getType().getPointee() != getVal().getType())
-        return emitOpError("ptr type and val type must match");
+  if (getPtr().getType().getPointee() != getVal().getType())
+    return emitOpError("ptr type and val type must match");
 
-    return success();
+  return success();
 }
-
 
 //===----------------------------------------------------------------------===//
 // AtomicCmpXchg
 //===----------------------------------------------------------------------===//
 LogicalResult cir::AtomicCmpXchg::verify() {
-    auto pointeeType = getPtr().getType().getPointee();
+  auto pointeeType = getPtr().getType().getPointee();
 
-    if(pointeeType != getExpected().getType() or pointeeType != getDesired().getType())
-        return emitOpError("ptr, expected and desired types must match");
+  if (pointeeType != getExpected().getType() or
+      pointeeType != getDesired().getType())
+    return emitOpError("ptr, expected and desired types must match");
 
-    return success();
+  return success();
 }
 
 //===----------------------------------------------------------------------===//
