@@ -26,10 +26,7 @@
 #include "clang/CIR/CIRToCIRPasses.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/LowerToLLVM.h"
-<<<<<<< HEAD
 #include "clang/CIR/LowerToMLIR.h"
-=======
->>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
 #include "clang/CIR/Passes.h"
 #include "clang/CodeGen/BackendUtil.h"
 #include "clang/CodeGen/ModuleBuilder.h"
@@ -205,7 +202,6 @@ public:
       if (feOptions.ClangIRLibOpt)
         libOptOpts = sanitizePassOptions(feOptions.ClangIRLibOptOpts);
 
-<<<<<<< HEAD
       bool enableCCLowering =
           feOptions.ClangIRCallConvLowering &&
           !(action == CIRGenAction::OutputType::EmitMLIR &&
@@ -216,10 +212,6 @@ public:
 
       bool emitCore = action == CIRGenAction::OutputType::EmitMLIR &&
                       feOptions.MLIRTargetDialect == clang::frontend::MLIR_CORE;
-=======
-      bool enableCCLowering = feOptions.ClangIRCallConvLowering &&
-                              action != CIRGenAction::OutputType::EmitCIR;
->>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
 
       // Setup and run CIR pipeline.
       std::string passOptParsingFailure;
@@ -228,15 +220,8 @@ public:
               feOptions.ClangIRLifetimeCheck, lifetimeOpts,
               feOptions.ClangIRIdiomRecognizer, idiomRecognizerOpts,
               feOptions.ClangIRLibOpt, libOptOpts, passOptParsingFailure,
-<<<<<<< HEAD
               codeGenOptions.OptimizationLevel > 0, flattenCIR, emitCore,
               enableCCLowering, feOptions.ClangIREnableMem2Reg)
-=======
-              codeGenOptions.OptimizationLevel > 0,
-              action == CIRGenAction::OutputType::EmitCIRFlat,
-              action == CIRGenAction::OutputType::EmitMLIR, enableCCLowering,
-              feOptions.ClangIREnableMem2Reg)
->>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
               .failed()) {
         if (!passOptParsingFailure.empty())
           diagnosticsEngine.Report(diag::err_drv_cir_pass_opt_parsing)
@@ -282,31 +267,13 @@ public:
       }
     }
 
-<<<<<<< HEAD
     auto emitMLIR = [&](mlir::Operation *mlirMod, bool verify) {
       assert(mlirMod &&
              "MLIR module does not exist, but lowering did not fail?");
-=======
-    switch (action) {
-    case CIRGenAction::OutputType::EmitCIR:
-    case CIRGenAction::OutputType::EmitCIRFlat:
-      if (outputStream && mlirMod) {
-        // FIXME: we cannot roundtrip prettyForm=true right now.
-        mlir::OpPrintingFlags flags;
-        flags.enableDebugInfo(/*enable=*/true, /*prettyForm=*/false);
-        if (feOptions.ClangIRDisableCIRVerifier)
-          flags.assumeVerified();
-        mlirMod->print(*outputStream, flags);
-      }
-      break;
-    case CIRGenAction::OutputType::EmitMLIR: {
-      auto loweredMlirModule = lowerFromCIRToMLIR(mlirMod, mlirCtx.get());
->>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
       assert(outputStream && "Why are we here without an output stream?");
       // FIXME: we cannot roundtrip prettyForm=true right now.
       mlir::OpPrintingFlags flags;
       flags.enableDebugInfo(/*enable=*/true, /*prettyForm=*/false);
-<<<<<<< HEAD
       if (!verify)
         flags.assumeVerified();
       mlirMod->print(*outputStream, flags);
@@ -333,9 +300,6 @@ public:
         emitMLIR(mlirMod, feOptions.ClangIRDisableCIRVerifier);
         break;
       }
-=======
-      loweredMlirModule->print(*outputStream, flags);
->>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
       break;
     }
     case CIRGenAction::OutputType::EmitLLVM:
@@ -413,13 +377,6 @@ getOutputStream(CompilerInstance &ci, StringRef inFile,
   switch (action) {
   case CIRGenAction::OutputType::EmitAssembly:
     return ci.createDefaultOutputFile(false, inFile, "s");
-<<<<<<< HEAD
-=======
-  case CIRGenAction::OutputType::EmitCIR:
-    return ci.createDefaultOutputFile(false, inFile, "cir");
-  case CIRGenAction::OutputType::EmitCIRFlat:
-    return ci.createDefaultOutputFile(false, inFile, "cir");
->>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
   case CIRGenAction::OutputType::EmitMLIR:
     return ci.createDefaultOutputFile(false, inFile, "mlir");
   case CIRGenAction::OutputType::EmitLLVM:
@@ -516,17 +473,6 @@ void EmitAssemblyAction::anchor() {}
 EmitAssemblyAction::EmitAssemblyAction(mlir::MLIRContext *_MLIRContext)
     : CIRGenAction(OutputType::EmitAssembly, _MLIRContext) {}
 
-<<<<<<< HEAD
-=======
-void EmitCIRAction::anchor() {}
-EmitCIRAction::EmitCIRAction(mlir::MLIRContext *_MLIRContext)
-    : CIRGenAction(OutputType::EmitCIR, _MLIRContext) {}
-
-void EmitCIRFlatAction::anchor() {}
-EmitCIRFlatAction::EmitCIRFlatAction(mlir::MLIRContext *_MLIRContext)
-    : CIRGenAction(OutputType::EmitCIRFlat, _MLIRContext) {}
-
->>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
 void EmitCIROnlyAction::anchor() {}
 EmitCIROnlyAction::EmitCIROnlyAction(mlir::MLIRContext *_MLIRContext)
     : CIRGenAction(OutputType::None, _MLIRContext) {}

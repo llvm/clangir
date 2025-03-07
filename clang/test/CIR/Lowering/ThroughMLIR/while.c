@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -fno-clangir-direct-lowering -emit-mlir=core %s -o %t.mlir
-=======
-// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -fno-clangir-direct-lowering -emit-mlir %s -o %t.mlir
->>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
 // RUN: FileCheck --input-file=%t.mlir %s
 
 void singleWhile() {

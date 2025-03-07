@@ -65,15 +65,6 @@ enum ActionKind {
   /// Translate input source into HTML.
   EmitHTML,
 
-<<<<<<< HEAD
-=======
-  /// Emit a .cir file
-  EmitCIR,
-
-  /// Emit a .cir file with flat ClangIR
-  EmitCIRFlat,
-
->>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
   /// Generate CIR, bud don't emit anything.
   EmitCIROnly,
 
@@ -163,11 +154,8 @@ enum ActionKind {
   PrintDependencyDirectivesSourceMinimizerOutput
 };
 
-<<<<<<< HEAD
 enum MLIRDialectKind { MLIR_CORE, MLIR_LLVM, MLIR_CIR, MLIR_CIR_FLAT };
 
-=======
->>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
 } // namespace frontend
 
 /// The kind of a file that we've been handed as an input.
@@ -538,11 +526,8 @@ public:
   std::string ClangIRIdiomRecognizerOpts;
   std::string ClangIRLibOptOpts;
 
-<<<<<<< HEAD
   frontend::MLIRDialectKind MLIRTargetDialect;
 
-=======
->>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
   /// The input kind, either specified via -x argument or deduced from the input
   /// file name.
   InputKind DashX;

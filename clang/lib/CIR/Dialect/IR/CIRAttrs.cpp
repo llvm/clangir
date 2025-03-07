@@ -657,19 +657,10 @@ AddressSpaceAttr::getValueFromLangAS(clang::LangAS langAS) {
     return Kind::offload_private;
   case LangAS::opencl_generic:
     return Kind::offload_generic;
-<<<<<<< HEAD
 
   case LangAS::opencl_global_device:
   case LangAS::opencl_global_host:
   case LangAS::cuda_constant:
-=======
-  
-  case LangAS::cuda_constant:
-    return Kind::offload_constant;
-  case LangAS::opencl_global_device:
-  case LangAS::opencl_global_host:
-  
->>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
   case LangAS::sycl_global:
   case LangAS::sycl_global_device:
   case LangAS::sycl_global_host:

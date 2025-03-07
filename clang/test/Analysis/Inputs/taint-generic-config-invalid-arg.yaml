@@ -1,9 +1,3 @@
-<<<<<<< HEAD
 Propagations:
   - Name:     mySource1
     DstArgs:  [-2]
-=======
-Propagations:
-  - Name:     mySource1
-    DstArgs:  [-2]
->>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)

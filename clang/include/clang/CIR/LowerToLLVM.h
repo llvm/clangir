@@ -29,28 +29,19 @@ class ModuleOp;
 namespace cir {
 
 namespace direct {
-<<<<<<< HEAD
 mlir::ModuleOp lowerDirectlyFromCIRToLLVMDialect(mlir::ModuleOp theModule,
                                                  bool disableVerifier = false,
                                                  bool disableCCLowering = false,
                                                  bool disableDebugInfo = false);
 
 // Lower directly from pristine CIR to LLVMIR.
-=======
->>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
 std::unique_ptr<llvm::Module> lowerDirectlyFromCIRToLLVMIR(
     mlir::ModuleOp theModule, llvm::LLVMContext &llvmCtx,
     bool disableVerifier = false, bool disableCCLowering = false,
     bool disableDebugInfo = false);
-<<<<<<< HEAD
 
 } // namespace direct
 
-=======
-}
-
-// Lower directly from pristine CIR to LLVMIR.
->>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
 std::unique_ptr<llvm::Module>
 lowerFromCIRToMLIRToLLVMIR(mlir::ModuleOp theModule,
                            std::unique_ptr<mlir::MLIRContext> mlirCtx,

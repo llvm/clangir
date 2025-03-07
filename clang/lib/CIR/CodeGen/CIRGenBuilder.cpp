@@ -119,17 +119,10 @@ uint64_t CIRGenBuilderTy::computeOffsetFromGlobalViewIndices(
     llvm::ArrayRef<int64_t> indexes) {
 
   int64_t offset = 0;
-<<<<<<< HEAD
   for (int64_t idx : indexes) {
     if (auto sTy = dyn_cast<cir::StructType>(typ)) {
       offset += sTy.getElementOffset(layout.layout, idx);
       assert(idx < (int64_t)sTy.getMembers().size());
-=======
-  for (auto idx : indexes) {
-    if (auto sTy = dyn_cast<cir::StructType>(typ)) {
-      offset += sTy.getElementOffset(layout.layout, idx);
-      assert(idx < sTy.getMembers().size());
->>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
       typ = sTy.getMembers()[idx];
     } else if (auto arTy = dyn_cast<cir::ArrayType>(typ)) {
       typ = arTy.getEltType();

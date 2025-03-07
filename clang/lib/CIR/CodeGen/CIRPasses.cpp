@@ -28,11 +28,7 @@ mlir::LogicalResult runCIRToCIRPasses(
     llvm::StringRef lifetimeOpts, bool enableIdiomRecognizer,
     llvm::StringRef idiomRecognizerOpts, bool enableLibOpt,
     llvm::StringRef libOptOpts, std::string &passOptParsingFailure,
-<<<<<<< HEAD
     bool enableCIRSimplify, bool flattenCIR, bool emitCore,
-=======
-    bool enableCIRSimplify, bool flattenCIR, bool emitMLIR,
->>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
     bool enableCallConvLowering, bool enableMem2Reg) {
 
   llvm::TimeTraceScope scope("CIR To CIR Passes");
@@ -85,11 +81,7 @@ mlir::LogicalResult runCIRToCIRPasses(
   if (enableMem2Reg)
     pm.addPass(mlir::createMem2Reg());
 
-<<<<<<< HEAD
   if (emitCore)
-=======
-  if (emitMLIR)
->>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
     pm.addPass(mlir::createSCFPreparePass());
 
   // FIXME: once CIRCodenAction fixes emission other than CIR we

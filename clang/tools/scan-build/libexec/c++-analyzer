@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 #!/usr/bin/env perl
 
 use Cwd qw/ abs_path /;
@@ -7,13 +6,3 @@ use File::Basename qw/ dirname /;
 use lib dirname(abs_path($0));
 
 do 'ccc-analyzer';
-=======
-#!/usr/bin/env perl
-
-use Cwd qw/ abs_path /;
-use File::Basename qw/ dirname /;
-# Add scan-build dir to the list of places where perl looks for modules.
-use lib dirname(abs_path($0));
-
-do 'ccc-analyzer';
->>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)

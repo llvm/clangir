@@ -1,9 +1,3 @@
-<<<<<<< HEAD
 #!/bin/sh
 echo sm_70
 exit 0
-=======
-#!/bin/sh
-echo sm_70
-exit 0
->>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)

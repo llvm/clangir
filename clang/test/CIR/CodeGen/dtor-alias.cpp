@@ -1,14 +1,6 @@
-<<<<<<< HEAD
 // RUN: %clang_cc1 -std=c++17 -triple x86_64-unknown-linux-gnu \
 // RUN:   -mconstructor-aliases -fclangir -emit-cir %s -o %t.cir \
 // RUN:   -o %t.cir
-=======
-// FIXME: Remove of -clangir-disable-passes may trigger a memory safe bug in CIR internally during
-// lowering
-// RUN: %clang_cc1 -std=c++17 -triple x86_64-unknown-linux-gnu \
-// RUN:   -mconstructor-aliases -fclangir -emit-cir %s -o %t.cir \
-// RUN:   -clangir-disable-passes -o %t.cir
->>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
 // RUN: FileCheck %s --input-file=%t.cir
 
 namespace {

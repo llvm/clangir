@@ -2734,16 +2734,9 @@ static const auto &getFrontendActionTable() {
       {frontend::DumpTokens, OPT_dump_tokens},
       {frontend::EmitAssembly, OPT_S},
       {frontend::EmitBC, OPT_emit_llvm_bc},
-<<<<<<< HEAD
       {frontend::EmitCIROnly, OPT_emit_cir_only},
       {frontend::EmitMLIR, OPT_emit_mlir},
       {frontend::EmitMLIR, OPT_emit_mlir_EQ},
-=======
-      {frontend::EmitCIR, OPT_emit_cir},
-      {frontend::EmitCIRFlat, OPT_emit_cir_flat},
-      {frontend::EmitCIROnly, OPT_emit_cir_only},
-      {frontend::EmitMLIR, OPT_emit_mlir},
->>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
       {frontend::EmitHTML, OPT_emit_html},
       {frontend::EmitLLVM, OPT_emit_llvm},
       {frontend::EmitLLVMOnly, OPT_emit_llvm_only},
@@ -2855,7 +2848,6 @@ static void GenerateFrontendArgs(const FrontendOptions &Opts,
     };
   }
 
-<<<<<<< HEAD
   if (Opts.ProgramAction == frontend::EmitMLIR) {
     GenerateProgramAction = [&]() {
       if (Opts.MLIRTargetDialect == clang::frontend::MLIR_CORE)
@@ -2863,8 +2855,6 @@ static void GenerateFrontendArgs(const FrontendOptions &Opts,
     };
   }
 
-=======
->>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
   if (Opts.ProgramAction == frontend::FixIt && !Opts.FixItSuffix.empty()) {
     GenerateProgramAction = [&]() {
       GenerateArg(Consumer, OPT_fixit_EQ, Opts.FixItSuffix);
@@ -3128,13 +3118,8 @@ static bool ParseFrontendArgs(FrontendOptions &Opts, ArgList &Args,
   if (Opts.ProgramAction != frontend::GenerateModule && Opts.IsSystemModule)
     Diags.Report(diag::err_drv_argument_only_allowed_with) << "-fsystem-module"
                                                            << "-emit-module";
-<<<<<<< HEAD
   if (Args.hasArg(OPT_fclangir) || Args.hasArg(OPT_emit_mlir) ||
       Args.hasArg(OPT_emit_mlir_EQ))
-=======
-  if (Args.hasArg(OPT_fclangir) || Args.hasArg(OPT_emit_cir) ||
-      Args.hasArg(OPT_emit_cir_flat))
->>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
     Opts.UseClangIRPipeline = true;
 
   if (Args.hasArg(OPT_fclangir_direct_lowering))
@@ -4692,11 +4677,6 @@ static bool isStrictlyPreprocessorAction(frontend::ActionKind Action) {
   case frontend::ASTView:
   case frontend::EmitAssembly:
   case frontend::EmitBC:
-<<<<<<< HEAD
-=======
-  case frontend::EmitCIR:
-  case frontend::EmitCIRFlat:
->>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
   case frontend::EmitCIROnly:
   case frontend::EmitMLIR:
   case frontend::EmitHTML:

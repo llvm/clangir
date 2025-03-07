@@ -5242,13 +5242,8 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   }
 
   if (Args.hasArg(options::OPT_fclangir) ||
-<<<<<<< HEAD
       Args.hasArg(options::OPT_emit_mlir) ||
       Args.hasArg(options::OPT_emit_mlir_EQ))
-=======
-      Args.hasArg(options::OPT_emit_cir) ||
-      Args.hasArg(options::OPT_emit_cir_flat))
->>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
     CmdArgs.push_back("-fclangir");
 
   Args.addOptOutFlag(CmdArgs, options::OPT_fclangir_direct_lowering,
@@ -5419,7 +5414,6 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     } else if (JA.getType() == types::TY_LLVM_IR ||
                JA.getType() == types::TY_LTO_IR) {
       CmdArgs.push_back("-emit-llvm");
-<<<<<<< HEAD
     } else if (JA.getType() == types::TY_MLIR) {
       if (Args.hasArg(options::OPT_emit_mlir)) {
         if (Args.hasArg(options::OPT_fno_clangir_direct_lowering)) {
@@ -5432,12 +5426,6 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
             Twine("-emit-mlir=") +
             Args.getLastArgValue(options::OPT_emit_mlir_EQ)));
       }
-=======
-    } else if (JA.getType() == types::TY_CIR) {
-      CmdArgs.push_back("-emit-cir");
-    } else if (JA.getType() == types::TY_CIR_FLAT) {
-      CmdArgs.push_back("-emit-cir-flat");
->>>>>>> 9a2a7a370a31 ([CIR][CUDA] Support for built-in CUDA surface type)
     } else if (JA.getType() == types::TY_LLVM_BC ||
                JA.getType() == types::TY_LTO_BC) {
       // Emit textual llvm IR for AMDGPU offloading for -emit-llvm -S
