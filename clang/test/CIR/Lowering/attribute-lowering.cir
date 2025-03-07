@@ -1,0 +1,11 @@
+// RUN: cir-translate %s -cir-to-llvmir --disable-cc-lowering -o -  | FileCheck %s -check-prefix=LLVM
+
+!s32i = !cir.int<s, 32>
+
+module {
+  cir.global "private" internal @const_array = #cir.const_array<[#cir.int<1> : !s32i]> : !cir.array<!s32i x 1> {section = ".abc"}
+  // LLVM: @const_array = internal global [1 x i32] [i32 1], section ".abc"
+
+  cir.global "private" internal @const_struct = #cir.const_struct<{#cir.int<1> : !s32i}> : !cir.struct<struct {!s32i}> {section = ".abc"}
+  // LLVM: @const_struct = internal global { i32 } { i32 1 }, section ".abc"
+}
