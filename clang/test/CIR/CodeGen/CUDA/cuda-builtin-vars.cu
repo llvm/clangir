@@ -77,10 +77,9 @@ void kernel(int *out) {
   // LLVM: call {{.*}} i32 @llvm.nvvm.read.ptx.sreg.nctaid.z()
 
 
-  // TODO: Enable check when CUDA constant global variable support lands
-  // out[i++] = warpSize;
-  // COM: CIR: cir.get_global @warpSize
-  // COM: LLVM: load {{.*}} @warpSize,
+  out[i++] = warpSize;
+  // CIR: cir.get_global @warpSize
+  // LLVM: store i32 32,
 
 
   // CIR: cir.return loc
