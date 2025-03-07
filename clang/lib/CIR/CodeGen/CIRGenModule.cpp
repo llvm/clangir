@@ -570,13 +570,12 @@ bool CIRGenModule::shouldEmitCUDAGlobalVar(const VarDecl *global) const {
   // their device-side incarnations.
 
   if (global->hasAttr<CUDAConstantAttr>() ||
-      global->getType()->isCUDADeviceBuiltinSurfaceType() ||
       global->getType()->isCUDADeviceBuiltinTextureType()) {
     llvm_unreachable("NYI");
   }
 
   return !langOpts.CUDAIsDevice || global->hasAttr<CUDADeviceAttr>() ||
-         global->hasAttr<CUDASharedAttr>();
+         global->hasAttr<CUDASharedAttr>() || global->getType()->isCUDADeviceBuiltinSurfaceType();
 }
 
 void CIRGenModule::emitGlobal(GlobalDecl gd) {
