@@ -17,6 +17,7 @@
 #include "mlir/Interfaces/DataLayoutInterfaces.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
+#include "llvm/ADT/SmallVector.h"
 
 namespace cir {
 namespace direct {
@@ -622,7 +623,8 @@ public:
 private:
   void createRegionInitializedLLVMGlobalOp(
       cir::GlobalOp op, mlir::Attribute attr,
-      mlir::ConversionPatternRewriter &rewriter) const;
+      mlir::ConversionPatternRewriter &rewriter,
+      llvm::SmallVector<mlir::NamedAttribute> attributes) const;
 
   mutable mlir::LLVM::ComdatOp comdatOp = nullptr;
   static void addComdat(mlir::LLVM::GlobalOp &op,
