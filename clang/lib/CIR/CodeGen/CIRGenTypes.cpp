@@ -354,8 +354,8 @@ mlir::Type CIRGenTypes::convertType(QualType T) {
   //  calls to the runtime. e.g. for a 2D: `tex2D<float>(tex, x, y);`
   if (astContext.getLangOpts().CUDAIsDevice) {
     if (T->isCUDADeviceBuiltinSurfaceType()) {
-      if (mlir::Type Ty = CGM.getTargetCIRGenInfo()
-                         .getCUDADeviceBuiltinSurfaceDeviceType())
+      if (mlir::Type Ty = 
+              CGM.getTargetCIRGenInfo().getCUDADeviceBuiltinSurfaceDeviceType())
         return Ty;
     } else if (T->isCUDADeviceBuiltinTextureType()) {
       llvm_unreachable("NYI");

@@ -575,7 +575,8 @@ bool CIRGenModule::shouldEmitCUDAGlobalVar(const VarDecl *global) const {
   }
 
   return !langOpts.CUDAIsDevice || global->hasAttr<CUDADeviceAttr>() ||
-         global->hasAttr<CUDASharedAttr>() || global->getType()->isCUDADeviceBuiltinSurfaceType();
+         global->hasAttr<CUDASharedAttr>() ||
+         global->getType()->isCUDADeviceBuiltinSurfaceType();
 }
 
 void CIRGenModule::emitGlobal(GlobalDecl gd) {
@@ -1121,7 +1122,8 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef mangledName, mlir::Type ty,
       }
     }
 
-    // Address space check removed because it is unnecessary because CIR records address space info in types.
+    // Address space check removed because it is unnecessary because CIR records
+    // address space info in types.
 
     // (If global is requested for a definition, we always need to create a new
     // global, not just return a bitcast.)
@@ -1492,7 +1494,8 @@ void CIRGenModule::emitGlobalVarDefinition(const clang::VarDecl *d,
     // __shared__ variables is not marked as externally initialized,
     // because they must not be initialized.
     if (linkage != cir::GlobalLinkageKind::InternalLinkage &&
-      (d->hasAttr<CUDADeviceAttr>() || d->getType()->isCUDADeviceBuiltinSurfaceType())) {
+      (d->hasAttr<CUDADeviceAttr>() ||
+       d->getType()->isCUDADeviceBuiltinSurfaceType())) {
       gv->setAttr(CUDAExternallyInitializedAttr::getMnemonic(),
                   CUDAExternallyInitializedAttr::get(&getMLIRContext()));
     }
