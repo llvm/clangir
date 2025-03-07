@@ -52,7 +52,6 @@
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/ADT/TypeSwitch.h"
@@ -2353,10 +2352,10 @@ mlir::LogicalResult CIRToLLVMSwitchFlatOpLowering::matchAndRewrite(
 /// insertion point to the end of the initializer block.
 void CIRToLLVMGlobalOpLowering::createRegionInitializedLLVMGlobalOp(
     cir::GlobalOp op, mlir::Attribute attr,
-    mlir::ConversionPatternRewriter &rewriter) const {
+    mlir::ConversionPatternRewriter &rewriter,
+    SmallVector<mlir::NamedAttribute> attributes) const {
   const auto llvmType =
       convertTypeForMemory(*getTypeConverter(), dataLayout, op.getSymType());
-  SmallVector<mlir::NamedAttribute> attributes;
   auto newGlobalOp = rewriter.replaceOpWithNewOp<mlir::LLVM::GlobalOp>(
       op, llvmType, op.getConstant(), convertLinkage(op.getLinkage()),
       op.getSymName(), nullptr,
@@ -2433,7 +2432,8 @@ mlir::LogicalResult CIRToLLVMGlobalOpLowering::matchAndRewrite(
       // TODO(cir): once LLVM's dialect has proper equivalent attributes this
       // should be updated. For now, we use a custom op to initialize globals
       // to the appropriate value.
-      createRegionInitializedLLVMGlobalOp(op, init.value(), rewriter);
+      createRegionInitializedLLVMGlobalOp(op, init.value(), rewriter,
+                                          attributes);
       return mlir::success();
     } else if (auto constArr =
                    mlir::dyn_cast<cir::ConstArrayAttr>(init.value())) {
@@ -2448,7 +2448,8 @@ mlir::LogicalResult CIRToLLVMGlobalOpLowering::matchAndRewrite(
         // Failed to use a compact attribute as an initializer:
         // initialize elements individually.
         if (!(init = lowerConstArrayAttr(constArr, getTypeConverter()))) {
-          createRegionInitializedLLVMGlobalOp(op, constArr, rewriter);
+          createRegionInitializedLLVMGlobalOp(op, constArr, rewriter,
+                                              attributes);
           return mlir::success();
         }
       } else {
@@ -2466,6 +2467,7 @@ mlir::LogicalResult CIRToLLVMGlobalOpLowering::matchAndRewrite(
       auto abiOp = mlir::cast<GlobalOp>(rewriter.clone(*op.getOperation()));
       abiOp.setInitialValueAttr(abiValue);
       abiOp.setSymType(abiValue.getType());
+      abiOp->setAttrs(attributes);
       rewriter.replaceOp(op, abiOp);
       return mlir::success();
     } else {
