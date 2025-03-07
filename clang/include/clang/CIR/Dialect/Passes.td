@@ -127,6 +127,10 @@ def FlattenCFG : Pass<"cir-flatten-cfg"> {
     In other words, this pass removes such CIR operations like IfOp, LoopOp,
     ScopeOp and etc. and produces a flat CIR.
   }];
+  let options = [
+    Option<"throughMLIR", "through-mlir", "bool", /*default=*/"false",
+        "Prepare the flat CIR for lowering through MLIR">,
+  ];
   let constructor = "mlir::createFlattenCFGPass()";
   let dependentDialects = ["cir::CIRDialect"];
 }

@@ -206,12 +206,16 @@ public:
           feOptions.ClangIRCallConvLowering &&
           !(action == CIRGenAction::OutputType::EmitMLIR &&
             feOptions.MLIRTargetDialect == frontend::MLIR_CIR);
+
       bool flattenCIR =
           action == CIRGenAction::OutputType::EmitMLIR &&
-          feOptions.MLIRTargetDialect == clang::frontend::MLIR_CIR_FLAT;
+          (feOptions.MLIRTargetDialect == clang::frontend::MLIR_CORE_FLAT ||
+           feOptions.MLIRTargetDialect == clang::frontend::MLIR_CIR_FLAT);
 
-      bool emitCore = action == CIRGenAction::OutputType::EmitMLIR &&
-                      feOptions.MLIRTargetDialect == clang::frontend::MLIR_CORE;
+      bool emitCore =
+          action == CIRGenAction::OutputType::EmitMLIR &&
+          (feOptions.MLIRTargetDialect == clang::frontend::MLIR_CORE ||
+           feOptions.MLIRTargetDialect == clang::frontend::MLIR_CORE_FLAT);
 
       // Setup and run CIR pipeline.
       std::string passOptParsingFailure;
@@ -283,6 +287,7 @@ public:
     case CIRGenAction::OutputType::EmitMLIR: {
       switch (feOptions.MLIRTargetDialect) {
       case clang::frontend::MLIR_CORE:
+      case clang::frontend::MLIR_CORE_FLAT:
         // case for direct lowering is already checked in compiler invocation
         // no need to check here
         emitMLIR(lowerFromCIRToMLIR(mlirMod, mlirCtx.get()), false);

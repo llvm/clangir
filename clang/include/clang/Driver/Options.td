@@ -3067,9 +3067,9 @@ def emit_mlir : Flag<["-"], "emit-mlir">, Visibility<[ClangOption]>, Group<Actio
 def emit_mlir_EQ : Joined<["-"], "emit-mlir=">, Visibility<[ClangOption, CC1Option]>, Group<Action_Group>,
   HelpText<"Build ASTs and then lower through ClangIR to the selected MLIR dialect, emit the .mlir file. "
   "Allowed values are `core` for MLIR standard dialects and `llvm` for the LLVM dialect.">,
-  Values<"core,llvm,cir,cir-flat">,
+  Values<"core,llvm,cir,cir-flat,core-flat">,
   NormalizedValuesScope<"frontend">,
-  NormalizedValues<["MLIR_CORE", "MLIR_LLVM", "MLIR_CIR", "MLIR_CIR_FLAT"]>,
+  NormalizedValues<["MLIR_CORE", "MLIR_LLVM", "MLIR_CIR", "MLIR_CIR_FLAT", "MLIR_CORE_FLAT"]>,
   MarshallingInfoEnum<FrontendOpts<"MLIRTargetDialect">, "MLIR_CORE">;
 def emit_cir : Flag<["-"], "emit-cir">, Visibility<[ClangOption, CC1Option]>,
   Group<Action_Group>, Alias<emit_mlir_EQ>, AliasArgs<["cir"]>,

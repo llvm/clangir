@@ -151,7 +151,13 @@ enum ActionKind {
   PrintDependencyDirectivesSourceMinimizerOutput
 };
 
-enum MLIRDialectKind { MLIR_CORE, MLIR_LLVM, MLIR_CIR, MLIR_CIR_FLAT };
+enum MLIRDialectKind {
+  MLIR_CORE,
+  MLIR_LLVM,
+  MLIR_CIR,
+  MLIR_CIR_FLAT,
+  MLIR_CORE_FLAT
+};
 
 } // namespace frontend
 
