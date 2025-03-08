@@ -2,19 +2,18 @@
 // g13 is not supported due to DiscreteBitFieldABI is NYI.
 // see clang/lib/CIR/CodeGen/CIRRecordLayoutBuilder.cpp CIRRecordLowering::accumulateBitFields
 
-// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-cir %s -o %t.cir -O1
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-cir %s -o %t.cir -O1 -no-pointer-tbaa
 // RUN: FileCheck --check-prefix=CIR --input-file=%t.cir %s
-// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm %s -o %t.ll -O1 -disable-llvm-passes -no-struct-path-tbaa
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm %s -o %t.ll -O1 -disable-llvm-passes -no-struct-path-tbaa -no-pointer-tbaa
 // RUN: FileCheck --check-prefix=CHECK --input-file=%t.ll %s
-// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm %s -o %t.ll -O1 -disable-llvm-passes
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm %s -o %t.ll -O1 -disable-llvm-passes -no-pointer-tbaa
 // RUN: FileCheck --check-prefixes=PATH,OLD-PATH --input-file=%t.ll %s
-// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm %s -o %t.ll -O1 -disable-llvm-passes -relaxed-aliasing
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm %s -o %t.ll -O1 -disable-llvm-passes -relaxed-aliasing -no-pointer-tbaa
 // RUN: FileCheck --check-prefix=NO-TBAA --input-file=%t.ll %s
-// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm %s -o %t.ll -O0 -disable-llvm-passes
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm %s -o %t.ll -O0 -disable-llvm-passes -no-pointer-tbaa
 // RUN: FileCheck --check-prefix=NO-TBAA --input-file=%t.ll %s
 
 // NO-TBAA-NOT: !tbaa
-// CIR: #tbaa[[NYI:.*]] = #cir.tbaa
 // CIR: #tbaa[[CHAR:.*]] = #cir.tbaa_omnipotent_char
 // CIR: #tbaa[[INT:.*]] = #cir.tbaa_scalar<id = "int", type = !s32i>
 // CIR: #tbaa[[SHORT:.*]] = #cir.tbaa_scalar<id = "short", type = !s16i>
@@ -377,10 +376,10 @@ uint32_t g15(StructS *S, StructS3 *S3, uint64_t count) {
 // LLVM: [[TYPE_i16]] = !{!"short", [[TYPE_char]],
 // LLVM: [[TAG_char]] = !{[[TYPE_char]], [[TYPE_char]], i64 0}
 
-// OLD-PATH: [[TAG_i32]] = !{[[TYPE_INT:!.*]], [[TYPE_INT]], i64 0}
-// OLD-PATH: [[TYPE_INT]] = !{!"int", [[TYPE_CHAR:!.*]], i64 0}
-// OLD-PATH: [[TYPE_CHAR]] = !{!"omnipotent char", [[TAG_cxx_tbaa:!.*]],
+// OLD-PATH: [[TYPE_CHAR:!.*]] = !{!"omnipotent char", [[TAG_cxx_tbaa:!.*]],
 // OLD-PATH: [[TAG_cxx_tbaa]] = !{!"Simple C++ TBAA"}
+// OLD-PATH: [[TAG_i32]] = !{[[TYPE_INT:!.*]], [[TYPE_INT]], i64 0}
+// OLD-PATH: [[TYPE_INT]] = !{!"int", [[TYPE_CHAR]], i64 0}
 // OLD-PATH: [[TAG_A_f32]] = !{[[TYPE_A:!.*]], [[TYPE_INT]], i64 4}
 // OLD-PATH: [[TYPE_A]] = !{!"_ZTS7StructA", [[TYPE_SHORT:!.*]], i64 0, [[TYPE_INT]], i64 4, [[TYPE_SHORT]], i64 8, [[TYPE_INT]], i64 12}
 // OLD-PATH: [[TYPE_SHORT:!.*]] = !{!"short", [[TYPE_CHAR]]

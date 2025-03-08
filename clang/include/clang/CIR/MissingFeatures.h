@@ -60,13 +60,11 @@ struct MissingFeatures {
   static bool tbaa() { return false; }
   static bool tbaaStruct() { return false; }
   static bool tbaaTagForStruct() { return false; }
-  static bool tbaaTagForBitInt() { return false; }
   static bool tbaaVTablePtr() { return false; }
   static bool tbaaIncompleteType() { return false; }
   static bool tbaaMergeTBAAInfo() { return false; }
   static bool tbaaMayAlias() { return false; }
   static bool tbaaNewStructPath() { return false; }
-  static bool tbaaPointer() { return false; }
   static bool emitNullabilityCheck() { return false; }
   static bool ptrAuth() { return false; }
   static bool memberFuncPtrAuthInfo() { return false; }

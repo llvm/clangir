@@ -23,7 +23,7 @@ float32_t test_vrndns_f32(float32_t a) {
 // CIR: cir.func internal private @vrndns_f32(%arg0: !cir.float {{.*}}) -> !cir.float
 // CIR: cir.store %arg0, [[ARG_SAVE:%.*]] : !cir.float, !cir.ptr<!cir.float> 
 // CIR: [[INTRIN_ARG:%.*]] = cir.load [[ARG_SAVE]] : !cir.ptr<!cir.float>, !cir.float 
-// CIR: {{%.*}} = cir.llvm.intrinsic "roundeven.f32" [[INTRIN_ARG]] : (!cir.float)
+// CIR: {{%.*}} = cir.roundeven [[INTRIN_ARG]] : !cir.float
 // CIR: cir.return {{%.*}} : !cir.float
 
 // CIR-LABEL: test_vrndns_f32
@@ -47,7 +47,7 @@ float32x2_t test_vrnda_f32(float32x2_t a) {
 // CIR: [[INTRIN_ARG:%.*]] = cir.load [[ARG_SAVE]] : !cir.ptr<!cir.vector<!cir.float x 2>>, !cir.vector<!cir.float x 2>
 // CIR: [[INTRIN_ARG_CAST:%.*]] = cir.cast(bitcast, [[INTRIN_ARG]] : !cir.vector<!cir.float x 2>), !cir.vector<!s8i x 8>
 // CIR: [[INTRIN_ARG_BACK:%.*]] = cir.cast(bitcast, [[INTRIN_ARG_CAST]] : !cir.vector<!s8i x 8>), !cir.vector<!cir.float x 2>
-// CIR: {{%.*}} = cir.llvm.intrinsic "round" [[INTRIN_ARG_BACK]] : (!cir.vector<!cir.float x 2>) -> !cir.vector<!cir.float x 2>
+// CIR: {{%.*}} = cir.round [[INTRIN_ARG_BACK]] : !cir.vector<!cir.float x 2>
 // CIR: cir.return {{%.*}} : !cir.vector<!cir.float x 2>
 
 // CIR-LABEL: test_vrnda_f32
@@ -71,7 +71,7 @@ float32x4_t test_vrndaq_f32(float32x4_t a) {
 // CIR: [[INTRIN_ARG:%.*]] = cir.load [[ARG_SAVE]] : !cir.ptr<!cir.vector<!cir.float x 4>>, !cir.vector<!cir.float x 4>
 // CIR: [[INTRIN_ARG_CAST:%.*]] = cir.cast(bitcast, [[INTRIN_ARG]] : !cir.vector<!cir.float x 4>), !cir.vector<!s8i x 16>
 // CIR: [[INTRIN_ARG_BACK:%.*]] = cir.cast(bitcast, [[INTRIN_ARG_CAST]] : !cir.vector<!s8i x 16>), !cir.vector<!cir.float x 4>
-// CIR: {{%.*}} = cir.llvm.intrinsic "round" [[INTRIN_ARG_BACK]] : (!cir.vector<!cir.float x 4>) -> !cir.vector<!cir.float x 4>
+// CIR: {{%.*}} = cir.round [[INTRIN_ARG_BACK]] : !cir.vector<!cir.float x 4>
 // CIR: cir.return {{%.*}} : !cir.vector<!cir.float x 4>
 
 // LLVM: {{.*}}test_vrndaq_f32(<4 x float>{{.*}}[[ARG:%.*]])
