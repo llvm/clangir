@@ -657,10 +657,10 @@ AddressSpaceAttr::getValueFromLangAS(clang::LangAS langAS) {
     return Kind::offload_private;
   case LangAS::opencl_generic:
     return Kind::offload_generic;
-
+  case LangAS::cuda_constant:
+    return Kind::offload_constant;
   case LangAS::opencl_global_device:
   case LangAS::opencl_global_host:
-  case LangAS::cuda_constant:
   case LangAS::sycl_global:
   case LangAS::sycl_global_device:
   case LangAS::sycl_global_host:
