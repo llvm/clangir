@@ -1,3 +1,4 @@
+
 #include "TargetInfo.h"
 #include "ABIInfo.h"
 #include "CIRGenCXXABI.h"
@@ -344,6 +345,11 @@ class NVPTXTargetCIRGenInfo : public TargetCIRGenInfo {
 public:
   NVPTXTargetCIRGenInfo(CIRGenTypes &cgt)
       : TargetCIRGenInfo(std::make_unique<NVPTXABIInfo>(cgt)) {}
+  mlir::Type getCUDADeviceBuiltinSurfaceDeviceType() const override {
+    // On the device side, texture reference is represented as an object handle
+    // in 64-bit integer.
+    return cir::IntType::get(&getABIInfo().CGT.getMLIRContext(), 64, true);
+  }
 };
 
 } // namespace
