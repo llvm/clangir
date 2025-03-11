@@ -41,15 +41,6 @@ public:
   /// Returns ABI info helper for the target.
   const ABIInfo &getABIInfo() const { return *Info; }
 
-  /// Provides a convenient hook to handle extra target-specific attributes
-  /// for the given global.
-  /// In OG, the function receives an llvm::GlobalValue. However, functions
-  /// and global variables are separate types in Clang IR, so we use a general
-  /// mlir::Operation*.
-  virtual void setTargetAttributes(const clang::Decl *decl,
-                                   mlir::Operation *global,
-                                   CIRGenModule &module) const {}
-
   virtual bool isScalarizableAsmOperand(CIRGenFunction &CGF,
                                         mlir::Type Ty) const {
     return false;
@@ -130,6 +121,9 @@ public:
   // which will be further resolved by getOpenCLKernelCallingConv().
   virtual void setCUDAKernelCallingConvention(const FunctionType *&ft) const {}
   virtual mlir::Type getCUDADeviceBuiltinSurfaceDeviceType() const {
+    return nullptr;
+  }
+  virtual mlir::Type getCUDADeviceBuiltinTextureDeviceType() const {
     return nullptr;
   }
   virtual ~TargetCIRGenInfo() {}
