@@ -22,7 +22,8 @@ __device__ void device_fn(int* a, double b, float c) {}
 // CIR-DEVICE: cir.func @_Z9device_fnPidf
 
 __global__ void global_fn(int a) {}
-// CIR-DEVICE: @_Z9global_fni
+// CIR-DEVICE: @_Z9global_fni({{.*}} cc(ptx_kernel)
+// LLVM-DEVICE: define dso_local ptx_kernel void @_Z9global_fni
 
 // Check for device stub emission.
 
