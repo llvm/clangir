@@ -1495,6 +1495,11 @@ void CIRGenModule::emitGlobalVarDefinition(const clang::VarDecl *d,
                   CUDAExternallyInitializedAttr::get(&getMLIRContext()));
     }
   }
+  if (isCudaShadowVar) {
+    auto shadowName = getMangledName(GlobalDecl(d));
+    auto attr = CUDAShadowNameAttr::get(&getMLIRContext(), shadowName.str());
+    gv->setAttr(CUDAShadowNameAttr::getMnemonic(), attr);
+  }
 
   // Set initializer and finalize emission
   CIRGenModule::setInitializer(gv, init);
