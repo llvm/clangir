@@ -14,6 +14,7 @@
 
 #include "mlir/Dialect/DLTI/DLTI.h"
 #include "mlir/IR/BuiltinOps.h"
+#include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/Support/Alignment.h"
@@ -34,6 +35,8 @@ class CIRDataLayout {
 
   // The StructType -> StructLayout map.
   mutable void *LayoutMap = nullptr;
+
+  TypeSizeInfoAttr typeSizeInfo;
 
 public:
   mlir::DataLayout layout;
@@ -105,6 +108,14 @@ public:
     auto IntTy =
         cir::IntType::get(Ty.getContext(), getPointerTypeSizeInBits(Ty), false);
     return IntTy;
+  }
+
+  mlir::Type getIntType(mlir::MLIRContext *ctx) const {
+    return typeSizeInfo.getIntType(ctx);
+  }
+
+  mlir::Type getCharType(mlir::MLIRContext *ctx) const {
+    return typeSizeInfo.getCharType(ctx);
   }
 };
 
