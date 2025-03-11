@@ -3321,8 +3321,8 @@ struct LValueOrRValue {
 };
 
 LValueOrRValue emitPseudoObjectExpr(CIRGenFunction &cgf,
-                                    const PseudoObjectExpr *expr, bool forLValue,
-                                    AggValueSlot slot) {
+                                    const PseudoObjectExpr *expr,
+                                    bool forLValue, AggValueSlot slot) {
   SmallVector<CIRGenFunction::OpaqueValueMappingData, 4> opaques;
 
   // Find the result expression, if any.
