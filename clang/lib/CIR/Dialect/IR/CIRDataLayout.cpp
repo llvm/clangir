@@ -1,4 +1,5 @@
 #include "clang/CIR/Dialect/IR/CIRDataLayout.h"
+#include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/MissingFeatures.h"
 #include "llvm/IR/DataLayout.h"
@@ -112,6 +113,17 @@ public:
 
 CIRDataLayout::CIRDataLayout(mlir::ModuleOp modOp) : layout{modOp} {
   reset(modOp.getDataLayoutSpec());
+  if (auto attr = modOp->getAttr(cir::CIRDialect::getTypeSizeInfoAttrName()))
+    typeSizeInfo = mlir::cast<TypeSizeInfoAttr>(attr);
+  else {
+    // Generate default size information.
+    auto voidPtrTy = PointerType::get(VoidType::get(modOp->getContext()));
+    llvm::TypeSize ptrSize = getTypeSizeInBits(voidPtrTy);
+    typeSizeInfo =
+        TypeSizeInfoAttr::get(modOp->getContext(),
+                              /*char_size=*/8, /*int_size=*/32,
+                              /*size_t_size=*/ptrSize.getFixedValue());
+  }
 }
 
 void CIRDataLayout::reset(mlir::DataLayoutSpecInterface spec) {
