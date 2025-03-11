@@ -569,14 +569,14 @@ bool CIRGenModule::shouldEmitCUDAGlobalVar(const VarDecl *global) const {
   // size and host-side address in order to provide access to
   // their device-side incarnations.
 
-  if (global->hasAttr<CUDAConstantAttr>() ||
-      global->getType()->isCUDADeviceBuiltinTextureType()) {
+  if (global->hasAttr<CUDAConstantAttr>()) {
     llvm_unreachable("NYI");
   }
 
   return !langOpts.CUDAIsDevice || global->hasAttr<CUDADeviceAttr>() ||
          global->hasAttr<CUDASharedAttr>() ||
-         global->getType()->isCUDADeviceBuiltinSurfaceType();
+         global->getType()->isCUDADeviceBuiltinSurfaceType() ||
+         global->getType()->isCUDADeviceBuiltinTextureType();
 }
 
 void CIRGenModule::emitGlobal(GlobalDecl gd) {
@@ -903,7 +903,7 @@ void CIRGenModule::setNonAliasAttributes(GlobalDecl gd, mlir::Operation *go) {
     if (f)
       assert(!cir::MissingFeatures::setSectionForFuncOp());
   }
-  getTargetCIRGenInfo().setTargetAttributes(d, go, *this);
+  assert(!cir::MissingFeatures::setTargetAttributes());
 }
 
 static llvm::SmallVector<int64_t> indexesOfArrayAttr(mlir::ArrayAttr indexes) {
@@ -1122,8 +1122,10 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef mangledName, mlir::Type ty,
       }
     }
 
-    // Address space check removed because it is unnecessary because CIR records
-    // address space info in types.
+    // TODO(cir): LLVM codegen makes sure the result is of the correct type
+    // by issuing a address space cast.
+    if (entryCIRAS != cirAS)
+      llvm_unreachable("NYI");
 
     // (If global is requested for a definition, we always need to create a new
     // global, not just return a bitcast.)
@@ -1211,8 +1213,10 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef mangledName, mlir::Type ty,
   // something closer to GlobalValue::isDeclaration instead of checking for
   // initializer.
   if (gv.isDeclaration()) {
-    getTargetCIRGenInfo().setTargetAttributes(d, gv, *this);
+    // TODO(cir): set target attributes
 
+    // External HIP managed variables needed to be recorded for transformation
+    // in both device and host compilations.
     // External HIP managed variables needed to be recorded for transformation
     // in both device and host compilations.
     if (getLangOpts().CUDA && d && d->hasAttr<HIPManagedAttr>() &&
@@ -1493,7 +1497,8 @@ void CIRGenModule::emitGlobalVarDefinition(const clang::VarDecl *d,
     // because they must not be initialized.
     if (linkage != cir::GlobalLinkageKind::InternalLinkage &&
         (d->hasAttr<CUDADeviceAttr>() ||
-         d->getType()->isCUDADeviceBuiltinSurfaceType())) {
+         d->getType()->isCUDADeviceBuiltinSurfaceType() ||
+         d->getType()->isCUDADeviceBuiltinTextureType())) {
       gv->setAttr(CUDAExternallyInitializedAttr::getMnemonic(),
                   CUDAExternallyInitializedAttr::get(&getMLIRContext()));
     }
@@ -2454,7 +2459,7 @@ cir::FuncOp CIRGenModule::GetAddrOfFunction(clang::GlobalDecl gd, mlir::Type ty,
   // stub. For HIP, it's something different.
   if ((langOpts.HIP || langOpts.CUDA) && !langOpts.CUDAIsDevice &&
       cast<FunctionDecl>(gd.getDecl())->hasAttr<CUDAGlobalAttr>()) {
-    (void)getCUDARuntime().getKernelHandle(f, gd);
+    auto *stubHandle = getCUDARuntime().getKernelHandle(f, gd);
     if (isForDefinition)
       return f;
 
@@ -2673,6 +2678,12 @@ cir::FuncOp CIRGenModule::createRuntimeFunction(cir::FuncType ty,
   }
 
   return entry;
+}
+
+static bool isDefaultedMethod(const clang::FunctionDecl *fd) {
+  return fd->isDefaulted() && isa<CXXMethodDecl>(fd) &&
+         (cast<CXXMethodDecl>(fd)->isCopyAssignmentOperator() ||
+          cast<CXXMethodDecl>(fd)->isMoveAssignmentOperator());
 }
 
 mlir::Location CIRGenModule::getLocForFunction(const clang::FunctionDecl *fd) {
@@ -2917,10 +2928,6 @@ void CIRGenModule::setFunctionAttributes(GlobalDecl globalDecl,
 
   // TODO(cir): Complete the remaining part of the function.
   assert(!cir::MissingFeatures::setFunctionAttributes());
-
-  if (!isIncompleteFunction && func.isDeclaration())
-    getTargetCIRGenInfo().setTargetAttributes(globalDecl.getDecl(), func,
-                                              *this);
 
   // TODO(cir): This needs a lot of work to better match CodeGen. That
   // ultimately ends up in setGlobalVisibility, which already has the linkage of
