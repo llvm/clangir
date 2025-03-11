@@ -569,12 +569,12 @@ bool CIRGenModule::shouldEmitCUDAGlobalVar(const VarDecl *global) const {
   // size and host-side address in order to provide access to
   // their device-side incarnations.
 
-  if (global->hasAttr<CUDAConstantAttr>() ||
-      global->getType()->isCUDADeviceBuiltinTextureType()) {
+  if (global->getType()->isCUDADeviceBuiltinTextureType()) {
     llvm_unreachable("NYI");
   }
 
   return !langOpts.CUDAIsDevice || global->hasAttr<CUDADeviceAttr>() ||
+         global->hasAttr<CUDAConstantAttr>() ||
          global->hasAttr<CUDASharedAttr>() ||
          global->getType()->isCUDADeviceBuiltinSurfaceType();
 }
@@ -1492,7 +1492,7 @@ void CIRGenModule::emitGlobalVarDefinition(const clang::VarDecl *d,
     // __shared__ variables is not marked as externally initialized,
     // because they must not be initialized.
     if (linkage != cir::GlobalLinkageKind::InternalLinkage &&
-        (d->hasAttr<CUDADeviceAttr>() ||
+        (d->hasAttr<CUDADeviceAttr>() || d->hasAttr<CUDAConstantAttr>() ||
          d->getType()->isCUDADeviceBuiltinSurfaceType())) {
       gv->setAttr(CUDAExternallyInitializedAttr::getMnemonic(),
                   CUDAExternallyInitializedAttr::get(&getMLIRContext()));
@@ -1505,8 +1505,9 @@ void CIRGenModule::emitGlobalVarDefinition(const clang::VarDecl *d,
     emitter->finalize(gv);
 
   // TODO(cir): If it is safe to mark the global 'constant', do so now.
-  gv.setConstant(!needsGlobalCtor && !needsGlobalDtor &&
-                 isTypeConstant(d->getType(), true, true));
+  gv.setConstant((d->hasAttr<CUDAConstantAttr>() && langOpts.CUDAIsDevice) ||
+                 (!needsGlobalCtor && !needsGlobalDtor &&
+                  isTypeConstant(d->getType(), true, true)));
 
   // If it is in a read-only section, mark it 'constant'.
   if (const SectionAttr *sa = d->getAttr<SectionAttr>())
