@@ -3560,11 +3560,12 @@ def CC_C : I32EnumAttrCase<"C", 1, "c">;
 def CC_SpirKernel : I32EnumAttrCase<"SpirKernel", 2, "spir_kernel">;
 def CC_SpirFunction : I32EnumAttrCase<"SpirFunction", 3, "spir_function">;
 def CC_OpenCLKernel : I32EnumAttrCase<"OpenCLKernel", 4, "opencl_kernel">;
+def CC_PTXKernel : I32EnumAttrCase<"PTXKernel", 5, "ptx_kernel">;
 
 def CallingConv : I32EnumAttr<
     "CallingConv",
     "calling convention",
-    [CC_C, CC_SpirKernel, CC_SpirFunction, CC_OpenCLKernel]> {
+    [CC_C, CC_SpirKernel, CC_SpirFunction, CC_OpenCLKernel, CC_PTXKernel]> {
   let cppNamespace = "::cir";
 }
 

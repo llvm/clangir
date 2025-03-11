@@ -903,7 +903,7 @@ void CIRGenModule::setNonAliasAttributes(GlobalDecl gd, mlir::Operation *go) {
     if (f)
       assert(!cir::MissingFeatures::setSectionForFuncOp());
   }
-  assert(!cir::MissingFeatures::setTargetAttributes());
+  getTargetCIRGenInfo().setTargetAttributes(d, go, *this);
 }
 
 static llvm::SmallVector<int64_t> indexesOfArrayAttr(mlir::ArrayAttr indexes) {
@@ -1211,10 +1211,8 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef mangledName, mlir::Type ty,
   // something closer to GlobalValue::isDeclaration instead of checking for
   // initializer.
   if (gv.isDeclaration()) {
-    // TODO(cir): set target attributes
+    getTargetCIRGenInfo().setTargetAttributes(d, gv, *this);
 
-    // External HIP managed variables needed to be recorded for transformation
-    // in both device and host compilations.
     // External HIP managed variables needed to be recorded for transformation
     // in both device and host compilations.
     if (getLangOpts().CUDA && d && d->hasAttr<HIPManagedAttr>() &&
@@ -2919,6 +2917,10 @@ void CIRGenModule::setFunctionAttributes(GlobalDecl globalDecl,
 
   // TODO(cir): Complete the remaining part of the function.
   assert(!cir::MissingFeatures::setFunctionAttributes());
+
+  if (!isIncompleteFunction && func.isDeclaration())
+    getTargetCIRGenInfo().setTargetAttributes(globalDecl.getDecl(), func,
+                                              *this);
 
   // TODO(cir): This needs a lot of work to better match CodeGen. That
   // ultimately ends up in setGlobalVisibility, which already has the linkage of
