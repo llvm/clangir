@@ -903,7 +903,7 @@ void CIRGenModule::setNonAliasAttributes(GlobalDecl gd, mlir::Operation *go) {
     if (f)
       assert(!cir::MissingFeatures::setSectionForFuncOp());
   }
-  assert(!cir::MissingFeatures::setTargetAttributes());
+  getTargetCIRGenInfo().setTargetAttributes(d, go, *this);
 }
 
 static llvm::SmallVector<int64_t> indexesOfArrayAttr(mlir::ArrayAttr indexes) {
@@ -1122,10 +1122,8 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef mangledName, mlir::Type ty,
       }
     }
 
-    // TODO(cir): LLVM codegen makes sure the result is of the correct type
-    // by issuing a address space cast.
-    if (entryCIRAS != cirAS)
-      llvm_unreachable("NYI");
+    // Address space check removed because it is unnecessary because CIR records
+    // address space info in types.
 
     // (If global is requested for a definition, we always need to create a new
     // global, not just return a bitcast.)
@@ -1213,10 +1211,7 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef mangledName, mlir::Type ty,
   // something closer to GlobalValue::isDeclaration instead of checking for
   // initializer.
   if (gv.isDeclaration()) {
-    // TODO(cir): set target attributes
-
-    // External HIP managed variables needed to be recorded for transformation
-    // in both device and host compilations.
+    getTargetCIRGenInfo().setTargetAttributes(d, gv, *this);
     // External HIP managed variables needed to be recorded for transformation
     // in both device and host compilations.
     if (getLangOpts().CUDA && d && d->hasAttr<HIPManagedAttr>() &&
@@ -2459,7 +2454,7 @@ cir::FuncOp CIRGenModule::GetAddrOfFunction(clang::GlobalDecl gd, mlir::Type ty,
   // stub. For HIP, it's something different.
   if ((langOpts.HIP || langOpts.CUDA) && !langOpts.CUDAIsDevice &&
       cast<FunctionDecl>(gd.getDecl())->hasAttr<CUDAGlobalAttr>()) {
-    auto *stubHandle = getCUDARuntime().getKernelHandle(f, gd);
+    (void)getCUDARuntime().getKernelHandle(f, gd);
     if (isForDefinition)
       return f;
 
@@ -2678,12 +2673,6 @@ cir::FuncOp CIRGenModule::createRuntimeFunction(cir::FuncType ty,
   }
 
   return entry;
-}
-
-static bool isDefaultedMethod(const clang::FunctionDecl *fd) {
-  return fd->isDefaulted() && isa<CXXMethodDecl>(fd) &&
-         (cast<CXXMethodDecl>(fd)->isCopyAssignmentOperator() ||
-          cast<CXXMethodDecl>(fd)->isMoveAssignmentOperator());
 }
 
 mlir::Location CIRGenModule::getLocForFunction(const clang::FunctionDecl *fd) {
@@ -2928,6 +2917,10 @@ void CIRGenModule::setFunctionAttributes(GlobalDecl globalDecl,
 
   // TODO(cir): Complete the remaining part of the function.
   assert(!cir::MissingFeatures::setFunctionAttributes());
+
+  if (!isIncompleteFunction && func.isDeclaration())
+    getTargetCIRGenInfo().setTargetAttributes(globalDecl.getDecl(), func,
+                                              *this);
 
   // TODO(cir): This needs a lot of work to better match CodeGen. That
   // ultimately ends up in setGlobalVisibility, which already has the linkage of
