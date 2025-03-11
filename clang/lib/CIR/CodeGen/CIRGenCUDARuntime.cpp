@@ -69,11 +69,16 @@ void CIRGenCUDARuntime::emitDeviceStubBodyNew(CIRGenFunction &cgf,
       loc, cir::PointerType::get(voidPtrArrayTy), voidPtrArrayTy, "kernel_args",
       CharUnits::fromQuantity(16));
 
+  mlir::Value kernelArgsDecayed =
+      builder.createCast(cir::CastKind::array_to_ptrdecay, kernelArgs,
+                         cir::PointerType::get(cgm.VoidPtrTy));
+
   // Store arguments into kernelArgs
   for (auto [i, arg] : llvm::enumerate(args)) {
     mlir::Value index =
         builder.getConstInt(loc, llvm::APInt(/*numBits=*/32, i));
-    mlir::Value storePos = builder.createPtrStride(loc, kernelArgs, index);
+    mlir::Value storePos =
+        builder.createPtrStride(loc, kernelArgsDecayed, index);
     builder.CIRBaseBuilderTy::createStore(
         loc, cgf.GetAddrOfLocalVar(arg).getPointer(), storePos);
   }
@@ -166,10 +171,6 @@ void CIRGenCUDARuntime::emitDeviceStubBodyNew(CIRGenFunction &cgf,
   // mlir::Value func = builder.createBitcast(kernel, cgm.VoidPtrTy);
   CallArgList launchArgs;
 
-  mlir::Value kernelArgsDecayed =
-      builder.createCast(cir::CastKind::array_to_ptrdecay, kernelArgs,
-                         cir::PointerType::get(cgm.VoidPtrTy));
-
   launchArgs.add(RValue::get(kernel), launchFD->getParamDecl(0)->getType());
   launchArgs.add(
       RValue::getAggregate(Address(gridDim, CharUnits::fromQuantity(8))),
@@ -182,7 +183,8 @@ void CIRGenCUDARuntime::emitDeviceStubBodyNew(CIRGenFunction &cgf,
   launchArgs.add(
       RValue::get(builder.CIRBaseBuilderTy::createLoad(loc, sharedMem)),
       launchFD->getParamDecl(4)->getType());
-  launchArgs.add(RValue::get(stream), launchFD->getParamDecl(5)->getType());
+  launchArgs.add(RValue::get(builder.CIRBaseBuilderTy::createLoad(loc, stream)),
+                 launchFD->getParamDecl(5)->getType());
 
   mlir::Type launchTy = cgm.getTypes().convertType(launchFD->getType());
   mlir::Operation *launchFn =
@@ -220,12 +222,15 @@ RValue CIRGenCUDARuntime::emitCUDAKernelCallExpr(CIRGenFunction &cgf,
   cgf.emitIfOnBoolExpr(
       expr->getConfig(),
       [&](mlir::OpBuilder &b, mlir::Location l) {
+        b.create<cir::YieldOp>(loc);
+      },
+      loc,
+      [&](mlir::OpBuilder &b, mlir::Location l) {
         CIRGenCallee callee = cgf.emitCallee(expr->getCallee());
         cgf.emitCall(expr->getCallee()->getType(), callee, expr, retValue);
         b.create<cir::YieldOp>(loc);
       },
-      loc, [](mlir::OpBuilder &b, mlir::Location l) {},
-      std::optional<mlir::Location>());
+      loc);
 
   return RValue::get(nullptr);
 }
