@@ -236,6 +236,7 @@ struct MissingFeatures {
   static bool exceptions() { return false; }
   static bool metaDataNode() { return false; }
   static bool emitDeclMetadata() { return false; }
+  static bool emitNVVMMetadata() { return false; }
   static bool emitScalarRangeCheck() { return false; }
   static bool stmtExprEvaluation() { return false; }
   static bool setCallingConv() { return false; }
@@ -469,9 +470,6 @@ struct MissingFeatures {
   // If a store op is guaranteed to execute before the retun value load op, we
   // can optimize away the store and load ops. Seems like an early optimization.
   static bool returnValueDominatingStoreOptmiization() { return false; }
-
-  // Globals (vars and functions) may have attributes that are target depedent.
-  static bool setTargetAttributes() { return false; }
 
   // CIR modules parsed from text form may not carry the triple or data layout
   // specs. We should make it always present.

@@ -345,10 +345,38 @@ class NVPTXTargetCIRGenInfo : public TargetCIRGenInfo {
 public:
   NVPTXTargetCIRGenInfo(CIRGenTypes &cgt)
       : TargetCIRGenInfo(std::make_unique<NVPTXABIInfo>(cgt)) {}
+
   mlir::Type getCUDADeviceBuiltinSurfaceDeviceType() const override {
     // On the device side, texture reference is represented as an object handle
     // in 64-bit integer.
     return cir::IntType::get(&getABIInfo().CGT.getMLIRContext(), 64, true);
+  }
+
+  void setTargetAttributes(const clang::Decl *decl, mlir::Operation *global,
+                           CIRGenModule &cgm) const override {
+    if (const auto *vd = clang::dyn_cast_or_null<clang::VarDecl>(decl)) {
+      assert(!cir::MissingFeatures::emitNVVMMetadata());
+      return;
+    }
+
+    if (const auto *fd = clang::dyn_cast_or_null<clang::FunctionDecl>(decl)) {
+      cir::FuncOp func = mlir::cast<cir::FuncOp>(global);
+      if (func.isDeclaration())
+        return;
+
+      if (cgm.getLangOpts().CUDA) {
+        if (fd->hasAttr<CUDAGlobalAttr>()) {
+          func.setCallingConv(cir::CallingConv::PTXKernel);
+
+          // In LLVM we should create metadata like:
+          //    !{<func-ref>, metadata !"kernel", i32 1}
+          assert(!cir::MissingFeatures::emitNVVMMetadata());
+        }
+      }
+
+      if (fd->getAttr<CUDALaunchBoundsAttr>())
+        llvm_unreachable("NYI");
+    }
   }
 };
 

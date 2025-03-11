@@ -797,11 +797,11 @@ convertSuccessorBlock(mlir::ConversionPatternRewriter &rewriter,
   return rewriter.applySignatureConversion(block, *conversion, converter);
 }
 
-mlir::LLVM::CConv convertCallingConv(cir::CallingConv callinvConv) {
+mlir::LLVM::CConv convertCallingConv(cir::CallingConv callingConv) {
   using CIR = cir::CallingConv;
   using LLVM = mlir::LLVM::CConv;
 
-  switch (callinvConv) {
+  switch (callingConv) {
   case CIR::C:
     return LLVM::C;
   case CIR::SpirKernel:
@@ -810,6 +810,8 @@ mlir::LLVM::CConv convertCallingConv(cir::CallingConv callinvConv) {
     return LLVM::SPIR_FUNC;
   case CIR::OpenCLKernel:
     llvm_unreachable("NYI");
+  case CIR::PTXKernel:
+    return LLVM::PTX_Kernel;
   }
   llvm_unreachable("Unknown calling convention");
 }
