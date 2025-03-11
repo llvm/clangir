@@ -350,7 +350,6 @@ public:
     // in 64-bit integer.
     return cir::IntType::get(&getABIInfo().CGT.getMLIRContext(), 64, true);
   }
-  
   mlir::Type getCUDADeviceBuiltinTextureDeviceType() const override {
     // On the device side, texture reference is represented as an object handle
     // in 64-bit integer.
