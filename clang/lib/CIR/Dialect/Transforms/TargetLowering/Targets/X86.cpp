@@ -751,7 +751,7 @@ void X86_64ABIInfo::computeInfo(LowerFunctionInfo &FI) const {
       if (cir::MissingFeatures::vectorType())
         cir_cconv_unreachable("NYI");
     } else {
-      cir_cconv_unreachable("Indirect results are NYI");
+      it->info = getIndirectResult(it->type, FreeIntRegs);
     }
   }
 }
