@@ -569,12 +569,12 @@ bool CIRGenModule::shouldEmitCUDAGlobalVar(const VarDecl *global) const {
   // size and host-side address in order to provide access to
   // their device-side incarnations.
 
-  if (global->hasAttr<CUDAConstantAttr>() ||
-      global->getType()->isCUDADeviceBuiltinTextureType()) {
+  if (global->getType()->isCUDADeviceBuiltinTextureType()) {
     llvm_unreachable("NYI");
   }
 
   return !langOpts.CUDAIsDevice || global->hasAttr<CUDADeviceAttr>() ||
+         global->hasAttr<CUDAConstantAttr>() ||
          global->hasAttr<CUDASharedAttr>() ||
          global->getType()->isCUDADeviceBuiltinSurfaceType();
 }
@@ -903,7 +903,7 @@ void CIRGenModule::setNonAliasAttributes(GlobalDecl gd, mlir::Operation *go) {
     if (f)
       assert(!cir::MissingFeatures::setSectionForFuncOp());
   }
-  assert(!cir::MissingFeatures::setTargetAttributes());
+  getTargetCIRGenInfo().setTargetAttributes(d, go, *this);
 }
 
 static llvm::SmallVector<int64_t> indexesOfArrayAttr(mlir::ArrayAttr indexes) {
@@ -1211,10 +1211,8 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef mangledName, mlir::Type ty,
   // something closer to GlobalValue::isDeclaration instead of checking for
   // initializer.
   if (gv.isDeclaration()) {
-    // TODO(cir): set target attributes
+    getTargetCIRGenInfo().setTargetAttributes(d, gv, *this);
 
-    // External HIP managed variables needed to be recorded for transformation
-    // in both device and host compilations.
     // External HIP managed variables needed to be recorded for transformation
     // in both device and host compilations.
     if (getLangOpts().CUDA && d && d->hasAttr<HIPManagedAttr>() &&
@@ -1494,7 +1492,7 @@ void CIRGenModule::emitGlobalVarDefinition(const clang::VarDecl *d,
     // __shared__ variables is not marked as externally initialized,
     // because they must not be initialized.
     if (linkage != cir::GlobalLinkageKind::InternalLinkage &&
-        (d->hasAttr<CUDADeviceAttr>() ||
+        (d->hasAttr<CUDADeviceAttr>() || d->hasAttr<CUDAConstantAttr>() ||
          d->getType()->isCUDADeviceBuiltinSurfaceType())) {
       gv->setAttr(CUDAExternallyInitializedAttr::getMnemonic(),
                   CUDAExternallyInitializedAttr::get(&getMLIRContext()));
@@ -1507,8 +1505,9 @@ void CIRGenModule::emitGlobalVarDefinition(const clang::VarDecl *d,
     emitter->finalize(gv);
 
   // TODO(cir): If it is safe to mark the global 'constant', do so now.
-  gv.setConstant(!needsGlobalCtor && !needsGlobalDtor &&
-                 isTypeConstant(d->getType(), true, true));
+  gv.setConstant((d->hasAttr<CUDAConstantAttr>() && langOpts.CUDAIsDevice) ||
+                 (!needsGlobalCtor && !needsGlobalDtor &&
+                  isTypeConstant(d->getType(), true, true)));
 
   // If it is in a read-only section, mark it 'constant'.
   if (const SectionAttr *sa = d->getAttr<SectionAttr>())
@@ -2919,6 +2918,10 @@ void CIRGenModule::setFunctionAttributes(GlobalDecl globalDecl,
 
   // TODO(cir): Complete the remaining part of the function.
   assert(!cir::MissingFeatures::setFunctionAttributes());
+
+  if (!isIncompleteFunction && func.isDeclaration())
+    getTargetCIRGenInfo().setTargetAttributes(globalDecl.getDecl(), func,
+                                              *this);
 
   // TODO(cir): This needs a lot of work to better match CodeGen. That
   // ultimately ends up in setGlobalVisibility, which already has the linkage of
