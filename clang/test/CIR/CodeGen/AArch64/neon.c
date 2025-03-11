@@ -15107,12 +15107,16 @@ int16_t test_vqmovns_s32(int32_t a) {
 //   return (uint64_t)vcltzd_f64(a);
 // }
 
-// NYI-LABEL: @test_vcages_f32(
-// NYI:   [[VCAGES_F32_I:%.*]] = call i32 @llvm.aarch64.neon.facge.i32.f32(float %a, float %b)
-// NYI:   ret i32 [[VCAGES_F32_I]]
-// uint32_t test_vcages_f32(float32_t a, float32_t b) {
-//   return (uint32_t)vcages_f32(a, b);
-// }
+uint32_t test_vcages_f32(float32_t a, float32_t b) {
+  return (uint32_t)vcages_f32(a, b);
+
+  // CIR-LABEL: vcages_f32
+  // CIR: [[TMP0:%.*]] = cir.llvm.intrinsic "aarch64.neon.facge" {{.*}}, {{.*}} : (!cir.float, !cir.float) -> !u32i
+
+  // LLVM-LABEL: @test_vcages_f32(
+  // LLVM:   [[VCAGED_F32_I:%.*]] = call i32 @llvm.aarch64.neon.facge.i32.f32(float %0, float %1)
+  // LLVM:   ret i32 [[VCAGED_F32_I]]
+}
 
 uint64_t test_vcaged_f64(float64_t a, float64_t b) {
   return (uint64_t)vcaged_f64(a, b);
@@ -18721,12 +18725,17 @@ float64_t test_vaddvq_f64(float64x2_t a) {
   // LLVM: ret double [[VADDVQ_F64_I]]
 }
 
-// NYI-LABEL: @test_vmaxv_f32(
-// NYI:   [[VMAXV_F32_I:%.*]] = call float @llvm.aarch64.neon.fmaxv.f32.v2f32(<2 x float> %a)
-// NYI:   ret float [[VMAXV_F32_I]]
-// float32_t test_vmaxv_f32(float32x2_t a) {
-//   return vmaxv_f32(a);
-// }
+float32_t test_vmaxv_f32(float32x2_t a) {
+  return vmaxv_f32(a);
+
+  // CIR-LABEL: vmaxv_f32
+  // CIR: cir.llvm.intrinsic "aarch64.neon.fmaxv" {{%.*}} : (!cir.vector<!cir.float x 2>) -> !cir.float
+
+  // LLVM-LABEL: test_vmaxv_f32
+  // LLVM-SAME: (<2 x float> [[a:%.*]])
+  // LLVM:   [[VMAXV_F32_I:%.*]] = call float @llvm.aarch64.neon.fmaxv.f32.v2f32(<2 x float> [[a]])
+  // LLVM:   ret float [[VMAXV_F32_I]]
+}
 
 // NYI-LABEL: @test_vmaxvq_f64(
 // NYI:   [[VMAXVQ_F64_I:%.*]] = call double @llvm.aarch64.neon.fmaxv.f64.v2f64(<2 x double> %a)
