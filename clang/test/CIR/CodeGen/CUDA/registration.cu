@@ -18,6 +18,15 @@
 // CIR-HOST:   cir.global_ctors = [#cir.global_ctor<"__cuda_module_ctor", {{[0-9]+}}>]
 // CIR-HOST: }
 
+// Module destructor goes here.
+// This is not a real destructor, as explained in LoweringPrepare.
+
+// CIR-HOST: cir.func internal private @__cuda_module_dtor() {
+// CIR-HOST:   %[[#HandleGlobal:]] = cir.get_global @__cuda_gpubin_handle
+// CIR-HOST:   %[[#Handle:]] = cir.load %0
+// CIR-HOST:   cir.call @__cudaUnregisterFatBinary(%[[#Handle]])
+// CIR-HOST: }
+
 // CIR-HOST: cir.global "private" constant cir_private @".str_Z2fnv" =
 // CIR-HOST-SAME: #cir.const_array<"_Z2fnv", trailing_zeros>
 
@@ -32,6 +41,12 @@
 // LLVM-HOST:   i32 1180844977, i32 1, ptr @__cuda_fatbin_str, ptr null
 // LLVM-HOST: }
 // LLVM-HOST: @llvm.global_ctors = {{.*}}ptr @__cuda_module_ctor
+
+// LLVM-HOST: define internal void @__cuda_module_dtor() {
+// LLVM-HOST:   %[[#LLVMHandleVar:]] = load ptr, ptr @__cuda_gpubin_handle, align 8
+// LLVM-HOST:   call void @__cudaUnregisterFatBinary(ptr %[[#LLVMHandleVar]])
+// LLVM-HOST:   ret void
+// LLVM-HOST: }
 
 __global__ void fn() {}
 
@@ -83,12 +98,15 @@ __global__ void fn() {}
 // CIR-HOST:   %[[#FatbinGlobal:]] = cir.get_global @__cuda_gpubin_handle
 // CIR-HOST:   cir.store %[[#Fatbin]], %[[#FatbinGlobal]]
 // CIR-HOST:   cir.call @__cuda_register_globals
-// CIR-HOTS:   cir.call @__cudaRegisterFatBinaryEnd
+// CIR-HOST:   cir.call @__cudaRegisterFatBinaryEnd
+// CIR-HOST:   %[[#ModuleDtor:]] = cir.get_global @__cuda_module_dtor
+// CIR-HOST:   cir.call @atexit(%[[#ModuleDtor]])
 // CIR-HOST: }
 
 // LLVM-HOST: define internal void @__cuda_module_ctor() {
-// LLVM-HOST:  %[[#LLVMFatbin:]] = call ptr @__cudaRegisterFatBinary(ptr @__cuda_fatbin_wrapper)
-// LLVM-HOST:  store ptr %[[#LLVMFatbin]], ptr @__cuda_gpubin_handle
-// LLVM-HOST:  call void @__cuda_register_globals
-// LLVM-HOST:  call void @__cudaRegisterFatBinaryEnd
+// LLVM-HOST:   %[[#LLVMFatbin:]] = call ptr @__cudaRegisterFatBinary(ptr @__cuda_fatbin_wrapper)
+// LLVM-HOST:   store ptr %[[#LLVMFatbin]], ptr @__cuda_gpubin_handle
+// LLVM-HOST:   call void @__cuda_register_globals
+// LLVM-HOST:   call void @__cudaRegisterFatBinaryEnd
+// LLVM-HOST:   call i32 @atexit(ptr @__cuda_module_dtor)
 // LLVM-HOST: }
