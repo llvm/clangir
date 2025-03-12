@@ -66,13 +66,9 @@ public:
     return RAA_Default;
   }
 
-  mlir::Type
-  lowerDataMemberType(cir::DataMemberType type,
-                      const mlir::TypeConverter &typeConverter) const override;
+  mlir::Type getDataMemberABIType() const override;
 
-  mlir::Type
-  lowerMethodType(cir::MethodType type,
-                  const mlir::TypeConverter &typeConverter) const override;
+  mlir::Type getMethodABIType() const override;
 
   mlir::TypedAttr lowerDataMemberConstant(
       cir::DataMemberAttr attr, const mlir::DataLayout &layout,
@@ -153,17 +149,14 @@ static cir::IntType getPtrDiffCIRTy(LowerModule &lowerMod) {
                            target.isTypeSigned(ptrdiffTy));
 }
 
-mlir::Type ItaniumCXXABI::lowerDataMemberType(
-    cir::DataMemberType type, const mlir::TypeConverter &typeConverter) const {
+mlir::Type ItaniumCXXABI::getDataMemberABIType() const {
   // Itanium C++ ABI 2.3.1:
   //   A data member pointer is represented as the data member's offset in bytes
   //   from the address point of an object of the base type, as a ptrdiff_t.
   return getPtrDiffCIRTy(LM);
 }
 
-mlir::Type
-ItaniumCXXABI::lowerMethodType(cir::MethodType type,
-                               const mlir::TypeConverter &typeConverter) const {
+mlir::Type ItaniumCXXABI::getMethodABIType() const {
   // Itanium C++ ABI 2.3.2:
   //    In all representations, the basic ABI properties of member function
   //    pointer types are those of the following class, where fnptr_t is the
@@ -178,16 +171,16 @@ ItaniumCXXABI::lowerMethodType(cir::MethodType type,
 
   // Note that clang CodeGen emits struct{ptrdiff_t, ptrdiff_t} for member
   // function pointers. Let's follow this approach.
-  return cir::RecordType::get(type.getContext(), {ptrdiffCIRTy, ptrdiffCIRTy},
-                              /*packed=*/false, /*padded=*/false,
-                              cir::RecordType::Struct);
+  return cir::RecordType::get(
+      ptrdiffCIRTy.getContext(), {ptrdiffCIRTy, ptrdiffCIRTy},
+      /*packed=*/false, /*padded=*/false, cir::RecordType::Struct);
 }
 
 mlir::TypedAttr ItaniumCXXABI::lowerDataMemberConstant(
     cir::DataMemberAttr attr, const mlir::DataLayout &layout,
     const mlir::TypeConverter &typeConverter) const {
   uint64_t memberOffset;
-  if (attr.isNullPtr()) {
+  if (!attr || attr.isNullPtr()) {
     // Itanium C++ ABI 2.3:
     //   A NULL pointer is represented as -1.
     memberOffset = -1ull;
@@ -200,7 +193,7 @@ mlir::TypedAttr ItaniumCXXABI::lowerDataMemberConstant(
         attr.getType().getClsTy().getElementOffset(layout, memberIndex);
   }
 
-  mlir::Type abiTy = lowerDataMemberType(attr.getType(), typeConverter);
+  mlir::Type abiTy = getDataMemberABIType();
   return cir::IntAttr::get(abiTy, memberOffset);
 }
 
@@ -208,8 +201,7 @@ mlir::TypedAttr ItaniumCXXABI::lowerMethodConstant(
     cir::MethodAttr attr, const mlir::DataLayout &layout,
     const mlir::TypeConverter &typeConverter) const {
   cir::IntType ptrdiffCIRTy = getPtrDiffCIRTy(LM);
-  auto loweredMethodTy = mlir::cast<cir::RecordType>(
-      lowerMethodType(attr.getType(), typeConverter));
+  auto loweredMethodTy = mlir::cast<cir::RecordType>(getMethodABIType());
 
   auto zero = cir::IntAttr::get(ptrdiffCIRTy, 0);
 
@@ -465,13 +457,12 @@ static mlir::Value lowerDataMemberCast(mlir::Operation *op,
     return loweredSrc;
 
   auto nullValue = cir::ConstantOp::create(
-      builder, op->getLoc(), mlir::IntegerAttr::get(loweredSrc.getType(), -1));
+      builder, op->getLoc(), cir::IntAttr::get(loweredSrc.getType(), -1));
   auto isNull = cir::CmpOp::create(builder, op->getLoc(), cir::CmpOpKind::eq,
                                    loweredSrc, nullValue);
 
   auto offsetValue = cir::ConstantOp::create(
-      builder, op->getLoc(),
-      mlir::IntegerAttr::get(loweredSrc.getType(), offset));
+      builder, op->getLoc(), cir::IntAttr::get(loweredSrc.getType(), offset));
   auto binOpKind = isDerivedToBase ? cir::BinOpKind::Sub : cir::BinOpKind::Add;
   auto adjustedPtr =
       cir::BinOp::create(builder, op->getLoc(), loweredSrc.getType(), binOpKind,
@@ -596,6 +587,9 @@ mlir::Value
 ItaniumCXXABI::lowerDataMemberBitcast(cir::CastOp op, mlir::Type loweredDstTy,
                                       mlir::Value loweredSrc,
                                       mlir::OpBuilder &builder) const {
+  if (loweredSrc.getType() == loweredDstTy)
+    return loweredSrc;
+
   return cir::CastOp::create(builder, op.getLoc(), loweredDstTy,
                              cir::CastKind::bitcast, loweredSrc);
 }
@@ -615,6 +609,9 @@ mlir::Value ItaniumCXXABI::lowerMethodBitcast(cir::CastOp op,
                                               mlir::Type loweredDstTy,
                                               mlir::Value loweredSrc,
                                               mlir::OpBuilder &builder) const {
+  if (loweredSrc.getType() == loweredDstTy)
+    return loweredSrc;
+
   return loweredSrc;
 }
 

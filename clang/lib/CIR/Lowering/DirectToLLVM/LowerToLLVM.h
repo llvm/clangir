@@ -95,8 +95,6 @@ void populateCIRToLLVMConversionPatterns(
     llvm::MapVector<mlir::ArrayAttr, mlir::LLVM::GlobalOp> &argsVarMap,
     LLVMBlockAddressInfo &blockAddrInfo);
 
-std::unique_ptr<cir::LowerModule> prepareLowerModule(mlir::ModuleOp module);
-
 void prepareTypeConverter(mlir::LLVMTypeConverter &converter,
                           mlir::DataLayout &dataLayout,
                           cir::LowerModule *lowerModule);
@@ -237,66 +235,6 @@ public:
                   mlir::ConversionPatternRewriter &) const override;
 };
 
-class CIRToLLVMBaseDataMemberOpLowering
-    : public mlir::OpConversionPattern<cir::BaseDataMemberOp> {
-  cir::LowerModule *lowerMod;
-
-public:
-  CIRToLLVMBaseDataMemberOpLowering(const mlir::TypeConverter &typeConverter,
-                                    mlir::MLIRContext *context,
-                                    cir::LowerModule *lowerModule)
-      : OpConversionPattern(typeConverter, context), lowerMod(lowerModule) {}
-
-  mlir::LogicalResult
-  matchAndRewrite(cir::BaseDataMemberOp op, OpAdaptor,
-                  mlir::ConversionPatternRewriter &) const override;
-};
-
-class CIRToLLVMDerivedDataMemberOpLowering
-    : public mlir::OpConversionPattern<cir::DerivedDataMemberOp> {
-  cir::LowerModule *lowerMod;
-
-public:
-  CIRToLLVMDerivedDataMemberOpLowering(const mlir::TypeConverter &typeConverter,
-                                       mlir::MLIRContext *context,
-                                       cir::LowerModule *lowerModule)
-      : OpConversionPattern(typeConverter, context), lowerMod(lowerModule) {}
-
-  mlir::LogicalResult
-  matchAndRewrite(cir::DerivedDataMemberOp op, OpAdaptor,
-                  mlir::ConversionPatternRewriter &) const override;
-};
-
-class CIRToLLVMBaseMethodOpLowering
-    : public mlir::OpConversionPattern<cir::BaseMethodOp> {
-  cir::LowerModule *lowerMod;
-
-public:
-  CIRToLLVMBaseMethodOpLowering(const mlir::TypeConverter &typeConverter,
-                                mlir::MLIRContext *context,
-                                cir::LowerModule *lowerModule)
-      : OpConversionPattern(typeConverter, context), lowerMod(lowerModule) {}
-
-  mlir::LogicalResult
-  matchAndRewrite(cir::BaseMethodOp op, OpAdaptor,
-                  mlir::ConversionPatternRewriter &) const override;
-};
-
-class CIRToLLVMDerivedMethodOpLowering
-    : public mlir::OpConversionPattern<cir::DerivedMethodOp> {
-  cir::LowerModule *lowerMod;
-
-public:
-  CIRToLLVMDerivedMethodOpLowering(const mlir::TypeConverter &typeConverter,
-                                   mlir::MLIRContext *context,
-                                   cir::LowerModule *lowerModule)
-      : OpConversionPattern(typeConverter, context), lowerMod(lowerModule) {}
-
-  mlir::LogicalResult
-  matchAndRewrite(cir::DerivedMethodOp op, OpAdaptor,
-                  mlir::ConversionPatternRewriter &) const override;
-};
-
 class CIRToLLVMVTTAddrPointOpLowering
     : public mlir::OpConversionPattern<cir::VTTAddrPointOp> {
 public:
@@ -318,7 +256,6 @@ public:
 };
 
 class CIRToLLVMCastOpLowering : public mlir::OpConversionPattern<cir::CastOp> {
-  cir::LowerModule *lowerMod;
   mlir::DataLayout const &dataLayout;
 
   mlir::Type convertTy(mlir::Type ty) const;
@@ -326,10 +263,8 @@ class CIRToLLVMCastOpLowering : public mlir::OpConversionPattern<cir::CastOp> {
 public:
   CIRToLLVMCastOpLowering(const mlir::TypeConverter &typeConverter,
                           mlir::MLIRContext *context,
-                          cir::LowerModule *lowerModule,
                           mlir::DataLayout const &dataLayout)
-      : OpConversionPattern(typeConverter, context), lowerMod(lowerModule),
-        dataLayout(dataLayout) {}
+      : OpConversionPattern(typeConverter, context), dataLayout(dataLayout) {}
 
   mlir::LogicalResult
   matchAndRewrite(cir::CastOp op, OpAdaptor,
@@ -447,16 +382,13 @@ public:
 
 class CIRToLLVMConstantOpLowering
     : public mlir::OpConversionPattern<cir::ConstantOp> {
-  cir::LowerModule *lowerMod;
   mlir::DataLayout const &dataLayout;
 
 public:
   CIRToLLVMConstantOpLowering(const mlir::TypeConverter &typeConverter,
                               mlir::MLIRContext *context,
-                              cir::LowerModule *lowerModule,
                               mlir::DataLayout const &dataLayout)
-      : OpConversionPattern(typeConverter, context), lowerMod(lowerModule),
-        dataLayout(dataLayout) {
+      : OpConversionPattern(typeConverter, context), dataLayout(dataLayout) {
     setHasBoundedRewriteRecursion();
   }
 
@@ -661,16 +593,13 @@ public:
 
 class CIRToLLVMGlobalOpLowering
     : public mlir::OpConversionPattern<cir::GlobalOp> {
-  cir::LowerModule *lowerMod;
   mlir::DataLayout const &dataLayout;
 
 public:
   CIRToLLVMGlobalOpLowering(const mlir::TypeConverter &typeConverter,
                             mlir::MLIRContext *context,
-                            cir::LowerModule *lowerModule,
                             mlir::DataLayout const &dataLayout)
-      : OpConversionPattern(typeConverter, context), lowerMod(lowerModule),
-        dataLayout(dataLayout) {}
+      : OpConversionPattern(typeConverter, context), dataLayout(dataLayout) {}
 
   mlir::LogicalResult
   matchAndRewrite(cir::GlobalOp op, OpAdaptor,
@@ -767,15 +696,8 @@ public:
 };
 
 class CIRToLLVMCmpOpLowering : public mlir::OpConversionPattern<cir::CmpOp> {
-  cir::LowerModule *lowerMod;
-
 public:
-  CIRToLLVMCmpOpLowering(const mlir::TypeConverter &typeConverter,
-                         mlir::MLIRContext *context,
-                         cir::LowerModule *lowerModule)
-      : OpConversionPattern(typeConverter, context), lowerMod(lowerModule) {
-    setHasBoundedRewriteRecursion();
-  }
+  using mlir::OpConversionPattern<cir::CmpOp>::OpConversionPattern;
 
   mlir::LogicalResult
   matchAndRewrite(cir::CmpOp op, OpAdaptor,
@@ -1032,36 +954,6 @@ public:
 
   mlir::LogicalResult
   matchAndRewrite(cir::InsertMemberOp op, OpAdaptor,
-                  mlir::ConversionPatternRewriter &) const override;
-};
-
-class CIRToLLVMGetMethodOpLowering
-    : public mlir::OpConversionPattern<cir::GetMethodOp> {
-  cir::LowerModule *lowerMod;
-
-public:
-  CIRToLLVMGetMethodOpLowering(const mlir::TypeConverter &typeConverter,
-                               mlir::MLIRContext *context,
-                               cir::LowerModule *lowerModule)
-      : OpConversionPattern(typeConverter, context), lowerMod(lowerModule) {}
-
-  mlir::LogicalResult
-  matchAndRewrite(cir::GetMethodOp op, OpAdaptor,
-                  mlir::ConversionPatternRewriter &) const override;
-};
-
-class CIRToLLVMGetRuntimeMemberOpLowering
-    : public mlir::OpConversionPattern<cir::GetRuntimeMemberOp> {
-  cir::LowerModule *lowerMod;
-
-public:
-  CIRToLLVMGetRuntimeMemberOpLowering(const mlir::TypeConverter &typeConverter,
-                                      mlir::MLIRContext *context,
-                                      cir::LowerModule *lowerModule)
-      : OpConversionPattern(typeConverter, context), lowerMod(lowerModule) {}
-
-  mlir::LogicalResult
-  matchAndRewrite(cir::GetRuntimeMemberOp op, OpAdaptor,
                   mlir::ConversionPatternRewriter &) const override;
 };
 
