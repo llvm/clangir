@@ -1538,7 +1538,7 @@ void CIRGenModule::emitGlobalVarDefinition(const clang::VarDecl *d,
     if ((!d->hasExternalStorage() && !d->isInline()) ||
         getASTContext().CUDADeviceVarODRUsedByHost.contains(d) ||
         d->hasAttr<HIPManagedAttr>()) {
-      auto shadowName = cudaRuntime->getDeviceSideName(cast<NamedDecl>(d)); 
+      auto shadowName = cudaRuntime->getDeviceSideName(cast<NamedDecl>(d));
       auto attr = CUDAShadowNameAttr::get(&getMLIRContext(), shadowName);
       gv->setAttr(CUDAShadowNameAttr::getMnemonic(), attr);
     }
