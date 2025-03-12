@@ -468,7 +468,7 @@ public:
 };
 
 template <typename CIROp, typename MLIROp>
-class CIRBitOpLowering : public mlir::OpConversionPattern<CIROp> {
+class CIRCountZerosBitOpLowering : public mlir::OpConversionPattern<CIROp> {
 public:
   using mlir::OpConversionPattern<CIROp>::OpConversionPattern;
 
@@ -476,22 +476,15 @@ public:
   matchAndRewrite(CIROp op,
                   typename mlir::OpConversionPattern<CIROp>::OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    auto resultIntTy = mlir::cast<mlir::IntegerType>(
-        this->getTypeConverter()->convertType(op.getType()));
-    auto res = rewriter.create<MLIROp>(op->getLoc(), adaptor.getInput());
-    auto newOp = createIntCast(rewriter, res->getResult(0), resultIntTy,
-                               /*isSigned=*/false);
-    rewriter.replaceOp(op, newOp);
+    rewriter.replaceOpWithNewOp<MLIROp>(op, adaptor.getInput());
     return mlir::LogicalResult::success();
   }
 };
 
 using CIRBitClzOpLowering =
-    CIRBitOpLowering<cir::BitClzOp, mlir::math::CountLeadingZerosOp>;
+    CIRCountZerosBitOpLowering<cir::BitClzOp, mlir::math::CountLeadingZerosOp>;
 using CIRBitCtzOpLowering =
-    CIRBitOpLowering<cir::BitCtzOp, mlir::math::CountTrailingZerosOp>;
-using CIRBitPopcountOpLowering =
-    CIRBitOpLowering<cir::BitPopcountOp, mlir::math::CtPopOp>;
+    CIRCountZerosBitOpLowering<cir::BitCtzOp, mlir::math::CountTrailingZerosOp>;
 
 class CIRBitClrsbOpLowering
     : public mlir::OpConversionPattern<cir::BitClrsbOp> {
@@ -516,14 +509,11 @@ public:
     auto select = rewriter.create<mlir::arith::SelectOp>(
         op.getLoc(), isNeg, flipped, adaptor.getInput());
 
-    auto resTy = mlir::cast<mlir::IntegerType>(
-        getTypeConverter()->convertType(op.getType()));
     auto clz =
         rewriter.create<mlir::math::CountLeadingZerosOp>(op->getLoc(), select);
-    auto newClz = createIntCast(rewriter, clz, resTy);
 
-    auto one = getConst(rewriter, op.getLoc(), resTy, 1);
-    auto res = rewriter.create<mlir::arith::SubIOp>(op.getLoc(), newClz, one);
+    auto one = getConst(rewriter, op.getLoc(), inputTy, 1);
+    auto res = rewriter.create<mlir::arith::SubIOp>(op.getLoc(), clz, one);
     rewriter.replaceOp(op, res);
 
     return mlir::LogicalResult::success();
@@ -537,28 +527,38 @@ public:
   mlir::LogicalResult
   matchAndRewrite(cir::BitFfsOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    auto resTy = getTypeConverter()->convertType(op.getType());
     auto inputTy = adaptor.getInput().getType();
     auto ctz = rewriter.create<mlir::math::CountTrailingZerosOp>(
         op.getLoc(), adaptor.getInput());
-    auto newCtz = createIntCast(rewriter, ctz, resTy);
 
-    auto one = getConst(rewriter, op.getLoc(), resTy, 1);
+    auto one = getConst(rewriter, op.getLoc(), inputTy, 1);
     auto ctzAddOne =
-        rewriter.create<mlir::arith::AddIOp>(op.getLoc(), newCtz, one);
+        rewriter.create<mlir::arith::AddIOp>(op.getLoc(), ctz, one);
 
-    auto zeroInputTy = getConst(rewriter, op.getLoc(), inputTy, 0);
+    auto zero = getConst(rewriter, op.getLoc(), inputTy, 0);
     auto isZero = rewriter.create<mlir::arith::CmpIOp>(
         op.getLoc(),
         mlir::arith::CmpIPredicateAttr::get(rewriter.getContext(),
                                             mlir::arith::CmpIPredicate::eq),
-        adaptor.getInput(), zeroInputTy);
+        adaptor.getInput(), zero);
 
-    auto zeroResTy = getConst(rewriter, op.getLoc(), resTy, 0);
-    auto res = rewriter.create<mlir::arith::SelectOp>(op.getLoc(), isZero,
-                                                      zeroResTy, ctzAddOne);
+    auto res = rewriter.create<mlir::arith::SelectOp>(op.getLoc(), isZero, zero,
+                                                      ctzAddOne);
     rewriter.replaceOp(op, res);
 
+    return mlir::LogicalResult::success();
+  }
+};
+
+class CIRBitPopcountOpLowering
+    : public mlir::OpConversionPattern<cir::BitPopcountOp> {
+public:
+  using mlir::OpConversionPattern<cir::BitPopcountOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::BitPopcountOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOpWithNewOp<mlir::math::CtPopOp>(op, adaptor.getInput());
     return mlir::LogicalResult::success();
   }
 };
@@ -571,14 +571,12 @@ public:
   mlir::LogicalResult
   matchAndRewrite(cir::BitParityOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    auto resTy = getTypeConverter()->convertType(op.getType());
     auto count =
         rewriter.create<mlir::math::CtPopOp>(op.getLoc(), adaptor.getInput());
     auto countMod2 = rewriter.create<mlir::arith::AndIOp>(
         op.getLoc(), count,
         getConst(rewriter, op.getLoc(), count.getType(), 1));
-    auto res = createIntCast(rewriter, countMod2, resTy);
-    rewriter.replaceOp(op, res);
+    rewriter.replaceOp(op, countMod2);
     return mlir::LogicalResult::success();
   }
 };

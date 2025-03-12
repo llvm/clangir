@@ -1559,12 +1559,21 @@ def ComplexBinOp : CIR_Op<"complex.binop",
 //===----------------------------------------------------------------------===//
 
 class CIR_BitOp<string mnemonic, TypeConstraint inputTy>
-    : CIR_Op<mnemonic, [Pure]> {
+    : CIR_Op<mnemonic, [Pure, SameOperandsAndResultType]> {
   let arguments = (ins inputTy:$input);
-  let results = (outs SInt32:$result);
+  let results = (outs inputTy:$result);
 
   let assemblyFormat = [{
     `(` $input `:` type($input) `)` `:` type($result) attr-dict
+  }];
+}
+
+class CIR_CountZerosBitOp<string mnemonic, TypeConstraint inputTy>
+    : CIR_BitOp<mnemonic, inputTy> {
+  let arguments = (ins inputTy:$input, UnitAttr:$is_zero_poison);
+  let assemblyFormat = [{
+    `(` $input `:` type($input) `)` (`zero_poison` $is_zero_poison^)?
+    `:` type($result) attr-dict
   }];
 }
 
@@ -1599,7 +1608,7 @@ def BitClrsbOp : CIR_BitOp<"bit.clrsb", AnyTypeOf<[SInt32, SInt64]>> {
   }];
 }
 
-def BitClzOp : CIR_BitOp<"bit.clz", AnyTypeOf<[UInt16, UInt32, UInt64]>> {
+def BitClzOp : CIR_CountZerosBitOp<"bit.clz", AnyTypeOf<[UInt16, UInt32, UInt64]>> {
   let summary = "Get the number of leading 0-bits in the input";
   let description = [{
     Compute the number of leading 0-bits in the input.
@@ -1608,23 +1617,23 @@ def BitClzOp : CIR_BitOp<"bit.clz", AnyTypeOf<[UInt16, UInt32, UInt64]>> {
     returns the number of consecutive 0-bits at the most significant bit
     position in the input.
 
-    This operation invokes undefined behavior if the input value is 0.
+    Zero_poison attribute means this operation invokes undefined behavior if the
+    input value is 0.
 
     Example:
 
     ```mlir
-    !s32i = !cir.int<s, 32>
     !u32i = !cir.int<u, 32>
 
     // %0 = 0b0000_0000_0000_0000_0000_0000_0000_1000
     %0 = cir.const #cir.int<8> : !u32i
     // %1 will be 28
-    %1 = cir.bit.clz(%0 : !u32i) : !s32i
+    %1 = cir.bit.clz(%0 : !u32i) zero_poison : !u32i
     ```
   }];
 }
 
-def BitCtzOp : CIR_BitOp<"bit.ctz", AnyTypeOf<[UInt16, UInt32, UInt64]>> {
+def BitCtzOp : CIR_CountZerosBitOp<"bit.ctz", AnyTypeOf<[UInt16, UInt32, UInt64]>> {
   let summary = "Get the number of trailing 0-bits in the input";
   let description = [{
     Compute the number of trailing 0-bits in the input.
@@ -1633,7 +1642,8 @@ def BitCtzOp : CIR_BitOp<"bit.ctz", AnyTypeOf<[UInt16, UInt32, UInt64]>> {
     returns the number of consecutive 0-bits at the least significant bit
     position in the input.
 
-    This operation invokes undefined behavior if the input value is 0.
+    Zero_poison attribute means this operation invokes undefined behavior if the
+    input value is 0.
 
     Example:
 
@@ -1644,7 +1654,7 @@ def BitCtzOp : CIR_BitOp<"bit.ctz", AnyTypeOf<[UInt16, UInt32, UInt64]>> {
     // %0 = 0b1000
     %0 = cir.const #cir.int<8> : !u32i
     // %1 will be 3
-    %1 = cir.bit.ctz(%0 : !u32i) : !s32i
+    %1 = cir.bit.ctz(%0 : !u32i) : !u32i
     ```
   }];
 }
