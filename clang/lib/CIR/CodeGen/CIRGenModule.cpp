@@ -1539,7 +1539,8 @@ void CIRGenModule::emitGlobalVarDefinition(const clang::VarDecl *d,
 
   // Decorate CUDA shadow variables with the cu.shadow_name attribute so we know
   // how to register them when lowering.
-  if (d->hasAttr<CUDAConstantAttr>() || d->hasAttr<CUDADeviceAttr>()) {
+  if (langOpts.CUDA && !langOpts.CUDAIsDevice &&
+      (d->hasAttr<CUDAConstantAttr>() || d->hasAttr<CUDADeviceAttr>())) {
     // Shadow variables and their properties must be registered with CUDA
     // runtime. Skip Extern global variables, which will be registered in
     // the TU where they are defined.
