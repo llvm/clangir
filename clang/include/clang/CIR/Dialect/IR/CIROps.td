@@ -1617,7 +1617,8 @@ def BitClzOp : CIR_CountZerosBitOp<"bit.clz", AnyTypeOf<[UInt16, UInt32, UInt64]
     returns the number of consecutive 0-bits at the most significant bit
     position in the input.
 
-    This operation invokes undefined behavior if the input value is 0.
+    Zero_poison attribute means this operation invokes undefined behavior if the
+    input value is 0.
 
     Example:
 
@@ -1627,7 +1628,7 @@ def BitClzOp : CIR_CountZerosBitOp<"bit.clz", AnyTypeOf<[UInt16, UInt32, UInt64]
     // %0 = 0b0000_0000_0000_0000_0000_0000_0000_1000
     %0 = cir.const #cir.int<8> : !u32i
     // %1 will be 28
-    %1 = cir.bit.clz(%0 : !u32i) : !u32i
+    %1 = cir.bit.clz(%0 : !u32i) zero_poison : !u32i
     ```
   }];
 }
@@ -1641,7 +1642,8 @@ def BitCtzOp : CIR_CountZerosBitOp<"bit.ctz", AnyTypeOf<[UInt16, UInt32, UInt64]
     returns the number of consecutive 0-bits at the least significant bit
     position in the input.
 
-    This operation invokes undefined behavior if the input value is 0.
+    Zero_poison attribute means this operation invokes undefined behavior if the
+    input value is 0.
 
     Example:
 
