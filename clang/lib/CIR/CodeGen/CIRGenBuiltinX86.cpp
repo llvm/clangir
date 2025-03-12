@@ -97,15 +97,15 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
   case X86::BI_mm_prefetch: {
 
     cir::ConstantOp readWriteFlag =
-        builder.getConstInt(getLoc(E->getExprLoc()),llvm::APSInt(32, 0));
+        builder.getConstInt(getLoc(E->getExprLoc()), llvm::APSInt(32, 0));
     cir::ConstantOp locality =
-        builder.getConstInt(getLoc(E->getExprLoc()),llvm::APSInt(32, 0));
+        builder.getConstInt(getLoc(E->getExprLoc()), llvm::APSInt(32, 0));
     cir::ConstantOp cacheType =
-        builder.getConstInt(getLoc(E->getExprLoc()),llvm::APSInt(32, 1));
+        builder.getConstInt(getLoc(E->getExprLoc()), llvm::APSInt(32, 1));
 
     builder.create<cir::PrefetchOp>(
         getLoc(E->getExprLoc()), mlir::TypeRange{},
-        mlir::ValueRange{Ops[0],readWriteFlag,locality,cacheType},
+        mlir::ValueRange{Ops[0], readWriteFlag, locality, cacheType},
         llvm::ArrayRef<mlir::NamedAttribute>{});
     return {};
   }
