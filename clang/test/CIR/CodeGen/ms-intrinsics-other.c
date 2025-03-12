@@ -7,7 +7,7 @@ unsigned short test__lzcnt16(unsigned short x) {
   return __lzcnt16(x);
 }
 // CIR-LABEL: test__lzcnt16
-// CIR: {{%.*}} = cir.bit.clz({{%.*}} : !u16i) is_zero_poison(false) : !u16i
+// CIR: {{%.*}} = cir.bit.clz({{%.*}} : !u16i) : !u16i
 
 // LLVM-LABEL: test__lzcnt16
 // LLVM: {{%.*}} = call i16 @llvm.ctlz.i16(i16 {{%.*}}, i1 false)
@@ -16,7 +16,7 @@ unsigned int test__lzcnt(unsigned int x) {
   return __lzcnt(x);
 }
 // CIR-LABEL: test__lzcnt
-// CIR: {{%.*}} = cir.bit.clz({{%.*}} : !u32i) is_zero_poison(false) : !u32i
+// CIR: {{%.*}} = cir.bit.clz({{%.*}} : !u32i) : !u32i
 
 // LLVM-LABEL: test__lzcnt
 // LLVM:  {{%.*}} = call i32 @llvm.ctlz.i32(i32 {{%.*}}, i1 false)
@@ -25,7 +25,7 @@ unsigned __int64 test__lzcnt64(unsigned __int64 x) {
   return __lzcnt64(x);
 }
 // CIR-LABEL: test__lzcnt64
-// CIR: {{%.*}} = cir.bit.clz({{%.*}} : !u64i) is_zero_poison(false) : !u64i
+// CIR: {{%.*}} = cir.bit.clz({{%.*}} : !u64i) : !u64i
 
 // LLVM-LABEL: test__lzcnt64
 // LLVM: {{%.*}} = call i64 @llvm.ctlz.i64(i64 {{%.*}}, i1 false)

@@ -1570,9 +1570,9 @@ class CIR_BitOp<string mnemonic, TypeConstraint inputTy>
 
 class CIR_CountZerosBitOp<string mnemonic, TypeConstraint inputTy>
     : CIR_BitOp<mnemonic, inputTy> {
-  let arguments = (ins inputTy:$input, I1Attr:$is_zero_poison);
+  let arguments = (ins inputTy:$input, UnitAttr:$is_zero_poison);
   let assemblyFormat = [{
-    `(` $input `:` type($input) `)` `is_zero_poison` `(` $is_zero_poison `)`
+    `(` $input `:` type($input) `)` (`zero_poison` $is_zero_poison^)?
     `:` type($result) attr-dict
   }];
 }

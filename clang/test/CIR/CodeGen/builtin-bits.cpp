@@ -29,7 +29,7 @@ int test_builtin_ctzs(unsigned short x) {
 }
 
 // CIR-LABEL: _Z17test_builtin_ctzst
-// CIR: [[TMP:%.+]] = cir.bit.ctz(%{{.+}} : !u16i) is_zero_poison(true) : !u16i
+// CIR: [[TMP:%.+]] = cir.bit.ctz(%{{.+}} : !u16i) zero_poison : !u16i
 // CIR: {{%.+}} = cir.cast(integral, [[TMP]] : !u16i), !s32i
 
 int test_builtin_ctz(unsigned x) {
@@ -37,7 +37,7 @@ int test_builtin_ctz(unsigned x) {
 }
 
 // CIR-LABEL: _Z16test_builtin_ctzj
-// CIR: [[TMP:%.+]] = cir.bit.ctz(%{{.+}} : !u32i) is_zero_poison(true) : !u32i
+// CIR: [[TMP:%.+]] = cir.bit.ctz(%{{.+}} : !u32i) zero_poison : !u32i
 // CIR: {{%.+}} = cir.cast(integral, [[TMP]] : !u32i), !s32i
 
 int test_builtin_ctzl(unsigned long x) {
@@ -45,7 +45,7 @@ int test_builtin_ctzl(unsigned long x) {
 }
 
 // CIR-LABEL: _Z17test_builtin_ctzlm
-// CIR: [[TMP:%.+]] = cir.bit.ctz(%{{.+}} : !u64i) is_zero_poison(true) : !u64i
+// CIR: [[TMP:%.+]] = cir.bit.ctz(%{{.+}} : !u64i) zero_poison : !u64i
 // CIR: {{%.+}} = cir.cast(integral, [[TMP]] : !u64i), !s32i
 
 int test_builtin_ctzll(unsigned long long x) {
@@ -53,7 +53,7 @@ int test_builtin_ctzll(unsigned long long x) {
 }
 
 // CIR-LABEL: _Z18test_builtin_ctzlly
-// CIR: [[TMP:%.+]] = cir.bit.ctz(%{{.+}} : !u64i) is_zero_poison(true) : !u64i
+// CIR: [[TMP:%.+]] = cir.bit.ctz(%{{.+}} : !u64i) zero_poison : !u64i
 // CIR: {{%.+}} = cir.cast(integral, [[TMP]] : !u64i), !s32i
 
 int test_builtin_ctzg(unsigned x) {
@@ -61,7 +61,7 @@ int test_builtin_ctzg(unsigned x) {
 }
 
 // CIR-LABEL: _Z17test_builtin_ctzgj
-// CIR: [[TMP:%.+]] = cir.bit.ctz(%{{.+}} : !u32i) is_zero_poison(true) : !u32i
+// CIR: [[TMP:%.+]] = cir.bit.ctz(%{{.+}} : !u32i) zero_poison : !u32i
 // CIR: {{%.+}} = cir.cast(integral, [[TMP]] : !u32i), !s32i
 
 int test_builtin_clzs(unsigned short x) {
@@ -69,7 +69,7 @@ int test_builtin_clzs(unsigned short x) {
 }
 
 // CIR-LABEL: _Z17test_builtin_clzst
-// CIR: [[TMP:%.+]] = cir.bit.clz(%{{.+}} : !u16i) is_zero_poison(true) : !u16i
+// CIR: [[TMP:%.+]] = cir.bit.clz(%{{.+}} : !u16i) zero_poison : !u16i
 // CIR: {{%.+}} = cir.cast(integral, [[TMP]] : !u16i), !s32i
 
 int test_builtin_clz(unsigned x) {
@@ -77,7 +77,7 @@ int test_builtin_clz(unsigned x) {
 }
 
 // CIR-LABEL: _Z16test_builtin_clzj
-// CIR: [[TMP:%.+]] = cir.bit.clz(%{{.+}} : !u32i) is_zero_poison(true) : !u32i
+// CIR: [[TMP:%.+]] = cir.bit.clz(%{{.+}} : !u32i) zero_poison : !u32i
 // CIR: {{%.+}} = cir.cast(integral, [[TMP]] : !u32i), !s32i
 
 int test_builtin_clzl(unsigned long x) {
@@ -85,7 +85,7 @@ int test_builtin_clzl(unsigned long x) {
 }
 
 // CIR-LABEL: _Z17test_builtin_clzlm
-// CIR: [[TMP:%.+]] = cir.bit.clz(%{{.+}} : !u64i) is_zero_poison(true) : !u64i
+// CIR: [[TMP:%.+]] = cir.bit.clz(%{{.+}} : !u64i) zero_poison : !u64i
 // CIR: {{%.+}} = cir.cast(integral, [[TMP]] : !u64i), !s32i
 
 int test_builtin_clzll(unsigned long long x) {
@@ -93,7 +93,7 @@ int test_builtin_clzll(unsigned long long x) {
 }
 
 // CIR-LABEL: _Z18test_builtin_clzlly
-// CIR: [[TMP:%.+]] = cir.bit.clz(%{{.+}} : !u64i) is_zero_poison(true) : !u64i
+// CIR: [[TMP:%.+]] = cir.bit.clz(%{{.+}} : !u64i) zero_poison : !u64i
 // CIR: {{%.+}} = cir.cast(integral, [[TMP]] : !u64i), !s32i
 
 int test_builtin_clzg(unsigned x) {
@@ -101,7 +101,7 @@ int test_builtin_clzg(unsigned x) {
 }
 
 // CIR-LABEL: _Z17test_builtin_clzgj
-// CIR: [[TMP:%.+]] = cir.bit.clz(%{{.+}} : !u32i) is_zero_poison(true) : !u32i
+// CIR: [[TMP:%.+]] = cir.bit.clz(%{{.+}} : !u32i) zero_poison : !u32i
 // CIR: {{%.+}} = cir.cast(integral, [[TMP]] : !u32i), !s32i
 
 int test_builtin_ffs(int x) {

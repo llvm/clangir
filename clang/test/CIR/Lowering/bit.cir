@@ -43,7 +43,7 @@ cir.func @clrsb_s64(%arg : !s64i) {
 // CHECK-NEXT: }
 
 cir.func @clz_u16(%arg : !u16i) {
-  %0 = cir.bit.clz(%arg : !u16i) is_zero_poison(true) : !u16i
+  %0 = cir.bit.clz(%arg : !u16i) zero_poison : !u16i
   cir.return
 }
 
@@ -53,7 +53,7 @@ cir.func @clz_u16(%arg : !u16i) {
 // CHECK-NEXT: }
 
 cir.func @clz_u32(%arg : !u32i) {
-  %0 = cir.bit.clz(%arg : !u32i) is_zero_poison(false) : !u32i
+  %0 = cir.bit.clz(%arg : !u32i) : !u32i
   cir.return
 }
 
@@ -63,7 +63,7 @@ cir.func @clz_u32(%arg : !u32i) {
 // CHECK-NEXT: }
 
 cir.func @clz_u64(%arg : !u64i) {
-  %0 = cir.bit.clz(%arg : !u64i) is_zero_poison(true) : !u64i
+  %0 = cir.bit.clz(%arg : !u64i) zero_poison : !u64i
   cir.return
 }
 
@@ -73,7 +73,7 @@ cir.func @clz_u64(%arg : !u64i) {
 // CHECK-NEXT: }
 
 cir.func @ctz_u16(%arg : !u16i) {
-  %0 = cir.bit.ctz(%arg : !u16i) is_zero_poison(false) : !u16i
+  %0 = cir.bit.ctz(%arg : !u16i) : !u16i
   cir.return
 }
 
@@ -83,7 +83,7 @@ cir.func @ctz_u16(%arg : !u16i) {
 // CHECK-NEXT: }
 
 cir.func @ctz_u32(%arg : !u32i) {
-  %0 = cir.bit.ctz(%arg : !u32i) is_zero_poison(true) : !u32i
+  %0 = cir.bit.ctz(%arg : !u32i) zero_poison : !u32i
   cir.return
 }
 
@@ -93,7 +93,7 @@ cir.func @ctz_u32(%arg : !u32i) {
 // CHECK-NEXT: }
 
 cir.func @ctz_u64(%arg : !u64i) {
-  %0 = cir.bit.ctz(%arg : !u64i) is_zero_poison(false) : !u64i
+  %0 = cir.bit.ctz(%arg : !u64i) : !u64i
   cir.return
 }
 
