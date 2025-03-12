@@ -128,19 +128,30 @@ static mlir::Value emitBinaryMaybeConstrainedFPBuiltin(CIRGenFunction &CGF,
 }
 
 template <typename Op>
-static RValue
-emitBuiltinBitOp(CIRGenFunction &CGF, const CallExpr *E,
-                 std::optional<CIRGenFunction::BuiltinCheckKind> CK) {
+static RValue emitBuiltinBitOp(
+    CIRGenFunction &CGF, const CallExpr *E,
+    std::optional<CIRGenFunction::BuiltinCheckKind> CK = std::nullopt,
+    bool isZeroPoison = false, bool convertToInt = true) {
   mlir::Value arg;
   if (CK.has_value())
     arg = CGF.emitCheckedArgForBuiltin(E->getArg(0), *CK);
   else
     arg = CGF.emitScalarExpr(E->getArg(0));
 
-  auto resultTy = CGF.convertType(E->getType());
-  auto op =
-      CGF.getBuilder().create<Op>(CGF.getLoc(E->getExprLoc()), resultTy, arg);
-  return RValue::get(op);
+  Op op;
+  if constexpr (std::is_same_v<Op, cir::BitClzOp> ||
+                std::is_same_v<Op, cir::BitCtzOp>) {
+    op = CGF.getBuilder().create<Op>(CGF.getLoc(E->getExprLoc()), arg,
+                                     isZeroPoison);
+  } else {
+    op = CGF.getBuilder().create<Op>(CGF.getLoc(E->getExprLoc()), arg);
+  }
+  const mlir::Value bitResult = op.getResult();
+  if (const auto si32Ty = CGF.getBuilder().getSInt32Ty();
+      convertToInt && arg.getType() != si32Ty) {
+    return RValue::get(CGF.getBuilder().createIntCast(bitResult, si32Ty));
+  }
+  return RValue::get(bitResult);
 }
 
 // Initialize the alloca with the given size and alignment according to the lang
@@ -1052,37 +1063,44 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
 
   case Builtin::BI__builtin_clrsb:
   case Builtin::BI__builtin_clrsbl:
-  case Builtin::BI__builtin_clrsbll:
-    return emitBuiltinBitOp<cir::BitClrsbOp>(*this, E, std::nullopt);
+  case Builtin::BI__builtin_clrsbll: {
+    return emitBuiltinBitOp<cir::BitClrsbOp>(*this, E);
+  }
 
   case Builtin::BI__builtin_ctzs:
   case Builtin::BI__builtin_ctz:
   case Builtin::BI__builtin_ctzl:
   case Builtin::BI__builtin_ctzll:
-  case Builtin::BI__builtin_ctzg:
-    return emitBuiltinBitOp<cir::BitCtzOp>(*this, E, BCK_CTZPassedZero);
+  case Builtin::BI__builtin_ctzg: {
+    return emitBuiltinBitOp<cir::BitCtzOp>(*this, E, BCK_CTZPassedZero, true);
+  }
 
   case Builtin::BI__builtin_clzs:
   case Builtin::BI__builtin_clz:
   case Builtin::BI__builtin_clzl:
   case Builtin::BI__builtin_clzll:
-  case Builtin::BI__builtin_clzg:
-    return emitBuiltinBitOp<cir::BitClzOp>(*this, E, BCK_CLZPassedZero);
+  case Builtin::BI__builtin_clzg: {
+    return emitBuiltinBitOp<cir::BitClzOp>(*this, E, BCK_CLZPassedZero, true);
+  }
 
   case Builtin::BI__builtin_ffs:
   case Builtin::BI__builtin_ffsl:
-  case Builtin::BI__builtin_ffsll:
-    return emitBuiltinBitOp<cir::BitFfsOp>(*this, E, std::nullopt);
+  case Builtin::BI__builtin_ffsll: {
+    return emitBuiltinBitOp<cir::BitFfsOp>(*this, E);
+  }
 
   case Builtin::BI__builtin_parity:
   case Builtin::BI__builtin_parityl:
-  case Builtin::BI__builtin_parityll:
-    return emitBuiltinBitOp<cir::BitParityOp>(*this, E, std::nullopt);
+  case Builtin::BI__builtin_parityll: {
+    return emitBuiltinBitOp<cir::BitParityOp>(*this, E);
+  }
 
   case Builtin::BI__lzcnt16:
   case Builtin::BI__lzcnt:
-  case Builtin::BI__lzcnt64:
-    llvm_unreachable("BI__lzcnt16 like NYI");
+  case Builtin::BI__lzcnt64: {
+    return emitBuiltinBitOp<cir::BitClzOp>(*this, E, BCK_CLZPassedZero, false,
+                                           false);
+  }
 
   case Builtin::BI__popcnt16:
   case Builtin::BI__popcnt:
@@ -1090,8 +1108,9 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   case Builtin::BI__builtin_popcount:
   case Builtin::BI__builtin_popcountl:
   case Builtin::BI__builtin_popcountll:
-  case Builtin::BI__builtin_popcountg:
-    return emitBuiltinBitOp<cir::BitPopcountOp>(*this, E, std::nullopt);
+  case Builtin::BI__builtin_popcountg: {
+    return emitBuiltinBitOp<cir::BitPopcountOp>(*this, E);
+  }
 
   case Builtin::BI__builtin_unpredictable: {
     if (CGM.getCodeGenOpts().OptimizationLevel != 0)

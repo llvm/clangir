@@ -163,13 +163,34 @@ lowerCIRVisibilityToLLVMVisibility(cir::VisibilityKind visibilityKind) {
 void getOrCreateLLVMFuncOp(mlir::ConversionPatternRewriter &rewriter,
                            mlir::Operation *srcOp, llvm::StringRef fnName,
                            mlir::Type fnTy) {
+  if (!fnTy) {
+    srcOp->emitError("failed to materialize LLVM function type for ")
+        << fnName;
+    return;
+  }
+  auto llvmFnTy = mlir::dyn_cast<mlir::LLVM::LLVMFunctionType>(fnTy);
+  if (!llvmFnTy) {
+    srcOp->emitError("expected LLVM function type for ")
+        << fnName << " but got " << fnTy;
+    return;
+  }
   auto modOp = srcOp->getParentOfType<mlir::ModuleOp>();
+  if (!modOp) {
+    srcOp->emitError("expected parent module when declaring ")
+        << fnName;
+    return;
+  }
   auto enclosingFnOp = srcOp->getParentOfType<mlir::LLVM::LLVMFuncOp>();
+  if (!enclosingFnOp) {
+    srcOp->emitError("expected parent LLVM function when declaring ")
+        << fnName;
+    return;
+  }
   auto *sourceSymbol = mlir::SymbolTable::lookupSymbolIn(modOp, fnName);
   if (!sourceSymbol) {
     mlir::OpBuilder::InsertionGuard guard(rewriter);
     rewriter.setInsertionPoint(enclosingFnOp);
-    rewriter.create<mlir::LLVM::LLVMFuncOp>(srcOp->getLoc(), fnName, fnTy);
+    rewriter.create<mlir::LLVM::LLVMFuncOp>(srcOp->getLoc(), fnName, llvmFnTy);
   }
 }
 
@@ -519,8 +540,18 @@ mlir::Value CirAttrToValue::visitCirAttr(cir::FPAttr fltAttr) {
 /// ZeroAttr visitor.
 mlir::Value CirAttrToValue::visitCirAttr(cir::ZeroAttr zeroAttr) {
   auto loc = parentOp->getLoc();
-  return rewriter.create<mlir::LLVM::ZeroOp>(
-      loc, converter->convertType(zeroAttr.getType()));
+  auto llvmTy = converter->convertType(zeroAttr.getType());
+  if (!llvmTy) {
+    parentOp->emitError("failed to convert zero attribute of type ")
+        << zeroAttr.getType();
+    return {};
+  }
+  if (!mlir::LLVM::isCompatibleType(llvmTy)) {
+    parentOp->emitError("expected LLVM-compatible type for zero attribute ")
+        << zeroAttr.getType();
+    return {};
+  }
+  return rewriter.create<mlir::LLVM::ZeroOp>(loc, llvmTy);
 }
 
 /// UndefAttr visitor.
@@ -2473,8 +2504,10 @@ mlir::LogicalResult CIRToLLVMGlobalOpLowering::matchAndRewrite(
         op.emitError() << "unsupported initializer '" << init.value() << "'";
         return mlir::failure();
       }
-    } else if (mlir::isa<cir::ZeroAttr, cir::ConstPtrAttr, cir::UndefAttr,
-                         cir::ConstStructAttr, cir::GlobalViewAttr,
+    } else if (mlir::isa<cir::ZeroAttr>(init.value())) {
+      init = mlir::LLVM::ZeroAttr::get(rewriter.getContext());
+    } else if (mlir::isa<cir::ConstPtrAttr, cir::UndefAttr, cir::ConstStructAttr,
+                         cir::GlobalViewAttr,
                          cir::VTableAttr, cir::TypeInfoAttr>(init.value())) {
       // TODO(cir): once LLVM's dialect has proper equivalent attributes this
       // should be updated. For now, we use a custom op to initialize globals
@@ -2524,16 +2557,19 @@ mlir::LogicalResult CIRToLLVMGlobalOpLowering::matchAndRewrite(
   }
 
   // Rewrite op.
-  auto llvmGlobalOp = rewriter.replaceOpWithNewOp<mlir::LLVM::GlobalOp>(
+  auto newGlobalOp =
+      rewriter.replaceOpWithNewOp<mlir::LLVM::GlobalOp>(
       op, llvmType, isConst, linkage, symbol, init.value_or(mlir::Attribute()),
       /*alignment*/ op.getAlignment().value_or(0),
       /*addrSpace*/ getGlobalOpTargetAddrSpace(rewriter, typeConverter, op),
       /*dsoLocal*/ isDsoLocal, /*threadLocal*/ (bool)op.getTlsModelAttr(),
       /*comdat*/ mlir::SymbolRefAttr(), attributes);
 
-  auto mod = op->getParentOfType<mlir::ModuleOp>();
-  if (op.getComdat())
-    addComdat(llvmGlobalOp, comdatOp, rewriter, mod);
+  if (op.getComdat()) {
+    mlir::ModuleOp module = op->getParentOfType<mlir::ModuleOp>();
+    assert(module && "expected parent module for global comdat");
+    addComdat(newGlobalOp, comdatOp, rewriter, module);
+  }
 
   return mlir::success();
 }
@@ -2544,10 +2580,13 @@ void CIRToLLVMGlobalOpLowering::addComdat(mlir::LLVM::GlobalOp &op,
                                           mlir::ModuleOp &module) {
   StringRef comdatName("__llvm_comdat_globals");
   if (!comdatOp) {
+    mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPointToStart(module.getBody());
     comdatOp =
-        builder.create<mlir::LLVM::ComdatOp>(module.getLoc(), comdatName);
+        mlir::LLVM::ComdatOp::create(builder, module.getLoc(), comdatName);
   }
+  if (comdatOp.getBody().empty())
+    comdatOp.getBody().push_back(new mlir::Block());
   builder.setInsertionPointToStart(&comdatOp.getBody().back());
   auto selectorOp = builder.create<mlir::LLVM::ComdatSelectorOp>(
       comdatOp.getLoc(), op.getSymName(), mlir::LLVM::comdat::Comdat::Any);
@@ -3083,11 +3122,13 @@ mlir::LogicalResult CIRToLLVMAssumeAlignedOpLowering::matchAndRewrite(
   if (mlir::Value offset = adaptor.getOffset())
     opBundleArgs.push_back(offset);
 
-  auto cond = rewriter.create<mlir::LLVM::ConstantOp>(op.getLoc(),
-                                                      rewriter.getI1Type(), 1);
-  rewriter.create<mlir::LLVM::AssumeOp>(op.getLoc(), cond, "align",
-                                        opBundleArgs);
-  rewriter.replaceOp(op, adaptor.getPointer());
+  auto loc = op.getLoc();
+  rewriter.setInsertionPoint(op);
+  auto ptrReplacement = adaptor.getPointer();
+  auto cond =
+      rewriter.create<mlir::LLVM::ConstantOp>(loc, rewriter.getI1Type(), 1);
+  rewriter.create<mlir::LLVM::AssumeOp>(loc, cond, "align", opBundleArgs);
+  rewriter.replaceOp(op, ptrReplacement);
 
   return mlir::success();
 }
@@ -3101,38 +3142,6 @@ mlir::LogicalResult CIRToLLVMAssumeSepStorageOpLowering::matchAndRewrite(
       op, cond, "separate_storage",
       mlir::ValueRange{adaptor.getPtr1(), adaptor.getPtr2()});
   return mlir::success();
-}
-
-mlir::Value createLLVMBitOp(mlir::Location loc,
-                            const llvm::Twine &llvmIntrinBaseName,
-                            mlir::Type resultTy, mlir::Value operand,
-                            std::optional<bool> poisonZeroInputFlag,
-                            mlir::ConversionPatternRewriter &rewriter) {
-  auto operandIntTy = mlir::cast<mlir::IntegerType>(operand.getType());
-  auto resultIntTy = mlir::cast<mlir::IntegerType>(resultTy);
-
-  std::string llvmIntrinName =
-      llvmIntrinBaseName.concat(".i")
-          .concat(std::to_string(operandIntTy.getWidth()))
-          .str();
-
-  // Note that LLVM intrinsic calls to bit intrinsics have the same type as the
-  // operand.
-  mlir::LLVM::CallIntrinsicOp op;
-  if (poisonZeroInputFlag.has_value()) {
-    auto poisonZeroInputValue = rewriter.create<mlir::LLVM::ConstantOp>(
-        loc, rewriter.getI1Type(), static_cast<int64_t>(*poisonZeroInputFlag));
-    op = createCallLLVMIntrinsicOp(rewriter, loc, llvmIntrinName,
-                                   operand.getType(),
-                                   {operand, poisonZeroInputValue});
-  } else {
-    op = createCallLLVMIntrinsicOp(rewriter, loc, llvmIntrinName,
-                                   operand.getType(), operand);
-  }
-
-  return getLLVMIntCast(rewriter, op->getResult(0), resultTy,
-                        /*isUnsigned=*/true, operandIntTy.getWidth(),
-                        resultIntTy.getWidth());
 }
 
 mlir::LogicalResult CIRToLLVMBitClrsbOpLowering::matchAndRewrite(
@@ -3155,8 +3164,8 @@ mlir::LogicalResult CIRToLLVMBitClrsbOpLowering::matchAndRewrite(
       op.getLoc(), isNeg, flipped, adaptor.getInput());
 
   auto resTy = getTypeConverter()->convertType(op.getType());
-  auto clz = createLLVMBitOp(op.getLoc(), "llvm.ctlz", resTy, select,
-                             /*poisonZeroInputFlag=*/false, rewriter);
+  auto clz = rewriter.create<mlir::LLVM::CountLeadingZerosOp>(
+      op.getLoc(), resTy, select, false);
 
   auto one = rewriter.create<mlir::LLVM::ConstantOp>(op.getLoc(), resTy, 1);
   auto res = rewriter.create<mlir::LLVM::SubOp>(op.getLoc(), clz, one);
@@ -3191,9 +3200,8 @@ mlir::LogicalResult CIRToLLVMBitClzOpLowering::matchAndRewrite(
     cir::BitClzOp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
   auto resTy = getTypeConverter()->convertType(op.getType());
-  auto llvmOp =
-      createLLVMBitOp(op.getLoc(), "llvm.ctlz", resTy, adaptor.getInput(),
-                      /*poisonZeroInputFlag=*/true, rewriter);
+  auto llvmOp = rewriter.create<mlir::LLVM::CountLeadingZerosOp>(
+      op.getLoc(), resTy, adaptor.getInput(), op.getIsZeroPoison());
   rewriter.replaceOp(op, llvmOp);
   return mlir::LogicalResult::success();
 }
@@ -3202,9 +3210,8 @@ mlir::LogicalResult CIRToLLVMBitCtzOpLowering::matchAndRewrite(
     cir::BitCtzOp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
   auto resTy = getTypeConverter()->convertType(op.getType());
-  auto llvmOp =
-      createLLVMBitOp(op.getLoc(), "llvm.cttz", resTy, adaptor.getInput(),
-                      /*poisonZeroInputFlag=*/true, rewriter);
+  auto llvmOp = rewriter.create<mlir::LLVM::CountTrailingZerosOp>(
+      op.getLoc(), resTy, adaptor.getInput(), op.getIsZeroPoison());
   rewriter.replaceOp(op, llvmOp);
   return mlir::LogicalResult::success();
 }
@@ -3213,9 +3220,8 @@ mlir::LogicalResult CIRToLLVMBitFfsOpLowering::matchAndRewrite(
     cir::BitFfsOp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
   auto resTy = getTypeConverter()->convertType(op.getType());
-  auto ctz =
-      createLLVMBitOp(op.getLoc(), "llvm.cttz", resTy, adaptor.getInput(),
-                      /*poisonZeroInputFlag=*/false, rewriter);
+  auto ctz = rewriter.create<mlir::LLVM::CountTrailingZerosOp>(
+      op.getLoc(), resTy, adaptor.getInput(), false);
 
   auto one = rewriter.create<mlir::LLVM::ConstantOp>(op.getLoc(), resTy, 1);
   auto ctzAddOne = rewriter.create<mlir::LLVM::AddOp>(op.getLoc(), ctz, one);
@@ -3240,9 +3246,8 @@ mlir::LogicalResult CIRToLLVMBitParityOpLowering::matchAndRewrite(
     cir::BitParityOp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
   auto resTy = getTypeConverter()->convertType(op.getType());
-  auto popcnt =
-      createLLVMBitOp(op.getLoc(), "llvm.ctpop", resTy, adaptor.getInput(),
-                      /*poisonZeroInputFlag=*/std::nullopt, rewriter);
+  auto popcnt = rewriter.create<mlir::LLVM::CtPopOp>(op.getLoc(), resTy,
+                                                     adaptor.getInput());
 
   auto one = rewriter.create<mlir::LLVM::ConstantOp>(op.getLoc(), resTy, 1);
   auto popcntMod2 =
@@ -3256,9 +3261,8 @@ mlir::LogicalResult CIRToLLVMBitPopcountOpLowering::matchAndRewrite(
     cir::BitPopcountOp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
   auto resTy = getTypeConverter()->convertType(op.getType());
-  auto llvmOp =
-      createLLVMBitOp(op.getLoc(), "llvm.ctpop", resTy, adaptor.getInput(),
-                      /*poisonZeroInputFlag=*/std::nullopt, rewriter);
+  auto llvmOp = rewriter.create<mlir::LLVM::CtPopOp>(op.getLoc(), resTy,
+                                                     adaptor.getInput());
   rewriter.replaceOp(op, llvmOp);
   return mlir::LogicalResult::success();
 }
@@ -4807,7 +4811,9 @@ void ConvertCIRToLLVMPass::runOnOperation() {
   ops.push_back(module);
   collect_unreachable(module, ops);
 
-  if (failed(applyPartialConversion(ops, target, std::move(patterns))))
+  mlir::FrozenRewritePatternSet frozen(std::move(patterns));
+  mlir::ConversionConfig config;
+  if (failed(applyPartialConversion(ops, target, frozen, config)))
     signalPassFailure();
 
   // Emit the llvm.global_ctors array.
