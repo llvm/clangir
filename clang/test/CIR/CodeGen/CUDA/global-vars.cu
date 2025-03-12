@@ -17,3 +17,7 @@ __device__ int a;
 __shared__ int shared;
 // CIR-DEVICE: cir.global external addrspace(offload_local) @shared = #cir.undef
 // LLVM-DEVICE: @shared = addrspace(3) global i32 undef, align 4
+
+__constant__ int b;
+// CIR-DEVICE: cir.global constant external addrspace(offload_constant) @b = #cir.int<0> : !s32i {alignment = 4 : i64, cu.externally_initialized = #cir.cu.externally_initialized}
+// LLVM-DEVICE: @b = addrspace(4) externally_initialized constant i32 0, align 4
