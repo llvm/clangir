@@ -232,7 +232,7 @@ public:
     llvm_unreachable("NYI");
   }
   mlir::Value VisitPseudoObjectExpr(PseudoObjectExpr *E) {
-    llvm_unreachable("NYI");
+    return CGF.emitPseudoObjectRValue(E).getScalarVal();
   }
   mlir::Value VisitSYCLUniqueStableNameExpr(SYCLUniqueStableNameExpr *E) {
     llvm_unreachable("NYI");
