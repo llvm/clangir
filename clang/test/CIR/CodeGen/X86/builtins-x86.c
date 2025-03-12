@@ -20,7 +20,9 @@ void test_mm_prefetch(char const *p) {
   // CIR-LABEL: test_mm_prefetch
   // LLVM-LABEL: test_mm_prefetch
   _mm_prefetch(p, 0);
-  // CIR: {{%.}} = cir.llvm.intrinsic "llvm.prefetch.p0" {{%.}}, {{%.}} :
-  // (!cir.ptr<!char>, !cir.i32) -> !void LLVM: call void @llvm.prefetch.p0(ptr
-  // {{.}}, i32 0, i32 0, i32 1)
+  // CIR: {{%.}} = cir.const #cir.int<0> : !cir.i32
+  // CIR: {{%.}} = cir.const #cir.int<0> : !cir.i32
+  // CIR: {{%.}} = cir.const #cir.int<1> : !cir.i32
+  // CIR: cir.prefetch {{%.}}, {{%.}}, {{%.}}, {{%.}} : (!cir.ptr<!char>, !cir.i32, !cir.i32, !cir.i32) -> !void
+  // LLVM: call void @llvm.prefetch.p0(ptr {{.}}, i32 0, i32 0, i32 1)
 }
