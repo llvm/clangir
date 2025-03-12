@@ -123,12 +123,15 @@ struct LoweringPreparePass : public LoweringPrepareBase<LoweringPreparePass> {
   /// CUDA related
   /// ------------
 
-  // Maps CUDA device stub name to kernel name.
-  llvm::DenseMap<llvm::StringRef, std::string> cudaKernelMap;
+  // Maps CUDA kernel name to device stub function.
+  llvm::StringMap<FuncOp> cudaKernelMap;
 
   void buildCUDAModuleCtor();
   void buildCUDAModuleDtor();
   std::optional<FuncOp> buildCUDARegisterGlobals();
+
+  void buildCUDARegisterGlobalFunctions(cir::CIRBaseBuilderTy &builder,
+                                        FuncOp regGlobalFunc);
 
   ///
   /// AST related
@@ -185,6 +188,18 @@ struct LoweringPreparePass : public LoweringPrepareBase<LoweringPreparePass> {
   /// List of annotations in the module
   llvm::SmallVector<mlir::Attribute, 4> globalAnnotations;
 };
+
+std::string getCUDAPrefix(clang::ASTContext *astCtx) {
+  if (astCtx->getLangOpts().HIP)
+    return "hip";
+  return "cuda";
+}
+
+std::string addUnderscoredPrefix(llvm::StringRef cudaPrefix,
+                                 llvm::StringRef cudaFunctionName) {
+  return ("__" + cudaPrefix + cudaFunctionName).str();
+}
+
 } // namespace
 
 GlobalOp LoweringPreparePass::buildRuntimeVariable(
@@ -983,6 +998,11 @@ void LoweringPreparePass::buildCUDAModuleCtor() {
   if (astCtx->getLangOpts().GPURelocatableDeviceCode)
     llvm_unreachable("NYI");
 
+  // For CUDA without -fgpu-rdc, it's safe to stop generating ctor
+  // if there's nothing to register.
+  if (cudaKernelMap.empty())
+    return;
+
   // There's no device-side binary, so no need to proceed for CUDA.
   // HIP has to create an external symbol in this case, which is NYI.
   auto cudaBinaryHandleAttr =
@@ -995,17 +1015,13 @@ void LoweringPreparePass::buildCUDAModuleCtor() {
   std::string cudaGPUBinaryName =
       cast<CUDABinaryHandleAttr>(cudaBinaryHandleAttr).getName();
 
-  llvm::StringRef prefix = "cuda";
-
   constexpr unsigned cudaFatMagic = 0x466243b1;
   constexpr unsigned hipFatMagic = 0x48495046; // "HIPF"
 
+  auto cudaPrefix = getCUDAPrefix(astCtx);
+
   const unsigned fatMagic =
       astCtx->getLangOpts().HIP ? hipFatMagic : cudaFatMagic;
-
-  auto addUnderscoredPrefix = [&](llvm::StringRef name) -> std::string {
-    return ("__" + prefix + name).str();
-  };
 
   // MAC OS X needs special care, but we haven't supported that in CIR yet.
   assert(!cir::MissingFeatures::checkMacOSXTriple());
@@ -1015,15 +1031,11 @@ void LoweringPreparePass::buildCUDAModuleCtor() {
 
   mlir::Location loc = theModule.getLoc();
 
-  // Extract types from the module.
-  auto typeSizesAttr = cast<TypeSizeInfoAttr>(
-      theModule->getAttr(CIRDialect::getTypeSizeInfoAttrName()));
-
   auto voidTy = VoidType::get(&getContext());
   auto voidPtrTy = PointerType::get(voidTy);
   auto voidPtrPtrTy = PointerType::get(voidPtrTy);
-  auto intTy = typeSizesAttr.getIntType(&getContext());
-  auto charTy = typeSizesAttr.getCharType(&getContext());
+  auto intTy = datalayout->getIntType(&getContext());
+  auto charTy = datalayout->getCharType(&getContext());
 
   // Read the GPU binary and create a constant array for it.
   llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> cudaGPUBinaryOrErr =
@@ -1046,7 +1058,7 @@ void LoweringPreparePass::buildCUDAModuleCtor() {
 
   // OG gives an empty name to this global constant,
   // which is not allowed in CIR.
-  std::string fatbinStrName = addUnderscoredPrefix("_fatbin_str");
+  std::string fatbinStrName = addUnderscoredPrefix(cudaPrefix, "_fatbin_str");
   GlobalOp fatbinStr = builder.create<GlobalOp>(
       loc, fatbinStrName, fatbinType, /*isConstant=*/true,
       /*linkage=*/cir::GlobalLinkageKind::PrivateLinkage);
@@ -1064,57 +1076,184 @@ void LoweringPreparePass::buildCUDAModuleCtor() {
       &getContext(), {intTy, intTy, voidPtrTy, voidPtrTy}, /*packed=*/false,
       /*padded=*/false, StructType::RecordKind::Struct);
 
-  std::string fatbinWrapperName = addUnderscoredPrefix("_fatbin_wrapper");
+  std::string fatbinWrapperName =
+      addUnderscoredPrefix(cudaPrefix, "_fatbin_wrapper");
   GlobalOp fatbinWrapper = builder.create<GlobalOp>(
-      loc, fatbinWrapperName, fatbinWrapperType, /*isConstant=*/false,
+      loc, fatbinWrapperName, fatbinWrapperType, /*isConstant=*/true,
       /*linkage=*/cir::GlobalLinkageKind::InternalLinkage);
   fatbinWrapper.setPrivate();
   fatbinWrapper.setSection(fatbinSectionName);
 
   auto magicInit = IntAttr::get(intTy, fatMagic);
   auto versionInit = IntAttr::get(intTy, 1);
-  // `fatbinInit` is only a placeholder. The value will be initialized at the
-  // beginning of module ctor.
-  auto fatbinInit = builder.getConstNullPtrAttr(voidPtrTy);
+  auto fatbinStrSymbol =
+      mlir::FlatSymbolRefAttr::get(fatbinStr.getSymNameAttr());
+  auto fatbinInit = GlobalViewAttr::get(voidPtrTy, fatbinStrSymbol);
   auto unusedInit = builder.getConstNullPtrAttr(voidPtrTy);
   fatbinWrapper.setInitialValueAttr(cir::ConstStructAttr::get(
       fatbinWrapperType,
       ArrayAttr::get(&getContext(),
                      {magicInit, versionInit, fatbinInit, unusedInit})));
 
+  // GPU fat binary handle is also a global variable in OG.
+  std::string gpubinHandleName =
+      addUnderscoredPrefix(cudaPrefix, "_gpubin_handle");
+  auto gpubinHandle = builder.create<GlobalOp>(
+      loc, gpubinHandleName, voidPtrPtrTy,
+      /*isConstant=*/false, /*linkage=*/GlobalLinkageKind::InternalLinkage);
+  gpubinHandle.setInitialValueAttr(builder.getConstNullPtrAttr(voidPtrPtrTy));
+  gpubinHandle.setPrivate();
+
   // Declare this function:
   //    void **__{cuda|hip}RegisterFatBinary(void *);
 
-  std::string regFuncName = addUnderscoredPrefix("RegisterFatBinary");
+  std::string regFuncName =
+      addUnderscoredPrefix(cudaPrefix, "RegisterFatBinary");
   auto regFuncType = FuncType::get({voidPtrTy}, voidPtrPtrTy);
   auto regFunc = buildRuntimeFunction(builder, regFuncName, loc, regFuncType);
 
   // Create the module constructor.
 
-  std::string moduleCtorName = addUnderscoredPrefix("_module_ctor");
+  std::string moduleCtorName = addUnderscoredPrefix(cudaPrefix, "_module_ctor");
   auto moduleCtor = buildRuntimeFunction(builder, moduleCtorName, loc,
                                          FuncType::get({}, voidTy),
                                          GlobalLinkageKind::InternalLinkage);
   globalCtorList.push_back(GlobalCtorAttr::get(&getContext(), moduleCtorName));
   builder.setInsertionPointToStart(moduleCtor.addEntryBlock());
 
-  auto wrapper = builder.createGetGlobal(fatbinWrapper);
-  // Put fatbinStr inside fatbinWrapper.
-  mlir::Value fatbinStrValue = builder.createGetGlobal(fatbinStr);
-  mlir::Value fatbinField = builder.createGetMemberOp(loc, wrapper, "", 2);
-  builder.createStore(loc, fatbinStrValue, fatbinField);
-
   // Register binary with CUDA runtime. This is substantially different in
   // default mode vs. separate compilation.
   // Corresponding code:
   //     gpuBinaryHandle = __cudaRegisterFatBinary(&fatbinWrapper);
+  auto wrapper = builder.createGetGlobal(fatbinWrapper);
   auto fatbinVoidPtr = builder.createBitcast(wrapper, voidPtrTy);
-  builder.createCallOp(loc, regFunc, fatbinVoidPtr);
+  auto gpuBinaryHandleCall = builder.createCallOp(loc, regFunc, fatbinVoidPtr);
+  auto gpuBinaryHandle = gpuBinaryHandleCall.getResult();
+  // Store the value back to the global `__cuda_gpubin_handle`.
+  auto gpuBinaryHandleGlobal = builder.createGetGlobal(gpubinHandle);
+  builder.createStore(loc, gpuBinaryHandle, gpuBinaryHandleGlobal);
 
-  // This is currently incomplete.
-  // TODO(cir): create __cuda_register_globals(), and call it here.
+  // Generate __cuda_register_globals and call it.
+  std::optional<FuncOp> regGlobal = buildCUDARegisterGlobals();
+  if (regGlobal) {
+    builder.createCallOp(loc, *regGlobal, gpuBinaryHandle);
+  }
+
+  // From CUDA 10.1 onwards, we must call this function to end registration:
+  //      void __cudaRegisterFatBinaryEnd(void **fatbinHandle);
+  // This is CUDA-specific, so no need to use `addUnderscoredPrefix`.
+  if (clang::CudaFeatureEnabled(
+          astCtx->getTargetInfo().getSDKVersion(),
+          clang::CudaFeature::CUDA_USES_FATBIN_REGISTER_END)) {
+    cir::CIRBaseBuilderTy globalBuilder(getContext());
+    globalBuilder.setInsertionPointToStart(theModule.getBody());
+    FuncOp endFunc =
+        buildRuntimeFunction(globalBuilder, "__cudaRegisterFatBinaryEnd", loc,
+                             FuncType::get({voidPtrPtrTy}, voidTy));
+    builder.createCallOp(loc, endFunc, gpuBinaryHandle);
+  }
 
   builder.create<cir::ReturnOp>(loc);
+}
+
+std::optional<FuncOp> LoweringPreparePass::buildCUDARegisterGlobals() {
+  // There is nothing to register.
+  if (cudaKernelMap.empty())
+    return {};
+
+  cir::CIRBaseBuilderTy builder(getContext());
+  builder.setInsertionPointToStart(theModule.getBody());
+
+  auto loc = theModule.getLoc();
+  auto cudaPrefix = getCUDAPrefix(astCtx);
+
+  auto voidTy = VoidType::get(&getContext());
+  auto voidPtrPtrTy = PointerType::get(PointerType::get(voidTy));
+
+  // Create the function:
+  //      void __cuda_register_globals(void **fatbinHandle)
+  std::string regGlobalFuncName =
+      addUnderscoredPrefix(cudaPrefix, "_register_globals");
+  auto regGlobalFuncTy = FuncType::get({voidPtrPtrTy}, voidTy);
+  FuncOp regGlobalFunc =
+      buildRuntimeFunction(builder, regGlobalFuncName, loc, regGlobalFuncTy,
+                           /*linkage=*/GlobalLinkageKind::InternalLinkage);
+  builder.setInsertionPointToStart(regGlobalFunc.addEntryBlock());
+
+  buildCUDARegisterGlobalFunctions(builder, regGlobalFunc);
+
+  // TODO(cir): registration for global variables.
+
+  builder.create<ReturnOp>(loc);
+  return regGlobalFunc;
+}
+
+void LoweringPreparePass::buildCUDARegisterGlobalFunctions(
+    cir::CIRBaseBuilderTy &builder, FuncOp regGlobalFunc) {
+  auto loc = theModule.getLoc();
+  auto cudaPrefix = getCUDAPrefix(astCtx);
+
+  auto voidTy = VoidType::get(&getContext());
+  auto voidPtrTy = PointerType::get(voidTy);
+  auto voidPtrPtrTy = PointerType::get(voidPtrTy);
+  auto intTy = datalayout->getIntType(&getContext());
+  auto charTy = datalayout->getCharType(&getContext());
+
+  // Extract the GPU binary handle argument.
+  mlir::Value fatbinHandle = *regGlobalFunc.args_begin();
+
+  cir::CIRBaseBuilderTy globalBuilder(getContext());
+  globalBuilder.setInsertionPointToStart(theModule.getBody());
+
+  // Declare CUDA internal functions:
+  // int __cudaRegisterFunction(
+  //   void **fatbinHandle,
+  //   const char *hostFunc,
+  //   char *deviceFunc,
+  //   const char *deviceName,
+  //   int threadLimit,
+  //   uint3 *tid, uint3 *bid, dim3 *bDim, dim3 *gDim,
+  //   int *wsize
+  // )
+  // OG doesn't care about the types at all. They're treated as void*.
+
+  FuncOp cudaRegisterFunction = buildRuntimeFunction(
+      globalBuilder, addUnderscoredPrefix(cudaPrefix, "RegisterFunction"), loc,
+      FuncType::get({voidPtrPtrTy, voidPtrTy, voidPtrTy, voidPtrTy, intTy,
+                     voidPtrTy, voidPtrTy, voidPtrTy, voidPtrTy, voidPtrTy},
+                    intTy));
+
+  auto makeConstantString = [&](llvm::StringRef str) -> GlobalOp {
+    auto strType = ArrayType::get(&getContext(), charTy, 1 + str.size());
+
+    auto tmpString = globalBuilder.create<GlobalOp>(
+        loc, (".str" + str).str(), strType, /*isConstant=*/true,
+        /*linkage=*/cir::GlobalLinkageKind::PrivateLinkage);
+
+    // We must make the string zero-terminated.
+    tmpString.setInitialValueAttr(ConstArrayAttr::get(
+        strType, StringAttr::get(&getContext(), str + "\0")));
+    tmpString.setPrivate();
+    return tmpString;
+  };
+
+  auto cirNullPtr = builder.getNullPtr(voidPtrTy, loc);
+  for (auto kernelName : cudaKernelMap.keys()) {
+    FuncOp deviceStub = cudaKernelMap[kernelName];
+    GlobalOp deviceFuncStr = makeConstantString(kernelName);
+    mlir::Value deviceFunc = builder.createBitcast(
+        builder.createGetGlobal(deviceFuncStr), voidPtrTy);
+    mlir::Value hostFunc = builder.createBitcast(
+        builder.create<GetGlobalOp>(
+            loc, PointerType::get(deviceStub.getFunctionType()),
+            mlir::FlatSymbolRefAttr::get(deviceStub.getSymNameAttr())),
+        voidPtrTy);
+    builder.createCallOp(
+        loc, cudaRegisterFunction,
+        {fatbinHandle, hostFunc, deviceFunc, deviceFunc,
+         builder.create<ConstantOp>(loc, IntAttr::get(intTy, -1)), cirNullPtr,
+         cirNullPtr, cirNullPtr, cirNullPtr, cirNullPtr});
+  }
 }
 
 void LoweringPreparePass::lowerDynamicCastOp(DynamicCastOp op) {
@@ -1378,11 +1517,10 @@ void LoweringPreparePass::runOnOp(Operation *op) {
       globalDtorList.push_back(globalDtor);
     }
     if (auto attr = fnOp.getExtraAttrs().getElements().get(
-            CIRDialect::getCUDABinaryHandleAttrName())) {
-      auto cudaBinaryAttr = dyn_cast<CUDABinaryHandleAttr>(attr);
-      std::string kernelName = cudaBinaryAttr.getName();
-      llvm::StringRef stubName = fnOp.getSymName();
-      cudaKernelMap[stubName] = kernelName;
+            CUDAKernelNameAttr::getMnemonic())) {
+      auto cudaBinaryAttr = dyn_cast<CUDAKernelNameAttr>(attr);
+      std::string kernelName = cudaBinaryAttr.getKernelName();
+      cudaKernelMap[kernelName] = fnOp;
     }
     if (std::optional<mlir::ArrayAttr> annotations = fnOp.getAnnotations())
       addGlobalAnnotations(fnOp, annotations.value());
@@ -1398,6 +1536,9 @@ void LoweringPreparePass::runOnOperation() {
     theModule = cast<::mlir::ModuleOp>(op);
     datalayout.emplace(theModule);
   }
+
+  auto typeSizeInfo = cast<TypeSizeInfoAttr>(
+      theModule->getAttr(CIRDialect::getTypeSizeInfoAttrName()));
 
   llvm::SmallVector<Operation *> opsToTransform;
 

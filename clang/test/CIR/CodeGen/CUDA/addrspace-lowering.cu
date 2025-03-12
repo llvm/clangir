@@ -14,6 +14,6 @@ __device__ int b;
 
 // LLVM-DEVICE: @b = addrspace(1) {{.*}}
 
-// __constant__ int c;
+__constant__ int c;
 
-// XFAIL-LLVM-DEVICE: @c = addrspace(4) {{.*}}
+// LLVM-DEVICE: @c = addrspace(4) {{.*}}

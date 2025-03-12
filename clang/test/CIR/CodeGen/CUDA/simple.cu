@@ -28,12 +28,16 @@ __global__ void global_fn(int a) {}
 // Check for device stub emission.
 
 // CIR-HOST: @_Z24__device_stub__global_fni{{.*}}extra([[Kernel]])
-// CIR-HOST: cir.alloca {{.*}}"kernel_args"
+// CIR-HOST: %[[#CIRKernelArgs:]] = cir.alloca {{.*}}"kernel_args"
+// CIR-HOST: %[[#Decayed:]] = cir.cast(array_to_ptrdecay, %[[#CIRKernelArgs]]
 // CIR-HOST: cir.call @__cudaPopCallConfiguration
 // CIR-HOST: cir.get_global @_Z24__device_stub__global_fni
 // CIR-HOST: cir.call @cudaLaunchKernel
 
 // LLVM-HOST: void @_Z24__device_stub__global_fni
+// LLVM-HOST: %[[#KernelArgs:]] = alloca [1 x ptr], i64 1, align 16
+// LLVM-HOST: %[[#GEP1:]] = getelementptr ptr, ptr %[[#KernelArgs]], i32 0
+// LLVM-HOST: %[[#GEP2:]] = getelementptr ptr, ptr %[[#GEP1]], i64 0
 // LLVM-HOST: call i32 @__cudaPopCallConfiguration
 // LLVM-HOST: call i32 @cudaLaunchKernel(ptr @_Z24__device_stub__global_fni
 
@@ -48,6 +52,7 @@ int main() {
 // CIR-HOST: [[Push:%[0-9]+]] = cir.call @__cudaPushCallConfiguration
 // CIR-HOST: [[ConfigOK:%[0-9]+]] = cir.cast(int_to_bool, [[Push]]
 // CIR-HOST: cir.if [[ConfigOK]] {
+// CIR-HOST: } else {
 // CIR-HOST:   [[Arg:%[0-9]+]] = cir.const #cir.int<1>
 // CIR-HOST:   cir.call @_Z24__device_stub__global_fni([[Arg]])
 // CIR-HOST: }
@@ -58,9 +63,9 @@ int main() {
 // LLVM-HOST: call void @_ZN4dim3C1Ejjj
 // LLVM-HOST: call void @_ZN4dim3C1Ejjj
 // LLVM-HOST: [[LLVMConfigOK:%[0-9]+]] = call i32 @__cudaPushCallConfiguration
-// LLVM-HOST: br [[LLVMConfigOK]], label %[[Good:[0-9]+]], label [[Bad:[0-9]+]]
-// LLVM-HOST: [[Good]]:
+// LLVM-HOST: br [[LLVMConfigOK]], label %[[#Good:]], label [[#Bad:]]
+// LLVM-HOST: [[#Good]]:
+// LLVM-HOST:   br label [[#End:]]
+// LLVM-HOST: [[#Bad]]:
 // LLVM-HOST:   call void @_Z24__device_stub__global_fni
-// LLVM-HOST:   br label [[Bad]]
-// LLVM-HOST: [[Bad]]:
-// LLVM-HOST:   ret i32
+// LLVM-HOST:   br label [[#End]]

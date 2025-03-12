@@ -13,14 +13,53 @@
 // RUN:            %s -o %t.ll
 // RUN: FileCheck --check-prefix=LLVM-HOST --input-file=%t.ll %s
 
-// COM: OG doesn't emit anything if there is nothing to register.
-// COM: Here we still emit the template for test purposes,
-// COM: and the behaviour will be fixed later.
-
 // CIR-HOST: module @"{{.*}}" attributes {
 // CIR-HOST:   cir.cu.binary_handle = #cir.cu.binary_handle<{{.*}}.fatbin>,
 // CIR-HOST:   cir.global_ctors = [#cir.global_ctor<"__cuda_module_ctor", {{[0-9]+}}>]
 // CIR-HOST: }
+
+// CIR-HOST: cir.global "private" constant cir_private @".str_Z2fnv" =
+// CIR-HOST-SAME: #cir.const_array<"_Z2fnv", trailing_zeros>
+
+// COM: In OG this variable has an `unnamed_addr` attribute.
+// LLVM-HOST: @.str_Z2fnv = private constant [7 x i8] c"_Z2fnv\00"
+
+// The corresponding CIR test for these three variables are down below.
+// They are here because LLVM IR puts global variables at the front of file.
+
+// LLVM-HOST: @__cuda_fatbin_str = private constant [14 x i8] c"sample fatbin\0A", section ".nv_fatbin"
+// LLVM-HOST: @__cuda_fatbin_wrapper = internal constant {
+// LLVM-HOST:   i32 1180844977, i32 1, ptr @__cuda_fatbin_str, ptr null
+// LLVM-HOST: }
+// LLVM-HOST: @llvm.global_ctors = {{.*}}ptr @__cuda_module_ctor
+
+__global__ void fn() {}
+
+// CIR-HOST: cir.func internal private @__cuda_register_globals(%[[FatbinHandle:[a-zA-Z0-9]+]]{{.*}}) {
+// CIR-HOST:   %[[#NULL:]] = cir.const #cir.ptr<null>
+// CIR-HOST:   %[[#T1:]] = cir.get_global @".str_Z2fnv"
+// CIR-HOST:   %[[#DeviceFn:]] = cir.cast(bitcast, %[[#T1]]
+// CIR-HOST:   %[[#T2:]] = cir.get_global @_Z17__device_stub__fnv
+// CIR-HOST:   %[[#HostFn:]] = cir.cast(bitcast, %[[#T2]]
+// CIR-HOST:   %[[#MinusOne:]] = cir.const #cir.int<-1>
+// CIR-HOST:   cir.call @__cudaRegisterFunction(
+// CIR-HOST-SAME: %[[FatbinHandle]],
+// CIR-HOST-SAME: %[[#HostFn]],
+// CIR-HOST-SAME: %[[#DeviceFn]],
+// CIR-HOST-SAME: %[[#DeviceFn]],
+// CIR-HOST-SAME: %[[#MinusOne]],
+// CIR-HOST-SAME: %[[#NULL]], %[[#NULL]], %[[#NULL]], %[[#NULL]], %[[#NULL]])
+// CIR-HOST: }
+
+// LLVM-HOST: define internal void @__cuda_register_globals(ptr %[[#LLVMFatbin:]]) {
+// LLVM-HOST:   call i32 @__cudaRegisterFunction(
+// LLVM-HOST-SAME: ptr %[[#LLVMFatbin]],
+// LLVM-HOST-SAME: ptr @_Z17__device_stub__fnv,
+// LLVM-HOST-SAME: ptr @.str_Z2fnv,
+// LLVM-HOST-SAME: ptr @.str_Z2fnv,
+// LLVM-HOST-SAME: i32 -1,
+// LLVM-HOST-SAME: ptr null, ptr null, ptr null, ptr null, ptr null)
+// LLVM-HOST: }
 
 // The content in const array should be the same as echoed above,
 // with a trailing line break ('\n', 0x0A).
@@ -28,41 +67,28 @@
 // CIR-HOST-SAME: #cir.const_array<"sample fatbin\0A">
 // CIR-HOST-SAME: {{.*}}section = ".nv_fatbin"
 
-// LLVM-HOST: @__cuda_fatbin_str = private constant [14 x i8] c"sample fatbin\0A", section ".nv_fatbin"
-
 // The first value is CUDA file head magic number.
-// CIR-HOST: cir.global "private" internal @__cuda_fatbin_wrapper
+// CIR-HOST: cir.global "private" constant internal @__cuda_fatbin_wrapper
 // CIR-HOST: = #cir.const_struct<{
 // CIR-HOST:   #cir.int<1180844977> : !s32i,
 // CIR-HOST:   #cir.int<1> : !s32i,
-// CIR-HOST:   #cir.ptr<null> : !cir.ptr<!void>,
+// CIR-HOST:   #cir.global_view<@__cuda_fatbin_str> : !cir.ptr<!void>,
 // CIR-HOST:   #cir.ptr<null> : !cir.ptr<!void>
 // CIR-HOST: }>
 // CIR-HOST-SAME: {{.*}}section = ".nvFatBinSegment"
 
-// COM: @__cuda_fatbin_wrapper is constant for OG.
-// COM: However, as we don't have a way to put @__cuda_fatbin_str directly
-// COM: to its third field in Clang IR, we can't mark this variable as 
-// COM: constant: we need to initialize it later, at the beginning
-// COM: of @__cuda_module_ctor.
-
-// LLVM-HOST: @__cuda_fatbin_wrapper = internal global {
-// LLVM-HOST:   i32 1180844977, i32 1, ptr null, ptr null
-// LLVM-HOST: }
-
-// LLVM-HOST: @llvm.global_ctors = {{.*}}ptr @__cuda_module_ctor
-
 // CIR-HOST: cir.func private @__cudaRegisterFatBinary
 // CIR-HOST: cir.func {{.*}} @__cuda_module_ctor() {
-// CIR-HOST:   %[[#F0:]] = cir.get_global @__cuda_fatbin_wrapper
-// CIR-HOST:   %[[#F1:]] = cir.get_global @__cuda_fatbin_str
-// CIR-HOST:   %[[#F2:]] = cir.get_member %[[#F0]][2]
-// CIR-HOST:   %[[#F3:]] = cir.cast(bitcast, %[[#F2]]
-// CIR-HOST:   cir.store %[[#F1]], %[[#F3]]
-// CIR-HOST:   cir.call @__cudaRegisterFatBinary
+// CIR-HOST:   %[[#Fatbin:]] = cir.call @__cudaRegisterFatBinary
+// CIR-HOST:   %[[#FatbinGlobal:]] = cir.get_global @__cuda_gpubin_handle
+// CIR-HOST:   cir.store %[[#Fatbin]], %[[#FatbinGlobal]]
+// CIR-HOST:   cir.call @__cuda_register_globals
+// CIR-HOTS:   cir.call @__cudaRegisterFatBinaryEnd
 // CIR-HOST: }
 
 // LLVM-HOST: define internal void @__cuda_module_ctor() {
-// LLVM-HOST:   store ptr @__cuda_fatbin_str, ptr getelementptr {{.*}}, ptr @__cuda_fatbin_wrapper
-// LLVM-HOST:   call ptr @__cudaRegisterFatBinary(ptr @__cuda_fatbin_wrapper)
+// LLVM-HOST:  %[[#LLVMFatbin:]] = call ptr @__cudaRegisterFatBinary(ptr @__cuda_fatbin_wrapper)
+// LLVM-HOST:  store ptr %[[#LLVMFatbin]], ptr @__cuda_gpubin_handle
+// LLVM-HOST:  call void @__cuda_register_globals
+// LLVM-HOST:  call void @__cudaRegisterFatBinaryEnd
 // LLVM-HOST: }
