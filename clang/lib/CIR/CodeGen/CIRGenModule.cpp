@@ -576,6 +576,47 @@ bool CIRGenModule::shouldEmitCUDAGlobalVar(const VarDecl *global) const {
          global->getType()->isCUDADeviceBuiltinTextureType();
 }
 
+void CIRGenModule::printPostfixForExternalizedDecl(llvm::raw_ostream &os,
+                                                    const Decl *d) const {
+  // ptxas does not allow '.' in symbol names. On the other hand, HIP prefers
+  // postfix beginning with '.' since the symbol name can be demangled.
+  if (langOpts.HIP)
+    os << (isa<VarDecl>(d) ? ".static." : ".intern.");
+  else
+    os << (isa<VarDecl>(d) ? "__static__" : "__intern__");
+
+  // If the CUID is not specified we try to generate a unique postfix.
+  if (getLangOpts().CUID.empty()) {
+    assert(0 && "NYI");
+    // FIXME: OG's CodeGenModule has a member 'PreprocessorOpts' which I'm not sure what the equivalent is in CIR, that probably has to be brought in.
+
+    // SourceManager &sm = getASTContext().getSourceManager();
+    // PresumedLoc pLoc = sm.getPresumedLoc(D->getLocation());
+    // assert(pLoc.isValid() && "Source location is expected to be valid.");
+    //
+    // // Get the hash of the user defined macros.
+    // llvm::MD5 hash;
+    // llvm::MD5::MD5Result result;
+    // for (const auto &arg : preprocessorOpts.Macros)
+    //   hash.update(arg.first);
+    // hash.final(result);
+    //
+    // // Get the UniqueID for the file containing the decl.
+    // llvm::sys::fs::UniqueID id;
+    // if (llvm::sys::fs::getUniqueID(pLoc.getFilename(), id)) {
+    //   pLoc = sm.getPresumedLoc(D->getLocation(), /*UseLineDirectives=*/false);
+    //   assert(pLoc.isValid() && "Source location is expected to be valid.");
+    //   if (auto ec = llvm::sys::fs::getUniqueID(pLoc.getFilename(), id))
+    //     sm.getDiagnostics().Report(diag::err_cannot_open_file)
+    //         << pLoc.getFilename() << ec.message();
+    // }
+    // os << llvm::format("%x", id.getFile()) << llvm::format("%x", id.getDevice())
+    //    << "_" << llvm::utohexstr(result.low(), /*LowerCase=*/true, /*Width=*/8);
+  } else {
+    os << getASTContext().getCUIDHash();
+  }
+}
+
 void CIRGenModule::emitGlobal(GlobalDecl gd) {
   llvm::TimeTraceScope scope("build CIR Global", [&]() -> std::string {
     auto *nd = dyn_cast<NamedDecl>(gd.getDecl());
@@ -1495,10 +1536,30 @@ void CIRGenModule::emitGlobalVarDefinition(const clang::VarDecl *d,
                   CUDAExternallyInitializedAttr::get(&getMLIRContext()));
     }
   }
-  if (isCudaShadowVar) {
-    auto shadowName = getMangledName(GlobalDecl(d));
-    auto attr = CUDAShadowNameAttr::get(&getMLIRContext(), shadowName.str());
-    gv->setAttr(CUDAShadowNameAttr::getMnemonic(), attr);
+
+  // Decorate CUDA shadow variables with the cu.shadow_name attribute so we know
+  // how to register them when lowering.
+  if (d->hasAttr<CUDAConstantAttr>() || d->hasAttr<CUDADeviceAttr>()) {
+    // Shadow variables and their properties must be registered with CUDA
+    // runtime. Skip Extern global variables, which will be registered in
+    // the TU where they are defined.
+    //
+    // Don't register a C++17 inline variable. The local symbol can be
+    // discarded and referencing a discarded local symbol from outside the
+    // comdat (__cuda_register_globals) is disallowed by the ELF spec.
+    //
+    // HIP managed variables need to be always recorded in device and host
+    // compilations for transformation.
+    //
+    // HIP managed variables and variables in CUDADeviceVarODRUsedByHost are
+    // added to llvm.compiler-used, therefore they are safe to be registered.
+    if ((!d->hasExternalStorage() && !d->isInline()) ||
+        getASTContext().CUDADeviceVarODRUsedByHost.contains(d) ||
+        d->hasAttr<HIPManagedAttr>()) {
+      auto shadowName = cudaRuntime->getDeviceSideName(cast<NamedDecl>(d)); 
+      auto attr = CUDAShadowNameAttr::get(&getMLIRContext(), shadowName);
+      gv->setAttr(CUDAShadowNameAttr::getMnemonic(), attr);
+    }
   }
 
   // Set initializer and finalize emission
