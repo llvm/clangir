@@ -60,7 +60,6 @@ CIRGenCUDARuntime::addUnderscoredPrefixToName(StringRef FuncName) const {
   return ("__" + Prefix + FuncName).str();
 }
 
-
 void CIRGenCUDARuntime::emitDeviceStubBodyLegacy(CIRGenFunction &cgf,
                                                  cir::FuncOp fn,
                                                  FunctionArgList &args) {
