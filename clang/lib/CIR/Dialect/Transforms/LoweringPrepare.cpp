@@ -127,7 +127,7 @@ struct LoweringPreparePass : public LoweringPrepareBase<LoweringPreparePass> {
   llvm::StringMap<FuncOp> cudaKernelMap;
 
   void buildCUDAModuleCtor();
-  void buildCUDAModuleDtor();
+  std::optional<FuncOp> buildCUDAModuleDtor();
   std::optional<FuncOp> buildCUDARegisterGlobals();
 
   void buildCUDARegisterGlobalFunctions(cir::CIRBaseBuilderTy &builder,
@@ -1153,6 +1153,23 @@ void LoweringPreparePass::buildCUDAModuleCtor() {
     builder.createCallOp(loc, endFunc, gpuBinaryHandle);
   }
 
+  // Create destructor and register it with atexit() the way NVCC does it. Doing
+  // it during regular destructor phase worked in CUDA before 9.2 but results in
+  // double-free in 9.2.
+  if (auto dtor = buildCUDAModuleDtor()) {
+    // extern "C" int atexit(void (*f)(void));
+    cir::CIRBaseBuilderTy globalBuilder(getContext());
+    globalBuilder.setInsertionPointToStart(theModule.getBody());
+    FuncOp atexit = buildRuntimeFunction(
+        globalBuilder, "atexit", loc,
+        FuncType::get(PointerType::get(dtor->getFunctionType()), intTy));
+
+    mlir::Value dtorFunc = builder.create<GetGlobalOp>(
+        loc, PointerType::get(dtor->getFunctionType()),
+        mlir::FlatSymbolRefAttr::get(dtor->getSymNameAttr()));
+    builder.createCallOp(loc, atexit, dtorFunc);
+  }
+
   builder.create<cir::ReturnOp>(loc);
 }
 
@@ -1254,6 +1271,51 @@ void LoweringPreparePass::buildCUDARegisterGlobalFunctions(
          builder.create<ConstantOp>(loc, IntAttr::get(intTy, -1)), cirNullPtr,
          cirNullPtr, cirNullPtr, cirNullPtr, cirNullPtr});
   }
+}
+
+std::optional<FuncOp> LoweringPreparePass::buildCUDAModuleDtor() {
+  if (!theModule->getAttr(CIRDialect::getCUDABinaryHandleAttrName()))
+    return {};
+
+  std::string prefix = getCUDAPrefix(astCtx);
+
+  auto voidTy = VoidType::get(&getContext());
+  auto voidPtrPtrTy = PointerType::get(PointerType::get(voidTy));
+
+  auto loc = theModule.getLoc();
+
+  cir::CIRBaseBuilderTy builder(getContext());
+  builder.setInsertionPointToStart(theModule.getBody());
+
+  // void __cudaUnregisterFatBinary(void ** handle);
+  std::string unregisterFuncName =
+      addUnderscoredPrefix(prefix, "UnregisterFatBinary");
+  FuncOp unregisterFunc = buildRuntimeFunction(
+      builder, unregisterFuncName, loc, FuncType::get({voidPtrPtrTy}, voidTy));
+
+  // void __cuda_module_dtor();
+  // Despite the name, OG doesn't treat it as a destructor, so it shouldn't be
+  // put into globalDtorList. If it were a real dtor, then it would cause double
+  // free above CUDA 9.2. The way to use it is to manually call atexit() at end
+  // of module ctor.
+  std::string dtorName = addUnderscoredPrefix(prefix, "_module_dtor");
+  FuncOp dtor =
+      buildRuntimeFunction(builder, dtorName, loc, FuncType::get({}, voidTy),
+                           GlobalLinkageKind::InternalLinkage);
+
+  builder.setInsertionPointToStart(dtor.addEntryBlock());
+
+  // For dtor, we only need to call:
+  //    __cudaUnregisterFatBinary(__cuda_gpubin_handle);
+
+  std::string gpubinName = addUnderscoredPrefix(prefix, "_gpubin_handle");
+  auto gpubinGlobal = cast<GlobalOp>(theModule.lookupSymbol(gpubinName));
+  mlir::Value gpubinAddress = builder.createGetGlobal(gpubinGlobal);
+  mlir::Value gpubin = builder.createLoad(loc, gpubinAddress);
+  builder.createCallOp(loc, unregisterFunc, gpubin);
+  builder.create<ReturnOp>(loc);
+
+  return dtor;
 }
 
 void LoweringPreparePass::lowerDynamicCastOp(DynamicCastOp op) {
@@ -1536,9 +1598,6 @@ void LoweringPreparePass::runOnOperation() {
     theModule = cast<::mlir::ModuleOp>(op);
     datalayout.emplace(theModule);
   }
-
-  auto typeSizeInfo = cast<TypeSizeInfoAttr>(
-      theModule->getAttr(CIRDialect::getTypeSizeInfoAttrName()));
 
   llvm::SmallVector<Operation *> opsToTransform;
 
