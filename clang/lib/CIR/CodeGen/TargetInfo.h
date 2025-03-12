@@ -132,6 +132,9 @@ public:
   virtual mlir::Type getCUDADeviceBuiltinSurfaceDeviceType() const {
     return nullptr;
   }
+  virtual mlir::Type getCUDADeviceBuiltinTextureDeviceType() const {
+    return nullptr;
+  }
   virtual ~TargetCIRGenInfo() {}
 };
 
