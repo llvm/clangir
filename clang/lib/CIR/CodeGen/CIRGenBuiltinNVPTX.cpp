@@ -30,16 +30,16 @@ using namespace clang;
 using namespace clang::CIRGen;
 using namespace cir;
 
-mlir::Value CIRGenFunction::emitNVPTXBuiltinExpr(unsigned BuiltinID,
-                                                 const CallExpr *E) {
+mlir::Value CIRGenFunction::emitNVPTXBuiltinExpr(unsigned builtinId,
+                                                 const CallExpr *expr) {
   auto getIntrinsic = [&](const char *name) {
     mlir::Type intTy = cir::IntType::get(&getMLIRContext(), 32, false);
     return builder
-        .create<cir::LLVMIntrinsicCallOp>(getLoc(E->getExprLoc()),
+        .create<cir::LLVMIntrinsicCallOp>(getLoc(expr->getExprLoc()),
                                           builder.getStringAttr(name), intTy)
         .getResult();
   };
-  switch (BuiltinID) {
+  switch (builtinId) {
   case NVPTX::BI__nvvm_read_ptx_sreg_tid_x:
     return getIntrinsic("nvvm.read.ptx.sreg.tid.x");
   case NVPTX::BI__nvvm_read_ptx_sreg_tid_y:

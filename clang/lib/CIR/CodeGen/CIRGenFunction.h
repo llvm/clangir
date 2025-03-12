@@ -1282,10 +1282,10 @@ public:
   ConstantEmission tryEmitAsConstant(DeclRefExpr *refExpr);
   ConstantEmission tryEmitAsConstant(const MemberExpr *ME);
 
-  RValue emitPseudoObjectRValue(const PseudoObjectExpr *E,
+  RValue emitPseudoObjectRValue(const PseudoObjectExpr *expr,
                                 AggValueSlot slot = AggValueSlot::ignored());
 
-  LValue emitPseudoObjectLValue(const PseudoObjectExpr *E);
+  LValue emitPseudoObjectLValue(const PseudoObjectExpr *expr);
 
   /// Emit the computation of the specified expression of scalar type,
   /// ignoring the result.
@@ -1476,7 +1476,7 @@ public:
   mlir::Value emitAArch64SVEBuiltinExpr(unsigned BuiltinID, const CallExpr *E);
   mlir::Value emitAArch64SMEBuiltinExpr(unsigned BuiltinID, const CallExpr *E);
   mlir::Value emitX86BuiltinExpr(unsigned BuiltinID, const CallExpr *E);
-  mlir::Value emitNVPTXBuiltinExpr(unsigned BuiltinID, const CallExpr *E);
+  mlir::Value emitNVPTXBuiltinExpr(unsigned builtinID, const CallExpr *expr);
 
   /// Given an expression with a pointer type, emit the value and compute our
   /// best estimate of the alignment of the pointee.
