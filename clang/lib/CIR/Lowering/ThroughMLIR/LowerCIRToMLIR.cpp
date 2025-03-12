@@ -476,10 +476,6 @@ public:
   matchAndRewrite(CIROp op,
                   typename mlir::OpConversionPattern<CIROp>::OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    if (op.getIsZeroPoison()) {
-      return op.emitError() << "Unable to lower potentially poisoned "
-                            << op.getOperationName() << " to math dialect";
-    }
     rewriter.replaceOpWithNewOp<MLIROp>(op, adaptor.getInput());
     return mlir::LogicalResult::success();
   }

@@ -1,6 +1,49 @@
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -fno-clangir-direct-lowering -emit-mlir=core %s -o %t.mlir
 // RUN: FileCheck --input-file=%t.mlir %s
 
+
+int clz_u16(unsigned short x) {
+  return __builtin_clzs(x);
+}
+// CHECK-LABEL: clz_u16
+// CHECK: %[[CTLZ:.+]] = math.ctlz %[[INPUT:.+]] : i16
+// CHECK: %[[EXTUI:.+]] = arith.extui %[[CTLZ]] : i16 to i32
+
+int clz_u32(unsigned x) {
+  return __builtin_clz(x);
+}
+// CHECK-LABEL: clz_u32
+// CHECK: %[[CTLZ:.+]] = math.ctlz %[[INPUT:.+]] : i32
+// CHECK: %[[BITCAST:.+]] = arith.bitcast %[[CTLZ]] : i32 to i32
+
+int clz_u64(unsigned long x) {
+  return __builtin_clzl(x);
+}
+// CHECK-LABEL: clz_u64
+// CHECK: %[[CTLZ:.+]] = math.ctlz %[[INPUT:.+]] : i64
+// CHECK: %[[TRUNCI:.+]] = arith.trunci %[[CTLZ]] : i64 to i32
+
+int ctz_u16(unsigned short x) {
+  return __builtin_ctzs(x);
+}
+// CHECK-LABEL: ctz_u16
+// CHECK: %[[CTTZ:.+]] = math.cttz %[[INPUT:.+]] : i16
+// CHECK: %[[EXTUI:.+]] = arith.extui %[[CTTZ]] : i16 to i32
+
+int ctz_u32(unsigned x) {
+  return __builtin_ctz(x);
+}
+// CHECK-LABEL: ctz_u32
+// CHECK: %[[CTTZ:.+]] = math.cttz %[[INPUT:.+]] : i32
+// CHECK: %[[BITCAST:.+]] = arith.bitcast %[[CTTZ]] : i32 to i32
+
+int ctz_u64(unsigned long x) {
+  return __builtin_ctzl(x);
+}
+// CHECK-LABEL: ctz_u64
+// CHECK: %[[CTTZ:.+]] = math.cttz %[[INPUT:.+]] : i64
+// CHECK: %[[TRUNCI:.+]] = arith.trunci %[[CTTZ]] : i64 to i32
+
 int popcount_u16(unsigned short x) {
   return __builtin_popcountg(x);
 }
