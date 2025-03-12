@@ -357,7 +357,11 @@ mlir::Type CIRGenTypes::convertType(QualType T) {
       if (mlir::Type Ty =
               CGM.getTargetCIRGenInfo().getCUDADeviceBuiltinSurfaceDeviceType())
         return Ty;
+      llvm_unreachable("NYI");
     } else if (T->isCUDADeviceBuiltinTextureType()) {
+      if (mlir::Type Ty =
+              CGM.getTargetCIRGenInfo().getCUDADeviceBuiltinTextureDeviceType())
+        return Ty;
       llvm_unreachable("NYI");
     }
   }
