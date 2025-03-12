@@ -2497,11 +2497,11 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   }
 
   if (IntrinsicID != Intrinsic::not_intrinsic) {
-    unsigned iCEArguments = 0;
+    unsigned iceArguments = 0;
     ASTContext::GetBuiltinTypeError error;
-    getContext().GetBuiltinType(BuiltinID, error, &iCEArguments);
+    getContext().GetBuiltinType(BuiltinID, error, &iceArguments);
     assert(error == ASTContext::GE_None && "Should not codegen an error");
-    if (iCEArguments > 0)
+    if (iceArguments > 0)
       llvm_unreachable("NYI");
   }
 
