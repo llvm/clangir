@@ -95,21 +95,19 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
   default:
     return nullptr;
   case X86::BI_mm_prefetch: {
-    mlir::Type voidTy = cir::VoidType::get(&getMLIRContext());
+
     cir::ConstantOp readWriteFlag =
-        builder.getConstInt(getLoc(E->getExprLoc()), llvm::APSInt(32, 0));
+        builder.getConstInt(getLoc(E->getExprLoc()),llvm::APSInt(32, 0));
     cir::ConstantOp locality =
-        builder.getConstInt(getLoc(E->getExprLoc()), llvm::APSInt(32, 0));
+        builder.getConstInt(getLoc(E->getExprLoc()),llvm::APSInt(32, 0));
     cir::ConstantOp cacheType =
-        builder.getConstInt(getLoc(E->getExprLoc()), llvm::APSInt(32, 1));
+        builder.getConstInt(getLoc(E->getExprLoc()),llvm::APSInt(32, 1));
 
-    mlir::ValueRange operands = {Ops[0], readWriteFlag, locality, cacheType};
-
-    return builder
-        .create<cir::LLVMIntrinsicCallOp>(
-            getLoc(E->getExprLoc()), builder.getStringAttr("llvm.prefetch.p0"),
-            voidTy, operands)
-        .getResult();
+    builder.create<cir::PrefetchOp>(
+        getLoc(E->getExprLoc()), mlir::TypeRange{},
+        mlir::ValueRange{Ops[0],readWriteFlag,locality,cacheType},
+        llvm::ArrayRef<mlir::NamedAttribute>{});
+    return {};
   }
   case X86::BI_mm_clflush: {
     mlir::Type voidTy = cir::VoidType::get(&getMLIRContext());
