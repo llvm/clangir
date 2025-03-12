@@ -23,4 +23,4 @@ __device__ int a;
 __shared__ int shared;
 // CIR-DEVICE: cir.global external addrspace(offload_local) @shared = #cir.undef
 // LLVM-DEVICE: @shared = addrspace(3) global i32 undef, align 4
-// CIR-HOST: {{.*}}cir.global external @shared = #cir.undef : !s32i {alignment = 4 : i64, cu.shadow_name = #cir.cu.shadow_name<shared>}{{.*}}
+// CIR-HOST: {{.*}}cir.global external @shared = #cir.undef : !s32i {alignment = 4 : i64}{{.*}}
