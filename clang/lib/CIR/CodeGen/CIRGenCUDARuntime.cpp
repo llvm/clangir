@@ -42,7 +42,7 @@ static std::unique_ptr<MangleContext> initDeviceMC(CIRGenModule &cgm) {
 
 CIRGenCUDARuntime::~CIRGenCUDARuntime() {}
 
-CIRGenCUDARuntime::CIRGenCUDARuntime(CIRGenModule &cgm) 
+CIRGenCUDARuntime::CIRGenCUDARuntime(CIRGenModule &cgm)
     : cgm(cgm), deviceMC(initDeviceMC(cgm)) {
   if (cgm.getLangOpts().OffloadViaLLVM)
     llvm_unreachable("NYI");

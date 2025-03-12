@@ -590,7 +590,8 @@ void CIRGenModule::printPostfixForExternalizedDecl(llvm::raw_ostream &os,
 
   // If the CUID is not specified we try to generate a unique postfix.
   if (getLangOpts().CUID.empty()) {
-    // TODO: After we get 'PreprocessorOpts' in CIR this branch can be taken from OG.
+    // TODO: After we get 'PreprocessorOpts' in CIR this branch can be taken
+    // from OG.
     llvm_unreachable("NYI");
   } else {
     os << getASTContext().getCUIDHash();
