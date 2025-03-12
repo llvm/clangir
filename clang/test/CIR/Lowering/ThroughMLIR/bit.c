@@ -1,7 +1,6 @@
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -fno-clangir-direct-lowering -emit-mlir=core %s -o %t.mlir
 // RUN: FileCheck --input-file=%t.mlir %s
 
-
 int clz_u16(unsigned short x) {
   return __builtin_clzs(x);
 }
