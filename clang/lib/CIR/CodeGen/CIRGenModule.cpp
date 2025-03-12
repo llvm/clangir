@@ -569,14 +569,11 @@ bool CIRGenModule::shouldEmitCUDAGlobalVar(const VarDecl *global) const {
   // size and host-side address in order to provide access to
   // their device-side incarnations.
 
-  if (global->getType()->isCUDADeviceBuiltinTextureType()) {
-    llvm_unreachable("NYI");
-  }
-
   return !langOpts.CUDAIsDevice || global->hasAttr<CUDADeviceAttr>() ||
          global->hasAttr<CUDAConstantAttr>() ||
          global->hasAttr<CUDASharedAttr>() ||
-         global->getType()->isCUDADeviceBuiltinSurfaceType();
+         global->getType()->isCUDADeviceBuiltinSurfaceType() ||
+         global->getType()->isCUDADeviceBuiltinTextureType();
 }
 
 void CIRGenModule::emitGlobal(GlobalDecl gd) {
@@ -1212,7 +1209,6 @@ CIRGenModule::getOrCreateCIRGlobal(StringRef mangledName, mlir::Type ty,
   // initializer.
   if (gv.isDeclaration()) {
     getTargetCIRGenInfo().setTargetAttributes(d, gv, *this);
-
     // External HIP managed variables needed to be recorded for transformation
     // in both device and host compilations.
     if (getLangOpts().CUDA && d && d->hasAttr<HIPManagedAttr>() &&
@@ -1493,7 +1489,8 @@ void CIRGenModule::emitGlobalVarDefinition(const clang::VarDecl *d,
     // because they must not be initialized.
     if (linkage != cir::GlobalLinkageKind::InternalLinkage &&
         (d->hasAttr<CUDADeviceAttr>() || d->hasAttr<CUDAConstantAttr>() ||
-         d->getType()->isCUDADeviceBuiltinSurfaceType())) {
+         d->getType()->isCUDADeviceBuiltinSurfaceType() ||
+         d->getType()->isCUDADeviceBuiltinTextureType())) {
       gv->setAttr(CUDAExternallyInitializedAttr::getMnemonic(),
                   CUDAExternallyInitializedAttr::get(&getMLIRContext()));
     }
