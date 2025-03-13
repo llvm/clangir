@@ -16,6 +16,17 @@ def CIR_TBAAOmnipotentChar
 }
 
 //===----------------------------------------------------------------------===//
+// TBAAVTablePointerAttr
+//===----------------------------------------------------------------------===//
+
+def CIR_TBAAVTablePointerAttr
+    : CIR_Attr<"TBAAVTablePointer", "tbaa_vptr", [], "TBAAAttr"> {
+  let summary = "Describes a special scalar type, the vtable pointer type.";
+  let parameters = (ins CIR_AnyType:$type);
+  let assemblyFormat = "`<` struct(params) `>`";
+}
+
+//===----------------------------------------------------------------------===//
 // TBAAScalarAttr
 //===----------------------------------------------------------------------===//
 
@@ -140,7 +151,8 @@ def CIR_TBAAStructAttr : CIR_Attr<"TBAAStruct",
 
 def CIR_AnyTBAAAttr : AnyAttrOf<[
   CIR_TBAAAttr, 
-  CIR_TBAAOmnipotentChar, 
+  CIR_TBAAOmnipotentChar,
+  CIR_TBAAVTablePointerAttr,
   CIR_TBAAScalarAttr,
   CIR_TBAAStructAttr,
   CIR_TBAATagAttr
