@@ -2212,6 +2212,34 @@ mlir::LogicalResult CIRToLLVMFuncOpLowering::matchAndRewrite(
       Loc, op.getName(), llvmFnTy, linkage, isDsoLocal, cconv,
       mlir::SymbolRefAttr(), attributes);
 
+  // Lower CIR attributes for arguments.
+  for (unsigned index = 0; index < fnType.getNumInputs(); index++) {
+    mlir::DictionaryAttr cirAttrs = op.getArgAttrDict(index);
+    if (cirAttrs) {
+      if (cirAttrs.get(cir::CIRDialect::getZExtAttrName()))
+        fn.setArgAttr(index, mlir::LLVM::LLVMDialect::getZExtAttrName(),
+                      rewriter.getUnitAttr());
+      if (cirAttrs.get(cir::CIRDialect::getSExtAttrName()))
+        fn.setArgAttr(index, mlir::LLVM::LLVMDialect::getSExtAttrName(),
+                      rewriter.getUnitAttr());
+    }
+  }
+
+  // Lower CIR attributes for return value.
+  // Each function has no more than one result in CIR, so no need for a loop.
+  assert(op.getNumResults() <= 1);
+  if (op.getNumResults() > 0) {
+    mlir::DictionaryAttr resultAttrs = op.getResultAttrDict(0);
+    if (resultAttrs) {
+      if (resultAttrs.get(cir::CIRDialect::getZExtAttrName()))
+        fn.setResultAttr(0, mlir::LLVM::LLVMDialect::getZExtAttrName(),
+                         rewriter.getUnitAttr());
+      if (resultAttrs.get(cir::CIRDialect::getSExtAttrName()))
+        fn.setResultAttr(0, mlir::LLVM::LLVMDialect::getSExtAttrName(),
+                         rewriter.getUnitAttr());
+    }
+  }
+
   fn.setVisibility_Attr(mlir::LLVM::VisibilityAttr::get(
       getContext(), lowerCIRVisibilityToLLVMVisibility(
                         op.getGlobalVisibilityAttr().getValue())));
