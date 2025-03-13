@@ -4,6 +4,7 @@
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/Interfaces/DataLayoutInterfaces.h"
+#include "mlir/Support/LLVM.h"
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -21,6 +22,11 @@ public:
   lowerCIRTBAAAttrToLLVMTBAAAttr(mlir::Attribute tbaa) {
     if (auto charAttr = mlir::dyn_cast<cir::TBAAOmnipotentCharAttr>(tbaa)) {
       return getChar();
+    }
+    if (auto vptrAttr = mlir::dyn_cast<cir::TBAAVTablePointerAttr>(tbaa)) {
+      mlir::DataLayout layout;
+      return createScalarTypeNode("vtable pointer", getRoot(),
+                                  layout.getTypeSize(vptrAttr.getType()));
     }
     if (auto scalarAttr = mlir::dyn_cast<cir::TBAAScalarAttr>(tbaa)) {
       mlir::DataLayout layout;
