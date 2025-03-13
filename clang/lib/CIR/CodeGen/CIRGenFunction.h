@@ -1478,6 +1478,8 @@ public:
   mlir::Value emitX86BuiltinExpr(unsigned BuiltinID, const CallExpr *E);
   mlir::Value emitNVPTXBuiltinExpr(unsigned builtinID, const CallExpr *expr);
 
+  mlir::Value emitNVPTXDevicePrintfCallExpr(const CallExpr *expr);
+
   /// Given an expression with a pointer type, emit the value and compute our
   /// best estimate of the alignment of the pointee.
   ///
