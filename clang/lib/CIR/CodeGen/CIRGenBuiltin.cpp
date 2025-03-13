@@ -146,12 +146,12 @@ static RValue emitBuiltinBitOp(
   } else {
     op = CGF.getBuilder().create<Op>(CGF.getLoc(E->getExprLoc()), arg);
   }
-  const mlir::Value bitResult = op.getResult();
-  if (const auto si32Ty = CGF.getBuilder().getSInt32Ty();
-      arg.getType() != si32Ty) {
-    return RValue::get(CGF.getBuilder().createIntCast(bitResult, si32Ty));
+  const mlir::Value result = op.getResult();
+  if (const mlir::Type resultType = CGF.convertType(E->getType());
+      op.getResult().getType() != resultType) {
+    return RValue::get(CGF.getBuilder().createIntCast(result, resultType));
   }
-  return RValue::get(bitResult);
+  return RValue::get(result);
 }
 
 // Initialize the alloca with the given size and alignment according to the lang
