@@ -2340,11 +2340,13 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     llvm_unreachable("BI__builtin_load_halff NYI");
 
   case Builtin::BI__builtin_printf:
-    llvm_unreachable("BI__builtin_printf NYI");
   case Builtin::BIprintf:
-    if (getTarget().getTriple().isNVPTX() ||
-        getTarget().getTriple().isAMDGCN()) {
+    assert(E->getNumArgs() >= 1);
+    if (getTarget().getTriple().isAMDGCN()) {
       llvm_unreachable("BIprintf NYI");
+    }
+    if (getTarget().getTriple().isNVPTX()) {
+      return RValue::get(emitNVPTXDevicePrintfCallExpr(E));
     }
     break;
 
