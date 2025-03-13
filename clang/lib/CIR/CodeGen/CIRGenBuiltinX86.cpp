@@ -105,5 +105,13 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
             voidTy, Ops[0])
         .getResult();
   }
+  case X86::BI_mm_lfence: {
+    mlir::Type voidTy = cir::VoidType::get(&getMLIRContext());
+    return builder
+        .create<cir::LLVMIntrinsicCallOp>(
+            getLoc(E->getExprLoc()), builder.getStringAttr("x86.sse2.lfence"),
+            voidTy)
+        .getResult();
+  }
   }
 }
