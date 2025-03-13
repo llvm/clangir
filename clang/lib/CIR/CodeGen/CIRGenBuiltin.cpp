@@ -130,11 +130,11 @@ static mlir::Value emitBinaryMaybeConstrainedFPBuiltin(CIRGenFunction &CGF,
 template <typename Op>
 static RValue emitBuiltinBitOp(
     CIRGenFunction &CGF, const CallExpr *E,
-    std::optional<CIRGenFunction::BuiltinCheckKind> CK = std::nullopt,
-    bool isZeroPoison = false, bool convertToInt = true) {
+    std::optional<CIRGenFunction::BuiltinCheckKind> checkKind = std::nullopt,
+    bool isZeroPoison = false) {
   mlir::Value arg;
-  if (CK.has_value())
-    arg = CGF.emitCheckedArgForBuiltin(E->getArg(0), *CK);
+  if (checkKind.has_value())
+    arg = CGF.emitCheckedArgForBuiltin(E->getArg(0), *checkKind);
   else
     arg = CGF.emitScalarExpr(E->getArg(0));
 
@@ -148,7 +148,7 @@ static RValue emitBuiltinBitOp(
   }
   const mlir::Value bitResult = op.getResult();
   if (const auto si32Ty = CGF.getBuilder().getSInt32Ty();
-      convertToInt && arg.getType() != si32Ty) {
+      arg.getType() != si32Ty) {
     return RValue::get(CGF.getBuilder().createIntCast(bitResult, si32Ty));
   }
   return RValue::get(bitResult);
@@ -1098,8 +1098,7 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   case Builtin::BI__lzcnt16:
   case Builtin::BI__lzcnt:
   case Builtin::BI__lzcnt64: {
-    return emitBuiltinBitOp<cir::BitClzOp>(*this, E, BCK_CLZPassedZero, false,
-                                           false);
+    return emitBuiltinBitOp<cir::BitClzOp>(*this, E, BCK_CLZPassedZero, false);
   }
 
   case Builtin::BI__popcnt16:
