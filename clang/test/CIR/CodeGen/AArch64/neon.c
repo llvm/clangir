@@ -11,7 +11,7 @@
 
 // REQUIRES: aarch64-registered-target || arm-registered-target
 
-// This test mimics clang/test/CodeGen/aarch64-neon-intrinsics.c, which eventually
+// This test mimics clang/test/CodeGen/AArch64/neon-intrinsics.c, which eventually
 // CIR shall be able to support fully. Since this is going to take some time to converge,
 // the unsupported/NYI code is commented out, so that we can incrementally improve this.
 // The NYI filecheck used contains the LLVM output from OG codegen that should guide the
