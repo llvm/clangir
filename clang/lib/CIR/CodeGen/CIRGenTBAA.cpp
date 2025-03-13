@@ -324,8 +324,10 @@ TBAAAccessInfo CIRGenTBAA::getAccessInfo(clang::QualType accessType) {
 }
 
 TBAAAccessInfo CIRGenTBAA::getVTablePtrAccessInfo(mlir::Type vtablePtrType) {
-  assert(!cir::MissingFeatures::tbaaVTablePtr());
-  return TBAAAccessInfo();
+  const mlir::DataLayout dataLayout(moduleOp);
+  auto size = dataLayout.getTypeSize(vtablePtrType);
+  return TBAAAccessInfo(
+      cir::TBAAVTablePointerAttr::get(mlirContext, vtablePtrType), size);
 }
 
 mlir::ArrayAttr CIRGenTBAA::getTBAAStructInfo(clang::QualType qty) {

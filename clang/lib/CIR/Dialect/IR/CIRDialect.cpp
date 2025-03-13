@@ -108,7 +108,8 @@ struct CIROpAsmDialectInterface : public OpAsmDialectInterface {
       return AliasResult::FinalAlias;
     }
     return TypeSwitch<Attribute, AliasResult>(attr)
-        .Case<cir::TBAAAttr, cir::TBAAOmnipotentCharAttr, cir::TBAAScalarAttr,
+        .Case<cir::TBAAAttr, cir::TBAAOmnipotentCharAttr,
+              cir::TBAAVTablePointerAttr, cir::TBAAScalarAttr,
               cir::TBAAStructAttr, cir::TBAATagAttr>([&](auto attr) {
           os << decltype(attr)::getMnemonic();
           return AliasResult::OverridableAlias;
