@@ -97,6 +97,7 @@ mlir::LogicalResult runCIRToCIRPasses(
 namespace mlir {
 
 void populateCIRPreLoweringPasses(OpPassManager &pm, bool useCCLowering) {
+  pm.addPass(createABILoweringPass());
   if (useCCLowering)
     pm.addPass(createCallConvLoweringPass());
   pm.addPass(createHoistAllocasPass());
