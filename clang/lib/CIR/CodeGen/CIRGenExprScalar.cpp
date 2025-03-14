@@ -619,24 +619,10 @@ public:
     QualType promotionTy = PromotionType.isNull()
                                ? getPromotionType(E->getSubExpr()->getType())
                                : PromotionType;
-    auto result = VisitPlus(E, promotionTy);
+    auto result = emitUnaryPlusOrMinus(E, cir::UnaryOpKind::Plus, promotionTy);
     if (result && !promotionTy.isNull())
       return emitUnPromotedValue(result, E->getType());
     return result;
-  }
-
-  mlir::Value VisitPlus(const UnaryOperator *E,
-                        QualType PromotionType = QualType()) {
-    // This differs from gcc, though, most likely due to a bug in gcc.
-    TestAndClearIgnoreResultAssign();
-
-    mlir::Value operand;
-    if (!PromotionType.isNull())
-      operand = CGF.emitPromotedScalarExpr(E->getSubExpr(), PromotionType);
-    else
-      operand = Visit(E->getSubExpr());
-
-    return emitUnaryOp(E, cir::UnaryOpKind::Plus, operand);
   }
 
   mlir::Value VisitUnaryMinus(const UnaryOperator *E,
@@ -644,13 +630,15 @@ public:
     QualType promotionTy = PromotionType.isNull()
                                ? getPromotionType(E->getSubExpr()->getType())
                                : PromotionType;
-    auto result = VisitMinus(E, promotionTy);
+    auto result = emitUnaryPlusOrMinus(E, cir::UnaryOpKind::Minus, promotionTy);
     if (result && !promotionTy.isNull())
       return emitUnPromotedValue(result, E->getType());
     return result;
   }
 
-  mlir::Value VisitMinus(const UnaryOperator *E, QualType PromotionType) {
+  mlir::Value emitUnaryPlusOrMinus(const UnaryOperator *E,
+                                   cir::UnaryOpKind kind,
+                                   QualType PromotionType) {
     TestAndClearIgnoreResultAssign();
 
     mlir::Value operand;
@@ -661,7 +649,7 @@ public:
 
     // NOTE: LLVM codegen will lower this directly to either a FNeg
     // or a Sub instruction.  In CIR this will be handled later in LowerToLLVM.
-    return emitUnaryOp(E, cir::UnaryOpKind::Minus, operand);
+    return emitUnaryOp(E, kind, operand);
   }
 
   mlir::Value VisitUnaryNot(const UnaryOperator *E) {
@@ -2335,9 +2323,9 @@ mlir::Value ScalarExprEmitter::emitPromoted(const Expr *E,
     case UO_Real:
       llvm_unreachable("NYI");
     case UO_Minus:
-      return VisitMinus(UO, PromotionType);
+      return emitUnaryPlusOrMinus(UO, cir::UnaryOpKind::Minus, PromotionType);
     case UO_Plus:
-      return VisitPlus(UO, PromotionType);
+      return emitUnaryPlusOrMinus(UO, cir::UnaryOpKind::Plus, PromotionType);
     default:
       break;
     }
