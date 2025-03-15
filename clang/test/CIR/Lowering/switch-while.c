@@ -42,7 +42,7 @@ int f(int a, int cond) {
 // CHECK: br label %[[LOOP_HEADER:.+]]
 //
 // CHECK: [[LOOP_HEADER]]:
-// CHECK:   add i32 %{{.*}}, 1
+// CHECK:   add nsw i32 %{{.*}}, 1
 // CHECK: br label %[[DEFAULT_BB:.+]]
 //
 // CHECK: [[DEFAULT_BB]]:
@@ -61,7 +61,7 @@ int f(int a, int cond) {
 // CHECK:   add nsw i32 %[[V1]], %[[V2]]
 //
 // CHECK: [[TWO_BB]]:
-// CHECK:   add i32 %{{.*}}, 1
+// CHECK:   add nsw i32 %{{.*}}, 1
 // CHECK:   br label %[[FALLTHOUGH_BB:.+]]
 //
 // CHECK: [[FALLTHOUGH_BB]]:
