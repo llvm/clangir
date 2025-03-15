@@ -36,7 +36,6 @@ struct IdiomRecognizerPass : public IdiomRecognizerBase<IdiomRecognizerPass> {
   IdiomRecognizerPass() = default;
   void runOnOperation() override;
   void recognizeCall(CallOp call);
-  bool raiseStdFind(CallOp call);
   bool raiseIteratorBeginEnd(CallOp call);
 
   // Handle pass options
@@ -88,30 +87,6 @@ struct IdiomRecognizerPass : public IdiomRecognizerBase<IdiomRecognizerPass> {
 };
 } // namespace
 
-bool IdiomRecognizerPass::raiseStdFind(CallOp call) {
-  // FIXME: tablegen all of this function.
-  if (call.getNumOperands() != 3)
-    return false;
-
-  auto callExprAttr = call.getAstAttr();
-  if (!callExprAttr || !callExprAttr.isStdFunctionCall("find")) {
-    return false;
-  }
-
-  if (opts.emitRemarkFoundCalls())
-    emitRemark(call.getLoc()) << "found call to std::find()";
-
-  CIRBaseBuilderTy builder(getContext());
-  builder.setInsertionPointAfter(call.getOperation());
-  auto findOp = builder.create<cir::StdFindOp>(
-      call.getLoc(), call.getResult().getType(), call.getCalleeAttr(),
-      call.getOperand(0), call.getOperand(1), call.getOperand(2));
-
-  call.replaceAllUsesWith(findOp);
-  call.erase();
-  return true;
-}
-
 static bool isIteratorLikeType(mlir::Type t) {
   // TODO: some iterators are going to be represented with structs,
   // in which case we could look at ASTRecordDeclInterface for more
@@ -155,13 +130,13 @@ bool IdiomRecognizerPass::raiseIteratorBeginEnd(CallOp call) {
       emitRemark(call.getLoc()) << "found call to begin() iterator";
     iterOp = builder.create<cir::IterBeginOp>(
         call.getLoc(), call.getResult().getType(), call.getCalleeAttr(),
-        call.getOperand(0));
+        call.getOperands());
   } else if (callExprAttr.isIteratorEndCall()) {
     if (opts.emitRemarkFoundCalls())
       emitRemark(call.getLoc()) << "found call to end() iterator";
     iterOp = builder.create<cir::IterEndOp>(
         call.getLoc(), call.getResult().getType(), call.getCalleeAttr(),
-        call.getOperand(0));
+        call.getOperands());
   } else {
     return false;
   }
@@ -175,8 +150,17 @@ void IdiomRecognizerPass::recognizeCall(CallOp call) {
   if (raiseIteratorBeginEnd(call))
     return;
 
-  if (raiseStdFind(call))
-    return;
+  bool remark = opts.emitRemarkFoundCalls();
+
+  using StdFunctionsRecognizer =
+      std::tuple<StdRecognizer<3, StdFindOp, StdFuncID::Find>>;
+
+  // MSVC requires explicitly capturing these variables.
+  std::apply(
+      [&, call, remark, this](auto... recognizers) {
+        (decltype(recognizers)::raise(call, this->getContext(), remark) || ...);
+      },
+      StdFunctionsRecognizer());
 }
 
 void IdiomRecognizerPass::runOnOperation() {
