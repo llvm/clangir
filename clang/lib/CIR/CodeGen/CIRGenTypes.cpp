@@ -313,7 +313,8 @@ mlir::Type CIRGenTypes::convertFunctionTypeInternal(QualType QFT) {
 bool CIRGenTypes::isFuncParamTypeConvertible(clang::QualType Ty) {
   // Some ABIs cannot have their member pointers represented in LLVM IR unless
   // certain circumstances have been reached.
-  assert(!Ty->getAs<MemberPointerType>() && "NYI");
+  if (const auto *mpt = Ty->getAs<MemberPointerType>())
+    return getCXXABI().isMemberPointerConvertible(mpt);
 
   // If this isn't a tagged type, we can convert it!
   const TagType *TT = Ty->getAs<TagType>();
