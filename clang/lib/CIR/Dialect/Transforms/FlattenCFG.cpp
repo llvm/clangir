@@ -10,6 +10,7 @@
 // function region.
 //
 //===----------------------------------------------------------------------===//
+
 #include "PassDetail.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/PatternMatch.h"
@@ -50,6 +51,11 @@ struct FlattenCFGPass : public FlattenCFGBase<FlattenCFGPass> {
 
   FlattenCFGPass() = default;
   void runOnOperation() override;
+
+  void setThroughMLIR(bool v) { throughMLIR = v; }
+
+protected:
+  void unifyReturn(FuncOp func);
 };
 
 struct CIRIfFlattening : public OpRewritePattern<IfOp> {
@@ -855,6 +861,7 @@ public:
     return mlir::success();
   }
 };
+
 class CIRTernaryOpFlattening : public mlir::OpRewritePattern<cir::TernaryOp> {
 public:
   using OpRewritePattern<cir::TernaryOp>::OpRewritePattern;
@@ -906,6 +913,76 @@ public:
   }
 };
 
+/// Rewrite 'cir.return' as a branch to a dedicated return block when the CIR
+/// needs lowering through MLIR, where 'func.return' requires to have
+/// 'func.func' as its parent. That implies there could be only one (unified )
+/// 'func.return' in that MLIR.
+struct UnifyReturn : public OpRewritePattern<ReturnOp> {
+  using OpRewritePattern<ReturnOp>::OpRewritePattern;
+
+  UnifyReturn(MLIRContext *context, cir::FuncOp func, Block *retBlock)
+      : OpRewritePattern<ReturnOp>(context), func(func), retBlock(retBlock) {}
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::ReturnOp ret,
+                  mlir::PatternRewriter &rewriter) const override {
+    mlir::OpBuilder::InsertionGuard guard(rewriter);
+    auto fn = ret->getParentOfType<cir::FuncOp>();
+    if (fn != func)
+      return mlir::failure();
+    // Replace 'return' with 'br <retBlock>'.
+    rewriter.replaceOpWithNewOp<cir::BrOp>(ret, ret.getInput(), retBlock);
+    return mlir::success();
+  }
+
+private:
+  cir::FuncOp func; // The parent funcOp.
+  Block *retBlock;  // The dedicated return block.
+};
+
+void FlattenCFGPass::unifyReturn(cir::FuncOp func) {
+  if (func.getRegion().empty())
+    return;
+
+  // Collect operations to apply patterns.
+  llvm::SmallVector<Operation *, 16> returnOps;
+  bool hasReturnOpWithFuncOpParentOnly = true;
+  func->walk([&](cir::ReturnOp op) {
+    returnOps.push_back(op.getOperation());
+    // Check any 'cir.return' without 'cir.func' as the parent. Such
+    // 'cir.return' needs unifying even when there is just one.
+    if (!isa<cir::FuncOp>(op->getParentOp()))
+      hasReturnOpWithFuncOpParentOnly = false;
+  });
+
+  // Skip unifying if there is only one 'cir.return' and it has 'cir.func' as
+  // the parent.
+  if (hasReturnOpWithFuncOpParentOnly && returnOps.size() < 2)
+    return;
+
+  bool hasRetVals = (func.getNumResults() > 0);
+  auto *endBody = &func.getBody().back();
+  // Create a dedicated return block at the end of the function.
+  auto *retBlock = endBody->splitBlock(endBody->end());
+  if (hasRetVals)
+    retBlock->addArguments(func.getResultTypes(), func.getLoc());
+
+  // Rewrite returnOp(s) as branches to that dedicated return block.
+  RewritePatternSet patterns(&getContext());
+  patterns.add<UnifyReturn>(patterns.getContext(), func, retBlock);
+
+  // Apply patterns.
+  if (applyOpPatternsGreedily(returnOps, std::move(patterns)).failed())
+    signalPassFailure();
+
+  // Finally, add returnOp in that dedicated return block.
+  auto builder = OpBuilder::atBlockBegin(retBlock);
+  if (hasRetVals)
+    builder.create<cir::ReturnOp>(func.getLoc(), retBlock->getArguments());
+  else
+    builder.create<cir::ReturnOp>(func.getLoc());
+}
+
 void populateFlattenCFGPatterns(RewritePatternSet &patterns) {
   patterns
       .add<CIRIfFlattening, CIRLoopOpInterfaceFlattening, CIRScopeOpFlattening,
@@ -927,6 +1004,11 @@ void FlattenCFGPass::runOnOperation() {
   // Apply patterns.
   if (applyOpPatternsGreedily(ops, std::move(patterns)).failed())
     signalPassFailure();
+
+  // If CIR is to be lowered into MLIR, unify all 'cir.return's as
+  // 'func.return' needs to has 'func.func' as the parent.
+  if (throughMLIR)
+    getOperation()->walk([&](cir::FuncOp op) { unifyReturn(op); });
 }
 
 } // namespace
@@ -935,6 +1017,12 @@ namespace mlir {
 
 std::unique_ptr<Pass> createFlattenCFGPass() {
   return std::make_unique<FlattenCFGPass>();
+}
+
+std::unique_ptr<Pass> createFlattenCFGPass(bool throughMLIR) {
+  auto flatten = std::make_unique<FlattenCFGPass>();
+  flatten->setThroughMLIR(throughMLIR);
+  return std::move(flatten);
 }
 
 } // namespace mlir
