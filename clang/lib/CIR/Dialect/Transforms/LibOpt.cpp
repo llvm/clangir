@@ -178,7 +178,7 @@ void LibOptPass::xformStdFindIntoMemchr(StdFindOp findOp) {
 
       // Look at this pointer to retrieve container information.
       auto thisPtr =
-          cast<PointerType>(iterBegin.getOperand().getType()).getPointee();
+          cast<PointerType>(iterBegin.getOperand(0).getType()).getPointee();
       auto containerTy = dyn_cast<StructType>(thisPtr);
 
       unsigned staticSize = 0;

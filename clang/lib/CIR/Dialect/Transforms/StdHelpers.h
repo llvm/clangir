@@ -29,6 +29,43 @@ namespace cir {
 
 bool isStdArrayType(mlir::Type t);
 
+// Recognizes a standard function represented by `StdFuncID` with arguments
+// count equal to `NumArgs`, and raise it to an instance of `TargetOp`. Using
+// IDs is a workaround, as we can't pass string literals to template arguments
+// in C++17.
+template <int NumArgs, typename TargetOp, StdFuncID ID> class StdRecognizer {
+private:
+  // Reserved for template specialization.
+  static bool checkArguments(mlir::ValueRange) { return true; }
+
+public:
+  static bool raise(CallOp call, mlir::MLIRContext &context, bool remark) {
+    if (call.getNumOperands() != NumArgs)
+      return false;
+
+    auto callExprAttr = call.getAstAttr();
+    llvm::StringRef stdFuncName = stringifyStdFuncID(ID);
+    if (!callExprAttr || !callExprAttr.isStdFunctionCall(stdFuncName))
+      return false;
+
+    if (!checkArguments(call.getArgOperands()))
+      return false;
+
+    if (remark)
+      mlir::emitRemark(call.getLoc())
+          << "found call to std::" << stdFuncName << "()";
+
+    CIRBaseBuilderTy builder(context);
+    builder.setInsertionPointAfter(call.getOperation());
+    TargetOp op =
+        builder.create<TargetOp>(call.getLoc(), call.getResult().getType(),
+                                 call.getCalleeAttr(), call.getOperands());
+    call.replaceAllUsesWith(op);
+    call.erase();
+    return true;
+  }
+};
+
 } // namespace cir
 
 #endif
