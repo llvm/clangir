@@ -467,7 +467,7 @@ public:
         auto Kind =
             E->isIncrementOp() ? cir::UnaryOpKind::Inc : cir::UnaryOpKind::Dec;
         // NOTE(CIR): clang calls CreateAdd but folds this to a unary op
-        value = emitUnaryOp(E, Kind, input);
+        value = emitUnaryOp(E, Kind, input, /*nsw=*/false);
       }
       // Next most common: pointer increment.
     } else if (const PointerType *ptr = type->getAs<PointerType>()) {
@@ -580,22 +580,20 @@ public:
   mlir::Value emitIncDecConsiderOverflowBehavior(const UnaryOperator *E,
                                                  mlir::Value InVal,
                                                  bool IsInc) {
-    // NOTE(CIR): The SignedOverflowBehavior is attached to the global ModuleOp
-    // and the nsw behavior is handled during lowering.
     auto Kind =
         E->isIncrementOp() ? cir::UnaryOpKind::Inc : cir::UnaryOpKind::Dec;
     switch (CGF.getLangOpts().getSignedOverflowBehavior()) {
     case LangOptions::SOB_Defined:
-      return emitUnaryOp(E, Kind, InVal);
+      return emitUnaryOp(E, Kind, InVal, /*nsw=*/false);
     case LangOptions::SOB_Undefined:
       if (!CGF.SanOpts.has(SanitizerKind::SignedIntegerOverflow))
-        return emitUnaryOp(E, Kind, InVal);
+        return emitUnaryOp(E, Kind, InVal, /*nsw=*/true);
       llvm_unreachable(
           "inc/dec overflow behavior SOB_Undefined not implemented yet");
       break;
     case LangOptions::SOB_Trapping:
       if (!E->canOverflow())
-        return emitUnaryOp(E, Kind, InVal);
+        return emitUnaryOp(E, Kind, InVal, /*nsw=*/true);
       llvm_unreachable(
           "inc/dec overflow behavior SOB_Trapping not implemented yet");
       break;
@@ -661,7 +659,8 @@ public:
 
     // NOTE: LLVM codegen will lower this directly to either a FNeg
     // or a Sub instruction.  In CIR this will be handled later in LowerToLLVM.
-    return emitUnaryOp(E, cir::UnaryOpKind::Minus, operand);
+    return emitUnaryOp(E, cir::UnaryOpKind::Minus, operand,
+                       /*nsw=*/E->getType()->isSignedIntegerType());
   }
 
   mlir::Value VisitUnaryNot(const UnaryOperator *E) {
@@ -684,10 +683,10 @@ public:
   }
 
   mlir::Value emitUnaryOp(const UnaryOperator *E, cir::UnaryOpKind kind,
-                          mlir::Value input) {
+                          mlir::Value input, bool nsw = false) {
     return Builder.create<cir::UnaryOp>(
         CGF.getLoc(E->getSourceRange().getBegin()), input.getType(), kind,
-        input);
+        input, nsw);
   }
 
   // C++
