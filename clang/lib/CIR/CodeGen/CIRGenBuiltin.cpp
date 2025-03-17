@@ -467,6 +467,46 @@ static bool isMemBuiltinOutOfBoundPossible(const clang::Expr *sizeArg,
   return size.ugt(dstSize);
 }
 
+static mlir::Type
+decodeFixedType(ArrayRef<llvm::Intrinsic::IITDescriptor> &infos,
+                mlir::MLIRContext *context) {
+  using namespace llvm::Intrinsic;
+
+  IITDescriptor descriptor = infos.front();
+  infos = infos.slice(1);
+
+  switch (descriptor.Kind) {
+  case IITDescriptor::Void:
+    return VoidType::get(context);
+  case IITDescriptor::Integer:
+    return IntType::get(context, descriptor.Integer_Width, /*signed=*/true);
+  case IITDescriptor::Float:
+    return SingleType::get(context);
+  case IITDescriptor::Double:
+    return DoubleType::get(context);
+  default:
+    llvm_unreachable("NYI");
+  }
+}
+
+// llvm::Intrinsics accepts only LLVMContext. We need to reimplement it here.
+static cir::FuncType getIntrinsicType(mlir::MLIRContext *context,
+                                      llvm::Intrinsic::ID id) {
+  using namespace llvm::Intrinsic;
+
+  SmallVector<IITDescriptor, 8> table;
+  getIntrinsicInfoTableEntries(id, table);
+
+  ArrayRef<IITDescriptor> tableRef = table;
+  mlir::Type resultTy = decodeFixedType(tableRef, context);
+
+  SmallVector<mlir::Type, 8> argTypes;
+  while (!tableRef.empty())
+    argTypes.push_back(decodeFixedType(tableRef, context));
+
+  return FuncType::get(argTypes, resultTy);
+}
+
 RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
                                        const CallExpr *E,
                                        ReturnValueSlot ReturnValue) {
@@ -2526,25 +2566,58 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
 
   // See if we have a target specific intrinsic.
   std::string Name = getContext().BuiltinInfo.getName(BuiltinID);
-  Intrinsic::ID IntrinsicID = Intrinsic::not_intrinsic;
+  Intrinsic::ID intrinsicID = Intrinsic::not_intrinsic;
   StringRef Prefix =
       llvm::Triple::getArchTypePrefix(getTarget().getTriple().getArch());
   if (!Prefix.empty()) {
-    IntrinsicID = Intrinsic::getIntrinsicForClangBuiltin(Prefix.data(), Name);
+    intrinsicID = Intrinsic::getIntrinsicForClangBuiltin(Prefix.data(), Name);
     // NOTE we don't need to perform a compatibility flag check here since the
     // intrinsics are declared in Builtins*.def via LANGBUILTIN which filter the
     // MS builtins via ALL_MS_LANGUAGES and are filtered earlier.
-    if (IntrinsicID == Intrinsic::not_intrinsic)
-      IntrinsicID = Intrinsic::getIntrinsicForMSBuiltin(Prefix.data(), Name);
+    if (intrinsicID == Intrinsic::not_intrinsic)
+      intrinsicID = Intrinsic::getIntrinsicForMSBuiltin(Prefix.data(), Name);
   }
 
-  if (IntrinsicID != Intrinsic::not_intrinsic) {
+  if (intrinsicID != Intrinsic::not_intrinsic) {
     unsigned iceArguments = 0;
     ASTContext::GetBuiltinTypeError error;
     getContext().GetBuiltinType(BuiltinID, error, &iceArguments);
     assert(error == ASTContext::GE_None && "Should not codegen an error");
-    if (iceArguments > 0)
+
+    llvm::StringRef name = llvm::Intrinsic::getName(intrinsicID);
+    // cir::LLVMIntrinsicCallOp expects intrinsic name to not have prefix
+    // "llvm." For example, `llvm.nvvm.barrier0` should be passed as
+    // `nvvm.barrier0`.
+    if (!name.consume_front("llvm."))
+      assert(false && "bad intrinsic name!");
+
+    cir::FuncType intrinsicType =
+        getIntrinsicType(&getMLIRContext(), intrinsicID);
+
+    SmallVector<mlir::Value> args;
+    for (unsigned i = 0; i < E->getNumArgs(); i++) {
+      mlir::Value arg = emitScalarOrConstFoldImmArg(iceArguments, i, E);
+      mlir::Type argType = arg.getType();
+      if (argType != intrinsicType.getInput(i))
+        llvm_unreachable("NYI");
+
+      args.push_back(arg);
+    }
+
+    auto intrinsicCall = builder.create<cir::LLVMIntrinsicCallOp>(
+        getLoc(E->getExprLoc()), builder.getStringAttr(name),
+        intrinsicType.getReturnType(), args);
+
+    mlir::Type builtinReturnType = intrinsicCall.getResult().getType();
+    mlir::Type retTy = intrinsicType.getReturnType();
+
+    if (builtinReturnType != retTy)
       llvm_unreachable("NYI");
+
+    if (isa<cir::VoidType>(retTy))
+      return RValue::get(nullptr);
+
+    return RValue::get(intrinsicCall.getResult());
   }
 
   // Some target-specific builtins can have aggregate return values, e.g.
