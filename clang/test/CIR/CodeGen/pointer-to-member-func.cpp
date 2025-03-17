@@ -232,3 +232,11 @@ Base2MemFunc derived_to_base(DerivedMemFunc ptr) {
 // LLVM-NEXT: %[[#adj:]] = extractvalue { i64, i64 } %[[#arg]], 1
 // LLVM-NEXT: %[[#adj_adj:]] = sub i64 %[[#adj]], 16
 // LLVM-NEXT: %{{.+}} = insertvalue { i64, i64 } %[[#arg]], i64 %[[#adj_adj]], 1
+
+struct HasVTable {
+  virtual void test(void (Foo::*)());
+};
+
+// Ensure that the vfunc pointer to the function involving a pointer-to-member-
+// func could be emitted.
+void HasVTable::test(void (Foo::*)()) {}
