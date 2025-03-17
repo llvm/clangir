@@ -306,6 +306,24 @@ static mlir::Value makeBinaryAtomicValue(
   return emitFromInt(cgf, rmwi->getResult(0), typ, valueType);
 }
 
+static void emitNontemporalStore(CIRGenFunction &cgf, const CallExpr *expr) {
+  mlir::Value val = cgf.emitScalarExpr(expr->getArg(0));
+  Address addr = cgf.emitPointerWithAlignment(expr->getArg(1));
+
+  val = cgf.emitToMemory(val, expr->getArg(0)->getType());
+  LValue lv = cgf.makeAddrLValue(addr, expr->getArg(0)->getType());
+  lv.setNontemporal(true);
+  cgf.emitStoreOfScalar(val, lv, false);
+}
+
+static mlir::Value emitNontemporalLoad(CIRGenFunction &cgf,
+                                       const CallExpr *expr) {
+  Address addr = cgf.emitPointerWithAlignment(expr->getArg(0));
+  LValue lv = cgf.makeAddrLValue(addr, expr->getType());
+  lv.setNontemporal(true);
+  return cgf.emitLoadOfScalar(lv, expr->getExprLoc());
+}
+
 static RValue emitBinaryAtomic(CIRGenFunction &CGF, cir::AtomicFetchKind kind,
                                const CallExpr *E) {
   return RValue::get(makeBinaryAtomicValue(CGF, kind, E));
@@ -1907,10 +1925,13 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
 
   case Builtin::BI__sync_synchronize:
     llvm_unreachable("BI__sync_synchronize NYI");
+
   case Builtin::BI__builtin_nontemporal_load:
-    llvm_unreachable("BI__builtin_nontemporal_load NYI");
+    return RValue::get(emitNontemporalLoad(*this, E));
   case Builtin::BI__builtin_nontemporal_store:
-    llvm_unreachable("BI__builtin_nontemporal_store NYI");
+    emitNontemporalStore(*this, E);
+    return RValue::get(nullptr);
+
   case Builtin::BI__c11_atomic_is_lock_free:
     llvm_unreachable("BI__c11_atomic_is_lock_free NYI");
   case Builtin::BI__atomic_is_lock_free:
