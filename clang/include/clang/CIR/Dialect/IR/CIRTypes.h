@@ -184,6 +184,7 @@ private:
 };
 
 bool isAnyFloatingPointType(mlir::Type t);
+bool isScalarType(mlir::Type t);
 bool isFPOrFPVectorTy(mlir::Type);
 bool isIntOrIntVectorTy(mlir::Type);
 } // namespace cir
