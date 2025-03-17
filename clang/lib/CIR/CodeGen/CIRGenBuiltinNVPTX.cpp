@@ -76,8 +76,16 @@ mlir::Value CIRGenFunction::emitNVPTXBuiltinExpr(unsigned builtinId,
   case NVPTX::BI__nvvm_read_ptx_sreg_nctaid_w:
     return getIntrinsic("nvvm.read.ptx.sreg.nctaid.w");
 
+  case NVPTX::BI__syncthreads: {
+    mlir::Type voidTy = cir::VoidType::get(&getMLIRContext());
+    return builder
+        .create<cir::LLVMIntrinsicCallOp>(
+            getLoc(expr->getExprLoc()), builder.getStringAttr("nvvm.barrier0"),
+            voidTy)
+        .getResult();
+  }
   default:
-    llvm_unreachable("NYI");
+    return nullptr;
   }
 }
 
