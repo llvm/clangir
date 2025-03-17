@@ -14660,12 +14660,17 @@ void test_vst1q_s64(int64_t *a, int64x2_t b) {
 //   return (uint64_t)vtstd_u64(a, b);
 // }
 
-// NYI-LABEL: @test_vabsd_s64(
-// NYI:   [[VABSD_S64_I:%.*]] = call i64 @llvm.aarch64.neon.abs.i64(i64 %a)
-// NYI:   ret i64 [[VABSD_S64_I]]
-// int64_t test_vabsd_s64(int64_t a) {
-//   return (int64_t)vabsd_s64(a);
-// }
+int64_t test_vabsd_s64(int64_t a) {
+  return (int64_t)vabsd_s64(a);
+
+  // CIR-LABEL: vabsd_s64
+  // CIR: cir.llvm.intrinsic "aarch64.neon.abs" {{%.*}} : (!s64i) -> !s64i
+
+  // LLVM-LABEL: @test_vabsd_s64
+  // LLVM-SAME: (i64 [[a:%.*]])
+  // LLVM:   [[VABSD_S64_I:%.*]] = call i64 @llvm.aarch64.neon.abs.i64(i64 [[a]])
+  // LLVM:   ret i64 [[VABSD_S64_I]]
+}
 
 // NYI-LABEL: @test_vqabsb_s8(
 // NYI:   [[TMP0:%.*]] = insertelement <8 x i8> poison, i8 %a, i64 0
