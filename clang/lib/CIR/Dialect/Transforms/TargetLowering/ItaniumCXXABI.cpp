@@ -384,6 +384,7 @@ void ItaniumCXXABI::lowerGetMethod(
         op.getLoc(), vtablePtrPtrTy, cir::CastKind::bitcast, loweredObjectPtr);
     mlir::Value vtablePtr = rewriter.create<cir::LoadOp>(
         op.getLoc(), vtablePtrPtr, /*isDeref=*/false, /*isVolatile=*/false,
+        /*isNontemporal=*/false,
         /*alignment=*/mlir::IntegerAttr(), /*mem_order=*/cir::MemOrderAttr(),
         /*tbaa=*/mlir::ArrayAttr());
 
@@ -418,6 +419,7 @@ void ItaniumCXXABI::lowerGetMethod(
             op.getLoc(), vfpPtrTy, cir::CastKind::bitcast, vfpAddr);
         funcPtr = rewriter.create<cir::LoadOp>(
             op.getLoc(), vfpPtr, /*isDeref=*/false, /*isVolatile=*/false,
+            /*isNontemporal=*/false,
             /*alignment=*/mlir::IntegerAttr(),
             /*mem_order=*/cir::MemOrderAttr(),
             /*tbaa=*/mlir::ArrayAttr());

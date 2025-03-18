@@ -2041,7 +2041,7 @@ public:
       builder.restoreInsertionPoint(OutermostConditional->getInsertPoint());
       builder.createStore(
           value.getLoc(), value, addr,
-          /*volatile*/ false,
+          /*isVolatile=*/false, /*isNontemporal=*/false,
           mlir::IntegerAttr::get(
               mlir::IntegerType::get(value.getContext(), 64),
               (uint64_t)addr.getAlignment().getAsAlign().value()));
