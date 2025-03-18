@@ -619,6 +619,7 @@ static void emitAtomicOp(CIRGenFunction &CGF, AtomicExpr *E, Address Dest,
     // FIXME(cir): add scope information.
     assert(!cir::MissingFeatures::syncScopeID());
     builder.createStore(loc, loadVal1, Ptr, E->isVolatile(),
+                        /*isNontemporal=*/false,
                         /*alignment=*/mlir::IntegerAttr{}, orderAttr);
     return;
   }

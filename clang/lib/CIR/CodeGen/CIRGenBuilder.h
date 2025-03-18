@@ -859,7 +859,7 @@ public:
   }
 
   cir::LoadOp createLoad(mlir::Location loc, Address addr,
-                         bool isVolatile = false) {
+                         bool isVolatile = false, bool isNontemporal = false) {
     auto ptrTy = mlir::dyn_cast<cir::PointerType>(addr.getPointer().getType());
     if (addr.getElementType() != ptrTy.getPointee())
       addr = addr.withPointer(
@@ -867,24 +867,27 @@ public:
 
     return create<cir::LoadOp>(
         loc, addr.getElementType(), addr.getPointer(), /*isDeref=*/false,
-        /*is_volatile=*/isVolatile, /*alignment=*/mlir::IntegerAttr{},
+        /*is_volatile=*/isVolatile, /*is_nontemporal=*/isNontemporal,
+        /*alignment=*/mlir::IntegerAttr{},
         /*mem_order=*/cir::MemOrderAttr{}, /*tbaa=*/cir::TBAAAttr{});
   }
 
   cir::LoadOp createAlignedLoad(mlir::Location loc, mlir::Type ty,
                                 mlir::Value ptr, llvm::MaybeAlign align,
-                                bool isVolatile) {
+                                bool isVolatile, bool isNontemporal) {
     if (ty != mlir::cast<cir::PointerType>(ptr.getType()).getPointee())
       ptr = createPtrBitcast(ptr, ty);
     uint64_t alignment = align ? align->value() : 0;
-    return CIRBaseBuilderTy::createLoad(loc, ptr, isVolatile, alignment);
+    return CIRBaseBuilderTy::createLoad(loc, ptr, isVolatile, isNontemporal,
+                                        alignment);
   }
 
   cir::LoadOp createAlignedLoad(mlir::Location loc, mlir::Type ty,
                                 mlir::Value ptr, llvm::MaybeAlign align) {
     // TODO: make sure callsites shouldn't be really passing volatile.
     assert(!cir::MissingFeatures::volatileLoadOrStore());
-    return createAlignedLoad(loc, ty, ptr, align, /*isVolatile=*/false);
+    return createAlignedLoad(loc, ty, ptr, align, /*isVolatile=*/false,
+                             /*isNontemporal=*/false);
   }
 
   cir::LoadOp
@@ -894,11 +897,11 @@ public:
   }
 
   cir::StoreOp createStore(mlir::Location loc, mlir::Value val, Address dst,
-                           bool _volatile = false,
+                           bool isVolatile = false, bool isNontemporal = false,
                            ::mlir::IntegerAttr align = {},
                            cir::MemOrderAttr order = {}) {
-    return CIRBaseBuilderTy::createStore(loc, val, dst.getPointer(), _volatile,
-                                         align, order);
+    return CIRBaseBuilderTy::createStore(loc, val, dst.getPointer(), isVolatile,
+                                         isNontemporal, align, order);
   }
 
   cir::StoreOp createFlagStore(mlir::Location loc, bool val, mlir::Value dst) {
@@ -937,7 +940,8 @@ public:
   cir::StoreOp
   createAlignedStore(mlir::Location loc, mlir::Value val, mlir::Value dst,
                      clang::CharUnits align = clang::CharUnits::One(),
-                     bool _volatile = false, cir::MemOrderAttr order = {}) {
+                     bool isVolatile = false, bool isNontemporal = false,
+                     cir::MemOrderAttr order = {}) {
     llvm::MaybeAlign mayAlign = align.getAsAlign();
     mlir::IntegerAttr alignAttr;
     if (mayAlign) {
@@ -945,8 +949,8 @@ public:
       alignAttr = mlir::IntegerAttr::get(
           mlir::IntegerType::get(dst.getContext(), 64), alignment);
     }
-    return CIRBaseBuilderTy::createStore(loc, val, dst, _volatile, alignAttr,
-                                         order);
+    return CIRBaseBuilderTy::createStore(loc, val, dst, isVolatile,
+                                         isNontemporal, alignAttr, order);
   }
 
   // Convert byte offset to sequence of high-level indices suitable for

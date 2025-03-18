@@ -149,9 +149,10 @@ DeletionKind cir::CopyOp::removeBlockingUses(
     OpBuilder &builder, Value reachingDefinition,
     const DataLayout &dataLayout) {
   if (loadsFrom(slot))
-    builder.create<cir::StoreOp>(getLoc(), reachingDefinition, getDst(), false,
-                                 mlir::IntegerAttr{}, cir::MemOrderAttr(),
-                                 cir::TBAAAttr{});
+    builder.create<cir::StoreOp>(getLoc(), reachingDefinition, getDst(),
+                                 /*is_volatile=*/false,
+                                 /*is_nontemporal=*/false, mlir::IntegerAttr{},
+                                 cir::MemOrderAttr(), cir::TBAAAttr{});
   return DeletionKind::Delete;
 }
 
