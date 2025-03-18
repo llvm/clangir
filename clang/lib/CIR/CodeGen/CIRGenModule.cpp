@@ -587,35 +587,9 @@ void CIRGenModule::printPostfixForExternalizedDecl(llvm::raw_ostream &os,
 
   // If the CUID is not specified we try to generate a unique postfix.
   if (getLangOpts().CUID.empty()) {
-    assert(0 && "NYI");
-    // FIXME: OG's CodeGenModule has a member 'PreprocessorOpts' which I'm not
-    // sure what the equivalent is in CIR, that probably has to be brought in.
-
-    // SourceManager &sm = getASTContext().getSourceManager();
-    // PresumedLoc pLoc = sm.getPresumedLoc(D->getLocation());
-    // assert(pLoc.isValid() && "Source location is expected to be valid.");
-    //
-    // // Get the hash of the user defined macros.
-    // llvm::MD5 hash;
-    // llvm::MD5::MD5Result result;
-    // for (const auto &arg : preprocessorOpts.Macros)
-    //   hash.update(arg.first);
-    // hash.final(result);
-    //
-    // // Get the UniqueID for the file containing the decl.
-    // llvm::sys::fs::UniqueID id;
-    // if (llvm::sys::fs::getUniqueID(pLoc.getFilename(), id)) {
-    //   pLoc = sm.getPresumedLoc(D->getLocation(),
-    //   /*UseLineDirectives=*/false); assert(pLoc.isValid() && "Source location
-    //   is expected to be valid."); if (auto ec =
-    //   llvm::sys::fs::getUniqueID(pLoc.getFilename(), id))
-    //     sm.getDiagnostics().Report(diag::err_cannot_open_file)
-    //         << pLoc.getFilename() << ec.message();
-    // }
-    // os << llvm::format("%x", id.getFile()) << llvm::format("%x",
-    // id.getDevice())
-    //    << "_" << llvm::utohexstr(result.low(), /*LowerCase=*/true,
-    //    /*Width=*/8);
+    // TODO: Once we add 'PreprocessorOpts' into CIRGenModule this part can be
+    // brought in from OG.
+    llvm_unreachable("NYI");
   } else {
     os << getASTContext().getCUIDHash();
   }
