@@ -662,11 +662,8 @@ void CIRGenFunction::emitStoreOfScalar(mlir::Value value, Address addr,
   }
 
   assert(currSrcLoc && "must pass in source location");
-  auto storeOp = builder.createStore(*currSrcLoc, value, addr, isVolatile);
-
-  if (isNontemporal) {
-    llvm_unreachable("NYI");
-  }
+  auto storeOp =
+      builder.createStore(*currSrcLoc, value, addr, isVolatile, isNontemporal);
 
   CGM.decorateOperationWithTBAA(storeOp, tbaaInfo);
 }
@@ -2962,11 +2959,9 @@ mlir::Value CIRGenFunction::emitLoadOfScalar(Address addr, bool isVolatile,
     Ptr = builder.create<cir::CastOp>(loc, ElemPtrTy, cir::CastKind::bitcast,
                                       Ptr);
   }
-  auto loadOp = builder.CIRBaseBuilderTy::createLoad(loc, Ptr, isVolatile);
+  auto loadOp =
+      builder.CIRBaseBuilderTy::createLoad(loc, Ptr, isVolatile, isNontemporal);
 
-  if (isNontemporal) {
-    llvm_unreachable("NYI");
-  }
   CGM.decorateOperationWithTBAA(loadOp, tbaaInfo);
 
   assert(!cir::MissingFeatures::emitScalarRangeCheck() && "NYI");
