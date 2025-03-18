@@ -36,6 +36,8 @@ public:
                   mlir::ConversionPatternRewriter &rewriter) const override;
 
 private:
+  bool attrRequiresRegionInitialization(mlir::Attribute attr) const;
+
   mlir::LogicalResult matchAndRewriteRegionInitializedGlobal(
       cir::GlobalOp op, mlir::Attribute init,
       mlir::ConversionPatternRewriter &rewriter) const;
