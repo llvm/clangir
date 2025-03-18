@@ -107,7 +107,6 @@ public:
 
     cgf.getCIRGenModule().errorNYI(loc,
                                    "emitScalarConversion for unequal types");
-    return {};
   }
 };
 
