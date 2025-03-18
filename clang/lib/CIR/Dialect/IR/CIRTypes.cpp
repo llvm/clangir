@@ -370,22 +370,6 @@ BoolType::getABIAlignment(const ::mlir::DataLayout &dataLayout,
 }
 
 //===----------------------------------------------------------------------===//
-//  Definitions
-//===----------------------------------------------------------------------===//
-
-llvm::TypeSize
-ArrayType::getTypeSizeInBits(const ::mlir::DataLayout &dataLayout,
-                             ::mlir::DataLayoutEntryListRef params) const {
-  return getSize() * dataLayout.getTypeSizeInBits(getEltType());
-}
-
-uint64_t
-ArrayType::getABIAlignment(const ::mlir::DataLayout &dataLayout,
-                           ::mlir::DataLayoutEntryListRef params) const {
-  return dataLayout.getTypeABIAlignment(getEltType());
-}
-
-//===----------------------------------------------------------------------===//
 // PointerType Definitions
 //===----------------------------------------------------------------------===//
 
