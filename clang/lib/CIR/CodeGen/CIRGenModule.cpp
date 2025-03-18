@@ -3650,7 +3650,8 @@ struct FunctionIsDirectlyRecursive
     unsigned builtinId = func->getBuiltinID();
     if (!builtinId || !builtinCtx.isLibFunction(builtinId))
       return false;
-    StringRef builtinName = builtinCtx.getName(builtinId);
+    std::string builtinNameStr = builtinCtx.getName(builtinId);
+    StringRef builtinName = builtinNameStr;
     return builtinName.starts_with("__builtin_") &&
            name == builtinName.slice(strlen("__builtin_"), StringRef::npos);
   }
