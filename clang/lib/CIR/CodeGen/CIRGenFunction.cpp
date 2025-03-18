@@ -305,8 +305,6 @@ LValue CIRGenFunction::emitLValue(const Expr *e) {
                                std::string("l-value not implemented for '") +
                                    e->getStmtClassName() + "'");
     return LValue();
-  case Expr::UnaryOperatorClass:
-    return emitUnaryOpLValue(cast<UnaryOperator>(e));
   case Expr::DeclRefExprClass:
     return emitDeclRefLValue(cast<DeclRefExpr>(e));
   }
