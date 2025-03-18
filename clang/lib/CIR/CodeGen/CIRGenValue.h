@@ -246,6 +246,7 @@ public:
   void setNonGC(bool Value) { NonGC = Value; }
 
   bool isNontemporal() const { return Nontemporal; }
+  void setNontemporal(bool value) { Nontemporal = value; }
 
   bool isObjCWeak() const {
     return Quals.getObjCGCAttr() == clang::Qualifiers::Weak;

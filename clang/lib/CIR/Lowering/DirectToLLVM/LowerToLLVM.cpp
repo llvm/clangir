@@ -1680,7 +1680,7 @@ mlir::LogicalResult CIRToLLVMLoadOpLowering::matchAndRewrite(
   // TODO: nontemporal, syncscope.
   auto newLoad = rewriter.create<mlir::LLVM::LoadOp>(
       op->getLoc(), llvmTy, adaptor.getAddr(), /* alignment */ alignment,
-      op.getIsVolatile(), /* nontemporal */ false,
+      op.getIsVolatile(), /* nontemporal */ op.getIsNontemporal(),
       /* invariant */ false, /* invariantGroup */ invariant, ordering);
 
   // Convert adapted result to its original type if needed.
@@ -1722,7 +1722,8 @@ mlir::LogicalResult CIRToLLVMStoreOpLowering::matchAndRewrite(
   // TODO: nontemporal, syncscope.
   auto storeOp = rewriter.create<mlir::LLVM::StoreOp>(
       op->getLoc(), value, adaptor.getAddr(), alignment, op.getIsVolatile(),
-      /* nontemporal */ false, /* invariantGroup */ invariant, ordering);
+      /* nontemporal */ op.getIsNontemporal(), /* invariantGroup */ invariant,
+      ordering);
   rewriter.replaceOp(op, storeOp);
   if (auto tbaa = op.getTbaaAttr()) {
     storeOp.setTBAATags(lowerCIRTBAAAttr(tbaa, rewriter, lowerMod));

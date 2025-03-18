@@ -160,13 +160,15 @@ public:
   }
 
   cir::LoadOp createLoad(mlir::Location loc, mlir::Value ptr,
-                         bool isVolatile = false, uint64_t alignment = 0) {
+                         bool isVolatile = false, bool isNontemporal = false,
+                         uint64_t alignment = 0) {
     mlir::IntegerAttr intAttr;
     if (alignment)
       intAttr = mlir::IntegerAttr::get(
           mlir::IntegerType::get(ptr.getContext(), 64), alignment);
 
     return create<cir::LoadOp>(loc, ptr, /*isDeref=*/false, isVolatile,
+                               isNontemporal,
                                /*alignment=*/intAttr,
                                /*mem_order=*/
                                cir::MemOrderAttr{},
@@ -175,7 +177,8 @@ public:
 
   mlir::Value createAlignedLoad(mlir::Location loc, mlir::Value ptr,
                                 uint64_t alignment) {
-    return createLoad(loc, ptr, /*isVolatile=*/false, alignment);
+    return createLoad(loc, ptr, /*isVolatile=*/false, /*isNontemporal=*/false,
+                      alignment);
   }
 
   mlir::Value createNot(mlir::Value value) {
@@ -350,13 +353,14 @@ public:
   }
 
   cir::StoreOp createStore(mlir::Location loc, mlir::Value val, mlir::Value dst,
-                           bool _volatile = false,
+                           bool isVolatile = false, bool isNontemporal = false,
                            ::mlir::IntegerAttr align = {},
                            cir::MemOrderAttr order = {}) {
     if (mlir::cast<cir::PointerType>(dst.getType()).getPointee() !=
         val.getType())
       dst = createPtrBitcast(dst, val.getType());
-    return create<cir::StoreOp>(loc, val, dst, _volatile, align, order,
+    return create<cir::StoreOp>(loc, val, dst, isVolatile, isNontemporal, align,
+                                order,
                                 /*tbaa=*/cir::TBAAAttr{});
   }
 
