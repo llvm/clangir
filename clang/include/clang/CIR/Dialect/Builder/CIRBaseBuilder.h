@@ -26,10 +26,6 @@ public:
   CIRBaseBuilderTy(mlir::MLIRContext &mlirContext)
       : mlir::OpBuilder(&mlirContext) {}
 
-  cir::ConstantOp getConstant(mlir::Location loc, mlir::TypedAttr attr) {
-    return create<cir::ConstantOp>(loc, attr.getType(), attr);
-  }
-
   cir::ConstantOp getBool(bool state, mlir::Location loc) {
     return create<cir::ConstantOp>(loc, getBoolTy(), getCIRBoolAttr(state));
   }
