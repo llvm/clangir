@@ -1079,6 +1079,26 @@ cir.func @bad_fetch(%x: !cir.ptr<!cir.float>, %y: !cir.float) -> () {
 
 // -----
 
+!u32i = !cir.int<u, 32>
+!u64i = !cir.int<u, 64>
+cir.func @bad_xchg(%x: !cir.ptr<!u32i>, %y: !u64i) -> () {
+  // expected-error@+1 {{ptr type and val type must match}}
+  %13 = cir.atomic.xchg(%x: !cir.ptr<!u32i>, %y: !u64i, seq_cst) : !u64i
+  cir.return
+}
+
+// -----
+
+!u32i = !cir.int<u, 32>
+!u64i = !cir.int<u, 64>
+cir.func @bad_cmp_xchg(%x: !cir.ptr<!u32i>, %y: !u64i, %z: !u64i) -> () {
+  // expected-error@+1 {{ptr, expected and desired types must match}}
+  %14, %15 = cir.atomic.cmp_xchg(%x : !cir.ptr<!u32i>, %y : !u64i, %z : !u64i, success = seq_cst, failure = seq_cst) align(8) weak : (!u64i, !cir.bool)
+  cir.return
+}
+
+// -----
+
 cir.func @bad_operands_for_nowrap(%x: !cir.float, %y: !cir.float) {
   // expected-error@+1 {{only operations on integer values may have nsw/nuw flags}}
   %0 = cir.binop(add, %x, %y) nsw : !cir.float
