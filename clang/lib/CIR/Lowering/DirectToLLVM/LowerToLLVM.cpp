@@ -109,34 +109,6 @@ static mlir::Value emitToMemory(mlir::ConversionPatternRewriter &rewriter,
   return value;
 }
 
-mlir::LLVM::Linkage convertLinkage(cir::GlobalLinkageKind linkage) {
-  using CIR = cir::GlobalLinkageKind;
-  using LLVM = mlir::LLVM::Linkage;
-
-  switch (linkage) {
-  case CIR::AvailableExternallyLinkage:
-    return LLVM::AvailableExternally;
-  case CIR::CommonLinkage:
-    return LLVM::Common;
-  case CIR::ExternalLinkage:
-    return LLVM::External;
-  case CIR::ExternalWeakLinkage:
-    return LLVM::ExternWeak;
-  case CIR::InternalLinkage:
-    return LLVM::Internal;
-  case CIR::LinkOnceAnyLinkage:
-    return LLVM::Linkonce;
-  case CIR::LinkOnceODRLinkage:
-    return LLVM::LinkonceODR;
-  case CIR::PrivateLinkage:
-    return LLVM::Private;
-  case CIR::WeakAnyLinkage:
-    return LLVM::Weak;
-  case CIR::WeakODRLinkage:
-    return LLVM::WeakODR;
-  };
-}
-
 class CIRAttrToValue {
 public:
   CIRAttrToValue(mlir::Operation *parentOp,
@@ -470,7 +442,8 @@ void CIRToLLVMGlobalOpLowering::setupRegionInitializedLLVMGlobalOp(
   const bool isThreadLocal = false;
   assert(!cir::MissingFeatures::opGlobalAlignment());
   const uint64_t alignment = 0;
-  const mlir::LLVM::Linkage linkage = convertLinkage(op.getLinkage());
+  assert(!cir::MissingFeatures::opGlobalLinkage());
+  const mlir::LLVM::Linkage linkage = mlir::LLVM::Linkage::External;
   const StringRef symbol = op.getSymName();
 
   SmallVector<mlir::NamedAttribute> attributes;
@@ -525,7 +498,8 @@ mlir::LogicalResult CIRToLLVMGlobalOpLowering::matchAndRewrite(
   const bool isThreadLocal = false;
   assert(!cir::MissingFeatures::opGlobalAlignment());
   const uint64_t alignment = 0;
-  const mlir::LLVM::Linkage linkage = convertLinkage(op.getLinkage());
+  assert(!cir::MissingFeatures::opGlobalLinkage());
+  const mlir::LLVM::Linkage linkage = mlir::LLVM::Linkage::External;
   const StringRef symbol = op.getSymName();
   SmallVector<mlir::NamedAttribute> attributes;
 

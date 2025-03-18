@@ -18,7 +18,6 @@
 #include "mlir/Support/LogicalResult.h"
 
 #include "clang/CIR/Dialect/IR/CIROpsDialect.cpp.inc"
-#include "clang/CIR/Dialect/IR/CIROpsEnums.cpp.inc"
 
 using namespace mlir;
 using namespace cir;
@@ -298,16 +297,11 @@ mlir::LogicalResult cir::GlobalOp::verify() {
 }
 
 void cir::GlobalOp::build(OpBuilder &odsBuilder, OperationState &odsState,
-                          llvm::StringRef sym_name, mlir::Type sym_type,
-                          cir::GlobalLinkageKind linkage) {
+                          llvm::StringRef sym_name, mlir::Type sym_type) {
   odsState.addAttribute(getSymNameAttrName(odsState.name),
                         odsBuilder.getStringAttr(sym_name));
   odsState.addAttribute(getSymTypeAttrName(odsState.name),
                         mlir::TypeAttr::get(sym_type));
-
-  cir::GlobalLinkageKindAttr linkageAttr =
-      cir::GlobalLinkageKindAttr::get(odsBuilder.getContext(), linkage);
-  odsState.addAttribute(getLinkageAttrName(odsState.name), linkageAttr);
 }
 
 static void printGlobalOpTypeAndInitialValue(OpAsmPrinter &p, cir::GlobalOp op,
