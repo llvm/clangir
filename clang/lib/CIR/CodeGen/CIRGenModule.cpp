@@ -577,7 +577,7 @@ bool CIRGenModule::shouldEmitCUDAGlobalVar(const VarDecl *global) const {
 }
 
 void CIRGenModule::printPostfixForExternalizedDecl(llvm::raw_ostream &os,
-                                                    const Decl *d) const {
+                                                   const Decl *d) const {
   // ptxas does not allow '.' in symbol names. On the other hand, HIP prefers
   // postfix beginning with '.' since the symbol name can be demangled.
   if (langOpts.HIP)
@@ -588,7 +588,8 @@ void CIRGenModule::printPostfixForExternalizedDecl(llvm::raw_ostream &os,
   // If the CUID is not specified we try to generate a unique postfix.
   if (getLangOpts().CUID.empty()) {
     assert(0 && "NYI");
-    // FIXME: OG's CodeGenModule has a member 'PreprocessorOpts' which I'm not sure what the equivalent is in CIR, that probably has to be brought in.
+    // FIXME: OG's CodeGenModule has a member 'PreprocessorOpts' which I'm not
+    // sure what the equivalent is in CIR, that probably has to be brought in.
 
     // SourceManager &sm = getASTContext().getSourceManager();
     // PresumedLoc pLoc = sm.getPresumedLoc(D->getLocation());
@@ -604,14 +605,17 @@ void CIRGenModule::printPostfixForExternalizedDecl(llvm::raw_ostream &os,
     // // Get the UniqueID for the file containing the decl.
     // llvm::sys::fs::UniqueID id;
     // if (llvm::sys::fs::getUniqueID(pLoc.getFilename(), id)) {
-    //   pLoc = sm.getPresumedLoc(D->getLocation(), /*UseLineDirectives=*/false);
-    //   assert(pLoc.isValid() && "Source location is expected to be valid.");
-    //   if (auto ec = llvm::sys::fs::getUniqueID(pLoc.getFilename(), id))
+    //   pLoc = sm.getPresumedLoc(D->getLocation(),
+    //   /*UseLineDirectives=*/false); assert(pLoc.isValid() && "Source location
+    //   is expected to be valid."); if (auto ec =
+    //   llvm::sys::fs::getUniqueID(pLoc.getFilename(), id))
     //     sm.getDiagnostics().Report(diag::err_cannot_open_file)
     //         << pLoc.getFilename() << ec.message();
     // }
-    // os << llvm::format("%x", id.getFile()) << llvm::format("%x", id.getDevice())
-    //    << "_" << llvm::utohexstr(result.low(), /*LowerCase=*/true, /*Width=*/8);
+    // os << llvm::format("%x", id.getFile()) << llvm::format("%x",
+    // id.getDevice())
+    //    << "_" << llvm::utohexstr(result.low(), /*LowerCase=*/true,
+    //    /*Width=*/8);
   } else {
     os << getASTContext().getCUIDHash();
   }
@@ -1557,7 +1561,7 @@ void CIRGenModule::emitGlobalVarDefinition(const clang::VarDecl *d,
     if ((!d->hasExternalStorage() && !d->isInline()) ||
         getASTContext().CUDADeviceVarODRUsedByHost.contains(d) ||
         d->hasAttr<HIPManagedAttr>()) {
-      auto shadowName = cudaRuntime->getDeviceSideName(cast<NamedDecl>(d)); 
+      auto shadowName = cudaRuntime->getDeviceSideName(cast<NamedDecl>(d));
       auto attr = CUDAShadowNameAttr::get(&getMLIRContext(), shadowName);
       gv->setAttr(CUDAShadowNameAttr::getMnemonic(), attr);
     }
