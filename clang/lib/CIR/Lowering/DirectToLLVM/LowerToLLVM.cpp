@@ -2553,21 +2553,24 @@ mlir::LogicalResult CIRToLLVMUnaryOpLowering::matchAndRewrite(
 
   // Integer unary operations: + - ~ ++ --
   if (mlir::isa<cir::IntType>(elementType)) {
+    auto overflowFlags = op.getNoSignedWrap()
+                             ? mlir::LLVM::IntegerOverflowFlags::nsw
+                             : mlir::LLVM::IntegerOverflowFlags::none;
     switch (op.getKind()) {
     case cir::UnaryOpKind::Inc: {
       assert(!IsVector && "++ not allowed on vector types");
       auto One = rewriter.create<mlir::LLVM::ConstantOp>(
           loc, llvmType, mlir::IntegerAttr::get(llvmType, 1));
-      rewriter.replaceOpWithNewOp<mlir::LLVM::AddOp>(op, llvmType,
-                                                     adaptor.getInput(), One);
+      rewriter.replaceOpWithNewOp<mlir::LLVM::AddOp>(
+          op, llvmType, adaptor.getInput(), One, overflowFlags);
       return mlir::success();
     }
     case cir::UnaryOpKind::Dec: {
       assert(!IsVector && "-- not allowed on vector types");
       auto One = rewriter.create<mlir::LLVM::ConstantOp>(
           loc, llvmType, mlir::IntegerAttr::get(llvmType, 1));
-      rewriter.replaceOpWithNewOp<mlir::LLVM::SubOp>(op, llvmType,
-                                                     adaptor.getInput(), One);
+      rewriter.replaceOpWithNewOp<mlir::LLVM::SubOp>(
+          op, llvmType, adaptor.getInput(), One, overflowFlags);
       return mlir::success();
     }
     case cir::UnaryOpKind::Plus: {
@@ -2581,8 +2584,8 @@ mlir::LogicalResult CIRToLLVMUnaryOpLowering::matchAndRewrite(
       else
         Zero = rewriter.create<mlir::LLVM::ConstantOp>(
             loc, llvmType, mlir::IntegerAttr::get(llvmType, 0));
-      rewriter.replaceOpWithNewOp<mlir::LLVM::SubOp>(op, llvmType, Zero,
-                                                     adaptor.getInput());
+      rewriter.replaceOpWithNewOp<mlir::LLVM::SubOp>(
+          op, llvmType, Zero, adaptor.getInput(), overflowFlags);
       return mlir::success();
     }
     case cir::UnaryOpKind::Not: {
