@@ -4814,6 +4814,7 @@ def RoundOp : UnaryFPToFPBuiltinOp<"round", "RoundOp">;
 def RoundEvenOp : UnaryFPToFPBuiltinOp<"roundeven", "RoundEvenOp">;
 def SinOp : UnaryFPToFPBuiltinOp<"sin", "SinOp">;
 def SqrtOp : UnaryFPToFPBuiltinOp<"sqrt", "SqrtOp">;
+def TanOp : UnaryFPToFPBuiltinOp<"tan", "TanOp">;
 def TruncOp : UnaryFPToFPBuiltinOp<"trunc", "FTruncOp">;
 
 def AbsOp : CIR_Op<"abs", [Pure, SameOperandsAndResultType]> {
