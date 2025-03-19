@@ -89,7 +89,7 @@ int load_field(S* s) {
 // CHECK: cir.func {{.*@unOp}}
 // CHECK:   [[TMP0:%.*]] = cir.get_member {{.*}}[1] {name = "d"} : !cir.ptr<!ty_S> -> !cir.ptr<!cir.array<!u8i x 3>>
 // CHECK:   [[TMP1:%.*]] = cir.get_bitfield(#bfi_d, [[TMP0]] : !cir.ptr<!cir.array<!u8i x 3>>) -> !s32i
-// CHECK:   [[TMP2:%.*]] = cir.unary(inc, [[TMP1]]) : !s32i, !s32i
+// CHECK:   [[TMP2:%.*]] = cir.unary(inc, [[TMP1]]) nsw : !s32i, !s32i
 // CHECK:   cir.set_bitfield(#bfi_d, [[TMP0]] : !cir.ptr<!cir.array<!u8i x 3>>, [[TMP2]] : !s32i)
 void unOp(S* s) {
   s->d++;
