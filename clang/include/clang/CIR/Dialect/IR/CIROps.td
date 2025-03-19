@@ -4701,72 +4701,6 @@ def FrameAddrOp : FuncAddrBuiltinOp<"frame_address"> {
 }
 
 //===----------------------------------------------------------------------===//
-// StdFindOp
-//===----------------------------------------------------------------------===//
-
-def StdFindOp : CIR_Op<"std.find", [SameFirstSecondOperandAndResultType]> {
-  let arguments = (ins FlatSymbolRefAttr:$original_fn,
-                       CIR_AnyType:$first,
-                       CIR_AnyType:$last,
-                       CIR_AnyType:$pattern);
-  let summary = "std:find()";
-  let results = (outs CIR_AnyType:$result);
-
-  let description = [{
-    Search for `pattern` in data range from `first` to `last`. This currently
-    maps to only one form of `std::find`. The `original_fn` operand tracks the
-    mangled named that can be used when lowering to a `cir.call`.
-
-    Example:
-
-    ```mlir
-    ...
-    %result = cir.std.find(@original_fn,
-                           %first : !T, %last : !T, %pattern : !P) -> !T
-    ```
-  }];
-
-  let assemblyFormat = [{
-    `(`
-      $original_fn
-      `,` $first `:` type($first)
-      `,` $last `:` type($last)
-      `,` $pattern `:` type($pattern)
-    `)` `->` type($result) attr-dict
-  }];
-  let hasVerifier = 0;
-}
-
-//===----------------------------------------------------------------------===//
-// IterBegin/End
-//===----------------------------------------------------------------------===//
-
-def IterBeginOp : CIR_Op<"iterator_begin"> {
-  let arguments = (ins FlatSymbolRefAttr:$original_fn, CIR_AnyType:$container);
-  let summary = "Returns an iterator to the first element of a container";
-  let results = (outs CIR_AnyType:$result);
-  let assemblyFormat = [{
-    `(`
-      $original_fn `,` $container `:` type($container)
-    `)` `->` type($result) attr-dict
-  }];
-  let hasVerifier = 0;
-}
-
-def IterEndOp : CIR_Op<"iterator_end"> {
-  let arguments = (ins FlatSymbolRefAttr:$original_fn, CIR_AnyType:$container);
-  let summary = "Returns an iterator to the element following the last element"
-                " of a container";
-  let results = (outs CIR_AnyType:$result);
-  let assemblyFormat = [{
-    `(`
-      $original_fn `,` $container `:` type($container)
-    `)` `->` type($result) attr-dict
-  }];
-  let hasVerifier = 0;
-}
-
-//===----------------------------------------------------------------------===//
 // Floating Point Ops
 //===----------------------------------------------------------------------===//
 
@@ -5754,5 +5688,11 @@ def SignBitOp : CIR_Op<"signbit", [Pure]> {
       $input attr-dict `:` type($input) `->` qualified(type($res))
   }];
 }
+
+//===----------------------------------------------------------------------===//
+// Standard library function calls
+//===----------------------------------------------------------------------===//
+
+include "clang/CIR/Dialect/IR/CIRStdOps.td"
 
 #endif // LLVM_CLANG_CIR_DIALECT_IR_CIROPS
