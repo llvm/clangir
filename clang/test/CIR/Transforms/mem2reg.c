@@ -57,7 +57,7 @@ void alloca_in_loop(int* ar, int n) {
 // BEFORE:        cir.yield
 // BEFORE:      } step {
 // BEFORE:        %4 = cir.load %2 : !cir.ptr<!s32i>, !s32i
-// BEFORE:        %5 = cir.unary(inc, %4) : !s32i, !s32i
+// BEFORE:        %5 = cir.unary(inc, %4) nsw : !s32i, !s32i
 // BEFORE:        cir.store %5, %2 : !s32i, !cir.ptr<!s32i>
 // BEFORE:        cir.yield
 // BEFORE:      }
@@ -82,7 +82,7 @@ void alloca_in_loop(int* ar, int n) {
 // MEM2REG:  ^bb5:  // pred: ^bb4
 // MEM2REG:    cir.br ^bb6
 // MEM2REG:  ^bb6:  // pred: ^bb5
-// MEM2REG:    %5 = cir.unary(inc, %1) : !s32i, !s32i
+// MEM2REG:    %5 = cir.unary(inc, %1) nsw : !s32i, !s32i
 // MEM2REG:    cir.br ^bb2(%5 : !s32i)
 // MEM2REG:  ^bb7:  // pred: ^bb2
 // MEM2REG:    cir.br ^bb8

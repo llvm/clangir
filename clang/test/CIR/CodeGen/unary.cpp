@@ -49,7 +49,7 @@ int inc0() {
 // CHECK: %[[#ATMP:]] = cir.const #cir.int<1> : !s32i
 // CHECK: cir.store %[[#ATMP]], %[[#A]] : !s32i
 // CHECK: %[[#INPUT:]] = cir.load %[[#A]]
-// CHECK: %[[#INCREMENTED:]] = cir.unary(inc, %[[#INPUT]])
+// CHECK: %[[#INCREMENTED:]] = cir.unary(inc, %[[#INPUT]]) nsw
 // CHECK: cir.store %[[#INCREMENTED]], %[[#A]]
 // CHECK: %[[#A_TO_OUTPUT:]] = cir.load %[[#A]]
 // CHECK: cir.store %[[#A_TO_OUTPUT]], %[[#RET]]
@@ -68,7 +68,7 @@ int dec0() {
 // CHECK: %[[#ATMP:]] = cir.const #cir.int<1> : !s32i
 // CHECK: cir.store %[[#ATMP]], %[[#A]] : !s32i
 // CHECK: %[[#INPUT:]] = cir.load %[[#A]]
-// CHECK: %[[#INCREMENTED:]] = cir.unary(dec, %[[#INPUT]])
+// CHECK: %[[#INCREMENTED:]] = cir.unary(dec, %[[#INPUT]]) nsw
 // CHECK: cir.store %[[#INCREMENTED]], %[[#A]]
 // CHECK: %[[#A_TO_OUTPUT:]] = cir.load %[[#A]]
 // CHECK: cir.store %[[#A_TO_OUTPUT]], %[[#RET]]
@@ -88,7 +88,7 @@ int inc1() {
 // CHECK: %[[#ATMP:]] = cir.const #cir.int<1> : !s32i
 // CHECK: cir.store %[[#ATMP]], %[[#A]] : !s32i
 // CHECK: %[[#INPUT:]] = cir.load %[[#A]]
-// CHECK: %[[#INCREMENTED:]] = cir.unary(inc, %[[#INPUT]])
+// CHECK: %[[#INCREMENTED:]] = cir.unary(inc, %[[#INPUT]]) nsw
 // CHECK: cir.store %[[#INCREMENTED]], %[[#A]]
 // CHECK: %[[#A_TO_OUTPUT:]] = cir.load %[[#A]]
 // CHECK: cir.store %[[#A_TO_OUTPUT]], %[[#RET]]
@@ -107,7 +107,7 @@ int dec1() {
 // CHECK: %[[#ATMP:]] = cir.const #cir.int<1> : !s32i
 // CHECK: cir.store %[[#ATMP]], %[[#A]] : !s32i
 // CHECK: %[[#INPUT:]] = cir.load %[[#A]]
-// CHECK: %[[#INCREMENTED:]] = cir.unary(dec, %[[#INPUT]])
+// CHECK: %[[#INCREMENTED:]] = cir.unary(dec, %[[#INPUT]]) nsw
 // CHECK: cir.store %[[#INCREMENTED]], %[[#A]]
 // CHECK: %[[#A_TO_OUTPUT:]] = cir.load %[[#A]]
 // CHECK: cir.store %[[#A_TO_OUTPUT]], %[[#RET]]
@@ -128,7 +128,7 @@ int inc2() {
 // CHECK: %[[#ATMP:]] = cir.const #cir.int<1> : !s32i
 // CHECK: cir.store %[[#ATMP]], %[[#A]] : !s32i
 // CHECK: %[[#ATOB:]] = cir.load %[[#A]]
-// CHECK: %[[#INCREMENTED:]] = cir.unary(inc, %[[#ATOB]])
+// CHECK: %[[#INCREMENTED:]] = cir.unary(inc, %[[#ATOB]]) nsw
 // CHECK: cir.store %[[#INCREMENTED]], %[[#A]]
 // CHECK: cir.store %[[#ATOB]], %[[#B]]
 // CHECK: %[[#B_TO_OUTPUT:]] = cir.load %[[#B]]
@@ -218,7 +218,7 @@ void chars(char c) {
   // CHECK: cir.unary(plus, %[[#PROMO]]) : !s32i, !s32i
   int c2 = -c;
   // CHECK: %[[#PROMO:]] = cir.cast(integral, %{{.+}} : !s8i), !s32i
-  // CHECK: cir.unary(minus, %[[#PROMO]]) : !s32i, !s32i
+  // CHECK: cir.unary(minus, %[[#PROMO]]) nsw : !s32i, !s32i
 
   // Chars can go through some integer promotion codegen paths even when not promoted.
   ++c; // CHECK: cir.unary(inc, %10) : !s8i, !s8i
