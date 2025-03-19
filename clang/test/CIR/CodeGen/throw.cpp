@@ -52,7 +52,7 @@ void refoo1() {
 // CIR:     } catch [type #cir.all {
 // CIR:       %[[V3:.*]] = cir.catch_param -> !cir.ptr<!void>
 // CIR:       %[[V4:.*]] = cir.load %[[V0]] : !cir.ptr<!s32i>, !s32i
-// CIR:       %[[V5:.*]] = cir.unary(inc, %[[V4]]) : !s32i, !s32i
+// CIR:       %[[V5:.*]] = cir.unary(inc, %[[V4]]) nsw : !s32i, !s32i
 // CIR:       cir.store %[[V5]], %[[V0]] : !s32i, !cir.ptr<!s32i>
 // CIR:       cir.yield
 // CIR:     }]
@@ -91,7 +91,7 @@ void refoo1() {
 // LLVM:   %[[V16:.*]] = phi ptr [ %[[V9]], %[[B7]] ], [ %[[V13]], %[[B11]] ]
 // LLVM:   %[[V17:.*]] = call ptr @__cxa_begin_catch(ptr %[[V16]])
 // LLVM:   %[[V18:.*]] = load i32, ptr %[[V2]], align 4
-// LLVM:   %[[V19:.*]] = add i32 %[[V18]], 1
+// LLVM:   %[[V19:.*]] = add nsw i32 %[[V18]], 1
 // LLVM:   store i32 %[[V19]], ptr %[[V2]], align 4
 // LLVM:   call void @__cxa_end_catch()
 
@@ -136,7 +136,7 @@ void refoo2() {
 // CIR:           cir.yield
 // CIR:         } step {
 // CIR:           %[[V5:.*]] = cir.load %[[V3]] : !cir.ptr<!s32i>, !s32i
-// CIR:           %[[V6:.*]] = cir.unary(inc, %[[V5]]) : !s32i, !s32i
+// CIR:           %[[V6:.*]] = cir.unary(inc, %[[V5]]) nsw : !s32i, !s32i
 // CIR:           cir.store %[[V6]], %[[V3]] : !s32i, !cir.ptr<!s32i>
 // CIR:           cir.yield
 // CIR:         }
@@ -146,7 +146,7 @@ void refoo2() {
 // CIR:     } catch [type #cir.all {
 // CIR:       %[[V3:.*]] = cir.catch_param -> !cir.ptr<!void>
 // CIR:       %[[V4:.*]] = cir.load %[[V0]] : !cir.ptr<!s32i>, !s32i
-// CIR:       %[[V5:.*]] = cir.unary(inc, %[[V4]]) : !s32i, !s32i
+// CIR:       %[[V5:.*]] = cir.unary(inc, %[[V4]]) nsw : !s32i, !s32i
 // CIR:       cir.store %[[V5]], %[[V0]] : !s32i, !cir.ptr<!s32i>
 // CIR:       cir.yield
 // CIR:     }]
@@ -166,7 +166,7 @@ void refoo2() {
 // LLVM:   br label %[[B16:.*]]
 // LLVM: [[B16]]:
 // LLVM:   %[[V17]] = load i32, ptr {{.*}}, align 4
-// LLVM:   %[[V18]] = add i32 %[[V17]], 1
+// LLVM:   %[[V18]] = add nsw i32 %[[V17]], 1
 // LLVM:   store i32 %[[V18]], ptr {{.*}}, align 4
 // LLVM:   br label {{.*}}
 // LLVM: %[[B19:.*]]
@@ -198,7 +198,7 @@ void refoo2() {
 // LLVM:   %[[V35:.*]] = phi ptr [ %[[V32]], %[[B30]] ], [ %[[V24]], %[[B22]] ], [ %[[V28]], %[[B26]] ]
 // LLVM:   %[[V36:.*]] = call ptr @__cxa_begin_catch(ptr %[[V35]])
 // LLVM:   %[[V37:.*]] = load i32, ptr {{.*}}, align 4
-// LLVM:   %[[V38:.*]] = add i32 %[[V37]], 1
+// LLVM:   %[[V38:.*]] = add nsw i32 %[[V37]], 1
 // LLVM:   store i32 %[[V38]], ptr {{.*}}, align 4
 // LLVM:   call void @__cxa_end_catch()
 // LLVM:   br label {{.*}}
@@ -228,7 +228,7 @@ void refoo3() {
 // CIR:     } catch [type #cir.all {
 // CIR:       %[[V3:.*]] = cir.catch_param -> !cir.ptr<!void>
 // CIR:       %[[V4:.*]] = cir.load %[[V0]] : !cir.ptr<!s32i>, !s32i
-// CIR:       %[[V5:.*]] = cir.unary(inc, %[[V4]]) : !s32i, !s32i
+// CIR:       %[[V5:.*]] = cir.unary(inc, %[[V4]]) nsw : !s32i, !s32i
 // CIR:       cir.store %[[V5]], %[[V0]] : !s32i, !cir.ptr<!s32i>
 // CIR:       cir.yield
 // CIR:     }]
@@ -261,7 +261,7 @@ void refoo3() {
 // LLVM:  %[[V17:.*]] = phi ptr [ %[[V14]], %[[B12]] ], [ %[[V10]], %[[B8]] ]
 // LLVM:  %[[V18:.*]] = call ptr @__cxa_begin_catch(ptr %[[V17]])
 // LLVM:  %[[V19:.*]] = load i32, ptr {{.*}}, align 4
-// LLVM:  %[[V20:.*]] = add i32 %[[V19]], 1
+// LLVM:  %[[V20:.*]] = add nsw i32 %[[V19]], 1
 // LLVM:  store i32 %[[V20]], ptr {{.*}}, align 4
 // LLVM:  call void @__cxa_end_catch()
 // LLVM:  br label %[[B21]]

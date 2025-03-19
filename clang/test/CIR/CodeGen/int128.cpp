@@ -26,8 +26,8 @@ unsigned __int128 test2(unsigned __int128 x) {
 // LLVM-LABEL: @_Z11unary_arithn
 __int128 unary_arith(__int128 x) {
   return ++x;
-  // CHECK: %{{.+}} = cir.unary(inc, %{{.+}}) : !s128i, !s128i
-  // LLVM: %{{.+}} = add i128 %{{.+}}, 1
+  // CHECK: %{{.+}} = cir.unary(inc, %{{.+}}) nsw : !s128i, !s128i
+  // LLVM: %{{.+}} = add nsw i128 %{{.+}}, 1
 }
 
 // CHECK-LABEL: @_Z12binary_arithnn
