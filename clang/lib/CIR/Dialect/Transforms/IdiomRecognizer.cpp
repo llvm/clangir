@@ -32,11 +32,52 @@ using namespace cir;
 
 namespace {
 
+// Recognizes a cir.call that calls a standard library function represented
+// by `TargetOp`, and raise it to that operation.
+template <typename TargetOp> class StdRecognizer {
+private:
+  // Reserved for template specialization.
+  static bool checkArguments(mlir::ValueRange) { return true; }
+
+  template <size_t... Indices>
+  static TargetOp buildCall(CIRBaseBuilderTy &builder, CallOp call,
+                            std::index_sequence<Indices...>) {
+    return builder.create<TargetOp>(call.getLoc(), call.getResult().getType(),
+                                    call.getCalleeAttr(),
+                                    call.getOperand(Indices)...);
+  }
+
+public:
+  static bool raise(CallOp call, mlir::MLIRContext &context, bool remark) {
+    constexpr int numArgs = TargetOp::getNumArgs();
+    if (call.getNumOperands() != numArgs)
+      return false;
+
+    auto callExprAttr = call.getAstAttr();
+    llvm::StringRef stdFuncName = TargetOp::getFunctionName();
+    if (!callExprAttr || !callExprAttr.isStdFunctionCall(stdFuncName))
+      return false;
+
+    if (!checkArguments(call.getArgOperands()))
+      return false;
+
+    if (remark)
+      mlir::emitRemark(call.getLoc())
+          << "found call to std::" << stdFuncName << "()";
+
+    CIRBaseBuilderTy builder(context);
+    builder.setInsertionPointAfter(call.getOperation());
+    TargetOp op = buildCall(builder, call, std::make_index_sequence<numArgs>());
+    call.replaceAllUsesWith(op);
+    call.erase();
+    return true;
+  }
+};
+
 struct IdiomRecognizerPass : public IdiomRecognizerBase<IdiomRecognizerPass> {
   IdiomRecognizerPass() = default;
   void runOnOperation() override;
   void recognizeCall(CallOp call);
-  bool raiseStdFind(CallOp call);
   bool raiseIteratorBeginEnd(CallOp call);
 
   // Handle pass options
@@ -87,30 +128,6 @@ struct IdiomRecognizerPass : public IdiomRecognizerBase<IdiomRecognizerPass> {
   ModuleOp theModule;
 };
 } // namespace
-
-bool IdiomRecognizerPass::raiseStdFind(CallOp call) {
-  // FIXME: tablegen all of this function.
-  if (call.getNumOperands() != 3)
-    return false;
-
-  auto callExprAttr = call.getAstAttr();
-  if (!callExprAttr || !callExprAttr.isStdFunctionCall("find")) {
-    return false;
-  }
-
-  if (opts.emitRemarkFoundCalls())
-    emitRemark(call.getLoc()) << "found call to std::find()";
-
-  CIRBaseBuilderTy builder(getContext());
-  builder.setInsertionPointAfter(call.getOperation());
-  auto findOp = builder.create<cir::StdFindOp>(
-      call.getLoc(), call.getResult().getType(), call.getCalleeAttr(),
-      call.getOperand(0), call.getOperand(1), call.getOperand(2));
-
-  call.replaceAllUsesWith(findOp);
-  call.erase();
-  return true;
-}
 
 static bool isIteratorLikeType(mlir::Type t) {
   // TODO: some iterators are going to be represented with structs,
@@ -175,8 +192,16 @@ void IdiomRecognizerPass::recognizeCall(CallOp call) {
   if (raiseIteratorBeginEnd(call))
     return;
 
-  if (raiseStdFind(call))
-    return;
+  bool remark = opts.emitRemarkFoundCalls();
+
+  using StdFunctionsRecognizer = std::tuple<StdRecognizer<StdFindOp>>;
+
+  // MSVC requires explicitly capturing these variables.
+  std::apply(
+      [&, call, remark, this](auto... recognizers) {
+        (decltype(recognizers)::raise(call, this->getContext(), remark) || ...);
+      },
+      StdFunctionsRecognizer());
 }
 
 void IdiomRecognizerPass::runOnOperation() {

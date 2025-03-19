@@ -1481,8 +1481,7 @@ void LoweringPreparePass::lowerIterBeginOp(IterBeginOp op) {
   CIRBaseBuilderTy builder(getContext());
   builder.setInsertionPointAfter(op.getOperation());
   auto call = builder.createCallOp(op.getLoc(), op.getOriginalFnAttr(),
-                                   op.getResult().getType(),
-                                   mlir::ValueRange{op.getOperand()});
+                                   op.getResult().getType(), op.getOperand());
 
   op.replaceAllUsesWith(call);
   op.erase();
@@ -1492,8 +1491,7 @@ void LoweringPreparePass::lowerIterEndOp(IterEndOp op) {
   CIRBaseBuilderTy builder(getContext());
   builder.setInsertionPointAfter(op.getOperation());
   auto call = builder.createCallOp(op.getLoc(), op.getOriginalFnAttr(),
-                                   op.getResult().getType(),
-                                   mlir::ValueRange{op.getOperand()});
+                                   op.getResult().getType(), op.getOperand());
 
   op.replaceAllUsesWith(call);
   op.erase();
