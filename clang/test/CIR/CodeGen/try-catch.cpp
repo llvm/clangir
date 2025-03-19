@@ -149,3 +149,22 @@ void tc6() {
 // CHECK:     cir.yield
 // CHECK:   }
 // CHECK: }
+
+// CHECK: cir.func @_Z3tc7v()
+void tc7() {
+  int r = 1;
+  try {
+    ++r;
+    return;
+  } catch (...) {
+  }
+}
+
+// CHECK: cir.scope {
+// CHECK:   cir.try {
+// CHECK:     %[[V2:.*]] = cir.load {{.*}} : !cir.ptr<!s32i>, !s32i
+// CHECK:     %[[V3:.*]] = cir.unary(inc, %[[V2]]) nsw : !s32i, !s32i
+// CHECK:     cir.store %[[V3]], {{.*}} : !s32i, !cir.ptr<!s32i>
+// CHECK:     cir.return
+// CHECK:   }
+// CHECK: }
