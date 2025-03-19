@@ -18,15 +18,15 @@ int test_find(unsigned char n = 3)
                                                // expected-remark@-2 {{found call to end() iterator}}
 
     // BEFORE-IDIOM: {{.*}} cir.call @_ZNSt5arrayIhLj9EE5beginEv(
-    // AFTER-IDIOM: {{.*}} cir.iterator_begin(@_ZNSt5arrayIhLj9EE5beginEv,
+    // AFTER-IDIOM: {{.*}} cir.std.begin({{.*}}, @_ZNSt5arrayIhLj9EE5beginEv
     // AFTER-LOWERING-PREPARE: {{.*}} cir.call @_ZNSt5arrayIhLj9EE5beginEv(
 
     // BEFORE-IDIOM: {{.*}} cir.call @_ZNSt5arrayIhLj9EE3endEv(
-    // AFTER-IDIOM: {{.*}} cir.iterator_end(@_ZNSt5arrayIhLj9EE3endEv,
+    // AFTER-IDIOM: {{.*}} cir.std.end({{.*}}, @_ZNSt5arrayIhLj9EE3endEv
     // AFTER-LOWERING-PREPARE: {{.*}} cir.call @_ZNSt5arrayIhLj9EE3endEv(
 
     // BEFORE-IDIOM: {{.*}} cir.call @_ZSt4findIPhhET_S1_S1_RKT0_(
-    // AFTER-IDIOM: {{.*}} cir.std.find(@_ZSt4findIPhhET_S1_S1_RKT0_,
+    // AFTER-IDIOM: {{.*}} cir.std.find({{.*}}, @_ZSt4findIPhhET_S1_S1_RKT0_
     // AFTER-LOWERING-PREPARE: {{.*}} cir.call @_ZSt4findIPhhET_S1_S1_RKT0_(
 
     if (f != v.end()) // expected-remark {{found call to end() iterator}}
@@ -43,8 +43,7 @@ template<typename T, unsigned N> struct array {
 };
 }
 
-int iter_test()
-{
+void iter_test() {
   yolo::array<unsigned char, 3> v = {1, 2, 3};
   (void)v.begin(); // no remark should be produced.
 }
