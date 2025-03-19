@@ -264,11 +264,11 @@ void StructType::print(mlir::AsmPrinter &printer) const {
   printer << '>';
 }
 
-mlir::LogicalResult StructType::verifyInvariants(
-    llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
-    llvm::ArrayRef<mlir::Type> members, mlir::StringAttr name, bool incomplete,
-    bool packed, bool padded, cir::StructType::RecordKind kind,
-    ASTRecordDeclInterface ast) {
+mlir::LogicalResult
+StructType::verify(function_ref<mlir::InFlightDiagnostic()> emitError,
+                   llvm::ArrayRef<mlir::Type> members, mlir::StringAttr name,
+                   bool incomplete, bool packed, bool padded,
+                   StructType::RecordKind kind, ASTRecordDeclInterface ast) {
   if (name && name.getValue().empty()) {
     emitError() << "identified structs cannot have an empty name";
     return mlir::failure();
@@ -277,51 +277,6 @@ mlir::LogicalResult StructType::verifyInvariants(
 }
 
 void StructType::dropAst() { getImpl()->ast = nullptr; }
-StructType StructType::get(::mlir::MLIRContext *context, ArrayRef<Type> members,
-                           StringAttr name, bool packed, bool padded,
-                           RecordKind kind, ASTRecordDeclInterface ast) {
-  return Base::get(context, members, name, /*incomplete=*/false, packed, padded,
-                   kind, ast);
-}
-
-StructType StructType::getChecked(
-    ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
-    ::mlir::MLIRContext *context, ArrayRef<Type> members, StringAttr name,
-    bool packed, bool padded, RecordKind kind, ASTRecordDeclInterface ast) {
-  return Base::getChecked(emitError, context, members, name,
-                          /*incomplete=*/false, packed, padded, kind, ast);
-}
-
-StructType StructType::get(::mlir::MLIRContext *context, StringAttr name,
-                           RecordKind kind) {
-  return Base::get(context, /*members=*/ArrayRef<Type>{}, name,
-                   /*incomplete=*/true, /*packed=*/false, /*padded=*/false,
-                   kind,
-                   /*ast=*/ASTRecordDeclInterface{});
-}
-
-StructType StructType::getChecked(
-    ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
-    ::mlir::MLIRContext *context, StringAttr name, RecordKind kind) {
-  return Base::getChecked(emitError, context, ArrayRef<Type>{}, name,
-                          /*incomplete=*/true, /*packed=*/false,
-                          /*padded=*/false, kind, ASTRecordDeclInterface{});
-}
-
-StructType StructType::get(::mlir::MLIRContext *context, ArrayRef<Type> members,
-                           bool packed, bool padded, RecordKind kind,
-                           ASTRecordDeclInterface ast) {
-  return Base::get(context, members, StringAttr{}, /*incomplete=*/false, packed,
-                   padded, kind, ast);
-}
-
-StructType StructType::getChecked(
-    ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
-    ::mlir::MLIRContext *context, ArrayRef<Type> members, bool packed,
-    bool padded, RecordKind kind, ASTRecordDeclInterface ast) {
-  return Base::getChecked(emitError, context, members, StringAttr{},
-                          /*incomplete=*/false, packed, padded, kind, ast);
-}
 
 ::llvm::ArrayRef<mlir::Type> StructType::getMembers() const {
   return getImpl()->members;
@@ -1009,7 +964,4 @@ void CIRDialect::registerTypes() {
 #define GET_TYPEDEF_LIST
 #include "clang/CIR/Dialect/IR/CIROpsTypes.cpp.inc"
       >();
-
-  // Register raw C++ types.
-  addTypes<StructType>();
 }
