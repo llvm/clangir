@@ -1159,6 +1159,74 @@ long double call_sqrtl(long double f) {
   // LLVM: }
 }
 
+// tan
+
+float my_tanf(float f) {
+  return __builtin_tanf(f);
+  // CHECK: cir.func @my_tanf
+  // CHECK: {{.+}} = cir.tan {{.+}} : !cir.float
+
+  // LLVM: define dso_local float @my_tanf(float %0)
+  // LLVM:   %{{.+}} = call float @llvm.tan.f32(float %{{.+}})
+  // LLVM: }
+}
+
+double my_tan(double f) {
+  return __builtin_tan(f);
+  // CHECK: cir.func @my_tan
+  // CHECK: {{.+}} = cir.tan {{.+}} : !cir.double
+
+  // LLVM: define dso_local double @my_tan(double %0)
+  // LLVM:   %{{.+}} = call double @llvm.tan.f64(double %{{.+}})
+  // LLVM: }
+}
+
+long double my_tanl(long double f) {
+  return __builtin_tanl(f);
+  // CHECK: cir.func @my_tanl
+  // CHECK: {{.+}} = cir.tan {{.+}} : !cir.long_double<!cir.f80>
+  // AARCH64: {{.+}} = cir.tan {{.+}} : !cir.long_double<!cir.double>
+
+  // LLVM: define dso_local x86_fp80 @my_tanl(x86_fp80 %0)
+  // LLVM:   %{{.+}} = call x86_fp80 @llvm.tan.f80(x86_fp80 %{{.+}})
+  // LLVM: }
+}
+
+float tanf(float);
+double tan(double);
+long double tanl(long double);
+
+float call_tanf(float f) {
+  return tanf(f);
+  // CHECK: cir.func @call_tanf
+  // CHECK: {{.+}} = cir.tan {{.+}} : !cir.float
+
+  // LLVM: define dso_local float @call_tanf(float %0)
+  // LLVM:   %{{.+}} = call float @llvm.tan.f32(float %{{.+}})
+  // LLVM: }
+}
+
+double call_tan(double f) {
+  return tan(f);
+  // CHECK: cir.func @call_tan
+  // CHECK: {{.+}} = cir.tan {{.+}} : !cir.double
+
+  // LLVM: define dso_local double @call_tan(double %0)
+  // LLVM:   %{{.+}} = call double @llvm.tan.f64(double %{{.+}})
+  // LLVM: }
+}
+
+long double call_tanl(long double f) {
+  return tanl(f);
+  // CHECK: cir.func @call_tanl
+  // CHECK: {{.+}} = cir.tan {{.+}} : !cir.long_double<!cir.f80>
+  // AARCH64: {{.+}} = cir.tan {{.+}} : !cir.long_double<!cir.double>
+
+  // LLVM: define dso_local x86_fp80 @call_tanl(x86_fp80 %0)
+  // LLVM:   %{{.+}} = call x86_fp80 @llvm.tan.f80(x86_fp80 %{{.+}})
+  // LLVM: }
+}
+
 // trunc
 
 float my_truncf(float f) {
