@@ -382,6 +382,7 @@ CIRGenFunction::emitCXXTryStmtUnderScope(const CXXTryStmt &S) {
       enterCXXTryStmt(S, tryOp);
       // Emit the body for the `try {}` part.
       {
+        mlir::OpBuilder::InsertionGuard guard(getBuilder());
         CIRGenFunction::LexicalScope tryBodyScope{
             *this, loc, getBuilder().getInsertionBlock()};
         if (emitStmt(S.getTryBlock(), /*useCurrentScope=*/true).failed())
