@@ -274,6 +274,14 @@ public:
 
   bool shouldEmitCUDAGlobalVar(const VarDecl *global) const;
 
+  /// Print the postfix for externalized static variable or kernels for single
+  /// source offloading languages CUDA and HIP. The unique postfix is created
+  /// using either the CUID argument, or the file's UniqueID and active macros.
+  /// The fallback method without a CUID requires that the offloading toolchain
+  /// does not define separate macros via the -cc1 options.
+  void printPostfixForExternalizedDecl(llvm::raw_ostream &OS,
+                                       const Decl *D) const;
+
   bool shouldEmitConvergenceTokens() const {
     // TODO: this shuld probably become unconditional once the controlled
     // convergence becomes the norm.
