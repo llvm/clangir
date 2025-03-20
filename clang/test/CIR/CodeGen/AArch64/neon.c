@@ -15185,12 +15185,16 @@ uint64_t test_vcaled_f64(float64_t a, float64_t b) {
 //   return (uint32_t)vcalts_f32(a, b);
 // }
 
-// NYI-LABEL: @test_vcaltd_f64(
-// NYI:   [[VCALTD_F64_I:%.*]] = call i64 @llvm.aarch64.neon.facgt.i64.f64(double %b, double %a)
-// NYI:   ret i64 [[VCALTD_F64_I]]
-// uint64_t test_vcaltd_f64(float64_t a, float64_t b) {
-//   return (uint64_t)vcaltd_f64(a, b);
-// }
+uint64_t test_vcaltd_f64(float64_t a, float64_t b) {
+  return (uint64_t)vcaltd_f64(a, b);
+
+  // CIR-LABEL: vcaltd_f64
+  // CIR: [[TMP0:%.*]] = cir.llvm.intrinsic "aarch64.neon.facgt" {{.*}}, {{.*}} : (!cir.double, !cir.double) -> !u64i
+
+  // LLVM-LABEL: @test_vcaltd_f64(
+  // LLVM:   [[VCALTD_F64_I:%.*]] = call i64 @llvm.aarch64.neon.facgt.i64.f64(double %0, double %1)
+  // LLVM:   ret i64 [[VCALTD_F64_I]]
+}
 
 int64_t test_vshrd_n_s64(int64_t a) {
   return (int64_t)vshrd_n_s64(a, 1);
