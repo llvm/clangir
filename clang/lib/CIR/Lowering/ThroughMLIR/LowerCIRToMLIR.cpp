@@ -79,11 +79,11 @@ struct ConvertCIRToMLIRPass
     : public mlir::PassWrapper<ConvertCIRToMLIRPass,
                                mlir::OperationPass<mlir::ModuleOp>> {
   void getDependentDialects(mlir::DialectRegistry &registry) const override {
-    registry.insert<mlir::BuiltinDialect,
-                    mlir::func::FuncDialect, mlir::affine::AffineDialect,
-                    mlir::memref::MemRefDialect, mlir::arith::ArithDialect,
-                    mlir::cf::ControlFlowDialect, mlir::scf::SCFDialect,
-                    mlir::math::MathDialect, mlir::vector::VectorDialect>();
+    registry.insert<mlir::BuiltinDialect, mlir::func::FuncDialect,
+                    mlir::affine::AffineDialect, mlir::memref::MemRefDialect,
+                    mlir::arith::ArithDialect, mlir::cf::ControlFlowDialect,
+                    mlir::scf::SCFDialect, mlir::math::MathDialect,
+                    mlir::vector::VectorDialect>();
   }
   void runOnOperation() final;
 
@@ -1356,23 +1356,22 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
                                          mlir::TypeConverter &converter) {
   patterns.add<CIRReturnLowering, CIRBrOpLowering>(patterns.getContext());
 
-  patterns
-      .add<CIRCmpOpLowering, CIRCallOpLowering, CIRUnaryOpLowering,
-           CIRBinOpLowering, CIRLoadOpLowering, CIRConstantOpLowering,
-           CIRStoreOpLowering, CIRAllocaOpLowering, CIRFuncOpLowering,
-           CIRScopeOpLowering, CIRBrCondOpLowering, CIRTernaryOpLowering,
-           CIRYieldOpLowering, CIRCosOpLowering,
-           CIRGlobalOpLowering, CIRGetGlobalOpLowering, CIRCastOpLowering,
-           CIRPtrStrideOpLowering, CIRSqrtOpLowering, CIRCeilOpLowering,
-           CIRExp2OpLowering, CIRExpOpLowering, CIRFAbsOpLowering,
-           CIRAbsOpLowering, CIRFloorOpLowering, CIRLog10OpLowering,
-           CIRLog2OpLowering, CIRLogOpLowering, CIRRoundOpLowering,
-           CIRPtrStrideOpLowering, CIRSinOpLowering, CIRShiftOpLowering,
-           CIRBitClzOpLowering, CIRBitCtzOpLowering, CIRBitPopcountOpLowering,
-           CIRBitClrsbOpLowering, CIRBitFfsOpLowering, CIRBitParityOpLowering,
-           CIRIfOpLowering, CIRVectorCreateLowering, CIRVectorInsertLowering,
-           CIRVectorExtractLowering, CIRVectorCmpOpLowering>(
-          converter, patterns.getContext());
+  patterns.add<
+      CIRCmpOpLowering, CIRCallOpLowering, CIRUnaryOpLowering, CIRBinOpLowering,
+      CIRLoadOpLowering, CIRConstantOpLowering, CIRStoreOpLowering,
+      CIRAllocaOpLowering, CIRFuncOpLowering, CIRScopeOpLowering,
+      CIRBrCondOpLowering, CIRTernaryOpLowering, CIRYieldOpLowering,
+      CIRCosOpLowering, CIRGlobalOpLowering, CIRGetGlobalOpLowering,
+      CIRCastOpLowering, CIRPtrStrideOpLowering, CIRSqrtOpLowering,
+      CIRCeilOpLowering, CIRExp2OpLowering, CIRExpOpLowering, CIRFAbsOpLowering,
+      CIRAbsOpLowering, CIRFloorOpLowering, CIRLog10OpLowering,
+      CIRLog2OpLowering, CIRLogOpLowering, CIRRoundOpLowering,
+      CIRPtrStrideOpLowering, CIRSinOpLowering, CIRShiftOpLowering,
+      CIRBitClzOpLowering, CIRBitCtzOpLowering, CIRBitPopcountOpLowering,
+      CIRBitClrsbOpLowering, CIRBitFfsOpLowering, CIRBitParityOpLowering,
+      CIRIfOpLowering, CIRVectorCreateLowering, CIRVectorInsertLowering,
+      CIRVectorExtractLowering, CIRVectorCmpOpLowering>(converter,
+                                                        patterns.getContext());
 }
 
 static mlir::TypeConverter prepareTypeConverter() {
@@ -1454,11 +1453,11 @@ void ConvertCIRToMLIRPass::runOnOperation() {
 
   mlir::ConversionTarget target(getContext());
   target.addLegalOp<mlir::ModuleOp>();
-  target.addLegalDialect<mlir::affine::AffineDialect,
-                         mlir::arith::ArithDialect, mlir::memref::MemRefDialect,
-                         mlir::func::FuncDialect, mlir::scf::SCFDialect,
-                         mlir::cf::ControlFlowDialect, mlir::math::MathDialect,
-                         mlir::vector::VectorDialect>();
+  target
+      .addLegalDialect<mlir::affine::AffineDialect, mlir::arith::ArithDialect,
+                       mlir::memref::MemRefDialect, mlir::func::FuncDialect,
+                       mlir::scf::SCFDialect, mlir::cf::ControlFlowDialect,
+                       mlir::math::MathDialect, mlir::vector::VectorDialect>();
   target.addIllegalDialect<cir::CIRDialect>();
 
   if (failed(applyPartialConversion(module, target, std::move(patterns))))
