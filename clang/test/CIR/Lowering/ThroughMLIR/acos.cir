@@ -21,10 +21,10 @@ module {
 // CHECK-NEXT:     %[[C1:.+]] = arith.constant 1.000000e+00 : f64
 // CHECK-NEXT:     %[[C2:.+]] = arith.constant 1.000000e+00 : f80
 // CHECK-NEXT:     %[[C3:.+]] = arith.constant 1.000000e+00 : f64
-// CHECK-NEXT:     %{{.+}} = llvm.intr.acos(%[[C0]]) : (f32) -> f32
-// CHECK-NEXT:     %{{.+}} = llvm.intr.acos(%[[C1]]) : (f64) -> f64
-// CHECK-NEXT:     %{{.+}} = llvm.intr.acos(%[[C2]]) : (f80) -> f80
-// CHECK-NEXT:     %{{.+}} = llvm.intr.acos(%[[C3]]) : (f64) -> f64
+// CHECK-NEXT:     %{{.+}} = math.acos %[[C0]] : f32
+// CHECK-NEXT:     %{{.+}} = math.acos %[[C1]] : f64
+// CHECK-NEXT:     %{{.+}} = math.acos %[[C2]] : f80
+// CHECK-NEXT:     %{{.+}} = math.acos %[[C3]] : f64
 // CHECK-NEXT:     return
 // CHECK-NEXT:   }
 // CHECK-NEXT: }
