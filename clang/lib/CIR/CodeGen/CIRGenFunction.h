@@ -1451,8 +1451,8 @@ public:
                          const clang::CallExpr *E, ReturnValueSlot ReturnValue);
   RValue emitRotate(const CallExpr *E, bool IsRotateRight);
   template <uint32_t N>
-  [[maybe_unused]] RValue emitBuiltinWithOneOverloadedType(const CallExpr *E,
-                                          llvm::StringRef Name) {
+  [[maybe_unused]] RValue
+  emitBuiltinWithOneOverloadedType(const CallExpr *E, llvm::StringRef Name) {
     static_assert(N, "expect non-empty argument");
     mlir::Type cirTy = convertType(E->getArg(0)->getType());
     SmallVector<mlir::Value, N> args;
