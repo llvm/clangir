@@ -896,7 +896,8 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     case Builtin::BI__builtin_tanf16:
     case Builtin::BI__builtin_tanl:
     case Builtin::BI__builtin_tanf128:
-      llvm_unreachable("Builtin::BItan like NYI");
+      assert(!cir::MissingFeatures::fastMathFlags());
+      return emitUnaryMaybeConstrainedFPBuiltin<cir::TanOp>(*this, *E);
 
     case Builtin::BItanh:
     case Builtin::BItanhf:
