@@ -4,7 +4,6 @@
 // RUN:  -emit-llvm -fno-clangir-call-conv-lowering -o - %s \
 // RUN:  | opt -S -passes=instcombine,mem2reg,simplifycfg -o %t.ll 
 // RUN: FileCheck  --check-prefix=LLVM --input-file=%t.ll %s
-// XFAIL: *
 
 // This test file is a collection of test cases for all target-independent
 // builtins that are related to memory operations.
