@@ -1407,6 +1407,23 @@ def GlobalAnnotationValuesAttr : CIR_Attr<"GlobalAnnotationValues",
   let genVerifyDecl = 1;
 }
 
+//===----------------------------------------------------------------------===//
+// AddressPointAttr
+//===----------------------------------------------------------------------===//
+
+def AddressPointAttr : CIR_Attr<"AddressPoint", "address_point"> {
+  let summary = "Address point attribute";
+
+  let description = [{  }];
+
+  let parameters = (ins "int32_t":$vtable_index,
+                        "int32_t":$address_point_index);
+
+  let assemblyFormat = [{
+    `(` $vtable_index `,` $address_point_index `)`
+  }];
+}
+
 include "clang/CIR/Dialect/IR/CIRTBAAAttrs.td"
 
 include "clang/CIR/Dialect/IR/CIROpenCLAttrs.td"

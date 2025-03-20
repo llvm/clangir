@@ -2591,8 +2591,7 @@ def VTableAddrPointOp : CIR_Op<"vtable.address_point",
 
   let arguments = (ins OptionalAttr<FlatSymbolRefAttr>:$name,
                        Optional<CIR_AnyType>:$sym_addr,
-                       I32Attr:$vtable_index,
-                       I32Attr:$address_point_index);
+                       AddressPointAttr:$address_point);
   let results = (outs Res<CIR_PointerType, "", []>:$addr);
 
   let assemblyFormat = [{
@@ -2600,8 +2599,7 @@ def VTableAddrPointOp : CIR_Op<"vtable.address_point",
       ($name^)?
       ($sym_addr^ `:` type($sym_addr))?
       `,`
-        `vtable_index` `=` $vtable_index `,`
-        `address_point_index` `=` $address_point_index
+        `address_point` `=` $address_point
     `)`
     `:` qualified(type($addr)) attr-dict
   }];

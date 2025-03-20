@@ -3661,13 +3661,15 @@ mlir::LogicalResult CIRToLLVMVTableAddrPointOpLowering::matchAndRewrite(
   if (!symAddr) {
     symAddr = getValueForVTableSymbol(op, rewriter, getTypeConverter(),
                                       op.getNameAttr(), eltType);
-    offsets = llvm::SmallVector<mlir::LLVM::GEPArg>{0, op.getVtableIndex(),
-                                                    op.getAddressPointIndex()};
+    offsets = llvm::SmallVector<mlir::LLVM::GEPArg>{
+        0, op.getAddressPointAttr().getVtableIndex(),
+        op.getAddressPointAttr().getAddressPointIndex()};
   } else {
     // Get indirect vtable address point retrieval
     symAddr = adaptor.getSymAddr();
     eltType = converter->convertType(symAddr.getType());
-    offsets = llvm::SmallVector<mlir::LLVM::GEPArg>{op.getAddressPointIndex()};
+    offsets = llvm::SmallVector<mlir::LLVM::GEPArg>{
+        op.getAddressPointAttr().getAddressPointIndex()};
   }
 
   assert(eltType && "Shouldn't ever be missing an eltType here");
