@@ -79,11 +79,11 @@ struct ConvertCIRToMLIRPass
     : public mlir::PassWrapper<ConvertCIRToMLIRPass,
                                mlir::OperationPass<mlir::ModuleOp>> {
   void getDependentDialects(mlir::DialectRegistry &registry) const override {
-    registry.insert<mlir::BuiltinDialect, mlir::func::FuncDialect,
-                    mlir::affine::AffineDialect, mlir::memref::MemRefDialect,
-                    mlir::arith::ArithDialect, mlir::cf::ControlFlowDialect,
-                    mlir::scf::SCFDialect, mlir::math::MathDialect,
-                    mlir::vector::VectorDialect>();
+    registry.insert<mlir::LLVM::LLVMDialect, mlir::BuiltinDialect,
+                    mlir::func::FuncDialect, mlir::affine::AffineDialect,
+                    mlir::memref::MemRefDialect, mlir::arith::ArithDialect,
+                    mlir::cf::ControlFlowDialect, mlir::scf::SCFDialect,
+                    mlir::math::MathDialect, mlir::vector::VectorDialect>();
   }
   void runOnOperation() final;
 
@@ -1466,11 +1466,11 @@ void ConvertCIRToMLIRPass::runOnOperation() {
 
   mlir::ConversionTarget target(getContext());
   target.addLegalOp<mlir::ModuleOp>();
-  target
-      .addLegalDialect<mlir::affine::AffineDialect, mlir::arith::ArithDialect,
-                       mlir::memref::MemRefDialect, mlir::func::FuncDialect,
-                       mlir::scf::SCFDialect, mlir::cf::ControlFlowDialect,
-                       mlir::math::MathDialect, mlir::vector::VectorDialect>();
+  target.addLegalDialect<mlir::LLVM::LLVMDialect, mlir::affine::AffineDialect,
+                         mlir::arith::ArithDialect, mlir::memref::MemRefDialect,
+                         mlir::func::FuncDialect, mlir::scf::SCFDialect,
+                         mlir::cf::ControlFlowDialect, mlir::math::MathDialect,
+                         mlir::vector::VectorDialect>();
   target.addIllegalDialect<cir::CIRDialect>();
 
   if (failed(applyPartialConversion(module, target, std::move(patterns))))
