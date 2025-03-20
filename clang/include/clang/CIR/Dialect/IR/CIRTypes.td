@@ -757,6 +757,8 @@ def CIR_StructType : CIR_Type<"Struct", "struct",
   let hasCustomAssemblyFormat = 1;
 }
 
+def Struct : Type<CPred<"::mlir::isa<::cir::StructType>($_self)">, "CIR struct type">;
+
 //===----------------------------------------------------------------------===//
 // Global type constraints
 //===----------------------------------------------------------------------===//
