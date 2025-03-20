@@ -2585,7 +2585,7 @@ def VTableAddrPointOp : CIR_Op<"vtable.address_point",
     ```mlir
     cir.global linkonce_odr @_ZTV1B = ...
     ...
-    %3 = cir.vtable.address_point(@_ZTV1B, vtable_index = 0, address_point_index = 2) : !cir.ptr<!cir.ptr<() -> i32>>
+    %3 = cir.vtable.address_point(@_ZTV1B, address_point = (0, 2)) : !cir.ptr<!cir.ptr<() -> i32>>
     ```
   }];
 
