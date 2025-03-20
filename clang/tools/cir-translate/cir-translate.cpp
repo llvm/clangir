@@ -69,7 +69,9 @@ std::string prepareCIRModuleTriple(mlir::ModuleOp mod) {
 
   // Treat "" as the default target machine.
   if (triple.empty()) {
-    triple = llvm::sys::getDefaultTargetTriple();
+    // Currently ClangIR only supports a couple of targets. Not specifying a
+    // target triple will default to x86_64-unknown-linux-gnu.
+    triple = "x86_64-unknown-linux-gnu";
 
     mod.emitWarning() << "no target triple provided, assuming " << triple;
   }
