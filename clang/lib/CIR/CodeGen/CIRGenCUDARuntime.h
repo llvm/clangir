@@ -47,6 +47,9 @@ private:
   std::string addPrefixToName(StringRef FuncName) const;
   std::string addUnderscoredPrefixToName(StringRef FuncName) const;
 
+  // Mangle context for device.
+  std::unique_ptr<MangleContext> deviceMC;
+
 public:
   CIRGenCUDARuntime(CIRGenModule &cgm);
   virtual ~CIRGenCUDARuntime();
@@ -60,6 +63,9 @@ public:
   virtual mlir::Operation *getKernelHandle(cir::FuncOp fn, GlobalDecl GD);
   virtual void internalizeDeviceSideVar(const VarDecl *d,
                                         cir::GlobalLinkageKind &linkage);
+  /// Returns function or variable name on device side even if the current
+  /// compilation is for host.
+  virtual std::string getDeviceSideName(const NamedDecl *nd);
 };
 
 } // namespace clang::CIRGen
