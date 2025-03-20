@@ -2771,8 +2771,10 @@ cir::FuncOp CIRGenModule::getBuiltinLibFunction(const FunctionDecl *FD,
                                                 unsigned BuiltinID) {
   assert(astContext.BuiltinInfo.isLibFunction(BuiltinID));
 
-  // Get the name, skip over the __builtin_ prefix (if necessary).
-  StringRef Name;
+  // Get the name, skip over the __builtin_ prefix (if necessary). We may have
+  // to build this up so provide a small stack buffer to handle the vast
+  // majority of names.
+  llvm::SmallString<64> Name;
   GlobalDecl D(FD);
 
   // TODO: This list should be expanded or refactored after all GCC-compatible
@@ -2830,8 +2832,9 @@ cir::FuncOp CIRGenModule::getBuiltinLibFunction(const FunctionDecl *FD,
              AIXLongDouble64Builtins.find(BuiltinID) !=
                  AIXLongDouble64Builtins.end())
       Name = AIXLongDouble64Builtins[BuiltinID];
-    else
-      Name = StringRef(astContext.BuiltinInfo.getName(BuiltinID).data(), 10);
+    else {
+      Name = astContext.BuiltinInfo.getName(BuiltinID).substr(10);
+    }
   }
 
   auto Ty = convertType(FD->getType());

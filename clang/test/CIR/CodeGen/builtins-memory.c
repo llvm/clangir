@@ -3,7 +3,6 @@
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm %s -o - \
 // RUN:  | opt -S -passes=instcombine,mem2reg,simplifycfg -o %t.ll 
 // RUN: FileCheck  --check-prefix=LLVM --input-file=%t.ll %s
-// XFAIL: *
 
 typedef __SIZE_TYPE__ size_t;
 void test_memcpy_chk(void *dest, const void *src, size_t n) {
