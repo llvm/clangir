@@ -174,8 +174,8 @@ void CIRCanonicalizePass::runOnOperation() {
   // Collect operations to apply patterns.
   llvm::SmallVector<Operation *, 16> ops;
   getOperation()->walk([&](Operation *op) {
-    // CastOp here is to perform a manual `fold` in
-    // applyOpPatternsAndFold
+    // CastOp and UnaryOp are here to perform a manual `fold` in
+    // applyOpPatternsGreedily.
     if (isa<BrOp, BrCondOp, ScopeOp, SwitchOp, CastOp, TryOp, UnaryOp, SelectOp,
             ComplexCreateOp, ComplexRealOp, ComplexImagOp, CallOp>(op))
       ops.push_back(op);
