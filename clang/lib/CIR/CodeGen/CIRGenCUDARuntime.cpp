@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "CIRGenCUDARuntime.h"
+#include "CIRGenCXXABI.h"
 #include "CIRGenFunction.h"
 #include "mlir/IR/Operation.h"
 #include "clang/Basic/Cuda.h"
@@ -23,9 +24,26 @@
 using namespace clang;
 using namespace clang::CIRGen;
 
+static std::unique_ptr<MangleContext> initDeviceMC(CIRGenModule &cgm) {
+  // If the host and device have different C++ ABIs, mark it as the device
+  // mangle context so that the mangling needs to retrieve the additional
+  // device lambda mangling number instead of the regular host one.
+  if (cgm.getASTContext().getAuxTargetInfo() &&
+      cgm.getASTContext().getTargetInfo().getCXXABI().isMicrosoft() &&
+      cgm.getASTContext().getAuxTargetInfo()->getCXXABI().isItaniumFamily()) {
+    return std::unique_ptr<MangleContext>(
+        cgm.getASTContext().createDeviceMangleContext(
+            *cgm.getASTContext().getAuxTargetInfo()));
+  }
+
+  return std::unique_ptr<MangleContext>(cgm.getASTContext().createMangleContext(
+      cgm.getASTContext().getAuxTargetInfo()));
+}
+
 CIRGenCUDARuntime::~CIRGenCUDARuntime() {}
 
-CIRGenCUDARuntime::CIRGenCUDARuntime(CIRGenModule &cgm) : cgm(cgm) {
+CIRGenCUDARuntime::CIRGenCUDARuntime(CIRGenModule &cgm)
+    : cgm(cgm), deviceMC(initDeviceMC(cgm)) {
   if (cgm.getLangOpts().OffloadViaLLVM)
     llvm_unreachable("NYI");
   else if (cgm.getLangOpts().HIP)
@@ -287,6 +305,39 @@ mlir::Operation *CIRGenCUDARuntime::getKernelHandle(cir::FuncOp fn,
   KernelStubs[globalOp] = fn;
 
   return globalOp;
+}
+
+std::string CIRGenCUDARuntime::getDeviceSideName(const NamedDecl *nd) {
+  GlobalDecl gd;
+  // nd could be either a kernel or a variable.
+  if (auto *fd = dyn_cast<FunctionDecl>(nd))
+    gd = GlobalDecl(fd, KernelReferenceKind::Kernel);
+  else
+    gd = GlobalDecl(nd);
+  std::string deviceSideName;
+  MangleContext *mc;
+  if (cgm.getLangOpts().CUDAIsDevice)
+    mc = &cgm.getCXXABI().getMangleContext();
+  else
+    mc = deviceMC.get();
+  if (mc->shouldMangleDeclName(nd)) {
+    SmallString<256> buffer;
+    llvm::raw_svector_ostream out(buffer);
+    mc->mangleName(gd, out);
+    deviceSideName = std::string(out.str());
+  } else
+    deviceSideName = std::string(nd->getIdentifier()->getName());
+
+  // Make unique name for device side static file-scope variable for HIP.
+  if (cgm.getASTContext().shouldExternalize(nd) &&
+      cgm.getLangOpts().GPURelocatableDeviceCode) {
+    SmallString<256> buffer;
+    llvm::raw_svector_ostream out(buffer);
+    out << deviceSideName;
+    cgm.printPostfixForExternalizedDecl(out, nd);
+    deviceSideName = std::string(out.str());
+  }
+  return deviceSideName;
 }
 
 void CIRGenCUDARuntime::internalizeDeviceSideVar(
