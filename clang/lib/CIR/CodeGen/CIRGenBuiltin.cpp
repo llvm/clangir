@@ -1405,7 +1405,7 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   case Builtin::BI__builtin_elementwise_asin:
     llvm_unreachable("BI__builtin_elementwise_asin NYI");
   case Builtin::BI__builtin_elementwise_atan:
-    llvm_unreachable("BI__builtin_elementwise_atan NYI");
+    return emitUnaryFPBuiltin<cir::ATanOp>(*this, *E);
   case Builtin::BI__builtin_elementwise_atan2:
     llvm_unreachable("BI__builtin_elementwise_atan2 NYI");
   case Builtin::BI__builtin_elementwise_ceil:
