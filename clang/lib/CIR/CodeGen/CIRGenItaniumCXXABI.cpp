@@ -1011,10 +1011,9 @@ CIRGenItaniumCXXABI::getVTableAddressPoint(BaseSubobject Base,
   return builder.create<cir::VTableAddrPointOp>(
       CGM.getLoc(VTableClass->getSourceRange()), vtablePtrTy,
       mlir::FlatSymbolRefAttr::get(vtable.getSymNameAttr()), mlir::Value{},
-      cir::AddressPointAttr::get(
-          CGM.getBuilder().getContext(), AddressPoint.VTableIndex,
-          AddressPoint.AddressPointIndex)
-    );
+      cir::AddressPointAttr::get(CGM.getBuilder().getContext(),
+                                 AddressPoint.VTableIndex,
+                                 AddressPoint.AddressPointIndex));
 }
 
 mlir::Value CIRGenItaniumCXXABI::getVTableAddressPointInStructor(

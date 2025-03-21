@@ -1417,23 +1417,23 @@ def AddressPointAttr : CIR_Attr<"AddressPoint", "address_point"> {
   let description = [{  
   Attribute specifying the address point within a C++ virtual table (vtable).
 
-  The `vtable_index` parameter identifies which vtable to use within a vtable
-  group, while the `address_point_index` specifies the offset within
+  The `index` (vtable index) parameter identifies which vtable to use within a vtable
+  group, while the `offset` (address point index) specifies the offset within
   that vtable where the address begins.
 
   Example:
   ```mlir
   cir.global linkonce_odr @_ZTV1B = ...
   ...
-  %3 = cir.vtable.address_point(@_ZTV1B, address_point = (0, 2)) : !cir.ptr<!cir.ptr<() -> i32>>
+  %3 = cir.vtable.address_point(@_ZTV1B, address_point = <index = 0, offset = 2>)) : !cir.ptr<!cir.ptr<() -> i32>>
   ```
   }];
 
-  let parameters = (ins "int32_t":$vtable_index,
-                        "int32_t":$address_point_index);
+  let parameters = (ins "int32_t":$index,
+                        "int32_t":$offset);
 
   let assemblyFormat = [{
-    `(` $vtable_index `,` $address_point_index `)`
+    `<` struct($index, $offset) `>`
   }];
 }
 
