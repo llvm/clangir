@@ -757,7 +757,9 @@ def CIR_StructType : CIR_Type<"Struct", "struct",
   let hasCustomAssemblyFormat = 1;
 }
 
-def Struct : Type<CPred<"::mlir::isa<::cir::StructType>($_self)">, "CIR struct type">;
+// This type is used because of some limitations of type constraints.
+// See https://github.com/llvm/clangir/pull/1504#issuecomment-2738968751 for more details.
+def CIRStructType : Type<CPred<"::mlir::isa<::cir::StructType>($_self)">, "CIR struct type">;
 
 //===----------------------------------------------------------------------===//
 // Global type constraints
