@@ -38,13 +38,6 @@ uint64_t mlir::named_tuple::NamedTupleType::getABIAlignment(
   return 8;
 }
 
-uint64_t mlir::named_tuple::NamedTupleType::getPreferredAlignment(
-    mlir::DataLayout const &,
-    llvm::ArrayRef<mlir::DataLayoutEntryInterface>) const {
-  llvm_unreachable("getPreferredAlignment() not implemented");
-  return 8;
-}
-
 //===----------------------------------------------------------------------===//
 // TableGen'd op method definitions
 //===----------------------------------------------------------------------===//
