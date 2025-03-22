@@ -68,6 +68,11 @@ let cppNamespace = "::cir" in {
         /*defaultImplementation=*/ [{
           return $_attr.getAst()->getTLSKind();
         }]
+      >,
+      InterfaceMethod<"", "clang::LangAS", "getExpectedAS", (ins), [{}],
+        /*defaultImplementation=*/[{
+          return $_attr.getAst()->getType().getAddressSpace();
+        }]
       >
     ];
   }
