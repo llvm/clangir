@@ -2585,14 +2585,13 @@ def VTableAddrPointOp : CIR_Op<"vtable.address_point",
     ```mlir
     cir.global linkonce_odr @_ZTV1B = ...
     ...
-    %3 = cir.vtable.address_point(@_ZTV1B, vtable_index = 0, address_point_index = 2) : !cir.ptr<!cir.ptr<() -> i32>>
+    %3 = cir.vtable.address_point(@_ZTV1B, address_point = <index = 0, offset = 2>) : !cir.ptr<!cir.ptr<() -> i32>>
     ```
   }];
 
   let arguments = (ins OptionalAttr<FlatSymbolRefAttr>:$name,
                        Optional<CIR_AnyType>:$sym_addr,
-                       I32Attr:$vtable_index,
-                       I32Attr:$address_point_index);
+                       AddressPointAttr:$address_point);
   let results = (outs Res<CIR_PointerType, "", []>:$addr);
 
   let assemblyFormat = [{
@@ -2600,8 +2599,7 @@ def VTableAddrPointOp : CIR_Op<"vtable.address_point",
       ($name^)?
       ($sym_addr^ `:` type($sym_addr))?
       `,`
-        `vtable_index` `=` $vtable_index `,`
-        `address_point_index` `=` $address_point_index
+        `address_point` `=` $address_point
     `)`
     `:` qualified(type($addr)) attr-dict
   }];
