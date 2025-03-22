@@ -76,7 +76,7 @@ mlir::LogicalResult runCIRToCIRPasses(
   pm.addPass(mlir::createLoweringPreparePass(&astContext));
 
   if (flattenCIR || enableMem2Reg)
-    mlir::populateCIRPreLoweringPasses(pm, enableCallConvLowering);
+    mlir::populateCIRPreLoweringPasses(pm, enableCallConvLowering, emitCore);
 
   if (enableMem2Reg)
     pm.addPass(mlir::createMem2Reg());
@@ -96,11 +96,12 @@ mlir::LogicalResult runCIRToCIRPasses(
 
 namespace mlir {
 
-void populateCIRPreLoweringPasses(OpPassManager &pm, bool useCCLowering) {
+void populateCIRPreLoweringPasses(OpPassManager &pm, bool useCCLowering,
+                                  bool emitCore) {
   if (useCCLowering)
     pm.addPass(createCallConvLoweringPass());
   pm.addPass(createHoistAllocasPass());
-  pm.addPass(createFlattenCFGPass());
+  pm.addPass(createFlattenCFGPass(/*throughMLIR=*/emitCore));
   pm.addPass(createGotoSolverPass());
 }
 
