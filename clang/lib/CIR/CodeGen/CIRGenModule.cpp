@@ -576,6 +576,25 @@ bool CIRGenModule::shouldEmitCUDAGlobalVar(const VarDecl *global) const {
          global->getType()->isCUDADeviceBuiltinTextureType();
 }
 
+void CIRGenModule::printPostfixForExternalizedDecl(llvm::raw_ostream &os,
+                                                   const Decl *d) const {
+  // ptxas does not allow '.' in symbol names. On the other hand, HIP prefers
+  // postfix beginning with '.' since the symbol name can be demangled.
+  if (langOpts.HIP)
+    os << (isa<VarDecl>(d) ? ".static." : ".intern.");
+  else
+    os << (isa<VarDecl>(d) ? "__static__" : "__intern__");
+
+  // If the CUID is not specified we try to generate a unique postfix.
+  if (getLangOpts().CUID.empty()) {
+    // TODO: Once we add 'PreprocessorOpts' into CIRGenModule this part can be
+    // brought in from OG.
+    llvm_unreachable("NYI");
+  } else {
+    os << getASTContext().getCUIDHash();
+  }
+}
+
 void CIRGenModule::emitGlobal(GlobalDecl gd) {
   llvm::TimeTraceScope scope("build CIR Global", [&]() -> std::string {
     auto *nd = dyn_cast<NamedDecl>(gd.getDecl());
@@ -1493,6 +1512,32 @@ void CIRGenModule::emitGlobalVarDefinition(const clang::VarDecl *d,
          d->getType()->isCUDADeviceBuiltinTextureType())) {
       gv->setAttr(CUDAExternallyInitializedAttr::getMnemonic(),
                   CUDAExternallyInitializedAttr::get(&getMLIRContext()));
+    }
+  }
+
+  // Decorate CUDA shadow variables with the cu.shadow_name attribute so we know
+  // how to register them when lowering.
+  if (langOpts.CUDA && !langOpts.CUDAIsDevice &&
+      (d->hasAttr<CUDAConstantAttr>() || d->hasAttr<CUDADeviceAttr>())) {
+    // Shadow variables and their properties must be registered with CUDA
+    // runtime. Skip Extern global variables, which will be registered in
+    // the TU where they are defined.
+    //
+    // Don't register a C++17 inline variable. The local symbol can be
+    // discarded and referencing a discarded local symbol from outside the
+    // comdat (__cuda_register_globals) is disallowed by the ELF spec.
+    //
+    // HIP managed variables need to be always recorded in device and host
+    // compilations for transformation.
+    //
+    // HIP managed variables and variables in CUDADeviceVarODRUsedByHost are
+    // added to llvm.compiler-used, therefore they are safe to be registered.
+    if ((!d->hasExternalStorage() && !d->isInline()) ||
+        getASTContext().CUDADeviceVarODRUsedByHost.contains(d) ||
+        d->hasAttr<HIPManagedAttr>()) {
+      auto shadowName = cudaRuntime->getDeviceSideName(cast<NamedDecl>(d));
+      auto attr = CUDAShadowNameAttr::get(&getMLIRContext(), shadowName);
+      gv->setAttr(CUDAShadowNameAttr::getMnemonic(), attr);
     }
   }
 
@@ -3650,7 +3695,8 @@ struct FunctionIsDirectlyRecursive
     unsigned builtinId = func->getBuiltinID();
     if (!builtinId || !builtinCtx.isLibFunction(builtinId))
       return false;
-    StringRef builtinName = builtinCtx.getName(builtinId);
+    std::string builtinNameStr = builtinCtx.getName(builtinId);
+    StringRef builtinName = builtinNameStr;
     return builtinName.starts_with("__builtin_") &&
            name == builtinName.slice(strlen("__builtin_"), StringRef::npos);
   }
