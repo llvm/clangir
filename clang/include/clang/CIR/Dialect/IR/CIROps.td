@@ -2575,8 +2575,8 @@ def VTableAddrPointOp : CIR_Op<"vtable.address_point",
     (address point) of a C++ virtual table. An object internal `__vptr`
     gets initializated on top of the value returned by this operation.
 
-    `vtable_index` provides the appropriate vtable within the vtable group
-    (as specified by Itanium ABI), and `addr_point_index` the actual address
+    `address_point.index` (vtable index)  provides the appropriate vtable within the vtable group
+    (as specified by Itanium ABI), and `address_point.offset` (address point index) the actual address
     point within that vtable.
 
     The return type is always a `!cir.ptr<!cir.ptr<() -> i32>>`.
