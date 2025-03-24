@@ -896,7 +896,8 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     case Builtin::BI__builtin_tanf16:
     case Builtin::BI__builtin_tanl:
     case Builtin::BI__builtin_tanf128:
-      llvm_unreachable("Builtin::BItan like NYI");
+      assert(!cir::MissingFeatures::fastMathFlags());
+      return emitUnaryMaybeConstrainedFPBuiltin<cir::TanOp>(*this, *E);
 
     case Builtin::BItanh:
     case Builtin::BItanhf:
@@ -1400,10 +1401,10 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     return RValue::get(result);
   }
   case Builtin::BI__builtin_elementwise_acos: {
-    return emitBuiltinWithOneOverloadedType<1>(E, "acos");
+    return emitUnaryFPBuiltin<cir::ACosOp>(*this, *E);
   }
   case Builtin::BI__builtin_elementwise_asin:
-    llvm_unreachable("BI__builtin_elementwise_asin NYI");
+    return emitUnaryFPBuiltin<cir::ASinOp>(*this, *E);
   case Builtin::BI__builtin_elementwise_atan:
     return emitUnaryFPBuiltin<cir::ATanOp>(*this, *E);
   case Builtin::BI__builtin_elementwise_atan2:
@@ -2771,8 +2772,10 @@ cir::FuncOp CIRGenModule::getBuiltinLibFunction(const FunctionDecl *FD,
                                                 unsigned BuiltinID) {
   assert(astContext.BuiltinInfo.isLibFunction(BuiltinID));
 
-  // Get the name, skip over the __builtin_ prefix (if necessary).
-  StringRef Name;
+  // Get the name, skip over the __builtin_ prefix (if necessary). We may have
+  // to build this up so provide a small stack buffer to handle the vast
+  // majority of names.
+  llvm::SmallString<64> Name;
   GlobalDecl D(FD);
 
   // TODO: This list should be expanded or refactored after all GCC-compatible
@@ -2831,7 +2834,7 @@ cir::FuncOp CIRGenModule::getBuiltinLibFunction(const FunctionDecl *FD,
                  AIXLongDouble64Builtins.end())
       Name = AIXLongDouble64Builtins[BuiltinID];
     else
-      Name = StringRef(astContext.BuiltinInfo.getName(BuiltinID).data(), 10);
+      Name = astContext.BuiltinInfo.getName(BuiltinID).substr(10);
   }
 
   auto Ty = convertType(FD->getType());

@@ -4737,6 +4737,8 @@ class UnaryFPToFPBuiltinOp<string mnemonic, string llvmOpName>
   let llvmOp = llvmOpName;
 }
 
+def ACosOp : UnaryFPToFPBuiltinOp<"acos", "ACosOp">;
+def ASinOp : UnaryFPToFPBuiltinOp<"asin", "ASinOp">;
 def ATanOp : UnaryFPToFPBuiltinOp<"atan", "ATanOp">;
 def CeilOp : UnaryFPToFPBuiltinOp<"ceil", "FCeilOp">;
 def CosOp : UnaryFPToFPBuiltinOp<"cos", "CosOp">;
@@ -4753,6 +4755,7 @@ def RoundOp : UnaryFPToFPBuiltinOp<"round", "RoundOp">;
 def RoundEvenOp : UnaryFPToFPBuiltinOp<"roundeven", "RoundEvenOp">;
 def SinOp : UnaryFPToFPBuiltinOp<"sin", "SinOp">;
 def SqrtOp : UnaryFPToFPBuiltinOp<"sqrt", "SqrtOp">;
+def TanOp : UnaryFPToFPBuiltinOp<"tan", "TanOp">;
 def TruncOp : UnaryFPToFPBuiltinOp<"trunc", "FTruncOp">;
 
 def AbsOp : CIR_Op<"abs", [Pure, SameOperandsAndResultType]> {

@@ -15181,16 +15181,27 @@ uint64_t test_vcaled_f64(float64_t a, float64_t b) {
 // NYI-LABEL: @test_vcalts_f32(
 // NYI:   [[VCALTS_F32_I:%.*]] = call i32 @llvm.aarch64.neon.facgt.i32.f32(float %b, float %a)
 // NYI:   ret i32 [[VCALTS_F32_I]]
-// uint32_t test_vcalts_f32(float32_t a, float32_t b) {
-//   return (uint32_t)vcalts_f32(a, b);
-// }
+uint32_t test_vcalts_f32(float32_t a, float32_t b) {
+  return (uint32_t)vcalts_f32(a, b);
 
-// NYI-LABEL: @test_vcaltd_f64(
-// NYI:   [[VCALTD_F64_I:%.*]] = call i64 @llvm.aarch64.neon.facgt.i64.f64(double %b, double %a)
-// NYI:   ret i64 [[VCALTD_F64_I]]
-// uint64_t test_vcaltd_f64(float64_t a, float64_t b) {
-//   return (uint64_t)vcaltd_f64(a, b);
-// }
+  // CIR-LABEL: vcalts_f32
+  // CIR: [[TMP0:%.*]] = cir.llvm.intrinsic "aarch64.neon.facgt" {{.*}}, {{.*}} : (!cir.float, !cir.float) -> !u32i
+
+  // LLVM-LABEL: @test_vcalts_f32(
+  // LLVM:   [[VCALTS_F32_I:%.*]] = call i32 @llvm.aarch64.neon.facgt.i32.f32(float %0, float %1)
+  // LLVM:   ret i32 [[VCALTS_F32_I]]
+}
+
+uint64_t test_vcaltd_f64(float64_t a, float64_t b) {
+  return (uint64_t)vcaltd_f64(a, b);
+
+  // CIR-LABEL: vcaltd_f64
+  // CIR: [[TMP0:%.*]] = cir.llvm.intrinsic "aarch64.neon.facgt" {{.*}}, {{.*}} : (!cir.double, !cir.double) -> !u64i
+
+  // LLVM-LABEL: @test_vcaltd_f64(
+  // LLVM:   [[VCALTD_F64_I:%.*]] = call i64 @llvm.aarch64.neon.facgt.i64.f64(double %0, double %1)
+  // LLVM:   ret i64 [[VCALTD_F64_I]]
+}
 
 int64_t test_vshrd_n_s64(int64_t a) {
   return (int64_t)vshrd_n_s64(a, 1);
