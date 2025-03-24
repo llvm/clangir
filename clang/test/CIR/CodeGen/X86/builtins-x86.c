@@ -30,7 +30,6 @@ void test_mm_pause() {
   // LLVM: call void @llvm.x86.sse2.pause()
 }
 
-
 int test_rdtsc() {
   // CIR-LABEL: @test_rdtsc
   // LLVM-LABEL: @test_rdtsc
