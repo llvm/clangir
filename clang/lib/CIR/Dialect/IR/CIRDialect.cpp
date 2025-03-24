@@ -2376,7 +2376,7 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
   // Parse the function signature.
   bool isVariadic = false;
   if (function_interface_impl::parseFunctionSignatureWithArguments(
-          parser, /*allowVariadic=*/false, arguments, isVariadic, resultTypes,
+          parser, /*allowVariadic=*/true, arguments, isVariadic, resultTypes,
           resultAttrs))
     return failure();
 
