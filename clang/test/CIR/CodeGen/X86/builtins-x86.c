@@ -55,6 +55,6 @@ int test_rdtsc() {
   // CIR-LABEL: @test_rdtsc
   // LLVM-LABEL: @test_rdtsc
   return _rdtsc();
-  // CIR: {{%.*}} = cir.llvm.intrinsic "x86.rdtsc"  : () -> !u64i 
+  // CIR: {{%.*}} = cir.call %2() : (!cir.ptr<!cir.func<() -> !s32i>>) -> !s32i
   // LLVM: call i64 @llvm.x86.rdtsc
 }
