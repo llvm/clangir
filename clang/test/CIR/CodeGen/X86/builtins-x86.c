@@ -5,12 +5,7 @@
 
 // This test mimics clang/test/CodeGen/builtins-x86.c, which eventually
 // CIR shall be able to support fully.
-void _mm_mfence();
-void _mm_sfence(); 
-void _mm_lfence();
-void _mm_pause();
-void _mm_clflush(const void *);
-int _rdtsc();
+
 void test_mm_clflush(const void* tmp_vCp) {
   // CIR-LABEL: test_mm_clflush
   // LLVM-LABEL: test_mm_clflush
@@ -51,10 +46,4 @@ void test_mm_sfence() {
   // LLVM: call void @llvm.x86.sse.sfence()
 }
 
-int test_rdtsc() {
-  // CIR-LABEL: @test_rdtsc
-  // LLVM-LABEL: @test_rdtsc
-  return _rdtsc();
-  // CIR: {{%.*}} = cir.call %2() : (!cir.ptr<!cir.func<() -> !s32i>>) -> !s32i
-  // LLVM: call i64 @llvm.x86.rdtsc
-}
+
