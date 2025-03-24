@@ -133,7 +133,7 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
     mlir::Type voidTy = cir::VoidType::get(&getMLIRContext());
     return builder
         .create<cir::LLVMIntrinsicCallOp>(
-            getLoc(E->getExprLoc()), builder.getStringAttr("x86.sse2.sfence"),
+            getLoc(E->getExprLoc()), builder.getStringAttr("x86.sse.sfence"),
             voidTy)
         .getResult();
   }

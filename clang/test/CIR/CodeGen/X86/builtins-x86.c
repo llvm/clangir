@@ -42,8 +42,8 @@ void test_mm_sfence() {
   // CIR-LABEL: test_mm_sfence
   // LLVM-LABEL: test_mm_sfence
   _mm_sfence();
-  // CIR: {{%.*}} = cir.llvm.intrinsic "x86.sse2.sfence" : () -> !void
-  // LLVM: call void @llvm.x86.sse2.sfence()
+  // CIR: {{%.*}} = cir.llvm.intrinsic "x86_sse_sfence" : () -> !void
+  // LLVM: call void @llvm.x86.sse.sfence()
 }
 
 int test_rdtsc() {
