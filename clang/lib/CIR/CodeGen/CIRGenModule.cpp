@@ -2038,18 +2038,18 @@ void CIRGenModule::emitTopLevelDecl(Decl *decl) {
   case Decl::PragmaComment: {
     const auto *PCD = cast<PragmaCommentDecl>(decl);
     switch (PCD->getCommentKind()) {
-      case PCK_Unknown:
-        llvm_unreachable("unexpected pragma comment kind");
-      case PCK_Linker:
-        assert(!MissingFeatures::emitModuleLinkOptions() && "NYI");
-        break;
-      case PCK_Lib:
-        assert(!MissingFeatures::elfDependentLibraries() && "NYI");
-        break;
-      case PCK_Compiler:
-      case PCK_ExeStr:
-      case PCK_User:
-        break; // We ignore all of these.
+    case PCK_Unknown:
+      llvm_unreachable("unexpected pragma comment kind");
+    case PCK_Linker:
+      assert(!MissingFeatures::emitModuleLinkOptions() && "NYI");
+      break;
+    case PCK_Lib:
+      assert(!MissingFeatures::elfDependentLibraries() && "NYI");
+      break;
+    case PCK_Compiler:
+    case PCK_ExeStr:
+    case PCK_User:
+      break; // We ignore all of these.
     }
     break;
   }
