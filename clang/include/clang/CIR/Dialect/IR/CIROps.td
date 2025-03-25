@@ -2575,8 +2575,8 @@ def VTableAddrPointOp : CIR_Op<"vtable.address_point",
     (address point) of a C++ virtual table. An object internal `__vptr`
     gets initializated on top of the value returned by this operation.
 
-    `vtable_index` provides the appropriate vtable within the vtable group
-    (as specified by Itanium ABI), and `addr_point_index` the actual address
+    `address_point.index` (vtable index)  provides the appropriate vtable within the vtable group
+    (as specified by Itanium ABI), and `address_point.offset` (address point index) the actual address
     point within that vtable.
 
     The return type is always a `!cir.ptr<!cir.ptr<() -> i32>>`.
@@ -2585,14 +2585,13 @@ def VTableAddrPointOp : CIR_Op<"vtable.address_point",
     ```mlir
     cir.global linkonce_odr @_ZTV1B = ...
     ...
-    %3 = cir.vtable.address_point(@_ZTV1B, vtable_index = 0, address_point_index = 2) : !cir.ptr<!cir.ptr<() -> i32>>
+    %3 = cir.vtable.address_point(@_ZTV1B, address_point = <index = 0, offset = 2>) : !cir.ptr<!cir.ptr<() -> i32>>
     ```
   }];
 
   let arguments = (ins OptionalAttr<FlatSymbolRefAttr>:$name,
                        Optional<CIR_AnyType>:$sym_addr,
-                       I32Attr:$vtable_index,
-                       I32Attr:$address_point_index);
+                       AddressPointAttr:$address_point);
   let results = (outs Res<CIR_PointerType, "", []>:$addr);
 
   let assemblyFormat = [{
@@ -2600,8 +2599,7 @@ def VTableAddrPointOp : CIR_Op<"vtable.address_point",
       ($name^)?
       ($sym_addr^ `:` type($sym_addr))?
       `,`
-        `vtable_index` `=` $vtable_index `,`
-        `address_point_index` `=` $address_point_index
+        `address_point` `=` $address_point
     `)`
     `:` qualified(type($addr)) attr-dict
   }];
@@ -2920,7 +2918,7 @@ def ExtractMemberOp : CIR_Op<"extract_member", [Pure]> {
     ```
   }];
 
-  let arguments = (ins CIR_StructType:$record, IndexAttr:$index_attr);
+  let arguments = (ins CIRStructType:$record, IndexAttr:$index_attr);
   let results = (outs CIR_AnyType:$result);
 
   let assemblyFormat = [{
@@ -2984,9 +2982,9 @@ def InsertMemberOp : CIR_Op<"insert_member",
     ```
   }];
 
-  let arguments = (ins CIR_StructType:$record, IndexAttr:$index_attr,
+  let arguments = (ins CIRStructType:$record, IndexAttr:$index_attr,
                        CIR_AnyType:$value);
-  let results = (outs CIR_StructType:$result);
+  let results = (outs CIRStructType:$result);
 
   let builders = [
     OpBuilder<(ins "mlir::Value":$record, "uint64_t":$index,
@@ -4737,9 +4735,10 @@ class UnaryFPToFPBuiltinOp<string mnemonic, string llvmOpName>
   let llvmOp = llvmOpName;
 }
 
-def ASinOp : UnaryFPToFPBuiltinOp<"asin", "ASinOp">;
-def CeilOp : UnaryFPToFPBuiltinOp<"ceil", "FCeilOp">;
 def ACosOp : UnaryFPToFPBuiltinOp<"acos", "ACosOp">;
+def ASinOp : UnaryFPToFPBuiltinOp<"asin", "ASinOp">;
+def ATanOp : UnaryFPToFPBuiltinOp<"atan", "ATanOp">;
+def CeilOp : UnaryFPToFPBuiltinOp<"ceil", "FCeilOp">;
 def CosOp : UnaryFPToFPBuiltinOp<"cos", "CosOp">;
 def ExpOp : UnaryFPToFPBuiltinOp<"exp", "ExpOp">;
 def Exp2Op : UnaryFPToFPBuiltinOp<"exp2", "Exp2Op">;
