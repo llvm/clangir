@@ -2575,8 +2575,8 @@ def VTableAddrPointOp : CIR_Op<"vtable.address_point",
     (address point) of a C++ virtual table. An object internal `__vptr`
     gets initializated on top of the value returned by this operation.
 
-    `vtable_index` provides the appropriate vtable within the vtable group
-    (as specified by Itanium ABI), and `addr_point_index` the actual address
+    `address_point.index` (vtable index)  provides the appropriate vtable within the vtable group
+    (as specified by Itanium ABI), and `address_point.offset` (address point index) the actual address
     point within that vtable.
 
     The return type is always a `!cir.ptr<!cir.ptr<() -> i32>>`.
@@ -2585,14 +2585,13 @@ def VTableAddrPointOp : CIR_Op<"vtable.address_point",
     ```mlir
     cir.global linkonce_odr @_ZTV1B = ...
     ...
-    %3 = cir.vtable.address_point(@_ZTV1B, vtable_index = 0, address_point_index = 2) : !cir.ptr<!cir.ptr<() -> i32>>
+    %3 = cir.vtable.address_point(@_ZTV1B, address_point = <index = 0, offset = 2>) : !cir.ptr<!cir.ptr<() -> i32>>
     ```
   }];
 
   let arguments = (ins OptionalAttr<FlatSymbolRefAttr>:$name,
                        Optional<CIR_AnyType>:$sym_addr,
-                       I32Attr:$vtable_index,
-                       I32Attr:$address_point_index);
+                       AddressPointAttr:$address_point);
   let results = (outs Res<CIR_PointerType, "", []>:$addr);
 
   let assemblyFormat = [{
@@ -2600,8 +2599,7 @@ def VTableAddrPointOp : CIR_Op<"vtable.address_point",
       ($name^)?
       ($sym_addr^ `:` type($sym_addr))?
       `,`
-        `vtable_index` `=` $vtable_index `,`
-        `address_point_index` `=` $address_point_index
+        `address_point` `=` $address_point
     `)`
     `:` qualified(type($addr)) attr-dict
   }];
