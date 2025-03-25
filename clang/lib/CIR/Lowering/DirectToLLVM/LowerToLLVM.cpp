@@ -2504,7 +2504,7 @@ mlir::LogicalResult CIRToLLVMGlobalOpLowering::matchAndRewrite(
   // Fetch required values to create LLVM op.
   const auto cirSymType = op.getSymType();
 
-  auto llvmType =
+  const auto llvmType =
       convertTypeForMemory(*getTypeConverter(), dataLayout, cirSymType);
   const auto isConst = op.getConstant();
   const auto isDsoLocal = op.getDsolocal();
