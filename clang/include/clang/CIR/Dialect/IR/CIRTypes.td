@@ -757,7 +757,7 @@ def CIR_StructType : CIR_Type<"Struct", "struct",
   let hasCustomAssemblyFormat = 1;
 }
 
-// See https://github.com/llvm/clangir/pull/1504#issuecomment-2738968751 for more details.
+// Note CIRStructType is used instead of CIR_StructType because of tablegen conflicts
 def CIRStructType : Type<CPred<"::mlir::isa<::cir::StructType>($_self)">, "CIR struct type">;
 
 //===----------------------------------------------------------------------===//
