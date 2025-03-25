@@ -113,12 +113,27 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
             voidTy)
         .getResult();
   }
-
   case X86::BI_mm_pause: {
     mlir::Type voidTy = cir::VoidType::get(&getMLIRContext());
     return builder
         .create<cir::LLVMIntrinsicCallOp>(
             getLoc(E->getExprLoc()), builder.getStringAttr("x86.sse2.pause"),
+            voidTy)
+        .getResult();
+  }
+  case X86::BI_mm_mfence: {
+    mlir::Type voidTy = cir::VoidType::get(&getMLIRContext());
+    return builder
+        .create<cir::LLVMIntrinsicCallOp>(
+            getLoc(E->getExprLoc()), builder.getStringAttr("x86.sse2.mfence"),
+            voidTy)
+        .getResult();
+  }
+  case X86::BI_mm_sfence: {
+    mlir::Type voidTy = cir::VoidType::get(&getMLIRContext());
+    return builder
+        .create<cir::LLVMIntrinsicCallOp>(
+            getLoc(E->getExprLoc()), builder.getStringAttr("x86.sse.sfence"),
             voidTy)
         .getResult();
   }
