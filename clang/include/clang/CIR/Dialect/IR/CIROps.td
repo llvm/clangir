@@ -2924,7 +2924,7 @@ def ExtractMemberOp : CIR_Op<"extract_member", [Pure]> {
     ```
   }];
 
-  let arguments = (ins CIR_StructType:$record, IndexAttr:$index_attr);
+  let arguments = (ins CIRStructType:$record, IndexAttr:$index_attr);
   let results = (outs CIR_AnyType:$result);
 
   let assemblyFormat = [{
@@ -2988,9 +2988,9 @@ def InsertMemberOp : CIR_Op<"insert_member",
     ```
   }];
 
-  let arguments = (ins CIR_StructType:$record, IndexAttr:$index_attr,
+  let arguments = (ins CIRStructType:$record, IndexAttr:$index_attr,
                        CIR_AnyType:$value);
-  let results = (outs CIR_StructType:$result);
+  let results = (outs CIRStructType:$result);
 
   let builders = [
     OpBuilder<(ins "mlir::Value":$record, "uint64_t":$index,
