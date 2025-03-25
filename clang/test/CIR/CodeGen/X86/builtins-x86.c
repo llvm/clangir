@@ -30,6 +30,22 @@ void test_mm_pause() {
   // LLVM: call void @llvm.x86.sse2.pause()
 }
 
+void test_mm_mfence() {
+  // CIR-LABEL: test_mm_mfence
+  // LLVM-LABEL: test_mm_mfence
+  _mm_mfence();
+  // CIR: {{%.*}} = cir.llvm.intrinsic "x86.sse2.mfence" : () -> !void
+  // LLVM: call void @llvm.x86.sse2.mfence()
+}
+
+void test_mm_sfence() {
+  // CIR-LABEL: test_mm_sfence
+  // LLVM-LABEL: test_mm_sfence
+  _mm_sfence();
+  // CIR: {{%.*}} = cir.llvm.intrinsic "x86.sse.sfence" : () -> !void
+  // LLVM: call void @llvm.x86.sse.sfence()
+}
+
 unsigned long long test_rdtsc() {
   // CIR-LABEL: @test_rdtsc
   // LLVM-LABEL: @test_rdtsc
@@ -37,3 +53,4 @@ unsigned long long test_rdtsc() {
   // CIR: {{%.*}} = cir.llvm.intrinsic "x86.rdtsc"  : () -> !u64i 
   // LLVM: call i64 @llvm.x86.rdtsc
 }
+

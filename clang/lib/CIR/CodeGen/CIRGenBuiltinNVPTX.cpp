@@ -40,44 +40,11 @@ mlir::Value CIRGenFunction::emitNVPTXBuiltinExpr(unsigned builtinId,
         .getResult();
   };
   switch (builtinId) {
-  case NVPTX::BI__nvvm_read_ptx_sreg_tid_x:
-    return getIntrinsic("nvvm.read.ptx.sreg.tid.x");
-  case NVPTX::BI__nvvm_read_ptx_sreg_tid_y:
-    return getIntrinsic("nvvm.read.ptx.sreg.tid.y");
-  case NVPTX::BI__nvvm_read_ptx_sreg_tid_z:
-    return getIntrinsic("nvvm.read.ptx.sreg.tid.z");
-  case NVPTX::BI__nvvm_read_ptx_sreg_tid_w:
-    return getIntrinsic("nvvm.read.ptx.sreg.tid.w");
-
-  case NVPTX::BI__nvvm_read_ptx_sreg_ntid_x:
-    return getIntrinsic("nvvm.read.ptx.sreg.ntid.x");
-  case NVPTX::BI__nvvm_read_ptx_sreg_ntid_y:
-    return getIntrinsic("nvvm.read.ptx.sreg.ntid.y");
-  case NVPTX::BI__nvvm_read_ptx_sreg_ntid_z:
-    return getIntrinsic("nvvm.read.ptx.sreg.ntid.z");
-  case NVPTX::BI__nvvm_read_ptx_sreg_ntid_w:
-    return getIntrinsic("nvvm.read.ptx.sreg.ntid.w");
-
-  case NVPTX::BI__nvvm_read_ptx_sreg_ctaid_x:
-    return getIntrinsic("nvvm.read.ptx.sreg.ctaid.x");
-  case NVPTX::BI__nvvm_read_ptx_sreg_ctaid_y:
-    return getIntrinsic("nvvm.read.ptx.sreg.ctaid.y");
-  case NVPTX::BI__nvvm_read_ptx_sreg_ctaid_z:
-    return getIntrinsic("nvvm.read.ptx.sreg.ctaid.z");
-  case NVPTX::BI__nvvm_read_ptx_sreg_ctaid_w:
-    return getIntrinsic("nvvm.read.ptx.sreg.ctaid.w");
-
-  case NVPTX::BI__nvvm_read_ptx_sreg_nctaid_x:
-    return getIntrinsic("nvvm.read.ptx.sreg.nctaid.x");
-  case NVPTX::BI__nvvm_read_ptx_sreg_nctaid_y:
-    return getIntrinsic("nvvm.read.ptx.sreg.nctaid.y");
-  case NVPTX::BI__nvvm_read_ptx_sreg_nctaid_z:
-    return getIntrinsic("nvvm.read.ptx.sreg.nctaid.z");
-  case NVPTX::BI__nvvm_read_ptx_sreg_nctaid_w:
-    return getIntrinsic("nvvm.read.ptx.sreg.nctaid.w");
-
   default:
-    llvm_unreachable("NYI");
+    // Returning nullptr means the intrinsic is not implemented.
+    // This will be checked in `emitBuiltinExpr`, and will cause clang to output
+    // "unsupported builtin" diagnostics.
+    return nullptr;
   }
 }
 
