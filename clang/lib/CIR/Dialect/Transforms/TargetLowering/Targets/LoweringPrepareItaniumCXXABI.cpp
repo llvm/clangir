@@ -120,7 +120,7 @@ buildDynamicCastToVoidAfterNullCheck(CIRBaseBuilderTy &builder,
   auto vtablePtr = builder.createLoad(loc, vtablePtrPtr);
   auto offsetToTopSlotPtr = builder.create<cir::VTableAddrPointOp>(
       loc, vtablePtrTy, mlir::FlatSymbolRefAttr{}, vtablePtr,
-      /*vtable_index=*/0, -2ULL);
+      cir::AddressPointAttr::get(builder.getContext(), 0, -2));
   auto offsetToTop =
       builder.createAlignedLoad(loc, offsetToTopSlotPtr, vtableElemAlign);
 
