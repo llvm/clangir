@@ -693,7 +693,6 @@ public:
     return getAsNaturalAddressOf(Addr, PointeeType).getBasePointer();
   }
 
-
   void finishFunction(SourceLocation EndLoc);
 
   // Many of MSVC builtins are on x64, ARM and AArch64; to avoid repeating code,
@@ -1691,7 +1690,7 @@ private:
   /// the function metadata.
   void emitKernelMetadata(const FunctionDecl *FD, cir::FuncOp Fn);
   void emitAndUpdateRetAlloca(clang::QualType ty, mlir::Location loc,
-    clang::CharUnits alignment);
+                              clang::CharUnits alignment);
 
 public:
   mlir::Value emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
@@ -1739,17 +1738,17 @@ public:
 
   // FIXME(cir): move this to CIRGenBuider.h
   mlir::Value emitAlloca(llvm::StringRef name, clang::QualType ty,
-    mlir::Location loc, clang::CharUnits alignment,
-    bool insertIntoFnEntryBlock = false,
-    mlir::Value arraySize = nullptr);
+                         mlir::Location loc, clang::CharUnits alignment,
+                         bool insertIntoFnEntryBlock = false,
+                         mlir::Value arraySize = nullptr);
   mlir::Value emitAlloca(llvm::StringRef name, mlir::Type ty,
-    mlir::Location loc, clang::CharUnits alignment,
-    bool insertIntoFnEntryBlock = false,
-    mlir::Value arraySize = nullptr);
+                         mlir::Location loc, clang::CharUnits alignment,
+                         bool insertIntoFnEntryBlock = false,
+                         mlir::Value arraySize = nullptr);
   mlir::Value emitAlloca(llvm::StringRef name, mlir::Type ty,
-    mlir::Location loc, clang::CharUnits alignment,
-    mlir::OpBuilder::InsertPoint ip,
-    mlir::Value arraySize = nullptr);
+                         mlir::Location loc, clang::CharUnits alignment,
+                         mlir::OpBuilder::InsertPoint ip,
+                         mlir::Value arraySize = nullptr);
 
   /// Emit code to compute the specified expression which can have any type. The
   /// result is returned as an RValue struct. If this is an aggregate
@@ -1841,8 +1840,8 @@ public:
                                   const CallExpr *theCallExpr, bool isDelete);
 
   mlir::Value emitBuiltinObjectSize(const Expr *E, unsigned Type,
-    cir::IntType ResType, mlir::Value EmittedE,
-    bool IsDynamic);
+                                    cir::IntType ResType, mlir::Value EmittedE,
+                                    bool IsDynamic);
   template <uint32_t N>
   [[maybe_unused]] RValue
   emitBuiltinWithOneOverloadedType(const CallExpr *E, llvm::StringRef Name) {
@@ -2117,11 +2116,11 @@ public:
   /// Emits try/catch information for the current EH stack.
   void emitEHResumeBlock(bool isCleanup, mlir::Block *ehResumeBlock,
                          mlir::Location loc);
-                         void emitDestroy(Address addr, QualType type, Destroyer *destroyer,
-                          bool useEHCleanupForArray);
-                          template <typename FuncTy>
-                          ConditionalInfo emitConditionalBlocks(const AbstractConditionalOperator *E,
-                                                                const FuncTy &BranchGenFunc);
+  void emitDestroy(Address addr, QualType type, Destroyer *destroyer,
+                   bool useEHCleanupForArray);
+  template <typename FuncTy>
+  ConditionalInfo emitConditionalBlocks(const AbstractConditionalOperator *E,
+                                        const FuncTy &BranchGenFunc);
 
   /// Emit an expression as an initializer for an object (variable, field, etc.)
   /// at the given location.  The expression is not necessarily the normal
@@ -2141,7 +2140,7 @@ public:
   mlir::LogicalResult emitForStmt(const clang::ForStmt &S);
 
   void emitForwardingCallToLambda(const CXXMethodDecl *LambdaCallOperator,
-      CallArgList &CallArgs);
+                                  CallArgList &CallArgs);
 
   /// Given a value and its clang type, returns the value casted from its memory
   /// representation.
@@ -2422,12 +2421,10 @@ public:
 
   LValue emitStringLiteralLValue(const StringLiteral *E);
 
-
   mlir::LogicalResult emitSwitchBody(const clang::Stmt *S);
   mlir::LogicalResult emitSwitchCase(const clang::SwitchCase &S,
                                      bool buildingTopLevelCase);
   mlir::LogicalResult emitSwitchStmt(const clang::SwitchStmt &S);
-
 
   mlir::Value emitTargetBuiltinExpr(unsigned BuiltinID,
                                     const clang::CallExpr *E,
@@ -2453,7 +2450,7 @@ public:
   /// that VTable is a member of RD's type identifier. Or, if vptr CFI is
   /// enabled, emit a check that VTable is a member of RD's type identifier.
   void emitTypeMetadataCodeForVCall(const CXXRecordDecl *RD, mlir::Value VTable,
-    SourceLocation Loc);
+                                    SourceLocation Loc);
 
   LValue emitUnaryOpLValue(const clang::UnaryOperator *E);
 
@@ -2499,11 +2496,10 @@ public:
   mlir::LogicalResult emitWhileStmt(const clang::WhileStmt &S);
 
   mlir::Value emitX86BuiltinExpr(unsigned BuiltinID, const CallExpr *E);
-                        
+
   /// CIR build helpers
   /// -----------------
 public:
-
   /// This creates an alloca and inserts it into the entry block if \p ArraySize
   /// is nullptr,
   ///
