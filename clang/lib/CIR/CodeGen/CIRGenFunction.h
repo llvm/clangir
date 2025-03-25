@@ -608,9 +608,7 @@ public:
 
   bool shouldNullCheckClassCastValue(const CastExpr *CE);
 
-
   mlir::Value createLoad(const clang::VarDecl *VD, const char *Name);
-
 
   // Wrapper for function prototype sources. Wraps either a FunctionProtoType or
   // an ObjCMethodDecl.
@@ -660,7 +658,6 @@ public:
   llvm::SmallDenseMap<const ParmVarDecl *, const ImplicitParamDecl *, 2>
       SizeArguments;
 
-
   struct VlaSizePair {
     mlir::Value NumElts;
     QualType Type;
@@ -680,9 +677,7 @@ public:
                                               mlir::Value EmittedE,
                                               bool IsDynamic);
 
-
   int64_t getAccessedFieldNo(unsigned idx, const mlir::ArrayAttr elts);
-
 
   void checkTargetFeatures(const CallExpr *E, const FunctionDecl *TargetDecl);
   void checkTargetFeatures(SourceLocation Loc, const FunctionDecl *TargetDecl);
@@ -830,7 +825,6 @@ public:
 
   const CaseStmt *foldCaseStmt(const clang::CaseStmt &S, mlir::Type condType,
                                mlir::ArrayAttr &value, cir::CaseOpKind &kind);
-
 
   cir::FuncOp generateCode(clang::GlobalDecl GD, cir::FuncOp Fn,
                            const CIRGenFunctionInfo &FnInfo);
@@ -1082,7 +1076,6 @@ public:
                      cir::FuncOp Fn, const CIRGenFunctionInfo &FnInfo,
                      const FunctionArgList &Args, clang::SourceLocation Loc,
                      clang::SourceLocation StartLoc);
-
 
   LValue makeAddrLValue(Address addr, clang::QualType ty,
                         LValueBaseInfo baseInfo, TBAAAccessInfo tbaaInfo) {
