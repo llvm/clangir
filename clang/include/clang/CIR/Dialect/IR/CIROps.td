@@ -4737,9 +4737,10 @@ class UnaryFPToFPBuiltinOp<string mnemonic, string llvmOpName>
   let llvmOp = llvmOpName;
 }
 
-def ASinOp : UnaryFPToFPBuiltinOp<"asin", "ASinOp">;
-def CeilOp : UnaryFPToFPBuiltinOp<"ceil", "FCeilOp">;
 def ACosOp : UnaryFPToFPBuiltinOp<"acos", "ACosOp">;
+def ASinOp : UnaryFPToFPBuiltinOp<"asin", "ASinOp">;
+def ATanOp : UnaryFPToFPBuiltinOp<"atan", "ATanOp">;
+def CeilOp : UnaryFPToFPBuiltinOp<"ceil", "FCeilOp">;
 def CosOp : UnaryFPToFPBuiltinOp<"cos", "CosOp">;
 def ExpOp : UnaryFPToFPBuiltinOp<"exp", "ExpOp">;
 def Exp2Op : UnaryFPToFPBuiltinOp<"exp2", "Exp2Op">;
