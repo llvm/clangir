@@ -606,19 +606,32 @@ public:
                             cir::LowerModule *lowerModule,
                             mlir::DataLayout const &dataLayout)
       : OpConversionPattern(typeConverter, context), lowerMod(lowerModule),
-        dataLayout(dataLayout) {
-    setHasBoundedRewriteRecursion();
-  }
+        dataLayout(dataLayout) {}
 
   mlir::LogicalResult
   matchAndRewrite(cir::GlobalOp op, OpAdaptor,
                   mlir::ConversionPatternRewriter &) const override;
 
 private:
-  void createRegionInitializedLLVMGlobalOp(
-      cir::GlobalOp op, mlir::Attribute attr,
-      mlir::ConversionPatternRewriter &rewriter,
-      llvm::SmallVector<mlir::NamedAttribute> attributes) const;
+  mlir::LogicalResult
+  lowerInitializer(mlir::ConversionPatternRewriter &rewriter, cir::GlobalOp op,
+                   mlir::Type llvmType, mlir::Attribute &init,
+                   bool &useInitializerRegion) const;
+
+  mlir::LogicalResult
+  lowerInitializerForConstArray(mlir::ConversionPatternRewriter &rewriter,
+                                cir::GlobalOp op, mlir::Attribute &init,
+                                bool &useInitializerRegion) const;
+
+  mlir::LogicalResult
+  lowerInitializerDirect(mlir::ConversionPatternRewriter &rewriter,
+                         cir::GlobalOp op, mlir::Type llvmType,
+                         mlir::Attribute &init,
+                         bool &useInitializerRegion) const;
+
+  llvm::SmallVector<mlir::NamedAttribute>
+  lowerGlobalAttributes(cir::GlobalOp op,
+                        mlir::ConversionPatternRewriter &rewriter) const;
 
   mutable mlir::LLVM::ComdatOp comdatOp = nullptr;
   static void addComdat(mlir::LLVM::GlobalOp &op,
