@@ -689,8 +689,8 @@ def CIR_StructType : CIR_Type<"Struct", "struct",
       "RecordKind":$kind
     ), [{
       return $_get($_ctxt, /*members=*/llvm::ArrayRef<Type>{}, name,
-                         /*incomplete=*/true, /*packed=*/false, /*padded=*/false,
-                         kind,
+                         /*incomplete=*/true, /*packed=*/false,
+                         /*padded=*/false, kind,
                          /*ast=*/ASTRecordDeclInterface{});    
     }]>,
 
@@ -702,8 +702,8 @@ def CIR_StructType : CIR_Type<"Struct", "struct",
       "RecordKind":$kind,
       CArg<"ASTRecordDeclInterface", "{}">:$ast
     ), [{
-      return $_get($_ctxt, members, mlir::StringAttr{}, /*incomplete=*/false, packed,
-                      padded, kind, ast);
+      return $_get($_ctxt, members, mlir::StringAttr{}, /*incomplete=*/false,
+                      packed, padded, kind, ast);
     }]>];
 
   let extraClassDeclaration = [{
@@ -736,8 +736,8 @@ def CIR_StructType : CIR_Type<"Struct", "struct",
       return getKindAsStr() + "." + getName().getValue().str();
     }
 
-    void complete(llvm::ArrayRef<mlir::Type> members, bool packed, bool isPadded,
-              ASTRecordDeclInterface ast = {});
+    void complete(llvm::ArrayRef<mlir::Type> members, bool packed,
+              bool isPadded, ASTRecordDeclInterface ast = {});
 
     uint64_t getElementOffset(const mlir::DataLayout &dataLayout,
               unsigned idx) const;
@@ -757,8 +757,10 @@ def CIR_StructType : CIR_Type<"Struct", "struct",
   let hasCustomAssemblyFormat = 1;
 }
 
-// Note CIRStructType is used instead of CIR_StructType because of tablegen conflicts
-def CIRStructType : Type<CPred<"::mlir::isa<::cir::StructType>($_self)">, "CIR struct type">;
+// Note CIRStructType is used instead of CIR_StructType
+// because of tablegen conflicts.
+def CIRStructType : Type<
+  CPred<"::mlir::isa<::cir::StructType>($_self)">, "CIR struct type">;
 
 //===----------------------------------------------------------------------===//
 // Global type constraints
