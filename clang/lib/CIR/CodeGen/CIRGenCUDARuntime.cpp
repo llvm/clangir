@@ -21,10 +21,9 @@ using namespace CIRGen;
 
 CIRGenCUDARuntime::~CIRGenCUDARuntime() {}
 
-RValue
-CIRGenCUDARuntime::emitCUDAKernelCallExpr(CIRGenFunction &cgf,
-                                            const CUDAKernelCallExpr *expr,
-                                            ReturnValueSlot retValue) {
+RValue CIRGenCUDARuntime::emitCUDAKernelCallExpr(CIRGenFunction &cgf,
+                                                 const CUDAKernelCallExpr *expr,
+                                                 ReturnValueSlot retValue) {
   auto builder = cgm.getBuilder();
   mlir::Location loc =
       cgf.currSrcLoc ? cgf.currSrcLoc.value() : builder.getUnknownLoc();
