@@ -37,13 +37,15 @@ std::unique_ptr<Pass> createIdiomRecognizerPass(clang::ASTContext *astCtx);
 std::unique_ptr<Pass> createLibOptPass();
 std::unique_ptr<Pass> createLibOptPass(clang::ASTContext *astCtx);
 std::unique_ptr<Pass> createFlattenCFGPass();
+std::unique_ptr<Pass> createFlattenCFGPass(bool throughMLIR);
 std::unique_ptr<Pass> createHoistAllocasPass();
 std::unique_ptr<Pass> createGotoSolverPass();
 
 /// Create a pass to lower ABI-independent function definitions/calls.
 std::unique_ptr<Pass> createCallConvLoweringPass();
 
-void populateCIRPreLoweringPasses(mlir::OpPassManager &pm, bool useCCLowering);
+void populateCIRPreLoweringPasses(mlir::OpPassManager &pm, bool useCCLowering,
+                                  bool emitCore);
 
 //===----------------------------------------------------------------------===//
 // Registration

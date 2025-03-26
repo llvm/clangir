@@ -10,6 +10,7 @@
 // function region.
 //
 //===----------------------------------------------------------------------===//
+
 #include "PassDetail.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/PatternMatch.h"
@@ -50,6 +51,8 @@ struct FlattenCFGPass : public FlattenCFGBase<FlattenCFGPass> {
 
   FlattenCFGPass() = default;
   void runOnOperation() override;
+
+  void setThroughMLIR(bool v) { throughMLIR = v; }
 };
 
 struct CIRIfFlattening : public OpRewritePattern<IfOp> {
@@ -855,6 +858,7 @@ public:
     return mlir::success();
   }
 };
+
 class CIRTernaryOpFlattening : public mlir::OpRewritePattern<cir::TernaryOp> {
 public:
   using OpRewritePattern<cir::TernaryOp>::OpRewritePattern;
@@ -906,16 +910,73 @@ public:
   }
 };
 
-void populateFlattenCFGPatterns(RewritePatternSet &patterns) {
+/// Rewrite 'cir.return' within the specified 'cir.func' as a branch to a
+/// dedicated return block when the CIR needs lowering through MLIR, where
+/// 'func.return' must have 'func.func' as its parent. If the structured
+/// control flow is preferred, that implies a function could only have a single
+/// (unified) 'func.return' in that MLIR.
+class CIRReturnUnifying : public mlir::OpRewritePattern<cir::FuncOp> {
+  using OpRewritePattern<cir::FuncOp>::OpRewritePattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::FuncOp func,
+                  mlir::PatternRewriter &rewriter) const override {
+    mlir::OpBuilder::InsertionGuard guard(rewriter);
+
+    if (func.getRegion().empty())
+      return mlir::success();
+
+    // Collect operations to apply patterns.
+    llvm::SmallVector<cir::ReturnOp, 4> returnOps;
+    bool hasReturnOpWithFuncOpParentOnly = true;
+    func->walk([&](cir::ReturnOp ret) {
+      returnOps.push_back(ret);
+      // Check any 'cir.return' without 'cir.func' as the parent. Such
+      // 'cir.return' needs unifying even when there is just one.
+      if (!isa<cir::FuncOp>(ret->getParentOp()))
+        hasReturnOpWithFuncOpParentOnly = false;
+    });
+
+    // Skip unifying if there is only one 'cir.return' and it has 'cir.func' as
+    // the parent.
+    if (hasReturnOpWithFuncOpParentOnly && returnOps.size() < 2)
+      return mlir::success();
+
+    bool hasRetVals = (func.getNumResults() > 0);
+    auto *endBody = &func.getBody().back();
+    // Create a dedicated return block at the end of the function.
+    auto *retBlock = endBody->splitBlock(endBody->end());
+    if (hasRetVals)
+      retBlock->addArguments(func.getResultTypes(), func.getLoc());
+
+    // Rewrite all 'cir.return's as branches to that return block.
+    for (ReturnOp ret : returnOps) {
+      rewriter.setInsertionPoint(ret);
+      rewriter.replaceOpWithNewOp<cir::BrOp>(ret, retBlock, ret.getInput());
+    }
+
+    // Finally, add returnOp in that dedicated return block.
+    auto builder = OpBuilder::atBlockBegin(retBlock);
+    if (hasRetVals)
+      builder.create<cir::ReturnOp>(func.getLoc(), retBlock->getArguments());
+    else
+      builder.create<cir::ReturnOp>(func.getLoc());
+    return mlir::success();
+  }
+};
+
+void populateFlattenCFGPatterns(RewritePatternSet &patterns, bool throughMLIR) {
   patterns
       .add<CIRIfFlattening, CIRLoopOpInterfaceFlattening, CIRScopeOpFlattening,
            CIRSwitchOpFlattening, CIRTernaryOpFlattening, CIRTryOpFlattening>(
           patterns.getContext());
+  if (throughMLIR)
+    patterns.add<CIRReturnUnifying>(patterns.getContext());
 }
 
 void FlattenCFGPass::runOnOperation() {
   RewritePatternSet patterns(&getContext());
-  populateFlattenCFGPatterns(patterns);
+  populateFlattenCFGPatterns(patterns, throughMLIR);
 
   // Collect operations to apply patterns.
   llvm::SmallVector<Operation *, 16> ops;
@@ -923,6 +984,13 @@ void FlattenCFGPass::runOnOperation() {
     if (isa<IfOp, ScopeOp, SwitchOp, LoopOpInterface, TernaryOp, TryOp>(op))
       ops.push_back(op);
   });
+  // If CIR is to be lowered into MLIR, unify all 'cir.return's as
+  // 'func.return' needs to has 'func.func' as the parent.
+  if (throughMLIR)
+    getOperation()->walk<mlir::WalkOrder::PostOrder>([&](Operation *op) {
+      if (isa<FuncOp>(op))
+        ops.push_back(op);
+    });
 
   // Apply patterns.
   if (applyOpPatternsGreedily(ops, std::move(patterns)).failed())
@@ -935,6 +1003,12 @@ namespace mlir {
 
 std::unique_ptr<Pass> createFlattenCFGPass() {
   return std::make_unique<FlattenCFGPass>();
+}
+
+std::unique_ptr<Pass> createFlattenCFGPass(bool throughMLIR) {
+  auto flatten = std::make_unique<FlattenCFGPass>();
+  flatten->setThroughMLIR(throughMLIR);
+  return std::move(flatten);
 }
 
 } // namespace mlir

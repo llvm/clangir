@@ -4812,7 +4812,7 @@ std::unique_ptr<mlir::Pass> createConvertCIRToLLVMPass() {
 }
 
 void populateCIRToLLVMPasses(mlir::OpPassManager &pm, bool useCCLowering) {
-  populateCIRPreLoweringPasses(pm, useCCLowering);
+  populateCIRPreLoweringPasses(pm, useCCLowering, /*emitCore=*/false);
   pm.addPass(createConvertCIRToLLVMPass());
 }
 
