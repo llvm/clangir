@@ -2667,9 +2667,9 @@ static mlir::Value emitCommonNeonSISDBuiltinExpr(
     llvm::errs() << getAArch64SIMDIntrinsicString(builtinID) << " ";
     llvm_unreachable("in emitCommonNeonSISDBuiltinExpr NYI");
   case NEON::BI__builtin_neon_vabdd_f64:
-    llvm_unreachable(" neon_vabdd_f64 NYI ");
   case NEON::BI__builtin_neon_vabds_f32:
-    llvm_unreachable(" neon_vabds_f32 NYI ");
+    return emitNeonCall(builder, {argTy}, ops, "aarch64.sisd.fabd", resultTy,
+                        loc);
   case NEON::BI__builtin_neon_vabsd_s64:
     return emitNeonCall(builder, {argTy}, ops, "aarch64.neon.abs", resultTy,
                         loc);
