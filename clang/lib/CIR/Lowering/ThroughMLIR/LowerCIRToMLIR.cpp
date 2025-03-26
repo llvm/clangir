@@ -318,6 +318,18 @@ public:
   }
 };
 
+class CIRATanOpLowering : public mlir::OpConversionPattern<cir::ATanOp> {
+public:
+  using OpConversionPattern<cir::ATanOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::ATanOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOpWithNewOp<mlir::math::AtanOp>(op, adaptor.getSrc());
+    return mlir::LogicalResult::success();
+  }
+};
+
 class CIRCosOpLowering : public mlir::OpConversionPattern<cir::CosOp> {
 public:
   using OpConversionPattern<cir::CosOp>::OpConversionPattern;
@@ -1459,9 +1471,10 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
   patterns.add<CIRReturnLowering, CIRBrOpLowering>(patterns.getContext());
 
   patterns.add<
-      CIRCmpOpLowering, CIRCallOpLowering, CIRUnaryOpLowering, CIRBinOpLowering,
-      CIRLoadOpLowering, CIRConstantOpLowering, CIRStoreOpLowering,
-      CIRAllocaOpLowering, CIRFuncOpLowering, CIRBrCondOpLowering,
+      CIRATanOpLowering, CIRCmpOpLowering, CIRCallOpLowering,
+      CIRUnaryOpLowering, CIRBinOpLowering, CIRLoadOpLowering,
+      CIRConstantOpLowering, CIRStoreOpLowering, CIRAllocaOpLowering,
+      CIRFuncOpLowering, CIRBrCondOpLowering,
       CIRTernaryOpLowering, CIRYieldOpLowering,
       CIRCosOpLowering, CIRGlobalOpLowering,
       CIRGetGlobalOpLowering, CIRCastOpLowering, CIRPtrStrideOpLowering,
