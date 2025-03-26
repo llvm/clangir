@@ -46,4 +46,11 @@ void test_mm_sfence() {
   // LLVM: call void @llvm.x86.sse.sfence()
 }
 
+unsigned long long test_rdtsc() {
+  // CIR-LABEL: @test_rdtsc
+  // LLVM-LABEL: @test_rdtsc
+  return __rdtsc();
+  // CIR: {{%.*}} = cir.llvm.intrinsic "x86.rdtsc"  : () -> !u64i 
+  // LLVM: call i64 @llvm.x86.rdtsc
+}
 
