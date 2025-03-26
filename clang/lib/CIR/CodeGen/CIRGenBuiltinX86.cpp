@@ -137,5 +137,12 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
             voidTy)
         .getResult();
   }
+  case X86::BI__rdtsc: {
+    mlir::Type intTy = cir::IntType::get(&getMLIRContext(), 64, false);
+    return builder
+        .create<cir::LLVMIntrinsicCallOp>(
+            getLoc(E->getExprLoc()), builder.getStringAttr("x86.rdtsc"), intTy)
+        .getResult();
+  }
   }
 }
