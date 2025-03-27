@@ -29,44 +29,26 @@ class ReturnValueSlot;
 class CIRGenCUDARuntime {
 protected:
   CIRGenModule &cgm;
-  StringRef Prefix;
-
-  // Map a device stub function to a symbol for identifying kernel in host code.
-  // For CUDA, the symbol for identifying the kernel is the same as the device
-  // stub function. For HIP, they are different.
-  llvm::DenseMap<StringRef, mlir::Operation *> KernelHandles;
-
-  // Map a kernel handle to the kernel stub.
-  llvm::DenseMap<mlir::Operation *, mlir::Operation *> KernelStubs;
-
-private:
-  void emitDeviceStubBodyLegacy(CIRGenFunction &cgf, cir::FuncOp fn,
-                                FunctionArgList &args);
-  void emitDeviceStubBodyNew(CIRGenFunction &cgf, cir::FuncOp fn,
-                             FunctionArgList &args);
-  std::string addPrefixToName(StringRef FuncName) const;
-  std::string addUnderscoredPrefixToName(StringRef FuncName) const;
-
-  // Mangle context for device.
-  std::unique_ptr<MangleContext> deviceMC;
 
 public:
-  CIRGenCUDARuntime(CIRGenModule &cgm);
+  CIRGenCUDARuntime(CIRGenModule &cgm) : cgm(cgm) {}
   virtual ~CIRGenCUDARuntime();
 
   virtual void emitDeviceStub(CIRGenFunction &cgf, cir::FuncOp fn,
-                              FunctionArgList &args);
+                              FunctionArgList &args) = 0;
 
   virtual RValue emitCUDAKernelCallExpr(CIRGenFunction &cgf,
                                         const CUDAKernelCallExpr *expr,
                                         ReturnValueSlot retValue);
-  virtual mlir::Operation *getKernelHandle(cir::FuncOp fn, GlobalDecl GD);
+  virtual mlir::Operation *getKernelHandle(cir::FuncOp fn, GlobalDecl GD) = 0;
   virtual void internalizeDeviceSideVar(const VarDecl *d,
-                                        cir::GlobalLinkageKind &linkage);
+                                        cir::GlobalLinkageKind &linkage) = 0;
   /// Returns function or variable name on device side even if the current
   /// compilation is for host.
-  virtual std::string getDeviceSideName(const NamedDecl *nd);
+  virtual std::string getDeviceSideName(const NamedDecl *nd) = 0;
 };
+
+CIRGenCUDARuntime *CreateNVCUDARuntime(CIRGenModule &cgm);
 
 } // namespace clang::CIRGen
 

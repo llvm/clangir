@@ -111,7 +111,7 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &mlirContext,
       target(astContext.getTargetInfo()), ABI(createCXXABI(*this)),
       genTypes{*this}, VTables{*this},
       openMPRuntime(new CIRGenOpenMPRuntime(*this)),
-      cudaRuntime(new CIRGenCUDARuntime(*this)) {
+      cudaRuntime(clang::CIRGen::CreateNVCUDARuntime(*this)) {
 
   unsigned charSize = astContext.getTargetInfo().getCharWidth();
   unsigned intSize = astContext.getTargetInfo().getIntWidth();
@@ -2033,6 +2033,24 @@ void CIRGenModule::emitTopLevelDecl(Decl *decl) {
     for (auto *childDecl : crd->decls())
       if (isa<VarDecl>(childDecl) || isa<CXXRecordDecl>(childDecl))
         emitTopLevelDecl(childDecl);
+    break;
+  }
+  case Decl::PragmaComment: {
+    const auto *PCD = cast<PragmaCommentDecl>(decl);
+    switch (PCD->getCommentKind()) {
+    case PCK_Unknown:
+      llvm_unreachable("unexpected pragma comment kind");
+    case PCK_Linker:
+      assert(!MissingFeatures::emitModuleLinkOptions() && "NYI");
+      break;
+    case PCK_Lib:
+      assert(!MissingFeatures::elfDependentLibraries() && "NYI");
+      break;
+    case PCK_Compiler:
+    case PCK_ExeStr:
+    case PCK_User:
+      break; // We ignore all of these.
+    }
     break;
   }
   // No code generation needed.
