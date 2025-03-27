@@ -182,12 +182,12 @@ public:
 
   const CIRGenRecordLayout &getCIRGenRecordLayout(const clang::RecordDecl *RD);
 
-  /// Convert type T into an mlir::Type. This differs from
-  /// convertType in that it is used to convert to the memory representation
-  /// for a type. For example, the scalar representation for _Bool is i1, but
-  /// the memory representation is usually i8 or i32, depending on the target.
-  /// Note: CIR defers most of the special conversions to the final lowering
-  /// passes to conserve the high level information.
+  /// Convert type T into a mlir::Type. This differs from convertType in that it
+  /// is used to convert to the memory representation for a type. In CIR, we
+  /// preserve high-level type information (like cir.bool for boolean values)
+  /// during CIRGen, and let the lowering passes handle the target-specific
+  /// memory representation later. This approach maintains more semantic
+  /// information for optimizations and diagnostics until final code generation.
   mlir::Type convertTypeForMem(clang::QualType, bool forBitField = false);
 
   /// Get the CIR function type for \arg Info.

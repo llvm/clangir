@@ -279,6 +279,18 @@ public:
   }
 };
 
+class CIRATanOpLowering : public mlir::OpConversionPattern<cir::ATanOp> {
+public:
+  using OpConversionPattern<cir::ATanOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::ATanOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOpWithNewOp<mlir::math::AtanOp>(op, adaptor.getSrc());
+    return mlir::LogicalResult::success();
+  }
+};
+
 class CIRCosOpLowering : public mlir::OpConversionPattern<cir::CosOp> {
 public:
   using OpConversionPattern<cir::CosOp>::OpConversionPattern;
@@ -1383,7 +1395,7 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
            CIRBitClzOpLowering, CIRBitCtzOpLowering, CIRBitPopcountOpLowering,
            CIRBitClrsbOpLowering, CIRBitFfsOpLowering, CIRBitParityOpLowering,
            CIRIfOpLowering, CIRVectorCreateLowering, CIRVectorInsertLowering,
-           CIRVectorExtractLowering, CIRVectorCmpOpLowering>(
+           CIRVectorExtractLowering, CIRVectorCmpOpLowering, CIRATanOpLowering>(
           converter, patterns.getContext());
 }
 

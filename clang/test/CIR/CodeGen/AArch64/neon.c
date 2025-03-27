@@ -18538,19 +18538,27 @@ int64_t test_vqshlud_n_s64(int64_t a) {
 //   return vreinterpretq_p64_p16(a);
 // }
 
-// NYI-LABEL: @test_vabds_f32(
-// NYI:   [[VABDS_F32_I:%.*]] = call float @llvm.aarch64.sisd.fabd.f32(float %a, float %b)
-// NYI:   ret float [[VABDS_F32_I]]
-// float32_t test_vabds_f32(float32_t a, float32_t b) {
-//   return vabds_f32(a, b);
-// }
+float32_t test_vabds_f32(float32_t a, float32_t b) {
+  return vabds_f32(a, b);
 
-// NYI-LABEL: @test_vabdd_f64(
-// NYI:   [[VABDD_F64_I:%.*]] = call double @llvm.aarch64.sisd.fabd.f64(double %a, double %b)
-// NYI:   ret double [[VABDD_F64_I]]
-// float64_t test_vabdd_f64(float64_t a, float64_t b) {
-//   return vabdd_f64(a, b);
-// }
+  // CIR-LABEL: vabds_f32
+  // CIR: [[TMP0:%.*]] = cir.llvm.intrinsic "aarch64.sisd.fabd" {{.*}}, {{.*}} : (!cir.float, !cir.float) -> !cir.float
+
+  // LLVM-LABEL: @test_vabds_f32(
+  // LLVM:   [[VABDS_F32:%.*]] = call float @llvm.aarch64.sisd.fabd.f32(float %0, float %1)
+  // LLVM:   ret float [[VABDS_F32]]
+}
+
+float64_t test_vabdd_f64(float64_t a, float64_t b) {
+  return vabdd_f64(a, b);
+
+  // CIR-LABEL: vabdd_f64
+  // CIR: [[TMP0:%.*]] = cir.llvm.intrinsic "aarch64.sisd.fabd" {{.*}}, {{.*}} : (!cir.double, !cir.double) -> !cir.double
+
+  // LLVM-LABEL: @test_vabdd_f64(
+  // LLVM:   [[VABDD_F64:%.*]] = call double @llvm.aarch64.sisd.fabd.f64(double %0, double %1)
+  // LLVM:   ret double [[VABDD_F64]]
+}
 
 // NYI-LABEL: @test_vuqaddq_s8(
 // NYI: entry:
