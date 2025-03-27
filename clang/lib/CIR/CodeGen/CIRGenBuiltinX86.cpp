@@ -107,7 +107,7 @@ mlir::Value CIRGenFunction::emitX86BuiltinExpr(unsigned BuiltinID,
         cir::PointerType::get(cir::VoidType::get(&getMLIRContext()));
     auto CastToVoid = builder.create<cir::CastOp>(
         loc, voidPtrType, cir::CastKind::bitcast, Ops[0]);
-    return builder.create<cir::PrefetchOp>(loc, Ops[0], Locality, isWrite)
+    return builder.create<cir::PrefetchOp>(loc, CastToVoid, Locality, isWrite)
         ->getResult(0);
   }
   case X86::BI_mm_clflush: {
