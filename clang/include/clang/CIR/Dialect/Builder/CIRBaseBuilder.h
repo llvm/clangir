@@ -396,9 +396,25 @@ public:
 
   mlir::Value createGetGlobal(mlir::Location loc, cir::GlobalOp global,
                               bool threadLocal = false) {
-    return create<cir::GetGlobalOp>(
+    auto getGlobal = create<cir::GetGlobalOp>(
         loc, getPointerTo(global.getSymType(), global.getAddrSpaceAttr()),
         global.getName(), threadLocal);
+
+    // When AST attribute is not present, the global is a temporary,
+    // and actual & expected address spaces won't mismatch for temporaries.
+    if (global.getAst()) {
+      cir::ASTVarDeclInterface varDecl = global.getAstAttr();
+      auto gpuAS = getAddrSpaceAttr(varDecl.getExpectedAS());
+      if (gpuAS != global.getAddrSpaceAttr()) {
+        auto oldTy = mlir::cast<cir::PointerType>(getGlobal.getType());
+        auto newTy =
+            cir::PointerType::get(oldTy.getPointee(), /*addrspace=*/gpuAS);
+        auto cast = createAddrSpaceCast(loc, getGlobal, newTy);
+        return cast;
+      }
+    }
+
+    return getGlobal;
   }
 
   mlir::Value createGetGlobal(cir::GlobalOp global, bool threadLocal = false) {
