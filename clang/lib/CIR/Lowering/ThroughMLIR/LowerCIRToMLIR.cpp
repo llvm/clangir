@@ -318,6 +318,18 @@ public:
   }
 };
 
+class CIRACosOpLowering : public mlir::OpConversionPattern<cir::ACosOp> {
+public:
+  using OpConversionPattern<cir::ACosOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::ACosOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOpWithNewOp<mlir::math::AcosOp>(op, adaptor.getSrc());
+    return mlir::LogicalResult::success();
+  }
+};
+
 class CIRATanOpLowering : public mlir::OpConversionPattern<cir::ATanOp> {
 public:
   using OpConversionPattern<cir::ATanOp>::OpConversionPattern;
@@ -1474,9 +1486,8 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
       CIRATanOpLowering, CIRCmpOpLowering, CIRCallOpLowering,
       CIRUnaryOpLowering, CIRBinOpLowering, CIRLoadOpLowering,
       CIRConstantOpLowering, CIRStoreOpLowering, CIRAllocaOpLowering,
-      CIRFuncOpLowering, CIRBrCondOpLowering,
-      CIRTernaryOpLowering, CIRYieldOpLowering,
-      CIRCosOpLowering, CIRGlobalOpLowering,
+      CIRFuncOpLowering, CIRBrCondOpLowering, CIRTernaryOpLowering,
+      CIRYieldOpLowering, CIRCosOpLowering, CIRGlobalOpLowering,
       CIRGetGlobalOpLowering, CIRCastOpLowering, CIRPtrStrideOpLowering,
       CIRSqrtOpLowering, CIRCeilOpLowering, CIRExp2OpLowering,
       CIRExpOpLowering, CIRFAbsOpLowering, CIRAbsOpLowering,
@@ -1485,9 +1496,8 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
       CIRBitClzOpLowering, CIRBitCtzOpLowering, CIRBitPopcountOpLowering,
       CIRBitClrsbOpLowering, CIRBitFfsOpLowering, CIRBitParityOpLowering,
       CIRIfOpLowering, CIRScopeOpLowering, CIRVectorCreateLowering,
-      CIRVectorInsertLowering,
-      CIRVectorExtractLowering, CIRVectorCmpOpLowering>(converter,
-                                                        patterns.getContext());
+      CIRVectorInsertLowering, CIRVectorExtractLowering, CIRVectorCmpOpLowering,
+      CIRACosOpLowering>(converter, patterns.getContext());
 }
 
 static mlir::TypeConverter prepareTypeConverter() {
