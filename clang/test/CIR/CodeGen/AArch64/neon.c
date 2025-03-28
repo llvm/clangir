@@ -19221,12 +19221,17 @@ float64x1_t test_vmax_f64(float64x1_t a, float64x1_t b) {
 //   return vminv_u32(a);
 // }
 
-// NYI-LABEL: @test_vmaxv_s32(
-// NYI:   [[VMAXV_S32_I:%.*]] = call i32 @llvm.aarch64.neon.smaxv.i32.v2i32(<2 x i32> %a)
-// NYI:   ret i32 [[VMAXV_S32_I]]
-// int32_t test_vmaxv_s32(int32x2_t a) {
-//   return vmaxv_s32(a);
-// }
+int32_t test_vmaxv_s32(int32x2_t a) {
+  return vmaxv_s32(a);
+
+  // CIR-LABEL: vmaxv_s32
+  // CIR: cir.llvm.intrinsic "aarch64.neon.smaxv" {{%.*}} : (!cir.vector<!s32i x 2>) -> !s32i
+
+  // LLVM-LABEL: @test_vmaxv_s32
+  // LLVM-SAME: (<2 x i32> [[a:%.*]])
+  // LLVM:  [[VMAXV_S32_I:%.*]] = call i32 @llvm.aarch64.neon.smaxv.i32.v2i32(<2 x i32> [[a]])
+  // LLVM:  ret i32 [[VMAXV_S32_I]]
+}
 
 // NYI-LABEL: @test_vmaxv_u32(
 // NYI:   [[VMAXV_U32_I:%.*]] = call i32 @llvm.aarch64.neon.umaxv.i32.v2i32(<2 x i32> %a)
