@@ -370,7 +370,6 @@ struct MissingFeatures {
   static bool emitAtAvailableLinkGuard() { return false; }
   static bool emitLLVMUsed() { return false; }
   static bool sanStats() { return false; }
-  static bool linkerOptionsMetadata() { return false; }
   static bool emitModuleLinkOptions() { return false; }
   static bool elfDependentLibraries() { return false; }
   static bool dwarfVersion() { return false; }

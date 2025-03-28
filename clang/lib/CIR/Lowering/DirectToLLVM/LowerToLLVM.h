@@ -1246,6 +1246,17 @@ public:
   matchAndRewrite(cir::SignBitOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override;
 };
+
+class CIRToLLVMLinkerOptionsOpLowering
+    : public mlir::OpConversionPattern<cir::LinkerOptionsOp> {
+public:
+  using OpConversionPattern<cir::LinkerOptionsOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::LinkerOptionsOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override;
+};
+
 mlir::ArrayAttr lowerCIRTBAAAttr(mlir::Attribute tbaa,
                                  mlir::ConversionPatternRewriter &rewriter,
                                  cir::LowerModule *lowerMod);
