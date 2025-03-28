@@ -491,6 +491,18 @@ public:
   }
 };
 
+class CIRASinOpLowering : public mlir::OpConversionPattern<cir::ASinOp> {
+public:
+  using mlir::OpConversionPattern<cir::ASinOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::ASinOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOpWithNewOp<mlir::math::AsinOp>(op, adaptor.getSrc());
+    return mlir::LogicalResult::success();
+  }
+};
+
 template <typename CIROp, typename MLIROp>
 class CIRCountZerosBitOpLowering : public mlir::OpConversionPattern<CIROp> {
 public:
@@ -1381,12 +1393,12 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
   patterns.add<CIRReturnLowering, CIRBrOpLowering>(patterns.getContext());
 
   patterns
-      .add<CIRATanOpLowering, CIRCmpOpLowering, CIRCallOpLowering,
-           CIRUnaryOpLowering, CIRBinOpLowering, CIRLoadOpLowering,
-           CIRConstantOpLowering, CIRStoreOpLowering, CIRAllocaOpLowering,
-           CIRFuncOpLowering, CIRScopeOpLowering, CIRBrCondOpLowering,
-           CIRTernaryOpLowering, CIRYieldOpLowering, CIRCosOpLowering,
-           CIRGlobalOpLowering, CIRGetGlobalOpLowering, CIRCastOpLowering,
+      .add<CIRCmpOpLowering, CIRCallOpLowering, CIRUnaryOpLowering,
+           CIRBinOpLowering, CIRLoadOpLowering, CIRConstantOpLowering,
+           CIRStoreOpLowering, CIRAllocaOpLowering, CIRFuncOpLowering,
+           CIRScopeOpLowering, CIRBrCondOpLowering, CIRTernaryOpLowering,
+           CIRYieldOpLowering, CIRCosOpLowering, CIRGlobalOpLowering,
+           CIRGetGlobalOpLowering, CIRCastOpLowering, CIRASinOpLowering,
            CIRPtrStrideOpLowering, CIRSqrtOpLowering, CIRCeilOpLowering,
            CIRExp2OpLowering, CIRExpOpLowering, CIRFAbsOpLowering,
            CIRAbsOpLowering, CIRFloorOpLowering, CIRLog10OpLowering,
@@ -1395,7 +1407,8 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
            CIRBitClzOpLowering, CIRBitCtzOpLowering, CIRBitPopcountOpLowering,
            CIRBitClrsbOpLowering, CIRBitFfsOpLowering, CIRBitParityOpLowering,
            CIRIfOpLowering, CIRVectorCreateLowering, CIRVectorInsertLowering,
-           CIRVectorExtractLowering, CIRVectorCmpOpLowering, CIRACosOpLowering>(
+           CIRVectorExtractLowering, CIRVectorCmpOpLowering, CIRATanOpLowering>(
+           CIRACosOpLowering>(
           converter, patterns.getContext());
 }
 
