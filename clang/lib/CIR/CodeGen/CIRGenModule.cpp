@@ -2041,7 +2041,7 @@ void CIRGenModule::emitTopLevelDecl(Decl *decl) {
     case PCK_Unknown:
       llvm_unreachable("unexpected pragma comment kind");
     case PCK_Linker:
-      assert(!MissingFeatures::emitModuleLinkOptions() && "NYI");
+      appendLinkerOptions(PCD->getArg());
       break;
     case PCK_Lib:
       assert(!MissingFeatures::elfDependentLibraries() && "NYI");
@@ -3341,6 +3341,17 @@ CIRGenModule::GetAddrOfGlobal(GlobalDecl gd, ForDefinition_t isForDefinition) {
       .getDefiningOp();
 }
 
+void CIRGenModule::emitModuleLinkOptions() {
+  assert(!MissingFeatures::emitModuleLinkOptions());
+
+  // Add the linker options metadata flag.
+  llvm::SmallVector<mlir::Attribute, 16> args;
+  for (const auto &opt : linkerOptionsMetadata)
+    args.push_back(opt);
+  mlir::ArrayAttr arr = builder.getArrayAttr(args);
+  getBuilder().create<cir::LinkerOptionsOp>(theModule->getLoc(), arr);
+}
+
 void CIRGenModule::Release() {
   assert(!MissingFeatures::emitModuleInitializers());
   emitDeferred(getCodeGenOpts().ClangIRBuildDeferredThreshold);
@@ -3392,9 +3403,9 @@ void CIRGenModule::Release() {
   assert(!MissingFeatures::emitLLVMUsed());
   assert(!MissingFeatures::sanStats());
 
-  if (codeGenOpts.Autolink && (astContext.getLangOpts().Modules ||
-                               !MissingFeatures::linkerOptionsMetadata())) {
-    assert(!MissingFeatures::emitModuleLinkOptions());
+  if (codeGenOpts.Autolink &&
+      (astContext.getLangOpts().Modules || !linkerOptionsMetadata.empty())) {
+    emitModuleLinkOptions();
   }
 
   // On ELF we pass the dependent library specifiers directly to the linker
@@ -4227,6 +4238,11 @@ void CIRGenModule::emitGlobalAnnotations() {
       addGlobalAnnotations(vd, gv);
   }
   deferredAnnotations.clear();
+}
+
+void CIRGenModule::appendLinkerOptions(StringRef Opts) {
+  linkerOptionsMetadata.push_back(
+      mlir::StringAttr::get(&getMLIRContext(), Opts));
 }
 
 cir::TBAAAttr CIRGenModule::getTBAATypeInfo(QualType qTy) {

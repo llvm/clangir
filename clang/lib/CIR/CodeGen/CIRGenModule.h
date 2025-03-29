@@ -154,6 +154,8 @@ private:
   llvm::DenseMap<const Expr *, mlir::Operation *>
       materializedGlobalTemporaryMap;
 
+  llvm::SmallVector<mlir::StringAttr, 16> linkerOptionsMetadata;
+
 public:
   mlir::ModuleOp getModule() const { return theModule; }
   CIRGenBuilderTy &getBuilder() { return builder; }
@@ -776,6 +778,9 @@ public:
   /// Helper for `emitDeferred` to apply actual codegen.
   void emitGlobalDecl(clang::GlobalDecl &D);
 
+  /// Emit the link options introduced by imported modules.
+  void emitModuleLinkOptions();
+
   const llvm::Triple &getTriple() const { return target.getTriple(); }
 
   // Finalize CIR code generation.
@@ -952,6 +957,9 @@ private:
   /// Add global annotations for a global value.
   /// Those annotations are emitted during lowering to the LLVM code.
   void addGlobalAnnotations(const ValueDecl *d, mlir::Operation *gv);
+
+  /// Appends Opts to the "llvm.linker.options" metadata value.
+  void appendLinkerOptions(StringRef Opts);
 };
 } // namespace clang::CIRGen
 

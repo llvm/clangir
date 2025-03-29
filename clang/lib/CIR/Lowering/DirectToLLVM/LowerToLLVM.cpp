@@ -4230,6 +4230,15 @@ mlir::LogicalResult CIRToLLVMSignBitOpLowering::matchAndRewrite(
   return mlir::success();
 }
 
+mlir::LogicalResult CIRToLLVMLinkerOptionsOpLowering::matchAndRewrite(
+    cir::LinkerOptionsOp op, OpAdaptor adaptor,
+    mlir::ConversionPatternRewriter &rewriter) const {
+  auto newOp = rewriter.create<mlir::LLVM::LinkerOptionsOp>(
+      op.getLoc(), op.getOptionsAttr());
+  rewriter.replaceOp(op, newOp);
+  return mlir::success();
+}
+
 void populateCIRToLLVMConversionPatterns(
     mlir::RewritePatternSet &patterns, mlir::TypeConverter &converter,
     mlir::DataLayout &dataLayout, cir::LowerModule *lowerModule,
@@ -4315,6 +4324,7 @@ void populateCIRToLLVMConversionPatterns(
       CIRToLLVMIsConstantOpLowering,
       CIRToLLVMIsFPClassOpLowering,
       CIRToLLVMLLVMIntrinsicCallOpLowering,
+      CIRToLLVMLinkerOptionsOpLowering,
       CIRToLLVMMemChrOpLowering,
       CIRToLLVMMemCpyInlineOpLowering,
       CIRToLLVMMemCpyOpLowering,
