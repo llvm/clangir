@@ -1,7 +1,7 @@
 // RUN: cir-opt -cir-to-llvm %s | FileCheck %s
 
 module {
-    cir.linker_options ["/DEFAULTLIB:", "libcmt"]
+  cir.linker_options ["/DEFAULTLIB:", "libcmt"]
 } 
 
 // CHECK: module {

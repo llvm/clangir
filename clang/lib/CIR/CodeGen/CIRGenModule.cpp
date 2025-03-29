@@ -3346,9 +3346,8 @@ void CIRGenModule::emitModuleLinkOptions() {
 
   // Add the linker options metadata flag.
   llvm::SmallVector<mlir::Attribute, 16> args;
-  for (const auto &opt : linkerOptionsMetadata) {
+  for (const auto &opt : linkerOptionsMetadata)
     args.push_back(opt);
-  }
   mlir::ArrayAttr arr = builder.getArrayAttr(args);
   getBuilder().create<cir::LinkerOptionsOp>(theModule->getLoc(), arr);
 }
