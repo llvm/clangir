@@ -19236,9 +19236,17 @@ int32_t test_vmaxv_s32(int32x2_t a) {
 // NYI-LABEL: @test_vmaxv_u32(
 // NYI:   [[VMAXV_U32_I:%.*]] = call i32 @llvm.aarch64.neon.umaxv.i32.v2i32(<2 x i32> %a)
 // NYI:   ret i32 [[VMAXV_U32_I]]
-// uint32_t test_vmaxv_u32(uint32x2_t a) {
-//   return vmaxv_u32(a);
-// }
+uint32_t test_vmaxv_u32(uint32x2_t a) {
+  return vmaxv_u32(a);
+
+  // CIR-LABEL: vmaxv_u32
+  // CIR: cir.llvm.intrinsic "aarch64.neon.umaxv" {{%.*}} : (!cir.vector<!u32i x 2>) -> !u32i
+
+  // LLVM-LABEL: @test_vmaxv_u32
+  // LLVM-SAME: (<2 x i32> [[a:%.*]])
+  // LLVM:  [[VMAXV_U32_I:%.*]] = call i32 @llvm.aarch64.neon.umaxv.i32.v2i32(<2 x i32> [[a]])
+  // LLVM:  ret i32 [[VMAXV_U32_I]]
+}
 
 int32_t test_vaddv_s32(int32x2_t a) {
   return vaddv_s32(a);
