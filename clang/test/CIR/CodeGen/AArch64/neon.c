@@ -18769,12 +18769,17 @@ float32_t test_vmaxv_f32(float32x2_t a) {
   // LLVM:   ret float [[VMAXV_F32_I]]
 }
 
-// NYI-LABEL: @test_vmaxvq_f64(
-// NYI:   [[VMAXVQ_F64_I:%.*]] = call double @llvm.aarch64.neon.fmaxv.f64.v2f64(<2 x double> %a)
-// NYI:   ret double [[VMAXVQ_F64_I]]
-// float64_t test_vmaxvq_f64(float64x2_t a) {
-//   return vmaxvq_f64(a);
-// }
+float64_t test_vmaxvq_f64(float64x2_t a) {
+  return vmaxvq_f64(a);
+
+  // CIR-LABEL: vmaxvq_f64
+  // CIR: cir.llvm.intrinsic "aarch64.neon.fmaxv" {{%.*}} : (!cir.vector<!cir.double x 2>) -> !cir.double
+
+  // LLVM-LABEL: test_vmaxvq_f64
+  // LLVM-SAME: (<2 x double> [[a:%.*]])
+  // LLVM:  [[VMAXVQ_F64_I:%.*]] = call double @llvm.aarch64.neon.fmaxv.f64.v2f64(<2 x double> [[a]])
+  // LLVM:  ret double [[VMAXVQ_F64_I]]
+}
 
 // NYI-LABEL: @test_vminv_f32(
 // NYI:   [[VMINV_F32_I:%.*]] = call float @llvm.aarch64.neon.fminv.f32.v2f32(<2 x float> %a)
