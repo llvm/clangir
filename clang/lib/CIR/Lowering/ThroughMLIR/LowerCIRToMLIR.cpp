@@ -547,6 +547,18 @@ public:
   }
 };
 
+class CIRASinOpLowering : public mlir::OpConversionPattern<cir::ASinOp> {
+public:
+  using mlir::OpConversionPattern<cir::ASinOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::ASinOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOpWithNewOp<mlir::math::AsinOp>(op, adaptor.getSrc());
+    return mlir::LogicalResult::success();
+  }
+};
+
 template <typename CIROp, typename MLIROp>
 class CIRCountZerosBitOpLowering : public mlir::OpConversionPattern<CIROp> {
 public:
@@ -1492,12 +1504,13 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
       CIRSqrtOpLowering, CIRCeilOpLowering, CIRExp2OpLowering,
       CIRExpOpLowering, CIRFAbsOpLowering, CIRAbsOpLowering,
       CIRFloorOpLowering, CIRLog10OpLowering, CIRLog2OpLowering,
-      CIRLogOpLowering, CIRRoundOpLowering, CIRSinOpLowering, CIRShiftOpLowering,
-      CIRBitClzOpLowering, CIRBitCtzOpLowering, CIRBitPopcountOpLowering,
-      CIRBitClrsbOpLowering, CIRBitFfsOpLowering, CIRBitParityOpLowering,
-      CIRIfOpLowering, CIRScopeOpLowering, CIRVectorCreateLowering,
-      CIRVectorInsertLowering, CIRVectorExtractLowering, CIRVectorCmpOpLowering,
-      CIRACosOpLowering>(converter, patterns.getContext());
+      CIRLogOpLowering, CIRRoundOpLowering, CIRSinOpLowering,
+      CIRShiftOpLowering, CIRBitClzOpLowering, CIRBitCtzOpLowering,
+      CIRBitPopcountOpLowering, CIRBitClrsbOpLowering, CIRBitFfsOpLowering,
+      CIRBitParityOpLowering, CIRIfOpLowering, CIRScopeOpLowering,
+      CIRVectorCreateLowering, CIRVectorInsertLowering,
+      CIRVectorExtractLowering, CIRVectorCmpOpLowering, CIRACosOpLowering,
+      CIRASinOpLowering>(converter, patterns.getContext());
 }
 
 static mlir::TypeConverter prepareTypeConverter() {
