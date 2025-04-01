@@ -5692,6 +5692,36 @@ def SignBitOp : CIR_Op<"signbit", [Pure]> {
 }
 
 //===----------------------------------------------------------------------===//
+// LinkerOptionsOp
+//===----------------------------------------------------------------------===//
+
+def LinkerOptionsOp : CIR_Op<"linker_options"> {
+  let summary = "Options to pass to the linker when the object file is linked";
+  let description = [{
+    Pass the given options to the linker when the resulting object file 
+    is linked.
+    This is used extensively on Windows to determine the C runtime that the 
+    object files should link against.
+
+    Examples:
+    ```mlir
+    // Link against the MSVC static threaded CRT.
+    cir.linker_options ["/DEFAULTLIB:", "libcmt"]
+
+    // Link against aarch64 compiler-rt builtins
+    cir.linker_options ["-l", "clang_rt.builtins-aarch64"]
+  }];
+
+  let arguments = (ins StrArrayAttr:$options);
+
+  let assemblyFormat = [{
+    $options attr-dict
+  }];
+
+  let hasVerifier = 1;
+}
+
+//===----------------------------------------------------------------------===//
 // Standard library function calls
 //===----------------------------------------------------------------------===//
 
