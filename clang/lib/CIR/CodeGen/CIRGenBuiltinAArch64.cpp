@@ -2779,9 +2779,9 @@ static mlir::Value emitCommonNeonSISDBuiltinExpr(
   case NEON::BI__builtin_neon_vmaxnmv_f32:
     llvm_unreachable(" neon_vmaxnmv_f32 NYI ");
   case NEON::BI__builtin_neon_vmaxnmvq_f32:
-    llvm_unreachable(" neon_vmaxnmvq_f32 NYI ");
   case NEON::BI__builtin_neon_vmaxnmvq_f64:
-    llvm_unreachable(" neon_vmaxnmvq_f64 NYI ");
+    return emitNeonCall(builder, {argTy}, ops, "aarch64.neon.fmaxnmv", resultTy,
+                        loc);
   case NEON::BI__builtin_neon_vmaxv_f32:
     return emitNeonCall(builder, {argTy}, ops, "aarch64.neon.fmaxv", resultTy,
                         loc);
