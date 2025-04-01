@@ -1430,7 +1430,7 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
            CIRBitClrsbOpLowering, CIRBitFfsOpLowering, CIRBitParityOpLowering,
            CIRIfOpLowering, CIRVectorCreateLowering, CIRVectorInsertLowering,
            CIRVectorExtractLowering, CIRVectorCmpOpLowering, CIRACosOpLowering,
-           CIRASinOpLowering, CIRUnreachableOpLowering>(converter,
+           CIRASinOpLowering, CIRUnreachableOpLowering, CIRTanOpLowering>(converter,
                                                         patterns.getContext());
 }
 
