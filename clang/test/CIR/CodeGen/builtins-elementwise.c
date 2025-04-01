@@ -120,3 +120,66 @@ void test_builtin_elementwise_exp(float f, double d, vfloat4 vf4,
   // LLVM: {{%.*}} = call <4 x double> @llvm.exp.v4f64(<4 x double> {{%.*}})
   vd4 = __builtin_elementwise_exp(vd4);
 }
+
+void test_builtin_elementwise_log(float f, double d, vfloat4 vf4,
+                                  vdouble4  vd4) {
+  // CIR-LABEL: test_builtin_elementwise_log
+  // LLVM-LABEL: test_builtin_elementwise_log
+  // CIR: {{%.*}} = cir.log {{%.*}} : !cir.float
+  // LLVM: {{%.*}} = call float @llvm.log.f32(float {{%.*}})
+  f = __builtin_elementwise_log(f);
+
+  // CIR: {{%.*}} = cir.log {{%.*}} : !cir.double
+  // LLVM: {{%.*}} = call double @llvm.log.f64(double {{%.*}})
+  d = __builtin_elementwise_log(d);
+
+  // CIR: {{%.*}} = cir.log {{%.*}} : !cir.vector<!cir.float x 4>
+  // LLVM: {{%.*}} = call <4 x float> @llvm.log.v4f32(<4 x float> {{%.*}})
+  vf4 = __builtin_elementwise_log(vf4);
+
+  // CIR: {{%.*}} = cir.log {{%.*}} : !cir.vector<!cir.double x 4>
+  // LLVM: {{%.*}} = call <4 x double> @llvm.log.v4f64(<4 x double> {{%.*}})
+  vd4 = __builtin_elementwise_log(vd4);
+}
+
+void test_builtin_elementwise_log2(float f, double d, vfloat4 vf4,
+                                    vdouble4  vd4) {
+  // CIR-LABEL: test_builtin_elementwise_log2
+  // LLVM-LABEL: test_builtin_elementwise_log2
+  // CIR: {{%.*}} = cir.log2 {{%.*}} : !cir.float
+  // LLVM: {{%.*}} = call float @llvm.log2.f32(float {{%.*}})
+  f = __builtin_elementwise_log2(f);
+
+  // CIR: {{%.*}} = cir.log2 {{%.*}} : !cir.double
+  // LLVM: {{%.*}} = call double @llvm.log2.f64(double {{%.*}})
+  d = __builtin_elementwise_log2(d);
+
+  // CIR: {{%.*}} = cir.log2 {{%.*}} : !cir.vector<!cir.float x 4>
+  // LLVM: {{%.*}} = call <4 x float> @llvm.log2.v4f32(<4 x float> {{%.*}})
+  vf4 = __builtin_elementwise_log2(vf4);
+
+  // CIR: {{%.*}} = cir.log2 {{%.*}} : !cir.vector<!cir.double x 4>
+  // LLVM: {{%.*}} = call <4 x double> @llvm.log2.v4f64(<4 x double> {{%.*}})
+  vd4 = __builtin_elementwise_log2(vd4);
+}
+
+void test_builtin_elementwise_log10(float f, double d, vfloat4 vf4,
+                                     vdouble4  vd4) {
+  // CIR-LABEL: test_builtin_elementwise_log10
+  // LLVM-LABEL: test_builtin_elementwise_log10
+  // CIR: {{%.*}} = cir.log10 {{%.*}} : !cir.float
+  // LLVM: {{%.*}} = call float @llvm.log10.f32(float {{%.*}})
+  f = __builtin_elementwise_log10(f);
+
+  // CIR: {{%.*}} = cir.log10 {{%.*}} : !cir.double
+  // LLVM: {{%.*}} = call double @llvm.log10.f64(double {{%.*}})
+  d = __builtin_elementwise_log10(d);
+
+  // CIR: {{%.*}} = cir.log10 {{%.*}} : !cir.vector<!cir.float x 4>
+  // LLVM: {{%.*}} = call <4 x float> @llvm.log10.v4f32(<4 x float> {{%.*}})
+  vf4 = __builtin_elementwise_log10(vf4);
+
+  // CIR: {{%.*}} = cir.log10 {{%.*}} : !cir.vector<!cir.double x 4>
+  // LLVM: {{%.*}} = call <4 x double> @llvm.log10.v4f64(<4 x double> {{%.*}})
+  vd4 = __builtin_elementwise_log10(vd4);
+}
