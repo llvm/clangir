@@ -1,5 +1,6 @@
 // Global variables of intergal types
 // RUN: %clang_cc1 -std=c++20 -triple x86_64-unknown-linux-gnu -fclangir -emit-cir %s -o %t.cir
+// RUN: cat %t.cir
 // RUN: FileCheck %s --input-file=%t.cir
 
 char c;
@@ -60,19 +61,19 @@ unsigned _BitInt(48) ub48;
 // CHECK: external @ub48 = #cir.int<0> : !u48i
 
 _Float16 f16;
-// CHECK: @f16 = dso_local global half
+// CHECK: cir.global external @f16 = #cir.fp<0.000000e+00> : !cir.f16
 
 __bf16 bf16;
-// CHECK: @bf16 = dso_local global bfloat
+// CHECK: cir.global external @bf16 = #cir.fp<0.000000e+00> : !cir.bf16
 
 float f;
-// CHECK: @f = dso_local global float 0.000000e+00
+// CHECK: cir.global external @f = #cir.fp<0.000000e+00> : !cir.float
 
 double d = 1.25;
-// CHECK: @d = dso_local global double 1.250000e+00
+// CHECK: cir.global external @d = #cir.fp<1.250000e+00> : !cir.double
 
 long double ld;
-// CHECK: @ld = dso_local global x86_fp80 0xK00
+// CHECK: cir.global external @ld = #cir.fp<0.000000e+00> : !cir.long_double<!cir.f80>
 
 __float128 f128;
-// CHECK: @f128 = dso_local global fp128 0xL00
+// CHECK: cir.global external @f128 = #cir.fp<0.000000e+00> : !cir.f128
