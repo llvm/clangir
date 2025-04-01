@@ -1,6 +1,5 @@
 // Global variables of intergal types
 // RUN: %clang_cc1 -std=c++20 -triple x86_64-unknown-linux-gnu -fclangir -emit-cir %s -o %t.cir
-// RUN: cat %t.cir
 // RUN: FileCheck %s --input-file=%t.cir
 
 char c;
