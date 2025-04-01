@@ -311,6 +311,18 @@ public:
   }
 };
 
+class CIRTanOpLowering : public mlir::OpConversionPattern<cir::TanOp> {
+public:
+  using OpConversionPattern<cir::TanOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::TanOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOpWithNewOp<mlir::math::TanOp>(op, adaptor.getSrc());
+    return mlir::LogicalResult::success();
+  }
+};
+
 class CIRSqrtOpLowering : public mlir::OpConversionPattern<cir::SqrtOp> {
 public:
   using mlir::OpConversionPattern<cir::SqrtOp>::OpConversionPattern;
