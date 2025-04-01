@@ -16,8 +16,6 @@
 #include "mlir/Conversion/ControlFlowToLLVM/ControlFlowToLLVM.h"
 #include "mlir/Conversion/FuncToLLVM/ConvertFuncToLLVM.h"
 #include "mlir/Conversion/FuncToLLVM/ConvertFuncToLLVMPass.h"
-#include "mlir/Conversion/LLVMCommon/ConversionTarget.h"
-#include "mlir/Conversion/LLVMCommon/TypeConverter.h"
 #include "mlir/Conversion/MemRefToLLVM/MemRefToLLVM.h"
 #include "mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
@@ -28,7 +26,6 @@
 #include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
-#include "mlir/Dialect/SCF/Transforms/Passes.h"
 #include "mlir/Dialect/Vector/IR/VectorOps.h"
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/IR/BuiltinTypes.h"
@@ -87,7 +84,7 @@ struct ConvertCIRToMLIRPass
                     mlir::affine::AffineDialect, mlir::memref::MemRefDialect,
                     mlir::arith::ArithDialect, mlir::cf::ControlFlowDialect,
                     mlir::scf::SCFDialect, mlir::math::MathDialect,
-                    mlir::vector::VectorDialect>();
+                    mlir::vector::VectorDialect, mlir::LLVM::LLVMDialect>();
   }
   void runOnOperation() final;
 
@@ -1415,6 +1412,20 @@ public:
   }
 };
 
+class CIRUnreachableOpLowering
+    : public mlir::OpConversionPattern<cir::UnreachableOp> {
+public:
+  using OpConversionPattern<cir::UnreachableOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::UnreachableOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    // match and rewrite.
+    rewriter.replaceOpWithNewOp<mlir::LLVM::UnreachableOp>(op);
+    return mlir::success();
+  }
+};
+
 void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
                                          mlir::TypeConverter &converter) {
   patterns.add<CIRReturnLowering, CIRBrOpLowering>(patterns.getContext());
@@ -1435,7 +1446,8 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
            CIRBitClrsbOpLowering, CIRBitFfsOpLowering, CIRBitParityOpLowering,
            CIRIfOpLowering, CIRVectorCreateLowering, CIRVectorInsertLowering,
            CIRVectorExtractLowering, CIRVectorCmpOpLowering, CIRACosOpLowering,
-           CIRASinOpLowering>(converter, patterns.getContext());
+           CIRASinOpLowering, CIRUnreachableOpLowering>(converter,
+                                                        patterns.getContext());
 }
 
 static mlir::TypeConverter prepareTypeConverter() {
@@ -1517,11 +1529,11 @@ void ConvertCIRToMLIRPass::runOnOperation() {
 
   mlir::ConversionTarget target(getContext());
   target.addLegalOp<mlir::ModuleOp>();
-  target
-      .addLegalDialect<mlir::affine::AffineDialect, mlir::arith::ArithDialect,
-                       mlir::memref::MemRefDialect, mlir::func::FuncDialect,
-                       mlir::scf::SCFDialect, mlir::cf::ControlFlowDialect,
-                       mlir::math::MathDialect, mlir::vector::VectorDialect>();
+  target.addLegalDialect<mlir::affine::AffineDialect, mlir::arith::ArithDialect,
+                         mlir::memref::MemRefDialect, mlir::func::FuncDialect,
+                         mlir::scf::SCFDialect, mlir::cf::ControlFlowDialect,
+                         mlir::math::MathDialect, mlir::vector::VectorDialect,
+                         mlir::LLVM::LLVMDialect>();
   target.addIllegalDialect<cir::CIRDialect>();
   
   patterns.add<CIRCastOpLowering, CIRIfOpLowering, CIRScopeOpLowering, CIRYieldOpLowering>(converter, context);
