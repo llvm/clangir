@@ -4018,6 +4018,18 @@ LogicalResult cir::CatchParamOp::verify() {
 }
 
 //===----------------------------------------------------------------------===//
+// LinkerOptionsOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult cir::LinkerOptionsOp::verify() {
+  if (mlir::Operation *parentOp = (*this)->getParentOp();
+      parentOp && !isa<mlir::ModuleOp>(parentOp))
+    return emitOpError("must appear at the module level");
+
+  return success();
+}
+
+//===----------------------------------------------------------------------===//
 // TableGen'd op method definitions
 //===----------------------------------------------------------------------===//
 
