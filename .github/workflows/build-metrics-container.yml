@@ -27,7 +27,7 @@ jobs:
       container-filename: ${{ steps.vars.outputs.container-filename }}
     steps:
       - name: Checkout LLVM
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
         with:
           sparse-checkout: .ci/metrics/
       - name: Write Variables
@@ -49,7 +49,7 @@ jobs:
         run: |
           podman save  ${{ steps.vars.outputs.container-name-tag }} >  ${{ steps.vars.outputs.container-filename }}
       - name: Upload Container Image
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: container
           path: ${{ steps.vars.outputs.container-filename }}
