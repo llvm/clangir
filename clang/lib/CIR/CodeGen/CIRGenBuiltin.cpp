@@ -1457,11 +1457,11 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   case Builtin::BI__builtin_elementwise_exp2:
     llvm_unreachable("BI__builtin_elementwise_exp2 NYI");
   case Builtin::BI__builtin_elementwise_log:
-    llvm_unreachable("BI__builtin_elementwise_log NYI");
+    return emitUnaryFPBuiltin<cir::LogOp>(*this, *E);
   case Builtin::BI__builtin_elementwise_log2:
-    llvm_unreachable("BI__builtin_elementwise_log2 NYI");
+    return emitUnaryFPBuiltin<cir::Log2Op>(*this, *E);
   case Builtin::BI__builtin_elementwise_log10:
-    llvm_unreachable("BI__builtin_elementwise_log10 NYI");
+    return emitUnaryFPBuiltin<cir::Log10Op>(*this, *E);
   case Builtin::BI__builtin_elementwise_pow:
     llvm_unreachable("BI__builtin_elementwise_pow NYI");
   case Builtin::BI__builtin_elementwise_bitreverse:
