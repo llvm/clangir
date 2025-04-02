@@ -18839,12 +18839,17 @@ float32_t test_vmaxnmv_f32(float32x2_t a) {
 //   return vminnmvq_f64(a);
 // }
 
-// NYI-LABEL: @test_vminnmv_f32(
-// NYI:   [[VMINNMV_F32_I:%.*]] = call float @llvm.aarch64.neon.fminnmv.f32.v2f32(<2 x float> %a)
-// NYI:   ret float [[VMINNMV_F32_I]]
-// float32_t test_vminnmv_f32(float32x2_t a) {
-//   return vminnmv_f32(a);
-// }
+float32_t test_vminnmv_f32(float32x2_t a) {
+  return vminnmv_f32(a);
+
+  // CIR-LABEL: vminnmv_f32
+  // CIR: cir.llvm.intrinsic "aarch64.neon.fminnmv" {{%.*}} : (!cir.vector<!cir.float x 2>) -> !cir.float
+
+  // LLVM-LABEL: @test_vminnmv_f32
+  // LLVM-SAME: (<2 x float> [[a:%.*]])
+  // LLVM:   [[VMINNMV_F32_I:%.*]] = call float @llvm.aarch64.neon.fminnmv.f32.v2f32(<2 x float> [[a]])
+  // LLVM:   ret float [[VMINNMV_F32_I]]
+}
 
 // NYI-LABEL: @test_vpaddq_s64(
 // NYI:   [[VPADDQ_V2_I:%.*]] = call <2 x i64> @llvm.aarch64.neon.addp.v2i64(<2 x i64> %a, <2 x i64> %b)
