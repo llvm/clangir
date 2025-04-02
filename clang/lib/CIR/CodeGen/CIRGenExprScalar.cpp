@@ -1180,9 +1180,11 @@ mlir::Value CIRGenFunction::emitPromotedScalarExpr(const Expr *E,
 }
 
 [[maybe_unused]] static bool MustVisitNullValue(const Expr *E) {
-  // If a null pointer expression's type is the C++0x nullptr_t, then
-  // it's not necessarily a simple constant and it must be evaluated
+  // If a null pointer expression's type is the C++0x nullptr_t and
+  // the expression is not a simple literal, it must be evaluated
   // for its potential side effects.
+  if (isa<IntegerLiteral>(E) || isa<CXXNullPtrLiteralExpr>(E))
+    return false;
   return E->getType()->isNullPtrType();
 }
 
@@ -1723,7 +1725,9 @@ mlir::Value ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
     return emitLValue(E).getPointer();
 
   case CK_NullToPointer: {
-    // FIXME: use MustVisitNullValue(E) and evaluate expr.
+    if (MustVisitNullValue(E))
+      CGF.emitIgnoredExpr(E);
+
     // Note that DestTy is used as the MLIR type instead of a custom
     // nullptr type.
     mlir::Type Ty = CGF.convertType(DestTy);
