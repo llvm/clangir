@@ -7,4 +7,13 @@ module {
 
   //      MLIR: func.func @test_unreachable()
   // MLIR-NEXT:   llvm.unreachable
+
+  cir.func @test_trap() {
+    cir.trap
+  }
+
+  //      MLIR: func.func @test_trap() {
+  // MLIR-NEXT:   llvm.call_intrinsic "llvm.trap"() : () -> ()
+  // MLIR-NEXT:   llvm.unreachable
+  // MLIR-NEXT: }
 }
