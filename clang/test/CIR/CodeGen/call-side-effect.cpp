@@ -2,7 +2,6 @@
 // RUN: FileCheck --input-file=%t.cir --check-prefix=CIR %s
 // RUN: %clang_cc1 -std=c++20 -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm %s -o %t.ll
 // RUN: FileCheck --input-file=%t.ll --check-prefix=LLVM %s
-// XFAIL: *
 
 [[gnu::pure]] int pure_func(int x);
 [[gnu::const]] int const_func(int x);
@@ -22,5 +21,5 @@ int test(int x) {
 // LLVM:   %{{.+}} = call i32 @_Z9pure_funci(i32 %{{.+}}) #[[#meta_pure:]]
 // LLVM:   %{{.+}} = call i32 @_Z10const_funci(i32 %{{.+}}) #[[#meta_const:]]
 // LLVM: }
-// LLVM: attributes #[[#meta_pure]] = { nounwind willreturn memory(read) }
+// LLVM: attributes #[[#meta_pure]] = { nounwind willreturn memory(read, errnomem: none) }
 // LLVM: attributes #[[#meta_const]] = { nounwind willreturn memory(none) }
