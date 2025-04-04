@@ -58,3 +58,21 @@ _BitInt(20) sb20;
 
 unsigned _BitInt(48) ub48;
 // CHECK: external @ub48 = #cir.int<0> : !u48i
+
+_Float16 f16;
+// CHECK: cir.global external @f16 = #cir.fp<0.000000e+00> : !cir.f16
+
+__bf16 bf16;
+// CHECK: cir.global external @bf16 = #cir.fp<0.000000e+00> : !cir.bf16
+
+float f;
+// CHECK: cir.global external @f = #cir.fp<0.000000e+00> : !cir.float
+
+double d = 1.25;
+// CHECK: cir.global external @d = #cir.fp<1.250000e+00> : !cir.double
+
+long double ld;
+// CHECK: cir.global external @ld = #cir.fp<0.000000e+00> : !cir.long_double<!cir.f80>
+
+__float128 f128;
+// CHECK: cir.global external @f128 = #cir.fp<0.000000e+00> : !cir.f128

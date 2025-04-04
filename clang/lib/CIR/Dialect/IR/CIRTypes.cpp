@@ -705,7 +705,7 @@ LongDoubleType::verify(function_ref<InFlightDiagnostic()> emitError,
 
 bool cir::isAnyFloatingPointType(mlir::Type t) {
   return isa<cir::SingleType, cir::DoubleType, cir::LongDoubleType,
-             cir::FP80Type>(t);
+             cir::FP80Type, cir::BF16Type, cir::FP16Type, cir::FP128Type>(t);
 }
 
 bool cir::isScalarType(mlir::Type ty) {
