@@ -1564,6 +1564,8 @@ LValue CodeGenFunction::EmitLValueHelper(const Expr *E,
     return EmitObjCIsaExpr(cast<ObjCIsaExpr>(E));
   case Expr::BinaryOperatorClass:
     return EmitBinaryOperatorLValue(cast<BinaryOperator>(E));
+  case Expr::ParenExprClass:
+    return EmitLValue(cast<ParenExpr>(E)->getSubExpr());
   case Expr::CompoundAssignOperatorClass: {
     QualType Ty = E->getType();
     if (const AtomicType *AT = Ty->getAs<AtomicType>())
@@ -1592,8 +1594,6 @@ LValue CodeGenFunction::EmitLValueHelper(const Expr *E,
     }
     return EmitLValue(cast<ConstantExpr>(E)->getSubExpr(), IsKnownNonNull);
   }
-  case Expr::ParenExprClass:
-    return EmitLValue(cast<ParenExpr>(E)->getSubExpr(), IsKnownNonNull);
   case Expr::GenericSelectionExprClass:
     return EmitLValue(cast<GenericSelectionExpr>(E)->getResultExpr(),
                       IsKnownNonNull);
@@ -5848,6 +5848,11 @@ LValue CodeGenFunction::EmitBinaryOperatorLValue(const BinaryOperator *E) {
     return EmitAggExprToLValue(E);
   }
   llvm_unreachable("bad evaluation kind");
+}
+
+// Handle parenthesis expressions
+llvm::Value *CodeGenFunction::EmitParenExpr(const ParenExpr *E) {
+  return EmitScalarExpr(E->getSubExpr());
 }
 
 // This function implements trivial copy assignment for HLSL's
