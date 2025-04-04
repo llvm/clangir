@@ -135,14 +135,8 @@ public:
   mlir::TypedAttr getZeroInitAttr(mlir::Type ty) {
     if (mlir::isa<cir::IntType>(ty))
       return cir::IntAttr::get(ty, 0);
-    if (auto fltType = mlir::dyn_cast<cir::SingleType>(ty))
-      return cir::FPAttr::getZero(fltType);
-    if (auto fltType = mlir::dyn_cast<cir::DoubleType>(ty))
-      return cir::FPAttr::getZero(fltType);
-    if (auto fltType = mlir::dyn_cast<cir::FP16Type>(ty))
-      return cir::FPAttr::getZero(fltType);
-    if (auto fltType = mlir::dyn_cast<cir::BF16Type>(ty))
-      return cir::FPAttr::getZero(fltType);
+    if (cir::isAnyFloatingPointType(ty))
+      return cir::FPAttr::getZero(ty);
     if (auto complexType = mlir::dyn_cast<cir::ComplexType>(ty))
       return getZeroAttr(complexType);
     if (auto arrTy = mlir::dyn_cast<cir::ArrayType>(ty))

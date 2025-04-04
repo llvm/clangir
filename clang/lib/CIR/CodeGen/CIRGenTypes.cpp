@@ -498,6 +498,8 @@ mlir::Type CIRGenTypes::convertType(QualType T) {
       ResultType = Builder.getLongDoubleTy(astContext.getFloatTypeSemantics(T));
       break;
     case BuiltinType::Float128:
+      ResultType = CGM.FP128Ty;
+      break;
     case BuiltinType::Ibm128:
       // FIXME: look at astContext.getFloatTypeSemantics(T) and getTypeForFormat
       // on LLVM codegen.
