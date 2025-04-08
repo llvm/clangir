@@ -673,6 +673,16 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     case Builtin::BI__builtin_atanf128:
       llvm_unreachable("Builtin::BIatan like NYI");
 
+    case Builtin::BIatan2:
+    case Builtin::BIatan2f:
+    case Builtin::BIatan2l:
+    case Builtin::BI__builtin_atan2:
+    case Builtin::BI__builtin_atan2f:
+    case Builtin::BI__builtin_atan2f16:
+    case Builtin::BI__builtin_atan2l:
+    case Builtin::BI__builtin_atan2f128:
+      llvm_unreachable("Builtin::BIatan2 like NYI");
+
     case Builtin::BIceil:
     case Builtin::BIceilf:
     case Builtin::BIceill:
@@ -801,6 +811,26 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     case Builtin::BI__builtin_fminf128:
       llvm_unreachable("BI__builtin_fminf16 like NYI");
 
+    case Builtin::BIfmaximum_num:
+    case Builtin::BIfmaximum_numf:
+    case Builtin::BIfmaximum_numl:
+    case Builtin::BI__builtin_fmaximum_num:
+    case Builtin::BI__builtin_fmaximum_numf:
+    case Builtin::BI__builtin_fmaximum_numf16:
+    case Builtin::BI__builtin_fmaximum_numl:
+    case Builtin::BI__builtin_fmaximum_numf128:
+      llvm_unreachable("Builtin::BIfmaximum_num like NYI");
+
+    case Builtin::BIfminimum_num:
+    case Builtin::BIfminimum_numf:
+    case Builtin::BIfminimum_numl:
+    case Builtin::BI__builtin_fminimum_num:
+    case Builtin::BI__builtin_fminimum_numf:
+    case Builtin::BI__builtin_fminimum_numf16:
+    case Builtin::BI__builtin_fminimum_numl:
+    case Builtin::BI__builtin_fminimum_numf128:
+      llvm_unreachable("Builtin::BIfminimum_num like NYI");
+
     // fmod() is a special-case. It maps to the frem instruction rather than an
     // LLVM intrinsic.
     case Builtin::BIfmod:
@@ -913,6 +943,31 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     case Builtin::BI__builtin_sinf128:
       assert(!cir::MissingFeatures::fastMathFlags());
       return emitUnaryMaybeConstrainedFPBuiltin<cir::SinOp>(*this, *E);
+
+    case Builtin::BIsinh:
+    case Builtin::BIsinhf:
+    case Builtin::BIsinhl:
+    case Builtin::BI__builtin_sinh:
+    case Builtin::BI__builtin_sinhf:
+    case Builtin::BI__builtin_sinhf16:
+    case Builtin::BI__builtin_sinhl:
+    case Builtin::BI__builtin_sinhf128:
+      llvm_unreachable("Builtin::BIsinh like NYI");
+
+    case Builtin::BI__builtin_sincospi:
+    case Builtin::BI__builtin_sincospif:
+    case Builtin::BI__builtin_sincospil:
+      llvm_unreachable("Builtin::BI__builtin_sincospi like NYI");
+
+    case Builtin::BIsincos:
+    case Builtin::BIsincosf:
+    case Builtin::BIsincosl:
+    case Builtin::BI__builtin_sincos:
+    case Builtin::BI__builtin_sincosf:
+    case Builtin::BI__builtin_sincosf16:
+    case Builtin::BI__builtin_sincosl:
+    case Builtin::BI__builtin_sincosf128:
+      llvm_unreachable("Builtin::BIsincos like NYI");
 
     case Builtin::BIsqrt:
     case Builtin::BIsqrtf:
@@ -1440,9 +1495,8 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     mlir::Value result = call->getResult(0);
     return RValue::get(result);
   }
-  case Builtin::BI__builtin_elementwise_acos: {
+  case Builtin::BI__builtin_elementwise_acos:
     return emitUnaryFPBuiltin<cir::ACosOp>(*this, *E);
-  }
   case Builtin::BI__builtin_elementwise_asin:
     return emitUnaryFPBuiltin<cir::ASinOp>(*this, *E);
   case Builtin::BI__builtin_elementwise_atan:
@@ -1451,9 +1505,8 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     llvm_unreachable("BI__builtin_elementwise_atan2 NYI");
   case Builtin::BI__builtin_elementwise_ceil:
     llvm_unreachable("BI__builtin_elementwise_ceil NYI");
-  case Builtin::BI__builtin_elementwise_exp: {
+  case Builtin::BI__builtin_elementwise_exp:
     return emitUnaryFPBuiltin<cir::ExpOp>(*this, *E);
-  }
   case Builtin::BI__builtin_elementwise_exp2:
     llvm_unreachable("BI__builtin_elementwise_exp2 NYI");
   case Builtin::BI__builtin_elementwise_log:
