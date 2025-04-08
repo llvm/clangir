@@ -5370,6 +5370,12 @@ private:
                                                llvm::IntegerType *ResType,
                                                llvm::Value *EmittedE,
                                                bool IsDynamic);
+                                               
+  /// Emit code for a parenthesis expression. This simply emits the
+  /// subexpression without any additional logic, since parentheses
+  /// do not affect the semantics of the expression in IR.
+  llvm::Value *EmitParenExpr(const ParenExpr *E);
+
 
   /// Emits the size of E, as required by __builtin_object_size. This
   /// function is aware of pass_object_size parameters, and will act accordingly
