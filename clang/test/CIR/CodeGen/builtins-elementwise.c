@@ -183,3 +183,192 @@ void test_builtin_elementwise_log10(float f, double d, vfloat4 vf4,
   // LLVM: {{%.*}} = call <4 x double> @llvm.log10.v4f64(<4 x double> {{%.*}})
   vd4 = __builtin_elementwise_log10(vd4);
 }
+
+void test_builtin_elementwise_cos(float f, double d, vfloat4 vf4,
+                                     vdouble4 vd4) {
+  // CIR-LABEL: test_builtin_elementwise_cos
+  // LLVM-LABEL: test_builtin_elementwise_cos
+  // CIR: {{%.*}} = cir.cos {{%.*}} : !cir.float
+  // LLVM: {{%.*}} = call float @llvm.cos.f32(float {{%.*}})
+  f = __builtin_elementwise_cos(f);
+
+  // CIR: {{%.*}} = cir.cos {{%.*}} : !cir.double
+  // LLVM: {{%.*}} = call double @llvm.cos.f64(double {{%.*}})
+  d = __builtin_elementwise_cos(d);
+
+  // CIR: {{%.*}} = cir.cos {{%.*}} : !cir.vector<!cir.float x 4>
+  // LLVM: {{%.*}} = call <4 x float> @llvm.cos.v4f32(<4 x float> {{%.*}})
+  vf4 = __builtin_elementwise_cos(vf4);
+
+  // CIR: {{%.*}} = cir.cos {{%.*}} : !cir.vector<!cir.double x 4>
+  // LLVM: {{%.*}} = call <4 x double> @llvm.cos.v4f64(<4 x double> {{%.*}})
+  vd4 = __builtin_elementwise_cos(vd4);
+}
+
+void test_builtin_elementwise_floor(float f, double d, vfloat4 vf4,
+                   vdouble4 vd4) {
+  // CIR-LABEL: test_builtin_elementwise_floor
+  // LLVM-LABEL: test_builtin_elementwise_floor
+  // CIR: {{%.*}} = cir.floor {{%.*}} : !cir.float
+  // LLVM: {{%.*}} = call float @llvm.floor.f32(float {{%.*}})
+  f = __builtin_elementwise_floor(f);
+
+  // CIR: {{%.*}} = cir.floor {{%.*}} : !cir.double
+  // LLVM: {{%.*}} = call double @llvm.floor.f64(double {{%.*}})
+  d = __builtin_elementwise_floor(d);
+
+  // CIR: {{%.*}} = cir.floor {{%.*}} : !cir.vector<!cir.float x 4>
+  // LLVM: {{%.*}} = call <4 x float> @llvm.floor.v4f32(<4 x float> {{%.*}})
+  vf4 = __builtin_elementwise_floor(vf4);
+
+  // CIR: {{%.*}} = cir.floor {{%.*}} : !cir.vector<!cir.double x 4>
+  // LLVM: {{%.*}} = call <4 x double> @llvm.floor.v4f64(<4 x double> {{%.*}})
+  vd4 = __builtin_elementwise_floor(vd4);
+}
+
+void test_builtin_elementwise_round(float f, double d, vfloat4 vf4,
+                   vdouble4 vd4) {
+  // CIR-LABEL: test_builtin_elementwise_round
+  // LLVM-LABEL: test_builtin_elementwise_round
+  // CIR: {{%.*}} = cir.round {{%.*}} : !cir.float
+  // LLVM: {{%.*}} = call float @llvm.round.f32(float {{%.*}})
+  f = __builtin_elementwise_round(f);
+
+  // CIR: {{%.*}} = cir.round {{%.*}} : !cir.double
+  // LLVM: {{%.*}} = call double @llvm.round.f64(double {{%.*}})
+  d = __builtin_elementwise_round(d);
+
+  // CIR: {{%.*}} = cir.round {{%.*}} : !cir.vector<!cir.float x 4>
+  // LLVM: {{%.*}} = call <4 x float> @llvm.round.v4f32(<4 x float> {{%.*}})
+  vf4 = __builtin_elementwise_round(vf4);
+
+  // CIR: {{%.*}} = cir.round {{%.*}} : !cir.vector<!cir.double x 4>
+  // LLVM: {{%.*}} = call <4 x double> @llvm.round.v4f64(<4 x double> {{%.*}})
+  vd4 = __builtin_elementwise_round(vd4);
+}
+
+void test_builtin_elementwise_rint(float f, double d, vfloat4 vf4,
+                   vdouble4 vd4) {
+  // CIR-LABEL: test_builtin_elementwise_rint
+  // LLVM-LABEL: test_builtin_elementwise_rint
+  // CIR: {{%.*}} = cir.rint {{%.*}} : !cir.float
+  // LLVM: {{%.*}} = call float @llvm.rint.f32(float {{%.*}})
+  f = __builtin_elementwise_rint(f);
+
+  // CIR: {{%.*}} = cir.rint {{%.*}} : !cir.double
+  // LLVM: {{%.*}} = call double @llvm.rint.f64(double {{%.*}})
+  d = __builtin_elementwise_rint(d);
+
+  // CIR: {{%.*}} = cir.rint {{%.*}} : !cir.vector<!cir.float x 4>
+  // LLVM: {{%.*}} = call <4 x float> @llvm.rint.v4f32(<4 x float> {{%.*}})
+  vf4 = __builtin_elementwise_rint(vf4);
+
+  // CIR: {{%.*}} = cir.rint {{%.*}} : !cir.vector<!cir.double x 4>
+  // LLVM: {{%.*}} = call <4 x double> @llvm.rint.v4f64(<4 x double> {{%.*}})
+  vd4 = __builtin_elementwise_rint(vd4);
+}
+
+void test_builtin_elementwise_nearbyint(float f, double d, vfloat4 vf4,
+                   vdouble4 vd4) {
+  // CIR-LABEL: test_builtin_elementwise_nearbyint
+  // LLVM-LABEL: test_builtin_elementwise_nearbyint
+  // CIR: {{%.*}} = cir.nearbyint {{%.*}} : !cir.float
+  // LLVM: {{%.*}} = call float @llvm.nearbyint.f32(float {{%.*}})
+  f = __builtin_elementwise_nearbyint(f);
+
+  // CIR: {{%.*}} = cir.nearbyint {{%.*}} : !cir.double
+  // LLVM: {{%.*}} = call double @llvm.nearbyint.f64(double {{%.*}})
+  d = __builtin_elementwise_nearbyint(d);
+
+  // CIR: {{%.*}} = cir.nearbyint {{%.*}} : !cir.vector<!cir.float x 4>
+  // LLVM: {{%.*}} = call <4 x float> @llvm.nearbyint.v4f32(<4 x float> {{%.*}})
+  vf4 = __builtin_elementwise_nearbyint(vf4);
+
+  // CIR: {{%.*}} = cir.nearbyint {{%.*}} : !cir.vector<!cir.double x 4>
+  // LLVM: {{%.*}} = call <4 x double> @llvm.nearbyint.v4f64(<4 x double> {{%.*}})
+  vd4 = __builtin_elementwise_nearbyint(vd4);
+}
+
+void test_builtin_elementwise_sin(float f, double d, vfloat4 vf4,
+                   vdouble4 vd4) {
+  // CIR-LABEL: test_builtin_elementwise_sin
+  // LLVM-LABEL: test_builtin_elementwise_sin
+  // CIR: {{%.*}} = cir.sin {{%.*}} : !cir.float
+  // LLVM: {{%.*}} = call float @llvm.sin.f32(float {{%.*}})
+  f = __builtin_elementwise_sin(f);
+
+  // CIR: {{%.*}} = cir.sin {{%.*}} : !cir.double
+  // LLVM: {{%.*}} = call double @llvm.sin.f64(double {{%.*}})
+  d = __builtin_elementwise_sin(d);
+
+  // CIR: {{%.*}} = cir.sin {{%.*}} : !cir.vector<!cir.float x 4>
+  // LLVM: {{%.*}} = call <4 x float> @llvm.sin.v4f32(<4 x float> {{%.*}})
+  vf4 = __builtin_elementwise_sin(vf4);
+
+  // CIR: {{%.*}} = cir.sin {{%.*}} : !cir.vector<!cir.double x 4>
+  // LLVM: {{%.*}} = call <4 x double> @llvm.sin.v4f64(<4 x double> {{%.*}})
+  vd4 = __builtin_elementwise_sin(vd4);
+}
+
+void test_builtin_elementwise_sqrt(float f, double d, vfloat4 vf4,
+                   vdouble4 vd4) {
+  // CIR-LABEL: test_builtin_elementwise_sqrt
+  // LLVM-LABEL: test_builtin_elementwise_sqrt
+  // CIR: {{%.*}} = cir.sqrt {{%.*}} : !cir.float
+  // LLVM: {{%.*}} = call float @llvm.sqrt.f32(float {{%.*}})
+  f = __builtin_elementwise_sqrt(f);
+
+  // CIR: {{%.*}} = cir.sqrt {{%.*}} : !cir.double
+  // LLVM: {{%.*}} = call double @llvm.sqrt.f64(double {{%.*}})
+  d = __builtin_elementwise_sqrt(d);
+
+  // CIR: {{%.*}} = cir.sqrt {{%.*}} : !cir.vector<!cir.float x 4>
+  // LLVM: {{%.*}} = call <4 x float> @llvm.sqrt.v4f32(<4 x float> {{%.*}})
+  vf4 = __builtin_elementwise_sqrt(vf4);
+
+  // CIR: {{%.*}} = cir.sqrt {{%.*}} : !cir.vector<!cir.double x 4>
+  // LLVM: {{%.*}} = call <4 x double> @llvm.sqrt.v4f64(<4 x double> {{%.*}})
+  vd4 = __builtin_elementwise_sqrt(vd4);
+}
+
+void test_builtin_elementwise_tan(float f, double d, vfloat4 vf4,
+                   vdouble4 vd4) {
+  // CIR-LABEL: test_builtin_elementwise_tan
+  // LLVM-LABEL: test_builtin_elementwise_tan
+  // CIR: {{%.*}} = cir.tan {{%.*}} : !cir.float
+  // LLVM: {{%.*}} = call float @llvm.tan.f32(float {{%.*}})
+  f = __builtin_elementwise_tan(f);
+
+  // CIR: {{%.*}} = cir.tan {{%.*}} : !cir.double
+  // LLVM: {{%.*}} = call double @llvm.tan.f64(double {{%.*}})
+  d = __builtin_elementwise_tan(d);
+
+  // CIR: {{%.*}} = cir.tan {{%.*}} : !cir.vector<!cir.float x 4>
+  // LLVM: {{%.*}} = call <4 x float> @llvm.tan.v4f32(<4 x float> {{%.*}})
+  vf4 = __builtin_elementwise_tan(vf4);
+
+  // CIR: {{%.*}} = cir.tan {{%.*}} : !cir.vector<!cir.double x 4>
+  // LLVM: {{%.*}} = call <4 x double> @llvm.tan.v4f64(<4 x double> {{%.*}})
+  vd4 = __builtin_elementwise_tan(vd4);
+}
+
+void test_builtin_elementwise_trunc(float f, double d, vfloat4 vf4,
+                   vdouble4 vd4) {
+  // CIR-LABEL: test_builtin_elementwise_trunc
+  // LLVM-LABEL: test_builtin_elementwise_trunc
+  // CIR: {{%.*}} = cir.trunc {{%.*}} : !cir.float
+  // LLVM: {{%.*}} = call float @llvm.trunc.f32(float {{%.*}})
+  f = __builtin_elementwise_trunc(f);
+
+  // CIR: {{%.*}} = cir.trunc {{%.*}} : !cir.double
+  // LLVM: {{%.*}} = call double @llvm.trunc.f64(double {{%.*}})
+  d = __builtin_elementwise_trunc(d);
+
+  // CIR: {{%.*}} = cir.trunc {{%.*}} : !cir.vector<!cir.float x 4>
+  // LLVM: {{%.*}} = call <4 x float> @llvm.trunc.v4f32(<4 x float> {{%.*}})
+  vf4 = __builtin_elementwise_trunc(vf4);
+
+  // CIR: {{%.*}} = cir.trunc {{%.*}} : !cir.vector<!cir.double x 4>
+  // LLVM: {{%.*}} = call <4 x double> @llvm.trunc.v4f64(<4 x double> {{%.*}})
+  vd4 = __builtin_elementwise_trunc(vd4);
+}
