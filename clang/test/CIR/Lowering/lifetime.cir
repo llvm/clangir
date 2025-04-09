@@ -1,0 +1,28 @@
+// RUN: cir-opt %s -cir-to-llvm -o - | FileCheck %s --check-prefix=MLIR
+// RUN: cir-translate %s -cir-to-llvmir --disable-cc-lowering  | FileCheck %s -check-prefix=LLVM
+
+!s32i = !cir.int<s, 32>
+
+module {
+  cir.func @foo(%arg0: !s32i) {
+    %0 = cir.alloca !s32i, !cir.ptr<!s32i>, %arg0 : !s32i, ["tmp"] {alignment = 16 : i64}
+    cir.lifetime.start 4, %0 : !cir.ptr<!s32i>
+    cir.lifetime.end 4, %0 : !cir.ptr<!s32i>
+    cir.return
+  }
+}
+
+//      MLIR: module {
+// MLIR-NEXT:  llvm.func @foo(%arg0: i32) attributes {cir.extra_attrs = #fn_attr, global_visibility = #cir<visibility default>} {
+// MLIR-NEXT:    %0 = llvm.alloca %arg0 x i32 {alignment = 16 : i64} : (i32) -> !llvm.ptr
+// MLIR-NEXT:    llvm.intr.lifetime.start 4, %0 : !llvm.ptr
+// MLIR-NEXT:    llvm.intr.lifetime.end 4, %0 : !llvm.ptr
+// MLIR-NEXT:    llvm.return
+// MLIR-NEXT:  }
+// MLIR-NEXT: }
+
+//      LLVM: define void @foo(i32 %0)
+// LLVM-NEXT:   %2 = alloca i32, i32 %0, align 16
+// LLVM-NEXT:   call void @llvm.lifetime.start.p0(i64 4, ptr %2)
+// LLVM-NEXT:   call void @llvm.lifetime.end.p0(i64 4, ptr %2)
+// LLVM-NEXT:   ret void
