@@ -763,6 +763,27 @@ void CIRGenFunction::emitExprAsInit(const Expr *init, const ValueDecl *D,
   llvm_unreachable("bad evaluation kind");
 }
 
+mlir::Attribute CIRGenFunction::emitLifetimeStart(int64_t size, mlir::Value addr) {
+  assert(!cir::MissingFeatures::shouldEmitLifetimeMarkers());
+  if (!shouldEmitLifetimeMarkers)
+    return nullptr;
+  assert(cast<cir::PointerType>(addr.getType()).getAddrSpace() ==
+             CGM.getCIRAllocaAddressSpace() &&
+         "Pointer should be in alloca address space");
+  mlir::IntegerAttr sizeAttr = builder.getI64IntegerAttr(size);
+  builder.create<cir::LifetimeStartOp>(*currSrcLoc, sizeAttr, addr);
+  return sizeAttr;
+}
+
+void CIRGenFunction::emitLifetimeEnd(int64_t size, mlir::Value addr) {
+  assert(!cir::MissingFeatures::shouldEmitLifetimeMarkers());
+  assert(cast<cir::PointerType>(addr.getType()).getAddrSpace() ==
+             CGM.getCIRAllocaAddressSpace() &&
+         "Pointer should be in alloca address space");
+  mlir::IntegerAttr sizeAttr = builder.getI64IntegerAttr(size);
+  builder.create<cir::LifetimeEndOp>(*currSrcLoc, sizeAttr, addr);
+}
+
 void CIRGenFunction::emitDecl(const Decl &D) {
   switch (D.getKind()) {
   case Decl::ImplicitConceptSpecialization:
