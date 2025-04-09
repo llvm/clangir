@@ -763,7 +763,8 @@ void CIRGenFunction::emitExprAsInit(const Expr *init, const ValueDecl *D,
   llvm_unreachable("bad evaluation kind");
 }
 
-mlir::Attribute CIRGenFunction::emitLifetimeStart(int64_t size, mlir::Value addr) {
+mlir::Attribute CIRGenFunction::emitLifetimeStart(int64_t size,
+                                                  mlir::Value addr) {
   assert(!cir::MissingFeatures::shouldEmitLifetimeMarkers());
   if (!shouldEmitLifetimeMarkers)
     return nullptr;
