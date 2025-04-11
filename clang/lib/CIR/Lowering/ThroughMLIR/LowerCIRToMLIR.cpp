@@ -275,8 +275,10 @@ public:
   }
 };
 
+// Template for unary math op lowerings, to eliminate redundancy.
+
 template <typename CIROp, typename MLIROp>
-class CIRMathOpLowering : public mlir::OpConversionPattern<CIROp> {
+class CIRUnaryMathOpLowering : public mlir::OpConversionPattern<CIROp> {
 public:
   using mlir::OpConversionPattern<CIROp>::OpConversionPattern;
 
@@ -289,23 +291,34 @@ public:
   }
 };
 
-using CIRASinOpLowering = CIRMathOpLowering<cir::ASinOp, mlir::math::AsinOp>;
-using CIRSinOpLowering = CIRMathOpLowering<cir::SinOp, mlir::math::SinOp>;
-using CIRExp2OpLowering = CIRMathOpLowering<cir::Exp2Op, mlir::math::Exp2Op>;
-using CIRExpOpLowering = CIRMathOpLowering<cir::ExpOp, mlir::math::ExpOp>;
-using CIRRoundOpLowering = CIRMathOpLowering<cir::RoundOp, mlir::math::RoundOp>;
-using CIRLog2OpLowering = CIRMathOpLowering<cir::Log2Op, mlir::math::Log2Op>;
-using CIRLogOpLowering = CIRMathOpLowering<cir::LogOp, mlir::math::LogOp>;
-using CIRLog10OpLowering = CIRMathOpLowering<cir::Log10Op, mlir::math::Log10Op>;
-using CIRCeilOpLowering = CIRMathOpLowering<cir::CeilOp, mlir::math::CeilOp>;
-using CIRFloorOpLowering = CIRMathOpLowering<cir::FloorOp, mlir::math::FloorOp>;
-using CIRAbsOpLowering = CIRMathOpLowering<cir::AbsOp, mlir::math::AbsIOp>;
-using CIRFAbsOpLowering = CIRMathOpLowering<cir::FAbsOp, mlir::math::AbsFOp>;
-using CIRSqrtOpLowering = CIRMathOpLowering<cir::SqrtOp, mlir::math::SqrtOp>;
-using CIRCosOpLowering = CIRMathOpLowering<cir::CosOp, mlir::math::CosOp>;
-using CIRATanOpLowering = CIRMathOpLowering<cir::ATanOp, mlir::math::AtanOp>;
-using CIRACosOpLowering = CIRMathOpLowering<cir::ACosOp, mlir::math::AcosOp>;
-using CIRTanOpLowering = CIRMathOpLowering<cir::TanOp, mlir::math::TanOp>;
+using CIRASinOpLowering =
+    CIRUnaryMathOpLowering<cir::ASinOp, mlir::math::AsinOp>;
+using CIRSinOpLowering = CIRUnaryMathOpLowering<cir::SinOp, mlir::math::SinOp>;
+using CIRExp2OpLowering =
+    CIRUnaryMathOpLowering<cir::Exp2Op, mlir::math::Exp2Op>;
+using CIRExpOpLowering = CIRUnaryMathOpLowering<cir::ExpOp, mlir::math::ExpOp>;
+using CIRRoundOpLowering =
+    CIRUnaryMathOpLowering<cir::RoundOp, mlir::math::RoundOp>;
+using CIRLog2OpLowering =
+    CIRUnaryMathOpLowering<cir::Log2Op, mlir::math::Log2Op>;
+using CIRLogOpLowering = CIRUnaryMathOpLowering<cir::LogOp, mlir::math::LogOp>;
+using CIRLog10OpLowering =
+    CIRUnaryMathOpLowering<cir::Log10Op, mlir::math::Log10Op>;
+using CIRCeilOpLowering =
+    CIRUnaryMathOpLowering<cir::CeilOp, mlir::math::CeilOp>;
+using CIRFloorOpLowering =
+    CIRUnaryMathOpLowering<cir::FloorOp, mlir::math::FloorOp>;
+using CIRAbsOpLowering = CIRUnaryMathOpLowering<cir::AbsOp, mlir::math::AbsIOp>;
+using CIRFAbsOpLowering =
+    CIRUnaryMathOpLowering<cir::FAbsOp, mlir::math::AbsFOp>;
+using CIRSqrtOpLowering =
+    CIRUnaryMathOpLowering<cir::SqrtOp, mlir::math::SqrtOp>;
+using CIRCosOpLowering = CIRUnaryMathOpLowering<cir::CosOp, mlir::math::CosOp>;
+using CIRATanOpLowering =
+    CIRUnaryMathOpLowering<cir::ATanOp, mlir::math::AtanOp>;
+using CIRACosOpLowering =
+    CIRUnaryMathOpLowering<cir::ACosOp, mlir::math::AcosOp>;
+using CIRTanOpLowering = CIRUnaryMathOpLowering<cir::TanOp, mlir::math::TanOp>;
 
 class CIRShiftOpLowering : public mlir::OpConversionPattern<cir::ShiftOp> {
 public:
