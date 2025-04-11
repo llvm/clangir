@@ -3,8 +3,8 @@
 // RUN: %clang_cc1 -triple aarch64-none-linux-android21 -fclangir -emit-llvm %s -o %t.ll
 // RUN: FileCheck --check-prefix=LLVM --input-file=%t.ll %s
 
-// CIR: ![[lock:.*]] = !cir.struct<struct "rwlock_t" {}>
-// CIR: ![[fs_struct:.*]] = !cir.struct<struct "fs_struct" {![[lock]], !s32i}
+// CIR: ![[lock:.*]] = !cir.record<struct "rwlock_t" {}>
+// CIR: ![[fs_struct:.*]] = !cir.record<struct "fs_struct" {![[lock]], !s32i}
 
 typedef struct { } rwlock_t;
 struct fs_struct { rwlock_t lock; int umask; };

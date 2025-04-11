@@ -3,7 +3,7 @@
 // RUN: %clang_cc1 -triple aarch64-unknown-linux-gnu  -fclangir -emit-llvm %s -o %t.ll -fclangir-call-conv-lowering
 // RUN: FileCheck --input-file=%t.ll %s -check-prefix=LLVM
 
-// CIR: !ty_U = !cir.struct<union "U" {!s32i, !s32i, !s32i}>
+// CIR: !ty_U = !cir.record<union "U" {!s32i, !s32i, !s32i}>
 // LLVM: %union.U = type { i32 }
 typedef union {
   int a, b, c;

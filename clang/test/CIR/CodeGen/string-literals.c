@@ -10,7 +10,7 @@ struct {
 } literals = {"1", "", "\00"};
 
 // CIR-LABEL: @literals
-// CIR:  #cir.const_struct<{
+// CIR:  #cir.const_record<{
 // CIR:     #cir.const_array<"1" : !cir.array<!s8i x 1>, trailing_zeros> : !cir.array<!s8i x 10>,
 // CIR:     #cir.zero : !cir.array<!s8i x 10>,
 // CIR:     #cir.zero : !cir.array<!s8i x 10>

@@ -32,7 +32,7 @@ mlir::Value emitRoundPointerUpToAlignment(cir::CIRBaseBuilderTy &builder,
 /// should ensure that all elements of the union have the same "machine type".
 mlir::Type useFirstFieldIfTransparentUnion(mlir::Type Ty);
 
-CIRCXXABI::RecordArgABI getRecordArgABI(const StructType RT, CIRCXXABI &CXXABI);
+CIRCXXABI::RecordArgABI getRecordArgABI(const RecordType RT, CIRCXXABI &CXXABI);
 CIRCXXABI::RecordArgABI getRecordArgABI(mlir::Type ty, CIRCXXABI &CXXABI);
 
 } // namespace cir

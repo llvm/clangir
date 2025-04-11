@@ -64,8 +64,8 @@ CIRGenFunctionInfo *CIRGenFunctionInfo::create(
   FI->Required = required;
   FI->HasRegParm = info.getHasRegParm();
   FI->RegParm = info.getRegParm();
-  FI->ArgStruct = nullptr;
-  FI->ArgStructAlign = 0;
+  FI->ArgRecord = nullptr;
+  FI->ArgRecordAlign = 0;
   FI->NumArgs = argTypes.size();
   FI->HasExtParameterInfos = !paramInfos.empty();
   FI->getArgsBuffer()[0].type = resultType;
@@ -249,7 +249,7 @@ cir::FuncType CIRGenTypes::GetFunctionType(const CIRGenFunctionInfo &FI) {
     case cir::ABIArgInfo::Extend:
     case cir::ABIArgInfo::Direct: {
       mlir::Type argType = ArgInfo.getCoerceToType();
-      // TODO: handle the test against llvm::StructType from codegen
+      // TODO: handle the test against llvm::RecordType from codegen
       assert(NumCIRArgs == 1);
       ArgTypes[FirstCIRArg] = argType;
       break;
@@ -272,7 +272,7 @@ cir::FuncType CIRGenTypes::GetFunctionTypeForVTable(GlobalDecl GD) {
 
   if (!isFuncTypeConvertible(FPT)) {
     llvm_unreachable("NYI");
-    // return llvm::StructType::get(getLLVMContext());
+    // return llvm::RecordType::get(getLLVMContext());
   }
 
   return GetFunctionType(GD);
@@ -296,7 +296,7 @@ void CIRGenFunction::emitAggregateStore(mlir::Value Val, Address Dest,
   // fast-isel.
   // In CIR codegen:
   // Emit the most simple cir.store possible (e.g. a store for a whole
-  // struct), which can later be broken down in other CIR levels (or prior
+  // record), which can later be broken down in other CIR levels (or prior
   // to dialect codegen).
   (void)DestIsVolatile;
   // Stored result for the callers of this function expected to be in the same
@@ -627,7 +627,7 @@ RValue CIRGenFunction::emitCall(const CIRGenFunctionInfo &CallInfo,
   // If we're using inalloca, insert the allocation after the stack save.
   // FIXME: Do this earlier rather than hacking it in here!
   Address ArgMemory = Address::invalid();
-  assert(!CallInfo.getArgStruct() && "NYI");
+  assert(!CallInfo.getArgRecord() && "NYI");
 
   ClangToCIRArgMapping CIRFunctionArgs(CGM.getASTContext(), CallInfo);
   SmallVector<mlir::Value, 16> CIRCallArgs(CIRFunctionArgs.totalCIRArgs());
@@ -659,7 +659,7 @@ RValue CIRGenFunction::emitCall(const CIRGenFunctionInfo &CallInfo,
 
     switch (ArgInfo.getKind()) {
     case cir::ABIArgInfo::Direct: {
-      if (!mlir::isa<cir::StructType>(ArgInfo.getCoerceToType()) &&
+      if (!mlir::isa<cir::RecordType>(ArgInfo.getCoerceToType()) &&
           ArgInfo.getCoerceToType() == convertType(info_it->type) &&
           ArgInfo.getDirectOffset() == 0) {
         assert(NumCIRArgs == 1);
@@ -700,7 +700,7 @@ RValue CIRGenFunction::emitCall(const CIRGenFunctionInfo &CallInfo,
 
       // Fast-isel and the optimizer generally like scalar values better than
       // FCAs, so we flatten them if this is safe to do for this argument.
-      auto STy = dyn_cast<cir::StructType>(ArgInfo.getCoerceToType());
+      auto STy = dyn_cast<cir::RecordType>(ArgInfo.getCoerceToType());
       if (STy && ArgInfo.isDirect() && ArgInfo.getCanBeFlattened()) {
         auto SrcTy = Src.getElementType();
         // FIXME(cir): get proper location for each argument.

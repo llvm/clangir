@@ -33,7 +33,7 @@ class EmptySubobjectMap {
   uint64_t CharWidth;
 
   /// The class whose empty entries we're keeping track of.
-  const StructType Class;
+  const RecordType Class;
 
   /// The highest offset known to contain an empty base subobject.
   clang::CharUnits MaxEmptyClassOffset;
@@ -47,7 +47,7 @@ public:
   /// any empty classes.
   clang::CharUnits SizeOfLargestEmptySubobject;
 
-  EmptySubobjectMap(const CIRLowerContext &Context, const StructType Class)
+  EmptySubobjectMap(const CIRLowerContext &Context, const RecordType Class)
       : Context(Context), CharWidth(Context.getCharWidth()), Class(Class) {
     ComputeEmptySubobjectSizes();
   }
@@ -63,7 +63,7 @@ void EmptySubobjectMap::ComputeEmptySubobjectSizes() {
   // Check the fields.
   for (const auto FT : Class.getMembers()) {
     cir_cconv_assert(!cir::MissingFeatures::qualifiedTypes());
-    const auto RT = dyn_cast<StructType>(FT);
+    const auto RT = dyn_cast<RecordType>(FT);
 
     // We only care about record types.
     if (!RT)
@@ -155,7 +155,7 @@ protected:
   clang::CharUnits PaddedFieldSize;
 
   /// The primary base class (if one exists) of the class we're laying out.
-  const StructType PrimaryBase;
+  const RecordType PrimaryBase;
 
   /// Whether the primary base of the class we're laying out is virtual.
   bool PrimaryBaseIsVirtual;
@@ -193,9 +193,9 @@ public:
         HasOwnVFPtr(false), HasPackedField(false),
         HandledFirstNonOverlappingEmptyField(false) {}
 
-  void layout(const StructType D);
+  void layout(const RecordType D);
 
-  void layoutFields(const StructType D);
+  void layoutFields(const RecordType D);
   void layoutField(const Type Ty, bool InsertExtraPadding);
 
   void UpdateAlignment(clang::CharUnits NewAlignment,
@@ -224,7 +224,7 @@ public:
   void initializeLayout(const Type Ty);
 
   /// Finalize record layout. Adjust record size based on the alignment.
-  void finishLayout(const StructType D);
+  void finishLayout(const RecordType D);
 
   uint64_t getDataSizeInBits() const { return DataSize; }
 
@@ -234,7 +234,7 @@ public:
   void setDataSize(uint64_t NewSize) { DataSize = NewSize; }
 };
 
-void ItaniumRecordLayoutBuilder::layout(const StructType RT) {
+void ItaniumRecordLayoutBuilder::layout(const RecordType RT) {
   initializeLayout(RT);
 
   // Lay out the vtable and the non-virtual bases.
@@ -250,7 +250,7 @@ void ItaniumRecordLayoutBuilder::layout(const StructType RT) {
 }
 
 void ItaniumRecordLayoutBuilder::initializeLayout(const mlir::Type Ty) {
-  if (const auto RT = dyn_cast<StructType>(Ty)) {
+  if (const auto RT = dyn_cast<RecordType>(Ty)) {
     IsUnion = RT.isUnion();
     cir_cconv_assert(!cir::MissingFeatures::recordDeclIsMSStruct());
   }
@@ -283,7 +283,7 @@ void ItaniumRecordLayoutBuilder::initializeLayout(const mlir::Type Ty) {
       !Context.getTargetInfo().defaultsToAIXPowerAlignment() || IsNaturalAlign;
 
   // If there is an external AST source, ask it for the various offsets.
-  if (const auto RT = dyn_cast<StructType>(Ty)) {
+  if (const auto RT = dyn_cast<RecordType>(Ty)) {
     if (cir::MissingFeatures::astContextGetExternalSource()) {
       cir_cconv_unreachable("NYI");
     }
@@ -292,7 +292,7 @@ void ItaniumRecordLayoutBuilder::initializeLayout(const mlir::Type Ty) {
 
 void ItaniumRecordLayoutBuilder::layoutField(const Type D,
                                              bool InsertExtraPadding) {
-  // auto FieldClass = D.dyn_cast<StructType>();
+  // auto FieldClass = D.dyn_cast<RecordType>();
   cir_cconv_assert(!cir::MissingFeatures::fieldDeclIsPotentiallyOverlapping() &&
                    !cir::MissingFeatures::CXXRecordDeclIsEmptyCXX11());
   bool IsOverlappingEmptyField = false; // FIXME(cir): Needs more features.
@@ -466,7 +466,7 @@ void ItaniumRecordLayoutBuilder::layoutField(const Type D,
     cir_cconv_unreachable("NYI");
 }
 
-void ItaniumRecordLayoutBuilder::layoutFields(const StructType D) {
+void ItaniumRecordLayoutBuilder::layoutFields(const RecordType D) {
   // Layout each field, for now, just sequentially, respecting alignment.  In
   // the future, this will need to be tweakable by targets.
   cir_cconv_assert(!cir::MissingFeatures::recordDeclMayInsertExtraPadding() &&
@@ -480,7 +480,7 @@ void ItaniumRecordLayoutBuilder::layoutFields(const StructType D) {
   }
 }
 
-void ItaniumRecordLayoutBuilder::finishLayout(const StructType D) {
+void ItaniumRecordLayoutBuilder::finishLayout(const RecordType D) {
   // If we have any remaining field tail padding, include that in the overall
   // size.
   setSize(std::max(getSizeInBits(), (uint64_t)Context.toBits(PaddedFieldSize)));
@@ -537,7 +537,7 @@ void ItaniumRecordLayoutBuilder::checkFieldPadding(
     cir_cconv_unreachable("NYI");
 
   // FIXME(cir): Should the following be skiped in CIR?
-  // Don't warn about structs created without a SourceLocation.  This can
+  // Don't warn about records created without a SourceLocation.  This can
   // be done by clients of the AST, such as codegen.
 
   unsigned CharBitNum = Context.getTargetInfo().getCharWidth();
@@ -566,7 +566,7 @@ bool isMsLayout(const CIRLowerContext &Context) {
 /// Does the target C++ ABI require us to skip over the tail-padding
 /// of the given class (considering it as a base class) when allocating
 /// objects?
-static bool mustSkipTailPadding(clang::TargetCXXABI ABI, const StructType RD) {
+static bool mustSkipTailPadding(clang::TargetCXXABI ABI, const RecordType RD) {
   cir_cconv_assert(!cir::MissingFeatures::recordDeclIsCXXDecl());
   switch (ABI.getTailPaddingUseRules()) {
   case clang::TargetCXXABI::AlwaysUseTailPadding:
@@ -611,8 +611,8 @@ static bool mustSkipTailPadding(clang::TargetCXXABI ABI, const StructType RD) {
 /// (struct/union/class), which indicates its size and field position
 /// information.
 const CIRRecordLayout &CIRLowerContext::getCIRRecordLayout(const Type D) const {
-  cir_cconv_assert(isa<StructType>(D) && "Not a record type");
-  auto RT = dyn_cast<StructType>(D);
+  cir_cconv_assert(isa<RecordType>(D) && "Not a record type");
+  auto RT = dyn_cast<RecordType>(D);
 
   cir_cconv_assert(RT.isComplete() &&
                    "Cannot get layout of forward declarations!");

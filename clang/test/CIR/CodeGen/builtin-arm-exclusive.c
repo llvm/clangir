@@ -4,7 +4,7 @@
 struct twoFldT {
   char a, b;
 };
-// CIR: !ty_twoFldT = !cir.struct<struct "twoFldT" {!s8i, !s8i}
+// CIR: !ty_twoFldT = !cir.record<struct "twoFldT" {!s8i, !s8i}
 
 int test_ldrex(char *addr, long long *addr64, float *addrfloat) {
 // CIR-LABEL: @test_ldrex

@@ -955,7 +955,7 @@ static GlobalViewAttr createNewGlobalView(CIRGenModule &cgm, GlobalOp newGlob,
   bld.computeGlobalViewIndicesFromFlatOffset(offset, newTy, layout, newInds);
   cir::PointerType newPtrTy;
 
-  if (isa<cir::StructType>(oldTy))
+  if (isa<cir::RecordType>(oldTy))
     newPtrTy = cir::PointerType::get(ctxt, newTy);
   else if (cir::ArrayType oldArTy = dyn_cast<cir::ArrayType>(oldTy))
     newPtrTy = dyn_cast<cir::PointerType>(attr.getType());
@@ -2171,7 +2171,7 @@ static bool isVarDeclStrongDefinition(const ASTContext &astContext,
     if (astContext.isAlignmentRequired(varType))
       return true;
 
-    if (const auto *rt = varType->getAs<RecordType>()) {
+    if (const auto *rt = varType->getAs<clang::RecordType>()) {
       const RecordDecl *rd = rt->getDecl();
       for (const FieldDecl *fd : rd->fields()) {
         if (fd->isBitField())
@@ -3067,7 +3067,7 @@ cir::FuncOp CIRGenModule::GetOrCreateCIRFunction(
   }
 
   // This function doesn't have a complete type (for example, the return type is
-  // an incomplete struct). Use a fake type instead, and make sure not to try to
+  // an incomplete record). Use a fake type instead, and make sure not to try to
   // set attributes.
   bool isIncompleteFunction = false;
 
@@ -4071,7 +4071,7 @@ CharUnits CIRGenModule::computeNonVirtualBaseClassOffset(
     const ASTRecordLayout &layout = astContext.getASTRecordLayout(rd);
 
     const auto *baseDecl =
-        cast<CXXRecordDecl>(base->getType()->castAs<RecordType>()->getDecl());
+        cast<CXXRecordDecl>(base->getType()->castAs<clang::RecordType>()->getDecl());
 
     // Add the offset.
     offset += layout.getBaseClassOffset(baseDecl);

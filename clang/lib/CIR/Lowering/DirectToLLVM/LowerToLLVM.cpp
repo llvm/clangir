@@ -449,7 +449,7 @@ public:
   mlir::Value visit(mlir::Attribute attr) {
     return llvm::TypeSwitch<mlir::Attribute, mlir::Value>(attr)
         .Case<cir::IntAttr, cir::FPAttr, cir::ConstPtrAttr,
-              cir::ConstStructAttr, cir::ConstArrayAttr, cir::ConstVectorAttr,
+              cir::ConstRecordAttr, cir::ConstArrayAttr, cir::ConstVectorAttr,
               cir::BoolAttr, cir::ZeroAttr, cir::UndefAttr, cir::PoisonAttr,
               cir::GlobalViewAttr, cir::VTableAttr, cir::TypeInfoAttr>(
             [&](auto attrT) { return visitCirAttr(attrT); })
@@ -459,7 +459,7 @@ public:
   mlir::Value visitCirAttr(cir::IntAttr attr);
   mlir::Value visitCirAttr(cir::FPAttr attr);
   mlir::Value visitCirAttr(cir::ConstPtrAttr attr);
-  mlir::Value visitCirAttr(cir::ConstStructAttr attr);
+  mlir::Value visitCirAttr(cir::ConstRecordAttr attr);
   mlir::Value visitCirAttr(cir::ConstArrayAttr attr);
   mlir::Value visitCirAttr(cir::ConstVectorAttr attr);
   mlir::Value visitCirAttr(cir::BoolAttr attr);
@@ -534,14 +534,14 @@ mlir::Value CirAttrToValue::visitCirAttr(cir::PoisonAttr poisonAttr) {
       loc, converter->convertType(poisonAttr.getType()));
 }
 
-/// ConstStruct visitor.
-mlir::Value CirAttrToValue::visitCirAttr(cir::ConstStructAttr constStruct) {
-  auto llvmTy = converter->convertType(constStruct.getType());
+/// ConstRecord visitor.
+mlir::Value CirAttrToValue::visitCirAttr(cir::ConstRecordAttr constRecord) {
+  auto llvmTy = converter->convertType(constRecord.getType());
   auto loc = parentOp->getLoc();
   mlir::Value result = rewriter.create<mlir::LLVM::UndefOp>(loc, llvmTy);
 
-  // Iteratively lower each constant element of the struct.
-  for (auto [idx, elt] : llvm::enumerate(constStruct.getMembers())) {
+  // Iteratively lower each constant element of the record.
+  for (auto [idx, elt] : llvm::enumerate(constRecord.getMembers())) {
     mlir::Value init =
         emitCirAttrToMemory(parentOp, elt, rewriter, converter, dataLayout);
     result = rewriter.create<mlir::LLVM::InsertValueOp>(loc, result, init, idx);
@@ -1864,17 +1864,17 @@ mlir::LogicalResult CIRToLLVMConstantOpLowering::matchAndRewrite(
       rewriter.eraseOp(op);
       return mlir::success();
     }
-  } else if (const auto structAttr =
-                 mlir::dyn_cast<cir::ConstStructAttr>(op.getValue())) {
+  } else if (const auto recordAttr =
+                 mlir::dyn_cast<cir::ConstRecordAttr>(op.getValue())) {
     // TODO(cir): this diverges from traditional lowering. Normally the
     // initializer would be a global constant that is memcopied. Here we just
     // define a local constant with llvm.undef that will be stored into the
     // stack.
-    auto initVal = lowerCirAttrAsValue(op, structAttr, rewriter, typeConverter,
+    auto initVal = lowerCirAttrAsValue(op, recordAttr, rewriter, typeConverter,
                                        dataLayout);
     rewriter.replaceOp(op, initVal);
     return mlir::success();
-  } else if (auto strTy = mlir::dyn_cast<cir::StructType>(op.getType())) {
+  } else if (auto strTy = mlir::dyn_cast<cir::RecordType>(op.getType())) {
     auto attr = op.getValue();
     if (mlir::isa<cir::ZeroAttr, cir::UndefAttr>(attr)) {
       auto initVal =
@@ -1883,7 +1883,7 @@ mlir::LogicalResult CIRToLLVMConstantOpLowering::matchAndRewrite(
       return mlir::success();
     }
 
-    return op.emitError() << "unsupported lowering for struct constant type "
+    return op.emitError() << "unsupported lowering for record constant type "
                           << op.getType();
   } else if (const auto vecTy = mlir::dyn_cast<cir::VectorType>(op.getType())) {
     rewriter.replaceOp(op, lowerCirAttrAsValue(op, op.getValue(), rewriter,
@@ -2415,7 +2415,7 @@ mlir::LogicalResult CIRToLLVMGlobalOpLowering::lowerInitializer(
     return lowerInitializerDirect(rewriter, op, llvmType, init,
                                   useInitializerRegion);
   } else if (mlir::isa<cir::ZeroAttr, cir::ConstPtrAttr, cir::UndefAttr,
-                       cir::ConstStructAttr, cir::GlobalViewAttr,
+                       cir::ConstRecordAttr, cir::GlobalViewAttr,
                        cir::VTableAttr, cir::TypeInfoAttr>(init)) {
     // TODO(cir): once LLVM's dialect has proper equivalent attributes this
     // should be updated. For now, we use a custom op to initialize globals
@@ -3527,22 +3527,22 @@ mlir::LogicalResult CIRToLLVMGetMemberOpLowering::matchAndRewrite(
     cir::GetMemberOp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
   auto llResTy = getTypeConverter()->convertType(op.getType());
-  const auto structTy =
-      mlir::cast<cir::StructType>(op.getAddrTy().getPointee());
-  assert(structTy && "expected struct type");
+  const auto recordTy =
+      mlir::cast<cir::RecordType>(op.getAddrTy().getPointee());
+  assert(recordTy && "expected record type");
 
-  switch (structTy.getKind()) {
-  case cir::StructType::Struct:
-  case cir::StructType::Class: {
+  switch (recordTy.getKind()) {
+  case cir::RecordType::Struct:
+  case cir::RecordType::Class: {
     // Since the base address is a pointer to an aggregate, the first offset
     // is always zero. The second offset tell us which member it will access.
     llvm::SmallVector<mlir::LLVM::GEPArg, 2> offset{0, op.getIndex()};
-    const auto elementTy = getTypeConverter()->convertType(structTy);
+    const auto elementTy = getTypeConverter()->convertType(recordTy);
     rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(op, llResTy, elementTy,
                                                    adaptor.getAddr(), offset);
     return mlir::success();
   }
-  case cir::StructType::Union:
+  case cir::RecordType::Union:
     // Union members share the address space, so we just need a bitcast to
     // conform to type-checking.
     rewriter.replaceOpWithNewOp<mlir::LLVM::BitcastOp>(op, llResTy,
@@ -3564,16 +3564,16 @@ mlir::LogicalResult CIRToLLVMExtractMemberOpLowering::matchAndRewrite(
     return mlir::success();
   }
 
-  auto cirStructTy = mlir::cast<cir::StructType>(recordTy);
-  switch (cirStructTy.getKind()) {
-  case cir::StructType::Struct:
-  case cir::StructType::Class: {
+  auto cirRecordTy = mlir::cast<cir::RecordType>(recordTy);
+  switch (cirRecordTy.getKind()) {
+  case cir::RecordType::Struct:
+  case cir::RecordType::Class: {
     rewriter.replaceOpWithNewOp<mlir::LLVM::ExtractValueOp>(
         op, adaptor.getRecord(), indecies);
     return mlir::success();
   }
 
-  case cir::StructType::Union: {
+  case cir::RecordType::Union: {
     op.emitError("cir.extract_member cannot extract member from a union");
     return mlir::failure();
   }
@@ -3586,8 +3586,8 @@ mlir::LogicalResult CIRToLLVMInsertMemberOpLowering::matchAndRewrite(
   std::int64_t indecies[1] = {static_cast<std::int64_t>(op.getIndex())};
   mlir::Type recordTy = op.getRecord().getType();
 
-  if (auto cirStructTy = mlir::dyn_cast<cir::StructType>(recordTy)) {
-    if (cirStructTy.getKind() == cir::StructType::Union) {
+  if (auto cirRecordTy = mlir::dyn_cast<cir::RecordType>(recordTy)) {
+    if (cirRecordTy.getKind() == cir::RecordType::Union) {
       op.emitError("cir.update_member cannot update member of a union");
       return mlir::failure();
     }
@@ -4471,19 +4471,19 @@ void prepareTypeConverter(mlir::LLVMTypeConverter &converter,
     auto varArg = type.isVarArg();
     return mlir::LLVM::LLVMFunctionType::get(result, arguments, varArg);
   });
-  converter.addConversion([&](cir::StructType type) -> mlir::Type {
+  converter.addConversion([&](cir::RecordType type) -> mlir::Type {
     // FIXME(cir): create separate unions, struct, and classes types.
     // Convert struct members.
     llvm::SmallVector<mlir::Type> llvmMembers;
     switch (type.getKind()) {
-    case cir::StructType::Class:
+    case cir::RecordType::Class:
       // TODO(cir): This should be properly validated.
-    case cir::StructType::Struct:
+    case cir::RecordType::Struct:
       for (auto ty : type.getMembers())
         llvmMembers.push_back(convertTypeForMemory(converter, dataLayout, ty));
       break;
     // Unions are lowered as only the largest member.
-    case cir::StructType::Union: {
+    case cir::RecordType::Union: {
       auto largestMember = type.getLargestMember(dataLayout);
       if (largestMember)
         llvmMembers.push_back(
@@ -4497,15 +4497,15 @@ void prepareTypeConverter(mlir::LLVMTypeConverter &converter,
     }
     }
 
-    // Struct has a name: lower as an identified struct.
+    // Record has a name: lower as an identified record.
     mlir::LLVM::LLVMStructType llvmStruct;
     if (type.getName()) {
       llvmStruct = mlir::LLVM::LLVMStructType::getIdentified(
           type.getContext(), type.getPrefixedName());
       if (llvmStruct.setBody(llvmMembers, /*isPacked=*/type.getPacked())
               .failed())
-        llvm_unreachable("Failed to set body of struct");
-    } else { // Struct has no name: lower as literal struct.
+        llvm_unreachable("Failed to set body of record");
+    } else { // Record has no name: lower as literal record.
       llvmStruct = mlir::LLVM::LLVMStructType::getLiteral(
           type.getContext(), llvmMembers, /*isPacked=*/type.getPacked());
     }
