@@ -63,9 +63,10 @@ std::string CIRGenTypes::getRecordTypeName(const clang::RecordDecl *recordDecl,
   policy.SuppressInlineNamespace = false;
   policy.AlwaysIncludeTypeForTemplateArgument = true;
   policy.PrintCanonicalTypes = true;
+  policy.SuppressTagKeyword = true;
 
   if (recordDecl->getIdentifier()) {
-    recordDecl->getNameForDiagnostic(outStream, policy, true);
+    astContext.getRecordType(recordDecl).print(outStream, policy);
   } else if (auto *typedefNameDecl = recordDecl->getTypedefNameForAnonDecl()) {
     typedefNameDecl->printQualifiedName(outStream, policy);
   } else {
