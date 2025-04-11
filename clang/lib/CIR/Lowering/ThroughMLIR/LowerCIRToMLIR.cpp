@@ -275,172 +275,52 @@ public:
   }
 };
 
-class CIRACosOpLowering : public mlir::OpConversionPattern<cir::ACosOp> {
+/// Converts CIR unary math ops (e.g., cir::SinOp) to their MLIR equivalents
+/// (e.g., math::SinOp) using a generic template to avoid redundant boilerplate
+/// matchAndRewrite definitions.
+
+template <typename CIROp, typename MLIROp>
+class CIRUnaryMathOpLowering : public mlir::OpConversionPattern<CIROp> {
 public:
-  using OpConversionPattern<cir::ACosOp>::OpConversionPattern;
+  using mlir::OpConversionPattern<CIROp>::OpConversionPattern;
 
   mlir::LogicalResult
-  matchAndRewrite(cir::ACosOp op, OpAdaptor adaptor,
+  matchAndRewrite(CIROp op,
+                  typename mlir::OpConversionPattern<CIROp>::OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<mlir::math::AcosOp>(op, adaptor.getSrc());
+    rewriter.replaceOpWithNewOp<MLIROp>(op, adaptor.getSrc());
     return mlir::LogicalResult::success();
   }
 };
 
-class CIRATanOpLowering : public mlir::OpConversionPattern<cir::ATanOp> {
-public:
-  using OpConversionPattern<cir::ATanOp>::OpConversionPattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(cir::ATanOp op, OpAdaptor adaptor,
-                  mlir::ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<mlir::math::AtanOp>(op, adaptor.getSrc());
-    return mlir::LogicalResult::success();
-  }
-};
-
-class CIRCosOpLowering : public mlir::OpConversionPattern<cir::CosOp> {
-public:
-  using OpConversionPattern<cir::CosOp>::OpConversionPattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(cir::CosOp op, OpAdaptor adaptor,
-                  mlir::ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<mlir::math::CosOp>(op, adaptor.getSrc());
-    return mlir::LogicalResult::success();
-  }
-};
-
-class CIRTanOpLowering : public mlir::OpConversionPattern<cir::TanOp> {
-public:
-  using OpConversionPattern<cir::TanOp>::OpConversionPattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(cir::TanOp op, OpAdaptor adaptor,
-                  mlir::ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<mlir::math::TanOp>(op, adaptor.getSrc());
-    return mlir::LogicalResult::success();
-  }
-};
-
-class CIRSqrtOpLowering : public mlir::OpConversionPattern<cir::SqrtOp> {
-public:
-  using mlir::OpConversionPattern<cir::SqrtOp>::OpConversionPattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(cir::SqrtOp op, OpAdaptor adaptor,
-                  mlir::ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<mlir::math::SqrtOp>(op, adaptor.getSrc());
-    return mlir::LogicalResult::success();
-  }
-};
-
-class CIRFAbsOpLowering : public mlir::OpConversionPattern<cir::FAbsOp> {
-public:
-  using mlir::OpConversionPattern<cir::FAbsOp>::OpConversionPattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(cir::FAbsOp op, OpAdaptor adaptor,
-                  mlir::ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<mlir::math::AbsFOp>(op, adaptor.getSrc());
-    return mlir::LogicalResult::success();
-  }
-};
-class CIRAbsOpLowering : public mlir::OpConversionPattern<cir::AbsOp> {
-public:
-  using mlir::OpConversionPattern<cir::AbsOp>::OpConversionPattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(cir::AbsOp op, OpAdaptor adaptor,
-                  mlir::ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<mlir::math::AbsIOp>(op, adaptor.getSrc());
-    return mlir::LogicalResult::success();
-  }
-};
-
-class CIRFloorOpLowering : public mlir::OpConversionPattern<cir::FloorOp> {
-public:
-  using mlir::OpConversionPattern<cir::FloorOp>::OpConversionPattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(cir::FloorOp op, OpAdaptor adaptor,
-                  mlir::ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<mlir::math::FloorOp>(op, adaptor.getSrc());
-    return mlir::LogicalResult::success();
-  }
-};
-
-class CIRCeilOpLowering : public mlir::OpConversionPattern<cir::CeilOp> {
-public:
-  using mlir::OpConversionPattern<cir::CeilOp>::OpConversionPattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(cir::CeilOp op, OpAdaptor adaptor,
-                  mlir::ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<mlir::math::CeilOp>(op, adaptor.getSrc());
-    return mlir::LogicalResult::success();
-  }
-};
-
-class CIRLog10OpLowering : public mlir::OpConversionPattern<cir::Log10Op> {
-public:
-  using mlir::OpConversionPattern<cir::Log10Op>::OpConversionPattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(cir::Log10Op op, OpAdaptor adaptor,
-                  mlir::ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<mlir::math::Log10Op>(op, adaptor.getSrc());
-    return mlir::LogicalResult::success();
-  }
-};
-
-class CIRLogOpLowering : public mlir::OpConversionPattern<cir::LogOp> {
-public:
-  using mlir::OpConversionPattern<cir::LogOp>::OpConversionPattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(cir::LogOp op, OpAdaptor adaptor,
-                  mlir::ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<mlir::math::LogOp>(op, adaptor.getSrc());
-    return mlir::LogicalResult::success();
-  }
-};
-
-class CIRLog2OpLowering : public mlir::OpConversionPattern<cir::Log2Op> {
-public:
-  using mlir::OpConversionPattern<cir::Log2Op>::OpConversionPattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(cir::Log2Op op, OpAdaptor adaptor,
-                  mlir::ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<mlir::math::Log2Op>(op, adaptor.getSrc());
-    return mlir::LogicalResult::success();
-  }
-};
-
-class CIRRoundOpLowering : public mlir::OpConversionPattern<cir::RoundOp> {
-public:
-  using mlir::OpConversionPattern<cir::RoundOp>::OpConversionPattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(cir::RoundOp op, OpAdaptor adaptor,
-                  mlir::ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<mlir::math::RoundOp>(op, adaptor.getSrc());
-    return mlir::LogicalResult::success();
-  }
-};
-
-class CIRExpOpLowering : public mlir::OpConversionPattern<cir::ExpOp> {
-public:
-  using mlir::OpConversionPattern<cir::ExpOp>::OpConversionPattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(cir::ExpOp op, OpAdaptor adaptor,
-                  mlir::ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<mlir::math::ExpOp>(op, adaptor.getSrc());
-    return mlir::LogicalResult::success();
-  }
-};
+using CIRASinOpLowering =
+    CIRUnaryMathOpLowering<cir::ASinOp, mlir::math::AsinOp>;
+using CIRSinOpLowering = CIRUnaryMathOpLowering<cir::SinOp, mlir::math::SinOp>;
+using CIRExp2OpLowering =
+    CIRUnaryMathOpLowering<cir::Exp2Op, mlir::math::Exp2Op>;
+using CIRExpOpLowering = CIRUnaryMathOpLowering<cir::ExpOp, mlir::math::ExpOp>;
+using CIRRoundOpLowering =
+    CIRUnaryMathOpLowering<cir::RoundOp, mlir::math::RoundOp>;
+using CIRLog2OpLowering =
+    CIRUnaryMathOpLowering<cir::Log2Op, mlir::math::Log2Op>;
+using CIRLogOpLowering = CIRUnaryMathOpLowering<cir::LogOp, mlir::math::LogOp>;
+using CIRLog10OpLowering =
+    CIRUnaryMathOpLowering<cir::Log10Op, mlir::math::Log10Op>;
+using CIRCeilOpLowering =
+    CIRUnaryMathOpLowering<cir::CeilOp, mlir::math::CeilOp>;
+using CIRFloorOpLowering =
+    CIRUnaryMathOpLowering<cir::FloorOp, mlir::math::FloorOp>;
+using CIRAbsOpLowering = CIRUnaryMathOpLowering<cir::AbsOp, mlir::math::AbsIOp>;
+using CIRFAbsOpLowering =
+    CIRUnaryMathOpLowering<cir::FAbsOp, mlir::math::AbsFOp>;
+using CIRSqrtOpLowering =
+    CIRUnaryMathOpLowering<cir::SqrtOp, mlir::math::SqrtOp>;
+using CIRCosOpLowering = CIRUnaryMathOpLowering<cir::CosOp, mlir::math::CosOp>;
+using CIRATanOpLowering =
+    CIRUnaryMathOpLowering<cir::ATanOp, mlir::math::AtanOp>;
+using CIRACosOpLowering =
+    CIRUnaryMathOpLowering<cir::ACosOp, mlir::math::AcosOp>;
+using CIRTanOpLowering = CIRUnaryMathOpLowering<cir::TanOp, mlir::math::TanOp>;
 
 class CIRShiftOpLowering : public mlir::OpConversionPattern<cir::ShiftOp> {
 public:
@@ -472,42 +352,6 @@ public:
     }
 
     return mlir::success();
-  }
-};
-
-class CIRExp2OpLowering : public mlir::OpConversionPattern<cir::Exp2Op> {
-public:
-  using mlir::OpConversionPattern<cir::Exp2Op>::OpConversionPattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(cir::Exp2Op op, OpAdaptor adaptor,
-                  mlir::ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<mlir::math::Exp2Op>(op, adaptor.getSrc());
-    return mlir::LogicalResult::success();
-  }
-};
-
-class CIRSinOpLowering : public mlir::OpConversionPattern<cir::SinOp> {
-public:
-  using mlir::OpConversionPattern<cir::SinOp>::OpConversionPattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(cir::SinOp op, OpAdaptor adaptor,
-                  mlir::ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<mlir::math::SinOp>(op, adaptor.getSrc());
-    return mlir::LogicalResult::success();
-  }
-};
-
-class CIRASinOpLowering : public mlir::OpConversionPattern<cir::ASinOp> {
-public:
-  using mlir::OpConversionPattern<cir::ASinOp>::OpConversionPattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(cir::ASinOp op, OpAdaptor adaptor,
-                  mlir::ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<mlir::math::AsinOp>(op, adaptor.getSrc());
-    return mlir::LogicalResult::success();
   }
 };
 
