@@ -61,31 +61,14 @@ std::string CIRGenTypes::getRecordTypeName(const clang::RecordDecl *recordDecl,
 
   PrintingPolicy policy = recordDecl->getASTContext().getPrintingPolicy();
   policy.SuppressInlineNamespace = false;
+  policy.AlwaysIncludeTypeForTemplateArgument = true;
+  policy.PrintCanonicalTypes = true;
+  policy.SuppressTagKeyword = true;
 
   if (recordDecl->getIdentifier()) {
-    if (recordDecl->getDeclContext())
-      recordDecl->printQualifiedName(outStream, policy);
-    else
-      recordDecl->printName(outStream, policy);
-
-    // Ensure each template specialization has a unique name.
-    if (auto *templateSpecialization =
-            llvm::dyn_cast<ClassTemplateSpecializationDecl>(recordDecl)) {
-      outStream << '<';
-      const auto args = templateSpecialization->getTemplateArgs().asArray();
-      const auto printer = [&policy, &outStream](const TemplateArgument &arg) {
-        /// Print this template argument to the given output stream.
-        arg.print(policy, outStream, /*IncludeType=*/true);
-      };
-      llvm::interleaveComma(args, outStream, printer);
-      outStream << '>';
-    }
-
+    astContext.getRecordType(recordDecl).print(outStream, policy);
   } else if (auto *typedefNameDecl = recordDecl->getTypedefNameForAnonDecl()) {
-    if (typedefNameDecl->getDeclContext())
-      typedefNameDecl->printQualifiedName(outStream, policy);
-    else
-      typedefNameDecl->printName(outStream);
+    typedefNameDecl->printQualifiedName(outStream, policy);
   } else {
     outStream << Builder.getUniqueAnonRecordName();
   }
