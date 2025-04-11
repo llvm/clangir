@@ -2086,11 +2086,9 @@ mlir::Attribute ConstantEmitter::emitNullForMemory(mlir::Location loc,
   return emitForMemory(CGM, cstOp.getValue(), T);
 }
 
-static mlir::TypedAttr emitNullConstant(CIRGenModule &CGM,
-                                        const RecordDecl *rd,
+static mlir::TypedAttr emitNullConstant(CIRGenModule &CGM, const RecordDecl *rd,
                                         bool asCompleteObject) {
-  const CIRGenRecordLayout &layout =
-      CGM.getTypes().getCIRGenRecordLayout(rd);
+  const CIRGenRecordLayout &layout = CGM.getTypes().getCIRGenRecordLayout(rd);
   mlir::Type ty = (asCompleteObject ? layout.getCIRType()
                                     : layout.getBaseSubobjectCIRType());
   auto record = dyn_cast<cir::RecordType>(ty);

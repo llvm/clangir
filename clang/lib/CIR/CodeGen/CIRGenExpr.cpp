@@ -2263,8 +2263,9 @@ static void pushTemporaryCleanup(CIRGenFunction &CGF,
   }
 
   CXXDestructorDecl *ReferenceTemporaryDtor = nullptr;
-  if (const clang::RecordType *RT =
-          E->getType()->getBaseElementTypeUnsafe()->getAs<clang::RecordType>()) {
+  if (const clang::RecordType *RT = E->getType()
+                                        ->getBaseElementTypeUnsafe()
+                                        ->getAs<clang::RecordType>()) {
     // Get the destructor for the reference temporary.
     auto *ClassDecl = cast<CXXRecordDecl>(RT->getDecl());
     if (!ClassDecl->hasTrivialDestructor())

@@ -4070,8 +4070,8 @@ CharUnits CIRGenModule::computeNonVirtualBaseClassOffset(
     // Get the layout.
     const ASTRecordLayout &layout = astContext.getASTRecordLayout(rd);
 
-    const auto *baseDecl =
-        cast<CXXRecordDecl>(base->getType()->castAs<clang::RecordType>()->getDecl());
+    const auto *baseDecl = cast<CXXRecordDecl>(
+        base->getType()->castAs<clang::RecordType>()->getDecl());
 
     // Add the offset.
     offset += layout.getBaseClassOffset(baseDecl);
