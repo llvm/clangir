@@ -275,8 +275,9 @@ public:
   }
 };
 
-/// Converts CIR unary math ops (e.g., cir::SinOp) to their MLIR equivalents (e.g., math::SinOp)
-/// using a generic template to avoid redundant boilerplate matchAndRewrite definitions.
+/// Converts CIR unary math ops (e.g., cir::SinOp) to their MLIR equivalents
+/// (e.g., math::SinOp) using a generic template to avoid redundant boilerplate
+/// matchAndRewrite definitions.
 
 template <typename CIROp, typename MLIROp>
 class CIRUnaryMathOpLowering : public mlir::OpConversionPattern<CIROp> {
