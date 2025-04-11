@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "LowerToMLIRHelpers.h"
+#include "mlir/Analysis/DataLayoutAnalysis.h"
 #include "mlir/Conversion/AffineToStandard/AffineToStandard.h"
 #include "mlir/Conversion/ArithToLLVM/ArithToLLVM.h"
 #include "mlir/Conversion/ControlFlowToLLVM/ControlFlowToLLVM.h"
@@ -32,8 +33,10 @@
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/Region.h"
 #include "mlir/IR/TypeRange.h"
+#include "mlir/IR/Types.h"
 #include "mlir/IR/Value.h"
 #include "mlir/IR/ValueRange.h"
+#include "mlir/Interfaces/DataLayoutInterfaces.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Support/LogicalResult.h"
@@ -163,17 +166,17 @@ public:
   matchAndRewrite(cir::AllocaOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
 
-    mlir::Type mlirType =
-        convertTypeForMemory(*getTypeConverter(), adaptor.getAllocaType());
+    mlir::Type allocaType = adaptor.getAllocaType();
+    mlir::Type mlirType = convertTypeForMemory(*getTypeConverter(), allocaType);
 
     // FIXME: Some types can not be converted yet (e.g. struct)
     if (!mlirType)
       return mlir::LogicalResult::failure();
 
     auto memreftype = mlir::dyn_cast<mlir::MemRefType>(mlirType);
-    if (memreftype && mlir::isa<cir::ArrayType>(adaptor.getAllocaType())) {
-      // if the type is an array,
-      // we don't need to wrap with memref.
+    if (memreftype && (mlir::isa<cir::ArrayType>(allocaType) ||
+                       mlir::isa<cir::RecordType>(allocaType))) {
+      // Arrays and structs are already memref. No need to wrap another one.
     } else {
       memreftype = mlir::MemRefType::get({}, mlirType);
     }
@@ -1240,6 +1243,36 @@ public:
   }
 };
 
+class CIRGetMemberOpLowering
+    : public mlir::OpConversionPattern<cir::GetMemberOp> {
+public:
+  CIRGetMemberOpLowering(mlir::TypeConverter &converter, mlir::MLIRContext *ctx,
+                         const mlir::DataLayout &layout)
+      : OpConversionPattern(converter, ctx), layout(layout) {}
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::GetMemberOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto baseAddr = op.getAddr();
+    auto structType =
+        mlir::cast<cir::RecordType>(baseAddr.getType().getPointee());
+    uint64_t byteOffset = structType.getElementOffset(layout, op.getIndex());
+
+    auto fieldType = op.getResult().getType();
+    auto resultType = mlir::cast<mlir::MemRefType>(
+        getTypeConverter()->convertType(fieldType));
+
+    mlir::Value offsetValue =
+        rewriter.create<mlir::arith::ConstantIndexOp>(op.getLoc(), byteOffset);
+    rewriter.replaceOpWithNewOp<mlir::memref::ViewOp>(
+        op, resultType, adaptor.getAddr(), offsetValue, mlir::ValueRange{});
+    return mlir::success();
+  }
+
+private:
+  const mlir::DataLayout &layout;
+};
+
 class CIRUnreachableOpLowering
     : public mlir::OpConversionPattern<cir::UnreachableOp> {
 public:
@@ -1271,7 +1304,8 @@ public:
 };
 
 void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
-                                         mlir::TypeConverter &converter) {
+                                         mlir::TypeConverter &converter,
+                                         mlir::DataLayout layout) {
   patterns.add<CIRReturnLowering, CIRBrOpLowering>(patterns.getContext());
 
   patterns
@@ -1292,16 +1326,20 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
            CIRVectorExtractLowering, CIRVectorCmpOpLowering, CIRACosOpLowering,
            CIRASinOpLowering, CIRUnreachableOpLowering, CIRTanOpLowering,
            CIRTrapOpLowering>(converter, patterns.getContext());
+
+  patterns.add<CIRGetMemberOpLowering>(converter, patterns.getContext(),
+                                       layout);
 }
 
-static mlir::TypeConverter prepareTypeConverter() {
+static mlir::TypeConverter prepareTypeConverter(mlir::DataLayout layout) {
   mlir::TypeConverter converter;
   converter.addConversion([&](cir::PointerType type) -> mlir::Type {
-    auto ty = convertTypeForMemory(converter, type.getPointee());
+    auto pointee = type.getPointee();
+    auto ty = convertTypeForMemory(converter, pointee);
     // FIXME: The pointee type might not be converted (e.g. struct)
     if (!ty)
       return nullptr;
-    if (isa<cir::ArrayType>(type.getPointee()))
+    if (isa<cir::ArrayType>(pointee) || isa<cir::RecordType>(pointee))
       return ty;
     return mlir::MemRefType::get({}, ty);
   });
@@ -1353,6 +1391,13 @@ static mlir::TypeConverter prepareTypeConverter() {
       return nullptr;
     return mlir::MemRefType::get(shape, elementType);
   });
+  converter.addConversion([&](cir::RecordType type) -> mlir::Type {
+    // Reinterpret structs as raw bytes. Don't use tuples as they can't be put
+    // in memref.
+    auto size = type.getTypeSize(layout, {});
+    auto i8 = mlir::IntegerType::get(type.getContext(), /*width=*/8);
+    return mlir::MemRefType::get(size.getFixedValue(), i8);
+  });
   converter.addConversion([&](cir::VectorType type) -> mlir::Type {
     auto ty = converter.convertType(type.getEltType());
     return mlir::VectorType::get(type.getSize(), ty);
@@ -1363,13 +1408,15 @@ static mlir::TypeConverter prepareTypeConverter() {
 
 void ConvertCIRToMLIRPass::runOnOperation() {
   auto module = getOperation();
+  mlir::DataLayoutAnalysis layoutAnalysis(module);
+  const mlir::DataLayout &layout = layoutAnalysis.getAtOrAbove(module);
 
-  auto converter = prepareTypeConverter();
+  auto converter = prepareTypeConverter(layout);
 
   mlir::RewritePatternSet patterns(&getContext());
 
   populateCIRLoopToSCFConversionPatterns(patterns, converter);
-  populateCIRToMLIRConversionPatterns(patterns, converter);
+  populateCIRToMLIRConversionPatterns(patterns, converter, layout);
 
   mlir::ConversionTarget target(getContext());
   target.addLegalOp<mlir::ModuleOp>();
