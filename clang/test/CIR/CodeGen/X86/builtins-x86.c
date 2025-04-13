@@ -6,6 +6,14 @@
 // This test mimics clang/test/CodeGen/builtins-x86.c, which eventually
 // CIR shall be able to support fully.
 
+void test_mm_prefetch(char const* p) {
+  // CIR-LABEL: test_mm_prefetch
+  // LLVM-LABEL: test_mm_prefetch
+  _mm_prefetch(p,0);
+  //CIR: {{%.*}}= cir.prefetch({{%.*}} : !cir.ptr<!void>) locality(0) read
+  // LLVM: call void @llvm.prefetch.p0(ptr {{.*}}, i32 0, i32 0, i32 1)
+}
+
 void test_mm_clflush(const void* tmp_vCp) {
   // CIR-LABEL: test_mm_clflush
   // LLVM-LABEL: test_mm_clflush
