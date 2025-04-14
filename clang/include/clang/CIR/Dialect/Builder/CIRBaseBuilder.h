@@ -143,8 +143,8 @@ public:
       return getZeroAttr(arrTy);
     if (auto ptrTy = mlir::dyn_cast<cir::PointerType>(ty))
       return getConstNullPtrAttr(ptrTy);
-    if (auto structTy = mlir::dyn_cast<cir::StructType>(ty))
-      return getZeroAttr(structTy);
+    if (auto RecordTy = mlir::dyn_cast<cir::RecordType>(ty))
+      return getZeroAttr(RecordTy);
     if (auto methodTy = mlir::dyn_cast<cir::MethodType>(ty))
       return getNullMethodAttr(methodTy);
     if (mlir::isa<cir::BoolType>(ty)) {
@@ -496,16 +496,16 @@ public:
     return createCast(cir::CastKind::int_to_ptr, src, newTy);
   }
 
-  mlir::Value createGetMemberOp(mlir::Location &loc, mlir::Value structPtr,
+  mlir::Value createGetMemberOp(mlir::Location &loc, mlir::Value recordPtr,
                                 const char *fldName, unsigned idx) {
 
-    assert(mlir::isa<cir::PointerType>(structPtr.getType()));
-    auto structBaseTy =
-        mlir::cast<cir::PointerType>(structPtr.getType()).getPointee();
-    assert(mlir::isa<cir::StructType>(structBaseTy));
-    auto fldTy = mlir::cast<cir::StructType>(structBaseTy).getMembers()[idx];
+    assert(mlir::isa<cir::PointerType>(recordPtr.getType()));
+    auto recordBaseTy =
+        mlir::cast<cir::PointerType>(recordPtr.getType()).getPointee();
+    assert(mlir::isa<cir::RecordType>(recordBaseTy));
+    auto fldTy = mlir::cast<cir::RecordType>(recordBaseTy).getMembers()[idx];
     auto fldPtrTy = cir::PointerType::get(getContext(), fldTy);
-    return create<cir::GetMemberOp>(loc, fldPtrTy, structPtr, fldName, idx);
+    return create<cir::GetMemberOp>(loc, fldPtrTy, recordPtr, fldName, idx);
   }
 
   mlir::Value createPtrToInt(mlir::Value src, mlir::Type newTy) {

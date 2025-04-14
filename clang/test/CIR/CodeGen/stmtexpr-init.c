@@ -3,8 +3,8 @@
 // RUN: %clang_cc1 -triple aarch64-none-linux-android21 -fclangir -emit-llvm %s -o %t.ll
 // RUN: FileCheck --check-prefix=LLVM --input-file=%t.ll %s
 
-// CIR: ![[annon_struct:.*]] = !cir.struct<struct  {!s32i, !cir.array<!s32i x 2>}>
-// CIR: ![[sized_array:.*]] = !cir.struct<struct "sized_array" {!s32i, !cir.array<!s32i x 0>}
+// CIR: ![[annon_struct:.*]] = !cir.record<struct  {!s32i, !cir.array<!s32i x 2>}>
+// CIR: ![[sized_array:.*]] = !cir.record<struct "sized_array" {!s32i, !cir.array<!s32i x 0>}
 
 void escape(const void *);
 
@@ -33,11 +33,11 @@ struct outer {
 };
 
 void T2(void) {
-  // CIR-DAG: cir.global "private" constant internal dsolocal @T2._a = #cir.const_struct<{#cir.int<2> : !s32i, #cir.const_array<[#cir.int<50> : !s32i, #cir.int<60> : !s32i]> : !cir.array<!s32i x 2>}>
+  // CIR-DAG: cir.global "private" constant internal dsolocal @T2._a = #cir.const_record<{#cir.int<2> : !s32i, #cir.const_array<[#cir.int<50> : !s32i, #cir.int<60> : !s32i]> : !cir.array<!s32i x 2>}>
   // LLVM-DAG: internal constant { i32, [2 x i32] } { i32 2, [2 x i32] [i32 50, i32 60] }
   const struct sized_array *A = ARRAY_PTR(50, 60);
 
-  // CIR-DAG: cir.global "private" constant internal dsolocal @T2._a.1 = #cir.const_struct<{#cir.int<3> : !s32i, #cir.const_array<[#cir.int<10> : !s32i, #cir.int<20> : !s32i, #cir.int<30> : !s32i]> : !cir.array<!s32i x 3>}>
+  // CIR-DAG: cir.global "private" constant internal dsolocal @T2._a.1 = #cir.const_record<{#cir.int<3> : !s32i, #cir.const_array<[#cir.int<10> : !s32i, #cir.int<20> : !s32i, #cir.int<30> : !s32i]> : !cir.array<!s32i x 3>}>
   // LLVM-DAG: internal constant { i32, [3 x i32] } { i32 3, [3 x i32] [i32 10, i32 20, i32 30] }
   struct outer X = {ARRAY_PTR(10, 20, 30)};
 

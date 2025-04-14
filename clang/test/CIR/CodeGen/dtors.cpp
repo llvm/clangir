@@ -36,10 +36,10 @@ public:
 };
 
 // Class A
-// CHECK: ![[ClassA:ty_.*]] = !cir.struct<class "A" {!cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>} #cir.record.decl.ast>
+// CHECK: ![[ClassA:ty_.*]] = !cir.record<class "A" {!cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>} #cir.record.decl.ast>
 
 // Class B
-// CHECK: ![[ClassB:ty_.*]] = !cir.struct<class "B" {![[ClassA]]}>
+// CHECK: ![[ClassB:ty_.*]] = !cir.record<class "B" {![[ClassA]]}>
 
 // CHECK: cir.func @_Z4bluev()
 // CHECK:   %0 = cir.alloca !ty_PSEvent, !cir.ptr<!ty_PSEvent>, ["p", init] {alignment = 8 : i64}

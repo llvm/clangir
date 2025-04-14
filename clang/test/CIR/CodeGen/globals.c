@@ -36,19 +36,19 @@ struct {
   int x;
   int y[2][2];
 } nestedTwoDim = {1, {{2, 3}, {4, 5}}};
-// CHECK: cir.global external @nestedTwoDim = #cir.const_struct<{#cir.int<1> : !s32i, #cir.const_array<[#cir.const_array<[#cir.int<2> : !s32i, #cir.int<3> : !s32i]> : !cir.array<!s32i x 2>, #cir.const_array<[#cir.int<4> : !s32i, #cir.int<5> : !s32i]> : !cir.array<!s32i x 2>]> : !cir.array<!cir.array<!s32i x 2> x 2>}>
+// CHECK: cir.global external @nestedTwoDim = #cir.const_record<{#cir.int<1> : !s32i, #cir.const_array<[#cir.const_array<[#cir.int<2> : !s32i, #cir.int<3> : !s32i]> : !cir.array<!s32i x 2>, #cir.const_array<[#cir.int<4> : !s32i, #cir.int<5> : !s32i]> : !cir.array<!s32i x 2>]> : !cir.array<!cir.array<!s32i x 2> x 2>}>
 
 struct {
   char x[3];
   char y[3];
   char z[3];
 } nestedString = {"1", "", "\0"};
-// CHECK: cir.global external @nestedString = #cir.const_struct<{#cir.const_array<"1" : !cir.array<!s8i x 1>, trailing_zeros> : !cir.array<!s8i x 3>, #cir.zero : !cir.array<!s8i x 3>, #cir.zero : !cir.array<!s8i x 3>}>
+// CHECK: cir.global external @nestedString = #cir.const_record<{#cir.const_array<"1" : !cir.array<!s8i x 1>, trailing_zeros> : !cir.array<!s8i x 3>, #cir.zero : !cir.array<!s8i x 3>, #cir.zero : !cir.array<!s8i x 3>}>
 
 struct {
   char *name;
 } nestedStringPtr = {"1"};
-// CHECK: cir.global external @nestedStringPtr = #cir.const_struct<{#cir.global_view<@".str"> : !cir.ptr<!s8i>}>
+// CHECK: cir.global external @nestedStringPtr = #cir.const_record<{#cir.global_view<@".str"> : !cir.ptr<!s8i>}>
 
 int *globalPtr = &nestedString.y[1];
 // CHECK: cir.global external @globalPtr = #cir.global_view<@nestedString, [1 : i32, 1 : i32]> : !cir.ptr<!s32i>
@@ -57,25 +57,25 @@ const int i = 12;
 int i2 = i;
 struct { int i; } i3 = {i};
 // CHECK: cir.global external @i2 = #cir.int<12> : !s32i
-// CHECK: cir.global external @i3 = #cir.const_struct<{#cir.int<12> : !s32i}> : !ty_anon2E3
+// CHECK: cir.global external @i3 = #cir.const_record<{#cir.int<12> : !s32i}> : !ty_anon2E3
 
 int a[10][10][10];
 int *a2 = &a[3][0][8];
 struct { int *p; } a3 = {&a[3][0][8]};
 // CHECK: cir.global external @a2 = #cir.global_view<@a, [3 : i32, 0 : i32, 8 : i32]> : !cir.ptr<!s32i>
-// CHECK: cir.global external @a3 = #cir.const_struct<{#cir.global_view<@a, [3 : i32, 0 : i32, 8 : i32]> : !cir.ptr<!s32i>}> : !ty_anon2E4
+// CHECK: cir.global external @a3 = #cir.const_record<{#cir.global_view<@a, [3 : i32, 0 : i32, 8 : i32]> : !cir.ptr<!s32i>}> : !ty_anon2E4
 
 int p[10];
 int *p1 = &p[0];
 struct { int *x; } p2 = {&p[0]};
 // CHECK: cir.global external @p1 = #cir.global_view<@p> : !cir.ptr<!s32i>
-// CHECK: cir.global external @p2 = #cir.const_struct<{#cir.global_view<@p> : !cir.ptr<!s32i>}> : !ty_anon2E5
+// CHECK: cir.global external @p2 = #cir.const_record<{#cir.global_view<@p> : !cir.ptr<!s32i>}> : !ty_anon2E5
 
 int q[10];
 int *q1 = q;
 struct { int *x; } q2 = {q};
 // CHECK: cir.global external @q1 = #cir.global_view<@q> : !cir.ptr<!s32i>
-// CHECK: cir.global external @q2 = #cir.const_struct<{#cir.global_view<@q> : !cir.ptr<!s32i>}> : !ty_anon2E6
+// CHECK: cir.global external @q2 = #cir.const_record<{#cir.global_view<@q> : !cir.ptr<!s32i>}> : !ty_anon2E6
 
 int foo() {
     extern int optind;

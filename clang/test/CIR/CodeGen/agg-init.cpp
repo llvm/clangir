@@ -1,7 +1,7 @@
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -std=c++17 -fclangir -Wno-unused-value -emit-cir %s -o %t.cir
 // RUN: FileCheck --input-file=%t.cir %s
 
-// CHECK: !ty_yep_ = !cir.struct<struct "yep_" {!u32i, !u32i}>
+// CHECK: !ty_yep_ = !cir.record<struct "yep_" {!u32i, !u32i}>
 
 typedef enum xxy_ {
   xxy_Low = 0,
@@ -49,7 +49,7 @@ void yo() {
 // CHECK: cir.func @_Z2yov()
 // CHECK:   %0 = cir.alloca !ty_Yo, !cir.ptr<!ty_Yo>, ["ext"] {alignment = 8 : i64}
 // CHECK:   %1 = cir.alloca !ty_Yo, !cir.ptr<!ty_Yo>, ["ext2", init] {alignment = 8 : i64}
-// CHECK:   %2 = cir.const #cir.const_struct<{#cir.int<1000070000> : !u32i, #cir.ptr<null> : !cir.ptr<!void>, #cir.int<0> : !u64i}> : !ty_Yo
+// CHECK:   %2 = cir.const #cir.const_record<{#cir.int<1000070000> : !u32i, #cir.ptr<null> : !cir.ptr<!void>, #cir.int<0> : !u64i}> : !ty_Yo
 // CHECK:   cir.store %2, %0 : !ty_Yo, !cir.ptr<!ty_Yo>
 // CHECK:   %3 = cir.get_member %1[0] {name = "type"} : !cir.ptr<!ty_Yo> -> !cir.ptr<!u32i>
 // CHECK:   %4 = cir.const #cir.int<1000066001> : !u32i

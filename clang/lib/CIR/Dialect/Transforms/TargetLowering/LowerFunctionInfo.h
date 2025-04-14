@@ -93,9 +93,9 @@ class LowerFunctionInfo final
 
   RequiredArgs Required;
 
-  /// The struct representing all arguments passed in memory.  Only used when
+  /// The record representing all arguments passed in memory.  Only used when
   /// passing non-trivial types with inalloca.  Not part of the profile.
-  StructType ArgStruct;
+  RecordType ArgRecord;
 
   unsigned NumArgs;
 
@@ -121,7 +121,7 @@ public:
     FI->ChainCall = chainCall;
     FI->DelegateCall = delegateCall;
     FI->Required = required;
-    FI->ArgStruct = nullptr;
+    FI->ArgRecord = nullptr;
     FI->NumArgs = argTypes.size();
     FI->getArgsBuffer()[0].type = resultType;
     for (unsigned i = 0, e = argTypes.size(); i != e; ++i)
@@ -167,8 +167,8 @@ public:
   /// into an LLVM CC.
   unsigned getCallingConvention() const { return CallingConvention; }
 
-  /// Get the struct type used to represent all the arguments in memory.
-  StructType getArgStruct() const { return ArgStruct; }
+  /// Get the record type used to represent all the arguments in memory.
+  RecordType getArgRecord() const { return ArgRecord; }
 };
 
 } // namespace cir

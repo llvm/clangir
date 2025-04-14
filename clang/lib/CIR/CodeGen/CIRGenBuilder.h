@@ -190,13 +190,13 @@ public:
     return cir::ConstArrayAttr::get(arrayTy, attrs);
   }
 
-  mlir::Attribute getConstStructOrZeroAttr(mlir::ArrayAttr arrayAttr,
+  mlir::Attribute getConstRecordOrZeroAttr(mlir::ArrayAttr arrayAttr,
                                            bool packed = false,
                                            bool padded = false,
                                            mlir::Type type = {}) {
     llvm::SmallVector<mlir::Type, 8> members;
-    auto structTy = mlir::dyn_cast<cir::StructType>(type);
-    assert(structTy && "expected cir.struct");
+    auto recordTy = mlir::dyn_cast<cir::RecordType>(type);
+    assert(recordTy && "expected cir.record");
 
     // Collect members and check if they are all zero.
     bool isZero = true;
@@ -206,19 +206,19 @@ public:
       isZero &= isNullValue(typedAttr);
     }
 
-    // Struct type not specified: create anon struct type from members.
-    if (!structTy)
-      structTy = getType<cir::StructType>(members, packed, padded,
-                                          cir::StructType::Struct,
+    // Record type not specified: create anon record type from members.
+    if (!recordTy)
+      recordTy = getType<cir::RecordType>(members, packed, padded,
+                                          cir::RecordType::Struct,
                                           /*ast=*/nullptr);
 
-    // Return zero or anonymous constant struct.
+    // Return zero or anonymous constant record.
     if (isZero)
-      return cir::ZeroAttr::get(getContext(), structTy);
-    return cir::ConstStructAttr::get(structTy, arrayAttr);
+      return cir::ZeroAttr::get(getContext(), recordTy);
+    return cir::ConstRecordAttr::get(recordTy, arrayAttr);
   }
 
-  cir::ConstStructAttr getAnonConstStruct(mlir::ArrayAttr arrayAttr,
+  cir::ConstRecordAttr getAnonConstRecord(mlir::ArrayAttr arrayAttr,
                                           bool packed = false,
                                           bool padded = false,
                                           mlir::Type ty = {}) {
@@ -230,16 +230,16 @@ public:
     }
 
     if (!ty)
-      ty = getAnonStructTy(members, packed, padded);
+      ty = getAnonRecordTy(members, packed, padded);
 
-    auto sTy = mlir::dyn_cast<cir::StructType>(ty);
-    assert(sTy && "expected struct type");
-    return cir::ConstStructAttr::get(sTy, arrayAttr);
+    auto sTy = mlir::dyn_cast<cir::RecordType>(ty);
+    assert(sTy && "expected record type");
+    return cir::ConstRecordAttr::get(sTy, arrayAttr);
   }
 
   cir::TypeInfoAttr getTypeInfo(mlir::ArrayAttr fieldsAttr) {
-    auto anonStruct = getAnonConstStruct(fieldsAttr);
-    return cir::TypeInfoAttr::get(anonStruct.getType(), fieldsAttr);
+    auto anonRecord = getAnonConstRecord(fieldsAttr);
+    return cir::TypeInfoAttr::get(anonRecord.getType(), fieldsAttr);
   }
 
   cir::CmpThreeWayInfoAttr getCmpThreeWayInfoStrongOrdering(
@@ -292,9 +292,9 @@ public:
       return FV.bitwiseIsEqual(fpVal);
     }
 
-    if (const auto structVal = mlir::dyn_cast<cir::ConstStructAttr>(attr)) {
-      for (const auto elt : structVal.getMembers()) {
-        // FIXME(cir): the struct's ID should not be considered a member.
+    if (const auto recordVal = mlir::dyn_cast<cir::ConstRecordAttr>(attr)) {
+      for (const auto elt : recordVal.getMembers()) {
+        // FIXME(cir): the record's ID should not be considered a member.
         if (mlir::isa<mlir::StringAttr>(elt))
           continue;
         if (!isNullValue(elt))
@@ -448,28 +448,28 @@ public:
     return cir::PointerType::get(getContext(), typeCache.UInt32Ty);
   }
 
-  /// Get a CIR anonymous struct type.
-  cir::StructType getAnonStructTy(llvm::ArrayRef<mlir::Type> members,
+  /// Get a CIR anonymous record type.
+  cir::RecordType getAnonRecordTy(llvm::ArrayRef<mlir::Type> members,
                                   bool packed = false, bool padded = false,
                                   const clang::RecordDecl *ast = nullptr) {
     cir::ASTRecordDeclAttr astAttr = nullptr;
-    auto kind = cir::StructType::RecordKind::Struct;
+    auto kind = cir::RecordType::RecordKind::Struct;
     if (ast) {
       astAttr = getAttr<cir::ASTRecordDeclAttr>(ast);
       kind = getRecordKind(ast->getTagKind());
     }
-    return getType<cir::StructType>(members, packed, padded, kind, astAttr);
+    return getType<cir::RecordType>(members, packed, padded, kind, astAttr);
   }
 
   /// Get a CIR record kind from a AST declaration tag.
-  cir::StructType::RecordKind getRecordKind(const clang::TagTypeKind kind) {
+  cir::RecordType::RecordKind getRecordKind(const clang::TagTypeKind kind) {
     switch (kind) {
     case clang::TagTypeKind::Struct:
-      return cir::StructType::Struct;
+      return cir::RecordType::Struct;
     case clang::TagTypeKind::Union:
-      return cir::StructType::Union;
+      return cir::RecordType::Union;
     case clang::TagTypeKind::Class:
-      return cir::StructType::Class;
+      return cir::RecordType::Class;
     case clang::TagTypeKind::Interface:
       llvm_unreachable("interface records are NYI");
     case clang::TagTypeKind::Enum:
@@ -477,45 +477,45 @@ public:
     }
   }
 
-  /// Get a incomplete CIR struct type.
-  cir::StructType getIncompleteStructTy(llvm::StringRef name,
+  /// Get a incomplete CIR record type.
+  cir::RecordType getIncompleteRecordTy(llvm::StringRef name,
                                         const clang::RecordDecl *ast) {
     const auto nameAttr = getStringAttr(name);
-    auto kind = cir::StructType::RecordKind::Struct;
+    auto kind = cir::RecordType::RecordKind::Struct;
     if (ast)
       kind = getRecordKind(ast->getTagKind());
-    return getType<cir::StructType>(nameAttr, kind);
+    return getType<cir::RecordType>(nameAttr, kind);
   }
 
-  /// Get a CIR named struct type.
+  /// Get a CIR named record type.
   ///
-  /// If a struct already exists and is complete, but the client tries to fetch
+  /// If a record already exists and is complete, but the client tries to fetch
   /// it with a different set of attributes, this method will crash.
-  cir::StructType getCompleteStructTy(llvm::ArrayRef<mlir::Type> members,
+  cir::RecordType getCompleteRecordTy(llvm::ArrayRef<mlir::Type> members,
                                       llvm::StringRef name, bool packed,
                                       bool padded,
                                       const clang::RecordDecl *ast) {
     const auto nameAttr = getStringAttr(name);
     cir::ASTRecordDeclAttr astAttr = nullptr;
-    auto kind = cir::StructType::RecordKind::Struct;
+    auto kind = cir::RecordType::RecordKind::Struct;
     if (ast) {
       astAttr = getAttr<cir::ASTRecordDeclAttr>(ast);
       kind = getRecordKind(ast->getTagKind());
     }
 
-    // Create or get the struct.
-    auto type = getType<cir::StructType>(members, nameAttr, packed, padded,
+    // Create or get the record.
+    auto type = getType<cir::RecordType>(members, nameAttr, packed, padded,
                                          kind, astAttr);
 
-    // Complete an incomplete struct or ensure the existing complete struct
+    // Complete an incomplete record or ensure the existing complete record
     // matches the requested attributes.
     type.complete(members, packed, padded, astAttr);
 
     return type;
   }
 
-  cir::StructType
-  getCompleteStructType(mlir::ArrayAttr fields, bool packed = false,
+  cir::RecordType
+  getCompleteRecordType(mlir::ArrayAttr fields, bool packed = false,
                         bool padded = false, llvm::StringRef name = "",
                         const clang::RecordDecl *ast = nullptr) {
     llvm::SmallVector<mlir::Type, 8> members;
@@ -525,9 +525,9 @@ public:
     }
 
     if (name.empty())
-      return getAnonStructTy(members, packed, padded, ast);
+      return getAnonRecordTy(members, packed, padded, ast);
     else
-      return getCompleteStructTy(members, name, packed, padded, ast);
+      return getCompleteRecordTy(members, name, packed, padded, ast);
   }
 
   cir::ArrayType getArrayType(mlir::Type eltType, unsigned size) {
@@ -535,7 +535,7 @@ public:
   }
 
   bool isSized(mlir::Type ty) {
-    if (mlir::isa<cir::PointerType, cir::StructType, cir::ArrayType,
+    if (mlir::isa<cir::PointerType, cir::RecordType, cir::ArrayType,
                   cir::BoolType, cir::IntType, cir::CIRFPTypeInterface>(ty))
       return true;
     if (mlir::isa<cir::VectorType>(ty)) {
@@ -604,7 +604,7 @@ public:
 
   cir::ConstantOp getZero(mlir::Location loc, mlir::Type ty) {
     // TODO: dispatch creation for primitive types.
-    assert((mlir::isa<cir::StructType>(ty) || mlir::isa<cir::ArrayType>(ty) ||
+    assert((mlir::isa<cir::RecordType>(ty) || mlir::isa<cir::ArrayType>(ty) ||
             mlir::isa<cir::VectorType>(ty)) &&
            "NYI for other types");
     return create<cir::ConstantOp>(loc, ty, getZeroAttr(ty));

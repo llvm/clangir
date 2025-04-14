@@ -13,7 +13,7 @@ S a = {
 };
 
 // CIR: cir.global "private" internal @".compoundLiteral.0" = #cir.zero : !cir.array<!s32i x 0> {alignment = 4 : i64}
-// CIR: cir.global external @a = #cir.const_struct<{#cir.global_view<@".compoundLiteral.0"> : !cir.ptr<!s32i>}> : !ty_S
+// CIR: cir.global external @a = #cir.const_record<{#cir.global_view<@".compoundLiteral.0"> : !cir.ptr<!s32i>}> : !ty_S
 
 // LLVM: @.compoundLiteral.0 = internal global [0 x i32] zeroinitializer
 // LLVM: @a = global %struct.S { ptr @.compoundLiteral.0 }
@@ -23,7 +23,7 @@ S b = {
 };
 
 // CIR: cir.global "private" internal @".compoundLiteral.1" = #cir.const_array<[#cir.int<1> : !s32i]> : !cir.array<!s32i x 1> {alignment = 4 : i64}
-// CIR: cir.global external @b = #cir.const_struct<{#cir.global_view<@".compoundLiteral.1"> : !cir.ptr<!s32i>}> : !ty_S
+// CIR: cir.global external @b = #cir.const_record<{#cir.global_view<@".compoundLiteral.1"> : !cir.ptr<!s32i>}> : !ty_S
 
 // LLVM: @.compoundLiteral.1 = internal global [1 x i32] [i32 1]
 // LLVM: @b = global %struct.S { ptr @.compoundLiteral.1 }

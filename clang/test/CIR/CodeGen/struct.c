@@ -22,11 +22,11 @@ void baz(void) {
   struct Foo f;
 }
 
-// CHECK-DAG: !ty_Node = !cir.struct<struct "Node" {!cir.ptr<!cir.struct<struct "Node">>} #cir.record.decl.ast>
-// CHECK-DAG: !ty_Bar = !cir.struct<struct "Bar" {!s32i, !s8i}>
-// CHECK-DAG: !ty_Foo = !cir.struct<struct "Foo" {!s32i, !s8i, !ty_Bar}>
-// CHECK-DAG: !ty_SLocal = !cir.struct<struct "SLocal" {!s32i}>
-// CHECK-DAG: !ty_SLocal2E0 = !cir.struct<struct "SLocal.0" {!cir.float}>
+// CHECK-DAG: !ty_Node = !cir.record<struct "Node" {!cir.ptr<!cir.record<struct "Node">>} #cir.record.decl.ast>
+// CHECK-DAG: !ty_Bar = !cir.record<struct "Bar" {!s32i, !s8i}>
+// CHECK-DAG: !ty_Foo = !cir.record<struct "Foo" {!s32i, !s8i, !ty_Bar}>
+// CHECK-DAG: !ty_SLocal = !cir.record<struct "SLocal" {!s32i}>
+// CHECK-DAG: !ty_SLocal2E0 = !cir.record<struct "SLocal.0" {!cir.float}>
 //  CHECK-DAG: module {{.*}} {
      // CHECK:   cir.func @baz()
 // CHECK-NEXT:     %0 = cir.alloca !ty_Bar, !cir.ptr<!ty_Bar>, ["b"] {alignment = 4 : i64}
@@ -39,9 +39,9 @@ void shouldConstInitStructs(void) {
   struct Foo f = {1, 2, {3, 4}};
   // CHECK: %[[#V0:]] = cir.alloca !ty_Foo, !cir.ptr<!ty_Foo>, ["f"] {alignment = 4 : i64}
   // CHECK: %[[#V1:]] = cir.cast(bitcast, %[[#V0]] : !cir.ptr<!ty_Foo>), !cir.ptr<!ty_anon_struct1>
-  // CHECK: %[[#V2:]] = cir.const #cir.const_struct<{#cir.int<1> : !s32i, #cir.int<2> : !s8i,
+  // CHECK: %[[#V2:]] = cir.const #cir.const_record<{#cir.int<1> : !s32i, #cir.int<2> : !s8i,
   // CHECK-SAME:        #cir.const_array<[#cir.zero : !u8i, #cir.zero : !u8i, #cir.zero : !u8i]> : !cir.array<!u8i x 3>,
-  // CHECK-SAME:        #cir.const_struct<{#cir.int<3> : !s32i, #cir.int<4> : !s8i,
+  // CHECK-SAME:        #cir.const_record<{#cir.int<3> : !s32i, #cir.int<4> : !s8i,
   // CHECK-SAME:        #cir.const_array<[#cir.zero : !u8i, #cir.zero : !u8i, #cir.zero : !u8i]> : !cir.array<!u8i x 3>}>
   // CHECK-SAME:        : !ty_anon_struct}> : !ty_anon_struct1
   // CHECK: cir.store %[[#V2]], %[[#V1]] : !ty_anon_struct1, !cir.ptr<!ty_anon_struct1>
@@ -59,7 +59,7 @@ struct S1 {
   float f;
   int *p;
 } s1 = {1, .1, 0};
-// CHECK-DAG: cir.global external @s1 = #cir.const_struct<{#cir.int<1> : !s32i, #cir.fp<1.000000e-01> : !cir.float, #cir.ptr<null> : !cir.ptr<!s32i>}> : !ty_S1
+// CHECK-DAG: cir.global external @s1 = #cir.const_record<{#cir.int<1> : !s32i, #cir.fp<1.000000e-01> : !cir.float, #cir.ptr<null> : !cir.ptr<!s32i>}> : !ty_S1
 
 // Should initialize global nested structs.
 struct S2 {
@@ -67,13 +67,13 @@ struct S2 {
     int a;
   } s2a;
 } s2 = {{1}};
-// CHECK-DAG: cir.global external @s2 = #cir.const_struct<{#cir.const_struct<{#cir.int<1> : !s32i}> : !ty_S2A}> : !ty_S2
+// CHECK-DAG: cir.global external @s2 = #cir.const_record<{#cir.const_record<{#cir.int<1> : !s32i}> : !ty_S2A}> : !ty_S2
 
 // Should initialize global arrays of structs.
 struct S3 {
   int a;
 } s3[3] = {{1}, {2}, {3}};
-// CHECK-DAG: cir.global external @s3 = #cir.const_array<[#cir.const_struct<{#cir.int<1> : !s32i}> : !ty_S3, #cir.const_struct<{#cir.int<2> : !s32i}> : !ty_S3, #cir.const_struct<{#cir.int<3> : !s32i}> : !ty_S3]> : !cir.array<!ty_S3 x 3>
+// CHECK-DAG: cir.global external @s3 = #cir.const_array<[#cir.const_record<{#cir.int<1> : !s32i}> : !ty_S3, #cir.const_record<{#cir.int<2> : !s32i}> : !ty_S3, #cir.const_record<{#cir.int<3> : !s32i}> : !ty_S3]> : !cir.array<!ty_S3 x 3>
 
 void shouldCopyStructAsCallArg(struct S1 s) {
 // CHECK-DAG: cir.func @shouldCopyStructAsCallArg

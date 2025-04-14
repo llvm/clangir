@@ -26,13 +26,13 @@ void baz() {
 struct incomplete;
 void yoyo(incomplete *i) {}
 
-//  CHECK-DAG: !ty_incomplete = !cir.struct<struct "incomplete" incomplete
-//  CHECK-DAG: !ty_Bar = !cir.struct<struct "Bar" {!s32i, !s8i}>
+//  CHECK-DAG: !ty_incomplete = !cir.record<struct "incomplete" incomplete
+//  CHECK-DAG: !ty_Bar = !cir.record<struct "Bar" {!s32i, !s8i}>
 
-//  CHECK-DAG: !ty_Foo = !cir.struct<struct "Foo" {!s32i, !s8i, !ty_Bar}>
-//  CHECK-DAG: !ty_Mandalore = !cir.struct<struct "Mandalore" {!u32i, !cir.ptr<!void>, !s32i} #cir.record.decl.ast>
-//  CHECK-DAG: !ty_Adv = !cir.struct<class "Adv" {!ty_Mandalore}>
-//  CHECK-DAG: !ty_Entry = !cir.struct<struct "Entry" {!cir.ptr<!cir.func<(!s32i, !cir.ptr<!s8i>, !cir.ptr<!void>) -> !u32i>>}>
+//  CHECK-DAG: !ty_Foo = !cir.record<struct "Foo" {!s32i, !s8i, !ty_Bar}>
+//  CHECK-DAG: !ty_Mandalore = !cir.record<struct "Mandalore" {!u32i, !cir.ptr<!void>, !s32i} #cir.record.decl.ast>
+//  CHECK-DAG: !ty_Adv = !cir.record<class "Adv" {!ty_Mandalore}>
+//  CHECK-DAG: !ty_Entry = !cir.record<struct "Entry" {!cir.ptr<!cir.func<(!s32i, !cir.ptr<!s8i>, !cir.ptr<!void>) -> !u32i>>}>
 
 //      CHECK: cir.func linkonce_odr @_ZN3Bar6methodEv(%arg0: !cir.ptr<!ty_Bar>
 // CHECK-NEXT:   %0 = cir.alloca !cir.ptr<!ty_Bar>, !cir.ptr<!cir.ptr<!ty_Bar>>, ["this", init] {alignment = 8 : i64}
@@ -117,11 +117,11 @@ struct A {
 
 // Should globally const-initialize struct members.
 struct A simpleConstInit = {1};
-// CHECK: cir.global external @simpleConstInit = #cir.const_struct<{#cir.int<1> : !s32i}> : !ty_A
+// CHECK: cir.global external @simpleConstInit = #cir.const_record<{#cir.int<1> : !s32i}> : !ty_A
 
 // Should globally const-initialize arrays with struct members.
 struct A arrConstInit[1] = {{1}};
-// CHECK: cir.global external @arrConstInit = #cir.const_array<[#cir.const_struct<{#cir.int<1> : !s32i}> : !ty_A]> : !cir.array<!ty_A x 1>
+// CHECK: cir.global external @arrConstInit = #cir.const_array<[#cir.const_record<{#cir.int<1> : !s32i}> : !ty_A]> : !cir.array<!ty_A x 1>
 
 // Should globally const-initialize empty structs with a non-trivial constexpr
 // constructor (as undef, to match existing clang CodeGen behavior).

@@ -35,7 +35,7 @@ class FunctionType;
 class DataLayout;
 class Type;
 class LLVMContext;
-class StructType;
+class RecordType;
 } // namespace llvm
 
 namespace clang {
@@ -65,7 +65,7 @@ class Type;
 } // namespace mlir
 
 namespace cir {
-class StructType;
+class RecordType;
 } // namespace cir
 
 namespace clang::CIRGen {
@@ -93,7 +93,7 @@ class CIRGenTypes {
       CIRGenRecordLayouts;
 
   /// Contains the CIR type for any converted RecordDecl
-  llvm::DenseMap<const clang::Type *, cir::StructType> recordDeclTypes;
+  llvm::DenseMap<const clang::Type *, cir::RecordType> recordDeclTypes;
 
   /// Hold memoized CIRGenFunctionInfo results
   llvm::FoldingSet<CIRGenFunctionInfo> FunctionInfos;
@@ -106,7 +106,7 @@ class CIRGenTypes {
 
   llvm::SmallPtrSet<const CIRGenFunctionInfo *, 4> FunctionsBeingProcessed;
 
-  /// True if we didn't layout a function due to being inside a recursive struct
+  /// True if we didn't layout a function due to being inside a recursive record
   /// conversion, set this to true.
   bool SkippedLayout;
 
@@ -170,7 +170,7 @@ public:
   mlir::Type convertRecordDeclType(const clang::RecordDecl *recordDecl);
 
   std::unique_ptr<CIRGenRecordLayout>
-  computeRecordLayout(const clang::RecordDecl *D, cir::StructType *Ty);
+  computeRecordLayout(const clang::RecordDecl *D, cir::RecordType *Ty);
 
   std::string getRecordTypeName(const clang::RecordDecl *,
                                 llvm::StringRef suffix);

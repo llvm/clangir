@@ -63,7 +63,7 @@ mlir::Type CIRGenVTables::getVTableType(const VTableLayout &layout) {
 
   // FIXME(cir): should VTableLayout be encoded like we do for some
   // AST nodes?
-  return CGM.getBuilder().getAnonStructTy(tys, /*incomplete=*/false);
+  return CGM.getBuilder().getAnonRecordTy(tys, /*incomplete=*/false);
 }
 
 /// At this point in the translation unit, does it appear that can we
@@ -304,7 +304,7 @@ void CIRGenVTables::addVTableComponent(ConstantArrayBuilder &builder,
   llvm_unreachable("Unexpected vtable component kind");
 }
 
-void CIRGenVTables::createVTableInitializer(ConstantStructBuilder &builder,
+void CIRGenVTables::createVTableInitializer(ConstantRecordBuilder &builder,
                                             const VTableLayout &layout,
                                             mlir::Attribute rtti,
                                             bool vtableHasLocalLinkage) {
@@ -377,7 +377,7 @@ cir::GlobalOp CIRGenVTables::generateConstructionVTable(
 
   // Create and set the initializer.
   ConstantInitBuilder builder(CGM);
-  auto components = builder.beginStruct();
+  auto components = builder.beginRecord();
   createVTableInitializer(components, *VTLayout, RTTI,
                           cir::isLocalLinkage(VTable.getLinkage()));
   components.finishAndSetAsInitializer(VTable);

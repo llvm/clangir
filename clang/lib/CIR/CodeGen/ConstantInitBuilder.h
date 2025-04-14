@@ -36,11 +36,11 @@ class CIRGenModule;
 ///
 /// The basic usage pattern is expected to be something like:
 ///    ConstantInitBuilder builder(CGM);
-///    auto toplevel = builder.beginStruct();
+///    auto toplevel = builder.beginRecord();
 ///    toplevel.addInt(CGM.SizeTy, widgets.size());
 ///    auto widgetArray = builder.beginArray();
 ///    for (auto &widget : widgets) {
-///      auto widgetDesc = widgetArray.beginStruct();
+///      auto widgetDesc = widgetArray.beginRecord();
 ///      widgetDesc.addInt(CGM.SizeTy, widget.getPower());
 ///      widgetDesc.add(CGM.GetAddrOfConstantString(widget.getName()));
 ///      widgetDesc.add(CGM.GetAddrOfGlobal(widget.getInitializerDecl()));
@@ -90,7 +90,7 @@ private:
   void abandon(size_t newEnd);
 };
 
-/// A concrete base class for struct and array aggregate
+/// A concrete base class for record and array aggregate
 /// initializer builders.
 class ConstantAggregateBuilderBase {
 protected:
@@ -157,7 +157,7 @@ public:
   operator=(ConstantAggregateBuilderBase &&other) = delete;
 
   /// Return the number of elements that have been added to
-  /// this struct or array.
+  /// this record or array.
   size_t size() const {
     assert(!this->Finished && "cannot query after finishing builder");
     assert(!this->Frozen && "cannot query while sub-builder is active");
@@ -165,7 +165,7 @@ public:
     return this->getBuffer().size() - this->Begin;
   }
 
-  /// Return true if no elements have yet been added to this struct or array.
+  /// Return true if no elements have yet been added to this record or array.
   bool empty() const { return size() == 0; }
 
   /// Abandon this builder completely.
@@ -265,14 +265,14 @@ public:
     PlaceholderPosition(size_t index) : Index(index) {}
   };
 
-  /// Add a placeholder value to the structure.  The returned position
+  /// Add a placeholder value to the record.  The returned position
   /// can be used to set the value later; it will not be invalidated by
   /// any intermediate operations except (1) filling the same position or
   /// (2) finishing the entire builder.
   ///
-  /// This is useful for emitting certain kinds of structure which
+  /// This is useful for emitting certain kinds of record which
   /// contain some sort of summary field, generally a count, before any
-  /// of the data.  By emitting a placeholder first, the structure can
+  /// of the data.  By emitting a placeholder first, the record can
   /// be emitted eagerly.
   PlaceholderPosition addPlaceholder() {
     assert(!Finished && "cannot add more values after finishing builder");
@@ -324,8 +324,8 @@ public:
 
 protected:
   mlir::Attribute finishArray(mlir::Type eltTy);
-  mlir::Attribute finishStruct(mlir::MLIRContext *mlirContext,
-                               cir::StructType structTy);
+  mlir::Attribute finishRecord(mlir::MLIRContext *mlirContext,
+                               cir::RecordType recordTy);
 
 private:
   void getGEPIndicesTo(llvm::SmallVectorImpl<mlir::Attribute> &indices,
@@ -349,7 +349,7 @@ class ConstantAggregateBuilderTemplateBase
 public:
   using InitBuilder = typename Traits::InitBuilder;
   using ArrayBuilder = typename Traits::ArrayBuilder;
-  using StructBuilder = typename Traits::StructBuilder;
+  using RecordBuilder = typename Traits::RecordBuilder;
   using AggregateBuilderBase = typename Traits::AggregateBuilderBase;
 
 protected:
@@ -364,12 +364,12 @@ public:
     return ArrayBuilder(static_cast<InitBuilder &>(this->Builder), this, eltTy);
   }
 
-  StructBuilder beginStruct(cir::StructType ty = nullptr) {
-    return StructBuilder(static_cast<InitBuilder &>(this->Builder), this, ty);
+  RecordBuilder beginRecord(cir::RecordType ty = nullptr) {
+    return RecordBuilder(static_cast<InitBuilder &>(this->Builder), this, ty);
   }
 
-  /// Given that this builder was created by beginning an array or struct
-  /// component on the given parent builder, finish the array/struct
+  /// Given that this builder was created by beginning an array or record
+  /// component on the given parent builder, finish the array/record
   /// component and add it to the parent.
   ///
   /// It is an intentional choice that the parent is passed in explicitly
@@ -383,8 +383,8 @@ public:
     parent.add(asImpl().finishImpl(mlirContext));
   }
 
-  /// Given that this builder was created by beginning an array or struct
-  /// directly on a ConstantInitBuilder, finish the array/struct and
+  /// Given that this builder was created by beginning an array or record
+  /// directly on a ConstantInitBuilder, finish the array/record and
   /// create a global variable with it as the initializer.
   template <class... As>
   cir::GlobalOp finishAndCreateGlobal(mlir::MLIRContext *mlirContext,
@@ -394,23 +394,23 @@ public:
                                       std::forward<As>(args)...);
   }
 
-  /// Given that this builder was created by beginning an array or struct
-  /// directly on a ConstantInitBuilder, finish the array/struct and
+  /// Given that this builder was created by beginning an array or record
+  /// directly on a ConstantInitBuilder, finish the array/record and
   /// set it as the initializer of the given global variable.
   void finishAndSetAsInitializer(cir::GlobalOp global, bool forVTable = false) {
     assert(!this->Parent && "finishing non-root builder");
     mlir::Attribute init = asImpl().finishImpl(global.getContext());
-    auto initCSA = mlir::dyn_cast<cir::ConstStructAttr>(init);
+    auto initCSA = mlir::dyn_cast<cir::ConstRecordAttr>(init);
     assert(initCSA &&
-           "expected #cir.const_struct attribute to represent vtable data");
+           "expected #cir.const_record attribute to represent vtable data");
     return this->Builder.setGlobalInitializer(
         global, forVTable ? cir::VTableAttr::get(initCSA.getType(),
                                                  initCSA.getMembers())
                           : init);
   }
 
-  /// Given that this builder was created by beginning an array or struct
-  /// directly on a ConstantInitBuilder, finish the array/struct and
+  /// Given that this builder was created by beginning an array or record
+  /// directly on a ConstantInitBuilder, finish the array/record and
   /// return a future which can be used to install the initializer in
   /// a global later.
   ///
@@ -460,11 +460,11 @@ private:
 /// prefer.  This would probably not be necessary if C++ just
 /// supported extension methods.
 template <class Traits>
-class ConstantStructBuilderTemplateBase
+class ConstantRecordBuilderTemplateBase
     : public ConstantAggregateBuilderTemplateBase<
-          typename Traits::StructBuilder, Traits> {
+          typename Traits::RecordBuilder, Traits> {
   using super =
-      ConstantAggregateBuilderTemplateBase<typename Traits::StructBuilder,
+      ConstantAggregateBuilderTemplateBase<typename Traits::RecordBuilder,
                                            Traits>;
 
 public:
@@ -472,29 +472,29 @@ public:
   using AggregateBuilderBase = typename Traits::AggregateBuilderBase;
 
 private:
-  cir::StructType StructTy;
+  cir::RecordType RecordTy;
 
   template <class, class> friend class ConstantAggregateBuilderTemplateBase;
 
 protected:
-  ConstantStructBuilderTemplateBase(InitBuilder &builder,
+  ConstantRecordBuilderTemplateBase(InitBuilder &builder,
                                     AggregateBuilderBase *parent,
-                                    cir::StructType structTy)
-      : super(builder, parent), StructTy(structTy) {
-    if (structTy) {
+                                    cir::RecordType recordTy)
+      : super(builder, parent), RecordTy(recordTy) {
+    if (recordTy) {
       llvm_unreachable("NYI");
-      // this->Packed = structTy->isPacked();
+      // this->Packed = recordTy->isPacked();
     }
   }
 
 public:
   void setPacked(bool packed) { this->Packed = packed; }
 
-  /// Use the given type for the struct if its element count is correct.
+  /// Use the given type for the record if its element count is correct.
   /// Don't add more elements after calling this.
-  void suggestType(cir::StructType structTy) {
-    if (this->size() == structTy.getNumElements()) {
-      StructTy = structTy;
+  void suggestType(cir::RecordType recordTy) {
+    if (this->size() == recordTy.getNumElements()) {
+      RecordTy = recordTy;
     }
   }
 
@@ -502,7 +502,7 @@ private:
   /// Form an array constant from the values that have been added to this
   /// builder.
   mlir::Attribute finishImpl(mlir::MLIRContext *mlirContext) {
-    return AggregateBuilderBase::finishStruct(mlirContext, StructTy);
+    return AggregateBuilderBase::finishRecord(mlirContext, RecordTy);
   }
 };
 
@@ -520,26 +520,26 @@ protected:
 public:
   using InitBuilder = typename Traits::InitBuilder;
   using ArrayBuilder = typename Traits::ArrayBuilder;
-  using StructBuilder = typename Traits::StructBuilder;
+  using RecordBuilder = typename Traits::RecordBuilder;
 
   ArrayBuilder beginArray(mlir::Type eltTy = nullptr) {
     return ArrayBuilder(static_cast<InitBuilder &>(*this), nullptr, eltTy);
   }
 
-  StructBuilder beginStruct(cir::StructType structTy = nullptr) {
-    return StructBuilder(static_cast<InitBuilder &>(*this), nullptr, structTy);
+  RecordBuilder beginRecord(cir::RecordType recordTy = nullptr) {
+    return RecordBuilder(static_cast<InitBuilder &>(*this), nullptr, recordTy);
   }
 };
 
 class ConstantInitBuilder;
-class ConstantStructBuilder;
+class ConstantRecordBuilder;
 class ConstantArrayBuilder;
 
 struct ConstantInitBuilderTraits {
   using InitBuilder = ConstantInitBuilder;
   using AggregateBuilderBase = ConstantAggregateBuilderBase;
   using ArrayBuilder = ConstantArrayBuilder;
-  using StructBuilder = ConstantStructBuilder;
+  using RecordBuilder = ConstantRecordBuilder;
 };
 
 /// The standard implementation of ConstantInitBuilder used in Clang.
@@ -566,19 +566,19 @@ class ConstantArrayBuilder
 };
 
 /// A helper class of ConstantInitBuilder, used for building constant
-/// struct initializers.
-class ConstantStructBuilder
-    : public ConstantStructBuilderTemplateBase<ConstantInitBuilderTraits> {
+/// record initializers.
+class ConstantRecordBuilder
+    : public ConstantRecordBuilderTemplateBase<ConstantInitBuilderTraits> {
   template <class Traits> friend class ConstantInitBuilderTemplateBase;
 
   // The use of explicit qualification is a GCC workaround.
   template <class Impl, class Traits>
   friend class ConstantAggregateBuilderTemplateBase;
 
-  ConstantStructBuilder(ConstantInitBuilder &builder,
+  ConstantRecordBuilder(ConstantInitBuilder &builder,
                         ConstantAggregateBuilderBase *parent,
-                        cir::StructType structTy)
-      : ConstantStructBuilderTemplateBase(builder, parent, structTy) {}
+                        cir::RecordType recordTy)
+      : ConstantRecordBuilderTemplateBase(builder, parent, recordTy) {}
 };
 
 } // namespace clang::CIRGen

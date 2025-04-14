@@ -8,8 +8,8 @@ struct Base {
 struct Derived : Base {};
 
 // BEFORE: #dyn_cast_info__ZTI4Base__ZTI7Derived = #cir.dyn_cast_info<#cir.global_view<@_ZTI4Base> : !cir.ptr<!u8i>, #cir.global_view<@_ZTI7Derived> : !cir.ptr<!u8i>, @__dynamic_cast, @__cxa_bad_cast, #cir.int<0> : !s64i>
-// BEFORE: !ty_Base = !cir.struct
-// BEFORE: !ty_Derived = !cir.struct
+// BEFORE: !ty_Base = !cir.record
+// BEFORE: !ty_Derived = !cir.record
 
 Derived *ptr_cast(Base *b) {
   return dynamic_cast<Derived *>(b);

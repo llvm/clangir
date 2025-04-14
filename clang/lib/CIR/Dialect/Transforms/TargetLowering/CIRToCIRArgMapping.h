@@ -94,7 +94,7 @@ public:
       case cir::ABIArgInfo::Direct: {
         // FIXME(cir): handle sseregparm someday...
         cir_cconv_assert(AI.getCoerceToType() && "Missing coerced type!!");
-        StructType STy = mlir::dyn_cast<StructType>(AI.getCoerceToType());
+        RecordType STy = mlir::dyn_cast<RecordType>(AI.getCoerceToType());
         if (AI.isDirect() && AI.getCanBeFlattened() && STy) {
           IRArgs.NumberOfArgs = STy.getNumElements();
         } else {

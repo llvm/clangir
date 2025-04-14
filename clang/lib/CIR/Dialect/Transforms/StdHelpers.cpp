@@ -11,7 +11,7 @@
 namespace cir {
 
 bool isStdArrayType(mlir::Type t) {
-  auto sTy = mlir::dyn_cast<StructType>(t);
+  auto sTy = mlir::dyn_cast<RecordType>(t);
   if (!sTy)
     return false;
   auto recordDecl = sTy.getAst();

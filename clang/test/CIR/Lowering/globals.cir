@@ -11,11 +11,11 @@
 !u32i = !cir.int<u, 32>
 !u64i = !cir.int<u, 64>
 !u8i = !cir.int<u, 8>
-!ty_A = !cir.struct<struct "A" {!s32i, !cir.array<!cir.array<!s32i x 2> x 2>} #cir.record.decl.ast>
-!ty_Bar = !cir.struct<struct "Bar" {!s32i, !s8i} #cir.record.decl.ast>
-!ty_StringStruct = !cir.struct<struct "StringStruct" {!cir.array<!s8i x 3>, !cir.array<!s8i x 3>, !cir.array<!s8i x 3>} #cir.record.decl.ast>
-!ty_StringStructPtr = !cir.struct<struct "StringStructPtr" {!cir.ptr<!s8i>} #cir.record.decl.ast>
-!ty_anon2E1_ = !cir.struct<struct "anon.1" {!cir.ptr<!cir.func<(!cir.int<s, 32>)>>} #cir.record.decl.ast>
+!ty_A = !cir.record<struct "A" {!s32i, !cir.array<!cir.array<!s32i x 2> x 2>} #cir.record.decl.ast>
+!ty_Bar = !cir.record<struct "Bar" {!s32i, !s8i} #cir.record.decl.ast>
+!ty_StringStruct = !cir.record<struct "StringStruct" {!cir.array<!s8i x 3>, !cir.array<!s8i x 3>, !cir.array<!s8i x 3>} #cir.record.decl.ast>
+!ty_StringStructPtr = !cir.record<struct "StringStructPtr" {!cir.ptr<!s8i>} #cir.record.decl.ast>
+!ty_anon2E1_ = !cir.record<struct "anon.1" {!cir.ptr<!cir.func<(!cir.int<s, 32>)>>} #cir.record.decl.ast>
 
 module {
   cir.global external @a = #cir.int<3> : !s32i
@@ -98,11 +98,11 @@ module {
 
   // The following tests check direclty the resulting LLVM IR because the MLIR
   // version is two long. Always prefer the MLIR prefix when possible.
-  cir.global external @nestedTwoDim = #cir.const_struct<{#cir.int<1> : !s32i, #cir.const_array<[#cir.const_array<[#cir.int<2> : !s32i, #cir.int<3> : !s32i]> : !cir.array<!s32i x 2>, #cir.const_array<[#cir.int<4> : !s32i, #cir.int<5> : !s32i]> : !cir.array<!s32i x 2>]> : !cir.array<!cir.array<!s32i x 2> x 2>}> : !ty_A
+  cir.global external @nestedTwoDim = #cir.const_record<{#cir.int<1> : !s32i, #cir.const_array<[#cir.const_array<[#cir.int<2> : !s32i, #cir.int<3> : !s32i]> : !cir.array<!s32i x 2>, #cir.const_array<[#cir.int<4> : !s32i, #cir.int<5> : !s32i]> : !cir.array<!s32i x 2>]> : !cir.array<!cir.array<!s32i x 2> x 2>}> : !ty_A
   // LLVM: @nestedTwoDim = global %struct.A { i32 1, [2 x [2 x i32{{\]\] \[\[}}2 x i32] [i32 2, i32 3], [2 x i32] [i32 4, i32 5{{\]\]}} }
-  cir.global external @nestedString = #cir.const_struct<{#cir.const_array<"1\00\00" : !cir.array<!s8i x 3>> : !cir.array<!s8i x 3>, #cir.const_array<"\00\00\00" : !cir.array<!s8i x 3>> : !cir.array<!s8i x 3>, #cir.const_array<"\00\00\00" : !cir.array<!s8i x 3>> : !cir.array<!s8i x 3>}> : !ty_StringStruct
+  cir.global external @nestedString = #cir.const_record<{#cir.const_array<"1\00\00" : !cir.array<!s8i x 3>> : !cir.array<!s8i x 3>, #cir.const_array<"\00\00\00" : !cir.array<!s8i x 3>> : !cir.array<!s8i x 3>, #cir.const_array<"\00\00\00" : !cir.array<!s8i x 3>> : !cir.array<!s8i x 3>}> : !ty_StringStruct
   // LLVM: @nestedString = global %struct.StringStruct { [3 x i8] c"1\00\00", [3 x i8] zeroinitializer, [3 x i8] zeroinitializer }
-  cir.global external @nestedStringPtr = #cir.const_struct<{#cir.global_view<@".str"> : !cir.ptr<!s8i>}> : !ty_StringStructPtr
+  cir.global external @nestedStringPtr = #cir.const_record<{#cir.global_view<@".str"> : !cir.ptr<!s8i>}> : !ty_StringStructPtr
   // LLVM: @nestedStringPtr = global %struct.StringStructPtr { ptr @.str }
 
   cir.func @_Z11get_globalsv() {
@@ -164,7 +164,7 @@ module {
   // MLIR: }
   // LLVM: @undefStruct = global %struct.Bar undef
 
-  cir.global "private" internal @Handlers = #cir.const_array<[#cir.const_struct<{#cir.global_view<@myfun> : !cir.ptr<!cir.func<(!s32i)>>}> : !ty_anon2E1_]> : !cir.array<!ty_anon2E1_ x 1>
+  cir.global "private" internal @Handlers = #cir.const_array<[#cir.const_record<{#cir.global_view<@myfun> : !cir.ptr<!cir.func<(!s32i)>>}> : !ty_anon2E1_]> : !cir.array<!ty_anon2E1_ x 1>
   cir.func internal private @myfun(%arg0: !s32i) {
     %0 = cir.alloca !s32i, !cir.ptr<!s32i>, ["a", init] {alignment = 4 : i64}
     cir.store %arg0, %0 : !s32i, !cir.ptr<!s32i>

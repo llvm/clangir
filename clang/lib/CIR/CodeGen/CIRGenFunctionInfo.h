@@ -129,8 +129,8 @@ class CIRGenFunctionInfo final
   /// TODO: think about modeling this properly, this is just a dumb subsitution
   /// for now since we arent supporting anything other than arguments in
   /// registers atm
-  cir::StructType *ArgStruct;
-  unsigned ArgStructAlign : 31;
+  cir::RecordType *ArgRecord;
+  unsigned ArgRecordAlign : 31;
   unsigned HasExtParameterInfos : 1;
 
   unsigned NumArgs;
@@ -275,10 +275,10 @@ public:
     return isVariadic() ? getRequiredArgs().getNumRequiredArgs() : arg_size();
   }
 
-  cir::StructType *getArgStruct() const { return ArgStruct; }
+  cir::RecordType *getArgRecord() const { return ArgRecord; }
 
   /// Return true if this function uses inalloca arguments.
-  bool usesInAlloca() const { return ArgStruct; }
+  bool usesInAlloca() const { return ArgRecord; }
 };
 
 } // namespace clang::CIRGen

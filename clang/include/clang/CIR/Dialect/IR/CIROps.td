@@ -210,18 +210,18 @@ def DynamicCastKind : I32EnumAttr<
 }
 
 def DynamicCastOp : CIR_Op<"dyn_cast"> {
-  let summary = "Perform dynamic cast on struct pointers";
+  let summary = "Perform dynamic cast on record pointers";
   let description = [{
     The `cir.dyn_cast` operation models part of the semantics of the
     `dynamic_cast` operator in C++. It can be used to perform 3 kinds of casts
-    on struct pointers:
+    on record pointers:
 
     - Down-cast, which casts a base class pointer to a derived class pointer;
     - Side-cast, which casts a class pointer to a sibling class pointer;
     - Cast-to-complete, which casts a class pointer to a void pointer.
 
-    The input of the operation must be a struct pointer. The result of the
-    operation is either a struct pointer or a void pointer.
+    The input of the operation must be a record pointer. The result of the
+    operation is either a record pointer or a void pointer.
 
     The parameter `kind` specifies the semantics of this operation. If its value
     is `ptr`, then the operation models dynamic casts on pointers. Otherwise, if
@@ -246,7 +246,7 @@ def DynamicCastOp : CIR_Op<"dyn_cast"> {
   }];
 
   let arguments = (ins DynamicCastKind:$kind,
-                       StructPtr:$src,
+                       RecordPtr:$src,
                        OptionalAttr<DynamicCastInfoAttr>:$info,
                        UnitAttr:$relative_layout);
   let results = (outs CIR_PointerType:$result);
@@ -2704,12 +2704,12 @@ def SetBitfieldOp : CIR_Op<"set_bitfield"> {
 
     ```mlir
     // 'd' is in the storage with the index 1
-    !struct_type = !cir.struct<struct "S" {!cir.int<u, 32>, !cir.int<u, 32>, !cir.int<u, 16>} #cir.record.decl.ast>
+    !record_type = !cir.record<struct "S" {!cir.int<u, 32>, !cir.int<u, 32>, !cir.int<u, 16>} #cir.record.decl.ast>
     #bfi_d = #cir.bitfield_info<name = "d", storage_type = !u32i, size = 2, offset = 17, is_signed = true>
 
     %1 = cir.const #cir.int<3> : !s32i
-    %2 = cir.load %0 : !cir.ptr<!cir.ptr<!struct_type>>, !cir.ptr<!struct_type>
-    %3 = cir.get_member %2[1] {name = "d"} : !cir.ptr<!struct_type> -> !cir.ptr<!u32i>
+    %2 = cir.load %0 : !cir.ptr<!cir.ptr<!record_type>>, !cir.ptr<!record_type>
+    %3 = cir.get_member %2[1] {name = "d"} : !cir.ptr<!record_type> -> !cir.ptr<!u32i>
     %4 = cir.set_bitfield(#bfi_d, %3 : !cir.ptr<!u32i>, %1 : !s32i) -> !s32i
     ```
    }];
@@ -2784,11 +2784,11 @@ def GetBitfieldOp : CIR_Op<"get_bitfield"> {
 
     ```mlir
     // 'd' is in the storage with the index 1
-    !struct_type = !cir.struct<struct "S" {!cir.int<u, 32>, !cir.int<u, 32>, !cir.int<u, 16>} #cir.record.decl.ast>
+    !record_type = !cir.record<struct "S" {!cir.int<u, 32>, !cir.int<u, 32>, !cir.int<u, 16>} #cir.record.decl.ast>
     #bfi_d = #cir.bitfield_info<name = "d", storage_type = !u32i, size = 2, offset = 17, is_signed = true>
 
-    %2 = cir.load %0 : !cir.ptr<!cir.ptr<!struct_type>>, !cir.ptr<!struct_type>
-    %3 = cir.get_member %2[1] {name = "d"} : !cir.ptr<!struct_type> -> !cir.ptr<!u32i>
+    %2 = cir.load %0 : !cir.ptr<!cir.ptr<!record_type>>, !cir.ptr<!record_type>
+    %3 = cir.get_member %2[1] {name = "d"} : !cir.ptr<!record_type> -> !cir.ptr<!u32i>
     %4 = cir.get_bitfield(#bfi_d, %3 : !cir.ptr<!u32i>) -> !s32i
     ```
     }];
@@ -2829,7 +2829,7 @@ def GetBitfieldOp : CIR_Op<"get_bitfield"> {
 //===----------------------------------------------------------------------===//
 
 def GetMemberOp : CIR_Op<"get_member"> {
-  let summary = "Get the address of a member of a struct";
+  let summary = "Get the address of a member of a record";
   let description = [{
     The `cir.get_member` operation gets the address of a particular named
     member from the input record.
@@ -2839,13 +2839,13 @@ def GetMemberOp : CIR_Op<"get_member"> {
 
     Example:
     ```mlir
-    // Suppose we have a struct with multiple members.
+    // Suppose we have a record with multiple members.
     !s32i = !cir.int<s, 32>
     !s8i = !cir.int<s, 32>
-    !struct_ty = !cir.struct<"struct.Bar" {!s32i, !s8i}>
+    !record_ty = !cir.record<"struct.Bar" {!s32i, !s8i}>
 
     // Get the address of the member at index 1.
-    %1 = cir.get_member %0[1] {name = "i"} : (!cir.ptr<!struct_ty>) -> !cir.ptr<!s8i>
+    %1 = cir.get_member %0[1] {name = "i"} : (!cir.ptr<!record_ty>) -> !cir.ptr<!s8i>
     ```
   }];
 
@@ -2873,7 +2873,7 @@ def GetMemberOp : CIR_Op<"get_member"> {
   ];
 
   let extraClassDeclaration = [{
-    /// Return the index of the struct member being accessed.
+    /// Return the index of the record member being accessed.
     uint64_t getIndex() { return getIndexAttr().getZExtValue(); }
 
     /// Return the record type pointed by the base pointer.
@@ -2893,7 +2893,7 @@ def GetMemberOp : CIR_Op<"get_member"> {
 //===----------------------------------------------------------------------===//
 
 def ExtractMemberOp : CIR_Op<"extract_member", [Pure]> {
-  let summary = "Extract the value of a member of a struct value";
+  let summary = "Extract the value of a member of a record value";
   let description = [{
     The `cir.extract_member` operation extracts the value of a particular member
     from the input record. Unlike `cir.get_member` which derives pointers, this
@@ -2905,20 +2905,20 @@ def ExtractMemberOp : CIR_Op<"extract_member", [Pure]> {
     Example:
 
     ```mlir
-    // Suppose we have a struct with multiple members.
+    // Suppose we have a record with multiple members.
     !s32i = !cir.int<s, 32>
     !s8i = !cir.int<s, 32>
-    !struct_ty = !cir.struct<"struct.Bar" {!s32i, !s8i}>
+    !record_ty = !cir.record<"struct.Bar" {!s32i, !s8i}>
 
-    // And suppose we have a value of the struct type.
-    %0 = cir.const #cir.const_struct<{#cir.int<1> : !s32i, #cir.int<2> : !s8i}> : !struct_ty
+    // And suppose we have a value of the record type.
+    %0 = cir.const #cir.const_record<{#cir.int<1> : !s32i, #cir.int<2> : !s8i}> : !record_ty
 
-    // Extract the value of the second member of the struct.
-    %1 = cir.extract_member %0[1] : !struct_ty -> !s8i
+    // Extract the value of the second member of the record.
+    %1 = cir.extract_member %0[1] : !record_ty -> !s8i
     ```
   }];
 
-  let arguments = (ins CIRStructType:$record, IndexAttr:$index_attr);
+  let arguments = (ins CIRRecordType:$record, IndexAttr:$index_attr);
   let results = (outs CIR_AnyType:$result);
 
   let assemblyFormat = [{
@@ -2932,14 +2932,14 @@ def ExtractMemberOp : CIR_Op<"extract_member", [Pure]> {
       build($_builder, $_state, type, record, fieldIdx);
     }]>,
     OpBuilder<(ins "mlir::Value":$record, "uint64_t":$index), [{
-      auto recordTy = mlir::cast<cir::StructType>(record.getType());
+      auto recordTy = mlir::cast<cir::RecordType>(record.getType());
       mlir::Type memberTy = recordTy.getMembers()[index];
       build($_builder, $_state, memberTy, record, index);
     }]>
   ];
 
   let extraClassDeclaration = [{
-    /// Get the index of the struct member being accessed.
+    /// Get the index of the record member being accessed.
     uint64_t getIndex() { return getIndexAttr().getZExtValue(); }
   }];
 
@@ -2952,11 +2952,11 @@ def ExtractMemberOp : CIR_Op<"extract_member", [Pure]> {
 
 def InsertMemberOp : CIR_Op<"insert_member",
                             [Pure, AllTypesMatch<["record", "result"]>]> {
-  let summary = "Overwrite the value of a member of a struct value";
+  let summary = "Overwrite the value of a member of a record value";
   let description = [{
     The `cir.insert_member` operation overwrites the value of a particular
-    member in the input struct value, and returns the modified struct value. The
-    result of this operation is equal to the input struct value, except for the
+    member in the input record value, and returns the modified record value. The
+    result of this operation is equal to the input record value, except for the
     member specified by `index_attr` whose value is equal to the given value.
 
     This operation is named after the LLVM instruction `insertvalue`.
@@ -2966,25 +2966,25 @@ def InsertMemberOp : CIR_Op<"insert_member",
     Example:
 
     ```mlir
-    // Suppose we have a struct with multiple members.
+    // Suppose we have a record with multiple members.
     !s32i = !cir.int<s, 32>
     !s8i = !cir.int<s, 32>
-    !struct_ty = !cir.struct<"struct.Bar" {!s32i, !s8i}>
+    !record_ty = !cir.record<"struct.Bar" {!s32i, !s8i}>
 
-    // And suppose we have a value of the struct type.
-    %0 = cir.const #cir.const_struct<{#cir.int<1> : !s32i, #cir.int<2> : !s8i}> : !struct_ty
+    // And suppose we have a value of the record type.
+    %0 = cir.const #cir.const_record<{#cir.int<1> : !s32i, #cir.int<2> : !s8i}> : !record_ty
     // %0 is {1, 2}
 
-    // Overwrite the second member of the struct value.
+    // Overwrite the second member of the record value.
     %1 = cir.const #cir.int<3> : !s8i
-    %2 = cir.insert_member %0[1], %1 : !struct_ty, !s8i
+    %2 = cir.insert_member %0[1], %1 : !record_ty, !s8i
     // %2 is {1, 3}
     ```
   }];
 
-  let arguments = (ins CIRStructType:$record, IndexAttr:$index_attr,
+  let arguments = (ins CIRRecordType:$record, IndexAttr:$index_attr,
                        CIR_AnyType:$value);
-  let results = (outs CIRStructType:$result);
+  let results = (outs CIRRecordType:$result);
 
   let builders = [
     OpBuilder<(ins "mlir::Value":$record, "uint64_t":$index,
@@ -2995,7 +2995,7 @@ def InsertMemberOp : CIR_Op<"insert_member",
   ];
 
   let extraClassDeclaration = [{
-    /// Get the index of the struct member being accessed.
+    /// Get the index of the record member being accessed.
     uint64_t getIndex() { return getIndexAttr().getZExtValue(); }
   }];
 
@@ -3012,7 +3012,7 @@ def InsertMemberOp : CIR_Op<"insert_member",
 //===----------------------------------------------------------------------===//
 
 def GetRuntimeMemberOp : CIR_Op<"get_runtime_member"> {
-  let summary = "Get the address of a member of a struct";
+  let summary = "Get the address of a member of a record";
   let description = [{
     The `cir.get_runtime_member` operation gets the address of a member from
     the input record. The target member is given by a value of type
@@ -3051,7 +3051,7 @@ def GetRuntimeMemberOp : CIR_Op<"get_runtime_member"> {
   }];
 
   let arguments = (ins
-    Arg<StructPtr, "address of the struct object", [MemRead]>:$addr,
+    Arg<RecordPtr, "address of the record object", [MemRead]>:$addr,
     Arg<CIR_DataMemberType, "pointer to the target member">:$member);
 
   let results = (outs Res<CIR_PointerType, "">:$result);
@@ -3105,7 +3105,7 @@ def GetMethodOp : CIR_Op<"get_method"> {
       method.
   }];
 
-  let arguments = (ins CIR_MethodType:$method, StructPtr:$object);
+  let arguments = (ins CIR_MethodType:$method, RecordPtr:$object);
   let results = (outs FuncPtr:$callee, VoidPtr:$adjusted_this);
 
   let assemblyFormat = [{
@@ -4417,8 +4417,8 @@ def CopyOp : CIR_Op<"copy",
     Examples:
 
     ```mlir
-      // Copying contents from one struct to another:
-      cir.copy %0 to %1 : !cir.ptr<!struct_ty>
+      // Copying contents from one record to another:
+      cir.copy %0 to %1 : !cir.ptr<!record_ty>
     ```
   }];
 
@@ -4463,9 +4463,9 @@ def MemCpyOp : CIR_MemOp<"libc.memcpy"> {
     Examples:
 
     ```mlir
-      // Copying 2 bytes from one array to a struct:
+      // Copying 2 bytes from one array to a record:
       %2 = cir.const #cir.int<2> : !u32i
-      cir.libc.memcpy %2 bytes from %arr to %struct : !cir.ptr<!arr> -> !cir.ptr<!struct>
+      cir.libc.memcpy %2 bytes from %arr to %record : !cir.ptr<!arr> -> !cir.ptr<!record>
     ```
   }];
 
@@ -4493,9 +4493,9 @@ def MemMoveOp : CIR_MemOp<"libc.memmove"> {
     Examples:
 
     ```mlir
-      // Copying 2 bytes from one array to a struct:
+      // Copying 2 bytes from one array to a record:
       %2 = cir.const #cir.int<2> : !u32i
-      cir.libc.memmove %2 bytes from %arr to %struct : !cir.ptr<!void>, !u64i
+      cir.libc.memmove %2 bytes from %arr to %record : !cir.ptr<!void>, !u64i
     ```
   }];
 
@@ -4529,8 +4529,8 @@ def MemCpyInlineOp : CIR_MemOp<"memcpy_inline"> {
     Examples:
 
     ```mlir
-      // Copying 2 bytes from one array to a struct:
-      cir.memcpy_inline 2 bytes from %arr to %struct : !cir.ptr<!arr> -> !cir.ptr<!struct>
+      // Copying 2 bytes from one array to a record:
+      cir.memcpy_inline 2 bytes from %arr to %record : !cir.ptr<!arr> -> !cir.ptr<!record>
     ```
   }];
 
@@ -4558,11 +4558,11 @@ def MemSetOp : CIR_Op<"libc.memset"> {
     Examples:
 
     ```mlir
-      // Set 2 bytes from a struct to 0:
+      // Set 2 bytes from a record to 0:
       %2 = cir.const #cir.int<2> : !u32i
       %3 = cir.const #cir.int<0> : !u32i
       %zero = cir.cast(integral, %3 : !s32i), !u8i
-      cir.libc.memset %2 bytes from %struct set to %zero : !cir.ptr<!void>, !s32i, !u64i
+      cir.libc.memset %2 bytes from %record set to %zero : !cir.ptr<!void>, !s32i, !u64i
     ```
   }];
 
@@ -4593,8 +4593,8 @@ def MemSetInlineOp : CIR_Op<"memset_inline"> {
     Examples:
 
     ```mlir
-      // Set 2 bytes from a struct to 0
-      cir.memset_inline 2 bytes from %struct set to %zero : !cir.ptr<!void>, !s32i
+      // Set 2 bytes from a record to 0
+      cir.memset_inline 2 bytes from %record set to %zero : !cir.ptr<!void>, !s32i
     ```
   }];
 
@@ -5039,11 +5039,11 @@ def FreeExceptionOp : CIR_Op<"free.exception"> {
     Example:
 
     ```mlir
-    %0 = cir.alloc.exception 16 -> !cir.ptr<!some_struct>
-    %1 = cir.get_global @d2 : !cir.ptr<!some_struct>
+    %0 = cir.alloc.exception 16 -> !cir.ptr<!some_record>
+    %1 = cir.get_global @d2 : !cir.ptr<!some_record>
     cir.try synthetic cleanup {
-      cir.call exception @_ZN7test2_DC1ERKS_(%0, %1) : (!cir.ptr<!some_struct>, !cir.ptr<!some_struct>) -> () cleanup {
-        %2 = cir.cast(bitcast, %0 : !cir.ptr<!some_struct>), !cir.ptr<!void>
+      cir.call exception @_ZN7test2_DC1ERKS_(%0, %1) : (!cir.ptr<!some_record>, !cir.ptr<!some_record>) -> () cleanup {
+        %2 = cir.cast(bitcast, %0 : !cir.ptr<!some_record>), !cir.ptr<!void>
         cir.free.exception %2
         cir.yield
       }
@@ -5180,7 +5180,7 @@ def CIR_InlineAsmOp : CIR_Op<"asm", [RecursiveMemoryEffects]> {
     output, input and then in/out operands.
 
     Note, when several output operands are present, the result type may be represented as
-    an anon struct type.
+    an anon record type.
 
     Example:
     ```C++
@@ -5190,8 +5190,8 @@ def CIR_InlineAsmOp : CIR_Op<"asm", [RecursiveMemoryEffects]> {
     ```
 
     ```mlir
-    !ty_22anon2E022 = !cir.struct<struct "anon.0" {!cir.int<s, 32>, !cir.int<s, 32>}>
-    !ty_22anon2E122 = !cir.struct<struct "anon.1" {!cir.int<s, 32>, !cir.int<s, 32>}>
+    !ty_22anon2E022 = !cir.record<struct "anon.0" {!cir.int<s, 32>, !cir.int<s, 32>}>
+    !ty_22anon2E122 = !cir.record<struct "anon.1" {!cir.int<s, 32>, !cir.int<s, 32>}>
     ...
     %0 = cir.alloca !s32i, !cir.ptr<!s32i>, ["x", init]
     %1 = cir.alloca !s32i, !cir.ptr<!s32i>, ["y", init]
@@ -5569,7 +5569,7 @@ def AtomicXchg : CIR_Op<"atomic.xchg", [AllTypesMatch<["result", "val"]>]> {
     `__atomic_exchange`and `__atomic_exchange_n`.
 
     Example:
-    %res = cir.atomic.xchg(%ptr : !cir.ptr<!some_struct>,
+    %res = cir.atomic.xchg(%ptr : !cir.ptr<!some_record>,
                            %val : !u64i, seq_cst) : !u64i
   }];
   let results = (outs CIR_AnyType:$result);
@@ -5610,7 +5610,7 @@ def AtomicCmpXchg : CIR_Op<"atomic.cmp_xchg",
     `__atomic_compare_exchange_n` and `__atomic_compare_exchange`.
 
     Example:
-    %old, %cmp = cir.atomic.cmp_xchg(%ptr : !cir.ptr<!some_struct>,
+    %old, %cmp = cir.atomic.cmp_xchg(%ptr : !cir.ptr<!some_record>,
                                      %expected : !u64i,
                                      %desired : !u64i,
                                      success = seq_cst,

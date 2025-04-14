@@ -91,7 +91,7 @@ struct ConstantAggregateBuilderUtils {
   }
 };
 
-/// Incremental builder for an mlir::TypedAttr holding a struct or array
+/// Incremental builder for an mlir::TypedAttr holding a record or array
 /// constant.
 class ConstantAggregateBuilder : private ConstantAggregateBuilderUtils {
   /// The elements of the constant. These two arrays must have the same size;
@@ -372,7 +372,7 @@ mlir::Attribute ConstantAggregateBuilder::buildFrom(
     DesiredSize = Size;
   }
 
-  // The natural alignment of an unpacked CIR struct with the given elements.
+  // The natural alignment of an unpacked CIR record with the given elements.
   CharUnits Align = CharUnits::One();
   for (auto e : Elems) {
     // FIXME(cir): migrate most of this file to use mlir::TypedAttr directly.
@@ -402,7 +402,7 @@ mlir::Attribute ConstantAggregateBuilder::buildFrom(
 
   // If we don't have a natural layout, insert padding as necessary.
   // As we go, double-check to see if we can actually just emit Elems
-  // as a non-packed struct and do so opportunistically if possible.
+  // as a non-packed record and do so opportunistically if possible.
   llvm::SmallVector<mlir::Attribute, 32> PackedElems;
   if (!NaturalLayout) {
     CharUnits SizeSoFar = CharUnits::Zero();
@@ -437,12 +437,12 @@ mlir::Attribute ConstantAggregateBuilder::buildFrom(
   auto arrAttr = mlir::ArrayAttr::get(builder.getContext(),
                                       Packed ? PackedElems : UnpackedElems);
 
-  auto strType = builder.getCompleteStructType(arrAttr, Packed);
-  if (auto desired = dyn_cast<cir::StructType>(DesiredTy))
+  auto strType = builder.getCompleteRecordType(arrAttr, Packed);
+  if (auto desired = dyn_cast<cir::RecordType>(DesiredTy))
     if (desired.isLayoutIdentical(strType))
       strType = desired;
 
-  return builder.getConstStructOrZeroAttr(arrAttr, Packed, Padded, strType);
+  return builder.getConstRecordOrZeroAttr(arrAttr, Packed, Padded, strType);
 }
 
 void ConstantAggregateBuilder::condense(CharUnits Offset,
@@ -467,7 +467,7 @@ void ConstantAggregateBuilder::condense(CharUnits Offset,
   mlir::TypedAttr C = mlir::dyn_cast<mlir::TypedAttr>(Elems[First]);
   assert(C && "expected typed attribute");
   if (Length == 1 && Offsets[First] == Offset && getSize(C) == Size) {
-    // Re-wrap single element structs if necessary. Otherwise, leave any single
+    // Re-wrap single element records if necessary. Otherwise, leave any single
     // element constant of the right size alone even if it has the wrong type.
     llvm_unreachable("NYI");
   }
@@ -481,26 +481,26 @@ void ConstantAggregateBuilder::condense(CharUnits Offset,
 }
 
 //===----------------------------------------------------------------------===//
-//                            ConstStructBuilder
+//                            ConstRecordBuilder
 //===----------------------------------------------------------------------===//
 
-class ConstStructBuilder {
+class ConstRecordBuilder {
   CIRGenModule &CGM;
   ConstantEmitter &Emitter;
   ConstantAggregateBuilder &Builder;
   CharUnits StartOffset;
 
 public:
-  static mlir::Attribute BuildStruct(ConstantEmitter &Emitter,
-                                     InitListExpr *ILE, QualType StructTy);
-  static mlir::Attribute BuildStruct(ConstantEmitter &Emitter,
+  static mlir::Attribute BuildRecord(ConstantEmitter &Emitter,
+                                     InitListExpr *ILE, QualType RecordTy);
+  static mlir::Attribute BuildRecord(ConstantEmitter &Emitter,
                                      const APValue &Value, QualType ValTy);
-  static bool UpdateStruct(ConstantEmitter &Emitter,
+  static bool UpdateRecord(ConstantEmitter &Emitter,
                            ConstantAggregateBuilder &Const, CharUnits Offset,
                            InitListExpr *Updater);
 
 private:
-  ConstStructBuilder(ConstantEmitter &Emitter,
+  ConstRecordBuilder(ConstantEmitter &Emitter,
                      ConstantAggregateBuilder &Builder, CharUnits StartOffset)
       : CGM(Emitter.CGM), Emitter(Emitter), Builder(Builder),
         StartOffset(StartOffset) {}
@@ -528,7 +528,7 @@ private:
   mlir::Attribute Finalize(QualType Ty);
 };
 
-bool ConstStructBuilder::AppendField(const FieldDecl *Field,
+bool ConstRecordBuilder::AppendField(const FieldDecl *Field,
                                      uint64_t FieldOffset,
                                      mlir::Attribute InitCst,
                                      bool AllowOverwrite) {
@@ -539,13 +539,13 @@ bool ConstStructBuilder::AppendField(const FieldDecl *Field,
   return AppendBytes(FieldOffsetInChars, InitCst, AllowOverwrite);
 }
 
-bool ConstStructBuilder::AppendBytes(CharUnits FieldOffsetInChars,
+bool ConstRecordBuilder::AppendBytes(CharUnits FieldOffsetInChars,
                                      mlir::Attribute InitCst,
                                      bool AllowOverwrite) {
   return Builder.add(InitCst, StartOffset + FieldOffsetInChars, AllowOverwrite);
 }
 
-bool ConstStructBuilder::AppendBitField(const FieldDecl *Field,
+bool ConstRecordBuilder::AppendBitField(const FieldDecl *Field,
                                         uint64_t FieldOffset, cir::IntAttr CI,
                                         bool AllowOverwrite) {
   const auto &RL = CGM.getTypes().getCIRGenRecordLayout(Field->getParent());
@@ -573,7 +573,7 @@ static bool EmitDesignatedInitUpdater(ConstantEmitter &Emitter,
                                       CharUnits Offset, QualType Type,
                                       InitListExpr *Updater) {
   if (Type->isRecordType())
-    return ConstStructBuilder::UpdateStruct(Emitter, Const, Offset, Updater);
+    return ConstRecordBuilder::UpdateRecord(Emitter, Const, Offset, Updater);
 
   auto CAT = Emitter.CGM.getASTContext().getAsConstantArrayType(Type);
   if (!CAT)
@@ -617,8 +617,8 @@ static bool EmitDesignatedInitUpdater(ConstantEmitter &Emitter,
   return true;
 }
 
-bool ConstStructBuilder::Build(InitListExpr *ILE, bool AllowOverwrite) {
-  RecordDecl *RD = ILE->getType()->castAs<RecordType>()->getDecl();
+bool ConstRecordBuilder::Build(InitListExpr *ILE, bool AllowOverwrite) {
+  RecordDecl *RD = ILE->getType()->castAs<clang::RecordType>()->getDecl();
   const ASTRecordLayout &Layout = CGM.getASTContext().getASTRecordLayout(RD);
 
   unsigned FieldNo = -1;
@@ -647,7 +647,7 @@ bool ConstStructBuilder::Build(InitListExpr *ILE, bool AllowOverwrite) {
     if (Field->isUnnamedBitField())
       continue;
 
-    // Get the initializer.  A struct can include fields without initializers,
+    // Get the initializer.  A record can include fields without initializers,
     // we just use explicit null values for them.
     Expr *Init = nullptr;
     if (ElementNo < ILE->getNumInits())
@@ -656,7 +656,7 @@ bool ConstStructBuilder::Build(InitListExpr *ILE, bool AllowOverwrite) {
       continue;
 
     // Zero-sized fields are not emitted, but their initializers may still
-    // prevent emission of this struct as a constant.
+    // prevent emission of this record as a constant.
     if (Field->isZeroSize(CGM.getASTContext())) {
       if (Init->HasSideEffects(CGM.getASTContext()))
         return false;
@@ -739,7 +739,7 @@ struct BaseInfo {
 };
 } // namespace
 
-bool ConstStructBuilder::Build(const APValue &Val, const RecordDecl *RD,
+bool ConstRecordBuilder::Build(const APValue &Val, const RecordDecl *RD,
                                bool IsPrimaryBase,
                                const CXXRecordDecl *VTableClass,
                                CharUnits Offset) {
@@ -828,7 +828,7 @@ bool ConstStructBuilder::Build(const APValue &Val, const RecordDecl *RD,
   return true;
 }
 
-bool ConstStructBuilder::ApplyZeroInitPadding(
+bool ConstRecordBuilder::ApplyZeroInitPadding(
     const ASTRecordLayout &Layout, unsigned FieldNo, const FieldDecl &Field,
     bool AllowOverwrite, CharUnits &SizeSoFar, bool &ZeroFieldSize) {
 
@@ -860,7 +860,7 @@ bool ConstStructBuilder::ApplyZeroInitPadding(
   return true;
 }
 
-bool ConstStructBuilder::ApplyZeroInitPadding(const ASTRecordLayout &Layout,
+bool ConstRecordBuilder::ApplyZeroInitPadding(const ASTRecordLayout &Layout,
                                               bool AllowOverwrite,
                                               CharUnits SizeSoFar) {
   CharUnits TotalSize = Layout.getSize();
@@ -873,18 +873,18 @@ bool ConstStructBuilder::ApplyZeroInitPadding(const ASTRecordLayout &Layout,
   return true;
 }
 
-mlir::Attribute ConstStructBuilder::Finalize(QualType Type) {
+mlir::Attribute ConstRecordBuilder::Finalize(QualType Type) {
   Type = Type.getNonReferenceType();
-  RecordDecl *RD = Type->castAs<RecordType>()->getDecl();
+  RecordDecl *RD = Type->castAs<clang::RecordType>()->getDecl();
   mlir::Type ValTy = CGM.convertType(Type);
   return Builder.build(ValTy, RD->hasFlexibleArrayMember());
 }
 
-mlir::Attribute ConstStructBuilder::BuildStruct(ConstantEmitter &Emitter,
+mlir::Attribute ConstRecordBuilder::BuildRecord(ConstantEmitter &Emitter,
                                                 InitListExpr *ILE,
                                                 QualType ValTy) {
   ConstantAggregateBuilder Const(Emitter.CGM);
-  ConstStructBuilder Builder(Emitter, Const, CharUnits::Zero());
+  ConstRecordBuilder Builder(Emitter, Const, CharUnits::Zero());
 
   if (!Builder.Build(ILE, /*AllowOverwrite*/ false))
     return nullptr;
@@ -892,13 +892,13 @@ mlir::Attribute ConstStructBuilder::BuildStruct(ConstantEmitter &Emitter,
   return Builder.Finalize(ValTy);
 }
 
-mlir::Attribute ConstStructBuilder::BuildStruct(ConstantEmitter &Emitter,
+mlir::Attribute ConstRecordBuilder::BuildRecord(ConstantEmitter &Emitter,
                                                 const APValue &Val,
                                                 QualType ValTy) {
   ConstantAggregateBuilder Const(Emitter.CGM);
-  ConstStructBuilder Builder(Emitter, Const, CharUnits::Zero());
+  ConstRecordBuilder Builder(Emitter, Const, CharUnits::Zero());
 
-  const RecordDecl *RD = ValTy->castAs<RecordType>()->getDecl();
+  const RecordDecl *RD = ValTy->castAs<clang::RecordType>()->getDecl();
   const CXXRecordDecl *CD = dyn_cast<CXXRecordDecl>(RD);
   if (!Builder.Build(Val, RD, false, CD, CharUnits::Zero()))
     return nullptr;
@@ -906,10 +906,10 @@ mlir::Attribute ConstStructBuilder::BuildStruct(ConstantEmitter &Emitter,
   return Builder.Finalize(ValTy);
 }
 
-bool ConstStructBuilder::UpdateStruct(ConstantEmitter &Emitter,
+bool ConstRecordBuilder::UpdateRecord(ConstantEmitter &Emitter,
                                       ConstantAggregateBuilder &Const,
                                       CharUnits Offset, InitListExpr *Updater) {
-  return ConstStructBuilder(Emitter, Const, Offset)
+  return ConstRecordBuilder(Emitter, Const, Offset)
       .Build(Updater, /*AllowOverwrite*/ true);
 }
 
@@ -1140,12 +1140,12 @@ public:
       if (!desiredArrayType)
         return false;
 
-      auto elementStructType =
-          dyn_cast<cir::StructType>(desiredArrayType.getEltType());
-      if (!elementStructType)
+      auto elementRecordType =
+          dyn_cast<cir::RecordType>(desiredArrayType.getEltType());
+      if (!elementRecordType)
         return false;
 
-      return elementStructType.isUnion();
+      return elementRecordType.isUnion();
     }();
 
     // Emit initializer elements as MLIR attributes and check for common type.
@@ -1171,7 +1171,7 @@ public:
   }
 
   mlir::Attribute EmitRecordInitialization(InitListExpr *ILE, QualType T) {
-    return ConstStructBuilder::BuildStruct(Emitter, ILE, T);
+    return ConstRecordBuilder::BuildRecord(Emitter, ILE, T);
   }
 
   mlir::Attribute EmitVectorInitialization(InitListExpr *ILE, QualType T) {
@@ -1306,7 +1306,7 @@ emitArrayConstant(CIRGenModule &CGM, mlir::Type DesiredType,
         cir::ArrayType::get(builder.getContext(), CommonElementType,
                             ArrayBound));
     // TODO(cir): If all the elements had the same type up to the trailing
-    // zeroes, emit a struct of two arrays (the nonzero data and the
+    // zeroes, emit a record of two arrays (the nonzero data and the
     // zeroinitializer). Use DesiredType to get the element type.
   } else if (Elements.size() != ArrayBound) {
     // Otherwise pad to the right size with the filler if necessary.
@@ -1334,7 +1334,7 @@ emitArrayConstant(CIRGenModule &CGM, mlir::Type DesiredType,
     Eles.push_back(Element);
 
   auto arrAttr = mlir::ArrayAttr::get(builder.getContext(), Eles);
-  return builder.getAnonConstStruct(arrAttr, false);
+  return builder.getAnonConstRecord(arrAttr, false);
 }
 
 } // end anonymous namespace.
@@ -1835,7 +1835,7 @@ mlir::Attribute ConstantEmitter::emitForMemory(CIRGenModule &CGM,
                             (outerSize - innerSize) / 8));
     SmallVector<mlir::Attribute, 4> anonElts = {C, zeroArray};
     auto arrAttr = mlir::ArrayAttr::get(builder.getContext(), anonElts);
-    return builder.getAnonConstStruct(arrAttr, false);
+    return builder.getAnonConstRecord(arrAttr, false);
   }
 
   // Zero-extend bool.
@@ -1992,7 +1992,7 @@ mlir::Attribute ConstantEmitter::tryEmitPrivate(const APValue &Value,
     return ConstantLValueEmitter(*this, Value, DestType).tryEmit();
   case APValue::Struct:
   case APValue::Union:
-    return ConstStructBuilder::BuildStruct(*this, Value, DestType);
+    return ConstRecordBuilder::BuildRecord(*this, Value, DestType);
   case APValue::FixedPoint:
   case APValue::ComplexInt:
   case APValue::ComplexFloat:
@@ -2015,7 +2015,7 @@ mlir::Value CIRGenModule::emitNullConstant(QualType T, mlir::Location loc) {
     llvm_unreachable("NYI");
   }
 
-  if (const RecordType *RT = T->getAs<RecordType>())
+  if (const clang::RecordType *RT = T->getAs<clang::RecordType>())
     llvm_unreachable("NYI");
 
   assert(T->isMemberDataPointerType() &&
@@ -2086,20 +2086,18 @@ mlir::Attribute ConstantEmitter::emitNullForMemory(mlir::Location loc,
   return emitForMemory(CGM, cstOp.getValue(), T);
 }
 
-static mlir::TypedAttr emitNullConstant(CIRGenModule &CGM,
-                                        const RecordDecl *record,
+static mlir::TypedAttr emitNullConstant(CIRGenModule &CGM, const RecordDecl *rd,
                                         bool asCompleteObject) {
-  const CIRGenRecordLayout &layout =
-      CGM.getTypes().getCIRGenRecordLayout(record);
+  const CIRGenRecordLayout &layout = CGM.getTypes().getCIRGenRecordLayout(rd);
   mlir::Type ty = (asCompleteObject ? layout.getCIRType()
                                     : layout.getBaseSubobjectCIRType());
-  auto structure = dyn_cast<cir::StructType>(ty);
-  assert(structure && "expected");
+  auto record = dyn_cast<cir::RecordType>(ty);
+  assert(record && "expected");
 
-  unsigned numElements = structure.getNumElements();
+  unsigned numElements = record.getNumElements();
   SmallVector<mlir::Attribute, 4> elements(numElements);
 
-  auto CXXR = dyn_cast<CXXRecordDecl>(record);
+  auto CXXR = dyn_cast<CXXRecordDecl>(rd);
   // Fill in all the bases.
   if (CXXR) {
     for (const auto &I : CXXR->bases()) {
@@ -2113,7 +2111,7 @@ static mlir::TypedAttr emitNullConstant(CIRGenModule &CGM,
   }
 
   // Fill in all the fields.
-  for (const auto *Field : record->fields()) {
+  for (const auto *Field : rd->fields()) {
     // Fill in non-bitfields. (Bitfields always use a zero pattern, which we
     // will fill in later.)
     if (!Field->isBitField()) {
@@ -2122,7 +2120,7 @@ static mlir::TypedAttr emitNullConstant(CIRGenModule &CGM,
     }
 
     // For unions, stop after the first named field.
-    if (record->isUnion()) {
+    if (rd->isUnion()) {
       if (Field->getIdentifier())
         break;
       if (const auto *FieldRD = Field->getType()->getAsRecordDecl())
@@ -2145,8 +2143,8 @@ static mlir::TypedAttr emitNullConstant(CIRGenModule &CGM,
     }
   }
 
-  mlir::MLIRContext *mlirContext = structure.getContext();
-  return cir::ConstStructAttr::get(mlirContext, structure,
+  mlir::MLIRContext *mlirContext = record.getContext();
+  return cir::ConstRecordAttr::get(mlirContext, record,
                                    mlir::ArrayAttr::get(mlirContext, elements));
 }
 

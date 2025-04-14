@@ -293,7 +293,7 @@ void CIRRecordLowering::lower(bool nonVirtualBaseType) {
 
   llvm::stable_sort(members);
   // TODO: implement clipTailPadding once bitfields are implemented
-  // TODO: implemented packed structs
+  // TODO: implemented packed records
   // TODO: implement padding
   // TODO: support zeroInit
 
@@ -694,13 +694,13 @@ void CIRRecordLowering::insertPadding() {
 }
 
 std::unique_ptr<CIRGenRecordLayout>
-CIRGenTypes::computeRecordLayout(const RecordDecl *D, cir::StructType *Ty) {
+CIRGenTypes::computeRecordLayout(const RecordDecl *D, cir::RecordType *Ty) {
   CIRRecordLowering builder(*this, D, /*packed=*/false);
   assert(Ty->isIncomplete() && "recomputing record layout?");
   builder.lower(/*nonVirtualBaseType=*/false);
 
   // If we're in C++, compute the base subobject type.
-  cir::StructType BaseTy;
+  cir::RecordType BaseTy;
   if (llvm::isa<CXXRecordDecl>(D) && !D->isUnion() &&
       !D->hasAttr<FinalAttr>()) {
     BaseTy = *Ty;
@@ -709,7 +709,7 @@ CIRGenTypes::computeRecordLayout(const RecordDecl *D, cir::StructType *Ty) {
       CIRRecordLowering baseBuilder(*this, D, /*Packed=*/builder.isPacked);
       baseBuilder.lower(/*NonVirtualBaseType=*/true);
       auto baseIdentifier = getRecordTypeName(D, ".base");
-      BaseTy = Builder.getCompleteStructTy(baseBuilder.fieldTypes,
+      BaseTy = Builder.getCompleteRecordTy(baseBuilder.fieldTypes,
                                            baseIdentifier, baseBuilder.isPacked,
                                            baseBuilder.isPadded, D);
       // TODO(cir): add something like addRecordTypeName
@@ -721,14 +721,14 @@ CIRGenTypes::computeRecordLayout(const RecordDecl *D, cir::StructType *Ty) {
     }
   }
 
-  // Fill in the struct *after* computing the base type.  Filling in the body
+  // Fill in the record *after* computing the base type.  Filling in the body
   // signifies that the type is no longer opaque and record layout is complete,
   // but we may need to recursively layout D while laying D out as a base type.
   auto astAttr = cir::ASTRecordDeclAttr::get(Ty->getContext(), D);
   Ty->complete(builder.fieldTypes, builder.isPacked, builder.isPadded, astAttr);
 
   auto RL = std::make_unique<CIRGenRecordLayout>(
-      Ty ? *Ty : cir::StructType{}, BaseTy ? BaseTy : cir::StructType{},
+      Ty ? *Ty : cir::RecordType{}, BaseTy ? BaseTy : cir::RecordType{},
       (bool)builder.IsZeroInitializable,
       (bool)builder.IsZeroInitializableAsBase);
 

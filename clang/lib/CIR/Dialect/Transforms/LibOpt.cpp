@@ -91,7 +91,7 @@ static bool isSequentialContainer(mlir::Type t) {
   return isStdArrayType(t);
 }
 
-static bool getIntegralNTTPAt(StructType t, size_t pos, unsigned &size) {
+static bool getIntegralNTTPAt(RecordType t, size_t pos, unsigned &size) {
   auto *d =
       dyn_cast<clang::ClassTemplateSpecializationDecl>(t.getAst().getRawDecl());
   if (!d)
@@ -109,7 +109,7 @@ static bool getIntegralNTTPAt(StructType t, size_t pos, unsigned &size) {
   return true;
 }
 
-static bool containerHasStaticSize(StructType t, unsigned &size) {
+static bool containerHasStaticSize(RecordType t, unsigned &size) {
   // TODO: add others.
   if (!isStdArrayType(t))
     return false;
@@ -179,7 +179,7 @@ void LibOptPass::xformStdFindIntoMemchr(StdFindOp findOp) {
       // Look at this pointer to retrieve container information.
       auto thisPtr =
           cast<PointerType>(iterBegin.getOperand().getType()).getPointee();
-      auto containerTy = dyn_cast<StructType>(thisPtr);
+      auto containerTy = dyn_cast<RecordType>(thisPtr);
 
       unsigned staticSize = 0;
       if (containerTy && isSequentialContainer(containerTy) &&
