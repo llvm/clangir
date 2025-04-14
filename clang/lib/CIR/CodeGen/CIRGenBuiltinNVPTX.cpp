@@ -87,12 +87,12 @@ mlir::Value packArgsIntoNVPTXFormatBuffer(CIRGenFunction &cgf,
   for (auto arg : llvm::drop_begin(args))
     argTypes.push_back(arg.getRValue(cgf, loc).getScalarVal().getType());
 
-  // We can directly store the arguments into a struct, and the alignment
+  // We can directly store the arguments into a record, and the alignment
   // would automatically be correct. That's because vprintf does not
   // accept aggregates.
   mlir::Type allocaTy =
-      cir::StructType::get(&cgf.getMLIRContext(), argTypes, /*packed=*/false,
-                           /*padded=*/false, StructType::Struct);
+      cir::RecordType::get(&cgf.getMLIRContext(), argTypes, /*packed=*/false,
+                           /*padded=*/false, cir::RecordType::Struct);
   mlir::Value alloca =
       cgf.CreateTempAlloca(allocaTy, loc, "printf_args", nullptr);
 

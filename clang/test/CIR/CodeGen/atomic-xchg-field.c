@@ -22,7 +22,7 @@ void field_access(wPtr item) {
   __atomic_exchange_n((&item->ref), (((void*)0)), 5);
 }
 
-// CHECK: ![[W:.*]] = !cir.struct<struct "w"
+// CHECK: ![[W:.*]] = !cir.record<struct "w"
 // CHECK-LABEL: @field_access
 // CHECK-NEXT: %[[WADDR:.*]] = cir.alloca !cir.ptr<![[W]]>, {{.*}} {alignment = 8 : i64}
 // CHECK: %[[FIELD:.*]] = cir.load %[[WADDR]]

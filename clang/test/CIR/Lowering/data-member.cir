@@ -3,7 +3,7 @@
 
 !s32i = !cir.int<s, 32>
 !s64i = !cir.int<s, 64>
-!structT = !cir.struct<struct "Point" {!cir.int<s, 32>, !cir.int<s, 32>, !cir.int<s, 32>}>
+!structT = !cir.record<struct "Point" {!cir.int<s, 32>, !cir.int<s, 32>, !cir.int<s, 32>}>
 
 module @test attributes {
   cir.triple = "x86_64-unknown-linux-gnu",

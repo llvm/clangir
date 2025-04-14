@@ -22,7 +22,7 @@
 
 namespace cir {
 
-class StructLayout;
+class RecordLayout;
 
 // FIXME(cir): This might be replaced by a CIRDataLayout interface which can
 // provide the same functionalities.
@@ -31,9 +31,9 @@ class CIRDataLayout {
 
   /// Primitive type alignment data. This is sorted by type and bit
   /// width during construction.
-  llvm::DataLayout::PrimitiveSpec StructAlignment;
+  llvm::DataLayout::PrimitiveSpec RecordAlignment;
 
-  // The StructType -> StructLayout map.
+  // The RecordType -> RecordLayout map.
   mutable void *LayoutMap = nullptr;
 
   TypeSizeInfoAttr typeSizeInfo;
@@ -52,11 +52,11 @@ public:
 
   bool isBigEndian() const { return bigEndian; }
 
-  /// Returns a StructLayout object, indicating the alignment of the
-  /// struct, its size, and the offsets of its fields.
+  /// Returns a RecordLayout object, indicating the alignment of the
+  /// record, its size, and the offsets of its fields.
   ///
   /// Note that this information is lazily cached.
-  const StructLayout *getStructLayout(cir::StructType Ty) const;
+  const RecordLayout *getRecordLayout(cir::RecordType Ty) const;
 
   /// Internal helper method that returns requested alignment for type.
   llvm::Align getAlignment(mlir::Type Ty, bool abiOrPref) const;
@@ -121,21 +121,21 @@ public:
 
 /// Used to lazily calculate structure layout information for a target machine,
 /// based on the DataLayout structure.
-class StructLayout final
-    : public llvm::TrailingObjects<StructLayout, llvm::TypeSize> {
-  llvm::TypeSize StructSize;
-  llvm::Align StructAlignment;
+class RecordLayout final
+    : public llvm::TrailingObjects<RecordLayout, llvm::TypeSize> {
+  llvm::TypeSize RecordSize;
+  llvm::Align RecordAlignment;
   unsigned IsPadded : 1;
   unsigned NumElements : 31;
 
 public:
-  llvm::TypeSize getSizeInBytes() const { return StructSize; }
+  llvm::TypeSize getSizeInBytes() const { return RecordSize; }
 
-  llvm::TypeSize getSizeInBits() const { return 8 * StructSize; }
+  llvm::TypeSize getSizeInBits() const { return 8 * RecordSize; }
 
-  llvm::Align getAlignment() const { return StructAlignment; }
+  llvm::Align getAlignment() const { return RecordAlignment; }
 
-  /// Returns whether the struct has padding or not between its fields.
+  /// Returns whether the record has padding or not between its fields.
   /// NB: Padding in nested element is not taken into account.
   bool hasPadding() const { return IsPadded; }
 
@@ -164,7 +164,7 @@ public:
 private:
   friend class CIRDataLayout; // Only DataLayout can create this class
 
-  StructLayout(cir::StructType ST, const CIRDataLayout &DL);
+  RecordLayout(cir::RecordType ST, const CIRDataLayout &DL);
 
   size_t numTrailingObjects(OverloadToken<llvm::TypeSize>) const {
     return NumElements;

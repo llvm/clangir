@@ -1068,13 +1068,13 @@ void LoweringPreparePass::buildCUDAModuleCtor() {
   fatbinStr.setSection(fatbinConstName);
   fatbinStr.setPrivate();
 
-  // Create a struct FatbinWrapper, pointing to the GPU binary.
-  // Struct layout:
+  // Create a record FatbinWrapper, pointing to the GPU binary.
+  // Record layout:
   //    struct { int magicNum; int version; void *fatbin; void *unused; };
   // This will be initialized in the module ctor below.
-  auto fatbinWrapperType = StructType::get(
+  auto fatbinWrapperType = RecordType::get(
       &getContext(), {intTy, intTy, voidPtrTy, voidPtrTy}, /*packed=*/false,
-      /*padded=*/false, StructType::RecordKind::Struct);
+      /*padded=*/false, RecordType::RecordKind::Struct);
 
   std::string fatbinWrapperName =
       addUnderscoredPrefix(cudaPrefix, "_fatbin_wrapper");
@@ -1090,7 +1090,7 @@ void LoweringPreparePass::buildCUDAModuleCtor() {
       mlir::FlatSymbolRefAttr::get(fatbinStr.getSymNameAttr());
   auto fatbinInit = GlobalViewAttr::get(voidPtrTy, fatbinStrSymbol);
   auto unusedInit = builder.getConstNullPtrAttr(voidPtrTy);
-  fatbinWrapper.setInitialValueAttr(cir::ConstStructAttr::get(
+  fatbinWrapper.setInitialValueAttr(cir::ConstRecordAttr::get(
       fatbinWrapperType,
       ArrayAttr::get(&getContext(),
                      {magicInit, versionInit, fatbinInit, unusedInit})));
@@ -1433,7 +1433,7 @@ void LoweringPreparePass::lowerToMemCpy(StoreOp op) {
   CIRBaseBuilderTy builder(getContext());
 
   // Create a global which is initialized with the attribute that is either a
-  // constant array or struct.
+  // constant array or record.
   assert(!cir::MissingFeatures::unnamedAddr() && "NYI");
   builder.setInsertionPointToStart(&theModule.getBodyRegion().front());
   std::string globalName =
@@ -1568,7 +1568,7 @@ void LoweringPreparePass::runOnOp(Operation *op) {
     lowerArrayDtor(arrayDtor);
   } else if (auto storeOp = dyn_cast<StoreOp>(op)) {
     mlir::Type valTy = storeOp.getValue().getType();
-    if (isa<cir::ArrayType>(valTy) || isa<cir::StructType>(valTy))
+    if (isa<cir::ArrayType>(valTy) || isa<cir::RecordType>(valTy))
       lowerToMemCpy(storeOp);
   } else if (auto fnOp = dyn_cast<cir::FuncOp>(op)) {
     if (auto globalCtor = fnOp.getGlobalCtorAttr()) {

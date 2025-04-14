@@ -53,7 +53,7 @@ static bool BitsContainNoUserData(mlir::Type Ty, unsigned StartBit,
     cir_cconv_unreachable("NYI");
   }
 
-  if (auto structTy = llvm::dyn_cast<StructType>(Ty)) {
+  if (auto recordTy = llvm::dyn_cast<RecordType>(Ty)) {
     const CIRRecordLayout &Layout = Context.getCIRRecordLayout(Ty);
 
     // If this is a C++ record, check the bases first.
@@ -64,10 +64,10 @@ static bool BitsContainNoUserData(mlir::Type Ty, unsigned StartBit,
 
     // Verify that no field has data that overlaps the region of interest. Yes
     // this could be sped up a lot by being smarter about queried fields,
-    // however we're only looking at structs up to 16 bytes, so we don't care
+    // however we're only looking at records up to 16 bytes, so we don't care
     // much.
     unsigned idx = 0;
-    for (auto type : structTy.getMembers()) {
+    for (auto type : recordTy.getMembers()) {
       unsigned FieldOffset = (unsigned)Layout.getFieldOffset(idx);
 
       // If we found a field after the region we care about, then we're done.
@@ -184,7 +184,7 @@ void X86_64ABIInfo::classify(mlir::Type Ty, uint64_t OffsetBase, Class &Lo,
       Current = Class::Integer;
     } else if (mlir::isa<PointerType>(Ty)) {
       Current = Class::Integer;
-    } else if (const auto RT = mlir::dyn_cast<StructType>(Ty)) {
+    } else if (const auto RT = mlir::dyn_cast<RecordType>(Ty)) {
       uint64_t Size = getContext().getTypeSize(Ty);
 
       // AMD64-ABI 3.2.3p2: Rule 1. If the size of an object is larger
@@ -233,7 +233,7 @@ void X86_64ABIInfo::classify(mlir::Type Ty, uint64_t OffsetBase, Class &Lo,
         // MEMORY.
         //
         // The only case a 256-bit or a 512-bit wide vector could be used is
-        // when the struct contains a single 256-bit or 512-bit element. Early
+        // when the record contains a single 256-bit or 512-bit element. Early
         // check and fallback to memory.
         //
         // FIXME: Extended the Lo and Hi logic properly to work for size wider
@@ -256,7 +256,7 @@ void X86_64ABIInfo::classify(mlir::Type Ty, uint64_t OffsetBase, Class &Lo,
         Class FieldLo, FieldHi;
 
         // Bit-fields require special handling, they do not force the
-        // structure to be passed in memory even if unaligned, and
+        // record to be passed in memory even if unaligned, and
         // therefore they can straddle an eightbyte.
         if (BitField) {
           cir_cconv_unreachable("NYI");
@@ -325,7 +325,7 @@ ABIArgInfo X86_64ABIInfo::getIndirectResult(mlir::Type ty,
   //
   // We currently expect it to be rare (particularly in well written code) for
   // arguments to be passed on the stack when there are still free integer
-  // registers available (this would typically imply large structs being passed
+  // registers available (this would typically imply large records being passed
   // by value), so this seems like a fair tradeoff for now.
   //
   // We can revisit this if the backend grows support for 'onstack' parameter
@@ -379,7 +379,7 @@ mlir::Type X86_64ABIInfo::GetSSETypeAtOffset(mlir::Type IRType,
 
 /// The ABI specifies that a value should be passed in an 8-byte GPR.  This
 /// means that we either have a scalar or we are talking about the high or low
-/// part of an up-to-16-byte struct.  This routine picks the best CIR type
+/// part of an up-to-16-byte record.  This routine picks the best CIR type
 /// to represent this, which may be i64 or may be anything else that the
 /// backend will pass in a GPR that works better (e.g. i8, %foo*, etc).
 ///
@@ -426,9 +426,9 @@ mlir::Type X86_64ABIInfo::GetINTEGERTypeAtOffset(mlir::Type DestTy,
     }
   }
 
-  if (auto RT = mlir::dyn_cast<StructType>(DestTy)) {
-    // If this is a struct, recurse into the field at the specified offset.
-    const cir::StructLayout *SL = getDataLayout().getStructLayout(RT);
+  if (auto RT = mlir::dyn_cast<RecordType>(DestTy)) {
+    // If this is a record, recurse into the field at the specified offset.
+    const cir::RecordLayout *SL = getDataLayout().getRecordLayout(RT);
     if (IROffset < SL->getSizeInBytes()) {
       unsigned FieldIdx = SL->getElementContainingOffset(IROffset);
       IROffset -= SL->getElementOffset(FieldIdx);
@@ -439,7 +439,7 @@ mlir::Type X86_64ABIInfo::GetINTEGERTypeAtOffset(mlir::Type DestTy,
   }
 
   // Okay, we don't have any better idea of what to pass, so we pass this in
-  // an integer register that isn't too big to fit the rest of the struct.
+  // an integer register that isn't too big to fit the rest of the record.
   unsigned TySizeInBytes =
       (unsigned)getContext().getTypeSizeInChars(SourceTy).getQuantity();
 
@@ -448,7 +448,7 @@ mlir::Type X86_64ABIInfo::GetINTEGERTypeAtOffset(mlir::Type DestTy,
     cir_cconv_assert(TySizeInBytes != SourceOffset && "Empty field?");
 
   // It is always safe to classify this as an integer type up to i64 that
-  // isn't larger than the structure.
+  // isn't larger than the record.
   // FIXME(cir): Perhaps we should have the concept of singless integers in
   // CIR, mostly because coerced types should carry sign. On the other hand,
   // this might not make a difference in practice. For now, we just preserve the
@@ -469,7 +469,7 @@ static mlir::Type GetX86_64ByValArgumentPair(mlir::Type lo, mlir::Type hi,
                                              const cir::CIRDataLayout &td) {
   // In order to correctly satisfy the ABI, we need to the high part to start
   // at offset 8.  If the high and low parts we inferred are both 4-byte types
-  // (e.g. i32 and i32) then the resultant struct type ({i32,i32}) won't have
+  // (e.g. i32 and i32) then the resultant record type ({i32,i32}) won't have
   // the second element at offset 8.  Check for this:
   unsigned loSize = (unsigned)td.getTypeAllocSize(lo);
   llvm::Align highAlign = td.getABITypeAlign(hi);
@@ -479,7 +479,7 @@ static mlir::Type GetX86_64ByValArgumentPair(mlir::Type lo, mlir::Type hi,
   // To handle this, we have to increase the size of the low part so that the
   // second element will start at an 8 byte offset.  We can't increase the size
   // of the second element because it might make us access off the end of the
-  // struct.
+  // record.
   if (highStart != 8) {
     // There are usually two sorts of types the ABI generation code can produce
     // for the low part of a pair that aren't 8 bytes in size: half, float or
@@ -496,11 +496,11 @@ static mlir::Type GetX86_64ByValArgumentPair(mlir::Type lo, mlir::Type hi,
     }
   }
 
-  auto result = StructType::get(lo.getContext(), {lo, hi}, /*packed=*/false,
-                                /*padded=*/false, StructType::Struct);
+  auto result = RecordType::get(lo.getContext(), {lo, hi}, /*packed=*/false,
+                                /*padded=*/false, RecordType::Struct);
 
   // Verify that the second element is at an 8-byte offset.
-  assert(td.getStructLayout(result)->getElementOffset(1) == 8 &&
+  assert(td.getRecordLayout(result)->getElementOffset(1) == 8 &&
          "Invalid x86-64 argument pair!");
   return result;
 }
@@ -569,7 +569,7 @@ cir::ABIArgInfo X86_64ABIInfo::classifyReturnType(mlir::Type RetTy) const {
 
   // If a high part was specified, merge it together with the low part.  It is
   // known to pass in the high eightbyte of the result.  We do this by forming
-  // a first class struct aggregate with the high and low part: {low, high}
+  // a first class record aggregate with the high and low part: {low, high}
   if (HighPart)
     resType = GetX86_64ByValArgumentPair(resType, HighPart, getDataLayout());
 
@@ -686,7 +686,7 @@ ABIArgInfo X86_64ABIInfo::classifyArgumentType(
 
   // If a high part was specified, merge it together with the low part.  It is
   // known to pass in the high eightbyte of the result.  We do this by forming a
-  // first class struct aggregate with the high and low part: {low, high}
+  // first class record aggregate with the high and low part: {low, high}
   if (HighPart)
     ResType = GetX86_64ByValArgumentPair(ResType, HighPart, getDataLayout());
 

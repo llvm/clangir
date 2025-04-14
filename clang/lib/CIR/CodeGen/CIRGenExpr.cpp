@@ -1666,7 +1666,7 @@ static bool isPreserveAIArrayBase(CIRGenFunction &CGF, const Expr *ArrayBase) {
 
     const auto *PointeeT =
         PtrT->getPointeeType()->getUnqualifiedDesugaredType();
-    if (const auto *RecT = dyn_cast<RecordType>(PointeeT))
+    if (const auto *RecT = dyn_cast<clang::RecordType>(PointeeT))
       return RecT->getDecl()->hasAttr<BPFPreserveAccessIndexAttr>();
     return false;
   }
@@ -2003,7 +2003,7 @@ LValue CIRGenFunction::emitCastLValue(const CastExpr *E) {
   case CK_UncheckedDerivedToBase:
   case CK_DerivedToBase: {
     const auto *DerivedClassTy =
-        E->getSubExpr()->getType()->castAs<RecordType>();
+        E->getSubExpr()->getType()->castAs<clang::RecordType>();
     auto *DerivedClassDecl = cast<CXXRecordDecl>(DerivedClassTy->getDecl());
 
     LValue LV = emitLValue(E->getSubExpr());
@@ -2259,8 +2259,9 @@ static void pushTemporaryCleanup(CIRGenFunction &CGF,
   }
 
   CXXDestructorDecl *ReferenceTemporaryDtor = nullptr;
-  if (const RecordType *RT =
-          E->getType()->getBaseElementTypeUnsafe()->getAs<RecordType>()) {
+  if (const clang::RecordType *RT = E->getType()
+                                        ->getBaseElementTypeUnsafe()
+                                        ->getAs<clang::RecordType>()) {
     // Get the destructor for the reference temporary.
     if (auto *ClassDecl = dyn_cast<CXXRecordDecl>(RT->getDecl())) {
       if (!ClassDecl->hasTrivialDestructor())
@@ -3143,7 +3144,7 @@ static bool isConstantEmittableObjectType(QualType type) {
 
   // Otherwise, all object types satisfy this except C++ classes with
   // mutable subobjects or non-trivial copy/destroy behavior.
-  if (const auto *RT = dyn_cast<RecordType>(type))
+  if (const auto *RT = dyn_cast<clang::RecordType>(type))
     if (const auto *RD = dyn_cast<CXXRecordDecl>(RT->getDecl()))
       if (RD->hasMutableFields() || !RD->isTrivial())
         return false;

@@ -5,7 +5,7 @@ struct Base {
   virtual ~Base();
 };
 
-// BEFORE: !ty_Base = !cir.struct<struct "Base"
+// BEFORE: !ty_Base = !cir.record<struct "Base"
 
 void *ptr_cast_to_complete(Base *ptr) {
   return dynamic_cast<void *>(ptr);

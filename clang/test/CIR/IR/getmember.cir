@@ -4,9 +4,9 @@
 !u16i = !cir.int<u, 16>
 !u32i = !cir.int<u, 32>
 
-!ty_Class = !cir.struct<class "Class" {!u16i, !u32i}>
-!ty_Incomplete = !cir.struct<struct "Incomplete" incomplete>
-!ty_Struct = !cir.struct<struct "Struct" {!u16i, !u32i}>
+!ty_Class = !cir.record<class "Class" {!u16i, !u32i}>
+!ty_Incomplete = !cir.record<struct "Incomplete" incomplete>
+!ty_Struct = !cir.record<struct "Struct" {!u16i, !u32i}>
 
 module  {
   cir.func @shouldGetStructMember(%arg0 : !cir.ptr<!ty_Struct>) {

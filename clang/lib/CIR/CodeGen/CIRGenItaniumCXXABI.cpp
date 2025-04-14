@@ -2133,7 +2133,7 @@ void CIRGenItaniumCXXABI::emitVTableDefinitions(CIRGenVTables &CGVT,
 
   // Create and set the initializer.
   ConstantInitBuilder builder(CGM);
-  auto components = builder.beginStruct();
+  auto components = builder.beginRecord();
 
   CGVT.createVTableInitializer(components, VTLayout, RTTI,
                                cir::isLocalLinkage(Linkage));

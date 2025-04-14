@@ -60,10 +60,10 @@ struct CIROpAsmDialectInterface : public OpAsmDialectInterface {
   using OpAsmDialectInterface::OpAsmDialectInterface;
 
   AliasResult getAlias(Type type, raw_ostream &os) const final {
-    if (auto structType = dyn_cast<cir::StructType>(type)) {
-      StringAttr nameAttr = structType.getName();
+    if (auto recordType = dyn_cast<cir::RecordType>(type)) {
+      StringAttr nameAttr = recordType.getName();
       if (!nameAttr)
-        os << "ty_anon_" << structType.getKindAsStr();
+        os << "ty_anon_" << recordType.getKindAsStr();
       else
         os << "ty_" << nameAttr.getValue();
       return AliasResult::OverridableAlias;
@@ -392,10 +392,10 @@ static LogicalResult checkConstantTypes(mlir::Operation *op, mlir::Type opType,
   }
 
   if (isa<cir::ZeroAttr>(attrType)) {
-    if (::mlir::isa<cir::StructType, cir::ArrayType, cir::ComplexType,
+    if (::mlir::isa<cir::RecordType, cir::ArrayType, cir::ComplexType,
                     cir::VectorType>(opType))
       return success();
-    return op->emitOpError("zero expects struct or array type");
+    return op->emitOpError("zero expects record or array type");
   }
 
   if (isa<cir::UndefAttr>(attrType)) {
@@ -437,7 +437,7 @@ static LogicalResult checkConstantTypes(mlir::Operation *op, mlir::Type opType,
       mlir::isa<cir::TypeInfoAttr>(attrType) ||
       mlir::isa<cir::ConstArrayAttr>(attrType) ||
       mlir::isa<cir::ConstVectorAttr>(attrType) ||
-      mlir::isa<cir::ConstStructAttr>(attrType) ||
+      mlir::isa<cir::ConstRecordAttr>(attrType) ||
       mlir::isa<cir::VTableAttr>(attrType))
     return success();
   if (mlir::isa<cir::IntAttr>(attrType))
@@ -551,8 +551,8 @@ LogicalResult cir::CastOp::verify() {
     return success();
   }
   case cir::CastKind::bitcast: {
-    // Allow bitcast of structs for calling conventions.
-    if (isa<StructType>(srcType) || isa<StructType>(resType))
+    // Allow bitcast of records for calling conventions.
+    if (isa<RecordType>(srcType) || isa<RecordType>(resType))
       return success();
 
     // Handle the pointer types first.
@@ -854,9 +854,9 @@ OpFoldResult cir::UnaryOp::fold(FoldAdaptor adaptor) {
 
 LogicalResult cir::DynamicCastOp::verify() {
   auto resultPointeeTy = mlir::cast<cir::PointerType>(getType()).getPointee();
-  if (!mlir::isa<cir::VoidType, cir::StructType>(resultPointeeTy))
+  if (!mlir::isa<cir::VoidType, cir::RecordType>(resultPointeeTy))
     return emitOpError()
-           << "cir.dyn_cast must produce a void ptr or struct ptr";
+           << "cir.dyn_cast must produce a void ptr or record ptr";
 
   return mlir::success();
 }
@@ -3525,7 +3525,7 @@ LogicalResult cir::TypeInfoAttr::verify(
     ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
     ::mlir::Type type, ::mlir::ArrayAttr typeinfoData) {
 
-  if (cir::ConstStructAttr::verify(emitError, type, typeinfoData).failed())
+  if (cir::ConstRecordAttr::verify(emitError, type, typeinfoData).failed())
     return failure();
 
   for (auto &member : typeinfoData) {
@@ -3540,13 +3540,13 @@ LogicalResult cir::TypeInfoAttr::verify(
 LogicalResult cir::VTableAttr::verify(
     ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
     ::mlir::Type type, ::mlir::ArrayAttr vtableData) {
-  auto sTy = mlir::dyn_cast_if_present<cir::StructType>(type);
+  auto sTy = mlir::dyn_cast_if_present<cir::RecordType>(type);
   if (!sTy) {
-    emitError() << "expected !cir.struct type result";
+    emitError() << "expected !cir.record type result";
     return failure();
   }
   if (sTy.getMembers().empty() || vtableData.empty()) {
-    emitError() << "expected struct type with one or more subtype";
+    emitError() << "expected record type with one or more subtype";
     return failure();
   }
 
@@ -3555,11 +3555,11 @@ LogicalResult cir::VTableAttr::verify(
     auto arrayTy = mlir::dyn_cast<cir::ArrayType>(sTy.getMembers()[i]);
     auto constArrayAttr = mlir::dyn_cast<cir::ConstArrayAttr>(vtableData[i]);
     if (!arrayTy || !constArrayAttr) {
-      emitError() << "expected struct type with one array element";
+      emitError() << "expected record type with one array element";
       return failure();
     }
 
-    if (cir::ConstStructAttr::verify(emitError, type, vtableData).failed())
+    if (cir::ConstRecordAttr::verify(emitError, type, vtableData).failed())
       return failure();
 
     LogicalResult eltTypeCheck = success();
@@ -3603,7 +3603,7 @@ LogicalResult cir::CopyOp::verify() {
 
 LogicalResult cir::GetMemberOp::verify() {
 
-  const auto recordTy = llvm::dyn_cast<StructType>(getAddrTy().getPointee());
+  const auto recordTy = llvm::dyn_cast<RecordType>(getAddrTy().getPointee());
   if (!recordTy)
     return emitError() << "expected pointer to a record type";
 
@@ -3624,8 +3624,8 @@ LogicalResult cir::GetMemberOp::verify() {
 //===----------------------------------------------------------------------===//
 
 LogicalResult cir::ExtractMemberOp::verify() {
-  auto recordTy = mlir::cast<cir::StructType>(getRecord().getType());
-  if (recordTy.getKind() == cir::StructType::Union)
+  auto recordTy = mlir::cast<cir::RecordType>(getRecord().getType());
+  if (recordTy.getKind() == cir::RecordType::Union)
     return emitError()
            << "cir.extract_member currently does not work on unions";
   if (recordTy.getMembers().size() <= getIndex())
@@ -3640,8 +3640,8 @@ LogicalResult cir::ExtractMemberOp::verify() {
 //===----------------------------------------------------------------------===//
 
 LogicalResult cir::InsertMemberOp::verify() {
-  auto recordTy = mlir::cast<cir::StructType>(getRecord().getType());
-  if (recordTy.getKind() == cir::StructType::Union)
+  auto recordTy = mlir::cast<cir::RecordType>(getRecord().getType());
+  if (recordTy.getKind() == cir::RecordType::Union)
     return emitError() << "cir.update_member currently does not work on unions";
   if (recordTy.getMembers().size() <= getIndex())
     return emitError() << "member index out of range";
@@ -3657,7 +3657,7 @@ LogicalResult cir::InsertMemberOp::verify() {
 
 LogicalResult cir::GetRuntimeMemberOp::verify() {
   auto recordTy =
-      mlir::cast<StructType>(mlir::cast<PointerType>(getAddr().getType()).getPointee());
+      mlir::cast<RecordType>(mlir::cast<PointerType>(getAddr().getType()).getPointee());
   auto memberPtrTy = getMember().getType();
 
   if (recordTy != memberPtrTy.getClsTy()) {

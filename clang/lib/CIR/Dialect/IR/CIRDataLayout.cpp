@@ -7,12 +7,12 @@
 using namespace cir;
 
 //===----------------------------------------------------------------------===//
-// Support for StructLayout
+// Support for RecordLayout
 //===----------------------------------------------------------------------===//
 
-StructLayout::StructLayout(cir::StructType ST, const CIRDataLayout &DL)
-    : StructSize(llvm::TypeSize::getFixed(0)) {
-  assert(!ST.isIncomplete() && "Cannot get layout of opaque structs");
+RecordLayout::RecordLayout(cir::RecordType ST, const CIRDataLayout &DL)
+    : RecordSize(llvm::TypeSize::getFixed(0)) {
+  assert(!ST.isIncomplete() && "Cannot get layout of opaque records");
   IsPadded = false;
   NumElements = ST.getNumElements();
 
@@ -23,43 +23,43 @@ StructLayout::StructLayout(cir::StructType ST, const CIRDataLayout &DL)
       llvm_unreachable("Scalable types are not yet supported in CIR");
 
     assert(!cir::MissingFeatures::recordDeclIsPacked() &&
-           "Cannot identify packed structs");
+           "Cannot identify packed records");
     const llvm::Align TyAlign =
         ST.getPacked() ? llvm::Align(1) : DL.getABITypeAlign(Ty);
 
     // Add padding if necessary to align the data element properly.
-    // Currently the only structure with scalable size will be the homogeneous
+    // Currently the only record with scalable size will be the homogeneous
     // scalable vector types. Homogeneous scalable vector types have members of
     // the same data type so no alignment issue will happen. The condition here
     // assumes so and needs to be adjusted if this assumption changes (e.g. we
-    // support structures with arbitrary scalable data type, or structure that
+    // support records with arbitrary scalable data type, or record that
     // contains both fixed size and scalable size data type members).
-    if (!StructSize.isScalable() && !isAligned(TyAlign, StructSize)) {
+    if (!RecordSize.isScalable() && !isAligned(TyAlign, RecordSize)) {
       IsPadded = true;
-      StructSize = llvm::TypeSize::getFixed(alignTo(StructSize, TyAlign));
+      RecordSize = llvm::TypeSize::getFixed(alignTo(RecordSize, TyAlign));
     }
 
     // Keep track of maximum alignment constraint.
-    StructAlignment = std::max(TyAlign, StructAlignment);
+    RecordAlignment = std::max(TyAlign, RecordAlignment);
 
-    getMemberOffsets()[i] = StructSize;
+    getMemberOffsets()[i] = RecordSize;
     // Consume space for this data item
-    StructSize += DL.getTypeAllocSize(Ty);
+    RecordSize += DL.getTypeAllocSize(Ty);
   }
 
-  // Add padding to the end of the struct so that it could be put in an array
+  // Add padding to the end of the record so that it could be put in an array
   // and all array elements would be aligned correctly.
-  if (!StructSize.isScalable() && !isAligned(StructAlignment, StructSize)) {
+  if (!RecordSize.isScalable() && !isAligned(RecordAlignment, RecordSize)) {
     IsPadded = true;
-    StructSize = llvm::TypeSize::getFixed(alignTo(StructSize, StructAlignment));
+    RecordSize = llvm::TypeSize::getFixed(alignTo(RecordSize, RecordAlignment));
   }
 }
 
-/// getElementContainingOffset - Given a valid offset into the structure,
-/// return the structure index that contains it.
-unsigned StructLayout::getElementContainingOffset(uint64_t FixedOffset) const {
-  assert(!StructSize.isScalable() &&
-         "Cannot get element at offset for structure containing scalable "
+/// getElementContainingOffset - Given a valid offset into the record,
+/// return the record index that contains it.
+unsigned RecordLayout::getElementContainingOffset(uint64_t FixedOffset) const {
+  assert(!RecordSize.isScalable() &&
+         "Cannot get element at offset for record containing scalable "
          "vector types");
   llvm::TypeSize Offset = llvm::TypeSize::getFixed(FixedOffset);
   llvm::ArrayRef<llvm::TypeSize> MemberOffsets = getMemberOffsets();
@@ -69,7 +69,7 @@ unsigned StructLayout::getElementContainingOffset(uint64_t FixedOffset) const {
                        [](llvm::TypeSize LHS, llvm::TypeSize RHS) -> bool {
                          return llvm::TypeSize::isKnownLT(LHS, RHS);
                        });
-  assert(SI != MemberOffsets.begin() && "Offset not in structure type!");
+  assert(SI != MemberOffsets.begin() && "Offset not in record type!");
   --SI;
   assert(llvm::TypeSize::isKnownLE(*SI, Offset) && "upper_bound didn't work");
   assert((SI == MemberOffsets.begin() ||
@@ -92,21 +92,21 @@ unsigned StructLayout::getElementContainingOffset(uint64_t FixedOffset) const {
 
 namespace {
 
-class StructLayoutMap {
-  using LayoutInfoTy = llvm::DenseMap<cir::StructType, StructLayout *>;
+class RecordLayoutMap {
+  using LayoutInfoTy = llvm::DenseMap<cir::RecordType, RecordLayout *>;
   LayoutInfoTy LayoutInfo;
 
 public:
-  ~StructLayoutMap() {
+  ~RecordLayoutMap() {
     // Remove any layouts.
     for (const auto &I : LayoutInfo) {
-      StructLayout *Value = I.second;
-      Value->~StructLayout();
+      RecordLayout *Value = I.second;
+      Value->~RecordLayout();
       free(Value);
     }
   }
 
-  StructLayout *&operator[](cir::StructType STy) { return LayoutInfo[STy]; }
+  RecordLayout *&operator[](cir::RecordType STy) { return LayoutInfo[STy]; }
 };
 
 } // namespace
@@ -142,7 +142,7 @@ void CIRDataLayout::reset(mlir::DataLayoutSpecInterface spec) {
 
   // ManglingMode = MM_None;
   // NonIntegralAddressSpaces.clear();
-  StructAlignment =
+  RecordAlignment =
       llvm::DataLayout::PrimitiveSpec{0, llvm::Align(1), llvm::Align(8)};
 
   // NOTE(cir): Alignment setter functions are skipped as these should already
@@ -150,29 +150,29 @@ void CIRDataLayout::reset(mlir::DataLayoutSpecInterface spec) {
 }
 
 void CIRDataLayout::clear() {
-  delete static_cast<StructLayoutMap *>(LayoutMap);
+  delete static_cast<RecordLayoutMap *>(LayoutMap);
   LayoutMap = nullptr;
 }
 
-const StructLayout *CIRDataLayout::getStructLayout(cir::StructType Ty) const {
+const RecordLayout *CIRDataLayout::getRecordLayout(cir::RecordType Ty) const {
   if (!LayoutMap)
-    LayoutMap = new StructLayoutMap();
+    LayoutMap = new RecordLayoutMap();
 
-  StructLayoutMap *STM = static_cast<StructLayoutMap *>(LayoutMap);
-  StructLayout *&SL = (*STM)[Ty];
+  RecordLayoutMap *STM = static_cast<RecordLayoutMap *>(LayoutMap);
+  RecordLayout *&SL = (*STM)[Ty];
   if (SL)
     return SL;
 
-  // Otherwise, create the struct layout.  Because it is variable length, we
+  // Otherwise, create the record layout.  Because it is variable length, we
   // malloc it, then use placement new.
-  StructLayout *L = (StructLayout *)llvm::safe_malloc(
-      StructLayout::totalSizeToAlloc<llvm::TypeSize>(Ty.getNumElements()));
+  RecordLayout *L = (RecordLayout *)llvm::safe_malloc(
+      RecordLayout::totalSizeToAlloc<llvm::TypeSize>(Ty.getNumElements()));
 
-  // Set SL before calling StructLayout's ctor.  The ctor could cause other
+  // Set SL before calling RecordLayout's ctor.  The ctor could cause other
   // entries to be added to TheMap, invalidating our reference.
   SL = L;
 
-  new (L) StructLayout(Ty, *this);
+  new (L) RecordLayout(Ty, *this);
 
   return L;
 }
@@ -187,20 +187,20 @@ const StructLayout *CIRDataLayout::getStructLayout(cir::StructType Ty) const {
  */
 llvm::Align CIRDataLayout::getAlignment(mlir::Type Ty, bool abiOrPref) const {
 
-  if (llvm::isa<cir::StructType>(Ty)) {
-    // Packed structure types always have an ABI alignment of one.
+  if (llvm::isa<cir::RecordType>(Ty)) {
+    // Packed record types always have an ABI alignment of one.
     if (cir::MissingFeatures::recordDeclIsPacked() && abiOrPref)
       llvm_unreachable("NYI");
 
-    auto stTy = llvm::dyn_cast<cir::StructType>(Ty);
+    auto stTy = llvm::dyn_cast<cir::RecordType>(Ty);
     if (stTy && stTy.getPacked() && abiOrPref)
       return llvm::Align(1);
 
     // Get the layout annotation... which is lazily created on demand.
-    const StructLayout *Layout =
-        getStructLayout(llvm::cast<cir::StructType>(Ty));
+    const RecordLayout *Layout =
+        getRecordLayout(llvm::cast<cir::RecordType>(Ty));
     const llvm::Align Align =
-        abiOrPref ? StructAlignment.ABIAlign : StructAlignment.PrefAlign;
+        abiOrPref ? RecordAlignment.ABIAlign : RecordAlignment.PrefAlign;
     return std::max(Align, Layout->getAlignment());
   }
 
@@ -220,10 +220,10 @@ llvm::TypeSize CIRDataLayout::getTypeSizeInBits(mlir::Type Ty) const {
   assert(!cir::MissingFeatures::typeIsSized() &&
          "Cannot getTypeInfo() on a type that is unsized!");
 
-  if (auto structTy = llvm::dyn_cast<cir::StructType>(Ty)) {
-    // FIXME(cir): CIR struct's data layout implementation doesn't do a good job
+  if (auto recordTy = llvm::dyn_cast<cir::RecordType>(Ty)) {
+    // FIXME(cir): CIR record's data layout implementation doesn't do a good job
     // of handling unions particularities. We should have a separate union type.
-    return structTy.getTypeSizeInBits(layout, {});
+    return recordTy.getTypeSizeInBits(layout, {});
   }
 
   // FIXME(cir): This does not account for different address spaces, and relies

@@ -24,7 +24,7 @@ bool classifyReturnType(const CIRCXXABI &CXXABI, LowerFunctionInfo &FI,
                         const ABIInfo &Info) {
   mlir::Type Ty = FI.getReturnType();
 
-  if (const auto RT = mlir::dyn_cast<StructType>(Ty)) {
+  if (const auto RT = mlir::dyn_cast<RecordType>(Ty)) {
     cir_cconv_assert(!cir::MissingFeatures::isCXXRecordDecl());
   }
 
@@ -49,7 +49,7 @@ mlir::Value emitRoundPointerUpToAlignment(cir::CIRBaseBuilderTy &builder,
 }
 
 mlir::Type useFirstFieldIfTransparentUnion(mlir::Type Ty) {
-  if (auto RT = mlir::dyn_cast<StructType>(Ty)) {
+  if (auto RT = mlir::dyn_cast<RecordType>(Ty)) {
     if (RT.isUnion())
       cir_cconv_assert_or_abort(
           !cir::MissingFeatures::ABITransparentUnionHandling(), "NYI");
@@ -57,7 +57,7 @@ mlir::Type useFirstFieldIfTransparentUnion(mlir::Type Ty) {
   return Ty;
 }
 
-CIRCXXABI::RecordArgABI getRecordArgABI(const StructType RT,
+CIRCXXABI::RecordArgABI getRecordArgABI(const RecordType RT,
                                         CIRCXXABI &CXXABI) {
   if (cir::MissingFeatures::typeIsCXXRecordDecl()) {
     cir_cconv_unreachable("NYI");
@@ -66,7 +66,7 @@ CIRCXXABI::RecordArgABI getRecordArgABI(const StructType RT,
 }
 
 CIRCXXABI::RecordArgABI getRecordArgABI(mlir::Type ty, CIRCXXABI &CXXABI) {
-  auto st = mlir::dyn_cast<StructType>(ty);
+  auto st = mlir::dyn_cast<RecordType>(ty);
   if (!st)
     return CIRCXXABI::RAA_Default;
   return getRecordArgABI(st, CXXABI);

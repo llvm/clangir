@@ -10,7 +10,7 @@ using namespace clang::CIRGen;
 using namespace cir;
 
 static bool isAggregateType(mlir::Type typ) {
-  return isa<cir::StructType, cir::ArrayType>(typ);
+  return isa<cir::RecordType, cir::ArrayType>(typ);
 }
 
 static AsmFlavor inferFlavor(const CIRGenModule &cgm, const AsmStmt &S) {
@@ -621,7 +621,7 @@ mlir::LogicalResult CIRGenFunction::emitAsmStmt(const AsmStmt &S) {
     ResultType = ResultRegTypes[0];
   else if (ResultRegTypes.size() > 1) {
     auto sname = builder.getUniqueAnonRecordName();
-    ResultType = builder.getCompleteStructTy(ResultRegTypes, sname, false,
+    ResultType = builder.getCompleteRecordTy(ResultRegTypes, sname, false,
                                              false, nullptr);
   }
 
@@ -677,7 +677,7 @@ mlir::LogicalResult CIRGenFunction::emitAsmStmt(const AsmStmt &S) {
       RegResults.push_back(result);
     } else if (ResultRegTypes.size() > 1) {
       auto alignment = CharUnits::One();
-      auto sname = cast<cir::StructType>(ResultType).getName();
+      auto sname = cast<cir::RecordType>(ResultType).getName();
       auto dest = emitAlloca(sname, ResultType, getLoc(S.getAsmLoc()),
                              alignment, false);
       auto addr = Address(dest, alignment);

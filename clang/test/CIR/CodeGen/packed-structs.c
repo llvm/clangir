@@ -22,16 +22,16 @@ typedef struct {
 } __attribute__((aligned(2))) C;
 
 
-// CIR: !ty_A = !cir.struct<struct "A" packed {!s32i, !s8i}>
-// CIR: !ty_C = !cir.struct<struct "C" packed padded {!s32i, !s8i, !u8i}>
-// CIR: !ty_D = !cir.struct<struct "D" packed padded {!s8i, !u8i, !s32i}
-// CIR: !ty_F = !cir.struct<struct "F" packed {!s64i, !s8i}
-// CIR: !ty_E = !cir.struct<struct "E" packed {!ty_D
-// CIR: !ty_G = !cir.struct<struct "G" {!ty_F
-// CIR: !ty_H = !cir.struct<struct "H" {!s32i, !ty_anon2E0
-// CIR: !ty_B = !cir.struct<struct "B" packed {!s32i, !s8i, !cir.array<!ty_A x 6>}>
-// CIR: !ty_I = !cir.struct<struct "I" packed {!s8i, !ty_H
-// CIR: !ty_J = !cir.struct<struct "J" packed {!s8i, !s8i, !s8i, !s8i, !ty_I
+// CIR: !ty_A = !cir.record<struct "A" packed {!s32i, !s8i}>
+// CIR: !ty_C = !cir.record<struct "C" packed padded {!s32i, !s8i, !u8i}>
+// CIR: !ty_D = !cir.record<struct "D" packed padded {!s8i, !u8i, !s32i}
+// CIR: !ty_F = !cir.record<struct "F" packed {!s64i, !s8i}
+// CIR: !ty_E = !cir.record<struct "E" packed {!ty_D
+// CIR: !ty_G = !cir.record<struct "G" {!ty_F
+// CIR: !ty_H = !cir.record<struct "H" {!s32i, !ty_anon2E0
+// CIR: !ty_B = !cir.record<struct "B" packed {!s32i, !s8i, !cir.array<!ty_A x 6>}>
+// CIR: !ty_I = !cir.record<struct "I" packed {!s8i, !ty_H
+// CIR: !ty_J = !cir.record<struct "J" packed {!s8i, !s8i, !s8i, !s8i, !ty_I
 
 // LLVM: %struct.A = type <{ i32, i8 }>
 // LLVM: %struct.B = type <{ i32, i8, [6 x %struct.A] }>

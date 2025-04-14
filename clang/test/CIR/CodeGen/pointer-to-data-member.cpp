@@ -6,10 +6,10 @@ struct Point {
   int y;
   int z;
 };
-// CHECK-DAG: !ty_Point = !cir.struct<struct "Point" {!s32i, !s32i, !s32i}
+// CHECK-DAG: !ty_Point = !cir.record<struct "Point" {!s32i, !s32i, !s32i}
 
 struct Incomplete;
-// CHECK-DAG: !ty_Incomplete = !cir.struct<struct "Incomplete" incomplete>
+// CHECK-DAG: !ty_Incomplete = !cir.record<struct "Incomplete" incomplete>
 
 int Point::*pt_member = &Point::x;
 // CHECK: cir.global external @pt_member = #cir.data_member<0> : !cir.data_member<!s32i in !ty_Point>

@@ -16,7 +16,7 @@
 
 namespace clang::CIRGen {
 
-/// Structure with information about how a bitfield should be accessed. This is
+/// Record with information about how a bitfield should be accessed. This is
 /// very similar to what LLVM codegen does, once CIR evolves it's possible we
 /// can use a more higher level representation.
 /// TODO(cir): the comment below is extracted from LLVM, build a CIR version of
@@ -31,7 +31,7 @@ namespace clang::CIRGen {
 /// Then accessing a particular bitfield involves converting this byte array
 /// into a single integer of that size (i24 or i40 -- may not be power-of-two
 /// size), loading it, and shifting and masking to extract the particular
-/// subsequence of bits which make up that particular bitfield. This structure
+/// subsequence of bits which make up that particular bitfield. This record
 /// encodes the information used to construct the extraction code sequences.
 /// The CIRGenRecordLayout also has a field index which encodes which
 /// byte-sequence this bitfield falls within. Let's assume the following C
@@ -76,7 +76,7 @@ struct CIRGenBitFieldInfo {
   /// bitfield.
   unsigned StorageSize;
 
-  /// The offset of the bitfield storage from the start of the struct.
+  /// The offset of the bitfield storage from the start of the record.
   clang::CharUnits StorageOffset;
 
   /// The offset within a contiguous run of bitfields that are represented as a
@@ -88,7 +88,7 @@ struct CIRGenBitFieldInfo {
   /// bitfield.
   unsigned VolatileStorageSize;
 
-  /// The offset of the bitfield storage from the start of the struct.
+  /// The offset of the bitfield storage from the start of the record.
   clang::CharUnits VolatileStorageOffset;
 
   /// The name of a bitfield
@@ -119,7 +119,7 @@ struct CIRGenBitFieldInfo {
                                      clang::CharUnits StorageOffset);
 };
 
-/// This class handles struct and union layout info while lowering AST types
+/// This class handles record and union layout info while lowering AST types
 /// to CIR types.
 ///
 /// These layout objects are only created on demand as CIR generation requires.
@@ -132,17 +132,17 @@ class CIRGenRecordLayout {
 private:
   /// The CIR type corresponding to this record layout; used when laying it out
   /// as a complete object.
-  cir::StructType CompleteObjectType;
+  cir::RecordType CompleteObjectType;
 
   /// The CIR type for the non-virtual part of this record layout; used when
   /// laying it out as a base subobject.
-  cir::StructType BaseSubobjectType;
+  cir::RecordType BaseSubobjectType;
 
-  /// Map from (non-bit-field) struct field to the corresponding cir struct type
+  /// Map from (non-bit-field) record field to the corresponding cir record type
   /// field no. This info is populated by the record builder.
   llvm::DenseMap<const clang::FieldDecl *, unsigned> FieldInfo;
 
-  /// Map from (bit-field) struct field to the corresponding CIR struct type
+  /// Map from (bit-field) record field to the corresponding CIR record type
   /// field no. This info is populated by record builder.
   /// TODO(CIR): value is an int for now, fix when we support bitfields
   llvm::DenseMap<const clang::FieldDecl *, CIRGenBitFieldInfo> BitFields;
@@ -165,8 +165,8 @@ private:
   bool IsZeroInitializableAsBase : 1;
 
 public:
-  CIRGenRecordLayout(cir::StructType CompleteObjectType,
-                     cir::StructType BaseSubobjectType,
+  CIRGenRecordLayout(cir::RecordType CompleteObjectType,
+                     cir::RecordType BaseSubobjectType,
                      bool IsZeroInitializable, bool IsZeroInitializableAsBase)
       : CompleteObjectType(CompleteObjectType),
         BaseSubobjectType(BaseSubobjectType),
@@ -175,20 +175,20 @@ public:
 
   /// Return the "complete object" LLVM type associated with
   /// this record.
-  cir::StructType getCIRType() const { return CompleteObjectType; }
+  cir::RecordType getCIRType() const { return CompleteObjectType; }
 
   /// Return the "base subobject" LLVM type associated with
   /// this record.
-  cir::StructType getBaseSubobjectCIRType() const { return BaseSubobjectType; }
+  cir::RecordType getBaseSubobjectCIRType() const { return BaseSubobjectType; }
 
-  /// Return cir::StructType element number that corresponds to the field FD.
+  /// Return cir::RecordType element number that corresponds to the field FD.
   unsigned getCIRFieldNo(const clang::FieldDecl *FD) const {
     FD = FD->getCanonicalDecl();
     assert(FieldInfo.count(FD) && "Invalid field for record!");
     return FieldInfo.lookup(FD);
   }
 
-  /// Check whether this struct can be C++ zero-initialized with a
+  /// Check whether this record can be C++ zero-initialized with a
   /// zeroinitializer.
   bool isZeroInitializable() const { return IsZeroInitializable; }
 

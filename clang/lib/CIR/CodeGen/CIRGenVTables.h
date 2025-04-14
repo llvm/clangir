@@ -69,7 +69,7 @@ class CIRGenVTables {
 public:
   /// Add vtable components for the given vtable layout to the given
   /// global initializer.
-  void createVTableInitializer(ConstantStructBuilder &builder,
+  void createVTableInitializer(ConstantRecordBuilder &builder,
                                const VTableLayout &layout, mlir::Attribute rtti,
                                bool vtableHasLocalLinkage);
 

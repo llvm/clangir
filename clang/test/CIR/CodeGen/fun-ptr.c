@@ -17,7 +17,7 @@ typedef struct A {
   fun_typ fun;
 } A;
 
-// CIR: !ty_A = !cir.struct<struct "A" {!cir.ptr<!cir.func<(!cir.ptr<!cir.struct<struct "A">>) -> !s32i>>} #cir.record.decl.ast>
+// CIR: !ty_A = !cir.record<struct "A" {!cir.ptr<!cir.func<(!cir.ptr<!cir.record<struct "A">>) -> !s32i>>} #cir.record.decl.ast>
 A a = {(fun_typ)0};
 
 int extract_a(Data* d) {

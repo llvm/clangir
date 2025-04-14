@@ -87,14 +87,14 @@ void CIRGenBuilderTy::computeGlobalViewIndicesFromFlatOffset(
     const auto [Index, NewOffset] = getIndexAndNewOffset(Offset, EltSize);
     Indices.push_back(Index);
     Offset = NewOffset;
-  } else if (auto StructTy = mlir::dyn_cast<cir::StructType>(Ty)) {
-    auto Elts = StructTy.getMembers();
+  } else if (auto RecordTy = mlir::dyn_cast<cir::RecordType>(Ty)) {
+    auto Elts = RecordTy.getMembers();
     int64_t Pos = 0;
     for (size_t I = 0; I < Elts.size(); ++I) {
       int64_t EltSize =
           (int64_t)Layout.getTypeAllocSize(Elts[I]).getFixedValue();
       unsigned AlignMask = Layout.getABITypeAlign(Elts[I]).value() - 1;
-      if (StructTy.getPacked())
+      if (RecordTy.getPacked())
         AlignMask = 0;
       Pos = (Pos + AlignMask) & ~AlignMask;
       assert(Offset >= 0);
@@ -120,7 +120,7 @@ uint64_t CIRGenBuilderTy::computeOffsetFromGlobalViewIndices(
 
   int64_t offset = 0;
   for (int64_t idx : indexes) {
-    if (auto sTy = dyn_cast<cir::StructType>(typ)) {
+    if (auto sTy = dyn_cast<cir::RecordType>(typ)) {
       offset += sTy.getElementOffset(layout.layout, idx);
       assert(idx < (int64_t)sTy.getMembers().size());
       typ = sTy.getMembers()[idx];
