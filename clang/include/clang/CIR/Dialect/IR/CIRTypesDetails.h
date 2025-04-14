@@ -30,56 +30,56 @@ struct RecordTypeStorage : public mlir::TypeStorage {
   struct KeyTy {
     llvm::ArrayRef<mlir::Type> members;
     mlir::StringAttr name;
-    bool incomplete;
+    bool complete;
     bool packed;
     bool padded;
     RecordType::RecordKind kind;
     ASTRecordDeclInterface ast;
 
     KeyTy(llvm::ArrayRef<mlir::Type> members, mlir::StringAttr name,
-          bool incomplete, bool packed, bool padded,
-          RecordType::RecordKind kind, ASTRecordDeclInterface ast)
-        : members(members), name(name), incomplete(incomplete), packed(packed),
+          bool complete, bool packed, bool padded, RecordType::RecordKind kind,
+          ASTRecordDeclInterface ast)
+        : members(members), name(name), complete(complete), packed(packed),
           padded(padded), kind(kind), ast(ast) {}
   };
 
   llvm::ArrayRef<mlir::Type> members;
   mlir::StringAttr name;
-  bool incomplete;
+  bool complete;
   bool packed;
   bool padded;
   RecordType::RecordKind kind;
   ASTRecordDeclInterface ast;
 
   RecordTypeStorage(llvm::ArrayRef<mlir::Type> members, mlir::StringAttr name,
-                    bool incomplete, bool packed, bool padded,
+                    bool complete, bool packed, bool padded,
                     RecordType::RecordKind kind, ASTRecordDeclInterface ast)
-      : members(members), name(name), incomplete(incomplete), packed(packed),
+      : members(members), name(name), complete(complete), packed(packed),
         padded(padded), kind(kind), ast(ast) {}
 
   KeyTy getAsKey() const {
-    return KeyTy(members, name, incomplete, packed, padded, kind, ast);
+    return KeyTy(members, name, complete, packed, padded, kind, ast);
   }
 
   bool operator==(const KeyTy &key) const {
     if (name)
       return (name == key.name) && (kind == key.kind);
     return (members == key.members) && (name == key.name) &&
-           (incomplete == key.incomplete) && (packed == key.packed) &&
+           (complete == key.complete) && (packed == key.packed) &&
            (padded == key.padded) && (kind == key.kind) && (ast == key.ast);
   }
 
   static llvm::hash_code hashKey(const KeyTy &key) {
     if (key.name)
       return llvm::hash_combine(key.name, key.kind);
-    return llvm::hash_combine(key.members, key.incomplete, key.packed,
-                              key.padded, key.kind, key.ast);
+    return llvm::hash_combine(key.members, key.complete, key.packed, key.padded,
+                              key.kind, key.ast);
   }
 
   static RecordTypeStorage *construct(mlir::TypeStorageAllocator &allocator,
                                       const KeyTy &key) {
     return new (allocator.allocate<RecordTypeStorage>()) RecordTypeStorage(
-        allocator.copyInto(key.members), key.name, key.incomplete, key.packed,
+        allocator.copyInto(key.members), key.name, key.complete, key.packed,
         key.padded, key.kind, key.ast);
   }
 
@@ -97,7 +97,7 @@ struct RecordTypeStorage : public mlir::TypeStorage {
       return llvm::failure();
 
     // Mutation of complete records are allowed if they change nothing.
-    if (!incomplete)
+    if (complete)
       return mlir::success((this->members == members) &&
                            (this->packed == packed) &&
                            (this->padded == padded) && (this->ast == ast));
@@ -108,7 +108,7 @@ struct RecordTypeStorage : public mlir::TypeStorage {
     this->ast = ast;
     this->padded = padded;
 
-    incomplete = false;
+    complete = true;
     return llvm::success();
   }
 };
