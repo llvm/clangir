@@ -12,11 +12,11 @@ void foo(int x) {
   A a = {.x = x};
 }
 
-// CHECK-DAG: ![[anon0:.*]] = !cir.struct<struct  {!u32i}>
-// CHECK-DAG: ![[anon:.*]] = !cir.struct<struct  {!s32i}>
+// CHECK-DAG: ![[anon0:.*]] = !cir.record<struct  {!u32i}>
+// CHECK-DAG: ![[anon:.*]] = !cir.record<struct  {!s32i}>
 // CHECK-DAG: #[[bfi_x:.*]] = #cir.bitfield_info<name = "x", storage_type = !u32i, size = 16, offset = 0, is_signed = true>
 // CHECK-DAG: #[[bfi_y:.*]] = #cir.bitfield_info<name = "y", storage_type = !u32i, size = 16, offset = 16, is_signed = true>
-// CHECK-DAG: ![[anon1:.*]] = !cir.struct<union "{{.*}}" {!u32i, !cir.array<!u8i x 4>}
+// CHECK-DAG: ![[anon1:.*]] = !cir.record<union "{{.*}}" {!u32i, !cir.array<!u8i x 4>}
 
 // CHECK-LABEL:   cir.func @foo(
 // CHECK:  %[[VAL_1:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["x", init] {alignment = 4 : i64}

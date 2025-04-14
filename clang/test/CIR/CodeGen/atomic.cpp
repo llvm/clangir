@@ -21,7 +21,7 @@ unsigned int ui;
 signed long long sll;
 unsigned long long ull;
 
-// CHECK: ![[A:.*]] = !cir.struct<struct "_a" {!s32i}>
+// CHECK: ![[A:.*]] = !cir.record<struct "_a" {!s32i}>
 
 int basic_binop_fetch(int *i) {
   return __atomic_add_fetch(i, 1, memory_order_seq_cst);

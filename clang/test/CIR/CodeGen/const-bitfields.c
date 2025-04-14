@@ -14,17 +14,17 @@ struct Inner {
   unsigned d : 30;
 };
 
-// CHECK: !ty_anon_struct = !cir.struct<struct  {!u8i, !u8i, !u8i, !u8i, !s32i}>
-// CHECK: !ty_T = !cir.struct<struct "T" {!cir.array<!u8i x 3>, !s32i} #cir.record.decl.ast>
-// CHECK: !ty_anon_struct1 = !cir.struct<struct  {!u8i, !cir.array<!u8i x 3>, !u8i, !u8i, !u8i, !u8i}>
+// CHECK: !ty_anon_struct = !cir.record<struct  {!u8i, !u8i, !u8i, !u8i, !s32i}>
+// CHECK: !ty_T = !cir.record<struct "T" {!cir.array<!u8i x 3>, !s32i} #cir.record.decl.ast>
+// CHECK: !ty_anon_struct1 = !cir.record<struct  {!u8i, !cir.array<!u8i x 3>, !u8i, !u8i, !u8i, !u8i}>
 // CHECK: #bfi_Z = #cir.bitfield_info<name = "Z", storage_type = !cir.array<!u8i x 3>, size = 9, offset = 11, is_signed = true>
 
 struct T GV = { 1, 5, 26, 42 };
-// CHECK: cir.global external @GV = #cir.const_struct<{#cir.int<161> : !u8i, #cir.int<208> : !u8i, #cir.int<0> : !u8i,  #cir.zero : !u8i, #cir.int<42> : !s32i}> : !ty_anon_struct
+// CHECK: cir.global external @GV = #cir.const_record<{#cir.int<161> : !u8i, #cir.int<208> : !u8i, #cir.int<0> : !u8i,  #cir.zero : !u8i, #cir.int<42> : !s32i}> : !ty_anon_struct
 
 // check padding is used (const array of zeros)
 struct Inner var = { 1, 0, 1, 21};
-// CHECK: cir.global external @var = #cir.const_struct<{#cir.int<5> : !u8i, #cir.const_array<[#cir.zero : !u8i, #cir.zero : !u8i, #cir.zero : !u8i]> : !cir.array<!u8i x 3>, #cir.int<21> : !u8i, #cir.int<0> : !u8i, #cir.int<0> : !u8i, #cir.int<0> : !u8i}> : !ty_anon_struct1
+// CHECK: cir.global external @var = #cir.const_record<{#cir.int<5> : !u8i, #cir.const_array<[#cir.zero : !u8i, #cir.zero : !u8i, #cir.zero : !u8i]> : !cir.array<!u8i x 3>, #cir.int<21> : !u8i, #cir.int<0> : !u8i, #cir.int<0> : !u8i, #cir.int<0> : !u8i}> : !ty_anon_struct1
 
 
 // CHECK: cir.func {{.*@getZ()}}

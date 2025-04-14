@@ -75,11 +75,11 @@ void C3::Layer::Initialize() {
   }
 }
 
-// CHECK-DAG: !ty_C23A3ALayer = !cir.struct<class "C2::Layer"
-// CHECK-DAG: !ty_C33A3ALayer = !cir.struct<struct "C3::Layer"
-// CHECK-DAG: !ty_A = !cir.struct<class "A"
-// CHECK-DAG: !ty_A2Ebase = !cir.struct<class "A.base"
-// CHECK-DAG: !ty_B = !cir.struct<class "B" {!ty_A2Ebase
+// CHECK-DAG: !ty_C23A3ALayer = !cir.record<class "C2::Layer"
+// CHECK-DAG: !ty_C33A3ALayer = !cir.record<struct "C3::Layer"
+// CHECK-DAG: !ty_A = !cir.record<class "A"
+// CHECK-DAG: !ty_A2Ebase = !cir.record<class "A.base"
+// CHECK-DAG: !ty_B = !cir.record<class "B" {!ty_A2Ebase
 
 // CHECK: cir.func @_ZN2C35Layer10InitializeEv
 

@@ -34,8 +34,8 @@
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/ExprCXX.h"
 
-static void printStructMembers(mlir::AsmPrinter &p, mlir::ArrayAttr members);
-static mlir::ParseResult parseStructMembers(::mlir::AsmParser &parser,
+static void printRecordMembers(mlir::AsmPrinter &p, mlir::ArrayAttr members);
+static mlir::ParseResult parseRecordMembers(::mlir::AsmParser &parser,
                                             mlir::ArrayAttr &members);
 
 static void printFloatLiteral(mlir::AsmPrinter &p, llvm::APFloat value,
@@ -110,14 +110,14 @@ void CIRDialect::printAttribute(Attribute attr, DialectAsmPrinter &os) const {
     llvm_unreachable("unexpected CIR type kind");
 }
 
-static void printStructMembers(mlir::AsmPrinter &printer,
+static void printRecordMembers(mlir::AsmPrinter &printer,
                                mlir::ArrayAttr members) {
   printer << '{';
   llvm::interleaveComma(members, printer);
   printer << '}';
 }
 
-static ParseResult parseStructMembers(mlir::AsmParser &parser,
+static ParseResult parseRecordMembers(mlir::AsmParser &parser,
                                       mlir::ArrayAttr &members) {
   llvm::SmallVector<mlir::Attribute, 4> elts;
 
@@ -137,12 +137,12 @@ static ParseResult parseStructMembers(mlir::AsmParser &parser,
   return mlir::success();
 }
 
-LogicalResult ConstStructAttr::verify(
+LogicalResult ConstRecordAttr::verify(
     ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
     mlir::Type type, ArrayAttr members) {
-  auto sTy = mlir::dyn_cast_if_present<cir::StructType>(type);
+  auto sTy = mlir::dyn_cast_if_present<cir::RecordType>(type);
   if (!sTy) {
-    emitError() << "expected !cir.struct type";
+    emitError() << "expected !cir.record type";
     return failure();
   }
 
@@ -170,7 +170,7 @@ LogicalResult ConstStructAttr::verify(
   return success();
 }
 
-LogicalResult StructLayoutAttr::verify(
+LogicalResult RecordLayoutAttr::verify(
     ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError, unsigned size,
     unsigned alignment, bool padded, mlir::Type largest_member,
     mlir::ArrayAttr offsets) {
@@ -447,21 +447,21 @@ DataMemberAttr::verify(function_ref<InFlightDiagnostic()> emitError,
     return success();
   }
 
-  auto clsStructTy = ty.getClsTy();
-  if (clsStructTy.isIncomplete()) {
-    emitError() << "incomplete 'cir.struct' cannot be used to build a non-null "
+  auto clsRecordTy = ty.getClsTy();
+  if (clsRecordTy.isIncomplete()) {
+    emitError() << "incomplete 'cir.record' cannot be used to build a non-null "
                    "data member pointer";
     return failure();
   }
 
   auto memberIndexValue = memberIndex.value();
-  if (memberIndexValue >= clsStructTy.getNumElements()) {
+  if (memberIndexValue >= clsRecordTy.getNumElements()) {
     emitError()
         << "member index of a #cir.data_member attribute is out of range";
     return failure();
   }
 
-  auto memberTy = clsStructTy.getMembers()[memberIndexValue];
+  auto memberTy = clsRecordTy.getMembers()[memberIndexValue];
   if (memberTy != ty.getMemberTy()) {
     emitError() << "member type of a #cir.data_member attribute must match the "
                    "attribute type";

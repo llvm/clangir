@@ -54,7 +54,7 @@ clang::TypeInfo CIRLowerContext::getTypeInfoImpl(const mlir::Type T) const {
   auto typeKind = clang::Type::Builtin;
   if (mlir::isa<IntType, SingleType, DoubleType, BoolType>(T)) {
     typeKind = clang::Type::Builtin;
-  } else if (mlir::isa<StructType>(T)) {
+  } else if (mlir::isa<RecordType>(T)) {
     typeKind = clang::Type::Record;
   } else {
     cir_cconv_assert_or_abort(!cir::MissingFeatures::ABIClangTypeKind(),
@@ -105,7 +105,7 @@ clang::TypeInfo CIRLowerContext::getTypeInfoImpl(const mlir::Type T) const {
     break;
   }
   case clang::Type::Record: {
-    const auto RT = mlir::dyn_cast<StructType>(T);
+    const auto RT = mlir::dyn_cast<RecordType>(T);
     cir_cconv_assert(!cir::MissingFeatures::tagTypeClassAbstraction());
 
     // Only handle TagTypes (names types) for now.

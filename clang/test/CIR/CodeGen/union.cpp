@@ -6,15 +6,15 @@ typedef union { yolo y; struct { int lifecnt; }; } yolm;
 typedef union { yolo y; struct { int *lifecnt; int genpad; }; } yolm2;
 typedef union { yolo y; struct { bool life; int genpad; }; } yolm3;
 
-// CHECK-DAG: !ty_U23A3ADummy = !cir.struct<struct "U2::Dummy" {!s16i, !cir.float} #cir.record.decl.ast>
-// CHECK-DAG: !ty_anon2E0 = !cir.struct<struct "anon.0" {!s32i} #cir.record.decl.ast>
-// CHECK-DAG: !ty_anon2E2 = !cir.struct<struct "anon.2" {!cir.bool, !s32i} #cir.record.decl.ast>
-// CHECK-DAG: !ty_yolo = !cir.struct<struct "yolo" {!s32i} #cir.record.decl.ast>
-// CHECK-DAG: !ty_anon2E1 = !cir.struct<struct "anon.1" {!cir.ptr<!s32i>, !s32i} #cir.record.decl.ast>
+// CHECK-DAG: !ty_U23A3ADummy = !cir.record<struct "U2::Dummy" {!s16i, !cir.float} #cir.record.decl.ast>
+// CHECK-DAG: !ty_anon2E0 = !cir.record<struct "anon.0" {!s32i} #cir.record.decl.ast>
+// CHECK-DAG: !ty_anon2E2 = !cir.record<struct "anon.2" {!cir.bool, !s32i} #cir.record.decl.ast>
+// CHECK-DAG: !ty_yolo = !cir.record<struct "yolo" {!s32i} #cir.record.decl.ast>
+// CHECK-DAG: !ty_anon2E1 = !cir.record<struct "anon.1" {!cir.ptr<!s32i>, !s32i} #cir.record.decl.ast>
 
-// CHECK-DAG: !ty_yolm = !cir.struct<union "yolm" {!ty_yolo, !ty_anon2E0}>
-// CHECK-DAG: !ty_yolm3 = !cir.struct<union "yolm3" {!ty_yolo, !ty_anon2E2}>
-// CHECK-DAG: !ty_yolm2 = !cir.struct<union "yolm2" {!ty_yolo, !ty_anon2E1}>
+// CHECK-DAG: !ty_yolm = !cir.record<union "yolm" {!ty_yolo, !ty_anon2E0}>
+// CHECK-DAG: !ty_yolm3 = !cir.record<union "yolm3" {!ty_yolo, !ty_anon2E2}>
+// CHECK-DAG: !ty_yolm2 = !cir.record<union "yolm2" {!ty_yolo, !ty_anon2E1}>
 
 // Should generate a union type with all members preserved.
 union U {
@@ -24,7 +24,7 @@ union U {
   float f;
   double d;
 };
-// CHECK-DAG: !ty_U = !cir.struct<union "U" {!cir.bool, !s16i, !s32i, !cir.float, !cir.double}>
+// CHECK-DAG: !ty_U = !cir.record<union "U" {!cir.bool, !s16i, !s32i, !cir.float, !cir.double}>
 
 // Should generate unions with complex members.
 union U2 {
@@ -34,14 +34,14 @@ union U2 {
     float f;
   } s;
 } u2;
-// CHECK-DAG: !cir.struct<union "U2" {!cir.bool, !ty_U23A3ADummy} #cir.record.decl.ast>
+// CHECK-DAG: !cir.record<union "U2" {!cir.bool, !ty_U23A3ADummy} #cir.record.decl.ast>
 
 // Should genereate unions without padding.
 union U3 {
   short b;
   U u;
 } u3;
-// CHECK-DAG: !ty_U3 = !cir.struct<union "U3" {!s16i, !ty_U} #cir.record.decl.ast>
+// CHECK-DAG: !ty_U3 = !cir.record<union "U3" {!s16i, !ty_U} #cir.record.decl.ast>
 
 void m() {
   yolm q;

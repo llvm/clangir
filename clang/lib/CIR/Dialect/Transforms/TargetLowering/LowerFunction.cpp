@@ -59,15 +59,15 @@ mlir::Value createBitcast(mlir::Value Src, mlir::Type Ty, LowerFunction &LF) {
                                          Src);
 }
 
-/// Given a struct pointer that we are accessing some number of bytes out of it,
-/// try to gep into the struct to get at its inner goodness.  Dive as deep as
+/// Given a record pointer that we are accessing some number of bytes out of it,
+/// try to gep into the record to get at its inner goodness.  Dive as deep as
 /// possible without entering an element with an in-memory size smaller than
 /// DstSize.
-mlir::Value enterStructPointerForCoercedAccess(mlir::Value SrcPtr,
-                                               StructType SrcSTy,
+mlir::Value enterRecordPointerForCoercedAccess(mlir::Value SrcPtr,
+                                               RecordType SrcSTy,
                                                uint64_t DstSize,
                                                LowerFunction &CGF) {
-  // We can't dive into a zero-element struct.
+  // We can't dive into a zero-element record.
   if (SrcSTy.getNumElements() == 0)
     cir_cconv_unreachable("NYI");
 
@@ -77,7 +77,7 @@ mlir::Value enterStructPointerForCoercedAccess(mlir::Value SrcPtr,
     FirstElt = SrcSTy.getLargestMember(CGF.LM.getDataLayout().layout);
 
   // If the first elt is at least as large as what we're looking for, or if the
-  // first element is the same size as the whole struct, we can enter it. The
+  // first element is the same size as the whole record, we can enter it. The
   // comparison must be made on the store size and not the alloca size. Using
   // the alloca size may overstate the size of the load.
   uint64_t FirstEltSize = CGF.LM.getDataLayout().getTypeStoreSize(FirstElt);
@@ -88,7 +88,7 @@ mlir::Value enterStructPointerForCoercedAccess(mlir::Value SrcPtr,
   auto &rw = CGF.getRewriter();
   auto *ctxt = rw.getContext();
   auto ptrTy = PointerType::get(ctxt, FirstElt);
-  if (mlir::isa<StructType>(SrcPtr.getType())) {
+  if (mlir::isa<RecordType>(SrcPtr.getType())) {
     auto addr = SrcPtr;
     if (auto load = mlir::dyn_cast<LoadOp>(SrcPtr.getDefiningOp()))
       addr = load.getAddr();
@@ -101,8 +101,8 @@ mlir::Value enterStructPointerForCoercedAccess(mlir::Value SrcPtr,
     SrcPtr = rw.create<LoadOp>(SrcPtr.getLoc(), cast);
   }
 
-  if (auto sty = mlir::dyn_cast<StructType>(SrcPtr.getType()))
-    return enterStructPointerForCoercedAccess(SrcPtr, sty, DstSize, CGF);
+  if (auto sty = mlir::dyn_cast<RecordType>(SrcPtr.getType()))
+    return enterRecordPointerForCoercedAccess(SrcPtr, sty, DstSize, CGF);
 
   return SrcPtr;
 }
@@ -260,9 +260,9 @@ void createCoercedStore(mlir::Value Src, mlir::Value Dst, bool DstIsVolatile,
   auto dstPtrTy = mlir::dyn_cast<PointerType>(DstTy);
 
   if (dstPtrTy)
-    if (auto dstSTy = mlir::dyn_cast<StructType>(dstPtrTy.getPointee()))
+    if (auto dstSTy = mlir::dyn_cast<RecordType>(dstPtrTy.getPointee()))
       if (SrcTy != dstSTy)
-        Dst = enterStructPointerForCoercedAccess(Dst, dstSTy,
+        Dst = enterRecordPointerForCoercedAccess(Dst, dstSTy,
                                                  SrcSize.getFixedValue(), CGF);
 
   auto &layout = CGF.LM.getDataLayout();
@@ -275,7 +275,7 @@ void createCoercedStore(mlir::Value Src, mlir::Value Dst, bool DstIsVolatile,
         mlir::isa<PointerType>(dstPtrTy.getPointee()) &&
         SrcSize == layout.getTypeAllocSize(dstPtrTy.getPointee())) {
       cir_cconv_unreachable("NYI");
-    } else if (auto STy = mlir::dyn_cast<StructType>(SrcTy)) {
+    } else if (auto STy = mlir::dyn_cast<RecordType>(SrcTy)) {
       cir_cconv_unreachable("NYI");
     } else {
       Dst = createCoercedBitcast(Dst, SrcTy, CGF);
@@ -322,8 +322,8 @@ mlir::Value createCoercedValue(mlir::Value Src, mlir::Type Ty,
 
   llvm::TypeSize DstSize = CGF.LM.getDataLayout().getTypeAllocSize(Ty);
 
-  if (auto SrcSTy = mlir::dyn_cast<StructType>(SrcTy)) {
-    Src = enterStructPointerForCoercedAccess(Src, SrcSTy,
+  if (auto SrcSTy = mlir::dyn_cast<RecordType>(SrcTy)) {
+    Src = enterRecordPointerForCoercedAccess(Src, SrcSTy,
                                              DstSize.getFixedValue(), CGF);
     SrcTy = Src.getType();
   }
@@ -341,7 +341,7 @@ mlir::Value createCoercedValue(mlir::Value Src, mlir::Type Ty,
   if (!SrcSize.isScalable() && !DstSize.isScalable() &&
       SrcSize.getFixedValue() >= DstSize.getFixedValue()) {
     // Generally SrcSize is never greater than DstSize, since this means we are
-    // losing bits. However, this can happen in cases where the structure has
+    // losing bits. However, this can happen in cases where the record has
     // additional padding, for example due to a user specified alignment.
     //
     // FIXME: Assert that we aren't truncating non-padding bits when have access
@@ -418,7 +418,7 @@ mlir::Value castReturnValue(mlir::Value Src, mlir::Type Ty, LowerFunction &LF) {
 
   llvm::TypeSize DstSize = LF.LM.getDataLayout().getTypeAllocSize(Ty);
 
-  // FIXME(cir): Do we need the EnterStructPointerForCoercedAccess routine here?
+  // FIXME(cir): Do we need the EnterRecordPointerForCoercedAccess routine here?
 
   llvm::TypeSize SrcSize = LF.LM.getDataLayout().getTypeAllocSize(SrcTy);
 
@@ -431,7 +431,7 @@ mlir::Value castReturnValue(mlir::Value Src, mlir::Type Ty, LowerFunction &LF) {
   if (!SrcSize.isScalable() && !DstSize.isScalable() &&
       SrcSize.getFixedValue() >= DstSize.getFixedValue()) {
     // Generally SrcSize is never greater than DstSize, since this means we are
-    // losing bits. However, this can happen in cases where the structure has
+    // losing bits. However, this can happen in cases where the record has
     // additional padding, for example due to a user specified alignment.
     //
     // FIXME: Assert that we aren't truncating non-padding bits when have access
@@ -480,7 +480,7 @@ llvm::LogicalResult LowerFunction::buildFunctionProlog(
   // parameter, which is a pointer to the complete memory area.
   cir_cconv_assert(!cir::MissingFeatures::inallocaArgs());
 
-  // Name the struct return parameter.
+  // Name the record return parameter.
   cir_cconv_assert(!cir::MissingFeatures::sretArgs());
 
   // Track if we received the parameter as a pointer (indirect, byval, or
@@ -541,7 +541,7 @@ llvm::LogicalResult LowerFunction::buildFunctionProlog(
 
       // Prepare the argument value. If we have the trivial case, handle it
       // with no muss and fuss.
-      if (!mlir::isa<StructType>(ArgI.getCoerceToType()) &&
+      if (!mlir::isa<RecordType>(ArgI.getCoerceToType()) &&
           ArgI.getCoerceToType() == Ty && ArgI.getDirectOffset() == 0) {
         cir_cconv_assert(NumIRArgs == 1);
 
@@ -572,7 +572,7 @@ llvm::LogicalResult LowerFunction::buildFunctionProlog(
 
       cir_cconv_assert(!cir::MissingFeatures::vectorType());
 
-      StructType STy = mlir::dyn_cast<StructType>(ArgI.getCoerceToType());
+      RecordType STy = mlir::dyn_cast<RecordType>(ArgI.getCoerceToType());
       if (ArgI.isDirect() && !ArgI.getCanBeFlattened() && STy &&
           STy.getNumElements() > 1) {
         cir_cconv_unreachable("NYI");
@@ -595,15 +595,15 @@ llvm::LogicalResult LowerFunction::buildFunctionProlog(
       if (ArgI.isDirect() && ArgI.getCanBeFlattened() && STy &&
           STy.getNumElements() > 1) {
         auto ptrType = mlir::cast<PointerType>(Ptr.getType());
-        llvm::TypeSize structSize =
+        llvm::TypeSize recordSize =
             LM.getTypes().getDataLayout().getTypeAllocSize(STy);
         llvm::TypeSize ptrElementSize =
             LM.getTypes().getDataLayout().getTypeAllocSize(
                 ptrType.getPointee());
-        if (structSize.isScalable()) {
+        if (recordSize.isScalable()) {
           cir_cconv_unreachable("NYI");
         } else {
-          uint64_t srcSize = structSize.getFixedValue();
+          uint64_t srcSize = recordSize.getFixedValue();
           uint64_t dstSize = ptrElementSize.getFixedValue();
 
           mlir::Value addrToStoreInto;
@@ -1025,7 +1025,7 @@ mlir::Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
                                          mlir::Location loc) {
   // FIXME: We no longer need the types from CallArgs; lift up and simplify.
 
-  // Handle struct-return functions by passing a pointer to the
+  // Handle record-return functions by passing a pointer to the
   // location that we would like to return into.
   mlir::Type RetTy = CallInfo.getReturnType(); // ABI-agnostic type.
   const cir::ABIArgInfo &RetAI = CallInfo.getReturnInfo();
@@ -1039,7 +1039,7 @@ mlir::Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
 
   // If we're using inalloca, insert the allocation after the stack save.
   // FIXME: Do this earlier rather than hacking it in here!
-  if (StructType ArgStruct = CallInfo.getArgStruct()) {
+  if (RecordType ArgRecord = CallInfo.getArgRecord()) {
     cir_cconv_unreachable("NYI");
   }
 
@@ -1047,7 +1047,7 @@ mlir::Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
   llvm::SmallVector<mlir::Value, 16> IRCallArgs(IRFunctionArgs.totalIRArgs());
 
   mlir::Value sRetPtr;
-  // If the call returns a temporary with struct return, create a temporary
+  // If the call returns a temporary with record return, create a temporary
   // alloca to hold the result, unless one is given to us.
   if (RetAI.isIndirect() || RetAI.isCoerceAndExpand() || RetAI.isInAlloca()) {
     sRetPtr = createAlloca(loc, RetTy, *this);
@@ -1082,12 +1082,12 @@ mlir::Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
         break;
       }
 
-      if (!mlir::isa<StructType>(ArgInfo.getCoerceToType()) &&
+      if (!mlir::isa<RecordType>(ArgInfo.getCoerceToType()) &&
           ArgInfo.getCoerceToType() == info_it->type &&
           ArgInfo.getDirectOffset() == 0) {
         cir_cconv_assert(NumIRArgs == 1);
         mlir::Value V;
-        if (!mlir::isa<StructType>(I->getType())) {
+        if (!mlir::isa<RecordType>(I->getType())) {
           V = *I;
         } else {
           cir_cconv_unreachable("NYI");
@@ -1113,7 +1113,7 @@ mlir::Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
 
       // FIXME: Avoid the conversion through memory if possible.
       mlir::Value Src = {};
-      if (!mlir::isa<StructType>(I->getType())) {
+      if (!mlir::isa<RecordType>(I->getType())) {
         cir_cconv_unreachable("NYI");
       } else {
         // NOTE(cir): L/RValue stuff are left for CIRGen to handle.
@@ -1130,7 +1130,7 @@ mlir::Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
       // coerced type can be STy = struct { u64, i32 }. Hence a function with
       // a single argument SrcTy will be rewritten to take two arguments,
       // namely u64 and i32.
-      StructType STy = mlir::dyn_cast<StructType>(ArgInfo.getCoerceToType());
+      RecordType STy = mlir::dyn_cast<RecordType>(ArgInfo.getCoerceToType());
       if (STy && ArgInfo.isDirect() && ArgInfo.getCanBeFlattened()) {
         mlir::Type SrcTy = Src.getType();
         llvm::TypeSize SrcTypeSize = LM.getDataLayout().getTypeAllocSize(SrcTy);
@@ -1342,8 +1342,8 @@ mlir::Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
       // An empty record can overlap other data (if declared with
       // no_unique_address); omit the store for such types - as there is no
       // actual data to store.
-      if (mlir::dyn_cast<StructType>(RetTy) &&
-          mlir::cast<StructType>(RetTy).getNumElements() != 0) {
+      if (mlir::dyn_cast<RecordType>(RetTy) &&
+          mlir::cast<RecordType>(RetTy).getNumElements() != 0) {
         RetVal = newCallOp.getResult();
         createCoercedStore(RetVal, dstPtr, false, *this);
 
@@ -1384,7 +1384,7 @@ mlir::Value LowerFunction::getUndefRValue(mlir::Type Ty) {
 
 cir::TypeEvaluationKind LowerFunction::getEvaluationKind(mlir::Type type) {
   // FIXME(cir): Implement type classes for CIR types.
-  if (mlir::isa<StructType>(type))
+  if (mlir::isa<RecordType>(type))
     return cir::TypeEvaluationKind::TEK_Aggregate;
   if (mlir::isa<BoolType, IntType, SingleType, DoubleType, LongDoubleType,
                 VectorType, PointerType>(type))

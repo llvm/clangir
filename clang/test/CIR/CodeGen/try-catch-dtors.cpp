@@ -20,11 +20,11 @@ void yo() {
   }
 }
 
-// CIR-DAG: ![[VecTy:.*]] = !cir.struct<struct "Vec" padded {!u8i}>
-// CIR-DAG: ![[S1:.*]] = !cir.struct<struct "S1" {![[VecTy]]}>
+// CIR-DAG: ![[VecTy:.*]] = !cir.record<struct "Vec" padded {!u8i}>
+// CIR-DAG: ![[S1:.*]] = !cir.record<struct "S1" {![[VecTy]]}>
 
-// CIR_FLAT-DAG: ![[VecTy:.*]] = !cir.struct<struct "Vec" padded {!u8i}>
-// CIR_FLAT-DAG: ![[S1:.*]] = !cir.struct<struct "S1" {![[VecTy]]}>
+// CIR_FLAT-DAG: ![[VecTy:.*]] = !cir.record<struct "Vec" padded {!u8i}>
+// CIR_FLAT-DAG: ![[S1:.*]] = !cir.record<struct "S1" {![[VecTy]]}>
 
 // CIR: cir.scope {
 // CIR:   %[[VADDR:.*]] = cir.alloca ![[VecTy]], !cir.ptr<![[VecTy]]>, ["v", init]

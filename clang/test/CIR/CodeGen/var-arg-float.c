@@ -13,7 +13,7 @@ double f1(int n, ...) {
   return res;
 }
 
-// BEFORE: !ty___va_list = !cir.struct<struct "__va_list" {!cir.ptr<!void>, !cir.ptr<!void>, !cir.ptr<!void>, !s32i, !s32i}
+// BEFORE: !ty___va_list = !cir.record<struct "__va_list" {!cir.ptr<!void>, !cir.ptr<!void>, !cir.ptr<!void>, !s32i, !s32i}
 // BEFORE:  cir.func @f1(%arg0: !s32i, ...) -> !cir.double
 // BEFORE:  [[RETP:%.*]] = cir.alloca !cir.double, !cir.ptr<!cir.double>, ["__retval"]
 // BEFORE:  [[RESP:%.*]] = cir.alloca !cir.double, !cir.ptr<!cir.double>, ["res", init]
@@ -27,7 +27,7 @@ double f1(int n, ...) {
 // BEFORE:   cir.return [[RETV]] : !cir.double
 
 // beginning block cir code
-// AFTER: !ty___va_list = !cir.struct<struct "__va_list" {!cir.ptr<!void>, !cir.ptr<!void>, !cir.ptr<!void>, !s32i, !s32i}
+// AFTER: !ty___va_list = !cir.record<struct "__va_list" {!cir.ptr<!void>, !cir.ptr<!void>, !cir.ptr<!void>, !s32i, !s32i}
 // AFTER:  cir.func @f1(%arg0: !s32i, ...) -> !cir.double
 // AFTER:  [[RETP:%.*]] = cir.alloca !cir.double, !cir.ptr<!cir.double>, ["__retval"]
 // AFTER:  [[RESP:%.*]] = cir.alloca !cir.double, !cir.ptr<!cir.double>, ["res", init]

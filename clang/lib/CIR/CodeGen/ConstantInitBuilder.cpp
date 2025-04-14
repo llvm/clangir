@@ -300,8 +300,8 @@ mlir::Attribute ConstantAggregateBuilderBase::finishArray(mlir::Type eltTy) {
 }
 
 mlir::Attribute
-ConstantAggregateBuilderBase::finishStruct(mlir::MLIRContext *mlirContext,
-                                           cir::StructType ty) {
+ConstantAggregateBuilderBase::finishRecord(mlir::MLIRContext *mlirContext,
+                                           cir::RecordType ty) {
   markFinished();
 
   auto &buffer = getBuffer();
@@ -318,7 +318,7 @@ ConstantAggregateBuilderBase::finishStruct(mlir::MLIRContext *mlirContext,
     // constant = llvm::ConstantStruct::get(ty, elts);
   } else {
     const auto members = mlir::ArrayAttr::get(mlirContext, elts);
-    constant = Builder.CGM.getBuilder().getAnonConstStruct(members, Packed);
+    constant = Builder.CGM.getBuilder().getAnonConstRecord(members, Packed);
   }
 
   buffer.erase(buffer.begin() + Begin, buffer.end());

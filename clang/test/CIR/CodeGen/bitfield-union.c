@@ -13,7 +13,7 @@ void main() {
     d.z = 0;
 }
 
-// CHECK: !ty_demo = !cir.struct<union "demo" {!s32i, !u8i, !u8i}>
+// CHECK: !ty_demo = !cir.record<union "demo" {!s32i, !u8i, !u8i}>
 // CHECK: #bfi_y = #cir.bitfield_info<name = "y", storage_type = !u8i, size = 4, offset = 0, is_signed = true>
 // CHECK: #bfi_z = #cir.bitfield_info<name = "z", storage_type = !u8i, size = 8, offset = 0, is_signed = true>
 

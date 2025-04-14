@@ -91,7 +91,7 @@ mlir::Value LoweringPrepareX86CXXABI::lowerVAArgX86_64(
   // Let's hope LLVM's va_arg instruction can take care of it.
   // Remove this when X86_64ABIInfo::classify can take care of every type.
   if (!mlir::isa<VoidType, IntType, SingleType, DoubleType, BoolType,
-                 StructType, LongDoubleType>(op.getType()))
+                 cir::RecordType, LongDoubleType>(op.getType()))
     return nullptr;
 
   // Assume that va_list type is correct; should be pointer to LLVM type:
@@ -191,16 +191,16 @@ mlir::Value LoweringPrepareX86CXXABI::lowerVAArgX86_64(
   if (neededInt && neededSSE) {
     // FIXME: Cleanup.
     assert(ai.isDirect() && "Unexpected ABI info for mixed regs");
-    StructType structTy = mlir::cast<StructType>(ai.getCoerceToType());
+    auto recordTy = mlir::cast<cir::RecordType>(ai.getCoerceToType());
     cir::PointerType addrTy = builder.getPointerTo(ty);
 
     mlir::Value tmp = builder.createAlloca(loc, addrTy, ty, "tmp",
                                            CharUnits::fromQuantity(tyAlign));
-    tmp = builder.createPtrBitcast(tmp, structTy);
-    assert(structTy.getNumElements() == 2 &&
+    tmp = builder.createPtrBitcast(tmp, recordTy);
+    assert(recordTy.getNumElements() == 2 &&
            "Unexpected ABI info for mixed regs");
-    mlir::Type tyLo = structTy.getMembers()[0];
-    mlir::Type tyHi = structTy.getMembers()[1];
+    mlir::Type tyLo = recordTy.getMembers()[0];
+    mlir::Type tyHi = recordTy.getMembers()[1];
     assert((isFPOrFPVectorTy(tyLo) ^ isFPOrFPVectorTy(tyHi)) &&
            "Unexpected ABI info for mixed regs");
     mlir::Value gpAddr = builder.createPtrStride(loc, regSaveArea, gp_offset);
@@ -295,21 +295,21 @@ mlir::Value LoweringPrepareX86CXXABI::lowerVAArgX86_64(
         loc, regAddrLo, builder.getUnsignedInt(loc, 16, /*numBits=*/32));
 
     mlir::MLIRContext *Context = abiInfo.getContext().getMLIRContext();
-    StructType structTy =
+    cir::RecordType recordTy =
         ai.canHaveCoerceToType()
-            ? cast<StructType>(ai.getCoerceToType())
-            : StructType::get(
+            ? cast<cir::RecordType>(ai.getCoerceToType())
+            : cir::RecordType::get(
                   Context, {DoubleType::get(Context), DoubleType::get(Context)},
-                  /*packed=*/false, /*padded=*/false, StructType::Struct);
+                  /*packed=*/false, /*padded=*/false, cir::RecordType::Struct);
     cir::PointerType addrTy = builder.getPointerTo(ty);
     mlir::Value tmp = builder.createAlloca(loc, addrTy, ty, "tmp",
                                            CharUnits::fromQuantity(tyAlign));
-    tmp = builder.createPtrBitcast(tmp, structTy);
+    tmp = builder.createPtrBitcast(tmp, recordTy);
     mlir::Value v = builder.createLoad(
-        loc, builder.createPtrBitcast(regAddrLo, structTy.getMembers()[0]));
+        loc, builder.createPtrBitcast(regAddrLo, recordTy.getMembers()[0]));
     builder.createStore(loc, v, builder.createGetMemberOp(loc, tmp, "", 0));
     v = builder.createLoad(
-        loc, builder.createPtrBitcast(regAddrHi, structTy.getMembers()[1]));
+        loc, builder.createPtrBitcast(regAddrHi, recordTy.getMembers()[1]));
     builder.createStore(loc, v, builder.createGetMemberOp(loc, tmp, "", 1));
 
     tmp = builder.createPtrBitcast(tmp, ty);

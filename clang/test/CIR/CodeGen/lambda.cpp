@@ -9,10 +9,10 @@ void fn() {
   a();
 }
 
-//      CHECK-DAG: !ty_A = !cir.struct<struct "A" {!s32i}>
-//      CHECK: !ty_anon2E0 = !cir.struct<class "anon.0" padded {!u8i}>
-//      CHECK-DAG: !ty_anon2E7 = !cir.struct<class "anon.7" {!ty_A}>
-//      CHECK-DAG: !ty_anon2E8 = !cir.struct<class "anon.8" {!cir.ptr<!ty_A>}>
+//      CHECK-DAG: !ty_A = !cir.record<struct "A" {!s32i}>
+//      CHECK: !ty_anon2E0 = !cir.record<class "anon.0" padded {!u8i}>
+//      CHECK-DAG: !ty_anon2E7 = !cir.record<class "anon.7" {!ty_A}>
+//      CHECK-DAG: !ty_anon2E8 = !cir.record<class "anon.8" {!cir.ptr<!ty_A>}>
 //  CHECK-DAG: module
 
 //      CHECK: cir.func lambda internal private @_ZZ2fnvENK3$_0clEv{{.*}}) extra

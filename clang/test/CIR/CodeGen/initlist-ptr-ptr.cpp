@@ -15,7 +15,7 @@ void test() {
 }
 } // namespace std
 
-// CIR: [[INITLIST_TYPE:!.*]] = !cir.struct<class "std::initializer_list<const char *>" {!cir.ptr<!cir.ptr<!s8i>>, !cir.ptr<!cir.ptr<!s8i>>}>
+// CIR: [[INITLIST_TYPE:!.*]] = !cir.record<class "std::initializer_list<const char *>" {!cir.ptr<!cir.ptr<!s8i>>, !cir.ptr<!cir.ptr<!s8i>>}>
 // CIR: cir.func linkonce_odr @_ZSt1fIPKcEvSt16initializer_listIT_E(%arg0: [[INITLIST_TYPE]]
 // CIR: [[LOCAL:%.*]] = cir.alloca [[INITLIST_TYPE]], !cir.ptr<[[INITLIST_TYPE]]>,
 // CIR: cir.store %arg0, [[LOCAL]] : [[INITLIST_TYPE]], !cir.ptr<[[INITLIST_TYPE]]>

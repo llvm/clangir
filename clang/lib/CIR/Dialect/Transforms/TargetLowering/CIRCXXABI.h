@@ -64,7 +64,7 @@ public:
 
   /// Returns how an argument of the given record type should be passed.
   /// FIXME(cir): This expects a CXXRecordDecl! Not any record type.
-  virtual RecordArgABI getRecordArgABI(const StructType RD) const = 0;
+  virtual RecordArgABI getRecordArgABI(const RecordType RD) const = 0;
 
   /// Lower the given data member pointer type to its ABI type. The returned
   /// type is also a CIR type.

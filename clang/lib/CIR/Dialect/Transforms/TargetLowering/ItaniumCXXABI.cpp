@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 //
 // This provides CIR lowering logic targeting the Itanium C++ ABI. The class in
-// this file generates structures that follow the Itanium C++ ABI, which is
+// this file generates records that follow the Itanium C++ ABI, which is
 // documented at:
 //  https://itanium-cxx-abi.github.io/cxx-abi/abi.html
 //  https://itanium-cxx-abi.github.io/cxx-abi/abi-eh.html
@@ -34,11 +34,11 @@ class ItaniumCXXABI : public CIRCXXABI {
 
 protected:
   enum class VTableComponentLayout {
-    /// Components in the vtable are pointers to other structs/functions.
+    /// Components in the vtable are pointers to other records/functions.
     Pointer,
 
     /// Components in the vtable are relative offsets between the vtable and the
-    /// other structs/functions.
+    /// other records/functions.
     Relative,
   };
 
@@ -59,7 +59,7 @@ public:
   bool classifyReturnType(LowerFunctionInfo &FI) const override;
 
   // FIXME(cir): This expects a CXXRecordDecl! Not any record type.
-  RecordArgABI getRecordArgABI(const StructType RD) const override {
+  RecordArgABI getRecordArgABI(const RecordType RD) const override {
     cir_cconv_assert(!cir::MissingFeatures::recordDeclIsCXXDecl());
     // If C++ prohibits us from making a copy, pass by address.
     cir_cconv_assert(!cir::MissingFeatures::recordDeclCanPassInRegisters());
@@ -133,7 +133,7 @@ public:
 } // namespace
 
 bool ItaniumCXXABI::classifyReturnType(LowerFunctionInfo &FI) const {
-  const StructType RD = mlir::dyn_cast<StructType>(FI.getReturnType());
+  const RecordType RD = mlir::dyn_cast<RecordType>(FI.getReturnType());
   if (!RD)
     return false;
 
@@ -178,9 +178,9 @@ ItaniumCXXABI::lowerMethodType(cir::MethodType type,
 
   // Note that clang CodeGen emits struct{ptrdiff_t, ptrdiff_t} for member
   // function pointers. Let's follow this approach.
-  return cir::StructType::get(type.getContext(), {ptrdiffCIRTy, ptrdiffCIRTy},
+  return cir::RecordType::get(type.getContext(), {ptrdiffCIRTy, ptrdiffCIRTy},
                               /*packed=*/false, /*padded=*/false,
-                              cir::StructType::Struct);
+                              cir::RecordType::Struct);
 }
 
 mlir::TypedAttr ItaniumCXXABI::lowerDataMemberConstant(
@@ -208,7 +208,7 @@ mlir::TypedAttr ItaniumCXXABI::lowerMethodConstant(
     cir::MethodAttr attr, const mlir::DataLayout &layout,
     const mlir::TypeConverter &typeConverter) const {
   cir::IntType ptrdiffCIRTy = getPtrDiffCIRTy(LM);
-  auto loweredMethodTy = mlir::cast<cir::StructType>(
+  auto loweredMethodTy = mlir::cast<cir::RecordType>(
       lowerMethodType(attr.getType(), typeConverter));
 
   auto zero = cir::IntAttr::get(ptrdiffCIRTy, 0);
@@ -232,7 +232,7 @@ mlir::TypedAttr ItaniumCXXABI::lowerMethodConstant(
     //
     // clang CodeGen emits struct{null, null} for null member function pointers.
     // Let's do the same here.
-    return cir::ConstStructAttr::get(
+    return cir::ConstRecordAttr::get(
         loweredMethodTy, mlir::ArrayAttr::get(attr.getContext(), {zero, zero}));
   }
 
@@ -256,7 +256,7 @@ mlir::TypedAttr ItaniumCXXABI::lowerMethodConstant(
     //   uintfnptr_t is an unsigned integer of the same size as fnptr_t.
     auto ptr =
         cir::IntAttr::get(ptrdiffCIRTy, 1 + attr.getVtableOffset().value());
-    return cir::ConstStructAttr::get(
+    return cir::ConstRecordAttr::get(
         loweredMethodTy, mlir::ArrayAttr::get(attr.getContext(), {ptr, zero}));
   }
 
@@ -266,7 +266,7 @@ mlir::TypedAttr ItaniumCXXABI::lowerMethodConstant(
   //   represented with ptr set to a pointer to the function, using the base
   //   ABI's representation of function pointers.
   auto ptr = cir::GlobalViewAttr::get(ptrdiffCIRTy, attr.getSymbol().value());
-  return cir::ConstStructAttr::get(
+  return cir::ConstRecordAttr::get(
       loweredMethodTy, mlir::ArrayAttr::get(attr.getContext(), {ptr, zero}));
 }
 

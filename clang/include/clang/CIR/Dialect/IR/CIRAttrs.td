@@ -331,12 +331,12 @@ def ConstVectorAttr : CIR_Attr<"ConstVector", "const_vector",
 }
 
 //===----------------------------------------------------------------------===//
-// ConstStructAttr
+// ConstRecordAttr
 //===----------------------------------------------------------------------===//
 
-def ConstStructAttr : CIR_Attr<"ConstStruct", "const_struct",
+def ConstRecordAttr : CIR_Attr<"ConstRecord", "const_record",
                                [TypedAttrInterface]> {
-  let summary = "Represents a constant struct";
+  let summary = "Represents a constant record";
   let description = [{
     Effectively supports "struct-like" constants. It's must be built from
     an `mlir::ArrayAttr `instance where each elements is a typed attribute
@@ -344,9 +344,9 @@ def ConstStructAttr : CIR_Attr<"ConstStruct", "const_struct",
 
     Example:
     ```
-    cir.global external @rgb2 = #cir.const_struct<{0 : i8,
+    cir.global external @rgb2 = #cir.const_record<{0 : i8,
                                                    5 : i64, #cir.null : !cir.ptr<i8>
-                                                  }> : !cir.struct<"", i8, i64, !cir.ptr<i8>>
+                                                  }> : !cir.record<"", i8, i64, !cir.ptr<i8>>
     ```
   }];
 
@@ -354,14 +354,14 @@ def ConstStructAttr : CIR_Attr<"ConstStruct", "const_struct",
                         "mlir::ArrayAttr":$members);
 
   let builders = [
-    AttrBuilderWithInferredContext<(ins "cir::StructType":$type,
+    AttrBuilderWithInferredContext<(ins "cir::RecordType":$type,
                                         "mlir::ArrayAttr":$members), [{
       return $_get(type.getContext(), type, members);
     }]>
   ];
 
   let assemblyFormat = [{
-    `<` custom<StructMembers>($members) `>`
+    `<` custom<RecordMembers>($members) `>`
   }];
 
   let genVerifyDecl = 1;
@@ -576,7 +576,7 @@ def DataMemberAttr : CIR_Attr<"DataMember", "data_member",
     pointer-to-data-member value.
 
     The `member_index` parameter represents the index of the pointed-to member
-    within its containing struct. It is an optional parameter; lack of this
+    within its containing record. It is an optional parameter; lack of this
     parameter indicates a null pointer-to-data-member value.
 
     Example:
@@ -687,7 +687,7 @@ def GlobalViewAttr : CIR_Attr<"GlobalView", "global_view", [TypedAttrInterface]>
 
     A list of indices can be optionally passed and each element subsequently
     indexes underlying types. For `symbol` types like `!cir.array`
-    and `!cir.struct`, it leads to the constant address of sub-elements, while
+    and `!cir.record`, it leads to the constant address of sub-elements, while
     for `!cir.ptr`, an offset is applied. The first index is relative to the
     original symbol type, not the produced one.
 
@@ -764,9 +764,9 @@ def TypeInfoAttr : CIR_Attr<"TypeInfo", "typeinfo", [TypedAttrInterface]> {
     layout is determined by the C++ ABI used (clang only implements
     itanium on CIRGen).
 
-    The verifier enforces that the output type is always a `!cir.struct`,
+    The verifier enforces that the output type is always a `!cir.record`,
     and that the ArrayAttr element types match the equivalent member type
-    for the resulting struct, i.e, a GlobalViewAttr for symbol reference or
+    for the resulting record, i.e, a GlobalViewAttr for symbol reference or
     an IntAttr for flags.
 
     Example:
@@ -776,7 +776,7 @@ def TypeInfoAttr : CIR_Attr<"TypeInfo", "typeinfo", [TypedAttrInterface]> {
 
     cir.global external @type_info_B = #cir.typeinfo<<
       {#cir.global_view<@_ZTVN10__cxxabiv120__si_class_type_infoE, [2]> : !cir.ptr<i8>}
-    >> : !cir.struct<"", !cir.ptr<i8>>
+    >> : !cir.record<"", !cir.ptr<i8>>
     ```
   }];
 
@@ -790,11 +790,11 @@ def TypeInfoAttr : CIR_Attr<"TypeInfo", "typeinfo", [TypedAttrInterface]> {
     }]>
   ];
 
-  // Checks struct element types should match the array for every equivalent
+  // Checks record element types should match the array for every equivalent
   // element type.
   let genVerifyDecl = 1;
   let assemblyFormat = [{
-    `<` custom<StructMembers>($data) `>`
+    `<` custom<RecordMembers>($data) `>`
   }];
 }
 
@@ -805,7 +805,7 @@ def TypeInfoAttr : CIR_Attr<"TypeInfo", "typeinfo", [TypedAttrInterface]> {
 def VTableAttr : CIR_Attr<"VTable", "vtable", [TypedAttrInterface]> {
   let summary = "Represents a C++ vtable";
   let description = [{
-    Wraps a #cir.const_struct containing vtable data.
+    Wraps a #cir.const_record containing vtable data.
 
     Example:
     ```
@@ -816,11 +816,11 @@ def VTableAttr : CIR_Attr<"VTable", "vtable", [TypedAttrInterface]> {
          #cir.global_view<@_ZN1BD0Ev> : !cir.ptr<i8>,
          #cir.global_view<@_ZNK1A5quackEv> : !cir.ptr<i8>]>
          : !cir.array<!cir.ptr<i8> x 5>}>>
-      : !cir.struct<"", !cir.array<!cir.ptr<i8> x 5>>
+      : !cir.record<"", !cir.array<!cir.ptr<i8> x 5>>
     ```
   }];
 
-  // `vtable_data` is const struct with one element, containing an array of
+  // `vtable_data` is const record with one element, containing an array of
   // vtable information.
   let parameters = (ins AttributeSelfTypeParameter<"">:$type,
                         "mlir::ArrayAttr":$vtable_data);
@@ -834,21 +834,21 @@ def VTableAttr : CIR_Attr<"VTable", "vtable", [TypedAttrInterface]> {
 
   let genVerifyDecl = 1;
   let assemblyFormat = [{
-    `<` custom<StructMembers>($vtable_data) `>`
+    `<` custom<RecordMembers>($vtable_data) `>`
   }];
 }
 
 //===----------------------------------------------------------------------===//
-// StructLayoutAttr
+// RecordLayoutAttr
 //===----------------------------------------------------------------------===//
 
-// Used to decouple layout information from the struct type. StructType's
+// Used to decouple layout information from the record type. RecordType's
 // uses this attribute to cache that information.
 
-def StructLayoutAttr : CIR_Attr<"StructLayout", "struct_layout"> {
-  let summary = "ABI specific information about a struct layout";
+def RecordLayoutAttr : CIR_Attr<"RecordLayout", "record_layout"> {
+  let summary = "ABI specific information about a record layout";
   let description = [{
-    Holds layout information often queried by !cir.struct users
+    Holds layout information often queried by !cir.record users
     during lowering passes and optimizations.
   }];
 
@@ -888,7 +888,7 @@ def DynamicCastInfoAttr
     Provide ABI specific information about a dynamic cast operation.
 
     The `srcRtti` and the `destRtti` parameters give the RTTI of the source
-    struct type and the destination struct type, respectively.
+    record type and the destination record type, respectively.
 
     The `runtimeFunc` parameter gives the `__dynamic_cast` function which is
     provided by the runtime. The `badCastFunc` parameter gives the

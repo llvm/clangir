@@ -37,7 +37,7 @@ class RecordDecl;
 
 namespace cir {
 class ArrayType;
-class StructType;
+class RecordType;
 class BoolType;
 } // namespace cir
 

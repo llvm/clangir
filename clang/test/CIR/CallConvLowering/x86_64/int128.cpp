@@ -3,7 +3,7 @@
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -fclangir-call-conv-lowering -emit-llvm %s -o %t.ll
 // RUN: FileCheck --input-file=%t.ll %s --check-prefix=LLVM
 
-// CHECK: ![[I128_STRUCT:.+]] = !cir.struct<struct  {!s64i, !s64i}>
+// CHECK: ![[I128_STRUCT:.+]] = !cir.record<struct  {!s64i, !s64i}>
 
 // CHECK: @_Z5test1nn(%[[ARG0:.+]]: !s64i loc({{.+}}), %[[ARG1:.+]]: !s64i loc({{.+}}), %[[ARG2:.+]]: !s64i loc({{.+}}), %[[ARG3:.+]]: !s64i loc({{.+}})) -> ![[I128_STRUCT]]
 // LLVM: define dso_local { i64, i64 } @_Z5test1nn(i64 %[[#A_LO:]], i64 %[[#A_HI:]], i64 %[[#B_LO:]], i64 %[[#B_HI:]])

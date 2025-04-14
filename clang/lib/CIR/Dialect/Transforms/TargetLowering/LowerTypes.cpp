@@ -88,7 +88,7 @@ FuncType LowerTypes::getFunctionType(const LowerFunctionInfo &FI) {
       // Fast-isel and the optimizer generally like scalar values better than
       // FCAs, so we flatten them if this is safe to do for this argument.
       mlir::Type argType = ArgInfo.getCoerceToType();
-      StructType st = mlir::dyn_cast<StructType>(argType);
+      RecordType st = mlir::dyn_cast<RecordType>(argType);
       if (st && ArgInfo.isDirect() && ArgInfo.getCanBeFlattened()) {
         cir_cconv_assert(NumIRArgs == st.getNumElements());
         for (unsigned i = 0, e = st.getNumElements(); i != e; ++i)

@@ -84,7 +84,7 @@ __global__ void fn() {}
 
 // The first value is CUDA file head magic number.
 // CIR-HOST: cir.global "private" constant internal @__cuda_fatbin_wrapper
-// CIR-HOST: = #cir.const_struct<{
+// CIR-HOST: = #cir.const_record<{
 // CIR-HOST:   #cir.int<1180844977> : !s32i,
 // CIR-HOST:   #cir.int<1> : !s32i,
 // CIR-HOST:   #cir.global_view<@__cuda_fatbin_str> : !cir.ptr<!void>,
