@@ -654,7 +654,7 @@ def CIR_RecordType : CIR_Type<"Record", "record",
   let parameters = (ins
     OptionalArrayRefParameter<"mlir::Type">:$members,
     OptionalParameter<"mlir::StringAttr">:$name,
-    "bool":$incomplete,
+    "bool":$complete,
     "bool":$packed,
     "bool":$padded,
     "RecordType::RecordKind":$kind,
@@ -678,7 +678,7 @@ def CIR_RecordType : CIR_Type<"Record", "record",
       "RecordKind":$kind,
       CArg<"ASTRecordDeclInterface", "{}">:$ast
     ), [{
-      return $_get($_ctxt, members, name, /*incomplete=*/false, packed, padded,
+      return $_get($_ctxt, members, name, /*complete=*/true, packed, padded,
                        kind, ast);    
     }]>,
 
@@ -688,7 +688,7 @@ def CIR_RecordType : CIR_Type<"Record", "record",
       "RecordKind":$kind
     ), [{
       return $_get($_ctxt, /*members=*/llvm::ArrayRef<Type>{}, name,
-                         /*incomplete=*/true, /*packed=*/false,
+                         /*complete=*/false, /*packed=*/false,
                          /*padded=*/false, kind,
                          /*ast=*/ASTRecordDeclInterface{});    
     }]>,
@@ -701,7 +701,7 @@ def CIR_RecordType : CIR_Type<"Record", "record",
       "RecordKind":$kind,
       CArg<"ASTRecordDeclInterface", "{}">:$ast
     ), [{
-      return $_get($_ctxt, members, mlir::StringAttr{}, /*incomplete=*/false,
+      return $_get($_ctxt, members, mlir::StringAttr{}, /*complete=*/true,
                       packed, padded, kind, ast);
     }]>];
 
@@ -713,8 +713,8 @@ def CIR_RecordType : CIR_Type<"Record", "record",
     bool isClass() const { return getKind() == RecordKind::Class; };
     bool isStruct() const { return getKind() == RecordKind::Struct; };
     bool isUnion() const { return getKind() == RecordKind::Union; };
-    bool isComplete() const { return !isIncomplete(); };
-    bool isIncomplete() const;
+    bool isComplete() const;
+    bool isIncomplete() const { return !isComplete(); };
 
     void dropAst();
 
