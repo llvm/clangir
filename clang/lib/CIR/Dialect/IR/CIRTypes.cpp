@@ -172,10 +172,10 @@ Type RecordType::parse(mlir::AsmParser &parser) {
     padded = true;
 
   // Parse record members or lack thereof.
-  bool incomplete = true;
+  bool complete = false;
   llvm::SmallVector<mlir::Type> members;
   if (parser.parseOptionalKeyword("incomplete").failed()) {
-    incomplete = false;
+    complete = true;
     const auto delimiter = AsmParser::Delimiter::Braces;
     const auto parseElementFn = [&parser, &members]() {
       return parser.parseType(members.emplace_back());
@@ -195,15 +195,15 @@ Type RecordType::parse(mlir::AsmParser &parser) {
   // Try to create the proper record type.
   ArrayRef<mlir::Type> membersRef(members); // Needed for template deduction.
   mlir::Type type = {};
-  if (name && incomplete) { // Identified & incomplete
+  if (name && !complete) { // Identified & incomplete
     type = getChecked(eLoc, context, name, kind);
-  } else if (name && !incomplete) { // Identified & complete
+  } else if (name && complete) { // Identified & complete
     type = getChecked(eLoc, context, membersRef, name, packed, padded, kind);
     // If the record has a self-reference, its type already exists in a
     // incomplete state. In this case, we must complete it.
     if (mlir::cast<RecordType>(type).isIncomplete())
       mlir::cast<RecordType>(type).complete(membersRef, packed, padded, ast);
-  } else if (!name && !incomplete) { // anonymous & complete
+  } else if (!name && complete) { // anonymous & complete
     type = getChecked(eLoc, context, membersRef, packed, padded, kind);
   } else { // anonymous & incomplete
     parser.emitError(loc, "anonymous records must be complete");
@@ -282,11 +282,11 @@ void RecordType::dropAst() { getImpl()->ast = nullptr; }
   return getImpl()->members;
 }
 
-bool RecordType::isIncomplete() const { return getImpl()->incomplete; }
+bool RecordType::isComplete() const { return getImpl()->complete; }
 
 mlir::StringAttr RecordType::getName() const { return getImpl()->name; }
 
-bool RecordType::getIncomplete() const { return getImpl()->incomplete; }
+bool RecordType::getComplete() const { return getImpl()->complete; }
 
 bool RecordType::getPacked() const { return getImpl()->packed; }
 
