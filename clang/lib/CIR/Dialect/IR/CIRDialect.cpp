@@ -3613,10 +3613,7 @@ LogicalResult cir::GetMemberOp::verify() {
   if (recordTy.getMembers().size() <= getIndex())
     return emitError() << "member index out of bounds";
 
-  // FIXME(cir): member type check is disabled for classes as the codegen for
-  // these still need to be patched.
-  if (!recordTy.isClass() &&
-      recordTy.getMembers()[getIndex()] != getResultTy().getPointee())
+  if (recordTy.getMembers()[getIndex()] != getResultTy().getPointee())
     return emitError() << "member type mismatch";
 
   return mlir::success();
