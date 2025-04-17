@@ -358,13 +358,13 @@ public:
   matchAndRewrite(cir::GetMemberOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto pointeeType = op.getAddrTy().getPointee();
-    if (!mlir::isa<cir::StructType>(pointeeType))
-      op.emitError("GetMemberOp only works on pointer to cir::StructType");
-    auto structType = mlir::cast<cir::StructType>(pointeeType);
+    if (!mlir::isa<cir::RecordType>(pointeeType))
+      op.emitError("GetMemberOp only works on pointer to cir::RecordType");
+    auto structType = mlir::cast<cir::RecordType>(pointeeType);
     // For now, just rely on the datalayout of the high-level type since the
     // datalayout of low-level type is not implemented yet. But since C++ is a
     // concrete datalayout, both datalayouts are the same.
-    auto *structLayout = dataLayout.getStructLayout(structType);
+    auto *structLayout = dataLayout.getRecordLayout(structType);
 
     // Alias the memref of struct to a memref of an i8 array of the same size.
     const std::array linearizedSize{
@@ -1501,19 +1501,19 @@ mlir::TypeConverter prepareTypeConverter(mlir::DataLayout &dataLayout) {
     auto ty = converter.convertType(type.getEltType());
     return mlir::VectorType::get(type.getSize(), ty);
   });
-  converter.addConversion([&](cir::StructType type) -> mlir::Type {
+  converter.addConversion([&](cir::RecordType type) -> mlir::Type {
     // FIXME(cir): create separate unions, struct, and classes types.
     // Convert struct members.
     llvm::SmallVector<mlir::Type> mlirMembers;
     switch (type.getKind()) {
-    case cir::StructType::Class:
+    case cir::RecordType::Class:
       // TODO(cir): This should be properly validated.
-    case cir::StructType::Struct:
+    case cir::RecordType::Struct:
       for (auto ty : type.getMembers())
         mlirMembers.push_back(converter.convertType(ty));
       break;
     // Unions are lowered as only the largest member.
-    case cir::StructType::Union: {
+    case cir::RecordType::Union: {
       auto largestMember = type.getLargestMember(dataLayout);
       if (largestMember)
         mlirMembers.push_back(converter.convertType(largestMember));
@@ -1523,7 +1523,7 @@ mlir::TypeConverter prepareTypeConverter(mlir::DataLayout &dataLayout) {
 
     // FIXME(cir): all the following has to be somehow kept. With some
     // attributes?
-    // Struct has a name: lower as an identified struct.
+    // Record has a name: lower as an identified record.
     return mlir::named_tuple::NamedTupleType::get(
         type.getContext(), type.getName().strref(), mlirMembers);
   });
