@@ -2967,10 +2967,11 @@ mlir::LogicalResult CIRToLLVMShiftOpLowering::matchAndRewrite(
   // behavior might occur in the casts below as per [C99 6.5.7.3].
   // Vector type shift amount needs no cast as type consistency is expected to
   // be already be enforced at CIRGen.
+  // Negative shift amounts are undefined behavior so we can always zero extend
+  // the integer here.
   if (cirAmtTy)
     amt = getLLVMIntCast(rewriter, amt, mlir::cast<mlir::IntegerType>(llvmTy),
-                         !cirAmtTy.isSigned(), cirAmtTy.getWidth(),
-                         cirValTy.getWidth());
+                         true, cirAmtTy.getWidth(), cirValTy.getWidth());
 
   // Lower to the proper LLVM shift operation.
   if (op.getIsShiftleft())
