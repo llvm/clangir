@@ -1350,8 +1350,24 @@ public:
   mlir::LogicalResult
   matchAndRewrite(cir::UnreachableOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    // match and rewrite.
     rewriter.replaceOpWithNewOp<mlir::LLVM::UnreachableOp>(op);
+    return mlir::success();
+  }
+};
+
+class CIRTrapOpLowering : public mlir::OpConversionPattern<cir::TrapOp> {
+public:
+  using OpConversionPattern<cir::TrapOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::TrapOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    rewriter.setInsertionPointAfter(op);
+    auto trapIntrinsicName = rewriter.getStringAttr("llvm.trap");
+    rewriter.create<mlir::LLVM::CallIntrinsicOp>(op.getLoc(), trapIntrinsicName,
+                                                 /*args=*/mlir::ValueRange());
+    rewriter.create<mlir::LLVM::UnreachableOp>(op.getLoc());
+    rewriter.eraseOp(op);
     return mlir::success();
   }
 };
@@ -1376,8 +1392,8 @@ void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
       CIRBitFfsOpLowering, CIRBitParityOpLowering, CIRIfOpLowering,
       CIRScopeOpLowering, CIRVectorCreateLowering, CIRVectorInsertLowering,
       CIRVectorExtractLowering, CIRVectorCmpOpLowering, CIRACosOpLowering,
-      CIRASinOpLowering, CIRUnreachableOpLowering>(converter,
-                                                   patterns.getContext());
+      CIRASinOpLowering, CIRUnreachableOpLowering, CIRTrapOpLowering>(
+      converter, patterns.getContext());
 }
 
 static mlir::TypeConverter prepareTypeConverter() {
