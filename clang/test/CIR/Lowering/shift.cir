@@ -16,7 +16,7 @@ module {
 
     // Should allow shift with signed smaller amount type.
     %2 = cir.shift(left, %arg1 : !s32i, %arg0 : !s16i) -> !s32i
-    // CHECK: %[[#CAST:]] = llvm.sext %{{.+}} : i16 to i32
+    // CHECK: %[[#CAST:]] = llvm.zext %{{.+}} : i16 to i32
     // CHECK: llvm.shl %{{.+}}, %[[#CAST]]  : i32
 
     // Should allow shift with unsigned smaller amount type.
