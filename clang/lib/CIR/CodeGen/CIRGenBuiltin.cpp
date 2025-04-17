@@ -661,7 +661,8 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     case Builtin::BI__builtin_asinf16:
     case Builtin::BI__builtin_asinl:
     case Builtin::BI__builtin_asinf128:
-      llvm_unreachable("Builtin::BIasin like NYI");
+      assert(!cir::MissingFeatures::fastMathFlags());
+      return emitUnaryMaybeConstrainedFPBuiltin<cir::ASinOp>(*this, *E);
 
     case Builtin::BIatan:
     case Builtin::BIatanf:
@@ -671,7 +672,8 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     case Builtin::BI__builtin_atanf16:
     case Builtin::BI__builtin_atanl:
     case Builtin::BI__builtin_atanf128:
-      llvm_unreachable("Builtin::BIatan like NYI");
+      assert(!cir::MissingFeatures::fastMathFlags());
+      return emitUnaryMaybeConstrainedFPBuiltin<cir::ATanOp>(*this, *E);
 
     case Builtin::BIatan2:
     case Builtin::BIatan2f:
@@ -681,7 +683,7 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     case Builtin::BI__builtin_atan2f16:
     case Builtin::BI__builtin_atan2l:
     case Builtin::BI__builtin_atan2f128:
-      llvm_unreachable("Builtin::BIatan2 like NYI");
+      return emitBinaryFPBuiltin<cir::ATan2Op>(*this, *E);
 
     case Builtin::BIceil:
     case Builtin::BIceilf:
