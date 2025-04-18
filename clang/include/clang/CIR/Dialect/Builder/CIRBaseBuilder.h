@@ -41,6 +41,7 @@ class CIRBaseBuilderTy : public mlir::OpBuilder {
 
 public:
   CIRBaseBuilderTy(mlir::MLIRContext &C) : mlir::OpBuilder(&C) {}
+  CIRBaseBuilderTy(mlir::OpBuilder &B) : mlir::OpBuilder(B) {}
 
   mlir::Value getConstAPSInt(mlir::Location loc, const llvm::APSInt &val) {
     auto ty =
@@ -125,8 +126,12 @@ public:
   }
 
   cir::BoolAttr getCIRBoolAttr(bool state) {
-    return cir::BoolAttr::get(getContext(), getBoolTy(), state);
+    return cir::BoolAttr::get(getContext(), state);
   }
+
+  cir::BoolAttr getTrueAttr() { return getCIRBoolAttr(true); }
+
+  cir::BoolAttr getFalseAttr() { return getCIRBoolAttr(false); }
 
   mlir::TypedAttr getZeroAttr(mlir::Type t) {
     return cir::ZeroAttr::get(getContext(), t);
@@ -148,7 +153,7 @@ public:
     if (auto methodTy = mlir::dyn_cast<cir::MethodType>(ty))
       return getNullMethodAttr(methodTy);
     if (mlir::isa<cir::BoolType>(ty)) {
-      return getCIRBoolAttr(false);
+      return getFalseAttr();
     }
     llvm_unreachable("Zero initializer for given type is NYI");
   }

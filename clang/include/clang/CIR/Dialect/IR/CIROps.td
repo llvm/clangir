@@ -407,6 +407,12 @@ def ConstantOp : CIR_Op<"const",
   // The constant operation returns a single value of CIR_AnyType.
   let results = (outs CIR_AnyType:$res);
 
+  let builders = [
+    OpBuilder<(ins "cir::BoolAttr":$value), [{
+      build($_builder, $_state, value.getType(), value);
+    }]>
+  ];
+
   let assemblyFormat = "attr-dict $value";
 
   let hasVerifier = 1;
