@@ -292,9 +292,8 @@ mlir::Attribute ConstantAggregateBuilderBase::finishArray(mlir::Type eltTy) {
     // eltTy = tAttr.getType();
   }
 
-  auto constant = getConstArray(
-      mlir::ArrayAttr::get(eltTy.getContext(), elts),
-      cir::ArrayType::get(eltTy.getContext(), eltTy, elts.size()));
+  auto constant = getConstArray(mlir::ArrayAttr::get(eltTy.getContext(), elts),
+                                cir::ArrayType::get(eltTy, elts.size()));
   buffer.erase(buffer.begin() + Begin, buffer.end());
   return constant;
 }

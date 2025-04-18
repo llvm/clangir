@@ -440,7 +440,7 @@ cir::VectorType
 ABIInfo::getOptimalVectorMemoryType(cir::VectorType T,
                                     const clang::LangOptions &Opt) const {
   if (T.getSize() == 3 && !Opt.PreserveVec3Type) {
-    return cir::VectorType::get(&CGT.getMLIRContext(), T.getEltType(), 4);
+    return cir::VectorType::get(T.getEltType(), 4);
   }
   return T;
 }

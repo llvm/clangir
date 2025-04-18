@@ -50,7 +50,7 @@ static mlir::TypedAttr computePadding(CIRGenModule &CGM, CharUnits size) {
   if (size > CharUnits::One()) {
     SmallVector<mlir::Attribute, 4> elts(arSize, bld.getZeroAttr(eltTy));
     return bld.getConstArray(mlir::ArrayAttr::get(bld.getContext(), elts),
-                             bld.getArrayType(eltTy, arSize));
+                             cir::ArrayType::get(eltTy, arSize));
   } else {
     return cir::ZeroAttr::get(bld.getContext(), eltTy);
   }
@@ -1303,8 +1303,7 @@ emitArrayConstant(CIRGenModule &CGM, mlir::Type DesiredType,
 
     return builder.getConstArray(
         mlir::ArrayAttr::get(builder.getContext(), Eles),
-        cir::ArrayType::get(builder.getContext(), CommonElementType,
-                            ArrayBound));
+        cir::ArrayType::get(CommonElementType, ArrayBound));
     // TODO(cir): If all the elements had the same type up to the trailing
     // zeroes, emit a record of two arrays (the nonzero data and the
     // zeroinitializer). Use DesiredType to get the element type.
@@ -1324,8 +1323,7 @@ emitArrayConstant(CIRGenModule &CGM, mlir::Type DesiredType,
 
     return builder.getConstArray(
         mlir::ArrayAttr::get(builder.getContext(), Eles),
-        cir::ArrayType::get(builder.getContext(), CommonElementType,
-                            ArrayBound));
+        cir::ArrayType::get(CommonElementType, ArrayBound));
   }
 
   SmallVector<mlir::Attribute, 4> Eles;
@@ -1831,8 +1829,7 @@ mlir::Attribute ConstantEmitter::emitForMemory(CIRGenModule &CGM,
     assert(innerSize < outerSize && "emitted over-large constant for atomic");
     auto &builder = CGM.getBuilder();
     auto zeroArray = builder.getZeroInitAttr(
-        cir::ArrayType::get(builder.getContext(), builder.getUInt8Ty(),
-                            (outerSize - innerSize) / 8));
+        cir::ArrayType::get(builder.getUInt8Ty(), (outerSize - innerSize) / 8));
     SmallVector<mlir::Attribute, 4> anonElts = {C, zeroArray};
     auto arrAttr = mlir::ArrayAttr::get(builder.getContext(), anonElts);
     return builder.getAnonConstRecord(arrAttr, false);
