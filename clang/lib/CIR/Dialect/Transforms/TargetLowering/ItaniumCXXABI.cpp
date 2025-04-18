@@ -564,11 +564,9 @@ mlir::Value ItaniumCXXABI::lowerMethodCmp(cir::CmpOp op, mlir::Value loweredLhs,
   //   - cir.select if %a then true else %b  => %a || %b
   // TODO: Do we need to invent dedicated "cir.logical_or" and "cir.logical_and"
   // operations for this?
-  auto boolTy = cir::BoolType::get(op.getContext());
-  mlir::Value trueValue = builder.create<cir::ConstantOp>(
-      op.getLoc(), boolTy, cir::BoolAttr::get(op.getContext(), boolTy, true));
-  mlir::Value falseValue = builder.create<cir::ConstantOp>(
-      op.getLoc(), boolTy, cir::BoolAttr::get(op.getContext(), boolTy, false));
+  CIRBaseBuilderTy cirBuilder(builder);
+  mlir::Value trueValue = cirBuilder.getTrue(op.getLoc());
+  mlir::Value falseValue = cirBuilder.getFalse(op.getLoc());
   auto create_and = [&](mlir::Value lhs, mlir::Value rhs) {
     return builder.create<cir::SelectOp>(op.getLoc(), lhs, rhs, falseValue);
   };

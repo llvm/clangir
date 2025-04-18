@@ -946,9 +946,7 @@ mlir::LogicalResult CIRGenFunction::emitForStmt(const ForStmt &S) {
             // scalar type.
             condVal = evaluateExprAsBool(S.getCond());
           } else {
-            auto boolTy = cir::BoolType::get(b.getContext());
-            condVal = b.create<cir::ConstantOp>(
-                loc, boolTy, cir::BoolAttr::get(b.getContext(), boolTy, true));
+            condVal = b.create<cir::ConstantOp>(loc, builder.getTrueAttr());
           }
           builder.createCondition(condVal);
         },
