@@ -781,13 +781,12 @@ def CIR_RecordType : CIR_Type<"Record", "record",
 
     bool isLayoutIdentical(const RecordType &other);
 
-  // Utilities for lazily computing and cacheing data layout info.
-  // FIXME: currently opaque because there's a cycle if CIRTypes.types include
-  // from CIRAttrs.h. The implementation operates in terms of RecordLayoutAttr
-  // instead.
+  // Utilities for computing data layout info
   private:
-    mutable mlir::Attribute layoutInfo;
-    void computeSizeAndAlignment(const mlir::DataLayout &dataLayout) const;
+    unsigned computeStructSize(const mlir::DataLayout &dataLayout) const;
+    unsigned computeUnionSize(const mlir::DataLayout &dataLayout) const;
+    uint64_t computeStructAlignment(const mlir::DataLayout &dataLayout) const;
+    uint64_t computeUnionAlignment(const mlir::DataLayout &dataLayout) const;
   public:
   }];
 
