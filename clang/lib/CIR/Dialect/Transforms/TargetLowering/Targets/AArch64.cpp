@@ -128,8 +128,7 @@ ABIArgInfo AArch64ABIInfo::classifyReturnType(mlir::Type RetTy,
     // For aggregates with 16-byte alignment, we use i128.
     if (Alignment < 128 && Size == 128) {
       mlir::Type baseTy = cir::IntType::get(LT.getMLIRContext(), 64, false);
-      return ABIArgInfo::getDirect(
-          cir::ArrayType::get(LT.getMLIRContext(), baseTy, Size / 64));
+      return ABIArgInfo::getDirect(cir::ArrayType::get(baseTy, Size / 64));
     }
 
     return ABIArgInfo::getDirect(
@@ -180,8 +179,7 @@ AArch64ABIInfo::classifyArgumentType(mlir::Type Ty, bool IsVariadic,
         cir::IntType::get(LT.getMLIRContext(), Alignment, false);
     auto argTy = Size == Alignment
                      ? baseTy
-                     : cir::ArrayType::get(LT.getMLIRContext(), baseTy,
-                                           Size / Alignment);
+                     : cir::ArrayType::get(baseTy, Size / Alignment);
     return ABIArgInfo::getDirect(argTy);
   }
 

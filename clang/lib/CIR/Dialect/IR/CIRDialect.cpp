@@ -936,7 +936,7 @@ OpFoldResult cir::ComplexCreateOp::fold(FoldAdaptor adaptor) {
   assert(realAttr.getType() == imagAttr.getType() &&
          "real part and imag part should be of the same type");
 
-  auto complexTy = cir::ComplexType::get(getContext(), realAttr.getType());
+  auto complexTy = cir::ComplexType::get(realAttr.getType());
   return cir::ComplexAttr::get(complexTy, realAttr, imagAttr);
 }
 

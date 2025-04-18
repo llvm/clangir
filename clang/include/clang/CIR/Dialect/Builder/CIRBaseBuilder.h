@@ -302,7 +302,7 @@ public:
 
   mlir::Value createComplexCreate(mlir::Location loc, mlir::Value real,
                                   mlir::Value imag) {
-    auto resultComplexTy = cir::ComplexType::get(getContext(), real.getType());
+    auto resultComplexTy = cir::ComplexType::get(real.getType());
     return create<cir::ComplexCreateOp>(loc, resultComplexTy, real, imag);
   }
 
