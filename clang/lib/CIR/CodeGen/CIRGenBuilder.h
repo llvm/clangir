@@ -168,7 +168,7 @@ public:
     // If the string is full of null bytes, emit a #cir.zero rather than
     // a #cir.const_array.
     if (lastNonZeroPos == llvm::StringRef::npos) {
-      auto arrayTy = cir::ArrayType::get(getContext(), eltTy, finalSize);
+      auto arrayTy = cir::ArrayType::get(eltTy, finalSize);
       return getZeroAttr(arrayTy);
     }
     // We will use trailing zeros only if there are more than one zero
@@ -176,8 +176,8 @@ public:
     int trailingZerosNum =
         finalSize > lastNonZeroPos + 2 ? finalSize - lastNonZeroPos - 1 : 0;
     auto truncatedArrayTy =
-        cir::ArrayType::get(getContext(), eltTy, finalSize - trailingZerosNum);
-    auto fullArrayTy = cir::ArrayType::get(getContext(), eltTy, finalSize);
+        cir::ArrayType::get(eltTy, finalSize - trailingZerosNum);
+    auto fullArrayTy = cir::ArrayType::get(eltTy, finalSize);
     return cir::ConstArrayAttr::get(
         getContext(), fullArrayTy,
         mlir::StringAttr::get(str.drop_back(trailingZerosNum),
@@ -407,8 +407,7 @@ public:
                                           bool isSigned = false) {
     auto elementTy = mlir::dyn_cast_or_null<cir::IntType>(vt.getEltType());
     assert(elementTy && "expected int vector");
-    return cir::VectorType::get(getContext(),
-                                isExtended
+    return cir::VectorType::get(isExtended
                                     ? getExtendedIntTy(elementTy, isSigned)
                                     : getTruncatedIntTy(elementTy, isSigned),
                                 vt.getSize());
@@ -528,10 +527,6 @@ public:
       return getAnonRecordTy(members, packed, padded, ast);
     else
       return getCompleteRecordTy(members, name, packed, padded, ast);
-  }
-
-  cir::ArrayType getArrayType(mlir::Type eltType, unsigned size) {
-    return cir::ArrayType::get(getContext(), eltType, size);
   }
 
   bool isSized(mlir::Type ty) {

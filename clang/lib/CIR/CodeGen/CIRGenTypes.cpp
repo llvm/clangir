@@ -602,7 +602,7 @@ mlir::Type CIRGenTypes::convertType(QualType T) {
   case Type::Complex: {
     const ComplexType *CT = cast<ComplexType>(Ty);
     auto ElementTy = convertType(CT->getElementType());
-    ResultType = cir::ComplexType::get(Builder.getContext(), ElementTy);
+    ResultType = cir::ComplexType::get(ElementTy);
     break;
   }
   case Type::LValueReference:
@@ -650,7 +650,7 @@ mlir::Type CIRGenTypes::convertType(QualType T) {
       SkippedLayout = true;
       ResultType = Builder.getUInt8Ty();
     }
-    ResultType = Builder.getArrayType(ResultType, 0);
+    ResultType = cir::ArrayType::get(ResultType, 0);
     break;
   }
   case Type::ConstantArray: {
@@ -660,16 +660,14 @@ mlir::Type CIRGenTypes::convertType(QualType T) {
     // FIXME: In LLVM, "lower arrays of undefined struct type to arrays of
     // i8 just to have a concrete type". Not sure this makes sense in CIR yet.
     assert(Builder.isSized(EltTy) && "not implemented");
-    ResultType = cir::ArrayType::get(Builder.getContext(), EltTy,
-                                     A->getSize().getZExtValue());
+    ResultType = cir::ArrayType::get(EltTy, A->getSize().getZExtValue());
     break;
   }
   case Type::ExtVector:
   case Type::Vector: {
     const VectorType *V = cast<VectorType>(Ty);
     auto ElementType = convertTypeForMem(V->getElementType());
-    ResultType = cir::VectorType::get(Builder.getContext(), ElementType,
-                                      V->getNumElements());
+    ResultType = cir::VectorType::get(ElementType, V->getNumElements());
     break;
   }
   case Type::ConstantMatrix: {
@@ -717,12 +715,10 @@ mlir::Type CIRGenTypes::convertType(QualType T) {
     auto clsTy =
         mlir::cast<cir::RecordType>(convertType(QualType(MPT->getClass(), 0)));
     if (MPT->isMemberDataPointer())
-      ResultType =
-          cir::DataMemberType::get(Builder.getContext(), memberTy, clsTy);
+      ResultType = cir::DataMemberType::get(memberTy, clsTy);
     else {
       auto memberFuncTy = mlir::cast<cir::FuncType>(memberTy);
-      ResultType =
-          cir::MethodType::get(Builder.getContext(), memberFuncTy, clsTy);
+      ResultType = cir::MethodType::get(memberFuncTy, clsTy);
     }
     break;
   }
