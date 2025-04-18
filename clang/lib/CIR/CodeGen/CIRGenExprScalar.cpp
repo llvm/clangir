@@ -199,9 +199,7 @@ public:
     llvm_unreachable("NYI");
   }
   mlir::Value VisitCXXBoolLiteralExpr(const CXXBoolLiteralExpr *E) {
-    mlir::Type Ty = CGF.convertType(E->getType());
-    return Builder.create<cir::ConstantOp>(
-        CGF.getLoc(E->getExprLoc()), Ty, Builder.getCIRBoolAttr(E->getValue()));
+    return Builder.getBool(E->getValue(), CGF.getLoc(E->getExprLoc()));
   }
 
   mlir::Value VisitCXXScalarValueInitExpr(const CXXScalarValueInitExpr *E) {
@@ -419,9 +417,7 @@ public:
     // An interesting aspect of this is that increment is always true.
     // Decrement does not have this property.
     if (isInc && type->isBooleanType()) {
-      value = Builder.create<cir::ConstantOp>(CGF.getLoc(E->getExprLoc()),
-                                              CGF.convertType(type),
-                                              Builder.getCIRBoolAttr(true));
+      value = Builder.getTrue(CGF.getLoc(E->getExprLoc()));
     } else if (type->isIntegerType()) {
       QualType promotedType;
       bool canPerformLossyDemotionCheck = false;
@@ -2669,9 +2665,7 @@ mlir::Value ScalarExprEmitter::VisitBinLAnd(const clang::BinaryOperator *E) {
               CIRGenFunction::LexicalScope lexScope{CGF, Loc,
                                                     B.getInsertionBlock()};
               CGF.currLexScope->setAsTernary();
-              auto res = B.create<cir::ConstantOp>(
-                  Loc, Builder.getBoolTy(),
-                  Builder.getAttr<cir::BoolAttr>(Builder.getBoolTy(), true));
+              auto res = B.create<cir::ConstantOp>(Loc, Builder.getTrueAttr());
               B.create<cir::YieldOp>(Loc, res.getRes());
             },
             /*falseBuilder*/
@@ -2679,9 +2673,7 @@ mlir::Value ScalarExprEmitter::VisitBinLAnd(const clang::BinaryOperator *E) {
               CIRGenFunction::LexicalScope lexScope{CGF, Loc,
                                                     b.getInsertionBlock()};
               CGF.currLexScope->setAsTernary();
-              auto res = b.create<cir::ConstantOp>(
-                  Loc, Builder.getBoolTy(),
-                  Builder.getAttr<cir::BoolAttr>(Builder.getBoolTy(), false));
+              auto res = b.create<cir::ConstantOp>(Loc, Builder.getFalseAttr());
               b.create<cir::YieldOp>(Loc, res.getRes());
             });
         B.create<cir::YieldOp>(Loc, res.getResult());
@@ -2690,9 +2682,7 @@ mlir::Value ScalarExprEmitter::VisitBinLAnd(const clang::BinaryOperator *E) {
       [&](mlir::OpBuilder &B, mlir::Location Loc) {
         CIRGenFunction::LexicalScope lexScope{CGF, Loc, B.getInsertionBlock()};
         CGF.currLexScope->setAsTernary();
-        auto res = B.create<cir::ConstantOp>(
-            Loc, Builder.getBoolTy(),
-            Builder.getAttr<cir::BoolAttr>(Builder.getBoolTy(), false));
+        auto res = B.create<cir::ConstantOp>(Loc, Builder.getFalseAttr());
         B.create<cir::YieldOp>(Loc, res.getRes());
       });
   return Builder.createZExtOrBitCast(ResOp.getLoc(), ResOp.getResult(), ResTy);
@@ -2738,9 +2728,7 @@ mlir::Value ScalarExprEmitter::VisitBinLOr(const clang::BinaryOperator *E) {
       [&](mlir::OpBuilder &B, mlir::Location Loc) {
         CIRGenFunction::LexicalScope lexScope{CGF, Loc, B.getInsertionBlock()};
         CGF.currLexScope->setAsTernary();
-        auto res = B.create<cir::ConstantOp>(
-            Loc, Builder.getBoolTy(),
-            Builder.getAttr<cir::BoolAttr>(Builder.getBoolTy(), true));
+        auto res = B.create<cir::ConstantOp>(Loc, Builder.getTrueAttr());
         B.create<cir::YieldOp>(Loc, res.getRes());
       },
       /*falseBuilder*/
@@ -2763,9 +2751,7 @@ mlir::Value ScalarExprEmitter::VisitBinLOr(const clang::BinaryOperator *E) {
               CIRGenFunction::LexicalScope lexScope{CGF, Loc,
                                                     B.getInsertionBlock()};
               CGF.currLexScope->setAsTernary();
-              auto res = B.create<cir::ConstantOp>(
-                  Loc, Builder.getBoolTy(),
-                  Builder.getAttr<cir::BoolAttr>(Builder.getBoolTy(), true));
+              auto res = B.create<cir::ConstantOp>(Loc, Builder.getTrueAttr());
               B.create<cir::YieldOp>(Loc, res.getRes());
             },
             /*falseBuilder*/
@@ -2782,9 +2768,7 @@ mlir::Value ScalarExprEmitter::VisitBinLOr(const clang::BinaryOperator *E) {
               CIRGenFunction::LexicalScope lexScope{CGF, Loc,
                                                     B.getInsertionBlock()};
               CGF.currLexScope->setAsTernary();
-              auto res = b.create<cir::ConstantOp>(
-                  Loc, Builder.getBoolTy(),
-                  Builder.getAttr<cir::BoolAttr>(Builder.getBoolTy(), false));
+              auto res = b.create<cir::ConstantOp>(Loc, Builder.getFalseAttr());
               b.create<cir::YieldOp>(Loc, res.getRes());
             });
         B.create<cir::YieldOp>(Loc, res.getResult());
