@@ -58,8 +58,7 @@ mlir::Type CIRGenVTables::getVTableType(const VTableLayout &layout) {
   mlir::MLIRContext *mlirContext = CGM.getBuilder().getContext();
   auto componentType = getVTableComponentType();
   for (unsigned i = 0, e = layout.getNumVTables(); i != e; ++i)
-    tys.push_back(cir::ArrayType::get(mlirContext, componentType,
-                                      layout.getVTableSize(i)));
+    tys.push_back(cir::ArrayType::get(componentType, layout.getVTableSize(i)));
 
   // FIXME(cir): should VTableLayout be encoded like we do for some
   // AST nodes?
@@ -519,8 +518,7 @@ cir::GlobalOp CIRGenVTables::getAddrOfVTT(const CXXRecordDecl *RD) {
 
   VTTBuilder Builder(CGM.getASTContext(), RD, /*GenerateDefinition=*/false);
 
-  auto ArrayType = cir::ArrayType::get(CGM.getBuilder().getContext(),
-                                       CGM.getBuilder().getUInt8PtrTy(),
+  auto ArrayType = cir::ArrayType::get(CGM.getBuilder().getUInt8PtrTy(),
                                        Builder.getVTTComponents().size());
   auto Align =
       CGM.getDataLayout().getABITypeAlign(CGM.getBuilder().getUInt8PtrTy());
@@ -590,8 +588,7 @@ void CIRGenVTables::emitVTTDefinition(cir::GlobalOp VTT,
                                       const CXXRecordDecl *RD) {
   VTTBuilder Builder(CGM.getASTContext(), RD, /*GenerateDefinition=*/true);
 
-  auto ArrayType = cir::ArrayType::get(CGM.getBuilder().getContext(),
-                                       CGM.getBuilder().getUInt8PtrTy(),
+  auto ArrayType = cir::ArrayType::get(CGM.getBuilder().getUInt8PtrTy(),
                                        Builder.getVTTComponents().size());
 
   SmallVector<cir::GlobalOp, 8> VTables;

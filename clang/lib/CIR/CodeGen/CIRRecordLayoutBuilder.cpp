@@ -152,8 +152,7 @@ struct CIRRecordLowering final {
     mlir::Type type = getCharType();
     return numberOfChars == CharUnits::One()
                ? type
-               : cir::ArrayType::get(type.getContext(), type,
-                                     numberOfChars.getQuantity());
+               : cir::ArrayType::get(type, numberOfChars.getQuantity());
   }
 
   // This is different from LLVM traditional codegen because CIRGen uses arrays
@@ -165,8 +164,7 @@ struct CIRRecordLowering final {
       return builder.getUIntNTy(alignedBits);
     } else {
       mlir::Type type = getCharType();
-      return cir::ArrayType::get(type.getContext(), type,
-                                 alignedBits / astContext.getCharWidth());
+      return cir::ArrayType::get(type, alignedBits / astContext.getCharWidth());
     }
   }
 

@@ -129,8 +129,7 @@ void CIRGenNVCUDARuntime::emitDeviceStubBodyNew(CIRGenFunction &cgf,
   // we need to pass it as `void *args[2] = { &a, &b }`.
 
   auto loc = fn.getLoc();
-  auto voidPtrArrayTy =
-      cir::ArrayType::get(&cgm.getMLIRContext(), cgm.VoidPtrTy, args.size());
+  auto voidPtrArrayTy = cir::ArrayType::get(cgm.VoidPtrTy, args.size());
   mlir::Value kernelArgs = builder.createAlloca(
       loc, cir::PointerType::get(voidPtrArrayTy), voidPtrArrayTy, "kernel_args",
       CharUnits::fromQuantity(16));

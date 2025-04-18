@@ -228,6 +228,12 @@ def CIR_ComplexType : CIR_Type<"Complex", "complex",
 
   let parameters = (ins "mlir::Type":$elementTy);
 
+  let builders = [
+    TypeBuilderWithInferredContext<(ins "mlir::Type":$elementTy), [{
+      return $_get(elementTy.getContext(), elementTy);
+    }]>,
+  ];
+
   let assemblyFormat = [{
     `<` $elementTy `>`
   }];
@@ -301,6 +307,14 @@ def CIR_DataMemberType : CIR_Type<"DataMember", "data_member",
   let parameters = (ins "mlir::Type":$memberTy,
                         "cir::RecordType":$clsTy);
 
+  let builders = [
+    TypeBuilderWithInferredContext<(ins
+      "mlir::Type":$memberTy, "cir::RecordType":$clsTy
+    ), [{
+      return $_get(memberTy.getContext(), memberTy, clsTy);
+    }]>,
+  ];
+
   let assemblyFormat = [{
     `<` $memberTy `in` $clsTy `>`
   }];
@@ -338,6 +352,14 @@ def CIR_ArrayType : CIR_Type<"Array", "array",
 
   let parameters = (ins "mlir::Type":$eltType, "uint64_t":$size);
 
+  let builders = [
+    TypeBuilderWithInferredContext<(ins
+      "mlir::Type":$eltType, "uint64_t":$size
+    ), [{
+        return $_get(eltType.getContext(), eltType, size);
+    }]>,
+  ];
+
   let assemblyFormat = [{
     `<` $eltType `x` $size `>`
   }];
@@ -357,6 +379,14 @@ def CIR_VectorType : CIR_Type<"Vector", "vector",
   }];
 
   let parameters = (ins "mlir::Type":$eltType, "uint64_t":$size);
+
+  let builders = [
+    TypeBuilderWithInferredContext<(ins
+      "mlir::Type":$eltType, "uint64_t":$size
+    ), [{
+        return $_get(eltType.getContext(), eltType, size);
+    }]>,
+  ];
 
   let assemblyFormat = [{
     `<` $eltType `x` $size `>`
@@ -451,6 +481,14 @@ def CIR_MethodType : CIR_Type<"Method", "method",
 
   let parameters = (ins "cir::FuncType":$memberFuncTy,
                         "cir::RecordType":$clsTy);
+
+  let builders = [
+    TypeBuilderWithInferredContext<(ins
+      "cir::FuncType":$memberFuncTy, "cir::RecordType":$clsTy
+    ), [{
+      return $_get(memberFuncTy.getContext(), memberFuncTy, clsTy);
+    }]>,
+  ];
 
   let assemblyFormat = [{
     `<` qualified($memberFuncTy) `in` $clsTy `>`
