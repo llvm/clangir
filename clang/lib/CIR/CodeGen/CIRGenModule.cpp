@@ -1009,8 +1009,9 @@ void CIRGenModule::replaceGlobal(cir::GlobalOp oldSym, cir::GlobalOp newSym) {
     if (oldSymUses.has_value()) {
       for (auto use : *oldSymUses) {
         auto *userOp = use.getUser();
-        assert((isa<cir::GetGlobalOp>(userOp) || isa<cir::GlobalOp>(userOp)) &&
-               "GlobalOp symbol user is neither a GetGlobalOp nor a GlobalOp");
+        assert(
+            (isa<cir::GetGlobalOp, cir::GlobalOp, cir::ConstantOp>(userOp)) &&
+            "GlobalOp symbol user is neither a GetGlobalOp nor a GlobalOp");
 
         if (auto ggo = dyn_cast<cir::GetGlobalOp>(use.getUser())) {
           auto useOpResultValue = ggo.getAddr();
@@ -1028,6 +1029,15 @@ void CIRGenModule::replaceGlobal(cir::GlobalOp oldSym, cir::GlobalOp newSym) {
             auto nw = getNewInitValue(*this, newSym, oldTy, glob, init.value());
             glob.setInitialValueAttr(nw);
           }
+        } else if (auto c = dyn_cast<cir::ConstantOp>(userOp)) {
+          mlir::Attribute init =
+              getNewInitValue(*this, newSym, oldTy, glob, c.getValue());
+          auto ar = cast<ConstArrayAttr>(init);
+          mlir::OpBuilder::InsertionGuard guard(builder);
+          builder.setInsertionPointAfter(c);
+          auto newUser =
+              builder.create<cir::ConstantOp>(c.getLoc(), ar.getType(), ar);
+          c.replaceAllUsesWith(newUser.getOperation());
         }
       }
     }
