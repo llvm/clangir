@@ -40,7 +40,7 @@ CIRGenFunction::CIRGenFunction(CIRGenModule &cgm, CIRGenBuilderTy &builder,
                                bool suppressNewContext)
     : CIRGenTypeCache(cgm), CGM{cgm}, builder(builder),
       SanOpts(cgm.getLangOpts().Sanitize), CurFPFeatures(cgm.getLangOpts()),
-      ShouldEmitLifetimeMarkers(false) {
+      shouldEmitLifetimeMarkers(false) {
   if (!suppressNewContext)
     cgm.getCXXABI().getMangleContext().startNewFunction();
   EHStack.setCGF(this);
@@ -709,7 +709,7 @@ cir::FuncOp CIRGenFunction::generateCode(clang::GlobalDecl gd, cir::FuncOp fn,
 
     // Initialize helper which will detect jumps which can cause invalid
     // lifetime markers.
-    if (ShouldEmitLifetimeMarkers)
+    if (shouldEmitLifetimeMarkers)
       assert(!cir::MissingFeatures::shouldEmitLifetimeMarkers() && "NYI");
   }
 

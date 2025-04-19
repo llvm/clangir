@@ -4238,6 +4238,24 @@ mlir::LogicalResult CIRToLLVMLinkerOptionsOpLowering::matchAndRewrite(
   return mlir::success();
 }
 
+mlir::LogicalResult CIRToLLVMLifetimeStartOpLowering::matchAndRewrite(
+    cir::LifetimeStartOp op, OpAdaptor adaptor,
+    mlir::ConversionPatternRewriter &rewriter) const {
+  auto newOp = rewriter.create<mlir::LLVM::LifetimeStartOp>(
+      op.getLoc(), op.getSizeAttr(), adaptor.getPtr());
+  rewriter.replaceOp(op, newOp);
+  return mlir::success();
+}
+
+mlir::LogicalResult CIRToLLVMLifetimeEndOpLowering::matchAndRewrite(
+    cir::LifetimeEndOp op, OpAdaptor adaptor,
+    mlir::ConversionPatternRewriter &rewriter) const {
+  auto newOp = rewriter.create<mlir::LLVM::LifetimeEndOp>(
+      op.getLoc(), op.getSizeAttr(), adaptor.getPtr());
+  rewriter.replaceOp(op, newOp);
+  return mlir::success();
+}
+
 void populateCIRToLLVMConversionPatterns(
     mlir::RewritePatternSet &patterns, mlir::TypeConverter &converter,
     mlir::DataLayout &dataLayout, cir::LowerModule *lowerModule,
@@ -4322,6 +4340,8 @@ void populateCIRToLLVMConversionPatterns(
       CIRToLLVMInsertMemberOpLowering,
       CIRToLLVMIsConstantOpLowering,
       CIRToLLVMIsFPClassOpLowering,
+      CIRToLLVMLifetimeEndOpLowering,
+      CIRToLLVMLifetimeStartOpLowering,
       CIRToLLVMLinkerOptionsOpLowering,
       CIRToLLVMLLVMIntrinsicCallOpLowering,
       CIRToLLVMMemChrOpLowering,

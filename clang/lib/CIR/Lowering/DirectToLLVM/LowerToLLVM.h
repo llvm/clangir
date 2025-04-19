@@ -1257,6 +1257,24 @@ public:
                   mlir::ConversionPatternRewriter &rewriter) const override;
 };
 
+class CIRToLLVMLifetimeStartOpLowering
+    : public mlir::OpConversionPattern<cir::LifetimeStartOp> {
+public:
+  using mlir::OpConversionPattern<cir::LifetimeStartOp>::OpConversionPattern;
+  mlir::LogicalResult
+  matchAndRewrite(cir::LifetimeStartOp op, OpAdaptor,
+                  mlir::ConversionPatternRewriter &) const override;
+};
+
+class CIRToLLVMLifetimeEndOpLowering
+    : public mlir::OpConversionPattern<cir::LifetimeEndOp> {
+public:
+  using mlir::OpConversionPattern<cir::LifetimeEndOp>::OpConversionPattern;
+  mlir::LogicalResult
+  matchAndRewrite(cir::LifetimeEndOp op, OpAdaptor,
+                  mlir::ConversionPatternRewriter &) const override;
+};
+
 mlir::ArrayAttr lowerCIRTBAAAttr(mlir::Attribute tbaa,
                                  mlir::ConversionPatternRewriter &rewriter,
                                  cir::LowerModule *lowerMod);
