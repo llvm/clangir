@@ -10072,12 +10072,17 @@ int32_t test_vqadds_s32(int32_t a, int32_t b) {
 //   return vqaddh_u16(a, b);
 // }
 
-// NYI-LABEL: @test_vqadds_u32(
-// NYI:   [[VQADDS_U32_I:%.*]] = call i32 @llvm.aarch64.neon.uqadd.i32(i32 %a, i32 %b)
-// NYI:   ret i32 [[VQADDS_U32_I]]
-// uint32_t test_vqadds_u32(uint32_t a, uint32_t b) {
-//   return vqadds_u32(a, b);
-// }
+uint32_t test_vqadds_u32(uint32_t a, uint32_t b) {
+  return vqadds_u32(a, b);
+
+  // CIR: vqadds_u32
+  // CIR: cir.llvm.intrinsic "aarch64.neon.uqadd" {{%.*}}, {{%.*}} : (!u32i, !u32i) -> !u32i
+
+  // LLVM-LABEL: @test_vqadds_u32
+  // LLVM-SAME: (i32{{.*}}[[a:%.*]], i32{{.*}}[[b:%.*]])
+  // LLVM:   [[VQADDS_U32_I:%.*]] = call i32 @llvm.aarch64.neon.uqadd.i32(i32 [[a]], i32 [[b]])
+  // LLVM:   ret i32 [[VQADDS_U32_I]]
+}
 
 // NYI-LABEL: @test_vqaddd_u64(
 // NYI:   [[VQADDD_U64_I:%.*]] = call i64 @llvm.aarch64.neon.uqadd.i64(i64 %a, i64 %b)
@@ -10120,12 +10125,17 @@ int32_t test_vqsubs_s32(int32_t a, int32_t b) {
   // LLVM:   ret i32 [[VQSUBS_S32_I]]
 }
 
-// NYI-LABEL: @test_vqsubd_s64(
-// NYI:   [[VQSUBD_S64_I:%.*]] = call i64 @llvm.aarch64.neon.sqsub.i64(i64 %a, i64 %b)
-// NYI:   ret i64 [[VQSUBD_S64_I]]
-// int64_t test_vqsubd_s64(int64_t a, int64_t b) {
-//   return vqsubd_s64(a, b);
-// }
+int64_t test_vqsubd_s64(int64_t a, int64_t b) {
+  return vqsubd_s64(a, b);
+
+  // CIR: vqsubd_s64
+  // CIR: cir.llvm.intrinsic "aarch64.neon.sqsub" {{%.*}}, {{%.*}} : (!s64i, !s64i) -> !s64i
+
+  // LLVM-LABEL: @test_vqsubd_s64
+  // LLVM-SAME: (i64{{.*}}[[a:%.*]], i64{{.*}}[[b:%.*]])
+  // LLVM:   [[VQSUBD_S64_I:%.*]] = call i64 @llvm.aarch64.neon.sqsub.i64(i64 [[a]], i64 [[b]])
+  // LLVM:   ret i64 [[VQSUBD_S64_I]]
+}
 
 // NYI-LABEL: @test_vqsubb_u8(
 // NYI:   [[TMP0:%.*]] = insertelement <8 x i8> poison, i8 %a, i64 0
