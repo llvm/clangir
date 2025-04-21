@@ -9,7 +9,7 @@
 
 // CIR: #tbaa[[CHAR:.*]] = #cir.tbaa_omnipotent_char
 // CIR: #tbaa[[INT:.*]] = #cir.tbaa_scalar<id = "int", type = !s32i>
-// CIR: #tbaa[[PTR_TO_A:.*]] = #cir.tbaa_scalar<id = "any pointer", type = !cir.ptr<!ty_A>>
+// CIR: #tbaa[[PTR_TO_A:.*]] = #cir.tbaa_scalar<id = "any pointer", type = !cir.ptr<!rec_A>>
 // CIR: #tbaa[[STRUCT_A:.*]] = #cir.tbaa_struct<id = "_ZTS1A", members = {<#tbaa[[INT]], 0>, <#tbaa[[INT]], 4>}>
 // CIR: #tbaa[[TAG_STRUCT_A_a:.*]] = #cir.tbaa_tag<base = #tbaa[[STRUCT_A]], access = #tbaa[[INT]], offset = 0>
 
@@ -19,9 +19,9 @@
 // CIR-POINTER-TBAA-DAG: #tbaa[[p2_INT:.*]] = #cir.tbaa_scalar<id = "p2 int", type = !cir.ptr<!cir.ptr<!s32i>>
 // CIR-POINTER-TBAA-DAG: #tbaa[[p3_INT:.*]] = #cir.tbaa_scalar<id = "p3 int", type = !cir.ptr<!cir.ptr<!cir.ptr<!s32i>>>
 // CIR-POINTER-TBAA-DAG: #tbaa[[STRUCT_A:.*]] = #cir.tbaa_struct<id = "_ZTS1A", members = {<#tbaa[[INT]], 0>, <#tbaa[[INT]], 4>}>
-// CIR-POINTER-TBAA-DAG: #tbaa[[p1_STRUCT_A:.*]] = #cir.tbaa_scalar<id = "p1 _ZTS1A", type = !cir.ptr<!ty_A>
-// CIR-POINTER-TBAA-DAG: #tbaa[[p2_STRUCT_A:.*]] = #cir.tbaa_scalar<id = "p2 _ZTS1A", type = !cir.ptr<!cir.ptr<!ty_A>>
-// CIR-POINTER-TBAA-DAG: #tbaa[[p3_STRUCT_A:.*]] = #cir.tbaa_scalar<id = "p3 _ZTS1A", type = !cir.ptr<!cir.ptr<!cir.ptr<!ty_A>>>
+// CIR-POINTER-TBAA-DAG: #tbaa[[p1_STRUCT_A:.*]] = #cir.tbaa_scalar<id = "p1 _ZTS1A", type = !cir.ptr<!rec_A>
+// CIR-POINTER-TBAA-DAG: #tbaa[[p2_STRUCT_A:.*]] = #cir.tbaa_scalar<id = "p2 _ZTS1A", type = !cir.ptr<!cir.ptr<!rec_A>>
+// CIR-POINTER-TBAA-DAG: #tbaa[[p3_STRUCT_A:.*]] = #cir.tbaa_scalar<id = "p3 _ZTS1A", type = !cir.ptr<!cir.ptr<!cir.ptr<!rec_A>>>
 
 int test_scalar_pointer(int*** p3) {
     int* p1;
@@ -59,9 +59,9 @@ int test_struct_pointer(A*** p3, int A::***m3) {
     p1 = *p2;
 
     // CIR-POINTER-TBAA-LABEL: _Z19test_struct_pointerPPP1APPMS_i
-    // CIR-POINTER-TBAA: %{{.*}} = cir.load deref %{{.*}} : !cir.ptr<!cir.ptr<!cir.ptr<!cir.ptr<!ty_A>>>>, !cir.ptr<!cir.ptr<!cir.ptr<!ty_A>>> tbaa(#tbaa[[p3_STRUCT_A]])
-    // CIR-POINTER-TBAA: %{{.*}} = cir.load deref %{{.*}} : !cir.ptr<!cir.ptr<!cir.ptr<!ty_A>>>, !cir.ptr<!cir.ptr<!ty_A>> tbaa(#tbaa[[p2_STRUCT_A]])
-    // CIR-POINTER-TBAA: %{{.*}} = cir.load %{{.*}} : !cir.ptr<!cir.ptr<!ty_A>>, !cir.ptr<!ty_A> tbaa(#tbaa[[p1_STRUCT_A]])
+    // CIR-POINTER-TBAA: %{{.*}} = cir.load deref %{{.*}} : !cir.ptr<!cir.ptr<!cir.ptr<!cir.ptr<!rec_A>>>>, !cir.ptr<!cir.ptr<!cir.ptr<!rec_A>>> tbaa(#tbaa[[p3_STRUCT_A]])
+    // CIR-POINTER-TBAA: %{{.*}} = cir.load deref %{{.*}} : !cir.ptr<!cir.ptr<!cir.ptr<!rec_A>>>, !cir.ptr<!cir.ptr<!rec_A>> tbaa(#tbaa[[p2_STRUCT_A]])
+    // CIR-POINTER-TBAA: %{{.*}} = cir.load %{{.*}} : !cir.ptr<!cir.ptr<!rec_A>>, !cir.ptr<!rec_A> tbaa(#tbaa[[p1_STRUCT_A]])
 
     // LLVM-LABEL: _Z19test_struct_pointerPPP1APPMS_i
     // LLVM: %[[p2:.*]] = load ptr, ptr %{{.*}}, align 8, !tbaa ![[TBAA_ANY_PTR]]
@@ -78,10 +78,10 @@ int test_struct_pointer(A*** p3, int A::***m3) {
 void test_member_pointer(A& a, int A::***m3, int val) {
 
     // CIR-LABEL: _Z19test_member_pointerR1APPMS_ii
-    // CIR: %{{.*}} = cir.load %{{.*}} : !cir.ptr<!cir.data_member<!s32i in !ty_A>>, !cir.data_member<!s32i in !ty_A> tbaa(#tbaa[[CHAR]])
+    // CIR: %{{.*}} = cir.load %{{.*}} : !cir.ptr<!cir.data_member<!s32i in !rec_A>>, !cir.data_member<!s32i in !rec_A> tbaa(#tbaa[[CHAR]])
 
     // CIR-POINTER-TBAA-LABEL: _Z19test_member_pointerR1APPMS_ii
-    // CIR-POINTER-TBAA: %{{.*}} = cir.load %{{.*}} : !cir.ptr<!cir.data_member<!s32i in !ty_A>>, !cir.data_member<!s32i in !ty_A> tbaa(#tbaa[[CHAR]])
+    // CIR-POINTER-TBAA: %{{.*}} = cir.load %{{.*}} : !cir.ptr<!cir.data_member<!s32i in !rec_A>>, !cir.data_member<!s32i in !rec_A> tbaa(#tbaa[[CHAR]])
 
     // LLVM-LABEL: _Z19test_member_pointerR1APPMS_ii
     // LLVM: %[[m2:.*]] = load ptr, ptr %{{.*}}, align 8, !tbaa ![[TBAA_ANY_PTR:.*]]

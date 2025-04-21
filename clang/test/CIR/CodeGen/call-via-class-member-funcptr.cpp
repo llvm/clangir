@@ -16,13 +16,13 @@ public:
 const char *f::b() { return g.b(h); }
 void fn1() { f f1; }
 
-// CIR: ty_a = !cir.record<class "a" padded {!u8i} #cir.record.decl.ast>
-// CIR: ty_f = !cir.record<class "f" {!ty_a}>
+// CIR: !rec_a = !cir.record<class "a" padded {!u8i} #cir.record.decl.ast>
+// CIR: !rec_f = !cir.record<class "f" {!rec_a}>
 
 // CIR: cir.global external @h = #cir.int<0>
 // CIR: cir.func private @_ZN1a1bEi(!s32i) -> !cir.ptr<!s8i>
 
-// CIR: cir.func @_ZN1f1bEv(%arg0: !cir.ptr<!ty_f> loc{{.*}}) -> !cir.ptr<!s8i>
+// CIR: cir.func @_ZN1f1bEv(%arg0: !cir.ptr<!rec_f> loc{{.*}}) -> !cir.ptr<!s8i>
 // CIR: [[H_PTR:%.*]] = cir.get_global @h : !cir.ptr<!s32i> loc(#loc18)
 // CIR: [[H_VAL:%.*]] = cir.load [[H_PTR]] : !cir.ptr<!s32i>, !s32i
 // CIR: [[RET1_VAL:%.*]] = cir.call @_ZN1a1bEi([[H_VAL]]) : (!s32i) -> !cir.ptr<!s8i>
@@ -32,7 +32,7 @@ void fn1() { f f1; }
 // CIR: cir.return [[RET1_VAL2]] : !cir.ptr<!s8i>
 
 // CIR: cir.func @_Z3fn1v()
-// CIR: [[CLS_F:%.*]] = cir.alloca !ty_f, !cir.ptr<!ty_f>, ["f1"] {alignment = 1 : i64}
+// CIR: [[CLS_F:%.*]] = cir.alloca !rec_f, !cir.ptr<!rec_f>, ["f1"] {alignment = 1 : i64}
 // CIR: cir.return
 
 // LLVM: %class.f = type { %class.a }

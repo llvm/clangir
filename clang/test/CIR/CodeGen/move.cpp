@@ -16,7 +16,7 @@ struct string {
 
 } // std namespace
 
-// CHECK: ![[StdString:ty_.*]] = !cir.record<struct "std::string" padded {!u8i}>
+// CHECK: ![[StdString:rec_.*]] = !cir.record<struct "std::string" padded {!u8i}>
 
 std::string getstr();
 void emplace(std::string &&s);
