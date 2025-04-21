@@ -407,12 +407,6 @@ def ConstantOp : CIR_Op<"const",
   // The constant operation returns a single value of CIR_AnyType.
   let results = (outs CIR_AnyType:$res);
 
-  let builders = [
-    OpBuilder<(ins "cir::BoolAttr":$value), [{
-      build($_builder, $_state, value.getType(), value);
-    }]>
-  ];
-
   let assemblyFormat = "attr-dict $value";
 
   let hasVerifier = 1;
@@ -5704,9 +5698,9 @@ def SignBitOp : CIR_Op<"signbit", [Pure]> {
 def LinkerOptionsOp : CIR_Op<"linker_options"> {
   let summary = "Options to pass to the linker when the object file is linked";
   let description = [{
-    Pass the given options to the linker when the resulting object file 
+    Pass the given options to the linker when the resulting object file
     is linked.
-    This is used extensively on Windows to determine the C runtime that the 
+    This is used extensively on Windows to determine the C runtime that the
     object files should link against.
 
     Examples:

@@ -174,7 +174,7 @@ public:
   mlir::Value VisitIntegerLiteral(const IntegerLiteral *E) {
     mlir::Type Ty = CGF.convertType(E->getType());
     return Builder.create<cir::ConstantOp>(
-        CGF.getLoc(E->getExprLoc()), Ty,
+        CGF.getLoc(E->getExprLoc()),
         Builder.getAttr<cir::IntAttr>(Ty, E->getValue()));
   }
 
@@ -186,14 +186,14 @@ public:
     assert(mlir::isa<cir::CIRFPTypeInterface>(Ty) &&
            "expect floating-point type");
     return Builder.create<cir::ConstantOp>(
-        CGF.getLoc(E->getExprLoc()), Ty,
+        CGF.getLoc(E->getExprLoc()),
         Builder.getAttr<cir::FPAttr>(Ty, E->getValue()));
   }
   mlir::Value VisitCharacterLiteral(const CharacterLiteral *E) {
     mlir::Type Ty = CGF.convertType(E->getType());
     auto loc = CGF.getLoc(E->getExprLoc());
     auto init = cir::IntAttr::get(Ty, E->getValue());
-    return Builder.create<cir::ConstantOp>(loc, Ty, init);
+    return Builder.create<cir::ConstantOp>(loc, init);
   }
   mlir::Value VisitObjCBoolLiteralExpr(const ObjCBoolLiteralExpr *E) {
     llvm_unreachable("NYI");
@@ -2000,7 +2000,7 @@ mlir::Value ScalarExprEmitter::VisitInitListExpr(InitListExpr *E) {
     // Zero-initialize any remaining values.
     if (NumInitElements < VectorType.getSize()) {
       mlir::Value ZeroValue = CGF.getBuilder().create<cir::ConstantOp>(
-          CGF.getLoc(E->getSourceRange()), VectorType.getEltType(),
+          CGF.getLoc(E->getSourceRange()),
           CGF.getBuilder().getZeroInitAttr(VectorType.getEltType()));
       for (uint64_t i = NumInitElements; i < VectorType.getSize(); ++i) {
         Elements.push_back(ZeroValue);

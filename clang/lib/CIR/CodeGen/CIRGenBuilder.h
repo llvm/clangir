@@ -546,27 +546,23 @@ public:
   //
   cir::ConstantOp getUInt8(uint8_t c, mlir::Location loc) {
     auto uInt8Ty = getUInt8Ty();
-    return create<cir::ConstantOp>(loc, uInt8Ty, cir::IntAttr::get(uInt8Ty, c));
+    return create<cir::ConstantOp>(loc, cir::IntAttr::get(uInt8Ty, c));
   }
   cir::ConstantOp getSInt32(int32_t c, mlir::Location loc) {
     auto sInt32Ty = getSInt32Ty();
-    return create<cir::ConstantOp>(loc, sInt32Ty,
-                                   cir::IntAttr::get(sInt32Ty, c));
+    return create<cir::ConstantOp>(loc, cir::IntAttr::get(sInt32Ty, c));
   }
   cir::ConstantOp getUInt32(uint32_t C, mlir::Location loc) {
     auto uInt32Ty = getUInt32Ty();
-    return create<cir::ConstantOp>(loc, uInt32Ty,
-                                   cir::IntAttr::get(uInt32Ty, C));
+    return create<cir::ConstantOp>(loc, cir::IntAttr::get(uInt32Ty, C));
   }
   cir::ConstantOp getSInt64(uint64_t C, mlir::Location loc) {
     auto sInt64Ty = getSInt64Ty();
-    return create<cir::ConstantOp>(loc, sInt64Ty,
-                                   cir::IntAttr::get(sInt64Ty, C));
+    return create<cir::ConstantOp>(loc, cir::IntAttr::get(sInt64Ty, C));
   }
   cir::ConstantOp getUInt64(uint64_t C, mlir::Location loc) {
     auto uInt64Ty = getUInt64Ty();
-    return create<cir::ConstantOp>(loc, uInt64Ty,
-                                   cir::IntAttr::get(uInt64Ty, C));
+    return create<cir::ConstantOp>(loc, cir::IntAttr::get(uInt64Ty, C));
   }
 
   cir::ConstantOp getConstInt(mlir::Location loc, llvm::APSInt intVal);
@@ -579,7 +575,7 @@ public:
                              llvm::APFloat fpVal) {
     assert((mlir::isa<cir::SingleType, cir::DoubleType>(t)) &&
            "expected cir::SingleType or cir::DoubleType");
-    return create<cir::ConstantOp>(loc, t, getAttr<cir::FPAttr>(t, fpVal));
+    return create<cir::ConstantOp>(loc, getAttr<cir::FPAttr>(t, fpVal));
   }
 
   cir::IsFPClassOp createIsFPClass(mlir::Location loc, mlir::Value src,
@@ -590,11 +586,11 @@ public:
   /// Create constant nullptr for pointer-to-data-member type ty.
   cir::ConstantOp getNullDataMemberPtr(cir::DataMemberType ty,
                                        mlir::Location loc) {
-    return create<cir::ConstantOp>(loc, ty, getNullDataMemberAttr(ty));
+    return create<cir::ConstantOp>(loc, getNullDataMemberAttr(ty));
   }
 
   cir::ConstantOp getNullMethodPtr(cir::MethodType ty, mlir::Location loc) {
-    return create<cir::ConstantOp>(loc, ty, getNullMethodAttr(ty));
+    return create<cir::ConstantOp>(loc, getNullMethodAttr(ty));
   }
 
   cir::ConstantOp getZero(mlir::Location loc, mlir::Type ty) {
@@ -602,7 +598,7 @@ public:
     assert((mlir::isa<cir::RecordType>(ty) || mlir::isa<cir::ArrayType>(ty) ||
             mlir::isa<cir::VectorType>(ty)) &&
            "NYI for other types");
-    return create<cir::ConstantOp>(loc, ty, cir::ZeroAttr::get(ty));
+    return create<cir::ConstantOp>(loc, cir::ZeroAttr::get(ty));
   }
 
   //
