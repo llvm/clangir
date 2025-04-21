@@ -48,11 +48,11 @@ static mlir::TypedAttr computePadding(CIRGenModule &CGM, CharUnits size) {
   auto arSize = size.getQuantity();
   auto &bld = CGM.getBuilder();
   if (size > CharUnits::One()) {
-    SmallVector<mlir::Attribute, 4> elts(arSize, bld.getZeroAttr(eltTy));
+    SmallVector<mlir::Attribute, 4> elts(arSize, cir::ZeroAttr::get(eltTy));
     return bld.getConstArray(mlir::ArrayAttr::get(bld.getContext(), elts),
                              cir::ArrayType::get(eltTy, arSize));
   } else {
-    return cir::ZeroAttr::get(bld.getContext(), eltTy);
+    return cir::ZeroAttr::get(eltTy);
   }
 }
 
@@ -1726,8 +1726,7 @@ mlir::Attribute ConstantEmitter::tryEmitPrivateForVarInit(const VarDecl &D) {
         // assignments and whatnots). Since this is for globals shouldn't
         // be a problem for the near future.
         if (CD->isTrivial() && CD->isDefaultConstructor())
-          return cir::ZeroAttr::get(CGM.getBuilder().getContext(),
-                                    CGM.convertType(D.getType()));
+          return cir::ZeroAttr::get(CGM.convertType(D.getType()));
       }
   }
   InConstantContext = D.hasConstantInitialization();

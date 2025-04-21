@@ -169,7 +169,7 @@ public:
     // a #cir.const_array.
     if (lastNonZeroPos == llvm::StringRef::npos) {
       auto arrayTy = cir::ArrayType::get(eltTy, finalSize);
-      return getZeroAttr(arrayTy);
+      return cir::ZeroAttr::get(arrayTy);
     }
     // We will use trailing zeros only if there are more than one zero
     // at the end
@@ -214,7 +214,7 @@ public:
 
     // Return zero or anonymous constant record.
     if (isZero)
-      return cir::ZeroAttr::get(getContext(), recordTy);
+      return cir::ZeroAttr::get(recordTy);
     return cir::ConstRecordAttr::get(recordTy, arrayAttr);
   }
 
@@ -602,7 +602,7 @@ public:
     assert((mlir::isa<cir::RecordType>(ty) || mlir::isa<cir::ArrayType>(ty) ||
             mlir::isa<cir::VectorType>(ty)) &&
            "NYI for other types");
-    return create<cir::ConstantOp>(loc, ty, getZeroAttr(ty));
+    return create<cir::ConstantOp>(loc, ty, cir::ZeroAttr::get(ty));
   }
 
   //
