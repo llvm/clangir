@@ -807,7 +807,7 @@ public:
     bool isReference() const { return ValueAndIsReference.getInt(); }
     LValue getReferenceLValue(CIRGenFunction &CGF, Expr *refExpr) const {
       assert(isReference());
-      // create<cir::ConstantOp>(loc, ty, getZeroAttr(ty));
+      // create<cir::ConstantOp>(loc, ty, cir::ZeroAttr::get(ty));
       // CGF.getBuilder().const
       // return CGF.MakeNaturalAlignAddrLValue(ValueAndIsReference.getPointer(),
       //                                       refExpr->getType());
