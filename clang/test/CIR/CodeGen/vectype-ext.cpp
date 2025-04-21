@@ -10,6 +10,27 @@ typedef double vd2 __attribute__((ext_vector_type(2)));
 typedef long vl2 __attribute__((ext_vector_type(2)));
 typedef unsigned short vus2 __attribute__((ext_vector_type(2)));
 
+vi4 vec_a;
+// CIR: cir.global external @[[VEC_A:.*]] = #cir.zero : !cir.vector<!s32i x 4>
+
+// LLVM: @[[VEC_A:.*]] = global <4 x i32> zeroinitializer
+
+vi3 vec_b;
+// CIR: cir.global external @[[VEC_B:.*]] = #cir.zero : !cir.vector<!s32i x 3>
+
+// LLVM: @[[VEC_B:.*]] = global <3 x i32> zeroinitializer
+
+vi2 vec_c;
+// CIR: cir.global external @[[VEC_C:.*]] = #cir.zero : !cir.vector<!s32i x 2>
+
+// LLVM: @[[VEC_C:.*]] = global <2 x i32> zeroinitializer
+
+vd2 d;
+
+// CIR: cir.global external @[[VEC_D:.*]] = #cir.zero : !cir.vector<!cir.double x 2>
+
+// LLVM: @[[VEC_D:.*]] = global <2 x double> zeroinitializer
+
 // CIR: cir.func {{@.*vector_int_test.*}}
 // LLVM: define dso_local void {{@.*vector_int_test.*}}
 void vector_int_test(int x) {

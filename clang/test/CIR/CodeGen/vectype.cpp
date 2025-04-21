@@ -5,6 +5,15 @@ typedef double vd2 __attribute__((vector_size(16)));
 typedef long long vll2 __attribute__((vector_size(16)));
 typedef unsigned short vus2 __attribute__((vector_size(4)));
 
+vi4 vec_a;
+// CHECK: cir.global external @[[VEC_A:.*]] = #cir.zero : !cir.vector<!s32i x 4>
+
+vd2 b;
+// CHECK: cir.global external @[[VEC_B:.*]] = #cir.zero : !cir.vector<!cir.double x 2>
+
+vll2 c;
+// CHECK: cir.global external @[[VEC_C:.*]] = #cir.zero : !cir.vector<!s64i x 2>
+
 void vector_int_test(int x, unsigned short usx) {
 
   // Vector constant.
