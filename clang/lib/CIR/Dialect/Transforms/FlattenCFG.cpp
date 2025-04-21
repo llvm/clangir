@@ -654,12 +654,10 @@ public:
     auto uIntType = cir::IntType::get(op.getContext(), 32, false);
 
     auto rangeLength = rewriter.create<cir::ConstantOp>(
-        op.getLoc(), sIntType,
-        cir::IntAttr::get(op.getContext(), sIntType, upperBound - lowerBound));
+        op.getLoc(), cir::IntAttr::get(sIntType, upperBound - lowerBound));
 
     auto lowerBoundValue = rewriter.create<cir::ConstantOp>(
-        op.getLoc(), sIntType,
-        cir::IntAttr::get(op.getContext(), sIntType, lowerBound));
+        op.getLoc(), cir::IntAttr::get(sIntType, lowerBound));
     auto diffValue =
         rewriter.create<cir::BinOp>(op.getLoc(), sIntType, cir::BinOpKind::Sub,
                                     op.getCondition(), lowerBoundValue);

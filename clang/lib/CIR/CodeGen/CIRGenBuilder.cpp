@@ -58,10 +58,9 @@ cir::ConstantOp CIRGenBuilderTy::getConstInt(mlir::Location loc,
 }
 
 cir::ConstantOp CIRGenBuilderTy::getConstInt(mlir::Location loc, mlir::Type t,
-                                             uint64_t C) {
-  auto intTy = mlir::dyn_cast<cir::IntType>(t);
-  assert(intTy && "expected cir::IntType");
-  return create<cir::ConstantOp>(loc, intTy, cir::IntAttr::get(t, C));
+                                             uint64_t c) {
+  assert(mlir::isa<cir::IntType>(t) && "expected cir::IntType");
+  return create<cir::ConstantOp>(loc, cir::IntAttr::get(t, c));
 }
 
 void CIRGenBuilderTy::computeGlobalViewIndicesFromFlatOffset(
