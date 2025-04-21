@@ -2151,7 +2151,7 @@ static mlir::Value emitNeonShiftVector(CIRGenBuilderTy &builder,
       cir::IntAttr::get(vecTy.getEltType(), shiftAmt)};
   cir::ConstVectorAttr constVecAttr = cir::ConstVectorAttr::get(
       vecTy, mlir::ArrayAttr::get(builder.getContext(), vecAttr));
-  return builder.create<cir::ConstantOp>(loc, vecTy, constVecAttr);
+  return builder.create<cir::ConstantOp>(loc, constVecAttr);
 }
 
 /// Build ShiftOp of vector type whose shift amount is a vector built
@@ -2202,7 +2202,7 @@ static void vecExtendIntValue(CIRGenFunction &cgf, cir::VectorType argVTy,
   arg = builder.createIntCast(arg, eltTy);
   mlir::Value zero = builder.getConstInt(loc, cgf.SizeTy, 0);
   mlir::Value poison = builder.create<cir::ConstantOp>(
-      loc, eltTy, builder.getAttr<cir::PoisonAttr>(eltTy));
+      loc, builder.getAttr<cir::PoisonAttr>(eltTy));
   arg = builder.create<cir::VecInsertOp>(
       loc, builder.create<cir::VecSplatOp>(loc, argVTy, poison), arg, zero);
 }

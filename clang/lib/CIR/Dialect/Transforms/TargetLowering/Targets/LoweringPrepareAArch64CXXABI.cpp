@@ -157,7 +157,7 @@ mlir::Value LoweringPrepareAArch64CXXABI::lowerAAPCSVAArg(
   // though anyone passing 2GB of arguments, each at most 16 bytes, deserves
   // whatever they get).
   auto zeroValue = builder.create<cir::ConstantOp>(
-      loc, regOffs.getType(), cir::IntAttr::get(regOffs.getType(), 0));
+      loc, cir::IntAttr::get(regOffs.getType(), 0));
   auto usingStack = builder.create<cir::CmpOp>(loc, boolTy, cir::CmpOpKind::ge,
                                                regOffs, zeroValue);
   builder.create<cir::BrCondOp>(loc, usingStack, onStackBlock, maybeRegBlock);
@@ -192,7 +192,7 @@ mlir::Value LoweringPrepareAArch64CXXABI::lowerAAPCSVAArg(
   // allocating an argument to the stack also uses up all the remaining
   // registers of the appropriate kind.
   auto regSizeValue = builder.create<cir::ConstantOp>(
-      loc, regOffs.getType(), cir::IntAttr::get(regOffs.getType(), regSize));
+      loc, cir::IntAttr::get(regOffs.getType(), regSize));
   auto newOffset = builder.create<cir::BinOp>(
       loc, regOffs.getType(), cir::BinOpKind::Add, regOffs, regSizeValue);
   builder.createStore(loc, newOffset, regOffsP);
@@ -251,8 +251,7 @@ mlir::Value LoweringPrepareAArch64CXXABI::lowerAAPCSVAArg(
         tySize < slotSize) {
       clang::CharUnits offset = slotSize - tySize;
       auto offsetConst = builder.create<cir::ConstantOp>(
-          loc, regOffs.getType(),
-          cir::IntAttr::get(regOffs.getType(), offset.getQuantity()));
+          loc, cir::IntAttr::get(regOffs.getType(), offset.getQuantity()));
 
       resAsInt8P = builder.create<cir::PtrStrideOp>(loc, castRegTop.getType(),
                                                     resAsInt8P, offsetConst);
@@ -309,7 +308,7 @@ mlir::Value LoweringPrepareAArch64CXXABI::lowerAAPCSVAArg(
   cir_cconv_assert(!cir::MissingFeatures::supportTySizeQueryForAArch64());
 
   auto stackSizeC = builder.create<cir::ConstantOp>(
-      loc, ptrDiffTy, cir::IntAttr::get(ptrDiffTy, stackSize.getQuantity()));
+      loc, cir::IntAttr::get(ptrDiffTy, stackSize.getQuantity()));
   auto castStack = builder.createBitcast(onStackPtr, i8PtrTy);
   // Write the new value of __stack for the next call to va_arg
   auto newStackAsi8Ptr = builder.create<cir::PtrStrideOp>(
@@ -320,7 +319,7 @@ mlir::Value LoweringPrepareAArch64CXXABI::lowerAAPCSVAArg(
   if (isBigEndian && !isAggregateTypeForABI && tySize < stackSlotSize) {
     clang::CharUnits offset = stackSlotSize - tySize;
     auto offsetConst = builder.create<cir::ConstantOp>(
-        loc, ptrDiffTy, cir::IntAttr::get(ptrDiffTy, offset.getQuantity()));
+        loc, cir::IntAttr::get(ptrDiffTy, offset.getQuantity()));
     auto offsetStackAsi8Ptr = builder.create<cir::PtrStrideOp>(
         loc, castStack.getType(), castStack, offsetConst);
     auto onStackPtrBE =

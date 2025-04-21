@@ -1171,8 +1171,7 @@ mlir::LogicalResult CIRToLLVMCastOpLowering::matchAndRewrite(
   }
   case cir::CastKind::int_to_bool: {
     auto zero = rewriter.create<cir::ConstantOp>(
-        src.getLoc(), castOp.getSrc().getType(),
-        cir::IntAttr::get(castOp.getSrc().getType(), 0));
+        src.getLoc(), cir::IntAttr::get(castOp.getSrc().getType(), 0));
     rewriter.replaceOpWithNewOp<cir::CmpOp>(
         castOp, cir::BoolType::get(getContext()), cir::CmpOpKind::ne,
         castOp.getSrc(), zero);
@@ -1323,8 +1322,7 @@ mlir::LogicalResult CIRToLLVMCastOpLowering::matchAndRewrite(
     auto zero =
         mlir::IntegerAttr::get(mlir::IntegerType::get(getContext(), 64), 0);
     auto null = rewriter.create<cir::ConstantOp>(
-        src.getLoc(), castOp.getSrc().getType(),
-        cir::ConstPtrAttr::get(getContext(), castOp.getSrc().getType(), zero));
+        src.getLoc(), cir::ConstPtrAttr::get(castOp.getSrc().getType(), zero));
     rewriter.replaceOpWithNewOp<cir::CmpOp>(
         castOp, cir::BoolType::get(getContext()), cir::CmpOpKind::ne,
         castOp.getSrc(), null);

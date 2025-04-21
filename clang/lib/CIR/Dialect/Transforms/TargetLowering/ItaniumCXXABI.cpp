@@ -541,7 +541,7 @@ mlir::Value ItaniumCXXABI::lowerMethodCmp(cir::CmpOp op, mlir::Value loweredLhs,
 
   cir::IntType ptrdiffCIRTy = getPtrDiffCIRTy(LM);
   mlir::Value ptrdiffZero = builder.create<cir::ConstantOp>(
-      op.getLoc(), ptrdiffCIRTy, cir::IntAttr::get(ptrdiffCIRTy, 0));
+      op.getLoc(), cir::IntAttr::get(ptrdiffCIRTy, 0));
 
   mlir::Value lhsPtrField = builder.create<cir::ExtractMemberOp>(
       op.getLoc(), ptrdiffCIRTy, loweredLhs, 0);
@@ -622,7 +622,7 @@ ItaniumCXXABI::lowerMethodToBoolCast(cir::CastOp op, mlir::Value loweredSrc,
   //   unspecified for null member function pointers.
   cir::IntType ptrdiffCIRTy = getPtrDiffCIRTy(LM);
   mlir::Value ptrdiffZero = builder.create<cir::ConstantOp>(
-      op.getLoc(), ptrdiffCIRTy, cir::IntAttr::get(ptrdiffCIRTy, 0));
+      op.getLoc(), cir::IntAttr::get(ptrdiffCIRTy, 0));
   mlir::Value ptrField = builder.create<cir::ExtractMemberOp>(
       op.getLoc(), ptrdiffCIRTy, loweredSrc, 0);
   return builder.create<cir::CmpOp>(op.getLoc(), cir::CmpOpKind::ne, ptrField,

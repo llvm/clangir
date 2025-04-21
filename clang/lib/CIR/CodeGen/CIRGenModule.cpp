@@ -1035,8 +1035,7 @@ void CIRGenModule::replaceGlobal(cir::GlobalOp oldSym, cir::GlobalOp newSym) {
           auto ar = cast<ConstArrayAttr>(init);
           mlir::OpBuilder::InsertionGuard guard(builder);
           builder.setInsertionPointAfter(c);
-          auto newUser =
-              builder.create<cir::ConstantOp>(c.getLoc(), ar.getType(), ar);
+          auto newUser = builder.create<cir::ConstantOp>(c.getLoc(), ar);
           c.replaceAllUsesWith(newUser.getOperation());
         }
       }

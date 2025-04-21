@@ -46,7 +46,7 @@ public:
   mlir::Value getConstAPSInt(mlir::Location loc, const llvm::APSInt &val) {
     auto ty =
         cir::IntType::get(getContext(), val.getBitWidth(), val.isSigned());
-    return create<cir::ConstantOp>(loc, ty, getAttr<cir::IntAttr>(ty, val));
+    return create<cir::ConstantOp>(loc, getAttr<cir::IntAttr>(ty, val));
   }
 
   mlir::Value getSignedInt(mlir::Location loc, int64_t val, unsigned numBits) {
@@ -63,20 +63,20 @@ public:
 
   mlir::Value getConstAPInt(mlir::Location loc, mlir::Type typ,
                             const llvm::APInt &val) {
-    return create<cir::ConstantOp>(loc, typ, getAttr<cir::IntAttr>(typ, val));
+    return create<cir::ConstantOp>(loc, getAttr<cir::IntAttr>(typ, val));
   }
 
   cir::ConstantOp getConstant(mlir::Location loc, mlir::TypedAttr attr) {
-    return create<cir::ConstantOp>(loc, attr.getType(), attr);
+    return create<cir::ConstantOp>(loc, attr);
   }
 
   // Creates constant null value for integral type ty.
   cir::ConstantOp getNullValue(mlir::Type ty, mlir::Location loc) {
-    return create<cir::ConstantOp>(loc, ty, getZeroInitAttr(ty));
+    return create<cir::ConstantOp>(loc, getZeroInitAttr(ty));
   }
 
   cir::ConstantOp getBool(bool state, mlir::Location loc) {
-    return create<cir::ConstantOp>(loc, getBoolTy(), getCIRBoolAttr(state));
+    return create<cir::ConstantOp>(loc, getCIRBoolAttr(state));
   }
   cir::ConstantOp getFalse(mlir::Location loc) { return getBool(false, loc); }
   cir::ConstantOp getTrue(mlir::Location loc) { return getBool(true, loc); }
@@ -630,7 +630,7 @@ public:
   // Creates constant nullptr for pointer type ty.
   cir::ConstantOp getNullPtr(mlir::Type ty, mlir::Location loc) {
     assert(!MissingFeatures::targetCodeGenInfoGetNullPointer());
-    return create<cir::ConstantOp>(loc, ty, getConstPtrAttr(ty, 0));
+    return create<cir::ConstantOp>(loc, getConstPtrAttr(ty, 0));
   }
 
   /// Create a loop condition.
