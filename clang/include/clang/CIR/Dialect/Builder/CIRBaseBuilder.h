@@ -133,25 +133,21 @@ public:
 
   cir::BoolAttr getFalseAttr() { return getCIRBoolAttr(false); }
 
-  mlir::TypedAttr getZeroAttr(mlir::Type t) {
-    return cir::ZeroAttr::get(getContext(), t);
-  }
-
   mlir::TypedAttr getZeroInitAttr(mlir::Type ty) {
     if (mlir::isa<cir::IntType>(ty))
       return cir::IntAttr::get(ty, 0);
     if (cir::isAnyFloatingPointType(ty))
       return cir::FPAttr::getZero(ty);
     if (auto complexType = mlir::dyn_cast<cir::ComplexType>(ty))
-      return getZeroAttr(complexType);
+      return cir::ZeroAttr::get(complexType);
     if (auto arrTy = mlir::dyn_cast<cir::ArrayType>(ty))
-      return getZeroAttr(arrTy);
+      return cir::ZeroAttr::get(arrTy);
     if (auto vecTy = mlir::dyn_cast<cir::VectorType>(ty))
-      return getZeroAttr(vecTy);
+      return cir::ZeroAttr::get(vecTy);
     if (auto ptrTy = mlir::dyn_cast<cir::PointerType>(ty))
       return getConstNullPtrAttr(ptrTy);
     if (auto RecordTy = mlir::dyn_cast<cir::RecordType>(ty))
-      return getZeroAttr(RecordTy);
+      return cir::ZeroAttr::get(RecordTy);
     if (auto methodTy = mlir::dyn_cast<cir::MethodType>(ty))
       return getNullMethodAttr(methodTy);
     if (mlir::isa<cir::BoolType>(ty)) {
