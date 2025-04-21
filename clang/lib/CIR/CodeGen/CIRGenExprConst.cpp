@@ -2033,11 +2033,11 @@ mlir::Value CIRGenModule::emitMemberPointerConstant(const UnaryOperator *E) {
     auto ty = mlir::cast<cir::MethodType>(convertType(E->getType()));
     if (methodDecl->isVirtual())
       return builder.create<cir::ConstantOp>(
-          loc, ty, getCXXABI().buildVirtualMethodAttr(ty, methodDecl));
+          loc, getCXXABI().buildVirtualMethodAttr(ty, methodDecl));
 
     auto methodFuncOp = GetAddrOfFunction(methodDecl);
     return builder.create<cir::ConstantOp>(
-        loc, ty, builder.getMethodAttr(ty, methodFuncOp));
+        loc, builder.getMethodAttr(ty, methodFuncOp));
   }
 
   auto ty = mlir::cast<cir::DataMemberType>(convertType(E->getType()));
@@ -2045,7 +2045,7 @@ mlir::Value CIRGenModule::emitMemberPointerConstant(const UnaryOperator *E) {
   // Otherwise, a member data pointer.
   const auto *fieldDecl = cast<FieldDecl>(decl);
   return builder.create<cir::ConstantOp>(
-      loc, ty, builder.getDataMemberAttr(ty, fieldDecl->getFieldIndex()));
+      loc, builder.getDataMemberAttr(ty, fieldDecl->getFieldIndex()));
 }
 
 mlir::Attribute ConstantEmitter::emitAbstract(const Expr *E,

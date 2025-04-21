@@ -875,7 +875,7 @@ void LoweringPreparePass::lowerThreeWayCmpOp(CmpThreeWayOp op) {
 
   auto buildCmpRes = [&](int64_t value) -> mlir::Value {
     return builder.create<cir::ConstantOp>(
-        loc, op.getType(), cir::IntAttr::get(op.getType(), value));
+        loc, cir::IntAttr::get(op.getType(), value));
   };
   auto ltRes = buildCmpRes(cmpInfo.getLt());
   auto eqRes = buildCmpRes(cmpInfo.getEq());
