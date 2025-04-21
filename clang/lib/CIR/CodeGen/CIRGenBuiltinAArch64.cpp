@@ -2201,8 +2201,8 @@ static void vecExtendIntValue(CIRGenFunction &cgf, cir::VectorType argVTy,
   // it before inserting.
   arg = builder.createIntCast(arg, eltTy);
   mlir::Value zero = builder.getConstInt(loc, cgf.SizeTy, 0);
-  mlir::Value poison = builder.create<cir::ConstantOp>(
-      loc, builder.getAttr<cir::PoisonAttr>(eltTy));
+  mlir::Value poison =
+      builder.create<cir::ConstantOp>(loc, cir::PoisonAttr::get(eltTy));
   arg = builder.create<cir::VecInsertOp>(
       loc, builder.create<cir::VecSplatOp>(loc, argVTy, poison), arg, zero);
 }
