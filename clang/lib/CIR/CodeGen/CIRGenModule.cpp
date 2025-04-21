@@ -1716,7 +1716,7 @@ CIRGenModule::getConstantArrayFromStringLiteral(const StringLiteral *e) {
   // If the string is full of null bytes, emit a #cir.zero instead.
   if (std::all_of(elementValues.begin(), elementValues.end(),
                   [](uint32_t x) { return x == 0; }))
-    return builder.getZeroAttr(arrayTy);
+    return cir::ZeroAttr::get(arrayTy);
 
   // Otherwise emit a constant array holding the characters.
   SmallVector<mlir::Attribute, 32> elements;
