@@ -1413,7 +1413,7 @@ void CIRGenModule::emitGlobalVarDefinition(const clang::VarDecl *d,
        d->getType()->isCUDADeviceBuiltinTextureType());
   if (getLangOpts().CUDA &&
       (isCudaSharedVar || isCudaShadowVar || isCudaDeviceShadowVar))
-    init = UndefAttr::get(&getMLIRContext(), convertType(d->getType()));
+    init = cir::UndefAttr::get(convertType(d->getType()));
   else if (d->hasAttr<LoaderUninitializedAttr>())
     assert(0 && "not implemented");
   else if (!initExpr) {

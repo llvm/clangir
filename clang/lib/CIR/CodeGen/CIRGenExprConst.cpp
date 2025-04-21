@@ -353,7 +353,7 @@ mlir::Attribute ConstantAggregateBuilder::buildFrom(
   ConstantAggregateBuilderUtils Utils(CGM);
 
   if (Elems.empty())
-    return cir::UndefAttr::get(CGM.getBuilder().getContext(), DesiredTy);
+    return cir::UndefAttr::get(DesiredTy);
 
   auto Offset = [&](size_t I) { return Offsets[I] - StartOffset; };
 
