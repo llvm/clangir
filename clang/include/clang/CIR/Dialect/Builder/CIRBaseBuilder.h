@@ -146,6 +146,8 @@ public:
       return getZeroAttr(complexType);
     if (auto arrTy = mlir::dyn_cast<cir::ArrayType>(ty))
       return getZeroAttr(arrTy);
+    if (auto vecTy = mlir::dyn_cast<cir::VectorType>(ty))
+      return getZeroAttr(vecTy);
     if (auto ptrTy = mlir::dyn_cast<cir::PointerType>(ty))
       return getConstNullPtrAttr(ptrTy);
     if (auto RecordTy = mlir::dyn_cast<cir::RecordType>(ty))
