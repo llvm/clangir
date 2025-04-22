@@ -12,8 +12,8 @@ struct S {
 
 void S::key() {}
 
-// CHECK-DAG: !ty_anon_struct1 = !cir.record<struct  {!cir.array<!cir.ptr<!u8i> x 4>}>
-// CHECK-DAG: !ty_anon_struct2 = !cir.record<struct  {!cir.ptr<!ty_anon_struct1>}>
+// CHECK-DAG: !rec_anon_struct1 = !cir.record<struct  {!cir.array<!cir.ptr<!u8i> x 4>}>
+// CHECK-DAG: !rec_anon_struct2 = !cir.record<struct  {!cir.ptr<!rec_anon_struct1>}>
 
 // The definition of the key function should result in the vtable being emitted.
 // CHECK: cir.global external @_ZTV1S = #cir.vtable
@@ -22,7 +22,7 @@ void S::key() {}
 
 // CHECK: cir.global external @sobj = #cir.const_record
 // CHECK-SAME: <{#cir.global_view<@_ZTV1S, [0 : i32, 2 : i32]> :
-// CHECK-SAME: !cir.ptr<!ty_anon_struct1>}> : !ty_anon_struct2 {alignment = 8 : i64}
+// CHECK-SAME: !cir.ptr<!rec_anon_struct1>}> : !rec_anon_struct2 {alignment = 8 : i64}
 // LLVM: @sobj = global { ptr } { ptr getelementptr inbounds
 // LLVM-SAME: ({ [4 x ptr] }, ptr @_ZTV1S, i32 0, i32 0, i32 2) }, align 8
 

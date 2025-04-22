@@ -4,7 +4,7 @@
 struct twoFldT {
   char a, b;
 };
-// CIR: !ty_twoFldT = !cir.record<struct "twoFldT" {!s8i, !s8i}
+// CIR: !rec_twoFldT = !cir.record<struct "twoFldT" {!s8i, !s8i}
 
 int test_ldrex(char *addr, long long *addr64, float *addrfloat) {
 // CIR-LABEL: @test_ldrex
@@ -34,9 +34,9 @@ int test_ldrex(char *addr, long long *addr64, float *addrfloat) {
 // CIR: [[INTRES5:%.*]] = cir.llvm.intrinsic "aarch64.ldxr"  {{%[0-9]+}} : (!cir.ptr<!cir.ptr<!s32i>>) -> !s64i
 
   sum += __builtin_arm_ldrex((struct twoFldT **)addr)->a;
-// CIR: [[INTRES6:%.*]] = cir.llvm.intrinsic "aarch64.ldxr"  {{%[0-9]+}} : (!cir.ptr<!cir.ptr<!ty_twoFldT>>) -> !s64i
-// CIR: [[CAST3:%.*]] = cir.cast(int_to_ptr, [[INTRES6]] : !s64i), !cir.ptr<!ty_twoFldT>
-// CIR: [[MEMBER_A:%.*]] = cir.get_member [[CAST3]][0] {name = "a"} : !cir.ptr<!ty_twoFldT> -> !cir.ptr<!s8i>
+// CIR: [[INTRES6:%.*]] = cir.llvm.intrinsic "aarch64.ldxr"  {{%[0-9]+}} : (!cir.ptr<!cir.ptr<!rec_twoFldT>>) -> !s64i
+// CIR: [[CAST3:%.*]] = cir.cast(int_to_ptr, [[INTRES6]] : !s64i), !cir.ptr<!rec_twoFldT>
+// CIR: [[MEMBER_A:%.*]] = cir.get_member [[CAST3]][0] {name = "a"} : !cir.ptr<!rec_twoFldT> -> !cir.ptr<!s8i>
 
 
  // TODO: Uncomment next 2 lines, add tests when floating result type supported
@@ -76,9 +76,9 @@ int test_ldaex(char *addr, long long *addr64, float *addrfloat) {
 // CIR: [[INTRES5:%.*]] = cir.llvm.intrinsic "aarch64.ldaxr"  {{%[0-9]+}} : (!cir.ptr<!cir.ptr<!s32i>>) -> !s64i
 
   sum += __builtin_arm_ldaex((struct twoFldT **)addr)->a;
-// CIR: [[INTRES6:%.*]] = cir.llvm.intrinsic "aarch64.ldaxr"  {{%[0-9]+}} : (!cir.ptr<!cir.ptr<!ty_twoFldT>>) -> !s64i
-// CIR: [[CAST3:%.*]] = cir.cast(int_to_ptr, [[INTRES6]] : !s64i), !cir.ptr<!ty_twoFldT>
-// CIR: [[MEMBER_A:%.*]] = cir.get_member [[CAST3]][0] {name = "a"} : !cir.ptr<!ty_twoFldT> -> !cir.ptr<!s8i>
+// CIR: [[INTRES6:%.*]] = cir.llvm.intrinsic "aarch64.ldaxr"  {{%[0-9]+}} : (!cir.ptr<!cir.ptr<!rec_twoFldT>>) -> !s64i
+// CIR: [[CAST3:%.*]] = cir.cast(int_to_ptr, [[INTRES6]] : !s64i), !cir.ptr<!rec_twoFldT>
+// CIR: [[MEMBER_A:%.*]] = cir.get_member [[CAST3]][0] {name = "a"} : !cir.ptr<!rec_twoFldT> -> !cir.ptr<!s8i>
 
 
  // TODO: Uncomment next 2 lines, add tests when floating result type supported

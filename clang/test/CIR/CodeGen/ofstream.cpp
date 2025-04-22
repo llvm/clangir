@@ -26,12 +26,12 @@ void foo(const char *path) {
 }
 
 // CIR: cir.func @_Z3fooPKc
-// CIR: %[[V1:.*]] = cir.alloca !ty_std3A3Abasic_ofstream3Cchar3E, !cir.ptr<!ty_std3A3Abasic_ofstream3Cchar3E>, ["fout1", init] {alignment = 1 : i64}
-// CIR: %[[V2:.*]] = cir.alloca !ty_std3A3Abasic_ofstream3Cchar3E, !cir.ptr<!ty_std3A3Abasic_ofstream3Cchar3E>, ["fout2", init] {alignment = 1 : i64}
+// CIR: %[[V1:.*]] = cir.alloca !rec_std3A3Abasic_ofstream3Cchar3E, !cir.ptr<!rec_std3A3Abasic_ofstream3Cchar3E>, ["fout1", init] {alignment = 1 : i64}
+// CIR: %[[V2:.*]] = cir.alloca !rec_std3A3Abasic_ofstream3Cchar3E, !cir.ptr<!rec_std3A3Abasic_ofstream3Cchar3E>, ["fout2", init] {alignment = 1 : i64}
 // CIR: cir.try synthetic cleanup {
-// CIR:   cir.call exception @_ZNSbIcEC1EPKcRKNS_9AllocatorE({{.*}}, {{.*}}, {{.*}}) : (!cir.ptr<!ty_std3A3Abasic_string3Cchar3E>, !cir.ptr<!s8i>, !cir.ptr<!ty_std3A3Abasic_string3Cchar3E3A3AAllocator>) -> () cleanup {
-// CIR:     cir.call @_ZNSt14basic_ofstreamIcED1Ev(%[[V2]]) : (!cir.ptr<!ty_std3A3Abasic_ofstream3Cchar3E>) -> ()
-// CIR:     cir.call @_ZNSt14basic_ofstreamIcED1Ev(%[[V1]]) : (!cir.ptr<!ty_std3A3Abasic_ofstream3Cchar3E>) -> ()
+// CIR:   cir.call exception @_ZNSbIcEC1EPKcRKNS_9AllocatorE({{.*}}, {{.*}}, {{.*}}) : (!cir.ptr<!rec_std3A3Abasic_string3Cchar3E>, !cir.ptr<!s8i>, !cir.ptr<!rec_std3A3Abasic_string3Cchar3E3A3AAllocator>) -> () cleanup {
+// CIR:     cir.call @_ZNSt14basic_ofstreamIcED1Ev(%[[V2]]) : (!cir.ptr<!rec_std3A3Abasic_ofstream3Cchar3E>) -> ()
+// CIR:     cir.call @_ZNSt14basic_ofstreamIcED1Ev(%[[V1]]) : (!cir.ptr<!rec_std3A3Abasic_ofstream3Cchar3E>) -> ()
 // CIR:     cir.yield
 // CIR:   }
 // CIR:   cir.yield
@@ -39,19 +39,19 @@ void foo(const char *path) {
 // CIR:   cir.resume
 // CIR: }]
 // CIR: cir.try synthetic cleanup {
-// CIR:   %[[V10:.*]] = cir.call exception @_ZStlsRSt14basic_ofstreamIcERKSbIcE(%[[V2]], {{.*}}) : (!cir.ptr<!ty_std3A3Abasic_ofstream3Cchar3E>, !cir.ptr<!ty_std3A3Abasic_string3Cchar3E>) -> !cir.ptr<!ty_std3A3Abasic_ofstream3Cchar3E> cleanup {
-// CIR:     cir.call @_ZNSbIcED1Ev({{.*}}) : (!cir.ptr<!ty_std3A3Abasic_string3Cchar3E>) -> ()
-// CIR:     cir.call @_ZNSt14basic_ofstreamIcED1Ev(%[[V2]]) : (!cir.ptr<!ty_std3A3Abasic_ofstream3Cchar3E>) -> ()
-// CIR:     cir.call @_ZNSt14basic_ofstreamIcED1Ev(%[[V1]]) : (!cir.ptr<!ty_std3A3Abasic_ofstream3Cchar3E>) -> ()
+// CIR:   %[[V10:.*]] = cir.call exception @_ZStlsRSt14basic_ofstreamIcERKSbIcE(%[[V2]], {{.*}}) : (!cir.ptr<!rec_std3A3Abasic_ofstream3Cchar3E>, !cir.ptr<!rec_std3A3Abasic_string3Cchar3E>) -> !cir.ptr<!rec_std3A3Abasic_ofstream3Cchar3E> cleanup {
+// CIR:     cir.call @_ZNSbIcED1Ev({{.*}}) : (!cir.ptr<!rec_std3A3Abasic_string3Cchar3E>) -> ()
+// CIR:     cir.call @_ZNSt14basic_ofstreamIcED1Ev(%[[V2]]) : (!cir.ptr<!rec_std3A3Abasic_ofstream3Cchar3E>) -> ()
+// CIR:     cir.call @_ZNSt14basic_ofstreamIcED1Ev(%[[V1]]) : (!cir.ptr<!rec_std3A3Abasic_ofstream3Cchar3E>) -> ()
 // CIR:     cir.yield
 // CIR:   }
-// CIR:   cir.store %[[V10]], {{.*}} : !cir.ptr<!ty_std3A3Abasic_ofstream3Cchar3E>, !cir.ptr<!cir.ptr<!ty_std3A3Abasic_ofstream3Cchar3E>>
+// CIR:   cir.store %[[V10]], {{.*}} : !cir.ptr<!rec_std3A3Abasic_ofstream3Cchar3E>, !cir.ptr<!cir.ptr<!rec_std3A3Abasic_ofstream3Cchar3E>>
 // CIR:   cir.yield
 // CIR: } catch [#cir.unwind {
 // CIR:   cir.resume
 // CIR: }]
-// CIR: cir.call @_ZNSt14basic_ofstreamIcED1Ev(%[[V2]]) : (!cir.ptr<!ty_std3A3Abasic_ofstream3Cchar3E>) -> ()
-// CIR: cir.call @_ZNSt14basic_ofstreamIcED1Ev(%[[V1]]) : (!cir.ptr<!ty_std3A3Abasic_ofstream3Cchar3E>) -> ()
+// CIR: cir.call @_ZNSt14basic_ofstreamIcED1Ev(%[[V2]]) : (!cir.ptr<!rec_std3A3Abasic_ofstream3Cchar3E>) -> ()
+// CIR: cir.call @_ZNSt14basic_ofstreamIcED1Ev(%[[V1]]) : (!cir.ptr<!rec_std3A3Abasic_ofstream3Cchar3E>) -> ()
 // CIR: cir.return
 
 // LLVM: @_Z3fooPKc(ptr {{.*}})

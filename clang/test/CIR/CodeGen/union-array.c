@@ -35,5 +35,5 @@ void foo() { U arr[2] = {{.b = {1, 2}}, {.a = {1}}}; }
 void bar(void) {
   int *x[2] = { &g.f0, &g.f0 };
 }
-// CIR: cir.global "private" internal dsolocal @g = #cir.const_record<{#cir.int<5> : !s32i}> : !ty_anon_struct
+// CIR: cir.global "private" internal dsolocal @g = #cir.const_record<{#cir.int<5> : !s32i}> : !rec_anon_struct
 // CIR: cir.const #cir.const_array<[#cir.global_view<@g> : !cir.ptr<!s32i>, #cir.global_view<@g> : !cir.ptr<!s32i>]> : !cir.array<!cir.ptr<!s32i> x 2>

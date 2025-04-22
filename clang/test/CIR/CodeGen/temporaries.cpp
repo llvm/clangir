@@ -14,18 +14,18 @@ void f() {
   !E();
 }
 
-//      CIR: cir.func private @_ZN1EC1Ev(!cir.ptr<!ty_E>) extra(#fn_attr)
-// CIR-NEXT: cir.func private @_ZN1EntEv(!cir.ptr<!ty_E>) -> !ty_E
-// CIR-NEXT: cir.func private @_ZN1ED1Ev(!cir.ptr<!ty_E>) extra(#fn_attr)
+//      CIR: cir.func private @_ZN1EC1Ev(!cir.ptr<!rec_E>) extra(#fn_attr)
+// CIR-NEXT: cir.func private @_ZN1EntEv(!cir.ptr<!rec_E>) -> !rec_E
+// CIR-NEXT: cir.func private @_ZN1ED1Ev(!cir.ptr<!rec_E>) extra(#fn_attr)
 // CIR-NEXT: cir.func @_Z1fv() extra(#fn_attr1) {
 // CIR-NEXT:   cir.scope {
-// CIR-NEXT:     %[[ONE:[0-9]+]] = cir.alloca !ty_E, !cir.ptr<!ty_E>, ["agg.tmp.ensured"] {alignment = 1 : i64}
-// CIR-NEXT:     %[[TWO:[0-9]+]] = cir.alloca !ty_E, !cir.ptr<!ty_E>, ["ref.tmp0"] {alignment = 1 : i64}
-// CIR-NEXT:     cir.call @_ZN1EC1Ev(%1) : (!cir.ptr<!ty_E>) -> () extra(#fn_attr)
-// CIR-NEXT:     %[[THREE:[0-9]+]] = cir.call @_ZN1EntEv(%[[TWO]]) : (!cir.ptr<!ty_E>) -> !ty_E
-// CIR-NEXT:     cir.store %[[THREE]], %[[ONE]] : !ty_E, !cir.ptr<!ty_E>
-// CIR-NEXT:     cir.call @_ZN1ED1Ev(%[[ONE]]) : (!cir.ptr<!ty_E>) -> () extra(#fn_attr)
-// CIR-NEXT:     cir.call @_ZN1ED1Ev(%[[TWO]]) : (!cir.ptr<!ty_E>) -> () extra(#fn_attr)
+// CIR-NEXT:     %[[ONE:[0-9]+]] = cir.alloca !rec_E, !cir.ptr<!rec_E>, ["agg.tmp.ensured"] {alignment = 1 : i64}
+// CIR-NEXT:     %[[TWO:[0-9]+]] = cir.alloca !rec_E, !cir.ptr<!rec_E>, ["ref.tmp0"] {alignment = 1 : i64}
+// CIR-NEXT:     cir.call @_ZN1EC1Ev(%1) : (!cir.ptr<!rec_E>) -> () extra(#fn_attr)
+// CIR-NEXT:     %[[THREE:[0-9]+]] = cir.call @_ZN1EntEv(%[[TWO]]) : (!cir.ptr<!rec_E>) -> !rec_E
+// CIR-NEXT:     cir.store %[[THREE]], %[[ONE]] : !rec_E, !cir.ptr<!rec_E>
+// CIR-NEXT:     cir.call @_ZN1ED1Ev(%[[ONE]]) : (!cir.ptr<!rec_E>) -> () extra(#fn_attr)
+// CIR-NEXT:     cir.call @_ZN1ED1Ev(%[[TWO]]) : (!cir.ptr<!rec_E>) -> () extra(#fn_attr)
 // CIR-NEXT:   }
 // CIR-NEXT:   cir.return
 // CIR-NEXT: }

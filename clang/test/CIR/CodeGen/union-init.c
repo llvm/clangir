@@ -20,13 +20,13 @@ void foo(int x) {
 
 // CHECK-LABEL:   cir.func @foo(
 // CHECK:  %[[VAL_1:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["x", init] {alignment = 4 : i64}
-// CHECK:  %[[VAL_2:.*]] = cir.alloca !ty_A, !cir.ptr<!ty_A>, ["a", init] {alignment = 4 : i64}
+// CHECK:  %[[VAL_2:.*]] = cir.alloca !rec_A, !cir.ptr<!rec_A>, ["a", init] {alignment = 4 : i64}
 // CHECK:  cir.store {{.*}}, %[[VAL_1]] : !s32i, !cir.ptr<!s32i>
-// CHECK:  %[[VAL_3:.*]] = cir.get_member %[[VAL_2]][1] {name = ""} : !cir.ptr<!ty_A> -> !cir.ptr<!ty_anon2E0>
-// CHECK:  %[[VAL_4:.*]] = cir.cast(bitcast, %[[VAL_3]] : !cir.ptr<!ty_anon2E0>), !cir.ptr<!u32i>
+// CHECK:  %[[VAL_3:.*]] = cir.get_member %[[VAL_2]][1] {name = ""} : !cir.ptr<!rec_A> -> !cir.ptr<!rec_anon2E0>
+// CHECK:  %[[VAL_4:.*]] = cir.cast(bitcast, %[[VAL_3]] : !cir.ptr<!rec_anon2E0>), !cir.ptr<!u32i>
 // CHECK:  %[[VAL_5:.*]] = cir.load %[[VAL_1]] : !cir.ptr<!s32i>, !s32i
 // CHECK:  %[[VAL_6:.*]] = cir.set_bitfield(#[[bfi_x]], %[[VAL_4]] : !cir.ptr<!u32i>, %[[VAL_5]] : !s32i) -> !s32i
-// CHECK:  %[[VAL_7:.*]] = cir.cast(bitcast, %[[VAL_3]] : !cir.ptr<!ty_anon2E0>), !cir.ptr<!u32i>
+// CHECK:  %[[VAL_7:.*]] = cir.cast(bitcast, %[[VAL_3]] : !cir.ptr<!rec_anon2E0>), !cir.ptr<!u32i>
 // CHECK:  %[[VAL_8:.*]] = cir.const #cir.int<0> : !s32i
 // CHECK:  %[[VAL_9:.*]] = cir.set_bitfield(#[[bfi_y]], %[[VAL_7]] : !cir.ptr<!u32i>, %[[VAL_8]] : !s32i) -> !s32i
 // CHECK:  cir.return
@@ -52,9 +52,9 @@ typedef union {
 } U;
 
 // CHECK: %[[VAL_0:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["x", init] {alignment = 4 : i64}
-// CHECK: %[[VAL_1:.*]] = cir.alloca !ty_U, !cir.ptr<!ty_U>, ["u", init] {alignment = 4 : i64}
+// CHECK: %[[VAL_1:.*]] = cir.alloca !rec_U, !cir.ptr<!rec_U>, ["u", init] {alignment = 4 : i64}
 // CHECK: cir.store %arg0, %[[VAL_0]] : !s32i, !cir.ptr<!s32i>
-// CHECK: %[[VAL_2:.*]] = cir.cast(bitcast, %[[VAL_1]] : !cir.ptr<!ty_U>), !cir.ptr<!s32i>
+// CHECK: %[[VAL_2:.*]] = cir.cast(bitcast, %[[VAL_1]] : !cir.ptr<!rec_U>), !cir.ptr<!s32i>
 // CHECK: %[[VAL_3:.*]] = cir.load %[[VAL_0]] : !cir.ptr<!s32i>, !s32i
 // CHECK: cir.store %[[VAL_3]], %[[VAL_2]] : !s32i, !cir.ptr<!s32i>
 

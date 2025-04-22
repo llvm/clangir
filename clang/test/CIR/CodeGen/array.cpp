@@ -70,7 +70,7 @@ int globalNullArr[] = {0, 0};
 struct S {
   int i;
 } arr[3] = {{1}};
-// CHECK: cir.global external @arr = #cir.const_array<[#cir.const_record<{#cir.int<1> : !s32i}> : !ty_S, #cir.zero : !ty_S, #cir.zero : !ty_S]> : !cir.array<!ty_S x 3>
+// CHECK: cir.global external @arr = #cir.const_array<[#cir.const_record<{#cir.int<1> : !s32i}> : !rec_S, #cir.zero : !rec_S, #cir.zero : !rec_S]> : !cir.array<!rec_S x 3>
 
 void testPointerDecaySubscriptAccess(int arr[]) {
 // CHECK: cir.func @{{.+}}testPointerDecaySubscriptAccess

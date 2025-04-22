@@ -15,8 +15,8 @@ void foo(const char* path) {
 }
 
 // CIR: cir.try synthetic cleanup {
-// CIR:   cir.call exception @_ZNSbIcEC1EPKcRKNS_9AllocatorE({{.*}}, {{.*}}, {{.*}}) : (!cir.ptr<!ty_std3A3Abasic_string3Cchar3E>, !cir.ptr<!s8i>, !cir.ptr<!ty_std3A3Abasic_string3Cchar3E3A3AAllocator>) -> () cleanup {
-// CIR:     cir.call @_ZNSbIcED1Ev({{.*}}) : (!cir.ptr<!ty_std3A3Abasic_string3Cchar3E>) -> ()
+// CIR:   cir.call exception @_ZNSbIcEC1EPKcRKNS_9AllocatorE({{.*}}, {{.*}}, {{.*}}) : (!cir.ptr<!rec_std3A3Abasic_string3Cchar3E>, !cir.ptr<!s8i>, !cir.ptr<!rec_std3A3Abasic_string3Cchar3E3A3AAllocator>) -> () cleanup {
+// CIR:     cir.call @_ZNSbIcED1Ev({{.*}}) : (!cir.ptr<!rec_std3A3Abasic_string3Cchar3E>) -> ()
 // CIR:     cir.yield
 // CIR:   }
 // CIR:   cir.yield
@@ -24,30 +24,30 @@ void foo(const char* path) {
 // CIR:   cir.resume
 // CIR: }]
 // CIR: cir.try synthetic cleanup {
-// CIR:   {{.*}} = cir.call exception @_ZNSbIcEaSERKS_({{.*}}, {{.*}}) : (!cir.ptr<!ty_std3A3Abasic_string3Cchar3E>, !cir.ptr<!ty_std3A3Abasic_string3Cchar3E>) -> !cir.ptr<!ty_std3A3Abasic_string3Cchar3E> cleanup {
-// CIR:     cir.call @_ZNSbIcED1Ev({{.*}}) : (!cir.ptr<!ty_std3A3Abasic_string3Cchar3E>) -> ()
+// CIR:   {{.*}} = cir.call exception @_ZNSbIcEaSERKS_({{.*}}, {{.*}}) : (!cir.ptr<!rec_std3A3Abasic_string3Cchar3E>, !cir.ptr<!rec_std3A3Abasic_string3Cchar3E>) -> !cir.ptr<!rec_std3A3Abasic_string3Cchar3E> cleanup {
+// CIR:     cir.call @_ZNSbIcED1Ev({{.*}}) : (!cir.ptr<!rec_std3A3Abasic_string3Cchar3E>) -> ()
 // CIR:     cir.yield
 // CIR:   }
-// CIR:   cir.store {{.*}}, {{.*}} : !cir.ptr<!ty_std3A3Abasic_string3Cchar3E>, !cir.ptr<!cir.ptr<!ty_std3A3Abasic_string3Cchar3E>>
+// CIR:   cir.store {{.*}}, {{.*}} : !cir.ptr<!rec_std3A3Abasic_string3Cchar3E>, !cir.ptr<!cir.ptr<!rec_std3A3Abasic_string3Cchar3E>>
 // CIR:   cir.yield
 // CIR: } catch [#cir.unwind {
 // CIR:   cir.resume
 // CIR: }]
-// CIR: {{.*}} = cir.load {{.*}} : !cir.ptr<!cir.ptr<!ty_std3A3Abasic_string3Cchar3E>>, !cir.ptr<!ty_std3A3Abasic_string3Cchar3E>
-// CIR: cir.call @_ZNSbIcED1Ev({{.*}}) : (!cir.ptr<!ty_std3A3Abasic_string3Cchar3E>) -> ()
+// CIR: {{.*}} = cir.load {{.*}} : !cir.ptr<!cir.ptr<!rec_std3A3Abasic_string3Cchar3E>>, !cir.ptr<!rec_std3A3Abasic_string3Cchar3E>
+// CIR: cir.call @_ZNSbIcED1Ev({{.*}}) : (!cir.ptr<!rec_std3A3Abasic_string3Cchar3E>) -> ()
 // CIR: cir.try synthetic cleanup {
-// CIR:   cir.call exception @_ZNSbIcEC1EPKcRKNS_9AllocatorE({{.*}}, {{.*}}, {{.*}}) : (!cir.ptr<!ty_std3A3Abasic_string3Cchar3E>, !cir.ptr<!s8i>, !cir.ptr<!ty_std3A3Abasic_string3Cchar3E3A3AAllocator>) -> ()
+// CIR:   cir.call exception @_ZNSbIcEC1EPKcRKNS_9AllocatorE({{.*}}, {{.*}}, {{.*}}) : (!cir.ptr<!rec_std3A3Abasic_string3Cchar3E>, !cir.ptr<!s8i>, !cir.ptr<!rec_std3A3Abasic_string3Cchar3E3A3AAllocator>) -> ()
 // CIR:   cir.yield
 // CIR: } catch [#cir.unwind {
 // CIR:   cir.resume
 // CIR: }]
 // CIR: cir.try synthetic cleanup {
-// CIR:   {{.*}} = cir.call exception @_ZNSbIcEaSERKS_({{.*}}, {{.*}}) : (!cir.ptr<!ty_std3A3Abasic_string3Cchar3E>, !cir.ptr<!ty_std3A3Abasic_string3Cchar3E>) -> !cir.ptr<!ty_std3A3Abasic_string3Cchar3E> cleanup {
-// CIR:     cir.call @_ZNSbIcED1Ev({{.*}}) : (!cir.ptr<!ty_std3A3Abasic_string3Cchar3E>) -> ()
-// CIR:     cir.call @_ZNSbIcED1Ev({{.*}}) : (!cir.ptr<!ty_std3A3Abasic_string3Cchar3E>) -> ()
+// CIR:   {{.*}} = cir.call exception @_ZNSbIcEaSERKS_({{.*}}, {{.*}}) : (!cir.ptr<!rec_std3A3Abasic_string3Cchar3E>, !cir.ptr<!rec_std3A3Abasic_string3Cchar3E>) -> !cir.ptr<!rec_std3A3Abasic_string3Cchar3E> cleanup {
+// CIR:     cir.call @_ZNSbIcED1Ev({{.*}}) : (!cir.ptr<!rec_std3A3Abasic_string3Cchar3E>) -> ()
+// CIR:     cir.call @_ZNSbIcED1Ev({{.*}}) : (!cir.ptr<!rec_std3A3Abasic_string3Cchar3E>) -> ()
 // CIR:     cir.yield
 // CIR:   }
-// CIR:   cir.store {{.*}}, {{.*}} : !cir.ptr<!ty_std3A3Abasic_string3Cchar3E>, !cir.ptr<!cir.ptr<!ty_std3A3Abasic_string3Cchar3E>>
+// CIR:   cir.store {{.*}}, {{.*}} : !cir.ptr<!rec_std3A3Abasic_string3Cchar3E>, !cir.ptr<!cir.ptr<!rec_std3A3Abasic_string3Cchar3E>>
 // CIR:   cir.yield
 // CIR: } catch [#cir.unwind {
 // CIR:   cir.resume
