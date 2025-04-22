@@ -21,7 +21,7 @@ A* a() { return x; }
 // CIR:  %[[OFFSET_PTR_CAST:.*]] = cir.cast(bitcast, %[[OFFSET_PTR]] : !cir.ptr<!u8i>), !cir.ptr<!s64i>
 // CIR:  %[[OFFSET:.*]] = cir.load %[[OFFSET_PTR_CAST]] : !cir.ptr<!s64i>, !s64i
 // CIR:  %[[VBASE_ADDR:.*]] = cir.ptr_stride({{.*}} : !cir.ptr<!u8i>, %[[OFFSET]] : !s64i), !cir.ptr<!u8i>
-// CIR:  cir.cast(bitcast, %[[VBASE_ADDR]] : !cir.ptr<!u8i>), !cir.ptr<!ty_D>
+// CIR:  cir.cast(bitcast, %[[VBASE_ADDR]] : !cir.ptr<!u8i>), !cir.ptr<!rec_D>
 
 // FIXME: this version should include null check.
 // LLVM-LABEL: @_Z1av()

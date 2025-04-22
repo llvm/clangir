@@ -291,7 +291,7 @@ void foo() {
 // NOFLAT: cir.func @_Z3foov()
 // NOFLAT:   cir.scope {
 // NOFLAT:     cir.label "label"
-// NOFLAT:     %0 = cir.alloca !ty_S, !cir.ptr<!ty_S>, ["agg.tmp0"]
+// NOFLAT:     %0 = cir.alloca !rec_S, !cir.ptr<!rec_S>, ["agg.tmp0"]
 
 extern "C" void action1();
 extern "C" void action2();

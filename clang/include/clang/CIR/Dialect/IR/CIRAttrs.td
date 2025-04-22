@@ -608,9 +608,9 @@ def DataMemberAttr : CIR_Attr<"DataMember", "data_member",
 
     Example:
     ```
-    #ptr = #cir.data_member<1> : !cir.data_member<!s32i in !ty_22Point22>
+    #ptr = #cir.data_member<1> : !cir.data_member<!s32i in !rec_22Point22>
 
-    #null = #cir.data_member<null> : !cir.data_member<!s32i in !ty_22Point22>
+    #null = #cir.data_member<null> : !cir.data_member<!s32i in !rec_22Point22>
     ```
   }];
 

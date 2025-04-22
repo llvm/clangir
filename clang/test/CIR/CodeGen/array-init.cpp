@@ -13,12 +13,12 @@ int bar() {
 void foo() {
   A a = {bar(), {}};
 }
-// CHECK: %[[VAL_0:.*]] = cir.alloca !ty_A, !cir.ptr<!ty_A>, ["a", init]
+// CHECK: %[[VAL_0:.*]] = cir.alloca !rec_A, !cir.ptr<!rec_A>, ["a", init]
 // CHECK: %[[VAL_1:.*]] = cir.alloca !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>, ["arrayinit.temp", init]
-// CHECK: %[[VAL_2:.*]] = cir.get_member %[[VAL_0]][0] {name = "a"} : !cir.ptr<!ty_A> -> !cir.ptr<!s32i>
+// CHECK: %[[VAL_2:.*]] = cir.get_member %[[VAL_0]][0] {name = "a"} : !cir.ptr<!rec_A> -> !cir.ptr<!s32i>
 // CHECK: %[[VAL_3:.*]] = cir.call @_Z3barv() : () -> !s32i
 // CHECK: cir.store %[[VAL_3]], %[[VAL_2]] : !s32i, !cir.ptr<!s32i>
-// CHECK: %[[VAL_4:.*]] = cir.get_member %[[VAL_0]][1] {name = "b"} : !cir.ptr<!ty_A> -> !cir.ptr<!cir.array<!s32i x 2>>
+// CHECK: %[[VAL_4:.*]] = cir.get_member %[[VAL_0]][1] {name = "b"} : !cir.ptr<!rec_A> -> !cir.ptr<!cir.array<!s32i x 2>>
 // CHECK: %[[VAL_5:.*]] = cir.cast(array_to_ptrdecay, %[[VAL_4]] : !cir.ptr<!cir.array<!s32i x 2>>), !cir.ptr<!s32i>
 // CHECK: cir.store %[[VAL_5]], %[[VAL_1]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
 // CHECK: %[[VAL_6:.*]] = cir.const #cir.int<2> : !s64i
