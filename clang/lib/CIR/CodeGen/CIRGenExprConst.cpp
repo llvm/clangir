@@ -2140,7 +2140,7 @@ static mlir::TypedAttr emitNullConstant(CIRGenModule &CGM, const RecordDecl *rd,
   }
 
   mlir::MLIRContext *mlirContext = record.getContext();
-  return cir::ConstRecordAttr::get(mlirContext, record,
+  return cir::ConstRecordAttr::get(record,
                                    mlir::ArrayAttr::get(mlirContext, elements));
 }
 
