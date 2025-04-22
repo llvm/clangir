@@ -2375,6 +2375,8 @@ mlir::Value ScalarExprEmitter::VisitExprWithCleanups(ExprWithCleanups *E) {
                                               builder.getInsertionBlock()};
         auto scopeYieldVal = Visit(E->getSubExpr());
         if (scopeYieldVal) {
+          lexScope.ForceCleanup(); // Defers to RunCleanupsScope's dtor and
+                                   // scope handling
           builder.create<cir::YieldOp>(loc, scopeYieldVal);
           yieldTy = scopeYieldVal.getType();
         }
