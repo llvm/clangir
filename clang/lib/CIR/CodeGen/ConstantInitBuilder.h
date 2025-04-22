@@ -195,7 +195,7 @@ public:
   void addPointer(cir::PointerType ptrTy, uint64_t value) {
     auto val = mlir::IntegerAttr::get(
         mlir::IntegerType::get(ptrTy.getContext(), 64), value);
-    add(cir::ConstPtrAttr::get(ptrTy.getContext(), ptrTy, val));
+    add(cir::ConstPtrAttr::get(ptrTy, val));
   }
 
   /// Add a bitcast of a value to a specific type.

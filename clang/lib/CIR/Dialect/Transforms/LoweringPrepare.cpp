@@ -230,7 +230,7 @@ FuncOp LoweringPreparePass::buildRuntimeFunction(
         f, mlir::SymbolTable::Visibility::Private);
     mlir::NamedAttrList attrs;
     f.setExtraAttrsAttr(cir::ExtraFuncAttributesAttr::get(
-        builder.getContext(), attrs.getDictionary(builder.getContext())));
+        attrs.getDictionary(builder.getContext())));
   }
   return f;
 }
@@ -1532,9 +1532,9 @@ void LoweringPreparePass::buildGlobalAnnotationValues() {
     return;
   mlir::ArrayAttr annotationValueArray =
       mlir::ArrayAttr::get(theModule.getContext(), globalAnnotations);
-  theModule->setAttr(cir::CIRDialect::getGlobalAnnotationsAttrName(),
-                     cir::GlobalAnnotationValuesAttr::get(
-                         theModule.getContext(), annotationValueArray));
+  theModule->setAttr(
+      cir::CIRDialect::getGlobalAnnotationsAttrName(),
+      cir::GlobalAnnotationValuesAttr::get(annotationValueArray));
 }
 
 void LoweringPreparePass::runOnOp(Operation *op) {
