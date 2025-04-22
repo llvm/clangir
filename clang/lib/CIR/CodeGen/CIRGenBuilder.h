@@ -179,7 +179,7 @@ public:
         cir::ArrayType::get(eltTy, finalSize - trailingZerosNum);
     auto fullArrayTy = cir::ArrayType::get(eltTy, finalSize);
     return cir::ConstArrayAttr::get(
-        getContext(), fullArrayTy,
+        fullArrayTy,
         mlir::StringAttr::get(str.drop_back(trailingZerosNum),
                               truncatedArrayTy),
         trailingZerosNum);
@@ -258,11 +258,11 @@ public:
 
   cir::DataMemberAttr getDataMemberAttr(cir::DataMemberType ty,
                                         unsigned memberIndex) {
-    return cir::DataMemberAttr::get(getContext(), ty, memberIndex);
+    return cir::DataMemberAttr::get(ty, memberIndex);
   }
 
   cir::DataMemberAttr getNullDataMemberAttr(cir::DataMemberType ty) {
-    return cir::DataMemberAttr::get(getContext(), ty, std::nullopt);
+    return cir::DataMemberAttr::get(ty);
   }
 
   // TODO(cir): Once we have CIR float types, replace this by something like a
