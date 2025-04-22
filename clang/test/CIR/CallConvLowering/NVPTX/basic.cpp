@@ -84,7 +84,7 @@ struct Struct {
   int a, b, c, d, e;
 };
 
-// CHECK: cir.func @_Z10StructFuncv() -> !ty_Struct
+// CHECK: cir.func @_Z10StructFuncv() -> !rec_Struct
 Struct StructFunc() {
   return { 0, 1, 2, 3, 4 };
 }

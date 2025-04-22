@@ -13,4 +13,4 @@ struct B : public A {};
 
 B x;
 
-// CHECK: cir.call @_ZN12_GLOBAL__N_11AD2Ev({{.*}}) : (!cir.ptr<!ty_28anonymous_namespace293A3AA>) -> ()
+// CHECK: cir.call @_ZN12_GLOBAL__N_11AD2Ev({{.*}}) : (!cir.ptr<!rec_28anonymous_namespace293A3AA>) -> ()

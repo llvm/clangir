@@ -13,8 +13,8 @@ auto make_non_virtual() -> void (Foo::*)(int) {
   return &Foo::m1;
 }
 
-// CHECK-LABEL: cir.func @_Z16make_non_virtualv() -> !cir.method<!cir.func<(!s32i)> in !ty_Foo>
-//       CHECK:   %{{.+}} = cir.const #cir.method<@_ZN3Foo2m1Ei> : !cir.method<!cir.func<(!s32i)> in !ty_Foo>
+// CHECK-LABEL: cir.func @_Z16make_non_virtualv() -> !cir.method<!cir.func<(!s32i)> in !rec_Foo>
+//       CHECK:   %{{.+}} = cir.const #cir.method<@_ZN3Foo2m1Ei> : !cir.method<!cir.func<(!s32i)> in !rec_Foo>
 //       CHECK: }
 
 // LLVM-LABEL: @_Z16make_non_virtualv
@@ -25,8 +25,8 @@ auto make_virtual() -> void (Foo::*)(int) {
   return &Foo::m3;
 }
 
-// CHECK-LABEL: cir.func @_Z12make_virtualv() -> !cir.method<!cir.func<(!s32i)> in !ty_Foo>
-//       CHECK:   %{{.+}} = cir.const #cir.method<vtable_offset = 8> : !cir.method<!cir.func<(!s32i)> in !ty_Foo>
+// CHECK-LABEL: cir.func @_Z12make_virtualv() -> !cir.method<!cir.func<(!s32i)> in !rec_Foo>
+//       CHECK:   %{{.+}} = cir.const #cir.method<vtable_offset = 8> : !cir.method<!cir.func<(!s32i)> in !rec_Foo>
 //       CHECK: }
 
 // LLVM-LABEL: @_Z12make_virtualv
@@ -37,8 +37,8 @@ auto make_null() -> void (Foo::*)(int) {
   return nullptr;
 }
 
-// CHECK-LABEL: cir.func @_Z9make_nullv() -> !cir.method<!cir.func<(!s32i)> in !ty_Foo>
-//       CHECK:   %{{.+}} = cir.const #cir.method<null> : !cir.method<!cir.func<(!s32i)> in !ty_Foo>
+// CHECK-LABEL: cir.func @_Z9make_nullv() -> !cir.method<!cir.func<(!s32i)> in !rec_Foo>
+//       CHECK:   %{{.+}} = cir.const #cir.method<null> : !cir.method<!cir.func<(!s32i)> in !rec_Foo>
 //       CHECK: }
 
 // LLVM-LABEL: @_Z9make_nullv
@@ -50,7 +50,7 @@ void call(Foo *obj, void (Foo::*func)(int), int arg) {
 }
 
 // CHECK-LABEL: cir.func @_Z4callP3FooMS_FviEi
-//       CHECK:   %[[CALLEE:.+]], %[[THIS:.+]] = cir.get_method %{{.+}}, %{{.+}} : (!cir.method<!cir.func<(!s32i)> in !ty_Foo>, !cir.ptr<!ty_Foo>) -> (!cir.ptr<!cir.func<(!cir.ptr<!void>, !s32i)>>, !cir.ptr<!void>)
+//       CHECK:   %[[CALLEE:.+]], %[[THIS:.+]] = cir.get_method %{{.+}}, %{{.+}} : (!cir.method<!cir.func<(!s32i)> in !rec_Foo>, !cir.ptr<!rec_Foo>) -> (!cir.ptr<!cir.func<(!cir.ptr<!void>, !s32i)>>, !cir.ptr<!void>)
 //  CHECK-NEXT:   %[[#ARG:]] = cir.load %{{.+}} : !cir.ptr<!s32i>, !s32i
 //  CHECK-NEXT:   cir.call %[[CALLEE]](%[[THIS]], %[[#ARG]]) : (!cir.ptr<!cir.func<(!cir.ptr<!void>, !s32i)>>, !cir.ptr<!void>, !s32i) -> ()
 //       CHECK: }
@@ -84,7 +84,7 @@ bool cmp_eq(void (Foo::*lhs)(int), void (Foo::*rhs)(int)) {
 }
 
 // CHECK-LABEL: @_Z6cmp_eqM3FooFviES1_
-// CHECK: %{{.+}} = cir.cmp(eq, %{{.+}}, %{{.+}}) : !cir.method<!cir.func<(!s32i)> in !ty_Foo>, !cir.bool
+// CHECK: %{{.+}} = cir.cmp(eq, %{{.+}}, %{{.+}}) : !cir.method<!cir.func<(!s32i)> in !rec_Foo>, !cir.bool
 
 // LLVM-LABEL: @_Z6cmp_eqM3FooFviES1_
 //      LLVM: %[[#lhs:]] = load { i64, i64 }, ptr %{{.+}}
@@ -104,7 +104,7 @@ bool cmp_ne(void (Foo::*lhs)(int), void (Foo::*rhs)(int)) {
 }
 
 // CHECK-LABEL: @_Z6cmp_neM3FooFviES1_
-// CHECK: %{{.+}} = cir.cmp(ne, %{{.+}}, %{{.+}}) : !cir.method<!cir.func<(!s32i)> in !ty_Foo>, !cir.bool
+// CHECK: %{{.+}} = cir.cmp(ne, %{{.+}}, %{{.+}}) : !cir.method<!cir.func<(!s32i)> in !rec_Foo>, !cir.bool
 
 // LLVM-LABEL: @_Z6cmp_neM3FooFviES1_
 //      LLVM: %[[#lhs:]] = load { i64, i64 }, ptr %{{.+}}
@@ -128,7 +128,7 @@ bool memfunc_to_bool(void (Foo::*func)(int)) {
 }
 
 // CIR-LABEL: @_Z15memfunc_to_boolM3FooFviE
-// CIR:   %{{.+}} = cir.cast(member_ptr_to_bool, %{{.+}} : !cir.method<!cir.func<(!s32i)> in !ty_Foo>), !cir.bool
+// CIR:   %{{.+}} = cir.cast(member_ptr_to_bool, %{{.+}} : !cir.method<!cir.func<(!s32i)> in !rec_Foo>), !cir.bool
 // CIR: }
 
 // LLVM-LABEL: @_Z15memfunc_to_boolM3FooFviE
@@ -142,7 +142,7 @@ auto memfunc_reinterpret(void (Foo::*func)(int)) -> void (Bar::*)() {
 }
 
 // CIR-LABEL: @_Z19memfunc_reinterpretM3FooFviE
-// CIR:   %{{.+}} = cir.cast(bitcast, %{{.+}} : !cir.method<!cir.func<(!s32i)> in !ty_Foo>), !cir.method<!cir.func<()> in !ty_Bar>
+// CIR:   %{{.+}} = cir.cast(bitcast, %{{.+}} : !cir.method<!cir.func<(!s32i)> in !rec_Foo>), !cir.method<!cir.func<()> in !rec_Bar>
 // CIR: }
 
 // LLVM-LABEL: @_Z19memfunc_reinterpretM3FooFviE
@@ -178,7 +178,7 @@ DerivedMemFunc base_to_derived_zero_offset(Base1MemFunc ptr) {
 }
 
 // CIR-LABEL: @_Z27base_to_derived_zero_offsetM5Base1FviE
-// CIR: %{{.+}} = cir.derived_method(%{{.+}} : !cir.method<!cir.func<(!s32i)> in !ty_Base1_>) [0] -> !cir.method<!cir.func<(!s32i)> in !ty_Derived>
+// CIR: %{{.+}} = cir.derived_method(%{{.+}} : !cir.method<!cir.func<(!s32i)> in !rec_Base1_>) [0] -> !cir.method<!cir.func<(!s32i)> in !rec_Derived>
 
 // LLVM-LABEL: @_Z27base_to_derived_zero_offsetM5Base1FviE
 // LLVM-NEXT:   %[[#arg_slot:]] = alloca { i64, i64 }, i64 1
@@ -195,7 +195,7 @@ DerivedMemFunc base_to_derived(Base2MemFunc ptr) {
 }
 
 // CIR-LABEL: @_Z15base_to_derivedM5Base2FviE
-// CIR: %{{.+}} = cir.derived_method(%{{.+}} : !cir.method<!cir.func<(!s32i)> in !ty_Base2_>) [16] -> !cir.method<!cir.func<(!s32i)> in !ty_Derived>
+// CIR: %{{.+}} = cir.derived_method(%{{.+}} : !cir.method<!cir.func<(!s32i)> in !rec_Base2_>) [16] -> !cir.method<!cir.func<(!s32i)> in !rec_Derived>
 
 // LLVM-LABEL: @_Z15base_to_derivedM5Base2FviE
 //      LLVM: %[[#arg:]] = load { i64, i64 }, ptr %{{.+}}
@@ -208,7 +208,7 @@ Base1MemFunc derived_to_base_zero_offset(DerivedMemFunc ptr) {
 }
 
 // CIR-LABEL: @_Z27derived_to_base_zero_offsetM7DerivedFviE
-// CIR: %{{.+}} = cir.base_method(%{{.+}} : !cir.method<!cir.func<(!s32i)> in !ty_Derived>) [0] -> !cir.method<!cir.func<(!s32i)> in !ty_Base1_>
+// CIR: %{{.+}} = cir.base_method(%{{.+}} : !cir.method<!cir.func<(!s32i)> in !rec_Derived>) [0] -> !cir.method<!cir.func<(!s32i)> in !rec_Base1_>
 
 // LLVM-LABEL: @_Z27derived_to_base_zero_offsetM7DerivedFviE
 // LLVM-NEXT:   %[[#arg_slot:]] = alloca { i64, i64 }, i64 1
@@ -225,7 +225,7 @@ Base2MemFunc derived_to_base(DerivedMemFunc ptr) {
 }
 
 // CIR-LABEL: @_Z15derived_to_baseM7DerivedFviE
-// CIR: %{{.+}} = cir.base_method(%{{.+}} : !cir.method<!cir.func<(!s32i)> in !ty_Derived>) [16] -> !cir.method<!cir.func<(!s32i)> in !ty_Base2_>
+// CIR: %{{.+}} = cir.base_method(%{{.+}} : !cir.method<!cir.func<(!s32i)> in !rec_Derived>) [16] -> !cir.method<!cir.func<(!s32i)> in !rec_Base2_>
 
 // LLVM-LABEL: @_Z15derived_to_baseM7DerivedFviE
 //      LLVM: %[[#arg:]] = load { i64, i64 }, ptr %{{.+}}

@@ -20,19 +20,19 @@ public:
 };
 
 // Type info B.
-// CHECK: ![[TypeInfoB:ty_.*]] = !cir.record<struct {!cir.ptr<!u8i>, !cir.ptr<!u8i>, !cir.ptr<!u8i>}>
+// CHECK: ![[TypeInfoB:rec_.*]] = !cir.record<struct {!cir.ptr<!u8i>, !cir.ptr<!u8i>, !cir.ptr<!u8i>}>
 
 // vtable for A type
-// CHECK: ![[VTableTypeA:ty_.*]] = !cir.record<struct {!cir.array<!cir.ptr<!u8i> x 5>}>
-// RTTI_DISABLED: ![[VTableTypeA:ty_.*]] = !cir.record<struct {!cir.array<!cir.ptr<!u8i> x 5>}>
+// CHECK: ![[VTableTypeA:rec_.*]] = !cir.record<struct {!cir.array<!cir.ptr<!u8i> x 5>}>
+// RTTI_DISABLED: ![[VTableTypeA:rec_.*]] = !cir.record<struct {!cir.array<!cir.ptr<!u8i> x 5>}>
 
 // Class A
-// CHECK: ![[ClassA:ty_.*]] = !cir.record<class "A" {!cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>} #cir.record.decl.ast>
-// RTTI_DISABLED: ![[ClassA:ty_.*]] = !cir.record<class "A" {!cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>} #cir.record.decl.ast>
+// CHECK: ![[ClassA:rec_.*]] = !cir.record<class "A" {!cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>} #cir.record.decl.ast>
+// RTTI_DISABLED: ![[ClassA:rec_.*]] = !cir.record<class "A" {!cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>} #cir.record.decl.ast>
 
 // Class B
-// CHECK: ![[ClassB:ty_.*]] = !cir.record<class "B" {![[ClassA]]}>
-// RTTI_DISABLED: ![[ClassB:ty_.*]] = !cir.record<class "B" {![[ClassA]]}>
+// CHECK: ![[ClassB:rec_.*]] = !cir.record<class "B" {![[ClassA]]}>
+// RTTI_DISABLED: ![[ClassB:rec_.*]] = !cir.record<class "B" {![[ClassA]]}>
 
 // B ctor => @B::B()
 // Calls @A::A() and initialize __vptr with address of B's vtable.
@@ -55,7 +55,7 @@ public:
 //
 // CHECK: cir.func @_Z3foov()
 // CHECK:   cir.scope {
-// CHECK:     %0 = cir.alloca !ty_B, !cir.ptr<!ty_B>, ["agg.tmp.ensured"] {alignment = 8 : i64}
+// CHECK:     %0 = cir.alloca !rec_B, !cir.ptr<!rec_B>, ["agg.tmp.ensured"] {alignment = 8 : i64}
 // CHECK:     %1 = cir.const #cir.zero : ![[ClassB]]
 // CHECK:     cir.store %1, %0 : ![[ClassB]], !cir.ptr<![[ClassB]]>
 // CHECK:     cir.call @_ZN1BC2Ev(%0) : (!cir.ptr<![[ClassB]]>) -> ()

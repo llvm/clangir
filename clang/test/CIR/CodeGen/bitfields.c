@@ -55,22 +55,22 @@ typedef struct {
                // because (tail - startOffset) is 65 after 'l' field
 } U;
 
-// CHECK: !ty_D = !cir.record<struct "D" {!u16i, !s32i}>
-// CHECK: !ty_G = !cir.record<struct "G" {!u16i, !s32i} #cir.record.decl.ast>
-// CHECK: !ty_T = !cir.record<struct "T" {!u8i, !u32i} #cir.record.decl.ast>
-// CHECK: !ty_anon2E0 = !cir.record<struct "anon.0" {!u32i} #cir.record.decl.ast>
+// CHECK: !rec_D = !cir.record<struct "D" {!u16i, !s32i}>
+// CHECK: !rec_G = !cir.record<struct "G" {!u16i, !s32i} #cir.record.decl.ast>
+// CHECK: !rec_T = !cir.record<struct "T" {!u8i, !u32i} #cir.record.decl.ast>
+// CHECK: !rec_anon2E0 = !cir.record<struct "anon.0" {!u32i} #cir.record.decl.ast>
 // CHECK: #bfi_a = #cir.bitfield_info<name = "a", storage_type = !u8i, size = 3, offset = 0, is_signed = true>
 // CHECK: #bfi_e = #cir.bitfield_info<name = "e", storage_type = !u16i, size = 15, offset = 0, is_signed = true>
-// CHECK: !ty_S = !cir.record<struct "S" {!u32i, !cir.array<!u8i x 3>, !u16i, !u32i}>
-// CHECK: !ty_U = !cir.record<struct "U" {!s8i, !s8i, !s8i, !cir.array<!u8i x 9>}>
-// CHECK: !ty___long = !cir.record<struct "__long" {!ty_anon2E0, !u32i, !cir.ptr<!u32i>}>
-// CHECK: !ty_anon_struct = !cir.record<struct  {!u8i, !u8i, !cir.array<!u8i x 2>, !s32i}>
+// CHECK: !rec_S = !cir.record<struct "S" {!u32i, !cir.array<!u8i x 3>, !u16i, !u32i}>
+// CHECK: !rec_U = !cir.record<struct "U" {!s8i, !s8i, !s8i, !cir.array<!u8i x 9>}>
+// CHECK: !rec___long = !cir.record<struct "__long" {!rec_anon2E0, !u32i, !cir.ptr<!u32i>}>
+// CHECK: !rec_anon_struct = !cir.record<struct  {!u8i, !u8i, !cir.array<!u8i x 2>, !s32i}>
 // CHECK: #bfi_d = #cir.bitfield_info<name = "d", storage_type = !cir.array<!u8i x 3>, size = 2, offset = 17, is_signed = true>
 
 // CHECK: cir.func {{.*@store_field}}
-// CHECK:   [[TMP0:%.*]] = cir.alloca !ty_S, !cir.ptr<!ty_S>
+// CHECK:   [[TMP0:%.*]] = cir.alloca !rec_S, !cir.ptr<!rec_S>
 // CHECK:   [[TMP1:%.*]] = cir.const #cir.int<3> : !s32i
-// CHECK:   [[TMP2:%.*]] = cir.get_member [[TMP0]][2] {name = "e"} : !cir.ptr<!ty_S> -> !cir.ptr<!u16i>
+// CHECK:   [[TMP2:%.*]] = cir.get_member [[TMP0]][2] {name = "e"} : !cir.ptr<!rec_S> -> !cir.ptr<!u16i>
 // CHECK:   cir.set_bitfield(#bfi_e, [[TMP2]] : !cir.ptr<!u16i>, [[TMP1]] : !s32i)
 void store_field() {
   S s;
@@ -78,16 +78,16 @@ void store_field() {
 }
 
 // CHECK: cir.func {{.*@load_field}}
-// CHECK:   [[TMP0:%.*]] = cir.alloca !cir.ptr<!ty_S>, !cir.ptr<!cir.ptr<!ty_S>>, ["s", init]
-// CHECK:   [[TMP1:%.*]] = cir.load [[TMP0]] : !cir.ptr<!cir.ptr<!ty_S>>, !cir.ptr<!ty_S>
-// CHECK:   [[TMP2:%.*]] = cir.get_member [[TMP1]][1] {name = "d"} : !cir.ptr<!ty_S> -> !cir.ptr<!cir.array<!u8i x 3>>
+// CHECK:   [[TMP0:%.*]] = cir.alloca !cir.ptr<!rec_S>, !cir.ptr<!cir.ptr<!rec_S>>, ["s", init]
+// CHECK:   [[TMP1:%.*]] = cir.load [[TMP0]] : !cir.ptr<!cir.ptr<!rec_S>>, !cir.ptr<!rec_S>
+// CHECK:   [[TMP2:%.*]] = cir.get_member [[TMP1]][1] {name = "d"} : !cir.ptr<!rec_S> -> !cir.ptr<!cir.array<!u8i x 3>>
 // CHECK:   [[TMP3:%.*]] = cir.get_bitfield(#bfi_d, [[TMP2]] : !cir.ptr<!cir.array<!u8i x 3>>) -> !s32i
 int load_field(S* s) {
   return s->d;
 }
 
 // CHECK: cir.func {{.*@unOp}}
-// CHECK:   [[TMP0:%.*]] = cir.get_member {{.*}}[1] {name = "d"} : !cir.ptr<!ty_S> -> !cir.ptr<!cir.array<!u8i x 3>>
+// CHECK:   [[TMP0:%.*]] = cir.get_member {{.*}}[1] {name = "d"} : !cir.ptr<!rec_S> -> !cir.ptr<!cir.array<!u8i x 3>>
 // CHECK:   [[TMP1:%.*]] = cir.get_bitfield(#bfi_d, [[TMP0]] : !cir.ptr<!cir.array<!u8i x 3>>) -> !s32i
 // CHECK:   [[TMP2:%.*]] = cir.unary(inc, [[TMP1]]) nsw : !s32i, !s32i
 // CHECK:   cir.set_bitfield(#bfi_d, [[TMP0]] : !cir.ptr<!cir.array<!u8i x 3>>, [[TMP2]] : !s32i)
@@ -97,7 +97,7 @@ void unOp(S* s) {
 
 // CHECK: cir.func {{.*@binOp}}
 // CHECK:   [[TMP0:%.*]] = cir.const #cir.int<42> : !s32i
-// CHECK:   [[TMP1:%.*]] = cir.get_member {{.*}}[1] {name = "d"} : !cir.ptr<!ty_S> -> !cir.ptr<!cir.array<!u8i x 3>>
+// CHECK:   [[TMP1:%.*]] = cir.get_member {{.*}}[1] {name = "d"} : !cir.ptr<!rec_S> -> !cir.ptr<!cir.array<!u8i x 3>>
 // CHECK:   [[TMP2:%.*]] = cir.get_bitfield(#bfi_d, [[TMP1]] : !cir.ptr<!cir.array<!u8i x 3>>) -> !s32i
 // CHECK:   [[TMP3:%.*]] = cir.binop(or, [[TMP2]], [[TMP0]]) : !s32i
 // CHECK:   cir.set_bitfield(#bfi_d, [[TMP1]] : !cir.ptr<!cir.array<!u8i x 3>>, [[TMP3]] : !s32i)
@@ -107,7 +107,7 @@ void binOp(S* s) {
 
 
 // CHECK: cir.func {{.*@load_non_bitfield}}
-// CHECK:   cir.get_member {{%.}}[3] {name = "f"} : !cir.ptr<!ty_S> -> !cir.ptr<!u32i>
+// CHECK:   cir.get_member {{%.}}[3] {name = "f"} : !cir.ptr<!rec_S> -> !cir.ptr<!u32i>
 unsigned load_non_bitfield(S *s) {
   return s->f;
 }
@@ -125,10 +125,10 @@ void createU() {
 
 // for this struct type we create an anon structure with different storage types in initialization
 // CHECK: cir.func {{.*@createD}}
-// CHECK:   %0 = cir.alloca !ty_D, !cir.ptr<!ty_D>, ["d"] {alignment = 4 : i64}
-// CHECK:   %1 = cir.cast(bitcast, %0 : !cir.ptr<!ty_D>), !cir.ptr<!ty_anon_struct>
-// CHECK:   %2 = cir.const #cir.const_record<{#cir.int<33> : !u8i, #cir.int<0> : !u8i, #cir.const_array<[#cir.zero : !u8i, #cir.zero : !u8i]> : !cir.array<!u8i x 2>, #cir.int<3> : !s32i}> : !ty_anon_struct
-// CHECK:   cir.store %2, %1 : !ty_anon_struct, !cir.ptr<!ty_anon_struct>
+// CHECK:   %0 = cir.alloca !rec_D, !cir.ptr<!rec_D>, ["d"] {alignment = 4 : i64}
+// CHECK:   %1 = cir.cast(bitcast, %0 : !cir.ptr<!rec_D>), !cir.ptr<!rec_anon_struct>
+// CHECK:   %2 = cir.const #cir.const_record<{#cir.int<33> : !u8i, #cir.int<0> : !u8i, #cir.const_array<[#cir.zero : !u8i, #cir.zero : !u8i]> : !cir.array<!u8i x 2>, #cir.int<3> : !s32i}> : !rec_anon_struct
+// CHECK:   cir.store %2, %1 : !rec_anon_struct, !cir.ptr<!rec_anon_struct>
 void createD() {
   D d = {1,2,3};
 }
@@ -148,13 +148,13 @@ typedef struct {
   int y ;
 } G;
 
-// CHECK: cir.global external @g = #cir.const_record<{#cir.int<133> : !u8i, #cir.int<127> : !u8i, #cir.const_array<[#cir.zero : !u8i, #cir.zero : !u8i]> : !cir.array<!u8i x 2>, #cir.int<254> : !s32i}> : !ty_anon_struct
+// CHECK: cir.global external @g = #cir.const_record<{#cir.int<133> : !u8i, #cir.int<127> : !u8i, #cir.const_array<[#cir.zero : !u8i, #cir.zero : !u8i]> : !cir.array<!u8i x 2>, #cir.int<254> : !s32i}> : !rec_anon_struct
 G g = { -123, 254UL};
 
 // CHECK: cir.func {{.*@get_y}}
-// CHECK:   %[[V1:.*]] = cir.get_global @g : !cir.ptr<!ty_anon_struct>
-// CHECK:   %[[V2:.*]] = cir.cast(bitcast, %[[V1]] : !cir.ptr<!ty_anon_struct>), !cir.ptr<!ty_G>
-// CHECK:   %[[V3:.*]] = cir.get_member %[[V2]][1] {name = "y"} : !cir.ptr<!ty_G> -> !cir.ptr<!s32i>
+// CHECK:   %[[V1:.*]] = cir.get_global @g : !cir.ptr<!rec_anon_struct>
+// CHECK:   %[[V2:.*]] = cir.cast(bitcast, %[[V1]] : !cir.ptr<!rec_anon_struct>), !cir.ptr<!rec_G>
+// CHECK:   %[[V3:.*]] = cir.get_member %[[V2]][1] {name = "y"} : !cir.ptr<!rec_G> -> !cir.ptr<!s32i>
 // CHECK:   cir.load %[[V3]] : !cir.ptr<!s32i>, !s32i
 int get_y() {
   return g.y;

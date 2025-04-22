@@ -9,8 +9,8 @@ struct HasScalarArrayMember {
 };
 
 // CIR-LABEL: cir.func @_ZN20HasScalarArrayMemberC2ERKS_(
-// CIR-NEXT:    %[[#THIS:]] = cir.alloca !cir.ptr<!ty_HasScalarArrayMember>
-// CIR-NEXT:    %[[#OTHER:]] = cir.alloca !cir.ptr<!ty_HasScalarArrayMember>
+// CIR-NEXT:    %[[#THIS:]] = cir.alloca !cir.ptr<!rec_HasScalarArrayMember>
+// CIR-NEXT:    %[[#OTHER:]] = cir.alloca !cir.ptr<!rec_HasScalarArrayMember>
 // CIR-NEXT:    cir.store %arg0, %[[#THIS]]
 // CIR-NEXT:    cir.store %arg1, %[[#OTHER]]
 // CIR-NEXT:    %[[#THIS_LOAD:]] = cir.load %[[#THIS]]

@@ -86,7 +86,7 @@ def CIR_TBAAMemberAttr : CIR_Attr<"TBAAMember", "tbaa_member", []> {
 
     Example:
     ```mlir
-    !ty_StructS = !cir.record<struct "StructS" {!u16i, !u32i} #cir.record.decl.ast>
+    !rec_StructS = !cir.record<struct "StructS" {!u16i, !u32i} #cir.record.decl.ast>
     #tbaa_scalar = #cir.tbaa_scalar<id = "int", type = !s32i>
     #tbaa_scalar1 = #cir.tbaa_scalar<id = "short", type = !s16i>
     #tbaa_struct = #cir.tbaa_struct<id = "_ZTS7StructS", members = {<#tbaa_scalar1, 0>, <#tbaa_scalar, 4>}>
@@ -135,7 +135,7 @@ def CIR_TBAAStructAttr : CIR_Attr<"TBAAStruct",
 
     Example:
     ```mlir
-    !ty_StructS = !cir.record<struct "StructS" {!u16i, !u32i} #cir.record.decl.ast>
+    !rec_StructS = !cir.record<struct "StructS" {!u16i, !u32i} #cir.record.decl.ast>
     #tbaa_scalar = #cir.tbaa_scalar<id = "int", type = !s32i>
     #tbaa_scalar1 = #cir.tbaa_scalar<id = "short", type = !s16i>
     // CIR_TBAAStructAttr
