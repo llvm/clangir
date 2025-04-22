@@ -849,7 +849,7 @@ RValue CIRGenFunction::emitCall(const CIRGenFunctionInfo &CallInfo,
     }
 
     auto extraFnAttrs = cir::ExtraFuncAttributesAttr::get(
-        &getMLIRContext(), Attrs.getDictionary(&getMLIRContext()));
+        Attrs.getDictionary(&getMLIRContext()));
 
     cir::CIRCallOpInterface callLikeOp = emitCallLikeOp(
         *this, callLoc, indirectFuncTy, indirectFuncVal, directFuncOp,

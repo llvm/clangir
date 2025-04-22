@@ -618,8 +618,7 @@ public:
   mlir::TypedAttr getConstPtrAttr(mlir::Type t, int64_t v) {
     auto val =
         mlir::IntegerAttr::get(mlir::IntegerType::get(t.getContext(), 64), v);
-    return cir::ConstPtrAttr::get(getContext(), mlir::cast<cir::PointerType>(t),
-                                  val);
+    return cir::ConstPtrAttr::get(t, val);
   }
 
   mlir::TypedAttr getConstNullPtrAttr(mlir::Type t) {
@@ -663,9 +662,8 @@ public:
       callOp->setAttr("extra_attrs", extraFnAttr);
     } else {
       mlir::NamedAttrList empty;
-      callOp->setAttr("extra_attrs",
-                      cir::ExtraFuncAttributesAttr::get(
-                          getContext(), empty.getDictionary(getContext())));
+      callOp->setAttr("extra_attrs", cir::ExtraFuncAttributesAttr::get(
+                                         empty.getDictionary(getContext())));
     }
     return callOp;
   }
@@ -719,9 +717,8 @@ public:
       tryCallOp->setAttr("extra_attrs", extraFnAttr);
     } else {
       mlir::NamedAttrList empty;
-      tryCallOp->setAttr("extra_attrs",
-                         cir::ExtraFuncAttributesAttr::get(
-                             getContext(), empty.getDictionary(getContext())));
+      tryCallOp->setAttr("extra_attrs", cir::ExtraFuncAttributesAttr::get(
+                                            empty.getDictionary(getContext())));
     }
     return tryCallOp;
   }
