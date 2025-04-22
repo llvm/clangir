@@ -64,55 +64,102 @@ cir::ConstantOp CIRGenBuilderTy::getConstInt(mlir::Location loc, mlir::Type t,
   return create<cir::ConstantOp>(loc, intTy, cir::IntAttr::get(t, C));
 }
 
+
+struct SubTypeVisitor {
+  using onSubType = std::function<void(mlir::Type, int64_t, uint64_t)>;
+
+  SubTypeVisitor(cir::CIRDataLayout layout, onSubType fun) 
+    : layout_(layout)
+    , onSubType_(fun)  {}
+ 
+  void visit(mlir::Type t, int64_t offset) const {
+    if (!offset)
+      return;
+    if (auto array = mlir::dyn_cast<cir::ArrayType>(t)) {
+      visitArrayType(array, offset);
+    } else if (auto record = mlir::dyn_cast<cir::RecordType>(t)) {
+      visitRecordType(record, offset);
+    } else {
+      llvm_unreachable("unexpected type");
+    }
+  }
+
+private:
+
+  void visitArrayType(cir::ArrayType ar, int64_t offset) const {
+    int64_t eltSize = layout_.getTypeAllocSize(ar.getEltType());  
+    int64_t divRet = offset / eltSize;    
+    if (divRet < 0)
+      divRet -= 1; // make sure offset is positive    
+
+    int64_t newOffset = offset - (divRet * eltSize);
+    onSubType_(ar.getEltType(), newOffset, divRet);
+    visit(ar.getEltType(), newOffset);
+  }
+
+  void visitRecordType(cir::RecordType rec, int64_t offset) const {
+    auto elts = rec.getMembers();
+    int64_t pos = 0;
+    size_t i = 0;
+    for (; i < elts.size(); ++i) {
+      int64_t eltSize =
+          (int64_t)layout_.getTypeAllocSize(elts[i]).getFixedValue();
+      unsigned alignMask = layout_.getABITypeAlign(elts[i]).value() - 1;
+      if (rec.getPacked())
+        alignMask = 0;
+      pos = (pos + alignMask) & ~alignMask;
+      assert(offset >= 0);
+      if (offset < pos + eltSize) {
+        offset -= pos;
+        break;
+      }
+      pos += eltSize;
+    }
+    onSubType_(elts[i], offset, i);    
+    visit(elts[i], offset);
+  }
+
+private:
+  cir::CIRDataLayout layout_;
+  onSubType onSubType_;
+};
+
+
 void CIRGenBuilderTy::computeGlobalViewIndicesFromFlatOffset(
     int64_t Offset, mlir::Type Ty, cir::CIRDataLayout Layout,
     llvm::SmallVectorImpl<int64_t> &Indices) {
-  if (!Offset)
-    return;
 
-  mlir::Type SubType;
-
-  auto getIndexAndNewOffset =
-      [](int64_t Offset, int64_t EltSize) -> std::pair<int64_t, int64_t> {
-    int64_t DivRet = Offset / EltSize;
-    if (DivRet < 0)
-      DivRet -= 1; // make sure offset is positive
-    int64_t ModRet = Offset - (DivRet * EltSize);
-    return {DivRet, ModRet};
+  auto pushIndex = [&](mlir::Type t, int64_t offset, uint64_t index) {
+    Indices.push_back(index);
   };
 
-  if (auto ArrayTy = mlir::dyn_cast<cir::ArrayType>(Ty)) {
-    int64_t EltSize = Layout.getTypeAllocSize(ArrayTy.getEltType());
-    SubType = ArrayTy.getEltType();
-    const auto [Index, NewOffset] = getIndexAndNewOffset(Offset, EltSize);
-    Indices.push_back(Index);
-    Offset = NewOffset;
-  } else if (auto RecordTy = mlir::dyn_cast<cir::RecordType>(Ty)) {
-    auto Elts = RecordTy.getMembers();
-    int64_t Pos = 0;
-    for (size_t I = 0; I < Elts.size(); ++I) {
-      int64_t EltSize =
-          (int64_t)Layout.getTypeAllocSize(Elts[I]).getFixedValue();
-      unsigned AlignMask = Layout.getABITypeAlign(Elts[I]).value() - 1;
-      if (RecordTy.getPacked())
-        AlignMask = 0;
-      Pos = (Pos + AlignMask) & ~AlignMask;
-      assert(Offset >= 0);
-      if (Offset < Pos + EltSize) {
-        Indices.push_back(I);
-        SubType = Elts[I];
-        Offset -= Pos;
-        break;
-      }
-      Pos += EltSize;
-    }
-  } else {
-    llvm_unreachable("unexpected type");
-  }
-
-  assert(SubType);
-  computeGlobalViewIndicesFromFlatOffset(Offset, SubType, Layout, Indices);
+  SubTypeVisitor v(Layout, pushIndex);
+  v.visit(Ty, Offset);
 }
+
+bool CIRGenBuilderTy::isOffsetInUnion(cir::CIRDataLayout layout, 
+      mlir::Type typ, int64_t offset) {
+
+  auto isUnion = [](mlir::Type t) {
+    if (auto rec = mlir::dyn_cast<cir::RecordType>(t))
+      return rec.isUnion();
+    return false;
+  };
+
+  if (isUnion(typ))
+    return true;    
+  
+  bool result = false;
+  
+  auto check = [&](mlir::Type t, uint64_t offset, uint64_t index) {
+    result = result || isUnion(t);
+  };
+
+  SubTypeVisitor v(layout, check);
+  v.visit(typ, offset);
+
+  return result;
+} 
 
 uint64_t CIRGenBuilderTy::computeOffsetFromGlobalViewIndices(
     const cir::CIRDataLayout &layout, mlir::Type typ,
