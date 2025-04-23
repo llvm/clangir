@@ -15,8 +15,8 @@ short use() {
   U u;
   return **g3;
 }
-// CHECK:       !ty_U = !cir.record<union "U" padded {!s16i, !u16i, !u8i, !u8i, !cir.array<!u8i x 2>}>
-// CHECK:       !ty_anon_struct = !cir.record<struct  {!s16i, !cir.array<!u8i x 2>}>
+// CHECK:       !rec_U = !cir.record<union "U" padded {!s16i, !u16i, !u8i, !u8i, !cir.array<!u8i x 2>}>
+// CHECK:       !rec_anon_struct = !cir.record<struct  {!s16i, !cir.array<!u8i x 2>}>
 
 // CHECK:       @g3 = #cir.global_view<@g2> : !cir.ptr<!cir.ptr<!s16i>>
 // CHECK:       @g2 = #cir.const_array<[#cir.global_view<@g1, offset 4> : !cir.ptr<!s16i>]> : !cir.array<!cir.ptr<!s16i> x 1>
@@ -24,9 +24,9 @@ short use() {
 // CHECK:       @g1 = 
 // CHECK-SAME:    #cir.const_array<[
 // CHECK-SAME:      #cir.const_record<{#cir.int<-2> : !s16i, 
-// CHECK-SAME:      #cir.const_array<[#cir.zero : !u8i, #cir.zero : !u8i]> : !cir.array<!u8i x 2>}> : !ty_anon_struct, 
+// CHECK-SAME:      #cir.const_array<[#cir.zero : !u8i, #cir.zero : !u8i]> : !cir.array<!u8i x 2>}> : !rec_anon_struct, 
 // CHECK-SAME:      #cir.const_record<{#cir.int<-2> : !s16i,
-// CHECK-SAME:      #cir.const_array<[#cir.zero : !u8i, #cir.zero : !u8i]> : !cir.array<!u8i x 2>}> : !ty_anon_struct
-// CHECK-SAME:    ]> : !cir.array<!ty_anon_struct x 2>
+// CHECK-SAME:      #cir.const_array<[#cir.zero : !u8i, #cir.zero : !u8i]> : !cir.array<!u8i x 2>}> : !rec_anon_struct
+// CHECK-SAME:    ]> : !cir.array<!rec_anon_struct x 2>
 
 

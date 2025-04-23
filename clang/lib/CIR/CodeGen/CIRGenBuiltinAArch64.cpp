@@ -1863,14 +1863,12 @@ static cir::VectorType GetNeonType(CIRGenFunction *CGF, NeonTypeFlags TypeFlags,
   switch (TypeFlags.getEltType()) {
   case NeonTypeFlags::Int8:
   case NeonTypeFlags::Poly8:
-    return cir::VectorType::get(CGF->getBuilder().getContext(),
-                                TypeFlags.isUnsigned() ? CGF->UInt8Ty
+    return cir::VectorType::get(TypeFlags.isUnsigned() ? CGF->UInt8Ty
                                                        : CGF->SInt8Ty,
                                 V1Ty ? 1 : (8 << IsQuad));
   case NeonTypeFlags::Int16:
   case NeonTypeFlags::Poly16:
-    return cir::VectorType::get(CGF->getBuilder().getContext(),
-                                TypeFlags.isUnsigned() ? CGF->UInt16Ty
+    return cir::VectorType::get(TypeFlags.isUnsigned() ? CGF->UInt16Ty
                                                        : CGF->SInt16Ty,
                                 V1Ty ? 1 : (4 << IsQuad));
   case NeonTypeFlags::BFloat16:
@@ -1884,14 +1882,12 @@ static cir::VectorType GetNeonType(CIRGenFunction *CGF, NeonTypeFlags TypeFlags,
     else
       llvm_unreachable("NeonTypeFlags::Float16 NYI");
   case NeonTypeFlags::Int32:
-    return cir::VectorType::get(CGF->getBuilder().getContext(),
-                                TypeFlags.isUnsigned() ? CGF->UInt32Ty
+    return cir::VectorType::get(TypeFlags.isUnsigned() ? CGF->UInt32Ty
                                                        : CGF->SInt32Ty,
                                 V1Ty ? 1 : (2 << IsQuad));
   case NeonTypeFlags::Int64:
   case NeonTypeFlags::Poly64:
-    return cir::VectorType::get(CGF->getBuilder().getContext(),
-                                TypeFlags.isUnsigned() ? CGF->UInt64Ty
+    return cir::VectorType::get(TypeFlags.isUnsigned() ? CGF->UInt64Ty
                                                        : CGF->SInt64Ty,
                                 V1Ty ? 1 : (1 << IsQuad));
   case NeonTypeFlags::Poly128:
@@ -1900,12 +1896,10 @@ static cir::VectorType GetNeonType(CIRGenFunction *CGF, NeonTypeFlags TypeFlags,
     // so we use v16i8 to represent poly128 and get pattern matched.
     llvm_unreachable("NeonTypeFlags::Poly128 NYI");
   case NeonTypeFlags::Float32:
-    return cir::VectorType::get(CGF->getBuilder().getContext(),
-                                CGF->getCIRGenModule().FloatTy,
+    return cir::VectorType::get(CGF->getCIRGenModule().FloatTy,
                                 V1Ty ? 1 : (2 << IsQuad));
   case NeonTypeFlags::Float64:
-    return cir::VectorType::get(CGF->getBuilder().getContext(),
-                                CGF->getCIRGenModule().DoubleTy,
+    return cir::VectorType::get(CGF->getCIRGenModule().DoubleTy,
                                 V1Ty ? 1 : (1 << IsQuad));
   }
   llvm_unreachable("Unknown vector element type!");
@@ -2102,7 +2096,7 @@ static cir::VectorType getSignChangedVectorType(CIRGenBuilderTy &builder,
   auto elemTy = mlir::cast<cir::IntType>(vecTy.getEltType());
   elemTy = elemTy.isSigned() ? builder.getUIntNTy(elemTy.getWidth())
                              : builder.getSIntNTy(elemTy.getWidth());
-  return cir::VectorType::get(builder.getContext(), elemTy, vecTy.getSize());
+  return cir::VectorType::get(elemTy, vecTy.getSize());
 }
 
 static cir::VectorType
@@ -2111,19 +2105,16 @@ getHalfEltSizeTwiceNumElemsVecType(CIRGenBuilderTy &builder,
   auto elemTy = mlir::cast<cir::IntType>(vecTy.getEltType());
   elemTy = elemTy.isSigned() ? builder.getSIntNTy(elemTy.getWidth() / 2)
                              : builder.getUIntNTy(elemTy.getWidth() / 2);
-  return cir::VectorType::get(builder.getContext(), elemTy,
-                              vecTy.getSize() * 2);
+  return cir::VectorType::get(elemTy, vecTy.getSize() * 2);
 }
 
 static cir::VectorType
 castVecOfFPTypeToVecOfIntWithSameWidth(CIRGenBuilderTy &builder,
                                        cir::VectorType vecTy) {
   if (mlir::isa<cir::SingleType>(vecTy.getEltType()))
-    return cir::VectorType::get(builder.getContext(), builder.getSInt32Ty(),
-                                vecTy.getSize());
+    return cir::VectorType::get(builder.getSInt32Ty(), vecTy.getSize());
   if (mlir::isa<cir::DoubleType>(vecTy.getEltType()))
-    return cir::VectorType::get(builder.getContext(), builder.getSInt64Ty(),
-                                vecTy.getSize());
+    return cir::VectorType::get(builder.getSInt64Ty(), vecTy.getSize());
   llvm_unreachable(
       "Unsupported element type in getVecOfIntTypeWithSameEltWidth");
 }
@@ -2160,7 +2151,7 @@ static mlir::Value emitNeonShiftVector(CIRGenBuilderTy &builder,
       cir::IntAttr::get(vecTy.getEltType(), shiftAmt)};
   cir::ConstVectorAttr constVecAttr = cir::ConstVectorAttr::get(
       vecTy, mlir::ArrayAttr::get(builder.getContext(), vecAttr));
-  return builder.create<cir::ConstantOp>(loc, vecTy, constVecAttr);
+  return builder.create<cir::ConstantOp>(loc, constVecAttr);
 }
 
 /// Build ShiftOp of vector type whose shift amount is a vector built
@@ -2210,8 +2201,8 @@ static void vecExtendIntValue(CIRGenFunction &cgf, cir::VectorType argVTy,
   // it before inserting.
   arg = builder.createIntCast(arg, eltTy);
   mlir::Value zero = builder.getConstInt(loc, cgf.SizeTy, 0);
-  mlir::Value poison = builder.create<cir::ConstantOp>(
-      loc, eltTy, builder.getAttr<cir::PoisonAttr>(eltTy));
+  mlir::Value poison =
+      builder.create<cir::ConstantOp>(loc, cir::PoisonAttr::get(eltTy));
   arg = builder.create<cir::VecInsertOp>(
       loc, builder.create<cir::VecSplatOp>(loc, argVTy, poison), arg, zero);
 }
@@ -2315,8 +2306,7 @@ static mlir::Value emitCommonNeonVecAcrossCall(CIRGenFunction &cgf,
                                                const clang::CallExpr *e) {
   CIRGenBuilderTy &builder = cgf.getBuilder();
   mlir::Value op = cgf.emitScalarExpr(e->getArg(0));
-  cir::VectorType vTy =
-      cir::VectorType::get(&cgf.getMLIRContext(), eltTy, vecLen);
+  cir::VectorType vTy = cir::VectorType::get(eltTy, vecLen);
   llvm::SmallVector<mlir::Value, 1> args{op};
   return emitNeonCall(builder, {vTy}, args, intrincsName, eltTy,
                       cgf.getLoc(e->getExprLoc()));
@@ -2447,8 +2437,7 @@ mlir::Value CIRGenFunction::emitCommonNeonBuiltinExpr(
     cir::VectorType resTy =
         (builtinID == NEON::BI__builtin_neon_vqdmulhq_lane_v ||
          builtinID == NEON::BI__builtin_neon_vqrdmulhq_lane_v)
-            ? cir::VectorType::get(&getMLIRContext(), vTy.getEltType(),
-                                   vTy.getSize() * 2)
+            ? cir::VectorType::get(vTy.getEltType(), vTy.getSize() * 2)
             : vTy;
     cir::VectorType mulVecT =
         GetNeonType(this, NeonTypeFlags(neonType.getEltType(), false,
@@ -2869,7 +2858,8 @@ static mlir::Value emitCommonNeonSISDBuiltinExpr(
   case NEON::BI__builtin_neon_vqadds_s32:
     return builder.createAdd(ops[0], ops[1], false, false, true);
   case NEON::BI__builtin_neon_vqadds_u32:
-    llvm_unreachable(" neon_vqadds_u32 NYI ");
+    return emitNeonCall(builder, {argTy}, ops, "aarch64.neon.uqadd", resultTy,
+                        loc);
   case NEON::BI__builtin_neon_vqdmulhh_s16:
     llvm_unreachable(" neon_vqdmulhh_s16 NYI ");
   case NEON::BI__builtin_neon_vqdmulhs_s32:
@@ -2888,10 +2878,8 @@ static mlir::Value emitCommonNeonSISDBuiltinExpr(
     llvm_unreachable(" neon_vqmovnh_u16 NYI ");
   case NEON::BI__builtin_neon_vqmovns_s32: {
     mlir::Location loc = cgf.getLoc(expr->getExprLoc());
-    cir::VectorType argVecTy =
-        cir::VectorType::get(&(cgf.getMLIRContext()), cgf.SInt32Ty, 4);
-    cir::VectorType resVecTy =
-        cir::VectorType::get(&(cgf.getMLIRContext()), cgf.SInt16Ty, 4);
+    cir::VectorType argVecTy = cir::VectorType::get(cgf.SInt32Ty, 4);
+    cir::VectorType resVecTy = cir::VectorType::get(cgf.SInt16Ty, 4);
     vecExtendIntValue(cgf, argVecTy, ops[0], loc);
     mlir::Value result = emitNeonCall(builder, {argVecTy}, ops,
                                       "aarch64.neon.sqxtn", resVecTy, loc);
@@ -3017,7 +3005,8 @@ static mlir::Value emitCommonNeonSISDBuiltinExpr(
   case NEON::BI__builtin_neon_vqsubb_u8:
     llvm_unreachable(" neon_vqsubb_u8 NYI ");
   case NEON::BI__builtin_neon_vqsubd_s64:
-    llvm_unreachable(" neon_vqsubd_s64 NYI ");
+    return emitNeonCall(builder, {argTy}, ops, "aarch64.neon.sqsub", resultTy,
+                        loc);
   case NEON::BI__builtin_neon_vqsubd_u64:
     llvm_unreachable(" neon_vqsubd_u64 NYI ");
   case NEON::BI__builtin_neon_vqsubh_s16:
@@ -3706,88 +3695,74 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
 
   case NEON::BI__builtin_neon_vset_lane_f64: {
     Ops.push_back(emitScalarExpr(E->getArg(2)));
-    Ops[1] = builder.createBitcast(
-        Ops[1], cir::VectorType::get(&getMLIRContext(), DoubleTy, 1));
+    Ops[1] = builder.createBitcast(Ops[1], cir::VectorType::get(DoubleTy, 1));
     return builder.create<cir::VecInsertOp>(getLoc(E->getExprLoc()), Ops[1],
                                             Ops[0], Ops[2]);
   }
   case NEON::BI__builtin_neon_vsetq_lane_f64: {
     Ops.push_back(emitScalarExpr(E->getArg(2)));
-    Ops[1] = builder.createBitcast(
-        Ops[1], cir::VectorType::get(&getMLIRContext(), DoubleTy, 2));
+    Ops[1] = builder.createBitcast(Ops[1], cir::VectorType::get(DoubleTy, 2));
     return builder.create<cir::VecInsertOp>(getLoc(E->getExprLoc()), Ops[1],
                                             Ops[0], Ops[2]);
   }
   case NEON::BI__builtin_neon_vget_lane_i8:
   case NEON::BI__builtin_neon_vdupb_lane_i8:
-    Ops[0] = builder.createBitcast(
-        Ops[0], cir::VectorType::get(&getMLIRContext(), UInt8Ty, 8));
+    Ops[0] = builder.createBitcast(Ops[0], cir::VectorType::get(UInt8Ty, 8));
     return builder.create<cir::VecExtractOp>(getLoc(E->getExprLoc()), Ops[0],
                                              emitScalarExpr(E->getArg(1)));
   case NEON::BI__builtin_neon_vgetq_lane_i8:
   case NEON::BI__builtin_neon_vdupb_laneq_i8:
-    Ops[0] = builder.createBitcast(
-        Ops[0], cir::VectorType::get(&getMLIRContext(), UInt8Ty, 16));
+    Ops[0] = builder.createBitcast(Ops[0], cir::VectorType::get(UInt8Ty, 16));
     return builder.create<cir::VecExtractOp>(getLoc(E->getExprLoc()), Ops[0],
                                              emitScalarExpr(E->getArg(1)));
   case NEON::BI__builtin_neon_vget_lane_i16:
   case NEON::BI__builtin_neon_vduph_lane_i16:
-    Ops[0] = builder.createBitcast(
-        Ops[0], cir::VectorType::get(&getMLIRContext(), UInt16Ty, 4));
+    Ops[0] = builder.createBitcast(Ops[0], cir::VectorType::get(UInt16Ty, 4));
     return builder.create<cir::VecExtractOp>(getLoc(E->getExprLoc()), Ops[0],
                                              emitScalarExpr(E->getArg(1)));
   case NEON::BI__builtin_neon_vgetq_lane_i16:
   case NEON::BI__builtin_neon_vduph_laneq_i16:
-    Ops[0] = builder.createBitcast(
-        Ops[0], cir::VectorType::get(&getMLIRContext(), UInt16Ty, 8));
+    Ops[0] = builder.createBitcast(Ops[0], cir::VectorType::get(UInt16Ty, 8));
     return builder.create<cir::VecExtractOp>(getLoc(E->getExprLoc()), Ops[0],
                                              emitScalarExpr(E->getArg(1)));
   case NEON::BI__builtin_neon_vget_lane_i32:
   case NEON::BI__builtin_neon_vdups_lane_i32:
-    Ops[0] = builder.createBitcast(
-        Ops[0], cir::VectorType::get(&getMLIRContext(), UInt32Ty, 2));
+    Ops[0] = builder.createBitcast(Ops[0], cir::VectorType::get(UInt32Ty, 2));
     return builder.create<cir::VecExtractOp>(getLoc(E->getExprLoc()), Ops[0],
                                              emitScalarExpr(E->getArg(1)));
   case NEON::BI__builtin_neon_vget_lane_f32:
   case NEON::BI__builtin_neon_vdups_lane_f32:
-    Ops[0] = builder.createBitcast(
-        Ops[0], cir::VectorType::get(&getMLIRContext(), FloatTy, 2));
+    Ops[0] = builder.createBitcast(Ops[0], cir::VectorType::get(FloatTy, 2));
     return builder.create<cir::VecExtractOp>(getLoc(E->getExprLoc()), Ops[0],
                                              emitScalarExpr(E->getArg(1)));
   case NEON::BI__builtin_neon_vgetq_lane_i32:
   case NEON::BI__builtin_neon_vdups_laneq_i32:
-    Ops[0] = builder.createBitcast(
-        Ops[0], cir::VectorType::get(&getMLIRContext(), UInt32Ty, 4));
+    Ops[0] = builder.createBitcast(Ops[0], cir::VectorType::get(UInt32Ty, 4));
     return builder.create<cir::VecExtractOp>(getLoc(E->getExprLoc()), Ops[0],
                                              emitScalarExpr(E->getArg(1)));
   case NEON::BI__builtin_neon_vget_lane_i64:
   case NEON::BI__builtin_neon_vdupd_lane_i64:
-    Ops[0] = builder.createBitcast(
-        Ops[0], cir::VectorType::get(&getMLIRContext(), UInt64Ty, 1));
+    Ops[0] = builder.createBitcast(Ops[0], cir::VectorType::get(UInt64Ty, 1));
     return builder.create<cir::VecExtractOp>(getLoc(E->getExprLoc()), Ops[0],
                                              emitScalarExpr(E->getArg(1)));
   case NEON::BI__builtin_neon_vdupd_lane_f64:
   case NEON::BI__builtin_neon_vget_lane_f64:
-    Ops[0] = builder.createBitcast(
-        Ops[0], cir::VectorType::get(&getMLIRContext(), DoubleTy, 1));
+    Ops[0] = builder.createBitcast(Ops[0], cir::VectorType::get(DoubleTy, 1));
     return builder.create<cir::VecExtractOp>(getLoc(E->getExprLoc()), Ops[0],
                                              emitScalarExpr(E->getArg(1)));
   case NEON::BI__builtin_neon_vgetq_lane_i64:
   case NEON::BI__builtin_neon_vdupd_laneq_i64:
-    Ops[0] = builder.createBitcast(
-        Ops[0], cir::VectorType::get(&getMLIRContext(), UInt64Ty, 2));
+    Ops[0] = builder.createBitcast(Ops[0], cir::VectorType::get(UInt64Ty, 2));
     return builder.create<cir::VecExtractOp>(getLoc(E->getExprLoc()), Ops[0],
                                              emitScalarExpr(E->getArg(1)));
   case NEON::BI__builtin_neon_vgetq_lane_f32:
   case NEON::BI__builtin_neon_vdups_laneq_f32:
-    Ops[0] = builder.createBitcast(
-        Ops[0], cir::VectorType::get(&getMLIRContext(), FloatTy, 4));
+    Ops[0] = builder.createBitcast(Ops[0], cir::VectorType::get(FloatTy, 4));
     return builder.create<cir::VecExtractOp>(getLoc(E->getExprLoc()), Ops[0],
                                              emitScalarExpr(E->getArg(1)));
   case NEON::BI__builtin_neon_vgetq_lane_f64:
   case NEON::BI__builtin_neon_vdupd_laneq_f64:
-    Ops[0] = builder.createBitcast(
-        Ops[0], cir::VectorType::get(&getMLIRContext(), DoubleTy, 2));
+    Ops[0] = builder.createBitcast(Ops[0], cir::VectorType::get(DoubleTy, 2));
     return builder.create<cir::VecExtractOp>(getLoc(E->getExprLoc()), Ops[0],
                                              emitScalarExpr(E->getArg(1)));
   case NEON::BI__builtin_neon_vaddh_f16: {
@@ -4318,7 +4293,7 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
     [[fallthrough]];
   case NEON::BI__builtin_neon_vaddv_s16: {
     cir::IntType eltTy = usgn ? UInt16Ty : SInt16Ty;
-    cir::VectorType vTy = cir::VectorType::get(builder.getContext(), eltTy, 4);
+    cir::VectorType vTy = cir::VectorType::get(eltTy, 4);
     Ops.push_back(emitScalarExpr(E->getArg(0)));
     // This is to add across the vector elements, so wider result type needed.
     Ops[0] = emitNeonCall(builder, {vTy}, Ops,
@@ -4427,8 +4402,7 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
     usgn = true;
     [[fallthrough]];
   case NEON::BI__builtin_neon_vaddlvq_s16: {
-    mlir::Type argTy = cir::VectorType::get(builder.getContext(),
-                                            usgn ? UInt16Ty : SInt16Ty, 8);
+    mlir::Type argTy = cir::VectorType::get(usgn ? UInt16Ty : SInt16Ty, 8);
     llvm::SmallVector<mlir::Value, 1> argOps = {emitScalarExpr(E->getArg(0))};
     return emitNeonCall(builder, {argTy}, argOps,
                         usgn ? "aarch64.neon.uaddlv" : "aarch64.neon.saddlv",
@@ -4441,8 +4415,7 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
     usgn = true;
     [[fallthrough]];
   case NEON::BI__builtin_neon_vaddlv_s16: {
-    mlir::Type argTy = cir::VectorType::get(builder.getContext(),
-                                            usgn ? UInt16Ty : SInt16Ty, 4);
+    mlir::Type argTy = cir::VectorType::get(usgn ? UInt16Ty : SInt16Ty, 4);
     llvm::SmallVector<mlir::Value, 1> argOps = {emitScalarExpr(E->getArg(0))};
     return emitNeonCall(builder, {argTy}, argOps,
                         usgn ? "aarch64.neon.uaddlv" : "aarch64.neon.saddlv",

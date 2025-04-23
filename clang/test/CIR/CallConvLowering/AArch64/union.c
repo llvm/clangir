@@ -3,16 +3,16 @@
 // RUN: %clang_cc1 -triple aarch64-unknown-linux-gnu  -fclangir -emit-llvm %s -o %t.ll -fclangir-call-conv-lowering
 // RUN: FileCheck --input-file=%t.ll %s -check-prefix=LLVM
 
-// CIR: !ty_U = !cir.record<union "U" {!s32i, !s32i, !s32i}>
+// CIR: !rec_U = !cir.record<union "U" {!s32i, !s32i, !s32i}>
 // LLVM: %union.U = type { i32 }
 typedef union {
   int a, b, c;
 } U;
 
 // CIR: cir.func @foo(%arg0: !u64i
-// CIR: %[[#V0:]] = cir.alloca !ty_U, !cir.ptr<!ty_U>, [""] {alignment = 4 : i64}
+// CIR: %[[#V0:]] = cir.alloca !rec_U, !cir.ptr<!rec_U>, [""] {alignment = 4 : i64}
 // CIR: %[[#V1:]] = cir.cast(integral, %arg0 : !u64i), !u32i
-// CIR: %[[#V2:]] = cir.cast(bitcast, %[[#V0]] : !cir.ptr<!ty_U>), !cir.ptr<!u32i>
+// CIR: %[[#V2:]] = cir.cast(bitcast, %[[#V0]] : !cir.ptr<!rec_U>), !cir.ptr<!u32i>
 // CIR: cir.store %[[#V1]], %[[#V2]] : !u32i, !cir.ptr<!u32i>
 // CIR: cir.return
 
@@ -24,9 +24,9 @@ typedef union {
 void foo(U u) {}
 
 // CIR: cir.func no_proto @init() -> !u32i
-// CIR: %[[#V0:]] = cir.alloca !ty_U, !cir.ptr<!ty_U>, ["__retval"] {alignment = 4 : i64}
-// CIR: %[[#V1:]] = cir.load %[[#V0]] : !cir.ptr<!ty_U>, !ty_U
-// CIR: %[[#V2:]] = cir.cast(bitcast, %[[#V0]] : !cir.ptr<!ty_U>), !cir.ptr<!u32i>
+// CIR: %[[#V0:]] = cir.alloca !rec_U, !cir.ptr<!rec_U>, ["__retval"] {alignment = 4 : i64}
+// CIR: %[[#V1:]] = cir.load %[[#V0]] : !cir.ptr<!rec_U>, !rec_U
+// CIR: %[[#V2:]] = cir.cast(bitcast, %[[#V0]] : !cir.ptr<!rec_U>), !cir.ptr<!u32i>
 // CIR: %[[#V3:]] = cir.load %[[#V2]] : !cir.ptr<!u32i>, !u32i
 // CIR: cir.return %[[#V3]] : !u32i
 
@@ -54,8 +54,8 @@ typedef union {
 void passA(A x) {}
 
 // CIR: cir.func {{.*@callA}}()
-// CIR:   %[[#V0:]] = cir.alloca !ty_A, !cir.ptr<!ty_A>, ["x"] {alignment = 4 : i64}
-// CIR:   %[[#V1:]] = cir.cast(bitcast, %[[#V0:]] : !cir.ptr<!ty_A>), !cir.ptr<!s32i>
+// CIR:   %[[#V0:]] = cir.alloca !rec_A, !cir.ptr<!rec_A>, ["x"] {alignment = 4 : i64}
+// CIR:   %[[#V1:]] = cir.cast(bitcast, %[[#V0:]] : !cir.ptr<!rec_A>), !cir.ptr<!s32i>
 // CIR:   %[[#V2:]] = cir.load %[[#V1]] : !cir.ptr<!s32i>, !s32i
 // CIR:   %[[#V3:]] = cir.cast(integral, %[[#V2]] : !s32i), !u64i
 // CIR:   cir.call @passA(%[[#V3]]) : (!u64i) -> ()

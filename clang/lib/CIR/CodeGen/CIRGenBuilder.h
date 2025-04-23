@@ -168,18 +168,18 @@ public:
     // If the string is full of null bytes, emit a #cir.zero rather than
     // a #cir.const_array.
     if (lastNonZeroPos == llvm::StringRef::npos) {
-      auto arrayTy = cir::ArrayType::get(getContext(), eltTy, finalSize);
-      return getZeroAttr(arrayTy);
+      auto arrayTy = cir::ArrayType::get(eltTy, finalSize);
+      return cir::ZeroAttr::get(arrayTy);
     }
     // We will use trailing zeros only if there are more than one zero
     // at the end
     int trailingZerosNum =
         finalSize > lastNonZeroPos + 2 ? finalSize - lastNonZeroPos - 1 : 0;
     auto truncatedArrayTy =
-        cir::ArrayType::get(getContext(), eltTy, finalSize - trailingZerosNum);
-    auto fullArrayTy = cir::ArrayType::get(getContext(), eltTy, finalSize);
+        cir::ArrayType::get(eltTy, finalSize - trailingZerosNum);
+    auto fullArrayTy = cir::ArrayType::get(eltTy, finalSize);
     return cir::ConstArrayAttr::get(
-        getContext(), fullArrayTy,
+        fullArrayTy,
         mlir::StringAttr::get(str.drop_back(trailingZerosNum),
                               truncatedArrayTy),
         trailingZerosNum);
@@ -214,7 +214,7 @@ public:
 
     // Return zero or anonymous constant record.
     if (isZero)
-      return cir::ZeroAttr::get(getContext(), recordTy);
+      return cir::ZeroAttr::get(recordTy);
     return cir::ConstRecordAttr::get(recordTy, arrayAttr);
   }
 
@@ -258,11 +258,11 @@ public:
 
   cir::DataMemberAttr getDataMemberAttr(cir::DataMemberType ty,
                                         unsigned memberIndex) {
-    return cir::DataMemberAttr::get(getContext(), ty, memberIndex);
+    return cir::DataMemberAttr::get(ty, memberIndex);
   }
 
   cir::DataMemberAttr getNullDataMemberAttr(cir::DataMemberType ty) {
-    return cir::DataMemberAttr::get(getContext(), ty, std::nullopt);
+    return cir::DataMemberAttr::get(ty);
   }
 
   // TODO(cir): Once we have CIR float types, replace this by something like a
@@ -407,8 +407,7 @@ public:
                                           bool isSigned = false) {
     auto elementTy = mlir::dyn_cast_or_null<cir::IntType>(vt.getEltType());
     assert(elementTy && "expected int vector");
-    return cir::VectorType::get(getContext(),
-                                isExtended
+    return cir::VectorType::get(isExtended
                                     ? getExtendedIntTy(elementTy, isSigned)
                                     : getTruncatedIntTy(elementTy, isSigned),
                                 vt.getSize());
@@ -530,10 +529,6 @@ public:
       return getCompleteRecordTy(members, name, packed, padded, ast);
   }
 
-  cir::ArrayType getArrayType(mlir::Type eltType, unsigned size) {
-    return cir::ArrayType::get(getContext(), eltType, size);
-  }
-
   bool isSized(mlir::Type ty) {
     if (mlir::isa<cir::PointerType, cir::RecordType, cir::ArrayType,
                   cir::BoolType, cir::IntType, cir::CIRFPTypeInterface>(ty))
@@ -551,27 +546,23 @@ public:
   //
   cir::ConstantOp getUInt8(uint8_t c, mlir::Location loc) {
     auto uInt8Ty = getUInt8Ty();
-    return create<cir::ConstantOp>(loc, uInt8Ty, cir::IntAttr::get(uInt8Ty, c));
+    return create<cir::ConstantOp>(loc, cir::IntAttr::get(uInt8Ty, c));
   }
   cir::ConstantOp getSInt32(int32_t c, mlir::Location loc) {
     auto sInt32Ty = getSInt32Ty();
-    return create<cir::ConstantOp>(loc, sInt32Ty,
-                                   cir::IntAttr::get(sInt32Ty, c));
+    return create<cir::ConstantOp>(loc, cir::IntAttr::get(sInt32Ty, c));
   }
   cir::ConstantOp getUInt32(uint32_t C, mlir::Location loc) {
     auto uInt32Ty = getUInt32Ty();
-    return create<cir::ConstantOp>(loc, uInt32Ty,
-                                   cir::IntAttr::get(uInt32Ty, C));
+    return create<cir::ConstantOp>(loc, cir::IntAttr::get(uInt32Ty, C));
   }
   cir::ConstantOp getSInt64(uint64_t C, mlir::Location loc) {
     auto sInt64Ty = getSInt64Ty();
-    return create<cir::ConstantOp>(loc, sInt64Ty,
-                                   cir::IntAttr::get(sInt64Ty, C));
+    return create<cir::ConstantOp>(loc, cir::IntAttr::get(sInt64Ty, C));
   }
   cir::ConstantOp getUInt64(uint64_t C, mlir::Location loc) {
     auto uInt64Ty = getUInt64Ty();
-    return create<cir::ConstantOp>(loc, uInt64Ty,
-                                   cir::IntAttr::get(uInt64Ty, C));
+    return create<cir::ConstantOp>(loc, cir::IntAttr::get(uInt64Ty, C));
   }
 
   cir::ConstantOp getConstInt(mlir::Location loc, llvm::APSInt intVal);
@@ -584,7 +575,7 @@ public:
                              llvm::APFloat fpVal) {
     assert((mlir::isa<cir::SingleType, cir::DoubleType>(t)) &&
            "expected cir::SingleType or cir::DoubleType");
-    return create<cir::ConstantOp>(loc, t, getAttr<cir::FPAttr>(t, fpVal));
+    return create<cir::ConstantOp>(loc, getAttr<cir::FPAttr>(t, fpVal));
   }
 
   cir::IsFPClassOp createIsFPClass(mlir::Location loc, mlir::Value src,
@@ -595,11 +586,11 @@ public:
   /// Create constant nullptr for pointer-to-data-member type ty.
   cir::ConstantOp getNullDataMemberPtr(cir::DataMemberType ty,
                                        mlir::Location loc) {
-    return create<cir::ConstantOp>(loc, ty, getNullDataMemberAttr(ty));
+    return create<cir::ConstantOp>(loc, getNullDataMemberAttr(ty));
   }
 
   cir::ConstantOp getNullMethodPtr(cir::MethodType ty, mlir::Location loc) {
-    return create<cir::ConstantOp>(loc, ty, getNullMethodAttr(ty));
+    return create<cir::ConstantOp>(loc, getNullMethodAttr(ty));
   }
 
   cir::ConstantOp getZero(mlir::Location loc, mlir::Type ty) {
@@ -607,7 +598,7 @@ public:
     assert((mlir::isa<cir::RecordType>(ty) || mlir::isa<cir::ArrayType>(ty) ||
             mlir::isa<cir::VectorType>(ty)) &&
            "NYI for other types");
-    return create<cir::ConstantOp>(loc, ty, getZeroAttr(ty));
+    return create<cir::ConstantOp>(loc, cir::ZeroAttr::get(ty));
   }
 
   //

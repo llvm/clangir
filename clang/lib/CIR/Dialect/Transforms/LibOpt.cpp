@@ -187,8 +187,7 @@ void LibOptPass::xformStdFindIntoMemchr(StdFindOp findOp) {
         return builder.create<MemChrOp>(
             findOp.getLoc(), memchrOp0, memchrOp1,
             builder.create<ConstantOp>(
-                findOp.getLoc(), uInt64Ty,
-                cir::IntAttr::get(uInt64Ty, staticSize)));
+                findOp.getLoc(), cir::IntAttr::get(uInt64Ty, staticSize)));
       }
     }
     return builder.create<MemChrOp>(

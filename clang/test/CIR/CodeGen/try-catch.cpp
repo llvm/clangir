@@ -121,7 +121,7 @@ void tc5() {
 }
 
 // CHECK: cir.try {
-// CHECK: cir.call exception @_ZN1SC2Ev({{.*}}) : (!cir.ptr<!ty_S>) -> ()
+// CHECK: cir.call exception @_ZN1SC2Ev({{.*}}) : (!cir.ptr<!rec_S>) -> ()
 // CHECK: cir.yield
 // CHECK: } catch [type #cir.all {
 // CHECK:  {{.*}} = cir.catch_param -> !cir.ptr<!void>

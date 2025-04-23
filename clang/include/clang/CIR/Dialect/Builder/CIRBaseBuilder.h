@@ -41,11 +41,12 @@ class CIRBaseBuilderTy : public mlir::OpBuilder {
 
 public:
   CIRBaseBuilderTy(mlir::MLIRContext &C) : mlir::OpBuilder(&C) {}
+  CIRBaseBuilderTy(mlir::OpBuilder &B) : mlir::OpBuilder(B) {}
 
   mlir::Value getConstAPSInt(mlir::Location loc, const llvm::APSInt &val) {
     auto ty =
         cir::IntType::get(getContext(), val.getBitWidth(), val.isSigned());
-    return create<cir::ConstantOp>(loc, ty, getAttr<cir::IntAttr>(ty, val));
+    return create<cir::ConstantOp>(loc, getAttr<cir::IntAttr>(ty, val));
   }
 
   mlir::Value getSignedInt(mlir::Location loc, int64_t val, unsigned numBits) {
@@ -62,20 +63,20 @@ public:
 
   mlir::Value getConstAPInt(mlir::Location loc, mlir::Type typ,
                             const llvm::APInt &val) {
-    return create<cir::ConstantOp>(loc, typ, getAttr<cir::IntAttr>(typ, val));
+    return create<cir::ConstantOp>(loc, getAttr<cir::IntAttr>(typ, val));
   }
 
   cir::ConstantOp getConstant(mlir::Location loc, mlir::TypedAttr attr) {
-    return create<cir::ConstantOp>(loc, attr.getType(), attr);
+    return create<cir::ConstantOp>(loc, attr);
   }
 
   // Creates constant null value for integral type ty.
   cir::ConstantOp getNullValue(mlir::Type ty, mlir::Location loc) {
-    return create<cir::ConstantOp>(loc, ty, getZeroInitAttr(ty));
+    return create<cir::ConstantOp>(loc, getZeroInitAttr(ty));
   }
 
   cir::ConstantOp getBool(bool state, mlir::Location loc) {
-    return create<cir::ConstantOp>(loc, getBoolTy(), getCIRBoolAttr(state));
+    return create<cir::ConstantOp>(loc, getCIRBoolAttr(state));
   }
   cir::ConstantOp getFalse(mlir::Location loc) { return getBool(false, loc); }
   cir::ConstantOp getTrue(mlir::Location loc) { return getBool(true, loc); }
@@ -125,12 +126,12 @@ public:
   }
 
   cir::BoolAttr getCIRBoolAttr(bool state) {
-    return cir::BoolAttr::get(getContext(), getBoolTy(), state);
+    return cir::BoolAttr::get(getContext(), state);
   }
 
-  mlir::TypedAttr getZeroAttr(mlir::Type t) {
-    return cir::ZeroAttr::get(getContext(), t);
-  }
+  cir::BoolAttr getTrueAttr() { return getCIRBoolAttr(true); }
+
+  cir::BoolAttr getFalseAttr() { return getCIRBoolAttr(false); }
 
   mlir::TypedAttr getZeroInitAttr(mlir::Type ty) {
     if (mlir::isa<cir::IntType>(ty))
@@ -138,17 +139,19 @@ public:
     if (cir::isAnyFloatingPointType(ty))
       return cir::FPAttr::getZero(ty);
     if (auto complexType = mlir::dyn_cast<cir::ComplexType>(ty))
-      return getZeroAttr(complexType);
+      return cir::ZeroAttr::get(complexType);
     if (auto arrTy = mlir::dyn_cast<cir::ArrayType>(ty))
-      return getZeroAttr(arrTy);
+      return cir::ZeroAttr::get(arrTy);
+    if (auto vecTy = mlir::dyn_cast<cir::VectorType>(ty))
+      return cir::ZeroAttr::get(vecTy);
     if (auto ptrTy = mlir::dyn_cast<cir::PointerType>(ty))
       return getConstNullPtrAttr(ptrTy);
     if (auto RecordTy = mlir::dyn_cast<cir::RecordType>(ty))
-      return getZeroAttr(RecordTy);
+      return cir::ZeroAttr::get(RecordTy);
     if (auto methodTy = mlir::dyn_cast<cir::MethodType>(ty))
       return getNullMethodAttr(methodTy);
     if (mlir::isa<cir::BoolType>(ty)) {
-      return getCIRBoolAttr(false);
+      return getFalseAttr();
     }
     llvm_unreachable("Zero initializer for given type is NYI");
   }
@@ -302,7 +305,7 @@ public:
 
   mlir::Value createComplexCreate(mlir::Location loc, mlir::Value real,
                                   mlir::Value imag) {
-    auto resultComplexTy = cir::ComplexType::get(getContext(), real.getType());
+    auto resultComplexTy = cir::ComplexType::get(real.getType());
     return create<cir::ComplexCreateOp>(loc, resultComplexTy, real, imag);
   }
 
@@ -615,8 +618,7 @@ public:
   mlir::TypedAttr getConstPtrAttr(mlir::Type t, int64_t v) {
     auto val =
         mlir::IntegerAttr::get(mlir::IntegerType::get(t.getContext(), 64), v);
-    return cir::ConstPtrAttr::get(getContext(), mlir::cast<cir::PointerType>(t),
-                                  val);
+    return cir::ConstPtrAttr::get(t, val);
   }
 
   mlir::TypedAttr getConstNullPtrAttr(mlir::Type t) {
@@ -627,7 +629,7 @@ public:
   // Creates constant nullptr for pointer type ty.
   cir::ConstantOp getNullPtr(mlir::Type ty, mlir::Location loc) {
     assert(!MissingFeatures::targetCodeGenInfoGetNullPointer());
-    return create<cir::ConstantOp>(loc, ty, getConstPtrAttr(ty, 0));
+    return create<cir::ConstantOp>(loc, getConstPtrAttr(ty, 0));
   }
 
   /// Create a loop condition.
@@ -660,9 +662,8 @@ public:
       callOp->setAttr("extra_attrs", extraFnAttr);
     } else {
       mlir::NamedAttrList empty;
-      callOp->setAttr("extra_attrs",
-                      cir::ExtraFuncAttributesAttr::get(
-                          getContext(), empty.getDictionary(getContext())));
+      callOp->setAttr("extra_attrs", cir::ExtraFuncAttributesAttr::get(
+                                         empty.getDictionary(getContext())));
     }
     return callOp;
   }
@@ -716,9 +717,8 @@ public:
       tryCallOp->setAttr("extra_attrs", extraFnAttr);
     } else {
       mlir::NamedAttrList empty;
-      tryCallOp->setAttr("extra_attrs",
-                         cir::ExtraFuncAttributesAttr::get(
-                             getContext(), empty.getDictionary(getContext())));
+      tryCallOp->setAttr("extra_attrs", cir::ExtraFuncAttributesAttr::get(
+                                            empty.getDictionary(getContext())));
     }
     return tryCallOp;
   }

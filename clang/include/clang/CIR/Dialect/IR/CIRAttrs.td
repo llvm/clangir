@@ -209,6 +209,12 @@ def CIR_BoolAttr : CIR_Attr<"Bool", "bool", [TypedAttrInterface]> {
                         "", "cir::BoolType">:$type,
                     "bool":$value);
 
+  let builders = [
+    AttrBuilder<(ins "bool":$value), [{
+      return $_get($_ctxt, cir::BoolType::get($_ctxt), value);
+    }]>,
+  ];
+
   let assemblyFormat = [{
     `<` $value `>`
   }];
@@ -225,6 +231,13 @@ def ZeroAttr : CIR_Attr<"Zero", "zero", [TypedAttrInterface]> {
   }];
 
   let parameters = (ins AttributeSelfTypeParameter<"">:$type);
+
+  let builders = [
+    AttrBuilderWithInferredContext<(ins "mlir::Type":$type), [{
+      return $_get(type.getContext(), type);
+    }]>
+  ];
+
   let assemblyFormat = [{}];
 }
 
@@ -240,6 +253,13 @@ def UndefAttr : CIR_Attr<"Undef", "undef", [TypedAttrInterface]> {
   }];
 
   let parameters = (ins AttributeSelfTypeParameter<"">:$type);
+
+  let builders = [
+    AttrBuilderWithInferredContext<(ins "mlir::Type":$type), [{
+      return $_get(type.getContext(), type);
+    }]>
+  ];
+
   let assemblyFormat = [{}];
 }
 
@@ -248,13 +268,20 @@ def UndefAttr : CIR_Attr<"Undef", "undef", [TypedAttrInterface]> {
 //===----------------------------------------------------------------------===//
 
 def PoisonAttr : CIR_Attr<"Poison", "poison", [TypedAttrInterface]> {
-  let summary = "Represent an poison constant";
+  let summary = "Represent a typed poison constant";
   let description = [{
-    The PoisonAttr represents an poison constant, corresponding to LLVM's notion
-    of poison.
+    The PoisonAttr represents a typed poison constant, corresponding to LLVM's
+    notion of poison.
   }];
 
   let parameters = (ins AttributeSelfTypeParameter<"">:$type);
+
+  let builders = [
+    AttrBuilderWithInferredContext<(ins "mlir::Type":$type), [{
+      return $_get(type.getContext(), type);
+    }]>
+  ];
+
   let assemblyFormat = [{}];
 }
 
@@ -285,6 +312,11 @@ def ConstArrayAttr : CIR_Attr<"ConstArray", "const_array", [TypedAttrInterface]>
         zeros = typeSize - mlir::cast<mlir::ArrayAttr>(elts).size();
 
       return $_get(type.getContext(), type, elts, zeros);
+    }]>,
+    AttrBuilderWithInferredContext<(ins "cir::ArrayType":$type,
+                                        "mlir::Attribute":$elts,
+                                        "int":$trailingZerosNum), [{
+      return $_get(type.getContext(), type, elts, trailingZerosNum);
     }]>
   ];
 
@@ -483,11 +515,7 @@ def ConstPtrAttr : CIR_Attr<"ConstPtr", "ptr", [TypedAttrInterface]> {
   let builders = [
     AttrBuilderWithInferredContext<(ins "mlir::Type":$type, "mlir::IntegerAttr":$value), [{
       return $_get(type.getContext(), mlir::cast<cir::PointerType>(type), value);
-    }]>,
-    AttrBuilder<(ins "mlir::Type":$type,
-                     "mlir::IntegerAttr":$value), [{
-      return $_get($_ctxt, mlir::cast<cir::PointerType>(type), value);
-    }]>,
+    }]>
   ];
   let extraClassDeclaration = [{
     bool isNullValue() const { return getValue().getInt() == 0; }
@@ -581,11 +609,21 @@ def DataMemberAttr : CIR_Attr<"DataMember", "data_member",
 
     Example:
     ```
-    #ptr = #cir.data_member<1> : !cir.data_member<!s32i in !ty_22Point22>
+    #ptr = #cir.data_member<1> : !cir.data_member<!s32i in !rec_22Point22>
 
-    #null = #cir.data_member<null> : !cir.data_member<!s32i in !ty_22Point22>
+    #null = #cir.data_member<null> : !cir.data_member<!s32i in !rec_22Point22>
     ```
   }];
+
+  let builders = [
+    AttrBuilderWithInferredContext<(ins "cir::DataMemberType":$type), [{
+      return $_get(type.getContext(), type, std::nullopt);
+    }]>,
+    AttrBuilderWithInferredContext<(ins "cir::DataMemberType":$type,
+                                        "unsigned":$member_index), [{
+      return $_get(type.getContext(), type, member_index);
+    }]>,
+  ];
 
   let genVerifyDecl = 1;
 
@@ -723,12 +761,12 @@ def GlobalViewAttr : CIR_Attr<"GlobalView", "global_view", [TypedAttrInterface]>
       cir.global external @elt_ptr = #cir.global_view<@rgb, [1]> : !cir.ptr<i8>
       cir.global external @table_of_ptrs = #cir.const_array<[#cir.global_view<@rgb, [1]> : !cir.ptr<i8>] : !cir.array<!cir.ptr<i8> x 1>>
     ```
-    
+
     Note, that unlike LLVM IR's gep instruction, CIR doesn't add the leading zero index
     when it's known to be constant zero, e.g. for pointers, i.e. we use indexes exactly
     to access sub elements or for the offset. The leading zero index is added later in
     the lowering.
-        
+
     Example:
     ```
     struct A {
@@ -741,7 +779,7 @@ def GlobalViewAttr : CIR_Attr<"GlobalView", "global_view", [TypedAttrInterface]>
     ```
     VTT for B:
     ```
-    cir.global linkonce_odr @_ZTT1B = #cir.const_array<[#cir.global_view<@_ZTV1B, [0 : i32, 3 : i32]> : !cir.ptr<!u8i>]> : !cir.array<!cir.ptr<!u8i> x 1>    
+    cir.global linkonce_odr @_ZTT1B = #cir.const_array<[#cir.global_view<@_ZTV1B, [0 : i32, 3 : i32]> : !cir.ptr<!u8i>]> : !cir.array<!cir.ptr<!u8i> x 1>
     ```
     The same for LLVM IR after CIR:
     ```
@@ -875,45 +913,6 @@ def VTableAttr : CIR_Attr<"VTable", "vtable", [TypedAttrInterface]> {
   let genVerifyDecl = 1;
   let assemblyFormat = [{
     `<` custom<RecordMembers>($vtable_data) `>`
-  }];
-}
-
-//===----------------------------------------------------------------------===//
-// RecordLayoutAttr
-//===----------------------------------------------------------------------===//
-
-// Used to decouple layout information from the record type. RecordType's
-// uses this attribute to cache that information.
-
-def RecordLayoutAttr : CIR_Attr<"RecordLayout", "record_layout"> {
-  let summary = "ABI specific information about a record layout";
-  let description = [{
-    Holds layout information often queried by !cir.record users
-    during lowering passes and optimizations.
-  }];
-
-  let parameters = (ins "unsigned":$size,
-                        "unsigned":$alignment,
-                        "bool":$padded,
-                        "mlir::Type":$largest_member,
-                        "mlir::ArrayAttr":$offsets);
-
-  let builders = [
-    AttrBuilderWithInferredContext<(ins "unsigned":$size,
-                                        "unsigned":$alignment,
-                                        "bool":$padded,
-                                        "mlir::Type":$largest_member,
-                                        "mlir::ArrayAttr":$offsets), [{
-      return $_get(largest_member.getContext(), size, alignment, padded,
-                   largest_member, offsets);
-    }]>,
-  ];
-
-  let genVerifyDecl = 1;
-  let assemblyFormat = [{
-    `<`
-      struct($size, $alignment, $padded, $largest_member, $offsets)
-    `>`
   }];
 }
 
@@ -1241,6 +1240,12 @@ def ExtraFuncAttr : CIR_Attr<"ExtraFuncAttributes", "extra"> {
 
   let parameters = (ins "mlir::DictionaryAttr":$elements);
 
+  let builders = [
+    AttrBuilderWithInferredContext<(ins "mlir::DictionaryAttr":$elements), [{
+      return $_get(elements.getContext(), elements);
+    }]>
+  ];
+
   let assemblyFormat = [{ `(` $elements `)` }];
 
   // Printing and parsing also available in CIRDialect.cpp
@@ -1333,6 +1338,10 @@ class CIR_GlobalCtorDtor<string name, string attrMnemonic,
     AttrBuilder<(ins "llvm::StringRef":$name,
                       CArg<"int", "65536">:$priority), [{
       return $_get($_ctxt, mlir::StringAttr::get($_ctxt, name), priority);
+    }]>,
+    AttrBuilderWithInferredContext<(ins "mlir::StringAttr":$name,
+                                        CArg<"int", "65536">:$priority), [{
+      return $_get(name.getContext(), name, priority);
     }]>
   ];
   let extraClassDeclaration = [{
@@ -1401,6 +1410,13 @@ def AnnotationAttr : CIR_Attr<"Annotation", "annotation"> {
   let parameters = (ins "mlir::StringAttr":$name,
                         "mlir::ArrayAttr":$args);
 
+  let builders = [
+    AttrBuilderWithInferredContext<(ins "mlir::StringAttr":$name,
+                                        CArg<"mlir::ArrayAttr", "{}">:$args), [{
+      return $_get(name.getContext(), name, args);
+    }]>
+  ];
+
   let assemblyFormat = "`<` struct($name, $args) `>`";
 
   let extraClassDeclaration = [{
@@ -1441,6 +1457,12 @@ def GlobalAnnotationValuesAttr : CIR_Attr<"GlobalAnnotationValues",
 
   let parameters = (ins "mlir::ArrayAttr":$annotations);
 
+  let builders = [
+    AttrBuilderWithInferredContext<(ins "mlir::ArrayAttr":$annotations), [{
+      return $_get(annotations.getContext(), annotations);
+    }]>
+  ];
+
   let assemblyFormat = [{ $annotations }];
 
   // Enable verifier.
@@ -1454,7 +1476,7 @@ def GlobalAnnotationValuesAttr : CIR_Attr<"GlobalAnnotationValues",
 def AddressPointAttr : CIR_Attr<"AddressPoint", "address_point"> {
   let summary = "Address point attribute";
 
-  let description = [{  
+  let description = [{
   Attribute specifying the address point within a C++ virtual table (vtable).
 
   The `index` (vtable index) parameter identifies which vtable to use within a vtable

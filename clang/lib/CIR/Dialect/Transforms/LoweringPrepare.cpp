@@ -230,7 +230,7 @@ FuncOp LoweringPreparePass::buildRuntimeFunction(
         f, mlir::SymbolTable::Visibility::Private);
     mlir::NamedAttrList attrs;
     f.setExtraAttrsAttr(cir::ExtraFuncAttributesAttr::get(
-        builder.getContext(), attrs.getDictionary(builder.getContext())));
+        attrs.getDictionary(builder.getContext())));
   }
   return f;
 }
@@ -875,7 +875,7 @@ void LoweringPreparePass::lowerThreeWayCmpOp(CmpThreeWayOp op) {
 
   auto buildCmpRes = [&](int64_t value) -> mlir::Value {
     return builder.create<cir::ConstantOp>(
-        loc, op.getType(), cir::IntAttr::get(op.getType(), value));
+        loc, cir::IntAttr::get(op.getType(), value));
   };
   auto ltRes = buildCmpRes(cmpInfo.getLt());
   auto eqRes = buildCmpRes(cmpInfo.getEq());
@@ -1532,9 +1532,9 @@ void LoweringPreparePass::buildGlobalAnnotationValues() {
     return;
   mlir::ArrayAttr annotationValueArray =
       mlir::ArrayAttr::get(theModule.getContext(), globalAnnotations);
-  theModule->setAttr(cir::CIRDialect::getGlobalAnnotationsAttrName(),
-                     cir::GlobalAnnotationValuesAttr::get(
-                         theModule.getContext(), annotationValueArray));
+  theModule->setAttr(
+      cir::CIRDialect::getGlobalAnnotationsAttrName(),
+      cir::GlobalAnnotationValuesAttr::get(annotationValueArray));
 }
 
 void LoweringPreparePass::runOnOp(Operation *op) {

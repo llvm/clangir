@@ -1184,8 +1184,7 @@ mlir::LogicalResult CIRToLLVMCastOpLowering::matchAndRewrite(
   }
   case cir::CastKind::int_to_bool: {
     auto zero = rewriter.create<cir::ConstantOp>(
-        src.getLoc(), castOp.getSrc().getType(),
-        cir::IntAttr::get(castOp.getSrc().getType(), 0));
+        src.getLoc(), cir::IntAttr::get(castOp.getSrc().getType(), 0));
     rewriter.replaceOpWithNewOp<cir::CmpOp>(
         castOp, cir::BoolType::get(getContext()), cir::CmpOpKind::ne,
         castOp.getSrc(), zero);
@@ -1336,8 +1335,7 @@ mlir::LogicalResult CIRToLLVMCastOpLowering::matchAndRewrite(
     auto zero =
         mlir::IntegerAttr::get(mlir::IntegerType::get(getContext(), 64), 0);
     auto null = rewriter.create<cir::ConstantOp>(
-        src.getLoc(), castOp.getSrc().getType(),
-        cir::ConstPtrAttr::get(getContext(), castOp.getSrc().getType(), zero));
+        src.getLoc(), cir::ConstPtrAttr::get(castOp.getSrc().getType(), zero));
     rewriter.replaceOpWithNewOp<cir::CmpOp>(
         castOp, cir::BoolType::get(getContext()), cir::CmpOpKind::ne,
         castOp.getSrc(), null);
@@ -1773,9 +1771,7 @@ mlir::LogicalResult CIRToLLVMConstantOpLowering::matchAndRewrite(
     // during a pass as long as they don't live past the end of the pass.
     attr = op.getValue();
   } else if (mlir::isa<cir::BoolType>(op.getType())) {
-    int value = (op.getValue() ==
-                 cir::BoolAttr::get(getContext(),
-                                    cir::BoolType::get(getContext()), true));
+    int value = mlir::cast<cir::BoolAttr>(op.getValue()).getValue();
     attr = rewriter.getIntegerAttr(typeConverter->convertType(op.getType()),
                                    value);
   } else if (mlir::isa<cir::IntType>(op.getType())) {
@@ -2179,7 +2175,7 @@ void CIRToLLVMFuncOpLowering::lowerFuncOpenCLKernelMetadata(
     newExtraAttrs.push_back(entry);
   }
   extraAttrsEntry.setValue(cir::ExtraFuncAttributesAttr::get(
-      getContext(), newExtraAttrs.getDictionary(getContext())));
+      newExtraAttrs.getDictionary(getContext())));
 }
 
 mlir::LogicalResult CIRToLLVMFuncOpLowering::matchAndRewrite(
@@ -2980,10 +2976,11 @@ mlir::LogicalResult CIRToLLVMShiftOpLowering::matchAndRewrite(
   // behavior might occur in the casts below as per [C99 6.5.7.3].
   // Vector type shift amount needs no cast as type consistency is expected to
   // be already be enforced at CIRGen.
+  // Negative shift amounts are undefined behavior so we can always zero extend
+  // the integer here.
   if (cirAmtTy)
     amt = getLLVMIntCast(rewriter, amt, mlir::cast<mlir::IntegerType>(llvmTy),
-                         !cirAmtTy.isSigned(), cirAmtTy.getWidth(),
-                         cirValTy.getWidth());
+                         true, cirAmtTy.getWidth(), cirValTy.getWidth());
 
   // Lower to the proper LLVM shift operation.
   if (op.getIsShiftleft())

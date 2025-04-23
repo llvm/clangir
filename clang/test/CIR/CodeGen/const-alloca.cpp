@@ -51,7 +51,7 @@ void local_const_struct() {
 }
 
 // CIR-LABEL: @_Z18local_const_structv
-// CIR:   %{{.+}} = cir.alloca !ty_Foo, !cir.ptr<!ty_Foo>, ["x", init, const]
+// CIR:   %{{.+}} = cir.alloca !rec_Foo, !cir.ptr<!rec_Foo>, ["x", init, const]
 // CIR: }
 
 [[clang::optnone]]

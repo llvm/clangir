@@ -541,7 +541,7 @@ mlir::Value ItaniumCXXABI::lowerMethodCmp(cir::CmpOp op, mlir::Value loweredLhs,
 
   cir::IntType ptrdiffCIRTy = getPtrDiffCIRTy(LM);
   mlir::Value ptrdiffZero = builder.create<cir::ConstantOp>(
-      op.getLoc(), ptrdiffCIRTy, cir::IntAttr::get(ptrdiffCIRTy, 0));
+      op.getLoc(), cir::IntAttr::get(ptrdiffCIRTy, 0));
 
   mlir::Value lhsPtrField = builder.create<cir::ExtractMemberOp>(
       op.getLoc(), ptrdiffCIRTy, loweredLhs, 0);
@@ -564,11 +564,9 @@ mlir::Value ItaniumCXXABI::lowerMethodCmp(cir::CmpOp op, mlir::Value loweredLhs,
   //   - cir.select if %a then true else %b  => %a || %b
   // TODO: Do we need to invent dedicated "cir.logical_or" and "cir.logical_and"
   // operations for this?
-  auto boolTy = cir::BoolType::get(op.getContext());
-  mlir::Value trueValue = builder.create<cir::ConstantOp>(
-      op.getLoc(), boolTy, cir::BoolAttr::get(op.getContext(), boolTy, true));
-  mlir::Value falseValue = builder.create<cir::ConstantOp>(
-      op.getLoc(), boolTy, cir::BoolAttr::get(op.getContext(), boolTy, false));
+  CIRBaseBuilderTy cirBuilder(builder);
+  mlir::Value trueValue = cirBuilder.getTrue(op.getLoc());
+  mlir::Value falseValue = cirBuilder.getFalse(op.getLoc());
   auto create_and = [&](mlir::Value lhs, mlir::Value rhs) {
     return builder.create<cir::SelectOp>(op.getLoc(), lhs, rhs, falseValue);
   };
@@ -624,7 +622,7 @@ ItaniumCXXABI::lowerMethodToBoolCast(cir::CastOp op, mlir::Value loweredSrc,
   //   unspecified for null member function pointers.
   cir::IntType ptrdiffCIRTy = getPtrDiffCIRTy(LM);
   mlir::Value ptrdiffZero = builder.create<cir::ConstantOp>(
-      op.getLoc(), ptrdiffCIRTy, cir::IntAttr::get(ptrdiffCIRTy, 0));
+      op.getLoc(), cir::IntAttr::get(ptrdiffCIRTy, 0));
   mlir::Value ptrField = builder.create<cir::ExtractMemberOp>(
       op.getLoc(), ptrdiffCIRTy, loweredSrc, 0);
   return builder.create<cir::CmpOp>(op.getLoc(), cir::CmpOpKind::ne, ptrField,

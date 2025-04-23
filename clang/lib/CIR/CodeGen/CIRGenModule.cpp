@@ -1009,8 +1009,9 @@ void CIRGenModule::replaceGlobal(cir::GlobalOp oldSym, cir::GlobalOp newSym) {
     if (oldSymUses.has_value()) {
       for (auto use : *oldSymUses) {
         auto *userOp = use.getUser();
-        assert((isa<cir::GetGlobalOp>(userOp) || isa<cir::GlobalOp>(userOp)) &&
-               "GlobalOp symbol user is neither a GetGlobalOp nor a GlobalOp");
+        assert(
+            (isa<cir::GetGlobalOp, cir::GlobalOp, cir::ConstantOp>(userOp)) &&
+            "GlobalOp symbol user is neither a GetGlobalOp nor a GlobalOp");
 
         if (auto ggo = dyn_cast<cir::GetGlobalOp>(use.getUser())) {
           auto useOpResultValue = ggo.getAddr();
@@ -1028,6 +1029,14 @@ void CIRGenModule::replaceGlobal(cir::GlobalOp oldSym, cir::GlobalOp newSym) {
             auto nw = getNewInitValue(*this, newSym, oldTy, glob, init.value());
             glob.setInitialValueAttr(nw);
           }
+        } else if (auto c = dyn_cast<cir::ConstantOp>(userOp)) {
+          mlir::Attribute init =
+              getNewInitValue(*this, newSym, oldTy, glob, c.getValue());
+          auto ar = cast<ConstArrayAttr>(init);
+          mlir::OpBuilder::InsertionGuard guard(builder);
+          builder.setInsertionPointAfter(c);
+          auto newUser = builder.create<cir::ConstantOp>(c.getLoc(), ar);
+          c.replaceAllUsesWith(newUser.getOperation());
         }
       }
     }
@@ -1403,7 +1412,7 @@ void CIRGenModule::emitGlobalVarDefinition(const clang::VarDecl *d,
        d->getType()->isCUDADeviceBuiltinTextureType());
   if (getLangOpts().CUDA &&
       (isCudaSharedVar || isCudaShadowVar || isCudaDeviceShadowVar))
-    init = UndefAttr::get(&getMLIRContext(), convertType(d->getType()));
+    init = cir::UndefAttr::get(convertType(d->getType()));
   else if (d->hasAttr<LoaderUninitializedAttr>())
     assert(0 && "not implemented");
   else if (!initExpr) {
@@ -1706,7 +1715,7 @@ CIRGenModule::getConstantArrayFromStringLiteral(const StringLiteral *e) {
   // If the string is full of null bytes, emit a #cir.zero instead.
   if (std::all_of(elementValues.begin(), elementValues.end(),
                   [](uint32_t x) { return x == 0; }))
-    return builder.getZeroAttr(arrayTy);
+    return cir::ZeroAttr::get(arrayTy);
 
   // Otherwise emit a constant array holding the characters.
   SmallVector<mlir::Attribute, 32> elements;
@@ -2704,8 +2713,8 @@ cir::FuncOp CIRGenModule::createCIRFunction(mlir::Location loc, StringRef name,
         f, mlir::SymbolTable::Visibility::Private);
 
     // Initialize with empty dict of extra attributes.
-    f.setExtraAttrsAttr(cir::ExtraFuncAttributesAttr::get(
-        &getMLIRContext(), builder.getDictionaryAttr({})));
+    f.setExtraAttrsAttr(
+        cir::ExtraFuncAttributesAttr::get(builder.getDictionaryAttr({})));
 
     if (!curCGF)
       theModule.push_back(f);
@@ -2815,7 +2824,7 @@ void CIRGenModule::setCIRFunctionAttributesForDefinition(const Decl *decl,
     }
 
     f.setExtraAttrsAttr(cir::ExtraFuncAttributesAttr::get(
-        &getMLIRContext(), attrs.getDictionary(&getMLIRContext())));
+        attrs.getDictionary(&getMLIRContext())));
     return;
   }
 
@@ -2929,7 +2938,7 @@ void CIRGenModule::setCIRFunctionAttributesForDefinition(const Decl *decl,
   }
 
   f.setExtraAttrsAttr(cir::ExtraFuncAttributesAttr::get(
-      &getMLIRContext(), attrs.getDictionary(&getMLIRContext())));
+      attrs.getDictionary(&getMLIRContext())));
 
   assert(!MissingFeatures::setFunctionAlignment());
 
@@ -2954,8 +2963,8 @@ void CIRGenModule::setCIRFunctionAttributes(GlobalDecl gd,
   mlir::NamedAttrList pal{func.getExtraAttrs().getElements().getValue()};
   constructAttributeList(func.getName(), info, gd, pal, callingConv, sideEffect,
                          /*AttrOnCallSite=*/false, isThunk);
-  func.setExtraAttrsAttr(cir::ExtraFuncAttributesAttr::get(
-      &getMLIRContext(), pal.getDictionary(&getMLIRContext())));
+  func.setExtraAttrsAttr(
+      cir::ExtraFuncAttributesAttr::get(pal.getDictionary(&getMLIRContext())));
 
   // TODO(cir): Check X86_VectorCall incompatibility with WinARM64EC
 
@@ -4203,7 +4212,7 @@ cir::AnnotationAttr
 CIRGenModule::emitAnnotateAttr(const clang::AnnotateAttr *aa) {
   mlir::StringAttr annoGV = builder.getStringAttr(aa->getAnnotation());
   mlir::ArrayAttr args = emitAnnotationArgs(aa);
-  return cir::AnnotationAttr::get(&getMLIRContext(), annoGV, args);
+  return cir::AnnotationAttr::get(annoGV, args);
 }
 
 void CIRGenModule::addGlobalAnnotations(const ValueDecl *d,

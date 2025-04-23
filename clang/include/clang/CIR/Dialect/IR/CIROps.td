@@ -2640,7 +2640,7 @@ def VTTAddrPointOp : CIR_Op<"vtt.address_point",
     ```mlir
     cir.global linkonce_odr @_ZTV1B = ...
     ...
-    %3 = cir.base_class_addr(%1 : !cir.ptr<!ty_D> nonnull) [0] -> !cir.ptr<!ty_B>
+    %3 = cir.base_class_addr(%1 : !cir.ptr<!rec_D> nonnull) [0] -> !cir.ptr<!rec_B>
     %4 = cir.vtt.address_point @_ZTT1D, offset = 1 -> !cir.ptr<!cir.ptr<!void>>
     cir.call @_ZN1BC2Ev(%3, %4)
     ```
@@ -3369,7 +3369,7 @@ def BaseClassAddrOp : CIR_Op<"base_class_addr"> {
     ```
     will generate
     ```mlir
-    %3 = cir.base_class_addr (%1 : !cir.ptr<!ty_Derived> nonnull) [0] -> !cir.ptr<!ty_Base>
+    %3 = cir.base_class_addr (%1 : !cir.ptr<!rec_Derived> nonnull) [0] -> !cir.ptr<!rec_Base>
     ```
   }];
 
@@ -3420,9 +3420,9 @@ def DerivedClassAddrOp : CIR_Op<"derived_class_addr"> {
 
     leads to
     ```mlir
-      %2 = cir.load %0 : !cir.ptr<!cir.ptr<!ty_B>>, !cir.ptr<!ty_B>
-      %3 = cir.derived_class_addr(%2 : !cir.ptr<!ty_B> nonnull) [4] -> !cir.ptr<!ty_X>
-      %4 = cir.base_class_addr(%3 : !cir.ptr<!ty_X>) [0] -> !cir.ptr<!ty_A>
+      %2 = cir.load %0 : !cir.ptr<!cir.ptr<!rec_B>>, !cir.ptr<!rec_B>
+      %3 = cir.derived_class_addr(%2 : !cir.ptr<!rec_B> nonnull) [4] -> !cir.ptr<!rec_X>
+      %4 = cir.base_class_addr(%3 : !cir.ptr<!rec_X>) [0] -> !cir.ptr<!rec_A>
       cir.return %4
     ```
   }];
@@ -3519,7 +3519,7 @@ def BaseMethodOp : CIR_Op<"base_method", [Pure]> {
     Example:
 
     ```mlir
-    %1 = cir.base_method(%0 : !cir.method<!cir.func<(!s32i)> in !ty_Derived>) [16] -> !cir.method<!cir.func<(!s32i)> in !ty_Base>
+    %1 = cir.base_method(%0 : !cir.method<!cir.func<(!s32i)> in !rec_Derived>) [16] -> !cir.method<!cir.func<(!s32i)> in !rec_Base>
     ```
   }];
 
@@ -3551,7 +3551,7 @@ def DerivedMethodOp : CIR_Op<"derived_method", [Pure]> {
     Example:
 
     ```mlir
-    %1 = cir.derived_method(%0 : !cir.method<!cir.func<(!s32i)> in !ty_Base>) [16] -> !cir.method<!cir.func<(!s32i)> in !ty_Derived>
+    %1 = cir.derived_method(%0 : !cir.method<!cir.func<(!s32i)> in !rec_Base>) [16] -> !cir.method<!cir.func<(!s32i)> in !rec_Derived>
     ```
   }];
 
@@ -5190,8 +5190,8 @@ def CIR_InlineAsmOp : CIR_Op<"asm", [RecursiveMemoryEffects]> {
     ```
 
     ```mlir
-    !ty_22anon2E022 = !cir.record<struct "anon.0" {!cir.int<s, 32>, !cir.int<s, 32>}>
-    !ty_22anon2E122 = !cir.record<struct "anon.1" {!cir.int<s, 32>, !cir.int<s, 32>}>
+    !rec_22anon2E022 = !cir.record<struct "anon.0" {!cir.int<s, 32>, !cir.int<s, 32>}>
+    !rec_22anon2E122 = !cir.record<struct "anon.1" {!cir.int<s, 32>, !cir.int<s, 32>}>
     ...
     %0 = cir.alloca !s32i, !cir.ptr<!s32i>, ["x", init]
     %1 = cir.alloca !s32i, !cir.ptr<!s32i>, ["y", init]
@@ -5209,13 +5209,13 @@ def CIR_InlineAsmOp : CIR_Op<"asm", [RecursiveMemoryEffects]> {
       out = [],
       in = [],
       in_out = [%2 : !s32i],
-      {"bar $$42 $0" "=r,=&r,1,~{dirflag},~{fpsr},~{flags}"}) -> !ty_22anon2E022
+      {"bar $$42 $0" "=r,=&r,1,~{dirflag},~{fpsr},~{flags}"}) -> !rec_22anon2E022
 
     cir.asm(x86_att,
       out = [],
       in = [%3 : !s32i],
       in_out = [%2 : !s32i],
-      {"baz $$42 $0" "=r,=&r,0,1,~{dirflag},~{fpsr},~{flags}"}) -> !ty_22anon2E122
+      {"baz $$42 $0" "=r,=&r,0,1,~{dirflag},~{fpsr},~{flags}"}) -> !rec_22anon2E122
     ```
   }];
 
@@ -5698,9 +5698,9 @@ def SignBitOp : CIR_Op<"signbit", [Pure]> {
 def LinkerOptionsOp : CIR_Op<"linker_options"> {
   let summary = "Options to pass to the linker when the object file is linked";
   let description = [{
-    Pass the given options to the linker when the resulting object file 
+    Pass the given options to the linker when the resulting object file
     is linked.
-    This is used extensively on Windows to determine the C runtime that the 
+    This is used extensively on Windows to determine the C runtime that the
     object files should link against.
 
     Examples:

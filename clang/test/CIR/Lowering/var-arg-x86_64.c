@@ -42,7 +42,7 @@ double f1(int n, ...) {
 // CHECK: call {{.*}}@llvm.va_end.p0(ptr [[VA_LIST3]])
 
 // CIR: cir.func @f1
-// CIR: [[VA_LIST_ALLOCA:%.+]] = cir.alloca !cir.array<!ty___va_list_tag x 1>,
+// CIR: [[VA_LIST_ALLOCA:%.+]] = cir.alloca !cir.array<!rec___va_list_tag x 1>,
 // CIR: [[RES:%.+]] = cir.alloca !cir.double, !cir.ptr<!cir.double>, ["res",
 // CIR: [[VASTED_VA_LIST:%.+]] = cir.cast(array_to_ptrdecay, [[VA_LIST_ALLOCA]] 
 // CIR: cir.va.start [[VASTED_VA_LIST]]
@@ -111,7 +111,7 @@ long double f2(int n, ...) {
 // CHECK: ret x86_fp80 [[RETURN_VALUE]]
 
 // CIR: cir.func @f2
-// CIR: [[VA_LIST_ALLOCA:%.+]] = cir.alloca !cir.array<!ty___va_list_tag x 1>, !cir.ptr<!cir.array<!ty___va_list_tag x 1>>, ["valist"]
+// CIR: [[VA_LIST_ALLOCA:%.+]] = cir.alloca !cir.array<!rec___va_list_tag x 1>, !cir.ptr<!cir.array<!rec___va_list_tag x 1>>, ["valist"]
 // CIR: [[RES:%.+]] = cir.alloca !cir.long_double<!cir.f80>, !cir.ptr<!cir.long_double<!cir.f80>>, ["res"
 // CIR: [[VASTED_VA_LIST:%.+]] = cir.cast(array_to_ptrdecay, [[VA_LIST_ALLOCA]] 
 // CIR: cir.va.start [[VASTED_VA_LIST]]

@@ -48,11 +48,11 @@ static mlir::TypedAttr computePadding(CIRGenModule &CGM, CharUnits size) {
   auto arSize = size.getQuantity();
   auto &bld = CGM.getBuilder();
   if (size > CharUnits::One()) {
-    SmallVector<mlir::Attribute, 4> elts(arSize, bld.getZeroAttr(eltTy));
+    SmallVector<mlir::Attribute, 4> elts(arSize, cir::ZeroAttr::get(eltTy));
     return bld.getConstArray(mlir::ArrayAttr::get(bld.getContext(), elts),
-                             bld.getArrayType(eltTy, arSize));
+                             cir::ArrayType::get(eltTy, arSize));
   } else {
-    return cir::ZeroAttr::get(bld.getContext(), eltTy);
+    return cir::ZeroAttr::get(eltTy);
   }
 }
 
@@ -353,7 +353,7 @@ mlir::Attribute ConstantAggregateBuilder::buildFrom(
   ConstantAggregateBuilderUtils Utils(CGM);
 
   if (Elems.empty())
-    return cir::UndefAttr::get(CGM.getBuilder().getContext(), DesiredTy);
+    return cir::UndefAttr::get(DesiredTy);
 
   auto Offset = [&](size_t I) { return Offsets[I] - StartOffset; };
 
@@ -1303,8 +1303,7 @@ emitArrayConstant(CIRGenModule &CGM, mlir::Type DesiredType,
 
     return builder.getConstArray(
         mlir::ArrayAttr::get(builder.getContext(), Eles),
-        cir::ArrayType::get(builder.getContext(), CommonElementType,
-                            ArrayBound));
+        cir::ArrayType::get(CommonElementType, ArrayBound));
     // TODO(cir): If all the elements had the same type up to the trailing
     // zeroes, emit a record of two arrays (the nonzero data and the
     // zeroinitializer). Use DesiredType to get the element type.
@@ -1324,8 +1323,7 @@ emitArrayConstant(CIRGenModule &CGM, mlir::Type DesiredType,
 
     return builder.getConstArray(
         mlir::ArrayAttr::get(builder.getContext(), Eles),
-        cir::ArrayType::get(builder.getContext(), CommonElementType,
-                            ArrayBound));
+        cir::ArrayType::get(CommonElementType, ArrayBound));
   }
 
   SmallVector<mlir::Attribute, 4> Eles;
@@ -1732,8 +1730,7 @@ mlir::Attribute ConstantEmitter::tryEmitPrivateForVarInit(const VarDecl &D) {
         // assignments and whatnots). Since this is for globals shouldn't
         // be a problem for the near future.
         if (CD->isTrivial() && CD->isDefaultConstructor())
-          return cir::ZeroAttr::get(CGM.getBuilder().getContext(),
-                                    CGM.convertType(D.getType()));
+          return cir::ZeroAttr::get(CGM.convertType(D.getType()));
       }
   }
   InConstantContext = D.hasConstantInitialization();
@@ -1835,8 +1832,7 @@ mlir::Attribute ConstantEmitter::emitForMemory(CIRGenModule &CGM,
     assert(innerSize < outerSize && "emitted over-large constant for atomic");
     auto &builder = CGM.getBuilder();
     auto zeroArray = builder.getZeroInitAttr(
-        cir::ArrayType::get(builder.getContext(), builder.getUInt8Ty(),
-                            (outerSize - innerSize) / 8));
+        cir::ArrayType::get(builder.getUInt8Ty(), (outerSize - innerSize) / 8));
     SmallVector<mlir::Attribute, 4> anonElts = {C, zeroArray};
     auto arrAttr = mlir::ArrayAttr::get(builder.getContext(), anonElts);
     return builder.getAnonConstRecord(arrAttr, false);
@@ -2041,11 +2037,11 @@ mlir::Value CIRGenModule::emitMemberPointerConstant(const UnaryOperator *E) {
     auto ty = mlir::cast<cir::MethodType>(convertType(E->getType()));
     if (methodDecl->isVirtual())
       return builder.create<cir::ConstantOp>(
-          loc, ty, getCXXABI().buildVirtualMethodAttr(ty, methodDecl));
+          loc, getCXXABI().buildVirtualMethodAttr(ty, methodDecl));
 
     auto methodFuncOp = GetAddrOfFunction(methodDecl);
     return builder.create<cir::ConstantOp>(
-        loc, ty, builder.getMethodAttr(ty, methodFuncOp));
+        loc, builder.getMethodAttr(ty, methodFuncOp));
   }
 
   auto ty = mlir::cast<cir::DataMemberType>(convertType(E->getType()));
@@ -2053,7 +2049,7 @@ mlir::Value CIRGenModule::emitMemberPointerConstant(const UnaryOperator *E) {
   // Otherwise, a member data pointer.
   const auto *fieldDecl = cast<FieldDecl>(decl);
   return builder.create<cir::ConstantOp>(
-      loc, ty, builder.getDataMemberAttr(ty, fieldDecl->getFieldIndex()));
+      loc, builder.getDataMemberAttr(ty, fieldDecl->getFieldIndex()));
 }
 
 mlir::Attribute ConstantEmitter::emitAbstract(const Expr *E,
@@ -2148,7 +2144,7 @@ static mlir::TypedAttr emitNullConstant(CIRGenModule &CGM, const RecordDecl *rd,
   }
 
   mlir::MLIRContext *mlirContext = record.getContext();
-  return cir::ConstRecordAttr::get(mlirContext, record,
+  return cir::ConstRecordAttr::get(record,
                                    mlir::ArrayAttr::get(mlirContext, elements));
 }
 
