@@ -2375,16 +2375,15 @@ mlir::Value ScalarExprEmitter::VisitExprWithCleanups(ExprWithCleanups *E) {
                                               builder.getInsertionBlock()};
         auto scopeYieldVal = Visit(E->getSubExpr());
         if (scopeYieldVal) {
-          lexScope.ForceCleanup(); // Defers to RunCleanupsScope's dtor and
-                                   // scope handling
+          // Defend against dominance problems caused by jumps out of expression
+          // evaluation through the shared cleanup block. We do not pass {&V} to
+          // ForceCleanup, because the scope returns an rvalue.
+          lexScope.ForceCleanup();
           builder.create<cir::YieldOp>(loc, scopeYieldVal);
           yieldTy = scopeYieldVal.getType();
         }
       });
 
-  // Defend against dominance problems caused by jumps out of expression
-  // evaluation through the shared cleanup block.
-  // TODO(cir): Scope.ForceCleanup({&V});
   return scope.getNumResults() > 0 ? scope->getResult(0) : nullptr;
 }
 
