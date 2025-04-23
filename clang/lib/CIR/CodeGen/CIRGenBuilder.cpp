@@ -63,14 +63,12 @@ cir::ConstantOp CIRGenBuilderTy::getConstInt(mlir::Location loc, mlir::Type t,
   return create<cir::ConstantOp>(loc, cir::IntAttr::get(t, c));
 }
 
-
 struct SubTypeVisitor {
   using onSubType = std::function<void(mlir::Type, int64_t, uint64_t)>;
 
-  SubTypeVisitor(cir::CIRDataLayout layout, onSubType fun) 
-    : layout_(layout)
-    , onSubType_(fun)  {}
- 
+  SubTypeVisitor(cir::CIRDataLayout layout, onSubType fun)
+      : layout_(layout), onSubType_(fun) {}
+
   void visit(mlir::Type t, int64_t offset) const {
     if (!offset)
       return;
@@ -84,12 +82,11 @@ struct SubTypeVisitor {
   }
 
 private:
-
   void visitArrayType(cir::ArrayType ar, int64_t offset) const {
-    int64_t eltSize = layout_.getTypeAllocSize(ar.getEltType());  
-    int64_t divRet = offset / eltSize;    
+    int64_t eltSize = layout_.getTypeAllocSize(ar.getEltType());
+    int64_t divRet = offset / eltSize;
     if (divRet < 0)
-      divRet -= 1; // make sure offset is positive    
+      divRet -= 1; // make sure offset is positive
 
     int64_t newOffset = offset - (divRet * eltSize);
     onSubType_(ar.getEltType(), newOffset, divRet);
@@ -114,7 +111,7 @@ private:
       }
       pos += eltSize;
     }
-    onSubType_(elts[i], offset, i);    
+    onSubType_(elts[i], offset, i);
     visit(elts[i], offset);
   }
 
@@ -122,7 +119,6 @@ private:
   cir::CIRDataLayout layout_;
   onSubType onSubType_;
 };
-
 
 void CIRGenBuilderTy::computeGlobalViewIndicesFromFlatOffset(
     int64_t Offset, mlir::Type Ty, cir::CIRDataLayout Layout,
@@ -136,8 +132,8 @@ void CIRGenBuilderTy::computeGlobalViewIndicesFromFlatOffset(
   v.visit(Ty, Offset);
 }
 
-bool CIRGenBuilderTy::isOffsetInUnion(cir::CIRDataLayout layout, 
-      mlir::Type typ, int64_t offset) {
+bool CIRGenBuilderTy::isOffsetInUnion(cir::CIRDataLayout layout, mlir::Type typ,
+                                      int64_t offset) {
 
   auto isUnion = [](mlir::Type t) {
     if (auto rec = mlir::dyn_cast<cir::RecordType>(t))
@@ -146,10 +142,10 @@ bool CIRGenBuilderTy::isOffsetInUnion(cir::CIRDataLayout layout,
   };
 
   if (isUnion(typ))
-    return true;    
-  
+    return true;
+
   bool result = false;
-  
+
   auto check = [&](mlir::Type t, uint64_t offset, uint64_t index) {
     result = result || isUnion(t);
   };
@@ -158,7 +154,7 @@ bool CIRGenBuilderTy::isOffsetInUnion(cir::CIRDataLayout layout,
   v.visit(typ, offset);
 
   return result;
-} 
+}
 
 uint64_t CIRGenBuilderTy::computeOffsetFromGlobalViewIndices(
     const cir::CIRDataLayout &layout, mlir::Type typ,

@@ -1431,7 +1431,7 @@ private:
         auto destTy = CGM.getTypes().convertTypeForMem(DestType);
         assert(!GV.getIndices() && "Global view is already indexed");
         return cir::GlobalViewAttr::get(destTy, GV.getSymbol(),
-                                        getOffset(baseTy));        
+                                        getOffset(baseTy));
       }
       llvm_unreachable("Unsupported attribute type to offset");
     }

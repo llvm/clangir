@@ -696,17 +696,17 @@ mlir::Value CirAttrToValue::visitCirAttr(cir::GlobalViewAttr globalAttr) {
     auto resTy = addrOp.getType();
     auto eltTy = converter->convertType(sourceType);
     addrOp = rewriter.create<mlir::LLVM::GEPOp>(loc, resTy, eltTy, addrOp,
-                                                indices, true);    
+                                                indices, true);
   } else if (auto ofsAttr = globalAttr.getOffset()) {
-    auto resTy = addrOp.getType();        
-    auto eltType = mlir::IntegerType::get(resTy.getContext(),
-                                  dataLayout.getTypeSizeInBits(resTy) / 8);
+    auto resTy = addrOp.getType();
+    auto eltType = mlir::IntegerType::get(
+        resTy.getContext(), dataLayout.getTypeSizeInBits(resTy) / 8);
     auto offset = ofsAttr.getValue();
 
-    llvm::SmallVector<mlir::LLVM::GEPArg> indices;   
-    indices.push_back(ofsAttr.getValue());    
-    
-    auto eltTy = converter->convertType(eltType);    
+    llvm::SmallVector<mlir::LLVM::GEPArg> indices;
+    indices.push_back(ofsAttr.getValue());
+
+    auto eltTy = converter->convertType(eltType);
 
     addrOp = rewriter.create<mlir::LLVM::GEPOp>(loc, resTy, eltTy, addrOp,
                                                 indices, true);

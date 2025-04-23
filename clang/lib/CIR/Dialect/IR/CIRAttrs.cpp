@@ -626,9 +626,8 @@ LogicalResult DynamicCastInfoAttr::verify(
 LogicalResult cir::GlobalViewAttr::verify(
     ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
     ::mlir::Type type, ::mlir::FlatSymbolRefAttr symbol,
-    ::mlir::ArrayAttr indices,
-    cir::ByteOffsetAttr offset) {
-    
+    ::mlir::ArrayAttr indices, cir::ByteOffsetAttr offset) {
+
   if (indices && offset) {
     emitError() << "indices and offset can not be set simultaneously";
     return failure();

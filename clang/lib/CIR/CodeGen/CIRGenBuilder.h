@@ -957,7 +957,8 @@ public:
                                               mlir::Type t,
                                               llvm::ArrayRef<int64_t> indexes);
 
-  bool isOffsetInUnion(cir::CIRDataLayout layout, mlir::Type typ, int64_t offset);
+  bool isOffsetInUnion(cir::CIRDataLayout layout, mlir::Type typ,
+                       int64_t offset);
 
   cir::StackSaveOp createStackSave(mlir::Location loc, mlir::Type ty) {
     return create<cir::StackSaveOp>(loc, ty);
