@@ -793,7 +793,7 @@ def GlobalViewAttr : CIR_Attr<"GlobalView", "global_view", [TypedAttrInterface]>
                         OptionalParameter<"ByteOffsetAttr">:$offset
                         );
 
-  let builders = [    
+  let builders = [
     AttrBuilderWithInferredContext<(ins "mlir::Type":$type,
                                         "mlir::FlatSymbolRefAttr":$symbol,
                                         CArg<"mlir::ArrayAttr", "{}">:$indices), [{
