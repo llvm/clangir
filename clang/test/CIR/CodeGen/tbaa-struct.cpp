@@ -334,8 +334,8 @@ struct six {
 };
 char g14(struct six *a, struct six *b) {
   // CIR-LABEL: cir.func @_Z3g14
-  // CIR: %[[TMP1:.*]] = cir.load %{{.*}} : !cir.ptr<!cir.ptr<!ty_six>>, !cir.ptr<!ty_six>
-  // CIR: %[[TMP2:.*]] = cir.get_member %[[TMP1]][2] {name = "b"} : !cir.ptr<!ty_six> -> !cir.ptr<!s8i>
+  // CIR: %[[TMP1:.*]] = cir.load %{{.*}} : !cir.ptr<!cir.ptr<!rec_six>>, !cir.ptr<!rec_six>
+  // CIR: %[[TMP2:.*]] = cir.get_member %[[TMP1]][2] {name = "b"} : !cir.ptr<!rec_six> -> !cir.ptr<!s8i>
   // CIR: %[[TMP3:.*]] = cir.load %[[TMP2]] : !cir.ptr<!s8i>, !s8i tbaa(#tbaa[[TAG_six_b]])
 
   // LLVM-LABEL: define{{.*}} i8 @_Z3g14

@@ -42,9 +42,9 @@ void refoo1() {
 // CIR:   %[[V1:.*]] = cir.const #cir.int<1> : !s32i
 // CIR:   cir.store %[[V1]], %[[V0]] : !s32i, !cir.ptr<!s32i>
 // CIR:   cir.scope {
-// CIR:     %[[V2:.*]] = cir.alloca !ty_S, !cir.ptr<!ty_S>, ["s", init] {alignment = 1 : i64}
+// CIR:     %[[V2:.*]] = cir.alloca !rec_S, !cir.ptr<!rec_S>, ["s", init] {alignment = 1 : i64}
 // CIR:     cir.try {
-// CIR:       cir.call exception @_ZN1SC2Ev(%[[V2]]) : (!cir.ptr<!ty_S>) -> ()
+// CIR:       cir.call exception @_ZN1SC2Ev(%[[V2]]) : (!cir.ptr<!rec_S>) -> ()
 // CIR:       cir.call exception @__cxa_rethrow() : () -> ()
 // CIR:       cir.unreachable
 // CIR:     ^bb1:  // no predecessors
@@ -113,7 +113,7 @@ void refoo2() {
 // CIR:   %[[V1:.*]] = cir.const #cir.int<1> : !s32i
 // CIR:   cir.store %[[V1]], %[[V0]] : !s32i, !cir.ptr<!s32i>
 // CIR:   cir.scope {
-// CIR:     %[[V2:.*]] = cir.alloca !ty_S, !cir.ptr<!ty_S>, ["s", init] {alignment = 1 : i64}
+// CIR:     %[[V2:.*]] = cir.alloca !rec_S, !cir.ptr<!rec_S>, ["s", init] {alignment = 1 : i64}
 // CIR:     cir.try {
 // CIR:       cir.scope {
 // CIR:         %[[V3:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["i", init] {alignment = 4 : i64}
@@ -126,8 +126,8 @@ void refoo2() {
 // CIR:           cir.condition(%[[V7]])
 // CIR:         } body {
 // CIR:           cir.scope {
-// CIR:             %[[V5:.*]] = cir.alloca !ty_S, !cir.ptr<!ty_S>, ["s", init] {alignment = 1 : i64}
-// CIR:             cir.call exception @_ZN1SC2Ev(%[[V5]]) : (!cir.ptr<!ty_S>) -> ()
+// CIR:             %[[V5:.*]] = cir.alloca !rec_S, !cir.ptr<!rec_S>, ["s", init] {alignment = 1 : i64}
+// CIR:             cir.call exception @_ZN1SC2Ev(%[[V5]]) : (!cir.ptr<!rec_S>) -> ()
 // CIR:             cir.call exception @__cxa_rethrow() : () -> ()
 // CIR:             cir.unreachable
 // CIR:           ^bb1:  // no predecessors
@@ -141,7 +141,7 @@ void refoo2() {
 // CIR:           cir.yield
 // CIR:         }
 // CIR:       }
-// CIR:       cir.call exception @_ZN1SC2Ev(%[[V2]]) : (!cir.ptr<!ty_S>) -> ()
+// CIR:       cir.call exception @_ZN1SC2Ev(%[[V2]]) : (!cir.ptr<!rec_S>) -> ()
 // CIR:       cir.yield
 // CIR:     } catch [type #cir.all {
 // CIR:       %[[V3:.*]] = cir.catch_param -> !cir.ptr<!void>
@@ -218,12 +218,12 @@ void refoo3() {
 // CIR:   %[[V1:.*]] = cir.const #cir.int<1> : !s32i
 // CIR:   cir.store %[[V1]], %[[V0]] : !s32i, !cir.ptr<!s32i>
 // CIR:   cir.scope {
-// CIR:     %[[V2:.*]] = cir.alloca !ty_S, !cir.ptr<!ty_S>, ["s", init] {alignment = 1 : i64}
+// CIR:     %[[V2:.*]] = cir.alloca !rec_S, !cir.ptr<!rec_S>, ["s", init] {alignment = 1 : i64}
 // CIR:     cir.try {
 // CIR:       cir.call exception @__cxa_rethrow() : () -> ()
 // CIR:       cir.unreachable
 // CIR:     ^bb1:  // no predecessors
-// CIR:       cir.call exception @_ZN1SC2Ev(%[[V2]]) : (!cir.ptr<!ty_S>) -> ()
+// CIR:       cir.call exception @_ZN1SC2Ev(%[[V2]]) : (!cir.ptr<!rec_S>) -> ()
 // CIR:       cir.yield
 // CIR:     } catch [type #cir.all {
 // CIR:       %[[V3:.*]] = cir.catch_param -> !cir.ptr<!void>

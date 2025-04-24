@@ -8,4 +8,4 @@ public:
 
 A a(nullptr, 1, "str");
 
-// CIR: cir.func private @_ZN1AC1EPvz(!cir.ptr<!ty_A>, !cir.ptr<!void>, ...)
+// CIR: cir.func private @_ZN1AC1EPvz(!cir.ptr<!rec_A>, !cir.ptr<!void>, ...)

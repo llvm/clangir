@@ -14,20 +14,20 @@ void buz(int x) {
 }
 // CIR: cir.func @buz
 // CIR-NEXT: [[X_ALLOCA:%.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["x", init] {alignment = 4 : i64}
-// CIR-NEXT: [[ARR:%.*]] = cir.alloca !cir.array<!ty_T x 2>, !cir.ptr<!cir.array<!ty_T x 2>>, ["arr", init] {alignment = 16 : i64}
+// CIR-NEXT: [[ARR:%.*]] = cir.alloca !cir.array<!rec_T x 2>, !cir.ptr<!cir.array<!rec_T x 2>>, ["arr", init] {alignment = 16 : i64}
 // CIR-NEXT: cir.store %arg0, [[X_ALLOCA]] : !s32i, !cir.ptr<!s32i>
-// CIR-NEXT: [[ARR_INIT:%.*]] = cir.const #cir.zero : !cir.array<!ty_T x 2>
-// CIR-NEXT: cir.store [[ARR_INIT]], [[ARR]] : !cir.array<!ty_T x 2>, !cir.ptr<!cir.array<!ty_T x 2>>
-// CIR-NEXT: [[FI_EL:%.*]] = cir.cast(array_to_ptrdecay, [[ARR]] : !cir.ptr<!cir.array<!ty_T x 2>>), !cir.ptr<!ty_T>
-// CIR-NEXT: [[A_STORAGE0:%.*]] = cir.get_member [[FI_EL]][0] {name = "a"} : !cir.ptr<!ty_T> -> !cir.ptr<!s32i>
-// CIR-NEXT: [[B_STORAGE0:%.*]] = cir.get_member [[FI_EL]][1] {name = "b"} : !cir.ptr<!ty_T> -> !cir.ptr<!s64i>
+// CIR-NEXT: [[ARR_INIT:%.*]] = cir.const #cir.zero : !cir.array<!rec_T x 2>
+// CIR-NEXT: cir.store [[ARR_INIT]], [[ARR]] : !cir.array<!rec_T x 2>, !cir.ptr<!cir.array<!rec_T x 2>>
+// CIR-NEXT: [[FI_EL:%.*]] = cir.cast(array_to_ptrdecay, [[ARR]] : !cir.ptr<!cir.array<!rec_T x 2>>), !cir.ptr<!rec_T>
+// CIR-NEXT: [[A_STORAGE0:%.*]] = cir.get_member [[FI_EL]][0] {name = "a"} : !cir.ptr<!rec_T> -> !cir.ptr<!s32i>
+// CIR-NEXT: [[B_STORAGE0:%.*]] = cir.get_member [[FI_EL]][1] {name = "b"} : !cir.ptr<!rec_T> -> !cir.ptr<!s64i>
 // CIR-NEXT: [[X_VAL:%.*]] = cir.load [[X_ALLOCA]] : !cir.ptr<!s32i>, !s32i
 // CIR-NEXT: [[X_CASTED:%.*]] = cir.cast(integral, [[X_VAL]] : !s32i), !s64i
 // CIR-NEXT: cir.store [[X_CASTED]], [[B_STORAGE0]] : !s64i, !cir.ptr<!s64i>
 // CIR-NEXT: [[ONE:%.*]] = cir.const #cir.int<1> : !s64i
-// CIR-NEXT: [[SE_EL:%.*]] = cir.ptr_stride([[FI_EL]] : !cir.ptr<!ty_T>, [[ONE]] : !s64i), !cir.ptr<!ty_T>
-// CIR-NEXT: [[A_STORAGE1:%.*]] = cir.get_member [[SE_EL]][0] {name = "a"} : !cir.ptr<!ty_T> -> !cir.ptr<!s32i>
-// CIR-NEXT: [[B_STORAGE1:%.*]] = cir.get_member [[SE_EL]][1] {name = "b"} : !cir.ptr<!ty_T> -> !cir.ptr<!s64i>
+// CIR-NEXT: [[SE_EL:%.*]] = cir.ptr_stride([[FI_EL]] : !cir.ptr<!rec_T>, [[ONE]] : !s64i), !cir.ptr<!rec_T>
+// CIR-NEXT: [[A_STORAGE1:%.*]] = cir.get_member [[SE_EL]][0] {name = "a"} : !cir.ptr<!rec_T> -> !cir.ptr<!s32i>
+// CIR-NEXT: [[B_STORAGE1:%.*]] = cir.get_member [[SE_EL]][1] {name = "b"} : !cir.ptr<!rec_T> -> !cir.ptr<!s64i>
 // CIR-NEXT: cir.return
 
 void foo() {

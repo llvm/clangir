@@ -2,7 +2,7 @@
 // RUN: cir-translate %s -cir-to-llvmir --disable-cc-lowering -o -  | FileCheck %s -check-prefix=LLVM
 
 !s32i = !cir.int<s, 32>
-!ty_S = !cir.record<struct "S" {!s32i} #cir.record.decl.ast>
+!rec_S = !cir.record<struct "S" {!s32i} #cir.record.decl.ast>
 
 module {
   cir.func @foo() {
@@ -21,7 +21,7 @@ module {
 //      LLVM: %1 = alloca [10 x i32], i64 1, align 16
 // LLVM-NEXT: ret void
 
-  cir.global external @arr = #cir.const_array<[#cir.const_record<{#cir.int<1> : !s32i}> : !ty_S, #cir.zero : !ty_S]> : !cir.array<!ty_S x 2>
+  cir.global external @arr = #cir.const_array<[#cir.const_record<{#cir.int<1> : !s32i}> : !rec_S, #cir.zero : !rec_S]> : !cir.array<!rec_S x 2>
   // CHECK: llvm.mlir.global external @arr() {addr_space = 0 : i32} : !llvm.array<2 x struct<"struct.S", (i32)>> {
   // CHECK:   %0 = llvm.mlir.undef : !llvm.array<2 x struct<"struct.S", (i32)>>
   // CHECK:   %1 = llvm.mlir.undef : !llvm.struct<"struct.S", (i32)>

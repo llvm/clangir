@@ -177,8 +177,8 @@ void CIRGenModule::genKernelArgMetadata(cir::FuncOp Fn, const FunctionDecl *FD,
     mlir::NamedAttrList items{Fn.getExtraAttrs().getElements().getValue()};
     auto oldValue = items.set(value.getMnemonic(), value);
     if (oldValue != value) {
-      Fn.setExtraAttrsAttr(cir::ExtraFuncAttributesAttr::get(
-          &getMLIRContext(), builder.getDictionaryAttr(items)));
+      Fn.setExtraAttrsAttr(
+          cir::ExtraFuncAttributesAttr::get(builder.getDictionaryAttr(items)));
     }
   } else {
     if (shouldEmitArgName)
@@ -246,7 +246,7 @@ void CIRGenFunction::emitKernelMetadata(const FunctionDecl *FD,
   attrs.append(kernelMetadataAttr.getMnemonic(), kernelMetadataAttr);
 
   Fn.setExtraAttrsAttr(cir::ExtraFuncAttributesAttr::get(
-      &getMLIRContext(), attrs.getDictionary(&getMLIRContext())));
+      attrs.getDictionary(&getMLIRContext())));
 }
 
 void CIRGenModule::emitOpenCLMetadata() {

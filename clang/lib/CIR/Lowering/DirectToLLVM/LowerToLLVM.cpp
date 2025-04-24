@@ -2162,7 +2162,7 @@ void CIRToLLVMFuncOpLowering::lowerFuncOpenCLKernelMetadata(
     newExtraAttrs.push_back(entry);
   }
   extraAttrsEntry.setValue(cir::ExtraFuncAttributesAttr::get(
-      getContext(), newExtraAttrs.getDictionary(getContext())));
+      newExtraAttrs.getDictionary(getContext())));
 }
 
 mlir::LogicalResult CIRToLLVMFuncOpLowering::matchAndRewrite(

@@ -63,9 +63,9 @@ struct CIROpAsmDialectInterface : public OpAsmDialectInterface {
     if (auto recordType = dyn_cast<cir::RecordType>(type)) {
       StringAttr nameAttr = recordType.getName();
       if (!nameAttr)
-        os << "ty_anon_" << recordType.getKindAsStr();
+        os << "rec_anon_" << recordType.getKindAsStr();
       else
-        os << "ty_" << nameAttr.getValue();
+        os << "rec_" << nameAttr.getValue();
       return AliasResult::OverridableAlias;
     }
     if (auto intType = dyn_cast<cir::IntType>(type)) {
@@ -2463,18 +2463,16 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
 
   if (parseGlobalDtorCtor("global_ctor", [&](std::optional<int> prio) {
         cir::GlobalCtorAttr globalCtorAttr =
-            prio ? cir::GlobalCtorAttr::get(builder.getContext(), nameAttr,
-                                            *prio)
-                 : cir::GlobalCtorAttr::get(builder.getContext(), nameAttr);
+            prio ? cir::GlobalCtorAttr::get(nameAttr, *prio)
+                 : cir::GlobalCtorAttr::get(nameAttr);
         state.addAttribute(getGlobalCtorAttrName(state.name), globalCtorAttr);
       }).failed())
     return failure();
 
   if (parseGlobalDtorCtor("global_dtor", [&](std::optional<int> prio) {
         cir::GlobalDtorAttr globalDtorAttr =
-            prio ? cir::GlobalDtorAttr::get(builder.getContext(), nameAttr,
-                                            *prio)
-                 : cir::GlobalDtorAttr::get(builder.getContext(), nameAttr);
+            prio ? cir::GlobalDtorAttr::get(nameAttr, *prio)
+                 : cir::GlobalDtorAttr::get(nameAttr);
         state.addAttribute(getGlobalDtorAttrName(state.name), globalDtorAttr);
       }).failed())
     return failure();
@@ -2490,7 +2488,7 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
   } else {
     NamedAttrList empty;
     extraAttrs = cir::ExtraFuncAttributesAttr::get(
-        builder.getContext(), empty.getDictionary(builder.getContext()));
+        empty.getDictionary(builder.getContext()));
   }
   state.addAttribute(getExtraAttrsAttrName(state.name), extraAttrs);
 
@@ -2969,7 +2967,7 @@ static ::mlir::ParseResult parseCallCommon(::mlir::OpAsmParser &parser,
   } else {
     NamedAttrList empty;
     extraAttrs = cir::ExtraFuncAttributesAttr::get(
-        builder.getContext(), empty.getDictionary(builder.getContext()));
+        empty.getDictionary(builder.getContext()));
   }
   result.addAttribute(extraAttrsAttrName, extraAttrs);
 
