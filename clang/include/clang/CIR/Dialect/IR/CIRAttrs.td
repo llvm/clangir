@@ -693,23 +693,6 @@ def SignedOverflowBehaviorAttr : AttrDef<CIR_Dialect, "SignedOverflowBehavior"> 
 }
 
 //===----------------------------------------------------------------------===//
-// ByteOffsetAttr
-//===----------------------------------------------------------------------===//
-
-def ByteOffsetAttr : CIR_Attr<"ByteOffset", "byte_offset"> {
-  let summary = "An attribute that holds byte offset";
-  let description = [{ 
-    An integer attribute is a literal attribute that represents an integral
-    value of the specified integer type.
-  }];
-  let parameters = (ins "uint64_t":$value);
-  let assemblyFormat = [{
-    `offset` $value 
-  }];
-}
-
-
-//===----------------------------------------------------------------------===//
 // GlobalViewAttr
 //===----------------------------------------------------------------------===//
 
@@ -773,44 +756,21 @@ def GlobalViewAttr : CIR_Attr<"GlobalView", "global_view", [TypedAttrInterface]>
 
   let parameters = (ins AttributeSelfTypeParameter<"">:$type,
                         "mlir::FlatSymbolRefAttr":$symbol,
-                        OptionalParameter<"mlir::ArrayAttr">:$indices,
-                        OptionalParameter<"ByteOffsetAttr">:$offset
-                        );
+                        OptionalParameter<"mlir::ArrayAttr">:$indices);
 
   let builders = [
     AttrBuilderWithInferredContext<(ins "mlir::Type":$type,
                                         "mlir::FlatSymbolRefAttr":$symbol,
                                         CArg<"mlir::ArrayAttr", "{}">:$indices), [{
-      ByteOffsetAttr attr;
-      return $_get(type.getContext(), type, symbol, indices, attr);
-    }]>, 
-    AttrBuilderWithInferredContext<(ins "mlir::Type":$type,
-                                        "mlir::FlatSymbolRefAttr":$symbol,
-                                        CArg<"ByteOffsetAttr">:$offset), [{
-      mlir::ArrayAttr attr;
-      return $_get(type.getContext(), type, symbol, attr, offset);
-    }]>,
-    AttrBuilderWithInferredContext<(ins "mlir::Type":$type,
-                                        "mlir::FlatSymbolRefAttr":$symbol,
-                                        CArg<"mlir::Attribute">:$attr), [{
-      if (!attr)
-        return $_get(type.getContext(), type, symbol,  mlir::ArrayAttr(), ByteOffsetAttr());
-      else if (auto inds = mlir::dyn_cast<mlir::ArrayAttr>(attr)) 
-        return $_get(type.getContext(), type, symbol, inds, ByteOffsetAttr());
-      else if (auto ofs = mlir::dyn_cast<ByteOffsetAttr>(attr))
-        return $_get(type.getContext(), type, symbol, mlir::ArrayAttr(), ofs);
-      else 
-        llvm_unreachable("Unexpected attribute for GlobalViewAttr");
+      return $_get(type.getContext(), type, symbol, indices);
     }]>
   ];
 
-  let genVerifyDecl = 1;
-
+  // let genVerifyDecl = 1;
   let assemblyFormat = [{
     `<`
       $symbol
       (`,` $indices^)?
-      (`,` $offset^)?
     `>`
   }];
 }

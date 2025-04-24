@@ -1397,14 +1397,10 @@ private:
   bool hasNonZeroOffset() const { return !Value.getLValueOffset().isZero(); }
 
   /// Return GEP-like value offset
-  mlir::Attribute getOffset(mlir::Type Ty) {
+  mlir::ArrayAttr getOffset(mlir::Type Ty) {
     auto Offset = Value.getLValueOffset().getQuantity();
     cir::CIRDataLayout Layout(CGM.getModule());
     SmallVector<int64_t, 3> Idx;
-
-    if (CGM.getBuilder().isOffsetInUnion(Layout, Ty, Offset) && Offset != 0)
-      return cir::ByteOffsetAttr::get(CGM.getBuilder().getContext(), Offset);
-
     CGM.getBuilder().computeGlobalViewIndicesFromFlatOffset(Offset, Ty, Layout,
                                                             Idx);
 
