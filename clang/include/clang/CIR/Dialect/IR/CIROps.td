@@ -924,9 +924,9 @@ def ConditionOp : CIR_Op<"condition", [
 //===----------------------------------------------------------------------===//
 
 def YieldOp : CIR_Op<"yield", [ReturnLike, Terminator,
-    ParentOneOf<["IfOp", "ScopeOp", "SwitchOp", "WhileOp", "ForOp", "AwaitOp",
-                 "TernaryOp", "GlobalOp", "DoWhileOp", "TryOp", "ArrayCtor",
-                 "ArrayDtor", "CallOp", "CaseOp"]>]> {
+    ParentOneOf<["ArrayCtor", "ArrayDtor", "AwaitOp", "CallOp", "CaseOp",
+                 "DoWhileOp", "ForOp", "GlobalOp", "IfOp", "ScopeOp",
+                 "SwitchOp", "TernaryOp", "TryOp", "WhileOp"]>]> {
   let summary = "Represents the default branching behaviour of a region";
   let description = [{
     The `cir.yield` operation terminates regions on different CIR operations,
