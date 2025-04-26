@@ -441,15 +441,13 @@ RecordType::computeUnionSize(const mlir::DataLayout &dataLayout) const {
   // This is a similar algorithm to LLVM's StructLayout.
   unsigned recordSize = 0;
   llvm::Align recordAlignment{1};
-  unsigned numElements = getNumElements();
-  auto members = getMembers();
-  unsigned largestMemberSize = 0;
 
   auto largestMember = getLargestMember(dataLayout);
   recordSize = dataLayout.getTypeSize(largestMember);
 
   // If the union is padded, add the padding to the size.
   if (getPadded()) {
+    unsigned numElements = getNumElements();
     auto ty = getMembers()[numElements - 1];
     recordSize += dataLayout.getTypeSize(ty);
   }
