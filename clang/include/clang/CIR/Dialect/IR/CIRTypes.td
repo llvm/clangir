@@ -391,6 +391,8 @@ def CIR_VectorType : CIR_Type<"Vector", "vector",
   let assemblyFormat = [{
     `<` $elementType `x` $size `>`
   }];
+
+  let genVerifyDecl = 1;
 }
 
 //===----------------------------------------------------------------------===//
