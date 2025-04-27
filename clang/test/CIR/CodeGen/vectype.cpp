@@ -14,6 +14,11 @@ vd2 b;
 vll2 c;
 // CHECK: cir.global external @[[VEC_C:.*]] = #cir.zero : !cir.vector<!s64i x 2>
 
+vi4 d = { 1, 2, 3, 4 };
+
+// CHECK: cir.global external @[[VEC_D:.*]] = #cir.const_vector<[#cir.int<1> : !s32i, #cir.int<2> :
+// CHECK-SAME: !s32i, #cir.int<3> : !s32i, #cir.int<4> : !s32i]> : !cir.vector<!s32i x 4>
+
 void vector_int_test(int x, unsigned short usx) {
 
   // Vector constant.
