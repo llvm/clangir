@@ -138,7 +138,7 @@ mlir::LLVM::FCmpPredicate convertCmpKindToFCmpPredicate(cir::CmpOpKind kind) {
 /// Otherwise return the given type unchanged.
 mlir::Type elementTypeIfVector(mlir::Type type) {
   if (auto VecType = mlir::dyn_cast<cir::VectorType>(type)) {
-    return VecType.getEltType();
+    return VecType.getElementType();
   }
   return type;
 }
@@ -607,7 +607,7 @@ mlir::Value CirAttrToValue::visitCirAttr(cir::ConstArrayAttr constArr) {
                mlir::dyn_cast<mlir::StringAttr>(constArr.getElts())) {
     auto arrayTy = mlir::dyn_cast<cir::ArrayType>(strAttr.getType());
     assert(arrayTy && "String attribute must have an array type");
-    auto eltTy = arrayTy.getEltType();
+    auto eltTy = arrayTy.getElementType();
     for (auto [idx, elt] : llvm::enumerate(strAttr)) {
       auto init = rewriter.create<mlir::LLVM::ConstantOp>(
           loc, converter->convertType(eltTy), elt);
@@ -2974,8 +2974,9 @@ mlir::LogicalResult CIRToLLVMShiftOpLowering::matchAndRewrite(
     rewriter.replaceOpWithNewOp<mlir::LLVM::ShlOp>(op, llvmTy, val, amt);
   else {
     bool isUnSigned =
-        cirValTy ? !cirValTy.isSigned()
-                 : !mlir::cast<cir::IntType>(cirValVTy.getEltType()).isSigned();
+        cirValTy
+            ? !cirValTy.isSigned()
+            : !mlir::cast<cir::IntType>(cirValVTy.getElementType()).isSigned();
     if (isUnSigned)
       rewriter.replaceOpWithNewOp<mlir::LLVM::LShrOp>(op, llvmTy, val, amt);
     else
@@ -4416,11 +4417,12 @@ void prepareTypeConverter(mlir::LLVMTypeConverter &converter,
     return converter.convertType(abiType);
   });
   converter.addConversion([&](cir::ArrayType type) -> mlir::Type {
-    auto ty = convertTypeForMemory(converter, dataLayout, type.getEltType());
+    auto ty =
+        convertTypeForMemory(converter, dataLayout, type.getElementType());
     return mlir::LLVM::LLVMArrayType::get(ty, type.getSize());
   });
   converter.addConversion([&](cir::VectorType type) -> mlir::Type {
-    auto ty = converter.convertType(type.getEltType());
+    auto ty = converter.convertType(type.getElementType());
     return mlir::LLVM::getFixedVectorType(ty, type.getSize());
   });
   converter.addConversion([&](cir::BoolType type) -> mlir::Type {

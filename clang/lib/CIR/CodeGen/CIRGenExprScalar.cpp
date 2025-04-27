@@ -2001,7 +2001,7 @@ mlir::Value ScalarExprEmitter::VisitInitListExpr(InitListExpr *E) {
     if (NumInitElements < VectorType.getSize()) {
       mlir::Value ZeroValue = CGF.getBuilder().create<cir::ConstantOp>(
           CGF.getLoc(E->getSourceRange()),
-          CGF.getBuilder().getZeroInitAttr(VectorType.getEltType()));
+          CGF.getBuilder().getZeroInitAttr(VectorType.getElementType()));
       for (uint64_t i = NumInitElements; i < VectorType.getSize(); ++i) {
         Elements.push_back(ZeroValue);
       }
@@ -2096,8 +2096,8 @@ mlir::Value ScalarExprEmitter::emitScalarCast(mlir::Value Src, QualType SrcType,
   mlir::Type FullDstTy = DstTy;
   if (mlir::isa<cir::VectorType>(SrcTy) && mlir::isa<cir::VectorType>(DstTy)) {
     // Use the element types of the vectors to figure out the CastKind.
-    SrcTy = mlir::dyn_cast<cir::VectorType>(SrcTy).getEltType();
-    DstTy = mlir::dyn_cast<cir::VectorType>(DstTy).getEltType();
+    SrcTy = mlir::dyn_cast<cir::VectorType>(SrcTy).getElementType();
+    DstTy = mlir::dyn_cast<cir::VectorType>(DstTy).getElementType();
   }
   assert(!mlir::isa<cir::VectorType>(SrcTy) &&
          !mlir::isa<cir::VectorType>(DstTy) &&
