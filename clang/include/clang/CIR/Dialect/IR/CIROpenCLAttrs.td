@@ -86,7 +86,7 @@ def OpenCLKernelMetadataAttr
                mlir::cast<cir::IntType>(t).isSigned();
       };
       return isCIRSignedIntType(hintQTy) ||
-              (hintEltQTy && isCIRSignedIntType(hintEltQTy.getEltType()));
+              (hintEltQTy && isCIRSignedIntType(hintEltQTy.getElementType()));
     }
   }];
 

@@ -2093,7 +2093,7 @@ static mlir::Value emitArmLdrexNon128Intrinsic(unsigned int builtinID,
 /// and the same vector size.
 static cir::VectorType getSignChangedVectorType(CIRGenBuilderTy &builder,
                                                 cir::VectorType vecTy) {
-  auto elemTy = mlir::cast<cir::IntType>(vecTy.getEltType());
+  auto elemTy = mlir::cast<cir::IntType>(vecTy.getElementType());
   elemTy = elemTy.isSigned() ? builder.getUIntNTy(elemTy.getWidth())
                              : builder.getSIntNTy(elemTy.getWidth());
   return cir::VectorType::get(elemTy, vecTy.getSize());
@@ -2102,7 +2102,7 @@ static cir::VectorType getSignChangedVectorType(CIRGenBuilderTy &builder,
 static cir::VectorType
 getHalfEltSizeTwiceNumElemsVecType(CIRGenBuilderTy &builder,
                                    cir::VectorType vecTy) {
-  auto elemTy = mlir::cast<cir::IntType>(vecTy.getEltType());
+  auto elemTy = mlir::cast<cir::IntType>(vecTy.getElementType());
   elemTy = elemTy.isSigned() ? builder.getSIntNTy(elemTy.getWidth() / 2)
                              : builder.getUIntNTy(elemTy.getWidth() / 2);
   return cir::VectorType::get(elemTy, vecTy.getSize() * 2);
@@ -2111,9 +2111,9 @@ getHalfEltSizeTwiceNumElemsVecType(CIRGenBuilderTy &builder,
 static cir::VectorType
 castVecOfFPTypeToVecOfIntWithSameWidth(CIRGenBuilderTy &builder,
                                        cir::VectorType vecTy) {
-  if (mlir::isa<cir::SingleType>(vecTy.getEltType()))
+  if (mlir::isa<cir::SingleType>(vecTy.getElementType()))
     return cir::VectorType::get(builder.getSInt32Ty(), vecTy.getSize());
-  if (mlir::isa<cir::DoubleType>(vecTy.getEltType()))
+  if (mlir::isa<cir::DoubleType>(vecTy.getElementType()))
     return cir::VectorType::get(builder.getSInt64Ty(), vecTy.getSize());
   llvm_unreachable(
       "Unsupported element type in getVecOfIntTypeWithSameEltWidth");
@@ -2148,7 +2148,7 @@ static mlir::Value emitNeonShiftVector(CIRGenBuilderTy &builder,
   llvm::SmallVector<mlir::Attribute> vecAttr{
       vecTy.getSize(),
       // ConstVectorAttr requires cir::IntAttr
-      cir::IntAttr::get(vecTy.getEltType(), shiftAmt)};
+      cir::IntAttr::get(vecTy.getElementType(), shiftAmt)};
   cir::ConstVectorAttr constVecAttr = cir::ConstVectorAttr::get(
       vecTy, mlir::ArrayAttr::get(builder.getContext(), vecAttr));
   return builder.create<cir::ConstantOp>(loc, constVecAttr);
@@ -2172,7 +2172,8 @@ static mlir::Value emitNeonRShiftImm(CIRGenFunction &cgf, mlir::Value shiftVec,
                                      mlir::Location loc) {
   CIRGenBuilderTy &builder = cgf.getBuilder();
   int64_t shiftAmt = getIntValueFromConstOp(shiftVal);
-  int eltSize = cgf.CGM.getDataLayout().getTypeSizeInBits(vecTy.getEltType());
+  int eltSize =
+      cgf.CGM.getDataLayout().getTypeSizeInBits(vecTy.getElementType());
 
   shiftVec = builder.createBitcast(shiftVec, vecTy);
   // lshr/ashr are undefined when the shift amount is equal to the vector
@@ -2185,7 +2186,7 @@ static mlir::Value emitNeonRShiftImm(CIRGenFunction &cgf, mlir::Value shiftVec,
     // Right-shifting a signed value by its size is equivalent
     // to a shift of size-1.
     --shiftAmt;
-    shiftVal = builder.getConstInt(loc, vecTy.getEltType(), shiftAmt);
+    shiftVal = builder.getConstInt(loc, vecTy.getElementType(), shiftAmt);
   }
   return emitCommonNeonShift(builder, loc, vecTy, shiftVec, shiftVal,
                              false /* right shift */);
@@ -2195,7 +2196,7 @@ static mlir::Value emitNeonRShiftImm(CIRGenFunction &cgf, mlir::Value shiftVec,
 static void vecExtendIntValue(CIRGenFunction &cgf, cir::VectorType argVTy,
                               mlir::Value &arg, mlir::Location loc) {
   CIRGenBuilderTy &builder = cgf.getBuilder();
-  cir::IntType eltTy = mlir::dyn_cast<cir::IntType>(argVTy.getEltType());
+  cir::IntType eltTy = mlir::dyn_cast<cir::IntType>(argVTy.getElementType());
   assert(mlir::isa<cir::IntType>(arg.getType()) && eltTy);
   // The constant argument to an _n_ intrinsic always has Int32Ty, so truncate
   // it before inserting.
@@ -2366,7 +2367,7 @@ mlir::Value CIRGenFunction::emitCommonNeonBuiltinExpr(
   case NEON::BI__builtin_neon_vabsq_v: {
     mlir::Location loc = getLoc(e->getExprLoc());
     ops[0] = builder.createBitcast(ops[0], vTy);
-    if (mlir::isa<cir::SingleType, cir::DoubleType>(vTy.getEltType())) {
+    if (mlir::isa<cir::SingleType, cir::DoubleType>(vTy.getElementType())) {
       return builder.create<cir::FAbsOp>(loc, ops[0]);
     }
     return builder.create<cir::AbsOp>(loc, ops[0]);
@@ -2374,14 +2375,14 @@ mlir::Value CIRGenFunction::emitCommonNeonBuiltinExpr(
   case NEON::BI__builtin_neon_vmovl_v: {
     cir::VectorType dTy = builder.getExtendedOrTruncatedElementVectorType(
         vTy, false /* truncate */,
-        mlir::cast<cir::IntType>(vTy.getEltType()).isSigned());
+        mlir::cast<cir::IntType>(vTy.getElementType()).isSigned());
     // This cast makes sure arg type conforms intrinsic expected arg type.
     ops[0] = builder.createBitcast(ops[0], dTy);
     return builder.createIntCast(ops[0], ty);
   }
   case NEON::BI__builtin_neon_vmovn_v: {
     cir::VectorType qTy = builder.getExtendedOrTruncatedElementVectorType(
-        vTy, true, mlir::cast<cir::IntType>(vTy.getEltType()).isSigned());
+        vTy, true, mlir::cast<cir::IntType>(vTy.getElementType()).isSigned());
     ops[0] = builder.createBitcast(ops[0], qTy);
     // It really is truncation in this context.
     // In CIR, integral cast op supports vector of int type truncating.
@@ -2401,7 +2402,7 @@ mlir::Value CIRGenFunction::emitCommonNeonBuiltinExpr(
     llvm::SmallVector<mlir::Value, 2> mulOps(ops.begin() + 1, ops.end());
     cir::VectorType srcVty = builder.getExtendedOrTruncatedElementVectorType(
         vTy, false, /* truncate */
-        mlir::cast<cir::IntType>(vTy.getEltType()).isSigned());
+        mlir::cast<cir::IntType>(vTy.getElementType()).isSigned());
     ops[1] = emitNeonCall(builder, {srcVty, srcVty}, mulOps,
                           "aarch64.neon.sqdmull", vTy, getLoc(e->getExprLoc()));
     ops.resize(2);
@@ -2437,7 +2438,7 @@ mlir::Value CIRGenFunction::emitCommonNeonBuiltinExpr(
     cir::VectorType resTy =
         (builtinID == NEON::BI__builtin_neon_vqdmulhq_lane_v ||
          builtinID == NEON::BI__builtin_neon_vqrdmulhq_lane_v)
-            ? cir::VectorType::get(vTy.getEltType(), vTy.getSize() * 2)
+            ? cir::VectorType::get(vTy.getElementType(), vTy.getSize() * 2)
             : vTy;
     cir::VectorType mulVecT =
         GetNeonType(this, NeonTypeFlags(neonType.getEltType(), false,
@@ -2479,7 +2480,7 @@ mlir::Value CIRGenFunction::emitCommonNeonBuiltinExpr(
     mlir::Location loc = getLoc(e->getExprLoc());
     cir::VectorType srcTy = builder.getExtendedOrTruncatedElementVectorType(
         vTy, false /* truncate */,
-        mlir::cast<cir::IntType>(vTy.getEltType()).isSigned());
+        mlir::cast<cir::IntType>(vTy.getElementType()).isSigned());
     ops[0] = builder.createBitcast(ops[0], srcTy);
     // The following cast will be lowered to SExt or ZExt in LLVM.
     ops[0] = builder.createIntCast(ops[0], vTy);
@@ -2489,7 +2490,7 @@ mlir::Value CIRGenFunction::emitCommonNeonBuiltinExpr(
     mlir::Location loc = getLoc(e->getExprLoc());
     cir::VectorType srcTy = builder.getExtendedOrTruncatedElementVectorType(
         vTy, true /* extended */,
-        mlir::cast<cir::IntType>(vTy.getEltType()).isSigned());
+        mlir::cast<cir::IntType>(vTy.getElementType()).isSigned());
     ops[0] = builder.createBitcast(ops[0], srcTy);
     ops[0] = emitCommonNeonShift(builder, loc, srcTy, ops[0], ops[1], false);
     return builder.createIntCast(ops[0], vTy);
@@ -2530,7 +2531,7 @@ mlir::Value CIRGenFunction::emitCommonNeonBuiltinExpr(
   }
   case NEON::BI__builtin_neon_vpadd_v:
   case NEON::BI__builtin_neon_vpaddq_v: {
-    intrincsName = mlir::isa<mlir::FloatType>(vTy.getEltType())
+    intrincsName = mlir::isa<mlir::FloatType>(vTy.getElementType())
                        ? "aarch64.neon.faddp"
                        : "aarch64.neon.addp";
     break;
@@ -2619,7 +2620,7 @@ mlir::Value CIRGenFunction::emitCommonNeonBuiltinExpr(
                                                     : "aarch64.neon.sqxtn";
     argTypes.push_back(builder.getExtendedOrTruncatedElementVectorType(
         vTy, true /* extended */,
-        mlir::cast<cir::IntType>(vTy.getEltType()).isSigned()));
+        mlir::cast<cir::IntType>(vTy.getElementType()).isSigned()));
     break;
   }
 
@@ -3965,7 +3966,7 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   case NEON::BI__builtin_neon_vbsl_v:
   case NEON::BI__builtin_neon_vbslq_v: {
     cir::VectorType bitTy = vTy;
-    if (cir::isAnyFloatingPointType(bitTy.getEltType()))
+    if (cir::isAnyFloatingPointType(bitTy.getElementType()))
       bitTy = castVecOfFPTypeToVecOfIntWithSameWidth(builder, vTy);
     Ops[0] = builder.createBitcast(Ops[0], bitTy);
     Ops[1] = builder.createBitcast(Ops[1], bitTy);
@@ -4086,7 +4087,7 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
         builder,
         {builder.getExtendedOrTruncatedElementVectorType(
              vTy, true /* extend */,
-             mlir::cast<cir::IntType>(vTy.getEltType()).isSigned()),
+             mlir::cast<cir::IntType>(vTy.getElementType()).isSigned()),
          SInt32Ty},
         Ops, usgn ? "aarch64.neon.uqshrn" : "aarch64.neon.sqshrn", ty,
         getLoc(E->getExprLoc()));
@@ -4095,7 +4096,7 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
         builder,
         {builder.getExtendedOrTruncatedElementVectorType(
              vTy, true /* extend */,
-             mlir::cast<cir::IntType>(vTy.getEltType()).isSigned()),
+             mlir::cast<cir::IntType>(vTy.getElementType()).isSigned()),
          SInt32Ty},
         Ops, "aarch64.neon.rshrn", ty, getLoc(E->getExprLoc()));
   case NEON::BI__builtin_neon_vqrshrn_n_v:
@@ -4103,7 +4104,7 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
         builder,
         {builder.getExtendedOrTruncatedElementVectorType(
              vTy, true /* extend */,
-             mlir::cast<cir::IntType>(vTy.getEltType()).isSigned()),
+             mlir::cast<cir::IntType>(vTy.getElementType()).isSigned()),
          SInt32Ty},
         Ops, usgn ? "aarch64.neon.uqrshrn" : "aarch64.neon.sqrshrn", ty,
         getLoc(E->getExprLoc()));
@@ -4469,7 +4470,7 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   case NEON::BI__builtin_neon_vld1_lane_v:
   case NEON::BI__builtin_neon_vld1q_lane_v: {
     Ops[1] = builder.createBitcast(Ops[1], vTy);
-    Ops[0] = builder.createAlignedLoad(Ops[0].getLoc(), vTy.getEltType(),
+    Ops[0] = builder.createAlignedLoad(Ops[0].getLoc(), vTy.getElementType(),
                                        Ops[0], PtrOp0.getAlignment());
     return builder.create<cir::VecInsertOp>(getLoc(E->getExprLoc()), Ops[1],
                                             Ops[0], Ops[2]);
@@ -4477,7 +4478,7 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   case NEON::BI__builtin_neon_vldap1_lane_s64:
   case NEON::BI__builtin_neon_vldap1q_lane_s64: {
     cir::LoadOp Load = builder.createAlignedLoad(
-        Ops[0].getLoc(), vTy.getEltType(), Ops[0], PtrOp0.getAlignment());
+        Ops[0].getLoc(), vTy.getElementType(), Ops[0], PtrOp0.getAlignment());
     Load.setAtomic(cir::MemOrder::Acquire);
     return builder.create<cir::VecInsertOp>(getLoc(E->getExprLoc()),
                                             builder.createBitcast(Ops[1], vTy),
@@ -4485,7 +4486,7 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   }
   case NEON::BI__builtin_neon_vld1_dup_v:
   case NEON::BI__builtin_neon_vld1q_dup_v: {
-    Address ptrAddr = PtrOp0.withElementType(builder, vTy.getEltType());
+    Address ptrAddr = PtrOp0.withElementType(builder, vTy.getElementType());
     mlir::Value val = builder.createLoad(getLoc(E->getExprLoc()), ptrAddr);
     cir::VecSplatOp vecSplat =
         builder.create<cir::VecSplatOp>(getLoc(E->getExprLoc()), vTy, val);

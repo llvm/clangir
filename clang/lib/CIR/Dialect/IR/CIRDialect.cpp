@@ -504,8 +504,8 @@ LogicalResult cir::CastOp::verify() {
       mlir::isa<cir::VectorType>(resType)) {
     // Use the element type of the vector to verify the cast kind. (Except for
     // bitcast, see below.)
-    srcType = mlir::dyn_cast<cir::VectorType>(srcType).getEltType();
-    resType = mlir::dyn_cast<cir::VectorType>(resType).getEltType();
+    srcType = mlir::dyn_cast<cir::VectorType>(srcType).getElementType();
+    resType = mlir::dyn_cast<cir::VectorType>(resType).getElementType();
   }
 
   switch (getKind()) {
@@ -545,7 +545,7 @@ LogicalResult cir::CastOp::verify() {
     if (!arrayTy)
       return emitOpError() << "requires !cir.array pointee";
 
-    if (arrayTy.getEltType() != flatPtrTy.getPointee())
+    if (arrayTy.getElementType() != flatPtrTy.getPointee())
       return emitOpError()
              << "requires same type for array element and pointee result";
     return success();
@@ -1046,7 +1046,7 @@ LogicalResult cir::VecCreateOp::verify() {
                          << " doesn't match vector type " << VecTy
                          << " element count of " << VecTy.getSize();
   }
-  auto ElementType = VecTy.getEltType();
+  auto ElementType = VecTy.getElementType();
   for (auto Element : getElements()) {
     if (Element.getType() != ElementType) {
       return emitOpError() << "operand type " << Element.getType()
@@ -1088,7 +1088,8 @@ LogicalResult cir::VecShuffleOp::verify() {
   }
   // The element types of the two input vectors and of the result type must
   // match.
-  if (getVec1().getType().getEltType() != getResult().getType().getEltType()) {
+  if (getVec1().getType().getElementType() !=
+      getResult().getType().getElementType()) {
     return emitOpError() << ": element types of " << getVec1().getType()
                          << " and " << getResult().getType() << " don't match";
   }
@@ -3313,7 +3314,7 @@ LogicalResult cir::ConstArrayAttr::verify(
 
   if (auto strAttr = mlir::dyn_cast<mlir::StringAttr>(attr)) {
     cir::ArrayType at = mlir::cast<cir::ArrayType>(type);
-    auto intTy = mlir::dyn_cast<cir::IntType>(at.getEltType());
+    auto intTy = mlir::dyn_cast<cir::IntType>(at.getElementType());
 
     // TODO: add CIR type for char.
     if (!intTy || intTy.getWidth() != 8) {
@@ -3435,7 +3436,8 @@ LogicalResult cir::ConstVectorAttr::verify(
           return;
         }
         auto typedElement = mlir::dyn_cast<TypedAttr>(element);
-        if (!typedElement || typedElement.getType() != vecType.getEltType()) {
+        if (!typedElement ||
+            typedElement.getType() != vecType.getElementType()) {
           elementTypeCheck = failure();
           emitError() << "constant type should match vector element type";
         }
