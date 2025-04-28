@@ -80,12 +80,10 @@ def CIR_IntType : CIR_Type<"Int", "int",
 // FloatType
 //===----------------------------------------------------------------------===//
 
-class CIR_FloatType<string name, string mnemonic>
-    : CIR_Type<name, mnemonic,
-          [
-            DeclareTypeInterfaceMethods<DataLayoutTypeInterface>,
-            DeclareTypeInterfaceMethods<CIRFPTypeInterface>,
-          ]> {}
+class CIR_FloatType<string name, string mnemonic> : CIR_Type<name, mnemonic, [
+  DeclareTypeInterfaceMethods<DataLayoutTypeInterface>,
+  DeclareTypeInterfaceMethods<CIRFPTypeInterface>
+]>;
 
 def CIR_Single : CIR_FloatType<"Single", "float"> {
   let summary = "CIR single-precision float type";
@@ -99,7 +97,7 @@ def CIR_Double : CIR_FloatType<"Double", "double"> {
   let summary = "CIR double-precision float type";
   let description = [{
     Floating-point type that represents the `double` type in C/C++. Its
-    underlying floating-point format is the IEEE-754 binar64 format.
+    underlying floating-point format is the IEEE-754 binary64 format.
   }];
 }
 
@@ -138,24 +136,16 @@ def CIR_LongDouble : CIR_FloatType<"LongDouble", "long_double"> {
 
     The underlying floating-point format of a long double value depends on the
     implementation. The `underlying` parameter specifies the CIR floating-point
-    type that corresponds to this format. For now, it can only be either
-    `!cir.double` or `!cir.fp80`.
+    type that corresponds to this format.
   }];
 
-  let parameters = (ins "mlir::Type":$underlying);
+  let parameters = (ins AnyTypeOf<[CIR_Double, CIR_FP80, CIR_FP128],
+    "expects !cir.double, !cir.fp80 or !cir.fp128">:$underlying);
 
   let assemblyFormat = [{
     `<` $underlying `>`
   }];
-
-  let genVerifyDecl = 1;
 }
-
-// Constraints
-
-def CIR_AnyFloat: AnyTypeOf<[CIR_Single, CIR_Double, CIR_FP80, CIR_FP128, CIR_LongDouble,
-    CIR_FP16, CIR_BFloat16]>;
-def CIR_AnyIntOrFloat: AnyTypeOf<[CIR_AnyFloat, CIR_IntType]>;
 
 //===----------------------------------------------------------------------===//
 // ComplexType
@@ -568,11 +558,12 @@ def FPVector : Type<
 
 // Constraints
 def CIR_AnyIntOrVecOfInt: AnyTypeOf<[CIR_IntType, IntegerVector]>;
+
 def CIR_AnySignedIntOrVecOfSignedInt: AnyTypeOf<[
   CIR_AnyFundamentalSIntType, SignedIntegerVector
 ]>;
 
-def CIR_AnyFloatOrVecOfFloat: AnyTypeOf<[CIR_AnyFloat, FPVector]>;
+def CIR_AnyFloatOrVecOfFloat: AnyTypeOf<[CIR_AnyFloatType, FPVector]>;
 
 // Pointer to Arrays
 def ArrayPtr : Type<
@@ -669,7 +660,7 @@ def CIR_RecordType : CIR_Type<"Record", "record",
       CArg<"ASTRecordDeclInterface", "{}">:$ast
     ), [{
       return $_get($_ctxt, members, name, /*complete=*/true, packed, padded,
-                       kind, ast);    
+                       kind, ast);
     }]>,
 
     // Create an identified and incomplete record type.
@@ -680,7 +671,7 @@ def CIR_RecordType : CIR_Type<"Record", "record",
       return $_get($_ctxt, /*members=*/llvm::ArrayRef<Type>{}, name,
                          /*complete=*/false, /*packed=*/false,
                          /*padded=*/false, kind,
-                         /*ast=*/ASTRecordDeclInterface{});    
+                         /*ast=*/ASTRecordDeclInterface{});
     }]>,
 
     // Create an anonymous record type (always complete).
@@ -757,8 +748,7 @@ def CIRRecordType : Type<
 def CIR_AnyType : AnyTypeOf<[
   CIR_IntType, CIR_PointerType, CIR_DataMemberType, CIR_MethodType,
   CIR_BoolType, CIR_ArrayType, CIR_VectorType, CIR_FuncType, CIR_VoidType,
-  CIR_RecordType, CIR_ExceptionType, CIR_AnyFloat, CIR_FP16, CIR_BFloat16,
-  CIR_ComplexType
+  CIR_RecordType, CIR_ExceptionType, CIR_AnyFloatType, CIR_ComplexType
 ]>;
 
 #endif // MLIR_CIR_DIALECT_CIR_TYPES

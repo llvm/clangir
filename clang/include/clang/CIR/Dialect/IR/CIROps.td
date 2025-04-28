@@ -4724,7 +4724,7 @@ def FrameAddrOp : FuncAddrBuiltinOp<"frame_address"> {
 
 class UnaryFPToIntBuiltinOp<string mnemonic, string llvmOpName>
     : CIR_Op<mnemonic, [Pure]> {
-  let arguments = (ins CIR_AnyFloat:$src);
+  let arguments = (ins CIR_AnyFloatType:$src);
   let results = (outs CIR_IntType:$result);
 
   let summary = [{
@@ -4847,7 +4847,7 @@ def IsFPClassOp : CIR_Op<"is_fp_class"> {
     | 9 | Positive infinity  |
   }];
 
-  let arguments = (ins CIR_AnyFloat:$src,
+  let arguments = (ins CIR_AnyFloatType:$src,
                        I32Attr:$flags);
   let results = (outs CIR_BoolType:$result);
   let assemblyFormat = [{
@@ -5708,7 +5708,7 @@ def SignBitOp : CIR_Op<"signbit", [Pure]> {
     It returns whether the sign bit (i.e. the highest bit) of the input operand
     is set.
   }];
-  let arguments = (ins CIR_AnyFloat:$input);
+  let arguments = (ins CIR_AnyFloatType:$input);
   let results = (outs CIR_BoolType:$res);
   let assemblyFormat = [{
       $input attr-dict `:` type($input) `->` qualified(type($res))
