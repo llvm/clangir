@@ -368,9 +368,9 @@ mlir::Value emitAddressAtOffset(LowerFunction &LF, mlir::Value addr,
 }
 
 /// Creates a coerced value from \param src having a type of \param ty which is
-/// a non primitive type
-mlir::Value createCoercedNonPrimitive(mlir::Value src, mlir::Type ty,
-                                      LowerFunction &LF) {
+/// a non fundamental integer type
+mlir::Value createCoercedNonFundamental(mlir::Value src, mlir::Type ty,
+                                        LowerFunction &LF) {
   if (auto load = mlir::dyn_cast<LoadOp>(src.getDefiningOp())) {
     auto &bld = LF.getRewriter();
     auto addr = load.getAddr();
@@ -413,8 +413,8 @@ mlir::Value castReturnValue(mlir::Value Src, mlir::Type Ty, LowerFunction &LF) {
     return createBitcast(Src, Ty, LF);
 
   auto intTy = mlir::dyn_cast<IntType>(Ty);
-  if (intTy && !intTy.isPrimitive())
-    return createCoercedNonPrimitive(Src, Ty, LF);
+  if (intTy && !intTy.isFundamental())
+    return createCoercedNonFundamental(Src, Ty, LF);
 
   llvm::TypeSize DstSize = LF.LM.getDataLayout().getTypeAllocSize(Ty);
 
