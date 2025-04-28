@@ -388,20 +388,20 @@ DataMemberType::getABIAlignment(const ::mlir::DataLayout &dataLayout,
 llvm::TypeSize
 ArrayType::getTypeSizeInBits(const ::mlir::DataLayout &dataLayout,
                              ::mlir::DataLayoutEntryListRef params) const {
-  return getSize() * dataLayout.getTypeSizeInBits(getEltType());
+  return getSize() * dataLayout.getTypeSizeInBits(getElementType());
 }
 
 uint64_t
 ArrayType::getABIAlignment(const ::mlir::DataLayout &dataLayout,
                            ::mlir::DataLayoutEntryListRef params) const {
-  return dataLayout.getTypeABIAlignment(getEltType());
+  return dataLayout.getTypeABIAlignment(getElementType());
 }
 
 llvm::TypeSize cir::VectorType::getTypeSizeInBits(
     const ::mlir::DataLayout &dataLayout,
     ::mlir::DataLayoutEntryListRef params) const {
-  return llvm::TypeSize::getFixed(getSize() *
-                                  dataLayout.getTypeSizeInBits(getEltType()));
+  return llvm::TypeSize::getFixed(
+      getSize() * dataLayout.getTypeSizeInBits(getElementType()));
 }
 
 uint64_t
@@ -765,7 +765,7 @@ bool cir::isFPOrFPVectorTy(mlir::Type t) {
 
   if (isa<cir::VectorType>(t)) {
     return isAnyFloatingPointType(
-        mlir::dyn_cast<cir::VectorType>(t).getEltType());
+        mlir::dyn_cast<cir::VectorType>(t).getElementType());
   }
   return isAnyFloatingPointType(t);
 }
@@ -777,7 +777,8 @@ bool cir::isFPOrFPVectorTy(mlir::Type t) {
 bool cir::isIntOrIntVectorTy(mlir::Type t) {
 
   if (isa<cir::VectorType>(t)) {
-    return isa<cir::IntType>(mlir::dyn_cast<cir::VectorType>(t).getEltType());
+    return isa<cir::IntType>(
+        mlir::dyn_cast<cir::VectorType>(t).getElementType());
   }
   return isa<cir::IntType>(t);
 }

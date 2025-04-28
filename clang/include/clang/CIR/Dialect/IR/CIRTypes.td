@@ -350,18 +350,18 @@ def CIR_ArrayType : CIR_Type<"Array", "array",
     `CIR.array` represents C/C++ constant arrays.
   }];
 
-  let parameters = (ins "mlir::Type":$eltType, "uint64_t":$size);
+  let parameters = (ins "mlir::Type":$elementType, "uint64_t":$size);
 
   let builders = [
     TypeBuilderWithInferredContext<(ins
-      "mlir::Type":$eltType, "uint64_t":$size
+      "mlir::Type":$elementType, "uint64_t":$size
     ), [{
-        return $_get(eltType.getContext(), eltType, size);
+        return $_get(elementType.getContext(), elementType, size);
     }]>,
   ];
 
   let assemblyFormat = [{
-    `<` $eltType `x` $size `>`
+    `<` $elementType `x` $size `>`
   }];
 }
 
@@ -378,18 +378,18 @@ def CIR_VectorType : CIR_Type<"Vector", "vector",
     element type and the number of elements.
   }];
 
-  let parameters = (ins "mlir::Type":$eltType, "uint64_t":$size);
+  let parameters = (ins "mlir::Type":$elementType, "uint64_t":$size);
 
   let builders = [
     TypeBuilderWithInferredContext<(ins
-      "mlir::Type":$eltType, "uint64_t":$size
+      "mlir::Type":$elementType, "uint64_t":$size
     ), [{
-        return $_get(eltType.getContext(), eltType, size);
+        return $_get(elementType.getContext(), elementType, size);
     }]>,
   ];
 
   let assemblyFormat = [{
-    `<` $eltType `x` $size `>`
+    `<` $elementType `x` $size `>`
   }];
 }
 
@@ -588,9 +588,9 @@ def IntegerVector : Type<
     And<[
       CPred<"::mlir::isa<::cir::VectorType>($_self)">,
       CPred<"::mlir::isa<::cir::IntType>("
-            "::mlir::cast<::cir::VectorType>($_self).getEltType())">,
+            "::mlir::cast<::cir::VectorType>($_self).getElementType())">,
       CPred<"::mlir::cast<::cir::IntType>("
-            "::mlir::cast<::cir::VectorType>($_self).getEltType())"
+            "::mlir::cast<::cir::VectorType>($_self).getElementType())"
             ".isPrimitive()">
     ]>, "!cir.vector of !cir.int"> {
 }
@@ -600,9 +600,9 @@ def SignedIntegerVector : Type<
     And<[
       CPred<"::mlir::isa<::cir::VectorType>($_self)">,
       CPred<"::mlir::isa<::cir::IntType>("
-            "::mlir::cast<::cir::VectorType>($_self).getEltType())">,
+            "::mlir::cast<::cir::VectorType>($_self).getElementType())">,
       CPred<"::mlir::cast<::cir::IntType>("
-            "::mlir::cast<::cir::VectorType>($_self).getEltType())"
+            "::mlir::cast<::cir::VectorType>($_self).getElementType())"
             ".isSignedPrimitive()">
     ]>, "!cir.vector of !cir.int"> {
 }
@@ -612,7 +612,7 @@ def FPVector : Type<
     And<[
       CPred<"::mlir::isa<::cir::VectorType>($_self)">,
       CPred<"::mlir::isa<::cir::SingleType, ::cir::DoubleType>("
-            "::mlir::cast<::cir::VectorType>($_self).getEltType())">,
+            "::mlir::cast<::cir::VectorType>($_self).getElementType())">,
     ]>, "!cir.vector of !cir.fp"> {
 }
 

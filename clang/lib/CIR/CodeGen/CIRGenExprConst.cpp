@@ -1142,7 +1142,7 @@ public:
         return false;
 
       auto elementRecordType =
-          dyn_cast<cir::RecordType>(desiredArrayType.getEltType());
+          dyn_cast<cir::RecordType>(desiredArrayType.getElementType());
       if (!elementRecordType)
         return false;
 
@@ -1192,7 +1192,7 @@ public:
     }
     // Zero-fill the rest of the vector
     for (unsigned i = NumInits; i < NumElements; ++i) {
-      Elts.push_back(CGM.getBuilder().getZeroInitAttr(VecTy.getEltType()));
+      Elts.push_back(CGM.getBuilder().getZeroInitAttr(VecTy.getElementType()));
     }
     return cir::ConstVectorAttr::get(
         VecTy, mlir::ArrayAttr::get(CGM.getBuilder().getContext(), Elts));

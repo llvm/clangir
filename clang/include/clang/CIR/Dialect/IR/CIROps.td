@@ -3130,7 +3130,7 @@ def GetMethodOp : CIR_Op<"get_method"> {
 
 def VecInsertOp : CIR_Op<"vec.insert", [Pure,
   TypesMatchWith<"argument type matches vector element type", "vec", "value",
-                 "::mlir::cast<::cir::VectorType>($_self).getEltType()">,
+                 "::mlir::cast<::cir::VectorType>($_self).getElementType()">,
   AllTypesMatch<["result", "vec"]>]> {
 
   let summary = "Insert one element into a vector object";
@@ -3159,7 +3159,7 @@ def VecInsertOp : CIR_Op<"vec.insert", [Pure,
 
 def VecExtractOp : CIR_Op<"vec.extract", [Pure,
   TypesMatchWith<"type of 'result' matches element type of 'vec'", "vec",
-                 "result", "::mlir::cast<::cir::VectorType>($_self).getEltType()">]> {
+                 "result", "::mlir::cast<::cir::VectorType>($_self).getElementType()">]> {
 
   let summary = "Extract one element from a vector object";
   let description = [{
@@ -3214,7 +3214,7 @@ def VecCreateOp : CIR_Op<"vec.create", [Pure]> {
 
 def VecSplatOp : CIR_Op<"vec.splat", [Pure,
   TypesMatchWith<"type of 'value' matches element type of 'result'", "result",
-                 "value", "mlir::cast<VectorType>($_self).getEltType()">]> {
+                 "value", "mlir::cast<VectorType>($_self).getElementType()">]> {
 
   let summary = "Convert a scalar into a vector";
   let description = [{

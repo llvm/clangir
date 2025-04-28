@@ -65,7 +65,7 @@ void convertToDenseElementsAttrImpl(
   if (auto stringAttr = mlir::dyn_cast<mlir::StringAttr>(attr.getElts())) {
     if (auto arrayType = mlir::dyn_cast<cir::ArrayType>(attr.getType())) {
       for (auto element : stringAttr) {
-        auto intAttr = cir::IntAttr::get(arrayType.getEltType(), element);
+        auto intAttr = cir::IntAttr::get(arrayType.getElementType(), element);
         values[currentIndex++] = mlir::dyn_cast<AttrTy>(intAttr).getValue();
       }
       return;
@@ -133,7 +133,7 @@ lowerConstArrayAttr(cir::ConstArrayAttr constArr,
   auto dims = llvm::SmallVector<int64_t, 2>{};
   while (auto arrayType = mlir::dyn_cast<cir::ArrayType>(type)) {
     dims.push_back(arrayType.getSize());
-    type = arrayType.getEltType();
+    type = arrayType.getElementType();
   }
 
   if (mlir::isa<mlir::StringAttr>(constArr.getElts()))

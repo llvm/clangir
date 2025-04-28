@@ -19,7 +19,8 @@ mlir::Value CIRGenBuilderTy::maybeBuildArrayDecay(mlir::Location loc,
   if (arrayTy) {
     auto addrSpace = ::mlir::cast_if_present<cir::AddressSpaceAttr>(
         arrayPtrTy.getAddrSpace());
-    cir::PointerType flatPtrTy = getPointerTo(arrayTy.getEltType(), addrSpace);
+    cir::PointerType flatPtrTy =
+        getPointerTo(arrayTy.getElementType(), addrSpace);
     return create<cir::CastOp>(loc, flatPtrTy, cir::CastKind::array_to_ptrdecay,
                                arrayPtr);
   }
@@ -81,8 +82,8 @@ void CIRGenBuilderTy::computeGlobalViewIndicesFromFlatOffset(
   };
 
   if (auto ArrayTy = mlir::dyn_cast<cir::ArrayType>(Ty)) {
-    int64_t EltSize = Layout.getTypeAllocSize(ArrayTy.getEltType());
-    SubType = ArrayTy.getEltType();
+    int64_t EltSize = Layout.getTypeAllocSize(ArrayTy.getElementType());
+    SubType = ArrayTy.getElementType();
     const auto [Index, NewOffset] = getIndexAndNewOffset(Offset, EltSize);
     Indices.push_back(Index);
     Offset = NewOffset;
@@ -124,7 +125,7 @@ uint64_t CIRGenBuilderTy::computeOffsetFromGlobalViewIndices(
       assert(idx < (int64_t)sTy.getMembers().size());
       typ = sTy.getMembers()[idx];
     } else if (auto arTy = dyn_cast<cir::ArrayType>(typ)) {
-      typ = arTy.getEltType();
+      typ = arTy.getElementType();
       offset += layout.getTypeAllocSize(typ) * idx;
     } else {
       llvm_unreachable("NYI");
