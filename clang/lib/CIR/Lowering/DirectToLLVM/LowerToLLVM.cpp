@@ -1860,8 +1860,10 @@ mlir::LogicalResult CIRToLLVMConstantOpLowering::matchAndRewrite(
       rewriter.eraseOp(op);
       return mlir::success();
     }
-  } else if (const auto recordAttr =
-                 mlir::dyn_cast<cir::ConstRecordAttr>(op.getValue())) {
+  }
+
+  else if (const auto recordAttr =
+               mlir::dyn_cast<cir::ConstRecordAttr>(op.getValue())) {
     // TODO(cir): this diverges from traditional lowering. Normally the
     // initializer would be a global constant that is memcopied. Here we just
     // define a local constant with llvm.undef that will be stored into the
@@ -2421,6 +2423,9 @@ mlir::LogicalResult CIRToLLVMGlobalOpLowering::lowerInitializer(
   } else if (mlir::isa<cir::ConstArrayAttr>(init)) {
     return lowerInitializerForConstArray(rewriter, op, init,
                                          useInitializerRegion);
+  } else if (mlir::isa<cir::ConstVectorAttr>(init)) {
+    return lowerInitializerForConstVector(rewriter, op, init,
+                                          useInitializerRegion);
   } else if (auto dataMemberAttr = mlir::dyn_cast<cir::DataMemberAttr>(init)) {
     assert(lowerMod && "lower module is not available");
     mlir::DataLayout layout(op->getParentOfType<mlir::ModuleOp>());
@@ -2437,6 +2442,26 @@ mlir::LogicalResult CIRToLLVMGlobalOpLowering::lowerInitializer(
   }
   llvm_unreachable("unreachable");
 }
+
+mlir::LogicalResult CIRToLLVMGlobalOpLowering::lowerInitializerForConstVector(
+    mlir::ConversionPatternRewriter &rewriter, cir::GlobalOp op,
+    mlir::Attribute &init, bool &useInitializerRegion) const {
+  auto constVec = mlir::cast<cir::ConstVectorAttr>(init);
+  if (const auto attr = mlir::dyn_cast<mlir::ArrayAttr>(constVec.getElts())) {
+    if (auto val = lowerConstVectorAttr(constVec, getTypeConverter());
+        val.has_value()) {
+      init = val.value();
+      useInitializerRegion = false;
+    } else
+      useInitializerRegion = true;
+    return mlir::success();
+  }
+
+  op.emitError() << "unsupported lowering for #cir.const_vector with value "
+                 << constVec.getElts();
+  return mlir::failure();
+}
+
 mlir::LogicalResult CIRToLLVMGlobalOpLowering::lowerInitializerForConstArray(
     mlir::ConversionPatternRewriter &rewriter, cir::GlobalOp op,
     mlir::Attribute &init, bool &useInitializerRegion) const {
