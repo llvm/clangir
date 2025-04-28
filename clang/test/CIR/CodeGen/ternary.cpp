@@ -70,3 +70,28 @@ int foo(int a, int b) {
 // CHECK:   }) : (!cir.bool) -> !s32i
 // CHECK:   [[RES_CAST:%.*]] = cir.cast(int_to_bool, [[RES]] : !s32i), !cir.bool
 // CHECK:   cir.if [[RES_CAST]]
+
+void maybe_has_side_effects();
+
+bool func(bool a, bool b) {
+    return (maybe_has_side_effects(), a) ?: b;
+}
+
+// CHECK:  cir.func @_Z4funcbb([[ARG_A:%.*]]: !cir.bool {{.*}}, [[ARG_B:%.*]]: !cir.bool {{.*}}
+// CHECK:    [[ALLOC_A:%.*]] = cir.alloca !cir.bool, !cir.ptr<!cir.bool>, ["a", init]
+// CHECK:    [[ALLOC_B:%.*]] = cir.alloca !cir.bool, !cir.ptr<!cir.bool>, ["b", init]
+// CHECK:    [[ALLOC_RET:%.*]] = cir.alloca !cir.bool, !cir.ptr<!cir.bool>, ["__retval"]
+// CHECK:    cir.store [[ARG_A]], [[ALLOC_A]] : !cir.bool, !cir.ptr<!cir.bool>
+// CHECK:    cir.store [[ARG_B]], [[ALLOC_B]] : !cir.bool, !cir.ptr<!cir.bool>
+// CHECK:    cir.call @_Z22maybe_has_side_effectsv() : () -> ()
+// CHECK:    [[A0:%.*]] = cir.load [[ALLOC_A]] : !cir.ptr<!cir.bool>, !cir.bool
+// CHECK:    [[RES:%.*]] = cir.ternary([[A0]], true {
+// CHECK:      [[A1:%.*]] = cir.load [[ALLOC_A]] : !cir.ptr<!cir.bool>, !cir.bool
+// CHECK:      cir.yield [[A1]] : !cir.bool
+// CHECK:    }, false {
+// CHECK:      [[B0:%.*]] = cir.load [[ALLOC_B]] : !cir.ptr<!cir.bool>, !cir.bool
+// CHECK:      cir.yield [[B0]] : !cir.bool
+// CHECK:    }) : (!cir.bool) -> !cir.bool
+// CHECK:    cir.store [[RES]], [[ALLOC_RET]] : !cir.bool, !cir.ptr<!cir.bool>
+// CHECK:    [[R:%.*]] = cir.load [[ALLOC_RET]] : !cir.ptr<!cir.bool>, !cir.bool
+// CHECK:    cir.return [[R]] : !cir.bool
