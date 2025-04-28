@@ -1851,7 +1851,7 @@ void CIRGenFunction::emitCXXAggrConstructorCall(
 
   auto arrayTy = mlir::dyn_cast<cir::ArrayType>(arrayBase.getElementType());
   assert(arrayTy && "expected array type");
-  auto elementType = arrayTy.getEltType();
+  auto elementType = arrayTy.getElementType();
   auto ptrToElmType = builder.getPointerTo(elementType);
 
   // Tradional LLVM codegen emits a loop here.

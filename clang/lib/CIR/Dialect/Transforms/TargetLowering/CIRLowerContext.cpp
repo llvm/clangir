@@ -178,7 +178,7 @@ int64_t CIRLowerContext::toBits(clang::CharUnits CharSize) const {
 /// instead of in bits prevents overflowing the uint64_t for some large arrays.
 clang::TypeInfoChars getConstantArrayInfoInChars(const CIRLowerContext &ctx,
                                                  cir::ArrayType arrTy) {
-  clang::TypeInfoChars eltInfo = ctx.getTypeInfoInChars(arrTy.getEltType());
+  clang::TypeInfoChars eltInfo = ctx.getTypeInfoInChars(arrTy.getElementType());
   uint64_t tySize = arrTy.getSize();
   assert((tySize == 0 || static_cast<uint64_t>(eltInfo.Width.getQuantity()) <=
                              (uint64_t)(-1) / tySize) &&

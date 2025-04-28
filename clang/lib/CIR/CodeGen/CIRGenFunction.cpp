@@ -1912,7 +1912,8 @@ CIRGenFunction::emitArrayLength(const clang::ArrayType *origArrayType,
     countFromCLAs *= cirArrayType.getSize();
     eltType = arrayType->getElementType();
 
-    cirArrayType = mlir::dyn_cast<cir::ArrayType>(cirArrayType.getEltType());
+    cirArrayType =
+        mlir::dyn_cast<cir::ArrayType>(cirArrayType.getElementType());
 
     arrayType = getContext().getAsArrayType(arrayType->getElementType());
     assert((!cirArrayType || arrayType) &&

@@ -1470,7 +1470,8 @@ void CIRGenModule::emitGlobalVarDefinition(const clang::VarDecl *d,
     // TODO(cir): pointer to array decay. Should this be modeled explicitly in
     // CIR?
     if (arrayTy)
-      initType = cir::PointerType::get(&getMLIRContext(), arrayTy.getEltType());
+      initType =
+          cir::PointerType::get(&getMLIRContext(), arrayTy.getElementType());
   } else {
     assert(mlir::isa<mlir::TypedAttr>(init) && "This should have a type");
     auto typedInitAttr = mlir::cast<mlir::TypedAttr>(init);
@@ -1698,7 +1699,7 @@ CIRGenModule::getConstantArrayFromStringLiteral(const StringLiteral *e) {
   auto arrayTy = mlir::dyn_cast<cir::ArrayType>(convertType(e->getType()));
   assert(arrayTy && "string literals must be emitted as an array type");
 
-  auto arrayEltTy = mlir::dyn_cast<cir::IntType>(arrayTy.getEltType());
+  auto arrayEltTy = mlir::dyn_cast<cir::IntType>(arrayTy.getElementType());
   assert(arrayEltTy &&
          "string literal elements must be emitted as integral type");
 
@@ -1838,8 +1839,8 @@ CIRGenModule::getAddrOfConstantStringFromLiteral(const StringLiteral *s,
 
   auto arrayTy = mlir::dyn_cast<cir::ArrayType>(gv.getSymType());
   assert(arrayTy && "String literal must be array");
-  auto ptrTy =
-      getBuilder().getPointerTo(arrayTy.getEltType(), gv.getAddrSpaceAttr());
+  auto ptrTy = getBuilder().getPointerTo(arrayTy.getElementType(),
+                                         gv.getAddrSpaceAttr());
 
   return builder.getGlobalViewAttr(ptrTy, gv);
 }

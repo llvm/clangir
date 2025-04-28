@@ -631,7 +631,7 @@ public:
 
     auto type = op.getLhs().getType();
     if (auto VecType = mlir::dyn_cast<cir::VectorType>(type)) {
-      type = VecType.getEltType();
+      type = VecType.getElementType();
     }
 
     switch (op.getKind()) {
@@ -996,7 +996,7 @@ public:
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto vecTy = mlir::dyn_cast<cir::VectorType>(op.getType());
     assert(vecTy && "result type of cir.vec.create op is not VectorType");
-    auto elementTy = typeConverter->convertType(vecTy.getEltType());
+    auto elementTy = typeConverter->convertType(vecTy.getElementType());
     auto loc = op.getLoc();
     auto zeroElement = rewriter.getZeroAttr(elementTy);
     mlir::Value result = rewriter.create<mlir::arith::ConstantOp>(
@@ -1056,7 +1056,7 @@ public:
            mlir::isa<cir::VectorType>(op.getRhs().getType()) &&
            "Vector compare with non-vector type");
     auto elementType =
-        mlir::cast<cir::VectorType>(op.getLhs().getType()).getEltType();
+        mlir::cast<cir::VectorType>(op.getLhs().getType()).getElementType();
     mlir::Value bitResult;
     if (auto intType = mlir::dyn_cast<cir::IntType>(elementType)) {
       bitResult = rewriter.create<mlir::arith::CmpIOp>(
@@ -1372,7 +1372,7 @@ static mlir::TypeConverter prepareTypeConverter() {
     mlir::Type curType = type;
     while (auto arrayType = dyn_cast<cir::ArrayType>(curType)) {
       shape.push_back(arrayType.getSize());
-      curType = arrayType.getEltType();
+      curType = arrayType.getElementType();
     }
     auto elementType = converter.convertType(curType);
     // FIXME: The element type might not be converted (e.g. struct)
@@ -1381,7 +1381,7 @@ static mlir::TypeConverter prepareTypeConverter() {
     return mlir::MemRefType::get(shape, elementType);
   });
   converter.addConversion([&](cir::VectorType type) -> mlir::Type {
-    auto ty = converter.convertType(type.getEltType());
+    auto ty = converter.convertType(type.getElementType());
     return mlir::VectorType::get(type.getSize(), ty);
   });
   return converter;
