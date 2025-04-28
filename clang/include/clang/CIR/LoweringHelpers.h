@@ -43,10 +43,19 @@ convertToDenseElementsAttr(cir::ConstArrayAttr attr,
                            const llvm::SmallVectorImpl<int64_t> &dims,
                            mlir::Type type);
 
+template <typename AttrTy, typename StorageTy>
+mlir::DenseElementsAttr
+convertToDenseElementsAttr(cir::ConstVectorAttr attr,
+                           const llvm::SmallVectorImpl<int64_t> &dims,
+                           mlir::Type type);
+
 std::optional<mlir::Attribute>
 lowerConstArrayAttr(cir::ConstArrayAttr constArr,
                     const mlir::TypeConverter *converter);
 
-} // namespace cir::direct
+std::optional<mlir::Attribute>
+lowerConstVectorAttr(cir::ConstVectorAttr constArr,
+                     const mlir::TypeConverter *converter);
 
+} // namespace cir::direct
 #endif
