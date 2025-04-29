@@ -208,7 +208,7 @@ lowerConstVectorAttr(cir::ConstVectorAttr constArr,
   auto dims = llvm::SmallVector<int64_t, 2>{};
   while (auto arrayType = mlir::dyn_cast<cir::ArrayType>(type)) {
     dims.push_back(arrayType.getSize());
-    type = arrayType.getEltType();
+    type = arrayType.getElementType();
   }
 
   if (mlir::isa<cir::IntType>(type))
