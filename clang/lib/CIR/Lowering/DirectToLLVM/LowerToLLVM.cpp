@@ -1779,7 +1779,7 @@ mlir::LogicalResult CIRToLLVMConstantOpLowering::matchAndRewrite(
         mlir::cast<cir::FPAttr>(op.getValue()).getValue());
   } else if (auto complexTy = mlir::dyn_cast<cir::ComplexType>(op.getType())) {
     auto complexAttr = mlir::cast<cir::ComplexAttr>(op.getValue());
-    auto complexElemTy = complexTy.getElementTy();
+    auto complexElemTy = complexTy.getElementType();
     auto complexElemLLVMTy = typeConverter->convertType(complexElemTy);
 
     mlir::Attribute components[2];
@@ -4482,7 +4482,7 @@ void prepareTypeConverter(mlir::LLVMTypeConverter &converter,
   converter.addConversion([&](cir::ComplexType type) -> mlir::Type {
     // A complex type is lowered to an LLVM struct that contains the real and
     // imaginary part as data fields.
-    mlir::Type elementTy = converter.convertType(type.getElementTy());
+    mlir::Type elementTy = converter.convertType(type.getElementType());
     mlir::Type structFields[2] = {elementTy, elementTy};
     return mlir::LLVM::LLVMStructType::getLiteral(type.getContext(),
                                                   structFields);

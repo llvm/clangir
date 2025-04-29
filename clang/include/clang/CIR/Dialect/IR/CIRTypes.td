@@ -159,24 +159,35 @@ def CIR_ComplexType : CIR_Type<"Complex", "complex",
     CIR type that represents a C complex number. `cir.complex` models the C type
     `T _Complex`.
 
-    The parameter `elementTy` gives the type of the real and imaginary part of
-    the complex number. `elementTy` must be either a CIR integer type or a CIR
+    The type models complex values, per C99 6.2.5p11. It supports the C99
+    complex float types as well as the GCC integer complex extensions.
+
+    The parameter `elementType` gives the type of the real and imaginary part of
+    the complex number. `elementType` must be either a CIR integer type or a CIR
     floating-point type.
   }];
 
-  let parameters = (ins "mlir::Type":$elementTy);
+  let parameters = (ins CIR_AnyIntOrFloatType:$elementType);
 
   let builders = [
-    TypeBuilderWithInferredContext<(ins "mlir::Type":$elementTy), [{
-      return $_get(elementTy.getContext(), elementTy);
+    TypeBuilderWithInferredContext<(ins "mlir::Type":$elementType), [{
+      return $_get(elementType.getContext(), elementType);
     }]>,
   ];
 
   let assemblyFormat = [{
-    `<` $elementTy `>`
+    `<` $elementType `>`
   }];
 
-  let genVerifyDecl = 1;
+  let extraClassDeclaration = [{
+    bool isFloatingPointComplex() const {
+      return isAnyFloatingPointType(getElementType());
+    }
+
+    bool isIntegerComplex() const {
+      return mlir::isa<cir::IntType>(getElementType());
+    }
+  }];
 }
 
 //===----------------------------------------------------------------------===//
