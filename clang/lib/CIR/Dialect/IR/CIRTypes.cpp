@@ -388,20 +388,20 @@ DataMemberType::getABIAlignment(const ::mlir::DataLayout &dataLayout,
 llvm::TypeSize
 ArrayType::getTypeSizeInBits(const ::mlir::DataLayout &dataLayout,
                              ::mlir::DataLayoutEntryListRef params) const {
-  return getSize() * dataLayout.getTypeSizeInBits(getEltType());
+  return getSize() * dataLayout.getTypeSizeInBits(getElementType());
 }
 
 uint64_t
 ArrayType::getABIAlignment(const ::mlir::DataLayout &dataLayout,
                            ::mlir::DataLayoutEntryListRef params) const {
-  return dataLayout.getTypeABIAlignment(getEltType());
+  return dataLayout.getTypeABIAlignment(getElementType());
 }
 
 llvm::TypeSize cir::VectorType::getTypeSizeInBits(
     const ::mlir::DataLayout &dataLayout,
     ::mlir::DataLayoutEntryListRef params) const {
-  return llvm::TypeSize::getFixed(getSize() *
-                                  dataLayout.getTypeSizeInBits(getEltType()));
+  return llvm::TypeSize::getFixed(
+      getSize() * dataLayout.getTypeSizeInBits(getElementType()));
 }
 
 uint64_t
@@ -441,15 +441,13 @@ RecordType::computeUnionSize(const mlir::DataLayout &dataLayout) const {
   // This is a similar algorithm to LLVM's StructLayout.
   unsigned recordSize = 0;
   llvm::Align recordAlignment{1};
-  unsigned numElements = getNumElements();
-  auto members = getMembers();
-  unsigned largestMemberSize = 0;
 
   auto largestMember = getLargestMember(dataLayout);
   recordSize = dataLayout.getTypeSize(largestMember);
 
   // If the union is padded, add the padding to the size.
   if (getPadded()) {
+    unsigned numElements = getNumElements();
     auto ty = getMembers()[numElements - 1];
     recordSize += dataLayout.getTypeSize(ty);
   }
@@ -767,7 +765,7 @@ bool cir::isFPOrFPVectorTy(mlir::Type t) {
 
   if (isa<cir::VectorType>(t)) {
     return isAnyFloatingPointType(
-        mlir::dyn_cast<cir::VectorType>(t).getEltType());
+        mlir::dyn_cast<cir::VectorType>(t).getElementType());
   }
   return isAnyFloatingPointType(t);
 }
@@ -779,7 +777,8 @@ bool cir::isFPOrFPVectorTy(mlir::Type t) {
 bool cir::isIntOrIntVectorTy(mlir::Type t) {
 
   if (isa<cir::VectorType>(t)) {
-    return isa<cir::IntType>(mlir::dyn_cast<cir::VectorType>(t).getEltType());
+    return isa<cir::IntType>(
+        mlir::dyn_cast<cir::VectorType>(t).getElementType());
   }
   return isa<cir::IntType>(t);
 }

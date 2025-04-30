@@ -78,3 +78,48 @@ public:
 // CHECK:   }
 
 void foo() { B(); }
+
+class A2 {
+public:
+  ~A2();
+};
+
+struct B2 {
+  template <typename> using C = A2;
+};
+
+struct E {
+  typedef B2::C<int> D;
+};
+
+struct F {
+  F(long, A2);
+};
+
+class G : F {
+public:
+  A2 h;
+  G(long) : F(i(), h) {}
+  long i() { k(E::D()); };
+  long k(E::D);
+};
+
+int j;
+void m() { G l(j); }
+
+// CHECK: cir.func private @_ZN1G1kE2A2(!cir.ptr<!rec_G>, !rec_A2) -> !s64i
+// CHECK: cir.func linkonce_odr @_ZN1G1iEv(%arg0: !cir.ptr<!rec_G>
+// CHECK:   %[[V0:.*]] = cir.alloca !cir.ptr<!rec_G>, !cir.ptr<!cir.ptr<!rec_G>>, ["this", init] {alignment = 8 : i64}
+// CHECK:   %[[V1:.*]] = cir.alloca !s64i, !cir.ptr<!s64i>, ["__retval"] {alignment = 8 : i64}
+// CHECK:   cir.store %arg0, %[[V0]] : !cir.ptr<!rec_G>, !cir.ptr<!cir.ptr<!rec_G>>
+// CHECK:   %[[V2:.*]] = cir.load %[[V0]] : !cir.ptr<!cir.ptr<!rec_G>>, !cir.ptr<!rec_G>
+// CHECK:   %[[V3:.*]] = cir.scope {
+// CHECK:     %[[V4:.*]] = cir.alloca !rec_A2, !cir.ptr<!rec_A2>, ["agg.tmp0"] {alignment = 1 : i64}
+// CHECK:     cir.call @_ZN2A2C2Ev(%[[V4]]) : (!cir.ptr<!rec_A2>) -> ()
+// CHECK:     %[[V5:.*]] = cir.load %[[V4]] : !cir.ptr<!rec_A2>, !rec_A2
+// CHECK:     %[[V6:.*]] = cir.call @_ZN1G1kE2A2(%[[V2]], %[[V5]]) : (!cir.ptr<!rec_G>, !rec_A2) -> !s64i
+// CHECK:     cir.call @_ZN2A2D1Ev(%[[V4]]) : (!cir.ptr<!rec_A2>) -> ()
+// CHECK:     cir.yield %[[V6]] : !s64i
+// CHECK:   } : !s64i
+// CHECK:   cir.trap
+// CHECK: }

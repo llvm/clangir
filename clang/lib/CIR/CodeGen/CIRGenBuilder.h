@@ -405,7 +405,7 @@ public:
   cir::VectorType
   getExtendedOrTruncatedElementVectorType(cir::VectorType vt, bool isExtended,
                                           bool isSigned = false) {
-    auto elementTy = mlir::dyn_cast_or_null<cir::IntType>(vt.getEltType());
+    auto elementTy = mlir::dyn_cast_or_null<cir::IntType>(vt.getElementType());
     assert(elementTy && "expected int vector");
     return cir::VectorType::get(isExtended
                                     ? getExtendedIntTy(elementTy, isSigned)
@@ -534,7 +534,7 @@ public:
                   cir::BoolType, cir::IntType, cir::CIRFPTypeInterface>(ty))
       return true;
     if (mlir::isa<cir::VectorType>(ty)) {
-      return isSized(mlir::cast<cir::VectorType>(ty).getEltType());
+      return isSized(mlir::cast<cir::VectorType>(ty).getElementType());
     }
     assert(0 && "Unimplemented size for type");
     return false;
@@ -904,7 +904,7 @@ public:
   createVecShuffle(mlir::Location loc, mlir::Value vec1, mlir::Value vec2,
                    llvm::ArrayRef<mlir::Attribute> maskAttrs) {
     auto vecType = mlir::cast<cir::VectorType>(vec1.getType());
-    auto resultTy = cir::VectorType::get(getContext(), vecType.getEltType(),
+    auto resultTy = cir::VectorType::get(getContext(), vecType.getElementType(),
                                          maskAttrs.size());
     return CIRBaseBuilderTy::create<cir::VecShuffleOp>(
         loc, resultTy, vec1, vec2, getArrayAttr(maskAttrs));

@@ -924,9 +924,9 @@ def ConditionOp : CIR_Op<"condition", [
 //===----------------------------------------------------------------------===//
 
 def YieldOp : CIR_Op<"yield", [ReturnLike, Terminator,
-    ParentOneOf<["IfOp", "ScopeOp", "SwitchOp", "WhileOp", "ForOp", "AwaitOp",
-                 "TernaryOp", "GlobalOp", "DoWhileOp", "TryOp", "ArrayCtor",
-                 "ArrayDtor", "CallOp", "CaseOp"]>]> {
+    ParentOneOf<["ArrayCtor", "ArrayDtor", "AwaitOp", "CallOp", "CaseOp",
+                 "DoWhileOp", "ForOp", "GlobalOp", "IfOp", "ScopeOp",
+                 "SwitchOp", "TernaryOp", "TryOp", "WhileOp"]>]> {
   let summary = "Represents the default branching behaviour of a region";
   let description = [{
     The `cir.yield` operation terminates regions on different CIR operations,
@@ -3124,7 +3124,7 @@ def GetMethodOp : CIR_Op<"get_method"> {
 
 def VecInsertOp : CIR_Op<"vec.insert", [Pure,
   TypesMatchWith<"argument type matches vector element type", "vec", "value",
-                 "cast<VectorType>($_self).getEltType()">,
+                 "cast<VectorType>($_self).getElementType()">,
   AllTypesMatch<["result", "vec"]>]> {
 
   let summary = "Insert one element into a vector object";
@@ -3153,7 +3153,7 @@ def VecInsertOp : CIR_Op<"vec.insert", [Pure,
 
 def VecExtractOp : CIR_Op<"vec.extract", [Pure,
   TypesMatchWith<"type of 'result' matches element type of 'vec'", "vec",
-                 "result", "cast<VectorType>($_self).getEltType()">]> {
+                 "result", "cast<VectorType>($_self).getElementType()">]> {
 
   let summary = "Extract one element from a vector object";
   let description = [{
@@ -3208,7 +3208,7 @@ def VecCreateOp : CIR_Op<"vec.create", [Pure]> {
 
 def VecSplatOp : CIR_Op<"vec.splat", [Pure,
   TypesMatchWith<"type of 'value' matches element type of 'result'", "result",
-                 "value", "cast<VectorType>($_self).getEltType()">]> {
+                 "value", "cast<VectorType>($_self).getElementType()">]> {
 
   let summary = "Convert a scalar into a vector";
   let description = [{

@@ -237,7 +237,8 @@ public:
   }
   mlir::Value VisitOpaqueValueExpr(OpaqueValueExpr *E) {
     if (E->isGLValue())
-      llvm_unreachable("NYI");
+      return emitLoadOfLValue(CGF.getOrCreateOpaqueLValueMapping(E),
+                              E->getExprLoc());
 
     // Otherwise, assume the mapping is the scalar directly.
     return CGF.getOrCreateOpaqueRValueMapping(E).getScalarVal();
@@ -2001,7 +2002,7 @@ mlir::Value ScalarExprEmitter::VisitInitListExpr(InitListExpr *E) {
     if (NumInitElements < VectorType.getSize()) {
       mlir::Value ZeroValue = CGF.getBuilder().create<cir::ConstantOp>(
           CGF.getLoc(E->getSourceRange()),
-          CGF.getBuilder().getZeroInitAttr(VectorType.getEltType()));
+          CGF.getBuilder().getZeroInitAttr(VectorType.getElementType()));
       for (uint64_t i = NumInitElements; i < VectorType.getSize(); ++i) {
         Elements.push_back(ZeroValue);
       }
@@ -2096,8 +2097,8 @@ mlir::Value ScalarExprEmitter::emitScalarCast(mlir::Value Src, QualType SrcType,
   mlir::Type FullDstTy = DstTy;
   if (mlir::isa<cir::VectorType>(SrcTy) && mlir::isa<cir::VectorType>(DstTy)) {
     // Use the element types of the vectors to figure out the CastKind.
-    SrcTy = mlir::dyn_cast<cir::VectorType>(SrcTy).getEltType();
-    DstTy = mlir::dyn_cast<cir::VectorType>(DstTy).getEltType();
+    SrcTy = mlir::dyn_cast<cir::VectorType>(SrcTy).getElementType();
+    DstTy = mlir::dyn_cast<cir::VectorType>(DstTy).getElementType();
   }
   assert(!mlir::isa<cir::VectorType>(SrcTy) &&
          !mlir::isa<cir::VectorType>(DstTy) &&
@@ -2375,14 +2376,15 @@ mlir::Value ScalarExprEmitter::VisitExprWithCleanups(ExprWithCleanups *E) {
                                               builder.getInsertionBlock()};
         auto scopeYieldVal = Visit(E->getSubExpr());
         if (scopeYieldVal) {
+          // Defend against dominance problems caused by jumps out of expression
+          // evaluation through the shared cleanup block. We do not pass {&V} to
+          // ForceCleanup, because the scope returns an rvalue.
+          lexScope.ForceCleanup();
           builder.create<cir::YieldOp>(loc, scopeYieldVal);
           yieldTy = scopeYieldVal.getType();
         }
       });
 
-  // Defend against dominance problems caused by jumps out of expression
-  // evaluation through the shared cleanup block.
-  // TODO(cir): Scope.ForceCleanup({&V});
   return scope.getNumResults() > 0 ? scope->getResult(0) : nullptr;
 }
 
