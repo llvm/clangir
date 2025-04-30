@@ -410,6 +410,23 @@ cir::VectorType::getABIAlignment(const ::mlir::DataLayout &dataLayout,
   return llvm::NextPowerOf2(dataLayout.getTypeSizeInBits(*this));
 }
 
+mlir::LogicalResult cir::VectorType::verify(
+    llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
+    mlir::Type elementType, uint64_t size) {
+  if (size == 0)
+    return emitError() << "the number of vector elements must be non-zero";
+
+  // Check if it a valid FixedVectorType
+  if (mlir::isa<cir::PointerType, cir::FP128Type>(elementType))
+    return success();
+
+  // Check if it a valid VectorType
+  if (mlir::isa<cir::IntType>(elementType) ||
+      isAnyFloatingPointType(elementType))
+    return success();
+
+  return emitError() << "unsupported element type for CIR vector";
+}
 // TODO(cir): Implement a way to cache the datalayout info calculated below.
 
 llvm::TypeSize
