@@ -4448,7 +4448,7 @@ void prepareTypeConverter(mlir::LLVMTypeConverter &converter,
   });
   converter.addConversion([&](cir::VectorType type) -> mlir::Type {
     auto ty = converter.convertType(type.getElementType());
-    return mlir::LLVM::getFixedVectorType(ty, type.getSize());
+    return mlir::VectorType::get(type.getSize(), ty);
   });
   converter.addConversion([&](cir::BoolType type) -> mlir::Type {
     return mlir::IntegerType::get(type.getContext(), 1,
