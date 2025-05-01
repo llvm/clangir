@@ -798,18 +798,6 @@ bool cir::isIntOrIntVectorTy(mlir::Type t) {
 // ComplexType Definitions
 //===----------------------------------------------------------------------===//
 
-mlir::LogicalResult cir::ComplexType::verify(
-    llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
-    mlir::Type elementTy) {
-  if (!mlir::isa<cir::IntType, cir::CIRFPTypeInterface>(elementTy)) {
-    emitError() << "element type of !cir.complex must be either a "
-                   "floating-point type or an integer type";
-    return failure();
-  }
-
-  return success();
-}
-
 llvm::TypeSize
 cir::ComplexType::getTypeSizeInBits(const mlir::DataLayout &dataLayout,
                                     mlir::DataLayoutEntryListRef params) const {
@@ -818,8 +806,7 @@ cir::ComplexType::getTypeSizeInBits(const mlir::DataLayout &dataLayout,
   //   as an array type containing exactly two elements of the corresponding
   //   real type.
 
-  auto elementTy = getElementTy();
-  return dataLayout.getTypeSizeInBits(elementTy) * 2;
+  return dataLayout.getTypeSizeInBits(getElementType()) * 2;
 }
 
 uint64_t
@@ -830,8 +817,7 @@ cir::ComplexType::getABIAlignment(const mlir::DataLayout &dataLayout,
   //   as an array type containing exactly two elements of the corresponding
   //   real type.
 
-  auto elementTy = getElementTy();
-  return dataLayout.getTypeABIAlignment(elementTy);
+  return dataLayout.getTypeABIAlignment(getElementType());
 }
 
 //===----------------------------------------------------------------------===//

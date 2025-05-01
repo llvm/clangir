@@ -831,7 +831,7 @@ mlir::Value
 ComplexExprEmitter::VisitImaginaryLiteral(const ImaginaryLiteral *IL) {
   auto Loc = CGF.getLoc(IL->getExprLoc());
   auto Ty = mlir::cast<cir::ComplexType>(CGF.convertType(IL->getType()));
-  auto ElementTy = Ty.getElementTy();
+  auto ElementTy = Ty.getElementType();
 
   mlir::TypedAttr RealValueAttr;
   mlir::TypedAttr ImagValueAttr;
@@ -875,8 +875,7 @@ mlir::Value CIRGenFunction::emitPromotedComplexExpr(const Expr *E,
 
 mlir::Value CIRGenFunction::emitPromotedValue(mlir::Value result,
                                               QualType PromotionType) {
-  assert(mlir::isa<cir::CIRFPTypeInterface>(
-             mlir::cast<cir::ComplexType>(result.getType()).getElementTy()) &&
+  assert(!mlir::cast<cir::ComplexType>(result.getType()).isIntegerComplex() &&
          "integral complex will never be promoted");
   return builder.createCast(cir::CastKind::float_complex, result,
                             convertType(PromotionType));
@@ -884,8 +883,7 @@ mlir::Value CIRGenFunction::emitPromotedValue(mlir::Value result,
 
 mlir::Value CIRGenFunction::emitUnPromotedValue(mlir::Value result,
                                                 QualType UnPromotionType) {
-  assert(mlir::isa<cir::CIRFPTypeInterface>(
-             mlir::cast<cir::ComplexType>(result.getType()).getElementTy()) &&
+  assert(!mlir::cast<cir::ComplexType>(result.getType()).isIntegerComplex() &&
          "integral complex will never be promoted");
   return builder.createCast(cir::CastKind::float_complex, result,
                             convertType(UnPromotionType));

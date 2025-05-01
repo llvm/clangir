@@ -311,12 +311,12 @@ public:
 
   mlir::Value createComplexReal(mlir::Location loc, mlir::Value operand) {
     auto operandTy = mlir::cast<cir::ComplexType>(operand.getType());
-    return create<cir::ComplexRealOp>(loc, operandTy.getElementTy(), operand);
+    return create<cir::ComplexRealOp>(loc, operandTy.getElementType(), operand);
   }
 
   mlir::Value createComplexImag(mlir::Location loc, mlir::Value operand) {
     auto operandTy = mlir::cast<cir::ComplexType>(operand.getType());
-    return create<cir::ComplexImagOp>(loc, operandTy.getElementTy(), operand);
+    return create<cir::ComplexImagOp>(loc, operandTy.getElementType(), operand);
   }
 
   mlir::Value createComplexBinOp(mlir::Location loc, mlir::Value lhs,

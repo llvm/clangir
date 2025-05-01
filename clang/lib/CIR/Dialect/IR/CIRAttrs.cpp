@@ -357,12 +357,12 @@ LogicalResult FPAttr::verify(function_ref<InFlightDiagnostic()> emitError,
 LogicalResult ComplexAttr::verify(function_ref<InFlightDiagnostic()> emitError,
                                   cir::ComplexType type, mlir::TypedAttr real,
                                   mlir::TypedAttr imag) {
-  auto elemTy = type.getElementTy();
-  if (real.getType() != elemTy) {
+  auto elemType = type.getElementType();
+  if (real.getType() != elemType) {
     emitError() << "type of the real part does not match the complex type";
     return failure();
   }
-  if (imag.getType() != elemTy) {
+  if (imag.getType() != elemType) {
     emitError() << "type of the imaginary part does not match the complex type";
     return failure();
   }
