@@ -10,6 +10,7 @@ add_clang_library(MLIRCIR
   DEPENDS
   MLIRBuiltinLocationAttributesIncGen
   MLIRCIROpsIncGen
+  MLIRCIRTypeConstraintsIncGen
   MLIRCIREnumsGen
   MLIRSymbolInterfacesIncGen
   MLIRCIRASTAttrInterfacesIncGen
