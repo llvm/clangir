@@ -3978,8 +3978,7 @@ mlir::LogicalResult CIRToLLVMDeleteArrayOpLowering::matchAndRewrite(
 
   // Replace the operation with a call to _ZdaPv with the pointer argument
   rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(
-      op, mlir::TypeRange{},
-      fnName, mlir::ValueRange{adaptor.getAddress()});
+      op, mlir::TypeRange{}, fnName, mlir::ValueRange{adaptor.getAddress()});
 
   return mlir::success();
 }
