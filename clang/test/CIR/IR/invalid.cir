@@ -1525,3 +1525,10 @@ cir.global external dsolocal @vfp = #cir.ptr<null> : !cir.ptr<!cir.func<(!s32i) 
 
 // expected-error @below {{variadic `...` must be the last parameter}}
 !fty = !cir.func<(..., !s32i)>
+
+// -----
+
+// Verify that complex type does not accept arbitrary type
+
+// expected-error @below {{integer or floating point type}}
+!complex = !cir.complex<!cir.ptr<!cir.void>>

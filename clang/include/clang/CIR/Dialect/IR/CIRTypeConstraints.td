@@ -135,6 +135,16 @@ def CIR_AnyFloatType : AnyTypeOf<[
     let cppFunctionName = "isAnyFloatingPointType";
 }
 
-def CIR_AnyIntOrFloat : AnyTypeOf<[CIR_AnyFloatType, CIR_AnyIntType]>;
+def CIR_AnyIntOrFloatType : AnyTypeOf<[CIR_AnyFloatType, CIR_AnyIntType],
+    "integer or floating point type"
+> {
+    let cppFunctionName = "isAnyIntegerOrFloatingPointType";
+}
+
+//===----------------------------------------------------------------------===//
+// Complex Type predicates
+//===----------------------------------------------------------------------===//
+
+def CIR_AnyComplexType : CIR_TypeBase<"::cir::ComplexType", "complex type">;
 
 #endif // CLANG_CIR_DIALECT_IR_CIRTYPECONSTRAINTS_TD

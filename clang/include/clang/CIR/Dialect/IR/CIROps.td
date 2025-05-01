@@ -1386,7 +1386,10 @@ def ComplexCreateOp : CIR_Op<"complex.create", [Pure, SameTypeOperands]> {
   }];
 
   let results = (outs CIR_ComplexType:$result);
-  let arguments = (ins CIR_AnyIntOrFloat:$real, CIR_AnyIntOrFloat:$imag);
+  let arguments = (ins
+    CIR_AnyIntOrFloatType:$real,
+    CIR_AnyIntOrFloatType:$imag
+  );
 
   let assemblyFormat = [{
     $real `,` $imag
@@ -1414,7 +1417,7 @@ def ComplexRealOp : CIR_Op<"complex.real", [Pure]> {
     ```
   }];
 
-  let results = (outs CIR_AnyIntOrFloat:$result);
+  let results = (outs CIR_AnyIntOrFloatType:$result);
   let arguments = (ins CIR_ComplexType:$operand);
 
   let assemblyFormat = [{
@@ -1439,7 +1442,7 @@ def ComplexImagOp : CIR_Op<"complex.imag", [Pure]> {
     ```
   }];
 
-  let results = (outs CIR_AnyIntOrFloat:$result);
+  let results = (outs CIR_AnyIntOrFloatType:$result);
   let arguments = (ins CIR_ComplexType:$operand);
 
   let assemblyFormat = [{
@@ -5564,9 +5567,9 @@ def AtomicFetch : CIR_Op<"atomic.fetch",
     %res = cir.atomic.fetch(add, %ptr : !cir.ptr<!s32i>,
                             %val : !s32i, seq_cst) : !s32i
   }];
-  let results = (outs CIR_AnyIntOrFloat:$result);
+  let results = (outs CIR_AnyIntOrFloatType:$result);
   let arguments = (ins Arg<PrimitiveIntOrFPPtr, "", [MemRead, MemWrite]>:$ptr,
-                       CIR_AnyIntOrFloat:$val,
+                       CIR_AnyIntOrFloatType:$val,
                        AtomicFetchKind:$binop,
                        Arg<MemOrder, "memory order">:$mem_order,
                        UnitAttr:$is_volatile,

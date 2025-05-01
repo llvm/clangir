@@ -816,7 +816,7 @@ public:
     auto srcPtrTy = mlir::cast<cir::PointerType>(value.getType());
     auto srcComplexTy = mlir::cast<cir::ComplexType>(srcPtrTy.getPointee());
     return create<cir::ComplexRealPtrOp>(
-        loc, getPointerTo(srcComplexTy.getElementTy()), value);
+        loc, getPointerTo(srcComplexTy.getElementType()), value);
   }
 
   Address createRealPtr(mlir::Location loc, Address addr) {
@@ -830,7 +830,7 @@ public:
     auto srcPtrTy = mlir::cast<cir::PointerType>(value.getType());
     auto srcComplexTy = mlir::cast<cir::ComplexType>(srcPtrTy.getPointee());
     return create<cir::ComplexImagPtrOp>(
-        loc, getPointerTo(srcComplexTy.getElementTy()), value);
+        loc, getPointerTo(srcComplexTy.getElementType()), value);
   }
 
   Address createImagPtr(mlir::Location loc, Address addr) {
