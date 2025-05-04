@@ -216,16 +216,14 @@ void CIRGenNVCUDARuntime::emitDeviceStubBodyNew(CIRGenFunction &cgf,
   auto kernel = [&]() {
     if (auto globalOp = llvm::dyn_cast_or_null<cir::GlobalOp>(
             KernelHandles[fn.getSymName()])) {
-      auto kernelTy =
-          cir::PointerType::get(&cgm.getMLIRContext(), globalOp.getSymType());
+      auto kernelTy = cir::PointerType::get(globalOp.getSymType());
       mlir::Value kernel = builder.create<cir::GetGlobalOp>(
           loc, kernelTy, globalOp.getSymName());
       return kernel;
     }
     if (auto funcOp = llvm::dyn_cast_or_null<cir::FuncOp>(
             KernelHandles[fn.getSymName()])) {
-      auto kernelTy = cir::PointerType::get(&cgm.getMLIRContext(),
-                                            funcOp.getFunctionType());
+      auto kernelTy = cir::PointerType::get(funcOp.getFunctionType());
       mlir::Value kernel =
           builder.create<cir::GetGlobalOp>(loc, kernelTy, funcOp.getSymName());
       mlir::Value func = builder.createBitcast(kernel, cgm.VoidPtrTy);

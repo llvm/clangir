@@ -75,8 +75,7 @@ static Address emitAddrOfFieldStorage(CIRGenFunction &CGF, Address Base,
   auto loc = CGF.getLoc(field->getLocation());
 
   auto fieldType = CGF.convertType(field->getType());
-  auto fieldPtr =
-      cir::PointerType::get(CGF.getBuilder().getContext(), fieldType);
+  auto fieldPtr = cir::PointerType::get(fieldType);
   // For most cases fieldName is the same as field->getName() but for lambdas,
   // which do not currently carry the name, so it can be passed down from the
   // CaptureStmt.
@@ -262,7 +261,7 @@ Address CIRGenFunction::getAddrOfBitFieldStorage(LValue base,
   if (index == 0)
     return base.getAddress();
   auto loc = getLoc(field->getLocation());
-  auto fieldPtr = cir::PointerType::get(getBuilder().getContext(), fieldType);
+  auto fieldPtr = cir::PointerType::get(fieldType);
   auto sea = getBuilder().createGetMember(loc, fieldPtr, base.getPointer(),
                                           field->getName(), index);
   return Address(sea, CharUnits::One());
@@ -984,13 +983,13 @@ static LValue emitFunctionDeclLValue(CIRGenFunction &CGF, const Expr *E,
   CharUnits align = CGF.getContext().getDeclAlign(FD);
 
   mlir::Type fnTy = funcOp.getFunctionType();
-  auto ptrTy = cir::PointerType::get(CGF.getBuilder().getContext(), fnTy);
+  auto ptrTy = cir::PointerType::get(fnTy);
   mlir::Value addr = CGF.getBuilder().create<cir::GetGlobalOp>(
       loc, ptrTy, funcOp.getSymName());
 
   if (funcOp.getFunctionType() != CGF.convertType(FD->getType())) {
     fnTy = CGF.convertType(FD->getType());
-    ptrTy = cir::PointerType::get(CGF.getBuilder().getContext(), fnTy);
+    ptrTy = cir::PointerType::get(fnTy);
 
     addr = CGF.getBuilder().create<cir::CastOp>(addr.getLoc(), ptrTy,
                                                 cir::CastKind::bitcast, addr);
@@ -1542,15 +1541,14 @@ RValue CIRGenFunction::emitCall(clang::QualType CalleeType,
     // get non-variadic function type
     CalleeTy = cir::FuncType::get(CalleeTy.getInputs(),
                                   CalleeTy.getReturnType(), false);
-    auto CalleePtrTy = cir::PointerType::get(&getMLIRContext(), CalleeTy);
+    auto CalleePtrTy = cir::PointerType::get(CalleeTy);
 
     auto *Fn = Callee.getFunctionPointer();
     mlir::Value Addr;
     if (auto funcOp = llvm::dyn_cast<cir::FuncOp>(Fn)) {
       Addr = builder.create<cir::GetGlobalOp>(
           getLoc(E->getSourceRange()),
-          cir::PointerType::get(&getMLIRContext(), funcOp.getFunctionType()),
-          funcOp.getSymName());
+          cir::PointerType::get(funcOp.getFunctionType()), funcOp.getSymName());
     } else {
       Addr = Fn->getResult(0);
     }
@@ -2956,7 +2954,7 @@ mlir::Value CIRGenFunction::emitLoadOfScalar(Address addr, bool isVolatile,
   auto Ptr = addr.getPointer();
   if (mlir::isa<cir::VoidType>(eltTy)) {
     eltTy = cir::IntType::get(&getMLIRContext(), 8, true);
-    auto ElemPtrTy = cir::PointerType::get(&getMLIRContext(), eltTy);
+    auto ElemPtrTy = cir::PointerType::get(eltTy);
     Ptr = builder.create<cir::CastOp>(loc, ElemPtrTy, cir::CastKind::bitcast,
                                       Ptr);
   }
