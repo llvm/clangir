@@ -734,7 +734,7 @@ module {
 module {
   // Should not memcpy non-void pointers.
   cir.func @invalid_memcpy_pointer_0(%arg0 : !cir.ptr<!s8i>, %arg1 : !u32i) {
-    // expected-error@+1 {{'cir.libc.memcpy' op operand #0 must be void*, but got '!cir.ptr<!cir.int<s, 8>>'}}
+    // expected-error@+1 {{'cir.libc.memcpy' op operand #0 must be pointer to void type, but got '!cir.ptr<!cir.int<s, 8>>'}}
     cir.libc.memcpy %arg1 bytes from %arg0 to %arg0 : !u32i, !cir.ptr<!s8i> -> !cir.ptr<!s8i>
     cir.return
   }
@@ -747,7 +747,7 @@ module {
 module {
   // Should not memcpy non-void pointers.
   cir.func @invalid_memcpy_pointer_1(%arg0 : !cir.ptr<!cir.void>, %arg1 : !cir.ptr<!s8i>, %arg2 : !u32i) {
-    // expected-error@+1 {{'cir.libc.memcpy' op operand #1 must be void*, but got '!cir.ptr<!cir.int<s, 8>>'}}
+    // expected-error@+1 {{'cir.libc.memcpy' op operand #1 must be pointer to void type, but got '!cir.ptr<!cir.int<s, 8>>'}}
     cir.libc.memcpy %arg2 bytes from %arg1 to %arg0 : !u32i, !cir.ptr<!s8i> -> !cir.ptr<!cir.void>
     cir.return
   }

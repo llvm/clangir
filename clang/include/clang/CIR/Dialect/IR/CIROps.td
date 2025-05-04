@@ -1037,7 +1037,7 @@ def ResumeOp : CIR_Op<"resume", [ReturnLike, Terminator,
     ```
   }];
 
-  let arguments = (ins Optional<VoidPtr>:$exception_ptr,
+  let arguments = (ins Optional<CIR_VoidPtrType>:$exception_ptr,
                        Optional<CIR_UInt32>:$type_id,
                        UnitAttr:$rethrow);
   let assemblyFormat = [{
@@ -2661,7 +2661,7 @@ def VTTAddrPointOp : CIR_Op<"vtt.address_point",
   let arguments = (ins OptionalAttr<FlatSymbolRefAttr>:$name,
                        Optional<CIR_AnyType>:$sym_addr,
                        I32Attr:$offset);
-  let results = (outs Res<CIR_PointerType, "", []>:$addr);
+  let results = (outs CIR_PointerType:$addr);
 
   let assemblyFormat = [{
       ($name^)?
@@ -3114,7 +3114,7 @@ def GetMethodOp : CIR_Op<"get_method"> {
   }];
 
   let arguments = (ins CIR_MethodType:$method, RecordPtr:$object);
-  let results = (outs FuncPtr:$callee, VoidPtr:$adjusted_this);
+  let results = (outs FuncPtr:$callee, CIR_VoidPtrType:$adjusted_this);
 
   let assemblyFormat = [{
     $method `,` $object
@@ -4345,7 +4345,7 @@ def CatchParamOp : CIR_Op<"catch_param"> {
     ```
   }];
 
-  let arguments = (ins Optional<VoidPtr>:$exception_ptr,
+  let arguments = (ins Optional<CIR_VoidPtrType>:$exception_ptr,
                        OptionalAttr<CatchParamKind>:$kind);
   let results = (outs Optional<CIR_AnyType>:$param);
   let assemblyFormat = [{
@@ -4384,7 +4384,7 @@ def EhInflightOp : CIR_Op<"eh.inflight_exception"> {
 
   let arguments = (ins UnitAttr:$cleanup,
                        OptionalAttr<FlatSymbolRefArrayAttr>:$sym_type_list);
-  let results = (outs VoidPtr:$exception_ptr, CIR_UInt32:$type_id);
+  let results = (outs CIR_VoidPtrType:$exception_ptr, CIR_UInt32:$type_id);
   let assemblyFormat = [{
     (`cleanup` $cleanup^)?
     ($sym_type_list^)?
@@ -4462,9 +4462,10 @@ def CopyOp : CIR_Op<"copy",
 
 class CIR_MemOp<string mnemonic>
     : CIR_Op<mnemonic, [AllTypesMatch<["dst", "src"]>]> {
-  dag commonArgs = (ins Arg<VoidPtr, "", [MemWrite]>:$dst,
-      Arg<VoidPtr, "", [MemRead]>:$src);
-  let hasVerifier = 0;
+  dag commonArgs = (ins
+    Arg<CIR_VoidPtrType, "", [MemWrite]>:$dst,
+    Arg<CIR_VoidPtrType, "", [MemRead]>:$src
+  );
 }
 
 def MemCpyOp : CIR_MemOp<"libc.memcpy"> {
@@ -4581,7 +4582,7 @@ def MemSetOp : CIR_Op<"libc.memset"> {
   }];
 
   let arguments = (ins
-    Arg<VoidPtr, "", [MemWrite]>:$dst,
+    Arg<CIR_VoidPtrType, "", [MemWrite]>:$dst,
     CIR_SInt32:$val,
     CIR_AnyFundamentalUIntType:$len
   );
@@ -4615,7 +4616,7 @@ def MemSetInlineOp : CIR_Op<"memset_inline"> {
   }];
 
   let arguments = (ins
-    Arg<VoidPtr, "", [MemWrite]>:$dst,
+    Arg<CIR_VoidPtrType, "", [MemWrite]>:$dst,
     CIR_SInt32:$val,
     I64Attr:$len
   );
@@ -4647,12 +4648,12 @@ def MemChrOp : CIR_Op<"libc.memchr"> {
   // TODO: instead of using UInt64 for len, we could make it constrained on
   // size_t (64 or 32) and have a builder that does the right job.
   let arguments = (ins
-    Arg<VoidPtr, "", [MemRead]>:$src,
+    Arg<CIR_VoidPtrType, "", [MemRead]>:$src,
     CIR_SInt32:$pattern,
     CIR_UInt64:$len
   );
 
-  let results = (outs Res<VoidPtr, "">:$result);
+  let results = (outs CIR_VoidPtrType:$result);
 
   let assemblyFormat = [{
     `(`
@@ -4666,7 +4667,7 @@ def MemChrOp : CIR_Op<"libc.memchr"> {
 
 class FuncAddrBuiltinOp<string mnemonic> : CIR_Op<mnemonic, []> {
   let arguments = (ins CIR_UInt32:$level);
-  let results = (outs Res<VoidPtr, "">:$result);
+  let results = (outs CIR_VoidPtrType:$result);
   let assemblyFormat = [{
     `(` $level `)` attr-dict
   }];
@@ -4931,7 +4932,7 @@ def AssumeSepStorageOp : CIR_Op<"assume.separate_storage", [SameTypeOperands]> {
     builtin function.
   }];
 
-  let arguments = (ins VoidPtr:$ptr1, VoidPtr:$ptr2);
+  let arguments = (ins CIR_VoidPtrType:$ptr1, CIR_VoidPtrType:$ptr2);
 
   let assemblyFormat = [{
     $ptr1 `,` $ptr2 `:` qualified(type($ptr1)) attr-dict
@@ -5079,7 +5080,7 @@ def FreeExceptionOp : CIR_Op<"free.exception"> {
     ```
   }];
 
-  let arguments = (ins VoidPtr:$ptr);
+  let arguments = (ins CIR_VoidPtrType:$ptr);
   let results = (outs);
 
   let assemblyFormat = [{
@@ -5325,11 +5326,11 @@ def PrefetchOp : CIR_Op<"prefetch"> {
     If $isWrite doesn't specified it means that prefetch is prepared for 'read'.
   }];
 
-  let arguments = (
-    ins VoidPtr:$addr,
-        ConfinedAttr<I32Attr, [IntMinValue<0>,
-          IntMaxValue<3>]>:$locality,
-        UnitAttr:$isWrite);
+  let arguments = (ins
+    CIR_VoidPtrType:$addr,
+    ConfinedAttr<I32Attr, [IntMinValue<0>, IntMaxValue<3>]>:$locality,
+    UnitAttr:$isWrite
+  );
 
   let assemblyFormat = [{
     `(` $addr `:` qualified(type($addr)) `)`
@@ -5349,7 +5350,7 @@ def ClearCacheOp : CIR_Op<"clear_cache", [AllTypesMatch<["begin", "end"]>]> {
     CIR representation for `__builtin___clear_cache`.
   }];
 
-  let arguments = (ins VoidPtr:$begin, VoidPtr:$end);
+  let arguments = (ins CIR_VoidPtrType:$begin, CIR_VoidPtrType:$end);
   let assemblyFormat = [{
     $begin `:` qualified(type($begin)) `,`
     $end `,`
