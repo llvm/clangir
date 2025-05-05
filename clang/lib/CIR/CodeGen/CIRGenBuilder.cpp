@@ -95,6 +95,9 @@ void CIRGenBuilderTy::computeGlobalViewIndicesFromFlatOffset(
       unsigned AlignMask = Layout.getABITypeAlign(Elts[I]).value() - 1;
       if (RecordTy.getPacked())
         AlignMask = 0;
+      // Union's fields have the same offset, so no need to change Pos here,
+      // we just need to find EltSize that is greater then the required offset.
+      // The same is true for the similar union type check below
       if (!RecordTy.isUnion())
         Pos = (Pos + AlignMask) & ~AlignMask;
       assert(Offset >= 0);
@@ -104,6 +107,7 @@ void CIRGenBuilderTy::computeGlobalViewIndicesFromFlatOffset(
         Offset -= Pos;
         break;
       }
+      // No need to update Pos here, see the comment above.
       if (!RecordTy.isUnion())
         Pos += EltSize;
     }
