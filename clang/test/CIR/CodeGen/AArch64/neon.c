@@ -10045,12 +10045,29 @@ int32_t test_vqadds_s32(int32_t a, int32_t b) {
   // LLVM:   ret i32 [[VQADDS_S32_I]]
 }
 
-// NYI-LABEL: @test_vqaddd_s64(
-// NYI:   [[VQADDD_S64_I:%.*]] = call i64 @llvm.aarch64.neon.sqadd.i64(i64 %a, i64 %b)
-// NYI:   ret i64 [[VQADDD_S64_I]]
-// int64_t test_vqaddd_s64(int64_t a, int64_t b) {
-//   return vqaddd_s64(a, b);
-// }
+int64_t test_vqaddd_s64(int64_t a, int64_t b) {
+  return vqaddd_s64(a, b);
+
+  // CIR: vqaddd_s64
+  // CIR: cir.llvm.intrinsic "aarch64.neon.sqadd" {{%.*}}, {{%.*}} : (!s64i, !s64i) -> !s64i
+
+  // LLVM-LABEL: @test_vqaddd_s64
+  // LLVM-SAME: (i64{{.*}}[[a:%.*]], i64{{.*}}[[b:%.*]])
+  // LLVM:   [[VQADD_S64_I:%.*]] = call i64 @llvm.aarch64.neon.sqadd.i64(i64 [[a]], i64 [[b]])
+  // LLVM:   ret i64 [[VQADD_S64_I]]
+}
+
+uint64_t test_vqaddd_u64(uint64_t a, uint64_t b) {
+  return vqaddd_u64(a, b);
+
+  // CIR: vqaddd_u64
+  // CIR: cir.llvm.intrinsic "aarch64.neon.uqadd" {{%.*}}, {{%.*}} : (!u64i, !u64i) -> !u64i
+
+  // LLVM-LABEL: @test_vqaddd_u64
+  // LLVM-SAME: (i64{{.*}}[[a:%.*]], i64{{.*}}[[b:%.*]])
+  // LLVM:   [[VQADD_U64_I:%.*]] = call i64 @llvm.aarch64.neon.uqadd.i64(i64 [[a]], i64 [[b]])
+  // LLVM:   ret i64 [[VQADD_U64_I]]
+}
 
 // NYI-LABEL: @test_vqaddb_u8(
 // NYI:   [[TMP0:%.*]] = insertelement <8 x i8> poison, i8 %a, i64 0
@@ -10084,12 +10101,6 @@ uint32_t test_vqadds_u32(uint32_t a, uint32_t b) {
   // LLVM:   ret i32 [[VQADDS_U32_I]]
 }
 
-// NYI-LABEL: @test_vqaddd_u64(
-// NYI:   [[VQADDD_U64_I:%.*]] = call i64 @llvm.aarch64.neon.uqadd.i64(i64 %a, i64 %b)
-// NYI:   ret i64 [[VQADDD_U64_I]]
-// uint64_t test_vqaddd_u64(uint64_t a, uint64_t b) {
-//   return vqaddd_u64(a, b);
-// }
 
 // NYI-LABEL: @test_vqsubb_s8(
 // NYI:   [[TMP0:%.*]] = insertelement <8 x i8> poison, i8 %a, i64 0
