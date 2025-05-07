@@ -287,7 +287,7 @@ CIRGenFunction::emitCoroutineBody(const CoroutineBodyStmt &S) {
           .getResult();
 
   // Handle allocation failure if 'ReturnStmtOnAllocFailure' was provided.
-  if (auto *RetOnAllocFailure = S.getReturnStmtOnAllocFailure())
+  if (S.getReturnStmtOnAllocFailure())
     llvm_unreachable("NYI");
 
   {

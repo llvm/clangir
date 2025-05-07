@@ -2612,7 +2612,7 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   // can move this up to the beginning of the function.
   //   checkTargetFeatures(E, FD);
 
-  if (unsigned VectorWidth =
+  if ([[maybe_unused]] unsigned VectorWidth =
           getContext().BuiltinInfo.getRequiredVectorWidth(BuiltinID))
     llvm_unreachable("NYI");
 

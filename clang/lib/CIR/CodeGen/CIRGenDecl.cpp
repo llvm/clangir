@@ -377,7 +377,7 @@ void CIRGenFunction::emitAutoVarCleanups(const AutoVarEmission &emission) {
     assert(0 && "not implemented");
 
   // Handle the cleanup attribute.
-  if (const CleanupAttr *CA = D.getAttr<CleanupAttr>())
+  if (D.getAttr<CleanupAttr>())
     assert(0 && "not implemented");
 
   // TODO: handle block variable
@@ -436,9 +436,9 @@ static std::string getStaticDeclName(CIRGenModule &CGM, const VarDecl &D) {
     DC = cast<DeclContext>(CD->getNonClosureContext());
   if (const auto *FD = dyn_cast<FunctionDecl>(DC))
     ContextName = std::string(CGM.getMangledName(FD));
-  else if (const auto *BD = dyn_cast<BlockDecl>(DC))
+  else if (isa<BlockDecl>(DC))
     llvm_unreachable("block decl context for static var is NYI");
-  else if (const auto *OMD = dyn_cast<ObjCMethodDecl>(DC))
+  else if (isa<ObjCMethodDecl>(DC))
     llvm_unreachable("ObjC decl context for static var is NYI");
   else
     llvm_unreachable("Unknown context for static var decl");
@@ -520,9 +520,9 @@ CIRGenModule::getOrCreateStaticVarDecl(const VarDecl &D,
   }
 
   GlobalDecl GD;
-  if (const auto *CD = dyn_cast<CXXConstructorDecl>(DC))
+  if (isa<CXXConstructorDecl>(DC))
     llvm_unreachable("C++ constructors static var context is NYI");
-  else if (const auto *DD = dyn_cast<CXXDestructorDecl>(DC))
+  else if (isa<CXXDestructorDecl>(DC))
     llvm_unreachable("C++ destructors static var context is NYI");
   else if (const auto *FD = dyn_cast<FunctionDecl>(DC))
     GD = GlobalDecl(FD);
@@ -652,16 +652,16 @@ void CIRGenFunction::emitStaticVarDecl(const VarDecl &D,
   if (D.hasAttr<AnnotateAttr>())
     llvm_unreachable("Global annotations are NYI");
 
-  if (auto *SA = D.getAttr<PragmaClangBSSSectionAttr>())
+  if (D.getAttr<PragmaClangBSSSectionAttr>())
     llvm_unreachable("CIR global BSS section attribute is NYI");
-  if (auto *SA = D.getAttr<PragmaClangDataSectionAttr>())
+  if (D.getAttr<PragmaClangDataSectionAttr>())
     llvm_unreachable("CIR global Data section attribute is NYI");
-  if (auto *SA = D.getAttr<PragmaClangRodataSectionAttr>())
+  if (D.getAttr<PragmaClangRodataSectionAttr>())
     llvm_unreachable("CIR global Rodata section attribute is NYI");
-  if (auto *SA = D.getAttr<PragmaClangRelroSectionAttr>())
+  if (D.getAttr<PragmaClangRelroSectionAttr>())
     llvm_unreachable("CIR global Relro section attribute is NYI");
 
-  if (const SectionAttr *SA = D.getAttr<SectionAttr>())
+  if (D.getAttr<SectionAttr>())
     llvm_unreachable("CIR global object file section attribute is NYI");
 
   if (D.hasAttr<RetainAttr>())
@@ -749,7 +749,7 @@ void CIRGenFunction::emitExprAsInit(const Expr *init, const ValueDecl *D,
     AggValueSlot::Overlap_t Overlap = AggValueSlot::MayOverlap;
     if (isa<VarDecl>(D))
       Overlap = AggValueSlot::DoesNotOverlap;
-    else if (auto *FD = dyn_cast<FieldDecl>(D))
+    else if (isa<FieldDecl>(D))
       assert(false && "Field decl NYI");
     else
       assert(false && "Only VarDecl implemented so far");
@@ -768,6 +768,8 @@ void CIRGenFunction::emitDecl(const Decl &D) {
   case Decl::ImplicitConceptSpecialization:
   case Decl::HLSLBuffer:
   case Decl::TopLevelStmt:
+  case Decl::OpenACCDeclare:
+  case Decl::OpenACCRoutine:
     llvm_unreachable("NYI");
   case Decl::BuiltinTemplate:
   case Decl::TranslationUnit:
@@ -826,11 +828,11 @@ void CIRGenFunction::emitDecl(const Decl &D) {
     llvm_unreachable("Declaration should not be in declstmts!");
   case Decl::Record:    // struct/union/class X;
   case Decl::CXXRecord: // struct/union/class X; [C++]
-    if (auto *DI = getDebugInfo())
+    if (getDebugInfo())
       llvm_unreachable("NYI");
     return;
   case Decl::Enum: // enum X;
-    if (auto *DI = getDebugInfo())
+    if (getDebugInfo())
       llvm_unreachable("NYI");
     return;
   case Decl::Function:     // void X();
@@ -881,7 +883,7 @@ void CIRGenFunction::emitDecl(const Decl &D) {
   case Decl::Typedef:     // typedef int X;
   case Decl::TypeAlias: { // using X = int; [C++0x]
     QualType Ty = cast<TypedefNameDecl>(D).getUnderlyingType();
-    if (auto *DI = getDebugInfo())
+    if (getDebugInfo())
       assert(!cir::MissingFeatures::generateDebugInfo());
     if (Ty->isVariablyModifiedType())
       emitVariablyModifiedType(Ty);

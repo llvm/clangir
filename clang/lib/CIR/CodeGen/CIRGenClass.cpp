@@ -439,7 +439,7 @@ private:
           return Field;
       }
       return nullptr;
-    } else if (CXXMemberCallExpr *MCE = dyn_cast<CXXMemberCallExpr>(S)) {
+    } else if (isa<CXXMemberCallExpr>(S)) {
       // We want to represent all calls explicitly for analysis purposes.
       return nullptr;
     } else if (CallExpr *CE = dyn_cast<CallExpr>(S)) {

@@ -258,7 +258,8 @@ void ItaniumRecordLayoutBuilder::initializeLayout(const mlir::Type Ty) {
   cir_cconv_assert(!cir::MissingFeatures::recordDeclIsPacked());
 
   // Honor the default struct packing maximum alignment flag.
-  if (unsigned DefaultMaxFieldAlignment = Context.getLangOpts().PackStruct) {
+  if ([[maybe_unused]] unsigned DefaultMaxFieldAlignment =
+          Context.getLangOpts().PackStruct) {
     cir_cconv_unreachable("NYI");
   }
 

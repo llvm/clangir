@@ -35,7 +35,7 @@ namespace {
 
 mlir::Value buildAddressAtOffset(LowerFunction &LF, mlir::Value addr,
                                  const ABIArgInfo &info) {
-  if (unsigned offset = info.getDirectOffset()) {
+  if ([[maybe_unused]] unsigned offset = info.getDirectOffset()) {
     cir_cconv_unreachable("NYI");
   }
   return addr;
@@ -359,7 +359,7 @@ mlir::Value createCoercedValue(mlir::Value Src, mlir::Type Ty,
 
 mlir::Value emitAddressAtOffset(LowerFunction &LF, mlir::Value addr,
                                 const ABIArgInfo &info) {
-  if (unsigned offset = info.getDirectOffset()) {
+  if ([[maybe_unused]] unsigned offset = info.getDirectOffset()) {
     cir_cconv_unreachable("NYI");
   }
   return addr;
