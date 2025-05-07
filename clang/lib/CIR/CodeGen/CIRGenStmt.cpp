@@ -106,6 +106,9 @@ mlir::LogicalResult CIRGenFunction::emitStmt(const Stmt *S,
 
   switch (S->getStmtClass()) {
   case Stmt::OMPScopeDirectiveClass:
+  case Stmt::OMPStripeDirectiveClass:
+  case Stmt::OpenACCCacheConstructClass:
+  case Stmt::OpenACCAtomicConstructClass:
     llvm_unreachable("NYI");
   case Stmt::OMPErrorDirectiveClass:
   case Stmt::NoStmtClass:
