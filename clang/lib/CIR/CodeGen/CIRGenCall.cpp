@@ -308,7 +308,7 @@ void CIRGenFunction::emitAggregateStore(mlir::Value Val, Address Dest,
 
 static Address emitAddressAtOffset(CIRGenFunction &CGF, Address addr,
                                    const cir::ABIArgInfo &info) {
-  if (unsigned offset = info.getDirectOffset()) {
+  if ([[maybe_unused]] unsigned offset = info.getDirectOffset()) {
     llvm_unreachable("NYI");
   }
   return addr;
@@ -1380,8 +1380,7 @@ bool CIRGenModule::MayDropFunctionReturn(const ASTContext &astContext,
                                          QualType ReturnType) {
   // We can't just disard the return value for a record type with a complex
   // destructor or a non-trivially copyable type.
-  if (const RecordType *RT =
-          ReturnType.getCanonicalType()->getAs<RecordType>()) {
+  if (ReturnType.getCanonicalType()->getAs<RecordType>()) {
     llvm_unreachable("NYI");
   }
 

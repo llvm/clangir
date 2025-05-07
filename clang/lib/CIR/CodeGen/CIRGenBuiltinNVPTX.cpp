@@ -32,7 +32,7 @@ using namespace cir;
 
 mlir::Value CIRGenFunction::emitNVPTXBuiltinExpr(unsigned builtinId,
                                                  const CallExpr *expr) {
-  auto getIntrinsic = [&](const char *name) {
+  [[maybe_unused]] auto getIntrinsic = [&](const char *name) {
     mlir::Type intTy = cir::IntType::get(&getMLIRContext(), 32, false);
     return builder
         .create<cir::LLVMIntrinsicCallOp>(getLoc(expr->getExprLoc()),

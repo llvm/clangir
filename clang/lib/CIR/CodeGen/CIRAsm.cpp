@@ -122,7 +122,8 @@ static void collectClobbers(const CIRGenFunction &cgf, const AsmStmt &S,
 
   // Clobbers
   for (unsigned i = 0, e = S.getNumClobbers(); i != e; i++) {
-    StringRef clobber = S.getClobber(i);
+    std::string clobberStr = S.getClobber(i);
+    StringRef clobber{clobberStr};
     if (clobber == "memory")
       readOnly = readNone = false;
     else if (clobber == "unwind") {
