@@ -16,7 +16,7 @@
 class CIRStdOp<string functionName, dag args, dag res, list<Trait> traits = []>:
     CIR_Op<"std." # functionName, traits> {
   string funcName = functionName;
-  
+
   let arguments = !con((ins FlatSymbolRefAttr:$original_fn), args);
 
   let summary = "std::" # functionName # "()";
@@ -48,8 +48,6 @@ class CIRStdOp<string functionName, dag args, dag res, list<Trait> traits = []>:
   let assemblyFormat = !strconcat("`(` ", argsAssemblyFormat,
                                   " `,` $original_fn `)`", resultAssemblyFormat,
                                   " attr-dict");
-
-  let hasVerifier = 0;
 }
 
 def StdFindOp : CIRStdOp<"find",
@@ -59,7 +57,7 @@ def StdFindOp : CIRStdOp<"find",
 def IterBeginOp: CIRStdOp<"begin",
   (ins CIR_AnyType:$container),
   (outs CIR_AnyType:$result)>;
-def IterEndOp: CIRStdOp<"end", 
+def IterEndOp: CIRStdOp<"end",
   (ins CIR_AnyType:$container),
   (outs CIR_AnyType:$result)>;
 

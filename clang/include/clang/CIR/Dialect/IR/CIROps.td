@@ -308,9 +308,6 @@ def ObjSizeOp : CIR_Op<"objsize", [Pure]> {
     `)`
     `->` type($result) attr-dict
   }];
-
-  // Nothing to verify that isn't already covered by constraints.
-  let hasVerifier = 0;
 }
 
 //===----------------------------------------------------------------------===//
@@ -340,9 +337,6 @@ def PtrDiffOp : CIR_Op<"ptr_diff", [Pure, SameTypeOperands]> {
   let assemblyFormat = [{
     `(` $lhs `,` $rhs  `)` `:` qualified(type($lhs)) `->` qualified(type($result)) attr-dict
   }];
-
-  // Already covered by the traits
-  let hasVerifier = 0;
 }
 
 //===----------------------------------------------------------------------===//
@@ -380,9 +374,6 @@ def PtrStrideOp : CIR_Op<"ptr_stride",
       return mlir::cast<cir::PointerType>(getBase().getType()).getPointee();
     }
   }];
-
-  // SameFirstOperandAndResultType already checks all we need.
-  let hasVerifier = 0;
 }
 
 //===----------------------------------------------------------------------===//
@@ -545,8 +536,6 @@ def AllocaOp : CIR_Op<"alloca", [
     ($annotations^)?
     (`ast` $ast^)? attr-dict
   }];
-
-  let hasVerifier = 0;
 }
 
 //===----------------------------------------------------------------------===//
@@ -827,9 +816,6 @@ def TernaryOp : CIR_Op<"ternary",
       "llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>":$falseBuilder)
       >
   ];
-
-  // All constraints already verified elsewhere.
-  let hasVerifier = 0;
 
   let assemblyFormat = [{
     `(` $cond `,`
@@ -1303,9 +1289,6 @@ def CmpOp : CIR_Op<"cmp", [Pure, SameTypeOperands]> {
   let assemblyFormat = [{
     `(` $kind `,` $lhs `,` $rhs  `)` `:` type($lhs) `,` type($result) attr-dict
   }];
-
-  // Already covered by the traits
-  let hasVerifier = 0;
 }
 
 //===----------------------------------------------------------------------===//
@@ -1884,8 +1867,6 @@ def CmpThreeWayOp : CIR_Op<"cmp3way", [Pure, SameTypeOperands]> {
     `(` $lhs `:` type($lhs) `,` $rhs `,` qualified($info) `)`
     `:` type($result) attr-dict
   }];
-
-  let hasVerifier = 0;
 
   let extraClassDeclaration = [{
     /// Determine whether this three-way comparison produces a strong ordering.
@@ -2566,9 +2547,6 @@ def GetGlobalOp : CIR_Op<"get_global",
     (`thread_local` $tls^)?
     $name `:` qualified(type($addr)) attr-dict
   }];
-
-  // `GetGlobalOp` is fully verified by its traits.
-  let hasVerifier = 0;
 }
 
 //===----------------------------------------------------------------------===//
@@ -3155,8 +3133,6 @@ def VecInsertOp : CIR_Op<"vec.insert", [Pure,
     qualified(type($vec))
   }];
 
-  let hasVerifier = 0;
-
   let llvmOp = "InsertElementOp";
 }
 
@@ -3184,8 +3160,6 @@ def VecExtractOp : CIR_Op<"vec.extract", [Pure,
   let assemblyFormat = [{
     $vec `[` $index `:` type($index) `]` attr-dict `:` qualified(type($vec))
   }];
-
-  let hasVerifier = 0;
 
   let llvmOp = "ExtractElementOp";
 }
@@ -3239,7 +3213,6 @@ def VecSplatOp : CIR_Op<"vec.splat", [Pure,
   let assemblyFormat = [{
     $value `:` type($value) `,` qualified(type($result)) attr-dict
   }];
-  let hasVerifier = 0;
 }
 
 //===----------------------------------------------------------------------===//
@@ -3264,8 +3237,6 @@ def VecCmpOp : CIR_Op<"vec.cmp", [Pure, SameTypeOperands]> {
     `(` $kind `,` $lhs `,` $rhs `)` `:` qualified(type($lhs)) `,`
     qualified(type($result)) attr-dict
   }];
-
-  let hasVerifier = 0;
 }
 
 //===----------------------------------------------------------------------===//
@@ -3390,6 +3361,8 @@ def BaseClassAddrOp : CIR_Op<"base_class_addr"> {
     ```
   }];
 
+  // The validity of the relationship of derived and base cannot yet be
+  // verified, currently not worth adding a verifier.
   let arguments = (ins
     Arg<CIR_PointerType, "derived class pointer", [MemRead]>:$derived_addr,
     IndexAttr:$offset, UnitAttr:$assume_not_null);
@@ -3402,11 +3375,6 @@ def BaseClassAddrOp : CIR_Op<"base_class_addr"> {
       (`nonnull` $assume_not_null^)?
     `)` `[` $offset `]` `->` qualified(type($base_addr)) attr-dict
   }];
-
-  // The validity of the relationship of derived and base cannot
-  // yet be verified, currently not worth adding such a feature
-  // just for this.
-  let hasVerifier = 0;
 }
 
 def DerivedClassAddrOp : CIR_Op<"derived_class_addr"> {
@@ -3444,6 +3412,8 @@ def DerivedClassAddrOp : CIR_Op<"derived_class_addr"> {
     ```
   }];
 
+  // The validity of the relationship of derived and base cannot yet be
+  // verified, currently not worth adding a verifier.
   let arguments = (ins
     Arg<CIR_PointerType, "derived class pointer", [MemRead]>:$base_addr,
     IndexAttr:$offset, UnitAttr:$assume_not_null);
@@ -3456,11 +3426,6 @@ def DerivedClassAddrOp : CIR_Op<"derived_class_addr"> {
       (`nonnull` $assume_not_null^)?
     `)` `[` $offset `]` `->` qualified(type($derived_addr)) attr-dict
   }];
-
-  // The validity of the relationship of derived and base cannot
-  // yet be verified, currently not worth adding such a feature
-  // just for this.
-  let hasVerifier = 0;
 }
 
 //===----------------------------------------------------------------------===//
@@ -3865,7 +3830,6 @@ def DeleteArrayOp : CIR_Op<"delete.array">,
     will be translated to `cir.delete.array %ptr`.
   }];
   let assemblyFormat = "$address `:` type($address) attr-dict";
-  let hasVerifier = 0;
 }
 
 //===----------------------------------------------------------------------===//
@@ -3958,7 +3922,6 @@ class CIR_CallOp<string mnemonic, list<Trait> extra_traits = []> :
 
   let hasCustomAssemblyFormat = 1;
   let skipDefaultBuilders = 1;
-  let hasVerifier = 0;
 
   dag commonArgs = (ins
     OptionalAttr<FlatSymbolRefAttr>:$callee,
@@ -4310,7 +4273,6 @@ def TryOp : CIR_Op<"try",
   }];
 
   // Everything already covered elsewhere.
-  let hasVerifier = 0;
   let builders = [
     OpBuilder<(ins
               "llvm::function_ref<void(mlir::OpBuilder &, mlir::Location)>":$tryBuilder,
@@ -4390,8 +4352,6 @@ def EhInflightOp : CIR_Op<"eh.inflight_exception"> {
     ($sym_type_list^)?
     attr-dict
   }];
-
-  let hasVerifier = 0;
 }
 
 def EhTypeIdOp : CIR_Op<"eh.typeid",
@@ -4407,8 +4367,6 @@ def EhTypeIdOp : CIR_Op<"eh.typeid",
   let assemblyFormat = [{
     $type_sym attr-dict
   }];
-
-  let hasVerifier = 0;
 }
 
 //===----------------------------------------------------------------------===//
@@ -4875,7 +4833,6 @@ def AssumeOp : CIR_Op<"assume"> {
   }];
 
   let arguments = (ins CIR_BoolType:$predicate);
-  let results = (outs);
 
   let assemblyFormat = [{
     $predicate `:` type($predicate) attr-dict
@@ -4995,13 +4952,11 @@ def ExpectOp : CIR_Op<"expect",
 def VAStartOp : CIR_Op<"va.start">, Arguments<(ins CIR_PointerType:$arg_list)> {
   let summary = "Starts a variable argument list";
   let assemblyFormat = "$arg_list attr-dict `:` type(operands)";
-  let hasVerifier = 0;
 }
 
 def VAEndOp : CIR_Op<"va.end">, Arguments<(ins CIR_PointerType:$arg_list)> {
   let summary = "Ends a variable argument list";
   let assemblyFormat = "$arg_list attr-dict `:` type(operands)";
-  let hasVerifier = 0;
 }
 
 def VACopyOp : CIR_Op<"va.copy">,
@@ -5009,7 +4964,6 @@ def VACopyOp : CIR_Op<"va.copy">,
                               CIR_PointerType:$src_list)> {
   let summary = "Copies a variable argument list";
   let assemblyFormat = "$src_list `to` $dst_list attr-dict `:` type(operands)";
-  let hasVerifier = 0;
 }
 
 def VAArgOp : CIR_Op<"va.arg">,
@@ -5017,7 +4971,6 @@ def VAArgOp : CIR_Op<"va.arg">,
               Arguments<(ins CIR_PointerType:$arg_list)> {
   let summary = "Fetches next variadic element as a given type";
   let assemblyFormat = "$arg_list attr-dict `:` functional-type(operands, $result)";
-  let hasVerifier = 0;
 }
 
 //===----------------------------------------------------------------------===//
@@ -5053,9 +5006,6 @@ def AllocExceptionOp : CIR_Op<"alloc.exception"> {
   let assemblyFormat = [{
     $size `->` qualified(type($addr)) attr-dict
   }];
-
-  // Constraints verified elsewhere.
-  let hasVerifier = 0;
 }
 
 def FreeExceptionOp : CIR_Op<"free.exception"> {
@@ -5081,14 +5031,10 @@ def FreeExceptionOp : CIR_Op<"free.exception"> {
   }];
 
   let arguments = (ins CIR_VoidPtrType:$ptr);
-  let results = (outs);
 
   let assemblyFormat = [{
     $ptr attr-dict
   }];
-
-  // Constraints already described.
-  let hasVerifier = 0;
 }
 
 //===----------------------------------------------------------------------===//
@@ -5697,13 +5643,10 @@ def AtomicFence : CIR_Op<"atomic.fence"> {
   }];
   let arguments = (ins Arg<MemOrder, "memory order">:$ordering,
                        OptionalAttr<MemScopeKind>:$syncscope);
-  let results = (outs);
 
   let assemblyFormat = [{
     (`syncscope` `(` $syncscope^ `)`)? $ordering attr-dict
   }];
-
-  let hasVerifier = 0;
 }
 
 def SignBitOp : CIR_Op<"signbit", [Pure]> {
@@ -5723,7 +5666,7 @@ def SignBitOp : CIR_Op<"signbit", [Pure]> {
 // LinkerOptionsOp
 //===----------------------------------------------------------------------===//
 
-def LinkerOptionsOp : CIR_Op<"linker_options"> {
+def LinkerOptionsOp : CIR_Op<"linker_options", [HasParent<"mlir::ModuleOp">]> {
   let summary = "Options to pass to the linker when the object file is linked";
   let description = [{
     Pass the given options to the linker when the resulting object file
@@ -5745,8 +5688,6 @@ def LinkerOptionsOp : CIR_Op<"linker_options"> {
   let assemblyFormat = [{
     $options attr-dict
   }];
-
-  let hasVerifier = 1;
 }
 
 //===----------------------------------------------------------------------===//
