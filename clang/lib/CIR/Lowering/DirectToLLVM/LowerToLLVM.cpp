@@ -3963,6 +3963,26 @@ mlir::LogicalResult CIRToLLVMGetBitfieldOpLowering::matchAndRewrite(
   return mlir::success();
 }
 
+mlir::LogicalResult CIRToLLVMDeleteArrayOpLowering::matchAndRewrite(
+    cir::DeleteArrayOp op, OpAdaptor adaptor,
+    mlir::ConversionPatternRewriter &rewriter) const {
+  StringRef fnName = "_ZdaPv";
+
+  auto voidTy = rewriter.getType<mlir::LLVM::LLVMVoidType>();
+  auto llvmPtrTy = mlir::LLVM::LLVMPointerType::get(rewriter.getContext());
+
+  auto fnTy = mlir::LLVM::LLVMFunctionType::get(voidTy, {llvmPtrTy},
+                                                /*isVarArg=*/false);
+
+  getOrCreateLLVMFuncOp(rewriter, op, fnName, fnTy);
+
+  // Replace the operation with a call to _ZdaPv with the pointer argument
+  rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(
+      op, mlir::TypeRange{}, fnName, mlir::ValueRange{adaptor.getAddress()});
+
+  return mlir::success();
+}
+
 mlir::LogicalResult CIRToLLVMIsConstantOpLowering::matchAndRewrite(
     cir::IsConstantOp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
@@ -4344,6 +4364,7 @@ void populateCIRToLLVMConversionPatterns(
       CIRToLLVMGetGlobalOpLowering,
       CIRToLLVMGetMemberOpLowering,
       CIRToLLVMInsertMemberOpLowering,
+      CIRToLLVMDeleteArrayOpLowering,
       CIRToLLVMIsConstantOpLowering,
       CIRToLLVMIsFPClassOpLowering,
       CIRToLLVMLinkerOptionsOpLowering,
