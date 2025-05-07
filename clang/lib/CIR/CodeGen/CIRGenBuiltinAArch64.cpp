@@ -1866,6 +1866,8 @@ static cir::VectorType GetNeonType(CIRGenFunction *CGF, NeonTypeFlags TypeFlags,
     return cir::VectorType::get(TypeFlags.isUnsigned() ? CGF->UInt8Ty
                                                        : CGF->SInt8Ty,
                                 V1Ty ? 1 : (8 << IsQuad));
+  case NeonTypeFlags::MFloat8:
+    llvm_unreachable("NeonTypeFlags::MFloat8 NYI");
   case NeonTypeFlags::Int16:
   case NeonTypeFlags::Poly16:
     return cir::VectorType::get(TypeFlags.isUnsigned() ? CGF->UInt16Ty
@@ -1881,8 +1883,6 @@ static cir::VectorType GetNeonType(CIRGenFunction *CGF, NeonTypeFlags TypeFlags,
       llvm_unreachable("NeonTypeFlags::Float16 NYI");
     else
       llvm_unreachable("NeonTypeFlags::Float16 NYI");
-  case NeonTypeFlags::MFloat8:
-    llvm_unreachable("NeonTypeFlags::MFloat8 NYI");
   case NeonTypeFlags::Int32:
     return cir::VectorType::get(TypeFlags.isUnsigned() ? CGF->UInt32Ty
                                                        : CGF->SInt32Ty,
