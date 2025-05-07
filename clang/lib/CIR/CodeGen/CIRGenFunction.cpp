@@ -564,7 +564,7 @@ void CIRGenFunction::finishFunction(SourceLocation endLoc) {
   if (hasCleanups) {
     // Make sure the line table doesn't jump back into the body for
     // the ret after it's been at EndLoc.
-    if (auto *di = getDebugInfo())
+    if (getDebugInfo())
       assert(!cir::MissingFeatures::generateDebugInfo() && "NYI");
     // FIXME(cir): should we clearInsertionPoint? breaks many testcases
     PopCleanupBlocks(PrologueCleanupDepth);
@@ -1056,7 +1056,7 @@ void CIRGenFunction::StartFunction(GlobalDecl gd, QualType retTy,
   // Ignore TSan memory acesses from within ObjC/ObjC++ dealloc, initialize,
   // .cxx_destruct, __destroy_helper_block_ and all of their calees at run time.
   if (SanOpts.has(SanitizerKind::Thread)) {
-    if (const auto *omd = dyn_cast_or_null<ObjCMethodDecl>(d)) {
+    if (isa_and_nonnull<ObjCMethodDecl>(d)) {
       llvm_unreachable("NYI");
     }
   }
@@ -1102,8 +1102,7 @@ void CIRGenFunction::StartFunction(GlobalDecl gd, QualType retTy,
   }
 
   unsigned count, offset;
-  if (const auto *attr =
-          d ? d->getAttr<PatchableFunctionEntryAttr>() : nullptr) {
+  if (d && d->getAttr<PatchableFunctionEntryAttr>()) {
     llvm_unreachable("NYI");
   } else {
     count = CGM.getCodeGenOpts().PatchableFunctionEntryCount;

@@ -1139,10 +1139,10 @@ LValue CIRGenFunction::emitDeclRefLValue(const DeclRefExpr *E) {
 
   // We can form DeclRefExprs naming GUID declarations when reconstituting
   // non-type template parameters into expressions.
-  if (const auto *GD = dyn_cast<MSGuidDecl>(ND))
+  if (isa<MSGuidDecl>(ND))
     llvm_unreachable("NYI");
 
-  if (const auto *TPO = dyn_cast<TemplateParamObjectDecl>(ND))
+  if (isa<TemplateParamObjectDecl>(ND))
     llvm_unreachable("NYI");
 
   llvm_unreachable("Unhandled DeclRefExpr");
@@ -1296,7 +1296,7 @@ Address CIRGenFunction::emitPointerWithAlignment(
 /// expression and compare the result against zero, returning an Int1Ty value.
 mlir::Value CIRGenFunction::evaluateExprAsBool(const Expr *E) {
   // TODO(cir): PGO
-  if (const MemberPointerType *MPT = E->getType()->getAs<MemberPointerType>()) {
+  if (E->getType()->getAs<MemberPointerType>()) {
     assert(0 && "not implemented");
   }
 
@@ -1835,8 +1835,7 @@ LValue CIRGenFunction::emitArraySubscriptExpr(const ArraySubscriptExpr *E,
         {Idx}, E->getType(), !getLangOpts().isSignedOverflowDefined(),
         SignedIndices, CGM.getLoc(E->getExprLoc()), /*shouldDecay=*/false,
         &ptrType, E->getBase());
-  } else if (const ObjCObjectType *OIT =
-                 E->getType()->getAs<ObjCObjectType>()) {
+  } else if (E->getType()->getAs<ObjCObjectType>()) {
     llvm_unreachable("ObjC object type subscript is NYI");
   } else if (const Expr *Array = isSimpleArrayDecayOperand(E->getBase())) {
     // If this is A[i] where A is an array, the frontend will have decayed
@@ -1912,6 +1911,8 @@ LValue CIRGenFunction::emitCastLValue(const CastExpr *E) {
   switch (E->getCastKind()) {
   case CK_HLSLArrayRValue:
   case CK_HLSLVectorTruncation:
+  case CK_HLSLElementwiseCast:
+  case CK_HLSLAggregateSplatCast:
   case CK_ToVoid:
   case CK_BitCast:
   case CK_LValueToRValueBitCast:
@@ -2151,7 +2152,7 @@ LValue CIRGenFunction::emitMemberExpr(const MemberExpr *E) {
     return LV;
   }
 
-  if (const auto *FD = dyn_cast<FunctionDecl>(ND))
+  if (isa<FunctionDecl>(ND))
     assert(0 && "not implemented");
 
   llvm_unreachable("Unhandled member declaration!");
@@ -2258,7 +2259,7 @@ static void pushTemporaryCleanup(CIRGenFunction &CGF,
   //   need to perform retain/release operations on the temporary.
   //
   // FIXME: This should be looking at E, not M.
-  if (auto Lifetime = M->getType().getObjCLifetime()) {
+  if ([[maybe_unused]] auto Lifetime = M->getType().getObjCLifetime()) {
     assert(0 && "NYI");
   }
 
@@ -2333,7 +2334,7 @@ LValue CIRGenFunction::emitMaterializeTemporaryExpr(
   for (const auto &Ignored : CommaLHSs)
     emitIgnoredExpr(Ignored);
 
-  if (const auto *opaque = dyn_cast<OpaqueValueExpr>(E))
+  if (isa<OpaqueValueExpr>(E))
     assert(0 && "NYI");
 
   // Create and initialize the reference temporary.
@@ -2427,7 +2428,7 @@ std::optional<LValue> HandleConditionalOperatorLValueSimpleCase(
       }
       // If a throw expression we emit it and return an undefined lvalue
       // because it can't be used.
-      if (auto *ThrowExpr = dyn_cast<CXXThrowExpr>(Live->IgnoreParens())) {
+      if (isa<CXXThrowExpr>(Live->IgnoreParens())) {
         llvm_unreachable("NYI");
       }
       return CGF.emitLValue(Live);
@@ -2442,7 +2443,7 @@ std::optional<LValue> HandleConditionalOperatorLValueSimpleCase(
 /// LValue is returned and the current block has been terminated.
 static std::optional<LValue> emitLValueOrThrowExpression(CIRGenFunction &CGF,
                                                          const Expr *Operand) {
-  if (auto *ThrowExpr = dyn_cast<CXXThrowExpr>(Operand->IgnoreParens())) {
+  if (isa<CXXThrowExpr>(Operand->IgnoreParens())) {
     llvm_unreachable("NYI");
   }
 
@@ -2602,7 +2603,7 @@ LValue CIRGenFunction::emitLValue(const Expr *E) {
     return emitBinaryOperatorLValue(cast<BinaryOperator>(E));
   case Expr::CompoundAssignOperatorClass: {
     QualType Ty = E->getType();
-    if (const AtomicType *AT = Ty->getAs<AtomicType>())
+    if (Ty->getAs<AtomicType>())
       assert(0 && "not yet implemented");
     if (!Ty->isAnyComplexType())
       return emitCompoundAssignmentLValue(cast<CompoundAssignOperator>(E));
@@ -2783,7 +2784,7 @@ mlir::Value CIRGenFunction::emitOpOnBoolExpr(mlir::Location loc,
   //   llvm_unreachable("binaryoperator ifstmt NYI");
   // }
 
-  if (const UnaryOperator *CondUOp = dyn_cast<UnaryOperator>(cond)) {
+  if (isa<UnaryOperator>(cond)) {
     // In LLVM the condition is reversed here for efficient codegen.
     // This should be done in CIR prior to LLVM lowering, if we do now
     // we can make CIR based diagnostics misleading.
@@ -2815,7 +2816,7 @@ mlir::Value CIRGenFunction::emitOpOnBoolExpr(mlir::Location loc,
                                 getContext().BoolTy, CondOp->getExprLoc());
   }
 
-  if (const CXXThrowExpr *Throw = dyn_cast<CXXThrowExpr>(cond)) {
+  if (isa<CXXThrowExpr>(cond)) {
     llvm_unreachable("NYI");
   }
 
@@ -3303,7 +3304,7 @@ LValue CIRGenFunction::emitPredefinedLValue(const PredefinedExpr *E) {
   StringRef NameItems[] = {PredefinedExpr::getIdentKindName(E->getIdentKind()),
                            FnName};
   std::string GVName = llvm::join(NameItems, NameItems + 2, ".");
-  if (auto *BD = dyn_cast_or_null<BlockDecl>(CurCodeDecl)) {
+  if (isa_and_nonnull<BlockDecl>(CurCodeDecl)) {
     llvm_unreachable("NYI");
   }
 
