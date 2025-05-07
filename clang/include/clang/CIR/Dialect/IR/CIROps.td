@@ -1461,8 +1461,8 @@ def ComplexRealPtrOp : CIR_Op<"complex.real_ptr", [Pure]> {
     ```
   }];
 
-  let results = (outs PrimitiveIntOrFPPtr:$result);
-  let arguments = (ins ComplexPtr:$operand);
+  let results = (outs CIR_PtrToIntOrFloatType:$result);
+  let arguments = (ins CIR_PtrToComplexType:$operand);
 
   let assemblyFormat = [{
     $operand `:`
@@ -1486,8 +1486,8 @@ def ComplexImagPtrOp : CIR_Op<"complex.imag_ptr", [Pure]> {
     ```
   }];
 
-  let results = (outs PrimitiveIntOrFPPtr:$result);
-  let arguments = (ins ComplexPtr:$operand);
+  let results = (outs CIR_PtrToIntOrFloatType:$result);
+  let arguments = (ins CIR_PtrToComplexType:$operand);
 
   let assemblyFormat = [{
     $operand `:`
@@ -5514,17 +5514,19 @@ def AtomicFetch : CIR_Op<"atomic.fetch",
                             %val : !s32i, seq_cst) : !s32i
   }];
   let results = (outs CIR_AnyIntOrFloatType:$result);
-  let arguments = (ins Arg<PrimitiveIntOrFPPtr, "", [MemRead, MemWrite]>:$ptr,
-                       CIR_AnyIntOrFloatType:$val,
-                       AtomicFetchKind:$binop,
-                       Arg<MemOrder, "memory order">:$mem_order,
-                       UnitAttr:$is_volatile,
-                       UnitAttr:$fetch_first);
+  let arguments = (ins
+    Arg<CIR_PtrToIntOrFloatType, "", [MemRead, MemWrite]>:$ptr,
+    CIR_AnyIntOrFloatType:$val,
+    AtomicFetchKind:$binop,
+    Arg<MemOrder, "memory order">:$mem_order,
+    UnitAttr:$is_volatile,
+    UnitAttr:$fetch_first
+  );
 
   let assemblyFormat = [{
     `(`
     $binop `,`
-    $ptr `:` type($ptr) `,`
+    $ptr `:` qualified(type($ptr)) `,`
     $val `:` type($val) `,`
     $mem_order `)`
     (`volatile` $is_volatile^)?

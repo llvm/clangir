@@ -135,6 +135,10 @@ def CIR_AnyFloatType : AnyTypeOf<[
     let cppFunctionName = "isAnyFloatingPointType";
 }
 
+//===----------------------------------------------------------------------===//
+// Integer or Float Type predicates
+//===----------------------------------------------------------------------===//
+
 def CIR_AnyIntOrFloatType : AnyTypeOf<[CIR_AnyFloatType, CIR_AnyIntType],
     "integer or floating point type"
 > {
@@ -168,6 +172,14 @@ class CIR_PtrToPtrTo<code type, string summary>
     : CIR_ConfinedType<CIR_AnyPtrType, [CIR_IsPtrToPtrToPred<type>],
         "pointer to pointer to " # summary>;
 
+// Pointee type constraint bases
+class CIR_PointeePred<Pred pred> : SubstLeaves<"$_self",
+    "::mlir::cast<::cir::PointerType>($_self).getPointee()", pred>;
+
+class CIR_PtrToType<Type type>
+    : CIR_ConfinedType<CIR_AnyPtrType, [CIR_PointeePred<type.predicate>],
+        "pointer to " # type.summary>;
+
 // Void pointer type constraints
 def CIR_VoidPtrType
     : CIR_PtrTo<"::cir::VoidType", "void type">,
@@ -179,5 +191,10 @@ def CIR_PtrToVoidPtrType
       BuildableType<"$_builder.getType<" # cppType # ">("
         "$_builder.getType<" # cppType # ">("
         "cir::VoidType::get($_builder.getContext())))">;
+
+// Pointer to type constraints
+def CIR_PtrToIntOrFloatType : CIR_PtrToType<CIR_AnyIntOrFloatType>;
+
+def CIR_PtrToComplexType : CIR_PtrToType<CIR_AnyComplexType>;
 
 #endif // CLANG_CIR_DIALECT_IR_CIRTYPECONSTRAINTS_TD

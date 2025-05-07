@@ -505,24 +505,6 @@ def CIR_VoidType : CIR_Type<"Void", "void"> {
 
 // Constraints
 
-// Pointer to a primitive int, float or double
-def PrimitiveIntOrFPPtr : Type<
-    And<[
-      CPred<"::mlir::isa<::cir::PointerType>($_self)">,
-      CPred<"::mlir::isa<::cir::IntType, ::cir::SingleType,"
-            "::cir::DoubleType>("
-            "::mlir::cast<::cir::PointerType>($_self).getPointee())">,
-    ]>, "{int,void}*"> {
-}
-
-def ComplexPtr : Type<
-    And<[
-      CPred<"::mlir::isa<::cir::PointerType>($_self)">,
-      CPred<"::mlir::isa<::cir::ComplexType>("
-        "::mlir::cast<::cir::PointerType>($_self).getPointee())">,
-    ]>, "!cir.complex*"> {
-}
-
 // Pointer to record
 def RecordPtr : Type<
     And<[
