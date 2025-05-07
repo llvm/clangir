@@ -287,11 +287,10 @@ FuncOp LoweringPreparePass::buildCXXGlobalVarDeclInitFunc(GlobalOp op) {
 
     // Create a runtime helper function:
     //    extern "C" int __cxa_atexit(void (*f)(void *), void *p, void *d);
-    auto voidPtrTy = cir::PointerType::get(builder.getContext(), voidTy);
+    auto voidPtrTy = cir::PointerType::get(voidTy);
     auto voidFnTy = cir::FuncType::get({voidPtrTy}, voidTy);
-    auto voidFnPtrTy = cir::PointerType::get(builder.getContext(), voidFnTy);
-    auto HandlePtrTy =
-        cir::PointerType::get(builder.getContext(), Handle.getSymType());
+    auto voidFnPtrTy = cir::PointerType::get(voidFnTy);
+    auto HandlePtrTy = cir::PointerType::get(Handle.getSymType());
     auto fnAtExitType =
         cir::FuncType::get({voidFnPtrTy, voidPtrTy, HandlePtrTy},
                            cir::VoidType::get(builder.getContext()));
@@ -303,8 +302,7 @@ FuncOp LoweringPreparePass::buildCXXGlobalVarDeclInitFunc(GlobalOp op) {
     // &__dso_handle)
     builder.setInsertionPointAfter(dtorCall);
     mlir::Value args[3];
-    auto dtorPtrTy =
-        cir::PointerType::get(builder.getContext(), dtorFunc.getFunctionType());
+    auto dtorPtrTy = cir::PointerType::get(dtorFunc.getFunctionType());
     // dtorPtrTy
     args[0] = builder.create<cir::GetGlobalOp>(dtorCall.getLoc(), dtorPtrTy,
                                                dtorFunc.getSymName());

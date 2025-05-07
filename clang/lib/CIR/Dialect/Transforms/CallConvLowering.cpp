@@ -69,7 +69,7 @@ private:
 
   mlir::Type convert(mlir::Type t) {
     if (auto fTy = getFuncPointerTy(t))
-      return PointerType::get(rewriter.getContext(), convert(fTy));
+      return cir::PointerType::get(convert(fTy));
     return t;
   }
 
