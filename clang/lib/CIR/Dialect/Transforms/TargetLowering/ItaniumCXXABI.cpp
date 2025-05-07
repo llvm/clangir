@@ -375,10 +375,9 @@ void ItaniumCXXABI::lowerGetMethod(
     // Load vtable pointer.
     // Note that vtable pointer always point to the global address space.
     auto vtablePtrTy = cir::PointerType::get(
-        rewriter.getContext(),
         cir::IntType::get(rewriter.getContext(), 8, true));
     auto vtablePtrPtrTy = cir::PointerType::get(
-        rewriter.getContext(), vtablePtrTy,
+        vtablePtrTy,
         mlir::cast<cir::PointerType>(op.getObject().getType()).getAddrSpace());
     auto vtablePtrPtr = rewriter.create<cir::CastOp>(
         op.getLoc(), vtablePtrPtrTy, cir::CastKind::bitcast, loweredObjectPtr);
@@ -413,8 +412,7 @@ void ItaniumCXXABI::lowerGetMethod(
       else {
         mlir::Value vfpAddr = rewriter.create<cir::PtrStrideOp>(
             op.getLoc(), vtablePtrTy, vtablePtr, vtableOffset);
-        auto vfpPtrTy =
-            cir::PointerType::get(rewriter.getContext(), calleePtrTy);
+        auto vfpPtrTy = cir::PointerType::get(calleePtrTy);
         mlir::Value vfpPtr = rewriter.create<cir::CastOp>(
             op.getLoc(), vfpPtrTy, cir::CastKind::bitcast, vfpAddr);
         funcPtr = rewriter.create<cir::LoadOp>(

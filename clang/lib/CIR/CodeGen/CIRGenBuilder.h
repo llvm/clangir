@@ -444,7 +444,7 @@ public:
     return typeCache.UInt8PtrTy;
   }
   cir::PointerType getUInt32PtrTy(unsigned AddrSpace = 0) {
-    return cir::PointerType::get(getContext(), typeCache.UInt32Ty);
+    return cir::PointerType::get(typeCache.UInt32Ty);
   }
 
   /// Get a CIR anonymous record type.

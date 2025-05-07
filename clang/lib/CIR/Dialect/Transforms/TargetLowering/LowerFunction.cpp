@@ -43,7 +43,7 @@ mlir::Value buildAddressAtOffset(LowerFunction &LF, mlir::Value addr,
 
 mlir::Value createCoercedBitcast(mlir::Value Src, mlir::Type DestTy,
                                  LowerFunction &CGF) {
-  auto destPtrTy = PointerType::get(CGF.getRewriter().getContext(), DestTy);
+  auto destPtrTy = cir::PointerType::get(DestTy);
 
   if (auto load = mlir::dyn_cast<LoadOp>(Src.getDefiningOp()))
     return CGF.getRewriter().create<CastOp>(Src.getLoc(), destPtrTy,
@@ -86,8 +86,7 @@ mlir::Value enterRecordPointerForCoercedAccess(mlir::Value SrcPtr,
     return SrcPtr;
 
   auto &rw = CGF.getRewriter();
-  auto *ctxt = rw.getContext();
-  auto ptrTy = PointerType::get(ctxt, FirstElt);
+  auto ptrTy = PointerType::get(FirstElt);
   if (mlir::isa<RecordType>(SrcPtr.getType())) {
     auto addr = SrcPtr;
     if (auto load = mlir::dyn_cast<LoadOp>(SrcPtr.getDefiningOp()))
@@ -168,7 +167,6 @@ static mlir::Value coerceIntOrPtrToIntOrPtr(mlir::Value val, mlir::Type typ,
 
 AllocaOp createTmpAlloca(LowerFunction &LF, mlir::Location loc, mlir::Type ty) {
   auto &rw = LF.getRewriter();
-  auto *ctxt = rw.getContext();
   mlir::PatternRewriter::InsertionGuard guard(rw);
 
   // find function's entry block and use it to find a best place for alloca
@@ -184,7 +182,7 @@ AllocaOp createTmpAlloca(LowerFunction &LF, mlir::Location loc, mlir::Type ty) {
 
   auto align = LF.LM.getDataLayout().getABITypeAlign(ty);
   auto alignAttr = rw.getI64IntegerAttr(align.value());
-  auto ptrTy = PointerType::get(ctxt, ty);
+  auto ptrTy = PointerType::get(ty);
   return rw.create<AllocaOp>(loc, ptrTy, ty, "tmp", alignAttr);
 }
 
@@ -201,7 +199,7 @@ MemCpyOp createMemCpy(LowerFunction &LF, mlir::Value dst, mlir::Value src,
 
   auto *ctxt = LF.getRewriter().getContext();
   auto &rw = LF.getRewriter();
-  auto voidPtr = PointerType::get(ctxt, cir::VoidType::get(ctxt));
+  auto voidPtr = PointerType::get(cir::VoidType::get(ctxt));
 
   if (!isVoidPtr(src))
     src = createBitcast(src, voidPtr, LF);
@@ -286,7 +284,7 @@ void createCoercedStore(mlir::Value Src, mlir::Value Dst, bool DstIsVolatile,
     auto *ctxt = CGF.LM.getMLIRContext();
     auto dstIntTy = IntType::get(ctxt, DstSize.getFixedValue() * 8, false);
     Src = coerceIntOrPtrToIntOrPtr(Src, dstIntTy, CGF);
-    auto ptrTy = PointerType::get(ctxt, dstIntTy);
+    auto ptrTy = PointerType::get(dstIntTy);
     auto addr = bld.create<CastOp>(Dst.getLoc(), ptrTy, CastKind::bitcast, Dst);
     bld.create<StoreOp>(Dst.getLoc(), Src, addr);
   } else {
@@ -1257,7 +1255,7 @@ mlir::Value LowerFunction::rewriteCallOp(const LowerFunctionInfo &CallInfo,
   if (Caller.isIndirect()) {
     rewriter.setInsertionPoint(Caller);
     auto val = Caller.getIndirectCall();
-    auto ptrTy = PointerType::get(val.getContext(), IRFuncTy);
+    auto ptrTy = PointerType::get(IRFuncTy);
     auto callee =
         rewriter.create<CastOp>(val.getLoc(), ptrTy, CastKind::bitcast, val);
     newCallOp = rewriter.create<CallOp>(loc, callee, IRFuncTy, IRCallArgs);

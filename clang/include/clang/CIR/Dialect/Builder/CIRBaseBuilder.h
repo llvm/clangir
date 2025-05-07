@@ -101,7 +101,7 @@ public:
 
   cir::PointerType getPointerTo(mlir::Type ty,
                                 cir::AddressSpaceAttr cirAS = {}) {
-    return cir::PointerType::get(getContext(), ty, cirAS);
+    return cir::PointerType::get(ty, cirAS);
   }
 
   cir::PointerType getPointerTo(mlir::Type ty, clang::LangAS langAS) {
@@ -507,7 +507,7 @@ public:
         mlir::cast<cir::PointerType>(recordPtr.getType()).getPointee();
     assert(mlir::isa<cir::RecordType>(recordBaseTy));
     auto fldTy = mlir::cast<cir::RecordType>(recordBaseTy).getMembers()[idx];
-    auto fldPtrTy = cir::PointerType::get(getContext(), fldTy);
+    auto fldPtrTy = cir::PointerType::get(fldTy);
     return create<cir::GetMemberOp>(loc, fldPtrTy, recordPtr, fldName, idx);
   }
 
