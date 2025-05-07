@@ -53,10 +53,10 @@ public:
       llvm_unreachable("NYI");
 
     // Treat an enum type as its underlying type.
-    if (const EnumType *EnumTy = RetTy->getAs<EnumType>())
+    if (RetTy->getAs<EnumType>())
       llvm_unreachable("NYI");
 
-    if (const auto *EIT = RetTy->getAs<BitIntType>())
+    if (RetTy->getAs<BitIntType>())
       llvm_unreachable("NYI");
 
     return (isPromotableIntegerTypeForABI(RetTy)
@@ -72,10 +72,10 @@ public:
     }
 
     // Treat an enum type as its underlying type.
-    if (const EnumType *EnumTy = Ty->getAs<EnumType>())
+    if (Ty->getAs<EnumType>())
       llvm_unreachable("NYI");
 
-    if (const auto *EIT = Ty->getAs<BitIntType>())
+    if (Ty->getAs<BitIntType>())
       llvm_unreachable("NYI");
 
     return (isPromotableIntegerTypeForABI(Ty) ? cir::ABIArgInfo::getExtend(Ty)
@@ -357,7 +357,7 @@ public:
   }
   void setTargetAttributes(const clang::Decl *decl, mlir::Operation *global,
                            CIRGenModule &cgm) const override {
-    if (const auto *vd = clang::dyn_cast_or_null<clang::VarDecl>(decl)) {
+    if (clang::isa_and_nonnull<clang::VarDecl>(decl)) {
       assert(!cir::MissingFeatures::emitNVVMMetadata());
       return;
     }

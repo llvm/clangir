@@ -887,20 +887,20 @@ void CIRGenModule::setNonAliasAttributes(GlobalDecl gd, mlir::Operation *go) {
     if (gv) {
       if (d->hasAttr<RetainAttr>())
         assert(!cir::MissingFeatures::addUsedGlobal());
-      if (auto *sa = d->getAttr<PragmaClangBSSSectionAttr>())
+      if (d->getAttr<PragmaClangBSSSectionAttr>())
         assert(!cir::MissingFeatures::addSectionAttributes());
-      if (auto *sa = d->getAttr<PragmaClangDataSectionAttr>())
+      if (d->getAttr<PragmaClangDataSectionAttr>())
         assert(!cir::MissingFeatures::addSectionAttributes());
-      if (auto *sa = d->getAttr<PragmaClangRodataSectionAttr>())
+      if (d->getAttr<PragmaClangRodataSectionAttr>())
         assert(!cir::MissingFeatures::addSectionAttributes());
-      if (auto *sa = d->getAttr<PragmaClangRelroSectionAttr>())
+      if (d->getAttr<PragmaClangRelroSectionAttr>())
         assert(!cir::MissingFeatures::addSectionAttributes());
     }
     auto f = llvm::dyn_cast_or_null<cir::FuncOp>(go);
     if (f) {
       if (d->hasAttr<RetainAttr>())
         assert(!cir::MissingFeatures::addUsedGlobal());
-      if (auto *sa = d->getAttr<PragmaClangTextSectionAttr>())
+      if (d->getAttr<PragmaClangTextSectionAttr>())
         if (!d->getAttr<SectionAttr>())
           assert(!cir::MissingFeatures::setSectionForFuncOp());
 
@@ -1066,7 +1066,7 @@ void CIRGenModule::setTLSMode(mlir::Operation *op, const VarDecl &d) const {
   auto tlm = GetDefaultCIRTLSModel();
 
   // Override the TLS model if it is explicitly specified.
-  if (const TLSModelAttr *attr = d.getAttr<TLSModelAttr>()) {
+  if (d.getAttr<TLSModelAttr>()) {
     llvm_unreachable("NYI");
   }
 
@@ -1852,7 +1852,7 @@ void CIRGenModule::emitDeclContext(const DeclContext *dc) {
     // ObjCImplDecl does not recursively visit them. We need to do that in
     // case they're nested inside another construct (LinkageSpecDecl /
     // ExportDecl) that does stop them from being considered "top-level".
-    if (auto *oid = dyn_cast<ObjCImplDecl>(i))
+    if (isa<ObjCImplDecl>(i))
       llvm_unreachable("NYI");
 
     emitTopLevelDecl(i);
@@ -2599,7 +2599,7 @@ StringRef CIRGenModule::getMangledName(GlobalDecl gd) {
 
   // Some ABIs don't have constructor variants. Make sure that base and complete
   // constructors get mangled the same.
-  if (const auto *cd = dyn_cast<CXXConstructorDecl>(canonicalGd.getDecl())) {
+  if (isa<CXXConstructorDecl>(canonicalGd.getDecl())) {
     if (!getTarget().getCXXABI().hasConstructorVariants()) {
       assert(false && "NYI");
     }
