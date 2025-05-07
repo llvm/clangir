@@ -63,8 +63,7 @@ FuncType LowerTypes::getFunctionType(const LowerFunctionInfo &FI) {
   // Add type for sret argument.
   if (IRFunctionArgs.hasSRetArg()) {
     mlir::Type ret = FI.getReturnType();
-    ArgTypes[IRFunctionArgs.getSRetArgNo()] =
-        cir::PointerType::get(getMLIRContext(), ret);
+    ArgTypes[IRFunctionArgs.getSRetArgNo()] = cir::PointerType::get(ret);
   }
 
   // Add type for inalloca argument.
@@ -101,7 +100,7 @@ FuncType LowerTypes::getFunctionType(const LowerFunctionInfo &FI) {
     }
     case ABIArgInfo::Indirect: {
       mlir::Type argType = (FI.arg_begin() + ArgNo)->type;
-      ArgTypes[FirstIRArg] = cir::PointerType::get(getMLIRContext(), argType);
+      ArgTypes[FirstIRArg] = cir::PointerType::get(argType);
       break;
     }
     default:

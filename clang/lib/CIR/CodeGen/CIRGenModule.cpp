@@ -138,8 +138,8 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &mlirContext,
   VoidTy = cir::VoidType::get(&getMLIRContext());
 
   // Initialize CIR pointer types cache.
-  VoidPtrTy = cir::PointerType::get(&getMLIRContext(), VoidTy);
-  VoidPtrPtrTy = cir::PointerType::get(&getMLIRContext(), VoidPtrTy);
+  VoidPtrTy = cir::PointerType::get(VoidTy);
+  VoidPtrPtrTy = cir::PointerType::get(VoidPtrTy);
 
   FP16Ty = cir::FP16Type::get(&getMLIRContext());
   BFloat16Ty = cir::BF16Type::get(&getMLIRContext());
@@ -948,7 +948,6 @@ static GlobalViewAttr createNewGlobalView(CIRGenModule &cgm, GlobalOp newGlob,
   llvm::SmallVector<int64_t> newInds;
   CIRGenBuilderTy &bld = cgm.getBuilder();
   const CIRDataLayout &layout = cgm.getDataLayout();
-  mlir::MLIRContext *ctxt = bld.getContext();
   auto newTy = newGlob.getSymType();
 
   auto offset = bld.computeOffsetFromGlobalViewIndices(layout, oldTy, oldInds);
@@ -956,7 +955,7 @@ static GlobalViewAttr createNewGlobalView(CIRGenModule &cgm, GlobalOp newGlob,
   cir::PointerType newPtrTy;
 
   if (isa<cir::RecordType>(oldTy))
-    newPtrTy = cir::PointerType::get(ctxt, newTy);
+    newPtrTy = cir::PointerType::get(newTy);
   else if (cir::ArrayType oldArTy = dyn_cast<cir::ArrayType>(oldTy))
     newPtrTy = dyn_cast<cir::PointerType>(attr.getType());
 
@@ -1015,8 +1014,7 @@ void CIRGenModule::replaceGlobal(cir::GlobalOp oldSym, cir::GlobalOp newSym) {
 
         if (auto ggo = dyn_cast<cir::GetGlobalOp>(use.getUser())) {
           auto useOpResultValue = ggo.getAddr();
-          useOpResultValue.setType(
-              cir::PointerType::get(&getMLIRContext(), newTy));
+          useOpResultValue.setType(cir::PointerType::get(newTy));
 
           mlir::OpBuilder::InsertionGuard guard(builder);
           builder.setInsertionPointAfter(ggo);
@@ -1470,8 +1468,7 @@ void CIRGenModule::emitGlobalVarDefinition(const clang::VarDecl *d,
     // TODO(cir): pointer to array decay. Should this be modeled explicitly in
     // CIR?
     if (arrayTy)
-      initType =
-          cir::PointerType::get(&getMLIRContext(), arrayTy.getElementType());
+      initType = cir::PointerType::get(arrayTy.getElementType());
   } else {
     assert(mlir::isa<mlir::TypedAttr>(init) && "This should have a type");
     auto typedInitAttr = mlir::cast<mlir::TypedAttr>(init);
@@ -2393,7 +2390,7 @@ void CIRGenModule::ReplaceUsesOfNonProtoTypeWithRealFunction(
     } else if (auto getGlobalOp = dyn_cast<cir::GetGlobalOp>(use.getUser())) {
       // Replace type
       getGlobalOp.getAddr().setType(
-          cir::PointerType::get(&getMLIRContext(), newFn.getFunctionType()));
+          cir::PointerType::get(newFn.getFunctionType()));
     } else {
       llvm_unreachable("NIY");
     }
