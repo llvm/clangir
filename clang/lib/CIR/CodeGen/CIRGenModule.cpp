@@ -648,11 +648,11 @@ void CIRGenModule::emitGlobal(GlobalDecl gd) {
       assert(!cir::MissingFeatures::openMPRuntime());
       return;
     }
-    if (auto *drd = dyn_cast<OMPDeclareReductionDecl>(global)) {
+    if (isa<OMPDeclareReductionDecl>(global)) {
       assert(!cir::MissingFeatures::openMP());
       return;
     }
-    if (auto *dmd = dyn_cast<OMPDeclareMapperDecl>(global)) {
+    if (isa<OMPDeclareMapperDecl>(global)) {
       assert(!cir::MissingFeatures::openMP());
       return;
     }

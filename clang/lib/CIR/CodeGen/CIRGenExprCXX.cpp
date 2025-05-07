@@ -227,7 +227,7 @@ RValue CIRGenFunction::emitCXXMemberOrOperatorMemberCallExpr(
     This = emitLValue(Base);
   }
 
-  if (const CXXConstructorDecl *Ctor = dyn_cast<CXXConstructorDecl>(MD)) {
+  if (isa<CXXConstructorDecl>(MD)) {
     llvm_unreachable("NYI");
   }
 
