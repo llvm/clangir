@@ -85,7 +85,6 @@ def LangAttr : CIR_Attr<"Lang", "lang"> {
     bool isC() const { return getLang().getValue() == SourceLanguage::C; };
     bool isCXX() const { return getLang().getValue() == SourceLanguage::CXX; };
   }];
-  let genVerifyDecl = 0;
 }
 
 //===----------------------------------------------------------------------===//
