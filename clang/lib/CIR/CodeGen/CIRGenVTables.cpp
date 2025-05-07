@@ -55,7 +55,6 @@ mlir::Type CIRGenVTables::getVTableComponentType() {
 
 mlir::Type CIRGenVTables::getVTableType(const VTableLayout &layout) {
   SmallVector<mlir::Type, 4> tys;
-  mlir::MLIRContext *mlirContext = CGM.getBuilder().getContext();
   auto componentType = getVTableComponentType();
   for (unsigned i = 0, e = layout.getNumVTables(); i != e; ++i)
     tys.push_back(cir::ArrayType::get(componentType, layout.getVTableSize(i)));

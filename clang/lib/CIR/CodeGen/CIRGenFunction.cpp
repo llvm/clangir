@@ -250,7 +250,7 @@ static bool endsWithReturn(const Decl *f) {
   const Stmt *body = nullptr;
   if (auto *fd = dyn_cast_or_null<FunctionDecl>(f))
     body = fd->getBody();
-  else if (auto *omd = dyn_cast_or_null<ObjCMethodDecl>(f))
+  else if (isa_and_nonnull<ObjCMethodDecl>(f))
     llvm_unreachable("NYI");
 
   if (auto *cs = dyn_cast_or_null<CompoundStmt>(body)) {
@@ -553,7 +553,7 @@ void CIRGenFunction::finishFunction(SourceLocation endLoc) {
   // If there are multiple branches to the return block, the branch
   // instructions will get the location of the return statements and
   // all will be fine.
-  if (auto *di = getDebugInfo())
+  if (getDebugInfo())
     assert(!cir::MissingFeatures::generateDebugInfo() && "NYI");
 
   // Pop any cleanups that might have been associated with the
@@ -580,7 +580,7 @@ void CIRGenFunction::finishFunction(SourceLocation endLoc) {
   }
 
   // Emit debug descriptor for function end.
-  if (auto *di = getDebugInfo())
+  if (getDebugInfo())
     assert(!cir::MissingFeatures::generateDebugInfo() && "NYI");
 
   // Reset the debug location to that of the simple 'return' expression, if any
@@ -1089,9 +1089,7 @@ void CIRGenFunction::StartFunction(GlobalDecl gd, QualType retTy,
     llvm_unreachable("NYI");
 
   // Apply xray attributes to the function (as a string, for now)
-  if (const auto *xRayAttr = d ? d->getAttr<XRayInstrumentAttr>() : nullptr) {
-    assert(!cir::MissingFeatures::xray());
-  } else {
+  if (d->getAttr<XRayInstrumentAttr>()) {
     assert(!cir::MissingFeatures::xray());
   }
 
@@ -1521,8 +1519,7 @@ void CIRGenFunction::emitNullInitialization(mlir::Location loc, Address destPtr,
   // Don't bother emitting a zero-byte memset.
   if (size.isZero()) {
     // But note that getTypeInfo returns 0 for a VLA.
-    if (const VariableArrayType *vlaType = dyn_cast_or_null<VariableArrayType>(
-            getContext().getAsArrayType(ty))) {
+    if (isa_and_nonnull<VariableArrayType>(getContext().getAsArrayType(ty))) {
       llvm_unreachable("NYI");
     } else {
       return;
