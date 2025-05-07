@@ -1099,6 +1099,16 @@ public:
                   mlir::ConversionPatternRewriter &) const override;
 };
 
+class CIRToLLVMDeleteArrayOpLowering
+    : public mlir::OpConversionPattern<cir::DeleteArrayOp> {
+public:
+  using mlir::OpConversionPattern<cir::DeleteArrayOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(cir::DeleteArrayOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override;
+};
+
 class CIRToLLVMIsConstantOpLowering
     : public mlir::OpConversionPattern<cir::IsConstantOp> {
 public:
