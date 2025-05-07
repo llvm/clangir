@@ -524,15 +524,12 @@ mlir::LogicalResult CIRGenFunction::emitAsmStmt(const AsmStmt &S) {
   // If this is a Microsoft-style asm blob, store the return registers (EAX:EDX)
   // to the return value slot. Only do this when returning in registers.
   if (isa<MSAsmStmt>(&S)) {
-    const cir::ABIArgInfo &RetAI = CurFnInfo->getReturnInfo();
-    if (RetAI.isDirect() || RetAI.isExtend()) {
-      // Make a fake lvalue for the return value slot.
-      LValue ReturnSlot = makeAddrLValue(ReturnValue, FnRetTy);
-      CGM.getTargetCIRGenInfo().addReturnRegisterOutputs(
-          *this, ReturnSlot, Constraints, ResultRegTypes, ResultTruncRegTypes,
-          ResultRegDests, AsmString, S.getNumOutputs());
-      SawAsmBlock = true;
-    }
+    // Make a fake lvalue for the return value slot.
+    LValue ReturnSlot = makeAddrLValue(ReturnValue, FnRetTy);
+    CGM.getTargetCIRGenInfo().addReturnRegisterOutputs(
+        *this, ReturnSlot, Constraints, ResultRegTypes, ResultTruncRegTypes,
+        ResultRegDests, AsmString, S.getNumOutputs());
+    SawAsmBlock = true;
   }
 
   for (unsigned i = 0, e = S.getNumInputs(); i != e; i++) {
