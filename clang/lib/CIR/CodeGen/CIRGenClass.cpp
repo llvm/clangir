@@ -1015,11 +1015,6 @@ void CIRGenFunction::emitForwardingCallToLambda(
       callOperator->getType()->castAs<FunctionProtoType>();
   QualType resultType = FPT->getReturnType();
   ReturnValueSlot returnSlot;
-  if (!resultType->isVoidType() &&
-      calleeFnInfo.getReturnInfo().getKind() == cir::ABIArgInfo::Indirect &&
-      !hasScalarEvaluationKind(calleeFnInfo.getReturnType())) {
-    llvm_unreachable("NYI");
-  }
 
   // We don't need to separately arrange the call arguments because
   // the call can't be variadic anyway --- it's impossible to forward
