@@ -81,13 +81,6 @@ public:
     return (isPromotableIntegerTypeForABI(Ty) ? cir::ABIArgInfo::getExtend(Ty)
                                               : cir::ABIArgInfo::getDirect());
   }
-
-  void computeInfo(CIRGenFunctionInfo &FI) const override {
-    if (!getCXXABI().classifyReturnType(FI))
-      FI.getReturnInfo() = classifyReturnType(FI.getReturnType());
-    for (auto &I : FI.arguments())
-      I.info = classifyArgumentType(I.type);
-  }
 };
 } // namespace
 
@@ -117,27 +110,6 @@ private:
   cir::ABIArgInfo classifyReturnType(QualType RetTy, bool IsVariadic) const;
   cir::ABIArgInfo classifyArgumentType(QualType RetTy, bool IsVariadic,
                                        unsigned CallingConvention) const;
-
-  void computeInfo(CIRGenFunctionInfo &FI) const override {
-    // Top leevl CIR has unlimited arguments and return types. Lowering for ABI
-    // specific concerns should happen during a lowering phase. Assume
-    // everything is direct for now.
-    for (CIRGenFunctionInfo::arg_iterator it = FI.arg_begin(),
-                                          ie = FI.arg_end();
-         it != ie; ++it) {
-      if (testIfIsVoidTy(it->type))
-        it->info = cir::ABIArgInfo::getIgnore();
-      else
-        it->info = cir::ABIArgInfo::getDirect(CGT.convertType(it->type));
-    }
-    auto RetTy = FI.getReturnType();
-    if (testIfIsVoidTy(RetTy))
-      FI.getReturnInfo() = cir::ABIArgInfo::getIgnore();
-    else
-      FI.getReturnInfo() = cir::ABIArgInfo::getDirect(CGT.convertType(RetTy));
-
-    return;
-  }
 };
 
 class AArch64TargetCIRGenInfo : public TargetCIRGenInfo {
@@ -177,8 +149,6 @@ public:
   // , AVXLevel(AVXLevel)
   // , Has64BitPointers(CGT.getDataLayout().getPointeSize(0) == 8)
   {}
-
-  virtual void computeInfo(CIRGenFunctionInfo &FI) const override;
 
   /// classify - Determine the x86_64 register classes in which the given type T
   /// should be passed.
@@ -255,24 +225,6 @@ public:
 class SPIRVABIInfo : public CommonSPIRABIInfo {
 public:
   SPIRVABIInfo(CIRGenTypes &CGT) : CommonSPIRABIInfo(CGT) {}
-  void computeInfo(CIRGenFunctionInfo &FI) const override {
-    // The logic is same as in DefaultABIInfo with an exception on the kernel
-    // arguments handling.
-    cir::CallingConv CC = FI.getCallingConvention();
-
-    bool cxxabiHit = getCXXABI().classifyReturnType(FI);
-    assert(!cxxabiHit && "C++ ABI not considered");
-
-    FI.getReturnInfo() = classifyReturnType(FI.getReturnType());
-
-    for (auto &I : FI.arguments()) {
-      if (CC == cir::CallingConv::SpirKernel) {
-        I.info = classifyKernelArgumentType(I.type);
-      } else {
-        I.info = classifyArgumentType(I.type);
-      }
-    }
-  }
 
 private:
   cir::ABIArgInfo classifyKernelArgumentType(QualType Ty) const {
@@ -280,17 +232,6 @@ private:
     return classifyArgumentType(Ty);
   }
 };
-} // namespace
-
-void clang::CIRGen::computeSPIRKernelABIInfo(CIRGenModule &CGM,
-                                             CIRGenFunctionInfo &FI) {
-  if (CGM.getTarget().getTriple().isSPIRV())
-    SPIRVABIInfo(CGM.getTypes()).computeInfo(FI);
-  else
-    CommonSPIRABIInfo(CGM.getTypes()).computeInfo(FI);
-}
-
-namespace {
 
 class CommonSPIRTargetCIRGenInfo : public TargetCIRGenInfo {
 public:
@@ -337,8 +278,6 @@ public:
 
   cir::ABIArgInfo classifyReturnType(QualType retTy) const;
   cir::ABIArgInfo classifyArgumentType(QualType ty) const;
-
-  void computeInfo(CIRGenFunctionInfo &fnInfo) const override;
 };
 
 class NVPTXTargetCIRGenInfo : public TargetCIRGenInfo {
@@ -402,8 +341,6 @@ public:
 
   cir::ABIArgInfo classifyReturnType(QualType retTy) const;
   cir::ABIArgInfo classifyArgumentType(QualType ty) const;
-
-  void computeInfo(CIRGenFunctionInfo &fnInfo) const override;
 };
 
 class AMDGPUTargetCIRGenInfo : public TargetCIRGenInfo {
@@ -450,24 +387,6 @@ clang::ASTContext &ABIInfo::getContext() const { return CGT.getContext(); }
 cir::ABIArgInfo X86_64ABIInfo::getIndirectResult(QualType Ty,
                                                  unsigned freeIntRegs) const {
   assert(false && "NYI");
-}
-
-void X86_64ABIInfo::computeInfo(CIRGenFunctionInfo &FI) const {
-  // Top level CIR has unlimited arguments and return types. Lowering for ABI
-  // specific concerns should happen during a lowering phase. Assume everything
-  // is direct for now.
-  for (CIRGenFunctionInfo::arg_iterator it = FI.arg_begin(), ie = FI.arg_end();
-       it != ie; ++it) {
-    if (testIfIsVoidTy(it->type))
-      it->info = cir::ABIArgInfo::getIgnore();
-    else
-      it->info = cir::ABIArgInfo::getDirect(CGT.convertType(it->type));
-  }
-  auto RetTy = FI.getReturnType();
-  if (testIfIsVoidTy(RetTy))
-    FI.getReturnInfo() = cir::ABIArgInfo::getIgnore();
-  else
-    FI.getReturnInfo() = cir::ABIArgInfo::getDirect(CGT.convertType(RetTy));
 }
 
 /// GetINTEGERTypeAtOffset - The ABI specifies that a value should be passed in
@@ -570,25 +489,6 @@ cir::ABIArgInfo NVPTXABIInfo::classifyArgumentType(QualType ty) const {
   llvm_unreachable("not yet implemented");
 }
 
-void NVPTXABIInfo::computeInfo(CIRGenFunctionInfo &fnInfo) const {
-  // Top level CIR has unlimited arguments and return types. Lowering for ABI
-  // specific concerns should happen during a lowering phase. Assume everything
-  // is direct for now.
-  for (CIRGenFunctionInfo::arg_iterator it = fnInfo.arg_begin(),
-                                        ie = fnInfo.arg_end();
-       it != ie; ++it) {
-    if (testIfIsVoidTy(it->type))
-      it->info = cir::ABIArgInfo::getIgnore();
-    else
-      it->info = cir::ABIArgInfo::getDirect(CGT.convertType(it->type));
-  }
-  auto retTy = fnInfo.getReturnType();
-  if (testIfIsVoidTy(retTy))
-    fnInfo.getReturnInfo() = cir::ABIArgInfo::getIgnore();
-  else
-    fnInfo.getReturnInfo() = cir::ABIArgInfo::getDirect(CGT.convertType(retTy));
-}
-
 // Skeleton only. Implement when used in TargetLower stage.
 cir::ABIArgInfo AMDGPUABIInfo::classifyReturnType(QualType retTy) const {
   llvm_unreachable("not yet implemented");
@@ -596,25 +496,6 @@ cir::ABIArgInfo AMDGPUABIInfo::classifyReturnType(QualType retTy) const {
 
 cir::ABIArgInfo AMDGPUABIInfo::classifyArgumentType(QualType ty) const {
   llvm_unreachable("not yet implemented");
-}
-
-void AMDGPUABIInfo::computeInfo(CIRGenFunctionInfo &fnInfo) const {
-  // Top level CIR has unlimited arguments and return types. Lowering for ABI
-  // specific concerns should happen during a lowering phase. Assume everything
-  // is direct for now.
-  for (CIRGenFunctionInfo::arg_iterator it = fnInfo.arg_begin(),
-                                        ie = fnInfo.arg_end();
-       it != ie; ++it) {
-    if (testIfIsVoidTy(it->type))
-      it->info = cir::ABIArgInfo::getIgnore();
-    else
-      it->info = cir::ABIArgInfo::getDirect(CGT.convertType(it->type));
-  }
-  auto retTy = fnInfo.getReturnType();
-  if (testIfIsVoidTy(retTy))
-    fnInfo.getReturnInfo() = cir::ABIArgInfo::getIgnore();
-  else
-    fnInfo.getReturnInfo() = cir::ABIArgInfo::getDirect(CGT.convertType(retTy));
 }
 
 ABIInfo::~ABIInfo() {}

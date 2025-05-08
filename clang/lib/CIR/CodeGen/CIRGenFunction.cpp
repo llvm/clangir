@@ -271,14 +271,6 @@ void CIRGenFunction::emitAndUpdateRetAlloca(QualType ty, mlir::Location loc,
     // Count the implicit return.
     if (!endsWithReturn(CurFuncDecl))
       ++NumReturnExprs;
-  } else if (CurFnInfo->getReturnInfo().getKind() ==
-             cir::ABIArgInfo::Indirect) {
-    // TODO(CIR): Consider this implementation in CIRtoLLVM
-    llvm_unreachable("NYI");
-    // TODO(CIR): Consider this implementation in CIRtoLLVM
-  } else if (CurFnInfo->getReturnInfo().getKind() ==
-             cir::ABIArgInfo::InAlloca) {
-    llvm_unreachable("NYI");
   } else {
     auto addr = emitAlloca("__retval", ty, loc, alignment);
     FnRetAlloca = addr;

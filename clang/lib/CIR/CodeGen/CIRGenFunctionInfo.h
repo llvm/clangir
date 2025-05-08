@@ -26,7 +26,6 @@ namespace clang::CIRGen {
 
 struct CIRGenFunctionInfoArgInfo {
   clang::CanQualType type;
-  cir::ABIArgInfo info;
 };
 
 /// A class for recording the number of arguments that a function signature
@@ -231,6 +230,13 @@ public:
     return llvm::ArrayRef<ArgInfo>(arg_begin(), NumArgs);
   }
 
+  llvm::MutableArrayRef<ArgInfo> requiredArguments() {
+    return llvm::MutableArrayRef<ArgInfo>(arg_begin(), getNumRequiredArgs());
+  }
+  llvm::ArrayRef<ArgInfo> requiredArguments() const {
+    return llvm::ArrayRef<ArgInfo>(arg_begin(), getNumRequiredArgs());
+  }
+
   const_arg_iterator arg_begin() const { return getArgsBuffer() + 1; }
   const_arg_iterator arg_end() const { return getArgsBuffer() + 1 + NumArgs; }
   arg_iterator arg_begin() { return getArgsBuffer() + 1; }
@@ -261,11 +267,6 @@ public:
   }
 
   clang::CanQualType getReturnType() const { return getArgsBuffer()[0].type; }
-
-  cir::ABIArgInfo &getReturnInfo() { return getArgsBuffer()[0].info; }
-  const cir::ABIArgInfo &getReturnInfo() const {
-    return getArgsBuffer()[0].info;
-  }
 
   bool isChainCall() const { return ChainCall; }
 
