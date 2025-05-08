@@ -63,7 +63,7 @@ Currently, 88% (1613/1832) of the SingleSource tests are passing. A good way to 
 
 * In the build directory, run the tests with:
   ```bash
-  lit --timeout=60 -v .
+  lit -v .
   ```
 
 #### Generating the Comparison Table
@@ -74,8 +74,8 @@ Currently, 88% (1613/1832) of the SingleSource tests are passing. A good way to 
 * Build the binaries and collect results for 15 runs of both baseline and ClangIR tests:
     ```bash
     # Set TEST_SUITE_CLANGIR_ENABLE=OFF to get the baseline tests.
-    for i in {1..15}; do lit --timeout=60 -v -o "baseline_$i.json" .; done;
-    for i in {1..15}; do lit --timeout=60 -v -o "clangir_$i.json" .; done;
+    for i in {1..15}; do lit -v -o "baseline_$i.json" .; done;
+    for i in {1..15}; do lit -v -o "clangir_$i.json" .; done;
     ```
 
 * Create the comparison table using the patched `utils/compare.py`:
