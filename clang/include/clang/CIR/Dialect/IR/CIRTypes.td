@@ -559,15 +559,6 @@ def CIR_AnySignedIntOrVecOfSignedInt: AnyTypeOf<[
 
 def CIR_AnyFloatOrVecOfFloat: AnyTypeOf<[CIR_AnyFloatType, FPVector]>;
 
-// Pointer to Arrays
-def ArrayPtr : Type<
-    And<[
-      CPred<"::mlir::isa<::cir::PointerType>($_self)">,
-      CPred<"::mlir::isa<::cir::ArrayType>("
-            "::mlir::cast<::cir::PointerType>($_self).getPointee())">,
-    ]>, "!cir.ptr<!cir.array>"> {
-}
-
 //===----------------------------------------------------------------------===//
 // RecordType
 //

@@ -176,6 +176,12 @@ def CIR_AnyRecordType : CIR_TypeBase<"::cir::RecordType", "record type">;
 def CIR_AnyFuncType : CIR_TypeBase<"::cir::FuncType", "function type">;
 
 //===----------------------------------------------------------------------===//
+// Array Type predicates
+//===----------------------------------------------------------------------===//
+
+def CIR_AnyArrayType : CIR_TypeBase<"::cir::ArrayType", "array type">;
+
+//===----------------------------------------------------------------------===//
 // Pointer Type predicates
 //===----------------------------------------------------------------------===//
 
@@ -229,5 +235,7 @@ def CIR_PtrToComplexType : CIR_PtrToType<CIR_AnyComplexType>;
 def CIR_PtrToRecordType : CIR_PtrToType<CIR_AnyRecordType>;
 
 def CIR_PtrToFunc : CIR_PtrToType<CIR_AnyFuncType>;
+
+def CIR_PtrToArray : CIR_PtrToType<CIR_AnyArrayType>;
 
 #endif // CLANG_CIR_DIALECT_IR_CIRTYPECONSTRAINTS_TD

@@ -5312,8 +5312,10 @@ def ClearCacheOp : CIR_Op<"clear_cache", [AllTypesMatch<["begin", "end"]>]> {
 //===----------------------------------------------------------------------===//
 
 class CIR_ArrayInitDestroy<string mnemonic> : CIR_Op<mnemonic, []> {
-  let arguments = (ins Arg<ArrayPtr, "array address",
-                           [MemWrite, MemRead]>:$addr);
+  let arguments = (ins
+    Arg<CIR_PtrToArray, "array address", [MemWrite, MemRead]>:$addr
+  );
+
   let regions = (region SizedRegion<1>:$body);
   let assemblyFormat = [{
     `(` $addr `:` qualified(type($addr)) `)` $body attr-dict
