@@ -1729,10 +1729,14 @@ mlir::Attribute ConstantEmitter::tryEmitPrivateForVarInit(const VarDecl &D) {
           const auto *cxxrd =
               cast<CXXRecordDecl>(Ty->getAs<RecordType>()->getDecl());
           // Some cases, such as member pointer members, can't be zero
-          // initialized. The classic codegen goes through emitNullConstant
-          // for those cases but generates a non-zero constant. We can't
-          // quite do that here because we need an attribute and not a value,
-          // but something like that can be implemented.
+          // initialized. These are "zero-initialized" in the language standard
+          // sense, but the target ABI may require that a literal value other
+          // than zero be used in the initializer to make clear that a pointer
+          // with the value zero is not what is intended. The classic codegen
+          // goes through emitNullConstant for those cases but generates a
+          // non-zero constant. We can't quite do that here because we need an
+          // attribute and not a value, but something like that can be
+          // implemented.
           if (!CGM.getTypes().isZeroInitializable(cxxrd)) {
             llvm_unreachable("NYI");
           }
