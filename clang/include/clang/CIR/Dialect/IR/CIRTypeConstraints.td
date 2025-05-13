@@ -182,6 +182,13 @@ def CIR_AnyFuncType : CIR_TypeBase<"::cir::FuncType", "function type">;
 def CIR_AnyArrayType : CIR_TypeBase<"::cir::ArrayType", "array type">;
 
 //===----------------------------------------------------------------------===//
+// Exception Info Type predicates
+//===----------------------------------------------------------------------===//
+
+def CIR_AnyExceptionInfoType : CIR_TypeBase<
+    "::cir::ExceptionInfoType", "exception info type">;
+
+//===----------------------------------------------------------------------===//
 // Pointer Type predicates
 //===----------------------------------------------------------------------===//
 
@@ -237,5 +244,10 @@ def CIR_PtrToRecordType : CIR_PtrToType<CIR_AnyRecordType>;
 def CIR_PtrToFunc : CIR_PtrToType<CIR_AnyFuncType>;
 
 def CIR_PtrToArray : CIR_PtrToType<CIR_AnyArrayType>;
+
+def CIR_PtrToExceptionInfoType
+    : CIR_PtrToType<CIR_AnyExceptionInfoType>,
+      BuildableType<"$_builder.getType<" # cppType # ">("
+        "cir::ExceptionInfoType::get($_builder.getContext())))">;
 
 #endif // CLANG_CIR_DIALECT_IR_CIRTYPECONSTRAINTS_TD
