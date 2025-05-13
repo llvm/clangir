@@ -3095,7 +3095,7 @@ def GetMethodOp : CIR_Op<"get_method"> {
   }];
 
   let arguments = (ins CIR_MethodType:$method, CIR_PtrToRecordType:$object);
-  let results = (outs FuncPtr:$callee, CIR_VoidPtrType:$adjusted_this);
+  let results = (outs CIR_PtrToFunc:$callee, CIR_VoidPtrType:$adjusted_this);
 
   let assemblyFormat = [{
     $method `,` $object
