@@ -961,8 +961,8 @@ OpFoldResult cir::ComplexImagOp::fold(FoldAdaptor adaptor) {
 //===----------------------------------------------------------------------===//
 
 LogicalResult cir::ComplexRealPtrOp::verify() {
-  auto resultPointeeTy = mlir::cast<cir::PointerType>(getType()).getPointee();
-  auto operandPtrTy = mlir::cast<cir::PointerType>(getOperand().getType());
+  mlir::Type resultPointeeTy = getType().getPointee();
+  cir::PointerType operandPtrTy = getOperand().getType();
   auto operandPointeeTy =
       mlir::cast<cir::ComplexType>(operandPtrTy.getPointee());
 
@@ -976,8 +976,8 @@ LogicalResult cir::ComplexRealPtrOp::verify() {
 }
 
 LogicalResult cir::ComplexImagPtrOp::verify() {
-  auto resultPointeeTy = mlir::cast<cir::PointerType>(getType()).getPointee();
-  auto operandPtrTy = mlir::cast<cir::PointerType>(getOperand().getType());
+  mlir::Type resultPointeeTy = getType().getPointee();
+  cir::PointerType operandPtrTy = getOperand().getType();
   auto operandPointeeTy =
       mlir::cast<cir::ComplexType>(operandPtrTy.getPointee());
 
@@ -3661,7 +3661,7 @@ LogicalResult cir::GetMethodOp::verify() {
   auto methodTy = getMethod().getType();
 
   // Assume objectTy is !cir.ptr<!T>
-  auto objectPtrTy = mlir::cast<cir::PointerType>(getObject().getType());
+  cir::PointerType objectPtrTy = getObject().getType();
   auto objectTy = objectPtrTy.getPointee();
 
   if (methodTy.getClsTy() != objectTy) {
@@ -3670,8 +3670,7 @@ LogicalResult cir::GetMethodOp::verify() {
   }
 
   // Assume methodFuncTy is !cir.func<!Ret (!Args)>
-  auto calleePtrTy = mlir::cast<cir::PointerType>(getCallee().getType());
-  auto calleeTy = mlir::cast<cir::FuncType>(calleePtrTy.getPointee());
+  auto calleeTy = mlir::cast<cir::FuncType>(getCallee().getType().getPointee());
   auto methodFuncTy = methodTy.getMemberFuncTy();
 
   // We verify at here that calleeTy is !cir.func<!Ret (!cir.ptr<!void>, !Args)>
