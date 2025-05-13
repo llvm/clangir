@@ -568,15 +568,6 @@ def ArrayPtr : Type<
     ]>, "!cir.ptr<!cir.array>"> {
 }
 
-// Pointer to functions
-def FuncPtr : Type<
-    And<[
-      CPred<"::mlir::isa<::cir::PointerType>($_self)">,
-      CPred<"::mlir::isa<::cir::FuncType>("
-            "::mlir::cast<::cir::PointerType>($_self).getPointee())">,
-    ]>, "!cir.ptr<!cir.func>"> {
-}
-
 //===----------------------------------------------------------------------===//
 // RecordType
 //
