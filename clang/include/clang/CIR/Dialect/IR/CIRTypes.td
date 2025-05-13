@@ -505,18 +505,6 @@ def CIR_VoidType : CIR_Type<"Void", "void"> {
 
 // Constraints
 
-// Pointer to exception info
-def ExceptionPtr : Type<
-    And<[
-      CPred<"::mlir::isa<::cir::PointerType>($_self)">,
-      CPred<"::mlir::isa<::cir::ExceptionInfoType>("
-            "::mlir::cast<::cir::PointerType>($_self).getPointee())">
-    ]>, "!cir.eh_info*">,
-    BuildableType<
-      "cir::PointerType::get($_builder.getContext(),"
-      "cir::ExceptionInfoType::get($_builder.getContext()))"> {
-}
-
 // Vector of integral type
 def IntegerVector : Type<
     And<[
