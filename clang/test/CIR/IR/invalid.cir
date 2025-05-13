@@ -894,7 +894,7 @@ module {
 module {
   cir.func @invalid_base_type(%arg0 : !cir.data_member<!u32i in !struct1>) {
     %0 = cir.alloca !u32i, !cir.ptr<!u32i>, ["tmp"] {alignment = 4 : i64}
-    // expected-error@+1 {{'cir.get_runtime_member' op operand #0 must be !cir.record*}}
+    // expected-error@+1 {{'cir.get_runtime_member' op operand #0 must be pointer to record type}}
     %1 = cir.get_runtime_member %0[%arg0 : !cir.data_member<!u32i in !struct1>] : !cir.ptr<!u32i> -> !cir.ptr<!u32i>
     cir.return
   }

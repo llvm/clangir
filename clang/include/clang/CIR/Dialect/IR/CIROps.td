@@ -246,15 +246,20 @@ def DynamicCastOp : CIR_Op<"dyn_cast"> {
     cast-to-complete operation.
   }];
 
-  let arguments = (ins DynamicCastKind:$kind,
-                       RecordPtr:$src,
-                       OptionalAttr<DynamicCastInfoAttr>:$info,
-                       UnitAttr:$relative_layout);
-  let results = (outs CIR_PointerType:$result);
+  let arguments = (ins
+    DynamicCastKind:$kind,
+    CIR_PtrToRecordType:$src,
+    OptionalAttr<DynamicCastInfoAttr>:$info,
+    UnitAttr:$relative_layout
+  );
+
+  let results = (outs
+    CIR_PtrToAnyOf<[CIR_VoidType, CIR_RecordType]>:$result
+  );
 
   let assemblyFormat = [{
     `(`
-      $kind `,` $src `:` type($src)
+      $kind `,` $src `:` qualified(type($src))
       (`,` qualified($info)^)?
       (`relative_layout` $relative_layout^)?
     `)`
@@ -273,8 +278,6 @@ def DynamicCastOp : CIR_Op<"dyn_cast"> {
       return getType().isVoidPtr();
     }
   }];
-
-  let hasVerifier = 1;
 }
 
 //===----------------------------------------------------------------------===//
@@ -3037,7 +3040,7 @@ def GetRuntimeMemberOp : CIR_Op<"get_runtime_member"> {
   }];
 
   let arguments = (ins
-    Arg<RecordPtr, "address of the record object", [MemRead]>:$addr,
+    Arg<CIR_PtrToRecordType, "address of the record object", [MemRead]>:$addr,
     Arg<CIR_DataMemberType, "pointer to the target member">:$member);
 
   let results = (outs Res<CIR_PointerType, "">:$result);
@@ -3091,7 +3094,7 @@ def GetMethodOp : CIR_Op<"get_method"> {
       method.
   }];
 
-  let arguments = (ins CIR_MethodType:$method, RecordPtr:$object);
+  let arguments = (ins CIR_MethodType:$method, CIR_PtrToRecordType:$object);
   let results = (outs FuncPtr:$callee, CIR_VoidPtrType:$adjusted_this);
 
   let assemblyFormat = [{

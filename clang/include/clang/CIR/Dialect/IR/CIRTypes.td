@@ -505,15 +505,6 @@ def CIR_VoidType : CIR_Type<"Void", "void"> {
 
 // Constraints
 
-// Pointer to record
-def RecordPtr : Type<
-    And<[
-      CPred<"::mlir::isa<::cir::PointerType>($_self)">,
-      CPred<"::mlir::isa<::cir::RecordType>("
-            "::mlir::cast<::cir::PointerType>($_self).getPointee())">
-    ]>, "!cir.record*"> {
-}
-
 // Pointer to exception info
 def ExceptionPtr : Type<
     And<[
