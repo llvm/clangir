@@ -1,0 +1,324 @@
+Ops:
+  - name: "cir.acos (::cir::ACosOp)"
+    completed: false
+  - name: "cir.asin (::cir::ASinOp)"
+    completed: false
+  - name: "cir.atan (::cir::ATanOp)"
+    completed: false
+  - name: "cir.abs (::cir::AbsOp)"
+    completed: false
+  - name: "cir.alloc.exception (::cir::AllocExceptionOp)"
+    completed: false
+  - name: "cir.alloca (::cir::AllocaOp)"
+    completed: true
+  - name: "cir.array.ctor (::cir::ArrayCtor)"
+    completed: false
+  - name: "cir.array.dtor (::cir::ArrayDtor)"
+    completed: false
+  - name: "cir.assume.aligned (::cir::AssumeAlignedOp)"
+    completed: false
+  - name: "cir.assume (::cir::AssumeOp)"
+    completed: false
+  - name: "cir.assume.separate_storage (::cir::AssumeSepStorageOp)"
+    completed: false
+  - name: "cir.atomic.cmp_xchg (::cir::AtomicCmpXchg)"
+    completed: false
+  - name: "cir.atomic.fence (::cir::AtomicFence)"
+    completed: false
+  - name: "cir.atomic.fetch (::cir::AtomicFetch)"
+    completed: false
+  - name: "cir.atomic.xchg (::cir::AtomicXchg)"
+    completed: false
+  - name: "cir.await (::cir::AwaitOp)"
+    completed: false
+  - name: "cir.base_class_addr (::cir::BaseClassAddrOp)"
+    completed: false
+  - name: "cir.base_data_member (::cir::BaseDataMemberOp)"
+    completed: false
+  - name: "cir.base_method (::cir::BaseMethodOp)"
+    completed: false
+  - name: "cir.binop (::cir::BinOp)"
+    completed: true
+  - name: "cir.binop.overflow (::cir::BinOpOverflowOp)"
+    completed: false
+  - name: "cir.bit.clrsb (::cir::BitClrsbOp)"
+    completed: false
+  - name: "cir.bit.clz (::cir::BitClzOp)"
+    completed: false
+  - name: "cir.bit.ctz (::cir::BitCtzOp)"
+    completed: false
+  - name: "cir.bit.ffs (::cir::BitFfsOp)"
+    completed: false
+  - name: "cir.bit.parity (::cir::BitParityOp)"
+    completed: false
+  - name: "cir.bit.popcount (::cir::BitPopcountOp)"
+    completed: false
+  - name: "cir.bit_reverse (::cir::BitReverseOp)"
+    completed: false
+  - name: "cir.brcond (::cir::BrCondOp)"
+    completed: true
+  - name: "cir.br (::cir::BrOp)"
+    completed: true
+  - name: "cir.break (::cir::BreakOp)"
+    completed: true
+  - name: "cir.bswap (::cir::ByteswapOp)"
+    completed: false
+  - name: "cir.asm (::cir::InlineAsmOp)"
+    completed: false
+  - name: "cir.call (::cir::CallOp)"
+    completed: true
+  - name: "cir.case (::cir::CaseOp)"
+    completed: false
+  - name: "cir.cast (::cir::CastOp)"
+    completed: true
+  - name: "cir.catch_param (::cir::CatchParamOp)"
+    completed: false
+  - name: "cir.ceil (::cir::CeilOp)"
+    completed: false
+  - name: "cir.clear_cache (::cir::ClearCacheOp)"
+    completed: false
+  - name: "cir.cmp (::cir::CmpOp)"
+    completed: false
+  - name: "cir.cmp3way (::cir::CmpThreeWayOp)"
+    completed: false
+  - name: "cir.complex.binop (::cir::ComplexBinOp)"
+    completed: false
+  - name: "cir.complex.create (::cir::ComplexCreateOp)"
+    completed: false
+  - name: "cir.complex.imag (::cir::ComplexImagOp)"
+    completed: false
+  - name: "cir.complex.imag_ptr (::cir::ComplexImagPtrOp)"
+    completed: false
+  - name: "cir.complex.real (::cir::ComplexRealOp)"
+    completed: false
+  - name: "cir.complex.real_ptr (::cir::ComplexRealPtrOp)"
+    completed: false
+  - name: "cir.condition (::cir::ConditionOp)"
+    completed: true
+  - name: "cir.const (::cir::ConstantOp)"
+    completed: true
+  - name: "cir.continue (::cir::ContinueOp)"
+    completed: true
+  - name: "cir.copy (::cir::CopyOp)"
+    completed: false
+  - name: "cir.copysign (::cir::CopysignOp)"
+    completed: false
+  - name: "cir.cos (::cir::CosOp)"
+    completed: false
+  - name: "cir.delete.array (::cir::DeleteArrayOp)"
+    completed: false
+  - name: "cir.derived_class_addr (::cir::DerivedClassAddrOp)"
+    completed: false
+  - name: "cir.derived_data_member (::cir::DerivedDataMemberOp)"
+    completed: false
+  - name: "cir.derived_method (::cir::DerivedMethodOp)"
+    completed: false
+  - name: "cir.do (::cir::DoWhileOp)"
+    completed: true
+  - name: "cir.dyn_cast (::cir::DynamicCastOp)"
+    completed: false
+  - name: "cir.eh.inflight_exception (::cir::EhInflightOp)"
+    completed: false
+  - name: "cir.eh.typeid (::cir::EhTypeIdOp)"
+    completed: false
+  - name: "cir.exp2 (::cir::Exp2Op)"
+    completed: false
+  - name: "cir.exp (::cir::ExpOp)"
+    completed: false
+  - name: "cir.expect (::cir::ExpectOp)"
+    completed: false
+  - name: "cir.extract_member (::cir::ExtractMemberOp)"
+    completed: false
+  - name: "cir.fabs (::cir::FAbsOp)"
+    completed: false
+  - name: "cir.fmaxnum (::cir::FMaxNumOp)"
+    completed: false
+  - name: "cir.fmaximum (::cir::FMaximumOp)"
+    completed: false
+  - name: "cir.fminnum (::cir::FMinNumOp)"
+    completed: false
+  - name: "cir.fminimum (::cir::FMinimumOp)"
+    completed: false
+  - name: "cir.fmod (::cir::FModOp)"
+    completed: false
+  - name: "cir.floor (::cir::FloorOp)"
+    completed: false
+  - name: "cir.for (::cir::ForOp)"
+    completed: true
+  - name: "cir.frame_address (::cir::FrameAddrOp)"
+    completed: false
+  - name: "cir.free.exception (::cir::FreeExceptionOp)"
+    completed: false
+  - name: "cir.func (::cir::FuncOp)"
+    completed: true
+  - name: "cir.get_bitfield (::cir::GetBitfieldOp)"
+    completed: false
+  - name: "cir.get_global (::cir::GetGlobalOp)"
+    completed: true
+  - name: "cir.get_member (::cir::GetMemberOp)"
+    completed: true
+  - name: "cir.get_method (::cir::GetMethodOp)"
+    completed: false
+  - name: "cir.get_runtime_member (::cir::GetRuntimeMemberOp)"
+    completed: false
+  - name: "cir.global (::cir::GlobalOp)"
+    completed: true
+  - name: "cir.goto (::cir::GotoOp)"
+    completed: false
+  - name: "cir.if (::cir::IfOp)"
+    completed: true
+  - name: "cir.insert_member (::cir::InsertMemberOp)"
+    completed: false
+  - name: "cir.invariant_group (::cir::InvariantGroupOp)"
+    completed: false
+  - name: "cir.is_constant (::cir::IsConstantOp)"
+    completed: false
+  - name: "cir.is_fp_class (::cir::IsFPClassOp)"
+    completed: false
+  - name: "cir.std.begin (::cir::IterBeginOp)"
+    completed: false
+  - name: "cir.std.end (::cir::IterEndOp)"
+    completed: false
+  - name: "cir.llvm.intrinsic (::cir::LLVMIntrinsicCallOp)"
+    completed: false
+  - name: "cir.llrint (::cir::LLrintOp)"
+    completed: false
+  - name: "cir.llround (::cir::LLroundOp)"
+    completed: false
+  - name: "cir.label (::cir::LabelOp)"
+    completed: false
+  - name: "cir.linker_options (::cir::LinkerOptionsOp)"
+    completed: false
+  - name: "cir.log10 (::cir::Log10Op)"
+    completed: false
+  - name: "cir.log2 (::cir::Log2Op)"
+    completed: false
+  - name: "cir.log (::cir::LogOp)"
+    completed: false
+  - name: "cir.load (::cir::Load)"
+    completed: true
+  - name: "cir.lrint (::cir::LrintOp)"
+    completed: false
+  - name: "cir.lround (::cir::LroundOp)"
+    completed: false
+  - name: "cir.libc.memchr (::cir::MemChrOp)"
+    completed: false
+  - name: "cir.memcpy_inline (::cir::MemCpyInlineOp)"
+    completed: false
+  - name: "cir.libc.memcpy (::cir::MemCpyOp)"
+    completed: false
+  - name: "cir.libc.memmove (::cir::MemMoveOp)"
+    completed: false
+  - name: "cir.memset_inline (::cir::MemSetInlineOp)"
+    completed: false
+  - name: "cir.libc.memset (::cir::MemSetOp)"
+    completed: false
+  - name: "cir.nearbyint (::cir::NearbyintOp)"
+    completed: false
+  - name: "cir.objsize (::cir::ObjSizeOp)"
+    completed: false
+  - name: "cir.pow (::cir::PowOp)"
+    completed: false
+  - name: "cir.prefetch (::cir::PrefetchOp)"
+    completed: false
+  - name: "cir.ptr_diff (::cir::PtrDiffOp)"
+    completed: false
+  - name: "cir.ptr_mask (::cir::PtrMaskOp)"
+    completed: false
+  - name: "cir.ptr_stride (::cir::PtrStrideOp)"
+    completed: true
+  - name: "cir.resume (::cir::ResumeOp)"
+    completed: false
+  - name: "cir.return (::cir::ReturnOp)"
+    completed: true
+  - name: "cir.rint (::cir::RintOp)"
+    completed: false
+  - name: "cir.rotate (::cir::RotateOp)"
+    completed: false
+  - name: "cir.roundeven (::cir::RoundEvenOp)"
+    completed: false
+  - name: "cir.round (::cir::RoundOp)"
+    completed: false
+  - name: "cir.scope (::cir::ScopeOp)"
+    completed: true
+  - name: "cir.select (::cir::SelectOp)"
+    completed: true
+  - name: "cir.set_bitfield (::cir::SetBitfieldOp)"
+    completed: false
+  - name: "cir.shift (::cir::ShiftOp)"
+    completed: true
+  - name: "cir.signbit (::cir::SignBitOp)"
+    completed: false
+  - name: "cir.sin (::cir::SinOp)"
+    completed: false
+  - name: "cir.sqrt (::cir::SqrtOp)"
+    completed: false
+  - name: "cir.stack_restore (::cir::StackRestoreOp)"
+    completed: true
+  - name: "cir.stack_save (::cir::StackSaveOp)"
+    completed: true
+  - name: "cir.std.find (::cir::StdFindOp)"
+    completed: false
+  - name: "cir.store (::cir::StoreOp)"
+    completed: true
+  - name: "cir.switch.flat (::cir::SwitchFlatOp)"
+    completed: false
+  - name: "cir.switch (::cir::SwitchOp)"
+    completed: true
+  - name: "cir.tan (::cir::TanOp)"
+    completed: false
+  - name: "cir.ternary (::cir::TernaryOp)"
+    completed: true
+  - name: "cir.throw (::cir::ThrowOp)"
+    completed: false
+  - name: "cir.trap (::cir::TrapOp)"
+    completed: true
+  - name: "cir.trunc (::cir::TruncOp)"
+    completed: false
+  - name: "cir.try_call (::cir::TryCallOp)"
+    completed: false
+  - name: "cir.try (::cir::TryOp)"
+    completed: false
+  - name: "cir.unary (::cir::UnaryOp)"
+    completed: true
+  - name: "cir.unreachable (::cir::UnreachableOp)"
+    completed: true
+  - name: "cir.va.arg (::cir::VAArgOp)"
+    completed: false
+  - name: "cir.va.copy (::cir::VACopyOp)"
+    completed: false
+  - name: "cir.va.end (::cir::VAEndOp)"
+    completed: false
+  - name: "cir.va.start (::cir::VAStartOp)"
+    completed: false
+  - name: "cir.vtt.address_point (::cir::VTTAddrPointOp)"
+    completed: false
+  - name: "cir.vtable.address_point (::cir::VTableAddrPointOp)"
+    completed: false
+  - name: "cir.vec.cmp (::cir::VecCmpOp)"
+    completed: true
+  - name: "cir.vec.create (::cir::VecCreateOp)"
+    completed: true
+  - name: "cir.vec.extract (::cir::VecExtractOp)"
+    completed: true
+  - name: "cir.vec.insert (::cir::VecInsertOp)"
+    completed: true
+  - name: "cir.vec.shuffle.dynamic (::cir::VecShuffleDynamicOp)"
+    completed: false
+  - name: "cir.vec.shuffle (::cir::VecShuffleOp)"
+    completed: false
+  - name: "cir.vec.splat (::cir::VecSplatOp)"
+    completed: false
+  - name: "cir.vec.ternary (::cir::VecTernaryOp)"
+    completed: false
+  - name: "cir.while (::cir::WhileOp)"
+    completed: true
+  - name: "cir.yield (::cir::YieldOp)"
+    completed: true
+Tys:
+  - name: "ArrayType"
+    completed: false
+  - name: "BoolType"
+    completed: true
+  - name: "ComplexType"
+    completed: false

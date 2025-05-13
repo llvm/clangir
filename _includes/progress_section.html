@@ -1,0 +1,55 @@
+{% assign total_tasks = site.data.upstream_progress[include.section_key] | size %}
+{% assign completed_tasks = site.data.upstream_progress[include.section_key] | where: "completed", true | size %}
+{% assign progress = completed_tasks | times: 100.0 | divided_by: total_tasks | round %}
+<style>
+  .progress-container-{{ include.section_key }} {
+    background-color: #e0e0e0;
+    border-radius: 8px;
+    height: 24px;
+    width: 100%;
+    margin-bottom: 1em;
+    overflow: hidden;
+  }
+  .progress-bar-{{ include.section_key }} {
+    background-color: #4CAF50;
+    height: 100%;
+    width: {{ progress }}%;
+    transition: width 0.4s ease;
+  }
+  .task-list {
+    list-style: none;
+    padding: 0;
+  }
+  .task-list li {
+    padding: 0.5em 0;
+    border-bottom: 1px solid #ddd;
+  }
+  .task-completed {
+    color: green;
+  }
+  .task-pending {
+    color: red;
+  }
+</style>
+
+<div class="progress-container-{{ include.section_key }}">
+  <div class="progress-bar-{{ include.section_key }}"></div>
+</div>
+
+<p>Overall Progress: {{ progress }}%</p>
+
+<details>
+  <summary>View {{ include.section_title }}</summary>
+  <ul class="task-list">
+    {% for task in site.data.upstream_progress[include.section_key] %}
+      <li class="{% if task.completed %}task-completed{% else %}task-pending{% endif %}">
+        {% if task.completed %}
+          ✅ {{ task.name }}
+        {% else %}
+          ❌ {{ task.name }}
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+</details>
+
