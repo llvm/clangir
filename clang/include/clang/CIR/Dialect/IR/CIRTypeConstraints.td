@@ -31,6 +31,18 @@ class CIR_ConfinedType<Type type, list<Pred> preds, string summary = "">
     : Type<And<[type.predicate, CIR_CastedSelfsToType<type.cppType, preds>]>,
          summary, type.cppType>;
 
+// Generates a type summary.
+// - For a single type: returns its summary.
+// - For multiple types: returns `any of <comma-separated summaries>`.
+class CIR_TypeSummaries<list<Type> types> {
+    assert !not(!empty(types)), "expects non-empty list of types";
+
+    list<string> summaries = !foreach(type, types, type.summary);
+    string joined = !interleave(summaries, ", ");
+
+    string value = !if(!eq(!size(types), 1), joined, "any of " # joined);
+}
+
 //===----------------------------------------------------------------------===//
 // IntType predicates
 //===----------------------------------------------------------------------===//
@@ -152,6 +164,12 @@ def CIR_AnyIntOrFloatType : AnyTypeOf<[CIR_AnyFloatType, CIR_AnyIntType],
 def CIR_AnyComplexType : CIR_TypeBase<"::cir::ComplexType", "complex type">;
 
 //===----------------------------------------------------------------------===//
+// Record Type predicates
+//===----------------------------------------------------------------------===//
+
+def CIR_AnyRecordType : CIR_TypeBase<"::cir::RecordType", "record type">;
+
+//===----------------------------------------------------------------------===//
 // Pointer Type predicates
 //===----------------------------------------------------------------------===//
 
@@ -176,9 +194,14 @@ class CIR_PtrToPtrTo<code type, string summary>
 class CIR_PointeePred<Pred pred> : SubstLeaves<"$_self",
     "::mlir::cast<::cir::PointerType>($_self).getPointee()", pred>;
 
-class CIR_PtrToType<Type type>
-    : CIR_ConfinedType<CIR_AnyPtrType, [CIR_PointeePred<type.predicate>],
-        "pointer to " # type.summary>;
+class CIR_PtrToAnyOf<list<Type> types, string summary = "">
+    : CIR_ConfinedType<CIR_AnyPtrType,
+        [Or<!foreach(type, types, CIR_PointeePred<type.predicate>)>],
+        !if(!empty(summary),
+            "pointer to " # CIR_TypeSummaries<types>.value,
+            summary)>;
+
+class CIR_PtrToType<Type type> : CIR_PtrToAnyOf<[type]>;
 
 // Void pointer type constraints
 def CIR_VoidPtrType
@@ -196,5 +219,7 @@ def CIR_PtrToVoidPtrType
 def CIR_PtrToIntOrFloatType : CIR_PtrToType<CIR_AnyIntOrFloatType>;
 
 def CIR_PtrToComplexType : CIR_PtrToType<CIR_AnyComplexType>;
+
+def CIR_PtrToRecordType : CIR_PtrToType<CIR_AnyRecordType>;
 
 #endif // CLANG_CIR_DIALECT_IR_CIRTYPECONSTRAINTS_TD
