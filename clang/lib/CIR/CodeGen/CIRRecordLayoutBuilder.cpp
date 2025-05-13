@@ -300,6 +300,7 @@ void CIRRecordLowering::lower(bool nonVirtualBaseType) {
   insertPadding();
   members.pop_back();
 
+  calculateZeroInit();
   fillOutputFields();
   computeVolatileBitfields();
 }
@@ -624,6 +625,24 @@ void CIRRecordLowering::accumulateFields() {
       // TODO(cir): do we want to do anything special about zero size
       // members?
       ++field;
+    }
+  }
+}
+
+void CIRRecordLowering::calculateZeroInit() {
+  for (const MemberInfo &member : members) {
+    if (member.kind == MemberInfo::InfoKind::Field) {
+      if (!member.fieldDecl || isZeroInitializable(member.fieldDecl))
+        continue;
+      IsZeroInitializable = IsZeroInitializableAsBase = false;
+      return;
+    } else if (member.kind == MemberInfo::InfoKind::Base ||
+               member.kind == MemberInfo::InfoKind::VBase) {
+      if (isZeroInitializable(member.cxxRecordDecl))
+        continue;
+      IsZeroInitializable = false;
+      if (member.kind == MemberInfo::InfoKind::Base)
+        IsZeroInitializableAsBase = false;
     }
   }
 }
