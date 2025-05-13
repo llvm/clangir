@@ -45,6 +45,7 @@
 #include "mlir/Target/LLVMIR/Export.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
+#include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/Dialect/Passes.h"
 #include "clang/CIR/LoweringHelpers.h"
 #include "clang/CIR/MissingFeatures.h"
@@ -2395,7 +2396,7 @@ mlir::LogicalResult CIRToLLVMComplexImagOpLowering::matchAndRewrite(
 mlir::LogicalResult CIRToLLVMComplexRealPtrOpLowering::matchAndRewrite(
     cir::ComplexRealPtrOp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
-  auto operandTy = mlir::cast<cir::PointerType>(op.getOperand().getType());
+  cir::PointerType operandTy = op.getOperand().getType();
   auto resultLLVMTy = getTypeConverter()->convertType(op.getResult().getType());
   auto elementLLVMTy = getTypeConverter()->convertType(operandTy.getPointee());
 
@@ -2410,7 +2411,7 @@ mlir::LogicalResult CIRToLLVMComplexRealPtrOpLowering::matchAndRewrite(
 mlir::LogicalResult CIRToLLVMComplexImagPtrOpLowering::matchAndRewrite(
     cir::ComplexImagPtrOp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
-  auto operandTy = mlir::cast<cir::PointerType>(op.getOperand().getType());
+  cir::PointerType operandTy = op.getOperand().getType();
   auto resultLLVMTy = getTypeConverter()->convertType(op.getResult().getType());
   auto elementLLVMTy = getTypeConverter()->convertType(operandTy.getPointee());
 
@@ -3763,7 +3764,7 @@ mlir::LogicalResult CIRToLLVMPtrDiffOpLowering::matchAndRewrite(
   auto diff =
       rewriter.create<mlir::LLVM::SubOp>(op.getLoc(), llvmDstTy, lhs, rhs);
 
-  auto ptrTy = mlir::cast<cir::PointerType>(op.getLhs().getType());
+  cir::PointerType ptrTy = op.getLhs().getType();
   auto typeSize = getTypeSize(ptrTy.getPointee(), *op);
 
   // Avoid silly division by 1.

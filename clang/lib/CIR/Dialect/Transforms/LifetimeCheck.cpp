@@ -1028,7 +1028,7 @@ void LifetimeCheckPass::classifyAndInitTypeCategories(mlir::Value addr,
       if (eltAddr.use_empty())
         return;
 
-      auto eltTy = mlir::cast<cir::PointerType>(eltAddr.getType()).getPointee();
+      auto eltTy = eltAddr.getType().getPointee();
 
       // Classify exploded types. Keep alloca original location.
       classifyAndInitTypeCategories(eltAddr, eltTy, loc, ++nestLevel);
