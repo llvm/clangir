@@ -1717,7 +1717,7 @@ mlir::Attribute ConstantEmitter::tryEmitPrivateForVarInit(const VarDecl &D) {
   // initialization of memory to all NULLs.
   if (!D.hasLocalStorage()) {
     QualType Ty = CGM.getASTContext().getBaseElementType(D.getType());
-    if (Ty->isRecordType())
+    if (Ty->isRecordType()) {
       if (const CXXConstructExpr *E =
               dyn_cast_or_null<CXXConstructExpr>(D.getInit())) {
         const CXXConstructorDecl *CD = E->getConstructor();
@@ -1725,9 +1725,25 @@ mlir::Attribute ConstantEmitter::tryEmitPrivateForVarInit(const VarDecl &D) {
         // just emitting a global with zero init (mimic what we do for trivial
         // assignments and whatnots). Since this is for globals shouldn't
         // be a problem for the near future.
-        if (CD->isTrivial() && CD->isDefaultConstructor())
+        if (CD->isTrivial() && CD->isDefaultConstructor()) {
+          const auto *cxxrd =
+              cast<CXXRecordDecl>(Ty->getAs<RecordType>()->getDecl());
+          // Some cases, such as member pointer members, can't be zero
+          // initialized. These are "zero-initialized" in the language standard
+          // sense, but the target ABI may require that a literal value other
+          // than zero be used in the initializer to make clear that a pointer
+          // with the value zero is not what is intended. The classic codegen
+          // goes through emitNullConstant for those cases but generates a
+          // non-zero constant. We can't quite do that here because we need an
+          // attribute and not a value, but something like that can be
+          // implemented.
+          if (!CGM.getTypes().isZeroInitializable(cxxrd)) {
+            llvm_unreachable("NYI");
+          }
           return cir::ZeroAttr::get(CGM.convertType(D.getType()));
+        }
       }
+    }
   }
   InConstantContext = D.hasConstantInitialization();
 
