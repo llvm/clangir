@@ -2,7 +2,6 @@
 // RUN: FileCheck --check-prefix=CIR --input-file=%t.cir %s
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -mconstructor-aliases -fclangir -emit-llvm -fno-clangir-call-conv-lowering %s -o %t.ll
 // RUN: FileCheck --check-prefix=LLVM --input-file=%t.ll %s
-// XFAIL: *
 
 class Mother {
 public:
@@ -40,22 +39,22 @@ int main() {
 // CIR: !rec_Child = !cir.record<class "Child" {!rec_Mother, !rec_Father} #cir.record.decl.ast>
 
 // CIR: cir.func linkonce_odr @_ZN6MotherC2Ev(%arg0: !cir.ptr<!rec_Mother>
-// CIR:   %{{[0-9]+}} = cir.vtable.address_point(@_ZTV6Mother, vtable_index = 0, address_point_index = 2) : !cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>
+// CIR:   %{{[0-9]+}} = cir.vtable.address_point(@_ZTV6Mother, address_point = <index = 0, offset = 2>) : !cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>
 // CIR:   %{{[0-9]+}} = cir.cast(bitcast, %{{[0-9]+}} : !cir.ptr<!rec_Mother>), !cir.ptr<!cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>>
 // CIR:   cir.store %2, %{{[0-9]+}} : !cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>, !cir.ptr<!cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>>
 // CIR:   cir.return
 // CIR: }
 
 // LLVM-DAG: define linkonce_odr void @_ZN6MotherC2Ev(ptr %0)
-// LLVM-DAG:   store ptr getelementptr inbounds ({ [4 x ptr] }, ptr @_ZTV6Mother, i32 0, i32 0, i32 2), ptr %{{[0-9]+}}, align 8
+// LLVM-DAG:   store ptr getelementptr inbounds nuw (i8, ptr @_ZTV6Mother, i64 16), ptr %{{[0-9]+}}, align 8
 // LLVM-DAG:   ret void
 // LLVM-DAG: }
 
 // CIR: cir.func linkonce_odr @_ZN5ChildC2Ev(%arg0: !cir.ptr<!rec_Child>
-// CIR:   %{{[0-9]+}} = cir.vtable.address_point(@_ZTV5Child, vtable_index = 0, address_point_index = 2) : !cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>
+// CIR:   %{{[0-9]+}} = cir.vtable.address_point(@_ZTV5Child, address_point = <index = 0, offset = 2>) : !cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>
 // CIR:   %{{[0-9]+}} = cir.cast(bitcast, %{{[0-9]+}} : !cir.ptr<!rec_Child>), !cir.ptr<!cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>>
 // CIR:   cir.store %{{[0-9]+}}, %{{[0-9]+}} : !cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>, !cir.ptr<!cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>>
-// CIR:   %{{[0-9]+}} = cir.vtable.address_point(@_ZTV5Child, vtable_index = 1, address_point_index = 2) : !cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>
+// CIR:   %{{[0-9]+}} = cir.vtable.address_point(@_ZTV5Child, address_point = <index = 1, offset = 2>) : !cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>
 // CIR:   %7 = cir.base_class_addr(%1 : !cir.ptr<!rec_Child> nonnull) [8] -> !cir.ptr<!rec_Father>
 // CIR:   %8 = cir.cast(bitcast, %7 : !cir.ptr<!rec_Father>), !cir.ptr<!cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>> loc(#loc8)
 // CIR:   cir.store %{{[0-9]+}}, %{{[0-9]+}} : !cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>, !cir.ptr<!cir.ptr<!cir.ptr<!cir.func<() -> !u32i>>>>
@@ -67,17 +66,17 @@ int main() {
 // LLVM-DAG: $_ZTS6Father = comdat any
 
 // LLVM-DAG: define linkonce_odr void @_ZN5ChildC2Ev(ptr %0)
-// LLVM-DAG:  store ptr getelementptr inbounds ({ [4 x ptr], [3 x ptr] }, ptr @_ZTV5Child, i32 0, i32 0, i32 2), ptr %{{[0-9]+}}, align 8
+// LLVM-DAG:  store ptr getelementptr inbounds nuw (i8, ptr @_ZTV5Child, i64 16), ptr %{{[0-9]+}}, align 8
 // LLVM-DAG:  %{{[0-9]+}} = getelementptr i8, ptr {{.*}}, i32 8
-// LLVM-DAG:  store ptr getelementptr inbounds ({ [4 x ptr], [3 x ptr] }, ptr @_ZTV5Child, i32 0, i32 1, i32 2), ptr %{{[0-9]+}}, align 8
+// LLVM-DAG:  store ptr getelementptr inbounds nuw (i8, ptr @_ZTV5Child, i64 48), ptr %{{[0-9]+}}, align 8
 // LLVM-DAG:  ret void
 // }
 
 // CIR: cir.func @main() -> !s32i extra(#fn_attr) {
 
-// CIR:   %{{[0-9]+}} = cir.vtable.address_point( %{{[0-9]+}} : !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Mother>)>>>, vtable_index = 0, address_point_index = 0) : !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Mother>)>>>
+// CIR:   %{{[0-9]+}} = cir.vtable.address_point( %{{[0-9]+}} : !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Mother>)>>>, address_point = <index = 0, offset = 0>) : !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Mother>)>>>
 
-// CIR:   %{{[0-9]+}} = cir.vtable.address_point( %{{[0-9]+}} : !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Child>)>>>, vtable_index = 0, address_point_index = 0) : !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Child>)>>>
+// CIR:   %{{[0-9]+}} = cir.vtable.address_point( %{{[0-9]+}} : !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Child>)>>>, address_point = <index = 0, offset = 0>) : !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Child>)>>>
 
 // CIR: }
 
@@ -95,7 +94,7 @@ int main() {
 
 //   typeinfo for Mother
 // CIR: cir.global constant external @_ZTI6Mother = #cir.typeinfo<{#cir.global_view<@_ZTVN10__cxxabiv117__class_type_infoE, [2 : i32]> : !cir.ptr<!u8i>, #cir.global_view<@_ZTS6Mother> : !cir.ptr<!u8i>}> : ![[VTypeInfoA]] {alignment = 8 : i64}
-// LLVM-DAG: @_ZTI6Mother = constant { ptr, ptr } { ptr getelementptr inbounds (ptr, ptr @_ZTVN10__cxxabiv117__class_type_infoE, i32 2), ptr @_ZTS6Mother }
+// LLVM-DAG: @_ZTI6Mother = constant { ptr, ptr } { ptr getelementptr inbounds nuw (i8, ptr @_ZTVN10__cxxabiv117__class_type_infoE, i64 16), ptr @_ZTS6Mother }
 
 //   vtable for Father
 // CIR: cir.global linkonce_odr @_ZTV6Father = #cir.vtable<{#cir.const_array<[#cir.ptr<null> : !cir.ptr<!u8i>, #cir.global_view<@_ZTI6Father> : !cir.ptr<!u8i>, #cir.global_view<@_ZN6Father9FatherFooEv> : !cir.ptr<!u8i>]> : !cir.array<!cir.ptr<!u8i> x 3>}> : ![[VTableTypeFather]] {alignment = 8 : i64}
@@ -119,8 +118,8 @@ int main() {
 
 //   typeinfo for Father
 // CIR: cir.global constant external @_ZTI6Father = #cir.typeinfo<{#cir.global_view<@_ZTVN10__cxxabiv117__class_type_infoE, [2 : i32]> : !cir.ptr<!u8i>, #cir.global_view<@_ZTS6Father> : !cir.ptr<!u8i>}> : !rec_anon_struct {alignment = 8 : i64}
-// LLVM-DAG: @_ZTI6Father = constant { ptr, ptr } { ptr getelementptr inbounds (ptr, ptr @_ZTVN10__cxxabiv117__class_type_infoE, i32 2), ptr @_ZTS6Father }
+// LLVM-DAG: @_ZTI6Father = constant { ptr, ptr } { ptr getelementptr inbounds nuw (i8, ptr @_ZTVN10__cxxabiv117__class_type_infoE, i64 16), ptr @_ZTS6Father }
 
 //   typeinfo for Child
 // CIR: cir.global constant external @_ZTI5Child = #cir.typeinfo<{#cir.global_view<@_ZTVN10__cxxabiv121__vmi_class_type_infoE, [2 : i32]> : !cir.ptr<!u8i>, #cir.global_view<@_ZTS5Child> : !cir.ptr<!u8i>, #cir.int<0> : !u32i, #cir.int<2> : !u32i, #cir.global_view<@_ZTI6Mother> : !cir.ptr<!u8i>, #cir.int<2> : !s64i, #cir.global_view<@_ZTI6Father> : !cir.ptr<!u8i>, #cir.int<2050> : !s64i}> : ![[VTypeInfoB]] {alignment = 8 : i64}
-// LLVM-DAG: @_ZTI5Child = constant { ptr, ptr, i32, i32, ptr, i64, ptr, i64 } { ptr getelementptr inbounds (ptr, ptr @_ZTVN10__cxxabiv121__vmi_class_type_infoE, i32 2), ptr @_ZTS5Child, i32 0, i32 2, ptr @_ZTI6Mother, i64 2, ptr @_ZTI6Father, i64 2050 }
+// LLVM-DAG: @_ZTI5Child = constant { ptr, ptr, i32, i32, ptr, i64, ptr, i64 } { ptr getelementptr inbounds nuw (i8, ptr @_ZTVN10__cxxabiv121__vmi_class_type_infoE, i64 16), ptr @_ZTS5Child, i32 0, i32 2, ptr @_ZTI6Mother, i64 2, ptr @_ZTI6Father, i64 2050 }
