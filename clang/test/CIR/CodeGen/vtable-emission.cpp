@@ -3,7 +3,6 @@
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir  -emit-llvm -o - %s \
 // RUN: | opt -S -passes=instcombine,mem2reg,simplifycfg -o %t.ll
 // RUN: FileCheck --check-prefix=LLVM --input-file=%t.ll %s
-// XFAIL: *
 
 struct S {
   virtual void key();
@@ -23,8 +22,8 @@ void S::key() {}
 // CHECK: cir.global external @sobj = #cir.const_record
 // CHECK-SAME: <{#cir.global_view<@_ZTV1S, [0 : i32, 2 : i32]> :
 // CHECK-SAME: !cir.ptr<!rec_anon_struct1>}> : !rec_anon_struct2 {alignment = 8 : i64}
-// LLVM: @sobj = global { ptr } { ptr getelementptr inbounds
-// LLVM-SAME: ({ [4 x ptr] }, ptr @_ZTV1S, i32 0, i32 0, i32 2) }, align 8
+// LLVM: @sobj = global { ptr } { ptr getelementptr inbounds nuw
+// LLVM-SAME: (i8, ptr @_ZTV1S, i64 16) }, align 8
 
 // The reference from the vtable should result in nonKey being emitted.
 // CHECK: cir.func linkonce_odr @_ZN1S6nonKeyEv({{.*}} {

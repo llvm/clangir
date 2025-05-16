@@ -1,6 +1,5 @@
 // RUN: %clang_cc1 -triple aarch64-unknown-linux-gnu -fclangir -emit-cir-flat -fclangir-call-conv-lowering %s -o - | FileCheck %s
 // RUN: %clang_cc1 -triple aarch64-unknown-linux-gnu -fclangir -emit-llvm -fclangir-call-conv-lowering %s -o -| FileCheck %s -check-prefix=LLVM
-// XFAIL: *
 
 #include <stdint.h>
 
@@ -411,7 +410,7 @@ void qux(void) {
 // LLVM: void @qux
 // LLVM: %[[#V1:]] = alloca ptr, i64 1, align 8
 // LLVM: %[[#V2:]] = alloca i64, i64 1, align 8
-// LLVM: store ptr getelementptr (%struct.PackedS2, ptr @g, i64 1), ptr %[[#V1]], align 8
+// LLVM: store ptr getelementptr inbounds nuw (i8, ptr @g, i64 6), ptr %[[#V1]], align 8
 // LLVM: %[[#V3:]] = load ptr, ptr %[[#V1]], align 8
 // LLVM: %[[#V4:]] = load %struct.PackedS2, ptr %[[#V3]], align 1
 // LLVM: call void @llvm.memcpy.p0.p0.i64(ptr %[[#V2]], ptr %[[#V3]], i64 6, i1 false)
