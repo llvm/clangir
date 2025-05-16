@@ -1361,7 +1361,7 @@ mlir::Value ScalarExprEmitter::emitMul(const BinOpInfo &Ops) {
       !CanElideOverflowCheck(CGF.getContext(), Ops))
     llvm_unreachable("NYI");
 
-  if (cir::isFPOrFPVectorTy(Ops.LHS.getType())) {
+  if (cir::isFPOrVectorOfFPType(Ops.LHS.getType())) {
     CIRGenFunction::CIRGenFPOptionsRAII FPOptsRAII(CGF, Ops.FPFeatures);
     return Builder.createFMul(Ops.LHS, Ops.RHS);
   }
@@ -1414,7 +1414,7 @@ mlir::Value ScalarExprEmitter::emitAdd(const BinOpInfo &Ops) {
       !CanElideOverflowCheck(CGF.getContext(), Ops))
     llvm_unreachable("NYI");
 
-  if (cir::isFPOrFPVectorTy(Ops.LHS.getType())) {
+  if (cir::isFPOrVectorOfFPType(Ops.LHS.getType())) {
     CIRGenFunction::CIRGenFPOptionsRAII FPOptsRAII(CGF, Ops.FPFeatures);
     return Builder.createFAdd(Ops.LHS, Ops.RHS);
   }
@@ -1457,7 +1457,7 @@ mlir::Value ScalarExprEmitter::emitSub(const BinOpInfo &Ops) {
         !CanElideOverflowCheck(CGF.getContext(), Ops))
       llvm_unreachable("NYI");
 
-    if (cir::isFPOrFPVectorTy(Ops.LHS.getType())) {
+    if (cir::isFPOrVectorOfFPType(Ops.LHS.getType())) {
       CIRGenFunction::CIRGenFPOptionsRAII FPOptsRAII(CGF, Ops.FPFeatures);
       return Builder.createFSub(Ops.LHS, Ops.RHS);
     }
