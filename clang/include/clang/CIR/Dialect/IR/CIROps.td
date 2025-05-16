@@ -3171,6 +3171,7 @@ def VecExtractOp : CIR_Op<"vec.extract", [Pure,
   }];
 
   let llvmOp = "ExtractElementOp";
+  let hasFolder = 1;
 }
 
 //===----------------------------------------------------------------------===//

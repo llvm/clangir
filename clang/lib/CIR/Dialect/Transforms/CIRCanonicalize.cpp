@@ -79,9 +79,9 @@ struct RemoveEmptyScope : public OpRewritePattern<ScopeOp> {
 struct RemoveEmptySwitch : public OpRewritePattern<SwitchOp> {
   using OpRewritePattern<SwitchOp>::OpRewritePattern;
 
-  LogicalResult matchAndRewrite(SwitchOp op, PatternRewriter &rewriter) const final {
-    if (!(op.getBody().empty() ||
-                   isa<YieldOp>(op.getBody().front().front())))
+  LogicalResult matchAndRewrite(SwitchOp op,
+                                PatternRewriter &rewriter) const final {
+    if (!(op.getBody().empty() || isa<YieldOp>(op.getBody().front().front())))
       return failure();
 
     rewriter.eraseOp(op);
@@ -92,7 +92,8 @@ struct RemoveEmptySwitch : public OpRewritePattern<SwitchOp> {
 struct RemoveTrivialTry : public OpRewritePattern<TryOp> {
   using OpRewritePattern<TryOp>::OpRewritePattern;
 
-  LogicalResult matchAndRewrite(TryOp op, PatternRewriter &rewriter) const final {
+  LogicalResult matchAndRewrite(TryOp op,
+                                PatternRewriter &rewriter) const final {
     // FIXME: also check all catch regions are empty
     // return success(op.getTryRegion().hasOneBlock());
     return mlir::failure();
@@ -116,7 +117,8 @@ struct RemoveTrivialTry : public OpRewritePattern<TryOp> {
 struct SimplifyCallOp : public OpRewritePattern<CallOp> {
   using OpRewritePattern<CallOp>::OpRewritePattern;
 
-  LogicalResult matchAndRewrite(CallOp op, PatternRewriter &rewriter) const final {
+  LogicalResult matchAndRewrite(CallOp op,
+                                PatternRewriter &rewriter) const final {
     // Applicable to cir.call exception ... clean { cir.yield }
     mlir::Region *r = &op.getCleanup();
     if (r->empty() || !r->hasOneBlock())
@@ -174,10 +176,11 @@ void CIRCanonicalizePass::runOnOperation() {
   // Collect operations to apply patterns.
   llvm::SmallVector<Operation *, 16> ops;
   getOperation()->walk([&](Operation *op) {
-    // CastOp and UnaryOp are here to perform a manual `fold` in
+    // CastOp, UnaryOp and VecExtractOp are here to perform a manual `fold` in
     // applyOpPatternsGreedily.
     if (isa<BrOp, BrCondOp, ScopeOp, SwitchOp, CastOp, TryOp, UnaryOp, SelectOp,
-            ComplexCreateOp, ComplexRealOp, ComplexImagOp, CallOp>(op))
+            ComplexCreateOp, ComplexRealOp, ComplexImagOp, CallOp,
+            VecExtractOp>(op))
       ops.push_back(op);
   });
 
