@@ -976,6 +976,8 @@ public:
     switch (E->getCastKind()) {
     case CK_HLSLArrayRValue:
     case CK_HLSLVectorTruncation:
+    case CK_HLSLElementwiseCast:
+    case CK_HLSLAggregateSplatCast:
     case CK_ToUnion:
       llvm_unreachable("not implemented");
 
@@ -1992,7 +1994,7 @@ mlir::Attribute ConstantEmitter::tryEmitPrivate(const APValue &Value,
     const ValueDecl *memberDecl = Value.getMemberPointerDecl();
     assert(!Value.isMemberPointerToDerivedMember() && "NYI");
 
-    if (const auto *memberFuncDecl = dyn_cast<CXXMethodDecl>(memberDecl))
+    if (isa<CXXMethodDecl>(memberDecl))
       assert(0 && "not implemented");
 
     auto cirTy = mlir::cast<cir::DataMemberType>(CGM.convertType(DestType));
@@ -2022,12 +2024,11 @@ mlir::Value CIRGenModule::emitNullConstant(QualType T, mlir::Location loc) {
   if (getTypes().isZeroInitializable(T))
     return builder.getNullValue(getTypes().convertTypeForMem(T), loc);
 
-  if (const ConstantArrayType *CAT =
-          getASTContext().getAsConstantArrayType(T)) {
+  if (getASTContext().getAsConstantArrayType(T)) {
     llvm_unreachable("NYI");
   }
 
-  if (const clang::RecordType *RT = T->getAs<clang::RecordType>())
+  if (T->getAs<clang::RecordType>())
     llvm_unreachable("NYI");
 
   assert(T->isMemberDataPointerType() &&

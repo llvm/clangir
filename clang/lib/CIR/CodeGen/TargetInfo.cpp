@@ -12,15 +12,6 @@
 using namespace clang;
 using namespace clang::CIRGen;
 
-static bool testIfIsVoidTy(QualType Ty) {
-  const auto *BT = Ty->getAs<BuiltinType>();
-  if (!BT)
-    return false;
-
-  BuiltinType::Kind k = BT->getKind();
-  return k == BuiltinType::Void;
-}
-
 static bool isAggregateTypeForABI(QualType T) {
   return !CIRGenFunction::hasScalarEvaluationKind(T) ||
          T->isMemberFunctionPointerType();
