@@ -170,7 +170,7 @@ static Address emitPointerWithAlignment(const Expr *expr,
 
         if (cgf.SanOpts.has(SanitizerKind::CFIUnrelatedCast) &&
             CE->getCastKind() == CK_BitCast) {
-          if (auto PT = expr->getType()->getAs<clang::PointerType>())
+          if (expr->getType()->getAs<clang::PointerType>())
             llvm_unreachable("NYI");
         }
 
@@ -476,7 +476,8 @@ LValue CIRGenFunction::emitCompoundLiteralLValue(const CompoundLiteralExpr *E) {
   // Block-scope compound literals are destroyed at the end of the enclosing
   // scope in C.
   if (!getLangOpts().CPlusPlus)
-    if (QualType::DestructionKind DtorKind = E->getType().isDestructedType())
+    if ([[maybe_unused]] QualType::DestructionKind DtorKind =
+            E->getType().isDestructedType())
       llvm_unreachable("NYI");
 
   return Result;
@@ -860,7 +861,8 @@ void CIRGenFunction::emitStoreThroughLValue(RValue Src, LValue Dst,
   assert(Dst.isSimple() && "only implemented simple");
 
   // There's special magic for assigning into an ARC-qualified l-value.
-  if (Qualifiers::ObjCLifetime Lifetime = Dst.getQuals().getObjCLifetime()) {
+  if ([[maybe_unused]] Qualifiers::ObjCLifetime Lifetime =
+          Dst.getQuals().getObjCLifetime()) {
     llvm_unreachable("NYI");
   }
 

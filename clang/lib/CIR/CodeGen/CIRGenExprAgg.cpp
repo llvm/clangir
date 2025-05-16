@@ -594,6 +594,8 @@ static bool castPreservesZero(const CastExpr *CE) {
   switch (CE->getCastKind()) {
   case CK_HLSLVectorTruncation:
   case CK_HLSLArrayRValue:
+  case CK_HLSLElementwiseCast:
+  case CK_HLSLAggregateSplatCast:
     llvm_unreachable("NYI");
     // No-ops.
   case CK_NoOp:
@@ -825,7 +827,8 @@ void AggExprEmitter::VisitCompoundLiteralExpr(CompoundLiteralExpr *E) {
   CGF.emitAggExpr(E->getInitializer(), Slot);
 
   if (Destruct)
-    if (QualType::DestructionKind DtorKind = E->getType().isDestructedType())
+    if ([[maybe_unused]] QualType::DestructionKind DtorKind =
+            E->getType().isDestructedType())
       llvm_unreachable("NYI");
 }
 
@@ -887,7 +890,7 @@ void AggExprEmitter::VisitLambdaExpr(LambdaExpr *E) {
     emitInitializationToLValue(captureInit, LV);
 
     // Push a destructor if necessary.
-    if (QualType::DestructionKind DtorKind =
+    if ([[maybe_unused]] QualType::DestructionKind DtorKind =
             CurField->getType().isDestructedType()) {
       llvm_unreachable("NYI");
     }
@@ -1672,8 +1675,7 @@ void CIRGenFunction::emitAggregateCopy(LValue Dest, LValue Src, QualType Ty,
   mlir::Attribute SizeVal = nullptr;
   if (TypeInfo.Width.isZero()) {
     // But note that getTypeInfo returns 0 for a VLA.
-    if (auto *VAT = dyn_cast_or_null<VariableArrayType>(
-            getContext().getAsArrayType(Ty))) {
+    if (isa_and_nonnull<VariableArrayType>(getContext().getAsArrayType(Ty))) {
       llvm_unreachable("VLA is NYI");
     }
   }
