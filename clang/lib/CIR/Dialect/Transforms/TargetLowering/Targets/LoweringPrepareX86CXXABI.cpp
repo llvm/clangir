@@ -201,12 +201,12 @@ mlir::Value LoweringPrepareX86CXXABI::lowerVAArgX86_64(
            "Unexpected ABI info for mixed regs");
     mlir::Type tyLo = recordTy.getMembers()[0];
     mlir::Type tyHi = recordTy.getMembers()[1];
-    assert((isFPOrFPVectorTy(tyLo) ^ isFPOrFPVectorTy(tyHi)) &&
+    assert((isFPOrVectorOfFPType(tyLo) ^ isFPOrVectorOfFPType(tyHi)) &&
            "Unexpected ABI info for mixed regs");
     mlir::Value gpAddr = builder.createPtrStride(loc, regSaveArea, gp_offset);
     mlir::Value fpAddr = builder.createPtrStride(loc, regSaveArea, fp_offset);
-    mlir::Value regLoAddr = isFPOrFPVectorTy(tyLo) ? fpAddr : gpAddr;
-    mlir::Value regHiAddr = isFPOrFPVectorTy(tyHi) ? gpAddr : fpAddr;
+    mlir::Value regLoAddr = isFPOrVectorOfFPType(tyLo) ? fpAddr : gpAddr;
+    mlir::Value regHiAddr = isFPOrVectorOfFPType(tyHi) ? gpAddr : fpAddr;
 
     // Copy the first element.
     // FIXME: Our choice of alignment here and below is probably pessimistic.

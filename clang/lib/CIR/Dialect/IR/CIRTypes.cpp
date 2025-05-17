@@ -421,17 +421,7 @@ mlir::LogicalResult cir::VectorType::verify(
     mlir::Type elementType, uint64_t size) {
   if (size == 0)
     return emitError() << "the number of vector elements must be non-zero";
-
-  // Check if it a valid FixedVectorType
-  if (mlir::isa<cir::PointerType, cir::FP128Type>(elementType))
-    return success();
-
-  // Check if it a valid VectorType
-  if (mlir::isa<cir::IntType>(elementType) ||
-      isAnyFloatingPointType(elementType))
-    return success();
-
-  return emitError() << "unsupported element type for CIR vector";
+  return success();
 }
 // TODO(cir): Implement a way to cache the datalayout info calculated below.
 
@@ -756,32 +746,6 @@ LongDoubleType::getABIAlignment(const mlir::DataLayout &dataLayout,
                                 mlir::DataLayoutEntryListRef params) const {
   return mlir::cast<mlir::DataLayoutTypeInterface>(getUnderlying())
       .getABIAlignment(dataLayout, params);
-}
-
-//===----------------------------------------------------------------------===//
-// Floating-point and Float-point Vector type helpers
-//===----------------------------------------------------------------------===//
-
-bool cir::isFPOrFPVectorTy(mlir::Type t) {
-
-  if (isa<cir::VectorType>(t)) {
-    return isAnyFloatingPointType(
-        mlir::dyn_cast<cir::VectorType>(t).getElementType());
-  }
-  return isAnyFloatingPointType(t);
-}
-
-//===----------------------------------------------------------------------===//
-// CIR Integer and Integer Vector type helpers
-//===----------------------------------------------------------------------===//
-
-bool cir::isIntOrIntVectorTy(mlir::Type t) {
-
-  if (isa<cir::VectorType>(t)) {
-    return isa<cir::IntType>(
-        mlir::dyn_cast<cir::VectorType>(t).getElementType());
-  }
-  return isa<cir::IntType>(t);
 }
 
 //===----------------------------------------------------------------------===//
