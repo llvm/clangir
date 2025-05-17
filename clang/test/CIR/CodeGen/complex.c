@@ -4,7 +4,6 @@
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -x c++ -fclangir -emit-cir -mmlir --mlir-print-ir-after=cir-canonicalize -o %t.cir %s 2>&1 | FileCheck --check-prefix=CHECK-AFTER %s
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm -o %t.ll %s
 // RUN: FileCheck --input-file=%t.ll --check-prefixes=LLVM %s
-// XFAIL: *
 
 double _Complex c, c2;
 int _Complex ci, ci2;
@@ -302,9 +301,10 @@ void imag_ptr() {
 // CHECK-AFTER-NEXT:   %{{.+}} = cir.complex.imag_ptr %[[#CI_PTR]] : !cir.ptr<!cir.complex<!s32i>> -> !cir.ptr<!s32i>
 //      CHECK-AFTER: }
 
+// Note: GEP emitted by cir might not be the same as LLVM, due to constant folding.
 // LLVM: define dso_local void @imag_ptr()
-// LLVM:   store ptr getelementptr inbounds ({ double, double }, ptr @c, i32 0, i32 1), ptr %{{.+}}, align 8
-// LLVM:   store ptr getelementptr inbounds ({ i32, i32 }, ptr @ci, i32 0, i32 1), ptr %{{.+}}, align 8
+// LLVM:   store ptr getelementptr inbounds nuw (i8, ptr @c, i64 8), ptr %{{.+}}, align 8
+// LLVM:   store ptr getelementptr inbounds nuw (i8, ptr @ci, i64 4), ptr %{{.+}}, align 8
 // LLVM: }
 
 void extract_imag() {
@@ -330,7 +330,8 @@ void extract_imag() {
 // CHECK-AFTER-NEXT:   %{{.+}} = cir.load %[[#IMAG_PTR]] : !cir.ptr<!s32i>, !s32i
 //      CHECK-AFTER: }
 
+// Note: GEP emitted by cir might not be the same as LLVM, due to constant folding.
 // LLVM: define dso_local void @extract_imag()
-// LLVM:   %{{.+}} = load double, ptr getelementptr inbounds ({ double, double }, ptr @c, i32 0, i32 1), align 8
-// LLVM:   %{{.+}} = load i32, ptr getelementptr inbounds ({ i32, i32 }, ptr @ci, i32 0, i32 1), align 4
+// LLVM:   %{{.+}} = load double, ptr getelementptr inbounds nuw (i8, ptr @c, i64 8), align 8
+// LLVM:   %{{.+}} = load i32, ptr getelementptr inbounds nuw (i8, ptr @ci, i64 4), align 4
 // LLVM: }

@@ -2,7 +2,6 @@
 // RUN: FileCheck --input-file=%t.cir -check-prefix=CIR %s
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu %s -fclangir -emit-llvm -o %t.ll
 // RUN: FileCheck --input-file=%t.ll -check-prefix=LLVM %s
-// XFAIL: *
 
 char buffer[32] = "This is a largely unused buffer";
 
@@ -21,7 +20,7 @@ char buffer[32] = "This is a largely unused buffer";
 // CIR:  cir.clear_cache %[[VAL_3]] : !cir.ptr<!void>, %[[VAL_8]],
 
 // LLVM-LABEL: main
-// LLVM:  call void @llvm.clear_cache(ptr @buffer, ptr getelementptr (i8, ptr @buffer, i64 32))
+// LLVM:  call void @llvm.clear_cache(ptr @buffer, ptr getelementptr inbounds nuw (i8, ptr @buffer, i64 32))
 
 int main(void) {
   __builtin___clear_cache(buffer, buffer+32);
