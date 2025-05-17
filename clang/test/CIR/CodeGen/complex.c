@@ -301,6 +301,7 @@ void imag_ptr() {
 // CHECK-AFTER-NEXT:   %{{.+}} = cir.complex.imag_ptr %[[#CI_PTR]] : !cir.ptr<!cir.complex<!s32i>> -> !cir.ptr<!s32i>
 //      CHECK-AFTER: }
 
+// Note: GEP emitted by cir might not be the same as LLVM, due to constant folding.
 // LLVM: define dso_local void @imag_ptr()
 // LLVM:   store ptr getelementptr inbounds nuw (i8, ptr @c, i64 8), ptr %{{.+}}, align 8
 // LLVM:   store ptr getelementptr inbounds nuw (i8, ptr @ci, i64 4), ptr %{{.+}}, align 8
@@ -329,6 +330,7 @@ void extract_imag() {
 // CHECK-AFTER-NEXT:   %{{.+}} = cir.load %[[#IMAG_PTR]] : !cir.ptr<!s32i>, !s32i
 //      CHECK-AFTER: }
 
+// Note: GEP emitted by cir might not be the same as LLVM, due to constant folding.
 // LLVM: define dso_local void @extract_imag()
 // LLVM:   %{{.+}} = load double, ptr getelementptr inbounds nuw (i8, ptr @c, i64 8), align 8
 // LLVM:   %{{.+}} = load i32, ptr getelementptr inbounds nuw (i8, ptr @ci, i64 4), align 4

@@ -39,6 +39,7 @@ void ppp() { B b; }
 // LLVM: $_ZTS1B = comdat any
 // LLVM: $_ZTS1A = comdat any
 
+// Note: GEP emitted by cir might not be the same as LLVM, due to constant folding.
 // LLVM: @_ZTV1B = linkonce_odr global { [3 x ptr] } { [3 x ptr] [ptr inttoptr (i64 12 to ptr), ptr null, ptr @_ZTI1B] }
 // LLVM: @_ZTT1B = linkonce_odr global [1 x ptr] [ptr getelementptr inbounds nuw (i8, ptr @_ZTV1B, i64 24)]
 // LLVM: @_ZTVN10__cxxabiv121__vmi_class_type_infoE = external global ptr

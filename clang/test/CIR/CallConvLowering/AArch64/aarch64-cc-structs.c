@@ -407,6 +407,7 @@ void qux(void) {
 // CHECK: %[[#V8:]] = cir.const #cir.int<6> : !u64i
 // CHECK: cir.libc.memcpy %[[#V8]] bytes from %[[#V7]] 
 
+// Note: GEP emitted by cir might not be the same as LLVM, due to constant folding.
 // LLVM: void @qux
 // LLVM: %[[#V1:]] = alloca ptr, i64 1, align 8
 // LLVM: %[[#V2:]] = alloca i64, i64 1, align 8

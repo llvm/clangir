@@ -131,6 +131,7 @@ int f() {
 // CIR:   cir.return
 // CIR: }
 
+// Note: GEP emitted by cir might not be the same as LLVM, due to constant folding.
 // LLVM-LABEL: @_ZN1DC1Ev
 // LLVM:   %2 = alloca ptr, i64 1, align 8
 // LLVM:   store ptr %0, ptr %2, align 8

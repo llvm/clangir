@@ -7,6 +7,7 @@
 // LLVM: %struct.S4 = type { i32, i32, i32 }
 // LLVM: %union.U1 = type { [2000 x i32] }
 
+// Note: GEP emitted by cir might not be the same as LLVM, due to constant folding.
 // LLVM: @s1 = global %struct.S1 zeroinitializer, align 8
 // LLVM: @b1 = global ptr getelementptr inbounds nuw (i8, ptr @s1, i64 25600), align 8
 // LLVM: @s2 = global %struct.S2 zeroinitializer, align 8

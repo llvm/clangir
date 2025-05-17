@@ -19,6 +19,7 @@ void S::key() {}
 // LLVM: @_ZTV1S = global { [4 x ptr] } { [4 x ptr]
 // LLVM-SAME: [ptr null, ptr @_ZTI1S, ptr @_ZN1S3keyEv, ptr @_ZN1S6nonKeyEv] }, align 8
 
+// Note: GEP emitted by cir might not be the same as LLVM, due to constant folding.
 // CHECK: cir.global external @sobj = #cir.const_record
 // CHECK-SAME: <{#cir.global_view<@_ZTV1S, [0 : i32, 2 : i32]> :
 // CHECK-SAME: !cir.ptr<!rec_anon_struct1>}> : !rec_anon_struct2 {alignment = 8 : i64}

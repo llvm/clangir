@@ -45,6 +45,7 @@ int main() {
 // CIR:   cir.return
 // CIR: }
 
+// Note: GEP emitted by cir might not be the same as LLVM, due to constant folding.
 // LLVM-DAG: define linkonce_odr void @_ZN6MotherC2Ev(ptr %0)
 // LLVM-DAG:   store ptr getelementptr inbounds nuw (i8, ptr @_ZTV6Mother, i64 16), ptr %{{[0-9]+}}, align 8
 // LLVM-DAG:   ret void
@@ -65,6 +66,7 @@ int main() {
 // LLVM-DAG: $_ZTS5Child = comdat any
 // LLVM-DAG: $_ZTS6Father = comdat any
 
+// Note: GEP emitted by cir might not be the same as LLVM, due to constant folding.
 // LLVM-DAG: define linkonce_odr void @_ZN5ChildC2Ev(ptr %0)
 // LLVM-DAG:  store ptr getelementptr inbounds nuw (i8, ptr @_ZTV5Child, i64 16), ptr %{{[0-9]+}}, align 8
 // LLVM-DAG:  %{{[0-9]+}} = getelementptr i8, ptr {{.*}}, i32 8
@@ -93,6 +95,7 @@ int main() {
 // LLVM-DAG: @_ZTS6Mother = linkonce_odr global [7 x i8] c"6Mother", comdat
 
 //   typeinfo for Mother
+// Note: GEP emitted by cir might not be the same as LLVM, due to constant folding.
 // CIR: cir.global constant external @_ZTI6Mother = #cir.typeinfo<{#cir.global_view<@_ZTVN10__cxxabiv117__class_type_infoE, [2 : i32]> : !cir.ptr<!u8i>, #cir.global_view<@_ZTS6Mother> : !cir.ptr<!u8i>}> : ![[VTypeInfoA]] {alignment = 8 : i64}
 // LLVM-DAG: @_ZTI6Mother = constant { ptr, ptr } { ptr getelementptr inbounds nuw (i8, ptr @_ZTVN10__cxxabiv117__class_type_infoE, i64 16), ptr @_ZTS6Mother }
 
@@ -117,9 +120,11 @@ int main() {
 // LLVM-DAG: @_ZTS6Father = linkonce_odr global [7 x i8] c"6Father", comdat
 
 //   typeinfo for Father
+// Note: GEP emitted by cir might not be the same as LLVM, due to constant folding.
 // CIR: cir.global constant external @_ZTI6Father = #cir.typeinfo<{#cir.global_view<@_ZTVN10__cxxabiv117__class_type_infoE, [2 : i32]> : !cir.ptr<!u8i>, #cir.global_view<@_ZTS6Father> : !cir.ptr<!u8i>}> : !rec_anon_struct {alignment = 8 : i64}
 // LLVM-DAG: @_ZTI6Father = constant { ptr, ptr } { ptr getelementptr inbounds nuw (i8, ptr @_ZTVN10__cxxabiv117__class_type_infoE, i64 16), ptr @_ZTS6Father }
 
 //   typeinfo for Child
+// Note: GEP emitted by cir might not be the same as LLVM, due to constant folding.
 // CIR: cir.global constant external @_ZTI5Child = #cir.typeinfo<{#cir.global_view<@_ZTVN10__cxxabiv121__vmi_class_type_infoE, [2 : i32]> : !cir.ptr<!u8i>, #cir.global_view<@_ZTS5Child> : !cir.ptr<!u8i>, #cir.int<0> : !u32i, #cir.int<2> : !u32i, #cir.global_view<@_ZTI6Mother> : !cir.ptr<!u8i>, #cir.int<2> : !s64i, #cir.global_view<@_ZTI6Father> : !cir.ptr<!u8i>, #cir.int<2050> : !s64i}> : ![[VTypeInfoB]] {alignment = 8 : i64}
 // LLVM-DAG: @_ZTI5Child = constant { ptr, ptr, i32, i32, ptr, i64, ptr, i64 } { ptr getelementptr inbounds nuw (i8, ptr @_ZTVN10__cxxabiv121__vmi_class_type_infoE, i64 16), ptr @_ZTS5Child, i32 0, i32 2, ptr @_ZTI6Mother, i64 2, ptr @_ZTI6Father, i64 2050 }
