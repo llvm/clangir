@@ -2351,7 +2351,7 @@ LValue CIRGenFunction::emitMaterializeTemporaryExpr(
       break;
 
     case SD_FullExpression: {
-      if (!ShouldEmitLifetimeMarkers)
+      if (!shouldEmitLifetimeMarkers)
         break;
       assert(0 && "NYI");
       break;
