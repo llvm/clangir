@@ -138,10 +138,10 @@ mlir::LLVM::FCmpPredicate convertCmpKindToFCmpPredicate(cir::CmpOpKind kind) {
 /// If the given type is a vector type, return the vector's element type.
 /// Otherwise return the given type unchanged.
 mlir::Type elementTypeIfVector(mlir::Type type) {
-  if (auto VecType = mlir::dyn_cast<cir::VectorType>(type)) {
-    return VecType.getElementType();
-  }
-  return type;
+  return llvm::TypeSwitch<mlir::Type, mlir::Type>(type)
+      .Case<cir::VectorType, mlir::VectorType>(
+          [](auto p) { return p.getElementType(); })
+      .Default([](mlir::Type p) { return p; });
 }
 
 mlir::LLVM::Visibility
@@ -2763,13 +2763,10 @@ mlir::LogicalResult CIRToLLVMBinOpLowering::matchAndRewrite(
                     cir::VectorType, mlir::IntegerType>(type)) &&
          "operand type not supported yet");
 
-  auto llvmTy = getTypeConverter()->convertType(op.getType());
-  mlir::Type llvmEltTy =
-      mlir::isa<mlir::VectorType>(llvmTy)
-          ? mlir::cast<mlir::VectorType>(llvmTy).getElementType()
-          : llvmTy;
-  auto rhs = adaptor.getRhs();
-  auto lhs = adaptor.getLhs();
+  mlir::Type llvmTy = getTypeConverter()->convertType(op.getType());
+  mlir::Type llvmEltTy = elementTypeIfVector(llvmTy);
+  mlir::Value rhs = adaptor.getRhs();
+  mlir::Value lhs = adaptor.getLhs();
 
   type = elementTypeIfVector(type);
 
