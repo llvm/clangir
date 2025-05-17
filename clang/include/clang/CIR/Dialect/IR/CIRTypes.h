@@ -26,8 +26,6 @@ struct RecordTypeStorage;
 } // namespace detail
 
 bool isValidFundamentalIntWidth(unsigned width);
-
-bool isScalarType(mlir::Type t);
 bool isFPOrFPVectorTy(mlir::Type);
 bool isIntOrIntVectorTy(mlir::Type);
 } // namespace cir

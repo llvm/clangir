@@ -759,16 +759,6 @@ LongDoubleType::getABIAlignment(const mlir::DataLayout &dataLayout,
 }
 
 //===----------------------------------------------------------------------===//
-// Floating-point type helpers
-//===----------------------------------------------------------------------===//
-
-bool cir::isScalarType(mlir::Type ty) {
-  return isa<cir::IntType, cir::BoolType, cir::SingleType, cir::DoubleType,
-             cir::LongDoubleType, cir::FP16Type, cir::FP128Type, cir::FP80Type,
-             cir::DataMemberType, cir::PointerType>(ty);
-}
-
-//===----------------------------------------------------------------------===//
 // Floating-point and Float-point Vector type helpers
 //===----------------------------------------------------------------------===//
 
