@@ -803,6 +803,8 @@ CIRGenFunction::getEHDispatchBlock(EHScopeStack::stable_iterator si,
                "one per call: expected empty region at this point");
         dispatchBlock = builder.createBlock(&callWithExceptionCtx.getCleanup());
         builder.createYield(callWithExceptionCtx.getLoc());
+      } else if (currLexScope && currLexScope->isTernary()) {
+        break;
       } else {
         // Usually coming from general cir.scope cleanups that aren't
         // tried to a specific throwing call.
