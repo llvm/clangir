@@ -2,7 +2,6 @@
 // RUN: FileCheck --input-file=%t.cir %s --check-prefix=CIR
 // RUN: %clang_cc1 -std=c++20 -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm %s -o %t.ll
 // RUN: FileCheck --input-file=%t.ll %s --check-prefix=LLVM
-// XFAIL: *
 
 struct A {
   int a;
@@ -40,11 +39,12 @@ void ppp() { B b; }
 // LLVM: $_ZTS1B = comdat any
 // LLVM: $_ZTS1A = comdat any
 
+// Note: GEP emitted by cir might not be the same as LLVM, due to constant folding.
 // LLVM: @_ZTV1B = linkonce_odr global { [3 x ptr] } { [3 x ptr] [ptr inttoptr (i64 12 to ptr), ptr null, ptr @_ZTI1B] }
-// LLVM: @_ZTT1B = linkonce_odr global [1 x ptr] [ptr getelementptr inbounds ({ [3 x ptr] }, ptr @_ZTV1B, i32 0, i32 0, i32 3)]
+// LLVM: @_ZTT1B = linkonce_odr global [1 x ptr] [ptr getelementptr inbounds nuw (i8, ptr @_ZTV1B, i64 24)]
 // LLVM: @_ZTVN10__cxxabiv121__vmi_class_type_infoE = external global ptr
 // LLVM: @_ZTS1B = linkonce_odr global [2 x i8] c"1B", comdat
 // LLVM: @_ZTVN10__cxxabiv117__class_type_infoE = external global ptr
 // LLVM: @_ZTS1A = linkonce_odr global [2 x i8] c"1A", comdat
-// LLVM: @_ZTI1A = constant { ptr, ptr } { ptr getelementptr inbounds (ptr, ptr @_ZTVN10__cxxabiv117__class_type_infoE, i32 2), ptr @_ZTS1A }
-// LLVM: @_ZTI1B = constant { ptr, ptr, i32, i32, ptr, i64 } { ptr getelementptr inbounds (ptr, ptr @_ZTVN10__cxxabiv121__vmi_class_type_infoE, i32 2), ptr @_ZTS1B, i32 0, i32 1, ptr @_ZTI1A, i64 -6141 }
+// LLVM: @_ZTI1A = constant { ptr, ptr } { ptr getelementptr inbounds nuw (i8, ptr @_ZTVN10__cxxabiv117__class_type_infoE, i64 16), ptr @_ZTS1A }
+// LLVM: @_ZTI1B = constant { ptr, ptr, i32, i32, ptr, i64 } { ptr getelementptr inbounds nuw (i8, ptr @_ZTVN10__cxxabiv121__vmi_class_type_infoE, i64 16), ptr @_ZTS1B, i32 0, i32 1, ptr @_ZTI1A, i64 -6141 }
