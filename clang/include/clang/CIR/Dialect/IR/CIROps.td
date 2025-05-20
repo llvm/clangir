@@ -1237,9 +1237,13 @@ def ShiftOp : CIR_Op<"shift", [Pure]> {
     ```
   }];
 
-  let results = (outs CIR_AnyIntOrVecOfInt:$result);
-  let arguments = (ins CIR_AnyIntOrVecOfInt:$value, CIR_AnyIntOrVecOfInt:$amount,
-                       UnitAttr:$isShiftleft);
+  let arguments = (ins
+    CIR_AnyIntOrVecOfIntType:$value,
+    CIR_AnyIntOrVecOfIntType:$amount,
+    UnitAttr:$isShiftleft
+  );
+
+  let results = (outs CIR_AnyIntOrVecOfIntType:$result);
 
   let assemblyFormat = [{
     `(`
@@ -3125,7 +3129,7 @@ def VecInsertOp : CIR_Op<"vec.insert", [Pure,
 
   let arguments = (ins
     CIR_VectorType:$vec,
-    AnyType:$value,
+    CIR_VectorElementType:$value,
     CIR_AnyFundamentalIntType:$index
   );
 
@@ -3158,7 +3162,7 @@ def VecExtractOp : CIR_Op<"vec.extract", [Pure,
     CIR_AnyFundamentalIntType:$index
   );
 
-  let results = (outs CIR_AnyType:$result);
+  let results = (outs CIR_VectorElementType:$result);
 
   let assemblyFormat = [{
     $vec `[` $index `:` type($index) `]` attr-dict `:` qualified(type($vec))
@@ -3181,7 +3185,7 @@ def VecCreateOp : CIR_Op<"vec.create", [Pure]> {
     in the vector type.
   }];
 
-  let arguments = (ins Variadic<CIR_AnyType>:$elements);
+  let arguments = (ins Variadic<CIR_VectorElementType>:$elements);
   let results = (outs CIR_VectorType:$result);
 
   let assemblyFormat = [{
@@ -3211,7 +3215,7 @@ def VecSplatOp : CIR_Op<"vec.splat", [Pure,
     All elements of the vector have the same value, that of the given scalar.
   }];
 
-  let arguments = (ins CIR_AnyType:$value);
+  let arguments = (ins CIR_VectorElementType:$value);
   let results = (outs CIR_VectorType:$result);
 
   let assemblyFormat = [{
@@ -3264,8 +3268,13 @@ def VecTernaryOp : CIR_Op<"vec.ternary",
     The result is a vector of the same type as the second and third arguments.
     Each element of the result is `(bool)a[n] ? b[n] : c[n]`.
   }];
-  let arguments = (ins IntegerVector:$cond, CIR_VectorType:$vec1,
-		       CIR_VectorType:$vec2);
+
+  let arguments = (ins
+    CIR_VectorOfIntType:$cond,
+    CIR_VectorType:$vec1,
+		CIR_VectorType:$vec2
+  );
+
   let results = (outs CIR_VectorType:$result);
   let assemblyFormat = [{
     `(` $cond `,` $vec1 `,` $vec2 `)` `:` qualified(type($cond)) `,`
@@ -3328,7 +3337,7 @@ def VecShuffleDynamicOp : CIR_Op<"vec.shuffle.dynamic",
     result vector is constructed by taking the elements from the first input
     vector from the indices indicated by the elements of the second vector.
   }];
-  let arguments = (ins CIR_VectorType:$vec, IntegerVector:$indices);
+  let arguments = (ins CIR_VectorType:$vec, CIR_VectorOfIntType:$indices);
   let results = (outs CIR_VectorType:$result);
   let assemblyFormat = [{
     $vec `:` qualified(type($vec)) `,` $indices `:` qualified(type($indices))
@@ -4712,8 +4721,8 @@ def LLrintOp : UnaryFPToIntBuiltinOp<"llrint", "LlrintOp">;
 
 class UnaryFPToFPBuiltinOp<string mnemonic, string llvmOpName>
     : CIR_Op<mnemonic, [Pure, SameOperandsAndResultType]> {
-  let arguments = (ins CIR_AnyFloatOrVecOfFloat:$src);
-  let results = (outs CIR_AnyFloatOrVecOfFloat:$result);
+  let arguments = (ins CIR_AnyFloatOrVecOfFloatType:$src);
+  let results = (outs CIR_AnyFloatOrVecOfFloatType:$result);
   let summary = "libc builtin equivalent ignoring "
                 "floating point exceptions and errno";
   let assemblyFormat = "$src `:` type($src) attr-dict";
@@ -4743,8 +4752,6 @@ def TanOp : UnaryFPToFPBuiltinOp<"tan", "TanOp">;
 def TruncOp : UnaryFPToFPBuiltinOp<"trunc", "FTruncOp">;
 
 def AbsOp : CIR_Op<"abs", [Pure, SameOperandsAndResultType]> {
-  let arguments = (ins CIR_AnySignedIntOrVecOfSignedInt:$src, UnitAttr:$poison);
-  let results = (outs CIR_AnySignedIntOrVecOfSignedInt:$result);
   let summary = [{
     libc builtin equivalent abs, labs, llabs
 
@@ -4760,6 +4767,14 @@ def AbsOp : CIR_Op<"abs", [Pure, SameOperandsAndResultType]> {
       %2 = cir.abs %3 : !cir.vector<!s32i x 4>
     ```
   }];
+
+  let arguments = (ins
+    CIR_AnySIntOrVecOfSIntType:$src,
+    UnitAttr:$poison
+  );
+
+  let results = (outs CIR_AnySIntOrVecOfSIntType:$result);
+
   let assemblyFormat = "$src ( `poison` $poison^ )? `:` type($src) attr-dict";
 }
 
@@ -4769,9 +4784,12 @@ class BinaryFPToFPBuiltinOp<string mnemonic, string llvmOpName>
     libc builtin equivalent ignoring floating-point exceptions and errno.
   }];
 
-  let arguments = (ins  CIR_AnyFloatOrVecOfFloat:$lhs,
-                         CIR_AnyFloatOrVecOfFloat:$rhs);
-  let results = (outs  CIR_AnyFloatOrVecOfFloat:$result);
+  let arguments = (ins
+    CIR_AnyFloatOrVecOfFloatType:$lhs,
+    CIR_AnyFloatOrVecOfFloatType:$rhs
+  );
+
+  let results = (outs  CIR_AnyFloatOrVecOfFloatType:$result);
 
   let assemblyFormat = [{
     $lhs `,` $rhs `:` qualified(type($lhs)) attr-dict

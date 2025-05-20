@@ -4015,7 +4015,7 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
     mlir::Location loc = getLoc(E->getExprLoc());
     Ops[0] = builder.createBitcast(Ops[0], ty);
     Ops[1] = builder.createBitcast(Ops[1], ty);
-    if (cir::isFPOrFPVectorTy(ty)) {
+    if (cir::isFPOrVectorOfFPType(ty)) {
       return builder.create<cir::FMaximumOp>(loc, Ops[0], Ops[1]);
     }
     return builder.create<cir::BinOp>(loc, cir::BinOpKind::Max, Ops[0], Ops[1]);
@@ -4026,7 +4026,7 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   case NEON::BI__builtin_neon_vmin_v:
   case NEON::BI__builtin_neon_vminq_v: {
     llvm::StringRef name = usgn ? "aarch64.neon.umin" : "aarch64.neon.smin";
-    if (cir::isFPOrFPVectorTy(ty))
+    if (cir::isFPOrVectorOfFPType(ty))
       name = "aarch64.neon.fmin";
     return emitNeonCall(builder, {ty, ty}, Ops, name, ty,
                         getLoc(E->getExprLoc()));
@@ -4037,7 +4037,7 @@ CIRGenFunction::emitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
   case NEON::BI__builtin_neon_vabd_v:
   case NEON::BI__builtin_neon_vabdq_v: {
     llvm::StringRef name = usgn ? "aarch64.neon.uabd" : "aarch64.neon.sabd";
-    if (cir::isFPOrFPVectorTy(ty))
+    if (cir::isFPOrVectorOfFPType(ty))
       name = "aarch64.neon.fabd";
     return emitNeonCall(builder, {ty, ty}, Ops, name, ty,
                         getLoc(E->getExprLoc()));
