@@ -42,21 +42,24 @@ public:
   int64_t getStep() { return step; }
   mlir::Value getLowerBound() { return lowerBound; }
   mlir::Value getUpperBound() { return upperBound; }
+  bool isCanonical() { return canonical; }
 
-  int64_t findStepAndIV(mlir::Value &addr);
+  // Returns true if successfully finds both step and induction variable.
+  mlir::LogicalResult findStepAndIV();
   cir::CmpOp findCmpOp();
   mlir::Value findIVInitValue();
   void analysis();
 
-  mlir::Value plusConstant(mlir::Value V, mlir::Location loc, int addend);
+  mlir::Value plusConstant(mlir::Value v, mlir::Location loc, int addend);
   void transferToSCFForOp();
 
 private:
   cir::ForOp forOp;
   cir::CmpOp cmpOp;
-  mlir::Value IVAddr, lowerBound = nullptr, upperBound = nullptr;
+  mlir::Value ivAddr, lowerBound = nullptr, upperBound = nullptr;
   mlir::ConversionPatternRewriter *rewriter;
   int64_t step = 0;
+  bool canonical = true;
 };
 
 class SCFWhileLoop {
@@ -86,47 +89,97 @@ private:
 };
 
 static int64_t getConstant(cir::ConstantOp op) {
-  auto attr = op->getAttrs().front().getValue();
-  const auto IntAttr = mlir::dyn_cast<cir::IntAttr>(attr);
-  return IntAttr.getValue().getSExtValue();
+  auto attr = op.getValue();
+  const auto intAttr = mlir::cast<cir::IntAttr>(attr);
+  return intAttr.getValue().getSExtValue();
 }
 
-int64_t SCFLoop::findStepAndIV(mlir::Value &addr) {
+mlir::LogicalResult SCFLoop::findStepAndIV() {
   auto *stepBlock =
       (forOp.maybeGetStep() ? &forOp.maybeGetStep()->front() : nullptr);
   assert(stepBlock && "Can not find step block");
 
-  int64_t step = 0;
-  mlir::Value IV = nullptr;
-  // Try to match "IV load addr; ++IV; store IV, addr" to find step.
-  for (mlir::Operation &op : *stepBlock)
-    if (auto loadOp = dyn_cast<cir::LoadOp>(op)) {
-      addr = loadOp.getAddr();
-      IV = loadOp.getResult();
-    } else if (auto cop = dyn_cast<cir::ConstantOp>(op)) {
-      if (step)
-        llvm_unreachable(
-            "Not support multiple constant in step calculation yet");
-      step = getConstant(cop);
-    } else if (auto bop = dyn_cast<cir::BinOp>(op)) {
-      if (bop.getLhs() != IV)
-        llvm_unreachable("Find BinOp not operate on IV");
-      if (bop.getKind() != cir::BinOpKind::Add)
-        llvm_unreachable(
-            "Not support BinOp other than Add in step calculation yet");
-    } else if (auto uop = dyn_cast<cir::UnaryOp>(op)) {
-      if (uop.getInput() != IV)
-        llvm_unreachable("Find UnaryOp not operate on IV");
-      if (uop.getKind() == cir::UnaryOpKind::Inc)
-        step = 1;
-      else if (uop.getKind() == cir::UnaryOpKind::Dec)
-        llvm_unreachable("Not support decrement step yet");
-    } else if (auto storeOp = dyn_cast<cir::StoreOp>(op)) {
-      assert(storeOp.getAddr() == addr && "Can't find IV when lowering ForOp");
-    }
-  assert(step && "Can't find step when lowering ForOp");
+  // Try to match "iv = load addr; ++iv; store iv, addr; yield" to find step.
+  // We should match the exact pattern, in case there's something unexpected:
+  // we must rule out cases like `for (int i = 0; i < n; i++, printf("\n"))`.
+  auto &oplist = stepBlock->getOperations();
 
-  return step;
+  auto iterator = oplist.begin();
+
+  // We might find constants at beginning. Skip them.
+  // We could have hoisted them outside the for loop in previous passes, but
+  // it hasn't been done yet.
+  while (iterator != oplist.end() && isa<ConstantOp>(*iterator))
+    ++iterator;
+
+  if (iterator == oplist.end())
+    return mlir::failure();
+
+  auto load = dyn_cast<LoadOp>(*iterator);
+  if (!load)
+    return mlir::failure();
+
+  // We assume this is the address of induction variable (IV). The operations
+  // that come next will check if that's true.
+  mlir::Value addr = load.getAddr();
+  mlir::Value iv = load.getResult();
+
+  // Then we try to match either "++IV" or "IV += n". Same for reversed loops.
+  if (++iterator == oplist.end())
+    return mlir::failure();
+
+  mlir::Operation &arith = *iterator;
+
+  if (auto unary = dyn_cast<UnaryOp>(arith)) {
+    // Not operating on induction variable. Fail.
+    if (unary.getInput() != iv)
+      return mlir::failure();
+
+    if (unary.getKind() == UnaryOpKind::Inc)
+      step = 1;
+    else if (unary.getKind() == UnaryOpKind::Dec)
+      step = -1;
+    else
+      return mlir::failure();
+  }
+
+  if (auto binary = dyn_cast<BinOp>(arith)) {
+    if (binary.getLhs() != iv)
+      return mlir::failure();
+
+    mlir::Value value = binary.getRhs();
+    if (auto constValue = dyn_cast<ConstantOp>(value.getDefiningOp());
+        isa<IntAttr>(constValue.getValue()))
+      step = getConstant(constValue);
+
+    if (binary.getKind() == BinOpKind::Add)
+      ; // Nothing to do. Step has been calculated above.
+    else if (binary.getKind() == BinOpKind::Sub)
+      step = -step;
+    else
+      return mlir::failure();
+  }
+
+  // Check whether we immediately store this value into the appropriate place.
+  if (++iterator == oplist.end())
+    return mlir::failure();
+
+  auto store = dyn_cast<StoreOp>(*iterator);
+  if (!store || store.getAddr() != addr ||
+      store.getValue() != arith.getResult(0))
+    return mlir::failure();
+
+  if (++iterator == oplist.end())
+    return mlir::failure();
+
+  // Finally, this should precede a yield with nothing in between.
+  bool success = isa<YieldOp>(*iterator);
+
+  // Remember to update analysis information.
+  if (success)
+    ivAddr = addr;
+
+  return success ? mlir::success() : mlir::failure();
 }
 
 static bool isIVLoad(mlir::Operation *op, mlir::Value IVAddr) {
@@ -143,7 +196,7 @@ static bool isIVLoad(mlir::Operation *op, mlir::Value IVAddr) {
 
 cir::CmpOp SCFLoop::findCmpOp() {
   cmpOp = nullptr;
-  for (auto *user : IVAddr.getUsers()) {
+  for (auto *user : ivAddr.getUsers()) {
     if (user->getParentRegion() != &forOp.getCond())
       continue;
     if (auto loadOp = dyn_cast<cir::LoadOp>(*user)) {
@@ -162,10 +215,10 @@ cir::CmpOp SCFLoop::findCmpOp() {
   if (!mlir::isa<cir::IntType>(type))
     llvm_unreachable("Non-integer type IV is not supported");
 
-  auto lhsDefOp = cmpOp.getLhs().getDefiningOp();
+  auto *lhsDefOp = cmpOp.getLhs().getDefiningOp();
   if (!lhsDefOp)
     llvm_unreachable("Can't find IV load");
-  if (!isIVLoad(lhsDefOp, IVAddr))
+  if (!isIVLoad(lhsDefOp, ivAddr))
     llvm_unreachable("cmpOp LHS is not IV");
 
   if (cmpOp.getKind() != cir::CmpOpKind::le &&
@@ -187,7 +240,7 @@ mlir::Value SCFLoop::plusConstant(mlir::Value V, mlir::Location loc,
 // The operations before the loop have been transferred to MLIR.
 // So we need to go through getRemappedValue to find the value.
 mlir::Value SCFLoop::findIVInitValue() {
-  auto remapAddr = rewriter->getRemappedValue(IVAddr);
+  auto remapAddr = rewriter->getRemappedValue(ivAddr);
   if (!remapAddr)
     return nullptr;
   if (!remapAddr.hasOneUse())
@@ -199,7 +252,13 @@ mlir::Value SCFLoop::findIVInitValue() {
 }
 
 void SCFLoop::analysis() {
-  step = findStepAndIV(IVAddr);
+  canonical = mlir::succeeded(findStepAndIV());
+  if (!canonical) {
+    mlir::emitError(forOp.getLoc(),
+                    "cannot handle non-constant step for induction variable");
+    return;
+  }
+
   cmpOp = findCmpOp();
   auto IVInit = findIVInitValue();
   // The loop end value should be hoisted out of loop by -cir-mlir-scf-prepare.
@@ -237,7 +296,7 @@ void SCFLoop::transferToSCFForOp() {
       llvm_unreachable(
           "Not support lowering loop with break, continue or if yet");
     // Replace the IV usage to scf loop induction variable.
-    if (isIVLoad(op, IVAddr)) {
+    if (isIVLoad(op, ivAddr)) {
       // Replace CIR IV load with arith.addi scf.IV, 0.
       // The replacement makes the SCF IV can be automatically propogated
       // by OpAdaptor for individual IV user lowering.
@@ -293,6 +352,10 @@ public:
                   mlir::ConversionPatternRewriter &rewriter) const override {
     SCFLoop loop(op, &rewriter);
     loop.analysis();
+    if (!loop.isCanonical())
+      return mlir::emitError(op.getLoc(),
+                             "cannot handle non-canonicalized loop");
+
     loop.transferToSCFForOp();
     rewriter.eraseOp(op);
     return mlir::success();
