@@ -2677,6 +2677,7 @@ mlir::Value ScalarExprEmitter::VisitBinLAnd(const clang::BinaryOperator *E) {
               auto res = b.create<cir::ConstantOp>(Loc, Builder.getFalseAttr());
               b.create<cir::YieldOp>(Loc, res.getRes());
             });
+        LexScope.ForceCleanup();
         B.create<cir::YieldOp>(Loc, res.getResult());
       },
       /*falseBuilder*/
@@ -2772,6 +2773,7 @@ mlir::Value ScalarExprEmitter::VisitBinLOr(const clang::BinaryOperator *E) {
               auto res = b.create<cir::ConstantOp>(Loc, Builder.getFalseAttr());
               b.create<cir::YieldOp>(Loc, res.getRes());
             });
+        LexScope.ForceCleanup();
         B.create<cir::YieldOp>(Loc, res.getResult());
       });
 
