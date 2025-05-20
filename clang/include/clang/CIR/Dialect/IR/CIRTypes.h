@@ -26,8 +26,7 @@ struct RecordTypeStorage;
 } // namespace detail
 
 bool isValidFundamentalIntWidth(unsigned width);
-bool isFPOrFPVectorTy(mlir::Type);
-bool isIntOrIntVectorTy(mlir::Type);
+
 } // namespace cir
 
 mlir::ParseResult parseAddrSpaceAttribute(mlir::AsmParser &p,

@@ -1482,7 +1482,7 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
 
   case Builtin::BI__builtin_elementwise_abs: {
     mlir::Type cirTy = convertType(E->getArg(0)->getType());
-    bool isIntTy = cir::isIntOrIntVectorTy(cirTy);
+    bool isIntTy = cir::isIntOrVectorOfIntType(cirTy);
     if (!isIntTy) {
       return emitUnaryFPBuiltin<cir::FAbsOp>(*this, *E);
     }

@@ -345,11 +345,31 @@ def CIR_VectorType : CIR_Type<"Vector", "vector",
 
   let summary = "CIR vector type";
   let description = [{
-    `cir.vector' represents fixed-size vector types.  The parameters are the
-    element type and the number of elements.
+    The `!cir.vector` type represents a fixed-size, one-dimensional vector.
+    It takes two parameters: the element type and the number of elements.
+
+    Syntax:
+
+    ```mlir
+    vector-type ::= !cir.vector<element-type x size>
+    element-type ::= float-type | integer-type | pointer-type
+    ```
+
+    The `element-type` must be a scalar CIR type. Zero-sized vectors are not
+    allowed. The `size` must be a positive integer.
+
+    Examples:
+
+    ```mlir
+    !cir.vector<!cir.int<u, 8> x 4>
+    !cir.vector<!cir.float x 2>
+    ```
   }];
 
-  let parameters = (ins "mlir::Type":$elementType, "uint64_t":$size);
+  let parameters = (ins
+    CIR_VectorElementType:$elementType,
+    "uint64_t":$size
+  );
 
   let builders = [
     TypeBuilderWithInferredContext<(ins
@@ -502,50 +522,6 @@ def CIR_VoidType : CIR_Type<"Void", "void"> {
     std::string getAlias() const { return "void"; };
   }];
 }
-
-// Constraints
-
-// Vector of integral type
-def IntegerVector : Type<
-    And<[
-      CPred<"::mlir::isa<::cir::VectorType>($_self)">,
-      CPred<"::mlir::isa<::cir::IntType>("
-            "::mlir::cast<::cir::VectorType>($_self).getElementType())">,
-      CPred<"::mlir::cast<::cir::IntType>("
-            "::mlir::cast<::cir::VectorType>($_self).getElementType())"
-            ".isFundamental()">
-    ]>, "!cir.vector of !cir.int"> {
-}
-
-// Vector of signed integral type
-def SignedIntegerVector : Type<
-    And<[
-      CPred<"::mlir::isa<::cir::VectorType>($_self)">,
-      CPred<"::mlir::isa<::cir::IntType>("
-            "::mlir::cast<::cir::VectorType>($_self).getElementType())">,
-      CPred<"::mlir::cast<::cir::IntType>("
-            "::mlir::cast<::cir::VectorType>($_self).getElementType())"
-            ".isSignedFundamental()">
-    ]>, "!cir.vector of !cir.int"> {
-}
-
-// Vector of Float type
-def FPVector : Type<
-    And<[
-      CPred<"::mlir::isa<::cir::VectorType>($_self)">,
-      CPred<"::mlir::isa<::cir::SingleType, ::cir::DoubleType>("
-            "::mlir::cast<::cir::VectorType>($_self).getElementType())">,
-    ]>, "!cir.vector of !cir.fp"> {
-}
-
-// Constraints
-def CIR_AnyIntOrVecOfInt: AnyTypeOf<[CIR_IntType, IntegerVector]>;
-
-def CIR_AnySignedIntOrVecOfSignedInt: AnyTypeOf<[
-  CIR_AnyFundamentalSIntType, SignedIntegerVector
-]>;
-
-def CIR_AnyFloatOrVecOfFloat: AnyTypeOf<[CIR_AnyFloatType, FPVector]>;
 
 //===----------------------------------------------------------------------===//
 // RecordType
