@@ -192,9 +192,8 @@ CIRGenModule::CIRGenModule(mlir::MLIRContext &mlirContext,
   // MLIR features.
   theModule->setAttr(cir::CIRDialect::getSOBAttrName(),
                      cir::SignedOverflowBehaviorAttr::get(&mlirContext, sob));
-  auto lang = SourceLanguageAttr::get(&mlirContext, getCIRSourceLanguage());
   theModule->setAttr(cir::CIRDialect::getLangAttrName(),
-                     cir::LangAttr::get(&mlirContext, lang));
+                     cir::LangAttr::get(&mlirContext, getCIRSourceLanguage()));
   theModule->setAttr(cir::CIRDialect::getTripleAttrName(),
                      builder.getStringAttr(getTriple().str()));
 
