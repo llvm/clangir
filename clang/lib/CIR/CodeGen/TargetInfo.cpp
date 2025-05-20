@@ -6,6 +6,7 @@
 #include "CIRGenTypes.h"
 
 #include "clang/Basic/TargetInfo.h"
+#include "clang/CIR/ABIArgInfo.h"
 #include "clang/CIR/MissingFeatures.h"
 #include "clang/CIR/Target/x86.h"
 

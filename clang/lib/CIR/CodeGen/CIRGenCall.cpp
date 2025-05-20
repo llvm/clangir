@@ -47,8 +47,9 @@ CIRGenFunctionInfo *CIRGenFunctionInfo::create(
   assert(!required.allowsOptionalArgs() ||
          required.getNumRequiredArgs() <= argTypes.size());
 
-  void *buffer = operator new(totalSizeToAlloc<ArgInfo, ExtParameterInfo>(
-      argTypes.size() + 1, paramInfos.size()));
+  void *buffer = operator new(
+      totalSizeToAlloc<clang::CanQualType, ExtParameterInfo>(
+          argTypes.size() + 1, paramInfos.size()));
 
   CIRGenFunctionInfo *FI = new (buffer) CIRGenFunctionInfo();
   FI->CallingConvention = cirCC;
@@ -68,9 +69,9 @@ CIRGenFunctionInfo *CIRGenFunctionInfo::create(
   FI->ArgRecordAlign = 0;
   FI->NumArgs = argTypes.size();
   FI->HasExtParameterInfos = !paramInfos.empty();
-  FI->getArgsBuffer()[0].type = resultType;
+  FI->getArgTypes()[0] = resultType;
   for (unsigned i = 0; i < argTypes.size(); ++i)
-    FI->getArgsBuffer()[i + 1].type = argTypes[i];
+    FI->getArgTypes()[i + 1] = argTypes[i];
   for (unsigned i = 0; i < paramInfos.size(); ++i)
     FI->getExtParameterInfosBuffer()[i] = paramInfos[i];
 
@@ -100,8 +101,8 @@ cir::FuncType CIRGenTypes::GetFunctionType(const CIRGenFunctionInfo &FI) {
   ArgTypes.reserve(FI.getNumRequiredArgs());
 
   // Add in all of the required arguments.
-  for (const CIRGenFunctionInfoArgInfo &argInfo : FI.requiredArguments())
-    ArgTypes.push_back(convertType(argInfo.type));
+  for (const clang::CanQualType &argType : FI.requiredArguments())
+    ArgTypes.push_back(convertType(argType));
 
   bool Erased = FunctionsBeingProcessed.erase(&FI);
   (void)Erased;
@@ -469,11 +470,11 @@ RValue CIRGenFunction::emitCall(const CIRGenFunctionInfo &CallInfo,
   CIRCallArgs.reserve(CallArgs.size());
 
   unsigned ArgNo = 0;
-  CIRGenFunctionInfo::const_arg_iterator info_it = CallInfo.arg_begin();
+  CIRGenFunctionInfo::const_arg_iterator type_it = CallInfo.arg_begin();
   for (CallArgList::const_iterator I = CallArgs.begin(), E = CallArgs.end();
-       I != E; ++I, ++info_it, ++ArgNo) {
+       I != E; ++I, ++type_it, ++ArgNo) {
 
-    mlir::Type argType = convertType(info_it->type);
+    mlir::Type argType = convertType(*type_it);
     if (!mlir::isa<cir::RecordType>(argType)) {
       mlir::Value V;
       assert(!I->isAggregate() && "Aggregate NYI");
