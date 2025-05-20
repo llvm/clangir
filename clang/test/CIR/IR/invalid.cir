@@ -477,7 +477,7 @@ cir.func @vec_insert_non_vector() {
 cir.func @vec_ternary_non_vector1() {
   %0 = cir.const #cir.int<0> : !s32i
   %1 = cir.vec.create(%0, %0 : !s32i, !s32i) : !cir.vector<!s32i x 2>
-  %2 = cir.vec.ternary(%0, %1, %1) : !s32i, !cir.vector<!s32i x 2> // expected-error {{'cir.vec.ternary' op operand #0 must be !cir.vector of !cir.int, but got '!cir.int<s, 32>'}}
+  %2 = cir.vec.ternary(%0, %1, %1) : !s32i, !cir.vector<!s32i x 2> // expected-error {{'cir.vec.ternary' op operand #0 must be vector of integer type, but got '!cir.int<s, 32>'}}
   cir.return
 }
 
@@ -506,7 +506,7 @@ cir.func @vec_ternary_different_size() {
 
 cir.func @vec_ternary_not_int(%p : !cir.float) {
   %0 = cir.vec.create(%p, %p : !cir.float, !cir.float) : !cir.vector<!cir.float x 2>
-  %1 = cir.vec.ternary(%0, %0, %0) : !cir.vector<!cir.float x 2>, !cir.vector<!cir.float x 2> // expected-error {{'cir.vec.ternary' op operand #0 must be !cir.vector of !cir.int, but got '!cir.vector<!cir.float x 2>'}}
+  %1 = cir.vec.ternary(%0, %0, %0) : !cir.vector<!cir.float x 2>, !cir.vector<!cir.float x 2> // expected-error {{'cir.vec.ternary' op operand #0 must be vector of integer type, but got '!cir.vector<!cir.float x 2>'}}
   cir.return
 }
 

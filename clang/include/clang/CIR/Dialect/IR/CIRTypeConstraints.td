@@ -275,4 +275,59 @@ defvar CIR_ScalarTypes = [
 def CIR_AnyScalarType : AnyTypeOf<CIR_ScalarTypes, "cir scalar type"> {
   let cppFunctionName = "isScalarType";
 }
+
+//===----------------------------------------------------------------------===//
+// Vector Type predicates
+//===----------------------------------------------------------------------===//
+
+def CIR_AnyVectorType : CIR_TypeBase<"::cir::VectorType", "vector type">;
+
+def CIR_VectorElementType : AnyTypeOf<[CIR_AnyIntOrFloatType, CIR_AnyPtrType],
+    "any cir integer, floating point or pointer type"
+> {
+    let cppFunctionName = "isValidVectorTypeElementType";
+}
+
+// Element type constraint bases
+class CIR_ElementTypePred<Pred pred> : SubstLeaves<"$_self",
+    "::mlir::cast<::cir::VectorType>($_self).getElementType()", pred>;
+
+class CIR_VectorTypeOf<list<Type> types, string summary = "">
+    : CIR_ConfinedType<CIR_AnyVectorType,
+        [Or<!foreach(type, types, CIR_ElementTypePred<type.predicate>)>],
+        !if(!empty(summary),
+            "vector of " # CIR_TypeSummaries<types>.value,
+            summary)>;
+
+// Vector of type constraints
+def CIR_VectorOfIntType : CIR_VectorTypeOf<[CIR_AnyIntType]>;
+def CIR_VectorOfUIntType : CIR_VectorTypeOf<[CIR_AnyUIntType]>;
+def CIR_VectorOfSIntType : CIR_VectorTypeOf<[CIR_AnySIntType]>;
+def CIR_VectorOfFloatType : CIR_VectorTypeOf<[CIR_AnyFloatType]>;
+
+// Vector or Scalar type constraints
+def CIR_AnyIntOrVecOfIntType
+    : AnyTypeOf<[CIR_AnyIntType, CIR_VectorOfIntType],
+        "integer or vector of integer type"> {
+    let cppFunctionName = "isIntOrVectorOfIntType";
+}
+
+def CIR_AnySIntOrVecOfSIntType
+    : AnyTypeOf<[CIR_AnySIntType, CIR_VectorOfSIntType],
+        "signed integer or vector of signed integer type"> {
+    let cppFunctionName = "isSIntOrVectorOfSIntType";
+}
+
+def CIR_AnyUIntOrVecOfUIntType
+    : AnyTypeOf<[CIR_AnyUIntType, CIR_VectorOfUIntType],
+        "unsigned integer or vector of unsigned integer type"> {
+    let cppFunctionName = "isUIntOrVectorOfUIntType";
+}
+
+def CIR_AnyFloatOrVecOfFloatType
+    : AnyTypeOf<[CIR_AnyFloatType, CIR_VectorOfFloatType],
+        "floating point or vector of floating point type"> {
+    let cppFunctionName = "isFPOrVectorOfFPType";
+}
+
 #endif // CLANG_CIR_DIALECT_IR_CIRTYPECONSTRAINTS_TD
