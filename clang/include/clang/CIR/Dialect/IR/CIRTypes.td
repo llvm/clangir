@@ -262,7 +262,7 @@ def CIR_PointerType : CIR_Type<"Pointer", "ptr",
 }
 
 //===----------------------------------------------------------------------===//
-// DataMemberType
+// CIR_DataMemberType
 //===----------------------------------------------------------------------===//
 
 def CIR_DataMemberType : CIR_Type<"DataMember", "data_member",
@@ -270,7 +270,7 @@ def CIR_DataMemberType : CIR_Type<"DataMember", "data_member",
 
   let summary = "CIR type that represents pointer-to-data-member type in C++";
   let description = [{
-    `cir.member_ptr` models the pointer-to-data-member type in C++. Values of
+    `cir.data_member` models the pointer-to-data-member type in C++. Values of
     this type are essentially offsets of the pointed-to member within one of
     its containing record.
   }];
