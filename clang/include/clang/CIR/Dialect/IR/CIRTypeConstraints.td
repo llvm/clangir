@@ -44,6 +44,12 @@ class CIR_TypeSummaries<list<Type> types> {
 }
 
 //===----------------------------------------------------------------------===//
+// Bool Type predicates
+//===----------------------------------------------------------------------===//
+
+def CIR_AnyBoolType : CIR_TypeBase<"::cir::BoolType", "boolean type">;
+
+//===----------------------------------------------------------------------===//
 // IntType predicates
 //===----------------------------------------------------------------------===//
 
@@ -250,4 +256,23 @@ def CIR_PtrToExceptionInfoType
       BuildableType<"$_builder.getType<" # cppType # ">("
         "cir::ExceptionInfoType::get($_builder.getContext())))">;
 
+//===----------------------------------------------------------------------===//
+// Data member type predicates
+//===----------------------------------------------------------------------===//
+
+def CIR_AnyDataMemberType : CIR_TypeBase<"::cir::DataMemberType",
+    "data member type">;
+
+//===----------------------------------------------------------------------===//
+// Scalar Type predicates
+//===----------------------------------------------------------------------===//
+
+defvar CIR_ScalarTypes = [
+    CIR_AnyBoolType, CIR_AnyIntType, CIR_AnyFloatType, CIR_AnyPtrType,
+    CIR_AnyDataMemberType
+];
+
+def CIR_AnyScalarType : AnyTypeOf<CIR_ScalarTypes, "cir scalar type"> {
+  let cppFunctionName = "isScalarType";
+}
 #endif // CLANG_CIR_DIALECT_IR_CIRTYPECONSTRAINTS_TD
