@@ -128,6 +128,11 @@ uint64_t CIRGenBuilderTy::computeOffsetFromGlobalViewIndices(
   for (int64_t idx : indexes) {
     if (auto sTy = dyn_cast<cir::RecordType>(typ)) {
       offset += sTy.getElementOffset(layout.layout, idx);
+      // Align the offset to the type alignment. This is needed for getting
+      // paddings correctly.
+      const llvm::Align tyAlign = llvm::Align(
+          sTy.getPacked() ? 1 : layout.layout.getTypeABIAlignment(typ));
+      offset = llvm::alignTo(offset, tyAlign);
       assert(idx < (int64_t)sTy.getMembers().size());
       typ = sTy.getMembers()[idx];
     } else if (auto arTy = dyn_cast<cir::ArrayType>(typ)) {
