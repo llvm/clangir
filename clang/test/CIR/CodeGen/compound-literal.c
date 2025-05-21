@@ -40,9 +40,9 @@ int foo() {
 // CIR:    [[COMPLITERAL_MEM:%.*]] = cir.alloca !rec_anon2E0, !cir.ptr<!rec_anon2E0>, [".compoundliteral"] {alignment = 4 : i64}
 // CIR:    [[FIELD:%.*]] = cir.get_member [[COMPLITERAL_MEM]][0] {name = "i"} : !cir.ptr<!rec_anon2E0> -> !cir.ptr<!s32i>
 // CIR:    [[ONE:%.*]] = cir.const #cir.int<1> : !s32i
-// CIR:    cir.store [[ONE]], [[FIELD]] : !s32i, !cir.ptr<!s32i>
+// CIR:    cir.store{{.*}} [[ONE]], [[FIELD]] : !s32i, !cir.ptr<!s32i>
 // CIR:    [[ONE:%.*]] = cir.const #cir.int<1> : !s32i
-// CIR:    cir.store [[ONE]], [[RET_MEM]] : !s32i, !cir.ptr<!s32i>
+// CIR:    cir.store{{.*}} [[ONE]], [[RET_MEM]] : !s32i, !cir.ptr<!s32i>
 // CIR:    [[RET:%.*]] = cir.load [[RET_MEM]] : !cir.ptr<!s32i>, !s32i
 // CIR:    cir.return [[RET]] : !s32i
 
@@ -54,11 +54,11 @@ struct G g(int x, int y, int z) {
 // CIR:  cir.func @g
 // CIR:    %[[RETVAL:.*]] = cir.alloca !rec_G, !cir.ptr<!rec_G>, ["__retval"] {alignment = 2 : i64}
 // CIR:    %[[X:.*]] = cir.get_member %[[RETVAL]][0] {name = "x"}
-// CIR:    cir.store {{.*}}, %[[X]] : !s16i
+// CIR:    cir.store{{.*}} {{.*}}, %[[X]] : !s16i
 // CIR:    %[[Y:.*]] = cir.get_member %[[RETVAL]][1] {name = "y"}
-// CIR:    cir.store {{.*}}, %[[Y]] : !s16i
+// CIR:    cir.store{{.*}} {{.*}}, %[[Y]] : !s16i
 // CIR:    %[[Z:.*]] = cir.get_member %[[RETVAL]][2] {name = "z"}
-// CIR:    cir.store {{.*}}, %[[Z]] : !s16i
+// CIR:    cir.store{{.*}} {{.*}}, %[[Z]] : !s16i
 // CIR:    %[[RES:.*]] = cir.load %[[RETVAL]]
 // CIR:    cir.return %[[RES]]
 
@@ -76,8 +76,8 @@ void split_large_page(unsigned long addr, pgprot_t prot)
 // CIR:   %[[VAL_2:.*]] = cir.alloca !u64i, !cir.ptr<!u64i>, ["addr", init] {alignment = 8 : i64}
 // CIR:   %[[VAL_3:.*]] = cir.alloca !rec_pgprot_t, !cir.ptr<!rec_pgprot_t>, ["prot", init] {alignment = 8 : i64}
 // CIR:   %[[VAL_4:.*]] = cir.alloca !rec_pgprot_t, !cir.ptr<!rec_pgprot_t>, ["tmp"] {alignment = 8 : i64}
-// CIR:   cir.store {{.*}}, %[[VAL_2]] : !u64i, !cir.ptr<!u64i>
-// CIR:   cir.store {{.*}}, %[[VAL_3]] : !rec_pgprot_t, !cir.ptr<!rec_pgprot_t>
+// CIR:   cir.store{{.*}} {{.*}}, %[[VAL_2]] : !u64i, !cir.ptr<!u64i>
+// CIR:   cir.store{{.*}} {{.*}}, %[[VAL_3]] : !rec_pgprot_t, !cir.ptr<!rec_pgprot_t>
 // CIR:   %[[VAL_5:.*]] = cir.load %[[VAL_2]] : !cir.ptr<!u64i>, !u64i
 // CIR:   %[[VAL_6:.*]] = cir.cast(int_to_bool, %[[VAL_5]] : !u64i), !cir.bool
 // CIR:   cir.if %[[VAL_6]] {
@@ -86,7 +86,7 @@ void split_large_page(unsigned long addr, pgprot_t prot)
 // CIR:     %[[VAL_7:.*]] = cir.get_member %[[VAL_4]][0] {name = "pgprot"} : !cir.ptr<!rec_pgprot_t> -> !cir.ptr<!u64i>
 // CIR:     %[[VAL_8:.*]] = cir.const #cir.int<1> : !s32i
 // CIR:     %[[VAL_9:.*]] = cir.cast(integral, %[[VAL_8]] : !s32i), !u64i
-// CIR:     cir.store %[[VAL_9]], %[[VAL_7]] : !u64i, !cir.ptr<!u64i>
+// CIR:     cir.store{{.*}} %[[VAL_9]], %[[VAL_7]] : !u64i, !cir.ptr<!u64i>
 // CIR:   }
 // CIR:   %[[VAL_10:.*]] = cir.get_member %[[VAL_4]][0] {name = "pgprot"} : !cir.ptr<!rec_pgprot_t> -> !cir.ptr<!u64i>
 // CIR:   %[[VAL_11:.*]] = cir.load %[[VAL_10]] : !cir.ptr<!u64i>, !u64i

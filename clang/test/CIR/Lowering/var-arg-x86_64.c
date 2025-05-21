@@ -59,7 +59,7 @@ double f1(int n, ...) {
 // CIR: [[UPDATED:%.+]] = cir.ptr_stride([[REG_SAVE_AREA]] {{.*}}, [[FP_OFFSET]]
 // CIR: [[CONSTANT:%.+]] = cir.const #cir.int<8>
 // CIR: [[ADDED:%.+]] = cir.binop(add, [[FP_OFFSET]], [[CONSTANT]])
-// CIR: cir.store [[ADDED]], [[FP_OFFSET_P]]
+// CIR: cir.store{{.*}} [[ADDED]], [[FP_OFFSET_P]]
 // CIR: cir.br ^[[ContBlock:.+]]([[UPDATED]]
 //
 // CIR: ^[[InMemBlock]]:
@@ -69,13 +69,13 @@ double f1(int n, ...) {
 // CIR: [[CASTED:%.+]] = cir.cast(bitcast, [[OVERFLOW_ARG_AREA]] : !cir.ptr<!void>)
 // CIR: [[NEW_VALUE:%.+]] = cir.ptr_stride([[CASTED]] : !cir.ptr<!s8i>, [[OFFSET]]
 // CIR: [[CASTED_P:%.+]] = cir.cast(bitcast, [[OVERFLOW_ARG_AREA_P]] : !cir.ptr<!cir.ptr<!void>>)
-// CIR: store [[NEW_VALUE]], [[CASTED_P]]
+// CIR: cir.store [[NEW_VALUE]], [[CASTED_P]]
 // CIR: cir.br ^[[ContBlock]]([[OVERFLOW_ARG_AREA]]
 //
 // CIR: ^[[ContBlock]]([[ARG:.+]]: !cir.ptr
 // CIR: [[CASTED_ARG_P:%.+]] = cir.cast(bitcast, [[ARG]]
 // CIR: [[CASTED_ARG:%.+]] = cir.load align(16) [[CASTED_ARG_P]]
-// CIR: store [[CASTED_ARG]], [[RES]]
+// CIR: cir.store{{.*}} [[CASTED_ARG]], [[RES]]
 long double f2(int n, ...) {
   va_list valist;
   va_start(valist, n);
@@ -126,5 +126,5 @@ long double f2(int n, ...) {
 // CIR: [[ALIGN:%.+]] = cir.const #cir.int<16>
 // CIR: [[CAST_ALIGNED:%.+]] = cir.cast(bitcast, [[ALIGNED]] : !cir.ptr<!u8i>), !cir.ptr<!cir.long_double<!cir.f80>>
 // CIR: [[CAST_ALIGNED_VALUE:%.+]] = cir.load [[CAST_ALIGNED]]
-// CIR: cir.store [[CAST_ALIGNED_VALUE]], [[RES]]
+// CIR: cir.store{{.*}} [[CAST_ALIGNED_VALUE]], [[RES]]
 // CIR. cir.via.end

@@ -44,7 +44,7 @@ void shouldConstInitStructs(void) {
   // CHECK-SAME:        #cir.const_record<{#cir.int<3> : !s32i, #cir.int<4> : !s8i,
   // CHECK-SAME:        #cir.const_array<[#cir.zero : !u8i, #cir.zero : !u8i, #cir.zero : !u8i]> : !cir.array<!u8i x 3>}>
   // CHECK-SAME:        : !rec_anon_struct}> : !rec_anon_struct1
-  // CHECK: cir.store %[[#V2]], %[[#V1]] : !rec_anon_struct1, !cir.ptr<!rec_anon_struct1>
+  // CHECK: cir.store{{.*}} %[[#V2]], %[[#V1]] : !rec_anon_struct1, !cir.ptr<!rec_anon_struct1>
 }
 
 // Should zero-initialize uninitialized global structs.

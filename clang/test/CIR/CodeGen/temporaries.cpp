@@ -23,7 +23,7 @@ void f() {
 // CIR-NEXT:     %[[TWO:[0-9]+]] = cir.alloca !rec_E, !cir.ptr<!rec_E>, ["ref.tmp0"] {alignment = 1 : i64}
 // CIR-NEXT:     cir.call @_ZN1EC1Ev(%1) : (!cir.ptr<!rec_E>) -> () extra(#fn_attr)
 // CIR-NEXT:     %[[THREE:[0-9]+]] = cir.call @_ZN1EntEv(%[[TWO]]) : (!cir.ptr<!rec_E>) -> !rec_E
-// CIR-NEXT:     cir.store %[[THREE]], %[[ONE]] : !rec_E, !cir.ptr<!rec_E>
+// CIR-NEXT:     cir.store{{.*}} %[[THREE]], %[[ONE]] : !rec_E, !cir.ptr<!rec_E>
 // CIR-NEXT:     cir.call @_ZN1ED1Ev(%[[ONE]]) : (!cir.ptr<!rec_E>) -> () extra(#fn_attr)
 // CIR-NEXT:     cir.call @_ZN1ED1Ev(%[[TWO]]) : (!cir.ptr<!rec_E>) -> () extra(#fn_attr)
 // CIR-NEXT:   }
@@ -37,7 +37,7 @@ void f() {
 // CIR_EH:     cir.call @_ZN1ED1Ev
 // CIR_EH:     cir.yield
 // CIR_EH:   }
-// CIR_EH:   cir.store %[[RVAL]], %[[AGG_TMP]]
+// CIR_EH:   cir.store{{.*}} %[[RVAL]], %[[AGG_TMP]]
 // CIR_EH:   cir.yield
 // CIR_EH: } catch [#cir.unwind {
 

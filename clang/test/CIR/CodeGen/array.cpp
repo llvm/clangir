@@ -19,7 +19,7 @@ void a1() {
 // CHECK-NEXT:  %2 = cir.const #cir.int<0> : !s32i
 // CHECK-NEXT:  %3 = cir.cast(array_to_ptrdecay, %0 : !cir.ptr<!cir.array<!s32i x 10>>), !cir.ptr<!s32i>
 // CHECK-NEXT:  %4 = cir.ptr_stride(%3 : !cir.ptr<!s32i>, %2 : !s32i), !cir.ptr<!s32i>
-// CHECK-NEXT:  cir.store %1, %4 : !s32i, !cir.ptr<!s32i>
+// CHECK-NEXT:  cir.store{{.*}} %1, %4 : !s32i, !cir.ptr<!s32i>
 
 int *a2() {
   int a[4];
@@ -32,7 +32,7 @@ int *a2() {
 // CHECK-NEXT:   %2 = cir.const #cir.int<0> : !s32i
 // CHECK-NEXT:   %3 = cir.cast(array_to_ptrdecay, %1 : !cir.ptr<!cir.array<!s32i x 4>>), !cir.ptr<!s32i>
 // CHECK-NEXT:   %4 = cir.ptr_stride(%3 : !cir.ptr<!s32i>, %2 : !s32i), !cir.ptr<!s32i>
-// CHECK-NEXT:   cir.store %4, %0 : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
+// CHECK-NEXT:   cir.store{{.*}} %4, %0 : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
 // CHECK-NEXT:   %5 = cir.load %0 : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
 // CHECK-NEXT:   cir.return %5 : !cir.ptr<!s32i>
 
@@ -45,7 +45,7 @@ void local_stringlit() {
 // CHECK-NEXT:  %0 = cir.alloca !cir.ptr<!s8i>, !cir.ptr<!cir.ptr<!s8i>>, ["s", init] {alignment = 8 : i64}
 // CHECK-NEXT:  %1 = cir.get_global @".str" : !cir.ptr<!cir.array<!s8i x 8>>
 // CHECK-NEXT:  %2 = cir.cast(array_to_ptrdecay, %1 : !cir.ptr<!cir.array<!s8i x 8>>), !cir.ptr<!s8i>
-// CHECK-NEXT:  cir.store %2, %0 : !cir.ptr<!s8i>, !cir.ptr<!cir.ptr<!s8i>>
+// CHECK-NEXT:  cir.store{{.*}} %2, %0 : !cir.ptr<!s8i>, !cir.ptr<!cir.ptr<!s8i>>
 
 int multidim(int i, int j) {
   int arr[2][2];

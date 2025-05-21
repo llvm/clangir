@@ -43,7 +43,7 @@ void sw2(int a) {
 // CHECK:        cir.switch (%4 : !s32i) {
 // CHECK-NEXT:   cir.case(equal, [#cir.int<3> : !s32i]) {
 // CHECK-NEXT:     %5 = cir.const #cir.int<0> : !s32i
-// CHECK-NEXT:     cir.store %5, %2 : !s32i, !cir.ptr<!s32i>
+// CHECK-NEXT:     cir.store{{.*}} %5, %2 : !s32i, !cir.ptr<!s32i>
 
 void sw3(int a) {
   switch (a) {
@@ -78,7 +78,7 @@ int sw4(int a) {
 // CHECK-NEXT:       cir.case(equal, [#cir.int<42> : !s32i]) {
 // CHECK-NEXT:         cir.scope {
 // CHECK-NEXT:           %5 = cir.const #cir.int<3> : !s32i
-// CHECK-NEXT:           cir.store %5, %1 : !s32i, !cir.ptr<!s32i>
+// CHECK-NEXT:           cir.store{{.*}} %5, %1 : !s32i, !cir.ptr<!s32i>
 // CHECK-NEXT:           %6 = cir.load %1 : !cir.ptr<!s32i>, !s32i
 // CHECK-NEXT:           cir.return %6 : !s32i
 // CHECK-NEXT:         }
@@ -86,7 +86,7 @@ int sw4(int a) {
 // CHECK-NEXT:       }
 // CHECK-NEXT:       cir.case(default, []) {
 // CHECK-NEXT:         %5 = cir.const #cir.int<2> : !s32i
-// CHECK-NEXT:         cir.store %5, %1 : !s32i, !cir.ptr<!s32i>
+// CHECK-NEXT:         cir.store{{.*}} %5, %1 : !s32i, !cir.ptr<!s32i>
 // CHECK-NEXT:         %6 = cir.load %1 : !cir.ptr<!s32i>, !s32i
 // CHECK-NEXT:         cir.return %6 : !s32i
 // CHECK-NEXT:       }

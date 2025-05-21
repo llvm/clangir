@@ -10,14 +10,14 @@ typedef struct {
 // CIR: cir.func @init(%arg0: !u64i
 // CIR: %[[#V0:]] = cir.alloca !rec_S, !cir.ptr<!rec_S>, [""] {alignment = 4 : i64}
 // CIR: %[[#V1:]] = cir.cast(bitcast, %[[#V0]] : !cir.ptr<!rec_S>), !cir.ptr<!u64i>
-// CIR: cir.store %arg0, %[[#V1]] : !u64i, !cir.ptr<!u64i>
+// CIR: cir.store{{.*}} %arg0, %[[#V1]] : !u64i, !cir.ptr<!u64i>
 // CIR: %[[#V2:]] = cir.alloca !rec_S, !cir.ptr<!rec_S>, ["__retval"] {alignment = 4 : i64}
 // CIR: %[[#V3:]] = cir.const #cir.int<1> : !s32i
 // CIR: %[[#V4:]] = cir.get_member %[[#V0]][0] {name = "a"} : !cir.ptr<!rec_S> -> !cir.ptr<!s32i>
-// CIR: cir.store %[[#V3]], %[[#V4]] : !s32i, !cir.ptr<!s32i>
+// CIR: cir.store{{.*}} %[[#V3]], %[[#V4]] : !s32i, !cir.ptr<!s32i>
 // CIR: %[[#V5:]] = cir.const #cir.int<2> : !s32i
 // CIR: %[[#V6:]] = cir.get_member %[[#V0]][1] {name = "b"} : !cir.ptr<!rec_S> -> !cir.ptr<!s32i>
-// CIR: cir.store %[[#V5]], %[[#V6]] : !s32i, !cir.ptr<!s32i>
+// CIR: cir.store{{.*}} %[[#V5]], %[[#V6]] : !s32i, !cir.ptr<!s32i>
 // CIR: cir.copy %[[#V0]] to %[[#V2]] : !cir.ptr<!rec_S>
 // CIR: %[[#V7:]] = cir.cast(bitcast, %[[#V2]] : !cir.ptr<!rec_S>), !cir.ptr<!u64i>
 // CIR: %[[#V8:]] = cir.load %[[#V7]] : !cir.ptr<!u64i>, !u64i
@@ -47,7 +47,7 @@ S init(S s) {
 // CIR: %[[#V3:]] = cir.load %[[#V2]] : !cir.ptr<!u64i>, !u64i
 // CIR: %[[#V4:]] = cir.call @init(%[[#V3]]) : (!u64i) -> !u64i
 // CIR: %[[#V5:]] = cir.cast(bitcast, %[[#V1]] : !cir.ptr<!rec_S>), !cir.ptr<!u64i>
-// CIR: cir.store %[[#V4]], %[[#V5]] : !u64i, !cir.ptr<!u64i>
+// CIR: cir.store{{.*}} %[[#V4]], %[[#V5]] : !u64i, !cir.ptr<!u64i>
 // CIR: cir.copy %[[#V1]] to %[[#V0]] : !cir.ptr<!rec_S>
 // CIR: cir.return
 
@@ -66,17 +66,17 @@ void foo1() {
 // CIR: cir.func @foo2(%arg0: !u64i
 // CIR: %[[#V0:]] = cir.alloca !rec_S, !cir.ptr<!rec_S>, [""] {alignment = 4 : i64}
 // CIR: %[[#V1:]] = cir.cast(bitcast, %[[#V0]] : !cir.ptr<!rec_S>), !cir.ptr<!u64i>
-// CIR: cir.store %arg0, %[[#V1]] : !u64i, !cir.ptr<!u64i>
+// CIR: cir.store{{.*}} %arg0, %[[#V1]] : !u64i, !cir.ptr<!u64i>
 // CIR: %[[#V2:]] = cir.alloca !rec_S, !cir.ptr<!rec_S>, ["__retval"] {alignment = 4 : i64}
 // CIR: %[[#V3:]] = cir.alloca !rec_S, !cir.ptr<!rec_S>, ["s2"]
 // CIR: %[[#V4:]] = cir.alloca !rec_S, !cir.ptr<!rec_S>, ["tmp"] {alignment = 4 : i64}
 // CIR: %[[#V5:]] = cir.const #cir.const_record<{#cir.int<1> : !s32i, #cir.int<2> : !s32i}> : !rec_S
-// CIR: cir.store %[[#V5]], %[[#V3]] : !rec_S, !cir.ptr<!rec_S>
+// CIR: cir.store{{.*}} %[[#V5]], %[[#V3]] : !rec_S, !cir.ptr<!rec_S>
 // CIR: %[[#V6:]] = cir.cast(bitcast, %[[#V0]] : !cir.ptr<!rec_S>), !cir.ptr<!u64i>
 // CIR: %[[#V7:]] = cir.load %[[#V6]] : !cir.ptr<!u64i>, !u64i
 // CIR: %[[#V8:]] = cir.call @foo2(%[[#V7]]) : (!u64i) -> !u64i
 // CIR: %[[#V9:]] = cir.cast(bitcast, %[[#V4]] : !cir.ptr<!rec_S>), !cir.ptr<!u64i>
-// CIR: cir.store %[[#V8]], %[[#V9]] : !u64i, !cir.ptr<!u64i>
+// CIR: cir.store{{.*}} %[[#V8]], %[[#V9]] : !u64i, !cir.ptr<!u64i>
 // CIR: cir.copy %[[#V4]] to %[[#V0]] : !cir.ptr<!rec_S>
 // CIR: cir.copy %[[#V0]] to %[[#V2]] : !cir.ptr<!rec_S>
 // CIR: %[[#V10:]] = cir.cast(bitcast, %[[#V2]] : !cir.ptr<!rec_S>), !cir.ptr<!u64i>
@@ -111,16 +111,16 @@ typedef struct {
 // CIR: cir.func @init2(%arg0: !u16i
 // CIR: %[[#V0:]] = cir.alloca !rec_S2, !cir.ptr<!rec_S2>, [""] {alignment = 4 : i64}
 // CIR: %[[#V1:]] = cir.cast(bitcast, %[[#V0]] : !cir.ptr<!rec_S2>), !cir.ptr<!u16i>
-// CIR: cir.store %arg0, %[[#V1]] : !u16i, !cir.ptr<!u16i>
+// CIR: cir.store{{.*}} %arg0, %[[#V1]] : !u16i, !cir.ptr<!u16i>
 // CIR: %[[#V2:]] = cir.alloca !rec_S2, !cir.ptr<!rec_S2>, ["__retval"] {alignment = 1 : i64}
 // CIR: %[[#V3:]] = cir.const #cir.int<1> : !s32i
 // CIR: %[[#V4:]] = cir.cast(integral, %[[#V3]] : !s32i), !s8i
 // CIR: %[[#V5:]] = cir.get_member %[[#V0]][0] {name = "a"} : !cir.ptr<!rec_S2> -> !cir.ptr<!s8i>
-// CIR: cir.store %[[#V4]], %[[#V5]] : !s8i, !cir.ptr<!s8i>
+// CIR: cir.store{{.*}} %[[#V4]], %[[#V5]] : !s8i, !cir.ptr<!s8i>
 // CIR: %[[#V6:]] = cir.const #cir.int<2> : !s32i
 // CIR: %[[#V7:]] = cir.cast(integral, %[[#V6]] : !s32i), !s8i
 // CIR: %[[#V8:]] = cir.get_member %[[#V0]][1] {name = "b"} : !cir.ptr<!rec_S2> -> !cir.ptr<!s8i>
-// CIR: cir.store %[[#V7]], %[[#V8]] : !s8i, !cir.ptr<!s8i>
+// CIR: cir.store{{.*}} %[[#V7]], %[[#V8]] : !s8i, !cir.ptr<!s8i>
 // CIR: cir.copy %[[#V0]] to %[[#V2]] : !cir.ptr<!rec_S2>
 // CIR: %[[#V9:]] = cir.cast(bitcast, %[[#V2]] : !cir.ptr<!rec_S2>), !cir.ptr<!u16i>
 // CIR: %[[#V10:]] = cir.load %[[#V9]] : !cir.ptr<!u16i>, !u16i
@@ -150,7 +150,7 @@ S2 init2(S2 s) {
 // CIR: %[[#V3:]] = cir.load %[[#V2]] : !cir.ptr<!u16i>, !u16i
 // CIR: %[[#V4:]] = cir.call @init2(%[[#V3]]) : (!u16i) -> !u16i
 // CIR: %[[#V5:]] = cir.cast(bitcast, %[[#V1]] : !cir.ptr<!rec_S2>), !cir.ptr<!u16i>
-// CIR: cir.store %[[#V4]], %[[#V5]] : !u16i, !cir.ptr<!u16i>
+// CIR: cir.store{{.*}} %[[#V4]], %[[#V5]] : !u16i, !cir.ptr<!u16i>
 // CIR: cir.copy %[[#V1]] to %[[#V0]] : !cir.ptr<!rec_S2>
 // CIR: cir.return
 

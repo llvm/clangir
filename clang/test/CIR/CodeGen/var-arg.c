@@ -19,10 +19,10 @@ int f1(int n, ...) {
 // BEFORE:  [[RESP:%.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["res", init]
 // BEFORE:  cir.va.start [[VARLIST:%.*]] : !cir.ptr<!rec___va_list>
 // BEFORE:  [[TMP0:%.*]] = cir.va.arg [[VARLIST]] : (!cir.ptr<!rec___va_list>) -> !s32i
-// BEFORE:  cir.store [[TMP0]], [[RESP]] : !s32i, !cir.ptr<!s32i>
+// BEFORE:  cir.store{{.*}} [[TMP0]], [[RESP]] : !s32i, !cir.ptr<!s32i>
 // BEFORE:  cir.va.end [[VARLIST]] : !cir.ptr<!rec___va_list>
 // BEFORE:  [[RES:%.*]] = cir.load [[RESP]] : !cir.ptr<!s32i>, !s32i
-// BEFORE:   cir.store [[RES]], [[RETP]] : !s32i, !cir.ptr<!s32i>
+// BEFORE:   cir.store{{.*}} [[RES]], [[RETP]] : !s32i, !cir.ptr<!s32i>
 // BEFORE:  [[RETV:%.*]] = cir.load [[RETP]] : !cir.ptr<!s32i>, !s32i
 // BEFORE:   cir.return [[RETV]] : !s32i
 
@@ -41,7 +41,7 @@ int f1(int n, ...) {
 // AFTER: [[BB_MAY_REG]]:
 // AFTER-NEXT: [[EIGHT:%.*]] = cir.const #cir.int<8> : !s32i
 // AFTER-NEXT: [[NEW_REG_OFFS:%.*]] = cir.binop(add, [[GR_OFFS]], [[EIGHT]]) : !s32i
-// AFTER-NEXT: cir.store [[NEW_REG_OFFS]], [[GR_OFFS_P]] : !s32i, !cir.ptr<!s32i>
+// AFTER-NEXT: cir.store{{.*}} [[NEW_REG_OFFS]], [[GR_OFFS_P]] : !s32i, !cir.ptr<!s32i>
 // AFTER-NEXT: [[CMP1:%.*]] = cir.cmp(le, [[NEW_REG_OFFS]], [[ZERO]]) : !s32i, !cir.bool
 // AFTER-NEXT: cir.brcond [[CMP1]] [[BB_IN_REG:\^bb.*]], [[BB_ON_STACK]]
 
@@ -62,7 +62,7 @@ int f1(int n, ...) {
 // AFTER-NEXT: [[TMP4:%.*]] = cir.cast(bitcast, [[STACK_V]] : !cir.ptr<!void>), !cir.ptr<i8>
 // AFTER-NEXT: [[TMP5:%.*]] = cir.ptr_stride([[TMP4]] : !cir.ptr<i8>, [[EIGHT_IN_PTR_ARITH]] : !u64i), !cir.ptr<i8>
 // AFTER-NEXT: [[NEW_STACK_V:%.*]] = cir.cast(bitcast, [[TMP5]] : !cir.ptr<i8>), !cir.ptr<!void>
-// AFTER-NEXT: cir.store [[NEW_STACK_V]], [[STACK_P]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
+// AFTER-NEXT: cir.store{{.*}} [[NEW_STACK_V]], [[STACK_P]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
 // AFTER-NEXT: cir.br [[BB_END]]([[STACK_V]] : !cir.ptr<!void>)
 
 // This BB is where different path converges. BLK_ARG is the arg addr which
@@ -72,10 +72,10 @@ int f1(int n, ...) {
 // AFTER-NEXT: [[BB_END]]([[BLK_ARG:%.*]]: !cir.ptr<!void>):  // 2 preds: [[BB_IN_REG]], [[BB_ON_STACK]]
 // AFTER-NEXT:  [[TMP0:%.*]] = cir.cast(bitcast, [[BLK_ARG]] : !cir.ptr<!void>), !cir.ptr<!s32i>
 // AFTER-NEXT:  [[TMP1:%.*]] = cir.load [[TMP0]] : !cir.ptr<!s32i>, !s32i
-// AFTER:   cir.store [[TMP1]], [[RESP]] : !s32i, !cir.ptr<!s32i>
+// AFTER:   cir.store{{.*}} [[TMP1]], [[RESP]] : !s32i, !cir.ptr<!s32i>
 // AFTER:   cir.va.end [[VARLIST]] : !cir.ptr<!rec___va_list>
 // AFTER:   [[RES:%.*]] = cir.load [[RESP]] : !cir.ptr<!s32i>, !s32i
-// AFTER:   cir.store [[RES]], [[RETP]] : !s32i, !cir.ptr<!s32i>
+// AFTER:   cir.store{{.*}} [[RES]], [[RETP]] : !s32i, !cir.ptr<!s32i>
 // AFTER:  [[RETV:%.*]] = cir.load [[RETP]] : !cir.ptr<!s32i>, !s32i
 // AFTER:   cir.return [[RETV]] : !s32i
 
