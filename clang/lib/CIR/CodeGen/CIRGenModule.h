@@ -338,6 +338,9 @@ public:
     return !getLangOpts().CPlusPlus;
   }
 
+  llvm::StringMap<unsigned> cgGlobalNames;
+  std::string getUniqueGlobalName(const std::string &baseName);
+
   /// Return the mlir::Value for the address of the given global variable.
   /// If Ty is non-null and if the global doesn't exist, then it will be created
   /// with the specified type instead of whatever the normal requested type
@@ -444,12 +447,15 @@ public:
   /// Return a constant array for the given string.
   mlir::Attribute getConstantArrayFromStringLiteral(const StringLiteral *E);
 
+  /// Return a global op for the given string literal.
+  cir::GlobalOp getGlobalForStringLiteral(const StringLiteral *S,
+                                          llvm::StringRef Name = ".str");
+
   /// Return a global symbol reference to a constant array for the given string
   /// literal.
   cir::GlobalViewAttr
   getAddrOfConstantStringFromLiteral(const StringLiteral *S,
                                      llvm::StringRef Name = ".str");
-  unsigned StringLiteralCnt = 0;
 
   unsigned CompoundLitaralCnt = 0;
   /// Return the unique name for global compound literal

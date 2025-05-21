@@ -1783,10 +1783,32 @@ generateStringLiteral(mlir::Location loc, mlir::TypedAttr c,
   return gv;
 }
 
-/// Return a pointer to a constant array for the given string literal.
-cir::GlobalViewAttr
-CIRGenModule::getAddrOfConstantStringFromLiteral(const StringLiteral *s,
-                                                 StringRef name) {
+// LLVM IR automatically uniques names when new llvm::GlobalVariables are
+// created. This is handy, for example, when creating globals for string
+// literals. Since we don't do that when creating cir::GlobalOp's, we need
+// a mechanism to generate a unique name in advance.
+//
+// For now, this mechanism is only used in cases where we know that the
+// name is compiler-generated, so we don't use the MLIR symbol table for
+// the lookup.
+std::string CIRGenModule::getUniqueGlobalName(const std::string &baseName) {
+  // If this is the first time we've generated a name for this basename, use
+  // it as is and start a counter for this base name.
+  auto it = cgGlobalNames.find(baseName);
+  if (it == cgGlobalNames.end()) {
+    cgGlobalNames[baseName] = 1;
+    return baseName;
+  }
+
+  std::string result =
+      baseName + "." + std::to_string(cgGlobalNames[baseName]++);
+  // There should not be any symbol with this name in the module.
+  assert(!mlir::SymbolTable::lookupSymbolIn(theModule, result));
+  return result;
+}
+
+cir::GlobalOp CIRGenModule::getGlobalForStringLiteral(const StringLiteral *s,
+                                                      StringRef name) {
   CharUnits alignment =
       astContext.getAlignOfGlobalVarInChars(s->getType(), /*VD=*/nullptr);
 
@@ -1800,13 +1822,6 @@ CIRGenModule::getAddrOfConstantStringFromLiteral(const StringLiteral *s,
         uint64_t(alignment.getQuantity()) > *gv.getAlignment())
       gv.setAlignmentAttr(getSize(alignment));
   } else {
-    SmallString<256> stringNameBuffer = name;
-    llvm::raw_svector_ostream out(stringNameBuffer);
-    if (StringLiteralCnt)
-      out << '.' << StringLiteralCnt;
-    name = out.str();
-    StringLiteralCnt++;
-
     SmallString<256> mangledNameBuffer;
     StringRef globalVariableName;
     auto lt = cir::GlobalLinkageKind::ExternalLinkage;
@@ -1822,18 +1837,28 @@ CIRGenModule::getAddrOfConstantStringFromLiteral(const StringLiteral *s,
       globalVariableName = name;
     }
 
+    // Unlike LLVM IR, CIR doesn't automatically unique names for globals, so
+    // we need to do that explicitly.
+    std::string uniqueName = getUniqueGlobalName(globalVariableName.str());
     auto loc = getLoc(s->getSourceRange());
     auto typedC = llvm::dyn_cast<mlir::TypedAttr>(c);
     if (!typedC)
       llvm_unreachable("this should never be untyped at this point");
-    gv = generateStringLiteral(loc, typedC, lt, *this, globalVariableName,
-                               alignment);
+    gv = generateStringLiteral(loc, typedC, lt, *this, uniqueName, alignment);
     setDSOLocal(static_cast<mlir::Operation *>(gv));
     ConstantStringMap[c] = gv;
 
     assert(!cir::MissingFeatures::reportGlobalToASan() && "NYI");
   }
 
+  return gv;
+}
+
+/// Return a pointer to a constant array for the given string literal.
+cir::GlobalViewAttr
+CIRGenModule::getAddrOfConstantStringFromLiteral(const StringLiteral *s,
+                                                 StringRef name) {
+  auto gv = getGlobalForStringLiteral(s, name);
   auto arrayTy = mlir::dyn_cast<cir::ArrayType>(gv.getSymType());
   assert(arrayTy && "String literal must be array");
   auto ptrTy = getBuilder().getPointerTo(arrayTy.getElementType(),

@@ -1885,14 +1885,7 @@ LValue CIRGenFunction::emitArraySubscriptExpr(const ArraySubscriptExpr *E,
 }
 
 LValue CIRGenFunction::emitStringLiteralLValue(const StringLiteral *E) {
-  auto sym = CGM.getAddrOfConstantStringFromLiteral(E).getSymbol();
-
-  auto cstGlobal = mlir::SymbolTable::lookupSymbolIn(CGM.getModule(), sym);
-  assert(cstGlobal && "Expected global");
-
-  auto g = dyn_cast<cir::GlobalOp>(cstGlobal);
-  assert(g && "unaware of other symbol providers");
-
+  auto g = CGM.getGlobalForStringLiteral(E);
   assert(g.getAlignment() && "expected alignment for string literal");
   auto align = *g.getAlignment();
   auto addr = builder.createGetGlobal(getLoc(E->getSourceRange()), g);
