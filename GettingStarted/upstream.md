@@ -12,6 +12,7 @@ The current upstreaming process involves migrating ClangIR from its incubator re
 > **TODO**: This section is under development.
 {% include progress_section.html section_key="Tys" section_title="Types" %}
 ### Attributes
-...
+> **TODO**: This section is under development.
+{% include progress_section.html section_key="Attr" section_title="Attributes" %}
 ### Passes
 ...

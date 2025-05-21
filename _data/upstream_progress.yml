@@ -318,7 +318,168 @@ Ops:
 Tys:
   - name: "ArrayType"
     completed: false
+  - name: "BF16Type"
+    completed: false
   - name: "BoolType"
     completed: true
   - name: "ComplexType"
+    completed: false
+  - name: "DataMemberType"
+    completed: false
+  - name: "DoubleType"
+    completed: false
+  - name: "ExceptionInfoType"
+    completed: false
+  - name: "FP16Type"
+    completed: false
+  - name: "FP80Type"
+    completed: false
+  - name: "FP128Type"
+    completed: false
+  - name: "FuncType"
+    completed: false
+  - name: "IntType"
+    completed: false
+  - name: "LongDoubleType"
+    completed: false
+  - name: "MethodType"
+    completed: false
+  - name: "PointerType"
+    completed: false
+  - name: "RecordType"
+    completed: false
+  - name: "SingleType"
+    completed: false
+  - name: "VectorType"
+    completed: false
+  - name: "VoidType"
+    completed: false
+Attr:
+  - name: "ASTCXXConstructorDeclAttr"
+    completed: false
+  - name: "ASTCXXConversionDeclAttr"
+    completed: false
+  - name: "ASTCXXDestructorDeclAttr"
+    completed: false
+  - name: "ASTCXXMethodDeclAttr"
+    completed: false
+  - name: "ASTCallExprAttr"
+    completed: false
+  - name: "ASTDeclAttr"
+    completed: false
+  - name: "ASTExprAttr"
+    completed: false
+  - name: "ASTFunctionDeclAttr"
+    completed: false
+  - name: "ASTRecordDeclAttr"
+    completed: false
+  - name: "ASTTagDeclAttr"
+    completed: false
+  - name: "ASTTypeDeclAttr"
+    completed: false
+  - name: "ASTVarDeclAttr"
+    completed: false
+  - name: "AddressPointAttr"
+    completed: false
+  - name: "AddressSpaceAttr"
+    completed: false
+  - name: "AnnotationAttr"
+    completed: false
+  - name: "BitfieldInfoAttr"
+    completed: false
+  - name: "BoolAttr"
+    completed: false
+  - name: "OptInfoAttr"
+    completed: false
+  - name: "TBAAAttr"
+    completed: false
+  - name: "TBAAMemberAttr"
+    completed: false
+  - name: "TBAAOmnipotentCharAttr"
+    completed: false
+  - name: "TBAAScalarAttr"
+    completed: false
+  - name: "TBAAStructAttr"
+    completed: false
+  - name: "TBAATagAttr"
+    completed: false
+  - name: "TBAAVTablePointerAttr"
+    completed: false
+  - name: "TypeSizeInfoAttr"
+    completed: false
+  - name: "CUDABinaryHandleAttr"
+    completed: false
+  - name: "CUDAExternallyInitializedAttr"
+    completed: false
+  - name: "CUDAKernelNameAttr"
+    completed: false
+  - name: "CUDAShadowNameAttr"
+    completed: false
+  - name: "CmpThreeWayInfoAttr"
+    completed: false
+  - name: "ComplexAttr"
+    completed: false
+  - name: "ConstArrayAttr"
+    completed: false
+  - name: "ConstPtrAttr"
+    completed: false
+  - name: "ConstRecordAttr"
+    completed: false
+  - name: "ConstVectorAttr"
+    completed: false
+  - name: "ConvergentAttr"
+    completed: false
+  - name: "DataMemberAttr"
+    completed: false
+  - name: "DynamicCastInfoAttr"
+    completed: false
+  - name: "ExtraFuncAttributesAttr"
+    completed: false
+  - name: "FPAttr"
+    completed: false
+  - name: "GlobalAnnotationValuesAttr"
+    completed: false
+  - name: "GlobalCtorAttr"
+    completed: false
+  - name: "GlobalDtorAttr"
+    completed: false
+  - name: "GlobalViewAttr"
+    completed: false
+  - name: "InlineAttr"
+    completed: false
+  - name: "IntAttr"
+    completed: false
+  - name: "LangAttr"
+    completed: false
+  - name: "MethodAttr"
+    completed: false
+  - name: "NoThrowAttr"
+    completed: false
+  - name: "OpenCLKernelArgMetadataAttr"
+    completed: false
+  - name: "OpenCLKernelAttr"
+    completed: false
+  - name: "OpenCLKernelMetadataAttr"
+    completed: false
+  - name: "OpenCLKernelUniformWorkGroupSizeAttr"
+    completed: false
+  - name: "OpenCLVersionAttr"
+    completed: false
+  - name: "OptNoneAttr"
+    completed: false
+  - name: "PoisonAttr"
+    completed: false
+  - name: "SignedOverflowBehaviorAttr"
+    completed: false
+  - name: "TypeInfoAttr"
+    completed: false
+  - name: "UWTableAttr"
+    completed: false
+  - name: "UndefAttr"
+    completed: false
+  - name: "VTableAttr"
+    completed: false
+  - name: "VisibilityAttr"
+    completed: false
+  - name: "ZeroAttr"
     completed: false
