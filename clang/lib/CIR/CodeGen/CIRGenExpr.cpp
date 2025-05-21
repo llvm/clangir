@@ -1884,8 +1884,8 @@ LValue CIRGenFunction::emitArraySubscriptExpr(const ArraySubscriptExpr *E,
   return LV;
 }
 
-LValue CIRGenFunction::emitStringLiteralLValue(const StringLiteral *E) {
-  auto g = CGM.getGlobalForStringLiteral(E);
+LValue CIRGenFunction::emitStringLiteralLValue(const StringLiteral *e) {
+  auto g = CGM.getGlobalForStringLiteral(e);
   assert(g.getAlignment() && "expected alignment for string literal");
   auto align = *g.getAlignment();
   auto addr = builder.createGetGlobal(getLoc(E->getSourceRange()), g);

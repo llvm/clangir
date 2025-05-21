@@ -448,8 +448,8 @@ public:
   mlir::Attribute getConstantArrayFromStringLiteral(const StringLiteral *E);
 
   /// Return a global op for the given string literal.
-  cir::GlobalOp getGlobalForStringLiteral(const StringLiteral *S,
-                                          llvm::StringRef Name = ".str");
+  cir::GlobalOp getGlobalForStringLiteral(const StringLiteral *s,
+                                          llvm::StringRef name = ".str");
 
   /// Return a global symbol reference to a constant array for the given string
   /// literal.
