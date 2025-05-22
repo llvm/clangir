@@ -1884,21 +1884,14 @@ LValue CIRGenFunction::emitArraySubscriptExpr(const ArraySubscriptExpr *E,
   return LV;
 }
 
-LValue CIRGenFunction::emitStringLiteralLValue(const StringLiteral *E) {
-  auto sym = CGM.getAddrOfConstantStringFromLiteral(E).getSymbol();
-
-  auto cstGlobal = mlir::SymbolTable::lookupSymbolIn(CGM.getModule(), sym);
-  assert(cstGlobal && "Expected global");
-
-  auto g = dyn_cast<cir::GlobalOp>(cstGlobal);
-  assert(g && "unaware of other symbol providers");
-
+LValue CIRGenFunction::emitStringLiteralLValue(const StringLiteral *e) {
+  auto g = CGM.getGlobalForStringLiteral(e);
   assert(g.getAlignment() && "expected alignment for string literal");
   auto align = *g.getAlignment();
-  auto addr = builder.createGetGlobal(getLoc(E->getSourceRange()), g);
+  auto addr = builder.createGetGlobal(getLoc(e->getSourceRange()), g);
   return makeAddrLValue(
       Address(addr, g.getSymType(), CharUnits::fromQuantity(align)),
-      E->getType(), AlignmentSource::Decl);
+      e->getType(), AlignmentSource::Decl);
 }
 
 /// Casts are never lvalues unless that cast is to a reference type. If the cast
