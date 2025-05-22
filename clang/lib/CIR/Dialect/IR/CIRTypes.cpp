@@ -300,10 +300,8 @@ RecordType::verify(function_ref<mlir::InFlightDiagnostic()> emitError,
                    llvm::ArrayRef<mlir::Type> members, mlir::StringAttr name,
                    bool incomplete, bool packed, bool padded,
                    RecordType::RecordKind kind, ASTRecordDeclInterface ast) {
-  if (name && name.getValue().empty()) {
-    emitError() << "identified records cannot have an empty name";
-    return mlir::failure();
-  }
+  if (name && name.getValue().empty())
+    return emitError() << "identified records cannot have an empty name";
   return mlir::success();
 }
 
@@ -618,12 +616,10 @@ mlir::LogicalResult
 IntType::verify(llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
                 unsigned width, bool isSigned) {
 
-  if (width < IntType::minBitwidth() || width > IntType::maxBitwidth()) {
-    emitError() << "IntType only supports widths from "
-                << IntType::minBitwidth() << " up to "
-                << IntType::maxBitwidth();
-    return mlir::failure();
-  }
+  if (width < IntType::minBitwidth() || width > IntType::maxBitwidth())
+    return emitError() << "IntType only supports widths from "
+                       << IntType::minBitwidth() << " up to "
+                       << IntType::maxBitwidth();
 
   return mlir::success();
 }
@@ -846,10 +842,9 @@ mlir::LogicalResult
 FuncType::verify(llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
                  llvm::ArrayRef<mlir::Type> argTypes, mlir::Type returnType,
                  bool isVarArg) {
-  if (returnType && mlir::isa<cir::VoidType>(returnType)) {
-    emitError() << "!cir.func cannot have an explicit 'void' return type";
-    return mlir::failure();
-  }
+  if (mlir::isa_and_nonnull<cir::VoidType>(returnType))
+    return emitError()
+           << "!cir.func cannot have an explicit 'void' return type";
   return mlir::success();
 }
 
@@ -887,10 +882,8 @@ MethodType::getABIAlignment(const mlir::DataLayout &dataLayout,
 mlir::LogicalResult
 PointerType::verify(llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
                     mlir::Type pointee, mlir::Attribute addrSpace) {
-  if (addrSpace && !mlir::isa<cir::AddressSpaceAttr>(addrSpace)) {
-    emitError() << "unexpected addrspace attribute type";
-    return mlir::failure();
-  }
+  if (addrSpace && !mlir::isa<cir::AddressSpaceAttr>(addrSpace))
+    return emitError() << "unexpected addrspace attribute type";
   return mlir::success();
 }
 
@@ -900,10 +893,8 @@ mlir::ParseResult parseAddrSpaceAttribute(mlir::AsmParser &p,
   auto attrLoc = p.getCurrentLocation();
 
   llvm::StringRef addrSpaceKind;
-  if (mlir::failed(p.parseOptionalKeyword(&addrSpaceKind))) {
-    p.emitError(attrLoc, "expected keyword for addrspace kind");
-    return mlir::failure();
-  }
+  if (mlir::failed(p.parseOptionalKeyword(&addrSpaceKind)))
+    return p.emitError(attrLoc, "expected keyword for addrspace kind");
 
   if (addrSpaceKind == AddressSpaceAttr::kTargetKeyword) {
     int64_t targetValue = -1;
@@ -916,10 +907,9 @@ mlir::ParseResult parseAddrSpaceAttribute(mlir::AsmParser &p,
     std::optional<int64_t> value =
         AddressSpaceAttr::parseValueFromString(addrSpaceKind);
     // not target AS, must be wrong keyword if no value
-    if (!value.has_value()) {
-      p.emitError(attrLoc, "invalid addrspace kind keyword: " + addrSpaceKind);
-      return mlir::failure();
-    }
+    if (!value.has_value())
+      return p.emitError(attrLoc,
+                         "invalid addrspace kind keyword: " + addrSpaceKind);
 
     addrSpaceAttr = AddressSpaceAttr::get(p.getContext(), *value);
   }
