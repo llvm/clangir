@@ -18,11 +18,11 @@ int go1() {
 // CHECK: %[[#RVal:]] = cir.scope {
 // CHECK-NEXT:   %[[#TmpAddr:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["ref.tmp0", init] {alignment = 4 : i64}
 // CHECK-NEXT:   %[[#One:]] = cir.const #cir.int<1> : !s32i
-// CHECK-NEXT:   cir.store %[[#One]], %[[#TmpAddr]] : !s32i, !cir.ptr<!s32i>
+// CHECK-NEXT:   cir.store{{.*}} %[[#One]], %[[#TmpAddr]] : !s32i, !cir.ptr<!s32i>
 // CHECK-NEXT:   %[[#RValTmp:]] = cir.call @_Z2goRKi(%[[#TmpAddr]]) : (!cir.ptr<!s32i>) -> !s32i
 // CHECK-NEXT:   cir.yield %[[#RValTmp]] : !s32i
 // CHECK-NEXT: }
-// CHECK-NEXT: cir.store %[[#RVal]], %[[#XAddr]] : !s32i, !cir.ptr<!s32i>
+// CHECK-NEXT: cir.store{{.*}} %[[#RVal]], %[[#XAddr]] : !s32i, !cir.ptr<!s32i>
 
 // FLAT: cir.func @_Z3go1v() -> !s32i
 // FLAT: %[[#TmpAddr:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["ref.tmp0", init] {alignment = 4 : i64}
@@ -30,11 +30,11 @@ int go1() {
 // FLAT: cir.br ^[[before_body:.*]]{{ loc.*}}
 // FLAT-NEXT: ^[[before_body]]:  // pred: ^bb0
 // FLAT-NEXT:   %[[#One:]] = cir.const #cir.int<1> : !s32i
-// FLAT-NEXT:   cir.store %[[#One]], %[[#TmpAddr]] : !s32i, !cir.ptr<!s32i>
+// FLAT-NEXT:   cir.store{{.*}} %[[#One]], %[[#TmpAddr]] : !s32i, !cir.ptr<!s32i>
 // FLAT-NEXT:   %[[#RValTmp:]] = cir.call @_Z2goRKi(%[[#TmpAddr]]) : (!cir.ptr<!s32i>) -> !s32i
 // FLAT-NEXT:   cir.br ^[[continue_block:.*]](%[[#RValTmp]] : !s32i) {{loc.*}}
 // FLAT-NEXT: ^[[continue_block]](%[[#BlkArgRval:]]: !s32i {{loc.*}}):  // pred: ^[[before_body]]
-// FLAT-NEXT:   cir.store %[[#BlkArgRval]], %[[#XAddr]] : !s32i, !cir.ptr<!s32i>
+// FLAT-NEXT:   cir.store{{.*}} %[[#BlkArgRval]], %[[#XAddr]] : !s32i, !cir.ptr<!s32i>
 
 // LLVM-LABEL: @_Z3go1v()
 // LLVM-NEXT: %[[#TmpAddr:]] = alloca i32, i64 1, align 4

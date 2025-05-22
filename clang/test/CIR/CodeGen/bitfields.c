@@ -128,7 +128,7 @@ void createU() {
 // CHECK:   %0 = cir.alloca !rec_D, !cir.ptr<!rec_D>, ["d"] {alignment = 4 : i64}
 // CHECK:   %1 = cir.cast(bitcast, %0 : !cir.ptr<!rec_D>), !cir.ptr<!rec_anon_struct>
 // CHECK:   %2 = cir.const #cir.const_record<{#cir.int<33> : !u8i, #cir.int<0> : !u8i, #cir.const_array<[#cir.zero : !u8i, #cir.zero : !u8i]> : !cir.array<!u8i x 2>, #cir.int<3> : !s32i}> : !rec_anon_struct
-// CHECK:   cir.store %2, %1 : !rec_anon_struct, !cir.ptr<!rec_anon_struct>
+// CHECK:   cir.store{{.*}} %2, %1 : !rec_anon_struct, !cir.ptr<!rec_anon_struct>
 void createD() {
   D d = {1,2,3};
 }

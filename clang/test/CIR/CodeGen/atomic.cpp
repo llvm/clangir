@@ -30,10 +30,10 @@ int basic_binop_fetch(int *i) {
 // CHECK: cir.func @_Z17basic_binop_fetchPi
 // CHECK:  %[[ARGI:.*]] = cir.alloca !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>, ["i", init] {alignment = 8 : i64}
 // CHECK:  %[[ONE_ADDR:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, [".atomictmp"] {alignment = 4 : i64}
-// CHECK:  cir.store %arg0, %[[ARGI]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
+// CHECK:  cir.store{{.*}} %arg0, %[[ARGI]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
 // CHECK:  %[[I:.*]] = cir.load %[[ARGI]] : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
 // CHECK:  %[[ONE:.*]] = cir.const #cir.int<1> : !s32i
-// CHECK:  cir.store %[[ONE]], %[[ONE_ADDR]] : !s32i, !cir.ptr<!s32i>
+// CHECK:  cir.store{{.*}} %[[ONE]], %[[ONE_ADDR]] : !s32i, !cir.ptr<!s32i>
 // CHECK:  %[[VAL:.*]] = cir.load %[[ONE_ADDR]] : !cir.ptr<!s32i>, !s32i
 // CHECK:  cir.atomic.fetch(add, %[[I]] : !cir.ptr<!s32i>, %[[VAL]] : !s32i, seq_cst) : !s32i
 
@@ -194,7 +194,7 @@ void fi2(_Atomic(int) *i) {
 }
 
 // CHECK-LABEL: @_Z3fi2PU7_Atomici
-// CHECK: cir.store atomic(seq_cst)
+// CHECK: cir.store{{.*}} atomic(seq_cst)
 
 // LLVM-LABEL: @_Z3fi2PU7_Atomici
 // LLVM: store atomic i32 {{.*}} seq_cst, align 4
@@ -205,7 +205,7 @@ void fi2a(int *i) {
 }
 
 // CHECK-LABEL: @_Z4fi2aPi
-// CHECK: cir.store atomic(seq_cst)
+// CHECK: cir.store{{.*}} atomic(seq_cst)
 
 // LLVM-LABEL: @_Z4fi2aPi
 // LLVM: store atomic i32 {{.*}} seq_cst, align 4
@@ -215,7 +215,7 @@ void fi2b(int *i) {
 }
 
 // CHECK-LABEL: @_Z4fi2bPi
-// CHECK: cir.store atomic(seq_cst)
+// CHECK: cir.store{{.*}} atomic(seq_cst)
 
 // LLVM-LABEL: @_Z4fi2bPi
 // LLVM: store atomic i32 {{.*}} seq_cst, align 4
@@ -229,7 +229,7 @@ struct S {
 };
 
 // CHECK-LABEL: @_Z4fi2cPU7_Atomici
-// CHECK: cir.store atomic(seq_cst)
+// CHECK: cir.store{{.*}} atomic(seq_cst)
 
 // LLVM-LABEL: @_Z4fi2cPU7_Atomici
 // LLVM: store atomic i32 {{.*}} seq_cst, align 4
@@ -302,7 +302,7 @@ bool fi4c(atomic_int *i) {
 // CHECK: %old, %cmp = cir.atomic.cmp_xchg({{.*}} : !cir.ptr<!s32i>, {{.*}} : !s32i, {{.*}} : !s32i, success = seq_cst, failure = seq_cst) syncscope(system) align(4) : (!s32i, !cir.bool)
 // CHECK: %[[CMP:.*]] = cir.unary(not, %cmp) : !cir.bool, !cir.bool
 // CHECK: cir.if %[[CMP:.*]] {
-// CHECK:   cir.store %old, {{.*}} : !s32i, !cir.ptr<!s32i>
+// CHECK:   cir.store{{.*}} %old, {{.*}} : !s32i, !cir.ptr<!s32i>
 // CHECK: }
 
 // LLVM-LABEL: @_Z4fi4cPU7_Atomici
@@ -317,7 +317,7 @@ bool fi4d(atomic_int *i) {
 // CHECK: %old, %cmp = cir.atomic.cmp_xchg({{.*}} : !cir.ptr<!s32i>, {{.*}} : !s32i, {{.*}} : !s32i, success = seq_cst, failure = seq_cst) syncscope(system) align(4) weak : (!s32i, !cir.bool)
 // CHECK: %[[CMP:.*]] = cir.unary(not, %cmp) : !cir.bool, !cir.bool
 // CHECK: cir.if %[[CMP:.*]] {
-// CHECK:   cir.store %old, {{.*}} : !s32i, !cir.ptr<!s32i>
+// CHECK:   cir.store{{.*}} %old, {{.*}} : !s32i, !cir.ptr<!s32i>
 // CHECK: }
 
 // LLVM-LABEL: @_Z4fi4dPU7_Atomici
@@ -341,8 +341,8 @@ void atomicinit(void)
 
 // CHECK-LABEL: @_Z10atomicinitv
 // CHECK: %[[ADDR:.*]] = cir.alloca !u32i, !cir.ptr<!u32i>, ["j"
-// CHECK: cir.store {{.*}}, %[[ADDR]] : !u32i, !cir.ptr<!u32i>
-// CHECK: cir.store {{.*}}, %[[ADDR]] : !u32i, !cir.ptr<!u32i>
+// CHECK: cir.store{{.*}} {{.*}}, %[[ADDR]] : !u32i, !cir.ptr<!u32i>
+// CHECK: cir.store{{.*}} {{.*}}, %[[ADDR]] : !u32i, !cir.ptr<!u32i>
 
 // LLVM-LABEL: @_Z10atomicinitv
 // LLVM: %[[ADDR:.*]] = alloca i32, i64 1, align 4
@@ -370,7 +370,7 @@ void inc_int(int* a, int b) {
 // CHECK: %[[PTR:.*]] = cir.load {{.*}} : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
 // CHECK: %[[VAL:.*]] = cir.load {{.*}} : !cir.ptr<!s32i>, !s32i
 // CHECK: %[[RES:.*]] = cir.atomic.fetch(add, %[[PTR]] : !cir.ptr<!s32i>, %[[VAL]] : !s32i, seq_cst) fetch_first : !s32i
-// CHECK: cir.store %[[RES]], {{.*}} : !s32i, !cir.ptr<!s32i>
+// CHECK: cir.store{{.*}} %[[RES]], {{.*}} : !s32i, !cir.ptr<!s32i>
 
 // LLVM-LABEL: @_Z7inc_int
 // LLVM: atomicrmw add ptr {{.*}}, i32 {{.*}} seq_cst, align 4
@@ -383,7 +383,7 @@ void sub_int(int* a, int b) {
 // CHECK: %[[PTR:.*]] = cir.load {{.*}} : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
 // CHECK: %[[VAL:.*]] = cir.load {{.*}} : !cir.ptr<!s32i>, !s32i
 // CHECK: %[[RES:.*]] = cir.atomic.fetch(sub, %[[PTR]] : !cir.ptr<!s32i>, %[[VAL]] : !s32i, seq_cst) fetch_first : !s32i
-// CHECK: cir.store %[[RES]], {{.*}} : !s32i, !cir.ptr<!s32i>
+// CHECK: cir.store{{.*}} %[[RES]], {{.*}} : !s32i, !cir.ptr<!s32i>
 
 // LLVM-LABEL: _Z7sub_int
 // LLVM: atomicrmw sub ptr {{.*}}, i32 {{.*}} seq_cst, align 4
@@ -452,7 +452,7 @@ void sub_byte(char* a, char b) {
 // CHECK: %[[CMP:.*]] = cir.load {{.*}} : !cir.ptr<!s32i>, !s32i
 // CHECK: %[[UPD:.*]] = cir.load {{.*}} : !cir.ptr<!s32i>, !s32i
 // CHECK: %[[OLD:.*]], %[[RES:.*]] = cir.atomic.cmp_xchg(%[[PTR]] : !cir.ptr<!s32i>, %[[CMP]] : !s32i, %[[UPD]] : !s32i, success = seq_cst, failure = seq_cst) syncscope(system) align(4) : (!s32i, !cir.bool)
-// CHECK: cir.store %[[RES]], {{.*}} : !cir.bool, !cir.ptr<!cir.bool>
+// CHECK: cir.store{{.*}} %[[RES]], {{.*}} : !cir.bool, !cir.ptr<!cir.bool>
 
 // LLVM-LABEL: @_Z12cmp_bool_int
 // LLVM: %[[PTR:.*]] = load ptr
@@ -499,7 +499,7 @@ void cmp_bool_byte(char* p, char x, char u) {
 // CHECK: %[[CMP:.*]] = cir.load {{.*}} : !cir.ptr<!s32i>, !s32i
 // CHECK: %[[UPD:.*]] = cir.load {{.*}} : !cir.ptr<!s32i>, !s32i
 // CHECK: %[[OLD:.*]], %[[RES:.*]] = cir.atomic.cmp_xchg(%[[PTR]] : !cir.ptr<!s32i>, %[[CMP]] : !s32i, %[[UPD]] : !s32i, success = seq_cst, failure = seq_cst) syncscope(system) align(4) : (!s32i, !cir.bool)
-// CHECK: cir.store %[[OLD]], {{.*}} : !s32i, !cir.ptr<!s32i>
+// CHECK: cir.store{{.*}} %[[OLD]], {{.*}} : !s32i, !cir.ptr<!s32i>
 
 // LLVM-LABEL: @_Z11cmp_val_int
 // LLVM: %[[PTR:.*]] = load ptr
@@ -602,7 +602,7 @@ void sub_uchar(unsigned char* a, char b) {
 // CHECK: %[[UPD_U:.*]] = cir.cast(integral, %[[UPD]] : !s32i), !u32i
 // CHECK: %[[OLD:.*]], %[[RES:.*]] = cir.atomic.cmp_xchg(%[[PTR]] : !cir.ptr<!u32i>, %[[CMP_U]] :
 // CHECK-SAME: !u32i, %[[UPD_U]] : !u32i, success = seq_cst, failure = seq_cst) syncscope(system) align(4) : (!u32i, !cir.bool)
-// CHECK: cir.store %[[RES]], {{.*}} : !cir.bool, !cir.ptr<!cir.bool>
+// CHECK: cir.store{{.*}} %[[RES]], {{.*}} : !cir.bool, !cir.ptr<!cir.bool>
 
 // LLVM-LABEL: @_Z13cmp_bool_uint
 // LLVM: %[[PTR:.*]] = load ptr
@@ -643,7 +643,7 @@ void cmp_bool_ulong(unsigned long* p, long x, long u) {
 // CHECK: %[[OLD:.*]], %[[RES:.*]] = cir.atomic.cmp_xchg(%[[PTR]] : !cir.ptr<!u32i>, %[[CMP_U]] :
 // CHECK-SAME: !u32i, %[[UPD_U]] : !u32i, success = seq_cst, failure = seq_cst) syncscope(system) align(4) : (!u32i, !cir.bool)
 // CHECK: %[[R:.*]] = cir.cast(integral, %[[OLD]] : !u32i), !s32i
-// CHECK: cir.store %[[R]], {{.*}} : !s32i, !cir.ptr<!s32i>
+// CHECK: cir.store{{.*}} %[[R]], {{.*}} : !s32i, !cir.ptr<!s32i>
 
 // LLVM-LABEL: @_Z12cmp_val_uint
 // LLVM: %[[PTR:.*]] = load ptr

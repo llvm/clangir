@@ -24,13 +24,13 @@ unsigned long long tc() {
     // CHECK: } catch [type #cir.global_view<@_ZTIi> : !cir.ptr<!u8i> {
     // CHECK:   %[[catch_idx_addr:.*]] = cir.catch_param -> !cir.ptr<!s32i>
     // CHECK:   %[[idx_load:.*]] = cir.load %[[catch_idx_addr]] : !cir.ptr<!s32i>, !s32i
-    // CHECK:   cir.store %[[idx_load]], %[[idx]] : !s32i, !cir.ptr<!s32i>
+    // CHECK:   cir.store{{.*}} %[[idx_load]], %[[idx]] : !s32i, !cir.ptr<!s32i>
     z = 98;
     idx++;
   } catch (const char* msg) {
     // CHECK: }, type #cir.global_view<@_ZTIPKc> : !cir.ptr<!u8i> {
     // CHECK:   %[[msg_addr:.*]] = cir.catch_param -> !cir.ptr<!s8i>
-    // CHECK:   cir.store %[[msg_addr]], %[[msg]] : !cir.ptr<!s8i>, !cir.ptr<!cir.ptr<!s8i>>
+    // CHECK:   cir.store{{.*}} %[[msg_addr]], %[[msg]] : !cir.ptr<!s8i>, !cir.ptr<!cir.ptr<!s8i>>
     z = 99;
     (void)msg[0];
   } // CHECK: }, #cir.unwind {
@@ -97,7 +97,7 @@ unsigned long long tc4() {
     // CHECK-NOT: cir.alloca !cir.ptr<!cir.eh.info>
     // CHECK: cir.const #cir.int<4> : !s32i
     // CHECK: cir.unary(inc,
-    // CHECK: cir.store %11, %8 : !s32i, !cir.ptr<!s32i>
+    // CHECK: cir.store{{.*}} %11, %8 : !s32i, !cir.ptr<!s32i>
   } catch (int idx) {
     z = 98;
     idx++;
@@ -145,7 +145,7 @@ void tc6() {
 // CHECK:   ^bb1:  // no predecessors
 // CHECK:     %[[V2:.*]] = cir.load {{.*}} : !cir.ptr<!s32i>, !s32i
 // CHECK:     %[[V3:.*]] = cir.unary(inc, %[[V2]]) nsw : !s32i, !s32i
-// CHECK:     cir.store %[[V3]], {{.*}} : !s32i, !cir.ptr<!s32i>
+// CHECK:     cir.store{{.*}} %[[V3]], {{.*}} : !s32i, !cir.ptr<!s32i>
 // CHECK:     cir.yield
 // CHECK:   }
 // CHECK: }
@@ -164,7 +164,7 @@ void tc7() {
 // CHECK:   cir.try {
 // CHECK:     %[[V2:.*]] = cir.load {{.*}} : !cir.ptr<!s32i>, !s32i
 // CHECK:     %[[V3:.*]] = cir.unary(inc, %[[V2]]) nsw : !s32i, !s32i
-// CHECK:     cir.store %[[V3]], {{.*}} : !s32i, !cir.ptr<!s32i>
+// CHECK:     cir.store{{.*}} %[[V3]], {{.*}} : !s32i, !cir.ptr<!s32i>
 // CHECK:     cir.return
 // CHECK:   }
 // CHECK: }

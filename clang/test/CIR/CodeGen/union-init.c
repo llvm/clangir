@@ -21,7 +21,7 @@ void foo(int x) {
 // CHECK-LABEL:   cir.func @foo(
 // CHECK:  %[[VAL_1:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["x", init] {alignment = 4 : i64}
 // CHECK:  %[[VAL_2:.*]] = cir.alloca !rec_A, !cir.ptr<!rec_A>, ["a", init] {alignment = 4 : i64}
-// CHECK:  cir.store {{.*}}, %[[VAL_1]] : !s32i, !cir.ptr<!s32i>
+// CHECK:  cir.store{{.*}} {{.*}}, %[[VAL_1]] : !s32i, !cir.ptr<!s32i>
 // CHECK:  %[[VAL_3:.*]] = cir.get_member %[[VAL_2]][1] {name = ""} : !cir.ptr<!rec_A> -> !cir.ptr<!rec_anon2E0>
 // CHECK:  %[[VAL_4:.*]] = cir.cast(bitcast, %[[VAL_3]] : !cir.ptr<!rec_anon2E0>), !cir.ptr<!u32i>
 // CHECK:  %[[VAL_5:.*]] = cir.load %[[VAL_1]] : !cir.ptr<!s32i>, !s32i
@@ -53,10 +53,10 @@ typedef union {
 
 // CHECK: %[[VAL_0:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["x", init] {alignment = 4 : i64}
 // CHECK: %[[VAL_1:.*]] = cir.alloca !rec_U, !cir.ptr<!rec_U>, ["u", init] {alignment = 4 : i64}
-// CHECK: cir.store %arg0, %[[VAL_0]] : !s32i, !cir.ptr<!s32i>
+// CHECK: cir.store{{.*}} %arg0, %[[VAL_0]] : !s32i, !cir.ptr<!s32i>
 // CHECK: %[[VAL_2:.*]] = cir.cast(bitcast, %[[VAL_1]] : !cir.ptr<!rec_U>), !cir.ptr<!s32i>
 // CHECK: %[[VAL_3:.*]] = cir.load %[[VAL_0]] : !cir.ptr<!s32i>, !s32i
-// CHECK: cir.store %[[VAL_3]], %[[VAL_2]] : !s32i, !cir.ptr<!s32i>
+// CHECK: cir.store{{.*}} %[[VAL_3]], %[[VAL_2]] : !s32i, !cir.ptr<!s32i>
 
 void union_cast(int x) {
   U u = (U) x;

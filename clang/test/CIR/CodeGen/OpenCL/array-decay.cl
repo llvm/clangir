@@ -10,7 +10,7 @@ kernel void func1(global int *data) {
 
     local int *ptr = arr;
     // CIR:      cir.cast(array_to_ptrdecay, %{{[0-9]+}} : !cir.ptr<!cir.array<!s32i x 32>, addrspace(offload_local)>), !cir.ptr<!s32i, addrspace(offload_local)>
-    // CIR-NEXT: cir.store %{{[0-9]+}}, %{{[0-9]+}} : !cir.ptr<!s32i, addrspace(offload_local)>, !cir.ptr<!cir.ptr<!s32i, addrspace(offload_local)>, addrspace(offload_private)>
+    // CIR-NEXT: cir.store{{.*}} %{{[0-9]+}}, %{{[0-9]+}} : !cir.ptr<!s32i, addrspace(offload_local)>, !cir.ptr<!cir.ptr<!s32i, addrspace(offload_local)>, addrspace(offload_private)>
 
     // LLVM: store ptr addrspace(3) @func1.arr, ptr %{{[0-9]+}}
 }

@@ -12,7 +12,7 @@ A &&a = dynamic_cast<A&&>(A{});
 // CHECK-NEXT:   cir.scope {
 // CHECK-NEXT:     %[[SEVEN:[0-9]+]] = cir.get_global @a : !cir.ptr<!cir.ptr<!rec_A>>
 // CHECK-NEXT:     %[[EIGHT:[0-9]+]] = cir.get_global @_ZGR1a_ : !cir.ptr<!rec_A>
-// CHECK-NEXT:     cir.store %[[EIGHT]], %[[SEVEN]] : !cir.ptr<!rec_A>, !cir.ptr<!cir.ptr<!rec_A>>
+// CHECK-NEXT:     cir.store{{.*}} %[[EIGHT]], %[[SEVEN]] : !cir.ptr<!rec_A>, !cir.ptr<!cir.ptr<!rec_A>>
 // CHECK-NEXT:   }
 // CHECK-NEXT:   cir.return
 // CHECK-NEXT: }

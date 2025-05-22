@@ -9,7 +9,7 @@ void check_noproto_ptr() {
 // CHECK:  cir.func no_proto @check_noproto_ptr()
 // CHECK:    [[ALLOC:%.*]] = cir.alloca !cir.ptr<!cir.func<()>>, !cir.ptr<!cir.ptr<!cir.func<()>>>, ["fun", init] {alignment = 8 : i64}
 // CHECK:    [[GGO:%.*]] = cir.get_global @empty : !cir.ptr<!cir.func<()>>
-// CHECK:    cir.store [[GGO]], [[ALLOC]] : !cir.ptr<!cir.func<()>>, !cir.ptr<!cir.ptr<!cir.func<()>>>
+// CHECK:    cir.store{{.*}} [[GGO]], [[ALLOC]] : !cir.ptr<!cir.func<()>>, !cir.ptr<!cir.ptr<!cir.func<()>>>
 // CHECK:    cir.return
 
 void empty(void) {}

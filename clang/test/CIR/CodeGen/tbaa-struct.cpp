@@ -85,10 +85,10 @@ uint32_t g(uint32_t *s, StructA *A, uint64_t count) {
   // CIR-LABEL: cir.func @_Z1g
   // CIR: %[[INT_1:.*]] = cir.const #cir.int<1> : !s32i
   // CIR: %[[UINT_1:.*]] = cir.cast(integral, %[[INT_1]] : !s32i), !u32i
-  // CIR: cir.store %[[UINT_1]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[INT]])
+  // CIR: cir.store{{.*}} %[[UINT_1]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[INT]])
   // CIR: %[[INT_4:.*]] = cir.const #cir.int<4> : !s32i
   // CIR: %[[UINT_4:.*]] = cir.cast(integral, %[[INT_4]] : !s32i), !u32i
-  // CIR: cir.store %[[UINT_4]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructA_f32]])
+  // CIR: cir.store{{.*}} %[[UINT_4]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructA_f32]])
 
 
   // CHECK-LABEL: define{{.*}} i32 @_Z1g
@@ -106,10 +106,10 @@ uint32_t g2(uint32_t *s, StructA *A, uint64_t count) {
   // CIR-LABEL: cir.func @_Z2g2
   // CIR: %[[INT_1:.*]] = cir.const #cir.int<1> : !s32i
   // CIR: %[[UINT_1:.*]] = cir.cast(integral, %[[INT_1]] : !s32i), !u32i
-  // CIR: cir.store %[[UINT_1]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[INT]])
+  // CIR: cir.store{{.*}} %[[UINT_1]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[INT]])
   // CIR: %[[INT_4:.*]] = cir.const #cir.int<4> : !s32i
   // CIR: %[[UINT_4:.*]] = cir.cast(integral, %[[INT_4]] : !s32i), !u16i
-  // CIR: cir.store %[[UINT_4]], %{{.*}} : !u16i, !cir.ptr<!u16i> tbaa(#tbaa[[TAG_StructA_f16]])
+  // CIR: cir.store{{.*}} %[[UINT_4]], %{{.*}} : !u16i, !cir.ptr<!u16i> tbaa(#tbaa[[TAG_StructA_f16]])
 
   // CHECK-LABEL: define{{.*}} i32 @_Z2g2
   // CHECK: store i32 1, ptr %{{.*}}, align 4, !tbaa [[TAG_i32]]
@@ -126,10 +126,10 @@ uint32_t g3(StructA *A, StructB *B, uint64_t count) {
   // CIR-LABEL: cir.func @_Z2g3
   // CIR: %[[INT_1:.*]] = cir.const #cir.int<1> : !s32i
   // CIR: %[[UINT_1:.*]] = cir.cast(integral, %[[INT_1]] : !s32i), !u32i
-  // CIR: cir.store %[[UINT_1]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructA_f32]])
+  // CIR: cir.store{{.*}} %[[UINT_1]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructA_f32]])
   // CIR: %[[INT_4:.*]] = cir.const #cir.int<4> : !s32i
   // CIR: %[[UINT_4:.*]] = cir.cast(integral, %[[INT_4]] : !s32i), !u32i
-  // CIR: cir.store %[[UINT_4]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructB_a_f32]])
+  // CIR: cir.store{{.*}} %[[UINT_4]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructB_a_f32]])
 
   // CHECK-LABEL: define{{.*}} i32 @_Z2g3
   // CHECK: store i32 1, ptr %{{.*}}, align 4, !tbaa [[TAG_i32]]
@@ -146,10 +146,10 @@ uint32_t g4(StructA *A, StructB *B, uint64_t count) {
   // CIR-LABEL: cir.func @_Z2g4
   // CIR: %[[INT_1:.*]] = cir.const #cir.int<1> : !s32i
   // CIR: %[[UINT_1:.*]] = cir.cast(integral, %[[INT_1]] : !s32i), !u32i
-  // CIR: cir.store %[[UINT_1]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructA_f32]])
+  // CIR: cir.store{{.*}} %[[UINT_1]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructA_f32]])
   // CIR: %[[INT_4:.*]] = cir.const #cir.int<4> : !s32i
   // CIR: %[[UINT_4:.*]] = cir.cast(integral, %[[INT_4]] : !s32i), !u16i
-  // CIR: cir.store %[[UINT_4]], %{{.*}} : !u16i, !cir.ptr<!u16i> tbaa(#tbaa[[TAG_StructB_a_f16]])
+  // CIR: cir.store{{.*}} %[[UINT_4]], %{{.*}} : !u16i, !cir.ptr<!u16i> tbaa(#tbaa[[TAG_StructB_a_f16]])
 
   // LLVM-LABEL: define{{.*}} i32 @_Z2g4
   // LLVM: store i32 1, ptr %{{.*}}, align 4, !tbaa [[TAG_i32]]
@@ -166,10 +166,10 @@ uint32_t g5(StructA *A, StructB *B, uint64_t count) {
   // CIR-LABEL: cir.func @_Z2g5
   // CIR: %[[INT_1:.*]] = cir.const #cir.int<1> : !s32i
   // CIR: %[[UINT_1:.*]] = cir.cast(integral, %[[INT_1]] : !s32i), !u32i
-  // CIR: cir.store %[[UINT_1]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructA_f32]])
+  // CIR: cir.store{{.*}} %[[UINT_1]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructA_f32]])
   // CIR: %[[INT_4:.*]] = cir.const #cir.int<4> : !s32i
   // CIR: %[[UINT_4:.*]] = cir.cast(integral, %[[INT_4]] : !s32i), !u32i
-  // CIR: cir.store %[[UINT_4]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructB_f32]])
+  // CIR: cir.store{{.*}} %[[UINT_4]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructB_f32]])
 
   // LLVM-LABEL: define{{.*}} i32 @_Z2g5
   // LLVM: store i32 1, ptr %{{.*}}, align 4, !tbaa [[TAG_i32]]
@@ -186,10 +186,10 @@ uint32_t g6(StructA *A, StructB *B, uint64_t count) {
   // CIR-LABEL: cir.func @_Z2g6
   // CIR: %[[INT_1:.*]] = cir.const #cir.int<1> : !s32i
   // CIR: %[[UINT_1:.*]] = cir.cast(integral, %[[INT_1]] : !s32i), !u32i
-  // CIR: cir.store %[[UINT_1]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructA_f32]])
+  // CIR: cir.store{{.*}} %[[UINT_1]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructA_f32]])
   // CIR: %[[INT_4:.*]] = cir.const #cir.int<4> : !s32i
   // CIR: %[[UINT_4:.*]] = cir.cast(integral, %[[INT_4]] : !s32i), !u32i
-  // CIR: cir.store %[[UINT_4]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructB_a_f32_2]])
+  // CIR: cir.store{{.*}} %[[UINT_4]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructB_a_f32_2]])
 
   // LLVM-LABEL: define{{.*}} i32 @_Z2g6
   // LLVM: store i32 1, ptr %{{.*}}, align 4, !tbaa [[TAG_i32]]
@@ -206,10 +206,10 @@ uint32_t g7(StructA *A, StructS *S, uint64_t count) {
   // CIR-LABEL: cir.func @_Z2g7
   // CIR: %[[INT_1:.*]] = cir.const #cir.int<1> : !s32i
   // CIR: %[[UINT_1:.*]] = cir.cast(integral, %[[INT_1]] : !s32i), !u32i
-  // CIR: cir.store %[[UINT_1]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructA_f32]])
+  // CIR: cir.store{{.*}} %[[UINT_1]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructA_f32]])
   // CIR: %[[INT_4:.*]] = cir.const #cir.int<4> : !s32i
   // CIR: %[[UINT_4:.*]] = cir.cast(integral, %[[INT_4]] : !s32i), !u32i
-  // CIR: cir.store %[[UINT_4]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructS_f32]])
+  // CIR: cir.store{{.*}} %[[UINT_4]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructS_f32]])
 
   // LLVM-LABEL: define{{.*}} i32 @_Z2g7
   // LLVM: store i32 1, ptr %{{.*}}, align 4, !tbaa [[TAG_i32]]
@@ -226,10 +226,10 @@ uint32_t g8(StructA *A, StructS *S, uint64_t count) {
   // CIR-LABEL: cir.func @_Z2g8
   // CIR: %[[INT_1:.*]] = cir.const #cir.int<1> : !s32i
   // CIR: %[[UINT_1:.*]] = cir.cast(integral, %[[INT_1]] : !s32i), !u32i
-  // CIR: cir.store %[[UINT_1]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructA_f32]])
+  // CIR: cir.store{{.*}} %[[UINT_1]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructA_f32]])
   // CIR: %[[INT_4:.*]] = cir.const #cir.int<4> : !s32i
   // CIR: %[[UINT_4:.*]] = cir.cast(integral, %[[INT_4]] : !s32i), !u16i
-  // CIR: cir.store %[[UINT_4]], %{{.*}} : !u16i, !cir.ptr<!u16i> tbaa(#tbaa[[TAG_StructS_f16]])
+  // CIR: cir.store{{.*}} %[[UINT_4]], %{{.*}} : !u16i, !cir.ptr<!u16i> tbaa(#tbaa[[TAG_StructS_f16]])
 
   // LLVM-LABEL: define{{.*}} i32 @_Z2g8
   // LLVM: store i32 1, ptr %{{.*}}, align 4, !tbaa [[TAG_i32]]
@@ -246,10 +246,10 @@ uint32_t g9(StructS *S, StructS2 *S2, uint64_t count) {
   // CIR-LABEL: cir.func @_Z2g9
   // CIR: %[[INT_1:.*]] = cir.const #cir.int<1> : !s32i
   // CIR: %[[UINT_1:.*]] = cir.cast(integral, %[[INT_1]] : !s32i), !u32i
-  // CIR: cir.store %[[UINT_1]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructS_f32]])
+  // CIR: cir.store{{.*}} %[[UINT_1]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructS_f32]])
   // CIR: %[[INT_4:.*]] = cir.const #cir.int<4> : !s32i
   // CIR: %[[UINT_4:.*]] = cir.cast(integral, %[[INT_4]] : !s32i), !u32i
-  // CIR: cir.store %[[UINT_4]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructS2_f32]])
+  // CIR: cir.store{{.*}} %[[UINT_4]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructS2_f32]])
 
   // LLVM-LABEL: define{{.*}} i32 @_Z2g9
   // LLVM: store i32 1, ptr %{{.*}}, align 4, !tbaa [[TAG_i32]]
@@ -266,10 +266,10 @@ uint32_t g10(StructS *S, StructS2 *S2, uint64_t count) {
   // CIR-LABEL: cir.func @_Z3g10
   // CIR: %[[INT_1:.*]] = cir.const #cir.int<1> : !s32i
   // CIR: %[[UINT_1:.*]] = cir.cast(integral, %[[INT_1]] : !s32i), !u32i
-  // CIR: cir.store %[[UINT_1]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructS_f32]])
+  // CIR: cir.store{{.*}} %[[UINT_1]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructS_f32]])
   // CIR: %[[INT_4:.*]] = cir.const #cir.int<4> : !s32i
   // CIR: %[[UINT_4:.*]] = cir.cast(integral, %[[INT_4]] : !s32i), !u16i
-  // CIR: cir.store %[[UINT_4]], %{{.*}} : !u16i, !cir.ptr<!u16i> tbaa(#tbaa[[TAG_StructS2_f16]])
+  // CIR: cir.store{{.*}} %[[UINT_4]], %{{.*}} : !u16i, !cir.ptr<!u16i> tbaa(#tbaa[[TAG_StructS2_f16]])
 
   // LLVM-LABEL: define{{.*}} i32 @_Z3g10
   // LLVM: store i32 1, ptr %{{.*}}, align 4, !tbaa [[TAG_i32]]
@@ -286,10 +286,10 @@ uint32_t g11(StructC *C, StructD *D, uint64_t count) {
   // CIR-LABEL: cir.func @_Z3g11
   // CIR: %[[INT_1:.*]] = cir.const #cir.int<1> : !s32i
   // CIR: %[[UINT_1:.*]] = cir.cast(integral, %[[INT_1]] : !s32i), !u32i
-  // CIR: cir.store %[[UINT_1]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructC_b_a_f32]])
+  // CIR: cir.store{{.*}} %[[UINT_1]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructC_b_a_f32]])
   // CIR: %[[INT_4:.*]] = cir.const #cir.int<4> : !s32i
   // CIR: %[[UINT_4:.*]] = cir.cast(integral, %[[INT_4]] : !s32i), !u32i
-  // CIR: cir.store %[[UINT_4]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructD_b_a_f32]])
+  // CIR: cir.store{{.*}} %[[UINT_4]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructD_b_a_f32]])
 
   // LLVM-LABEL: define{{.*}} i32 @_Z3g11
   // LLVM: store i32 1, ptr %{{.*}}, align 4, !tbaa [[TAG_i32]]
@@ -306,10 +306,10 @@ uint32_t g12(StructC *C, StructD *D, uint64_t count) {
   // CIR-LABEL: cir.func @_Z3g12
   // CIR: %[[INT_1:.*]] = cir.const #cir.int<1> : !s32i
   // CIR: %[[UINT_1:.*]] = cir.cast(integral, %[[INT_1]] : !s32i), !u32i
-  // CIR: cir.store %[[UINT_1]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructB_a_f32]])
+  // CIR: cir.store{{.*}} %[[UINT_1]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructB_a_f32]])
   // CIR: %[[INT_4:.*]] = cir.const #cir.int<4> : !s32i
   // CIR: %[[UINT_4:.*]] = cir.cast(integral, %[[INT_4]] : !s32i), !u32i
-  // CIR: cir.store %[[UINT_4]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructB_a_f32]])
+  // CIR: cir.store{{.*}} %[[UINT_4]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructB_a_f32]])
 
   // LLVM-LABEL: define{{.*}} i32 @_Z3g12
   // LLVM: store i32 1, ptr %{{.*}}, align 4, !tbaa [[TAG_i32]]
@@ -351,10 +351,10 @@ uint32_t g15(StructS *S, StructS3 *S3, uint64_t count) {
   // CIR-LABEL: cir.func @_Z3g15
   // CIR: %[[INT_1:.*]] = cir.const #cir.int<1> : !s32i
   // CIR: %[[UINT_1:.*]] = cir.cast(integral, %[[INT_1]] : !s32i), !u32i
-  // CIR: cir.store %[[UINT_1]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructS_f32]])
+  // CIR: cir.store{{.*}} %[[UINT_1]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructS_f32]])
   // CIR: %[[INT_4:.*]] = cir.const #cir.int<4> : !s32i
   // CIR: %[[UINT_4:.*]] = cir.cast(integral, %[[INT_4]] : !s32i), !u32i
-  // CIR: cir.store %[[UINT_4]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructS_f32]])
+  // CIR: cir.store{{.*}} %[[UINT_4]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructS_f32]])
 
 
   // LLVM-LABEL: define{{.*}} i32 @_Z3g15

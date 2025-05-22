@@ -17,7 +17,7 @@ __constant char *__constant y = "hello world";
 // LLVM: addrspace(2) constant{{.*}}"f\00"
 
 void f() {
-  // CIR: cir.store %{{.*}}, %{{.*}} : !cir.ptr<!s8i, addrspace(offload_constant)>, !cir.ptr<!cir.ptr<!s8i, addrspace(offload_constant)>, addrspace(offload_private)>
+  // CIR: cir.store{{.*}} %{{.*}}, %{{.*}} : !cir.ptr<!s8i, addrspace(offload_constant)>, !cir.ptr<!cir.ptr<!s8i, addrspace(offload_constant)>, addrspace(offload_private)>
   // LLVM: store ptr addrspace(2) {{.*}}, ptr
   constant const char *f3 = __func__;
 }
