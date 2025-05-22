@@ -133,7 +133,7 @@ def CIR_OptInfoAttr : CIR_Attr<"OptInfo", "opt_info"> {
   let parameters = (ins "unsigned":$level, "unsigned":$size);
 
   let assemblyFormat = [{
-    `<` `level` `=` $level `,` `size` `=` $size `>`
+    `<` struct(params) `>`
   }];
   let genVerifyDecl = 1;
 }
