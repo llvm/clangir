@@ -894,8 +894,7 @@ public:
     if (!align) {
       uint64_t alignment = dst.getAlignment().getQuantity();
       if (alignment)
-        align = mlir::IntegerAttr::get(mlir::IntegerType::get(getContext(), 64),
-                                       alignment);
+        align = getI64IntegerAttr(alignment);
     }
     return CIRBaseBuilderTy::createStore(loc, val, dst.getPointer(), isVolatile,
                                          isNontemporal, align, order);
