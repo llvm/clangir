@@ -56,19 +56,16 @@ class CIRUnitAttr<string name, string attrMnemonic, list<Trait> traits = []>
 // LangAttr
 //===----------------------------------------------------------------------===//
 
-def C : I32EnumAttrCase<"C", 1, "c">;
-def CXX : I32EnumAttrCase<"CXX", 2, "cxx">;
-def OpenCLC : I32EnumAttrCase<"OpenCLC", 3, "opencl_c">;
-
-def SourceLanguage : I32EnumAttr<"SourceLanguage", "Source language", [
-  C, CXX, OpenCLC
+def CIR_SourceLanguage : I32EnumAttr<"SourceLanguage", "Source language", [
+  I32EnumAttrCase<"C", 1, "c">,
+  I32EnumAttrCase<"CXX", 2, "cxx">,
+  I32EnumAttrCase<"OpenCLC", 3, "opencl_c">
 ]> {
   let cppNamespace = "::cir";
 }
 
-def LangAttr : CIR_Attr<"Lang", "lang"> {
+def CIR_LangAttr : CIR_Attr<"Lang", "lang"> {
   let summary = "Module source language";
-  let parameters = (ins "SourceLanguageAttr":$lang);
   let description = [{
     Represents the source language used to generate the module.
 
@@ -80,10 +77,16 @@ def LangAttr : CIR_Attr<"Lang", "lang"> {
     module attributes {cir.lang = cir.lang<cxx>} {}
     ```
   }];
-  let hasCustomAssemblyFormat = 1;
+
+  let parameters = (ins "SourceLanguage":$lang);
+
+  let assemblyFormat = [{
+    `<` $lang `>`
+  }];
+
   let extraClassDeclaration = [{
-    bool isC() const { return getLang().getValue() == SourceLanguage::C; };
-    bool isCXX() const { return getLang().getValue() == SourceLanguage::CXX; };
+    bool isC() const { return getLang() == SourceLanguage::C; };
+    bool isCXX() const { return getLang() == SourceLanguage::CXX; };
   }];
 }
 
