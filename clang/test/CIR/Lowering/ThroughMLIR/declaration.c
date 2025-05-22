@@ -1,29 +1,16 @@
-// RUN: split-file %s %t
-// RUN: %clang_cc1 -fclangir -fno-clangir-direct-lowering -emit-mlir=core %t%{fs-sep}test_declaration.c 
-// RUN: FileCheck --input-file=%t%{fs-sep}test_declaration.mlir %t%{fs-sep}test_declaration.c
+// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -fno-clangir-direct-lowering -emit-mlir=core %s -o %t.mlir 
+// RUN: FileCheck --input-file=%t.mlir %s
 
 
-//--- add10.h
+int declaration(int x);
 
-#ifndef ADD10_H
-#define ADD10_H
+// CHECK: func.func private @declaration(i32) -> i32
 
-int add10(int x);
-
-#endif
-
-
-//--- test_declaration.c
-
-#include "add10.h"
-
-// CHECK: func.func private @add10(i32) -> i32
-
-int main(int argc, char *argv[]) {
+int declaration_test() {
     // Variables
     int number = 15;
 
-    number = add10(number);
+    number = declaration(number);
 
     return 0;
 }
