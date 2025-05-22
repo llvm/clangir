@@ -46,120 +46,132 @@ let cppNamespace = "::cir" in {
   def CIRGlobalValueInterface
       : OpInterface<"CIRGlobalValueInterface", [Symbol]> {
 
-    let methods = [
-      InterfaceMethod<"",
-      "bool", "hasExternalLinkage", (ins), [{}],
-      /*defaultImplementation=*/[{
+    let methods =
+        [InterfaceMethod<"", "bool", "hasExternalLinkage", (ins), [{}],
+                         /*defaultImplementation=*/[{
         return cir::isExternalLinkage($_op.getLinkage());
-      }]
-      >,
-      InterfaceMethod<"",
-      "bool", "hasAvailableExternallyLinkage", (ins), [{}],
-      /*defaultImplementation=*/[{
+      }]>,
+         InterfaceMethod<"", "bool", "hasAvailableExternallyLinkage", (ins),
+                         [{}],
+                         /*defaultImplementation=*/[{
         return cir::isAvailableExternallyLinkage($_op.getLinkage());
-      }]
-      >,
-      InterfaceMethod<"",
-      "bool", "hasLinkOnceLinkage", (ins), [{}],
-      /*defaultImplementation=*/[{
+      }]>,
+         InterfaceMethod<"", "bool", "hasLinkOnceLinkage", (ins), [{}],
+                         /*defaultImplementation=*/[{
         return cir::isLinkOnceLinkage($_op.getLinkage());
-      }]
-      >,
-      InterfaceMethod<"",
-      "bool", "hasLinkOnceAnyLinkage", (ins), [{}],
-      /*defaultImplementation=*/[{
+      }]>,
+         InterfaceMethod<"", "bool", "hasLinkOnceAnyLinkage", (ins), [{}],
+                         /*defaultImplementation=*/[{
         return cir::isLinkOnceAnyLinkage($_op.getLinkage());
-      }]
-      >,
-      InterfaceMethod<"",
-      "bool", "hasLinkOnceODRLinkage", (ins), [{}],
-      /*defaultImplementation=*/[{
+      }]>,
+         InterfaceMethod<"", "bool", "hasLinkOnceODRLinkage", (ins), [{}],
+                         /*defaultImplementation=*/[{
         return cir::isLinkOnceODRLinkage($_op.getLinkage());
-      }]
-      >,
-      InterfaceMethod<"",
-      "bool", "hasWeakLinkage", (ins), [{}],
-      /*defaultImplementation=*/[{
+      }]>,
+         InterfaceMethod<"", "bool", "hasWeakLinkage", (ins), [{}],
+                         /*defaultImplementation=*/[{
         return cir::isWeakLinkage($_op.getLinkage());
-      }]
-      >,
-      InterfaceMethod<"",
-      "bool", "hasWeakAnyLinkage", (ins), [{}],
-      /*defaultImplementation=*/[{
+      }]>,
+         InterfaceMethod<"", "bool", "hasWeakAnyLinkage", (ins), [{}],
+                         /*defaultImplementation=*/[{
         return cir::isWeakAnyLinkage($_op.getLinkage());
-      }]
-      >,
-      InterfaceMethod<"",
-      "bool", "hasWeakODRLinkage", (ins), [{}],
-      /*defaultImplementation=*/[{
+      }]>,
+         InterfaceMethod<"", "bool", "hasWeakODRLinkage", (ins), [{}],
+                         /*defaultImplementation=*/[{
         return cir::isWeakODRLinkage($_op.getLinkage());
-      }]
-      >,
-      InterfaceMethod<"",
-      "bool", "hasInternalLinkage", (ins), [{}],
-      /*defaultImplementation=*/[{
+      }]>,
+         InterfaceMethod<"", "bool", "hasInternalLinkage", (ins), [{}],
+                         /*defaultImplementation=*/[{
         return cir::isInternalLinkage($_op.getLinkage());
-      }]
-      >,
-      InterfaceMethod<"",
-      "bool", "hasPrivateLinkage", (ins), [{}],
-      /*defaultImplementation=*/[{
+      }]>,
+         InterfaceMethod<"", "bool", "hasPrivateLinkage", (ins), [{}],
+                         /*defaultImplementation=*/[{
         return cir::isPrivateLinkage($_op.getLinkage());
-      }]
-      >,
-      InterfaceMethod<"",
-      "bool", "hasLocalLinkage", (ins), [{}],
-      /*defaultImplementation=*/[{
+      }]>,
+         InterfaceMethod<"", "bool", "hasLocalLinkage", (ins), [{}],
+                         /*defaultImplementation=*/[{
         return cir::isLocalLinkage($_op.getLinkage());
-      }]
-      >,
-      InterfaceMethod<"",
-      "bool", "hasExternalWeakLinkage", (ins), [{}],
-      /*defaultImplementation=*/[{
+      }]>,
+         InterfaceMethod<"", "bool", "hasExternalWeakLinkage", (ins), [{}],
+                         /*defaultImplementation=*/[{
         return cir::isExternalWeakLinkage($_op.getLinkage());
-      }]
-      >,
-      InterfaceMethod<"",
-      "bool", "hasCommonLinkage", (ins), [{}],
-      /*defaultImplementation=*/[{
+      }]>,
+         InterfaceMethod<"", "bool", "hasCommonLinkage", (ins), [{}],
+                         /*defaultImplementation=*/[{
         return cir::isCommonLinkage($_op.getLinkage());
-      }]
-      >,
-      InterfaceMethod<"",
-      "bool", "isDeclarationForLinker", (ins), [{}],
-      /*defaultImplementation=*/[{
+      }]>,
+         InterfaceMethod<"", "bool", "isDeclarationForLinker", (ins), [{}],
+                         /*defaultImplementation=*/[{
         if ($_op.hasAvailableExternallyLinkage())
           return true;
         return $_op.isDeclaration();
-      }]
-      >,
-      InterfaceMethod<"",
-      "bool", "hasComdat", (ins), [{}],
-      /*defaultImplementation=*/[{
+      }]>,
+         InterfaceMethod<"", "bool", "hasComdat", (ins), [{}],
+                         /*defaultImplementation=*/[{
         return $_op.getComdat();
-      }]
-      >,
-      InterfaceMethod<"",
-      "void", "setDSOLocal", (ins "bool":$val), [{}],
-      /*defaultImplementation=*/[{
+      }]>,
+         InterfaceMethod<"", "void", "setDSOLocal", (ins "bool":$val), [{}],
+                         /*defaultImplementation=*/[{
         $_op.setDsolocal(val);
-      }]
-      >,
-      InterfaceMethod<"",
-      "bool", "isDSOLocal", (ins), [{}],
-      /*defaultImplementation=*/[{
+      }]>,
+         InterfaceMethod<"", "bool", "isDSOLocal", (ins), [{}],
+                         /*defaultImplementation=*/[{
         return $_op.getDsolocal();
-      }]
-      >,
-      InterfaceMethod<"",
-      "bool", "isWeakForLinker", (ins), [{}],
-      /*defaultImplementation=*/[{
+      }]>,
+         InterfaceMethod<"", "bool", "isWeakForLinker", (ins), [{}],
+                         /*defaultImplementation=*/[{
         return cir::isWeakForLinker($_op.getLinkage());
-      }]
-      >
+      }]>,
+         InterfaceMethod<"Gets the CIR visibility of this global variable.",
+                         "::cir::VisibilityKind", "getCIRVisibility", (ins),
+                         [{}],
+                         /*defaultImplementation=*/[{
+          return $_op.getGlobalVisibility().getValue();
+        }]>,
+         InterfaceMethod<
+             "Returns true if this global variable has default CIR visibility.",
+             "bool", "hasDefaultVisibility", (ins), [{}],
+             /*defaultImplementation=*/[{
+          return $_op.getGlobalVisibility().isDefault();
+        }]>,
+         InterfaceMethod<
+             "Returns true if this global variable has hidden CIR visibility.",
+             "bool", "hasHiddenVisibility", (ins), [{}],
+             /*defaultImplementation=*/[{
+          return $_op.getGlobalVisibility().isHidden();
+        }]>,
+         InterfaceMethod<"Returns true if this global variable has protected "
+                         "CIR visibility.",
+                         "bool", "hasProtectedVisibility", (ins), [{}],
+                         /*defaultImplementation=*/[{
+          return $_op.getGlobalVisibility().isProtected();
+        }]>,
+         InterfaceMethod<"Sets the CIR visibility of this global variable.",
+                         "void", "setGlobalVisibility",
+                         (ins "::cir::VisibilityKind":$vis), [{}],
+                         /*defaultImplementation=*/[{
+          $_op.setGlobalVisibilityAttr(::cir::VisibilityAttr::get($_op.getContext(), vis));
+        }]>,
+         InterfaceMethod<
+             "Sets the CIR visibility of this global variable to be default.",
+             "void", "setDefaultCIRVisibility", (ins), [{}],
+             /*defaultImplementation=*/[{
+          setGlobalVisibility(::cir::VisibilityKind::Default);
+        }]>,
+         InterfaceMethod<
+             "Sets the CIR visibility of this global variable to be hidden.",
+             "void", "setHiddenCIRVisibility", (ins), [{}],
+             /*defaultImplementation=*/[{
+          setGlobalVisibility(::cir::VisibilityKind::Hidden);
+        }]>,
+         InterfaceMethod<
+             "Sets the CIR visibility of this global variable to be protected.",
+             "void", "setProtectedCIRVisibility", (ins), [{}],
+             /*defaultImplementation=*/[{
+          setGlobalVisibility(::cir::VisibilityKind::Protected);
+        }]>,
     ];
     let extraClassDeclaration = [{
-      bool hasDefaultVisibility();
       bool canBenefitFromLocalAlias();
     }];
   }

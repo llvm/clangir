@@ -17,12 +17,6 @@ using namespace cir;
 
 #include "clang/CIR/MissingFeatures.h"
 
-bool CIRGlobalValueInterface::hasDefaultVisibility() {
-  assert(!cir::MissingFeatures::hiddenVisibility());
-  assert(!cir::MissingFeatures::protectedVisibility());
-  return isPublic() || isPrivate();
-}
-
 bool CIRGlobalValueInterface::canBenefitFromLocalAlias() {
   assert(!cir::MissingFeatures::supportIFuncAttr());
   // hasComdat here should be isDeduplicateComdat, but as far as clang codegen
