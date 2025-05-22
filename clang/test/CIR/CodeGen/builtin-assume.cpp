@@ -43,7 +43,7 @@ int test_assume_aligned(int *ptr) {
 //      CIR: cir.func @_Z19test_assume_alignedPi
 //      CIR:   %[[#ptr:]] = cir.load %{{.+}} : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
 // CIR-NEXT:   %[[#aligned:]] = cir.assume.aligned %[[#ptr]] : !cir.ptr<!s32i>[alignment 8]
-// CIR-NEXT:   cir.store %[[#aligned]], %[[#aligned_slot:]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
+// CIR-NEXT:   cir.store{{.*}} %[[#aligned]], %[[#aligned_slot:]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
 // CIR-NEXT:   %[[#aligned2:]] = cir.load deref %[[#aligned_slot]] : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
 // CIR-NEXT:   %{{.+}} = cir.load %[[#aligned2]] : !cir.ptr<!s32i>, !s32i
 //      CIR: }
@@ -63,7 +63,7 @@ int test_assume_aligned_offset(int *ptr) {
 // CIR-NEXT:   %[[#offset:]] = cir.const #cir.int<4> : !s32i
 // CIR-NEXT:   %[[#offset2:]] = cir.cast(integral, %[[#offset]] : !s32i), !u64i
 // CIR-NEXT:   %[[#aligned:]] = cir.assume.aligned %[[#ptr]] : !cir.ptr<!s32i>[alignment 8, offset %[[#offset2]] : !u64i]
-// CIR-NEXT:   cir.store %[[#aligned]], %[[#aligned_slot:]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
+// CIR-NEXT:   cir.store{{.*}} %[[#aligned]], %[[#aligned_slot:]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
 // CIR-NEXT:   %[[#aligned2:]] = cir.load deref %[[#aligned_slot]] : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
 // CIR-NEXT:   %{{.+}} = cir.load %[[#aligned2]] : !cir.ptr<!s32i>, !s32i
 //      CIR: }

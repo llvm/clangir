@@ -21,7 +21,7 @@ e *g = new e(0);
 // CIR_BEFORE:     %[[NewCasted:.*]] = cir.cast(bitcast, %[[NewAlloc]] : !cir.ptr<!void>), !cir.ptr<![[ty]]>
 // CIR_BEFORE:     %[[ZERO:.*]] = cir.const #cir.int<0> : !s32i
 // CIR_BEFORE:     cir.call @_ZN1eC1Ei(%[[NewCasted]], %[[ZERO]]) : (!cir.ptr<![[ty]]>, !s32i) -> ()
-// CIR_BEFORE:     cir.store %3, %[[GlobalAddr]] : !cir.ptr<![[ty]]>, !cir.ptr<!cir.ptr<![[ty]]>>
+// CIR_BEFORE:     cir.store{{.*}} %3, %[[GlobalAddr]] : !cir.ptr<![[ty]]>, !cir.ptr<!cir.ptr<![[ty]]>>
 // CIR_BEFORE: }
 
 // CIR_AFTER:  {{%.*}} = cir.const #cir.int<1> : !u64i

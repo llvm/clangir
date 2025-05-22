@@ -17,7 +17,7 @@ kernel void test_static(int i) {
 
   c = b;
   // CIR:      %[[#LOADB:]] = cir.load %[[#ADDRB]] : !cir.ptr<!s32i, addrspace(offload_global)>, !s32i
-  // CIR-NEXT: cir.store %[[#LOADB]], %[[#ADDRC]] : !s32i, !cir.ptr<!s32i, addrspace(offload_local)>
+  // CIR-NEXT: cir.store{{.*}} %[[#LOADB]], %[[#ADDRC]] : !s32i, !cir.ptr<!s32i, addrspace(offload_local)>
 
   // LLVM:     %[[#LOADB:]] = load i32, ptr addrspace(1) @test_static.b, align 4
   // LLVM-NEXT: store i32 %[[#LOADB]], ptr addrspace(3) @test_static.c, align 4

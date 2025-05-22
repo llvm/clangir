@@ -11,8 +11,8 @@ unsigned id0() {
 // CHECK: %[[#A:]] = cir.alloca !u32i, !cir.ptr<!u32i>, ["a", init]
 // CHECK: %[[#BEFORE_A:]] = cir.load %[[#A]]
 // CHECK: %[[#AFTER_A:]] = cir.unary(inc, %[[#BEFORE_A]])
-// CHECK: cir.store %[[#AFTER_A]], %[[#A]]
-// CHECK: cir.store %[[#AFTER_A]], %[[#RET]]
+// CHECK: cir.store{{.*}} %[[#AFTER_A]], %[[#A]]
+// CHECK: cir.store{{.*}} %[[#AFTER_A]], %[[#RET]]
 
 
 unsigned id1() {
@@ -25,8 +25,8 @@ unsigned id1() {
 // CHECK: %[[#A:]] = cir.alloca !u32i, !cir.ptr<!u32i>, ["a", init]
 // CHECK: %[[#BEFORE_A:]] = cir.load %[[#A]]
 // CHECK: %[[#AFTER_A:]] = cir.unary(dec, %[[#BEFORE_A]])
-// CHECK: cir.store %[[#AFTER_A]], %[[#A]]
-// CHECK: cir.store %[[#AFTER_A]], %[[#RET]]
+// CHECK: cir.store{{.*}} %[[#AFTER_A]], %[[#A]]
+// CHECK: cir.store{{.*}} %[[#AFTER_A]], %[[#RET]]
 
 unsigned id2() {
   unsigned a = 1;
@@ -38,8 +38,8 @@ unsigned id2() {
 // CHECK: %[[#A:]] = cir.alloca !u32i, !cir.ptr<!u32i>, ["a", init]
 // CHECK: %[[#BEFORE_A:]] = cir.load %[[#A]]
 // CHECK: %[[#AFTER_A:]] = cir.unary(inc, %[[#BEFORE_A]])
-// CHECK: cir.store %[[#AFTER_A]], %[[#A]]
-// CHECK: cir.store %[[#BEFORE_A]], %[[#RET]]
+// CHECK: cir.store{{.*}} %[[#AFTER_A]], %[[#A]]
+// CHECK: cir.store{{.*}} %[[#BEFORE_A]], %[[#RET]]
 
 unsigned id3() {
   unsigned a = 1;
@@ -51,5 +51,5 @@ unsigned id3() {
 // CHECK: %[[#A:]] = cir.alloca !u32i, !cir.ptr<!u32i>, ["a", init]
 // CHECK: %[[#BEFORE_A:]] = cir.load %[[#A]]
 // CHECK: %[[#AFTER_A:]] = cir.unary(dec, %[[#BEFORE_A]])
-// CHECK: cir.store %[[#AFTER_A]], %[[#A]]
-// CHECK: cir.store %[[#BEFORE_A]], %[[#RET]]
+// CHECK: cir.store{{.*}} %[[#AFTER_A]], %[[#A]]
+// CHECK: cir.store{{.*}} %[[#BEFORE_A]], %[[#RET]]

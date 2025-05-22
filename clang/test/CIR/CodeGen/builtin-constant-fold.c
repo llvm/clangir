@@ -15,9 +15,9 @@ void test1() {
 // CIR: [[F:%.*]] = cir.alloca !cir.float, !cir.ptr<!cir.float>, ["f"] {alignment = 4 : i64} 
 // CIR: [[D:%.*]] = cir.alloca !cir.double, !cir.ptr<!cir.double>, ["d"] {alignment = 8 : i64}
 // CIR: [[F_VAL:%.*]] = cir.const #cir.fp<0x7F800000> : !cir.float 
-// CIR: cir.store [[F_VAL]], [[F]] : !cir.float, !cir.ptr<!cir.float> 
+// CIR: cir.store{{.*}} [[F_VAL]], [[F]] : !cir.float, !cir.ptr<!cir.float> 
 // CIR: [[D_VAL:%.*]] = cir.const #cir.fp<0x7FF0000000000000> : !cir.double 
-// CIR: cir.store [[D_VAL]], [[D]] : !cir.double, !cir.ptr<!cir.double> loc(#loc17)
+// CIR: cir.store{{.*}} [[D_VAL]], [[D]] : !cir.double, !cir.ptr<!cir.double> loc(#loc17)
 // CIR: cir.return
 
 // LLVM-LABEL: test1

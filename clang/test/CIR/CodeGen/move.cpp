@@ -31,7 +31,7 @@ void t() {
 // CHECK: cir.func @_Z1tv()
 // CHECK:   %[[#Addr:]] = cir.alloca ![[StdString]], {{.*}} ["ref.tmp0"]
 // CHECK:   %[[#RValStr:]] = cir.call @_Z6getstrv() : () -> ![[StdString]]
-// CHECK:   cir.store %[[#RValStr]], %[[#Addr]]
+// CHECK:   cir.store{{.*}} %[[#RValStr]], %[[#Addr]]
 // CHECK:   cir.call @_Z7emplaceOSt6string(%[[#Addr]])
 // CHECK:   cir.return
 // CHECK: }

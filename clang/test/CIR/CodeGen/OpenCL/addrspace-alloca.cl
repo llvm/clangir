@@ -23,11 +23,11 @@ kernel void func(local int *p) {
   // LLVM-NEXT: %[[#ALLOCA_PTR:]] = alloca ptr, i64 1, align 8
 
   // Store of the argument `p`
-  // CIR-NEXT: cir.store %arg0, %[[#ALLOCA_P]] : !cir.ptr<!s32i, addrspace(offload_local)>, !cir.ptr<!cir.ptr<!s32i, addrspace(offload_local)>, addrspace(offload_private)>
+  // CIR-NEXT: cir.store{{.*}} %arg0, %[[#ALLOCA_P]] : !cir.ptr<!s32i, addrspace(offload_local)>, !cir.ptr<!cir.ptr<!s32i, addrspace(offload_local)>, addrspace(offload_private)>
   // LLVM-NEXT: store ptr addrspace(3) %{{[0-9]+}}, ptr %[[#ALLOCA_P]], align 8
 
   ptr = &x;
-  // CIR-NEXT: cir.store %[[#ALLOCA_X]], %[[#ALLOCA_PTR]] : !cir.ptr<!s32i, addrspace(offload_private)>, !cir.ptr<!cir.ptr<!s32i, addrspace(offload_private)>, addrspace(offload_private)>
+  // CIR-NEXT: cir.store{{.*}} %[[#ALLOCA_X]], %[[#ALLOCA_PTR]] : !cir.ptr<!s32i, addrspace(offload_private)>, !cir.ptr<!cir.ptr<!s32i, addrspace(offload_private)>, addrspace(offload_private)>
   // LLVM-NEXT: store ptr %[[#ALLOCA_X]], ptr %[[#ALLOCA_PTR]]
 
   return;

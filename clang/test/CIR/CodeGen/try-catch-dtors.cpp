@@ -330,13 +330,13 @@ void bar() {
 // CIR:      cir.call @_ZN1AD2Ev(%[[V0]]) : (!cir.ptr<!rec_A>) -> () extra(#fn_attr)
 // CIR:      cir.yield
 // CIR:    }
-// CIR:    cir.store %[[V4]], %[[V2]] : !s32i, !cir.ptr<!s32i>
+// CIR:    cir.store{{.*}} %[[V4]], %[[V2]] : !s32i, !cir.ptr<!s32i>
 // CIR:    cir.yield
 // CIR:  } catch [#cir.unwind {
 // CIR:    cir.resume
 // CIR:  }]
 // CIR:  %[[V3:.*]] = cir.load %[[V2]] : !cir.ptr<!s32i>, !s32i
-// CIR:  cir.store %[[V3]], %[[V1]] : !s32i, !cir.ptr<!s32i>
+// CIR:  cir.store{{.*}} %[[V3]], %[[V1]] : !s32i, !cir.ptr<!s32i>
 // CIR:  cir.call @_ZN1AD2Ev(%[[V0]]) : (!cir.ptr<!rec_A>) -> () extra(#fn_attr)
 // CIR:  cir.return
 

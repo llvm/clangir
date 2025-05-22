@@ -54,13 +54,13 @@ void b2(bool a) {
 // CHECK: %0 = cir.alloca {{.*}} ["a", init]
 // CHECK: %1 = cir.alloca {{.*}} ["x", init]
 // CHECK: %2 = cir.const #false
-// CHECK-NEXT: cir.store %2, %1
+// CHECK-NEXT: cir.store{{.*}} %2, %1
 // CHECK-NEXT: %3 = cir.load %0
-// CHECK-NEXT: cir.store %3, %1
+// CHECK-NEXT: cir.store{{.*}} %3, %1
 // CHECK-NEXT: %4 = cir.load %0
-// CHECK-NEXT: cir.store %4, %1
+// CHECK-NEXT: cir.store{{.*}} %4, %1
 // CHECK-NEXT: %5 = cir.const #true
-// CHECK-NEXT: cir.store %5, %1
+// CHECK-NEXT: cir.store{{.*}} %5, %1
 
 void b3(int a, int b, int c, int d) {
   bool x = (a == b) && (c == d);

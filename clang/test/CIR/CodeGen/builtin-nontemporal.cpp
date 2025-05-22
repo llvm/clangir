@@ -18,7 +18,7 @@ void nontemporal_store(int *ptr, int value) {
 }
 
 // CIR-LABEL: @_Z17nontemporal_storePii
-// CIR: cir.store nontemporal %{{.+}}, %{{.+}} : !s32i, !cir.ptr<!s32i>
+// CIR: cir.store nontemporal{{.*}} %{{.+}}, %{{.+}} : !s32i, !cir.ptr<!s32i>
 
 // LLVM-LABEL: @_Z17nontemporal_storePii
 // LLVM: store i32 %{{.+}}, ptr %{{.+}}, align 4, !nontemporal !1

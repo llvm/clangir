@@ -16,4 +16,4 @@ __global__ void fn() {
 // CIR: [[Local:%[0-9]+]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["i", init]
 // CIR: [[Shared:%[0-9]+]] = cir.get_global @_ZZ2fnvE1j : !cir.ptr<!s32i, addrspace(offload_local)>
 // CIR: [[Tmp:%[0-9]+]] = cir.load [[Local]] : !cir.ptr<!s32i>, !s32i
-// CIR: cir.store [[Tmp]], [[Shared]] : !s32i, !cir.ptr<!s32i, addrspace(offload_local)>
+// CIR: cir.store{{.*}} [[Tmp]], [[Shared]] : !s32i, !cir.ptr<!s32i, addrspace(offload_local)>

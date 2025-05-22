@@ -19,7 +19,7 @@ void test() {
 
 // CIR: cir.func linkonce_odr @_ZSt1fIiEvSt16initializer_listIT_E(%arg0: [[INITLIST_TYPE]]
 // CIR: [[REG0:%.*]] = cir.alloca [[INITLIST_TYPE]], !cir.ptr<[[INITLIST_TYPE]]>,
-// CIR: cir.store %arg0, [[REG0]] : [[INITLIST_TYPE]], !cir.ptr<[[INITLIST_TYPE]]>
+// CIR: cir.store{{.*}} %arg0, [[REG0]] : [[INITLIST_TYPE]], !cir.ptr<[[INITLIST_TYPE]]>
 // CIR: cir.return
 
 // CIR: cir.func @_ZSt4testv()
@@ -28,13 +28,13 @@ void test() {
 // CIR: [[ARRAY:%.*]] = cir.alloca !cir.array<!s32i x 1>, !cir.ptr<!cir.array<!s32i x 1>>,
 // CIR: [[DECAY_PTR:%.*]] = cir.cast(array_to_ptrdecay, [[ARRAY]] : !cir.ptr<!cir.array<!s32i x 1>>), !cir.ptr<!s32i>
 // CIR: [[SEVEN:%.*]] = cir.const #cir.int<7> : !s32i
-// CIR: cir.store [[SEVEN]], [[DECAY_PTR]] : !s32i, !cir.ptr<!s32i>
+// CIR: cir.store{{.*}} [[SEVEN]], [[DECAY_PTR]] : !s32i, !cir.ptr<!s32i>
 // CIR: [[FLD_C:%.*]] = cir.get_member [[LIST_PTR]][0] {name = "c"} : !cir.ptr<[[INITLIST_TYPE]]> -> !cir.ptr<!cir.ptr<!s32i>>
 // CIR: [[ARRAY_PTR:%.*]] = cir.cast(bitcast, [[FLD_C]] : !cir.ptr<!cir.ptr<!s32i>>), !cir.ptr<!cir.ptr<!cir.array<!s32i x 1>>>
-// CIR: cir.store [[ARRAY]], [[ARRAY_PTR]] : !cir.ptr<!cir.array<!s32i x 1>>, !cir.ptr<!cir.ptr<!cir.array<!s32i x 1>>>
+// CIR: cir.store{{.*}} [[ARRAY]], [[ARRAY_PTR]] : !cir.ptr<!cir.array<!s32i x 1>>, !cir.ptr<!cir.ptr<!cir.array<!s32i x 1>>>
 // CIR: [[LENGTH_ONE:%.*]] = cir.const #cir.int<1>
 // CIR: [[FLD_LEN:%.*]] = cir.get_member [[LIST_PTR]][1] {name = "len"} : !cir.ptr<[[INITLIST_TYPE]]> -> !cir.ptr<!u64i>
-// CIR: cir.store [[LENGTH_ONE]], [[FLD_LEN]] : !u64i, !cir.ptr<!u64i>
+// CIR: cir.store{{.*}} [[LENGTH_ONE]], [[FLD_LEN]] : !u64i, !cir.ptr<!u64i>
 // CIR: [[ARG2PASS:%.*]] = cir.load [[LIST_PTR]] : !cir.ptr<[[INITLIST_TYPE]]>,  [[INITLIST_TYPE]]
 // CIR: cir.call @_ZSt1fIiEvSt16initializer_listIT_E([[ARG2PASS]]) : ([[INITLIST_TYPE]]) -> ()
 // CIR: }

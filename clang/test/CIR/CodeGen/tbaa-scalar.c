@@ -25,11 +25,11 @@ void test_int_and_float(int *a, float *b) {
   // CIR: cir.if
   // CIR: %[[C2:.*]] = cir.const #cir.fp<2
   // CIR: %[[TMP3:.*]] = cir.load deref %[[ARG_b:.*]] : !cir.ptr<!cir.ptr<!cir.float>>, !cir.ptr<!cir.float>
-  // CIR: cir.store %[[C2]], %[[TMP3]] : !cir.float, !cir.ptr<!cir.float> tbaa(#tbaa[[FLOAT]])
+  // CIR: cir.store{{.*}} %[[C2]], %[[TMP3]] : !cir.float, !cir.ptr<!cir.float> tbaa(#tbaa[[FLOAT]])
   // CIR: else
   // CIR: %[[C3:.*]] = cir.const #cir.fp<3
   // CIR: %[[TMP4:.*]] = cir.load deref %[[ARG_b]] : !cir.ptr<!cir.ptr<!cir.float>>, !cir.ptr<!cir.float>
-  // CIR: cir.store %[[C3]], %[[TMP4]] : !cir.float, !cir.ptr<!cir.float> tbaa(#tbaa[[FLOAT]])
+  // CIR: cir.store{{.*}} %[[C3]], %[[TMP4]] : !cir.float, !cir.ptr<!cir.float> tbaa(#tbaa[[FLOAT]])
 
   // LLVM-LABEL: void @test_int_and_float
   // LLVM: %[[ARG_a:.*]] = load i32, ptr %{{.*}}, align 4, !tbaa ![[TBAA_INT:.*]]
@@ -52,11 +52,11 @@ void test_long_and_double(long *a, double *b) {
   // CIR: cir.if
   // CIR: %[[C2:.*]] = cir.const #cir.fp<2
   // CIR: %[[TMP3:.*]] = cir.load deref %[[ARG_b:.*]] : !cir.ptr<!cir.ptr<!cir.double>>, !cir.ptr<!cir.double>
-  // CIR: cir.store %[[C2]], %[[TMP3]] : !cir.double, !cir.ptr<!cir.double> tbaa(#tbaa[[DOUBLE]])
+  // CIR: cir.store{{.*}} %[[C2]], %[[TMP3]] : !cir.double, !cir.ptr<!cir.double> tbaa(#tbaa[[DOUBLE]])
   // CIR: else
   // CIR: %[[C3:.*]] = cir.const #cir.fp<3
   // CIR: %[[TMP4:.*]] = cir.load deref %[[ARG_b]] : !cir.ptr<!cir.ptr<!cir.double>>, !cir.ptr<!cir.double>
-  // CIR: cir.store %[[C3]], %[[TMP4]] : !cir.double, !cir.ptr<!cir.double> tbaa(#tbaa[[DOUBLE]])
+  // CIR: cir.store{{.*}} %[[C3]], %[[TMP4]] : !cir.double, !cir.ptr<!cir.double> tbaa(#tbaa[[DOUBLE]])
 
   // LLVM-LABEL: void @test_long_and_double
   // LLVM: %[[ARG_a:.*]] = load i64, ptr %{{.*}}, align 8, !tbaa ![[TBAA_LONG:.*]]
@@ -78,11 +78,11 @@ void test_long_long_and_long_double(long long *a, long double *b) {
   // CIR: cir.if
   // CIR: %[[C2:.*]] = cir.const #cir.fp<2
   // CIR: %[[TMP3:.*]] = cir.load deref %[[ARG_b:.*]] : !cir.ptr<!cir.ptr<!cir.long_double<!cir.f80>>>, !cir.ptr<!cir.long_double<!cir.f80>>
-  // CIR: cir.store %[[C2]], %[[TMP3]] : !cir.long_double<!cir.f80>, !cir.ptr<!cir.long_double<!cir.f80>> tbaa(#tbaa[[LONG_DOUBLE]])
+  // CIR: cir.store{{.*}} %[[C2]], %[[TMP3]] : !cir.long_double<!cir.f80>, !cir.ptr<!cir.long_double<!cir.f80>> tbaa(#tbaa[[LONG_DOUBLE]])
   // CIR: else
   // CIR: %[[C3:.*]] = cir.const #cir.fp<3
   // CIR: %[[TMP4:.*]] = cir.load deref %[[ARG_b]] : !cir.ptr<!cir.ptr<!cir.long_double<!cir.f80>>>, !cir.ptr<!cir.long_double<!cir.f80>>
-  // CIR: cir.store %[[C3]], %[[TMP4]] : !cir.long_double<!cir.f80>, !cir.ptr<!cir.long_double<!cir.f80>> tbaa(#tbaa[[LONG_DOUBLE]])
+  // CIR: cir.store{{.*}} %[[C3]], %[[TMP4]] : !cir.long_double<!cir.f80>, !cir.ptr<!cir.long_double<!cir.f80>> tbaa(#tbaa[[LONG_DOUBLE]])
 
   // LLVM-LABEL: void @test_long_long_and_long_double
   // LLVM: %[[ARG_a:.*]] = load i64, ptr %{{.*}}, align 8, !tbaa ![[TBAA_LONG_LONG:.*]]
@@ -106,12 +106,12 @@ void test_char(char *a, char* b) {
   // CIR: %[[C2:.*]] = cir.const #cir.int<98> : !s32i
   // CIR: %[[C2_CHAR:.*]] = cir.cast(integral, %[[C2]] : !s32i), !s8i
   // CIR: %[[TMP3:.*]] = cir.load deref %[[ARG_b:.*]] : !cir.ptr<!cir.ptr<!s8i>>, !cir.ptr<!s8i>
-  // CIR: cir.store %[[C2_CHAR]], %[[TMP3]] : !s8i, !cir.ptr<!s8i> tbaa(#tbaa[[CHAR]])
+  // CIR: cir.store{{.*}} %[[C2_CHAR]], %[[TMP3]] : !s8i, !cir.ptr<!s8i> tbaa(#tbaa[[CHAR]])
   // CIR: else
   // CIR: %[[C3:.*]] = cir.const #cir.int<0> : !s32i
   // CIR: %[[C3_CHAR:.*]] = cir.cast(integral, %[[C3]] : !s32i), !s8i
   // CIR: %[[TMP4:.*]] = cir.load deref %[[ARG_b]] : !cir.ptr<!cir.ptr<!s8i>>, !cir.ptr<!s8i>
-  // CIR: cir.store %[[C3_CHAR]], %[[TMP4]] : !s8i, !cir.ptr<!s8i> tbaa(#tbaa[[CHAR]])
+  // CIR: cir.store{{.*}} %[[C3_CHAR]], %[[TMP4]] : !s8i, !cir.ptr<!s8i> tbaa(#tbaa[[CHAR]])
 
 
   // LLVM-LABEL: void @test_char

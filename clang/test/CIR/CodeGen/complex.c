@@ -42,14 +42,14 @@ void list_init_2(double r, double i) {
 //      CHECK-BEFORE:   %[[#R:]] = cir.load %{{.+}} : !cir.ptr<!cir.double>, !cir.double
 // CHECK-BEFORE-NEXT:   %[[#I:]] = cir.load %{{.+}} : !cir.ptr<!cir.double>, !cir.double
 // CHECK-BEFORE-NEXT:   %[[#C:]] = cir.complex.create %[[#R]], %[[#I]] : !cir.double -> !cir.complex<!cir.double>
-// CHECK-BEFORE-NEXT:   cir.store %[[#C]], %{{.+}} : !cir.complex<!cir.double>, !cir.ptr<!cir.complex<!cir.double>>
+// CHECK-BEFORE-NEXT:   cir.store{{.*}} %[[#C]], %{{.+}} : !cir.complex<!cir.double>, !cir.ptr<!cir.complex<!cir.double>>
 //      CHECK-BEFORE: }
 
 //      CHECK-AFTER: cir.func
 //      CHECK-AFTER:   %[[#R:]] = cir.load %{{.+}} : !cir.ptr<!cir.double>, !cir.double
 // CHECK-AFTER-NEXT:   %[[#I:]] = cir.load %{{.+}} : !cir.ptr<!cir.double>, !cir.double
 // CHECK-AFTER-NEXT:   %[[#C:]] = cir.complex.create %[[#R]], %[[#I]] : !cir.double -> !cir.complex<!cir.double>
-// CHECK-AFTER-NEXT:   cir.store %[[#C]], %{{.+}} : !cir.complex<!cir.double>, !cir.ptr<!cir.complex<!cir.double>>
+// CHECK-AFTER-NEXT:   cir.store{{.*}} %[[#C]], %{{.+}} : !cir.complex<!cir.double>, !cir.ptr<!cir.complex<!cir.double>>
 //      CHECK-AFTER: }
 
 //      LLVM: define dso_local void @list_init_2(double %{{.+}}, double %{{.+}})
@@ -109,22 +109,22 @@ void load_store() {
 // CHECK-BEFORE-NEXT:   %[[#C2_PTR:]] = cir.get_global @c2 : !cir.ptr<!cir.complex<!cir.double>>
 // CHECK-BEFORE-NEXT:   %[[#C2:]] = cir.load %[[#C2_PTR]] : !cir.ptr<!cir.complex<!cir.double>>, !cir.complex<!cir.double>
 // CHECK-BEFORE-NEXT:   %[[#C_PTR:]] = cir.get_global @c : !cir.ptr<!cir.complex<!cir.double>>
-// CHECK-BEFORE-NEXT:   cir.store %[[#C2]], %[[#C_PTR]] : !cir.complex<!cir.double>, !cir.ptr<!cir.complex<!cir.double>>
+// CHECK-BEFORE-NEXT:   cir.store{{.*}} %[[#C2]], %[[#C_PTR]] : !cir.complex<!cir.double>, !cir.ptr<!cir.complex<!cir.double>>
 // CHECK-BEFORE-NEXT:   %[[#CI2_PTR:]] = cir.get_global @ci2 : !cir.ptr<!cir.complex<!s32i>>
 // CHECK-BEFORE-NEXT:   %[[#CI2:]] = cir.load %[[#CI2_PTR]] : !cir.ptr<!cir.complex<!s32i>>, !cir.complex<!s32i>
 // CHECK-BEFORE-NEXT:   %[[#CI_PTR:]] = cir.get_global @ci : !cir.ptr<!cir.complex<!s32i>>
-// CHECK-BEFORE-NEXT:   cir.store %[[#CI2]], %[[#CI_PTR]] : !cir.complex<!s32i>, !cir.ptr<!cir.complex<!s32i>>
+// CHECK-BEFORE-NEXT:   cir.store{{.*}} %[[#CI2]], %[[#CI_PTR]] : !cir.complex<!s32i>, !cir.ptr<!cir.complex<!s32i>>
 //      CHECK-BEFORE: }
 
 //      CHECK-AFTER: cir.func
 // CHECK-AFTER-NEXT:   %[[#C2_PTR:]] = cir.get_global @c2 : !cir.ptr<!cir.complex<!cir.double>>
 // CHECK-AFTER-NEXT:   %[[#C2:]] = cir.load %[[#C2_PTR]] : !cir.ptr<!cir.complex<!cir.double>>, !cir.complex<!cir.double>
 // CHECK-AFTER-NEXT:   %[[#C_PTR:]] = cir.get_global @c : !cir.ptr<!cir.complex<!cir.double>>
-// CHECK-AFTER-NEXT:   cir.store %[[#C2]], %[[#C_PTR]] : !cir.complex<!cir.double>, !cir.ptr<!cir.complex<!cir.double>>
+// CHECK-AFTER-NEXT:   cir.store{{.*}} %[[#C2]], %[[#C_PTR]] : !cir.complex<!cir.double>, !cir.ptr<!cir.complex<!cir.double>>
 // CHECK-AFTER-NEXT:   %[[#CI2_PTR:]] = cir.get_global @ci2 : !cir.ptr<!cir.complex<!s32i>>
 // CHECK-AFTER-NEXT:   %[[#CI2:]] = cir.load %[[#CI2_PTR]] : !cir.ptr<!cir.complex<!s32i>>, !cir.complex<!s32i>
 // CHECK-AFTER-NEXT:   %[[#CI_PTR:]] = cir.get_global @ci : !cir.ptr<!cir.complex<!s32i>>
-// CHECK-AFTER-NEXT:   cir.store %[[#CI2]], %[[#CI_PTR]] : !cir.complex<!s32i>, !cir.ptr<!cir.complex<!s32i>>
+// CHECK-AFTER-NEXT:   cir.store{{.*}} %[[#CI2]], %[[#CI_PTR]] : !cir.complex<!s32i>, !cir.ptr<!cir.complex<!s32i>>
 //      CHECK-AFTER: }
 
 //      LLVM: define dso_local void @load_store()
@@ -143,22 +143,22 @@ void load_store_volatile() {
 // CHECK-BEFORE-NEXT:   %[[#VC2_PTR:]] = cir.get_global @vc2 : !cir.ptr<!cir.complex<!cir.double>>
 // CHECK-BEFORE-NEXT:   %[[#VC2:]] = cir.load volatile %[[#VC2_PTR]] : !cir.ptr<!cir.complex<!cir.double>>, !cir.complex<!cir.double>
 // CHECK-BEFORE-NEXT:   %[[#VC_PTR:]] = cir.get_global @vc : !cir.ptr<!cir.complex<!cir.double>>
-// CHECK-BEFORE-NEXT:   cir.store volatile %[[#VC2]], %[[#VC_PTR]] : !cir.complex<!cir.double>, !cir.ptr<!cir.complex<!cir.double>>
+// CHECK-BEFORE-NEXT:   cir.store volatile{{.*}} %[[#VC2]], %[[#VC_PTR]] : !cir.complex<!cir.double>, !cir.ptr<!cir.complex<!cir.double>>
 // CHECK-BEFORE-NEXT:   %[[#VCI2_PTR:]] = cir.get_global @vci2 : !cir.ptr<!cir.complex<!s32i>>
 // CHECK-BEFORE-NEXT:   %[[#VCI2:]] = cir.load volatile %[[#VCI2_PTR]] : !cir.ptr<!cir.complex<!s32i>>, !cir.complex<!s32i>
 // CHECK-BEFORE-NEXT:   %[[#VCI_PTR:]] = cir.get_global @vci : !cir.ptr<!cir.complex<!s32i>>
-// CHECK-BEFORE-NEXT:   cir.store volatile %[[#VCI2]], %[[#VCI_PTR]] : !cir.complex<!s32i>, !cir.ptr<!cir.complex<!s32i>>
+// CHECK-BEFORE-NEXT:   cir.store volatile{{.*}} %[[#VCI2]], %[[#VCI_PTR]] : !cir.complex<!s32i>, !cir.ptr<!cir.complex<!s32i>>
 //      CHECK-BEFORE: }
 
 //      CHECK-AFTER: cir.func
 // CHECK-AFTER-NEXT:   %[[#VC2_PTR:]] = cir.get_global @vc2 : !cir.ptr<!cir.complex<!cir.double>>
 // CHECK-AFTER-NEXT:   %[[#VC2:]] = cir.load volatile %[[#VC2_PTR]] : !cir.ptr<!cir.complex<!cir.double>>, !cir.complex<!cir.double>
 // CHECK-AFTER-NEXT:   %[[#VC_PTR:]] = cir.get_global @vc : !cir.ptr<!cir.complex<!cir.double>>
-// CHECK-AFTER-NEXT:   cir.store volatile %[[#VC2]], %[[#VC_PTR]] : !cir.complex<!cir.double>, !cir.ptr<!cir.complex<!cir.double>>
+// CHECK-AFTER-NEXT:   cir.store volatile{{.*}} %[[#VC2]], %[[#VC_PTR]] : !cir.complex<!cir.double>, !cir.ptr<!cir.complex<!cir.double>>
 // CHECK-AFTER-NEXT:   %[[#VCI2_PTR:]] = cir.get_global @vci2 : !cir.ptr<!cir.complex<!s32i>>
 // CHECK-AFTER-NEXT:   %[[#VCI2:]] = cir.load volatile %[[#VCI2_PTR]] : !cir.ptr<!cir.complex<!s32i>>, !cir.complex<!s32i>
 // CHECK-AFTER-NEXT:   %[[#VCI_PTR:]] = cir.get_global @vci : !cir.ptr<!cir.complex<!s32i>>
-// CHECK-AFTER-NEXT:   cir.store volatile %[[#VCI2]], %[[#VCI_PTR]] : !cir.complex<!s32i>, !cir.ptr<!cir.complex<!s32i>>
+// CHECK-AFTER-NEXT:   cir.store volatile{{.*}} %[[#VCI2]], %[[#VCI_PTR]] : !cir.complex<!s32i>, !cir.ptr<!cir.complex<!s32i>>
 //      CHECK-AFTER: }
 
 //      LLVM: define dso_local void @load_store_volatile()

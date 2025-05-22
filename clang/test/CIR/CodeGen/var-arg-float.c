@@ -19,10 +19,10 @@ double f1(int n, ...) {
 // BEFORE:  [[RESP:%.*]] = cir.alloca !cir.double, !cir.ptr<!cir.double>, ["res", init]
 // BEFORE:  cir.va.start [[VARLIST:%.*]] : !cir.ptr<!rec___va_list>
 // BEFORE:  [[TMP0:%.*]] = cir.va.arg [[VARLIST]] : (!cir.ptr<!rec___va_list>) -> !cir.double
-// BEFORE:  cir.store [[TMP0]], [[RESP]] : !cir.double, !cir.ptr<!cir.double>
+// BEFORE:  cir.store{{.*}} [[TMP0]], [[RESP]] : !cir.double, !cir.ptr<!cir.double>
 // BEFORE:  cir.va.end [[VARLIST]] : !cir.ptr<!rec___va_list>
 // BEFORE:  [[RES:%.*]] = cir.load [[RESP]] : !cir.ptr<!cir.double>, !cir.double
-// BEFORE:   cir.store [[RES]], [[RETP]] : !cir.double, !cir.ptr<!cir.double>
+// BEFORE:   cir.store{{.*}} [[RES]], [[RETP]] : !cir.double, !cir.ptr<!cir.double>
 // BEFORE:  [[RETV:%.*]] = cir.load [[RETP]] : !cir.ptr<!cir.double>, !cir.double
 // BEFORE:   cir.return [[RETV]] : !cir.double
 
@@ -41,7 +41,7 @@ double f1(int n, ...) {
 // AFTER: [[BB_MAY_REG]]:
 // AFTER-NEXT: [[SIXTEEN:%.*]] = cir.const #cir.int<16> : !s32i
 // AFTER-NEXT: [[NEW_REG_OFFS:%.*]] = cir.binop(add, [[VR_OFFS]], [[SIXTEEN]]) : !s32i
-// AFTER-NEXT: cir.store [[NEW_REG_OFFS]], [[VR_OFFS_P]] : !s32i, !cir.ptr<!s32i>
+// AFTER-NEXT: cir.store{{.*}} [[NEW_REG_OFFS]], [[VR_OFFS_P]] : !s32i, !cir.ptr<!s32i>
 // AFTER-NEXT: [[CMP1:%.*]] = cir.cmp(le, [[NEW_REG_OFFS]], [[ZERO]]) : !s32i, !cir.bool
 // AFTER-NEXT: cir.brcond [[CMP1]] [[BB_IN_REG:\^bb.*]], [[BB_ON_STACK]]
 
@@ -62,16 +62,16 @@ double f1(int n, ...) {
 // AFTER-NEXT: [[TMP4:%.*]] = cir.cast(bitcast, [[STACK_V]] : !cir.ptr<!void>), !cir.ptr<i8>
 // AFTER-NEXT: [[TMP5:%.*]] = cir.ptr_stride([[TMP4]] : !cir.ptr<i8>, [[EIGHT_IN_PTR_ARITH]] : !u64i), !cir.ptr<i8>
 // AFTER-NEXT: [[NEW_STACK_V:%.*]] = cir.cast(bitcast, [[TMP5]] : !cir.ptr<i8>), !cir.ptr<!void>
-// AFTER-NEXT: cir.store [[NEW_STACK_V]], [[STACK_P]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
+// AFTER-NEXT: cir.store{{.*}} [[NEW_STACK_V]], [[STACK_P]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
 // AFTER-NEXT: cir.br [[BB_END]]([[STACK_V]] : !cir.ptr<!void>)
 
 // AFTER-NEXT: [[BB_END]]([[BLK_ARG:%.*]]: !cir.ptr<!void>):  // 2 preds: [[BB_IN_REG]], [[BB_ON_STACK]]
 // AFTER-NEXT:  [[TMP0:%.*]] = cir.cast(bitcast, [[BLK_ARG]] : !cir.ptr<!void>), !cir.ptr<!cir.double>
 // AFTER-NEXT:  [[TMP1:%.*]] = cir.load [[TMP0]] : !cir.ptr<!cir.double>, !cir.double
-// AFTER:   cir.store [[TMP1]], [[RESP]] : !cir.double, !cir.ptr<!cir.double>
+// AFTER:   cir.store{{.*}} [[TMP1]], [[RESP]] : !cir.double, !cir.ptr<!cir.double>
 // AFTER:   cir.va.end [[VARLIST]] : !cir.ptr<!rec___va_list>
 // AFTER:   [[RES:%.*]] = cir.load [[RESP]] : !cir.ptr<!cir.double>, !cir.double
-// AFTER:   cir.store [[RES]], [[RETP]] : !cir.double, !cir.ptr<!cir.double>
+// AFTER:   cir.store{{.*}} [[RES]], [[RETP]] : !cir.double, !cir.ptr<!cir.double>
 // AFTER:  [[RETV:%.*]] = cir.load [[RETP]] : !cir.ptr<!cir.double>, !cir.double
 // AFTER:   cir.return [[RETV]] : !cir.double
 

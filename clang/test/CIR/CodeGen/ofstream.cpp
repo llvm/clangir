@@ -45,7 +45,7 @@ void foo(const char *path) {
 // CIR:     cir.call @_ZNSt14basic_ofstreamIcED1Ev(%[[V1]]) : (!cir.ptr<!rec_std3A3Abasic_ofstream3Cchar3E>) -> ()
 // CIR:     cir.yield
 // CIR:   }
-// CIR:   cir.store %[[V10]], {{.*}} : !cir.ptr<!rec_std3A3Abasic_ofstream3Cchar3E>, !cir.ptr<!cir.ptr<!rec_std3A3Abasic_ofstream3Cchar3E>>
+// CIR:   cir.store{{.*}} %[[V10]], {{.*}} : !cir.ptr<!rec_std3A3Abasic_ofstream3Cchar3E>, !cir.ptr<!cir.ptr<!rec_std3A3Abasic_ofstream3Cchar3E>>
 // CIR:   cir.yield
 // CIR: } catch [#cir.unwind {
 // CIR:   cir.resume
