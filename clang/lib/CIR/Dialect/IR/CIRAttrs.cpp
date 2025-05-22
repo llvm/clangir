@@ -137,33 +137,25 @@ static ParseResult parseRecordMembers(mlir::AsmParser &parser,
   return mlir::success();
 }
 
-LogicalResult ConstRecordAttr::verify(
-    ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
-    mlir::Type type, ArrayAttr members) {
+LogicalResult
+ConstRecordAttr::verify(function_ref<InFlightDiagnostic()> emitError,
+                        mlir::Type type, ArrayAttr members) {
   auto sTy = mlir::dyn_cast_if_present<cir::RecordType>(type);
-  if (!sTy) {
-    emitError() << "expected !cir.record type";
-    return failure();
-  }
+  if (!sTy)
+    return emitError() << "expected !cir.record type";
 
-  if (sTy.getMembers().size() != members.size()) {
-    emitError() << "number of elements must match";
-    return failure();
-  }
+  if (sTy.getMembers().size() != members.size())
+    return emitError() << "number of elements must match";
 
   unsigned attrIdx = 0;
   for (auto &member : sTy.getMembers()) {
     auto m = dyn_cast_if_present<TypedAttr>(members[attrIdx]);
-    if (!m) {
-      emitError() << "expected mlir::TypedAttr attribute";
-      return failure();
-    }
-    if (member != m.getType()) {
-      emitError() << "element at index " << attrIdx << " has type "
-                  << m.getType() << " but return type for this element is "
-                  << member;
-      return failure();
-    }
+    if (!m)
+      return emitError() << "expected mlir::TypedAttr attribute";
+    if (member != m.getType())
+      return emitError() << "element at index " << attrIdx << " has type "
+                         << m.getType()
+                         << " but return type for this element is " << member;
     attrIdx++;
   }
 
@@ -176,14 +168,12 @@ LogicalResult ConstRecordAttr::verify(
 
 LogicalResult OptInfoAttr::verify(function_ref<InFlightDiagnostic()> emitError,
                                   unsigned level, unsigned size) {
-  if (level > 3) {
-    emitError() << "optimization level must be between 0 and 3 inclusive";
-    return failure();
-  }
-  if (size > 2) {
-    emitError() << "size optimization level must be between 0 and 2 inclusive";
-    return failure();
-  }
+  if (level > 3)
+    return emitError()
+           << "optimization level must be between 0 and 3 inclusive";
+  if (size > 2)
+    return emitError()
+           << "size optimization level must be between 0 and 2 inclusive";
   return success();
 }
 
@@ -266,17 +256,13 @@ void IntAttr::print(AsmPrinter &printer) const {
 
 LogicalResult IntAttr::verify(function_ref<InFlightDiagnostic()> emitError,
                               Type type, APInt value) {
-  if (!mlir::isa<IntType>(type)) {
-    emitError() << "expected 'simple.int' type";
-    return failure();
-  }
+  if (!mlir::isa<IntType>(type))
+    return emitError() << "expected 'simple.int' type";
 
   auto intType = mlir::cast<IntType>(type);
-  if (value.getBitWidth() != intType.getWidth()) {
-    emitError() << "type and value bitwidth mismatch: " << intType.getWidth()
-                << " != " << value.getBitWidth();
-    return failure();
-  }
+  if (value.getBitWidth() != intType.getWidth())
+    return emitError() << "type and value bitwidth mismatch: "
+                       << intType.getWidth() << " != " << value.getBitWidth();
 
   return success();
 }
@@ -310,10 +296,8 @@ FPAttr FPAttr::getZero(Type type) {
 LogicalResult FPAttr::verify(function_ref<InFlightDiagnostic()> emitError,
                              CIRFPTypeInterface fpType, APFloat value) {
   if (APFloat::SemanticsToEnum(fpType.getFloatSemantics()) !=
-      APFloat::SemanticsToEnum(value.getSemantics())) {
-    emitError() << "floating-point semantics mismatch";
-    return failure();
-  }
+      APFloat::SemanticsToEnum(value.getSemantics()))
+    return emitError() << "floating-point semantics mismatch";
 
   return success();
 }
@@ -326,14 +310,13 @@ LogicalResult ComplexAttr::verify(function_ref<InFlightDiagnostic()> emitError,
                                   cir::ComplexType type, mlir::TypedAttr real,
                                   mlir::TypedAttr imag) {
   auto elemType = type.getElementType();
-  if (real.getType() != elemType) {
-    emitError() << "type of the real part does not match the complex type";
-    return failure();
-  }
-  if (imag.getType() != elemType) {
-    emitError() << "type of the imaginary part does not match the complex type";
-    return failure();
-  }
+  if (real.getType() != elemType)
+    return emitError()
+           << "type of the real part does not match the complex type";
+
+  if (imag.getType() != elemType)
+    return emitError()
+           << "type of the imaginary part does not match the complex type";
 
   return success();
 }
@@ -378,14 +361,11 @@ CmpThreeWayInfoAttr::verify(function_ref<InFlightDiagnostic()> emitError,
                             CmpOrdering ordering, int64_t lt, int64_t eq,
                             int64_t gt, std::optional<int64_t> unordered) {
   // The presense of unordered must match the value of ordering.
-  if (ordering == CmpOrdering::Strong && unordered) {
-    emitError() << "strong ordering does not include unordered ordering";
-    return failure();
-  }
-  if (ordering == CmpOrdering::Partial && !unordered) {
-    emitError() << "partial ordering lacks unordered ordering";
-    return failure();
-  }
+  if (ordering == CmpOrdering::Strong && unordered)
+    return emitError() << "strong ordering does not include unordered ordering";
+
+  if (ordering == CmpOrdering::Partial && !unordered)
+    return emitError() << "partial ordering lacks unordered ordering";
 
   return success();
 }
@@ -404,25 +384,21 @@ DataMemberAttr::verify(function_ref<InFlightDiagnostic()> emitError,
   }
 
   auto clsRecordTy = ty.getClsTy();
-  if (clsRecordTy.isIncomplete()) {
-    emitError() << "incomplete 'cir.record' cannot be used to build a non-null "
-                   "data member pointer";
-    return failure();
-  }
+  if (clsRecordTy.isIncomplete())
+    return emitError()
+           << "incomplete 'cir.record' cannot be used to build a non-null "
+              "data member pointer";
 
   auto memberIndexValue = memberIndex.value();
-  if (memberIndexValue >= clsRecordTy.getNumElements()) {
-    emitError()
-        << "member index of a #cir.data_member attribute is out of range";
-    return failure();
-  }
+  if (memberIndexValue >= clsRecordTy.getNumElements())
+    return emitError()
+           << "member index of a #cir.data_member attribute is out of range";
 
   auto memberTy = clsRecordTy.getMembers()[memberIndexValue];
-  if (memberTy != ty.getMemberTy()) {
-    emitError() << "member type of a #cir.data_member attribute must match the "
-                   "attribute type";
-    return failure();
-  }
+  if (memberTy != ty.getMemberTy())
+    return emitError()
+           << "member type of a #cir.data_member attribute must match the "
+              "attribute type";
 
   return success();
 }
@@ -431,16 +407,14 @@ DataMemberAttr::verify(function_ref<InFlightDiagnostic()> emitError,
 // MethodAttr definitions
 //===----------------------------------------------------------------------===//
 
-LogicalResult
-MethodAttr::verify(function_ref<::mlir::InFlightDiagnostic()> emitError,
-                   cir::MethodType type,
-                   std::optional<FlatSymbolRefAttr> symbol,
-                   std::optional<uint64_t> vtable_offset) {
-  if (symbol.has_value() && vtable_offset.has_value()) {
-    emitError() << "at most one of symbol and vtable_offset can be present "
-                   "in #cir.method";
-    return failure();
-  }
+LogicalResult MethodAttr::verify(function_ref<InFlightDiagnostic()> emitError,
+                                 cir::MethodType type,
+                                 std::optional<FlatSymbolRefAttr> symbol,
+                                 std::optional<uint64_t> vtable_offset) {
+  if (symbol.has_value() && vtable_offset.has_value())
+    return emitError()
+           << "at most one of symbol and vtable_offset can be present "
+              "in #cir.method";
 
   return success();
 }
@@ -504,38 +478,35 @@ void MethodAttr::print(AsmPrinter &printer) const {
 // GlobalAnnotationValuesAttr definitions
 //===----------------------------------------------------------------------===//
 
-LogicalResult GlobalAnnotationValuesAttr::verify(
-    function_ref<::mlir::InFlightDiagnostic()> emitError,
-    mlir::ArrayAttr annotations) {
-  if (annotations.empty()) {
-    emitError()
-        << "GlobalAnnotationValuesAttr should at least have one annotation";
-    return failure();
-  }
+LogicalResult
+GlobalAnnotationValuesAttr::verify(function_ref<InFlightDiagnostic()> emitError,
+                                   mlir::ArrayAttr annotations) {
+  if (annotations.empty())
+    return emitError()
+           << "GlobalAnnotationValuesAttr should at least have one annotation";
+
   for (auto &entry : annotations) {
     auto annoEntry = ::mlir::dyn_cast<mlir::ArrayAttr>(entry);
-    if (!annoEntry) {
-      emitError() << "Element of GlobalAnnotationValuesAttr annotations array"
-                     " must be an array";
-      return failure();
-    } else if (annoEntry.size() != 2) {
-      emitError() << "Element of GlobalAnnotationValuesAttr annotations array"
-                  << " must be a 2-element array and you have "
-                  << annoEntry.size();
-      return failure();
-    } else if (!::mlir::isa<mlir::StringAttr>(annoEntry[0])) {
-      emitError() << "Element of GlobalAnnotationValuesAttr annotations"
-                     "array must start with a string, which is the name of "
-                     "global op or func it annotates";
-      return failure();
-    }
-    auto annoPart = ::mlir::dyn_cast<cir::AnnotationAttr>(annoEntry[1]);
-    if (!annoPart) {
-      emitError() << "The second element of GlobalAnnotationValuesAttr"
-                     "annotations array element must be of "
-                     "type AnnotationValueAttr";
-      return failure();
-    }
+    if (!annoEntry)
+      return emitError()
+             << "Element of GlobalAnnotationValuesAttr annotations array"
+                " must be an array";
+
+    if (annoEntry.size() != 2)
+      return emitError()
+             << "Element of GlobalAnnotationValuesAttr annotations array"
+             << " must be a 2-element array and you have " << annoEntry.size();
+
+    if (!mlir::isa<mlir::StringAttr>(annoEntry[0]))
+      return emitError()
+             << "Element of GlobalAnnotationValuesAttr annotations"
+                "array must start with a string, which is the name of "
+                "global op or func it annotates";
+
+    if (!mlir::isa<cir::AnnotationAttr>(annoEntry[1]))
+      return emitError() << "The second element of GlobalAnnotationValuesAttr"
+                            "annotations array element must be of "
+                            "type AnnotationValueAttr";
   }
   return success();
 }
@@ -574,15 +545,11 @@ LogicalResult DynamicCastInfoAttr::verify(
     return pointeeIntTy.isUnsigned() && pointeeIntTy.getWidth() == 8;
   };
 
-  if (!isRttiPtr(srcRtti.getType())) {
-    emitError() << "srcRtti must be an RTTI pointer";
-    return failure();
-  }
+  if (!isRttiPtr(srcRtti.getType()))
+    return emitError() << "srcRtti must be an RTTI pointer";
 
-  if (!isRttiPtr(destRtti.getType())) {
-    emitError() << "destRtti must be an RTTI pointer";
-    return failure();
-  }
+  if (!isRttiPtr(destRtti.getType()))
+    return emitError() << "destRtti must be an RTTI pointer";
 
   return success();
 }

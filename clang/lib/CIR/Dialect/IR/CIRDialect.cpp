@@ -19,6 +19,7 @@
 #include "clang/CIR/MissingFeatures.h"
 #include "llvm/ADT/TypeSwitch.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/LogicalResult.h"
 #include <numeric>
 #include <optional>
 #include <set>
@@ -2061,9 +2062,8 @@ LogicalResult cir::GlobalOp::verify() {
                          << "' linkage";
     break;
   default:
-    emitError() << stringifyGlobalLinkageKind(getLinkage())
-                << ": verifier not implemented\n";
-    return failure();
+    return emitError() << stringifyGlobalLinkageKind(getLinkage())
+                       << ": verifier not implemented\n";
   }
 
   // TODO: verify visibility for declarations?
@@ -2451,11 +2451,9 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
       std::optional<int> prio;
       if (mlir::succeeded(parser.parseOptionalLParen())) {
         auto parsedPrio = mlir::FieldParser<int>::parse(parser);
-        if (mlir::failed(parsedPrio)) {
+        if (mlir::failed(parsedPrio))
           return parser.emitError(parser.getCurrentLocation(),
                                   "failed to parse 'priority', of type 'int'");
-          return failure();
-        }
         prio = parsedPrio.value_or(int());
         // Parse literal ')'
         if (parser.parseRParen())
@@ -2503,7 +2501,7 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
       *body, arguments, /*enableNameShadowing=*/false);
   if (parseResult.has_value()) {
     if (hasAlias)
-      parser.emitError(loc, "function alias shall not have a body");
+      return parser.emitError(loc, "function alias shall not have a body");
     if (failed(*parseResult))
       return failure();
     // Function body was parsed, make sure its not empty.
@@ -3321,11 +3319,10 @@ LogicalResult cir::ConstArrayAttr::verify(
     auto intTy = mlir::dyn_cast<cir::IntType>(at.getElementType());
 
     // TODO: add CIR type for char.
-    if (!intTy || intTy.getWidth() != 8) {
-      emitError() << "constant array element for string literals expects "
-                     "!cir.int<u, 8> element type";
-      return failure();
-    }
+    if (!intTy || intTy.getWidth() != 8)
+      return emitError()
+             << "constant array element for string literals expects "
+                "!cir.int<u, 8> element type";
     return success();
   }
 
@@ -3442,8 +3439,8 @@ LogicalResult cir::ConstVectorAttr::verify(
         auto typedElement = mlir::dyn_cast<TypedAttr>(element);
         if (!typedElement ||
             typedElement.getType() != vecType.getElementType()) {
-          elementTypeCheck = failure();
-          emitError() << "constant type should match vector element type";
+          elementTypeCheck =
+              emitError() << "constant type should match vector element type";
         }
       },
       [&](Type) {});
@@ -3536,8 +3533,7 @@ LogicalResult cir::TypeInfoAttr::verify(
   for (auto &member : typeinfoData) {
     if (llvm::isa<GlobalViewAttr, IntAttr>(member))
       continue;
-    emitError() << "expected GlobalViewAttr or IntAttr attribute";
-    return failure();
+    return emitError() << "expected GlobalViewAttr or IntAttr attribute";
   }
 
   return success();
@@ -3547,23 +3543,17 @@ LogicalResult cir::VTableAttr::verify(
     ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
     ::mlir::Type type, ::mlir::ArrayAttr vtableData) {
   auto sTy = mlir::dyn_cast_if_present<cir::RecordType>(type);
-  if (!sTy) {
-    emitError() << "expected !cir.record type result";
-    return failure();
-  }
-  if (sTy.getMembers().empty() || vtableData.empty()) {
-    emitError() << "expected record type with one or more subtype";
-    return failure();
-  }
+  if (!sTy)
+    return emitError() << "expected !cir.record type result";
+  if (sTy.getMembers().empty() || vtableData.empty())
+    return emitError() << "expected record type with one or more subtype";
 
   for (size_t i = 0; i < sTy.getMembers().size(); ++i) {
 
     auto arrayTy = mlir::dyn_cast<cir::ArrayType>(sTy.getMembers()[i]);
     auto constArrayAttr = mlir::dyn_cast<cir::ConstArrayAttr>(vtableData[i]);
-    if (!arrayTy || !constArrayAttr) {
-      emitError() << "expected record type with one array element";
-      return failure();
-    }
+    if (!arrayTy || !constArrayAttr)
+      return emitError() << "expected record type with one array element";
 
     if (cir::ConstRecordAttr::verify(emitError, type, vtableData).failed())
       return failure();
@@ -3575,8 +3565,8 @@ LogicalResult cir::VTableAttr::verify(
             if (mlir::isa<GlobalViewAttr>(attr) ||
                 mlir::isa<ConstPtrAttr>(attr))
               return;
-            emitError() << "expected GlobalViewAttr attribute";
-            eltTypeCheck = failure();
+
+            eltTypeCheck = emitError() << "expected GlobalViewAttr attribute";
           },
           [&](Type type) {});
       if (eltTypeCheck.failed()) {
@@ -3663,16 +3653,10 @@ LogicalResult cir::GetRuntimeMemberOp::verify() {
   auto recordTy = cast<RecordType>(getAddr().getType().getPointee());
   auto memberPtrTy = getMember().getType();
 
-  if (recordTy != memberPtrTy.getClsTy()) {
-    emitError() << "record type does not match the member pointer type";
-    return mlir::failure();
-  }
-
-  if (getType().getPointee() != memberPtrTy.getMemberTy()) {
-    emitError() << "result type does not match the member pointer type";
-    return mlir::failure();
-  }
-
+  if (recordTy != memberPtrTy.getClsTy())
+    return emitError() << "record type does not match the member pointer type";
+  if (getType().getPointee() != memberPtrTy.getMemberTy())
+    return emitError() << "result type does not match the member pointer type";
   return mlir::success();
 }
 
@@ -3687,10 +3671,8 @@ LogicalResult cir::GetMethodOp::verify() {
   cir::PointerType objectPtrTy = getObject().getType();
   auto objectTy = objectPtrTy.getPointee();
 
-  if (methodTy.getClsTy() != objectTy) {
-    emitError() << "method class type and object type do not match";
-    return mlir::failure();
-  }
+  if (methodTy.getClsTy() != objectTy)
+    return emitError() << "method class type and object type do not match";
 
   // Assume methodFuncTy is !cir.func<!Ret (!Args)>
   auto calleeTy = mlir::cast<cir::FuncType>(getCallee().getType().getPointee());
@@ -3701,30 +3683,26 @@ LogicalResult cir::GetMethodOp::verify() {
   // of !cir.ptr<!T> because the "this" pointer may be adjusted before calling
   // the callee.
 
-  if (methodFuncTy.getReturnType() != calleeTy.getReturnType()) {
-    emitError() << "method return type and callee return type do not match";
-    return mlir::failure();
-  }
+  if (methodFuncTy.getReturnType() != calleeTy.getReturnType())
+    return emitError()
+           << "method return type and callee return type do not match";
 
   auto calleeArgsTy = calleeTy.getInputs();
   auto methodFuncArgsTy = methodFuncTy.getInputs();
 
-  if (calleeArgsTy.empty()) {
-    emitError() << "callee parameter list lacks receiver object ptr";
-    return mlir::failure();
-  }
+  if (calleeArgsTy.empty())
+    return emitError() << "callee parameter list lacks receiver object ptr";
 
   auto calleeThisArgPtrTy = mlir::dyn_cast<cir::PointerType>(calleeArgsTy[0]);
   if (!calleeThisArgPtrTy ||
       !mlir::isa<cir::VoidType>(calleeThisArgPtrTy.getPointee())) {
-    emitError() << "the first parameter of callee must be a void pointer";
-    return mlir::failure();
+    return emitError()
+           << "the first parameter of callee must be a void pointer";
   }
 
-  if (calleeArgsTy.slice(1) != methodFuncArgsTy) {
-    emitError() << "callee parameters and method parameters do not match";
-    return mlir::failure();
-  }
+  if (calleeArgsTy.slice(1) != methodFuncArgsTy)
+    return emitError()
+           << "callee parameters and method parameters do not match";
 
   return mlir::success();
 }
@@ -3790,10 +3768,8 @@ ParseResult cir::InlineAsmOp::parse(OpAsmParser &parser,
   Type resType;
   auto *ctxt = parser.getBuilder().getContext();
 
-  auto error = [&](const Twine &msg) {
-    parser.emitError(parser.getCurrentLocation(), msg);
-    ;
-    return mlir::failure();
+  auto error = [&](const Twine &msg) -> LogicalResult {
+    return parser.emitError(parser.getCurrentLocation(), msg);
   };
 
   auto expected = [&](const std::string &c) {
