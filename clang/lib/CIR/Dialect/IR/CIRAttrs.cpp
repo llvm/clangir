@@ -171,38 +171,6 @@ LogicalResult ConstRecordAttr::verify(
 }
 
 //===----------------------------------------------------------------------===//
-// LangAttr definitions
-//===----------------------------------------------------------------------===//
-
-Attribute LangAttr::parse(AsmParser &parser, Type odsType) {
-  auto loc = parser.getCurrentLocation();
-  if (parser.parseLess())
-    return {};
-
-  // Parse variable 'lang'.
-  llvm::StringRef lang;
-  if (parser.parseKeyword(&lang))
-    return {};
-
-  // Check if parsed value is a valid language.
-  auto langEnum = symbolizeSourceLanguage(lang);
-  if (!langEnum.has_value()) {
-    parser.emitError(loc) << "invalid language keyword '" << lang << "'";
-    return {};
-  }
-
-  if (parser.parseGreater())
-    return {};
-
-  return get(parser.getContext(),
-             SourceLanguageAttr::get(parser.getContext(), langEnum.value()));
-}
-
-void LangAttr::print(AsmPrinter &printer) const {
-  printer << "<" << getLang().getValue() << '>';
-}
-
-//===----------------------------------------------------------------------===//
 // OptInfoAttr definitions
 //===----------------------------------------------------------------------===//
 
