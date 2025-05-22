@@ -293,15 +293,10 @@ def CIR_DataMemberType : CIR_Type<"DataMember", "data_member",
 
 //===----------------------------------------------------------------------===//
 // BoolType
-//
-// An alternative here is to represent bool as mlir::i1, but let's be more
-// generic.
-//
 //===----------------------------------------------------------------------===//
 
-def CIR_BoolType :
-    CIR_Type<"Bool", "bool",
-             [DeclareTypeInterfaceMethods<DataLayoutTypeInterface>]> {
+def CIR_BoolType : CIR_Type<"Bool", "bool",
+    [DeclareTypeInterfaceMethods<DataLayoutTypeInterface>]> {
 
   let summary = "CIR bool type";
   let description = [{
