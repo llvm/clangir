@@ -8,14 +8,14 @@ struct String {
 // CHECK: cir.func linkonce_odr @_ZN6StringC2ERKS_
 // CHECK:     %0 = cir.alloca !cir.ptr<!rec_String>, !cir.ptr<!cir.ptr<!rec_String>>, ["this", init] {alignment = 8 : i64}
 // CHECK:     %1 = cir.alloca !cir.ptr<!rec_String>, !cir.ptr<!cir.ptr<!rec_String>>, ["s", init, const] {alignment = 8 : i64}
-// CHECK:     cir.store %arg0, %0
-// CHECK:     cir.store %arg1, %1
+// CHECK:     cir.store{{.*}} %arg0, %0
+// CHECK:     cir.store{{.*}} %arg1, %1
 // CHECK:     %2 = cir.load %0
 // CHECK:     %3 = cir.get_member %2[0] {name = "size"}
 // CHECK:     %4 = cir.load %1
 // CHECK:     %5 = cir.get_member %4[0] {name = "size"}
 // CHECK:     %6 = cir.load %5 : !cir.ptr<!s64i>, !s64i
-// CHECK:     cir.store %6, %3 : !s64i, !cir.ptr<!s64i>
+// CHECK:     cir.store{{.*}} %6, %3 : !s64i, !cir.ptr<!s64i>
 // CHECK:     cir.return
 // CHECK:   }
 

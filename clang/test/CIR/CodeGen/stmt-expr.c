@@ -15,7 +15,7 @@ void test2() { ({int x = 3; x; }); }
 // CHECK:   %[[#VAR:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["x", init]
 //          [...]
 // CHECK:   %[[#TMP:]] = cir.load %[[#VAR]] : !cir.ptr<!s32i>, !s32i
-// CHECK:   cir.store %[[#TMP]], %[[#RETVAL]] : !s32i, !cir.ptr<!s32i>
+// CHECK:   cir.store{{.*}} %[[#TMP]], %[[#RETVAL]] : !s32i, !cir.ptr<!s32i>
 // CHECK: }
 // CHECK: %{{.+}} = cir.load %[[#RETVAL]] : !cir.ptr<!s32i>, !s32i
 

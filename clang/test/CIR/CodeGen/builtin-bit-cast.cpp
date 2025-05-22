@@ -121,7 +121,7 @@ two_ints test_rvalue_aggregate() {
 //       CIR:   cir.scope {
 //  CIR-NEXT:     %[[#TMP_SLOT:]] = cir.alloca !u64i, !cir.ptr<!u64i>
 //  CIR-NEXT:     %[[#A:]] = cir.const #cir.int<42> : !u64i
-//  CIR-NEXT:     cir.store %[[#A]], %[[#TMP_SLOT]] : !u64i, !cir.ptr<!u64i>
+//  CIR-NEXT:     cir.store{{.*}} %[[#A]], %[[#TMP_SLOT]] : !u64i, !cir.ptr<!u64i>
 //  CIR-NEXT:     %[[#SRC_VOID_PTR:]] = cir.cast(bitcast, %[[#TMP_SLOT]] : !cir.ptr<!u64i>), !cir.ptr<!void>
 //  CIR-NEXT:     %[[#DST_VOID_PTR:]] = cir.cast(bitcast, %0 : !cir.ptr<!rec_two_ints>), !cir.ptr<!void>
 //  CIR-NEXT:     %[[#SIZE:]] = cir.const #cir.int<8> : !u64i

@@ -13,7 +13,7 @@ void l0(void) {
 // CPPSCOPE-NEXT:   cir.scope {
 // CPPSCOPE-NEXT:     %0 = cir.alloca !s32i, !cir.ptr<!s32i>, ["i", init] {alignment = 4 : i64}
 // CPPSCOPE-NEXT:     %1 = cir.const #cir.int<0> : !s32i
-// CPPSCOPE-NEXT:     cir.store %1, %0 : !s32i, !cir.ptr<!s32i>
+// CPPSCOPE-NEXT:     cir.store{{.*}} %1, %0 : !s32i, !cir.ptr<!s32i>
 // CPPSCOPE-NEXT:     cir.for : cond {
 
 //      CPPSCOPE:     } body {
@@ -24,7 +24,7 @@ void l0(void) {
 // CSCOPE-NEXT: cir.scope {
 // CSCOPE-NEXT:   %0 = cir.alloca !s32i, !cir.ptr<!s32i>, ["i", init] {alignment = 4 : i64}
 // CSCOPE-NEXT:   %1 = cir.const #cir.int<0> : !s32i
-// CSCOPE-NEXT:   cir.store %1, %0 : !s32i, !cir.ptr<!s32i>
+// CSCOPE-NEXT:   cir.store{{.*}} %1, %0 : !s32i, !cir.ptr<!s32i>
 // CSCOPE-NEXT:   cir.for : cond {
 
 // CSCOPE:        } body {

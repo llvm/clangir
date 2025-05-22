@@ -49,7 +49,7 @@ namespace test7 {
 
 // Ctor call: @test7::A::A()
 // CIR:       cir.call @_ZN5test71AC1Ev(%[[TMP_A0]]) : (!cir.ptr<![[A]]>) -> ()
-// CIR:       cir.store %[[TRUE1]], %[[CLEANUP_COND_OUTER]] : !cir.bool, !cir.ptr<!cir.bool>
+// CIR:       cir.store{{.*}} %[[TRUE1]], %[[CLEANUP_COND_OUTER]] : !cir.bool, !cir.ptr<!cir.bool>
 
 // CIR:       %[[NULL_CHECK1:.*]] = cir.cmp(ne
 // CIR:       %[[PTR_B1:.*]] = cir.cast(bitcast
@@ -57,7 +57,7 @@ namespace test7 {
 
 // Ctor call: @test7::A::A()
 // CIR:         cir.call @_ZN5test71AC1Ev(%[[TMP_A1]]) : (!cir.ptr<![[A]]>) -> ()
-// CIR:         cir.store %[[TRUE0]], %[[CLEANUP_COND_INNER]] : !cir.bool, !cir.ptr<!cir.bool>
+// CIR:         cir.store{{.*}} %[[TRUE0]], %[[CLEANUP_COND_INNER]] : !cir.bool, !cir.ptr<!cir.bool>
 // Ctor call: @test7::B::B()
 // CIR:         cir.call @_ZN5test71BC1ERKNS_1AEPS0_(%[[PTR_B1]], %[[TMP_A1]], {{.*}}) : (!cir.ptr<![[B]]>, !cir.ptr<![[A]]>, !cir.ptr<![[B]]>) -> ()
 // CIR:       }
@@ -65,7 +65,7 @@ namespace test7 {
 // Ctor call: @test7::B::B()
 // CIR:       cir.call @_ZN5test71BC1ERKNS_1AEPS0_(%[[PTR_B0]], %[[TMP_A0]], %[[PTR_B1]]) : (!cir.ptr<![[B]]>, !cir.ptr<![[A]]>, !cir.ptr<![[B]]>) -> ()
 // CIR:     }
-// CIR:     cir.store %[[PTR_B0]], %[[RET_VAL]] : !cir.ptr<![[B]]>, !cir.ptr<!cir.ptr<![[B]]>>
+// CIR:     cir.store{{.*}} %[[PTR_B0]], %[[RET_VAL]] : !cir.ptr<![[B]]>, !cir.ptr<!cir.ptr<![[B]]>>
 // CIR:     %[[DO_CLEANUP_INNER:.*]] = cir.load %[[CLEANUP_COND_INNER]] : !cir.ptr<!cir.bool>, !cir.bool
 // CIR:     cir.if %[[DO_CLEANUP_INNER]] {
 // Dtor call: @test7::A::~A()
@@ -112,7 +112,7 @@ namespace test7 {
 // CIR_EH:             cir.store align(1) %[[VAL_9]], %[[VAL_4]] : !cir.bool, !cir.ptr<!cir.bool>
 // CIR_EH:             cir.store align(1) %[[VAL_7]], %[[VAL_6]] : !cir.bool, !cir.ptr<!cir.bool>
 // CIR_EH:             cir.if %[[VAL_18]] {
-// CIR_EH:               cir.store %[[VAL_14]], %[[VAL_1]] : !cir.bool, !cir.ptr<!cir.bool>
+// CIR_EH:               cir.store{{.*}} %[[VAL_14]], %[[VAL_1]] : !cir.bool, !cir.ptr<!cir.bool>
 // CIR_EH:               cir.try synthetic cleanup {
 // CIR_EH:                 cir.call exception @_ZN5test71AC1Ev(%[[VAL_2]]) : (!cir.ptr<!rec_test73A3AA>) -> () cleanup {
 // CIR_EH:                   %[[VAL_20:.*]] = cir.load %[[VAL_1]] : !cir.ptr<!cir.bool>, !cir.bool
@@ -125,14 +125,14 @@ namespace test7 {
 // CIR_EH:               } catch [#{{.*}} {
 // CIR_EH:                 cir.resume
 // CIR_EH:               }]
-// CIR_EH:               cir.store %[[VAL_12]], %[[VAL_3]] : !cir.bool, !cir.ptr<!cir.bool>
+// CIR_EH:               cir.store{{.*}} %[[VAL_12]], %[[VAL_3]] : !cir.bool, !cir.ptr<!cir.bool>
 // CIR_EH:               %[[VAL_21:.*]] = cir.const #{{.*}}<1> : !u64i
 // CIR_EH:               %[[VAL_22:.*]] = cir.call @_ZN5test71BnwEm(%[[VAL_21]]) : (!u64i) -> !cir.ptr<!void>
 // CIR_EH:               %[[VAL_23:.*]] = cir.const #{{.*}}<null> : !cir.ptr<!void>
 // CIR_EH:               %[[VAL_24:.*]] = cir.cmp(ne, %[[VAL_22]], %[[VAL_23]]) : !cir.ptr<!void>, !cir.bool
 // CIR_EH:               %[[VAL_25:.*]] = cir.cast(bitcast, %[[VAL_22]] : !cir.ptr<!void>), !cir.ptr<!rec_test73A3AB>
 // CIR_EH:               cir.if %[[VAL_24]] {
-// CIR_EH:                 cir.store %[[VAL_10]], %[[VAL_4]] : !cir.bool, !cir.ptr<!cir.bool>
+// CIR_EH:                 cir.store{{.*}} %[[VAL_10]], %[[VAL_4]] : !cir.bool, !cir.ptr<!cir.bool>
 // CIR_EH:                 cir.try synthetic cleanup {
 // CIR_EH:                   cir.call exception @_ZN5test71AC1Ev(%[[VAL_5]]) : (!cir.ptr<!rec_test73A3AA>) -> () cleanup {
 // CIR_EH:                     %[[VAL_26:.*]] = cir.load %[[VAL_4]] : !cir.ptr<!cir.bool>, !cir.bool
@@ -153,7 +153,7 @@ namespace test7 {
 // CIR_EH:                 } catch [#{{.*}} {
 // CIR_EH:                   cir.resume
 // CIR_EH:                 }]
-// CIR_EH:                 cir.store %[[VAL_8]], %[[VAL_6]] : !cir.bool, !cir.ptr<!cir.bool>
+// CIR_EH:                 cir.store{{.*}} %[[VAL_8]], %[[VAL_6]] : !cir.bool, !cir.ptr<!cir.bool>
 // CIR_EH:                 %[[VAL_29:.*]] = cir.const #{{.*}}<null> : !cir.ptr<!rec_test73A3AB>
 // CIR_EH:                 cir.try synthetic cleanup {
 // CIR_EH:                   cir.call exception @_ZN5test71BC1ERKNS_1AEPS0_(%[[VAL_25]], %[[VAL_5]], %[[VAL_29]]) : (!cir.ptr<!rec_test73A3AB>, !cir.ptr<!rec_test73A3AA>, !cir.ptr<!rec_test73A3AB>) -> () cleanup {
@@ -180,7 +180,7 @@ namespace test7 {
 // CIR_EH:                   cir.resume
 // CIR_EH:                 }]
 // CIR_EH:                 %[[VAL_34:.*]] = cir.const #[[$ATTR_0]]
-// CIR_EH:                 cir.store %[[VAL_34]], %[[VAL_4]] : !cir.bool, !cir.ptr<!cir.bool>
+// CIR_EH:                 cir.store{{.*}} %[[VAL_34]], %[[VAL_4]] : !cir.bool, !cir.ptr<!cir.bool>
 // CIR_EH:               }
 // CIR_EH:               cir.try synthetic cleanup {
 // CIR_EH:                 cir.call exception @_ZN5test71BC1ERKNS_1AEPS0_(%[[VAL_19]], %[[VAL_2]], %[[VAL_25]]) : (!cir.ptr<!rec_test73A3AB>, !cir.ptr<!rec_test73A3AA>, !cir.ptr<!rec_test73A3AB>) -> () cleanup {
@@ -207,9 +207,9 @@ namespace test7 {
 // CIR_EH:                 cir.resume
 // CIR_EH:               }]
 // CIR_EH:               %[[VAL_39:.*]] = cir.const #[[$ATTR_0]]
-// CIR_EH:               cir.store %[[VAL_39]], %[[VAL_1]] : !cir.bool, !cir.ptr<!cir.bool>
+// CIR_EH:               cir.store{{.*}} %[[VAL_39]], %[[VAL_1]] : !cir.bool, !cir.ptr<!cir.bool>
 // CIR_EH:             }
-// CIR_EH:             cir.store %[[VAL_19]], %[[VAL_0]] : !cir.ptr<!rec_test73A3AB>, !cir.ptr<!cir.ptr<!rec_test73A3AB>>
+// CIR_EH:             cir.store{{.*}} %[[VAL_19]], %[[VAL_0]] : !cir.ptr<!rec_test73A3AB>, !cir.ptr<!cir.ptr<!rec_test73A3AB>>
 // CIR_EH:             %[[VAL_40:.*]] = cir.load %[[VAL_6]] : !cir.ptr<!cir.bool>, !cir.bool
 // CIR_EH:             cir.if %[[VAL_40]] {
 // CIR_EH:               cir.call @_ZN5test71AD1Ev(%[[VAL_5]]) : (!cir.ptr<!rec_test73A3AA>) -> ()

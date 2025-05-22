@@ -14,8 +14,8 @@ struct String {
   // CHECK: cir.func linkonce_odr @_ZN10StringViewC2ERK6String
   // CHECK:   %0 = cir.alloca !cir.ptr<!rec_StringView>, !cir.ptr<!cir.ptr<!rec_StringView>>, ["this", init] {alignment = 8 : i64}
   // CHECK:   %1 = cir.alloca !cir.ptr<!rec_String>, !cir.ptr<!cir.ptr<!rec_String>>, ["s", init, const] {alignment = 8 : i64}
-  // CHECK:   cir.store %arg0, %0 : !cir.ptr<!rec_StringView>
-  // CHECK:   cir.store %arg1, %1 : !cir.ptr<!rec_String>
+  // CHECK:   cir.store{{.*}} %arg0, %0 : !cir.ptr<!rec_StringView>
+  // CHECK:   cir.store{{.*}} %arg1, %1 : !cir.ptr<!rec_String>
   // CHECK:   %2 = cir.load %0 : !cir.ptr<!cir.ptr<!rec_StringView>>
 
   // Get address of `this->size`
@@ -33,7 +33,7 @@ struct String {
   // Load value from s.size and store in this->size
 
   // CHECK:   %6 = cir.load %5 : !cir.ptr<!s64i>, !s64i
-  // CHECK:   cir.store %6, %3 : !s64i, !cir.ptr<!s64i>
+  // CHECK:   cir.store{{.*}} %6, %3 : !s64i, !cir.ptr<!s64i>
   // CHECK:   cir.return
   // CHECK: }
 
@@ -43,15 +43,15 @@ struct String {
   // CHECK:   %0 = cir.alloca !cir.ptr<!rec_StringView>, !cir.ptr<!cir.ptr<!rec_StringView>>, ["this", init] {alignment = 8 : i64}
   // CHECK:   %1 = cir.alloca !cir.ptr<!rec_StringView>, !cir.ptr<!cir.ptr<!rec_StringView>>, ["", init, const] {alignment = 8 : i64}
   // CHECK:   %2 = cir.alloca !cir.ptr<!rec_StringView>, !cir.ptr<!cir.ptr<!rec_StringView>>, ["__retval"] {alignment = 8 : i64}
-  // CHECK:   cir.store %arg0, %0 : !cir.ptr<!rec_StringView>
-  // CHECK:   cir.store %arg1, %1 : !cir.ptr<!rec_StringView>
+  // CHECK:   cir.store{{.*}} %arg0, %0 : !cir.ptr<!rec_StringView>
+  // CHECK:   cir.store{{.*}} %arg1, %1 : !cir.ptr<!rec_StringView>
   // CHECK:   %3 = cir.load deref %0 : !cir.ptr<!cir.ptr<!rec_StringView>>
   // CHECK:   %4 = cir.load %1 : !cir.ptr<!cir.ptr<!rec_StringView>>
   // CHECK:   %5 = cir.get_member %4[0] {name = "size"}
   // CHECK:   %6 = cir.load %5 : !cir.ptr<!s64i>, !s64i
   // CHECK:   %7 = cir.get_member %3[0] {name = "size"}
-  // CHECK:   cir.store %6, %7 : !s64i, !cir.ptr<!s64i>
-  // CHECK:   cir.store %3, %2 : !cir.ptr<!rec_StringView>
+  // CHECK:   cir.store{{.*}} %6, %7 : !s64i, !cir.ptr<!s64i>
+  // CHECK:   cir.store{{.*}} %3, %2 : !cir.ptr<!rec_StringView>
   // CHECK:   %8 = cir.load %2 : !cir.ptr<!cir.ptr<!rec_StringView>>
   // CHECK:   cir.return %8 : !cir.ptr<!rec_StringView>
   // CHECK: }
@@ -111,8 +111,8 @@ struct ContainsNonTrivial {
 // CHECK-NEXT:    %[[#THIS:]] = cir.alloca !cir.ptr<!rec_ContainsNonTrivial>
 // CHECK-NEXT:    %[[#OTHER:]] = cir.alloca !cir.ptr<!rec_ContainsNonTrivial>
 // CHECK-NEXT:    %[[#RETVAL:]] = cir.alloca !cir.ptr<!rec_ContainsNonTrivial>
-// CHECK-NEXT:    cir.store %arg0, %[[#THIS]]
-// CHECK-NEXT:    cir.store %arg1, %[[#OTHER]]
+// CHECK-NEXT:    cir.store{{.*}} %arg0, %[[#THIS]]
+// CHECK-NEXT:    cir.store{{.*}} %arg1, %[[#OTHER]]
 // CHECK-NEXT:    %[[#THIS_LOAD:]] = cir.load deref %[[#THIS]]
 // CHECK-NEXT:    %[[#THIS_START:]] = cir.get_member %[[#THIS_LOAD]][0] {name = "start"}
 // CHECK-NEXT:    %[[#OTHER_LOAD:]] = cir.load %[[#OTHER]]
@@ -140,7 +140,7 @@ struct ContainsNonTrivial {
 // CHECK-NEXT:    %[[#OTHER_LOAD:]] = cir.load %[[#OTHER]]
 // CHECK-NEXT:    %[[#OTHER_END:]] = cir.get_member %[[#OTHER_LOAD]][6] {name = "end"}
 // CHECK-NEXT:    cir.call @_ZN21HasNonTrivialAssignOpaSERKS_(%[[#THIS_END]], %[[#OTHER_END]])
-// CHECK-NEXT:    cir.store %[[#THIS_LOAD]], %[[#RETVAL]]
+// CHECK-NEXT:    cir.store{{.*}} %[[#THIS_LOAD]], %[[#RETVAL]]
 // CHECK-NEXT:    %[[#RETVAL_LOAD:]] = cir.load %[[#RETVAL]]
 // CHECK-NEXT:    cir.return %[[#RETVAL_LOAD]]
 // CHECK-NEXT:  }
@@ -158,8 +158,8 @@ struct Trivial {
 // CHECK-NEXT:    %[[#THIS:]] = cir.alloca !cir.ptr<!rec_Trivial>
 // CHECK-NEXT:    %[[#OTHER:]] = cir.alloca !cir.ptr<!rec_Trivial>
 // CHECK-NEXT:    %[[#RETVAL:]] = cir.alloca !cir.ptr<!rec_Trivial>
-// CHECK-NEXT:    cir.store %arg0, %[[#THIS]]
-// CHECK-NEXT:    cir.store %arg1, %[[#OTHER]]
+// CHECK-NEXT:    cir.store{{.*}} %arg0, %[[#THIS]]
+// CHECK-NEXT:    cir.store{{.*}} %arg1, %[[#OTHER]]
 // CHECK-NEXT:    %[[#THIS_LOAD:]] = cir.load deref %[[#THIS]]
 // CHECK-NEXT:    %[[#THIS_I:]] = cir.get_member %[[#THIS_LOAD]][0] {name = "i"}
 // CHECK-NEXT:    %[[#OTHER_LOAD:]] = cir.load %[[#OTHER]]
@@ -169,7 +169,7 @@ struct Trivial {
 // CHECK-NEXT:    %[[#THIS_I_CAST:]] = cir.cast(bitcast, %[[#THIS_I]] : !cir.ptr<!s32i>), !cir.ptr<!void>
 // CHECK-NEXT:    %[[#OTHER_I_CAST:]] = cir.cast(bitcast, %[[#OTHER_I]] : !cir.ptr<!s32i>), !cir.ptr<!void>
 // CHECK-NEXT:    cir.libc.memcpy %[[#MEMCPY_SIZE]] bytes from %[[#OTHER_I_CAST]] to %[[#THIS_I_CAST]]
-// CHECK-NEXT:    cir.store %[[#THIS_LOAD]], %[[#RETVAL]]
+// CHECK-NEXT:    cir.store{{.*}} %[[#THIS_LOAD]], %[[#RETVAL]]
 // CHECK-NEXT:    %[[#RETVAL_LOAD:]] = cir.load %[[#RETVAL]]
 // CHECK-NEXT:    cir.return %[[#RETVAL_LOAD]]
 // CHECK-NEXT:  }

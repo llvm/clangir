@@ -51,7 +51,7 @@ void test_store_field1(volatile Foo *ptr) {
 
 // CHECK: cir.func @_Z17test_store_field1PV3Foo
 // CHECK:   %[[MemberAddr:.+]] = cir.get_member
-// CHECK:   cir.store volatile %{{.+}}, %[[MemberAddr]]
+// CHECK:   cir.store volatile{{.*}} %{{.+}}, %[[MemberAddr]]
 
 void test_store_field2(Foo *ptr) {
   ptr->y = 42;
@@ -59,7 +59,7 @@ void test_store_field2(Foo *ptr) {
 
 // CHECK: cir.func @_Z17test_store_field2P3Foo
 // CHECK:   %[[MemberAddr:.+]] = cir.get_member
-// CHECK:   cir.store volatile %{{.+}}, %[[MemberAddr]]
+// CHECK:   cir.store volatile{{.*}} %{{.+}}, %[[MemberAddr]]
 
 void test_store_field3(Foo *ptr) {
   ptr->z = 4;

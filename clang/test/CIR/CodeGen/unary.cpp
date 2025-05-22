@@ -11,7 +11,7 @@ unsigned up0() {
 // CHECK: %[[#A:]] = cir.alloca !u32i, !cir.ptr<!u32i>, ["a", init]
 // CHECK: %[[#INPUT:]] = cir.load %[[#A]]
 // CHECK: %[[#OUTPUT:]] = cir.unary(plus, %[[#INPUT]])
-// CHECK: cir.store %[[#OUTPUT]], %[[#RET]]
+// CHECK: cir.store{{.*}} %[[#OUTPUT]], %[[#RET]]
 
 unsigned um0() {
   unsigned a = 1;
@@ -23,7 +23,7 @@ unsigned um0() {
 // CHECK: %[[#A:]] = cir.alloca !u32i, !cir.ptr<!u32i>, ["a", init]
 // CHECK: %[[#INPUT:]] = cir.load %[[#A]]
 // CHECK: %[[#OUTPUT:]] = cir.unary(minus, %[[#INPUT]])
-// CHECK: cir.store %[[#OUTPUT]], %[[#RET]]
+// CHECK: cir.store{{.*}} %[[#OUTPUT]], %[[#RET]]
 
 unsigned un0() {
   unsigned a = 1;
@@ -35,7 +35,7 @@ unsigned un0() {
 // CHECK: %[[#A:]] = cir.alloca !u32i, !cir.ptr<!u32i>, ["a", init]
 // CHECK: %[[#INPUT:]] = cir.load %[[#A]]
 // CHECK: %[[#OUTPUT:]] = cir.unary(not, %[[#INPUT]])
-// CHECK: cir.store %[[#OUTPUT]], %[[#RET]]
+// CHECK: cir.store{{.*}} %[[#OUTPUT]], %[[#RET]]
 
 int inc0() {
   int a = 1;
@@ -47,12 +47,12 @@ int inc0() {
 // CHECK: %[[#RET:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"]
 // CHECK: %[[#A:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["a", init]
 // CHECK: %[[#ATMP:]] = cir.const #cir.int<1> : !s32i
-// CHECK: cir.store %[[#ATMP]], %[[#A]] : !s32i
+// CHECK: cir.store{{.*}} %[[#ATMP]], %[[#A]] : !s32i
 // CHECK: %[[#INPUT:]] = cir.load %[[#A]]
 // CHECK: %[[#INCREMENTED:]] = cir.unary(inc, %[[#INPUT]]) nsw
-// CHECK: cir.store %[[#INCREMENTED]], %[[#A]]
+// CHECK: cir.store{{.*}} %[[#INCREMENTED]], %[[#A]]
 // CHECK: %[[#A_TO_OUTPUT:]] = cir.load %[[#A]]
-// CHECK: cir.store %[[#A_TO_OUTPUT]], %[[#RET]]
+// CHECK: cir.store{{.*}} %[[#A_TO_OUTPUT]], %[[#RET]]
 // CHECK: %[[#OUTPUT:]] = cir.load %[[#RET]]
 // CHECK: cir.return %[[#OUTPUT]] : !s32i
 
@@ -66,12 +66,12 @@ int dec0() {
 // CHECK: %[[#RET:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"]
 // CHECK: %[[#A:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["a", init]
 // CHECK: %[[#ATMP:]] = cir.const #cir.int<1> : !s32i
-// CHECK: cir.store %[[#ATMP]], %[[#A]] : !s32i
+// CHECK: cir.store{{.*}} %[[#ATMP]], %[[#A]] : !s32i
 // CHECK: %[[#INPUT:]] = cir.load %[[#A]]
 // CHECK: %[[#INCREMENTED:]] = cir.unary(dec, %[[#INPUT]]) nsw
-// CHECK: cir.store %[[#INCREMENTED]], %[[#A]]
+// CHECK: cir.store{{.*}} %[[#INCREMENTED]], %[[#A]]
 // CHECK: %[[#A_TO_OUTPUT:]] = cir.load %[[#A]]
-// CHECK: cir.store %[[#A_TO_OUTPUT]], %[[#RET]]
+// CHECK: cir.store{{.*}} %[[#A_TO_OUTPUT]], %[[#RET]]
 // CHECK: %[[#OUTPUT:]] = cir.load %[[#RET]]
 // CHECK: cir.return %[[#OUTPUT]] : !s32i
 
@@ -86,12 +86,12 @@ int inc1() {
 // CHECK: %[[#RET:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"]
 // CHECK: %[[#A:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["a", init]
 // CHECK: %[[#ATMP:]] = cir.const #cir.int<1> : !s32i
-// CHECK: cir.store %[[#ATMP]], %[[#A]] : !s32i
+// CHECK: cir.store{{.*}} %[[#ATMP]], %[[#A]] : !s32i
 // CHECK: %[[#INPUT:]] = cir.load %[[#A]]
 // CHECK: %[[#INCREMENTED:]] = cir.unary(inc, %[[#INPUT]]) nsw
-// CHECK: cir.store %[[#INCREMENTED]], %[[#A]]
+// CHECK: cir.store{{.*}} %[[#INCREMENTED]], %[[#A]]
 // CHECK: %[[#A_TO_OUTPUT:]] = cir.load %[[#A]]
-// CHECK: cir.store %[[#A_TO_OUTPUT]], %[[#RET]]
+// CHECK: cir.store{{.*}} %[[#A_TO_OUTPUT]], %[[#RET]]
 // CHECK: %[[#OUTPUT:]] = cir.load %[[#RET]]
 // CHECK: cir.return %[[#OUTPUT]] : !s32i
 
@@ -105,12 +105,12 @@ int dec1() {
 // CHECK: %[[#RET:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"]
 // CHECK: %[[#A:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["a", init]
 // CHECK: %[[#ATMP:]] = cir.const #cir.int<1> : !s32i
-// CHECK: cir.store %[[#ATMP]], %[[#A]] : !s32i
+// CHECK: cir.store{{.*}} %[[#ATMP]], %[[#A]] : !s32i
 // CHECK: %[[#INPUT:]] = cir.load %[[#A]]
 // CHECK: %[[#INCREMENTED:]] = cir.unary(dec, %[[#INPUT]]) nsw
-// CHECK: cir.store %[[#INCREMENTED]], %[[#A]]
+// CHECK: cir.store{{.*}} %[[#INCREMENTED]], %[[#A]]
 // CHECK: %[[#A_TO_OUTPUT:]] = cir.load %[[#A]]
-// CHECK: cir.store %[[#A_TO_OUTPUT]], %[[#RET]]
+// CHECK: cir.store{{.*}} %[[#A_TO_OUTPUT]], %[[#RET]]
 // CHECK: %[[#OUTPUT:]] = cir.load %[[#RET]]
 // CHECK: cir.return %[[#OUTPUT]] : !s32i
 
@@ -126,13 +126,13 @@ int inc2() {
 // CHECK: %[[#A:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["a", init]
 // CHECK: %[[#B:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["b", init]
 // CHECK: %[[#ATMP:]] = cir.const #cir.int<1> : !s32i
-// CHECK: cir.store %[[#ATMP]], %[[#A]] : !s32i
+// CHECK: cir.store{{.*}} %[[#ATMP]], %[[#A]] : !s32i
 // CHECK: %[[#ATOB:]] = cir.load %[[#A]]
 // CHECK: %[[#INCREMENTED:]] = cir.unary(inc, %[[#ATOB]]) nsw
-// CHECK: cir.store %[[#INCREMENTED]], %[[#A]]
-// CHECK: cir.store %[[#ATOB]], %[[#B]]
+// CHECK: cir.store{{.*}} %[[#INCREMENTED]], %[[#A]]
+// CHECK: cir.store{{.*}} %[[#ATOB]], %[[#B]]
 // CHECK: %[[#B_TO_OUTPUT:]] = cir.load %[[#B]]
-// CHECK: cir.store %[[#B_TO_OUTPUT]], %[[#RET]]
+// CHECK: cir.store{{.*}} %[[#B_TO_OUTPUT]], %[[#RET]]
 // CHECK: %[[#OUTPUT:]] = cir.load %[[#RET]]
 // CHECK: cir.return %[[#OUTPUT]] : !s32i
 
@@ -191,19 +191,19 @@ void pointers(int *p) {
   ++p;
   // CHECK:  %[[#INC:]] = cir.const #cir.int<1> : !s32i
   // CHECK:  %[[#RES:]] = cir.ptr_stride(%{{.+}} : !cir.ptr<!s32i>, %[[#INC]] : !s32i), !cir.ptr<!s32i>
-  // CHECK:  cir.store %[[#RES]], %[[#P]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
+  // CHECK:  cir.store{{.*}} %[[#RES]], %[[#P]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
   --p;
   // CHECK:  %[[#DEC:]] = cir.const #cir.int<-1> : !s32i
   // CHECK:  %[[#RES:]] = cir.ptr_stride(%{{.+}} : !cir.ptr<!s32i>, %[[#DEC]] : !s32i), !cir.ptr<!s32i>
-  // CHECK:  cir.store %[[#RES]], %[[#P]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
+  // CHECK:  cir.store{{.*}} %[[#RES]], %[[#P]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
   p++;
   // CHECK:  %[[#INC:]] = cir.const #cir.int<1> : !s32i
   // CHECK:  %[[#RES:]] = cir.ptr_stride(%{{.+}} : !cir.ptr<!s32i>, %[[#INC]] : !s32i), !cir.ptr<!s32i>
-  // CHECK:  cir.store %[[#RES]], %[[#P]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
+  // CHECK:  cir.store{{.*}} %[[#RES]], %[[#P]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
   p--;
   // CHECK:  %[[#DEC:]] = cir.const #cir.int<-1> : !s32i
   // CHECK:  %[[#RES:]] = cir.ptr_stride(%{{.+}} : !cir.ptr<!s32i>, %[[#DEC]] : !s32i), !cir.ptr<!s32i>
-  // CHECK:  cir.store %[[#RES]], %[[#P]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
+  // CHECK:  cir.store{{.*}} %[[#RES]], %[[#P]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
 
   bool p1 = !p;
   // %[[BOOLPTR:]] = cir.cast(ptr_to_bool, %15 : !cir.ptr<!s32i>), !cir.bool
