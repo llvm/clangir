@@ -14925,7 +14925,7 @@ int16_t test_vqmovns_s32(int32_t a) {
   return (int16_t)vqmovns_s32(a);
 
   // CIR-LABEL: vqmovns_s32
-  // CIR: [[A:%.*]] = cir.load {{.*}} : !cir.ptr<!s32i>, !s32i
+  // CIR: [[A:%.*]] = cir.load{{.*}} : !cir.ptr<!s32i>, !s32i
   // CIR: [[VQMOVNS_S32_ZERO1:%.*]] = cir.const #cir.int<0> : !u64i
   // CIR: [[POISON:%.*]] = cir.const #cir.poison : !s32i
   // CIR: [[POISON_VEC:%.*]] = cir.vec.splat [[POISON]] : !s32i, !cir.vector<!s32i x 4>
@@ -19471,7 +19471,7 @@ uint8x8_t test_vld1_dup_u8(uint8_t const * ptr) {
 }
 
 // CIR-LABEL: vld1_dup_u8
-// CIR: [[VAL:%.*]] = cir.load {{%.*}} : !cir.ptr<!u8i>, !u8i
+// CIR: [[VAL:%.*]] = cir.load{{.*}} {{%.*}} : !cir.ptr<!u8i>, !u8i
 // CIR: {{%.*}} = cir.vec.splat [[VAL]] : !u8i, !cir.vector<!u8i x 8>
 
 // LLVM: {{.*}}test_vld1_dup_u8(ptr{{.*}}[[PTR:%.*]])
@@ -19484,7 +19484,7 @@ int8x8_t test_vld1_dup_s8(int8_t const * ptr) {
 }
 
 // CIR-LABEL: test_vld1_dup_s8
-// CIR: [[VAL:%.*]] = cir.load {{%.*}} : !cir.ptr<!s8i>, !s8i
+// CIR: [[VAL:%.*]] = cir.load{{.*}} {{%.*}} : !cir.ptr<!s8i>, !s8i
 // CIR: {{%.*}} = cir.vec.splat [[VAL]] : !s8i, !cir.vector<!s8i x 8>
 
 // LLVM: {{.*}}test_vld1_dup_s8(ptr{{.*}}[[PTR:%.*]])
@@ -19497,7 +19497,7 @@ uint16x4_t test_vld1_dup_u16(uint16_t const * ptr) {
 }
 
 // CIR-LABEL: test_vld1_dup_u16
-// CIR: [[VAL:%.*]] = cir.load {{%.*}} : !cir.ptr<!u16i>, !u16i
+// CIR: [[VAL:%.*]] = cir.load{{.*}} {{%.*}} : !cir.ptr<!u16i>, !u16i
 // CIR: {{%.*}} = cir.vec.splat [[VAL]] : !u16i, !cir.vector<!u16i x 4>
 
 // LLVM: {{.*}}test_vld1_dup_u16(ptr{{.*}}[[PTR:%.*]])
@@ -19510,7 +19510,7 @@ int16x4_t test_vld1_dup_s16(int16_t const * ptr) {
 }
 
 // CIR-LABEL: test_vld1_dup_s16
-// CIR: [[VAL:%.*]] = cir.load {{%.*}} : !cir.ptr<!s16i>, !s16i
+// CIR: [[VAL:%.*]] = cir.load{{.*}} {{%.*}} : !cir.ptr<!s16i>, !s16i
 // CIR: {{%.*}} = cir.vec.splat [[VAL]] : !s16i, !cir.vector<!s16i x 4>
 
 // LLVM: {{.*}}test_vld1_dup_s16(ptr{{.*}}[[PTR:%.*]])
@@ -19523,7 +19523,7 @@ int32x2_t test_vld1_dup_s32(int32_t const * ptr) {
 }
 
 // CIR-LABEL: test_vld1_dup_s32
-// CIR: [[VAL:%.*]] = cir.load {{%.*}} : !cir.ptr<!s32i>, !s32i
+// CIR: [[VAL:%.*]] = cir.load{{.*}} {{%.*}} : !cir.ptr<!s32i>, !s32i
 // CIR: {{%.*}} = cir.vec.splat [[VAL]] : !s32i, !cir.vector<!s32i x 2>
 
 // LLVM: {{.*}}test_vld1_dup_s32(ptr{{.*}}[[PTR:%.*]])
@@ -19536,7 +19536,7 @@ int64x1_t test_vld1_dup_s64(int64_t const * ptr) {
 }
 
 // CIR-LABEL: test_vld1_dup_s64
-// CIR: [[VAL:%.*]] = cir.load {{%.*}} : !cir.ptr<!s64i>, !s64i
+// CIR: [[VAL:%.*]] = cir.load{{.*}} {{%.*}} : !cir.ptr<!s64i>, !s64i
 // CIR: {{%.*}} = cir.vec.splat [[VAL]] : !s64i, !cir.vector<!s64i x 1>
 
 // LLVM: {{.*}}test_vld1_dup_s64(ptr{{.*}}[[PTR:%.*]])
@@ -19549,7 +19549,7 @@ float32x2_t test_vld1_dup_f32(float32_t const * ptr) {
 }
 
 // CIR-LABEL: test_vld1_dup_f32
-// CIR: [[VAL:%.*]] = cir.load {{%.*}} : !cir.ptr<!cir.float>, !cir.float
+// CIR: [[VAL:%.*]] = cir.load{{.*}} {{%.*}} : !cir.ptr<!cir.float>, !cir.float
 // CIR: {{%.*}} = cir.vec.splat [[VAL]] : !cir.float, !cir.vector<!cir.float x 2>
 
 // LLVM: {{.*}}test_vld1_dup_f32(ptr{{.*}}[[PTR:%.*]])
@@ -19562,7 +19562,7 @@ float64x1_t test_vld1_dup_f64(float64_t const * ptr) {
 }
 
 // CIR-LABEL: test_vld1_dup_f64
-// CIR: [[VAL:%.*]] = cir.load {{%.*}} : !cir.ptr<!cir.double>, !cir.double
+// CIR: [[VAL:%.*]] = cir.load{{.*}} {{%.*}} : !cir.ptr<!cir.double>, !cir.double
 // CIR: {{%.*}} = cir.vec.splat [[VAL]] : !cir.double, !cir.vector<!cir.double x 1>
 
 // LLVM: {{.*}}test_vld1_dup_f64(ptr{{.*}}[[PTR:%.*]])
@@ -19575,7 +19575,7 @@ uint8x16_t test_vld1q_dup_u8(uint8_t const * ptr) {
 }
 
 // CIR-LABEL: test_vld1q_dup_u8
-// CIR: [[VAL:%.*]] = cir.load {{%.*}} : !cir.ptr<!u8i>, !u8i
+// CIR: [[VAL:%.*]] = cir.load{{.*}} {{%.*}} : !cir.ptr<!u8i>, !u8i
 // CIR: {{%.*}} = cir.vec.splat [[VAL]] : !u8i, !cir.vector<!u8i x 16>
 
 // LLVM: {{.*}}test_vld1q_dup_u8(ptr{{.*}}[[PTR:%.*]])
@@ -19588,7 +19588,7 @@ int8x16_t test_vld1q_dup_s8(int8_t const * ptr) {
 }
 
 // CIR-LABEL: test_vld1q_dup_s8
-// CIR: [[VAL:%.*]] = cir.load {{%.*}} : !cir.ptr<!s8i>, !s8i
+// CIR: [[VAL:%.*]] = cir.load{{.*}} {{%.*}} : !cir.ptr<!s8i>, !s8i
 // CIR: {{%.*}} = cir.vec.splat [[VAL]] : !s8i, !cir.vector<!s8i x 16>
 
 // LLVM: {{.*}}test_vld1q_dup_s8(ptr{{.*}}[[PTR:%.*]])
@@ -19601,7 +19601,7 @@ uint16x8_t test_vld1q_dup_u16(uint16_t const * ptr) {
 }
 
 // CIR-LABEL: test_vld1q_dup_u16
-// CIR: [[VAL:%.*]] = cir.load {{%.*}} : !cir.ptr<!u16i>, !u16i
+// CIR: [[VAL:%.*]] = cir.load{{.*}} {{%.*}} : !cir.ptr<!u16i>, !u16i
 // CIR: {{%.*}} = cir.vec.splat [[VAL]] : !u16i, !cir.vector<!u16i x 8>
 
 // LLVM: {{.*}}test_vld1q_dup_u16(ptr{{.*}}[[PTR:%.*]])
@@ -19614,7 +19614,7 @@ int16x8_t test_vld1q_dup_s16(int16_t const * ptr) {
 }
 
 // CIR-LABEL: test_vld1q_dup_s16
-// CIR: [[VAL:%.*]] = cir.load {{%.*}} : !cir.ptr<!s16i>, !s16i
+// CIR: [[VAL:%.*]] = cir.load{{.*}} {{%.*}} : !cir.ptr<!s16i>, !s16i
 // CIR: {{%.*}} = cir.vec.splat [[VAL]] : !s16i, !cir.vector<!s16i x 8>
 
 // LLVM: {{.*}}test_vld1q_dup_s16(ptr{{.*}}[[PTR:%.*]])
@@ -19627,7 +19627,7 @@ int32x4_t test_vld1q_dup_s32(int32_t const * ptr) {
 }
 
 // CIR-LABEL: test_vld1q_dup_s32
-// CIR: [[VAL:%.*]] = cir.load {{%.*}} : !cir.ptr<!s32i>, !s32i
+// CIR: [[VAL:%.*]] = cir.load{{.*}} {{%.*}} : !cir.ptr<!s32i>, !s32i
 // CIR: {{%.*}} = cir.vec.splat [[VAL]] : !s32i, !cir.vector<!s32i x 4>
 
 // LLVM: {{.*}}test_vld1q_dup_s32(ptr{{.*}}[[PTR:%.*]])
@@ -19640,7 +19640,7 @@ int64x2_t test_vld1q_dup_s64(int64_t const * ptr) {
 }
 
 // CIR-LABEL: test_vld1q_dup_s64
-// CIR: [[VAL:%.*]] = cir.load {{%.*}} : !cir.ptr<!s64i>, !s64i
+// CIR: [[VAL:%.*]] = cir.load{{.*}} {{%.*}} : !cir.ptr<!s64i>, !s64i
 // CIR: {{%.*}} = cir.vec.splat [[VAL]] : !s64i, !cir.vector<!s64i x 2>
 
 // LLVM: {{.*}}test_vld1q_dup_s64(ptr{{.*}}[[PTR:%.*]])
@@ -19653,7 +19653,7 @@ float32x4_t test_vld1q_dup_f32(float32_t const * ptr) {
 }
 
 // CIR-LABEL: test_vld1q_dup_f32
-// CIR: [[VAL:%.*]] = cir.load {{%.*}} : !cir.ptr<!cir.float>, !cir.float
+// CIR: [[VAL:%.*]] = cir.load{{.*}} {{%.*}} : !cir.ptr<!cir.float>, !cir.float
 // CIR: {{%.*}} = cir.vec.splat [[VAL]] : !cir.float, !cir.vector<!cir.float x 4>
 
 // LLVM: {{.*}}test_vld1q_dup_f32(ptr{{.*}}[[PTR:%.*]])
@@ -19666,7 +19666,7 @@ float64x2_t test_vld1q_dup_f64(float64_t const * ptr) {
 }
 
 // CIR-LABEL: test_vld1q_dup_f64
-// CIR: [[VAL:%.*]] = cir.load {{%.*}} : !cir.ptr<!cir.double>, !cir.double
+// CIR: [[VAL:%.*]] = cir.load{{.*}} {{%.*}} : !cir.ptr<!cir.double>, !cir.double
 // CIR: {{%.*}} = cir.vec.splat [[VAL]] : !cir.double, !cir.vector<!cir.double x 2>
 
 // LLVM: {{.*}}test_vld1q_dup_f64(ptr{{.*}}[[PTR:%.*]])

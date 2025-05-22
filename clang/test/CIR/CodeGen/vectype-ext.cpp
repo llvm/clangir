@@ -98,7 +98,7 @@ void vector_int_test(int x) {
 
   // Insert element
   a[x] = x;
-  // CIR: %[[#LOADEDVI:]] = cir.load %[[#STORAGEVI:]] : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
+  // CIR: %[[#LOADEDVI:]] = cir.load{{.*}} %[[#STORAGEVI:]] : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
   // CIR: %[[#UPDATEDVI:]] = cir.vec.insert %{{[0-9]+}}, %[[#LOADEDVI]][%{{[0-9]+}} : !s32i] : !cir.vector<!s32i x 4>
   // CIR: cir.store{{.*}} %[[#UPDATEDVI]], %[[#STORAGEVI]] : !cir.vector<!s32i x 4>, !cir.ptr<!cir.vector<!s32i x 4>>
   // LLVM:      %[[#X1:]] = load i32, ptr %{{[0-9]+}}, align 4
@@ -270,7 +270,7 @@ void vector_double_test(int x, double y) {
 
   // Insert element
   a[x] = y;
-  // CIR: %[[#LOADEDVF:]] = cir.load %[[#STORAGEVF:]] : !cir.ptr<!cir.vector<!cir.double x 2>>, !cir.vector<!cir.double x 2>
+  // CIR: %[[#LOADEDVF:]] = cir.load{{.*}} %[[#STORAGEVF:]] : !cir.ptr<!cir.vector<!cir.double x 2>>, !cir.vector<!cir.double x 2>
   // CIR: %[[#UPDATEDVF:]] = cir.vec.insert %{{[0-9]+}}, %[[#LOADEDVF]][%{{[0-9]+}} : !s32i] : !cir.vector<!cir.double x 2>
   // CIR: cir.store{{.*}} %[[#UPDATEDVF]], %[[#STORAGEVF]] : !cir.vector<!cir.double x 2>, !cir.ptr<!cir.vector<!cir.double x 2>>
 
@@ -345,7 +345,7 @@ void test_load() {
   vi2 b;
 
   b = a.wz;
-  // CIR:      %[[#LOAD1:]] = cir.load %{{[0-9]+}} : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
+  // CIR:      %[[#LOAD1:]] = cir.load{{.*}} %{{[0-9]+}} : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
   // CIR-NEXT: %[[#SHUFFLE1:]] = cir.vec.shuffle(%[[#LOAD1]], %[[#LOAD1]] : !cir.vector<!s32i x 4>) [#cir.int<3> : !s32i, #cir.int<2> : !s32i] : !cir.vector<!s32i x 2>
   // CIR-NEXT: cir.store{{.*}} %[[#SHUFFLE1]], %{{[0-9]+}} : !cir.vector<!s32i x 2>, !cir.ptr<!cir.vector<!s32i x 2>>
 
@@ -354,7 +354,7 @@ void test_load() {
   // LLVM-NEXT: store <2 x i32> %[[#SHUFFLE1]], ptr %{{[0-9]+}}, align 8
 
   int one_elem_load = a.s2;
-  // CIR-NEXT: %[[#LOAD8:]] = cir.load %{{[0-9]+}} : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
+  // CIR-NEXT: %[[#LOAD8:]] = cir.load{{.*}} %{{[0-9]+}} : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
   // CIR-NEXT: %[[#EXTRACT_INDEX:]] = cir.const #cir.int<2> : !s64i
   // CIR-NEXT: %[[#EXTRACT1:]] = cir.vec.extract %[[#LOAD8]][%[[#EXTRACT_INDEX]] : !s64i] : !cir.vector<!s32i x 4>
   // CIR-NEXT: cir.store{{.*}} %[[#EXTRACT1]], %{{[0-9]+}} : !s32i, !cir.ptr<!s32i>
@@ -381,8 +381,8 @@ void test_store() {
   // LLVM-NEXT: %[[#PVECC:]] = alloca <3 x i32>
 
   a.xy = b;
-  // CIR:      %[[#LOAD4RHS:]] = cir.load %{{[0-9]+}} : !cir.ptr<!cir.vector<!s32i x 2>>, !cir.vector<!s32i x 2>
-  // CIR-NEXT: %[[#LOAD5LHS:]] = cir.load %{{[0-9]+}} : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
+  // CIR:      %[[#LOAD4RHS:]] = cir.load{{.*}} %{{[0-9]+}} : !cir.ptr<!cir.vector<!s32i x 2>>, !cir.vector<!s32i x 2>
+  // CIR-NEXT: %[[#LOAD5LHS:]] = cir.load{{.*}} %{{[0-9]+}} : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
   // CIR-NEXT: %[[#SHUFFLE5:]] = cir.vec.shuffle(%[[#LOAD4RHS]], %[[#LOAD4RHS]] : !cir.vector<!s32i x 2>) [#cir.int<0> : !s32i, #cir.int<1> : !s32i, #cir.int<-1> : !s32i, #cir.int<-1> : !s32i] : !cir.vector<!s32i x 4>
   // CIR-NEXT: %[[#SHUFFLE6:]] = cir.vec.shuffle(%[[#LOAD5LHS]], %[[#SHUFFLE5]] : !cir.vector<!s32i x 4>) [#cir.int<4> : !s32i, #cir.int<5> : !s32i, #cir.int<2> : !s32i, #cir.int<3> : !s32i] : !cir.vector<!s32i x 4>
   // CIR-NEXT: cir.store{{.*}} %[[#SHUFFLE6]], %{{[0-9]+}} : !cir.vector<!s32i x 4>, !cir.ptr<!cir.vector<!s32i x 4>>
@@ -396,7 +396,7 @@ void test_store() {
   // load single element
   a.s0 = 1;
   // CIR-NEXT: cir.const #cir.int<1>
-  // CIR-NEXT: %[[#LOAD7:]] = cir.load %{{[0-9]+}} : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
+  // CIR-NEXT: %[[#LOAD7:]] = cir.load{{.*}} %{{[0-9]+}} : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
   // CIR-NEXT: %[[#INSERT_INDEX:]] = cir.const #cir.int<0> : !s64i
   // CIR-NEXT: %[[#INSERT1:]] = cir.vec.insert %{{[0-9]+}}, %[[#LOAD7]][%[[#INSERT_INDEX]] : !s64i] : !cir.vector<!s32i x 4>
   // CIR-NEXT: cir.store{{.*}} %[[#INSERT1]], %{{[0-9]+}} : !cir.vector<!s32i x 4>, !cir.ptr<!cir.vector<!s32i x 4>>
@@ -407,8 +407,8 @@ void test_store() {
 
   // extend length from 2 to 4, then merge two vectors
   a.lo = b;
-  // CIR:      %[[#VECB:]] = cir.load %[[#PVECB]] : !cir.ptr<!cir.vector<!s32i x 2>>, !cir.vector<!s32i x 2>
-  // CIR-NEXT: %[[#VECA:]] = cir.load %[[#PVECA]] : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
+  // CIR:      %[[#VECB:]] = cir.load{{.*}} %[[#PVECB]] : !cir.ptr<!cir.vector<!s32i x 2>>, !cir.vector<!s32i x 2>
+  // CIR-NEXT: %[[#VECA:]] = cir.load{{.*}} %[[#PVECA]] : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
   // CIR-NEXT: %[[#EXTVECB:]] = cir.vec.shuffle(%[[#VECB]], %[[#VECB]] : !cir.vector<!s32i x 2>) [#cir.int<0> : !s32i, #cir.int<1> : !s32i, #cir.int<-1> : !s32i, #cir.int<-1> : !s32i] : !cir.vector<!s32i x 4>
   // CIR-NEXT: %[[#RESULT:]] = cir.vec.shuffle(%[[#VECA]], %[[#EXTVECB]] : !cir.vector<!s32i x 4>) [#cir.int<4> : !s32i, #cir.int<5> : !s32i, #cir.int<2> : !s32i, #cir.int<3> : !s32i] : !cir.vector<!s32i x 4>
   // CIR-NEXT: cir.store{{.*}} %[[#RESULT]], %[[#PVECA]] : !cir.vector<!s32i x 4>, !cir.ptr<!cir.vector<!s32i x 4>>
@@ -425,7 +425,7 @@ void test_store() {
   // the value in the w component undefined.
   b = c.hi;
 
-  // CIR-NEXT: %[[#VECC:]] = cir.load %[[#PVECC]] : !cir.ptr<!cir.vector<!s32i x 3>>, !cir.vector<!s32i x 3>
+  // CIR-NEXT: %[[#VECC:]] = cir.load{{.*}} %[[#PVECC]] : !cir.ptr<!cir.vector<!s32i x 3>>, !cir.vector<!s32i x 3>
   // CIR-NEXT: %[[#HIPART:]] = cir.vec.shuffle(%[[#VECC]], %[[#VECC]] : !cir.vector<!s32i x 3>) [#cir.int<2> : !s32i, #cir.int<3> : !s32i] : !cir.vector<!s32i x 2>
   // CIR-NEXT: cir.store{{.*}} %[[#HIPART]], %[[#PVECB]] : !cir.vector<!s32i x 2>, !cir.ptr<!cir.vector<!s32i x 2>>
 
@@ -436,8 +436,8 @@ void test_store() {
   // c.hi is c[2, 3], in which 3 should be ignored in CIRGen for store
   c.hi = b;
 
-  // CIR-NEXT: %[[#VECB:]] = cir.load %[[#PVECB]] : !cir.ptr<!cir.vector<!s32i x 2>>, !cir.vector<!s32i x 2>
-  // CIR-NEXT: %[[#VECC:]] = cir.load %[[#PVECC]] : !cir.ptr<!cir.vector<!s32i x 3>>, !cir.vector<!s32i x 3>
+  // CIR-NEXT: %[[#VECB:]] = cir.load{{.*}} %[[#PVECB]] : !cir.ptr<!cir.vector<!s32i x 2>>, !cir.vector<!s32i x 2>
+  // CIR-NEXT: %[[#VECC:]] = cir.load{{.*}} %[[#PVECC]] : !cir.ptr<!cir.vector<!s32i x 3>>, !cir.vector<!s32i x 3>
   // CIR-NEXT: %[[#EXTVECB:]] = cir.vec.shuffle(%[[#VECB]], %[[#VECB]] : !cir.vector<!s32i x 2>) [#cir.int<0> : !s32i, #cir.int<1> : !s32i, #cir.int<-1> : !s32i] : !cir.vector<!s32i x 3>
   // CIR-NEXT: %[[#RESULT:]] = cir.vec.shuffle(%[[#VECC]], %[[#EXTVECB]] : !cir.vector<!s32i x 3>) [#cir.int<0> : !s32i, #cir.int<1> : !s32i, #cir.int<3> : !s32i] : !cir.vector<!s32i x 3>
   // CIR-NEXT: cir.store{{.*}} %[[#RESULT]], %[[#PVECC]] : !cir.vector<!s32i x 3>, !cir.ptr<!cir.vector<!s32i x 3>>
@@ -471,8 +471,8 @@ void test_build_lvalue() {
 
   pv->x = 99;
   // CIR-NEXT: %[[#VAL:]] = cir.const #cir.int<99> : !s32i
-  // CIR-NEXT: %[[#PV:]] = cir.load %[[#ALLOCAPV]] : !cir.ptr<!cir.ptr<!cir.vector<!s32i x 4>>>, !cir.ptr<!cir.vector<!s32i x 4>>
-  // CIR-NEXT: %[[#V:]] = cir.load %[[#PV]] : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
+  // CIR-NEXT: %[[#PV:]] = cir.load{{.*}} %[[#ALLOCAPV]] : !cir.ptr<!cir.ptr<!cir.vector<!s32i x 4>>>, !cir.ptr<!cir.vector<!s32i x 4>>
+  // CIR-NEXT: %[[#V:]] = cir.load{{.*}} %[[#PV]] : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
   // CIR-NEXT: %[[#IDX:]] = cir.const #cir.int<0> : !s64i
   // CIR-NEXT: %[[#RESULT:]] = cir.vec.insert %[[#VAL]], %[[#V]][%[[#IDX]] : !s64i] : !cir.vector<!s32i x 4>
   // CIR-NEXT: cir.store{{.*}} %[[#RESULT]], %[[#PV]] : !cir.vector<!s32i x 4>, !cir.ptr<!cir.vector<!s32i x 4>>
@@ -484,11 +484,11 @@ void test_build_lvalue() {
 
   int s = (v+v).x;
 
-  // CIR-NEXT: %[[#LOAD1:]] = cir.load %[[#ALLOCAV]] : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
-  // CIR-NEXT: %[[#LOAD2:]] = cir.load %[[#ALLOCAV]] : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
+  // CIR-NEXT: %[[#LOAD1:]] = cir.load{{.*}} %[[#ALLOCAV]] : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
+  // CIR-NEXT: %[[#LOAD2:]] = cir.load{{.*}} %[[#ALLOCAV]] : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
   // CIR-NEXT: %[[#SUM:]] = cir.binop(add, %[[#LOAD1]], %[[#LOAD2]]) : !cir.vector<!s32i x 4>
   // CIR-NEXT: cir.store{{.*}} %[[#SUM]], %[[#ALLOCATMP]] : !cir.vector<!s32i x 4>, !cir.ptr<!cir.vector<!s32i x 4>>
-  // CIR-NEXT: %[[#TMP:]] = cir.load %[[#ALLOCATMP]] : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
+  // CIR-NEXT: %[[#TMP:]] = cir.load{{.*}} %[[#ALLOCATMP]] : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
   // CIR-NEXT: %[[#IDX:]] = cir.const #cir.int<0> : !s64i
   // CIR-NEXT: %[[#RESULT:]] = cir.vec.extract %[[#TMP]][%[[#IDX]] : !s64i] : !cir.vector<!s32i x 4>
   // CIR-NEXT: cir.store{{.*}} %[[#RESULT]], %[[#ALLOCAS]] : !s32i, !cir.ptr<!s32i>
@@ -502,7 +502,7 @@ void test_build_lvalue() {
   // LLVM-NEXT: store i32 %[[#RESULT]], ptr %[[#ALLOCAS]], align 4
 
   int r = v.xy.x;
-  // CIR-NEXT: %[[#V:]] = cir.load %[[#ALLOCAV]] : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
+  // CIR-NEXT: %[[#V:]] = cir.load{{.*}} %[[#ALLOCAV]] : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
   // CIR-NEXT: %[[#IDX:]] = cir.const #cir.int<0> : !s64i
   // CIR-NEXT: %[[#RESULT:]] = cir.vec.extract %[[#V]][%[[#IDX]] : !s64i] : !cir.vector<!s32i x 4>
   // CIR-NEXT: cir.store{{.*}} %[[#RESULT]], %[[#ALLOCAR]] : !s32i, !cir.ptr<!s32i>
@@ -526,7 +526,7 @@ void test_vec3() {
 
   v + 1;
   // CIR-NEXT: %[[#PV4:]] = cir.cast(bitcast, %[[#PV]] : !cir.ptr<!cir.vector<!s32i x 3>>), !cir.ptr<!cir.vector<!s32i x 4>>
-  // CIR-NEXT: %[[#V4:]] = cir.load %[[#PV4]] : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
+  // CIR-NEXT: %[[#V4:]] = cir.load{{.*}} %[[#PV4]] : !cir.ptr<!cir.vector<!s32i x 4>>, !cir.vector<!s32i x 4>
   // CIR-NEXT: %[[#V3:]] = cir.vec.shuffle(%[[#V4]], %[[#V4]] : !cir.vector<!s32i x 4>) [#cir.int<0> : !s32i, #cir.int<1> : !s32i, #cir.int<2> : !s32i] : !cir.vector<!s32i x 3>
   // CIR:      %[[#RES:]] = cir.binop(add, %[[#V3]], %{{[0-9]+}}) : !cir.vector<!s32i x 3>
 

@@ -78,7 +78,7 @@ struct S3 {
 void shouldCopyStructAsCallArg(struct S1 s) {
 // CHECK-DAG: cir.func @shouldCopyStructAsCallArg
   shouldCopyStructAsCallArg(s);
-  // CHECK-DAG: %[[#LV:]] = cir.load %{{.+}} : !cir.ptr<!rec_S1>, !rec_S1
+  // CHECK-DAG: %[[#LV:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!rec_S1>, !rec_S1
   // CHECK-DAG: cir.call @shouldCopyStructAsCallArg(%[[#LV]]) : (!rec_S1) -> ()
 }
 

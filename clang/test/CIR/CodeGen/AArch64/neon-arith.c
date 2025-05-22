@@ -22,16 +22,16 @@ float32_t test_vrndns_f32(float32_t a) {
 }
 // CIR: cir.func internal private @vrndns_f32(%arg0: !cir.float {{.*}}) -> !cir.float
 // CIR: cir.store %arg0, [[ARG_SAVE:%.*]] : !cir.float, !cir.ptr<!cir.float> 
-// CIR: [[INTRIN_ARG:%.*]] = cir.load [[ARG_SAVE]] : !cir.ptr<!cir.float>, !cir.float 
+// CIR: [[INTRIN_ARG:%.*]] = cir.load{{.*}} [[ARG_SAVE]] : !cir.ptr<!cir.float>, !cir.float 
 // CIR: {{%.*}} = cir.roundeven [[INTRIN_ARG]] : !cir.float
 // CIR: cir.return {{%.*}} : !cir.float
 
 // CIR-LABEL: test_vrndns_f32
 // CIR: cir.store %arg0, [[ARG_SAVE0:%.*]] : !cir.float, !cir.ptr<!cir.float> 
-// CIR: [[FUNC_ARG:%.*]] = cir.load [[ARG_SAVE]] : !cir.ptr<!cir.float>, !cir.float 
+// CIR: [[FUNC_ARG:%.*]] = cir.load{{.*}} [[ARG_SAVE]] : !cir.ptr<!cir.float>, !cir.float 
 // CIR: [[FUNC_RES:%.*]] = cir.call @vrndns_f32([[FUNC_ARG]]) : (!cir.float) -> !cir.float
 // CIR: cir.store [[FUNC_RES]], [[RET_P:%.*]] : !cir.float, !cir.ptr<!cir.float>
-// CIR: [[RET_VAL:%.*]] = cir.load [[RET_P]] : !cir.ptr<!cir.float>, !cir.float
+// CIR: [[RET_VAL:%.*]] = cir.load{{.*}} [[RET_P]] : !cir.ptr<!cir.float>, !cir.float
 // CIR: cir.return [[RET_VAL]] : !cir.float loc
 
 // LLVM: {{.*}}test_vrndns_f32(float{{.*}}[[ARG:%.*]])
@@ -44,7 +44,7 @@ float32x2_t test_vrnda_f32(float32x2_t a) {
 
 // CIR: cir.func internal private @vrnda_f32(%arg0: !cir.vector<!cir.float x 2>
 // CIR: cir.store %arg0, [[ARG_SAVE:%.*]] : !cir.vector<!cir.float x 2>, !cir.ptr<!cir.vector<!cir.float x 2>>
-// CIR: [[INTRIN_ARG:%.*]] = cir.load [[ARG_SAVE]] : !cir.ptr<!cir.vector<!cir.float x 2>>, !cir.vector<!cir.float x 2>
+// CIR: [[INTRIN_ARG:%.*]] = cir.load{{.*}} [[ARG_SAVE]] : !cir.ptr<!cir.vector<!cir.float x 2>>, !cir.vector<!cir.float x 2>
 // CIR: [[INTRIN_ARG_CAST:%.*]] = cir.cast(bitcast, [[INTRIN_ARG]] : !cir.vector<!cir.float x 2>), !cir.vector<!s8i x 8>
 // CIR: [[INTRIN_ARG_BACK:%.*]] = cir.cast(bitcast, [[INTRIN_ARG_CAST]] : !cir.vector<!s8i x 8>), !cir.vector<!cir.float x 2>
 // CIR: {{%.*}} = cir.round [[INTRIN_ARG_BACK]] : !cir.vector<!cir.float x 2>
@@ -52,10 +52,10 @@ float32x2_t test_vrnda_f32(float32x2_t a) {
 
 // CIR-LABEL: test_vrnda_f32
 // CIR: cir.store %arg0, [[ARG_SAVE0:%.*]] :  !cir.vector<!cir.float x 2>, !cir.ptr<!cir.vector<!cir.float x 2>> 
-// CIR: [[FUNC_ARG:%.*]] = cir.load [[ARG_SAVE]] : !cir.ptr<!cir.vector<!cir.float x 2>>, !cir.vector<!cir.float x 2> 
+// CIR: [[FUNC_ARG:%.*]] = cir.load{{.*}} [[ARG_SAVE]] : !cir.ptr<!cir.vector<!cir.float x 2>>, !cir.vector<!cir.float x 2> 
 // CIR: [[FUNC_RES:%.*]] = cir.call @vrnda_f32([[FUNC_ARG]]) : (!cir.vector<!cir.float x 2>) -> !cir.vector<!cir.float x 2>
 // CIR: cir.store [[FUNC_RES]], [[RET_P:%.*]] : !cir.vector<!cir.float x 2>, !cir.ptr<!cir.vector<!cir.float x 2>>
-// CIR: [[RET_VAL:%.*]] = cir.load [[RET_P]] : !cir.ptr<!cir.vector<!cir.float x 2>>, !cir.vector<!cir.float x 2>
+// CIR: [[RET_VAL:%.*]] = cir.load{{.*}} [[RET_P]] : !cir.ptr<!cir.vector<!cir.float x 2>>, !cir.vector<!cir.float x 2>
 // CIR: cir.return [[RET_VAL]] : !cir.vector<!cir.float x 2>
 
 // LLVM: {{.*}}test_vrnda_f32(<2 x float>{{.*}}[[ARG:%.*]])
@@ -68,7 +68,7 @@ float32x4_t test_vrndaq_f32(float32x4_t a) {
 
 // CIR: cir.func internal private @vrndaq_f32(%arg0: !cir.vector<!cir.float x 4>
 // CIR: cir.store %arg0, [[ARG_SAVE:%.*]] : !cir.vector<!cir.float x 4>, !cir.ptr<!cir.vector<!cir.float x 4>>
-// CIR: [[INTRIN_ARG:%.*]] = cir.load [[ARG_SAVE]] : !cir.ptr<!cir.vector<!cir.float x 4>>, !cir.vector<!cir.float x 4>
+// CIR: [[INTRIN_ARG:%.*]] = cir.load{{.*}} [[ARG_SAVE]] : !cir.ptr<!cir.vector<!cir.float x 4>>, !cir.vector<!cir.float x 4>
 // CIR: [[INTRIN_ARG_CAST:%.*]] = cir.cast(bitcast, [[INTRIN_ARG]] : !cir.vector<!cir.float x 4>), !cir.vector<!s8i x 16>
 // CIR: [[INTRIN_ARG_BACK:%.*]] = cir.cast(bitcast, [[INTRIN_ARG_CAST]] : !cir.vector<!s8i x 16>), !cir.vector<!cir.float x 4>
 // CIR: {{%.*}} = cir.round [[INTRIN_ARG_BACK]] : !cir.vector<!cir.float x 4>

@@ -2946,16 +2946,9 @@ mlir::Value CIRGenFunction::emitLoadOfScalar(Address addr, bool isVolatile,
     llvm_unreachable("NYI");
   }
 
-  // TODO(cir): modernize this with addr.withElementType(convertTypeForLoadStore
-  auto Ptr = addr.getPointer();
-  if (mlir::isa<cir::VoidType>(eltTy)) {
-    eltTy = cir::IntType::get(&getMLIRContext(), 8, true);
-    auto ElemPtrTy = cir::PointerType::get(eltTy);
-    Ptr = builder.create<cir::CastOp>(loc, ElemPtrTy, cir::CastKind::bitcast,
-                                      Ptr);
-  }
-  auto loadOp =
-      builder.CIRBaseBuilderTy::createLoad(loc, Ptr, isVolatile, isNontemporal);
+  if (mlir::isa<cir::VoidType>(eltTy))
+    addr = addr.withElementType(builder, builder.getUIntNTy(8));
+  auto loadOp = builder.createLoad(loc, addr, isVolatile, isNontemporal);
 
   CGM.decorateOperationWithTBAA(loadOp, tbaaInfo);
 

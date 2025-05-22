@@ -11,9 +11,9 @@ int c0() {
 // CHECK: %[[#RET:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"]
 // CHECK: %[[#A:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["a", init]
 // CHECK: %[[#B:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["b", init]
-// CHECK: %[[#LOADED_B:]] = cir.load %[[#B]] : !cir.ptr<!s32i>, !s32i
+// CHECK: %[[#LOADED_B:]] = cir.load{{.*}} %[[#B]] : !cir.ptr<!s32i>, !s32i
 // CHECK: %[[#]] = cir.binop(add, %[[#LOADED_B]], %[[#]]) nsw : !s32i
-// CHECK: %[[#LOADED_A:]] = cir.load %[[#A]] : !cir.ptr<!s32i>, !s32i
+// CHECK: %[[#LOADED_A:]] = cir.load{{.*}} %[[#A]] : !cir.ptr<!s32i>, !s32i
 // CHECK: cir.store{{.*}} %[[#LOADED_A]], %[[#RET]] : !s32i, !cir.ptr<!s32i>
 
 int &foo1();

@@ -1391,7 +1391,7 @@ int8x8_t test_splat_lane_s8(int8x8_t v) {
   return (int8x8_t) __builtin_neon_splat_lane_v((int8x8_t)v, 7, 0);
 
   // CIR-LABEL: test_splat_lane_s8
-  // CIR: [[VEC:%.*]] = cir.load {{%.*}} : !cir.ptr<!cir.vector<!s8i x 8>>, !cir.vector<!s8i x 8>
+  // CIR: [[VEC:%.*]] = cir.load {{.*}} {{%.*}} : !cir.ptr<!cir.vector<!s8i x 8>>, !cir.vector<!s8i x 8>
   // CIR: cir.vec.shuffle([[VEC]], [[VEC]] : !cir.vector<!s8i x 8>)
   // CIR-SAME: [#cir.int<7> : !s32i, #cir.int<7> : !s32i, #cir.int<7> : !s32i, #cir.int<7> : !s32i, 
   // CIR-SAME:  #cir.int<7> : !s32i, #cir.int<7> : !s32i, #cir.int<7> : !s32i, #cir.int<7> : !s32i] : !cir.vector<!s8i x 8>
@@ -1535,7 +1535,7 @@ int8x16_t test_splatq_lane_s8(int8x8_t v) {
   return (int8x16_t) __builtin_neon_splatq_lane_v((int8x8_t)v, 7, 0);
 
   // CIR-LABEL: test_splatq_lane_s8
-  // CIR: [[VEC:%.*]] = cir.load {{%.*}} : !cir.ptr<!cir.vector<!s8i x 8>>, !cir.vector<!s8i x 8>
+  // CIR: [[VEC:%.*]] = cir.load {{.*}} {{%.*}} : !cir.ptr<!cir.vector<!s8i x 8>>, !cir.vector<!s8i x 8>
   // CIR: [[TMP0:%.*]] = cir.vec.shuffle([[VEC]], [[VEC]] : !cir.vector<!s8i x 8>)
   // CIR-SAME: [#cir.int<7> : !s32i, #cir.int<7> : !s32i, #cir.int<7> : !s32i, #cir.int<7> : !s32i, 
   // CIR-SAME:  #cir.int<7> : !s32i, #cir.int<7> : !s32i, #cir.int<7> : !s32i, #cir.int<7> : !s32i,
@@ -1691,7 +1691,7 @@ int8x8_t test_splat_laneq_s8(int8x16_t v) {
   return (int8x8_t) __builtin_neon_splat_laneq_v((int8x16_t)v, 15, 32);
 
   // CIR-LABEL: test_splat_laneq_s8
-  // CIR: [[VEC:%.*]] = cir.load {{.*}} : !cir.ptr<!cir.vector<!s8i x 16>>, !cir.vector<!s8i x 16>
+  // CIR: [[VEC:%.*]] = cir.load {{.*}} {{.*}} : !cir.ptr<!cir.vector<!s8i x 16>>, !cir.vector<!s8i x 16>
   // CIR: cir.vec.shuffle([[VEC]], [[VEC]] : !cir.vector<!s8i x 16>)
   // CIR-SAME: [#cir.int<15> : !s32i, #cir.int<15> : !s32i, #cir.int<15> : !s32i, #cir.int<15> : !s32i,
   // CIR-SAME:  #cir.int<15> : !s32i, #cir.int<15> : !s32i, #cir.int<15> : !s32i, #cir.int<15> : !s32i] : !cir.vector<!s8i x 8>
@@ -1841,7 +1841,7 @@ int8x16_t test_splatq_laneq_s8(int8x16_t v) {
   return (int8x16_t) __builtin_neon_splatq_laneq_v((int8x16_t)v, 15, 32);
 
   // CIR-LABEL: test_splatq_laneq_s8
-  // CIR: [[VEC:%.*]] = cir.load {{.*}} : !cir.ptr<!cir.vector<!s8i x 16>>, !cir.vector<!s8i x 16>
+  // CIR: [[VEC:%.*]] = cir.load {{.*}} {{.*}} : !cir.ptr<!cir.vector<!s8i x 16>>, !cir.vector<!s8i x 16>
   // CIR: cir.vec.shuffle([[VEC]], [[VEC]] : !cir.vector<!s8i x 16>)
   // CIR-SAME: [#cir.int<15> : !s32i, #cir.int<15> : !s32i, #cir.int<15> : !s32i, #cir.int<15> : !s32i,
   // CIR-SAME:  #cir.int<15> : !s32i, #cir.int<15> : !s32i, #cir.int<15> : !s32i, #cir.int<15> : !s32i,

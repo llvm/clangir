@@ -56,7 +56,7 @@ void if0() {
 // CHECK-NEXT:   %3 = cir.alloca !s32i, !cir.ptr<!s32i>, ["y", init] {{.*}}
 // CHECK-NEXT:   %4 = cir.const #cir.int<7> : !s32i loc({{.*}})
 // CHECK-NEXT:   cir.store{{.*}} %4, %2 : !s32i, !cir.ptr<!s32i> loc({{.*}})
-// CHECK-NEXT:   %5 = cir.load %2 : !cir.ptr<!s32i>, !s32i loc({{.*}})
+// CHECK-NEXT:   %5 = cir.load{{.*}} %2 : !cir.ptr<!s32i>, !s32i loc({{.*}})
 // CHECK-NEXT:   cir.store{{.*}} %5, %3 : !s32i, !cir.ptr<!s32i> loc({{.*}})
 // CHECK-NEXT: } loc({{.*}})
 // CHECK-NEXT: cir.scope {
@@ -65,7 +65,7 @@ void if0() {
 // CHECK-NEXT:   %4 = cir.const #cir.int<9> : !s32i loc({{.*}})
 // CHECK-NEXT:   cir.store{{.*}} %4, %2 : !s32i, !cir.ptr<!s32i> loc({{.*}})
 // CHECK-NEXT:   %5 = cir.const #cir.int<3> : !s32i loc({{.*}})
-// CHECK-NEXT:   %6 = cir.load %2 : !cir.ptr<!s32i>, !s32i loc({{.*}})
+// CHECK-NEXT:   %6 = cir.load{{.*}} %2 : !cir.ptr<!s32i>, !s32i loc({{.*}})
 // CHECK-NEXT:   %7 = cir.binop(mul, %5, %6) nsw : !s32i loc({{.*}})
 // CHECK-NEXT:   cir.store{{.*}} %7, %3 : !s32i, !cir.ptr<!s32i> loc({{.*}})
 // CHECK-NEXT: } loc({{.*}})
@@ -80,7 +80,7 @@ void if0() {
 // CHECK-NEXT:   %4 = cir.const #cir.int<70> : !s32i loc({{.*}})
 // CHECK-NEXT:   cir.store{{.*}} %4, %2 : !s32i, !cir.ptr<!s32i> loc({{.*}})
 // CHECK-NEXT:   %5 = cir.const #cir.int<10> : !s32i loc({{.*}})
-// CHECK-NEXT:   %6 = cir.load %2 : !cir.ptr<!s32i>, !s32i loc({{.*}})
+// CHECK-NEXT:   %6 = cir.load{{.*}} %2 : !cir.ptr<!s32i>, !s32i loc({{.*}})
 // CHECK-NEXT:   %7 = cir.binop(mul, %5, %6) nsw : !s32i loc({{.*}})
 // CHECK-NEXT:   cir.store{{.*}} %7, %3 : !s32i, !cir.ptr<!s32i> loc({{.*}})
 // CHECK-NEXT: } loc({{.*}})
