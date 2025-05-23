@@ -87,7 +87,7 @@ bool bar() { return foo(1) || foo(2); }
 // CHECK:     cir.store %[[V5]], %[[V0]] : !cir.bool, !cir.ptr<!cir.bool>
 // CHECK:     cir.call @_ZN1XD2Ev(%[[V2]]) : (!cir.ptr<!rec_X>) -> ()
 // CHECK:   }
-// CHECK:   %[[V1:.*]] = cir.load %[[V0]] : !cir.ptr<!cir.bool>, !cir.bool
+// CHECK:   %[[V1:.*]] = cir.load{{.*}} %[[V0]] : !cir.ptr<!cir.bool>, !cir.bool
 // CHECK:   cir.return %[[V1]] : !cir.bool
 // CHECK: }
 
@@ -125,7 +125,7 @@ bool bar2() { return foo(1) && foo(2); }
 // CHECK:   cir.func linkonce_odr @_ZN1BD0Ev(%arg0: !cir.ptr<![[ClassB]]>
 // CHECK:     %0 = cir.alloca !cir.ptr<![[ClassB]]>, !cir.ptr<!cir.ptr<![[ClassB]]>>, ["this", init] {alignment = 8 : i64}
 // CHECK:     cir.store %arg0, %0 : !cir.ptr<![[ClassB]]>, !cir.ptr<!cir.ptr<![[ClassB]]>>
-// CHECK:     %1 = cir.load %0 : !cir.ptr<!cir.ptr<![[ClassB]]>>, !cir.ptr<![[ClassB]]>
+// CHECK:     %1 = cir.load{{.*}} %0 : !cir.ptr<!cir.ptr<![[ClassB]]>>, !cir.ptr<![[ClassB]]>
 // CHECK:     cir.call @_ZN1BD2Ev(%1) : (!cir.ptr<![[ClassB]]>) -> ()
 // CHECK:     %2 = cir.cast(bitcast, %1 : !cir.ptr<![[ClassB]]>), !cir.ptr<!void>
 // CHECK:     cir.call @_ZdlPvm(%2, %3) : (!cir.ptr<!void>, !u64i) -> ()
@@ -167,11 +167,11 @@ void m() { G l(j); }
 // CHECK:   %[[V0:.*]] = cir.alloca !cir.ptr<!rec_G>, !cir.ptr<!cir.ptr<!rec_G>>, ["this", init] {alignment = 8 : i64}
 // CHECK:   %[[V1:.*]] = cir.alloca !s64i, !cir.ptr<!s64i>, ["__retval"] {alignment = 8 : i64}
 // CHECK:   cir.store %arg0, %[[V0]] : !cir.ptr<!rec_G>, !cir.ptr<!cir.ptr<!rec_G>>
-// CHECK:   %[[V2:.*]] = cir.load %[[V0]] : !cir.ptr<!cir.ptr<!rec_G>>, !cir.ptr<!rec_G>
+// CHECK:   %[[V2:.*]] = cir.load{{.*}} %[[V0]] : !cir.ptr<!cir.ptr<!rec_G>>, !cir.ptr<!rec_G>
 // CHECK:   %[[V3:.*]] = cir.scope {
 // CHECK:     %[[V4:.*]] = cir.alloca !rec_A2, !cir.ptr<!rec_A2>, ["agg.tmp0"] {alignment = 1 : i64}
 // CHECK:     cir.call @_ZN2A2C2Ev(%[[V4]]) : (!cir.ptr<!rec_A2>) -> ()
-// CHECK:     %[[V5:.*]] = cir.load %[[V4]] : !cir.ptr<!rec_A2>, !rec_A2
+// CHECK:     %[[V5:.*]] = cir.load{{.*}} %[[V4]] : !cir.ptr<!rec_A2>, !rec_A2
 // CHECK:     %[[V6:.*]] = cir.call @_ZN1G1kE2A2(%[[V2]], %[[V5]]) : (!cir.ptr<!rec_G>, !rec_A2) -> !s64i
 // CHECK:     cir.call @_ZN2A2D1Ev(%[[V4]]) : (!cir.ptr<!rec_A2>) -> ()
 // CHECK:     cir.yield %[[V6]] : !s64i

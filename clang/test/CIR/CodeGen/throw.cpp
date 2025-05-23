@@ -51,7 +51,7 @@ void refoo1() {
 // CIR:       cir.yield
 // CIR:     } catch [type #cir.all {
 // CIR:       %[[V3:.*]] = cir.catch_param -> !cir.ptr<!void>
-// CIR:       %[[V4:.*]] = cir.load %[[V0]] : !cir.ptr<!s32i>, !s32i
+// CIR:       %[[V4:.*]] = cir.load{{.*}} %[[V0]] : !cir.ptr<!s32i>, !s32i
 // CIR:       %[[V5:.*]] = cir.unary(inc, %[[V4]]) nsw : !s32i, !s32i
 // CIR:       cir.store{{.*}} %[[V5]], %[[V0]] : !s32i, !cir.ptr<!s32i>
 // CIR:       cir.yield
@@ -120,7 +120,7 @@ void refoo2() {
 // CIR:         %[[V4:.*]] = cir.const #cir.int<0> : !s32i
 // CIR:         cir.store{{.*}} %[[V4]], %[[V3]] : !s32i, !cir.ptr<!s32i>
 // CIR:         cir.for : cond {
-// CIR:           %[[V5:.*]] = cir.load %[[V3]] : !cir.ptr<!s32i>, !s32i
+// CIR:           %[[V5:.*]] = cir.load{{.*}} %[[V3]] : !cir.ptr<!s32i>, !s32i
 // CIR:           %[[V6:.*]] = cir.const #cir.int<5> : !s32i
 // CIR:           %[[V7:.*]] = cir.cmp(lt, %[[V5]], %[[V6]]) : !s32i, !cir.bool
 // CIR:           cir.condition(%[[V7]])
@@ -135,7 +135,7 @@ void refoo2() {
 // CIR:           }
 // CIR:           cir.yield
 // CIR:         } step {
-// CIR:           %[[V5:.*]] = cir.load %[[V3]] : !cir.ptr<!s32i>, !s32i
+// CIR:           %[[V5:.*]] = cir.load{{.*}} %[[V3]] : !cir.ptr<!s32i>, !s32i
 // CIR:           %[[V6:.*]] = cir.unary(inc, %[[V5]]) nsw : !s32i, !s32i
 // CIR:           cir.store{{.*}} %[[V6]], %[[V3]] : !s32i, !cir.ptr<!s32i>
 // CIR:           cir.yield
@@ -145,7 +145,7 @@ void refoo2() {
 // CIR:       cir.yield
 // CIR:     } catch [type #cir.all {
 // CIR:       %[[V3:.*]] = cir.catch_param -> !cir.ptr<!void>
-// CIR:       %[[V4:.*]] = cir.load %[[V0]] : !cir.ptr<!s32i>, !s32i
+// CIR:       %[[V4:.*]] = cir.load{{.*}} %[[V0]] : !cir.ptr<!s32i>, !s32i
 // CIR:       %[[V5:.*]] = cir.unary(inc, %[[V4]]) nsw : !s32i, !s32i
 // CIR:       cir.store{{.*}} %[[V5]], %[[V0]] : !s32i, !cir.ptr<!s32i>
 // CIR:       cir.yield
@@ -227,7 +227,7 @@ void refoo3() {
 // CIR:       cir.yield
 // CIR:     } catch [type #cir.all {
 // CIR:       %[[V3:.*]] = cir.catch_param -> !cir.ptr<!void>
-// CIR:       %[[V4:.*]] = cir.load %[[V0]] : !cir.ptr<!s32i>, !s32i
+// CIR:       %[[V4:.*]] = cir.load{{.*}} %[[V0]] : !cir.ptr<!s32i>, !s32i
 // CIR:       %[[V5:.*]] = cir.unary(inc, %[[V4]]) nsw : !s32i, !s32i
 // CIR:       cir.store{{.*}} %[[V5]], %[[V0]] : !s32i, !cir.ptr<!s32i>
 // CIR:       cir.yield

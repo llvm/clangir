@@ -50,7 +50,7 @@ namespace test15 {
   // CIR:           %[[VAL_1:.*]] = cir.alloca !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>, ["p", init] {alignment = 8 : i64}
   // CIR:           cir.store %[[VAL_0]], %[[VAL_1]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
   // CIR:           %[[VAL_2:.*]] = cir.const #cir.int<1> : !u64i
-  // CIR:           %[[VAL_3:.*]] = cir.load %[[VAL_1]] : !cir.ptr<!cir.ptr<!void>>, !cir.ptr<!void>
+  // CIR:           %[[VAL_3:.*]] = cir.load{{.*}} %[[VAL_1]] : !cir.ptr<!cir.ptr<!void>>, !cir.ptr<!void>
   // CIR:           %[[VAL_4:.*]] = cir.const #true
   // CIR:           %[[VAL_5:.*]] = cir.call @_ZnwmPvb(%[[VAL_2]], %[[VAL_3]], %[[VAL_4]])
   // CIR:           %[[VAL_6:.*]] = cir.const #cir.ptr<null> : !cir.ptr<!void>

@@ -16,7 +16,7 @@ kernel void test_static(int i) {
   // CIR-DAG: %[[#ADDRC:]] = cir.get_global @test_static.c : !cir.ptr<!s32i, addrspace(offload_local)>
 
   c = b;
-  // CIR:      %[[#LOADB:]] = cir.load %[[#ADDRB]] : !cir.ptr<!s32i, addrspace(offload_global)>, !s32i
+  // CIR:      %[[#LOADB:]] = cir.load{{.*}} %[[#ADDRB]] : !cir.ptr<!s32i, addrspace(offload_global)>, !s32i
   // CIR-NEXT: cir.store{{.*}} %[[#LOADB]], %[[#ADDRC]] : !s32i, !cir.ptr<!s32i, addrspace(offload_local)>
 
   // LLVM:     %[[#LOADB:]] = load i32, ptr addrspace(1) @test_static.b, align 4

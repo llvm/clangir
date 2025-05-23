@@ -33,8 +33,8 @@ int extract_a(Data* d) {
 // CIR:   cir.store{{.*}} [[TMP3]], [[TMP2]] : !cir.ptr<!cir.func<(!cir.ptr<!rec_Data>) -> !s32i>>, !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Data>) -> !s32i>>>
 // CIR:   [[TMP4:%.*]] = cir.get_global {{@.*extract_a.*}} : !cir.ptr<!cir.func<(!cir.ptr<!rec_Data>) -> !s32i>>
 // CIR:   cir.store{{.*}} [[TMP4]], [[TMP2]] : !cir.ptr<!cir.func<(!cir.ptr<!rec_Data>) -> !s32i>>, !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Data>) -> !s32i>>>
-// CIR:   [[TMP5:%.*]] = cir.load [[TMP2]] : !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Data>) -> !s32i>>>, !cir.ptr<!cir.func<(!cir.ptr<!rec_Data>) -> !s32i>>
-// CIR:   [[TMP6:%.*]] = cir.load [[TMP0]] : !cir.ptr<!cir.ptr<!rec_Data>>, !cir.ptr<!rec_Data>
+// CIR:   [[TMP5:%.*]] = cir.load{{.*}} [[TMP2]] : !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Data>) -> !s32i>>>, !cir.ptr<!cir.func<(!cir.ptr<!rec_Data>) -> !s32i>>
+// CIR:   [[TMP6:%.*]] = cir.load{{.*}} [[TMP0]] : !cir.ptr<!cir.ptr<!rec_Data>>, !cir.ptr<!rec_Data>
 // CIR:   [[TMP7:%.*]] = cir.call [[TMP5]]([[TMP6]]) : (!cir.ptr<!cir.func<(!cir.ptr<!rec_Data>) -> !s32i>>, !cir.ptr<!rec_Data>) -> !s32i
 // CIR:   cir.store{{.*}} [[TMP7]], [[TMP1]] : !s32i, !cir.ptr<!s32i>
 

@@ -15,6 +15,6 @@ double dot() {
 // CHECK-NEXT: %5 = cir.const #cir.fp<0.000000e+00> : !cir.float
 // CHECK-NEXT: %6 = cir.cast(floating, %5 : !cir.float), !cir.double
 // CHECK-NEXT: cir.store{{.*}} %6, %2 : !cir.double, !cir.ptr<!cir.double>
-// CHECK-NEXT: %7 = cir.load %1 : !cir.ptr<!cir.double>, !cir.double
-// CHECK-NEXT: %8 = cir.load %2 : !cir.ptr<!cir.double>, !cir.double
+// CHECK-NEXT: %7 = cir.load{{.*}} %1 : !cir.ptr<!cir.double>, !cir.double
+// CHECK-NEXT: %8 = cir.load{{.*}} %2 : !cir.ptr<!cir.double>, !cir.double
 // CHECK-NEXT: %9 = cir.binop(mul, %7, %8) : !cir.double

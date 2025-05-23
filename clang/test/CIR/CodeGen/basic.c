@@ -15,10 +15,10 @@ int foo(int i) {
 // CIR-NEXT: %0 = cir.alloca !s32i, !cir.ptr<!s32i>, ["i", init] {alignment = 4 : i64}
 // CIR-NEXT: %1 = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"] {alignment = 4 : i64}
 // CIR-NEXT: cir.store{{.*}} %arg0, %0 : !s32i, !cir.ptr<!s32i>
-// CIR-NEXT: %2 = cir.load %0 : !cir.ptr<!s32i>, !s32i
-// CIR-NEXT: %3 = cir.load %0 : !cir.ptr<!s32i>, !s32i
+// CIR-NEXT: %2 = cir.load{{.*}} %0 : !cir.ptr<!s32i>, !s32i
+// CIR-NEXT: %3 = cir.load{{.*}} %0 : !cir.ptr<!s32i>, !s32i
 // CIR-NEXT: cir.store{{.*}} %3, %1 : !s32i, !cir.ptr<!s32i>
-// CIR-NEXT: %4 = cir.load %1 : !cir.ptr<!s32i>, !s32i
+// CIR-NEXT: %4 = cir.load{{.*}} %1 : !cir.ptr<!s32i>, !s32i
 // CIR-NEXT: cir.return %4 : !s32i
 
 int f2(void) { return 3; }
@@ -27,7 +27,7 @@ int f2(void) { return 3; }
 // CIR-NEXT: %0 = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"] {alignment = 4 : i64}
 // CIR-NEXT: %1 = cir.const #cir.int<3> : !s32i
 // CIR-NEXT: cir.store{{.*}} %1, %0 : !s32i, !cir.ptr<!s32i>
-// CIR-NEXT: %2 = cir.load %0 : !cir.ptr<!s32i>, !s32i
+// CIR-NEXT: %2 = cir.load{{.*}} %0 : !cir.ptr<!s32i>, !s32i
 // CIR-NEXT: cir.return %2 : !s32i
 
 // LLVM: define dso_local i32 @f2()
@@ -48,7 +48,7 @@ int f3(void) {
 // CIR-NEXT: %1 = cir.alloca !s32i, !cir.ptr<!s32i>, ["i", init] {alignment = 4 : i64}
 // CIR-NEXT: %2 = cir.const #cir.int<3> : !s32i
 // CIR-NEXT: cir.store{{.*}} %2, %1 : !s32i, !cir.ptr<!s32i>
-// CIR-NEXT: %3 = cir.load %1 : !cir.ptr<!s32i>, !s32i
+// CIR-NEXT: %3 = cir.load{{.*}} %1 : !cir.ptr<!s32i>, !s32i
 // CIR-NEXT: cir.store{{.*}} %3, %0 : !s32i, !cir.ptr<!s32i>
-// CIR-NEXT: %4 = cir.load %0 : !cir.ptr<!s32i>, !s32i
+// CIR-NEXT: %4 = cir.load{{.*}} %0 : !cir.ptr<!s32i>, !s32i
 // CIR-NEXT: cir.return %4 : !s32i

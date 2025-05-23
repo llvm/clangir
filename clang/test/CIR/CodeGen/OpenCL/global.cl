@@ -18,7 +18,7 @@ constant int c[2] = {18, 21};
 kernel void test_get_global() {
   a = b;
   // CIR:      %[[#ADDRB:]] = cir.get_global @b : !cir.ptr<!s32i, addrspace(offload_global)>
-  // CIR-NEXT: %[[#LOADB:]] = cir.load %[[#ADDRB]] : !cir.ptr<!s32i, addrspace(offload_global)>, !s32i
+  // CIR-NEXT: %[[#LOADB:]] = cir.load{{.*}} %[[#ADDRB]] : !cir.ptr<!s32i, addrspace(offload_global)>, !s32i
   // CIR-NEXT: %[[#ADDRA:]] = cir.get_global @a : !cir.ptr<!s32i, addrspace(offload_global)>
   // CIR-NEXT: cir.store{{.*}} %[[#LOADB]], %[[#ADDRA]] : !s32i, !cir.ptr<!s32i, addrspace(offload_global)>
 

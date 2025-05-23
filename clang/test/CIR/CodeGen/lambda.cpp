@@ -45,14 +45,14 @@ void l0() {
 
 // CHECK: %0 = cir.alloca !cir.ptr<!rec_anon2E2>, !cir.ptr<!cir.ptr<!rec_anon2E2>>, ["this", init] {alignment = 8 : i64}
 // CHECK: cir.store{{.*}} %arg0, %0 : !cir.ptr<!rec_anon2E2>, !cir.ptr<!cir.ptr<!rec_anon2E2>>
-// CHECK: %1 = cir.load %0 : !cir.ptr<!cir.ptr<!rec_anon2E2>>, !cir.ptr<!rec_anon2E2>
+// CHECK: %1 = cir.load{{.*}} %0 : !cir.ptr<!cir.ptr<!rec_anon2E2>>, !cir.ptr<!rec_anon2E2>
 // CHECK: %2 = cir.get_member %1[0] {name = "i"} : !cir.ptr<!rec_anon2E2> -> !cir.ptr<!cir.ptr<!s32i>>
-// CHECK: %3 = cir.load %2 : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
-// CHECK: %4 = cir.load %3 : !cir.ptr<!s32i>, !s32i
+// CHECK: %3 = cir.load{{.*}} %2 : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
+// CHECK: %4 = cir.load{{.*}} %3 : !cir.ptr<!s32i>, !s32i
 // CHECK: %5 = cir.const #cir.int<1> : !s32i
 // CHECK: %6 = cir.binop(add, %4, %5) nsw : !s32i
 // CHECK: %7 = cir.get_member %1[0] {name = "i"} : !cir.ptr<!rec_anon2E2> -> !cir.ptr<!cir.ptr<!s32i>>
-// CHECK: %8 = cir.load %7 : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
+// CHECK: %8 = cir.load{{.*}} %7 : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
 // CHECK: cir.store{{.*}} %6, %8 : !s32i, !cir.ptr<!s32i>
 
 // CHECK-LABEL: _Z2l0v
@@ -101,7 +101,7 @@ auto g() {
 // CHECK: cir.store{{.*}} %2, %1 : !s32i, !cir.ptr<!s32i>
 // CHECK: %3 = cir.get_member %0[0] {name = "i"} : !cir.ptr<!rec_anon2E3> -> !cir.ptr<!cir.ptr<!s32i>>
 // CHECK: cir.store{{.*}} %1, %3 : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
-// CHECK: %4 = cir.load %0 : !cir.ptr<!rec_anon2E3>, !rec_anon2E3
+// CHECK: %4 = cir.load{{.*}} %0 : !cir.ptr<!rec_anon2E3>, !rec_anon2E3
 // CHECK: cir.return %4 : !rec_anon2E3
 
 // LLVM-LABEL: @_Z1gv()
@@ -130,7 +130,7 @@ auto g2() {
 // CHECK-NEXT: cir.store{{.*}} %2, %1 : !s32i, !cir.ptr<!s32i>
 // CHECK-NEXT: %3 = cir.get_member %0[0] {name = "i"} : !cir.ptr<!rec_anon2E4> -> !cir.ptr<!cir.ptr<!s32i>>
 // CHECK-NEXT: cir.store{{.*}} %1, %3 : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
-// CHECK-NEXT: %4 = cir.load %0 : !cir.ptr<!rec_anon2E4>, !rec_anon2E4
+// CHECK-NEXT: %4 = cir.load{{.*}} %0 : !cir.ptr<!rec_anon2E4>, !rec_anon2E4
 // CHECK-NEXT: cir.return %4 : !rec_anon2E4
 
 // LLVM-LABEL: @_Z2g2v()
@@ -155,7 +155,7 @@ int f() {
 // CHECK-NEXT:     %4 = cir.call @_ZZ2g2vENK3$_0clEv(%2) : (!cir.ptr<!rec_anon2E4>) -> !s32i
 // CHECK-NEXT:     cir.store{{.*}} %4, %0 : !s32i, !cir.ptr<!s32i>
 // CHECK-NEXT:   }
-// CHECK-NEXT:   %1 = cir.load %0 : !cir.ptr<!s32i>, !s32i
+// CHECK-NEXT:   %1 = cir.load{{.*}} %0 : !cir.ptr<!s32i>, !s32i
 // CHECK-NEXT:   cir.return %1 : !s32i
 // CHECK-NEXT: }
 
@@ -222,7 +222,7 @@ int g3() {
 // CHECK:     cir.store{{.*}} %3, %1 : !cir.ptr<!cir.func<(!cir.ptr<!s32i>) -> !s32i>>, !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!s32i>) -> !s32i>>>
 // CHECK:     %4 = cir.scope {
 // CHECK:       %7 = cir.alloca !s32i, !cir.ptr<!s32i>, ["ref.tmp1", init] {alignment = 4 : i64}
-// CHECK:       %8 = cir.load %1 : !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!s32i>) -> !s32i>>>, !cir.ptr<!cir.func<(!cir.ptr<!s32i>) -> !s32i>>
+// CHECK:       %8 = cir.load{{.*}} %1 : !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!s32i>) -> !s32i>>>, !cir.ptr<!cir.func<(!cir.ptr<!s32i>) -> !s32i>>
 // CHECK:       %9 = cir.const #cir.int<3> : !s32i
 // CHECK:       cir.store{{.*}} %9, %7 : !s32i, !cir.ptr<!s32i>
 
@@ -304,12 +304,12 @@ struct A {
 // CHECK: [[ARG_ADDR:%.*]] = cir.alloca !cir.ptr<!rec_anon2E7>, !cir.ptr<!cir.ptr<!rec_anon2E7>>, ["this", init] {alignment = 8 : i64}
 // CHECK: [[RETVAL_ADDR:%.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"] {alignment = 4 : i64}
 // CHECK: cir.store{{.*}} [[ARG]], [[ARG_ADDR]] : !cir.ptr<!rec_anon2E7>, !cir.ptr<!cir.ptr<!rec_anon2E7>>
-// CHECK: [[CLS_ANNO7:%.*]] = cir.load [[ARG_ADDR]] : !cir.ptr<!cir.ptr<!rec_anon2E7>>, !cir.ptr<!rec_anon2E7>
+// CHECK: [[CLS_ANNO7:%.*]] = cir.load{{.*}} [[ARG_ADDR]] : !cir.ptr<!cir.ptr<!rec_anon2E7>>, !cir.ptr<!rec_anon2E7>
 // CHECK: [[STRUCT_A:%.*]] = cir.get_member [[CLS_ANNO7]][0] {name = "this"} : !cir.ptr<!rec_anon2E7> -> !cir.ptr<!rec_A>
 // CHECK: [[a:%.*]] = cir.get_member [[STRUCT_A]][0] {name = "a"} : !cir.ptr<!rec_A> -> !cir.ptr<!s32i> loc(#loc70)
-// CHECK: [[TMP0:%.*]] = cir.load [[a]] : !cir.ptr<!s32i>, !s32i
+// CHECK: [[TMP0:%.*]] = cir.load{{.*}} [[a]] : !cir.ptr<!s32i>, !s32i
 // CHECK: cir.store{{.*}} [[TMP0]], [[RETVAL_ADDR]] : !s32i, !cir.ptr<!s32i>
-// CHECK: [[RET_VAL:%.*]] = cir.load [[RETVAL_ADDR]] : !cir.ptr<!s32i>,
+// CHECK: [[RET_VAL:%.*]] = cir.load{{.*}} [[RETVAL_ADDR]] : !cir.ptr<!s32i>,
 // CHECK: cir.return [[RET_VAL]] : !s32i
 
 // LLVM-LABEL: @_ZZN1A3fooEvENKUlvE_clEv
@@ -340,13 +340,13 @@ struct A {
 // CHECK: [[ARG2_ADDR:%.*]] = cir.alloca !cir.ptr<!rec_anon2E8>, !cir.ptr<!cir.ptr<!rec_anon2E8>>, ["this", init] {alignment = 8 : i64}
 // CHECK: [[RETVAL_ADDR:%.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"] {alignment = 4 : i64}
 // CHECK: cir.store{{.*}} [[ARG2]], [[ARG2_ADDR]] : !cir.ptr<!rec_anon2E8>, !cir.ptr<!cir.ptr<!rec_anon2E8>>
-// CHECK: [[CLS_ANNO8:%.*]] = cir.load [[ARG2_ADDR]] : !cir.ptr<!cir.ptr<!rec_anon2E8>>, !cir.ptr<!rec_anon2E8>
+// CHECK: [[CLS_ANNO8:%.*]] = cir.load{{.*}} [[ARG2_ADDR]] : !cir.ptr<!cir.ptr<!rec_anon2E8>>, !cir.ptr<!rec_anon2E8>
 // CHECK: [[STRUCT_A_PTR:%.*]] = cir.get_member [[CLS_ANNO8]][0] {name = "this"} : !cir.ptr<!rec_anon2E8> -> !cir.ptr<!cir.ptr<!rec_A>>
-// CHECK: [[STRUCT_A:%.*]] = cir.load [[STRUCT_A_PTR]] : !cir.ptr<!cir.ptr<!rec_A>>, !cir.ptr<!rec_A>
+// CHECK: [[STRUCT_A:%.*]] = cir.load{{.*}} [[STRUCT_A_PTR]] : !cir.ptr<!cir.ptr<!rec_A>>, !cir.ptr<!rec_A>
 // CHECK: [[a:%.*]] = cir.get_member [[STRUCT_A]][0] {name = "a"} : !cir.ptr<!rec_A> -> !cir.ptr<!s32i> loc(#loc70)
-// CHECK: [[TMP0:%.*]] = cir.load [[a]] : !cir.ptr<!s32i>, !s32i
+// CHECK: [[TMP0:%.*]] = cir.load{{.*}} [[a]] : !cir.ptr<!s32i>, !s32i
 // CHECK: cir.store{{.*}} [[TMP0]], [[RETVAL_ADDR]] : !s32i, !cir.ptr<!s32i>
-// CHECK: [[RET_VAL:%.*]] = cir.load [[RETVAL_ADDR]] : !cir.ptr<!s32i>
+// CHECK: [[RET_VAL:%.*]] = cir.load{{.*}} [[RETVAL_ADDR]] : !cir.ptr<!s32i>
 // CHECK: cir.return [[RET_VAL]] : !s32i
 
 // LLVM-LABEL: _ZZN1A3barEvENKUlvE_clEv

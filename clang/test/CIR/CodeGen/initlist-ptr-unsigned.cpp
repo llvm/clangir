@@ -35,7 +35,7 @@ void test() {
 // CIR: [[LENGTH_ONE:%.*]] = cir.const #cir.int<1>
 // CIR: [[FLD_LEN:%.*]] = cir.get_member [[LIST_PTR]][1] {name = "len"} : !cir.ptr<[[INITLIST_TYPE]]> -> !cir.ptr<!u64i>
 // CIR: cir.store{{.*}} [[LENGTH_ONE]], [[FLD_LEN]] : !u64i, !cir.ptr<!u64i>
-// CIR: [[ARG2PASS:%.*]] = cir.load [[LIST_PTR]] : !cir.ptr<[[INITLIST_TYPE]]>,  [[INITLIST_TYPE]]
+// CIR: [[ARG2PASS:%.*]] = cir.load{{.*}} [[LIST_PTR]] : !cir.ptr<[[INITLIST_TYPE]]>,  [[INITLIST_TYPE]]
 // CIR: cir.call @_ZSt1fIiEvSt16initializer_listIT_E([[ARG2PASS]]) : ([[INITLIST_TYPE]]) -> ()
 // CIR: }
 // CIR: cir.return

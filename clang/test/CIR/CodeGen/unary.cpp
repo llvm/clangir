@@ -9,7 +9,7 @@ unsigned up0() {
 // CHECK: cir.func @_Z3up0v() -> !u32i
 // CHECK: %[[#RET:]] = cir.alloca !u32i, !cir.ptr<!u32i>, ["__retval"]
 // CHECK: %[[#A:]] = cir.alloca !u32i, !cir.ptr<!u32i>, ["a", init]
-// CHECK: %[[#INPUT:]] = cir.load %[[#A]]
+// CHECK: %[[#INPUT:]] = cir.load{{.*}} %[[#A]]
 // CHECK: %[[#OUTPUT:]] = cir.unary(plus, %[[#INPUT]])
 // CHECK: cir.store{{.*}} %[[#OUTPUT]], %[[#RET]]
 
@@ -21,7 +21,7 @@ unsigned um0() {
 // CHECK: cir.func @_Z3um0v() -> !u32i
 // CHECK: %[[#RET:]] = cir.alloca !u32i, !cir.ptr<!u32i>, ["__retval"]
 // CHECK: %[[#A:]] = cir.alloca !u32i, !cir.ptr<!u32i>, ["a", init]
-// CHECK: %[[#INPUT:]] = cir.load %[[#A]]
+// CHECK: %[[#INPUT:]] = cir.load{{.*}} %[[#A]]
 // CHECK: %[[#OUTPUT:]] = cir.unary(minus, %[[#INPUT]])
 // CHECK: cir.store{{.*}} %[[#OUTPUT]], %[[#RET]]
 
@@ -33,7 +33,7 @@ unsigned un0() {
 // CHECK: cir.func @_Z3un0v() -> !u32i
 // CHECK: %[[#RET:]] = cir.alloca !u32i, !cir.ptr<!u32i>, ["__retval"]
 // CHECK: %[[#A:]] = cir.alloca !u32i, !cir.ptr<!u32i>, ["a", init]
-// CHECK: %[[#INPUT:]] = cir.load %[[#A]]
+// CHECK: %[[#INPUT:]] = cir.load{{.*}} %[[#A]]
 // CHECK: %[[#OUTPUT:]] = cir.unary(not, %[[#INPUT]])
 // CHECK: cir.store{{.*}} %[[#OUTPUT]], %[[#RET]]
 
@@ -48,12 +48,12 @@ int inc0() {
 // CHECK: %[[#A:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["a", init]
 // CHECK: %[[#ATMP:]] = cir.const #cir.int<1> : !s32i
 // CHECK: cir.store{{.*}} %[[#ATMP]], %[[#A]] : !s32i
-// CHECK: %[[#INPUT:]] = cir.load %[[#A]]
+// CHECK: %[[#INPUT:]] = cir.load{{.*}} %[[#A]]
 // CHECK: %[[#INCREMENTED:]] = cir.unary(inc, %[[#INPUT]]) nsw
 // CHECK: cir.store{{.*}} %[[#INCREMENTED]], %[[#A]]
-// CHECK: %[[#A_TO_OUTPUT:]] = cir.load %[[#A]]
+// CHECK: %[[#A_TO_OUTPUT:]] = cir.load{{.*}} %[[#A]]
 // CHECK: cir.store{{.*}} %[[#A_TO_OUTPUT]], %[[#RET]]
-// CHECK: %[[#OUTPUT:]] = cir.load %[[#RET]]
+// CHECK: %[[#OUTPUT:]] = cir.load{{.*}} %[[#RET]]
 // CHECK: cir.return %[[#OUTPUT]] : !s32i
 
 int dec0() {
@@ -67,12 +67,12 @@ int dec0() {
 // CHECK: %[[#A:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["a", init]
 // CHECK: %[[#ATMP:]] = cir.const #cir.int<1> : !s32i
 // CHECK: cir.store{{.*}} %[[#ATMP]], %[[#A]] : !s32i
-// CHECK: %[[#INPUT:]] = cir.load %[[#A]]
+// CHECK: %[[#INPUT:]] = cir.load{{.*}} %[[#A]]
 // CHECK: %[[#INCREMENTED:]] = cir.unary(dec, %[[#INPUT]]) nsw
 // CHECK: cir.store{{.*}} %[[#INCREMENTED]], %[[#A]]
-// CHECK: %[[#A_TO_OUTPUT:]] = cir.load %[[#A]]
+// CHECK: %[[#A_TO_OUTPUT:]] = cir.load{{.*}} %[[#A]]
 // CHECK: cir.store{{.*}} %[[#A_TO_OUTPUT]], %[[#RET]]
-// CHECK: %[[#OUTPUT:]] = cir.load %[[#RET]]
+// CHECK: %[[#OUTPUT:]] = cir.load{{.*}} %[[#RET]]
 // CHECK: cir.return %[[#OUTPUT]] : !s32i
 
 
@@ -87,12 +87,12 @@ int inc1() {
 // CHECK: %[[#A:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["a", init]
 // CHECK: %[[#ATMP:]] = cir.const #cir.int<1> : !s32i
 // CHECK: cir.store{{.*}} %[[#ATMP]], %[[#A]] : !s32i
-// CHECK: %[[#INPUT:]] = cir.load %[[#A]]
+// CHECK: %[[#INPUT:]] = cir.load{{.*}} %[[#A]]
 // CHECK: %[[#INCREMENTED:]] = cir.unary(inc, %[[#INPUT]]) nsw
 // CHECK: cir.store{{.*}} %[[#INCREMENTED]], %[[#A]]
-// CHECK: %[[#A_TO_OUTPUT:]] = cir.load %[[#A]]
+// CHECK: %[[#A_TO_OUTPUT:]] = cir.load{{.*}} %[[#A]]
 // CHECK: cir.store{{.*}} %[[#A_TO_OUTPUT]], %[[#RET]]
-// CHECK: %[[#OUTPUT:]] = cir.load %[[#RET]]
+// CHECK: %[[#OUTPUT:]] = cir.load{{.*}} %[[#RET]]
 // CHECK: cir.return %[[#OUTPUT]] : !s32i
 
 int dec1() {
@@ -106,12 +106,12 @@ int dec1() {
 // CHECK: %[[#A:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["a", init]
 // CHECK: %[[#ATMP:]] = cir.const #cir.int<1> : !s32i
 // CHECK: cir.store{{.*}} %[[#ATMP]], %[[#A]] : !s32i
-// CHECK: %[[#INPUT:]] = cir.load %[[#A]]
+// CHECK: %[[#INPUT:]] = cir.load{{.*}} %[[#A]]
 // CHECK: %[[#INCREMENTED:]] = cir.unary(dec, %[[#INPUT]]) nsw
 // CHECK: cir.store{{.*}} %[[#INCREMENTED]], %[[#A]]
-// CHECK: %[[#A_TO_OUTPUT:]] = cir.load %[[#A]]
+// CHECK: %[[#A_TO_OUTPUT:]] = cir.load{{.*}} %[[#A]]
 // CHECK: cir.store{{.*}} %[[#A_TO_OUTPUT]], %[[#RET]]
-// CHECK: %[[#OUTPUT:]] = cir.load %[[#RET]]
+// CHECK: %[[#OUTPUT:]] = cir.load{{.*}} %[[#RET]]
 // CHECK: cir.return %[[#OUTPUT]] : !s32i
 
 // Ensure the increment is performed after the assignment to b.
@@ -127,13 +127,13 @@ int inc2() {
 // CHECK: %[[#B:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["b", init]
 // CHECK: %[[#ATMP:]] = cir.const #cir.int<1> : !s32i
 // CHECK: cir.store{{.*}} %[[#ATMP]], %[[#A]] : !s32i
-// CHECK: %[[#ATOB:]] = cir.load %[[#A]]
+// CHECK: %[[#ATOB:]] = cir.load{{.*}} %[[#A]]
 // CHECK: %[[#INCREMENTED:]] = cir.unary(inc, %[[#ATOB]]) nsw
 // CHECK: cir.store{{.*}} %[[#INCREMENTED]], %[[#A]]
 // CHECK: cir.store{{.*}} %[[#ATOB]], %[[#B]]
-// CHECK: %[[#B_TO_OUTPUT:]] = cir.load %[[#B]]
+// CHECK: %[[#B_TO_OUTPUT:]] = cir.load{{.*}} %[[#B]]
 // CHECK: cir.store{{.*}} %[[#B_TO_OUTPUT]], %[[#RET]]
-// CHECK: %[[#OUTPUT:]] = cir.load %[[#RET]]
+// CHECK: %[[#OUTPUT:]] = cir.load{{.*}} %[[#RET]]
 // CHECK: cir.return %[[#OUTPUT]] : !s32i
 
 int *inc_p(int *i) {
@@ -145,11 +145,11 @@ int *inc_p(int *i) {
 // CHECK: cir.func @_Z5inc_pPi(%arg0: !cir.ptr<!s32i>
 
 // CHECK:   %[[#i_addr:]] = cir.alloca !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>, ["i", init] {alignment = 8 : i64}
-// CHECK:   %[[#i_dec:]] = cir.load %[[#i_addr]] : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
+// CHECK:   %[[#i_dec:]] = cir.load{{.*}} %[[#i_addr]] : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
 // CHECK:   %[[#dec_const:]] = cir.const #cir.int<-1> : !s32i
 // CHECK:   = cir.ptr_stride(%[[#i_dec]] : !cir.ptr<!s32i>, %[[#dec_const]] : !s32i), !cir.ptr<!s32i>
 
-// CHECK:   %[[#i_inc:]] = cir.load %0 : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
+// CHECK:   %[[#i_inc:]] = cir.load{{.*}} %0 : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
 // CHECK:   %[[#inc_const:]] = cir.const #cir.int<1> : !s32i
 // CHECK:   = cir.ptr_stride(%[[#i_inc]] : !cir.ptr<!s32i>, %[[#inc_const]] : !s32i), !cir.ptr<!s32i>
 

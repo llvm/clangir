@@ -43,7 +43,7 @@ int foo() {
 // CIR:    cir.store{{.*}} [[ONE]], [[FIELD]] : !s32i, !cir.ptr<!s32i>
 // CIR:    [[ONE:%.*]] = cir.const #cir.int<1> : !s32i
 // CIR:    cir.store{{.*}} [[ONE]], [[RET_MEM]] : !s32i, !cir.ptr<!s32i>
-// CIR:    [[RET:%.*]] = cir.load [[RET_MEM]] : !cir.ptr<!s32i>, !s32i
+// CIR:    [[RET:%.*]] = cir.load{{.*}} [[RET_MEM]] : !cir.ptr<!s32i>, !s32i
 // CIR:    cir.return [[RET]] : !s32i
 
 struct G { short x, y, z; };
@@ -59,7 +59,7 @@ struct G g(int x, int y, int z) {
 // CIR:    cir.store{{.*}} {{.*}}, %[[Y]] : !s16i
 // CIR:    %[[Z:.*]] = cir.get_member %[[RETVAL]][2] {name = "z"}
 // CIR:    cir.store{{.*}} {{.*}}, %[[Z]] : !s16i
-// CIR:    %[[RES:.*]] = cir.load %[[RETVAL]]
+// CIR:    %[[RES:.*]] = cir.load{{.*}} %[[RETVAL]]
 // CIR:    cir.return %[[RES]]
 
 // Nothing meaningful to test for LLVM codegen here.
@@ -78,7 +78,7 @@ void split_large_page(unsigned long addr, pgprot_t prot)
 // CIR:   %[[VAL_4:.*]] = cir.alloca !rec_pgprot_t, !cir.ptr<!rec_pgprot_t>, ["tmp"] {alignment = 8 : i64}
 // CIR:   cir.store{{.*}} {{.*}}, %[[VAL_2]] : !u64i, !cir.ptr<!u64i>
 // CIR:   cir.store{{.*}} {{.*}}, %[[VAL_3]] : !rec_pgprot_t, !cir.ptr<!rec_pgprot_t>
-// CIR:   %[[VAL_5:.*]] = cir.load %[[VAL_2]] : !cir.ptr<!u64i>, !u64i
+// CIR:   %[[VAL_5:.*]] = cir.load{{.*}} %[[VAL_2]] : !cir.ptr<!u64i>, !u64i
 // CIR:   %[[VAL_6:.*]] = cir.cast(int_to_bool, %[[VAL_5]] : !u64i), !cir.bool
 // CIR:   cir.if %[[VAL_6]] {
 // CIR:     cir.copy %[[VAL_3]] to %[[VAL_4]] : !cir.ptr<!rec_pgprot_t>
@@ -89,7 +89,7 @@ void split_large_page(unsigned long addr, pgprot_t prot)
 // CIR:     cir.store{{.*}} %[[VAL_9]], %[[VAL_7]] : !u64i, !cir.ptr<!u64i>
 // CIR:   }
 // CIR:   %[[VAL_10:.*]] = cir.get_member %[[VAL_4]][0] {name = "pgprot"} : !cir.ptr<!rec_pgprot_t> -> !cir.ptr<!u64i>
-// CIR:   %[[VAL_11:.*]] = cir.load %[[VAL_10]] : !cir.ptr<!u64i>, !u64i
+// CIR:   %[[VAL_11:.*]] = cir.load{{.*}} %[[VAL_10]] : !cir.ptr<!u64i>, !u64i
 // CIR:   cir.return
 // CIR: }
 

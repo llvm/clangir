@@ -856,10 +856,13 @@ public:
       addr = addr.withPointer(
           createPtrBitcast(addr.getPointer(), addr.getElementType()));
 
+    mlir::IntegerAttr align;
+    uint64_t alignment = addr.getAlignment().getQuantity();
+    if (alignment)
+      align = getI64IntegerAttr(alignment);
     return create<cir::LoadOp>(
         loc, addr.getElementType(), addr.getPointer(), /*isDeref=*/false,
-        /*is_volatile=*/isVolatile, /*is_nontemporal=*/isNontemporal,
-        /*alignment=*/mlir::IntegerAttr{},
+        /*is_volatile=*/isVolatile, /*is_nontemporal=*/isNontemporal, align,
         /*mem_order=*/cir::MemOrderAttr{}, /*tbaa=*/cir::TBAAAttr{});
   }
 

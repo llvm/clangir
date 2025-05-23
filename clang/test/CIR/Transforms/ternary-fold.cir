@@ -52,7 +52,7 @@ module {
   // CHECK-NEXT:     %[[#C:]] = cir.const #cir.int<42> : !s32i
   // CHECK-NEXT:     cir.yield %[[#C]] : !s32i
   // CHECK-NEXT:   }, false {
-  // CHECK-NEXT:     %[[#D:]] = cir.load %[[#A]] : !cir.ptr<!s32i>, !s32i
+  // CHECK-NEXT:     %[[#D:]] = cir.load{{.*}} %[[#A]] : !cir.ptr<!s32i>, !s32i
   // CHECK-NEXT:     cir.yield %[[#D]] : !s32i
   // CHECK-NEXT:   }) : (!cir.bool) -> !s32i
   // CHECK-NEXT:   cir.return %[[#B]] : !s32i

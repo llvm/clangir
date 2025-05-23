@@ -34,7 +34,7 @@ int test2(bool cond) {
 }
 
 //      CIR-BEFORE: cir.func @_Z5test2b
-//      CIR-BEFORE:   %[[#COND:]] = cir.load %{{.+}} : !cir.ptr<!cir.bool>, !cir.bool
+//      CIR-BEFORE:   %[[#COND:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.bool>, !cir.bool
 // CIR-BEFORE-NEXT:   %{{.+}} = cir.ternary(%[[#COND]], true {
 // CIR-BEFORE-NEXT:     %[[#A:]] = cir.const #cir.int<1> : !s32i
 // CIR-BEFORE-NEXT:     cir.yield %[[#A]] : !s32i
@@ -45,7 +45,7 @@ int test2(bool cond) {
 //      CIR-BEFORE: }
 
 //      CIR-AFTER: cir.func @_Z5test2b
-//      CIR-AFTER:   %[[#COND:]] = cir.load %{{.+}} : !cir.ptr<!cir.bool>, !cir.bool
+//      CIR-AFTER:   %[[#COND:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.bool>, !cir.bool
 // CIR-AFTER-NEXT:   %[[#A:]] = cir.const #cir.int<1> : !s32i
 // CIR-AFTER-NEXT:   %[[#B:]] = cir.const #cir.int<2> : !s32i
 // CIR-AFTER-NEXT:   %{{.+}} = cir.select if %[[#COND]] then %[[#A]] else %[[#B]] : (!cir.bool, !s32i, !s32i) -> !s32i

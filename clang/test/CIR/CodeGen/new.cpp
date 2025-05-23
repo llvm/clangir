@@ -21,10 +21,10 @@ void m(int a, int b) {
 // CHECK:     %4 = cir.const #cir.int<1> : !u64i
 // CHECK:     %5 = cir.call @_Znwm(%4) : (!u64i) -> !cir.ptr<!void>
 // CHECK:     %6 = cir.cast(bitcast, %5 : !cir.ptr<!void>), !cir.ptr<!rec_S>
-// CHECK:     %7 = cir.load %0 : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
-// CHECK:     %8 = cir.load %7 : !cir.ptr<!s32i>, !s32i
-// CHECK:     %9 = cir.load %1 : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
-// CHECK:     %10 = cir.load %9 : !cir.ptr<!s32i>, !s32i
+// CHECK:     %7 = cir.load{{.*}} %0 : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
+// CHECK:     %8 = cir.load{{.*}} %7 : !cir.ptr<!s32i>, !s32i
+// CHECK:     %9 = cir.load{{.*}} %1 : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
+// CHECK:     %10 = cir.load{{.*}} %9 : !cir.ptr<!s32i>, !s32i
 // CHECK:     cir.call @_ZN1SC1Eii(%6, %8, %10) : (!cir.ptr<!rec_S>, !s32i, !s32i) -> ()
 // CHECK:     cir.call @_ZNSt10shared_ptrI1SEC1EPS0_(%2, %6) : (!cir.ptr<!rec_std3A3Ashared_ptr3CS3E>, !cir.ptr<!rec_S>) -> ()
 // CHECK:   }
@@ -41,9 +41,9 @@ public:
 // CHECK:   %1 = cir.alloca !cir.ptr<!rec_B>, !cir.ptr<!cir.ptr<!rec_B>>, ["__p", init] {alignment = 8 : i64}
 // CHECK:   cir.store{{.*}} %arg0, %0 : !cir.ptr<!rec_B>, !cir.ptr<!cir.ptr<!rec_B>>
 // CHECK:   cir.store{{.*}} %arg1, %1 : !cir.ptr<!rec_B>, !cir.ptr<!cir.ptr<!rec_B>>
-// CHECK:   %2 = cir.load %0 : !cir.ptr<!cir.ptr<!rec_B>>, !cir.ptr<!rec_B>
+// CHECK:   %2 = cir.load{{.*}} %0 : !cir.ptr<!cir.ptr<!rec_B>>, !cir.ptr<!rec_B>
 // CHECK:   %3 = cir.const #cir.int<1> : !u64i
-// CHECK:   %4 = cir.load %1 : !cir.ptr<!cir.ptr<!rec_B>>, !cir.ptr<!rec_B>
+// CHECK:   %4 = cir.load{{.*}} %1 : !cir.ptr<!cir.ptr<!rec_B>>, !cir.ptr<!rec_B>
 // CHECK:   %5 = cir.cast(bitcast, %4 : !cir.ptr<!rec_B>), !cir.ptr<!void>
 // CHECK:   %6 = cir.cast(bitcast, %5 : !cir.ptr<!void>), !cir.ptr<!rec_B>
 
@@ -195,7 +195,7 @@ void t_new_var_size(size_t n) {
 }
 
 // CHECK:  cir.func @_Z14t_new_var_sizem
-// CHECK:    %[[N:.*]] = cir.load %[[ARG_ALLOCA:.*]]
+// CHECK:    %[[N:.*]] = cir.load{{.*}} %[[ARG_ALLOCA:.*]]
 // CHECK:    %[[PTR:.*]] = cir.call @_Znam(%[[N]]) : (!u64i)
 
 void t_new_var_size2(int n) {
@@ -203,7 +203,7 @@ void t_new_var_size2(int n) {
 }
 
 // CHECK:  cir.func @_Z15t_new_var_size2i
-// CHECK:    %[[N:.*]] = cir.load %[[ARG_ALLOCA:.*]]
+// CHECK:    %[[N:.*]] = cir.load{{.*}} %[[ARG_ALLOCA:.*]]
 // CHECK:    %[[N_SIZE_T:.*]] = cir.cast(integral, %[[N]] : !s32i), !u64i
 // CHECK:    %[[PTR:.*]] = cir.call @_Znam(%[[N_SIZE_T]]) : (!u64i)
 
@@ -212,7 +212,7 @@ void t_new_var_size3(size_t n) {
 }
 
 // CHECK:  cir.func @_Z15t_new_var_size3m
-// CHECK:    %[[N:.*]] = cir.load %[[ARG_ALLOCA:.*]]
+// CHECK:    %[[N:.*]] = cir.load{{.*}} %[[ARG_ALLOCA:.*]]
 // CHECK:    %[[ELEMENT_SIZE:.*]] = cir.const #cir.int<8> : !u64i
 // CHECK:    %[[RESULT:.*]], %[[OVERFLOW:.*]] = cir.binop.overflow(mul, %[[N]], %[[ELEMENT_SIZE]]) : !u64i, (!u64i, !cir.bool)
 // CHECK:    %[[ALL_ONES:.*]] = cir.const #cir.int<18446744073709551615> : !u64i
@@ -224,7 +224,7 @@ void t_new_var_size4(int n) {
 }
 
 // CHECK:  cir.func @_Z15t_new_var_size4i
-// CHECK:    %[[N:.*]] = cir.load %[[ARG_ALLOCA:.*]]
+// CHECK:    %[[N:.*]] = cir.load{{.*}} %[[ARG_ALLOCA:.*]]
 // CHECK:    %[[N_SIZE_T:.*]] = cir.cast(integral, %[[N]] : !s32i), !u64i
 // CHECK:    %[[ELEMENT_SIZE:.*]] = cir.const #cir.int<8> : !u64i
 // CHECK:    %[[RESULT:.*]], %[[OVERFLOW:.*]] = cir.binop.overflow(mul, %[[N_SIZE_T]], %[[ELEMENT_SIZE]]) : !u64i, (!u64i, !cir.bool)
@@ -239,7 +239,7 @@ void t_new_var_size5(int n) {
 // NUM_ELEMENTS isn't used in this case because there is no cookie.
 
 // CHECK:  cir.func @_Z15t_new_var_size5i
-// CHECK:    %[[N:.*]] = cir.load %[[ARG_ALLOCA:.*]]
+// CHECK:    %[[N:.*]] = cir.load{{.*}} %[[ARG_ALLOCA:.*]]
 // CHECK:    %[[N_SIZE_T:.*]] = cir.cast(integral, %[[N]] : !s32i), !u64i
 // CHECK:    %[[ELEMENT_SIZE:.*]] = cir.const #cir.int<48> : !u64i
 // CHECK:    %[[RESULT:.*]], %[[OVERFLOW:.*]] = cir.binop.overflow(mul, %[[N_SIZE_T]], %[[ELEMENT_SIZE]]) : !u64i, (!u64i, !cir.bool)
@@ -254,7 +254,7 @@ void t_new_var_size6(int n) {
 }
 
 // CHECK:  cir.func @_Z15t_new_var_size6i
-// CHECK:    %[[N:.*]] = cir.load %[[ARG_ALLOCA:.*]]
+// CHECK:    %[[N:.*]] = cir.load{{.*}} %[[ARG_ALLOCA:.*]]
 // CHECK:    %[[N_SIZE_T:.*]] = cir.cast(integral, %[[N]] : !s32i), !u64i
 // CHECK:    %[[MIN_SIZE:.*]] = cir.const #cir.int<3> : !u64i
 // CHECK:    %[[LT_MIN_SIZE:.*]] = cir.cmp(lt, %[[N_SIZE_T]], %[[MIN_SIZE]]) : !u64i, !cir.bool
@@ -270,7 +270,7 @@ void t_new_var_size7(__int128 n) {
 }
 
 // CHECK:  cir.func @_Z15t_new_var_size7n
-// CHECK:    %[[N:.*]] = cir.load %[[ARG_ALLOCA:.*]]
+// CHECK:    %[[N:.*]] = cir.load{{.*}} %[[ARG_ALLOCA:.*]]
 // CHECK:    %[[N_SIZE_T:.*]] = cir.cast(integral, %[[N]] : !s128i), !u64i
 // CHECK:    %[[ELEMENT_SIZE:.*]] = cir.const #cir.int<8> : !u64i
 // CHECK:    %[[RESULT:.*]], %[[OVERFLOW:.*]] = cir.binop.overflow(mul, %[[N_SIZE_T]], %[[ELEMENT_SIZE]]) : !u64i, (!u64i, !cir.bool)
@@ -283,7 +283,7 @@ void t_new_var_size_nontrivial(size_t n) {
 }
 
 // CHECK:  cir.func @_Z25t_new_var_size_nontrivialm
-// CHECK:    %[[N:.*]] = cir.load %[[ARG_ALLOCA:.*]]
+// CHECK:    %[[N:.*]] = cir.load{{.*}} %[[ARG_ALLOCA:.*]]
 // CHECK:    %[[ELEMENT_SIZE:.*]] = cir.const #cir.int<4> : !u64i
 // CHECK:    %[[SIZE_WITHOUT_COOKIE:.*]], %[[OVERFLOW:.*]] = cir.binop.overflow(mul, %[[N]], %[[ELEMENT_SIZE]]) : !u64i, (!u64i, !cir.bool)
 // CHECK:    %[[COOKIE_SIZE:.*]] = cir.const #cir.int<8> : !u64i

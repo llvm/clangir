@@ -39,15 +39,15 @@ void list_init_2(double r, double i) {
 }
 
 //      CHECK-BEFORE: cir.func
-//      CHECK-BEFORE:   %[[#R:]] = cir.load %{{.+}} : !cir.ptr<!cir.double>, !cir.double
-// CHECK-BEFORE-NEXT:   %[[#I:]] = cir.load %{{.+}} : !cir.ptr<!cir.double>, !cir.double
+//      CHECK-BEFORE:   %[[#R:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.double>, !cir.double
+// CHECK-BEFORE-NEXT:   %[[#I:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.double>, !cir.double
 // CHECK-BEFORE-NEXT:   %[[#C:]] = cir.complex.create %[[#R]], %[[#I]] : !cir.double -> !cir.complex<!cir.double>
 // CHECK-BEFORE-NEXT:   cir.store{{.*}} %[[#C]], %{{.+}} : !cir.complex<!cir.double>, !cir.ptr<!cir.complex<!cir.double>>
 //      CHECK-BEFORE: }
 
 //      CHECK-AFTER: cir.func
-//      CHECK-AFTER:   %[[#R:]] = cir.load %{{.+}} : !cir.ptr<!cir.double>, !cir.double
-// CHECK-AFTER-NEXT:   %[[#I:]] = cir.load %{{.+}} : !cir.ptr<!cir.double>, !cir.double
+//      CHECK-AFTER:   %[[#R:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.double>, !cir.double
+// CHECK-AFTER-NEXT:   %[[#I:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.double>, !cir.double
 // CHECK-AFTER-NEXT:   %[[#C:]] = cir.complex.create %[[#R]], %[[#I]] : !cir.double -> !cir.complex<!cir.double>
 // CHECK-AFTER-NEXT:   cir.store{{.*}} %[[#C]], %{{.+}} : !cir.complex<!cir.double>, !cir.ptr<!cir.complex<!cir.double>>
 //      CHECK-AFTER: }
@@ -107,22 +107,22 @@ void load_store() {
 
 //      CHECK-BEFORE: cir.func
 // CHECK-BEFORE-NEXT:   %[[#C2_PTR:]] = cir.get_global @c2 : !cir.ptr<!cir.complex<!cir.double>>
-// CHECK-BEFORE-NEXT:   %[[#C2:]] = cir.load %[[#C2_PTR]] : !cir.ptr<!cir.complex<!cir.double>>, !cir.complex<!cir.double>
+// CHECK-BEFORE-NEXT:   %[[#C2:]] = cir.load{{.*}} %[[#C2_PTR]] : !cir.ptr<!cir.complex<!cir.double>>, !cir.complex<!cir.double>
 // CHECK-BEFORE-NEXT:   %[[#C_PTR:]] = cir.get_global @c : !cir.ptr<!cir.complex<!cir.double>>
 // CHECK-BEFORE-NEXT:   cir.store{{.*}} %[[#C2]], %[[#C_PTR]] : !cir.complex<!cir.double>, !cir.ptr<!cir.complex<!cir.double>>
 // CHECK-BEFORE-NEXT:   %[[#CI2_PTR:]] = cir.get_global @ci2 : !cir.ptr<!cir.complex<!s32i>>
-// CHECK-BEFORE-NEXT:   %[[#CI2:]] = cir.load %[[#CI2_PTR]] : !cir.ptr<!cir.complex<!s32i>>, !cir.complex<!s32i>
+// CHECK-BEFORE-NEXT:   %[[#CI2:]] = cir.load{{.*}} %[[#CI2_PTR]] : !cir.ptr<!cir.complex<!s32i>>, !cir.complex<!s32i>
 // CHECK-BEFORE-NEXT:   %[[#CI_PTR:]] = cir.get_global @ci : !cir.ptr<!cir.complex<!s32i>>
 // CHECK-BEFORE-NEXT:   cir.store{{.*}} %[[#CI2]], %[[#CI_PTR]] : !cir.complex<!s32i>, !cir.ptr<!cir.complex<!s32i>>
 //      CHECK-BEFORE: }
 
 //      CHECK-AFTER: cir.func
 // CHECK-AFTER-NEXT:   %[[#C2_PTR:]] = cir.get_global @c2 : !cir.ptr<!cir.complex<!cir.double>>
-// CHECK-AFTER-NEXT:   %[[#C2:]] = cir.load %[[#C2_PTR]] : !cir.ptr<!cir.complex<!cir.double>>, !cir.complex<!cir.double>
+// CHECK-AFTER-NEXT:   %[[#C2:]] = cir.load{{.*}} %[[#C2_PTR]] : !cir.ptr<!cir.complex<!cir.double>>, !cir.complex<!cir.double>
 // CHECK-AFTER-NEXT:   %[[#C_PTR:]] = cir.get_global @c : !cir.ptr<!cir.complex<!cir.double>>
 // CHECK-AFTER-NEXT:   cir.store{{.*}} %[[#C2]], %[[#C_PTR]] : !cir.complex<!cir.double>, !cir.ptr<!cir.complex<!cir.double>>
 // CHECK-AFTER-NEXT:   %[[#CI2_PTR:]] = cir.get_global @ci2 : !cir.ptr<!cir.complex<!s32i>>
-// CHECK-AFTER-NEXT:   %[[#CI2:]] = cir.load %[[#CI2_PTR]] : !cir.ptr<!cir.complex<!s32i>>, !cir.complex<!s32i>
+// CHECK-AFTER-NEXT:   %[[#CI2:]] = cir.load{{.*}} %[[#CI2_PTR]] : !cir.ptr<!cir.complex<!s32i>>, !cir.complex<!s32i>
 // CHECK-AFTER-NEXT:   %[[#CI_PTR:]] = cir.get_global @ci : !cir.ptr<!cir.complex<!s32i>>
 // CHECK-AFTER-NEXT:   cir.store{{.*}} %[[#CI2]], %[[#CI_PTR]] : !cir.complex<!s32i>, !cir.ptr<!cir.complex<!s32i>>
 //      CHECK-AFTER: }
@@ -141,22 +141,22 @@ void load_store_volatile() {
 
 //      CHECK-BEFORE: cir.func
 // CHECK-BEFORE-NEXT:   %[[#VC2_PTR:]] = cir.get_global @vc2 : !cir.ptr<!cir.complex<!cir.double>>
-// CHECK-BEFORE-NEXT:   %[[#VC2:]] = cir.load volatile %[[#VC2_PTR]] : !cir.ptr<!cir.complex<!cir.double>>, !cir.complex<!cir.double>
+// CHECK-BEFORE-NEXT:   %[[#VC2:]] = cir.load volatile{{.*}} %[[#VC2_PTR]] : !cir.ptr<!cir.complex<!cir.double>>, !cir.complex<!cir.double>
 // CHECK-BEFORE-NEXT:   %[[#VC_PTR:]] = cir.get_global @vc : !cir.ptr<!cir.complex<!cir.double>>
 // CHECK-BEFORE-NEXT:   cir.store volatile{{.*}} %[[#VC2]], %[[#VC_PTR]] : !cir.complex<!cir.double>, !cir.ptr<!cir.complex<!cir.double>>
 // CHECK-BEFORE-NEXT:   %[[#VCI2_PTR:]] = cir.get_global @vci2 : !cir.ptr<!cir.complex<!s32i>>
-// CHECK-BEFORE-NEXT:   %[[#VCI2:]] = cir.load volatile %[[#VCI2_PTR]] : !cir.ptr<!cir.complex<!s32i>>, !cir.complex<!s32i>
+// CHECK-BEFORE-NEXT:   %[[#VCI2:]] = cir.load volatile{{.*}} %[[#VCI2_PTR]] : !cir.ptr<!cir.complex<!s32i>>, !cir.complex<!s32i>
 // CHECK-BEFORE-NEXT:   %[[#VCI_PTR:]] = cir.get_global @vci : !cir.ptr<!cir.complex<!s32i>>
 // CHECK-BEFORE-NEXT:   cir.store volatile{{.*}} %[[#VCI2]], %[[#VCI_PTR]] : !cir.complex<!s32i>, !cir.ptr<!cir.complex<!s32i>>
 //      CHECK-BEFORE: }
 
 //      CHECK-AFTER: cir.func
 // CHECK-AFTER-NEXT:   %[[#VC2_PTR:]] = cir.get_global @vc2 : !cir.ptr<!cir.complex<!cir.double>>
-// CHECK-AFTER-NEXT:   %[[#VC2:]] = cir.load volatile %[[#VC2_PTR]] : !cir.ptr<!cir.complex<!cir.double>>, !cir.complex<!cir.double>
+// CHECK-AFTER-NEXT:   %[[#VC2:]] = cir.load volatile{{.*}} %[[#VC2_PTR]] : !cir.ptr<!cir.complex<!cir.double>>, !cir.complex<!cir.double>
 // CHECK-AFTER-NEXT:   %[[#VC_PTR:]] = cir.get_global @vc : !cir.ptr<!cir.complex<!cir.double>>
 // CHECK-AFTER-NEXT:   cir.store volatile{{.*}} %[[#VC2]], %[[#VC_PTR]] : !cir.complex<!cir.double>, !cir.ptr<!cir.complex<!cir.double>>
 // CHECK-AFTER-NEXT:   %[[#VCI2_PTR:]] = cir.get_global @vci2 : !cir.ptr<!cir.complex<!s32i>>
-// CHECK-AFTER-NEXT:   %[[#VCI2:]] = cir.load volatile %[[#VCI2_PTR]] : !cir.ptr<!cir.complex<!s32i>>, !cir.complex<!s32i>
+// CHECK-AFTER-NEXT:   %[[#VCI2:]] = cir.load volatile{{.*}} %[[#VCI2_PTR]] : !cir.ptr<!cir.complex<!s32i>>, !cir.complex<!s32i>
 // CHECK-AFTER-NEXT:   %[[#VCI_PTR:]] = cir.get_global @vci : !cir.ptr<!cir.complex<!s32i>>
 // CHECK-AFTER-NEXT:   cir.store volatile{{.*}} %[[#VCI2]], %[[#VCI_PTR]] : !cir.complex<!s32i>, !cir.ptr<!cir.complex<!s32i>>
 //      CHECK-AFTER: }
@@ -174,13 +174,13 @@ void real() {
 
 //      CHECK-BEFORE: cir.func
 //      CHECK-BEFORE:   %[[#A:]] = cir.get_global @c : !cir.ptr<!cir.complex<!cir.double>>
-// CHECK-BEFORE-NEXT:   %[[#B:]] = cir.load %[[#A]] : !cir.ptr<!cir.complex<!cir.double>>, !cir.complex<!cir.double>
+// CHECK-BEFORE-NEXT:   %[[#B:]] = cir.load{{.*}} %[[#A]] : !cir.ptr<!cir.complex<!cir.double>>, !cir.complex<!cir.double>
 // CHECK-BEFORE-NEXT:   %{{.+}} = cir.complex.real %[[#B]] : !cir.complex<!cir.double> -> !cir.double
 //      CHECK-BEFORE: }
 
 //      CHECK-AFTER: cir.func
 //      CHECK-AFTER:   %[[#A:]] = cir.get_global @c : !cir.ptr<!cir.complex<!cir.double>>
-// CHECK-AFTER-NEXT:   %[[#B:]] = cir.load %[[#A]] : !cir.ptr<!cir.complex<!cir.double>>, !cir.complex<!cir.double>
+// CHECK-AFTER-NEXT:   %[[#B:]] = cir.load{{.*}} %[[#A]] : !cir.ptr<!cir.complex<!cir.double>>, !cir.complex<!cir.double>
 // CHECK-AFTER-NEXT:   %{{.+}} = cir.complex.real %[[#B]] : !cir.complex<!cir.double> -> !cir.double
 //      CHECK-AFTER: }
 
@@ -195,13 +195,13 @@ void imag() {
 
 //      CHECK-BEFORE: cir.func
 //      CHECK-BEFORE:   %[[#A:]] = cir.get_global @c : !cir.ptr<!cir.complex<!cir.double>>
-// CHECK-BEFORE-NEXT:   %[[#B:]] = cir.load %[[#A]] : !cir.ptr<!cir.complex<!cir.double>>, !cir.complex<!cir.double>
+// CHECK-BEFORE-NEXT:   %[[#B:]] = cir.load{{.*}} %[[#A]] : !cir.ptr<!cir.complex<!cir.double>>, !cir.complex<!cir.double>
 // CHECK-BEFORE-NEXT:   %{{.+}} = cir.complex.imag %[[#B]] : !cir.complex<!cir.double> -> !cir.double
 //      CHECK-BEFORE: }
 
 //      CHECK-AFTER: cir.func
 //      CHECK-AFTER:   %[[#A:]] = cir.get_global @c : !cir.ptr<!cir.complex<!cir.double>>
-// CHECK-AFTER-NEXT:   %[[#B:]] = cir.load %[[#A]] : !cir.ptr<!cir.complex<!cir.double>>, !cir.complex<!cir.double>
+// CHECK-AFTER-NEXT:   %[[#B:]] = cir.load{{.*}} %[[#A]] : !cir.ptr<!cir.complex<!cir.double>>, !cir.complex<!cir.double>
 // CHECK-AFTER-NEXT:   %{{.+}} = cir.complex.imag %[[#B]] : !cir.complex<!cir.double> -> !cir.double
 //      CHECK-AFTER: }
 
@@ -262,19 +262,19 @@ void extract_real() {
 //      CHECK-BEFORE: cir.func
 //      CHECK-BEFORE:   %[[#C_PTR:]] = cir.get_global @c : !cir.ptr<!cir.complex<!cir.double>>
 // CHECK-BEFORE-NEXT:   %[[#REAL_PTR:]] = cir.complex.real_ptr %[[#C_PTR]] : !cir.ptr<!cir.complex<!cir.double>> -> !cir.ptr<!cir.double>
-// CHECK-BEFORE-NEXT:   %{{.+}} = cir.load %[[#REAL_PTR]] : !cir.ptr<!cir.double>, !cir.double
+// CHECK-BEFORE-NEXT:   %{{.+}} = cir.load{{.*}} %[[#REAL_PTR]] : !cir.ptr<!cir.double>, !cir.double
 //      CHECK-BEFORE:   %[[#CI_PTR:]] = cir.get_global @ci : !cir.ptr<!cir.complex<!s32i>>
 // CHECK-BEFORE-NEXT:   %[[#REAL_PTR:]] = cir.complex.real_ptr %[[#CI_PTR]] : !cir.ptr<!cir.complex<!s32i>> -> !cir.ptr<!s32i>
-// CHECK-BEFORE-NEXT:   %{{.+}} = cir.load %[[#REAL_PTR]] : !cir.ptr<!s32i>, !s32i
+// CHECK-BEFORE-NEXT:   %{{.+}} = cir.load{{.*}} %[[#REAL_PTR]] : !cir.ptr<!s32i>, !s32i
 //      CHECK-BEFORE: }
 
 //      CHECK-AFTER: cir.func
 //      CHECK-AFTER:   %[[#C_PTR:]] = cir.get_global @c : !cir.ptr<!cir.complex<!cir.double>>
 // CHECK-AFTER-NEXT:   %[[#REAL_PTR:]] = cir.complex.real_ptr %[[#C_PTR]] : !cir.ptr<!cir.complex<!cir.double>> -> !cir.ptr<!cir.double>
-// CHECK-AFTER-NEXT:   %{{.+}} = cir.load %[[#REAL_PTR]] : !cir.ptr<!cir.double>, !cir.double
+// CHECK-AFTER-NEXT:   %{{.+}} = cir.load{{.*}} %[[#REAL_PTR]] : !cir.ptr<!cir.double>, !cir.double
 //      CHECK-AFTER:   %[[#CI_PTR:]] = cir.get_global @ci : !cir.ptr<!cir.complex<!s32i>>
 // CHECK-AFTER-NEXT:   %[[#REAL_PTR:]] = cir.complex.real_ptr %[[#CI_PTR]] : !cir.ptr<!cir.complex<!s32i>> -> !cir.ptr<!s32i>
-// CHECK-AFTER-NEXT:   %{{.+}} = cir.load %[[#REAL_PTR]] : !cir.ptr<!s32i>, !s32i
+// CHECK-AFTER-NEXT:   %{{.+}} = cir.load{{.*}} %[[#REAL_PTR]] : !cir.ptr<!s32i>, !s32i
 //      CHECK-AFTER: }
 
 // LLVM: define dso_local void @extract_real()
@@ -315,19 +315,19 @@ void extract_imag() {
 //      CHECK-BEFORE: cir.func
 //      CHECK-BEFORE:   %[[#C_PTR:]] = cir.get_global @c : !cir.ptr<!cir.complex<!cir.double>>
 // CHECK-BEFORE-NEXT:   %[[#IMAG_PTR:]] = cir.complex.imag_ptr %[[#C_PTR]] : !cir.ptr<!cir.complex<!cir.double>> -> !cir.ptr<!cir.double>
-// CHECK-BEFORE-NEXT:   %{{.+}} = cir.load %[[#IMAG_PTR]] : !cir.ptr<!cir.double>, !cir.double
+// CHECK-BEFORE-NEXT:   %{{.+}} = cir.load{{.*}} %[[#IMAG_PTR]] : !cir.ptr<!cir.double>, !cir.double
 //      CHECK-BEFORE:   %[[#CI_PTR:]] = cir.get_global @ci : !cir.ptr<!cir.complex<!s32i>>
 // CHECK-BEFORE-NEXT:   %[[#IMAG_PTR:]] = cir.complex.imag_ptr %[[#CI_PTR]] : !cir.ptr<!cir.complex<!s32i>> -> !cir.ptr<!s32i>
-// CHECK-BEFORE-NEXT:   %{{.+}} = cir.load %[[#IMAG_PTR]] : !cir.ptr<!s32i>, !s32i
+// CHECK-BEFORE-NEXT:   %{{.+}} = cir.load{{.*}} %[[#IMAG_PTR]] : !cir.ptr<!s32i>, !s32i
 //      CHECK-BEFORE: }
 
 //      CHECK-AFTER: cir.func
 //      CHECK-AFTER:   %[[#C_PTR:]] = cir.get_global @c : !cir.ptr<!cir.complex<!cir.double>>
 // CHECK-AFTER-NEXT:   %[[#IMAG_PTR:]] = cir.complex.imag_ptr %[[#C_PTR]] : !cir.ptr<!cir.complex<!cir.double>> -> !cir.ptr<!cir.double>
-// CHECK-AFTER-NEXT:   %{{.+}} = cir.load %[[#IMAG_PTR]] : !cir.ptr<!cir.double>, !cir.double
+// CHECK-AFTER-NEXT:   %{{.+}} = cir.load{{.*}} %[[#IMAG_PTR]] : !cir.ptr<!cir.double>, !cir.double
 //      CHECK-AFTER:   %[[#CI_PTR:]] = cir.get_global @ci : !cir.ptr<!cir.complex<!s32i>>
 // CHECK-AFTER-NEXT:   %[[#IMAG_PTR:]] = cir.complex.imag_ptr %[[#CI_PTR]] : !cir.ptr<!cir.complex<!s32i>> -> !cir.ptr<!s32i>
-// CHECK-AFTER-NEXT:   %{{.+}} = cir.load %[[#IMAG_PTR]] : !cir.ptr<!s32i>, !s32i
+// CHECK-AFTER-NEXT:   %{{.+}} = cir.load{{.*}} %[[#IMAG_PTR]] : !cir.ptr<!s32i>, !s32i
 //      CHECK-AFTER: }
 
 // Note: GEP emitted by cir might not be the same as LLVM, due to constant folding.
