@@ -86,7 +86,7 @@ void C3::Layer::Initialize() {
 // CHECK:  cir.scope {
 // CHECK:    %2 = cir.base_class_addr(%1 : !cir.ptr<!rec_C33A3ALayer> nonnull) [0] -> !cir.ptr<!rec_C23A3ALayer>
 // CHECK:    %3 = cir.get_member %2[1] {name = "m_C1"} : !cir.ptr<!rec_C23A3ALayer> -> !cir.ptr<!cir.ptr<!rec_C2>>
-// CHECK:    %4 = cir.load %3 : !cir.ptr<!cir.ptr<!rec_C2>>, !cir.ptr<!rec_C2>
+// CHECK:    %4 = cir.load{{.*}} %3 : !cir.ptr<!cir.ptr<!rec_C2>>, !cir.ptr<!rec_C2>
 // CHECK:    %5 = cir.const #cir.ptr<null> : !cir.ptr<!rec_C2>
 // CHECK:    %6 = cir.cmp(eq, %4, %5) : !cir.ptr<!rec_C2>, !cir.bool
 
@@ -98,7 +98,7 @@ enumy C3::Initialize() {
 // CHECK:     %0 = cir.alloca !cir.ptr<!rec_C3>, !cir.ptr<!cir.ptr<!rec_C3>>, ["this", init] {alignment = 8 : i64}
 
 // CHECK:     cir.store %arg0, %0 : !cir.ptr<!rec_C3>, !cir.ptr<!cir.ptr<!rec_C3>>
-// CHECK:     %2 = cir.load %0 : !cir.ptr<!cir.ptr<!rec_C3>>, !cir.ptr<!rec_C3>
+// CHECK:     %2 = cir.load{{.*}} %0 : !cir.ptr<!cir.ptr<!rec_C3>>, !cir.ptr<!rec_C3>
 // CHECK:     %3 = cir.base_class_addr(%2 : !cir.ptr<!rec_C3> nonnull) [0] -> !cir.ptr<!rec_C2>
 // CHECK:     %4 = cir.call @_ZN2C210InitializeEv(%3) : (!cir.ptr<!rec_C2>) -> !s32i
 
@@ -114,12 +114,12 @@ void vcall(C1 &c1) {
 // CHECK:   %2 = cir.alloca !s32i, !cir.ptr<!s32i>, ["e"] {alignment = 4 : i64}
 // CHECK:   %3 = cir.alloca !rec_buffy, !cir.ptr<!rec_buffy>, ["agg.tmp0"] {alignment = 8 : i64}
 // CHECK:   cir.store %arg0, %0 : !cir.ptr<!rec_C1>, !cir.ptr<!cir.ptr<!rec_C1>>
-// CHECK:   %4 = cir.load %0 : !cir.ptr<!cir.ptr<!rec_C1>>, !cir.ptr<!rec_C1>
-// CHECK:   %5 = cir.load %2 : !cir.ptr<!s32i>, !s32i
+// CHECK:   %4 = cir.load{{.*}} %0 : !cir.ptr<!cir.ptr<!rec_C1>>, !cir.ptr<!rec_C1>
+// CHECK:   %5 = cir.load{{.*}} %2 : !cir.ptr<!s32i>, !s32i
 // CHECK:   cir.call @_ZN5buffyC2ERKS_(%3, %1) : (!cir.ptr<!rec_buffy>, !cir.ptr<!rec_buffy>) -> ()
-// CHECK:   %6 = cir.load %3 : !cir.ptr<!rec_buffy>, !rec_buffy
+// CHECK:   %6 = cir.load{{.*}} %3 : !cir.ptr<!rec_buffy>, !rec_buffy
 // CHECK:   %7 = cir.cast(bitcast, %4 : !cir.ptr<!rec_C1>), !cir.ptr<!cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_C1>, !s32i, !rec_buffy) -> !s32i>>>>
-// CHECK:   %8 = cir.load %7 : !cir.ptr<!cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_C1>, !s32i, !rec_buffy) -> !s32i>>>>, !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_C1>, !s32i, !rec_buffy) -> !s32i>>>
+// CHECK:   %8 = cir.load{{.*}} %7 : !cir.ptr<!cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_C1>, !s32i, !rec_buffy) -> !s32i>>>>, !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_C1>, !s32i, !rec_buffy) -> !s32i>>>
 // CHECK:   %9 = cir.vtable.address_point( %8 : !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_C1>, !s32i, !rec_buffy) -> !s32i>>>, address_point = <index = 0, offset = 2>) : !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_C1>, !s32i, !rec_buffy) -> !s32i>>>
 // CHECK:   %10 = cir.load align(8) %9 : !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_C1>, !s32i, !rec_buffy) -> !s32i>>>, !cir.ptr<!cir.func<(!cir.ptr<!rec_C1>, !s32i, !rec_buffy) -> !s32i>>
 // CHECK:   %11 = cir.call %10(%4, %5, %6) : (!cir.ptr<!cir.func<(!cir.ptr<!rec_C1>, !s32i, !rec_buffy) -> !s32i>>, !cir.ptr<!rec_C1>, !s32i, !rec_buffy) -> !s32i
@@ -141,7 +141,7 @@ public:
 // CHECK: cir.func linkonce_odr @_ZN1B3fooEv(%arg0: !cir.ptr<!rec_B>
 // CHECK:   %0 = cir.alloca !cir.ptr<!rec_B>, !cir.ptr<!cir.ptr<!rec_B>>, ["this", init] {alignment = 8 : i64}
 // CHECK:   cir.store %arg0, %0 : !cir.ptr<!rec_B>, !cir.ptr<!cir.ptr<!rec_B>>
-// CHECK:   %1 = cir.load deref %0 : !cir.ptr<!cir.ptr<!rec_B>>, !cir.ptr<!rec_B>
+// CHECK:   %1 = cir.load{{.*}} deref %0 : !cir.ptr<!cir.ptr<!rec_B>>, !cir.ptr<!rec_B>
 // CHECK:   cir.scope {
 // CHECK:     %2 = cir.alloca !rec_A, !cir.ptr<!rec_A>, ["ref.tmp0"] {alignment = 8 : i64}
 // CHECK:     %3 = cir.base_class_addr(%1 : !cir.ptr<!rec_B> nonnull) [0] -> !cir.ptr<!rec_A>

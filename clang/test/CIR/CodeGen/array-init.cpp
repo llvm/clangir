@@ -24,7 +24,7 @@ void foo() {
 // CHECK: %[[VAL_6:.*]] = cir.const #cir.int<2> : !s64i
 // CHECK: %[[VAL_7:.*]] = cir.ptr_stride(%[[VAL_5]] : !cir.ptr<!s32i>, %[[VAL_6]] : !s64i), !cir.ptr<!s32i>
 // CHECK: cir.do {
-// CHECK:     %[[VAL_8:.*]] = cir.load %[[VAL_1]] : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
+// CHECK:     %[[VAL_8:.*]] = cir.load{{.*}} %[[VAL_1]] : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
 // CHECK:     %[[VAL_9:.*]] = cir.const #cir.int<0> : !s32i
 // CHECK:     cir.store{{.*}} %[[VAL_9]], %[[VAL_8]] : !s32i, !cir.ptr<!s32i>
 // CHECK:     %[[VAL_10:.*]] = cir.const #cir.int<1> : !s64i
@@ -32,7 +32,7 @@ void foo() {
 // CHECK:     cir.store{{.*}} %[[VAL_11]], %[[VAL_1]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
 // CHECK:     cir.yield
 // CHECK: } while {
-// CHECK:     %[[VAL_8:.*]] = cir.load %[[VAL_1]] : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
+// CHECK:     %[[VAL_8:.*]] = cir.load{{.*}} %[[VAL_1]] : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
 // CHECK:     %[[VAL_9:.*]] = cir.cmp(ne, %[[VAL_8]], %[[VAL_7]]) : !cir.ptr<!s32i>, !cir.bool
 // CHECK:     cir.condition(%[[VAL_9]])
 // CHECK: }

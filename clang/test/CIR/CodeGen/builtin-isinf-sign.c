@@ -5,7 +5,7 @@
 
 int test_float_isinf_sign(float x) {
     // CIR-LABEL: test_float_isinf_sign
-    // CIR: %[[TMP0:.*]] = cir.load %{{.*}} : !cir.ptr<!cir.float>, !cir.float
+    // CIR: %[[TMP0:.*]] = cir.load{{.*}} %{{.*}} : !cir.ptr<!cir.float>, !cir.float
     // CIR: %[[TMP1:.*]] = cir.fabs %[[TMP0]] : !cir.float
     // CIR: %[[IS_INF:.*]] = cir.is_fp_class %[[TMP1]], 516 : (!cir.float) -> !cir.bool
     // CIR: %[[IS_NEG:.*]] = cir.signbit %[[TMP0]] : !cir.float -> !cir.bool

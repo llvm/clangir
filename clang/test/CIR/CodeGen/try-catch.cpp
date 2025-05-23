@@ -23,7 +23,7 @@ unsigned long long tc() {
   } catch (int idx) {
     // CHECK: } catch [type #cir.global_view<@_ZTIi> : !cir.ptr<!u8i> {
     // CHECK:   %[[catch_idx_addr:.*]] = cir.catch_param -> !cir.ptr<!s32i>
-    // CHECK:   %[[idx_load:.*]] = cir.load %[[catch_idx_addr]] : !cir.ptr<!s32i>, !s32i
+    // CHECK:   %[[idx_load:.*]] = cir.load{{.*}} %[[catch_idx_addr]] : !cir.ptr<!s32i>, !s32i
     // CHECK:   cir.store{{.*}} %[[idx_load]], %[[idx]] : !s32i, !cir.ptr<!s32i>
     z = 98;
     idx++;
@@ -143,7 +143,7 @@ void tc6() {
 // CHECK:   cir.try {
 // CHECK:     cir.return
 // CHECK:   ^bb1:  // no predecessors
-// CHECK:     %[[V2:.*]] = cir.load {{.*}} : !cir.ptr<!s32i>, !s32i
+// CHECK:     %[[V2:.*]] = cir.load{{.*}} {{.*}} : !cir.ptr<!s32i>, !s32i
 // CHECK:     %[[V3:.*]] = cir.unary(inc, %[[V2]]) nsw : !s32i, !s32i
 // CHECK:     cir.store{{.*}} %[[V3]], {{.*}} : !s32i, !cir.ptr<!s32i>
 // CHECK:     cir.yield
@@ -162,7 +162,7 @@ void tc7() {
 
 // CHECK: cir.scope {
 // CHECK:   cir.try {
-// CHECK:     %[[V2:.*]] = cir.load {{.*}} : !cir.ptr<!s32i>, !s32i
+// CHECK:     %[[V2:.*]] = cir.load{{.*}} {{.*}} : !cir.ptr<!s32i>, !s32i
 // CHECK:     %[[V3:.*]] = cir.unary(inc, %[[V2]]) nsw : !s32i, !s32i
 // CHECK:     cir.store{{.*}} %[[V3]], {{.*}} : !s32i, !cir.ptr<!s32i>
 // CHECK:     cir.return

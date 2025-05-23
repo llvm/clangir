@@ -24,20 +24,20 @@ void scalar_to_complex() {
 
 // CIR-BEFORE: %{{.+}} = cir.cast(float_to_complex, %{{.+}} : !cir.double), !cir.complex<!cir.double>
 
-//      CIR-AFTER: %[[#REAL:]] = cir.load volatile %{{.+}} : !cir.ptr<!cir.double>, !cir.double
+//      CIR-AFTER: %[[#REAL:]] = cir.load volatile{{.*}}  %{{.+}} : !cir.ptr<!cir.double>, !cir.double
 // CIR-AFTER-NEXT: %[[#IMAG:]] = cir.const #cir.fp<0.000000e+00> : !cir.double
 // CIR-AFTER-NEXT: %{{.+}} = cir.complex.create %[[#REAL]], %[[#IMAG]] : !cir.double -> !cir.complex<!cir.double>
 
 // CIR-BEFORE: %{{.+}} = cir.cast(int_to_complex, %{{.+}} : !s32i), !cir.complex<!s32i>
 
-//      CIR-AFTER: %[[#REAL:]] = cir.load volatile %{{.+}} : !cir.ptr<!s32i>, !s32i
+//      CIR-AFTER: %[[#REAL:]] = cir.load volatile{{.*}}  %{{.+}} : !cir.ptr<!s32i>, !s32i
 // CIR-AFTER-NEXT: %[[#IMAG:]] = cir.const #cir.int<0> : !s32i
 // CIR-AFTER-NEXT: %{{.+}} = cir.complex.create %[[#REAL]], %[[#IMAG]] : !s32i -> !cir.complex<!s32i>
 
 //      CIR-BEFORE: %[[#A:]] = cir.cast(int_to_float, %{{.+}} : !s32i), !cir.double
 // CIR-BEFORE-NEXT: %{{.+}} = cir.cast(float_to_complex, %[[#A]] : !cir.double), !cir.complex<!cir.double>
 
-//      CIR-AFTER: %[[#A:]] = cir.load volatile %{{.+}} : !cir.ptr<!s32i>, !s32i
+//      CIR-AFTER: %[[#A:]] = cir.load volatile{{.*}}  %{{.+}} : !cir.ptr<!s32i>, !s32i
 // CIR-AFTER-NEXT: %[[#REAL:]] = cir.cast(int_to_float, %[[#A]] : !s32i), !cir.double
 // CIR-AFTER-NEXT: %[[#IMAG:]] = cir.const #cir.fp<0.000000e+00> : !cir.double
 // CIR-AFTER-NEXT: %{{.+}} = cir.complex.create %[[#REAL]], %[[#IMAG]] : !cir.double -> !cir.complex<!cir.double>
@@ -45,7 +45,7 @@ void scalar_to_complex() {
 //      CIR-BEFORE: %[[#A:]] = cir.cast(float_to_int, %{{.+}} : !cir.double), !s32i
 // CIR-BEFORE-NEXT: %{{.+}} = cir.cast(int_to_complex, %[[#A]] : !s32i), !cir.complex<!s32i>
 
-//      CIR-AFTER: %[[#A:]] = cir.load volatile %{{.+}} : !cir.ptr<!cir.double>, !cir.double
+//      CIR-AFTER: %[[#A:]] = cir.load volatile{{.*}}  %{{.+}} : !cir.ptr<!cir.double>, !cir.double
 // CIR-AFTER-NEXT: %[[#REAL:]] = cir.cast(float_to_int, %[[#A]] : !cir.double), !s32i
 // CIR-AFTER-NEXT: %[[#IMAG:]] = cir.const #cir.int<0> : !s32i
 // CIR-AFTER-NEXT: %{{.+}} = cir.complex.create %[[#REAL]], %[[#IMAG]] : !s32i -> !cir.complex<!s32i>

@@ -14,7 +14,7 @@ void __copy_fs_struct(struct fs_struct *fs) { fs->lock = (rwlock_t) { }; }
 // CIR:   %[[VAL_1:.*]] = cir.alloca !cir.ptr<![[fs_struct]]>, !cir.ptr<!cir.ptr<![[fs_struct]]>>, ["fs", init] {alignment = 8 : i64}
 // CIR:   %[[VAL_2:.*]] = cir.alloca ![[lock]], !cir.ptr<![[lock]]>, [".compoundliteral"] {alignment = 1 : i64}
 // CIR:   cir.store {{.*}}, %[[VAL_1]] : !cir.ptr<![[fs_struct]]>, !cir.ptr<!cir.ptr<![[fs_struct]]>>
-// CIR:   %[[VAL_3:.*]] = cir.load %[[VAL_1]] : !cir.ptr<!cir.ptr<![[fs_struct]]>>, !cir.ptr<![[fs_struct]]>
+// CIR:   %[[VAL_3:.*]] = cir.load{{.*}} %[[VAL_1]] : !cir.ptr<!cir.ptr<![[fs_struct]]>>, !cir.ptr<![[fs_struct]]>
 // CIR:   %[[VAL_4:.*]] = cir.get_member %[[VAL_3]][0] {name = "lock"} : !cir.ptr<![[fs_struct]]> -> !cir.ptr<![[lock]]>
 // CIR:   cir.copy %[[VAL_2]] to %[[VAL_4]] : !cir.ptr<![[lock]]>
 

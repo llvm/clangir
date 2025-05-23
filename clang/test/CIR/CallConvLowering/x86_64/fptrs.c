@@ -26,9 +26,9 @@ void bar() {
 // CHECK:   %[[#V3:]] = cir.get_global @foo : !cir.ptr<!cir.func<(!s32i) -> !s32i>>
 // CHECK:   %[[#V4:]] = cir.cast(bitcast, %[[#V3]] : !cir.ptr<!cir.func<(!s32i) -> !s32i>>), !cir.ptr<!cir.func<(!rec_S) -> !s32i>>
 // CHECK:   cir.store{{.*}} %[[#V4]], %[[#V2]] : !cir.ptr<!cir.func<(!rec_S) -> !s32i>>, !cir.ptr<!cir.ptr<!cir.func<(!rec_S) -> !s32i>>>
-// CHECK:   %[[#V5:]] = cir.load %[[#V2]] : !cir.ptr<!cir.ptr<!cir.func<(!rec_S) -> !s32i>>>, !cir.ptr<!cir.func<(!rec_S) -> !s32i>>
+// CHECK:   %[[#V5:]] = cir.load{{.*}} %[[#V2]] : !cir.ptr<!cir.ptr<!cir.func<(!rec_S) -> !s32i>>>, !cir.ptr<!cir.func<(!rec_S) -> !s32i>>
 // CHECK:   %[[#V6:]] = cir.cast(bitcast, %[[#V0]] : !cir.ptr<!rec_S>), !cir.ptr<!s32i>
-// CHECK:   %[[#V7:]] = cir.load %[[#V6]] : !cir.ptr<!s32i>, !s32i
+// CHECK:   %[[#V7:]] = cir.load{{.*}} %[[#V6]] : !cir.ptr<!s32i>, !s32i
 // CHECK:   %[[#V8:]] = cir.cast(bitcast, %[[#V5]] : !cir.ptr<!cir.func<(!rec_S) -> !s32i>>), !cir.ptr<!cir.func<(!s32i) -> !s32i>>
 // CHECK:   %[[#V9:]] = cir.call %[[#V8]](%[[#V7]]) : (!cir.ptr<!cir.func<(!s32i) -> !s32i>>, !s32i) -> !s32i
 

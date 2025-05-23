@@ -31,10 +31,10 @@ int basic_binop_fetch(int *i) {
 // CHECK:  %[[ARGI:.*]] = cir.alloca !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>, ["i", init] {alignment = 8 : i64}
 // CHECK:  %[[ONE_ADDR:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, [".atomictmp"] {alignment = 4 : i64}
 // CHECK:  cir.store{{.*}} %arg0, %[[ARGI]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
-// CHECK:  %[[I:.*]] = cir.load %[[ARGI]] : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
+// CHECK:  %[[I:.*]] = cir.load{{.*}} %[[ARGI]] : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
 // CHECK:  %[[ONE:.*]] = cir.const #cir.int<1> : !s32i
 // CHECK:  cir.store{{.*}} %[[ONE]], %[[ONE_ADDR]] : !s32i, !cir.ptr<!s32i>
-// CHECK:  %[[VAL:.*]] = cir.load %[[ONE_ADDR]] : !cir.ptr<!s32i>, !s32i
+// CHECK:  %[[VAL:.*]] = cir.load{{.*}} %[[ONE_ADDR]] : !cir.ptr<!s32i>, !s32i
 // CHECK:  cir.atomic.fetch(add, %[[I]] : !cir.ptr<!s32i>, %[[VAL]] : !s32i, seq_cst) : !s32i
 
 // LLVM: define dso_local i32 @_Z17basic_binop_fetchPi
@@ -152,7 +152,7 @@ int fi1(_Atomic(int) *i) {
 }
 
 // CHECK: cir.func @_Z3fi1PU7_Atomici
-// CHECK: cir.load atomic(seq_cst)
+// CHECK: cir.load{{.*}} atomic(seq_cst)
 
 // LLVM-LABEL: @_Z3fi1PU7_Atomici
 // LLVM: load atomic i32, ptr {{.*}} seq_cst, align 4
@@ -164,7 +164,7 @@ int fi1a(int *i) {
 }
 
 // CHECK-LABEL: @_Z4fi1aPi
-// CHECK: cir.load atomic(seq_cst)
+// CHECK: cir.load{{.*}} atomic(seq_cst)
 
 // LLVM-LABEL: @_Z4fi1aPi
 // LLVM: load atomic i32, ptr {{.*}} seq_cst, align 4
@@ -174,7 +174,7 @@ int fi1b(int *i) {
 }
 
 // CHECK-LABEL: @_Z4fi1bPi
-// CHECK: cir.load atomic(seq_cst)
+// CHECK: cir.load{{.*}} atomic(seq_cst)
 
 // LLVM-LABEL: @_Z4fi1bPi
 // LLVM: load atomic i32, ptr {{.*}} seq_cst, align 4
@@ -184,7 +184,7 @@ int fi1c(atomic_int *i) {
 }
 
 // CHECK-LABEL: @_Z4fi1cPU7_Atomici
-// CHECK: cir.load atomic(seq_cst)
+// CHECK: cir.load{{.*}} atomic(seq_cst)
 
 // LLVM-LABEL: @_Z4fi1cPU7_Atomici
 // LLVM: load atomic i32, ptr {{.*}} seq_cst, align 4
@@ -367,8 +367,8 @@ void inc_int(int* a, int b) {
   int c = __sync_fetch_and_add(a, b);
 }
 // CHECK-LABEL: @_Z7inc_int
-// CHECK: %[[PTR:.*]] = cir.load {{.*}} : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
-// CHECK: %[[VAL:.*]] = cir.load {{.*}} : !cir.ptr<!s32i>, !s32i
+// CHECK: %[[PTR:.*]] = cir.load{{.*}} {{.*}} : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
+// CHECK: %[[VAL:.*]] = cir.load{{.*}} {{.*}} : !cir.ptr<!s32i>, !s32i
 // CHECK: %[[RES:.*]] = cir.atomic.fetch(add, %[[PTR]] : !cir.ptr<!s32i>, %[[VAL]] : !s32i, seq_cst) fetch_first : !s32i
 // CHECK: cir.store{{.*}} %[[RES]], {{.*}} : !s32i, !cir.ptr<!s32i>
 
@@ -380,8 +380,8 @@ void sub_int(int* a, int b) {
 }
 
 // CHECK-LABEL: _Z7sub_int
-// CHECK: %[[PTR:.*]] = cir.load {{.*}} : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
-// CHECK: %[[VAL:.*]] = cir.load {{.*}} : !cir.ptr<!s32i>, !s32i
+// CHECK: %[[PTR:.*]] = cir.load{{.*}} {{.*}} : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
+// CHECK: %[[VAL:.*]] = cir.load{{.*}} {{.*}} : !cir.ptr<!s32i>, !s32i
 // CHECK: %[[RES:.*]] = cir.atomic.fetch(sub, %[[PTR]] : !cir.ptr<!s32i>, %[[VAL]] : !s32i, seq_cst) fetch_first : !s32i
 // CHECK: cir.store{{.*}} %[[RES]], {{.*}} : !s32i, !cir.ptr<!s32i>
 
@@ -448,9 +448,9 @@ void sub_byte(char* a, char b) {
 }
 
 // CHECK-LABEL: @_Z12cmp_bool_int
-// CHECK: %[[PTR:.*]] = cir.load {{.*}} : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
-// CHECK: %[[CMP:.*]] = cir.load {{.*}} : !cir.ptr<!s32i>, !s32i
-// CHECK: %[[UPD:.*]] = cir.load {{.*}} : !cir.ptr<!s32i>, !s32i
+// CHECK: %[[PTR:.*]] = cir.load{{.*}} {{.*}} : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
+// CHECK: %[[CMP:.*]] = cir.load{{.*}} {{.*}} : !cir.ptr<!s32i>, !s32i
+// CHECK: %[[UPD:.*]] = cir.load{{.*}} {{.*}} : !cir.ptr<!s32i>, !s32i
 // CHECK: %[[OLD:.*]], %[[RES:.*]] = cir.atomic.cmp_xchg(%[[PTR]] : !cir.ptr<!s32i>, %[[CMP]] : !s32i, %[[UPD]] : !s32i, success = seq_cst, failure = seq_cst) syncscope(system) align(4) : (!s32i, !cir.bool)
 // CHECK: cir.store{{.*}} %[[RES]], {{.*}} : !cir.bool, !cir.ptr<!cir.bool>
 
@@ -495,9 +495,9 @@ void cmp_bool_byte(char* p, char x, char u) {
 }
 
 // CHECK-LABEL: @_Z11cmp_val_int
-// CHECK: %[[PTR:.*]] = cir.load {{.*}} : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
-// CHECK: %[[CMP:.*]] = cir.load {{.*}} : !cir.ptr<!s32i>, !s32i
-// CHECK: %[[UPD:.*]] = cir.load {{.*}} : !cir.ptr<!s32i>, !s32i
+// CHECK: %[[PTR:.*]] = cir.load{{.*}} {{.*}} : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
+// CHECK: %[[CMP:.*]] = cir.load{{.*}} {{.*}} : !cir.ptr<!s32i>, !s32i
+// CHECK: %[[UPD:.*]] = cir.load{{.*}} {{.*}} : !cir.ptr<!s32i>, !s32i
 // CHECK: %[[OLD:.*]], %[[RES:.*]] = cir.atomic.cmp_xchg(%[[PTR]] : !cir.ptr<!s32i>, %[[CMP]] : !s32i, %[[UPD]] : !s32i, success = seq_cst, failure = seq_cst) syncscope(system) align(4) : (!s32i, !cir.bool)
 // CHECK: cir.store{{.*}} %[[OLD]], {{.*}} : !s32i, !cir.ptr<!s32i>
 
@@ -595,10 +595,10 @@ void sub_uchar(unsigned char* a, char b) {
 }
 
 // CHECK-LABEL: @_Z13cmp_bool_uint
-// CHECK: %[[PTR:.*]] = cir.load {{.*}} : !cir.ptr<!cir.ptr<!u32i>>, !cir.ptr<!u32i>
-// CHECK: %[[CMP:.*]] = cir.load {{.*}} : !cir.ptr<!s32i>, !s32i
+// CHECK: %[[PTR:.*]] = cir.load{{.*}} {{.*}} : !cir.ptr<!cir.ptr<!u32i>>, !cir.ptr<!u32i>
+// CHECK: %[[CMP:.*]] = cir.load{{.*}} {{.*}} : !cir.ptr<!s32i>, !s32i
 // CHECK: %[[CMP_U:.*]] = cir.cast(integral, %[[CMP]] : !s32i), !u32i
-// CHECK: %[[UPD:.*]] = cir.load {{.*}} : !cir.ptr<!s32i>, !s32i
+// CHECK: %[[UPD:.*]] = cir.load{{.*}} {{.*}} : !cir.ptr<!s32i>, !s32i
 // CHECK: %[[UPD_U:.*]] = cir.cast(integral, %[[UPD]] : !s32i), !u32i
 // CHECK: %[[OLD:.*]], %[[RES:.*]] = cir.atomic.cmp_xchg(%[[PTR]] : !cir.ptr<!u32i>, %[[CMP_U]] :
 // CHECK-SAME: !u32i, %[[UPD_U]] : !u32i, success = seq_cst, failure = seq_cst) syncscope(system) align(4) : (!u32i, !cir.bool)
@@ -635,10 +635,10 @@ void cmp_bool_ulong(unsigned long* p, long x, long u) {
 }
 
 // CHECK-LABEL: @_Z12cmp_val_uint
-// CHECK: %[[PTR:.*]] = cir.load {{.*}} : !cir.ptr<!cir.ptr<!u32i>>, !cir.ptr<!u32i>
-// CHECK: %[[CMP:.*]] = cir.load {{.*}} : !cir.ptr<!s32i>, !s32i
+// CHECK: %[[PTR:.*]] = cir.load{{.*}} {{.*}} : !cir.ptr<!cir.ptr<!u32i>>, !cir.ptr<!u32i>
+// CHECK: %[[CMP:.*]] = cir.load{{.*}} {{.*}} : !cir.ptr<!s32i>, !s32i
 // CHECK: %[[CMP_U:.*]] = cir.cast(integral, %[[CMP]] : !s32i), !u32i
-// CHECK: %[[UPD:.*]] = cir.load {{.*}} : !cir.ptr<!s32i>, !s32i
+// CHECK: %[[UPD:.*]] = cir.load{{.*}} {{.*}} : !cir.ptr<!s32i>, !s32i
 // CHECK: %[[UPD_U:.*]] = cir.cast(integral, %[[UPD]] : !s32i), !u32i
 // CHECK: %[[OLD:.*]], %[[RES:.*]] = cir.atomic.cmp_xchg(%[[PTR]] : !cir.ptr<!u32i>, %[[CMP_U]] :
 // CHECK-SAME: !u32i, %[[UPD_U]] : !u32i, success = seq_cst, failure = seq_cst) syncscope(system) align(4) : (!u32i, !cir.bool)

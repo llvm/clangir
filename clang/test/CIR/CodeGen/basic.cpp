@@ -44,15 +44,15 @@ int *p2() {
 // CHECK-NEXT:    cir.store{{.*}} %8, %7 : !s32i, !cir.ptr<!s32i>
 // CHECK-NEXT:    cir.store{{.*}} %7, %1 : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
 // CHECK-NEXT:    %9 = cir.const #cir.int<42> : !s32i
-// CHECK-NEXT:    %10 = cir.load deref %1 : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
+// CHECK-NEXT:    %10 = cir.load deref{{.*}}  %1 : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
 // CHECK-NEXT:    cir.store{{.*}} %9, %10 : !s32i, !cir.ptr<!s32i>
 // CHECK-NEXT:  } loc(#[[locScope:loc[0-9]+]])
 // CHECK-NEXT:  %3 = cir.const #cir.int<42> : !s32i
-// CHECK-NEXT:  %4 = cir.load deref %1 : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
+// CHECK-NEXT:  %4 = cir.load deref{{.*}}  %1 : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
 // CHECK-NEXT:  cir.store{{.*}} %3, %4 : !s32i, !cir.ptr<!s32i>
-// CHECK-NEXT:  %5 = cir.load %1 : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
+// CHECK-NEXT:  %5 = cir.load{{.*}} %1 : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
 // CHECK-NEXT:  cir.store{{.*}} %5, %0 : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
-// CHECK-NEXT:  %6 = cir.load %0 : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
+// CHECK-NEXT:  %6 = cir.load{{.*}} %0 : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
 // CHECK-NEXT:  cir.return %6 : !cir.ptr<!s32i>
 
 void b0() { bool x = true, y = false; }
@@ -64,7 +64,7 @@ void b0() { bool x = true, y = false; }
 void b1(int a) { bool b = a; }
 
 // CHECK: cir.func @_Z2b1i(%arg0: !s32i loc({{.*}}))
-// CHECK: %2 = cir.load %0 : !cir.ptr<!s32i>, !s32i
+// CHECK: %2 = cir.load{{.*}} %0 : !cir.ptr<!s32i>, !s32i
 // CHECK: %3 = cir.cast(int_to_bool, %2 : !s32i), !cir.bool
 // CHECK: cir.store{{.*}} %3, %1 : !cir.bool, !cir.ptr<!cir.bool>
 
@@ -79,7 +79,7 @@ void if0(int a) {
 
 // CHECK: cir.func @_Z3if0i(%arg0: !s32i loc({{.*}}))
 // CHECK: cir.scope {
-// CHECK:   %3 = cir.load %0 : !cir.ptr<!s32i>, !s32i
+// CHECK:   %3 = cir.load{{.*}} %0 : !cir.ptr<!s32i>, !s32i
 // CHECK:   %4 = cir.cast(int_to_bool, %3 : !s32i), !cir.bool
 // CHECK-NEXT:   cir.if %4 {
 // CHECK-NEXT:     %5 = cir.const #cir.int<3> : !s32i
@@ -107,13 +107,13 @@ void if1(int a, bool b, bool c) {
 
 // CHECK: cir.func @_Z3if1ibb(%arg0: !s32i loc({{.*}}), %arg1: !cir.bool loc({{.*}}), %arg2: !cir.bool loc({{.*}}))
 // CHECK: cir.scope {
-// CHECK:   %5 = cir.load %0 : !cir.ptr<!s32i>, !s32i
+// CHECK:   %5 = cir.load{{.*}} %0 : !cir.ptr<!s32i>, !s32i
 // CHECK:   %6 = cir.cast(int_to_bool, %5 : !s32i), !cir.bool
 // CHECK:   cir.if %6 {
 // CHECK:     %7 = cir.const #cir.int<3> : !s32i
 // CHECK:     cir.store{{.*}} %7, %3 : !s32i, !cir.ptr<!s32i>
 // CHECK:     cir.scope {
-// CHECK:       %8 = cir.load %1 : !cir.ptr<!cir.bool>, !cir.bool
+// CHECK:       %8 = cir.load{{.*}} %1 : !cir.ptr<!cir.bool>, !cir.bool
 // CHECK-NEXT:       cir.if %8 {
 // CHECK-NEXT:         %9 = cir.const #cir.int<8> : !s32i
 // CHECK-NEXT:         cir.store{{.*}} %9, %3 : !s32i, !cir.ptr<!s32i>
@@ -121,7 +121,7 @@ void if1(int a, bool b, bool c) {
 // CHECK:     }
 // CHECK:   } else {
 // CHECK:     cir.scope {
-// CHECK:       %8 = cir.load %2 : !cir.ptr<!cir.bool>, !cir.bool
+// CHECK:       %8 = cir.load{{.*}} %2 : !cir.ptr<!cir.bool>, !cir.bool
 // CHECK-NEXT:       cir.if %8 {
 // CHECK-NEXT:         %9 = cir.const #cir.int<14> : !s32i
 // CHECK-NEXT:         cir.store{{.*}} %9, %3 : !s32i, !cir.ptr<!s32i>

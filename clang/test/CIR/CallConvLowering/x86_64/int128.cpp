@@ -35,8 +35,8 @@ __int128 test1(__int128 a, __int128 b) {
   // LLVM-NEXT: %[[#RET_SLOT:]] = alloca i128, i64 1, align 16
 
   return a + b;
-  //      CHECK: %[[#A:]] = cir.load %[[#SLOT_A]] : !cir.ptr<!s128i>, !s128i
-  // CHECK-NEXT: %[[#B:]] = cir.load %[[#SLOT_B]] : !cir.ptr<!s128i>, !s128i
+  //      CHECK: %[[#A:]] = cir.load{{.*}} %[[#SLOT_A]] : !cir.ptr<!s128i>, !s128i
+  // CHECK-NEXT: %[[#B:]] = cir.load{{.*}} %[[#SLOT_B]] : !cir.ptr<!s128i>, !s128i
   // CHECK-NEXT: %[[#SUM:]] = cir.binop(add, %[[#A]], %[[#B]]) nsw : !s128i
   // CHECK-NEXT: cir.store %[[#SUM]], %[[#SLOT_RET]] : !s128i, !cir.ptr<!s128i>
 
@@ -46,7 +46,7 @@ __int128 test1(__int128 a, __int128 b) {
   // LLVM-NEXT: store i128 %[[#SUM]], ptr %[[#RET_SLOT]], align 16
 
   //      CHECK: %[[#SLOT_RET2:]] = cir.cast(bitcast, %[[#SLOT_RET]] : !cir.ptr<!s128i>), !cir.ptr<![[I128_STRUCT]]>
-  // CHECK-NEXT: %[[#RET:]] = cir.load %[[#SLOT_RET2]] : !cir.ptr<![[I128_STRUCT]]>, ![[I128_STRUCT]]
+  // CHECK-NEXT: %[[#RET:]] = cir.load{{.*}} %[[#SLOT_RET2]] : !cir.ptr<![[I128_STRUCT]]>, ![[I128_STRUCT]]
   // CHECK-NEXT: cir.return %[[#RET]] : ![[I128_STRUCT]]
 
   //      LLVM: %[[#RET:]] = load { i64, i64 }, ptr %[[#RET_SLOT]], align 8

@@ -11,7 +11,7 @@ void foo() {
 }
 
 // CHECK:  cir.func linkonce_odr @_ZNK12MyIntPointer4readEv
-// CHECK:  %2 = cir.load %0
+// CHECK:  %2 = cir.load{{.*}} %0
 // CHECK:  %3 = cir.get_member %2[0] {name = "ptr"}
-// CHECK:  %4 = cir.load deref %3 : !cir.ptr<!cir.ptr<!s32i>>
-// CHECK:  %5 = cir.load %4
+// CHECK:  %4 = cir.load deref{{.*}} %3 : !cir.ptr<!cir.ptr<!s32i>>
+// CHECK:  %5 = cir.load{{.*}} %4

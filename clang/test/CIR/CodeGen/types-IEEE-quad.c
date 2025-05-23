@@ -13,12 +13,12 @@ long double t2(long double i2) {
 // CIR-NEXT:    %[[#I2:]] = cir.alloca !cir.long_double<!cir.f128>, !cir.ptr<!cir.long_double<!cir.f128>>, ["i2", init] {alignment = 16 : i64}
 // CIR-NEXT:    %[[#RETVAL:]] = cir.alloca !cir.long_double<!cir.f128>, !cir.ptr<!cir.long_double<!cir.f128>>, ["__retval"] {alignment = 16 : i64}
 // CIR-NEXT:    cir.store %arg0, %[[#I2]] : !cir.long_double<!cir.f128>, !cir.ptr<!cir.long_double<!cir.f128>>
-// CIR-NEXT:    %[[#I2_LOAD:]] = cir.load %[[#I2]] : !cir.ptr<!cir.long_double<!cir.f128>>, !cir.long_double<!cir.f128>
+// CIR-NEXT:    %[[#I2_LOAD:]] = cir.load{{.*}} %[[#I2]] : !cir.ptr<!cir.long_double<!cir.f128>>, !cir.long_double<!cir.f128>
 // CIR-NEXT:    %[[#I:]] = cir.get_global @i : !cir.ptr<!cir.long_double<!cir.f128>>
-// CIR-NEXT:    %[[#I_LOAD:]] = cir.load %[[#I]] : !cir.ptr<!cir.long_double<!cir.f128>>, !cir.long_double<!cir.f128>
+// CIR-NEXT:    %[[#I_LOAD:]] = cir.load{{.*}} %[[#I]] : !cir.ptr<!cir.long_double<!cir.f128>>, !cir.long_double<!cir.f128>
 // CIR-NEXT:    %[[#ADD:]] = cir.binop(add, %[[#I2_LOAD]], %[[#I_LOAD]]) : !cir.long_double<!cir.f128>
 // CIR-NEXT:    cir.store %[[#ADD]], %[[#RETVAL]] : !cir.long_double<!cir.f128>, !cir.ptr<!cir.long_double<!cir.f128>>
-// CIR-NEXT:    %[[#RETVAL_LOAD:]] = cir.load %[[#RETVAL]] : !cir.ptr<!cir.long_double<!cir.f128>>, !cir.long_double<!cir.f128>
+// CIR-NEXT:    %[[#RETVAL_LOAD:]] = cir.load{{.*}} %[[#RETVAL]] : !cir.ptr<!cir.long_double<!cir.f128>>, !cir.long_double<!cir.f128>
 // CIR-NEXT:    cir.return %[[#RETVAL_LOAD]] : !cir.long_double<!cir.f128>
 
 //LLVM:         @i = global fp128 0xL00000000000000000000000000000000, align 16

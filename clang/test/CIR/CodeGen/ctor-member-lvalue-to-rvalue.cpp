@@ -10,11 +10,11 @@ struct String {
 // CHECK:     %1 = cir.alloca !cir.ptr<!rec_String>, !cir.ptr<!cir.ptr<!rec_String>>, ["s", init, const] {alignment = 8 : i64}
 // CHECK:     cir.store{{.*}} %arg0, %0
 // CHECK:     cir.store{{.*}} %arg1, %1
-// CHECK:     %2 = cir.load %0
+// CHECK:     %2 = cir.load{{.*}} %0
 // CHECK:     %3 = cir.get_member %2[0] {name = "size"}
-// CHECK:     %4 = cir.load %1
+// CHECK:     %4 = cir.load{{.*}} %1
 // CHECK:     %5 = cir.get_member %4[0] {name = "size"}
-// CHECK:     %6 = cir.load %5 : !cir.ptr<!s64i>, !s64i
+// CHECK:     %6 = cir.load{{.*}} %5 : !cir.ptr<!s64i>, !s64i
 // CHECK:     cir.store{{.*}} %6, %3 : !s64i, !cir.ptr<!s64i>
 // CHECK:     cir.return
 // CHECK:   }

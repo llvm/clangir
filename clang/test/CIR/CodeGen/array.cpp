@@ -33,7 +33,7 @@ int *a2() {
 // CHECK-NEXT:   %3 = cir.cast(array_to_ptrdecay, %1 : !cir.ptr<!cir.array<!s32i x 4>>), !cir.ptr<!s32i>
 // CHECK-NEXT:   %4 = cir.ptr_stride(%3 : !cir.ptr<!s32i>, %2 : !s32i), !cir.ptr<!s32i>
 // CHECK-NEXT:   cir.store{{.*}} %4, %0 : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
-// CHECK-NEXT:   %5 = cir.load %0 : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
+// CHECK-NEXT:   %5 = cir.load{{.*}} %0 : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
 // CHECK-NEXT:   cir.return %5 : !cir.ptr<!s32i>
 
 void local_stringlit() {
@@ -54,11 +54,11 @@ int multidim(int i, int j) {
 
 // CHECK: %3 = cir.alloca !cir.array<!cir.array<!s32i x 2> x 2>, !cir.ptr<!cir.array<!cir.array<!s32i x 2> x 2>>
 // Stride first dimension (stride = 2)
-// CHECK: %4 = cir.load %{{.+}} : !cir.ptr<!s32i>, !s32i
+// CHECK: %4 = cir.load{{.*}} %{{.+}} : !cir.ptr<!s32i>, !s32i
 // CHECK: %5 = cir.cast(array_to_ptrdecay, %3 : !cir.ptr<!cir.array<!cir.array<!s32i x 2> x 2>>), !cir.ptr<!cir.array<!s32i x 2>>
 // CHECK: %6 = cir.ptr_stride(%5 : !cir.ptr<!cir.array<!s32i x 2>>, %4 : !s32i), !cir.ptr<!cir.array<!s32i x 2>>
 // Stride second dimension (stride = 1)
-// CHECK: %7 = cir.load %{{.+}} : !cir.ptr<!s32i>, !s32i
+// CHECK: %7 = cir.load{{.*}} %{{.+}} : !cir.ptr<!s32i>, !s32i
 // CHECK: %8 = cir.cast(array_to_ptrdecay, %6 : !cir.ptr<!cir.array<!s32i x 2>>), !cir.ptr<!s32i>
 // CHECK: %9 = cir.ptr_stride(%8 : !cir.ptr<!s32i>, %7 : !s32i), !cir.ptr<!s32i>
 
@@ -75,7 +75,7 @@ struct S {
 void testPointerDecaySubscriptAccess(int arr[]) {
 // CHECK: cir.func @{{.+}}testPointerDecaySubscriptAccess
   arr[1];
-  // CHECK: %[[#BASE:]] = cir.load %{{.+}} : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
+  // CHECK: %[[#BASE:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
   // CHECK: %[[#DIM1:]] = cir.const #cir.int<1> : !s32i
   // CHECK: cir.ptr_stride(%[[#BASE]] : !cir.ptr<!s32i>, %[[#DIM1]] : !s32i), !cir.ptr<!s32i>
 }
@@ -83,7 +83,7 @@ void testPointerDecaySubscriptAccess(int arr[]) {
 void testPointerDecayedArrayMultiDimSubscriptAccess(int arr[][3]) {
 // CHECK: cir.func @{{.+}}testPointerDecayedArrayMultiDimSubscriptAccess
   arr[1][2];
-  // CHECK: %[[#V1:]] = cir.load %{{.+}} : !cir.ptr<!cir.ptr<!cir.array<!s32i x 3>>>, !cir.ptr<!cir.array<!s32i x 3>>
+  // CHECK: %[[#V1:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.ptr<!cir.array<!s32i x 3>>>, !cir.ptr<!cir.array<!s32i x 3>>
   // CHECK: %[[#V2:]] = cir.const #cir.int<1> : !s32i
   // CHECK: %[[#V3:]] = cir.ptr_stride(%[[#V1]] : !cir.ptr<!cir.array<!s32i x 3>>, %[[#V2]] : !s32i), !cir.ptr<!cir.array<!s32i x 3>>
   // CHECK: %[[#V4:]] = cir.const #cir.int<2> : !s32i

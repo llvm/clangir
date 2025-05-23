@@ -79,7 +79,7 @@ void store_field() {
 
 // CHECK: cir.func {{.*@load_field}}
 // CHECK:   [[TMP0:%.*]] = cir.alloca !cir.ptr<!rec_S>, !cir.ptr<!cir.ptr<!rec_S>>, ["s", init]
-// CHECK:   [[TMP1:%.*]] = cir.load [[TMP0]] : !cir.ptr<!cir.ptr<!rec_S>>, !cir.ptr<!rec_S>
+// CHECK:   [[TMP1:%.*]] = cir.load{{.*}} [[TMP0]] : !cir.ptr<!cir.ptr<!rec_S>>, !cir.ptr<!rec_S>
 // CHECK:   [[TMP2:%.*]] = cir.get_member [[TMP1]][1] {name = "d"} : !cir.ptr<!rec_S> -> !cir.ptr<!cir.array<!u8i x 3>>
 // CHECK:   [[TMP3:%.*]] = cir.get_bitfield(#bfi_d, [[TMP2]] : !cir.ptr<!cir.array<!u8i x 3>>) -> !s32i
 int load_field(S* s) {
@@ -155,7 +155,7 @@ G g = { -123, 254UL};
 // CHECK:   %[[V1:.*]] = cir.get_global @g : !cir.ptr<!rec_anon_struct>
 // CHECK:   %[[V2:.*]] = cir.cast(bitcast, %[[V1]] : !cir.ptr<!rec_anon_struct>), !cir.ptr<!rec_G>
 // CHECK:   %[[V3:.*]] = cir.get_member %[[V2]][1] {name = "y"} : !cir.ptr<!rec_G> -> !cir.ptr<!s32i>
-// CHECK:   cir.load %[[V3]] : !cir.ptr<!s32i>, !s32i
+// CHECK:   cir.load{{.*}} %[[V3]] : !cir.ptr<!s32i>, !s32i
 int get_y() {
   return g.y;
 }

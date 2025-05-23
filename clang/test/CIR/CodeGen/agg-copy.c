@@ -14,10 +14,10 @@ typedef struct {
 // CHECK:   [[TMP1:%.*]] = cir.alloca !cir.ptr<!rec_A>, !cir.ptr<!cir.ptr<!rec_A>>, ["a2", init]
 // CHECK:   cir.store{{.*}} %arg0, [[TMP0]] : !cir.ptr<!rec_A>, !cir.ptr<!cir.ptr<!rec_A>>
 // CHECK:   cir.store{{.*}} %arg1, [[TMP1]] : !cir.ptr<!rec_A>, !cir.ptr<!cir.ptr<!rec_A>>
-// CHECK:   [[TMP2:%.*]] = cir.load [[TMP0]] : !cir.ptr<!cir.ptr<!rec_A>>, !cir.ptr<!rec_A>
+// CHECK:   [[TMP2:%.*]] = cir.load{{.*}} [[TMP0]] : !cir.ptr<!cir.ptr<!rec_A>>, !cir.ptr<!rec_A>
 // CHECK:   [[TMP3:%.*]] = cir.const #cir.int<1> : !s32i
 // CHECK:   [[TMP4:%.*]] = cir.ptr_stride([[TMP2]] : !cir.ptr<!rec_A>, [[TMP3]] : !s32i), !cir.ptr<!rec_A>
-// CHECK:   [[TMP5:%.*]] = cir.load [[TMP1]] : !cir.ptr<!cir.ptr<!rec_A>>, !cir.ptr<!rec_A>
+// CHECK:   [[TMP5:%.*]] = cir.load{{.*}} [[TMP1]] : !cir.ptr<!cir.ptr<!rec_A>>, !cir.ptr<!rec_A>
 // CHECK:   [[TMP6:%.*]] = cir.const #cir.int<1> : !s32i
 // CHECK:   [[TMP7:%.*]] = cir.ptr_stride([[TMP5]] : !cir.ptr<!rec_A>, [[TMP6]] : !s32i), !cir.ptr<!rec_A>
 // CHECK:   cir.copy [[TMP7]] to [[TMP4]] : !cir.ptr<!rec_A>
@@ -30,9 +30,9 @@ void foo1(A* a1, A* a2) {
 // CHECK:    [[TMP1:%.*]] = cir.alloca !cir.ptr<!rec_A>, !cir.ptr<!cir.ptr<!rec_A>>, ["a2", init]
 // CHECK:    cir.store{{.*}} %arg0, [[TMP0]] : !cir.ptr<!rec_A>, !cir.ptr<!cir.ptr<!rec_A>>
 // CHECK:    cir.store{{.*}} %arg1, [[TMP1]] : !cir.ptr<!rec_A>, !cir.ptr<!cir.ptr<!rec_A>>
-// CHECK:    [[TMP2:%.*]] = cir.load [[TMP0]] : !cir.ptr<!cir.ptr<!rec_A>>, !cir.ptr<!rec_A>
+// CHECK:    [[TMP2:%.*]] = cir.load{{.*}} [[TMP0]] : !cir.ptr<!cir.ptr<!rec_A>>, !cir.ptr<!rec_A>
 // CHECK:    [[TMP3:%.*]] = cir.get_member [[TMP2]][2] {name = "s"} : !cir.ptr<!rec_A> -> !cir.ptr<!rec_S>
-// CHECK:    [[TMP4:%.*]] = cir.load [[TMP1]] : !cir.ptr<!cir.ptr<!rec_A>>, !cir.ptr<!rec_A>
+// CHECK:    [[TMP4:%.*]] = cir.load{{.*}} [[TMP1]] : !cir.ptr<!cir.ptr<!rec_A>>, !cir.ptr<!rec_A>
 // CHECK:    [[TMP5:%.*]] = cir.get_member [[TMP4]][2] {name = "s"} : !cir.ptr<!rec_A> -> !cir.ptr<!rec_S>
 // CHECK:    cir.copy [[TMP5]] to [[TMP3]] : !cir.ptr<!rec_S>
 void foo2(A* a1, A* a2) {
@@ -44,7 +44,7 @@ void foo2(A* a1, A* a2) {
 // CHECK:    [[TMP0]] = cir.alloca !rec_A, !cir.ptr<!rec_A>, ["__retval"] {alignment = 4 : i64}
 // CHECK:    [[TMP1]] = cir.get_global @a : !cir.ptr<!rec_A>
 // CHECK:    cir.copy [[TMP1]] to [[TMP0]] : !cir.ptr<!rec_A>
-// CHECK:    [[TMP2]] = cir.load [[TMP0]] : !cir.ptr<!rec_A>, !rec_A
+// CHECK:    [[TMP2]] = cir.load{{.*}} [[TMP0]] : !cir.ptr<!rec_A>, !rec_A
 // CHECK:    cir.return [[TMP2]] : !rec_A
 A a;
 A foo3(void) {
@@ -55,7 +55,7 @@ A foo3(void) {
 // CHECK:    [[TMP0]] = cir.alloca !cir.ptr<!rec_A>, !cir.ptr<!cir.ptr<!rec_A>>, ["a1", init]
 // CHECK:    [[TMP1]] = cir.alloca !rec_A, !cir.ptr<!rec_A>, ["a2", init]
 // CHECK:    cir.store{{.*}} %arg0, [[TMP0]] : !cir.ptr<!rec_A>, !cir.ptr<!cir.ptr<!rec_A>>
-// CHECK:    [[TMP2]] = cir.load deref [[TMP0]] : !cir.ptr<!cir.ptr<!rec_A>>, !cir.ptr<!rec_A>
+// CHECK:    [[TMP2]] = cir.load deref{{.*}}  [[TMP0]] : !cir.ptr<!cir.ptr<!rec_A>>, !cir.ptr<!rec_A>
 // CHECK:    cir.copy [[TMP2]] to [[TMP1]] : !cir.ptr<!rec_A>
 void foo4(A* a1) {
     A a2 = *a1;
@@ -80,7 +80,7 @@ void foo6(A* a1) {
 // CHECK:   [[TMP0:%.*]] = cir.alloca !cir.ptr<!rec_A>, !cir.ptr<!cir.ptr<!rec_A>>, ["a1", init] {alignment = 8 : i64}
 // CHECK:   [[TMP1:%.*]] = cir.alloca !rec_A, !cir.ptr<!rec_A>, ["a2", init] {alignment = 4 : i64}
 // CHECK:   cir.store{{.*}} %arg0, [[TMP0]] : !cir.ptr<!rec_A>, !cir.ptr<!cir.ptr<!rec_A>>
-// CHECK:   [[TMP2:%.*]] = cir.load deref [[TMP0]] : !cir.ptr<!cir.ptr<!rec_A>>, !cir.ptr<!rec_A>
+// CHECK:   [[TMP2:%.*]] = cir.load deref{{.*}}  [[TMP0]] : !cir.ptr<!cir.ptr<!rec_A>>, !cir.ptr<!rec_A>
 // CHECK:   cir.copy [[TMP2]] to [[TMP1]] : !cir.ptr<!rec_A>
 }
 
