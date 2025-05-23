@@ -2516,30 +2516,22 @@ mlir::Value ScalarExprEmitter::VisitAbstractConditionalOperator(
   if (isCheapEnoughToEvaluateUnconditionally(lhsExpr, CGF) &&
       isCheapEnoughToEvaluateUnconditionally(rhsExpr, CGF)) {
     bool lhsIsVoid = false;
-    auto condV = CGF.evaluateExprAsBool(condExpr);
+    mlir::Value condV = CGF.evaluateExprAsBool(condExpr);
     assert(!cir::MissingFeatures::incrementProfileCounter());
 
-    return builder
-        .create<cir::TernaryOp>(
-            loc, condV, /*thenBuilder=*/
-            [&](mlir::OpBuilder &b, mlir::Location loc) {
-              auto lhs = Visit(lhsExpr);
-              if (!lhs) {
-                lhs = builder.getNullValue(CGF.VoidTy, loc);
-                lhsIsVoid = true;
-              }
-              builder.create<cir::YieldOp>(loc, lhs);
-            },
-            /*elseBuilder=*/
-            [&](mlir::OpBuilder &b, mlir::Location loc) {
-              auto rhs = Visit(rhsExpr);
-              if (lhsIsVoid) {
-                assert(!rhs && "lhs and rhs types must match");
-                rhs = builder.getNullValue(CGF.VoidTy, loc);
-              }
-              builder.create<cir::YieldOp>(loc, rhs);
-            })
-        .getResult();
+    mlir::Value lhs = Visit(lhsExpr);
+    if (!lhs) {
+      lhs = builder.getNullValue(CGF.VoidTy, loc);
+      lhsIsVoid = true;
+    }
+
+    mlir::Value rhs = Visit(rhsExpr);
+    if (lhsIsVoid) {
+      assert(!rhs && "lhs and rhs types must match");
+      rhs = builder.getNullValue(CGF.VoidTy, loc);
+    }
+
+    return builder.createSelect(loc, condV, lhs, rhs);
   }
 
   mlir::Value condV = CGF.emitOpOnBoolExpr(loc, condExpr);

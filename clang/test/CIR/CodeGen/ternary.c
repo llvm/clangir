@@ -13,3 +13,10 @@ double f1(int cond, int n, ...) {
 
 // Fine enough to check it passes the verifying.
 // CIR: cir.ternary
+
+int unconditional_evaluation(_Bool cond) {
+  return cond ? 123 : 456;
+  // CIR: %[[TRUE_CONST:.+]] = cir.const #cir.int<123>
+  // CIR: %[[FALSE_CONST:.+]] = cir.const #cir.int<456>
+  // CIR: cir.select if {{.+}} then %[[TRUE_CONST]] else %[[FALSE_CONST]] : (!cir.bool, !s32i, !s32i) -> !s32i
+}
