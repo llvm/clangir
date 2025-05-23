@@ -51,7 +51,7 @@ void call(Foo *obj, void (Foo::*func)(int), int arg) {
 
 // CHECK-LABEL: cir.func @_Z4callP3FooMS_FviEi
 //       CHECK:   %[[CALLEE:.+]], %[[THIS:.+]] = cir.get_method %{{.+}}, %{{.+}} : (!cir.method<!cir.func<(!s32i)> in !rec_Foo>, !cir.ptr<!rec_Foo>) -> (!cir.ptr<!cir.func<(!cir.ptr<!void>, !s32i)>>, !cir.ptr<!void>)
-//  CHECK-NEXT:   %[[#ARG:]] = cir.load %{{.+}} : !cir.ptr<!s32i>, !s32i
+//  CHECK-NEXT:   %[[#ARG:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!s32i>, !s32i
 //  CHECK-NEXT:   cir.call %[[CALLEE]](%[[THIS]], %[[#ARG]]) : (!cir.ptr<!cir.func<(!cir.ptr<!void>, !s32i)>>, !cir.ptr<!void>, !s32i) -> ()
 //       CHECK: }
 

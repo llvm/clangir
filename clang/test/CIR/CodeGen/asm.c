@@ -57,7 +57,7 @@ void empty6(int x) {
 }
 
 // CHECK: [[TMP0:%.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["a"] 
-// CHECK: [[TMP1:%.*]] = cir.load %0 : !cir.ptr<!u32i>, !u32i
+// CHECK: [[TMP1:%.*]] = cir.load{{.*}} %0 : !cir.ptr<!u32i>, !u32i
 // CHECK: [[TMP2:%.*]] = cir.asm(x86_att, 
 // CHECK:       out = [],
 // CHECK:       in = [%3 : !u32i],
@@ -76,7 +76,7 @@ unsigned add1(unsigned int x) {
 
 // CHECK: [[TMP0:%.*]] = cir.alloca !u32i, !cir.ptr<!u32i>, ["x", init] {alignment = 4 : i64}
 // CHECK: cir.store{{.*}} %arg0, [[TMP0]] : !u32i, !cir.ptr<!u32i>
-// CHECK: [[TMP1:%.*]] = cir.load [[TMP0]] : !cir.ptr<!u32i>, !u32i
+// CHECK: [[TMP1:%.*]] = cir.load{{.*}} [[TMP0]] : !cir.ptr<!u32i>, !u32i
 // CHECK: [[TMP2:%.*]] = cir.asm(x86_att, 
 // CHECK:       out = [],
 // CHECK:       in = [],
@@ -92,7 +92,7 @@ unsigned add2(unsigned int x) {
 
 
 // CHECK: [[TMP0:%.*]] = cir.alloca !u32i, !cir.ptr<!u32i>, ["x", init]
-// CHECK: [[TMP1:%.*]] = cir.load [[TMP0]] : !cir.ptr<!u32i>, !u32i
+// CHECK: [[TMP1:%.*]] = cir.load{{.*}} [[TMP0]] : !cir.ptr<!u32i>, !u32i
 // CHECK: [[TMP2:%.*]] = cir.asm(x86_att, 
 // CHECK:       out = [],
 // CHECK:       in = [],
@@ -110,7 +110,7 @@ unsigned add3(unsigned int x) { // ((42 + x) - 1) * 2
 
 // CHECK: [[TMP0:%.*]] = cir.alloca !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>, ["x", init] 
 // CHECK: cir.store{{.*}} %arg0, [[TMP0]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
-// CHECK: [[TMP1:%.*]] = cir.load deref [[TMP0]] : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
+// CHECK: [[TMP1:%.*]] = cir.load deref{{.*}}  [[TMP0]] : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
 // CHECK: cir.asm(x86_att, 
 // CHECK:       out = [%1 : !cir.ptr<!s32i> (maybe_memory)],
 // CHECK:       in = [],
@@ -127,8 +127,8 @@ void add4(int *x) {
 // CHECK: [[TMP2:%.*]] = cir.alloca !cir.float, !cir.ptr<!cir.float>, ["r"]
 // CHECK: cir.store{{.*}} %arg0, [[TMP0]] : !cir.float, !cir.ptr<!cir.float>
 // CHECK: cir.store{{.*}} %arg1, [[TMP1]] : !cir.float, !cir.ptr<!cir.float>
-// CHECK: [[TMP3:%.*]] = cir.load [[TMP0]] : !cir.ptr<!cir.float>, !cir.float
-// CHECK: [[TMP4:%.*]] = cir.load [[TMP1]] : !cir.ptr<!cir.float>, !cir.float
+// CHECK: [[TMP3:%.*]] = cir.load{{.*}} [[TMP0]] : !cir.ptr<!cir.float>, !cir.float
+// CHECK: [[TMP4:%.*]] = cir.load{{.*}} [[TMP1]] : !cir.ptr<!cir.float>, !cir.float
 // CHECK: [[TMP5:%.*]] = cir.asm(x86_att, 
 // CHECK:       out = [],
 // CHECK:       in = [%4 : !cir.float, %5 : !cir.float],

@@ -20,20 +20,20 @@ void l1() {
 
 // CHECK: cir.func @_Z2l1v
 // CHECK: cir.for : cond {
-// CHECK-NEXT:   %4 = cir.load %2 : !cir.ptr<!s32i>, !s32i
+// CHECK-NEXT:   %4 = cir.load{{.*}} %2 : !cir.ptr<!s32i>, !s32i
 // CHECK-NEXT:   %5 = cir.const #cir.int<10> : !s32i
 // CHECK-NEXT:   %6 = cir.cmp(lt, %4, %5) : !s32i, !cir.bool
 // CHECK-NEXT:   cir.condition(%6)
 // CHECK-NEXT: } body {
 // CHECK-NEXT:   cir.scope {
-// CHECK-NEXT:     %4 = cir.load %0 : !cir.ptr<!s32i>, !s32i
+// CHECK-NEXT:     %4 = cir.load{{.*}} %0 : !cir.ptr<!s32i>, !s32i
 // CHECK-NEXT:     %5 = cir.const #cir.int<1> : !s32i
 // CHECK-NEXT:     %6 = cir.binop(add, %4, %5) nsw : !s32i
 // CHECK-NEXT:     cir.store{{.*}} %6, %0 : !s32i, !cir.ptr<!s32i>
 // CHECK-NEXT:   }
 // CHECK-NEXT:   cir.yield
 // CHECK-NEXT: } step {
-// CHECK-NEXT:   %4 = cir.load %2 : !cir.ptr<!s32i>, !s32i
+// CHECK-NEXT:   %4 = cir.load{{.*}} %2 : !cir.ptr<!s32i>, !s32i
 // CHECK-NEXT:   %5 = cir.const #cir.int<1> : !s32i
 // CHECK-NEXT:   %6 = cir.binop(add, %4, %5) nsw : !s32i
 // CHECK-NEXT:   cir.store{{.*}} %6, %2 : !s32i, !cir.ptr<!s32i>
@@ -56,11 +56,11 @@ void l2(bool cond) {
 // CHECK: cir.func @_Z2l2b
 // CHECK:         cir.scope {
 // CHECK-NEXT:     cir.while {
-// CHECK-NEXT:       %3 = cir.load %0 : !cir.ptr<!cir.bool>, !cir.bool
+// CHECK-NEXT:       %3 = cir.load{{.*}} %0 : !cir.ptr<!cir.bool>, !cir.bool
 // CHECK-NEXT:       cir.condition(%3)
 // CHECK-NEXT:     } do {
 // CHECK-NEXT:       cir.scope {
-// CHECK-NEXT:         %3 = cir.load %1 : !cir.ptr<!s32i>, !s32i
+// CHECK-NEXT:         %3 = cir.load{{.*}} %1 : !cir.ptr<!s32i>, !s32i
 // CHECK-NEXT:         %4 = cir.const #cir.int<1> : !s32i
 // CHECK-NEXT:         %5 = cir.binop(add, %3, %4) nsw : !s32i
 // CHECK-NEXT:         cir.store{{.*}} %5, %1 : !s32i, !cir.ptr<!s32i>
@@ -74,7 +74,7 @@ void l2(bool cond) {
 // CHECK-NEXT:       cir.condition(%[[#TRUE]])
 // CHECK-NEXT:     } do {
 // CHECK-NEXT:       cir.scope {
-// CHECK-NEXT:         %3 = cir.load %1 : !cir.ptr<!s32i>, !s32i
+// CHECK-NEXT:         %3 = cir.load{{.*}} %1 : !cir.ptr<!s32i>, !s32i
 // CHECK-NEXT:         %4 = cir.const #cir.int<1> : !s32i
 // CHECK-NEXT:         %5 = cir.binop(add, %3, %4) nsw : !s32i
 // CHECK-NEXT:         cir.store{{.*}} %5, %1 : !s32i, !cir.ptr<!s32i>
@@ -89,7 +89,7 @@ void l2(bool cond) {
 // CHECK-NEXT:       cir.condition(%4)
 // CHECK-NEXT:     } do {
 // CHECK-NEXT:       cir.scope {
-// CHECK-NEXT:         %3 = cir.load %1 : !cir.ptr<!s32i>, !s32i
+// CHECK-NEXT:         %3 = cir.load{{.*}} %1 : !cir.ptr<!s32i>, !s32i
 // CHECK-NEXT:         %4 = cir.const #cir.int<1> : !s32i
 // CHECK-NEXT:         %5 = cir.binop(add, %3, %4) nsw : !s32i
 // CHECK-NEXT:         cir.store{{.*}} %5, %1 : !s32i, !cir.ptr<!s32i>
@@ -115,21 +115,21 @@ void l3(bool cond) {
 // CHECK: cir.scope {
 // CHECK-NEXT:   cir.do {
 // CHECK-NEXT:     cir.scope {
-// CHECK-NEXT:       %3 = cir.load %1 : !cir.ptr<!s32i>, !s32i
+// CHECK-NEXT:       %3 = cir.load{{.*}} %1 : !cir.ptr<!s32i>, !s32i
 // CHECK-NEXT:       %4 = cir.const #cir.int<1> : !s32i
 // CHECK-NEXT:       %5 = cir.binop(add, %3, %4) nsw : !s32i
 // CHECK-NEXT:       cir.store{{.*}} %5, %1 : !s32i, !cir.ptr<!s32i>
 // CHECK-NEXT:     }
 // CHECK-NEXT:     cir.yield
 // CHECK-NEXT:   } while {
-// CHECK-NEXT:     %[[#TRUE:]] = cir.load %0 : !cir.ptr<!cir.bool>, !cir.bool
+// CHECK-NEXT:     %[[#TRUE:]] = cir.load{{.*}} %0 : !cir.ptr<!cir.bool>, !cir.bool
 // CHECK-NEXT:     cir.condition(%[[#TRUE]])
 // CHECK-NEXT:   }
 // CHECK-NEXT: }
 // CHECK-NEXT: cir.scope {
 // CHECK-NEXT:   cir.do {
 // CHECK-NEXT:     cir.scope {
-// CHECK-NEXT:       %3 = cir.load %1 : !cir.ptr<!s32i>, !s32i
+// CHECK-NEXT:       %3 = cir.load{{.*}} %1 : !cir.ptr<!s32i>, !s32i
 // CHECK-NEXT:       %4 = cir.const #cir.int<1> : !s32i
 // CHECK-NEXT:       %5 = cir.binop(add, %3, %4) nsw : !s32i
 // CHECK-NEXT:       cir.store{{.*}} %5, %1 : !s32i, !cir.ptr<!s32i>
@@ -143,7 +143,7 @@ void l3(bool cond) {
 // CHECK-NEXT: cir.scope {
 // CHECK-NEXT:   cir.do {
 // CHECK-NEXT:     cir.scope {
-// CHECK-NEXT:       %3 = cir.load %1 : !cir.ptr<!s32i>, !s32i
+// CHECK-NEXT:       %3 = cir.load{{.*}} %1 : !cir.ptr<!s32i>, !s32i
 // CHECK-NEXT:       %4 = cir.const #cir.int<1> : !s32i
 // CHECK-NEXT:       %5 = cir.binop(add, %3, %4) nsw : !s32i
 // CHECK-NEXT:       cir.store{{.*}} %5, %1 : !s32i, !cir.ptr<!s32i>
@@ -172,12 +172,12 @@ void l4() {
 // CHECK-NEXT:   cir.condition(%[[#TRUE]])
 // CHECK-NEXT: } do {
 // CHECK-NEXT:   cir.scope {
-// CHECK-NEXT:     %4 = cir.load %0 : !cir.ptr<!s32i>, !s32i
+// CHECK-NEXT:     %4 = cir.load{{.*}} %0 : !cir.ptr<!s32i>, !s32i
 // CHECK-NEXT:     %5 = cir.const #cir.int<1> : !s32i
 // CHECK-NEXT:     %6 = cir.binop(add, %4, %5) nsw  : !s32i
 // CHECK-NEXT:     cir.store{{.*}} %6, %0 : !s32i, !cir.ptr<!s32i>
 // CHECK-NEXT:     cir.scope {
-// CHECK-NEXT:       %10 = cir.load %0 : !cir.ptr<!s32i>, !s32i
+// CHECK-NEXT:       %10 = cir.load{{.*}} %0 : !cir.ptr<!s32i>, !s32i
 // CHECK-NEXT:       %11 = cir.const #cir.int<10> : !s32i
 // CHECK-NEXT:       %12 = cir.cmp(lt, %10, %11) : !s32i, !cir.bool
 // CHECK-NEXT:       cir.if %12 {

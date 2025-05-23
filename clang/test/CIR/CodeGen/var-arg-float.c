@@ -21,9 +21,9 @@ double f1(int n, ...) {
 // BEFORE:  [[TMP0:%.*]] = cir.va.arg [[VARLIST]] : (!cir.ptr<!rec___va_list>) -> !cir.double
 // BEFORE:  cir.store{{.*}} [[TMP0]], [[RESP]] : !cir.double, !cir.ptr<!cir.double>
 // BEFORE:  cir.va.end [[VARLIST]] : !cir.ptr<!rec___va_list>
-// BEFORE:  [[RES:%.*]] = cir.load [[RESP]] : !cir.ptr<!cir.double>, !cir.double
+// BEFORE:  [[RES:%.*]] = cir.load{{.*}} [[RESP]] : !cir.ptr<!cir.double>, !cir.double
 // BEFORE:   cir.store{{.*}} [[RES]], [[RETP]] : !cir.double, !cir.ptr<!cir.double>
-// BEFORE:  [[RETV:%.*]] = cir.load [[RETP]] : !cir.ptr<!cir.double>, !cir.double
+// BEFORE:  [[RETV:%.*]] = cir.load{{.*}} [[RETP]] : !cir.ptr<!cir.double>, !cir.double
 // BEFORE:   cir.return [[RETV]] : !cir.double
 
 // beginning block cir code
@@ -33,7 +33,7 @@ double f1(int n, ...) {
 // AFTER:  [[RESP:%.*]] = cir.alloca !cir.double, !cir.ptr<!cir.double>, ["res", init]
 // AFTER:  cir.va.start [[VARLIST:%.*]] : !cir.ptr<!rec___va_list>
 // AFTER:  [[VR_OFFS_P:%.*]] = cir.get_member [[VARLIST]][4] {name = "vr_offs"} : !cir.ptr<!rec___va_list> -> !cir.ptr<!s32i>
-// AFTER:  [[VR_OFFS:%.*]] = cir.load [[VR_OFFS_P]] : !cir.ptr<!s32i>, !s32i
+// AFTER:  [[VR_OFFS:%.*]] = cir.load{{.*}} [[VR_OFFS_P]] : !cir.ptr<!s32i>, !s32i
 // AFTER:  [[ZERO:%.*]] = cir.const #cir.int<0> : !s32i
 // AFTER:  [[CMP0:%.*]] = cir.cmp(ge, [[VR_OFFS]], [[ZERO]]) : !s32i, !cir.bool
 // AFTER-NEXT:  cir.brcond [[CMP0]] [[BB_ON_STACK:\^bb.*]], [[BB_MAY_REG:\^bb.*]]
@@ -48,7 +48,7 @@ double f1(int n, ...) {
 
 // AFTER: [[BB_IN_REG]]:
 // AFTER-NEXT: [[VR_TOP_P:%.*]] = cir.get_member [[VARLIST]][2] {name = "vr_top"} : !cir.ptr<!rec___va_list> -> !cir.ptr<!cir.ptr<!void>>
-// AFTER-NEXT: [[VR_TOP:%.*]] = cir.load [[VR_TOP_P]] : !cir.ptr<!cir.ptr<!void>>, !cir.ptr<!void>
+// AFTER-NEXT: [[VR_TOP:%.*]] = cir.load{{.*}} [[VR_TOP_P]] : !cir.ptr<!cir.ptr<!void>>, !cir.ptr<!void>
 // AFTER-NEXT: [[TMP2:%.*]] = cir.cast(bitcast, [[VR_TOP]] : !cir.ptr<!void>), !cir.ptr<i8>
 // AFTER-NEXT: [[TMP3:%.*]] = cir.ptr_stride([[TMP2]] : !cir.ptr<i8>, [[VR_OFFS]] : !s32i), !cir.ptr<i8>
 // AFTER-NEXT: [[IN_REG_OUTPUT:%.*]] = cir.cast(bitcast, [[TMP3]] : !cir.ptr<i8>), !cir.ptr<!void>
@@ -57,7 +57,7 @@ double f1(int n, ...) {
 
 // AFTER: [[BB_ON_STACK]]:
 // AFTER-NEXT: [[STACK_P:%.*]] = cir.get_member [[VARLIST]][0] {name = "stack"} : !cir.ptr<!rec___va_list> -> !cir.ptr<!cir.ptr<!void>>
-// AFTER-NEXT: [[STACK_V:%.*]] = cir.load [[STACK_P]] : !cir.ptr<!cir.ptr<!void>>, !cir.ptr<!void>
+// AFTER-NEXT: [[STACK_V:%.*]] = cir.load{{.*}} [[STACK_P]] : !cir.ptr<!cir.ptr<!void>>, !cir.ptr<!void>
 // AFTER-NEXT: [[EIGHT_IN_PTR_ARITH:%.*]]  = cir.const #cir.int<8> : !u64i
 // AFTER-NEXT: [[TMP4:%.*]] = cir.cast(bitcast, [[STACK_V]] : !cir.ptr<!void>), !cir.ptr<i8>
 // AFTER-NEXT: [[TMP5:%.*]] = cir.ptr_stride([[TMP4]] : !cir.ptr<i8>, [[EIGHT_IN_PTR_ARITH]] : !u64i), !cir.ptr<i8>
@@ -67,12 +67,12 @@ double f1(int n, ...) {
 
 // AFTER-NEXT: [[BB_END]]([[BLK_ARG:%.*]]: !cir.ptr<!void>):  // 2 preds: [[BB_IN_REG]], [[BB_ON_STACK]]
 // AFTER-NEXT:  [[TMP0:%.*]] = cir.cast(bitcast, [[BLK_ARG]] : !cir.ptr<!void>), !cir.ptr<!cir.double>
-// AFTER-NEXT:  [[TMP1:%.*]] = cir.load [[TMP0]] : !cir.ptr<!cir.double>, !cir.double
+// AFTER-NEXT:  [[TMP1:%.*]] = cir.load{{.*}} [[TMP0]] : !cir.ptr<!cir.double>, !cir.double
 // AFTER:   cir.store{{.*}} [[TMP1]], [[RESP]] : !cir.double, !cir.ptr<!cir.double>
 // AFTER:   cir.va.end [[VARLIST]] : !cir.ptr<!rec___va_list>
-// AFTER:   [[RES:%.*]] = cir.load [[RESP]] : !cir.ptr<!cir.double>, !cir.double
+// AFTER:   [[RES:%.*]] = cir.load{{.*}} [[RESP]] : !cir.ptr<!cir.double>, !cir.double
 // AFTER:   cir.store{{.*}} [[RES]], [[RETP]] : !cir.double, !cir.ptr<!cir.double>
-// AFTER:  [[RETV:%.*]] = cir.load [[RETP]] : !cir.ptr<!cir.double>, !cir.double
+// AFTER:  [[RETV:%.*]] = cir.load{{.*}} [[RETP]] : !cir.ptr<!cir.double>, !cir.double
 // AFTER:   cir.return [[RETV]] : !cir.double
 
 // beginning block llvm code

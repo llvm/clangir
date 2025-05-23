@@ -56,9 +56,9 @@ int t2() {
 // CIR-NEXT:      %[[NULLPTR_EXTRA:.*]] = cir.const #cir.ptr<null> : !cir.ptr<!void>
 // CIR-NEXT:      %[[NULLPTR:.*]] = cir.const #cir.ptr<null> : !cir.ptr<!s32i>
 // CIR-NEXT:      cir.store{{.*}} %[[NULLPTR]], %[[P]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
-// CIR-NEXT:      %[[X_VAL:.*]] = cir.load %[[X]] : !cir.ptr<!s32i>, !s32i
+// CIR-NEXT:      %[[X_VAL:.*]] = cir.load{{.*}} %[[X]] : !cir.ptr<!s32i>, !s32i
 // CIR-NEXT:      cir.store{{.*}} %[[X_VAL]], %[[RETVAL_ADDR]] : !s32i, !cir.ptr<!s32i>
-// CIR-NEXT:      %[[RETVAL:.*]] = cir.load %[[RETVAL_ADDR]] : !cir.ptr<!s32i>, !s32i
+// CIR-NEXT:      %[[RETVAL:.*]] = cir.load{{.*}} %[[RETVAL_ADDR]] : !cir.ptr<!s32i>, !s32i
 // CIR-NEXT:      cir.return %[[RETVAL]] : !s32i
 // CIR-NEXT:  }
 

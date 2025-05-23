@@ -27,7 +27,7 @@ int test_load_field1(volatile Foo *ptr) {
 
 // CHECK: cir.func @_Z16test_load_field1PV3Foo
 // CHECK:   %[[MemberAddr:.*]] = cir.get_member
-// CHECK:   %{{.+}} = cir.load volatile %[[MemberAddr]]
+// CHECK:   %{{.+}} = cir.load volatile{{.*}} %[[MemberAddr]]
 
 int test_load_field2(Foo *ptr) {
   return ptr->y;
@@ -35,7 +35,7 @@ int test_load_field2(Foo *ptr) {
 
 // CHECK: cir.func @_Z16test_load_field2P3Foo
 // CHECK:   %[[MemberAddr:.+]] = cir.get_member
-// CHECK:   %{{.+}} = cir.load volatile %[[MemberAddr]]
+// CHECK:   %{{.+}} = cir.load volatile{{.*}} %[[MemberAddr]]
 
 int test_load_field3(Foo *ptr) {
   return ptr->z;

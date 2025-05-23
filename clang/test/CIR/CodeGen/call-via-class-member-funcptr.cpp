@@ -24,10 +24,10 @@ void fn1() { f f1; }
 
 // CIR: cir.func @_ZN1f1bEv(%arg0: !cir.ptr<!rec_f> loc{{.*}}) -> !cir.ptr<!s8i>
 // CIR: [[H_PTR:%.*]] = cir.get_global @h : !cir.ptr<!s32i> loc(#loc18)
-// CIR: [[H_VAL:%.*]] = cir.load [[H_PTR]] : !cir.ptr<!s32i>, !s32i
+// CIR: [[H_VAL:%.*]] = cir.load{{.*}} [[H_PTR]] : !cir.ptr<!s32i>, !s32i
 // CIR: [[RET1_VAL:%.*]] = cir.call @_ZN1a1bEi([[H_VAL]]) : (!s32i) -> !cir.ptr<!s8i>
 // CIR: cir.store [[RET1_VAL]], [[RET1_P:%.*]] : !cir.ptr<!s8i>, !cir.ptr<!cir.ptr<!s8i>>
-// CIR: [[RET1_VAL2:%.*]] = cir.load [[RET1_P]] : !cir.ptr<!cir.ptr<!s8i>>, !cir.ptr<!s8i>
+// CIR: [[RET1_VAL2:%.*]] = cir.load{{.*}} [[RET1_P]] : !cir.ptr<!cir.ptr<!s8i>>, !cir.ptr<!s8i>
 //    %7 = cir.load %1 : !cir.ptr<!cir.ptr<!s8i>>, !cir.ptr<!s8i>
 // CIR: cir.return [[RET1_VAL2]] : !cir.ptr<!s8i>
 

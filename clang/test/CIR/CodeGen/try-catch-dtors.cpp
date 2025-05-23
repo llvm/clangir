@@ -335,7 +335,7 @@ void bar() {
 // CIR:  } catch [#cir.unwind {
 // CIR:    cir.resume
 // CIR:  }]
-// CIR:  %[[V3:.*]] = cir.load %[[V2]] : !cir.ptr<!s32i>, !s32i
+// CIR:  %[[V3:.*]] = cir.load{{.*}} %[[V2]] : !cir.ptr<!s32i>, !s32i
 // CIR:  cir.store{{.*}} %[[V3]], %[[V1]] : !s32i, !cir.ptr<!s32i>
 // CIR:  cir.call @_ZN1AD2Ev(%[[V0]]) : (!cir.ptr<!rec_A>) -> () extra(#fn_attr)
 // CIR:  cir.return
@@ -356,7 +356,7 @@ void d() {
 // CIR: cir.scope {
 // CIR:   %[[V2:.*]] = cir.alloca !rec_C, !cir.ptr<!rec_C>, ["agg.tmp0"] {alignment = 1 : i64}
 // CIR:   cir.call @_ZN1CC2ERKS_(%[[V2]], %[[V1]]) : (!cir.ptr<!rec_C>, !cir.ptr<!rec_C>) -> () extra(#fn_attr)
-// CIR:   %[[V3:.*]] = cir.load %[[V2]] : !cir.ptr<!rec_C>, !rec_C
+// CIR:   %[[V3:.*]] = cir.load{{.*}} %[[V2]] : !cir.ptr<!rec_C>, !rec_C
 // CIR:   cir.try synthetic cleanup {
 // CIR:     cir.call exception @_ZN1CaSES_(%[[V0]], %[[V3]]) : (!cir.ptr<!rec_C>, !rec_C) -> () cleanup {
 // CIR:       cir.call @_ZN1CD1Ev(%[[V2]]) : (!cir.ptr<!rec_C>) -> () extra(#fn_attr)
