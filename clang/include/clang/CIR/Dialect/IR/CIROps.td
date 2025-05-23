@@ -872,11 +872,10 @@ def SelectOp : CIR_Op<"select", [Pure,
 // ConditionOp
 //===----------------------------------------------------------------------===//
 
-def ConditionOp : CIR_Op<"condition", [
-  Terminator,
-  DeclareOpInterfaceMethods<RegionBranchTerminatorOpInterface,
-                            ["getSuccessorRegions"]>
-]> {
+def ConditionOp : CIR_Op<"condition", [Terminator, ConditionOpInterface,
+                                       DeclareOpInterfaceMethods<
+                                           RegionBranchTerminatorOpInterface,
+                                           ["getSuccessorRegions"]>]> {
   let summary = "Loop continuation condition.";
   let description = [{
     The `cir.condition` terminates conditional regions. It takes a single
