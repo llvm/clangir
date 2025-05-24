@@ -872,7 +872,7 @@ def SelectOp : CIR_Op<"select", [Pure,
 // ConditionOp
 //===----------------------------------------------------------------------===//
 
-def ConditionOp : CIR_Op<"condition", [Terminator, ConditionOpInterface,
+def ConditionOp : CIR_Op<"condition", [Terminator, CIR_ConditionOpInterface,
                                        DeclareOpInterfaceMethods<
                                            RegionBranchTerminatorOpInterface,
                                            ["getSuccessorRegions"]>]> {

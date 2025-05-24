@@ -96,7 +96,7 @@ def LoopOpInterface : OpInterface<"LoopOpInterface", [
   }];
 }
 
-def ConditionOpInterface : OpInterface<"CIR_ConditionOpInterface", []> {
+def CIR_ConditionOpInterface : OpInterface<"ConditionOpInterface", []> {
   let description = [{
     A singleton interface for ConditionOp only. This is used to break off a
     a dependency from LoopOpInterface onto ConditionOp.
