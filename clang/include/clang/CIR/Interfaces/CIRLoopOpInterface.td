@@ -13,10 +13,10 @@ include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/ControlFlowInterfaces.td"
 include "mlir/Interfaces/LoopLikeInterface.td"
 
-def LoopOpInterface : OpInterface<"LoopOpInterface", [
-  DeclareOpInterfaceMethods<RegionBranchOpInterface>,
-  DeclareOpInterfaceMethods<LoopLikeOpInterface>
-]> {
+def CIR_LoopOpInterface
+    : OpInterface<"LoopOpInterface",
+                  [DeclareOpInterfaceMethods<RegionBranchOpInterface>,
+                   DeclareOpInterfaceMethods<LoopLikeOpInterface>]> {
   let description = [{
     Contains helper functions to query properties and perform transformations
     on a loop.
