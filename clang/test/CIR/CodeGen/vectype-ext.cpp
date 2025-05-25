@@ -4,6 +4,7 @@
 // RUN: FileCheck --input-file=%t.ll %s -check-prefix=LLVM
 
 typedef int vi4 __attribute__((ext_vector_type(4)));
+typedef unsigned int uvi4 __attribute__((ext_vector_type(4)));
 typedef int vi3 __attribute__((ext_vector_type(3)));
 typedef int vi2 __attribute__((ext_vector_type(2)));
 typedef double vd2 __attribute__((ext_vector_type(2)));
@@ -534,4 +535,14 @@ void test_vec3() {
   // LLVM-NEXT: %[[#V3:]] = shufflevector <4 x i32> %[[#V4]], <4 x i32> %[[#V4]], <3 x i32> <i32 0, i32 1, i32 2>
   // LLVM-NEXT: %[[#RES:]] = add <3 x i32> %[[#V3]], splat (i32 1)
 
+}
+
+void vector_integers_shifts_test() {
+  vi4 a = {1, 2, 3, 4};
+  uvi4 b = {5u, 6u, 7u, 8u};
+
+  vi4 shl = a << b;
+  // CHECK:  %{{[0-9]+}} = cir.shift(left, %{{[0-9]+}} : !cir.vector<!s32i x 4>, %{{[0-9]+}} : !cir.vector<!u32i x 4>) -> !cir.vector<!s32i x 4>
+  uvi4 shr = b >> a;
+  // CHECK: %{{[0-9]+}} = cir.shift(right, %{{[0-9]+}} : !cir.vector<!u32i x 4>, %{{[0-9]+}} : !cir.vector<!s32i x 4>) -> !cir.vector<!u32i x 4>
 }
