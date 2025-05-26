@@ -265,12 +265,12 @@ public:
     mlir::Value value = emitToMemory(rewriter, op, adaptor.getValue());
     if (findBaseAndIndices(adaptor.getAddr(), base, indices, eraseList,
                            rewriter)) {
-      rewriter.replaceOpWithNewOp<mlir::memref::StoreOp>(op, value, base,
-                                                         indices);
+      rewriter.replaceOpWithNewOp<mlir::memref::StoreOp>(
+          op, value, base, indices, op.getIsNontemporal());
       eraseIfSafe(op.getAddr(), base, eraseList, rewriter);
     } else
-      rewriter.replaceOpWithNewOp<mlir::memref::StoreOp>(op, value,
-                                                         adaptor.getAddr());
+      rewriter.replaceOpWithNewOp<mlir::memref::StoreOp>(
+          op, value, adaptor.getAddr(), mlir::ValueRange{}, op.getIsNontemporal());
     return mlir::LogicalResult::success();
   }
 };
