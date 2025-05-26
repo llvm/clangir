@@ -260,7 +260,7 @@ void RecordType::print(mlir::AsmPrinter &printer) const {
     break;
   }
 
-  if (getName())
+  if (!isAnonymous())
     printer << getName();
 
   // Current type has already been printed: print as self reference.
@@ -297,10 +297,10 @@ void RecordType::print(mlir::AsmPrinter &printer) const {
 
 mlir::LogicalResult
 RecordType::verify(function_ref<mlir::InFlightDiagnostic()> emitError,
-                   llvm::ArrayRef<mlir::Type> members, mlir::StringAttr name,
-                   bool incomplete, bool packed, bool padded,
-                   RecordType::RecordKind kind, ASTRecordDeclInterface ast) {
-  if (name && name.getValue().empty())
+                   llvm::ArrayRef<mlir::Type> members, llvm::StringRef name,
+                   bool incomplete, bool packed, bool padded, RecordKind kind,
+                   ASTRecordDeclInterface ast) {
+  if (name.empty())
     return emitError() << "identified records cannot have an empty name";
   return mlir::success();
 }
@@ -312,20 +312,6 @@ void RecordType::dropAst() { getImpl()->ast = nullptr; }
 }
 
 bool RecordType::isComplete() const { return getImpl()->complete; }
-
-mlir::StringAttr RecordType::getName() const { return getImpl()->name; }
-
-bool RecordType::getComplete() const { return getImpl()->complete; }
-
-bool RecordType::getPacked() const { return getImpl()->packed; }
-
-bool RecordType::getPadded() const { return getImpl()->padded; }
-
-cir::RecordType::RecordKind RecordType::getKind() const {
-  return getImpl()->kind;
-}
-
-ASTRecordDeclInterface RecordType::getAst() const { return getImpl()->ast; }
 
 void RecordType::complete(ArrayRef<Type> members, bool packed, bool padded,
                           ASTRecordDeclInterface ast) {
@@ -869,7 +855,7 @@ static mlir::Type getMethodLayoutType(mlir::MLIRContext *ctx) {
   auto voidPtrTy = cir::PointerType::get(cir::VoidType::get(ctx));
   mlir::Type fields[2]{voidPtrTy, voidPtrTy};
   return cir::RecordType::get(ctx, fields, /*packed=*/false,
-                              /*padded=*/false, cir::RecordType::Struct);
+                              /*padded=*/false, cir::RecordKind::Struct);
 }
 
 llvm::TypeSize

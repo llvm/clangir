@@ -300,7 +300,7 @@ mlir::Value LoweringPrepareX86CXXABI::lowerVAArgX86_64(
             ? cast<cir::RecordType>(ai.getCoerceToType())
             : cir::RecordType::get(
                   Context, {DoubleType::get(Context), DoubleType::get(Context)},
-                  /*packed=*/false, /*padded=*/false, cir::RecordType::Struct);
+                  /*packed=*/false, /*padded=*/false, cir::RecordKind::Struct);
     cir::PointerType addrTy = builder.getPointerTo(ty);
     mlir::Value tmp = builder.createAlloca(loc, addrTy, ty, "tmp",
                                            CharUnits::fromQuantity(tyAlign));

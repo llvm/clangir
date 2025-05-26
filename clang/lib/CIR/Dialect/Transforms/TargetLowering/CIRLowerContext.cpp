@@ -109,7 +109,7 @@ clang::TypeInfo CIRLowerContext::getTypeInfoImpl(const mlir::Type T) const {
     cir_cconv_assert(!cir::MissingFeatures::tagTypeClassAbstraction());
 
     // Only handle TagTypes (names types) for now.
-    cir_cconv_assert(RT.getName() && "Anonymous record is NYI");
+    cir_cconv_assert(RT.isAnonymous() && "Anonymous record is NYI");
 
     // NOTE(cir): Clang does some hanlding of invalid tagged declarations here.
     // Not sure if this is necessary in CIR.

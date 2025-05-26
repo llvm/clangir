@@ -524,11 +524,17 @@ def CIR_VoidType : CIR_Type<"Void", "void"> {
 // The base type for all RecordDecls.
 //===----------------------------------------------------------------------===//
 
+def CIR_RecordKind : I32EnumAttr<"RecordKind", "Record kind", [
+  I32EnumAttrCase<"Class", 0, "Class">,
+  I32EnumAttrCase<"Union", 1, "Union">,
+  I32EnumAttrCase<"Struct", 2, "Struct">,
+]> {
+  let genSpecializedAttr = 0;
+  let cppNamespace = "::cir";
+}
+
 def CIR_RecordType : CIR_Type<"Record", "record",
-    [
-      DeclareTypeInterfaceMethods<DataLayoutTypeInterface>,
-      MutableType,
-    ]> {
+    [DeclareTypeInterfaceMethods<DataLayoutTypeInterface>, MutableType]> {
   let summary = "CIR record type";
   let description = [{
     Each unique clang::RecordDecl is mapped to a `cir.record` and any object in
@@ -546,7 +552,7 @@ def CIR_RecordType : CIR_Type<"Record", "record",
     will be the same type. Attempting to build a record with an existing name,
     but a different body will result in an error.
 
-    A few examples:
+    Examples:
 
     ```mlir
         !complete = !cir.record<struct {!cir.int<u, 8>}>
@@ -569,11 +575,11 @@ def CIR_RecordType : CIR_Type<"Record", "record",
 
   let parameters = (ins
     OptionalArrayRefParameter<"mlir::Type">:$members,
-    OptionalParameter<"mlir::StringAttr">:$name,
+    StringRefParameter<"mlir::StringRef">:$name,
     "bool":$complete,
     "bool":$packed,
     "bool":$padded,
-    "RecordType::RecordKind":$kind,
+    CIR_RecordKind:$kind,
     OptionalParameter<"ASTRecordDeclInterface">:$ast
   );
 
@@ -624,31 +630,23 @@ def CIR_RecordType : CIR_Type<"Record", "record",
   let extraClassDeclaration = [{
     using Base::verifyInvariants;
 
-    enum RecordKind : uint32_t { Class, Union, Struct };
-
     bool isClass() const { return getKind() == RecordKind::Class; };
     bool isStruct() const { return getKind() == RecordKind::Struct; };
     bool isUnion() const { return getKind() == RecordKind::Union; };
     bool isComplete() const;
     bool isIncomplete() const { return !isComplete(); };
 
+    bool isAnonymous() const {
+      return getName().empty();
+    }
+
     void dropAst();
 
     mlir::Type getLargestMember(const mlir::DataLayout &dataLayout) const;
     size_t getNumElements() const { return getMembers().size(); };
-    std::string getKindAsStr() {
-      switch (getKind()) {
-      case RecordKind::Class:
-        return "class";
-      case RecordKind::Union:
-        return "union";
-      case RecordKind::Struct:
-        return "struct";
-      }
-      llvm_unreachable("Invalid value for RecordType::getKind()");
-    }
-    std::string getPrefixedName() {
-      return getKindAsStr() + "." + getName().getValue().str();
+
+    std::string getPrefixedName() const {
+      return (stringifyRecordKind(getKind()) + "." + getName()).str();
     }
 
     void complete(llvm::ArrayRef<mlir::Type> members, bool packed,

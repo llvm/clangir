@@ -497,7 +497,7 @@ static mlir::Type GetX86_64ByValArgumentPair(mlir::Type lo, mlir::Type hi,
   }
 
   auto result = RecordType::get(lo.getContext(), {lo, hi}, /*packed=*/false,
-                                /*padded=*/false, RecordType::Struct);
+                                /*padded=*/false, RecordKind::Struct);
 
   // Verify that the second element is at an 8-byte offset.
   assert(td.getRecordLayout(result)->getElementOffset(1) == 8 &&

@@ -29,31 +29,31 @@ namespace detail {
 struct RecordTypeStorage : public mlir::TypeStorage {
   struct KeyTy {
     llvm::ArrayRef<mlir::Type> members;
-    mlir::StringAttr name;
+    llvm::StringRef name;
     bool complete;
     bool packed;
     bool padded;
-    RecordType::RecordKind kind;
+    RecordKind kind;
     ASTRecordDeclInterface ast;
 
-    KeyTy(llvm::ArrayRef<mlir::Type> members, mlir::StringAttr name,
-          bool complete, bool packed, bool padded, RecordType::RecordKind kind,
+    KeyTy(llvm::ArrayRef<mlir::Type> members, llvm::StringRef name,
+          bool complete, bool packed, bool padded, RecordKind kind,
           ASTRecordDeclInterface ast)
         : members(members), name(name), complete(complete), packed(packed),
           padded(padded), kind(kind), ast(ast) {}
   };
 
   llvm::ArrayRef<mlir::Type> members;
-  mlir::StringAttr name;
+  llvm::StringRef name;
   bool complete;
   bool packed;
   bool padded;
-  RecordType::RecordKind kind;
+  RecordKind kind;
   ASTRecordDeclInterface ast;
 
-  RecordTypeStorage(llvm::ArrayRef<mlir::Type> members, mlir::StringAttr name,
-                    bool complete, bool packed, bool padded,
-                    RecordType::RecordKind kind, ASTRecordDeclInterface ast)
+  RecordTypeStorage(llvm::ArrayRef<mlir::Type> members, llvm::StringRef name,
+                    bool complete, bool packed, bool padded, RecordKind kind,
+                    ASTRecordDeclInterface ast)
       : members(members), name(name), complete(complete), packed(packed),
         padded(padded), kind(kind), ast(ast) {}
 
@@ -62,7 +62,7 @@ struct RecordTypeStorage : public mlir::TypeStorage {
   }
 
   bool operator==(const KeyTy &key) const {
-    if (name)
+    if (!name.empty())
       return (name == key.name) && (kind == key.kind);
     return (members == key.members) && (name == key.name) &&
            (complete == key.complete) && (packed == key.packed) &&
@@ -70,7 +70,7 @@ struct RecordTypeStorage : public mlir::TypeStorage {
   }
 
   static llvm::hash_code hashKey(const KeyTy &key) {
-    if (key.name)
+    if (!key.name.empty())
       return llvm::hash_combine(key.name, key.kind);
     return llvm::hash_combine(key.members, key.complete, key.packed, key.padded,
                               key.kind, key.ast);
@@ -93,7 +93,7 @@ struct RecordTypeStorage : public mlir::TypeStorage {
                              llvm::ArrayRef<mlir::Type> members, bool packed,
                              bool padded, ASTRecordDeclInterface ast) {
     // Anonymous records cannot mutate.
-    if (!name)
+    if (name.empty())
       return llvm::failure();
 
     // Mutation of complete records are allowed if they change nothing.
