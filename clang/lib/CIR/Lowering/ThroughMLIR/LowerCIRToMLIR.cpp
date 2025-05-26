@@ -571,13 +571,13 @@ public:
     switch (op.getKind()) {
     case cir::UnaryOpKind::Inc: {
       auto One = rewriter.create<mlir::arith::ConstantOp>(
-          op.getLoc(), type, mlir::IntegerAttr::get(type, 1));
+          op.getLoc(), mlir::IntegerAttr::get(type, 1));
       rewriter.replaceOpWithNewOp<mlir::arith::AddIOp>(op, type, input, One);
       break;
     }
     case cir::UnaryOpKind::Dec: {
       auto One = rewriter.create<mlir::arith::ConstantOp>(
-          op.getLoc(), type, mlir::IntegerAttr::get(type, 1));
+          op.getLoc(), mlir::IntegerAttr::get(type, 1));
       rewriter.replaceOpWithNewOp<mlir::arith::SubIOp>(op, type, input, One);
       break;
     }
@@ -587,13 +587,13 @@ public:
     }
     case cir::UnaryOpKind::Minus: {
       auto Zero = rewriter.create<mlir::arith::ConstantOp>(
-          op.getLoc(), type, mlir::IntegerAttr::get(type, 0));
+          op.getLoc(), mlir::IntegerAttr::get(type, 0));
       rewriter.replaceOpWithNewOp<mlir::arith::SubIOp>(op, type, Zero, input);
       break;
     }
     case cir::UnaryOpKind::Not: {
       auto MinusOne = rewriter.create<mlir::arith::ConstantOp>(
-          op.getLoc(), type, mlir::IntegerAttr::get(type, -1));
+          op.getLoc(), mlir::IntegerAttr::get(type, -1));
       rewriter.replaceOpWithNewOp<mlir::arith::XOrIOp>(op, type, MinusOne,
                                                        input);
       break;

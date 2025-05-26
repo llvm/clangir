@@ -193,8 +193,7 @@ public:
 
   /// Add a pointer of a specific type.
   void addPointer(cir::PointerType ptrTy, uint64_t value) {
-    auto val = mlir::IntegerAttr::get(
-        mlir::IntegerType::get(ptrTy.getContext(), 64), value);
+    mlir::IntegerAttr val = Builder.builder.getI64IntegerAttr(value);
     add(cir::ConstPtrAttr::get(ptrTy, val));
   }
 
