@@ -1,6 +1,7 @@
 // RUN: %clang_cc1 -std=c++17 -triple x86_64-unknown-linux-gnu -fclangir -emit-cir %s -o - | FileCheck %s
 
 typedef int vi4 __attribute__((vector_size(16)));
+typedef unsigned int uvi4 __attribute__((vector_size(16)));
 typedef double vd2 __attribute__((vector_size(16)));
 typedef long long vll2 __attribute__((vector_size(16)));
 typedef unsigned short vus2 __attribute__((vector_size(4)));
@@ -197,4 +198,14 @@ void vector_double_test(int x, double y) {
   // __builtin_convertvector
   vus2 w = __builtin_convertvector(a, vus2);
   // CHECK: %{{[0-9]+}} = cir.cast(float_to_int, %{{[0-9]+}} : !cir.vector<!cir.double x 2>), !cir.vector<!u16i x 2>
+}
+
+void vector_integers_shifts_test() {
+  vi4 a = {1, 2, 3, 4};
+  uvi4 b = {5u, 6u, 7u, 8u};
+
+  vi4 shl = a << b;
+  // CHECK:  %{{[0-9]+}} = cir.shift(left, %{{[0-9]+}} : !cir.vector<!s32i x 4>, %{{[0-9]+}} : !cir.vector<!u32i x 4>) -> !cir.vector<!s32i x 4>
+  uvi4 shr = b >> a;
+  // CHECK: %{{[0-9]+}} = cir.shift(right, %{{[0-9]+}} : !cir.vector<!u32i x 4>, %{{[0-9]+}} : !cir.vector<!s32i x 4>) -> !cir.vector<!u32i x 4>
 }
