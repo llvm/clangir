@@ -877,11 +877,10 @@ def SelectOp : CIR_Op<"select", [Pure,
 // ConditionOp
 //===----------------------------------------------------------------------===//
 
-def ConditionOp : CIR_Op<"condition", [
-  Terminator,
-  DeclareOpInterfaceMethods<RegionBranchTerminatorOpInterface,
-                            ["getSuccessorRegions"]>
-]> {
+def ConditionOp : CIR_Op<"condition", [Terminator, CIR_ConditionOpInterface,
+                                       DeclareOpInterfaceMethods<
+                                           RegionBranchTerminatorOpInterface,
+                                           ["getSuccessorRegions"]>]> {
   let summary = "Loop continuation condition.";
   let description = [{
     The `cir.condition` terminates conditional regions. It takes a single
@@ -2201,10 +2200,8 @@ def BrCondOp : CIR_Op<"brcond",
 // While & DoWhileOp
 //===----------------------------------------------------------------------===//
 
-class WhileOpBase<string mnemonic> : CIR_Op<mnemonic, [
-  LoopOpInterface,
-  NoRegionArguments,
-]> {
+class WhileOpBase<string mnemonic>
+    : CIR_Op<mnemonic, [CIR_LoopOpInterface, NoRegionArguments, ]> {
   defvar isWhile = !eq(mnemonic, "while");
   let summary = "C/C++ " # !if(isWhile, "while", "do-while") # " loop";
   let builders = [
@@ -2279,7 +2276,7 @@ def DoWhileOp : WhileOpBase<"do"> {
 // ForOp
 //===----------------------------------------------------------------------===//
 
-def ForOp : CIR_Op<"for", [LoopOpInterface, NoRegionArguments]> {
+def ForOp : CIR_Op<"for", [CIR_LoopOpInterface, NoRegionArguments]> {
   let summary = "C/C++ for loop counterpart";
   let description = [{
     Represents a C/C++ for loop. It consists of three regions:

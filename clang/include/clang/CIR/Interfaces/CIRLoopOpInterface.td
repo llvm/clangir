@@ -13,10 +13,10 @@ include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/ControlFlowInterfaces.td"
 include "mlir/Interfaces/LoopLikeInterface.td"
 
-def LoopOpInterface : OpInterface<"LoopOpInterface", [
-  DeclareOpInterfaceMethods<RegionBranchOpInterface>,
-  DeclareOpInterfaceMethods<LoopLikeOpInterface>
-]> {
+def CIR_LoopOpInterface
+    : OpInterface<"LoopOpInterface",
+                  [DeclareOpInterfaceMethods<RegionBranchOpInterface>,
+                   DeclareOpInterfaceMethods<LoopLikeOpInterface>]> {
   let description = [{
     Contains helper functions to query properties and perform transformations
     on a loop.
@@ -94,6 +94,14 @@ def LoopOpInterface : OpInterface<"LoopOpInterface", [
     /// Verify invariants of the LoopOpInterface.
     return detail::verifyLoopOpInterface($_op);
   }];
+}
+
+def CIR_ConditionOpInterface : OpInterface<"ConditionOpInterface", []> {
+  let description = [{
+    A singleton interface for ConditionOp only. This is used to break off a
+    a dependency from LoopOpInterface onto ConditionOp.
+  }];
+  let cppNamespace = "::cir";
 }
 
 #endif // CLANG_CIR_INTERFACES_CIRLOOPOPINTERFACE
