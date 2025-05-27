@@ -13,20 +13,15 @@
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
-#include "mlir/Dialect/SCF/Transforms/Passes.h"
 #include "mlir/IR/Builders.h"
-#include "mlir/IR/BuiltinDialect.h"
-#include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Location.h"
 #include "mlir/IR/ValueRange.h"
-#include "mlir/Pass/Pass.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/LowerToMLIR.h"
-#include "clang/CIR/Passes.h"
 #include "llvm/ADT/TypeSwitch.h"
 
 using namespace cir;
@@ -52,6 +47,7 @@ public:
 
   mlir::Value plusConstant(mlir::Value v, mlir::Location loc, int addend);
   void transferToSCFForOp();
+  void transformToSCFWhileOp();
 
 private:
   cir::ForOp forOp;
@@ -209,21 +205,21 @@ cir::CmpOp SCFLoop::findCmpOp() {
     }
   }
   if (!cmpOp)
-    llvm_unreachable("Can't find loop CmpOp");
+    return nullptr;
 
   auto type = cmpOp.getLhs().getType();
   if (!mlir::isa<cir::IntType>(type))
-    llvm_unreachable("Non-integer type IV is not supported");
+    return nullptr;
 
   auto *lhsDefOp = cmpOp.getLhs().getDefiningOp();
   if (!lhsDefOp)
-    llvm_unreachable("Can't find IV load");
+    return nullptr;
   if (!isIVLoad(lhsDefOp, ivAddr))
-    llvm_unreachable("cmpOp LHS is not IV");
+    return nullptr;
 
   if (cmpOp.getKind() != cir::CmpOpKind::le &&
       cmpOp.getKind() != cir::CmpOpKind::lt)
-    llvm_unreachable("Not support lowering other than le or lt comparison");
+    return nullptr;
 
   return cmpOp;
 }
@@ -253,30 +249,40 @@ mlir::Value SCFLoop::findIVInitValue() {
 
 void SCFLoop::analysis() {
   canonical = mlir::succeeded(findStepAndIV());
-  if (!canonical) {
-    mlir::emitError(forOp.getLoc(),
-                    "cannot handle non-constant step for induction variable");
+  if (!canonical)
+    return;
+
+  cmpOp = findCmpOp();
+  if (!cmpOp) {
+    canonical = false;
     return;
   }
 
-  cmpOp = findCmpOp();
-  auto IVInit = findIVInitValue();
+  auto ivInit = findIVInitValue();
+  if (!ivInit) {
+    canonical = false;
+    return;
+  }
+
   // The loop end value should be hoisted out of loop by -cir-mlir-scf-prepare.
   // So we could get the value by getRemappedValue.
-  auto IVEndBound = rewriter->getRemappedValue(cmpOp.getRhs());
-  // If the loop end bound is not loop invariant and can't be hoisted.
-  // The following assertion will be triggerred.
-  assert(IVEndBound && "can't find IV end boundary");
+  auto ivEndBound = rewriter->getRemappedValue(cmpOp.getRhs());
+  // If the loop end bound is not loop invariant and can't be hoisted,
+  // then this is not a canonical loop.
+  if (!ivEndBound) {
+    canonical = false;
+    return;
+  }
 
   if (step > 0) {
-    lowerBound = IVInit;
+    lowerBound = ivInit;
     if (cmpOp.getKind() == cir::CmpOpKind::lt)
-      upperBound = IVEndBound;
+      upperBound = ivEndBound;
     else if (cmpOp.getKind() == cir::CmpOpKind::le)
-      upperBound = plusConstant(IVEndBound, cmpOp.getLoc(), 1);
+      upperBound = plusConstant(ivEndBound, cmpOp.getLoc(), 1);
   }
-  assert(lowerBound && "can't find loop lower bound");
-  assert(upperBound && "can't find loop upper bound");
+  if (!lowerBound || !upperBound)
+    canonical = false;
 }
 
 void SCFLoop::transferToSCFForOp() {
@@ -307,6 +313,28 @@ void SCFLoop::transferToSCFForOp() {
     }
     return mlir::WalkResult::advance();
   });
+}
+
+void SCFLoop::transformToSCFWhileOp() {
+  auto scfWhileOp = rewriter->create<mlir::scf::WhileOp>(
+      forOp->getLoc(), forOp->getResultTypes(), mlir::ValueRange());
+  rewriter->createBlock(&scfWhileOp.getBefore());
+  rewriter->createBlock(&scfWhileOp.getAfter());
+
+  rewriter->inlineBlockBefore(&forOp.getCond().front(),
+                              scfWhileOp.getBeforeBody(),
+                              scfWhileOp.getBeforeBody()->end());
+  rewriter->inlineBlockBefore(&forOp.getBody().front(),
+                              scfWhileOp.getAfterBody(),
+                              scfWhileOp.getAfterBody()->end());
+  // There will be a yield after the `for` body.
+  // We should delete it.
+  auto yield = mlir::cast<YieldOp>(scfWhileOp.getAfterBody()->back());
+  rewriter->eraseOp(yield);
+
+  rewriter->inlineBlockBefore(&forOp.getStep().front(),
+                              scfWhileOp.getAfterBody(),
+                              scfWhileOp.getAfterBody()->end());
 }
 
 void SCFWhileLoop::transferToSCFWhileOp() {
@@ -352,9 +380,11 @@ public:
                   mlir::ConversionPatternRewriter &rewriter) const override {
     SCFLoop loop(op, &rewriter);
     loop.analysis();
-    if (!loop.isCanonical())
-      return mlir::emitError(op.getLoc(),
-                             "cannot handle non-canonicalized loop");
+    if (!loop.isCanonical()) {
+      loop.transformToSCFWhileOp();
+      rewriter.eraseOp(op);
+      return mlir::success();
+    }
 
     loop.transferToSCFForOp();
     rewriter.eraseOp(op);
