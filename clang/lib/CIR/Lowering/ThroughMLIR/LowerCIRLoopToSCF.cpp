@@ -228,7 +228,7 @@ mlir::Value SCFLoop::plusConstant(mlir::Value V, mlir::Location loc,
                                   int addend) {
   auto type = V.getType();
   auto c1 = rewriter->create<mlir::arith::ConstantOp>(
-      loc, type, mlir::IntegerAttr::get(type, addend));
+      loc, mlir::IntegerAttr::get(type, addend));
   return rewriter->create<mlir::arith::AddIOp>(loc, V, c1);
 }
 
@@ -291,7 +291,7 @@ void SCFLoop::transferToSCFForOp() {
   auto loc = forOp.getLoc();
   auto type = lb.getType();
   auto step = rewriter->create<mlir::arith::ConstantOp>(
-      loc, type, mlir::IntegerAttr::get(type, getStep()));
+      loc, mlir::IntegerAttr::get(type, getStep()));
   auto scfForOp = rewriter->create<mlir::scf::ForOp>(loc, lb, ub, step);
   SmallVector<mlir::Value> bbArg;
   rewriter->eraseOp(&scfForOp.getBody()->back());
