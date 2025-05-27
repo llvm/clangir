@@ -1269,12 +1269,11 @@ public:
     {
       mlir::OpBuilder::InsertionGuard guard(builder);
       builder.restoreInsertionPoint(OutermostConditional->getInsertPoint());
-      builder.createStore(
-          value.getLoc(), value, addr,
-          /*isVolatile=*/false, /*isNontemporal=*/false,
-          mlir::IntegerAttr::get(
-              mlir::IntegerType::get(value.getContext(), 64),
-              (uint64_t)addr.getAlignment().getAsAlign().value()));
+      mlir::IntegerAttr alignmentAttr =
+          builder.getAlignmentAttr(addr.getAlignment());
+      builder.createStore(value.getLoc(), value, addr,
+                          /*isVolatile=*/false, /*isNontemporal=*/false,
+                          alignmentAttr);
     }
   }
 

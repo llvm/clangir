@@ -151,9 +151,7 @@ public:
                                         llvm::ArrayRef<int64_t> indices) {
     llvm::SmallVector<mlir::Attribute> attrs;
     for (auto ind : indices) {
-      auto a =
-          mlir::IntegerAttr::get(mlir::IntegerType::get(getContext(), 64), ind);
-      attrs.push_back(a);
+      attrs.push_back(getI64IntegerAttr(ind));
     }
 
     mlir::ArrayAttr arAttr = mlir::ArrayAttr::get(getContext(), attrs);
@@ -941,13 +939,7 @@ public:
                      clang::CharUnits align = clang::CharUnits::One(),
                      bool isVolatile = false, bool isNontemporal = false,
                      cir::MemOrderAttr order = {}) {
-    llvm::MaybeAlign mayAlign = align.getAsAlign();
-    mlir::IntegerAttr alignAttr;
-    if (mayAlign) {
-      uint64_t alignment = mayAlign ? mayAlign->value() : 0;
-      alignAttr = mlir::IntegerAttr::get(
-          mlir::IntegerType::get(dst.getContext(), 64), alignment);
-    }
+    mlir::IntegerAttr alignAttr = getAlignmentAttr(align);
     return CIRBaseBuilderTy::createStore(loc, val, dst, isVolatile,
                                          isNontemporal, alignAttr, order);
   }

@@ -3342,7 +3342,7 @@ void CIRGenModule::emitDeferred(unsigned recursionLimit) {
 }
 
 mlir::IntegerAttr CIRGenModule::getSize(CharUnits size) {
-  return builder.getSizeFromCharUnits(&getMLIRContext(), size);
+  return builder.getSizeFromCharUnits(size);
 }
 
 mlir::Operation *
@@ -4214,10 +4214,7 @@ mlir::ArrayAttr CIRGenModule::emitAnnotationArgs(const AnnotateAttr *attr) {
       // Handle case which can be evaluated to some numbers, not only literals
       const auto &ap = ce.getAPValueResult();
       if (ap.isInt()) {
-        args.push_back(mlir::IntegerAttr::get(
-            mlir::IntegerType::get(&getMLIRContext(),
-                                   ap.getInt().getBitWidth()),
-            ap.getInt()));
+        args.push_back(builder.getIntegerAttr(ap.getInt()));
       } else {
         llvm_unreachable("NYI like float, fixed-point, array...");
       }

@@ -960,10 +960,9 @@ mlir::LogicalResult CIRToLLVMPtrStrideOpLowering::matchAndRewrite(
     // Rewrite the sub in front of extensions/trunc
     if (rewriteSub) {
       index = rewriter.create<mlir::LLVM::SubOp>(
-          index.getLoc(), index.getType(),
-          rewriter.create<mlir::LLVM::ConstantOp>(
-              index.getLoc(), index.getType(),
-              mlir::IntegerAttr::get(index.getType(), 0)),
+          index.getLoc(),
+          rewriter.create<mlir::LLVM::ConstantOp>(index.getLoc(),
+                                                  index.getType(), 0),
           index);
       rewriter.eraseOp(sub);
     }
@@ -1320,8 +1319,7 @@ mlir::LogicalResult CIRToLLVMCastOpLowering::matchAndRewrite(
     return mlir::success();
   }
   case cir::CastKind::ptr_to_bool: {
-    auto zero =
-        mlir::IntegerAttr::get(mlir::IntegerType::get(getContext(), 64), 0);
+    auto zero = rewriter.getI64IntegerAttr(0);
     auto null = rewriter.create<cir::ConstantOp>(
         src.getLoc(), cir::ConstPtrAttr::get(castOp.getSrc().getType(), zero));
     rewriter.replaceOpWithNewOp<cir::CmpOp>(
@@ -2035,8 +2033,7 @@ mlir::LogicalResult CIRToLLVMVecShuffleDynamicOpLowering::matchAndRewrite(
   uint64_t numElements =
       mlir::cast<cir::VectorType>(op.getVec().getType()).getSize();
   mlir::Value maskValue = rewriter.create<mlir::LLVM::ConstantOp>(
-      loc, llvmIndexType,
-      mlir::IntegerAttr::get(llvmIndexType, numElements - 1));
+      loc, llvmIndexType, numElements - 1);
   mlir::Value maskVector =
       rewriter.create<mlir::LLVM::UndefOp>(loc, llvmIndexVecType);
   for (uint64_t i = 0; i < numElements; ++i) {
@@ -2607,16 +2604,14 @@ mlir::LogicalResult CIRToLLVMUnaryOpLowering::matchAndRewrite(
     switch (op.getKind()) {
     case cir::UnaryOpKind::Inc: {
       assert(!IsVector && "++ not allowed on vector types");
-      auto One = rewriter.create<mlir::LLVM::ConstantOp>(
-          loc, llvmType, mlir::IntegerAttr::get(llvmType, 1));
+      auto One = rewriter.create<mlir::LLVM::ConstantOp>(loc, llvmType, 1);
       rewriter.replaceOpWithNewOp<mlir::LLVM::AddOp>(
           op, llvmType, adaptor.getInput(), One, overflowFlags);
       return mlir::success();
     }
     case cir::UnaryOpKind::Dec: {
       assert(!IsVector && "-- not allowed on vector types");
-      auto One = rewriter.create<mlir::LLVM::ConstantOp>(
-          loc, llvmType, mlir::IntegerAttr::get(llvmType, 1));
+      auto One = rewriter.create<mlir::LLVM::ConstantOp>(loc, llvmType, 1);
       rewriter.replaceOpWithNewOp<mlir::LLVM::SubOp>(
           op, llvmType, adaptor.getInput(), One, overflowFlags);
       return mlir::success();
@@ -2630,10 +2625,9 @@ mlir::LogicalResult CIRToLLVMUnaryOpLowering::matchAndRewrite(
       if (IsVector)
         Zero = rewriter.create<mlir::LLVM::ZeroOp>(loc, llvmType);
       else
-        Zero = rewriter.create<mlir::LLVM::ConstantOp>(
-            loc, llvmType, mlir::IntegerAttr::get(llvmType, 0));
+        Zero = rewriter.create<mlir::LLVM::ConstantOp>(loc, llvmType, 0);
       rewriter.replaceOpWithNewOp<mlir::LLVM::SubOp>(
-          op, llvmType, Zero, adaptor.getInput(), overflowFlags);
+          op, Zero, adaptor.getInput(), overflowFlags);
       return mlir::success();
     }
     case cir::UnaryOpKind::Not: {
@@ -2644,8 +2638,8 @@ mlir::LogicalResult CIRToLLVMUnaryOpLowering::matchAndRewrite(
         // done. It requires a series of insertelement ops.
         mlir::Type llvmElementType =
             getTypeConverter()->convertType(elementType);
-        auto MinusOneInt = rewriter.create<mlir::LLVM::ConstantOp>(
-            loc, llvmElementType, mlir::IntegerAttr::get(llvmElementType, -1));
+        auto MinusOneInt =
+            rewriter.create<mlir::LLVM::ConstantOp>(loc, llvmElementType, -1);
         minusOne = rewriter.create<mlir::LLVM::UndefOp>(loc, llvmType);
         auto NumElements = mlir::dyn_cast<cir::VectorType>(type).getSize();
         for (uint64_t i = 0; i < NumElements; ++i) {
@@ -2655,11 +2649,10 @@ mlir::LogicalResult CIRToLLVMUnaryOpLowering::matchAndRewrite(
               loc, minusOne, MinusOneInt, indexValue);
         }
       } else {
-        minusOne = rewriter.create<mlir::LLVM::ConstantOp>(
-            loc, llvmType, mlir::IntegerAttr::get(llvmType, -1));
+        minusOne = rewriter.create<mlir::LLVM::ConstantOp>(loc, llvmType, -1);
       }
-      rewriter.replaceOpWithNewOp<mlir::LLVM::XOrOp>(
-          op, llvmType, adaptor.getInput(), minusOne);
+      rewriter.replaceOpWithNewOp<mlir::LLVM::XOrOp>(op, adaptor.getInput(),
+                                                     minusOne);
       return mlir::success();
     }
     }
@@ -2707,9 +2700,8 @@ mlir::LogicalResult CIRToLLVMUnaryOpLowering::matchAndRewrite(
     case cir::UnaryOpKind::Not:
       assert(!IsVector && "NYI: op! on vector mask");
       rewriter.replaceOpWithNewOp<mlir::LLVM::XOrOp>(
-          op, llvmType, adaptor.getInput(),
-          rewriter.create<mlir::LLVM::ConstantOp>(
-              loc, llvmType, mlir::IntegerAttr::get(llvmType, 1)));
+          op, adaptor.getInput(),
+          rewriter.create<mlir::LLVM::ConstantOp>(loc, llvmType, 1));
       return mlir::success();
     default:
       return op.emitError()
@@ -3671,14 +3663,14 @@ mlir::LogicalResult CIRToLLVMPtrDiffOpLowering::matchAndRewrite(
   auto resultVal = diff.getResult();
   if (typeSize != 1) {
     auto typeSizeVal = rewriter.create<mlir::LLVM::ConstantOp>(
-        op.getLoc(), llvmDstTy, mlir::IntegerAttr::get(llvmDstTy, typeSize));
+        op.getLoc(), llvmDstTy, typeSize);
 
     if (dstTy.isUnsigned())
-      resultVal = rewriter.create<mlir::LLVM::UDivOp>(op.getLoc(), llvmDstTy,
-                                                      diff, typeSizeVal);
+      resultVal =
+          rewriter.create<mlir::LLVM::UDivOp>(op.getLoc(), diff, typeSizeVal);
     else
-      resultVal = rewriter.create<mlir::LLVM::SDivOp>(op.getLoc(), llvmDstTy,
-                                                      diff, typeSizeVal);
+      resultVal =
+          rewriter.create<mlir::LLVM::SDivOp>(op.getLoc(), diff, typeSizeVal);
   }
   rewriter.replaceOp(op, resultVal);
   return mlir::success();

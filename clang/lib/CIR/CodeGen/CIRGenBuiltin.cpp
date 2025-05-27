@@ -1706,10 +1706,9 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
                         E->getArg(1)->getExprLoc(), FD, 1);
     uint64_t size =
         E->getArg(2)->EvaluateKnownConstInt(getContext()).getZExtValue();
-    builder.create<cir::MemCpyInlineOp>(
-        getLoc(E->getSourceRange()), dest.getPointer(), src.getPointer(),
-        mlir::IntegerAttr::get(mlir::IntegerType::get(builder.getContext(), 64),
-                               size));
+    builder.create<cir::MemCpyInlineOp>(getLoc(E->getSourceRange()),
+                                        dest.getPointer(), src.getPointer(),
+                                        builder.getI64IntegerAttr(size));
     // __builtin_memcpy_inline has no return value
     return RValue::get(nullptr);
   }
@@ -1788,10 +1787,8 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
         E->getArg(2)->EvaluateKnownConstInt(getContext()).getZExtValue();
     emitNonNullArgCheck(RValue::get(Dest.getPointer()), E->getArg(0)->getType(),
                         E->getArg(0)->getExprLoc(), FD, 0);
-    builder.createMemSetInline(
-        getLoc(E->getSourceRange()), Dest.getPointer(), ByteVal,
-        mlir::IntegerAttr::get(mlir::IntegerType::get(builder.getContext(), 64),
-                               size));
+    builder.createMemSetInline(getLoc(E->getSourceRange()), Dest.getPointer(),
+                               ByteVal, builder.getI64IntegerAttr(size));
     // __builtin_memset_inline has no return value
     return RValue::get(nullptr);
   }

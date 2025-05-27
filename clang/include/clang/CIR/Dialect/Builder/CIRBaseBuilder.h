@@ -156,17 +156,20 @@ public:
     llvm_unreachable("Zero initializer for given type is NYI");
   }
 
+  using mlir::OpBuilder::getIntegerAttr;
+
+  mlir::IntegerAttr getIntegerAttr(const llvm::APInt &value) {
+    mlir::Type intType = getIntegerType(value.getBitWidth());
+    return getIntegerAttr(intType, value);
+  }
+
   cir::LoadOp createLoad(mlir::Location loc, mlir::Value ptr,
                          bool isVolatile = false, bool isNontemporal = false,
                          uint64_t alignment = 0) {
-    mlir::IntegerAttr intAttr;
-    if (alignment)
-      intAttr = mlir::IntegerAttr::get(
-          mlir::IntegerType::get(ptr.getContext(), 64), alignment);
-
+    mlir::IntegerAttr alignmentAttr = getAlignmentAttr(alignment);
     return create<cir::LoadOp>(loc, ptr, /*isDeref=*/false, isVolatile,
                                isNontemporal,
-                               /*alignment=*/intAttr,
+                               /*alignment=*/alignmentAttr,
                                /*mem_order=*/
                                cir::MemOrderAttr{},
                                /*tbaa=*/cir::TBAAAttr{});
@@ -373,9 +376,8 @@ public:
                            mlir::Type type, llvm::StringRef name,
                            clang::CharUnits alignment,
                            mlir::Value dynAllocSize) {
-    auto alignmentIntAttr = getSizeFromCharUnits(getContext(), alignment);
-    return createAlloca(loc, addrType, type, name, alignmentIntAttr,
-                        dynAllocSize);
+    mlir::IntegerAttr alignmentAttr = getAlignmentAttr(alignment);
+    return createAlloca(loc, addrType, type, name, alignmentAttr, dynAllocSize);
   }
 
   mlir::Value createAlloca(mlir::Location loc, cir::PointerType addrType,
@@ -387,8 +389,8 @@ public:
   mlir::Value createAlloca(mlir::Location loc, cir::PointerType addrType,
                            mlir::Type type, llvm::StringRef name,
                            clang::CharUnits alignment) {
-    auto alignmentIntAttr = getSizeFromCharUnits(getContext(), alignment);
-    return createAlloca(loc, addrType, type, name, alignmentIntAttr);
+    mlir::IntegerAttr alignmentAttr = getAlignmentAttr(alignment);
+    return createAlloca(loc, addrType, type, name, alignmentAttr);
   }
 
   mlir::Value createGetGlobal(mlir::Location loc, cir::GlobalOp global,
@@ -581,13 +583,28 @@ public:
     return OpBuilder::InsertPoint(block, block->begin());
   };
 
-  mlir::IntegerAttr getSizeFromCharUnits(mlir::MLIRContext *ctx,
-                                         clang::CharUnits size) {
-    // Note that mlir::IntegerType is used instead of cir::IntType here
-    // because we don't need sign information for this to be useful, so keep
-    // it simple.
-    return mlir::IntegerAttr::get(mlir::IntegerType::get(ctx, 64),
-                                  size.getQuantity());
+  //
+  // Alignement and size helpers
+  //
+
+  // Note that mlir::IntegerType is used instead of cir::IntType here because we
+  // don't need sign information for these to be useful, so keep it simple.
+
+  // Fot 0 alignment, return an empty attribute.
+  mlir::IntegerAttr getAlignmentAttr(clang::CharUnits alignment) {
+    return getAlignmentAttr(alignment.getQuantity());
+  }
+
+  mlir::IntegerAttr getAlignmentAttr(llvm::Align alignment) {
+    return getAlignmentAttr(alignment.value());
+  }
+
+  mlir::IntegerAttr getAlignmentAttr(int64_t alignment) {
+    return alignment ? getI64IntegerAttr(alignment) : mlir::IntegerAttr();
+  }
+
+  mlir::IntegerAttr getSizeFromCharUnits(clang::CharUnits size) {
+    return getI64IntegerAttr(size.getQuantity());
   }
 
   /// Create a do-while operation.
@@ -616,9 +633,7 @@ public:
   }
 
   mlir::TypedAttr getConstPtrAttr(mlir::Type t, int64_t v) {
-    auto val =
-        mlir::IntegerAttr::get(mlir::IntegerType::get(t.getContext(), 64), v);
-    return cir::ConstPtrAttr::get(t, val);
+    return cir::ConstPtrAttr::get(t, getI64IntegerAttr(v));
   }
 
   mlir::TypedAttr getConstNullPtrAttr(mlir::Type t) {
