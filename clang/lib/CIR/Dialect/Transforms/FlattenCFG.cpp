@@ -435,6 +435,10 @@ public:
     if (auto tryBodyYield = dyn_cast<cir::YieldOp>(afterBody->getTerminator()))
       rewriter.replaceOpWithNewOp<cir::BrOp>(tryBodyYield, afterTry);
 
+    mlir::ArrayAttr catches = tryOp.getCatchTypesAttr();
+    if (!catches || catches.empty())
+      return;
+
     // Start the landing pad by getting the inflight exception information.
     mlir::Block *nextDispatcher =
         buildLandingPads(tryOp, rewriter, beforeCatch, afterTry, callsToRewrite,
