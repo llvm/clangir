@@ -544,6 +544,12 @@ public:
       signatureConversion.addInputs(argType.index(), convertedType);
     }
 
+    SmallVector<mlir::NamedAttribute, 2> passThroughAttrs;
+
+    if (auto symVisibilityAttr = op.getSymVisibilityAttr())
+      passThroughAttrs.push_back(
+          rewriter.getNamedAttr("sym_visibility", symVisibilityAttr));
+
     SmallVector<mlir::Type> resultTypes;
     // Only convert return type if the function is not void
     if (!mlir::isa<cir::VoidType>(fnType.getReturnType())) {
@@ -556,7 +562,8 @@ public:
     auto fn = rewriter.create<mlir::func::FuncOp>(
         op.getLoc(), op.getName(),
         rewriter.getFunctionType(signatureConversion.getConvertedTypes(),
-                                 resultTypes));
+                                 resultTypes),
+        passThroughAttrs);
 
     if (failed(rewriter.convertRegionTypes(&op.getBody(), *getTypeConverter(),
                                            &signatureConversion)))
