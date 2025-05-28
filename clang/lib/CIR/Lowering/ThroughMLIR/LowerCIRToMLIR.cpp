@@ -540,13 +540,20 @@ public:
       signatureConversion.addInputs(argType.index(), convertedType);
     }
 
+    SmallVector<mlir::NamedAttribute, 2> passThroughAttrs;
+
+    if (auto symVisibilityAttr = op.getSymVisibilityAttr())
+      passThroughAttrs.push_back(
+          rewriter.getNamedAttr("sym_visibility", symVisibilityAttr));
+
     mlir::Type resultType =
         getTypeConverter()->convertType(fnType.getReturnType());
     auto fn = rewriter.create<mlir::func::FuncOp>(
         op.getLoc(), op.getName(),
         rewriter.getFunctionType(signatureConversion.getConvertedTypes(),
                                  resultType ? mlir::TypeRange(resultType)
-                                            : mlir::TypeRange()));
+                                            : mlir::TypeRange()),
+        passThroughAttrs);
 
     if (failed(rewriter.convertRegionTypes(&op.getBody(), *typeConverter,
                                            &signatureConversion)))
