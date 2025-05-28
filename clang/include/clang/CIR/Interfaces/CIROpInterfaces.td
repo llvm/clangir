@@ -170,6 +170,16 @@ let cppNamespace = "::cir" in {
              /*defaultImplementation=*/[{
           setGlobalVisibility(::cir::VisibilityKind::Protected);
         }]>,
+         InterfaceMethod<"Updates the MLIR visibility of this global variable "
+                         "based on the CIR visiblity and linkage.",
+                         "void", "updateMLIRVisibility", (ins), [{}],
+                         /*defaultImplementation=*/[{
+            mlir::SymbolTable::setSymbolVisibility(
+                $_op, ::cir::deduceMLIRVisibility(
+                          $_op.getLinkage(),
+                          $_op.getGlobalVisibility().getValue())
+            );
+          }]>,
     ];
     let extraClassDeclaration = [{
       bool canBenefitFromLocalAlias();
