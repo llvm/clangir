@@ -235,13 +235,14 @@ public:
     mlir::memref::LoadOp newLoad;
     if (findBaseAndIndices(adaptor.getAddr(), base, indices, eraseList,
                            rewriter)) {
-      newLoad =
-          rewriter.create<mlir::memref::LoadOp>(op.getLoc(), base, indices);
+      newLoad = rewriter.create<mlir::memref::LoadOp>(
+          op.getLoc(), base, indices, op.getIsNontemporal());
       // rewriter.replaceOpWithNewOp<mlir::memref::LoadOp>(op, base, indices);
       eraseIfSafe(op.getAddr(), base, eraseList, rewriter);
     } else
-      newLoad =
-          rewriter.create<mlir::memref::LoadOp>(op.getLoc(), adaptor.getAddr());
+      newLoad = rewriter.create<mlir::memref::LoadOp>(
+          op.getLoc(), adaptor.getAddr(), mlir::ValueRange{},
+          op.getIsNontemporal());
 
     // Convert adapted result to its original type if needed.
     mlir::Value result = emitFromMemory(rewriter, op, newLoad.getResult());
@@ -270,7 +271,8 @@ public:
       eraseIfSafe(op.getAddr(), base, eraseList, rewriter);
     } else
       rewriter.replaceOpWithNewOp<mlir::memref::StoreOp>(
-          op, value, adaptor.getAddr(), mlir::ValueRange{}, op.getIsNontemporal());
+          op, value, adaptor.getAddr(), mlir::ValueRange{},
+          op.getIsNontemporal());
     return mlir::LogicalResult::success();
   }
 };
@@ -1448,10 +1450,13 @@ mlir::ModuleOp lowerFromCIRToMLIR(mlir::ModuleOp theModule,
   pm.addPass(createConvertCIRToMLIRPass());
 
   auto result = !mlir::failed(pm.run(theModule));
-  if (!result)
+  if (!result) {
+    //just for debugging purposes
+    //TODO: remove before creating a PR
+    theModule->dump();
     report_fatal_error(
         "The pass manager failed to lower CIR to MLIR standard dialects!");
-
+  }
   // Now that we ran all the lowering passes, verify the final output.
   if (theModule.verify().failed())
     report_fatal_error(
