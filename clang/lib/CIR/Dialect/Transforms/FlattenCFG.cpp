@@ -893,7 +893,7 @@ public:
     rewriter.setInsertionPointToEnd(condBlock);
     rewriter.create<cir::BrCondOp>(loc, op.getCond(), trueBlock, falseBlock);
 
-    if(auto rt = op.getResultTypes(); rt.size()) {
+    if (auto rt = op.getResultTypes(); rt.size()) {
       auto args = remainingOpsBlock->addArguments(rt, op.getLoc());
       SmallVector<mlir::Value, 2> values;
       llvm::copy(args, std::back_inserter(values));
