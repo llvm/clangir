@@ -187,8 +187,7 @@ public:
 
   /// Add an integer value of a specific type.
   void addInt(cir::IntType intTy, uint64_t value, bool isSigned = false) {
-    add(mlir::IntegerAttr::get(intTy,
-                               llvm::APInt{intTy.getWidth(), value, isSigned}));
+    llvm_unreachable("NYI");
   }
 
   /// Add a pointer of a specific type.
