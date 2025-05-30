@@ -303,16 +303,26 @@ void SCFLoop::transferToSCFForOp() {
           "Not support lowering loop with break, continue or if yet");
     // Replace the IV usage to scf loop induction variable.
     if (isIVLoad(op, ivAddr)) {
-      // Replace CIR IV load with arith.addi scf.IV, 0.
-      // The replacement makes the SCF IV can be automatically propogated
-      // by OpAdaptor for individual IV user lowering.
-      // The redundant arith.addi can be removed by later MLIR passes.
-      rewriter->setInsertionPoint(op);
-      auto newIV = plusConstant(scfForOp.getInductionVar(), loc, 0);
-      rewriter->replaceOp(op, newIV.getDefiningOp());
+      // Replace CIR IV load with scf.IV
+      // (i.e. remove the load op and replace the uses of the result of the CIR
+      // IV load with the scf.IV)
+      rewriter->replaceOp(op, scfForOp.getInductionVar());
     }
     return mlir::WalkResult::advance();
   });
+  // If the IV was declared in the for op all uses have been replaced by the
+  // scf.IV and we can remove the alloca + initial store
+
+  // The operations before the loop have been transferred to MLIR.
+  // So we need to go through getRemappedValue to find the value.
+  auto remapAddr = rewriter->getRemappedValue(ivAddr);
+  // If IV has more uses than the use in the initial store op keep it
+  if (!remapAddr || !remapAddr.hasOneUse())
+    return;
+  
+  // otherwise remove the alloca + initial store op
+  rewriter->eraseOp(remapAddr.getDefiningOp());
+  rewriter->eraseOp(*remapAddr.user_begin());
 }
 
 void SCFLoop::transformToSCFWhileOp() {
