@@ -16,6 +16,8 @@ double d(int a, int b) {
 // CIR-NEXT:   cir.store{{.*}} %[[STR_ADD]], %[[ADDR]] : !cir.ptr<!s8i>, !cir.ptr<!cir.ptr<!s8i>>
 // CIR-NEXT:   cir.throw %[[ADDR]] : !cir.ptr<!cir.ptr<!s8i>>, @_ZTIPKc
 // CIR-NEXT:   cir.unreachable
+// CIR-NEXT: ^bb1:  // no predecessors
+// CIR-NEXT:   cir.yield
 // CIR-NEXT: }
 
 // LLVM: %[[ADDR:.*]] = call ptr @__cxa_allocate_exception(i64 8)
@@ -293,3 +295,42 @@ void refoo4() {
 // LLVM: invoke void @__cxa_rethrow
 // LLVM: unreachable
 // LLVM: invoke void @_ZN1SC2Ev
+
+void statements() {
+  throw 0;
+  123 + 456;
+}
+
+// CIR:      cir.func @_Z10statementsv()
+// CIR-NEXT:   %[[V0:.*]] = cir.alloc.exception 4 -> !cir.ptr<!s32i>
+// CIR-NEXT:   %[[V1:.*]] = cir.const #cir.int<0> : !s32i
+// CIR-NEXT:   cir.store align(16) %[[V1]], %[[V0]] : !s32i, !cir.ptr<!s32i>
+// CIR-NEXT:   cir.throw %[[V0]] : !cir.ptr<!s32i>, @_ZTIi
+// CIR-NEXT:   cir.unreachable
+// CIR-NEXT: ^bb1:
+// CIR-NEXT:   %[[V2:.*]] = cir.const #cir.int<123> : !s32i
+// CIR-NEXT:   %[[V3:.*]] = cir.const #cir.int<456> : !s32i
+// CIR-NEXT:   %[[V4:.*]] = cir.binop(add, %[[V2]], %[[V3]]) nsw : !s32i
+// CIR-NEXT:   cir.return
+// CIR-NEXT: }
+
+// LLVM: call void @__cxa_throw
+// LLVM: unreachable
+
+void paren_expr() { (throw 0, 123 + 456); }
+
+// CIR:       cir.func @_Z10paren_exprv()
+// CIR-NEXT:   %[[V0:.*]] = cir.alloc.exception 4 -> !cir.ptr<!s32i>
+// CIR-NEXT:   %[[V1:.*]] = cir.const #cir.int<0> : !s32i
+// CIR-NEXT:   cir.store align(16) %[[V1]], %[[V0]] : !s32i, !cir.ptr<!s32i>
+// CIR-NEXT:   cir.throw %[[V0]] : !cir.ptr<!s32i>, @_ZTIi
+// CIR-NEXT:   cir.unreachable
+// CIR-NEXT: ^bb1:
+// CIR-NEXT:   %[[V2:.*]] = cir.const #cir.int<123> : !s32i
+// CIR-NEXT:   %[[V3:.*]] = cir.const #cir.int<456> : !s32i
+// CIR-NEXT:   %[[V4:.*]] = cir.binop(add, %[[V2]], %[[V3]]) nsw : !s32i
+// CIR-NEXT:   cir.return
+// CIR-NEXT: }
+
+// LLVM: call void @__cxa_throw
+// LLVM: unreachable

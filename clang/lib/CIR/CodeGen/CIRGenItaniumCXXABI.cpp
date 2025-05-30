@@ -2263,6 +2263,37 @@ mlir::Value CIRGenItaniumCXXABI::getCXXDestructorImplicitParam(
   return CGF.GetVTTParameter(GD, ForVirtualBase, Delegating);
 }
 
+// The idea here is creating a separate block for the throw with an
+// `UnreachableOp` as the terminator. So, we branch from the current block
+// to the throw block and create a block for the remaining operations.
+void insertThrowAndSplit(mlir::OpBuilder &builder, mlir::Location loc,
+                         mlir::Value exceptionPtr,
+                         mlir::FlatSymbolRefAttr typeInfo,
+                         mlir::FlatSymbolRefAttr dtor) {
+  mlir::Block *currentBlock = builder.getInsertionBlock();
+  mlir::Region *region = currentBlock->getParent();
+
+  if (currentBlock->empty()) {
+    builder.create<cir::ThrowOp>(loc, exceptionPtr, typeInfo, dtor);
+    builder.create<cir::UnreachableOp>(loc);
+  } else {
+    mlir::Block *throwBlock = builder.createBlock(region);
+    builder.create<cir::ThrowOp>(loc, exceptionPtr, typeInfo, dtor);
+    builder.create<cir::UnreachableOp>(loc);
+
+    builder.setInsertionPointToEnd(currentBlock);
+    builder.create<cir::BrOp>(loc, throwBlock);
+  }
+
+  (void)builder.createBlock(region);
+  // This will be erased during codegen, it acts as a placeholder for the
+  // operations to be inserted (if any)
+  builder.create<cir::ScopeOp>(loc, /*scopeBuilder=*/
+                               [&](mlir::OpBuilder &b, mlir::Location loc) {
+                                 b.create<cir::YieldOp>(loc);
+                               });
+}
+
 void CIRGenItaniumCXXABI::emitRethrow(CIRGenFunction &CGF, bool isNoReturn) {
   // void __cxa_rethrow();
 
@@ -2270,37 +2301,8 @@ void CIRGenItaniumCXXABI::emitRethrow(CIRGenFunction &CGF, bool isNoReturn) {
     auto &builder = CGF.getBuilder();
     assert(CGF.currSrcLoc && "expected source location");
     auto loc = *CGF.currSrcLoc;
-
-    // The idea here is creating a separate block for the rethrow with an
-    // `UnreachableOp` as the terminator. So, we branch from the current block
-    // to the rethrow block and create a block for the remaining operations.
-
-    mlir::Block *currentBlock = builder.getInsertionBlock();
-    mlir::Region *region = currentBlock->getParent();
-
-    if (currentBlock->empty()) {
-      builder.create<cir::ThrowOp>(loc, mlir::Value{},
-                                   mlir::FlatSymbolRefAttr{},
-                                   mlir::FlatSymbolRefAttr{});
-      builder.create<cir::UnreachableOp>(loc);
-    } else {
-      mlir::Block *rethrowBlock = builder.createBlock(region);
-      builder.create<cir::ThrowOp>(loc, mlir::Value{},
-                                   mlir::FlatSymbolRefAttr{},
-                                   mlir::FlatSymbolRefAttr{});
-      builder.create<cir::UnreachableOp>(loc);
-
-      builder.setInsertionPointToEnd(currentBlock);
-      builder.create<cir::BrOp>(loc, rethrowBlock);
-    }
-
-    (void)builder.createBlock(region);
-    // This will be erased during codegen, it acts as a placeholder for the
-    // operations to be inserted (if any)
-    builder.create<cir::ScopeOp>(loc, /*scopeBuilder=*/
-                                 [&](mlir::OpBuilder &b, mlir::Location loc) {
-                                   b.create<cir::YieldOp>(loc);
-                                 });
+    insertThrowAndSplit(builder, loc, mlir::Value{}, mlir::FlatSymbolRefAttr{},
+                        mlir::FlatSymbolRefAttr{});
   } else {
     llvm_unreachable("NYI");
   }
@@ -2366,8 +2368,7 @@ void CIRGenItaniumCXXABI::emitThrow(CIRGenFunction &CGF,
 
   // Now throw the exception.
   mlir::Location loc = CGF.getLoc(E->getSourceRange());
-  builder.create<cir::ThrowOp>(loc, exceptionPtr, typeInfo.getSymbol(), dtor);
-  builder.create<cir::UnreachableOp>(loc);
+  insertThrowAndSplit(builder, loc, exceptionPtr, typeInfo.getSymbol(), dtor);
 }
 
 mlir::Value CIRGenItaniumCXXABI::getVirtualBaseClassOffset(
