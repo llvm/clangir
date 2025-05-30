@@ -1505,7 +1505,7 @@ RValue CIRGenFunction::emitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   case Builtin::BI__builtin_elementwise_exp:
     return emitUnaryFPBuiltin<cir::ExpOp>(*this, *E);
   case Builtin::BI__builtin_elementwise_exp2:
-    llvm_unreachable("BI__builtin_elementwise_exp2 NYI");
+    return emitUnaryFPBuiltin<cir::Exp2Op>(*this, *E);
   case Builtin::BI__builtin_elementwise_log:
     return emitUnaryFPBuiltin<cir::LogOp>(*this, *E);
   case Builtin::BI__builtin_elementwise_log2:
