@@ -13,6 +13,7 @@
 #include "PassDetail.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/PatternMatch.h"
+#include "mlir/IR/ValueRange.h"
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
@@ -868,14 +869,6 @@ public:
     auto *condBlock = rewriter.getInsertionBlock();
     auto opPosition = rewriter.getInsertionPoint();
     auto *remainingOpsBlock = rewriter.splitBlock(condBlock, opPosition);
-    llvm::SmallVector<mlir::Location, 2> locs;
-    // Ternary result is optional, make sure to populate the location only
-    // when relevant.
-    if (op->getResultTypes().size())
-      locs.push_back(loc);
-    auto *continueBlock =
-        rewriter.createBlock(remainingOpsBlock, op->getResultTypes(), locs);
-    rewriter.create<cir::BrOp>(loc, remainingOpsBlock);
 
     auto &trueRegion = op.getTrueRegion();
     auto *trueBlock = &trueRegion.front();
@@ -884,24 +877,29 @@ public:
     auto trueYieldOp = dyn_cast<cir::YieldOp>(trueTerminator);
 
     rewriter.replaceOpWithNewOp<cir::BrOp>(trueYieldOp, trueYieldOp.getArgs(),
-                                           continueBlock);
-    rewriter.inlineRegionBefore(trueRegion, continueBlock);
+                                           remainingOpsBlock);
+    rewriter.inlineRegionBefore(trueRegion, remainingOpsBlock);
 
-    auto *falseBlock = continueBlock;
     auto &falseRegion = op.getFalseRegion();
+    auto *falseBlock = &falseRegion.front();
 
-    falseBlock = &falseRegion.front();
     mlir::Operation *falseTerminator = falseRegion.back().getTerminator();
     rewriter.setInsertionPointToEnd(&falseRegion.back());
     auto falseYieldOp = dyn_cast<cir::YieldOp>(falseTerminator);
     rewriter.replaceOpWithNewOp<cir::BrOp>(falseYieldOp, falseYieldOp.getArgs(),
-                                           continueBlock);
-    rewriter.inlineRegionBefore(falseRegion, continueBlock);
+                                           remainingOpsBlock);
+    rewriter.inlineRegionBefore(falseRegion, remainingOpsBlock);
 
     rewriter.setInsertionPointToEnd(condBlock);
     rewriter.create<cir::BrCondOp>(loc, op.getCond(), trueBlock, falseBlock);
 
-    rewriter.replaceOp(op, continueBlock->getArguments());
+    if (auto rt = op.getResultTypes(); rt.size()) {
+      auto args = remainingOpsBlock->addArguments(rt, op.getLoc());
+      SmallVector<mlir::Value, 2> values;
+      llvm::copy(args, std::back_inserter(values));
+      rewriter.replaceOpUsesWithinBlock(op, values, remainingOpsBlock);
+    }
+    rewriter.eraseOp(op);
 
     // Ok, we're done!
     return mlir::success();
