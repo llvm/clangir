@@ -2021,9 +2021,12 @@ mlir::LogicalResult CIRToLLVMVecShuffleDynamicOpLowering::matchAndRewrite(
   //     __builtin_shufflevector(V, I)
   // is implemented as this pseudocode, where the for loop is unrolled
   // and N is the number of elements:
-  //     masked = I & (N-1)
-  //     for (i in 0 <= i < N)
-  //       result[i] = V[masked[i]]
+  //
+  // result = undef
+  // maskbits = NextPowerOf2(N - 1)
+  // masked = I & maskbits
+  // for (i in 0 <= i < N)
+  //    result[i] = V[masked[i]]
   auto loc = op.getLoc();
   mlir::Value input = adaptor.getVec();
   mlir::Type llvmIndexVecType =
@@ -2032,8 +2035,9 @@ mlir::LogicalResult CIRToLLVMVecShuffleDynamicOpLowering::matchAndRewrite(
       elementTypeIfVector(op.getIndices().getType()));
   uint64_t numElements =
       mlir::cast<cir::VectorType>(op.getVec().getType()).getSize();
-  mlir::Value maskValue = rewriter.create<mlir::LLVM::ConstantOp>(
-      loc, llvmIndexType, numElements - 1);
+  uint64_t maskBits = llvm::NextPowerOf2(numElements - 1) - 1;
+  mlir::Value maskValue =
+      rewriter.create<mlir::LLVM::ConstantOp>(loc, llvmIndexType, maskBits);
   mlir::Value maskVector =
       rewriter.create<mlir::LLVM::UndefOp>(loc, llvmIndexVecType);
   for (uint64_t i = 0; i < numElements; ++i) {
