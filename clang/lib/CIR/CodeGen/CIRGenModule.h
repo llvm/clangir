@@ -827,9 +827,9 @@ public:
                                                     bool IsConstantVariable);
   void setFunctionLinkage(GlobalDecl GD, cir::FuncOp f) {
     auto L = getFunctionLinkage(GD);
+    auto V = f.getGlobalVisibility().getValue();
     f.setLinkageAttr(cir::GlobalLinkageKindAttr::get(&getMLIRContext(), L));
-    mlir::SymbolTable::setSymbolVisibility(f,
-                                           getMLIRVisibilityFromCIRLinkage(L));
+    mlir::SymbolTable::setSymbolVisibility(f, cir::deduceMLIRVisibility(L, V));
   }
 
   cir::GlobalLinkageKind getCIRLinkageVarDefinition(const VarDecl *VD,

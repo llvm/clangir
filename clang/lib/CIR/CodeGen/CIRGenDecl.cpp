@@ -23,6 +23,7 @@
 #include "clang/AST/Decl.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/CIR/Dialect/IR/CIRDataLayout.h"
+#include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/MissingFeatures.h"
@@ -485,7 +486,8 @@ CIRGenModule::getOrCreateStaticVarDecl(const VarDecl &D,
   cir::GlobalOp GV = builder.createVersionedGlobal(
       getModule(), getLoc(D.getLocation()), Name, LTy, false, Linkage, AS);
   // TODO(cir): infer visibility from linkage in global op builder.
-  GV.setVisibility(getMLIRVisibilityFromCIRLinkage(Linkage));
+  GV.setVisibility(
+      cir::deduceMLIRVisibility(Linkage, cir::VisibilityKind::Default));
   GV.setInitialValueAttr(Init);
   GV.setAlignment(getASTContext().getDeclAlign(&D).getAsAlign().value());
 

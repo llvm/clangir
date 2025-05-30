@@ -1561,7 +1561,8 @@ void CIRGenModule::emitGlobalVarDefinition(const clang::VarDecl *d,
   if (const SectionAttr *sa = d->getAttr<SectionAttr>())
     gv.setSectionAttr(builder.getStringAttr(sa->getName()));
 
-  gv.setGlobalVisibilityAttr(getGlobalVisibilityAttrFromDecl(d));
+  const auto globalVisibilityAttr = getGlobalVisibilityAttrFromDecl(d);
+  gv.setGlobalVisibilityAttr(globalVisibilityAttr);
 
   // TODO(cir):
   // GV->setAlignment(getContext().getDeclAlign(D).getAsAlign());
@@ -1591,7 +1592,8 @@ void CIRGenModule::emitGlobalVarDefinition(const clang::VarDecl *d,
   // Set CIR linkage and DLL storage class.
   gv.setLinkage(linkage);
   // FIXME(cir): setLinkage should likely set MLIR's visibility automatically.
-  gv.setVisibility(getMLIRVisibilityFromCIRLinkage(linkage));
+  gv.setVisibility(
+      cir::deduceMLIRVisibility(linkage, globalVisibilityAttr.getValue()));
   // TODO(cir): handle DLL storage classes in CIR?
   if (d->hasAttr<DLLImportAttr>())
     assert(!cir::MissingFeatures::setDLLStorageClass());
@@ -2243,30 +2245,8 @@ CIRGenModule::getMLIRVisibility(cir::GlobalOp op) {
   // definitions).
   if (op.isDeclaration())
     return mlir::SymbolTable::Visibility::Private;
-  return getMLIRVisibilityFromCIRLinkage(op.getLinkage());
-}
-
-mlir::SymbolTable::Visibility
-CIRGenModule::getMLIRVisibilityFromCIRLinkage(cir::GlobalLinkageKind glk) {
-  switch (glk) {
-  case cir::GlobalLinkageKind::InternalLinkage:
-  case cir::GlobalLinkageKind::PrivateLinkage:
-    return mlir::SymbolTable::Visibility::Private;
-  case cir::GlobalLinkageKind::ExternalLinkage:
-  case cir::GlobalLinkageKind::ExternalWeakLinkage:
-  case cir::GlobalLinkageKind::LinkOnceODRLinkage:
-  case cir::GlobalLinkageKind::AvailableExternallyLinkage:
-  case cir::GlobalLinkageKind::CommonLinkage:
-  case cir::GlobalLinkageKind::WeakAnyLinkage:
-  case cir::GlobalLinkageKind::WeakODRLinkage:
-    return mlir::SymbolTable::Visibility::Public;
-  default: {
-    llvm::errs() << "visibility not implemented for '"
-                 << stringifyGlobalLinkageKind(glk) << "'\n";
-    assert(0 && "not implemented");
-  }
-  }
-  llvm_unreachable("linkage should be handled above!");
+  return cir::deduceMLIRVisibility(op.getLinkage(),
+                                   op.getGlobalVisibility().getValue());
 }
 
 cir::VisibilityKind CIRGenModule::getGlobalVisibilityKindFromClangVisibility(

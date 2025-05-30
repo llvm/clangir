@@ -15,6 +15,7 @@
 #define MLIR_DIALECT_CIR_CIROPSENUMS_H_
 
 #include "mlir/IR/BuiltinAttributes.h"
+#include "mlir/IR/SymbolTable.h"
 #include "clang/CIR/Dialect/IR/CIROpsEnums.h.inc"
 
 namespace cir {
@@ -124,6 +125,43 @@ bool operator>=(cir::MemOrder, cir::MemOrder) = delete;
 template <typename Int> inline bool isValidCIRAtomicOrderingCABI(Int I) {
   return (Int)cir::MemOrder::Relaxed <= I &&
          I <= (Int)cir::MemOrder::SequentiallyConsistent;
+}
+
+/// This function is used to deduce the MLIR visibility of a CIR symbol based on
+/// CIR linkage and visibility.
+static inline mlir::SymbolTable::Visibility
+deduceMLIRVisibility(cir::GlobalLinkageKind linkage,
+                     cir::VisibilityKind visibilityKind) {
+  if (visibilityKind != cir::VisibilityKind::Default) {
+    switch (visibilityKind) {
+    case cir::VisibilityKind::Hidden:
+      return mlir::SymbolTable::Visibility::Private;
+    case cir::VisibilityKind::Protected:
+      llvm::errs() << "visibility not implemented for protected visibility\n";
+      llvm_unreachable("protected visibility NYI");
+    default:
+      llvm_unreachable("unknown visibility kind");
+    }
+  }
+  switch (linkage) {
+  case cir::GlobalLinkageKind::InternalLinkage:
+  case cir::GlobalLinkageKind::PrivateLinkage:
+    return mlir::SymbolTable::Visibility::Private;
+  case cir::GlobalLinkageKind::ExternalLinkage:
+  case cir::GlobalLinkageKind::ExternalWeakLinkage:
+  case cir::GlobalLinkageKind::LinkOnceODRLinkage:
+  case cir::GlobalLinkageKind::AvailableExternallyLinkage:
+  case cir::GlobalLinkageKind::CommonLinkage:
+  case cir::GlobalLinkageKind::WeakAnyLinkage:
+  case cir::GlobalLinkageKind::WeakODRLinkage:
+    return mlir::SymbolTable::Visibility::Public;
+  default: {
+    llvm::errs() << "visibility not implemented for '"
+                 << stringifyGlobalLinkageKind(linkage) << "'\n";
+    assert(0 && "not implemented");
+  }
+  }
+  llvm_unreachable("linkage should be handled above!");
 }
 
 } // namespace cir
