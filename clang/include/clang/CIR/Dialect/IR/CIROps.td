@@ -3010,7 +3010,7 @@ def CIR_ExtractMemberOp : CIR_Op<"extract_member", [Pure]> {
     ```
   }];
 
-  let arguments = (ins CIRRecordType:$record, IndexAttr:$index_attr);
+  let arguments = (ins CIR_AnyRecordType:$record, IndexAttr:$index_attr);
   let results = (outs CIR_AnyType:$result);
 
   let assemblyFormat = [{
@@ -3075,9 +3075,13 @@ def CIR_InsertMemberOp : CIR_Op<"insert_member", [
     ```
   }];
 
-  let arguments = (ins CIRRecordType:$record, IndexAttr:$index_attr,
-                       CIR_AnyType:$value);
-  let results = (outs CIRRecordType:$result);
+  let arguments = (ins
+    CIR_AnyRecordType:$record,
+    IndexAttr:$index_attr,
+    CIR_AnyType:$value
+  );
+
+  let results = (outs CIR_AnyRecordType:$result);
 
   let builders = [
     OpBuilder<(ins "mlir::Value":$record, "uint64_t":$index,

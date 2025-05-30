@@ -1150,7 +1150,7 @@ mlir::LogicalResult CIRToLLVMBaseMethodOpLowering::matchAndRewrite(
     cir::BaseMethodOp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
   mlir::Value loweredResult =
-      lowerMod->getCXXABI().lowerBaseMethod(op, adaptor.getSrc(), rewriter);
+      lowerMod->getCXXABI().lowerBaseMethod(op, rewriter);
   rewriter.replaceOp(op, loweredResult);
   return mlir::success();
 }
@@ -1159,7 +1159,7 @@ mlir::LogicalResult CIRToLLVMDerivedMethodOpLowering::matchAndRewrite(
     cir::DerivedMethodOp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
   mlir::Value loweredResult =
-      lowerMod->getCXXABI().lowerDerivedMethod(op, adaptor.getSrc(), rewriter);
+      lowerMod->getCXXABI().lowerDerivedMethod(op, rewriter);
   rewriter.replaceOp(op, loweredResult);
   return mlir::success();
 }
@@ -3746,44 +3746,15 @@ mlir::LogicalResult CIRToLLVMExtractMemberOpLowering::matchAndRewrite(
     cir::ExtractMemberOp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
   std::int64_t indecies[1] = {static_cast<std::int64_t>(op.getIndex())};
-
-  mlir::Type recordTy = op.getRecord().getType();
-  if (auto llvmStructTy =
-          mlir::dyn_cast<mlir::LLVM::LLVMStructType>(recordTy)) {
-    rewriter.replaceOpWithNewOp<mlir::LLVM::ExtractValueOp>(
-        op, adaptor.getRecord(), indecies);
-    return mlir::success();
-  }
-
-  auto cirRecordTy = mlir::cast<cir::RecordType>(recordTy);
-  switch (cirRecordTy.getKind()) {
-  case cir::RecordType::Struct:
-  case cir::RecordType::Class: {
-    rewriter.replaceOpWithNewOp<mlir::LLVM::ExtractValueOp>(
-        op, adaptor.getRecord(), indecies);
-    return mlir::success();
-  }
-
-  case cir::RecordType::Union: {
-    op.emitError("cir.extract_member cannot extract member from a union");
-    return mlir::failure();
-  }
-  }
+  rewriter.replaceOpWithNewOp<mlir::LLVM::ExtractValueOp>(
+      op, adaptor.getRecord(), indecies);
+  return mlir::success();
 }
 
 mlir::LogicalResult CIRToLLVMInsertMemberOpLowering::matchAndRewrite(
     cir::InsertMemberOp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
   std::int64_t indecies[1] = {static_cast<std::int64_t>(op.getIndex())};
-  mlir::Type recordTy = op.getRecord().getType();
-
-  if (auto cirRecordTy = mlir::dyn_cast<cir::RecordType>(recordTy)) {
-    if (cirRecordTy.getKind() == cir::RecordType::Union) {
-      op.emitError("cir.update_member cannot update member of a union");
-      return mlir::failure();
-    }
-  }
-
   rewriter.replaceOpWithNewOp<mlir::LLVM::InsertValueOp>(
       op, adaptor.getRecord(), adaptor.getValue(), indecies);
   return mlir::success();

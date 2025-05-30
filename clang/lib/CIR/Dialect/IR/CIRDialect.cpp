@@ -3746,7 +3746,7 @@ LogicalResult cir::GetMemberOp::verify() {
 //===----------------------------------------------------------------------===//
 
 LogicalResult cir::ExtractMemberOp::verify() {
-  auto recordTy = mlir::cast<cir::RecordType>(getRecord().getType());
+  cir::RecordType recordTy = getRecord().getType();
   if (recordTy.getKind() == cir::RecordType::Union)
     return emitError()
            << "cir.extract_member currently does not work on unions";
@@ -3762,7 +3762,7 @@ LogicalResult cir::ExtractMemberOp::verify() {
 //===----------------------------------------------------------------------===//
 
 LogicalResult cir::InsertMemberOp::verify() {
-  auto recordTy = mlir::cast<cir::RecordType>(getRecord().getType());
+  cir::RecordType recordTy = getRecord().getType();
   if (recordTy.getKind() == cir::RecordType::Union)
     return emitError() << "cir.update_member currently does not work on unions";
   if (recordTy.getMembers().size() <= getIndex())
