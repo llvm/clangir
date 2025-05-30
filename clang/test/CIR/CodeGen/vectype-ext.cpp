@@ -4,6 +4,7 @@
 // RUN: FileCheck --input-file=%t.ll %s -check-prefix=LLVM
 
 typedef int vi4 __attribute__((ext_vector_type(4)));
+typedef int vi6 __attribute__((ext_vector_type(6)));
 typedef unsigned int uvi4 __attribute__((ext_vector_type(4)));
 typedef int vi3 __attribute__((ext_vector_type(3)));
 typedef int vi2 __attribute__((ext_vector_type(2)));
@@ -542,7 +543,17 @@ void vector_integers_shifts_test() {
   uvi4 b = {5u, 6u, 7u, 8u};
 
   vi4 shl = a << b;
-  // CHECK:  %{{[0-9]+}} = cir.shift(left, %{{[0-9]+}} : !cir.vector<!s32i x 4>, %{{[0-9]+}} : !cir.vector<!u32i x 4>) -> !cir.vector<!s32i x 4>
+  // CIR:  %{{[0-9]+}} = cir.shift(left, %{{[0-9]+}} : !cir.vector<!s32i x 4>, %{{[0-9]+}} : !cir.vector<!u32i x 4>) -> !cir.vector<!s32i x 4>
   uvi4 shr = b >> a;
-  // CHECK: %{{[0-9]+}} = cir.shift(right, %{{[0-9]+}} : !cir.vector<!u32i x 4>, %{{[0-9]+}} : !cir.vector<!s32i x 4>) -> !cir.vector<!u32i x 4>
+  // CIR: %{{[0-9]+}} = cir.shift(right, %{{[0-9]+}} : !cir.vector<!u32i x 4>, %{{[0-9]+}} : !cir.vector<!s32i x 4>) -> !cir.vector<!u32i x 4>
+}
+
+void vector_shuffle_dynamic_mask_test() {
+  vi6 a;
+  vi6 b;
+  vi6 r = __builtin_shufflevector(a, b);
+
+  // CIR: %{{[0-9]+}} = cir.vec.shuffle.dynamic %{{[0-9]+}} : !cir.vector<!s32i x 6>, %{{[0-9]+}} : !cir.vector<!s32i x 6>
+
+  // LLVM: {{.*}} = and <6 x i32> {{.*}}, splat (i32 7)
 }
