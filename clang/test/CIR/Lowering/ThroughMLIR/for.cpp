@@ -8,7 +8,10 @@ void constantLoopBound() {
     a[i] = 3;
 }
 // CHECK-LABEL: func.func @_Z17constantLoopBoundv() {
+// CHECK: memref.alloca_scope  {
+// CHECK-NOT: {{.*}} = memref.alloca() {alignment = 4 : i64} : memref<i32>
 // CHECK: %[[C0:.*]] = arith.constant 0 : i32
+// CHECK-NOT: memref.store %[[C0]], {{.*}}[] : memref<i32>
 // CHECK: %[[C100:.*]] = arith.constant 100 : i32
 // CHECK: %[[C1:.*]] = arith.constant 1 : i32
 // CHECK: scf.for %[[I:.*]] = %[[C0]] to %[[C100]] step %[[C1]] : i32 {
@@ -17,13 +20,17 @@ void constantLoopBound() {
 // CHECK:   %[[INDEX:.*]] = arith.index_cast %[[I]] : i32 to index
 // CHECK:   memref.store %[[C3]], %[[BASE]][%[[INDEX]]] : memref<101xi32>
 // CHECK: }
+// CHECK: }
 
 void constantLoopBound_LE() {
   for (int i = 0; i <= 100; ++i)
     a[i] = 3;
 }
 // CHECK-LABEL: func.func @_Z20constantLoopBound_LEv() {
+// CHECK: memref.alloca_scope  {
+// CHECK-NOT: {{.*}} = memref.alloca() {alignment = 4 : i64} : memref<i32>
 // CHECK: %[[C0:.*]] = arith.constant 0 : i32
+// CHECK-NOT: memref.store %[[C0]], {{.*}}[] : memref<i32>
 // CHECK: %[[C100:.*]] = arith.constant 100 : i32
 // CHECK: %[[C1:.*]] = arith.constant 1 : i32
 // CHECK: %[[C101:.*]] = arith.addi %c100_i32, %c1_i32 : i32
@@ -34,6 +41,7 @@ void constantLoopBound_LE() {
 // CHECK:   %[[INDEX:.*]] = arith.index_cast %[[I]] : i32 to index
 // CHECK:   memref.store %[[C3]], %[[BASE]][%[[INDEX]]] : memref<101xi32>
 // CHECK: }
+// CHECK: }
 
 void variableLoopBound(int l, int u) {
   for (int i = l; i < u; ++i)
@@ -42,7 +50,10 @@ void variableLoopBound(int l, int u) {
 // CHECK-LABEL: func.func @_Z17variableLoopBoundii
 // CHECK: memref.store %arg0, %alloca[] : memref<i32>
 // CHECK: memref.store %arg1, %alloca_0[] : memref<i32>
+// CHECK: memref.alloca_scope  {
+// CHECK-NOT: {{.*}} = memref.alloca() {alignment = 4 : i64} : memref<i32>
 // CHECK: %[[LOWER:.*]] = memref.load %alloca[] : memref<i32>
+// CHECK-NOT: memref.store %[[LOWER]], {{.*}}[] : memref<i32>
 // CHECK: %[[UPPER:.*]] = memref.load %alloca_0[] : memref<i32>
 // CHECK: %[[C1:.*]] = arith.constant 1 : i32
 // CHECK: scf.for %[[I:.*]] = %[[LOWER]] to %[[UPPER]] step %[[C1]] : i32 {
@@ -51,15 +62,19 @@ void variableLoopBound(int l, int u) {
 // CHECK:   %[[INDEX:.*]] = arith.index_cast %[[I]] : i32 to index
 // CHECK:   memref.store %[[C3]], %[[BASE]][%[[INDEX]]] : memref<101xi32>
 // CHECK: }
+// CHECK: }
 
-void ariableLoopBound_LE(int l, int u) {
+void variableLoopBound_LE(int l, int u) {
   for (int i = l; i <= u; i+=4)
     a[i] = 3;
 }
-// CHECK-LABEL: func.func @_Z19ariableLoopBound_LEii
+// CHECK-LABEL: func.func @_Z20variableLoopBound_LEii
 // CHECK: memref.store %arg0, %alloca[] : memref<i32>
 // CHECK: memref.store %arg1, %alloca_0[] : memref<i32>
+// CHECK: memref.alloca_scope  {
+// CHECK-NOT: {{.*}} = memref.alloca() {alignment = 4 : i64} : memref<i32>
 // CHECK: %[[LOWER:.*]] = memref.load %alloca[] : memref<i32>
+// CHECK-NOT: memref.store %[[LOWER]], {{.*}}[] : memref<i32>
 // CHECK: %[[UPPER_DEC_1:.*]] = memref.load %alloca_0[] : memref<i32>
 // CHECK: %[[C1:.*]] = arith.constant 1 : i32
 // CHECK: %[[UPPER:.*]] = arith.addi %[[UPPER_DEC_1]], %[[C1]] : i32
@@ -70,13 +85,17 @@ void ariableLoopBound_LE(int l, int u) {
 // CHECK:   %[[INDEX:.*]] = arith.index_cast %[[I]] : i32 to index
 // CHECK:   memref.store %[[C3]], %[[BASE]][%[[INDEX]]] : memref<101xi32>
 // CHECK: }
+// CHECK: }
 
 void incArray() {
   for (int i = 0; i < 100; ++i)
     a[i] += b[i];
 }
 // CHECK-LABEL: func.func @_Z8incArrayv() {
+// CHECK: memref.alloca_scope  {
+// CHECK-NOT: {{.*}} = memref.alloca() {alignment = 4 : i64} : memref<i32>
 // CHECK: %[[C0:.*]] = arith.constant 0 : i32
+// CHECK-NOT: memref.store %[[C0]], {{.*}}[] : memref<i32>
 // CHECK: %[[C100:.*]] = arith.constant 100 : i32
 // CHECK: %[[C1:.*]] = arith.constant 1 : i32
 // CHECK: scf.for %[[I:.*]] = %[[C0]] to %[[C100]] step %[[C1]] : i32 {
@@ -88,4 +107,5 @@ void incArray() {
 // CHECK:   %[[A_VALUE:.*]] = memref.load %[[A]][%[[INDEX_1]]] : memref<101xi32>
 // CHECK:   %[[SUM:.*]] = arith.addi %[[A_VALUE]], %[[B_VALUE]] : i32
 // CHECK:   memref.store %[[SUM]], %[[A]][%[[INDEX_1]]] : memref<101xi32>
+// CHECK: }
 // CHECK: }

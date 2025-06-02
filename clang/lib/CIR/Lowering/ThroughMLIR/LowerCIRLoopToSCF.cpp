@@ -14,15 +14,18 @@
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/Location.h"
 #include "mlir/IR/ValueRange.h"
 #include "mlir/Pass/PassManager.h"
+#include "mlir/Support/LLVM.h"
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 #include "clang/CIR/LowerToMLIR.h"
 #include "llvm/ADT/TypeSwitch.h"
+#include "llvm/IR/Module.h"
 
 using namespace cir;
 using namespace llvm;
@@ -252,6 +255,14 @@ void SCFLoop::analysis() {
   if (!canonical)
     return;
 
+  // If the IV is defined before the forOp (i.e. outside the surrounding
+  // cir.scope) this is not a canonical loop as the IV would not have the
+  // correct value after the forOp
+  if (ivAddr.getDefiningOp()->getBlock() != forOp->getBlock()) {
+    canonical = false;
+    return;
+  }
+
   cmpOp = findCmpOp();
   if (!cmpOp) {
     canonical = false;
@@ -310,17 +321,14 @@ void SCFLoop::transferToSCFForOp() {
     }
     return mlir::WalkResult::advance();
   });
-  // If the IV was declared in the for op all uses have been replaced by the
-  // scf.IV and we can remove the alloca + initial store
+  
+  // All uses have been replaced by the scf.IV and we can remove the alloca + initial store operations
 
   // The operations before the loop have been transferred to MLIR.
-  // So we need to go through getRemappedValue to find the value.
+  // So we need to go through getRemappedValue to find the operations.
   auto remapAddr = rewriter->getRemappedValue(ivAddr);
-  // If IV has more uses than the use in the initial store op keep it
-  if (!remapAddr || !remapAddr.hasOneUse())
-    return;
-  
-  // otherwise remove the alloca + initial store op
+
+  // Since this is a canonical loop we can remove the alloca + initial store op
   rewriter->eraseOp(remapAddr.getDefiningOp());
   rewriter->eraseOp(*remapAddr.user_begin());
 }
