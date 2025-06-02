@@ -129,7 +129,7 @@ static mlir::Value emitFromMemory(mlir::ConversionPatternRewriter &rewriter,
                                   cir::LoadOp op, mlir::Value value) {
 
   // TODO(cir): Handle other types similarly to clang's codegen EmitFromMemory
-  if (isa<cir::BoolType>(op.getResult().getType())) {
+  if (isa<cir::BoolType>(op.getType())) {
     // Create trunc of value from i8 to i1
     // TODO: Use datalayout to get the size of bool
     assert(value.getType().isInteger(8));
@@ -1070,7 +1070,7 @@ public:
     if (isa<cir::VectorType>(op.getSrc().getType()))
       llvm_unreachable("CastOp lowering for vector type is not supported yet");
     auto src = adaptor.getSrc();
-    auto dstType = op.getResult().getType();
+    auto dstType = op.getType();
     using CIR = cir::CastKind;
     switch (op.getKind()) {
     case CIR::array_to_ptrdecay: {
@@ -1100,7 +1100,7 @@ public:
     case CIR::floating: {
       auto newDstType = convertTy(dstType);
       auto srcTy = op.getSrc().getType();
-      auto dstTy = op.getResult().getType();
+      auto dstTy = op.getType();
 
       if (!mlir::isa<cir::CIRFPTypeInterface>(dstTy) ||
           !mlir::isa<cir::CIRFPTypeInterface>(srcTy))
@@ -1152,7 +1152,7 @@ public:
     case CIR::float_to_int: {
       auto dstTy = op.getType();
       auto newDstType = convertTy(dstTy);
-      if (mlir::cast<cir::IntType>(op.getResult().getType()).isSigned())
+      if (mlir::cast<cir::IntType>(op.getType()).isSigned())
         rewriter.replaceOpWithNewOp<mlir::arith::FPToSIOp>(op, newDstType, src);
       else
         rewriter.replaceOpWithNewOp<mlir::arith::FPToUIOp>(op, newDstType, src);
@@ -1232,7 +1232,7 @@ public:
     if (!isa<mlir::memref::ReinterpretCastOp>(baseOp))
       return mlir::failure();
     auto base = baseOp->getOperand(0);
-    auto dstType = op.getResult().getType();
+    auto dstType = op.getType();
     auto newDstType = mlir::cast<mlir::MemRefType>(convertTy(dstType));
     auto stride = adaptor.getStride();
     auto indexType = rewriter.getIndexType();
