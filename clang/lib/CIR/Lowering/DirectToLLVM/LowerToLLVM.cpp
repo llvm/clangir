@@ -1160,7 +1160,7 @@ mlir::LogicalResult CIRToLLVMCastOpLowering::matchAndRewrite(
   switch (castOp.getKind()) {
   case cir::CastKind::array_to_ptrdecay: {
     const auto ptrTy = mlir::cast<cir::PointerType>(castOp.getType());
-    auto sourceValue = adaptor.getOperands().front();
+    auto sourceValue = adaptor.getSrc();
     auto targetType = convertTy(ptrTy);
     auto elementTy = convertTypeForMemory(*getTypeConverter(), dataLayout,
                                           ptrTy.getPointee());
@@ -1180,7 +1180,7 @@ mlir::LogicalResult CIRToLLVMCastOpLowering::matchAndRewrite(
   case cir::CastKind::integral: {
     auto srcType = castOp.getSrc().getType();
     auto dstType = castOp.getResult().getType();
-    auto llvmSrcVal = adaptor.getOperands().front();
+    auto llvmSrcVal = adaptor.getSrc();
     auto llvmDstType = getTypeConverter()->convertType(dstType);
     cir::IntType srcIntType =
         mlir::cast<cir::IntType>(elementTypeIfVector(srcType));
@@ -1193,7 +1193,7 @@ mlir::LogicalResult CIRToLLVMCastOpLowering::matchAndRewrite(
     break;
   }
   case cir::CastKind::floating: {
-    auto llvmSrcVal = adaptor.getOperands().front();
+    auto llvmSrcVal = adaptor.getSrc();
     auto llvmDstTy =
         getTypeConverter()->convertType(castOp.getResult().getType());
 
@@ -1218,7 +1218,7 @@ mlir::LogicalResult CIRToLLVMCastOpLowering::matchAndRewrite(
   }
   case cir::CastKind::int_to_ptr: {
     auto dstTy = mlir::cast<cir::PointerType>(castOp.getType());
-    auto llvmSrcVal = adaptor.getOperands().front();
+    auto llvmSrcVal = adaptor.getSrc();
     auto llvmDstTy = getTypeConverter()->convertType(dstTy);
     rewriter.replaceOpWithNewOp<mlir::LLVM::IntToPtrOp>(castOp, llvmDstTy,
                                                         llvmSrcVal);
@@ -1226,14 +1226,14 @@ mlir::LogicalResult CIRToLLVMCastOpLowering::matchAndRewrite(
   }
   case cir::CastKind::ptr_to_int: {
     auto dstTy = mlir::cast<cir::IntType>(castOp.getType());
-    auto llvmSrcVal = adaptor.getOperands().front();
+    auto llvmSrcVal = adaptor.getSrc();
     auto llvmDstTy = getTypeConverter()->convertType(dstTy);
     rewriter.replaceOpWithNewOp<mlir::LLVM::PtrToIntOp>(castOp, llvmDstTy,
                                                         llvmSrcVal);
     return mlir::success();
   }
   case cir::CastKind::float_to_bool: {
-    auto llvmSrcVal = adaptor.getOperands().front();
+    auto llvmSrcVal = adaptor.getSrc();
     auto kind = mlir::LLVM::FCmpPredicate::une;
 
     // Check if float is not equal to zero.
@@ -1249,7 +1249,7 @@ mlir::LogicalResult CIRToLLVMCastOpLowering::matchAndRewrite(
   }
   case cir::CastKind::bool_to_int: {
     auto dstTy = mlir::cast<cir::IntType>(castOp.getType());
-    auto llvmSrcVal = adaptor.getOperands().front();
+    auto llvmSrcVal = adaptor.getSrc();
     auto llvmSrcTy = mlir::cast<mlir::IntegerType>(llvmSrcVal.getType());
     auto llvmDstTy =
         mlir::cast<mlir::IntegerType>(getTypeConverter()->convertType(dstTy));
@@ -1263,7 +1263,7 @@ mlir::LogicalResult CIRToLLVMCastOpLowering::matchAndRewrite(
   }
   case cir::CastKind::bool_to_float: {
     auto dstTy = castOp.getType();
-    auto llvmSrcVal = adaptor.getOperands().front();
+    auto llvmSrcVal = adaptor.getSrc();
     auto llvmDstTy = getTypeConverter()->convertType(dstTy);
     rewriter.replaceOpWithNewOp<mlir::LLVM::UIToFPOp>(castOp, llvmDstTy,
                                                       llvmSrcVal);
@@ -1271,7 +1271,7 @@ mlir::LogicalResult CIRToLLVMCastOpLowering::matchAndRewrite(
   }
   case cir::CastKind::int_to_float: {
     auto dstTy = castOp.getType();
-    auto llvmSrcVal = adaptor.getOperands().front();
+    auto llvmSrcVal = adaptor.getSrc();
     auto llvmDstTy = getTypeConverter()->convertType(dstTy);
     if (mlir::cast<cir::IntType>(elementTypeIfVector(castOp.getSrc().getType()))
             .isSigned())
@@ -1284,7 +1284,7 @@ mlir::LogicalResult CIRToLLVMCastOpLowering::matchAndRewrite(
   }
   case cir::CastKind::float_to_int: {
     auto dstTy = castOp.getType();
-    auto llvmSrcVal = adaptor.getOperands().front();
+    auto llvmSrcVal = adaptor.getSrc();
     auto llvmDstTy = getTypeConverter()->convertType(dstTy);
     if (mlir::cast<cir::IntType>(
             elementTypeIfVector(castOp.getResult().getType()))
@@ -1313,7 +1313,7 @@ mlir::LogicalResult CIRToLLVMCastOpLowering::matchAndRewrite(
       return mlir::success();
     }
 
-    auto llvmSrcVal = adaptor.getOperands().front();
+    auto llvmSrcVal = adaptor.getSrc();
     rewriter.replaceOpWithNewOp<mlir::LLVM::BitcastOp>(castOp, llvmDstTy,
                                                        llvmSrcVal);
     return mlir::success();
@@ -1329,7 +1329,7 @@ mlir::LogicalResult CIRToLLVMCastOpLowering::matchAndRewrite(
   }
   case cir::CastKind::address_space: {
     auto dstTy = castOp.getType();
-    auto llvmSrcVal = adaptor.getOperands().front();
+    auto llvmSrcVal = adaptor.getSrc();
     auto llvmDstTy = getTypeConverter()->convertType(dstTy);
     rewriter.replaceOpWithNewOp<mlir::LLVM::AddrSpaceCastOp>(castOp, llvmDstTy,
                                                              llvmSrcVal);
@@ -2068,8 +2068,8 @@ mlir::LogicalResult CIRToLLVMVAStartOpLowering::matchAndRewrite(
     cir::VAStartOp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
   auto opaquePtr = mlir::LLVM::LLVMPointerType::get(getContext());
-  auto vaList = rewriter.create<mlir::LLVM::BitcastOp>(
-      op.getLoc(), opaquePtr, adaptor.getOperands().front());
+  auto vaList = rewriter.create<mlir::LLVM::BitcastOp>(op.getLoc(), opaquePtr,
+                                                       adaptor.getArgList());
   rewriter.replaceOpWithNewOp<mlir::LLVM::VaStartOp>(op, vaList);
   return mlir::success();
 }
@@ -2078,8 +2078,8 @@ mlir::LogicalResult CIRToLLVMVAEndOpLowering::matchAndRewrite(
     cir::VAEndOp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
   auto opaquePtr = mlir::LLVM::LLVMPointerType::get(getContext());
-  auto vaList = rewriter.create<mlir::LLVM::BitcastOp>(
-      op.getLoc(), opaquePtr, adaptor.getOperands().front());
+  auto vaList = rewriter.create<mlir::LLVM::BitcastOp>(op.getLoc(), opaquePtr,
+                                                       adaptor.getArgList());
   rewriter.replaceOpWithNewOp<mlir::LLVM::VaEndOp>(op, vaList);
   return mlir::success();
 }
@@ -2088,10 +2088,10 @@ mlir::LogicalResult CIRToLLVMVACopyOpLowering::matchAndRewrite(
     cir::VACopyOp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
   auto opaquePtr = mlir::LLVM::LLVMPointerType::get(getContext());
-  auto dstList = rewriter.create<mlir::LLVM::BitcastOp>(
-      op.getLoc(), opaquePtr, adaptor.getOperands().front());
-  auto srcList = rewriter.create<mlir::LLVM::BitcastOp>(
-      op.getLoc(), opaquePtr, adaptor.getOperands().back());
+  auto dstList = rewriter.create<mlir::LLVM::BitcastOp>(op.getLoc(), opaquePtr,
+                                                        adaptor.getDstList());
+  auto srcList = rewriter.create<mlir::LLVM::BitcastOp>(op.getLoc(), opaquePtr,
+                                                        adaptor.getSrcList());
   rewriter.replaceOpWithNewOp<mlir::LLVM::VaCopyOp>(op, dstList, srcList);
   return mlir::success();
 }
