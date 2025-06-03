@@ -321,8 +321,9 @@ void SCFLoop::transferToSCFForOp() {
     }
     return mlir::WalkResult::advance();
   });
-  
-  // All uses have been replaced by the scf.IV and we can remove the alloca + initial store operations
+
+  // All uses have been replaced by the scf.IV and we can remove the alloca +
+  // initial store operations
 
   // The operations before the loop have been transferred to MLIR.
   // So we need to go through getRemappedValue to find the operations.
