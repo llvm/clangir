@@ -452,8 +452,8 @@ public:
         .Case<cir::IntAttr, cir::FPAttr, cir::ConstPtrAttr,
               cir::ConstRecordAttr, cir::ConstArrayAttr, cir::ConstVectorAttr,
               cir::BoolAttr, cir::ZeroAttr, cir::UndefAttr, cir::PoisonAttr,
-              cir::GlobalViewAttr, cir::VTableAttr, cir::TypeInfoAttr>(
-            [&](auto attrT) { return visitCirAttr(attrT); })
+              cir::GlobalViewAttr, cir::VTableAttr, cir::TypeInfoAttr,
+              cir::ComplexAttr>([&](auto attrT) { return visitCirAttr(attrT); })
         .Default([&](auto attrT) { return mlir::Value(); });
   }
 
@@ -463,6 +463,7 @@ public:
   mlir::Value visitCirAttr(cir::ConstRecordAttr attr);
   mlir::Value visitCirAttr(cir::ConstArrayAttr attr);
   mlir::Value visitCirAttr(cir::ConstVectorAttr attr);
+  mlir::Value visitCirAttr(cir::ComplexAttr attr);
   mlir::Value visitCirAttr(cir::BoolAttr attr);
   mlir::Value visitCirAttr(cir::ZeroAttr attr);
   mlir::Value visitCirAttr(cir::UndefAttr attr);
@@ -647,6 +648,33 @@ mlir::Value CirAttrToValue::visitCirAttr(cir::ConstVectorAttr constVec) {
                                    mlirValues));
 }
 
+mlir::Value CirAttrToValue::visitCirAttr(cir::ComplexAttr complexAttr) {
+  auto complexType = mlir::cast<cir::ComplexType>(complexAttr.getType());
+  mlir::Type complexElemTy = complexType.getElementType();
+  mlir::Type complexElemLLVMTy = converter->convertType(complexElemTy);
+
+  mlir::Attribute components[2];
+  if (const auto intType = mlir::dyn_cast<cir::IntType>(complexElemTy)) {
+    components[0] = rewriter.getIntegerAttr(
+        complexElemLLVMTy,
+        mlir::cast<cir::IntAttr>(complexAttr.getReal()).getValue());
+    components[1] = rewriter.getIntegerAttr(
+        complexElemLLVMTy,
+        mlir::cast<cir::IntAttr>(complexAttr.getImag()).getValue());
+  } else {
+    components[0] = rewriter.getFloatAttr(
+        complexElemLLVMTy,
+        mlir::cast<cir::FPAttr>(complexAttr.getReal()).getValue());
+    components[1] = rewriter.getFloatAttr(
+        complexElemLLVMTy,
+        mlir::cast<cir::FPAttr>(complexAttr.getImag()).getValue());
+  }
+
+  mlir::Location loc = parentOp->getLoc();
+  return rewriter.create<mlir::LLVM::ConstantOp>(
+      loc, converter->convertType(complexAttr.getType()),
+      rewriter.getArrayAttr(components));
+}
 // GlobalViewAttr visitor.
 mlir::Value CirAttrToValue::visitCirAttr(cir::GlobalViewAttr globalAttr) {
   auto module = parentOp->getParentOfType<mlir::ModuleOp>();
@@ -2428,6 +2456,9 @@ mlir::LogicalResult CIRToLLVMGlobalOpLowering::lowerInitializer(
   } else if (mlir::isa<cir::ConstVectorAttr>(init)) {
     return lowerInitializerForConstVector(rewriter, op, init,
                                           useInitializerRegion);
+  } else if (mlir::isa<cir::ComplexAttr>(init)) {
+    return lowerInitializerForConstComplex(rewriter, op, init,
+                                           useInitializerRegion);
   } else if (auto dataMemberAttr = mlir::dyn_cast<cir::DataMemberAttr>(init)) {
     assert(lowerMod && "lower module is not available");
     mlir::DataLayout layout(op->getParentOfType<mlir::ModuleOp>());
@@ -2462,6 +2493,19 @@ mlir::LogicalResult CIRToLLVMGlobalOpLowering::lowerInitializerForConstVector(
   op.emitError() << "unsupported lowering for #cir.const_vector with value "
                  << constVec.getElts();
   return mlir::failure();
+}
+
+mlir::LogicalResult CIRToLLVMGlobalOpLowering::lowerInitializerForConstComplex(
+    mlir::ConversionPatternRewriter &rewriter, cir::GlobalOp op,
+    mlir::Attribute &init, bool &useInitializerRegion) const {
+  auto constVec = mlir::cast<cir::ComplexAttr>(init);
+  if (auto val = lowerConstComplexAttr(constVec, getTypeConverter());
+      val.has_value()) {
+    init = val.value();
+    useInitializerRegion = false;
+  } else
+    useInitializerRegion = true;
+  return mlir::success();
 }
 
 mlir::LogicalResult CIRToLLVMGlobalOpLowering::lowerInitializerForConstArray(
