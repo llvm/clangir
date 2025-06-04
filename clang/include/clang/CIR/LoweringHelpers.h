@@ -57,5 +57,10 @@ std::optional<mlir::Attribute>
 lowerConstVectorAttr(cir::ConstVectorAttr constArr,
                      const mlir::TypeConverter *converter);
 
+std::optional<mlir::Attribute>
+lowerConstComplexAttr(cir::ComplexAttr constComplex,
+                      const mlir::TypeConverter *converter);
+
 } // namespace cir::direct
+
 #endif
