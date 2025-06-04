@@ -324,21 +324,20 @@ void bar() {
 // CIR-LABEL: @_Z3barv
 // CIR:  %[[V0:.*]] = cir.alloca !rec_A, !cir.ptr<!rec_A>, ["a"] {alignment = 1 : i64}
 // CIR:  %[[V1:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["b", init] {alignment = 4 : i64}
-// CIR:  %[[V2:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["tmp.try.call.res"] {alignment = 4 : i64}
-// CIR:  cir.try synthetic cleanup {
-// CIR:    %[[V4:.*]] = cir.call exception @_Z3foov() : () -> !s32i cleanup {
-// CIR:      cir.call @_ZN1AD2Ev(%[[V0]]) : (!cir.ptr<!rec_A>) -> () extra(#fn_attr)
-// CIR:      cir.yield
-// CIR:    }
-// CIR:    cir.store{{.*}} %[[V4]], %[[V2]] : !s32i, !cir.ptr<!s32i>
-// CIR:    cir.yield
-// CIR:  } catch [#cir.unwind {
-// CIR:    cir.resume
-// CIR:  }]
-// CIR:  %[[V3:.*]] = cir.load{{.*}} %[[V2]] : !cir.ptr<!s32i>, !s32i
-// CIR:  cir.store{{.*}} %[[V3]], %[[V1]] : !s32i, !cir.ptr<!s32i>
-// CIR:  cir.call @_ZN1AD2Ev(%[[V0]]) : (!cir.ptr<!rec_A>) -> () extra(#fn_attr)
+// CIR:  %[[V2:.*]] = cir.call @_Z3foov() : () -> !s32i
+// CIR:  cir.store align(4) %[[V2]], %[[V1]] : !s32i, !cir.ptr<!s32i>
+// CIR:  cir.call @_ZN1AD2Ev(%[[V0]]) : (!cir.ptr<!rec_A>) -> ()
 // CIR:  cir.return
+
+// LLVM: ; Function Attrs: noinline nounwind optnone
+// LLVM-NEXT: _Z3foo
+// LLVM: @_Z3barv()
+// LLVM:   %[[V1:.*]] = alloca %struct.A, i64 1, align 1
+// LLVM:   %[[V2:.*]] = alloca i32, i64 1, align 4
+// LLVM:   %[[V3:.*]] = call i32 @_Z3foov()
+// LLVM:   store i32 %[[V3]], ptr %[[V2]], align 4
+// LLVM:   call void @_ZN1AD2Ev(ptr %[[V1]])
+// LLVM:   ret void
 
 class C {
 public:

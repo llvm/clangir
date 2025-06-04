@@ -633,6 +633,41 @@ static void eraseEmptyAndUnusedBlocks(cir::FuncOp fnOp) {
     b->erase();
 }
 
+static bool isInterposable(cir::FuncOp fn) {
+  if (isInterposableLinkage(fn.getLinkage()))
+    return true;
+
+  assert(!cir::MissingFeatures::getSemanticInterposition());
+
+  return false;
+}
+
+void tryMarkNoThrow(CIRGenFunction &cgf, cir::FuncOp fn) {
+  // LLVM treats 'nounwind' on a function as part of the type, so we
+  // can't do this on functions that can be overwritten.
+  if (isInterposable(fn))
+    return;
+
+  for (auto &blk : fn.getBlocks()) {
+    bool mayThrow = false;
+    blk.walk([&](mlir::Operation *op) {
+      if (isa<ThrowOp>(op) || isa<ResumeOp>(op))
+        mayThrow = true;
+      if (auto callOp = dyn_cast<CallOp>(op))
+        if (callOp.getException())
+          mayThrow = true;
+    });
+    if (mayThrow)
+      return;
+  }
+
+  mlir::NamedAttrList extraAttrs{fn.getExtraAttrs().getElements().getValue()};
+  auto noThrowAttr = cir::NoThrowAttr::get(&cgf.getMLIRContext());
+  extraAttrs.set(noThrowAttr.getMnemonic(), noThrowAttr);
+  fn.setExtraAttrsAttr(cir::ExtraFuncAttributesAttr::get(
+      extraAttrs.getDictionary(&cgf.getMLIRContext())));
+}
+
 cir::FuncOp CIRGenFunction::generateCode(clang::GlobalDecl gd, cir::FuncOp fn,
                                          const CIRGenFunctionInfo &fnInfo) {
   assert(fn && "generating code for a null function");
@@ -779,7 +814,7 @@ cir::FuncOp CIRGenFunction::generateCode(clang::GlobalDecl gd, cir::FuncOp fn,
 
     // If we haven't marked the function nothrow through other means, do a quick
     // pass now to see if we can.
-    assert(!cir::MissingFeatures::tryMarkNoThrow());
+    tryMarkNoThrow(*this, fn);
   }
 
   eraseEmptyAndUnusedBlocks(fn);
