@@ -127,6 +127,33 @@ void convertToDenseElementsAttrImpl(
 }
 
 template <typename AttrTy, typename StorageTy>
+void convertToDenseElementsAttrImpl(
+    cir::ComplexAttr attr, llvm::SmallVectorImpl<StorageTy> &values,
+    const llvm::SmallVectorImpl<int64_t> &currentDims, int64_t dimIndex,
+    int64_t currentIndex) {
+  dimIndex++;
+  std::size_t elementsSizeInCurrentDim = 1;
+  for (std::size_t i = dimIndex; i < currentDims.size(); i++)
+    elementsSizeInCurrentDim *= currentDims[i];
+
+  auto attrArray =
+      mlir::ArrayAttr::get(attr.getContext(), {attr.getImag(), attr.getReal()});
+  for (auto eltAttr : attrArray) {
+    if (auto valueAttr = mlir::dyn_cast<AttrTy>(eltAttr)) {
+      values[currentIndex++] = valueAttr.getValue();
+      continue;
+    }
+
+    if (mlir::isa<cir::ZeroAttr, cir::UndefAttr>(eltAttr)) {
+      currentIndex += elementsSizeInCurrentDim;
+      continue;
+    }
+
+    llvm_unreachable("unknown element in ComplexAttr");
+  }
+}
+
+template <typename AttrTy, typename StorageTy>
 mlir::DenseElementsAttr convertToDenseElementsAttr(
     cir::ConstArrayAttr attr, const llvm::SmallVectorImpl<int64_t> &dims,
     mlir::Type elementType, mlir::Type convertedElementType) {
@@ -151,6 +178,20 @@ mlir::DenseElementsAttr convertToDenseElementsAttr(
     vector_size *= dim;
   auto values = llvm::SmallVector<StorageTy, 8>(
       vector_size, getZeroInitFromType<StorageTy>(elementType));
+  convertToDenseElementsAttrImpl<AttrTy>(attr, values, dims, /*currentDim=*/0,
+                                         /*initialIndex=*/0);
+  return mlir::DenseElementsAttr::get(
+      mlir::RankedTensorType::get(dims, convertedElementType),
+      llvm::ArrayRef(values));
+}
+
+template <typename AttrTy, typename StorageTy>
+mlir::DenseElementsAttr convertToDenseElementsAttr(
+    cir::ComplexAttr attr, const llvm::SmallVectorImpl<int64_t> &dims,
+    mlir::Type elementType, mlir::Type convertedElementType) {
+  unsigned array_size = 2;
+  auto values = llvm::SmallVector<StorageTy, 8>(
+      array_size, getZeroInitFromType<StorageTy>(elementType));
   convertToDenseElementsAttrImpl<AttrTy>(attr, values, dims, /*currentDim=*/0,
                                          /*initialIndex=*/0);
   return mlir::DenseElementsAttr::get(
@@ -187,6 +228,27 @@ lowerConstArrayAttr(cir::ConstArrayAttr constArr,
   if (mlir::isa<cir::CIRFPTypeInterface>(type))
     return convertToDenseElementsAttr<cir::FPAttr, mlir::APFloat>(
         constArr, dims, type, converter->convertType(type));
+
+  return std::nullopt;
+}
+
+std::optional<mlir::Attribute>
+lowerConstComplexAttr(cir::ComplexAttr constComplex,
+                      const mlir::TypeConverter *converter) {
+
+  // Ensure ComplexAttr has a type.
+  auto typedConstArr = mlir::dyn_cast<mlir::TypedAttr>(constComplex);
+  assert(typedConstArr && "cir::ComplexAttr is not a mlir::TypedAttr");
+
+  mlir::Type type = constComplex.getType();
+  auto dims = llvm::SmallVector<int64_t, 2>{2};
+
+  if (mlir::isa<cir::IntType>(type))
+    return convertToDenseElementsAttr<cir::IntAttr, mlir::APInt>(
+        constComplex, dims, type, converter->convertType(type));
+  if (mlir::isa<cir::CIRFPTypeInterface>(type))
+    return convertToDenseElementsAttr<cir::FPAttr, mlir::APFloat>(
+        constComplex, dims, type, converter->convertType(type));
 
   return std::nullopt;
 }

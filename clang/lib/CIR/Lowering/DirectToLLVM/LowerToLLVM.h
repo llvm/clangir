@@ -629,6 +629,11 @@ private:
                                  bool &useInitializerRegion) const;
 
   mlir::LogicalResult
+  lowerInitializerForConstComplex(mlir::ConversionPatternRewriter &rewriter,
+                                  cir::GlobalOp op, mlir::Attribute &init,
+                                  bool &useInitializerRegion) const;
+
+  mlir::LogicalResult
   lowerInitializerDirect(mlir::ConversionPatternRewriter &rewriter,
                          cir::GlobalOp op, mlir::Type llvmType,
                          mlir::Attribute &init,
