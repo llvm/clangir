@@ -2568,10 +2568,6 @@ mlir::Value ScalarExprEmitter::VisitAbstractConditionalOperator(
       .create<cir::TernaryOp>(
           loc, condV, /*trueBuilder=*/
           [&](mlir::OpBuilder &b, mlir::Location loc) {
-            CIRGenFunction::LexicalScope lexScope{CGF, loc,
-                                                  b.getInsertionBlock()};
-            CGF.currLexScope->setAsTernary();
-
             assert(!cir::MissingFeatures::incrementProfileCounter());
             eval.begin(CGF);
             auto lhs = Visit(lhsExpr);
@@ -2588,10 +2584,6 @@ mlir::Value ScalarExprEmitter::VisitAbstractConditionalOperator(
           },
           /*falseBuilder=*/
           [&](mlir::OpBuilder &b, mlir::Location loc) {
-            CIRGenFunction::LexicalScope lexScope{CGF, loc,
-                                                  b.getInsertionBlock()};
-            CGF.currLexScope->setAsTernary();
-
             assert(!cir::MissingFeatures::incrementProfileCounter());
             eval.begin(CGF);
             auto rhs = Visit(rhsExpr);
