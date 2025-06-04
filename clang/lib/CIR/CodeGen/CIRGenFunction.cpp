@@ -642,7 +642,7 @@ static bool isInterposable(cir::FuncOp fn) {
   return false;
 }
 
-void tryMarkNoThrow(CIRGenFunction &cgf, cir::FuncOp fn) {
+static void tryMarkNoThrow(CIRGenFunction &cgf, cir::FuncOp fn) {
   // LLVM treats 'nounwind' on a function as part of the type, so we
   // can't do this on functions that can be overwritten.
   if (isInterposable(fn))
