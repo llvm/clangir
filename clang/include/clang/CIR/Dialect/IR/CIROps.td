@@ -4932,6 +4932,8 @@ def PtrMaskOp : CIR_Op<"ptr_mask", [AllTypesMatch<["ptr", "result"]>]> {
   let assemblyFormat = [{
     `(` $ptr `,` $mask `:` type($mask) `)` `:` qualified(type($result)) attr-dict
   }];
+
+  let llvmOp = "PtrMaskOp";
 }
 
 //===----------------------------------------------------------------------===//
