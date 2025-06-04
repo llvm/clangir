@@ -1,12 +1,12 @@
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-cir %s -o %t.cir
 // RUN: FileCheck %s --check-prefix=CIR --input-file=%t.cir
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -fclangir -emit-llvm %s -o - \
-// RUN:  | opt -S -passes=instcombine,mem2reg,simplifycfg -o %t.ll 
+// RUN:  | opt -S -passes=instcombine,mem2reg,simplifycfg -o %t.ll
 // RUN: FileCheck  --check-prefix=LLVM --input-file=%t.ll %s
 
 typedef __SIZE_TYPE__ size_t;
 void test_memcpy_chk(void *dest, const void *src, size_t n) {
-  // CIR-LABEL: cir.func @test_memcpy_chk
+  // CIR-LABEL: cir.func dso_local @test_memcpy_chk
   // CIR:         %[[#DEST:]] = cir.alloca {{.*}} ["dest", init]
   // CIR:         %[[#SRC:]] = cir.alloca {{.*}} ["src", init]
   // CIR:         %[[#N:]] = cir.alloca {{.*}} ["n", init]
@@ -59,7 +59,7 @@ void test_memcpy_chk(void *dest, const void *src, size_t n) {
 }
 
 void test_memmove_chk(void *dest, const void *src, size_t n) {
-  // CIR-LABEL: cir.func @test_memmove_chk
+  // CIR-LABEL: cir.func dso_local @test_memmove_chk
   // CIR:         %[[#DEST:]] = cir.alloca {{.*}} ["dest", init]
   // CIR:         %[[#SRC:]] = cir.alloca {{.*}} ["src", init]
   // CIR:         %[[#N:]] = cir.alloca {{.*}} ["n", init]
@@ -124,7 +124,7 @@ void test_memmove_chk(void *dest, const void *src, size_t n) {
 
 
 void test_memset_chk(void *dest, int ch, size_t n) {
-  // CIR-LABEL: cir.func @test_memset_chk
+  // CIR-LABEL: cir.func dso_local @test_memset_chk
   // CIR:         %[[#DEST:]] = cir.alloca {{.*}} ["dest", init]
   // CIR:         %[[#CH:]] = cir.alloca {{.*}} ["ch", init]
   // CIR:         %[[#N:]] = cir.alloca {{.*}} ["n", init]
@@ -176,9 +176,9 @@ void test_memset_chk(void *dest, int ch, size_t n) {
   __builtin___memset_chk(dest, ch, n, n);
 }
 
-// FIXME: The test should test intrinsic argument alignment, however, 
-// currently we lack support for argument attributes. 
-// Thus, added `COM: LLVM:` lines so we can easily flip the test 
+// FIXME: The test should test intrinsic argument alignment, however,
+// currently we lack support for argument attributes.
+// Thus, added `COM: LLVM:` lines so we can easily flip the test
 // when the support of argument attributes is in.
 void test_memcpy_inline(void *dst, const void *src, size_t n) {
 
@@ -202,7 +202,7 @@ void test_memcpy_inline(void *dst, const void *src, size_t n) {
   // COM: LLVM: call void @llvm.memcpy.inline.p0.p0.i64(ptr align 1 {{%.*}}, ptr align 1 {{%.*}}, i64 4, i1 false)
   __builtin_memcpy_inline(dst, src, 4);
 }
- 
+
 void test_memcpy_inline_aligned_buffers(unsigned long long *dst, const unsigned long long *src) {
 
   // LLVM-LABEL: test_memcpy_inline_aligned_buffers

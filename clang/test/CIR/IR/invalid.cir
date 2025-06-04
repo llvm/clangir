@@ -1533,7 +1533,7 @@ cir.func @cast0(%arg0: !s32i, %arg1: !s32i) {
 !s32i = !cir.int<s, 32>
 // expected-error @below {{!cir.func cannot have an explicit 'void' return type}}
 // expected-error @below {{failed to parse CIR_PointerType parameter}}
-cir.global external dsolocal @vfp = #cir.ptr<null> : !cir.ptr<!cir.func<(!s32i) -> !cir.void>>
+cir.global external dso_local @vfp = #cir.ptr<null> : !cir.ptr<!cir.func<(!s32i) -> !cir.void>>
 
 // -----
 

@@ -8,7 +8,7 @@ int test_assume(int x) {
   return x;
 }
 
-//      CIR: cir.func @_Z11test_assumei
+//      CIR: cir.func dso_local @_Z11test_assumei
 //      CIR:   %[[#x:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!s32i>, !s32i
 // CIR-NEXT:   %[[#zero:]] = cir.const #cir.int<0> : !s32i
 // CIR-NEXT:   %[[#cond:]] = cir.cmp(gt, %[[#x]], %[[#zero]]) : !s32i, !cir.bool
@@ -24,7 +24,7 @@ int test_assume_attr(int x) {
   return x;
 }
 
-//      CIR: cir.func @_Z16test_assume_attri
+//      CIR: cir.func dso_local @_Z16test_assume_attri
 //      CIR:   %[[#x:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!s32i>, !s32i
 // CIR-NEXT:   %[[#zero:]] = cir.const #cir.int<0> : !s32i
 // CIR-NEXT:   %[[#cond:]] = cir.cmp(gt, %[[#x]], %[[#zero]]) : !s32i, !cir.bool
@@ -40,7 +40,7 @@ int test_assume_aligned(int *ptr) {
   return *aligned;
 }
 
-//      CIR: cir.func @_Z19test_assume_alignedPi
+//      CIR: cir.func dso_local @_Z19test_assume_alignedPi
 //      CIR:   %[[#ptr:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
 // CIR-NEXT:   %[[#aligned:]] = cir.assume.aligned %[[#ptr]] : !cir.ptr<!s32i>[alignment 8]
 // CIR-NEXT:   cir.store{{.*}} %[[#aligned]], %[[#aligned_slot:]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
@@ -58,7 +58,7 @@ int test_assume_aligned_offset(int *ptr) {
   return *aligned;
 }
 
-//      CIR: cir.func @_Z26test_assume_aligned_offsetPi
+//      CIR: cir.func dso_local @_Z26test_assume_aligned_offsetPi
 //      CIR:   %[[#ptr:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
 // CIR-NEXT:   %[[#offset:]] = cir.const #cir.int<4> : !s32i
 // CIR-NEXT:   %[[#offset2:]] = cir.cast(integral, %[[#offset]] : !s32i), !u64i
@@ -78,7 +78,7 @@ int test_separate_storage(int *p1, int *p2) {
   return *p1 + *p2;
 }
 
-//      CIR: cir.func @_Z21test_separate_storagePiS_
+//      CIR: cir.func dso_local @_Z21test_separate_storagePiS_
 //      CIR:   %[[#p1:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
 // CIR-NEXT:   %[[#p1_voidptr:]] = cir.cast(bitcast, %[[#p1]] : !cir.ptr<!s32i>), !cir.ptr<!void>
 // CIR-NEXT:   %[[#p2:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>

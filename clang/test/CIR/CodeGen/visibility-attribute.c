@@ -33,15 +33,15 @@ void __attribute__((__visibility__("protected"))) foo_protected();
 // LLVM: declare protected void @foo_protected(...)
 
 static void static_foo_default() {}
-// CIR: cir.func no_proto internal private @static_foo_default()
+// CIR: cir.func no_proto internal private dso_local @static_foo_default()
 // LLVM: define internal void @static_foo_default()
 
 static void __attribute__((__visibility__("hidden"))) static_foo_hidden() {}
-// CIR: cir.func no_proto internal private @static_foo_hidden()
+// CIR: cir.func no_proto internal private dso_local @static_foo_hidden()
 // LLVM: define internal void @static_foo_hidden()
 
 static void __attribute__((__visibility__("protected"))) static_foo_protected() {}
-// CIR: cir.func no_proto internal private @static_foo_protected()
+// CIR: cir.func no_proto internal private dso_local @static_foo_protected()
 // LLVM: define internal void @static_foo_protected()
 
 void call_foo()

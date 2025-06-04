@@ -7,7 +7,7 @@ float test_scalar(int &oper) {
   return __builtin_bit_cast(float, oper);
 }
 
-// CIR-LABEL: cir.func @_Z11test_scalarRi
+// CIR-LABEL: cir.func dso_local @_Z11test_scalarRi
 //       CIR:   %[[#SRC_PTR:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.ptr<!s32i>>, !cir.ptr<!s32i>
 //  CIR-NEXT:   %[[#DST_PTR:]] = cir.cast(bitcast, %[[#SRC_PTR]] : !cir.ptr<!s32i>), !cir.ptr<!cir.float>
 //  CIR-NEXT:   %{{.+}} = cir.load{{.*}} %[[#DST_PTR]] : !cir.ptr<!cir.float>, !cir.float
@@ -27,7 +27,7 @@ unsigned long test_aggregate_to_scalar(two_ints &ti) {
   return __builtin_bit_cast(unsigned long, ti);
 }
 
-// CIR-LABEL: cir.func @_Z24test_aggregate_to_scalarR8two_ints
+// CIR-LABEL: cir.func dso_local @_Z24test_aggregate_to_scalarR8two_ints
 //       CIR:   %[[#SRC_PTR:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.ptr<!rec_two_ints>>, !cir.ptr<!rec_two_ints>
 //  CIR-NEXT:   %[[#DST_PTR:]] = cir.cast(bitcast, %[[#SRC_PTR]] : !cir.ptr<!rec_two_ints>), !cir.ptr<!u64i>
 //  CIR-NEXT:   %{{.+}} = cir.load{{.*}} %[[#DST_PTR]] : !cir.ptr<!u64i>, !u64i
@@ -47,7 +47,7 @@ two_floats test_aggregate_record(two_ints& ti) {
    return __builtin_bit_cast(two_floats, ti);
 }
 
-// CIR-LABEL: cir.func @_Z21test_aggregate_recordR8two_ints
+// CIR-LABEL: cir.func dso_local @_Z21test_aggregate_recordR8two_ints
 //       CIR:   %[[#SRC_PTR:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.ptr<!rec_two_ints>>, !cir.ptr<!rec_two_ints>
 //  CIR-NEXT:   %[[#SRC_VOID_PTR:]] = cir.cast(bitcast, %[[#SRC_PTR]] : !cir.ptr<!rec_two_ints>), !cir.ptr<!void>
 //  CIR-NEXT:   %[[#DST_VOID_PTR:]] = cir.cast(bitcast, %{{.+}} : !cir.ptr<!rec_two_floats>), !cir.ptr<!void>
@@ -66,7 +66,7 @@ two_floats test_aggregate_array(int (&ary)[2]) {
   return __builtin_bit_cast(two_floats, ary);
 }
 
-// CIR-LABEL: cir.func @_Z20test_aggregate_arrayRA2_i
+// CIR-LABEL: cir.func dso_local @_Z20test_aggregate_arrayRA2_i
 //       CIR:   %[[#SRC_PTR:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.ptr<!cir.array<!s32i x 2>>>, !cir.ptr<!cir.array<!s32i x 2>>
 //  CIR-NEXT:   %[[#SRC_VOID_PTR:]] = cir.cast(bitcast, %[[#SRC_PTR]] : !cir.ptr<!cir.array<!s32i x 2>>), !cir.ptr<!void>
 //  CIR-NEXT:   %[[#DST_VOID_PTR:]] = cir.cast(bitcast, %{{.+}} : !cir.ptr<!rec_two_floats>), !cir.ptr<!void>
@@ -85,7 +85,7 @@ two_ints test_scalar_to_aggregate(unsigned long ul) {
   return __builtin_bit_cast(two_ints, ul);
 }
 
-// CIR-LABEL: cir.func @_Z24test_scalar_to_aggregatem
+// CIR-LABEL: cir.func dso_local @_Z24test_scalar_to_aggregatem
 //       CIR:   %[[#SRC_VOID_PTR:]] = cir.cast(bitcast, %{{.+}} : !cir.ptr<!u64i>), !cir.ptr<!void>
 //  CIR-NEXT:   %[[#DST_VOID_PTR:]] = cir.cast(bitcast, %{{.+}} : !cir.ptr<!rec_two_ints>), !cir.ptr<!void>
 //  CIR-NEXT:   %[[#SIZE:]] = cir.const #cir.int<8> : !u64i
@@ -102,7 +102,7 @@ unsigned long test_array(int (&ary)[2]) {
   return __builtin_bit_cast(unsigned long, ary);
 }
 
-// CIR-LABEL: cir.func @_Z10test_arrayRA2_i
+// CIR-LABEL: cir.func dso_local @_Z10test_arrayRA2_i
 //      CIR:   %[[#SRC_PTR:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.ptr<!cir.array<!s32i x 2>>>, !cir.ptr<!cir.array<!s32i x 2>>
 // CIR-NEXT:   %[[#DST_PTR:]] = cir.cast(bitcast, %[[#SRC_PTR]] : !cir.ptr<!cir.array<!s32i x 2>>), !cir.ptr<!u64i>
 // CIR-NEXT:   %{{.+}} = cir.load{{.*}} %[[#DST_PTR]] : !cir.ptr<!u64i>, !u64i
@@ -117,7 +117,7 @@ two_ints test_rvalue_aggregate() {
   return __builtin_bit_cast(two_ints, 42ul);
 }
 
-// CIR-LABEL: cir.func @_Z21test_rvalue_aggregatev()
+// CIR-LABEL: cir.func dso_local @_Z21test_rvalue_aggregatev()
 //       CIR:   cir.scope {
 //  CIR-NEXT:     %[[#TMP_SLOT:]] = cir.alloca !u64i, !cir.ptr<!u64i>
 //  CIR-NEXT:     %[[#A:]] = cir.const #cir.int<42> : !u64i

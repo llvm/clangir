@@ -2321,7 +2321,7 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
   auto visNameAttr = getSymVisibilityAttrName(state.name);
   auto noProtoNameAttr = getNoProtoAttrName(state.name);
   auto visibilityNameAttr = getGlobalVisibilityAttrName(state.name);
-  auto dsolocalNameAttr = getDsolocalAttrName(state.name);
+  auto dsoLocalNameAttr = getDsoLocalAttrName(state.name);
   auto annotationsNameAttr = getAnnotationsAttrName(state.name);
   if (::mlir::succeeded(parser.parseOptionalKeyword(builtinNameAttr.strref())))
     state.addAttribute(builtinNameAttr, parser.getBuilder().getUnitAttr());
@@ -2354,9 +2354,8 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
   parseVisibilityAttr(parser, cirVisibilityAttr);
   state.addAttribute(visibilityNameAttr, cirVisibilityAttr);
 
-  // TODO: It is unclear whether this is printed in the pretty-printer
-  if (parser.parseOptionalKeyword(dsolocalNameAttr).succeeded())
-    state.addAttribute(dsolocalNameAttr, parser.getBuilder().getUnitAttr());
+  if (parser.parseOptionalKeyword(dsoLocalNameAttr).succeeded())
+    state.addAttribute(dsoLocalNameAttr, parser.getBuilder().getUnitAttr());
 
   StringAttr nameAttr;
   llvm::SmallVector<OpAsmParser::Argument, 8> arguments;
@@ -2568,6 +2567,9 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
     printVisibilityAttr(p, cirVisibilityAttr);
   }
 
+  if (getDsoLocal())
+    p << " dso_local";
+
   // Print function name, signature, and control.
   p << ' ';
   p.printSymbolName(getSymName());
@@ -2585,7 +2587,7 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
       p, *this,
       // These are all omitted since they are custom printed already.
       {getAliaseeAttrName(), getBuiltinAttrName(), getCoroutineAttrName(),
-       getDsolocalAttrName(), getExtraAttrsAttrName(),
+       getDsoLocalAttrName(), getExtraAttrsAttrName(),
        getFunctionTypeAttrName(), getGlobalCtorAttrName(),
        getGlobalDtorAttrName(), getLambdaAttrName(), getLinkageAttrName(),
        getCallingConvAttrName(), getNoProtoAttrName(),

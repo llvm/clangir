@@ -32,7 +32,7 @@ typedef struct {
 // CHECK: !rec_S = !cir.record<struct "S" {!u32i, !cir.array<!u8i x 3>, !u16i, !u32i}>
 // CHECK: !rec___long = !cir.record<struct "__long" {!rec_anon2E0, !u32i, !cir.ptr<!u32i>}>
 
-// CHECK: cir.func @_Z11store_field
+// CHECK: cir.func dso_local @_Z11store_field
 // CHECK:   [[TMP0:%.*]] = cir.alloca !rec_S, !cir.ptr<!rec_S>
 // CHECK:   [[TMP1:%.*]] = cir.const #cir.int<3> : !s32i
 // CHECK:   [[TMP2:%.*]] = cir.cast(bitcast, [[TMP0]] : !cir.ptr<!rec_S>), !cir.ptr<!u32i>
@@ -42,7 +42,7 @@ void store_field() {
   s.a = 3;
 }
 
-// CHECK: cir.func @_Z10load_field
+// CHECK: cir.func dso_local @_Z10load_field
 // CHECK:   [[TMP0:%.*]] = cir.alloca !cir.ptr<!rec_S>, !cir.ptr<!cir.ptr<!rec_S>>, ["s", init, const]
 // CHECK:   [[TMP1:%.*]] = cir.load{{.*}} [[TMP0]] : !cir.ptr<!cir.ptr<!rec_S>>, !cir.ptr<!rec_S>
 // CHECK:   [[TMP2:%.*]] = cir.get_member [[TMP1]][1] {name = "d"} : !cir.ptr<!rec_S> -> !cir.ptr<!cir.array<!u8i x 3>>
@@ -51,14 +51,14 @@ int load_field(S& s) {
   return s.d;
 }
 
-// CHECK: cir.func @_Z17load_non_bitfield
+// CHECK: cir.func dso_local @_Z17load_non_bitfield
 // CHECK:   cir.get_member {{%.}}[3] {name = "f"} : !cir.ptr<!rec_S> -> !cir.ptr<!u32i>
 unsigned load_non_bitfield(S& s) {
   return s.f;
 }
 
 // just create a usage of T type
-// CHECK: cir.func @_Z17load_one_bitfield
+// CHECK: cir.func dso_local @_Z17load_one_bitfield
 int load_one_bitfield(T& t) {
   return t.a;
 }

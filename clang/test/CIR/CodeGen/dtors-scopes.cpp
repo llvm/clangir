@@ -15,7 +15,7 @@ void dtor1() {
   printf("Done\n");
 }
 
-// CHECK: cir.func @_Z5dtor1v()
+// CHECK: cir.func dso_local @_Z5dtor1v()
 // CHECK:   cir.scope {
 // CHECK:     %4 = cir.alloca !rec_C, !cir.ptr<!rec_C>, ["c", init] {alignment = 1 : i64}
 // CHECK:     cir.call @_ZN1CC2Ev(%4) : (!cir.ptr<!rec_C>) -> ()

@@ -7,7 +7,7 @@ typedef struct {
   bool x;
 } S;
 
-// CHECK:  cir.func @init_bool
+// CHECK:  cir.func dso_local @init_bool
 // CHECK:    [[ALLOC:%.*]] = cir.alloca !rec_S, !cir.ptr<!rec_S>
 // CHECK:    [[ZERO:%.*]] = cir.const #cir.zero : !rec_S
 // CHECK:    cir.store{{.*}} [[ZERO]], [[ALLOC]] : !rec_S, !cir.ptr<!rec_S>
@@ -15,7 +15,7 @@ void init_bool(void) {
   S s = {0};
 }
 
-// CHECK:  cir.func @store_bool
+// CHECK:  cir.func dso_local @store_bool
 // CHECK:    [[TMP0:%.*]] = cir.alloca !cir.ptr<!rec_S>, !cir.ptr<!cir.ptr<!rec_S>>
 // CHECK:    cir.store{{.*}} %arg0, [[TMP0]] : !cir.ptr<!rec_S>, !cir.ptr<!cir.ptr<!rec_S>>
 // CHECK:    [[TMP1:%.*]] = cir.const #cir.int<0> : !s32i
@@ -27,7 +27,7 @@ void store_bool(S *s) {
   s->x = false;
 }
 
-// CHECK:  cir.func @load_bool
+// CHECK:  cir.func dso_local @load_bool
 // CHECK:    [[TMP0:%.*]] = cir.alloca !cir.ptr<!rec_S>, !cir.ptr<!cir.ptr<!rec_S>>, ["s", init] {alignment = 8 : i64}
 // CHECK:    [[TMP1:%.*]] = cir.alloca !cir.bool, !cir.ptr<!cir.bool>, ["x", init] {alignment = 1 : i64}
 // CHECK:    cir.store{{.*}} %arg0, [[TMP0]] : !cir.ptr<!rec_S>, !cir.ptr<!cir.ptr<!rec_S>>
