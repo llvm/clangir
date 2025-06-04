@@ -1921,10 +1921,6 @@ mlir::LogicalResult CIRToLLVMVecCreateOpLowering::matchAndRewrite(
 mlir::LogicalResult CIRToLLVMVecCmpOpLowering::matchAndRewrite(
     cir::VecCmpOp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
-  assert(mlir::isa<cir::VectorType>(op.getType()) &&
-         mlir::isa<cir::VectorType>(op.getLhs().getType()) &&
-         mlir::isa<cir::VectorType>(op.getRhs().getType()) &&
-         "Vector compare with non-vector type");
   // LLVM IR vector comparison returns a vector of i1.  This one-bit vector
   // must be sign-extended to the correct result type.
   auto elementType = elementTypeIfVector(op.getLhs().getType());
@@ -1980,11 +1976,6 @@ mlir::LogicalResult CIRToLLVMVecSplatOpLowering::matchAndRewrite(
 mlir::LogicalResult CIRToLLVMVecTernaryOpLowering::matchAndRewrite(
     cir::VecTernaryOp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
-  assert(mlir::isa<cir::VectorType>(op.getType()) &&
-         mlir::isa<cir::VectorType>(op.getCond().getType()) &&
-         mlir::isa<cir::VectorType>(op.getVec1().getType()) &&
-         mlir::isa<cir::VectorType>(op.getVec2().getType()) &&
-         "Vector ternary op with non-vector type");
   // Convert `cond` into a vector of i1, then use that in a `select` op.
   mlir::Value bitVec = rewriter.create<mlir::LLVM::ICmpOp>(
       op.getLoc(), mlir::LLVM::ICmpPredicate::ne, adaptor.getCond(),
