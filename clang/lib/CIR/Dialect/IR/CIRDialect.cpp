@@ -1556,13 +1556,13 @@ void cir::TernaryOp::build(
   result.addOperands(cond);
   OpBuilder::InsertionGuard guard(builder);
   Region *trueRegion = result.addRegion();
-  auto *block = builder.createBlock(trueRegion);
+  builder.createBlock(trueRegion);
   trueBuilder(builder, result.location);
   Region *falseRegion = result.addRegion();
   builder.createBlock(falseRegion);
   falseBuilder(builder, result.location);
 
-  auto yield = dyn_cast<YieldOp>(block->getTerminator());
+  auto yield = dyn_cast<YieldOp>(trueRegion->back().getTerminator());
   assert((yield && yield.getNumOperands() <= 1) &&
          "expected zero or one result type");
   if (yield.getNumOperands() == 1)
