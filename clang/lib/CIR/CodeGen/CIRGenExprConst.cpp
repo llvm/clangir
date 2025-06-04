@@ -2007,9 +2007,30 @@ mlir::Attribute ConstantEmitter::tryEmitPrivate(const APValue &Value,
   case APValue::Struct:
   case APValue::Union:
     return ConstRecordBuilder::BuildRecord(*this, Value, DestType);
-  case APValue::FixedPoint:
-  case APValue::ComplexInt:
   case APValue::ComplexFloat:
+  case APValue::ComplexInt: {
+    mlir::Type desiredType = CGM.convertType(DestType);
+    cir::ComplexType complexType =
+        mlir::dyn_cast<cir::ComplexType>(desiredType);
+
+    mlir::Type complexElemTy = complexType.getElementType();
+    if (isa<cir::IntType>(complexElemTy)) {
+      llvm::APSInt real = Value.getComplexIntReal();
+      llvm::APSInt imag = Value.getComplexIntImag();
+      return builder.getAttr<cir::ComplexAttr>(
+          complexType, builder.getAttr<cir::IntAttr>(complexElemTy, real),
+          builder.getAttr<cir::IntAttr>(complexElemTy, imag));
+    }
+
+    assert(isa<cir::CIRFPTypeInterface>(complexElemTy) &&
+           "expected floating-point type");
+    llvm::APFloat real = Value.getComplexFloatReal();
+    llvm::APFloat imag = Value.getComplexFloatImag();
+    return builder.getAttr<cir::ComplexAttr>(
+        complexType, builder.getAttr<cir::FPAttr>(complexElemTy, real),
+        builder.getAttr<cir::FPAttr>(complexElemTy, imag));
+  }
+  case APValue::FixedPoint:
   case APValue::AddrLabelDiff:
     assert(0 && "not implemented");
   }
