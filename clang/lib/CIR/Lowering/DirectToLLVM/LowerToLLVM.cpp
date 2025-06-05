@@ -378,7 +378,7 @@ static mlir::Value emitFromMemory(mlir::ConversionPatternRewriter &rewriter,
                                   cir::LoadOp op, mlir::Value value) {
 
   // TODO(cir): Handle other types similarly to clang's codegen EmitFromMemory
-  if (auto boolTy = mlir::dyn_cast<cir::BoolType>(op.getResult().getType())) {
+  if (auto boolTy = mlir::dyn_cast<cir::BoolType>(op.getType())) {
     // Create a cast value from specified size in datalayout to i1
     assert(value.getType().isInteger(dataLayout.getTypeSizeInBits(boolTy)));
     return createIntCast(rewriter, value, rewriter.getI1Type());
@@ -1207,7 +1207,7 @@ mlir::LogicalResult CIRToLLVMCastOpLowering::matchAndRewrite(
   }
   case cir::CastKind::integral: {
     auto srcType = castOp.getSrc().getType();
-    auto dstType = castOp.getResult().getType();
+    auto dstType = castOp.getType();
     auto llvmSrcVal = adaptor.getSrc();
     auto llvmDstType = getTypeConverter()->convertType(dstType);
     cir::IntType srcIntType =
@@ -1222,11 +1222,10 @@ mlir::LogicalResult CIRToLLVMCastOpLowering::matchAndRewrite(
   }
   case cir::CastKind::floating: {
     auto llvmSrcVal = adaptor.getSrc();
-    auto llvmDstTy =
-        getTypeConverter()->convertType(castOp.getResult().getType());
+    auto llvmDstTy = getTypeConverter()->convertType(castOp.getType());
 
     auto srcTy = elementTypeIfVector(castOp.getSrc().getType());
-    auto dstTy = elementTypeIfVector(castOp.getResult().getType());
+    auto dstTy = elementTypeIfVector(castOp.getType());
 
     if (!mlir::isa<cir::CIRFPTypeInterface>(dstTy) ||
         !mlir::isa<cir::CIRFPTypeInterface>(srcTy))
@@ -1314,8 +1313,7 @@ mlir::LogicalResult CIRToLLVMCastOpLowering::matchAndRewrite(
     auto dstTy = castOp.getType();
     auto llvmSrcVal = adaptor.getSrc();
     auto llvmDstTy = getTypeConverter()->convertType(dstTy);
-    if (mlir::cast<cir::IntType>(
-            elementTypeIfVector(castOp.getResult().getType()))
+    if (mlir::cast<cir::IntType>(elementTypeIfVector(castOp.getType()))
             .isSigned())
       rewriter.replaceOpWithNewOp<mlir::LLVM::FPToSIOp>(castOp, llvmDstTy,
                                                         llvmSrcVal);
@@ -1620,7 +1618,7 @@ mlir::LogicalResult CIRToLLVMAllocaOpLowering::matchAndRewrite(
                            rewriter.getIntegerAttr(rewriter.getIndexType(), 1));
   auto elementTy =
       convertTypeForMemory(*getTypeConverter(), dataLayout, op.getAllocaType());
-  auto resultTy = getTypeConverter()->convertType(op.getResult().getType());
+  auto resultTy = getTypeConverter()->convertType(op.getType());
   // Verification between the CIR alloca AS and the one from data layout.
   {
     auto resPtrTy = mlir::cast<mlir::LLVM::LLVMPointerType>(resultTy);
@@ -1683,8 +1681,8 @@ static bool isLoadOrStoreInvariant(mlir::Value addr) {
 mlir::LogicalResult CIRToLLVMLoadOpLowering::matchAndRewrite(
     cir::LoadOp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
-  const auto llvmTy = convertTypeForMemory(*getTypeConverter(), dataLayout,
-                                           op.getResult().getType());
+  const auto llvmTy =
+      convertTypeForMemory(*getTypeConverter(), dataLayout, op.getType());
   auto memorder = op.getMemOrder();
   auto ordering = getLLVMMemOrder(memorder);
   auto alignOpt = op.getAlignment();
@@ -2302,8 +2300,7 @@ mlir::LogicalResult CIRToLLVMGetGlobalOpLowering::matchAndRewrite(
 mlir::LogicalResult CIRToLLVMComplexCreateOpLowering::matchAndRewrite(
     cir::ComplexCreateOp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
-  auto complexLLVMTy =
-      getTypeConverter()->convertType(op.getResult().getType());
+  auto complexLLVMTy = getTypeConverter()->convertType(op.getType());
   auto initialComplex =
       rewriter.create<mlir::LLVM::UndefOp>(op->getLoc(), complexLLVMTy);
 
@@ -2322,7 +2319,7 @@ mlir::LogicalResult CIRToLLVMComplexCreateOpLowering::matchAndRewrite(
 mlir::LogicalResult CIRToLLVMComplexRealOpLowering::matchAndRewrite(
     cir::ComplexRealOp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
-  auto resultLLVMTy = getTypeConverter()->convertType(op.getResult().getType());
+  auto resultLLVMTy = getTypeConverter()->convertType(op.getType());
   rewriter.replaceOpWithNewOp<mlir::LLVM::ExtractValueOp>(
       op, resultLLVMTy, adaptor.getOperand(), llvm::ArrayRef<std::int64_t>{0});
   return mlir::success();
@@ -2331,7 +2328,7 @@ mlir::LogicalResult CIRToLLVMComplexRealOpLowering::matchAndRewrite(
 mlir::LogicalResult CIRToLLVMComplexImagOpLowering::matchAndRewrite(
     cir::ComplexImagOp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
-  auto resultLLVMTy = getTypeConverter()->convertType(op.getResult().getType());
+  auto resultLLVMTy = getTypeConverter()->convertType(op.getType());
   rewriter.replaceOpWithNewOp<mlir::LLVM::ExtractValueOp>(
       op, resultLLVMTy, adaptor.getOperand(), llvm::ArrayRef<std::int64_t>{1});
   return mlir::success();
@@ -2341,7 +2338,7 @@ mlir::LogicalResult CIRToLLVMComplexRealPtrOpLowering::matchAndRewrite(
     cir::ComplexRealPtrOp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
   cir::PointerType operandTy = op.getOperand().getType();
-  auto resultLLVMTy = getTypeConverter()->convertType(op.getResult().getType());
+  auto resultLLVMTy = getTypeConverter()->convertType(op.getType());
   auto elementLLVMTy = getTypeConverter()->convertType(operandTy.getPointee());
 
   mlir::LLVM::GEPArg gepIndices[2]{{0}, {0}};
@@ -2356,7 +2353,7 @@ mlir::LogicalResult CIRToLLVMComplexImagPtrOpLowering::matchAndRewrite(
     cir::ComplexImagPtrOp op, OpAdaptor adaptor,
     mlir::ConversionPatternRewriter &rewriter) const {
   cir::PointerType operandTy = op.getOperand().getType();
-  auto resultLLVMTy = getTypeConverter()->convertType(op.getResult().getType());
+  auto resultLLVMTy = getTypeConverter()->convertType(op.getType());
   auto elementLLVMTy = getTypeConverter()->convertType(operandTy.getPointee());
 
   mlir::LLVM::GEPArg gepIndices[2]{{0}, {1}};
