@@ -39,7 +39,7 @@ void if0() {
   }
 }
 
-// CHECK: cir.func @_Z3if0v() {{.*}}
+// CHECK: cir.func dso_local @_Z3if0v() {{.*}}
 // CHECK: cir.store{{.*}} %1, %0 : !s32i, !cir.ptr<!s32i> loc({{.*}})
 // CHECK-NEXT: cir.scope {
 // CHECK-NEXT:   %2 = cir.alloca !s32i, !cir.ptr<!s32i>, ["x", init] {{.*}}

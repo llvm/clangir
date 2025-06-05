@@ -14,14 +14,14 @@ int foo(void) {
   return bar(5);
 }
 
-// CIR:   cir.func internal private @bar(
-// CIR:   cir.func @foo(
+// CIR:   cir.func internal private dso_local @bar(
+// CIR:   cir.func dso_local @foo(
 
 // LLVM: define internal i32 @bar(
 // LLVM: define dso_local i32 @foo(
 
 static int var = 0;
-// CIR: cir.global "private" internal dsolocal @var = #cir.int<0> : !s32i
+// CIR: cir.global "private" internal dso_local @var = #cir.int<0> : !s32i
 int get_var(void) {
   return var;
 }

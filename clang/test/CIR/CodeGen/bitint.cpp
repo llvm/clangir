@@ -11,21 +11,21 @@ i10 test_signed(i10 arg) {
   return arg;
 }
 
-// CHECK: cir.func @_Z11test_signedDB10_(%arg0: !cir.int<s, 10> loc({{.*}}) -> !cir.int<s, 10>
+// CHECK: cir.func dso_local @_Z11test_signedDB10_(%arg0: !cir.int<s, 10> loc({{.*}}) -> !cir.int<s, 10>
 // CHECK: }
 
 u10 test_unsigned(u10 arg) {
   return arg;
 }
 
-// CHECK: cir.func @_Z13test_unsignedDU10_(%arg0: !cir.int<u, 10> loc({{.*}}) -> !cir.int<u, 10>
+// CHECK: cir.func dso_local @_Z13test_unsignedDU10_(%arg0: !cir.int<u, 10> loc({{.*}}) -> !cir.int<u, 10>
 // CHECK: }
 
 i10 test_init() {
   return 42;
 }
 
-//      CHECK: cir.func @_Z9test_initv() -> !cir.int<s, 10>
+//      CHECK: cir.func dso_local @_Z9test_initv() -> !cir.int<s, 10>
 //      CHECK:   %[[#LITERAL:]] = cir.const #cir.int<42> : !s32i
 // CHECK-NEXT:   %{{.+}} = cir.cast(integral, %[[#LITERAL]] : !s32i), !cir.int<s, 10>
 //      CHECK: }
@@ -34,7 +34,7 @@ void test_init_for_mem() {
   i10 x = 42;
 }
 
-//      CHECK: cir.func @_Z17test_init_for_memv()
+//      CHECK: cir.func dso_local @_Z17test_init_for_memv()
 //      CHECK:   %[[#LITERAL:]] = cir.const #cir.int<42> : !s32i
 // CHECK-NEXT:   %[[#INIT:]] = cir.cast(integral, %[[#LITERAL]] : !s32i), !cir.int<s, 10>
 // CHECK-NEXT:   cir.store{{.*}} %[[#INIT]], %{{.+}} : !cir.int<s, 10>, !cir.ptr<!cir.int<s, 10>>
@@ -44,7 +44,7 @@ i10 test_arith(i10 lhs, i10 rhs) {
   return lhs + rhs;
 }
 
-//      CHECK: cir.func @_Z10test_arithDB10_S_(%arg0: !cir.int<s, 10> loc({{.+}}), %arg1: !cir.int<s, 10> loc({{.+}})) -> !cir.int<s, 10>
+//      CHECK: cir.func dso_local @_Z10test_arithDB10_S_(%arg0: !cir.int<s, 10> loc({{.+}}), %arg1: !cir.int<s, 10> loc({{.+}})) -> !cir.int<s, 10>
 //      CHECK:   %[[#LHS:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.int<s, 10>>, !cir.int<s, 10>
 // CHECK-NEXT:   %[[#RHS:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.int<s, 10>>, !cir.int<s, 10>
 // CHECK-NEXT:   %{{.+}} = cir.binop(add, %[[#LHS]], %[[#RHS]]) nsw : !cir.int<s, 10>
@@ -55,7 +55,7 @@ void Size1ExtIntParam(unsigned _BitInt(1) A) {
   B[2] = A;
 }
 
-//      CHECK: cir.func @_Z16Size1ExtIntParamDU1_
+//      CHECK: cir.func dso_local @_Z16Size1ExtIntParamDU1_
 //      CHECK:   %[[#A:]] = cir.load{{.*}} %{{.+}} : !cir.ptr<!cir.int<u, 1>>, !cir.int<u, 1>
 // CHECK-NEXT:   %[[#IDX:]] = cir.const #cir.int<2> : !s32i
 // CHECK-NEXT:   %[[#ARRAY:]] = cir.cast(array_to_ptrdecay, %1 : !cir.ptr<!cir.array<!cir.int<u, 1> x 5>>), !cir.ptr<!cir.int<u, 1>>
@@ -75,7 +75,7 @@ void OffsetOfTest(void) {
   int C = __builtin_offsetof(struct S,C);
 }
 
-// CHECK: cir.func @_Z12OffsetOfTestv()
+// CHECK: cir.func dso_local @_Z12OffsetOfTestv()
 // CHECK:   %{{.+}} = cir.const #cir.int<0> : !u64i
 // CHECK:   %{{.+}} = cir.const #cir.int<4> : !u64i
 // CHECK:   %{{.+}} = cir.const #cir.int<8> : !u64i
@@ -83,4 +83,4 @@ void OffsetOfTest(void) {
 
 _BitInt(2) ParamPassing(_BitInt(15) a, _BitInt(31) b) {}
 
-// CHECK: cir.func @_Z12ParamPassingDB15_DB31_(%arg0: !cir.int<s, 15> loc({{.+}}), %arg1: !cir.int<s, 31> loc({{.+}})) -> !cir.int<s, 2>
+// CHECK: cir.func dso_local @_Z12ParamPassingDB15_DB31_(%arg0: !cir.int<s, 15> loc({{.+}}), %arg1: !cir.int<s, 31> loc({{.+}})) -> !cir.int<s, 2>

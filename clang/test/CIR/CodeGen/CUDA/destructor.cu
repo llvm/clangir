@@ -17,7 +17,7 @@ template<typename T> struct A {
   ~A() { f<<<1, 1>>>(T()); }
 };
 
-// CIR-DEVICE: cir.func @_Z1fIiEvT_
+// CIR-DEVICE: cir.func dso_local @_Z1fIiEvT_
 
 // CIR-HOST: cir.func {{.*}} @_ZN1AIiED2Ev{{.*}} {
 // CIR-HOST:   cir.call @__cudaPushCallConfiguration

@@ -63,7 +63,7 @@ void yoyo(incomplete *i) {}
 // CHECK-NEXT:   cir.return %5
 // CHECK-NEXT: }
 
-//      CHECK: cir.func @_Z3bazv()
+//      CHECK: cir.func dso_local @_Z3bazv()
 // CHECK-NEXT:   %0 = cir.alloca !rec_Bar, !cir.ptr<!rec_Bar>, ["b"] {alignment = 4 : i64}
 // CHECK-NEXT:   %1 = cir.alloca !s32i, !cir.ptr<!s32i>, ["result", init] {alignment = 4 : i64}
 // CHECK-NEXT:   %2 = cir.alloca !rec_Foo, !cir.ptr<!rec_Foo>, ["f"] {alignment = 4 : i64}
@@ -148,7 +148,7 @@ struct S {
 
 void h() { S s; }
 
-// CHECK: cir.func @_Z1hv()
+// CHECK: cir.func dso_local @_Z1hv()
 // CHECK:   %0 = cir.alloca !rec_S, !cir.ptr<!rec_S>, ["s", init] {alignment = 1 : i64}
 // CHECK:   %1 = cir.alloca !rec_A, !cir.ptr<!rec_A>, ["agg.tmp0"] {alignment = 4 : i64}
 // CHECK:   %2 = cir.call @_Z11get_defaultv() : () -> !rec_A

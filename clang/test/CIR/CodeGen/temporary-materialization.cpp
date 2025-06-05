@@ -8,7 +8,7 @@ int test() {
   return x;
 }
 
-//      CHECK: cir.func @_Z4testv()
+//      CHECK: cir.func dso_local @_Z4testv()
 // CHECK-NEXT:   %{{.+}} = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"] {alignment = 4 : i64}
 // CHECK-NEXT:   %[[#TEMP_SLOT:]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["ref.tmp0", init] {alignment = 4 : i64}
 // CHECK-NEXT:   %[[#x:]] = cir.alloca !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>, ["x", init, const] {alignment = 8 : i64}
@@ -28,7 +28,7 @@ int test_scoped() {
   return x;
 }
 
-//      CHECK: cir.func @_Z11test_scopedv()
+//      CHECK: cir.func dso_local @_Z11test_scopedv()
 // CHECK-NEXT:   %{{.+}} = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"] {alignment = 4 : i64}
 // CHECK-NEXT:   %{{.+}} = cir.alloca !s32i, !cir.ptr<!s32i>, ["x", init] {alignment = 4 : i64}
 //      CHECK:   cir.scope {

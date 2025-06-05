@@ -21,12 +21,12 @@ void test() {
 // CIR: cir.store{{.*}} %arg0, [[LOCAL]] : [[INITLIST_TYPE]], !cir.ptr<[[INITLIST_TYPE]]>
 // CIR: cir.return
 
-// CIR: cir.global "private" constant cir_private dsolocal [[STR_XY:@.*]] = #cir.const_array<"xy\00" : !cir.array<!s8i x 3>> : !cir.array<!s8i x 3>
-// CIR: cir.global "private" constant cir_private dsolocal [[STR_UV:@.*]] = #cir.const_array<"uv\00" : !cir.array<!s8i x 3>> : !cir.array<!s8i x 3>
+// CIR: cir.global "private" constant cir_private dso_local [[STR_XY:@.*]] = #cir.const_array<"xy\00" : !cir.array<!s8i x 3>> : !cir.array<!s8i x 3>
+// CIR: cir.global "private" constant cir_private dso_local [[STR_UV:@.*]] = #cir.const_array<"uv\00" : !cir.array<!s8i x 3>> : !cir.array<!s8i x 3>
 
-// CIR: cir.func @_ZSt4testv()
+// CIR: cir.func dso_local @_ZSt4testv()
 // CIR: cir.scope {
-// CIR: [[INITLIST_LOCAL:%.*]] = cir.alloca [[INITLIST_TYPE]], !cir.ptr<[[INITLIST_TYPE]]>,  
+// CIR: [[INITLIST_LOCAL:%.*]] = cir.alloca [[INITLIST_TYPE]], !cir.ptr<[[INITLIST_TYPE]]>,
 // CIR: [[LOCAL_ELEM_ARRAY:%.*]] = cir.alloca !cir.array<!cir.ptr<!s8i> x 2>, !cir.ptr<!cir.array<!cir.ptr<!s8i> x 2>>,
 // CIR: [[FIRST_ELEM_PTR:%.*]] = cir.cast(array_to_ptrdecay, [[LOCAL_ELEM_ARRAY]] : !cir.ptr<!cir.array<!cir.ptr<!s8i> x 2>>), !cir.ptr<!cir.ptr<!s8i>>
 // CIR: [[XY_CHAR_ARRAY:%.*]] = cir.get_global [[STR_XY]]  : !cir.ptr<!cir.array<!s8i x 3>>

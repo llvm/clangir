@@ -5,6 +5,6 @@
 test = 0;
 // CHECK: cir.global external @test = #cir.int<0> : !s32i
 func (void) {
-// CHECK: cir.func @func() -> !s32i
+// CHECK: cir.func dso_local @func() -> !s32i
   return 0;
 }

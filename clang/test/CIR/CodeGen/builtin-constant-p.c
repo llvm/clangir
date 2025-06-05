@@ -6,7 +6,7 @@ int foo() {
   return __builtin_constant_p(a);
 }
 
-// CIR:  cir.func no_proto @foo() -> !s32i extra(#fn_attr)
+// CIR:  cir.func no_proto dso_local @foo() -> !s32i extra(#fn_attr)
 // CIR:    [[TMP0:%.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"] {alignment = 4 : i64}
 // CIR:    [[TMP1:%.*]] = cir.get_global @a : !cir.ptr<!s32i>
 // CIR:    [[TMP2:%.*]] = cir.load{{.*}} [[TMP1]] : !cir.ptr<!s32i>, !s32i
@@ -24,4 +24,3 @@ int foo() {
 // LLVM:  store i32 [[TMP5]], ptr [[TMP1]]
 // LLVM:  [[TMP6:%.*]] = load i32, ptr [[TMP1]]
 // LLVM:  ret i32 [[TMP6]]
-
