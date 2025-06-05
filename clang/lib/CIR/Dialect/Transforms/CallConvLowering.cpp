@@ -82,7 +82,7 @@ private:
   }
 
   void rewriteGetGlobalOp(GetGlobalOp op) {
-    auto resTy = op.getResult().getType();
+    auto resTy = op.getType();
     if (isFuncPointerTy(resTy)) {
       rewriter.setInsertionPoint(op);
       auto newOp = rewriter.replaceOpWithNewOp<GetGlobalOp>(op, convert(resTy),
