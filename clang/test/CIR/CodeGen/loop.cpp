@@ -6,7 +6,7 @@ void l0() {
   }
 }
 
-// CHECK: cir.func @_Z2l0v
+// CHECK: cir.func dso_local @_Z2l0v
 // CHECK: cir.for : cond {
 // CHECK:   %[[#TRUE:]] = cir.const #true
 // CHECK:   cir.condition(%[[#TRUE]])
@@ -18,7 +18,7 @@ void l1() {
   }
 }
 
-// CHECK: cir.func @_Z2l1v
+// CHECK: cir.func dso_local @_Z2l1v
 // CHECK: cir.for : cond {
 // CHECK-NEXT:   %4 = cir.load{{.*}} %2 : !cir.ptr<!s32i>, !s32i
 // CHECK-NEXT:   %5 = cir.const #cir.int<10> : !s32i
@@ -53,7 +53,7 @@ void l2(bool cond) {
   }
 }
 
-// CHECK: cir.func @_Z2l2b
+// CHECK: cir.func dso_local @_Z2l2b
 // CHECK:         cir.scope {
 // CHECK-NEXT:     cir.while {
 // CHECK-NEXT:       %3 = cir.load{{.*}} %0 : !cir.ptr<!cir.bool>, !cir.bool
@@ -111,7 +111,7 @@ void l3(bool cond) {
   } while (1);
 }
 
-// CHECK: cir.func @_Z2l3b
+// CHECK: cir.func dso_local @_Z2l3b
 // CHECK: cir.scope {
 // CHECK-NEXT:   cir.do {
 // CHECK-NEXT:     cir.scope {
@@ -166,7 +166,7 @@ void l4() {
   }
 }
 
-// CHECK: cir.func @_Z2l4v
+// CHECK: cir.func dso_local @_Z2l4v
 // CHECK: cir.while {
 // CHECK-NEXT:   %[[#TRUE:]] = cir.const #true
 // CHECK-NEXT:   cir.condition(%[[#TRUE]])
@@ -190,7 +190,7 @@ void l5() {
   } while (0);
 }
 
-// CHECK: cir.func @_Z2l5v()
+// CHECK: cir.func dso_local @_Z2l5v()
 // CHECK-NEXT:   cir.scope {
 // CHECK-NEXT:     cir.do {
 // CHECK-NEXT:       cir.yield
@@ -209,7 +209,7 @@ void l6() {
   }
 }
 
-// CHECK: cir.func @_Z2l6v()
+// CHECK: cir.func dso_local @_Z2l6v()
 // CHECK-NEXT:   cir.scope {
 // CHECK-NEXT:     cir.while {
 // CHECK-NEXT:       %[[#TRUE:]] = cir.const #true
@@ -231,7 +231,7 @@ void unreachable_after_break() {
   }
 }
 
-// CHECK-NEXT: cir.func @_Z23unreachable_after_breakv()
+// CHECK-NEXT: cir.func dso_local @_Z23unreachable_after_breakv()
 // CHECK-NEXT:   cir.scope {
 // CHECK-NEXT:     cir.for : cond {
 // CHECK-NEXT:       %0 = cir.const #true
@@ -260,7 +260,7 @@ void unreachable_after_continue() {
   }
 }
 
-// CHECK-NEXT: cir.func @_Z26unreachable_after_continuev()
+// CHECK-NEXT: cir.func dso_local @_Z26unreachable_after_continuev()
 // CHECK-NEXT:   cir.scope {
 // CHECK-NEXT:     cir.for : cond {
 // CHECK-NEXT:       %0 = cir.const #true

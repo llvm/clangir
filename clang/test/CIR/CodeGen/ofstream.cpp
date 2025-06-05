@@ -25,7 +25,7 @@ void foo(const char *path) {
   fout2 << path;
 }
 
-// CIR: cir.func @_Z3fooPKc
+// CIR: cir.func dso_local @_Z3fooPKc
 // CIR: %[[V1:.*]] = cir.alloca !rec_std3A3Abasic_ofstream3Cchar3E, !cir.ptr<!rec_std3A3Abasic_ofstream3Cchar3E>, ["fout1", init] {alignment = 1 : i64}
 // CIR: %[[V2:.*]] = cir.alloca !rec_std3A3Abasic_ofstream3Cchar3E, !cir.ptr<!rec_std3A3Abasic_ofstream3Cchar3E>, ["fout2", init] {alignment = 1 : i64}
 // CIR: cir.try synthetic cleanup {

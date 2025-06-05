@@ -17,7 +17,7 @@ void main() {
 // CHECK: #bfi_y = #cir.bitfield_info<name = "y", storage_type = !u8i, size = 4, offset = 0, is_signed = true>
 // CHECK: #bfi_z = #cir.bitfield_info<name = "z", storage_type = !u8i, size = 8, offset = 0, is_signed = true>
 
-//   cir.func no_proto @main() extra(#fn_attr) {
+//   cir.func no_proto dso_local @main() extra(#fn_attr) {
 //     %0 = cir.alloca !rec_demo, !cir.ptr<!rec_demo>, ["d"] {alignment = 4 : i64}
 //     %1 = cir.const #cir.int<1> : !s32i
 //     %2 = cir.get_member %0[0] {name = "x"} : !cir.ptr<!rec_demo> -> !cir.ptr<!s32i>

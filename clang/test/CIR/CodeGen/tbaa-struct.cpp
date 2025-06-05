@@ -82,7 +82,7 @@ typedef struct
 } StructS2;
 
 uint32_t g(uint32_t *s, StructA *A, uint64_t count) {
-  // CIR-LABEL: cir.func @_Z1g
+  // CIR-LABEL: cir.func dso_local @_Z1g
   // CIR: %[[INT_1:.*]] = cir.const #cir.int<1> : !s32i
   // CIR: %[[UINT_1:.*]] = cir.cast(integral, %[[INT_1]] : !s32i), !u32i
   // CIR: cir.store{{.*}} %[[UINT_1]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[INT]])
@@ -103,7 +103,7 @@ uint32_t g(uint32_t *s, StructA *A, uint64_t count) {
 }
 
 uint32_t g2(uint32_t *s, StructA *A, uint64_t count) {
-  // CIR-LABEL: cir.func @_Z2g2
+  // CIR-LABEL: cir.func dso_local @_Z2g2
   // CIR: %[[INT_1:.*]] = cir.const #cir.int<1> : !s32i
   // CIR: %[[UINT_1:.*]] = cir.cast(integral, %[[INT_1]] : !s32i), !u32i
   // CIR: cir.store{{.*}} %[[UINT_1]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[INT]])
@@ -123,7 +123,7 @@ uint32_t g2(uint32_t *s, StructA *A, uint64_t count) {
 }
 
 uint32_t g3(StructA *A, StructB *B, uint64_t count) {
-  // CIR-LABEL: cir.func @_Z2g3
+  // CIR-LABEL: cir.func dso_local @_Z2g3
   // CIR: %[[INT_1:.*]] = cir.const #cir.int<1> : !s32i
   // CIR: %[[UINT_1:.*]] = cir.cast(integral, %[[INT_1]] : !s32i), !u32i
   // CIR: cir.store{{.*}} %[[UINT_1]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructA_f32]])
@@ -143,7 +143,7 @@ uint32_t g3(StructA *A, StructB *B, uint64_t count) {
 }
 
 uint32_t g4(StructA *A, StructB *B, uint64_t count) {
-  // CIR-LABEL: cir.func @_Z2g4
+  // CIR-LABEL: cir.func dso_local @_Z2g4
   // CIR: %[[INT_1:.*]] = cir.const #cir.int<1> : !s32i
   // CIR: %[[UINT_1:.*]] = cir.cast(integral, %[[INT_1]] : !s32i), !u32i
   // CIR: cir.store{{.*}} %[[UINT_1]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructA_f32]])
@@ -163,7 +163,7 @@ uint32_t g4(StructA *A, StructB *B, uint64_t count) {
 }
 
 uint32_t g5(StructA *A, StructB *B, uint64_t count) {
-  // CIR-LABEL: cir.func @_Z2g5
+  // CIR-LABEL: cir.func dso_local @_Z2g5
   // CIR: %[[INT_1:.*]] = cir.const #cir.int<1> : !s32i
   // CIR: %[[UINT_1:.*]] = cir.cast(integral, %[[INT_1]] : !s32i), !u32i
   // CIR: cir.store{{.*}} %[[UINT_1]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructA_f32]])
@@ -183,7 +183,7 @@ uint32_t g5(StructA *A, StructB *B, uint64_t count) {
 }
 
 uint32_t g6(StructA *A, StructB *B, uint64_t count) {
-  // CIR-LABEL: cir.func @_Z2g6
+  // CIR-LABEL: cir.func dso_local @_Z2g6
   // CIR: %[[INT_1:.*]] = cir.const #cir.int<1> : !s32i
   // CIR: %[[UINT_1:.*]] = cir.cast(integral, %[[INT_1]] : !s32i), !u32i
   // CIR: cir.store{{.*}} %[[UINT_1]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructA_f32]])
@@ -203,7 +203,7 @@ uint32_t g6(StructA *A, StructB *B, uint64_t count) {
 }
 
 uint32_t g7(StructA *A, StructS *S, uint64_t count) {
-  // CIR-LABEL: cir.func @_Z2g7
+  // CIR-LABEL: cir.func dso_local @_Z2g7
   // CIR: %[[INT_1:.*]] = cir.const #cir.int<1> : !s32i
   // CIR: %[[UINT_1:.*]] = cir.cast(integral, %[[INT_1]] : !s32i), !u32i
   // CIR: cir.store{{.*}} %[[UINT_1]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructA_f32]])
@@ -223,7 +223,7 @@ uint32_t g7(StructA *A, StructS *S, uint64_t count) {
 }
 
 uint32_t g8(StructA *A, StructS *S, uint64_t count) {
-  // CIR-LABEL: cir.func @_Z2g8
+  // CIR-LABEL: cir.func dso_local @_Z2g8
   // CIR: %[[INT_1:.*]] = cir.const #cir.int<1> : !s32i
   // CIR: %[[UINT_1:.*]] = cir.cast(integral, %[[INT_1]] : !s32i), !u32i
   // CIR: cir.store{{.*}} %[[UINT_1]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructA_f32]])
@@ -243,7 +243,7 @@ uint32_t g8(StructA *A, StructS *S, uint64_t count) {
 }
 
 uint32_t g9(StructS *S, StructS2 *S2, uint64_t count) {
-  // CIR-LABEL: cir.func @_Z2g9
+  // CIR-LABEL: cir.func dso_local @_Z2g9
   // CIR: %[[INT_1:.*]] = cir.const #cir.int<1> : !s32i
   // CIR: %[[UINT_1:.*]] = cir.cast(integral, %[[INT_1]] : !s32i), !u32i
   // CIR: cir.store{{.*}} %[[UINT_1]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructS_f32]])
@@ -263,7 +263,7 @@ uint32_t g9(StructS *S, StructS2 *S2, uint64_t count) {
 }
 
 uint32_t g10(StructS *S, StructS2 *S2, uint64_t count) {
-  // CIR-LABEL: cir.func @_Z3g10
+  // CIR-LABEL: cir.func dso_local @_Z3g10
   // CIR: %[[INT_1:.*]] = cir.const #cir.int<1> : !s32i
   // CIR: %[[UINT_1:.*]] = cir.cast(integral, %[[INT_1]] : !s32i), !u32i
   // CIR: cir.store{{.*}} %[[UINT_1]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructS_f32]])
@@ -283,7 +283,7 @@ uint32_t g10(StructS *S, StructS2 *S2, uint64_t count) {
 }
 
 uint32_t g11(StructC *C, StructD *D, uint64_t count) {
-  // CIR-LABEL: cir.func @_Z3g11
+  // CIR-LABEL: cir.func dso_local @_Z3g11
   // CIR: %[[INT_1:.*]] = cir.const #cir.int<1> : !s32i
   // CIR: %[[UINT_1:.*]] = cir.cast(integral, %[[INT_1]] : !s32i), !u32i
   // CIR: cir.store{{.*}} %[[UINT_1]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructC_b_a_f32]])
@@ -303,7 +303,7 @@ uint32_t g11(StructC *C, StructD *D, uint64_t count) {
 }
 
 uint32_t g12(StructC *C, StructD *D, uint64_t count) {
-  // CIR-LABEL: cir.func @_Z3g12
+  // CIR-LABEL: cir.func dso_local @_Z3g12
   // CIR: %[[INT_1:.*]] = cir.const #cir.int<1> : !s32i
   // CIR: %[[UINT_1:.*]] = cir.cast(integral, %[[INT_1]] : !s32i), !u32i
   // CIR: cir.store{{.*}} %[[UINT_1]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructB_a_f32]])
@@ -333,7 +333,7 @@ struct six {
   char c;
 };
 char g14(struct six *a, struct six *b) {
-  // CIR-LABEL: cir.func @_Z3g14
+  // CIR-LABEL: cir.func dso_local @_Z3g14
   // CIR: %[[TMP1:.*]] = cir.load{{.*}} %{{.*}} : !cir.ptr<!cir.ptr<!rec_six>>, !cir.ptr<!rec_six>
   // CIR: %[[TMP2:.*]] = cir.get_member %[[TMP1]][2] {name = "b"} : !cir.ptr<!rec_six> -> !cir.ptr<!s8i>
   // CIR: %[[TMP3:.*]] = cir.load{{.*}} %[[TMP2]] : !cir.ptr<!s8i>, !s8i tbaa(#tbaa[[TAG_six_b]])
@@ -348,7 +348,7 @@ char g14(struct six *a, struct six *b) {
 // Types that differ only by name may alias.
 typedef StructS StructS3;
 uint32_t g15(StructS *S, StructS3 *S3, uint64_t count) {
-  // CIR-LABEL: cir.func @_Z3g15
+  // CIR-LABEL: cir.func dso_local @_Z3g15
   // CIR: %[[INT_1:.*]] = cir.const #cir.int<1> : !s32i
   // CIR: %[[UINT_1:.*]] = cir.cast(integral, %[[INT_1]] : !s32i), !u32i
   // CIR: cir.store{{.*}} %[[UINT_1]], %{{.*}} : !u32i, !cir.ptr<!u32i> tbaa(#tbaa[[TAG_StructS_f32]])

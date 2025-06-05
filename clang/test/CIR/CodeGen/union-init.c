@@ -18,7 +18,7 @@ void foo(int x) {
 // CHECK-DAG: #[[bfi_y:.*]] = #cir.bitfield_info<name = "y", storage_type = !u32i, size = 16, offset = 16, is_signed = true>
 // CHECK-DAG: ![[anon1:.*]] = !cir.record<union "{{.*}}" {!u32i, !cir.array<!u8i x 4>}
 
-// CHECK-LABEL:   cir.func @foo(
+// CHECK-LABEL:   cir.func dso_local @foo(
 // CHECK:  %[[VAL_1:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["x", init] {alignment = 4 : i64}
 // CHECK:  %[[VAL_2:.*]] = cir.alloca !rec_A, !cir.ptr<!rec_A>, ["a", init] {alignment = 4 : i64}
 // CHECK:  cir.store{{.*}} {{.*}}, %[[VAL_1]] : !s32i, !cir.ptr<!s32i>
@@ -42,7 +42,7 @@ unsigned is_little(void) {
   return one.c[0];
 }
 
-// CHECK: cir.func @is_little
+// CHECK: cir.func dso_local @is_little
 // CHECK: %[[VAL_1:.*]] = cir.get_global @is_little.one : !cir.ptr<![[anon0]]>
 // CHECK: %[[VAL_2:.*]] = cir.cast(bitcast, %[[VAL_1]] : !cir.ptr<![[anon0]]>), !cir.ptr<![[anon1]]>
 // CHECK: %[[VAL_3:.*]] = cir.get_member %[[VAL_2]][1] {name = "c"} : !cir.ptr<![[anon1]]> -> !cir.ptr<!cir.array<!u8i x 4>>

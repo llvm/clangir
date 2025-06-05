@@ -22,7 +22,7 @@ void test() {
 // CIR: cir.store{{.*}} %arg0, [[REG0]] : [[INITLIST_TYPE]], !cir.ptr<[[INITLIST_TYPE]]>
 // CIR: cir.return
 
-// CIR: cir.func @_ZSt4testv()
+// CIR: cir.func dso_local @_ZSt4testv()
 // CIR: cir.scope {
 // CIR: [[LIST_PTR:%.*]] = cir.alloca [[INITLIST_TYPE]], !cir.ptr<[[INITLIST_TYPE]]>,
 // CIR: [[ARRAY:%.*]] = cir.alloca !cir.array<!s32i x 1>, !cir.ptr<!cir.array<!s32i x 1>>,
@@ -42,7 +42,7 @@ void test() {
 // CIR: }
 
 // LLVM: %"class.std::initializer_list<int>" = type { ptr, i64 }
-// LLVM: define linkonce_odr void @_ZSt1fIiEvSt16initializer_listIT_E(%"class.std::initializer_list<int>" [[ARG:%.*]]) 
+// LLVM: define linkonce_odr void @_ZSt1fIiEvSt16initializer_listIT_E(%"class.std::initializer_list<int>" [[ARG:%.*]])
 // LLVM:  [[LOCAL:%.*]] = alloca %"class.std::initializer_list<int>", i64 1, align 8
 // LLVM:  store %"class.std::initializer_list<int>" [[ARG]], ptr [[LOCAL]], align 8
 

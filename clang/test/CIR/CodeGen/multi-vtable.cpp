@@ -74,7 +74,7 @@ int main() {
 // LLVM-DAG:  ret void
 // }
 
-// CIR: cir.func @main() -> !s32i extra(#fn_attr) {
+// CIR: cir.func dso_local @main() -> !s32i extra(#fn_attr) {
 
 // CIR:   %{{[0-9]+}} = cir.vtable.address_point( %{{[0-9]+}} : !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Mother>)>>>, address_point = <index = 0, offset = 0>) : !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Mother>)>>>
 

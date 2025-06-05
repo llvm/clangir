@@ -6,4 +6,4 @@
 // RUN: FileCheck --input-file=%t.cir %s
 
 __device__ void device_fn(int* a, double b, float c) {}
-// CHECK: cir.func @_Z9device_fnPidf
+// CHECK: cir.func dso_local @_Z9device_fnPidf

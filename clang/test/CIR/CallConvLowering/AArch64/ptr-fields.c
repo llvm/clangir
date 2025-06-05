@@ -11,7 +11,7 @@ typedef struct {
 
 int foo(int x) { return x; }
 
-// CIR: cir.func @passA(%arg0: !u64i
+// CIR: cir.func dso_local @passA(%arg0: !u64i
 // CIR: %[[#V0:]] = cir.alloca !rec_A, !cir.ptr<!rec_A>, [""] {alignment = 4 : i64}
 // CIR: %[[#V1:]] = cir.cast(bitcast, %[[#V0]] : !cir.ptr<!rec_A>), !cir.ptr<!u64i>
 // CIR: cir.store{{.*}} %arg0, %[[#V1]] : !u64i, !cir.ptr<!u64i>
@@ -36,7 +36,7 @@ typedef struct {
   S_1* s;
 } S_2;
 
-// CIR: cir.func @passB(%arg0: !u64i
+// CIR: cir.func dso_local @passB(%arg0: !u64i
 // CIR: %[[#V0:]]  = cir.alloca !rec_S_2, !cir.ptr<!rec_S_2>, [""] {alignment = 4 : i64}
 // CIR: %[[#V1:]]  = cir.cast(bitcast, %[[#V0]]  : !cir.ptr<!rec_S_2>), !cir.ptr<!u64i>
 // CIR: cir.store{{.*}} %arg0, %[[#V1]]  : !u64i, !cir.ptr<!u64i>

@@ -7,7 +7,7 @@ void f1(__builtin_va_list c) {
   { __builtin_va_arg(c, void *); }
 }
 
-// BEFORE: cir.func @f1(%arg0: !rec___va_list) attributes
+// BEFORE: cir.func dso_local @f1(%arg0: !rec___va_list) attributes
 // BEFORE: [[VAR_LIST:%.*]] = cir.alloca !rec___va_list, !cir.ptr<!rec___va_list>, ["c", init] {alignment = 8 : i64}
 // BEFORE: cir.store %arg0, [[VAR_LIST]] : !rec___va_list, !cir.ptr<!rec___va_list>
 // BEFORE: cir.scope {
@@ -15,7 +15,7 @@ void f1(__builtin_va_list c) {
 // BEFORE-NEXT: }
 // BEFORE-NEXT: cir.return
 
-// AFTER: cir.func @f1(%arg0: !rec___va_list) attributes
+// AFTER: cir.func dso_local @f1(%arg0: !rec___va_list) attributes
 // AFTER: [[VARLIST:%.*]] = cir.alloca !rec___va_list, !cir.ptr<!rec___va_list>, ["c", init] {alignment = 8 : i64}
 // AFTER: cir.store %arg0, [[VARLIST]] : !rec___va_list, !cir.ptr<!rec___va_list>
 // AFTER: cir.scope {

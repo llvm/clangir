@@ -9,7 +9,7 @@ void my_alloca(size_t n)
 {
   int *c1 = alloca(n);
 }
-// CIR:       cir.func @my_alloca([[ALLOCA_SIZE:%.*]]: !u64i
+// CIR:       cir.func dso_local @my_alloca([[ALLOCA_SIZE:%.*]]: !u64i
 // CIR:       cir.store [[ALLOCA_SIZE]], [[LOCAL_VAR_ALLOCA_SIZE:%.*]] : !u64i, !cir.ptr<!u64i>
 // CIR:       [[TMP_ALLOCA_SIZE:%.*]] = cir.load{{.*}} [[LOCAL_VAR_ALLOCA_SIZE]] : !cir.ptr<!u64i>, !u64i
 // CIR:       [[ALLOCA_RES:%.*]] = cir.alloca !u8i, !cir.ptr<!u8i>, [[TMP_ALLOCA_SIZE]] : !u64i, ["bi_alloca"] {alignment = 16 : i64}
@@ -28,7 +28,7 @@ void my___builtin_alloca(size_t n)
   int *c1 = (int *)__builtin_alloca(n);
 }
 
-// CIR:       cir.func @my___builtin_alloca([[ALLOCA_SIZE:%.*]]: !u64i
+// CIR:       cir.func dso_local @my___builtin_alloca([[ALLOCA_SIZE:%.*]]: !u64i
 // CIR:       cir.store [[ALLOCA_SIZE]], [[LOCAL_VAR_ALLOCA_SIZE:%.*]] : !u64i, !cir.ptr<!u64i>
 // CIR:       [[TMP_ALLOCA_SIZE:%.*]] = cir.load{{.*}} [[LOCAL_VAR_ALLOCA_SIZE]] : !cir.ptr<!u64i>, !u64i
 // CIR:       [[ALLOCA_RES:%.*]] = cir.alloca !u8i, !cir.ptr<!u8i>, [[TMP_ALLOCA_SIZE]] : !u64i, ["bi_alloca"] {alignment = 16 : i64}
@@ -47,7 +47,7 @@ void my__builtin_alloca_uninitialized(size_t n)
   int *c1 = (int *)__builtin_alloca_uninitialized(n);
 }
 
-// CIR:       cir.func @my__builtin_alloca_uninitialized([[ALLOCA_SIZE:%.*]]: !u64i
+// CIR:       cir.func dso_local @my__builtin_alloca_uninitialized([[ALLOCA_SIZE:%.*]]: !u64i
 // CIR:       cir.store [[ALLOCA_SIZE]], [[LOCAL_VAR_ALLOCA_SIZE:%.*]] : !u64i, !cir.ptr<!u64i>
 // CIR:       [[TMP_ALLOCA_SIZE:%.*]] = cir.load{{.*}} [[LOCAL_VAR_ALLOCA_SIZE]] : !cir.ptr<!u64i>, !u64i
 // CIR:       [[ALLOCA_RES:%.*]] = cir.alloca !u8i, !cir.ptr<!u8i>, [[TMP_ALLOCA_SIZE]] : !u64i, ["bi_alloca"] {alignment = 16 : i64}

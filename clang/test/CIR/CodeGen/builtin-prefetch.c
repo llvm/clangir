@@ -5,7 +5,7 @@ void foo(void *a) {
   __builtin_prefetch(a, 1, 1);
 }
 
-// CIR:  cir.func @foo(%arg0: !cir.ptr<!void> loc({{.*}}))
+// CIR:  cir.func dso_local @foo(%arg0: !cir.ptr<!void> loc({{.*}}))
 // CIR:    [[PTR_ALLOC:%.*]] = cir.alloca !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>, ["a", init] {alignment = 8 : i64}
 // CIR:    cir.store %arg0, [[PTR_ALLOC]] : !cir.ptr<!void>, !cir.ptr<!cir.ptr<!void>>
 // CIR:    [[PTR:%.*]] = cir.load{{.*}} [[PTR_ALLOC]] : !cir.ptr<!cir.ptr<!void>>, !cir.ptr<!void>

@@ -6,7 +6,7 @@ struct String {
 
 void split(String &S) {}
 
-// CHECK: cir.func @_Z5splitR6String(%arg0: !cir.ptr<!rec_String>
+// CHECK: cir.func dso_local @_Z5splitR6String(%arg0: !cir.ptr<!rec_String>
 // CHECK:     %0 = cir.alloca !cir.ptr<!rec_String>, !cir.ptr<!cir.ptr<!rec_String>>, ["S", init, const]
 
 void foo() {
@@ -14,6 +14,6 @@ void foo() {
   split(s);
 }
 
-// CHECK: cir.func @_Z3foov()
+// CHECK: cir.func dso_local @_Z3foov()
 // CHECK:     %0 = cir.alloca !rec_String, !cir.ptr<!rec_String>, ["s"]
 // CHECK:     cir.call @_Z5splitR6String(%0) : (!cir.ptr<!rec_String>) -> ()

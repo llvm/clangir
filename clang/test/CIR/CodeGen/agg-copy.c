@@ -9,7 +9,7 @@ typedef struct {
     S s;
 } A;
 
-// CHECK: cir.func @foo1
+// CHECK: cir.func dso_local @foo1
 // CHECK:   [[TMP0:%.*]] = cir.alloca !cir.ptr<!rec_A>, !cir.ptr<!cir.ptr<!rec_A>>, ["a1", init]
 // CHECK:   [[TMP1:%.*]] = cir.alloca !cir.ptr<!rec_A>, !cir.ptr<!cir.ptr<!rec_A>>, ["a2", init]
 // CHECK:   cir.store{{.*}} %arg0, [[TMP0]] : !cir.ptr<!rec_A>, !cir.ptr<!cir.ptr<!rec_A>>
@@ -25,7 +25,7 @@ void foo1(A* a1, A* a2) {
     a1[1] = a2[1];
 }
 
-// CHECK: cir.func @foo2
+// CHECK: cir.func dso_local @foo2
 // CHECK:    [[TMP0:%.*]] = cir.alloca !cir.ptr<!rec_A>, !cir.ptr<!cir.ptr<!rec_A>>, ["a1", init]
 // CHECK:    [[TMP1:%.*]] = cir.alloca !cir.ptr<!rec_A>, !cir.ptr<!cir.ptr<!rec_A>>, ["a2", init]
 // CHECK:    cir.store{{.*}} %arg0, [[TMP0]] : !cir.ptr<!rec_A>, !cir.ptr<!cir.ptr<!rec_A>>
@@ -40,7 +40,7 @@ void foo2(A* a1, A* a2) {
 }
 
 // CHECK: cir.global external @a = #cir.zero : !rec_A
-// CHECK: cir.func @foo3
+// CHECK: cir.func dso_local @foo3
 // CHECK:    [[TMP0]] = cir.alloca !rec_A, !cir.ptr<!rec_A>, ["__retval"] {alignment = 4 : i64}
 // CHECK:    [[TMP1]] = cir.get_global @a : !cir.ptr<!rec_A>
 // CHECK:    cir.copy [[TMP1]] to [[TMP0]] : !cir.ptr<!rec_A>
@@ -51,7 +51,7 @@ A foo3(void) {
     return a;
 }
 
-// CHECK: cir.func @foo4
+// CHECK: cir.func dso_local @foo4
 // CHECK:    [[TMP0]] = cir.alloca !cir.ptr<!rec_A>, !cir.ptr<!cir.ptr<!rec_A>>, ["a1", init]
 // CHECK:    [[TMP1]] = cir.alloca !rec_A, !cir.ptr<!rec_A>, ["a2", init]
 // CHECK:    cir.store{{.*}} %arg0, [[TMP0]] : !cir.ptr<!rec_A>, !cir.ptr<!cir.ptr<!rec_A>>

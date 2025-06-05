@@ -8,7 +8,7 @@ void my_win_alloca(size_t n)
   int *c1 = (int *)_alloca(n);
 }
 
-// CIR:       cir.func @my_win_alloca([[ALLOCA_SIZE:%.*]]: !u64i
+// CIR:       cir.func dso_local @my_win_alloca([[ALLOCA_SIZE:%.*]]: !u64i
 // CIR:       cir.store [[ALLOCA_SIZE]], [[LOCAL_VAR_ALLOCA_SIZE:%.*]] : !u64i, !cir.ptr<!u64i>
 // CIR:       [[TMP_ALLOCA_SIZE:%.*]] = cir.load{{.*}} [[LOCAL_VAR_ALLOCA_SIZE]] : !cir.ptr<!u64i>, !u64i
 // CIR:       [[ALLOCA_RES:%.*]] = cir.alloca !u8i, !cir.ptr<!u8i>, [[TMP_ALLOCA_SIZE]] : !u64i, ["bi_alloca"] {alignment = 16 : i64}

@@ -165,7 +165,7 @@ namespace other {
   }
 }
 
-// CIR-LABEL:   cir.func @_ZN5other1BD1Ev(
+// CIR-LABEL:   cir.func dso_local @_ZN5other1BD1Ev(
 // CIR-SAME:                               %[[VAL_0:.*]]: !cir.ptr<!rec_other3A3AB>
 // CIR:           %[[VAL_1:.*]] = cir.alloca !cir.ptr<!rec_other3A3AB>, !cir.ptr<!cir.ptr<!rec_other3A3AB>>, ["this", init] {alignment = 8 : i64}
 // CIR:           cir.store{{.*}} %[[VAL_0]], %[[VAL_1]] : !cir.ptr<!rec_other3A3AB>, !cir.ptr<!cir.ptr<!rec_other3A3AB>>

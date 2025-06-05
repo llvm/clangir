@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 typedef struct {
-  short a;  
+  short a;
 } LT_64;
 
 typedef struct {
@@ -67,7 +67,7 @@ EQ_128 ret_eq_128() {
   return x;
 }
 
-// CHECK:     cir.func {{.*@ret_gt_128}}(%arg0: !cir.ptr<!rec_GT_128> 
+// CHECK:     cir.func {{.*@ret_gt_128}}(%arg0: !cir.ptr<!rec_GT_128>
 // CHECK-NOT:   cir.return {{%.*}}
 GT_128 ret_gt_128() {
   GT_128 x;
@@ -77,7 +77,7 @@ GT_128 ret_gt_128() {
 typedef struct {
   int a;
   int b;
-  int c;  
+  int c;
 } S;
 
 // CHECK: cir.func {{.*@retS}}() -> !cir.array<!u64i x 2>
@@ -90,7 +90,7 @@ typedef struct {
 // CHECK:   %[[#V5:]] = cir.load{{.*}} %[[#V1]] : !cir.ptr<!cir.array<!u64i x 2>>, !cir.array<!u64i x 2>
 // CHECK:   cir.return %[[#V5]] : !cir.array<!u64i x 2>
 
-// LLVM: [2 x i64] @retS() 
+// LLVM: [2 x i64] @retS()
 // LLVM:   %[[#V1:]] = alloca %struct.S, i64 1, align 4
 // LLVM:   %[[#V2:]] = alloca [2 x i64], i64 1, align 8
 // LLVM:   call void @llvm.memcpy.p0.p0.i64(ptr %[[#V2]], ptr %[[#V1]], i64 12, i1 false)
@@ -142,7 +142,7 @@ void pass_lt_128(LT_128 s) {}
 // LLVM:   store [2 x i64] %0, ptr %[[#V1]], align 8
 void pass_eq_128(EQ_128 s) {}
 
-// CHECK: cir.func @pass_gt_128(%arg0: !cir.ptr<!rec_GT_128>
+// CHECK: cir.func dso_local @pass_gt_128(%arg0: !cir.ptr<!rec_GT_128>
 // CHECK:   %[[#V0:]] = cir.alloca !cir.ptr<!rec_GT_128>, !cir.ptr<!cir.ptr<!rec_GT_128>>, [""] {alignment = 8 : i64}
 // CHECK:   cir.store{{.*}} %arg0, %[[#V0]] : !cir.ptr<!rec_GT_128>, !cir.ptr<!cir.ptr<!rec_GT_128>>
 // CHECK:   %[[#V1:]] = cir.load{{.*}} %[[#V0]] : !cir.ptr<!cir.ptr<!rec_GT_128>>, !cir.ptr<!rec_GT_128>
@@ -153,7 +153,7 @@ void pass_eq_128(EQ_128 s) {}
 // LLVM:   %[[#V2:]] = load ptr, ptr %[[#V1]], align 8
 void pass_gt_128(GT_128 s) {}
 
-// CHECK: cir.func @get_gt_128(%arg0: !cir.ptr<!rec_GT_128> {{.*}}, %arg1: !cir.ptr<!rec_GT_128>
+// CHECK: cir.func dso_local @get_gt_128(%arg0: !cir.ptr<!rec_GT_128> {{.*}}, %arg1: !cir.ptr<!rec_GT_128>
 // CHECK: %[[#V0:]] = cir.alloca !cir.ptr<!rec_GT_128>, !cir.ptr<!cir.ptr<!rec_GT_128>>, [""] {alignment = 8 : i64}
 // CHECK: cir.store{{.*}} %arg1, %[[#V0]] : !cir.ptr<!rec_GT_128>, !cir.ptr<!cir.ptr<!rec_GT_128>>
 // CHECK: %[[#V1:]] = cir.load{{.*}} %[[#V0]] : !cir.ptr<!cir.ptr<!rec_GT_128>>, !cir.ptr<!rec_GT_128>
@@ -170,7 +170,7 @@ GT_128 get_gt_128(GT_128 s) {
   return s;
 }
 
-// CHECK: cir.func no_proto @call_and_get_gt_128(%arg0: !cir.ptr<!rec_GT_128>
+// CHECK: cir.func no_proto dso_local @call_and_get_gt_128(%arg0: !cir.ptr<!rec_GT_128>
 // CHECK: %[[#V0:]] = cir.alloca !rec_GT_128, !cir.ptr<!rec_GT_128>, ["tmp"] {alignment = 8 : i64}
 // CHECK: %[[#V1:]] = cir.load{{.*}} %arg0 : !cir.ptr<!rec_GT_128>, !rec_GT_128
 // CHECK: %[[#V2:]] = cir.alloca !rec_GT_128, !cir.ptr<!rec_GT_128>, [""] {alignment = 8 : i64}
@@ -194,7 +194,7 @@ GT_128 call_and_get_gt_128() {
   s = get_gt_128(s);
   return s;
 }
-// CHECK: cir.func @passS(%arg0: !cir.array<!u64i x 2> 
+// CHECK: cir.func dso_local @passS(%arg0: !cir.array<!u64i x 2>
 // CHECK:   %[[#V0:]] = cir.alloca !rec_S, !cir.ptr<!rec_S>, [""] {alignment = 4 : i64}
 // CHECK:   %[[#V1:]] = cir.alloca !cir.array<!u64i x 2>, !cir.ptr<!cir.array<!u64i x 2>>, ["tmp"] {alignment = 8 : i64}
 // CHECK:   cir.store{{.*}} %arg0, %[[#V1]] : !cir.array<!u64i x 2>, !cir.ptr<!cir.array<!u64i x 2>>
@@ -268,7 +268,7 @@ typedef struct {
   int a[42];
 } CAT;
 
-// CHECK: cir.func @pass_cat(%arg0: !cir.ptr<!rec_CAT>
+// CHECK: cir.func dso_local @pass_cat(%arg0: !cir.ptr<!rec_CAT>
 // CHECK: %[[#V0:]]  = cir.alloca !cir.ptr<!rec_CAT>, !cir.ptr<!cir.ptr<!rec_CAT>>, [""] {alignment = 8 : i64}
 // CHECK: cir.store{{.*}} %arg0, %[[#V0]]  : !cir.ptr<!rec_CAT>, !cir.ptr<!cir.ptr<!rec_CAT>>
 // CHECK: %[[#V1:]]  = cir.load{{.*}} %[[#V0]]  : !cir.ptr<!cir.ptr<!rec_CAT>>, !cir.ptr<!rec_CAT>
@@ -290,7 +290,7 @@ typedef struct {
   };
 } NESTED_U;
 
-// CHECK: cir.func @pass_nested_u(%arg0: !u64i
+// CHECK: cir.func dso_local @pass_nested_u(%arg0: !u64i
 // CHECK: %[[#V0:]] = cir.alloca !rec_NESTED_U, !cir.ptr<!rec_NESTED_U>, [""] {alignment = 4 : i64}
 // CHECK: %[[#V1:]] = cir.cast(integral, %arg0 : !u64i), !u16i
 // CHECK: %[[#V2:]] = cir.cast(bitcast, %[[#V0]] : !cir.ptr<!rec_NESTED_U>
@@ -304,7 +304,7 @@ typedef struct {
 // LLVM: ret void
 void pass_nested_u(NESTED_U a) {}
 
-// CHECK: cir.func no_proto @call_nested_u()
+// CHECK: cir.func no_proto dso_local @call_nested_u()
 // CHECK: %[[#V0:]] = cir.alloca !rec_NESTED_U, !cir.ptr<!rec_NESTED_U>
 // CHECK: %[[#V1:]] = cir.alloca !u64i, !cir.ptr<!u64i>, ["tmp"]
 // CHECK: %[[#V2:]] = cir.load{{.*}} %[[#V0]] : !cir.ptr<!rec_NESTED_U>, !rec_NESTED_U
@@ -355,7 +355,7 @@ void bar(void) {
   PackedS1 y = foo();
 }
 
-// CHECK: cir.func @bar
+// CHECK: cir.func dso_local @bar
 // CHECK: %[[#V0:]] = cir.alloca !rec_PackedS1, !cir.ptr<!rec_PackedS1>, ["y", init]
 // CHECK: %[[#V1:]] = cir.alloca !cir.array<!u64i x 2>, !cir.ptr<!cir.array<!u64i x 2>>, ["tmp"]
 // CHECK: %[[#V2:]] = cir.call @foo() : () -> !cir.array<!u64i x 2>
@@ -394,7 +394,7 @@ void qux(void) {
 }
 
 // check source of memcpy
-// CHECK: cir.func @qux
+// CHECK: cir.func dso_local @qux
 // CHECK: %[[#V0:]] = cir.alloca !cir.ptr<!rec_PackedS2>, !cir.ptr<!cir.ptr<!rec_PackedS2>>, ["s1", init]
 // CHECK: %[[#V1:]] = cir.alloca !u64i, !cir.ptr<!u64i>, ["tmp"]
 // CHECK: %[[#V2:]] = cir.get_global @g : !cir.ptr<!cir.array<!rec_PackedS2 x 3>>
@@ -403,9 +403,9 @@ void qux(void) {
 // CHECK: %[[#V5:]] = cir.ptr_stride(%[[#V4]] : !cir.ptr<!rec_PackedS2>, %[[#V3]] : !s32i), !cir.ptr<!rec_PackedS2>
 // CHECK: cir.store{{.*}} %[[#V5]], %[[#V0]] : !cir.ptr<!rec_PackedS2>, !cir.ptr<!cir.ptr<!rec_PackedS2>>
 // CHECK: %[[#V6:]] = cir.load deref{{.*}}  %[[#V0]] : !cir.ptr<!cir.ptr<!rec_PackedS2>>, !cir.ptr<!rec_PackedS2>
-// CHECK: %[[#V7:]] = cir.cast(bitcast, %[[#V6]] : !cir.ptr<!rec_PackedS2>), !cir.ptr<!void>  
+// CHECK: %[[#V7:]] = cir.cast(bitcast, %[[#V6]] : !cir.ptr<!rec_PackedS2>), !cir.ptr<!void>
 // CHECK: %[[#V8:]] = cir.const #cir.int<6> : !u64i
-// CHECK: cir.libc.memcpy %[[#V8]] bytes from %[[#V7]] 
+// CHECK: cir.libc.memcpy %[[#V8]] bytes from %[[#V7]]
 
 // Note: GEP emitted by cir might not be the same as LLVM, due to constant folding.
 // LLVM: void @qux

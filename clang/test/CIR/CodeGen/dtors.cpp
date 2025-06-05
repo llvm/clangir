@@ -41,7 +41,7 @@ public:
 // Class B
 // CHECK: ![[ClassB:rec_.*]] = !cir.record<class "B" {![[ClassA]]}>
 
-// CHECK: cir.func @_Z4bluev()
+// CHECK: cir.func dso_local @_Z4bluev()
 // CHECK:   %0 = cir.alloca !rec_PSEvent, !cir.ptr<!rec_PSEvent>, ["p", init] {alignment = 8 : i64}
 // CHECK:   %1 = cir.const #cir.int<1> : !s32i
 // CHECK:   %2 = cir.get_global @".str" : !cir.ptr<!cir.array<!s8i x 5>>
@@ -59,7 +59,7 @@ struct X {
 bool foo(const X &) { return false; }
 bool bar() { return foo(1) || foo(2); }
 
-// CHECK: cir.func @_Z3barv()
+// CHECK: cir.func dso_local @_Z3barv()
 // CHECK:   %[[V0:.*]] = cir.alloca !cir.bool, !cir.ptr<!cir.bool>, ["__retval"] {alignment = 1 : i64}
 // CHECK:   cir.scope {
 // CHECK:     %[[V2:.*]] = cir.alloca !rec_X, !cir.ptr<!rec_X>, ["ref.tmp0"] {alignment = 4 : i64}
@@ -93,7 +93,7 @@ bool bar() { return foo(1) || foo(2); }
 
 bool bar2() { return foo(1) && foo(2); }
 
-// CHECK:  cir.func @_Z4bar2v()
+// CHECK:  cir.func dso_local @_Z4bar2v()
 // CHECK:     cir.alloca !rec_X, !cir.ptr<!rec_X>
 // CHECK:       {{.*}} = cir.ternary({{.*}}, true {
 // CHECK:         cir.alloca !rec_X, !cir.ptr<!rec_X>
@@ -110,7 +110,7 @@ bool bar2() { return foo(1) && foo(2); }
 // CHECK:    cir.call @_ZN1AD2Ev(
 
 // void foo()
-// CHECK: cir.func @_Z3foov()
+// CHECK: cir.func dso_local @_Z3foov()
 // CHECK:   cir.scope {
 // CHECK:     cir.call @_ZN1BC2Ev(%0) : (!cir.ptr<!rec_B>) -> ()
 // CHECK:     cir.call @_ZN1BD2Ev(%0) : (!cir.ptr<!rec_B>) -> ()

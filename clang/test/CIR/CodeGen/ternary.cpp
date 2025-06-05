@@ -5,7 +5,7 @@ int x(int y) {
   return y > 0 ? 3 : 5;
 }
 
-// CHECK: cir.func @_Z1xi
+// CHECK: cir.func dso_local @_Z1xi
 // CHECK:     %0 = cir.alloca !s32i, !cir.ptr<!s32i>, ["y", init] {alignment = 4 : i64}
 // CHECK:     %1 = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"] {alignment = 4 : i64}
 // CHECK:     cir.store %arg0, %0 : !s32i, !cir.ptr<!s32i>
@@ -31,7 +31,7 @@ void m(APIType api) {
   ((api == API_A) ? (static_cast<void>(0)) : oba("yo.cpp"));
 }
 
-// CHECK:  cir.func @_Z1m7APIType
+// CHECK:  cir.func dso_local @_Z1m7APIType
 // CHECK:    %0 = cir.alloca !u32i, !cir.ptr<!u32i>, ["api", init] {alignment = 4 : i64}
 // CHECK:    cir.store %arg0, %0 : !u32i, !cir.ptr<!u32i>
 // CHECK:    %1 = cir.load{{.*}} %0 : !cir.ptr<!u32i>, !u32i
@@ -57,7 +57,7 @@ int foo(int a, int b) {
   return 0;
 }
 
-// CHECK:  cir.func @_Z3fooii
+// CHECK:  cir.func dso_local @_Z3fooii
 // CHECK:   [[A0:%.*]] = cir.load{{.*}} {{.*}} : !cir.ptr<!s32i>, !s32i
 // CHECK:   [[B0:%.*]] = cir.load{{.*}} {{.*}} : !cir.ptr<!s32i>, !s32i
 // CHECK:   [[CMP:%.*]] = cir.cmp(lt, [[A0]], [[B0]]) : !s32i, !cir.bool
@@ -77,7 +77,7 @@ bool func(bool a, bool b) {
     return (maybe_has_side_effects(), a) ?: b;
 }
 
-// CHECK:  cir.func @_Z4funcbb([[ARG_A:%.*]]: !cir.bool {{.*}}, [[ARG_B:%.*]]: !cir.bool {{.*}}
+// CHECK:  cir.func dso_local @_Z4funcbb([[ARG_A:%.*]]: !cir.bool {{.*}}, [[ARG_B:%.*]]: !cir.bool {{.*}}
 // CHECK:    [[ALLOC_A:%.*]] = cir.alloca !cir.bool, !cir.ptr<!cir.bool>, ["a", init]
 // CHECK:    [[ALLOC_B:%.*]] = cir.alloca !cir.bool, !cir.ptr<!cir.bool>, ["b", init]
 // CHECK:    [[ALLOC_RET:%.*]] = cir.alloca !cir.bool, !cir.ptr<!cir.bool>, ["__retval"]

@@ -72,7 +72,7 @@ int main() {
   }
 }
 
-// CHECK: cir.func @main() -> !s32i
+// CHECK: cir.func dso_local @main() -> !s32i
 // CHECK:     %0 = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"] {alignment = 4 : i64}
 // CHECK:     %1 = cir.alloca !rec_StringView, !cir.ptr<!rec_StringView>, ["sv", init] {alignment = 8 : i64}
 // CHECK:     cir.call @_ZN10StringViewC2Ev(%1) : (!cir.ptr<!rec_StringView>) -> ()
@@ -107,7 +107,7 @@ struct ContainsNonTrivial {
   ContainsNonTrivial &operator=(const ContainsNonTrivial &);
 };
 
-// CHECK-LABEL: cir.func @_ZN18ContainsNonTrivialaSERKS_(
+// CHECK-LABEL: cir.func dso_local @_ZN18ContainsNonTrivialaSERKS_(
 // CHECK-NEXT:    %[[#THIS:]] = cir.alloca !cir.ptr<!rec_ContainsNonTrivial>
 // CHECK-NEXT:    %[[#OTHER:]] = cir.alloca !cir.ptr<!rec_ContainsNonTrivial>
 // CHECK-NEXT:    %[[#RETVAL:]] = cir.alloca !cir.ptr<!rec_ContainsNonTrivial>
@@ -175,7 +175,7 @@ struct Trivial {
 // CHECK-NEXT:  }
 
 // We should explicitly call operator= even for trivial types.
-// CHECK-LABEL: cir.func @_Z11copyTrivialR7TrivialS0_(
+// CHECK-LABEL: cir.func dso_local @_Z11copyTrivialR7TrivialS0_(
 // CHECK:         cir.call @_ZN7TrivialaSERKS_(
 void copyTrivial(Trivial &a, Trivial &b) {
   a = b;
@@ -188,7 +188,7 @@ struct ContainsTrivial {
 };
 
 // We should explicitly call operator= even for trivial types.
-// CHECK-LABEL: cir.func @_ZN15ContainsTrivialaSERKS_(
+// CHECK-LABEL: cir.func dso_local @_ZN15ContainsTrivialaSERKS_(
 // CHECK:         cir.call @_ZN7TrivialaSERKS_(
 // CHECK:         cir.call @_ZN7TrivialaSERKS_(
 ContainsTrivial &ContainsTrivial::operator=(const ContainsTrivial &) = default;
@@ -199,7 +199,7 @@ struct ContainsTrivialArray {
 };
 
 // We should be calling operator= here but don't currently.
-// CHECK-LABEL: cir.func @_ZN20ContainsTrivialArrayaSERKS_(
+// CHECK-LABEL: cir.func dso_local @_ZN20ContainsTrivialArrayaSERKS_(
 // CHECK:         %[[#THIS_LOAD:]] = cir.load{{.*}} deref %[[#]]
 // CHECK-NEXT:    %[[#THIS_ARR:]] = cir.get_member %[[#THIS_LOAD]][0] {name = "arr"}
 // CHECK-NEXT:    %[[#THIS_ARR_CAST:]] = cir.cast(bitcast, %[[#THIS_ARR]] : !cir.ptr<!cir.array<!rec_Trivial x 2>>), !cir.ptr<!void>

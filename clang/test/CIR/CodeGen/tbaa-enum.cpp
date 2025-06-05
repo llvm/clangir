@@ -50,7 +50,7 @@ typedef enum : uint8_t {
 } Enum8;
 
 uint32_t g0(EnumAuto32 *E, uint32_t *val) {
-  // CIR-LABEL: cir.func @_Z2g0
+  // CIR-LABEL: cir.func dso_local @_Z2g0
   // CIR: %[[C5:.*]] = cir.const #cir.int<5> : !s32i
   // CIR: %[[U_C5:.*]] = cir.cast(integral, %[[C5]] : !s32i), !u32i
   // CIR: %[[VAL_PTR:.*]] = cir.load deref{{.*}} %{{.*}} : !cir.ptr<!cir.ptr<!u32i>>, !cir.ptr<!u32i>
@@ -72,7 +72,7 @@ uint32_t g0(EnumAuto32 *E, uint32_t *val) {
 }
 
 uint64_t g1(EnumAuto64 *E, uint64_t *val) {
-  // CIR-LABEL: cir.func @_Z2g1
+  // CIR-LABEL: cir.func dso_local @_Z2g1
   // CIR: %[[C5:.*]] = cir.const #cir.int<5> : !s32i
   // CIR: %[[U_C5:.*]] = cir.cast(integral, %[[C5]] : !s32i), !u64i
   // CIR: %[[VAL_PTR:.*]] = cir.load deref{{.*}} %{{.*}} : !cir.ptr<!cir.ptr<!u64i>>, !cir.ptr<!u64i>
@@ -94,7 +94,7 @@ uint64_t g1(EnumAuto64 *E, uint64_t *val) {
 }
 
 uint16_t g2(Enum16 *E, uint16_t *val) {
-  // CIR-LABEL: cir.func @_Z2g2
+  // CIR-LABEL: cir.func dso_local @_Z2g2
   // CIR: %[[C5:.*]] = cir.const #cir.int<5> : !s32i
   // CIR: %[[U_C5:.*]] = cir.cast(integral, %[[C5]] : !s32i), !u16i
   // CIR: %[[VAL_PTR:.*]] = cir.load deref{{.*}} %{{.*}} : !cir.ptr<!cir.ptr<!u16i>>, !cir.ptr<!u16i>
@@ -116,7 +116,7 @@ uint16_t g2(Enum16 *E, uint16_t *val) {
 }
 
 uint8_t g3(Enum8 *E, uint8_t *val) {
-  // CIR-LABEL: cir.func @_Z2g3
+  // CIR-LABEL: cir.func dso_local @_Z2g3
   // CIR: %[[C5:.*]] = cir.const #cir.int<5> : !s32i
   // CIR: %[[U_C5:.*]] = cir.cast(integral, %[[C5]] : !s32i), !u8i
   // CIR: %[[VAL_PTR:.*]] = cir.load deref{{.*}} %{{.*}} : !cir.ptr<!cir.ptr<!u8i>>, !cir.ptr<!u8i>
@@ -127,7 +127,7 @@ uint8_t g3(Enum8 *E, uint8_t *val) {
   // CIR: %[[RET_PTR:.*]] = cir.load deref{{.*}} %{{.*}} : !cir.ptr<!cir.ptr<!u8i>>, !cir.ptr<!u8i>
   // CIR: %[[RET:.*]] = cir.load{{.*}} %[[RET_PTR]] : !cir.ptr<!u8i>, !u8i tbaa(#tbaa[[CHAR]])
   // CIR: cir.store{{.*}} %[[RET]], %{{.*}} : !u8i, !cir.ptr<!u8i>
-  
+
 
   // LLVM-LABEL: define{{.*}} i8 @_Z2g3
   // LLVM: store i8 5, ptr %{{.*}}, align 1, !tbaa [[TAG_i8:!.*]]

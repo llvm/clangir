@@ -8,7 +8,7 @@ namespace test1 {
   void a(A *x) {
     delete x;
   }
-  // CHECK: cir.func @_ZN5test11aEPNS_1AE
+  // CHECK: cir.func dso_local @_ZN5test11aEPNS_1AE
 
   // CHECK: %[[CONST:.*]] = cir.const #cir.int<4> : !u64i
   // CHECK: cir.call @_ZN5test11AdlEPvm({{.*}}, %[[CONST]])

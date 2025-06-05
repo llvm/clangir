@@ -27,7 +27,7 @@ int basic_binop_fetch(int *i) {
   return __atomic_add_fetch(i, 1, memory_order_seq_cst);
 }
 
-// CHECK: cir.func @_Z17basic_binop_fetchPi
+// CHECK: cir.func dso_local @_Z17basic_binop_fetchPi
 // CHECK:  %[[ARGI:.*]] = cir.alloca !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>, ["i", init] {alignment = 8 : i64}
 // CHECK:  %[[ONE_ADDR:.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, [".atomictmp"] {alignment = 4 : i64}
 // CHECK:  cir.store{{.*}} %arg0, %[[ARGI]] : !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>
@@ -48,7 +48,7 @@ int other_binop_fetch(int *i) {
   return __atomic_xor_fetch(i, 1, memory_order_release);
 }
 
-// CHECK: cir.func @_Z17other_binop_fetchPi
+// CHECK: cir.func dso_local @_Z17other_binop_fetchPi
 // CHECK: cir.atomic.fetch(sub, {{.*}}, relaxed
 // CHECK: cir.atomic.fetch(and, {{.*}}, acquire
 // CHECK: cir.atomic.fetch(or, {{.*}}, acquire
@@ -68,7 +68,7 @@ int nand_binop_fetch(int *i) {
   return __atomic_nand_fetch(i, 1, memory_order_acq_rel);
 }
 
-// CHECK: cir.func @_Z16nand_binop_fetchPi
+// CHECK: cir.func dso_local @_Z16nand_binop_fetchPi
 // CHECK: cir.atomic.fetch(nand, {{.*}}, acq_rel
 
 // LLVM: define dso_local i32 @_Z16nand_binop_fetchPi
@@ -81,7 +81,7 @@ int fp_binop_fetch(float *i) {
   return __atomic_sub_fetch(i, 1, memory_order_seq_cst);
 }
 
-// CHECK: cir.func @_Z14fp_binop_fetchPf
+// CHECK: cir.func dso_local @_Z14fp_binop_fetchPf
 // CHECK: cir.atomic.fetch(add,
 // CHECK: cir.atomic.fetch(sub,
 
@@ -100,7 +100,7 @@ int fetch_binop(int *i) {
   return __atomic_fetch_nand(i, 1, memory_order_seq_cst);
 }
 
-// CHECK: cir.func @_Z11fetch_binopPi
+// CHECK: cir.func dso_local @_Z11fetch_binopPi
 // CHECK: cir.atomic.fetch(add, {{.*}}) fetch_first
 // CHECK: cir.atomic.fetch(sub, {{.*}}) fetch_first
 // CHECK: cir.atomic.fetch(and, {{.*}}) fetch_first
@@ -129,7 +129,7 @@ void min_max_fetch(int *i) {
   __atomic_min_fetch(i, 1, memory_order_seq_cst);
 }
 
-// CHECK: cir.func @_Z13min_max_fetchPi
+// CHECK: cir.func dso_local @_Z13min_max_fetchPi
 // CHECK: = cir.atomic.fetch(max, {{.*}}) fetch_first
 // CHECK: = cir.atomic.fetch(min, {{.*}}) fetch_first
 // CHECK: = cir.atomic.fetch(max, {{.*}}) : !s32i
@@ -151,7 +151,7 @@ int fi1(_Atomic(int) *i) {
   return __c11_atomic_load(i, memory_order_seq_cst);
 }
 
-// CHECK: cir.func @_Z3fi1PU7_Atomici
+// CHECK: cir.func dso_local @_Z3fi1PU7_Atomici
 // CHECK: cir.load{{.*}} atomic(seq_cst)
 
 // LLVM-LABEL: @_Z3fi1PU7_Atomici
@@ -694,7 +694,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  [[RET1:%.*]] = add i8 [[RES1]], [[VAL1]]
   // LLVM:  store i8 [[RET1]], ptr @uc, align 1
   uc = __sync_add_and_fetch(&uc, uc);
-  
+
   // CHECK: [[VAL2:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !s16i
   // CHECK: [[RES2:%.*]] = cir.atomic.fetch(add, {{%.*}} : !cir.ptr<!s16i>, [[VAL2]] : !s16i, seq_cst) fetch_first : !s16i
   // CHECK: [[RET2:%.*]] = cir.binop(add, [[RES2]], [[VAL2]]) : !s16i
@@ -771,7 +771,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  [[RET1:%.*]] = sub i8 [[RES1]], [[VAL1]]
   // LLVM:  store i8 [[RET1]], ptr @uc, align 1
   uc = __sync_sub_and_fetch(&uc, uc);
-  
+
   // CHECK: [[VAL2:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !s16i
   // CHECK: [[RES2:%.*]] = cir.atomic.fetch(sub, {{%.*}} : !cir.ptr<!s16i>, [[VAL2]] : !s16i, seq_cst) fetch_first : !s16i
   // CHECK: [[RET2:%.*]] = cir.binop(sub, [[RES2]], [[VAL2]]) : !s16i
@@ -848,7 +848,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  [[RET1:%.*]] = and i8 [[RES1]], [[VAL1]]
   // LLVM:  store i8 [[RET1]], ptr @uc, align 1
   uc = __sync_and_and_fetch(&uc, uc);
-  
+
   // CHECK: [[VAL2:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !s16i
   // CHECK: [[RES2:%.*]] = cir.atomic.fetch(and, {{%.*}} : !cir.ptr<!s16i>, [[VAL2]] : !s16i, seq_cst) fetch_first : !s16i
   // CHECK: [[RET2:%.*]] = cir.binop(and, [[RES2]], [[VAL2]]) : !s16i
@@ -925,7 +925,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  [[RET1:%.*]] = or i8 [[RES1]], [[VAL1]]
   // LLVM:  store i8 [[RET1]], ptr @uc, align 1
   uc = __sync_or_and_fetch(&uc, uc);
-  
+
   // CHECK: [[VAL2:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !s16i
   // CHECK: [[RES2:%.*]] = cir.atomic.fetch(or, {{%.*}} : !cir.ptr<!s16i>, [[VAL2]] : !s16i, seq_cst) fetch_first : !s16i
   // CHECK: [[RET2:%.*]] = cir.binop(or, [[RES2]], [[VAL2]]) : !s16i
@@ -1002,7 +1002,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  [[RET1:%.*]] = xor i8 [[RES1]], [[VAL1]]
   // LLVM:  store i8 [[RET1]], ptr @uc, align 1
   uc = __sync_xor_and_fetch(&uc, uc);
-  
+
   // CHECK: [[VAL2:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !s16i
   // CHECK: [[RES2:%.*]] = cir.atomic.fetch(xor, {{%.*}} : !cir.ptr<!s16i>, [[VAL2]] : !s16i, seq_cst) fetch_first : !s16i
   // CHECK: [[RET2:%.*]] = cir.binop(xor, [[RES2]], [[VAL2]]) : !s16i
@@ -1083,7 +1083,7 @@ extern "C" void test_op_and_fetch(void)
   // LLVM:  [[RET1:%.*]] = xor i8 [[INTERM1]], -1
   // LLVM:  store i8 [[RET1]], ptr @uc, align 1
   uc = __sync_nand_and_fetch(&uc, uc);
-  
+
   // CHECK: [[VAL2:%.*]] = cir.cast(integral, {{%.*}} : !u8i), !s16i
   // CHECK: [[RES2:%.*]] = cir.atomic.fetch(nand, {{%.*}} : !cir.ptr<!s16i>, [[VAL2]] : !s16i, seq_cst) fetch_first : !s16i
   // CHECK: [[INTERM2:%.*]] = cir.binop(and, [[RES2]], [[VAL2]]) : !s16i

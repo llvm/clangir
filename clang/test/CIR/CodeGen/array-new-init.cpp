@@ -11,7 +11,7 @@ void t_new_constant_size_constructor() {
   auto p = new E[3];
 }
 
-// BEFORE:  cir.func @_Z31t_new_constant_size_constructorv
+// BEFORE:  cir.func dso_local @_Z31t_new_constant_size_constructorv
 // BEFORE:    %[[NUM_ELEMENTS:.*]] = cir.const #cir.int<3> : !u64i
 // BEFORE:    %[[SIZE_WITHOUT_COOKIE:.*]] = cir.const #cir.int<3> : !u64i
 // BEFORE:    %[[ALLOC_SIZE:.*]] = cir.const #cir.int<11> : !u64i
@@ -29,7 +29,7 @@ void t_new_constant_size_constructor() {
 // BEFORE:      cir.yield
 // BEFORE:    }
 
-// AFTER:  cir.func @_Z31t_new_constant_size_constructorv
+// AFTER:  cir.func dso_local @_Z31t_new_constant_size_constructorv
 // AFTER:    %[[NUM_ELEMENTS:.*]] = cir.const #cir.int<3> : !u64i
 // AFTER:    %[[SIZE_WITHOUT_COOKIE:.*]] = cir.const #cir.int<3> : !u64i
 // AFTER:    %[[ALLOC_SIZE:.*]] = cir.const #cir.int<11> : !u64i

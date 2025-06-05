@@ -12,7 +12,7 @@ typedef struct {
 void buz(int x) {
   T arr[] = { {0, x}, {0, 0} };
 }
-// CIR: cir.func @buz
+// CIR: cir.func dso_local @buz
 // CIR-NEXT: [[X_ALLOCA:%.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["x", init] {alignment = 4 : i64}
 // CIR-NEXT: [[ARR:%.*]] = cir.alloca !cir.array<!rec_T x 2>, !cir.ptr<!cir.array<!rec_T x 2>>, ["arr", init] {alignment = 16 : i64}
 // CIR-NEXT: cir.store{{.*}} %arg0, [[X_ALLOCA]] : !s32i, !cir.ptr<!s32i>
@@ -41,7 +41,7 @@ void foo() {
 void bar(int a, int b, int c) {
   int arr[] = {a,b,c};
 }
-// CIR: cir.func @bar
+// CIR: cir.func dso_local @bar
 // CIR:      [[ARR:%.*]] = cir.alloca !cir.array<!s32i x 3>, !cir.ptr<!cir.array<!s32i x 3>>, ["arr", init] {alignment = 4 : i64}
 // CIR-NEXT: cir.store{{.*}} %arg0, [[A:%.*]] : !s32i, !cir.ptr<!s32i>
 // CIR-NEXT: cir.store{{.*}} %arg1, [[B:%.*]] : !s32i, !cir.ptr<!s32i>
@@ -61,7 +61,7 @@ void bar(int a, int b, int c) {
 void zero_init(int x) {
   int arr[3] = {x};
 }
-// CIR:  cir.func @zero_init
+// CIR:  cir.func dso_local @zero_init
 // CIR:    [[VAR_ALLOC:%.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["x", init] {alignment = 4 : i64}
 // CIR:    %1 = cir.alloca !cir.array<!s32i x 3>, !cir.ptr<!cir.array<!s32i x 3>>, ["arr", init] {alignment = 4 : i64}
 // CIR:    [[TEMP:%.*]] = cir.alloca !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>, ["arrayinit.temp", init] {alignment = 8 : i64}
@@ -93,7 +93,7 @@ void aggr_init() {
   int g = 5;
   int g_arr[5] = {1, 2, 3, g};
 }
-// CIR-LABEL:  cir.func no_proto @aggr_init
+// CIR-LABEL:  cir.func no_proto dso_local @aggr_init
 // CIR:    [[VAR_ALLOC:%.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["g", init] {alignment = 4 : i64}
 // CIR:    %1 = cir.alloca !cir.array<!s32i x 5>, !cir.ptr<!cir.array<!s32i x 5>>, ["g_arr", init] {alignment = 16 : i64}
 // CIR:    [[TEMP:%.*]] = cir.alloca !cir.ptr<!s32i>, !cir.ptr<!cir.ptr<!s32i>>, ["arrayinit.temp", init] {alignment = 8 : i64}

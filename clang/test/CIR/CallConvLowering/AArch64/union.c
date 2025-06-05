@@ -9,7 +9,7 @@ typedef union {
   int a, b, c;
 } U;
 
-// CIR: cir.func @foo(%arg0: !u64i
+// CIR: cir.func dso_local @foo(%arg0: !u64i
 // CIR: %[[#V0:]] = cir.alloca !rec_U, !cir.ptr<!rec_U>, [""] {alignment = 4 : i64}
 // CIR: %[[#V1:]] = cir.cast(integral, %arg0 : !u64i), !u32i
 // CIR: %[[#V2:]] = cir.cast(bitcast, %[[#V0]] : !cir.ptr<!rec_U>), !cir.ptr<!u32i>
@@ -23,7 +23,7 @@ typedef union {
 // LLVM: ret void
 void foo(U u) {}
 
-// CIR: cir.func no_proto @init() -> !u32i
+// CIR: cir.func no_proto dso_local @init() -> !u32i
 // CIR: %[[#V0:]] = cir.alloca !rec_U, !cir.ptr<!rec_U>, ["__retval"] {alignment = 4 : i64}
 // CIR: %[[#V1:]] = cir.load %[[#V0]] : !cir.ptr<!rec_U>, !rec_U
 // CIR: %[[#V2:]] = cir.cast(bitcast, %[[#V0]] : !cir.ptr<!rec_U>), !cir.ptr<!u32i>

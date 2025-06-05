@@ -2133,18 +2133,19 @@ void CIRToLLVMFuncOpLowering::lowerFuncAttributes(
     cir::FuncOp func, bool filterArgAndResAttrs,
     SmallVectorImpl<mlir::NamedAttribute> &result) const {
   for (auto attr : func->getAttrs()) {
-    if (attr.getName() == mlir::SymbolTable::getSymbolAttrName() ||
-        attr.getName() == func.getFunctionTypeAttrName() ||
-        attr.getName() == getLinkageAttrNameString() ||
-        attr.getName() == func.getCallingConvAttrName() ||
-        (filterArgAndResAttrs &&
-         (attr.getName() == func.getArgAttrsAttrName() ||
-          attr.getName() == func.getResAttrsAttrName())))
+    StringRef name = attr.getName();
+    if (name == mlir::SymbolTable::getSymbolAttrName() ||
+        name == func.getFunctionTypeAttrName() ||
+        name == getLinkageAttrNameString() ||
+        name == func.getCallingConvAttrName() ||
+        name == func.getDsoLocalAttrName() ||
+        (filterArgAndResAttrs && (name == func.getArgAttrsAttrName() ||
+                                  name == func.getResAttrsAttrName())))
       continue;
 
     // `CIRDialectLLVMIRTranslationInterface` requires "cir." prefix for
     // dialect specific attributes, rename them.
-    if (attr.getName() == func.getExtraAttrsAttrName()) {
+    if (name == func.getExtraAttrsAttrName()) {
       std::string cirName = "cir." + func.getExtraAttrsAttrName().str();
       attr.setName(mlir::StringAttr::get(getContext(), cirName));
 
@@ -2191,7 +2192,7 @@ mlir::LogicalResult CIRToLLVMFuncOpLowering::matchAndRewrite(
     mlir::ConversionPatternRewriter &rewriter) const {
 
   auto fnType = op.getFunctionType();
-  auto isDsoLocal = op.getDsolocal();
+  auto isDsoLocal = op.getDsoLocal();
   mlir::TypeConverter::SignatureConversion signatureConversion(
       fnType.getNumInputs());
 
@@ -2562,7 +2563,7 @@ mlir::LogicalResult CIRToLLVMGlobalOpLowering::matchAndRewrite(
   const auto llvmType =
       convertTypeForMemory(*getTypeConverter(), dataLayout, cirSymType);
   const auto isConst = op.getConstant();
-  const auto isDsoLocal = op.getDsolocal();
+  const auto isDsoLocal = op.getDsoLocal();
   const auto linkage = convertLinkage(op.getLinkage());
   const auto symbol = op.getSymName();
   mlir::Attribute init = op.getInitialValueAttr();

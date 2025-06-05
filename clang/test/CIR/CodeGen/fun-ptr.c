@@ -24,7 +24,7 @@ int extract_a(Data* d) {
     return d->a;
 }
 
-// CIR: cir.func {{@.*foo.*}}(%arg0: !cir.ptr<!rec_Data>
+// CIR: cir.func dso_local {{@.*foo.*}}(%arg0: !cir.ptr<!rec_Data>
 // CIR:   [[TMP0:%.*]] = cir.alloca !cir.ptr<!rec_Data>, !cir.ptr<!cir.ptr<!rec_Data>>, ["d", init]
 // CIR:   [[TMP1:%.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"]
 // CIR:   [[TMP2:%.*]] = cir.alloca !cir.ptr<!cir.func<(!cir.ptr<!rec_Data>) -> !s32i>>, !cir.ptr<!cir.ptr<!cir.func<(!cir.ptr<!rec_Data>) -> !s32i>>>, ["f", init]
@@ -56,7 +56,7 @@ int foo(Data* d) {
 }
 
 // CIR:  cir.func private {{@.*test.*}}() -> !cir.ptr<!cir.func<()>>
-// CIR:  cir.func {{@.*bar.*}}()
+// CIR:  cir.func dso_local {{@.*bar.*}}()
 // CIR:    [[RET:%.*]] = cir.call {{@.*test.*}}() : () -> !cir.ptr<!cir.func<()>>
 // CIR:    cir.call [[RET]]() : (!cir.ptr<!cir.func<()>>) -> ()
 // CIR:    cir.return

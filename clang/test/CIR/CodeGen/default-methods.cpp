@@ -13,7 +13,7 @@ struct S {
 // CIR-LABEL: cir.func linkonce_odr @_ZN1S1TaSERKS0_({{.*}} {
 // CIR-LABEL: cir.func linkonce_odr @_ZN1SaSERKS_(
 // CIR:         cir.call @_ZN1S1TaSERKS0_(
-// CIR-LABEL: cir.func @_Z1fR1SS0_(
+// CIR-LABEL: cir.func dso_local @_Z1fR1SS0_(
 // CIR:         cir.call @_ZN1SaSERKS_(
 
 // LLVM-LABEL: define linkonce_odr ptr @_ZN1S1TaSERKS0_(

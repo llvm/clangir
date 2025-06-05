@@ -41,18 +41,18 @@ double f1(int n, ...) {
 // CHECK: [[VA_LIST3:%.+]] = getelementptr {{.*}} [[VA_LIST_ALLOCA]], i32 0
 // CHECK: call {{.*}}@llvm.va_end.p0(ptr [[VA_LIST3]])
 
-// CIR: cir.func @f1
+// CIR: cir.func dso_local @f1
 // CIR: [[VA_LIST_ALLOCA:%.+]] = cir.alloca !cir.array<!rec___va_list_tag x 1>,
 // CIR: [[RES:%.+]] = cir.alloca !cir.double, !cir.ptr<!cir.double>, ["res",
-// CIR: [[VASTED_VA_LIST:%.+]] = cir.cast(array_to_ptrdecay, [[VA_LIST_ALLOCA]] 
+// CIR: [[VASTED_VA_LIST:%.+]] = cir.cast(array_to_ptrdecay, [[VA_LIST_ALLOCA]]
 // CIR: cir.va.start [[VASTED_VA_LIST]]
-// CIR: [[VASTED_VA_LIST:%.+]] = cir.cast(array_to_ptrdecay, [[VA_LIST_ALLOCA]] 
+// CIR: [[VASTED_VA_LIST:%.+]] = cir.cast(array_to_ptrdecay, [[VA_LIST_ALLOCA]]
 // CIR: [[FP_OFFSET_P:%.+]] = cir.get_member [[VASTED_VA_LIST]][1] {name = "fp_offset"}
 // CIR: [[FP_OFFSET:%.+]] = cir.load [[FP_OFFSET_P]]
 // CIR: [[OFFSET_CONSTANT:%.+]] = cir.const #cir.int<160>
 // CIR: [[CMP:%.+]] = cir.cmp(le, [[FP_OFFSET]], [[OFFSET_CONSTANT]])
 // CIR: cir.brcond [[CMP]] ^[[InRegBlock:.+]], ^[[InMemBlock:.+]] loc
-// 
+//
 // CIR: ^[[InRegBlock]]:
 // CIR: [[REG_SAVE_AREA_P:%.+]] = cir.get_member [[VASTED_VA_LIST]][3] {name = "reg_save_area"}
 // CIR: [[REG_SAVE_AREA:%.+]] = cir.load [[REG_SAVE_AREA_P]]
@@ -107,12 +107,12 @@ long double f2(int n, ...) {
 // CHECK: [[RETURN_VALUE:%.+]] = load x86_fp80, ptr [[RESULT]]
 // CHECK: ret x86_fp80 [[RETURN_VALUE]]
 
-// CIR: cir.func @f2
+// CIR: cir.func dso_local @f2
 // CIR: [[VA_LIST_ALLOCA:%.+]] = cir.alloca !cir.array<!rec___va_list_tag x 1>, !cir.ptr<!cir.array<!rec___va_list_tag x 1>>, ["valist"]
 // CIR: [[RES:%.+]] = cir.alloca !cir.long_double<!cir.f80>, !cir.ptr<!cir.long_double<!cir.f80>>, ["res"
-// CIR: [[VASTED_VA_LIST:%.+]] = cir.cast(array_to_ptrdecay, [[VA_LIST_ALLOCA]] 
+// CIR: [[VASTED_VA_LIST:%.+]] = cir.cast(array_to_ptrdecay, [[VA_LIST_ALLOCA]]
 // CIR: cir.va.start [[VASTED_VA_LIST]]
-// CIR: [[VASTED_VA_LIST:%.+]] = cir.cast(array_to_ptrdecay, [[VA_LIST_ALLOCA]] 
+// CIR: [[VASTED_VA_LIST:%.+]] = cir.cast(array_to_ptrdecay, [[VA_LIST_ALLOCA]]
 // CIR: [[OVERFLOW_AREA_P:%.+]] = cir.get_member [[VASTED_VA_LIST]][2] {name = "overflow_arg_area"}
 // CIR-DAG: [[OVERFLOW_AREA:%.+]] = cir.load [[OVERFLOW_AREA_P]]
 // CIR-DAG: [[CASTED:%.+]] = cir.cast(bitcast, [[OVERFLOW_AREA]] : !cir.ptr<!void>)

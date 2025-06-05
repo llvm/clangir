@@ -12,81 +12,81 @@
 
 namespace ns {
     __global__ void cpp_global_function_1(int a, int* b, float c) {}
-    // CIR-HOST: cir.func @_ZN2ns36__device_stub__cpp_global_function_1EiPif
-    // CIR-DEVICE: cir.func @_ZN2ns21cpp_global_function_1EiPif
+    // CIR-HOST: cir.func dso_local @_ZN2ns36__device_stub__cpp_global_function_1EiPif
+    // CIR-DEVICE: cir.func dso_local @_ZN2ns21cpp_global_function_1EiPif
 
     __global__ void cpp_global_function_2(int a, int* b, float c) {}
 
-    // CIR-HOST: cir.func @_ZN2ns36__device_stub__cpp_global_function_2EiPif
-    // CIR-DEVICE: cir.func @_ZN2ns21cpp_global_function_2EiPif
+    // CIR-HOST: cir.func dso_local @_ZN2ns36__device_stub__cpp_global_function_2EiPif
+    // CIR-DEVICE: cir.func dso_local @_ZN2ns21cpp_global_function_2EiPif
 
     __host__ void cpp_host_function_1(int a, int* b, float c) {}
 
-    // CIR-HOST: cir.func @_ZN2ns19cpp_host_function_1EiPif
+    // CIR-HOST: cir.func dso_local @_ZN2ns19cpp_host_function_1EiPif
 
     __host__ void cpp_host_function_2(int a, int* b, float c) {}
 
-    // CIR-HOST: cir.func @_ZN2ns19cpp_host_function_2EiPif
+    // CIR-HOST: cir.func dso_local @_ZN2ns19cpp_host_function_2EiPif
 
     __device__ void cpp_device_function_1(int a, int* b, float c) {}
 
-    // CIR-DEVICE: cir.func @_ZN2ns21cpp_device_function_1EiPif
+    // CIR-DEVICE: cir.func dso_local @_ZN2ns21cpp_device_function_1EiPif
 
     __device__ void cpp_device_function_2(int a, int* b, float c) {}
 
-    // CIR-DEVICE: cir.func @_ZN2ns21cpp_device_function_2EiPif
+    // CIR-DEVICE: cir.func dso_local @_ZN2ns21cpp_device_function_2EiPif
 }
 
 __global__ void cpp_global_function_1(int a, int* b, float c) {}
 
-// CIR-HOST: cir.func @_Z36__device_stub__cpp_global_function_1iPif
-// CIR-DEVICE: cir.func @_Z21cpp_global_function_1iPif
+// CIR-HOST: cir.func dso_local @_Z36__device_stub__cpp_global_function_1iPif
+// CIR-DEVICE: cir.func dso_local @_Z21cpp_global_function_1iPif
 
 __global__ void cpp_global_function_2(int a, int* b, float c) {}
 
-// CIR-HOST: cir.func @_Z36__device_stub__cpp_global_function_2iPif
-// CIR-DEVICE: cir.func @_Z21cpp_global_function_2iPif
+// CIR-HOST: cir.func dso_local @_Z36__device_stub__cpp_global_function_2iPif
+// CIR-DEVICE: cir.func dso_local @_Z21cpp_global_function_2iPif
 
 __host__ void cpp_host_function_1(int a, int* b, float c) {}
 
-// CIR-HOST: cir.func @_Z19cpp_host_function_1iPif
+// CIR-HOST: cir.func dso_local @_Z19cpp_host_function_1iPif
 
 __host__ void cpp_host_function_2(int a, int* b, float c) {}
 
-// CIR-HOST: cir.func @_Z19cpp_host_function_2iPif
+// CIR-HOST: cir.func dso_local @_Z19cpp_host_function_2iPif
 
 __device__ void cpp_device_function_1(int a, int* b, float c) {}
 
-// CIR-DEVICE: cir.func @_Z21cpp_device_function_1iPif
+// CIR-DEVICE: cir.func dso_local @_Z21cpp_device_function_1iPif
 
 __device__ void cpp_device_function_2(int a, int* b, float c) {}
 
-// CIR-DEVICE: cir.func @_Z21cpp_device_function_2iPif
+// CIR-DEVICE: cir.func dso_local @_Z21cpp_device_function_2iPif
 
 extern "C" {
     __global__ void c_global_function_1(int a, int* b, float c) {}
 
-    // CIR-HOST: cir.func @__device_stub__c_global_function_1
-    // CIR-DEVICE: cir.func @c_global_function_1
+    // CIR-HOST: cir.func dso_local @__device_stub__c_global_function_1
+    // CIR-DEVICE: cir.func dso_local @c_global_function_1
 
     __global__ void c_global_function_2(int a, int* b, float c) {}
 
-    // CIR-HOST: cir.func @__device_stub__c_global_function_2
-    // CIR-DEVICE: cir.func @c_global_function_2
+    // CIR-HOST: cir.func dso_local @__device_stub__c_global_function_2
+    // CIR-DEVICE: cir.func dso_local @c_global_function_2
 
     __host__ void c_host_function_1(int a, int* b, float c) {}
 
-    // CIR-HOST: cir.func @c_host_function_1
+    // CIR-HOST: cir.func dso_local @c_host_function_1
 
     __host__ void c_host_function_2(int a, int* b, float c) {}
 
-    // CIR-HOST: cir.func @c_host_function_2
+    // CIR-HOST: cir.func dso_local @c_host_function_2
 
     __device__ void c_device_function_1(int a, int* b, float c) {}
 
-    // CIR-DEVICE: cir.func @c_device_function_1
+    // CIR-DEVICE: cir.func dso_local @c_device_function_1
 
     __device__ void c_device_function_2(int a, int* b, float c) {}
 
-    // CIR-DEVICE: cir.func @c_device_function_2
+    // CIR-DEVICE: cir.func dso_local @c_device_function_2
 }

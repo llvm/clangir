@@ -14,7 +14,7 @@ int f1(int n, ...) {
 }
 
 // BEFORE: !rec___va_list = !cir.record<struct "__va_list" {!cir.ptr<!void>, !cir.ptr<!void>, !cir.ptr<!void>, !s32i, !s32i}
-// BEFORE:  cir.func @f1(%arg0: !s32i, ...) -> !s32i
+// BEFORE:  cir.func dso_local @f1(%arg0: !s32i, ...) -> !s32i
 // BEFORE:  [[RETP:%.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"]
 // BEFORE:  [[RESP:%.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["res", init]
 // BEFORE:  cir.va.start [[VARLIST:%.*]] : !cir.ptr<!rec___va_list>
@@ -27,7 +27,7 @@ int f1(int n, ...) {
 // BEFORE:   cir.return [[RETV]] : !s32i
 
 // AFTER: !rec___va_list = !cir.record<struct "__va_list" {!cir.ptr<!void>, !cir.ptr<!void>, !cir.ptr<!void>, !s32i, !s32i}
-// AFTER:  cir.func @f1(%arg0: !s32i, ...) -> !s32i
+// AFTER:  cir.func dso_local @f1(%arg0: !s32i, ...) -> !s32i
 // AFTER:  [[RETP:%.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["__retval"]
 // AFTER:  [[RESP:%.*]] = cir.alloca !s32i, !cir.ptr<!s32i>, ["res", init]
 // AFTER:  cir.va.start [[VARLIST:%.*]] : !cir.ptr<!rec___va_list>
